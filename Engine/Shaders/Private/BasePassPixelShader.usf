@@ -1555,7 +1555,6 @@ void FPixelShaderInOut_MainPS(
 
 	// Clear only what should be and keep the rest
 	GBuffer = (FGBufferData)0;						// We should not rely on gbuffer for anything else to make any pass work.
-	GBuffer.ShadingModelID = SHADINGMODELID_STRATA;	// STRATA_TODO remove that after SSS has been moved to strata completely
 
 	uint2 PixelPos = In.SvPosition.xy;
 

@@ -143,9 +143,16 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 
 		// Top layer texture
 		{
-			FRDGTextureRef Texture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSizeXY, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("StrataTopLayerNormalTexture"));
+			FRDGTextureRef Texture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSizeXY, PF_R32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("StrataTopLayerNormalTexture"));
 			GraphBuilder.PreallocateTexture(Texture);
 			StrataSceneData.TopLayerNormalTexture = GraphBuilder.GetPooledTexture(Texture);
+		}
+
+		// SSS texture
+		{
+			FRDGTextureRef Texture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSizeXY, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("StrataSSSTexture"));
+			GraphBuilder.PreallocateTexture(Texture);
+			StrataSceneData.SSSTexture = GraphBuilder.GetPooledTexture(Texture);
 		}
 
 		// Energy LUT
@@ -243,6 +250,7 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 		StrataUniformParameters.GGXEnergyLUT2DTexture = View.StrataSceneData->GGXEnergyLUT2DTexture->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters.GGXEnergyLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		StrataUniformParameters.GGXEnergyLUTScaleBias = GetStrataGGXEnergyLUTScaleBias();
+		StrataUniformParameters.SSSTexture = View.StrataSceneData->SSSTexture->GetRenderTargetItem().ShaderResourceTexture;
 		View.StrataSceneData->StrataGlobalUniformParameters = CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleFrame);
 		return View.StrataSceneData->StrataGlobalUniformParameters;
 	}
@@ -251,14 +259,40 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 		// Create each time. This path will go away when Strata is always enabled anyway.
 		StrataUniformParameters.MaxBytesPerPixel = 0;
 		StrataUniformParameters.MaterialLobesBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
-		StrataUniformParameters.ClassificationTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
-		StrataUniformParameters.TopLayerNormalTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.ClassificationTexture = GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.TopLayerNormalTexture = GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.SSSTexture = GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters.GGXEnergyLUT3DTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters.GGXEnergyLUT2DTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters.GGXEnergyLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		StrataUniformParameters.GGXEnergyLUTScaleBias = GetStrataGGXEnergyLUTScaleBias();
 		return CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleDraw);
 	}
+}
+
+FTextureRHIRef GetClassificationTexture(const FViewInfo& View)
+{
+	if (View.StrataSceneData)
+	{
+		return View.StrataSceneData->ClassificationTexture->GetRenderTargetItem().ShaderResourceTexture;
+	}
+	return GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
+}
+FTextureRHIRef GetTopLayerNormalTexture(const FViewInfo& View)
+{
+	if (View.StrataSceneData)
+	{
+		return View.StrataSceneData->TopLayerNormalTexture->GetRenderTargetItem().ShaderResourceTexture;
+	}
+	return GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
+}
+FTextureRHIRef GetSSSTexture(const FViewInfo& View)
+{
+	if (View.StrataSceneData)
+	{
+		return View.StrataSceneData->SSSTexture->GetRenderTargetItem().ShaderResourceTexture;
+	}
+	return GSystemTextures.ZeroUIntDummy->GetRenderTargetItem().ShaderResourceTexture;
 }
 
 ////////////////////////////////////////////////////////////////////////// 
@@ -388,6 +422,7 @@ class FStrataMaterialClassificationPassPS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("SHADER_CATEGORIZATION"), 1);
 		OutEnvironment.SetRenderTargetOutputFormat(0, PF_R32_UINT);
 		OutEnvironment.SetRenderTargetOutputFormat(1, PF_R32_UINT);
+		OutEnvironment.SetRenderTargetOutputFormat(2, PF_R32G32_UINT);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FStrataMaterialClassificationPassPS, "/Engine/Private/Strata/StrataMaterialClassification.usf", "MainPS", SF_Pixel);
@@ -654,6 +689,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);		
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(ClassificationTexture, ERenderTargetLoadAction::EClear);
 			PassParameters->RenderTargets[1] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(View.StrataSceneData->TopLayerNormalTexture), ERenderTargetLoadAction::EClear);
+			PassParameters->RenderTargets[2] = FRenderTargetBinding(GraphBuilder.RegisterExternalTexture(View.StrataSceneData->SSSTexture), ERenderTargetLoadAction::EClear);
 
 			if (ShaderDrawDebug::IsShaderDrawDebugEnabled())
 			{

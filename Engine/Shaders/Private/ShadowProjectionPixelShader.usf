@@ -257,32 +257,51 @@ void Main(
 
 	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && !FORWARD_SHADING && !APPLY_TRANSLUCENCY_SHADOWS && !SUBPIXEL_SHADOW
 
-		FGBufferData GBufferData	= GetGBufferData(ScreenUV); 
-		bool bHasSubsurface			= IsSubsurfaceModel(GBufferData.ShadingModelID);
-		bool bHasSubsurfaceProfile	= GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
-		bool bIsEyeOrHair 			= GBufferData.ShadingModelID == SHADINGMODELID_HAIR || GBufferData.ShadingModelID == SHADINGMODELID_EYE;
-		#if STRATA_ENABLED
+		bool bHasSubsurface			= false;
+		bool bHasSubsurfaceProfile	= false;
+		bool bIsEyeOrHair 			= false;
+	#if STRATA_ENABLED
+		const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(PixelCoord));
 		{
-			const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(PixelCoord));
 			if (StrataData.bIsStrataMaterial)
 			{
-				bIsEyeOrHair			= bIsEyeOrHair || StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_HAIR);
-				bHasSubsurface			= bHasSubsurface || StrataData.bHasSubsurface || bIsEyeOrHair;
-				bHasSubsurfaceProfile	= bHasSubsurfaceProfile || StrataData.bHasSubsurfaceProfile;
+				bIsEyeOrHair			= StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_HAIR);
+				bHasSubsurface			= StrataData.bHasSubsurface || bIsEyeOrHair;
+				bHasSubsurfaceProfile	= StrataData.bHasSubsurfaceProfile;
 			}
 		}
-		#endif
+	#else // STRATA_ENABLED
+		FGBufferData GBufferData = GetGBufferData(ScreenUV);
+		{
+			bHasSubsurface = IsSubsurfaceModel(GBufferData.ShadingModelID);
+			bHasSubsurfaceProfile = GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
+			bIsEyeOrHair = GBufferData.ShadingModelID == SHADINGMODELID_HAIR || GBufferData.ShadingModelID == SHADINGMODELID_EYE;
+		}
+	#endif // STRATA_ENABLED
 
 		BRANCH
 		if (bIsSubsurfaceCompatible && bHasSubsurface)
 		{
+		#if STRATA_ENABLED
+			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(SVPos.xy, 0)));
+
+			float Opacity = 1;
+			float Density = 1;
+			if (!bIsEyeOrHair && SSSData.bIsProfile)
+			{
+				Opacity = SSSData.ProfileRadiusScale;
+				Density = SubsurfaceDensityFromOpacity(Opacity);
+			}
+		#else // STRATA_ENABLED
 			float Opacity = GBufferData.CustomData.a;
 			float Density = SubsurfaceDensityFromOpacity(Opacity);
-			if(bIsEyeOrHair)
+			if (bIsEyeOrHair)
 			{
 				Opacity = 1;
 				Density = 1;
 			}
+		#endif // STRATA_ENABLED
+
 			//@todo - Use a larger kernel filter based on material opacity
 			// This is not being done currently because a varying opacity causes discontinuities in the shadow result
 			// Note: Snapping based on the largest size kernel is done in FProjectedShadowInfo::FProjectedShadowInfo, MaxDownsampleFactor is set to 4
@@ -311,7 +330,15 @@ void Main(
 			  #if USE_TRANSMISSION
 				if (bHasSubsurfaceProfile)
 				{
-					SSSTransmission = CalcTransmissionThickness(ScreenPosition.xyz, LightPositionAndInvRadius.xyz, GBufferData, Settings);
+		#if STRATA_ENABLED
+					const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(SVPos.xy, 0)));
+					const float3 WorldNormal = TopLayerData.WorldNormal;
+					FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(ExtractSubsurfaceProfileInt(SSSData.ProfilePackedId));
+		#else // STRATA_ENABLED
+					float3 WorldNormal = GBufferData.WorldNormal;
+					FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(GBufferData);
+		#endif // STRATA_ENABLED
+					SSSTransmission = CalcTransmissionThickness(ScreenPosition.xyz, LightPositionAndInvRadius.xyz, WorldNormal, TransmissionParams, Settings);
 				}
 				else
 			  #endif
@@ -369,6 +396,12 @@ float3 PointLightDepthBias;
 // xy: depth projection parameters
 float2 PointLightProjParameters;
 
+#if STRATA_ENABLED
+Texture2D<uint> StrataClassificationTexture;
+Texture2D<uint> StrataTopLayerNormalTexture;
+Texture2D<uint2> StrataSSSTexture;
+#endif
+
 /** Pixel shader for projecting a one pass point light shadow from a cube map. */
 void MainOnePassPointLightPS(
 	in float4 SVPos : SV_POSITION,
@@ -411,10 +444,17 @@ void MainOnePassPointLightPS(
 	float SlopeBias = 0;
 #if !SUBPIXEL_SHADOW
 	{
+#if STRATA_ENABLED
+		const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(StrataTopLayerNormalTexture.Load(uint3(SVPos.xy, 0)));
+		const float3 WorldNormal = TopLayerData.WorldNormal;
+#else // STRATA_ENABLED
 		FGBufferData GBufferData = GetGBufferData(ScreenUV);
+		const float3 WorldNormal = GBufferData.WorldNormal;
+#endif // STRATA_ENABLED
+
 		const float3 LightDirection = normalize(WorldSampleToLightVec);
-		const float NoL = saturate(dot(GBufferData.WorldNormal, LightDirection));
-		SlopeBias = (1-NoL) * PointLightDepthBias.y;
+		const float NoL = saturate(dot(WorldNormal, LightDirection));
+		SlopeBias = (1 - NoL) * PointLightDepthBias.y;
 	}
 #endif
 
@@ -440,13 +480,32 @@ void MainOnePassPointLightPS(
 
 #if USE_TRANSMISSION
 	float Thickness = 1.0f;
+
+#if STRATA_ENABLED
+
+	const FStrataClassification StrataData = StrataUnpackClassificationData(StrataClassificationTexture.Load(uint3(SVPos.xy, 0)));
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(StrataTopLayerNormalTexture.Load(uint3(SVPos.xy, 0)));
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(StrataSSSTexture.Load(uint3(SVPos.xy, 0)));
+
+	const bool IsSubsurfaceProfile = StrataData.bHasSubsurfaceProfile;
+	const float3 WorldNormal = TopLayerData.WorldNormal;
+	FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(ExtractSubsurfaceProfileInt(SSSData.ProfilePackedId));
+
+#else // STRATA_ENABLED
+
 	// TODO: Use existing GBuffer data, instead of overwriting?
 	FGBufferData GBufferData = GetGBufferData(ScreenUV);
-	//if bSubsurface get SSS shadow,else opaque shadow.
+
 	bool IsSubsurfaceProfile = GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
+	float3 WorldNormal = GBufferData.WorldNormal;
+	FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(GBufferData);
+
+#endif // STRATA_ENABLED
+
+	//if bSubsurface get SSS shadow,else opaque shadow.
 	if (IsSubsurfaceProfile)
 	{
-		Thickness = CalcTransmissionThickness(GBufferData, WorldSampleToLightVec, PointLightProjParameters, LightPositionAndInvRadius.w, 0);
+		Thickness = CalcTransmissionThickness(WorldNormal, TransmissionParams, WorldSampleToLightVec, PointLightProjParameters, LightPositionAndInvRadius.w, 0);
 	}
 	OutColor.a = IsSubsurfaceProfile ? EncodeLightAttenuation(Thickness) : OutColor.b;
 #endif // USE_TRANSMISSION

@@ -28,8 +28,8 @@ void ComputePostProcessBSDFData(
 	const float FullThroughput = 1.0f;
 	const float FullyRough = 1.0f;
 
-	const float3 BSDFCoverage = BSDF.Weight;
-	const float  BSDFCoverageAvg = dot(BSDF.Weight,1.0f/3.0f);
+	const float3 BSDFWeight = BSDF.Weight;
+	const float  BSDFWeightAvg = dot(BSDF.Weight,1.0f/3.0f);
 
 	// STRATA_TODO apply the same normal transform as for the material
 	float3x3 TangentBasis = StrataGetBSDFSharedBasis(Header, BSDF, StrataAddressing);
@@ -57,20 +57,28 @@ void ComputePostProcessBSDFData(
 		if (bTopLayer)
 		{
 			// Setup SSR for the top layer
-			TopLayerRoughness += BSDFCoverageAvg * SLAB_ROUGHNESSX(BSDF);
-			TopLayerRoughnessAverageCount += BSDFCoverageAvg;
+			TopLayerRoughness += BSDFWeightAvg * SLAB_ROUGHNESSX(BSDF);
+			TopLayerRoughnessAverageCount += BSDFWeightAvg;
 		}
 
 		Classification.bIsSimple = Classification.bIsSimple && IsStrataFastPathCompatible(BSDF);
 
-		// Select the first/toppest layer with subsurface scattering
-		if (BSDF_GETHASSCATTERING(BSDF) && BSDFCoverageAvg > 0 && !SSS.bHasSubsurface)
+		// Select the latest encoutered SSS BSDF
+		if (BSDF_GETHASSCATTERING(BSDF) && BSDFWeightAvg > 0)
 		{
-			SSS.bHasSubsurface = true;
-			SSS.bHasProfile			= BSDF_GETHASSSSPROFILE(BSDF);
+			Classification.bHasSubsurface = true;
+
+			SSS.BaseColor = SLAB_BASECOLOR(BSDF);
+
+			// STRATA_TODO when layered translucency is figured out once again, only bottom layer should run SSS
+
+			// Profile ID: we only keep the latest ID, and profile will overtake any non-profile based SSS
+			SSS.bIsProfile			= SSS.bIsProfile || BSDF_GETHASSSSPROFILE(BSDF);
 			SSS.ProfilePackedId		= SLAB_SSSPROFILEID(BSDF);
 			SSS.ProfileRadiusScale	= SLAB_SSSPROFILERADIUSSCALE(BSDF);
-			SSS.BaseColor			= SLAB_BASECOLOR(BSDF);
+
+			// STRATA_TODO This should be accumulated according to the BSDF weight when we run this in the base pass.
+			// We cannot do that now because BSDFWeight contains weight*coverage*trhougput all mixed together.
 			SSS.DMFP				= SLAB_SSSDMFP(BSDF);
 		}
 		break;
@@ -91,13 +99,11 @@ void ComputePostProcessBSDFData(
 
 	case STRATA_BSDF_TYPE_HAIR:
 	{
-		Classification.bHasTransmission = true;
-
 		// No SSR
 		if (bTopLayer)
 		{
-			TopLayerRoughness += BSDFCoverageAvg * FullyRough; // Do not trigger SSR by using fully rough
-			TopLayerRoughnessAverageCount += BSDFCoverageAvg;
+			TopLayerRoughness += BSDFWeightAvg * FullyRough; // Do not trigger SSR by using fully rough
+			TopLayerRoughnessAverageCount += BSDFWeightAvg;
 		}
 		break;
 	}
@@ -108,8 +114,8 @@ void ComputePostProcessBSDFData(
 		{
 			const float Roughness = SLW_ROUGHNESS(BSDF);
 
-			TopLayerRoughness += BSDFCoverageAvg * Roughness;
-			TopLayerRoughnessAverageCount += BSDFCoverageAvg;
+			TopLayerRoughness += BSDFWeightAvg * Roughness;
+			TopLayerRoughnessAverageCount += BSDFWeightAvg;
 		}
 		break;
 	}
@@ -119,8 +125,9 @@ void ComputePostProcessBSDFData(
 
 void MainPS(
 	float4 SVPos : SV_POSITION, 
-	out uint OutColor0 : SV_Target0,
-	out uint OutColor1 : SV_Target1)
+	out uint  OutColor0 : SV_Target0,
+	out uint  OutColor1 : SV_Target1,
+	out uint2 OutColor2 : SV_Target2)
 {
 	const uint2 PixelPos = uint2(SVPos.xy);
 	
@@ -162,6 +169,7 @@ void MainPS(
 
 	OutColor0 = StrataPackClassificationData(ClassificationData);
 	OutColor1 = StrataPackTopLayerData(TopLayerData);
+	OutColor2 = StrataPackSSSData(SSSData);
 }
 #endif // SHADER_CATEGORIZATION
 

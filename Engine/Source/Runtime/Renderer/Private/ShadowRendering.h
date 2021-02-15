@@ -1473,6 +1473,9 @@ public:
 		PointLightProjParameters.Bind(Initializer.ParameterMap, TEXT("PointLightProjParameters"));
 		TransmissionProfilesTexture.Bind(Initializer.ParameterMap, TEXT("SSProfilesTexture"));
 		HairCategorizationTexture.Bind(Initializer.ParameterMap, TEXT("HairCategorizationTexture"));
+		ClassificationTexture.Bind(Initializer.ParameterMap, TEXT("StrataClassificationTexture"));
+		TopLayerNormalTexture.Bind(Initializer.ParameterMap, TEXT("StrataTopLayerNormalTexture"));
+		SSSTexture.Bind(Initializer.ParameterMap, TEXT("StrataSSSTexture"));
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1492,7 +1495,7 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList, 
 		int32 ViewIndex,
-		const FSceneView& View,
+		const FViewInfo& View,
 		const FHairStrandsVisibilityData* HairVisibilityData,
 		const FProjectedShadowInfo* ShadowInfo)
 	{
@@ -1517,6 +1520,13 @@ public:
 		if (bUseSubPixel && HairVisibilityData && HairVisibilityData->CategorizationTexture)
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
+		}
+
+		if (Strata::IsStrataEnabled())
+		{
+			SetTextureParameter(RHICmdList, ShaderRHI, ClassificationTexture, Strata::GetClassificationTexture(View));
+			SetTextureParameter(RHICmdList, ShaderRHI, TopLayerNormalTexture, Strata::GetTopLayerNormalTexture(View));
+			SetTextureParameter(RHICmdList, ShaderRHI, SSSTexture, Strata::GetSSSTexture(View));
 		}
 
 		{
@@ -1560,6 +1570,9 @@ private:
 	LAYOUT_FIELD(FShaderParameter, PointLightProjParameters);
 	LAYOUT_FIELD(FShaderResourceParameter, TransmissionProfilesTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, HairCategorizationTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, ClassificationTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, TopLayerNormalTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, SSSTexture);
 };
 
 // Reversed Z

@@ -113,7 +113,7 @@ float CalculateThickness(float ShadowmapDepth, FPCFSamplerSettings Settings, flo
 	return Thickness;
 }
 
-float CalcTransmissionThickness(float3 ViewPos, float3 LightPos, FGBufferData GBufferData, FPCFSamplerSettings Settings)
+float CalcTransmissionThickness(float3 ViewPos, float3 LightPos, float3 WorldNormal, FTransmissionProfileParams TransmissionParams, FPCFSamplerSettings Settings)
 {
 	///Get -NoL, maybe unnecessary.
 	float4 HomogeneousWorldPosition = mul(float4(ViewPos.xyz, 1), View.ScreenToWorld);
@@ -121,12 +121,10 @@ float CalcTransmissionThickness(float3 ViewPos, float3 LightPos, FGBufferData GB
 	float3 ToLight = LightPos.xyz - WorldPosition;
 	float DistanceSqr = dot(ToLight, ToLight);
 	float3 L = ToLight * rsqrt(DistanceSqr);
-	float NoL = 1;// dot(-L, GBufferData.WorldNormal);
-
-	FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(GBufferData);
+	float NoL = 1;// dot(-L, WorldNormal);
 
 	//Shrink Pos in View Space.
-	float3 ViewNormal = mul(GBufferData.WorldNormal, (float3x3)View.TranslatedWorldToView);
+	float3 ViewNormal = mul(WorldNormal, (float3x3)View.TranslatedWorldToView);
 
 	//Shrink world position with neg worldNormal to get thickness
 	//These scalar const is based on adjust expericence.
@@ -167,17 +165,15 @@ float CalcTransmissionThickness(float3 ViewPos, float3 LightPos, FGBufferData GB
 
 
 /** Computes thickness for a given world position from a cubemap shadowmap used on a point light. */
-float CalcTransmissionThickness(FGBufferData GBufferData, float3 WorldSampleToLightVec, float2 ProjParam, float LightInvRadius, float DepthBias)
+float CalcTransmissionThickness(float3 WorldNormal, FTransmissionProfileParams TransmissionParams, float3 WorldSampleToLightVec, float2 ProjParam, float LightInvRadius, float DepthBias)
 {
 	float Thickness = 1;
-
-	FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(GBufferData);
 
 	float DepthScale = TransmissionParams.ExtinctionScale * 3.1f;
 	float NormalScale = TransmissionParams.NormalScale * 0.5;
 
 	//Shrink pos aligh -WorldNormal
-	float3 Normal = GBufferData.WorldNormal;
+	float3 Normal = WorldNormal;
 	float3 LightRelativeBiasedPosition = -WorldSampleToLightVec - Normal * NormalScale;
 	float DistanceSqr = dot(WorldSampleToLightVec, WorldSampleToLightVec);
 	float3 L = WorldSampleToLightVec * rsqrt(DistanceSqr);

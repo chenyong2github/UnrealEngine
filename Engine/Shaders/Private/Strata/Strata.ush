@@ -217,6 +217,8 @@ struct FStrataBSDF
 
 void StrataRequestSharedNormalTangentBasis(inout uint NormalTypes, uint Index);
 
+uint   PackRGBA8(float4 rgba);
+float4 UnpackRGBA8(uint rgba);
 uint   PackR11G11B10F(float3 rgb);
 float3 UnpackR11G11B10F(uint rgb);
 uint   PackColorLinearToGamma2AlphaLinear(float4 rgba);
@@ -232,7 +234,6 @@ struct FStrataClassification
 	bool bIsStrataMaterial;
 	bool bHasSubsurface;
 	bool bHasSubsurfaceProfile;
-	bool bHasTransmission;
 	bool bIsSimple;
 };
 
@@ -247,8 +248,7 @@ uint StrataPackClassificationData(FStrataClassification In)
 		((In.bIsStrataMaterial		? 1 : 0) << 24 ) |
 		((In.bHasSubsurface			? 1 : 0) << 25 ) | 
 		((In.bHasSubsurfaceProfile	? 1 : 0) << 26 ) |
-		((In.bHasTransmission		? 1 : 0) << 27 ) |
-		((In.bIsSimple				? 1 : 0) << 28 );
+		((In.bIsSimple				? 1 : 0) << 27 );
 }
 
 FStrataClassification StrataUnpackClassificationData(uint In)
@@ -262,8 +262,7 @@ FStrataClassification StrataUnpackClassificationData(uint In)
 	Out.bIsStrataMaterial		= (In >> 24) & 0x1;
 	Out.bHasSubsurface			= (In >> 25) & 0x1;
 	Out.bHasSubsurfaceProfile	= (In >> 26) & 0x1;
-	Out.bHasTransmission		= (In >> 27) & 0x1;
-	Out.bIsSimple				= (In >> 28) & 0x1;
+	Out.bIsSimple				= (In >> 27) & 0x1;
 
 	Out.MaterialAO = Square(float(MaterialAO8Bits) * (1.0f / 255.0f));
 	Out.TopLayerRoughness = float(TopLayerRoughness8Bits) * (1.0f / 255.0f);
@@ -273,19 +272,6 @@ FStrataClassification StrataUnpackClassificationData(uint In)
 struct FStrataTopLayerData
 {
 	float3 WorldNormal;
-};
-
-struct FStrataSubsurfaceData
-{
-	bool   bHasSubsurface;
-	bool   bHasProfile;
-
-	float3 BaseColor;
-
-	float  ProfilePackedId;		// Integer ID packed in 8bits as float
-	float  ProfileRadiusScale;
-
-	float3 DMFP;				// When the profile is not used, a per pixel DMFP is used
 };
 
 uint StrataPackTopLayerData(FStrataTopLayerData In)
@@ -298,6 +284,46 @@ FStrataTopLayerData StrataUnpackTopLayerData(uint In)
 {
 	FStrataTopLayerData Out = (FStrataTopLayerData)0;
 	Out.WorldNormal = StrataUnpackNormal(In);
+	return Out;
+}
+
+struct FStrataSubsurfaceData
+{
+	float3 BaseColor;
+
+	bool   bIsProfile;
+	float  ProfilePackedId;		// Integer ID packed in 8bits as float
+	float  ProfileRadiusScale;
+
+	float3 DMFP;				// When the profile is not used, a per pixel DMFP is used
+};
+
+uint2 StrataPackSSSData(FStrataSubsurfaceData In)
+{
+	uint2 Out;
+	Out.x = PackColorLinearToGamma2AlphaLinear(float4(In.BaseColor, In.bIsProfile ? 1.0f : 0.0f));
+	Out.y = In.bIsProfile ? PackRGBA8(float4(In.ProfilePackedId, In.ProfileRadiusScale, 0.0f, 0.0f)) : PackR11G11B10F(In.DMFP);
+	return Out;
+}
+
+FStrataSubsurfaceData StrataUnpackSSSData(uint2 In)
+{
+	FStrataSubsurfaceData Out = (FStrataSubsurfaceData)0;
+
+	float4 Data0 = UnpackColorGamma2ToLinearAlphaLinear(In.x);
+	Out.BaseColor = Data0.rgb;
+	Out.bIsProfile= Data0.a > 0.0f;
+
+	if (Out.bIsProfile)
+	{
+		float4 Data1 = UnpackRGBA8(In.y);
+		Out.ProfilePackedId = Data1.x;
+		Out.ProfileRadiusScale = Data1.y;
+	}
+	else
+	{
+		Out.DMFP = PackR11G11B10F(In.y);
+	}
 	return Out;
 }
 
