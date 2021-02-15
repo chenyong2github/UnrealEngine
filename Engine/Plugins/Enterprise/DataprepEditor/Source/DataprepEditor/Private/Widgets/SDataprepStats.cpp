@@ -55,82 +55,92 @@ namespace DataprepStats
 			if (ItemPtr->StatPtr.IsValid())
 			{
 				// This is item row
-				if (InColumnName == DataprepStats::ColumnNameOnImport || InColumnName == DataprepStats::ColumnNameAfterExecute)
+				if (InColumnName == DataprepStats::ColumnNameOnImport)
 				{
 					CellText = SNew(SBox)
+					.Padding(FMargin(MarginHoriz, MarginVert))
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(ItemPtr->StatPtr->StatName)
+					];
+				}
+				else if (InColumnName == DataprepStats::ColumnNameAfterExecute)
+				{
+					CellText = SNew(SBox)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.MaxWidth(1.0f)
+						[
+							SNew(SColorBlock)
+							.Color(DividerColor)
+						]
+						+ SHorizontalBox::Slot()
 						.Padding(FMargin(MarginHoriz, MarginVert))
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
 							.Text(ItemPtr->StatPtr->StatName)
-						];
+						]
+					];
 				}
-				else if (InColumnName == DataprepStats::ColumnNameOnImportCount)
+				else if (InColumnName == DataprepStats::ColumnNameOnImportCount || InColumnName == DataprepStats::ColumnNameAfterExecuteCount)
 				{
-					TSharedPtr<STextBlock> CountText = CreateTextForCount(&ItemPtr->StatPtr->PreExecuteCount);
+					TSharedPtr<STextBlock> CountText;
 
+					if (InColumnName == DataprepStats::ColumnNameAfterExecuteCount)
+					{
+						CountText = CreateTextForCount(&ItemPtr->StatPtr->PostExecuteCount);
+						CountText->SetColorAndOpacity(FLinearColor(0.9f, 0.9f, 0.0f));
+					}
+					else
+					{
+						CountText = CreateTextForCount(&ItemPtr->StatPtr->PreExecuteCount);
+					}
+					
 					CellText = SNew(SBox)
-						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot()
-							.Padding(FMargin(MarginHoriz, MarginVert))
-							.VAlign(VAlign_Center)
-							[
-								CountText.ToSharedRef()
-							]
-							+ SHorizontalBox::Slot()
-							.MaxWidth(1.0f)
-							[
-								SNew(SColorBlock)
-								.Color(DividerColor)
-							]
-						];
-				}
-				else if (InColumnName == DataprepStats::ColumnNameAfterExecuteCount)
-				{
-					TSharedPtr<STextBlock> CountText = CreateTextForCount(&ItemPtr->StatPtr->PostExecuteCount);
-					CountText->SetColorAndOpacity(FLinearColor(0.9f, 0.9f, 0.0f));
-
-					CellText = SNew(SBox)
-						.Padding(FMargin(MarginHoriz, MarginVert))
-						.VAlign(VAlign_Center)
-						[
-							CountText.ToSharedRef()
-						];
+					.Padding(FMargin(MarginHoriz, MarginVert))
+					.VAlign(VAlign_Center)
+					[
+						CountText.ToSharedRef()
+					];
 				}
 			}
 			else
 			{
 				// This is category row
-				if (InColumnName == DataprepStats::ColumnNameOnImport || InColumnName == DataprepStats::ColumnNameAfterExecute)
+				if (InColumnName == DataprepStats::ColumnNameOnImport)
 				{
 					CellText = SNew(SBox)
-						.Padding(FMargin(4, 12, 4, 8))
+					.Padding(FMargin(4, 12, 4, 8))
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromName(ItemPtr->StatCategory))
+						.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+					];
+				}
+				else if (InColumnName == DataprepStats::ColumnNameAfterExecute)
+				{
+					CellText = SNew(SBox)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.MaxWidth(1.0f)
+						[
+							SNew(SColorBlock)
+							.Color(DividerColor)
+						]
+						+ SHorizontalBox::Slot()
+						.Padding(FMargin(MarginHoriz, MarginVert))
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
 							.Text(FText::FromName(ItemPtr->StatCategory))
 							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-						];
-				}
-				else if (InColumnName == DataprepStats::ColumnNameOnImportCount)
-				{
-					CellText = SNew(SBox)
-						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot()
-							.Padding(FMargin(MarginHoriz, MarginVert))
-							.VAlign(VAlign_Center)
-							[
-								SNew(STextBlock)
-							]
-							+ SHorizontalBox::Slot()
-							.MaxWidth(1.0f)
-							[
-								SNew(SColorBlock)
-								.Color(DividerColor)
-							]
-						];
+						]
+					];
 				}
 				else
 				{
@@ -282,13 +292,13 @@ void SDataprepStats::Construct(const FArguments& InArgs)
 							.ManualWidth(250.0f)
 						+ SHeaderRow::Column(DataprepStats::ColumnNameOnImportCount)
 							.DefaultLabel(LOCTEXT("ColumnPreCountLabel", ""))
-							.ManualWidth(100.0f)
+							.ManualWidth(200.0f)
 						+ SHeaderRow::Column(DataprepStats::ColumnNameAfterExecute)
 							.DefaultLabel(LOCTEXT("ColumnEfterExecuteLabel", "After Execute"))
 							.ManualWidth(250.0f)
 						+ SHeaderRow::Column(DataprepStats::ColumnNameAfterExecuteCount)
 							.DefaultLabel(LOCTEXT("ColumnPostCountLabel", ""))
-							.ManualWidth(100.0f)
+							.ManualWidth(200.0f)
 					)
 			]
 		]

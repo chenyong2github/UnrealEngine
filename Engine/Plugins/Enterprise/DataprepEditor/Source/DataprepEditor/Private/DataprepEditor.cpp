@@ -1309,6 +1309,7 @@ void FDataprepEditor::RefreshStatsTab()
 				return SceneViewportView->GetDrawCallsAverage();
 			}));
 			StatsWidget->SetStats(PreExecuteStatsPtr, true);
+			StatsWidget->ClearStats(false, true);
 		}
 	}
 	else
