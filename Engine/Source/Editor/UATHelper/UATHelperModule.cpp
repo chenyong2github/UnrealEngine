@@ -415,7 +415,7 @@ public:
 			return;
 		}
 
-		TSharedPtr<FSerializedUATProcess> UatProcess = MakeShareable(new FSerializedUATProcess(CommandLine, true));
+		TSharedPtr<FSerializedUATProcess> UatProcess = MakeShareable(new FSerializedUATProcess(CommandLine));
 
 		FPackagingErrorHandler::ClearAssetErrors();
 

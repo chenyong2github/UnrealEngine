@@ -1627,7 +1627,7 @@ void FTurnkeySupportModule::UpdateSdkInfo()
 		ClearDeviceStatus();
 	}
 
-	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Commandline, true, false);
+	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Commandline);
 	TurnkeyProcess->OnCompleted().BindLambda([this, ReportFilename, TurnkeyProcess](int32 ExitCode)
 	{
 		UE_LOG(LogTurnkeySupport, Log, TEXT("Completed SDK detection: ExitCode = %d"), ExitCode);
@@ -1744,7 +1744,7 @@ void FTurnkeySupportModule::UpdateSdkInfoForDevices(TArray<FString> PlatformDevi
 		}
 	}
 
-	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Commandline, true, false);
+	FSerializedUATProcess* TurnkeyProcess = new FSerializedUATProcess(Commandline);
 	TurnkeyProcess->OnCompleted().BindLambda([this, ReportFilename, PlatformDeviceIds, TurnkeyProcess](int32 ExitCode)
 	{
 		UE_LOG(LogTurnkeySupport, Log, TEXT("Completed device detection: Code = %d"), ExitCode);

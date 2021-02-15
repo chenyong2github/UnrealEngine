@@ -264,7 +264,7 @@ public:
 	static FString GetUATPath();
 
 public:
-	FSerializedUATProcess(const FString& RunUATCommandline, bool InHidden, bool InCreatePipes=true);
+	FSerializedUATProcess(const FString& RunUATCommandline);
 
 	/**
 	 * Run UAT, serially with other FSerializedUATProcess objects. Because the actual call is delayed, this will

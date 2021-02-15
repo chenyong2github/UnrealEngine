@@ -70,7 +70,7 @@ bool FMonitoredProcess::Launch()
 		return false;
 	}
 
-	ProcessHandle = FPlatformProcess::CreateProc(*URL, *Params, false, Hidden, Hidden, nullptr, 0, *WorkingDir, WritePipe);
+	ProcessHandle = FPlatformProcess::CreateProc(*URL, *Params, false, Hidden, Hidden, nullptr, 0, *WorkingDir, WritePipe, ReadPipe);
 
 	if (!ProcessHandle.IsValid())
 	{
@@ -190,9 +190,9 @@ void FMonitoredProcess::Tick()
 
 /* FSerializedUATProcess
 *****************************************************************************/
-FSerializedUATProcess::FSerializedUATProcess(const FString& RunUATCommandline, bool InHidden, bool InCreatePipes)
+FSerializedUATProcess::FSerializedUATProcess(const FString& RunUATCommandline)
 	// we will modify URL and Params in this constructor, so there's no need to pass anything up to base
-	: FMonitoredProcess("", "", InHidden, InCreatePipes)
+	: FMonitoredProcess("", "", true, true)
 {
 	// replace the URL and Params freom base with the shelled version
 
