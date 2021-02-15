@@ -29,7 +29,7 @@ FString FTurnkeyEditorSupport::GetUATOptions()
 {
 #if WITH_EDITOR
 	FString Options;
-	Options += FString::Printf(TEXT(" -ue4exe=%s"), *FUnrealEdMisc::Get().GetExecutableForCommandlets());
+	Options += FString::Printf(TEXT(" -ue4exe=\"%s\""), *FUnrealEdMisc::Get().GetExecutableForCommandlets());
 
 	int32 NumCookers = GetDefault<UEditorExperimentalSettings>()->MultiProcessCooking;
 	if (NumCookers > 0)
