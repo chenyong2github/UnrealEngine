@@ -654,7 +654,7 @@ FArchive& operator<<( FArchive& Ar, UsdUtils::FConvertedVtValueComponent& Compon
 {
 	if ( Ar.IsSaving() )
 	{
-		size_t TypeIndex = Component.GetIndex();
+		uint64 TypeIndex = Component.GetIndex();
 		Ar << TypeIndex;
 
 		switch ( TypeIndex )
@@ -719,7 +719,7 @@ FArchive& operator<<( FArchive& Ar, UsdUtils::FConvertedVtValueComponent& Compon
 	}
 	else // IsLoading
 	{
-		size_t TypeIndex;
+		uint64 TypeIndex;
 		Ar << TypeIndex;
 
 		switch ( TypeIndex )

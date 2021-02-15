@@ -2,7 +2,7 @@
 
 #include "USDListener.h"
 
-#include "UsdLog.h"
+#include "USDLog.h"
 #include "USDMemory.h"
 
 #include "UsdWrappers/UsdStage.h"
