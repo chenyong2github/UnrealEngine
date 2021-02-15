@@ -206,6 +206,8 @@ private:
 
 	void HandleGraphSubObjectSelectionChanged(const UObject* NewSelection);
 
+	void GetAllGraphsInSystem(TArray<UNiagaraGraph*>& OutResult) const;
+
 	/** Graph Action Menu for displaying all our variables and functions */
 	TSharedPtr<SGraphActionMenu> GraphActionMenu;
 
@@ -219,7 +221,7 @@ private:
 	TSharedPtr<FNiagaraObjectSelection> SelectedScriptObjects;
 	TSharedPtr<FNiagaraObjectSelection> SelectedVariableObjects;
 
-	TArray<TWeakObjectPtr<UNiagaraGraph>> Graphs;
+	TArray<TWeakObjectPtr<UNiagaraGraph>> SelectedGraphs;
 	TWeakObjectPtr<UNiagaraSystem> CachedSystem;
 	FDelegateHandle UserParameterStoreChangedHandle;
 	FDelegateHandle AddedParameterStoreChangedHandle;

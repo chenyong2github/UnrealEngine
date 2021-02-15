@@ -1,19 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraParameterMapPaletteItem.h"
-#include "NiagaraActions.h"
 #include "EdGraphSchema_Niagara.h"
-#include "TutorialMetaData.h"
-#include "NiagaraGraph.h"
-#include "NiagaraEditorStyle.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Images/SImage.h"
-#include "ScopedTransaction.h"
-#include "Widgets/SNiagaraParameterName.h"
-#include "Widgets/SNiagaraParameterMapView.h"
-#include "NiagaraEditorSettings.h"
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
+#include "NiagaraActions.h"
+#include "NiagaraEditorSettings.h"
+#include "NiagaraEditorStyle.h"
+#include "NiagaraGraph.h"
+#include "TutorialMetaData.h"
+#include "Widgets/SNiagaraParameterMapView.h"
+#include "Widgets/SNiagaraParameterName.h"
+#include "Widgets/Input/SComboButton.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapPalleteItem"
 
@@ -171,7 +169,13 @@ FText SNiagaraParameterMapPalleteItem::GetReferenceCount() const
 		int32 TotalCount = 0;
 		for (const FNiagaraGraphParameterReferenceCollection& ReferenceCollection : ParameterAction->ReferenceCollection)
 		{
-			TotalCount += ReferenceCollection.ParameterReferences.Num();
+			for (const FNiagaraGraphParameterReference& ParamReference : ReferenceCollection.ParameterReferences)
+			{
+				if (ParamReference.bIsUserFacing)
+				{
+					TotalCount++;
+				}
+			}
 		}
 		return FText::AsNumber(TotalCount);
 	}
