@@ -34,7 +34,7 @@ public:
 			if (FActorTreeItem* ActorItem = TreeItemPtr->CastTo<FActorTreeItem>())
 			{
 				AActor* Actor = ActorItem->Actor.Get();
-				if (Actor && Actor->GetLevel() && Actor->GetLevel()->bUseExternalActors)
+				if (Actor && Actor->IsPackageExternal())
 				{
 					ExternalPackageName = USourceControlHelpers::PackageFilename(Actor->GetExternalPackage());
 				}
