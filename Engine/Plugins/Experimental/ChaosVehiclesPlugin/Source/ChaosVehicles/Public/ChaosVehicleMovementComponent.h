@@ -423,7 +423,7 @@ struct FVehicleState
 UENUM()
 enum class EInputFunctionType : uint8
 {
-	LinearFunction,
+	LinearFunction = 0,
 	SquaredFunction,
 	CustomCurve
 };
