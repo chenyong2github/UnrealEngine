@@ -1213,6 +1213,10 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FString
 	// get file timestamp and send it to client
 	FDateTime ServerTimeStamp = Sandbox->GetTimeStamp(*Filename);
 
+	// Disable access to outside the sandbox to prevent sending uncooked packages to the client
+	const bool bIsCookable = FPackageName::IsPackageExtension(*FPaths::GetExtension(Filename, true));
+	Sandbox->SetSandboxOnly(bIsCookable);
+
 	FString AbsHostFile = Sandbox->ConvertToAbsolutePathForExternalAppForRead(*Filename);
 	if (ConnectedTargetPlatform != nullptr && ConnectedTargetPlatform->CopyFileToTarget(ConnectedIPAddress, AbsHostFile, TargetFilename, ConnectedTargetCustomData))
 	{
@@ -1259,6 +1263,8 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FString
 
 		UE_LOG(LogFileServer, Display, TEXT("Read %s, %d bytes"), *Filename, Contents.Num());
 	}
+
+	Sandbox->SetSandboxOnly(false);
 
 	Out << Filename;
 	Out << ServerTimeStamp;
