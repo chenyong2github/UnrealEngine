@@ -3430,11 +3430,6 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 					}
 				}
 			}
-			else if (IsStructureWildcardProperty(TargetFunction, MyPin->PinName) && OtherPin->PinType.PinCategory != UEdGraphSchema_K2::PC_Struct)
-			{
-				bIsDisallowed = true;
-				OutReason = LOCTEXT("PinStructConnectionDisallowed", "CustomStructureParam only supports Structure types").ToString();
-			}
 		}
 	}
 
