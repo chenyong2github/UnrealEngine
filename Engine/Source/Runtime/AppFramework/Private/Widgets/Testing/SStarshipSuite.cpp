@@ -29,7 +29,6 @@ void RestoreStarshipSuite()
 	{
 		return SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab)
-			.Icon(new FSlateDynamicImageBrush(FName("../../Content/Slate/Starship/Icons/Quixel/Common/gift_32x.png"), FVector2D(16.f, 16.f)))
 			[
 				MakeStarshipGallery()
 			];
