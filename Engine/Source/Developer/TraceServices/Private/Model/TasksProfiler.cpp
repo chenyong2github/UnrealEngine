@@ -7,6 +7,7 @@
 #include "Misc/Timespan.h"
 #include "Algo/BinarySearch.h"
 #include "Common/Utils.h"
+#include "Async/TaskGraphInterfaces.h"
 
 namespace TraceServices
 {
@@ -131,6 +132,7 @@ namespace TraceServices
 		{
 			Task->Id = TaskId;
 			Task->CreatedTimestamp = Timestamp;
+			Task->CreatedThreadId = ThreadId;
 		}
 
 		Task->DebugName = DebugName;
@@ -296,7 +298,7 @@ namespace TraceServices
 
 	bool FTasksProvider::IsNamedThread(int32 Thread)
 	{
-		return Thread != ENamedThreads::AnyThread;
+		return ENamedThreads::GetThreadIndex((ENamedThreads::Type)Thread) != ENamedThreads::AnyThread;
 	}
 
 	bool FTasksProvider::TryRegisterEvent(const TCHAR* EventName, TaskTrace::FId TaskId, double FTaskInfo::* TimestampPtr, double TimestampValue, uint32 FTaskInfo::* ThreadIdPtr/* = nullptr*/, uint32 ThreadIdValue/* = 0*/)

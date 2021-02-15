@@ -919,7 +919,7 @@ public:
 	{
 		bool bWakeUpWorker = true;
 		ConditionalQueueTask(CurrentThreadIfKnown, bWakeUpWorker);
-		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ENamedThreads::GetThreadIndex(((TTask*)&TaskStorage)->GetDesiredThread()));
+		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ((TTask*)&TaskStorage)->GetDesiredThread());
 	}
 
 	FGraphEventRef GetCompletionEvent()
@@ -1063,7 +1063,7 @@ private:
 	 **/
 	FGraphEventRef Setup(const FGraphEventArray* Prerequisites = NULL, ENamedThreads::Type CurrentThreadIfKnown = ENamedThreads::AnyThread)
 	{
-		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ENamedThreads::GetThreadIndex(((TTask*)&TaskStorage)->GetDesiredThread()));
+		TaskTrace::Launched(GetTraceId(), nullptr, Subsequents.IsValid(), ((TTask*)&TaskStorage)->GetDesiredThread());
 
 		FGraphEventRef ReturnedEventRef = Subsequents; // very important so that this doesn't get destroyed before we return
 		SetupPrereqs(Prerequisites, CurrentThreadIfKnown, true);

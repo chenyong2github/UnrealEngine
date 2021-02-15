@@ -45,7 +45,6 @@ namespace TraceServices
 		// translates `TaskId` to the index into `Tasks` array, 
 		int64 GetTaskIndex(TaskTrace::FId TaskId) const; // `FistTaskId` must be initialised before the first use
 
-		FTaskInfo& GetTask(TaskTrace::FId TaskId);
 		FTaskInfo* TryGetTask(TaskTrace::FId TaskId);
 		// default-constructs a task if required
 		FTaskInfo* TryGetOrCreateTask(TaskTrace::FId TaskId);

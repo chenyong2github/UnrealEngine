@@ -18,7 +18,9 @@ namespace TraceServices
 		// this members are filled during task launch
 		const TCHAR* DebugName; // user provided or automatically generated (in format `full_path(lineno)`)
 		bool bTracked; // if the task is awaitable, not awaitable tasks will never be "completed", they are done when their execution is finished
-		int32 ThreadToExecuteOn; // ENamedThreads::Type - which thread type the task will be executed on, one of named threads or a worker thread
+		int32 ThreadToExecuteOn; // ENamedThreads::Type - combines the info about thread to execute on (one of named threads or a worker
+		// thread - ENamedThreads::AnyThread), task priority, thread priority (in case of a worker thread), and queue index (in case of a named
+		// thread - main queue or local queue). See ENamedThreads to split the info into separate fields
 
 		static constexpr double InvalidTimestamp = 0.0;
 

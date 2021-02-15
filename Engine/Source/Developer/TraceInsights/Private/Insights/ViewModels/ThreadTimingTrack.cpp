@@ -9,6 +9,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Styling/SlateBrush.h"
 #include "TraceServices/Model/TasksProfiler.h"
+#include "Async/TaskGraphInterfaces.h"
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
@@ -1012,20 +1013,43 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 
 		auto AddTaskInfo = [&InOutTooltip, this](const TraceServices::FTaskInfo& Task)
 		{
-			InOutTooltip.AddTextLine(TEXT("-------- TaskInfo --------"), FLinearColor::Green);
-			InOutTooltip.AddNameValueTextLine(TEXT("TaskId:"), FString::Printf(TEXT("%d"), Task.Id));
-			InOutTooltip.AddNameValueTextLine(TEXT("Task Debug Name:"), FString::Printf(TEXT("%s"), Task.DebugName));
-			InOutTooltip.AddNameValueTextLine(TEXT("Tracked:"), FString::Printf(TEXT("%d"), Task.bTracked));
-			InOutTooltip.AddNameValueTextLine(TEXT("Created:"), FString::Printf(TEXT("%f"), Task.CreatedTimestamp));
-			InOutTooltip.AddNameValueTextLine(TEXT("Launched:"), FString::Printf(TEXT("%f (+%s)"), Task.LaunchedTimestamp, *TimeUtils::FormatTimeAuto(Task.LaunchedTimestamp - Task.CreatedTimestamp)));
-			InOutTooltip.AddNameValueTextLine(TEXT("Started:"), FString::Printf(TEXT("%f (+%s) on thread \"%s\""), Task.StartedTimestamp, *TimeUtils::FormatTimeAuto(Task.StartedTimestamp - Task.LaunchedTimestamp), *SharedState.GetCpuTrack(Task.StartedThreadId)->GetName()));
+			InOutTooltip.AddTextLine(FString::Printf(TEXT("-------- Task %d%s --------"), Task.Id, Task.bTracked ? TEXT("") : TEXT(" (not tracked)")), FLinearColor::Green);
+
+			if (Task.DebugName != nullptr)
+			{
+				InOutTooltip.AddTextLine(FString::Printf(TEXT("%s"), Task.DebugName), FLinearColor::Green);
+			}
+
+			ENamedThreads::Type ThreadInfo = (ENamedThreads::Type)Task.ThreadToExecuteOn;
+			const TCHAR* NamedThreadsStr[] = {TEXT("Stats"), TEXT("RHI"), TEXT("Audio"), TEXT("Game"), TEXT("Rendering") };
+			ENamedThreads::Type ThreadIndex = ENamedThreads::GetThreadIndex(ThreadInfo);
+
+			if (ThreadIndex == ENamedThreads::AnyThread)
+			{
+				const TCHAR* TaskPri = ENamedThreads::GetTaskPriority(ThreadInfo) == ENamedThreads::NormalTaskPriority ? TEXT("Normal") : TEXT("High");
+
+				int32 ThreadPriIndex = ENamedThreads::GetThreadPriorityIndex(ThreadInfo);
+				const TCHAR* ThreadPriStrs[] = { TEXT("Normal"), TEXT("High"), TEXT("Low") };
+				const TCHAR* ThreadPri = ThreadPriStrs[ThreadPriIndex];
+
+				InOutTooltip.AddTextLine(FString::Printf(TEXT("%s Pri task on %s Pri worker"), TaskPri, ThreadPri), FLinearColor::Green);
+			}
+			else
+			{
+				const TCHAR* QueueStr = ENamedThreads::GetQueueIndex(ThreadInfo) == ENamedThreads::MainQueue ? TEXT("Main") : TEXT("Local");
+				InOutTooltip.AddTextLine(FString::Printf(TEXT("%s (%s queue)"), NamedThreadsStr[ThreadIndex], QueueStr), FLinearColor::Green);
+			}
+			
+			InOutTooltip.AddNameValueTextLine(TEXT("Created:"), FString::Printf(TEXT("%f on %s"), Task.CreatedTimestamp, *SharedState.GetCpuTrack(Task.CreatedThreadId)->GetName()));
+			InOutTooltip.AddNameValueTextLine(TEXT("Launched:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.LaunchedTimestamp, *TimeUtils::FormatTimeAuto(Task.LaunchedTimestamp - Task.CreatedTimestamp), *SharedState.GetCpuTrack(Task.LaunchedThreadId)->GetName()));
+			InOutTooltip.AddNameValueTextLine(TEXT("Started:"), FString::Printf(TEXT("%f (+%s)"), Task.StartedTimestamp, *TimeUtils::FormatTimeAuto(Task.StartedTimestamp - Task.LaunchedTimestamp)));
 			if (Task.FinishedTimestamp != TraceServices::FTaskInfo::InvalidTimestamp)
 			{
 				InOutTooltip.AddNameValueTextLine(TEXT("Finished:"), FString::Printf(TEXT("%f (+%s)"), Task.FinishedTimestamp, *TimeUtils::FormatTimeAuto(Task.FinishedTimestamp - Task.StartedTimestamp)));
 
 				if (Task.CompletedTimestamp != TraceServices::FTaskInfo::InvalidTimestamp)
 				{
-					InOutTooltip.AddNameValueTextLine(TEXT("Completed:"), FString::Printf(TEXT("%f (+%s)"), Task.FinishedTimestamp, *TimeUtils::FormatTimeAuto(Task.CompletedTimestamp - Task.FinishedTimestamp)));
+					InOutTooltip.AddNameValueTextLine(TEXT("Completed:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.FinishedTimestamp, *TimeUtils::FormatTimeAuto(Task.CompletedTimestamp - Task.FinishedTimestamp), *SharedState.GetCpuTrack(Task.CompletedThreadId)->GetName()));
 				}
 			}
 		};
