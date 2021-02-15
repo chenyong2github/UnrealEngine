@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorConfig.h"
+#include "UObject/EnumProperty.h"
+#include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
 
 FEditorConfig::FEditorConfig()
