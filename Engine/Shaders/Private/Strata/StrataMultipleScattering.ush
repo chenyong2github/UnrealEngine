@@ -1,0 +1,95 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once 
+
+#include "/Engine/Private/Common.ush"
+
+// Multiple scattering computation use a precomputed LUT. There are two variant: 
+//  1) Using 2D LUT using Schlick Fresnel decomposition (view angle, roughness)
+//  2) Using 3D LUT building a full 3D LUT (view angle, roughness, F0)
+// 
+// These two variants exist only for testing purpose at the moment
+
+struct FStrataLUTResult
+{
+	// Fresnel A/B term for reconstructing directional albedo for reflection
+	float A_R;
+	float B_R;
+
+	// Fresnel A/B term for reconstructing directional albedo for refraction
+	float A_T;
+	float B_T;
+
+	// Complete directional albedo for reflection and refraction
+	float E_R;
+	float E_T;
+};
+
+FStrataLUTResult StrataSampleGGXLUT(Texture2D<float4> LUT2D, Texture3D<float2> LUT3D, SamplerState LUTSampler, float2 LUTScaleBias, float NoV, float Roughness, float3 F0)
+{
+	FStrataLUTResult Out = (FStrataLUTResult)0;
+
+	// 2D LUT sampling
+	{
+		const float2 UV = float2(saturate(NoV), saturate(Roughness)) * LUTScaleBias.x + LUTScaleBias.yy;
+		const float4 S = LUT2D.SampleLevel(LUTSampler, UV, 0);
+		Out.A_R = S.x;
+		Out.B_R = S.y;
+
+		Out.A_T = S.z;
+		Out.B_T = S.w;
+	}
+
+	// 3D LUT sampling
+	{
+		const float3 UVW = float3(saturate(NoV), saturate(Roughness), saturate(F0.y)) * LUTScaleBias.x + LUTScaleBias.yyy;
+		const float2 S = LUT3D.SampleLevel(LUTSampler, UVW, 0);
+		Out.E_R = S.x;
+		Out.E_R = S.y;
+	}
+
+	return Out;
+}
+
+// From "Practical multiple scattering compensation for microfacet models." E. Turquin
+float3 StrataEvaluateMultipleScatteringConductor(float3 F0, FStrataLUTResult LUT)
+{
+	// Reconstruction of the directional Albedo for upper hemisphere
+	// E_R = F0.A_R + (1-F0).B_R
+	// 
+	// Microfacet multiple scattering term for *conductor*
+	//  f_ms(wo,wi) = F_ss . (1 +  F0 (1-E_R)/ E_R)
+	
+	const float3 E_R = F0 * LUT.A_R + (1 - F0) * LUT.B_R;
+
+	return (1 + F0 * (1 - E_R) / E_R);
+}
+
+float3 StrataEvaluateMultipleScatteringDielectric(float3 F0, FStrataLUTResult LUT)
+{
+	// Reconstruction of the directional Albedo for upper hemisphere
+	// E_R = F0.A_R + (1-F0).B_R
+	//
+	// Reconstruction of the directional Albedo for lower hemisphere
+	// E_T = A_T + F0.A_T + (1-F0).B_T
+	//
+	// Microfacet multiple scattering term for *dielietric*
+	//  f_ms(wo,wi) = F_ss / (E_T + E_R)
+
+	const float3 E_R = F0 * LUT.A_R + (1 - F0) * LUT.B_R;
+	const float3 E_T = LUT.A_T + F0 * LUT.A_T + (1 - F0) * LUT.B_T;
+
+	return 1.f / (E_R + E_T);
+}
+
+float3 StrataEvaluateMultipleScatteringConductor3D(float3 F0, FStrataLUTResult LUT)
+{
+	return (1 + F0 * (1 - LUT.E_R) / LUT.E_R);
+}
+
+float3 StrataEvaluateMultipleScatteringDielectric3D(float3 F0, FStrataLUTResult LUT)
+{
+	return 1.f / (LUT.E_R + LUT.E_T);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////

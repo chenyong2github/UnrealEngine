@@ -32,10 +32,53 @@ static TAutoConsoleVariable<int32> CVarStrataClassification(
 	TEXT("Enable strata classification to speed up lighting pass."),
 	ECVF_RenderThreadSafe); 
 
+static TAutoConsoleVariable<int32> CVarStrataLUTResolution(
+	TEXT("r.Strata.LUT.Resolution"),
+	64,
+	TEXT("Resolution of the GGX energy LUT."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataLUTSampleCount(
+	TEXT("r.Strata.LUT.SampleCount"),
+	128,
+	TEXT("Number of sample used for computing the energy LUT."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataLUTContinousUpdate(
+	TEXT("r.Strata.LUT.ContinousUpdate"),
+	0,
+	TEXT("Update Strata energy LUT every frame (for debug purpose)."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataFurnaceTest(
+	TEXT("r.Strata.FurnaceTest"),
+	0,
+	TEXT("Enable Strata furnace test (for debug purpose) 1: roughness/metallic 2: a selection of conductors."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarStrataFurnaceTestSampleCount(
+	TEXT("r.Strata.FurnaceTest.SampleCount"),
+	1024,
+	TEXT("Number of sample used for furnace test."),
+	ECVF_RenderThreadSafe);
+
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, "Strata");
 
 namespace Strata
 {
+
+static uint32 GetStrataGGXEnergyLUTResolution()
+{
+	return FMath::RoundUpToPowerOfTwo(FMath::Clamp(CVarStrataLUTResolution.GetValueOnAnyThread(), 16, 256));
+}
+
+static FVector2D GetStrataGGXEnergyLUTScaleBias()
+{
+	const float Resolution = GetStrataGGXEnergyLUTResolution();
+	const float Scale = (Resolution - 1) / Resolution;
+	const float Bias  = 0.5f / (Resolution - 1);
+	return FVector2D(Scale, Bias);
+}
 
 bool IsStrataEnabled()
 {
@@ -52,13 +95,16 @@ uint32 GetStrataTileSize()
 	return 8;
 }
 
+static void AddStrataLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+static void AddStrataFurnacePass(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+
 void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& GraphBuilder)
 {
 	FStrataSceneData& StrataSceneData = SceneRenderer.Scene->StrataSceneData;
 
 	uint32 ResolutionX = 1;
 	uint32 ResolutionY = 1;
-
+	bool bUpdateLUT = false;
 	if (IsStrataEnabled())
 	{
 		FIntPoint BufferSizeXY = GetSceneTextureExtent();
@@ -101,6 +147,22 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 			GraphBuilder.PreallocateTexture(Texture);
 			StrataSceneData.TopLayerNormalTexture = GraphBuilder.GetPooledTexture(Texture);
 		}
+
+		// Energy LUT
+		const uint32 LUTResolution = GetStrataGGXEnergyLUTResolution();
+		bUpdateLUT = StrataSceneData.GGXEnergyLUT2DTexture == nullptr || StrataSceneData.GGXEnergyLUT2DTexture->GetDesc().Extent.X != LUTResolution || CVarStrataLUTContinousUpdate.GetValueOnAnyThread() > 0;
+		if (bUpdateLUT)
+		{
+			FRDGTextureDesc Desc3D = FRDGTextureDesc::Create3D(FIntVector(LUTResolution, LUTResolution, LUTResolution), EPixelFormat::PF_G16R16F, FClearValueBinding::Black, ETextureCreateFlags::TexCreate_ShaderResource | ETextureCreateFlags::TexCreate_RenderTargetable | ETextureCreateFlags::TexCreate_UAV);
+			FRDGTextureDesc Desc2D = FRDGTextureDesc::Create2D(FIntPoint(LUTResolution, LUTResolution), EPixelFormat::PF_FloatRGBA, FClearValueBinding::Black, ETextureCreateFlags::TexCreate_ShaderResource | ETextureCreateFlags::TexCreate_RenderTargetable | ETextureCreateFlags::TexCreate_UAV);
+			FRDGTextureRef OutLUT3D = GraphBuilder.CreateTexture(Desc3D, TEXT("StrataEnergyLUT3D"));
+			FRDGTextureRef OutLUT2D = GraphBuilder.CreateTexture(Desc2D, TEXT("StrataEnergyLUT2D"));
+
+			GraphBuilder.PreallocateTexture(OutLUT3D);
+			GraphBuilder.PreallocateTexture(OutLUT2D);
+			StrataSceneData.GGXEnergyLUT3DTexture = GraphBuilder.GetPooledTexture(OutLUT3D);
+			StrataSceneData.GGXEnergyLUT2DTexture = GraphBuilder.GetPooledTexture(OutLUT2D);
+		}
 	}
 	else
 	{
@@ -128,6 +190,24 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 	SceneRenderer.Scene->StrataSceneData.StrataGlobalUniformParameters.SafeRelease();
 
 	AddStrataClearMaterialBufferPass(GraphBuilder, StrataSceneData.MaterialLobesBuffer.UAV, StrataSceneData.MaxBytesPerPixel, FIntPoint(ResolutionX, ResolutionY));
+
+	const bool bFurnaceTest = CVarStrataFurnaceTest.GetValueOnAnyThread() > 0;
+	if (bUpdateLUT || bFurnaceTest)
+	{
+		for (int32 ViewIndex = 0; ViewIndex < SceneRenderer.Views.Num(); ViewIndex++)
+		{
+			FViewInfo& View = SceneRenderer.Views[ViewIndex];
+			if (bUpdateLUT)
+			{
+				AddStrataLUTPass(GraphBuilder, View);
+			}
+
+			if (bFurnaceTest)
+			{
+				AddStrataFurnacePass(GraphBuilder, View);
+			}
+		}
+	}
 }
 
 void BindStrataBasePassUniformParameters(const FViewInfo& View, FStrataOpaquePassUniformParameters& OutStrataUniformParameters)
@@ -159,7 +239,10 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 		StrataUniformParameters.MaterialLobesBuffer = View.StrataSceneData->MaterialLobesBuffer.SRV;
 		StrataUniformParameters.ClassificationTexture = View.StrataSceneData->ClassificationTexture->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters.TopLayerNormalTexture = View.StrataSceneData->TopLayerNormalTexture->GetRenderTargetItem().ShaderResourceTexture;
-
+		StrataUniformParameters.GGXEnergyLUT3DTexture = View.StrataSceneData->GGXEnergyLUT3DTexture->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.GGXEnergyLUT2DTexture = View.StrataSceneData->GGXEnergyLUT2DTexture->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.GGXEnergyLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		StrataUniformParameters.GGXEnergyLUTScaleBias = GetStrataGGXEnergyLUTScaleBias();
 		View.StrataSceneData->StrataGlobalUniformParameters = CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleFrame);
 		return View.StrataSceneData->StrataGlobalUniformParameters;
 	}
@@ -170,6 +253,10 @@ TUniformBufferRef<FStrataGlobalUniformParameters> BindStrataGlobalUniformParamet
 		StrataUniformParameters.MaterialLobesBuffer = GEmptyVertexBufferWithUAV->ShaderResourceViewRHI;
 		StrataUniformParameters.ClassificationTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		StrataUniformParameters.TopLayerNormalTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.GGXEnergyLUT3DTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.GGXEnergyLUT2DTexture = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
+		StrataUniformParameters.GGXEnergyLUTSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		StrataUniformParameters.GGXEnergyLUTScaleBias = GetStrataGGXEnergyLUTScaleBias();
 		return CreateUniformBufferImmediate(StrataUniformParameters, UniformBuffer_SingleDraw);
 	}
 }
@@ -621,6 +708,145 @@ void AddStrataClearMaterialBufferPass(FRDGBuilder& GraphBuilder, FUnorderedAcces
 		ComputeShader,
 		PassParameters,
 		FComputeShaderUtils::GetGroupCount(TiledViewBufferResolution, GroupSize));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FStrataLUTPassPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FStrataLUTPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FStrataLUTPassPS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER(FIntPoint, SliceXYCount)
+		SHADER_PARAMETER(uint32, EnergyLUTResolution)
+		SHADER_PARAMETER(uint32, NumSamples)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture3D, OutLUT3D)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutLUT2D)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled();
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_LUT"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FStrataLUTPassPS, "/Engine/Private/Strata/StrataLUT.usf", "MainPS", SF_Pixel);
+
+static void AddStrataLUTPass(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+{
+	const uint32 LUTResolution = GetStrataGGXEnergyLUTResolution();
+	const uint32 SliceResolution = FMath::CeilToInt(FMath::Sqrt(float(LUTResolution)));
+	
+	FIntPoint OutputResolutionRT;
+	OutputResolutionRT.X = LUTResolution * SliceResolution;
+	OutputResolutionRT.Y = LUTResolution * SliceResolution;
+
+	FRDGTextureRef OutLUT3D = GraphBuilder.RegisterExternalTexture(View.StrataSceneData->GGXEnergyLUT3DTexture);
+	FRDGTextureRef OutLUT2D = GraphBuilder.RegisterExternalTexture(View.StrataSceneData->GGXEnergyLUT2DTexture);
+
+	// For debug purpose	
+	FRDGTextureDesc UnfoldLUTDesc = FRDGTextureDesc::Create2D(OutputResolutionRT, EPixelFormat::PF_G16R16F, FClearValueBinding::Black, ETextureCreateFlags::TexCreate_RenderTargetable);
+	FRDGTextureRef UnfoldLUTTexture = GraphBuilder.CreateTexture(UnfoldLUTDesc, TEXT("StrataEnergyUnfoldLUT"));
+
+	TShaderMapRef<FStrataLUTPassPS> PixelShader(View.ShaderMap);
+	FStrataLUTPassPS::FParameters* Parameters = GraphBuilder.AllocParameters<FStrataLUTPassPS::FParameters>();
+	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	Parameters->NumSamples = FMath::Clamp(CVarStrataLUTSampleCount.GetValueOnAnyThread(), 16, 2048);
+	Parameters->EnergyLUTResolution = LUTResolution;
+	Parameters->SliceXYCount = FIntPoint(SliceResolution, SliceResolution);
+	Parameters->OutLUT2D = GraphBuilder.CreateUAV(OutLUT2D);
+	Parameters->OutLUT3D = GraphBuilder.CreateUAV(OutLUT3D);
+	Parameters->RenderTargets[0] = FRenderTargetBinding(UnfoldLUTTexture, ERenderTargetLoadAction::EClear);
+
+	FPixelShaderUtils::AddFullscreenPass<FStrataLUTPassPS>(
+		GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME("StrataLUT"),
+		PixelShader,
+		Parameters,
+		View.ViewRect);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FStrataFurnaceTestPassPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FStrataFurnaceTestPassPS);
+	SHADER_USE_PARAMETER_STRUCT(FStrataFurnaceTestPassPS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER(FIntPoint, OutputResolution)
+		SHADER_PARAMETER(uint32, NumSamples)
+		SHADER_PARAMETER(uint32, SceneType)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture3D, OutLUT3D)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(Texture2D, OutLUT2D)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+		static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled();
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_FURNACE_ANALYTIC"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FStrataFurnaceTestPassPS, "/Engine/Private/Strata/StrataFurnaceTest.usf", "MainPS", SF_Pixel);
+
+static void AddStrataFurnacePass(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+{
+	FIntPoint OutputResolution;
+	OutputResolution.X = 1024;
+	OutputResolution.Y = 1024;
+
+	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(OutputResolution, EPixelFormat::PF_FloatRGBA, FClearValueBinding::Black, ETextureCreateFlags::TexCreate_RenderTargetable);
+	FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, TEXT("StrataFurnaceTest"));
+
+	TShaderMapRef<FStrataFurnaceTestPassPS> PixelShader(View.ShaderMap);
+	FStrataFurnaceTestPassPS::FParameters* Parameters = GraphBuilder.AllocParameters<FStrataFurnaceTestPassPS::FParameters>();
+	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	Parameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	Parameters->SceneType = FMath::Clamp(CVarStrataFurnaceTest.GetValueOnAnyThread(), 1, 2);
+	Parameters->NumSamples = FMath::Clamp(CVarStrataFurnaceTestSampleCount.GetValueOnAnyThread(), 16, 2048);
+	Parameters->OutputResolution = OutputResolution;
+	Parameters->RenderTargets[0] = FRenderTargetBinding(Texture, ERenderTargetLoadAction::EClear);
+
+	FPixelShaderUtils::AddFullscreenPass<FStrataFurnaceTestPassPS>(
+		GraphBuilder,
+		View.ShaderMap,
+		RDG_EVENT_NAME("StrataFurnaceTest"),
+		PixelShader,
+		Parameters,
+		View.ViewRect);
 }
 
 } // namespace Strata

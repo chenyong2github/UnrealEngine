@@ -20,6 +20,9 @@
 #define STRATA_USE_ENV_BRDF_APPROX 0
 #endif
 
+#ifndef STRATA_MICROFACET_MULTIPLESCATTERING
+#define STRATA_MICROFACET_MULTIPLESCATTERING 0
+#endif
 
 // STRATA_TODO put in a common file
 // Point lobe in off-specular peak direction
@@ -92,7 +95,7 @@ void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
 	}
 }
 
-FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, const FStrataAddressing StrataAddressing, float3 V, float3 L, bool bOverrideWithLocalFrame=false)
+FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BSDF, float3 V, float3 L, bool bOverrideWithLocalFrame = false)
 {
 	FStrataBSDFContext BSDFContext = (FStrataBSDFContext)0;
 
@@ -101,7 +104,6 @@ FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader,
 	BSDFContext.V = V;
 	BSDFContext.L = L;
 
-	float3x3 TangentBasis = StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF, StrataAddressing);
 	BSDFContext.X = TangentBasis[0]; 
 	BSDFContext.Y = TangentBasis[1];
 	BSDFContext.N = TangentBasis[2]; 
@@ -126,8 +128,8 @@ FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader,
 	}
 	BSDFContext.TangentBasis = float3x3(BSDFContext.X, BSDFContext.Y, BSDFContext.N);
 
-	BSDFContext.TangentV = mul(BSDFContext.TangentBasis, BSDFContext.V);
-	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
+	BSDFContext.TangentV = mul(BSDFContext.V, BSDFContext.TangentBasis);
+	BSDFContext.TangentH = mul(BSDFContext.H, BSDFContext.TangentBasis);
 
 	BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
 	BSDFContext.SatNoV = saturate(BSDFContext.Context.NoV);
@@ -135,12 +137,18 @@ FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader,
 	return BSDFContext;
 }
 
+FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, const FStrataAddressing StrataAddressing, float3 V, float3 L, bool bOverrideWithLocalFrame = false)
+{
+	float3x3 TangentBasis = StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF, StrataAddressing);
+	return StrataCreateBSDFContext(TangentBasis, BSDF, V, L, bOverrideWithLocalFrame);
+}
+
 void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
 {
 	// Update all the data related to L
 	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, NewL);
 	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.L);
-	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
+	BSDFContext.TangentH = mul(BSDFContext.H, BSDFContext.TangentBasis);
 }
 
 struct FStrataEvaluateResult
@@ -182,6 +190,23 @@ float3 StrataEnvBRDF(float3 F0, float3 F90, float SafeRoughnessX, float SatNoV)
 #endif
 }
 
+float3 StrataEvaluateMicrofacetMultipleScattering(float3 F0, float NoV, float Metallic, float SafeRoughnessX, float SafeRoughnessY)
+{
+#if STRATA_MICROFACET_MULTIPLESCATTERING
+	// Use the main Roughness term to drive the energy compensation.
+	// "Revisiting Physically Based Shading at Imageworks" Kulla 2017
+	const float SafeRoughness = SafeRoughnessX;
+
+	const FStrataLUTResult StrataLUTSample = StrataSampleGGXLUT(Strata.GGXEnergyLUT2DTexture, Strata.GGXEnergyLUT3DTexture, Strata.GGXEnergyLUTSampler, Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughness, F0);
+	const float3 Fs_0 = StrataEvaluateMultipleScatteringDielectric3D(F0, StrataLUTSample);
+	const float3 Fs_1 = StrataEvaluateMultipleScatteringConductor(F0, StrataLUTSample);
+	const float3 Fs   = lerp(Fs_0, Fs_1, Metallic);
+
+	return Fs;
+#else
+	return 1.0f;
+#endif
+}
 
 FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadowTerms ShadowTerms)
 {
@@ -210,6 +235,9 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			const float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 			const float SafeRoughnessY = MakeRoughnessSafe(SLAB_ROUGHNESSY(BSDFContext.BSDF));
 
+			float HazeSafeRoughnessX = SafeRoughnessX;
+			float HazeSafeRoughnessY = SafeRoughnessY;
+
 			const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
 			const bool bHaziness = BSDF_GETHASHAZINESS(BSDFContext.BSDF);
 			float D = 0;
@@ -219,50 +247,74 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			float HazeVis = 0;
 			float HazePDF = 0;
 
-#if STRATA_FASTPATH==0
+			#if STRATA_FASTPATH==0
 			BRANCH
 			if (bHasAnisotropy)
 			{
 				// Generalized microfacet specular
-				float Alpha0 = Pow2(SafeRoughnessX);
-				float Alpha1 = Pow2(SafeRoughnessY);
-				D = D_GGXaniso(Alpha0, Alpha1, BSDFContext.Context.NoH, BSDFContext.Context.XoH, BSDFContext.Context.YoH);
-				Vis = Vis_SmithJointAniso(Alpha0, Alpha1, BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.XoV, BSDFContext.Context.XoL, BSDFContext.Context.YoV, BSDFContext.Context.YoL);
-				PDF = VisibleGGXPDF_aniso(BSDFContext.TangentV, BSDFContext.TangentH, float2(Alpha0, Alpha1));
+				{
+					const float Alpha0 = Pow2(SafeRoughnessX);
+					const float Alpha1 = Pow2(SafeRoughnessY);
+					D   = D_GGXaniso(Alpha0, Alpha1, BSDFContext.Context.NoH, BSDFContext.Context.XoH, BSDFContext.Context.YoH);
+					Vis = Vis_SmithJointAniso(Alpha0, Alpha1, BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.XoV, BSDFContext.Context.XoL, BSDFContext.Context.YoV, BSDFContext.Context.YoL);
+					PDF = VisibleGGXPDF_aniso(BSDFContext.TangentV, BSDFContext.TangentH, float2(Alpha0, Alpha1));
+				}
 
 				if (bHaziness)
 				{
-					Alpha0 = Pow2(ComputeHazyLobeRoughness(SafeRoughnessX, SLAB_HAZINESS(BSDFContext.BSDF)));
-					Alpha1 = Pow2(ComputeHazyLobeRoughness(SafeRoughnessY, SLAB_HAZINESS(BSDFContext.BSDF)));
-					HazeD = D_GGXaniso(Alpha0, Alpha1, BSDFContext.Context.NoH, BSDFContext.Context.XoH, BSDFContext.Context.YoH);
-					HazeVis = Vis_SmithJointAniso(Alpha0, Alpha1, BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.XoV, BSDFContext.Context.XoL, BSDFContext.Context.YoV, BSDFContext.Context.YoL);
-					HazePDF = VisibleGGXPDF_aniso(BSDFContext.TangentV, BSDFContext.TangentH, float2(Alpha0, Alpha1));
+					HazeSafeRoughnessX = ComputeHazyLobeRoughness(SafeRoughnessX, SLAB_HAZINESS(BSDFContext.BSDF));
+					HazeSafeRoughnessY = ComputeHazyLobeRoughness(SafeRoughnessY, SLAB_HAZINESS(BSDFContext.BSDF));
+
+					const float HazeAlpha0 = Pow2(HazeSafeRoughnessX);
+					const float HazeAlpha1 = Pow2(HazeSafeRoughnessY);
+					HazeD   = D_GGXaniso(HazeAlpha0, HazeAlpha1, BSDFContext.Context.NoH, BSDFContext.Context.XoH, BSDFContext.Context.YoH);
+					HazeVis = Vis_SmithJointAniso(HazeAlpha0, HazeAlpha1, BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.XoV, BSDFContext.Context.XoL, BSDFContext.Context.YoV, BSDFContext.Context.YoL);
+					HazePDF = VisibleGGXPDF_aniso(BSDFContext.TangentV, BSDFContext.TangentH, float2(HazeAlpha0, HazeAlpha1));
 				}
 			}
 			else
-#endif
+			#endif
 			{
 				// Special override for roughness for supporting area light integrator with Sphere/Tube/Disk light, which modifies/increase roughness.
 				const float a2 = BSDFContext.a2Override > 0 ? BSDFContext.a2Override : Pow4(SafeRoughnessX);
 
 				// Generalized microfacet specular
-				D = D_GGX(a2, BSDFContext.Context.NoH);
-				Vis = Vis_SmithJointApprox(a2, BSDFContext.Context.NoV, BSDFContext.SatNoL);
-				PDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2);
+				{
+					D   = D_GGX(a2, BSDFContext.Context.NoH);
+					Vis = Vis_SmithJoint(a2, BSDFContext.Context.NoV, BSDFContext.SatNoL);
+					PDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2);
+				}
 
-#if STRATA_FASTPATH==0
+				#if STRATA_FASTPATH==0
 				if (bHaziness)
 				{
-					const float a2Haze = BSDFContext.a2OverrideHazy > 0 ? BSDFContext.a2OverrideHazy : Pow4(ComputeHazyLobeRoughness(SafeRoughnessX, SLAB_HAZINESS(BSDFContext.BSDF)));
-					HazeD = D_GGX(a2Haze, BSDFContext.Context.NoH);
-					HazeVis = Vis_SmithJointApprox(a2Haze, BSDFContext.Context.NoV, BSDFContext.SatNoL);
+					HazeSafeRoughnessX = ComputeHazyLobeRoughness(SafeRoughnessX, SLAB_HAZINESS(BSDFContext.BSDF));
+
+					const float a2Haze = BSDFContext.a2OverrideHazy > 0 ? BSDFContext.a2OverrideHazy : Pow4(HazeSafeRoughnessX);
+					HazeD   = D_GGX(a2Haze, BSDFContext.Context.NoH);
+					HazeVis = Vis_SmithJoint(a2Haze, BSDFContext.Context.NoV, BSDFContext.SatNoL);
 					HazePDF = VisibleGGXPDF(BSDFContext.TangentV, BSDFContext.TangentH, a2Haze);
+
 				}
-#endif
+				#endif
 			}
 
+			float3 MSScale = 1;
+			float3 HazeMSScale = 1;
+			#if STRATA_MICROFACET_MULTIPLESCATTERING
+			{
+				MSScale	= StrataEvaluateMicrofacetMultipleScattering(F0, BSDFContext.Context.NoV, Metallic, SafeRoughnessX, SafeRoughnessY);
+				#if STRATA_FASTPATH==0
+				if (bHaziness)
+				{
+					HazeMSScale = StrataEvaluateMicrofacetMultipleScattering(F0, BSDFContext.Context.NoV, Metallic, HazeSafeRoughnessX, HazeSafeRoughnessY);
+				}
+				#endif
+			}
+			#endif
+
 			float3 F = 0;
-#if STRATA_FASTPATH==0
+			#if STRATA_FASTPATH==0
 			const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
 			BRANCH
 			if (bHasThinFilm)
@@ -272,18 +324,18 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 				F = F_ThinFilm(BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
 			}
 			else
-#endif
+			#endif
 			{
 				F = F_Schlick(F0, F90, BSDFContext.Context.VoH);
 			}
 
-			Sample.SpecularPathProbability	= bHaziness		? (1.0f - SPECULAR_HAZINESS_WEIGHT) : 1.0f;
-			Sample.SpecularHazePathProbability= bHaziness	? SPECULAR_HAZINESS_WEIGHT			: 0.0f;
+			Sample.SpecularPathProbability		= bHaziness	? (1.0f - SPECULAR_HAZINESS_WEIGHT) : 1.0f;
+			Sample.SpecularHazePathProbability	= bHaziness	? SPECULAR_HAZINESS_WEIGHT			: 0.0f;
 
-			Sample.SpecularPathValue		= D * Vis * F;
+			Sample.SpecularPathValue		= D * Vis * F * MSScale;
 			Sample.SpecularPDF				= PDF * Sample.SpecularPathProbability;
 
-			Sample.SpecularHazePathValue	= HazeD * HazeVis * F;
+			Sample.SpecularHazePathValue	= HazeD * HazeVis * F * HazeMSScale;
 			Sample.SpecularHazePDF			= HazePDF * Sample.SpecularHazePathProbability;
 
 			Sample.EmissivePathValue= BSDF_GETEMISSIVE(BSDFContext.BSDF);
@@ -292,7 +344,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			break;
 		}
 
-#if STRATA_FASTPATH==0
+		#if STRATA_FASTPATH==0
 		case STRATA_BSDF_TYPE_SHEEN:
 		{
 			const float3 F0  = SHEEN_BASECOLOR(BSDFContext.BSDF);
@@ -337,7 +389,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 		//case STRATA_BSDF_TYPE_SINGLELAYERWATER:
 		//Nothing to do in this case because these BSDF are evaluated in other specialised passes.
 		//break;
-#endif
+		#endif
 	}
 
 	return Sample;

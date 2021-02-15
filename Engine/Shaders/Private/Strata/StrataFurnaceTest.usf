@@ -1,0 +1,154 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+
+#define STRATA_INLINE_SHADING 0
+#define STRATA_MICROFACET_MULTIPLESCATTERING 1
+
+#include "StrataMultipleScattering.ush"
+#include "StrataEvaluation.ush"
+
+#if SHADER_FURNACE_ANALYTIC
+
+uint SceneType;
+uint NumSamples;
+int2 OutputResolution;
+
+void MainPS(
+	float4 SVPos : SV_POSITION,
+	out float3 OutColor : SV_Target0)
+{
+	const float3 InRadiance = 0.5f;
+	OutColor = InRadiance;
+
+	const uint2 TileCount = 8;
+	const uint2 TileResolution = OutputResolution / TileCount;
+
+	const uint2 PixelPos = uint2(SVPos.xy);	
+	const float2 UV = PixelPos / float2(OutputResolution);
+	const float2 TileUV = frac(UV * TileCount);
+	const uint2 TileCoord = floor(UV * TileCount);
+	const uint2 TilePixelCoord = TileUV * TileResolution;
+
+	float3 V = float3(0, 0, -1);
+	float3 N = 0;
+	bool bEvaluate = false;
+	{
+		const float3 RayO = float3(TileUV, 0);
+		const float3 RayD = float3(0, 0, 1);
+		const float4 Sphere = float4(0.5f, 0.5f, 1.f, 0.4f);
+		const float2 Hit = RayIntersectSphere(RayO, RayD, Sphere);
+		if (Hit.x >= 0)
+		{
+			const float3 P = RayO + RayD * Hit.x;
+			N = normalize(P - Sphere.xyz);
+			bEvaluate = true;
+		}
+	}
+
+	// Draw a simple 2D grid of spheres 
+	if (bEvaluate)
+	{
+		// Build a single layer BSDF with white albedo
+		FStrataBSDF BSDF = (FStrataBSDF)0;
+		{
+			const float MinRoughness = 0.02;
+
+			float3 BaseColor = 1;
+			float3 EdgeColor = 1;
+			float Roughness  = 0.5f;
+			float Metallic   = 0.0f;
+			float Specular   = 0.5f;
+
+			if (SceneType == 1)
+			{
+				//  ------> Roughness
+				// |
+				// |
+				// v
+				// Metallic
+				Roughness = max(MinRoughness, (TileCoord.x) / float(TileCount.x - 1));
+				Metallic = (TileCoord.y) / float(TileCount.y - 1);
+			}
+			else if (SceneType == 2)
+			{
+				// All metalic with different roughness & metal type (F0)
+				//  ------> Roughness
+				//  -> Silver
+				//  -> Aluminium
+				//  -> Gold
+				//  -> Copper
+				const float3 Silver      = float3(0.971519,    0.959915,    0.915324);
+				const float3 Aluminium   = float3(0.913183,    0.921494,    0.924524);
+				const float3 Gold        = float3(1       ,    0.765557,    0.336057);
+				const float3 Copper      = float3(0.955008,    0.637427,    0.538163);
+				const float3 Chromium    = float3(0.549585,    0.556114,    0.554256);
+				const float3 Nickel      = float3(0.659777,    0.608679,    0.525649);
+				const float3 Titanium    = float3(0.541931,    0.496791,    0.449419);
+				const float3 Cobalt      = float3(0.662124,    0.654864,    0.633732);
+				const float3 Platinum    = float3(0.672411,    0.637331,    0.585456);
+
+				Roughness = max(MinRoughness, (TileCoord.x) / float(TileCount.x - 1));
+				Metallic = 1;
+				switch (TileCoord.y)
+				{
+					case 0: BaseColor = Silver; break;
+					case 1: BaseColor = Aluminium; break;
+					case 2: BaseColor = Gold; break;
+					case 3: BaseColor = Copper; break;
+					case 4: BaseColor = Chromium; break;
+					case 5: BaseColor = Nickel; break;
+					case 6: BaseColor = Titanium; break;
+					case 7: BaseColor = Cobalt; break;
+				}
+			}
+
+			BSDF_SETTYPE(BSDF, STRATA_BSDF_TYPE_SLAB);
+			BSDF_SETNORMALID(BSDF, 0);
+			BSDF_SETANISOTROPY(BSDF, 0);
+			BSDF_SETISTOPLAYER(BSDF, 1);
+			BSDF_SETHASEDGECOLOR(BSDF, 0);
+			BSDF_SETHASSCATTERING(BSDF, 0);
+			BSDF_SETHASSSSPROFILE(BSDF, 0);
+			BSDF_SETHASHAZINESS(BSDF, 0);
+			BSDF_SETHASTHINFILM(BSDF, 0);
+			BSDF.Weight = 1.0f;
+
+			SLAB_BASECOLOR(BSDF)	= BaseColor;
+			SLAB_EDGECOLOR(BSDF)	= EdgeColor;
+			SLAB_ROUGHNESSX(BSDF)	= Roughness;
+			SLAB_ROUGHNESSY(BSDF)	= Roughness;
+			SLAB_SPECULAR(BSDF)		= Specular;
+			SLAB_METALLIC(BSDF)		= Metallic;
+			SLAB_HAZINESS(BSDF)		= 0;
+		}
+
+		// Sample uniformly the upper hemisphere of each pixel
+		float3 Acc = 0;
+		const FShadowTerms ShadowTerms = { 1.0f, 1.0, 1.0, InitHairTransmittanceData() };
+		LOOP
+		for (uint SampleIt = 0; SampleIt < NumSamples; ++SampleIt)
+		{
+			const float3x3 TangentBasis = GetTangentBasis(N);
+			const float2 U = Hammersley(SampleIt, NumSamples, 0);
+
+			const float4 S = UniformSampleHemisphere(U);
+			const float3 L = mul(S.xyz, TangentBasis);
+
+			const float SatNoL = saturate(dot(L, N));
+
+			FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L);
+			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
+
+			const float3 DiffusePathWeight  = BSDF.Weight * BSDFEvaluate.DiffusePathValue;
+			const float3 SpecularPathWeight = BSDF.Weight * BSDFEvaluate.SpecularPathValue;
+
+			Acc += SatNoL * InRadiance * (DiffusePathWeight + SpecularPathWeight) / (S.w != 0 ?  S.w : 1);
+		}
+		OutColor = Acc / max(1, SampleIt); 
+	}
+}
+
+#endif // SHADER_FURNACE_ANALYTIC
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////

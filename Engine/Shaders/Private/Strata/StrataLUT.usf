@@ -1,0 +1,215 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/MonteCarlo.ush"
+#include "/Engine/Private/ShadingCommon.ush"
+#include "/Engine/Private/BRDF.ush"
+#include "/Engine/Private/PathTracing/Material/PathTracingGlossy.ush"
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FDirectionResult
+{
+	float3 Direction;
+	float Fresnel;
+	bool bIsRefacted;
+};
+
+// Compute the outgoing direction for a microfacet
+FDirectionResult ComputeDirection(float3 RayDirection, float3 Normal, float Fresnel, float Eta, bool bRefractEnable)
+{
+	FDirectionResult Out;
+	Out.Direction = 0;
+	Out.Fresnel = 0;
+	Out.bIsRefacted = false;
+
+	// Compute refracted direction and Fresnel term at the same time to re-use intermediate values
+	// and to get matching results for the TIR condition
+	float CosI = abs(dot(RayDirection, Normal));
+	float g2 = Eta * Eta - 1.0 + CosI * CosI;
+
+	if (g2 >= 0.0)
+	{
+		const float c = CosI;
+		const float g = sqrt(g2);
+		if (bRefractEnable)
+		{
+			Out.Fresnel = 1 - Fresnel;
+			Out.Direction = normalize(RayDirection + Normal * (c - g));
+			return Out;
+		}
+		Out.Fresnel = Fresnel;
+	}
+	else
+	{
+		// TIR
+		Out.Fresnel = 1.0;
+	}
+	// either TIR, or sampled reflection
+	Out.Direction = RayDirection + (2 * CosI) * Normal;
+	return Out;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_LUT
+
+uint NumSamples;
+uint EnergyLUTResolution;
+int2 SliceXYCount;
+
+RWTexture3D<float2> OutLUT3D;
+RWTexture2D<float4> OutLUT2D;
+
+void MainPS(
+	float4 SVPos : SV_POSITION, 
+	out float2 OutColor : SV_Target0)
+{
+	const uint3 LUTResolution = EnergyLUTResolution.xxx;
+	const uint2 PixelPos = uint2(SVPos.xy);
+
+	const uint2 SliceCoord = uint2(
+		PixelPos.x / LUTResolution.x,
+		PixelPos.y / LUTResolution.y);
+
+	const uint3 Coord = uint3(
+		PixelPos.x % LUTResolution.x,
+		PixelPos.y % LUTResolution.y,
+		SliceCoord.x + SliceCoord.y * SliceXYCount.x);
+
+	float A_R = 0.0f;
+	float B_R = 0.0f;
+
+	float A_T = 0.0f;
+	float B_T = 0.0f;
+
+	float E_R = 0.0f;
+	float E_T = 0.0f;
+
+	// Roughness
+	const float Roughness = float(Coord.y + 0.5f) / LUTResolution.y;
+	const float m = Roughness * Roughness;
+	const float m2 = m * m;
+
+	// Incident angle
+	const float NoV = float(Coord.x + 0.5f) / LUTResolution.x;
+	const float3 V = float3(sqrt(1.0f - NoV * NoV),	0.0f, NoV);
+
+	LOOP
+	for (uint i = 0; i < NumSamples; i++)
+	{
+		const float2 E = Hammersley(i, NumSamples, uint2(0, 0));
+
+		// Decomposition based on Schlick's fresnel formula
+		// F_Schlick = F0 + (1-F0) (1-cos)^5 = F0 + (1-F0) Fc
+		// 
+		// UPPER \int{Omera_{+}}
+		// =====================
+		// Decomposition in A B terms of the directional albedo for microfacter for *upper* hemisphere
+		// E_R
+		// = \int F.D.G
+		// = \int (F0 + (1-F0) Fc).D.G
+		// = \int F0.D.G + \int (1-F0).Fc.D.G
+		// = F0 \int D.G + (1-F0) \int Fc.D.G
+		//      ========           ==========
+		//         A_R                 B_R
+		//
+		// Reconstruction of the directional Albedo for upper hemisphere
+		// E_R = F0.A_R + (1-F0).B_R
+		//
+		//
+		// LOWER \int{Omera_{-}}
+		// =====================
+		// Decomposition in A B terms of the directional albedo for microfacter for *lower* hemisphere
+		//
+		// E_T
+		// = \int (1-F).D.G
+		// = \int (1- (F0 + (1-F0) Fc)).D.G
+		// = \int (1 - F0 - (1-F0) Fc).D.G
+		// = \int D.G - F0.D.G - (1-F0) Fc.D.G
+		// = \int D.G - \int F0.D.G - \int (1-F0) Fc.D.G
+		// = \int D.G - F0 \int D.G - (1-F0) \int Fc.D.G
+		//   ========      ========          ===========
+		//     A_T            A_T                B_T
+		//
+		//
+		// Reconstruction of the directional Albedo for lower hemisphere
+		// E_T = A_T + F0.A_T + (1-F0).B_T
+		//
+		
+		// "Based on "Practical multiple scattering compensation for microfacet models". E. Turquin
+		//
+		// Dieletric
+		// ==========
+		// Microfacet multiple scattering term for *dielietric*
+		//  f_ss(wo,wi) = F(wo,wi) . D(wo,wi) . G(wo,wi)
+		//  f_ms(wo,wi) = F_ss / (E_T + E_R)
+		//
+		// Conductor
+		// =========
+		// Microfacet multiple scattering term for *conductor*
+		//  f_ss(wo,wi) = F(wo,wi) . D(wo,wi) . G(wo,wi)
+		//  f_ms(wo,wi) = F_ss . (1 +  F0 (1-E_R)/ E_R)
+
+		// TODO: parametrize F0 with something which preserve precision in the lower part e.g., sqrt(F0)
+		const float F0 = float(Coord.z) / LUTResolution.z;
+		const float F90 = 1;
+		{
+			float4 GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), m2, V);
+			const float3 H  = GGXSample.xyz;
+			const float VoH = saturate(dot(V, H));
+			const float F	= F_Schlick(F0, F90, VoH).x;
+			
+			const float Eta_Incident = 1.0f;
+			const float Eta_Outgoing = DielectricF0ToIor(F0);
+			const float Eta = Eta_Outgoing / Eta_Incident;
+
+			const FDirectionResult Sample_Lr = ComputeDirection(-V, H, F, Eta, false);
+			const FDirectionResult Sample_Lt = ComputeDirection(-V, H, F, Eta, true);
+
+			const float NoL_r = Sample_Lr.Direction.z;
+			const float NoL_t = Sample_Lt.Direction.z;
+
+			// Schlick's Fresnel sub-term: Fc = (1-VoH)^5 
+			const float Fc = Pow5(1.0f - VoH);
+
+			const float R_WeightPdf = GGXEvalReflection(Sample_Lr.Direction, V, H, float2(m, m)).x;
+			const float T_WeightPdf = GGXEvalRefraction(Sample_Lt.Direction, V, H, float2(m, m), Eta).x;
+
+			E_R += Sample_Lr.Fresnel * R_WeightPdf;
+			E_T += Sample_Lt.Fresnel * T_WeightPdf;
+
+			A_R += R_WeightPdf;
+			B_R += R_WeightPdf * Fc;
+
+			A_T += T_WeightPdf;
+			B_T += T_WeightPdf * Fc;
+		}
+	}
+
+	A_R /= NumSamples;
+	B_R /= NumSamples;
+			
+	A_T /= NumSamples;
+	B_T /= NumSamples;
+
+	E_R /= NumSamples;
+	E_T /= NumSamples;
+
+	const float2 Out3D = float2(E_R, E_T);
+	const float4 Out2D = float4(A_R, B_R, A_T, B_T);
+
+	// At the moment ouput 2 LUTs:
+	// * A 2D LUT which factor out IOR/F0 data
+	// * A 3D LUT which compute the directional albedo for all F0 value (for debug purpose)
+	if (Coord.z == 2) // ~ IOR 1.5 for 64x64 LUT (this is still experimental)
+	{
+		OutLUT2D[Coord.xy]	= Out2D;
+	}
+	OutLUT3D[Coord]		= Out3D;
+	OutColor			= Out3D;
+}
+
+#endif // SHADER_LUT
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
