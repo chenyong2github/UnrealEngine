@@ -203,7 +203,7 @@ void FTexturePageMap::MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysic
 	SortedKeysDirty = true;
 }
 
-void FTexturePageMap::VerifyAddressRangeUnmapped(uint32 vAddress, uint32 Size) const
+void FTexturePageMap::GetMappedPagesInRange(uint32 vAddress, uint32 Size, TArray<FMappedTexturePage>& OutMappedPages) const
 {
 	const uint32 vAddressMax = vAddress + FMath::Square(Size);
 
@@ -214,7 +214,11 @@ void FTexturePageMap::VerifyAddressRangeUnmapped(uint32 vAddress, uint32 Size) c
 		const FPageEntry& Entry = Pages[PageIndex];
 		if (Entry.Page.vAddress >= vAddress && Entry.Page.vAddress < vAddressMax)
 		{
-			check(false);
+			FMappedTexturePage& OutPage = OutMappedPages.AddDefaulted_GetRef();
+			OutPage.Page = Entry.Page;
+			OutPage.pAddress = Entry.pAddress;
+			OutPage.PhysicalSpaceID = Entry.PhysicalSpaceID;
+			OutPage.vLevel = Entry.vLevel;
 		}
 
 		PageIndex = Entry.NextIndex;

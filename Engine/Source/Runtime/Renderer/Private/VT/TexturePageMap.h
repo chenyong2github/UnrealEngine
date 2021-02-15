@@ -42,6 +42,14 @@ union FPhysicalSpaceIDAndAddress
 	};
 };
 
+struct FMappedTexturePage
+{
+	FTexturePage Page;
+	uint32 pAddress : 16;
+	uint32 PhysicalSpaceID : 12;
+	uint32 vLevel : 4;
+};
+
 /**
  * Manages a single layer of a VT page table, contains mappings of virtual->physical address
  * Pages should not be directly mapped/unmapped from this class, this should instead go through FTexturePagePool
@@ -90,7 +98,7 @@ public:
 	*/
 	void		MapPage(FVirtualTextureSpace* Space, FVirtualTexturePhysicalSpace* PhysicalSpace, uint8 vLogSize, uint32 vAddress, uint8 vLevel, uint16 pAddress);
 
-	void		VerifyAddressRangeUnmapped(uint32 vAddress, uint32 Size) const;
+	void		GetMappedPagesInRange(uint32 vAddress, uint32 Size, TArray<FMappedTexturePage>& OutMappedPages) const;
 
 	void		RefreshEntirePageTable(FVirtualTextureSystem* System, TArray< FPageTableUpdate >* Output);
 	void		ExpandPageTableUpdatePainters(FVirtualTextureSystem* System, FPageTableUpdate Update, TArray< FPageTableUpdate >* Output);

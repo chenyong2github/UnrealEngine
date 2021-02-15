@@ -199,11 +199,32 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 			UniquePageTableLayers[PageTableIndex].PhysicalSpace.SafeRelease();
 		}
 
+#if DO_CHECK
 		for (uint32 LayerIndex = 0; LayerIndex < Space->GetNumPageTableLayers(); ++LayerIndex)
 		{
 			const FTexturePageMap& PageMap = Space->GetPageMapForPageTableLayer(LayerIndex);
-			PageMap.VerifyAddressRangeUnmapped(VirtualAddress, BlockSize);
+
+			TArray<FMappedTexturePage> MappedPages;
+			PageMap.GetMappedPagesInRange(VirtualAddress, BlockSize, MappedPages);
+			if (MappedPages.Num() > 0)
+			{
+				TStringBuilder<2048> Message;
+				Message.Appendf(TEXT("Mapped pages remain after releasing AllocatedVT - vAddress: %d, Size: %d, PhysicalSpaces: ["), VirtualAddress, BlockSize);
+				for (FVirtualTexturePhysicalSpace* PhysicalSpace : UniquePhysicalSpaces)
+				{
+					Message.Appendf(TEXT("%d "), PhysicalSpace->GetID());
+				}
+				Message.Appendf(TEXT("], MappedPages: ["));
+
+				for (const FMappedTexturePage& MappedPage : MappedPages)
+				{
+					Message.Appendf(TEXT("(vAddress: %d, PhysicalSpace: %d) "), MappedPage.Page.vAddress, MappedPage.PhysicalSpaceID);
+				}
+				Message.Appendf(TEXT("]"));
+				UE_LOG(LogVirtualTexturing, Warning, TEXT("%s"), Message.ToString());
+			}
 		}
+#endif // DO_CHECK
 	}
 
 	Space->FreeVirtualTexture(this);
