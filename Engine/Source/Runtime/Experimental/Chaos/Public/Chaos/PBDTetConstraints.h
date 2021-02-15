@@ -8,9 +8,9 @@
 
 namespace Chaos
 {
-class FPBDTetConstraints : public FParticleRule, public PBDTetConstraintsBase<FReal>
+class FPBDTetConstraints : public FParticleRule, public FPBDTetConstraintsBase
 {
-	typedef PBDTetConstraintsBase<FReal> Base;
+	typedef FPBDTetConstraintsBase Base;
 	using Base::MConstraints;
 
   public:
