@@ -95,7 +95,7 @@ protected:
 	{
 		// We never want to compile editor targets when invoking UAT in this context.
 		// If we are installed or don't have a compiler, we must assume we have a precompiled UAT.
-		return TEXT("-nocompileeditor");
+		return TEXT("-nocompileeditor -skipbuildeditor");
 	}
 
 	static bool ShowBadSDKDialog(FName IniPlatformName)
