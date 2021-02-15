@@ -91,3 +91,12 @@ protected:
 
 	friend class UAnimGraphNode_CustomProperty;
 };
+
+template<>
+struct TStructOpsTypeTraits<FAnimNode_CustomProperty> : public TStructOpsTypeTraitsBase2<FAnimNode_CustomProperty>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};

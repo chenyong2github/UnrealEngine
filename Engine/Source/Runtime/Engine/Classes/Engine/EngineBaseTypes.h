@@ -426,7 +426,8 @@ struct TStructOpsTypeTraits<FTickFunction> : public TStructOpsTypeTraitsBase2<FT
 {
 	enum
 	{
-		WithCopy = false
+		WithCopy = false,
+		WithPureVirtual = true
 	};
 };
 

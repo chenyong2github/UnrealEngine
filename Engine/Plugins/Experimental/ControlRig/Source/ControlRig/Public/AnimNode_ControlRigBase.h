@@ -103,4 +103,11 @@ protected:
 	friend struct FControlRigSequencerAnimInstanceProxy;
 	friend struct FControlRigLayerInstanceProxy;
 };
-
+template<>
+struct TStructOpsTypeTraits<FAnimNode_ControlRigBase> : public TStructOpsTypeTraitsBase2<FAnimNode_ControlRigBase>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};

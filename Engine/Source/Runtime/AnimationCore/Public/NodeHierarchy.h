@@ -403,3 +403,11 @@ protected:
 	virtual bool HasUserData() const { return false; }
 };
 
+template<>
+struct TStructOpsTypeTraits<FNodeHierarchyWithUserData> : public TStructOpsTypeTraitsBase2<FNodeHierarchyWithUserData>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};
