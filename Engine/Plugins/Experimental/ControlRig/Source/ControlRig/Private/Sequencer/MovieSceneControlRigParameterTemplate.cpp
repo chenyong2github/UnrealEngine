@@ -18,6 +18,8 @@
 #include "ControlRigComponent.h"
 #include "SkeletalMeshRestoreState.h"
 
+#include "UObject/UObjectAnnotation.h"
+
 //#include "Particles/ParticleSystemComponent.h"
 
 DECLARE_CYCLE_STAT(TEXT("ControlRig Parameter Track Evaluate"), MovieSceneEval_ControlRigTemplateParameter_Evaluate, STATGROUP_MovieSceneEval);
@@ -40,12 +42,10 @@ struct FScalarParameterStringAndValue
 	FScalarParameterStringAndValue(FName InParameterName, float InValue)
 	{
 		ParameterName = InParameterName;
-		ParameterString = InParameterName.ToString();		
 		Value = InValue;
 	}
 
 	/** The name of the scalar parameter. */
-	FString ParameterString;
 	FName ParameterName;
 	/** The animated value of the scalar parameter. */
 	float Value;
@@ -60,12 +60,10 @@ struct FBoolParameterStringAndValue
 	FBoolParameterStringAndValue(FName InParameterName, bool InValue)
 	{
 		ParameterName = InParameterName;
-		ParameterString = InParameterName.ToString();		
 		Value = InValue;
 	}
 
 	/** The name of the bool parameter. */
-	FString ParameterString;
 	FName ParameterName;
 	/** The animated value of the bool parameter. */
 	bool Value;
@@ -79,11 +77,9 @@ struct FIntegerParameterStringAndValue
 	FIntegerParameterStringAndValue(FName InParameterName, int32 InValue)
 	{
 		ParameterName = InParameterName;
-		ParameterString = InParameterName.ToString();
 		Value = InValue;
 	}
 
-	FString ParameterString;
 	FName ParameterName;
 	int32 Value;
 };
@@ -97,12 +93,10 @@ struct FVector2DParameterStringAndValue
 	FVector2DParameterStringAndValue(FName InParameterName, FVector2D InValue)
 	{
 		ParameterName = InParameterName;
-		ParameterString = InParameterName.ToString();
 		Value = InValue;
 	}
 
 	/** The name of the vector2D parameter. */
-	FString ParameterString;
 	FName ParameterName;
 
 	/** The animated value of the vector2D parameter. */
@@ -118,12 +112,10 @@ struct FVectorParameterStringAndValue
 	FVectorParameterStringAndValue(FName InParameterName, FVector InValue)
 	{
 		ParameterName = InParameterName;
-		ParameterString = InParameterName.ToString();
 		Value = InValue;
 	}
 
 	/** The name of the vector parameter. */
-	FString ParameterString;
 	FName ParameterName;
 
 	/** The animated value of the vector parameter. */
@@ -140,12 +132,10 @@ struct FColorParameterStringAndValue
 	FColorParameterStringAndValue(FName InParameterName, FLinearColor InValue)
 	{
 		ParameterName = InParameterName;
-		ParameterString = InParameterName.ToString();
 		Value = InValue;
 	}
 
 	/** The name of the color parameter. */
-	FString ParameterString;
 	FName ParameterName;
 
 	/** The animated value of the color parameter. */
@@ -156,7 +146,6 @@ struct FTransformParameterStringAndValue
 {
 
 	/** The name of the transform  parameter. */
-	FString ParameterString;
 	FName ParameterName;
 	/** Translation component */
 	FVector Translation;
@@ -170,9 +159,184 @@ struct FTransformParameterStringAndValue
 		Rotation(InRotation), Scale(InScale)
 	{
 		ParameterName = InParameterName;
-		ParameterString = InParameterName.ToString();
 	}
 };
+
+
+struct FControlRigAnimTypeIDs;
+
+/** Thread-safe because objects can be destroyed on background threads */
+using FControlRigAnimTypeIDsPtr = TSharedPtr<FControlRigAnimTypeIDs, ESPMode::ThreadSafe>;
+
+/**
+ * Control rig anim type IDs are a little complex - they require a unique type ID for every bone
+ * and they must be unique per-animating section. To efficiently support finding these each frame,
+ * We store a cache of the type IDs in a container on an object annotation for each section.
+ */
+struct FControlRigAnimTypeIDs
+{
+	/** Get the anim type IDs for the specified section */
+	static FControlRigAnimTypeIDsPtr Get(const UMovieSceneControlRigParameterSection* Section)
+	{
+		struct FControlRigAnimTypeIDsAnnotation
+		{
+			// IsDefault should really have been implemented as a trait rather than a function so that this type isn't necessary
+			bool IsDefault() const
+			{
+				return Ptr == nullptr;
+			}
+			FControlRigAnimTypeIDsPtr Ptr;
+		};
+
+		// Function-local static so that this only gets created once it's actually required
+		static FUObjectAnnotationSparse<FControlRigAnimTypeIDsAnnotation, true> AnimTypeIDAnnotation;
+
+		FControlRigAnimTypeIDsAnnotation TypeIDs = AnimTypeIDAnnotation.GetAnnotation(Section);
+		if (TypeIDs.Ptr != nullptr)
+		{
+			return TypeIDs.Ptr;
+		}
+
+		FControlRigAnimTypeIDsPtr NewPtr = MakeShared<FControlRigAnimTypeIDs, ESPMode::ThreadSafe>();
+		AnimTypeIDAnnotation.AddAnnotation(Section, FControlRigAnimTypeIDsAnnotation{NewPtr});
+		return NewPtr;
+	}
+
+	/** Find the anim-type ID for the specified scalar parameter */
+	FMovieSceneAnimTypeID FindScalar(FName InParameterName)
+	{
+		return FindImpl(InParameterName, ScalarAnimTypeIDsByName);
+	}
+	/** Find the anim-type ID for the specified Vector2D parameter */
+	FMovieSceneAnimTypeID FindVector2D(FName InParameterName)
+	{
+		return FindImpl(InParameterName, Vector2DAnimTypeIDsByName);
+	}
+	/** Find the anim-type ID for the specified vector parameter */
+	FMovieSceneAnimTypeID FindVector(FName InParameterName)
+	{
+		return FindImpl(InParameterName, VectorAnimTypeIDsByName);
+	}
+	/** Find the anim-type ID for the specified transform parameter */
+	FMovieSceneAnimTypeID FindTransform(FName InParameterName)
+	{
+		return FindImpl(InParameterName, TransformAnimTypeIDsByName);
+	}
+private:
+
+	/** Sorted map should give the best trade-off for lookup speed with relatively small numbers of bones (O(log n)) */
+	using MapType = TSortedMap<FName, FMovieSceneAnimTypeID, FDefaultAllocator, FNameFastLess>;
+
+	static FMovieSceneAnimTypeID FindImpl(FName InParameterName, MapType& InOutMap)
+	{
+		if (const FMovieSceneAnimTypeID* Type = InOutMap.Find(InParameterName))
+		{
+			return *Type;
+		}
+		FMovieSceneAnimTypeID New = FMovieSceneAnimTypeID::Unique();
+		InOutMap.Add(InParameterName, FMovieSceneAnimTypeID::Unique());
+		return New;
+	}
+	/** Array of existing type identifiers */
+	MapType ScalarAnimTypeIDsByName;
+	MapType Vector2DAnimTypeIDsByName;
+	MapType VectorAnimTypeIDsByName;
+	MapType TransformAnimTypeIDsByName;
+};
+
+/**
+ * Cache structure that is stored per-section that defines bitmasks for every
+ * index within each curve type. Set bits denote that the curve should be 
+ * evaluated. Only ever initialized once since the template will get re-created
+ * whenever the control rig section changes
+ */
+struct FEvaluatedControlRigParameterSectionChannelMasks : IPersistentEvaluationData
+{
+	TBitArray<> ScalarCurveMask;
+	TBitArray<> BoolCurveMask;
+	TBitArray<> IntegerCurveMask;
+	TBitArray<> EnumCurveMask;
+	TBitArray<> Vector2DCurveMask;
+	TBitArray<> VectorCurveMask;
+	TBitArray<> ColorCurveMask;
+	TBitArray<> TransformCurveMask;
+
+	void Initialize(const UMovieSceneControlRigParameterSection* Section,
+		TArrayView<const FScalarParameterNameAndCurve> Scalars,
+		TArrayView<const FBoolParameterNameAndCurve> Bools,
+		TArrayView<const FIntegerParameterNameAndCurve> Integers,
+		TArrayView<const FEnumParameterNameAndCurve> Enums,
+		TArrayView<const FVector2DParameterNameAndCurves> Vector2Ds,
+		TArrayView<const FVectorParameterNameAndCurves> Vectors,
+		TArrayView<const FColorParameterNameAndCurves> Colors,
+		TArrayView<const FTransformParameterNameAndCurves> Transforms
+		)
+	{
+		const TArray<bool>& ControlsMask = Section->GetControlsMask();
+
+		const FChannelMapInfo* ChannelInfo = nullptr;
+
+		ScalarCurveMask.Add(false, Scalars.Num());
+		BoolCurveMask.Add(false, Bools.Num());
+		IntegerCurveMask.Add(false, Integers.Num());
+		EnumCurveMask.Add(false, Enums.Num());
+		Vector2DCurveMask.Add(false, Vector2Ds.Num());
+		VectorCurveMask.Add(false, Vectors.Num());
+		ColorCurveMask.Add(false, Colors.Num());
+		TransformCurveMask.Add(false, Transforms.Num());
+		
+		for (int32 Index = 0; Index < Scalars.Num(); ++Index)
+		{
+			const FScalarParameterNameAndCurve& Scalar = Scalars[Index];
+			ChannelInfo = Section->ControlChannelMap.Find(Scalar.ParameterName);
+			ScalarCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+		}
+		for (int32 Index = 0; Index < Bools.Num(); ++Index)
+		{
+			const FBoolParameterNameAndCurve& Bool = Bools[Index];
+			ChannelInfo = Section->ControlChannelMap.Find(Bool.ParameterName);
+			BoolCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+		}
+		for (int32 Index = 0; Index < Integers.Num(); ++Index)
+		{
+			const FIntegerParameterNameAndCurve& Integer = Integers[Index];
+			ChannelInfo = Section->ControlChannelMap.Find(Integer.ParameterName);
+			IntegerCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+		}
+		for (int32 Index = 0; Index < Enums.Num(); ++Index)
+		{
+			const FEnumParameterNameAndCurve& Enum = Enums[Index];
+			ChannelInfo = Section->ControlChannelMap.Find(Enum.ParameterName);
+			EnumCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+		}
+		for (int32 Index = 0; Index < Vector2Ds.Num(); ++Index)
+		{
+			const FVector2DParameterNameAndCurves& Vector2D = Vector2Ds[Index];
+			ChannelInfo = Section->ControlChannelMap.Find(Vector2D.ParameterName);
+			Vector2DCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+		}
+		for (int32 Index = 0; Index < Vectors.Num(); ++Index)
+		{
+			const FVectorParameterNameAndCurves& Vector = Vectors[Index];
+			ChannelInfo = Section->ControlChannelMap.Find(Vector.ParameterName);
+			VectorCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+		}
+		for (int32 Index = 0; Index < Colors.Num(); ++Index)
+		{
+			const FColorParameterNameAndCurves& Color = Colors[Index];
+			ChannelInfo = Section->ControlChannelMap.Find(Color.ParameterName);
+			ColorCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+		}
+		for (int32 Index = 0; Index < Transforms.Num(); ++Index)
+		{
+			const FTransformParameterNameAndCurves& Transform = Transforms[Index];
+			ChannelInfo = Section->ControlChannelMap.Find(Transform.ParameterName);
+			TransformCurveMask[Index] = (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex]);
+		}
+	}
+};
+// Static hack because we cannot add this to the function parameters for EvaluateCurvesWithMasks due to hotfix restrictions
+static FEvaluatedControlRigParameterSectionChannelMasks* HACK_ChannelMasks = nullptr;
 
 struct FEvaluatedControlRigParameterSectionValues
 {
@@ -1071,15 +1235,22 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 };
 
 
-
 void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
-
 	const FFrameTime Time = Context.GetTime();
 
 	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
 	if (Section)
 	{
+		FEvaluatedControlRigParameterSectionChannelMasks* ChannelMasks = PersistentData.FindSectionData<FEvaluatedControlRigParameterSectionChannelMasks>();
+		if (!ChannelMasks)
+		{
+			// Naughty const_cast here, but we can't create this inside Initialize because of hotfix restrictions
+			// The cast is ok because we actually do not have any threading involved
+			ChannelMasks = &const_cast<FPersistentEvaluationData&>(PersistentData).GetOrAddSectionData<FEvaluatedControlRigParameterSectionChannelMasks>();
+			ChannelMasks->Initialize(Section, Scalars, Bools, Integers, Enums, Vector2Ds, Vectors, Colors, Transforms);
+		}
+
 		UMovieSceneTrack* Track = Cast<UMovieSceneTrack>(Section->GetOuter());
 		if (!Track)
 		{
@@ -1091,11 +1262,10 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 
 		//Do blended tokens
 		FEvaluatedControlRigParameterSectionValues Values;
+
+		HACK_ChannelMasks = ChannelMasks;
 		EvaluateCurvesWithMasks(Context, Values);
-		static TMovieSceneAnimTypeIDContainer<FString> ScalarAnimTypeIDsByName;
-		static TMovieSceneAnimTypeIDContainer<FString> VectorAnimTypeIDsByName;
-		static TMovieSceneAnimTypeIDContainer<FString> Vector2DAnimTypeIDsByName;
-		static TMovieSceneAnimTypeIDContainer<FString> TransformAnimTypeIDsByName;
+		HACK_ChannelMasks = nullptr;
 
 		float Weight = EvaluateEasing(Context.GetTime());
 		if (EnumHasAllFlags(Section->TransformMask.GetChannels(), EMovieSceneTransformChannel::Weight))
@@ -1140,23 +1310,18 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 			}
 		}
 		Section->SetDoNotKey(bWasDoNotKey);
-	
 
-		uint32 OperandHash = GetTypeHash(Operand);
-		FString UniqueActuator(FString::FromInt((int32)OperandHash));
-		uint32 TrackId = Track->GetUniqueID();
-		FString TrackIdString(FString::FromInt((int32)TrackId));
-		UniqueActuator.Append(TrackIdString);
+
+		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section);
+
 		for (const FScalarParameterStringAndValue& ScalarNameAndValue : Values.ScalarValues)
 		{
-			FString NewString(ScalarNameAndValue.ParameterString);
-			NewString.Append(UniqueActuator);
-			FMovieSceneAnimTypeID AnimTypeID = ScalarAnimTypeIDsByName.GetAnimTypeID(NewString);
+			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindScalar(ScalarNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
 
 			if (!ExecutionTokens.GetBlendingAccumulator().FindActuator< FControlRigTrackTokenFloat>(ActuatorTypeID))
 			{
-				ExecutionTokens.GetBlendingAccumulator().DefineActuator(ActuatorTypeID, MakeShared <TControlRigParameterActuatorFloat>(AnimTypeID, ScalarNameAndValue.ParameterName,Section));
+				ExecutionTokens.GetBlendingAccumulator().DefineActuator(ActuatorTypeID, MakeShared <TControlRigParameterActuatorFloat>(AnimTypeID, ScalarNameAndValue.ParameterName, Section));
 			}
 			ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<FControlRigTrackTokenFloat>(ScalarNameAndValue.Value, Section->GetBlendType().Get(), Weight));
 		}
@@ -1164,9 +1329,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		UE::MovieScene::TMultiChannelValue<float, 3> VectorData;
 		for (const FVectorParameterStringAndValue& VectorNameAndValue : Values.VectorValues)
 		{
-			FString NewString(VectorNameAndValue.ParameterString);
-			NewString.Append(UniqueActuator);
-			FMovieSceneAnimTypeID AnimTypeID = VectorAnimTypeIDsByName.GetAnimTypeID(NewString);
+			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindVector(VectorNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
 
 			if (!ExecutionTokens.GetBlendingAccumulator().FindActuator< FControlRigTrackTokenVector>(ActuatorTypeID))
@@ -1183,9 +1346,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		UE::MovieScene::TMultiChannelValue<float, 2> Vector2DData;
 		for (const FVector2DParameterStringAndValue& Vector2DNameAndValue : Values.Vector2DValues)
 		{
-			FString NewString(Vector2DNameAndValue.ParameterString);
-			NewString.Append(UniqueActuator);
-			FMovieSceneAnimTypeID AnimTypeID = Vector2DAnimTypeIDsByName.GetAnimTypeID(NewString);
+			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindVector2D(Vector2DNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
 
 			if (!ExecutionTokens.GetBlendingAccumulator().FindActuator< FControlRigTrackTokenVector2D>(ActuatorTypeID))
@@ -1201,9 +1362,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		UE::MovieScene::TMultiChannelValue<float, 9> TransformData;
 		for (const FTransformParameterStringAndValue& TransformNameAndValue : Values.TransformValues)
 		{
-			FString NewString(TransformNameAndValue.ParameterString);
-			NewString.Append(UniqueActuator);
-			FMovieSceneAnimTypeID AnimTypeID = TransformAnimTypeIDsByName.GetAnimTypeID(NewString);
+			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindTransform(TransformNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
 
 			if (!ExecutionTokens.GetBlendingAccumulator().FindActuator< FControlRigTrackTokenTransform>(ActuatorTypeID))
@@ -1235,20 +1394,28 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 {
 	const FFrameTime Time = Context.GetTime();
 
+	check(HACK_ChannelMasks);
 
-	const UMovieSceneControlRigParameterSection* Section = nullptr;
-	if (GetSourceSection())
+
+	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
+	if (Section)
 	{
-		Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
-		TArray<bool> ControlsMask = Section->GetControlsMask();
+		// Reserve the value arrays to avoid re-allocation
+		Values.ScalarValues.Reserve(Scalars.Num());
+		Values.BoolValues.Reserve(Bools.Num());
+		Values.IntegerValues.Reserve(Integers.Num() + Enums.Num()); // Both enums and integers output to the integer value array
+		Values.Vector2DValues.Reserve(Vector2Ds.Num());
+		Values.VectorValues.Reserve(Vectors.Num());
+		Values.ColorValues.Reserve(Colors.Num());
+		Values.TransformValues.Reserve(Transforms.Num());
 
-		//mz todo optimize this, don't want to do this map search every tick, will cache on the NameAndCurve objects
-		const FChannelMapInfo* ChannelInfo = nullptr;
-		for (const FScalarParameterNameAndCurve& Scalar : Scalars)
+		// Populate each of the output arrays in turn
+		for (int32 Index = 0; Index < Scalars.Num(); ++Index)
 		{
 			float Value = 0;
-			ChannelInfo = Section->ControlChannelMap.Find(Scalar.ParameterName);
-			if (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex])
+
+			const FScalarParameterNameAndCurve& Scalar = this->Scalars[Index];
+			if (HACK_ChannelMasks->ScalarCurveMask[Index])
 			{
 				Scalar.ParameterCurve.Evaluate(Time, Value);
 			}
@@ -1256,47 +1423,48 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 			Values.ScalarValues.Emplace(Scalar.ParameterName, Value);
 		}
 
-		for (const FBoolParameterNameAndCurve& Bool : Bools)
+		for (int32 Index = 0; Index < Bools.Num(); ++Index)
 		{
 			bool Value = false;
-			ChannelInfo = Section->ControlChannelMap.Find(Bool.ParameterName);
-			if (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex])
+
+			const FBoolParameterNameAndCurve& Bool = Bools[Index];
+			if (HACK_ChannelMasks->BoolCurveMask[Index])
 			{
 				Bool.ParameterCurve.Evaluate(Time, Value);
 			}
 
 			Values.BoolValues.Emplace(Bool.ParameterName, Value);
 		}
-
-		for (const FIntegerParameterNameAndCurve& Integer : Integers)
+		for (int32 Index = 0; Index < Integers.Num(); ++Index)
 		{
 			int32 Value = 0;
-			ChannelInfo = Section->ControlChannelMap.Find(Integer.ParameterName);
-			if (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex])
+
+			const FIntegerParameterNameAndCurve& Integer = Integers[Index];
+			if (HACK_ChannelMasks->IntegerCurveMask[Index])
 			{
 				Integer.ParameterCurve.Evaluate(Time, Value);
 			}
 
 			Values.IntegerValues.Emplace(Integer.ParameterName, Value);
 		}
-
-
-		for (const FEnumParameterNameAndCurve& Enum : Enums)
+		for (int32 Index = 0; Index < Enums.Num(); ++Index)
 		{
 			uint8 Value = 0;
-			ChannelInfo = Section->ControlChannelMap.Find(Enum.ParameterName);
-			if (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex])
+
+			const FEnumParameterNameAndCurve& Enum = Enums[Index];
+			if (HACK_ChannelMasks->EnumCurveMask[Index])
 			{
 				Enum.ParameterCurve.Evaluate(Time, Value);
 			}
 			Values.IntegerValues.Emplace(Enum.ParameterName, (int32)Value);
-		}
 
-		for (const FVector2DParameterNameAndCurves& Vector2D : Vector2Ds)
+		}
+		for (int32 Index = 0; Index < Vector2Ds.Num(); ++Index)
 		{
 			FVector2D Value(ForceInitToZero);
-			ChannelInfo = Section->ControlChannelMap.Find(Vector2D.ParameterName);
-			if (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex])
+
+			const FVector2DParameterNameAndCurves& Vector2D = Vector2Ds[Index];
+			if (HACK_ChannelMasks->Vector2DCurveMask[Index])
 			{
 				Vector2D.XCurve.Evaluate(Time, Value.X);
 				Vector2D.YCurve.Evaluate(Time, Value.Y);
@@ -1304,12 +1472,12 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 
 			Values.Vector2DValues.Emplace(Vector2D.ParameterName, Value);
 		}
-
-		for (const FVectorParameterNameAndCurves& Vector : Vectors)
+		for (int32 Index = 0; Index < Vectors.Num(); ++Index)
 		{
 			FVector Value(ForceInitToZero);
-			ChannelInfo = Section->ControlChannelMap.Find(Vector.ParameterName);
-			if (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex])
+
+			const FVectorParameterNameAndCurves& Vector = Vectors[Index];
+			if (HACK_ChannelMasks->VectorCurveMask[Index])
 			{
 				Vector.XCurve.Evaluate(Time, Value.X);
 				Vector.YCurve.Evaluate(Time, Value.Y);
@@ -1318,12 +1486,12 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 
 			Values.VectorValues.Emplace(Vector.ParameterName, Value);
 		}
-
-		for (const FColorParameterNameAndCurves& Color : Colors)
+		for (int32 Index = 0; Index < Colors.Num(); ++Index)
 		{
 			FLinearColor ColorValue = FLinearColor::White;
-			ChannelInfo = Section->ControlChannelMap.Find(Color.ParameterName);
-			if (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex])
+
+			const FColorParameterNameAndCurves& Color = Colors[Index];
+			if (HACK_ChannelMasks->ColorCurveMask[Index])
 			{
 				Color.RedCurve.Evaluate(Time, ColorValue.R);
 				Color.GreenCurve.Evaluate(Time, ColorValue.G);
@@ -1334,14 +1502,14 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 			Values.ColorValues.Emplace(Color.ParameterName, ColorValue);
 		}
 
-		for (const FTransformParameterNameAndCurves& Transform : Transforms)
+		EMovieSceneTransformChannel ChannelMask = Section->GetTransformMask().GetChannels();
+		for (int32 Index = 0; Index < Transforms.Num(); ++Index)
 		{
 			FVector Translation(ForceInitToZero), Scale(FVector::OneVector);
 			FRotator Rotator(0.0f, 0.0f, 0.0f);
-			EMovieSceneTransformChannel ChannelMask = Section->GetTransformMask().GetChannels();
-			ChannelInfo = Section->ControlChannelMap.Find(Transform.ParameterName);
 
-			if (!ChannelInfo || ControlsMask[ChannelInfo->ControlIndex])
+			const FTransformParameterNameAndCurves& Transform = Transforms[Index];
+			if (HACK_ChannelMasks->TransformCurveMask[Index])
 			{
 				if (EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationX))
 				{
@@ -1398,21 +1566,23 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 {
 	MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_ControlRigTemplateParameter_Evaluate)
 
-		const FFrameTime Time = Context.GetTime();
+	const FFrameTime Time = Context.GetTime();
 
-	const UMovieSceneControlRigParameterSection* Section = nullptr;
-	if (GetSourceSection())
+	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
+	if (Section)
 	{
-		Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
+		FEvaluatedControlRigParameterSectionChannelMasks ChannelMasks;
+		ChannelMasks.Initialize(Section, Scalars, Bools, Integers, Enums, Vector2Ds, Vectors, Colors, Transforms);
 
 		//Do blended tokens
 		FEvaluatedControlRigParameterSectionValues Values;
-		EvaluateCurvesWithMasks(Context, Values);
-		static TMovieSceneAnimTypeIDContainer<FString> ScalarAnimTypeIDsByName;
-		static TMovieSceneAnimTypeIDContainer<FString> Vector2DAnimTypeIDsByName;
-		static TMovieSceneAnimTypeIDContainer<FString> VectorAnimTypeIDsByName;
-		static TMovieSceneAnimTypeIDContainer<FString> TransformAnimTypeIDsByName;
 
+		HACK_ChannelMasks = &ChannelMasks;
+		EvaluateCurvesWithMasks(Context, Values);
+		HACK_ChannelMasks = nullptr;
+
+
+		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section);
 
 		float Weight = 1.f;
 
@@ -1427,7 +1597,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 
 		for (const FScalarParameterStringAndValue& ScalarNameAndValue : Values.ScalarValues)
 		{
-			FMovieSceneAnimTypeID AnimTypeID = ScalarAnimTypeIDsByName.GetAnimTypeID(ScalarNameAndValue.ParameterString);
+			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindScalar(ScalarNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
 
 			if (!Container.GetAccumulator().FindActuator< FControlRigTrackTokenFloat>(ActuatorTypeID))
@@ -1440,7 +1610,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 		UE::MovieScene::TMultiChannelValue<float, 2> Vector2DData;
 		for (const FVector2DParameterStringAndValue& Vector2DNameAndValue : Values.Vector2DValues)
 		{
-			FMovieSceneAnimTypeID AnimTypeID = Vector2DAnimTypeIDsByName.GetAnimTypeID(Vector2DNameAndValue.ParameterString);
+			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindVector2D(Vector2DNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
 
 			if (!Container.GetAccumulator().FindActuator< FControlRigTrackTokenVector>(ActuatorTypeID))
@@ -1456,7 +1626,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 		UE::MovieScene::TMultiChannelValue<float, 3> VectorData;
 		for (const FVectorParameterStringAndValue& VectorNameAndValue : Values.VectorValues)
 		{
-			FMovieSceneAnimTypeID AnimTypeID = VectorAnimTypeIDsByName.GetAnimTypeID(VectorNameAndValue.ParameterString);
+			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindVector(VectorNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
 
 			if (!Container.GetAccumulator().FindActuator< FControlRigTrackTokenVector>(ActuatorTypeID))
@@ -1473,10 +1643,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 		UE::MovieScene::TMultiChannelValue<float, 9> TransformData;
 		for (const FTransformParameterStringAndValue& TransformNameAndValue : Values.TransformValues)
 		{
-			uint32 ID = BindingOverride->GetUniqueID();
-
-
-			FMovieSceneAnimTypeID AnimTypeID = TransformAnimTypeIDsByName.GetAnimTypeID(TransformNameAndValue.ParameterString);
+			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindTransform(TransformNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
 
 			if (!Container.GetAccumulator().FindActuator< FControlRigTrackTokenTransform>(ActuatorTypeID))
