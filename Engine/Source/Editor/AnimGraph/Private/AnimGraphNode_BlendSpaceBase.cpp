@@ -25,7 +25,7 @@ FLinearColor UAnimGraphNode_BlendSpaceBase::GetNodeTitleColor() const
 
 void UAnimGraphNode_BlendSpaceBase::CustomizePinData(UEdGraphPin* Pin, FName SourcePropertyName, int32 ArrayIndex) const
 {
-	UBlendSpaceBase * BlendSpace = GetBlendSpace();
+	UBlendSpace * BlendSpace = GetBlendSpace();
 
 	if (BlendSpace != NULL)
 	{
@@ -57,7 +57,7 @@ void UAnimGraphNode_BlendSpaceBase::PostProcessPinName(const UEdGraphPin* Pin, F
 {
 	if(Pin->Direction == EGPD_Input)
 	{
-		UBlendSpaceBase * BlendSpace = GetBlendSpace();
+		UBlendSpace * BlendSpace = GetBlendSpace();
 
 		if(BlendSpace != NULL)
 		{

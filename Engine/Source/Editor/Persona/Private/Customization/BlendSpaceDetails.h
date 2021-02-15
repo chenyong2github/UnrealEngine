@@ -8,7 +8,7 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class IDetailLayoutBuilder;
-class UBlendSpaceBase;
+class UBlendSpace;
 class UAnimGraphNode_BlendSpaceGraphBase;
 
 class FBlendSpaceDetails : public IDetailCustomization
@@ -26,6 +26,6 @@ public:
 	virtual void CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder) override;
 private:
 	IDetailLayoutBuilder* Builder;
-	UBlendSpaceBase* BlendSpaceBase;
+	UBlendSpace* BlendSpaceBase;
 	TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase> BlendSpaceNode;
 };

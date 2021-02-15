@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_BlendSpacePlayer.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimGraphRuntimeTrace.h"
@@ -135,7 +135,7 @@ void FAnimNode_BlendSpacePlayer::Evaluate_AnyThread(FPoseContext& Output)
 
 void FAnimNode_BlendSpacePlayer::OverrideAsset(UAnimationAsset* NewAsset)
 {
-	if(UBlendSpaceBase* NewBlendSpace = Cast<UBlendSpaceBase>(NewAsset))
+	if(UBlendSpace* NewBlendSpace = Cast<UBlendSpace>(NewAsset))
 	{
 		BlendSpace = NewBlendSpace;
 	}

@@ -392,7 +392,7 @@ bool UAnimationGraphSchema::CreateAutomaticConversionNodeAndConnections(UEdGraph
 	}
 }
 
-bool IsAimOffsetBlendSpace(UBlendSpaceBase* BlendSpace)
+bool IsAimOffsetBlendSpace(UBlendSpace* BlendSpace)
 {
 	return	BlendSpace->IsA(UAimOffsetBlendSpace::StaticClass()) ||
 			BlendSpace->IsA(UAimOffsetBlendSpace1D::StaticClass());

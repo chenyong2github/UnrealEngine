@@ -11,7 +11,7 @@
 #include "Animation/AnimStateMachineTypes.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimNodeBase.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "PropertyAccess.h"
 
 #include "AnimBlueprintGeneratedClass.generated.h"
@@ -232,7 +232,7 @@ public:
 	// Record of a blend space player's state
 	struct FBlendSpacePlayerRecord
 	{
-		FBlendSpacePlayerRecord(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition)
+		FBlendSpacePlayerRecord(int32 InNodeID, const UBlendSpace* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition)
 			: NodeID(InNodeID)
 			, BlendSpace(InBlendSpace)
 			, Position(InPosition)
@@ -240,7 +240,7 @@ public:
 		{}
 
 		int32 NodeID;
-		TWeakObjectPtr<const UBlendSpaceBase> BlendSpace;
+		TWeakObjectPtr<const UBlendSpace> BlendSpace;
 		FVector Position;
 		FVector FilteredPosition;
 	};
@@ -284,7 +284,7 @@ public:
 	void RecordStateData(int32 StateMachineIndex, int32 StateIndex, float Weight, float ElapsedTime);
 	void RecordNodeValue(int32 InNodeID, const FString& InText);
 	void RecordSequencePlayer(int32 InNodeID, float InPosition, float InLength, int32 InFrameCount);
-	void RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpaceBase* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition);
+	void RecordBlendSpacePlayer(int32 InNodeID, const UBlendSpace* InBlendSpace, const FVector& InPosition, const FVector& InFilteredPosition);
 
 	void AddPoseWatch(int32 NodeID, FColor Color);
 	void RemovePoseWatch(int32 NodeID);
@@ -364,7 +364,7 @@ private:
 
 	// Any internal blendspaces we host
 	UPROPERTY()
-	TArray<TObjectPtr<UBlendSpaceBase>> BlendSpaces;
+	TArray<TObjectPtr<UBlendSpace>> BlendSpaces;
 
 public:
 	// IAnimClassInterface interface

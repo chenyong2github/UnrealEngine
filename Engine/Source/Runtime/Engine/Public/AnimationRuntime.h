@@ -18,7 +18,7 @@
 #include "BonePose.h"
 #include "Containers/ArrayView.h"
 
-class UBlendSpaceBase;
+class UBlendSpace;
 class USkeletalMeshComponent;
 struct FA2CSPose;
 struct FA2Pose;
@@ -273,7 +273,7 @@ public:
 	static void BlendPosesTogetherPerBoneInMeshSpace(
 		TArrayView<FCompactPose> SourcePoses,
 		TArrayView<const FBlendedCurve> SourceCurves,
-		const UBlendSpaceBase* BlendSpace,
+		const UBlendSpace* BlendSpace,
 		TArrayView<const FBlendSampleData> BlendSampleDataCache,
 		/*out*/ FCompactPose& ResultPose,
 		/*out*/ FBlendedCurve& ResultCurve);
@@ -282,7 +282,7 @@ public:
 		TArrayView< FCompactPose> SourcePoses,
 		TArrayView<const FBlendedCurve> SourceCurves,
 		TArrayView<const FStackCustomAttributes> SourceAttributes,	
-		const UBlendSpaceBase* BlendSpace,
+		const UBlendSpace* BlendSpace,
 		TArrayView<const FBlendSampleData> BlendSampleDataCache,
 		/*out*/ FAnimationPoseData& OutAnimationPoseData);
 

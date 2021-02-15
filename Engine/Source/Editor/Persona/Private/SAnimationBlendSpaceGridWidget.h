@@ -20,7 +20,7 @@
 class FPaintArgs;
 class FSlateWindowElementList;
 class UAnimSequence;
-class UBlendSpaceBase;
+class UBlendSpace;
 
 DECLARE_DELEGATE_FourParams(FOnSampleMoved, const int32 /*SampleIndex*/, const FVector& /*SampleValue*/, bool /*bIsInteractive*/, bool /*bSnap*/);
 DECLARE_DELEGATE_TwoParams(FOnSampleAnimationChanged, UAnimSequence*, const FVector&);
@@ -36,7 +36,7 @@ public:
 		, _ShowSettingsButtons(true)
 		, _StatusBarName(TEXT("AssetEditor.AnimationEditor.MainMenu"))
 	{}
-		SLATE_ATTRIBUTE(const UBlendSpaceBase*, BlendSpaceBase)
+		SLATE_ATTRIBUTE(const UBlendSpace*, BlendSpaceBase)
 		SLATE_ATTRIBUTE(FVector, Position)
 		SLATE_ATTRIBUTE(FVector, FilteredPosition)
 		SLATE_ARGUMENT(FNotifyHook*, NotifyHook)
@@ -223,9 +223,9 @@ protected:
 	void EnableStatusBarMessage(bool bEnable);
 private:
 	/** Currently visualized blendspace (const to ensure changes to it are only made within SAnimationBlendSpace */
-	TAttribute<const UBlendSpaceBase*> BlendSpaceBase;
+	TAttribute<const UBlendSpace*> BlendSpaceBase;
 	/** Previous blendspace, cached here to allow us to update cached data when it changes. */
-	TWeakObjectPtr<const UBlendSpaceBase> PreviousBlendSpaceBase;
+	TWeakObjectPtr<const UBlendSpace> PreviousBlendSpaceBase;
 	/** Current BlendSpace params (driven from outside the widget) */
 	TAttribute<FVector> Position;
 	/** Current BlendSpace state - filtered version of Position (driven from outside the widget) */

@@ -3,7 +3,7 @@
 #include "SAnimationBlendSpaceGridWidget.h"
 
 #include "Animation/AnimSequence.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 
 #include "Widgets/SBoxPanel.h"
@@ -322,7 +322,7 @@ int32 SBlendSpaceGridWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Al
 	
 	PaintBackgroundAndGrid(AllottedGeometry, MyCullingRect, OutDrawElements, LayerId);
 
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		if (bShowTriangulation)
 		{
@@ -349,7 +349,7 @@ void SBlendSpaceGridWidget::PaintBackgroundAndGrid(const FGeometry& AllottedGeom
 	// Fill the background
 	FSlateDrawElement::MakeBox( OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(), BackgroundImage );
 
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		// Create the grid
 		const FVector2D GridSize = CachedGridRectangle.GetSize();
@@ -402,7 +402,7 @@ void SBlendSpaceGridWidget::PaintBackgroundAndGrid(const FGeometry& AllottedGeom
 
 void SBlendSpaceGridWidget::PaintSampleKeys(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
 {
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		// Draw keys
 		const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
@@ -533,7 +533,7 @@ void SBlendSpaceGridWidget::PaintAxisText(const FGeometry& AllottedGeometry, con
 
 void SBlendSpaceGridWidget::PaintTriangulation(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
 {
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
 		const TArray<FEditorElement>& EditorElements = BlendSpace->GetGridSamples();
@@ -589,7 +589,7 @@ FText SBlendSpaceGridWidget::GetSampleName(const FBlendSample& InBlendSample, in
 
 void SBlendSpaceGridWidget::PaintAnimationNames(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
 {
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		const TSharedRef< FSlateFontMeasure > FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const FVector2D GridCenter = CachedGridRectangle.GetCenter();
@@ -623,7 +623,7 @@ FReply SBlendSpaceGridWidget::OnDrop(const FGeometry& MyGeometry, const FDragDro
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			// Check if we are in dropping state and if so snap to the grid and try to add the sample
 			if (DragState == EDragState::DragDrop || DragState == EDragState::InvalidDragDrop || DragState == EDragState::DragDropOverride)
@@ -665,7 +665,7 @@ void SBlendSpaceGridWidget::OnDragEnter(const FGeometry& MyGeometry, const FDrag
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			if (DragDropEvent.GetOperationAs<FAssetDragDropOp>().IsValid())
 			{
@@ -679,7 +679,7 @@ FReply SBlendSpaceGridWidget::OnDragOver(const FGeometry& MyGeometry, const FDra
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			if (DragState == EDragState::DragDrop || DragState == EDragState::InvalidDragDrop || DragState == EDragState::DragDropOverride)
 			{		
@@ -703,7 +703,7 @@ void SBlendSpaceGridWidget::OnDragLeave(const FDragDropEvent& DragDropEvent)
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			if (DragState == EDragState::DragDrop || DragState == EDragState::InvalidDragDrop || DragState == EDragState::DragDropOverride)
 			{
@@ -720,7 +720,7 @@ FReply SBlendSpaceGridWidget::OnMouseButtonUp(const FGeometry& MyGeometry, const
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			if (this->HasMouseCapture())
 			{
@@ -760,7 +760,7 @@ FReply SBlendSpaceGridWidget::OnMouseButtonDown(const FGeometry& MyGeometry, con
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 			{
@@ -800,7 +800,7 @@ FReply SBlendSpaceGridWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeom
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 			{
@@ -819,7 +819,7 @@ FReply SBlendSpaceGridWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeom
 
 FReply SBlendSpaceGridWidget::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		if(!bReadOnly)
 		{
@@ -891,7 +891,7 @@ FReply SBlendSpaceGridWidget::ProcessClick(const FGeometry& MyGeometry, const FP
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 			{
@@ -965,7 +965,7 @@ FReply SBlendSpaceGridWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyE
 {
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			// Start previewing when either one of the shift keys is pressed
 			if (bMouseIsOverGeometry)
@@ -996,7 +996,7 @@ FReply SBlendSpaceGridWidget::OnKeyUp(const FGeometry& MyGeometry, const FKeyEve
 {	
 	if(!bReadOnly)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			// Stop previewing when shift keys are released 
 			if (DragState != EDragState::DragPreview && ((InKeyEvent.GetKey() == EKeys::LeftShift) || (InKeyEvent.GetKey() == EKeys::RightShift)))
@@ -1117,7 +1117,7 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateBlendSampleContextMenu()
 	StructureDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor")
 		.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr, LOCTEXT("SampleData", "Blend Sample"));
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			const FBlendSample& Sample = BlendSpace->GetBlendSample(HighlightedSampleIndex);		
 			StructureDetailsView->GetDetailsView()->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FBlendSampleDetails::MakeInstance, BlendSpace, this, HighlightedSampleIndex));
@@ -1156,7 +1156,7 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateNewBlendSampleContextMenu(const
 		NewSampleValue = GridPositionToSampleValue(SnapToClosestGridPoint(InMousePosition), false);
 	}
 
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		MenuBuilder.BeginSection("Sample", LOCTEXT("SampleMenuHeader", "Sample"));
 		{
@@ -1312,7 +1312,7 @@ int32 SBlendSpaceGridWidget::GetClosestSamplePointIndexToMouse() const
 	float BestDistance = FLT_MAX;
 	int32 BestIndex = INDEX_NONE;
 
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
 		for (int32 SampleIndex = 0; SampleIndex < Samples.Num(); ++SampleIndex)
@@ -1353,7 +1353,7 @@ void SBlendSpaceGridWidget::StopPreviewing()
 FText SBlendSpaceGridWidget::GetToolTipAnimationName() const
 {
 	FText ToolTipText = FText::GetEmpty();
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		const FText PreviewValue = LOCTEXT("PreviewValueTooltip", "Preview Value");
 
@@ -1439,7 +1439,7 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 {
 	FText ToolTipText = FText::GetEmpty();
 
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		static const FTextFormat OneAxisFormat = LOCTEXT("OneAxisFormat", "{0}: {1}");
 		static const FTextFormat TwoAxisFormat = LOCTEXT("TwoAxisFormat", "{0}: {1} - {2}: {3}");
@@ -1662,7 +1662,7 @@ TOptional<float> SBlendSpaceGridWidget::GetInputBoxValue(const int32 ParameterIn
 {
 	checkf(ParameterIndex < 3, TEXT("Invalid parameter index, suppose to be within FVector array range"));
 	float ReturnValue = 0.0f;
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		if (SelectedSampleIndex != INDEX_NONE && SelectedSampleIndex < BlendSpace->GetNumberOfBlendSamples())
 		{
@@ -1808,7 +1808,7 @@ EVisibility SBlendSpaceGridWidget::GetFittingButtonVisibility() const
 
 void SBlendSpaceGridWidget::UpdateCachedBlendParameterData()
 {
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		const FBlendParameter& BlendParameterX = BlendSpace->GetBlendParameter(0);
 		const FBlendParameter& BlendParameterY = BlendSpace->GetBlendParameter(1);
@@ -1889,7 +1889,7 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 	HighlightedSampleIndex = INDEX_NONE;
 	const bool bPreviousHighlightPreviewPin = bHighlightPreviewPin;
 
-	if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		if(PreviousBlendSpaceBase.Get() != BlendSpace)
 		{
@@ -2047,7 +2047,7 @@ const FVector SBlendSpaceGridWidget::GetPreviewPosition() const
 
 void SBlendSpaceGridWidget::SetPreviewingState(const FVector& InPosition, const FVector& InFilteredPosition)
 {
-	if (const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+	if (const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		PreviewFilteredPosition = BlendSpace->GetClampedAndWrappedBlendInput(InFilteredPosition);
 		PreviewPosition = BlendSpace->GetClampedAndWrappedBlendInput(InPosition);
@@ -2118,7 +2118,7 @@ bool SBlendSpaceGridWidget::ValidateAnimationSequence(const UAnimSequence* Anima
 {	
 	if (AnimationSequence != nullptr)
 	{
-		if(const UBlendSpaceBase* BlendSpace = BlendSpaceBase.Get())
+		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			if(BlendSpace->IsAsset())
 			{

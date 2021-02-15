@@ -24,7 +24,7 @@ private:
 	virtual FPropertyAccessLibrary& GetPropertyAccessLibrary() const override;
 	virtual FAnimBlueprintDebugData& GetAnimBlueprintDebugData() const override;
 	virtual TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override;
-	virtual UBlendSpaceBase* AddBlendSpace(UBlendSpaceBase* InSourceBlendSpace) override;
+	virtual UBlendSpace* AddBlendSpace(UBlendSpace* InSourceBlendSpace) override;
 
 private:
 	// The class we are wrapping

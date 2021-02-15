@@ -11,7 +11,7 @@
 #include "IDocumentation.h"
 
 #include "AnimPreviewInstance.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "AnimModel.h"
 #include "SAnimTimeline.h"
 
@@ -175,7 +175,7 @@ float SAnimEditorBase::GetSequenceLength() const
 	{
 		return AnimSeqBase->GetPlayLength();
 	}
-	else if (UBlendSpaceBase* BlendSpaceBase = Cast<UBlendSpaceBase>(GetEditorObject()))
+	else if (UBlendSpace* BlendSpaceBase = Cast<UBlendSpace>(GetEditorObject()))
 	{
 		// Blendspaces use normalized time, so we just return 1 here
 		return 1.0f;

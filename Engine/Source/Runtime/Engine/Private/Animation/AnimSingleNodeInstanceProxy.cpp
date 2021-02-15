@@ -3,7 +3,7 @@
 #include "Animation/AnimSingleNodeInstanceProxy.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimComposite.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/PoseAsset.h"
 #include "Animation/AnimStreamable.h"
 #include "Animation/AnimSingleNodeInstance.h"
@@ -156,7 +156,7 @@ void FAnimSingleNodeInstanceProxy::SetMontagePreviewSlot(FName PreviewSlot)
 	SingleNode.ActiveMontageSlot = PreviewSlot;
 }
 
-void FAnimSingleNodeInstanceProxy::InternalBlendSpaceEvaluatePose(class UBlendSpaceBase* BlendSpace, TArray<FBlendSampleData>& BlendSampleDataCache, FPoseContext& OutContext)
+void FAnimSingleNodeInstanceProxy::InternalBlendSpaceEvaluatePose(class UBlendSpace* BlendSpace, TArray<FBlendSampleData>& BlendSampleDataCache, FPoseContext& OutContext)
 {
 	FAnimationPoseData AnimationPoseData = { OutContext.Pose, OutContext.Curve, OutContext.CustomAttributes };
 
@@ -209,7 +209,7 @@ void FAnimSingleNodeInstanceProxy::SetAnimationAsset(class UAnimationAsset* NewA
 #endif
 
 	
-	if (UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(NewAsset))
+	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(NewAsset))
 	{
 		BlendSpace->InitializeFilter(&BlendFilter);
 	}
@@ -217,7 +217,7 @@ void FAnimSingleNodeInstanceProxy::SetAnimationAsset(class UAnimationAsset* NewA
 
 void FAnimSingleNodeInstanceProxy::UpdateBlendspaceSamples(FVector InBlendInput)
 {
-	if (UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(CurrentAsset))
+	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(CurrentAsset))
 	{
 		float OutCurrentTime = 0.f;
 		FMarkerTickRecord TempMarkerTickRecord;
@@ -278,7 +278,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 		FAnimationPoseData OutputAnimationPoseData(Output);
 
 		//@TODO: animrefactor: Seems like more code duplication than we need
-		if (UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(Proxy->CurrentAsset))
+		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Proxy->CurrentAsset))
 		{
 			Proxy->InternalBlendSpaceEvaluatePose(BlendSpace, Proxy->BlendSampleData, Output);
 		}
@@ -532,7 +532,7 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 	{
 		UE::Anim::FAnimSyncGroupScope& SyncScope = Context.GetMessageChecked<UE::Anim::FAnimSyncGroupScope>();
 
-		if (UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(Proxy->CurrentAsset))
+		if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Proxy->CurrentAsset))
 		{
 			FAnimTickRecord TickRecord(BlendSpace, Proxy->BlendSpacePosition, Proxy->BlendSampleData, Proxy->BlendFilter, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
 			SyncScope.AddTickRecord(TickRecord);

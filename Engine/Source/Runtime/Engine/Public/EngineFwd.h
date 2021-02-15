@@ -36,7 +36,7 @@ class UAnimationAsset;
 class UAudioComponent;
 class UBillboardComponent;
 class UBlendProfile;
-class UBlendSpaceBase;
+class UBlendSpace;
 class UBlueprint;
 class UBlueprintGeneratedClass;
 class UBodySetup;

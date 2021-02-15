@@ -7,7 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SNodePanel.h"
 #include "AnimationNodes/SAnimationGraphNode.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 
 class SVerticalBox;
 class UAnimGraphNode_Base;

@@ -14,7 +14,7 @@
 #include "Math/TransformNonVectorized.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimMontage.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
@@ -405,7 +405,7 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 		float BlendSpacePositionY = 0.0f;
 		float BlendSpaceFilteredPositionX = 0.0f;
 		float BlendSpaceFilteredPositionY = 0.0f;
-		const bool bIsBlendSpace = InTickRecord.SourceAsset->IsA<UBlendSpaceBase>();
+		const bool bIsBlendSpace = InTickRecord.SourceAsset->IsA<UBlendSpace>();
 		if(bIsBlendSpace)
 		{
 			BlendSpacePositionX = InTickRecord.BlendSpace.BlendSpacePositionX;

@@ -16,7 +16,7 @@
 #include "Widgets/Text/STextBlock.h"
 
 #include "Animation/AnimSequence.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 #include "SAnimationBlendSpaceGridWidget.h"
 #include "PropertyCustomizationHelpers.h"
@@ -33,7 +33,7 @@
 
 #define LOCTEXT_NAMESPACE "BlendSampleDetails"
 
-FBlendSampleDetails::FBlendSampleDetails(const UBlendSpaceBase* InBlendSpace, class SBlendSpaceGridWidget* InGridWidget, int32 InSampleIndex)
+FBlendSampleDetails::FBlendSampleDetails(const UBlendSpace* InBlendSpace, class SBlendSpaceGridWidget* InGridWidget, int32 InSampleIndex)
 	: BlendSpace(InBlendSpace)
 	, GridWidget(InGridWidget)
 	, SampleIndex(InSampleIndex)
@@ -77,18 +77,18 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 	TArray<UObject*> Objects;
 	UPackageTools::GetObjectsInPackages(&Packages, Objects);
 
-	UBlendSpaceBase* BlendSpaceBase = nullptr;
+	UBlendSpace* BlendSpaceBase = nullptr;
 	// Find blendspace in found objects
 	for ( UObject* Object : Objects )
 	{
-		BlendSpaceBase = Cast<UBlendSpaceBase>(Object);
+		BlendSpaceBase = Cast<UBlendSpace>(Object);
 		if (BlendSpaceBase)
 		{
 			break;
 		}
 	}
 
-	const UBlendSpaceBase* BlendspaceToUse = BlendSpaceBase != nullptr ? BlendSpaceBase : BlendSpace;
+	const UBlendSpace* BlendspaceToUse = BlendSpaceBase != nullptr ? BlendSpaceBase : BlendSpace;
 	UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = nullptr;
 	if(UBlendSpaceGraph* BlendSpaceGraph = Cast<UBlendSpaceGraph>(BlendspaceToUse->GetOuter()))
 	{
@@ -119,7 +119,7 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 	CategoryBuilder.AddProperty(SnappedProperty);
 }
 
-void FBlendSampleDetails::GenerateBlendSampleWidget(TFunction<FDetailWidgetRow& (void)> InFunctor, FOnSampleMoved OnSampleMoved, const UBlendSpaceBase* BlendSpace, const int32 SampleIndex, bool bShowLabel)
+void FBlendSampleDetails::GenerateBlendSampleWidget(TFunction<FDetailWidgetRow& (void)> InFunctor, FOnSampleMoved OnSampleMoved, const UBlendSpace* BlendSpace, const int32 SampleIndex, bool bShowLabel)
 {
 	const int32 NumParameters = BlendSpace->IsA<UBlendSpace1D>() ? 1 : 2;
 	for (int32 ParameterIndex = 0; ParameterIndex < NumParameters; ++ParameterIndex)
@@ -209,7 +209,7 @@ void FBlendSampleDetails::GenerateBlendSampleWidget(TFunction<FDetailWidgetRow& 
 	}
 }
 
-void FBlendSampleDetails::GenerateAnimationWidget(FDetailWidgetRow& Row, const UBlendSpaceBase* BlendSpace, TSharedPtr<IPropertyHandle> AnimationProperty)
+void FBlendSampleDetails::GenerateAnimationWidget(FDetailWidgetRow& Row, const UBlendSpace* BlendSpace, TSharedPtr<IPropertyHandle> AnimationProperty)
 {
 	Row.NameContent()
 		[
@@ -278,7 +278,7 @@ void FBlendSampleDetails::GenerateSampleGraphWidget(FDetailWidgetRow& InRow, UAn
 		];
 }
 
-bool FBlendSampleDetails::ShouldFilterAssetStatic(const FAssetData& AssetData, const UBlendSpaceBase* BlendSpaceBase)
+bool FBlendSampleDetails::ShouldFilterAssetStatic(const FAssetData& AssetData, const UBlendSpace* BlendSpaceBase)
 {
 	/** Cached flags to check whether or not an additive animation type is compatible with the blend space*/
 	TMap<FString, bool> bValidAdditiveTypes;

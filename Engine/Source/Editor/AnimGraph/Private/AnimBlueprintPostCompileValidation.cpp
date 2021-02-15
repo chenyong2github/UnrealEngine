@@ -2,7 +2,7 @@
 
 #include "AnimBlueprintPostCompileValidation.h" 
 #include "AnimNodes/AnimNode_BlendSpacePlayer.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimInstance.h"
 #include "AnimGraphNode_Base.h"
@@ -95,7 +95,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromProperty(TA
 				}
 				else if (const FObjectProperty* ParentObjectProperty = CastField<FObjectProperty>(Parent.Property))
 				{
-					if (ParentObjectProperty->PropertyClass && ParentObjectProperty->PropertyClass->IsChildOf(UBlendSpaceBase::StaticClass()))
+					if (ParentObjectProperty->PropertyClass && ParentObjectProperty->PropertyClass->IsChildOf(UBlendSpace::StaticClass()))
 					{
 						Referencer = ParentObjectProperty->GetObjectPropertyValue(Parent.Value);
 						break;
@@ -105,7 +105,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromProperty(TA
 
 			OutRefAnimSequences.Add(FPCV_ReferencedAnimSequence(AnimSequence, Referencer));
 		}
-		else if (const UBlendSpaceBase* const BlendSpace = Cast<UBlendSpaceBase>(ObjectPropertyValue))
+		else if (const UBlendSpace* const BlendSpace = Cast<UBlendSpace>(ObjectPropertyValue))
 		{
 			PCV_PreloadObject(BlendSpace);
 
@@ -123,7 +123,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequences(TArray<const U
 	}
 }
 
-void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequences(TArray<const UAnimSequence*>& OutAnimSequences, const class UBlendSpaceBase* const InBlendSpace)
+void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequences(TArray<const UAnimSequence*>& OutAnimSequences, const class UBlendSpace* const InBlendSpace)
 {
 	// Make sure BlendSpace is loaded, so we can access referenced AnimSequences.
 	PCV_PreloadObject(InBlendSpace);
@@ -168,7 +168,7 @@ void UAnimBlueprintPostCompileValidation::PCV_GatherAnimSequencesFromGraph(TArra
 	}
 }
 
-void UAnimBlueprintPostCompileValidation::PCV_GatherBlendSpacesFromGraph(TArray<const class UBlendSpaceBase*>& OutBlendSpaces, FAnimBPCompileValidationParams& PCV_Params)
+void UAnimBlueprintPostCompileValidation::PCV_GatherBlendSpacesFromGraph(TArray<const class UBlendSpace*>& OutBlendSpaces, FAnimBPCompileValidationParams& PCV_Params)
 {
 	for (FStructProperty* Property : TFieldRange<FStructProperty>(PCV_Params.NewAnimBlueprintClass, EFieldIteratorFlags::IncludeSuper))
 	{

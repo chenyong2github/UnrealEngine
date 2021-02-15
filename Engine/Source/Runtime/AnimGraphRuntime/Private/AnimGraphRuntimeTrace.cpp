@@ -5,7 +5,7 @@
 #if ANIM_TRACE_ENABLED
 
 #include "Trace/Trace.inl"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "AnimNodes/AnimNode_BlendSpacePlayer.h"
 #include "AnimNodes/AnimNode_BlendSpaceGraphBase.h"
 #include "Animation/AnimInstanceProxy.h"

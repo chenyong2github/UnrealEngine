@@ -23,7 +23,7 @@ class IPinnedCommandList;
 class FWorkflowAllowedTabSet;
 class IAssetFamily;
 class FWorkflowTabFactory;
-class UBlendSpaceBase;
+class UBlendSpace;
 class IAnimSequenceCurveEditor;
 class IAnimationEditor;
 
@@ -135,7 +135,7 @@ struct FBlendSpaceEditorArgs
 
 struct FBlendSpacePreviewArgs
 {
-	TAttribute<const UBlendSpaceBase*> PreviewBlendSpace;
+	TAttribute<const UBlendSpace*> PreviewBlendSpace;
 
 	// Allows the target preview position to be programatically driven
 	TAttribute<FVector> PreviewPosition;
@@ -300,13 +300,13 @@ public:
 
 	/** Deprecated */
 	UE_DEPRECATED(5.0, "Please use the overload that takes a FBlendSpacePreviewArgs struct")
-	virtual TSharedRef<SWidget> CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InBlendPosition, TAttribute<FVector> InFilteredBlendPosition) const;
+	virtual TSharedRef<SWidget> CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpace*> InBlendSpace, TAttribute<FVector> InBlendPosition, TAttribute<FVector> InFilteredBlendPosition) const;
 
 	/** Create a widget to preview a blendspace */
 	virtual TSharedRef<SWidget> CreateBlendSpacePreviewWidget(const FBlendSpacePreviewArgs& InArgs) const;
 
 	/** Create a widget to edit a blendspace */
-	virtual TSharedRef<SWidget> CreateBlendSpaceEditWidget(UBlendSpaceBase* InBlendSpace, const FBlendSpaceEditorArgs& InArgs) const;
+	virtual TSharedRef<SWidget> CreateBlendSpaceEditWidget(UBlendSpace* InBlendSpace, const FBlendSpaceEditorArgs& InArgs) const;
 
 	/** Create a tab factory for editing montage sections */
 	virtual TSharedRef<FWorkflowTabFactory> CreateAnimMontageSectionsTabFactory(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<IPersonaToolkit>& InPersonaToolkit, FSimpleMulticastDelegate& InOnSectionsChanged) const;

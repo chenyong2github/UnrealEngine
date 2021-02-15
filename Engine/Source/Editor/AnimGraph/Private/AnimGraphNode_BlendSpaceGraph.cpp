@@ -55,13 +55,13 @@ void UAnimGraphNode_BlendSpaceGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 {
 	struct GetMenuActions_Utils
 	{
-		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool bIsTemplateNode, TWeakObjectPtr<UBlendSpaceBase> BlendSpace)
+		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool bIsTemplateNode, TWeakObjectPtr<UBlendSpace> BlendSpace)
 		{
 			UAnimGraphNode_BlendSpaceGraph* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraph>(NewNode);
 			BlendSpaceNode->SetupFromAsset(BlendSpace.Get(), bIsTemplateNode);
 		}
 
-		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpaceBase* InBlendSpace)
+		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpace* InBlendSpace)
 		{
 			UBlueprintNodeSpawner* NodeSpawner = nullptr;
 
@@ -72,19 +72,19 @@ void UAnimGraphNode_BlendSpaceGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 				NodeSpawner = UBlueprintNodeSpawner::Create(NodeClass);
 				check(NodeSpawner != nullptr);
 
-				TWeakObjectPtr<UBlendSpaceBase> BlendSpacePtr = MakeWeakObjectPtr(const_cast<UBlendSpaceBase*>(InBlendSpace));
+				TWeakObjectPtr<UBlendSpace> BlendSpacePtr = MakeWeakObjectPtr(const_cast<UBlendSpace*>(InBlendSpace));
 				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(GetMenuActions_Utils::SetNodeBlendSpace, BlendSpacePtr);
 			}	
 			return NodeSpawner;
 		}
 
-		static void SetNodeBlendSpaceClass(UEdGraphNode* NewNode, bool bIsTemplateNode, TSubclassOf<UBlendSpaceBase> InBlendSpaceClass)
+		static void SetNodeBlendSpaceClass(UEdGraphNode* NewNode, bool bIsTemplateNode, TSubclassOf<UBlendSpace> InBlendSpaceClass)
 		{
 			UAnimGraphNode_BlendSpaceGraph* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraph>(NewNode);
 			BlendSpaceNode->SetupFromClass(InBlendSpaceClass, bIsTemplateNode);
 		}
 
-		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, TSubclassOf<UBlendSpaceBase> InBlendSpaceClass)
+		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, TSubclassOf<UBlendSpace> InBlendSpaceClass)
 		{
 			UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(NodeClass);
 			check(NodeSpawner != nullptr);
@@ -101,7 +101,7 @@ void UAnimGraphNode_BlendSpaceGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 
 	if (const UObject* RegistrarTarget = ActionRegistrar.GetActionKeyFilter())
 	{
-		if (const UBlendSpaceBase* TargetBlendSpace = Cast<UBlendSpaceBase>(RegistrarTarget))
+		if (const UBlendSpace* TargetBlendSpace = Cast<UBlendSpace>(RegistrarTarget))
 		{
 			if(TargetBlendSpace->IsAsset())
 			{
@@ -116,7 +116,7 @@ void UAnimGraphNode_BlendSpaceGraph::GetMenuActions(FBlueprintActionDatabaseRegi
 	else
 	{
 		UClass* NodeClass = GetClass();
-		for (TObjectIterator<UBlendSpaceBase> BlendSpaceIt; BlendSpaceIt; ++BlendSpaceIt)
+		for (TObjectIterator<UBlendSpace> BlendSpaceIt; BlendSpaceIt; ++BlendSpaceIt)
 		{
 			if(BlendSpaceIt->IsAsset())
 			{

@@ -7,7 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "PersonaDelegates.h"
 
-class UBlendSpaceBase;
+class UBlendSpace;
 class UAnimGraphNode_Base;
 
 class SBlendSpacePreview : public SCompoundWidget
@@ -23,10 +23,10 @@ public:
 
 protected:
 	EVisibility GetBlendSpaceVisibility() const;
-	bool GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>& OutBlendSpace, FVector& OutPosition, FVector& OutFilteredPosition) const;
+	bool GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpace>& OutBlendSpace, FVector& OutPosition, FVector& OutFilteredPosition) const;
 
 	TWeakObjectPtr<const UAnimGraphNode_Base> Node;
-	TWeakObjectPtr<const UBlendSpaceBase> CachedBlendSpace;
+	TWeakObjectPtr<const UBlendSpace> CachedBlendSpace;
 	FVector CachedPosition;
 	FVector CachedFilteredPosition;
 };

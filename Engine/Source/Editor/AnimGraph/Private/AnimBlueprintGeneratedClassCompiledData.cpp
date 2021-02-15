@@ -71,9 +71,9 @@ TMap<FName, FGraphAssetPlayerInformation>& FAnimBlueprintGeneratedClassCompiledD
 	return Class->GraphAssetPlayerInformation;
 }
 
-UBlendSpaceBase* FAnimBlueprintGeneratedClassCompiledData::AddBlendSpace(UBlendSpaceBase* InSourceBlendSpace)
+UBlendSpace* FAnimBlueprintGeneratedClassCompiledData::AddBlendSpace(UBlendSpace* InSourceBlendSpace)
 {
-	UBlendSpaceBase* CopiedBlendSpace = DuplicateObject(InSourceBlendSpace, Class);
+	UBlendSpace* CopiedBlendSpace = DuplicateObject(InSourceBlendSpace, Class);
 	Class->BlendSpaces.Add(CopiedBlendSpace);
 	return CopiedBlendSpace;
 }

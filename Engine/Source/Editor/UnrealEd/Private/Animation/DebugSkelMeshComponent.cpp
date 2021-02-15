@@ -13,7 +13,7 @@
 #include "SkeletalRenderPublic.h"
 #include "AnimPreviewInstance.h"
 #include "Animation/AnimComposite.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshModel.h"
 
@@ -237,7 +237,7 @@ FString UDebugSkelMeshComponent::GetPreviewText() const
 			FText Label = SkeletalMeshComponent->GetOwner() ? FText::FromString(SkeletalMeshComponent->GetOwner()->GetActorLabel()) : LOCTEXT("NoActor", "None");
 			return FText::Format(LOCTEXT("ExternalComponent", "External Instance on {0}"), Label).ToString();
 		}
-		else if (UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(CurrentAsset))
+		else if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(CurrentAsset))
 		{
 			return FText::Format( LOCTEXT("BlendSpace", "Blend Space {0}"), FText::FromString(BlendSpace->GetName()) ).ToString();
 		}

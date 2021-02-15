@@ -8,7 +8,7 @@
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "AnimNode_BlendSpacePlayer.generated.h"
 
-class UBlendSpaceBase;
+class UBlendSpace;
 
 //@TODO: Comment
 USTRUCT(BlueprintInternalUseOnly)
@@ -54,7 +54,7 @@ public:
 
 	// The blendspace asset to play
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (PinHiddenByDefault))
-	TObjectPtr<UBlendSpaceBase> BlendSpace;
+	TObjectPtr<UBlendSpace> BlendSpace;
 
 protected:
 
@@ -63,7 +63,7 @@ protected:
 	TArray<FBlendSampleData> BlendSampleDataCache;
 
 	UPROPERTY(Transient)
-	TObjectPtr<UBlendSpaceBase> PreviousBlendSpace;
+	TObjectPtr<UBlendSpace> PreviousBlendSpace;
 
 public:	
 	FAnimNode_BlendSpacePlayer();

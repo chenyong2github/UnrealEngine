@@ -170,7 +170,7 @@ public:
 	void SetMontagePreviewSlot(FName PreviewSlot);
 
 private:
-	void InternalBlendSpaceEvaluatePose(class UBlendSpaceBase* BlendSpace, TArray<FBlendSampleData>& BlendSampleDataCache, FPoseContext& OutContext);
+	void InternalBlendSpaceEvaluatePose(class UBlendSpace* BlendSpace, TArray<FBlendSampleData>& BlendSampleDataCache, FPoseContext& OutContext);
 
 protected:
 #if WITH_EDITOR

@@ -15,7 +15,7 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 
 #include "Animation/AnimSequence.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 #include "SAnimationBlendSpaceGridWidget.h"
 #include "PropertyCustomizationHelpers.h"

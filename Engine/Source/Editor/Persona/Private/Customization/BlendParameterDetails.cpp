@@ -6,7 +6,7 @@
 #include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
 #include "DetailWidgetRow.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 
 
 #define LOCTEXT_NAMESPACE "BlendParameterDetails"

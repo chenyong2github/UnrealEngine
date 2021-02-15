@@ -236,7 +236,7 @@ TAttribute<FText> FBlendSpaceDocumentTabFactory::ConstructTabName(const FWorkflo
 
 	UBlendSpaceGraph* DocumentID = FTabPayload_BlendSpaceGraph::GetBlendSpaceGraph(Info.Payload);
 
-	return MakeAttributeLambda([WeakBlendSpace = TWeakObjectPtr<UBlendSpaceBase>(DocumentID->BlendSpace)]()
+	return MakeAttributeLambda([WeakBlendSpace = TWeakObjectPtr<UBlendSpace>(DocumentID->BlendSpace)]()
 		{ 
 			return WeakBlendSpace.Get() ? FText::FromName(WeakBlendSpace->GetFName()) : FText::GetEmpty();
 		});

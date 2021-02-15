@@ -688,14 +688,14 @@ void SAnimGraphSchematicView::RefreshNodes()
 // 						{
 // 							InBlendSpacePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [GameplayProvider](double InStartTime, double InEndTime, uint32 InDepth, const FBlendSpacePlayerMessage& InMessage)
 // 							{
-// // 								UBlendSpaceBase* BlendSpaceBase = nullptr;
+// // 								UBlendSpace* BlendSpace = nullptr;
 // // 								const FObjectInfo* BlendSpaceInfo = GameplayProvider->FindObjectInfo(InMessage.BlendSpaceId);
 // // 								if(BlendSpaceInfo)
 // // 								{
-// // 									BlendSpaceBase = TSoftObjectPtr<UBlendSpaceBase>(FSoftObjectPath(BlendSpaceInfo->PathName)).LoadSynchronous();
+// // 									BlendSpace = TSoftObjectPtr<UBlendSpace>(FSoftObjectPath(BlendSpaceInfo->PathName)).LoadSynchronous();
 // // 								}
 // // 
-// // 								DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpaceBase, InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ);
+// // 								DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpace, InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ);
 // 							});
 // 						});
 

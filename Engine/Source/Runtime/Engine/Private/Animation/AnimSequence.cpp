@@ -22,7 +22,7 @@
 #include "Animation/AnimCompress.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/Rig.h"
 #include "Animation/AnimationSettings.h"
 #include "Animation/AnimBoneCompressionCodec.h"
@@ -4323,7 +4323,7 @@ void UAnimSequence::RefreshSyncMarkerDataFromAuthored()
 	check(IsInGameThread());
 
 	// Update blend spaces that may be referencing us
-	for(TObjectIterator<UBlendSpaceBase> It; It; ++It)
+	for(TObjectIterator<UBlendSpace> It; It; ++It)
 	{
 		if(!It->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad))
 		{

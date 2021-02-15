@@ -168,7 +168,7 @@ public:
 	FBlendSpaceThumbnailScene();
 
 	/** Sets the animation to use in the next GetView() */
-	bool SetBlendSpace(class UBlendSpaceBase* InBlendSpace);
+	bool SetBlendSpace(class UBlendSpace* InBlendSpace);
 
 protected:
 	// FThumbnailPreviewScene implementation
@@ -182,7 +182,7 @@ private:
 	class AAnimationThumbnailSkeletalMeshActor* PreviewActor;
 
 	/** Animation we are generating the thumbnail for */
-	class UBlendSpaceBase* PreviewAnimation;
+	class UBlendSpace* PreviewAnimation;
 };
 
 class UNREALED_API FAnimBlueprintThumbnailScene : public FThumbnailPreviewScene

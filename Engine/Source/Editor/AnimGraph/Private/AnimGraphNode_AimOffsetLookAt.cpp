@@ -31,11 +31,11 @@ FText UAnimGraphNode_AimOffsetLookAt::GetTooltipText() const
 
 FText UAnimGraphNode_AimOffsetLookAt::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	UBlendSpaceBase* BlendSpaceToCheck = Node.BlendSpace;
+	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_AimOffsetLookAt, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
-		BlendSpaceToCheck = Cast<UBlendSpaceBase>(BlendSpacePin->DefaultObject);
+		BlendSpaceToCheck = Cast<UBlendSpace>(BlendSpacePin->DefaultObject);
 	}
 
 	if (BlendSpaceToCheck == nullptr)
@@ -75,13 +75,13 @@ void UAnimGraphNode_AimOffsetLookAt::GetMenuActions(FBlueprintActionDatabaseRegi
 {
 	struct GetMenuActions_Utils
 	{
-		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UBlendSpaceBase> BlendSpace)
+		static void SetNodeBlendSpace(UEdGraphNode* NewNode, bool /*bIsTemplateNode*/, TWeakObjectPtr<UBlendSpace> BlendSpace)
 		{
 			UAnimGraphNode_AimOffsetLookAt* BlendSpaceNode = CastChecked<UAnimGraphNode_AimOffsetLookAt>(NewNode);
 			BlendSpaceNode->Node.BlendSpace = BlendSpace.Get();
 		}
 
-		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpaceBase* BlendSpace)
+		static UBlueprintNodeSpawner* MakeBlendSpaceAction(TSubclassOf<UEdGraphNode> const NodeClass, const UBlendSpace* BlendSpace)
 		{
 			UBlueprintNodeSpawner* NodeSpawner = nullptr;
 
@@ -92,7 +92,7 @@ void UAnimGraphNode_AimOffsetLookAt::GetMenuActions(FBlueprintActionDatabaseRegi
 				NodeSpawner = UBlueprintNodeSpawner::Create(NodeClass);
 				check(NodeSpawner != nullptr);
 
-				TWeakObjectPtr<UBlendSpaceBase> BlendSpacePtr = MakeWeakObjectPtr(const_cast<UBlendSpaceBase*>(BlendSpace));
+				TWeakObjectPtr<UBlendSpace> BlendSpacePtr = MakeWeakObjectPtr(const_cast<UBlendSpace*>(BlendSpace));
 				NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateStatic(GetMenuActions_Utils::SetNodeBlendSpace, BlendSpacePtr);
 			}
 			return NodeSpawner;
@@ -101,7 +101,7 @@ void UAnimGraphNode_AimOffsetLookAt::GetMenuActions(FBlueprintActionDatabaseRegi
 
 	if (const UObject* RegistrarTarget = ActionRegistrar.GetActionKeyFilter())
 	{
-		if (const UBlendSpaceBase* TargetBlendSpace = Cast<UBlendSpaceBase>(RegistrarTarget))
+		if (const UBlendSpace* TargetBlendSpace = Cast<UBlendSpace>(RegistrarTarget))
 		{
 			if(TargetBlendSpace->IsAsset())
 			{
@@ -116,9 +116,9 @@ void UAnimGraphNode_AimOffsetLookAt::GetMenuActions(FBlueprintActionDatabaseRegi
 	else
 	{
 		UClass* NodeClass = GetClass();
-		for (TObjectIterator<UBlendSpaceBase> BlendSpaceIt; BlendSpaceIt; ++BlendSpaceIt)
+		for (TObjectIterator<UBlendSpace> BlendSpaceIt; BlendSpaceIt; ++BlendSpaceIt)
 		{
-			UBlendSpaceBase* BlendSpace = *BlendSpaceIt;
+			UBlendSpace* BlendSpace = *BlendSpaceIt;
 			if(BlendSpace->IsAsset())
 			{
 				if (UBlueprintNodeSpawner* NodeSpawner = GetMenuActions_Utils::MakeBlendSpaceAction(NodeClass, BlendSpace))
@@ -140,7 +140,7 @@ FBlueprintNodeSignature UAnimGraphNode_AimOffsetLookAt::GetSignature() const
 
 void UAnimGraphNode_AimOffsetLookAt::SetAnimationAsset(UAnimationAsset* Asset)
 {
-	if (UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(Asset))
+	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
 	{
 		Node.BlendSpace = BlendSpace;
 	}
@@ -150,11 +150,11 @@ void UAnimGraphNode_AimOffsetLookAt::ValidateAnimNodeDuringCompilation(class USk
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UBlendSpaceBase* BlendSpaceToCheck = Node.BlendSpace;
+	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_AimOffsetLookAt, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
-		BlendSpaceToCheck = Cast<UBlendSpaceBase>(BlendSpacePin->DefaultObject);
+		BlendSpaceToCheck = Cast<UBlendSpace>(BlendSpacePin->DefaultObject);
 	}
 
 	if (!BlendSpaceToCheck)
@@ -246,7 +246,7 @@ void UAnimGraphNode_AimOffsetLookAt::CustomizePinData(UEdGraphPin* Pin, FName So
 	Super::CustomizePinData(Pin, SourcePropertyName, ArrayIndex);
 
 	// Hide input pins that are not relevant for this child class.
-	UBlendSpaceBase * BlendSpace = GetBlendSpace();
+	UBlendSpace * BlendSpace = GetBlendSpace();
 	if (BlendSpace != NULL)
 	{
 		if ((SourcePropertyName == TEXT("X")) || (SourcePropertyName == FName(*BlendSpace->GetBlendParameter(0).DisplayName)))

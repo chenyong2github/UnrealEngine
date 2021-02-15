@@ -709,7 +709,7 @@ FBlendSpaceThumbnailScene::FBlendSpaceThumbnailScene()
 	PreviewActor->SetActorEnableCollision(false);
 }
 
-bool FBlendSpaceThumbnailScene::SetBlendSpace(class UBlendSpaceBase* InBlendSpace)
+bool FBlendSpaceThumbnailScene::SetBlendSpace(class UBlendSpace* InBlendSpace)
 {
 	PreviewActor->GetSkeletalMeshComponent()->OverrideMaterials.Empty();
 

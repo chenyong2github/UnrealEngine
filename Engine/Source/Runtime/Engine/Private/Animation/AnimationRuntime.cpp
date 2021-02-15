@@ -6,7 +6,7 @@
 
 #include "AnimationRuntime.h"
 #include "Animation/AnimData/BoneMaskFilter.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/AnimInstance.h"
 #include "SkeletalRender.h"
 #include "Animation/CustomAttributes.h"
@@ -663,7 +663,7 @@ void FAnimationRuntime::BlendPosesTogetherPerBone(TArrayView<const FCompactPose>
 void FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(
 	const TArrayView<FCompactPose> SourcePoses,
 	const TArrayView<const FBlendedCurve> SourceCurves,
-	const UBlendSpaceBase* BlendSpace,
+	const UBlendSpace* BlendSpace,
 	const TArrayView<const FBlendSampleData> BlendSampleDataCache,
 	/*out*/ FCompactPose& ResultPose,
 	/*out*/ FBlendedCurve& ResultCurve)
@@ -674,7 +674,7 @@ void FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(
 	BlendPosesTogetherPerBoneInMeshSpace(SourcePoses, SourceCurves, {}, BlendSpace, BlendSampleDataCache, AnimationPoseData);
 }
 
-void FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(TArrayView<FCompactPose> SourcePoses, TArrayView<const FBlendedCurve> SourceCurves, TArrayView<const FStackCustomAttributes> SourceAttributes, const UBlendSpaceBase* BlendSpace, TArrayView<const FBlendSampleData> BlendSampleDataCache, /*out*/ FAnimationPoseData& OutAnimationPoseData)
+void FAnimationRuntime::BlendPosesTogetherPerBoneInMeshSpace(TArrayView<FCompactPose> SourcePoses, TArrayView<const FBlendedCurve> SourceCurves, TArrayView<const FStackCustomAttributes> SourceAttributes, const UBlendSpace* BlendSpace, TArrayView<const FBlendSampleData> BlendSampleDataCache, /*out*/ FAnimationPoseData& OutAnimationPoseData)
 {
 	FQuat NewRotation;
 	USkeleton* Skeleton = BlendSpace->GetSkeleton();

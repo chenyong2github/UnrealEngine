@@ -32,7 +32,7 @@
 #include "BlueprintActionDatabase.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "TabSpawners.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -2591,7 +2591,7 @@ void SAnimNotifyTrack::CreateNewSyncMarkerAtCursor(FString NewSyncMarkerName, UC
 	Seq->MarkPackageDirty();
 	OnUpdatePanel.ExecuteIfBound();
 
-	UBlendSpaceBase::UpdateBlendSpacesUsingAnimSequence(Seq);
+	UBlendSpace::UpdateBlendSpacesUsingAnimSequence(Seq);
 }
 
 void SAnimNotifyTrack::ReplaceSelectedWithBlueprintNotify(FString NewNotifyName, FString BlueprintPath)
@@ -3522,7 +3522,7 @@ void SAnimNotifyTrack::HandleNodeDrop(TSharedPtr<SAnimNotifyNode> Node, float Of
 
 	if (Node->NodeObjectInterface->GetType() == ENodeObjectTypes::SYNC_MARKER)
 	{
-		UBlendSpaceBase::UpdateBlendSpacesUsingAnimSequence(Sequence);
+		UBlendSpace::UpdateBlendSpacesUsingAnimSequence(Sequence);
 	}
 
 	float LocalX = GetCachedGeometry().AbsoluteToLocal(Node->GetScreenPosition() + Offset).X;
@@ -3689,7 +3689,7 @@ void SAnimNotifyTrack::PasteSingleSyncMarker(FString& MarkerString, float PasteT
 			AnimSeq->AuthoredSyncMarkers.RemoveAt(NewIdx);
 		}
 
-		UBlendSpaceBase::UpdateBlendSpacesUsingAnimSequence(Sequence);
+		UBlendSpace::UpdateBlendSpacesUsingAnimSequence(Sequence);
 
 		OnDeselectAllNotifies.ExecuteIfBound();
 		Sequence->PostEditChange();
@@ -4300,7 +4300,7 @@ void SAnimNotifyPanel::DeleteSelectedNodeObjects()
 
 		if (bContainsSyncMarkers)
 		{
-			UBlendSpaceBase::UpdateBlendSpacesUsingAnimSequence(Sequence);
+			UBlendSpace::UpdateBlendSpacesUsingAnimSequence(Sequence);
 		}
 	}
 

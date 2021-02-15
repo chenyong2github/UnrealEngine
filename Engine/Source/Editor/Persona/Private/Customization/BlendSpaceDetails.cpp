@@ -8,7 +8,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 
 #include "BlendSampleDetails.h"
@@ -38,10 +38,10 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
 
 	Builder = &DetailBuilder;
-	TWeakObjectPtr<UObject>* WeakPtr = Objects.FindByPredicate([](const TWeakObjectPtr<UObject>& ObjectPtr) { return ObjectPtr->IsA<UBlendSpaceBase>(); });
+	TWeakObjectPtr<UObject>* WeakPtr = Objects.FindByPredicate([](const TWeakObjectPtr<UObject>& ObjectPtr) { return ObjectPtr->IsA<UBlendSpace>(); });
 	if (WeakPtr)
 	{
-		BlendSpaceBase = Cast<UBlendSpaceBase>(WeakPtr->Get());
+		BlendSpaceBase = Cast<UBlendSpace>(WeakPtr->Get());
 
 		if(!BlendSpaceBase->IsAsset())
 		{
@@ -60,6 +60,12 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 		}
 		const bool b1DBlendSpace = BlendSpaceBase->IsA<UBlendSpace1D>();
 
+		if (b1DBlendSpace)
+		{
+			TSharedPtr<IPropertyHandle> AxisToScaleAnimation = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, AxisToScaleAnimation), UBlendSpace::StaticClass());
+			DetailBuilder.HideProperty(AxisToScaleAnimation);
+		}
+
 		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName("Axis Settings"));
 		IDetailGroup* Groups[2] =
 		{
@@ -68,8 +74,8 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 		};
 
 		// Hide the default blend and interpolation parameters
-		TSharedPtr<IPropertyHandle> BlendParameters = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpaceBase, BlendParameters), UBlendSpaceBase::StaticClass());
-		TSharedPtr<IPropertyHandle> InterpolationParameters = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpaceBase, InterpolationParam), UBlendSpaceBase::StaticClass());
+		TSharedPtr<IPropertyHandle> BlendParameters = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, BlendParameters), UBlendSpace::StaticClass());
+		TSharedPtr<IPropertyHandle> InterpolationParameters = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, InterpolationParam), UBlendSpace::StaticClass());
 		DetailBuilder.HideProperty(BlendParameters);
 		DetailBuilder.HideProperty(InterpolationParameters);
 
@@ -103,7 +109,7 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 		FSimpleDelegate RefreshDelegate = FSimpleDelegate::CreateLambda([this]() { Builder->ForceRefreshDetails(); });
 
 		// Retrieve blend samples array
-		TSharedPtr<IPropertyHandleArray> BlendSamplesArrayProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpaceBase, SampleData), UBlendSpaceBase::StaticClass())->AsArray();
+		TSharedPtr<IPropertyHandleArray> BlendSamplesArrayProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UBlendSpace, SampleData), UBlendSpace::StaticClass())->AsArray();
 		BlendSamplesArrayProperty->SetOnNumElementsChanged(RefreshDelegate);
 		
 		uint32 NumBlendSampleEntries = 0;

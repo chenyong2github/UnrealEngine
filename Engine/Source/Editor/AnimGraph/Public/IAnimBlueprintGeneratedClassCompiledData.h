@@ -46,5 +46,5 @@ public:
 	// Add a class-internal blendspace
 	// @param	InSourceBlendSpace	The blendspace to duplicate
 	// @return a duplicate of the blendspace outered to the class
-	virtual UBlendSpaceBase* AddBlendSpace(UBlendSpaceBase* InSourceBlendSpace) = 0;
+	virtual UBlendSpace* AddBlendSpace(UBlendSpace* InSourceBlendSpace) = 0;
 };

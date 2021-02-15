@@ -63,7 +63,7 @@ EVisibility SBlendSpacePreview::GetBlendSpaceVisibility() const
 	return EVisibility::Collapsed;
 }
 
-bool SBlendSpacePreview::GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpaceBase>& OutBlendSpace, FVector& OutPosition, FVector& OutFilteredPosition) const
+bool SBlendSpacePreview::GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSpace>& OutBlendSpace, FVector& OutPosition, FVector& OutFilteredPosition) const
 {
 	if (Node.Get() != nullptr)
 	{

@@ -6,7 +6,7 @@
 #include "EdGraph/EdGraph.h"
 #include "BlendSpaceGraph.generated.h"
 
-class UBlendSpaceBase;
+class UBlendSpace;
 
 // Dummy graph to hold sub-graphs for blendspaces. Not edited directly.
 UCLASS(MinimalAPI)
@@ -17,5 +17,5 @@ class UBlendSpaceGraph : public UEdGraph
 public:
 	// Blendspace that we wrap
 	UPROPERTY()
-	TObjectPtr<UBlendSpaceBase> BlendSpace;
+	TObjectPtr<UBlendSpace> BlendSpace;
 };

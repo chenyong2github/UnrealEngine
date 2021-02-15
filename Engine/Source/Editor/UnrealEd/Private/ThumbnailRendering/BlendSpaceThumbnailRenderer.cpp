@@ -6,7 +6,7 @@
 #include "SceneView.h"
 #include "ThumbnailHelpers.h"
 
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 
 UBlendSpaceThumbnailRenderer::UBlendSpaceThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -16,7 +16,7 @@ UBlendSpaceThumbnailRenderer::UBlendSpaceThumbnailRenderer(const FObjectInitiali
 
 void UBlendSpaceThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
-	UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(Object);
+	UBlendSpace* BlendSpace = Cast<UBlendSpace>(Object);
 	if (BlendSpace != nullptr)
 	{
 		if (ThumbnailScene == nullptr)

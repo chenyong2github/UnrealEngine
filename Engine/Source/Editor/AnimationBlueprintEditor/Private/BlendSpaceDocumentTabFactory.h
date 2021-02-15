@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "WorkflowOrientedApp/WorkflowUObjectDocuments.h"
 
 class FAnimationBlueprintEditor;

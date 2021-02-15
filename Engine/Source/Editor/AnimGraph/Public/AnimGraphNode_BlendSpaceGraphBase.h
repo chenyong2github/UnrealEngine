@@ -39,7 +39,7 @@ public:
 	void ReplaceGraph(int32 InSampleIndex, UAnimSequence* InSequence);
 
 	// Setup this node from the specified asset
-	void SetupFromAsset(UBlendSpaceBase* InBlendSpace, bool bInIsTemplateNode);
+	void SetupFromAsset(UBlendSpace* InBlendSpace, bool bInIsTemplateNode);
 
 	// UEdGraphNode interface
 	virtual void PostPlacedNewNode() override;
@@ -58,15 +58,15 @@ protected:
 	FString GetBlendSpaceName() const;
 
 	// Setup this node from the specified class
-	void SetupFromClass(TSubclassOf<UBlendSpaceBase> InBlendSpaceClass, bool bInIsTemplateNode);
+	void SetupFromClass(TSubclassOf<UBlendSpace> InBlendSpaceClass, bool bInIsTemplateNode);
 
 	// Internal blendspace
 	UPROPERTY()
-	TObjectPtr<UBlendSpaceBase> BlendSpace;
+	TObjectPtr<UBlendSpace> BlendSpace;
 
 	// Blendspace class, for template nodes
 	UPROPERTY()
-	TSubclassOf<UBlendSpaceBase> BlendSpaceClass;
+	TSubclassOf<UBlendSpace> BlendSpaceClass;
 
 	// Dummy blendspace graph (used for navigation only)
 	UPROPERTY()

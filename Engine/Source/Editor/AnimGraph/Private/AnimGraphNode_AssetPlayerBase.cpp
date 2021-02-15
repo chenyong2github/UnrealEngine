@@ -3,7 +3,7 @@
 #include "AnimGraphNode_AssetPlayerBase.h"
 #include "EdGraphSchema_K2.h"
 #include "Animation/AnimComposite.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "Animation/AimOffsetBlendSpace.h"
 #include "Animation/AimOffsetBlendSpace1D.h"
 #include "AnimGraphNode_SequencePlayer.h"

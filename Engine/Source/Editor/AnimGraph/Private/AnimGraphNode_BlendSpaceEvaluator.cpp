@@ -21,7 +21,7 @@ FText UAnimGraphNode_BlendSpaceEvaluator::GetTooltipText() const
 	return GetNodeTitle(ENodeTitleType::ListView);
 }
 
-FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpaceBase* InBlendSpace) const
+FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpace* InBlendSpace) const
 {
 	const FText BlendSpaceName = FText::FromString(InBlendSpace->GetName());
 
@@ -65,7 +65,7 @@ FText UAnimGraphNode_BlendSpaceEvaluator::GetNodeTitle(ENodeTitleType::Type Titl
 		}
 		else if (BlendSpacePin && BlendSpacePin->DefaultObject != nullptr)
 		{
-			return GetNodeTitleForBlendSpace(TitleType, CastChecked<UBlendSpaceBase>(BlendSpacePin->DefaultObject));
+			return GetNodeTitleForBlendSpace(TitleType, CastChecked<UBlendSpace>(BlendSpacePin->DefaultObject));
 		}
 		else
 		{
@@ -97,11 +97,11 @@ void UAnimGraphNode_BlendSpaceEvaluator::ValidateAnimNodeDuringCompilation(class
 {
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 
-	UBlendSpaceBase* BlendSpaceToCheck = Node.BlendSpace;
+	UBlendSpace* BlendSpaceToCheck = Node.BlendSpace;
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpaceEvaluator, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpaceToCheck == nullptr)
 	{
-		BlendSpaceToCheck = Cast<UBlendSpaceBase>(BlendSpacePin->DefaultObject);
+		BlendSpaceToCheck = Cast<UBlendSpace>(BlendSpacePin->DefaultObject);
 	}
 
 	if (BlendSpaceToCheck == nullptr)
@@ -157,7 +157,7 @@ void UAnimGraphNode_BlendSpaceEvaluator::GetNodeContextMenuActions(UToolMenu* Me
 
 void UAnimGraphNode_BlendSpaceEvaluator::SetAnimationAsset(UAnimationAsset* Asset)
 {
-	if (UBlendSpaceBase* BlendSpace = Cast<UBlendSpaceBase>(Asset))
+	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Asset))
 	{
 		Node.BlendSpace = BlendSpace;
 	}
@@ -170,11 +170,11 @@ bool UAnimGraphNode_BlendSpaceEvaluator::DoesSupportTimeForTransitionGetter() co
 
 UAnimationAsset* UAnimGraphNode_BlendSpaceEvaluator::GetAnimationAsset() const 
 {
-	UBlendSpaceBase* BlendSpace = Node.BlendSpace;
+	UBlendSpace* BlendSpace = Node.BlendSpace;
 	UEdGraphPin* BlendSpacePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpaceEvaluator, BlendSpace));
 	if (BlendSpacePin != nullptr && BlendSpace == nullptr)
 	{
-		BlendSpace = Cast<UBlendSpaceBase>(BlendSpacePin->DefaultObject);
+		BlendSpace = Cast<UBlendSpace>(BlendSpacePin->DefaultObject);
 	}
 
 	return BlendSpace;
@@ -192,7 +192,7 @@ UScriptStruct* UAnimGraphNode_BlendSpaceEvaluator::GetTimePropertyStruct() const
 
 EAnimAssetHandlerType UAnimGraphNode_BlendSpaceEvaluator::SupportsAssetClass(const UClass* AssetClass) const
 {
-	if (AssetClass->IsChildOf(UBlendSpaceBase::StaticClass()) && !IsAimOffsetBlendSpace(AssetClass))
+	if (AssetClass->IsChildOf(UBlendSpace::StaticClass()) && !IsAimOffsetBlendSpace(AssetClass))
 	{
 		return EAnimAssetHandlerType::Supported;
 	}

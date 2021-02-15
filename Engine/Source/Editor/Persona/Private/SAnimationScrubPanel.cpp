@@ -8,7 +8,7 @@
 #include "AnimPreviewInstance.h"
 #include "SScrubControlPanel.h"
 #include "ScopedTransaction.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "AnimationEditorPreviewScene.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimData/AnimDataController.h"
@@ -322,7 +322,7 @@ uint32 SAnimationScrubPanel::GetNumberOfKeys() const
 			{
 				NumKeys = CastChecked<UAnimSequenceBase>(PreviewInstance->GetCurrentAsset())->GetNumberOfSampledKeys();
 			}
-			else if(PreviewInstance->GetCurrentAsset()->IsA(UBlendSpaceBase::StaticClass()))
+			else if(PreviewInstance->GetCurrentAsset()->IsA(UBlendSpace::StaticClass()))
 			{
 				// Blendspaces dont display frame notches, so just return 0 here
 				NumKeys = 0;

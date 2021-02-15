@@ -8,7 +8,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "AnimNode_BlendSpaceGraphBase.generated.h"
 
-class UBlendSpaceBase;
+class UBlendSpace;
 
 // Allows multiple animations to be blended between based on input parameters
 USTRUCT(BlueprintInternalUseOnly)
@@ -19,7 +19,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpaceGraphBase : public FAnimNode_Bas
 	friend class UAnimGraphNode_BlendSpaceGraphBase;
 
 	// @return the blendspace that this node uses
-	const UBlendSpaceBase* GetBlendSpace() const { return BlendSpace; }
+	const UBlendSpace* GetBlendSpace() const { return BlendSpace; }
 
 	// @return the current sample coordinates that this node is using to sample the blendspace
 	FVector GetPosition() const { return FVector(X, Y, Z); }
@@ -55,7 +55,7 @@ protected:
 
 	// The internal blendspace asset to play
 	UPROPERTY()
-	TObjectPtr<const UBlendSpaceBase> BlendSpace = nullptr;
+	TObjectPtr<const UBlendSpace> BlendSpace = nullptr;
 
 	// Pose links for each sample in the blendspace
 	UPROPERTY()

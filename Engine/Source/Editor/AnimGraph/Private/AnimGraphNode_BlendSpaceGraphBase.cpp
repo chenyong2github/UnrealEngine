@@ -128,7 +128,7 @@ void UAnimGraphNode_BlendSpaceGraphBase::OnCopyTermDefaultsToDefaultObject(IAnim
 	DestinationNode->BlendSpace = OutCompiledData.AddBlendSpace(BlendSpace);
 }
 
-void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(UBlendSpaceBase* InBlendSpace, bool bInIsTemplateNode)
+void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(UBlendSpace* InBlendSpace, bool bInIsTemplateNode)
 {
 	if(bInIsTemplateNode)
 	{
@@ -171,7 +171,7 @@ void UAnimGraphNode_BlendSpaceGraphBase::SetupFromAsset(UBlendSpaceBase* InBlend
 	}
 }
 
-void UAnimGraphNode_BlendSpaceGraphBase::SetupFromClass(TSubclassOf<UBlendSpaceBase> InBlendSpaceClass, bool bInIsTemplateNode)
+void UAnimGraphNode_BlendSpaceGraphBase::SetupFromClass(TSubclassOf<UBlendSpace> InBlendSpaceClass, bool bInIsTemplateNode)
 {
 	if(bInIsTemplateNode)
 	{
@@ -180,7 +180,7 @@ void UAnimGraphNode_BlendSpaceGraphBase::SetupFromClass(TSubclassOf<UBlendSpaceB
 	else
 	{
 		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, InBlendSpaceClass.Get()->GetFName(), UBlendSpaceGraph::StaticClass(), UAnimationGraphSchema::StaticClass()));
-		BlendSpaceGraph->BlendSpace = BlendSpace = NewObject<UBlendSpaceBase>(BlendSpaceGraph, InBlendSpaceClass.Get());
+		BlendSpaceGraph->BlendSpace = BlendSpace = NewObject<UBlendSpace>(BlendSpaceGraph, InBlendSpaceClass.Get());
 		BlendSpaceGraph->BlendSpace->SetFlags(RF_Transactional);
 		BlendSpaceGraph->bAllowDeletion = false;
 		BlendSpaceGraph->bAllowRenaming = true;
@@ -328,7 +328,7 @@ void UAnimGraphNode_BlendSpaceGraphBase::PostPlacedNewNode()
 		check(BlendSpace == nullptr);
 
 		BlendSpaceGraph = CastChecked<UBlendSpaceGraph>(FBlueprintEditorUtils::CreateNewGraph(this, NAME_None, UBlendSpaceGraph::StaticClass(), UAnimationGraphSchema::StaticClass()));
-		BlendSpaceGraph->BlendSpace = BlendSpace = NewObject<UBlendSpaceBase>();
+		BlendSpaceGraph->BlendSpace = BlendSpace = NewObject<UBlendSpace>();
 		
 		// Find an interesting name
 		TSharedPtr<INameValidatorInterface> NameValidator = FNameValidatorFactory::MakeValidator(this);

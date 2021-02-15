@@ -49,7 +49,7 @@ class UAnimGraphNode_BlendSpacePlayer : public UAnimGraphNode_BlendSpaceBase
 
 private:
 	/** Helper function for GetNodeTitle */
-	FText GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpaceBase* InBlendSpace) const;
+	FText GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpace* InBlendSpace) const;
 
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */

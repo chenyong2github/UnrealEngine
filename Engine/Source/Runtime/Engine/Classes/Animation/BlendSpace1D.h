@@ -9,11 +9,11 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #include "BlendSpace1D.generated.h"
 
 UCLASS(config=Engine, hidecategories=Object, MinimalAPI, BlueprintType)
-class UBlendSpace1D : public UBlendSpaceBase
+class UBlendSpace1D : public UBlendSpace
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,16 +28,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = InputInterpolation)
 	bool bScaleAnimation;
 
-	virtual bool IsValidAdditive() const override;
-	virtual bool IsValidAdditiveType(EAdditiveAnimationType AdditiveType) const override;
 protected:
-	//~ Begin UBlendSpaceBase Interface
-	virtual bool IsSameSamplePoint(const FVector& SamplePointA, const FVector& SamplePointB) const;	
+	//~ Begin UBlendSpace Interface
 	virtual EBlendSpaceAxis GetAxisToScale() const override;
-	virtual void GetRawSamplesFromBlendInput(const FVector &BlendInput, TArray<FGridBlendSample, TInlineAllocator<4> > & OutBlendSamples) const override;
-#if WITH_EDITOR
-	virtual void SnapSamplesToClosestGridPoint() override;
-	virtual void RemapSamplesToNewAxisRange() override;
-#endif // WITH_EDITOR
-	//~ End UBlendSpaceBase Interface
+	//~ End UBlendSpace Interface
 };

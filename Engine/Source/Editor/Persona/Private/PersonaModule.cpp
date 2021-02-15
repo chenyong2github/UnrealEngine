@@ -40,7 +40,6 @@
 #include "Animation/BlendSpace.h"
 #include "SAnimationBlendSpace.h"
 #include "Animation/BlendSpace1D.h"
-#include "SAnimationBlendSpace1D.h"
 #include "Animation/AimOffsetBlendSpace.h"
 #include "Animation/AimOffsetBlendSpace1D.h"
 #include "SAnimationDlgs.h"
@@ -119,7 +118,7 @@ void FPersonaModule::StartupModule()
 		PropertyModule.RegisterCustomClassLayout( "EditorNotifyObject", FOnGetDetailCustomizationInstance::CreateStatic(&FAnimNotifyDetails::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout( "AnimGraphNode_Base", FOnGetDetailCustomizationInstance::CreateStatic( &FAnimGraphNodeDetails::MakeInstance ) );
 		PropertyModule.RegisterCustomClassLayout( "AnimInstance", FOnGetDetailCustomizationInstance::CreateStatic(&FAnimInstanceDetails::MakeInstance));
-		PropertyModule.RegisterCustomClassLayout("BlendSpaceBase", FOnGetDetailCustomizationInstance::CreateStatic(&FBlendSpaceDetails::MakeInstance));	
+		PropertyModule.RegisterCustomClassLayout("BlendSpace", FOnGetDetailCustomizationInstance::CreateStatic(&FBlendSpaceDetails::MakeInstance));	
 
 		PropertyModule.RegisterCustomPropertyTypeLayout("BlendProfile", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlendProfileCustomization::MakeInstance));
 		PropertyModule.RegisterCustomPropertyTypeLayout( "InputScaleBias", FOnGetPropertyTypeCustomizationInstance::CreateStatic( &FInputScaleBiasCustomization::MakeInstance ) );
@@ -164,7 +163,7 @@ void FPersonaModule::ShutdownModule()
 		PropertyModule.UnregisterCustomClassLayout("EditorNotifyObject");
 		PropertyModule.UnregisterCustomClassLayout("AnimGraphNode_Base");
 		PropertyModule.UnregisterCustomClassLayout("AnimInstance");
-		PropertyModule.UnregisterCustomClassLayout("BlendSpaceBase");
+		PropertyModule.UnregisterCustomClassLayout("BlendSpace");
 
 		PropertyModule.UnregisterCustomPropertyTypeLayout("InputScaleBias");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("BoneReference");
@@ -353,7 +352,7 @@ TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(const FBlendSp
 		.OnGetBlendSpaceSampleName(InArgs.OnGetBlendSpaceSampleName);
 }
 
-TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpaceBase*> InBlendSpace, TAttribute<FVector> InPosition, TAttribute<FVector> InFilteredPosition) const
+TSharedRef<SWidget> FPersonaModule::CreateBlendSpacePreviewWidget(TAttribute<const UBlendSpace*> InBlendSpace, TAttribute<FVector> InPosition, TAttribute<FVector> InFilteredPosition) const
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FBlendSpacePreviewArgs Args;
@@ -456,8 +455,8 @@ TSharedRef<SWidget> FPersonaModule::CreateEditorWidgetForAnimDocument(const TSha
 		}
 		else if (UBlendSpace1D* BlendSpace1D = Cast<UBlendSpace1D>(InAnimAsset))
 		{
-			Result = SNew(SBlendSpaceEditor1D, InArgs.PreviewScene.Pin().ToSharedRef())
-				.BlendSpace1D(BlendSpace1D);
+			Result = SNew(SBlendSpaceEditor, InArgs.PreviewScene.Pin().ToSharedRef())
+				.BlendSpace(BlendSpace1D);
 
 			if (Cast<UAimOffsetBlendSpace1D>(InAnimAsset))
 			{
@@ -1494,42 +1493,21 @@ void FPersonaModule::HandleNewAnimNotifyStateBlueprintCreated(UBlueprint* InBlue
 	}
 }
 
-TSharedRef<SWidget> FPersonaModule::CreateBlendSpaceEditWidget(UBlendSpaceBase* InBlendSpace, const FBlendSpaceEditorArgs& InArgs) const
+TSharedRef<SWidget> FPersonaModule::CreateBlendSpaceEditWidget(UBlendSpace* InBlendSpace, const FBlendSpaceEditorArgs& InArgs) const
 {
-	if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(InBlendSpace))
-	{
-		return SNew(SBlendSpaceEditor)
-			.BlendSpace(BlendSpace)
-			.DisplayScrubBar(false)
-			.OnBlendSpaceSampleDoubleClicked(InArgs.OnBlendSpaceSampleDoubleClicked)
-			.OnBlendSpaceSampleAdded(InArgs.OnBlendSpaceSampleAdded)
-			.OnBlendSpaceSampleRemoved(InArgs.OnBlendSpaceSampleRemoved)
-			.OnBlendSpaceSampleReplaced(InArgs.OnBlendSpaceSampleReplaced)
-			.OnGetBlendSpaceSampleName(InArgs.OnGetBlendSpaceSampleName)
-			.OnExtendSampleTooltip(InArgs.OnExtendSampleTooltip)
-			.OnSetPreviewPosition(InArgs.OnSetPreviewPosition)
-			.PreviewPosition(InArgs.PreviewPosition)
-			.PreviewFilteredPosition(InArgs.PreviewFilteredPosition)
-			.StatusBarName(InArgs.StatusBarName);
-	}
-	else if (UBlendSpace1D* BlendSpace1D = Cast<UBlendSpace1D>(InBlendSpace))
-	{
-		return SNew(SBlendSpaceEditor1D)
-			.BlendSpace1D(BlendSpace1D)
-			.DisplayScrubBar(false)
-			.OnBlendSpaceSampleDoubleClicked(InArgs.OnBlendSpaceSampleDoubleClicked)
-			.OnBlendSpaceSampleAdded(InArgs.OnBlendSpaceSampleAdded)
-			.OnBlendSpaceSampleRemoved(InArgs.OnBlendSpaceSampleRemoved)
-			.OnBlendSpaceSampleReplaced(InArgs.OnBlendSpaceSampleReplaced)
-			.OnGetBlendSpaceSampleName(InArgs.OnGetBlendSpaceSampleName)
-			.OnExtendSampleTooltip(InArgs.OnExtendSampleTooltip)
-			.OnSetPreviewPosition(InArgs.OnSetPreviewPosition)
-			.PreviewPosition(InArgs.PreviewPosition)
-			.PreviewFilteredPosition(InArgs.PreviewFilteredPosition)
-			.StatusBarName(InArgs.StatusBarName);
-	}
-
-	return SNullWidget::NullWidget;
+	return SNew(SBlendSpaceEditor)
+		.BlendSpace(InBlendSpace)
+		.DisplayScrubBar(false)
+		.OnBlendSpaceSampleDoubleClicked(InArgs.OnBlendSpaceSampleDoubleClicked)
+		.OnBlendSpaceSampleAdded(InArgs.OnBlendSpaceSampleAdded)
+		.OnBlendSpaceSampleRemoved(InArgs.OnBlendSpaceSampleRemoved)
+		.OnBlendSpaceSampleReplaced(InArgs.OnBlendSpaceSampleReplaced)
+		.OnGetBlendSpaceSampleName(InArgs.OnGetBlendSpaceSampleName)
+		.OnExtendSampleTooltip(InArgs.OnExtendSampleTooltip)
+		.OnSetPreviewPosition(InArgs.OnSetPreviewPosition)
+		.PreviewPosition(InArgs.PreviewPosition)
+		.PreviewFilteredPosition(InArgs.PreviewFilteredPosition)
+		.StatusBarName(InArgs.StatusBarName);
 }
 
 #undef LOCTEXT_NAMESPACE

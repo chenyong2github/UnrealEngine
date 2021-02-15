@@ -45,7 +45,7 @@ class UAnimGraphNode_BlendSpaceEvaluator : public UAnimGraphNode_BlendSpaceBase
 	// End of UAnimGraphNode_AssetPlayerBase interface
 
 private:
-	FText GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpaceBase* InBlendSpace) const;
+	FText GetNodeTitleForBlendSpace(ENodeTitleType::Type TitleType, UBlendSpace* InBlendSpace) const;
 
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */

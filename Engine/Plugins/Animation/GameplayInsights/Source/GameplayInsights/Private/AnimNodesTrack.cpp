@@ -27,7 +27,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Animation/AnimInstance.h"
-#include "Animation/BlendSpaceBase.h"
+#include "Animation/BlendSpace.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "AnimNodesTrack"
@@ -362,14 +362,14 @@ void FAnimNodesTrack::UpdateDebugData(const TraceServices::FFrame& InFrame)
 									{
 										InBlendSpacePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [GameplayProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FBlendSpacePlayerMessage& InMessage)
 										{
-											UBlendSpaceBase* BlendSpaceBase = nullptr;
+											UBlendSpace* BlendSpace = nullptr;
 											const FObjectInfo* BlendSpaceInfo = GameplayProvider->FindObjectInfo(InMessage.BlendSpaceId);
 											if(BlendSpaceInfo)
 											{
-												BlendSpaceBase = TSoftObjectPtr<UBlendSpaceBase>(FSoftObjectPath(BlendSpaceInfo->PathName)).LoadSynchronous();
+												BlendSpace = TSoftObjectPtr<UBlendSpace>(FSoftObjectPath(BlendSpaceInfo->PathName)).LoadSynchronous();
 											}
 
-											DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpaceBase, FVector(InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ), FVector(InMessage.FilteredPositionX, InMessage.FilteredPositionY, InMessage.FilteredPositionZ));
+											DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpace, FVector(InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ), FVector(InMessage.FilteredPositionX, InMessage.FilteredPositionY, InMessage.FilteredPositionZ));
 											return TraceServices::EEventEnumerate::Continue;
 										});
 									});
