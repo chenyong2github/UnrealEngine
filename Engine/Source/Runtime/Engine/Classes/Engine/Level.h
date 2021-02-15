@@ -120,11 +120,11 @@ struct ENGINE_API FDynamicTextureInstance : public FStreamableTextureInstance
 
 	/** Whether the primitive that uses this texture is attached to the scene or not. */
 	UPROPERTY()
-	bool						bAttached;
+	bool						bAttached = false;
 	
 	/** Original bounding sphere radius, at the time the TexelFactor was calculated originally. */
 	UPROPERTY()
-	float						OriginalRadius;
+	float						OriginalRadius = 0.0f;
 
 	/**
 	 * FDynamicTextureInstance serialize operator.
