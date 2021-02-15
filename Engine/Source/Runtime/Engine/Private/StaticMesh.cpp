@@ -2682,6 +2682,7 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshRenderData::Cache);
+		LLM_SCOPE_BYNAME(TEXT("AssetCompilation/StaticMesh"));
 
 		COOK_STAT(auto Timer = StaticMeshCookStats::UsageStats.TimeSyncWork());
 		int32 T0 = FPlatformTime::Cycles();
@@ -5010,6 +5011,7 @@ int32 UStaticMesh::GetNumUVChannels(int32 LODIndex)
 void UStaticMesh::CacheDerivedData()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::CacheDerivedData);
+	LLM_SCOPE_BYNAME(TEXT("AssetCompilation/StaticMesh"));
 
 	// Cache derived data for the running platform.
 	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
@@ -5617,6 +5619,15 @@ void UStaticMesh::BeginPostLoadInternal(FStaticMeshPostLoadContext& Context)
 	{
 		CreateBodySetup();
 	}
+
+	// Make sure the object is created on the game-thread before going async
+	if (bHasNavigationData && GetBodySetup() != nullptr)
+	{
+		if (GetNavCollision() == nullptr)
+		{
+			SetNavCollision(UNavCollisionBase::ConstructNew(*this));
+		}
+	}
 }
 
 void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
@@ -5877,6 +5888,14 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 
 	// Release cached mesh descriptions until they are loaded on demand
 	ClearMeshDescriptions();
+
+	if (GetNavCollision())
+	{
+		// Physics meshes need to be ready to gather the collision in Setup().
+		GetBodySetup()->CreatePhysicsMeshes();
+		GetNavCollision()->Setup(GetBodySetup());
+	}
+
 	ReleaseAsyncProperty(EStaticMeshAsyncProperties::SourceModels);
 #endif // #if WITH_EDITOR
 }
@@ -5905,8 +5924,6 @@ void UStaticMesh::FinishPostLoadInternal(FStaticMeshPostLoadContext& Context)
 #endif
 		ReleaseAsyncProperty(EStaticMeshAsyncProperties::RenderData);
 	}
-
-	CreateNavCollision();
 
 	ReleaseAsyncProperty();
 }
