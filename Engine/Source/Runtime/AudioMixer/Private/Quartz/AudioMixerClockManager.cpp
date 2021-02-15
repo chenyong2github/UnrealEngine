@@ -13,6 +13,7 @@ namespace Audio
 
 	FQuartzClockManager::~FQuartzClockManager()
 	{
+		check(ActiveClocks.Num() == 0);
 	}
 
 	void FQuartzClockManager::Update(int32 NumFramesUntilNextUpdate)
@@ -24,7 +25,7 @@ namespace Audio
 		TickClocks(NumFramesUntilNextUpdate);
 	}
 
-	FQuartzClock* FQuartzClockManager::GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists)
+	TSharedPtr<FQuartzClock> FQuartzClockManager::GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists)
 	{
 		FScopeLock Lock(&ActiveClockCritSec);
 
@@ -32,7 +33,7 @@ namespace Audio
 		FQuartzClockSettings NewSettings = InClockSettings;
 
 		// See if this clock already exists
-		FQuartzClock* Clock = FindClock(InClockName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InClockName);
 
 		if (Clock)
 		{
@@ -46,7 +47,7 @@ namespace Audio
 		}
 
 		// doesn't exist, create new clock
-		return &ActiveClocks.Emplace_GetRef(FQuartzClock(InClockName, NewSettings, this));
+		return ActiveClocks.Emplace_GetRef(MakeShared<FQuartzClock>(InClockName, NewSettings, this));
 	}
 
 	bool FQuartzClockManager::DoesClockExist(const FName& InClockName)
@@ -72,7 +73,7 @@ namespace Audio
 		int32 NumClocks = ActiveClocks.Num();
 		for (int32 i = NumClocks - 1; i >= 0; --i)
 		{
-			if (ActiveClocks[i].GetName() == InName)
+			if (ActiveClocks[i]->GetName() == InName)
 			{
 				UE_LOG(LogAudioQuartz, Display, TEXT("Removing Clock: %s"), *InName.ToString());
 				ActiveClocks.RemoveAtSwap(i);
@@ -85,7 +86,7 @@ namespace Audio
 	{
 		FScopeLock Lock(&ActiveClockCritSec);
 
-		FQuartzClock* Clock = FindClock(InName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InName);
 
 		if (Clock)
 		{
@@ -109,7 +110,7 @@ namespace Audio
 
 		// Anything below is being executed on the Audio Render Thread
 		FScopeLock Lock(&ActiveClockCritSec);
-		FQuartzClock* Clock = FindClock(InName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InName);
 		if (Clock)
 		{
 			Clock->ChangeTickRate(InNewTickRate);
@@ -130,7 +131,7 @@ namespace Audio
 
 		// Anything below is being executed on the Audio Render Thread
 		FScopeLock Lock(&ActiveClockCritSec);
-		FQuartzClock* Clock = FindClock(InName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InName);
 		if (Clock)
 		{
 			Clock->Resume();
@@ -151,7 +152,7 @@ namespace Audio
 
 		// Anything below is being executed on the Audio Render Thread
 		FScopeLock Lock(&ActiveClockCritSec);
-		FQuartzClock* Clock = FindClock(InName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InName);
 		if (Clock)
 		{
 			Clock->Pause();
@@ -166,7 +167,7 @@ namespace Audio
 
 		for (int32 i = NumClocks - 1; i >= 0; --i)
 		{
-			if (!ActiveClocks[i].IgnoresFlush())
+			if (!ActiveClocks[i]->IgnoresFlush())
 			{
 				ActiveClocks.RemoveAtSwap(i);
 			}
@@ -180,7 +181,7 @@ namespace Audio
 		FScopeLock Lock(&ActiveClockCritSec);
 		for (auto& Clock : ActiveClocks)
 		{
-			Clock.Shutdown();
+			Clock->Shutdown();
 		}
 	}
 
@@ -188,7 +189,7 @@ namespace Audio
 	{
 		FScopeLock Lock(&ActiveClockCritSec);
 
-		if (FQuartzClock* Clock = FindClock(InQuantizationCommandInitInfo.ClockName))
+		if (TSharedPtr<FQuartzClock> Clock = FindClock(InQuantizationCommandInitInfo.ClockName))
 		{
 			// pass the quantized command to it's clock
 			InQuantizationCommandInitInfo.SetOwningClockPtr(Clock);
@@ -221,7 +222,7 @@ namespace Audio
 
 		// Anything below is being executed on the Audio Render Thread
 		FScopeLock Lock(&ActiveClockCritSec);
-		FQuartzClock* Clock = FindClock(InClockName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InClockName);
 		if (Clock)
 		{
 			Clock->SubscribeToTimeDivision(InListenerQueue, InQuantizationBoundary);
@@ -242,7 +243,7 @@ namespace Audio
 
 		// Anything below is being executed on the Audio Render Thread
 		FScopeLock Lock(&ActiveClockCritSec);
-		FQuartzClock* Clock = FindClock(InClockName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InClockName);
 		if (Clock)
 		{
 			Clock->SubscribeToAllTimeDivisions(InListenerQueue);
@@ -263,7 +264,7 @@ namespace Audio
 
 		// Anything below is being executed on the Audio Render Thread
 		FScopeLock Lock(&ActiveClockCritSec);
-		FQuartzClock* Clock = FindClock(InClockName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InClockName);
 		if (Clock)
 		{
 			Clock->UnsubscribeFromTimeDivision(InListenerQueue, InQuantizationBoundary);
@@ -284,7 +285,7 @@ namespace Audio
 
 		// Anything below is being executed on the Audio Render Thread
 		FScopeLock Lock(&ActiveClockCritSec);
-		FQuartzClock* Clock = FindClock(InClockName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InClockName);
 		if (Clock)
 		{
 			Clock->UnsubscribeFromAllTimeDivisions(InListenerQueue);
@@ -297,7 +298,7 @@ namespace Audio
 		check(MixerDevice->IsAudioRenderingThread());
 
 		FScopeLock Lock(&ActiveClockCritSec);
-		FQuartzClock* Clock = FindClock(InOwningClockName);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InOwningClockName);
 
 		if (Clock && InCommandPtr)
 		{
@@ -329,20 +330,20 @@ namespace Audio
 		FScopeLock Lock(&ActiveClockCritSec);
 		for (auto& Clock : ActiveClocks)
 		{
-			Clock.Tick(NumFramesToTick);
+			Clock->Tick(NumFramesToTick);
 		}
 	}
 
-	FQuartzClock* FQuartzClockManager::FindClock(const FName& InName)
+	TSharedPtr<FQuartzClock> FQuartzClockManager::FindClock(const FName& InName)
 	{
 		// the function calling this should be be on the audio rendering thread or have acquired the lock
 		checkSlow(MixerDevice->IsAudioRenderingThread() || ActiveClockCritSec.TryLock());
 
 		for (auto& Clock : ActiveClocks)
 		{
-			if (Clock.GetName() == InName)
+			if (Clock->GetName() == InName)
 			{
-				return &Clock;
+				return Clock;
 			}
 		}
 
