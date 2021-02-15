@@ -6,6 +6,8 @@
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
 
+#if PLATFORM_DESKTOP
+
 namespace FASTBuildShaderCompilerVariables
 {
 	int32 Enabled = 1;
@@ -752,3 +754,5 @@ int32 FShaderCompileFASTBuildThreadRunnable::CompilingLoop()
 
 	return bWorkRemaining ? 1 : 0;
 }
+
+#endif // PLATFORM_DESKTOP

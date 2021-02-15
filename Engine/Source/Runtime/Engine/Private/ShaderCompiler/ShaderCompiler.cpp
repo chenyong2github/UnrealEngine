@@ -2743,11 +2743,13 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	}
 	else
 #endif // PLATFORM_WINDOWS
+#if PLATFORM_DESKTOP
 	if (bAllowCompilingThroughWorkers && FShaderCompileFASTBuildThreadRunnable::IsSupported())
 	{
 		UE_LOG(LogShaderCompilers, Display, TEXT("Using FASTBuild Shader Compiler."));
 		RemoteCompileThread = MakeUnique<FShaderCompileFASTBuildThreadRunnable>(this);
 	}
+#endif // PLATFORM_DESKTOP
 
 	GConfig->SetBool(TEXT("/Script/UnrealEd.UnrealEdOptions"), TEXT("UsingXGE"), RemoteCompileThread.IsValid(), GEditorIni);
 
