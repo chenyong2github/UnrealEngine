@@ -24,7 +24,7 @@ enum class EMappingQueryResult : uint8
 };
 
 // Mapping issues arising from a QueryMapKeyIn... call
-UENUM(BlueprintType, meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
+UENUM(BlueprintType, meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true", ScriptName = "MappingQueryIssueFlag"))
 enum class EMappingQueryIssue : uint8
 {
 	// Mapping will not affect any existing mappings and is safe to apply.
