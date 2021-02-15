@@ -2257,9 +2257,6 @@ static TLockFreeClassAllocator_TLSCache<FGraphEvent, PLATFORM_CACHE_LINE_SIZE> T
 FGraphEventRef FGraphEvent::CreateGraphEvent()
 {
 	FGraphEvent* Instance = new(TheGraphEventAllocator.Allocate()) FGraphEvent{};
-	// `CreateGraphEvent()` creates an "empty" event that doesn't have an associated task and so won't get its TraceId set automatically
-	// to track such events we need to set a unique TraceId
-	Instance->SetTraceId(TaskTrace::GenerateTaskId());
 	return Instance;
 }
 
@@ -2309,6 +2306,11 @@ void FGraphEvent::DispatchSubsequents(TArray<FBaseGraphTask*>& NewTasks, ENamedT
 			{
 				LocalThreadToDoGatherOn = ThreadToDoGatherOn;
 			}
+
+#if UE_TASK_TRACE_ENABLED
+			// regenerate TraceId as we're going to use the same event with another task
+			TraceId = TaskTrace::GenerateTaskId();
+#endif
 			TGraphTask<FNullGraphTask>::CreateTask(FGraphEventRef(this), &TempEventsToWaitFor, CurrentThreadIfKnown).ConstructAndDispatchWhenReady(GET_STATID(STAT_FNullGraphTask_DontCompleteUntil), LocalThreadToDoGatherOn);
 			return;
 		}
