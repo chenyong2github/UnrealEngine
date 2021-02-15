@@ -596,7 +596,7 @@ namespace Chaos
 			});
 	}
 
-	int32 RewindCaptureNumFrames = -1;
+	CHAOS_API int32 RewindCaptureNumFrames = -1;
 	FAutoConsoleVariableRef CVarRewindCaptureNumFrames(TEXT("p.RewindCaptureNumFrames"),RewindCaptureNumFrames,TEXT("The number of frames to capture rewind for. Requires restart of solver"));
 
 	int32 UseResimCache = 0;
@@ -1020,7 +1020,7 @@ namespace Chaos
 					// Do rollback as necessary
 					for (int32 Step = ResimStep; Step <= LastStep; ++Step)
 					{
-						FPushPhysicsData* PushData = RecordedPushData[LastStep - ResimStep];	//push data is sorted as latest first
+						FPushPhysicsData* PushData = RecordedPushData[LastStep - Step];	//push data is sorted as latest first
 						MRewindCallback->PreResimStep(Step, bFirst);
 						FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
 						ImmediateTask.AdvanceSolver();

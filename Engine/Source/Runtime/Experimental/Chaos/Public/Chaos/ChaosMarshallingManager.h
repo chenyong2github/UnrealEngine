@@ -196,6 +196,7 @@ struct FPushPhysicsData
 	TArray<FSimCallbackCommandObject*> SimCommands;	//commands to run (this is a one off command)
 
 	void Reset();
+	void ResetForHistory();
 	void CopySubstepData(const FPushPhysicsData& FirstStepData);
 };
 

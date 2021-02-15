@@ -60,6 +60,8 @@ namespace Chaos
 	class FSingleParticleProxy;
 	class FGeometryParticleBuffer;
 
+	CHAOS_API extern int32 RewindCaptureNumFrames;
+
 	template <typename T,typename R,int d>
 	class ISpatialAccelerationCollection;
 
@@ -164,6 +166,17 @@ namespace Chaos
 			}
 		}
 
+		IRewindCallback* GetRewindCallback()
+		{
+			if (Traits::IsRewindable())
+			{
+				return MRewindCallback.Get();
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
 		//
 		//  Simulation API
 		//

@@ -141,10 +141,15 @@ void FPushPhysicsData::Reset()
 	}
 
 	SimCallbackInputs.Reset();
-	DirtyProxiesDataBuffer.Reset();
-	SimCallbackObjectsToAdd.Reset();
 	SimCallbackObjectsToRemove.Reset();
+	ResetForHistory();
+}
+
+void FPushPhysicsData::ResetForHistory()
+{
+	DirtyProxiesDataBuffer.Reset();
 	SimCommands.Reset();
+	SimCallbackObjectsToAdd.Reset();
 }
 
 void FChaosMarshallingManager::FreeDataToHistory_Internal(FPushPhysicsData* PushData)
@@ -155,6 +160,7 @@ void FChaosMarshallingManager::FreeDataToHistory_Internal(FPushPhysicsData* Push
 	}
 	else
 	{
+		PushData->ResetForHistory();
 		HistoryQueue_Internal.Insert(PushData, 0);
 		SetHistoryLength_Internal(HistoryLength);
 	}

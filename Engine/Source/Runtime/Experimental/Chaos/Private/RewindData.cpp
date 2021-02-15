@@ -545,7 +545,7 @@ void FRewindData::FinishFrame()
 	if(IsResim())
 	{
 		const bool bLastResim = IsFinalResim();
-		ensure(IsInGameThread());
+		ensure(IsInPhysicsThreadContext());
 		//snap particles forward that are not desynced or  do not have resim enabled
 		//TODO: handle desync case
 		for(FDirtyParticleInfo& Info : AllDirtyParticles)
