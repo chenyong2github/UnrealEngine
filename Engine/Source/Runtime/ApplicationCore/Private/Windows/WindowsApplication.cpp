@@ -778,7 +778,11 @@ static void GetMonitorsInfo(TArray<FMonitorInfo>& OutMonitorInfo)
 							Info.DPI *= DPIScaleFactor;
 						}
 
-						Info.MaxResolution = GetMaxResolutionForDisplay(DisplayDevice, Info.NativeWidth, Info.NativeHeight);
+						// The editor shouldn't care about lower level display resolutions. This is only necessary for fullscreen exclusive situations.
+						if (!GIsEditor)
+						{
+							Info.MaxResolution = GetMaxResolutionForDisplay(DisplayDevice, Info.NativeWidth, Info.NativeHeight);
+						}
 
 						OutMonitorInfo.Add(Info);
 					}
