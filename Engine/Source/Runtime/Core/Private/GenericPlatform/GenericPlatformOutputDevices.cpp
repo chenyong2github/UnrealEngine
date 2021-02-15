@@ -80,26 +80,26 @@ FString FGenericPlatformOutputDevices::GetAbsoluteLogFilename()
 			}
 		}
 
-	FString Extension(FPaths::GetExtension(LogFilename));
-	if (Extension != TEXT("log") && Extension != TEXT("txt"))
-	{
-		// Ignoring the specified log filename because it doesn't have a .log extension			
-		LogFilename.Empty();
-	}
-
-	if (LogFilename.Len() == 0)
-	{
-		if (FCString::Strlen(FApp::GetProjectName()) != 0)
+		FString Extension(FPaths::GetExtension(LogFilename));
+		if (Extension != TEXT("log") && Extension != TEXT("txt"))
 		{
-			LogFilename = FApp::GetProjectName();
-		}
-		else
-		{
-			LogFilename = TEXT("UE4");
+			// Ignoring the specified log filename because it doesn't have a .log extension			
+			LogFilename.Empty();
 		}
 
-		LogFilename += TEXT(".log");
-	}
+		if (LogFilename.Len() == 0)
+		{
+			if (FCString::Strlen(FApp::GetProjectName()) != 0)
+			{
+				LogFilename = FApp::GetProjectName();
+			}
+			else
+			{
+				LogFilename = TEXT("UE4");
+			}
+
+			LogFilename += TEXT(".log");
+		}
 
 		FCString::Strcat(CachedAbsoluteFilename, UE_ARRAY_COUNT(CachedAbsoluteFilename) - FCString::Strlen(CachedAbsoluteFilename), *LogFilename);
 	}
