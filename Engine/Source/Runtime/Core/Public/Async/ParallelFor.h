@@ -17,6 +17,8 @@
 #include "Misc/App.h"
 #include "Misc/Fork.h"
 
+extern CORE_API int32 GParallelForBackgroundYieldingTimeoutMs;
+
 // Flags controlling the ParallelFor's behavior.
 enum class EParallelForFlags
 {
@@ -154,6 +156,19 @@ namespace ParallelForImpl
 		int32 LocalBlockSize = BlockSize;
 		int32 LocalNum = Num;
 		bool bLocalSaveLastBlockForMaster = bSaveLastBlockForMaster;
+
+		auto Now = [] { return FTimespan::FromSeconds(FPlatformTime::Seconds()); };
+		FTimespan Start = FTimespan::MinValue();
+			
+		bool bIsBackgroundPriority = !bMaster && ((InDesiredThread & ENamedThreads::ThreadPriorityMask) == ENamedThreads::BackgroundThreadPriority);
+
+		FTimespan YieldingThreshold;
+		if (bIsBackgroundPriority)
+		{
+			Start = Now();
+			YieldingThreshold = FTimespan::FromMilliseconds(FMath::Max(0, GParallelForBackgroundYieldingTimeoutMs));
+		}
+
 		TFunctionRef<void(int32)> LocalBody(Body);
 		while (true)
 		{
@@ -191,6 +206,16 @@ namespace ParallelForImpl
 			if (MyIndex >= LocalNum - 1)
 			{
 				break;
+			}
+
+			if (bIsBackgroundPriority)
+			{
+				auto PassedTime = [Start, &Now]() { return Now() - Start; };
+				if (PassedTime() > YieldingThreshold)
+				{
+					TGraphTask<TParallelForTask<FunctionType>>::CreateTask().ConstructAndDispatchWhenReady(Data, InDesiredThread, 0);
+					return false;
+				}
 			}
 		}
 		return false;
