@@ -47,7 +47,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Binaries/Linux/x86_64-unknown-linux-gnu/libusdVol.so", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusdVol.so", 
             "Name": "usdVol", 
             "ResourcePath": "resources", 
             "Root": "..", 
