@@ -92,12 +92,16 @@ public:
 	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
 	 * @return				true if any steps were performed to optimize future retrieval
 	 */
-	virtual bool TryToPrefetch(const TCHAR* CacheKey) override
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePrefetch());
-		FString NewKey;
-		ShortenKey(CacheKey, NewKey);
-		bool Result = InnerBackend->TryToPrefetch(*NewKey);
+		TArray<FString> NewKeys;
+		NewKeys.Reserve(CacheKeys.Num());
+		for (const FString& CacheKey : CacheKeys)
+		{
+			ShortenKey(*CacheKey, NewKeys.Emplace_GetRef());
+		}
+		bool Result = InnerBackend->TryToPrefetch(NewKeys);
 		if (Result)
 		{
 			COOK_STAT(Timer.AddHit(0));

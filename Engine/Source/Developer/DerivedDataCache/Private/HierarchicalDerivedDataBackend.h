@@ -198,48 +198,66 @@ public:
 	}
 
 	/**
-	 * Attempts to make sure the cached data will be available as optimally as possible. This is left up to the implementation to do
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @return				true if any steps were performed to optimize future retrieval
+	 * Attempt to make sure the cached data will be available as optimally as possible.
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
+	 * @return				true if the data will probably be found in a fast backend on a future request.
 	 */
-	virtual bool TryToPrefetch(const TCHAR* CacheKey) override
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePrefetch());
 
-		// Search all backends for this key. If it can be moved into a faster class then we'll do so.
-		bool WorthFetching = false;
+		TArray<FString, TInlineAllocator<16>> SearchKeys(CacheKeys);
 
-		FDerivedDataBackendInterface* LastMissedInterface = nullptr;
+		bool bHasFastBackendToWrite = false;
+		bool bHasSlowBackend = false;
 
-		for (int32 CacheIndex = 0; CacheIndex < InnerBackends.Num(); CacheIndex++)
+		for (FDerivedDataBackendInterface* Interface : InnerBackends)
 		{
-			FDerivedDataBackendInterface* Interface = InnerBackends[CacheIndex];
-
-			if (!Interface->CachedDataProbablyExists(CacheKey) && Interface->IsWritable())
+			if (Interface->GetSpeedClass() < ESpeedClass::Fast)
 			{
-				LastMissedInterface = Interface;
+				bHasSlowBackend = true;
 			}
 			else
 			{
-				// if we have an interface that's writable and faster, lets get it
-				if (LastMissedInterface && LastMissedInterface->GetSpeedClass() > Interface->GetSpeedClass())
+				bHasFastBackendToWrite = bHasFastBackendToWrite || Interface->IsWritable();
+
+				// Remove keys that exist in a fast backend because we already have fast access to them.
+				TBitArray<> Hits = Interface->CachedDataProbablyExistsBatch(SearchKeys);
+				TArray<FString, TInlineAllocator<16>>::TIterator It = SearchKeys.CreateIterator();
+				It.SetToEnd();
+				for (--It; It; --It)
 				{
-					WorthFetching = true;
+					if (Hits[It.GetIndex()])
+					{
+						It.RemoveCurrent();
+					}
+				}
+
+				// No fetch is necessary if every key already exists in a fast backend.
+				if (SearchKeys.IsEmpty())
+				{
+					COOK_STAT(Timer.AddHit(0));
+					return true;
 				}
 			}
 		}
-		
-		// If it's remote then fetch it. We don't care about the data but we 
-		// Need to read a copy from the remote store anyway to fill the caches
-		if (WorthFetching)
-		{
-			TArray<uint8> DontCare;
-			GetCachedData(CacheKey, DontCare);
-			COOK_STAT(Timer.AddHit(0));
-		}			
 
-		// Return true if we did anything
-		return WorthFetching;
+		// Try to fetch remaining keys, which will fill them from slow backends into writable fast backends.
+		bool bHit = true;
+		int64 BytesFetched = 0;
+		if (bHasSlowBackend && bHasFastBackendToWrite)
+		{
+			for (const FString& CacheKey : SearchKeys)
+			{
+				TArray<uint8> Ignored;
+				bHit &= GetCachedData(*CacheKey, Ignored);
+				BytesFetched += Ignored.Num();
+			}
+		}
+
+		COOK_STAT(if (bHit) { Timer.AddHit(BytesFetched); });
+		return bHit;
 	}
 
 	/*

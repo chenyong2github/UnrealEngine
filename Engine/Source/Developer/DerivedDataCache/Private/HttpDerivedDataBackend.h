@@ -58,7 +58,7 @@ public:
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
 	
 	virtual FString GetName() const override;
-	virtual bool TryToPrefetch(const TCHAR* CacheKey) override;
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 	virtual ESpeedClass GetSpeedClass() override;
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;

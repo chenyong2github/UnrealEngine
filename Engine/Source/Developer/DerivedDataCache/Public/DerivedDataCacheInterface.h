@@ -216,6 +216,15 @@ public:
 	 */
 	virtual bool AllCachedDataProbablyExists(TConstArrayView<FString> CacheKeys) = 0;
 
+	/**
+	 * Synchronous attempt to make sure the cached data will be available as optimally as possible.
+	 *
+	 * @param	CacheKeys		Keys to identify the data.
+	 * @param	DebugContext	A string used to describe the data being generated. Typically the path to the object that it is generated from is sufficient.
+	 * @return					true if the data will probably be found in a fast backend on a future request.
+	 */
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys, FStringView DebugContext) = 0;
+
 	//--------------------
 	// System Interface
 	//--------------------

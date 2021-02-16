@@ -86,7 +86,7 @@ bool FMemoryDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint
 	return false;
 }
 
-bool FMemoryDerivedDataBackend::TryToPrefetch(const TCHAR* CacheKey)
+bool FMemoryDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	return false;
 }

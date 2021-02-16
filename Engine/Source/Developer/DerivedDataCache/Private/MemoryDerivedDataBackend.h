@@ -78,7 +78,7 @@ public:
 
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
 
-	virtual bool TryToPrefetch(const TCHAR* CacheKey) override;
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 
 	/**
 	 *  Determines if we would cache the provided data

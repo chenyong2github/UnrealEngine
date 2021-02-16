@@ -53,7 +53,7 @@ public:
 
 	FString GetName() const override;
 	ESpeedClass GetSpeedClass() override;
-	bool TryToPrefetch(const TCHAR* CacheKey) override;
+	bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 
 	bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;

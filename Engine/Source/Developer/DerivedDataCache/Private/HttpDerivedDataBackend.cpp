@@ -994,7 +994,7 @@ FString FHttpDerivedDataBackend::GetName() const
 	return Domain;
 }
 
-bool FHttpDerivedDataBackend::TryToPrefetch(const TCHAR* CacheKey)
+bool FHttpDerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	return false;
 }

@@ -92,11 +92,12 @@ public:
 	virtual TBitArray<> CachedDataProbablyExistsBatch(TConstArrayView<FString> CacheKeys) override;
 
 	/**
-	 * Attempts to make sure the cached data will be available as optimally as possible. This is left up to the implementation to do
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @return				true if any steps were performed to optimize future retrieval
+	 * Attempt to make sure the cached data will be available as optimally as possible.
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
+	 * @return				true if the data will probably be found in a fast backend on a future request.
 	 */
-	virtual bool TryToPrefetch(const TCHAR* CacheKey) override;
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
 
 	/**
 	 * Allows the DDC backend to determine if it wants to cache the provided data. Reasons for returning false could be a slow connection,

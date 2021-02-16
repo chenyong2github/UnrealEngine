@@ -756,7 +756,7 @@ public:
 		COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s.%s"), *GraphPath, TEXT("FileSystem"), *CachePath), UsageStats));
 	}
 
-	bool TryToPrefetch(const TCHAR* CacheKey) override
+	bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
 		return false;
 	}

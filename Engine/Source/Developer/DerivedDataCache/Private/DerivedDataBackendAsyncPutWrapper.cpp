@@ -182,21 +182,18 @@ TBitArray<> FDerivedDataBackendAsyncPutWrapper::CachedDataProbablyExistsBatch(TC
 	return Result;
 }
 
-bool FDerivedDataBackendAsyncPutWrapper::TryToPrefetch(const TCHAR* CacheKey)
+bool FDerivedDataBackendAsyncPutWrapper::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	COOK_STAT(auto Timer = UsageStats.TimePrefetch());
 
-	bool SkipCheck = (!InflightCache && InflightCache->CachedDataProbablyExists(CacheKey));
-	
-	bool Hit = false;
-
-	if (!SkipCheck)
+	if ((InflightCache && InflightCache->CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num()) ||
+		InnerBackend->TryToPrefetch(CacheKeys))
 	{
-		Hit = InnerBackend->TryToPrefetch(CacheKey);
+		COOK_STAT(Timer.AddHit(0));
+		return true;
 	}
 
-	COOK_STAT(if (Hit) { Timer.AddHit(0); });
-	return Hit;
+	return false;
 }
 
 /*

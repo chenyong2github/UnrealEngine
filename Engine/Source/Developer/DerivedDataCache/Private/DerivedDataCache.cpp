@@ -572,6 +572,18 @@ public:
 		return CacheKeys.Num() == 0 || CachedDataProbablyExistsBatch(CacheKeys).CountSetBits() == CacheKeys.Num();
 	}
 
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys, FStringView DebugContext) override
+	{
+		if (CacheKeys.Num() > 1)
+		{
+			DDC_SCOPE_CYCLE_COUNTER(DDC_TryToPrefetch);
+			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("TryToPrefetch %d keys including %s from '%.*s'"),
+				CacheKeys.Num(), *CacheKeys[0], DebugContext.Len(), DebugContext.GetData());
+			return FDerivedDataBackend::Get().GetRoot().TryToPrefetch(CacheKeys);
+		}
+		return true;
+	}
+
 	void NotifyBootComplete() override
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_NotifyBootComplete);

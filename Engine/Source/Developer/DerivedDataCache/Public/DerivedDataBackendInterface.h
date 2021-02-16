@@ -164,12 +164,12 @@ public:
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) = 0;
 
 	/**
-	 * Synchronous attempt to make sure the cached data will be available as optimally as possible. This is left up to the implementation 
-	 * to implement or just skip.
-	 * @param	CacheKey	Alphanumeric+underscore key of this cache item
-	 * @return				true if any steps were performed to optimize future retrieval
+	 * Synchronous attempt to make sure the cached data will be available as optimally as possible.
+	 *
+	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
+	 * @return				true if the data will probably be found in a fast backend on a future request.
 	 */
-	virtual bool TryToPrefetch(const TCHAR* CacheKey) = 0;
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) = 0;
 
 	/**
 	 * Allows the DDC backend to determine if it wants to cache the provided data. Reasons for returning false could be a slow connection,

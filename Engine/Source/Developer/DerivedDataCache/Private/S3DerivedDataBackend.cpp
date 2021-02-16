@@ -947,7 +947,7 @@ FDerivedDataBackendInterface::ESpeedClass FS3DerivedDataBackend::GetSpeedClass()
 	return ESpeedClass::Local;
 }
 
-bool FS3DerivedDataBackend::TryToPrefetch(const TCHAR* CacheKey)
+bool FS3DerivedDataBackend::TryToPrefetch(TConstArrayView<FString> CacheKeys)
 {
 	return false;
 }

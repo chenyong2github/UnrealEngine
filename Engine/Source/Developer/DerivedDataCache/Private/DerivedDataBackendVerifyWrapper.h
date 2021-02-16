@@ -142,9 +142,9 @@ public:
 		});
 	}
 
-	virtual bool TryToPrefetch(const TCHAR* CacheKey) override
+	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys) override
 	{
-		return InnerBackend->TryToPrefetch(CacheKey);
+		return InnerBackend->TryToPrefetch(CacheKeys);
 	}
 
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override
