@@ -1099,6 +1099,7 @@ struct TSlateDecl
 	{
 		_Widget->SWidgetConstruct(InArgs);
 		_RequiredArgs.CallConstruct(_Widget, InArgs);
+		_Widget->bPauseAttributeInvalidation = false;
 		_Widget->CacheVolatility();
 
 		return _Widget;

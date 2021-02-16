@@ -24,6 +24,7 @@ namespace SlateAttributePrivate
 #endif
 	}
 
+
 	bool FSlateAttributeImpl::ProtectedIsWidgetInDestructionPath(SWidget* Widget) const
 	{
 #if UE_WITH_SLATE_DEBUG_WIDGETLIST
@@ -35,8 +36,16 @@ namespace SlateAttributePrivate
 		// if the shared instance exist, then the widget is not being destroyed
 		return !UE::Slate::FWidgetList::GetAllWidgets()[FoundIndex]->DoesSharedInstanceExist();
 #endif
-	return true;
+		return true;
 	}
+
+
+	bool FSlateAttributeImpl::ProtectedIsImplemented(const SWidget& OwningWidget) const
+	{
+		const FSlateAttributeDescriptor::OffsetType Offset = (FSlateAttributeDescriptor::OffsetType)((UPTRINT)(this) - (UPTRINT)(&OwningWidget));
+		return OwningWidget.GetWidgetClass().GetAttributeDescriptor().FindMemberAttribute(Offset) != nullptr;
+	}
+
 
 	void FSlateAttributeImpl::ProtectedUnregisterAttribute(SWidget& OwningWidget, ESlateAttributeType AttributeType) const
 	{
@@ -58,7 +67,7 @@ namespace SlateAttributePrivate
 	{
 		TestAttributeAddress(OwningWidget, *this, AttributeType);
 
-		FSlateAttributeMetaData::InvalidateWidget(OwningWidget, *this, InvalidationReason);
+		FSlateAttributeMetaData::InvalidateWidget(OwningWidget, *this, AttributeType, InvalidationReason);
 	}
 
 

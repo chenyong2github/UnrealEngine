@@ -162,16 +162,16 @@ class SLATECORE_API SWidget
 	friend struct TSlateDecl;
 
 protected:
-	template<typename InObjectType, EInvalidateWidgetReason InInvalidationReasonValue, typename InComparePredicate = TEqualTo<>>
-	struct TSlateAttribute : public ::SlateAttributePrivate::TSlateMemberAttribute<InObjectType, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, InComparePredicate>
+	template<typename InObjectType, EInvalidateWidgetReason InInvalidationReasonValue = EInvalidateWidgetReason::None, typename InComparePredicate = TEqualTo<>>
+	struct TSlateAttribute : public ::SlateAttributePrivate::TSlateMemberAttribute<
+		InObjectType,
+		typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
+		typename std::conditional<std::is_same<InObjectType, FText>::value, TSlateAttributeFTextComparePredicate, InComparePredicate>::type>
 	{
-		using ::SlateAttributePrivate::TSlateMemberAttribute<InObjectType, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, InComparePredicate>::TSlateMemberAttribute;
-	};
-
-	template<EInvalidateWidgetReason InInvalidationReasonValue>
-	struct TSlateAttribute<FText, InInvalidationReasonValue> : public ::SlateAttributePrivate::TSlateMemberAttribute<FText, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, TSlateAttributeFTextComparePredicate>
-	{
-		using ::SlateAttributePrivate::TSlateMemberAttribute<FText, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, TSlateAttributeFTextComparePredicate>::TSlateMemberAttribute;
+		using ::SlateAttributePrivate::TSlateMemberAttribute<
+			InObjectType,
+			typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
+			typename std::conditional<std::is_same<InObjectType, FText>::value, TSlateAttributeFTextComparePredicate, InComparePredicate>::type>::TSlateMemberAttribute;
 	};
 
 	template<typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicate = TEqualTo<>>
@@ -1083,7 +1083,7 @@ public:
 		if(RenderOpacity != InRenderOpacity)
 		{
 			RenderOpacity = InRenderOpacity;
-			Invalidate(EInvalidateWidget::Paint);
+			Invalidate(EInvalidateWidgetReason::Paint);
 		}
 	}
 
@@ -1160,7 +1160,7 @@ public:
 			Clipping = InClipping;
 			OnClippingChanged();
 			// @todo - Fast path should this be Paint?
-			Invalidate(EInvalidateWidget::Layout);
+			Invalidate(EInvalidateWidgetReason::Layout);
 		}
 	}
 
@@ -1180,7 +1180,7 @@ public:
 		{
 			CullingBoundsExtension = InCullingBoundsExtension;
 			// @todo - Fast path should this be Paint?
-			Invalidate(EInvalidateWidget::Layout);
+			Invalidate(EInvalidateWidgetReason::Layout);
 		}
 	}
 
@@ -1199,7 +1199,7 @@ public:
 		if (FlowDirectionPreference != InFlowDirectionPreference)
 		{
 			FlowDirectionPreference = InFlowDirectionPreference;
-			Invalidate(EInvalidateWidget::Paint);
+			Invalidate(EInvalidateWidgetReason::Paint);
 		}
 	}
 
@@ -1644,6 +1644,9 @@ private:
 
 	/** Is there at least one SlateAttribute currently registered. */
 	uint8 bHasRegisteredSlateAttribute : 1;
+
+	/** Prevents invalidation while we are in the construction phase. */
+	uint8 bPauseAttributeInvalidation : 1;
 
 protected:
 	uint8 bHasCustomPrepass : 1;

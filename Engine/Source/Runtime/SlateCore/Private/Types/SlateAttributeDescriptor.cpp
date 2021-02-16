@@ -9,30 +9,33 @@ FSlateAttributeDescriptor::FInitializer::FAttributeEntry::FAttributeEntry(FSlate
 	: Descriptor(InDescriptor)
 	, AttributeIndex(InAttributeIndex)
 {}
-			
-FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::SetPrerequisite(FName Prerequisite)
+
+	
+FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::UpdatePrerequisite(FName Prerequisite)
 {
 	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
 	{
-		Descriptor.SetPrerequisite(Descriptor.Attributes[AttributeIndex], Prerequisite);
+		Descriptor.SetPrerequisite(Descriptor.Attributes[AttributeIndex], Prerequisite, false);
 	}
 	return *this;
 }
 
-FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::UpdateEveryFrame()
-{
-	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
-	{
-		Descriptor.Attributes[AttributeIndex].Dependency = FName();
-	}
-	return *this;
-}
 
 FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::UpdateDependency(FName Dependency)
 {
 	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
 	{
-		Descriptor.SetDependency(Descriptor.Attributes[AttributeIndex], Dependency);
+		Descriptor.SetPrerequisite(Descriptor.Attributes[AttributeIndex], Dependency, true);
+	}
+	return *this;
+}
+
+
+FSlateAttributeDescriptor::FInitializer::FAttributeEntry& FSlateAttributeDescriptor::FInitializer::FAttributeEntry::UpdateWhenCollapsed()
+{
+	if (Descriptor.Attributes.IsValidIndex(AttributeIndex))
+	{
+		Descriptor.SetUpdateWhenCollapsed(Descriptor.Attributes[AttributeIndex], true);
 	}
 	return *this;
 }
@@ -49,61 +52,178 @@ FSlateAttributeDescriptor::FInitializer::FInitializer(FSlateAttributeDescriptor&
 	InDescriptor.Attributes = ParentDescriptor.Attributes;
 }
 
+
 FSlateAttributeDescriptor::FInitializer::~FInitializer()
 {
-	// because adding the attribute is not required at the moment
+	// Update the sort order for the item that have prerequisite.
+	//Because adding the attribute is not required at the moment
 	//try to not change the order in which they were added
-	//for (int32 Index = 0; Index < Descriptor.Attributes.Num(); ++Index)
-	//{
-	//	if (!Descriptor.Attributes[Index].Prerequisite.IsNone())
-	//	{
-	//		// Find the Prerequisite index
-	//		const FName Prerequisite = Descriptor.Attributes[Index].Prerequisite;
-	//		const int32 FoundIndex = Descriptor.Attributes.IndexOfByPredicate([Prerequisite](const FAttribute& Other) { return Other.Name == Prerequisite; });
-	//		if (ensureAlwaysMsgf(Descriptor.Attributes.IsValidIndex(FoundIndex), TEXT("The Prerequisite '%s' doesn't exist"), *Prerequisite.ToString()))
-	//		{
-	//			Descriptor.Attributes[Index].SortOrder = Descriptor.Attributes[FoundIndex].SortOrder + 1;
-	//		}
-	//	}
-	//}
+
+	struct FPrerequisiteSort
+	{
+		FPrerequisiteSort() = default;
+		FPrerequisiteSort(int32 A, int32 B, int32 InDepth) : AttributeIndex(A), PrerequisitesIndex(B), Depth(InDepth) {}
+		int32 AttributeIndex;
+		int32 PrerequisitesIndex;
+		int32 Depth = -1;
+
+		void CalculateDepth(TArray<FPrerequisiteSort, TMemStackAllocator<>>& Prerequisites)
+		{
+			if (Depth < 0)
+			{
+				check(PrerequisitesIndex != INDEX_NONE);
+				if (Prerequisites[PrerequisitesIndex].Depth < 0)
+				{
+					// calculate the Depth recursively
+					Prerequisites[PrerequisitesIndex].CalculateDepth(Prerequisites);
+				}
+				Depth = Prerequisites[PrerequisitesIndex].Depth + 1;
+			}
+		}
+	};
+	struct FPrerequisiteSortPredicate
+	{
+		const TArray<FAttribute>& Attrbutes;
+		bool operator()(const FPrerequisiteSort& A, const FPrerequisiteSort& B) const
+		{
+			if (A.Depth != B.Depth)
+			{
+				return A.Depth < B.Depth;
+			}
+			if (A.PrerequisitesIndex == B.PrerequisitesIndex)
+			{
+				return Attrbutes[A.AttributeIndex].SortOrder < Attrbutes[B.AttributeIndex].SortOrder;
+			}
+
+			const int32 SortA = A.PrerequisitesIndex != INDEX_NONE ? Attrbutes[A.PrerequisitesIndex].SortOrder : Attrbutes[A.AttributeIndex].SortOrder;
+			const int32 SortB = B.PrerequisitesIndex != INDEX_NONE ? Attrbutes[B.PrerequisitesIndex].SortOrder : Attrbutes[B.AttributeIndex].SortOrder;
+			return SortA < SortB;
+		}
+	};
+
+	FMemMark Mark(FMemStack::Get());
+	TArray<FPrerequisiteSort, TMemStackAllocator<>> Prerequisites;
+	Prerequisites.Reserve(Descriptor.Attributes.Num());
+
+	bool bHavePrerequisite = false;
+	for (int32 Index = 0; Index < Descriptor.Attributes.Num(); ++Index)
+	{
+		FAttribute& Attribute = Descriptor.Attributes[Index];
+		Attribute.SortOrder = DefaultSortOrder(Attribute.Offset);
+
+		if (!Attribute.Prerequisite.IsNone())
+		{
+			// Find the Prerequisite index
+			const FName Prerequisite = Attribute.Prerequisite;
+			const int32 PrerequisiteIndex = Descriptor.Attributes.IndexOfByPredicate([Prerequisite](const FAttribute& Other) { return Other.Name == Prerequisite; });
+			if (ensureAlwaysMsgf(Descriptor.Attributes.IsValidIndex(PrerequisiteIndex), TEXT("The Prerequisite '%s' doesn't exist"), *Prerequisite.ToString()))
+			{
+				Prerequisites.Emplace(Index, PrerequisiteIndex, -1);
+				Descriptor.Attributes[PrerequisiteIndex].bIsADependencyForSomeoneElse = true;
+				bHavePrerequisite = true;
+			}
+			else
+			{
+				Prerequisites.Emplace(Index, INDEX_NONE, 0);
+			}
+		}
+		else
+		{
+			Prerequisites.Emplace(Index, INDEX_NONE, 0);
+		}
+	}
+
+	if (bHavePrerequisite)
+	{
+		// Get the depth order
+		for (FPrerequisiteSort& PrerequisiteSort : Prerequisites)
+		{
+			PrerequisiteSort.CalculateDepth(Prerequisites);
+		}
+
+		Prerequisites.Sort(FPrerequisiteSortPredicate{ Descriptor.Attributes });
+		int32 PreviousPrerequisiteIndex = INDEX_NONE;
+		int32 IncreaseCount = 1;
+		for (const FPrerequisiteSort& Element : Prerequisites)
+		{
+			if (Element.PrerequisitesIndex != INDEX_NONE)
+			{
+				if (PreviousPrerequisiteIndex == Element.PrerequisitesIndex)
+				{
+					++IncreaseCount;
+				}
+				Descriptor.Attributes[Element.AttributeIndex].SortOrder = Descriptor.Attributes[Element.PrerequisitesIndex].SortOrder + IncreaseCount;
+			}
+			PreviousPrerequisiteIndex = Element.PrerequisitesIndex;
+		}
+	}
 }
 
 
-FSlateAttributeDescriptor::FInitializer::FAttributeEntry FSlateAttributeDescriptor::FInitializer::AddMemberAttribute(FName AttributeName, OffsetType Offset)
+FSlateAttributeDescriptor::FInitializer::FAttributeEntry FSlateAttributeDescriptor::FInitializer::AddMemberAttribute(FName AttributeName, OffsetType Offset, const FInvalidateWidgetReasonAttribute& Reason)
 {
-	return Descriptor.AddMemberAttribute(AttributeName, Offset, TAttribute<EInvalidateWidgetReason>());
+	return Descriptor.AddMemberAttribute(AttributeName, Offset, Reason);
 }
 
 
-FSlateAttributeDescriptor::FInitializer::FAttributeEntry FSlateAttributeDescriptor::FInitializer::AddMemberAttribute(FName AttributeName, OffsetType Offset, TAttribute<EInvalidateWidgetReason> Reason)
+FSlateAttributeDescriptor::FInitializer::FAttributeEntry FSlateAttributeDescriptor::FInitializer::AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute&& Reason)
 {
-	check(Reason.IsSet());
 	return Descriptor.AddMemberAttribute(AttributeName, Offset, MoveTemp(Reason));
 }
 
 
-void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName AttributeName, TAttribute<EInvalidateWidgetReason> Reason)
+void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName AttributeName, const FInvalidateWidgetReasonAttribute& Reason)
 {
-	check(Reason.IsSet());
+	Descriptor.OverrideInvalidationReason(AttributeName, Reason);
+}
+
+
+void FSlateAttributeDescriptor::FInitializer::SetUpdateWhenCollapsed(FName AttributeName, bool bUpdateWhenCollapsed)
+{
+	FAttribute* Attribute = Descriptor.FindAttribute(AttributeName);
+	if (ensureAlwaysMsgf(Attribute, TEXT("The attribute named '%s' doesn't exist"), *AttributeName.ToString()))
+	{
+		Descriptor.SetUpdateWhenCollapsed(*Attribute, bUpdateWhenCollapsed);
+	}
+}
+
+
+void FSlateAttributeDescriptor::FInitializer::OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute&& Reason)
+{
 	Descriptor.OverrideInvalidationReason(AttributeName, MoveTemp(Reason));
 }
 
 
-void FSlateAttributeDescriptor::FInitializer::SetPrerequisite(FName AttributeName, FName Prerequisite)
+FSlateAttributeDescriptor::FAttribute const& FSlateAttributeDescriptor::GetAttributeAtIndex(int32 Index) const
 {
-	check(!AttributeName.IsNone());
-
-	FAttribute* FoundAttribute = Descriptor.FindAttribute(AttributeName);
-	if (ensureAlwaysMsgf(FoundAttribute != nullptr, TEXT("The attribute '%s' doesn't exist."), *AttributeName.ToString()))
-	{
-		Descriptor.SetPrerequisite(*FoundAttribute, Prerequisite);
-	}
+	check(Attributes.IsValidIndex(Index));
+	FSlateAttributeDescriptor::FAttribute const& Result = Attributes[Index];
+	return Result;
 }
 
 
 FSlateAttributeDescriptor::FAttribute const* FSlateAttributeDescriptor::FindAttribute(FName AttributeName) const
 {
 	return Attributes.FindByPredicate([AttributeName](const FAttribute& Other) { return Other.Name == AttributeName; });
+}
+
+
+int32 FSlateAttributeDescriptor::IndexOfMemberAttribute(OffsetType AttributeOffset) const
+{
+	int32 FoundIndex = Attributes.IndexOfByPredicate([AttributeOffset](const FAttribute& Other) { return Other.Offset == AttributeOffset; });
+	check(FoundIndex == INDEX_NONE || Attributes[FoundIndex].bIsMemberAttribute);
+	return FoundIndex;
+}
+
+
+int32 FSlateAttributeDescriptor::IndexOfMemberAttribute(FName AttributeName) const
+{
+	int32 FoundIndex = Attributes.IndexOfByPredicate([AttributeName](const FAttribute& Other) { return Other.Name == AttributeName; });
+	if (ensure(FoundIndex == INDEX_NONE || Attributes[FoundIndex].bIsMemberAttribute))
+	{
+		return FoundIndex;
+	}
+	return INDEX_NONE;
 }
 
 
@@ -121,27 +241,26 @@ FSlateAttributeDescriptor::FAttribute* FSlateAttributeDescriptor::FindAttribute(
 }
 
 
-FSlateAttributeDescriptor::FInitializer::FAttributeEntry FSlateAttributeDescriptor::AddMemberAttribute(FName AttributeName, OffsetType Offset, TAttribute<EInvalidateWidgetReason>&& Reason)
+FSlateAttributeDescriptor::FInitializer::FAttributeEntry FSlateAttributeDescriptor::AddMemberAttribute(FName AttributeName, OffsetType Offset, FInvalidateWidgetReasonAttribute Reason)
 {
 	check(!AttributeName.IsNone());
 
 	int32 NewIndex = INDEX_NONE;
 	FAttribute const* FoundAttribute = FindAttribute(AttributeName);
-	if (ensureAlwaysMsgf(FoundAttribute == nullptr, TEXT("The attribute '%s' already exist."), *AttributeName.ToString()))
+	if (ensureAlwaysMsgf(FoundAttribute == nullptr, TEXT("The attribute '%s' already exist. (Do you have the correct parrent class in SLATE_DECLARE_WIDGET)"), *AttributeName.ToString()))
 	{
 		NewIndex = Attributes.AddZeroed();
 		FAttribute& NewAttribute = Attributes[NewIndex];
 		NewAttribute.Name = AttributeName;
 		NewAttribute.Offset = Offset;
 		NewAttribute.InvalidationReason = MoveTemp(Reason);
-		NewAttribute.SortOrder = DefaultSortOrder(Offset);
 		NewAttribute.bIsMemberAttribute = true;
 	}
 	return FInitializer::FAttributeEntry(*this, NewIndex);
 }
 
 
-void FSlateAttributeDescriptor::OverrideInvalidationReason(FName AttributeName, TAttribute<EInvalidateWidgetReason>&& Reason)
+void FSlateAttributeDescriptor::OverrideInvalidationReason(FName AttributeName, FInvalidateWidgetReasonAttribute Reason)
 {
 	check(!AttributeName.IsNone());
 
@@ -152,51 +271,13 @@ void FSlateAttributeDescriptor::OverrideInvalidationReason(FName AttributeName, 
 	}
 }
 
-void FSlateAttributeDescriptor::SetDependency(FSlateAttributeDescriptor::FAttribute& Attribute, FName Dependency)
-{
-	if (Dependency.IsNone())
-	{
-		Attribute.Dependency = FName();
-	}
-	else
-	{
-		FAttribute const* FoundDependency = FindAttribute(Dependency);
-		if (ensureAlwaysMsgf(FoundDependency, TEXT("The Dependency '%s' doesn't exist for attribute '%s'"), *Dependency.ToString(), *Attribute.Name.ToString()))
-		{
-			Attribute.Dependency = Dependency;
 
-			// Verify recursion
-			{
-				FMemMark Mark(FMemStack::Get());
-				TArray<FName, TMemStackAllocator<>> Recursion;
-				Recursion.Reserve(Attributes.Num());
-				FAttribute const* CurrentAttribute = &Attribute;
-				while (!CurrentAttribute->Dependency.IsNone())
-				{
-					if (Recursion.Contains(CurrentAttribute->Name))
-					{
-						ensureAlwaysMsgf(false, TEXT("The Dependency '%s' would introduce an infinit loop with attribute '%s'."), *Dependency.ToString(), *Attribute.Name.ToString());
-						Attribute.Dependency = FName();
-						break;
-					}
-					Recursion.Add(CurrentAttribute->Name);
-					CurrentAttribute = FindAttribute(CurrentAttribute->Dependency);
-					check(CurrentAttribute);
-				}
-			}
-		}
-		else
-		{
-			Attribute.Dependency = FName();
-		}
-	}
-}
-
-void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttribute& Attribute, FName Prerequisite)
+void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttribute& Attribute, FName Prerequisite, bool bSetAsDependency)
 {
 	if (Prerequisite.IsNone())
 	{
 		Attribute.Prerequisite = FName();
+		Attribute.bIsPrerequisiteAlsoADependency = false;
 	}
 	else
 	{
@@ -204,7 +285,7 @@ void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttr
 		if (ensureAlwaysMsgf(FoundPrerequisite, TEXT("The prerequisite '%s' doesn't exist for attribute '%s'"), *Prerequisite.ToString(), *Attribute.Name.ToString()))
 		{
 			Attribute.Prerequisite = Prerequisite;
-			Attribute.SortOrder = FoundPrerequisite->SortOrder + 1;
+			Attribute.bIsPrerequisiteAlsoADependency = bSetAsDependency;
 
 			// Verify recursion
 			{
@@ -218,6 +299,7 @@ void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttr
 					{
 						ensureAlwaysMsgf(false, TEXT("The prerequsite '%s' would introduce an infinit loop with attribute '%s'."), *Prerequisite.ToString(), *Attribute.Name.ToString());
 						Attribute.Prerequisite = FName();
+						Attribute.bIsPrerequisiteAlsoADependency = false;
 						break;
 					}
 					Recursion.Add(CurrentAttribute->Name);
@@ -229,6 +311,13 @@ void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttr
 		else
 		{
 			Attribute.Prerequisite = FName();
+			Attribute.bIsPrerequisiteAlsoADependency = false;
 		}
 	}
+}
+
+
+void FSlateAttributeDescriptor::SetUpdateWhenCollapsed(FAttribute& Attribute, bool bUpdate)
+{
+	Attribute.bUpdateWhenCollapsed = bUpdate;
 }

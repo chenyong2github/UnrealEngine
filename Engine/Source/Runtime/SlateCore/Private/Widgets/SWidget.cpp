@@ -199,9 +199,6 @@ namespace SlateTraceMetaData
 SLATE_IMPLEMENT_WIDGET(SWidget)
 void SWidget::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
 {
-	AttributeInitializer.AddMemberAttribute(GET_MEMBER_NAME_CHECKED(PrivateThisType, EnabledState), STRUCT_OFFSET(PrivateThisType, EnabledState));
-	//SLATE_ADD_ATTRIBUTE_DEFINITION(AttributeInitializer, EnabledState);
-	//SLATE_ADD_ATTRIBUTE_DEFINITION(AttributeInitializer, Visibility, EInvalidateWidgetReason::All);
 }
 
 SWidget::SWidget()
@@ -217,6 +214,7 @@ SWidget::SWidget()
 	, bNeedsPrepass(true)
 	, bUpdatingDesiredSize(false)
 	, bHasRegisteredSlateAttribute(false)
+	, bPauseAttributeInvalidation(true)
 	, bHasCustomPrepass(false)
 	, bHasRelativeLayoutScale(false)
 	, bVolatilityAlwaysInvalidatesPrepass(false)
@@ -1639,8 +1637,18 @@ void SWidget::Prepass_ChildLoop(float InLayoutScaleMultiplier, FChildren* MyChil
 		}
 		else
 		{
+			if (HasRegisteredSlateAttribute() && !GSlateIsOnFastProcessInvalidation)
+			{
+				FSlateAttributeMetaData::UpdateCollapsedAttributes(*this);
+				if (Child->Visibility.Get() != EVisibility::Collapsed)
+				{
+					// Recur: Descend down the widget tree.
+					Child->Prepass_Internal(ChildLayoutScaleMultiplier);
+				}
+			}
+
 			// If the child widget is collapsed, we need to store the new layout scale it will have when 
-			// it is finally visible and invalidate it's prepass so that it gets that when its visiblity
+			// it is finally visible and invalidate it's prepass so that it gets that when its visibility
 			// is finally invalidated.
 			Child->InvalidatePrepass();
 			Child->PrepassLayoutScaleMultiplier = ChildLayoutScaleMultiplier;

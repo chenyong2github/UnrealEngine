@@ -12,15 +12,18 @@
 #ifndef UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
 	#define UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING UE_BUILD_DEBUG
 #endif
+#ifndef UE_SLATE_WITH_ATTRIBUTE_INITIALIZATION_ON_BIND
+	#define UE_SLATE_WITH_ATTRIBUTE_INITIALIZATION_ON_BIND 0
+#endif
 
 /**
  * Use TSlateAttribute when it's a SWidget member.
- * Use TSlateManagedAttribute when it's a member inside an array or other moving structure, and the array is a SWidget member. They can only be moved (they can't be copied).
+ * Use TSlateManagedAttribute when it's a member inside an array or other moving structure, and the array is a SWidget member. They can only be moved (they can't be copied). THey consume more memory.
  * For everything else, use TAttribute.
  *
  *
  *
- * In Slate TAttributes are optimized for developer efficiency.
+ * In Slate, TAttributes are optimized for developer efficiency.
  * They enable widgets to poll for data instead of requiring the user to manually set the state on widgets.
  * Attributes generally work well when performance is not a concern but break down when performance is critical (like a game UI).
  *
@@ -30,18 +33,21 @@
  * TAttributes have a high memory overhead and are not cache-friendly.
  *
  * TSlateAttribute makes the attribute system viable for invalidation and more performance-friendly while keeping the benefits of attributes intact.
- * TSlateAttributes are updated once per frame before the Prepass. If the cached value of the TSlateAttribute changes, then it will invalidate the widget.
- * The TSlateAttributes are updated in the order they are defined in the SWidget (by default). TSlateManagedAttribute are updated in a random order (after TSlateAttribute).
- * The order can be defined/override by setting a Prerequisite (see bellow for an example).
+ * TSlateAttributes are updated once per frame in the Prepass update phase. If the cached value of the TSlateAttribute changes, then it will invalidate the widget.
+ * The TSlateAttributes are updated in the order the variables are defined in the SWidget definition (by default).
+ * TSlateManagedAttribute are updated in a random order (after TSlateAttribute).
+ * The update order of TSlateAttribute can be defined/override by setting a Prerequisite (see bellow for an example).
  * The invalidation reason can be a predicate (see bellow for an example).
- * The invalidation reason can be override per SWidget. Use override with precaution since it can break the invalidation of child widget.
+ * The invalidation reason can be override per SWidget. Use override with precaution since it can break the invalidation of widget's parent.
+ * The widget attributes are updated only if the widget is visible/not collapsed.
  *
  *
  * TSlateAttribute is not copyable and can only live inside a SWidget.
- * For performance reasons, we do not save the extra information that would be needed to be memory save in all contexts.
+ * For performance reasons, we do not save the extra information that would be needed to be "memory save" in all contexts.
  * If you create a TSlateAttribute that can be moved, you need to use TSlateManagedAttribute.
- * The managed version is as fast but use more memory and is less cache-friendly.
+ * TSlateManagedAttribute is as fast as TSlateAttribute but use more memory and is less cache-friendly.
  * Note, if you use TAttribute to change the state of a SWidget, you need to override bool ComputeVolatility() const.
+ * Note, ComputeVolatility() is not needed for TSlateAttribute and TSlateManagedAttribute
  *
  * TSlateAttribute request a SWidget pointer. The "this" pointer should ALWAYS be used.
  * (The SlateAttribute pointer is saved inside the SlateAttributeMetaData. The widget needs to be aware when the pointer changes.)
@@ -51,15 +57,17 @@
  *  // The new way of using attribute in your SWidget
  *	class SMyNewWidget : public SLeafWidget
  *	{
- *		SLATE_DECLARE_WIDGET(SMyNewWidget, SLeafWidget)	// I is optional.
-														// If added, you need to implement void PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer).
+ *		SLATE_DECLARE_WIDGET(SMyNewWidget, SLeafWidget)	// It defined the static data needed by the SlateAttribute system.
+ *														// The invalidation reason is defined in the static function "void PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)"
+ *														// You need to implement the function PrivateRegisterAttributes.
+ *														// If you can't implement the SLATE_DECLARE_WIDGET pattern, use TSlateAttribute and provide a reason instead.
  *
  *		SLATE_BEGIN_ARGS(SMyNewWidget)
  *			SLATE_ATTRIBUTE(FLinearColor, Color)
  *		SLATE_END_ARGS()
  *
  *		SMyNewWidget()
- *			: NewWay(*this, FLinearColor::White) // Always use "this" pointer. No exception. If you can't, use TAttribute.
+ *			: NewWay(*this, FLinearColor::White) // Always use "this" pointer. No exception. If you can't, use TAttribute instead.
  *		{}
  *
  *		virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override
@@ -80,34 +88,44 @@
  *		void Construct(const FArguments& InArgs)
  *		{
  *			// Assigned the attribute if needed.
-			// If the TAttribute is bound, bound the TSlateAttribute
-			// It the TAttribute is set, set the TSlateAttribute, test if the value changed and invalidate the widget.
+ *			// If the TAttribute is bound, copy the TSlateAttribute to the TAttribute getter, update the value, test if the value have changed and, if so, invalidate the widget.
+ *			// It the TAttribute is set, remove previous getter, set the TSlateAttribute value, test if the value changed and, if so, invalidate the widget.
  *			// Else, nothing (use the previous value).
  *			NewWays.Bind(*this, InArgs._Color); // Always use the "this" pointer.
  *		}
  *
  *		// If NewWay is bounded and the values changed from the previous frame, the widget will be invalidated.
  *		//In this case, it will only paint the widget (no layout required).
- *		TSlateAttribute<FLinearColor, EInvalidationReason::Paint> NewWay;
+ *		TSlateAttribute<FLinearColor> NewWay;
+ *
+ *		// Note that you can put a predicate or put the invalidation as a template argument.
+ *		//Either you define the attribute in PrivateRegisterAttributes or you define the invalidation at declaration
+ *		//but you need to use one and one of the 2 methods. Compile and runtime check will check if you did it properly.
+ *		//Setting the reason as a template argument is less error prone (ie. missing from the PrivateRegisterAttributes, bad copy paste, bad reason...)
+ *		//Setting the reason in PrivateRegisterAttributes enable override and ease debugging later (ie. the attribute will be named)
+ *		//TSlateAttribute<FLinearColor, EInvalidationReason::Paint> NewWayWithout_SLATE_DECLARE_WIDGET_;
  *	};
  *
  *  .cpp
  *	// This is optional. It is still a good practice to implement it since it will allow user to override the default behavior and control the update order.
- *	// The WidgetReflector use that information.
+ *	//The WidgetReflector use that information.
+ *	//See NewWayWithout_SLATE_DECLARE_WIDGET_ for an example of how to use the system without the SLATE_DECLARE_WIDGET
+ *
  *	SLATE_IMPLEMENT_WIDGET(STextBlock)
  *	void STextBlock::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
  *	{
- *		SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, BoundText)
-			.SetPrerequisite("bEnabled"); // SetPrerequisite is not needed here, this is just an example to show how you could do it if needed.
-
-		//bEnabled invalidate paint, we need it to invalidate the Layout.
-		AttributeInitializer.OverrideInvalidationReason("bEnabled", EWidgetInvalidationReason::Layout | EWidgetInvalidationReason::Paint);
+ *		SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, NewWay, EInvalidationReason::Paint)
+ *			.SetPrerequisite("bEnabled"); // SetPrerequisite is not needed here. This is just an example to show how you could do it if needed.
+ *
+ *		//bEnabled invalidate paint, we need it to invalidate the Layout.
+ *		AttributeInitializer.OverrideInvalidationReason("bEnabled",
+			FSlateAttributeDescriptor::FInvalidateWidgetReasonAttribute{EWidgetInvalidationReason::Layout | EWidgetInvalidationReason::Paint});
  *	}
  *
  *
- * // We used to do this. Keep using this method when you are not able to provide the "this" pointer to TSlateAttribute.
- * class SMyOldWidget : public SLeafWidget
- * {
+ *	// We used to do this. Keep using this method when you are not able to provide the "this" pointer to TSlateAttribute.
+ *	class SMyOldWidget : public SLeafWidget
+ *	{
  *		SLATE_BEGIN_ARGS(SMyOldWidget)
  *			SLATE_ATTRIBUTE(FLinearColor, Color)
  *		SLATE_END_ARGS()
@@ -139,9 +157,11 @@
  * };
  */
 
+
 class SWidget;
 
-/** */
+
+/** Default predicate to compare FText. */
 struct TSlateAttributeFTextComparePredicate
 {
 	bool operator()(const FText& Lhs, const FText& Rhs) const
@@ -150,22 +170,32 @@ struct TSlateAttributeFTextComparePredicate
 	}
 };
 
-/** */
-struct FSlateAttributeBase
-{
-	
-};
 
-/** */
+/** Predicate that returns the InvalidationReason defined as argument type. */
 template<EInvalidateWidgetReason InvalidationReason>
 struct TSlateAttributeInvalidationReason
 {
 	static constexpr EInvalidateWidgetReason GetInvalidationReason(const SWidget&) { return InvalidationReason; }
 };
 
+
+/** Base struct of all SlateAttribute type. */
+struct FSlateAttributeBase
+{
+
+};
+
+
 /** */
 namespace SlateAttributePrivate
 {
+	/** Predicate used to identify if the InvalidationWidgetReason is defined in the attribute descriptor. */
+	struct FSlateAttributeNoInvalidationReason
+	{
+		static constexpr EInvalidateWidgetReason GetInvalidationReason(const SWidget&) { return EInvalidateWidgetReason::None; }
+	};
+
+
 	/** */
 	enum class ESlateAttributeType : uint8
 	{
@@ -210,6 +240,7 @@ namespace SlateAttributePrivate
 	{
 	protected:
 		bool ProtectedIsWidgetInDestructionPath(SWidget* Widget) const;
+		bool ProtectedIsImplemented(const SWidget& Widget) const;
 		void ProtectedUnregisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType) const;
 		void ProtectedRegisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
 		void ProtectedInvalidateWidget(SWidget& Widget, ESlateAttributeType AttributeType, EInvalidateWidgetReason InvalidationReason) const;
@@ -242,6 +273,13 @@ namespace SlateAttributePrivate
 		static EInvalidateWidgetReason GetInvalidationReason(const SWidget& Widget) { return FInvalidationReasonPredicate::GetInvalidationReason(Widget); }
 		
 	private:
+		void UpdateNowOnBind(SWidget& Widget)
+		{
+#if UE_SLATE_WITH_ATTRIBUTE_INITIALIZATION_ON_BIND
+			ProtectedUpdateNow(Widget, InAttributeType);
+#endif
+		}
+
 		void VerifyOwningWidget(const SWidget& Widget) const
 		{
 #if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
@@ -398,7 +436,11 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		/** Bind the SlateAttribute to the Getter function. The SlateAttribute will be updated every frame from the Getter. */
+		/**
+		 * Bind the SlateAttribute to the Getter function.
+		 * (If enabled) Update the value from the Getter. If the value is different, then invalidate the widget.
+		 * The SlateAttribute will now be updated every frame from the Getter.
+		 */
 		void Bind(SWidget& Widget, const FGetter& Getter)
 		{
 			VerifyOwningWidget(Widget);
@@ -409,6 +451,7 @@ namespace SlateAttributePrivate
 				{
 					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, Getter);
 					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+					UpdateNowOnBind(Widget);
 				}
 			}
 			else
@@ -417,7 +460,11 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		/** Bind the SlateAttribute to the Getter function. The SlateAttribute will be updated every frame from the Getter. */
+		/**
+		 * Bind the SlateAttribute to the Getter function.
+		 * (If enabled) Update the value from the Getter. If the value is different, then invalidate the widget.
+		 * The SlateAttribute will now be updated every frame from the Getter.
+		 */
 		void Bind(SWidget& Widget, FGetter&& Getter)
 		{
 			VerifyOwningWidget(Widget);
@@ -428,6 +475,7 @@ namespace SlateAttributePrivate
 				{
 					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, MoveTemp(Getter));
 					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+					UpdateNowOnBind(Widget);
 				}
 			}
 			else
@@ -436,7 +484,11 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		/** Bind the SlateAttribute to the Getter function. The SlateAttribute will be updated every frame from the Getter. */
+		/**
+		 * Bind the SlateAttribute to the newly create getter function.
+		 * (If enabled) Update the value from the getter. If the value is different, then invalidate the widget.
+		 * The SlateAttribute will now be updated every frame from the Getter.
+		 */
 		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
 		void Bind(WidgetType& Widget, typename FGetter::template TSPMethodDelegate_Const<WidgetType>::FMethodPtr MethodPtr)
 		{
@@ -444,10 +496,16 @@ namespace SlateAttributePrivate
 		}
 
 		/**
-		 * Bind the SlateAttribute to the Attribute Getter function (if it exist). The SlateAttribute will be updated every frame from the Getter.
-		 * Or set the value if the Attribute is bound.
+		 * Bind the SlateAttribute to the Attribute Getter function (if it exist).
+		 * (If enabled) Update the value from the getter. If the value is different, then invalidate the widget.
+		 * The SlateAttribute will now be updated every frame from the Getter.
+		 * Or
+		 * Set the SlateAttribute's value if the Attribute is not bound but is set.
 		 * This will Unbind any previously bound getter.
-		 * It may Invalidate the Widget. @see Set
+		 * If the value is different, then invalidate the widget.
+		 * Or
+		 * Unbind the SlateAttribute if the Attribute is not bound and not set.
+		 * @see Set
 		 */
 		void Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute)
 		{
@@ -459,6 +517,7 @@ namespace SlateAttributePrivate
 				{
 					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, OtherAttribute.GetBinding());
 					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+					UpdateNowOnBind(Widget);
 				}
 			}
 			else if (OtherAttribute.IsSet())
@@ -472,10 +531,16 @@ namespace SlateAttributePrivate
 		}
 
 		/**
-		 * Bind the SlateAttribute to the Attribute Getter function (if it exist). The SlateAttribute will be updated every frame from the Getter.
-		 * Or set the value if the Attribute is bound. If the Attribute is not set the DefaultValue will be used.
+		 * Bind the SlateAttribute to the Attribute Getter function (if it exist).
+		 * (If enabled) Update the value from the getter. If the value is different, then invalidate the widget.
+		 * The SlateAttribute will now be updated every frame from the Getter.
+		 * Or
+		 * Set the SlateAttribute's value if the Attribute is not bound but is set.
 		 * This will Unbind any previously bound getter.
-		 * It may Invalidate the Widget. @see Set
+		 * If the value is different, then invalidate the widget.
+		 * Or
+		 * Unbind the SlateAttribute to DefaultValue if the Attribute is not bound and not set.
+		 * @see Set
 		 */
 		void Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, const ObjectType& DefaultValue)
 		{
@@ -487,6 +552,7 @@ namespace SlateAttributePrivate
 				{
 					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, OtherAttribute.GetBinding());
 					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+					UpdateNowOnBind(Widget);
 				}
 			}
 			else if (OtherAttribute.IsSet())
@@ -500,10 +566,16 @@ namespace SlateAttributePrivate
 		}
 
 		/**
-		 * Bind the SlateAttribute to the Attribute Getter function (if it exist). The SlateAttribute will be updated every frame from the Getter.
-		 * Or set the value if the Attribute is bound. If the Attribute is not set the DefaultValue will be used.
+		 * Bind the SlateAttribute to the Attribute Getter function (if it exist).
+		 * (If enabled) Update the value from the getter. If the value is different, then invalidate the widget.
+		 * The SlateAttribute will now be updated every frame from the Getter.
+		 * Or
+		 * Set the SlateAttribute's value if the Attribute is not bound but is set.
 		 * This will Unbind any previously bound getter.
-		 * It may Invalidate the Widget. @see Set
+		 * If the value is different, then invalidate the widget.
+		 * Or
+		 * Unbind the SlateAttribute to DefaultValue if the Attribute is not bound and not set.
+		 * @see Set
 		 */
 		void Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, ObjectType&& DefaultValue)
 		{
@@ -515,6 +587,7 @@ namespace SlateAttributePrivate
 				{
 					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, OtherAttribute.GetBinding());
 					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+					UpdateNowOnBind(Widget);
 				}
 			}
 			else if (OtherAttribute.IsSet())
@@ -664,18 +737,22 @@ public:
 	private:
 		using Super = TSlateAttributeBase<InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Member>;
 
-		//using TSlateAttributeBase<InObjectType, InInvalidationReasonPredicate, InComparePredicate, ESlateAttributeType::Member>::TSlateAttributeBase;
-
 		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
 		static void VerifyAttributeAddress(WidgetType& Widget, TSlateMemberAttribute* Self)
 		{
 			checkf((UPTRINT)Self >= (UPTRINT)&Widget && (UPTRINT)Self < (UPTRINT)&Widget + sizeof(WidgetType),
 				TEXT("Use TAttribute or TSlateManagedAttribute instead. See SlateAttribute.h for more info."));
+			ensureAlwaysMsgf((HasDefinedInvalidationReason || Self->ProtectedIsImplemented(Widget)),
+				TEXT("The TSlateAttribute could not be found in the SlateAttributeDescriptor.\n")
+				TEXT("Use the SLATE_DECLARE_WIDGET and add the attribute in PrivateRegisterAttributes,\n")
+				TEXT("Or use TSlateAttribute with a valid Invalidation Reason instead."));
 		}
 
 	public:
 		using FGetter = typename Super::FGetter;
 		using ObjectType = typename Super::ObjectType;
+		static const bool IsMemberType = true;
+		static constexpr bool HasDefinedInvalidationReason = !std::is_same<InInvalidationReasonPredicate, FSlateAttributeNoInvalidationReason>::value;
 
 	public:
 		//~ You can only register Attribute that are defined in a SWidget.
@@ -779,6 +856,7 @@ public:
 		using FInvalidationReasonPredicate = typename Super::FInvalidationReasonPredicate;
 		using FGetter = typename Super::FGetter;
 		using FComparePredicate = typename Super::FComparePredicate;
+		static const bool IsMemberType = false;
 
 		static EInvalidateWidgetReason GetInvalidationReason(const SWidget& Widget) { return Super::GetInvalidationReason(Widget); }
 
