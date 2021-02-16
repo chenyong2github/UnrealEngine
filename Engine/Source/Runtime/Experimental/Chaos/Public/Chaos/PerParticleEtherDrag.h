@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Chaos/PerParticleRule.h"
+#include "Chaos/ParticleHandle.h"
 #include "Chaos/Utilities.h"
 
 namespace Chaos
