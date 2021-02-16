@@ -165,6 +165,8 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true), bFilterAssetByAnimatableControls(true)
 
 {
+	FMovieSceneToolsModule::Get().RegisterAnimationBakeHelper(this);
+
 	UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 
 	SelectionChangedHandle = InSequencer->GetSelectionChangedTracks().AddRaw(this, &FControlRigParameterTrackEditor::OnSelectionChanged);
@@ -284,6 +286,7 @@ FControlRigParameterTrackEditor::~FControlRigParameterTrackEditor()
 		//REMOVE ME IN UE5
 		GetSequencer()->GetObjectChangeListener().GetOnPropagateObjectChanges().RemoveAll(this);
 	}
+	FMovieSceneToolsModule::Get().UnregisterAnimationBakeHelper(this);
 }
 
 void FControlRigParameterTrackEditor::BindControlRig(UControlRig* ControlRig)
@@ -1319,6 +1322,30 @@ void FControlRigParameterTrackEditor::OnTreeViewChanged()
 					{
 						const FRigControl& RigControl = ControlRig->GetControlHierarchy().GetControls()[Index];
 						HandleControlSelected(ControlRig, RigControl, true);
+					}
+				}
+			}
+		}
+	}
+}
+
+void FControlRigParameterTrackEditor::PostEvaluation(UMovieScene* MovieScene, FFrameNumber Frame)
+{
+	if (MovieScene)
+	{
+		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+		for (const FMovieSceneBinding& Binding : Bindings)
+		{
+			if (UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None)))
+			{
+				if (UControlRig* ControlRig = Track->GetControlRig())
+				{
+					if (ControlRig->GetObjectBinding())
+					{
+						if (UControlRigComponent* ControlRigComponent = Cast<UControlRigComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
+						{
+							ControlRigComponent->Update(.1); //delta time doesn't matter.
+						}
 					}
 				}
 			}
