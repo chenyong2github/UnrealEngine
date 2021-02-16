@@ -20,17 +20,17 @@ namespace Metasound
 		static constexpr int32 MaximumNumFramesPerBlock = 16384;
 	}
 
-	FOperatorSettings::FOperatorSettings(float InSampleRate, float InTargetBlockRate)
+	FOperatorSettings::FOperatorSettings(FSampleRate InSampleRate, float InTargetBlockRate)
 	{
 		SetSampleRate(InSampleRate);
 		SetTargetBlockRate(InTargetBlockRate);
 	}
 
-	void FOperatorSettings::SetSampleRate(float InSampleRate)
+	void FOperatorSettings::SetSampleRate(FSampleRate InSampleRate)
 	{
 		using namespace MetasoundOperatorSettingsPrivate;
 
-		if (ensureMsgf(InSampleRate > 0.f, TEXT("Invalid sample rate %f. Defaulting to %f"), InSampleRate, DefaultSampleRate))
+		if (ensureMsgf(InSampleRate > 0, TEXT("Invalid sample rate %d. Defaulting to %d"), InSampleRate, DefaultSampleRate))
 		{
 			SampleRate = InSampleRate;
 		}

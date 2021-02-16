@@ -8,7 +8,7 @@
 #include "Misc/TVariant.h"
 #include <type_traits>
 
-#define METASOUND_DEBUG_LITERALS 1
+#define METASOUND_DEBUG_LITERALS 0
 
 // Forward Declare
 struct FGuid;

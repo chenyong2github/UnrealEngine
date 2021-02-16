@@ -29,7 +29,7 @@ namespace Metasound
 		class FGraphBuilder
 		{
 		public:
-			static const FName PinCategoryAudioFormat;  // Audio formats (ex. Buffers, Mono, Stereo)
+			static const FName PinCategoryAudio;
 			static const FName PinCategoryBoolean;
 			static const FName PinCategoryDouble;
 			static const FName PinCategoryFloat;

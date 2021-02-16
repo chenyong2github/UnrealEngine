@@ -6,6 +6,7 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundInstanceTransmitter.h"
+#include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
 
 #include "Sound/SoundWaveProcedural.h"
@@ -144,7 +145,7 @@ private:
 	Metasound::Frontend::FNodeHandle AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const;
 	bool CopyDocumentAndInjectReceiveNodes(uint64 InInstanceID, const FMetasoundFrontendDocument& InSourceDoc, FMetasoundFrontendDocument& OutDestDoc) const;	
 	TArray<FString> GetTransmittableInputVertexNames() const;
-	Metasound::FOperatorSettings GetOperatorSettings(float InSampleRate) const;
+	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
 	Metasound::FSendAddress CreateSendAddress(uint64 InInstanceID, const FString& InVertexName) const;
 	
 

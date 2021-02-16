@@ -5,6 +5,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
+#include "MetasoundTime.h"
 
 namespace Metasound
 {
@@ -165,7 +166,7 @@ namespace Metasound
 
 			bool bHasTrigger = false;
 			int32 NumFramesPerBlock = 0;
-			float SampleRate;
+			FSampleRate SampleRate = 0;
 			int32 LastTriggerIndexInBlock = 0;
 	};
 

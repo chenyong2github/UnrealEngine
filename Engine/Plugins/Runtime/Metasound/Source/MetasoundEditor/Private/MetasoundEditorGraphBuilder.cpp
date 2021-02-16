@@ -27,7 +27,7 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		const FName FGraphBuilder::PinCategoryAudioFormat = "audio_format";
+		const FName FGraphBuilder::PinCategoryAudio = "audio";
 		const FName FGraphBuilder::PinCategoryBoolean = "bool";
 		const FName FGraphBuilder::PinCategoryDouble = "double";
 		const FName FGraphBuilder::PinCategoryFloat = "float";

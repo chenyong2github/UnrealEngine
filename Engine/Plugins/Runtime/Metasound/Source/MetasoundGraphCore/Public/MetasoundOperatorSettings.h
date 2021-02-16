@@ -6,6 +6,9 @@
 
 namespace Metasound
 {
+	using FSampleRate = int32;
+	static_assert(TIsIntegral<FSampleRate>::Value, "FSampleRate must be integral type.");
+
 	/** FOperatorSettings
 	 *
 	 * Audio settings for Metasound IOperators including audio sample rate, 
@@ -40,10 +43,10 @@ namespace Metasound
 			 * @param InSampleRate      - Audio sample rate in Hz. 
 			 * @param InTargetBlockRate - The desired block rate in Hz.
 			 */
-			FOperatorSettings(float InSampleRate, float InTargetBlockRate);
+			FOperatorSettings(FSampleRate InSampleRate, float InTargetBlockRate);
 
 			/** Set the audio sample rate in Hz. */
-			void SetSampleRate(float InSampleRate);
+			void SetSampleRate(FSampleRate InSampleRate);
 
 			/** Get the audio sample rate in Hz. */
 			FORCEINLINE float GetSampleRate() const
@@ -87,7 +90,7 @@ namespace Metasound
 
 			int32 RoundToAligned(int32 Alignment, int32 InNum) const;
 
-			float SampleRate = 1.f;
+			FSampleRate SampleRate = 1;
 			
 			float TargetBlockRate = 1.f;
 

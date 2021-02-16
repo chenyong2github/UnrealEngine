@@ -60,7 +60,7 @@ namespace Metasound
 	struct TFacadeOperatorClass
 	{
 		// Require that OperatorType is subclass of IOperator
-		static_assert(std::is_base_of<IOperator, OperatorType>::value, "To use the FNodeFacade consturctor, the OperatorType must be derived from IOperator");
+		static_assert(std::is_base_of<IOperator, OperatorType>::value, "To use the FNodeFacade constructor, the OperatorType must be derived from IOperator");
 
 		// Require static TUniquePtr<IOperator> OperatorType::CreateOperator(const FCreateOperatorParams&, TArray<TUniquePtr<IOperatorBuildError>>&) exists.
 		static_assert(TIsFactoryMethodDeclared<OperatorType>::Value, "To use the FNodeFacade constructor, the OperatorType must have the static function \"static TUniquePtr<IOperator> OperatorType::CreateOperator(const FCreateOperatorParams&, TArray<TUniquePtr<IOperatorBuildError>>&)\"");

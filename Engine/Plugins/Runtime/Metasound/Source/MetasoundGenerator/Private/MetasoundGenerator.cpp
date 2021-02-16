@@ -2,7 +2,6 @@
 #include "MetasoundGenerator.h"
 
 #include "DSP/Dsp.h"
-#include "MetasoundFrequency.h"
 #include "MetasoundGraph.h"
 #include "MetasoundInputNode.h"
 #include "MetasoundOperatorBuilder.h"

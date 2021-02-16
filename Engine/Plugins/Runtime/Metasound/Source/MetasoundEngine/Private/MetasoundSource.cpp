@@ -13,6 +13,7 @@
 #include "MetasoundGenerator.h"
 #include "MetasoundInstanceTransmitter.h"
 #include "MetasoundLog.h"
+#include "MetasoundOperatorSettings.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundReceiveNode.h"
 #include "MetasoundTrigger.h"
@@ -36,7 +37,7 @@ UMetasoundSource::UMetasoundSource(const FObjectInitializer& ObjectInitializer)
 	bLooping = true;
 	
 	// todo: ensure that we have a method so that the audio engine can be authoritative over the sample rate the UMetasoundSource runs at.
-	SampleRate = 48000.0f;
+	SampleRate = 48000.f;
 
 }
 
@@ -96,7 +97,7 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
 
 	SampleRate = InParams.SampleRate;
-	FOperatorSettings InSettings = GetOperatorSettings(SampleRate);
+	FOperatorSettings InSettings = GetOperatorSettings(static_cast<FSampleRate>(SampleRate));
 	FMetasoundEnvironment Environment;
 
 	// Add audio device ID to environment.
@@ -365,7 +366,7 @@ TArray<FString> UMetasoundSource::GetTransmittableInputVertexNames() const
 	return GraphInputVertexNames;
 }
 
-Metasound::FOperatorSettings UMetasoundSource::GetOperatorSettings(float InSampleRate) const
+Metasound::FOperatorSettings UMetasoundSource::GetOperatorSettings(Metasound::FSampleRate InSampleRate) const
 {
 	constexpr float BlockRate = 100.f; // Metasound graph gets evaluated 100 times per second.
 	return Metasound::FOperatorSettings(InSampleRate, BlockRate);

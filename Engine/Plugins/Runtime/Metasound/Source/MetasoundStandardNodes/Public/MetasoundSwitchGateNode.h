@@ -9,7 +9,6 @@
 #include "MetasoundDataReferenceCollection.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
-#include "MetasoundFrequency.h"
 #include "MetasoundNode.h"
 #include "MetasoundOperatorInterface.h"
 

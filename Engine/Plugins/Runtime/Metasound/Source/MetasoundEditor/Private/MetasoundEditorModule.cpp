@@ -213,16 +213,11 @@ namespace Metasound
 							case ELiteralType::FloatArray:
 							default:
 							{
-								// Audio types are ubiquitous, so add as subcategory
-								// to be able to stylize connections (i.e. wire color)
-								if (DataTypeName == "Audio:Buffer"
-									|| DataTypeName == "Audio:Unformatted"
-									|| DataTypeName == "Audio:Mono"
-									|| DataTypeName == "Audio:Stereo"
-									|| DataTypeName == "Audio:Multichannel"
-								)
+								// Audio types are ubiquitous, so added as subcategory
+								// to be able to stylize connections (i.e. wire color & wire animation)
+								if (DataTypeName == "Audio")
 								{
-									PinCategory = FGraphBuilder::PinCategoryAudioFormat;
+									PinCategory = FGraphBuilder::PinCategoryAudio;
 								}
 								static_assert(static_cast<int32>(ELiteralType::Invalid) == 12, "Possible missing binding of pin category to primitive type");
 							}

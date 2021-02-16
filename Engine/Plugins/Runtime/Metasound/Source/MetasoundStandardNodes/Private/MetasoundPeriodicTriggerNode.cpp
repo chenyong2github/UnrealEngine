@@ -13,6 +13,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundSampleCounter.h"
 #include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
@@ -28,10 +29,7 @@ namespace Metasound
 			static const FVertexInterface& GetVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
-			static constexpr float MinimumPeriodSeconds = 0.001f;
-			static constexpr float MinimumPeriodSamples = 20.f;
-
-			FPeriodicTriggerOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerEnable, const FTriggerReadRef& InTriggerDisable, const FFloatTimeReadRef& InPeriod);
+			FPeriodicTriggerOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerEnable, const FTriggerReadRef& InTriggerDisable, const FTimeReadRef& InPeriod);
 
 			virtual FDataReferenceCollection GetInputs() const override;
 
@@ -47,29 +45,27 @@ namespace Metasound
 			FTriggerReadRef TriggerEnable;
 			FTriggerReadRef TriggerDisable;
 
-			FFloatTimeReadRef Period;
+			FTimeReadRef Period;
 
-			float ExecuteDurationInSamples;
-			float SampleRate;
-			float SampleCountdown;
+			FSampleCount BlockSize;
+			FSampleCounter SampleCounter;
 	};
 
-	FPeriodicTriggerOperator::FPeriodicTriggerOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerEnable, const FTriggerReadRef& InTriggerDisable, const FFloatTimeReadRef& InPeriod)
+	FPeriodicTriggerOperator::FPeriodicTriggerOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerEnable, const FTriggerReadRef& InTriggerDisable, const FTimeReadRef& InPeriod)
 	:	bEnabled(false)
 	,	TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
 	,	TriggerEnable(InTriggerEnable)
 	,	TriggerDisable(InTriggerDisable)
 	,	Period(InPeriod)
-	,	ExecuteDurationInSamples(InSettings.GetNumFramesPerBlock())
-	,	SampleRate(InSettings.GetSampleRate())
-	,	SampleCountdown(0.f)
+	,	BlockSize(InSettings.GetNumFramesPerBlock())
+	,	SampleCounter(0, InSettings.GetSampleRate())
 	{
 	}
 
 	FDataReferenceCollection FPeriodicTriggerOperator::GetInputs() const
 	{
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(TEXT("Period"), FFloatTimeReadRef(Period));
+		InputDataReferences.AddDataReadReference(TEXT("Period"), FTimeReadRef(Period));
 		InputDataReferences.AddDataReadReference(TEXT("Activate"), FTriggerReadRef(TriggerEnable));
 		InputDataReferences.AddDataReadReference(TEXT("Deactivate"), FTriggerReadRef(TriggerDisable));
 		return InputDataReferences;
@@ -104,18 +100,15 @@ namespace Metasound
 
 		if (bEnabled)
 		{
-			float PeriodInSamples = FMath::Max(Period->GetSeconds(), MinimumPeriodSeconds) * SampleRate;
-
-			PeriodInSamples = FMath::Max(PeriodInSamples, MinimumPeriodSamples);
-
-			while ((SampleCountdown - ExecuteDurationInSamples) <= 0.f)
+			const FSampleCount PeriodInSamples = FSampleCounter::FromTime(*Period, SampleCounter.GetSampleRate()).GetNumSamples();
+			while ((SampleCounter - BlockSize) <= 0)
 			{
-				uint32 Frame = FMath::RoundToInt(SampleCountdown);
-				TriggerOut->TriggerFrame(Frame);
-				SampleCountdown += PeriodInSamples;
+				const int32 StartOffset = static_cast<int32>(SampleCounter.GetNumSamples());
+				TriggerOut->TriggerFrame(StartOffset);
+				SampleCounter += PeriodInSamples;
 			}
 
-			SampleCountdown -= ExecuteDurationInSamples;
+			SampleCounter -= BlockSize;
 		}
 	}
 
@@ -125,7 +118,7 @@ namespace Metasound
 		const FPeriodicTriggerNode& PeriodicTriggerNode = static_cast<const FPeriodicTriggerNode&>(InParams.Node);
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FFloatTimeReadRef Period = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Period"));
+		FTimeReadRef Period = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime, float>(InputInterface, TEXT("Period"));
 		FTriggerReadRef TriggerEnable = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Activate"), InParams.OperatorSettings);
 		FTriggerReadRef TriggerDisable = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Deactivate"), InParams.OperatorSettings);
 
@@ -136,7 +129,7 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FFloatTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period to trigger in seconds."), 1.0f),
+				TInputDataVertexModel<FTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period to trigger in seconds."), 1.0f),
 				TInputDataVertexModel<FTrigger>(TEXT("Activate"), LOCTEXT("TriggerEnableTooltip", "Enables executing periodic output triggers.")),
 				TInputDataVertexModel<FTrigger>(TEXT("Deactivate"), LOCTEXT("TriggerDisableTooltip", "Disables executing periodic output triggers."))
 			),

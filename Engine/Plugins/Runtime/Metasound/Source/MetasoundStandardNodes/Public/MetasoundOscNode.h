@@ -9,7 +9,6 @@
 #include "MetasoundDataReferenceCollection.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
-#include "MetasoundFrequency.h"
 #include "MetasoundNode.h"
 #include "MetasoundOperatorInterface.h"
 
@@ -17,19 +16,7 @@ namespace Metasound
 {
 	class METASOUNDSTANDARDNODES_API FOscNode : public FNodeFacade
 	{
-		public:
-
-		FOscNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, bool bInDefaultEnablement);
-
+	public:
 		FOscNode(const FNodeInitData& InInitData);
-
-		
-		float GetDefaultFrequency() const;
-		bool GetDefaultEnablement() const;
-
-		private:
-
-		float DefaultFrequency = 440.f;		
-		bool bDefaultEnablement = true;
 	};
 }

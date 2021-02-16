@@ -8,6 +8,7 @@
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundSampleCounter.h"
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTime.h"
 #include "MetasoundTrigger.h"
@@ -21,10 +22,10 @@ namespace Metasound
 		public:
 			struct FADSRReferences
 			{
-				FFloatTimeReadRef Attack;
-				FFloatTimeReadRef Decay;
+				FTimeReadRef Attack;
+				FTimeReadRef Decay;
 				FFloatReadRef SustainLevel;
-				FFloatTimeReadRef Release;
+				FTimeReadRef Release;
 			};
 
 			static const FNodeClassMetadata& GetNodeInfo();
@@ -53,8 +54,8 @@ namespace Metasound
 
 			bool bReleased;
 
-			FSampleTime TimeUntilRelease;
-			FSampleTime TimePerBlock;
+			FSampleCounter SamplesUntilRelease;
+			FSampleCount SamplesPerBlock;
 			FADSRReferences ADSRReferences;
 			FAudioBufferWriteRef EnvelopeBuffer;
 	};
@@ -66,8 +67,8 @@ namespace Metasound
 	,	TriggerDecayComplete(FTriggerWriteRef::CreateNew(InSettings))
 	,	TriggerReleaseComplete(FTriggerWriteRef::CreateNew(InSettings))
 	,	bReleased(false)
-	,	TimeUntilRelease(0, InSettings.GetSampleRate())
-	,	TimePerBlock(InSettings.GetNumFramesPerBlock(), InSettings.GetSampleRate())
+	,	SamplesUntilRelease(0, InSettings.GetSampleRate())
+	,	SamplesPerBlock(InSettings.GetNumFramesPerBlock())
 	,	ADSRReferences(InADSRData)
 	,	EnvelopeBuffer(FAudioBufferWriteRef::CreateNew(InSettings.GetNumFramesPerBlock()))
 	{
@@ -79,9 +80,9 @@ namespace Metasound
 	FDataReferenceCollection FADSROperator::GetInputs() const
 	{
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(TEXT("Attack"), FFloatTimeReadRef(ADSRReferences.Attack));
-		InputDataReferences.AddDataReadReference(TEXT("Decay"), FFloatTimeReadRef(ADSRReferences.Decay));
-		InputDataReferences.AddDataReadReference(TEXT("Release"), FFloatTimeReadRef(ADSRReferences.Release));
+		InputDataReferences.AddDataReadReference(TEXT("Attack"), FTimeReadRef(ADSRReferences.Attack));
+		InputDataReferences.AddDataReadReference(TEXT("Decay"), FTimeReadRef(ADSRReferences.Decay));
+		InputDataReferences.AddDataReadReference(TEXT("Release"), FTimeReadRef(ADSRReferences.Release));
 		InputDataReferences.AddDataReadReference(TEXT("Sustain Level"), FFloatReadRef(ADSRReferences.SustainLevel));
 		InputDataReferences.AddDataReadReference(TEXT("Trigger Attack"), FTriggerReadRef(TriggerAttack));
 		InputDataReferences.AddDataReadReference(TEXT("Trigger Release"), FTriggerReadRef(TriggerRelease));
@@ -109,7 +110,7 @@ namespace Metasound
 		int32 DecayCompleteFrame = -1;
 		int32 ReleaseCompleteFrame = -1;
 
-		TimeUntilRelease -= TimePerBlock;
+		SamplesUntilRelease -= SamplesPerBlock;
 
 		auto GenerateLambda = [&] (int32 InFrame)
 		{
@@ -163,9 +164,9 @@ namespace Metasound
 
 	void FADSROperator::Execute()
 	{
-		Envelope.SetAttackTime(ADSRReferences.Attack->GetMilliseconds());
-		Envelope.SetDecayTime(ADSRReferences.Decay->GetMilliseconds());
-		Envelope.SetReleaseTime(ADSRReferences.Release->GetMilliseconds());
+		Envelope.SetAttackTime(FTime::ToMilliseconds(*ADSRReferences.Attack));
+		Envelope.SetDecayTime(FTime::ToMilliseconds(*ADSRReferences.Decay));
+		Envelope.SetReleaseTime(FTime::ToMilliseconds(*ADSRReferences.Release));
 		Envelope.SetSustainGain(*ADSRReferences.SustainLevel);
 
 		TriggerAttackComplete->AdvanceBlock();
@@ -183,14 +184,14 @@ namespace Metasound
 				if (!bReleased)
 				{
 					bReleased = true;
-					TimeUntilRelease = *(ADSRReferences.Release);
+					SamplesUntilRelease.SetNumSamples(*ADSRReferences.Release);
 
-					const int32 ReleaseFrame = TimeUntilRelease.GetNumSamples();
+					const FSampleCount ReleaseFrame = SamplesUntilRelease.GetNumSamples();
 					if (ReleaseFrame < EndFrame)
 					{
-						GenerateEnvelope(StartFrame, ReleaseFrame);
+						GenerateEnvelope(StartFrame, static_cast<int32>(ReleaseFrame));
 						Envelope.Stop();
-						GenerateEnvelope(ReleaseFrame, EndFrame);
+						GenerateEnvelope(static_cast<int32>(ReleaseFrame), EndFrame);
 					}
 					else
 					{
@@ -232,9 +233,9 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FFloatTime>(TEXT("Attack"), LOCTEXT("AttackDurationTooltip", "Attack duration."), 0.01f),
-				TInputDataVertexModel<FFloatTime>(TEXT("Decay"), LOCTEXT("DecayDurationTooltip", "Decay duration."), 0.02f),
-				TInputDataVertexModel<FFloatTime>(TEXT("Release"), LOCTEXT("ReleaseDurationTooltip", "Release duration."), 1.0f),
+				TInputDataVertexModel<FTime>(TEXT("Attack"), LOCTEXT("AttackDurationTooltip", "Attack duration."), 0.01f),
+				TInputDataVertexModel<FTime>(TEXT("Decay"), LOCTEXT("DecayDurationTooltip", "Decay duration."), 0.02f),
+				TInputDataVertexModel<FTime>(TEXT("Release"), LOCTEXT("ReleaseDurationTooltip", "Release duration."), 1.0f),
 				TInputDataVertexModel<float>(TEXT("Sustain Level"), LOCTEXT("SustainLevelTooltip", "Sustain level [0.0f, 1.0f]."), 0.7f),
 				TInputDataVertexModel<FTrigger>(TEXT("Trigger Attack"), LOCTEXT("TriggerAttackTooltip", "Trigger the envelope's attack.")),
 				TInputDataVertexModel<FTrigger>(TEXT("Trigger Release"), LOCTEXT("TriggerReleaseTooltip", "Trigger the envelope's release."))
@@ -285,10 +286,10 @@ namespace Metasound
 		// TODO: If none of these are connected, could pre-generate ADSR envelope and return a different operator.
 		FADSRReferences ADSRReferences =
 		{
-			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Attack")),
-			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Decay")),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime, float>(InputInterface, TEXT("Attack")),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime, float>(InputInterface, TEXT("Decay")),
 			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, TEXT("Sustain Level")),
-			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Release")),
+			InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<FTime, float>(InputInterface, TEXT("Release")),
 		};
 
 		return MakeUnique<FADSROperator>(InParams.OperatorSettings, TriggerAttack, TriggerRelease, ADSRReferences);

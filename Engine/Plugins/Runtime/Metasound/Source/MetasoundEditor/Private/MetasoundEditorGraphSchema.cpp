@@ -102,7 +102,7 @@ namespace Metasound
 			const UMetasoundEditorSettings* Settings = GetDefault<UMetasoundEditorSettings>();
 			check(Settings);
 
-			if (PinType.PinCategory == FGraphBuilder::PinCategoryAudioFormat)
+			if (PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
 			{
 				return Settings->AudioPinTypeColor;
 			}
@@ -245,7 +245,7 @@ namespace Metasound
 				{
 					OutParams.WireThickness = Settings->DefaultExecutionWireThickness;
 				}
-				else if (InputPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudioFormat)
+				else if (InputPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
 				{
 					OutParams.bDrawBubbles = true;
 				}

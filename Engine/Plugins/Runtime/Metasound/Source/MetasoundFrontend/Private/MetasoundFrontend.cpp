@@ -195,7 +195,7 @@ REGISTER_METASOUND_DATATYPE(FString, "String", ::Metasound::ELiteralType::String
 
 REGISTER_METASOUND_DATATYPE(TArray<float>, "FloatArray", ::Metasound::ELiteralType::FloatArray)
 
-REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio:Buffer")
-REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Transmission:Address")
+REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio")
+REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Transmission:Address", ::Metasound::ELiteralType::String)
 
 IMPLEMENT_MODULE(FMetasoundFrontendModule, MetasoundFrontend);

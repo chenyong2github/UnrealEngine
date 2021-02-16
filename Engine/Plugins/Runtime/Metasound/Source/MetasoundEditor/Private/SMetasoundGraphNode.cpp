@@ -79,7 +79,7 @@ TSharedPtr<SGraphPin> SMetasoundGraphNode::CreatePinWidget(UEdGraphPin* InPin) c
 
 	if (const UMetasoundEditorGraphSchema* GraphSchema = Cast<const UMetasoundEditorGraphSchema>(InPin->GetSchema()))
 	{
-		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudioFormat)
+		if (InPin->PinType.PinCategory == FGraphBuilder::PinCategoryAudio)
 		{
 			return SNew(SGraphPin, InPin);
 		}

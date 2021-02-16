@@ -17,11 +17,6 @@ namespace Metasound
 	class METASOUNDSTANDARDNODES_API FMixerNode : public FNodeFacade
 	{
 	public:
-		FMixerNode(const FString& InName, const FGuid& InInstanceID, float InDefaultMixGainCents);
 		FMixerNode(const FNodeInitData& InInitData);
-
-		float GetDefaultMixGainLinear() const;
-	private:
-		float DefaultMixGainLinear = 1.0f;
 	};
 }

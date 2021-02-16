@@ -119,6 +119,4 @@ namespace Metasound
 		private:
 			float LinearGain = DefaultGain;
 	};
-
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FGain, METASOUNDSTANDARDNODES_API, FGainTypeInfo, FGainReadRef, FGainWriteRef)
 }

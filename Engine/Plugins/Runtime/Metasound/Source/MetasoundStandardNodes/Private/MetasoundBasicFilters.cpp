@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "MetasoundBasicFilters.h"
+
 #include "MetasoundAudioBuffer.h"
+#include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundStandardNodesNames.h"
 #include "MetasoundOperatorSettings.h"
-#include "MetasoundDataTypeRegistrationMacro.h"
+#include "MetasoundStandardNodesNames.h"
 
 #include "DSP/Filter.h"
 #include "DSP/InterpolatedOnePole.h"
@@ -68,7 +68,7 @@ namespace Metasound
 
 		// data
 		const int32 BlockSize;
-		float SampleRate;
+		FSampleRate SampleRate;
 
 		// dsp
 		Audio::FLadderFilter LadderFilter;
@@ -253,7 +253,7 @@ namespace Metasound
 
 		// data
 		const int32 BlockSize;
-		float SampleRate;
+		FSampleRate SampleRate;
 
 		// dsp
 		Audio::FStateVariableFilter StateVariableFilter;
@@ -439,7 +439,7 @@ namespace Metasound
 
 		// data
 		const int32 BlockSize;
-		float SampleRate;
+		FSampleRate SampleRate;
 
 		// dsp
 		Audio::FInterpolatedLPF OnePoleLowPassFilter;
@@ -583,7 +583,7 @@ namespace Metasound
 
 		// data
 		const int32 BlockSize;
-		float SampleRate;
+		FSampleRate SampleRate;
 
 		// dsp
 		Audio::FInterpolatedHPF OnePoleHighPassFilter;
@@ -750,7 +750,7 @@ namespace Metasound
 
 		// data
 		const int32 BlockSize;
-		float SampleRate;
+		FSampleRate SampleRate;
 
 		// dsp
 		Audio::EBiquadFilter::Type LastFilterType;

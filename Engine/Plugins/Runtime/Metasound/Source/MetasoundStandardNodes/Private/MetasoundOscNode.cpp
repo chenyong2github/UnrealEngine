@@ -5,7 +5,6 @@
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundFacade.h"
-#include "MetasoundFrequency.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundPrimitives.h"
 #include "MetasoundStandardNodesNames.h"
@@ -23,9 +22,9 @@ namespace Metasound
 
 		static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 		static const FNodeClassMetadata& GetNodeInfo();
-		static FVertexInterface DeclareVertexInterface();
+		static const FVertexInterface& GetVertexInterface();
 
-		FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency, const FBoolReadRef& InActivate);
+		FOscOperator(const FOperatorSettings& InSettings, const FFloatReadRef& InFrequency, const FBoolReadRef& InActivate);
 
 		virtual FDataReferenceCollection GetInputs() const override;
 
@@ -58,7 +57,7 @@ namespace Metasound
 		float OneOverSampleRate;
 		float Nyquist;
 
-		FFrequencyReadRef Frequency;
+		FFloatReadRef Frequency;
 		FBoolReadRef Enabled;
 		FAudioBufferWriteRef AudioBuffer;
 
@@ -67,7 +66,7 @@ namespace Metasound
 		static constexpr const TCHAR* AudioOutPinName = TEXT("Audio");
 	};
 
-	FOscOperator::FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency, const FBoolReadRef& InEnabled)
+	FOscOperator::FOscOperator(const FOperatorSettings& InSettings, const FFloatReadRef& InFrequency, const FBoolReadRef& InEnabled)
 		: Phase(0.f)
 		, OneOverSampleRate(1.f / InSettings.GetSampleRate())
 		, Nyquist(InSettings.GetSampleRate() / 2.0f)
@@ -81,7 +80,7 @@ namespace Metasound
 	FDataReferenceCollection FOscOperator::GetInputs() const
 	{
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(FrequencyPinName, FFrequencyReadRef(Frequency));
+		InputDataReferences.AddDataReadReference(FrequencyPinName, FFloatReadRef(Frequency));
 		InputDataReferences.AddDataReadReference(EnabledPinName, FBoolReadRef(Enabled));
 
 		return InputDataReferences;
@@ -97,7 +96,7 @@ namespace Metasound
 	void FOscOperator::Execute()
 	{
 		// Clamp frequencies into Nyquist range
-		const float Freq = FMath::Clamp(Frequency->GetHertz(), -Nyquist, Nyquist);
+		const float Freq = FMath::Clamp(*Frequency, -Nyquist, Nyquist);
 		const float PhaseInc = Freq * OneOverSampleRate;
 		float* Data = AudioBuffer->GetData();
 
@@ -119,11 +118,11 @@ namespace Metasound
 		}
 	}
 
-	FVertexInterface FOscOperator::DeclareVertexInterface()
+	const FVertexInterface& FOscOperator::GetVertexInterface()
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FFrequency>(FrequencyPinName, LOCTEXT("OscFrequencyDescription", "The frequency of oscillator."), 440.f),
+				TInputDataVertexModel<float>(FrequencyPinName, LOCTEXT("OscFrequencyDescription", "The frequency of oscillator."), 440.f),
 				TInputDataVertexModel<bool>(EnabledPinName, LOCTEXT("OscActivateDescription", "Enable the oscilator."), true)
 			),
 			FOutputVertexInterface(
@@ -144,10 +143,10 @@ namespace Metasound
 			Info.MajorVersion = 1;
 			Info.MinorVersion = 0;
 			Info.DisplayName = LOCTEXT("Metasound_OscNodeDisplayName", "Oscillator");
-			Info.Description = LOCTEXT("Metasound_OscNodeDescription", "Emits an audio signal of a sinusoid.");
+			Info.Description = LOCTEXT("Metasound_OscNodeDescription", "Emits sinusoidal audio.");
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
-			Info.DefaultInterface = DeclareVertexInterface();
+			Info.DefaultInterface = GetVertexInterface();
 
 			return Info;
 		};
@@ -157,26 +156,9 @@ namespace Metasound
 		return Info;
 	}
 
-	FOscNode::FOscNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, bool bInDefaultEnablement)
-	:	FNodeFacade(InInstanceName, InInstanceID, TFacadeOperatorClass<FOscOperator>())
-	,	DefaultFrequency(InDefaultFrequency)
-	,	bDefaultEnablement(bInDefaultEnablement)
-	{
-	}
-
 	FOscNode::FOscNode(const FNodeInitData& InInitData)
-		: FOscNode(InInitData.InstanceName, InInitData.InstanceID, 440.0f, true)
+		: FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<FOscOperator>())
 	{
-	}
-
-	float FOscNode::GetDefaultFrequency() const
-	{
-		return DefaultFrequency;
-	}
-
-	bool FOscNode::GetDefaultEnablement() const
-	{
-		return bDefaultEnablement;
 	}
 
 	TUniquePtr<IOperator> FOscOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
@@ -184,9 +166,10 @@ namespace Metasound
 		const FOscNode& OscNode = static_cast<const FOscNode&>(InParams.Node);
 		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
 		const FOperatorSettings& Settings = InParams.OperatorSettings;
+		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
 
-		FFrequencyReadRef Frequency = InputCol.GetDataReadReferenceOrConstruct<FFrequency>(FrequencyPinName, OscNode.GetDefaultFrequency(), EFrequencyResolution::Hertz);
-		FBoolReadRef Enabled = InputCol.GetDataReadReferenceOrConstruct<bool>(EnabledPinName, OscNode.GetDefaultEnablement());
+		FFloatReadRef Frequency = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, FrequencyPinName);
+		FBoolReadRef Enabled = InputCol.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, EnabledPinName);
 
 		return MakeUnique<FOscOperator>(InParams.OperatorSettings, Frequency, Enabled);
 	}

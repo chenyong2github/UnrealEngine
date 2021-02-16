@@ -9,6 +9,9 @@ namespace UnrealBuildTool.Rules
 	{
 		public MetasoundStandardNodes(ReadOnlyTargetRules Target) : base(Target)
 		{
+			OptimizeCode = CodeOptimization.Never;
+			PCHUsage = ModuleRules.PCHUsageMode.NoSharedPCHs;
+
 			PublicDependencyModuleNames.AddRange
 			(
 				new string[]

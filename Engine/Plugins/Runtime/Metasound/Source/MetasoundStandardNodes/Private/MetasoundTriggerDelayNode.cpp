@@ -12,6 +12,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundPrimitives.h"
+#include "MetasoundSampleCounter.h"
 #include "MetasoundStandardNodesNames.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
@@ -27,7 +28,7 @@ namespace Metasound
 			static const FVertexInterface& GetVertexInterface();
 			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
 
-			FTriggerDelayOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FFloatTimeReadRef& InDelay);
+			FTriggerDelayOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FTimeReadRef& InDelay);
 
 			virtual FDataReferenceCollection GetInputs() const override;
 			virtual FDataReferenceCollection GetOutputs() const override;
@@ -35,35 +36,33 @@ namespace Metasound
 			void Execute();
 
 		private:
-			int32 SamplesUntilTrigger = -1;
-			int32 LastFrameReset = -1;
+			FSampleCounter NextTriggerCounter;
+			FSampleCount LastFrameReset;
 
 			FTriggerReadRef TriggerIn;
 			FTriggerReadRef TriggerReset;
 			FTriggerWriteRef TriggerOut;
 
-			FFloatTimeReadRef Delay;
+			FTimeReadRef Delay;
 
-			float FramesPerBlock;
-			float SampleRate;
+			FSampleCount FramesPerBlock;
 	};
 
-	FTriggerDelayOperator::FTriggerDelayOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FFloatTimeReadRef& InDelay)
-	:	SamplesUntilTrigger(-1)
+	FTriggerDelayOperator::FTriggerDelayOperator(const FOperatorSettings& InSettings, const FTriggerReadRef& InTriggerReset, const FTriggerReadRef& InTriggerIn, const FTimeReadRef& InDelay)
+	:	NextTriggerCounter(-1, InSettings.GetSampleRate())
 	,	LastFrameReset(-1)
 	,	TriggerIn(InTriggerIn)
 	,	TriggerReset(InTriggerReset)
 	,	TriggerOut(FTriggerWriteRef::CreateNew(InSettings))
 	,	Delay(InDelay)
 	,	FramesPerBlock(InSettings.GetNumFramesPerBlock())
-	,	SampleRate(InSettings.GetSampleRate())
 	{
 	}
 
 	FDataReferenceCollection FTriggerDelayOperator::GetInputs() const
 	{
 		FDataReferenceCollection InputDataReferences;
-		InputDataReferences.AddDataReadReference(TEXT("Delay"), FFloatTimeReadRef(Delay));
+		InputDataReferences.AddDataReadReference(TEXT("Delay"), FTimeReadRef(Delay));
 		InputDataReferences.AddDataReadReference(TEXT("In"), FTriggerReadRef(TriggerIn));
 		InputDataReferences.AddDataReadReference(TEXT("Reset"), FTriggerReadRef(TriggerIn));
 		return InputDataReferences;
@@ -83,6 +82,7 @@ namespace Metasound
 		TriggerOut->AdvanceBlock();
 
 		LastFrameReset = -1;
+
 		TriggerReset->ExecuteBlock(
 			[&](int32 StartFrame, int32 EndFrame)
 			{
@@ -101,27 +101,27 @@ namespace Metasound
 			{
 				if (StartFrame > LastFrameReset)
 				{
-					SamplesUntilTrigger = Delay->GetNumSamples(SampleRate);
+					NextTriggerCounter.SetNumSamples(*Delay);
 					LastFrameReset = -1;
 				}
 				else
 				{
-					SamplesUntilTrigger = -1;
+					NextTriggerCounter.SetNumSamples(-1);
 				}
 			}
 		);
 
-		if (SamplesUntilTrigger >= 0)
+		if (NextTriggerCounter >= 0)
 		{
-			int32 SamplesRemaining = SamplesUntilTrigger - FramesPerBlock;
+			FSampleCount SamplesRemaining = NextTriggerCounter.GetNumSamples() - FramesPerBlock;
 			if (SamplesRemaining > 0.0f)
 			{
-				SamplesUntilTrigger -= FramesPerBlock;
+				NextTriggerCounter -= FramesPerBlock;
 			}
 			else
 			{
 				TriggerOut->TriggerFrame(SamplesRemaining + (int32)FramesPerBlock);
-				SamplesUntilTrigger = -1;
+				NextTriggerCounter.SetNumSamples(-1);
 			}
 		}
 	}
@@ -131,7 +131,7 @@ namespace Metasound
 		const FTriggerDelayNode& DelayNode = static_cast<const FTriggerDelayNode&>(InParams.Node);
 
 		const FInputVertexInterface& InputInterface = GetVertexInterface().GetInputInterface();
-		FFloatTimeReadRef Delay = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FFloatTime, float>(InputInterface, TEXT("Delay"));
+		FTimeReadRef Delay = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<FTime, float>(InputInterface, TEXT("Delay"));
 
 		FTriggerReadRef TriggerIn = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("In"), InParams.OperatorSettings);
 		FTriggerReadRef TriggerReset = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Reset"), InParams.OperatorSettings);
@@ -143,7 +143,7 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
-				TInputDataVertexModel<FFloatTime>(TEXT("Delay"), LOCTEXT("TriggerDelayTooltip", "Time to delay and execute deferred trigger in seconds."), 1.0f),
+				TInputDataVertexModel<FTime>(TEXT("Delay"), LOCTEXT("TriggerDelayTooltip", "Time to delay and execute deferred trigger in seconds."), 1.0f),
 				TInputDataVertexModel<FTrigger>(TEXT("In"), LOCTEXT("TriggerDelayInTooltip", "Triggers delay.")),
 				TInputDataVertexModel<FTrigger>(TEXT("Reset"), LOCTEXT("TriggerDelayResetInTooltip", "Resets the trigger delay, clearing the execution task if pending."))
 			),
