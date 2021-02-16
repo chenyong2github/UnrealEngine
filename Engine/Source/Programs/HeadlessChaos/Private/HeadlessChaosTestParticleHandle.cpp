@@ -541,15 +541,15 @@ namespace ChaosTest {
 		//fake unique assignment like we would for solver
 		GTParticle->SetUniqueIdx(SOAs.GetUniqueIndices().GenerateUniqueIdx());
 
-		TAccelerationStructureHandle<FReal, 3> ExternalOnlyHandle(GTParticle.Get());
+		FAccelerationStructureHandle ExternalOnlyHandle(GTParticle.Get());
 
 		FUniqueIdx Idx = GTParticle->UniqueIdx();
 		auto Particles = SOAs.CreateStaticParticles(1, &Idx);
-		TAccelerationStructureHandle<FReal, 3> ExternalInternalHandle(Particles[0], GTParticle.Get());
+		FAccelerationStructureHandle ExternalInternalHandle(Particles[0], GTParticle.Get());
 
-		TAccelerationStructureHandle<FReal, 3> InternalOnlyHandle(Particles[0], nullptr);
+		FAccelerationStructureHandle InternalOnlyHandle(Particles[0], nullptr);
 
-		TAccelerationStructureHandle<FReal, 3> NullHandle;
+		FAccelerationStructureHandle NullHandle;
 
 		EXPECT_EQ(ExternalOnlyHandle, ExternalInternalHandle);
 		EXPECT_EQ(ExternalOnlyHandle, ExternalOnlyHandle);

@@ -1261,10 +1261,10 @@ private:
 
 #if PLATFORM_MAC || PLATFORM_LINUX
     extern template class CHAOS_API TBoundingVolume<int32,FReal,3>;
-    extern template class CHAOS_API TBoundingVolume<TAccelerationStructureHandle<FReal,3>, FReal,3>;
+    extern template class CHAOS_API TBoundingVolume<FAccelerationStructureHandle, FReal,3>;
 #else
     extern template class TBoundingVolume<int32,FReal,3>;
-    extern template class TBoundingVolume<TAccelerationStructureHandle<FReal,3>, FReal,3>;
+    extern template class TBoundingVolume<FAccelerationStructureHandle, FReal,3>;
 #endif
 
 template<typename TPayloadType, class T, int d>

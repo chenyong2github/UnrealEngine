@@ -65,8 +65,7 @@ namespace Chaos
 	template <typename T,typename R,int d>
 	class ISpatialAccelerationCollection;
 
-	template <typename T,int d>
-	class TAccelerationStructureHandle;
+	class FAccelerationStructureHandle;
 
 	enum class ELockType : uint8
 	{
@@ -313,13 +312,13 @@ namespace Chaos
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
 		void SyncQueryMaterials_External();
 
-		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles);
+		void FinalizeRewindData(const TParticleView<FPBDRigidParticles>& DirtyParticles);
 		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
 
 		FPerSolverFieldSystem& GetPerSolverField() { return *PerSolverField; }
 		const FPerSolverFieldSystem& GetPerSolverField() const { return *PerSolverField; }
 
-		void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>*& ExternalStructure);
+		void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>*& ExternalStructure);
 
 		/** Apply a solver configuration to this solver, set externally by the owner of a solver (see UPhysicsSettings for world solver settings) */
 		void ApplyConfig(const FChaosSolverConfiguration& InConfig);

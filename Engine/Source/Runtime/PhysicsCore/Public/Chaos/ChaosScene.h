@@ -43,9 +43,7 @@ namespace Chaos
 	template<typename PayloadType, typename HandlerType>
 	class TRawEventHandler;
 
-	template <typename T, int d>
-	class TAccelerationStructureHandle;
-	using FAccelerationStructureHandle = TAccelerationStructureHandle<FReal, 3>;
+	class FAccelerationStructureHandle;
 
 	template <typename TPayload, typename T, int d>
 	class ISpatialAcceleration;

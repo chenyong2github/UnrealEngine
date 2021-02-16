@@ -715,9 +715,6 @@ namespace Chaos
 		return Constraints.SinglePointSweptConstraints[Index];
 	}
 
-
-	template class TAccelerationStructureHandle<float, 3>;
-
 	FPBDCollisionConstraints::FConstraintAppendScope::FConstraintAppendScope(FPBDCollisionConstraints* InOwner)
 		: Owner(InOwner)
 	{

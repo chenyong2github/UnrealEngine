@@ -296,13 +296,13 @@ struct TSpatialAccelerationCollectionHelper
 };
 
 template <typename SpatialAccelerationCollection>
-typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<FReal, 3>>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData, IResimCacheBase* ResimCache)
+typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData, IResimCacheBase* ResimCache)
 {
 	BroadPhase.ProduceOverlaps(Dt, Accel, NarrowPhase, Receiver, StatData, ResimCache);
 }
 
 template <typename SpatialAccelerationCollection>
-typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<FReal, 3>>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData, IResimCacheBase* ResimCache)
+typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>::Value, void>::Type PBDComputeConstraintsLowLevel_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, FSpatialAccelerationBroadPhase& BroadPhase, FNarrowPhase& NarrowPhase, FAsyncCollisionReceiver& Receiver, CollisionStats::FStatData& StatData, IResimCacheBase* ResimCache)
 {
 }
 
@@ -310,13 +310,13 @@ template<typename T_SPATIALACCELERATION>
 void MoveToTOIHackImpl(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle1, const T_SPATIALACCELERATION* SpatialAcceleration);
 
 template <typename SpatialAccelerationCollection>
-typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<FReal, 3>>::Value, void>::Type CallMoveToTOIHack_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, TTransientPBDRigidParticleHandle<FReal, 3>& Particle)
+typename TEnableIf<TIsSame<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>::Value, void>::Type CallMoveToTOIHack_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, TTransientPBDRigidParticleHandle<FReal, 3>& Particle)
 {
 	MoveToTOIHackImpl(Dt, Particle, &Accel);
 }
 
 template <typename SpatialAccelerationCollection>
-typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, TAccelerationStructureHandle<FReal, 3>>::Value, void>::Type CallMoveToTOIHack_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, TTransientPBDRigidParticleHandle<FReal, 3>& Particle)
+typename TEnableIf<!TIsSame<typename SpatialAccelerationCollection::TPayloadType, FAccelerationStructureHandle>::Value, void>::Type CallMoveToTOIHack_Helper(FReal Dt, const SpatialAccelerationCollection& Accel, TTransientPBDRigidParticleHandle<FReal, 3>& Particle)
 {
 }
 

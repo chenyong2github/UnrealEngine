@@ -129,28 +129,27 @@ FORCEINLINE_DEBUGGABLE bool PrePreFilterImp(const FCollisionFilterData& QueryFil
 }
 
 /** Wrapper that holds both physics thread data and GT data. It's possible that the physics handle is null if we're doing operations entirely on external threads*/
-template <typename T, int d>
-class TAccelerationStructureHandle
+class FAccelerationStructureHandle
 {
 public:
-	TAccelerationStructureHandle(TGeometryParticleHandle<T, d>* InHandle);
-	TAccelerationStructureHandle(TGeometryParticle<T, d>* InGeometryParticle = nullptr);
+	FAccelerationStructureHandle(FGeometryParticleHandle* InHandle);
+	FAccelerationStructureHandle(FGeometryParticle* InGeometryParticle = nullptr);
 
 	template <bool bPersistent>
-	TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>& InHandle);
+	FAccelerationStructureHandle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& InHandle);
 
 	//Should only be used by GT and scene query threads where an appropriate lock has been acquired
-	TGeometryParticle<T, d>* GetExternalGeometryParticle_ExternalThread() const { return ExternalGeometryParticle; }
+	FGeometryParticle* GetExternalGeometryParticle_ExternalThread() const { return ExternalGeometryParticle; }
 
 	//Should only be used by PT
-	TGeometryParticleHandle<T, d>* GetGeometryParticleHandle_PhysicsThread() const { return GeometryParticleHandle; }
+	FGeometryParticleHandle* GetGeometryParticleHandle_PhysicsThread() const { return GeometryParticleHandle; }
 
-	bool operator==(const TAccelerationStructureHandle<T, d>& Rhs) const
+	bool operator==(const FAccelerationStructureHandle& Rhs) const
 	{
 		return CachedUniqueIdx == Rhs.CachedUniqueIdx;
 	}
 
-	bool operator!=(const TAccelerationStructureHandle<T, d>& Rhs) const
+	bool operator!=(const FAccelerationStructureHandle& Rhs) const
 	{
 		return !(*this == Rhs);
 	}
@@ -175,7 +174,7 @@ public:
 		return false;
 	}
 
-	void UpdateFrom(const TAccelerationStructureHandle<T, d>& InOther)
+	void UpdateFrom(const FAccelerationStructureHandle& InOther)
 	{
 		UnionFilterData.Word0 = InOther.UnionFilterData.Word0;
 		UnionFilterData.Word1 = InOther.UnionFilterData.Word1;
@@ -184,8 +183,8 @@ public:
 	}
 
 private:
-	TGeometryParticle<T, d>* ExternalGeometryParticle;
-	TGeometryParticleHandle<T, d>* GeometryParticleHandle;
+	FGeometryParticle* ExternalGeometryParticle;
+	FGeometryParticleHandle* GeometryParticleHandle;
 
 	FUniqueIdx CachedUniqueIdx;
 	FCollisionFilterData UnionFilterData;
@@ -199,6 +198,9 @@ public:
 	void DebugDraw(const bool bExternal, const bool bHit) const;
 #endif
 };
+
+template <typename T, int d>
+using TAccelerationStructureHandle UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FAccelerationStructureHandle instead") = FAccelerationStructureHandle;
 
 template <typename T, int d>
 class TParticleHandleBase
@@ -271,9 +273,6 @@ protected:
 	int32 ParticleIdx;	//Index into the particle struct of arrays. Note the index can change
 	EParticleType Type;
 };
-
-// TODO(chaos) LWC : remove template arguments from TAccelerationStructureHandle when only FAccelerationStructureHandle is in use
-using FAccelerationStructureHandle = TAccelerationStructureHandle<FReal, 3>;
 
 template <typename T, int d, bool bPersistent>
 class TKinematicGeometryParticleHandleImp;
@@ -2495,8 +2494,7 @@ TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArc
 template <>
 CHAOS_API void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate);
 
-template <typename T, int d>
-TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticleHandle<T, d>* InHandle)
+FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandle(FGeometryParticleHandle* InHandle)
 	: ExternalGeometryParticle(InHandle->GTGeometryParticle())
 	, GeometryParticleHandle(InHandle)
 	, CachedUniqueIdx(InHandle->UniqueIdx())
@@ -2509,8 +2507,7 @@ TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticl
 	}
 }
 
-template <typename T, int d>
-TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticle<T, d>* InGeometryParticle)
+FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandle(FGeometryParticle* InGeometryParticle)
 	: ExternalGeometryParticle(InGeometryParticle)
 	, GeometryParticleHandle(InGeometryParticle ? InGeometryParticle->Handle() : nullptr)
 	, CachedUniqueIdx(InGeometryParticle ? InGeometryParticle->UniqueIdx() : FUniqueIdx())
@@ -2524,9 +2521,8 @@ TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticl
 	}
 }
 
-template <typename T, int d>
 template <bool bPersistent>
-TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryParticleHandleImp<T, d, bPersistent>& InHandle)
+FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandle(TGeometryParticleHandleImp<FReal, 3, bPersistent>& InHandle)
 	: ExternalGeometryParticle(InHandle.GTGeometryParticle())
 	, GeometryParticleHandle(InHandle.Handle())
 	, CachedUniqueIdx(InHandle.UniqueIdx())
@@ -2536,9 +2532,8 @@ TAccelerationStructureHandle<T, d>::TAccelerationStructureHandle(TGeometryPartic
 	UpdatePrePreFilter(InHandle);
 }
 
-template <typename T, int d>
 template <typename TParticle>
-void TAccelerationStructureHandle<T, d>::UpdatePrePreFilter(const TParticle& Particle)
+FORCEINLINE_DEBUGGABLE void FAccelerationStructureHandle::UpdatePrePreFilter(const TParticle& Particle)
 {
 	const auto& Shapes = Particle.ShapesArray();
 	for (const auto& Shape : Shapes)
@@ -2554,8 +2549,7 @@ void TAccelerationStructureHandle<T, d>::UpdatePrePreFilter(const TParticle& Par
 }
 
 
-template <typename T, int d>
-void TAccelerationStructureHandle<T, d>::Serialize(FChaosArchive& Ar)
+FORCEINLINE_DEBUGGABLE void FAccelerationStructureHandle::Serialize(FChaosArchive& Ar)
 {
 	Ar << AsAlwaysSerializable(ExternalGeometryParticle);
 	Ar << AsAlwaysSerializable(GeometryParticleHandle);
@@ -2585,16 +2579,14 @@ void TAccelerationStructureHandle<T, d>::Serialize(FChaosArchive& Ar)
 	ensure(!ExternalGeometryParticle || CachedUniqueIdx.IsValid());
 }
 
-template <typename T, int d>
-FChaosArchive& operator<<(FChaosArchive& Ar, TAccelerationStructureHandle<T, d>& AccelerationHandle)
+FORCEINLINE_DEBUGGABLE FChaosArchive& operator<<(FChaosArchive& Ar, FAccelerationStructureHandle& AccelerationHandle)
 {
 	AccelerationHandle.Serialize(Ar);
 	return Ar;
 }
 
 #if CHAOS_DEBUG_DRAW
-template <typename T, int d>
-void TAccelerationStructureHandle<T, d>::DebugDraw(const bool bExternal, const bool bHit) const
+FORCEINLINE_DEBUGGABLE void FAccelerationStructureHandle::DebugDraw(const bool bExternal, const bool bHit) const
 {
 	if (ExternalGeometryParticle && bExternal)
 	{

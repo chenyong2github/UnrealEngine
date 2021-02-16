@@ -226,7 +226,7 @@ template <typename Traits>
 class TPBDRigidsEvolutionBase
 {
 public:
-	using FAccelerationStructure = ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>;
+	using FAccelerationStructure = ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>;
 
 	typedef TFunction<void(TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const FReal)> FForceRule;
 	typedef TFunction<void(const TArray<FGeometryParticleHandle*>&, const FReal)> FUpdateVelocityRule;

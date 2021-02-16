@@ -190,7 +190,7 @@ namespace Chaos
 	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(FGeometryParticle* Particle,bool bDelete)
 	{
 		//mark it as pending for async structure being built
-		TAccelerationStructureHandle<float,3> AccelerationHandle(Particle);
+		FAccelerationStructureHandle AccelerationHandle(Particle);
 		FPendingSpatialData& SpatialData = PendingSpatialOperations_External->FindOrAdd(Particle->UniqueIdx());
 
 		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
