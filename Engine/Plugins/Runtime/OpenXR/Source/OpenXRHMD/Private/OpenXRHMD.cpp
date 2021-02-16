@@ -1111,7 +1111,7 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 	Projection.next = nullptr;
 	Projection.subImage = ColorImage;
 
-	if (bDepthExtensionSupported)
+	if (bDepthExtensionSupported && DepthSwapchain.IsValid())
 	{
 		DepthLayer.type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR;
 		DepthLayer.next = nullptr;
@@ -1330,7 +1330,8 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	XrInstanceProperties InstanceProps = { XR_TYPE_INSTANCE_PROPERTIES, nullptr };
 	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProps));
 
-	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
+	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) &&
+		(!FCStringAnsi::Strstr(InstanceProps.runtimeName, "SteamVR/OpenXR") || FApp::GetGraphicsRHI() != "Vulkan");
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME) &&
 		!FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus");
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
