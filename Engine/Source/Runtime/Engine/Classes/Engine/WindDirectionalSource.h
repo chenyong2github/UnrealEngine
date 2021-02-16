@@ -25,6 +25,10 @@ public:
 	/** Returns Component subobject **/
 	class UWindDirectionalSourceComponent* GetComponent() const { return Component; }
 
+#if WITH_EDITOR
+	virtual bool SupportsDataLayer() const override { return true; }
+#endif
+
 #if WITH_EDITORONLY_DATA
 	/** Returns ArrowComponent subobject **/
 	class UArrowComponent* GetArrowComponent() const { return ArrowComponent; }

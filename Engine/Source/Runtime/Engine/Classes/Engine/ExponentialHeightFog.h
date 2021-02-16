@@ -24,6 +24,9 @@ private:
 	TObjectPtr<class UExponentialHeightFogComponent> Component;
 
 public:
+#if WITH_EDITOR
+	virtual bool SupportsDataLayer() const override { return true; }
+#endif
 
 	/** replicated copy of ExponentialHeightFogComponent's bEnabled property */
 	UPROPERTY(replicatedUsing=OnRep_bEnabled)

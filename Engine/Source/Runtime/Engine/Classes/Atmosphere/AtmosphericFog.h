@@ -32,6 +32,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostActorCreated() override;
+	virtual bool SupportsDataLayer() const override { return true; }
 #endif
 
 	/** Returns AtmosphericFogComponent subobject **/
