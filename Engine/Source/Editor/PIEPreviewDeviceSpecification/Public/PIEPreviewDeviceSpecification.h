@@ -54,19 +54,19 @@ struct FPIERHIOverrideState
 public:
 	GENERATED_USTRUCT_BODY()
 	UPROPERTY()
-	int32 MaxShadowDepthBufferSizeX;
+	int32 MaxShadowDepthBufferSizeX = 0;
 	UPROPERTY()
-	int32 MaxShadowDepthBufferSizeY;
+	int32 MaxShadowDepthBufferSizeY = 0;
 	UPROPERTY()
-	int32 MaxTextureDimensions;
+	int32 MaxTextureDimensions = 0;
 	UPROPERTY()
-	int32 MaxCubeTextureDimensions;
+	int32 MaxCubeTextureDimensions = 0;
 	UPROPERTY()
-	bool SupportsRenderTargetFormat_PF_G8;
+	bool SupportsRenderTargetFormat_PF_G8 = false;
 	UPROPERTY()
-	bool SupportsRenderTargetFormat_PF_FloatRGBA;
+	bool SupportsRenderTargetFormat_PF_FloatRGBA = false;
 	UPROPERTY()
-	bool SupportsMultipleRenderTargets;
+	bool SupportsMultipleRenderTargets = false;
 };
 
 USTRUCT()
@@ -90,9 +90,9 @@ public:
 	UPROPERTY()
 	FString DeviceBuildNumber;
 	UPROPERTY()
-	bool VulkanAvailable;
+	bool VulkanAvailable = false;
 	UPROPERTY()
-	bool UsingHoudini;
+	bool UsingHoudini = false;
 	UPROPERTY()
 	FString Hardware;
 	UPROPERTY()
@@ -128,7 +128,7 @@ public:
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	bool Docked;
+	bool Docked = false;
 };
 
 
@@ -165,16 +165,16 @@ struct FPIEPreviewDeviceSpecifications
 	GENERATED_USTRUCT_BODY()
 	
 	UPROPERTY()
-	EPIEPreviewDeviceType DevicePlatform;
+	EPIEPreviewDeviceType DevicePlatform = EPIEPreviewDeviceType::Unset;
 	UPROPERTY()
-	int32 ResolutionX;
+	int32 ResolutionX = 0;
 	UPROPERTY()
-	int32 ResolutionY;
+	int32 ResolutionY = 0;
 	UPROPERTY()
-	int32 ResolutionYImmersiveMode;
+	int32 ResolutionYImmersiveMode = 0;
 
 	UPROPERTY()
-	int32 PPI;
+	int32 PPI = 0;
 
 	UPROPERTY()
 	TArray<float> ScaleFactors;
