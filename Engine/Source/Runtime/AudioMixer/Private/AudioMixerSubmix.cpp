@@ -179,7 +179,6 @@ namespace Audio
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
 		, bIsSpectrumAnalyzing(false)
-		, OwningSubmixObject(nullptr)
 	{
 		EnvelopeFollowers.Reset();
 		EnvelopeFollowers.AddDefaulted(AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
@@ -189,7 +188,7 @@ namespace Audio
 	{
 		ClearSoundEffectSubmixes();
 
-		if (RecoverRecordingOnShutdownCVar && OwningSubmixObject && bIsRecording)
+		if (RecoverRecordingOnShutdownCVar && OwningSubmixObject.IsValid() && bIsRecording)
 		{
 			FString InterruptedFileName = TEXT("InterruptedRecording.wav");
 			UE_LOG(LogAudioMixer, Warning, TEXT("Recording of Submix %s was interrupted. Saving interrupted recording as %s."), *(OwningSubmixObject->GetName()), *InterruptedFileName);
@@ -207,7 +206,7 @@ namespace Audio
 		if (InSoundSubmix != nullptr)
 		{
 			// This is a first init and needs to be synchronous
-			if (!OwningSubmixObject)
+			if (!OwningSubmixObject.IsValid())
 			{
 				OwningSubmixObject = InSoundSubmix;
 				InitInternal();
@@ -973,6 +972,11 @@ namespace Audio
 		CommandQueue.Enqueue(MoveTemp(Command));
 	}
 
+	bool FMixerSubmix::IsValid() const
+	{
+		return OwningSubmixObject.IsValid();
+	}
+
 	void FMixerSubmix::ProcessAudio(AlignedFloatBuffer& OutAudioBuffer)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
@@ -1048,7 +1052,10 @@ namespace Audio
 			for (auto& ChildSubmixEntry : ChildSubmixes)
 			{
 				TSharedPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe> ChildSubmix = ChildSubmixEntry.Value.SubmixPtr.Pin();
-				if (ChildSubmix.IsValid())
+
+				// Owning submix can become invalid prior to BeginDestroy being called if object is
+				// forcibly deleted in editor, so submix validity (in addition to pointer validity) is checked before processing
+				if (ChildSubmix.IsValid() && ChildSubmix->IsValid())
 				{
 					ChildSubmix->ProcessAudio(InputBuffer);
 				}

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AudioMixer.h"
+#include "CoreMinimal.h"
 #include "SampleBuffer.h"
 #include "IAudioEndpoint.h"
 #include "ISoundfieldEndpoint.h"
@@ -13,6 +14,7 @@
 #include "Templates/SharedPointer.h"
 #include "AudioDynamicParameter.h"
 #include "Stats/Stats.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 // The time it takes to process the submix graph. Process submix effects, mix into the submix buffer, etc.
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Graph"), STAT_AudioMixerSubmixes, STATGROUP_AudioMixer, AUDIOMIXER_API);
@@ -45,6 +47,7 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Submix Soundfield Processors"), STAT_AudioMixerS
 class FOnSubmixEnvelopeBP;
 class USoundEffectSubmix;
 class USoundSubmix;
+class USoundSubmixBase;
 
 namespace Audio
 {
@@ -180,6 +183,11 @@ namespace Audio
 
 		/** Whether or not this submix instance is muted. */
 		void SetBackgroundMuted(bool bInMuted);
+
+		/** Checks to see if submix is valid.  Submix can be considered invalid if the OwningSubmix
+		  * pointer is stale.
+		  */
+		bool IsValid() const;
 
 		// Function which processes audio.
 		void ProcessAudio(AlignedFloatBuffer& OutAudio);
@@ -586,7 +594,7 @@ namespace Audio
 		FCriticalSection EffectChainMutationCriticalSection;
 
 		// Handle back to the owning USoundSubmix. Used when the device is shutdown to prematurely end a recording.
-		const USoundSubmixBase* OwningSubmixObject;
+		TWeakObjectPtr<const USoundSubmixBase> OwningSubmixObject;
 
 		Audio::FPatchSplitter PatchSplitter;
 
