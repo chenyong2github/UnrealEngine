@@ -86,6 +86,83 @@ RWStructuredBuffer<FPackedHairTransmittanceMask> OutputColor;
 
 #if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_DEEP_SHADOW
 
+// Sample deep shadow with PCF kernel and doing transmittance evaluation for each sample
+FHairTransmittanceMask SampleDOM_PCF_Accurate(
+	float3 LightSpacePosition,
+	float DepthBias,
+	const float4 InLayerDepths,
+	Texture2D<float> FrontDepthTexture,
+	Texture2D<float4> DomTexture,
+	FGBufferData GBuffer, float SinLightAngle, Texture3D<float4> InHairScatteringLUTTexture, SamplerState InHairLUTSampler)
+{
+	const float DeepShadowDensityScale = 1;
+	// Explicit 1 ring (5x5 = 3x3 of 2x2 PCF) with weighting
+	float HairCount = 0;
+	float w0 = 1.f;
+	float w1 = 0.5f;
+	float w2 = 0.25f;
+	float w = w0 + 4 * w1 + 4 * w2;
+	
+	float HairCount0 = SampleDOM_PCF2x2(LightSpacePosition + float3(-2, -2, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+	float HairCount1 = SampleDOM_PCF2x2(LightSpacePosition + float3(0, -2, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+	float HairCount2 = SampleDOM_PCF2x2(LightSpacePosition + float3(2, -2, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+	float HairCount3 = SampleDOM_PCF2x2(LightSpacePosition + float3(-2, 0, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+	float HairCount4 = SampleDOM_PCF2x2(LightSpacePosition + float3(0, 0, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+	float HairCount5 = SampleDOM_PCF2x2(LightSpacePosition + float3(2, 0, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+	float HairCount6 = SampleDOM_PCF2x2(LightSpacePosition + float3(-2, 2, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+	float HairCount7 = SampleDOM_PCF2x2(LightSpacePosition + float3(0, 2, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+	float HairCount8 = SampleDOM_PCF2x2(LightSpacePosition + float3(2, 2, 0), DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+
+	FHairTransmittanceMask Out8 = ComputeTransmittanceFromHairCount(HairCount0 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+	FHairTransmittanceMask Out7 = ComputeTransmittanceFromHairCount(HairCount1 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+	FHairTransmittanceMask Out6 = ComputeTransmittanceFromHairCount(HairCount2 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+	FHairTransmittanceMask Out5 = ComputeTransmittanceFromHairCount(HairCount3 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+	FHairTransmittanceMask Out0 = ComputeTransmittanceFromHairCount(HairCount4 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+	FHairTransmittanceMask Out1 = ComputeTransmittanceFromHairCount(HairCount5 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+	FHairTransmittanceMask Out2 = ComputeTransmittanceFromHairCount(HairCount6 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+	FHairTransmittanceMask Out3 = ComputeTransmittanceFromHairCount(HairCount7 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+	FHairTransmittanceMask Out4 = ComputeTransmittanceFromHairCount(HairCount8 * DeepShadowDensityScale, 1, GBuffer, SinLightAngle, InHairScatteringLUTTexture, InHairLUTSampler);
+
+	FHairTransmittanceMask Out;
+	Out.HairCount =
+		w2 * Out0.HairCount +
+		w1 * Out1.HairCount +
+		w2 * Out2.HairCount +
+		w1 * Out3.HairCount +
+		w0 * Out4.HairCount +
+		w1 * Out5.HairCount +
+		w2 * Out6.HairCount +
+		w1 * Out7.HairCount +
+		w2 * Out8.HairCount;
+	Out.HairCount = Out.HairCount / w;
+
+	Out.Transmittance =
+		w2 * Out0.Transmittance +
+		w1 * Out1.Transmittance +
+		w2 * Out2.Transmittance +
+		w1 * Out3.Transmittance +
+		w0 * Out4.Transmittance +
+		w1 * Out5.Transmittance +
+		w2 * Out6.Transmittance +
+		w1 * Out7.Transmittance +
+		w2 * Out8.Transmittance;
+	Out.Transmittance = Out.Transmittance / w;
+
+	Out.Visibility =
+		w2 * Out0.Visibility +
+		w1 * Out1.Visibility +
+		w2 * Out2.Visibility +
+		w1 * Out3.Visibility +
+		w0 * Out4.Visibility +
+		w1 * Out5.Visibility +
+		w2 * Out6.Visibility +
+		w1 * Out7.Visibility +
+		w2 * Out8.Visibility;
+	Out.Visibility = Out.Visibility / w;
+
+	return Out;
+}
+
 FHairTransmittanceMask ComputeTransmittance(
 	float3 WorldPosition,
 	FGBufferData GBuffer, 
@@ -119,25 +196,31 @@ FHairTransmittanceMask ComputeTransmittance(
 		}
 
 		// Compute the number of hair count between light & shading point
-		float HairCount = 0;
-		if (Settings.TransmittanceKernelType == 3)
+		if (Settings.TransmittanceKernelType == 4)
 		{
-			HairCount = SampleDOM_PCSS(LightSpacePosition.xyz, Settings.DeepShadowResolution, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, LinearSampler, Settings.TransmittanceKernelApertureInDegree, Settings.Random.xy);
-		}
-		else if (Settings.TransmittanceKernelType == 2)
-		{
-			HairCount = SampleDOM_PCF(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
-		}
-		else if (Settings.TransmittanceKernelType == 1)
-		{
-			HairCount = SampleDOM_PCF2x2(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+			Out = SampleDOM_PCF_Accurate(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
 		}
 		else
 		{
-			HairCount = 0;
+			float HairCount = 0;
+			if (Settings.TransmittanceKernelType == 3)
+			{
+				HairCount = SampleDOM_PCSS(LightSpacePosition.xyz, Settings.DeepShadowResolution, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture, LinearSampler, Settings.TransmittanceKernelApertureInDegree, Settings.Random.xy);
+			}
+			else if (Settings.TransmittanceKernelType == 2)
+			{
+				HairCount = SampleDOM_PCF(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+			}	
+			else if (Settings.TransmittanceKernelType == 1)
+			{
+				HairCount = SampleDOM_PCF2x2(LightSpacePosition.xyz, DepthBias, InLayerDepths, FrontDepthTexture, DomTexture);
+			}
+			else
+			{
+				HairCount = 0;
+			}
+			Out = ComputeTransmittanceFromHairCount(HairCount * Settings.DeepShadowDensityScale, 1, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
 		}
-
-		Out = ComputeTransmittanceFromHairCount(HairCount * Settings.DeepShadowDensityScale, 1, GBuffer, SinLightAngle, HairLUTTexture, LinearSampler);
 
 		if (Settings.DebugMode != 0)
 		{
