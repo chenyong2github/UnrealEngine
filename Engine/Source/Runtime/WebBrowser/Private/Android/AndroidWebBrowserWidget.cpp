@@ -309,7 +309,7 @@ void SAndroidWebBrowserWidget::Tick(const FGeometry& AllottedGeometry, const dou
 					FTextureRHIRef VideoTexture = PinnedJavaWebBrowser->GetVideoTexture();
 					if (VideoTexture == nullptr)
 					{
-						FRHIResourceCreateInfo CreateInfo;
+						FRHIResourceCreateInfo CreateInfo(TEXT("VideoTexture"));
 						FIntPoint LocalSize = Params.Size;
 
 						VideoTexture = RHICreateTextureExternal2D(LocalSize.X, LocalSize.Y, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
