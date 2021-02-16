@@ -447,6 +447,10 @@ public:
 	int32 EnvelopeFollowerReleaseTime;
 #endif // WITH_EDITORONLY_DATA
 
+	/** Modulation Settings */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Modulation")
+	FSoundModulationDefaultRoutingSettings ModulationSettings;
+
 	/** The frequencies (in hz) to analyze when doing baked FFT analysis. */
 	UPROPERTY(EditAnywhere, Category = "Analysis|FFT", meta = (EditCondition = "bEnableBakedFFTAnalysis"))
 	TArray<float> FrequenciesToAnalyze;
