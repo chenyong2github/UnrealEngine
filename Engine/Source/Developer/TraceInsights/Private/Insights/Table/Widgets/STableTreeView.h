@@ -221,9 +221,10 @@ protected:
 
 	bool ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr);
 
-	bool ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr);
+	bool ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, bool bFilterIsEmpty);
 
-	void MakeSubtreeVisible(FTableTreeNodePtr NodePtr);
+	/** Set all the nodes belonging to a subtree as visible. Returns true if the caller node should be expanded. */
+	bool MakeSubtreeVisible(FTableTreeNodePtr NodePtr, bool bFilterIsEmpty);
 
 	bool SearchBox_IsEnabled() const;
 	void SearchBox_OnTextChanged(const FText& InFilterText);
@@ -497,6 +498,7 @@ protected:
 	FFilterConfigurator* CurrentAsyncOpFilterConfigurator = nullptr;
 	std::atomic<bool> bCancelCurrentAsyncOp { false };
 	FGraphEventRef DispatchEvent;
+	TArray<FTableTreeNodePtr> NodesToExpand;
 
 	//////////////////////////////////////////////////
 	TSharedPtr<FFilterConfigurator> FilterConfigurator;
