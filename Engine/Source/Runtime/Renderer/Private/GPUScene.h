@@ -198,9 +198,7 @@ public:
 	TBitArray<>				PrimitivesMarkedToUpdate;
 
 	/** GPU mirror of Primitives */
-	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
 	FRWBufferStructured PrimitiveBuffer;
-	FTextureRWBuffer2D PrimitiveTexture;
 	FScatterUploadBuffer PrimitiveUploadBuffer;
 	FScatterUploadBuffer PrimitiveUploadViewBuffer;
 
@@ -247,13 +245,11 @@ private:
 	 * Generalized upload that uses an adapter to abstract the data souce. Enables uploading scene primitives & dynamic primitives using a single path.
 	 * @parameter Scene may be null, as it is only needed for the Nanite material table update (which is coupled to the Scene at the moment).
 	 */
-	template<typename ResourceType, typename FUploadDataSourceAdapter>
+	template<typename FUploadDataSourceAdapter>
 	void UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene* Scene, FUploadDataSourceAdapter& UploadDataSourceAdapter);
 
-	template<typename ResourceType>
 	void UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& RHICmdList, FScene* Scene, FViewInfo& View);
 
-	template<typename ResourceType>
 	void UpdateInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene);
 };
 

@@ -294,7 +294,8 @@
 	EnumMacro(PFNGLFENCESYNCPROC, glFenceSync)\
 	EnumMacro(PFNGLGETSYNCIVPROC, glGetSynciv)\
 	EnumMacro(PFNGLCLIENTWAITSYNCPROC, glClientWaitSync)\
-	EnumMacro(PFNGLBINDBUFFERRANGEPROC, glBindBufferRange)
+	EnumMacro(PFNGLBINDBUFFERRANGEPROC, glBindBufferRange) \
+	EnumMacro(PFNGLGETPROGRAMRESOURCEINDEXPROC, glGetProgramResourceIndex) \
 
 #define ENUM_GL_ENTRYPOINTS_OPTIONAL(EnumMacro) \
 	EnumMacro(PFNGLCLIPCONTROLPROC,glClipControl) \

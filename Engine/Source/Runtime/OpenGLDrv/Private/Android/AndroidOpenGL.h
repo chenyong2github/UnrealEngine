@@ -157,7 +157,8 @@ struct FAndroidOpenGL : public FOpenGLES
 	static FORCEINLINE GLint GetMaxComputeUniformComponents() { check(MaxComputeUniformComponents != -1); return MaxComputeUniformComponents; }
 	static FORCEINLINE GLint GetFirstComputeUAVUnit()			{ return 0; }
 	static FORCEINLINE GLint GetMaxComputeUAVUnits()			{ check(MaxComputeUAVUnits != -1); return MaxComputeUAVUnits; }
-	static FORCEINLINE GLint GetFirstPixelUAVUnit()				{ return 0; }
+	static FORCEINLINE GLint GetFirstVertexUAVUnit()			{ return 0; }
+	static FORCEINLINE GLint GetFirstPixelUAVUnit()				{ return 4; }
 	static FORCEINLINE GLint GetMaxPixelUAVUnits()				{ check(MaxPixelUAVUnits != -1); return MaxPixelUAVUnits; }
 	static FORCEINLINE GLint GetMaxCombinedUAVUnits()			{ return MaxCombinedUAVUnits; }
 		

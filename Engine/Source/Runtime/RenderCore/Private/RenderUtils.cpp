@@ -1034,23 +1034,6 @@ RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel
 		|| IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
 }
 
-RENDERCORE_API bool GPUSceneUseTexture2D(const FStaticShaderPlatform Platform)
-{
-	if (IsMobilePlatform(Platform))
-	{
-		static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.UseGPUSceneTexture"));
-		if (Platform == SP_OPENGL_ES3_1_ANDROID)
-		{
-			return true;
-		}
-		else
-		{
-			return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
-		}
-	}
-	return false;
-}
-
 RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform)
 {
 	static IConsoleVariable* CVarMobileEarlyZPassOnlyMaterialMasking = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EarlyZPassOnlyMaterialMasking"));

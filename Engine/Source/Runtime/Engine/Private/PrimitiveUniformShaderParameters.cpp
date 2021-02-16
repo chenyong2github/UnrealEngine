@@ -43,20 +43,9 @@ void FSinglePrimitiveStructured::UploadToGPU()
 	{
 		void* LockedData = nullptr;
 
-		EShaderPlatform SafeShaderPlatform = ShaderPlatform < SP_NumPlatforms ? ShaderPlatform : GMaxRHIShaderPlatform;
-		if (!GPUSceneUseTexture2D(SafeShaderPlatform))
-		{
-			LockedData = RHILockBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
-			FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));
-			RHIUnlockBuffer(PrimitiveSceneDataBufferRHI);
-		}
-		else
-		{
-			uint32 SrcStride;
-			LockedData = RHILockTexture2D(PrimitiveSceneDataTextureRHI, 0, RLM_WriteOnly, SrcStride, false);
-			FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));
-			RHIUnlockTexture2D(PrimitiveSceneDataTextureRHI, 0, false);
-		}
+		LockedData = RHILockBuffer(PrimitiveSceneDataBufferRHI, 0, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
+		FPlatformMemory::Memcpy(LockedData, PrimitiveSceneData.Data, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4));
+		RHIUnlockBuffer(PrimitiveSceneDataBufferRHI);
 
 		LockedData = RHILockBuffer(LightmapSceneDataBufferRHI, 0, FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
 		FPlatformMemory::Memcpy(LockedData, LightmapSceneData.Data, FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4));

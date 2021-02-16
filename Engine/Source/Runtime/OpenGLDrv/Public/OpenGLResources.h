@@ -56,8 +56,8 @@ namespace OpenGLConsoleVariables
 #define RESTRICT_SUBDATA_SIZE 0
 #endif
 
-void IncrementBufferMemory(GLenum Type, bool bStructuredBuffer, uint32 NumBytes);
-void DecrementBufferMemory(GLenum Type, bool bStructuredBuffer, uint32 NumBytes);
+void IncrementBufferMemory(GLenum Type, uint32 NumBytes);
+void DecrementBufferMemory(GLenum Type, uint32 NumBytes);
 
 // Extra stats for finer-grained timing
 // They shouldn't always be on, as they may impact overall performance
@@ -518,7 +518,7 @@ public:
 						LoadData( 0, FMath::Min<uint32>(InSize,RealSize), InData);
 					}
 #endif
-					IncrementBufferMemory(Type, BaseType::IsStructuredBuffer(), RealSize);
+					IncrementBufferMemory(Type, RealSize);
 				}
 				else
 				{
@@ -556,7 +556,7 @@ public:
 
 			RunOnGLRenderContextThread(MoveTemp(DeleteGLResources));
 			LockBuffer = nullptr;
-			DecrementBufferMemory(Type, BaseType::IsStructuredBuffer(), RealSize);
+			DecrementBufferMemory(Type, RealSize);
 
 			ReleaseCachedBuffer();
 		}
@@ -888,8 +888,6 @@ public:
 		// @todo-mobile
 	}
 
-	static bool IsStructuredBuffer() { return false; }
-
 private:
 	uint32 Size;
 	uint32 Usage;
@@ -955,8 +953,6 @@ public:
 		// @todo-mobile
 	}
 
-	static bool IsStructuredBuffer() { return false; }
-
 private:
 	void*	ZeroStrideBuffer;
 };
@@ -968,12 +964,12 @@ struct FOpenGLEUniformBufferData : public FRefCountedObject
 		uint32 SizeInUint32s = (SizeInBytes + 3) / 4;
 		Data.Empty(SizeInUint32s);
 		Data.AddUninitialized(SizeInUint32s);
-		IncrementBufferMemory(GL_UNIFORM_BUFFER,false,Data.GetAllocatedSize());
+		IncrementBufferMemory(GL_UNIFORM_BUFFER,Data.GetAllocatedSize());
 	}
 
 	~FOpenGLEUniformBufferData()
 	{
-		DecrementBufferMemory(GL_UNIFORM_BUFFER,false,Data.GetAllocatedSize());
+		DecrementBufferMemory(GL_UNIFORM_BUFFER,Data.GetAllocatedSize());
 	}
 
 	TArray<uint32> Data;
@@ -2005,34 +2001,33 @@ public:
 	}
 };
 
-
-class FOpenGLVertexBufferUnorderedAccessView : public FOpenGLUnorderedAccessView
+class FOpenGLTexBufferUnorderedAccessView : public FOpenGLUnorderedAccessView
 {
 public:
 
-	FOpenGLVertexBufferUnorderedAccessView();
+	FOpenGLTexBufferUnorderedAccessView();
+	
+	FOpenGLTexBufferUnorderedAccessView(FOpenGLDynamicRHI* InOpenGLRHI, FRHIBuffer* InBuffer, uint8 Format);
+	
+	virtual ~FOpenGLTexBufferUnorderedAccessView();
 
-	FOpenGLVertexBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FRHIBuffer* InVertexBuffer, uint8 Format);
-
-	virtual ~FOpenGLVertexBufferUnorderedAccessView();
-
-	FBufferRHIRef VertexBufferRHI; // to keep the vertex buffer alive
+	FBufferRHIRef BufferRHI; // to keep source buffer alive
 
 	FOpenGLDynamicRHI* OpenGLRHI;
 
 	virtual uint32 GetBufferSize() override;
 };
 
-class FOpenGLStructuredBufferUnorderedAccessView : public FOpenGLUnorderedAccessView
+class FOpenGLBufferUnorderedAccessView : public FOpenGLUnorderedAccessView
 {
 public:
-	FOpenGLStructuredBufferUnorderedAccessView();
+	FOpenGLBufferUnorderedAccessView();
+	
+	FOpenGLBufferUnorderedAccessView(FOpenGLDynamicRHI* InOpenGLRHI, FRHIBuffer* InBuffer);
 
-	FOpenGLStructuredBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FRHIBuffer* InBuffer, uint8 Format);
+	virtual ~FOpenGLBufferUnorderedAccessView();
 
-	virtual ~FOpenGLStructuredBufferUnorderedAccessView();
-
-	FBufferRHIRef StructuredBufferRHI; // to keep the stuctured buffer alive
+	FBufferRHIRef BufferRHI; // to keep source buffer alive
 
 	FOpenGLDynamicRHI* OpenGLRHI;
 
@@ -2041,9 +2036,6 @@ public:
 
 class FOpenGLShaderResourceView : public FRefCountedObject
 {
-	// In OpenGL 3.2, the only view that actually works is a Buffer<type> kind of view from D3D10,
-	// and it's mapped to OpenGL's buffer texture.
-
 public:
 
 	/** OpenGL texture the buffer is bound with */
@@ -2056,8 +2048,7 @@ public:
 	int32 LimitMip;
 
 	/** Needed on OS X to force a rebind of the texture buffer to the texture name to workaround radr://18379338 */
-	FBufferRHIRef VertexBuffer;
-	FBufferRHIRef IndexBuffer;
+	FBufferRHIRef BufferRHI;
 	uint64 ModificationVersion;
 	uint8 Format;
 
@@ -2068,40 +2059,41 @@ public:
 	,	ModificationVersion(0)
 	,	Format(0)
 	,	OpenGLRHI(InOpenGLRHI)
-	,	OwnsResource(true)
+	,	OwnsResource(InTarget != GL_SHADER_STORAGE_BUFFER)
 	{}
 
-	FOpenGLShaderResourceView(FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIBuffer* InIndexBuffer)
+	FOpenGLShaderResourceView(FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIBuffer* InBuffer)
 		: Resource(InResource)
 		, Target(InTarget)
 		, LimitMip(-1)
-		, IndexBuffer(InIndexBuffer)
+		, BufferRHI(InBuffer)
 		, ModificationVersion(0)
 		, Format(0)
 		, OpenGLRHI(InOpenGLRHI)
-		, OwnsResource(true)
+		, OwnsResource(InTarget != GL_SHADER_STORAGE_BUFFER)
 	{
-		if (IndexBuffer)
+		if (BufferRHI)
 		{
-			FOpenGLBuffer* IB = (FOpenGLBuffer*)IndexBuffer.GetReference();
-			ModificationVersion = IB->ModificationCount;
+			FOpenGLBuffer* GLBuffer = (FOpenGLBuffer*)BufferRHI.GetReference();
+			ModificationVersion = GLBuffer->ModificationCount;
 		}
 	}
 
-	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIBuffer* InVertexBuffer, uint8 InFormat )
+	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIBuffer* InBuffer, uint8 InFormat )
 	:	Resource(InResource)
 	,	Target(InTarget)
 	,	LimitMip(-1)
-	,	VertexBuffer(InVertexBuffer)
+	,	BufferRHI(InBuffer)
 	,	ModificationVersion(0)
 	,	Format(InFormat)
 	,	OpenGLRHI(InOpenGLRHI)
 	,	OwnsResource(true)
 	{
-		if (VertexBuffer)
+		check(InTarget != GL_SHADER_STORAGE_BUFFER);
+		if (BufferRHI)
 		{
-			FOpenGLBuffer* VB = (FOpenGLBuffer*)VertexBuffer.GetReference();
-			ModificationVersion = VB->ModificationCount;
+			FOpenGLBuffer* GLBuffer = (FOpenGLBuffer*)BufferRHI.GetReference();
+			ModificationVersion = GLBuffer->ModificationCount;
 		}
 	}
 
@@ -2113,7 +2105,9 @@ public:
 	,	Format(0)
 	,	OpenGLRHI(InOpenGLRHI)
 	,	OwnsResource(InOwnsResource)
-	{}
+	{
+		check(InTarget != GL_SHADER_STORAGE_BUFFER);
+	}
 
 	virtual ~FOpenGLShaderResourceView( void );
 

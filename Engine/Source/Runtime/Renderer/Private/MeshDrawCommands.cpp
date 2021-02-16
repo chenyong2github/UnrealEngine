@@ -468,16 +468,7 @@ void BuildMeshDrawCommandPrimitiveIdBuffer(
 			{
 				//@todo - refactor into memcpy
 				checkSlow(PrimitiveIdIndex < MaxPrimitiveId);
-				if (!GPUSceneUseTexture2D(ShaderPlatform))
-				{
-					PrimitiveIds[PrimitiveIdIndex] = VisibleMeshDrawCommand.DrawPrimitiveId;
-				}
-				else
-				{
-					//Packing for mobile texture2D GPUScene. Must be in sync with SceneData.ush
-					uint16 PrimitivesPerTextureLine = FPrimitiveSceneShaderData::GetPrimitivesPerTextureLine();
-					PrimitiveIds[PrimitiveIdIndex] = ((VisibleMeshDrawCommand.DrawPrimitiveId / PrimitivesPerTextureLine) << 16) | (VisibleMeshDrawCommand.DrawPrimitiveId % PrimitivesPerTextureLine);
-				}
+				PrimitiveIds[PrimitiveIdIndex] = VisibleMeshDrawCommand.DrawPrimitiveId;
 			}
 		}
 

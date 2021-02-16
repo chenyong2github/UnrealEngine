@@ -281,12 +281,11 @@ struct FOpenGLCommonState
 {
 	FTextureStage*			Textures;
 	FOpenGLSamplerState**	SamplerStates;
-	FUAVStage*				UAVs;
+	TArray<FUAVStage>		UAVs;
 
 	FOpenGLCommonState()
 	: Textures(NULL)
 	, SamplerStates(NULL)
-	, UAVs(NULL)
 	{}
 
 	virtual ~FOpenGLCommonState()
@@ -300,20 +299,21 @@ struct FOpenGLCommonState
 	{
 		check(NumCombinedTextures >= FOpenGL::GetMaxCombinedTextureImageUnits());
 		check(NumCombinedUAVUnits >= FOpenGL::GetMaxCombinedUAVUnits());
-		check(!Textures && !SamplerStates && !UAVs);
+		check(!Textures && !SamplerStates && UAVs.Num() == 0);
 		Textures = new FTextureStage[NumCombinedTextures];
 		SamplerStates = new FOpenGLSamplerState*[NumCombinedTextures];
 		FMemory::Memset( SamplerStates, 0, NumCombinedTextures * sizeof(*SamplerStates) );
-		UAVs = new FUAVStage[NumCombinedUAVUnits];
+		
+		UAVs.Reserve(NumCombinedUAVUnits);
+		UAVs.AddDefaulted(NumCombinedUAVUnits);
 	}
 
 	virtual void CleanupResources()
 	{
-		delete [] UAVs;
 		delete [] SamplerStates;
 		delete [] Textures;
 
-		UAVs = NULL;
+		UAVs.Empty();
 		SamplerStates = NULL;
 		Textures = NULL;
 	}
@@ -342,6 +342,7 @@ struct FOpenGLContextState : public FOpenGLCommonState
 	float							DepthMaxZ;
 	GLuint							ArrayBufferBound;
 	GLuint							ElementArrayBufferBound;
+	GLuint							StorageBufferBound;
 	GLuint							PixelUnpackBufferBound;
 	GLuint							UniformBufferBound;
 	FLinearColor					ClearColor;
@@ -386,6 +387,7 @@ struct FOpenGLContextState : public FOpenGLCommonState
 	,	DepthMaxZ(1.0f)
 	,	ArrayBufferBound(0)
 	,	ElementArrayBufferBound(0)
+	,	StorageBufferBound(0)
 	,	PixelUnpackBufferBound(0)
 	,	UniformBufferBound(0)
 	,	ClearColor(-1, -1, -1, -1)

@@ -157,44 +157,18 @@ struct FPrimitiveSceneData
 // Stride of a single primitive's data in float4's, must match C++
 #define PRIMITIVE_SCENE_DATA_STRIDE 37
 
-struct FPrimitiveIndex
-{
-#if VF_GPU_SCENE_TEXTURE
-	uint IndY;
-	uint IndX;
-#else
-	uint BaseOffset;
-#endif
-};
-
-FPrimitiveIndex SetupPrimitiveIndexes(uint PrimitiveId)
-{
-	FPrimitiveIndex PrimitiveIndex;
-#if VF_GPU_SCENE_TEXTURE
-	PrimitiveIndex.IndY = (PrimitiveId & 0xFFFF0000) >> 16;
-	PrimitiveIndex.IndX = (PrimitiveId & 0xFFFF) * PRIMITIVE_SCENE_DATA_STRIDE;
-#else
-	PrimitiveIndex.BaseOffset = PrimitiveId * PRIMITIVE_SCENE_DATA_STRIDE;
-#endif
-	return PrimitiveIndex;
-}
-
 /*void UnpackLightmapDataAndUVIndex(uint Packed, out uint LightmapDataIndex, out uint LightmapUVIndex)
 {
 	LightmapDataIndex = (Packed & 0xFFFFFF00) >> 8u;
 	LightmapUVIndex   = (Packed & 0x000000FF);
 }*/
 
-float4 LoadPrimitivePrimitiveSceneDataElement(FPrimitiveIndex PrimitiveIndex, uint ItemIndex)
+float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemIndex)
 {
 #if USE_GLOBAL_GPU_SCENE_DATA
-	return GPUScenePrimitiveSceneData[PrimitiveIndex.BaseOffset + ItemIndex];
+	return GPUScenePrimitiveSceneData[PrimitiveIndex + ItemIndex];
 #else
-	#if VF_GPU_SCENE_TEXTURE
-		return View.PrimitiveSceneDataTexture.Load(int3(PrimitiveIndex.IndX + ItemIndex, PrimitiveIndex.IndY, 0));
-	#else
-		return View.PrimitiveSceneData[PrimitiveIndex.BaseOffset + ItemIndex];
-	#endif
+	return View.PrimitiveSceneData[PrimitiveIndex + ItemIndex];
 #endif
 }
 
@@ -203,7 +177,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 {
 	// Note: layout must match FPrimitiveSceneShaderData in C++
 	// Relying on optimizer to remove unused loads
-	FPrimitiveIndex PrimitiveIndex = SetupPrimitiveIndexes(PrimitiveId);
+	uint PrimitiveIndex = PrimitiveId * PRIMITIVE_SCENE_DATA_STRIDE;
 
 	FPrimitiveSceneData PrimitiveData;
 

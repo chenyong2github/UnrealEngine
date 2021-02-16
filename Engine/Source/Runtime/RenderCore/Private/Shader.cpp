@@ -1517,18 +1517,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.SupportGPUScene"));
 			bool bMobileGpuScene = (CVar && CVar->GetInt() != 0);
 			KeyString += bMobileGpuScene ? TEXT("_MobGPUSc") : TEXT("");
-			if (bMobileGpuScene)
-			{
-				// Mobile specific verify if we are using texturebuffer or texture2D
-				if (!GPUSceneUseTexture2D(Platform))
-				{
-					KeyString += TEXT("_TexBuf");
-				}
-				else
-				{
-					KeyString += TEXT("_Tex2D");
-				}
-			}
 		}
 
 		{

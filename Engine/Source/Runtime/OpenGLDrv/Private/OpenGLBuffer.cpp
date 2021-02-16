@@ -192,7 +192,17 @@ FBufferRHIRef FOpenGLDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags 
 		Data = CreateInfo.ResourceArray->GetResourceData();
 	}
 
-	TRefCountPtr<FOpenGLBuffer> Buffer = new FOpenGLBuffer((Usage & BUF_IndexBuffer)? GL_ARRAY_BUFFER : GL_ELEMENT_ARRAY_BUFFER, Stride, Size, Usage, Data);
+	GLenum BufferType = GL_ARRAY_BUFFER;
+	if (Usage & BUF_StructuredBuffer)
+	{
+		BufferType = GL_SHADER_STORAGE_BUFFER;
+	}
+	else if (Usage & BUF_IndexBuffer)
+	{
+		BufferType = GL_ELEMENT_ARRAY_BUFFER;
+	}
+
+	TRefCountPtr<FOpenGLBuffer> Buffer = new FOpenGLBuffer(BufferType, Stride, Size, Usage, Data);
 	
 	if (CreateInfo.ResourceArray)
 	{

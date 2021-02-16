@@ -126,7 +126,6 @@ public:
 	static FORCEINLINE bool SupportsTessellation()						{ return false; }
 	static FORCEINLINE void EnableSupportsClipControl()					{ bSupportsClipControl = true; }
 	static FORCEINLINE bool SupportsClipControl()						{ return bSupportsClipControl; }
-	static FORCEINLINE bool SupportsComputeShaders()					{ return false; }
 	static FORCEINLINE bool SupportsTextureView()						{ return false; }
 	static FORCEINLINE bool SupportsSeamlessCubeMap()					{ return false; }
 	static FORCEINLINE bool SupportsDrawIndirect()						{ return false; }
@@ -166,6 +165,7 @@ public:
 	// Image load/store units
 	static FORCEINLINE GLint GetFirstComputeUAVUnit()			{ return 0; }
 	static FORCEINLINE GLint GetMaxComputeUAVUnits()			{ return 0; }
+	static FORCEINLINE GLint GetFirstVertexUAVUnit()			{ return 0; }
 	static FORCEINLINE GLint GetFirstPixelUAVUnit()				{ return 0; }
 	static FORCEINLINE GLint GetMaxPixelUAVUnits()				{ return 0; }
 	static FORCEINLINE GLint GetMaxCombinedUAVUnits()			{ return 0; }

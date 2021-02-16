@@ -1773,15 +1773,6 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.PrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
 		}
 
-		if (PrimitiveSceneDataTextureOverrideRHI)
-		{
-			ViewUniformShaderParameters.PrimitiveSceneDataTexture = PrimitiveSceneDataTextureOverrideRHI;
-		}
-		else if (Scene)
-		{
-			ViewUniformShaderParameters.PrimitiveSceneDataTexture = OrBlack2DIfNull(Scene->GPUScene.PrimitiveTexture.Buffer);
-		}
-		
 		if (InstanceSceneDataOverrideSRV)
 		{
 			ViewUniformShaderParameters.InstanceSceneData = InstanceSceneDataOverrideSRV;

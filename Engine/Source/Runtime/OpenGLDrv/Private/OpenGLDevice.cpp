@@ -111,6 +111,10 @@ void CachedBindBuffer( GLenum Type, GLuint Buffer )
 	{
 		PrivateOpenGLDevicePtr->CachedBindElementArrayBuffer(PrivateOpenGLDevicePtr->GetContextStateForCurrentContext(), Buffer);
 	}
+	else if (Type == GL_SHADER_STORAGE_BUFFER)
+	{
+		PrivateOpenGLDevicePtr->CachedBindStorageBuffer(PrivateOpenGLDevicePtr->GetContextStateForCurrentContext(), Buffer);
+	}
 	else
 	{
 		checkNoEntry();
@@ -1216,7 +1220,7 @@ void FOpenGLDynamicRHI::Cleanup()
 	{
 		FOpenGL::DeleteBuffers(1, &PendingState.ZeroFilledDummyUniformBuffer);
 		PendingState.ZeroFilledDummyUniformBuffer = 0;
-		DecrementBufferMemory(GL_UNIFORM_BUFFER, false, ZERO_FILLED_DUMMY_UNIFORM_BUFFER_SIZE);
+		DecrementBufferMemory(GL_UNIFORM_BUFFER, ZERO_FILLED_DUMMY_UNIFORM_BUFFER_SIZE);
 	}
 
 	// Release pending shader

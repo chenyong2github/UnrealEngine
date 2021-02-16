@@ -650,7 +650,7 @@ ShaderType* CompileOpenGLShader(TArrayView<const uint8> InShaderCode, const FSHA
 		|| (TypeEnum == GL_VERTEX_SHADER && Header.FrequencyMarker != 0x5653)
 		|| (TypeEnum == GL_FRAGMENT_SHADER && Header.FrequencyMarker != 0x5053)
 		|| (TypeEnum == GL_GEOMETRY_SHADER && Header.FrequencyMarker != 0x4753)
-		|| (TypeEnum == GL_COMPUTE_SHADER && Header.FrequencyMarker != 0x4353 && FOpenGL::SupportsComputeShaders())
+		|| (TypeEnum == GL_COMPUTE_SHADER && Header.FrequencyMarker != 0x4353)
 		|| (TypeEnum == GL_TESS_CONTROL_SHADER && Header.FrequencyMarker != 0x4853 && FOpenGL::SupportsTessellation()) /* hull shader*/
 		|| (TypeEnum == GL_TESS_EVALUATION_SHADER && Header.FrequencyMarker != 0x4453 && FOpenGL::SupportsTessellation()) /* domain shader*/
 		)
@@ -1140,7 +1140,7 @@ void FOpenGLDynamicRHI::BindUniformBufferBase(FOpenGLContextState& ContextState,
 				CachedBindUniformBuffer(ContextState,PendingState.ZeroFilledDummyUniformBuffer);
 				glBufferData(GL_UNIFORM_BUFFER, ZERO_FILLED_DUMMY_UNIFORM_BUFFER_SIZE, ZeroBuffer, GL_STATIC_DRAW);
 				FMemory::Free(ZeroBuffer);
-				IncrementBufferMemory(GL_UNIFORM_BUFFER, false, ZERO_FILLED_DUMMY_UNIFORM_BUFFER_SIZE);
+				IncrementBufferMemory(GL_UNIFORM_BUFFER, ZERO_FILLED_DUMMY_UNIFORM_BUFFER_SIZE);
 			}
 
 			Buffer = PendingState.ZeroFilledDummyUniformBuffer;
@@ -2237,7 +2237,7 @@ void FOpenGLLinkedProgram::ConfigureShaderStage( int Stage, uint32 FirstUniformB
 	};
 	static const GLint FirstUAVUnit[CrossCompiler::NUM_SHADER_STAGES] =
 	{
-		OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT,
+		FOpenGL::GetFirstVertexUAVUnit(),
 		FOpenGL::GetFirstPixelUAVUnit(),
 		OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT,
 		OGL_UAV_NOT_SUPPORTED_FOR_GRAPHICS_UNIT,
@@ -2374,8 +2374,19 @@ void FOpenGLLinkedProgram::ConfigureShaderStage( int Stage, uint32 FirstUniformB
 	int32 LastFoundUAVIndex = -1;
 	for (int32 UAVIndex = 0; UAVIndex < Config.Shaders[Stage].Bindings.NumUAVs; ++UAVIndex)
 	{
-		SetIndex(Name.Buffer, 2, UAVIndex);
+		ANSICHAR* Str = SetIndex(Name.Buffer, 2, UAVIndex);
 		GLint Location = glGetUniformLocation(StageProgram, Name.Buffer);
+		if (Location == -1)
+		{
+			// SSBO
+			Str[0] = '_';
+			Str[1] = 'V';
+			Str[2] = 'A';
+			Str[3] = 'R';
+			Str[4] = '\0';
+			Location = glGetProgramResourceIndex(StageProgram, GL_SHADER_STORAGE_BLOCK, Name.Buffer);
+		}
+
 		if (Location == -1)
 		{
 			if (LastFoundUAVIndex != -1)
@@ -2603,12 +2614,9 @@ static void VerifyUniformBufferLayouts(GLuint Program)
 #endif
 			}
 			
-			if (RHISupportsComputeShaders(GMaxRHIShaderPlatform))
-			{
 #ifdef GL_UNIFORM_BLOCK_REFERENCED_BY_COMPUTE_SHADER
-				glGetActiveUniformBlockiv(Program, BlockIndex, GL_UNIFORM_BLOCK_REFERENCED_BY_COMPUTE_SHADER, &ReferencedByCS);
+			glGetActiveUniformBlockiv(Program, BlockIndex, GL_UNIFORM_BLOCK_REFERENCED_BY_COMPUTE_SHADER, &ReferencedByCS);
 #endif
-			}
 
 			if(ReferencedByVS) {ReferencedBy += TEXT("V");}
 			if(ReferencedByHS) {ReferencedBy += TEXT("H");}
@@ -2860,7 +2868,6 @@ FOpenGLLinkedProgram* FOpenGLDynamicRHI::GetLinkedComputeProgram(FRHIComputeShad
 
 FComputeShaderRHIRef FOpenGLDynamicRHI::RHICreateComputeShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
-	check(RHISupportsComputeShaders(GMaxRHIShaderPlatform));
 	return CreateProxyShader<FRHIComputeShader, FOpenGLComputeShaderProxy>(Code, Hash);
 }
 

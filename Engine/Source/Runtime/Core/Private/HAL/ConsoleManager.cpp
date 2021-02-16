@@ -2188,13 +2188,6 @@ static TAutoConsoleVariable<int32> CVarMobileSupportGPUScene(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarMobileGPUSceneUseTexture2D(
-	TEXT("r.Mobile.UseGPUSceneTexture"),
-	0,
-	TEXT("Use a Texture2D instead of TextureBuffer for GPUScene.\n"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarSetClearSceneMethod(
 	TEXT("r.ClearSceneMethod"),
 	1,

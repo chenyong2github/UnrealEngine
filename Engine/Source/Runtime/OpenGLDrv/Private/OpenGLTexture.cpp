@@ -2420,7 +2420,9 @@ void FOpenGLDynamicRHI::InvalidateTextureResourceInCache(GLuint Resource)
 void FOpenGLDynamicRHI::InvalidateUAVResourceInCache(GLuint Resource)
 {
 	VERIFY_GL_SCOPE();
-	for (int32 UAVIndex = 0; UAVIndex < FOpenGL::GetMaxCombinedUAVUnits(); ++UAVIndex)
+	int32 NumUAVs = RenderingContextState.UAVs.Num();
+	
+	for (int32 UAVIndex = 0; UAVIndex < NumUAVs; ++UAVIndex)
 	{
 		if (SharedContextState.UAVs[UAVIndex].Resource == Resource)
 		{

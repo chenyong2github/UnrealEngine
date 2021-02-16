@@ -102,11 +102,10 @@ DEFINE_STAT(STAT_OpenGLUniformBindTime);
 DEFINE_STAT(STAT_OpenGLVBOSetupTime);
 #endif
 
-void IncrementBufferMemory(GLenum Type, bool bStructuredBuffer, uint32 NumBytes)
+void IncrementBufferMemory(GLenum Type, uint32 NumBytes)
 {
-	if (bStructuredBuffer)
+	if (Type == GL_SHADER_STORAGE_BUFFER)
 	{
-		check(Type == GL_ARRAY_BUFFER);
 		INC_MEMORY_STAT_BY(STAT_StructuredBufferMemory,NumBytes);
 	}
 	else if (Type == GL_UNIFORM_BUFFER)
@@ -128,11 +127,10 @@ void IncrementBufferMemory(GLenum Type, bool bStructuredBuffer, uint32 NumBytes)
 	}
 }
 
-void DecrementBufferMemory(GLenum Type, bool bStructuredBuffer, uint32 NumBytes)
+void DecrementBufferMemory(GLenum Type, uint32 NumBytes)
 {
-	if (bStructuredBuffer)
+	if (Type == GL_SHADER_STORAGE_BUFFER)
 	{
-		check(Type == GL_ARRAY_BUFFER);
 		DEC_MEMORY_STAT_BY(STAT_StructuredBufferMemory,NumBytes);
 	}
 	else if (Type == GL_UNIFORM_BUFFER)

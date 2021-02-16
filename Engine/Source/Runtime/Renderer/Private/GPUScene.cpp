@@ -58,68 +58,28 @@ FAutoConsoleVariableRef CVarGPUSceneInstanceBVH(
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
 );
 
-
-template<typename ResourceType>
-ResourceType* GetMirrorGPU(FGPUScene& GPUScene);
-
-template<>
-FRWBufferStructured* GetMirrorGPU<FRWBufferStructured>(FGPUScene& GPUScene)
+FRWBufferStructured* GetMirrorGPU(FGPUScene& GPUScene)
 {
 	return &GPUScene.PrimitiveBuffer;
 }
 
-
-template<>
-FTextureRWBuffer2D* GetMirrorGPU<FTextureRWBuffer2D>(FGPUScene& GPUScene)
-{
-	return &GPUScene.PrimitiveTexture;
-}
-
 /**
- * Returns a pointer to the underlying storage (either a texture or buffer), 
- * Only implemented for Buffer at present, since the texture data layout is opaque and complex to iterate.
+ * Returns a pointer to the underlying storage, 
  * Only used for debugging at present.
  */
-template<typename ResourceType>
-void* LockResource(ResourceType& Resource);
-template<>
-void* LockResource<FRWBufferStructured>(FRWBufferStructured& Resource)
+void* LockResource(FRWBufferStructured& Resource)
 {
 	return RHILockBuffer(Resource.Buffer, 0, Resource.NumBytes, RLM_ReadOnly);
 }
-template<>
-void* LockResource<FTextureRWBuffer2D>(FTextureRWBuffer2D& Resource)
-{
-	// RHILockTexture2D(Resource.Buffer, 0, RLM_ReadOnly, RowStrideInBytesOut, false);
-	return nullptr;
-}
 
-template<typename ResourceType>
-void UnlockResourceGPUScene(ResourceType& Resource);
-template<>
-void UnlockResourceGPUScene<FRWBufferStructured>(FRWBufferStructured& Resource)
+void UnlockResourceGPUScene(FRWBufferStructured& Resource)
 {
 	RHIUnlockBuffer(Resource.Buffer);
 }
-template<>
-void UnlockResourceGPUScene<FTextureRWBuffer2D>(FTextureRWBuffer2D& Resource)
-{
-	// RHIUnlockTexture2D(Resource.Buffer, 0, false);
-}
 
-template<typename ResourceType>
-void UpdateUniformResource(FViewInfo& View, FGPUScene& GPUScene);
-
-
-template<>
-void UpdateUniformResource<FTextureRWBuffer2D>(FViewInfo& View, FGPUScene& GPUScene)
+void UpdateUniformResource(FViewInfo& View, FGPUScene& GPUScene)
 {
-	View.CachedViewUniformShaderParameters->PrimitiveSceneDataTexture = GetMirrorGPU<FTextureRWBuffer2D>(GPUScene)->Buffer;
-}
-template<>
-void UpdateUniformResource<FRWBufferStructured>(FViewInfo& View, FGPUScene& GPUScene)
-{
-	View.CachedViewUniformShaderParameters->PrimitiveSceneData = GetMirrorGPU<FRWBufferStructured>(GPUScene)->SRV;
+	View.CachedViewUniformShaderParameters->PrimitiveSceneData = GetMirrorGPU(GPUScene)->SRV;
 }
 
 static int32 GetMaxPrimitivesUpdate(uint32 NumUploads, uint32 InStrideInFloat4s)
@@ -422,7 +382,6 @@ void FGPUScene::EndRender()
 	CurrentDynamicContext = nullptr;
 }
 
-template<typename ResourceType>
 void FGPUScene::UpdateInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 {
 	ensure(bInBeginEndBlock);
@@ -461,16 +420,16 @@ void FGPUScene::UpdateInternal(FRHICommandListImmediate& RHICmdList, FScene& Sce
 		}
 
 		FUploadDataSourceAdapterScenePrimitives Adapter(*this, Scene);
-		UploadGeneral<ResourceType, FUploadDataSourceAdapterScenePrimitives>(RHICmdList, &Scene, Adapter);
+		UploadGeneral<FUploadDataSourceAdapterScenePrimitives>(RHICmdList, &Scene, Adapter);
 
 		PrimitivesMarkedToUpdate.Init(false, PrimitivesMarkedToUpdate.Num());
 
 
 #if DO_CHECK
 		// Validate the scene primitives are identical to the uploaded data (not the dynamic ones).
-		if (GGPUSceneValidatePrimitiveBuffer && (PrimitiveBuffer.NumBytes > 0 || PrimitiveTexture.NumBytes > 0))
+		if (GGPUSceneValidatePrimitiveBuffer && PrimitiveBuffer.NumBytes > 0)
 		{
-			ResourceType* MirrorResourceGPU = GetMirrorGPU<ResourceType>(*this);
+			FRWBufferStructured* MirrorResourceGPU = GetMirrorGPU(*this);
 			//UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
 			const FPrimitiveSceneShaderData* PrimitiveBufferPtr = reinterpret_cast<const FPrimitiveSceneShaderData*>(LockResource(*MirrorResourceGPU));
 			ensureMsgf(PrimitiveBufferPtr != nullptr, TEXT("Validation not implemented for Texture2D buffer type as layout is opaque."));
@@ -510,7 +469,7 @@ void FGPUScene::UpdateInternal(FRHICommandListImmediate& RHICmdList, FScene& Sce
 	checkSlow(PrimitivesToUpdate.Num() == 0);
 }
 
-template<typename ResourceType, typename FUploadDataSourceAdapter>
+template<typename FUploadDataSourceAdapter>
 void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scene, FUploadDataSourceAdapter &UploadDataSourceAdapter)
 {
 	ensure(bInBeginEndBlock);
@@ -527,7 +486,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 		const bool bExecuteInParallel = GGPUSceneParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
 		const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 
-		ResourceType* MirrorResourceGPU = GetMirrorGPU<ResourceType>(*this);
+		FRWBufferStructured* MirrorResourceGPU = GetMirrorGPU(*this);
 
 		const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(DynamicPrimitivesOffset, 256));
 		const bool bResizedPrimitiveData = ResizeResourceIfNeeded(RHICmdList, *MirrorResourceGPU, SizeReserve * sizeof(FPrimitiveSceneShaderData::Data), TEXT("PrimitiveData"));
@@ -1081,7 +1040,6 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 	int32 InstanceIDStartOffset;
 };
 
-template<typename ResourceType>
 void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListImmediate& RHICmdList, FScene *Scene, FViewInfo& View)
 {
 	ensure(bInBeginEndBlock);
@@ -1112,10 +1070,10 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListI
 #endif // defined(GPUCULL_TODO)
 
 		FUploadDataSourceAdapterDynamicPrimitives UploadAdapter(DynamicPrimitiveShaderData, UploadIdStart, Collector.UploadData->InstanceDataOffset);
-		UploadGeneral<ResourceType, FUploadDataSourceAdapterDynamicPrimitives>(RHICmdList, Scene, UploadAdapter);
+		UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(RHICmdList, Scene, UploadAdapter);
 	}
 
-	UpdateUniformResource<ResourceType>(View, *this);
+	UpdateUniformResource(View, *this);
 
 	// Update view uniform buffer
 	View.CachedViewUniformShaderParameters->InstanceSceneData = InstanceDataBuffer.SRV;
@@ -1159,14 +1117,8 @@ void FGPUScene::Update(FRDGBuilder& GraphBuilder, FScene& Scene)
 		{
 			Scene.VirtualShadowMapArrayCacheManager->ProcessPrimitivesToUpdate(GraphBuilder, Scene);
 		}
-		if (GPUSceneUseTexture2D(GetShaderPlatform()))
-		{
-			UpdateInternal<FTextureRWBuffer2D>(GraphBuilder.RHICmdList, Scene);
-		}
-		else
-		{
-			UpdateInternal<FRWBufferStructured>(GraphBuilder.RHICmdList, Scene);
-		}
+		
+		UpdateInternal(GraphBuilder.RHICmdList, Scene);
 	}
 }
 
@@ -1174,14 +1126,7 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate
 {
 	if (bIsEnabled)
 	{
-		if (GPUSceneUseTexture2D(GetShaderPlatform()))
-		{
-			UploadDynamicPrimitiveShaderDataForViewInternal<FTextureRWBuffer2D>(RHICmdList, Scene, View);
-		}
-		else
-		{
-			UploadDynamicPrimitiveShaderDataForViewInternal<FRWBufferStructured>(RHICmdList, Scene, View);
-		}
+		UploadDynamicPrimitiveShaderDataForViewInternal(RHICmdList, Scene, View);
 	}
 }
 

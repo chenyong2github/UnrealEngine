@@ -174,8 +174,9 @@ void FOpenGLES::ProcessQueryGLInt()
 
 	// clamp UAV units to a sensible limit
 	MaxCombinedUAVUnits = FMath::Min(MaxCombinedUAVUnits, 8);
-	MaxComputeUAVUnits = FMath::Min(MaxComputeUAVUnits, MaxCombinedUAVUnits);
-	MaxPixelUAVUnits = FMath::Min(MaxPixelUAVUnits, MaxCombinedUAVUnits);
+	MaxComputeUAVUnits = FMath::Min(MaxComputeUAVUnits, 16);
+	// this is split between VS and PS, 4 to each stage
+	MaxPixelUAVUnits = FMath::Min(MaxPixelUAVUnits, 4);
 
 	const GLint RequiredMaxVertexUniformComponents = 256;
 	if (MaxVertexUniformComponents < RequiredMaxVertexUniformComponents)

@@ -16,7 +16,6 @@ GLint FOpenGL4::MaxCombinedUAVUnits = 0;
 GLint FOpenGL4::MaxComputeUAVUnits = -1;
 GLint FOpenGL4::MaxPixelUAVUnits = -1;
 
-bool FOpenGL4::bSupportsComputeShaders = true;
 bool FOpenGL4::bSupportsGPUMemoryInfo = false;
 bool FOpenGL4::bSupportsVertexAttribBinding = true;
 bool FOpenGL4::bSupportsTextureView = true;
@@ -27,17 +26,15 @@ void FOpenGL4::ProcessQueryGLInt()
 	GET_GL_INT(GL_MAX_FRAGMENT_IMAGE_UNIFORMS, 0, MaxPixelUAVUnits);
 	GET_GL_INT(GL_TEXTURE_BUFFER_OFFSET_ALIGNMENT, 0, TextureBufferAlignment);
 
-	if (bSupportsComputeShaders)
-	{
-		GET_GL_INT(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, 0, MaxComputeTextureImageUnits);
-		GET_GL_INT(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, 0, MaxComputeUniformComponents);
-		GET_GL_INT(GL_MAX_COMPUTE_IMAGE_UNIFORMS, 0, MaxComputeUAVUnits);
-	}
+	GET_GL_INT(GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS, 0, MaxComputeTextureImageUnits);
+	GET_GL_INT(GL_MAX_COMPUTE_UNIFORM_COMPONENTS, 0, MaxComputeUniformComponents);
+	GET_GL_INT(GL_MAX_COMPUTE_IMAGE_UNIFORMS, 0, MaxComputeUAVUnits);
 	
 	// clamp UAV units to a sensible limit
 	MaxCombinedUAVUnits = FMath::Min(MaxCombinedUAVUnits, 8);
-	MaxComputeUAVUnits = FMath::Min(MaxComputeUAVUnits, MaxCombinedUAVUnits);
-	MaxPixelUAVUnits = FMath::Min(MaxPixelUAVUnits, MaxCombinedUAVUnits);
+	MaxComputeUAVUnits = FMath::Min(MaxComputeUAVUnits, 16);
+	// this is split between VS and PS, 4 to each stage
+	MaxPixelUAVUnits = FMath::Min(MaxPixelUAVUnits, 4);
 }
 
 void FOpenGL4::ProcessExtensions( const FString& ExtensionsString )
@@ -56,7 +53,6 @@ void FOpenGL4::ProcessExtensions( const FString& ExtensionsString )
 
 
 	bSupportsGPUMemoryInfo = ExtensionsString.Contains(TEXT("GL_NVX_gpu_memory_info"));
-	bSupportsComputeShaders = ExtensionsString.Contains(TEXT("GL_ARB_compute_shader")) || (MajorVersion ==4 && MinorVersion >= 3) || (MajorVersion > 4);
 	bSupportsVertexAttribBinding = ExtensionsString.Contains(TEXT("GL_ARB_vertex_attrib_binding")) || (MajorVersion == 4 && MinorVersion >= 3) || (MajorVersion > 4);
 	bSupportsTextureView = ExtensionsString.Contains(TEXT("GL_ARB_texture_view")) || (MajorVersion == 4 && MinorVersion >= 3) || (MajorVersion > 4);
 

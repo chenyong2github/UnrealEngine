@@ -40,7 +40,7 @@ public:
 
 	virtual bool AllowsImageLoadsForNonScalar() const { return true; }
 
-	virtual bool EmulateStructuredWithTypedBuffers() const override { return true; }
+	virtual bool EmulateStructuredWithTypedBuffers() const override { return false; }
 };
 
 class ir_variable;

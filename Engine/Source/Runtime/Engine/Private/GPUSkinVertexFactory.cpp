@@ -423,7 +423,6 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::ModifyCompilationEnvironment(cons
 	OutEnvironment.SetDefine(TEXT("GPU_SKINNED_MESH_FACTORY"), 1);
 
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
-	OutEnvironment.SetDefine(TEXT("VF_GPU_SCENE_TEXTURE"), bSupportsPrimitiveIdStream && bUseGPUScene && GPUSceneUseTexture2D(Parameters.Platform));
 }
 
 template<GPUSkinBoneInfluenceType BoneInfluenceType>

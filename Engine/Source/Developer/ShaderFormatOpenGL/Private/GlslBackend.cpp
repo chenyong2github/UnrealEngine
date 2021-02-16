@@ -1160,14 +1160,28 @@ class ir_gen_glsl_visitor : public ir_visitor
 			}
 			else if (var->type->is_image())
 			{
+				const int UAV_stage_first_unit[] = 
+				{
+					0, //vertex_shader, must match FOpenGL::GetFirstVertexUAVUnit()
+					0,
+					4, //fragment_shader, must match FOpenGL::GetFirstPixelUAVUnit()
+					0,
+					0,
+					0, //compute_shader
+				};
+						
 				if (var->type->HlslName && (!strncmp(var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(var->type->HlslName, "StructuredBuffer<", 17)))
 				{
 					if (bGenerateLayoutLocations && var->explicit_location)
 					{
+						const char * const readonly_str[] = { "", "readonly " };
+						const int readonly = strncmp(var->type->HlslName, "StructuredBuffer<", 17)==0 ? 1 : 0;
+						
 						ralloc_asprintf_append(
 							buffer,
-							"layout(std430,binding=%d) buffer ",
-							var->location
+							"layout(std430,binding=%d) %s buffer ",
+							var->location + UAV_stage_first_unit[ShaderTarget],
+							readonly_str[readonly]
 							);
 					}
 					else
@@ -1207,7 +1221,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 							"layout(%s%s,binding=%d) ",
 							comp_str,
 							type_str[var->type->inner_type->base_type],
-							var->location
+							var->location + UAV_stage_first_unit[ShaderTarget]
 							);
 					}
 					else
