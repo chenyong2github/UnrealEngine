@@ -236,7 +236,7 @@ half3 GetLightGridLocalLighting(
 void MobileDirectLightPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0, 
 	float4 SvPosition : SV_POSITION, 
-	out half4 OutColor : SV_Target0)
+	out HALF4_TYPE OutColor : SV_Target0)
 {
 	FGBufferData GBuffer = (FGBufferData)0;
 	float SceneDepth = 0; 
@@ -336,7 +336,7 @@ void MobileDirectLightPS(
 void MobileRadialLightPS(
 	float4 InScreenPosition : TEXCOORD0,
 	float4 SVPos			: SV_POSITION,
-	out half4 OutColor		: SV_Target0
+	out float4 OutColor		: SV_Target0
 )
 {
 	FGBufferData GBuffer = (FGBufferData)0;

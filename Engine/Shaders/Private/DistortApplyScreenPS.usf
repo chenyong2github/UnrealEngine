@@ -88,7 +88,7 @@ SamplerState	DistortionAccumulateSampler;
 
 void Merge_Mobile(
 	in noperspective float4 TexCoord: TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 )
 {
 	half4 AccumDist = DistortionAccumulateTexture.Sample(DistortionAccumulateSampler, TexCoord.xy);

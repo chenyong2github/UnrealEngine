@@ -32,9 +32,9 @@ Texture2D SceneDepthTexture;
 SamplerState SceneDepthSampler;
 
 float4 ReflectionPlane;
-half4 BufferSizeAndInvSize;
-half4 ViewSizeAndInvSize;
-half4 ViewRectMin;
+float4 BufferSizeAndInvSize;
+float4 ViewSizeAndInvSize;
+float4 ViewRectMin;
 
 float2 ProjectionPixelToBufferUV(int2 ReflectionPixel)
 {
@@ -297,7 +297,7 @@ void ReflectionPassPS(
 #if MOBILE_MULTI_VIEW
 	in float MultiViewId : VIEW_ID,
 #endif
-	out half4 OutColor : SV_Target0)
+	out HALF4_TYPE OutColor : SV_Target0)
 {
 #if MOBILE_MULTI_VIEW
 	ResolvedView = ResolveView(uint(MultiViewId));

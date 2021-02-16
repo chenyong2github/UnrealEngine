@@ -139,9 +139,9 @@ half2 SunConstDepthMaskScaleBias()
 
 void SunMaskPS_Mobile(
 	float4 InUVPos : TEXCOORD0,
-	out half OutSunShaftAndDof : SV_Target0
+	out HALF_TYPE OutSunShaftAndDof : SV_Target0
 #if !MOBILE_USEDEPTHTEXTURE
-	, out half4 OutColor : SV_Target1
+	, out HALF4_TYPE OutColor : SV_Target1
 #endif
 	)
 {
@@ -195,7 +195,7 @@ void SunMaskPS_Mobile(
 
 void PreTonemapMSAA_Mobile(
 	float4 InUVPos : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 #if (METAL_PROFILE && !MAC)
@@ -210,7 +210,7 @@ SamplerState InputSampler;
 
 void MSAADecodeAndCopyRectPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 #if (METAL_PROFILE && !MAC)
@@ -244,20 +244,20 @@ void BloomPS_Mobile(
 	float2 InUVs[4] : TEXCOORD0
 #if MOBILE_USEBLOOM
 
-	, out half4 OutColor : SV_Target0
+	, out HALF4_TYPE OutColor : SV_Target0
 
 	#if MOBILE_USEDOF || MOBILE_USESUN
 
-		,out half OutSunShaftAndDof : SV_Target1
+		,out HALF_TYPE OutSunShaftAndDof : SV_Target1
 
 		#if MOBILE_USEEYEADAPTATION
-			, out half OutEyeAdaptation : SV_Target2
+			, out HALF_TYPE OutEyeAdaptation : SV_Target2
 		#endif
 
 	#else
 
 		#if MOBILE_USEEYEADAPTATION
-			, out half OutEyeAdaptation : SV_Target1
+			, out HALF_TYPE OutEyeAdaptation : SV_Target1
 		#endif
 
 	#endif
@@ -267,16 +267,16 @@ void BloomPS_Mobile(
 
 	#if MOBILE_USEDOF || MOBILE_USESUN
 
-		, out half OutSunShaftAndDof : SV_Target0
+		, out HALF_TYPE OutSunShaftAndDof : SV_Target0
 
 		#if MOBILE_USEEYEADAPTATION
-			, out half OutEyeAdaptation : SV_Target1
+			, out HALF_TYPE OutEyeAdaptation : SV_Target1
 		#endif
 
 	#else
 
 		#if MOBILE_USEEYEADAPTATION
-			, out half OutEyeAdaptation : SV_Target0
+			, out HALF_TYPE OutEyeAdaptation : SV_Target0
 		#endif
 
 	#endif
@@ -428,7 +428,7 @@ void BloomDownVS_Mobile(
 
 void BloomDownPS_Mobile(
 	float4 InUVs[8] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 	half4 N0 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[0].xy).rgba;
@@ -517,7 +517,7 @@ float4 BloomTintB;
 
 void BloomUpPS_Mobile(
 	float4 InUVs[8] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 	half3 A0 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[0].xy).rgb;
@@ -592,7 +592,7 @@ void DofNearVS_Mobile(
 void DofNearPS_Mobile(
 	float2 InUVs2 : TEXCOORD0,
 	float4 InUVs[4] : TEXCOORD1,
-	out half OutColor : SV_Target0
+	out HALF_TYPE OutColor : SV_Target0
 	)
 {
 	half N0 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs2).r;
@@ -662,7 +662,7 @@ void DofDownVS_Mobile(
 
 void DofDownPS_Mobile(
 	float2 InUVs[5] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 	// This shader needs float precision to work.
@@ -797,7 +797,7 @@ void DofBlurVS_Mobile(
 
 void DofBlurPS_Mobile(
 	float2 InUVs[5] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 	// Near diolation size is copied into alpha for the tonemapper pass.
@@ -852,7 +852,7 @@ void IntegrateDOFVS_Mobile(
 void IntegrateDOFPS_Mobile(
 	in float4 TexCoords : TEXCOORD0,
 	in float2 FineDofGrain : TEXCOORD1,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 )
 {
 	half4 SceneColor = Texture2DSample(SceneColorTexture, SceneColorSampler, TexCoords.xy);
@@ -959,7 +959,7 @@ half SunUnBias(half A)
 
 void SunAlphaPS_Mobile(
 	float2 InUVs[8] : TEXCOORD0,
-	out half OutColor : SV_Target0
+	out HALF_TYPE OutColor : SV_Target0
 	)
 {
 	OutColor = 
@@ -1006,7 +1006,7 @@ void SunBlurVS_Mobile(
 
 void SunBlurPS_Mobile(
 	float2 InUVs[8] : TEXCOORD0,
-	out half OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 	OutColor = 
@@ -1076,7 +1076,7 @@ float4 BloomDirtMaskTint;
 void SunMergePS_Mobile(
 	float4 InUVVignette : TEXCOORD0,
 	float4 InUVs[7] : TEXCOORD1,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 	#if MOBILE_USEBLOOM
@@ -1142,7 +1142,7 @@ void SunMergePS_Mobile(
 
 void SunAvgPS_Mobile(
 	float4 InUV : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 	OutColor = 
@@ -1184,7 +1184,7 @@ void AaVS_Mobile(
 
 void AaPS_Mobile(
 	float2 UV[6] : TEXCOORD0,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 	)
 {
 	//   N

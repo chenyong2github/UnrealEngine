@@ -53,7 +53,7 @@ int OutputPass;
 void PSMain( 
 	FLandscapeGrassWeightInterpolantsVSToPS Interpolants
 	OPTIONAL_IsFrontFace,
-	out half4 OutColor	: SV_Target0
+	out HALF4_TYPE OutColor	: SV_Target0
 	)
 {
 	ResolvedView = ResolveView();

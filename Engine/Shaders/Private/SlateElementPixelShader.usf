@@ -317,7 +317,7 @@ half4 GetLineSegmentElementColor( VertexToPixelInterpolants InVertex )
 } 
 #endif
 
-half4 Main( VertexToPixelInterpolants VIn ) : SV_Target0
+HALF4_TYPE Main( VertexToPixelInterpolants VIn ) : SV_Target0
 {
 	half4 OutColor;
 #if SHADER_TYPE == ST_Default || SHADER_TYPE == ST_Custom

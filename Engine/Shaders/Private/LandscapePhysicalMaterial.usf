@@ -50,7 +50,7 @@ float2 UpdateDominantMaterial(in float Index, in float Contribution, in float2 D
 void PSMain(
 	FLandscapeGrassWeightInterpolantsVSToPS Interpolants
 	OPTIONAL_IsFrontFace,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 )
 {
 	ResolvedView = ResolveView();

@@ -13,11 +13,11 @@
 float4 FadeRadiusMulAdd_FadeDistance_AttenFactor;
 float4 WorldRadiusAdj_SinDeltaAngle_CosDeltaAngle_Thickness;
 
-half4 Power_Intensity_ScreenPixelsToSearch;
-half4 DepthBufferSizeAndInvSize;
-half4 BufferSizeAndInvSize;
-half4 ViewSizeAndInvSize;
-half4 ViewRectMin;
+float4 Power_Intensity_ScreenPixelsToSearch;
+float4 DepthBufferSizeAndInvSize;
+float4 BufferSizeAndInvSize;
+float4 ViewSizeAndInvSize;
+float4 ViewRectMin;
 
 half2 TexturePosToBufferUV(int2 TexturePos)
 {
@@ -836,7 +836,7 @@ void GTAOSpatialFilterCS(
 void GTAOHorizonSearchIntegralPS(
 	float4 InUVPos : TEXCOORD0,
 	in float4 SvPosition : SV_Position,
-	out half4 OutColor : SV_Target0
+	out HALF4_TYPE OutColor : SV_Target0
 )
 {
 	ResolvedView = ResolveView();
@@ -855,7 +855,7 @@ void GTAOHorizonSearchIntegralPS(
 void GTAOSpatialFilterPS(
 	float4 InUVPos : TEXCOORD0,
 	in float4 SvPosition : SV_Position, 
-	out half4 OutColor : SV_Target0)
+	out HALF4_TYPE OutColor : SV_Target0)
 {
 	ResolvedView = ResolveView();
 

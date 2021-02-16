@@ -458,6 +458,18 @@ void ShaderYield()
 #define COMPILER_SUPPORTS_GATHER_UINT 0
 #endif
 
+#if !COMPILER_HLSLCC && ES3_1_PROFILE
+#define HALF_TYPE half
+#define HALF2_TYPE half2
+#define HALF3_TYPE half3
+#define HALF4_TYPE half4
+#else
+#define HALF_TYPE float
+#define HALF2_TYPE float2
+#define HALF3_TYPE float3
+#define HALF4_TYPE float4
+#endif
+
 // ---------------------------------------------------- Compiler attributes
 
 #if SM6_PROFILE || SM5_PROFILE || COMPILER_SUPPORTS_ATTRIBUTES

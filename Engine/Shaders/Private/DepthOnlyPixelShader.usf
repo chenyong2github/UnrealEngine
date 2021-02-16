@@ -28,8 +28,8 @@ void Main(
 	OPTIONAL_OutDepthConservative,
 #endif
 #if OUTPUT_MOBILE_COLOR_VALUE
-	out half OutCustomDepth : SV_Target0,
-	out half OutCustomStencil : SV_Target1
+	out HALF_TYPE OutCustomDepth : SV_Target0,
+	out HALF_TYPE OutCustomStencil : SV_Target1
 #else
 	out float4 OutColor : SV_Target0
 #endif

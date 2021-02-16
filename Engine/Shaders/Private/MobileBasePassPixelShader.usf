@@ -533,13 +533,13 @@ void Main(
 	OPTIONAL_IsFrontFace
 #if DEFERRED_SHADING_PATH
 #if !USE_GLES_FBF_DEFERRED
-	, out half4 OutColor	: SV_Target0
-	, out half4 OutGBufferA	: SV_Target1
-	, out half4 OutGBufferB	: SV_Target2
-	, out half4 OutGBufferC	: SV_Target3  
+	, out HALF4_TYPE OutColor		: SV_Target0
+	, out HALF4_TYPE OutGBufferA	: SV_Target1
+	, out HALF4_TYPE OutGBufferB	: SV_Target2
+	, out HALF4_TYPE OutGBufferC	: SV_Target3  
 #endif
 #else
-	, out half4 OutColor	: SV_Target0
+	, out HALF4_TYPE OutColor		: SV_Target0
 #endif
 #if USE_SCENE_DEPTH_AUX
 	, out float OutSceneDepthAux : SV_Target4
