@@ -4,6 +4,22 @@
 
 #include "AnimTimelineTrack.h"
 #include "Animation/Skeleton.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/SListView.h"
+
+struct FSmartNameSortItem
+{
+	FName SmartName;
+	USkeleton::AnimCurveUID ID;
+
+	FSmartNameSortItem(const FName& InSmartName, const USkeleton::AnimCurveUID& InID)
+		: SmartName(InSmartName)
+		, ID(InID)
+	{}
+};
+
+typedef TSharedPtr<FSmartNameSortItem> FCurveListItem;
+typedef SListView<FCurveListItem> SCurveListView;
 
 class FAnimTimelineTrack_Curves : public FAnimTimelineTrack
 {
@@ -31,6 +47,22 @@ private:
 	void HandleShowCurvePoints();
 	bool IsShowCurvePointsEnabled() const;
 
+	virtual TSharedRef<ITableRow> GenerateCurveListRow(FCurveListItem InItem, const TSharedRef<STableViewBase>& OwnerList);
+	void OnTypeSelectionChanged(FCurveListItem Selection, ESelectInfo::Type SelectInfo);
+	void OnMouseButtonClicked(FCurveListItem Selection);
+
+	/** Curve searching support */
+	FText SearchText;
+	void OnCurveFilterTextChanged(const FText& NewText);
+	void OnCurveFilterTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo);
+	bool GetCurvesMatchingSearch(const FText& InSearchText, const TArray<FCurveListItem>& UnfilteredList, TArray<FCurveListItem>& OutFilteredList);
 private:
-	TSharedPtr<SWidget> OutlinerWidget;
+	TSharedPtr<SWidget>	OutlinerWidget;
+
+	TSharedPtr<SCurveListView>	CurveListView;
+
+	TArray<FCurveListItem >	CurveItems;
+	TArray<FCurveListItem >	FilteredCurveItems;
+
+	static const float	CurveListPadding;
 };
