@@ -279,6 +279,9 @@ void FMaterialBakingModule::StartupModule()
 	
 	// Register callback for modified objects
 	FCoreUObjectDelegates::OnObjectModified.AddRaw(this, &FMaterialBakingModule::OnObjectModified);
+
+	// Register callback on garbage collection
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FMaterialBakingModule::OnPreGarbageCollect);
 }
 
 void FMaterialBakingModule::ShutdownModule()
@@ -290,7 +293,11 @@ void FMaterialBakingModule::ShutdownModule()
 	{
 		PropertyEditorModule->UnregisterCustomPropertyTypeLayout(TEXT("PropertyEntry"));
 	}
+
 	FCoreUObjectDelegates::OnObjectModified.RemoveAll(this);
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+
+	CleanupMaterialProxies();
 }
 
 void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutput>& Output)
@@ -973,6 +980,11 @@ void FMaterialBakingModule::OnObjectModified(UObject* Object)
 			}
 		}
 	}
+}
+
+void FMaterialBakingModule::OnPreGarbageCollect()
+{
+	CleanupMaterialProxies();
 }
 
 #undef LOCTEXT_NAMESPACE //"MaterialBakingModule"

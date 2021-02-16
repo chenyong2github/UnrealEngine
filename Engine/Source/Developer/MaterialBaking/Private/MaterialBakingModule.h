@@ -52,6 +52,10 @@ protected:
 
 	/** Callback for modified objects which should be removed from MaterialProxyPool in that case */
 	void OnObjectModified(UObject* Object);
+
+	/** Callback used to clear material proxy cache on garbage collection */
+	void OnPreGarbageCollect();
+
 private:
 	/** Pool of available render targets, cached for re-using on consecutive property rendering */
 	TArray<UTextureRenderTarget2D*> RenderTargetPool;
