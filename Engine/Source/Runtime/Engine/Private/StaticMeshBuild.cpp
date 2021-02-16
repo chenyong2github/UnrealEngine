@@ -400,9 +400,9 @@ void UStaticMesh::BeginBuildInternal(FStaticMeshBuildContext* Context)
 		// Extended bounds are super important to avoid many stalls since a lot of different
 		// systems rely on mesh bounds. If mesh description is available and doesn't require being
 		// loaded, compute bounds right now so we can unlock the property before going async.
-		if (IsSourceModelValid(0) && GetSourceModel(0).StaticMeshDescription != nullptr)
+		if (IsSourceModelValid(0) && GetSourceModel(0).GetCachedMeshDescription() != nullptr)
 		{
-			CachedMeshDescriptionBounds = GetSourceModel(0).StaticMeshDescription->GetMeshDescription().GetBounds();
+			CachedMeshDescriptionBounds = GetSourceModel(0).GetCachedMeshDescription()->GetBounds();
 		}
 
 		// CommitMeshDescription will also fill out CachedMeshDescriptionBounds

@@ -2172,15 +2172,3 @@ void FMeshDescriptionBulkData::UseHashAsGuid()
 
 #endif // #if WITH_EDITORONLY_DATA
 
-
-void UMeshDescriptionBulkDataWrapper::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-#if WITH_EDITORONLY_DATA
-	if (!Ar.IsCooking())
-	{
-		BulkData.Serialize(Ar, GetOuter());
-	}
-#endif
-}

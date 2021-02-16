@@ -225,8 +225,15 @@ void FStaticMeshComponentTarget::CommitMesh( const FCommitter& Committer )
 	// make sure transactional flag is on for this asset
 	StaticMesh->SetFlags(RF_Transactional);
 
-	bool bSavedToTransactionBuffer = StaticMesh->Modify();
-	check(bSavedToTransactionBuffer);
+	verify(StaticMesh->Modify());
+	if (EditingLOD == EStaticMeshEditingLOD::HiResSource)
+	{
+		verify(StaticMesh->ModifyHiResMeshDescription());
+	}
+	else
+	{
+		verify(StaticMesh->ModifyMeshDescription((int32)EditingLOD));
+	}
 
 	FCommitParams CommitParams;
 	CommitParams.MeshDescription = GetMesh();

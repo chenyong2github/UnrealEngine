@@ -1573,10 +1573,9 @@ bool UStaticMeshEditorSubsystem::SetGenerateLightmapUVs(UStaticMesh* StaticMesh,
 	if (AnySettingsToChange)
 	{
 		StaticMesh->Modify();
-		for (FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels())
+		for (int32 LodIndex = 0; LodIndex < StaticMesh->GetNumSourceModels(); LodIndex++)
 		{
-			SourceModel.BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;
-
+			StaticMesh->GetSourceModel(LodIndex).BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;
 		}
 
 		StaticMesh->Build();

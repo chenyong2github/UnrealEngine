@@ -2455,15 +2455,15 @@ public:
 	{
 		check(Stage == EStage::Uninit);
 		check(StaticMesh != nullptr);
-		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
 		ELightmapUVVersion LightmapUVVersion = (ELightmapUVVersion)StaticMesh->GetLightmapUVVersion();
 
 		FMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<FMeshUtilities>("MeshUtilities");
 
 		// Gather source meshes for each LOD.
-		for (int32 LODIndex = 0; LODIndex < SourceModels.Num(); ++LODIndex)
+		int32 NumSourceModels = StaticMesh->GetNumSourceModels();
+		for (int32 LODIndex = 0; LODIndex < NumSourceModels; ++LODIndex)
 		{
-			FStaticMeshSourceModel& SrcModel = SourceModels[LODIndex];
+			FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 			FRawMesh& RawMesh = *new FRawMesh;
 			LODMeshes.Add(&RawMesh);
 			FOverlappingCorners& OverlappingCorners = *new FOverlappingCorners;
@@ -2580,8 +2580,8 @@ public:
 				}
 			}
 		}
-		check(LODMeshes.Num() == SourceModels.Num());
-		check(LODOverlappingCorners.Num() == SourceModels.Num());
+		check(LODMeshes.Num() == NumSourceModels);
+		check(LODOverlappingCorners.Num() == NumSourceModels);
 
 		// Bail if there is no raw mesh data from which to build a renderable mesh.
 		if (LODMeshes.Num() == 0)
@@ -2603,8 +2603,8 @@ public:
 	{
 		check(Stage == EStage::Gathered);
 		check(StaticMesh != nullptr);
-		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
-		if (SourceModels.Num() == 0)
+		int32 NumSourceModels = StaticMesh->GetNumSourceModels();
+		if (NumSourceModels == 0)
 		{
 			UE_LOG(LogMeshUtilities, Error, TEXT("Mesh contains zero source models."));
 			return false;
@@ -2613,9 +2613,9 @@ public:
 		FMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<FMeshUtilities>("MeshUtilities");
 
 		// Reduce each LOD mesh according to its reduction settings.
-		for (int32 LODIndex = 0; LODIndex < SourceModels.Num(); ++LODIndex)
+		for (int32 LODIndex = 0; LODIndex < NumSourceModels; ++LODIndex)
 		{
-			const FStaticMeshSourceModel& SrcModel = SourceModels[LODIndex];
+			const FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 			FMeshReductionSettings ReductionSettings = LODGroup.GetSettings(SrcModel.ReductionSettings, LODIndex);
 			LODMaxDeviation[NumValidLODs] = 0.0f;
 			if (LODIndex != NumValidLODs)
@@ -2717,13 +2717,13 @@ public:
 		check(Stage == EStage::Reduce);
 		check(StaticMesh != nullptr);
 
-		TArray<FStaticMeshSourceModel>& InOutModels = StaticMesh->GetSourceModels();
 		int32 ImportVersion = StaticMesh->ImportVersion;
 
 		// Generate per-LOD rendering data.
 		OutRenderData.AllocateLODResources(NumValidLODs);
 		for (int32 LODIndex = 0; LODIndex < NumValidLODs; ++LODIndex)
 		{
+			FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LODIndex);
 			FStaticMeshLODResources& LODModel = OutRenderData.LODResources[LODIndex];
 			FRawMesh& RawMesh = LODMeshes[LODIndex];
 			LODModel.MaxDeviation = LODMaxDeviation[LODIndex];
@@ -2765,7 +2765,7 @@ public:
 				// TODO - write directly to TMemoryImageArray
 				// We can compute an approximate one instead for other LODs.
 				TArray<int32> TempWedgeMap;
-				TArray<int32>& WedgeMap = InOutModels[LODIndex].ReductionSettings.PercentTriangles >= 1.0f ? LODModel.WedgeMap : TempWedgeMap;
+				TArray<int32>& WedgeMap = SourceModel.ReductionSettings.PercentTriangles >= 1.0f ? LODModel.WedgeMap : TempWedgeMap;
 				WedgeMap.Reset();
 				float ComparisonThreshold = GetComparisonThreshold(LODBuildSettings[LODIndex]);
 				MeshUtilities.BuildStaticMeshVertexAndIndexBuffers(Vertices, PerSectionIndices, WedgeMap, RawMesh, LODOverlappingCorners[LODIndex], MaterialToSectionMapping, ComparisonThreshold, LODBuildSettings[LODIndex].BuildScale3D, ImportVersion);
@@ -2826,7 +2826,7 @@ public:
 			LODModel.IndexBuffer.SetIndices(CombinedIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
 			
 			// Build the reversed index buffer.
-			if (LODModel.AdditionalIndexBuffers && InOutModels[0].BuildSettings.bBuildReversedIndexBuffer)
+			if (LODModel.AdditionalIndexBuffers && StaticMesh->GetSourceModel(0).BuildSettings.bBuildReversedIndexBuffer)
 			{
 				TArray<uint32> InversedIndices;
 				const int32 IndexCount = CombinedIndices.Num();
@@ -2864,7 +2864,7 @@ public:
 			}
 
 			// Build the inversed depth only index buffer.
-			if (LODModel.AdditionalIndexBuffers && InOutModels[0].BuildSettings.bBuildReversedIndexBuffer)
+			if (LODModel.AdditionalIndexBuffers && StaticMesh->GetSourceModel(0).BuildSettings.bBuildReversedIndexBuffer)
 			{
 				TArray<uint32> ReversedDepthOnlyIndices;
 				const int32 IndexCount = DepthOnlyIndices.Num();
@@ -2894,7 +2894,7 @@ public:
 			}
 
 			// Build the adjacency index buffer used for tessellation.
-			if (LODModel.AdditionalIndexBuffers && InOutModels[0].BuildSettings.bBuildAdjacencyBuffer)
+			if (LODModel.AdditionalIndexBuffers && StaticMesh->GetSourceModel(0).BuildSettings.bBuildAdjacencyBuffer)
 			{
 				TArray<uint32> AdjacencyIndices;
 
@@ -2942,16 +2942,14 @@ public:
 		check(Stage == EStage::Reduce);
 		check(StaticMesh != nullptr);
 
-		TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
-
 		check(HasRawMesh[0]);
-		check(SourceModels.Num() >= NumValidLODs);
+		check(StaticMesh->GetNumSourceModels() >= NumValidLODs);
 		bool bDirty = false;
 		for (int32 Index = 1; Index < NumValidLODs; ++Index)
 		{
 			if (!HasRawMesh[Index])
 			{
-				SourceModels[Index].SaveRawMesh(LODMeshes[Index]);
+				StaticMesh->GetSourceModel(Index).SaveRawMesh(LODMeshes[Index]);
 				bDirty = true;
 			}
 		}
@@ -3035,7 +3033,6 @@ void FMeshUtilities::FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const
 
 bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
 {
-	TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
 	int32 LightmapUVVersion = StaticMesh->GetLightmapUVVersion();
 	int32 ImportVersion = StaticMesh->ImportVersion;
 
@@ -3047,7 +3044,7 @@ bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStat
 	}
 
 	TArray<bool> WasReduced;
-	WasReduced.AddZeroed(SourceModels.Num());
+	WasReduced.AddZeroed(StaticMesh->GetNumSourceModels());
 	if (!Builder.ReduceLODs(LODGroup, Module.GetStaticMeshReductionInterface(), WasReduced))
 	{
 		return false;
@@ -3058,7 +3055,6 @@ bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStat
 
 bool FMeshUtilities::GenerateStaticMeshLODs(UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
 {
-	TArray<FStaticMeshSourceModel>& Models = StaticMesh->GetSourceModels();
 	int32 LightmapUVVersion = StaticMesh->GetLightmapUVVersion();
 
 	FStaticMeshUtilityBuilder Builder(StaticMesh);
@@ -3069,7 +3065,7 @@ bool FMeshUtilities::GenerateStaticMeshLODs(UStaticMesh* StaticMesh, const FStat
 	}
 
 	TArray<bool> WasReduced;
-	WasReduced.AddZeroed(Models.Num());
+	WasReduced.AddZeroed(StaticMesh->GetNumSourceModels());
 	if (!Builder.ReduceLODs(LODGroup, Module.GetStaticMeshReductionInterface(), WasReduced))
 	{
 		return false;

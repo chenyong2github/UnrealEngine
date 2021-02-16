@@ -143,8 +143,10 @@ namespace DataprepOperationsLibraryUtil
 
 		TArray< FMeshBuildSettings > BuildSettingsBackup;
 
-		for ( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
+		int32 NumSourceModels = StaticMesh->GetNumSourceModels();
+		for (int32 LodIndex = 0; LodIndex < NumSourceModels; LodIndex++)
 		{
+			FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LodIndex);
 			BuildSettingsBackup.Add( SourceModel.BuildSettings );
 
 			// These were done in the PreBuild step
@@ -203,9 +205,10 @@ namespace DataprepOperationsLibraryUtil
 				// Make sure adjacency information fit new material change
 				if( RequiresAdjacencyInformation( NewMaterial, nullptr, GWorld->FeatureLevel ) )
 				{
-					for( FStaticMeshSourceModel& SourceModel : StaticMesh->GetSourceModels() )
+					int32 NumSourceModels = StaticMesh->GetNumSourceModels();
+					for (int32 LodIndex = 0; LodIndex < NumSourceModels; LodIndex++)
 					{
-						SourceModel.BuildSettings.bBuildAdjacencyBuffer = true;
+						StaticMesh->GetSourceModel(LodIndex).BuildSettings.bBuildAdjacencyBuffer = true;
 					}
 				}
 			}
@@ -270,13 +273,13 @@ namespace DataprepOperationsLibraryUtil
 
 			for (UStaticMesh* StaticMesh : BuiltMeshes)
 			{
-				TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
+				int32 NumSourceModels = StaticMesh->GetNumSourceModels();
 				TArray<FMeshBuildSettings> BuildSettings;
-				BuildSettings.Reserve(SourceModels.Num());
+				BuildSettings.Reserve(NumSourceModels);
 
-				for(int32 Index = 0; Index < SourceModels.Num(); ++Index)
+				for(int32 Index = 0; Index < NumSourceModels; ++Index)
 				{
-					FStaticMeshSourceModel& SourceModel = SourceModels[Index];
+					FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(Index);
 
 					BuildSettings.Add( SourceModel.BuildSettings );
 
@@ -317,11 +320,10 @@ namespace DataprepOperationsLibraryUtil
 				UStaticMesh* StaticMesh = BuiltMeshes[Index];
 				TArray<FMeshBuildSettings>& PrevBuildSettings = StaticMeshesSettings[Index];
 
-				TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
-
-				for(int32 SourceModelIndex = 0; SourceModelIndex < SourceModels.Num(); ++SourceModelIndex)
+				int32 NumSourceModels = StaticMesh->GetNumSourceModels();
+				for(int32 SourceModelIndex = 0; SourceModelIndex < NumSourceModels; ++SourceModelIndex)
 				{
-					SourceModels[SourceModelIndex].BuildSettings = PrevBuildSettings[SourceModelIndex];
+					StaticMesh->GetSourceModel(SourceModelIndex).BuildSettings = PrevBuildSettings[SourceModelIndex];
 				}
 
 				for ( FStaticMeshLODResources& LODResources : StaticMesh->GetRenderData()->LODResources )

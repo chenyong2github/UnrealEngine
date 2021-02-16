@@ -144,8 +144,8 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 	// make sure transactional flag is on for this asset
 	StaticMesh->SetFlags(RF_Transactional);
 
-	bool bSavedToTransactionBuffer = StaticMesh->Modify();
-	check(bSavedToTransactionBuffer);
+	verify(StaticMesh->Modify());
+	verify(StaticMesh->ModifyMeshDescription(LODIndex));
 
 	FCommitterParams CommitterParams;
 	CommitterParams.MeshDescriptionOut = StaticMesh->GetMeshDescription(LODIndex);

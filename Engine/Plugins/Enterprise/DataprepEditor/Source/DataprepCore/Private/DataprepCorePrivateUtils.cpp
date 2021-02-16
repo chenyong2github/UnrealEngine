@@ -102,13 +102,13 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 		//Cache the BuildSettings and update them before building the meshes.
 		for (UStaticMesh* StaticMesh : BuiltMeshes)
 		{
-			TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
+			int32 NumSourceModels = StaticMesh->GetNumSourceModels();
 			TArray<FMeshBuildSettings> BuildSettings;
-			BuildSettings.Reserve(SourceModels.Num());
+			BuildSettings.Reserve(NumSourceModels);
 
-			for(int32 Index = 0; Index < SourceModels.Num(); ++Index)
+			for(int32 Index = 0; Index < NumSourceModels; ++Index)
 			{
-				FStaticMeshSourceModel& SourceModel = SourceModels[Index];
+				FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(Index);
 
 				BuildSettings.Add( SourceModel.BuildSettings );
 
@@ -150,11 +150,10 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 			UStaticMesh* StaticMesh = BuiltMeshes[Index];
 			TArray<FMeshBuildSettings>& PrevBuildSettings = StaticMeshesSettings[Index];
 
-			TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
-
-			for(int32 SourceModelIndex = 0; SourceModelIndex < SourceModels.Num(); ++SourceModelIndex)
+			int32 NumSourceModels = StaticMesh->GetNumSourceModels();
+			for(int32 SourceModelIndex = 0; SourceModelIndex < NumSourceModels; ++SourceModelIndex)
 			{
-				SourceModels[SourceModelIndex].BuildSettings = PrevBuildSettings[SourceModelIndex];
+				StaticMesh->GetSourceModel(SourceModelIndex).BuildSettings = PrevBuildSettings[SourceModelIndex];
 			}
 
 			if(FStaticMeshRenderData* RenderData = StaticMesh->GetRenderData())

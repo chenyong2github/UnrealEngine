@@ -1617,12 +1617,14 @@ namespace DataprepEditor3DPreviewUtils
 			//Cache the BuildSettings and update them before building the meshes.
 			for (UStaticMesh* StaticMesh : BuiltMeshes)
 			{
-				TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
+				int32 NumSourceModels = StaticMesh->GetNumSourceModels();
 				TArray<FMeshBuildSettings> BuildSettings;
-				BuildSettings.Reserve(SourceModels.Num());
+				BuildSettings.Reserve(NumSourceModels);
 
-				for (FStaticMeshSourceModel& SourceModel : SourceModels)
+				for (int32 LodIndex = 0; LodIndex < NumSourceModels; LodIndex++)
 				{
+					FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LodIndex);
+
 					BuildSettings.Add(SourceModel.BuildSettings);
 
 					SourceModel.BuildSettings.bGenerateLightmapUVs = false;
@@ -1649,11 +1651,11 @@ namespace DataprepEditor3DPreviewUtils
 				UStaticMesh* StaticMesh = BuiltMeshes[Index];
 				TArray<FMeshBuildSettings>& PrevBuildSettings = StaticMeshesSettings[Index];
 
-				TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
+				int32 NumSourceModels = StaticMesh->GetNumSourceModels();
 
-				for(int32 SourceModelIndex = 0; SourceModelIndex < SourceModels.Num(); ++SourceModelIndex)
+				for(int32 SourceModelIndex = 0; SourceModelIndex < NumSourceModels; ++SourceModelIndex)
 				{
-					SourceModels[SourceModelIndex].BuildSettings = PrevBuildSettings[SourceModelIndex];
+					StaticMesh->GetSourceModel(SourceModelIndex).BuildSettings = PrevBuildSettings[SourceModelIndex];
 				}
 
 				for ( FStaticMeshLODResources& LODResources : StaticMesh->GetRenderData()->LODResources )

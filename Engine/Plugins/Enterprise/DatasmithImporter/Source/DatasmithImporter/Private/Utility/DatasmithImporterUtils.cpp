@@ -1218,11 +1218,10 @@ UObject* FDatasmithImporterUtils::StaticDuplicateObject(UObject* SourceObject, U
 
 UStaticMesh* FDatasmithImporterUtils::DuplicateStaticMesh(UStaticMesh* SourceStaticMesh, UObject* Outer, const FName Name, bool bIgnoreBulkData)
 {
-	TArray<FStaticMeshSourceModel> SourceModels;
-
 	// Since static mesh can be quite heavy, remove source models for cloning to reduce useless work.
 	// Will be reinserted on the new duplicated asset or restored on the SourceStaticMesh if bIgnoreBulkData is true.
-	SourceModels = MoveTemp(SourceStaticMesh->GetSourceModels());
+	TArray<FStaticMeshSourceModel> SourceModels = MoveTemp(SourceStaticMesh->MoveSourceModels());
+	FStaticMeshSourceModel HiResSourceModel = MoveTemp(SourceStaticMesh->MoveHiResSourceModel());
 
 	// Temporary flag to skip Postload during DuplicateObject
 	SourceStaticMesh->SetFlags(RF_ArchetypeObject);
@@ -1245,7 +1244,6 @@ UStaticMesh* FDatasmithImporterUtils::DuplicateStaticMesh(UStaticMesh* SourceSta
 		for (FStaticMeshSourceModel& SourceModel : SourceModels)
 		{
 			FStaticMeshSourceModel& DuplicateSourceModel = DuplicateMesh->AddSourceModel();
-			DuplicateSourceModel.StaticMeshOwner = DuplicateMesh;
 
 			// Apply the SourceMesh settings to the duplicated SourceModels
 			DuplicateSourceModel.BuildSettings = SourceModel.BuildSettings;
@@ -1256,7 +1254,8 @@ UStaticMesh* FDatasmithImporterUtils::DuplicateStaticMesh(UStaticMesh* SourceSta
 		}
 
 		// Move back the source models to the original mesh
-		SourceStaticMesh->GetSourceModels() = MoveTemp(SourceModels);
+		SourceStaticMesh->SetSourceModels(MoveTemp(SourceModels));
+		SourceStaticMesh->SetHiResSourceModel(MoveTemp(HiResSourceModel));
 	}
 	else
 	{
@@ -1264,14 +1263,9 @@ UStaticMesh* FDatasmithImporterUtils::DuplicateStaticMesh(UStaticMesh* SourceSta
 		// -> MarkPendingKill to avoid use-after-move crash in the StaticMesh::Build()
 		SourceStaticMesh->MarkPendingKill();
 
-		for (FStaticMeshSourceModel& SourceModel : SourceModels)
-		{
-			// Fixup the new SourceModels owner
-			SourceModel.StaticMeshOwner = DuplicateMesh;
-		}
-
 		// Apply source models to the duplicated mesh
-		DuplicateMesh->GetSourceModels() = MoveTemp(SourceModels);
+		DuplicateMesh->SetSourceModels(MoveTemp(SourceModels));
+		DuplicateMesh->SetHiResSourceModel(MoveTemp(HiResSourceModel));
 	}
 
 	return DuplicateMesh;

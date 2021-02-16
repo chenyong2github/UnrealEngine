@@ -1568,12 +1568,11 @@ void FStaticMeshEditor::HandleReimportAllMesh()
 		//Reimport base LOD, generated mesh will be rebuild here, the static mesh is always using the base mesh to reduce LOD
 		if (FReimportManager::Instance()->Reimport(StaticMesh, true))
 		{
-			TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
 			//Reimport all custom LODs
 			for (int32 LodIndex = 1; LodIndex < StaticMesh->GetNumLODs(); ++LodIndex)
 			{
 				//Skip LOD import in the same file as the base mesh, they are already re-import
-				if (SourceModels[LodIndex].bImportWithBaseMesh)
+				if (StaticMesh->GetSourceModel(LodIndex).bImportWithBaseMesh)
 				{
 					continue;
 				}

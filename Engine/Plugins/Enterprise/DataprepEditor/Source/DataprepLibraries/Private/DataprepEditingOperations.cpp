@@ -1052,7 +1052,7 @@ namespace DatasmithEditingOperationsUtils
 						// Skip components which are either editor only or for visualization
 						if(!MeshComponent->IsEditorOnly() && !MeshComponent->IsVisualizationComponent())
 						{
-							if(MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
+							if(MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetNumSourceModels() > 0)
 							{
 								bMeshActorIsValid = true;
 								ComponentsToMerge.Add(MeshComponent);
