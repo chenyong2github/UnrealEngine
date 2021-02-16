@@ -88,7 +88,7 @@ namespace Chaos
 		using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 		using FCollisionDetector = FSpatialAccelerationCollisionDetector;
 		using FExternalForces = FPerParticleExternalForces;
-		using FRigidClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>;
+		using FRigidClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>;
 
 		// Default iteration counts
 		static constexpr int32 DefaultNumIterations = 8;
@@ -160,8 +160,8 @@ namespace Chaos
 		FORCEINLINE FGravityForces& GetGravityForces() { return GravityForces; }
 		FORCEINLINE const FGravityForces& GetGravityForces() const { return GravityForces; }
 
-		FORCEINLINE const TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() const { return Clustering; }
-		FORCEINLINE TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() { return Clustering; }
+		FORCEINLINE const TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>& GetRigidClustering() const { return Clustering; }
+		FORCEINLINE TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>& GetRigidClustering() { return Clustering; }
 
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{
@@ -257,7 +257,7 @@ namespace Chaos
 			return Traits::IsRewindable() ? CurrentStepResimCacheImp : nullptr; //(ternary is here to be able to compile out code that relies on cache data)
 		}
 
-		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3> Clustering;
+		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints> Clustering;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;

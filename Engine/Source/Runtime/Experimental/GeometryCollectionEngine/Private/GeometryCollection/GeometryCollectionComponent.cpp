@@ -1009,8 +1009,8 @@ void UGeometryCollectionComponent::NetAbandonCluster_Implementation(int32 Transf
 
 			Solver->RegisterSimOneShotCallback([Prox = PhysicsProxy, Strain, TransformIndex, Solver]()
 			{
-				Chaos::TPBDRigidClustering<Chaos::FPBDRigidsEvolution, Chaos::FPBDCollisionConstraints, Chaos::FReal, 3>& Clustering = Solver->GetEvolution()->GetRigidClustering();
-				Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Parent = Prox->GetParticles()[TransformIndex];
+				Chaos::TPBDRigidClustering<Chaos::FPBDRigidsEvolution, Chaos::FPBDCollisionConstraints>& Clustering = Solver->GetEvolution()->GetRigidClustering();
+				Chaos::FPBDRigidClusteredParticleHandle* Parent = Prox->GetParticles()[TransformIndex];
 
 				if(!Parent->Disabled())
 				{
