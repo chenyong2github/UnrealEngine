@@ -634,6 +634,9 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 
 				// Show the cloud at its original location, if selected
 				LocationOffset = bCenter ? FDoubleVector::ZeroVector : OriginalCoordinates;
+
+				// Adjust default max collision error
+				MaxCollisionError = FMath::CeilToInt(Octree.GetEstimatedPointSpacing() * 300) * 0.01f;
 			}
 			else
 			{
@@ -653,6 +656,22 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 					MarkPackageDirty();
 					Notification->Close(bSuccess);
 					OnPointCloudRebuiltEvent.Broadcast();
+
+					if (bSuccess)
+					{
+						FScopeLock Lock(&ProcessingLock);
+
+						if (GetDefault<ULidarPointCloudSettings>()->bAutoCalculateNormalsOnImport)
+						{
+							CalculateNormals(nullptr, nullptr);
+						}
+						
+						if (GetDefault<ULidarPointCloudSettings>()->bAutoBuildCollisionOnImport)
+						{
+							BuildCollision();
+						}
+
+					}
 				};
 
 				// Make sure the call is executed on the correct thread if using async

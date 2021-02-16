@@ -85,8 +85,16 @@ public:
 	 * Caution: Preserving original coordinates may cause noticeable precision loss, if the values are too large.
 	 * Should you experience point 'banding' effect, please re-import your cloud with centering enabled.
 	 */
-	UPROPERTY(config, EditAnywhere, Category="Import / Export")
+	UPROPERTY(config, EditAnywhere, Category="Automation")
 	bool bAutoCenterOnImport;
+
+	/** If enabled, the assets will automatically calculate normals upon their successful import. */
+	UPROPERTY(config, EditAnywhere, Category="Automation")
+	bool bAutoCalculateNormalsOnImport;
+
+	/** If enabled, the assets will automatically build collision upon their successful import. */
+	UPROPERTY(config, EditAnywhere, Category="Automation")
+	bool bAutoBuildCollisionOnImport;
 
 	/** Scale to apply during import */
 	UPROPERTY(config, EditAnywhere, Category= "Import / Export", meta = (ClampMin = "0.0001"))

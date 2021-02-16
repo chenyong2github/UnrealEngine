@@ -16,6 +16,8 @@ ULidarPointCloudSettings::ULidarPointCloudSettings()
 	, RenderDataSmoothingMaxFrametime(0.01f)
 	, MeshingBatchSize(128)
 	, bAutoCenterOnImport(true)
+	, bAutoCalculateNormalsOnImport(false)
+	, bAutoBuildCollisionOnImport(false)
 	, ImportScale(100)
 	, ExportScale(0.01f)
 {
