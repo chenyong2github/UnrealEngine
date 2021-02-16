@@ -749,7 +749,7 @@ namespace DatasmithRhino
 			{
 				// Make sure all render meshes are generated before attempting to export them.
 				RhinoObject[] ObjectArray = { InRhinoObject };
-				RhinoObject.GetRenderMeshes(ObjectArray, /*okToCreate=*/true, /*returnAllObjects*/false);
+				GenerateMissingRenderMeshes(ObjectArray);
 
 				if (TryGenerateMeshInfoFromRhinoObjects(InRhinoObject) is DatasmithMeshInfo DiffMeshInfo)
 				{
@@ -1460,13 +1460,27 @@ namespace DatasmithRhino
 		private void ParseRhinoMeshesFromRhinoObjects(IEnumerable<RhinoObject> RhinoObjects)
 		{
 			// Make sure all render meshes are generated before attempting to export them.
-			RhinoObject.GetRenderMeshes(RhinoObjects, /*okToCreate=*/true, /*returnAllObjects*/false);
+			GenerateMissingRenderMeshes(RhinoObjects);
 
 			foreach (RhinoObject CurrentObject in RhinoObjects)
 			{
 				if (TryGenerateMeshInfoFromRhinoObjects(CurrentObject) is DatasmithMeshInfo MeshInfo)
 				{
 					ObjectIdToMeshInfoDictionary[CurrentObject.Id] = MeshInfo;
+				}
+			}
+		}
+
+		private void GenerateMissingRenderMeshes(IEnumerable<RhinoObject> RhinoObjects)
+		{
+			foreach (var CurrentObject in RhinoObjects)
+			{
+				Mesh[] RenderMeshes = CurrentObject.GetMeshes(MeshType.Render);
+				
+				if (RenderMeshes?.Length == 0 && CurrentObject.IsMeshable(MeshType.Render))
+				{
+					MeshingParameters MeshParams = CurrentObject.GetRenderMeshParameters();
+					CurrentObject.CreateMeshes(MeshType.Render, MeshParams, false);
 				}
 			}
 		}
