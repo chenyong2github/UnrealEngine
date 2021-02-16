@@ -55,11 +55,7 @@ namespace DatasmithRhino
 				DatasmithScene.PreExport();
 
 				DatasmithRhinoProgressManager.Instance.StartMainTaskProgress("Parsing Document", 0.1f);
-				bool bIsFirstSync = !ExportContext.bIsParsed;
-				if (bIsFirstSync)
-				{
-					ExportContext.ParseDocument();
-				}
+				ExportContext.ParseDocument();
 
 				if (SynchronizeScene(ExportContext, DatasmithScene) == Rhino.Commands.Result.Success)
 				{
@@ -67,10 +63,7 @@ namespace DatasmithRhino
 					bExportSuccess = OnSceneExportCompleted(DatasmithScene);
 				}
 
-				if (!bIsFirstSync)
-				{
-					ExportContext.Cleanup();
-				}
+				ExportContext.OnPostExport();
 			}
 			catch (DatasmithExportCancelledException)
 			{

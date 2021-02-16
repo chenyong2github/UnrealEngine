@@ -15,8 +15,7 @@ namespace DatasmithRhino.ElementExporters
 
 		protected override int GetElementsToSynchronizeCount()
 		{
-			const bool bImmediateChildrenOnly = false;
-			return ExportContext.SceneRoot.GetChildrenCount(bImmediateChildrenOnly) + 1;
+			return ExportContext.SceneRoot.GetDescendantsCount() + 1;
 		}
 
 		protected override IEnumerable<DatasmithActorInfo> GetElementsToSynchronize()

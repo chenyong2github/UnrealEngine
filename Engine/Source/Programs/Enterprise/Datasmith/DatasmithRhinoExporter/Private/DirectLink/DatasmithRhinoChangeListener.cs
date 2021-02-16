@@ -47,6 +47,7 @@ namespace DatasmithRhino.DirectLink
 				{
 					RhinoDoc.BeforeTransformObjects += OnBeforeTransformObjects;
 					RhinoDoc.ModifyObjectAttributes += OnModifyObjectAttributes;
+					RhinoDoc.InstanceDefinitionTableEvent += OnInstanceDefinitionTableEvent;
 					RhinoDoc.UndeleteRhinoObject += OnUndeleteRhinoObject;
 					RhinoDoc.AddRhinoObject += OnAddRhinoObject;
 					RhinoDoc.DeleteRhinoObject += OnDeleteRhinoObject;
@@ -55,7 +56,6 @@ namespace DatasmithRhino.DirectLink
 					RhinoDoc.GroupTableEvent += OnGroupTableEvent;
 
 					//#ueent-todo Listen to the following events to update their associated DatasmithElement
-					//RhinoDoc.InstanceDefinitionTableEvent += InstanceDefinitionTableEvent;
 					//RhinoDoc.DimensionStyleTableEvent;
 					//RhinoDoc.LightTableEvent;
 					//RhinoDoc.MaterialTableEvent;
@@ -77,6 +77,7 @@ namespace DatasmithRhino.DirectLink
 
 			RhinoDoc.BeforeTransformObjects -= OnBeforeTransformObjects;
 			RhinoDoc.ModifyObjectAttributes -= OnModifyObjectAttributes;
+			RhinoDoc.InstanceDefinitionTableEvent -= OnInstanceDefinitionTableEvent;
 			RhinoDoc.UndeleteRhinoObject -= OnUndeleteRhinoObject;
 			RhinoDoc.AddRhinoObject -= OnAddRhinoObject;
 			RhinoDoc.DeleteRhinoObject -= OnDeleteRhinoObject;
@@ -109,6 +110,16 @@ namespace DatasmithRhino.DirectLink
 			{
 				TryCatchExecute(() => ExportContext.ModifyActor(RhinoEventArgs.RhinoObject, bReparent));
 				RecursiveEventLocks.Remove(ObjectId);
+			}
+		}
+
+		private void OnInstanceDefinitionTableEvent(object Sender, InstanceDefinitionTableEventArgs RhinoEventArgs)
+		{
+			// Only the Modified event is relevant.
+			// We don't care if a definition is added or modified since the same events will be called directly for the associated instances if needed.
+			if (RhinoEventArgs.EventType == InstanceDefinitionTableEventType.Modified)
+			{
+				TryCatchExecute(() => ExportContext.UpdateDefinitionNode(RhinoEventArgs.NewState));
 			}
 		}
 

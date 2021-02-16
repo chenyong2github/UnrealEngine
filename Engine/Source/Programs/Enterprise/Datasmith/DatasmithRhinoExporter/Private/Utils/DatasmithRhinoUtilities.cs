@@ -209,17 +209,30 @@ namespace DatasmithRhino.Utils
 		/// </summary>
 		/// <param name="RhinoMeshes"></param>
 		/// <returns>The pivot point on which the Mesh was centered</returns>
-		public static Vector3d CenterMeshesOnPivot(List<Mesh> RhinoMeshes)
+		public static Vector3d CenterMeshesOnPivot(IEnumerable<Mesh> RhinoMeshes)
 		{
-			BoundingBox MeshesBoundingBox = RhinoMeshes[0].GetBoundingBox(true);
+			BoundingBox MeshesBoundingBox = BoundingBox.Empty;
 
-			for (int MeshIndex = 1; MeshIndex < RhinoMeshes.Count; ++MeshIndex)
+			foreach (Mesh CurrentMesh in RhinoMeshes)
 			{
-				MeshesBoundingBox.Union(RhinoMeshes[MeshIndex].GetBoundingBox(true));
+				const bool bAccurate = true;
+
+				if(MeshesBoundingBox.IsValid)
+				{
+					MeshesBoundingBox.Union(CurrentMesh.GetBoundingBox(bAccurate));
+				}
+				else
+				{
+					MeshesBoundingBox = CurrentMesh.GetBoundingBox(bAccurate);
+				}
 			}
 
 			Vector3d PivotPoint = new Vector3d(MeshesBoundingBox.Center.X, MeshesBoundingBox.Center.Y, MeshesBoundingBox.Center.Z);
-			RhinoMeshes.ForEach((CurrentMesh) => CurrentMesh.Translate(-PivotPoint));
+			
+			foreach (Mesh CurrentMesh in RhinoMeshes)
+			{
+				CurrentMesh.Translate(-PivotPoint);
+			}
 
 			return PivotPoint;
 		}
@@ -235,16 +248,16 @@ namespace DatasmithRhino.Utils
 			RhinoObject NodeObject = InNode.RhinoModelComponent as RhinoObject;
 			RhinoObject ParentObject = null;
 			DatasmithActorInfo CurrentNode = InNode;
-			while (CurrentNode.LinkedNode != null)
+			while (CurrentNode.DefinitionNode != null)
 			{
-				CurrentNode = CurrentNode.LinkedNode;
+				CurrentNode = CurrentNode.DefinitionNode;
 				ParentObject = CurrentNode.RhinoModelComponent as RhinoObject;
 			}
 
 			// In case this is an instance of a block sub-object, the ID held in the formula may not have been updated
 			// with the definition object ID. We need to replace the ID with the definition object ID, otherwise the formula
 			// will not evaluate correctly.
-			if (InNode.LinkedNode != null && !InNode.LinkedNode.bIsRoot)
+			if (InNode.DefinitionNode != null && !InNode.DefinitionNode.bIsRoot)
 			{
 				int IdStartIndex = ValueFormula.IndexOf("(\"") + 2;
 				int IdEndIndex = ValueFormula.IndexOf("\")");
