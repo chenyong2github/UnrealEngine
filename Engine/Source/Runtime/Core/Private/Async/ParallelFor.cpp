@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Async/ParallelFor.h"
 
 CORE_API int32 GParallelForBackgroundYieldingTimeoutMs = 8;
