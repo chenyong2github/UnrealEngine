@@ -3784,7 +3784,7 @@ static void AddCardsTextureReadbackPass(
 		check(OutTexture->GetSurfaceWidth() == Resolution.X);
 		check(OutTexture->GetSurfaceHeight() == Resolution.Y);
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("CardsTextureReadbackPass_StagingTexture"));
 		FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
 			InputTexture->Desc.Extent.X,
 			InputTexture->Desc.Extent.Y,

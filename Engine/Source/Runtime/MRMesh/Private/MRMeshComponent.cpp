@@ -91,7 +91,7 @@ public:
 		const uint32 SizeInBytes = PerVertexData.Num() * sizeof(DataType);
 
 		FMRMeshVertexResourceArray ResourceArray(PerVertexData.GetData(), SizeInBytes);
-		FRHIResourceCreateInfo CreateInfo(&ResourceArray);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FMRMeshVertexBuffer"), &ResourceArray);
 		VertexBufferRHI = RHICreateVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 	}
 

@@ -49,7 +49,7 @@ void FSlateTexture2DRHIRef::InitDynamicRHI()
 		if( TextureData.IsValid() || bCreateEmptyTexture )
 		{
 			check( !IsValidRef( ShaderResource) );
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FSlateTexture2DRHIRef"));
 			ShaderResource = RHICreateTexture2D( Width, Height, PixelFormat, 1, 1, TexCreateFlags, CreateInfo );
 			check( IsValidRef( ShaderResource ) );
 
@@ -315,7 +315,7 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 	if( TargetSizeX > 0 && TargetSizeY > 0 )
 	{
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(ClearColor) };
+		FRHIResourceCreateInfo CreateInfo(TEXT("FSlateTextureRenderTarget2DResource"), FClearValueBinding(ClearColor));
 		RHICreateTargetableShaderResource2D(
 			TargetSizeX, 
 			TargetSizeY, 

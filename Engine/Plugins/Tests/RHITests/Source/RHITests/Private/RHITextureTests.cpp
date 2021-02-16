@@ -18,7 +18,7 @@ bool FRHITextureTests::VerifyTextureContents(const TCHAR* TestName, FRHICommandL
 			for (uint32 Z = 0; Z < MipDepth; ++Z)
 			{
 				{
-					FRHIResourceCreateInfo CreateInfo;
+					FRHIResourceCreateInfo CreateInfo(TEXT("FRHITextureTests_StagingTexture"));
 					FTexture2DRHIRef StagingTexture = RHICreateTexture2D(MipWidth, MipHeight, Texture->GetFormat(), 1, 1, TexCreate_CPUReadback, ERHIAccess::CopyDest, CreateInfo);
 
 					FRHICopyTextureInfo CopyInfo = {};

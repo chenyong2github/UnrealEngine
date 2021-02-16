@@ -150,9 +150,7 @@ void FWebBrowserTextureResource::ClearTexture(const FLinearColor& ClearColor)
 
 	if ((ClearColor != CurrentClearColor) || !OutputTarget.IsValid() || ((OutputTarget->GetFlags() & OutputCreateFlags) != OutputCreateFlags))
 	{
-		FRHIResourceCreateInfo CreateInfo = {
-			FClearValueBinding(ClearColor)
-		};
+		FRHIResourceCreateInfo CreateInfo(TEXT("FWebBrowserTextureResource"), FClearValueBinding(ClearColor));
 
 		TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
 
@@ -223,9 +221,7 @@ void FWebBrowserTextureResource::CopySample(const TSharedPtr<FWebBrowserTextureS
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FWebBrowserTextureResource:CopySample 1"));
 			TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
 
-			FRHIResourceCreateInfo CreateInfo = {
-				FClearValueBinding(ClearColor)
-			};
+			FRHIResourceCreateInfo CreateInfo(TEXT("FWebBrowserTextureResource"), FClearValueBinding(ClearColor));
 
 			RHICreateTargetableShaderResource2D(
 				SampleDim.X,

@@ -460,7 +460,7 @@ void FVulkanDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuff
 	FVulkanResourceMultiBuffer* Dest = ResourceCast(DestBuffer);
 	if (!SrcBuffer)
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("RHITransferBufferUnderlyingResource"));
 		TRefCountPtr<FVulkanResourceMultiBuffer> DeletionProxy = new FVulkanResourceMultiBuffer(Dest->GetParent(), 0, 0, 0, CreateInfo, nullptr);
 		Dest->Swap(*DeletionProxy);
 	}

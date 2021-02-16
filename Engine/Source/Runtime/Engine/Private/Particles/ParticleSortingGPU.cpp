@@ -233,8 +233,7 @@ void FParticleSortBuffers::InitRHI()
 	{
 		for (int32 BufferIndex = 0; BufferIndex < 2; ++BufferIndex)
 		{
-			FRHIResourceCreateInfo CreateInfo;
-			CreateInfo.DebugName = TEXT("PartialSortKeyBuffer");
+			FRHIResourceCreateInfo CreateInfo(TEXT("PartialSortKeyBuffer"));
 
 			KeyBuffers[BufferIndex] = RHICreateVertexBuffer( BufferSize * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 			KeyBufferSRVs[BufferIndex] = RHICreateShaderResourceView( KeyBuffers[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT );

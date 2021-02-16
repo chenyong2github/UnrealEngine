@@ -200,7 +200,7 @@ bool FElectraTextureSample::Convert(FTexture2DRHIRef & InDstTexture, const FConv
 	// Do we need a new RHI texture?
 	if (!Texture.IsValid() || Texture->GetSizeX() != Dim.X || Texture->GetSizeY() != Dim.Y)
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FElectraTextureSample"));
 		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic;
 		Texture = RHICreateTexture2D(
 			Dim.X,

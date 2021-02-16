@@ -118,7 +118,7 @@ bool FVolumeTextureMipAllocator_Reallocate::FinalizeMips(const FTextureUpdateCon
 
 	// Create new Texture.
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FinalizeMips"));
 		if (GUseTexture3DBulkDataRHI)
 		{
 			CreateInfo.BulkData = &StreamedInMipData;

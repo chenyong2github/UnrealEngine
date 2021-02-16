@@ -80,7 +80,7 @@ FBufferRHIRef FSkeletalMeshVertexClothBuffer::CreateRHIBuffer_Internal()
 		FResourceArrayInterface* ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
 		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
-		FRHIResourceCreateInfo CreateInfo(ResourceArray);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FSkeletalMeshVertexClothBuffer"), ResourceArray);
 		CreateInfo.bWithoutNativeResource = !VertexData;
 
 		if (bRenderThread)

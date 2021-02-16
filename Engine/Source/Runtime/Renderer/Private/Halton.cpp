@@ -73,9 +73,8 @@ void FHaltonSequenceIteration::InitRHI()
 		}
 	}
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("HaltonSequenceIteration"));
 	{
-		CreateInfo.DebugName = TEXT("HaltonSequenceIteration");
 		CreateInfo.ResourceArray = &RandomSamples;
 		SequenceIteration = RHICreateStructuredBuffer(sizeof(FSequenceIterationData), RandomSamples.Num() * sizeof(FSequenceIterationData), BUF_Transient | BUF_FastVRAM | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 	}
@@ -154,7 +153,7 @@ FHaltonPrimesResource::FHaltonPrimesResource()
 
 void FHaltonPrimesResource::InitRHI()
 {
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("HaltonPrimes"));
 	{
 		struct FPrimeData
 		{
@@ -162,7 +161,6 @@ void FHaltonPrimesResource::InitRHI()
 			int Padding;
 		};
 
-		CreateInfo.DebugName = TEXT("HaltonPrimes");
 		uint32 ElementCount = FMath::DivideAndRoundUp(DimensionCount, 3u);
 		PrimesBuffer = RHICreateStructuredBuffer(sizeof(FPrimeData), ElementCount * sizeof(FPrimeData), BUF_Transient | BUF_FastVRAM | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 		uint32 Offset = 0;

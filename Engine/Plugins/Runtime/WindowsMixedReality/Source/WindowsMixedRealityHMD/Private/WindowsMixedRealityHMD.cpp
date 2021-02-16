@@ -1599,7 +1599,7 @@ namespace WindowsMixedReality
 
 		// Since our textures must be BGRA, this plugin did require a change to WindowsD3D11Device.cpp
 		// to add the D3D11_CREATE_DEVICE_BGRA_SUPPORT flag to the graphics device.
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FWindowsMixedRealityHMD"));
 
 #if PLATFORM_HOLOLENS
 		if (bIsMobileMultiViewEnabled && !HMD->IsThirdCameraActive())
@@ -1654,7 +1654,7 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealityHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags InTexFlags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef & OutTargetableTexture, FTexture2DRHIRef & OutShaderResourceTexture, uint32 NumSamples)
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FWindowsMixedRealityHMD"));
 		// This binding is necessary - without it there will be a runtime error.
 		// Current shader assumes far depth since scene depth uses far depth.
 		CreateInfo.ClearValueBinding = FClearValueBinding::DepthFar;
@@ -1820,7 +1820,7 @@ namespace WindowsMixedReality
 		// Create a new texture for the remapped depth.
 		if (remappedDepthTexture == nullptr || recreateTextures)
 		{
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("RemappedDepthTexture"));
 			remappedDepthTexture = RHICreateTexture2D(depthFRHITexture->GetSizeX(), depthFRHITexture->GetSizeY(),
 				PF_R32_FLOAT, 1, 1, ETextureCreateFlags::TexCreate_RenderTargetable, CreateInfo);
 		}

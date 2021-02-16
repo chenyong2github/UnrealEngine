@@ -149,7 +149,7 @@ public:
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 		
 		// Default to an empty 1x1 texture if we don't have a camera image
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FARKitTextureResource"));
 		Size.X = Size.Y = 1;
 		TextureRHI = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
 		
@@ -887,7 +887,7 @@ public:
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 		
 		// Default to an empty 1x1 texture if we don't have a camera image
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("DecodedTextureRef"));
 		Size.X = Size.Y = 1;
 		{
 			FScopeLock ScopeLock(&DecodedTextureLock);

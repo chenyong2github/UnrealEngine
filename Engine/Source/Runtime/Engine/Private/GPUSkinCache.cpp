@@ -1125,7 +1125,7 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 		if (StagingBuffer.NumBytes < NumIntsPerBuffer * sizeof(uint32))
 		{
 			StagingBuffer.Release();
-			StagingBuffer.Initialize(sizeof(int32), NumIntsPerBuffer, PF_R32_SINT, BUF_UnorderedAccess, TEXT("SkinTangentIntermediate"));
+			StagingBuffer.Initialize(TEXT("SkinTangentIntermediate"), sizeof(int32), NumIntsPerBuffer, PF_R32_SINT, BUF_UnorderedAccess);
 			RHICmdList.BindDebugLabelName(StagingBuffer.UAV, TEXT("SkinTangentIntermediate"));
 
 			const uint32 MemSize = NumIntsPerBuffer * sizeof(uint32);
@@ -1436,7 +1436,7 @@ void FGPUSkinCache::ProcessEntry(
         FResourceArrayInterface* ResourceArray = VertexAndNormalData.GetResourceArray();
         check(ResourceArray->GetResourceDataSize() > 0);
 
-        FRHIResourceCreateInfo CreateInfo(ResourceArray);
+        FRHIResourceCreateInfo CreateInfo(TEXT("ClothPositionAndNormalsBuffer"), ResourceArray);
         ClothPositionAndNormalsBuffer.VertexBufferRHI = RHICreateVertexBuffer( ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
         ClothPositionAndNormalsBuffer.VertexBufferSRV = RHICreateShaderResourceView(ClothPositionAndNormalsBuffer.VertexBufferRHI, sizeof(FVector2D), PF_G32R32F);
         InOutEntry->DispatchData[Section].ClothPositionsAndNormalsBuffer = ClothPositionAndNormalsBuffer.VertexBufferSRV;
@@ -1512,9 +1512,6 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 			static const FName DebugName("FSkeletalMeshObjectGPUSkin");
 			static int32 DebugNumber = 0;
 			Initializer.DebugName = FName(DebugName, DebugNumber++);
-
-			FRHIResourceCreateInfo CreateInfo;
-
 			Initializer.IndexBuffer = IndexBufferRHI;
 			Initializer.TotalPrimitiveCount = TrianglesCount;
 			Initializer.GeometryType = RTGT_Triangles;

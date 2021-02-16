@@ -657,7 +657,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			// create a new temp input render target if necessary
 			if (!InputTarget.IsValid() || (InputTarget->GetSizeXY() != SampleDim) || (InputTarget->GetFormat() != InputPixelFormat) || ((InputTarget->GetFlags() & InputCreateFlags) != InputCreateFlags) || (InputTarget->GetNumMips() != SampleNumMips))
 			{
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("FMediaTextureResource"));
 				InputTarget = RHICreateTexture2D(
 					SampleDim.X,
 					SampleDim.Y,
@@ -1076,9 +1076,7 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 
 		MipGenerationCache.SafeRelease();
 
-		FRHIResourceCreateInfo CreateInfo = {
-			FClearValueBinding(InClearColor)
-		};
+		FRHIResourceCreateInfo CreateInfo(TEXT("MediaTextureResourceOutput"), FClearValueBinding(InClearColor));
 
 		RHICreateTargetableShaderResource2D(
 			InDim.X,

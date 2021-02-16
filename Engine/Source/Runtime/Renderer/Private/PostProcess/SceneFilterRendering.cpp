@@ -45,7 +45,7 @@ void FTesselatedScreenRectangleIndexBuffer::InitRHI()
 	}
 
 	// Create index buffer. Fill buffer with initial data upon creation
-	FRHIResourceCreateInfo CreateInfo(&IndexBuffer);
+	FRHIResourceCreateInfo CreateInfo(TEXT("FTesselatedScreenRectangleIndexBuffer"), &IndexBuffer);
 	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), IndexBuffer.GetResourceDataSize(), BUF_Static, CreateInfo);
 }
 
@@ -203,7 +203,7 @@ void DrawTransformedRectangle(
 
 	// we don't do the triangle optimization as this case is rare for the DrawTransformedRectangle case
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("DrawTransformedRectangle"));
 	FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * 4, BUF_Volatile, CreateInfo);
 	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * 4, RLM_WriteOnly);
 

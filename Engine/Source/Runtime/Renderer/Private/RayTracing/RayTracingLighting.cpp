@@ -122,7 +122,7 @@ static void CreateRaytracingLightCullingStructure(
 		RankedLights.Push(VectorRegister{});
 	}
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingCullLights"));
 	CreateInfo.ResourceArray = &RankedLights;
 
 	FBufferRHIRef RayTracingCullLights = RHICreateStructuredBuffer(sizeof(RankedLights[0]),
@@ -132,19 +132,18 @@ static void CreateRaytracingLightCullingStructure(
 	FShaderResourceViewRHIRef RankedLightsSRV = RHICreateShaderResourceView(RayTracingCullLights);
 
 	// Structured buffer version
-	FRHIResourceCreateInfo CullStructureCreateInfo;
-	CullStructureCreateInfo.DebugName = TEXT("RayTracingLightCullVolume");
+	FRHIResourceCreateInfo CullStructureCreateInfo(TEXT("RayTracingLightCullVolume"));
 	OutLightingData.LightCullVolume = RHICreateStructuredBuffer(sizeof(FUintVector4), CellsPerDim*CellsPerDim*CellsPerDim* sizeof(FUintVector4), BUF_UnorderedAccess | BUF_ShaderResource, CullStructureCreateInfo);
 	OutLightingData.LightCullVolumeSRV = RHICmdList.CreateShaderResourceView(OutLightingData.LightCullVolume);
 	FUnorderedAccessViewRHIRef LightCullVolumeUAV = RHICmdList.CreateUnorderedAccessView(OutLightingData.LightCullVolume, false, false);
 
 	// ensure zero sized texture isn't requested  to prevent failure in Initialize
 	OutLightingData.LightIndices.Initialize(
+		TEXT("RayTracingLightIndices"),
 		sizeof(uint16),
 		FMath::Max(NumLightsToUse, 1) * CellsPerDim * CellsPerDim * CellsPerDim,
 		EPixelFormat::PF_R16_UINT,
-		BUF_UnorderedAccess,
-		TEXT("RayTracingLightIndices"));
+		BUF_UnorderedAccess);
 
 	{
 		auto* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
@@ -390,7 +389,7 @@ FRayTracingLightData CreateRayTracingLightData(
 	}
 
 	// This buffer might be best placed as an element of the LightData uniform buffer
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("LightBuffer"));
 	CreateInfo.ResourceArray = &LightDataArray;
 
 	LightingData.LightBuffer = RHICreateStructuredBuffer(sizeof(FUintVector4), LightDataArray.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);

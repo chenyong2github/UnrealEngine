@@ -150,8 +150,7 @@ void FViewportInfo::RecreateDepthBuffer_RenderThread()
 	if (bRequiresStencilTest)
 	{
 		FTexture2DRHIRef ShaderResourceUnused;
-		FRHIResourceCreateInfo CreateInfo(FClearValueBinding::DepthZero);
-		CreateInfo.DebugName = TEXT("SlateViewportDepthStencil");
+		FRHIResourceCreateInfo CreateInfo(TEXT("SlateViewportDepthStencil"), FClearValueBinding::DepthZero);
 
 		ETextureCreateFlags TargetableTextureFlags = TexCreate_DepthStencilTargetable;
 		if (CVarMemorylessDepthStencil.GetValueOnAnyThread() != 0)
@@ -784,8 +783,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				ViewportInfo.ColorSpaceLUTRT.SafeRelease();
 				ViewportInfo.ColorSpaceLUTSRV.SafeRelease();
 
-				FRHIResourceCreateInfo CreateInfo;
-				CreateInfo.DebugName = TEXT("ColorSpaceLUT");
+				FRHIResourceCreateInfo CreateInfo(TEXT("ColorSpaceLUT"));
 				RHICreateTargetableShaderResource3D(CompositionLUTSize, CompositionLUTSize, CompositionLUTSize, PF_A2B10G10R10, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, ViewportInfo.ColorSpaceLUTRT, ViewportInfo.ColorSpaceLUTSRV);
 				bLUTStale = true;
 			}

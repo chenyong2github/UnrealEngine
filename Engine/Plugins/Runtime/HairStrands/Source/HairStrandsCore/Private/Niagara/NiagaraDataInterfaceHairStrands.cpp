@@ -328,7 +328,7 @@ void FNDIHairStrandsBuffer::InitRHI()
 			const uint32 OffsetCount = SourceDatas->GetNumCurves() + 1;
 			const uint32 OffsetBytes = sizeof(uint32)*OffsetCount;
 
-			CurvesOffsetsBuffer.Initialize(sizeof(uint32), OffsetCount, EPixelFormat::PF_R32_UINT, BUF_Static);
+			CurvesOffsetsBuffer.Initialize(TEXT("CurvesOffsetsBuffer"), sizeof(uint32), OffsetCount, EPixelFormat::PF_R32_UINT, BUF_Static);
 			void* OffsetBufferData = RHILockBuffer(CurvesOffsetsBuffer.Buffer, 0, OffsetBytes, RLM_WriteOnly);
 
 			FMemory::Memcpy(OffsetBufferData, SourceDatas->StrandsCurves.CurvesOffset.GetData(), OffsetBytes);
@@ -343,7 +343,7 @@ void FNDIHairStrandsBuffer::InitRHI()
 			const uint32 BoundCount = 24;
 			const uint32 BoundBytes = sizeof(uint32)*BoundCount;
 
-			BoundingBoxBuffer.Initialize(sizeof(uint32), BoundCount, EPixelFormat::PF_R32_UINT, BUF_Static);
+			BoundingBoxBuffer.Initialize(TEXT("BoundingBoxBuffer"), sizeof(uint32), BoundCount, EPixelFormat::PF_R32_UINT, BUF_Static);
 			void* BoundBufferData = RHILockBuffer(BoundingBoxBuffer.Buffer, 0, BoundBytes, RLM_WriteOnly);
 			
 			FMemory::Memcpy(BoundBufferData, ZeroData.GetData(), BoundBytes);
@@ -353,7 +353,7 @@ void FNDIHairStrandsBuffer::InitRHI()
 			const uint32 ScaleCount = 32 * NumScales;
 			const uint32 ScaleBytes = sizeof(float) * ScaleCount;  
 
-			ParamsScaleBuffer.Initialize(sizeof(float), ScaleCount, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+			ParamsScaleBuffer.Initialize(TEXT("ParamsScaleBuffer"), sizeof(float), ScaleCount, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 			void* ScaleBufferData = RHILockBuffer(ParamsScaleBuffer.Buffer, 0, ScaleBytes, RLM_WriteOnly);
 
 			FMemory::Memcpy(ScaleBufferData, ParamsScale.GetData(), ScaleBytes);
@@ -362,7 +362,7 @@ void FNDIHairStrandsBuffer::InitRHI()
 		if (SourceDeformedResources == nullptr)
 		{
 			const uint32 PositionsCount = SourceDatas->GetNumPoints();
-			DeformedPositionBuffer.Initialize(FHairStrandsPositionFormat::SizeInByte, PositionsCount, FHairStrandsPositionFormat::Format, BUF_Static);
+			DeformedPositionBuffer.Initialize(TEXT("DeformedPositionBuffer"), FHairStrandsPositionFormat::SizeInByte, PositionsCount, FHairStrandsPositionFormat::Format, BUF_Static);
 		}
 	}
 }

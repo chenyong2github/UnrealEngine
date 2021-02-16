@@ -99,15 +99,11 @@ void FGerstnerWaterWaveViewExtension::SetupViewFamily(FSceneViewFamily& InViewFa
 		(
 			[this, WaterDataBuffer, WaterIndirectionBuffer](FRHICommandListImmediate& RHICmdList) mutable
 			{
-				FRHIResourceCreateInfo CreateInfoData;
-				CreateInfoData.ResourceArray = &WaterDataBuffer;
-				CreateInfoData.DebugName = TEXT("WaterDataBuffer");
+				FRHIResourceCreateInfo CreateInfoData(TEXT("WaterDataBuffer"), &WaterDataBuffer);
 				DataBuffer = RHICreateStructuredBuffer(sizeof(FVector4), WaterDataBuffer.GetResourceDataSize(), BUF_StructuredBuffer | BUF_ShaderResource | BUF_Static, ERHIAccess::SRVMask, CreateInfoData);
 				DataSRV = RHICreateShaderResourceView(DataBuffer);
 
-				FRHIResourceCreateInfo CreateInfoIndirection;
-				CreateInfoIndirection.ResourceArray = &WaterIndirectionBuffer;
-				CreateInfoIndirection.DebugName = TEXT("WaterIndirectionBuffer");
+				FRHIResourceCreateInfo CreateInfoIndirection(TEXT("WaterIndirectionBuffer"), &WaterIndirectionBuffer);
 				IndirectionBuffer = RHICreateStructuredBuffer(sizeof(FVector4), WaterIndirectionBuffer.GetResourceDataSize(), BUF_StructuredBuffer | BUF_ShaderResource | BUF_Static, ERHIAccess::SRVMask, CreateInfoIndirection);
 				IndirectionSRV = RHICreateShaderResourceView(IndirectionBuffer);
 			}

@@ -94,7 +94,7 @@ void FTexture2DUpdate::DoConvertToVirtualWithNewMips(const FContext& Context)
 			ensure(!IntermediateTextureRHI);
 
 			// Create a copy of the texture that is a virtual texture.
-			FRHIResourceCreateInfo CreateInfo(Context.Resource->ResourceMem);
+			FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DUpdate"), Context.Resource->ResourceMem);
 			IntermediateTextureRHI = RHICreateTexture2D(
 				MipMap0.SizeX, 
 				MipMap0.SizeY, 
@@ -128,7 +128,7 @@ bool FTexture2DUpdate::DoConvertToNonVirtual(const FContext& Context)
 			const FTexture2DMipMap& PendingFirstMipMap = *Context.MipsView[PendingFirstLODIdx];
 
 			ensure(!IntermediateTextureRHI);
-			FRHIResourceCreateInfo CreateInfo(Context.Resource->ResourceMem);
+			FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DUpdate"), Context.Resource->ResourceMem);
 			IntermediateTextureRHI = RHICreateTexture2D(
 				PendingFirstMipMap.SizeX, 
 				PendingFirstMipMap.SizeY, 

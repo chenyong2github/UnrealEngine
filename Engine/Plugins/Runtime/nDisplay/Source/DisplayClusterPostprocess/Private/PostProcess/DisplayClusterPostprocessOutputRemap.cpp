@@ -89,7 +89,7 @@ bool FDisplayClusterPostprocessOutputRemap::InitializeResources_RenderThread(con
 			static const TConsoleVariableData<int32>* CVarDefaultBackBufferPixelFormat = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultBackBufferPixelFormat"));
 			static const EPixelFormat SceneTargetFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnRenderThread()));
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("DummyTexRef"));
 			FTexture2DRHIRef DummyTexRef;
 			RHICreateTargetableShaderResource2D(ScreenSize.X, ScreenSize.Y, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, RTTexture, DummyTexRef);
 

@@ -313,7 +313,7 @@ void FMPCDIWarpMesh::CreateRHIResources()
 			int ChromakeyMarkerUVChannel = (TotalNumTexCoords > 1) ? 1 : 0;
 
 			// Create Vertex buffer RHI:
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FMPCDIWarpMesh"));
 			VertexBufferRHI = RHICreateVertexBuffer(sizeof(FWarpMeshVertex) * NumVertices, BUF_Dynamic, CreateInfo);
 			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FWarpMeshVertex) * NumVertices, RLM_WriteOnly);
 			FWarpMeshVertex* pVertices = reinterpret_cast<FWarpMeshVertex*>(VoidPtr);

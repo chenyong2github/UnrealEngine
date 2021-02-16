@@ -34,7 +34,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		PositionData[1] = FVector( 1,  1, 0);
 		PositionData[2] = FVector(-1, -1, 0);
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingTestbedVB"));
 		CreateInfo.ResourceArray = &PositionData;
 
 		VertexBuffer = RHICreateVertexBuffer(PositionData.GetResourceDataSize(), BUF_Static, CreateInfo);
@@ -49,7 +49,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		IndexData[1] = 1;
 		IndexData[2] = 2;
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingTestbedIB"));
 		CreateInfo.ResourceArray = &IndexData;
 
 		IndexBuffer = RHICreateIndexBuffer(2, IndexData.GetResourceDataSize(), BUF_Static, CreateInfo);
@@ -68,7 +68,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 		RayData[2] = FBasicRayData{ { 0.75f, 0.0f,  1.0f}, 0xFFFFFFFF, {0.0f, 0.0f, -1.0f}, 100000.0f }; // expected to hit  (should hit back face)
 		RayData[3] = FBasicRayData{ {-0.75f, 0.0f, -1.0f}, 0xFFFFFFFF, {0.0f, 0.0f,  1.0f}, 100000.0f }; // expected to miss (doesn't intersect)
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("RayBuffer"));
 		CreateInfo.ResourceArray = &RayData;
 
 		RayBuffer = RHICreateStructuredBuffer(sizeof(FBasicRayData), RayData.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
@@ -79,7 +79,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	FUnorderedAccessViewRHIRef OcclusionResultBufferView;
 
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("OcclusionResultBuffer"));
 		OcclusionResultBuffer = RHICreateVertexBuffer(sizeof(uint32)*NumRays, BUF_Static | BUF_UnorderedAccess, CreateInfo);
 		OcclusionResultBufferView = RHICreateUnorderedAccessView(OcclusionResultBuffer, PF_R32_UINT);
 	}
@@ -88,7 +88,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	FUnorderedAccessViewRHIRef IntersectionResultBufferView;
 
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("IntersectionResultBuffer"));
 		IntersectionResultBuffer = RHICreateVertexBuffer(sizeof(FIntersectionPayload)*NumRays, BUF_Static | BUF_UnorderedAccess, CreateInfo);
 		IntersectionResultBufferView = RHICreateUnorderedAccessView(IntersectionResultBuffer, PF_R32_UINT);
 	}
@@ -105,7 +105,6 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	GeometryInitializer.TotalPrimitiveCount = Segment.NumPrimitives;
 	FRayTracingGeometryRHIRef Geometry = RHICreateRayTracingGeometry(GeometryInitializer);
 
-	FRHIResourceCreateInfo CreateInfo;
 	FShaderResourceViewRHIRef GPUTransforms = nullptr;
 	const uint32 NumTransforms = 1;
 

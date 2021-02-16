@@ -515,8 +515,7 @@ FParticleCurveTexture::FParticleCurveTexture()
 void FParticleCurveTexture::InitRHI()
 {
 	// 8-bit per channel RGBA texture for curves.
-	FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(FLinearColor::Blue) };
-	CreateInfo.DebugName = TEXT("ParticleCurveTexture");
+	FRHIResourceCreateInfo CreateInfo(TEXT("ParticleCurveTexture"), FClearValueBinding(FLinearColor::Blue));
 
 	RHICreateTargetableShaderResource2D(
 		GParticleCurveTextureSizeX,

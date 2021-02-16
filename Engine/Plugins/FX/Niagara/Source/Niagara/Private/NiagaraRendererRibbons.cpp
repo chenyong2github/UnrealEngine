@@ -1031,7 +1031,7 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	// TODO: need to make these two a global alloc buffer as well, not recreate
 				// pass in the sorted indices so the VS can fetch the particle data in order
 	FReadBuffer SortedIndicesBuffer;
-	SortedIndicesBuffer.Initialize(sizeof(int32), DynamicDataRibbon->SortedIndices.Num(), EPixelFormat::PF_R32_SINT, BUF_Volatile);
+	SortedIndicesBuffer.Initialize(TEXT("SortedIndicesBuffer"), sizeof(int32), DynamicDataRibbon->SortedIndices.Num(), EPixelFormat::PF_R32_SINT, BUF_Volatile);
 	void *IndexPtr = RHILockBuffer(SortedIndicesBuffer.Buffer, 0, DynamicDataRibbon->SortedIndices.Num() * sizeof(int32), RLM_WriteOnly);
 	FMemory::Memcpy(IndexPtr, DynamicDataRibbon->SortedIndices.GetData(), DynamicDataRibbon->SortedIndices.Num() * sizeof(int32));
 	RHIUnlockBuffer(SortedIndicesBuffer.Buffer);
@@ -1039,21 +1039,21 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 	// pass in the CPU generated total segment distance (for tiling distance modes); needs to be a buffer so we can fetch them in the correct order based on Draw Direction (front->back or back->front)
 	//	otherwise UVs will pop when draw direction changes based on camera view point
 	FReadBuffer TangentsAndDistancesBuffer;
-	TangentsAndDistancesBuffer.Initialize(sizeof(FVector4), DynamicDataRibbon->TangentAndDistances.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Volatile);
+	TangentsAndDistancesBuffer.Initialize(TEXT("TangentsAndDistancesBuffer"), sizeof(FVector4), DynamicDataRibbon->TangentAndDistances.Num(), EPixelFormat::PF_A32B32G32R32F, BUF_Volatile);
 	void *TangentsAndDistancesPtr = RHILockBuffer(TangentsAndDistancesBuffer.Buffer, 0, DynamicDataRibbon->TangentAndDistances.Num() * sizeof(FVector4), RLM_WriteOnly);
 	FMemory::Memcpy(TangentsAndDistancesPtr, DynamicDataRibbon->TangentAndDistances.GetData(), DynamicDataRibbon->TangentAndDistances.Num() * sizeof(FVector4));
 	RHIUnlockBuffer(TangentsAndDistancesBuffer.Buffer);
 	CollectorResources.VertexFactory.SetTangentAndDistances(TangentsAndDistancesBuffer.Buffer, TangentsAndDistancesBuffer.SRV);
 	// Copy a buffer which has the per particle multi ribbon index.
 	FReadBuffer MultiRibbonIndicesBuffer;
-	MultiRibbonIndicesBuffer.Initialize(sizeof(uint32), DynamicDataRibbon->MultiRibbonIndices.Num(), EPixelFormat::PF_R32_UINT, BUF_Volatile);
+	MultiRibbonIndicesBuffer.Initialize(TEXT("MultiRibbonIndicesBuffer"), sizeof(uint32), DynamicDataRibbon->MultiRibbonIndices.Num(), EPixelFormat::PF_R32_UINT, BUF_Volatile);
 	void* MultiRibbonIndexPtr = RHILockBuffer(MultiRibbonIndicesBuffer.Buffer, 0, DynamicDataRibbon->MultiRibbonIndices.Num() * sizeof(uint32), RLM_WriteOnly);
 	FMemory::Memcpy(MultiRibbonIndexPtr, DynamicDataRibbon->MultiRibbonIndices.GetData(), DynamicDataRibbon->MultiRibbonIndices.Num() * sizeof(uint32));
 	RHIUnlockBuffer(MultiRibbonIndicesBuffer.Buffer);
 	CollectorResources.VertexFactory.SetMultiRibbonIndicesSRV(MultiRibbonIndicesBuffer.Buffer, MultiRibbonIndicesBuffer.SRV);
 	// Copy the packed u data for stable age based uv generation.
 	FReadBuffer PackedPerRibbonDataByIndexBuffer;
-	PackedPerRibbonDataByIndexBuffer.Initialize(sizeof(float), DynamicDataRibbon->PackedPerRibbonDataByIndex.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Volatile);
+	PackedPerRibbonDataByIndexBuffer.Initialize(TEXT("PackedPerRibbonDataByIndexBuffer"), sizeof(float), DynamicDataRibbon->PackedPerRibbonDataByIndex.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Volatile);
 	void *PackedPerRibbonDataByIndexPtr = RHILockBuffer(PackedPerRibbonDataByIndexBuffer.Buffer, 0, DynamicDataRibbon->PackedPerRibbonDataByIndex.Num() * sizeof(float), RLM_WriteOnly);
 	FMemory::Memcpy(PackedPerRibbonDataByIndexPtr, DynamicDataRibbon->PackedPerRibbonDataByIndex.GetData(), DynamicDataRibbon->PackedPerRibbonDataByIndex.Num() * sizeof(float));
 	RHIUnlockBuffer(PackedPerRibbonDataByIndexBuffer.Buffer);
@@ -1061,7 +1061,7 @@ void FNiagaraRendererRibbons::SetupMeshBatchAndCollectorResourceForView(
 
 	// Copy the packed offset data for slice vertices
 	FReadBuffer SliceVertexDataBuffer;
-	SliceVertexDataBuffer.Initialize(sizeof(float), DynamicDataRibbon->SliceVertexData.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Volatile);
+	SliceVertexDataBuffer.Initialize(TEXT("SliceVertexDataBuffer"), sizeof(float), DynamicDataRibbon->SliceVertexData.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Volatile);
 	void* SliceVertexDataBufferPtr = RHILockBuffer(SliceVertexDataBuffer.Buffer, 0, DynamicDataRibbon->SliceVertexData.Num() * sizeof(float), RLM_WriteOnly);
 	FMemory::Memcpy(SliceVertexDataBufferPtr, DynamicDataRibbon->SliceVertexData.GetData(), DynamicDataRibbon->SliceVertexData.Num() * sizeof(float));
 	RHIUnlockBuffer(SliceVertexDataBuffer.Buffer);

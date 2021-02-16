@@ -417,7 +417,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 		Vertices.Emplace(Index);
 	}
 
-	FRHIResourceCreateInfo CreateInfo(&Vertices);
+	FRHIResourceCreateInfo CreateInfo(TEXT("RendererGPUBenchmark"), &Vertices);
 	FBufferRHIRef VertexBuffer = RHICreateVertexBuffer(GBenchmarkVertices * sizeof(FBenchmarkVertex), BUF_Static, CreateInfo);
 
 	// two RT to ping pong so we force the GPU to flush it's pipeline

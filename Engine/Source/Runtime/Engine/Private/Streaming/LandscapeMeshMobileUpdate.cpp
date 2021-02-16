@@ -74,7 +74,7 @@ void FLandscapeMeshMobileStreamIn::ExpandResources(const FContext& Context)
 			return;
 		}
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeMeshMobileStreamIn"));
 		IntermediateVertexBuffer = RHICreateVertexBuffer(NewSize, BUF_Static, CreateInfo);
 		uint8* Dest = (uint8*)RHILockBuffer(IntermediateVertexBuffer, OldSize, NewSize - OldSize, RLM_WriteOnly);
 		for (int32 LODIdx = CurrentFirstLODIdx - 1; LODIdx >= PendingFirstLODIdx; --LODIdx)
@@ -162,7 +162,7 @@ void FLandscapeMeshMobileStreamOut::ShrinkResources(const FContext& Context)
 			check(SizeDelta < 0 && RenderData->VertexBuffer && RenderData->VertexBuffer->VertexBufferRHI);
 			FLandscapeVertexBufferMobile::UpdateMemoryStat(SizeDelta);
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeMeshMobileStreamOut"));
 			FRHIBuffer* LandsacpeVBRHI = RenderData->VertexBuffer->VertexBufferRHI;
 			const int32 NewSize = (int32)LandsacpeVBRHI->GetSize() + SizeDelta;
 			FBufferRHIRef IntermediateVertexBuffer = RHICreateVertexBuffer(NewSize, BUF_Static, CreateInfo);

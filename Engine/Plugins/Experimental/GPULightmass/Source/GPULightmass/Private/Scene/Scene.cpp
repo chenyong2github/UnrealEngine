@@ -607,7 +607,7 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 		NewSkyLightRenderState.ProcessedTexture = ProcessedSkyTexture->TextureRHI;
 		NewSkyLightRenderState.ProcessedTextureSampler = ProcessedSkyTexture->SamplerStateRHI;
 
-		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(sizeof(FVector4), 7, 0, TEXT("SkyIrradianceEnvironmentMap"));
+		NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Initialize(TEXT("SkyIrradianceEnvironmentMap"), sizeof(FVector4), 7, 0);
 
 		// Set the captured environment map data
 		void* DataPtr = RHICmdList.LockBuffer(NewSkyLightRenderState.SkyIrradianceEnvironmentMap.Buffer, 0, NewSkyLightRenderState.SkyIrradianceEnvironmentMap.NumBytes, RLM_WriteOnly);
@@ -1532,7 +1532,6 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 					uint32 NumPrimitives = FMath::Square(LodSubsectionSizeVerts - 1) * 2;
 
 					FRayTracingGeometryInitializer GeometryInitializer;
-					FRHIResourceCreateInfo CreateInfo;
 					GeometryInitializer.IndexBuffer = InstanceRenderStateRef->SharedBuffers->ZeroOffsetIndexBuffers[0]->IndexBufferRHI;
 					GeometryInitializer.TotalPrimitiveCount = NumPrimitives;
 					GeometryInitializer.GeometryType = RTGT_Triangles;

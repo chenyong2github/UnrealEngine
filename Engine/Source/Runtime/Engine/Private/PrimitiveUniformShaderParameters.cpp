@@ -12,7 +12,7 @@ void FSinglePrimitiveStructured::InitRHI()
 
 	if (RHISupportsComputeShaders(GMaxRHIShaderPlatform))
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("PrimitiveSceneDataBuffer"));
 
 		{	
 			PrimitiveSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
@@ -20,16 +20,20 @@ void FSinglePrimitiveStructured::InitRHI()
 		}
 
 		{
+			CreateInfo.DebugName = TEXT("PrimitiveSceneDataTexture");
 			PrimitiveSceneDataTextureRHI = RHICreateTexture2D(FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s, 1, PF_A32B32G32R32F, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
 			PrimitiveSceneDataTextureSRV = RHICreateShaderResourceView(PrimitiveSceneDataTextureRHI, 0);
 		}
 
+		CreateInfo.DebugName = TEXT("LightmapSceneDataBuffer");
 		LightmapSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FLightmapSceneShaderData::LightmapDataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
 		LightmapSceneDataBufferSRV = RHICreateShaderResourceView(LightmapSceneDataBufferRHI);
 
+		CreateInfo.DebugName = TEXT("InstanceSceneDataBuffer");
 		InstanceSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FInstanceSceneShaderData::InstanceDataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
 		InstanceSceneDataBufferSRV = RHICreateShaderResourceView(InstanceSceneDataBufferRHI);
 
+		CreateInfo.DebugName = TEXT("SkyIrradianceEnvironmentMap");
 		SkyIrradianceEnvironmentMapRHI = RHICreateStructuredBuffer(sizeof(FVector4), sizeof(FVector4) * 8, BUF_Static | BUF_ShaderResource, CreateInfo);
 		SkyIrradianceEnvironmentMapSRV = RHICreateShaderResourceView(SkyIrradianceEnvironmentMapRHI);
 	}
@@ -60,7 +64,7 @@ void FSinglePrimitiveStructured::UploadToGPU()
 	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
 	{
 		// Create level instance SRV
-		FRHIResourceCreateInfo LevelInstanceBufferCreateInfo;
+		FRHIResourceCreateInfo LevelInstanceBufferCreateInfo(TEXT("EditorVisualizeLevelInstanceDataBuffer"));
 		EditorVisualizeLevelInstanceDataBufferRHI = RHICreateVertexBuffer(sizeof(uint32), BUF_Static | BUF_ShaderResource, LevelInstanceBufferCreateInfo);
 
 		void* LockedData = RHILockBuffer(EditorVisualizeLevelInstanceDataBufferRHI, 0, sizeof(uint32), RLM_WriteOnly);
@@ -72,7 +76,7 @@ void FSinglePrimitiveStructured::UploadToGPU()
 		EditorVisualizeLevelInstanceDataBufferSRV = RHICreateShaderResourceView(EditorVisualizeLevelInstanceDataBufferRHI, sizeof(uint32), PF_R32_UINT);
 
 		// Create selection outline SRV
-		FRHIResourceCreateInfo SelectionBufferCreateInfo;
+		FRHIResourceCreateInfo SelectionBufferCreateInfo(TEXT("EditorSelectedDataBuffer"));
 		EditorSelectedDataBufferRHI = RHICreateVertexBuffer(sizeof(uint32), BUF_Static | BUF_ShaderResource, SelectionBufferCreateInfo);
 
 		LockedData = RHILockBuffer(EditorSelectedDataBufferRHI, 0, sizeof(uint32), RLM_WriteOnly);

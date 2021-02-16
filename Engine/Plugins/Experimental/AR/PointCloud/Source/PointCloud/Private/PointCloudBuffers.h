@@ -49,7 +49,7 @@ protected:
 		NumVerts = InNumVerts;
 
 		FPointCloudVertexResourceArray ResourceArray(InVertexData, InSizeInBytes);
-		FRHIResourceCreateInfo CreateInfo(&ResourceArray);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FPointCloudVertexBufferBase"), &ResourceArray);
 		VertexBufferRHI = RHICreateVertexBuffer(InSizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo);
 	}
 

@@ -52,7 +52,7 @@ public:
 
 	virtual void InitRHI()
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyPrevTransformBuffer"));
 		VB = RHICreateVertexBuffer(sizeof(FVector4) * 3, BUF_Static | BUF_ShaderResource, CreateInfo);
 		SRV = RHICreateShaderResourceView(VB, sizeof(FVector4), PF_A32B32G32R32F);
 	}
@@ -232,7 +232,7 @@ uint8* FMeshParticleVertexFactory::LockPreviousTransformBuffer(uint32 ParticleCo
 	if (AllocationRequest > PrevTransformBuffer.NumBytes)
 	{
 		PrevTransformBuffer.Release();
-		PrevTransformBuffer.Initialize(ElementSize, ParticleCount * 3, PF_A32B32G32R32F, BUF_Dynamic);
+		PrevTransformBuffer.Initialize(TEXT("PrevTransformBuffer"), ElementSize, ParticleCount * 3, PF_A32B32G32R32F, BUF_Dynamic);
 	}
 
 	PrevTransformBuffer.Lock();

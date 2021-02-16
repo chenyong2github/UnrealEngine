@@ -1049,7 +1049,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 	
 			FRWBufferStructured InstanceGPUTransformsBuffer;
 			//InstanceGPUTransformsBuffer.Initialize(sizeof(FMatrix), CPUInstancesCount, BUF_Static);
-			InstanceGPUTransformsBuffer.Initialize(3 * 4 * sizeof(float), CPUInstancesCount, BUF_Static);
+			InstanceGPUTransformsBuffer.Initialize(TEXT("InstanceGPUTransformsBuffer"), 3 * 4 * sizeof(float), CPUInstancesCount, BUF_Static);
 			RayTracingInstance.InstanceGPUTransformsSRV = InstanceGPUTransformsBuffer.SRV;
 
 			FNiagaraGPURayTracingTransformsCS::FPermutationDomain PermutationVector;

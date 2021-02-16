@@ -1052,7 +1052,7 @@ bool FNvVideoEncoder::InitFrameInputBuffer(FFrame& Frame, uint32 Width, uint32 H
 	// Create resolved back buffer texture
 	{
 		// Make sure format used here is compatible with NV_ENC_BUFFER_FORMAT specified later in NV_ENC_REGISTER_RESOURCE bufferFormat
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("InputFrameTexture"));
 		InputFrame.Texture = RHICreateTexture2D(Width, Height, EPixelFormat::PF_B8G8R8A8, 1, 1, TexCreate_RenderTargetable | TexCreate_Shared, CreateInfo);
 	}
 

@@ -401,7 +401,7 @@ void FNiagaraDataSet::AllocateGPUFreeIDs(uint32 InNumInstances, FRHICommandList&
 	TCHAR DebugBufferName[128];
 	FCString::Snprintf(DebugBufferName, UE_ARRAY_COUNT(DebugBufferName), TEXT("NiagaraFreeIDList_%s"), DebugSimName ? DebugSimName : TEXT(""));
 	FRWBuffer NewFreeIDsBuffer;
-	NewFreeIDsBuffer.Initialize(sizeof(int32), NumIDsToAlloc, EPixelFormat::PF_R32_SINT, BUF_Static, DebugBufferName);
+	NewFreeIDsBuffer.Initialize(DebugBufferName, sizeof(int32), NumIDsToAlloc, EPixelFormat::PF_R32_SINT, BUF_Static);
 
 	FRHIShaderResourceView* ExistingBuffer;
 	if (GPUNumAllocatedIDs > 0)
@@ -780,7 +780,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			{
 				GPUBufferFloat.Release();
 			}
-			GPUBufferFloat.Initialize(sizeof(float), RequiredFloatByteSize / sizeof(float), EPixelFormat::PF_R32_FLOAT, GPUBufferFlags);
+			GPUBufferFloat.Initialize(TEXT("GPUBufferFloat"), sizeof(float), RequiredFloatByteSize / sizeof(float), EPixelFormat::PF_R32_FLOAT, GPUBufferFlags);
 			Transitions.Add(FRHITransitionInfo(GPUBufferFloat.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 
@@ -793,7 +793,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			{
 				GPUBufferHalf.Release();
 			}
-			GPUBufferHalf.Initialize(sizeof(FFloat16), RequiredHalfByteSize / sizeof(FFloat16), EPixelFormat::PF_R16F, GPUBufferFlags);
+			GPUBufferHalf.Initialize(TEXT("GPUBufferHalf"), sizeof(FFloat16), RequiredHalfByteSize / sizeof(FFloat16), EPixelFormat::PF_R16F, GPUBufferFlags);
 			Transitions.Add(FRHITransitionInfo(GPUBufferHalf.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 
@@ -806,7 +806,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 			{
 				GPUBufferInt.Release();
 			}
-			GPUBufferInt.Initialize(sizeof(int32), RequiredInt32ByteSize / sizeof(int32), EPixelFormat::PF_R32_SINT, GPUBufferFlags);
+			GPUBufferInt.Initialize(TEXT("GPUBufferInt"), sizeof(int32), RequiredInt32ByteSize / sizeof(int32), EPixelFormat::PF_R32_SINT, GPUBufferFlags);
 			Transitions.Add(FRHITransitionInfo(GPUBufferInt.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 		}
 
@@ -823,7 +823,7 @@ void FNiagaraDataBuffer::AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceC
 				}
 				TCHAR DebugBufferName[128];
 				FCString::Snprintf(DebugBufferName, UE_ARRAY_COUNT(DebugBufferName), TEXT("NiagaraIDToIndexTable_%s_%p"), DebugSimName ? DebugSimName : TEXT(""), this);
-				GPUIDToIndexTable.Initialize(sizeof(int32), NumNeededElems, EPixelFormat::PF_R32_SINT, BUF_Static, DebugBufferName);
+				GPUIDToIndexTable.Initialize(DebugBufferName, sizeof(int32), NumNeededElems, EPixelFormat::PF_R32_SINT, BUF_Static);
 				Transitions.Add(FRHITransitionInfo(GPUIDToIndexTable.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 			}
 		}

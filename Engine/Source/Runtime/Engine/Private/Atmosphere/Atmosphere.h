@@ -147,7 +147,7 @@ public:
 				{
 					const uint32 DataSize = SizeX * SizeY * sizeof(FColor);
 					FAtmosphereResourceBulkDataInterface BulkDataInterface(TextureData, DataSize);
-					FRHIResourceCreateInfo CreateInfo(&BulkDataInterface);
+					FRHIResourceCreateInfo CreateInfo(TEXT("E_Transmittance"), &BulkDataInterface);
 					TextureRHI = RHICreateTexture2D(
 						SizeX, SizeY, PF_B8G8R8A8,
 						/*NumMips=*/ 1,
@@ -161,7 +161,7 @@ public:
 				{
 					const uint32 DataSize = SizeX * SizeY * sizeof(FColor);
 					FAtmosphereResourceBulkDataInterface BulkDataInterface(TextureData, DataSize);
-					FRHIResourceCreateInfo CreateInfo(&BulkDataInterface);
+					FRHIResourceCreateInfo CreateInfo(TEXT("E_Irradiance"), &BulkDataInterface);
 					TextureRHI = RHICreateTexture2D(
 						SizeX, SizeY, PF_B8G8R8A8,
 						/*NumMips=*/ 1,
@@ -175,7 +175,7 @@ public:
 				{
 					const uint32 DataSize = SizeX * SizeY * SizeZ * sizeof(FFloat16Color);
 					FAtmosphereResourceBulkDataInterface BulkDataInterface(TextureData, DataSize);
-					FRHIResourceCreateInfo CreateInfo(&BulkDataInterface);
+					FRHIResourceCreateInfo CreateInfo(TEXT("E_Inscatter"), &BulkDataInterface);
 					TextureRHI = RHICreateTexture3D(
 						SizeX, SizeY, SizeZ, PF_FloatRGBA,
 						/*NumMips=*/ 1,

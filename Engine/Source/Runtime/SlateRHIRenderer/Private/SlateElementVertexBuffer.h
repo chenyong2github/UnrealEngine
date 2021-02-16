@@ -62,7 +62,7 @@ public:
 	
 			SetBufferSize(MinBufferSize);
 
-			FRHIResourceCreateInfo CreateInfo(TEXT("TSlateElementVertexBuffer"));
+			FRHIResourceCreateInfo CreateInfo(TEXT("SlateElementVertices"));
 			VertexBufferRHI = RHICreateVertexBuffer( MinBufferSize, BUF_Dynamic, CreateInfo );
 
 			// Ensure the vertex buffer could be created
@@ -130,7 +130,7 @@ private:
 		{
 			VertexBufferRHI.SafeRelease();
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("SlateElementVertices"));
 			VertexBufferRHI = RHICreateVertexBuffer(FinalSize, BUF_Dynamic, CreateInfo);
 
 			check(IsValidRef(VertexBufferRHI));
@@ -177,7 +177,7 @@ public:
 		{
 			static FStencilBufferResourceArray ResourceArray;
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("SlateStencilClipVertexBuffer"));
 			CreateInfo.ResourceArray = &ResourceArray;
 			VertexBufferRHI = RHICreateVertexBuffer(ResourceArray.GetResourceDataSize(), BUF_Static, CreateInfo);
 

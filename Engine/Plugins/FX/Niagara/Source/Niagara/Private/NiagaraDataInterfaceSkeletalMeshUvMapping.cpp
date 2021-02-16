@@ -444,7 +444,7 @@ FSkeletalMeshUvMappingBufferProxy::Initialize(const FSkeletalMeshUvMapping& UvMa
 void
 FSkeletalMeshUvMappingBufferProxy::InitRHI()
 {
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("UvMappingBuffer"));
 	CreateInfo.ResourceArray = &FrozenQuadTree;
 
 	const int32 BufferSize = FrozenQuadTree.Num();

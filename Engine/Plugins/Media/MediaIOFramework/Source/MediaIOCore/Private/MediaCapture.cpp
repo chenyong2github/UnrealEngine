@@ -549,7 +549,7 @@ void UMediaCapture::InitializeResolveTarget(int32 InNumberOfBuffers)
 		ENQUEUE_RENDER_COMMAND(MediaOutputCaptureFrameCreateTexture)(
 			[This](FRHICommandListImmediate& RHICmdList)
 			{
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("UMediaCapture"));
 				for (int32 Index = 0; Index < This->NumberOfCaptureFrame; ++Index)
 				{
 					This->CaptureFrames[Index].ReadbackTexture = RHICreateTexture2D(

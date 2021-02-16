@@ -231,8 +231,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::InitializeResources
 				// Create RT texture for viewport warp
 				for (int32 i = 0; i < Views.Num(); i++)
 				{
-					FRHIResourceCreateInfo CreateInfo;
-					FTexture2DRHIRef DummyTexRef;
+					FRHIResourceCreateInfo CreateInfo(TEXT("FDisplayClusterProjectionDomeprojectionViewAdapterDX11"));
 
 					RHICreateTargetableShaderResource2D(GetViewportSize().X, GetViewportSize().Y, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, true, CreateInfo, Views[i].TargetableTexture, Views[i].ShaderResourceTexture);
 

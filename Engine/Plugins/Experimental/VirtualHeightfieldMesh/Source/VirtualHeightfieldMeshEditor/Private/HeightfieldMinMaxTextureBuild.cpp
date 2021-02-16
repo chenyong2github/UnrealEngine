@@ -50,7 +50,7 @@ namespace
 				FIntPoint(NumTilesX, NumTilesY), PF_R8G8B8A8, FClearValueBinding::None, TexCreate_None, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_GenerateMipCapable | TexCreate_RenderTargetable, false, NumMips);
 			GRenderTargetPool.FindFreeElement(RHICmdList, FinalRenderTargetDesc, FinalRenderTarget, TEXT("FinalTarget"));
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FMinMaxTileRenderResources_StagingTextures"));
 			for (int32 MipLevel = 0; MipLevel < NumMips; MipLevel++)
 			{
 				const int32 SizeX = FMath::Max(NumTilesX >> MipLevel, 1);

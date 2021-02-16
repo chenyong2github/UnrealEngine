@@ -39,8 +39,7 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 
 	if (!DefaultTexture)
 	{
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.DebugName = TEXT("RTDefaultIESProfile");
+		FRHIResourceCreateInfo CreateInfo(TEXT("RTDefaultIESProfile"));
 		DefaultTexture = RHICreateTexture2D(AllowedIESProfileWidth, 1, AllowedIESProfileFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
 		FUnorderedAccessViewRHIRef UAV = RHICreateUnorderedAccessView(DefaultTexture, 0);
 
@@ -51,8 +50,7 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(FRHICommandListImmed
 
 	if (!AtlasTexture || AtlasTexture->GetSizeY() != NewArraySize)
 	{
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.DebugName = TEXT("RTIESProfileAtlas");
+		FRHIResourceCreateInfo CreateInfo(TEXT("RTIESProfileAtlas"));
 		AtlasTexture = RHICreateTexture2D(AllowedIESProfileWidth, NewArraySize, AllowedIESProfileFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
 		AtlasUAV = RHICreateUnorderedAccessView(AtlasTexture, 0);
 	}

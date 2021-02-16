@@ -62,7 +62,7 @@ public:
 
 	virtual void InitRHI() override
 	{
-		Buffer.Initialize(sizeof(int32), 1, EPixelFormat::PF_R32_UINT, BUF_Static, TEXT("FGPUSortDummyUAV"));
+		Buffer.Initialize(TEXT("FGPUSortDummyUAV"), sizeof(int32), 1, EPixelFormat::PF_R32_UINT, BUF_Static);
 	}
 
 	virtual void ReleaseRHI() override
@@ -263,8 +263,7 @@ FGPUSortManager::FValueBuffer::FValueBuffer(int32 InAllocatedCount, int32 InUsed
 {
 	check(InUsedCount >= 0 && InUsedCount <= InAllocatedCount);
 
-	FRHIResourceCreateInfo CreateInfo;
-	CreateInfo.DebugName = TEXT("ValueBuffer");
+	FRHIResourceCreateInfo CreateInfo(TEXT("ValueBuffer"));
 	VertexBufferRHI = RHICreateVertexBuffer((uint32)InAllocatedCount * sizeof(uint32), BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, ERHIAccess::SRVGraphics, CreateInfo);
 
 	UInt32SRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);

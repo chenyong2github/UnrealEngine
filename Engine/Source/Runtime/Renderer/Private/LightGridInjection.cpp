@@ -89,18 +89,18 @@ public:
 	{
 		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
-			ForwardLightingResources.ForwardLocalLightBuffer.Initialize(sizeof(FVector4), sizeof(FForwardLocalLightData) / sizeof(FVector4), PF_A32B32G32R32F, BUF_Dynamic);
-			ForwardLightingResources.NumCulledLightsGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
+			ForwardLightingResources.ForwardLocalLightBuffer.Initialize(TEXT("ForwardLocalLightBuffer"), sizeof(FVector4), sizeof(FForwardLocalLightData) / sizeof(FVector4), PF_A32B32G32R32F, BUF_Dynamic);
+			ForwardLightingResources.NumCulledLightsGrid.Initialize(TEXT("NumCulledLightsGrid"), sizeof(uint32), 1, PF_R32_UINT);
 
 			const bool bSupportFormatConversion = RHISupportsBufferLoadTypeConversion(GMaxRHIShaderPlatform);
 
 			if (bSupportFormatConversion)
 			{
-				ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint16), 1, PF_R16_UINT);
+				ForwardLightingResources.CulledLightDataGrid.Initialize(TEXT("CulledLightDataGrid"), sizeof(uint16), 1, PF_R16_UINT);
 			}
 			else
 			{
-				ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
+				ForwardLightingResources.CulledLightDataGrid.Initialize(TEXT("CulledLightDataGrid"), sizeof(uint32), 1, PF_R32_UINT);
 			}
 
 			ForwardLightingResources.ForwardLightData.ForwardLocalLightBuffer = ForwardLightingResources.ForwardLocalLightBuffer.SRV;
@@ -276,7 +276,7 @@ void UpdateDynamicVector4BufferData(const TArray<T, SceneRenderingAllocator> &Da
 	if (Buffer.NumBytes < NumBytesRequired)
 	{
 		Buffer.Release();
-		Buffer.Initialize(sizeof(FVector4), NumBytesRequired / sizeof(FVector4), PF_A32B32G32R32F, BUF_Volatile, DebugName);
+		Buffer.Initialize(DebugName, sizeof(FVector4), NumBytesRequired / sizeof(FVector4), PF_A32B32G32R32F, BUF_Volatile);
 	}
 
 	Buffer.Lock();
@@ -620,7 +620,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 				TEXT("Attempt to allocate large FRWBuffer (not supported by Metal): View.ForwardLightingResources->NumCulledLightsGrid %u Bytes, LightGridSize %dx%dx%d, NumCulledGridPrimitiveTypes %d, MaxNumCells %d, NumCulledLightsGridStride %d, View Resolution %dx%d"),
 				MaxNumCells * NumCulledLightsGridStride * sizeof(uint32), MaxLightGridSizeXY.X, MaxLightGridSizeXY.Y, GLightGridSizeZ, NumCulledGridPrimitiveTypes, MaxNumCells, NumCulledLightsGridStride, View.ViewRect.Size().X, View.ViewRect.Size().Y);
 
-			View.ForwardLightingResources->NumCulledLightsGrid.Initialize(sizeof(uint32), MaxNumCells * NumCulledLightsGridStride, PF_R32_UINT, 0, TEXT("NumCulledLightsGrid"));
+			View.ForwardLightingResources->NumCulledLightsGrid.Initialize(TEXT("NumCulledLightsGrid"), sizeof(uint32), MaxNumCells * NumCulledLightsGridStride, PF_R32_UINT, 0);
 		}
 
 		if (View.ForwardLightingResources->CulledLightDataGrid.NumBytes != MaxNumCells * GMaxCulledLightsPerCell * LightIndexTypeSize)
@@ -629,7 +629,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 				TEXT("Attempt to allocate large FRWBuffer (not supported by Metal): View.ForwardLightingResources->CulledLightDataGrid %u Bytes, LightGridSize %dx%dx%d, NumCulledGridPrimitiveTypes %d, MaxNumCells %d, GMaxCulledLightsPerCell %d, View Resolution %dx%d"),
 				MaxNumCells * GMaxCulledLightsPerCell * sizeof(FLightIndexType), MaxLightGridSizeXY.X, MaxLightGridSizeXY.Y, GLightGridSizeZ, NumCulledGridPrimitiveTypes, MaxNumCells, GMaxCulledLightsPerCell, View.ViewRect.Size().X, View.ViewRect.Size().Y);
 
-			View.ForwardLightingResources->CulledLightDataGrid.Initialize(LightIndexTypeSize, MaxNumCells * GMaxCulledLightsPerCell, LightIndexTypeSize == sizeof(uint16) ? PF_R16_UINT : PF_R32_UINT, 0, TEXT("CulledLightDataGrid"));
+			View.ForwardLightingResources->CulledLightDataGrid.Initialize(TEXT("CulledLightDataGrid"), LightIndexTypeSize, MaxNumCells * GMaxCulledLightsPerCell, LightIndexTypeSize == sizeof(uint16) ? PF_R16_UINT : PF_R32_UINT, 0);
 		}
 
 		const bool bShouldCacheTemporaryBuffers = View.ViewState != nullptr;

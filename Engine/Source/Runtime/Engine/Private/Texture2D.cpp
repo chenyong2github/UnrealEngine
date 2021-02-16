@@ -1337,7 +1337,8 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 			TexCreateFlags |= TexCreate_NoTiling;
 		}
 
-		FRHIResourceCreateInfo CreateInfo;
+		FString Name = TextureOwner->GetName();
+		FRHIResourceCreateInfo CreateInfo(*Name);
 		FTexture2DRHIRef Texture2DRHI = RHICreateTexture2D(MipWidthInTiles * TileSizeInPixels, MipHeightInTiles * TileSizeInPixels, PixelFormat, 1, 1, TexCreateFlags, CreateInfo);
 		FRHICommandListImmediate& RHICommandList = FRHICommandListExecutor::GetImmediateCommandList();
 
@@ -1394,7 +1395,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 
 		TextureRHI = Texture2DRHI;
 		TextureRHI->SetName(TextureOwner->GetFName());
-		RHIBindDebugLabelName(TextureRHI, *TextureOwner->GetName());
+		RHIBindDebugLabelName(TextureRHI, *Name);
 		RHIUpdateTextureReference(TextureOwner->TextureReference.TextureReferenceRHI, TextureRHI);
 
 		bIgnoreGammaConversions = !TextureOwner->SRGB && TextureOwner->CompressionSettings != TC_HDR && TextureOwner->CompressionSettings != TC_HalfFloat;

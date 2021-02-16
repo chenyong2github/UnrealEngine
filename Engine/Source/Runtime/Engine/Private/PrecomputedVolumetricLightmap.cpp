@@ -21,9 +21,8 @@ DECLARE_MEMORY_STAT(TEXT("Volumetric Lightmap"),STAT_VolumetricLightmapBuildData
 
 void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 {
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("VolumetricLightmap"));
 	CreateInfo.BulkData = this;
-	CreateInfo.DebugName = TEXT("VolumetricLightmap");
 
 	Texture = RHICreateTexture3D(
 		Dimensions.X, 
@@ -37,8 +36,7 @@ void FVolumetricLightmapDataLayer::CreateTexture(FIntVector Dimensions)
 
 void FVolumetricLightmapDataLayer::CreateTargetTexture(FIntVector Dimensions)
 {
-	FRHIResourceCreateInfo CreateInfo;
-	CreateInfo.DebugName = TEXT("VolumetricLightmap");
+	FRHIResourceCreateInfo CreateInfo(TEXT("VolumetricLightmap"));
 
 	Texture = RHICreateTexture3D(
 		Dimensions.X,
@@ -280,13 +278,13 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::InitRHIForSubLevelResources(
 		IndirectionTextureOriginalValues.SetAllowCPUAccess(true);
 
 		{
-			FRHIResourceCreateInfo CreateInfo(&SubLevelBrickPositions);
+			FRHIResourceCreateInfo CreateInfo(TEXT("SubLevelBrickPositionsBuffer"), &SubLevelBrickPositions);
 			SubLevelBrickPositionsBuffer = RHICreateVertexBuffer(SubLevelBrickPositions.Num() * SubLevelBrickPositions.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			SubLevelBrickPositionsSRV = RHICreateShaderResourceView(SubLevelBrickPositionsBuffer, sizeof(uint32), PF_R32_UINT);
 		}
 
 		{
-			FRHIResourceCreateInfo CreateInfo(&IndirectionTextureOriginalValues);
+			FRHIResourceCreateInfo CreateInfo(TEXT("IndirectionTextureOriginalValuesBuffer"), &IndirectionTextureOriginalValues);
 			IndirectionTextureOriginalValuesBuffer = RHICreateVertexBuffer(IndirectionTextureOriginalValues.Num() * IndirectionTextureOriginalValues.GetTypeSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
 			IndirectionTextureOriginalValuesSRV = RHICreateShaderResourceView(IndirectionTextureOriginalValuesBuffer, sizeof(FColor), PF_R8G8B8A8_UINT);
 		}

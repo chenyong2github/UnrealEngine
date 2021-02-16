@@ -373,8 +373,7 @@ void FDeferredShadingSceneRenderer::GenerateSkyLightVisibilityRays(
 	FIntVector& Dimensions
 )
 {
-	FRHIResourceCreateInfo CreateInfo;
-	CreateInfo.DebugName = TEXT("SkyLightVisibilityRays");
+	FRHIResourceCreateInfo CreateInfo(TEXT("SkyLightVisibilityRays"));
 
 	// SkyLight data setup
 	FSkyLightData SkyLightData;

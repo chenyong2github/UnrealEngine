@@ -32,8 +32,6 @@ enum
 	Uniform buffer RHI object
 -----------------------------------------------------------------------------*/
 
-static FRHIResourceCreateInfo GEmptyCreateInfo;
-
 static inline EBufferUsageFlags UniformBufferToBufferUsage(EUniformBufferUsage Usage)
 {
 	switch (Usage)

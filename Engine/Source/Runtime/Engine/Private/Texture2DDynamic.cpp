@@ -60,7 +60,8 @@ void FTexture2DDynamicResource::InitRHI()
 	{
 		Flags |= TexCreate_NoTiling;
 	}
-	FRHIResourceCreateInfo CreateInfo;
+	FString Name = Owner->GetName();
+	FRHIResourceCreateInfo CreateInfo(*Name);
 	Texture2DRHI = RHICreateTexture2D(GetSizeX(), GetSizeY(), Owner->Format, Owner->NumMips, 1, Flags, CreateInfo);
 	TextureRHI = Texture2DRHI;
 	TextureRHI->SetName(Owner->GetFName());

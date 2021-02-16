@@ -206,7 +206,7 @@ void FARCameraSceneViewExtension::PreRenderView_RenderThread(FRHICommandListImme
 		Vertices[3].Position = FVector4(1.f, 1.f, 0.f, 1.f);
 		Vertices[3].UV = FVector2D(1.f, 1.f);
 
-		FRHIResourceCreateInfo CreateInfoVB(&Vertices);
+		FRHIResourceCreateInfo CreateInfoVB(TEXT("FARCameraSceneViewExtension"), &Vertices);
 		VertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);
 	}
 
@@ -220,7 +220,7 @@ void FARCameraSceneViewExtension::PreRenderView_RenderThread(FRHICommandListImme
 		IndexBuffer.AddUninitialized(NumIndices);
 		FMemory::Memcpy(IndexBuffer.GetData(), Indices, NumIndices * sizeof(uint16));
 
-		FRHIResourceCreateInfo CreateInfoIB(&IndexBuffer);
+		FRHIResourceCreateInfo CreateInfoIB(TEXT("FARCameraSceneViewExtension"), &IndexBuffer);
 		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), IndexBuffer.GetResourceDataSize(), BUF_Static, CreateInfoIB);
 	}
 

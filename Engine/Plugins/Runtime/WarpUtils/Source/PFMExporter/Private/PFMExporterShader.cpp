@@ -107,7 +107,7 @@ bool FPFMExporterShader::ApplyPFMExporter_RenderThread(
 	// Initialize data for PFm (RT textures, etc)
 	DstPfmMesh.BeginExport_RenderThread(RHICmdList);
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FPFMExporterShader"));
 	FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * NumVertices, BUF_Dynamic, CreateInfo);
 	{//Fill buffer with vertex+selected UV channel:
 		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * NumVertices, RLM_WriteOnly);

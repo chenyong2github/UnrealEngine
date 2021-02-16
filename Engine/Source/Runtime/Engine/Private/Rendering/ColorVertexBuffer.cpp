@@ -393,7 +393,7 @@ FBufferRHIRef FColorVertexBuffer::CreateRHIBuffer_Internal()
 	{
 		FResourceArrayInterface* RESTRICT ResourceArray = VertexData ? VertexData->GetResourceArray() : nullptr;
 		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
-		FRHIResourceCreateInfo CreateInfo(ResourceArray);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FColorVertexBuffer"), ResourceArray);
 		CreateInfo.bWithoutNativeResource = !VertexData;
 		if (bRenderThread)
 		{

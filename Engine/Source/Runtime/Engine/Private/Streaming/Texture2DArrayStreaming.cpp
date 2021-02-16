@@ -104,7 +104,7 @@ bool FTexture2DArrayMipAllocator_Reallocate::FinalizeMips(const FTextureUpdateCo
 
 	// Create new Texture.
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FinalizeMips"));
 		const FTexture2DMipMap& FirstMip = *Context.MipsView[PendingFirstLODIdx];
 		CreateInfo.ExtData = Context.Resource->GetExtData();
 		IntermediateTextureRHI = RHICreateTexture2DArray(FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, Context.Resource->GetPixelFormat(), ResourceState.NumRequestedLODs, 1, Context.Resource->GetCreationFlags(), CreateInfo);

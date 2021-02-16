@@ -61,8 +61,7 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 
 		uint32 NumBytes = Desc.GetTotalNumBytes();
 
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.DebugName = InDebugName;
+		FRHIResourceCreateInfo CreateInfo(InDebugName);
 
 		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
 		{

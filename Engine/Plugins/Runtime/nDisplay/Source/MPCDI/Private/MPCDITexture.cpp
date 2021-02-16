@@ -33,11 +33,11 @@ private:
 	uint32_t    DataSize;
 };
 
-FTexture2DRHIRef CreateTexture2D(void* InData, int InWidth, int InHeight, EPixelFormat InPixelFormat)
+static FTexture2DRHIRef CreateTexture2D(void* InData, int InWidth, int InHeight, EPixelFormat InPixelFormat)
 {
 	const uint32 DataSize = CalculateImageBytes(InWidth, InHeight, 1, InPixelFormat);
 	TextureData BulkDataInterface(InData, DataSize);
-	FRHIResourceCreateInfo CreateInfo(&BulkDataInterface);
+	FRHIResourceCreateInfo CreateInfo(TEXT("FMPCDITexture"), &BulkDataInterface);
 	return RHICreateTexture2D(InWidth, InHeight, InPixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
 }
 

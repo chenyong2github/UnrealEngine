@@ -18,7 +18,7 @@ class FGrid2DBuffer
 public:
 	FGrid2DBuffer(int NumX, int NumY, int NumAttributes, EPixelFormat PixelFormat)
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FGrid2DBuffer"));
 		GridTexture = RHICreateTexture2DArray(NumX, NumY, NumAttributes, PixelFormat, 1, 1, TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
 		FRHITextureSRVCreateInfo SRVCreateInfo;
 		GridSRV = RHICreateShaderResourceView(GridTexture, SRVCreateInfo);

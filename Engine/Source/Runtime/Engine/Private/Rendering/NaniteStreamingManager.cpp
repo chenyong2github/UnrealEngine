@@ -421,10 +421,10 @@ void FStreamingManager::InitRHI()
 	RequestsHashTable	= new FRequestsHashTable();
 	PageUploader		= new FStreamingPageUploader();
 
-	RootPages.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerRootPagesInitial"));
-	ClusterPageData.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerClusterPageDataInitial"));
-	ClusterPageHeaders.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerClusterPageHeadersInitial"));
-	Hierarchy.DataBuffer.Initialize(sizeof(uint32), 0, TEXT("FStreamingManagerHierarchyInitial"));	// Dummy allocation to make sure it is a valid resource
+	RootPages.DataBuffer.Initialize(TEXT("FStreamingManagerRootPagesInitial"), sizeof(uint32), 0);
+	ClusterPageData.DataBuffer.Initialize(TEXT("FStreamingManagerClusterPageDataInitial"), sizeof(uint32), 0);
+	ClusterPageHeaders.DataBuffer.Initialize(TEXT("FStreamingManagerClusterPageHeadersInitial"), sizeof(uint32), 0);
+	Hierarchy.DataBuffer.Initialize(TEXT("FStreamingManagerHierarchyInitial"), sizeof(uint32), 0);	// Dummy allocation to make sure it is a valid resource
 }
 
 void FStreamingManager::ReleaseRHI()

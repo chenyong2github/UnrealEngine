@@ -89,7 +89,7 @@ void FMediaFoundationMovieStreamer::ConvertSample()
 		if (!InputTarget.IsValid() || (InputTarget->GetSizeXY() != SourceFormat.BufferDim) || (InputTarget->GetFormat() != InputPixelFormat) || ((InputTarget->GetFlags() & InputCreateFlags) != InputCreateFlags))
 		{
 			TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FMediaFoundationMovieStreamer"));
 
 			RHICreateTargetableShaderResource2D(
 				SourceFormat.BufferDim.X,

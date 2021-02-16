@@ -135,7 +135,7 @@ void FVirtualTextureUploadCache::Finalize(FRDGBuilder& GraphBuilder)
 				DEC_MEMORY_STAT_BY(STAT_TotalGPUUploadSize, CalcTextureSize(StagingTexture.RHITexture->GetSizeX(), StagingTexture.RHITexture->GetSizeY(), PoolEntry.Format, 1u));
 			}
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FVirtualTextureUploadCache_StagingTexture"));
 			StagingTexture.RHITexture = RHICreateTexture2D(TileSize * WidthInTiles, TileSize * HeightInTiles, PoolEntry.Format, 1, 1, bIsCpuWritable ? TexCreate_CPUWritable : TexCreate_None, CreateInfo);
 			StagingTexture.WidthInTiles = WidthInTiles;
 			StagingTexture.BatchCapacity = WidthInTiles * HeightInTiles;
@@ -270,7 +270,7 @@ FVTUploadTileHandle FVirtualTextureUploadCache::PrepareTileForUpload(FVTUploadTi
 			// this is fast where supported
 			if (GRHISupportsDirectGPUMemoryLock)
 			{
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("StagingBuffer"));
 				StagingBuffer.RHIBuffer = RHICreateStructuredBuffer(FormatInfo.BlockBytes, StagingBuffer.Size, BUF_ShaderResource | BUF_Static | BUF_KeepCPUAccessible, CreateInfo);
 
 				// Here we bypass 'normal' RHI operations in order to get a persistent pointer to GPU memory, on supported platforms

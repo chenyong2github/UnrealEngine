@@ -46,7 +46,7 @@ namespace
 			Vertices[2].TextureCoordinate.Set(0.0f, 1.0f);
 			Vertices[3].Position.Set(1.0f, -1.0f, 1.0f, 1.0f);
 			Vertices[3].TextureCoordinate.Set(1.0f, 1.0f);
-			FRHIResourceCreateInfo CreateInfo(&Vertices);
+			FRHIResourceCreateInfo CreateInfo(TEXT("FMoviePlaybackResources"), &Vertices);
 			VertexBufferRHI = RHICreateVertexBuffer(sizeof(FMediaElementVertex) * 4, BUF_Static, CreateInfo);
 		}
 
@@ -171,10 +171,13 @@ void FWebMVideoDecoder::DoDecodeVideoFrames(const TArray<TSharedPtr<FWebMFrame>>
 
 void FWebMVideoDecoder::CreateTextures(const vpx_image_t* Image)
 {
-	FRHIResourceCreateInfo CreateInfo;
-
+	FRHIResourceCreateInfo CreateInfo(TEXT("FWebMVideoDecoder_DecodedY"));
 	DecodedY = RHICreateTexture2D(Image->stride[0], Image->d_h, PF_G8, 1, 1, TexCreate_Dynamic, CreateInfo);
+
+	CreateInfo.DebugName = TEXT("FWebMVideoDecoder_DecodedU");
 	DecodedU = RHICreateTexture2D(Image->stride[1], Image->d_h / 2, PF_G8, 1, 1, TexCreate_Dynamic, CreateInfo);
+
+	CreateInfo.DebugName = TEXT("FWebMVideoDecoder_DecodedV");
 	DecodedV = RHICreateTexture2D(Image->stride[2], Image->d_h / 2, PF_G8, 1, 1, TexCreate_Dynamic, CreateInfo);
 }
 

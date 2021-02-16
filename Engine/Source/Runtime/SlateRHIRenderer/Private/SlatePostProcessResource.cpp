@@ -43,7 +43,7 @@ void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize)
 		{
 			FTexture2DRHIRef RenderTargetTextureRHI;
 			FTexture2DRHIRef ShaderResourceUnused;
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FSlatePostProcessResource"));
 			RHICreateTargetableShaderResource2D(
 				RenderTargetSize.X,
 				RenderTargetSize.Y,

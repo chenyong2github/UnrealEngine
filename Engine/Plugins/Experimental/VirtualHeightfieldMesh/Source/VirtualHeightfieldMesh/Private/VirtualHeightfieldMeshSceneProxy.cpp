@@ -645,7 +645,7 @@ void FVirtualHeightfieldMeshSceneProxy::AcceptOcclusionResults(FSceneView const*
 		OcclusionResults.TextureSize = OcclusionGridSize;
 		OcclusionResults.NumTextureMips = NumOcclusionLods;
 		
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FVirtualHeightfieldMeshSceneProxy_OcclusionTexture"));
 		OcclusionResults.OcclusionTexture = RHICreateTexture2D(OcclusionGridSize.X, OcclusionGridSize.Y, PF_G8, NumOcclusionLods, 1, TexCreate_ShaderResource, CreateInfo);
 		
 		bool const* Src = Results->GetData() + ResultsStart;
@@ -986,8 +986,7 @@ namespace VirtualHeightfieldMesh
 	void InitializeInstanceBuffers(FRHICommandListImmediate& InRHICmdList, FDrawInstanceBuffers& InBuffers)
 	{
 		{
-			FRHIResourceCreateInfo CreateInfo;
-			CreateInfo.DebugName = TEXT("InstanceBuffer");
+			FRHIResourceCreateInfo CreateInfo(TEXT("FVirtualHeightfieldMeshSceneProxy_InstanceBuffer"));
 			const int32 InstanceSize = sizeof(VirtualHeightfieldMesh::QuadRenderInstance);
 			const int32 InstanceBufferSize = CVarVHMMaxRenderItems.GetValueOnRenderThread() * InstanceSize;
 			InBuffers.InstanceBuffer = RHICreateStructuredBuffer(InstanceSize, InstanceBufferSize, BUF_UnorderedAccess|BUF_ShaderResource, ERHIAccess::SRVMask, CreateInfo);
@@ -995,8 +994,7 @@ namespace VirtualHeightfieldMesh
 			InBuffers.InstanceBufferSRV = RHICreateShaderResourceView(InBuffers.InstanceBuffer);
 		}
 		{
-			FRHIResourceCreateInfo CreateInfo;
-			CreateInfo.DebugName = TEXT("IndirectArgsBuffer");
+			FRHIResourceCreateInfo CreateInfo(TEXT("FVirtualHeightfieldMeshSceneProxy_IndirectArgsBuffer"));
 			InBuffers.IndirectArgsBuffer = RHICreateVertexBuffer(5 * sizeof(uint32), BUF_UnorderedAccess|BUF_DrawIndirect, ERHIAccess::IndirectArgs, CreateInfo);
 			InBuffers.IndirectArgsBufferUAV = RHICreateUnorderedAccessView(InBuffers.IndirectArgsBuffer, PF_R32_UINT);
 		}

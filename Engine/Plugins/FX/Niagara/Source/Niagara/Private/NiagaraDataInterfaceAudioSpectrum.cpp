@@ -172,7 +172,7 @@ void FNiagaraDataInterfaceProxySpectrum::PostDataToGPU()
 
 			if (NumSamplesInBuffer > 0)
 			{
-				GPUBuffer.Initialize(sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+				GPUBuffer.Initialize(TEXT("FNiagaraDataInterfaceProxySpectrum_GPUBuffer"), sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 			}
 		}
 

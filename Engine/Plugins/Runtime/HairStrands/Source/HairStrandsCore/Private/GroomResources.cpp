@@ -76,8 +76,7 @@ void CreateBuffer(const TArray<typename FormatType::Type>& InData, FHairCardsVer
 
 	if (DataSizeInBytes == 0) return;
 
-	FRHIResourceCreateInfo CreateInfo;
-	CreateInfo.DebugName = DebugName;
+	FRHIResourceCreateInfo CreateInfo(DebugName);
 	CreateInfo.ResourceArray = nullptr;
 
 	OutBuffer.VertexBufferRHI = RHICreateVertexBuffer(DataSizeInBytes, BUF_Static | BUF_ShaderResource, InitialAccess, CreateInfo);

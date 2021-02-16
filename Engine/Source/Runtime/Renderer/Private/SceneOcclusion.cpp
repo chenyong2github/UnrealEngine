@@ -1262,7 +1262,7 @@ static void BeginOcclusionTests(
 		if (NumVertices > 0)
 		{
 			uint32 BaseVertexOffset = 0;
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("ViewOcclusionTests"));
 			FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector) * NumVertices, BUF_Volatile, CreateInfo);
 			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector) * NumVertices, RLM_WriteOnly);
 

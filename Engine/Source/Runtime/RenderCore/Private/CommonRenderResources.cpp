@@ -43,8 +43,7 @@ void FScreenRectangleVertexBuffer::InitRHI()
 	Vertices[5].UV = FVector2D(1, -1);
 
 	// Create vertex buffer. Fill buffer with initial data upon creation
-	FRHIResourceCreateInfo CreateInfo(&Vertices);
-	CreateInfo.DebugName = TEXT("FScreenRectangleVertexBuffer");
+	FRHIResourceCreateInfo CreateInfo(TEXT("FScreenRectangleVertexBuffer"), &Vertices);
 	VertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfo);
 }
 
@@ -63,7 +62,6 @@ void FScreenRectangleIndexBuffer::InitRHI()
 	FMemory::Memcpy(IndexBuffer.GetData(), Indices, NumIndices * sizeof(uint16));
 
 	// Create index buffer. Fill buffer with initial data upon creation
-	FRHIResourceCreateInfo CreateInfo(&IndexBuffer);
-	CreateInfo.DebugName = TEXT("FScreenRectangleIndexBuffer");
+	FRHIResourceCreateInfo CreateInfo(TEXT("FScreenRectangleIndexBuffer"), &IndexBuffer);
 	IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), IndexBuffer.GetResourceDataSize(), BUF_Static, CreateInfo);
 }

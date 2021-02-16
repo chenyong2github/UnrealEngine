@@ -73,7 +73,7 @@ void FDistanceFieldDownsampling::FillDownsamplingTask
 	FUpdateTexture3DData& OutUpdateTextureData
 )
 {
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FDistanceFieldDownsampling"));
 	OutDataTask.VolumeTextureRHI = RHICreateTexture3D
 	(
 		SrcSize.X,

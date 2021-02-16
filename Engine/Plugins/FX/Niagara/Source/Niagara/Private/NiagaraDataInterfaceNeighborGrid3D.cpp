@@ -182,8 +182,8 @@ void NeighborGrid3DRWInstanceData::ResizeBuffers()
 	if (NumTotalCells > (uint32)GMaxNiagaraNeighborGridCells)
 		return;
 
-	NeighborhoodCountBuffer.Initialize(sizeof(int32), NumTotalCells, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborCount"));
-	NeighborhoodBuffer.Initialize(sizeof(int32), NumIntsInGridBuffer, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraNeighborGrid3D::NeighborsGrid"));
+	NeighborhoodCountBuffer.Initialize(TEXT("NiagaraNeighborGrid3D::NeighborCount"), sizeof(int32), NumTotalCells, EPixelFormat::PF_R32_SINT, BUF_Static);
+	NeighborhoodBuffer.Initialize(TEXT("NiagaraNeighborGrid3D::NeighborsGrid"), sizeof(int32), NumIntsInGridBuffer, EPixelFormat::PF_R32_SINT, BUF_Static);
 
 	#if STATS
 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);

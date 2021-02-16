@@ -520,7 +520,7 @@ private:
 		if (CachedNumIndices)
 		{
 			// Create the index buffer.
-			FRHIResourceCreateInfo CreateInfo(&Indices);
+			FRHIResourceCreateInfo CreateInfo(TEXT("FRawStaticIndexBuffer"), &Indices);
 			EBufferUsageFlags Flags = BUF_Static;
 
 			if (IsSRVNeeded())

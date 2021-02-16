@@ -71,7 +71,7 @@ void FTexture2DArrayResource::CreateTexture()
 	TArrayView<const FTexture2DMipMap*> MipsView = GetPlatformMipsView();
 	const FTexture2DMipMap& FirstMip = *MipsView[RequestedFirstLODIdx];
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DArrayResource"));
 	TRefCountPtr<FRHITexture2DArray> TextureArray = RHICreateTexture2DArray(FirstMip.SizeX, FirstMip.SizeY, FirstMip.SizeZ, PixelFormat, State.NumRequestedLODs, 1, CreationFlags, CreateInfo);
 	TextureRHI = TextureArray;
 

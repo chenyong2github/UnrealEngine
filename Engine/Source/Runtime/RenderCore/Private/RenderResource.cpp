@@ -683,7 +683,7 @@ public:
 	virtual void InitRHI() override
 	{
 		check(!IsValidRef(IndexBufferRHI));
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FDynamicIndexBuffer"));
 		IndexBufferRHI = RHICreateIndexBuffer(Stride, BufferSize, BUF_Volatile, CreateInfo);
 		MappedBuffer = NULL;
 		AllocatedByteCount = 0;

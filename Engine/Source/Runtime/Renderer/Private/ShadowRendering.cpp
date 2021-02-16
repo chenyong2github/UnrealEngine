@@ -889,7 +889,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 		float StencilNear = Near.Z / Near.W;
 		float StencilFar = Far.Z / Far.W;
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfo"));
 		FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * 12, BUF_Volatile, CreateInfo);
 		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * 12, RLM_WriteOnly);
 

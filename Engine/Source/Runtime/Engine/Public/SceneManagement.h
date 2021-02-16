@@ -2187,8 +2187,8 @@ public:
 
 	virtual void InitRHI() override
 	{
-		InstanceIdsBuffer.Initialize(sizeof(uint32), MaxIndirectInstances, EPixelFormat::PF_R32_UINT, BUF_Static, TEXT("FInstanceCullingManagerResources::InstanceIds"));
-		PageInfoBuffer.Initialize(sizeof(uint32), MaxIndirectInstances, EPixelFormat::PF_R32_UINT, BUF_Static, TEXT("FInstanceCullingManagerResources::PageInfoBuffer"));
+		InstanceIdsBuffer.Initialize(TEXT("FInstanceCullingManagerResources::InstanceIds"), sizeof(uint32), MaxIndirectInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
+		PageInfoBuffer.Initialize(TEXT("FInstanceCullingManagerResources::PageInfoBuffer"), sizeof(uint32), MaxIndirectInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
 	}
 
 	virtual void ReleaseRHI() override

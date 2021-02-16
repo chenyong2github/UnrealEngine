@@ -247,7 +247,10 @@ public:
 		check( !IsValidRef( PositionTextureTargetRHI ) );
 		check( !IsValidRef( PositionTextureRHI ) );
 
-		FRHIResourceCreateInfo CreateInfo(FClearValueBinding::Transparent);
+#define PARTICLE_STATE_POSITION_TEXTURE_NAME	TEXT("ParticleStatePosition")
+#define PARTICLE_STATE_VELOCITY_TEXTURE_NAME	TEXT("ParticleStateVelocity")
+
+		FRHIResourceCreateInfo CreateInfo(PARTICLE_STATE_POSITION_TEXTURE_NAME, FClearValueBinding::Transparent);
 		RHICreateTargetableShaderResource2D(
 			SizeX,
 			SizeY,
@@ -265,6 +268,7 @@ public:
 		check( !IsValidRef( VelocityTextureTargetRHI ) );
 		check( !IsValidRef( VelocityTextureRHI ) );
 
+		CreateInfo.DebugName = PARTICLE_STATE_VELOCITY_TEXTURE_NAME;
 		RHICreateTargetableShaderResource2D(
 			SizeX,
 			SizeY,
@@ -278,8 +282,6 @@ public:
 			VelocityTextureRHI
 			);
 
-#define PARTICLE_STATE_POSITION_TEXTURE_NAME	TEXT("ParticleStatePosition")
-#define PARTICLE_STATE_VELOCITY_TEXTURE_NAME	TEXT("ParticleStateVelocity")
 		static FName PositionTextureName(PARTICLE_STATE_POSITION_TEXTURE_NAME);
 		static FName VelocityTextureName(PARTICLE_STATE_VELOCITY_TEXTURE_NAME);
 		PositionTextureTargetRHI->SetName(PositionTextureName);
@@ -326,7 +328,8 @@ public:
 
 		const ETextureCreateFlags ExtraFlags = CVarGPUParticleAFRReinject.GetValueOnRenderThread() == 1 ? TexCreate_AFRManual : TexCreate_None;
 
-		FRHIResourceCreateInfo CreateInfo(FClearValueBinding::Transparent);
+#define ATTRIBUTES_TEXTURE_NAME	TEXT("ParticleAttributes")
+		FRHIResourceCreateInfo CreateInfo(ATTRIBUTES_TEXTURE_NAME, FClearValueBinding::Transparent);
 		RHICreateTargetableShaderResource2D(
 			SizeX,
 			SizeY,
@@ -340,7 +343,6 @@ public:
 			TextureRHI
 			);
 
-#define ATTRIBUTES_TEXTURE_NAME	TEXT("ParticleAttributes")
 		static FName AttributesTextureName(ATTRIBUTES_TEXTURE_NAME);
 		TextureTargetRHI->SetName(AttributesTextureName);
 		RHIBindDebugLabelName(TextureTargetRHI, ATTRIBUTES_TEXTURE_NAME);
@@ -2237,7 +2239,7 @@ static FBox ComputeParticleBounds(
 
 		// Create a buffer for storing bounds.
 		const int32 BufferSize = GroupCount * 2 * sizeof(FVector4);
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("BoundsVertexBuffer"));
 		FBufferRHIRef BoundsVertexBufferRHI = RHICreateVertexBuffer(
 			BufferSize,
 			BUF_Static | BUF_UnorderedAccess | BUF_KeepCPUAccessible,
@@ -2374,7 +2376,7 @@ public:
 			int32 BufferAlignedTileCount = (GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1 ? TileCount : AlignedTileCount);
 			const int32 TileBufferSize = BufferAlignedTileCount * sizeof(FVector2D);
 			check(TileBufferSize > 0);
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FParticleTileVertexBuffer"));
 			VertexBufferRHI = RHICreateVertexBuffer( TileBufferSize, BUF_Static | BUF_KeepCPUAccessible | BUF_ShaderResource, CreateInfo );
 			VertexBufferSRV = RHICreateShaderResourceView( VertexBufferRHI, /*Stride=*/ sizeof(FVector2D), PF_G32R32F );
 		}
@@ -2435,7 +2437,7 @@ public:
 			const int32 BufferStride = sizeof(FParticleIndex);
 			const int32 BufferSize = Count * BufferStride;
 			uint32 Flags = BUF_Static | /*BUF_KeepCPUAccessible | */BUF_ShaderResource;
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FGPUParticleVertexBuffer"));
 			VertexBufferRHI = RHICreateVertexBuffer(BufferSize, Flags, CreateInfo);
 			VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, BufferStride, PF_G16R16F);
 		}

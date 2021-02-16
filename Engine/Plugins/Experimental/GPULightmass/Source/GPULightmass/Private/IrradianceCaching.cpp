@@ -18,7 +18,7 @@ FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRej
 	{
 		TResourceArray<FIrradianceCacheRecord> AABBMinMax;
 		AABBMinMax.AddZeroed(IrradianceCacheMaxSize);
-		FRHIResourceCreateInfo CreateInfo(&AABBMinMax);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FIrradianceCache"), &AABBMinMax);
 		IrradianceCacheRecords = RHICreateStructuredBuffer(sizeof(FIrradianceCacheRecord), sizeof(FIrradianceCacheRecord) * IrradianceCacheMaxSize, BUF_UnorderedAccess | BUF_ShaderResource, CreateInfo);
 		IrradianceCacheRecordsUAV = RHICreateUnorderedAccessView(IrradianceCacheRecords, false, false);
 
@@ -31,9 +31,9 @@ FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRej
 		{
 			TResourceArray<uint32> EmptyHashTable;
 			EmptyHashTable.AddZeroed(HashTableSize);
-			HashTable.Initialize(sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("ICHashTable"), &EmptyHashTable);
-			HashToIndex.Initialize(sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("ICHashToIndex"), &EmptyHashTable);
-			IndexToHash.Initialize(sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("ICIndexToHash"), &EmptyHashTable);
+			HashTable.Initialize(TEXT("ICHashTable"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, &EmptyHashTable);
+			HashToIndex.Initialize(TEXT("ICHashToIndex"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, &EmptyHashTable);
+			IndexToHash.Initialize(TEXT("ICIndexToHash"), sizeof(uint32), HashTableSize, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, &EmptyHashTable);
 
 			IrradianceCacheTotalBytes += HashTable.NumBytes;
 			IrradianceCacheTotalBytes += HashToIndex.NumBytes;
@@ -42,7 +42,7 @@ FIrradianceCache::FIrradianceCache(int32 Quality, float Spacing, float CornerRej
 		{
 			TResourceArray<uint32> ZeroRecordAllocator;
 			ZeroRecordAllocator.AddZeroed(1);
-			RecordAllocator.Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, TEXT("ICAllocator"), &ZeroRecordAllocator);
+			RecordAllocator.Initialize(TEXT("ICAllocator"), sizeof(uint32), 1, PF_R32_UINT, BUF_UnorderedAccess | BUF_ShaderResource, &ZeroRecordAllocator);
 
 			IrradianceCacheTotalBytes += 4;
 		}

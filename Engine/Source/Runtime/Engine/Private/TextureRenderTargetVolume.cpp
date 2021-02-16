@@ -246,7 +246,7 @@ void FTextureRenderTargetVolumeResource::InitDynamicRHI()
 		}
 
 		{
-			FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(Owner->ClearColor) };
+			FRHIResourceCreateInfo CreateInfo(TEXT("FTextureRenderTargetVolumeResource"), FClearValueBinding(Owner->ClearColor));
 			RHICreateTargetableShaderResource3D(
 				Owner->SizeX,
 				Owner->SizeY,

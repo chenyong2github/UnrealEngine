@@ -419,7 +419,7 @@ static void BuildMesh_RenderThread(FOutputRemapMesh& Dst, const FOutputRemapMesh
 
 	check(Dst.NumVertices > 2 && Dst.NumTriangles > 0);
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FOutputRemapMesh"));
 	Dst.VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * Dst.NumVertices, BUF_Static, CreateInfo);
 	void* VoidPtr = RHILockBuffer(Dst.VertexBufferRHI, 0, sizeof(FFilterVertex) * Dst.NumVertices, RLM_WriteOnly);
 	FFilterVertex* pVertices = reinterpret_cast<FFilterVertex*>(VoidPtr);

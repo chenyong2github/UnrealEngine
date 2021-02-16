@@ -171,7 +171,7 @@ FVertexBufferAndSRV FBoneBufferPoolPolicy::CreateResource(CreationArguments Args
 	// in VisualStudio the copy constructor call on the return argument can be optimized out
 	// see https://msdn.microsoft.com/en-us/library/ms364057.aspx#nrvo_cpp05_topic3
 	FVertexBufferAndSRV Buffer;
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FBoneBufferPoolPolicy"));
 	Buffer.VertexBufferRHI = RHICreateVertexBuffer( BufferSize, (BUF_Dynamic | BUF_ShaderResource), CreateInfo );
 	Buffer.VertexBufferSRV = RHICreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector4), PF_A32B32G32R32F );
 	return Buffer;
@@ -192,7 +192,7 @@ FVertexBufferAndSRV FClothBufferPoolPolicy::CreateResource(CreationArguments Arg
 	// in VisualStudio the copy constructor call on the return argument can be optimized out
 	// see https://msdn.microsoft.com/en-us/library/ms364057.aspx#nrvo_cpp05_topic3
 	FVertexBufferAndSRV Buffer;
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FClothBufferPoolPolicy"));
 	Buffer.VertexBufferRHI = RHICreateVertexBuffer( BufferSize, (BUF_Dynamic | BUF_ShaderResource), CreateInfo );
 	Buffer.VertexBufferSRV = RHICreateShaderResourceView( Buffer.VertexBufferRHI, sizeof(FVector2D), PF_G32R32F );
 	return Buffer;

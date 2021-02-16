@@ -106,7 +106,7 @@ void FTexture3DResource::CreateTexture()
 
 	// Create the RHI texture.
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FTexture3DResource"));
 		if (GUseTexture3DBulkDataRHI)
 		{
 			InitialData.MergeMips(State.MaxNumLODs);

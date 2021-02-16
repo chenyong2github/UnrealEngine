@@ -183,7 +183,7 @@ void InitialiseStrataFrameSceneData(FSceneRenderer& SceneRenderer, FRDGBuilder& 
 		{
 			StrataSceneData.MaterialLobesBuffer.Release();
 		}
-		StrataSceneData.MaterialLobesBuffer.Initialize(DesiredBufferSize, BUF_Static, TEXT("MaterialLobesBuffer"));
+		StrataSceneData.MaterialLobesBuffer.Initialize(TEXT("MaterialLobesBuffer"), DesiredBufferSize, BUF_Static);
 	}
 
 	// Set reference to the Strata data from each view

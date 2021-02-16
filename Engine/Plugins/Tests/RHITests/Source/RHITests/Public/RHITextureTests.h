@@ -90,7 +90,7 @@ public:
 		FString TestName = FString::Printf(TEXT("Test_RHIClearUAV_Texture2D (%dx%d, %d Slice(s), %d Mip(s)) - %s"), Width, Height, NumMips, NumSlices, *ClearValueToString(ClearValue));
 
 		{
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(*TestName);
 			FTextureRHIRef Texture;
 			if (NumSlices == 1)
 			{
@@ -171,7 +171,7 @@ public:
 		bool bResult = true;
 
 		{
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(*TestName);
 			FTexture3DRHIRef Texture = RHICreateTexture3D(Width, Height, Depth, Format, NumMips, TexCreate_UAV | TexCreate_ShaderResource, CreateInfo);
 
 			for (uint32 Mip = 0; Mip < NumMips; ++Mip)

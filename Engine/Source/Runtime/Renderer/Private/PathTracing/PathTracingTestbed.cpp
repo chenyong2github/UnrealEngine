@@ -352,10 +352,10 @@ void TestBRDFsIntegrity(void)
 		UE_LOG(LogShaders, Display, TEXT("Executed validation test for BRDF: %s"), *BrdfNames[BrdfType]);
 
 		FRWBufferStructured BrdsResultsBuffer;
-		BrdsResultsBuffer.Initialize(sizeof(uint32), TEST_COUNT, BUF_Static);
+		BrdsResultsBuffer.Initialize(TEXT("BrdsResultsBuffer"), sizeof(uint32), TEST_COUNT, BUF_Static);
 
 		FRWBufferStructured FloatBrdsResultsBuffer; // For testing
-		FloatBrdsResultsBuffer.Initialize(sizeof(float), TEST_COUNT, BUF_Static);
+		FloatBrdsResultsBuffer.Initialize(TEXT("FloatBrdsResultsBuffer"), sizeof(float), TEST_COUNT, BUF_Static);
 
 		BrdfIntegrityComputeShader->SetParameters(RHICmdList, NumSamples, BrdfType, BrdsResultsBuffer.UAV, FloatBrdsResultsBuffer.UAV);
 		
@@ -462,7 +462,7 @@ void TestPDFsIntegrateToOne(void)
 		FIntVector NumCSGroups = FIntVector::DivideAndRoundUp(Dimensions, FTestPdfIntegratesToOneCS::GetGroupSize());
 		
 		FRWBufferStructured PdfsResultsBuffer; 
-		PdfsResultsBuffer.Initialize(sizeof(float), NSamples, BUF_Static);
+		PdfsResultsBuffer.Initialize(TEXT("PdfsResultsBuffer"), sizeof(float), NSamples, BUF_Static);
 
 		for (FVector Wo : Wos)
 		{
@@ -559,7 +559,7 @@ void TestBRDFandPDFConsistency(void)
 			// Generate samples calling BRDF::Sample() and classify them in bins
 			{
 				FRWBufferStructured SampledWisResultsBuffer; 
-				SampledWisResultsBuffer.Initialize(sizeof(float)*3, WiSamplesCount, BUF_Static);
+				SampledWisResultsBuffer.Initialize(TEXT("SampledWisResultsBuffer"), sizeof(float)*3, WiSamplesCount, BUF_Static);
 
 				BrdfGenerateWiSamplesCS->SetParameters(RHICmdList, BrdfType, WiSamplesCount, Wo, NumThetaSteps, NumPhiSteps, SampledWisResultsBuffer.UAV);
 
@@ -601,7 +601,7 @@ void TestBRDFandPDFConsistency(void)
 			//	Integrate PDF in each patch
 			{
 				FRWBufferStructured PdfPatchesIntegrationResultsBuffer;
-				PdfPatchesIntegrationResultsBuffer.Initialize(sizeof(float), NumThetaSteps * NumPhiSteps, BUF_Static);
+				PdfPatchesIntegrationResultsBuffer.Initialize(TEXT("PdfPatchesIntegrationResultsBuffer"), sizeof(float), NumThetaSteps * NumPhiSteps, BUF_Static);
 
 				IntegrateHemispherePatchCS->SetParameters(RHICmdList, BrdfType, Wo, NumThetaSteps, NumPhiSteps, PdfPatchesIntegrationResultsBuffer.UAV);
 

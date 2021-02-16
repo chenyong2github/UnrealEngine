@@ -166,8 +166,7 @@ public:
 	{
 		// Create the texture RHI.  		
 		FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(FColor(R, G, B, A));
-		FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
-		CreateInfo.DebugName = TEXT("ColoredTexture");
+		FRHIResourceCreateInfo CreateInfo(TEXT("ColoredTexture"), &BlackTextureBulkData);
 		ETextureCreateFlags CreateFlags = TexCreate_ShaderResource;
 		if(bWithUAV)
 		{
@@ -293,8 +292,7 @@ public:
 		{
 			// Create the texture.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
-			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
-			CreateInfo.DebugName = TEXT("BlackVolumeTexture3D");
+			FRHIResourceCreateInfo CreateInfo(TEXT("BlackVolumeTexture3D"), &BlackTextureBulkData);
 			FTexture3DRHIRef Texture3D = RHICreateTexture3D(1,1,1,PixelFormat,1,TexCreate_ShaderResource,CreateInfo);
 			TextureRHI = Texture3D;	
 		}
@@ -302,8 +300,7 @@ public:
 		{
 			// Create a texture, even though it's not a volume texture
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(Alpha);
-			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
-			CreateInfo.DebugName = TEXT("BlackVolumeTexture2D");
+			FRHIResourceCreateInfo CreateInfo(TEXT("BlackVolumeTexture2D"), &BlackTextureBulkData);
 			FTexture2DRHIRef Texture2D = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = Texture2D;
 		}
@@ -349,8 +346,7 @@ public:
 		{
 			// Create the texture RHI.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(0);
-			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
-			CreateInfo.DebugName = TEXT("BlackArrayTexture");
+			FRHIResourceCreateInfo CreateInfo(TEXT("BlackArrayTexture"), &BlackTextureBulkData);
 			FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = TextureArray;
 
@@ -396,8 +392,7 @@ public:
 	{
 		// Create the texture RHI.
 		int32 TextureSize = 1 << (NumMips - 1);
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.DebugName = TEXT("FMipColorTexture");
+		FRHIResourceCreateInfo CreateInfo(TEXT("FMipColorTexture"));
 		FTexture2DRHIRef Texture2D = RHICreateTexture2D(TextureSize,TextureSize,PF_B8G8R8A8,NumMips,1,TexCreate_ShaderResource,CreateInfo);
 		TextureRHI = Texture2D;
 
@@ -1350,8 +1345,7 @@ public:
 		uint32 Size = Verts.GetResourceDataSize();
 
 		// Create vertex buffer. Fill buffer with initial data upon creation
-		FRHIResourceCreateInfo CreateInfo(&Verts);
-		CreateInfo.DebugName = TEXT("FUnitCubeVertexBuffer");
+		FRHIResourceCreateInfo CreateInfo(TEXT("FUnitCubeVertexBuffer"), &Verts);
 		VertexBufferRHI = RHICreateVertexBuffer(Size, BUF_Static, CreateInfo);
 	}
 };
@@ -1374,8 +1368,7 @@ public:
 		const uint32 Stride = sizeof(uint16);
 
 		// Create index buffer. Fill buffer with initial data upon creation
-		FRHIResourceCreateInfo CreateInfo(&Indices);
-		CreateInfo.DebugName = TEXT("FUnitCubeIndexBuffer");
+		FRHIResourceCreateInfo CreateInfo(TEXT("FUnitCubeIndexBuffer"), &Indices);
 		IndexBufferRHI = RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
 	}
 };

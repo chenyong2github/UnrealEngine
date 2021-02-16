@@ -466,7 +466,7 @@ public:
 	{
 		TResourceArray<float> ResourceBuffer;
 		ResourceBuffer.Add(0.0f);
-		FRHIResourceCreateInfo CreateInfo(&ResourceBuffer);
+		FRHIResourceCreateInfo CreateInfo(TEXT("SectionLODBuffer"), &ResourceBuffer);
 		SectionLODBuffer = RHICreateVertexBuffer(ResourceBuffer.GetResourceDataSize(), BUF_ShaderResource | BUF_Static, CreateInfo);
 		SectionLODSRV = RHICreateShaderResourceView(SectionLODBuffer, sizeof(float), PF_R32_FLOAT);
 

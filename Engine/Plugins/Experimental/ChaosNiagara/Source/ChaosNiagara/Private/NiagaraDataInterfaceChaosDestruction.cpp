@@ -3911,7 +3911,7 @@ static void SetBuffer(FRHICommandList& CmdList,
 	if (Buffer.NumBytes == 0 || Buffer.NumBytes < Array.Num() * SizePerElement)
 	{
 		Buffer.Release();
-		Buffer.Initialize(SizePerElement, Array.Num(), PixelFormat, BUF_Dynamic);
+		Buffer.Initialize(*BufferName, SizePerElement, Array.Num(), PixelFormat, BUF_Dynamic);
 	}
 
 	Buffer.Lock();

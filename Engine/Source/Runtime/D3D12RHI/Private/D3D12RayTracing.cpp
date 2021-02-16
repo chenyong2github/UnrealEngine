@@ -425,9 +425,8 @@ FD3D12RayTracingCompactionRequestHandler::FD3D12RayTracingCompactionRequestHandl
 {
 	D3D12_RESOURCE_DESC PostBuildInfoBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(GD3D12RayTracingMaxBatchedCompaction * sizeof(uint64), D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("PostBuildInfoBuffer"));
 	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GetParentDevice()->GetGPUIndex());
-	CreateInfo.DebugName = TEXT("PostBuildInfoBuffer");
 	PostBuildInfoBuffer = GetParentDevice()->GetParentAdapter()->CreateRHIBuffer(nullptr, PostBuildInfoBufferDesc, 8,
 		0, PostBuildInfoBufferDesc.Width, BUF_UnorderedAccess | BUF_SourceCopy, ED3D12ResourceStateMode::MultiState, ERHIAccess::UAVMask, CreateInfo);
 	SetName(PostBuildInfoBuffer->GetResource(), TEXT("PostBuildInfoBuffer"));
@@ -1578,15 +1577,13 @@ public:
 
 		D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(Data.GetResourceDataSize(), D3D12_RESOURCE_FLAG_NONE, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("Shader binding table"));
 		CreateInfo.ResourceArray = &Data;
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(Device->GetGPUIndex());
 
 		Buffer = Adapter->CreateRHIBuffer(
 			nullptr, BufferDesc, BufferDesc.Alignment,
 			0, BufferDesc.Width, BUF_Static, ED3D12ResourceStateMode::SingleState, ERHIAccess::SRVMask, CreateInfo);
-
-		SetName(Buffer->GetResource(), TEXT("Shader binding table"));
 
 		bIsDirty = false;
 	}
@@ -2396,7 +2393,7 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(const FRayTracingGeometryInit
 		TResourceArray<float> NullTransformData;
 		NullTransformData.SetNumZeroed(12);
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("NullTransformBuffer"));
 		CreateInfo.ResourceArray = &NullTransformData;
 
 		FD3D12RayTracingGeometry::NullTransformBuffer = RHICreateVertexBuffer(NullTransformData.GetResourceDataSize(), BUF_Static, CreateInfo);
@@ -2653,13 +2650,12 @@ static void CreateAccelerationStructureBuffers(
 	const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& PrebuildInfo,
 	const TCHAR* DebugName)
 {
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(DebugName);
 
 	D3D12_RESOURCE_DESC AccelerationStructureBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
 		PrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
-	CreateInfo.DebugName = DebugName;
 	AccelerationStructureBuffer = Adapter->CreateRHIBuffer(
 		nullptr, AccelerationStructureBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
 		0, AccelerationStructureBufferDesc.Width, BUF_AccelerationStructure, ED3D12ResourceStateMode::SingleState, ERHIAccess::RTAccelerationStructure, CreateInfo);
@@ -2932,12 +2928,11 @@ void FD3D12RayTracingGeometry::CompactAccelerationStructure(FD3D12CommandContext
 	TRefCountPtr<FD3D12Buffer> OldAccelerationStructure = MoveTemp(AccelerationStructureBuffers[InGPUIndex]);
 
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("AccelerationStructureBuffer"));
 
 		D3D12_RESOURCE_DESC AccelerationStructureBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(InSizeAfterCompaction, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(InGPUIndex);
-		CreateInfo.DebugName = TEXT("AccelerationStructureBuffer");
 		AccelerationStructureBuffers[InGPUIndex] = CommandContext.GetParentAdapter()->CreateRHIBuffer(
 			nullptr, AccelerationStructureBufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
 			0, AccelerationStructureBufferDesc.Width, BUF_AccelerationStructure, ED3D12ResourceStateMode::SingleState, ERHIAccess::RTAccelerationStructure, CreateInfo);
@@ -3100,7 +3095,7 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	if (NumSceneInstances)
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("InstanceBuffer"));
 		CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 		
 		D3D12_RESOURCE_DESC InstanceBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(
@@ -4070,9 +4065,8 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
 
-		FRHIResourceCreateInfo DispatchRaysDescBufferCreateInfo;
+		FRHIResourceCreateInfo DispatchRaysDescBufferCreateInfo(TEXT("DispatchRaysDescBuffer"));
 		DispatchRaysDescBufferCreateInfo.GPUMask = FRHIGPUMask::FromIndex(CommandContext.GetGPUIndex());
-		DispatchRaysDescBufferCreateInfo.DebugName = TEXT("DispatchRaysDescBuffer");
 
 		DispatchRaysDescBufferRHI = ::RHICreateVertexBuffer(sizeof(D3D12_DISPATCH_RAYS_DESC), BUF_UnorderedAccess | BUF_DrawIndirect, DispatchRaysDescBufferCreateInfo);
 		DispatchRaysDescBuffer = FD3D12DynamicRHI::ResourceCast(DispatchRaysDescBufferRHI.GetReference());

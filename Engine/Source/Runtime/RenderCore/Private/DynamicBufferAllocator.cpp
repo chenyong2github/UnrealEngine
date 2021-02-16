@@ -134,7 +134,7 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer_AllocateInternal(
 			const uint32 NewBufferSize = FMath::Max(AlignedNum, (uint32)GMinReadBufferRenderingBufferSize);
 			Buffer = new FDynamicAllocReadBuffer();
 			BufferPool->Buffers.Add(Buffer);
-			Buffer->Initialize(sizeof(Type), NewBufferSize, Format, BUF_Volatile);
+			Buffer->Initialize(TEXT("FGlobalDynamicReadBuffer_AllocateInternal"), sizeof(Type), NewBufferSize, Format, BUF_Volatile);
 		}
 
 		// Lock the buffer if needed.

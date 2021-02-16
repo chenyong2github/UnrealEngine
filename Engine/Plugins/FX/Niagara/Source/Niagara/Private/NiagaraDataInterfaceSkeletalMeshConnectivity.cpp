@@ -395,7 +395,7 @@ FSkeletalMeshConnectivityProxy::Initialize(const FSkeletalMeshConnectivity& Conn
 void
 FSkeletalMeshConnectivityProxy::InitRHI()
 {
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FSkeletalMeshConnectivityProxy_AdjacencyBuffer"));
 	CreateInfo.ResourceArray = &AdjacencyResource;
 
 	const int32 BufferSize = AdjacencyResource.Num();

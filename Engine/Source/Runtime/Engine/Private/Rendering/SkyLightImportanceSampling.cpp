@@ -261,7 +261,7 @@ void BuildSkyLightMipTree(
 
 	for (uint32 FaceIndex = 0; FaceIndex < 6; ++FaceIndex)
 	{
-		MipTrees[FaceIndex]->Initialize(sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
+		MipTrees[FaceIndex]->Initialize(TEXT("MipTrees"), sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
 	}
 
 	// Execute hierarchical build
@@ -301,7 +301,7 @@ void BuildSolidAnglePdf(
 	{
 		NumElements += (Dimensions.X >> MipLevel) * (Dimensions.Y >> MipLevel);
 	}
-	SolidAnglePdf.Initialize(sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
+	SolidAnglePdf.Initialize(TEXT("SolidAnglePdf"), sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
 
 	for (uint32 MipLevel = 0; MipLevel <= MipLevelCount; ++MipLevel)
 	{
@@ -355,7 +355,7 @@ void BuildSkyLightMipTreePdf(
 	uint32 MipLevelCount = FMath::Log2(static_cast<float>(SkyLightMipTreeDimensions.X));
 	for (uint32 FaceIndex = 0; FaceIndex < 6; ++FaceIndex)
 	{
-		MipTreePdfs[FaceIndex]->Initialize(sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
+		MipTreePdfs[FaceIndex]->Initialize(TEXT("MipTreePdfs"), sizeof(float), NumElements, PF_R32_FLOAT, BUF_UnorderedAccess | BUF_ShaderResource);
 
 		// Execute hierarchical build
 		uint32 MipLevel = 0;

@@ -88,7 +88,7 @@ private:
 		const uint32 Stride = sizeof(IndexType);
 
 		// Create index buffer. Fill buffer with initial data upon creation
-		FRHIResourceCreateInfo CreateInfo(&Indices);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FWaterMeshIndexBuffer"), &Indices);
 		return RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
 	}
 

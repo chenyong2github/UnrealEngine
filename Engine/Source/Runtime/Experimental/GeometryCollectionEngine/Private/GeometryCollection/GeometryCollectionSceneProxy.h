@@ -32,7 +32,7 @@ class FGeometryCollectionIndexBuffer : public FIndexBuffer
 public:
 	virtual void InitRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FGeometryCollectionIndexBuffer"));
 		IndexBufferRHI = RHICreateIndexBuffer(sizeof(int32), NumIndices * sizeof(int32), BUF_Dynamic, CreateInfo);
 	}
 
@@ -45,7 +45,7 @@ class FGeometryCollectionBoneMapBuffer : public FVertexBuffer
 public:
 	virtual void InitRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FGeometryCollectionBoneMapBuffer"));
 
 		// #note: Bone Map is stored in uint16, but shaders only support uint32
 		VertexBufferRHI = RHICreateVertexBuffer(NumVertices * sizeof(uint32), BUF_Static | BUF_ShaderResource, CreateInfo);		
@@ -63,7 +63,7 @@ class FGeometryCollectionTransformBuffer : public FVertexBuffer
 public:
 	virtual void InitRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FGeometryCollectionTransformBuffer"));
 
 		// #note: This differs from instanced static mesh in that we are storing the entire transform in the buffer rather than
 		// splitting out the translation.  This is to simplify transferring data at runtime as a memcopy

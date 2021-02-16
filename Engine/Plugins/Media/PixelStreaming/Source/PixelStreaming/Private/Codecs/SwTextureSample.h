@@ -38,7 +38,7 @@ public:
 			if (IsWindows8Plus())
 			{
 				check(!Texture.IsValid());
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("FSwTextureSample"));
 				Texture = RHICreateTexture2D(Dim.X, Dim.Y, PF_G8, 1, 1, TexCreate_ShaderResource, CreateInfo);
 				ID3D11Texture2D* DX11Texture = static_cast<ID3D11Texture2D*>(GetD3D11TextureFromRHITexture(Texture)->GetResource());
 				CHECK_HR(MFCreateDXGISurfaceBuffer(__uuidof(ID3D11Texture2D), DX11Texture, 0, false, MediaBuffer.GetInitReference()));

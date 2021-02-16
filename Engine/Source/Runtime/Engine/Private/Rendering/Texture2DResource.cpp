@@ -105,7 +105,7 @@ void FTexture2DResource::CreateTexture()
 	const FTexture2DMipMap* RequestedMip = GetPlatformMip(RequestedMipIdx);
 
 	// create texture with ResourceMem data when available
-	FRHIResourceCreateInfo CreateInfo(ResourceMem);
+	FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DResource"), ResourceMem);
 	CreateInfo.ExtData = PlatformData->GetExtData();
 	Texture2DRHI = RHICreateTexture2D( RequestedMip->SizeX, RequestedMip->SizeY, PixelFormat, State.NumRequestedLODs, 1, CreationFlags, CreateInfo);
 
@@ -144,7 +144,7 @@ void FTexture2DResource::CreatePartiallyResidentTexture()
 	const int32 CurrentFirstMip = State.RequestedFirstLODIdx();
 
 	check(bUsePartiallyResidentMips);
-	FRHIResourceCreateInfo CreateInfo(ResourceMem);
+	FRHIResourceCreateInfo CreateInfo(TEXT("FTexture2DResource-PRT"), ResourceMem);
 	CreateInfo.ExtData = PlatformData->GetExtData();
 	Texture2DRHI = RHICreateTexture2D( SizeX, SizeY, PixelFormat, State.MaxNumLODs, 1, CreationFlags | TexCreate_Virtual, CreateInfo);
 	RHIVirtualTextureSetFirstMipInMemory(Texture2DRHI, CurrentFirstMip);

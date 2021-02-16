@@ -23,7 +23,7 @@ void FSlateFontTextureRHIResource::InitDynamicRHI()
 		const ETextureCreateFlags TextCreateFlags = TexCreate_Dynamic | (bIsGrayscale ? TexCreate_None : TexCreate_SRGB);
 
 		check( !IsValidRef( ShaderResource) );
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FSlateFontTextureRHIResource"));
 		ShaderResource = RHICreateTexture2D( Width, Height, PixelFormat, 1, 1, TextCreateFlags, CreateInfo );
 		check( IsValidRef( ShaderResource ) );
 

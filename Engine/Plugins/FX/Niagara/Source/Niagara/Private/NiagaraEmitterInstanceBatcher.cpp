@@ -869,7 +869,7 @@ void NiagaraEmitterInstanceBatcher::UpdateFreeIDsListSizesBuffer(FRHICommandList
 		{
 			FreeIDListSizesBuffer.Release();
 		}
-		FreeIDListSizesBuffer.Initialize(sizeof(uint32), NumAllocatedFreeIDListSizes, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("NiagaraFreeIDListSizes"));
+		FreeIDListSizesBuffer.Initialize(TEXT("NiagaraFreeIDListSizes"), sizeof(uint32), NumAllocatedFreeIDListSizes, EPixelFormat::PF_R32_SINT, BUF_Static);
 
 		BeforeState = ERHIAccess::Unknown;
 
@@ -2006,8 +2006,7 @@ void NiagaraEmitterInstanceBatcher::DummyUAV::Init(FRHICommandList& RHICmdList, 
 {
 	checkSlow(IsInRenderingThread());
 
-	FRHIResourceCreateInfo CreateInfo;
-	CreateInfo.DebugName = DebugName;
+	FRHIResourceCreateInfo CreateInfo(DebugName);
 
 	if (IsTexture)
 	{

@@ -90,7 +90,7 @@ void CreateInternalBuffer(FRWBuffer& OutputBuffer)
 	if (ElementCount > 0)
 	{
 		const uint32 BufferCount = ElementCount;
-		OutputBuffer.Initialize(sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
+		OutputBuffer.Initialize(TEXT("FNDIPhysicsAssetBuffer"), sizeof(BufferType), BufferCount, PixelFormat, BUF_Static);
 	}
 }
 

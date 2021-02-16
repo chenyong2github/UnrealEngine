@@ -268,8 +268,8 @@ namespace ShaderDrawDebug
 
 		if (IsShaderDrawLocked() && !LockedData.bIsLocked)
 		{
-			LockedData.Buffer.Initialize(sizeof(FPackedShaderDrawElement), GetMaxElementCount(), 0U, TEXT("ShaderDrawDataBuffer"));
-			LockedData.IndirectBuffer.Initialize(sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect, TEXT("ShaderDrawDataIndirectBuffer"));
+			LockedData.Buffer.Initialize(TEXT("ShaderDrawDataBuffer"), sizeof(FPackedShaderDrawElement), GetMaxElementCount(), 0U);
+			LockedData.IndirectBuffer.Initialize(TEXT("ShaderDrawDataIndirectBuffer"), sizeof(uint32), 4, PF_R32_UINT, BUF_DrawIndirect);
 		}
 
 		View.ShaderDrawData.CursorPosition = View.CursorPos;

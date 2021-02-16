@@ -331,13 +331,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FTextureRWBuffer2D>(FRHICommandList& 
 
 	if (Texture.NumBytes == 0)
 	{
-		Texture.Initialize(BytesPerElement, Float4sPerLine, NumLines, PF_A32B32G32R32F, TexCreate_RenderTargetable | TexCreate_UAV);
+		Texture.Initialize(DebugName, BytesPerElement, Float4sPerLine, NumLines, PF_A32B32G32R32F, TexCreate_RenderTargetable | TexCreate_UAV);
 		return true;
 	}
 	else if ((NumLines * Float4sPerLine * BytesPerElement) != Texture.NumBytes)
 	{
 		FTextureRWBuffer2D NewTexture;
-		NewTexture.Initialize(BytesPerElement, Float4sPerLine, NumLines, PF_A32B32G32R32F, TexCreate_RenderTargetable | TexCreate_UAV);
+		NewTexture.Initialize(DebugName, BytesPerElement, Float4sPerLine, NumLines, PF_A32B32G32R32F, TexCreate_RenderTargetable | TexCreate_UAV);
 		MemcpyResource(RHICmdList, NewTexture, Texture, 0, 0, NumBytes);
 		Texture = NewTexture;
 		return true;
@@ -353,13 +353,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWBufferStructured>(FRHICommandList&
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(16, NumBytes / 16, 0, DebugName);
+		Buffer.Initialize(DebugName, 16, NumBytes / 16, 0);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
-		NewBuffer.Initialize(16, NumBytes / 16, 0, DebugName);
+		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
 
 		// Copy data to new buffer
 		uint32 CopyBytes = FMath::Min(NumBytes, Buffer.NumBytes);
@@ -380,13 +380,13 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWByteAddressBuffer>(FRHICommandList
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(NumBytes, 0, DebugName);
+		Buffer.Initialize(DebugName, NumBytes, 0);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWByteAddressBuffer NewBuffer;
-		NewBuffer.Initialize(NumBytes, 0, DebugName);
+		NewBuffer.Initialize(DebugName, NumBytes, 0);
 
 		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
@@ -411,13 +411,13 @@ RENDERCORE_API bool ResizeResourceSOAIfNeeded<FRWBufferStructured>(FRHICommandLi
 
 	if (Buffer.NumBytes == 0)
 	{
-		Buffer.Initialize(16, NumBytes / 16, 0, DebugName);
+		Buffer.Initialize(DebugName, 16, NumBytes / 16, 0);
 		return true;
 	}
 	else if (NumBytes != Buffer.NumBytes)
 	{
 		FRWBufferStructured NewBuffer;
-		NewBuffer.Initialize(16, NumBytes / 16, 0, DebugName);
+		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
 
 		// Copy data to new buffer
 		uint32 OldArraySize = Buffer.NumBytes / NumArrays;

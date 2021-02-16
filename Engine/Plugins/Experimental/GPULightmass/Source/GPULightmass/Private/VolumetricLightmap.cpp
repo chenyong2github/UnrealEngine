@@ -351,7 +351,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 		TResourceArray<int32> InitialBrickAllocatorParams;
 		InitialBrickAllocatorParams.Add(0);
 		InitialBrickAllocatorParams.Add(0);
-		BrickAllocatorParameters.Initialize(4, 2, PF_R32_SINT, BUF_UnorderedAccess | BUF_SourceCopy, TEXT("VolumetricLightmapBrickAllocatorParameters"), &InitialBrickAllocatorParams);
+		BrickAllocatorParameters.Initialize(TEXT("VolumetricLightmapBrickAllocatorParameters"), 4, 2, PF_R32_SINT, BUF_UnorderedAccess | BUF_SourceCopy, &InitialBrickAllocatorParams);
 	}
 
 	for (int32 MipLevel = VoxelizationVolumeMips.Num() - 1; MipLevel >= 0; MipLevel--)
@@ -402,7 +402,7 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 	InitializeBrickData(BrickLayoutDimensions * 5, VolumetricLightmapData.BrickData, false);
 	InitializeBrickData(BrickLayoutDimensions * 5, AccumulationBrickData, true);
-	BrickRequests.Initialize(16, NumTotalBricks, PF_R32G32B32A32_UINT, BUF_UnorderedAccess);
+	BrickRequests.Initialize(TEXT("BrickRequests"), 16, NumTotalBricks, PF_R32G32B32A32_UINT, BUF_UnorderedAccess);
 
 	VolumetricLightmapData.BrickDataDimensions = BrickLayoutDimensions * 5;
 

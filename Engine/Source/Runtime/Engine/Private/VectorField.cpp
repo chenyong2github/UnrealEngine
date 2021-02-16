@@ -208,7 +208,7 @@ public:
 		{
 			const uint32 DataSize = SizeX * SizeY * SizeZ * sizeof(FFloat16Color);
 			FVectorFieldStaticResourceBulkDataInterface BulkDataInterface(VolumeData, DataSize);
-			FRHIResourceCreateInfo CreateInfo(&BulkDataInterface);
+			FRHIResourceCreateInfo CreateInfo(TEXT("FVectorFieldStaticResource"), &BulkDataInterface);
 			VolumeTextureRHI = RHICreateTexture3D(
 				SizeX, SizeY, SizeZ, PF_FloatRGBA,
 				/*NumMips=*/ 1,
@@ -1087,7 +1087,7 @@ public:
 				TexCreateFlags = TexCreate_ShaderResource | TexCreate_UAV;
 			}
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FVectorFieldAnimatedResource"));
 			VolumeTextureRHI = RHICreateTexture3D(
 				SizeX, SizeY, SizeZ,
 				PF_FloatRGBA,

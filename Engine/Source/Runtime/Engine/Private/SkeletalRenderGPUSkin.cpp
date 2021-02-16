@@ -81,8 +81,7 @@ void FMorphVertexBuffer::InitDynamicRHI()
 
 	// Create the buffer rendering resource
 	uint32 Size = LodData.GetNumVertices() * sizeof(FMorphGPUSkinVertex);
-	FRHIResourceCreateInfo CreateInfo;
-	CreateInfo.DebugName = TEXT("MorphVertexBuffer");
+	FRHIResourceCreateInfo CreateInfo(TEXT("MorphVertexBuffer"));
 
 	const bool bUseGPUMorphTargets = UseGPUMorphTargets(GMaxRHIShaderPlatform);
 	bUsesComputeShader = bUseGPUMorphTargets;

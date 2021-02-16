@@ -423,12 +423,13 @@ public:
 
 		// Create the RHI texture.
 		ETextureCreateFlags TexCreateFlags = (Owner->SRGB ? TexCreate_SRGB : TexCreate_None)  | (Owner->bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed);
-		FRHIResourceCreateInfo CreateInfo;
+		FString Name = Owner->GetName();
+		FRHIResourceCreateInfo CreateInfo(*Name);
 		CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->GetExtData() : 0;
 		TextureCubeRHI = RHICreateTextureCube( Owner->GetSizeX(), Owner->GetPixelFormat(), Owner->GetNumMips(), TexCreateFlags, CreateInfo );
 		TextureRHI = TextureCubeRHI;
 		TextureRHI->SetName(Owner->GetFName());
-		RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
+		RHIBindDebugLabelName(TextureRHI, *Name);
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
 
 		// Read the mip-levels into the RHI texture.

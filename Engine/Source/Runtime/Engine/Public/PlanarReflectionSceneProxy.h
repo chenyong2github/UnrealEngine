@@ -44,7 +44,7 @@ public:
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 		FTexture2DRHIRef Texture2DRHI;
-		FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(FLinearColor::Black) };
+		FRHIResourceCreateInfo CreateInfo = { TEXT("FPlanarReflectionRenderTarget"), FClearValueBinding(FLinearColor::Black) };
 
 		RHICreateTargetableShaderResource2D(
 			GetSizeX(), 

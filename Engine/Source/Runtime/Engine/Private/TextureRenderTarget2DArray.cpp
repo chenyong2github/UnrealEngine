@@ -240,7 +240,7 @@ void FTextureRenderTarget2DArrayResource::InitDynamicRHI()
 		}
 
 		{
-			FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(Owner->ClearColor) };
+			FRHIResourceCreateInfo CreateInfo(TEXT("FTextureRenderTarget2DArrayResource"), FClearValueBinding(Owner->ClearColor));
 			RHICreateTargetableShaderResource2DArray(
 				Owner->SizeX,
 				Owner->SizeY,

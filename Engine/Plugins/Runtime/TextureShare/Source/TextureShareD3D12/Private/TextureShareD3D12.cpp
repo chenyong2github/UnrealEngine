@@ -40,8 +40,10 @@ bool FTextureShareD3D12::CreateRHITexture(ID3D12Resource* OpenedSharedResource, 
 
 bool FTextureShareD3D12::CreateSharedTexture(FIntPoint& Size, EPixelFormat Format, FTexture2DRHIRef& OutRHITexture, void*& OutHandle, FGuid& OutSharedHandleGuid)
 {
+	FString UniqueHandleId = FString::Printf(TEXT("Global\\%s"), *OutSharedHandleGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
+
 	// Create RHI resource
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(*UniqueHandleId);
 	OutRHITexture = RHICreateTexture2D(Size.X, Size.Y, Format, 1, 1, TexCreate_Shared | TexCreate_ResolveTargetable, CreateInfo);
 	if (OutRHITexture.IsValid() && OutRHITexture->IsValid())
 	{
@@ -50,7 +52,6 @@ bool FTextureShareD3D12::CreateSharedTexture(FIntPoint& Size, EPixelFormat Forma
 
 		// Create unique handle name
 		OutSharedHandleGuid = FGuid::NewGuid();
-		FString UniqueHandleId = FString::Printf(TEXT("Global\\%s"), *OutSharedHandleGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces));
 
 		if (CreateSharedHandle(UE4D3DDevice, ResolvedTexture, UniqueHandleId, *SharedResourceSecurityAttributes, OutHandle))
 		{

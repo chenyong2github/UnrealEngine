@@ -40,7 +40,7 @@ void FRawIndexBuffer::InitRHI()
 	if( Size > 0 )
 	{
 		// Create the index buffer.
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FRawIndexBuffer"));
 		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		// Initialize the buffer.
@@ -100,7 +100,7 @@ void FRawIndexBuffer16or32::InitRHI()
 	if (Size > 0)
 	{
 		// Create the index buffer.
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FRawIndexBuffer"));
 		IndexBufferRHI = RHICreateBuffer(Size, BUF_Static | BUF_IndexBuffer, IndexStride, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		// Initialize the buffer.		
@@ -330,7 +330,7 @@ FBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 		uint32 BufferFlags = BUF_Static | (bSRV ? BUF_ShaderResource : BUF_None);
 
 		// Create the index buffer.
-		FRHIResourceCreateInfo CreateInfo(&IndexStorage);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FRawStaticIndexBuffer"), &IndexStorage);
 		CreateInfo.bWithoutNativeResource = !SizeInBytes;
 		if (bRenderThread)
 		{

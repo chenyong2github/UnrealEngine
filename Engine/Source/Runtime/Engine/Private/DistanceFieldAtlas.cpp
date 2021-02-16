@@ -614,7 +614,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuild
 				RHIFlushResources();
 			}
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FDistanceFieldVolumeTextureAtlas"));
 
 			FIntVector VolumeTextureSize( BlockAllocator.GetSizeX(), BlockAllocator.GetSizeY(), BlockAllocator.GetSizeZ() );
 			if( CVarDistFieldForceMaxAtlasSize->GetInt() != 0 )

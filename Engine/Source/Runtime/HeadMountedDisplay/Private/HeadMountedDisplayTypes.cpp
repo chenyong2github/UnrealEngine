@@ -25,7 +25,7 @@ void FHMDViewMesh::BuildMesh(const FVector2D Positions[], uint32 VertexCount, EH
 	NumTriangles = NumVertices / 3;
 	NumIndices = NumVertices;
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FHMDViewMesh"));
 	VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * NumVertices, BUF_Static, CreateInfo);
 	void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FFilterVertex) * NumVertices, RLM_WriteOnly);
 	FFilterVertex* pVertices = reinterpret_cast<FFilterVertex*>(VoidPtr);

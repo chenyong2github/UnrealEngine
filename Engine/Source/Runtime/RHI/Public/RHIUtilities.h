@@ -81,13 +81,13 @@ struct FTextureRWBuffer2D
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
 	static constexpr ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource | TexCreate_UAV;
-	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
+	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
 		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
 
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		Buffer = RHICreateTexture2D(
 			SizeX, SizeY, Format, //PF_R32_FLOAT,
 			/*NumMips=*/ 1,
@@ -143,13 +143,13 @@ struct FTextureRWBuffer3D
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	void Initialize(uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format)
+	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 SizeX, uint32 SizeY, uint32 SizeZ, EPixelFormat Format)
 	{
 		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
 
 		NumBytes = SizeX * SizeY * SizeZ * BytesPerElement;
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		Buffer = RHICreateTexture3D(
 			SizeX, SizeY, SizeZ, Format,
 			/*NumMips=*/ 1,
@@ -242,24 +242,23 @@ struct FRWBuffer
 	}
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
-	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, ERHIAccess InResourceState, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = NULL, FResourceArrayInterface *InResourceArray = nullptr)	
+	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, ERHIAccess InResourceState, uint32 AdditionalUsage = 0, FResourceArrayInterface *InResourceArray = nullptr)	
 	{
 		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
 
 		// Provide a debug name if using Fast VRAM so the allocators diagnostics will work
 		ensure(!((AdditionalUsage & BUF_FastVRAM) && !InDebugName));
 		NumBytes = BytesPerElement * NumElements;
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		CreateInfo.ResourceArray = InResourceArray;
-		CreateInfo.DebugName = InDebugName;
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_UnorderedAccess | BUF_ShaderResource | AdditionalUsage, InResourceState, CreateInfo);
 		UAV = RHICreateUnorderedAccessView(Buffer, Format);
 		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);
 	}
 
-	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = NULL, FResourceArrayInterface* InResourceArray = nullptr)
+	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, FResourceArrayInterface* InResourceArray = nullptr)
 	{
-		Initialize(BytesPerElement, NumElements, Format, ERHIAccess::UAVCompute, AdditionalUsage, InDebugName, InResourceArray);
+		Initialize(InDebugName, BytesPerElement, NumElements, Format, ERHIAccess::UAVCompute, AdditionalUsage, InResourceArray);
 	}
 
 	void AcquireTransientResource()
@@ -305,13 +304,13 @@ struct FTextureReadBuffer2D
 
 	// @param AdditionalUsage passed down to RHICreateVertexBuffer(), get combined with "BUF_UnorderedAccess | BUF_ShaderResource" e.g. BUF_Static
 	const static ETextureCreateFlags DefaultTextureInitFlag = TexCreate_ShaderResource;
-	void Initialize(const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
+	void Initialize(const TCHAR* InDebugName, const uint32 BytesPerElement, const uint32 SizeX, const uint32 SizeY, const EPixelFormat Format, ETextureCreateFlags Flags = DefaultTextureInitFlag)
 	{
 		check(RHISupportsTextureBuffers(GMaxRHIShaderPlatform));
 
 		NumBytes = SizeX * SizeY * BytesPerElement;
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		Buffer = RHICreateTexture2D(
 			SizeX, SizeY, Format, //PF_R32_FLOAT,
 			/*NumMips=*/ 1,
@@ -356,13 +355,12 @@ struct FReadBuffer
 
 	FReadBuffer(): NumBytes(0) {}
 
-	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr, FResourceArrayInterface* InResourceArray = nullptr)
+	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, FResourceArrayInterface* InResourceArray = nullptr)
 	{
 		check(GSupportsResourceView);
 		NumBytes = BytesPerElement * NumElements;
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		CreateInfo.ResourceArray = InResourceArray;
-		CreateInfo.DebugName = InDebugName;
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | AdditionalUsage, ERHIAccess::SRVMask, CreateInfo);
 		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);
 	}
@@ -390,15 +388,14 @@ struct FRWBufferStructured
 		Release();
 	}
 
-	void Initialize(uint32 BytesPerElement, uint32 NumElements, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = NULL, bool bUseUavCounter = false, bool bAppendBuffer = false)
+	void Initialize(const TCHAR* InDebugName, uint32 BytesPerElement, uint32 NumElements, uint32 AdditionalUsage = 0, bool bUseUavCounter = false, bool bAppendBuffer = false)
 	{
 		check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
 		// Provide a debug name if using Fast VRAM so the allocators diagnostics will work
 		ensure(!((AdditionalUsage & BUF_FastVRAM) && !InDebugName));
 
 		NumBytes = BytesPerElement * NumElements;
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.DebugName = InDebugName;
+		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		Buffer = RHICreateStructuredBuffer(BytesPerElement, NumBytes, BUF_UnorderedAccess | BUF_ShaderResource | AdditionalUsage, ERHIAccess::UAVMask, CreateInfo);
 		UAV = RHICreateUnorderedAccessView(Buffer, bUseUavCounter, bAppendBuffer);
 		SRV = RHICreateShaderResourceView(Buffer);
@@ -437,13 +434,12 @@ struct FByteAddressBuffer
 
 	FByteAddressBuffer(): NumBytes(0) {}
 
-	void Initialize(uint32 InNumBytes, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr)
+	void Initialize(const TCHAR* InDebugName, uint32 InNumBytes, uint32 AdditionalUsage = 0)
 	{
 		NumBytes = InNumBytes;
 		check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5);
 		check( NumBytes % 4 == 0 );
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.DebugName = InDebugName;
+		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		Buffer = RHICreateStructuredBuffer(4, NumBytes, BUF_ShaderResource | BUF_ByteAddressBuffer | AdditionalUsage, ERHIAccess::SRVMask, CreateInfo);
 		SRV = RHICreateShaderResourceView(Buffer);
 	}
@@ -461,9 +457,9 @@ struct FRWByteAddressBuffer : public FByteAddressBuffer
 {
 	FUnorderedAccessViewRHIRef UAV;
 
-	void Initialize(uint32 InNumBytes, uint32 AdditionalUsage = 0, const TCHAR* DebugName = nullptr)
+	void Initialize(const TCHAR* DebugName, uint32 InNumBytes, uint32 AdditionalUsage = 0)
 	{
-		FByteAddressBuffer::Initialize(InNumBytes, BUF_UnorderedAccess | AdditionalUsage, DebugName);
+		FByteAddressBuffer::Initialize(DebugName, InNumBytes, BUF_UnorderedAccess | AdditionalUsage);
 		UAV = RHICreateUnorderedAccessView(Buffer, false, false);
 	}
 
@@ -490,14 +486,14 @@ struct FDynamicReadBuffer : public FReadBuffer
 		Release();
 	}
 
-	virtual void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* DebugName = nullptr)
+	virtual void Initialize(const TCHAR* DebugName, uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0)
 	{
 		ensure(
 			AdditionalUsage & (BUF_Dynamic | BUF_Volatile | BUF_Static) &&								// buffer should be Dynamic or Volatile or Static
 			(AdditionalUsage & (BUF_Dynamic | BUF_Volatile)) ^ (BUF_Dynamic | BUF_Volatile) // buffer should not be both
 			);
 
-		FReadBuffer::Initialize(BytesPerElement, NumElements, Format, AdditionalUsage, DebugName);
+		FReadBuffer::Initialize(DebugName, BytesPerElement, NumElements, Format, AdditionalUsage);
 	}
 
 	/**

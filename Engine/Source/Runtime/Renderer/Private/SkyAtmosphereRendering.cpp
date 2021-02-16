@@ -983,7 +983,7 @@ public:
 		const uint32 GroupSize = GetSampletCount();
 		const float GroupSizeInv = 1.0f / float(GroupSize);
 
-		UniformSphereSamplesBuffer.Initialize(sizeof(FVector4), GroupSize * GroupSize, EPixelFormat::PF_A32B32G32R32F, BUF_Static);
+		UniformSphereSamplesBuffer.Initialize(TEXT("UniformSphereSamplesBuffer"), sizeof(FVector4), GroupSize * GroupSize, EPixelFormat::PF_A32B32G32R32F, BUF_Static);
 		FVector4* Dest = (FVector4*)RHILockBuffer(UniformSphereSamplesBuffer.Buffer, 0, sizeof(FVector4)*GroupSize*GroupSize, RLM_WriteOnly);
 
 		FMath::SRandInit(0xDE4DC0DE);

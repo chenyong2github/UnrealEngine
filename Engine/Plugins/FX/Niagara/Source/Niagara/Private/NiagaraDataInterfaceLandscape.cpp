@@ -244,7 +244,7 @@ bool UNiagaraDataInterfaceLandscape::PerInstanceTick(void* PerInstanceData, FNia
 
 			// allocate the new texture based on the size of the landscape
 			ProxyData->LandscapeTextureBuffer = TUniquePtr<FTextureReadBuffer2D>(new FTextureReadBuffer2D());
-			ProxyData->LandscapeTextureBuffer->Initialize(4, SizeX, SizeY, EPixelFormat::PF_R32_FLOAT);
+			ProxyData->LandscapeTextureBuffer->Initialize(TEXT("LandscapeTextureBuffer"), 4, SizeX, SizeY, EPixelFormat::PF_R32_FLOAT);
 
 			// fill texture will landscape data derived outside of here
 			uint32 DestStride = sizeof(float);

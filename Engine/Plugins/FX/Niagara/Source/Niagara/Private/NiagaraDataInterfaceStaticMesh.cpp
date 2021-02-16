@@ -182,7 +182,7 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 	uint32 SizeByte = ValidSections.Num() * sizeof(SectionInfo);
 	if (SizeByte > 0)
 	{
-		FRHIResourceCreateInfo CreateInfo(TEXT("FStaticMeshGpuSpawnBuffer"));
+		FRHIResourceCreateInfo CreateInfo(TEXT("BufferSection"));
 		BufferSectionRHI = RHICreateBuffer(SizeByte, BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
 		SectionInfo* SectionInfoBuffer = (SectionInfo*)RHILockBuffer(BufferSectionRHI, 0, SizeByte, RLM_WriteOnly);
 		FMemory::Memcpy(SectionInfoBuffer, ValidSections.GetData(), SizeByte);
@@ -195,7 +195,7 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 
 	if (SocketTransformsResourceArray.Num() > 0)
 	{
-		FRHIResourceCreateInfo RHICreateInfo;
+		FRHIResourceCreateInfo RHICreateInfo(TEXT("SocketTransformsBuffer"));
 		RHICreateInfo.ResourceArray = &SocketTransformsResourceArray;
 		SocketTransformsBuffer = RHICreateVertexBuffer(SocketTransformsResourceArray.GetTypeSize() * SocketTransformsResourceArray.Num(), BUF_ShaderResource | BUF_Static, RHICreateInfo);
 		SocketTransformsSRV = RHICreateShaderResourceView(SocketTransformsBuffer, sizeof(float) * 4, PF_A32B32G32R32F);
@@ -207,7 +207,7 @@ void FStaticMeshGpuSpawnBuffer::InitRHI()
 
 	if (FilteredAndUnfilteredSocketsResourceArray.Num() > 0)
 	{
-		FRHIResourceCreateInfo RHICreateInfo;
+		FRHIResourceCreateInfo RHICreateInfo(TEXT("FilteredAndUnfilteredSocketsBuffer"));
 		RHICreateInfo.ResourceArray = &FilteredAndUnfilteredSocketsResourceArray;
 		FilteredAndUnfilteredSocketsBuffer = RHICreateVertexBuffer(FilteredAndUnfilteredSocketsResourceArray.GetTypeSize() * FilteredAndUnfilteredSocketsResourceArray.Num(), BUF_ShaderResource | BUF_Static, RHICreateInfo);
 		FilteredAndUnfilteredSocketsSRV = RHICreateShaderResourceView(FilteredAndUnfilteredSocketsBuffer, sizeof(uint16), PF_R16_UINT);

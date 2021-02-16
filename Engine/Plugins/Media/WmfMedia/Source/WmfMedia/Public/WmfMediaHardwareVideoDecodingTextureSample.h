@@ -91,7 +91,7 @@ public:
 			return DestinationTexture;
 		}
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FWmfMediaHardwareVideoDecodingTextureSample_DestinationTexture"));
 		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
 		DestinationTexture = RHICreateTexture2D(
 			Dim.X,

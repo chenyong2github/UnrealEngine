@@ -140,7 +140,7 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 		if (InstanceData->WriteBuffer.NumBytes != RequiredBytes)
 		{
 			InstanceData->WriteBuffer.Release();
-			InstanceData->WriteBuffer.Initialize(sizeof(float), RequiredElements, PF_R32_UINT, BUF_SourceCopy);
+			InstanceData->WriteBuffer.Initialize(TEXT("FNDIExportProxy_WriteBuffer"), sizeof(float), RequiredElements, PF_R32_UINT, BUF_SourceCopy);
 
 			// Clear counter when we initialize the buffer
 			ClearCounter(RHICmdList, InstanceData);

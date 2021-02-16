@@ -1495,51 +1495,47 @@ struct FClearValueBinding
 
 struct FRHIResourceCreateInfo
 {
-	FRHIResourceCreateInfo()
+	FRHIResourceCreateInfo(const TCHAR* InDebugName)
 		: BulkData(nullptr)
 		, ResourceArray(nullptr)
 		, ClearValueBinding(FLinearColor::Transparent)
 		, GPUMask(FRHIGPUMask::All())
 		, bWithoutNativeResource(false)
-		, DebugName(nullptr)
+		, DebugName(InDebugName)
 		, ExtData(0)
-	{}
+	{
+		check(InDebugName);
+	}
 
 	// for CreateTexture calls
-	FRHIResourceCreateInfo(FResourceBulkDataInterface* InBulkData)
-		: FRHIResourceCreateInfo()
+	FRHIResourceCreateInfo(const TCHAR* InDebugName, FResourceBulkDataInterface* InBulkData)
+		: FRHIResourceCreateInfo(InDebugName)
 	{
 		BulkData = InBulkData;
 	}
 
-	// for CreateVertexBuffer/CreateStructuredBuffer calls
-	FRHIResourceCreateInfo(FResourceArrayInterface* InResourceArray)
-		: FRHIResourceCreateInfo()
+	// for CreateBuffer calls
+	FRHIResourceCreateInfo(const TCHAR* InDebugName, FResourceArrayInterface* InResourceArray)
+		: FRHIResourceCreateInfo(InDebugName)
 	{
 		ResourceArray = InResourceArray;
 	}
 
-	FRHIResourceCreateInfo(const FClearValueBinding& InClearValueBinding)
-		: FRHIResourceCreateInfo()
+	FRHIResourceCreateInfo(const TCHAR* InDebugName, const FClearValueBinding& InClearValueBinding)
+		: FRHIResourceCreateInfo(InDebugName)
 	{
 		ClearValueBinding = InClearValueBinding;
 	}
 
-	FRHIResourceCreateInfo(const TCHAR* InDebugName)
-		: FRHIResourceCreateInfo()
-	{
-		DebugName = InDebugName;
-	}
-
 	FRHIResourceCreateInfo(uint32 InExtData)
-		: FRHIResourceCreateInfo()
+		: FRHIResourceCreateInfo(TEXT(""))
 	{
 		ExtData = InExtData;
 	}
 
 	// for CreateTexture calls
 	FResourceBulkDataInterface* BulkData;
-	// for CreateVertexBuffer/CreateStructuredBuffer calls
+	// for CreateBuffer calls
 	FResourceArrayInterface* ResourceArray;
 
 	// for binding clear colors to render targets.

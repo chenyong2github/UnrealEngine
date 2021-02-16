@@ -239,7 +239,7 @@ public:
 	{
 		FTextureResource::InitRHI();
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeTexture2DResource"));
 		ETextureCreateFlags Flags = TexCreate_None;
 
 		if (CreateUAV)
@@ -307,7 +307,7 @@ public:
 	{
 		FTextureResource::InitRHI();
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeTexture2DArrayResource"));
 		ETextureCreateFlags Flags = TexCreate_NoTiling | TexCreate_OfflineProcessed;
 
 		if (CreateUAV)
@@ -403,7 +403,7 @@ private:
 		}
 
 		// Create vertex buffer. Fill buffer with initial data upon creation
-		FRHIResourceCreateInfo CreateInfo(&Vertices);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeLayersVertexBuffer"), &Vertices);
 		VertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfo);
 	}
 
@@ -800,7 +800,7 @@ public:
 	/** Called when the resource is initialized. This is only called by the rendering thread. */
 	virtual void InitDynamicRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FLandscapeLayerWeightmapExtractMaterialLayersComputeShaderResource"));
 		ComponentsData = RHICreateStructuredBuffer(sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData), OriginalComponentsData.Num() * sizeof(FLandscapeLayerWeightmapExtractMaterialLayersComponentData), BUF_ShaderResource | BUF_Volatile, CreateInfo);
 		ComponentsDataSRV = RHICreateShaderResourceView(ComponentsData);
 
@@ -953,7 +953,7 @@ public:
 	/** Called when the resource is initialized. This is only called by the rendering thread. */
 	virtual void InitDynamicRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("ComponentsData"));
 		uint32 ComponentsDataMemSize = OriginalComponentsData.Num() * sizeof(FLandscapeLayerWeightmapPackMaterialLayersComponentData);
 		ComponentsData = RHICreateStructuredBuffer(sizeof(FLandscapeLayerWeightmapPackMaterialLayersComponentData), ComponentsDataMemSize, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 		ComponentsDataSRV = RHICreateShaderResourceView(ComponentsData);
@@ -962,7 +962,7 @@ public:
 		FMemory::Memcpy(Buffer, OriginalComponentsData.GetData(), ComponentsDataMemSize);
 		RHIUnlockBuffer(ComponentsData);
 
-		FRHIResourceCreateInfo WeightBlendCreateInfo;
+		FRHIResourceCreateInfo WeightBlendCreateInfo(TEXT("WeightmapWeightBlendMode"));
 		uint32 WeightBlendMemSize = OriginalWeightmapWeightBlendModeData.Num() * sizeof(float);
 		WeightmapWeightBlendMode = RHICreateVertexBuffer(WeightBlendMemSize, BUF_ShaderResource | BUF_Volatile, WeightBlendCreateInfo);
 		WeightmapWeightBlendModeSRV = RHICreateShaderResourceView(WeightmapWeightBlendMode, sizeof(float), PF_R32_FLOAT);
@@ -971,7 +971,7 @@ public:
 		FMemory::Memcpy(WeightmapWeightBlendModePtr, OriginalWeightmapWeightBlendModeData.GetData(), WeightBlendMemSize);
 		RHIUnlockBuffer(WeightmapWeightBlendMode);
 
-		FRHIResourceCreateInfo TextureOutputOffsetCreateInfo;
+		FRHIResourceCreateInfo TextureOutputOffsetCreateInfo(TEXT("WeightmapTextureOutputOffset"));
 		uint32 TextureOutputOffsetMemSize = OriginalTextureOutputOffset.Num() * sizeof(FVector2D);
 		WeightmapTextureOutputOffset = RHICreateVertexBuffer(TextureOutputOffsetMemSize, BUF_ShaderResource | BUF_Volatile, TextureOutputOffsetCreateInfo);
 		WeightmapTextureOutputOffsetSRV = RHICreateShaderResourceView(WeightmapTextureOutputOffset, sizeof(FVector2D), PF_G32R32F);

@@ -525,7 +525,7 @@ void FAmfVideoEncoder::ResetFrameInputBuffer(FFrame& Frame, FIntPoint Resolution
 	Frame.InputFrame.Texture.SafeRelease();
 
 	// Make sure format used here is compatible with AMF_SURFACE_FORMAT specified in encoder Init() function.
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FrameInputBuffer"));
 	Frame.InputFrame.Texture = RHICreateTexture2D(Resolution.X, Resolution.Y, EPixelFormat::PF_R8G8B8A8, 1, 1, TexCreate_RenderTargetable, CreateInfo);
 }
 

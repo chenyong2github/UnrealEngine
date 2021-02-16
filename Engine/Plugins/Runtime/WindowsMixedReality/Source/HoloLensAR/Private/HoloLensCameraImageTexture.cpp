@@ -63,7 +63,7 @@ public:
 	{
 		// Setup index buffer
 		int NumIndices = 6;
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FDummyIndexBuffer"));
 		IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint16), sizeof(uint16) * NumIndices, BUF_Static, CreateInfo);
 		void* VoidPtr = RHILockBuffer(IndexBufferRHI, 0, sizeof(uint16) * NumIndices, RLM_WriteOnly);
 		uint16* pIndices = reinterpret_cast<uint16*>(VoidPtr);
@@ -217,12 +217,12 @@ public:
 
 			// Create the copy target
 			{
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("FHoloLensCameraImageResource_CopyTextureRef"));
 				CopyTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_NV12, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource, CreateInfo);
 			}
 			// Create the render target
 			{
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("FHoloLensCameraImageResource_DummyTexture2D"));
 				TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
 				// Create our render target that we'll convert to
 				RHICreateTargetableShaderResource2D(Size.X, Size.Y, PF_B8G8R8A8, 1, TexCreate_Dynamic, TexCreate_RenderTargetable, false, CreateInfo, DecodedTextureRef, DummyTexture2DRHI);
@@ -242,7 +242,7 @@ public:
 		// Default to an empty 1x1 texture if we don't have a camera image or failed to convert
 		if (!bDidConvert)
 		{
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("DecodedTextureRef"));
 			Size.X = Size.Y = 1;
 			DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
 		}

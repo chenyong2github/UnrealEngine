@@ -70,7 +70,7 @@ namespace
 		const uint32 Stride = sizeof(T);
 
 		// Create index buffer. Fill buffer with initial data upon creation
-		FRHIResourceCreateInfo CreateInfo(&Indices);
+		FRHIResourceCreateInfo CreateInfo(TEXT("FVirtualHeightfieldMeshIndexBuffer"), &Indices);
 		return RHICreateIndexBuffer(Stride, Size, BUF_Static, CreateInfo);
 	}
 }

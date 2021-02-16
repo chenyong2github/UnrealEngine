@@ -51,8 +51,7 @@ public:
 	{
 		// Create a buffer with one element.
 		uint32 NumBytes = GPixelFormats[PixelFormat].BlockBytes;
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.DebugName = *DebugName;
+		FRHIResourceCreateInfo CreateInfo(*DebugName);
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | BUF_Static, CreateInfo);
 
 		// Zero the buffer memory.
@@ -88,8 +87,7 @@ public:
 	virtual void InitRHI() override
 	{
 		// Create a 1x1 texture.
-		FRHIResourceCreateInfo CreateInfo;
-		CreateInfo.DebugName = *DebugName;
+		FRHIResourceCreateInfo CreateInfo(*DebugName);
 		Texture = RHICreateTexture2D(1, 1, PixelFormat, 1, 1, TexCreate_ShaderResource, CreateInfo);
 
 		// Zero the texture memory (there's only 1 row, so we can use the stride).

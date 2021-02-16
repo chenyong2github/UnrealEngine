@@ -3840,7 +3840,7 @@ static void UpdateHitProxyIdBuffer(
 
 	if (DynamicReadBuffer.NumBytes != BufferCount)
 	{
-		DynamicReadBuffer.Initialize(sizeof(uint32), BufferCount, PF_R32_UINT, BUF_Dynamic);
+		DynamicReadBuffer.Initialize(TEXT("DynamicReadBuffer"), sizeof(uint32), BufferCount, PF_R32_UINT, BUF_Dynamic);
 	}
 
 	DynamicReadBuffer.Lock();

@@ -16,7 +16,7 @@ public:
 		(
 			[this, InInstanceCount](FRHICommandListImmediate& RHICmdList)
 			{
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("WaterInstanceDataBuffers"));
 
 				int32 SizeInBytes = Align<int32>(InInstanceCount * sizeof(FVector4), 4 * 1024);
 
@@ -76,7 +76,7 @@ private:
 		{
 			Buffer[InBufferID].SafeRelease();
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("WaterInstanceDataBuffers"));
 
 			// Align size in to avoid reallocating for a few differences of instance count
 			uint32 AlignedSizeInBytes = Align<uint32>(SizeInBytes, 4 * 1024);

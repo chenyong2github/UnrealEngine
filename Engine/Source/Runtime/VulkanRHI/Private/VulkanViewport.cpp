@@ -29,7 +29,7 @@ struct FRHICommandProcessDeferredDeletionQueue final : public FRHICommand<FRHICo
 
 
 FVulkanBackBuffer::FVulkanBackBuffer(FVulkanDevice& Device, FVulkanViewport* InViewport, EPixelFormat Format, uint32 SizeX, uint32 SizeY, ETextureCreateFlags UEFlags)
-	: FVulkanTexture2D(Device, Format, SizeX, SizeY, 1, 1, VK_NULL_HANDLE, UEFlags, FRHIResourceCreateInfo())
+	: FVulkanTexture2D(Device, Format, SizeX, SizeY, 1, 1, VK_NULL_HANDLE, UEFlags, FRHIResourceCreateInfo(TEXT("FVulkanBackBuffer")))
 	, Viewport(InViewport)
 {
 }
@@ -691,7 +691,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		uint32 BackBufferSizeX = FVulkanPlatform::RequiresRenderingBackBuffer() ? SizeX : 1;
 		uint32 BackBufferSizeY = FVulkanPlatform::RequiresRenderingBackBuffer() ? SizeY : 1;
 
-		RenderingBackBuffer = new FVulkanTexture2D(*Device, PixelFormat, BackBufferSizeX, BackBufferSizeY, 1, 1, TexCreate_RenderTargetable | TexCreate_ShaderResource, ERHIAccess::Present, FRHIResourceCreateInfo());
+		RenderingBackBuffer = new FVulkanTexture2D(*Device, PixelFormat, BackBufferSizeX, BackBufferSizeY, 1, 1, TexCreate_RenderTargetable | TexCreate_ShaderResource, ERHIAccess::Present, FRHIResourceCreateInfo(TEXT("RenderingBackBuffer")));
 #if VULKAN_ENABLE_DRAW_MARKERS
 		if (Device->GetDebugMarkerSetObjectName())
 		{

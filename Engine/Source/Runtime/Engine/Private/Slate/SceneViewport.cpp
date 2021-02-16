@@ -1979,7 +1979,7 @@ void FSceneViewport::InitDynamicRHI()
 		}
 #endif
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("BufferedRT"));
 		FTexture2DRHIRef BufferedRTRHI;
 		FTexture2DRHIRef BufferedSRVRHI;
 

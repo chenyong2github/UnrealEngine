@@ -85,22 +85,22 @@ TGlobalResource<FDistanceFieldObjectBufferResource> GAOCulledObjectBuffers;
 void FTileIntersectionResources::InitDynamicRHI()
 {
 	const uint32 FastVRamFlag = GFastVRamConfig.DistanceFieldTileIntersectionResources | (IsTransientResourceBufferAliasingEnabled() ? BUF_Transient : BUF_None);
-	TileConeAxisAndCos.Initialize(sizeof(FVector4), TileDimensions.X * TileDimensions.Y, PF_A32B32G32R32F, BUF_Static | FastVRamFlag, TEXT("TileConeAxisAndCos"));
-	TileConeDepthRanges.Initialize(sizeof(FVector4), TileDimensions.X * TileDimensions.Y, PF_A32B32G32R32F, BUF_Static | FastVRamFlag, TEXT("TileConeDepthRanges"));
+	TileConeAxisAndCos.Initialize(TEXT("TileConeAxisAndCos"), sizeof(FVector4), TileDimensions.X * TileDimensions.Y, PF_A32B32G32R32F, BUF_Static | FastVRamFlag);
+	TileConeDepthRanges.Initialize(TEXT("TileConeDepthRanges"), sizeof(FVector4), TileDimensions.X * TileDimensions.Y, PF_A32B32G32R32F, BUF_Static | FastVRamFlag);
 
-	NumCulledTilesArray.Initialize(sizeof(uint32), MaxSceneObjects, PF_R32_UINT, BUF_Static | FastVRamFlag, TEXT("NumCulledTilesArray"));
-	CulledTilesStartOffsetArray.Initialize(sizeof(uint32), MaxSceneObjects, PF_R32_UINT, BUF_Static | FastVRamFlag, TEXT("CulledTilesStartOffsetArray"));
+	NumCulledTilesArray.Initialize(TEXT("NumCulledTilesArray"), sizeof(uint32), MaxSceneObjects, PF_R32_UINT, BUF_Static | FastVRamFlag);
+	CulledTilesStartOffsetArray.Initialize(TEXT("CulledTilesStartOffsetArray"), sizeof(uint32), MaxSceneObjects, PF_R32_UINT, BUF_Static | FastVRamFlag);
 
 	// Can only use 16 bit for CulledTileDataArray if few enough objects and tiles
 	const bool b16BitObjectIndices = MaxSceneObjects < (1 << 16);
 	const bool b16BitCulledTileIndexBuffer = bAllow16BitIndices && b16BitObjectIndices && TileDimensions.X * TileDimensions.Y < (1 << 16);
 	CulledTileDataArray.Initialize(
+		TEXT("CulledTileDataArray"),
 		b16BitCulledTileIndexBuffer ? sizeof(uint16) : sizeof(uint32), 
 		GAverageDistanceFieldObjectsPerCullTile * TileDimensions.X * TileDimensions.Y * CulledTileDataStride, 
 		b16BitCulledTileIndexBuffer ? PF_R16_UINT : PF_R32_UINT, 
-		BUF_Static | FastVRamFlag, 
-		TEXT("CulledTileDataArray"));
-	ObjectTilesIndirectArguments.Initialize(sizeof(uint32), 3, PF_R32_UINT, BUF_Static | BUF_DrawIndirect);
+		BUF_Static | FastVRamFlag);
+	ObjectTilesIndirectArguments.Initialize(TEXT("ObjectTilesIndirectArguments"), sizeof(uint32), 3, PF_R32_UINT, BUF_Static | BUF_DrawIndirect);
 }
 
 class FCullObjectsForViewCS : public FGlobalShader

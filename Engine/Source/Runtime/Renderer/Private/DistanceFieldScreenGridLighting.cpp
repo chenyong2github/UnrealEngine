@@ -67,7 +67,7 @@ void FAOScreenGridResources::InitDynamicRHI()
 {
 	//@todo - 2d textures
 	const uint32 FastVRamFlag = GFastVRamConfig.DistanceFieldAOScreenGridResources | (IsTransientResourceBufferAliasingEnabled() ? BUF_Transient : BUF_None);
-	ScreenGridConeVisibility.Initialize(sizeof(uint32), NumConeSampleDirections * ScreenGridDimensions.X * ScreenGridDimensions.Y, PF_R32_UINT, BUF_Static | FastVRamFlag, TEXT("ScreenGridConeVisibility"));
+	ScreenGridConeVisibility.Initialize(TEXT("ScreenGridConeVisibility"), sizeof(uint32), NumConeSampleDirections * ScreenGridDimensions.X * ScreenGridDimensions.Y, PF_R32_UINT, BUF_Static | FastVRamFlag);
 }
 
 template<bool bUseGlobalDistanceField>

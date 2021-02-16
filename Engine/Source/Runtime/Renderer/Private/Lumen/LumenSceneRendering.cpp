@@ -1733,7 +1733,7 @@ public:
 	{
 		EPixelFormat BufferFormat = PF_A32B32G32R32F;
 		uint32 BytesPerElement = GPixelFormats[BufferFormat].BlockBytes;
-		CardData.Initialize(BytesPerElement, 1, 0, TEXT("FNullCardBuffers"));
+		CardData.Initialize(TEXT("FNullCardBuffers"), BytesPerElement, 1, 0);
 	}
 
 	virtual void ReleaseRHI() override

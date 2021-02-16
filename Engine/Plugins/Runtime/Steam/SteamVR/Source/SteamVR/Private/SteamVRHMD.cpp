@@ -1622,16 +1622,14 @@ bool FSteamVRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32
 
 	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
 	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("FSteamVRHMD"));
 #if PLATFORM_MAC
 		IOSurfaceRef Surface = MetalBridgePtr->GetSurface(SizeX, SizeY);
 		check(Surface != nil);
 
-		FRHIResourceCreateInfo CreateInfo;
 		CreateInfo.BulkData = new FIOSurfaceResourceWrapper(Surface);
 		CFRelease(Surface);
 		CreateInfo.ResourceArray = nullptr;
-#else
-		FRHIResourceCreateInfo CreateInfo;
 #endif
 
 		FTexture2DRHIRef TargetableTexture, ShaderResourceTexture;
@@ -1684,8 +1682,7 @@ bool FSteamVRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY,
 
 	FClearValueBinding ClearValue(0.0f, 0);
 	ClearValue.ColorBinding = EClearBinding::EDepthStencilBound;
-	FRHIResourceCreateInfo CreateInfo(ClearValue);
-	CreateInfo.DebugName = TEXT("SteamVRDepthStencil");
+	FRHIResourceCreateInfo CreateInfo(TEXT("SteamVRDepthStencil"), ClearValue);
 
 	for (uint32 SwapChainIter = 0; SwapChainIter < SteamVRSwapChainLength; ++SwapChainIter)
 	{

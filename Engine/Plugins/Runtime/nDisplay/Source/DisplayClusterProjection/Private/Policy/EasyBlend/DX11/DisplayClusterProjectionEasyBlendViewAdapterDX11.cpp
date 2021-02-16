@@ -275,8 +275,7 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::InitializeResources_Rend
 				// Create RT texture for viewport warp
 				for (auto& It : Views)
 				{
-					FRHIResourceCreateInfo CreateInfo;
-					FTexture2DRHIRef DummyTexRef;
+					FRHIResourceCreateInfo CreateInfo(TEXT("FDisplayClusterProjectionEasyBlendViewAdapterDX11"));
 
 					RHICreateTargetableShaderResource2D(GetViewportSize().X, GetViewportSize().Y, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, true, CreateInfo, It.TargetableTexture, It.ShaderResourceTexture);
 

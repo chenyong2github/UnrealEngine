@@ -362,7 +362,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::OnUpdateResampling(int32 InResoluti
 				GPUDownsampledBuffer.Release();
 			}
 
-			GPUDownsampledBuffer.Initialize(sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+			GPUDownsampledBuffer.Initialize(TEXT("FNiagaraDataInterfaceProxyOscilloscope_GPUDownsampledBuffer"), sizeof(float), NumSamplesInBuffer, EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		});
 
 		VectorVMReadBuffer.SetNumZeroed(UNiagaraDataInterfaceAudioOscilloscope::MaxBufferResolution * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
@@ -474,7 +474,7 @@ void FNiagaraDataInterfaceProxyOscilloscope::PostAudioToGPU()
 		size_t BufferSize = DownsampledBuffer.Num() * sizeof(float);
 		if (BufferSize != 0 && !GPUDownsampledBuffer.NumBytes)
 		{
-			GPUDownsampledBuffer.Initialize(sizeof(float), Resolution * NumChannelsInDownsampledBuffer.GetValue(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
+			GPUDownsampledBuffer.Initialize(TEXT("GPUDownsampledBuffer"), sizeof(float), Resolution * NumChannelsInDownsampledBuffer.GetValue(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		}
 
 		if (GPUDownsampledBuffer.NumBytes > 0)

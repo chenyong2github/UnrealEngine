@@ -593,7 +593,7 @@ void AllocateCapsuleTileIntersectionCountsBuffer(FIntPoint GroupSize, FSceneView
 		|| (int32)ViewState->CapsuleTileIntersectionCountsBuffer.NumBytes < GroupSize.X * GroupSize.Y * GPixelFormats[CapsuleTileIntersectionCountsBufferFormat].BlockBytes)
 	{
 		ViewState->CapsuleTileIntersectionCountsBuffer.Release();
-		ViewState->CapsuleTileIntersectionCountsBuffer.Initialize(GPixelFormats[CapsuleTileIntersectionCountsBufferFormat].BlockBytes, GroupSize.X * GroupSize.Y, CapsuleTileIntersectionCountsBufferFormat);
+		ViewState->CapsuleTileIntersectionCountsBuffer.Initialize(TEXT("CapsuleTileIntersectionCountsBuffer"), GPixelFormats[CapsuleTileIntersectionCountsBufferFormat].BlockBytes, GroupSize.X * GroupSize.Y, CapsuleTileIntersectionCountsBufferFormat);
 	}
 }
 
@@ -709,7 +709,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 				{
 					LightSceneInfo.ShadowCapsuleShapesVertexBuffer.SafeRelease();
 					LightSceneInfo.ShadowCapsuleShapesSRV.SafeRelease();
-					FRHIResourceCreateInfo CreateInfo;
+					FRHIResourceCreateInfo CreateInfo(TEXT("LightSceneInfo"));
 					LightSceneInfo.ShadowCapsuleShapesVertexBuffer = RHICreateVertexBuffer(DataSize, BUF_Volatile | BUF_ShaderResource, CreateInfo);
 					LightSceneInfo.ShadowCapsuleShapesSRV = RHICreateShaderResourceView(LightSceneInfo.ShadowCapsuleShapesVertexBuffer, sizeof(FVector4), PF_A32B32G32R32F);
 				}
@@ -1045,7 +1045,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 			{
 				View.ViewState->IndirectShadowCapsuleShapesVertexBuffer.SafeRelease();
 				View.ViewState->IndirectShadowCapsuleShapesSRV.SafeRelease();
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("IndirectShadowCapsuleShapesVertexBuffer"));
 				View.ViewState->IndirectShadowCapsuleShapesVertexBuffer = RHICreateVertexBuffer(DataSize, BUF_Volatile | BUF_ShaderResource, CreateInfo);
 				View.ViewState->IndirectShadowCapsuleShapesSRV = RHICreateShaderResourceView(View.ViewState->IndirectShadowCapsuleShapesVertexBuffer, sizeof(FVector4), PF_A32B32G32R32F);
 			}
@@ -1063,7 +1063,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 			{
 				View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer.SafeRelease();
 				View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesSRV.SafeRelease();
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer"));
 				View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer = RHICreateVertexBuffer(DataSize, BUF_Volatile | BUF_ShaderResource, CreateInfo);
 				View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesSRV = RHICreateShaderResourceView(View.ViewState->IndirectShadowMeshDistanceFieldCasterIndicesVertexBuffer, sizeof(uint32), PF_R32_UINT);
 			}
@@ -1084,7 +1084,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 			{
 				View.ViewState->IndirectShadowLightDirectionVertexBuffer.SafeRelease();
 				View.ViewState->IndirectShadowLightDirectionSRV.SafeRelease();
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("IndirectShadowLightDirectionVertexBuffer"));
 				View.ViewState->IndirectShadowLightDirectionVertexBuffer = RHICreateVertexBuffer(DataSize, BUF_Volatile | BUF_ShaderResource, CreateInfo);
 				View.ViewState->IndirectShadowLightDirectionSRV = RHICreateShaderResourceView(View.ViewState->IndirectShadowLightDirectionVertexBuffer, sizeof(FVector4), LightDirectionDataFormat);
 			}
@@ -1107,7 +1107,7 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 				|| (int32)View.ViewState->IndirectShadowVolumetricLightmapDerivedLightDirection.NumBytes != View.ViewState->IndirectShadowLightDirectionVertexBuffer->GetSize())
 			{
 				View.ViewState->IndirectShadowVolumetricLightmapDerivedLightDirection.Release();
-				View.ViewState->IndirectShadowVolumetricLightmapDerivedLightDirection.Initialize(GPixelFormats[LightDirectionDataFormat].BlockBytes, NumLightDataElements, LightDirectionDataFormat);
+				View.ViewState->IndirectShadowVolumetricLightmapDerivedLightDirection.Initialize(TEXT("IndirectShadowVolumetricLightmapDerivedLightDirection"), GPixelFormats[LightDirectionDataFormat].BlockBytes, NumLightDataElements, LightDirectionDataFormat);
 			}
 
 			IndirectShadowLightDirectionSRV = View.ViewState->IndirectShadowVolumetricLightmapDerivedLightDirection.SRV;

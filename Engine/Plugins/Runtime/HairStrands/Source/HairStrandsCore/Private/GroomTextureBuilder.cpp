@@ -760,7 +760,7 @@ static void AddReadbackPass(
 		check(OutTexture->GetSurfaceWidth() == Resolution.X);
 		check(OutTexture->GetSurfaceHeight() == Resolution.Y);
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("ReadbackPass_StagingTexture"));
 		FTexture2DRHIRef StagingTexture = RHICreateTexture2D(
 			InputTexture->Desc.Extent.X,
 			InputTexture->Desc.Extent.Y,

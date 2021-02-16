@@ -2329,7 +2329,7 @@ namespace OculusHMD
 			return;
 		}
 
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FOculusHMD"));
 		Mesh.VertexBufferRHI = RHICreateVertexBuffer(sizeof(FFilterVertex) * VertexCount, BUF_Static, CreateInfo);
 		void* VoidPtr = RHILockBuffer(Mesh.VertexBufferRHI, 0, sizeof(FFilterVertex) * VertexCount, RLM_WriteOnly);
 		FFilterVertex* pVertices = reinterpret_cast<FFilterVertex*>(VoidPtr);

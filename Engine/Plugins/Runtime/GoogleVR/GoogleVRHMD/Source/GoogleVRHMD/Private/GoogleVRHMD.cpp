@@ -1209,7 +1209,7 @@ void FGoogleVRHMD::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& R
 				ReadbackTextures[textureIndex].SafeRelease();
 				ReadbackTextures[textureIndex] = nullptr;
 			}
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FGoogleVRHMD_ReadbackTextures"));
 			ReadbackTextures[textureIndex] = RHICreateTexture2D(
 				renderSize.X,
 				renderSize.Y,

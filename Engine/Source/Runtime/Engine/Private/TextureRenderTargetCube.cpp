@@ -222,7 +222,7 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
 		ETextureCreateFlags TexCreateFlags = bIsSRGB ? TexCreate_SRGB : TexCreate_None;
 		{
-			FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(Owner->ClearColor) };
+			FRHIResourceCreateInfo CreateInfo(TEXT("FTextureRenderTargetCubeResource"), FClearValueBinding(Owner->ClearColor));
 			RHICreateTargetableShaderResourceCube(
 				Owner->SizeX,
 				Owner->GetFormat(), 
@@ -240,7 +240,7 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 
 		// Create the RHI target surface used for rendering to
 		{
-			FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(Owner->ClearColor) };
+			FRHIResourceCreateInfo CreateInfo(TEXT("FTextureRenderTargetCubeResource"), FClearValueBinding(Owner->ClearColor));
 			CubeFaceSurfaceRHI = RHICreateTexture2D(
 				Owner->SizeX, 
 				Owner->SizeX, 

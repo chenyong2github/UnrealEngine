@@ -409,7 +409,7 @@ void UNiagaraDataInterfaceCurveBase::PushToRenderThreadImpl()
 		RT_Proxy->CurveLUT.Release();
 
 		check(rtShaderLUT.Num());
-		RT_Proxy->CurveLUT.Initialize(sizeof(float), rtShaderLUT.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
+		RT_Proxy->CurveLUT.Initialize(TEXT("CurveLUT"), sizeof(float), rtShaderLUT.Num(), EPixelFormat::PF_R32_FLOAT, BUF_Static);
 		uint32 BufferSize = rtShaderLUT.Num() * sizeof(float);
 		int32 *BufferData = static_cast<int32*>(RHILockBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
 		FPlatformMemory::Memcpy(BufferData, rtShaderLUT.GetData(), BufferSize);

@@ -1236,7 +1236,7 @@ bool FMagicLeapHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 Size
 		// Ensure the texture size matches eye render target size. We may get other depth allocations unrelated to the main scene render.
 		if (ExpectedRenderTargetSize == FIntPoint(SizeX, SizeY))
 		{
-			FRHIResourceCreateInfo CreateInfo(FClearValueBinding::DepthFar);
+			FRHIResourceCreateInfo CreateInfo(TEXT("FMagicLeapHMD"), FClearValueBinding::DepthFar);
 			RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_DepthStencil, 1, FlagsIn, TargetableTextureFlags | TexCreate_InputAttachmentRead, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture);
 
 			DepthBuffer = OutTargetableTexture;
@@ -1341,7 +1341,7 @@ bool FMagicLeapHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint
 		return false;
 	}
 
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FMagicLeapHMD"));
 	RHICreateTargetableShaderResource2D(SizeX, SizeY, PF_R8G8B8A8, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, OutTargetableTexture, OutShaderResourceTexture);
 
 #if PLATFORM_LUMIN

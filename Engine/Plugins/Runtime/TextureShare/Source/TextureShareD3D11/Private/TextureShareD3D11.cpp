@@ -64,7 +64,7 @@ bool FTextureShareD3D11::CreateRHITexture(ID3D11Texture2D* OpenedSharedResource,
 bool FTextureShareD3D11::CreateSharedTexture(FIntPoint& Size, EPixelFormat Format, FTexture2DRHIRef& OutRHITexture, void*& OutHandle)
 {
 	// Create RHI resource
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("CreateSharedTexture"));
 	OutRHITexture = RHICreateTexture2D(Size.X, Size.Y, Format, 1, 1, TexCreate_Shared | TexCreate_ResolveTargetable, CreateInfo);
 	if (OutRHITexture.IsValid() && OutRHITexture->IsValid())
 	{

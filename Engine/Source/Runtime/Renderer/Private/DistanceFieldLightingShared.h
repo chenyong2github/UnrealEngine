@@ -243,14 +243,14 @@ public:
 
 			const uint32 FastVRamFlag = GFastVRamConfig.DistanceFieldCulledObjectBuffers | ( IsTransientResourceBufferAliasingEnabled() ? BUF_Transient : BUF_None );
 
-			ObjectIndirectArguments.Initialize(sizeof(uint32), 5, PF_R32_UINT, BUF_Static | BUF_DrawIndirect, ObjectIndirectArgumentsDebugName);
-			ObjectIndirectDispatch.Initialize(sizeof(uint32), 3, PF_R32_UINT, BUF_Static | BUF_DrawIndirect, ObjectIndirectDispatchDebugName);
-			Bounds.Initialize(sizeof(FVector4), BoundsNumElements, BUF_Static | FastVRamFlag, BoundsDebugName);
-			Data.Initialize(sizeof(FVector4), MaxObjects * ObjectDataStride, BUF_Static | FastVRamFlag, DataDebugName);
+			ObjectIndirectArguments.Initialize(ObjectIndirectArgumentsDebugName, sizeof(uint32), 5, PF_R32_UINT, BUF_Static | BUF_DrawIndirect);
+			ObjectIndirectDispatch.Initialize(ObjectIndirectDispatchDebugName, sizeof(uint32), 3, PF_R32_UINT, BUF_Static | BUF_DrawIndirect);
+			Bounds.Initialize(BoundsDebugName, sizeof(FVector4), BoundsNumElements, BUF_Static | FastVRamFlag);
+			Data.Initialize(DataDebugName, sizeof(FVector4), MaxObjects * ObjectDataStride, BUF_Static | FastVRamFlag);
 
 			if (bWantBoxBounds)
 			{
-				BoxBounds.Initialize(sizeof(FVector4), MaxObjects * ObjectBoxBoundsStride, BUF_Static | FastVRamFlag, BoxBoundsDebugName);
+				BoxBounds.Initialize(BoxBoundsDebugName, sizeof(FVector4), MaxObjects * ObjectBoxBoundsStride, BUF_Static | FastVRamFlag);
 			}
 		}
 	}
@@ -483,7 +483,7 @@ public:
 	{
 		if (MaxElements > 0 && Stride > 0)
 		{
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FCPUUpdatedBuffer"));
 			Buffer = RHICreateVertexBuffer(MaxElements * Stride * GPixelFormats[Format].BlockBytes, (bVolatile ? BUF_Volatile : BUF_Dynamic)  | BUF_ShaderResource, CreateInfo);
 			BufferSRV = RHICreateShaderResourceView(Buffer, GPixelFormats[Format].BlockBytes, Format);
 		}

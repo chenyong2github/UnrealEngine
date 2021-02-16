@@ -229,7 +229,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::InitializeResources_RenderThread()
 			// Create RT texture for viewport warp
 			for (auto& It : Views)
 			{
-				FRHIResourceCreateInfo CreateInfo;
+				FRHIResourceCreateInfo CreateInfo(TEXT("FDisplayClusterProjectionMPCDIPolicy"));
 				FTexture2DRHIRef DummyTexRef;
 				RHICreateTargetableShaderResource2D(ViewportSize.X, ViewportSize.Y, SceneTargetFormat, 1, TexCreate_None, TexCreate_RenderTargetable, false, CreateInfo, It.RTTexture, DummyTexRef);
 			}

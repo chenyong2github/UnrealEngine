@@ -58,7 +58,7 @@ void FViewportSurfaceReader::Resize(uint32 Width, uint32 Height)
 	ENQUEUE_RENDER_COMMAND(CreateCaptureFrameTexture)(
 		[Width, Height, This](FRHICommandListImmediate& RHICmdList)
 		{
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FViewportSurfaceReader_ReadbackTexture"));
 
 			This->ReadbackTexture = RHICreateTexture2D(
 				Width,

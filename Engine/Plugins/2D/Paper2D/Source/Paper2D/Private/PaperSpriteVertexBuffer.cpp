@@ -31,7 +31,7 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	uint32 PositionSize = NumAllocatedVertices * sizeof(FVector);
 	// create vertex buffer
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpritePositionBuffer"));
 		PositionBuffer.VertexBufferRHI = RHICreateVertexBuffer(PositionSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
@@ -43,7 +43,7 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	uint32 TangentSize = NumAllocatedVertices * 2 * sizeof(FPackedNormal);
 	// create vertex buffer
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteTangentBuffer"));
 		TangentBuffer.VertexBufferRHI = RHICreateVertexBuffer(TangentSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
@@ -54,7 +54,7 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	uint32 TexCoordSize = NumAllocatedVertices * sizeof(FVector2D);
 	// create vertex buffer
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteTexCoordBuffer"));
 		TexCoordBuffer.VertexBufferRHI = RHICreateVertexBuffer(TexCoordSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
@@ -65,7 +65,7 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 	uint32 ColorSize = NumAllocatedVertices * sizeof(FColor);
 	// create vertex buffer
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteColorBuffer"));
 		ColorBuffer.VertexBufferRHI = RHICreateVertexBuffer(ColorSize, Usage, CreateInfo);
 		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
 		{
@@ -75,7 +75,7 @@ void FPaperSpriteVertexBuffer::CreateBuffers(int32 InNumVertices)
 
 	//Create Index Buffer
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("PaperSpriteIndexBuffer"));
 		IndexBuffer.IndexBufferRHI = RHICreateIndexBuffer(sizeof(uint32), Vertices.Num() * sizeof(uint32), Usage, CreateInfo);
 	}
 }

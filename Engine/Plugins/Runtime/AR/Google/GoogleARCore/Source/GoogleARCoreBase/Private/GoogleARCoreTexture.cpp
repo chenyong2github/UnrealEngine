@@ -20,7 +20,7 @@ public:
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 		
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FARCoreCameraTextureResource"));
 		TextureRHI = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_SRGB, CreateInfo);
 		void* NativeResource = TextureRHI->GetNativeResource();
 		check(NativeResource);
@@ -92,13 +92,14 @@ public:
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 		
-		FRHIResourceCreateInfo CreateInfo;
+		FString Name = Owner->GetName();
+		FRHIResourceCreateInfo CreateInfo(*Name);
 		// Our source data is 16bits integer so PF_R32_FLOAT is a bit wasteful
 		// But PF_R16_UINT doesn't work in the material and it's not easy to convert the data to PF_R16F on the CPU
 		TextureRHI = RHICreateTexture2D(SizeX, SizeY, PF_R32_FLOAT, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource, CreateInfo);
 		
 		TextureRHI->SetName(Owner->GetFName());
-		RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
+		RHIBindDebugLabelName(TextureRHI, *Name);
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 	}
 	
