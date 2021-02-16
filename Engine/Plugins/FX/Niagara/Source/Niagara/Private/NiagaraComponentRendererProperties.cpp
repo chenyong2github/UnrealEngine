@@ -191,6 +191,42 @@ void UNiagaraComponentRendererProperties::PostInitProperties()
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+// Function definition copied from UEdGraphSchema_K2
+bool FindFunctionParameterDefaultValue(const UFunction* Function, const FProperty* Param, FString& OutString)
+{
+	bool bHasAutomaticValue = false;
+
+	const FString& MetadataDefaultValue = Function->GetMetaData(*Param->GetName());
+	if (!MetadataDefaultValue.IsEmpty())
+	{
+		// Specified default value in the metadata
+		OutString = MetadataDefaultValue;
+		bHasAutomaticValue = true;
+
+		// If the parameter is a class then try and get the full name as the metadata might just be the short name
+		if (Param->IsA<FClassProperty>() && !FPackageName::IsValidObjectPath(OutString))
+		{
+			if (UClass* DefaultClass = FindObject<UClass>(ANY_PACKAGE, *OutString, true))
+			{
+				OutString = DefaultClass->GetPathName();
+			}
+		}
+	}
+	else
+	{
+		const FName MetadataCppDefaultValueKey(*(FString(TEXT("CPP_Default_")) + Param->GetName()));
+		const FString& MetadataCppDefaultValue = Function->GetMetaData(MetadataCppDefaultValueKey);
+		if (!MetadataCppDefaultValue.IsEmpty())
+		{
+			OutString = MetadataCppDefaultValue;
+			bHasAutomaticValue = true;
+		}
+	}
+
+	return bHasAutomaticValue;
+}
+#endif
 
 void UNiagaraComponentRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) 
 {
@@ -247,21 +283,43 @@ void UNiagaraComponentRendererProperties::UpdateSetterFunctions()
 		// If we detect such a case we adapt the binding to either ignore the conversion or we discard the setter completely.
 		if (SetterFunction)
 		{
+			bool bFirstProperty = true;
 			for (FProperty* Property = SetterFunction->PropertyLink; Property; Property = Property->PropertyLinkNext)
 			{
 				if (Property->IsInContainer(SetterFunction->ParmsSize) && Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_ReturnParm))
 				{
-					FNiagaraTypeDefinition FieldType = UNiagaraComponentRendererProperties::ToNiagaraType(Property);
-					if (FieldType != PropertyBinding.PropertyType && FieldType == PropertyBinding.AttributeBinding.GetType())
+					if (bFirstProperty)
 					{
-						// we can use the original Niagara value with the setter instead of converting it
-						Setter.bIgnoreConversion = true;
-					} else if (FieldType != PropertyBinding.PropertyType)
-					{
-						// setter is completely unusable
-						Setter.Function = nullptr;
+						// the first property is our bound value, so we check for the correct type
+						FNiagaraTypeDefinition FieldType = ToNiagaraType(Property);
+						if (FieldType != PropertyBinding.PropertyType && FieldType == PropertyBinding.AttributeBinding.GetType())
+						{
+							// we can use the original Niagara value with the setter instead of converting it
+							Setter.bIgnoreConversion = true;
+						}
+						else if (FieldType != PropertyBinding.PropertyType)
+						{
+							// setter is completely unusable
+							Setter.Function = nullptr;
+						}
+						bFirstProperty = false;
 					}
-					break;
+#if WITH_EDITORONLY_DATA
+					else
+					{
+						// the other values are just function parameters, so we check if they have custom default values defined in the metadata
+						FString DefaultValue;
+						if (FindFunctionParameterDefaultValue(SetterFunction, Property, DefaultValue))
+						{
+							// Store property setter parameter defaults, as this is kept in metadata which is not available at runtime
+							PropertyBinding.PropertySetterParameterDefaults.Add(Property->GetName(), DefaultValue);
+						}
+						else
+						{
+							PropertyBinding.PropertySetterParameterDefaults.Remove(Property->GetName());
+						}
+					}
+#endif
 				}
 			}
 		}
@@ -377,6 +435,7 @@ void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropert
 			TemplateComponent = nullptr;
 		}
 	}
+	UpdateSetterFunctions(); // to refresh the default values for the setter parameters
 	Super::PostEditChangeProperty(e);
 }
 
