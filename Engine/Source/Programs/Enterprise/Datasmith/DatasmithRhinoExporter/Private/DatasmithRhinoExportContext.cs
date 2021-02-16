@@ -1364,13 +1364,13 @@ namespace DatasmithRhino
 			{
 				case GroupTableEventType.Added:
 				case GroupTableEventType.Undeleted:
-					GroupIndexToName.Add(UpdatedGroup.Index, GetGroupName(UpdatedGroup));
+					GroupIndexToName.Add(UpdatedGroup.Index, GetGroupFormatedName(UpdatedGroup));
 					break;
 				case GroupTableEventType.Deleted:
 					GroupIndexToName.Remove(UpdatedGroup.Index);
 					break;
 				case GroupTableEventType.Modified:
-					GroupIndexToName[UpdatedGroup.Index] = GetGroupName(UpdatedGroup);
+					GroupIndexToName[UpdatedGroup.Index] = GetGroupFormatedName(UpdatedGroup);
 					break;
 				default:
 					break;
@@ -1382,16 +1382,21 @@ namespace DatasmithRhino
 			foreach (Group CurrentGroup in RhinoDocument.Groups)
 			{
 				int GroupIndex = CurrentGroup.Index;
-				string GroupName = GetGroupName(CurrentGroup);
+				string GroupName = GetGroupFormatedName(CurrentGroup);
 				GroupIndexToName.Add(GroupIndex, GroupName);
 			}
 		}
 
-		private string GetGroupName(Group InGroup)
+		/// <summary>
+		/// Returned the exported group name tag from Group passed in parameter.
+		/// </summary>
+		/// <param name="InGroup"></param>
+		/// <returns></returns>
+		private string GetGroupFormatedName(Group InGroup)
 		{
-			return InGroup.Name == null || InGroup.Name == ""
+			return string.Format("Rhino.GroupName: {0}", String.IsNullOrEmpty(InGroup.Name)
 					? string.Format("Group{0}", InGroup.Index)
-					: InGroup.Name;
+					: InGroup.Name);
 		}
 
 		private HashSet<int> GetOrCreateLayerIndexHierarchy(int ChildLayerIndex)

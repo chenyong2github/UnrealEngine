@@ -1620,7 +1620,7 @@ void FOpenNurbsTranslatorImpl::SetLayers(const TSharedPtr<IDatasmithActorElement
 	{
 		for (int Index = 0; Index < GroupList.Count(); ++Index)
 		{
-			ActorElement->AddTag(*GroupNames[*GroupList.At(Index)]);
+			ActorElement->AddTag(*FString::Printf(TEXT("Rhino.GroupName: %s"), *GroupNames[*GroupList.At(Index)]));
 		}
 	}
 
