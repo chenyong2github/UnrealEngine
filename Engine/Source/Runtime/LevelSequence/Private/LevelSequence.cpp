@@ -37,8 +37,8 @@
 	#include "UObject/ObjectRedirector.h"
 #endif
 
-static TAutoConsoleVariable<int32> CVarDefaultEvaluationType(
-	TEXT("LevelSequence.DefaultEvaluationType"),
+static TAutoConsoleVariable<int32> CVarDefaultLockEngineToDisplayRate(
+	TEXT("LevelSequence.DefaultLockEngineToDisplayRate"),
 	0,
 	TEXT("0: Playback locked to playback frames\n1: Unlocked playback with sub frame interpolation"),
 	ECVF_Default);
@@ -66,7 +66,7 @@ void ULevelSequence::Initialize()
 {
 	MovieScene = NewObject<UMovieScene>(this, NAME_None, RF_Transactional);
 
-	const bool bFrameLocked = CVarDefaultEvaluationType.GetValueOnGameThread() != 0;
+	const bool bFrameLocked = CVarDefaultLockEngineToDisplayRate.GetValueOnGameThread() != 0;
 
 	MovieScene->SetEvaluationType( bFrameLocked ? EMovieSceneEvaluationType::FrameLocked : EMovieSceneEvaluationType::WithSubFrames );
 
