@@ -416,13 +416,13 @@ FInputActionValue UEnhancedPlayerInput::GetActionValue(const UInputAction* ForAc
 }
 
 
-FEnhancedActionKeyMapping& UEnhancedPlayerInput::AddMapping(const FEnhancedActionKeyMapping& Mapping)
+int32 UEnhancedPlayerInput::AddMapping(const FEnhancedActionKeyMapping& Mapping)
 {
 	int32 MappingIndex = EnhancedActionMappings.AddUnique(Mapping);
 	++EnhancedKeyBinds.FindOrAdd(Mapping.Key);
 	bKeyMapsBuilt = false;
 
-	return EnhancedActionMappings[MappingIndex];
+	return MappingIndex;
 }
 
 void UEnhancedPlayerInput::ClearAllMappings()

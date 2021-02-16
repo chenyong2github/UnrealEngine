@@ -50,8 +50,10 @@ protected:
 
 private:
 
-	/** Add a player specific action mapping. */
-	FEnhancedActionKeyMapping& AddMapping(const FEnhancedActionKeyMapping& Mapping);
+	/** Add a player specific action mapping.
+	* Returns index into EnhancedActionMappings array.
+	*/
+	int32 AddMapping(const FEnhancedActionKeyMapping& Mapping);
 	void ClearAllMappings();
 
 	virtual void ConditionalBuildKeyMappings_Internal() const override;

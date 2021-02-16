@@ -109,7 +109,7 @@ private:
 	void RemoveForcedInput(FKey Key);
 	void TickForcedInput(float DeltaTime);
 
-	void InjectChordBlockers(const TMap<struct FEnhancedActionKeyMapping*, int32>& ChordedMappings);
+	void InjectChordBlockers(const TArray<int32>& ChordedMappings);
 	bool HasTriggerWith(TFunctionRef<bool(const class UInputTrigger*)> TestFn, const TArray<class UInputTrigger*>& Triggers);
 
 	/** Reapply all control mappings to players pending a rebuild */
