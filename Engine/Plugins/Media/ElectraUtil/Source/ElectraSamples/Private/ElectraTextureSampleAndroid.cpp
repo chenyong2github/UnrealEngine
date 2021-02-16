@@ -423,7 +423,7 @@ void FElectraTextureSample::InitializeTexture()
 	}
 
 	TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT("FElectraTextureSample"));
 
 	RHICreateTargetableShaderResource2D(
 		Dim.X,
