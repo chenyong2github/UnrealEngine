@@ -1843,7 +1843,7 @@ struct FClusterGrid
 		MinBound = InMinBound;
 		MaxBound = InMaxBound;
 		GridResolution = InResolution;
-		Clusters.SetNum(GridResolution.X * GridResolution.Y * GridResolution.Z);
+		Clusters.SetNum(FMath::Max(GridResolution.X * GridResolution.Y * GridResolution.Z, 1));
 	}
 
 	FORCEINLINE bool IsValid(const FIntVector& P) const
