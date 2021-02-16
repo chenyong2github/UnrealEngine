@@ -12,8 +12,16 @@
 **     http://libsndfile.github.io/libsamplerate/api.html
 */
 
-#ifdef UELIBSAMPLERATE_API
-	#define SRC_EXPORT UELIBSAMPLERATE_API
+#ifdef PLATFORM_WINDOWS
+	#if PLATFORM_WINDOWS
+	#define SRC_EXPORT __declspec(dllexport)
+	#elif PLATFORM_MAC
+	#define SRC_EXPORT __attribute__((visibility("default")))
+	#elif PLATFORM_LINUX
+	#define SRC_EXPORT __attribute__((visibility("default")))
+	#else
+	#define SRC_EXPORT
+	#endif
 #else
 	#define SRC_EXPORT
 #endif
