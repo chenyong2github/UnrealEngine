@@ -586,7 +586,7 @@ bool FAVPlayerMovieStreamer::CheckForNextFrameAndCopy()
 		check(Result == kCVReturnSuccess);
 		check(TextureCacheRef);
 	
-		FRHIResourceCreateInfo CreateInfo(new FAppleMovieStreamerTexture2DResourceWrapper(TextureCacheRef));
+		FRHIResourceCreateInfo CreateInfo(TEXT("FAVPlayerMovieStreamer"), new FAppleMovieStreamerTexture2DResourceWrapper(TextureCacheRef));
 		FTexture2DRHIRef MediaWrappedTexture = RHICreateTexture2D(Width, Height, PF_B8G8R8A8, 1, 1, TexCreate_Dynamic | TexCreate_NoTiling, CreateInfo);
 		
 		if(SlateTexture.IsValid())

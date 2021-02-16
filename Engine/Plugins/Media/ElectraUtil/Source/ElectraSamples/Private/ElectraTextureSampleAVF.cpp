@@ -209,11 +209,11 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 			check(UVTextureRef);
 
 			// Metal can upload directly from an IOSurface to a 2D texture, so we can just wrap it.
-			FRHIResourceCreateInfo YCreateInfo;
+			FRHIResourceCreateInfo YCreateInfo(TEXT("YTex"));
 			YCreateInfo.BulkData = new FTexConvTexResourceWrapper(YTextureRef);
 			YCreateInfo.ResourceArray = nullptr;
 
-			FRHIResourceCreateInfo UVCreateInfo;
+			FRHIResourceCreateInfo UVCreateInfo(TEXT("UVTex"));
 			UVCreateInfo.BulkData = new FTexConvTexResourceWrapper(UVTextureRef);
 			UVCreateInfo.ResourceArray = nullptr;
 
@@ -274,7 +274,7 @@ void FElectraMediaTexConvApple::ConvertTexture(FTexture2DRHIRef & InDstTexture, 
 			check(Result == kCVReturnSuccess);
 			check(TextureRef);
 
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("DstTexture"));
 			CreateInfo.BulkData = new FTexConvTexResourceWrapper(TextureRef);
 			CreateInfo.ResourceArray = nullptr;
 

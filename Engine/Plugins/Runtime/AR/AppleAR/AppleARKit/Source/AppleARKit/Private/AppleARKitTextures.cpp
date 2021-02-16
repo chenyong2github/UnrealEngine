@@ -207,7 +207,7 @@ protected:
 			TextureRHI.SafeRelease();
 			
 			// Create the target texture that we'll update into
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FARKitTextureResource"));
 			TextureRHI = RHICreateTexture2D(Size.X, Size.Y, PixelFormat, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);
 		}
 	}
@@ -571,7 +571,7 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("FARMetalResource"));
 
 		id<MTLTexture> MetalTexture = Owner->GetMetalTexture();
 		if (MetalTexture != nullptr)
@@ -940,7 +940,7 @@ public:
 		
 		{
 			// Update the RHI texture wrapper for the Y and CbCr images
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("VideoTexture"));
 			const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
 			CreateInfo.BulkData = new FAppleARKitCameraTextureResourceWrapper(CapturedYImage);
 			CreateInfo.ResourceArray = nullptr;
