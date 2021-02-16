@@ -395,6 +395,11 @@ bool UNiagaraDataInterfaceSpline::PerInstanceTick(void* PerInstanceData, FNiagar
 		return true;
 	}
 
+	if (!InstData)
+	{
+		return true;
+	}
+
 	USplineComponent* SplineComponent = InstData->Component.Get();
 	if (SplineComponent == nullptr)
 	{
