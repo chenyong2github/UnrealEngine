@@ -292,7 +292,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../Binaries/Linux/x86_64-unknown-linux-gnu/libusdGeom.so", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Linux/bin/x86_64-unknown-linux-gnu/libusdGeom.so", 
             "Name": "usdGeom", 
             "ResourcePath": "resources", 
             "Root": "..", 
