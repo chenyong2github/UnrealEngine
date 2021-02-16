@@ -16,9 +16,9 @@ class FNetworkFileServerClientConnectionThreaded
 {
 public:
 
-	FNetworkFileServerClientConnectionThreaded(FSocket* InSocket, const FNetworkFileDelegateContainer* NetworkFileDelegates, const TArray<ITargetPlatform*>& InActiveTargetPlatforms )
-		:  FNetworkFileServerClientConnection( NetworkFileDelegates, InActiveTargetPlatforms)
-		  ,Socket(InSocket)
+	FNetworkFileServerClientConnectionThreaded(FSocket* InSocket, const FNetworkFileServerOptions& Options)
+		: FNetworkFileServerClientConnection(Options)
+		, Socket(InSocket)
 	{
 		Running.Set(true);
 		StopRequested.Reset();
@@ -112,20 +112,17 @@ private:
 /* FNetworkFileServer constructors
  *****************************************************************************/
 
-FNetworkFileServer::FNetworkFileServer( int32 InPort, FNetworkFileDelegateContainer InNetworkFileDelegateContainer,
-	const TArray<ITargetPlatform*>& InActiveTargetPlatforms )
-	:ActiveTargetPlatforms(InActiveTargetPlatforms)
+FNetworkFileServer::FNetworkFileServer(FNetworkFileServerOptions InFileServerOptions)
+	: FileServerOptions(MoveTemp(InFileServerOptions))
 {
-	if(InPort <0)
+	if (FileServerOptions.Port < 0 )
 	{
-		InPort = DEFAULT_TCP_FILE_SERVING_PORT;
+		FileServerOptions.Port = DEFAULT_TCP_FILE_SERVING_PORT;
 	}
 
 	Running.Set(false);
 	StopRequested.Set(false);
 	UE_LOG(LogFileServer, Warning, TEXT("Unreal Network File Server starting up..."));
-
-	NetworkFileDelegates = InNetworkFileDelegateContainer;
 
 	// make sure sockets are going
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
@@ -138,7 +135,7 @@ FNetworkFileServer::FNetworkFileServer( int32 InPort, FNetworkFileDelegateContai
 	{
 		// listen on any IP address
 		ListenAddr = SocketSubsystem->GetLocalBindAddr(*GLog);
-		ListenAddr->SetPort(InPort);
+		ListenAddr->SetPort(FileServerOptions.Port);
 
 		// create a server TCP socket
 		Socket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("FNetworkFileServer tcp-listen"), ListenAddr->GetProtocolType());
@@ -165,7 +162,7 @@ FNetworkFileServer::FNetworkFileServer( int32 InPort, FNetworkFileDelegateContai
 			{
 				// set the port on the listen address to be the same as the port on the socket
 				int32 port = Socket->GetPortNo();
-				check((InPort == 0 && port != 0) || port == InPort);
+				check((FileServerOptions.Port == 0 && port != 0) || port == FileServerOptions.Port);
 				ListenAddr->SetPort(port);
 
 				// now create a thread to accept connections
@@ -176,7 +173,7 @@ FNetworkFileServer::FNetworkFileServer( int32 InPort, FNetworkFileDelegateContai
 		}
 	}
 
- }
+}
 
 FNetworkFileServer::~FNetworkFileServer()
 {
@@ -249,7 +246,7 @@ uint32 FNetworkFileServer::Run( )
 						}
 					}
 
-					FNetworkFileServerClientConnectionThreaded* Connection = new FNetworkFileServerClientConnectionThreaded(ClientSocket, &NetworkFileDelegates, ActiveTargetPlatforms);
+					FNetworkFileServerClientConnectionThreaded* Connection = new FNetworkFileServerClientConnectionThreaded(ClientSocket, FileServerOptions);
 					Connections.Add(Connection);
 					UE_LOG(LogFileServer, Display, TEXT("Client %s connected."), *Connection->GetDescription());
 				}

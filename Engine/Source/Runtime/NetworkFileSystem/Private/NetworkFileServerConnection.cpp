@@ -49,11 +49,12 @@ static FString MakeAbsoluteNormalizedDir(const FString& InPath)
 /* FNetworkFileServerClientConnection structors
  *****************************************************************************/
 
-FNetworkFileServerClientConnection::FNetworkFileServerClientConnection( const FNetworkFileDelegateContainer* InNetworkFileDelegates, const TArray<ITargetPlatform*>& InActiveTargetPlatforms )
+FNetworkFileServerClientConnection::FNetworkFileServerClientConnection(const FNetworkFileServerOptions& Options)
 	: LastHandleId(0)
 	, Sandbox(NULL)
-	, NetworkFileDelegates(InNetworkFileDelegates)
-	, ActiveTargetPlatforms(InActiveTargetPlatforms)
+	, NetworkFileDelegates(&Options.Delegates)
+	, ActiveTargetPlatforms(Options.TargetPlatforms)
+	, bRestrictPackageAssetsToSandbox(Options.bRestrictPackageAssetsToSandbox)
 {	
 	//stats
 	FileRequestDelegateTime = 0.0;
@@ -458,8 +459,11 @@ void FNetworkFileServerClientConnection::ProcessOpenFile( FArchive& In, FArchive
 	NetworkFileDelegates->FileRequestDelegate.ExecuteIfBound(Filename, ConnectedPlatformName, NewUnsolictedFiles);
 
 	// Disable access to outside the sandbox to prevent sending uncooked packages to the client
-	const bool bIsCookable = FPackageName::IsPackageExtension(*FPaths::GetExtension(Filename, true));
-	Sandbox->SetSandboxOnly(bIsCookable && !bIsWriting);
+	if (bRestrictPackageAssetsToSandbox && !bIsWriting)
+	{
+		const bool bIsPackageAsset = FPackageName::IsPackageExtension(*FPaths::GetExtension(Filename, true));
+		Sandbox->SetSandboxOnly(bIsPackageAsset);
+	}
 
 	FDateTime ServerTimeStamp = Sandbox->GetTimeStamp(*Filename);
 	int64 ServerFileSize = 0;
@@ -1214,8 +1218,11 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FString
 	FDateTime ServerTimeStamp = Sandbox->GetTimeStamp(*Filename);
 
 	// Disable access to outside the sandbox to prevent sending uncooked packages to the client
-	const bool bIsCookable = FPackageName::IsPackageExtension(*FPaths::GetExtension(Filename, true));
-	Sandbox->SetSandboxOnly(bIsCookable);
+	if (bRestrictPackageAssetsToSandbox)
+	{
+		const bool bIsPackageAsset = FPackageName::IsPackageExtension(*FPaths::GetExtension(Filename, true));
+		Sandbox->SetSandboxOnly(bIsPackageAsset);
+	}
 
 	FString AbsHostFile = Sandbox->ConvertToAbsolutePathForExternalAppForRead(*Filename);
 	if (ConnectedTargetPlatform != nullptr && ConnectedTargetPlatform->CopyFileToTarget(ConnectedIPAddress, AbsHostFile, TargetFilename, ConnectedTargetCustomData))

@@ -23,9 +23,19 @@ public:
 
 	// INetworkFileSystemModule interface
 
-	virtual INetworkFileServer* CreateNetworkFileServer( bool bLoadTargetPlatforms, int32 Port, FNetworkFileDelegateContainer NetworkFileDelegateContainer, const ENetworkFileServerProtocol Protocol ) const override
+	virtual INetworkFileServer* CreateNetworkFileServer( bool bLoadTargetPlatforms, int32 Port, FNetworkFileDelegateContainer NetworkFileDelegateContainer, const ENetworkFileServerProtocol Protocol ) const
 	{
-		TArray<ITargetPlatform*> ActiveTargetPlatforms;
+		FNetworkFileServerOptions FileServerOptions;
+		FileServerOptions.Protocol = Protocol;
+		FileServerOptions.Port = Port;
+		FileServerOptions.Delegates = MoveTemp(NetworkFileDelegateContainer);
+		FileServerOptions.bRestrictPackageAssetsToSandbox = false; 
+		
+		return CreateNetworkFileServer(MoveTemp(FileServerOptions), bLoadTargetPlatforms);
+	}
+	
+	virtual INetworkFileServer* CreateNetworkFileServer(FNetworkFileServerOptions FileServerOptions, bool bLoadTargetPlatforms) const override
+	{
 		if (bLoadTargetPlatforms)
 		{
 			ITargetPlatformManagerModule& TPM = GetTargetPlatformManagerRef();
@@ -34,25 +44,25 @@ public:
 			FString Platforms;
 			if (FParse::Value(FCommandLine::Get(), TEXT("TARGETPLATFORM="), Platforms))
 			{
-				ActiveTargetPlatforms =  TPM.GetActiveTargetPlatforms();
+				FileServerOptions.TargetPlatforms =  TPM.GetActiveTargetPlatforms();
 			}
 			else
 			{
-				ActiveTargetPlatforms = TPM.GetTargetPlatforms();
+				FileServerOptions.TargetPlatforms = TPM.GetTargetPlatforms();
 			}
 		}
 
-		switch ( Protocol )
+		switch (FileServerOptions.Protocol)
 		{
 #if ENABLE_HTTP_FOR_NFS
 		case NFSP_Http: 
-			return new FNetworkFileServerHttp(Port, NetworkFileDelegateContainer, ActiveTargetPlatforms);
+			return new FNetworkFileServerHttp(MoveTemp(FileServerOptions));
 #endif
 		case NFSP_Tcp:
-			return new FNetworkFileServer(Port, NetworkFileDelegateContainer, ActiveTargetPlatforms);
+			return new FNetworkFileServer(MoveTemp(FileServerOptions));
 		}
  
-		return NULL;
+		return nullptr;
 	}
 };
 

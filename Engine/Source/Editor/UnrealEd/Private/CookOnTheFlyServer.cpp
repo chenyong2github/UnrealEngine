@@ -555,19 +555,19 @@ bool UCookOnTheFlyServer::StartNetworkFileServer(const bool BindAnyPort, const T
 	FSandboxPathDelegate SandboxPathDelegate(FSandboxPathDelegate::CreateUObject(this, &UCookOnTheFlyServer::HandleNetworkGetSandboxPath));
 	FInitialPrecookedListDelegate InitialPrecookedListDelegate(FInitialPrecookedListDelegate::CreateUObject(this, &UCookOnTheFlyServer::HandleNetworkGetPrecookedList));
 
-
-	FNetworkFileDelegateContainer NetworkFileDelegateContainer;
-	NetworkFileDelegateContainer.NewConnectionDelegate = NewConnectionDelegate;
-	NetworkFileDelegateContainer.InitialPrecookedListDelegate = InitialPrecookedListDelegate;
-	NetworkFileDelegateContainer.FileRequestDelegate = FileRequestDelegate;
-	NetworkFileDelegateContainer.RecompileShadersDelegate = RecompileShadersDelegate;
-	NetworkFileDelegateContainer.SandboxPathOverrideDelegate = SandboxPathDelegate;
-	
-	NetworkFileDelegateContainer.OnFileModifiedCallback = &FileModifiedDelegate;
-
+	FNetworkFileServerOptions FileServerOptions;
+	FileServerOptions.Protocol = NFSP_Tcp;
+	FileServerOptions.Port = BindAnyPort ? 0 : -1;
+	FileServerOptions.Delegates.NewConnectionDelegate = NewConnectionDelegate;
+	FileServerOptions.Delegates.InitialPrecookedListDelegate = InitialPrecookedListDelegate;
+	FileServerOptions.Delegates.FileRequestDelegate = FileRequestDelegate;
+	FileServerOptions.Delegates.RecompileShadersDelegate = RecompileShadersDelegate;
+	FileServerOptions.Delegates.SandboxPathOverrideDelegate = SandboxPathDelegate;
+	FileServerOptions.Delegates.OnFileModifiedCallback = &FileModifiedDelegate;
+	FileServerOptions.bRestrictPackageAssetsToSandbox = true; // prevents sending uncooked packages if the package fails to cook
 
 	INetworkFileServer *TcpFileServer = FModuleManager::LoadModuleChecked<INetworkFileSystemModule>("NetworkFileSystem")
-		.CreateNetworkFileServer(true, BindAnyPort ? 0 : -1, NetworkFileDelegateContainer, ENetworkFileServerProtocol::NFSP_Tcp);
+		.CreateNetworkFileServer(MoveTemp(FileServerOptions), /* bLoadTargetPlatforms */ true);
 	if ( TcpFileServer )
 	{
 		NetworkFileServers.Add(TcpFileServer);

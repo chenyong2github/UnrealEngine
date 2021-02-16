@@ -23,7 +23,7 @@ public:
 	 * @param InSocket - The client socket to use.
 	 * @param NetworkFileDelegates- delegates the client calls when events from the client happen
 	 */
-	FNetworkFileServerClientConnection( const FNetworkFileDelegateContainer* NetworkFileDelegates , const TArray<ITargetPlatform*>& InActiveTargetPlatforms );
+	FNetworkFileServerClientConnection(const FNetworkFileServerOptions& InFileServerOptions);
 
 	/**
 	 * Destructor.
@@ -285,6 +285,8 @@ private:
 	// custom key-value pair data for the curently connected target platform
 	TMap<FString,FString> ConnectedTargetCustomData;
 
+	// whether to restrict sending package assets from outside the sandbox
+	bool bRestrictPackageAssetsToSandbox;
 
 	//////////////////////////////////////////////////////////////////////////
 	//stats

@@ -107,11 +107,29 @@ public:
 	FOnFileModifiedDelegate* OnFileModifiedCallback; // this is called from other systems to notify the network file system that a file has been modified hence the terminology callback
 };
 
-
 enum ENetworkFileServerProtocol
 {
 	NFSP_Tcp,
 	NFSP_Http,
+};
+
+// Network file server options
+struct FNetworkFileServerOptions
+{
+	/* File server protocol*/
+	ENetworkFileServerProtocol Protocol = NFSP_Tcp;
+
+	/* The port number to bind to (-1 = default port, 0 = any available port) */
+	int32 Port = INDEX_NONE;
+
+	/* Optional delegates to be invoked when a file is requested by a client */
+	FNetworkFileDelegateContainer Delegates;
+
+	/* Active target platform(s) */
+	TArray<ITargetPlatform*> TargetPlatforms;
+
+	/* When running cook on the fly this options restricts package assets being sent from the project content folder */
+	bool bRestrictPackageAssetsToSandbox = false;
 };
 
 /**
@@ -133,6 +151,16 @@ public:
 	 * @return The new file server, or nullptr if creation failed.
 	 */
 	virtual INetworkFileServer* CreateNetworkFileServer( bool bLoadTargetPlatforms, int32 Port = -1, FNetworkFileDelegateContainer InNetworkFileDelegateContainer = FNetworkFileDelegateContainer(), const ENetworkFileServerProtocol Protocol = NFSP_Tcp ) const = 0;
+
+    /**
+	 * Creates a new network file server.
+	 *
+	 * @param FileServerOptions File server options
+	 * @param bLoadTargetPlatforms If true, gets the target platform from the command line or all available target platforms
+	 *
+	 * @return The new file server, or nullptr if creation failed.
+	 */
+	virtual INetworkFileServer* CreateNetworkFileServer(FNetworkFileServerOptions FileServerOptions, bool bLoadTargetPlatforms) const = 0;
 
 public:
 

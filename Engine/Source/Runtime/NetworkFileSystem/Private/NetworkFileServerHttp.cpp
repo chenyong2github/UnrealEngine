@@ -18,8 +18,8 @@ class FNetworkFileServerClientConnectionHTTP : public FNetworkFileServerClientCo
 {
 
 public:
-	FNetworkFileServerClientConnectionHTTP(const FNetworkFileDelegateContainer* NetworkFileDelegates, const TArray<ITargetPlatform*>& InActiveTargetPlatforms )
-		:  FNetworkFileServerClientConnection( NetworkFileDelegates, InActiveTargetPlatforms)
+	FNetworkFileServerClientConnectionHTTP(const FNetworkFileServerOptions& FileServerOptions)
+		:  FNetworkFileServerClientConnection(FileServerOptions)
 	{
 	}
 
@@ -79,19 +79,14 @@ static struct lws_protocols Protocols[] = {
 //////////////////////////////////////////////////////////////////////////
 
 
-FNetworkFileServerHttp::FNetworkFileServerHttp(
-	int32 InPort,
-	FNetworkFileDelegateContainer InNetworkFileDelegateContainer,
-	const TArray<ITargetPlatform*>& InActiveTargetPlatforms
-	)
-	: ActiveTargetPlatforms(InActiveTargetPlatforms)
+FNetworkFileServerHttp::FNetworkFileServerHttp(FNetworkFileServerOptions InFileServerOptions)
+	: FileServerOptions(MoveTemp(InFileServerOptions))
 	, SslContext(nullptr)
 	, Context(nullptr)
-	, Port(InPort)
 {
-	if (Port < 0 )
+	if (FileServerOptions.Port < 0 )
 	{
-		Port = DEFAULT_HTTP_FILE_SERVING_PORT;
+		FileServerOptions.Port = DEFAULT_HTTP_FILE_SERVING_PORT;
 	}
 
 #if WITH_SSL
@@ -105,8 +100,6 @@ FNetworkFileServerHttp::FNetworkFileServerHttp(
 #endif
 
 	UE_LOG(LogFileServer, Warning, TEXT("Unreal Network Http File Server starting up..."));
-
-	NetworkFileDelegates = InNetworkFileDelegateContainer;
 
 	StopRequested.Reset();
 	Ready.Reset();
@@ -140,7 +133,7 @@ bool FNetworkFileServerHttp::Init()
 	memset(&Info,0,sizeof(lws_context_creation_info));
 
 	// look up libwebsockets.h for details.
-	Info.port = Port;
+	Info.port = FileServerOptions.Port;
 	// we listen on all available interfaces.
 	Info.iface = NULL;
 	// serve only the http protocols.
@@ -168,10 +161,10 @@ bool FNetworkFileServerHttp::Init()
 
 	Context = lws_create_context(&Info);
 
-	Port = Info.port;
+	FileServerOptions.Port = Info.port;
 
 	if (Context == NULL) {
-		UE_LOG(LogFileServer, Error, TEXT(" Could not create a libwebsocket context.\n Port : %d is already in use.\n Exiting...\n"), Port);
+		UE_LOG(LogFileServer, Error, TEXT(" Could not create a libwebsocket context.\n Port : %d is already in use.\n Exiting...\n"), FileServerOptions.Port);
 		return false;
 	}
 
@@ -197,7 +190,7 @@ bool FNetworkFileServerHttp::GetAddressList(TArray<TSharedPtr<FInternetAddr> >& 
 	// Fix up ports.
 	for (int32 AddressIndex = 0; AddressIndex < OutAddresses.Num(); ++AddressIndex)
 	{
-		OutAddresses[AddressIndex]->SetPort(Port);
+		OutAddresses[AddressIndex]->SetPort(FileServerOptions.Port);
 	}
 
 	return true;
@@ -232,7 +225,7 @@ void FNetworkFileServerHttp::Shutdown()
 
 uint32 FNetworkFileServerHttp::Run()
 {
-	UE_LOG(LogFileServer, Display, TEXT("Unreal Network File Http Server is ready for client connections on port %d"), Port);
+	UE_LOG(LogFileServer, Display, TEXT("Unreal Network File Http Server is ready for client connections on port %d"), FileServerOptions.Port);
 
 	// start servicing.
 
@@ -276,7 +269,7 @@ FNetworkFileServerHttp::~FNetworkFileServerHttp()
 
 FNetworkFileServerClientConnectionHTTP* FNetworkFileServerHttp::CreateNewConnection()
 {
-	return new FNetworkFileServerClientConnectionHTTP(&NetworkFileDelegates,ActiveTargetPlatforms);
+	return new FNetworkFileServerClientConnectionHTTP(FileServerOptions);
 }
 
 // Have a similar process function for the normal tcp connection.
