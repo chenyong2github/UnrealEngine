@@ -202,7 +202,13 @@ void FFoliageISMActor::AddInstance(const FFoliageInstance& NewInstance)
 
 void FFoliageISMActor::RemoveInstance(int32 InstanceIndex)
 {
-	GetIFA()->RemoveISMInstance(ClientHandle, InstanceIndex);
+	bool bOutIsEmpty = false;
+	GetIFA()->RemoveISMInstance(ClientHandle, InstanceIndex, &bOutIsEmpty);
+	
+	if(bOutIsEmpty)
+	{
+		Uninitialize();
+	}
 }
 
 void FFoliageISMActor::BeginUpdate()

@@ -115,12 +115,19 @@ FISMClientHandle AISMPartitionActor::RegisterClient(const FGuid& ClientGuid)
 
 void AISMPartitionActor::UnregisterClient(FISMClientHandle& Handle)
 {
+	Modify();
 	check(Handle.Guid == Clients[Handle.Index]);
 	RemoveISMInstances(Handle);
 			
+	int32 ClientIndex = Handle.Index;
 	Clients[Handle.Index] = FGuid();
 	Handle.Index = -1;
 	Handle.Guid = FGuid();
+
+	if (ClientIndex == Clients.Num() - 1)
+	{
+		Clients.RemoveAt(ClientIndex);
+	}
 }
 
 int32 AISMPartitionActor::RegisterISMComponentDescriptor(const FISMComponentDescriptor& Descriptor)
@@ -415,17 +422,35 @@ void AISMPartitionActor::RemoveISMInstancesInternal(FISMComponentData& Component
 	EndUpdate();
 }
 
-void AISMPartitionActor::RemoveISMInstance(const FISMClientHandle& Handle, int32 InstanceIndex)
+void AISMPartitionActor::RemoveISMInstance(const FISMClientHandle& Handle, int32 InstanceIndex, bool* bOutIsEmpty)
 {
 	check(Handle.Guid == Clients[Handle.Index]);
+	TOptional<bool> bIsEmpty;
 	for (FISMComponentData& ComponentData : DescriptorComponents)
 	{
 		if (ComponentData.ClientInstances.IsValidIndex(Handle.Index))
 		{
 			FISMClientData& ClientData = ComponentData.ClientInstances[Handle.Index];
-			
-			RemoveISMInstancesInternal(ComponentData, ClientData, InstanceIndex);
+			if (ClientData.Instances.Num())
+			{
+				RemoveISMInstancesInternal(ComponentData, ClientData, InstanceIndex);
+
+				if (!bIsEmpty.IsSet())
+				{
+					bIsEmpty = ClientData.Instances.IsEmpty();
+				}
+				else
+				{
+					// Client instances should match across components
+					check(bIsEmpty == ClientData.Instances.IsEmpty());
+				}
+			}
 		}
+	}
+
+	if (bOutIsEmpty)
+	{
+		*bOutIsEmpty = !bIsEmpty.IsSet() || bIsEmpty.GetValue();
 	}
 }
 
