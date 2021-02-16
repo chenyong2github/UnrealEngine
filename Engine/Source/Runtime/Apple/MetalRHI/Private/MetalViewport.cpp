@@ -238,7 +238,7 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 
     {
         FScopeLock Lock(&Mutex);
-        FRHIResourceCreateInfo CreateInfo;
+        FRHIResourceCreateInfo CreateInfo(TEXT("BackBuffer"));
         FTexture2DRHIRef NewBackBuffer;
         FTexture2DRHIRef DoubleBuffer;
         if (GMetalSupportsIntermediateBackBuffer)

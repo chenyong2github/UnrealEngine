@@ -150,7 +150,7 @@ static mtlpp::SizeAndAlign TextureSizeAndAlign(mtlpp::TextureType TextureType, u
 	SizeAlign.Align = 0;
 	
 	uint32 Align = 0;
-	FRHIResourceCreateInfo CreateInfo;
+	FRHIResourceCreateInfo CreateInfo(TEXT(""));
 	switch (TextureType)
 	{
 		case mtlpp::TextureType::Texture2D:
