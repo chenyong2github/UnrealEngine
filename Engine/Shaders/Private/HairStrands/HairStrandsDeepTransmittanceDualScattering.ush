@@ -95,8 +95,7 @@ FHairTransmittanceData ComputeDualScatteringTerms(
 
 
 	// Different variant for managing sefl-occlusion issue for global scattering
-	const bool bIsOccluded = TransmittanceMask.HairCount > 0;
-	const float3 GlobalScattering = bIsOccluded ? Tf * Sf * df : 1;	
+	const float3 GlobalScattering = lerp(1, Tf * Sf * df, saturate(TransmittanceMask.HairCount));
 	const float3 LocalScattering  = 2 * Ab * Sb * db;
 	
 	// Decode if the Local/Global component should be enabled or not (for debug purpose)
