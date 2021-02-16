@@ -304,7 +304,8 @@ typedef void (APIENTRYP PFNGLGETVERTEXATTRIBLUI64VNVPROC) (GLuint index, GLenum 
 	EnumMacro(PFNGLGETUNIFORMBLOCKINDEXPROC,glGetUniformBlockIndex)	 \
 	EnumMacro(PFNGLTEXBUFFERPROC,glTexBuffer) \
 	EnumMacro(PFNGLDRAWARRAYSINSTANCEDPROC,glDrawArraysInstanced) \
-	EnumMacro(PFNGLCOPYBUFFERSUBDATAPROC, glCopyBufferSubData)
+	EnumMacro(PFNGLCOPYBUFFERSUBDATAPROC, glCopyBufferSubData) \
+	EnumMacro(PFNGLGETPROGRAMRESOURCEINDEXPROC, glGetProgramResourceIndex)
 
 #define ENUM_GL_ENTRYPOINTS_3_2(EnumMacro)                       \
 	EnumMacro(PFNGLISSYNCPROC, glIsSync)						 \
