@@ -139,6 +139,10 @@ void UChaosClothConfig::PostLoad()
 		AnimDriveStiffness.Low = 0.f;
 		AnimDriveStiffness.High = FMath::Clamp(FMath::Loge(AnimDriveSpringStiffness_DEPRECATED) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f);
 	}
+	if (ChaosClothConfigCustomVersion < FPhysicsObjectVersion::ChaosClothAddfictitiousforces)
+	{
+		FictitiousAngularScale = 0.f;  // Maintain early behavior with no fictitious forces
+	}
 }
 
 float UChaosClothConfig::GetMassValue() const

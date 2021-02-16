@@ -36,6 +36,9 @@ struct CORE_API FPhysicsObjectVersion
 		// Chaos FConvex uses array of FVec3s for vertices instead of particles
 		ConvexUsesVerticesArray,
 
+		// Add centrifugal forces for cloth
+		ChaosClothAddfictitiousforces,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
