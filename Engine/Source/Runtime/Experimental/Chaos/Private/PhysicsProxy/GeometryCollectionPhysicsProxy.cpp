@@ -900,7 +900,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 							RigidChildren.Num(), *Parameters.Name);
 					}
 
-					Chaos::FClusterCreationParameters<float> CreationParameters;
+					Chaos::FClusterCreationParameters CreationParameters;
 					CreationParameters.ClusterParticleHandle = ClusterHandles.Num() ? ClusterHandles[ClusterHandlesIndex++] : nullptr;
 
 					Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Handle = BuildClusters(RigidsSolver, TransformGroupIndex, RigidChildren, RigidChildrenTransformGroupIndex, CreationParameters);
@@ -943,7 +943,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 				{
 					if (SolverClusterHandles[TransformGroupIndex])
 					{
-						Chaos::FClusterCreationParameters<Chaos::FReal> ClusterParams;
+						Chaos::FClusterCreationParameters ClusterParams;
 						// #todo: should other parameters be set here?  Previously, there was no parameters being sent, and it is unclear
 						// where some of these parameters are defined (ie: CoillisionThicknessPercent)
 						ClusterParams.ConnectionMethod = Parameters.ClusterConnectionMethod;
@@ -1004,7 +1004,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	const uint32 CollectionClusterIndex, // TransformGroupIndex
 	TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,
 	const TArray<int32>& ChildTransformGroupIndices,
-	const Chaos::FClusterCreationParameters<float> & ClusterParameters)
+	const Chaos::FClusterCreationParameters & ClusterParameters)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BuildClusters);
 
@@ -1030,7 +1030,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	//Now if we instantiate the pillar and rotate it so that it is along the X-axis, we would still like to use the same pillar proxy.
 	//Since the mass orientation is computed in world space in both cases we'd end up with a diagonal inertia matrix and identity rotation that looks like this: [big, small, big] or [small, big, big].
 	//Because of this we need to know how to rotate collision particles and geometry to match with original computation. If it was just geometry we could transform it before passing, but we need collision particles as well
-	Chaos::FClusterCreationParameters<float> ClusterCreationParameters = ClusterParameters;
+	Chaos::FClusterCreationParameters ClusterCreationParameters = ClusterParameters;
 	ClusterCreationParameters.bGenerateConnectionGraph = false;
 	// fix... ClusterCreationParameters.CollisionParticles = Simplicials[CollectionClusterIndex];
 	ClusterCreationParameters.ConnectionMethod = Parameters.ClusterConnectionMethod;
@@ -2733,7 +2733,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 		const uint32 CollectionClusterIndex,\
 		TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,\
 		const TArray<int32>& ChildTransformGroupIndices,\
-		const Chaos::FClusterCreationParameters<float> & Parameters);\
+		const Chaos::FClusterCreationParameters & Parameters);\
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT

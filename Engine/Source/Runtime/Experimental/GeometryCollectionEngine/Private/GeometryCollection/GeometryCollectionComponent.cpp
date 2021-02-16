@@ -1692,7 +1692,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				SimulationParameters.ClusterGroupIndex = EnableClustering ? ClusterGroupIndex : 0;
 				SimulationParameters.MaxClusterLevel = MaxClusterLevel;
 				SimulationParameters.DamageThreshold = DamageThreshold;
-				SimulationParameters.ClusterConnectionMethod = (Chaos::FClusterCreationParameters<float>::EConnectionMethod)ClusterConnectionType;
+				SimulationParameters.ClusterConnectionMethod = (Chaos::FClusterCreationParameters::EConnectionMethod)ClusterConnectionType;
 				SimulationParameters.CollisionGroup = CollisionGroup;
 				SimulationParameters.CollisionSampleFraction = CollisionSampleFraction;
 				SimulationParameters.InitialVelocityType = InitialVelocityType;

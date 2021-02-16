@@ -1292,9 +1292,9 @@ namespace Chaos
 		GetEvolution()->UpdateExternalAccelerationStructure_External(ExternalStructure,*PendingSpatialOperations_External);
 	}
 
-	Chaos::FClusterCreationParameters<Chaos::FReal>::EConnectionMethod ToInternalConnectionMethod(EClusterUnionMethod InMethod)
+	Chaos::FClusterCreationParameters::EConnectionMethod ToInternalConnectionMethod(EClusterUnionMethod InMethod)
 	{
-		using ETargetEnum = Chaos::FClusterCreationParameters<Chaos::FReal>::EConnectionMethod;
+		using ETargetEnum = Chaos::FClusterCreationParameters::EConnectionMethod;
 		switch(InMethod)
 		{
 		case EClusterUnionMethod::PointImplicit:

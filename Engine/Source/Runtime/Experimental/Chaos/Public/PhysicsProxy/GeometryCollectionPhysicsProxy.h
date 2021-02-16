@@ -22,7 +22,7 @@ namespace Chaos
 {
 	template <typename T> class TSerializablePtr;
 	class FErrorReporter;
-	template <typename T> struct FClusterCreationParameters;
+	struct FClusterCreationParameters;
 
 	struct FDirtyGeometryCollectionData;
 }
@@ -237,7 +237,7 @@ protected:
 		const uint32 CollectionClusterIndex, 
 		TArray<Chaos::TPBDRigidParticleHandle<float, 3>*>& ChildHandles,
 		const TArray<int32>& ChildTransformGroupIndices,
-		const Chaos::FClusterCreationParameters<float> & Parameters);
+		const Chaos::FClusterCreationParameters & Parameters);
 
 	void PushKinematicStateToSolver();
 
@@ -347,7 +347,7 @@ private:
 		const uint32 CollectionClusterIndex,\
 		TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,\
 		const TArray<int32>& ChildTransformGroupIndices,\
-		const Chaos::FClusterCreationParameters<float> & Parameters);\
+		const Chaos::FClusterCreationParameters & Parameters);\
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT

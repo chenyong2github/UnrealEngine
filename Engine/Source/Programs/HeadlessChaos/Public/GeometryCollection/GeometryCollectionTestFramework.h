@@ -93,7 +93,7 @@ namespace GeometryCollectionTest
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
 		int32 MaxClusterLevel = 100;
 		TArray<FReal> DamageThreshold = { 1000.0 };
-		Chaos::FClusterCreationParameters<FReal>::EConnectionMethod ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::PointImplicit;
+		Chaos::FClusterCreationParameters::EConnectionMethod ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::PointImplicit;
 		bool RemoveOnFractureEnabled = false;
 		int32 CollisionGroup = 0;
 		int32 MinLevelSetResolution = 5;

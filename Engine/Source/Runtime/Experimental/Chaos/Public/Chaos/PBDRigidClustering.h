@@ -66,7 +66,7 @@ public:
 	Chaos::FPBDRigidClusteredParticleHandle* CreateClusterParticle(
 		const int32 ClusterGroupIndex, 
 		TArray<Chaos::FPBDRigidParticleHandle*>&& Children, 
-		const FClusterCreationParameters<FReal>& Parameters = FClusterCreationParameters<FReal>(),
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters(),
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry = nullptr,
 		const FRigidTransform3* ForceMassOrientation = nullptr);
 
@@ -78,7 +78,7 @@ public:
 		TArray<FPBDRigidParticleHandle*>&& Children, 
 		FPBDRigidClusteredParticleHandle* Parent,
 		const FRigidTransform3& ClusterWorldTM, 
-		const FClusterCreationParameters<FReal>& Parameters/* = FClusterCreationParameters<FReal>()*/);
+		const FClusterCreationParameters& Parameters/* = FClusterCreationParameters()*/);
 
 	/**
 	 *  UnionClusterGroups
@@ -263,11 +263,11 @@ public:
 	*   clear the existing graph.
 	*/
 	void SetClusterConnectionFactor(FReal ClusterConnectionFactorIn) { MClusterConnectionFactor = ClusterConnectionFactorIn; }
-	void SetClusterUnionConnectionType(typename FClusterCreationParameters<FReal>::EConnectionMethod ClusterConnectionType) { MClusterUnionConnectionType = ClusterConnectionType; }
+	void SetClusterUnionConnectionType(FClusterCreationParameters::EConnectionMethod ClusterConnectionType) { MClusterUnionConnectionType = ClusterConnectionType; }
 
 	void GenerateConnectionGraph(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
-		const FClusterCreationParameters<FReal> & Parameters = FClusterCreationParameters<FReal>());
+		const FClusterCreationParameters & Parameters = FClusterCreationParameters());
 
 	const TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParents() const { return TopLevelClusterParents; }
 	TSet<Chaos::FPBDRigidClusteredParticleHandle*>& GetTopLevelClusterParents() { return TopLevelClusterParents; }
@@ -297,7 +297,7 @@ public:
 		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
 		const TSet<FPBDRigidParticleHandle*>& Children, 
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
-		const FClusterCreationParameters<FReal>& Parameters);
+		const FClusterCreationParameters& Parameters);
 
 	void ComputeStrainFromCollision(const T_FPBDCollisionConstraint& CollisionRule);
 	void ResetCollisionImpulseArray();
@@ -309,13 +309,13 @@ public:
 	*/
 	void UpdateConnectivityGraphUsingPointImplicit(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
-		const FClusterCreationParameters<FReal>& Parameters = FClusterCreationParameters<FReal>());
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
 	void FixConnectivityGraphUsingDelaunayTriangulation(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
-		const FClusterCreationParameters<FReal>& Parameters = FClusterCreationParameters<FReal>());
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
 	void UpdateConnectivityGraphUsingDelaunayTriangulation(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
-		const FClusterCreationParameters<FReal>& Parameters = FClusterCreationParameters<FReal>());
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
 
 	void ConnectNodes(
 		FPBDRigidParticleHandle* Child1,
@@ -350,7 +350,7 @@ private:
 	TArray<TBreakingData<FReal, 3>> MAllClusterBreakings;
 
 	FReal MClusterConnectionFactor;
-	typename FClusterCreationParameters<FReal>::EConnectionMethod MClusterUnionConnectionType;
+	FClusterCreationParameters::EConnectionMethod MClusterUnionConnectionType;
 };
 
 void UpdateClusterMassProperties(

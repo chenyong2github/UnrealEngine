@@ -1743,7 +1743,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
-		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
+		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
 		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(Collection1);
 
@@ -1758,7 +1758,7 @@ namespace GeometryCollectionTest
 		Params2.EnableClustering = true;
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
-		Params2.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
+		Params2.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
 		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection2);
@@ -1839,7 +1839,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
-		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
+		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
 		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(Collection1);
 
@@ -1854,7 +1854,7 @@ namespace GeometryCollectionTest
 		Params2.EnableClustering = true;
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
-		Params2.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
+		Params2.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
 		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
 		UnitTest.AddSimulationObject(Collection2);
 

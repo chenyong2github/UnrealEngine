@@ -531,7 +531,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 1.0 };
 		Params.MaxClusterLevel = 1000;
-		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation;
+		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
 		Params.ClusterGroupIndex = 0;
 
 		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
