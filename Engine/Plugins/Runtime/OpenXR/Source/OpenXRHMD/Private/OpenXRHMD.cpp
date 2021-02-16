@@ -1636,6 +1636,8 @@ void FOpenXRHMD::BuildOcclusionMeshes()
 		HiddenAreaMeshes.Empty();
 		VisibleAreaMeshes.Empty();
 	}
+
+	bNeedReBuildOcclusionMesh = false;
 }
 
 bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMDViewMesh& Mesh)
