@@ -79,21 +79,30 @@ void FRenderResource::InitResource()
 	check(IsInRenderingThread());
 	if (ListIndex == INDEX_NONE)
 	{
-		TArray<FRenderResource*>& ResourceList = GetResourceList();
-		TArray<int32>& FreeIndicesList = GetFreeIndicesList();
-
-		// If resource list is currently being iterated, new resources must be added to the end of the list, to ensure they're processed during the iteration
-		// Otherwise empty slots in the list may be re-used for new resources
 		int32 LocalListIndex = INDEX_NONE;
-		if (FreeIndicesList.Num() > 0 && ResourceListIterationActive.GetValue() == 0)
+
+		if (PLATFORM_NEEDS_RHIRESOURCELIST || !GIsRHIInitialized)
 		{
-			LocalListIndex = FreeIndicesList.Pop();
-			check(ResourceList[LocalListIndex] == nullptr);
-			ResourceList[LocalListIndex] = this;
+			TArray<FRenderResource*>& ResourceList = GetResourceList();
+			TArray<int32>& FreeIndicesList = GetFreeIndicesList();
+
+			// If resource list is currently being iterated, new resources must be added to the end of the list, to ensure they're processed during the iteration
+			// Otherwise empty slots in the list may be re-used for new resources
+			if (FreeIndicesList.Num() > 0 && ResourceListIterationActive.GetValue() == 0)
+			{
+				LocalListIndex = FreeIndicesList.Pop();
+				check(ResourceList[LocalListIndex] == nullptr);
+				ResourceList[LocalListIndex] = this;
+			}
+			else
+			{
+				LocalListIndex = ResourceList.Add(this);
+			}
 		}
 		else
 		{
-			LocalListIndex = ResourceList.Add(this);
+			// Mark this resource as initialized
+			LocalListIndex = 0;
 		}
 
 		if (GIsRHIInitialized)
@@ -121,10 +130,12 @@ void FRenderResource::ReleaseResource()
 				ReleaseDynamicRHI();
 			}
 
+#if PLATFORM_NEEDS_RHIRESOURCELIST
 			TArray<FRenderResource*>& ResourceList = GetResourceList();
 			TArray<int32>& FreeIndicesList = GetFreeIndicesList();
 			ResourceList[ListIndex] = nullptr;
 			FreeIndicesList.Add(ListIndex);
+#endif
 			ListIndex = INDEX_NONE;
 		}
 	}
