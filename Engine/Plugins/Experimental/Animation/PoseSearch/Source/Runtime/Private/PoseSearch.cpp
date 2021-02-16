@@ -1162,10 +1162,15 @@ FSequenceSampler::FWrappedSampleIndex FSequenceSampler::WrapOrClampSubsampleInde
 	// Wrap the index if this is a loopable sequence
 	if (Input.bLoopable)
 	{
-		while (Result.Idx < 0)
+		if (Result.Idx < 0)
 		{
 			Result.Idx += Output.TotalSamples;
-			++Result.NumCycles;
+
+			while (Result.Idx < 0)
+			{
+				Result.Idx += Output.TotalSamples;
+				++Result.NumCycles;
+			}
 		}
 
 		while (Result.Idx >= Output.TotalSamples)
@@ -1237,7 +1242,7 @@ void FSequenceSampler::ExtractRootMotion()
 		FTransform LocalRootMotion = Input.Sequence->ExtractRootMotion(CurrentTime, Input.Schema->SamplingInterval, false /*!allowLooping*/);
 		Output.LocalRootMotion.Add(LocalRootMotion);
 
-		AccumulatedRootMotion = AccumulatedRootMotion * LocalRootMotion;
+		AccumulatedRootMotion = LocalRootMotion * AccumulatedRootMotion;
 		AccumulatedRootDistance += LocalRootMotion.GetTranslation().Size();
 		Output.AccumulatedRootMotion.Add(AccumulatedRootMotion);
 		Output.AccumulatedRootDistance.Add((float)AccumulatedRootDistance);
@@ -1382,7 +1387,7 @@ FSequenceIndexer::FSubsample FSequenceIndexer::ResolveSubsample(int32 MainSubsam
 	// Use the lead in anim if we had to clamp to the beginning of the main anim
 	if (MainSample.bClamped && (MainSubsampleIdx < 0) && Input.LeadInSequence)
 	{
-		EffectiveSample = Input.LeadInSequence->WrapOrClampSubsampleIndex(MainSubsampleIdx + Input.LeadInSequence->Output.TotalSamples);
+		EffectiveSample = Input.LeadInSequence->WrapOrClampSubsampleIndex(MainSubsampleIdx);
 
 		Subsample.Sampler = Input.LeadInSequence;
 		Subsample.AbsoluteSampleIdx = EffectiveSample.Idx;

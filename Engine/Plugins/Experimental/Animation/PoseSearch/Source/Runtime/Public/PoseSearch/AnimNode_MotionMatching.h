@@ -26,17 +26,20 @@ public:
 
 	// Time in seconds to blend out to the new pose. Uses inertial blending and requires an Inertialization node after this node.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float BlendTime = 0.1f;
+	float BlendTime = 0.2f;
 
-	// Ignore pose candidates within the active animation that are less than PoseJumpThreshold seconds away from the current asset player time
+	// Don't jump to poses that are less than this many seconds away
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float PoseJumpThreshold = 0.5f;
+	float PoseJumpThreshold = 4.0f;
 
+	// Minimum amount of time to wait between pose searches
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float SimilarityThreshold = 0.1f;
+	float SearchThrottleTime = 0.1f;
 
+	// How much better the search result must be compared to the current pose in order to jump to it
+	// Note: This feature won't work quite as advertised until search data rescaling is implemented
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Settings, meta=(ClampMin="0"))
-	float ThrottleTime = 0.1f;
+	float MinPercentImprovement = 0.0f;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category=Debug)

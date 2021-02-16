@@ -21,7 +21,7 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 
 	DbPoseIdx = INDEX_NONE;
 	DbSequenceIdx = INDEX_NONE;
-	ElapsedPoseJumpTime = ThrottleTime;
+	ElapsedPoseJumpTime = SearchThrottleTime;
 
 	Source.SetLinkNode(&SequencePlayerNode);
 	Source.Initialize(Context);
@@ -91,12 +91,12 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 
 		// Search the database for the nearest match to the updated query vector
 		UE::PoseSearch::FDbSearchResult Result = UE::PoseSearch::Search(Database, ComposedQuery.GetValues());
-		if (Result.IsValid() && (ElapsedPoseJumpTime >= ThrottleTime))
+		if (Result.IsValid() && (ElapsedPoseJumpTime >= SearchThrottleTime))
 		{
 			const FPoseSearchDatabaseSequence& ResultDbSequence = Database->Sequences[Result.DbSequenceIdx];
 
 			// Consider the search result better if it is more similar to the query than the current pose we're playing back from the database
-			bool bBetterPose = Result.Dissimilarity * (1.0f + SimilarityThreshold) < CurrentDissimilarity;
+			bool bBetterPose = Result.Dissimilarity * (1.0f + (MinPercentImprovement / 100.0f)) < CurrentDissimilarity;
 
 			// We'll ignore the candidate pose if it is too near to our current pose
 			bool bNearbyPose = false;
@@ -109,13 +109,8 @@ void FAnimNode_MotionMatching::Update_AnyThread(const FAnimationUpdateContext& C
 				}
 			}
 
-			// And we won't bother to jump to another pose within the same looping sequence we're already playing
-			// (This should probably be configurable)
-			bool bSameSequence = DbSequenceIdx == Result.DbSequenceIdx;
-			bool bSameCycle = bSameSequence && ResultDbSequence.bLoopAnimation;
-
 			// Start playback from the candidate pose if we determined it was a better option
-			if (bBetterPose && !bNearbyPose && !bSameCycle && !bSameSequence)
+			if (bBetterPose && !bNearbyPose)
 			{
 				JumpToPose(Context, Result);
 				bJumpedToPose = true;
@@ -177,12 +172,15 @@ void FAnimNode_MotionMatching::PreUpdate(const UAnimInstance* InAnimInstance)
 
 		UE::PoseSearch::FDebugDrawParams DrawParams;
 		DrawParams.RootTransform = SkeletalMeshComponent->GetComponentTransform();
-		DrawParams.Flags = UE::PoseSearch::EDebugDrawFlags::DrawQuery;
+		DrawParams.Flags = UE::PoseSearch::EDebugDrawFlags::DrawBest;
 		DrawParams.Database = Database;
 		DrawParams.Query = ComposedQuery.GetValues();
 		DrawParams.World = SkeletalMeshComponent->GetWorld();
 		DrawParams.DefaultLifeTime = 0.0f;
 		DrawParams.HighlightPoseIdx = DbPoseIdx;
+		UE::PoseSearch::Draw(DrawParams);
+
+		DrawParams.Flags = UE::PoseSearch::EDebugDrawFlags::DrawQuery;
 		UE::PoseSearch::Draw(DrawParams);
 	}
 #endif
