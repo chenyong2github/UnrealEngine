@@ -35,7 +35,6 @@ bool FAbcTransform::ReadFirstFrame(const float InTime, const int32 FrameIndex)
 	Alembic::AbcGeom::XformSample MatrixSample;
 	Schema.get(MatrixSample, SampleSelector);
 	InitialValue = AbcImporterUtilities::ConvertAlembicMatrix(MatrixSample.getMatrix());
-	AbcImporterUtilities::ApplyConversion(InitialValue, File->GetImportSettings()->ConversionSettings);
 
 	return true;
 }
@@ -54,7 +53,6 @@ void FAbcTransform::SetFrameAndTime(const float InTime, const int32 FrameIndex, 
 			Alembic::AbcGeom::XformSample MatrixSample;
 			Schema.get(MatrixSample, SampleSelector);
 			ResidentMatrices[TargetIndex] = AbcImporterUtilities::ConvertAlembicMatrix(MatrixSample.getMatrix());
-			AbcImporterUtilities::ApplyConversion(ResidentMatrices[TargetIndex], File->GetImportSettings()->ConversionSettings);
 		}
 	}
 }
@@ -71,7 +69,7 @@ FMatrix FAbcTransform::GetMatrix(const int32 FrameIndex) const
 	{
 		if (ResidentSampleIndices[Index] == FrameIndex)
 		{
-			return Parent ? Parent->GetMatrix(FrameIndex) * ResidentMatrices[Index] : ResidentMatrices[Index];
+			return Parent ? ResidentMatrices[Index] * Parent->GetMatrix(FrameIndex) : ResidentMatrices[Index];
 		}
 	}
 
