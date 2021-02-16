@@ -1245,13 +1245,19 @@ const VkComponentMapping& FVulkanDevice::GetFormatComponentMapping(EPixelFormat 
 void FVulkanDevice::NotifyDeletedRenderTarget(VkImage Image)
 {
 	//#todo-rco: Loop through all contexts!
-	GetImmediateContext().NotifyDeletedRenderTarget(Image);
+	if (ImmediateContext)
+	{
+		ImmediateContext->NotifyDeletedRenderTarget(Image);
+	}
 }
 
 void FVulkanDevice::NotifyDeletedImage(VkImage Image)
 {
 	//#todo-rco: Loop through all contexts!
-	GetImmediateContext().NotifyDeletedImage(Image);
+	if (ImmediateContext)
+	{
+		ImmediateContext->NotifyDeletedImage(Image);
+	}
 }
 
 void FVulkanDevice::PrepareForCPURead()
