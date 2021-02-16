@@ -252,7 +252,7 @@ public:
 	// case the cloth is simulated with full world space angular velocities and subjected to the true physical world inertial forces.
 	// Values range from 0 to 2, with 0 showing no centrifugal effect, 1 full centrifugal effect, and 2 an overdriven centrifugal effect.
 	UPROPERTY()
-	float FictitiousAngularScale = 1.f;
+	float FictitiousAngularScale = 0.f;
 
 	// Enable tetrahedral constraints.
 	UPROPERTY()
