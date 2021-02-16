@@ -546,7 +546,11 @@ void FMacPlatformMisc::PlatformInit()
 	UE_LOG(LogInit, Log, TEXT("macOS %s (%s)"), *GMacAppInfo.OSVersion, *GMacAppInfo.OSBuild);
 	UE_LOG(LogInit, Log, TEXT("Model: %s"), *GMacAppInfo.MachineModel);
 	UE_LOG(LogInit, Log, TEXT("CPU: %s"), UTF8_TO_TCHAR(GMacAppInfo.MachineCPUString));
-	
+
+	// At the point, the log system is booted and the log file is likely created and the actual pathname used set. (Until the file is opened for writing, the name is subject to change)
+	FString LogPath = FGenericPlatformOutputDevices::GetAbsoluteLogFilename();
+	FCStringAnsi::Strcpy(GMacAppInfo.AppLogPath, PATH_MAX + 1, TCHAR_TO_UTF8(*LogPath));
+
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 	UE_LOG(LogInit, Log, TEXT("CPU Page size=%i, Cores=%i, HT=%i"), MemoryConstants.PageSize, FPlatformMisc::NumberOfCores(), FPlatformMisc::NumberOfCoresIncludingHyperthreads() );
 

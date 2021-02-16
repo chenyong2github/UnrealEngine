@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/OutputDevice.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/Function.h"
 #include "HAL/Runnable.h"
 #include "Serialization/Archive.h"
 #include "Misc/ScopeLock.h"
@@ -97,8 +98,9 @@ public:
 	*                   is created or the number of trials exhausted (32). 
 	* @param bDisableBackup If true, existing files will not be backed up
 	* @param bCreateWriterLazily If true, delay the creation of the file until something needs to be written, otherwise, open it immediatedly.
+	* @param FileOpenedCallback If bound, invoked when the output file is successfully opened, passing the actual filename.
 	*/
-	FOutputDeviceFile(const TCHAR* InFilename = nullptr, bool bDisableBackup = false, bool bAppendIfExists = false, bool bCreateWriterLazily = true);
+	FOutputDeviceFile(const TCHAR* InFilename = nullptr, bool bDisableBackup = false, bool bAppendIfExists = false, bool bCreateWriterLazily = true, TFunction<void(const TCHAR*)> FileOpenedCallback = TFunction<void(const TCHAR*)>());
 
 	/**
 	* Destructor to perform teardown
@@ -151,6 +153,8 @@ private:
 	FAsyncWriter* AsyncWriter;
 	/** Archive used by the async writer */
 	FArchive* WriterArchive;
+	/** In bound, invoked when the log file is open successfully for writing, reporting the actual log filename. */
+	TFunction<void(const TCHAR*)> OnFileOpenedFn;
 
 	TCHAR Filename[1024];
 	bool AppendIfExists;

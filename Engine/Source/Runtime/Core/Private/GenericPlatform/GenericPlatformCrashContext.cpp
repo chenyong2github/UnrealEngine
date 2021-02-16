@@ -158,7 +158,6 @@ void FGenericCrashContext::Initialize()
 		}
 
 		NCached::UserSettings.bNoDialog = FApp::IsUnattended() || IsRunningDedicatedServer();
-
 	}
 
 	// Create a unique base guid for bug report ids
@@ -597,7 +596,7 @@ void FGenericCrashContext::SerializeUserSettings(FString& Buffer)
 	AddCrashPropertyInternal(Buffer, TEXT("NoDialog"), NCached::UserSettings.bNoDialog);
 	AddCrashPropertyInternal(Buffer, TEXT("SendUnattendedBugReports"), NCached::UserSettings.bSendUnattendedBugReports);
 	AddCrashPropertyInternal(Buffer, TEXT("SendUsageData"), NCached::UserSettings.bSendUsageData);
-	AddCrashPropertyInternal(Buffer, TEXT("LogFilePath"), NCached::UserSettings.LogFilePath);
+	AddCrashPropertyInternal(Buffer, TEXT("LogFilePath"), FPlatformOutputDevices::GetAbsoluteLogFilename()); // Don't use the value cached, it may be out of date.
 }
 
 void FGenericCrashContext::SerializeContentToBuffer() const
