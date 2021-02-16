@@ -9044,6 +9044,7 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 
 			Track->Modify();
 
+			Section->ClearFlags(RF_Transient);
 			Section->Rename(nullptr, Track);
 			Track->AddSection(*Section);
 			if (Section->HasStartFrame())
