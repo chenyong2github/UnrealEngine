@@ -116,6 +116,9 @@ public:
 	/** @return true if the given edge is a seam edge in any overlay */
 	virtual bool IsSeamEdge(int EdgeID) const;
 
+	/** @return true if the given edge is the termination of a seam in any overlay*/
+	virtual bool IsSeamEndEdge(int EdgeID) const;
+
 	/** @return true if the given edge is a seam edge in any overlay */
 	virtual bool IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut) const;
 

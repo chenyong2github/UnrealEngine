@@ -349,6 +349,26 @@ bool FDynamicMeshAttributeSet::IsSeamEdge(int eid) const
 	return false;
 }
 
+bool FDynamicMeshAttributeSet::IsSeamEndEdge(int eid) const
+{
+	for (const FDynamicMeshUVOverlay& UVLayer : UVLayers)
+	{
+		if (UVLayer.IsSeamEndEdge(eid))
+		{
+			return true;
+		}
+	}
+
+	for (const FDynamicMeshNormalOverlay& NormalLayer : NormalLayers)
+	{
+		if (NormalLayer.IsSeamEndEdge(eid))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
 
 bool FDynamicMeshAttributeSet::IsSeamEdge(int EdgeID, bool& bIsUVSeamOut, bool& bIsNormalSeamOut) const
 {

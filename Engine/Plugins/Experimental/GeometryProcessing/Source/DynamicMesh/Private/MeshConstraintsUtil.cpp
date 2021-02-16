@@ -48,140 +48,56 @@ FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(FMeshConstraints& Constrain
 	const FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
 
 	// Seam edge can never flip, it is never fully unconstrained 
-	EEdgeRefineFlags SeamEdgeContraint = EEdgeRefineFlags::NoFlip;
+	EEdgeRefineFlags SeamEdgeConstraint = EEdgeRefineFlags::NoFlip;
 	if (!bAllowSeamSplits)
 	{
-		SeamEdgeContraint = EEdgeRefineFlags((uint8)SeamEdgeContraint | (uint8)EEdgeRefineFlags::NoSplit);
+		SeamEdgeConstraint = EEdgeRefineFlags((int)SeamEdgeConstraint | (int)EEdgeRefineFlags::NoSplit);
 	}
 	if (!bAllowSeamCollapse)
 	{
-		SeamEdgeContraint = EEdgeRefineFlags((uint8)SeamEdgeContraint | (uint8)EEdgeRefineFlags::NoCollapse);
+		SeamEdgeConstraint = EEdgeRefineFlags((int)SeamEdgeConstraint | (int)EEdgeRefineFlags::NoCollapse);
 	}
 
 	FCriticalSection ConstraintSetLock;
 
 	int32 NumEdges = Mesh.MaxEdgeID();
 	bool bHaveGroups = Mesh.HasTriangleGroups();
+
+
 	ParallelFor(NumEdges, [&](int EdgeID)
 	{
-		bool bIsEdge = Mesh.IsEdge(EdgeID);
-		if (Mesh.IsEdge(EdgeID))
+		FVertexConstraint VtxConstraintA = FVertexConstraint::Unconstrained();
+		FVertexConstraint VtxConstraintB = FVertexConstraint::Unconstrained();
+
+		FEdgeConstraint EdgeConstraint(EEdgeRefineFlags::NoConstraint);
+
+		// compute the edge and vertex constraints.
+		bool bHasUpdate = ConstrainEdgeBoundariesAndSeams(
+		        EdgeID,
+				Mesh,
+				MeshBoundaryConstraint,
+				GroupBoundaryConstraint,
+				MaterialBoundaryConstraint,
+				SeamEdgeConstraint,
+				bAllowSeamSmoothing,
+				EdgeConstraint, VtxConstraintA, VtxConstraintB);
+		
+		if (bHasUpdate)
 		{
-			const bool bIsMeshBoundary = Mesh.IsBoundaryEdge(EdgeID);
-			const bool bIsGroupBoundary = bHaveGroups && Mesh.IsGroupBoundaryEdge(EdgeID);
-			const bool bIsMaterialBoundary = Attributes && Attributes->IsMaterialBoundaryEdge(EdgeID);
-			const bool bIsSeam = Attributes && Attributes->IsSeamEdge(EdgeID);
-			FVertexConstraint VtxConstraint = FVertexConstraint::Unconstrained();
-			EEdgeRefineFlags EdgeFlags{};
+			// have updates - merge with existing constraints
+			ConstraintSetLock.Lock();
+			
+			FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
+			
+			Constraints.SetOrUpdateEdgeConstraint(EdgeID, EdgeConstraint);
 
-			auto ApplyBoundaryConstraint = [&VtxConstraint, &EdgeFlags](uint8 BoundaryConstraint)
-				{
-				VtxConstraint.bCannotDelete = VtxConstraint.bCannotDelete ||
-						(BoundaryConstraint == (uint8)EEdgeRefineFlags::FullyConstrained) ||
-						(BoundaryConstraint == (uint8)EEdgeRefineFlags::SplitsOnly);
-				VtxConstraint.bCanMove = VtxConstraint.bCanMove &&
-						(BoundaryConstraint != (uint8)EEdgeRefineFlags::FullyConstrained) &&
-						(BoundaryConstraint != (uint8)EEdgeRefineFlags::SplitsOnly);
-					EdgeFlags = EEdgeRefineFlags((uint8)EdgeFlags |
-												 (uint8)BoundaryConstraint);
-				};
+			VtxConstraintA.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.A));
+			Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, VtxConstraintA);
 
-			if ( bIsMeshBoundary )
-			{
-				ApplyBoundaryConstraint((uint8)MeshBoundaryConstraint);
-			}
-			if ( bIsGroupBoundary )
-			{
-				ApplyBoundaryConstraint((uint8)GroupBoundaryConstraint);
-			}
-			if ( bIsMaterialBoundary )
-			{
-				ApplyBoundaryConstraint((uint8)MaterialBoundaryConstraint);
-			}
-			if ( bIsSeam )
-			{
+			VtxConstraintB.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.B));
+			Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, VtxConstraintB);
 
-				VtxConstraint.bCanMove = VtxConstraint.bCanMove && (bAllowSeamSmoothing || bAllowSeamCollapse);
-				VtxConstraint.bCannotDelete = VtxConstraint.bCannotDelete  || !bAllowSeamCollapse;
-				EdgeFlags = EEdgeRefineFlags((uint8)EdgeFlags |
-											 (uint8)( SeamEdgeContraint ));
-
-				// Additional logic to add the NoCollapse flag to any edge that is the start or end of a seam.
-				if (bAllowSeamCollapse)
-				{
-					FIndex2i et = Mesh.GetEdgeT(EdgeID);
-					// test if two double attribute edge shares one element: call this a seam end
-					auto IsSeamWithEnd = [&, et](auto& Overlay)->bool
-					{
-						if (et.A == -1 || et.B == -1)
-						{
-							return false;
-						}
-						bool bASet = Overlay.IsSetTriangle(et.A), bBSet = Overlay.IsSetTriangle(et.B);
-						if (!bASet || !bBSet)
-						{
-							return false;
-						}
-
-						TArray<int, TInlineAllocator<6>> UniqueElements;
-						FIndex3i Triangle0 = Overlay.GetTriangle(et.A);
-						UniqueElements.AddUnique(Triangle0[0]);
-						UniqueElements.AddUnique(Triangle0[1]);
-						UniqueElements.AddUnique(Triangle0[2]);
-						FIndex3i Triangle1 = Overlay.GetTriangle(et.B);
-						UniqueElements.AddUnique(Triangle1[0]);
-						UniqueElements.AddUnique(Triangle1[1]);
-						UniqueElements.AddUnique(Triangle1[2]);
-
-						return UniqueElements.Num() == 5;
-					};
-
-					bool bHasSeamEnd = false;
-					for (int32 i = 0; !bHasSeamEnd && (i < Attributes->NumUVLayers()); ++i)
-					{
-						bool bIsEnd = IsSeamWithEnd(*Attributes->GetUVLayer(i));
-
-						bHasSeamEnd = bHasSeamEnd || bIsEnd;
-					}
-					for (int32 i = 0; !bHasSeamEnd && (i < Attributes->NumNormalLayers()); ++i)
-					{
-						bool bIsEnd = IsSeamWithEnd(*Attributes->GetNormalLayer(i));
-
-						bHasSeamEnd = bHasSeamEnd || bIsEnd;
-					}
-
-					if (bHasSeamEnd)
-					{
-						EdgeFlags = EEdgeRefineFlags((uint8)EdgeFlags | (uint8)EEdgeRefineFlags::NoCollapse);
-					}
-				}
-			}
-			if (bIsMeshBoundary||bIsGroupBoundary||bIsMaterialBoundary||bIsSeam)
-			{
-				FIndex2i EdgeVerts = Mesh.GetEdgeV(EdgeID);
-
-				FEdgeConstraint EdgeConstraint(EdgeFlags);
-
-				// don't update with a phantom constraint (i.e. an unconstrained constraint )
-				if (!(EdgeConstraint.IsUnconstrained() && VtxConstraint.IsUnconstrained()))
-				{
-					ConstraintSetLock.Lock();
-
-					Constraints.SetOrUpdateEdgeConstraint(EdgeID, EdgeConstraint);
-
-					// If any vertex constraints exist, we can only make them more restrictive!
-
-					FVertexConstraint ConstraintA = VtxConstraint;
-					ConstraintA.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.A));
-					Constraints.SetOrUpdateVertexConstraint(EdgeVerts.A, ConstraintA);
-
-					FVertexConstraint ConstraintB = VtxConstraint;
-					ConstraintB.CombineConstraint(Constraints.GetVertexConstraint(EdgeVerts.B));
-					Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, ConstraintB);
-
-					ConstraintSetLock.Unlock();
-				}
-			}
+			ConstraintSetLock.Unlock();
 		}
 	}, (bParallel == false) );
 }
@@ -254,4 +170,109 @@ void FMeshConstraintsUtil::ConstrainROIBoundariesInEdgeROI(FMeshConstraints& Con
 			Constraints.SetOrUpdateVertexConstraint(EdgeVerts.B, VtxConstraint);
 		}
 	}
+}
+
+bool FMeshConstraintsUtil::ConstrainEdgeBoundariesAndSeams(const int EdgeID,
+	                                                       const FDynamicMesh3& Mesh,
+	                                                       const EEdgeRefineFlags MeshBoundaryConstraintFlags,
+	                                                       const EEdgeRefineFlags GroupBoundaryConstraintFlags,
+	                                                       const EEdgeRefineFlags MaterialBoundaryConstraintFlags,
+	                                                       const EEdgeRefineFlags SeamEdgeConstraintFlags,
+	                                                       const bool bAllowSeamSmoothing,
+	                                                       FEdgeConstraint& EdgeConstraint,
+	                                                       FVertexConstraint& VertexConstraintA,
+	                                                       FVertexConstraint& VertexConstraintB)
+{
+	const bool bAllowSeamCollapse = FEdgeConstraint::CanCollapse(SeamEdgeConstraintFlags);
+
+	// initialize constraints
+	VertexConstraintA = FVertexConstraint::Unconstrained();
+	VertexConstraintB = FVertexConstraint::Unconstrained();
+	EdgeConstraint = FEdgeConstraint::Unconstrained();
+
+	const bool bIsEdge = Mesh.IsEdge(EdgeID);
+	if (!bIsEdge)  return false;
+
+	const bool bHaveGroups = Mesh.HasTriangleGroups();
+	const FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
+
+	const bool bIsMeshBoundary = Mesh.IsBoundaryEdge(EdgeID);
+	const bool bIsGroupBoundary = bHaveGroups && Mesh.IsGroupBoundaryEdge(EdgeID);
+	const bool bIsMaterialBoundary = Attributes && Attributes->IsMaterialBoundaryEdge(EdgeID);
+	const bool bIsSeam = Attributes && Attributes->IsSeamEdge(EdgeID);
+
+	FVertexConstraint CurVtxConstraint = FVertexConstraint::Unconstrained(); // note: this is needed since the default constructor is constrained.
+	EEdgeRefineFlags EdgeFlags{};
+
+	auto ApplyBoundaryConstraint = [&CurVtxConstraint, &EdgeFlags](EEdgeRefineFlags BoundaryConstraintFlags)
+	{
+
+		CurVtxConstraint.bCannotDelete = CurVtxConstraint.bCannotDelete ||
+			(!FEdgeConstraint::CanCollapse(BoundaryConstraintFlags) &&
+				!FEdgeConstraint::CanFlip(BoundaryConstraintFlags)
+				);
+
+		CurVtxConstraint.bCanMove = CurVtxConstraint.bCanMove &&
+			(FEdgeConstraint::CanCollapse(BoundaryConstraintFlags) ||
+				FEdgeConstraint::CanFlip(BoundaryConstraintFlags)
+				);
+
+		EdgeFlags = EEdgeRefineFlags((int)EdgeFlags | (int)BoundaryConstraintFlags);
+	};
+
+
+	if (bIsMeshBoundary)
+	{
+		ApplyBoundaryConstraint(MeshBoundaryConstraintFlags);
+	}
+	if (bIsGroupBoundary)
+	{
+		ApplyBoundaryConstraint(GroupBoundaryConstraintFlags);
+	}
+	if (bIsMaterialBoundary)
+	{
+		ApplyBoundaryConstraint(MaterialBoundaryConstraintFlags);
+	}
+	if (bIsSeam)
+	{
+		CurVtxConstraint.bCannotDelete = CurVtxConstraint.bCannotDelete || !bAllowSeamCollapse;
+		CurVtxConstraint.bCanMove = CurVtxConstraint.bCanMove && (bAllowSeamSmoothing || bAllowSeamCollapse);
+
+		EdgeFlags = EEdgeRefineFlags((int)EdgeFlags | (int)(SeamEdgeConstraintFlags));
+
+		// Additional logic to add the NoCollapse flag to any edge that is the start or end of a seam.
+		if (bAllowSeamCollapse)
+		{
+
+			bool bHasSeamEnd = false;
+			for (int32 i = 0; !bHasSeamEnd && (i < Attributes->NumUVLayers()); ++i)
+			{
+				const FDynamicMeshUVOverlay* UVLayer = Attributes->GetUVLayer(i);
+				bHasSeamEnd = bHasSeamEnd || UVLayer->IsSeamEndEdge(EdgeID);
+			}
+			for (int32 i = 0; !bHasSeamEnd && (i < Attributes->NumNormalLayers()); ++i)
+			{
+				const FDynamicMeshNormalOverlay* NormalOverlay = Attributes->GetNormalLayer(i);
+				bHasSeamEnd = bHasSeamEnd || NormalOverlay->IsSeamEndEdge(EdgeID);
+			}
+
+			if (bHasSeamEnd)
+			{
+				EdgeFlags = EEdgeRefineFlags((int)EdgeFlags | (int)EEdgeRefineFlags::NoCollapse);
+			}
+		}
+	}
+	if (bIsMeshBoundary || bIsGroupBoundary || bIsMaterialBoundary || bIsSeam)
+	{
+		EdgeConstraint = FEdgeConstraint(EdgeFlags);
+
+		// only return true if we have a constraint
+		if (!EdgeConstraint.IsUnconstrained() || !CurVtxConstraint.IsUnconstrained())
+		{
+			VertexConstraintA.CombineConstraint(CurVtxConstraint);
+			VertexConstraintB.CombineConstraint(CurVtxConstraint);
+			return  true;
+		}
+	}
+	return false;
 }

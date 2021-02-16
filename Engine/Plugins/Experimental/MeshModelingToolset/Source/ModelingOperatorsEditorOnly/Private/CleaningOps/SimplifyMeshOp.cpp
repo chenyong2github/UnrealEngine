@@ -30,7 +30,8 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 					 const ESimplifyTargetType TargetMode,
 					 const float TargetPercentage, const int TargetCount, const float TargetEdgeLength,
 					 const float AngleThreshold,
-	                 typename SimplificationType::ESimplificationCollapseModes CollapseMode)
+	                 typename SimplificationType::ESimplificationCollapseModes CollapseMode,
+					 bool bUseQuadricMemory)
 {
 	SimplificationType Reducer(TargetMesh);
 
@@ -38,8 +39,10 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 		SimplificationType::ETargetProjectionMode::AfterRefinement : SimplificationType::ETargetProjectionMode::NoProjection;
 
 	Reducer.DEBUG_CHECK_LEVEL = 0;
+	//Reducer.ENABLE_PROFILING = true;
 
 	Reducer.bAllowSeamCollapse = bAllowSeamCollapse;
+	Reducer.bRetainQuadricMemory = bUseQuadricMemory;
 
 	if (bAllowSeamCollapse)
 	{
@@ -59,6 +62,12 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 														 MaterialBoundaryConstraint,
 														 true, !bPreserveSharpEdges, bAllowSeamCollapse);
 	Reducer.SetExternalConstraints(MoveTemp(constraints));
+	
+	// transfer constraint setting to the simplifier, these are used to update the constraints as edges collapse.	
+	Reducer.MeshBoundaryConstraint = MeshBoundaryConstraint;
+	Reducer.GroupBoundaryConstraint = GroupBoundaryConstraint;
+	Reducer.MaterialBoundaryConstraint = MaterialBoundaryConstraint;
+	
 
 	if (bReproject)
 	{
@@ -117,6 +126,7 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 	int OriginalTriCount = OriginalMesh->TriangleCount();
 	if (SimplifierType == ESimplifyType::QEM)
 	{
+		bool bUseQuadricMemory = true;
 		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
 		ComputeSimplify<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
 											MeshBoundaryConstraint,
@@ -124,10 +134,11 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 											MaterialBoundaryConstraint,
 											bPreserveSharpEdges, bAllowSeamCollapse,
 											TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
-											FQEMSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError);
+											FQEMSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory);
 	}
 	else if (SimplifierType == ESimplifyType::Attribute)
 	{
+		bool bUseQuadricMemory = false;
 		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
 		ComputeSimplify<FAttrMeshSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
 													MeshBoundaryConstraint,
@@ -135,10 +146,11 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 													MaterialBoundaryConstraint,
 													bPreserveSharpEdges, bAllowSeamCollapse,
 													TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
-													FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError);
+													FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory);
 	}
 	else if (SimplifierType == ESimplifyType::MinimalPlanar)
 	{
+		bool bUseQuadricMemory = false;
 		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
 		ComputeSimplify<FAttrMeshSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
 			MeshBoundaryConstraint,
@@ -146,10 +158,11 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			MaterialBoundaryConstraint,
 			bPreserveSharpEdges, bAllowSeamCollapse,
 			ESimplifyTargetType::MinimalPlanar, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh,
-			FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError);
+			FAttrMeshSimplification::ESimplificationCollapseModes::MinimalQuadricPositionError, bUseQuadricMemory);
 	}
 	else if (SimplifierType == ESimplifyType::MinimalExistingVertex)
 	{
+		bool bUseQuadricMemory = true;
 		ResultMesh->Copy(*OriginalMesh, true, true, true, !bDiscardAttributes);
 		ComputeSimplify<FQEMSimplification>(TargetMesh, bReproject, OriginalTriCount, *OriginalMesh, *OriginalMeshSpatial,
 			MeshBoundaryConstraint,
@@ -157,9 +170,9 @@ void FSimplifyMeshOp::CalculateResult(FProgressCancel* Progress)
 			MaterialBoundaryConstraint,
 			bPreserveSharpEdges, bAllowSeamCollapse,
 			TargetMode, TargetPercentage, TargetCount, TargetEdgeLength, MinimalPlanarAngleThresh, 
-			FQEMSimplification::ESimplificationCollapseModes::MinimalExistingVertexError);
+			FQEMSimplification::ESimplificationCollapseModes::MinimalExistingVertexError, bUseQuadricMemory);
 	}
-	else // SimplifierType == ESimplifyType::UE4Standard
+	else // SimplifierType == ESimplifyType::UEStandard
 	{
 		const FMeshDescription* SrcMeshDescription = OriginalMeshDescription.Get();
 		FMeshDescription DstMeshDescription(*SrcMeshDescription);

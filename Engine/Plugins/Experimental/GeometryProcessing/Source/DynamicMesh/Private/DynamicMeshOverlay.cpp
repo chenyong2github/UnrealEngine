@@ -494,6 +494,54 @@ bool TDynamicMeshOverlay<RealType,ElementSize>::IsSeamEdge(int eid) const
 
 
 template<typename RealType, int ElementSize>
+bool TDynamicMeshOverlay<RealType, ElementSize>::IsSeamEndEdge(int eid) const
+{
+	FIndex2i et = ParentMesh->GetEdgeT(eid);
+	if (et.B == FDynamicMesh3::InvalidID)
+	{
+		return false;
+	}
+
+	FIndex2i ev = ParentMesh->GetEdgeV(eid);
+	int base_a = ev.A, base_b = ev.B;
+
+	bool bASet = IsSetTriangle(et.A), bBSet = IsSetTriangle(et.B);
+	if (!bASet || !bBSet) 
+	{
+		return false; 
+	}
+
+	FIndex3i Triangle0 = GetTriangle(et.A);
+	FIndex3i BaseTriangle0(ParentVertices[Triangle0.A], ParentVertices[Triangle0.B], ParentVertices[Triangle0.C]);
+	int idx_base_a0 = BaseTriangle0.IndexOf(base_a);
+	int idx_base_b0 = BaseTriangle0.IndexOf(base_b);
+
+	FIndex3i Triangle1 = GetTriangle(et.B);
+	FIndex3i BaseTriangle1(ParentVertices[Triangle1.A], ParentVertices[Triangle1.B], ParentVertices[Triangle1.C]);
+	int idx_base_a1 = BaseTriangle1.IndexOf(base_a);
+	int idx_base_b1 = BaseTriangle1.IndexOf(base_b);
+
+	int el_a_tri0 = Triangle0[idx_base_a0];
+	int el_b_tri0 = Triangle0[idx_base_b0];
+	int el_a_tri1 = Triangle1[idx_base_a1];
+	int el_b_tri1 = Triangle1[idx_base_b1];
+
+	bool bIsSeam = !IndexUtil::SamePairUnordered(el_a_tri0, el_b_tri0, el_a_tri1, el_b_tri1);
+
+	bool bIsSeamEnd = false;
+	if (bIsSeam)
+	{
+		// is only one of elements split?
+		if ((el_a_tri0 == el_a_tri1 || el_a_tri0 == el_b_tri1) || (el_b_tri0 == el_b_tri1 || el_b_tri0 == el_a_tri1))
+		{
+			bIsSeamEnd = true;
+		}
+	}
+
+	return bIsSeamEnd;
+}
+
+template<typename RealType, int ElementSize>
 bool TDynamicMeshOverlay<RealType, ElementSize>::HasInteriorSeamEdges() const
 {
 	for (int eid : ParentMesh->EdgeIndicesItr())
@@ -882,45 +930,49 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 	
 	// look up triangle 0
 	FIndex3i Triangle0(-1,-1,-1), BaseTriangle0(-1,-1,-1);
-	int idx_removed0_a = -1, idx_removed0_b = -1;
+	int idx_removed_tri0 = -1, idx_kept_tri0 = -1;
 	if (bT0Set)
 	{
 		Triangle0 = GetTriangle(tid_removed0);
 		BaseTriangle0 = FIndex3i(ParentVertices[Triangle0.A], ParentVertices[Triangle0.B], ParentVertices[Triangle0.C]);
-		idx_removed0_a = BaseTriangle0.IndexOf(vid_base_kept);
-		idx_removed0_b = BaseTriangle0.IndexOf(vid_base_removed);
+		idx_kept_tri0 = BaseTriangle0.IndexOf(vid_base_kept);
+		idx_removed_tri0    = BaseTriangle0.IndexOf(vid_base_removed);
 	}
 
 	// look up triangle 1 if this is not a boundary edge
 	FIndex3i Triangle1(-1,-1,-1), BaseTriangle1(-1,-1,-1);
+	int idx_removed_tri1 = -1, idx_kept_tri1 = -1;
 	if (collapseInfo.bIsBoundary == false && bT1Set)
 	{
 		Triangle1 = GetTriangle(tid_removed1);
 		BaseTriangle1 = FIndex3i(ParentVertices[Triangle1.A], ParentVertices[Triangle1.B], ParentVertices[Triangle1.C]);
 
-		int idx_removed1_a = BaseTriangle1.IndexOf(vid_base_kept);
-		int idx_removed1_b = BaseTriangle1.IndexOf(vid_base_removed);
+		idx_kept_tri1 = BaseTriangle1.IndexOf(vid_base_kept);
+		idx_removed_tri1 = BaseTriangle1.IndexOf(vid_base_removed);
 
 		if (bT0Set)
 		{
-			int el_a_tri0 = Triangle0[idx_removed0_a];
-			int el_b_tri0 = Triangle0[idx_removed0_b];
-			int el_a_tri1 = Triangle1[idx_removed1_a];
-			int el_b_tri1 = Triangle1[idx_removed1_b];
+			int el_kept_tri0    = Triangle0[idx_kept_tri0];
+			int el_removed_tri0 = Triangle0[idx_removed_tri0];
+			int el_kept_tri1    = Triangle1[idx_kept_tri1];
+			int el_removed_tri1 = Triangle1[idx_removed_tri1];
 
 			// is this a seam?
-			bIsSeam = !IndexUtil::SamePairUnordered(Triangle0[idx_removed0_a], Triangle0[idx_removed0_b], Triangle1[idx_removed1_a], Triangle1[idx_removed1_b]);
+			bIsSeam = !IndexUtil::SamePairUnordered(el_kept_tri0, el_removed_tri0, el_kept_tri1, el_removed_tri1);
 
 			if (bIsSeam)
 			{
 				// is only one of elements split?
-				if ((el_a_tri0 == el_a_tri1 || el_a_tri0 == el_b_tri1) || (el_b_tri0 == el_a_tri1 || el_b_tri0 == el_b_tri1))
+				if ((el_kept_tri0 == el_kept_tri1 || el_kept_tri0 == el_removed_tri1) || (el_removed_tri0 == el_kept_tri1 || el_removed_tri0 == el_removed_tri1))
 				{
 					bIsSeamEnd = true;
 				}
 			}
 		}
 	}
+
+	// this should be protected against by calling code.
+	//checkSlow(!bIsSeamEnd);
 
 	// need to find the elementid for the "kept" and "removed" vertices that are connected by the edges of T0 and T1.
 	// If this edge is :
@@ -937,42 +989,28 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 	bool bFoundKeptElement[2]    = { false, false };
 	if (bT0Set)
 	{
-		for (int j = 0; j < 3; ++j)
-		{
-			if (BaseTriangle0[j] == vid_base_kept)
-			{
-				kept_elemid[0] = Triangle0[j];
-			}
-			if (BaseTriangle0[j] == vid_base_removed)
-			{
-				removed_elemid[0] = Triangle0[j];
-			}
-		}
-		check(kept_elemid[0] != FDynamicMesh3::InvalidID);
-		check(removed_elemid[0] != FDynamicMesh3::InvalidID);
-		bFoundKeptElement[0]= bFoundRemovedElement[0] = true;
+		kept_elemid[0] = Triangle0[idx_kept_tri0];
+		removed_elemid[0] = Triangle0[idx_removed_tri0];
+		bFoundKeptElement[0] = bFoundRemovedElement[0] = true;
+
+		checkSlow(kept_elemid[0] != FDynamicMesh3::InvalidID);
+		checkSlow(removed_elemid[0] != FDynamicMesh3::InvalidID);
+		
 	}
 	if ((bIsSeam || !bT0Set) && bT1Set)
 	{
-		for (int j = 0; j < 3; ++j)
-		{
-			if (BaseTriangle1[j] == vid_base_kept)
-			{
-				kept_elemid[1] = Triangle1[j];
-			}
-			if (BaseTriangle1[j] == vid_base_removed)
-			{
-				removed_elemid[1] = Triangle1[j];
-			}
-		}
-		check(kept_elemid[1] != FDynamicMesh3::InvalidID);
-		check(removed_elemid[1] != FDynamicMesh3::InvalidID);
+		kept_elemid[1] = Triangle1[idx_kept_tri1];
+		removed_elemid[1] = Triangle1[idx_removed_tri1];
 		bFoundKeptElement[1] = bFoundRemovedElement[1] = true;
+
+		checkSlow(kept_elemid[1] != FDynamicMesh3::InvalidID);
+		checkSlow(removed_elemid[1] != FDynamicMesh3::InvalidID);
+		
 	}
 	if (!bT0Set && !bT1Set)
 	{
 		// if neither triangle was set, still need to check surrounding triangles; one or both elements may still be used
-		check(!bFoundRemovedElement[0] && !bFoundRemovedElement[1]);
+		checkSlow(!bFoundRemovedElement[0] && !bFoundRemovedElement[1]);
 		
 		// note this may do the wrong thing in the case that at least one of the verts has split elements.
 		// higher-level code should make sure this doesn't happen.
@@ -1021,7 +1059,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::OnCollapseEdge(const FDynamicMe
 				{
 					if (elem_id == removed_elemid[0])
 					{
-					ElementsRefCounts.Decrement(elem_id);
+						ElementsRefCounts.Decrement(elem_id);
 						ElementTriangles[3 * onering_tid + j] = kept_elemid[0];
 						if (bFoundKeptElement[0])
 						{

@@ -20,7 +20,8 @@ enum class ESimplificationResult
 	Ignored_Constrained = 4,
 	Ignored_CreatesFlip = 5,
 	Failed_OpNotSuccessful = 6,
-	Failed_NotAnEdge = 7
+	Failed_NotAnEdge = 7,
+	Failed_IsolatedTriangle = 8
 };
 
 /**
@@ -58,14 +59,17 @@ public:
 	 */
 	ESimplificationCollapseModes CollapseMode = ESimplificationCollapseModes::MinimalQuadricPositionError;
 
-
-
+	/** if false, face and vertex quadrics are recomputed in the neighborhood of each collapse, definitely slower but maybe higher quality*/
+	bool bRetainQuadricMemory = false;
 
 	/** if true, we try to keep boundary vertices on boundary. You probably want this. */
 	bool bPreserveBoundaryShape = true;
 
 	/** if true, we allow UV and Normal seams to collapse during simplification.*/
 	bool bAllowSeamCollapse = true;
+
+	/** When using the constraint system, these options will apply to the appropriate boundaries. */
+	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
 
 	TMeshSimplification(FDynamicMesh3* m) : FMeshRefinerBase(m)
 	{
@@ -123,7 +127,7 @@ public:
 	 */
 	virtual void FastCollapsePass(double MinEdgeLength, int Rounds = 1, bool bMeshIsClosedHint = false);
 
-
+	
 
 protected:
 
@@ -175,7 +179,7 @@ protected:
 
 
 	
-	double SeamEdgeWeight = 256.;
+	double SeamEdgeWeight =  256.;
 
 	TArray<FQuadricErrorType> vertQuadrics;
 	virtual void InitializeVertexQuadrics();
@@ -191,7 +195,7 @@ protected:
 
 	FQuadricErrorType ComputeFaceQuadric(const int tid, FVector3d& nface, FVector3d& c, double& Area) const;
 	
-	// uses pre-computed vertex and face quadrics to construct the edge quadric.
+	// uses pre-computed vertex, face and seam quadrics to construct the edge quadric.
 	FQuadricErrorType AssembleEdgeQuadric(const FDynamicMesh3::FEdge& edge) const;
 
 	
@@ -277,6 +281,11 @@ protected:
 	 */
 	ESimplificationResult CollapseEdge(int edgeID, FVector3d vNewPos, FDynamicMesh3::FEdgeCollapseInfo& collapseInfo, int32 RequireKeepVert = -1);
 
+	/**
+	* Remove an isolated triangle.
+	* @return false if the triangle shares a vertex with another triangle
+	*/
+	bool RemoveIsolatedTriangle(int tID);
 
 
 	// subclasses can override these to implement custom behavior...
@@ -285,8 +294,10 @@ protected:
 		// this is for subclasses...
 	}
 
-
-
+	virtual void OnRemoveIsolatedTriangle(int tId)
+	{
+		// this is for subclasses
+	}
 
 
 	// Project vertices onto projection target. 
