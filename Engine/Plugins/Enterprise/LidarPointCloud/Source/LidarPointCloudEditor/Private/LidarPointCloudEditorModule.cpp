@@ -10,6 +10,7 @@
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudSettings.h"
 #include "ISettingsModule.h"
+#include "ShowFlags.h"
 
 DEFINE_LOG_CATEGORY(LogLidarPointCloud);
 
@@ -41,6 +42,8 @@ class FLidarPointCloudEditorModule : public ILidarPointCloudEditorModule
 				LOCTEXT("SettingsDescription", "Configure the LiDAR Point Cloud plugin"),
 				GetMutableDefault<ULidarPointCloudSettings>());
 		}
+
+		FEngineShowFlags::RegisterCustomShowFlag(TEXT("LidarClippingVolume"), true, EShowFlagGroup::SFG_Transient, NSLOCTEXT("UnrealEd", "LidarClippingVolumeSF", "Lidar Clipping Volume"));
 	}
 	virtual void ShutdownModule() override
 	{
