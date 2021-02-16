@@ -59,7 +59,7 @@
 
 // Compute shaders always do responsive TAA in a single pass.
 #if COMPUTESHADER
-	#define AA_SINGLE_PASS_RESPONSIVE !AA_MOBILE_CONFIG //The StencilTexture is not available on the mobile platform
+	#define AA_SINGLE_PASS_RESPONSIVE !SHADING_PATH_DEFERRED //The StencilTexture is not available on the mobile platform
 #endif
 
 #if TAA_PASS_CONFIG == 0 // Main

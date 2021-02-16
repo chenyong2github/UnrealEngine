@@ -243,6 +243,7 @@ void FSceneRenderer::RenderVelocities(
 	}
 
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderVelocities);
+	SCOPED_NAMED_EVENT(FSceneRenderer_RenderVelocities, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_RenderVelocities);
 
 	ERenderTargetLoadAction VelocityLoadAction = ERenderTargetLoadAction::ELoad;
