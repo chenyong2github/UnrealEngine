@@ -200,8 +200,8 @@ void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData
 	UAssetManager& LocalAssetManager = UAssetManager::Get();
 
 	const FString GameFeaturePath = GameFeatureToAdd->GetOutermost()->GetName();
-	FString PluginName;
-	if (ensureMsgf(UAssetManager::GetContentRootPathFromPackageName(GameFeaturePath, PluginName), TEXT("Must be a valid package path with a root. GameFeaturePath: %s"), *GameFeaturePath))
+	FString PluginRootPath;
+	if (ensureMsgf(UAssetManager::GetContentRootPathFromPackageName(GameFeaturePath, PluginRootPath), TEXT("Must be a valid package path with a root. GameFeaturePath: %s"), *GameFeaturePath))
 	{
 		LocalAssetManager.StartBulkScanning();
 
@@ -215,7 +215,8 @@ void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData
 
 			for (FString& Path : TypeInfo.AssetScanPaths)
 			{
-				Path = PluginName + Path;
+				// Convert plugin-relative paths to full package paths
+				FixPluginPackagePath(Path, PluginRootPath, false);
 			}
 
 			FPrimaryAssetTypeInfo ExistingAssetTypeInfo;
@@ -562,6 +563,22 @@ FString UGameFeaturesSubsystem::GetPluginFilenameFromPluginURL(const FString& Pl
 		UE_LOG(LogGameFeatures, Error, TEXT("UGameFeaturesSubsystem could not get the plugin path from the plugin URL. URL:%s "), *PluginURL);
 	}
 	return PluginFilename;
+}
+
+void UGameFeaturesSubsystem::FixPluginPackagePath(FString& PathToFix, const FString& PluginRootPath, bool bMakeRelativeToPluginRoot)
+{
+	if (bMakeRelativeToPluginRoot)
+	{
+		// This only modifies paths starting with the root
+		PathToFix.RemoveFromStart(PluginRootPath);
+	}
+	else
+	{
+		if (!FPackageName::IsValidLongPackageName(PathToFix))
+		{
+			PathToFix = PluginRootPath / PathToFix;
+		}
+	}
 }
 
 void UGameFeaturesSubsystem::GetLoadedGameFeaturePluginFilenamesForCooking(TArray<FString>& OutLoadedPluginFilenames) const

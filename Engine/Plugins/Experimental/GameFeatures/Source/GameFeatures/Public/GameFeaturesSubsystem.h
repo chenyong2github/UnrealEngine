@@ -162,6 +162,9 @@ public:
 	/** Get the plugin path from the plugin URL */
 	FString GetPluginFilenameFromPluginURL(const FString& PluginURL);
 
+	/** Fixes a package path/directory to either be relative to plugin root or not. Paths relative to different roots will not be modified */
+	static void FixPluginPackagePath(FString& PathToFix, const FString& PluginRootPath, bool bMakeRelativeToPluginRoot);
+
 	/** Returns the game-specific policy for managing game feature plugins */
 	template <typename T = UGameFeaturesProjectPolicies>
 	T& GetPolicy() const
