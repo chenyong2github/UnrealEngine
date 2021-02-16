@@ -27,16 +27,6 @@ public:
 	virtual bool SetTakeNumber(const UMovieSceneSection*, uint32 InTakeNumber) = 0;
 };
 
-//Interface to get notifications when an animation bake happens in case in needs to run custom code
-class IMovieSceneToolsAnimationBakeHelper
-{
-public:
-	virtual void StartBaking(UMovieScene* MovieScene) {};
-	virtual void PreEvaluation(UMovieScene* MovieScene, FFrameNumber Frame) {};
-	virtual void PostEvaluation(UMovieScene* MovieScene, FFrameNumber Frame) {};
-	virtual void StopBaking(UMovieScene* MovieScene) {};
-};
-
 /**
 * Implements the MovieSceneTools module.
 */
@@ -54,9 +44,6 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	void RegisterAnimationBakeHelper(IMovieSceneToolsAnimationBakeHelper* BakeHelper);
-	void UnregisterAnimationBakeHelper(IMovieSceneToolsAnimationBakeHelper* BakeHelper);
-	const TArray<IMovieSceneToolsAnimationBakeHelper*>& GetAnimationBakeHelpers() { return BakeHelpers; }
 	void RegisterTakeData(IMovieSceneToolsTakeData*);
 	void UnregisterTakeData(IMovieSceneToolsTakeData*);
 
@@ -124,6 +111,4 @@ private:
 
 	TArray<IMovieSceneToolsTakeData*> TakeDatas;
 	TArray<IMovieSceneToolsTrackImporter*> TrackImporters;
-
-	TArray<IMovieSceneToolsAnimationBakeHelper*> BakeHelpers;
 };

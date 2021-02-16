@@ -15,7 +15,6 @@
 #include "Sections/MovieScene3DTransformSection.h"
 #include "AcquiredResources.h"
 #include "MovieSceneToolHelpers.h"
-#include "MovieSceneToolsModule.h"
 
 struct FAssetData;
 class FMenuBuilder;
@@ -26,7 +25,7 @@ class UFKControlRig;
 /**
  * Tools for animation tracks
  */
-class FControlRigParameterTrackEditor : public FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>, public IMovieSceneToolsAnimationBakeHelper
+class FControlRigParameterTrackEditor : public FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>
 {
 public:
 	/**
@@ -62,9 +61,6 @@ public:
 	virtual void ObjectImplicitlyAdded(UObject* InObject)  override;
 	virtual void BuildTrackContextMenu(FMenuBuilder& MenuBuilder, UMovieSceneTrack* InTrack) override;
 
-	//IMovieSceneToolsAnimationBakeHelper
-	virtual void PostEvaluation(UMovieScene* MovieScene, FFrameNumber Frame);
-
 private:
 
 	void HandleAddTrackSubMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings, UMovieSceneTrack* Track);
@@ -84,8 +80,6 @@ private:
 	
 	/** Delegate for Selection Changed Event */
 	void OnSelectionChanged(TArray<UMovieSceneTrack*> InTracks);
-
-
 
 	/** Delegate for  Tree View Changed Event */
 	void OnTreeViewChanged();

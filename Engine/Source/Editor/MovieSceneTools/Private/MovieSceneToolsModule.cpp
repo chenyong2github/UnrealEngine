@@ -460,18 +460,6 @@ void FMovieSceneToolsModule::RegisterClipboardConversions()
 	FSequencerClipboardReconciler::AddTrackAlias("W", "A");
 }
 
-void FMovieSceneToolsModule::RegisterAnimationBakeHelper(IMovieSceneToolsAnimationBakeHelper* InBakeHelper)
-{
-	checkf(!BakeHelpers.Contains(InBakeHelper), TEXT("Bake Helper is already registered"));
-	BakeHelpers.Add(InBakeHelper);
-}
-
-void FMovieSceneToolsModule::UnregisterAnimationBakeHelper(IMovieSceneToolsAnimationBakeHelper* InBakeHelper)
-{
-	checkf(BakeHelpers.Contains(InBakeHelper), TEXT("Bake Helper is not registered"));
-	BakeHelpers.Remove(InBakeHelper);
-}
-
 void FMovieSceneToolsModule::RegisterTakeData(IMovieSceneToolsTakeData* InTakeData)
 {
 	checkf(!TakeDatas.Contains(InTakeData), TEXT("Take Data is already registered"));
