@@ -1293,6 +1293,11 @@ void FOpenXRHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHIC
 	{
 		SpectatorScreenController->UpdateSpectatorScreenMode_RenderThread();
 	}
+
+	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+	{
+		OnBeginRendering_RHIThread();
+	});
 }
 
 bool FOpenXRHMD::IsActiveThisFrame(class FViewport* InViewport) const
