@@ -96,14 +96,14 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 						GroupPtr->GroupMap.Add(Frame->Addr, NewGroupPtr);
 
 						FName GroupName = NotAvailableName;
-						const TraceServices::QueryResult Result = Frame->Symbol->GetResult();
+						const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
 						switch (Result)
 						{
-						case TraceServices::QueryResult::Pending:
+						case TraceServices::ESymbolQueryResult::Pending:
 							//GroupName = PendingName;
 							GroupName = FName(*FString::Printf(TEXT("0x%X (...)"), Frame->Addr));
 							break;
-						case TraceServices::QueryResult::OK:
+						case TraceServices::ESymbolQueryResult::OK:
 							GroupName = FName(Frame->Symbol->Name);
 							//GroupName = FName(*FString::Printf(TEXT("0x%X %s"), Frame->Addr, Frame->Symbol->Name));
 							break;

@@ -526,8 +526,8 @@ void FMemAllocTable::AddDefaultColumns()
 							const TraceServices::FStackFrame* Frame = Callstack->Frame(FMath::Min(2u, Callstack->Num() - 1));
 							check(Frame != nullptr);
 
-							const TraceServices::QueryResult Result = Frame->Symbol->GetResult();
-							if (Result == TraceServices::QueryResult::OK)
+							const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
+							if (Result == TraceServices::ESymbolQueryResult::OK)
 							{
 								Value = Frame->Symbol->Name;
 							}

@@ -36,8 +36,8 @@ FText FMemoryAlloc::GetFullCallstack() const
 			const TraceServices::FStackFrame* Frame = Callstack->Frame(Index);
 			check(Frame != nullptr);
 
-			const TraceServices::QueryResult Result = Frame->Symbol->GetResult();
-			if (Result == TraceServices::QueryResult::OK)
+			const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
+			if (Result == TraceServices::ESymbolQueryResult::OK)
 			{
 				Tooltip.Appendf(TEXT("%s\n"), Frame->Symbol->Name);
 			}

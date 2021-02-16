@@ -166,7 +166,7 @@ private:
 		bRunWorkerThread = false; 
 	}
 
-	void UpdateResolvedSymbol(FResolvedSymbol* Symbol, QueryResult Result, const TCHAR* Name, const TCHAR* FileAndLine)
+	void UpdateResolvedSymbol(FResolvedSymbol* Symbol, ESymbolQueryResult Result, const TCHAR* Name, const TCHAR* FileAndLine)
 	{
 		Symbol->Name = Name;
 		Symbol->FileAndLine = FileAndLine;
@@ -187,7 +187,7 @@ private:
 		{
 			DWORD Err = GetLastError();
 			SymbolsFailed++;
-			UpdateResolvedSymbol(Target, QueryResult::NotFound, UNKNOWN_MODULE_TEXT, UNKNOWN_MODULE_TEXT);
+			UpdateResolvedSymbol(Target, ESymbolQueryResult::NotFound, UNKNOWN_MODULE_TEXT, UNKNOWN_MODULE_TEXT);
 			return;
 		}
 
@@ -203,7 +203,7 @@ private:
 		if (!SymGetLineFromAddr(Handle, Address, &dwDisplacement, &Line))
 		{
 			SymbolsFailed++;
-			UpdateResolvedSymbol(Target, QueryResult::OK, SymbolNameStr, UNKNOWN_MODULE_TEXT);
+			UpdateResolvedSymbol(Target, ESymbolQueryResult::OK, SymbolNameStr, UNKNOWN_MODULE_TEXT);
 			return;
 		}
 
@@ -212,7 +212,7 @@ private:
 		const TCHAR* FileAndLineStr = Session.StoreString(FStringView(FileAndLine));
 		
 		SymbolsResolved++;
-		UpdateResolvedSymbol(Target, QueryResult::OK, SymbolNameStr, FileAndLineStr);
+		UpdateResolvedSymbol(Target, ESymbolQueryResult::OK, SymbolNameStr, FileAndLineStr);
 	}
 
 	bool LoadModuleSymbols(uint64 Base, uint64 Size, const TCHAR* Path)

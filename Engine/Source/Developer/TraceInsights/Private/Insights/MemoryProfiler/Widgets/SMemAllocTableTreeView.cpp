@@ -685,7 +685,7 @@ FText SMemAllocTableTreeView::GetSymbolResolutionStatus() const
 	}
 	else
 	{
-		return LOCTEXT("SymbolsResolutionNotPossible", "No symbols resolution possible.");
+		return LOCTEXT("SymbolsResolutionNotPossible", "Symbol resolution was not possible.");
 	}
 }
 

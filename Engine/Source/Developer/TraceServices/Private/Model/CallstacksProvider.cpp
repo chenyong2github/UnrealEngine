@@ -31,7 +31,7 @@ FCallstacksProvider::FCallstacksProvider(IAnalysisSession& InSession)
 	, Callstacks(InSession.GetLinearAllocator(), CallstacksPerPage)
 	, Frames(InSession.GetLinearAllocator(), FramesPerPage)
 {
-	GNeverResolveSymbol.Result.store(QueryResult::NotLoaded);
+	GNeverResolveSymbol.Result.store(ESymbolQueryResult::NotLoaded);
 	GNeverResolveSymbol.Name = nullptr;
 	GNeverResolveSymbol.FileAndLine = nullptr;
 }

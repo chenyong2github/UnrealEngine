@@ -11,7 +11,7 @@ namespace TraceServices {
   * Result of a query. Since symbol resolving can be deferred this signals if a
   * symbol has been resolved, waiting to be resolved or wasn't found at all.
   */
-enum class QueryResult : uint8
+enum class ESymbolQueryResult : uint8
 {
 	Pending,		// Symbol is pending resolution
 	OK,			// Symbol has been correctly resolved
@@ -25,7 +25,7 @@ enum class QueryResult : uint8
 /**
  * Helper method to get a string representation of the query result.
  */
-inline const TCHAR* QueryResultToString(QueryResult Result)
+inline const TCHAR* QueryResultToString(ESymbolQueryResult Result)
 {
 	static const TCHAR* DisplayStrings[] = {
 		TEXT("Pending..."),
@@ -34,7 +34,7 @@ inline const TCHAR* QueryResultToString(QueryResult Result)
 		TEXT("Mismatch"),
 		TEXT("Not found")
 	};
-	static_assert(UE_ARRAY_COUNT(DisplayStrings) == (uint8) QueryResult::StatusNum, "Missing QueryResult");
+	static_assert(UE_ARRAY_COUNT(DisplayStrings) == (uint8) ESymbolQueryResult::StatusNum, "Missing QueryResult");
 	return DisplayStrings[(uint8)Result];
 }
 
@@ -46,11 +46,11 @@ inline const TCHAR* QueryResultToString(QueryResult Result)
   */
 struct FResolvedSymbol
 {
-	std::atomic<QueryResult> Result;
+	std::atomic<ESymbolQueryResult> Result;
 	const TCHAR* Name;
 	const TCHAR* FileAndLine;
 
-	inline QueryResult GetResult() const
+	inline ESymbolQueryResult GetResult() const
 	{
 		return Result.load(std::memory_order_acquire);
 	}
