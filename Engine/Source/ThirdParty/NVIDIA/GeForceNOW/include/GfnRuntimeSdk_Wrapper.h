@@ -181,16 +181,6 @@
 /// C        | @ref GfnRegisterSessionInitCallback
 ///
 /// @copydoc GfnRegisterSessionInitCallback
-/// Language | API
-/// -------- | -------------------------------------
-/// C        | @ref GfnRegisterGameModNotificationCallback
-///
-/// @copydoc GfnRegisterGameModNotificationCallback
-/// Language | API
-/// -------- | -------------------------------------
-/// C        | @ref gfnGetGameModStorageQuota
-///
-/// @copydoc gfnGetGameModStorageQuota
 ///
 /// Language | API
 /// -------- | -------------------------------------
@@ -489,24 +479,6 @@ extern "C"
     /// @retval gfnAPINotFound           - The API was not found in the GFN SDK Library
     GfnRuntimeError GfnFree(const char** data);
 
-    ///
-    /// @par Description
-    /// Calls @ref gfnGetGameModStorageQuota  to get storage quota allocated for Game Mods
-    ///
-    /// @par Environment
-    /// Cloud
-    ///
-    /// @par Usage
-    /// Use during cloud session to retrieve Game Mod storage quota
-    ///
-    /// @param pSizeMB                   - Populated with storage size (in MegaBytes)
-    ///
-    /// @retval gfnSuccess               - On success
-    /// @retval gfnInvalidParameter      - NULL pointer passed in
-    /// @retval gfnCallWrongEnvironment  - If called in a client environment
-    /// @return Otherwise, appropriate error code
-    ///
-    NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi GfnGetGameModStorageQuota(unsigned int* pSizeMB);
 
     ///
     /// @par Description
@@ -772,22 +744,6 @@ extern "C"
     /// @retval gfnCallWrongEnvironment - The on-seat dll detected that it was not on a game seat
     GfnRuntimeError GfnRegisterSessionInitCallback(SessionInitCallbackSig sessionInitCallback, void* userContext);
 
-    ///
-    /// @par Description
-    /// Calls @ref gfnRegisterGameModNotificationCallback to register an application callback with GFN to be
-    /// called when GFN needs to notify Game Mod events
-    ///
-    /// @par Usage
-    /// Register an application function to call when GFN needs the application to save
-    ///
-    /// @param notificationCallback     - Function pointer to application code to call when GFN needs to notify Game Mod events
-    /// @param userContext              - Pointer to user context, which will be passed unmodified to the
-    ///                                   callback specified. Can be NULL.
-    ///
-    /// @retval gfnSuccess              - On success when running in a GFN environment
-    /// @retval gfnDllNotPresent        - GFN SDK Library could not be found.
-    /// @retval gfnAPINotFound          - The API was not found in the GFN SDK Library
-    GfnRuntimeError GfnRegisterGameModNotificationCallback(GameModNotificationCallbackSig notificationCallback, void* userContext);
 
     ///
     /// @par Description
