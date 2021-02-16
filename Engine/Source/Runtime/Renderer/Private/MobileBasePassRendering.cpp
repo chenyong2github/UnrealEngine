@@ -205,15 +205,20 @@ void SetupMobileBasePassUniformParameters(
 	BasePassParameters.AmbientOcclusionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	BasePassParameters.AmbientOcclusionStaticFraction = FMath::Clamp(View.FinalPostProcessSettings.AmbientOcclusionStaticFraction, 0.0f, 1.0f);
 
-	const FIntPoint ViewportOffset = View.PrevViewInfo.ViewRect.Min;
-	const FIntPoint ViewportExtent = View.PrevViewInfo.ViewRect.Size();
-	const FIntPoint BufferSize = SceneContext.SceneDepthZ->GetDesc().Extent;
+	FVector4 PrevScreenPositionScaleBiasValue = FVector4(FVector::ZeroVector);
+	if (SceneContext.SceneDepthZ.IsValid())
+	{
+		const FIntPoint ViewportOffset = View.PrevViewInfo.ViewRect.Min;
+		const FIntPoint ViewportExtent = View.PrevViewInfo.ViewRect.Size();
 
-	const FVector4 PrevScreenPositionScaleBiasValue = FVector4(
-		ViewportExtent.X * 0.5f / BufferSize.X,
-		-ViewportExtent.Y * 0.5f / BufferSize.Y,
-		(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
-		(ViewportExtent.Y * 0.5f + ViewportOffset.Y) / BufferSize.Y);
+		const FIntPoint BufferSize = SceneContext.SceneDepthZ->GetDesc().Extent;
+
+		PrevScreenPositionScaleBiasValue = FVector4(
+			ViewportExtent.X * 0.5f / BufferSize.X,
+			-ViewportExtent.Y * 0.5f / BufferSize.Y,
+			(ViewportExtent.X * 0.5f + ViewportOffset.X) / BufferSize.X,
+			(ViewportExtent.Y * 0.5f + ViewportOffset.Y) / BufferSize.Y);
+	}
 
 	BasePassParameters.PrevScreenPositionScaleBias = PrevScreenPositionScaleBiasValue;
 	bool bRequiresDistanceFieldShadowingPass = IsMobileDistanceFieldShadowingEnabled(View.GetShaderPlatform());
