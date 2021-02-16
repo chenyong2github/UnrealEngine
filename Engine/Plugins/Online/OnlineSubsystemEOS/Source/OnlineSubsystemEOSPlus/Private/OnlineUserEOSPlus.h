@@ -11,9 +11,15 @@
 
 class FOnlineSubsystemEOSPlus;
 
+#ifndef EOS_NETID_BYTE_SIZE
+	#define EOS_NETID_BYTE_SIZE 32
+#endif
+
+#define BASE_NETID_TYPE_SIZE 1
+
 /**
- * Unique net id wrapper for a EOS account ids. The underlying string is a combination
- * of both account ids concatenated. "<EOS_EpicAccountId>|<EOS_ProductAccountId>"
+ * Unique net id wrapper for a EOS plus another account id. The underlying string is a combination
+ * of both account ids concatenated
  */
 class FUniqueNetIdEOSPlus :
 	public FUniqueNetIdString
@@ -45,6 +51,70 @@ private:
 	TSharedPtr<const FUniqueNetId> BaseUniqueNetId;
 	TSharedPtr<const FUniqueNetId> EOSUniqueNetId;
 	TArray<uint8> RawBytes;
+};
+
+class FUniqueNetIdBinary :
+	public FUniqueNetId
+{
+public:
+	virtual ~FUniqueNetIdBinary() = default;
+
+	FUniqueNetIdBinary(const TArray<uint8>& InRawBytes, const FName InType)
+		: RawBytes(InRawBytes)
+		, Type(InType)
+	{
+	}
+
+	FUniqueNetIdBinary(const uint8* InRawBytes, const int32 InSize, const FName InType)
+		: Type(InType)
+	{
+		RawBytes.AddZeroed(InSize);
+		FMemory::Memcpy(RawBytes.GetData(), InRawBytes, InSize);
+	}
+
+	virtual FName GetType() const override
+	{
+		return Type;
+	}
+
+	virtual const uint8* GetBytes() const override
+	{
+		return RawBytes.GetData();
+	}
+
+	virtual int32 GetSize() const override
+	{
+		return RawBytes.Num();
+	}
+
+	virtual bool IsValid() const override
+	{
+		return RawBytes.Num() > 0;
+	}
+
+	virtual FString ToString() const override
+	{
+		return BytesToHex(RawBytes.GetData(), RawBytes.Num());
+	}
+	virtual FString ToDebugString() const override
+	{
+		return ToString();
+	}
+
+	/** Needed for TMap::GetTypeHash() */
+	friend uint32 GetTypeHash(const FUniqueNetIdBinary& A)
+	{
+		uint32 Hash = 0;
+		for (uint8 CurrentByte : A.RawBytes)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(CurrentByte));
+		}
+		return Hash;
+	}
+
+protected:
+	TArray<uint8> RawBytes;
+	FName Type;
 };
 
 template<class AggregateUserType>
