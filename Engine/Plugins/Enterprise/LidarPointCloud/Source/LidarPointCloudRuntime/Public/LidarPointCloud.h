@@ -162,6 +162,7 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 #if WITH_EDITOR
+	virtual void ClearAllCachedCookedPlatformData() override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent & PropertyChangedEvent) override;
 #endif
 	// End UObject Interface.

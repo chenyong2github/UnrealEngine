@@ -68,6 +68,20 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Performance, meta = (ClampMin = "0"))
 	float CachedNodeLifetime;
 
+	/**
+     * Enabling this will automatically release memory used by the asset once it's saved
+     * Helpful when dealing with very large data sets to avoid memory blocking
+     */
+    UPROPERTY(config, EditAnywhere, Category= Performance)
+    bool bReleaseAssetAfterSaving;
+
+    /**
+     * Enabling this will automatically release memory used by the asset once it's cooked
+     * Helpful when dealing with very large data sets to avoid memory blocking
+     */
+    UPROPERTY(config, EditAnywhere, Category= Performance)
+    bool bReleaseAssetAfterCooking;
+
 	/** If enabled, the render data generation will be spread across multiple frames to avoid freezes */
 	UPROPERTY(config, EditAnywhere, Category=Performance)
 	bool bUseRenderDataSmoothing;
