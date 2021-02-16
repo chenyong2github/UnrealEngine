@@ -51,9 +51,13 @@ bool GeForceNOWWrapper::IsRunningMockGFN() const
 {
 #if !UE_BUILD_SHIPPING
 	static bool bIsMockGFN = FParse::Param(FCommandLine::Get(), TEXT("MockGFN"));
+	static bool IsFileMock = IFileManager::Get().FileExists(TEXT("mockgfn.txt"));
+
+	bIsMockGFN = bIsMockGFN || IsFileMock;
 #else
 	static bool bIsMockGFN = false;
 #endif
+
 	return bIsMockGFN;
 }
 
