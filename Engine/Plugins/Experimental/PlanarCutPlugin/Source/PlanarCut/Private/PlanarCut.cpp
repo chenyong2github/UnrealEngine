@@ -1416,6 +1416,7 @@ struct FDynamicMeshCollection
 
 			EnterProgressFrame(Planes.Num() * .2);
 			FMeshSelfUnion GroutUnion(&GroutMesh);
+			GroutUnion.bSimplifyAlongNewEdges = true;
 			GroutUnion.bWeldSharedEdges = false;
 			GroutUnion.Compute();
 

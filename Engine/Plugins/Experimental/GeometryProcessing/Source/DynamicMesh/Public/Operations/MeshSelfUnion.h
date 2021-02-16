@@ -63,12 +63,18 @@ public:
 	//
 	/** Degrees of deviation from coplanar that we will still simplify */
 	double SimplificationAngleTolerance = .1;
+	/**
+	 * If triangle quality (aspect ratio) is worse than this threshold, only simplify in ways that improve quality.  If <= 0, triangle quality is ignored.
+	 *  Note: For aspect ratio we use definition: 4*TriArea / (sqrt(3)*MaxEdgeLen^2), ref: https://people.eecs.berkeley.edu/~jrs/papers/elemj.pdf p.53
+	 *  Equilateral triangles have value 1; Smaller values -> lower quality
+	 */
+	double TryToImproveTriQualityThreshold = .25;
 	/** Prevent simplification from distorting vertex UVs */
 	bool bPreserveVertexUVs = true;
 	/** Prevent simplification from distorting overlay UVs */
 	bool bPreserveOverlayUVs = true;
 	/** When preserving UVs, sets maximum allowed change in UV coordinates from collapsing an edge, measured at the removed vertex */
-	float UVDistortTolerance = .0001;
+	float UVDistortTolerance = FMathf::ZeroTolerance;
 
 
 	//

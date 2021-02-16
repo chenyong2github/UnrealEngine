@@ -570,7 +570,7 @@ void FMeshSelfUnion::SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<i
 					int SourceEID = WhichEdge == 0 ? EID : MatchEID;
 
 					bHasBadEdge = bHasBadEdge || FMeshBoolean::CollapseWouldHurtTriangleQuality(
-						*Mesh, FlatNormals[RemoveVIdx][WhichEdge], RemoveV, RemoveVPos, KeepV, KeepVPos);
+						*Mesh, FlatNormals[RemoveVIdx][WhichEdge], RemoveV, RemoveVPos, KeepV, KeepVPos, TryToImproveTriQualityThreshold);
 
 					bHasBadEdge = bHasBadEdge || FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 						*Mesh, CutBoundaryEdgeSet, DotTolerance,
@@ -587,40 +587,38 @@ void FMeshSelfUnion::SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<i
 				int RemoveV = Edge.Vert[RemoveVIdx];
 				int KeepV = Edge.Vert[KeepVIdx];
 				EMeshResult CollapseResult = Mesh->CollapseEdge(KeepV, RemoveV, 0, CollapseInfo);
-				if (ensure(CollapseResult == EMeshResult::Ok))
+				if (CollapseResult == EMeshResult::Ok)
 				{
 					int OtherRemoveV = Matches[RemoveVIdx];
 					int OtherKeepV = Matches[KeepVIdx];
 					FDynamicMesh3::FEdgeCollapseInfo OtherCollapseInfo;
 					EMeshResult OtherCollapseResult = Mesh->CollapseEdge(OtherKeepV, OtherRemoveV, 0, OtherCollapseInfo);
-					if (!ensure(OtherCollapseResult == EMeshResult::Ok))
+					if (OtherCollapseResult != EMeshResult::Ok)
 					{
 						// if we get here, we've somehow managed to collapse the first edge but failed on the second (matched) edge
 						// which will leave a crack in the result unless we can somehow undo the first collapse, which would require a bunch of extra work
 						// but the only case where I could see this happen is if the second edge is on an isolated triangle, which means there is a hole anyway
 						// or if the mesh topology is somehow invalid
-						break;
+						ensure(OtherCollapseResult == EMeshResult::Failed_CollapseTriangle);
 					}
 					else
 					{
-						NumCollapses++;
-
-						FoundMatches.Remove(RemoveV);
 						FoundMatches.Remove(OtherRemoveV);
-
-						CutBoundaryEdgeSet.Remove(CollapseInfo.CollapsedEdge);
-						CutBoundaryEdgeSet.Remove(CollapseInfo.RemovedEdges[0]);
-						if (CollapseInfo.RemovedEdges[1] != -1)
-						{
-							CutBoundaryEdgeSet.Remove(CollapseInfo.RemovedEdges[1]);
-						}
-
 						CutBoundaryEdgeSet.Remove(OtherCollapseInfo.CollapsedEdge);
 						CutBoundaryEdgeSet.Remove(OtherCollapseInfo.RemovedEdges[0]);
 						if (OtherCollapseInfo.RemovedEdges[1] != -1)
 						{
 							CutBoundaryEdgeSet.Remove(OtherCollapseInfo.RemovedEdges[1]);
 						}
+					}
+
+					NumCollapses++;
+					FoundMatches.Remove(RemoveV);
+					CutBoundaryEdgeSet.Remove(CollapseInfo.CollapsedEdge);
+					CutBoundaryEdgeSet.Remove(CollapseInfo.RemovedEdges[0]);
+					if (CollapseInfo.RemovedEdges[1] != -1)
+					{
+						CutBoundaryEdgeSet.Remove(CollapseInfo.RemovedEdges[1]);
 					}
 				}
 				break; // if we got through to trying to collapse the edge, don't try to collapse from the other vertex.
