@@ -754,10 +754,6 @@ struct FOpenGL3 : public FOpenGLBase
 
 	static FORCEINLINE EShaderPlatform GetShaderPlatform()
 	{
-		ERHIFeatureLevel::Type PreviewFeatureLevel;
-		bool bUsePreviewFeatureLevel = RHIGetPreviewFeatureLevel(PreviewFeatureLevel);
-		check(bUsePreviewFeatureLevel);
-		check(PreviewFeatureLevel == ERHIFeatureLevel::ES3_1);
 		return bAndroidGLESCompatibilityMode ? SP_OPENGL_ES3_1_ANDROID : SP_OPENGL_PCES3_1;
 	}
 

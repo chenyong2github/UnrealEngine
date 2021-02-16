@@ -94,19 +94,8 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 	bool bPreferD3D12 = ShouldPreferD3D12();
 	
-	// command line overrides
+	// OpenGL can only be used for mobile preview.
 	bool bForceOpenGL = FParse::Param(FCommandLine::Get(), TEXT("opengl"));
-	if (bForceOpenGL)
-	{
-		// OpenGL can only be used for mobile preview.
-		ERHIFeatureLevel::Type PreviewFeatureLevel;
-		bool bUsePreviewFeatureLevel = RHIGetPreviewFeatureLevel(PreviewFeatureLevel);
-		if (!bUsePreviewFeatureLevel)
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "OpenGLRemoved", "Warning: OpenGL is no longer supported for desktop platforms. The default RHI will be used."));
-			bForceOpenGL = false;
-		}
-	}
 
 	bool bForceSM5 = FParse::Param(FCommandLine::Get(), TEXT("sm5"));
 	bool bForceSM6 = FParse::Param(FCommandLine::Get(), TEXT("sm6"));
@@ -115,6 +104,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 	bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
 	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || ((bForceSM5 || (bPreferES31 && !bAllowD3D12FeatureLevelES31)) && !bForceVulkan && !bForceOpenGL);
 	bool bForceD3D12 = (FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"))) && (!bPreferES31 || bAllowD3D12FeatureLevelES31);
+
 	DesiredFeatureLevel = ERHIFeatureLevel::Num;
 	
 	if(!(bForceVulkan||bForceOpenGL||bForceD3D11||bForceD3D12))
@@ -218,6 +208,9 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			FPlatformMisc::RequestExit(1);
 			DynamicRHIModule = NULL;
 		}
+
+		// OpenGL can only be used for mobile preview
+		DesiredFeatureLevel = ERHIFeatureLevel::ES3_1;
 
 		LoadedRHIModuleName = OpenGLRHIModuleName;
 	}
