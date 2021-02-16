@@ -124,7 +124,7 @@ void FStatsGridRow_Errors::CreateRow(TSharedPtr<FMaterialStats> StatsManager)
 {
 	// add an "Error" string in the descriptor column
 	TSharedPtr<FGridCell> HeaderCell = MakeShareable(new FGridCell_StaticString(TEXT("Errors"), TEXT("Errors")));
-	HeaderCell->SetColor(FMaterialStatsUtils::OrangeColor);
+	HeaderCell->SetColor(FStyleColors::AccentOrange);
 	HeaderCell->SetContentBold(true);
 	AddCell(FMaterialStatsGrid::DescriptorColumnName, HeaderCell);
 
@@ -138,7 +138,7 @@ void FStatsGridRow_Errors::AddPlatform(TSharedPtr<FMaterialStats> StatsManager, 
 	// add a cell that will query any available errors for this platform
 	const FString CellContent = FMaterialStatsUtils::MaterialQualityToShortString(QualityLevel);
 	TSharedPtr<FGridCell_ShaderValue> Cell = MakeShareable(new FGridCell_ShaderValue(StatsManager, EShaderInfoType::Errors, ERepresentativeShader::Num, QualityLevel, Platform->GetPlatformShaderType()));
-	Cell->SetColor(FMaterialStatsUtils::OrangeColor);
+	Cell->SetColor(FStyleColors::AccentOrange);
 	Cell->SetHorizontalAlignment(HAlign_Fill);
 
 	const FName ColumnName = FMaterialStatsGrid::MakePlatformColumnName(Platform, QualityLevel);
@@ -193,7 +193,7 @@ void FStatsGridRow_Shaders::CreateRow(TSharedPtr<FMaterialStats> StatsManager)
 
 		HeaderCell = MakeShareable(new FGridCell_StaticString(HeaderContent, HeaderContent));
 		HeaderCell->SetContentBold(true);
-		HeaderCell->SetColor(FLinearColor::Gray);
+		HeaderCell->SetColor(FStyleColors::Foreground);
 	}
 	else
 	{
@@ -207,7 +207,7 @@ void FStatsGridRow_Shaders::CreateRow(TSharedPtr<FMaterialStats> StatsManager)
 	TSharedPtr<FGridCell> ShaderNameCell = MakeShareable(new FGridCell_StaticString(ShaderColumnContent, ShaderColumnContent));
 	ShaderNameCell->SetHorizontalAlignment(HAlign_Fill);
 	ShaderNameCell->SetContentBold(true);
-	ShaderNameCell->SetColor(FLinearColor::Gray);
+	ShaderNameCell->SetColor(FStyleColors::Foreground);
 	AddCell(FMaterialStatsGrid::ShaderColumnName, ShaderNameCell);
 
 	FillPlatformCellsHelper(StatsManager);
@@ -262,7 +262,7 @@ void FStatsGridRow_Interpolators::CreateRow(TSharedPtr<FMaterialStats> StatsMana
 {
 	// static string in the descriptor column
 	TSharedPtr<FGridCell> HeaderCell = MakeShareable(new FGridCell_StaticString(TEXT("Interpolators"), TEXT("Interpolators")));
-	HeaderCell->SetColor(FLinearColor::Gray);
+	HeaderCell->SetColor(FStyleColors::Foreground);
 	HeaderCell->SetContentBold(true);
 	AddCell(FMaterialStatsGrid::DescriptorColumnName, HeaderCell);
 
@@ -291,7 +291,7 @@ void FStatsGridRow_NumTextureSamples::CreateRow(TSharedPtr<FMaterialStats> Stats
 {
 	// static string in the descriptor column
 	TSharedPtr<FGridCell> HeaderCell = MakeShareable(new FGridCell_StaticString(TEXT("Texture Lookups (Est.)"), TEXT("Texture Lookups (Est.)")));
-	HeaderCell->SetColor(FLinearColor::Gray);
+	HeaderCell->SetColor(FStyleColors::Foreground);
 	HeaderCell->SetContentBold(true);
 	AddCell(FMaterialStatsGrid::DescriptorColumnName, HeaderCell);
 
@@ -320,7 +320,7 @@ void FStatsGridRow_NumVirtualTextureLookups::CreateRow(TSharedPtr<FMaterialStats
 {
 	// static string in the descriptor column
 	TSharedPtr<FGridCell> HeaderCell = MakeShareable(new FGridCell_StaticString(TEXT("VT Lookups (Est.)"), TEXT("Virtual Texture Lookups (Est.)")));
-	HeaderCell->SetColor(FLinearColor::Gray);
+	HeaderCell->SetColor(FStyleColors::Foreground);
 	HeaderCell->SetContentBold(true);
 	AddCell(FMaterialStatsGrid::DescriptorColumnName, HeaderCell);
 
@@ -444,7 +444,7 @@ FString FMaterialStatsGrid::GetColumnContentLong(const FName ColumnName) const
 	return Ptr != nullptr ? Ptr->ContentLong : TEXT("");
 }
 
-FLinearColor FMaterialStatsGrid::GetColumnColor(const FName ColumnName) const
+FSlateColor FMaterialStatsGrid::GetColumnColor(const FName ColumnName) const
 {
 	auto* Ptr = GridColumnContent.Find(ColumnName);
 
@@ -811,7 +811,7 @@ FName FMaterialStatsGrid::MakePlatformColumnName(const TSharedPtr<FShaderPlatfor
 
 FGridCell::FGridCell()
 {
-	CellColor = FMaterialStatsUtils::DefaultGridTextColor;
+	CellColor = FStyleColors::Foreground;
 }
 
 FString FGridCell_Empty::GetCellContent()

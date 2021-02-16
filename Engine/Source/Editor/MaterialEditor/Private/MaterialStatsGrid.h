@@ -9,13 +9,14 @@
 #include "MaterialStatsCommon.h"
 #include "Containers/StaticArray.h"
 #include "MaterialStats.h"
+#include "Styling/StyleColors.h"
 
 /** class to represent a single cell inside the material stats grid */
 class FGridCell
 {
 protected:
 	/** attributes used at display time to configure widgets */
-	FLinearColor CellColor;
+	FSlateColor CellColor;
 	bool bBoldContent = false;
 
 	EHorizontalAlignment HAlignment = EHorizontalAlignment::HAlign_Center;
@@ -30,8 +31,8 @@ public:
 	/** this can be used for tool tips or other detailed descriptions */
 	virtual FString GetCellContentLong() = 0;
 
-	FORCEINLINE FLinearColor GetColor() const;
-	FORCEINLINE void SetColor(const FLinearColor& Color);
+	FORCEINLINE FSlateColor GetColor() const;
+	FORCEINLINE void SetColor(const FSlateColor& Color);
 
 	FORCEINLINE bool IsContentBold() const;
 	FORCEINLINE void SetContentBold(bool bValue);
@@ -254,7 +255,7 @@ class FMaterialStatsGrid
 	{
 		FString Content = TEXT("");
 		FString ContentLong = TEXT("");
-		FLinearColor Color = FLinearColor::Gray;
+		FSlateColor Color = FStyleColors::Foreground;
 	};
 
 	/** collection of column information sorted by their names */
@@ -328,7 +329,7 @@ public:
 
 	FString GetColumnContent(const FName ColumnName) const;
 	FString GetColumnContentLong(const FName ColumnName) const;
-	FLinearColor GetColumnColor(const FName ColumnName) const;
+	FSlateColor GetColumnColor(const FName ColumnName) const;
 
 	/** helper function that will assemble a column name from the given arguments */
 	static FName MakePlatformColumnName(const TSharedPtr<FShaderPlatformSettings>& Platform, const EMaterialQualityLevel::Type Quality);
@@ -362,12 +363,12 @@ FORCEINLINE TArray<FName> FMaterialStatsGrid::GetVisibleColumnNames() const
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-FORCEINLINE FLinearColor FGridCell::GetColor() const
+FORCEINLINE FSlateColor FGridCell::GetColor() const
 {
 	return CellColor;
 }
 
-FORCEINLINE void FGridCell::SetColor(const FLinearColor& Color)
+FORCEINLINE void FGridCell::SetColor(const FSlateColor& Color)
 {
 	CellColor = Color;
 }

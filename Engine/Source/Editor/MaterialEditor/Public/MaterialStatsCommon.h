@@ -77,12 +77,6 @@ public:
 		{}
 	};
 
-	static const FLinearColor BlueColor;
-	static const FLinearColor YellowColor;
-	static const FLinearColor GreenColor;
-	static const FLinearColor OrangeColor;
-	static const FLinearColor DefaultGridTextColor;
-
 public:
 	/** call this to create an instance to FMaterialStats */
 	static TSharedPtr<class FMaterialStats> CreateMaterialStats(class IMaterialEditor* MaterialEditor);
@@ -106,8 +100,8 @@ public:
 
 	static FString RepresentativeShaderTypeToString(const ERepresentativeShader ShaderType);
 
-	static FLinearColor QualitySettingColor(const EMaterialQualityLevel::Type QualityType);
-	static FLinearColor PlatformTypeColor(EPlatformCategoryType PlatformType);
+	static FSlateColor QualitySettingColor(const EMaterialQualityLevel::Type QualityType);
+	static FSlateColor PlatformTypeColor(EPlatformCategoryType PlatformType);
 
 	MATERIALEDITOR_API static bool IsPlatformOfflineCompilerAvailable(const EShaderPlatform ShaderPlatform);
 	MATERIALEDITOR_API static FString GetPlatformOfflineCompilerPath(const EShaderPlatform ShaderPlatform);

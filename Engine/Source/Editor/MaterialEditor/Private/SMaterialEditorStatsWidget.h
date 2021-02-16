@@ -41,6 +41,7 @@ public:
 
 private:
 	void RebuildColumns();
+	uint32 CountSubPlatforms(EPlatformCategoryType Category) const;
 	void AddColumn(const FName ColumnName);
 	void InsertColumnAfter(const FName ColumnName, const FName PreviousColumn);
 	void RemoveColumn(const FName ColumnName);

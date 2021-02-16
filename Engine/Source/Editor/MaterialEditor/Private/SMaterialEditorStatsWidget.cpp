@@ -14,6 +14,7 @@
 #include "EditorStyleSet.h"
 #include "MaterialStatsGrid.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditorStatsWidget"
 
@@ -42,7 +43,7 @@ public:
 
 		SMultiColumnTableRow<TSharedPtr<int32>>::Construct(
 			FSuperRowType::FArguments()
-			.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
+			.Style(FAppStyle::Get(), "TableView.Row"),
 			InOwnerTableView
 		);
 	}
@@ -88,7 +89,6 @@ TSharedRef<SWidget> SMaterialStatsViewRow::GenerateWidgetForColumn(const FName& 
 		[
 			SNew(STextBlock)
 			.TextStyle(FEditorStyle::Get(), UsedFontStyle)
-			.ColorAndOpacity(this, &SMaterialStatsViewRow::GetColorForCell, ColumnName)
 			.Text(this, &SMaterialStatsViewRow::GetTextForCell, ColumnName, false)
 			.ToolTipText(this, &SMaterialStatsViewRow::GetTextForCell, ColumnName, true)
 			.AutoWrapText(true)
@@ -117,19 +117,7 @@ FText SMaterialStatsViewRow::GetTextForCell(const FName Name, const bool bToolTi
 
 FSlateColor SMaterialStatsViewRow::GetColorForCell(const FName Name) const
 {
-	FSlateColor Color(FColorList::White);
-
-	auto StatsPtr = MaterialStatsWPtr.Pin();
-	if (StatsPtr.IsValid() && PtrRowID.IsValid())
-	{
-		const int32 RowID = *PtrRowID;
-
-		const auto Cell = StatsPtr->GetStatsGrid()->GetCell(RowID, Name);
-
-		return Cell->GetColor();
-	}
-
-	return Color;
+	return FStyleColors::Foreground;
 }
 
 EHorizontalAlignment SMaterialStatsViewRow::GetHAlignForCell(const FName Name) const
@@ -209,7 +197,7 @@ float SMaterialEditorStatsWidget::GetColumnSize(const FName ColumnName) const
 
 SHeaderRow::FColumn::FArguments SMaterialEditorStatsWidget::CreateColumnArgs(const FName ColumnName)
 {
-	FLinearColor Color = FLinearColor::Gray;
+	FSlateColor Color = FStyleColors::AccentGreen;
 	FString Content;
 	FString ContentLong;
 	auto StatsPtr = MaterialStatsWPtr.Pin();
@@ -227,6 +215,7 @@ SHeaderRow::FColumn::FArguments SMaterialEditorStatsWidget::CreateColumnArgs(con
 		.HeaderContent()
 		[
 			SNew(STextBlock)
+			.Margin(4.0f)
 			.ColorAndOpacity(Color)
 			.Text(FText::FromString(Content))
 			.ToolTipText(FText::FromString(ContentLong))
@@ -289,6 +278,40 @@ void SMaterialEditorStatsWidget::RebuildColumns()
 			}
 		}
 	}
+}
+
+uint32 SMaterialEditorStatsWidget::CountSubPlatforms(EPlatformCategoryType Category) const
+{
+	uint32 PlatformCount = 0;
+	const auto StatsPtr = MaterialStatsWPtr.Pin();
+
+	if (!StatsPtr.IsValid())
+	{
+		return 0;
+	}
+
+	auto& PlatformsDB = StatsPtr->GetPlatformsTypeDB();
+	auto* ArrPlaformsPtr = PlatformsDB.Find(Category);
+	if (ArrPlaformsPtr == nullptr)
+	{
+		return 0;
+	}
+
+	auto& ArrPlatforms = *ArrPlaformsPtr;
+
+	for (int32 i = 0; i < ArrPlatforms.Num(); ++i)
+	{
+		auto PlatformPtr = ArrPlatforms[i];
+		if (!PlatformPtr.IsValid() || !PlatformPtr->IsStatsGridPresenceAllowed())
+		{
+			continue;
+		}
+
+		PlatformCount++;
+	}
+
+	return PlatformCount;
+
 }
 
 void SMaterialEditorStatsWidget::CreatePlatformMenus(FMenuBuilder& Builder, EPlatformCategoryType Category)
@@ -360,15 +383,12 @@ void SMaterialEditorStatsWidget::CreatePlatformMenus(FMenuBuilder& Builder, EPla
 			WidgetPtr->RequestRefresh();
 		};
 
-//		const FLinearColor PlatformColor = FMaterialStatsUtils::PlatformTypeColor(PlatformPtr->GetCategoryType());
 		auto PlatformWidget = SNew(SCheckBox)			
 			.OnCheckStateChanged_Lambda(Lamda_PlatformFlipState)
 			.IsChecked_Lambda(Lamda_PlatformCheckState)
 			.Content()
 			[
 				SNew(STextBlock)
-//				.ColorAndOpacity(PlatformColor)
-				.TextStyle(FEditorStyle::Get(), "RichTextBlock.Bold")
 				.Text(FText::FromName(PlatformName))
 				.Margin(FMargin(2.0f, 2.0f, 4.0f, 2.0f))
 			];
@@ -383,14 +403,13 @@ void SMaterialEditorStatsWidget::CreatePlatformCategoryMenus(FMenuBuilder& Build
 	{
 		const EPlatformCategoryType PlatformType = static_cast<EPlatformCategoryType>(i);
 
-//		const FLinearColor PlatformColor = FMaterialStatsUtils::PlatformTypeColor(PlatformType);
+		if (CountSubPlatforms(PlatformType) > 0)
+		{
+			auto PlatformTypeWidget = SNew(STextBlock)
+				.Text(FText::FromString(FMaterialStatsUtils::GetPlatformTypeName(PlatformType)));
 
-		auto PlatformTypeWidget = SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "RichTextBlock.Bold")
-			.Text(FText::FromString(FMaterialStatsUtils::GetPlatformTypeName(PlatformType)));
-//			.ColorAndOpacity(PlatformColor);
-
-		Builder.AddSubMenu(PlatformTypeWidget, FNewMenuDelegate::CreateSP(this, &SMaterialEditorStatsWidget::CreatePlatformMenus, PlatformType));
+			Builder.AddSubMenu(PlatformTypeWidget, FNewMenuDelegate::CreateSP(this, &SMaterialEditorStatsWidget::CreatePlatformMenus, PlatformType));
+		}
 	}
 }
 
@@ -463,7 +482,6 @@ void SMaterialEditorStatsWidget::CreateQualityMenus(FMenuBuilder& Builder)
 			return ECheckBoxState::Unchecked;
 		};
 
-//		const FLinearColor QualityColor = FMaterialStatsUtils::QualitySettingColor(QualityLevel);
 		const FText QualitySettingName = FText::FromString(FMaterialStatsUtils::MaterialQualityToString(QualityLevel));
 
 		auto QualityWidget = SNew(SCheckBox)
@@ -472,8 +490,6 @@ void SMaterialEditorStatsWidget::CreateQualityMenus(FMenuBuilder& Builder)
 			.Content()
 			[
 				SNew(STextBlock)
-//				.ColorAndOpacity(QualityColor)
-				.TextStyle(FEditorStyle::Get(), "RichTextBlock.Bold")
 				.Text(QualitySettingName)
 			];
 
@@ -483,11 +499,7 @@ void SMaterialEditorStatsWidget::CreateQualityMenus(FMenuBuilder& Builder)
 
 void SMaterialEditorStatsWidget::CreateGlobalQualityMenu(class FMenuBuilder& Builder)
 {
-//	FColor GreenShade(119, 184, 42);
-
 	auto GlobalQualityWidget = SNew(STextBlock)
-//		.ColorAndOpacity(FLinearColor(GreenShade))
-		.TextStyle(FEditorStyle::Get(), "RichTextBlock.Bold")
 		.Text(LOCTEXT("GlobalQualitySettings", "Global Quality Settings"));
 
 	Builder.AddSubMenu(GlobalQualityWidget, FNewMenuDelegate::CreateSP(this, &SMaterialEditorStatsWidget::CreateQualityMenus));
@@ -536,7 +548,7 @@ void SMaterialEditorStatsWidget::AddWarningMessage(const FString& Message)
 				[
 					SNew(STextBlock)
 					.TextStyle(FEditorStyle::Get(), TEXT("RichTextBlock.Bold"))
-					.ColorAndOpacity(FMaterialStatsUtils::YellowColor)
+					.ColorAndOpacity(FStyleColors::Warning)
 					.Text(FText::FromString(Message))
 					.ToolTipText(FText::FromString(Message))
 				]
@@ -580,41 +592,43 @@ void SMaterialEditorStatsWidget::Construct(const FArguments& InArgs)
 	[
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot() // this will contain the tool bar
+		.Padding(0.0f)
 		.AutoHeight()
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("ToolPanel.GroupBorder")))
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.FillWidth(1.0)
 			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
+				SNullWidget::NullWidget
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SComboButton)
+				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.ForegroundColor(FSlateColor::UseStyle())
+				.ContentPadding(0)
+				.OnGetMenuContent(this, &SMaterialEditorStatsWidget::GetSettingsButtonContent)
+				.HasDownArrow(true)
+				.ButtonContent()
 				[
-					SNew(SComboButton)
-					.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-					.ForegroundColor(FLinearColor::White)
-					.ContentPadding(0)
-					.OnGetMenuContent(this, &SMaterialEditorStatsWidget::GetSettingsButtonContent)
-					.ButtonContent()
+					SNew(SHorizontalBox)
+					// Icon
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
 					[
-						SNew(SHorizontalBox)
-						// Icon
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						[
-							SNew(SImage)
-							.Image(FEditorStyle::GetBrush("LevelEditor.Tabs.StatsViewer"))
-						]
-						// Text
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(0, 0, 2, 0)
-						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-							.Text(LOCTEXT("SettingsButton", "Settings"))
-						]
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("LevelEditor.GameSettings"))
+					]
+					// Text
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					.Padding(2, 0, 2, 0)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("SettingsButton", "Settings"))
 					]
 				]
 			]
@@ -623,7 +637,9 @@ void SMaterialEditorStatsWidget::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+			.Padding(0.0f)
+			.HAlign(HAlign_Fill)
+			.BorderImage(FAppStyle::Get().GetBrush(TEXT("Brushes.Recessed")))
 			[
 				MessageArea.ToSharedRef()
 			]
@@ -631,7 +647,8 @@ void SMaterialEditorStatsWidget::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot() // this will contain the stats grid
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush(TEXT("Graph.TitleBackground")))
+			.BorderImage(FAppStyle::Get().GetBrush(TEXT("Brushes.Recessed")))
+			.Padding(0.0f)
 			.HAlign(HAlign_Fill)
 			[
 				SNew(SHorizontalBox)
@@ -652,7 +669,6 @@ void SMaterialEditorStatsWidget::Construct(const FArguments& InArgs)
 							+ SHorizontalBox::Slot()
 							.HAlign(HAlign_Fill)
 							.FillWidth(1.f)
-							.Padding(5, 0)
 							[
 								SNew(SScrollBox)
 								.Orientation(Orient_Horizontal)

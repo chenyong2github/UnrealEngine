@@ -8,6 +8,7 @@
 #include "MaterialEditorSettings.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "ShaderCompilerCore.h"
+#include "Styling/StyleColors.h"
 
 /***********************************************************************************************************************/
 /*begin FMaterialResourceStats functions*/
@@ -23,11 +24,6 @@ void FMaterialResourceStats::SetupExtaCompilationSettings(const EShaderPlatform 
 
 /***********************************************************************************************************************/
 /*begin FMaterialStatsUtils */
-const FLinearColor FMaterialStatsUtils::BlueColor(0.1851f, 1.0f, 0.940258f);
-const FLinearColor FMaterialStatsUtils::YellowColor(1.0f, 0.934216f, 0.199542f);
-const FLinearColor FMaterialStatsUtils::GreenColor(0.540805f, 1.0f, 0.321716f);
-const FLinearColor FMaterialStatsUtils::OrangeColor(1.0f, 0.316738f, 0.095488f);
-const FLinearColor FMaterialStatsUtils::DefaultGridTextColor(0.244819f, 0.301351f, 0.390625f);
 
 TSharedPtr<FMaterialStats> FMaterialStatsUtils::CreateMaterialStats(class IMaterialEditor* MaterialEditor)
 {
@@ -288,23 +284,23 @@ FString FMaterialStatsUtils::RepresentativeShaderTypeToString(const ERepresentat
 	}
 }
 
-FLinearColor FMaterialStatsUtils::PlatformTypeColor(EPlatformCategoryType PlatformType)
+FSlateColor FMaterialStatsUtils::PlatformTypeColor(EPlatformCategoryType PlatformType)
 {
-	FLinearColor Color(FLinearColor::Blue);
+	FSlateColor Color(FStyleColors::Foreground);
 
 	switch (PlatformType)
 	{
 		case EPlatformCategoryType::Desktop:
-			Color = BlueColor;
+			Color = FStyleColors::AccentBlue;
 		break;
 		case EPlatformCategoryType::Android:
-			Color = GreenColor;
+			Color = FStyleColors::AccentGreen;
 		break;
 		case EPlatformCategoryType::IOS:
-			Color = FLinearColor::Gray;
+			Color = FStyleColors::AccentYellow;
 		break;
 		case EPlatformCategoryType::Console:
-			Color = FLinearColor::Red;
+			Color = FStyleColors::AccentPurple;
 		break;
 
 		default:
@@ -315,28 +311,28 @@ FLinearColor FMaterialStatsUtils::PlatformTypeColor(EPlatformCategoryType Platfo
 	return Color;
 }
 
-FLinearColor FMaterialStatsUtils::QualitySettingColor(const EMaterialQualityLevel::Type QualityType)
+FSlateColor FMaterialStatsUtils::QualitySettingColor(const EMaterialQualityLevel::Type QualityType)
 {
 	switch (QualityType)
 	{
 		case EMaterialQualityLevel::Low:
-			return GreenColor;
+			return FStyleColors::AccentGreen;
 		break;
 		case EMaterialQualityLevel::High:
-			return OrangeColor;
+			return FStyleColors::AccentOrange;
 		break;
 		case EMaterialQualityLevel::Medium:
-			return YellowColor;
+			return FStyleColors::Warning;
 		break;
 		case EMaterialQualityLevel::Epic:
-			return FLinearColor::Red;
+			return FStyleColors::Error;
 		break;
 		default:
-			return FLinearColor::Black;
+			return FStyleColors::Foreground;
 		break;
 	}
 
-	return FLinearColor::Black;
+	return  FStyleColors::Foreground;
 }
 
 void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName, TArray<FRepresentativeShaderInfo>>& ShaderTypeNamesAndDescriptions, const FMaterial* TargetMaterial)
