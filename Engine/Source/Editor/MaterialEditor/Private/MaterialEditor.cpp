@@ -294,7 +294,7 @@ void FMaterialEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>& In
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(FMaterialEditorTabs::ParameterDefaultsTabId, FOnSpawnTab::CreateSP(this, &FMaterialEditor::SpawnTab_ParameterDefaults))
-		.SetDisplayName(LOCTEXT("ParameterDefaultsTab", "Parameter Defaults"))
+		.SetDisplayName(LOCTEXT("ParametersTab", "Parameters"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
@@ -1747,91 +1747,25 @@ void FMaterialEditor::RegisterToolBar()
 void FMaterialEditor::AddInheritanceMenuEntry(FToolMenuSection& Section, const FAssetData& AssetData, bool bIsFunctionPreviewMaterial)
 {
 	FExecuteAction OpenAction;
-	FExecuteAction FindInContentBrowserAction;
 	if (bIsFunctionPreviewMaterial)
 	{
 		OpenAction.BindStatic(&FMaterialEditorUtilities::OnOpenFunction, AssetData);
-		FindInContentBrowserAction.BindStatic(&FMaterialEditorUtilities::OnShowFunctionInContentBrowser, AssetData);
 	}
 	else
 	{
 		OpenAction.BindStatic(&FMaterialEditorUtilities::OnOpenMaterial, AssetData);
-		FindInContentBrowserAction.BindStatic(&FMaterialEditorUtilities::OnShowMaterialInContentBrowser, AssetData);
 	}
 
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("ParentName"), FText::FromName(AssetData.AssetName));
 	FText Label = FText::Format(LOCTEXT("InstanceParentName", "{ParentName}"), Args);
 
-	FSlateIcon OpenIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor");
-	FSlateIcon FindInContentBrowserIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser");
-
-	const float MenuIconSize = FCoreStyle::Get().GetFloat("Menu.MenuIconSize", nullptr, 16.f);
-
-	TSharedRef<SWidget> EntryWidget =
-		SNew(SHorizontalBox)
-		.ToolTipText(LOCTEXT("OpenInEditor", "Open In Editor"))
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(FMargin(2, 0, 2, 0))
-		[
-			SNew( SBox )
-			.WidthOverride(MenuIconSize + 2 )
-			.HeightOverride(MenuIconSize)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SNew( SBox )
-				.WidthOverride(MenuIconSize)
-				.HeightOverride(MenuIconSize)
-				[
-					SNew(SImage)
-					.Image(OpenIcon.GetIcon())
-				]
-			]
-		]
-
-		+ SHorizontalBox::Slot()
-		.FillWidth( 1.0f )
-		.Padding(FMargin(2, 0, 6, 0))
-		.VAlign( VAlign_Center )
-		[
-			SNew(STextBlock)
-			.Text(Label)
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign( VAlign_Center )
-		.HAlign( HAlign_Right )
-		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ToolTipText(LOCTEXT("FindInContentBrowser", "Find In Content Browser"))
-			.OnClicked_Lambda([FindInContentBrowserAction]() { FindInContentBrowserAction.ExecuteIfBound(); return FReply::Handled(); })
-			[
-				SNew( SBox )
-				.WidthOverride(MenuIconSize + 2 )
-				.HeightOverride(MenuIconSize)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				[
-					SNew( SBox )
-					.WidthOverride(MenuIconSize)
-					.HeightOverride(MenuIconSize)
-					[
-						SNew(SImage)
-						.Image(FindInContentBrowserIcon.GetIcon())
-					]
-				]
-			]
-		];
-
 	Section.AddEntry(FToolMenuEntry::InitMenuEntry(
 		NAME_None,
-		FUIAction(OpenAction),
-		EntryWidget
+		Label,
+		LOCTEXT("OpenInEditor", "Open In Editor"),
+		FSlateIcon(),
+		FUIAction(OpenAction)
 	));
 }
 
@@ -4727,7 +4661,7 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_ParameterDefaults(const FSpawnTab
 {
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
-		.Label(LOCTEXT("ParameterDefaults", "Parameter Defaults"))
+		.Label(LOCTEXT("Parameters", "Parameters"))
 		[
 			SNew(SBox)
 			[

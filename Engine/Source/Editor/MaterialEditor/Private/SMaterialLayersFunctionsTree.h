@@ -45,6 +45,7 @@ private:
 	FString GetCurvePath(class UDEditorScalarParameterValue* Parameter) const;
 	const FSlateBrush* GetBorderImage() const;
 
+	FSlateColor GetOuterBackgroundColor(TSharedPtr<FSortedParamData> InParamData) const;
 public:
 
 	void RefreshOnRowChange(const FAssetData& AssetData, SMaterialLayersFunctionsInstanceTree* InTree);
@@ -220,6 +221,7 @@ private:
 	FString GetCurvePath(class UDEditorScalarParameterValue* Parameter) const;
 	const FSlateBrush* GetBorderImage() const;
 
+	FSlateColor GetOuterBackgroundColor(TSharedPtr<FSortedParamData> InParamData) const;
 public:
 
 	void RefreshOnRowChange(const FAssetData& AssetData, SMaterialLayersFunctionsMaterialTree* InTree);

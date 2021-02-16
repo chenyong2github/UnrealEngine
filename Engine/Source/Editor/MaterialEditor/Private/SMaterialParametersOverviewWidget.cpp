@@ -41,6 +41,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "MaterialEditor/DEditorRuntimeVirtualTextureParameterValue.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
+#include "Styling/StyleColors.h"
 
 
 
@@ -54,14 +55,17 @@ FString SMaterialParametersOverviewTreeItem::GetCurvePath(UDEditorScalarParamete
 
 const FSlateBrush* SMaterialParametersOverviewTreeItem::GetBorderImage() const
 {
-	if (IsHovered())
+	return FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle");
+}
+
+FSlateColor SMaterialParametersOverviewTreeItem::GetOuterBackgroundColor(TSharedPtr<FSortedParamData> InParamData) const
+{
+	if (IsHovered() || InParamData->StackDataType == EStackDataType::Group)
 	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Hovered");
+		return FAppStyle::Get().GetSlateColor("Colors.Header");
 	}
-	else
-	{
-		return FEditorStyle::GetBrush("DetailsView.CategoryMiddle");
-	}
+
+	return FAppStyle::Get().GetSlateColor("Colors.Panel");
 }
 
 void SMaterialParametersOverviewTreeItem::RefreshOnRowChange(const FAssetData& AssetData, TSharedPtr<SMaterialParametersOverviewTree> InTree)
@@ -88,8 +92,10 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 	{
 		NameOverride = FText::FromName(StackParameterData->Group.GroupName);
 		LeftSideWidget = SNew(STextBlock)
+			.TransformPolicy(ETextTransformPolicy::ToUpper)
 			.Text(NameOverride)
-			.TextStyle(FEditorStyle::Get(), "TinyText");
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.BoldFont"))
+			.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle");
 	}
 // END GROUP
 
@@ -239,21 +245,21 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 							[
 								SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.Padding(20.0, 2.0, 4.0, 2.0)
-							[
-								SNew(STextBlock)
-								.Text(FText::FromName(Red))
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
-							]
-						+ SHorizontalBox::Slot()
-							.HAlign(HAlign_Left)
-							.Padding(4.0, 2.0)
-							[
-								SNew(STextBlock)
-								.Text(TextureParam->ChannelNames.R)
-							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-							]
+								.AutoWidth()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Red))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParam->ChannelNames.R)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
 							];
 					}
 					if (!TextureParam->ChannelNames.G.IsEmpty())
@@ -468,43 +474,50 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.Padding(0.0f)
-				.BorderImage(this, &SMaterialParametersOverviewTreeItem::GetBorderImage)
+				.BorderImage(FAppStyle::Get().GetBrush("DetailsView.GridLine"))
+				.Padding(FMargin(0, 0, 0, 1))
 				[
-					SNew(SSplitter)
-					.Style(FEditorStyle::Get(), "DetailsView.Splitter")
-					.PhysicalSplitterHandleSize(1.0f)
-					.HitDetectionSplitterHandleSize(5.0f)
-					+ SSplitter::Slot()
-					.Value(ColumnSizeData.NameColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnNameColumnResized)
-					.Value(0.25f)
+					SNew(SBorder)
+					.Padding(3.0f)
+					.BorderImage(this, &SMaterialParametersOverviewTreeItem::GetBorderImage)
+					.BorderBackgroundColor(this, &SMaterialParametersOverviewTreeItem::GetOuterBackgroundColor, StackParameterData)
 					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(3.0f))
+						SNew(SSplitter)
+						.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+						.PhysicalSplitterHandleSize(1.0f)
+						.HitDetectionSplitterHandleSize(5.0f)
+						+ SSplitter::Slot()
+						.Value(ColumnSizeData.NameColumnWidth)
+						.OnSlotResized(ColumnSizeData.OnNameColumnResized)
+						.Value(0.25f)
 						[
-							SNew(SExpanderArrow, SharedThis(this))
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(FMargin(3.0f))
+							[
+								SNew(SExpanderArrow, SharedThis(this))
+							]
+							+ SHorizontalBox::Slot()
+							.Padding(FMargin(2.0f))
+							.VAlign(VAlign_Center)
+							[
+								LeftSideWidget
+							]
 						]
-						+ SHorizontalBox::Slot()
-						.Padding(FMargin(2.0f))
-						.VAlign(VAlign_Center)
+						+ SSplitter::Slot()
+						.Value(ColumnSizeData.ValueColumnWidth)
+						.OnSlotResized(ColumnSizeData.OnValueColumnResized) 
 						[
-							LeftSideWidget
-						]
-					]
-					+ SSplitter::Slot()
-					.Value(ColumnSizeData.ValueColumnWidth)
-					.OnSlotResized(ColumnSizeData.OnValueColumnResized) 
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.MaxWidth(350.0f - ValuePadding)
-						.Padding(FMargin(5.0f, 2.0f, ValuePadding, 2.0f))
-						[
-							RightSideWidget
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.Padding(FMargin(5.0f, 2.0f, 5.0, 2.0f))
+							.HAlign(HAlign_Left)
+							.VAlign(VAlign_Center)
+							[
+								RightSideWidget
+							]
 						]
 					]
 				]
@@ -805,7 +818,7 @@ void SMaterialParametersOverviewTree::ShowSubParameters()
 
 const FSlateBrush* SMaterialParametersOverviewPanel::GetBackgroundImage() const
 {
-	return FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered");
+	return FEditorStyle::GetBrush("DetailsView.CategoryTop");
 }
 
 int32 SMaterialParametersOverviewPanel::GetPanelIndex() const
@@ -834,63 +847,37 @@ void SMaterialParametersOverviewPanel::Refresh()
 		[
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
+			.Padding(0.0f)
 			[
-				SNew(SBorder)
-				.BorderImage(this, &SMaterialParametersOverviewPanel::GetBackgroundImage)
-				.Padding(FMargin(4.0f))
+				
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SAssignNew(HeaderBox, SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.Padding(FMargin(3.0f, 1.0f))
-						.HAlign(HAlign_Left)
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("ParameterDefaults", "Parameter Defaults"))
-							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-							.ShadowOffset(FVector2D(1.0f, 1.0f))
-						]
-					]
-					+ SVerticalBox::Slot()
-					.Padding(FMargin(3.0f, 2.0f, 3.0f, 3.0f))
-					[
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
-						[
-							SNew(SHorizontalBox)
-							+ SHorizontalBox::Slot()
-							.HAlign(HAlign_Fill)
-							[
-								SNew(SWidgetSwitcher)
-								.WidgetIndex(this, &SMaterialParametersOverviewPanel::GetPanelIndex)
-								+ SWidgetSwitcher::Slot()
-								[
-									SNew(STextBlock)
-									.Text(LOCTEXT("AddParams", "Add parameters to see them here."))
-								]
-								+ SWidgetSwitcher::Slot()
-								[
-									NestedTree.ToSharedRef()
-								]
-							]
-							+ SHorizontalBox::Slot()
-							.HAlign(HAlign_Right)
-							.AutoWidth()
-							[
-								SNew(SBox)
-								.WidthOverride(16.0f)
-								[
-									ExternalScrollbar.ToSharedRef()
-								]
-							]
-						]
-					]
+					SAssignNew(HeaderBox, SHorizontalBox)
 				]
+				+ SVerticalBox::Slot()
+				.Padding(0.0f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Fill)
+					[
+						NestedTree.ToSharedRef()
+					]
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Right)
+					.AutoWidth()
+					[
+						SNew(SBox)
+						.WidthOverride(16.0f)
+						[
+							ExternalScrollbar.ToSharedRef()
+						]
+					]
+					
+				]
+				
 			]
 		];
 
@@ -907,29 +894,10 @@ void SMaterialParametersOverviewPanel::Refresh()
 				.Padding(2.0f)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.DarkGrey")
+					.Text(LOCTEXT("SaveChild", "Save Child"))
 					.HAlign(HAlign_Center)
 					.OnClicked(OnChildButtonClicked)
 					.ToolTipText(LOCTEXT("SaveToChildInstance", "Save To Child Instance"))
-					.Content()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-							.Text(FText::FromString(FString(TEXT("\xf0c7 \xf149"))) /*fa-filter*/)
-						]
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-							.Text(FText::FromString(FString(TEXT(" Save Child"))) /*fa-filter*/)
-						]
-					]
 				];
 		}
 	}
@@ -937,9 +905,9 @@ void SMaterialParametersOverviewPanel::Refresh()
 	{
 		this->ChildSlot
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("MaterialInstanceEditor.StackBody"))
-				.Padding(FMargin(4.0f))
+				SNew(SBox)
+				.Padding(10.0f)
+				.HAlign(HAlign_Center)
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("ConnectMaterialParametersToFillList", "Connect a parameter to see it here."))

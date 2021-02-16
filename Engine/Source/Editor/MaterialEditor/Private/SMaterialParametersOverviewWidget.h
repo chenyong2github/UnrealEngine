@@ -48,6 +48,7 @@ private:
 
 	const FSlateBrush* GetBorderImage() const;
 
+	FSlateColor GetOuterBackgroundColor(TSharedPtr<FSortedParamData> InParamData) const;
 private:
 
 	/** The node info to build the tree view row from. */
