@@ -128,7 +128,7 @@ struct FCsvLocalPlayer
 
 	uint32 CategoryIndex;
 	uint32 LastFrame;
-	double PrevTime;
+	float PrevTime;
 	FVector PrevViewOrigin;
 };
 static TMap<uint32, FCsvLocalPlayer> GCsvLocalPlayers;
@@ -161,6 +161,11 @@ void UGameViewportClient::EnableCsvPlayerStats(int32 LocalPlayerCount)
 void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap)
 {
 #if CSV_PROFILER
+	UWorld* MyWorld = GetWorld();
+	if (!ensure(World))
+	{
+		return;
+	}
 
 	for (TMap<ULocalPlayer*, FSceneView*>::TConstIterator It(PlayerViewMap); It; ++It)
 	{
@@ -180,8 +185,8 @@ void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneV
 
 			FVector ViewOrigin = SceneView->ViewMatrices.GetViewOrigin();
 			FVector Diff = ViewOrigin - CsvData.PrevViewOrigin;
-			double CurrentTime = FPlatformTime::Seconds();
-			double DeltaT = CurrentTime - CsvData.PrevTime;
+			float CurrentTime = MyWorld->GetRealTimeSeconds();
+			float DeltaT = CurrentTime - CsvData.PrevTime;
 			FVector Velocity = Diff / float(DeltaT);
 			float CameraSpeed = Velocity.Size();
 			float CameraSpeed2D = Velocity.Size2D();
