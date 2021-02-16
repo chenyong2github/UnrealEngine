@@ -22,9 +22,7 @@ class FCollisionConstraintBase;
 class FImplicitObject;
 class FPBDCollisionConstraints;
 class FRigidBodyPointContactConstraint;
-
-template <typename T, int d>
-class TPBDRigidsSOAs;
+class FPBDRigidsSOAs;
 
 using FRigidBodyContactConstraintsPostComputeCallback = TFunction<void()>;
 using FRigidBodyContactConstraintsPostApplyCallback = TFunction<void(const FReal Dt, const TArray<FPBDCollisionConstraintHandle*>&)>;
@@ -54,7 +52,7 @@ public:
 	using FConstraintContainerHandle = FPBDCollisionConstraintHandle;
 
 
-	FPBDCollisionConstraints(const TPBDRigidsSOAs<FReal, 3>& InParticles, 
+	FPBDCollisionConstraints(const FPBDRigidsSOAs& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials, 
 		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticlePhysicsMaterials, 
@@ -355,7 +353,7 @@ protected:
 private:
 
 	friend FConstraintAppendScope;
-	const TPBDRigidsSOAs<FReal, 3>& Particles;
+	const FPBDRigidsSOAs& Particles;
 
 	FCollisionConstraintsArray Constraints;
 	int32 NumActivePointConstraints;

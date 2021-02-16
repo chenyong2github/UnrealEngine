@@ -186,19 +186,19 @@ namespace Chaos
 		{
 			RigidSolver->GetParticles().UpdateGeometryCollectionViews(true);
 
-			const Chaos::TPBDRigidsSOAs<float, 3>& SolverParticles = RigidSolver->GetParticles();
+			const Chaos::FPBDRigidsSOAs& SolverParticles = RigidSolver->GetParticles();
 			auto& Clustering = RigidSolver->GetEvolution()->GetRigidClustering();
 
-			const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>>& ParticleView =
+			const Chaos::TParticleView<Chaos::FGeometryParticles>& ParticleView =
 				SolverParticles.GetNonDisabledView();
 
-			for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+			for (Chaos::TParticleIterator<Chaos::FGeometryParticles> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 				It != ItEnd; ++It)
 			{
 				const auto* Clustered = It->Handle()->CastToClustered();
 				if (Clustered && Clustered->ClusterIds().NumChildren)
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = It->Handle()->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = It->Handle()->CastToRigidParticle();
 					check(RigidHandle);
 					Clustering.UpdateKinematicProperties(RigidHandle);
 				}

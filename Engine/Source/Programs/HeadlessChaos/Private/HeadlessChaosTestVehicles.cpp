@@ -1176,7 +1176,7 @@ namespace ChaosTest
 	{
 		using TEvolution = TypeParam;
 
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 

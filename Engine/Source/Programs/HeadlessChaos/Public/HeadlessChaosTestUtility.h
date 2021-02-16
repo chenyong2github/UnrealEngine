@@ -21,8 +21,7 @@
 
 namespace Chaos
 {
-	template <typename T, int d> class TPBDRigidsSOAs;
-	using FPBDRigidsSOAs = TPBDRigidsSOAs<FReal, 3>;
+	class FPBDRigidsSOAs;
 }
 
 namespace ChaosTest {

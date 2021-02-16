@@ -108,7 +108,7 @@ namespace Chaos
 
 		void* PhysSceneHack;	//This is a total hack for now to get at the owning scene
 
-		typedef TPBDRigidsSOAs<float, 3> FParticlesType;
+		typedef FPBDRigidsSOAs FParticlesType;
 		typedef FPBDRigidDirtyParticlesBuffer FDirtyParticlesBuffer;
 
 		typedef Chaos::FGeometryParticle FParticle;

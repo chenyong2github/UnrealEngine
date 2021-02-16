@@ -41,7 +41,7 @@ namespace ChaosTest
 
 		auto AddParticleBox(const FVec3& Position, const FRotation3& Rotation, const FVec3& Size, FReal Mass)
 		{
-			TGeometryParticleHandle<FReal, 3>& Particle = Mass > SMALL_NUMBER ? *AppendDynamicParticleBox(SOAs, Size) : *AppendStaticParticleBox(SOAs, Size);
+			FGeometryParticleHandle& Particle = Mass > SMALL_NUMBER ? *AppendDynamicParticleBox(SOAs, Size) : *AppendStaticParticleBox(SOAs, Size);
 
 			ResetParticle(&Particle, Position, Rotation, FVec3(0), FVec3(0));
 
@@ -59,7 +59,7 @@ namespace ChaosTest
 			return &Particle;
 		}
 
-		void ResetParticle(TGeometryParticleHandle<FReal, 3>* Particle, const FVec3& Position, const FRotation3& Rotation, const FVec3& Velocity, const FVec3& AngularVelocity)
+		void ResetParticle(FGeometryParticleHandle* Particle, const FVec3& Position, const FRotation3& Rotation, const FVec3& Velocity, const FVec3& AngularVelocity)
 		{
 			Particle->X() = Position;
 			Particle->R() = Rotation;
@@ -76,12 +76,12 @@ namespace ChaosTest
 		}
 
 		// Solver state
-		TPBDRigidsSOAs<FReal, 3> SOAs;
+		FPBDRigidsSOAs SOAs;
 		TEvolution Evolution;
 		TUniquePtr<FChaosPhysicsMaterial> PhysicalMaterial;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 
-		TGeometryParticleHandle<FReal, 3>* GetParticle(const int32 Idx)
+		FGeometryParticleHandle* GetParticle(const int32 Idx)
 		{
 			return SOAs.GetParticleHandles().Handle(Idx).Get();
 		}

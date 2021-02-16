@@ -23,7 +23,7 @@ namespace Chaos
 	template<typename T, int D> class TKinematicTarget;
 	template<typename T> class TPBDConstraintIslandRule;
 	template<typename T, int D> struct TPBDRigidParticleParameters;
-	template<typename T, int D> class TPBDRigidsSOAs;
+	class FPBDRigidsSOAs;
 	template<typename T> class TSimpleConstraintRule;
 
 }

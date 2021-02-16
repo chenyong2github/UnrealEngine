@@ -97,7 +97,7 @@ namespace Chaos
 	//
 
 	FPBDCollisionConstraints::FPBDCollisionConstraints(
-		const TPBDRigidsSOAs<FReal, 3>& InParticles,
+		const FPBDRigidsSOAs& InParticles,
 		TArrayCollectionArray<bool>& Collided,
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPhysicsMaterials,
 		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& InPerParticlePhysicsMaterials,

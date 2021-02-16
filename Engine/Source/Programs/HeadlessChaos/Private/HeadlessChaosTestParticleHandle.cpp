@@ -339,7 +339,7 @@ namespace ChaosTest {
 	{
 		FWeakParticleHandle WeakHandle;
 		{
-			TPBDRigidsSOAs<FReal,3> SOAs;
+			FPBDRigidsSOAs SOAs;
 			SOAs.CreateStaticParticles(1);
 			for(auto& Particle : SOAs.GetAllParticlesView())
 			{
@@ -535,7 +535,7 @@ namespace ChaosTest {
 		// because of this, we must be able to compare (external, null) == (external, null) 
 		// and also (external, null) == (external, internal)
 
-		TPBDRigidsSOAs<FReal,3> SOAs;
+		FPBDRigidsSOAs SOAs;
 
 		auto GTParticle = FGeometryParticle::CreateParticle();
 		//fake unique assignment like we would for solver
@@ -567,7 +567,7 @@ namespace ChaosTest {
 
 	void HandleObjectStateChangeTest()
 	{
-		TPBDRigidsSOAs<FReal, 3> SOAs;
+		FPBDRigidsSOAs SOAs;
 
 		// Lambda for adding a particle to the dynamic-backed kinematic SOA
 		const auto CreateDynamicKinematic = [&]()

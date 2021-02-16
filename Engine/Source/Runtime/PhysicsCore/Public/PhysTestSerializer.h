@@ -140,9 +140,9 @@ private:
 	TUniquePtr<FSQCapture> SQCapture;
 
 	TUniquePtr<Chaos::FPBDRigidsEvolution> ChaosEvolution;
-	Chaos::TPBDRigidsSOAs<float, 3> Particles;
+	Chaos::FPBDRigidsSOAs Particles;
 	Chaos::THandleArray<Chaos::FChaosPhysicsMaterial> PhysicalMaterials;
-	TArray <TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTParticles;
+	TArray <TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 
 	TUniquePtr<Chaos::FChaosArchiveContext> ChaosContext;
 

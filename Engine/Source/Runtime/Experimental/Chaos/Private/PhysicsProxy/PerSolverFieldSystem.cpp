@@ -192,7 +192,7 @@ void FPerSolverFieldSystem::GetRelevantParticleHandles(
 	const EFieldResolutionType ResolutionType)
 {
 	Handles.SetNum(0, false);
-	const Chaos::TPBDRigidsSOAs<float, 3>& SolverParticles = RigidSolver->GetParticles();
+	const Chaos::FPBDRigidsSOAs& SolverParticles = RigidSolver->GetParticles();
 
 	if (ResolutionType == EFieldResolutionType::Field_Resolution_Minimal)
 	{
@@ -255,7 +255,7 @@ void FPerSolverFieldSystem::GetFilteredParticleHandles(
 	const EFieldFilterType FilterType)
 {
 	Handles.SetNum(0, false);
-	const Chaos::TPBDRigidsSOAs<float, 3>& SolverParticles = RigidSolver->GetParticles();
+	const Chaos::FPBDRigidsSOAs& SolverParticles = RigidSolver->GetParticles();
 
 	if (FilterType == EFieldFilterType::Field_Filter_Dynamic)
 	{

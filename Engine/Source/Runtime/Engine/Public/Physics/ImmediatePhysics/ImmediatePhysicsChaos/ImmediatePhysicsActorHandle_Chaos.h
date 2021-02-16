@@ -134,7 +134,7 @@ namespace ImmediatePhysics_Chaos
 		friend struct FJointHandle;
 
 		FActorHandle(
-			Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles,
+			Chaos::FPBDRigidsSOAs& InParticles,
 			Chaos::TArrayCollectionArray<Chaos::FVec3>& InParticlePrevXs,
 			Chaos::TArrayCollectionArray<Chaos::FRotation3>& InParticlePrevRs,
 			EActorType ActorType,
@@ -145,7 +145,7 @@ namespace ImmediatePhysics_Chaos
 		Chaos::TGenericParticleHandle<FReal, Dimensions> Handle() const;
 
 		FName Name;
-		Chaos::TPBDRigidsSOAs<FReal, 3>& Particles;
+		Chaos::FPBDRigidsSOAs& Particles;
 		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
 		Chaos::TArrayCollectionArray<Chaos::FVec3>& ParticlePrevXs;
 		Chaos::TArrayCollectionArray<Chaos::FRotation3>& ParticlePrevRs;

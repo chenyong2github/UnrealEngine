@@ -215,7 +215,7 @@ namespace ImmediatePhysics_Chaos
 	//
 
 	FActorHandle::FActorHandle(
-		Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles, 
+		Chaos::FPBDRigidsSOAs& InParticles, 
 		Chaos::TArrayCollectionArray<Chaos::FVec3>& InParticlePrevXs, 
 		Chaos::TArrayCollectionArray<Chaos::FRotation3>& InParticlePrevRs, 
 		EActorType ActorType, 
