@@ -388,15 +388,15 @@ namespace ChaosTest
 		Particles.R(1) = FRotation3::Identity;
 		Particles.R(2) = FRotation3::Identity;
 
-		TBVHParticles<FReal, 3> BVHParticles(MoveTemp(Particles));
+		FBVHParticles BVHParticles(MoveTemp(Particles));
 
 		TCHAR const *BinaryFolderName = TEXT("BVHParticles");
 		bool bSaveBinaryToDisk = false; // Flip to true and run to save current binary to disk for future tests.
-		TArray<TBVHParticles<FReal, 3>> ObjectsToTest;
-		bool bResult = SaveLoadUtility<FReal, TBVHParticles<FReal, 3>>(BVHParticles, *GetSerializedBinaryPath(), BinaryFolderName, bSaveBinaryToDisk, ObjectsToTest);
+		TArray<FBVHParticles> ObjectsToTest;
+		bool bResult = SaveLoadUtility<FReal, FBVHParticles>(BVHParticles, *GetSerializedBinaryPath(), BinaryFolderName, bSaveBinaryToDisk, ObjectsToTest);
 		EXPECT_TRUE(bResult);
 
-		for (TBVHParticles<FReal, 3> const &TestBVHP: ObjectsToTest)
+		for (FBVHParticles const &TestBVHP: ObjectsToTest)
 		{
 			const FAABB3 Box{ {-1,-1,-1}, {1,3,3} };
 			TArray<int32> PotentialIntersections = BVHParticles.FindAllIntersections(Box);

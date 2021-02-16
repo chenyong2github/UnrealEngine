@@ -1683,7 +1683,7 @@ namespace Chaos
 				if (bUseCollisionPoints)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry_GatherPoints);
-					if (const TUniquePtr<TBVHParticles<FReal,3>>& CollisionParticles = Child->CollisionParticles())
+					if (const TUniquePtr<FBVHParticles>& CollisionParticles = Child->CollisionParticles())
 					{
 						for (uint32 i = 0; i < CollisionParticles->Size(); ++i)
 						{
@@ -1808,7 +1808,7 @@ namespace Chaos
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry_GatherPoints);
 				Parent->CollisionParticlesInitIfNeeded();
-				TUniquePtr<TBVHParticles<FReal, 3>>& CollisionParticles = Parent->CollisionParticles();
+				TUniquePtr<FBVHParticles>& CollisionParticles = Parent->CollisionParticles();
 				CollisionParticles->AddParticles(CleanedPoints.Num());
 				for (int32 i = 0; i < CleanedPoints.Num(); ++i)
 				{

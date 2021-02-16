@@ -338,11 +338,11 @@ namespace GeometryCollectionTest
 			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(
 				Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
-		const TManagedArray<TUniquePtr<Chaos::TBVHParticles<FReal,3>>>& Simplicials =
-			Collection->RestCollection->template GetAttribute<TUniquePtr<Chaos::TBVHParticles<FReal,3>>>(
+		const TManagedArray<TUniquePtr<Chaos::FBVHParticles>>& Simplicials =
+			Collection->RestCollection->template GetAttribute<TUniquePtr<Chaos::FBVHParticles>>(
 				FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
 		EXPECT_EQ(Simplicials.Num(), 1);
-		const Chaos::TBVHParticles<FReal, 3>& Simplicial = *Simplicials[0];
+		const Chaos::FBVHParticles& Simplicial = *Simplicials[0];
 
 		const TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicits = 
 			Collection->RestCollection->template GetAttribute<FGeometryDynamicCollection::FSharedImplicit>(

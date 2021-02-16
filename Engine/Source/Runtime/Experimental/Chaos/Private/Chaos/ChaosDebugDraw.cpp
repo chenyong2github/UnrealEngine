@@ -282,7 +282,7 @@ namespace Chaos
 			{
 				if (const TPBDRigidParticleHandle<FReal, 3>* Rigid = Particle->CastToRigidParticle())
 				{
-					const TUniquePtr<TBVHParticles<FReal, 3>>& Particles = Rigid->CollisionParticles();
+					const TUniquePtr<FBVHParticles>& Particles = Rigid->CollisionParticles();
 					if (Particles != nullptr)
 					{
 						for (int32 ParticleIndex = 0; ParticleIndex < (int32)Particles->Size(); ++ParticleIndex)

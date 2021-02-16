@@ -28,7 +28,7 @@ public:
 	virtual ~FCollisionStructureManager() {}
 
 	typedef TArray<Chaos::TVector<float, 3>> FPoints;
-	typedef Chaos::TBVHParticles<float,3> FSimplicial;
+	typedef Chaos::FBVHParticles FSimplicial;
 	typedef Chaos::FImplicitObject FImplicit;
 
 	/**

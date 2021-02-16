@@ -106,7 +106,7 @@ const FAABB3 FImplicitObject::BoundingBox() const
 }
 
 // @todo(mlentine): This is a lot of duplication from the collisions code that should be reduced
-Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject* Other, const TBVHParticles<FReal, 3>* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const
+Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject* Other, const FBVHParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const
 {
 	// Do analytics
 	// @todo(mlentine): Should we do a convex pass here?

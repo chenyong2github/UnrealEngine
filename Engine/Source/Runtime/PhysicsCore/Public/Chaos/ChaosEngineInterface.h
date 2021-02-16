@@ -186,18 +186,14 @@ typedef uint8 FMaskFilter;
 
 namespace Chaos
 {
-	template <typename T, int>
-	class TBVHParticles;
+	class FBVHParticles;
 
 	template <typename T, int>
 	class TPBDRigidParticles;
 
-	template <typename T, int>
-	class PerParticleGravity;
+	class FPerParticleGravity;
 
-	template <typename T, int>
-	class TPBDSpringConstraints;
-
+	class FPBDSpringConstraints;
 	class FConvex;
 
 	template <typename T>

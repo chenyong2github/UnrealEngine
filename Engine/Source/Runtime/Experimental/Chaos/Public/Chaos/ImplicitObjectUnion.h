@@ -200,7 +200,7 @@ public:
 		return ImplicitObjectType::UnionClustered;
 	}
 
-	void FindAllIntersectingClusteredObjects(TArray<Pair<Pair<const FImplicitObject*, const TBVHParticles<FReal, 3>*>, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
+	void FindAllIntersectingClusteredObjects(TArray<Pair<Pair<const FImplicitObject*, const FBVHParticles*>, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
 	TArray<FPBDRigidParticleHandle*> FindAllIntersectingChildren(const FAABB3& LocalBounds) const;
 
 #if CHAOS_PARTICLEHANDLE_TODO

@@ -283,7 +283,7 @@ void PopulateSimulatedParticle(
 	{
 		Handle->CollisionParticlesInitIfNeeded();
 
-		TUniquePtr<Chaos::TBVHParticles<float, 3>>& CollisionParticles = Handle->CollisionParticles();
+		TUniquePtr<Chaos::FBVHParticles>& CollisionParticles = Handle->CollisionParticles();
 		if (Simplicial->Size())
 		{
 			const Chaos::FAABB3 ImplicitShapeDomain = 
@@ -762,7 +762,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 					Handle->SetStrain(StrainDefault);
 				}
 
-				TUniquePtr<Chaos::TBVHParticles<float, 3>>& CollisionParticles = Handle->CollisionParticles();
+				TUniquePtr<Chaos::FBVHParticles>& CollisionParticles = Handle->CollisionParticles();
 				CollisionParticles.Reset(Simplicials[TransformGroupIndex]?Simplicials[TransformGroupIndex]->NewCopy():nullptr); // @chaos(optimize) : maybe just move this memory instead. 
 				if (CollisionParticles)
 				{
@@ -2096,7 +2096,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			//
 			if (ensureMsgf(TriMesh, TEXT("No Triangle representation")))
 			{
-				Chaos::TBVHParticles<float, 3>* Simplicial =
+				Chaos::FBVHParticles* Simplicial =
 					FCollisionStructureManager::NewSimplicial(
 						MassSpaceParticles,
 						BoneMap,
