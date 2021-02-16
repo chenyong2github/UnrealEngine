@@ -362,8 +362,6 @@ bool ShouldRenderLumenReflections(const FViewInfo& View, bool bRequireSoftwareTr
 	{
 		return Lumen::IsLumenFeatureAllowedForView(Scene, View, bRequireSoftwareTracing) 
 			&& View.FinalPostProcessSettings.ReflectionMethod == EReflectionMethod::Lumen
-			//@todo - support standalone Lumen Reflections
-			&& View.FinalPostProcessSettings.DynamicGlobalIlluminationMethod == EDynamicGlobalIlluminationMethod::Lumen
 			&& View.Family->EngineShowFlags.LumenReflections 
 			&& GAllowLumenReflections;
 	}

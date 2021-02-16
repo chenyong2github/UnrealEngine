@@ -2913,6 +2913,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bShowShadowedLightOverflowWarning = Scene->OverflowingDynamicShadowedLights.Num() > 0;
 
 		bool bLumenEnabledButNoSoftwareTracing = false;
+		bool bLumenReflectionsEnabledWithoutLumenGI = false;
 
 		for (int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -2920,6 +2921,8 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 			bLumenEnabledButNoSoftwareTracing = bLumenEnabledButNoSoftwareTracing 
 				|| (ShouldRenderLumenDiffuseGI(Scene, View, false) && !ShouldRenderLumenDiffuseGI(Scene, View, true))
 				|| (ShouldRenderLumenReflections(View, false) && !ShouldRenderLumenReflections(View, true));	
+			bLumenReflectionsEnabledWithoutLumenGI = bLumenReflectionsEnabledWithoutLumenGI
+				|| (ShouldRenderLumenReflections(View, true) && !ShouldRenderLumenDiffuseGI(Scene, View, true));
 		}
 
 		// Mobile-specific warnings
@@ -2946,7 +2949,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 		const bool bAnyWarning = bShowPrecomputedVisibilityWarning || bShowGlobalClipPlaneWarning || bShowAtmosphericFogWarning || bShowSkylightWarning || bShowPointLightWarning 
 			|| bShowDFAODisabledWarning || bShowShadowedLightOverflowWarning || bShowMobileDynamicCSMWarning || bShowMobileLowQualityLightmapWarning || bShowMobileMovableDirectionalLightWarning
 			|| bMobileShowVertexFogWarning || bShowSkinCacheOOM || bSingleLayerWaterWarning || bShowDFDisabledWarning || bShowNoSkyAtmosphereComponentWarning || bFxDebugDraw 
-			|| bShowSkyAtmosphereFogComponentsConflicts || bLumenEnabledButNoSoftwareTracing || bRealTimeSkyCaptureButNothingToCapture;
+			|| bShowSkyAtmosphereFogComponentsConflicts || bLumenEnabledButNoSoftwareTracing || bLumenReflectionsEnabledWithoutLumenGI || bRealTimeSkyCaptureButNothingToCapture;
 
 		for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
 		{	
@@ -2969,7 +2972,7 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						bShowAtmosphericFogWarning, bViewParentOrFrozen, bShowSkylightWarning, bShowPointLightWarning, bShowShadowedLightOverflowWarning,
 						bShowMobileLowQualityLightmapWarning, bShowMobileMovableDirectionalLightWarning, bShowMobileDynamicCSMWarning, bMobileShowVertexFogWarning,
 						bShowSkinCacheOOM, bSingleLayerWaterWarning, bShowNoSkyAtmosphereComponentWarning, bFxDebugDraw, FXInterface, bShowSkyAtmosphereFogComponentsConflicts, 
-						bLumenEnabledButNoSoftwareTracing, bRealTimeSkyCaptureButNothingToCapture]
+						bLumenEnabledButNoSoftwareTracing, bLumenReflectionsEnabledWithoutLumenGI, bRealTimeSkyCaptureButNothingToCapture]
 						(FCanvas& Canvas)
 					{
 						// so it can get the screen size
@@ -3116,6 +3119,13 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						if (bLumenEnabledButNoSoftwareTracing)
 						{
 							static const FText Message = NSLOCTEXT("Renderer", "LumenCantDisplay", "Lumen is enabled but the project does not have 'Generate Mesh Distancefields' enabled.  Lumen will not operate correctly.");
+							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
+							Y += 14;
+						}
+
+						if (bLumenReflectionsEnabledWithoutLumenGI)
+						{
+							static const FText Message = NSLOCTEXT("Renderer", "LumenReflectionsWithoutGI", "Lumen Reflections are enabled without Lumen Global Illumination, they will not render correctly.");
 							Canvas.DrawShadowedText(10, Y, Message, GetStatsFont(), FLinearColor(1.0, 0.05, 0.05, 1.0));
 							Y += 14;
 						}

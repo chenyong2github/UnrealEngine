@@ -370,11 +370,15 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 
 		if (ShouldRenderLumenReflections(View, true))
 		{
-			ReflectionsMethod = EReflectionsMethod::Lumen;
-		}
-		else if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
-		{
-			ReflectionsMethod = EReflectionsMethod::Disabled;
+			if (DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen)
+			{
+				ReflectionsMethod = EReflectionsMethod::Lumen;
+			}
+			else
+			{
+				//@todo - support standalone Lumen Reflections
+				ReflectionsMethod = EReflectionsMethod::Disabled;
+			}
 		}
 		else if (ShouldRenderRayTracingReflections(View))
 		{
