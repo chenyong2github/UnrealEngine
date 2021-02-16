@@ -14,7 +14,6 @@ public:
 	FObjectRefTrackingTestBase(const FString& InName, const bool bInComplexTask)
 	: FAutomationTestBase(InName, bInComplexTask)
 	{
-		ConditionalInstallCallbacks();
 	}
 
 	uint32 GetNumResolves() const { return NumResolves; }
@@ -29,7 +28,9 @@ public:
 		, OriginalNumResolves(Test.GetNumResolves())
 		, OriginalNumFailedResolves(Test.GetNumFailedResolves())
 		, OriginalNumReads(Test.GetNumReads())
-		{}
+		{
+			Test.ConditionalInstallCallbacks();
+		}
 
 		bool TestNumResolves(const TCHAR* What, uint32 ExpectedDelta)
 		{
