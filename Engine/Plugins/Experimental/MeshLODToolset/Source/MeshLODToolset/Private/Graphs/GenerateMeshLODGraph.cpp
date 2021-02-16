@@ -7,6 +7,7 @@
 #include "GeometryFlowGraphUtil.h"
 #include "BaseNodes/TransferNode.h"
 
+#include "MeshProcessingNodes/MeshThickenNode.h"
 #include "MeshProcessingNodes/MeshSolidifyNode.h"
 #include "MeshProcessingNodes/MeshVoxMorphologyNode.h"
 #include "MeshProcessingNodes/MeshSimplifyNode.h"
@@ -265,6 +266,18 @@ void FGenerateMeshLODGraph::UpdateGenerateSimpleCollisionSettings(const FGenerat
 	CurrentGenerateSimpleCollisionSettings = GenSimpleCollisionSettings;
 }
 
+void FGenerateMeshLODGraph::UpdateThickenWeightMap(const TArray<float>& ThickenWeightMap)
+{
+	FWeightMap WeightMap;
+	WeightMap.Weights = ThickenWeightMap;
+	UpdateSourceNodeValue<FWeightMapSourceNode>(*Graph, ThickenWeightMapNode, WeightMap);
+}
+
+void FGenerateMeshLODGraph::UpdateThickenSettings(const UE::GeometryFlow::FMeshThickenSettings& ThickenSettings)
+{
+	UpdateSettingsSourceNodeValue(*Graph, ThickenSettingsNode, ThickenSettings);
+	CurrentThickenSettings = ThickenSettings;
+}
 
 void FGenerateMeshLODGraph::UpdateCollisionGroupLayerName(const FName& NewCollisionGroupLayerName)
 {
@@ -420,8 +433,17 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	// generating low-poly mesh
 
+	// optionally thicken some parts of the mesh before solidifying
+	ThickenNode = Graph->AddNodeOfType<FMeshThickenNode>(TEXT("Thicken"));
+	ThickenWeightMapNode = Graph->AddNodeOfType<FWeightMapSourceNode>(TEXT("ThickenWeightMapNode"));
+	ThickenSettingsNode = Graph->AddNodeOfType<FThickenSettingsSourceNode>(TEXT("ThickenSettingsSource"));
+
+	Graph->InferConnection(ThickenWeightMapNode, ThickenNode);
+	Graph->InferConnection(ThickenSettingsNode, ThickenNode);
+	Graph->InferConnection(FilterTrianglesNode, ThickenNode);
+
 	SolidifyNode = Graph->AddNodeOfType<FSolidifyMeshNode>(TEXT("Solidify"));
-	Graph->InferConnection(FilterTrianglesNode, SolidifyNode);
+	Graph->InferConnection(ThickenNode, SolidifyNode);
 	SolidifySettingsNode = Graph->AddNodeOfType<FSolidifySettingsSourceNode>(TEXT("SolidifySettings"));
 	Graph->InferConnection(SolidifySettingsNode, SolidifyNode);
 
@@ -582,6 +604,9 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 	FGenerateSimpleCollisionSettings GenSimpleCollisionSettings;
 	UpdateGenerateSimpleCollisionSettings(GenSimpleCollisionSettings);
+
+	TArray<float> Weights;
+	UpdateThickenWeightMap(Weights);
 
 
 	//FString GraphDump = Graph->DebugDumpGraph([](TSafeSharedPtr<FNode> Node)

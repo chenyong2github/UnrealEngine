@@ -69,6 +69,14 @@ struct FGenerateStaticMeshLODProcessSettings
 	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail Filtering"))
 	FName FilterGroupLayer = FName(TEXT("PreFilterGroups"));
 
+	// Thicken settings
+
+	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Thicken weight map name"))
+	FName ThickenWeightMapName = FName(TEXT("ThickenWeightMap"));
+
+	UPROPERTY(EditAnywhere, Category = DetailFilter)
+	float ThickenAmount = 0.0f;
+
 	// Solidify settings
 
 	UPROPERTY(EditAnywhere, Category = Solidify, meta = (DisplayName="Voxel Resolution"))

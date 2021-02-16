@@ -25,6 +25,7 @@ enum class EMeshProcessingDataTypes
 
 	SolidifySettings = (int)EDataTypes::BaseMeshProcessingTypes + 100,
 	VoxMorphologyOpSettings = (int)EDataTypes::BaseMeshProcessingTypes + 101,
+	ThickenSettings = (int)EDataTypes::BaseMeshProcessingTypes + 102,
 
 	SimplifySettings = (int)EDataTypes::BaseMeshProcessingTypes + 110,
 	NormalFlowSettings = (int)EDataTypes::BaseMeshProcessingTypes + 111,

@@ -28,6 +28,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Factories/MaterialInstanceConstantFactoryNew.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "WeightMapUtil.h"
 
 #include "Engine/Classes/Engine/StaticMesh.h"
 #include "Engine/Classes/Components/StaticMeshComponent.h"
@@ -246,6 +247,32 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 		NewPreFilterSettings.FilterGroupLayerName = NewCombinedSettings.FilterGroupLayer;
 		Generator->UpdatePreFilterSettings(NewPreFilterSettings);
 	}
+
+	if (NewCombinedSettings.ThickenAmount != CurrentSettings.ThickenAmount)
+	{
+		UE::GeometryFlow::FMeshThickenSettings NewThickenSettings = Generator->GetCurrentThickenSettings();
+		NewThickenSettings.ThickenAmount = NewCombinedSettings.ThickenAmount;
+		Generator->UpdateThickenSettings(NewThickenSettings);
+	}
+
+	if (NewCombinedSettings.ThickenWeightMapName != CurrentSettings.ThickenWeightMapName)
+	{
+		const FMeshDescription* SourceMeshDescription = SourceStaticMesh->GetMeshDescription(0);
+		FIndexedWeightMap1f WeightMap;
+		float DefaultValue = 0.0f;
+		bool bOK = UE::WeightMaps::GetVertexWeightMap(SourceMeshDescription, NewCombinedSettings.ThickenWeightMapName, WeightMap, DefaultValue);
+
+		if (bOK)
+		{
+			Generator->UpdateThickenWeightMap(WeightMap.Values);
+		}
+		else
+		{
+			Generator->UpdateThickenWeightMap(TArray<float>());
+		}
+	}
+
+	
 
 	bool bSharedVoxelResolutionChanged = (NewCombinedSettings.SolidifyVoxelResolution != CurrentSettings.SolidifyVoxelResolution);
 	if ( bSharedVoxelResolutionChanged

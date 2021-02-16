@@ -12,6 +12,7 @@
 #include "MeshProcessingNodes/MeshSolidifyNode.h"
 #include "MeshProcessingNodes/MeshVoxMorphologyNode.h"
 #include "MeshProcessingNodes/MeshSimplifyNode.h"
+#include "MeshProcessingNodes/MeshThickenNode.h"
 #include "MeshProcessingNodes/MeshDeleteTrianglesNode.h"
 #include "MeshProcessingNodes/MeshAutoGenerateUVsNode.h"
 #include "DataTypes/MeshImageBakingData.h"
@@ -55,9 +56,11 @@ public:
 	void UpdateGenerateSimpleCollisionSettings(const UE::GeometryFlow::FGenerateSimpleCollisionSettings& SimpleCollisionSettings);
 	const UE::GeometryFlow::FGenerateSimpleCollisionSettings& GetCurrentGenerateSimpleCollisionSettings() const { return CurrentGenerateSimpleCollisionSettings; }
 
+	void UpdateThickenWeightMap(const TArray<float>& ThickenWeightMap);
 	void UpdateCollisionGroupLayerName(const FName& CollisionGroupLayerName);
 
-
+	void UpdateThickenSettings(const UE::GeometryFlow::FMeshThickenSettings& ThickenSettings);
+	const UE::GeometryFlow::FMeshThickenSettings& GetCurrentThickenSettings() const { return CurrentThickenSettings; }
 
 	void EvaluateResult(
 		FDynamicMesh3& ResultMesh,
@@ -118,6 +121,11 @@ protected:
 
 	UE::GeometryFlow::FGraph::FHandle BakeNormalMapNode;
 	UE::GeometryFlow::FGraph::FHandle BakeNormalMapSettingsNode;
+
+	UE::GeometryFlow::FGraph::FHandle ThickenNode;
+	UE::GeometryFlow::FGraph::FHandle ThickenSettingsNode;
+	UE::GeometryFlow::FGraph::FHandle ThickenWeightMapNode;
+	UE::GeometryFlow::FMeshThickenSettings CurrentThickenSettings;
 
 	UE::GeometryFlow::FGraph::FHandle GroupLayerNameNode;
 
