@@ -149,6 +149,9 @@ private:
 	/** Look up table of UID to array index UIDToArrayIndexLUT[InUID] = ArrayIndex of order. If MAX_uint16, it is invalid.*/
 	TArray<uint16> UIDToArrayIndexLUT;
 
+	/** Number of valid entries in UIDToArrayIndexLUT. I.e. a count of entries whose value does not equal to  MAX_uint16. */
+	int32 UIDToArrayIndexLUTValidCount;
+
 	/** Look up table of UID to Name UIDToNameLUT[InUID] = Name of curve. If NAME_None, it is invalid.*/
 	TArray<FName> UIDToNameLUT;
 
@@ -320,6 +323,13 @@ public:
 	{
 		return UIDToArrayIndexLUT;
 	}
+
+	/** Returns the number of valid entries in the GetUIDToArrayLookupTable result array */
+	int32 GetUIDToArrayIndexLookupTableValidCount() const
+	{
+		return UIDToArrayIndexLUTValidCount;
+	}
+	
 
 	/** Get UID To Name look up table */
 	TArray<FName> const& GetUIDToNameLookupTable() const
