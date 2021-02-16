@@ -4,10 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
-
+#include "GameFeatureData.h"
 #include "GameFeaturesSubsystemSettings.generated.h"
-
-class UGameFeatureData;
 
 /** Settings for the Game Features framework */
 UCLASS(config=Game, defaultconfig, notplaceable, meta = (DisplayName = "Game Features"))
