@@ -489,16 +489,19 @@ void FNiagaraRendererMeshes::InitializeSortInfo(
 	const FViewMatrices& ViewMatrices = GetViewMatrices(View, OutSortInfo.ViewOrigin);
 	OutSortInfo.ViewDirection = ViewMatrices.GetViewMatrix().GetColumn(2);
 
-	if (View.StereoPass != eSSP_FULL)
+	if (View.StereoPass != eSSP_FULL && AllViewsInFamily.Num() > 1)
 	{
 		// For VR, do distance culling and sorting from a central eye position to prevent differences between views
 		const uint32 PairedViewIdx = (ViewIndex & 1) ? (ViewIndex - 1) : (ViewIndex + 1);
-		const FSceneView* PairedView = AllViewsInFamily[PairedViewIdx];
-		check(PairedView);
+		if (AllViewsInFamily.IsValidIndex(PairedViewIdx))
+		{
+			const FSceneView* PairedView = AllViewsInFamily[PairedViewIdx];
+			check(PairedView);
 
-		FVector PairedViewOrigin;
-		GetViewMatrices(*PairedView, PairedViewOrigin);
-		OutSortInfo.ViewOrigin = 0.5f * (OutSortInfo.ViewOrigin + PairedViewOrigin);
+			FVector PairedViewOrigin;
+			GetViewMatrices(*PairedView, PairedViewOrigin);
+			OutSortInfo.ViewOrigin = 0.5f * (OutSortInfo.ViewOrigin + PairedViewOrigin);
+		}
 	}
 
 	if (bEnableFrustumCulling)
