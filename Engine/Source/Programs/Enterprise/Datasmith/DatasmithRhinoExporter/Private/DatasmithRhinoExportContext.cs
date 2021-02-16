@@ -192,21 +192,24 @@ namespace DatasmithRhino
 		{
 			List<string> Tags = new List<string>();
 
-			Tags.Add(string.Format("Rhino.ID: {0}", RhinoModelComponent.Id));
-			string ComponentTypeString = DatasmithRhinoUniqueNameGenerator.GetDefaultTypeName(RhinoModelComponent);
-			Tags.Add(string.Format("Rhino.Entity.Type: {0}", ComponentTypeString));
-
-			//Add the groups this object belongs to.
-			RhinoObject InRhinoObject = RhinoCommonObject as RhinoObject;
-			if (InRhinoObject != null && InRhinoObject.GroupCount > 0)
+			if (RhinoModelComponent != null)
 			{
-				int[] GroupIndices = InRhinoObject.GetGroupList();
-				for (int GroupArrayIndex = 0; GroupArrayIndex < GroupIndices.Length; ++GroupArrayIndex)
+				Tags.Add(string.Format("Rhino.ID: {0}", RhinoModelComponent.Id));
+				string ComponentTypeString = DatasmithRhinoUniqueNameGenerator.GetDefaultTypeName(RhinoModelComponent);
+				Tags.Add(string.Format("Rhino.Entity.Type: {0}", ComponentTypeString));
+
+				//Add the groups this object belongs to.
+				RhinoObject InRhinoObject = RhinoCommonObject as RhinoObject;
+				if (InRhinoObject != null && InRhinoObject.GroupCount > 0)
 				{
-					string GroupName = ExportContext.GroupIndexToName[GroupIndices[GroupArrayIndex]];
-					if (GroupName != null)
+					int[] GroupIndices = InRhinoObject.GetGroupList();
+					for (int GroupArrayIndex = 0; GroupArrayIndex < GroupIndices.Length; ++GroupArrayIndex)
 					{
-						Tags.Add(GroupName);
+						string GroupName = ExportContext.GroupIndexToName[GroupIndices[GroupArrayIndex]];
+						if (GroupName != null)
+						{
+							Tags.Add(GroupName);
+						}
 					}
 				}
 			}
