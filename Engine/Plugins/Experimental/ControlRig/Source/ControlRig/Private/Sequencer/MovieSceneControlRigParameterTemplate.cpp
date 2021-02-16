@@ -883,6 +883,8 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 					ControlRig->GetObjectBinding()->BindToObject(BoundObjects[0].Get());
 					ControlRig->Initialize();
 				}
+				// ensure that pre animated state is saved, must be done before bind
+				Player.SavePreAnimatedState(*ControlRig, FMovieSceneControlRigParameterTemplate::GetAnimTypeID(), FControlRigParameterPreAnimatedTokenProducer(Operand.SequenceID));
 
 				FControlRigBindingHelper::BindToSequencerInstance(ControlRig);
 
@@ -936,12 +938,8 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 						}
 					}
 				}
-			}
-			// ensure that pre animated state is saved
-			Player.SavePreAnimatedState(*ControlRig, FMovieSceneControlRigParameterTemplate::GetAnimTypeID(), FControlRigParameterPreAnimatedTokenProducer(Operand.SequenceID));
-
+			}		
 		}
-
 	}
 
 	const UMovieSceneControlRigParameterSection* Section;
@@ -1284,27 +1282,29 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		if (Section->ControlRig)
 		{
 			Section->ControlRig->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
-
-			for (const FBoolParameterStringAndValue& BoolNameAndValue : Values.BoolValues)
+			if (Section->bAdditive == false)
 			{
-				if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
+				for (const FBoolParameterStringAndValue& BoolNameAndValue : Values.BoolValues)
 				{
-					FRigControl* RigControl = Section->ControlRig->FindControl(BoolNameAndValue.ParameterName);
-					if (RigControl && RigControl->ControlType == ERigControlType::Bool)
+					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
 					{
-						Section->ControlRig->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
+						FRigControl* RigControl = Section->ControlRig->FindControl(BoolNameAndValue.ParameterName);
+						if (RigControl && RigControl->ControlType == ERigControlType::Bool)
+						{
+							Section->ControlRig->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
+						}
 					}
 				}
-			}
 
-			for (const FIntegerParameterStringAndValue& IntegerNameAndValue : Values.IntegerValues)
-			{
-				if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
+				for (const FIntegerParameterStringAndValue& IntegerNameAndValue : Values.IntegerValues)
 				{
-					FRigControl* RigControl = Section->ControlRig->FindControl(IntegerNameAndValue.ParameterName);
-					if (RigControl && RigControl->ControlType == ERigControlType::Integer)
+					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
 					{
-						Section->ControlRig->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
+						FRigControl* RigControl = Section->ControlRig->FindControl(IntegerNameAndValue.ParameterName);
+						if (RigControl && RigControl->ControlType == ERigControlType::Integer)
+						{
+							Section->ControlRig->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
+						}
 					}
 				}
 			}
