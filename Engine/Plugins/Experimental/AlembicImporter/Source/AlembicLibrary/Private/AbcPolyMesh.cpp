@@ -72,7 +72,9 @@ bool FAbcPolyMesh::ReadFirstFrame(const float InTime, const int32 FrameIndex)
 
 		// Transform copy of the first sample 
 		TransformedFirstSample = new FAbcMeshSample(*FirstSample);
-		AbcImporterUtilities::PropogateMatrixTransformationToSample(TransformedFirstSample, GetMatrix(FrameIndex));
+		FMatrix HierarchyTransform = GetMatrix(FrameIndex);
+		AbcImporterUtilities::ApplyConversion(HierarchyTransform, File->GetImportSettings()->ConversionSettings);
+		AbcImporterUtilities::PropogateMatrixTransformationToSample(TransformedFirstSample, HierarchyTransform);
 		AbcImporterUtilities::ApplyConversion(TransformedFirstSample, File->GetImportSettings()->ConversionSettings, true);
 
 		if (bConstant && bConstantTransformation && !bApplyTransformation)
@@ -217,7 +219,9 @@ void FAbcPolyMesh::SetFrameAndTime(const float InTime, const int32 FrameIndex, c
 
 		if (EnumHasAnyFlags(InFlags, EFrameReadFlags::ApplyMatrix))
 		{
-			AbcImporterUtilities::PropogateMatrixTransformationToSample(WriteSample, GetMatrix(FrameIndex));
+			FMatrix HierarchyTransform = GetMatrix(FrameIndex);
+			AbcImporterUtilities::ApplyConversion(HierarchyTransform, File->GetImportSettings()->ConversionSettings);
+			AbcImporterUtilities::PropogateMatrixTransformationToSample(WriteSample, HierarchyTransform);
 			AbcImporterUtilities::ApplyConversion(WriteSample, File->GetImportSettings()->ConversionSettings, true);
 		}
 
