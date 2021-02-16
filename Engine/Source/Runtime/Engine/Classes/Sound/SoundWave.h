@@ -777,6 +777,7 @@ public:
 	virtual bool HasCookedAmplitudeEnvelopeData() const override;
 	//~ End USoundBase Interface.
 
+	TUniquePtr<FSoundWaveProxy> CreateSoundWaveProxy();
 	//~Begin IAudioProxyDataFactory Interface.
 	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	//~ End IAudioProxyDataFactory Interface.

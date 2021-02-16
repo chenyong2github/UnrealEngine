@@ -759,11 +759,11 @@ bool ICompressedAudioInfo::StreamCompressedInfo(USoundWave* Wave, FSoundQualityI
 	}
 
 	// Create and cache proxy object
-	Audio::FProxyDataInitParams Params;
-	Params.NameOfFeatureRequestingProxy = "ICompressedAudioInfo";
-
-	TUniquePtr<Audio::IProxyData> ProxyData = Wave->CreateNewProxyData(Params);
-	StreamingSoundWave = MakeUnique<FSoundWaveProxy>(MoveTemp(ProxyData->GetAs<FSoundWaveProxy>()));
+	StreamingSoundWave = Wave->CreateSoundWaveProxy();
+	if (!StreamingSoundWave.IsValid())
+	{
+		return false;
+	}
 
 	return StreamCompressedInfoInternal(*StreamingSoundWave, QualityInfo);
 }
