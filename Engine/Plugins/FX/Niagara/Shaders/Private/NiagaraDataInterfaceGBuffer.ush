@@ -69,6 +69,9 @@ void DIGBuffer_DecodeWorldVelocity(in float2 ScreenUV, out bool IsValid, out flo
 	IsValid = true;
 	if ( EncodedVelocity.x > 0 )
 	{
+	#if VELOCITY_ENCODE_DEPTH
+		OutValue = DecodeVelocityFromTexture(EncodedVelocity);
+	#else
 		float2 ScreenVelocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
 		ScreenVelocity.y = -ScreenVelocity.y;
 
@@ -86,6 +89,7 @@ void DIGBuffer_DecodeWorldVelocity(in float2 ScreenUV, out bool IsValid, out flo
 
 			OutValue = WorldPosition - PrevWorldPosition;
 		}
+	#endif
 	}
 #endif
 }
