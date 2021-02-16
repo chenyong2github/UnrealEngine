@@ -147,17 +147,7 @@ public:
 
 	bool operator==(const TAccelerationStructureHandle<T, d>& Rhs) const
 	{
-		CHAOS_ENSURE((ExternalGeometryParticle || GeometryParticleHandle));
-		CHAOS_ENSURE((Rhs.ExternalGeometryParticle || Rhs.GeometryParticleHandle));
-
-		if (!GeometryParticleHandle || !Rhs.GeometryParticleHandle)
-		{
-			return (ExternalGeometryParticle == Rhs.ExternalGeometryParticle);
-		}
-		else
-		{
-			return (GeometryParticleHandle == Rhs.GeometryParticleHandle);
-		}
+		return CachedUniqueIdx == Rhs.CachedUniqueIdx;
 	}
 
 	bool operator!=(const TAccelerationStructureHandle<T, d>& Rhs) const
