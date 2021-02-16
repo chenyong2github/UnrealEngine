@@ -69,7 +69,7 @@ public:
 			using FTaskHandle = TSharedPtr<LowLevelTasks::FTask, ESPMode::ThreadSafe>;
 			FTaskHandle TaskHandle = MakeShared<LowLevelTasks::FTask, ESPMode::ThreadSafe>();
 
-			TFunctionRef<void(TaskType*)>& LocalDoWork = *DoWork;
+			TFunctionRef<void(TaskType*)>* LocalDoWork = DoWork;
 			TaskHandle->Init(TEXT("TLocalWorkQueue::AddWorkers"), Priority, [LocalDoWork, InternalData = InternalData, TaskHandle]()
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(TLocalWorkQueue::AddWorkers);
@@ -82,7 +82,7 @@ public:
 						break;
 					}
 					check(!InternalData->CheckDone.load(std::memory_order_relaxed));
-					LocalDoWork(Work);				
+					(*LocalDoWork)(Work);				
 				}		
 				InternalData->ActiveWorkers.fetch_sub(1, std::memory_order_release);
 			});

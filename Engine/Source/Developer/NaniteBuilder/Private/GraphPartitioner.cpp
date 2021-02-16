@@ -292,7 +292,7 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 		if (GUseNewTaskBackend)
 		{
 			TLocalWorkQueue<FGraphData> LocalWork(Graph);
-			TFunctionRef<void(FGraphData*)> RunTask = [this, &LocalWork, &RunTask](FGraphData* Graph)
+			TUniqueFunction<void(FGraphData*)> RunTask = [this, &LocalWork, &RunTask](FGraphData* Graph)
 			{
 				FGraphData* ChildGraphs[2];
 				BisectGraph( Graph, ChildGraphs );
