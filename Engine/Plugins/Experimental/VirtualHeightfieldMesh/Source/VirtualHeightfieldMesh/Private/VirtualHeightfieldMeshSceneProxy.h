@@ -57,8 +57,6 @@ public:
 	float LodDistribution;
 	float LodBiasScale;
 	
-	int32 NumSubdivisionLODs;
-	int32 NumTailLods;
 	int32 NumForceLoadLods;
 
 	TArray<FVector2D> OcclusionData;

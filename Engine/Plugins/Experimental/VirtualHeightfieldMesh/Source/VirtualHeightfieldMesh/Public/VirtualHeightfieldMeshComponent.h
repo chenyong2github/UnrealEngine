@@ -50,7 +50,7 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Rendering)
 	UMaterialInterface* Material = nullptr;
 
-	/** Target sceen size for LOD 0. A larger value uniformly increases the geometry resolution on screen. */
+	/** Target screen size for a LOD 0 tile. A smaller value uniformly increases the geometry resolution on screen. */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD 0 Screen Size", ClampMin = "0.1", UIMin = "0.1"))
 	float Lod0ScreenSize = 1.f;
 
@@ -59,20 +59,12 @@ protected:
 	float Lod0Distribution = 1.f;
 
 	/** Distribution multiplier applied for each LOD level. A larger value increases the distance exponentially between each LOD transition. */
-	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD Distribution", ClampMin = "1.0", UIMin = "1.0"))
+	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD Distribution", ClampMin = "1.0", UIMin = "1.0", UIMax = "3.0"))
 	float LodDistribution = 2.f;
 
 	/** Scale applied to LodBias texture. A larger value increases resolution where the LodBias texture is set. */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "LOD Bias Scale", ClampMin = "0.0", ClampMax = "10.0", UIMin = "0.0", UIMax = "10.0"))
 	float LodBiasScale = 0.f;
-
-	/** The number of levels of geometry subdivision to apply before the LOD 0 from the source virtual texture. */
-	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Subdivision LODs", ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "8"))
-	int32 NumSubdivisionLods = 0;
-
-	/** The number of levels of geometry reduction to apply after the Max LOD from the source virtual texture. */
-	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Tail LODs", ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "8"))
-	int32 NumTailLods = 0;
 
 	/** The number of levels that we force loaded. A higher number can reduce LOD pop in but allocates more of the virtual texture memory pool. */
 	UPROPERTY(EditAnywhere, Category = Rendering, meta = (DisplayName = "Force Load LODs", ClampMin = "0", ClampMax = "4"))
@@ -116,8 +108,6 @@ public:
 	float GetLod0Distribution() const { return Lod0Distribution; }
 	float GetLodDistribution() const { return LodDistribution; }
 	float GetLodBiasScale() const { return LodBiasScale; }
-	int32 GetNumSubdivisionLods() const { return NumSubdivisionLods; }
-	int32 GetNumTailLods() const { return NumTailLods; }
 	int32 GetNumForceLoadLods() const { return NumForceLoadLods; }
 	int32 GetNumOcclusionLods() const { return NumOcclusionLods; }
 

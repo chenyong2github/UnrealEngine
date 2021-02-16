@@ -6,7 +6,6 @@
 //#include "/Engine/Private/ShaderDrawDebug.ush"	
 #include "VirtualHeightfieldMesh.ush"	
 
-
 groupshared uint NumGroupTasks;
 globallycoherent RWStructuredBuffer<WorkerQueueInfo> RWQueueInfo;
 globallycoherent RWBuffer<uint> RWQueueBuffer;
@@ -185,18 +184,11 @@ void InitBuffersCS()
 
 	RWQueueBuffer[0] = Pack(InitQuadItem(0, MaxLevel));
 
-	// RenderLodMap indirect args
-	RWIndirectArgsBuffer[0] = 6;
-	RWIndirectArgsBuffer[1] = 0; // Increment this counter during CollectQuadsCS.
-	RWIndirectArgsBuffer[2] = 0;
-	RWIndirectArgsBuffer[3] = 0;
-	RWIndirectArgsBuffer[4] = 0;
-
-	// ResolveNeighborLods and CullInstances indirect args
-	RWIndirectArgsBuffer[5] = 0; // Increment this counter during CollectQuadsCS.
-	RWIndirectArgsBuffer[6] = 1;
-	RWIndirectArgsBuffer[7] = 1;
-	RWIndirectArgsBuffer[8] = 0;
+	// CullInstances indirect args
+	RWIndirectArgsBuffer[0] = 0; // Increment this wave counter during CollectQuadsCS.
+	RWIndirectArgsBuffer[1] = 1;
+	RWIndirectArgsBuffer[2] = 1;
+	RWIndirectArgsBuffer[3] = 0; // Increment this instance counter counter during CollectQuadsCS.
 
 	// Clear virtual texture feedback counter or prime feedback buffer with first n levels.
 	uint FeedbackCount = 0;
@@ -317,8 +309,8 @@ void CollectQuadsCS(
 				uint PhysicalAddress = PageTableTexture.Load(int3(Pos, Level));
 
 				uint Write;
-				InterlockedAdd(RWIndirectArgsBuffer[1], 1, Write);
-				InterlockedMax(RWIndirectArgsBuffer[5], ((Write + 1) + 63) / 64);
+				InterlockedAdd(RWIndirectArgsBuffer[3], 1, Write);
+				InterlockedMax(RWIndirectArgsBuffer[0], ((Write + 1) + 63) / 64);
 
 				RWQuadBuffer[Write] = Pack(InitQuadRenderItem(Pos, Level, PhysicalAddress, bCull || bOcclude));
 
@@ -377,7 +369,7 @@ void InitInstanceBufferCS()
 void CullInstancesCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 {
 	uint QuadIndex = DispatchThreadId.x;
-	if (QuadIndex >= IndirectArgsBufferSRV[1])
+	if (QuadIndex >= IndirectArgsBufferSRV[3])
 		return;
 
 	uint2 PackedItem = QuadBuffer[QuadIndex];
