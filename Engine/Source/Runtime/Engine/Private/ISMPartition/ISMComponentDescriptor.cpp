@@ -30,7 +30,7 @@ FISMComponentDescriptor FISMComponentDescriptor::CreateFrom(const TSubclassOf<US
 	return ComponentDescriptor;
 }
 
-void FISMComponentDescriptor::InitFrom(UStaticMeshComponent* Template, bool bInitBodyInstance)
+void FISMComponentDescriptor::InitFrom(const UStaticMeshComponent* Template, bool bInitBodyInstance)
 {
 	bEnableDiscardOnLoad = false;
 	ComponentClass = Template->GetClass();
@@ -63,13 +63,13 @@ void FISMComponentDescriptor::InitFrom(UStaticMeshComponent* Template, bool bIni
 	bIsEditorOnly = Template->bIsEditorOnly;
 	bVisibleInRayTracing = Template->bVisibleInRayTracing;
 
-	if (UInstancedStaticMeshComponent* ISMTemplate = Cast<UInstancedStaticMeshComponent>(Template))
+	if (const UInstancedStaticMeshComponent* ISMTemplate = Cast<UInstancedStaticMeshComponent>(Template))
 	{
 		InstanceStartCullDistance = ISMTemplate->InstanceStartCullDistance;
 		InstanceEndCullDistance = ISMTemplate->InstanceEndCullDistance;
 
 		// HISM Specific
-		if (UHierarchicalInstancedStaticMeshComponent* HISMTemplate = Cast<UHierarchicalInstancedStaticMeshComponent>(Template))
+		if (const UHierarchicalInstancedStaticMeshComponent* HISMTemplate = Cast<UHierarchicalInstancedStaticMeshComponent>(Template))
 		{
 			bEnableDensityScaling = HISMTemplate->bEnableDensityScaling;
 		}
