@@ -172,6 +172,7 @@ protect /Source/Programs/Shared/EpicGames.Core/bin/**
 + /Source/ThirdParty/**.dylib
 + /Source/ThirdParty/**.embeddedframework.zip
 + /Source/ThirdParty/libJPG/*.cpp
++ /Source/ThirdParty/libSampleRate/**.cpp
 + /Source/ThirdParty/Eigen/**
 - /Source/ThirdParty/**
 
