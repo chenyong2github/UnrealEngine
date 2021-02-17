@@ -26,13 +26,13 @@ TMap<FString, TSharedPtr<SNotificationItem>> UControlRigComponent::EditorNotific
 
 struct FSkeletalMeshToMap
 {
-	USkeletalMeshComponent* SkeletalMeshComponent;
+	TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent;
 	TArray<FControlRigComponentMappedBone> Bones;
 	TArray<FControlRigComponentMappedCurve> Curves;
 };
 
 FCriticalSection gPendingSkeletalMeshesLock;
-TMap<UControlRigComponent*, TArray<FSkeletalMeshToMap> > gPendingSkeletalMeshes;
+TMap<TWeakObjectPtr<UControlRigComponent>, TArray<FSkeletalMeshToMap> > gPendingSkeletalMeshes;
 
 UControlRigComponent::UControlRigComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -69,6 +69,14 @@ void UControlRigComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	}
 }
 #endif
+
+void UControlRigComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	FScopeLock Lock(&gPendingSkeletalMeshesLock);
+	gPendingSkeletalMeshes.Remove(this);
+}
 
 void UControlRigComponent::OnRegister()
 {
@@ -145,7 +153,7 @@ void UControlRigComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 			for (const FSkeletalMeshToMap& SkeletalMeshToMap : *PendingSkeletalMeshes)
 			{
 				AddMappedSkeletalMesh(
-					SkeletalMeshToMap.SkeletalMeshComponent,
+					SkeletalMeshToMap.SkeletalMeshComponent.Get(),
 					SkeletalMeshToMap.Bones,
 					SkeletalMeshToMap.Curves
 				);
