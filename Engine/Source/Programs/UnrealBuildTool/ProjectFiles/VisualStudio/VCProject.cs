@@ -1661,7 +1661,10 @@ namespace UnrealBuildTool
 						BuildArguments.AppendFormat(" {0}", BuildToolOverride);
 					}
 
-					BuildArguments.Append(ProjGenerator.GetExtraBuildArguments(Platform, Configuration));
+					if (ProjGenerator != null)
+					{
+						BuildArguments.Append(ProjGenerator.GetExtraBuildArguments(Platform, Configuration));
+					}
 
 					// NMake Build command line
 					VCProjectFileContent.AppendLine("    <NMakeBuildCommandLine>{0} {1}</NMakeBuildCommandLine>", EscapePath(NormalizeProjectPath(FileReference.Combine(BatchFilesDirectory, "Build.bat"))), BuildArguments.ToString());
