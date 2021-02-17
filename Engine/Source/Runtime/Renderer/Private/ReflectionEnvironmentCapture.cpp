@@ -899,7 +899,7 @@ int32 GetReflectionCaptureSizeForArrayCount(int32 InRequestedCaptureSize, int32 
 		// Single large cube array allocations can fail on low end systems even if we try to fit it in total avail video and/or avail system memory
 		
 		// Attempt to limit the resource size to within percentage (3/4) of total video memory to give consistant stable results
-		const int64 MaxResourceVideoMemoryFootprint = (TextureMemStats.DedicatedVideoMemory * int64(3)) / int64(4);
+		const SIZE_T MaxResourceVideoMemoryFootprint = ((SIZE_T)TextureMemStats.DedicatedVideoMemory * (SIZE_T)3) / (SIZE_T)4;
 		
 		// Bottom out at 128 as that is the default for CVarReflectionCaptureSize
         while(TexMemRequired > MaxResourceVideoMemoryFootprint && OutCaptureSize > 128)
