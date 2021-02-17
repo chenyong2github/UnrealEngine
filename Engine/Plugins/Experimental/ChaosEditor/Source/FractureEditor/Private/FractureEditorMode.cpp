@@ -338,6 +338,9 @@ void FFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 
 			FScopedColorEdit ShowBoneColorsEdit(ExistingSelection);
 			ShowBoneColorsEdit.SetEnableBoneSelection(false);
+			ShowBoneColorsEdit.SetShowBoneColors(false);
+			
+			ExistingSelection->MarkRenderStateDirty();
 		}
 	}
 
