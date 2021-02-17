@@ -112,6 +112,7 @@ void FDataprepEditorStyle::Initialize()
 		StyleSet->Set("DataprepActionStep.Selected", FLinearColor(FColor(1, 202, 252)) );
 		StyleSet->Set("DataprepActionStep.Filter.OutlineColor", FLinearColor(FColor(220, 125, 67)));
 		StyleSet->Set("DataprepActionStep.Operation.OutlineColor", FLinearColor(FColor(67, 177, 220)) );
+		StyleSet->Set("DataprepActionStep.SelectionTransform.OutlineColor", FLinearColor(FColor(255, 88, 255)) );
 		StyleSet->Set("DataprepActionStep.Separator.Color", FLinearColor(FColor(182, 219, 192)) );
 
 		StyleSet->Set("DataprepActionStep.Outter.Regular.Padding", FMargin(10.f, 3.f, 10.f, 3.f));
