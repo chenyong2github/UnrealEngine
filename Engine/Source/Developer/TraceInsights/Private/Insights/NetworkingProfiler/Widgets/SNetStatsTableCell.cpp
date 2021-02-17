@@ -86,7 +86,7 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArgum
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.HAlign(ColumnPtr->GetHorizontalAlignment())
+		.HAlign(HAlign_Left)
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
@@ -94,6 +94,21 @@ TSharedRef<SWidget> SNetStatsTableCell::GenerateWidgetForNameColumn(const FArgum
 			.HighlightText(InArgs._HighlightText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &SNetStatsTableCell::GetColorAndOpacity)
+			.ShadowColorAndOpacity(this, &SNetStatsTableCell::GetShadowColorAndOpacity)
+		]
+
+		// Name Suffix
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(FMargin(2.0f, 0.0f))
+		[
+			SNew(STextBlock)
+			.Visibility(this, &SNetStatsTableCell::HasExtraDisplayName)
+			.Text(this, &SNetStatsTableCell::GetExtraDisplayName)
+			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.ColorAndOpacity(this, &SNetStatsTableCell::GetExtraColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SNetStatsTableCell::GetShadowColorAndOpacity)
 		]
 	;

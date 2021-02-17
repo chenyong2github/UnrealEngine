@@ -108,6 +108,16 @@ protected:
 		return TableTreeNodePtr->GetDisplayName();
 	}
 
+	FText GetExtraDisplayName() const
+	{
+		return TableTreeNodePtr->GetExtraDisplayName();
+	}
+
+	EVisibility HasExtraDisplayName() const
+	{
+		return TableTreeNodePtr->HasExtraDisplayName() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
 	FText GetValueAsText() const;
 
 	FSlateColor GetColorAndOpacity() const
@@ -116,6 +126,15 @@ protected:
 			TableTreeNodePtr->IsFiltered() ?
 				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
 				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		return TextColor;
+	}
+
+	FSlateColor GetExtraColorAndOpacity() const
+	{
+		const FLinearColor TextColor =
+			TableTreeNodePtr->IsFiltered() ?
+				FLinearColor(0.5f, 0.5f, 0.5f, 0.5f) :
+				FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
 		return TextColor;
 	}
 

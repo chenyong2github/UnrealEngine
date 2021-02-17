@@ -117,6 +117,16 @@ protected:
 		return TimerNodePtr->GetDisplayName();
 	}
 
+	FText GetExtraDisplayName() const
+	{
+		return TimerNodePtr->GetExtraDisplayName();
+	}
+
+	EVisibility HasExtraDisplayName() const
+	{
+		return TimerNodePtr->HasExtraDisplayName() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
 	FText GetValueAsText() const;
 
 	FSlateColor GetColorAndOpacity() const
@@ -125,6 +135,15 @@ protected:
 			TimerNodePtr->IsFiltered() ?
 				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
 				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		return TextColor;
+	}
+
+	FSlateColor GetExtraColorAndOpacity() const
+	{
+		const FLinearColor TextColor =
+			TimerNodePtr->IsFiltered() ?
+				FLinearColor(0.5f, 0.5f, 0.5f, 0.5f) :
+				FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
 		return TextColor;
 	}
 

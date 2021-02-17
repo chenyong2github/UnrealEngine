@@ -106,7 +106,7 @@ TSharedRef<SWidget> SMemTagTreeViewTableCell::GenerateWidgetForNameColumn(const 
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
-		.HAlign(ColumnPtr->GetHorizontalAlignment())
+		.HAlign(HAlign_Left)
 		.Padding(FMargin(2.0f, 0.0f))
 		[
 			SNew(STextBlock)
@@ -114,6 +114,21 @@ TSharedRef<SWidget> SMemTagTreeViewTableCell::GenerateWidgetForNameColumn(const 
 			.HighlightText(InArgs._HighlightText)
 			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 			.ColorAndOpacity(this, &SMemTagTreeViewTableCell::GetColorAndOpacity)
+			.ShadowColorAndOpacity(this, &SMemTagTreeViewTableCell::GetShadowColorAndOpacity)
+		]
+
+		// Name Suffix
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Left)
+		.Padding(FMargin(2.0f, 0.0f))
+		[
+			SNew(STextBlock)
+			.Visibility(this, &SMemTagTreeViewTableCell::HasExtraDisplayName)
+			.Text(this, &SMemTagTreeViewTableCell::GetExtraDisplayName)
+			.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+			.ColorAndOpacity(this, &SMemTagTreeViewTableCell::GetExtraColorAndOpacity)
 			.ShadowColorAndOpacity(this, &SMemTagTreeViewTableCell::GetShadowColorAndOpacity)
 		]
 	;

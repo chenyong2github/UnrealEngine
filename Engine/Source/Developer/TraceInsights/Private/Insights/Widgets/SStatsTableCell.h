@@ -112,6 +112,16 @@ protected:
 		return StatsNodePtr->GetDisplayName();
 	}
 
+	FText GetExtraDisplayName() const
+	{
+		return StatsNodePtr->GetExtraDisplayName();
+	}
+
+	EVisibility HasExtraDisplayName() const
+	{
+		return StatsNodePtr->HasExtraDisplayName() ? EVisibility::Visible : EVisibility::Collapsed;
+	}
+
 	FText GetValueAsText() const;
 
 	FSlateColor GetColorAndOpacity() const
@@ -120,6 +130,15 @@ protected:
 			StatsNodePtr->IsFiltered() ?
 				FLinearColor(1.0f, 1.0f, 1.0f, 0.5f) :
 				FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+		return TextColor;
+	}
+
+	FSlateColor GetExtraColorAndOpacity() const
+	{
+		const FLinearColor TextColor =
+			StatsNodePtr->IsFiltered() ?
+				FLinearColor(0.5f, 0.5f, 0.5f, 0.5f) :
+				FLinearColor(0.5f, 0.5f, 0.5f, 1.0f);
 		return TextColor;
 	}
 

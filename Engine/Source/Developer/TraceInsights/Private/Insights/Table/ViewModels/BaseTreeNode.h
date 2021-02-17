@@ -29,18 +29,38 @@ typedef TWeakPtr<class FBaseTreeNode> FBaseTreeNodeWeak;
 
 class FBaseTreeNode : public TSharedFromThis<FBaseTreeNode>
 {
+protected:
+	struct FGroupNodeData
+	{
+		/** Children of this node. */
+		TArray<FBaseTreeNodePtr> Children;
+
+		/** Filtered children of this node. */
+		TArray<FBaseTreeNodePtr> FilteredChildren;
+
+		/** Descriptive text for this node to display in a tooltip. */
+		FText Tooltip;
+
+		/** Whether this group node should be expanded or not. */
+		bool bIsExpanded = false;
+	};
+
 public:
 	/** Initialization constructor for the node. */
 	FBaseTreeNode(const FName InName, bool bInIsGroup)
 		: DefaultSortOrder(0)
 		, Name(InName)
-		, bIsGroup(bInIsGroup)
-		, bIsExpanded(false)
+		, GroupData(bInIsGroup ? new FGroupNodeData() : &DefaultGroupData)
 	{
 	}
 
 	virtual ~FBaseTreeNode()
 	{
+		if (GroupData != &DefaultGroupData)
+		{
+			delete GroupData;
+			GroupData = nullptr;
+		}
 	}
 
 	virtual const FName& GetTypeName() const = 0;
@@ -57,16 +77,33 @@ public:
 	}
 
 	/**
-	 * @return a name of this node to display in tree view. Ex.: group nodes may include additional info, like the number of visible/total children.
+	 * @return a name of this node to display in tree view.
 	 */
 	virtual const FText GetDisplayName() const;
+
+	/**
+	 * @return a name suffix for this node to display in tree view. Ex.: group nodes may include additional info, like the number of visible / total children.
+	 */
+	virtual const FText GetExtraDisplayName() const;
+
+	virtual bool HasExtraDisplayName() const;
+
+	/**
+	 * @return a descriptive text for this node to display in a tooltip.
+	 */
+	virtual const FText GetTooltip() const { return IsGroup() ? GroupData->Tooltip : FText::GetEmpty(); }
+
+	/**
+	 * Sets a descriptive text for this node to display in a tooltip.
+	 */
+	virtual void SetTooltip(const FText& InTooltip) { if (IsGroup()) { GroupData->Tooltip = InTooltip; } }
 
 	/**
 	 * @return true, if this node is a group node.
 	 */
 	bool IsGroup() const
 	{
-		return bIsGroup;
+		return GroupData != &DefaultGroupData;
 	}
 
 	/**
@@ -74,7 +111,7 @@ public:
 	 */
 	FORCEINLINE_DEBUGGABLE const TArray<FBaseTreeNodePtr>& GetChildren() const
 	{
-		return Children;
+		return GroupData->Children;
 	}
 
 	/**
@@ -82,7 +119,7 @@ public:
 	 */
 	FORCEINLINE_DEBUGGABLE const TArray<FBaseTreeNodePtr>& GetFilteredChildren() const
 	{
-		return FilteredChildren;
+		return GroupData->FilteredChildren;
 	}
 
 	/**
@@ -113,33 +150,33 @@ public:
 	FORCEINLINE_DEBUGGABLE void AddChildAndSetGroupPtr(const FBaseTreeNodePtr& ChildPtr)
 	{
 		ChildPtr->GroupPtr = AsShared();
-		Children.Add(ChildPtr);
+		GroupData->Children.Add(ChildPtr);
 	}
 
 	/** Clears children. */
 	void ClearChildren(int32 NewSize = 0)
 	{
-		for (FBaseTreeNodePtr& NodePtr : Children)
+		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
 		{
 			NodePtr->GroupPtr = nullptr;
 		}
-		Children.Reset(NewSize);
+		GroupData->Children.Reset(NewSize);
 	}
 
 	/** Adds specified child to the filtered children. */
 	FORCEINLINE_DEBUGGABLE void AddFilteredChild(const FBaseTreeNodePtr& ChildPtr)
 	{
-		FilteredChildren.Add(ChildPtr);
+		GroupData->FilteredChildren.Add(ChildPtr);
 	}
 
 	/** Clears filtered children. */
 	void ClearFilteredChildren()
 	{
-		FilteredChildren.Reset();
+		GroupData->FilteredChildren.Reset();
 	}
 
-	bool IsExpanded() const { return bIsExpanded; }
-	void SetExpansion(bool bOnOff) { bIsExpanded = bOnOff; }
+	bool IsExpanded() const { return GroupData->bIsExpanded; }
+	void SetExpansion(bool bOnOff) { GroupData->bIsExpanded = bOnOff; }
 
 protected:
 	/**
@@ -147,7 +184,7 @@ protected:
 	 */
 	FORCEINLINE_DEBUGGABLE TArray<FBaseTreeNodePtr>& GetChildrenMutable()
 	{
-		return Children;
+		return GroupData->Children;
 	}
 
 	void SetGroupPtr(FBaseTreeNodePtr InGroupPtr)
@@ -162,20 +199,14 @@ private:
 	/** The name of this node. */
 	const FName Name;
 
-	/** Children of this node. */
-	TArray<FBaseTreeNodePtr> Children;
-
-	/** Filtered children of this node. */
-	TArray<FBaseTreeNodePtr> FilteredChildren;
-
 	/** A weak pointer to the group/parent of this node. */
 	FBaseTreeNodeWeak GroupPtr;
 
-	/** If this node is a group node or not. */
-	bool bIsGroup;
+	/** The struct containing properties of a group node. It is allocated only for group nodes. */
+	FGroupNodeData* GroupData;
 
-	/** Whether this group node should be expanded or not. */
-	bool bIsExpanded;
+	/** The only group data for "not a group" nodes. */
+	static FGroupNodeData DefaultGroupData;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

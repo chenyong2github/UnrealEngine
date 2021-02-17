@@ -10,46 +10,56 @@
 namespace Insights
 {
 
+FBaseTreeNode::FGroupNodeData FBaseTreeNode::DefaultGroupData;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const FText FBaseTreeNode::GetDisplayName() const
 {
-	FText Text = FText::GetEmpty();
+	return FText::FromName(GetName());
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FText FBaseTreeNode::GetExtraDisplayName() const
+{
 	if (IsGroup())
 	{
-		const int32 NumChildren = Children.Num();
-		const int32 NumFilteredChildren = FilteredChildren.Num();
+		const int32 NumChildren = GroupData->Children.Num();
+		const int32 NumFilteredChildren = GroupData->FilteredChildren.Num();
 
 		if (NumFilteredChildren == NumChildren)
 		{
-			Text = FText::Format(LOCTEXT("TreeNodeGroupTextFmt1", "{0} ({1})"), FText::FromName(GetName()), FText::AsNumber(NumChildren));
+			return FText::Format(LOCTEXT("TreeNodeGroup_ExtraText_Fmt1", "({0})"), FText::AsNumber(NumChildren));
 		}
 		else
 		{
-			Text = FText::Format(LOCTEXT("TreeNodeGroupTextFmt2", "{0} ({1} / {2})"), FText::FromName(GetName()), FText::AsNumber(NumFilteredChildren), FText::AsNumber(NumChildren));
+			return FText::Format(LOCTEXT("TreeNodeGroup_ExtraText_Fmt2", "({0} / {1})"), FText::AsNumber(NumFilteredChildren), FText::AsNumber(NumChildren));
 		}
 	}
-	else
-	{
-		Text = FText::FromName(GetName());
-	}
 
-	return Text;
+	return FText::GetEmpty();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FBaseTreeNode::HasExtraDisplayName() const
+{
+	return IsGroup();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FBaseTreeNode::SortChildrenAscending(const ITableCellValueSorter& Sorter)
 {
-	Sorter.Sort(Children, ESortMode::Ascending);
+	Sorter.Sort(GroupData->Children, ESortMode::Ascending);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FBaseTreeNode::SortChildrenDescending(const ITableCellValueSorter& Sorter)
 {
-	Sorter.Sort(Children, ESortMode::Descending);
+	Sorter.Sort(GroupData->Children, ESortMode::Descending);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
