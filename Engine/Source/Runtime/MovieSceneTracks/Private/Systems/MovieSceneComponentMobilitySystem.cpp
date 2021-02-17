@@ -160,7 +160,7 @@ void UMovieSceneComponentMobilitySystem::OnRun(FSystemTaskPrerequisites& InPrere
 			auto Inputs = this->OutputToEntity.CreateConstKeyIterator(OutputIndex);
 			if (Inputs)
 			{
-				for (Inputs; Inputs; ++Inputs)
+				for ( ; Inputs; ++Inputs)
 				{
 					if (InLinker->EntityManager.HasComponent(Inputs.Value(), RestoreStateTag))
 					{
