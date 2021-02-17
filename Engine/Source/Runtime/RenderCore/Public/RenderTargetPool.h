@@ -335,7 +335,7 @@ private:
 		bool bDeferTextureAllocation,
 		bool bDoAcquireTransientResource);
 
-	bool DoesTargetNeedTransienceOverride(const FPooledRenderTargetDesc& InputDesc, ERenderTargetTransience TransienceHint) const;
+	static bool DoesTargetNeedTransienceOverride(ETextureCreateFlags Flags, ERenderTargetTransience TransienceHint);
 
 	friend void RenderTargetPoolEvents(const TArray<FString>& Args);
 

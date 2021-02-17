@@ -20,37 +20,6 @@ inline FRDGTextureRef FRDGBuilder::FindExternalTexture(IPooledRenderTarget* Exte
 	return nullptr;
 }
 
-inline FRDGTextureRef FRDGBuilder::CreateTexture(
-	const FRDGTextureDesc& Desc,
-	const TCHAR* Name,
-	ERDGTextureFlags Flags)
-{
-#if RDG_ENABLE_DEBUG
-	{
-		checkf(Name, TEXT("Creating a texture requires a valid debug name."));
-		UserValidation.ExecuteGuard(TEXT("CreateTexture"), Name);
-
-		// Validate the pixel format.
-		checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
-		checkf(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with invalid FPooledRenderTargetDesc::Format."), Name);
-		checkf(GPixelFormats[Desc.Format].Supported,
-			TEXT("Failed to create texture %s with pixel format %s because it is not supported."), Name, GPixelFormats[Desc.Format].Name);
-		checkf(Desc.IsValid(), TEXT("Texture %s was created with an invalid descriptor."), Name);
-
-		const bool bCanHaveUAV = (Desc.Flags & TexCreate_UAV) > 0;
-		const bool bIsMSAA = Desc.NumSamples > 1;
-
-		// D3D11 doesn't allow creating a UAV on MSAA texture.
-		const bool bIsUAVForMSAATexture = bIsMSAA && bCanHaveUAV;
-		checkf(!bIsUAVForMSAATexture, TEXT("TexCreate_UAV is not allowed on MSAA texture %s."), Name);
-	}
-#endif
-
-	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, Desc, Flags, ERenderTargetTexture::ShaderResource);
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Texture));
-	return Texture;
-}
-
 inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	const FRDGBufferDesc& Desc,
 	const TCHAR* Name,

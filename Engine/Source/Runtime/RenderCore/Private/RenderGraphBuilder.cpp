@@ -420,6 +420,44 @@ void FRDGBuilder::PreallocateTexture(FRDGTextureRef Texture)
 	}
 }
 
+FRDGTextureRef FRDGBuilder::CreateTexture(
+	const FRDGTextureDesc& Desc,
+	const TCHAR* Name,
+	ERDGTextureFlags Flags)
+{
+#if RDG_ENABLE_DEBUG
+	{
+		checkf(Name, TEXT("Creating a texture requires a valid debug name."));
+		UserValidation.ExecuteGuard(TEXT("CreateTexture"), Name);
+
+		// Validate the pixel format.
+		checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
+		checkf(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with invalid FPooledRenderTargetDesc::Format."), Name);
+		checkf(GPixelFormats[Desc.Format].Supported,
+			TEXT("Failed to create texture %s with pixel format %s because it is not supported."), Name, GPixelFormats[Desc.Format].Name);
+		checkf(Desc.IsValid(), TEXT("Texture %s was created with an invalid descriptor."), Name);
+
+		const bool bCanHaveUAV = (Desc.Flags & TexCreate_UAV) > 0;
+		const bool bIsMSAA = Desc.NumSamples > 1;
+
+		// D3D11 doesn't allow creating a UAV on MSAA texture.
+		const bool bIsUAVForMSAATexture = bIsMSAA && bCanHaveUAV;
+		checkf(!bIsUAVForMSAATexture, TEXT("TexCreate_UAV is not allowed on MSAA texture %s."), Name);
+	}
+#endif
+
+	FRDGTextureDesc TransientDesc = Desc;
+
+	if (FRenderTargetPool::DoesTargetNeedTransienceOverride(Desc.Flags, ERenderTargetTransience::Transient))
+	{
+		TransientDesc.Flags |= TexCreate_Transient;
+	}
+
+	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, TransientDesc, Flags, ERenderTargetTexture::ShaderResource);
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Texture));
+	return Texture;
+}
+
 FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 	ERenderTargetTexture RenderTargetTexture,
@@ -474,7 +512,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	Texture->bExternal = true;
 	Texture->AccessInitial = AccessInitial;
 	Texture->AccessFinal = kDefaultAccessFinal;
-	Texture->AcquirePass = GetProloguePassHandle();
+	Texture->FirstPass = GetProloguePassHandle();
 
 	FRDGTextureSubresourceState& TextureState = Texture->GetState();
 
@@ -541,7 +579,7 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 	Buffer->bExternal = true;
 	Buffer->AccessInitial = AccessInitial;
 	Buffer->AccessFinal = kDefaultAccessFinal;
-	Buffer->AcquirePass = GetProloguePassHandle();
+	Buffer->FirstPass = GetProloguePassHandle();
 
 	FRDGSubresourceState& BufferState = Buffer->GetState();
 	checkf(BufferState.Access == ERHIAccess::Unknown,
@@ -1166,6 +1204,7 @@ void FRDGBuilder::Execute()
 		IF_RDG_ENABLE_DEBUG(LogFile.Begin(BuilderName, &Passes, PassesToCull, GetProloguePassHandle(), GetEpiloguePassHandle()));
 
 		{
+			SCOPED_NAMED_EVENT_TEXT("CollectPassResources", FColor::Magenta);
 			SCOPE_CYCLE_COUNTER(STAT_RDG_CollectResourcesTime);
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RDG_CollectResources);
 
@@ -1189,6 +1228,7 @@ void FRDGBuilder::Execute()
 		}
 
 		{
+			SCOPED_NAMED_EVENT_TEXT("CollectPassBarriers", FColor::Magenta);
 			SCOPE_CYCLE_COUNTER(STAT_RDG_CollectBarriersTime);
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDG_CollectBarriers, GRDGVerboseCSVStats != 0);
 
@@ -1210,7 +1250,7 @@ void FRDGBuilder::Execute()
 			if (!Resource->bLastOwner)
 			{
 				auto* NextOwner = Registry[Resource->NextOwner];
-				LogFile.AddAliasEdge(Resource, Resource->LastPass, NextOwner, NextOwner->AcquirePass);
+				LogFile.AddAliasEdge(Resource, Resource->LastPass, NextOwner, NextOwner->FirstPass);
 			}
 			LogFile.AddFirstEdge(Resource, Resource->FirstPass);
 		}
@@ -1310,6 +1350,7 @@ void FRDGBuilder::Execute()
 
 void FRDGBuilder::Clear()
 {
+	SCOPED_NAMED_EVENT_TEXT("Clear", FColor::Magenta);
 	SCOPE_CYCLE_COUNTER(STAT_RDG_ClearTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGBuilder_Clear, GRDGVerboseCSVStats != 0);
 	ExternalTextures.Empty();
@@ -1524,16 +1565,6 @@ void FRDGBuilder::ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FR
 		static_cast<FRHICommandList&>(RHICmdListPass).EndRenderPass();
 	}
 
-	for (FRHITexture* Texture : Pass->TexturesToDiscard)
-	{
-		RHIDiscardTransientResource(Texture);
-	}
-
-	for (FRHITexture* Texture : Pass->TexturesToAcquire)
-	{
-		RHIAcquireTransientResource(Texture);
-	}
-
 	const FRDGParameterStruct PassParameters = Pass->GetParameters();
 
 	if (Pass->EpilogueBarriersToBeginForGraphics)
@@ -1554,6 +1585,11 @@ void FRDGBuilder::ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FR
 void FRDGBuilder::ExecutePass(FRDGPass* Pass)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FRDGBuilder_ExecutePass);
+
+	for (FRHITexture* Texture : Pass->TexturesToAcquire)
+	{
+		RHIAcquireTransientResource(Texture);
+	}
 
 	// Note that we must do this before doing anything with RHICmdList for the pass.
 	// For example, if this pass only executes on GPU 1 we want to avoid adding a
@@ -1599,6 +1635,11 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass)
 
 	ExecutePassEpilogue(RHICmdListPass, Pass);
 
+	for (FRHITexture* Texture : Pass->TexturesToDiscard)
+	{
+		RHIDiscardTransientResource(Texture);
+	}
+
 	if (Pass->bAsyncComputeEnd)
 	{
 		if (Pass->bAsyncComputeEndExecute)
@@ -1618,7 +1659,6 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass)
 void FRDGBuilder::CollectPassResources(FRDGPassHandle PassHandle)
 {
 	FRDGPass* Pass = Passes[PassHandle];
-	const ERDGPassFlags PassFlags = Pass->GetFlags();
 
 	for (FRDGPass* PassToBegin : Pass->ResourcesToBegin)
 	{
@@ -1665,9 +1705,6 @@ void FRDGBuilder::CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle&
 	{
 		return;
 	}
-
-	const FRDGParameterStruct PassParameters = Pass->GetParameters();
-	const ERHIPipeline PassPipeline = Pass->GetPipeline();
 
 	for (const auto& TexturePair : Pass->TextureStates)
 	{
@@ -1919,7 +1956,7 @@ void FRDGBuilder::AddTransitionInternal(
 	check(StateBefore.LastPass < StateAfter.FirstPass);
 
 	// Before states may come from previous aliases of the texture.
-	if (Resource->bTransient && StateBefore.LastPass < Resource->AcquirePass)
+	if (Resource->bTransient && StateBefore.LastPass < Resource->FirstPass)
 	{
 		// If this got left in an async compute state, we need to end the transition in the graphics
 		// fork pass, since that's the lifetime of the previous owner was extended to that point. The
@@ -1931,11 +1968,11 @@ void FRDGBuilder::AddTransitionInternal(
 		// Otherwise, can push the start of the transition forward until our alias is acquired.
 		else
 		{
-			StateBefore.LastPass = Resource->AcquirePass;
+			StateBefore.LastPass = Resource->FirstPass;
 		}
 	}
 
-	check(StateBefore.LastPass < StateAfter.FirstPass);
+	check(StateBefore.LastPass <= StateAfter.FirstPass);
 
 	// Avoids splitting across a pass that is doing untracked RHI access.
 	if (StateBefore.LastPass < LastUntrackedPassHandle)
@@ -2031,33 +2068,25 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureRef Tex
 
 	TRefCountPtr<FPooledRenderTarget> PooledRenderTarget = GRenderTargetPool.FindFreeElementForRDG(RHICmdList, Texture->Desc, Texture->Name);
 
+	const bool bTransient = PooledRenderTarget->IsTransient();
 	FRDGTextureRef PreviousOwner = nullptr;
 	Texture->SetRHI(PooledRenderTarget, PreviousOwner);
-	Texture->bTransient = PooledRenderTarget->IsTransient();
+	Texture->FirstPass = PassHandle;
 
-	check(!IsResourceLifetimeExtended() || !PreviousOwner);
-
-	// Acquires are made in the last pass of the previous alias.
-	FRDGPassHandle AcquirePassHandle = PreviousOwner ? PreviousOwner->LastPass : GetProloguePassHandle();
-
-	if (Texture->bTransient)
+	if (bTransient)
 	{
-		// We will handle the discard behavior ourselves.
-		PooledRenderTarget->bAutoDiscard = false;
-
-		FRDGPass* AcquirePass = Passes[AcquirePassHandle];
-
-		// Discards for the previous owner occur in the same pass as the acquire.
-		if (PreviousOwner)
+		if (Texture->bExternal)
 		{
-			AcquirePass->TexturesToDiscard.Add(PreviousOwner->GetRHIUnchecked());
+			RHIAcquireTransientResource(Texture->GetRHIUnchecked());
 		}
-
-		AcquirePass->TexturesToAcquire.Add(Texture->GetRHIUnchecked());
+		else if (!GRDGImmediateMode)
+		{
+			Texture->bTransient = bTransient;
+			Passes[PassHandle]->TexturesToAcquire.Emplace(Texture->GetRHIUnchecked());
+		}
 	}
-
-	Texture->AcquirePass = AcquirePassHandle;
 }
+
 
 void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureSRVRef SRV)
 {
@@ -2071,11 +2100,6 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureSRVRef 
 	FRDGTextureRef Texture = SRV->Desc.Texture;
 	FRDGPooledTexture* PooledTexture = Texture->PooledTexture;
 	check(PooledTexture);
-
-	if (!Texture->FirstPass.IsValid())
-	{
-		Texture->FirstPass = PassHandle;
-	}
 
 	if (SRV->Desc.MetaData == ERDGTextureMetaDataAccess::HTile)
 	{
@@ -2189,12 +2213,6 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buff
 	Buffer->SetRHI(PooledBuffer, PreviousOwner);
 	Buffer->FirstPass = PassHandle;
 
-	check(!IsResourceLifetimeExtended() || !PreviousOwner);
-
-	// Acquires are made in the last pass of the previous alias.
-	Buffer->AcquirePass = PreviousOwner ? PreviousOwner->LastPass : GetProloguePassHandle();
-
-	// Transient buffer are not yet implemented.
 }
 
 void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferSRVRef SRV)
@@ -2243,10 +2261,19 @@ void FRDGBuilder::EndResourceRHI(FRDGPassHandle PassHandle, FRDGTextureRef Textu
 		if (Texture->ReferenceCount == 0)
 		{
 			// External textures should never release the reference.
-			if (!Texture->bExternal)
+			if (!Texture->bExternal && !Texture->bTransient)
 			{
 				Texture->Allocation = nullptr;
 			}
+
+			// Extracted textures will be discarded on release of the reference.
+			if (Texture->bTransient && !Texture->bExtracted)
+			{
+				Passes[PassHandle]->TexturesToDiscard.Emplace(Texture->GetRHIUnchecked());
+
+				static_cast<FPooledRenderTarget*>(Texture->PooledRenderTarget)->bAutoDiscard = false;
+			}
+
 			Texture->LastPass = PassHandle;
 		}
 	}

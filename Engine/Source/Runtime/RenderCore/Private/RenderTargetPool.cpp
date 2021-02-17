@@ -222,7 +222,7 @@ FRenderTargetPool::FRenderTargetPool()
 }
 
 // Logic for determining whether to make a rendertarget transient
-bool FRenderTargetPool::DoesTargetNeedTransienceOverride(const FPooledRenderTargetDesc& InputDesc, ERenderTargetTransience TransienceHint) const
+bool FRenderTargetPool::DoesTargetNeedTransienceOverride(ETextureCreateFlags Flags, ERenderTargetTransience TransienceHint)
 {
 	if (!GSupportsTransientResourceAliasing)
 	{
@@ -231,14 +231,12 @@ bool FRenderTargetPool::DoesTargetNeedTransienceOverride(const FPooledRenderTarg
 	int32 AliasingMode = CVarRtPoolTransientMode.GetValueOnRenderThread();
 
 	// We only override transience if aliasing is supported and enabled, the format is suitable, and the target is not already transient
-	if (AliasingMode > 0 &&
-	  	(InputDesc.TargetableFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV)) && 
-		((InputDesc.Flags & TexCreate_Transient) == 0) )
+	if (AliasingMode > 0 && EnumHasAnyFlags(Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV) && !EnumHasAnyFlags(Flags, TexCreate_Transient))
 	{
 		if (AliasingMode == 1)
 		{
 			// Mode 1: Only make FastVRAM rendertargets transient
-			if (InputDesc.Flags & TexCreate_FastVRAM)
+			if (EnumHasAnyFlags(Flags, TexCreate_FastVRAM))
 			{
 				return true;
 			}
@@ -246,7 +244,7 @@ bool FRenderTargetPool::DoesTargetNeedTransienceOverride(const FPooledRenderTarg
 		else if (AliasingMode == 2)
 		{
 			// Mode 2: Make fastvram and ERenderTargetTransience::Transient rendertargets transient
-			if (InputDesc.Flags & TexCreate_FastVRAM || TransienceHint == ERenderTargetTransience::Transient)
+			if (EnumHasAnyFlags(Flags, TexCreate_FastVRAM) || TransienceHint == ERenderTargetTransience::Transient)
 			{
 				return true;
 			}
@@ -600,7 +598,7 @@ Done:
 	if (bDoAcquireTransientTexture)
 	{
 		// Only referenced by the pool, map the physical pages
-		if (OriginalNumRefs == 1 && Found->GetRenderTargetItem().TargetableTexture != nullptr)
+		if (Found->IsTransient() && OriginalNumRefs == 1 && Found->GetRenderTargetItem().TargetableTexture != nullptr)
 		{
 			RHIAcquireTransientResource(Found->GetRenderTargetItem().TargetableTexture);
 		}
@@ -646,7 +644,7 @@ bool FRenderTargetPool::FindFreeElement(
 
 	// If we're doing aliasing, we may need to override Transient flags, depending on the input format and mode
 	FPooledRenderTargetDesc ModifiedDesc;
-	bool bMakeTransient = DoesTargetNeedTransienceOverride(InputDesc, TransienceHint);
+	bool bMakeTransient = DoesTargetNeedTransienceOverride(InputDesc.Flags | InputDesc.TargetableFlags, TransienceHint);
 	if (bMakeTransient)
 	{
 		ModifiedDesc = InputDesc;
@@ -1350,6 +1348,7 @@ uint32 FPooledRenderTarget::Release()
 				RHIDiscardTransientResource(RenderTargetItem.TargetableTexture);
 			}
 			FrameNumberLastDiscard = GFrameNumberRenderThread;
+			bAutoDiscard = true;
 		}
 		return Refs;
 	}
@@ -1453,7 +1452,7 @@ bool FPooledRenderTarget::OnFrameStart()
 uint32 FPooledRenderTarget::ComputeMemorySize() const
 {
 	uint32 Size = 0;
-	if (!bSnapshot)
+	if (!bSnapshot && !IsTransient())
 	{
 		if (Desc.Is2DTexture())
 		{
