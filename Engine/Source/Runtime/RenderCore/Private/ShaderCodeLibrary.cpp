@@ -1988,6 +1988,7 @@ public:
 	{		
 		if (IsLibraryInitializedForRuntime())
 		{
+			FRWScopeLock WriteLock(NamedLibrariesMutex, SLT_Write);
 			for (TTuple<FString, TUniquePtr<UE::ShaderLibrary::Private::FNamedShaderLibrary>>& NamedLibraryPair : NamedLibrariesStack)
 			{
 				NamedLibraryPair.Value->OnPakFileMounted(MountInfo);
