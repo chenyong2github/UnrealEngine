@@ -1666,6 +1666,16 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealityHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags InTexFlags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef & OutTargetableTexture, FTexture2DRHIRef & OutShaderResourceTexture, uint32 NumSamples)
 	{
+		// Depth textures are being allocated every frame, only explicitly reallocate if the rendertarget texture changes or the depth buffer is null.
+		if (CurrentDepthBuffer != nullptr && 
+			CurrentDepthBuffer.GetReference()->IsValid() &&
+			!bNeedReallocateDepthTexture)
+		{
+			OutTargetableTexture = CurrentDepthBuffer;
+			OutShaderResourceTexture = CurrentDepthBuffer;
+			return true;
+		}
+		
 		FRHIResourceCreateInfo CreateInfo;
 		// This binding is necessary - without it there will be a runtime error.
 		// Current shader assumes far depth since scene depth uses far depth.
