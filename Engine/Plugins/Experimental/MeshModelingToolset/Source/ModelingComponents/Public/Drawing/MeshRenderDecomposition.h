@@ -57,6 +57,11 @@ public:
 		return Groups.Num();
 	}
 
+	bool IsGroup(int32 Index) const
+	{
+		return Groups[Index] != nullptr;
+	}
+
 	FGroup& GetGroup(int32 Index)
 	{
 		return *Groups[Index];

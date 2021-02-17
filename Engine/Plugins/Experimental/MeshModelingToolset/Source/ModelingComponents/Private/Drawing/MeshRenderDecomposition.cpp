@@ -14,10 +14,13 @@ void FMeshRenderDecomposition::BuildAssociations(const FDynamicMesh3* Mesh)
 
 	ParallelFor(Groups.Num(), [&](int32 GroupIndex) 
 	{
-		const FGroup& Group = GetGroup(GroupIndex);
-		for (int32 tid : Group.Triangles)
+		if (IsGroup(GroupIndex))
 		{
-			TriangleToGroupMap[tid] = GroupIndex;
+			const FGroup& Group = GetGroup(GroupIndex);
+			for (int32 tid : Group.Triangles)
+			{
+				TriangleToGroupMap[tid] = GroupIndex;
+			}
 		}
 	});
 }
