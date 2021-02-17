@@ -23,25 +23,27 @@ namespace DatasmithRevitExporter
 		private EventHandler<DocumentClosingEventArgs> DocumentClosingHandler;
 		private EventHandler<ViewActivatedEventArgs> ViewActivatedHandler;
 
+		public object Properties { get; private set; }
+
 		// Implement the interface to execute some tasks when Revit starts.
 		public Result OnStartup(
 			UIControlledApplication InApplication // handle to the application being started
 		)
 		{
 			// Create a custom ribbon tab
-			string TabName = "Datasmith";
+			string TabName = DatasmithRevitResources.Strings.DatasmithTabName;
 			InApplication.CreateRibbonTab(TabName);
 
 			// Add a new ribbon panel
-			RibbonPanel DirectLinkRibbonPanel = InApplication.CreateRibbonPanel(TabName, "Direct Link");
-			RibbonPanel FileExportRibbonPanel = InApplication.CreateRibbonPanel(TabName, "File Export");
-			RibbonPanel DatasmithRibbonPanel = InApplication.CreateRibbonPanel(TabName, "Datasmith");
+			RibbonPanel DirectLinkRibbonPanel = InApplication.CreateRibbonPanel(TabName, DatasmithRevitResources.Strings.RibbonSection_DirectLink);
+			RibbonPanel FileExportRibbonPanel = InApplication.CreateRibbonPanel(TabName, DatasmithRevitResources.Strings.RibbonSection_FileExport);
+			RibbonPanel DatasmithRibbonPanel = InApplication.CreateRibbonPanel(TabName, DatasmithRevitResources.Strings.RibbonSection_Datasmith);
 
 			string AssemblyPath = Assembly.GetExecutingAssembly().Location;
-			PushButtonData ExportButtonData = new PushButtonData("Export3DView", "Export 3D View", AssemblyPath, "DatasmithRevitExporter.DatasmithExportRevitCommand");
-			PushButtonData SyncButtonData = new PushButtonData("Sync3DView", "Synchronize", AssemblyPath, "DatasmithRevitExporter.DatasmithSyncRevitCommand");
-			PushButtonData ManageConnectionsButtonData = new PushButtonData("Connections", "Connections", AssemblyPath, "DatasmithRevitExporter.DatasmithManageConnectionsRevitCommand");
-			PushButtonData LogButtonData = new PushButtonData("Messages", "Messages", AssemblyPath, "DatasmithRevitExporter.DatasmithShowMessagesRevitCommand");
+			PushButtonData ExportButtonData = new PushButtonData("Export3DView", DatasmithRevitResources.Strings.ButtonExport3DView, AssemblyPath, "DatasmithRevitExporter.DatasmithExportRevitCommand");
+			PushButtonData SyncButtonData = new PushButtonData("Sync3DView", DatasmithRevitResources.Strings.ButtonSync, AssemblyPath, "DatasmithRevitExporter.DatasmithSyncRevitCommand");
+			PushButtonData ManageConnectionsButtonData = new PushButtonData("Connections", DatasmithRevitResources.Strings.ButtonConnections, AssemblyPath, "DatasmithRevitExporter.DatasmithManageConnectionsRevitCommand");
+			PushButtonData LogButtonData = new PushButtonData("Messages", DatasmithRevitResources.Strings.ButtonMessages, AssemblyPath, "DatasmithRevitExporter.DatasmithShowMessagesRevitCommand");
 
 			PushButton SyncPushButton = DirectLinkRibbonPanel.AddItem(SyncButtonData) as PushButton;
 			PushButton ManageConnectionsButton = DirectLinkRibbonPanel.AddItem(ManageConnectionsButtonData) as PushButton;

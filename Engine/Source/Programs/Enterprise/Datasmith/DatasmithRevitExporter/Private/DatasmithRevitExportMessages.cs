@@ -32,7 +32,7 @@ namespace DatasmithRevitExporter
 
 			Button ClearButton = new Button();
 			ClearButton.Name = "ClearButton";
-			ClearButton.Text = "Clear";
+			ClearButton.Text = DatasmithRevitResources.Strings.MessagesDialog_ButtonClear;
 			ClearButton.Anchor = ((AnchorStyles)((AnchorStyles.Bottom | AnchorStyles.Left))); ;
 			ClearButton.Margin = new Padding(3, 3, 3, 3);
 			ClearButton.Size = new Size(75, 23);
@@ -42,7 +42,7 @@ namespace DatasmithRevitExporter
 
 			Button CloseButton = new Button();
 			CloseButton.Name = "CloseButton";
-			CloseButton.Text = "Close";
+			CloseButton.Text = DatasmithRevitResources.Strings.MessagesDialog_ButtonClose;
 			CloseButton.Anchor = ((AnchorStyles)((AnchorStyles.Bottom | AnchorStyles.Right)));;
 			CloseButton.DialogResult = DialogResult.OK;
 			CloseButton.Margin = new Padding(3, 3, 3, 3);
@@ -70,7 +70,7 @@ namespace DatasmithRevitExporter
 			DialogLayout.SetColumnSpan(MessageBox, 2);
 
 			Name = "UnrealDatasmithExportMessages";
-			Text = "Unreal Datasmith Export - Messages";
+			Text = DatasmithRevitResources.Strings.MessagesDialog_Title;
 			AutoScaleDimensions = new SizeF(12F, 25F);
 			AutoScaleMode = AutoScaleMode.Font;
 			ClientSize = new Size(1200, 300);

@@ -92,6 +92,12 @@
     </Compile>
     <Content Include="DatasmithRevit2020.addin" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Resources\DatasmithRevitResources.csproj">
+      <Project>{bc17d734-8f8f-44c1-a84e-af0e616fbe9e}</Project>
+      <Name>DatasmithRevitResources</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>
