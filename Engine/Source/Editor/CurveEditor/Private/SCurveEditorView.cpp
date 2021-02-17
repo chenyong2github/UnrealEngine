@@ -202,6 +202,7 @@ void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParam
 				if (FVector2D::DotProduct(Line1, Line2) <= 0.5f)
 				{
 					Params.InterpolatingPoints.Insert(Params.InterpolatingPoints[Index] + Line2, Index + 1);
+					++Index;
 				}
 			}
 		}
