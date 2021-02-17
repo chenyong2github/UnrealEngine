@@ -21,7 +21,7 @@ void UMeshBoundaryToolBase::Setup()
 	}
 
 	// create mesh to operate on
-	OriginalMesh = MakeShared<FDynamicMesh3>();
+	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
 

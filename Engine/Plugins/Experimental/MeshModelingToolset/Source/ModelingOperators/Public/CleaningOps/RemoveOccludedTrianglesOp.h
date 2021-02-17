@@ -39,8 +39,8 @@ public:
 	virtual ~FRemoveOccludedTrianglesOp() {}
 
 	// inputs
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
-	TSharedPtr<IndexMeshWithAcceleration> CombinedMeshTrees;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<IndexMeshWithAcceleration, ESPMode::ThreadSafe> CombinedMeshTrees;
 
 	TArray<FTransform3d> MeshTransforms;
 

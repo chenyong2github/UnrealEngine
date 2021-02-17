@@ -129,8 +129,8 @@ protected:
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 
-	TSharedPtr<FDynamicMesh3> CurrentMesh;
-	TSharedPtr<FGroupTopology> CurrentTopology;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
+	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> CurrentTopology;
 	FDynamicMeshAABBTree3 MeshSpatial;
 	FGroupTopologySelector TopologySelector;
 
@@ -161,7 +161,7 @@ protected:
 	EToolState ToolState = EToolState::GettingStart;
 	bool bShowingBaseMesh = false;
 	bool bLastComputeSucceeded = false;
-	TSharedPtr<FGroupTopology> LatestOpTopologyResult;
+	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> LatestOpTopologyResult;
 
 	int32 CurrentChangeStamp = 0;
 

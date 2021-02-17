@@ -42,7 +42,7 @@ protected:
 
 	UWorld* TargetWorld;
 
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	// Used for hit querying
 	FDynamicMeshAABBTree3 MeshSpatial;

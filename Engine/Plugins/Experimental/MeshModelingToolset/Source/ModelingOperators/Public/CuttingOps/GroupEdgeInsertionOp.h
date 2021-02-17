@@ -15,8 +15,8 @@ public:
 	virtual ~FGroupEdgeInsertionOp() {}
 
 	// Inputs:
-	TSharedPtr<const FDynamicMesh3> OriginalMesh;
-	TSharedPtr<const FGroupTopology> OriginalTopology;
+	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<const FGroupTopology, ESPMode::ThreadSafe> OriginalTopology;
 	FGroupEdgeInserter::EInsertionMode Mode;
 	double VertexTolerance = KINDA_SMALL_NUMBER * 10;
 
@@ -34,7 +34,7 @@ public:
 	// Edge ID's in the ResultMesh that together make up the new group edge.
 	TSet<int32> Eids; 
 
-	TSharedPtr<FGroupTopology> ResultTopology;
+	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> ResultTopology;
 	bool bSucceeded = false;
 
 	void SetTransform(const FTransform& Transform);

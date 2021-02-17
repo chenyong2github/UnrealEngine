@@ -16,7 +16,7 @@ public:
 	virtual ~FVoxelBlendMeshesOp() {}
 
 	// inputs
-	TArray<TSharedPtr<const FDynamicMesh3>> Meshes;
+	TArray<TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>> Meshes;
 	TArray<FTransform> Transforms; // 1:1 with Meshes
 
 	double BlendFalloff = 10;

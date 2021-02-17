@@ -22,7 +22,7 @@ public:
 	float CutPlaneLocalThickness = 0; // plane thickness in the local space of the mesh
 	float UVScaleFactor;
 	static const FName ObjectIndexAttribute;
-	TSharedPtr<const FDynamicMesh3> OriginalMesh;
+	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	void SetTransform(const FTransform& Transform);
 

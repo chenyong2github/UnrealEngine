@@ -157,7 +157,7 @@ protected:
 	TArray<UMeshOpPreviewWithBackgroundCompute*> Previews;
 
 protected:
-	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 
 	UWorld* TargetWorld = nullptr;
 	IAssetGenerationAPI* AssetAPI = nullptr;

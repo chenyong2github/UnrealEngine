@@ -194,6 +194,6 @@ protected:
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;
 
-	TSharedPtr<FDynamicMesh3> InputMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 
 };

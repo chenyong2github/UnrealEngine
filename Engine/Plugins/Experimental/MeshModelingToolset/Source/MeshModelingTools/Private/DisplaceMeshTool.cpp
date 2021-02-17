@@ -259,13 +259,13 @@ namespace DisplaceMeshToolLocals{
 	class FSubdivideMeshOp : public FDynamicMeshOperator
 	{
 	public:
-		FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap> WeightMap);
+		FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap);
 		void CalculateResult(FProgressCancel* Progress) final;
 	private:
 		int SubdivisionsCount;
 	};
 
-	FSubdivideMeshOp::FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap> WeightMap)
+	FSubdivideMeshOp::FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap)
 		: SubdivisionsCount(SubdivisionsCountIn)
 	{
 		ResultMesh->Copy(SourceMesh);
@@ -308,14 +308,14 @@ namespace DisplaceMeshToolLocals{
 	public:
 		FSubdivideMeshOpFactory(FDynamicMesh3& SourceMeshIn,
 			int SubdivisionsCountIn,
-			TSharedPtr<FIndexedWeightMap> WeightMapIn)
+			TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMapIn)
 			: SourceMesh(SourceMeshIn), SubdivisionsCount(SubdivisionsCountIn), WeightMap(WeightMapIn)
 		{
 		}
 		void SetSubdivisionsCount(int SubdivisionsCountIn);
 		int  GetSubdivisionsCount();
 
-		void SetWeightMap(TSharedPtr<FIndexedWeightMap> WeightMapIn);
+		void SetWeightMap(TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMapIn);
 
 		TUniquePtr<FDynamicMeshOperator> MakeNewOperator() final
 		{
@@ -324,7 +324,7 @@ namespace DisplaceMeshToolLocals{
 	private:
 		const FDynamicMesh3& SourceMesh;
 		int SubdivisionsCount;
-		TSharedPtr<FIndexedWeightMap> WeightMap;
+		TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap;
 	};
 
 	void FSubdivideMeshOpFactory::SetSubdivisionsCount(int SubdivisionsCountIn)
@@ -337,7 +337,7 @@ namespace DisplaceMeshToolLocals{
 		return SubdivisionsCount;
 	}
 
-	void FSubdivideMeshOpFactory::SetWeightMap(TSharedPtr<FIndexedWeightMap> WeightMapIn)
+	void FSubdivideMeshOpFactory::SetWeightMap(TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMapIn)
 	{
 		WeightMap = WeightMapIn;
 	}
@@ -364,22 +364,22 @@ namespace DisplaceMeshToolLocals{
 		FVector2f UVOffset = FVector2f(0, 0);
 		// This gets used by worker threads, so do not try to change an existing curve- make
 		// a new one each time.
-		TSharedPtr<FRichCurve> AdjustmentCurve;
+		TSharedPtr<FRichCurve, ESPMode::ThreadSafe> AdjustmentCurve;
 
-		TSharedPtr<FIndexedWeightMap> WeightMap;
+		TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap;
 		TFunction<float(const FVector3d&, const FIndexedWeightMap)> WeightMapQueryFunc;
 	};
 
 	class FDisplaceMeshOp : public FDynamicMeshOperator
 	{
 	public:
-		FDisplaceMeshOp(TSharedPtr<FDynamicMesh3> SourceMeshIn, 
+		FDisplaceMeshOp(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SourceMeshIn,
 						const DisplaceMeshParameters& DisplaceParametersIn,
 						EDisplaceMeshToolDisplaceType DisplacementTypeIn);
 		void CalculateResult(FProgressCancel* Progress) final;
 
 	private:
-		TSharedPtr<FDynamicMesh3> SourceMesh;
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SourceMesh;
 		DisplaceMeshParameters Parameters;
 		EDisplaceMeshToolDisplaceType DisplacementType;
 		TArray<FVector3d> SourcePositions;
@@ -387,7 +387,7 @@ namespace DisplaceMeshToolLocals{
 		TArray<FVector3d> DisplacedPositions;
 	};
 
-	FDisplaceMeshOp::FDisplaceMeshOp(TSharedPtr<FDynamicMesh3> SourceMeshIn, 
+	FDisplaceMeshOp::FDisplaceMeshOp(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SourceMeshIn,
 									 const DisplaceMeshParameters& DisplaceParametersIn,
 									 EDisplaceMeshToolDisplaceType DisplacementTypeIn)
 		: SourceMesh(MoveTemp(SourceMeshIn)), 
@@ -532,7 +532,7 @@ namespace DisplaceMeshToolLocals{
 	class FDisplaceMeshOpFactory : public IDynamicMeshOperatorFactory
 	{
 	public:
-		FDisplaceMeshOpFactory(TSharedPtr<FDynamicMesh3>& SourceMeshIn,
+		FDisplaceMeshOpFactory(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>& SourceMeshIn,
 			const DisplaceMeshParameters& DisplaceParametersIn,
 			EDisplaceMeshToolDisplaceType DisplacementTypeIn )
 			: SourceMesh(SourceMeshIn)
@@ -572,7 +572,7 @@ namespace DisplaceMeshToolLocals{
 		void SetFilterDirection(const FVector& Direction);
 		void SetFilterFalloffWidth(float FalloffWidth);
 		void SetPerlinNoiseLayerProperties(const TArray<FPerlinLayerProperties>& PerlinLayerProperties);
-		void SetWeightMap(TSharedPtr<FIndexedWeightMap> WeightMap);
+		void SetWeightMap(TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap);
 		void SetRecalculateNormals(bool bRecalculateNormals);
 
 		TUniquePtr<FDynamicMeshOperator> MakeNewOperator() final
@@ -585,7 +585,7 @@ namespace DisplaceMeshToolLocals{
 		DisplaceMeshParameters Parameters;
 		EDisplaceMeshToolDisplaceType DisplacementType;
 
-		TSharedPtr<FDynamicMesh3>& SourceMesh;
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>& SourceMesh;
 	};
 
 	void FDisplaceMeshOpFactory::SetIntensity(float IntensityIn)
@@ -622,7 +622,7 @@ namespace DisplaceMeshToolLocals{
 
 	void FDisplaceMeshOpFactory::SetAdjustmentCurve(UCurveFloat* CurveFloat)
 	{
-		Parameters.AdjustmentCurve = CurveFloat ? TSharedPtr<FRichCurve>(
+		Parameters.AdjustmentCurve = CurveFloat ? TSharedPtr<FRichCurve, ESPMode::ThreadSafe>(
 			static_cast<FRichCurve*>(CurveFloat->FloatCurve.Duplicate()))
 			: nullptr;
 	}
@@ -706,7 +706,7 @@ namespace DisplaceMeshToolLocals{
 		Parameters.PerlinLayerProperties = LayerProperties;
 	}
 
-	void FDisplaceMeshOpFactory::SetWeightMap(TSharedPtr<FIndexedWeightMap> WeightMap)
+	void FDisplaceMeshOpFactory::SetWeightMap(TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap)
 	{
 		Parameters.WeightMap = WeightMap;
 	}
@@ -1127,7 +1127,7 @@ void UDisplaceMeshTool::AdvanceComputation()
 {
 	if (SubdivideTask && SubdivideTask->IsDone())
 	{
-		SubdividedMesh = TSharedPtr<FDynamicMesh3>(SubdivideTask->GetTask().ExtractOperator()->ExtractResult().Release());
+		SubdividedMesh = TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>(SubdivideTask->GetTask().ExtractOperator()->ExtractResult().Release());
 		delete SubdivideTask;
 		SubdivideTask = nullptr;
 	}
@@ -1159,7 +1159,7 @@ void UDisplaceMeshTool::UpdateActiveWeightMap()
 	}
 	else
 	{
-		TSharedPtr<FIndexedWeightMap> NewWeightMap = MakeShared<FIndexedWeightMap>();
+		TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> NewWeightMap = MakeShared<FIndexedWeightMap, ESPMode::ThreadSafe>();
 		UE::WeightMaps::GetVertexWeightMap(ComponentTarget->GetMesh(), CommonProperties->WeightMap, *NewWeightMap, 1.0f);
 		if (CommonProperties->bInvertWeightMap)
 		{

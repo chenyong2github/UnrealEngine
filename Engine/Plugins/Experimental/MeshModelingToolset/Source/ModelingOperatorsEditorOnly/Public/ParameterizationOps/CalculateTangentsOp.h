@@ -31,8 +31,8 @@ public:
 	virtual ~FCalculateTangentsOp() {}
 
 	// inputs
-	TSharedPtr<FDynamicMesh3> SourceMesh;
-	TSharedPtr<FMeshTangentsf> SourceTangents;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SourceMesh;
+	TSharedPtr<FMeshTangentsf, ESPMode::ThreadSafe> SourceTangents;
 
 	// parameters
 	EMeshTangentsType CalculationMethod;

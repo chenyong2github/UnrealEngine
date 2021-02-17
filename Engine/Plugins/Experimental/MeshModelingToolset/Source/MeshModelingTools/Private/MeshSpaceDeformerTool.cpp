@@ -152,7 +152,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 	// populate the OriginalDynamicMesh with a conversion of the input mesh.
 	{
-		OriginalDynamicMesh = MakeShared< FDynamicMesh3 >();
+		OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
 	}

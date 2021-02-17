@@ -11,7 +11,7 @@ class MODELINGOPERATORS_API FMeshSpaceDeformerOp : public FDynamicMeshOperator
 public:
 
 	// Inputs
-	TSharedPtr<const FDynamicMesh3> OriginalMesh;
+	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	FFrame3d GizmoFrame;
 	void SetTransform(const FTransform& Transform);
 

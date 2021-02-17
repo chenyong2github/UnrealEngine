@@ -25,7 +25,7 @@ public:
 	virtual ~FUVProjectionOp() {}
 
 	// inputs
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	EUVProjectionMethod ProjectionMethod;
 	float CylinderProjectToTopOrBottomAngleThreshold;

@@ -150,8 +150,8 @@ protected:
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
-	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 	double InitialMeshArea;
 
 	double CalculateTargetEdgeLength(int TargetTriCount);

@@ -241,7 +241,7 @@ protected:
 
 protected:	
 
-	TSharedPtr<FDynamicMesh3> OriginalDynamicMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
 	UPROPERTY()
 	UPreviewMesh* OriginalMeshPreview;

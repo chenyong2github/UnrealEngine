@@ -13,9 +13,9 @@ namespace DisplaceMeshToolTestsLocals
 {
 	using namespace DisplaceMeshToolLocals;
 
-	TSharedPtr<FDynamicMesh3> CreateSingleTriangleMesh()
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CreateSingleTriangleMesh()
 	{
-		TSharedPtr<FDynamicMesh3> Mesh = MakeShareable<FDynamicMesh3>(new FDynamicMesh3);
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> Mesh = MakeShareable<FDynamicMesh3>(new FDynamicMesh3);
 		int VertexIndexA = Mesh->AppendVertex(FVector3d{ 0,0,0 });
 		int VertexIndexB = Mesh->AppendVertex(FVector3d{ 0,1,0 });
 		int VertexIndexC = Mesh->AppendVertex(FVector3d{ 1,0,0 });
@@ -24,7 +24,7 @@ namespace DisplaceMeshToolTestsLocals
 		return Mesh;
 	}
 
-	TSharedPtr<FDynamicMesh3> CreateTestBoxMesh()
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CreateTestBoxMesh()
 	{
 		FGridBoxMeshGenerator BoxGenerator;
 		BoxGenerator.Box = FOrientedBox3d(FVector3d::Zero(), FVector3d(1.0, 1.0, 1.0));
@@ -32,7 +32,7 @@ namespace DisplaceMeshToolTestsLocals
 		BoxGenerator.EdgeVertices = FIndex3i(EdgeNum, EdgeNum, EdgeNum);
 		BoxGenerator.Generate();
 
-		TSharedPtr<FDynamicMesh3> Mesh = MakeShareable<FDynamicMesh3>(new FDynamicMesh3(&BoxGenerator));
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> Mesh = MakeShareable<FDynamicMesh3>(new FDynamicMesh3(&BoxGenerator));
 		return Mesh;
 	}
 }
@@ -48,7 +48,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestConstant,
 	using namespace DisplaceMeshToolTestsLocals;
 
 	// ---- Setup
-	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = CreateSingleTriangleMesh();
 
 	// Requirements:
 	UTEST_TRUE("Input mesh has 3 vertices", InputMesh->VertexCount() == 3);
@@ -95,7 +95,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestRandom,
 	using namespace DisplaceMeshToolTestsLocals;
 
 	// ---- Setup
-	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = CreateSingleTriangleMesh();
 
 	EDisplaceMeshToolDisplaceType DisplaceType = EDisplaceMeshToolDisplaceType::RandomNoise;
 	DisplaceMeshParameters Params;
@@ -131,7 +131,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestPerlin,
 	using namespace DisplaceMeshToolTestsLocals;
 
 	// ---- Setup
-	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = CreateSingleTriangleMesh();
 
 	EDisplaceMeshToolDisplaceType DisplaceType = EDisplaceMeshToolDisplaceType::PerlinNoise;
 	DisplaceMeshParameters Params;
@@ -168,7 +168,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestSine,
 	using namespace DisplaceMeshToolTestsLocals;
 
 	// ---- Setup
-	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = CreateSingleTriangleMesh();
 
 	EDisplaceMeshToolDisplaceType DisplaceType = EDisplaceMeshToolDisplaceType::SineWave;
 	DisplaceMeshParameters Params;
@@ -213,7 +213,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestSineDirection,
 	using namespace DisplaceMeshToolTestsLocals;
 
 	// ---- Setup
-	TSharedPtr<FDynamicMesh3> InputMesh = CreateSingleTriangleMesh();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = CreateSingleTriangleMesh();
 
 	EDisplaceMeshToolDisplaceType DisplaceType = EDisplaceMeshToolDisplaceType::SineWave;
 	DisplaceMeshParameters Params;
@@ -266,7 +266,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestDirectionalFilter,
 
 	// ---- Setup
 	// Create a box mesh, random noise, and a directional filter pointing in the +Y direction
-	TSharedPtr<FDynamicMesh3> InputMesh = CreateTestBoxMesh();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = CreateTestBoxMesh();
 
 	FMeshNormals InputMeshNormals(InputMesh.Get());
 	InputMeshNormals.ComputeVertexNormals();

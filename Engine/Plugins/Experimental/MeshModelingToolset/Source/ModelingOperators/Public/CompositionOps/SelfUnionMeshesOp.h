@@ -13,7 +13,7 @@ public:
 	virtual ~FSelfUnionMeshesOp() {}
 
 	// inputs
-	TSharedPtr<const FDynamicMesh3> CombinedMesh;
+	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> CombinedMesh;
 	bool bAttemptFixHoles = false;
 	double WindingNumberThreshold = .5;
 	bool bTrimFlaps = false;

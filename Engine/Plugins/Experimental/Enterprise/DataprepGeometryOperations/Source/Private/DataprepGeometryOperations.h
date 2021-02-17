@@ -242,6 +242,6 @@ private:
 	// Borrowed from UPlaneCutOperatorFactory::MakeNewOperator
 	TUniquePtr<FDynamicMeshOperator> MakeNewOperator(
 		const UStaticMeshComponent* InStaticMeshComponent, 
-		TSharedPtr<FDynamicMesh3> InOriginalMesh,
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
 		float InMeshUVScaleFactor);
 };

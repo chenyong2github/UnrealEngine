@@ -191,29 +191,29 @@ protected:
 	};
 	
 	bool bInputMeshesValid = false;
-	TArray<TSharedPtr<FDynamicMesh3>> InputMeshes;
-	TArray<TSharedPtr<FDynamicMesh3>> CombinedInputMeshes;
-	TArray<TSharedPtr<FDynamicMesh3>> SeparatedInputMeshes;
-	TArray<TSharedPtr<FDynamicMesh3>> PerGroupInputMeshes;
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> InputMeshes;
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> CombinedInputMeshes;
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> SeparatedInputMeshes;
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> PerGroupInputMeshes;
 
-	TSharedPtr<FMeshSimpleShapeApproximation> InputMeshesApproximator;
-	TSharedPtr<FMeshSimpleShapeApproximation> CombinedInputMeshesApproximator;
-	TSharedPtr<FMeshSimpleShapeApproximation> SeparatedMeshesApproximator;
-	TSharedPtr<FMeshSimpleShapeApproximation> PerGroupMeshesApproximator;
+	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> InputMeshesApproximator;
+	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> CombinedInputMeshesApproximator;
+	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> SeparatedMeshesApproximator;
+	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> PerGroupMeshesApproximator;
 
 	void PrecomputeInputMeshes();
 	void InitializeDerivedMeshSet(
-		const TArray<TSharedPtr<FDynamicMesh3>>& FromInputMeshes, 
-		TArray<TSharedPtr<FDynamicMesh3>>& ToMeshes,
+		const TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& FromInputMeshes,
+		TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& ToMeshes,
 		TFunctionRef<bool(const FDynamicMesh3*, int32, int32)> TrisConnectedPredicate);
-	TSharedPtr<FMeshSimpleShapeApproximation>& GetApproximator(ESetCollisionGeometryInputMode MeshSetMode);
+	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>& GetApproximator(ESetCollisionGeometryInputMode MeshSetMode);
 
 	FTransform OrigTargetTransform;
 	FVector TargetScale3D;
 
 	bool bResultValid = false;
-	TSharedPtr<FPhysicsDataCollection> InitialCollision;
-	TSharedPtr<FPhysicsDataCollection> GeneratedCollision;
+	TSharedPtr<FPhysicsDataCollection, ESPMode::ThreadSafe> InitialCollision;
+	TSharedPtr<FPhysicsDataCollection, ESPMode::ThreadSafe> GeneratedCollision;
 
 	void UpdateGeneratedCollision();
 //	TSharedPtr<FPhysicsDataCollection> GenerateCollision_MinVolume();

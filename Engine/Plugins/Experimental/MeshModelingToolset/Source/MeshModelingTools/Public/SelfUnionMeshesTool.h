@@ -93,7 +93,7 @@ protected:
 	UPROPERTY()
 	ULineSetComponent* DrawnLineSet;
 
-	TSharedPtr<FDynamicMesh3> CombinedSourceMeshes;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CombinedSourceMeshes;
 
 	// for visualization of any errors in the currently-previewed merge operation
 	TArray<int> CreatedBoundaryEdges;

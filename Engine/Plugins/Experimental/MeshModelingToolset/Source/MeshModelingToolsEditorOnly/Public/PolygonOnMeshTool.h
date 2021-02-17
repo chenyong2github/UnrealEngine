@@ -215,7 +215,7 @@ protected:
 	FTransform3d WorldTransform;
 	FViewCameraState CameraState;
 
-	TSharedPtr<FDynamicMesh3> OriginalDynamicMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
 	UPROPERTY()
 	UConstructionPlaneMechanic* PlaneMechanic = nullptr;

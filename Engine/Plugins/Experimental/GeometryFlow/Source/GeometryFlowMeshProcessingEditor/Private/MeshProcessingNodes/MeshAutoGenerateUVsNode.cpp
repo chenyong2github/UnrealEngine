@@ -11,7 +11,7 @@ using namespace UE::GeometryFlow;
 void FMeshAutoGenerateUVsNode::GenerateUVs(const FDynamicMesh3& MeshIn, const FMeshAutoGenerateUVsSettings& Settings, FDynamicMesh3& MeshOut)
 {
 	// this is horrible - have to copy input mesh so that we can pass a TSharedPtr
-	TSharedPtr<FDynamicMesh3> InputMesh = MakeShared<FDynamicMesh3>(MeshIn);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(MeshIn);
 
 	FParameterizeMeshOp ParameterizeMeshOp;
 	ParameterizeMeshOp.Stretch = Settings.Stretch;

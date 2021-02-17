@@ -21,7 +21,7 @@ public:
 	virtual ~FUVLayoutOp() {}
 
 	// inputs
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	EUVLayoutOpLayoutModes UVLayoutMode = EUVLayoutOpLayoutModes::RepackToUnitRect;
 

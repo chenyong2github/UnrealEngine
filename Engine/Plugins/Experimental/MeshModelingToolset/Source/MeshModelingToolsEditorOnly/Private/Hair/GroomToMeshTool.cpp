@@ -237,10 +237,10 @@ public:
 
 void UGroomToMeshTool::RecalculateMesh()
 {
-	TSharedPtr<FDynamicMesh3> CurrentResult = UpdateVoxelization();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentResult = UpdateVoxelization();
 
 	// helper to only use NewMesh if it was valid, otherwise ignore it
-	auto SelectValidMesh = [](TSharedPtr<FDynamicMesh3> CurrentMesh, TSharedPtr<FDynamicMesh3> NewMesh)
+	auto SelectValidMesh = [](TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh, TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> NewMesh)
 	{
 		if (NewMesh->TriangleCount() > 0)
 		{
@@ -393,7 +393,7 @@ static void ProcessHairCurves(AGroomActor* GroomActor,
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateVoxelization()
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateVoxelization()
 {
 	FVoxelizeSettings NewSettings;
 	NewSettings.VoxelCount = Settings->VoxelCount;
@@ -498,7 +498,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateVoxelization()
 	// clear implicit function...
 	MarchingCubes.Implicit = nullptr;
 
-	CurrentVoxelizeResult = MakeShared<FDynamicMesh3>(&MarchingCubes);
+	CurrentVoxelizeResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(&MarchingCubes);
 	CachedVoxelizeSettings = NewSettings;
 	return CurrentVoxelizeResult;
 }
@@ -506,7 +506,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateVoxelization()
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateMorphology(TSharedPtr<FDynamicMesh3> InputMesh)
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateMorphology(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh)
 {
 	FMorphologySettings NewSettings;
 	NewSettings.InputMesh = InputMesh;
@@ -518,7 +518,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateMorphology(TSharedPtr<FDynamic
 		return CachedMorphologyResult;
 	}
 
-	CachedMorphologyResult = MakeShared<FDynamicMesh3>(*InputMesh);
+	CachedMorphologyResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 
 	if (NewSettings.CloseDist > 0 && CachedMorphologyResult->TriangleCount() > 0)
 	{
@@ -529,10 +529,10 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateMorphology(TSharedPtr<FDynamic
 		ImplicitMorphology.SourceSpatial = &Spatial;
 		ImplicitMorphology.SetCellSizesAndDistance(CachedMorphologyResult->GetCachedBounds(), NewSettings.CloseDist, NewSettings.VoxelCount, NewSettings.VoxelCount);
 
-		CachedMorphologyResult = MakeShared<FDynamicMesh3>(&ImplicitMorphology.Generate());
+		CachedMorphologyResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(&ImplicitMorphology.Generate());
 		if (CachedMorphologyResult->TriangleCount() == 0)
 		{
-			CachedPostprocessResult = MakeShared<FDynamicMesh3>(*InputMesh);
+			CachedPostprocessResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 		}
 	}
 
@@ -546,10 +546,10 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateMorphology(TSharedPtr<FDynamic
 		ImplicitMorphology.SourceSpatial = &Spatial;
 		ImplicitMorphology.SetCellSizesAndDistance(CachedMorphologyResult->GetCachedBounds(), NewSettings.OpenDist, NewSettings.VoxelCount, NewSettings.VoxelCount);
 
-		CachedMorphologyResult = MakeShared<FDynamicMesh3>(&ImplicitMorphology.Generate());
+		CachedMorphologyResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(&ImplicitMorphology.Generate());
 		if (CachedMorphologyResult->TriangleCount() == 0)
 		{
-			CachedPostprocessResult = MakeShared<FDynamicMesh3>(*InputMesh);
+			CachedPostprocessResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 		}
 	}
 
@@ -794,7 +794,7 @@ public:
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateClipMesh(TSharedPtr<FDynamicMesh3> InputMesh)
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateClipMesh(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh)
 {
 	FClipMeshSettings NewSettings;
 	NewSettings.InputMesh = InputMesh;
@@ -804,7 +804,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateClipMesh(TSharedPtr<FDynamicMe
 		return CachedClipMeshResult;
 	}
 
-	CachedClipMeshResult = MakeShared<FDynamicMesh3>(*InputMesh);
+	CachedClipMeshResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 	FDynamicMesh3* EditMesh = CachedClipMeshResult.Get();
 
 	// do a quick tiny-edges collapse pass
@@ -866,7 +866,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateClipMesh(TSharedPtr<FDynamicMe
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateSmoothing(TSharedPtr<FDynamicMesh3> InputMesh)
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateSmoothing(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh)
 {
 	FSmoothingSettings NewSettings;
 	NewSettings.InputMesh = InputMesh;
@@ -877,7 +877,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateSmoothing(TSharedPtr<FDynamicM
 		return CachedSmoothResult;
 	}
 
-	CachedSmoothResult = MakeShared<FDynamicMesh3>(*InputMesh);
+	CachedSmoothResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 
 	if (NewSettings.Smoothness > 0)
 	{
@@ -925,7 +925,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateSmoothing(TSharedPtr<FDynamicM
 		MeshTransforms::Scale(*NewMesh, FVector3d(SrcScale, SrcScale, SrcScale), FVector3d::Zero());
 		MeshTransforms::Translate(*NewMesh, SrcTranslate);
 
-		CachedSmoothResult = TSharedPtr<FDynamicMesh3>(NewMesh.Release());
+		CachedSmoothResult = TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>(NewMesh.Release());
 	}
 
 
@@ -937,7 +937,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateSmoothing(TSharedPtr<FDynamicM
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateSimplification(TSharedPtr<FDynamicMesh3> InputMesh)
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateSimplification(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh)
 {
 	FSimplifySettings NewSettings;
 	NewSettings.InputMesh = InputMesh;
@@ -947,7 +947,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateSimplification(TSharedPtr<FDyn
 		return CachedSimplifyResult;
 	}
 
-	CachedSimplifyResult = MakeShared<FDynamicMesh3>(*InputMesh);
+	CachedSimplifyResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 
 	FQEMSimplification Simplifier(CachedSimplifyResult.Get());
 	Simplifier.SimplifyToVertexCount(NewSettings.TargetCount);
@@ -959,7 +959,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateSimplification(TSharedPtr<FDyn
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdatePostprocessing(TSharedPtr<FDynamicMesh3> InputMesh)
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdatePostprocessing(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh)
 {
 	FPostprocessSettings NewSettings;
 	NewSettings.InputMesh = InputMesh;
@@ -969,7 +969,7 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdatePostprocessing(TSharedPtr<FDyn
 		return CachedPostprocessResult;
 	}
 
-	CachedPostprocessResult = MakeShared<FDynamicMesh3>(*InputMesh);
+	CachedPostprocessResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 
 	FMeshNormals::InitializeMeshToPerTriangleNormals(CachedPostprocessResult.Get());
 
@@ -1009,9 +1009,9 @@ void PartitionIndices(EnumerableType Enumerable,
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateUVs(TSharedPtr<FDynamicMesh3> InputMesh, EGroomToMeshUVMode UVMode)
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateUVs(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh, EGroomToMeshUVMode UVMode)
 {
-	TSharedPtr<FDynamicMesh3> Result;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> Result;
 
 	if (InputMesh->IsClosed())
 	{
@@ -1094,9 +1094,9 @@ static void GenerateUVTiling(int32 NumTiles, TArray<FAxisAlignedBox2d>& BoxesOut
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateUVs_MinimalConformal(TSharedPtr<FDynamicMesh3> InputMesh)
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateUVs_MinimalConformal(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh)
 {
-	TSharedPtr<FDynamicMesh3> Result = MakeShared<FDynamicMesh3>(*InputMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> Result = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 	FDynamicMesh3* EditMesh = Result.Get();
 
 	FDynamicMeshUVEditor UVEditor(EditMesh, 0, true);
@@ -1131,14 +1131,14 @@ TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateUVs_MinimalConformal(TSharedPt
 
 
 
-TSharedPtr<FDynamicMesh3> UGroomToMeshTool::UpdateUVs_ExpMapPlaneSplits(TSharedPtr<FDynamicMesh3> InputMesh, bool bRecalcAsConformal)
+TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateUVs_ExpMapPlaneSplits(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh, bool bRecalcAsConformal)
 {
 	int32 SplitAxisIndex1 = 0;
 	int32 SplitAxisIndex2 = 1;
 	double MiddleFraction1 = 0.6;
 	double MiddleFraction2 = 0.6;
 
-	TSharedPtr<FDynamicMesh3> Result = MakeShared<FDynamicMesh3>(*InputMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> Result = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*InputMesh);
 	FDynamicMesh3* EditMesh = Result.Get();
 	
 	FDynamicMeshAABBTree3 BVTree(EditMesh, true);
@@ -1294,7 +1294,7 @@ void UGroomToMeshTool::UpdateLineSet()
 
 
 
-void UGroomToMeshTool::UpdatePreview(TSharedPtr<FDynamicMesh3> ResultMesh)
+void UGroomToMeshTool::UpdatePreview(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> ResultMesh)
 {
 	CurrentMesh = FDynamicMesh3(*ResultMesh);
 

@@ -56,7 +56,7 @@ public:
 	ETrimOperation TrimOperation;
 	ETrimSide TrimSide;
 	bool bTrimMode = false; // if true, do a trim operation instead of a boolean
-	TArray<TSharedPtr<const FDynamicMesh3>> Meshes;
+	TArray<TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>> Meshes;
 	TArray<FTransform> Transforms; // 1:1 with Meshes
 	bool bAttemptFixHoles = false;
 

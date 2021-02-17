@@ -183,14 +183,14 @@ protected:
 		}
 	};
 	FVoxelizeSettings CachedVoxelizeSettings;
-	TSharedPtr<FDynamicMesh3> CurrentVoxelizeResult;
-	TSharedPtr<FDynamicMesh3> UpdateVoxelization();
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentVoxelizeResult;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdateVoxelization();
 
 
 
 	struct FMorphologySettings
 	{
-		TSharedPtr<FDynamicMesh3> InputMesh;
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 		int32 VoxelCount;
 		float CloseDist;
 		float OpenDist;
@@ -201,13 +201,13 @@ protected:
 		}
 	};
 	FMorphologySettings CachedMorphologySettings;
-	TSharedPtr<FDynamicMesh3> CachedMorphologyResult;
-	TSharedPtr<FDynamicMesh3> UpdateMorphology(TSharedPtr<FDynamicMesh3> InputMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CachedMorphologyResult;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdateMorphology(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh);
 
 
 	struct FClipMeshSettings
 	{
-		TSharedPtr<FDynamicMesh3> InputMesh;
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 		AActor* ClipSource;
 
 		bool operator==(const FClipMeshSettings& Other) const
@@ -216,13 +216,13 @@ protected:
 		}
 	};
 	FClipMeshSettings CachedClipMeshSettings;
-	TSharedPtr<FDynamicMesh3> CachedClipMeshResult;
-	TSharedPtr<FDynamicMesh3> UpdateClipMesh(TSharedPtr<FDynamicMesh3> InputMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CachedClipMeshResult;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdateClipMesh(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh);
 
 
 	struct FSmoothingSettings
 	{
-		TSharedPtr<FDynamicMesh3> InputMesh;
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 		float Smoothness;
 		float VolumeCorrection;
 
@@ -232,13 +232,13 @@ protected:
 		}
 	};
 	FSmoothingSettings CachedSmoothSettings;
-	TSharedPtr<FDynamicMesh3> CachedSmoothResult;
-	TSharedPtr<FDynamicMesh3> UpdateSmoothing(TSharedPtr<FDynamicMesh3> InputMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CachedSmoothResult;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdateSmoothing(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh);
 
 
 	struct FSimplifySettings
 	{
-		TSharedPtr<FDynamicMesh3> InputMesh;
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 		int32 TargetCount;
 
 		bool operator==(const FSimplifySettings& Other) const
@@ -247,13 +247,13 @@ protected:
 		}
 	};
 	FSimplifySettings CachedSimplifySettings;
-	TSharedPtr<FDynamicMesh3> CachedSimplifyResult;
-	TSharedPtr<FDynamicMesh3> UpdateSimplification(TSharedPtr<FDynamicMesh3> InputMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CachedSimplifyResult;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdateSimplification(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh);
 
 
 	struct FPostprocessSettings
 	{
-		TSharedPtr<FDynamicMesh3> InputMesh;
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 		EGroomToMeshUVMode UVGenMode;
 
 		bool operator==(const FPostprocessSettings& Other) const
@@ -262,14 +262,14 @@ protected:
 		}
 	};
 	FPostprocessSettings CachedPostprocessSettings;
-	TSharedPtr<FDynamicMesh3> CachedPostprocessResult;
-	TSharedPtr<FDynamicMesh3> UpdatePostprocessing(TSharedPtr<FDynamicMesh3> InputMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CachedPostprocessResult;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdatePostprocessing(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh);
 
 
-	TSharedPtr<FDynamicMesh3> UpdateUVs(TSharedPtr<FDynamicMesh3> InputMesh, EGroomToMeshUVMode UVMode);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdateUVs(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh, EGroomToMeshUVMode UVMode);
 
-	TSharedPtr<FDynamicMesh3> UpdateUVs_ExpMapPlaneSplits(TSharedPtr<FDynamicMesh3> InputMesh, bool bRecalcAsConformal);
-	TSharedPtr<FDynamicMesh3> UpdateUVs_MinimalConformal(TSharedPtr<FDynamicMesh3> InputMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdateUVs_ExpMapPlaneSplits(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh, bool bRecalcAsConformal);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UpdateUVs_MinimalConformal(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh);
 
-	void UpdatePreview(TSharedPtr<FDynamicMesh3> ResultMesh);
+	void UpdatePreview(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> ResultMesh);
 };

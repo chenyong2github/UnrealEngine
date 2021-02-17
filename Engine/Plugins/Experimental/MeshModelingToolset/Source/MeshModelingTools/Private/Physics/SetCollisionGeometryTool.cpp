@@ -83,7 +83,7 @@ void USetCollisionGeometryTool::Setup()
 	PreviewGeom->CreateInWorld(CollisionTarget->GetOwnerActor()->GetWorld(), PreviewTransform);
 
 	// initialize initial collision object
-	InitialCollision = MakeShared<FPhysicsDataCollection>();
+	InitialCollision = MakeShared<FPhysicsDataCollection, ESPMode::ThreadSafe>();
 	InitialCollision->InitializeFromComponent(CollisionTarget->GetOwnerComponent(), true);
 	InitialCollision->ExternalScale3D = TargetScale3D;
 
@@ -252,14 +252,14 @@ void USetCollisionGeometryTool::UpdateGeneratedCollision()
 	ECollisionGeometryType ComputeType = Settings->GeometryType;
 
 
-	TSharedPtr<FPhysicsDataCollection> NewCollision = MakeShared<FPhysicsDataCollection>();
+	TSharedPtr<FPhysicsDataCollection, ESPMode::ThreadSafe> NewCollision = MakeShared<FPhysicsDataCollection, ESPMode::ThreadSafe>();
 	NewCollision->InitializeFromExisting(*InitialCollision);
 	if (Settings->bAppendToExisting || ComputeType == ECollisionGeometryType::KeepExisting)
 	{
 		NewCollision->CopyGeometryFromExisting(*InitialCollision);
 	}
 
-	TSharedPtr<FMeshSimpleShapeApproximation> UseShapeGenerator = GetApproximator(Settings->InputMode);
+	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> UseShapeGenerator = GetApproximator(Settings->InputMode);
 
 	UseShapeGenerator->bDetectSpheres = Settings->bDetectSpheres;
 	UseShapeGenerator->bDetectBoxes = Settings->bDetectBoxes;
@@ -337,8 +337,8 @@ void USetCollisionGeometryTool::UpdateGeneratedCollision()
 
 
 void USetCollisionGeometryTool::InitializeDerivedMeshSet(
-	const TArray<TSharedPtr<FDynamicMesh3>>& FromInputMeshes,
-	TArray<TSharedPtr<FDynamicMesh3>>& ToMeshes,
+	const TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& FromInputMeshes,
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& ToMeshes,
 	TFunctionRef<bool(const FDynamicMesh3* Mesh, int32 Tri0, int32 Tri1)> TrisConnectedPredicate)
 {
 	// find connected-components on input meshes, under given connectivity predicate
@@ -386,17 +386,17 @@ void USetCollisionGeometryTool::InitializeDerivedMeshSet(
 		const FSubmeshSource& Source = AllSubmeshes[k];
 		const FMeshConnectedComponents::FComponent& Component = ComponentSets[Source.ComponentIdx.A]->GetComponent(Source.ComponentIdx.B);
 		FDynamicSubmesh3 Submesh(Source.SourceMesh, Component.Indices, (int32)EMeshComponents::None, false);
-		ToMeshes[k] = MakeShared<FDynamicMesh3>( MoveTemp(Submesh.GetSubmesh()) );
+		ToMeshes[k] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>( MoveTemp(Submesh.GetSubmesh()) );
 	});
 }
 
 
 template<typename T>
-TArray<const T*> MakeRawPointerList(const TArray<TSharedPtr<T>>& InputList)
+TArray<const T*> MakeRawPointerList(const TArray<TSharedPtr<T, ESPMode::ThreadSafe>>& InputList)
 {
 	TArray<const T*> Result;
 	Result.Reserve(InputList.Num());
-	for (const TSharedPtr<T>& Ptr : InputList)
+	for (const TSharedPtr<T, ESPMode::ThreadSafe>& Ptr : InputList)
 	{
 		Result.Add(Ptr.Get());
 	}
@@ -426,9 +426,9 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 			MeshTransforms::ApplyTransform(SourceMesh, TargetTransformInv);
 		}
 		SourceMesh.DiscardAttributes();
-		InputMeshes[k] = MakeShared<FDynamicMesh3>(MoveTemp(SourceMesh));
+		InputMeshes[k] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(MoveTemp(SourceMesh));
 	});
-	InputMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation>();
+	InputMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>();
 	InputMeshesApproximator->InitializeSourceMeshes(MakeRawPointerList<FDynamicMesh3>(InputMeshes));
 
 
@@ -438,33 +438,33 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 	CombinedMesh.EnableTriangleGroups();
 	FDynamicMeshEditor Appender(&CombinedMesh);
 	FMeshIndexMappings TmpMappings;
-	for (const TSharedPtr<FDynamicMesh3>& InputMesh : InputMeshes)
+	for (const TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>& InputMesh : InputMeshes)
 	{
 		TmpMappings.Reset();
 		Appender.AppendMesh(InputMesh.Get(), TmpMappings);
 	}
-	CombinedInputMeshes.Add( MakeShared<FDynamicMesh3>(MoveTemp(CombinedMesh)) );
-	CombinedInputMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation>();
+	CombinedInputMeshes.Add( MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(MoveTemp(CombinedMesh)) );
+	CombinedInputMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>();
 	CombinedInputMeshesApproximator->InitializeSourceMeshes(MakeRawPointerList<FDynamicMesh3>(CombinedInputMeshes));
 
 	// build separated input meshes
 	SeparatedInputMeshes.Reset();
 	InitializeDerivedMeshSet(InputMeshes, SeparatedInputMeshes, 
 		[&](const FDynamicMesh3* Mesh, int32 Tri0, int32 Tri1) { return true; });
-	SeparatedMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation>();
+	SeparatedMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>();
 	SeparatedMeshesApproximator->InitializeSourceMeshes(MakeRawPointerList<FDynamicMesh3>(SeparatedInputMeshes));
 
 	// build per-group input meshes
 	PerGroupInputMeshes.Reset();
 	InitializeDerivedMeshSet(InputMeshes, PerGroupInputMeshes,
 		[&](const FDynamicMesh3* Mesh, int32 Tri0, int32 Tri1) { return Mesh->GetTriangleGroup(Tri0) == Mesh->GetTriangleGroup(Tri1); });
-	PerGroupMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation>();
+	PerGroupMeshesApproximator = MakeShared<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>();
 	PerGroupMeshesApproximator->InitializeSourceMeshes(MakeRawPointerList<FDynamicMesh3>(PerGroupInputMeshes));
 
 }
 
 
-TSharedPtr<FMeshSimpleShapeApproximation>& USetCollisionGeometryTool::GetApproximator(ESetCollisionGeometryInputMode MeshSetMode)
+TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>& USetCollisionGeometryTool::GetApproximator(ESetCollisionGeometryInputMode MeshSetMode)
 {
 	if (MeshSetMode == ESetCollisionGeometryInputMode::CombineAll)
 	{

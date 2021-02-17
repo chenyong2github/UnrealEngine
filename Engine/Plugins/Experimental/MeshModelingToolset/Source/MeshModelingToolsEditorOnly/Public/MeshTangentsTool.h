@@ -119,9 +119,9 @@ protected:
 protected:
 	UWorld* TargetWorld;
 
-	TSharedPtr<FMeshDescription> InputMeshDescription;
-	TSharedPtr<FMeshTangentsf> InitialTangents;
-	TSharedPtr<FDynamicMesh3> InputMesh;
+	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> InputMeshDescription;
+	TSharedPtr<FMeshTangentsf, ESPMode::ThreadSafe> InitialTangents;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 
 	bool bThicknessDirty = false;
 	bool bLengthDirty = false;

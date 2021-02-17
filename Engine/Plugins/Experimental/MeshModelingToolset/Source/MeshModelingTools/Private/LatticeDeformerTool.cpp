@@ -81,7 +81,7 @@ bool ULatticeDeformerTool::CanAccept() const
 
 void ULatticeDeformerTool::InitializeLattice(TArray<FVector3d>& OutLatticePoints, TArray<FVector2i>& OutLatticeEdges)
 {
-	Lattice = MakeShared<FFFDLattice>(GetLatticeResolution(), *OriginalMesh, Settings->Padding);
+	Lattice = MakeShared<FFFDLattice, ESPMode::ThreadSafe>(GetLatticeResolution(), *OriginalMesh, Settings->Padding);
 
 	Lattice->GenerateInitialLatticePositions(OutLatticePoints);
 
@@ -102,7 +102,7 @@ void ULatticeDeformerTool::Setup()
 	GetToolManager()->DisplayMessage(LOCTEXT("LatticeDeformerToolMessage", 
 		"Drag the lattice control points to deform the mesh"), EToolMessageLevel::UserNotification);
 
-	OriginalMesh = MakeShared<FDynamicMesh3>();
+	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
 

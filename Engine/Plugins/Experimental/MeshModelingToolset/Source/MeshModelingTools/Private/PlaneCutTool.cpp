@@ -148,7 +148,7 @@ void UPlaneCutTool::Setup()
 		MeshUVScaleFactor.Add(1.0 / OriginalDynamicMesh->GetBounds().MaxDim());
 
 		// Set callbacks so previews are invalidated on undo/redo changing the meshes
-		Target->SetMesh(TSharedPtr<const FDynamicMesh3>(OriginalDynamicMesh));
+		Target->SetMesh(TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>(OriginalDynamicMesh));
 		Target->OnMeshChanged.AddLambda([this, Idx]() { Previews[Idx]->InvalidateResult(); });
 	}
 
@@ -283,7 +283,7 @@ void UPlaneCutTool::Cut()
 		UMeshOpPreviewWithBackgroundCompute* Preview = Previews[Idx];
 		TUniquePtr<FDynamicMesh3> ResultMesh = Preview->PreviewMesh->ExtractPreviewMesh();
 		ChangeSeq->AppendChange(MeshesToCut[Idx], MeshesToCut[Idx]->ReplaceMesh(
-			TSharedPtr<const FDynamicMesh3>(ResultMesh.Release()))
+			TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>(ResultMesh.Release()))
 		);
 	}
 

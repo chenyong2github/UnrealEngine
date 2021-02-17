@@ -19,13 +19,13 @@ class FDynamicMesh3;
  */
 class MODELINGCOMPONENTS_API FMeshReplacementChange : public FToolCommandChange
 {
-	TSharedPtr<const FDynamicMesh3> Before, After;
+	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> Before, After;
 
 public:
 	FMeshReplacementChange();
-	FMeshReplacementChange(TSharedPtr<const FDynamicMesh3> Before, TSharedPtr<const FDynamicMesh3> After);
+	FMeshReplacementChange(TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> Before, TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> After);
 
-	const TSharedPtr<const FDynamicMesh3>& GetMesh(bool bRevert) const
+	const TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>& GetMesh(bool bRevert) const
 	{
 		return bRevert ? Before : After;
 	}

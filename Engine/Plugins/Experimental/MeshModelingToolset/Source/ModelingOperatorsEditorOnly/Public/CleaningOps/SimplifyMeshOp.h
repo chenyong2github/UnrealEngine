@@ -73,10 +73,10 @@ public:
 	float MinimalPlanarAngleThresh = 0.01f;
 
 	// stored for the UE4 Standard path
-	TSharedPtr<FMeshDescription> OriginalMeshDescription;
+	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription;
 	// stored for the GeometryProcessing custom simplifier paths (currently precomputed once in tool setup)
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
-	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 
 	class IMeshReduction* MeshReduction;
 

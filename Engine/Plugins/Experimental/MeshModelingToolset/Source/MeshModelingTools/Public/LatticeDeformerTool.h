@@ -122,9 +122,9 @@ protected:
 	IToolsContextAssetAPI* AssetAPI;
 
 	// Input mesh
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
-	TSharedPtr<FFFDLattice> Lattice;
+	TSharedPtr<FFFDLattice, ESPMode::ThreadSafe> Lattice;
 
 	UPROPERTY()
 	ULatticeControlPointsMechanic* ControlPointsMechanic = nullptr;

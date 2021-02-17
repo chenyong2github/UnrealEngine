@@ -40,7 +40,7 @@ public:
 	virtual ~FEditNormalsOp() {}
 
 	// inputs
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	bool bFixInconsistentNormals;
 	bool bInvertNormals;

@@ -116,13 +116,13 @@ void UGenerateLODMeshesTool::Setup()
 #else
 		auto EnterProgressFrame = [](int Progress) {};
 #endif
-		OriginalMeshDescription = MakeShared<FMeshDescription>(*ComponentTarget->GetMesh());
+		OriginalMeshDescription = MakeShared<FMeshDescription, ESPMode::ThreadSafe>(*ComponentTarget->GetMesh());
 		EnterProgressFrame(1);
-		OriginalMesh = MakeShared<FDynamicMesh3>();
+		OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
 		EnterProgressFrame(2);
-		OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3>(OriginalMesh.Get(), true);
+		OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalMesh.Get(), true);
 	}
 
 	WorldBounds = FAxisAlignedBox3d(ComponentTarget->GetOwnerActor()->GetComponentsBoundingBox());

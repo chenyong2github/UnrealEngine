@@ -10,7 +10,7 @@ void UDynamicMeshReplacementChangeTarget::ApplyChange(const FMeshReplacementChan
 	OnMeshChanged.Broadcast();
 }
 
-TUniquePtr<FMeshReplacementChange> UDynamicMeshReplacementChangeTarget::ReplaceMesh(const TSharedPtr<const FDynamicMesh3>& UpdateMesh)
+TUniquePtr<FMeshReplacementChange> UDynamicMeshReplacementChangeTarget::ReplaceMesh(const TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>& UpdateMesh)
 {
 	TUniquePtr<FMeshReplacementChange> Change = MakeUnique<FMeshReplacementChange>(Mesh, UpdateMesh);
 	Mesh = UpdateMesh;

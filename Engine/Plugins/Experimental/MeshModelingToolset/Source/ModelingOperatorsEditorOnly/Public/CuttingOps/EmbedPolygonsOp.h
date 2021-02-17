@@ -46,7 +46,7 @@ public:
 
 	//float ExtrudeDistance; // TODO if we support extrude
 
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	//
 	// FDynamicMeshOperator implementation

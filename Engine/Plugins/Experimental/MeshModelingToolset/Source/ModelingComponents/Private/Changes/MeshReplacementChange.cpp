@@ -7,7 +7,7 @@ FMeshReplacementChange::FMeshReplacementChange()
 {
 }
 
-FMeshReplacementChange::FMeshReplacementChange(TSharedPtr<const FDynamicMesh3> BeforeIn, TSharedPtr<const FDynamicMesh3> AfterIn)
+FMeshReplacementChange::FMeshReplacementChange(TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> BeforeIn, TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> AfterIn)
 {
 	Before = BeforeIn;
 	After = AfterIn;

@@ -51,8 +51,8 @@ public:
 	virtual ~FRemeshMeshOp() {}
 
 	// inputs
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
-	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 
 	ERemeshType RemeshType = ERemeshType::Standard;
 

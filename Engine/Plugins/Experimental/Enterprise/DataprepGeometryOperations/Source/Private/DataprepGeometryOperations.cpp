@@ -79,7 +79,7 @@ void UDataprepRemeshOperation::OnExecution_Implementation(const FDataprepContext
 		
 		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
 
-		TSharedPtr<FDynamicMesh3> OriginalMesh = MakeShared<FDynamicMesh3>();
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh MeshDescriptionToDynamicMesh;
 		MeshDescriptionToDynamicMesh.Convert(MeshDescription, *OriginalMesh);
 
@@ -100,7 +100,7 @@ void UDataprepRemeshOperation::OnExecution_Implementation(const FDataprepContext
 		Op.SmoothingStrength = SmoothingStrength;
 		Op.SmoothingType = ERemeshSmoothingType::MeanValue;
 
-		TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3>(OriginalMesh.Get(), true);
+		TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalMesh.Get(), true);
 
 		double InitialMeshArea = 0;
 		for (int tid : OriginalMesh->TriangleIndicesItr())
@@ -162,13 +162,13 @@ void UDataprepSimplifyMeshOperation::OnExecution_Implementation(const FDataprepC
 		
 		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
 
-		TSharedPtr<FDynamicMesh3> OriginalMesh = MakeShared<FDynamicMesh3>();
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh MeshDescriptionToDynamicMesh;
 		MeshDescriptionToDynamicMesh.Convert(MeshDescription, *OriginalMesh);
 
-		TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3>(OriginalMesh.Get(), true);
+		TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalMesh.Get(), true);
 
-		TSharedPtr<FMeshDescription> OriginalMeshDescription = MakeShared<FMeshDescription>(*StaticMesh->GetMeshDescription(0));
+		TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription = MakeShared<FMeshDescription, ESPMode::ThreadSafe>(*StaticMesh->GetMeshDescription(0));
 
 		FSimplifyMeshOp Op;
 
@@ -400,7 +400,7 @@ void UDataprepWeldEdgesOperation::OnExecution_Implementation(const FDataprepCont
 		
 		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
 
-		TSharedPtr<FDynamicMesh3> TargetMesh = MakeShared<FDynamicMesh3>();
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> TargetMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh MeshDescriptionToDynamicMesh;
 		MeshDescriptionToDynamicMesh.Convert(MeshDescription, *TargetMesh);
 
@@ -471,7 +471,7 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 
 		FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(0);
 
-		TSharedPtr<FDynamicMesh3> OriginalMesh = MakeShared<FDynamicMesh3>();
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh MeshDescriptionToDynamicMesh;
 		MeshDescriptionToDynamicMesh.Convert(MeshDescription, *OriginalMesh);
 
@@ -605,7 +605,7 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 
 TUniquePtr<FDynamicMeshOperator> UDataprepPlaneCutOperation::MakeNewOperator(
 	const UStaticMeshComponent* InStaticMeshComponent, 
-	TSharedPtr<FDynamicMesh3> InOriginalMesh, 
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
 	float InMeshUVScaleFactor)
 {
 	TUniquePtr<FPlaneCutOp> CutOp = MakeUnique<FPlaneCutOp>();

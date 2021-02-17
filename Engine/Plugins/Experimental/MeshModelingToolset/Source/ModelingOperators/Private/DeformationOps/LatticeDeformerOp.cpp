@@ -30,8 +30,8 @@ void FLatticeDeformerOp::CalculateResult(FProgressCancel* Progress)
 	}
 }
 
-FLatticeDeformerOp::FLatticeDeformerOp(TSharedPtr<FDynamicMesh3> InOriginalMesh,
-									   TSharedPtr<FFFDLattice> InLattice,
+FLatticeDeformerOp::FLatticeDeformerOp(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
+									   TSharedPtr<FFFDLattice, ESPMode::ThreadSafe> InLattice,
 									   const TArray<FVector3d>& InLatticeControlPoints,
 									   ELatticeInterpolation InInterpolationType) :
 	Lattice(InLattice),

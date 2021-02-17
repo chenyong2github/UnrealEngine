@@ -300,15 +300,15 @@ protected:
 	UPROPERTY()
 	UMaterialInstanceDynamic* PreviewMaterial;
 
-	TSharedPtr<FMeshDescription> BaseMeshDescription;
-	TSharedPtr<TMeshTangents<double>> BaseMeshTangents;
+	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> BaseMeshDescription;
+	TSharedPtr<TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	FDynamicMesh3 BaseMesh;
 	FDynamicMeshAABBTree3 BaseSpatial;
 
 	bool bIsBakeToSelf = false;
 
-	TSharedPtr<FDynamicMesh3> DetailMesh;
-	TSharedPtr<FDynamicMeshAABBTree3> DetailSpatial;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
+	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
 	int32 DetailMeshTimestamp = 0;
 	void UpdateDetailMesh();
 	bool bDetailMeshValid = false;

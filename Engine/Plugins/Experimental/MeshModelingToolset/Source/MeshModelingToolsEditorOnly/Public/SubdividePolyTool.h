@@ -99,7 +99,7 @@ protected:
 	USubdividePolyToolProperties* Properties = nullptr;
 
 	// Input mesh
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	UPROPERTY()
 	UPreviewGeometry* PreviewGeometry = nullptr;

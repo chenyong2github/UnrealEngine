@@ -177,7 +177,7 @@ protected:
 	TArray<UTransformProxy*> TransformProxies;
 
 protected:
-	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 	TArray<FDynamicMesh3> ReferencePrimitives;
 
 	UWorld* TargetWorld;

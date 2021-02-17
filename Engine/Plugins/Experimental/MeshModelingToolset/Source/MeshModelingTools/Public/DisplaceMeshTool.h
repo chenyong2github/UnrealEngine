@@ -285,11 +285,11 @@ private:
 
 	FDynamicMesh3 OriginalMesh;
 	FDynamicMeshAABBTree3 OriginalMeshSpatial;
-	TSharedPtr<FIndexedWeightMap> ActiveWeightMap;
+	TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> ActiveWeightMap;
 	void UpdateActiveWeightMap();
 	float WeightMapQuery(const FVector3d& Position, const FIndexedWeightMap& WeightMap) const;
 
-	TSharedPtr<FDynamicMesh3> SubdividedMesh = nullptr;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SubdividedMesh = nullptr;
 	USimpleDynamicMeshComponent* DynamicMeshComponent = nullptr;
 
 	TUniquePtr<IDynamicMeshOperatorFactory> Subdivider = nullptr;

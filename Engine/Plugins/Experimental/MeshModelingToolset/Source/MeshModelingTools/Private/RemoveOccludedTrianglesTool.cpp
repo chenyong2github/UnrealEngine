@@ -199,7 +199,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 	int32 NumTargets = ComponentTargets.Num();
 	int32 NumPreviews = PreviewToTargetIdx.Num();
 
-	CombinedMeshTrees = MakeShared<IndexMeshWithAcceleration>();
+	CombinedMeshTrees = MakeShared<IndexMeshWithAcceleration, ESPMode::ThreadSafe>();
 
 #if WITH_EDITOR
 	static const FText SlowTaskText = LOCTEXT("RemoveOccludedTrianglesInit", "Building mesh occlusion data...");
@@ -257,7 +257,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			URemoveOccludedTrianglesOperatorFactory *OpFactory = NewObject<URemoveOccludedTrianglesOperatorFactory>();
 			OpFactory->Tool = this;
 			OpFactory->PreviewIdx = PreviewIdx;
-			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3>();
+			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 			FMeshDescriptionToDynamicMesh Converter;
 			Converter.Convert(ComponentTargets[TargetIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
 

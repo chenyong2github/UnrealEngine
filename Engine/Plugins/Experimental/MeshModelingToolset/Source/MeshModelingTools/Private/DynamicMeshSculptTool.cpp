@@ -2619,8 +2619,8 @@ void UDynamicMeshSculptTool::UpdateFixedPlaneGizmoVisibility(bool bVisible)
 
 void UDynamicMeshSculptTool::DiscardAttributes()
 {
-	TSharedPtr<FDynamicMesh3> BeforeMesh = MakeShared<FDynamicMesh3>(*DynamicMeshComponent->GetMesh());
-	TSharedPtr<FDynamicMesh3> AfterMesh = MakeShared<FDynamicMesh3>(*BeforeMesh);
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> BeforeMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*DynamicMeshComponent->GetMesh());
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> AfterMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*BeforeMesh);
 	AfterMesh->DiscardAttributes();
 	FMeshNormals::QuickComputeVertexNormals(*AfterMesh);
 

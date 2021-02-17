@@ -25,11 +25,11 @@ class MODELINGCOMPONENTS_API UDynamicMeshReplacementChangeTarget : public UObjec
 	GENERATED_BODY()
 
 protected:
-	TSharedPtr<const FDynamicMesh3> Mesh;
+	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> Mesh;
 
 public:
 	UDynamicMeshReplacementChangeTarget() = default;
-	UDynamicMeshReplacementChangeTarget(TSharedPtr<const FDynamicMesh3> Mesh) : Mesh(Mesh)
+	UDynamicMeshReplacementChangeTarget(TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> Mesh) : Mesh(Mesh)
 	{}
 	virtual ~UDynamicMeshReplacementChangeTarget() = default;
 
@@ -38,12 +38,12 @@ public:
 	*/
 	virtual void ApplyChange(const FMeshReplacementChange* Change, bool bRevert) override;
 
-	virtual void SetMesh(TSharedPtr<const FDynamicMesh3> MeshIn)
+	virtual void SetMesh(TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> MeshIn)
 	{
 		Mesh = MeshIn;
 	}
 
-	const TSharedPtr<const FDynamicMesh3>& GetMesh() const
+	const TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>& GetMesh() const
 	{
 		return Mesh;
 	}
@@ -53,7 +53,7 @@ public:
 	 * Does not emit the change.
 	 * Does not fire OnMeshChanged.
 	 */
-	TUniquePtr<FMeshReplacementChange> ReplaceMesh(const TSharedPtr<const FDynamicMesh3>& UpdateMesh);
+	TUniquePtr<FMeshReplacementChange> ReplaceMesh(const TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>& UpdateMesh);
 
 	/**
 	* This delegate fires when a FCommandChange is applied to this component, so that

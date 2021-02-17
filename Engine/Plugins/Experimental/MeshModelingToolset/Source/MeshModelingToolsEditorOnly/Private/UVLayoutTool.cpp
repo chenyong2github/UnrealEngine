@@ -155,7 +155,7 @@ void UUVLayoutTool::UpdateNumPreviews()
 			UUVLayoutOperatorFactory *OpFactory = NewObject<UUVLayoutOperatorFactory>();
 			OpFactory->Tool = this;
 			OpFactory->ComponentIndex = PreviewIdx;
-			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3>();
+			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 			FMeshDescriptionToDynamicMesh Converter;
 			Converter.Convert(ComponentTargets[PreviewIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
 

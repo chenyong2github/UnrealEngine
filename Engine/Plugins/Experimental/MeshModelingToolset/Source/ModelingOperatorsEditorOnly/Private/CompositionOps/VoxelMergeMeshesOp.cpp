@@ -100,7 +100,7 @@ void FVoxelMergeMeshesOp::CalculateResult(FProgressCancel* Progress)
 	if (bFixNormals)
 	{
 
-		TSharedPtr<FDynamicMesh3> OpResultMesh(ExtractResult().Release()); // moved the unique pointer
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OpResultMesh(ExtractResult().Release()); // moved the unique pointer
 
 		// Recompute the normals
 		FEditNormalsOp EditNormalsOp;

@@ -121,7 +121,7 @@ void URemeshMeshTool::Setup()
 	BasicProperties->WatchProperty(BasicProperties->bShowWireframe,
 								   [this](bool bNewValue) { UpdateVisualization();});
 
-	OriginalMesh = MakeShared<FDynamicMesh3>();
+	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
 
@@ -129,7 +129,7 @@ void URemeshMeshTool::Setup()
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
-	OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3>(OriginalMesh.Get(), true);
+	OriginalMeshSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalMesh.Get(), true);
 
 	// calculate initial mesh area (no utility fn yet)
 	// TODO: will need to change to account for component transform's Scale3D

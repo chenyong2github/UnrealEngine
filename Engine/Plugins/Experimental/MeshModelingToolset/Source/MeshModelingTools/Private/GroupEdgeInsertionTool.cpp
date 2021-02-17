@@ -90,10 +90,10 @@ void UGroupEdgeInsertionTool::Setup()
 		EToolMessageLevel::UserNotification);
 
 	// Initialize the mesh that we'll be operating on
-	CurrentMesh = MakeShared<FDynamicMesh3>();
+	CurrentMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(ComponentTarget->GetMesh(), *CurrentMesh);
-	CurrentTopology = MakeShared<FGroupTopology>(CurrentMesh.Get(), true);
+	CurrentTopology = MakeShared<FGroupTopology, ESPMode::ThreadSafe>(CurrentMesh.Get(), true);
 	MeshSpatial.SetMesh(CurrentMesh.Get(), true);
 
 	// Set up properties

@@ -89,7 +89,7 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 		}
 	}
 
-	CombinedSourceMeshes = MakeShared<FDynamicMesh3>();
+	CombinedSourceMeshes = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	CombinedSourceMeshes->EnableAttributes();
 	CombinedSourceMeshes->EnableTriangleGroups(0);
 	CombinedSourceMeshes->Attributes()->EnableMaterialID();

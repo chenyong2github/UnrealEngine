@@ -189,10 +189,10 @@ private:
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;
 
-	TSharedPtr<FMeshDescription> OriginalMeshDescription;
+	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription;
 	// Dynamic Mesh versions precomputed in Setup (rather than recomputed for every simplify op)
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
-	TSharedPtr<FDynamicMeshAABBTree3> OriginalMeshSpatial;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 
 	TArray<FLODLevelGenerateSettings> CachedLODLevels;
 

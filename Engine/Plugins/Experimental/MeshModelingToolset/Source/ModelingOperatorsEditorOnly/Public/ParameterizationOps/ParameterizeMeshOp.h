@@ -35,7 +35,7 @@ public:
 	// 
 
 	// source mesh
-	TSharedPtr<FDynamicMesh3> InputMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 		
 	// UV generation parameters
 	float Stretch;

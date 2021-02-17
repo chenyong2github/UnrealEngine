@@ -135,7 +135,7 @@ void UPolygonOnMeshTool::Setup()
 	PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(ComponentTarget->GetOwnerComponent());
 
 	// Convert input mesh description to dynamic mesh
-	OriginalDynamicMesh = MakeShared<FDynamicMesh3>();
+	OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
 	Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
 	// TODO: consider adding an AABB tree construction here?  tradeoff vs doing a raycast against full every time a param change happens ...

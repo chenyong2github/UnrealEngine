@@ -12,7 +12,7 @@ public:
 	virtual ~FMirrorOp() {}
 
 	// Inputs
-	TSharedPtr<const FDynamicMesh3> OriginalMesh;
+	TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	FVector3d LocalPlaneOrigin;
 	FVector3d LocalPlaneNormal;
 

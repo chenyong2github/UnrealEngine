@@ -97,7 +97,7 @@ void UParameterizeMeshTool::Setup()
 	// Initialize the preview mesh with a copy of the source mesh.
 	bool bHasGroups = false;
 	{
-		InputMesh = MakeShared<FDynamicMesh3>( * Preview->PreviewMesh->GetMesh() );
+		InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>( * Preview->PreviewMesh->GetMesh() );
 		FMeshDescriptionToDynamicMesh Converter;
 		bHasGroups = FaceGroupUtil::HasMultipleGroups(*InputMesh);
 

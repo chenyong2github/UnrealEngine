@@ -201,10 +201,10 @@ protected:
 
 
 protected:
-	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 
 	// pre-transformed combined all-mesh data (with mesh geometry data in just raw index buffers as that's all we need)
-	TSharedPtr<IndexMeshWithAcceleration> CombinedMeshTrees;
+	TSharedPtr<IndexMeshWithAcceleration, ESPMode::ThreadSafe> CombinedMeshTrees;
 
 	TArray<TArray<int32>> PreviewToCopyIdx;
 	TArray<int32> PreviewToTargetIdx;

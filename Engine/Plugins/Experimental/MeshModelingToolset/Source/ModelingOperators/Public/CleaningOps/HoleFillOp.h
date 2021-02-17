@@ -39,7 +39,7 @@ public:
 
 	// inputs
 	
-	TSharedPtr<FDynamicMesh3> OriginalMesh;		// Ownership shared with Tool
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;		// Ownership shared with Tool
 
 	EHoleFillOpFillType FillType = EHoleFillOpFillType::Minimal;
 	double MeshUVScaleFactor = 1.0;

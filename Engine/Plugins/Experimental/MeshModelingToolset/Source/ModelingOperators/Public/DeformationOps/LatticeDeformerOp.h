@@ -16,8 +16,8 @@ class MODELINGOPERATORS_API FLatticeDeformerOp : public FDynamicMeshOperator
 {
 public:
 
-	FLatticeDeformerOp(TSharedPtr<FDynamicMesh3> InOriginalMesh,
-					   TSharedPtr<FFFDLattice> InLattice,
+	FLatticeDeformerOp(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
+					   TSharedPtr<FFFDLattice, ESPMode::ThreadSafe> InLattice,
 					   const TArray<FVector3d>& InLatticeControlPoints,
 					   ELatticeInterpolation InInterpolationType);
 
@@ -27,8 +27,8 @@ public:
 protected:
 
 	// Inputs
-	const TSharedPtr<const FFFDLattice> Lattice;
-	const TSharedPtr<const FDynamicMesh3> OriginalMesh;
+	const TSharedPtr<const FFFDLattice, ESPMode::ThreadSafe> Lattice;
+	const TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	const TArray<FVector3d> LatticeControlPoints;
 	ELatticeInterpolation InterpolationType;
 };

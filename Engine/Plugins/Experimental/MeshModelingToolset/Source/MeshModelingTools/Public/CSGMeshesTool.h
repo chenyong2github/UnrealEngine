@@ -105,7 +105,7 @@ protected:
 	UPROPERTY()
 	UTrimMeshesToolProperties* TrimProperties;
 
-	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
+	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 
 	UPROPERTY()
 	ULineSetComponent* DrawnLineSet;

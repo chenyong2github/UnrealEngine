@@ -84,7 +84,7 @@ protected:
 	UPROPERTY()
 	UPreviewGeometry* PreviewGeom;
 
-	TSharedPtr<FDynamicMesh3> InputMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 	FTransform3d MeshTransform;
 	double NormalOffset = 0;
 

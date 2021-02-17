@@ -30,7 +30,7 @@ void FGroupEdgeInsertionOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	ResultMesh->Copy(*OriginalMesh, true, true, true, true);
-	ResultTopology = MakeShared<FGroupTopology>();
+	ResultTopology = MakeShared<FGroupTopology, ESPMode::ThreadSafe>();
 	*ResultTopology = *OriginalTopology;
 	ResultTopology->RetargetOnClonedMesh(ResultMesh.Get());
 

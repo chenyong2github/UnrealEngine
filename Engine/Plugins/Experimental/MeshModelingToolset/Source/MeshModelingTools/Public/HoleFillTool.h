@@ -255,7 +255,7 @@ protected:
 	UPolygonSelectionMechanic* SelectionMechanic = nullptr;
 
 	// Input mesh. Ownership shared with Op.
-	TSharedPtr<FDynamicMesh3> OriginalMesh;
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	// UV Scale factor is cached based on the bounding box of the mesh before any fills are performed
 	float MeshUVScaleFactor = 0.0f;

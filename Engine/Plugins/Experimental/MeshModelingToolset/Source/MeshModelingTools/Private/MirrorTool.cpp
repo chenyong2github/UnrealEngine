@@ -207,7 +207,7 @@ void UMirrorTool::Setup()
 		TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[i];
 
 		// Convert into dynamic mesh
-		TSharedPtr<FDynamicMesh3> DynamicMesh = MakeShared<FDynamicMesh3>();
+		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> DynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
 		Converter.Convert(ComponentTarget->GetMesh(), *DynamicMesh);
 
