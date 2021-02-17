@@ -285,7 +285,7 @@ bool FFCPXMLImportVisitor::VisitVideoClipItemNode(TSharedRef<FFCPXMLClipItemNode
 	TOptional<FFrameNumber> NewStartOffset;
 	if (GetCinematicSectionHandleFramesFromMetadata(LogNote, HandleFrames) && GetCinematicSectionStartOffsetFromMetadata(LogNote, OriginalStartOffset))
 	{
-		NewStartOffset = OriginalStartOffset - ((1 + HandleFrames) - StartOffset);
+		NewStartOffset = OriginalStartOffset - (HandleFrames - StartOffset);
 	}
 	else
 	{
