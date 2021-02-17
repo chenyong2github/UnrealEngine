@@ -142,6 +142,32 @@ FAutoConsoleVariableRef CVarSlateInvalidationWidgetListNumElementLeftBeforeSplit
 /**
  *
  */
+ namespace Slate
+ {
+	 UE_NODISCARD EInvalidateWidgetReason EInvalidateWidgetReason_RemovePreUpdate(EInvalidateWidgetReason InvalidateReason)
+	{
+		static_assert(std::is_same<std::underlying_type_t<EInvalidateWidgetReason>, uint8>::value, "EInvalidateWidgetReason is not a uint8");
+		const uint8 AnyPostUpdate = (0xFF & ~(uint8)EInvalidateWidgetReason::AttributeRegistration);
+		return (EInvalidateWidgetReason)(((uint8)InvalidateReason) & AnyPostUpdate);
+	}
+
+	bool EInvalidateWidgetReason_HasPreUpdateFlag(EInvalidateWidgetReason InvalidateReason)
+	{
+		return EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::AttributeRegistration | EInvalidateWidgetReason::ChildOrder);
+	}
+
+	bool EInvalidateWidgetReason_HasPostUpdateFlag(EInvalidateWidgetReason InvalidateReason)
+	{
+		static_assert(std::is_same<std::underlying_type_t<EInvalidateWidgetReason>, uint8>::value, "EInvalidateWidgetReason is not a uint8");
+		const uint8 AnyPostUpdate = (0xFF & ~(uint8)EInvalidateWidgetReason::AttributeRegistration);
+		return (((uint8)InvalidateReason & AnyPostUpdate) != 0);
+	}
+ }
+
+
+/**
+ *
+ */
 FSlateInvalidationRootList GSlateInvalidationRootListInstance;
 
 FSlateInvalidationRoot::FSlateInvalidationRoot()
@@ -265,13 +291,12 @@ void FSlateInvalidationRoot::InvalidateWidget(FWidgetProxy& Proxy, EInvalidateWi
 				}
 			}
 		}
-		else if (EnumHasAnyFlags(InvalidateReason, EInvalidateWidgetReason::AttributeRegistration))
+		else if (Slate::EInvalidateWidgetReason_HasPreUpdateFlag(InvalidateReason))
 		{
 			WidgetsNeedingPreUpdate->HeapPushUnique(Proxy);
 		}
 
-		const uint8 AnyPostUpdate = (0xFF & ~(uint8)EInvalidateWidgetReason::AttributeRegistration);
-		if (((uint8)InvalidateReason & AnyPostUpdate) != 0)
+		if (Slate::EInvalidateWidgetReason_HasPostUpdateFlag(InvalidateReason))
 		{
 			WidgetsNeedingPostUpdate->PushBackOrHeapUnique(Proxy);
 		}
@@ -654,10 +679,12 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 						if (EnumHasAnyFlags(InvalidationWidget.CurrentInvalidateReason, EInvalidateWidgetReason::AttributeRegistration) && bIsInvalidationWidgetValid)
 						{
 							FastWidgetPathList->ProcessAttributeRegistrationInvalidation(InvalidationWidget);
-							AttributeItt.Seek(WidgetIndex);
+							AttributeItt.Seek(InvalidationWidget.Index);
 						}
 
 						AttributeItt.FixCurrentWidgetIndex();
+
+						InvalidationWidget.CurrentInvalidateReason = Slate::EInvalidateWidgetReason_RemovePreUpdate(InvalidationWidget.CurrentInvalidateReason);
 					}
 				}
 				else
@@ -666,7 +693,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 					SWidget* WidgetPtr = InvalidationWidget.GetWidget();
 					if (ensureMsgf(WidgetPtr, TEXT("Child order invalidation should have been called before we process this widget.")))
 					{
-						if (WidgetPtr->IsFastPathVisible())
+						auto UpdateAttribute = [&InvalidationWidget, WidgetPtr]()
 						{
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
 							if (GSlateInvalidationRootVerifySlateAttribute)
@@ -676,6 +703,24 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 #endif
 							FSlateAttributeMetaData::UpdateAttributes(*WidgetPtr);
 							InvalidationWidget.bDebug_AttributeUpdated = true;
+						};
+
+						if (WidgetPtr->IsFastPathVisible())
+						{
+							UpdateAttribute();
+						}
+						else if (InvalidationWidget.ParentIndex != FSlateInvalidationWidgetIndex::Invalid)
+						{
+							// Is my parent visible, should I update the collapsed attributes
+							const FSlateInvalidationWidgetList::InvalidationWidgetType& ParentInvalidationWidget = (*FastWidgetPathList)[InvalidationWidget.ParentIndex];
+							if (ParentInvalidationWidget.Visibility.IsVisible() && ensure(ParentInvalidationWidget.GetWidget()) && ParentInvalidationWidget.GetWidget()->IsFastPathVisible())
+							{
+								FSlateAttributeMetaData::UpdateCollapsedAttributes(*WidgetPtr);
+								if (WidgetPtr->IsFastPathVisible())
+								{
+									UpdateAttribute();
+								}
+							}
 						}
 					}
 					AttributeItt.Advance();
