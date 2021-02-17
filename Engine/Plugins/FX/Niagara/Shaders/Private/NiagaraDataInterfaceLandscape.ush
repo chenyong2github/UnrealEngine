@@ -2,7 +2,6 @@
 
 #pragma once
 
-// todo - get clarity on the interpretation of this value
 #ifndef NUM_VIRTUALTEXTURE_SAMPLES
 	#define NUM_VIRTUALTEXTURE_SAMPLES 1
 #endif
@@ -44,6 +43,7 @@ struct FNDILandscapeContext
 	float4x4 CachedHeightTextureUvToWorldTransform;
 	float4 CachedHeightTextureUvScaleBias;
 	float2 CachedHeightTextureGridSize;
+	SamplerState PointClampedSampler;
 };
 
 void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos, out float OutHeight, out bool OutIsValid)
@@ -143,10 +143,10 @@ void NDILandscape_GetWorldNormal(in FNDILandscapeContext DIContext, float3 InWor
 		float2 Uv = mul(float4(InWorldPos, 1.0f), DIContext.CachedHeightTextureWorldToUvTransform).xy;
 		Uv = Uv * DIContext.CachedHeightTextureUvScaleBias.xy + DIContext.CachedHeightTextureUvScaleBias.zw;
 
-		float Left = DIContext.CachedHeightTexture.SampleLevel(GlobalPointClampedSampler, Uv, 0, int2(-1,0)).x;
-		float Right = DIContext.CachedHeightTexture.SampleLevel(GlobalPointClampedSampler, Uv, 0, int2(1,0)).x;
-		float Top = DIContext.CachedHeightTexture.SampleLevel(GlobalPointClampedSampler, Uv, 0, int2(0,1)).x;
-		float Bottom = DIContext.CachedHeightTexture.SampleLevel(GlobalPointClampedSampler, Uv, 0, int2(0,-1)).x;
+		float Left = DIContext.CachedHeightTexture.SampleLevel(DIContext.PointClampedSampler, Uv, 0, int2(-1,0)).x;
+		float Right = DIContext.CachedHeightTexture.SampleLevel(DIContext.PointClampedSampler, Uv, 0, int2(1,0)).x;
+		float Top = DIContext.CachedHeightTexture.SampleLevel(DIContext.PointClampedSampler, Uv, 0, int2(0,1)).x;
+		float Bottom = DIContext.CachedHeightTexture.SampleLevel(DIContext.PointClampedSampler, Uv, 0, int2(0,-1)).x;
 
 		// cross product of our two gradient vectors
 		OutNormal = float3(
@@ -195,8 +195,9 @@ void NDILandscape_GetWorldNormal(in FNDILandscapeContext DIContext, float3 InWor
 	float4x4			CachedHeightTextureWorldToUvTransform_ ## NAME; \
 	float4x4			CachedHeightTextureUvToWorldTransform_ ## NAME; \
 	float4				CachedHeightTextureUvScaleBias_ ## NAME; \
-	float2				CachedHeightTextureGridSize_ ## NAME;
-
+	float2				CachedHeightTextureGridSize_ ## NAME; \
+	SamplerState		PointClampedSampler_ ## NAME;
+	
 #define NDILANDSCAPE_MAKE_CONTEXT(NAME) \
 	FNDILandscapeContext DIContext; \
 	DIContext.HeightVirtualTexture = HeightVirtualTexture_ ## NAME; \
@@ -224,4 +225,5 @@ void NDILandscape_GetWorldNormal(in FNDILandscapeContext DIContext, float3 InWor
 	DIContext.CachedHeightTextureWorldToUvTransform = CachedHeightTextureWorldToUvTransform_ ## NAME; \
 	DIContext.CachedHeightTextureUvToWorldTransform = CachedHeightTextureUvToWorldTransform_ ## NAME; \
 	DIContext.CachedHeightTextureUvScaleBias = CachedHeightTextureUvScaleBias_ ## NAME; \
-	DIContext.CachedHeightTextureGridSize = CachedHeightTextureGridSize_ ## NAME;
+	DIContext.CachedHeightTextureGridSize = CachedHeightTextureGridSize_ ## NAME; \
+	DIContext.PointClampedSampler = PointClampedSampler_ ## NAME;

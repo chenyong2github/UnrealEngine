@@ -943,6 +943,7 @@ public:
 		CachedHeightTextureUvScaleBiasParam.Bind(ParameterMap, *(CachedHeightTextureUvScaleBiasName + ParameterInfo.DataInterfaceHLSLSymbol));
 		CachedHeightTexturEnabledParam.Bind(ParameterMap, *(CachedHeightTextureEnabledName + ParameterInfo.DataInterfaceHLSLSymbol));
 		CachedHeightTextureGridSizeParam.Bind(ParameterMap, *(CachedHeightTextureGridSizeName + ParameterInfo.DataInterfaceHLSLSymbol));
+		PointClampedSamplerParam.Bind(ParameterMap, *(PointClampedSamplerName + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
 	bool SetHeightVirtualTextureParameters(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShaderRHI, const FNDILandscapeData_RenderThread& ProxyData) const
@@ -1100,6 +1101,9 @@ public:
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureGridSizeParam, ProxyData.CachedHeightTextureGridSize);
 				SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTexturEnabledParam, 1 /* true */);
 
+				FRHISamplerState* PointClampedSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
+				SetSamplerParameter(RHICmdList, ComputeShaderRHI, PointClampedSamplerParam, PointClampedSampler);
+
 				return true;
 			}
 		}
@@ -1117,6 +1121,9 @@ public:
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureUvScaleBiasParam, DummyVector4);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTextureGridSizeParam, 0.0f);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, CachedHeightTexturEnabledParam, 0 /* false */);
+
+		FRHISamplerState* PointClampedSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
+		SetSamplerParameter(RHICmdList, ComputeShaderRHI, PointClampedSamplerParam, PointClampedSampler);
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -1203,6 +1210,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, CachedHeightTextureUvScaleBiasParam);
 	LAYOUT_FIELD(FShaderParameter, CachedHeightTexturEnabledParam);
 	LAYOUT_FIELD(FShaderParameter, CachedHeightTextureGridSizeParam);
+	LAYOUT_FIELD(FShaderResourceParameter, PointClampedSamplerParam);
 
 	static const FString HeightVirtualTextureEnabledName;
 	static const FString HeightVirtualTextureName;
@@ -1232,6 +1240,7 @@ private:
 	static const FString CachedHeightTextureWorldToUvTransformName;
 	static const FString CachedHeightTextureUvToWorldTransformName;
 	static const FString CachedHeightTextureGridSizeName;
+	static const FString PointClampedSamplerName;
 };
 
 // virtual texture parameters - height
@@ -1265,6 +1274,7 @@ const FString FNiagaraDataInterfaceParametersCS_Landscape::CachedHeightTextureUv
 const FString FNiagaraDataInterfaceParametersCS_Landscape::CachedHeightTextureWorldToUvTransformName(TEXT("CachedHeightTextureWorldToUvTransform_"));
 const FString FNiagaraDataInterfaceParametersCS_Landscape::CachedHeightTextureUvToWorldTransformName(TEXT("CachedHeightTextureUvToWorldTransform_"));
 const FString FNiagaraDataInterfaceParametersCS_Landscape::CachedHeightTextureGridSizeName(TEXT("CachedHeightTextureGridSize_"));
+const FString FNiagaraDataInterfaceParametersCS_Landscape::PointClampedSamplerName(TEXT("PointClampedSampler_"));
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Landscape);
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceLandscape, FNiagaraDataInterfaceParametersCS_Landscape);
