@@ -196,6 +196,11 @@ namespace UE
 		**/
 		static void Shutdown();
 
+		/**
+		* Stall Detector API is running?
+		**/
+		static bool IsRunning();
+
 	private:
 		// The time provided, the deadline
 		FStallDetectorStats& Stats;

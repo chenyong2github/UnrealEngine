@@ -2619,17 +2619,26 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FAudioThread::SetUseThreadedAudio(bUseThreadedAudio);
 	}
 
-	if (FPlatformProcess::SupportsMultithreading() && !IsRunningDedicatedServer() && (bIsRegularClient || bHasEditorToken))
+	// Are we creating a slate application?
+	bool bSlateApplication = !IsRunningDedicatedServer() && (bIsRegularClient || bHasEditorToken);
+	if (bSlateApplication)
 	{
-		SCOPED_BOOT_TIMING("FPlatformSplash::Show()");
-		FPlatformSplash::Show();
-	}
+#if STALL_DETECTOR
+		if (GIsEditor)
+		{
+			UE::FStallDetector::Startup();
+		}
+#endif
 
-	if (!IsRunningDedicatedServer() && (bHasEditorToken || bIsRegularClient))
-	{
+		if (FPlatformProcess::SupportsMultithreading())
+		{
+			SCOPED_BOOT_TIMING("FPlatformSplash::Show()");
+			FPlatformSplash::Show();
+		}
+
 		// Init platform application
 		SCOPED_BOOT_TIMING("FSlateApplication::Create()");
-		FSlateApplication::Create();
+		FSlateApplication::Create();		
 	}
 	else
 	{
@@ -5877,10 +5886,6 @@ bool FEngineLoop::AppInit( )
 
 	FEmbeddedCommunication::ForceTick(19);
 
-#if STALL_DETECTOR
-	UE::FStallDetector::Startup();
-#endif
-
 	return true;
 }
 
@@ -5971,7 +5976,10 @@ void FEngineLoop::AppPreExit( )
 void FEngineLoop::AppExit()
 {
 #if STALL_DETECTOR
-	UE::FStallDetector::Shutdown();
+	if (UE::FStallDetector::IsRunning())
+	{
+		UE::FStallDetector::Shutdown();
+	}
 #endif
 
 #if !WITH_ENGINE

@@ -32,7 +32,7 @@ DEFINE_LOG_CATEGORY(LogStall);
 **/
 
 // The reference count for the resources for this API
-static uint32 InitCount = 0;
+static int32 InitCount = 0;
 
 /**
 * Stall Detector Thread
@@ -229,7 +229,7 @@ UE::FStallDetector::FStallDetector(FStallDetectorStats& InStats)
 	, bPersistent(false)
 	, Triggered(false)
 {
-	if (InitCount)
+	if (FStallDetector::IsRunning())
 	{
 		ThreadId = FPlatformTLS::GetCurrentThreadId();
 		StartSeconds = FStallDetector::Seconds();
@@ -248,7 +248,7 @@ UE::FStallDetector::~FStallDetector()
 		Instances.Remove(this);
 	}
 
-	if (InitCount)
+	if (FStallDetector::IsRunning())
 	{
 		if (!bPersistent)
 		{
@@ -260,7 +260,7 @@ UE::FStallDetector::~FStallDetector()
 void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
 {
 	// StartSeconds checks that system was started when this detector was constructed
-	bool bInitialized = InitCount && StartSeconds != InvalidSeconds;
+	bool bInitialized = FStallDetector::IsRunning() && StartSeconds != InvalidSeconds;
 	if (!bInitialized)
 	{
 		return;
@@ -312,7 +312,7 @@ void UE::FStallDetector::Check(bool bIsComplete, double InWhenToCheckSeconds)
 void UE::FStallDetector::CheckAndReset()
 {
 	// StartSeconds checks that system was started when this detector was constructed
-	bool bInitialized = InitCount && StartSeconds != InvalidSeconds;
+	bool bInitialized = FStallDetector::IsRunning() && StartSeconds != InvalidSeconds;
 	if (!bInitialized)
 	{
 		return;
@@ -411,7 +411,7 @@ double UE::FStallDetector::Seconds()
 {
 	double Result = InvalidSeconds;
 
-	if (InitCount)
+	if (FStallDetector::IsRunning())
 	{
 #if STALL_DETECTOR_HEART_BEAT_CLOCK
 		Result = Runnable->GetClock().Seconds();
@@ -441,6 +441,7 @@ double UE::FStallDetector::Seconds()
 
 void UE::FStallDetector::Startup()
 {
+	check(InitCount >= 0);
 	if (++InitCount == 1)
 	{
 		UE_LOG(LogStall, Log, TEXT("Startup..."));
@@ -480,6 +481,12 @@ void UE::FStallDetector::Shutdown()
 		
 		UE_LOG(LogStall, Log, TEXT("Shutdown complete."));
 	}
+	check(InitCount >= 0);
+}
+
+bool UE::FStallDetector::IsRunning()
+{
+	return InitCount > 0;
 }
 
 #endif // STALL_DETECTOR
