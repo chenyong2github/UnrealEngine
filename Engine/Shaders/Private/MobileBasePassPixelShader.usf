@@ -636,9 +636,7 @@ void Main(
 		half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, PrevScreenUV);
 #endif
 
-		half DynamicAmbientOcclusion = lerp(1.0f, GatheredAmbientOcclusion.r, AmbientOcclusionStaticFraction);
-
-		MaterialAO *= DynamicAmbientOcclusion;
+		MaterialAO *= GatheredAmbientOcclusion.r;
 	}
 #endif
 
