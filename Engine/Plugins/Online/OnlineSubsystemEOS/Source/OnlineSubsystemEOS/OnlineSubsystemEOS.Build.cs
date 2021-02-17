@@ -79,6 +79,16 @@ public class OnlineSubsystemEOS : ModuleRules
 
 				RuntimeDependencies.Add(SoName);
 			}
+			else if (Target.Platform == UnrealTargetPlatform.XboxOneGDK)
+			{
+				string EOSLibPath = Path.Combine(EOSPath, "Lib");
+				PublicAdditionalLibraries.Add(Path.Combine(EOSLibPath, "EOSSDK-XboxOneGDK-Shipping.lib"));
+
+				PublicDelayLoadDLLs.Add("EOSSDK-XboxOneGDK-Shipping.dll");
+
+				string EOSDLLPath = Path.Combine(EOSPath, "Bin", "EOSSDK-XboxOneGDK-Shipping.dll");
+				RuntimeDependencies.Add(EOSDLLPath);
+			}
 		}
 		else
 		{
