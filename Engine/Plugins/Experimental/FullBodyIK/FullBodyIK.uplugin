@@ -29,6 +29,11 @@
 			"Name": "FullBodyIK",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "PBIK",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }
