@@ -292,7 +292,7 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 		if (GUseNewTaskBackend)
 		{
 			TLocalWorkQueue<FGraphData> LocalWork(Graph);
-#if PLATFORM_MAC
+#if PLATFORM_MAC || PLATFORM_LINUX
 			TUniqueFunction<void(FGraphData*)> Self = ([this, &LocalWork, &Self](FGraphData* Graph)
 #else
 			auto Self = MakeYCombinator([this, &LocalWork](const auto& Self, FGraphData* Graph) -> void
