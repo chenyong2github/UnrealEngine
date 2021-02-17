@@ -30,6 +30,7 @@
 #include "Math/Vector2D.h"
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "TessellationRendering.h"
