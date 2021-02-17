@@ -27,9 +27,9 @@ FNiagaraRibbonShapeCustomVertex::FNiagaraRibbonShapeCustomVertex()
 }
 
 FNiagaraRibbonUVSettings::FNiagaraRibbonUVSettings()
-	: LeadingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
+	: DistributionMode(ENiagaraRibbonUVDistributionMode::ScaledUsingRibbonSegmentLength)
+	, LeadingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
 	, TrailingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
-	, DistributionMode(ENiagaraRibbonUVDistributionMode::ScaledUsingRibbonSegmentLength)
 	, TilingLength(100.0f)
 	, Offset(FVector2D(0.0f, 0.0f))
 	, Scale(FVector2D(1.0f, 1.0f))
