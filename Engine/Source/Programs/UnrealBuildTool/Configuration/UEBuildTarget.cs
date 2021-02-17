@@ -1906,7 +1906,7 @@ namespace UnrealBuildTool
 				WriteMetadataAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(MetadataTargetFile));
 				WriteMetadataAction.PrerequisiteItems.AddRange(Makefile.OutputItems);
 				WriteMetadataAction.ProducedItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
-				WriteMetadataAction.ProducedItems.AddRange(MetadataTargetInfo.FileToManifest.Keys.Select(x => FileItem.GetItemByFileReference(x)));
+				WriteMetadataAction.ProducedItems.AddRange(MetadataTargetInfo.FileToManifest.Keys.Where(x => !UnrealBuildTool.IsFileInstalled(x)).Select(x => FileItem.GetItemByFileReference(x)));
 
 				Makefile.OutputItems.AddRange(WriteMetadataAction.ProducedItems);
 
