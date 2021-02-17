@@ -481,6 +481,7 @@ namespace Chaos
 		FORCEINLINE static T GetVolume(const TVector<T, 3>& Dim) { return Dim.Product(); }
 
 		FORCEINLINE T GetMargin() const { return 0; }
+		FORCEINLINE T GetRadius() const { return 0; }
 
 		FORCEINLINE static TAABB<T, d> EmptyAABB() { return TAABB<T, d>(TVector<T, d>(TNumericLimits<T>::Max()), TVector<T, d>(-TNumericLimits<T>::Max())); }
 		FORCEINLINE static TAABB<T, d> ZeroAABB() { return TAABB<T, d>(TVector<T, d>((T)0), TVector<T, d>((T)0)); }

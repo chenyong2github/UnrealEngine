@@ -579,8 +579,8 @@ namespace ChaosTest {
 		InParticles.Q() = InParticles.R();
 
 		// TODO: Change this error prone API to set bounds more automatically. This is easy to forget
-		InParticles.SetLocalBounds(TAABB<FReal, 3>(Cube[0], Cube[7]));
-		InParticles.SetWorldSpaceInflatedBounds(TAABB<FReal, 3>(Cube[0], Cube[7]));
+		InParticles.SetLocalBounds(FAABB3(Cube[0], Cube[7]));
+		InParticles.SetWorldSpaceInflatedBounds(FAABB3(Cube[0], Cube[7]));
 		InParticles.SetHasBounds(true);
 
 		InParticles.M() = 1.0;
@@ -702,11 +702,9 @@ namespace ChaosTest {
 		}
 	}
 
-	FImplicitConvex3 CreateConvexBox(const FVec3& BoxSize, const FReal Margin)
+	TArray<FVec3> MakeBoxVerts(const FVec3& HalfSize)
 	{
-		const FVec3 HalfSize = 0.5f * BoxSize;
-
-		TArray<FVec3> BoxVerts =
+		return
 		{
 			FVec3(-HalfSize.X, -HalfSize.Y, -HalfSize.Z),
 			FVec3(-HalfSize.X,  HalfSize.Y, -HalfSize.Z),
@@ -717,29 +715,26 @@ namespace ChaosTest {
 			FVec3(HalfSize.X,  HalfSize.Y,  HalfSize.Z),
 			FVec3(HalfSize.X, -HalfSize.Y,  HalfSize.Z),
 		};
-
-		return FImplicitConvex3(BoxVerts, Margin);
 	}
 
+	FImplicitConvex3 CreateConvexBox(const FVec3& BoxSize, const FReal Margin)
+	{
+		const FVec3 HalfSize = 0.5f * BoxSize;
+		return FImplicitConvex3(MakeBoxVerts(HalfSize), Margin);
+	}
+
+	TImplicitObjectInstanced<FImplicitConvex3> CreateInstancedConvexBox(const FVec3& BoxSize, const FReal Margin)
+	{
+		const FVec3 HalfSize = 0.5f * BoxSize;
+		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(MakeBoxVerts(HalfSize), 0.0f);
+		return TImplicitObjectInstanced<FImplicitConvex3>(BoxConvex, Margin);
+	}
 
 	TImplicitObjectScaled<FImplicitConvex3> CreateScaledConvexBox(const FVec3& BoxSize, const FVec3 BoxScale, const FReal Margin)
 	{
 		const FVec3 HalfSize = 0.5f * BoxSize;
-
-		TArray<FVec3> BoxVerts =
-		{
-			FVec3(-HalfSize.X, -HalfSize.Y, -HalfSize.Z),
-			FVec3(-HalfSize.X,  HalfSize.Y, -HalfSize.Z),
-			FVec3(HalfSize.X,  HalfSize.Y, -HalfSize.Z),
-			FVec3(HalfSize.X, -HalfSize.Y, -HalfSize.Z),
-			FVec3(-HalfSize.X, -HalfSize.Y,  HalfSize.Z),
-			FVec3(-HalfSize.X,  HalfSize.Y,  HalfSize.Z),
-			FVec3(HalfSize.X,  HalfSize.Y,  HalfSize.Z),
-			FVec3(HalfSize.X, -HalfSize.Y,  HalfSize.Z),
-		};
-		
-		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(BoxVerts, 0.0f);
-
+		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(MakeBoxVerts(HalfSize), 0.0f);
 		return TImplicitObjectScaled<FImplicitConvex3>(BoxConvex, BoxScale, Margin);
 	}
+
 }

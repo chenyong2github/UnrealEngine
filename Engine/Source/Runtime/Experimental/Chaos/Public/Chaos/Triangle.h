@@ -79,6 +79,7 @@ namespace Chaos
 
 		FORCEINLINE_DEBUGGABLE TVec3<T> SupportCore(const TVec3<T>& Direction, float InMargin) const
 		{
+			// Note: assumes margin == 0
 			const float DotA = TVec3<T>::DotProduct(A, Direction);
 			const float DotB = TVec3<T>::DotProduct(B, Direction);
 			const float DotC = TVec3<T>::DotProduct(C, Direction);
@@ -97,11 +98,12 @@ namespace Chaos
 
 		FORCEINLINE TVector<T, 3> SupportCoreScaled(const TVector<T, 3>& Direction, float InMargin, const TVector<T, 3>& Scale) const
 		{
-			// No margin support in triangles (they are zero thickness so cannot have an internal margin)
+			// Note: ignores InMargin, assumed 0 (triangles cannot have a margin as they are zero thickness)
 			return SupportCore(Direction * Scale, 0.0f) * Scale;
 		}
 
 		FORCEINLINE T GetMargin() const { return 0; }
+		FORCEINLINE T GetRadius() const { return 0; }
 
 		FORCEINLINE bool Raycast(const TVec3<T>& StartPoint, const TVec3<T>& Dir, const T Length, const T Thickness, T& OutTime, TVec3<T>& OutPosition, TVec3<T>& OutNormal, int32& OutFaceIndex) const
 		{

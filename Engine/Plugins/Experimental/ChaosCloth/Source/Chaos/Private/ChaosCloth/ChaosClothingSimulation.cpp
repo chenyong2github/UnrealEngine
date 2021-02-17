@@ -15,6 +15,7 @@
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDAnimDriveConstraint.h"

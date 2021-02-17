@@ -2,6 +2,8 @@
 #pragma once
 
 #include "Chaos/Cylinder.h"
+#include "Chaos/GJKShape.h"
+#include "Chaos/ImplicitFwd.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectUnion.h"
 #include "Chaos/Sphere.h"
@@ -68,6 +70,11 @@ namespace Chaos
 			auto X1 = Origin + Axis * Radius;
 			auto X2 = Origin + Axis * (Radius + Height);
 			return TCapsule<T>(X1, X2, Radius);
+		}
+
+		float GetRadius() const
+		{
+			return Margin;
 		}
 
 		/**
@@ -286,11 +293,13 @@ namespace Chaos
 
 		FORCEINLINE TVector<T, 3> SupportCore(const TVector<T, 3>& Direction, float InMargin) const
 		{
+			// NOTE: Ignores InMargin, assumes Radius
 			return MSegment.SupportCore(Direction);
 		}
 
 		FORCEINLINE TVector<T, 3> SupportCoreScaled(const TVector<T, 3>& Direction, float InMargin, const TVector<T, 3>& Scale) const
 		{
+			// NOTE: Ignores InMargin, assumes Radius
 			return SupportCore(Scale * Direction, GetMargin()) * Scale;
 		}
 
@@ -330,7 +339,6 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new TCapsule<T>(*this));
 		}
 
-		const T GetRadius() const { return GetMargin(); }
 		T GetHeight() const { return MSegment.GetLength(); }
 		/** Returns the bottommost point on the capsule. */
 		const TVector<T, 3> GetOrigin() const { return GetX1() + GetAxis() * -GetRadius(); }
@@ -514,4 +522,5 @@ namespace Chaos
 			}
 		}
 	};
+
 } // namespace Chaos

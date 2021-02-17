@@ -3,6 +3,7 @@
 
 #include "Chaos/Box.h"
 #include "Chaos/Convex.h"
+#include "Chaos/ImplicitFwd.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Transform.h"
 #include "ChaosArchive.h"
@@ -56,6 +57,18 @@ public:
 		SetMargin(OuterMargin + MObject->GetMargin());
 	}
 
+	TImplicitObjectInstanced(TImplicitObjectInstanced<TConcrete>&& Other)
+		: FImplicitObject(EImplicitObject::HasBoundingBox, Other.MObject->GetType() | ImplicitObjectType::IsInstanced)
+		, MObject(MoveTemp(Other.MObject))
+		, OuterMargin(Other.OuterMargin)
+	{
+		ensureMsgf((IsScaled(MObject->GetType()) == false), TEXT("Scaled objects should not contain each other."));
+		ensureMsgf((IsInstanced(MObject->GetType()) == false), TEXT("Scaled objects should not contain instances."));
+		this->bIsConvex = Other.MObject->IsConvex();
+		this->bDoCollide = Other.MObject->GetDoCollide();
+		SetMargin(Other.GetMargin());
+	}
+
 	static constexpr EImplicitObjectType StaticType()
 	{
 		return TConcrete::StaticType() | ImplicitObjectType::IsInstanced;
@@ -64,6 +77,11 @@ public:
 	const TConcrete* GetInstancedObject() const
 	{
 		return MObject.Get();
+	}
+
+	float GetRadius() const
+	{
+		return MObject->GetRadius();
 	}
 
 	bool GetDoCollide() const
@@ -112,7 +130,7 @@ public:
 	// The support position from the specified direction, if the shape is reduced by the margin
 	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 	{
-		return MObject->SupportCore(Direction, InMargin + GetMargin());
+		return MObject->SupportCore(Direction, InMargin);
 	}
 
 	// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales
@@ -395,6 +413,11 @@ public:
 		return MObject.Get();
 	}
 
+	float GetRadius() const
+	{
+		return (MObject->GetRadius() > 0.0f) ? Margin : 0.0f;
+	}
+
 	virtual T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const override
 	{
 		// @todo(chaos): support scaled PhiWithNormal on all types
@@ -672,7 +695,7 @@ public:
 
 	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 	{
-		return MObject->SupportCoreScaled(Direction, InMargin + OuterMargin, MScale);
+		return MObject->SupportCoreScaled(Direction, InMargin, MScale);
 	}
 
 	// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales

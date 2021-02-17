@@ -94,6 +94,11 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new TBox<T,d>(*this));
 		}
 
+		float GetRadius() const
+		{
+			return 0.0f;
+		}
+
 		/**
 		 * Returns sample points centered about the origin.
 		 */
@@ -287,13 +292,14 @@ namespace Chaos
 		// Returns a position on the core shape excluding the margin
 		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
 		{
-			return AABB.SupportCore(Direction, InMargin + GetMargin());
+			return AABB.SupportCore(Direction, InMargin);
 		}
 
 		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, float InMargin, const TVector<T, d>& Scale) const
 		{
+			// @todo(chaos): Needs to operate in scaled space as margin is not non-uniform scalable
 			const FReal InvScale = 1.0f / Scale[0];
-			const FReal NetMargin = InvScale * (InMargin + GetMargin());
+			const FReal NetMargin = InvScale * InMargin;
 			return AABB.SupportCore(Direction * Scale, NetMargin) * Scale;
 		}
 

@@ -1,10 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/Convex.h"
+#include "Chaos/GJK.h"
+#include "Chaos/Sphere.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
+	bool FConvex::Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
+	{
+		OutFaceIndex = INDEX_NONE;	//finding face is expensive, should be called directly by user
+		const FRigidTransform3 StartTM(StartPoint, FRotation3::FromIdentity());
+		const TSphere<FReal, 3> Sphere(FVec3(0), Thickness);
+		return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal);
+	}
+
 
 	int32 FConvex::FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
 	{

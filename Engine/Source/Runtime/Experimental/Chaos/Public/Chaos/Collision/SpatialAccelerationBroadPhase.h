@@ -313,7 +313,7 @@ namespace Chaos
 						SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
 						// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
 						// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance + BoundsThicknessVelocityInflation);
 					}
 				}
 
