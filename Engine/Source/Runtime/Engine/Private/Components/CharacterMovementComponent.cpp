@@ -8336,7 +8336,7 @@ void UCharacterMovementComponent::CallServerMove
 	// Determine if we send absolute or relative location
 	UPrimitiveComponent* ClientMovementBase = NewMove->EndBase.Get();
 	const FName ClientBaseBone = NewMove->EndBoneName;
-	const FVector SendLocation = MovementBaseUtility::UseRelativeLocation(ClientMovementBase) ? NewMove->SavedRelativeLocation : NewMove->SavedLocation;
+	const FVector SendLocation = MovementBaseUtility::UseRelativeLocation(ClientMovementBase) ? NewMove->SavedRelativeLocation : FRepMovement::RebaseOntoZeroOrigin(NewMove->SavedLocation, this);
 
 	// send old move if it exists
 	if (OldMove)
@@ -8907,7 +8907,7 @@ void FCharacterNetworkMoveData::ClientFillNetworkMoveData(const FSavedMove_Chara
 		// Determine if we send absolute or relative location
 		UPrimitiveComponent* ClientMovementBase = ClientMove.EndBase.Get();
 		const bool bDynamicBase = MovementBaseUtility::UseRelativeLocation(ClientMovementBase);
-		const FVector SendLocation = bDynamicBase ? ClientMove.SavedRelativeLocation : ClientMove.SavedLocation;
+		const FVector SendLocation = bDynamicBase ? ClientMove.SavedRelativeLocation : FRepMovement::RebaseOntoZeroOrigin(ClientMove.SavedLocation, ClientMove.CharacterOwner->GetCharacterMovement());
 
 		Location = SendLocation;
 		MovementBase = bDynamicBase ? ClientMovementBase : nullptr;
@@ -9259,6 +9259,10 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 		FQuat BaseRotation;
 		MovementBaseUtility::GetMovementBaseTransform(ClientMovementBase, ClientBaseBoneName, BaseLocation, BaseRotation);
 		ClientLoc += BaseLocation;
+	}
+	else
+	{
+		ClientLoc = FRepMovement::RebaseOntoLocalOrigin(ClientLoc, this);
 	}
 
 	// Client may send a null movement base when walking on bases with no relative location (to save bandwidth).
