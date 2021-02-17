@@ -841,9 +841,13 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 /* Simple token used for non-blendables*/
 struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 {
-	FControlRigParameterExecutionToken(const UMovieSceneControlRigParameterSection* InSection)
+	FControlRigParameterExecutionToken(const UMovieSceneControlRigParameterSection* InSection,
+		const FEvaluatedControlRigParameterSectionValues& Values)
 	:	Section(InSection)
-	{}
+	{
+		BoolValues = Values.BoolValues;
+		IntegerValues = Values.IntegerValues;
+	}
 	FControlRigParameterExecutionToken(FControlRigParameterExecutionToken&&) = default;
 	FControlRigParameterExecutionToken& operator=(FControlRigParameterExecutionToken&&) = default;
 
@@ -855,12 +859,6 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 	{
 		MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_ControlRigParameterTrack_TokenExecute)
 		
-		FInputBlendPose DefaultBoneFilter;
-
-		bool bAdditive = false;
-		bool bApplyBoneFilter = false;
-		const FInputBlendPose* BoneFilter = &DefaultBoneFilter;
-
 		FMovieSceneSequenceID SequenceID = Operand.SequenceID;
 		UControlRig* ControlRig = Section->ControlRig;
 
@@ -940,9 +938,52 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 				}
 			}		
 		}
+
+		//Do Bool straight up no blending
+		bool bWasDoNotKey = false;
+
+		bWasDoNotKey = Section->GetDoNotKey();
+		Section->SetDoNotKey(true);
+
+		if (Section->ControlRig)
+		{
+			Section->ControlRig->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
+			if (Section->bAdditive == false)
+			{
+				for (const FBoolParameterStringAndValue& BoolNameAndValue : BoolValues)
+				{
+					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
+					{
+						FRigControl* RigControl = Section->ControlRig->FindControl(BoolNameAndValue.ParameterName);
+						if (RigControl && RigControl->ControlType == ERigControlType::Bool)
+						{
+							Section->ControlRig->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
+						}
+					}
+				}
+
+				for (const FIntegerParameterStringAndValue& IntegerNameAndValue : IntegerValues)
+				{
+					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
+					{
+						FRigControl* RigControl = Section->ControlRig->FindControl(IntegerNameAndValue.ParameterName);
+						if (RigControl && RigControl->ControlType == ERigControlType::Integer)
+						{
+							Section->ControlRig->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
+						}
+					}
+				}
+			}
+		}
+		Section->SetDoNotKey(bWasDoNotKey);
+
 	}
 
 	const UMovieSceneControlRigParameterSection* Section;
+	/** Array of evaluated bool values */
+	TArray<FBoolParameterStringAndValue, TInlineAllocator<2>> BoolValues;
+	/** Array of evaluated integer values */
+	TArray<FIntegerParameterStringAndValue, TInlineAllocator<2>> IntegerValues;
 
 };
 
@@ -1254,9 +1295,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		{
 			return;
 		}
-		//Do basic token
-		FControlRigParameterExecutionToken ExecutionToken(Section);
-		ExecutionTokens.Add(MoveTemp(ExecutionToken));
+
 
 		//Do blended tokens
 		FEvaluatedControlRigParameterSectionValues Values;
@@ -1273,44 +1312,9 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 			Weight *= ManualWeight;
 		}
 
-		//Do Bool straight up no blending
-		bool bWasDoNotKey = false;
-	
-		bWasDoNotKey = Section->GetDoNotKey();
-		Section->SetDoNotKey(true);
-
-		if (Section->ControlRig)
-		{
-			Section->ControlRig->SetAbsoluteTime((float)Context.GetFrameRate().AsSeconds(Context.GetTime()));
-			if (Section->bAdditive == false)
-			{
-				for (const FBoolParameterStringAndValue& BoolNameAndValue : Values.BoolValues)
-				{
-					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(BoolNameAndValue.ParameterName))
-					{
-						FRigControl* RigControl = Section->ControlRig->FindControl(BoolNameAndValue.ParameterName);
-						if (RigControl && RigControl->ControlType == ERigControlType::Bool)
-						{
-							Section->ControlRig->SetControlValue<bool>(BoolNameAndValue.ParameterName, BoolNameAndValue.Value, true, EControlRigSetKey::Never);
-						}
-					}
-				}
-
-				for (const FIntegerParameterStringAndValue& IntegerNameAndValue : Values.IntegerValues)
-				{
-					if (Section->ControlsToSet.Num() == 0 || Section->ControlsToSet.Contains(IntegerNameAndValue.ParameterName))
-					{
-						FRigControl* RigControl = Section->ControlRig->FindControl(IntegerNameAndValue.ParameterName);
-						if (RigControl && RigControl->ControlType == ERigControlType::Integer)
-						{
-							Section->ControlRig->SetControlValue<int32>(IntegerNameAndValue.ParameterName, IntegerNameAndValue.Value, true, EControlRigSetKey::Never);
-						}
-					}
-				}
-			}
-		}
-		Section->SetDoNotKey(bWasDoNotKey);
-
+		//Do basic token
+		FControlRigParameterExecutionToken ExecutionToken(Section,Values);
+		ExecutionTokens.Add(MoveTemp(ExecutionToken));
 
 		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section);
 
