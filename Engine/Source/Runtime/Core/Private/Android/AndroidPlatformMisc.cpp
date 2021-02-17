@@ -139,6 +139,8 @@ EDeviceScreenOrientation FAndroidMisc::DeviceOrientation = EDeviceScreenOrientat
 
 extern void AndroidThunkCpp_ForceQuit();
 
+extern void AndroidThunkCpp_SetOrientation(int32 Value);
+
 // From AndroidFile.cpp
 extern FString GFontPathBase;
 
@@ -3031,3 +3033,43 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // UE_SET_REQUEST_EXIT_ON_TICK_ONLY
 }
+
+void FAndroidMisc::SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation)
+{
+#if USE_ANDROID_JNI
+	AndroidThunkCpp_SetOrientation(GetAndroidScreenOrientation(NewDeviceOrentation));
+#endif // USE_ANDROID_JNI
+}
+
+#if USE_ANDROID_JNI
+int32 FAndroidMisc::GetAndroidScreenOrientation(EDeviceScreenOrientation ScreenOrientation)
+{
+	EAndroidScreenOrientation AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_UNSPECIFIED;
+	switch (ScreenOrientation)
+	{
+	case EDeviceScreenOrientation::Unknown:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_UNSPECIFIED;
+		break;
+	case EDeviceScreenOrientation::Portrait:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_PORTRAIT;
+		break;
+	case EDeviceScreenOrientation::PortraitUpsideDown:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_REVERSE_PORTRAIT;
+		break;
+	case EDeviceScreenOrientation::LandscapeLeft:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_LANDSCAPE;
+		break;
+	case EDeviceScreenOrientation::LandscapeRight:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_REVERSE_LANDSCAPE;
+		break;
+	case EDeviceScreenOrientation::FaceUp:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_UNSPECIFIED;
+		break;
+	case EDeviceScreenOrientation::FaceDown:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_UNSPECIFIED;
+		break;
+	}
+
+	return static_cast<int32>(AndroidScreenOrientation);
+}
+#endif // USE_ANDROID_JNI
