@@ -26,6 +26,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginAddTorusPrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddSphericalBoxPrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddSpherePrimitiveTool;
+	TSharedPtr<FUICommandInfo> BeginAddLinearStairsPrimitiveTool;
 
 	TSharedPtr<FUICommandInfo> BeginAddPatchTool;
 	TSharedPtr<FUICommandInfo> BeginRevolveBoundaryTool;

@@ -37,7 +37,8 @@ public:
 		PuncturedDisc,
 		Torus,
 		SphericalBox,
-		Sphere
+		Sphere,
+		LinearStairs
 	};
 
 	IAssetGenerationAPI* AssetAPI;
@@ -339,6 +340,28 @@ public:
 	int Subdivisions = 16;
 };
 
+UCLASS()
+class MESHMODELINGTOOLS_API UProceduralLinearStairsToolProperties : public UProceduralShapeToolProperties
+{
+	GENERATED_BODY()
+public:
+	/** Width of Shape */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Width", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	float StepWidth = 150.f;
+
+	/** Depth of Shape */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Depth", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	float StepDepth = 30.f;
+
+	/** Height of Shape*/
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Height", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	float StepHeight = 20.f;
+
+	/** Number of Steps of Shape */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Number of Steps", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "1000", ProceduralShapeSetting))
+	int NumSteps = 5;
+};
+
 UCLASS(Transient)
 class MESHMODELINGTOOLS_API ULastActorInfo : public UObject
 {
@@ -552,6 +575,16 @@ class UAddSphericalBoxPrimitiveTool : public UAddPrimitiveTool
 	GENERATED_BODY()
 public:
 	UAddSphericalBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer);
+protected:
+	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
+};
+
+UCLASS()
+class UAddLinearStairsPrimitiveTool : public UAddPrimitiveTool
+{
+	GENERATED_BODY()
+public:
+	UAddLinearStairsPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };

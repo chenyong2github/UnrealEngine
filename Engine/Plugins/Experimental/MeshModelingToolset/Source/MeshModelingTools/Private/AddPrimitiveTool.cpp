@@ -18,6 +18,7 @@
 #include "Generators/SphereGenerator.h"
 #include "Generators/BoxSphereGenerator.h"
 #include "Generators/DiscMeshGenerator.h"
+#include "Generators/StairGenerator.h"
 #include "DynamicMeshAttributeSet.h"
 #include "FaceGroupUtil.h"
 
@@ -75,6 +76,9 @@ UInteractiveTool* UAddPrimitiveToolBuilder::BuildTool(const FToolBuilderState& S
 		break;
 	case EMakeMeshShapeType::Sphere:
 		NewTool = NewObject<UAddSpherePrimitiveTool>(SceneState.ToolManager);
+		break;
+	case EMakeMeshShapeType::LinearStairs:
+		NewTool = NewObject<UAddLinearStairsPrimitiveTool>(SceneState.ToolManager);
 		break;
 	default:
 		break;
@@ -653,6 +657,26 @@ void UAddSphericalBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	}
 	SphereGen.Generate();
 	OutMesh->Copy(&SphereGen);
+}
+
+UAddLinearStairsPrimitiveTool::UAddLinearStairsPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralLinearStairsToolProperties>(TEXT("ShapeSettings")))
+{
+	AssetName = TEXT("LinearStairs");
+	SetToolDisplayName(LOCTEXT("LinearStairsToolName", "Create LinearStairs"));
+}
+
+void UAddLinearStairsPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
+{
+	FLinearStairGenerator StairGen;
+	auto* StairSettings = Cast<UProceduralLinearStairsToolProperties>(ShapeSettings);
+	StairGen.StepWidth = StairSettings->StepWidth;
+	StairGen.StepHeight = StairSettings->StepHeight;
+	StairGen.StepDepth = StairSettings->StepDepth;
+	StairGen.NumSteps = StairSettings->NumSteps;
+	StairGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
+	StairGen.Generate();
+	OutMesh->Copy(&StairGen);
 }
 
 #undef LOCTEXT_NAMESPACE
