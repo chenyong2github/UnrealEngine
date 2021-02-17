@@ -949,24 +949,25 @@ namespace SCWErrorCode
 	}
 }
 
-static inline void GetFormatVersionMap(TMap<FString, uint32>& OutFormatVersionMap)
+static TMap<FString, uint32> GetFormatVersionMap()
 {
-	if (OutFormatVersionMap.Num() == 0)
+	TMap<FString, uint32> FormatVersionMap;
+
+	const TArray<const class IShaderFormat*>& ShaderFormats = GetTargetPlatformManagerRef().GetShaderFormats();
+	check(ShaderFormats.Num());
+	for (int32 Index = 0; Index < ShaderFormats.Num(); Index++)
 	{
-		const TArray<const class IShaderFormat*>& ShaderFormats = GetTargetPlatformManagerRef().GetShaderFormats();
-		check(ShaderFormats.Num());
-		for (int32 Index = 0; Index < ShaderFormats.Num(); Index++)
+		TArray<FName> OutFormats;
+		ShaderFormats[Index]->GetSupportedFormats(OutFormats);
+		check(OutFormats.Num());
+		for (int32 InnerIndex = 0; InnerIndex < OutFormats.Num(); InnerIndex++)
 		{
-			TArray<FName> OutFormats;
-			ShaderFormats[Index]->GetSupportedFormats(OutFormats);
-			check(OutFormats.Num());
-			for (int32 InnerIndex = 0; InnerIndex < OutFormats.Num(); InnerIndex++)
-			{
-				uint32 Version = ShaderFormats[Index]->GetVersion(OutFormats[InnerIndex]);
-				OutFormatVersionMap.Add(OutFormats[InnerIndex].ToString(), Version);
-			}
+			uint32 Version = ShaderFormats[Index]->GetVersion(OutFormats[InnerIndex]);
+			FormatVersionMap.Add(OutFormats[InnerIndex].ToString(), Version);
 		}
 	}
+
+	return FormatVersionMap;
 }
 
 static int32 GetNumTotalJobs(const TArray<FShaderCommonCompileJobPtr>& Jobs)
@@ -1006,8 +1007,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 	int32 InputVersion = ShaderCompileWorkerInputVersion;
 	TransferFile << InputVersion;
 
-	static TMap<FString, uint32> FormatVersionMap;
-	GetFormatVersionMap(FormatVersionMap);
+	static TMap<FString, uint32> FormatVersionMap = GetFormatVersionMap();
 
 	TransferFile << FormatVersionMap;
 
