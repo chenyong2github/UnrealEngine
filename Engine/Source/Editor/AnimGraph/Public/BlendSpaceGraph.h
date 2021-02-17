@@ -14,6 +14,10 @@ class UBlendSpaceGraph : public UEdGraph
 {
 	GENERATED_BODY()
 
+private:
+	// UObject interface
+	virtual void PostLoad() override;
+
 public:
 	// Blendspace that we wrap
 	UPROPERTY()
