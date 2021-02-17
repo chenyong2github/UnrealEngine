@@ -11,9 +11,7 @@
 #include "Debugging/SlateDebugging.h"
 #include "Application/SlateApplicationBase.h"
 
-#if UE_SLATE_VERIFY_PIXELSIZE
 #include <limits>
-#endif
 
 DECLARE_CYCLE_STAT(TEXT("FSlateDrawElement::Make Time"), STAT_SlateDrawElementMakeTime, STATGROUP_SlateVerbose);
 DECLARE_CYCLE_STAT(TEXT("FSlateDrawElement::MakeCustomVerts Time"), STAT_SlateDrawElementMakeCustomVertsTime, STATGROUP_Slate);
@@ -170,12 +168,16 @@ void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType 
 	// Calculate the layout to render transform as this is needed by several calculations downstream.
 	const FSlateLayoutTransform InverseLayoutTransform(Inverse(FSlateLayoutTransform(Scale, Position)));
 
-	// This is a workaround because we want to keep track of the various Scenes 
-	// in use throughout the UI. We keep a synchronized set with the render thread on the SlateRenderer and 
-	// use indices to synchronize between them.
-	FSlateRenderer* Renderer = FSlateApplicationBase::Get().GetRenderer();
-	checkSlow(Renderer);
-	SceneIndex = Renderer->GetCurrentSceneIndex();
+	{
+		// This is a workaround because we want to keep track of the various Scenes 
+		// in use throughout the UI. We keep a synchronized set with the render thread on the SlateRenderer and 
+		// use indices to synchronize between them.
+		FSlateRenderer* Renderer = FSlateApplicationBase::Get().GetRenderer();
+		checkSlow(Renderer);
+		int32 SceneIndexLong = Renderer->GetCurrentSceneIndex();
+		ensureMsgf(SceneIndexLong <= std::numeric_limits<int8>::max(), TEXT("The Scene index is saved as an int8 in the DrawElements."));
+		SceneIndex = (int8)SceneIndexLong;
+	}
 
 	BatchFlags = ESlateBatchDrawFlag::None;
 	BatchFlags |= static_cast<ESlateBatchDrawFlag>(static_cast<uint32>(InDrawEffects) & static_cast<uint32>(ESlateDrawEffect::NoBlending | ESlateDrawEffect::PreMultipliedAlpha | ESlateDrawEffect::NoGamma | ESlateDrawEffect::InvertAlpha));

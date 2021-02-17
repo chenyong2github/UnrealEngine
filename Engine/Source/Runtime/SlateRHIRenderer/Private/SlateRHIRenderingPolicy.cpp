@@ -1008,7 +1008,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 				check(RenderBatch.NumIndices > 0);
 				// Note: This code is only executed if the engine is loaded (in early loading screens attempting to use a material is unsupported
-				int ActiveSceneIndex = RenderBatch.SceneIndex;
+				int32 ActiveSceneIndex = (int32)RenderBatch.SceneIndex;
 
 				// We are assuming at this point that the SceneIndex from the batch is either -1, meaning no scene or a valid scene.
 				// We set up the "no scene" option as the last SceneView in the array above.
