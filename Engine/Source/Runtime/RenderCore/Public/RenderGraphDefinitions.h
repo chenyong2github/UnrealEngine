@@ -116,10 +116,7 @@ enum class ERDGTextureFlags : uint8
 	MultiFrame = 1 << 0,
 
 	/** Prevents metadata decompression on this texture. */
-	MaintainCompression = 1 << 1,
-	
-	/** Allows repeated clear or discard actions on this texure by silencing clear-after-produced validation checks. This is a no-op for externally registered textures. */
-	MultiClear = 1 << 2,
+	MaintainCompression = 1 << 1
 };
 ENUM_CLASS_FLAGS(ERDGTextureFlags);
 
