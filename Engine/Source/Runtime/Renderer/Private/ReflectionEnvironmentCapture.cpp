@@ -885,6 +885,38 @@ void EndReflectionCaptureSlowTask(int32 NumCaptures)
 	}
 }
 
+int32 GetReflectionCaptureSizeForArrayCount(int32 InRequestedCaptureSize, int32 InRequestedMaxCubeMaps)
+{
+	int32 OutCaptureSize = InRequestedCaptureSize;
+#if WITH_EDITOR
+	if(GIsEditor)
+	{
+		FTextureMemoryStats TextureMemStats;
+		RHIGetTextureMemoryStats(TextureMemStats);
+		
+		SIZE_T TexMemRequired = CalcTextureSize(OutCaptureSize, OutCaptureSize, PF_FloatRGBA, FMath::CeilLogTwo(OutCaptureSize) + 1) * CubeFace_MAX * InRequestedMaxCubeMaps;
+		// Assumption: Texture arrays prefer to be contiguous in memory but not always
+		// Single large cube array allocations can fail on low end systems even if we try to fit it in total avail video and/or avail system memory
+		
+		// Attempt to limit the resource size to within percentage (3/4) of total video memory to give consistant stable results
+		const int64 MaxResourceVideoMemoryFootprint = (TextureMemStats.DedicatedVideoMemory * int64(3)) / int64(4);
+		
+		// Bottom out at 128 as that is the default for CVarReflectionCaptureSize
+        while(TexMemRequired > MaxResourceVideoMemoryFootprint && OutCaptureSize > 128)
+        {
+			OutCaptureSize = FMath::RoundUpToPowerOfTwo(OutCaptureSize) >> 1;
+			TexMemRequired = CalcTextureSize(OutCaptureSize, OutCaptureSize, PF_FloatRGBA, FMath::CeilLogTwo(OutCaptureSize) + 1) * CubeFace_MAX * InRequestedMaxCubeMaps;
+        }
+        
+        if(OutCaptureSize != InRequestedCaptureSize)
+        {
+			UE_LOG(LogEngine, Error, TEXT("Requested reflection capture cube size of %d with %d elements results in too large a resource for host machine, limiting reflection capture cube size to %d"), InRequestedCaptureSize, InRequestedMaxCubeMaps, OutCaptureSize);
+        }
+	}
+#endif // WITH_EDITOR
+	return OutCaptureSize;
+}
+
 /** 
  * Allocates reflection captures in the scene's reflection cubemap array and updates them by recapturing the scene.
  * Existing captures will only be uploaded.  Must be called from the game thread.
@@ -934,7 +966,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 
 			DesiredMaxCubemaps = FMath::Min(DesiredMaxCubemaps, PlatformMaxNumReflectionCaptures);
 
-			const int32 ReflectionCaptureSize = UReflectionCaptureComponent::GetReflectionCaptureSize();
+			const int32 ReflectionCaptureSize = GetReflectionCaptureSizeForArrayCount(UReflectionCaptureComponent::GetReflectionCaptureSize(), DesiredMaxCubemaps);
 			bool bNeedsUpdateAllCaptures = DesiredMaxCubemaps != ReflectionSceneData.MaxAllocatedReflectionCubemapsGameThread || ReflectionCaptureSize != ReflectionSceneData.CubemapArray.GetCubemapSize();
 
 			if (DoGPUArrayCopy() && bNeedsUpdateAllCaptures)
@@ -973,7 +1005,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 					});
 
 				// Recapture all reflection captures now that we have reallocated the cubemap array
-				UpdateAllReflectionCaptures(CaptureReason, bVerifyOnlyCapturing, bCapturingForMobile);
+				UpdateAllReflectionCaptures(CaptureReason, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile);
 			}
 			else
 			{
@@ -998,7 +1030,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 
 					if (bAllocated)
 					{
-						CaptureOrUploadReflectionCapture(CurrentComponent, bVerifyOnlyCapturing, bCapturingForMobile);
+						CaptureOrUploadReflectionCapture(CurrentComponent, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile);
 					}
 				}
 
@@ -1024,7 +1056,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 }
 
 /** Updates the contents of all reflection captures in the scene.  Must be called from the game thread. */
-void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
+void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, int32 ReflectionCaptureSize, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 {
 	if (IsReflectionEnvironmentAvailable(GetFeatureLevel()))
 	{
@@ -1048,7 +1080,7 @@ void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, bool bVerif
 
 			CaptureIndex++;
 			UReflectionCaptureComponent* CurrentComponent = *It;
-			CaptureOrUploadReflectionCapture(CurrentComponent, bVerifyOnlyCapturing, bCapturingForMobile);
+			CaptureOrUploadReflectionCapture(CurrentComponent, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile);
 		}
 
 		EndReflectionCaptureSlowTask(NumCapturesForStatus);
@@ -1372,7 +1404,7 @@ void CaptureSceneIntoScratchCubemap(
 void CopyToSceneArray(FRHICommandListImmediate& RHICmdList, FScene* Scene, FReflectionCaptureProxy* ReflectionProxy)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, CopyToSceneArray);
-	const int32 EffectiveTopMipSize = UReflectionCaptureComponent::GetReflectionCaptureSize();
+	const int32 EffectiveTopMipSize = Scene->ReflectionSceneData.CubemapArray.GetCubemapSize();
 	const int32 NumMips = FMath::CeilLogTwo(EffectiveTopMipSize) + 1;
 
 	const int32 CaptureIndex = FindOrAllocateCubemapIndex(Scene, ReflectionProxy->Component);
@@ -1397,7 +1429,7 @@ void CopyToSceneArray(FRHICommandListImmediate& RHICmdList, FScene* Scene, FRefl
  * Updates the contents of the given reflection capture by rendering the scene. 
  * This must be called on the game thread.
  */
-void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* CaptureComponent, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
+void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* CaptureComponent, int32 ReflectionCaptureSize, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
 {
 	if (IsReflectionEnvironmentAvailable(GetFeatureLevel()))
 	{
@@ -1452,8 +1484,6 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 				UE_LOG(LogEngine, Warning, TEXT("No built data for %s, skipping generation in cooked build."), *CaptureComponent->GetPathName());
 				return;
 			}
-
-			const int32 ReflectionCaptureSize = UReflectionCaptureComponent::GetReflectionCaptureSize();
 
 			// Prefetch all virtual textures so that we have content available
 			if (UseVirtualTexturing(GetFeatureLevel()))
