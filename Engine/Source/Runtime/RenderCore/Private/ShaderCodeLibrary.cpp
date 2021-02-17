@@ -108,6 +108,13 @@ namespace UE
 				/** Chunk ID */
 				int32 ChunkId;
 
+				// this constructor is used for chunks that we have not yet possibly seen
+				FMountedPakFileInfo(int32 InChunkId)
+					: PakFilename(TEXT("Fake")),
+					ChunkId(InChunkId)
+				{
+				}
+
 #if UE_SHADERLIB_SUPPORT_CHUNK_DISCOVERY
 				FMountedPakFileInfo(const FString& InMountPoint, int32 InChunkId)
 					: PakFilename(TEXT("Fake")),
@@ -2679,6 +2686,33 @@ EShaderPlatform FShaderCodeLibrary::GetRuntimeShaderPlatform(void)
 		Platform = FShaderLibrariesCollection::Impl->GetRuntimeShaderPlatform();
 	}
 	return Platform;
+}
+
+void FShaderCodeLibrary::AddKnownChunkIDs(const int32* IDs, const int32 NumChunkIDs)
+{
+	using namespace UE::ShaderLibrary::Private;
+
+	checkf(IDs, TEXT("Invalid pointer to chunk IDs passed"));
+	UE_LOG(LogShaderLibrary, Display, TEXT("AddKnownChunkIDs: adding %d chunk IDs"), NumChunkIDs);
+
+	for (int32 IdxChunkId = 0; IdxChunkId < NumChunkIDs; ++IdxChunkId)
+	{
+		FMountedPakFileInfo PakFileInfo(IDs[IdxChunkId]);
+		{
+			FScopeLock PakFilesLocker(&FMountedPakFileInfo::KnownPakFilesAccessLock);
+			FMountedPakFileInfo::KnownPakFiles.Add(PakFileInfo);
+		}
+
+		// if shaderlibrary has not yet been initialized, add the chunk as pending
+		if (FShaderLibrariesCollection::Impl)
+		{
+			FShaderLibrariesCollection::Impl->OnPakFileMounted(PakFileInfo);
+		}
+		else
+		{
+			UE_LOG(LogShaderLibrary, Display, TEXT("AddKnownChunkIDs: pending pak file info (%s)"), *PakFileInfo.ToString());
+		}
+	}
 }
 
 bool FShaderCodeLibrary::OpenLibrary(FString const& Name, FString const& Directory)

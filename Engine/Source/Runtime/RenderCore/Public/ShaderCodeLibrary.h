@@ -154,7 +154,17 @@ struct RENDERCORE_API FShaderCodeLibrary
 	static void Shutdown();
 
 	static bool IsEnabled();
-	
+
+	/**
+	 * Makes a number of ChunkIDs known to the library.
+	 * 
+	 * Normally the library is tracking chunk IDs runtime itself by listening to the pak mounted notifications.
+	 * However, sometimes shaderbytecode files are moved between the chunks by the packaging code can can end up being
+	 * preloaded.
+	 * Takes C array and not TArray because that makes easier to hardcode the chunk IDs (which is the intended use case for this function).
+	 */
+	static void AddKnownChunkIDs(const int32* IDs, const int32 NumChunkIDs);
+
 	/** 
 	 * Open a named library.
 	 * 
