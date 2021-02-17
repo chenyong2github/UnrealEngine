@@ -50,6 +50,12 @@ namespace UnrealEditor
 		public string TreatLogErrorsAsTestErrors = "true";
 
 		/// <summary>
+		/// Control for interpretation of log errors as test failures
+		/// </summary>
+		[AutoParam]
+		public string GameInstanceLostTimerSeconds = string.Empty;
+
+		/// <summary>
 		/// Applies these options to the provided app config
 		/// </summary>
 		/// <param name="AppConfig"></param>
@@ -78,6 +84,11 @@ namespace UnrealEditor
 			if (TreatLogErrorsAsTestErrors.ToLower() == "false" || TreatLogErrorsAsTestErrors == "0")
 			{
 				AppConfig.CommandLineParams.Add("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:bTreatLogErrorsAsTestErrors=false");
+			}
+
+			if (GameInstanceLostTimerSeconds != string.Empty)
+			{
+				AppConfig.CommandLineParams.Add(string.Format("ini:Engine:[/Script/AutomationController.AutomationControllerSettings]:GameInstanceLostTimerSeconds={0}", GameInstanceLostTimerSeconds));
 			}
 		}
 	}
