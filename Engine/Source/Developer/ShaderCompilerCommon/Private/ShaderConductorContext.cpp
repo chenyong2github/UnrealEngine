@@ -213,6 +213,8 @@ namespace CrossCompiler
 		TArray<ShaderConductor::MacroDefine> DefineRefs;
 		TArray<TPair<TArray<ANSICHAR>, TArray<ANSICHAR>>> Flags;
 		TArray<ShaderConductor::MacroDefine> FlagRefs;
+		TArray<TArray<ANSICHAR>> ExtraDxcArgs;
+		TArray<ANSICHAR const*> ExtraDxcArgRefs;
 	};
 
 	static void ConvertScSourceDesc(const FShaderConductorContext::FShaderConductorIntermediates& Intermediates, ShaderConductor::Compiler::SourceDesc& OutSourceDesc)
@@ -271,6 +273,25 @@ namespace CrossCompiler
 		OutTargetDesc.language = (InTarget.Language == EShaderConductorLanguage::Metal_macOS ? ShaderConductor::ShadingLanguage::Msl_macOS : ShaderConductor::ShadingLanguage::Msl_iOS);
 		OutTargetDesc.version = GetMetalFamilyVersionString(InTarget.Version);
 		checkf(OutTargetDesc.version, TEXT("Unsupported target shader version for Metal family: %d"), InTarget.Version);
+	}
+
+	// Converts an array of FString to a C-style array of char* pointers
+	static void ConvertStringArrayToAnsiArray(const TArray<FString>& InPairs, TArray<TArray<ANSICHAR>>& OutPairs, TArray<const char*>& OutPairRefs)
+	{
+		// Convert map into an array container
+		TArray<ANSICHAR> Value;
+		for (const FString& Iter : InPairs)
+		{
+			ConvertFStringToAnsiString(Iter, Value);
+			OutPairs.Emplace(MoveTemp(Value));
+		}
+
+		// Store references after all elements have been added to the container so the pointers remain valid
+		OutPairRefs.SetNum(OutPairs.Num());
+		for (int32 Index = 0; Index < OutPairs.Num(); ++Index)
+		{
+			OutPairRefs[Index] = OutPairs[Index].GetData();
+		}
 	}
 
 	// Converts a map of string pairs to a C-Style macro defines array
@@ -337,7 +358,7 @@ namespace CrossCompiler
 		}
 	}
 
-	static void ConvertScOptions(const FShaderConductorOptions& InOptions, ShaderConductor::Compiler::Options& OutOptions)
+	static void ConvertScOptions(const FShaderConductorOptions& InOptions, ShaderConductor::Compiler::Options& OutOptions, const TArray<ANSICHAR const*>& ExtraDxcArgRefs)
 	{
 		OutOptions.removeUnusedGlobals = InOptions.bRemoveUnusedGlobals;
 		OutOptions.packMatricesInRowMajor = InOptions.bPackMatricesInRowMajor;
@@ -353,6 +374,17 @@ namespace CrossCompiler
 		else
 		{
 			OutOptions.shaderModel = ToShaderConductorShaderModel(InOptions.TargetProfile);
+		}
+
+		if (ExtraDxcArgRefs.Num() > 0)
+		{
+			OutOptions.numDXCArgs = ExtraDxcArgRefs.Num();
+			OutOptions.DXCArgs = (const char**)ExtraDxcArgRefs.GetData();
+		}
+		else
+		{
+			OutOptions.numDXCArgs = 0;
+			OutOptions.DXCArgs = nullptr;
 		}
 	}
 
@@ -418,7 +450,7 @@ namespace CrossCompiler
 		return *this;
 	}
 
-	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions)
+	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
 	{
 		// Convert FString to ANSI string and store them as intermediates
 		ConvertFStringToAnsiString(ShaderSource, Intermediates->ShaderSource);
@@ -431,13 +463,18 @@ namespace CrossCompiler
 			ConvertStringMapToMacroDefines(Definitions->GetDefinitionMap(), Intermediates->Defines, Intermediates->DefineRefs);
 		}
 
+		if (ExtraDxcArgs && ExtraDxcArgs->Num() > 0)
+		{
+			ConvertStringArrayToAnsiArray(*ExtraDxcArgs, Intermediates->ExtraDxcArgs, Intermediates->ExtraDxcArgRefs);
+		}
+
 		// Convert shader stage
 		Intermediates->Stage = ToShaderConductorShaderStage(ShaderStage);
 
 		return true;
 	}
 
-	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions)
+	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
 	{
 		// Store ANSI strings as intermediates
 		CopyAnsiString(ShaderSource, Intermediates->ShaderSource);
@@ -448,6 +485,11 @@ namespace CrossCompiler
 		if (Definitions != nullptr)
 		{
 			ConvertStringMapToMacroDefines(Definitions->GetDefinitionMap(), Intermediates->Defines, Intermediates->DefineRefs);
+		}
+
+		if (ExtraDxcArgs && ExtraDxcArgs->Num() > 0)
+		{
+			ConvertStringArrayToAnsiArray(*ExtraDxcArgs, Intermediates->ExtraDxcArgs, Intermediates->ExtraDxcArgRefs);
 		}
 
 		// Convert shader stage
@@ -463,7 +505,7 @@ namespace CrossCompiler
 		ConvertScSourceDesc(*Intermediates, ScSourceDesc);
 
 		ShaderConductor::Compiler::Options ScOptions;
-		ConvertScOptions(Options, ScOptions);
+		ConvertScOptions(Options, ScOptions, Intermediates->ExtraDxcArgRefs);
 
 		// Rewrite HLSL with wrapper function to catch exceptions from ShaderConductor
 		bool bSucceeded = false;
@@ -509,7 +551,7 @@ namespace CrossCompiler
 		ScTargetDesc.language = ShaderConductor::ShadingLanguage::SpirV;
 
 		ShaderConductor::Compiler::Options ScOptions;
-		ConvertScOptions(Options, ScOptions);
+		ConvertScOptions(Options, ScOptions, Intermediates->ExtraDxcArgRefs);
 
 		// Compile HLSL source code to SPIR-V
 		bool bSucceeded = false;
@@ -577,7 +619,7 @@ namespace CrossCompiler
 		ConvertScTargetDesc(*Intermediates, Target, ScTargetDesc);
 
 		ShaderConductor::Compiler::Options ScOptions;
-		ConvertScOptions(Options, ScOptions);
+		ConvertScOptions(Options, ScOptions, Intermediates->ExtraDxcArgRefs);
 
 		ShaderConductor::Compiler::ResultDesc ScBinaryDesc;
 		ScBinaryDesc.target.Reset(InSpirv, InSpirvByteSize);
@@ -698,12 +740,12 @@ namespace CrossCompiler
 		return *this; // Dummy
 	}
 
-	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions)
+	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
 	{
 		return false; // Dummy
 	}
 
-	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions)
+	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
 	{
 		return false; // Dummy
 	}
