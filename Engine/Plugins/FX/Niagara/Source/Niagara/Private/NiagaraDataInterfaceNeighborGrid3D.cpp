@@ -678,7 +678,7 @@ void UNiagaraDataInterfaceNeighborGrid3D::SetNumCells(FVectorVMContext& Context)
 			InstData->NumCells.Z = NewNumCellsZ;
 			InstData->MaxNeighborsPerCell = NewMaxNeighborsPerCell;
 		
-			InstData->NeedsRealloc = OldNumCells != InstData->NumCells && OldMaxNeighborsPerCell != InstData->MaxNeighborsPerCell;
+			InstData->NeedsRealloc = OldNumCells != InstData->NumCells || OldMaxNeighborsPerCell != InstData->MaxNeighborsPerCell;
 		}
 	}
 }
