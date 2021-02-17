@@ -432,7 +432,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 						const bool bHasBeenProduced = Texture->ParentDebugData.bHasBeenProduced && !Texture->bExternal;
 
 						// We only validate single-mip textures since we don't track production at the subresource level.
-						const bool bFailedToLoadProducedContent = !bIsLoadAction && bHasBeenProduced && Texture->Desc.NumMips == 1;
+						const bool bFailedToLoadProducedContent = !bIsLoadAction && bHasBeenProduced && Texture->Desc.NumMips == 1 && !EnumHasAnyFlags(Texture->Flags, ERDGTextureFlags::MultiClear);
 
 						// Untracked render targets aren't actually managed by the render target pool.
 						const bool bIsUntrackedRenderTarget = Texture->PooledRenderTarget && !Texture->PooledRenderTarget->IsTracked();

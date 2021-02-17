@@ -1491,6 +1491,12 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 
 			const bool bDirectLighting = ViewFamily.EngineShowFlags.DirectLighting;
 
+			const FIntPoint SceneTextureExtent = SceneDepthTexture->Desc.Extent;
+			const FRDGTextureDesc SharedScreenShadowMaskTextureDesc(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.ScreenSpaceShadowMask));
+
+			FRDGTextureRef SharedScreenShadowMaskTexture = nullptr;
+			FRDGTextureRef SharedScreenShadowMaskSubPixelTexture = nullptr;
+
 			// Draw shadowed and light function lights
 			for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 			{
@@ -1515,13 +1521,17 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLights(
 
 				if (bDrawShadows || bDrawLightFunction || bDrawPreviewIndicator)
 				{
-					const FIntPoint SceneTextureExtent = SceneDepthTexture->Desc.Extent;
-					const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneTextureExtent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.ScreenSpaceShadowMask));
-					ScreenShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("ShadowMaskTexture"));
-					if (bUseHairLighting)
+					if (!SharedScreenShadowMaskTexture)
 					{
-						ScreenShadowMaskSubPixelTexture = GraphBuilder.CreateTexture(Desc, TEXT("ShadowMaskSubPixelTexture"));
+						SharedScreenShadowMaskTexture = GraphBuilder.CreateTexture(SharedScreenShadowMaskTextureDesc, TEXT("ShadowMaskTexture"), ERDGTextureFlags::MultiClear);
+
+						if (bUseHairLighting)
+						{
+							SharedScreenShadowMaskSubPixelTexture = GraphBuilder.CreateTexture(SharedScreenShadowMaskTextureDesc, TEXT("ShadowMaskSubPixelTexture"), ERDGTextureFlags::MultiClear);
+						}
 					}
+					ScreenShadowMaskTexture = SharedScreenShadowMaskTexture;
+					ScreenShadowMaskSubPixelTexture = SharedScreenShadowMaskSubPixelTexture;
 				}
 
 				FString LightNameWithLevel;
