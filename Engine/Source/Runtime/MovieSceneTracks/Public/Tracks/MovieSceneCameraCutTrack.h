@@ -59,7 +59,7 @@ protected:
 
 	FFrameNumber FindEndTimeForCameraCut(FFrameNumber StartTime);
 
-	virtual void PreCompileImpl() override;
+	virtual void PreCompileImpl(FMovieSceneTrackPreCompileResult& OutPreCompileResult) override;
 
 public:
 	UPROPERTY()

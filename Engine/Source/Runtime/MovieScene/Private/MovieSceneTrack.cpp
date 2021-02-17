@@ -344,9 +344,9 @@ void UMovieSceneTrack::AddSectionPrePostRollRangesToTree(TArrayView<UMovieSceneS
 	}
 }
 
-void UMovieSceneTrack::PreCompile()
+void UMovieSceneTrack::PreCompile(FMovieSceneTrackPreCompileResult& OutPreCompileResult)
 {
-	PreCompileImpl();
+	PreCompileImpl(OutPreCompileResult);
 }
 
 const FMovieSceneTrackEvaluationField& UMovieSceneTrack::GetEvaluationField()

@@ -2,15 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/EnumClassFlags.h"
-#include "UObject/ObjectMacros.h"
-#include "Misc/Guid.h"
-#include "MovieSceneSignedObject.h"
-#include "MovieSceneSection.h"
-#include "Misc/InlineValue.h"
 #include "Compilation/MovieSceneSegmentCompiler.h"
+#include "CoreMinimal.h"
+#include "Evaluation/MovieSceneEvaluationField.h"
+#include "Misc/CoreMiscDefines.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Guid.h"
+#include "Misc/InlineValue.h"
+#include "MovieSceneSection.h"
+#include "MovieSceneSignedObject.h"
 #include "MovieSceneTrackEvaluationField.h"
+#include "UObject/ObjectMacros.h"
 #include "MovieSceneTrack.generated.h"
 
 struct FMovieSceneEvaluationTrack;
@@ -92,6 +94,17 @@ struct FMovieSceneSupportsEasingParams
 
 	FMovieSceneSupportsEasingParams() : ForSection(nullptr) {}
 	FMovieSceneSupportsEasingParams(const UMovieSceneSection* InSection) : ForSection(InSection) {}
+};
+
+/** Pre-compilation result */
+struct FMovieSceneTrackPreCompileResult
+{
+	/**
+	 * The default metadata that will be used for all entity provider sections found on the current track.
+	 *
+	 * A track can change this metadata by overriding PreCompile.
+	 */
+	FMovieSceneEvaluationFieldEntityMetaData DefaultMetaData;
 };
 
 #if WITH_EDITOR
@@ -184,7 +197,7 @@ public:
 	 * Run the pre-compilation step for this track.
 	 * This method is called by the sequence compiler and is not meant to be called by 3rd party code.
 	 */
-	void PreCompile();
+	void PreCompile(FMovieSceneTrackPreCompileResult& OutPreCompileResult);
 
 	/**
 	 * Retrieve a fully up-to-date evaluation field for this track.
@@ -223,6 +236,14 @@ private:
 	}
 
 	/** Sub-classes can override this method to perform custom pre-compilation logic. */
+	virtual void PreCompileImpl(FMovieSceneTrackPreCompileResult& OutPreCompileResult)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		PreCompileImpl();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(4.27, "Please override the PreCompileImpl method that takes a parameter")
 	virtual void PreCompileImpl() {}
 
 private:
