@@ -145,7 +145,6 @@ public:
 			}
 		}
 
-		check(!bWait);
 		return false;
 	}
 
