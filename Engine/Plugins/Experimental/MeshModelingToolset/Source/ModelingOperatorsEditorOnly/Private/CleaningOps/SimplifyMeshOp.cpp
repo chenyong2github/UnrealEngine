@@ -69,9 +69,9 @@ void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 	Reducer.MaterialBoundaryConstraint = MaterialBoundaryConstraint;
 	
 
+	FMeshProjectionTarget  ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
 	if (bReproject)
 	{
-		FMeshProjectionTarget ProjTarget(&OriginalMesh, &OriginalMeshSpatial);
 		Reducer.SetProjectionTarget(&ProjTarget);
 	}
 
