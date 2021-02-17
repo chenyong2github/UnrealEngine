@@ -114,6 +114,9 @@ private:
 	bool virtual ApplyCustomAdvancedFilters(const FTableTreeNodePtr& NodePtr) override;
 	virtual void AddCustomAdvancedFilters() override;
 
+	void CallstackGroupingByFunction_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	ECheckBoxState CallstackGroupingByFunction_IsChecked() const;
+
 private:
 	const static int FullCallStackIndex;
 	int32 TabIndex = -1;
@@ -122,8 +125,8 @@ private:
 	TraceServices::IAllocationsProvider::FQueryHandle Query = 0;
 	FText QueryInfo;
 	FText QueryInfoTooltip;
-
 	FStopwatch QueryStopwatch;
+	bool bIsCallstackGroupingByFunction = true;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

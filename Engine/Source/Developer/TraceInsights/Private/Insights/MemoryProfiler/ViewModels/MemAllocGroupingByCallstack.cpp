@@ -19,7 +19,7 @@ INSIGHTS_IMPLEMENT_RTTI(FMemAllocGroupingByCallstack)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FMemAllocGroupingByCallstack::FMemAllocGroupingByCallstack(bool bInIsInverted)
+FMemAllocGroupingByCallstack::FMemAllocGroupingByCallstack(bool bInIsInverted, bool bInIsGroupingByFunction)
 	: FTreeNodeGrouping(
 		bInIsInverted ? LOCTEXT("Grouping_ByCallstack2_ShortName", "Inverted Callstack")
 					  : LOCTEXT("Grouping_ByCallstack1_ShortName", "Callstack"),
@@ -29,6 +29,7 @@ FMemAllocGroupingByCallstack::FMemAllocGroupingByCallstack(bool bInIsInverted)
 		TEXT("Profiler.FiltersAndPresets.GroupNameIcon"),
 		nullptr)
 	, bIsInverted(bInIsInverted)
+	, bIsGroupingByFunction(bInIsGroupingByFunction)
 {
 }
 
@@ -49,6 +50,7 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 		FTableTreeNode* Node = nullptr;
 		const TraceServices::FStackFrame* Frame = nullptr;
 		TMap<uint64, FCallstackGroup*> GroupMap; // Callstack Frame Address -> FCallstackGroup*
+		TMap<FName, FCallstackGroup*> GroupMapByName; // Group Name --> FCallstackGroup*
 	};
 	TArray<FCallstackGroup*> CallstackGroups;
 
@@ -56,9 +58,8 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 	Root->Node = &ParentGroup;
 	CallstackGroups.Add(Root);
 
-	FTableTreeNodePtr UnsetGroupPtr = nullptr;
-
-	static FName NotAvailableName(TEXT("N/A"));
+	FTableTreeNode* UnsetGroupPtr = nullptr;
+	TMap<const TraceServices::FCallstack*, FCallstackGroup*> GroupMapByCallstack; // Callstack* -> FCallstackGroup*
 
 	for (FTableTreeNodePtr NodePtr : Nodes)
 	{
@@ -88,40 +89,46 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 					const TraceServices::FStackFrame* Frame = Callstack->Frame(bIsInverted ? NumFrames - FrameDepth - 1 : FrameDepth);
 					check(Frame != nullptr);
 
-					FCallstackGroup** GroupPtrPtr = GroupPtr->GroupMap.Find(Frame->Addr);
-					if (!GroupPtrPtr)
+					if (bIsGroupingByFunction)
 					{
-						FCallstackGroup* NewGroupPtr = new FCallstackGroup();
-						CallstackGroups.Add(NewGroupPtr);
-						GroupPtr->GroupMap.Add(Frame->Addr, NewGroupPtr);
-
-						FName GroupName = NotAvailableName;
-						const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
-						switch (Result)
+						const FName GroupName = GetGroupName(Frame);
+						FCallstackGroup** GroupPtrPtr = GroupPtr->GroupMapByName.Find(GroupName);
+						if (!GroupPtrPtr)
 						{
-						case TraceServices::ESymbolQueryResult::Pending:
-							//GroupName = PendingName;
-							GroupName = FName(*FString::Printf(TEXT("0x%X (...)"), Frame->Addr));
-							break;
-						case TraceServices::ESymbolQueryResult::OK:
-							GroupName = FName(Frame->Symbol->Name);
-							//GroupName = FName(*FString::Printf(TEXT("0x%X %s"), Frame->Addr, Frame->Symbol->Name));
-							break;
-						default:
-							GroupName = FName(*FString::Printf(TEXT("0x%X"), Frame->Addr));
-							break;
+							FCallstackGroup* NewGroupPtr = new FCallstackGroup();
+							CallstackGroups.Add(NewGroupPtr);
+
+							NewGroupPtr->Node = CreateGroup(GroupName, InParentTable, *(GroupPtr->Node));
+							NewGroupPtr->Node->SetTooltip(GetGroupTooltip(Frame));
+							
+							GroupPtr->GroupMapByName.Add(GroupName, NewGroupPtr);
+							GroupPtr = NewGroupPtr;
 						}
-
-						FTableTreeNodePtr NewGroupNodePtr = MakeShared<FTableTreeNode>(GroupName, InParentTable);
-						NewGroupPtr->Node = NewGroupNodePtr.Get();
-						NewGroupNodePtr->SetExpansion(false);
-						GroupPtr->Node->AddChildAndSetGroupPtr(NewGroupNodePtr);
-
-						GroupPtr = NewGroupPtr;
+						else
+						{
+							GroupPtr = *GroupPtrPtr;
+						}
 					}
 					else
 					{
-						GroupPtr = *GroupPtrPtr;
+						FCallstackGroup** GroupPtrPtr = GroupPtr->GroupMap.Find(Frame->Addr);
+						if (!GroupPtrPtr)
+						{
+							const FName GroupName = GetGroupName(Frame);
+
+							FCallstackGroup* NewGroupPtr = new FCallstackGroup();
+							CallstackGroups.Add(NewGroupPtr);
+
+							NewGroupPtr->Node = CreateGroup(GroupName, InParentTable, *(GroupPtr->Node));
+							NewGroupPtr->Node->SetTooltip(GetGroupTooltip(Frame));
+
+							GroupPtr->GroupMap.Add(Frame->Addr, NewGroupPtr);
+							GroupPtr = NewGroupPtr;
+						}
+						else
+						{
+							GroupPtr = *GroupPtrPtr;
+						}
 					}
 				}
 			}
@@ -135,9 +142,7 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 		{
 			if (!UnsetGroupPtr)
 			{
-				UnsetGroupPtr = MakeShared<FTableTreeNode>(NotAvailableName, InParentTable);
-				UnsetGroupPtr->SetExpansion(false);
-				ParentGroup.AddChildAndSetGroupPtr(UnsetGroupPtr);
+				UnsetGroupPtr = CreateUnsetGroup(InParentTable, ParentGroup);
 			}
 			UnsetGroupPtr->AddChildAndSetGroupPtr(NodePtr);
 		}
@@ -147,6 +152,66 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 	{
 		delete Group;
 	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FName FMemAllocGroupingByCallstack::GetGroupName(const TraceServices::FStackFrame* Frame) const
+{
+	const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
+	if (Result == TraceServices::ESymbolQueryResult::OK)
+	{
+		return FName(Frame->Symbol->Name);
+	}
+	else if (Result == TraceServices::ESymbolQueryResult::Pending)
+	{
+		return FName(*FString::Printf(TEXT("0x%X [...]"), Frame->Addr));
+	}
+	else
+	{
+		return FName(*FString::Printf(TEXT("0x%X"), Frame->Addr));
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText FMemAllocGroupingByCallstack::GetGroupTooltip(const TraceServices::FStackFrame* Frame) const
+{
+	const TraceServices::ESymbolQueryResult Result = Frame->Symbol->GetResult();
+	if (Result == TraceServices::ESymbolQueryResult::OK)
+	{
+		return FText::Format(LOCTEXT("CallstackFrameTooltipFmt1", "Callstack Frame\n\t{0}\n\t{1}\n\t{2}"),
+			FText::FromString(FString::Printf(TEXT("0x%X"), Frame->Addr)),
+			FText::FromString(FString(Frame->Symbol->Name)),
+			FText::FromString(FString(Frame->Symbol->FileAndLine)));
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("CallstackFrameTooltipFmt2", "Callstack Frame\n\t{0}\n\t{1}"),
+			FText::FromString(FString::Printf(TEXT("0x%X"), Frame->Addr)),
+			FText::FromString(FString(TraceServices::QueryResultToString(Result))));
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTableTreeNode* FMemAllocGroupingByCallstack::CreateGroup(const FName GroupName, TWeakPtr<FTable> ParentTable, FTableTreeNode& Parent) const
+{
+	FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(GroupName, ParentTable);
+	NodePtr->SetExpansion(false);
+	Parent.AddChildAndSetGroupPtr(NodePtr);
+	return NodePtr.Get();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTableTreeNode* FMemAllocGroupingByCallstack::CreateUnsetGroup(TWeakPtr<FTable> ParentTable, FTableTreeNode& Parent) const
+{
+	static FName NotAvailableName(TEXT("N/A"));
+	FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(NotAvailableName, ParentTable);
+	NodePtr->SetExpansion(false);
+	Parent.AddChildAndSetGroupPtr(NodePtr);
+	return NodePtr.Get();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

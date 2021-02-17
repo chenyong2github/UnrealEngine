@@ -447,6 +447,23 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 			.ToolTipText(LOCTEXT("ByInvertedCallstackBtn_Tooltip", "Inverted Callstack Breakdown View\nConfigure the tree view to show a breakdown of allocations by inverted callstack."))
 			.OnClicked(this, &SMemAllocTableTreeView::OnCallstackViewClicked, true)
 		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		[
+			SNew(SCheckBox)
+			.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+			.HAlign(HAlign_Center)
+			.Padding(2.0f)
+			.OnCheckStateChanged(this, &SMemAllocTableTreeView::CallstackGroupingByFunction_OnCheckStateChanged)
+			.IsChecked(this, &SMemAllocTableTreeView::CallstackGroupingByFunction_IsChecked)
+			.ToolTipText(LOCTEXT("CallstackGroupingByFunction_Tooltip", "Callstack Grouping by Function Name\nIf enabled, the callstack grouping will create a single group node per function name\n(ex. when two callstack frames have same function but different file line numbers).\nOtherwise it will create separate group nodes for each unique callstack frame."))
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("CallstackGroupingByFunction_Text", " Fn "))
+			]
+		]
 	;
 }
 
@@ -728,8 +745,8 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 		AvailableGroupings.Insert(TagGrouping, Index++);
 	}
 
-	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(false), Index++);
-	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(true), Index++);
+	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(false, bIsCallstackGroupingByFunction), Index++);
+	AvailableGroupings.Insert(MakeShared<FMemAllocGroupingByCallstack>(true, bIsCallstackGroupingByFunction), Index++);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -783,6 +800,29 @@ void SMemAllocTableTreeView::AddCustomAdvancedFilters()
 
 	AvailableFilters->Add(MakeShared<FFilter>(FullCallStackIndex, LOCTEXT("FullCallstack", "Full Callstack"), LOCTEXT("FullCallstack", "Search in all the callstack frames"), EFilterDataType::String, FFilterService::Get()->GetStringOperators()));
 	Context.AddFilterData<FString>(FullCallStackIndex, FString());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemAllocTableTreeView::CallstackGroupingByFunction_OnCheckStateChanged(ECheckBoxState NewRadioState)
+{
+	PreChangeGroupings();
+	bIsCallstackGroupingByFunction = (NewRadioState == ECheckBoxState::Checked);
+	for (TSharedPtr<FTreeNodeGrouping>& Grouping : AvailableGroupings)
+	{
+		if (Grouping->Is<FMemAllocGroupingByCallstack>())
+		{
+			Grouping->As<FMemAllocGroupingByCallstack>().SetGroupingByFunction(bIsCallstackGroupingByFunction);
+		}
+	}
+	PostChangeGroupings();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ECheckBoxState SMemAllocTableTreeView::CallstackGroupingByFunction_IsChecked() const
+{
+	return bIsCallstackGroupingByFunction ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
