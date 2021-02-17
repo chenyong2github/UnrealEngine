@@ -1306,6 +1306,89 @@ namespace DatasmithRevitExporter
 			return ElementDataStack.Peek().GetCurrentActor();
 		}
 
+		private FBaseElementData OptimizeElementRecursive(FBaseElementData InElementData, FDatasmithFacadeScene InDatasmithScene)
+		{
+			List<FDatasmithFacadeActor> RemoveChildren = new List<FDatasmithFacadeActor>();
+			List<FDatasmithFacadeActor> AddChildren = new List<FDatasmithFacadeActor>();
+
+			for (int ChildIndex = 0; ChildIndex < InElementData.ChildElements.Count; ChildIndex++)
+			{
+				FBaseElementData ChildElement = InElementData.ChildElements[ChildIndex];
+
+				// Optimize the Datasmith child actor.
+				FBaseElementData ResultElement = OptimizeElementRecursive(ChildElement, InDatasmithScene);
+
+				if (ChildElement != ResultElement)
+				{
+					RemoveChildren.Add(ChildElement.ElementActor);
+
+					if (ResultElement != null)
+					{
+						AddChildren.Add(ResultElement.ElementActor);
+					}
+				}
+			}
+
+			foreach (FDatasmithFacadeActor Child in RemoveChildren)
+			{
+				InElementData.ElementActor.RemoveChild(Child);
+			}
+			foreach (FDatasmithFacadeActor Child in AddChildren)
+			{
+				InElementData.ElementActor.AddChild(Child);
+			}
+
+			if (InElementData.bOptimizeHierarchy)
+			{
+				int ChildrenCount = InElementData.ElementActor.GetChildrenCount();
+
+				if (ChildrenCount == 0)
+				{
+					// This Datasmith actor can be removed by optimization.
+					return null;
+				}
+
+				if (ChildrenCount == 1)
+				{
+					Debug.Assert(InElementData.ChildElements.Count == 1);
+
+					// This intermediate Datasmith actor can be removed while keeping its single child actor.
+					FBaseElementData SingleChild = InElementData.ChildElements[0];
+
+					// Make sure the single child actor will not become a dangling component in the actor hierarchy.
+					if (!InElementData.ElementActor.IsComponent() && SingleChild.ElementActor.IsComponent())
+					{
+						SingleChild.ElementActor.SetIsComponent(false);
+					}
+
+					return SingleChild;
+				}
+			}
+
+			return InElementData;
+		}
+
+		public void OptimizeActorHierarchy(FDatasmithFacadeScene InDatasmithScene)
+		{
+			foreach (var ElementEntry in ActorMap)
+			{
+				FBaseElementData ElementData = ElementEntry.Value;
+				FBaseElementData ResultElementData = OptimizeElementRecursive(ElementData, InDatasmithScene);
+
+				if (ResultElementData != ElementData)
+				{
+					if (ResultElementData == null)
+					{
+						InDatasmithScene.RemoveActor(ElementData.ElementActor, FDatasmithFacadeScene.EActorRemovalRule.RemoveChildren);
+					}
+					else
+					{
+						InDatasmithScene.RemoveActor(ElementData.ElementActor, FDatasmithFacadeScene.EActorRemovalRule.KeepChildrenAndKeepRelativeTransform);
+					}
+				}
+			}
+		}
+
 		public void WrapupLink(
 			FDatasmithFacadeScene InDatasmithScene,
 			FBaseElementData InLinkActor,
