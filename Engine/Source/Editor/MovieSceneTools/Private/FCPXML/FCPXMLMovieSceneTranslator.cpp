@@ -179,8 +179,8 @@ FText FFCPXMLExporter::GetMessageLogLabel() const
 
 bool FFCPXMLExporter::Export(const UMovieScene* InMovieScene, FString InFilenameFormat, FFrameRate InFrameRate, uint32 InResX, uint32 InResY, int32 InHandleFrames, FString InSaveFilename, TSharedRef<FMovieSceneTranslatorContext> InContext, FString InMovieExtension, const FMovieSceneExportMetadata* InMetadata)
 {
-	// add warning message if filename format is not "{shot}"
-	FString AcceptedFormat = TEXT("{shot}");
+	// add warning message if filename format is not "{shot_name}"
+	FString AcceptedFormat = TEXT("{shot_name}");
 	if (InFilenameFormat != AcceptedFormat)
 	{
 		InContext->AddMessage(EMessageSeverity::Warning,

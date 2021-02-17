@@ -56,7 +56,7 @@ void UMoviePipelineFCPXMLExporter::BeginExportImpl()
 		FFrameRate FrameRate = GetPipeline()->GetPipelineMasterConfig()->GetEffectiveFrameRate(Sequence);
 		uint32 ResX = OutputSetting->OutputResolution.X;
 		uint32 ResY = OutputSetting->OutputResolution.Y;
-		FString MovieExtension = ".avi";
+		FString MovieExtension = ".mxf";
 
 		FFCPXMLExporter* Exporter = new FFCPXMLExporter;
 
