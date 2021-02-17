@@ -39,6 +39,7 @@
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "GameMapsSettings.h"
 #include "Editor/EditorPerformanceSettings.h"
+#include "TextureCompiler.h"
 
 
 #define COOK_TIMEOUT 3600
@@ -833,7 +834,49 @@ bool FEditorLoadMap::Update()
 */
 bool FWaitForShadersToFinishCompiling::Update()
 {
-	UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i shaders to finish."), GShaderCompilingManager->GetNumRemainingJobs());
+	static double TimeShadersFinishedCompiling = 0;
+	static double LastReportTime = FPlatformTime::Seconds();
+	const double TimeToWaitForJobs = 2.0;
+
+	bool ShadersCompiling = GShaderCompilingManager && GShaderCompilingManager->IsCompiling();
+	bool TexturesCompiling = FTextureCompilingManager::Get().GetNumRemainingTextures() > 0;
+
+	double TimeNow = FPlatformTime::Seconds();
+
+	if (ShadersCompiling || TexturesCompiling)
+	{
+		if (TimeNow - LastReportTime > 5.0)
+		{
+			LastReportTime = TimeNow;
+
+			if (ShadersCompiling)
+			{
+				UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i shaders to finish."), GShaderCompilingManager->GetNumRemainingJobs() + GShaderCompilingManager->GetNumPendingJobs());
+			}
+
+			if (TexturesCompiling)
+			{
+				UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i texures to finish."), FTextureCompilingManager::Get().GetNumRemainingTextures());
+			}
+		}
+
+		TimeShadersFinishedCompiling = 0;
+
+		return false;
+	}
+
+	// Current jobs are done, but things may still come in on subsequent frames..
+	if (TimeShadersFinishedCompiling == 0)
+	{
+		TimeShadersFinishedCompiling = FPlatformTime::Seconds();
+	}
+
+	if (FPlatformTime::Seconds() - TimeShadersFinishedCompiling < TimeToWaitForJobs)
+	{
+		return false;
+	}
+
+	// may not be necessary, but just double-check everything is finished and ready
 	GShaderCompilingManager->FinishAllCompilation();
 	UE_LOG(LogEditorAutomationTests, Log, TEXT("Done waiting for shaders to finish."));
 	return true;
@@ -977,22 +1020,22 @@ bool FWaitToFinishCookByTheBookCommand::Update()
 
 bool FDeleteDirCommand::Update()
 {
-	FString FullFolderPath = FPaths::ConvertRelativePathToFull(*InFolderLocation);
-	if ( IFileManager::Get().DirectoryExists(*FullFolderPath) )
-	{
-		IFileManager::Get().DeleteDirectory(*FullFolderPath, false, true);
-	}
-	return true;
+FString FullFolderPath = FPaths::ConvertRelativePathToFull(*InFolderLocation);
+if (IFileManager::Get().DirectoryExists(*FullFolderPath))
+{
+	IFileManager::Get().DeleteDirectory(*FullFolderPath, false, true);
+}
+return true;
 }
 
 bool FWaitToFinishBuildDeployCommand::Update()
 {
-	if ( GEditor->LauncherWorker->GetStatus() == ELauncherWorkerStatus::Completed )
+	if (GEditor->LauncherWorker->GetStatus() == ELauncherWorkerStatus::Completed)
 	{
 		UE_LOG(LogEditorAutomationTests, Log, TEXT("The build game and deploy operation has finished."));
 		return true;
 	}
-	else if ( GEditor->LauncherWorker->GetStatus() == ELauncherWorkerStatus::Canceled || GEditor->LauncherWorker->GetStatus() == ELauncherWorkerStatus::Canceling )
+	else if (GEditor->LauncherWorker->GetStatus() == ELauncherWorkerStatus::Canceled || GEditor->LauncherWorker->GetStatus() == ELauncherWorkerStatus::Canceling)
 	{
 		UE_LOG(LogEditorAutomationTests, Warning, TEXT("The build was canceled."));
 		return true;
@@ -1035,7 +1078,9 @@ bool FWaitForSpecifiedPIEMapToEndCommand::Update()
 		return true;
 	}
 
+	// remove any paths or extensions to match the name of the world
 	FString ShortMapName = FPackageName::GetShortName(MapName);
+	ShortMapName = FPaths::GetBaseFilename(ShortMapName);
 
 	// Handle both ways the user may have specified this
 	if (TestWorld->GetName() != ShortMapName)
@@ -1048,9 +1093,9 @@ bool FWaitForSpecifiedPIEMapToEndCommand::Update()
 
 // agrant-todo: Move this into BasicTests.cpp for 4.27
 /**
- * Generic Pie Test for projects. 
+ * Generic Pie Test for projects.
  * By default this test will PIE the lit of MapsToPIETest from automation settings. if that is empty it will PIE the default editor and game (if they're different)
- * maps. 
+ * maps.
  *
  * If the editor session was started with a map on the command line then that's the only map that will be PIE'd. This allows project to set up tests that PIE
  * a list of maps from an external source.
@@ -1063,7 +1108,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectMapsPIETest, "Project.Maps.PIE", EAutom
  * @param Parameters - Unused for this test
  * @return	TRUE if the test was successful, FALSE otherwise
  */
-bool FProjectMapsPIETest::RunTest(const FString& Parameters)
+	bool FProjectMapsPIETest::RunTest(const FString& Parameters)
 {
 	UAutomationTestSettings const* AutomationTestSettings = GetDefault<UAutomationTestSettings>();
 	check(AutomationTestSettings);
@@ -1072,13 +1117,19 @@ bool FProjectMapsPIETest::RunTest(const FString& Parameters)
 
 	// If the user has specified a map on the command line then that is what we'll PIE
 
-	// Taken from FUnrealEdMisc::OnInit which determines if there's a map on the command line
 	const TCHAR* ParsedCmdLine = FCommandLine::Get();
-
 	FString ParsedMapName;
-	// Check the first arg if it's not a parameter
-	if (FParse::Token(ParsedCmdLine, ParsedMapName, false) && ParsedMapName.StartsWith(TEXT("-")) == false)
+
+	// If there is an explicit list of maps on the command line via -map or -maps the use those.
+	if (FParse::Value(FCommandLine::Get(), TEXT("-maps="), ParsedMapName) || FParse::Value(FCommandLine::Get(), TEXT("-map="), ParsedMapName))
 	{
+		ParsedMapName.ParseIntoArray(PIEMaps, TEXT("+"), true);
+
+		UE_LOG(LogEditorAutomationTests, Display, TEXT("Found Maps %s on command line. PIE Test will use these maps"), *ParsedMapName);
+	}
+	else if (FParse::Token(ParsedCmdLine, ParsedMapName, false) && ParsedMapName.StartsWith(TEXT("-")) == false)
+	{
+		// If the user specified a map as the first param after the project, we'll PIE that
 		FString InitialMapName;
 
 		// If the specified package exists
@@ -1087,11 +1138,11 @@ bool FProjectMapsPIETest::RunTest(const FString& Parameters)
 			FPaths::GetExtension(InitialMapName, /*bIncludeDot=*/true) == FPackageName::GetMapPackageExtension())
 		{
 			PIEMaps.Add(InitialMapName);
-			UE_LOG(LogEditorAutomationTests, Display, TEXT("Found Map %s on command line. PIE Test will be restructed to this map"), *InitialMapName);
+			UE_LOG(LogEditorAutomationTests, Display, TEXT("Found Map %s on command line. PIE Test will be restricted to this map"), *InitialMapName);
 		}
 	}
 
-	// If there was no command line map then default to the project settings
+	// Ok, at this point there were no command line maps so default to the project settings. We PIE the editor startup map and the game startup map
 	if (PIEMaps.Num() == 0)
 	{
 		// If the project has maps configured for PIE then use those
@@ -1124,7 +1175,7 @@ bool FProjectMapsPIETest::RunTest(const FString& Parameters)
 	// Uh-oh
 	if (PIEMaps.Num() == 0)
 	{
-		UE_LOG(LogEditorAutomationTests, Error, TEXT("No automation or default maps are configured for PIE!"));
+		UE_LOG(LogEditorAutomationTests, Fatal, TEXT("No automation or default maps are configured for PIE!"));
 	}
 
 	// Don't want these settings affecting metrics
@@ -1147,12 +1198,13 @@ bool FProjectMapsPIETest::RunTest(const FString& Parameters)
 		}		
 		
 		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("LoadMap-Begin: %s"), *MapPackageName)));
-		AddCommand(new FEditorLoadMap(Map));
+		AddCommand(new FEditorLoadMap(MapPackageName));
+		AddCommand(new FWaitLatentCommand(1.0f));
 		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("LoadMap-End: %s"), *MapPackageName)));
 		AddCommand(new FEditorAutomationLogCommand(FString::Printf(TEXT("PIE-Begin: %s"), *MapPackageName)));
 		AddCommand(new FStartPIECommand(false));
-		AddCommand(new FWaitForShadersToFinishCompiling());
 		AddCommand(new FWaitForSpecifiedMapToLoadCommand(MapPackageName));  // need at least some frames before starting & ending PIE
+		AddCommand(new FWaitForAverageFrameRate(5.0f));	// wait until the editor reaches something vaguely usable
 		AddCommand(new FWaitLatentCommand(AutomationTestSettings->PIETestDuration));
 		AddCommand(new FEndPlayMapCommand());
 		AddCommand(new FWaitForSpecifiedPIEMapToEndCommand(MapPackageName));  // need at least some frames before starting & ending PIE

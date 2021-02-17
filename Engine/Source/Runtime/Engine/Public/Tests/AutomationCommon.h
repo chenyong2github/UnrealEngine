@@ -117,6 +117,7 @@ DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND(FWaitForMapToLoadCommand);
 */
 DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForSpecifiedMapToLoadCommand, FString, MapName);
 
+
 /**
 * Force a matinee to not loop and request that it play
 */
@@ -166,5 +167,40 @@ DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FExecWorldStringLatentComm
 * Waits for shaders to finish compiling before moving on to the next thing.
 */
 DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND(FWaitForShadersToFinishCompilingInGame);
+
+
+/**
+ * Waits until the average framerate meets to exceeds the specified value. Mostly intended as a way to ensure that a level load etc has completed
+ * and an interactive framerate is present.
+ *
+ * InDelay is how long to wait before checking, InMaxWaitTIme is how long to wait before throwing an error
+ */
+class ENGINE_API FWaitForAverageFrameRate : public IAutomationLatentCommand
+{
+public:
+
+	FWaitForAverageFrameRate(float InDesiredFrameRate, float InDelay = 1, float InMaxWaitTime = 60)
+		: StartTime(0)
+		, DesiredFrameRate(InDesiredFrameRate)
+		, Delay(InDelay)
+		, MaxWaitTime(InMaxWaitTime)
+	{}
+
+	bool Update() override;
+
+private:
+
+	// Time we began executing
+	double StartTime;
+
+	// Framerate we want to see
+	float DesiredFrameRate;
+
+	// How long before we start loiking at FPS
+	float Delay;
+
+	// Max time so spend waiting
+	float MaxWaitTime;
+};
 
 #endif

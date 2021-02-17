@@ -941,81 +941,94 @@ void FAutomationControllerManager::AddPingResult(const FMessageAddress& Responde
 
 void FAutomationControllerManager::UpdateTests()
 {
-	CheckTestTimer += FPlatformTime::Seconds() - LastTimeUpdateTicked;
+	const double kIgnoreAsFrameHitchDelta = 2.0f;
+	const double TickDelta = FPlatformTime::Seconds() - LastTimeUpdateTicked;
+
 	LastTimeUpdateTicked = FPlatformTime::Seconds();
-	if (CheckTestTimer > CheckTestIntervalSeconds)
+
+	// If this tick was very long then don't check the health of tests. If we've been blocked for a while on a load and ping responses haven't yet been processed
+	// then otherwise might add a delta to the ping time that causes the test to look like it's timed out.
+	if (TickDelta < kIgnoreAsFrameHitchDelta)
 	{
-		for ( int32 Index = 0; Index < TestRunningArray.Num(); Index++ )
+		CheckTestTimer += TickDelta;
+		if (CheckTestTimer > CheckTestIntervalSeconds)
 		{
-			TestRunningArray[Index].LastPingTime += CheckTestTimer;
-
-			if (TestRunningArray[Index].LastPingTime > GameInstanceLostTimerSeconds)
+			for ( int32 Index = 0; Index < TestRunningArray.Num(); Index++ )
 			{
-				// Find the game session instance info
-				int32 ClusterIndex;
-				int32 DeviceIndex;
-				verify(DeviceClusterManager.FindDevice(TestRunningArray[Index].OwnerMessageAddress, ClusterIndex, DeviceIndex));
-				//verify this device thought it was busy
-				TSharedPtr <IAutomationReport> Report = DeviceClusterManager.GetTest(ClusterIndex, DeviceIndex);
-				check(Report.IsValid());
-				// A dummy array used to report the result
+				TestRunningArray[Index].LastPingTime += CheckTestTimer;
 
-				TArray<FString> EmptyStringArray;
-				TArray<FString> ErrorStringArray;
-				ErrorStringArray.Add(FString(TEXT("Failed")));
-				bHasErrors = true;
-				UE_LOG(LogAutomationController, Display, TEXT("Timeout hit. Nooooooo."));
-
-				FAutomationTestResults TestResults;
-				TestResults.State = EAutomationState::Fail;
-				TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
-				TestResults.AddEvent(FAutomationEvent(EAutomationEventType::Error, FString::Printf(TEXT("Timeout waiting for device %s"), *TestResults.GameInstance)));
-
-				// Set the results
-				Report->SetResults(ClusterIndex, CurrentTestPass, TestResults);
-				bTestResultsAvailable = true;
-
-				const FAutomationTestResults& FinalResults = Report->GetResults(ClusterIndex, CurrentTestPass);
-
-				// Gather all of the data relevant to this test for our json reporting.
-				CollectTestResults(Report, FinalResults);
-
-				// Disable the device in the cluster so it is not used again
-				DeviceClusterManager.DisableDevice(ClusterIndex, DeviceIndex);
-
-				// Remove the running test
-				TestRunningArray.RemoveAt(Index--);
-
-				// If there are no more devices, set the module state to disabled
-				if ( DeviceClusterManager.HasActiveDevice() == false )
+				if (TestRunningArray[Index].LastPingTime > GameInstanceLostTimerSeconds)
 				{
-					// Process results first to write out the report
-					ProcessResults();
+					// Find the game session instance info
+					int32 ClusterIndex;
+					int32 DeviceIndex;
+					verify(DeviceClusterManager.FindDevice(TestRunningArray[Index].OwnerMessageAddress, ClusterIndex, DeviceIndex));
+					//verify this device thought it was busy
+					TSharedPtr <IAutomationReport> Report = DeviceClusterManager.GetTest(ClusterIndex, DeviceIndex);
+					check(Report.IsValid());
+					// A dummy array used to report the result
 
-					UE_LOG(LogAutomationController, Display, TEXT("Module disabled"));
-					SetControllerStatus(EAutomationControllerModuleState::Disabled);
-					ClusterDistributionMask = 0;
+					TArray<FString> EmptyStringArray;
+					TArray<FString> ErrorStringArray;
+					ErrorStringArray.Add(FString(TEXT("Failed")));
+					bHasErrors = true;
+					UE_LOG(LogAutomationController, Display, TEXT("Timeout hit. Nooooooo."));
+
+					FAutomationTestResults TestResults;
+					TestResults.State = EAutomationState::Fail;
+					TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
+					TestResults.AddEvent(FAutomationEvent(EAutomationEventType::Error, FString::Printf(TEXT("Timeout waiting for device %s"), *TestResults.GameInstance)));
+
+					// Set the results
+					Report->SetResults(ClusterIndex, CurrentTestPass, TestResults);
+					bTestResultsAvailable = true;
+
+					const FAutomationTestResults& FinalResults = Report->GetResults(ClusterIndex, CurrentTestPass);
+
+					// Gather all of the data relevant to this test for our json reporting.
+					CollectTestResults(Report, FinalResults);
+
+					// Disable the device in the cluster so it is not used again
+					DeviceClusterManager.DisableDevice(ClusterIndex, DeviceIndex);
+
+					// Remove the running test
+					TestRunningArray.RemoveAt(Index--);
+
+					// If there are no more devices, set the module state to disabled
+					if ( DeviceClusterManager.HasActiveDevice() == false )
+					{
+						// Process results first to write out the report
+						ProcessResults();
+
+						UE_LOG(LogAutomationController, Display, TEXT("Module disabled"));
+						SetControllerStatus(EAutomationControllerModuleState::Disabled);
+						ClusterDistributionMask = 0;
+					}
+					else
+					{
+						UE_LOG(LogAutomationController, Display, TEXT("Module not disabled. Keep looking."));
+						// Remove the cluster from the mask if there are no active devices left
+						if ( DeviceClusterManager.GetNumActiveDevicesInCluster(ClusterIndex) == 0 )
+						{
+							ClusterDistributionMask &= ~( 1 << ClusterIndex );
+						}
+						if ( TestRunningArray.Num() == 0 )
+						{
+							SetControllerStatus(EAutomationControllerModuleState::Ready);
+						}
+					}
 				}
 				else
 				{
-					UE_LOG(LogAutomationController, Display, TEXT("Module not disabled. Keep looking."));
-					// Remove the cluster from the mask if there are no active devices left
-					if ( DeviceClusterManager.GetNumActiveDevicesInCluster(ClusterIndex) == 0 )
-					{
-						ClusterDistributionMask &= ~( 1 << ClusterIndex );
-					}
-					if ( TestRunningArray.Num() == 0 )
-					{
-						SetControllerStatus(EAutomationControllerModuleState::Ready);
-					}
+					MessageEndpoint->Send(new FAutomationWorkerPing(), TestRunningArray[Index].OwnerMessageAddress);
 				}
 			}
-			else
-			{
-				MessageEndpoint->Send(new FAutomationWorkerPing(), TestRunningArray[Index].OwnerMessageAddress);
-			}
+			CheckTestTimer = 0.f;
 		}
-		CheckTestTimer = 0.f;
+	}
+	else
+	{
+		UE_LOG(LogAutomationController, Log, TEXT("Ignoring very large delta of %.02f seconds in calls to FAutomationControllerManager::Tick() and not penalizing unresponsive tests"), TickDelta);
 	}
 }
 

@@ -32,7 +32,7 @@ namespace AutomationTool.Benchmark
 	[Help("cores=X+Y+Z", "Do noxge builds with these processor counts (default is Environment.ProcessorCount)")]
 	[Help("cook", "Do a cook for the specified platform")]
 	[Help("pie", "Launch the editor (only valid when -project is specified")]
-	[Help("map", "Map to PIE with (only valid when using a single project")]
+	[Help("maps", "Map to PIE with (only valid when using a single project")]
 	[Help("warmddc", "Cook / PIE with a warm DDC")]
 	[Help("hotddc", "Cook / PIE with a hot local DDC (an untimed pre-run is performed)")]
 	[Help("coldddc", "Cook / PIE with a cold local DDC (a temporary folder is used)")]
@@ -41,8 +41,8 @@ namespace AutomationTool.Benchmark
 	[Help("wait=<n>", "How many seconds to wait between each test)")]
 	[Help("filename", "Name/path of file to write CSV results to. If empty the local machine name will be used")]
 	[Help("noclean", "Don't build from clean. (Mostly just to speed things up when testing)")]
-	[Help("CookArgs=", "Extra args to use when cooking. -CookArgs1=\"-foo\" -CookArgs2=\"-bar\" will run two cooks with each argument set")]
-	[Help("PIEArgs=", "Extra args to use when running the editor. -PIEArgs1=\"-foo\" -PIEArgs2=\"-bar\" will run two PIE tests with each argument set")]
+	[Help("Cook[N]Args=", "Extra args to use when cooking. -Cook1Args=\"-foo\" -Cook2Args=\"-bar\" will run two cooks with each argument set. Use -CookArgs for a single cook")]
+	[Help("PIE[N]Args=", "Extra args to use when running the editor. -PIE1Args=\"-foo\" -PIE2Args=\"-bar\" will run three PIE tests with each argument set. Use -PIEArgs for a single PIE")]
 	class BenchmarkBuild : BuildCommand
 	{
 		class BenchmarkOptions : BuildCommand
@@ -69,7 +69,7 @@ namespace AutomationTool.Benchmark
 			// editor startup tests
 			public bool DoPIETests = false;
 
-			public IEnumerable<string> MapList = Enumerable.Empty<string>();
+			public IEnumerable<string> PIEMapList = Enumerable.Empty<string>();
 
 			// misc
 			public int Iterations = 1;
@@ -120,26 +120,25 @@ namespace AutomationTool.Benchmark
 				Iterations = ParseParamInt("Iterations", Iterations);
 				TimeBetweenTasks = ParseParamInt("Wait", TimeBetweenTasks);
 
-				// allow up to 10 cook & PIE variations. -CookArgs=etc -CookArgs1=etc2 etc
+				// allow up to 10 cook & PIE variations. -Cook1_Args=etc -Cook2_Args=etc2 etc
 				for (int i = 0; i < 10; i++)
 				{
 					string PostFix = i == 0 ? "" : i.ToString();
-					string CookParam = ParseParamValue("CookArgs" + PostFix, "");
+					string CookParam = ParseParamValue("Cook" + PostFix + "Args", null);
 
-					if (!string.IsNullOrEmpty(CookParam))
+					if (CookParam != null)
 					{
 						CookArgs.Add(CookParam);
 					}
 
-					string PIEParam = ParseParamValue("PIEArgs" + PostFix, "");
+					string PIEParam = ParseParamValue("PIE" + PostFix + "Args", null);
 
-					if (!string.IsNullOrEmpty(PIEParam))
+					if (PIEParam != null)
 					{
 						PIEArgs.Add(PIEParam);
 					}
 				}
-
-			
+							
 				FileName = ParseParamValue("filename", FileName);	
 
 				// Parse the project arg
@@ -198,11 +197,12 @@ namespace AutomationTool.Benchmark
 
 				// parse map args
 				{
-					string Arg = ParseParamValue("map", "");
+					string Arg = ParseParamValue("maps", "");
+					Arg = ParseParamValue("map", Arg);
 
 					if (!string.IsNullOrEmpty(Arg))
 					{
-						MapList = Arg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
+						PIEMapList = Arg.Split(new[] { '+', ',' }, StringSplitOptions.RemoveEmptyEntries);
 					}
 				}
 			}
@@ -441,49 +441,41 @@ namespace AutomationTool.Benchmark
 
 			List<BenchmarkTaskBase> NewTasks = new List<BenchmarkTaskBase>();
 
-			List<string> MapsToTest = InOptions.MapList.ToList();
+			string PIEArgs = "";
 
-			if (!MapsToTest.Any())
+			if (InOptions.PIEMapList.Any())
 			{
-				MapsToTest.Add("");
+				PIEArgs += string.Format("-map=\"{0}\"", string.Join("+", InOptions.PIEMapList));
 			}
-			
+						
 			IEnumerable<string> PIEVariations = InOptions.PIEArgs.Any() ? InOptions.PIEArgs : new List<string> { "" };
 
-			foreach (string PIEArgs in PIEVariations)
+			foreach (string VariationArgs in PIEVariations)
 			{
-				foreach (var Map in MapsToTest)
+				string FinalArgs = PIEArgs + " " + VariationArgs;
+
+				// if no options assume warm
+				if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
 				{
-					string FinalArgs = PIEArgs;
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.WarmDDC, FinalArgs));
+				}
 
-					if (!string.IsNullOrEmpty(Map))
-					{
-						FinalArgs += " -map=" + Map;
-					}
+				// hot ddc
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC))
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.HotDDC, FinalArgs));
+				}
 
-					// if no options assume warm
-					if (InOptions.DDCOptions == DDCTaskOptions.None || InOptions.DDCOptions.HasFlag(DDCTaskOptions.WarmDDC))
-					{
-						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.WarmDDC, FinalArgs));
-					}
+				// cold ddc
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.ColdDDC, FinalArgs));
+				}
 
-					// hot ddc
-					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.HotDDC))
-					{
-						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.HotDDC, FinalArgs));
-					}
-
-					// cold ddc
-					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.ColdDDC))
-					{
-						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.ColdDDC, FinalArgs));
-					}
-
-					// no shaders in the ddc
-					if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
-					{
-						NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoShaderDDC, FinalArgs));
-					}					
+				// no shaders in the ddc
+				if (InOptions.DDCOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
+				{
+					NewTasks.Add(new BenchmarkRunEditorTask(InProjectFile, DDCTaskOptions.NoShaderDDC, FinalArgs));
 				}
 			}
 		

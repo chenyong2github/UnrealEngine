@@ -915,6 +915,9 @@ private:
 	private:
 		/** Associated automation test; all warnings, errors, etc. are routed to the automation test to track */
 		class FAutomationTestBase* CurTest;
+
+		/** Tests that we've logged the failure cause when an error is involved */
+		TSet<FAutomationTestBase*> LoggedFailureCause;
 	};
 
 	 /** Special feedback context used during automated testing to filter messages that happen during tests */
@@ -3356,3 +3359,4 @@ private:
 	TFunction<bool()> TimeoutCallback;
 	float Timeout;
 };
+

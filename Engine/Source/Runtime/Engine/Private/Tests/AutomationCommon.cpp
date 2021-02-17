@@ -21,6 +21,7 @@
 #include "Matinee/MatineeActor.h"
 #include "StereoRendering.h"
 #include "Misc/PackageName.h"
+#include "TextureCompiler.h"
 
 #if WITH_AUTOMATION_TESTS
 
@@ -343,7 +344,10 @@ bool FWaitForSpecifiedMapToLoadCommand::Update()
 		AGameStateBase* GameState = TestWorld->GetGameState();
 		if (GameState && GameState->HasMatchStarted())
 		{
+			// remove any paths or extensions to match the name of the world
 			FString ShortMapName = FPackageName::GetShortName(MapName);
+			ShortMapName = FPaths::GetBaseFilename(ShortMapName);
+
 			// Handle both ways the user may have specified this
 			if (TestWorld->GetName() == ShortMapName)
 			{
@@ -354,6 +358,38 @@ bool FWaitForSpecifiedMapToLoadCommand::Update()
 
 	return false;
 }
+
+bool FWaitForAverageFrameRate::Update()
+{
+	if (StartTime == 0)
+	{
+		StartTime = FPlatformTime::Seconds();
+	}
+	else
+	{
+		const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
+
+		if (ElapsedTime > Delay)
+		{
+			extern ENGINE_API float GAverageFPS;
+			if (GAverageFPS >= DesiredFrameRate)
+			{
+				return true;
+			}
+
+			if (ElapsedTime >= MaxWaitTime)
+			{
+				UE_LOG(LogEngineAutomationLatentCommand, Error, TEXT("FWaitForAverageFrameRate: Game did not reach %.02f FPS within %.02f seconds. Giving up."), DesiredFrameRate, MaxWaitTime);
+				
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////
 // Common Latent commands which are used across test type. I.e. Engine, Network, etc...
@@ -501,12 +537,56 @@ bool FExecWorldStringLatentCommand::Update()
 */
 bool FWaitForShadersToFinishCompilingInGame::Update()
 {
-	if (GShaderCompilingManager)
+#if WITH_EDITOR
+	static double TimeShadersFinishedCompiling = 0;
+	static double LastReportTime = FPlatformTime::Seconds();
+	const double TimeToWaitForJobs = 2.0;
+
+	bool ShadersCompiling = GShaderCompilingManager && GShaderCompilingManager->IsCompiling();
+	bool TexturesCompiling = FTextureCompilingManager::Get().GetNumRemainingTextures() > 0;
+
+	
+	double TimeNow = FPlatformTime::Seconds();
+
+	if (ShadersCompiling || TexturesCompiling)
 	{
-		UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i shaders to finish."), GShaderCompilingManager->GetNumRemainingJobs());
-		GShaderCompilingManager->FinishAllCompilation();
-		UE_LOG(LogEditorAutomationTests, Log, TEXT("Done waiting for shaders to finish."));
+		if (TimeNow - LastReportTime > 5.0)
+		{
+			LastReportTime = TimeNow;
+
+			if (ShadersCompiling)
+			{
+				UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i shaders to finish."), GShaderCompilingManager->GetNumRemainingJobs() + GShaderCompilingManager->GetNumPendingJobs());
+			}
+
+			if (TexturesCompiling)
+			{
+				UE_LOG(LogEditorAutomationTests, Log, TEXT("Waiting for %i texures to finish."), FTextureCompilingManager::Get().GetNumRemainingTextures());
+			}
+		}
+
+		TimeShadersFinishedCompiling = 0;
+
+		return false;
 	}
+
+	// Current jobs are done, but things may still come in on subsequent frames..
+	if (TimeShadersFinishedCompiling == 0)
+	{
+		TimeShadersFinishedCompiling = FPlatformTime::Seconds();
+	}
+
+	if (FPlatformTime::Seconds() - TimeShadersFinishedCompiling < TimeToWaitForJobs)
+	{
+		return false;
+	}
+
+	// may not be necessary, but just double-check everything is finished and ready
+	GShaderCompilingManager->FinishAllCompilation();
+	UE_LOG(LogEditorAutomationTests, Log, TEXT("Done waiting for shaders to finish."));
+#endif
+
 	return true;
 }
+
 #endif //WITH_DEV_AUTOMATION_TESTS

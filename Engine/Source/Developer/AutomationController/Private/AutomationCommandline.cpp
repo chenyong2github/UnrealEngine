@@ -513,8 +513,7 @@ public:
 				{
 					if (!GIsCriticalError)
 					{
-						const UAutomationControllerSettings* Settings = GetDefault<UAutomationControllerSettings>();
-						if (AutomationController->ReportsHaveErrors() && Settings->bTreatLogErrorsAsTestErrors)
+						if (AutomationController->ReportsHaveErrors())
 						{
 							UE_LOG(LogAutomationCommandLine, Display, TEXT("Setting GIsCriticalError due to test failures (will cause non-zero exit code)."));
 							GIsCriticalError = AutomationController->ReportsHaveErrors();

@@ -101,6 +101,11 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 			// Errors
 			if (EffectiveVerbosity == ELogVerbosity::Error)
 			{
+				if (!LoggedFailureCause.Contains(CurTest))
+				{
+					CurTest->AddError(FString::Printf(TEXT("%s will be marked as failing due to errors being logged"), *CurTest->GetBeautifiedTestName()), STACK_OFFSET);
+					LoggedFailureCause.Add(CurTest);
+				}
 				CurTest->AddError(FString(V), STACK_OFFSET);
 			}
 			// Warnings

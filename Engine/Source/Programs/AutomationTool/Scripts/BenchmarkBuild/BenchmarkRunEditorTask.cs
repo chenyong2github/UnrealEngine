@@ -85,7 +85,7 @@ namespace AutomationTool.Benchmark
 			string ProjectArg = ProjectFile != null ? ProjectFile.ToString() : "";
 			string EditorPath = HostPlatform.Current.GetUE4ExePath("UnrealEditor.exe");
 			string LogArg = string.Format("-log={0}.log", MakeValidFileName(GetFullTaskName()).Replace(" ", "_"));
-			string Arguments = string.Format("{0} {1} -execcmds=\"automation runtest System.Maps.PIE;Quit\" -stdout -FullStdOutLogOutput -unattended {2}", ProjectArg, EditorArgs, LogArg);
+			string Arguments = string.Format("{0} -execcmds=\"automation runtest Project.Maps.PIE;Quit\" {1} -stdout -FullStdOutLogOutput -unattended {2}", ProjectArg, EditorArgs, LogArg);
 
 			if (!bIsWarming && TaskOptions.HasFlag(DDCTaskOptions.NoShaderDDC))
 			{
@@ -105,9 +105,7 @@ namespace AutomationTool.Benchmark
 			LastStdOutTime = DateTime.Now;
 			CurrentProcess = CommandUtils.Run(EditorPath, Arguments, Options: RunOptions, SpewFilterCallback: SpewDelegate);
 
-			DateTime StartTime = DateTime.Now;
-
-			int MaxWaitMins = 90;
+			int TimeoutMins = 15;
 
 			while (!CurrentProcess.HasExited)
 			{
@@ -115,9 +113,9 @@ namespace AutomationTool.Benchmark
 
 				lock (CurrentProcess)
 				{
-					if ((LastStdOutTime - StartTime).TotalMinutes >= MaxWaitMins)
+					if ((DateTime.Now - LastStdOutTime).TotalMinutes >= TimeoutMins)
 					{
-						Log.TraceError("Gave up waiting for task after {0} minutes of no output", MaxWaitMins);
+						Log.TraceError("Gave up waiting for task after {0} minutes of no output", TimeoutMins);
 						CurrentProcess.ProcessObject.Kill();
 					}
 				}
