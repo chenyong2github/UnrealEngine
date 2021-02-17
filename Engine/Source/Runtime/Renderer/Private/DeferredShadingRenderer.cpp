@@ -1667,13 +1667,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
 
 	FHairStrandsBookmarkParameters HairStrandsBookmarkParameters;
+
+	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()))
 	{
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("HairStrandsCullingAndInterpolation(ViewFamily=%s)", ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")));
-		if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()))
-		{
-			HairStrandsBookmarkParameters = CreateHairStrandsBookmarkParameters(Views[0]);
-			RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessTasks, HairStrandsBookmarkParameters);
-		}
+
+		HairStrandsBookmarkParameters = CreateHairStrandsBookmarkParameters(Views[0]);
+		RunHairStrandsBookmark(GraphBuilder, EHairStrandsBookmark::ProcessTasks, HairStrandsBookmarkParameters);
 
 		// Interpolation needs to happen after the skin cache run as there is a dependency 
 		// on the skin cache output.

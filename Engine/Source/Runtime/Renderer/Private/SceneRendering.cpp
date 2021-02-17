@@ -3674,7 +3674,7 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 			SceneRenderer->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType].Reset();
 		}
 
-		if (SceneRenderer->Views.Num() > 0 && !SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::All, SceneRenderer->Scene->GetShaderPlatform()) && SceneRenderer->Views.Num() > 0 && !SceneRenderer->ViewFamily.EngineShowFlags.HitProxies)
 		{
 			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderer->Views);
 			if (Parameters.bHasElements)
