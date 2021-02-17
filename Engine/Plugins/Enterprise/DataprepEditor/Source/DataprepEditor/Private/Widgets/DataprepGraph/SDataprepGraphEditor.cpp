@@ -806,9 +806,15 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 		{
 			const UDataprepGraphActionGroupNode* ActionGroupNode = Cast<UDataprepGraphActionGroupNode>(InGraphNode);
 
+			const FScopedTransaction Transaction(NSLOCTEXT("BreakActions", "BreakActions", "Break Action Group"));
+
+			DataprepAssetPtr->Modify();
+
 			for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
 			{
 				UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
+				Action->Modify();
+				Action->Appearance->Modify();
 				Action->Appearance->GroupId = INDEX_NONE;
 			}
 			NotifyGraphChanged();
