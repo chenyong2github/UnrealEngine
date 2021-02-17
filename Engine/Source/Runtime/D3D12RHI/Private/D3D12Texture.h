@@ -370,6 +370,8 @@ private:
 #endif
 
 	FD3D12TextureLayout TextureLayout;
+
+	mutable TUniquePtr<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> FirstSubresourceFootprint;
 };
 
 /** 3D Texture */
