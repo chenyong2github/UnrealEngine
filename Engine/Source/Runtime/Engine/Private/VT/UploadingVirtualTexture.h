@@ -10,18 +10,24 @@
 #include "Templates/UniquePtr.h"
 #include "Async/TaskGraphInterfaces.h"
 
+#include <atomic>
+
 class FUploadingVirtualTexture;
 class IFileCacheHandle;
 
 class FVirtualTextureCodec : public TIntrusiveLinkedList<FVirtualTextureCodec>
 {
+	friend struct FTranscodeTask;
 public:
 	static void RetireOldCodecs();
 
 	~FVirtualTextureCodec();
 	void Init(IMemoryReadStreamRef& HeaderData);
 
-	inline bool IsComplete() const { return !CompletedEvent || CompletedEvent->IsComplete(); }
+	// Tracks completion of FCreateCodecTask.
+	inline bool IsCreationComplete() const { return !CompletedEvent || CompletedEvent->IsComplete(); }
+
+	inline bool IsIdle() const { return IsCreationComplete() && AllTranscodeTasksComplete(); }
 
 	void LinkGlobalHead();
 	void LinkGlobalTail();
@@ -36,6 +42,16 @@ public:
 	void* Contexts[VIRTUALTEXTURE_DATA_MAXLAYERS] = { nullptr };
 	uint32 ChunkIndex = 0u;
 	uint32 LastFrameUsed = 0u;
+
+protected:
+
+	// This codec may be used by transcode tasks (see FTranscodeTask),
+	// which must be all complete before the codec is released by RetireOldTasks().
+	inline bool AllTranscodeTasksComplete() const { return TaskRefs.load() == 0; }
+	inline void BeginTranscodeTask() const { TaskRefs.fetch_add(1); }
+	inline void EndTranscodeTask() const { TaskRefs.fetch_sub(1); }
+
+	mutable std::atomic<uint32> TaskRefs {};
 };
 
 struct FVTCodecAndStatus

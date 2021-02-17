@@ -163,7 +163,7 @@ void FVirtualTextureCodec::RetireOldCodecs()
 
 		bool bRetiredCodec = false;
 		// Can't retire codec if it's not even finished loading yet
-		if (Codec.Owner && (!Codec.CompletedEvent || Codec.CompletedEvent->IsComplete()))
+		if (Codec.Owner && Codec.IsIdle())
 		{
 			check(CurrentFrame >= Codec.LastFrameUsed);
 			const uint32 Age = CurrentFrame - Codec.LastFrameUsed;
@@ -247,7 +247,9 @@ FVirtualTextureCodec::~FVirtualTextureCodec()
 {
 	if (Owner)
 	{
-		check(IsComplete());
+		checkf(IsCreationComplete(), TEXT("Codec is being released before its construction task hasn't finished."));
+		checkf(AllTranscodeTasksComplete(), TEXT("Codec is being released while there are tasks that still reference it."));
+
 		check(!IsLinked());
 
 		const FVirtualTextureBuiltData* VTData = Owner->GetVTData();

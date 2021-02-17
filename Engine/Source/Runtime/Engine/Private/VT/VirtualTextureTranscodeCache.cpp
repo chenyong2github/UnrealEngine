@@ -58,7 +58,20 @@ struct FTranscodeTask
 	FTranscodeTask(const FVTUploadTileBuffer* InStagingBuffers, const FVTTranscodeParams& InParams)
 		: Params(InParams)
 	{
+		if (Params.Codec)
+		{
+			Params.Codec->BeginTranscodeTask();
+		}
+
 		FMemory::Memcpy(StagingBuffer, InStagingBuffers, sizeof(FVTUploadTileBuffer) * VIRTUALTEXTURE_SPACE_MAXLAYERS);
+	}
+
+	~FTranscodeTask()
+	{
+		if (Params.Codec)
+		{
+			Params.Codec->EndTranscodeTask();
+		}
 	}
 
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
@@ -86,7 +99,7 @@ struct FTranscodeTask
 		const uint32 TileIndex = Params.VTData->GetTileIndex(vLevel, vAddress);
 
 		// code must be fully loaded by the time we start transcoding
-		check(!Params.Codec || Params.Codec->IsComplete());
+		check(!Params.Codec || Params.Codec->IsCreationComplete());
 
 		// Used to allocate any temp memory needed to decode tile
 		// Inline allocator hopefully avoids heap allocation in most cases
