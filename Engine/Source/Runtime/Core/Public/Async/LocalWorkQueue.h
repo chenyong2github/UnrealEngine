@@ -16,13 +16,13 @@ public:
 	inline TYCombinator(LAMBDA&& InLambda) : Lambda(Forward<LAMBDA>(InLambda)) {}
 
 	template <class... ARGS>
-	inline decltype(auto) operator()(ARGS&&... Args) const 
+	FORCENOINLINE decltype(auto) operator()(ARGS&&... Args) const 
 	{
 		return Lambda(*this, Forward<ARGS>(Args)...);
 	}
 
 	template <class... ARGS>
-	inline decltype(auto) operator()(ARGS&&... Args) 
+	FORCENOINLINE decltype(auto) operator()(ARGS&&... Args) 
 	{
 		return Lambda(*this, Forward<ARGS>(Args)...);
 	}
