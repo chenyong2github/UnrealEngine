@@ -3855,8 +3855,11 @@ namespace ObjectTools
 
 	bool RenameObjects( const TArray< UObject* >& SelectedObjects, bool bIncludeLocInstances, const FString& SourcePath, const FString& DestinationPath, bool bOpenDialog )
 	{
+	// seems like bug in pvs makes disabling the warning not work as expected
+	#ifndef PVS_STUDIO
 		// @todo asset: Find a proper location for localized files
 		bIncludeLocInstances = false; //-V763
+	#endif
 		if( !bIncludeLocInstances )
 		{
 			return RenameObjectsInternal( SelectedObjects, bIncludeLocInstances, NULL, SourcePath, DestinationPath, bOpenDialog );
