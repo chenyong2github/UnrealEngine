@@ -305,8 +305,7 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			AddErrorIfFalse(bWasUpdate, TEXT("C should be updated becaude D was."));
 			AddErrorIfFalse(WidgetParent->IntAttributeC.Get() == 10, TEXT("C It is not the expected value."));
 			AddErrorIfFalse(WidgetParent->IntAttributeD.Get() == 8, TEXT("D It is not the expected value."));
-			AddErrorIfFalse(OrderCounter == 2, TEXT("There is no D attribute anymore."));
-			AddErrorIfFalse(OrderCounter == 2, TEXT("There is no D attribute anymore."));
+			AddErrorIfFalse(OrderCounter == 2, TEXT("There is no D attribute anymore.")); //-V547
 		}
 
 		{
