@@ -377,6 +377,7 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 										if (AnimSequence)
 										{
 											int32 Index = AnimSection->SetBoneIndexForRootMotionCalculations(SkelAnimTrack->bBlendFirstChildOfRoot);
+											FMemMark Mark(FMemStack::Get());	
 											FCompactPose OutPose;
 											OutPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
 

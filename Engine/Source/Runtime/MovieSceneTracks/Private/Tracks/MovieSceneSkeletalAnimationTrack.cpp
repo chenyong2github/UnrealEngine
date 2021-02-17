@@ -514,7 +514,9 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			}
 		}
 		//set up pose from valid anim sequences.
+		FMemMark Mark(FMemStack::Get());
 		FCompactPose OutPose;
+
 		if (ValidAnimSequence)
 		{
 			TArray<FBoneIndexType> RequiredBoneIndexArray;
