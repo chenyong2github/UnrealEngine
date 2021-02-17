@@ -29,7 +29,7 @@ struct FHLODLayerActorMapping
 	FString HLODLayer;
 };
 
-UCLASS(Config=Engine)
+UCLASS(Config = Engine)
 class UNREALED_API UWorldPartitionConvertCommandlet : public UCommandlet
 {
 	GENERATED_UCLASS_BODY()
@@ -46,6 +46,7 @@ private:
 protected:
 	virtual bool GetAdditionalLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
 	virtual bool PrepareStreamingLevelForConversion(const UWorldPartition* WorldPartition, ULevelStreaming* StreamingLevel);
+	virtual bool ShouldConvertStreamingLevel(ULevelStreaming* StreamingLevel);
 	virtual bool ShouldDeleteActor(AActor* Actor, bool bMainLevel) const;
 	virtual void PerformAdditionalWorldCleanup(UWorld* World) const;
 	virtual void OutputConversionReport() const;
@@ -99,6 +100,10 @@ protected:
 
 	UPROPERTY(Config)
 	TMap<FName, EActorGridPlacement> LevelsGridPlacement;
+
+	// Levels excluded from conversion.
+	UPROPERTY(Config)
+	TArray<FString> ExcludedLevels;
 
 	UPROPERTY(Config)
 	bool bConvertActorsNotReferencedByLevelScript;

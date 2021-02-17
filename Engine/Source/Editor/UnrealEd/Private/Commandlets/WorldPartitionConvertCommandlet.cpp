@@ -248,16 +248,25 @@ void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(const 
 	UWorld* World = Level->GetTypedOuter<UWorld>();	
 
 	// Set all streaming levels to be loaded/visible for next Flush
+	TArray<ULevelStreaming*> StreamingLevels;
 	for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
 	{
-		StreamingLevel->SetShouldBeLoaded(true);
-		StreamingLevel->SetShouldBeVisible(true);
-		StreamingLevel->SetShouldBeVisibleInEditor(true);
+		if (ShouldConvertStreamingLevel(StreamingLevel))
+		{
+			StreamingLevels.Add(StreamingLevel);
+			StreamingLevel->SetShouldBeLoaded(true);
+			StreamingLevel->SetShouldBeVisible(true);
+			StreamingLevel->SetShouldBeVisibleInEditor(true);
+		}
+		else
+		{
+			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Skipping conversion of streaming Level %s"), *StreamingLevel->GetWorldAssetPackageName());
+		}
 	}
 
 	World->FlushLevelStreaming(EFlushLevelStreamingType::Full);
 	
-	for(ULevelStreaming* StreamingLevel: World->GetStreamingLevels())
+	for(ULevelStreaming* StreamingLevel: StreamingLevels)
 	{
 		if (PrepareStreamingLevelForConversion(WorldPartition, StreamingLevel))
 		{
@@ -1480,3 +1489,9 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	return 0;
 }
+
+bool UWorldPartitionConvertCommandlet::ShouldConvertStreamingLevel(ULevelStreaming* StreamingLevel)
+{
+	return StreamingLevel && !ExcludedLevels.Contains(StreamingLevel->GetWorldAssetPackageName());
+}
+
