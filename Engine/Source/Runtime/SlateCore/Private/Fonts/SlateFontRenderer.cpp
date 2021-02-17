@@ -7,6 +7,8 @@
 #include "HAL/IConsoleManager.h"
 #include "SlateGlobals.h"
 
+#include <limits>
+
 DECLARE_CYCLE_STAT(TEXT("Freetype Render Glyph"), STAT_FreetypeRenderGlyph, STATGROUP_Slate);
 
 /**
@@ -92,17 +94,19 @@ void ResizeFontBitmap_StoreAverageOutputPixel(TArray<uint8>& DstData, const int3
 template <>
 void ResizeFontBitmap_StoreAverageOutputPixel<1>(TArray<uint8>& DstData, const int32 PixelIndex, const FVector4& StepColor, const int32 PixelCount)
 {
-	DstData[PixelIndex] = FMath::Clamp(FMath::TruncToInt(StepColor.X / (float)PixelCount), 0, 255);
+	ensure(PixelCount > 0);
+	DstData[PixelIndex] = FMath::Clamp<uint8>((uint8)(StepColor.X / (float)PixelCount), 0, 255);
 }
 
 template <>
 void ResizeFontBitmap_StoreAverageOutputPixel<4>(TArray<uint8>& DstData, const int32 PixelIndex, const FVector4& StepColor, const int32 PixelCount)
 {
+	ensure(PixelCount > 0);
 	const int32 DstDataIndex = PixelIndex * 4;
-	DstData[DstDataIndex+0] = FMath::Clamp(FMath::TruncToInt(StepColor.X / (float)PixelCount), 0, 255);
-	DstData[DstDataIndex+1] = FMath::Clamp(FMath::TruncToInt(StepColor.Y / (float)PixelCount), 0, 255);
-	DstData[DstDataIndex+2] = FMath::Clamp(FMath::TruncToInt(StepColor.Z / (float)PixelCount), 0, 255);
-	DstData[DstDataIndex+3] = FMath::Clamp(FMath::TruncToInt(StepColor.W / (float)PixelCount), 0, 255);
+	DstData[DstDataIndex + 0] = FMath::Clamp<uint8>(FMath::TruncToInt(StepColor.X / (float)PixelCount), 0, 255);
+	DstData[DstDataIndex + 1] = FMath::Clamp<uint8>(FMath::TruncToInt(StepColor.Y / (float)PixelCount), 0, 255);
+	DstData[DstDataIndex + 2] = FMath::Clamp<uint8>(FMath::TruncToInt(StepColor.Z / (float)PixelCount), 0, 255);
+	DstData[DstDataIndex + 3] = FMath::Clamp<uint8>(FMath::TruncToInt(StepColor.W / (float)PixelCount), 0, 255);
 }
 
 // Note: Copied from FImageUtils and updated to work efficiently with 1 or 4-bytes per-pixel, and include the alpha channel (which the FImageUtils version just clobbers)
@@ -463,7 +467,7 @@ struct FRasterizerSpanList
  */
 void RenderOutlineRows(FT_Library Library, FT_Outline* Outline, FRasterizerSpanList& OutSpansList)
 {
-	auto RasterizerCallback = [](const int32 Y, const int32 Count, const FT_Span* const Spans, void* const UserData)
+	auto RasterizerCallback = [](const int Y, const int Count, const FT_Span* const Spans, void* const UserData)
 	{
 		FRasterizerSpanList& UserDataSpanList = *static_cast<FRasterizerSpanList*>(UserData);
 
@@ -475,8 +479,8 @@ void RenderOutlineRows(FT_Library Library, FT_Outline* Outline, FRasterizerSpanL
 		{
 			const FT_Span& Span = Spans[SpanIndex];
 
-			BoundingBox += FVector2D(Span.x, Y);
-			BoundingBox += FVector2D(Span.x + Span.len - 1, Y);
+			BoundingBox += FVector2D((float)Span.x, (float)Y);
+			BoundingBox += FVector2D((float)(Span.x + Span.len - 1), (float)Y);
 
 			UserDataSpans.Add(FRasterizerSpan(Span.x, Y, Span.len, Span.coverage));
 		}
@@ -547,18 +551,18 @@ bool FSlateFontRenderer::GetRenderDataInternal(const FFreeTypeFaceGlyphData& InF
 		FVector2D Size = BoundingBox.GetSize();
 
 		//Note: we add 1 to width and height because the size of the rect is inclusive
-		int32 Width = FMath::TruncToInt(Size.X)+1;
-		int32 Height = FMath::TruncToInt(Size.Y)+1;
+		const int32 Width = FMath::TruncToInt(Size.X)+1;
+		const int32 Height = FMath::TruncToInt(Size.Y)+1;
+		ensure(Width <= std::numeric_limits<int16>::max());
+		ensure(Height <= std::numeric_limits<int16>::max());
+		OutRenderData.SizeX = (int16)Width;
+		OutRenderData.SizeY = (int16)Height;
 
 		OutRenderData.RawPixels.Reset();
-
-		OutRenderData.SizeX = Width;
-		OutRenderData.SizeY = Height;
-
 		OutRenderData.RawPixels.AddZeroed(Width*Height);
 
-		int32 XMin = BoundingBox.Min.X;
-		int32 YMin = BoundingBox.Min.Y;
+		const int32 XMin = FMath::TruncToInt(BoundingBox.Min.X);
+		const int32 YMin = FMath::TruncToInt(BoundingBox.Min.Y);
 
 		// Compute and copy the pixels for the total filled area of the glyph. 
 
@@ -590,7 +594,7 @@ bool FSlateFontRenderer::GetRenderDataInternal(const FFreeTypeFaceGlyphData& InF
 						if(InOutlineSettings.bSeparateFillAlpha)
 						{
 							// this method is better for transparent fill areas
-							Src = Span.Coverage ? FMath::Abs(Src - Span.Coverage) : 0;
+							Src = Span.Coverage ? FMath::Abs<uint8>(Src - Span.Coverage) : 0;
 						}
 						else
 						{
@@ -672,8 +676,8 @@ bool FSlateFontRenderer::GetRenderDataInternal(const FFreeTypeFaceGlyphData& InF
 			}
 		}
 
-		OutRenderData.SizeX = Bitmap->width;
-		OutRenderData.SizeY = Bitmap->rows;
+		OutRenderData.SizeX = (int16)Bitmap->width;
+		OutRenderData.SizeY = (int16)Bitmap->rows;
 
 		if(Bitmap == &TmpBitmap)
 		{
@@ -686,8 +690,10 @@ bool FSlateFontRenderer::GetRenderDataInternal(const FFreeTypeFaceGlyphData& InF
 		{
 			const int32 ScaledWidth = FMath::TruncToInt(OutRenderData.SizeX * BitmapAtlasScale);
 			const int32 ScaledHeight = FMath::TruncToInt(OutRenderData.SizeY * BitmapAtlasScale);
-			TArray<uint8> ScaledRawPixels;
+			ensure(ScaledWidth <= std::numeric_limits<int16>::max());
+			ensure(ScaledHeight <= std::numeric_limits<int16>::max());
 
+			TArray<uint8> ScaledRawPixels;
 			if (OutRenderData.bIsGrayscale)
 			{
 				check(BytesPerPixel == 1);
@@ -699,8 +705,8 @@ bool FSlateFontRenderer::GetRenderDataInternal(const FFreeTypeFaceGlyphData& InF
 				SlateFontRendererUtils::ResizeFontBitmap<4>(OutRenderData.SizeX, OutRenderData.SizeY, OutRenderData.RawPixels, ScaledWidth, ScaledHeight, ScaledRawPixels);
 			}
 
-			OutRenderData.SizeX = ScaledWidth;
-			OutRenderData.SizeY = ScaledHeight;
+			OutRenderData.SizeX = (int16)ScaledWidth;
+			OutRenderData.SizeY = (int16)ScaledHeight;
 			OutRenderData.RawPixels = MoveTemp(ScaledRawPixels);
 		}
 
@@ -709,8 +715,12 @@ bool FSlateFontRenderer::GetRenderDataInternal(const FFreeTypeFaceGlyphData& InF
 		ScaledOutlineSize = 0.0f;
 	}
 
-	OutRenderData.HorizontalOffset = FMath::RoundToInt(Slot->bitmap_left * BitmapAtlasScale);
-	OutRenderData.VerticalOffset = FMath::RoundToInt(Slot->bitmap_top + ScaledOutlineSize) * BitmapAtlasScale;
+	const int32 HorizontalOffset = FMath::RoundToInt(Slot->bitmap_left * BitmapAtlasScale);
+	const int32 VerticalOffset = FMath::RoundToInt(Slot->bitmap_top + ScaledOutlineSize) * BitmapAtlasScale;
+	ensure(HorizontalOffset <= std::numeric_limits<int16>::max());
+	ensure(VerticalOffset <= std::numeric_limits<int16>::max());
+	OutRenderData.HorizontalOffset = (int16)HorizontalOffset;
+	OutRenderData.VerticalOffset = (int16)VerticalOffset;
 
 	return true;
 }

@@ -259,7 +259,7 @@ public:
 	/**
 	 * Gets the memory size of the loaded font or 0 if the font is streamed
 	 */
-	FORCEINLINE uint32 GetAllocatedMemorySize() const
+	FORCEINLINE SIZE_T GetAllocatedMemorySize() const
 	{
 #if WITH_FREETYPE
 		return Memory.IsValid() ? Memory->GetData().GetAllocatedSize() : 0;

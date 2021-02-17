@@ -60,7 +60,7 @@ void FSlateApplicationBase::GetSafeZoneSize(FMargin& SafeZone, const FVector2D& 
 	{
 		FDisplayMetrics Metrics;
 		GetCachedDisplayMetrics(Metrics);
-		ContainerSize = FVector2D(Metrics.PrimaryDisplayWidth, Metrics.PrimaryDisplayHeight);
+		ContainerSize = FVector2D((float)Metrics.PrimaryDisplayWidth, (float)Metrics.PrimaryDisplayHeight);
 	}
 
 	FMargin SafeZoneRatio;

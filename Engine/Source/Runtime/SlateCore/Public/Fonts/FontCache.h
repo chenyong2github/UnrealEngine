@@ -417,7 +417,7 @@ private:
 			return (GlyphDataArray.IsValidIndex(InternalIndex)) ? &GlyphDataArray[InternalIndex] : nullptr;
 		}
 
-		FORCEINLINE uint32 GetAllocatedSize() const
+		FORCEINLINE SIZE_T GetAllocatedSize() const
 		{
 			return GlyphDataArray.GetAllocatedSize();
 		}
