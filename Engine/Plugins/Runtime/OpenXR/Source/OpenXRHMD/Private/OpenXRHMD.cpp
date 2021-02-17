@@ -1298,11 +1298,6 @@ void FOpenXRHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHIC
 	{
 		SpectatorScreenController->UpdateSpectatorScreenMode_RenderThread();
 	}
-
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
-	{
-		OnBeginRendering_RHIThread();
-	});
 }
 
 bool FOpenXRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
@@ -2101,15 +2096,20 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 				DepthSwapchain->IncrementSwapChainIndex_RHIThread();
 			}
 		}
+
+		RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+		{
+			OnBeginRendering_RHIThread();
+		});
 	}
 
 	// Snapshot new poses for late update.
 	UpdateDeviceLocations(false);
 }
 
-void FOpenXRHMD::OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeTransform)
+void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform)
 {
-	FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(NewRelativeTransform);
+	FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(RHICmdList, NewRelativeTransform);
 
 	ensure(IsInRenderingThread());
 	FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
@@ -2124,6 +2124,11 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeT
 		FTransform EyePose = ToFTransform(View.pose, GetWorldToMetersScale());
 		Projection.pose = ToXrPose(EyePose * NewRelativeTransform, GetWorldToMetersScale());
 	}
+
+	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+	{
+		PipelinedLayerStateRHI.ProjectionLayers = PipelinedLayerStateRendering.ProjectionLayers;
+	});
 }
 
 void FOpenXRHMD::OnBeginRendering_GameThread()
@@ -2226,7 +2231,9 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 			if (SessionState.state == XR_SESSION_STATE_READY)
 			{
 				if (!GIsEditor)
+				{
 					GEngine->SetMaxFPS(0);
+				}
 				bIsReady = true;
 				StartSession();
 			}
@@ -2241,15 +2248,19 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 			else if (SessionState.state == XR_SESSION_STATE_STOPPING)
 			{
 				if (!GIsEditor)
+				{
 					GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
+				}
 				bIsReady = false;
 				StopSession();
 			}
 			else if (SessionState.state == XR_SESSION_STATE_EXITING)
 			{
-				// We need to make sure we unlock the frame rate again when exiting VR while idle
+				// We need to make sure we unlock the frame rate again when exiting stereo while idle
 				if (!GIsEditor)
+				{
 					GEngine->SetMaxFPS(0);
+				}
 			}
 
 			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)

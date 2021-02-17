@@ -121,7 +121,7 @@ FVector2D FHeadMountedDisplayBase::GetEyeCenterPoint_RenderThread(EStereoscopicP
 	return CenterPoint;
 }
 
-void FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeTransform)
+void FHeadMountedDisplayBase::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform)
 {
 	if (DefaultStereoLayers.IsValid())
 	{

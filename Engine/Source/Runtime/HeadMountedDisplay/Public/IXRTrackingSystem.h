@@ -402,7 +402,7 @@ public:
 	/**
 	 * Called just after the late update on the render thread passing back the current relative transform.
 	 */
-	virtual void OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeTransform) {}
+	virtual void OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform) {}
 
 	/**
 	 * Platform Agnostic Query about HMD details
