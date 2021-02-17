@@ -1052,11 +1052,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Animation")
 	void ClearMorphTargets();
 
-	/** 
-	 * Returns degree of the angle betwee velocity and Rotation forward vector
-	 * The range of return will be from [-180, 180], and this can be used to feed blendspace directional value
-	 */
-	UFUNCTION(BlueprintCallable, Category="Animation")
+	UE_DEPRECATED(5.0, "Please use UKismetAnimationLibrary::CalculateDirection instead")
 	float CalculateDirection(const FVector& Velocity, const FRotator& BaseRotation) const;
 
 	//--- AI communication start ---//

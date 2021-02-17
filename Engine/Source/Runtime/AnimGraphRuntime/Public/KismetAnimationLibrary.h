@@ -215,6 +215,15 @@ class ANIMGRAPHRUNTIME_API UKismetAnimationLibrary : public UBlueprintFunctionLi
 	UFUNCTION(BlueprintCallable, Category = "Utilities|Animation", meta = (DisplayName = "End Profiling Timer"))
 	static float K2_EndProfilingTimer(bool bLog = true, const FString& LogPrefix = "");
 
+	/** 
+	 * Returns degree of the angle between Velocity and Rotation forward vector
+	 * The range of return will be from [-180, 180]. Useful for feeding directional blendspaces.
+	 * @param	Velocity		The velocity to use as direction relative to BaseRotation
+	 * @param	BaseRotation	The base rotation, e.g. of a pawn
+	 */
+	UFUNCTION(BlueprintPure, Category="Utilities|Animation", meta = (BlueprintThreadSafe))
+	static float CalculateDirection(const FVector& Velocity, const FRotator& BaseRotation);
+
 private:
 
 	struct FK2ProfilingTimer
