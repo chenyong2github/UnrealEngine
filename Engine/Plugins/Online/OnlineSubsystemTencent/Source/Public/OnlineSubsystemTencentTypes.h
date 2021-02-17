@@ -27,6 +27,9 @@ using TRailIdMap = TMap<rail::RailID, ValueType, FDefaultSetAllocator, FRailIdKe
 /** Key/Value pairs stored per user on the Rail platform */
 using FMetadataPropertiesRail = FOnlineKeyValuePairs<FString, FVariantData>;
 
+using FUniqueNetIdRailRef = TSharedRef<const class FUniqueNetIdRail, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdRailPtr = TSharedPtr<const class FUniqueNetIdRail, UNIQUENETID_ESPMODE>;
+
 /**
  * Rail specific implementation of the unique net id
  */
@@ -51,6 +54,12 @@ PACKAGE_SCOPE:
 	}
 
 public:
+	template<typename... TArgs>
+	static FUniqueNetIdRailRef Create(TArgs&&... Args)
+	{
+		return MakeShareable(new FUniqueNetIdRail(Forward<TArgs>(Args)...));
+	}
+
 	/**
 	 * Constructs this object with the specified net id
 	 *
@@ -129,9 +138,9 @@ public:
 	}
 
 	/** global static instance of invalid (zero) id */
-	static const TSharedRef<const FUniqueNetId>& EmptyId()
+	static const FUniqueNetIdRef& EmptyId()
 	{
-		static const TSharedRef<const FUniqueNetId> EmptyId(MakeShared<FUniqueNetIdRail>(rail::kInvalidRailId));
+		static const FUniqueNetIdRef EmptyId(Create(rail::kInvalidRailId));
 		return EmptyId;
 	}
 
@@ -191,14 +200,14 @@ private:
 PACKAGE_SCOPE:
 
 	/** UniqueId assigned to this session */
-	TSharedPtr<const FUniqueNetIdString> SessionId;
+	FUniqueNetIdStringPtr SessionId;
 
 public:
 
 	/** Default constructor (for LAN and soon to be serialized values) */
 	FOnlineSessionInfoTencent();
 	/** Constructor for sessions that represent an advertised session */
-	FOnlineSessionInfoTencent(const TSharedPtr<const FUniqueNetIdString>& InSessionId);
+	FOnlineSessionInfoTencent(const FUniqueNetIdStringPtr& InSessionId);
 
 	~FOnlineSessionInfoTencent() = default;
 
@@ -231,7 +240,7 @@ public:
 
 	virtual int32 GetSize() const override
 	{
-		return sizeof(TSharedPtr<const FUniqueNetIdString>);
+		return sizeof(FUniqueNetIdStringPtr);
 	}
 
 	virtual bool IsValid() const override

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/CoreOnlineFwd.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineKeyValuePair.h"
 
@@ -18,20 +19,27 @@ ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineTournament, Display, Al
 	UE_CLOG(Conditional, LogOnlineTournament, Verbosity, TEXT("%s%s"), ONLINE_LOG_PREFIX, *FString::Printf(Format, ##__VA_ARGS__)); \
 }
 
-class FUniqueNetId;
 struct FOnlineError;
 
 /** UniqueNetId of a tournament */
 using FOnlineTournamentId = FUniqueNetId;
+using FOnlineTournamentIdRef = FUniqueNetIdRef;
+using FOnlineTournamentIdPtr = FUniqueNetIdPtr;
 
 /** UniqueNetId of a match in a tournament */
 using FOnlineTournamentMatchId = FUniqueNetId;
+using FOnlineTournamentMatchIdRef = FUniqueNetIdRef;
+using FOnlineTournamentMatchIdPtr = FUniqueNetIdPtr;
 
 /** UniqueNetId of a participant (Player or team) in a tournament */
 using FOnlineTournamentParticipantId = FUniqueNetId;
+using FOnlineTournamentParticipantIdRef = FUniqueNetIdRef;
+using FOnlineTournamentParticipantIdPtr = FUniqueNetIdPtr;
 
 /** UniqueNetId of a team in a tournament */
-using FOnlineTournamentTeamId = FOnlineTournamentParticipantId;
+using FOnlineTournamentTeamId = FUniqueNetId;
+using FOnlineTournamentTeamIdRef = FUniqueNetIdRef;
+using FOnlineTournamentTeamIdPtr = FUniqueNetIdPtr;
 
 /**
  * What format the tournament is being run as
@@ -220,7 +228,6 @@ inline FString LexToString(const EOnlineTournamentParticipantType ParticipantTyp
  */
 struct FOnlineTournamentQueryFilter
 {
-public:
 	/** What direction to sort these results by (useful when specifying limits and offsetts)*/
 	enum class EOnlineTournamentSortDirection : uint8
 	{
@@ -235,9 +242,9 @@ public:
 	/** Filter tournament information that does not match this tournament format */
 	TOptional<EOnlineTournamentFormat> Format;
 	/** Only include tournament information that includes this team (on team tournaments) */
-	TOptional<TSharedRef<const FOnlineTournamentTeamId>> TeamId;
+	TOptional<FOnlineTournamentTeamIdRef> TeamId;
 	/** Only include tournament information that includes this player */
-	TOptional<TSharedRef<const FUniqueNetId>> PlayerId;
+	TOptional<FUniqueNetIdRef> PlayerId;
 	/** Limit the results to this many entries */
 	TOptional<uint32> Limit;
 	/** Start the results this many entries in */
@@ -251,19 +258,17 @@ public:
  */
 struct FOnlineTournamentScore
 {
-public:
 	virtual ~FOnlineTournamentScore() = default;
 
-	FOnlineTournamentScore(const TSharedRef<const FOnlineTournamentParticipantId> InParticipantId, const EOnlineTournamentParticipantType InParticipantType, const FVariantData& InScore)
+	FOnlineTournamentScore(const FOnlineTournamentParticipantIdRef& InParticipantId, const EOnlineTournamentParticipantType InParticipantType, const FVariantData& InScore)
 		: ParticipantId(InParticipantId)
 		, ParticipantType(InParticipantType)
 		, Score(InScore)
 	{
 	}
 
-public:
 	/** The ParticipantId who achieved Score */
-	TSharedRef<const FOnlineTournamentParticipantId> ParticipantId;
+	FOnlineTournamentParticipantIdRef ParticipantId;
 	/** The type of participant this is */
 	EOnlineTournamentParticipantType ParticipantType;
 	/** The score for this participant */
@@ -275,10 +280,8 @@ public:
  */
 struct FOnlineTournamentMatchResults
 {
-public:
 	struct FOnlineTournamentScreenshotData
 	{
-	public:
 		FOnlineTournamentScreenshotData(const FString& InScreenshotFormat, const TArray<uint8>& InScreenshotData)
 			: ScreenshotFormat(InScreenshotFormat)
 			, ScreenshotData(InScreenshotData)
@@ -291,14 +294,12 @@ public:
 		{
 		}
 
-	public:
 		/** The format of the screenshot stored in ScreenshotData */
 		FString ScreenshotFormat;
 		/** Raw bytes of a screenshot in the ScreenshotFormat format */
 		TArray<uint8> ScreenshotData;
 	};
 
-public:
 	/** Score data to submit */
 	TArray<FOnlineTournamentScore> ScoresToSubmit;
 
@@ -314,13 +315,12 @@ public:
 struct IOnlineTournamentTeamDetails
 	: public TSharedFromThis<IOnlineTournamentTeamDetails>
 {
-public:
 	virtual ~IOnlineTournamentTeamDetails() = default;
 
 	/** Get the TeamId of this team */
-	virtual TSharedRef<const FOnlineTournamentTeamId> GetTeamId() const = 0;
+	virtual FOnlineTournamentTeamIdRef GetTeamId() const = 0;
 	/** Get the player ids of this team (if they are known) */
-	virtual TOptional<TArray<TSharedRef<const FUniqueNetId>>> GetPlayerIds() const = 0;
+	virtual TOptional<TArray<FUniqueNetIdRef>> GetPlayerIds() const = 0;
 	/** Get the display name of this Team */
 	virtual FString GetDisplayName() const = 0;
 	/** Get an attribute for this team (varies by online platform) */
@@ -337,7 +337,6 @@ struct FOnlineTournamentParticipantQueryFilter
 	{
 	}
 
-public:
 	EOnlineTournamentParticipantType ParticipantType;
 	TOptional<uint32> Limit;
 	TOptional<uint32> Offset;
@@ -403,15 +402,14 @@ inline FString LexToString(const EOnlineTournamentParticipantState ParticipantTy
 struct IOnlineTournamentParticipantDetails
 	: public TSharedFromThis<IOnlineTournamentParticipantDetails>
 {
-public:
 	virtual ~IOnlineTournamentParticipantDetails() = default;
 
 	/** Get the Tournament ID this participant is from */
-	virtual TSharedRef<const FOnlineTournamentId> GetTournamentId() const = 0;
+	virtual FOnlineTournamentIdRef GetTournamentId() const = 0;
 	/** Get the Player ID of this tournament participant (if applicable) */
-	virtual TSharedPtr<const FUniqueNetId> GetPlayerId() const = 0;
+	virtual FUniqueNetIdPtr GetPlayerId() const = 0;
 	/** Get the Team ID of this tournament participant (if applicable) */
-	virtual TSharedPtr<const FOnlineTournamentTeamId> GetTeamId() const = 0;
+	virtual FOnlineTournamentTeamIdPtr GetTeamId() const = 0;
 	/** Get the display name of this participant */
 	virtual const FString& GetDisplayName() const = 0;
 	/** Get the current state of the tournament participant */
@@ -476,12 +474,10 @@ inline FString LexToString(const EOnlineTournamentMatchState ParticipantType)
 struct IOnlineTournamentMatchDetails
 	: public TSharedFromThis<IOnlineTournamentMatchDetails>
 {
-public:
-
 	virtual ~IOnlineTournamentMatchDetails() = default;
 
 	/** Get the MatchId for this match*/
-	virtual TSharedRef<const FOnlineTournamentMatchId> GetMatchId() const = 0;
+	virtual FOnlineTournamentMatchIdRef GetMatchId() const = 0;
 	/** Get the type of participants for this match */
 	virtual EOnlineTournamentParticipantType GetParticipantType() const = 0;
 	/** Get the current state of this match */
@@ -504,11 +500,10 @@ public:
 struct IOnlineTournamentDetails
 	: public TSharedFromThis<IOnlineTournamentDetails>
 {
-public:
 	virtual ~IOnlineTournamentDetails() = default;
 
 	/** Get the Tournament ID for this tournament */
-	virtual TSharedRef<const FOnlineTournamentId> GetTournamentId() const = 0;
+	virtual FOnlineTournamentIdRef GetTournamentId() const = 0;
 	/** Get the Title for this tournament */
 	virtual const FString& GetTitle() const = 0;
 	/** Get the Description for this tournament */
@@ -545,7 +540,7 @@ public:
  * @param ResultStatus The result of the query
  * @param TournamentIds An optional array of Tournament IDs
  */
-DECLARE_DELEGATE_TwoParams(FOnlineTournamentQueryTournamentListComplete, const FOnlineError& /*ResultStatus*/, const TOptional<TArray<TSharedRef<const FOnlineTournamentId>>>& /*TournamentIds*/);
+DECLARE_DELEGATE_TwoParams(FOnlineTournamentQueryTournamentListComplete, const FOnlineError& /*ResultStatus*/, const TOptional<TArray<FOnlineTournamentIdRef>>& /*TournamentIds*/);
 
 /**
  * A delegate for when tournament details have finished being queried.
@@ -561,7 +556,7 @@ DECLARE_DELEGATE_TwoParams(FOnlineTournamentQueryTournamentDetailsComplete, cons
  * @param ResultStatus The result of the query
  * @param MatchIds An optional array of Match Ids
  */
-DECLARE_DELEGATE_TwoParams(FOnlineTournamentQueryMatchListComplete, const FOnlineError& /*ResultStatus*/, const TOptional<TArray<TSharedRef<const FOnlineTournamentMatchId>>>& /*MatchIds*/);
+DECLARE_DELEGATE_TwoParams(FOnlineTournamentQueryMatchListComplete, const FOnlineError& /*ResultStatus*/, const TOptional<TArray<FOnlineTournamentMatchIdRef>>& /*MatchIds*/);
 
 /**
  * A delegate for when match details have finished being queried.
@@ -605,7 +600,7 @@ using FAdditionalMetaDataMap = TMap<FName, FString>;
  * @param TournamentId The ID of the tournament joined
  * @param AdditonalData A map of additional platform-specific data that was provided when this event was triggered
  */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnOnlineTournamentTournamentJoined, const TSharedRef<const FUniqueNetId> /*UserId*/, const TSharedRef<const FOnlineTournamentId> /*TournamentId*/, const FAdditionalMetaDataMap& /*AdditionalData*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnOnlineTournamentTournamentJoined, const FUniqueNetIdRef /*UserId*/, const FOnlineTournamentIdRef /*TournamentId*/, const FAdditionalMetaDataMap& /*AdditionalData*/);
 using FOnOnlineTournamentTournamentJoinedDelegate = FOnOnlineTournamentTournamentJoined::FDelegate;
 
 /**
@@ -615,7 +610,7 @@ using FOnOnlineTournamentTournamentJoinedDelegate = FOnOnlineTournamentTournamen
  * @param MatchId The ID of the match joined
  * @param AdditonalData A map of additional platform-specific data that was provided when this event was triggered
  */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnOnlineTournamentMatchJoined, const TSharedRef<const FUniqueNetId> /*UserId*/, const TSharedRef<const FOnlineTournamentMatchId> /*MatchId*/, const FAdditionalMetaDataMap& /*AdditionalData*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnOnlineTournamentMatchJoined, const FUniqueNetIdRef /*UserId*/, const FOnlineTournamentMatchIdRef /*MatchId*/, const FAdditionalMetaDataMap& /*AdditionalData*/);
 using FOnOnlineTournamentMatchJoinedDelegate = FOnOnlineTournamentMatchJoined::FDelegate;
 
 /**
@@ -634,7 +629,7 @@ public:
 	 * @param QueryFilter The filter to user to include/exclude tournaments from the list.  One or more options MAY be required, depending on the online platform.
 	 * @param Delegate A delegate that is called when our tournament list query is complete
 	 */
-	virtual void QueryTournamentList(const TSharedRef<const FUniqueNetId> UserId, const FOnlineTournamentQueryFilter& QueryFilter, const FOnlineTournamentQueryTournamentListComplete& Delegate) = 0;
+	virtual void QueryTournamentList(const FUniqueNetIdRef UserId, const FOnlineTournamentQueryFilter& QueryFilter, const FOnlineTournamentQueryTournamentListComplete& Delegate) = 0;
 
 	/**
 	 * Get a list of all Tournament IDs that have been queried by the specified user.
@@ -642,7 +637,7 @@ public:
 	 * @param UserId A User who previously queried tournaments
 	 * @return If previously queried by this user, an array of results from the query.
 	 */
-	virtual TArray<TSharedRef<const FOnlineTournamentId>> GetTournamentList(const TSharedRef<const FUniqueNetId> UserId) const = 0;
+	virtual TArray<FOnlineTournamentIdRef> GetTournamentList(const FUniqueNetIdRef UserId) const = 0;
 
 	/**
 	 * Query tournament details from the perspective of the specified user.
@@ -651,7 +646,7 @@ public:
 	 * @param TournamentIds An array of Tournament IDs to get more information about
 	 * @param Delegate A delegate that is called when our tournament details query is complete
 	 */
-	virtual void QueryTournamentDetails(const TSharedRef<const FUniqueNetId> UserId, const TArray<TSharedRef<const FOnlineTournamentId>>& TournamentIds, const FOnlineTournamentQueryTournamentDetailsComplete& Delegate) = 0;
+	virtual void QueryTournamentDetails(const FUniqueNetIdRef UserId, const TArray<FOnlineTournamentIdRef>& TournamentIds, const FOnlineTournamentQueryTournamentDetailsComplete& Delegate) = 0;
 
 	/**
 	 * Get a tournament details result for a tournament that had been previously queried by the specified user.
@@ -660,7 +655,7 @@ public:
 	 * @param TournamentId The Tournament ID that previously had details queried by UserId
 	 * @return If this tournament was previously queried by this user, the result from the query.
 	 */
-	virtual TSharedPtr<const IOnlineTournamentDetails> GetTournamentDetails(const TSharedRef<const FUniqueNetId> UserId, const TSharedRef<const FOnlineTournamentId> TournamentId) const = 0;
+	virtual TSharedPtr<const IOnlineTournamentDetails> GetTournamentDetails(const FUniqueNetIdRef UserId, const FOnlineTournamentIdRef TournamentId) const = 0;
 
 	/**
 	 * Get tournament detail results for specified tournaments that have been previously queried by the specified user.
@@ -669,7 +664,7 @@ public:
 	 * @param TournamentId The Tournament ID that previously had details queried by UserId
 	 * @return If tournaments have been previously queried by this user, any matching tournaments from the results are of those queries.
 	 */
-	virtual TArray<TSharedPtr<const IOnlineTournamentDetails>> GetTournamentDetails(const TSharedRef<const FUniqueNetId> UserId, const TArray<TSharedRef<const FOnlineTournamentId>>& TournamentIds) const = 0;
+	virtual TArray<TSharedPtr<const IOnlineTournamentDetails>> GetTournamentDetails(const FUniqueNetIdRef UserId, const TArray<FOnlineTournamentIdRef>& TournamentIds) const = 0;
 
 	/**
 	 * Query a list of matches for a tournament from the perspective of the specified user.
@@ -678,7 +673,7 @@ public:
 	 * @param TournamentId The Tournament ID to get Match IDs from
 	 * @param Delegate A delegate that is called when our match list query is complete
 	 */
-	virtual void QueryMatchList(const TSharedRef<const FUniqueNetId> UserId, const TSharedRef<const FOnlineTournamentId> TournamentId, const FOnlineTournamentQueryMatchListComplete& Delegate) = 0;
+	virtual void QueryMatchList(const FUniqueNetIdRef UserId, const FOnlineTournamentIdRef TournamentId, const FOnlineTournamentQueryMatchListComplete& Delegate) = 0;
 
 	/**
 	 * Get match detail results for that have been previously queried by the specified user.
@@ -687,7 +682,7 @@ public:
 	 * @param TournamentId The Tournament ID that previously had match results queried by UserId
 	 * @return If tournaments have been previously queried by this user, all results of those queries.
 	 */
-	virtual TArray<TSharedRef<const FOnlineTournamentMatchId>> GetMatchList(const TSharedRef<const FUniqueNetId> UserId, const TSharedRef<const FOnlineTournamentId> TournamentId) const = 0;
+	virtual TArray<FOnlineTournamentMatchIdRef> GetMatchList(const FUniqueNetIdRef UserId, const FOnlineTournamentIdRef TournamentId) const = 0;
 
 	/**
 	 * Query match details for a tournament from the perspective of the specified user.
@@ -696,7 +691,7 @@ public:
 	 * @param MatchId The Match IDs to get more information about
 	 * @param Delegate A delegate that is called when our match details query is complete
 	 */
-	virtual void QueryMatchDetails(const TSharedRef<const FUniqueNetId> UserId, const TArray<TSharedRef<const FOnlineTournamentMatchId>>& MatchIds, const FOnlineTournamentQueryMatchDetailsComplete& Delegate) = 0;
+	virtual void QueryMatchDetails(const FUniqueNetIdRef UserId, const TArray<FOnlineTournamentMatchIdRef>& MatchIds, const FOnlineTournamentQueryMatchDetailsComplete& Delegate) = 0;
 
 	/**
 	 * Get a match's details that have been previously queried by the specified user.
@@ -705,7 +700,7 @@ public:
 	 * @param MatchId The Match ID that previously had details queried by UserId
 	 * @return If this match has been previously queried by this user, the result is of that query.
 	 */
-	virtual TSharedPtr<const IOnlineTournamentMatchDetails> GetMatchDetails(const TSharedRef<const FUniqueNetId> UserId, const TSharedRef<const FOnlineTournamentMatchId> MatchId) const = 0;
+	virtual TSharedPtr<const IOnlineTournamentMatchDetails> GetMatchDetails(const FUniqueNetIdRef UserId, const FOnlineTournamentMatchIdRef MatchId) const = 0;
 
 	/**
 	 * Get match details that have been previously queried by the specified user.
@@ -714,7 +709,7 @@ public:
 	 * @param MatchIds Match ids that previously had details queried by UserId
 	 * @return If matches have been previously queried by this user, any matching matches from the results are of those queries.
 	 */
-	virtual TArray<TSharedPtr<const IOnlineTournamentMatchDetails>> GetMatchDetails(const TSharedRef<const FUniqueNetId> UserId, const TArray<TSharedRef<const FOnlineTournamentMatchId>>& MatchIds) const = 0;
+	virtual TArray<TSharedPtr<const IOnlineTournamentMatchDetails>> GetMatchDetails(const FUniqueNetIdRef UserId, const TArray<FOnlineTournamentMatchIdRef>& MatchIds) const = 0;
 
 	/**
 	 * Query a list of participants for a tournament from the perspective of the specified user.
@@ -726,7 +721,7 @@ public:
 	 * @param QueryFilter Filter to use to query participants.
 	 * @param Delegate A delegate that is called when our match list query is complete
 	 */
-	virtual void QueryParticipantList(const TSharedRef<const FUniqueNetId> UserId, const TSharedRef<const FOnlineTournamentId> TournamentId, const FOnlineTournamentParticipantQueryFilter& QueryFilter, const FOnlineTournamentQueryParticipantListComplete& Delegate) = 0;
+	virtual void QueryParticipantList(const FUniqueNetIdRef UserId, const FOnlineTournamentIdRef TournamentId, const FOnlineTournamentParticipantQueryFilter& QueryFilter, const FOnlineTournamentQueryParticipantListComplete& Delegate) = 0;
 
 	/**
 	 * Get Participant details that have been previously queried by the specified user.
@@ -736,7 +731,7 @@ public:
 	 * @param ParticipantType The type of IDs to return from this tournament.  This type must have been previously queried.
 	 * @return If results have previously previously been queried by this user, the results of that query.
 	 */
-	virtual TArray<TSharedRef<const IOnlineTournamentParticipantDetails>> GetParticipantList(const TSharedRef<const FUniqueNetId> UserId, const TSharedRef<const FOnlineTournamentId> TournamentId, const EOnlineTournamentParticipantType ParticipantType) const = 0;
+	virtual TArray<TSharedRef<const IOnlineTournamentParticipantDetails>> GetParticipantList(const FUniqueNetIdRef UserId, const FOnlineTournamentIdRef TournamentId, const EOnlineTournamentParticipantType ParticipantType) const = 0;
 
 	/**
 	 * Query team details from the perspective of the specified user.
@@ -745,7 +740,7 @@ public:
 	 * @param TeamId The Team IDs to get more information about
 	 * @param Delegate A delegate that is called when our team details query is complete
 	 */
-	virtual void QueryTeamDetails(const TSharedRef<const FUniqueNetId> UserId, const TArray<TSharedRef<const FOnlineTournamentTeamId>>& TeamIds, const FOnlineTournamentQueryTeamDetailsComplete& Delegate) = 0;
+	virtual void QueryTeamDetails(const FUniqueNetIdRef UserId, const TArray<FOnlineTournamentTeamIdRef>& TeamIds, const FOnlineTournamentQueryTeamDetailsComplete& Delegate) = 0;
 
 	/**
 	 * Get a teams's details that have been previously queried by the specified user.
@@ -754,7 +749,7 @@ public:
 	 * @param TeamId The Team ID that previously had details queried by UserId
 	 * @return If this team has been previously queried by this user, the result is of that query.
 	 */
-	virtual TSharedPtr<const IOnlineTournamentTeamDetails> GetTeamDetails(const TSharedRef<const FUniqueNetId> UserId, const TSharedRef<const FOnlineTournamentTeamId> TeamId) const = 0;
+	virtual TSharedPtr<const IOnlineTournamentTeamDetails> GetTeamDetails(const FUniqueNetIdRef UserId, const FOnlineTournamentTeamIdRef TeamId) const = 0;
 
 	/**
 	 * Get team details that have been previously queried by the specified user.
@@ -763,7 +758,7 @@ public:
 	 * @param TeamIds The Team ID that previously had details queried by UserId
 	 * @return If teams have been previously queried by this user, any matching teams from the results are of those queries.
 	 */
-	virtual TArray<TSharedPtr<const IOnlineTournamentTeamDetails>> GetTeamDetails(const TSharedRef<const FUniqueNetId> UserId, const TArray<TSharedRef<const FOnlineTournamentTeamId>>& TeamIds) const = 0;
+	virtual TArray<TSharedPtr<const IOnlineTournamentTeamDetails>> GetTeamDetails(const FUniqueNetIdRef UserId, const TArray<FOnlineTournamentTeamIdRef>& TeamIds) const = 0;
 
 	/**
 	 * Submit match results for a tournament match.
@@ -773,7 +768,7 @@ public:
 	 * @param MatchResults The results of the match
 	 * @param Delegate A delegate that is called when our match stats submissions is complete
 	 */
-	virtual void SubmitMatchResults(const TSharedRef<const FUniqueNetId> UserId, const TSharedRef<const FOnlineTournamentMatchId> MatchId, const FOnlineTournamentMatchResults& MatchResults, const FOnlineTournamentSubmitMatchResultsComplete& Delegate) = 0;
+	virtual void SubmitMatchResults(const FUniqueNetIdRef UserId, const FOnlineTournamentMatchIdRef MatchId, const FOnlineTournamentMatchResults& MatchResults, const FOnlineTournamentSubmitMatchResultsComplete& Delegate) = 0;
 
 	/**
 	 * Register for updates when a tournament has been joined
@@ -805,12 +800,12 @@ public:
 
 #if !UE_BUILD_SHIPPING
 	/** Print all cached tournament information into the logs */
-	virtual void DumpCachedTournamentInfo(const TSharedRef<const FUniqueNetId> UserId) const = 0;
+	virtual void DumpCachedTournamentInfo(const FUniqueNetIdRef UserId) const = 0;
 	/** Print all cached match information into the logs */
-	virtual void DumpCachedMatchInfo(const TSharedRef<const FUniqueNetId> UserId) const = 0;
+	virtual void DumpCachedMatchInfo(const FUniqueNetIdRef UserId) const = 0;
 	/** Print all cached participant information into the logs */
-	virtual void DumpCachedParticipantInfo(const TSharedRef<const FUniqueNetId> UserId) const = 0;
+	virtual void DumpCachedParticipantInfo(const FUniqueNetIdRef UserId) const = 0;
 	/** Print all cached team information into the logs */
-	virtual void DumpCachedTeamInfo(const TSharedRef<const FUniqueNetId> UserId) const = 0;
+	virtual void DumpCachedTeamInfo(const FUniqueNetIdRef UserId) const = 0;
 #endif // !UE_BUILD_SHIPPING
 };

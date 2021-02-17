@@ -796,7 +796,7 @@ public:
 	 *
 	 * @return true if they are an exact match, false otherwise
 	 */
-	bool operator()(const TSharedPtr<const FUniqueNetId>& Candidate) const
+	bool operator()(const FUniqueNetIdPtr& Candidate) const
 	{
 		return UniqueIdTarget == *Candidate;
 	}
@@ -806,7 +806,7 @@ public:
 	 *
 	 * @return true if they are an exact match, false otherwise
 	 */
-	bool operator()(const TSharedRef<const FUniqueNetId>& Candidate) const
+	bool operator()(const FUniqueNetIdRef& Candidate) const
 	{
 		return UniqueIdTarget == *Candidate;
 	}
@@ -814,6 +814,9 @@ public:
 
 // placeholder "type" until we can make FUniqueNetIdString sufficiently abstract
 static FName NAME_Unset = TEXT("UNSET");
+
+using FUniqueNetIdStringRef = TSharedRef<const class FUniqueNetIdString, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdStringPtr = TSharedPtr<const class FUniqueNetIdString, UNIQUENETID_ESPMODE>;
 
 /**
  * Unique net id wrapper for a string
@@ -825,6 +828,12 @@ public:
 	FString UniqueNetIdStr;
 
 	FName Type = NAME_Unset;
+	
+	template<typename... TArgs>
+	static FUniqueNetIdStringRef Create(TArgs&&... Args)
+	{
+		return MakeShareable(new FUniqueNetIdString(Forward<TArgs>(Args)...));
+	}
 
 	// Define these to increase visibility to public (from parent's protected)
 	FUniqueNetIdString() = default;
@@ -926,9 +935,16 @@ public:
 
 
 #define TEMP_UNIQUENETIDSTRING_SUBCLASS(SUBCLASSNAME, TYPE) \
+using SUBCLASSNAME##Ptr = TSharedPtr<const class SUBCLASSNAME, UNIQUENETID_ESPMODE>; \
+using SUBCLASSNAME##Ref = TSharedRef<const class SUBCLASSNAME, UNIQUENETID_ESPMODE>; \
 class SUBCLASSNAME : public FUniqueNetIdString \
 { \
 public: \
+	template<typename... TArgs> \
+	static SUBCLASSNAME##Ref Create(TArgs&&... Args) \
+	{ \
+		return MakeShareable(new SUBCLASSNAME(Forward<TArgs>(Args)...)); \
+	} \
 	SUBCLASSNAME() \
 		: FUniqueNetIdString()	 \
 	{ \
@@ -951,11 +967,10 @@ public: \
 	{ \
 		return ::GetTypeHash(A.UniqueNetIdStr); \
 	} \
-	static const TSharedRef<const SUBCLASSNAME>& EmptyId() \
+	static const SUBCLASSNAME##Ref& EmptyId() \
 	{ \
-		static const TSharedRef<const SUBCLASSNAME> EmptyId = MakeShared<const SUBCLASSNAME>(FString()); \
+		static const SUBCLASSNAME##Ref EmptyId = SUBCLASSNAME::Create(); \
 		return EmptyId; \
-		\
 	} \
 };
 
@@ -1189,7 +1204,7 @@ public:
 	/** 
 	 * @return Id associated with the user account provided by the online service during registration 
 	 */
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const = 0;
+	virtual FUniqueNetIdRef GetUserId() const = 0;
 	/**
 	 * @return the real name for the user if known
 	 */

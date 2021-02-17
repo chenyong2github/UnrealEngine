@@ -83,6 +83,12 @@ PACKAGE_SCOPE:
 	}
 
 public:
+	template<typename... TArgs>
+	static FUniqueNetIdStringRef Create(TArgs&&... Args)
+	{
+		return MakeShareable(new FUniqueNetIdString(Forward<TArgs>(Args)...));
+	}
+	
 	/**
 	 * Constructs this object with the specified net id
 	 *
@@ -207,9 +213,9 @@ public:
 	}
 
 	/** global static instance of invalid (zero) id */
-	static const TSharedRef<const FUniqueNetId>& EmptyId()
+	static const FUniqueNetIdRef& EmptyId()
 	{
-		static const TSharedRef<const FUniqueNetId> EmptyId(MakeShared<FUniqueNetIdSteam>());
+		static const FUniqueNetIdRef EmptyId(Create());
 		return EmptyId;
 	}
 
@@ -299,7 +305,7 @@ PACKAGE_SCOPE:
 	/** The Steam P2P address that the host is listening on (valid for GameServer/Lobby) */
 	TSharedPtr<class FInternetAddr> SteamP2PAddr;
 	/** Steam Lobby Id or Gameserver Id if applicable */
-	FUniqueNetIdSteam SessionId;
+	FUniqueNetIdSteamRef SessionId;
 	/** How this session should be connected to */
 	FSteamConnectionMethod ConnectionMethod;
 
