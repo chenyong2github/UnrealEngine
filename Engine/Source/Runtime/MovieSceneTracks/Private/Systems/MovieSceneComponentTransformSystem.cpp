@@ -92,6 +92,43 @@ void UMovieScenePreAnimatedComponentTransformSystem::OnRun(FSystemTaskPrerequisi
 	ComponentFilter.All({ FMovieSceneTracksComponentTypes::Get()->ComponentTransform.PropertyTag });
 
 	TrackedTransforms.Update(Linker, FBuiltInComponentTypes::Get()->BoundObject, ComponentFilter);
+
+	// ---------------------------------------------------------------------------------------------------------
+	// 4.26.2: FEntityOutputAggregate::bNeedsRestoration does not update correctly when transitioning from 
+	// restore state sections to keep state sections - this hack addresses the issue in a hotfix conformant manner
+	struct FHACK_UpdateRestoreState : TOverlappingEntityTracker_BoundObject<FIntermediate3DTransform>
+	{
+		void UpdateInvalidatedRestoreStates(UMovieSceneEntitySystemLinker* InLinker)
+		{
+			FComponentTypeID RestoreStateTag = FBuiltInComponentTypes::Get()->Tags.RestoreState;
+
+			for (TConstSetBitIterator<> InvalidOutput(this->InvalidatedOutputs); InvalidOutput; ++InvalidOutput)
+			{
+				const uint16 OutputIndex = static_cast<uint16>(InvalidOutput.GetIndex());
+				RecomputeAggregateRestoreState(InLinker, OutputIndex, RestoreStateTag);
+			}
+		}
+		FORCEINLINE void RecomputeAggregateRestoreState(UMovieSceneEntitySystemLinker* InLinker, uint16 OutputIndex, FComponentTypeID RestoreStateTag)
+		{
+			auto Inputs = this->OutputToEntity.CreateConstKeyIterator(OutputIndex);
+			if (Inputs)
+			{
+				for ( ; Inputs; ++Inputs)
+				{
+					if (InLinker->EntityManager.HasComponent(Inputs.Value(), RestoreStateTag))
+					{
+						this->Outputs[OutputIndex].Aggregate.bNeedsRestoration = true;
+						return;
+					}
+				}
+
+				this->Outputs[OutputIndex].Aggregate.bNeedsRestoration = false;
+			}
+		}
+	};
+	static_cast<FHACK_UpdateRestoreState&>(TrackedTransforms).UpdateInvalidatedRestoreStates(Linker);
+	// ---------------------------------------------------------------------------------------------------------
+
 	TrackedTransforms.ProcessInvalidatedOutputs(FPreAnimatedComponentTransformHandler(this));
 }
 
