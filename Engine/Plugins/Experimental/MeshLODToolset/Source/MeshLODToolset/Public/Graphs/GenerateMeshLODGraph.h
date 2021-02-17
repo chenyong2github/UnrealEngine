@@ -57,6 +57,7 @@ public:
 	const UE::GeometryFlow::FGenerateSimpleCollisionSettings& GetCurrentGenerateSimpleCollisionSettings() const { return CurrentGenerateSimpleCollisionSettings; }
 
 	void UpdateThickenWeightMap(const TArray<float>& ThickenWeightMap);
+
 	void UpdateCollisionGroupLayerName(const FName& CollisionGroupLayerName);
 
 	void UpdateThickenSettings(const UE::GeometryFlow::FMeshThickenSettings& ThickenSettings);
