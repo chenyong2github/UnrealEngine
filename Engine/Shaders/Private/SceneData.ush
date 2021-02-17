@@ -32,7 +32,6 @@ struct FInstanceSceneData
 	uint     NaniteRuntimeResourceID;
 	uint     NaniteHierarchyOffset;
 	bool     NaniteHasImposter;
-	bool     UseInstanceData;
 	bool     CastShadows;
 	float    PerInstanceRandom;
 	float4   LightMapAndShadowMapUVBias;
@@ -99,9 +98,6 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 	InstanceData.WorldToLocal[3].xyz					= 0.0f;
 	InstanceData.WorldToLocal							= transpose(InstanceData.WorldToLocal);
 	InstanceData.WorldToLocal[3].xyz					= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
-
-	// TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
-	InstanceData.UseInstanceData						= all(InstanceData.LightMapAndShadowMapUVBias != float4(-11.0f, -22.0f, -33.0f, -44.0f));
 
 	InstanceData.CastShadows							= (Flags & 1u) != 0u;
 

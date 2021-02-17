@@ -162,7 +162,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 						(PrimitiveParams.LocalObjectBoundsMin + PrimitiveParams.LocalObjectBoundsMax) * 0.5f, 
 						PrimitiveParams.LocalObjectBoundsMax - PrimitiveParams.LocalObjectBoundsMin,
 						PrimitiveParams.NonUniformScale, PrimitiveParams.InvNonUniformScaleAndDeterminantSign, 
-						FVector4(-11.0f, -22.0f, -33.0f, -44.0f), // TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
+						FVector4(ForceInitToZero),
 						FNaniteInfo(),
 						0,
 						0xFFFFFFFFu,

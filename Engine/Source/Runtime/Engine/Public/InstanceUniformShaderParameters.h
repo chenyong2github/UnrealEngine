@@ -152,7 +152,7 @@ struct FInstanceSceneShaderData
 			FVector::ZeroVector,
 			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
 			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
-			FVector4(-11.0f, -22.0f, -33.0f, -44.0f), // TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
+			FVector4(ForceInitToZero),
 			FNaniteInfo(),
 			0,
 			0xFFFFFFFFu,

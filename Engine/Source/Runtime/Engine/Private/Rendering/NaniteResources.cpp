@@ -450,7 +450,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instance.LocalToWorld.SetIdentity();
 	Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
-	Instance.LightMapAndShadowMapUVBias = FVector4(-11.0f, -22.0f, -33.0f, -44.0f); // TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
+	Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 	Instance.PerInstanceRandom = 0;
 	Instance.Flags = 0;
 	Instance.Flags |= bCastShadow ? 1 : 0;
@@ -479,7 +479,7 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
 
 		FVector4 InstanceTransformVec[3];
-		FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(-11.0f, -22.0f, -33.0f, -44.0f); // TODO: Do something cleaner to indicate instanced LM/SM UV bias vs. uniform
+		FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 		FVector4 InstanceOrigin = FVector::ZeroVector;
 
 		if (Component->PerInstanceRenderData != nullptr && Component->PerInstanceRenderData->InstanceBuffer_GameThread != nullptr)

@@ -168,7 +168,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		const float2 LightMapUVs = LightMapCoordinateInput;
 
 		const float4 LightMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).LightMapCoordinateScaleBias;
-		if (InstanceData.UseInstanceData)
+		if (PrimitiveData.NumInstanceDataEntries > 1)
 		{
 			LightMapCoordinate = LightMapCoordinateInput * LightMapCoordinateScaleBias.xy + InstanceData.LightMapAndShadowMapUVBias.xy;
 		}
@@ -179,7 +179,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 
 	#if STATICLIGHTING_TEXTUREMASK
 		const float4 ShadowMapCoordinateScaleBias = GetLightmapData(LightMapDataIndex).ShadowMapCoordinateScaleBias;
-		if (InstanceData.UseInstanceData)
+		if (PrimitiveData.NumInstanceDataEntries > 1)
 		{
 			ShadowMapCoordinate = LightMapCoordinateInput * ShadowMapCoordinateScaleBias.xy + InstanceData.LightMapAndShadowMapUVBias.zw;
 		}
