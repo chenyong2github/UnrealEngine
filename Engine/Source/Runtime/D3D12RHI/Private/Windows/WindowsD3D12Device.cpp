@@ -503,6 +503,11 @@ void FD3D12DynamicRHIModule::FindAdapter()
 
 FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 {
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
+
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 	if (!GIsEditor && RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
 	{
@@ -510,16 +515,22 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 
 		// ES3.1 feature level emulation in D3D
 		GMaxRHIFeatureLevel = PreviewFeatureLevel;
-		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
-		{
-			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
-		}
 	}
 	else
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
+		if (RequestedFeatureLevel < ERHIFeatureLevel::Num)	
+		{
+			GMaxRHIFeatureLevel = RequestedFeatureLevel;
+		}
 	}
+
+	if (!ensure(GMaxRHIFeatureLevel < ERHIFeatureLevel::Num))
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
+	}
+	GMaxRHIShaderPlatform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
+	check(GMaxRHIShaderPlatform != SP_NumPlatforms);
 
 #if USE_PIX
 	bool bPixEventEnabled = (WindowsPixDllHandle != nullptr);
@@ -813,11 +824,6 @@ void FD3D12DynamicRHI::Init()
 	{
 		UE_LOG(LogD3D12RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
 	}
-
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
 
 	GSupportsEfficientAsyncCompute = FParse::Param(FCommandLine::Get(), TEXT("ForceAsyncCompute")) || (GRHISupportsParallelRHIExecute && IsRHIDeviceAMD());
 
