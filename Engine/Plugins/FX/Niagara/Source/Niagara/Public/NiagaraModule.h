@@ -182,7 +182,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonTwist() { return Particles_RibbonTwist; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonFacing() { return Particles_RibbonFacing; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonLinkOrder() { return Particles_RibbonLinkOrder; }
-	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonDistanceFromStart() { return Particles_RibbonDistanceFromStart; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonUVDistance() { return Particles_RibbonUVDistance; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonU0Override() { return Particles_RibbonU0Override; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonV0RangeOverride() { return Particles_RibbonV0RangeOverride; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonU1Override() { return Particles_RibbonU1Override; }
@@ -297,7 +297,7 @@ private:
 	static FNiagaraVariable Particles_RibbonFacing;
 	static FNiagaraVariable Particles_RibbonLinkOrder;
 	static FNiagaraVariable Particles_ComponentsEnabled;
-	static FNiagaraVariable Particles_RibbonDistanceFromStart;
+	static FNiagaraVariable Particles_RibbonUVDistance;
 	static FNiagaraVariable Particles_RibbonU0Override;
 	static FNiagaraVariable Particles_RibbonV0RangeOverride;
 	static FNiagaraVariable Particles_RibbonU1Override;
