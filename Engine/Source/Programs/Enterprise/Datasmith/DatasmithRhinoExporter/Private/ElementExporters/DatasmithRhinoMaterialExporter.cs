@@ -26,7 +26,7 @@ namespace DatasmithRhino.ElementExporters
 		protected override FDatasmithFacadeElement CreateElement(DatasmithMaterialInfo ElementInfo)
 		{
 			FDatasmithFacadeUEPbrMaterial DatasmithMaterial = new FDatasmithFacadeUEPbrMaterial(ElementInfo.Name);
-			DatasmithMaterial.SetLabel(ElementInfo.Label);
+			DatasmithMaterial.SetLabel(ElementInfo.UniqueLabel);
 			ParseMaterial(DatasmithMaterial, ElementInfo.RhinoMaterial);
 
 			return DatasmithMaterial;

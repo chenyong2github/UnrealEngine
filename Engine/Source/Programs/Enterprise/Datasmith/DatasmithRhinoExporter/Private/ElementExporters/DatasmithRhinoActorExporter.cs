@@ -146,7 +146,7 @@ namespace DatasmithRhino.ElementExporters
 
 		private void SyncMeshActor(FDatasmithFacadeActorMesh DatasmithMeshActor, DatasmithActorInfo InNode, DatasmithMeshInfo InMeshInfo)
 		{
-			DatasmithMeshActor.SetLabel(InNode.Label);
+			DatasmithMeshActor.SetLabel(InNode.UniqueLabel);
 
 			Transform OffsetTransform = InMeshInfo.OffsetTransform;
 			Transform WorldTransform = Transform.Multiply(InNode.WorldTransform, OffsetTransform);
@@ -191,7 +191,7 @@ namespace DatasmithRhino.ElementExporters
 
 		private static void SyncEmptyActor(DatasmithActorInfo InNode, FDatasmithFacadeActor DatasmithActor)
 		{
-			DatasmithActor.SetLabel(InNode.Label);
+			DatasmithActor.SetLabel(InNode.UniqueLabel);
 
 			float[] MatrixArray = InNode.WorldTransform.ToFloatArray(false);
 			DatasmithActor.SetWorldTransform(MatrixArray);
@@ -266,7 +266,7 @@ namespace DatasmithRhino.ElementExporters
 			LightActor.SetColor(DiffuseColor.R, DiffuseColor.G, DiffuseColor.B, DiffuseColor.A);
 			LightActor.SetIntensity(RhinoLight.Intensity * 100f);
 			LightActor.SetEnabled(RhinoLight.IsEnabled);
-			LightActor.SetLabel(InNode.Label);
+			LightActor.SetLabel(InNode.UniqueLabel);
 
 			FDatasmithFacadePointLight PointLightElement = LightActor as FDatasmithFacadePointLight;
 			if (PointLightElement != null)

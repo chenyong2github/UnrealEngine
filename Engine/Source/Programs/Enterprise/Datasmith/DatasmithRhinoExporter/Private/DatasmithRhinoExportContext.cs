@@ -26,8 +26,21 @@ namespace DatasmithRhino
 	public abstract class DatasmithInfoBase<T> where T : DatasmithInfoBase<T>
 	{
 		public Rhino.Runtime.CommonObject RhinoCommonObject { get; protected set; }
+		
+		/// <summary>
+		/// Used as a unique ID corresponding to the IDatasmithElement::Name field.
+		/// </summary>
 		public string Name { get; private set; }
-		public string Label { get; private set; }
+		
+		/// <summary>
+		/// Label corresponding to the IDatasmithElement::Label field. It is generated from the BaseLabel to ensure its unicity.
+		/// </summary>
+		public string UniqueLabel { get; private set; }
+		
+		/// <summary>
+		/// BaseLabel is used to generate the UniqueLabel. Changes to the BaseLabel are reflected on the UniqueLabel.
+		/// </summary>
+		public string BaseLabel { get; private set; }
 
 		private DirectLinkSynchronizationStatus InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Created;
 		private DirectLinkSynchronizationStatus PreviousDirectLinkStatus { get; set; } = DirectLinkSynchronizationStatus.None;
@@ -51,11 +64,12 @@ namespace DatasmithRhino
 		}
 		public FDatasmithFacadeElement ExportedElement { get; private set; } = null;
 
-		public DatasmithInfoBase(Rhino.Runtime.CommonObject InRhinoObject, string InName, string InLabel)
+		public DatasmithInfoBase(Rhino.Runtime.CommonObject InRhinoObject, string InName, string InUniqueLabel, string InBaseLabel)
 		{
 			RhinoCommonObject = InRhinoObject;
 			Name = InName;
-			Label = InLabel;
+			UniqueLabel = InUniqueLabel;
+			BaseLabel = InBaseLabel;
 		}
 
 		/// <summary>
@@ -83,7 +97,12 @@ namespace DatasmithRhino
 		public virtual void ApplyDiffs(T OtherInfo)
 		{
 			DirectLinkStatus = DirectLinkSynchronizationStatus.Modified;
-			Label = OtherInfo.Label;
+
+			if (BaseLabel != OtherInfo.BaseLabel)
+			{
+				BaseLabel = OtherInfo.BaseLabel;
+				UniqueLabel = OtherInfo.UniqueLabel;
+			}
 		}
 	}
 
@@ -148,14 +167,14 @@ namespace DatasmithRhino
 			}
 		}
 
-		public DatasmithActorInfo(Transform NodeTransform, string InName, string InLabel)
-			: base(null, InName, InLabel)
+		public DatasmithActorInfo(Transform NodeTransform, string InName, string InUniqueLabel, string InBaseLabel)
+			: base(null, InName, InUniqueLabel, InBaseLabel)
 		{
 			WorldTransform = NodeTransform;
 		}
 
-		public DatasmithActorInfo(ModelComponent InModelComponent, string InName, string InLabel, int InMaterialIndex, bool bInOverrideMaterial, Layer InVisibilityLayer, IEnumerable<int> InLayerIndices = null)
-			: base(InModelComponent, InName, InLabel)
+		public DatasmithActorInfo(ModelComponent InModelComponent, string InName, string InUniqueLabel, string InBaseLabel, int InMaterialIndex, bool bInOverrideMaterial, Layer InVisibilityLayer, IEnumerable<int> InLayerIndices = null)
+			: base(InModelComponent, InName, InUniqueLabel, InBaseLabel)
 		{
 			bIsInstanceDefinition = RhinoModelComponent is InstanceDefinition;
 			MaterialIndex = InMaterialIndex;
@@ -363,8 +382,8 @@ namespace DatasmithRhino
 		public Material RhinoMaterial { get { return RhinoCommonObject as Material; } }
 		public FDatasmithFacadeUEPbrMaterial ExportedMaterial { get { return ExportedElement as FDatasmithFacadeUEPbrMaterial; } }
 
-		public DatasmithMaterialInfo(Material InRhinoMaterial, string InName, string InLabel)
-			: base(InRhinoMaterial, InName, InLabel)
+		public DatasmithMaterialInfo(Material InRhinoMaterial, string InName, string InUniqueLabel, string InBaseLabel)
+			: base(InRhinoMaterial, InName, InUniqueLabel, InBaseLabel)
 		{
 		}
 	}
@@ -376,7 +395,7 @@ namespace DatasmithRhino
 		public string FilePath { get; private set; }
 
 		public DatasmithTextureInfo(Texture InRhinoTexture, string InName, string InFilePath)
-			: base(InRhinoTexture, FDatasmithFacadeElement.GetStringHash(InName), InName)
+			: base(InRhinoTexture, FDatasmithFacadeElement.GetStringHash(InName), InName, InName)
 		{
 			FilePath = InFilePath;
 		}
@@ -398,16 +417,16 @@ namespace DatasmithRhino
 		public Transform OffsetTransform { get; set; }
 		public List<int> MaterialIndices { get; private set; }
 
-		public DatasmithMeshInfo(IEnumerable<Mesh> InRhinoMeshes, Transform InOffset, List<int> InMaterialIndexes, string InName, string InLabel)
-			: base(null, InName, InLabel)
+		public DatasmithMeshInfo(IEnumerable<Mesh> InRhinoMeshes, Transform InOffset, List<int> InMaterialIndexes, string InName, string InUniqueLabel, string InBaseLabel)
+			: base(null, InName, InUniqueLabel, InBaseLabel)
 		{
 			RhinoMeshes = new List<Mesh>(InRhinoMeshes);
 			OffsetTransform = InOffset;
 			MaterialIndices = InMaterialIndexes;
 		}
 
-		public DatasmithMeshInfo(Mesh InRhinoMesh, Transform InOffset, int InMaterialIndex, string InName, string InLabel)
-			: this(new List<Mesh> { InRhinoMesh }, InOffset, new List<int> { InMaterialIndex }, InName, InLabel)
+		public DatasmithMeshInfo(Mesh InRhinoMesh, Transform InOffset, int InMaterialIndex, string InName, string InUniqueLabel, string InBaseLabel)
+			: this(new List<Mesh> { InRhinoMesh }, InOffset, new List<int> { InMaterialIndex }, InName, InUniqueLabel, InBaseLabel)
 		{
 		}
 
@@ -458,7 +477,9 @@ namespace DatasmithRhino
 		public DatasmithRhinoExportContext(DatasmithRhinoExportOptions InOptions)
 		{
 			ExportOptions = InOptions;
-			SceneRoot = new DatasmithActorInfo(ExportOptions.Xform, "SceneRoot", "SceneRoot");
+			
+			const string RootName = "SceneRoot";
+			SceneRoot = new DatasmithActorInfo(ExportOptions.Xform, RootName, RootName, RootName);
 		}
 
 		public void ParseDocument(bool bForceParse = false)
@@ -845,7 +866,7 @@ namespace DatasmithRhino
 
 				DummyDocumentNode = GenerateDummyNodeInfo(DummyLayerName, DummyLayerLabel, DefaultMaterialIndex, DummyLayerIndices);
 				SceneRoot.AddChild(DummyDocumentNode);
-				LayerIndexToLayerString.Add(DummyLayerIndices[0], BuildLayerString(DummyDocumentNode.Label, SceneRoot));
+				LayerIndexToLayerString.Add(DummyLayerIndices[0], BuildLayerString(DummyDocumentNode.UniqueLabel, SceneRoot));
 			}
 
 			foreach (var CurrentLayer in RhinoDocument.Layers)
@@ -1165,10 +1186,11 @@ namespace DatasmithRhino
 		private DatasmithActorInfo GenerateInstanceNodeInfo(DatasmithActorInfo InstanceParentNodeInfo, DatasmithActorInfo DefinitionNodeInfo, int MaterialIndex, Layer VisibilityLayer)
 		{
 			string Name = string.Format("{0}_{1}", InstanceParentNodeInfo.Name, DefinitionNodeInfo.Name);
-			string Label = ActorLabelGenerator.GenerateUniqueNameFromBaseName(DefinitionNodeInfo.Label);
+			string BaseLabel = DefinitionNodeInfo.BaseLabel;
+			string UniqueLabel = ActorLabelGenerator.GenerateUniqueNameFromBaseName(DefinitionNodeInfo.UniqueLabel);
 			bool bOverrideMaterial = DefinitionNodeInfo.MaterialIndex != MaterialIndex;
 
-			return new DatasmithActorInfo(DefinitionNodeInfo.RhinoModelComponent, Name, Label, MaterialIndex, bOverrideMaterial, VisibilityLayer);
+			return new DatasmithActorInfo(DefinitionNodeInfo.RhinoModelComponent, Name, UniqueLabel, BaseLabel, MaterialIndex, bOverrideMaterial, VisibilityLayer);
 		}
 
 		/// <summary>
@@ -1185,7 +1207,7 @@ namespace DatasmithRhino
 			const bool bOverrideMaterial = false;
 			const Layer NullVisiblityLayer = null;
 
-			return new DatasmithActorInfo(NullModelComponent, UniqueID, UniqueLabel, MaterialIndex, bOverrideMaterial, NullVisiblityLayer, LayerIndices);
+			return new DatasmithActorInfo(NullModelComponent, UniqueID, UniqueLabel, TargetLabel, MaterialIndex, bOverrideMaterial, NullVisiblityLayer, LayerIndices);
 		}
 
 		/// <summary>
@@ -1198,12 +1220,13 @@ namespace DatasmithRhino
 		private DatasmithActorInfo GenerateNodeInfo(ModelComponent InModelComponent, bool bIsInstanceDefinition, int MaterialIndex, Layer VisibilityLayer, IEnumerable<int> LayerIndices = null)
 		{
 			string Name = GetModelComponentName(InModelComponent);
-			string Label = bIsInstanceDefinition
-				? DatasmithRhinoUniqueNameGenerator.GetTargetName(InModelComponent)
+			string BaseLabel = DatasmithRhinoUniqueNameGenerator.GetTargetName(InModelComponent);
+			string UniqueLabel = bIsInstanceDefinition
+				? BaseLabel
 				: ActorLabelGenerator.GenerateUniqueName(InModelComponent);
 			const bool bOverrideMaterial = false;
 
-			return new DatasmithActorInfo(InModelComponent, Name, Label, MaterialIndex, bOverrideMaterial, VisibilityLayer, LayerIndices);
+			return new DatasmithActorInfo(InModelComponent, Name, UniqueLabel, BaseLabel, MaterialIndex, bOverrideMaterial, VisibilityLayer, LayerIndices);
 		}
 
 		/// <summary>
@@ -1323,10 +1346,11 @@ namespace DatasmithRhino
 		{
 			if (!MaterialHashToMaterialInfo.ContainsKey(MaterialHash))
 			{
-				string MaterialLabel = MaterialLabelGenerator.GenerateUniqueName(RhinoMaterial);
-				string MaterialName = FDatasmithFacadeElement.GetStringHash(MaterialLabel);
+				string BaseLabel = DatasmithRhinoUniqueNameGenerator.GetTargetName(RhinoMaterial);
+				string UniqueLabel = MaterialLabelGenerator.GenerateUniqueName(RhinoMaterial);
+				string Name = FDatasmithFacadeElement.GetStringHash(UniqueLabel);
 
-				MaterialHashToMaterialInfo.Add(MaterialHash, new DatasmithMaterialInfo(RhinoMaterial, MaterialName, MaterialLabel));
+				MaterialHashToMaterialInfo.Add(MaterialHash, new DatasmithMaterialInfo(RhinoMaterial, Name, UniqueLabel, BaseLabel));
 
 				Texture[] MaterialTextures = RhinoMaterial.GetTextures();
 				for (int TextureIndex = 0; TextureIndex < MaterialTextures.Length; ++TextureIndex)
@@ -1562,9 +1586,10 @@ namespace DatasmithRhino
 				}
 
 				string Name = FDatasmithFacadeElement.GetStringHash("M:" + HierarchyActorNode.Name);
-				string Label = HierarchyActorNode.Label;
+				string UniqueLabel = HierarchyActorNode.UniqueLabel;
+				string BaseLabel = HierarchyActorNode.BaseLabel;
 
-				MeshInfo = new DatasmithMeshInfo(MeshAttributePairs.Keys, OffsetTransform, MaterialIndices, Name, Label);
+				MeshInfo = new DatasmithMeshInfo(MeshAttributePairs.Keys, OffsetTransform, MaterialIndices, Name, UniqueLabel, BaseLabel);
 			}
 			else
 			{

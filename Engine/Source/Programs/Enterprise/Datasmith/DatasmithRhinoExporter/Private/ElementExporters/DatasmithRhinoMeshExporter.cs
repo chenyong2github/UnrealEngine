@@ -84,7 +84,7 @@ namespace DatasmithRhino.ElementExporters
 			List<DatasmithMaterialInfo> MaterialInfos = new List<DatasmithMaterialInfo>(ElementInfo.MaterialIndices.Count);
 			ElementInfo.MaterialIndices.ForEach((MaterialIndex) => MaterialInfos.Add(ExportContext.GetMaterialInfoFromMaterialIndex(MaterialIndex)));
 
-			DatasmithMeshElement.SetLabel(ElementInfo.Label);
+			DatasmithMeshElement.SetLabel(ElementInfo.UniqueLabel);
 			ParseMesh(DatasmithMeshElement, DatasmithMesh, ElementInfo.RhinoMeshes, MaterialInfos);
 		}
 
