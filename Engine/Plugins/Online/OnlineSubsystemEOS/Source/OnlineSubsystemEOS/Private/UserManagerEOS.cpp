@@ -190,7 +190,7 @@ IOnlineSubsystem* FUserManagerEOS::GetPlatformOSS()
 	if (PlatformOSS == nullptr)
 #if !PLATFORM_DESKTOP
 	{
-		UE_LOG_ONLINE(Error, TEXT("ConnectLoginNoEAS(%d) failed due to no platform OSS"), LocalUserNum);
+		UE_LOG_ONLINE(Error, TEXT("GetPlatformOSS() failed due to no platform OSS being configured"));
 	}
 #else
 	{
