@@ -776,6 +776,98 @@ void ClearPhysicalPages( uint3 TileThreadID : SV_GroupThreadID, uint3 TileIndex 
 }
 
 
+/**
+ * Invoke to update the sate of all pages after copying & clearing has been performed.
+ */
+[numthreads(64, 1, 1)]
+void UpdatePhysicalPageMetaDataClearState(uint PageIndex : SV_DispatchThreadID)
+{
+	uint PageCount = NumAllocatedPhysicalPages[0];
+	if (PageIndex < PageCount)
+	{
+		FPhysicalPageMetaData MetaData;
+		MetaData.State = VSM_PHYSICAL_PAGE_STATE_CLEARED;
+		MetaData.Age = 0;
+
+#if HAS_CACHE_DATA
+		// Load data from cache if available
+		FCachedPageInfo CachedPageInfo = CachedPageInfos[PageIndex];
+		if (CachedPageInfo.PhysPageAddress.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS)
+		{
+			MetaData = PrevPhysicalPageMetaData[PhysPageAddressToIndex(CachedPageInfo.PhysPageAddress)];
+			// This data has survived one more frame
+			MetaData.Age += 1;
+		}
+#endif // HAS_CACHE_DATA
+
+		PhysicalPageMetaDataOut[PageIndex] = MetaData;
+	}
+}
+
+
+
+
+#if ENABLE_NON_NANITE_VSM
+Texture2D< float > PrevPhysicalPagePoolHw;
+
+
+uint bRectPrimitive;
+RWBuffer<uint> ClearPhysicalPageDrawArgs;
+
+[numthreads(1, 1, 1)]
+void SetupClearHwPhysicalPagesDrawArgs(uint3 DTID : SV_DispatchThreadID)
+{
+	uint PageCount = NumAllocatedPhysicalPages[0];
+	// Set up indirect draw args for likewise clearing the HW physical page args
+	ClearPhysicalPageDrawArgs[0] = bRectPrimitive > 0 ? 4 : 6;
+	ClearPhysicalPageDrawArgs[1] = PageCount;
+	ClearPhysicalPageDrawArgs[2] = 0;
+	ClearPhysicalPageDrawArgs[3] = 0;
+}
+
+
+void InitializePhysicalPagesVS(
+	in uint InVertexId : SV_VertexID,
+	in uint InInstanceId : SV_InstanceID,
+	nointerpolation out uint PageIndex : TEXCOORD0,
+	out float4 OutPosition : SV_POSITION)
+{
+	PageIndex = InInstanceId;
+	const uint PageX = PageIndex & VirtualShadowMap.PhysicalPageRowMask;
+	const uint PageY = PageIndex >> VirtualShadowMap.PhysicalPageRowShift;
+
+	uint2 TileVertex = uint2(PageX, PageY) * VSM_PAGE_SIZE;
+	TileVertex.x += InVertexId == 1 || InVertexId == 2 || InVertexId == 4 ? VSM_PAGE_SIZE : 0;
+	TileVertex.y += InVertexId == 2 || InVertexId == 4 || InVertexId == 5 ? VSM_PAGE_SIZE : 0;
+
+	OutPosition = float4(float2(TileVertex) * VirtualShadowMap.RecPhysicalPoolSize.xy * float2(2.0f, -2.0f) + float2(-1.0, 1.0f), 0.5f, 1.0f);
+}
+
+void InitializePhysicalPagesPS(uint PageIndex : TEXCOORD0, float4 SVPos : SV_POSITION, out float OutDepth : SV_Depth)
+{
+	const uint PageX = PageIndex & VirtualShadowMap.PhysicalPageRowMask;
+	const uint PageY = PageIndex >> VirtualShadowMap.PhysicalPageRowShift;
+
+	// figure out the relative position within the page
+	uint2 OutPixelPos = uint2(SVPos.xy);
+	// Position within page
+	uint2 PagePixelPos = OutPixelPos - uint2(PageX, PageY) * VSM_PAGE_SIZE;
+	float ClearValue = 0.0f;
+
+#if HAS_CACHE_DATA
+	// Load data from cache if available
+	FCachedPageInfo CachedPageInfo = CachedPageInfos[PageIndex];
+	if (CachedPageInfo.PhysPageAddress.x != VSM_INVALID_PHYSICAL_PAGE_ADDRESS)
+	{
+		const uint2 CachedPos = CachedPageInfo.PhysPageAddress * VSM_PAGE_SIZE + PagePixelPos;
+		ClearValue = max(0.0f, PrevPhysicalPagePoolHw.Load(int3(CachedPos, 0)) + CachedPageInfo.DepthOffset);
+	}
+#endif // HAS_CACHE_DATA
+
+	OutDepth = ClearValue;
+}
+#endif // ENABLE_NON_NANITE_VSM
+
 
 RWStructuredBuffer<FPhysicalPageMetaData> InOutPhysicalPageMetaData;
 StructuredBuffer<uint> VirtualShadowMapFlags;

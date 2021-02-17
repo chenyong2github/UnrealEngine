@@ -49,6 +49,13 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 
 	FMeshDrawCommand SharedMeshDrawCommand;
 
+	EFVisibleMeshDrawCommandFlags Flags = EFVisibleMeshDrawCommandFlags::Default;
+
+	if (MaterialResource.MaterialModifiesMeshPosition_RenderThread())
+	{
+		Flags |= EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition;
+	}
+
 	SharedMeshDrawCommand.SetStencilRef(DrawRenderState.GetStencilRef());
 	SharedMeshDrawCommand.PrimitiveType = (EPrimitiveType)MeshBatch.Type;
 
@@ -80,6 +87,11 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 	VertexFactory->GetStreams(FeatureLevel, InputStreamType, SharedMeshDrawCommand.VertexStreams);
 
 	SharedMeshDrawCommand.PrimitiveIdStreamIndex = VertexFactory->GetPrimitiveIdStreamIndex(InputStreamType);
+
+	if (SharedMeshDrawCommand.PrimitiveIdStreamIndex != INDEX_NONE)
+	{
+		Flags |= EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex;
+	}
 
 	int32 DataOffset = 0;
 	if (PassShaders.VertexShader.IsValid())
@@ -152,7 +164,7 @@ void FMeshPassProcessor::BuildMeshDrawCommands(
 			GetDrawCommandPrimitiveId(PrimitiveSceneInfo, BatchElement, DrawPrimitiveId, ScenePrimitiveId);
 
 			FMeshProcessorShaders ShadersForDebugging = PassShaders.GetUntypedShaders();
-			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, ScenePrimitiveId, MeshFillMode, MeshCullMode, SortKey, PipelineState, &ShadersForDebugging, MeshDrawCommand);
+			DrawListContext->FinalizeCommand(MeshBatch, BatchElementIndex, DrawPrimitiveId, ScenePrimitiveId, MeshFillMode, MeshCullMode, SortKey, Flags, PipelineState, &ShadersForDebugging, MeshDrawCommand);
 		}
 	}
 }

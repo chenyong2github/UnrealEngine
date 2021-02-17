@@ -1109,6 +1109,7 @@ void AddCardCaptureDraws(const FScene* Scene,
 							CachedMeshDrawCommand.StateBucketId,
 							CachedMeshDrawCommand.MeshFillMode,
 							CachedMeshDrawCommand.MeshCullMode,
+							CachedMeshDrawCommand.Flags,
 							CachedMeshDrawCommand.SortKey);
 
 						VisibleMeshCommands.Add(NewVisibleMeshDrawCommand);

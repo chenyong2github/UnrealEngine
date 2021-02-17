@@ -135,6 +135,11 @@ public:
 	TRefCountPtr<IPooledRenderTarget>	PrevPhysicalPagePool;
 	TRefCountPtr<FRDGPooledBuffer>		PrevPhysicalPageMetaData;
 
+#if ENABLE_NON_NANITE_VSM
+	TRefCountPtr<IPooledRenderTarget>		PrevPhysicalPagePoolHw;
+#endif // ENABLE_NON_NANITE_VSM
+
+
 	TRefCountPtr<FRDGPooledBuffer>		PrevShadowMapProjectionDataBuffer;
 	TRefCountPtr<FRDGPooledBuffer>		PrevPageRectBounds;
 

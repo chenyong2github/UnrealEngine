@@ -2,15 +2,7 @@
 
 #include "../Common.ush"
 #include "../SceneData.ush"
-
-struct FPrimCullingCommand
-{
-	uint BaseVertexIndex;
-	uint FirstIndex;
-	uint NumVerticesOrIndices;
-	uint FirstPrimitiveIdOffset;
-	uint FirstInstanceRunOffset;
-};
+#include "InstanceCullingCommon.ush"
 
 struct FInstanceRun
 {
@@ -122,7 +114,7 @@ void ComputeInstanceIdOutputSize(uint GroupThreadIndex : SV_GroupIndex, uint Gro
 	// Get start of next CMD or go to end.
 	uint LastOffset = (CommandSlotIndex + 1 < NumCommands) ? PrimitiveCullingCommands[CommandSlotIndex + 1].FirstPrimitiveIdOffset : NumPrimitiveIds;
 	// Note: the max here is purely to safe-guard against corrupted buffer data leading to an infinite loop
-	uint NumCmdPrimitiveIds = min(NumPrimitiveIds, uint(LastOffset) - Cmd.FirstPrimitiveIdOffset);
+	uint NumCmdPrimitiveIds = min(NumPrimitiveIds, LastOffset - Cmd.FirstPrimitiveIdOffset);
 
 	uint LastInstanceRunOffset = (CommandSlotIndex + 1 < NumCommands) ? PrimitiveCullingCommands[CommandSlotIndex + 1].FirstInstanceRunOffset : NumInstanceRuns;
 	// Note: the min here is purely to safe-guard against corrupted buffer data leading to an infinite loop

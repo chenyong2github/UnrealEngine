@@ -44,6 +44,11 @@ struct FInstanceCullingRdgParams
 	 * Used to map each instance ID back to the corresponding draw command.
 	 */
 	FRDGBufferRef DrawCommandIdsBuffer = nullptr;
+
+	/**
+	 * Out parameter, GPU representation of the FInstanceCullingContext::CullingCommands.
+	 */
+	FRDGBufferRef PrimitiveCullingCommands = nullptr;
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FInstanceCullingDrawParams, )
@@ -72,6 +77,7 @@ public:
 		uint32 NumVerticesOrIndices;
 		uint32 FirstPrimitiveIdOffset;
 		uint32 FirstInstanceRunOffset;
+		uint32 bMaterialMayModifyPosition;
 	};
 
 	bool IsEnabled() const { return bIsEnabled; }
@@ -79,7 +85,7 @@ public:
 	/**
 	 * Begin a new command. Allocates a slot and is referenced by subsequent AddPrimitiveToCullingCommand and AddInstanceRunToCullingCommand.
 	 */
-	void BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives);
+	void BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives, bool bInMaterialMayModifyPosition);
 
 	/**
 	 * Command that is executed in the per-view, post-cull pass to gather up the instances belonging to this primitive.

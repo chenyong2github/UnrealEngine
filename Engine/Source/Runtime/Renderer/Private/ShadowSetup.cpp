@@ -1060,6 +1060,7 @@ void FProjectedShadowInfo::AddCachedMeshDrawCommandsForPass(
 				CachedMeshDrawCommand.StateBucketId,
 				CachedMeshDrawCommand.MeshFillMode,
 				CachedMeshDrawCommand.MeshCullMode,
+				CachedMeshDrawCommand.Flags,
 				CachedMeshDrawCommand.SortKey);
 
 			VisibleMeshCommands.Add(NewVisibleMeshDrawCommand);
@@ -1958,7 +1959,7 @@ void FProjectedShadowInfo::FinalizeAddSubjectPrimitive(
 			const int32 PrimIdx = PrimitiveSceneInfo->GetIndex();
 
 			FVisibleMeshDrawCommand& VisibleCmd = ShadowDepthPassVisibleCommands[ShadowDepthPassVisibleCommands.AddUninitialized()];
-			VisibleCmd.Setup(CachedCmd, PrimIdx, PrimIdx, CmdInfo.StateBucketId, CmdInfo.MeshFillMode, CmdInfo.MeshCullMode, CmdInfo.SortKey);
+			VisibleCmd.Setup(CachedCmd, PrimIdx, PrimIdx, CmdInfo.StateBucketId, CmdInfo.MeshFillMode, CmdInfo.MeshCullMode, CmdInfo.Flags, CmdInfo.SortKey);
 		}
 	}
 

@@ -12,7 +12,7 @@
 #include "ScenePrivate.h"
 #include "InstanceCulling/InstanceCullingManager.h"
 
-#define ENABLE_DETERMINISTIC_INSTANCE_CULLING 1
+#define ENABLE_DETERMINISTIC_INSTANCE_CULLING 0
 
 
 FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds) :
@@ -22,7 +22,7 @@ FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInst
 {
 }
 
-void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives)
+void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives, bool bInMaterialMayModifyPosition)
 {
 #if defined(GPUCULL_TODO)
 	if (ensure(BatchType < PT_Num))
@@ -52,6 +52,7 @@ void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint
 		CullingCommand.NumVerticesOrIndices = NumVerticesOrIndices;
 		CullingCommand.FirstPrimitiveIdOffset = PrimitiveIds.Num();
 		CullingCommand.FirstInstanceRunOffset = InstanceRuns.Num();
+		CullingCommand.bMaterialMayModifyPosition = bInMaterialMayModifyPosition;
 	}
 #endif
 }
@@ -534,7 +535,8 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 	PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
 	// Upload data etc
-	PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("PrimitiveCullingCommands"), CullingCommands));
+	Params.PrimitiveCullingCommands = CreateStructuredBuffer(GraphBuilder, TEXT("PrimitiveCullingCommands"), CullingCommands);
+	PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(Params.PrimitiveCullingCommands);
 
 	PassParameters->PrimitiveIds = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("PrimitiveIds"), PrimitiveIds));
 	PassParameters->DynamicPrimitiveIdOffset = DynamicPrimitiveIdRange.GetLowerBoundValue();

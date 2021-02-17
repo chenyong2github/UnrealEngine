@@ -1,0 +1,16 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../Common.ush"
+
+struct FPrimCullingCommand
+{
+	uint BaseVertexIndex;
+	uint FirstIndex;
+	uint NumVerticesOrIndices;
+	uint FirstPrimitiveIdOffset;
+	uint FirstInstanceRunOffset;
+	// GPUCULL_TODO: Wasteful for a flag.
+	uint bMaterialMayModifyPosition;
+};

@@ -514,6 +514,7 @@ namespace RuntimeVirtualTexture
 								CachedMeshDrawCommand.StateBucketId,
 								CachedMeshDrawCommand.MeshFillMode,
 								CachedMeshDrawCommand.MeshCullMode,
+								CachedMeshDrawCommand.Flags,
 								CachedMeshDrawCommand.SortKey);
 
 							CachedDrawCommands.Add(NewVisibleMeshDrawCommand);

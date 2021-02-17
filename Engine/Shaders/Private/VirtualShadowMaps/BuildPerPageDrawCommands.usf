@@ -8,6 +8,7 @@
 #include "PageAccessCommon.ush"
 #include "ProjectionCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
+#include "../InstanceCulling/InstanceCullingCommon.ush"
 
 #ifndef NEAR_CLIP
 #define NEAR_CLIP 1
@@ -46,9 +47,15 @@ RWStructuredBuffer<uint> VisibleInstanceCountBufferOut;
 uint InstanceDataSOAStride;
 uint bInstancePerPage;
 
+RWStructuredBuffer<uint> OutDynamicCasterFlags;
+StructuredBuffer<FPrimCullingCommand> PrimitiveCullingCommands;
+
 groupshared uint GroupTotalVisibleInstances;
 groupshared uint GroupVisibleInstanceOutputOffset;
 
+
+#if 0
+// Ths was intended to replace the duplicated loops below and act as a temlpate (switched using the flag, but shader compiler errors...)
 
 // Detitute persons enum...
 #define PML_COUNT (1)
@@ -130,6 +137,8 @@ void ProcessMipLevel(uint PrimaryViewId, uint MipLevel, FFrustumCullData Cull, u
 
 }
 
+#endif // 0
+
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
 void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
 {
@@ -159,9 +168,12 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 	uint DrawCommandId = DrawCommandIdsBuffer[InstanceIdOffset + InstanceIdIndex];
 
 	const bool bNearClip = (NEAR_CLIP != 0);
+	FPrimCullingCommand Cmd = PrimitiveCullingCommands[DrawCommandId];
+
 	// Load relevant instance data
 	FInstanceSceneData InstanceData = GetInstanceData(InstanceId, InstanceDataSOAStride);
-	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
+	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber || Cmd.bMaterialMayModifyPosition;
+	const uint PageFlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
 
 	GroupMemoryBarrierWithGroupSync();
 
@@ -195,8 +207,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 
 				FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
 
-				// OLA-TODO: Caching is not respected
-				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, true))
+				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, bHasMoved))
 				{
 					uint4 RectPages = uint4( MipView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
 
@@ -209,34 +220,18 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 					{
 						if (bInstancePerPage)
 						{
-							// 1. Loop over the super-pages, note the implied +1 for the regular level inherent in the >= 0
-							// TODO: May want to get the combined flag from OverlapsAnyValidPage and find the first bit set to not loop where there are no super pages
-							//       but then we can't unroll.
-							for (int SuperPageLevel = VSM_NUM_SUPER_PAGE_LEVELS; SuperPageLevel >= 0; --SuperPageLevel)
+							// Count commands for each overlapped page
+							uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
+							for (uint y = RectPages.y; y <= RectPages.w; y += 1U)
 							{
-								// The stride is equal to the size of the super pages
-								uint PageStride = 1U << uint(SuperPageLevel);
-								// Super page mask is stored in the higher bits of the page flags 
-								uint SuperLevelMask = 1U << (uint(SuperPageLevel) + VSM_NUM_SUPER_START_BIT);
-								// Mask to test against to know if there was a higher-level super page for this page
-								// Should be 1 for all bits higher than the current super page
-								uint HigherSuperLevelMask = ~(SuperLevelMask - 1U);
-
-								// Count commands for each overlapped page
-								uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
-								for (uint y = RectPages.y; y <= RectPages.w; y += PageStride)
+								for (uint x = RectPages.x; x <= RectPages.z; x += 1U)
 								{
-									for (uint x = RectPages.x; x <= RectPages.z; x += PageStride)
-									{
-										uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
-										uint PageFlag = PageFlags[PageFlagOffset];
+									uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
+									uint PageFlag = PageFlags[PageFlagOffset];
 
-										// Mask off all bits above and including the current super page level, if this is the first one set, we should emit for this level
-										// otherwise the page is covered by a higher level.
-										if ((PageFlag & HigherSuperLevelMask) == SuperLevelMask)
-										{
-											MipPageOverlapCount += 1U;
-										}
+									if ((PageFlag & PageFlagMask) != 0)
+									{
+										MipPageOverlapCount += 1U;
 									}
 								}
 							}
@@ -296,8 +291,7 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 
 			FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
 
-			// OLA-TODO: Caching is not respected
-			if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, true))
+			if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, bHasMoved))
 			{
 				uint4 RectPages = uint4( MipView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
 
@@ -310,44 +304,33 @@ void CullPerPageDrawCommandsCs(uint InstanceIdIndex : SV_DispatchThreadID, uint 
 				{
 					if (bInstancePerPage)
 					{
-						// 1. Loop over the super-pages, note the implied +1 for the regular level inherent in the >= 0
-						// TODO: May want to get the combined flag from OverlapsAnyValidPage and find the first bit set to not loop where there are no super pages
-						//       but then we can't unroll.
-						for (int SuperPageLevel = VSM_NUM_SUPER_PAGE_LEVELS; SuperPageLevel >= 0; --SuperPageLevel)
+						// Count commands for each overlapped page
+						uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
+						for (uint y = RectPages.y; y <= RectPages.w; y += 1U)
 						{
-							// The stride is equal to the size of the super pages
-							uint PageStride = 1U << uint(SuperPageLevel);
-							// Super page mask is stored in the higher bits of the page flags 
-							uint SuperLevelMask = 1U << (uint(SuperPageLevel) + VSM_NUM_SUPER_START_BIT);
-							// Mask to test against to know if there was a higher-level super page for this page
-							// Should be 1 for all bits higher than the current super page
-							uint HigherSuperLevelMask = ~(SuperLevelMask - 1U);
-
-							// Count commands for each overlapped page
-							uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
-							for (uint y = RectPages.y; y <= RectPages.w; y += PageStride)
+							for (uint x = RectPages.x; x <= RectPages.z; x += 1U)
 							{
-								for (uint x = RectPages.x; x <= RectPages.z; x += PageStride)
+								uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
+								uint PageFlag = PageFlags[PageFlagOffset];
+
+								if ((PageFlag & PageFlagMask) != 0)
 								{
-									uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
-									uint PageFlag = PageFlags[PageFlagOffset];
+									FPageInfo PageInfo;
+									PageInfo.VirtualPage = uint2(x, y);
+									PageInfo.ViewId = MipViewId;
+									PageInfo.SuperPageLevel = 0U;
 
-									// Mask off all bits above and including the current super page level, if this is the first one set, we should emit for this level
-									// otherwise the page is covered by a higher level.
-									if ((PageFlag & HigherSuperLevelMask) == SuperLevelMask)
+									FVisibleInstanceCmd VisibleInstanceCmd;
+									VisibleInstanceCmd.PackedPageInfo = PackPageInfo(PageInfo);
+									VisibleInstanceCmd.InstanceId = InstanceId;
+									VisibleInstanceCmd.DrawCommandId = DrawCommandId;
+
+									VisibleInstancesOut[VisibleInstanceOutputOffset] = VisibleInstanceCmd;
+									VisibleInstanceOutputOffset += 1U;
+
+									if (bHasMoved)
 									{
-										FPageInfo PageInfo;
-										PageInfo.VirtualPage = uint2(x, y);
-										PageInfo.ViewId = MipViewId;
-										PageInfo.SuperPageLevel = uint(SuperPageLevel);
-
-										FVisibleInstanceCmd VisibleInstanceCmd;
-										VisibleInstanceCmd.PackedPageInfo = PackPageInfo(PageInfo);
-										VisibleInstanceCmd.InstanceId = InstanceId;
-										VisibleInstanceCmd.DrawCommandId = DrawCommandId;
-
-										VisibleInstancesOut[VisibleInstanceOutputOffset] = VisibleInstanceCmd;
-										VisibleInstanceOutputOffset += 1U;
+										OutDynamicCasterFlags[PageFlagOffset] = 1;
 									}
 								}
 							}

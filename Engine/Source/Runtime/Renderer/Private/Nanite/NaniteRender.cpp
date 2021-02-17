@@ -1691,11 +1691,13 @@ void FNaniteDrawListContext::FinalizeCommand(
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
 	FMeshDrawCommandSortKey SortKey,
+	EFVisibleMeshDrawCommandFlags Flags,
 	const FGraphicsMinimalPipelineStateInitializer& PipelineState,
 	const FMeshProcessorShaders* ShadersForDebugging,
 	FMeshDrawCommand& MeshDrawCommand
 	)
 {
+	// ensureMsgf(!EnumHasAnyFlags(Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex), TEXT("Nanite does not support WPO materials!"));
 	FGraphicsMinimalPipelineStateId PipelineId;
 	PipelineId = FGraphicsMinimalPipelineStateId::GetPersistentId(PipelineState);
 

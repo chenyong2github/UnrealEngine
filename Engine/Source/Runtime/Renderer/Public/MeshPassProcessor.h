@@ -1208,6 +1208,23 @@ public:
 	static const FMeshDrawCommandSortKey Default;
 };
 
+
+/** Flags that may be passed along with a visible mesh draw command OR stored with a cached one. */
+enum class EFVisibleMeshDrawCommandFlags : uint8
+{
+	Default = 0U,
+	/** If set, the FMaterial::MaterialModifiesMeshPosition_RenderThread() indicates that WPO or something similar is active for the given material. */
+	MaterialMayModifyPosition = 1U << 0U,
+
+	/** If set, the mesh draw command supports primitive ID steam (required for dynamic instancing and GPU-Scene instance culling). */
+	HasPrimitiveIdStreamIndex = 1U << 1U,
+
+	All = MaterialMayModifyPosition | HasPrimitiveIdStreamIndex,
+	NumBits = 2U
+};
+ENUM_CLASS_FLAGS(EFVisibleMeshDrawCommandFlags);
+static_assert(uint32(EFVisibleMeshDrawCommandFlags::All) < (1U << uint32(EFVisibleMeshDrawCommandFlags::NumBits)), "EFVisibleMeshDrawCommandFlags::NumBits too small to represent all flags in EFVisibleMeshDrawCommandFlags.");
+
 /** Interface for the different types of draw lists. */
 class FMeshPassDrawListContext
 {
@@ -1225,6 +1242,7 @@ public:
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
+		EFVisibleMeshDrawCommandFlags Flags,
 		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
 		const FMeshProcessorShaders* ShadersForDebugging,
 		FMeshDrawCommand& MeshDrawCommand) = 0;
@@ -1255,6 +1273,7 @@ public:
 		int32 InStateBucketId,
 		ERasterizerFillMode InMeshFillMode,
 		ERasterizerCullMode InMeshCullMode,
+		EFVisibleMeshDrawCommandFlags InFlags,
 #if defined(GPUCULL_TODO)
 		FMeshDrawCommandSortKey InSortKey,
 		const uint32* InRunArray = nullptr,
@@ -1271,6 +1290,7 @@ public:
 		MeshFillMode = InMeshFillMode;
 		MeshCullMode = InMeshCullMode;
 		SortKey = InSortKey;
+		Flags = InFlags;
 #if defined(GPUCULL_TODO)
 		RunArray = InRunArray;
 		NumRuns = InNumRuns;
@@ -1306,6 +1326,8 @@ public:
 	// Needed for view overrides
 	ERasterizerFillMode MeshFillMode : ERasterizerFillMode_NumBits + 1;
 	ERasterizerCullMode MeshCullMode : ERasterizerCullMode_NumBits + 1;
+
+	EFVisibleMeshDrawCommandFlags Flags : uint32(EFVisibleMeshDrawCommandFlags::NumBits);
 };
 
 struct FCompareFMeshDrawCommands
@@ -1370,6 +1392,7 @@ public:
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
+		EFVisibleMeshDrawCommandFlags Flags,
 		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
 		const FMeshProcessorShaders* ShadersForDebugging,
 		FMeshDrawCommand& MeshDrawCommand) override final
@@ -1383,12 +1406,12 @@ public:
 		// Currently dynamic path draws will not get dynamic instancing, but they will be roughly sorted by state
 #if defined(GPUCULL_TODO)
 		const FMeshBatchElement& MeshBatchElement = MeshBatch.Elements[BatchElementIndex];
-		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, SortKey, 
+		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, Flags, SortKey,
 			MeshBatchElement.bIsInstanceRuns ? MeshBatchElement.InstanceRuns : nullptr,
 			MeshBatchElement.bIsInstanceRuns ? MeshBatchElement.NumInstances : 0
 			);
 #else //!defined(GPUCULL_TODO)
-		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, SortKey);
+		NewVisibleMeshDrawCommand.Setup(&MeshDrawCommand, DrawPrimitiveId, ScenePrimitiveId, -1, MeshFillMode, MeshCullMode, Flags, SortKey);
 #endif // defined(GPUCULL_TODO)
 		DrawList.Add(NewVisibleMeshDrawCommand);
 	}
@@ -1420,7 +1443,8 @@ public:
 		StateBucketId(INDEX_NONE),
 		MeshPass(InMeshPass),
 		MeshFillMode(ERasterizerFillMode_Num),
-		MeshCullMode(ERasterizerCullMode_Num)
+		MeshCullMode(ERasterizerCullMode_Num),
+		Flags(EFVisibleMeshDrawCommandFlags::Default)
 	{}
 
 	FMeshDrawCommandSortKey SortKey;
@@ -1437,6 +1461,8 @@ public:
 	// Needed for view overrides
 	ERasterizerFillMode MeshFillMode : ERasterizerFillMode_NumBits + 1;
 	ERasterizerCullMode MeshCullMode : ERasterizerCullMode_NumBits + 1;
+
+	EFVisibleMeshDrawCommandFlags Flags : uint32(EFVisibleMeshDrawCommandFlags::NumBits);
 };
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
@@ -1496,6 +1522,7 @@ public:
 		ERasterizerFillMode MeshFillMode,
 		ERasterizerCullMode MeshCullMode,
 		FMeshDrawCommandSortKey SortKey,
+		EFVisibleMeshDrawCommandFlags Flags,
 		const FGraphicsMinimalPipelineStateInitializer& PipelineState,
 		const FMeshProcessorShaders* ShadersForDebugging,
 		FMeshDrawCommand& MeshDrawCommand) override final;

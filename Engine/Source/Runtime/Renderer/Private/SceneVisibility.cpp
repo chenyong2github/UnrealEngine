@@ -1882,6 +1882,7 @@ struct FDrawCommandRelevancePacket
 					CachedMeshDrawCommand.StateBucketId,
 					CachedMeshDrawCommand.MeshFillMode,
 					CachedMeshDrawCommand.MeshCullMode,
+					CachedMeshDrawCommand.Flags,
 					CachedMeshDrawCommand.SortKey);
 			}
 		}

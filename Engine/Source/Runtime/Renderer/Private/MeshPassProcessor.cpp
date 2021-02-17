@@ -1265,6 +1265,7 @@ void ApplyViewOverridesToMeshDrawCommands(const FSceneView& View, FMeshCommandOn
 				VisibleMeshDrawCommand.StateBucketId,
 				VisibleMeshDrawCommand.MeshFillMode,
 				VisibleMeshDrawCommand.MeshCullMode,
+				VisibleMeshDrawCommand.Flags,
 			#if defined(GPUCULL_TODO)
 				VisibleMeshDrawCommand.SortKey,
 				VisibleMeshDrawCommand.RunArray,
@@ -1420,6 +1421,7 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
 	FMeshDrawCommandSortKey SortKey,
+	EFVisibleMeshDrawCommandFlags Flags,
 	const FGraphicsMinimalPipelineStateInitializer& PipelineState,
 	const FMeshProcessorShaders* ShadersForDebugging,
 	FMeshDrawCommand& MeshDrawCommand)
@@ -1470,6 +1472,7 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 	CommandInfo.SortKey = SortKey;
 	CommandInfo.MeshFillMode = MeshFillMode;
 	CommandInfo.MeshCullMode = MeshCullMode;
+	CommandInfo.Flags = Flags;
 }
 
 PassProcessorCreateFunction FPassProcessorManager::JumpTable[(int32)EShadingPath::Num][EMeshPass::Num] = {};

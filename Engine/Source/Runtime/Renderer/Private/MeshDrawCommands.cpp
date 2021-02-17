@@ -468,6 +468,7 @@ static void BuildMeshDrawCommandPrimitiveIdBuffer(
 						VisibleMeshDrawCommand.StateBucketId,
 						VisibleMeshDrawCommand.MeshFillMode,
 						VisibleMeshDrawCommand.MeshCullMode,
+						VisibleMeshDrawCommand.Flags,
 #if defined(GPUCULL_TODO)
 						VisibleMeshDrawCommand.SortKey,
 						VisibleMeshDrawCommand.RunArray,
@@ -546,7 +547,8 @@ void SetupGPUInstancedDraws(
 
 	int32 CurrentStateBucketId = -1;
 	MaxInstances = 1;
-
+	// Only used to supply stats
+	int32 CurrentAutoInstanceCount = 1;
 	// Scan through and compact away all with consecutive statebucked ID, and record primitive IDs in GPU-scene culling command
 	const int32 NumDrawCommandsIn = VisibleMeshDrawCommandsInOut.Num();
 	int32 NumDrawCommandsOut = 0;
@@ -555,23 +557,30 @@ void SetupGPUInstancedDraws(
 	{
 		const FVisibleMeshDrawCommand& RESTRICT VisibleMeshDrawCommand = PassVisibleMeshDrawCommands[DrawCommandIndex];
 
-
-		// GPUCULL_TODO: Hoist this flag to the VisibleMeshDrawCommand to avoid going through this indirection
-		const bool bSupporsGPUSceneInstancing = VisibleMeshDrawCommand.MeshDrawCommand->PrimitiveIdStreamIndex != INDEX_NONE;
-
+		const bool bSupportsGPUSceneInstancing = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex);
+		const bool bMaterialMayModifyPosition = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition);
 
 		if (CurrentStateBucketId != -1 && VisibleMeshDrawCommand.StateBucketId == CurrentStateBucketId)
 		{
 			// Drop since previous covers for this
+
+			// Update auto-instance count (only needed for logging)
+			CurrentAutoInstanceCount++;
+			MaxInstances = FMath::Max(CurrentAutoInstanceCount, MaxInstances);
 		}
 		else
 		{
+			// Reset auto-instance count (only needed for logging)
+			CurrentAutoInstanceCount = 1;
+
 			const FMeshDrawCommand* RESTRICT MeshDrawCommand = VisibleMeshDrawCommand.MeshDrawCommand;
 			
 			// GPUCULL_TODO: Always allocate command as otherwise the 1:1 mapping between mesh draw command index and culling command index is broken.
-			// if (bSupporsGPUSceneInstancing)
+			// if (bSupportsGPUSceneInstancing)
 			{
-				InstanceCullingContext.BeginCullingCommand(MeshDrawCommand->PrimitiveType, MeshDrawCommand->VertexParams.BaseVertexIndex, MeshDrawCommand->FirstIndex, MeshDrawCommand->NumPrimitives);
+				// GPUCULL_TODO: Prepackage the culling command in the visible mesh draw command, or as a separate array and just index here, or even better - on the GPU (for cached CMDs at least).
+				//               We don't really want to dereference the MeshDrawCommand here.
+				InstanceCullingContext.BeginCullingCommand(MeshDrawCommand->PrimitiveType, MeshDrawCommand->VertexParams.BaseVertexIndex, MeshDrawCommand->FirstIndex, MeshDrawCommand->NumPrimitives, bMaterialMayModifyPosition);
 			}
 			// Record the last bucket ID (may be -1)
 			CurrentStateBucketId = VisibleMeshDrawCommand.StateBucketId;
@@ -584,12 +593,13 @@ void SetupGPUInstancedDraws(
 			NumDrawCommandsOut++;
 		}
 
-		if (bSupporsGPUSceneInstancing)
+		if (bSupportsGPUSceneInstancing)
 		{
 			// append 'culling command' targeting the current slot
 			// This will cause all instances belonging to the Primitive to be added to the command, if they are visible etc (GPU-Scene knows all - sees all)
 			if (VisibleMeshDrawCommand.RunArray)
 			{
+				// GPUCULL_TODO: This complexity should be removed once the HISM culling & LOD selection is on the GPU side
 				InstanceCullingContext.AddInstanceRunToCullingCommand(VisibleMeshDrawCommand.DrawPrimitiveId, VisibleMeshDrawCommand.RunArray, VisibleMeshDrawCommand.NumRuns);
 			}
 			else
@@ -827,6 +837,7 @@ void ApplyViewOverridesToMeshDrawCommands(
 					VisibleMeshDrawCommand.StateBucketId,
 					VisibleMeshDrawCommand.MeshFillMode,
 					VisibleMeshDrawCommand.MeshCullMode,
+					VisibleMeshDrawCommand.Flags,
 #if defined(GPUCULL_TODO)
 					VisibleMeshDrawCommand.SortKey,
 					VisibleMeshDrawCommand.RunArray,
@@ -1640,21 +1651,6 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 	}
 }
 
-// GPUCULL_TODO
-//void FParallelMeshDrawCommandPass::AddDrawPasses(FRDGBuilder& GraphBuilder, const FRDGEventName &EventName, PassParameters) const
-//{
-//	GraphBuilder.AddPass(EventName
-//		RDG_EVENT_NAME("BasePassParallel"),
-//		PassParameters,
-//		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-//		[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
-//		{
-//			Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-//			FRDGParallelCommandListSet ParallelCommandListSet(RHICmdList, GET_STATID(STAT_CLP_BasePass), *this, View, FParallelCommandListBindings(PassParameters));
-//			View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(&ParallelCommandListSet, RHICmdList);
-//		});
-//
-//}
 
 void FParallelMeshDrawCommandPass::DumpInstancingStats() const
 {
