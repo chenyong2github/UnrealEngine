@@ -2704,8 +2704,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (bStrataEnabled)
 	{
-		Strata::AddVisualizeMaterialPasses(GraphBuilder, Views, SceneTextures.Color.Target, Scene->GetShaderPlatform());
-		Strata::AddVisualizeClassificationPass(GraphBuilder, Views, SceneTextures.Color.Target);
+		Strata::AddStrataDebugPasses(GraphBuilder, Views, SceneTextures.Color.Target, Scene->GetShaderPlatform());
 	}
 
 	if (bCanOverlayRayTracingOutput && ViewFamily.EngineShowFlags.LightShafts)

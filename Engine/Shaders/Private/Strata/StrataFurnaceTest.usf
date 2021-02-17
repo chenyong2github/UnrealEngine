@@ -12,7 +12,6 @@
 
 uint SceneType;
 uint NumSamples;
-int2 OutputResolution;
 
 void MainPS(
 	float4 SVPos : SV_POSITION,
@@ -21,11 +20,12 @@ void MainPS(
 	const float3 InRadiance = 0.5f;
 	OutColor = InRadiance;
 
-	const uint2 TileCount = 8;
-	const uint2 TileResolution = OutputResolution / TileCount;
+	const uint2 ViewResolution = View.ViewSizeAndInvSize.xy;
+	const uint TileResolution = 128;
+	const uint2 TileCount = ViewResolution / TileResolution;
 
 	const uint2 PixelPos = uint2(SVPos.xy);	
-	const float2 UV = PixelPos / float2(OutputResolution);
+	const float2 UV = PixelPos / float2(ViewResolution);
 	const float2 TileUV = frac(UV * TileCount);
 	const uint2 TileCoord = floor(UV * TileCount);
 	const uint2 TilePixelCoord = TileUV * TileResolution;
