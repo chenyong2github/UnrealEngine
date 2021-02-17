@@ -395,7 +395,7 @@ void FMagicLeapCameraPreviewPlayer::TickFetch(FTimespan DeltaTime, FTimespan Tim
 
 						if (TextureDataPtr->VideoTexture == nullptr)
 						{
-							FRHIResourceCreateInfo CreateInfo;
+							FRHIResourceCreateInfo CreateInfo(TEXT("FMagicLeapCameraPreviewPlayer_VideoTexture"));
 							TextureDataPtr->VideoTexture = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
 						}
 
@@ -436,7 +436,7 @@ void FMagicLeapCameraPreviewPlayer::TickFetch(FTimespan DeltaTime, FTimespan Tim
 					FTextureRHIRef MediaVideoTexture = TextureDataPtr->VideoTexture;
 					if (MediaVideoTexture == nullptr)
 					{
-						FRHIResourceCreateInfo CreateInfo;
+						FRHIResourceCreateInfo CreateInfo(TEXT("MediaVideoTexture"));
 						MediaVideoTexture = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
 						TextureDataPtr->VideoTexture = MediaVideoTexture;
 

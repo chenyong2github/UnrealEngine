@@ -37,7 +37,7 @@ public:
 		const uint32 CreateFlags = TexCreate_Dynamic | TexCreate_SRGB;
 
 		TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-		FRHIResourceCreateInfo CreateInfo;
+		FRHIResourceCreateInfo CreateInfo(TEXT("DummyTexture2D"));
 
 		RHICreateTargetableShaderResource2D(
 			TotalSize.X,

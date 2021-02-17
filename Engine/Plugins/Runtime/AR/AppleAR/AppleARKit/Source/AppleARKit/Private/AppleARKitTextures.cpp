@@ -981,7 +981,7 @@ public:
 		if (!DecodedTextureRef || Size != OutputSize)
 		{
 			Size = OutputSize;
-			FRHIResourceCreateInfo CreateInfo;
+			FRHIResourceCreateInfo CreateInfo(TEXT("FARKitCameraVideoResource_DecodedTexture"));
 			{
 				FScopeLock ScopeLock(&DecodedTextureLock);
 				DecodedTextureRef = RHICreateTexture2D(Size.X, Size.Y, PF_B8G8R8A8, 1, 1, TexCreate_Dynamic | TexCreate_ShaderResource | TexCreate_UAV, CreateInfo);

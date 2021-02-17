@@ -158,7 +158,7 @@ class SIOSWebBrowserWidget : public SLeafWidget
 							FTextureRHIRef VideoTexture = [NativeWebBrowser GetVideoTexture];
 							if (VideoTexture == nullptr)
 							{
-								FRHIResourceCreateInfo CreateInfo;
+								FRHIResourceCreateInfo CreateInfo(TEXT("SIOSWebBrowserWidget_VideoTexture"));
 								FIntPoint Size = Params.Size;
 								VideoTexture = RHICreateTextureExternal2D(Size.X, Size.Y, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
 								[NativeWebBrowser SetVideoTexture : VideoTexture];
