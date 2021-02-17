@@ -315,7 +315,7 @@ namespace UnrealBuildTool
 				Arguments.Add("/RTCs");
 			}
 			//
-			//	Development and LTCG
+			//	Development
 			//
 			else
 			{
@@ -342,14 +342,19 @@ namespace UnrealBuildTool
 					}
 				}
 
-				//
-				// LTCG
-				//
-				if (CompileEnvironment.bAllowLTCG)
-				{
-					// Enable link-time code generation.
-					Arguments.Add("/GL");
-				}
+			}
+
+			//
+			// LTCG and PGO
+			//
+			bool bEnableLTCG =
+				CompileEnvironment.bPGOProfile ||
+				CompileEnvironment.bPGOOptimize ||
+				CompileEnvironment.bAllowLTCG;
+			if (bEnableLTCG)
+			{
+				// Enable link-time code generation.
+				Arguments.Add("/GL");
 			}
 
 			//
@@ -1823,9 +1828,96 @@ namespace UnrealBuildTool
 			return OutputFile;
 		}
 
+		protected bool PreparePGOFiles(LinkEnvironment LinkEnvironment)
+		{
+			if (LinkEnvironment.bPGOOptimize && LinkEnvironment.OutputFilePath.FullName.EndsWith(".exe"))
+			{
+				// The linker expects the .pgd and any .pgc files to be in the output directory.
+				// Copy the files there and make them writable...
+				Log.TraceInformation("...copying the profile guided optimization files to output directory...");
+
+				string[] PGDFiles = Directory.GetFiles(LinkEnvironment.PGODirectory, "*.pgd");
+				string[] PGCFiles = Directory.GetFiles(LinkEnvironment.PGODirectory, "*.pgc");
+
+				if (PGDFiles.Length > 1)
+				{
+					throw new BuildException("More than one .pgd file found in \"{0}\".", LinkEnvironment.PGODirectory);
+				}
+				else if (PGDFiles.Length == 0)
+				{
+					Log.TraceWarning("No .pgd files found in \"{0}\".", LinkEnvironment.PGODirectory);
+					return false;
+				}
+
+				if (PGCFiles.Length == 0)
+				{
+					Log.TraceWarning("No .pgc files found in \"{0}\".", LinkEnvironment.PGODirectory);
+					return false;
+				}
+
+				// Make sure the destination directory exists!
+				Directory.CreateDirectory(LinkEnvironment.OutputDirectory.FullName);
+
+				// Copy the .pgd to the linker output directory, renaming it to match the PGO filename prefix.
+				string PGDFile = PGDFiles.First();
+				string DestPGDFile = Path.Combine(LinkEnvironment.OutputDirectory.FullName, LinkEnvironment.PGOFilenamePrefix + ".pgd");
+				Log.TraceInformation("{0} -> {1}", PGDFile, DestPGDFile);
+				File.Copy(PGDFile, DestPGDFile, true);
+				File.SetAttributes(DestPGDFile, FileAttributes.Normal);
+
+				// Copy the *!n.pgc files (where n is an integer), renaming them to match the PGO filename prefix and ensuring they are numbered sequentially
+				int PGCFileIndex = 0;
+				foreach (string SrcFilePath in PGCFiles)
+				{
+					string DestFileName = string.Format("{0}!{1}.pgc", LinkEnvironment.PGOFilenamePrefix, ++PGCFileIndex);
+					string DestFilePath = Path.Combine(LinkEnvironment.OutputDirectory.FullName, DestFileName);
+
+					Log.TraceInformation("{0} -> {1}", SrcFilePath, DestFilePath);
+					File.Copy(SrcFilePath, DestFilePath, true);
+					File.SetAttributes(DestFilePath, FileAttributes.Normal);
+				}
+			}
+
+			return true;
+		}
+
+		protected virtual void AddPGOLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
+		{
+			bool bPGOOptimize = LinkEnvironment.bPGOOptimize;
+			bool bPGOProfile = LinkEnvironment.bPGOProfile;
+
+			if (bPGOOptimize)
+			{
+				if (PreparePGOFiles(LinkEnvironment))
+				{
+					//Arguments.Add("/USEPROFILE:PGD=" + Path.Combine(LinkEnvironment.PGODirectory, LinkEnvironment.PGOFilenamePrefix + ".pgd"));
+					Arguments.Add("/LTCG");
+					//Arguments.Add("/USEPROFILE:PGD=" + LinkEnvironment.PGOFilenamePrefix + ".pgd");
+					Arguments.Add("/USEPROFILE");
+					Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
+				}
+				else
+				{
+					Log.TraceWarning("PGO Optimize build will be disabled");
+					bPGOOptimize = false;
+				}
+			}
+			else if (bPGOProfile)
+			{
+				//Arguments.Add("/GENPROFILE:PGD=" + Path.Combine(LinkEnvironment.PGODirectory, LinkEnvironment.PGOFilenamePrefix + ".pgd"));
+				Arguments.Add("/LTCG");
+				//Arguments.Add("/GENPROFILE:PGD=" + LinkEnvironment.PGOFilenamePrefix + ".pgd");
+				Arguments.Add("/GENPROFILE");
+				Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
+			}
+		}
+
 		protected virtual void ModifyFinalLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments, bool bBuildImportLibraryOnly)
 		{
-			
+			AddPGOLinkArguments(LinkEnvironment, Arguments);
+
+			// IMPLEMENT_MODULE_ is not required - it only exists to ensure developers add an IMPLEMENT_MODULE() declaration in code. These are always removed for PGO so that adding/removing a module won't invalidate PGC data.
+			Arguments.RemoveAll(Argument => Argument.StartsWith("/INCLUDE:IMPLEMENT_MODULE_"));
 		}
 
 		private void ExportObjectFilePaths(LinkEnvironment LinkEnvironment, string FileName, VCEnvironment EnvVars)

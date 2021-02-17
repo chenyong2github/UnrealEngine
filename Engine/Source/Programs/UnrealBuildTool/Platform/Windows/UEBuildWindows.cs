@@ -2268,6 +2268,19 @@ namespace UnrealBuildTool
 			LinkEnvironment.DefaultStackSizeCommit = Target.WindowsPlatform.DefaultStackSizeCommit;
 
 			LinkEnvironment.ModuleDefinitionFile = Target.WindowsPlatform.ModuleDefinitionFile;
+
+			if (Target.bPGOOptimize || Target.bPGOProfile)
+			{
+				// LTCG is required for PGO
+				//CompileEnvironment.bAllowLTCG = true;
+				//LinkEnvironment.bAllowLTCG = true;
+
+				CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile).FullName, "Platforms", "Windows", "Build", "PGO");
+				CompileEnvironment.PGOFilenamePrefix = string.Format("{0}-{1}-{2}", Target.Name, Target.Platform, Target.Configuration);
+
+				LinkEnvironment.PGODirectory = CompileEnvironment.PGODirectory;
+				LinkEnvironment.PGOFilenamePrefix = CompileEnvironment.PGOFilenamePrefix;
+			}
 		}
 
 		/// <summary>
