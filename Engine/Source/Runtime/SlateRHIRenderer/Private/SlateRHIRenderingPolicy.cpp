@@ -659,6 +659,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 	TSlateElementVertexBuffer<FSlateVertex>* VertexBufferPtr = &MasterVertexBuffer;
 	FSlateElementIndexBuffer* IndexBufferPtr = &MasterIndexBuffer;
 
+	TRefCountPtr<FRHIUniformBuffer> SceneTextureUniformBuffer;
+
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
@@ -1049,11 +1051,14 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 					if (VertexShader.IsValid() && PixelShader.IsValid() && IsSceneTexturesValid(RHICmdList))
 					{
-						FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
-							RHICmdList,
-							ActiveSceneView.GetFeatureLevel(),
-							ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::CustomDepth);
-						FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+						if (!SceneTextureUniformBuffer)
+						{
+							SceneTextureUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
+								RHICmdList,
+								ActiveSceneView.GetFeatureLevel(),
+								ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::CustomDepth);
+						}
+						FUniformBufferStaticBindings GlobalUniformBuffers(SceneTextureUniformBuffer);
 						SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 #if WITH_SLATE_VISUALIZERS
