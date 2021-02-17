@@ -292,7 +292,11 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 		if (GUseNewTaskBackend)
 		{
 			TLocalWorkQueue<FGraphData> LocalWork(Graph);
-			LocalWork.Run(MakeYCombinator([this, &LocalWork](const auto& Self, FGraphData* Graph) -> void
+#if PLATFORM_MAC
+			TUniqueFunction<void(FGraphData*)> Self = ([this, &LocalWork, &Self](FGraphData* Graph)
+#else
+			auto Self = MakeYCombinator([this, &LocalWork](const auto& Self, FGraphData* Graph) -> void
+#endif
 			{
 				FGraphData* ChildGraphs[2];
 				BisectGraph( Graph, ChildGraphs );
@@ -312,7 +316,8 @@ void FGraphPartitioner::PartitionStrict( FGraphData* Graph, int32 InMinPartition
 					}
 					Self(ChildGraphs[1]);
 				}
-			}));
+			});
+			LocalWork.Run(Self);
 		}
 		else
 		{
