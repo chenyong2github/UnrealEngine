@@ -153,7 +153,6 @@ public class IOSPlatform : Platform
 
 	private string PlatformName = null;
 	private string SDKName = null;
-
 	public IOSPlatform()
 		: this(UnrealTargetPlatform.IOS)
 	{
@@ -519,48 +518,35 @@ public class IOSPlatform : Platform
 
 	public override DeviceInfo[] GetDevices()
 	{
+
 		List<DeviceInfo> Devices = new List<DeviceInfo>();
 
-		if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Mac)
+		var IdeviceIdPath = GetPathToLibiMobileDeviceTool("idevice_id");
+		string Output = Utils.RunLocalProcessAndReturnStdOut(IdeviceIdPath, "");
+		var ConnectedDevicesUDIDs = Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
+
+		DeviceInfo CurrentDevice = null;
+
+		foreach (string UnparsedUDID in ConnectedDevicesUDIDs)
 		{
-			string DeviceType = TargetPlatformType == UnrealTargetPlatform.TVOS ? "tvOS" : "iOS";
+			var IdeviceInfoPath = GetPathToLibiMobileDeviceTool("ideviceinfo");
+			String ParsedUDID = UnparsedUDID.Split(" ").First();
+			String IdeviceInfoArgs = "-u " + ParsedUDID;
 
-			// print out each connected device's udid, os version, and name (which might have spaces)
-			string Params = "-e 'require \"fastlane\"; FastlaneCore::DeviceManager.connected_devices(\"" + DeviceType + "\").each { |x| puts \"#{x.udid} #{x.os_type} #{x.os_version} #{x.name}\" }'";
-			string StdOut = UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("ruby", Params);
-
-			foreach (string Line in StdOut.Split("\n".ToCharArray(), StringSplitOptions.RemoveEmptyEntries))
+			if (UnparsedUDID.Contains("Network"))
 			{
-				string[] Tokens = Line.Split(" ".ToCharArray());
-
-				DeviceInfo Device = new DeviceInfo(TargetPlatformType);
-				Device.Id = Tokens[0];
-				Device.Type = Tokens[1];
-				Device.SoftwareVersion = Tokens[2];
-				Device.Name = string.Join(" ", Tokens.Skip(3));
-
-				Devices.Add(Device);
+				IdeviceInfoArgs = "-n " + IdeviceInfoArgs;
 			}
-		}
-		else if (HostPlatform.Current.HostEditorPlatform == UnrealTargetPlatform.Win64)
-		{
-			string UtilPath = Path.Combine(CommandUtils.EngineDirectory.FullName, "Extras/ThirdPartyNotUE/libimobiledevice/x64/ideviceinfo");
-			string Output = Utils.RunLocalProcessAndReturnStdOut(UtilPath, "");
 
-			DeviceInfo CurrentDevice = null;
-			foreach (string Line in Output.Split("\r\n".ToCharArray()))
+			string OutputInfo = Utils.RunLocalProcessAndReturnStdOut(IdeviceInfoPath, IdeviceInfoArgs);
+
+			CurrentDevice = new DeviceInfo(TargetPlatformType);
+			CurrentDevice.Name = UnparsedUDID;
+
+			foreach (string Line in OutputInfo.Split(Environment.NewLine.ToCharArray()))
 			{
-				if (Line.StartsWith("ActivationState:"))
-				{
-					CurrentDevice = new DeviceInfo(TargetPlatformType);
-					Devices.Add(CurrentDevice);
-				}
-				else if (Line.StartsWith("DeviceName:"))
-				{
-					CurrentDevice.Name = Line.Split(": ").Last();
-				}
 				// check we are returning the proper device for this class
-				else if (Line.StartsWith("DeviceClass:"))
+				if (Line.StartsWith("DeviceClass:"))
 				{
 					bool bIsDeviceTVOS = Line.Split(": ").Last().ToLower() == "tvos";
 					if (bIsDeviceTVOS != (TargetPlatformType == UnrealTargetPlatform.TVOS))
@@ -581,6 +567,7 @@ public class IOSPlatform : Platform
 					CurrentDevice.SoftwareVersion = Line.Split(": ").Last();
 				}
 			}
+			Devices.Add(CurrentDevice);
 		}
 		return Devices.ToArray();
 	}
@@ -1692,10 +1679,13 @@ public class IOSPlatform : Platform
 				BundleIdentifier = Contents.Substring(Pos, EndPos - Pos);
 			}
 
+			string IdeviceInstallerArgs = "--list-apps -u " + Params.DeviceNames[0];
+			IdeviceInstallerArgs = GetLibimobileDeviceNetworkedArgument(IdeviceInstallerArgs, Params.DeviceNames[0]);
+
 			var DeviceInstaller = GetPathToLibiMobileDeviceTool("ideviceinstaller");
 			LogInformation("Checking if bundle {0} is installed", BundleIdentifier);
 
-			string Output = CommandUtils.RunAndLog(DeviceInstaller, "--list-apps");
+			string Output = CommandUtils.RunAndLog(DeviceInstaller, IdeviceInstallerArgs);
 			bool bBundleIsInstalled = Output.Contains(string.Format("CFBundleIdentifier -> {0}{1}", BundleIdentifier, Environment.NewLine));
 			int ExitCode = 0;
 
@@ -1708,7 +1698,11 @@ public class IOSPlatform : Platform
 				string AllCommandsToPush = " push " + CombinePaths(Params.BaseStageDirectory, PlatformName, SC.GetUFSDeployedManifestFileName(null)) + "\n"
 										+ " push " + CombinePaths(Params.BaseStageDirectory, PlatformName, SC.GetNonUFSDeployedManifestFileName(null));		
 				System.IO.File.WriteAllText(Directory.GetCurrentDirectory() + "\\CommandsToPush.txt", AllCommandsToPush);
-				Utils.RunLocalProcessAndReturnStdOut(DeviceFS, "-b " + BundleIdentifier + " -x " + Directory.GetCurrentDirectory() + "\\CommandsToPush.txt", out ExitCode, true);
+
+				string IdeviceFSArgs = "-b " + BundleIdentifier + " -x " + Directory.GetCurrentDirectory() + "\\CommandsToPush.txt -u " + Params.DeviceNames[0];
+				IdeviceFSArgs = GetLibimobileDeviceNetworkedArgument(IdeviceFSArgs, Params.DeviceNames[0]);
+
+				Utils.RunLocalProcessAndReturnStdOut(DeviceFS, IdeviceFSArgs, out ExitCode, true);
 				if (ExitCode != 0)
 				{
 					LogError("Deployer error : failed to push files. See above log for more details");
@@ -1757,10 +1751,20 @@ public class IOSPlatform : Platform
 		return ExecWithPath;
 	}
 
+	private string GetLibimobileDeviceNetworkedArgument(string EntryArguments, string UDID)
+	{
+		DeviceInfo[] CachedDevices = GetDevices();
+
+		if (CachedDevices.Where(CachedDevice => CachedDevice.Name.Contains(UDID) && CachedDevice.Name.Contains("Network")).Count() > 0)
+		{
+			return "-n " + EntryArguments;
+		}
+		return EntryArguments;
+	}
+
 	private void DeployManifestContent(string BaseFolder, DeploymentContext SC, ProjectParams Params, ref string Files, ref string BundleIdentifier)
 	{
 		var DeviceFS = GetPathToLibiMobileDeviceTool("idevicefs");
-
 
 		string[] FileList = Files.Split('\n');
 		string AllCommandsToPush = "";
@@ -1780,9 +1784,12 @@ public class IOSPlatform : Platform
 			}
 		}
 		System.IO.File.WriteAllText(Directory.GetCurrentDirectory() + "\\CommandsToPush.txt", AllCommandsToPush);
-		LogWarning("BEFORE CRASH " + Directory.GetCurrentDirectory() + "\\CommandsToPush.txt");
 		int ExitCode = 0;
-		Utils.RunLocalProcessAndReturnStdOut(DeviceFS, "-b " + BundleIdentifier + " -x " + Directory.GetCurrentDirectory() + "\\CommandsToPush.txt", out ExitCode, true);
+
+		string IdeviceFSArgs = "-u " + Params.DeviceNames[0] + " -b " + BundleIdentifier + " -x " + Directory.GetCurrentDirectory() + "\\CommandsToPush.txt";
+		IdeviceFSArgs = GetLibimobileDeviceNetworkedArgument(IdeviceFSArgs, Params.DeviceNames[0]);
+
+		Utils.RunLocalProcessAndReturnStdOut(DeviceFS, IdeviceFSArgs, out ExitCode, true);
 		if (ExitCode != 0)
 		{
 			LogError("Deployer error : failed to push files. See above log for more details");
@@ -1847,16 +1854,18 @@ public class IOSPlatform : Platform
 		// Add a commandline for this deploy, if the config allows it.
 		string AdditionalCommandline = (Params.FileServer || Params.CookOnTheFly) ? "" : (" -additionalcommandline " + "\"" + Params.RunCommandline + "\"");
 
-
 		// deploy the .ipa
 		var DeviceInstaller = GetPathToLibiMobileDeviceTool("ideviceinstaller");
+
+		string LibimobileDeviceArguments =  "-u " + Params.DeviceNames[0] + " -i " + Path.GetFullPath(StagedIPA);
+		LibimobileDeviceArguments = GetLibimobileDeviceNetworkedArgument(LibimobileDeviceArguments, Params.DeviceNames[0]);
 
 		// check for it in the stage directory
 		string CurrentDir = Directory.GetCurrentDirectory();
 		Directory.SetCurrentDirectory(CombinePaths(CmdEnv.LocalRoot, "Engine/Binaries/DotNET/IOS/"));
 		if (!Params.IterativeDeploy || bCreatedIPA || bNeedsIPA)
 		{
-			RunAndLog(CmdEnv, DeviceInstaller, "-i " + Path.GetFullPath(StagedIPA));
+			RunAndLog(CmdEnv, DeviceInstaller, LibimobileDeviceArguments);
 		}
 
 		// deploy the assets

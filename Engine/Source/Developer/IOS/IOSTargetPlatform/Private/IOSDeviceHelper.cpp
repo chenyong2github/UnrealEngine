@@ -12,13 +12,22 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
 
-struct FDeviceNotificationCallbackInformation
-{
-    FString UDID;
-    FString    DeviceName;
-    FString ProductType;
-    uint32 msgType;
-};
+    enum DeviceConnectionInterface
+    {
+        NoValue = 0,
+        USB = 1,
+        Network = 2,
+        Max = 4
+    };
+
+    struct FDeviceNotificationCallbackInformation
+    {
+        FString UDID;
+        FString DeviceName;
+        FString ProductType;
+        DeviceConnectionInterface DeviceInterface;
+        uint32 msgType;
+    };
 
 
     struct LibIMobileDevice
@@ -26,6 +35,7 @@ struct FDeviceNotificationCallbackInformation
         FString DeviceName;
         FString DeviceID;
         FString DeviceType;
+        DeviceConnectionInterface DeviceInterface;
     };
 
     static FString GetLibImobileDeviceExe(const FString &ExeName)
@@ -53,45 +63,54 @@ struct FDeviceNotificationCallbackInformation
         
 
         TArray<LibIMobileDevice> ToReturn;
-
         // separate out each line
-        TArray<FString> CurrentDeviceIds;
-        OutStdOut.ParseIntoArray(CurrentDeviceIds, TEXT("\n"), true);
-        for (int32 Index = 0; Index != CurrentDeviceIds.Num(); ++Index)
-        {
-            if (CurrentDeviceIds[Index].Contains("Network"))
-            {
-                CurrentDeviceIds.RemoveAt(Index);
-                Index--;
-                continue;
-            }
-            CurrentDeviceIds[Index].Split(TEXT(" "), &CurrentDeviceIds[Index], nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-        }
+        TArray<FString> OngoingDeviceIds;
+        
+        OutStdOut.ParseIntoArray(OngoingDeviceIds, TEXT("\n"), true);
         TArray<FString> DeviceStrings;
-        for (int32 StringIndex = 0; StringIndex < CurrentDeviceIds.Num(); ++StringIndex)
+        for (int32 StringIndex = 0; StringIndex < OngoingDeviceIds.Num(); ++StringIndex)
         {
-
-            const FString& DeviceID = CurrentDeviceIds[StringIndex];
+            const FString& DeviceID = OngoingDeviceIds[StringIndex];
+            DeviceConnectionInterface OngoingDeviceInterface = DeviceConnectionInterface::NoValue;
 
             FString OutStdOutInfo;
             FString OutStdErrInfo;
             FString LibimobileDeviceInfo = GetLibImobileDeviceExe("ideviceinfo");
             int ReturnCodeInfo;
-            FString Arguments = "-u " + DeviceID;
-            // get the list of devices UDID
-            FPlatformProcess::ExecProcess(*LibimobileDeviceInfo, *Arguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo);
+            FString Arguments;
 
+            if (OngoingDeviceIds[StringIndex].Contains("USB"))
+            {
+                OngoingDeviceInterface = DeviceConnectionInterface::USB;
+            }
+            else if (OngoingDeviceIds[StringIndex].Contains("Network"))
+            {
+                OngoingDeviceInterface = DeviceConnectionInterface::Network;
+            }
+            OngoingDeviceIds[StringIndex].Split(TEXT(" "), &OngoingDeviceIds[StringIndex], nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+
+            if (OngoingDeviceInterface == DeviceConnectionInterface::USB)
+            {
+                Arguments = "-u " + DeviceID;
+            }
+            else if (OngoingDeviceInterface == DeviceConnectionInterface::Network)
+            {
+                Arguments = "-n -u " + DeviceID;
+            }
+
+            FPlatformProcess::ExecProcess(*LibimobileDeviceInfo, *Arguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo);
             // parse product type and device name
             FString DeviceName;
             OutStdOutInfo.Split(TEXT("DeviceName: "), nullptr, &DeviceName, ESearchCase::CaseSensitive, ESearchDir::FromStart);
             DeviceName.Split(LINE_TERMINATOR, &DeviceName, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
             FString ProductType;
             OutStdOutInfo.Split(TEXT("ProductType: "), nullptr, &ProductType, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-            DeviceName.Split(LINE_TERMINATOR, &DeviceName, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
+            ProductType.Split(LINE_TERMINATOR, &ProductType, nullptr, ESearchCase::CaseSensitive, ESearchDir::FromStart);
             LibIMobileDevice ToAdd;
             ToAdd.DeviceID = DeviceID;
             ToAdd.DeviceName = DeviceName;
             ToAdd.DeviceType = ProductType;
+            ToAdd.DeviceInterface = OngoingDeviceInterface;
             ToReturn.Add(ToAdd);
         }
         return ToReturn;
@@ -271,6 +290,7 @@ private:
             FDeviceNotificationCallbackInformation CallbackInfo;
             CallbackInfo.DeviceName = ParsedDevices[Index].DeviceName;
             CallbackInfo.UDID = ParsedDevices[Index].DeviceID;
+            CallbackInfo.DeviceInterface = ParsedDevices[Index].DeviceInterface;
             CallbackInfo.ProductType = ParsedDevices[Index].DeviceType;
             CallbackInfo.msgType = 1;
             DeviceNotification.Broadcast(&CallbackInfo);
