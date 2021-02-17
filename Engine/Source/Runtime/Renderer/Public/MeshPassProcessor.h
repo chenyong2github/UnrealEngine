@@ -1997,13 +1997,13 @@ private:
 	FInstanceCullingContext InstanceCullingContext;
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
+	bool bNeedsInitialization = false;
 	FDynamicPassMeshDrawListContext DynamicPassMeshDrawListContext;
 
 	// Is set to true if and only if the BuildRenderingCommands has been called with an enabled GPU scene (which implies a valid Scene etc).
 	// Is used to check that we don't submit any draw commands that require a GPU scene without supplying one.
 	bool bSupportsScenePrimitives = false;
 
-	bool bNeedsInitialization = false;
 	bool bDynamicInstancing = false;
 	uint32 InstanceFactor = 1;
 
