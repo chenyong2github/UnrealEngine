@@ -291,5 +291,5 @@ void FTargetDeviceProxy::Reboot()
 
 void FTargetDeviceProxy::InitializeMessaging()
 {
-	// could delete this function
+	MessageEndpoint = FMessageEndpoint::Builder(FName(*FString::Printf(TEXT("FTargetDeviceProxy (%s)"), *Name))).Build();
 }
