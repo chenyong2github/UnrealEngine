@@ -56,6 +56,8 @@ namespace ESteamSession
 	}
 }
 
+using FUniqueNetIdSteamRef = TSharedRef<const class FUniqueNetIdSteam, UNIQUENETID_ESPMODE>;
+
 /**
  * Steam specific implementation of the unique net id
  */
@@ -84,9 +86,9 @@ PACKAGE_SCOPE:
 
 public:
 	template<typename... TArgs>
-	static FUniqueNetIdStringRef Create(TArgs&&... Args)
+	static FUniqueNetIdSteamRef Create(TArgs&&... Args)
 	{
-		return MakeShareable(new FUniqueNetIdString(Forward<TArgs>(Args)...));
+		return MakeShareable(new FUniqueNetIdSteam(Forward<TArgs>(Args)...));
 	}
 	
 	/**
@@ -305,7 +307,7 @@ PACKAGE_SCOPE:
 	/** The Steam P2P address that the host is listening on (valid for GameServer/Lobby) */
 	TSharedPtr<class FInternetAddr> SteamP2PAddr;
 	/** Steam Lobby Id or Gameserver Id if applicable */
-	FUniqueNetIdSteamRef SessionId;
+	FUniqueNetIdSteam SessionId;
 	/** How this session should be connected to */
 	FSteamConnectionMethod ConnectionMethod;
 
