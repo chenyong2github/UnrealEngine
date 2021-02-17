@@ -2219,7 +2219,10 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 			if (SessionState.state == XR_SESSION_STATE_READY)
 			{
-				GEngine->SetMaxFPS(0);
+				if (!GIsEditor)
+                {
+					GEngine->SetMaxFPS(0);
+                }
 				bIsReady = true;
 				StartSession();
 			}
@@ -2230,14 +2233,25 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 			else if (SessionState.state == XR_SESSION_STATE_IDLE)
 			{
 				bIsSynchronized = false;
-				GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
 			}
 			else if (SessionState.state == XR_SESSION_STATE_STOPPING)
 			{
+				if (!GIsEditor)
+                {
+					GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
+                }
 				bIsReady = false;
 				StopSession();
 			}
-			
+			else if (SessionState.state == XR_SESSION_STATE_EXITING)
+			{
+				// We need to make sure we unlock the frame rate again when exiting VR while idle
+				if (!GIsEditor)
+                {
+					GEngine->SetMaxFPS(0);
+                }
+			}
+
 			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
 				break;
