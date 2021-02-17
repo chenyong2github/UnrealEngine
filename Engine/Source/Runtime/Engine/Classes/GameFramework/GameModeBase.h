@@ -437,7 +437,7 @@ public:
 	/**
 	 * Called during RestartPlayer to actually spawn the player's pawn, when using a transform
 	 * @param	NewPlayer - Controller for whom this pawn is spawned
-	 * @param	StartSpot - Actor at which to spawn pawn
+	 * @param	SpawnTransform - Transform at which to spawn pawn
 	 * @return	a pawn of the default pawn class
 	 */
 	UFUNCTION(BlueprintNativeEvent, Category=Game)
