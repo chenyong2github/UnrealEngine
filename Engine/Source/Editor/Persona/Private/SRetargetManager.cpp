@@ -429,7 +429,7 @@ FReply SRetargetManager::OnImportPose()
 void SRetargetManager::ImportPose(const UPoseAsset* PoseAsset, const FName& PoseName)
 {
 	// Get transforms from pose (this also converts from additive if necessary)
-	int32 PoseIndex = PoseAsset->GetPoseIndexByName(PoseName);
+	const int32 PoseIndex = PoseAsset->GetPoseIndexByName(PoseName);
 	if (PoseIndex != INDEX_NONE)
 	{
 		TArray<FTransform> PoseTransforms;
@@ -449,6 +449,18 @@ void SRetargetManager::ImportPose(const UPoseAsset* PoseAsset, const FName& Pose
 
 				if (PreviewMesh)
 				{
+					// Check if we have bones for all the tracks. If not, then fail so that the user doesn't end up
+					// with partial or broken retarget setup.
+					for (int32 TrackIndex = 0; TrackIndex < PoseTrackNames.Num(); ++TrackIndex)
+					{
+						const int32 BoneIndex = PreviewMesh->RefSkeleton.FindBoneIndex(PoseTrackNames[TrackIndex]);
+						if (BoneIndex == INDEX_NONE)
+						{
+							FMessageDialog::Open(EAppMsgType::Ok, FText::FromString(TEXT("Pose asset does not match the preview mesh skeleton. Aborting.")));
+							return;
+						}
+					}
+					
 					const FScopedTransaction Transaction(LOCTEXT("ImportRetargetBasePose_Action", "Import Retarget Base Pose"));
 					PreviewMesh->Modify();
 
@@ -458,7 +470,7 @@ void SRetargetManager::ImportPose(const UPoseAsset* PoseAsset, const FName& Pose
 					// now override imported pose
 					for (int32 TrackIndex = 0; TrackIndex < PoseTrackNames.Num(); ++TrackIndex)
 					{
-						int32 BoneIndex = PreviewMesh->RefSkeleton.FindBoneIndex(PoseTrackNames[TrackIndex]);
+						const int32 BoneIndex = PreviewMesh->RefSkeleton.FindBoneIndex(PoseTrackNames[TrackIndex]);
 						PreviewMesh->RetargetBasePose[BoneIndex] = PoseTransforms[TrackIndex];
 					}
 
