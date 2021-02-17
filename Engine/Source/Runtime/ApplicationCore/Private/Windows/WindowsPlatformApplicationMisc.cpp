@@ -31,22 +31,6 @@ THIRD_PARTY_INCLUDES_END
 typedef HRESULT(STDAPICALLTYPE *GetDpiForMonitorProc)(HMONITOR Monitor, int32 DPIType, uint32 *DPIX, uint32 *DPIY);
 APPLICATIONCORE_API GetDpiForMonitorProc GetDpiForMonitor;
 
-void FWindowsPlatformApplicationMisc::LoadPreInitModules()
-{
-	// D3D11 is not supported on WinXP, so in this case we use the OpenGL RHI
-	if(FPlatformMisc::VerifyWindowsVersion(6, 0))
-	{
-		//#todo-rco: Only try on Win10
-		const bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
-		if (bForceD3D12)
-		{
-			FModuleManager::Get().LoadModule(TEXT("D3D12RHI"));
-		}
-		FModuleManager::Get().LoadModule(TEXT("D3D11RHI"));
-	}
-	FModuleManager::Get().LoadModule(TEXT("OpenGLDrv"));
-}
-
 void FWindowsPlatformApplicationMisc::LoadStartupModules()
 {
 #if !UE_SERVER
