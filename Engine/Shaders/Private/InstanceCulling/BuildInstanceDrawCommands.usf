@@ -50,6 +50,31 @@ uint NumPrimitiveIds;
 uint NumInstanceRuns;
 int NumCommands;
 uint NumViewIds;
+int DynamicPrimitiveIdOffset;
+int DynamicPrimitiveIdMax;
+
+
+/**
+ * Check if the PRIM_ID_DYNAMIC_FLAG bit is set on the Primitive ID and if so add the dynamic primitive offset to get the GPU-Scene ID.
+ */
+uint TranslatePrimitiveId(uint PrimitiveIdIn)
+{
+	// This means we defer the translation to later
+	if (DynamicPrimitiveIdOffset == -1)
+	{
+		return PrimitiveIdIn;
+	}
+
+	uint PrimitiveId = PrimitiveIdIn;
+	if ((PrimitiveIdIn & PRIM_ID_DYNAMIC_FLAG) != 0)
+	{
+		uint DynamicPrimitiveIndex = PrimitiveIdIn & (~PRIM_ID_DYNAMIC_FLAG);
+		PrimitiveId = uint(DynamicPrimitiveIdOffset) + DynamicPrimitiveIndex;
+	}
+
+	return PrimitiveId;
+}
+
 
 bool TestInstanceVisibilityBit(uint InstanceId, uint ViewId)
 {
@@ -108,7 +133,7 @@ void ComputeInstanceIdOutputSize(uint GroupThreadIndex : SV_GroupIndex, uint Gro
 		uint Num = 0;
 		if (Index < NumCmdPrimitiveIds)
 		{
-			uint PrimitiveId = PrimitiveIds[Cmd.FirstPrimitiveIdOffset + Index];
+			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset + Index]);
 			if (GetPrimitiveData(PrimitiveId).InstanceDataOffset >= 0)
 			{
 				Num = GetPrimitiveData(PrimitiveId).NumInstanceDataEntries;
@@ -246,7 +271,7 @@ void OutputInstanceIdsAtOffset(uint GroupThreadIndex : SV_GroupIndex, uint Group
 	if (CommandInstanceCount > 0)
 	{
 		// 3. Broadcast to all threads
-		uint PrimitiveId = PrimitiveIds[Cmd.FirstPrimitiveIdOffset];
+		uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset]);
 		if (GroupThreadIndex == 0)
 		{
 			WriteInstanceId(InstanceIdOutputOffset, GetPrimitiveData(PrimitiveId).InstanceDataOffset, 0U, CommandSlotIndex);
@@ -272,7 +297,7 @@ void OutputInstanceIdsAtOffset(uint GroupThreadIndex : SV_GroupIndex, uint Group
 				while (OutputIndex >= CurrentRangeEnd)
 				{
 					CurrentPrimitiveIdIndex += 1;
-					uint PrimitiveId = PrimitiveIds[Cmd.FirstPrimitiveIdOffset + CurrentPrimitiveIdIndex];
+					uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset + CurrentPrimitiveIdIndex]);
 
 					CurrentRangeStart = CurrentRangeEnd;
 					InstanceDataOffset = GetPrimitiveData(PrimitiveId).InstanceDataOffset;
@@ -390,7 +415,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 		uint Num = 0;
 		if (Index < NumCmdPrimitiveIds)
 		{
-			uint PrimitiveId = PrimitiveIds[Cmd.FirstPrimitiveIdOffset + Index];
+			uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset + Index]);
 			if (GetPrimitiveData(PrimitiveId).InstanceDataOffset >= 0)
 			{
 				Num = GetPrimitiveData(PrimitiveId).NumInstanceDataEntries;
@@ -433,7 +458,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 
 		// 3. Broadcast to all threads
 		uint InstanceIdOutputOffset = InstanceIdOffsetGroupShared;
-		uint PrimitiveId = PrimitiveIds[Cmd.FirstPrimitiveIdOffset];
+		uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset]);
 		WriteInstanceId(InstanceIdOutputOffset, GetPrimitiveData(PrimitiveId).InstanceDataOffset, 0U, CommandSlotIndex);
 		GroupMemoryBarrierWithGroupSync();
 
@@ -450,7 +475,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 			while (OutputIndex1 >= CurrentRangeEnd)
 			{
 				CurrentPrimitiveIdIndex += 1;
-				uint PrimitiveId = PrimitiveIds[Cmd.FirstPrimitiveIdOffset + CurrentPrimitiveIdIndex];
+				uint PrimitiveId = TranslatePrimitiveId(PrimitiveIds[Cmd.FirstPrimitiveIdOffset + CurrentPrimitiveIdIndex]);
 
 				CurrentRangeStart = CurrentRangeEnd;
 				InstanceDataOffset = GetPrimitiveData(PrimitiveId).InstanceDataOffset;

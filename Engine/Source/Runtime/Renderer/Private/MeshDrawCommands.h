@@ -224,7 +224,8 @@ extern void SortAndMergeDynamicPassMeshDrawCommands(
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
 	FRHIBuffer*& OutPrimitiveIdVertexBuffer,
-	uint32 InstanceFactor);
+	uint32 InstanceFactor,
+	const TRange<int32>& DynamicPrimitiveIdRange);
 
 void SubmitGPUInstancedMeshDrawCommandsRange(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,

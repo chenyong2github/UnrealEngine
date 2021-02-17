@@ -73,8 +73,13 @@ public:
 	RENDERER_API void Commit();
 
 	/**
+	 * Get the range of Primitive IDs in GPU-Scene for this batch of dynamic primitives, only valid to call after commit.
 	 */
-	const TRange<int32> &GetPrimitiveIdRange() const { return PrimitiveIdRange; }
+	FORCEINLINE const TRange<int32> &GetPrimitiveIdRange() const
+	{ 
+		ensure(bCommitted || UploadData == nullptr);
+		return PrimitiveIdRange; 
+	}
 
 	FORCEINLINE int32 GetInstanceDataOffset(int32 PrimitiveId) const
 	{

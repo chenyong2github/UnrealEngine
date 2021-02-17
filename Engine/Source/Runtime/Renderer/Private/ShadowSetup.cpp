@@ -2121,10 +2121,11 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 		for (int32 ViewIndex = 0; ViewIndex < Renderer.Views.Num(); ViewIndex++)
 		{
 			const FViewInfo& View = Renderer.Views[ViewIndex];
-			ProjectionStencilingPasses.Add(FShadowMeshDrawCommandPass());
-			FShadowMeshDrawCommandPass& ProjectionStencilingPass = ProjectionStencilingPasses[ViewIndex];
 
-			FDynamicPassMeshDrawListContext ProjectionStencilingContext(DynamicMeshDrawCommandStorage, ProjectionStencilingPass.VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, NeedsShaderInitialisation);
+			const uint32 InstanceFactor = View.bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View) ? 2 : 1;
+			// Note: not using FMemstack as the data is not cleared in the right order.
+			ProjectionStencilingPasses.Add(new FSimpleMeshDrawCommandPass(View, &InstanceCullingManager, InstanceFactor));
+			FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *ProjectionStencilingPasses[ViewIndex];
 
 			FMeshPassProcessorRenderState DrawRenderState;
 			DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
@@ -2164,7 +2165,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 				DDM_AllOccluders,
 				false,
 				false,
-				&ProjectionStencilingContext);
+				ProjectionStencilingPass.GetDynamicPassMeshDrawListContext());
 
 			// Pre-shadows mask by receiver elements, self-shadow mask by subject elements.
 			// Note that self-shadow pre-shadows still mask by receiver elements.
@@ -2216,13 +2217,6 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 					DepthPassMeshProcessor.AddMeshBatch(StaticMesh, DefaultBatchElementMask, StaticMesh.PrimitiveSceneInfo->Proxy);
 				}
 			}
-
-			ApplyViewOverridesToMeshDrawCommands(View, ProjectionStencilingPass.VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, NeedsShaderInitialisation);
-
-			// If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
-			// TODO: Support instanced stereo properly in the projection stenciling pass.
-			const uint32 InstanceFactor = View.bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View) ? 2 : 1;
-			SortAndMergeDynamicPassMeshDrawCommands(Renderer.FeatureLevel, ProjectionStencilingPass.VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, ProjectionStencilingPass.PrimitiveIdVertexBuffer, InstanceFactor);
 		}
 	}
 }
@@ -2279,8 +2273,6 @@ void FProjectedShadowInfo::GatherDynamicMeshElements(FSceneRenderer& Renderer, F
 
 		Renderer.MeshCollector.ProcessTasks();
 	}
-
-	ShadowDepthView->DynamicPrimitiveCollector.Commit();
 
 	SetupMeshDrawCommandsForShadowDepth(Renderer, InstanceCullingManager);
 	SetupMeshDrawCommandsForProjectionStenciling(Renderer, InstanceCullingManager);
@@ -2377,6 +2369,10 @@ void FProjectedShadowInfo::ClearTransientArrays()
 
 	SubjectMeshCommandBuildRequests.Empty();
 
+	for (auto ProjectionStencilingPass : ProjectionStencilingPasses)
+	{
+		delete ProjectionStencilingPass;
+	}
 	ProjectionStencilingPasses.Reset();
 
 	DynamicMeshDrawCommandStorage.MeshDrawCommands.Empty();

@@ -1304,7 +1304,10 @@ void DrawDynamicMeshPassPrivate(
 		FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 
 		ApplyViewOverridesToMeshDrawCommands(View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, InNeedsShaderInitialisation);
-		SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor);
+
+		check(View.bIsViewInfo);
+		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
+		SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange());
 
 		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
 	}
@@ -1375,9 +1378,8 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 		}
 		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData && ViewIfDynamicMeshCommand != nullptr)
 		{
-			checkSlow(ViewIfDynamicMeshCommand->bIsViewInfo);
-			const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(ViewIfDynamicMeshCommand);
-			DrawPrimitiveId = ViewInfo->DynamicPrimitiveCollector.GetFinalId(BatchElement.DynamicPrimitiveShaderDataIndex);
+			// Mark using GPrimIDDynamicFlag (top bit) as we defer this to later.
+			DrawPrimitiveId = BatchElement.DynamicPrimitiveShaderDataIndex | GPrimIDDynamicFlag;
 		}
 		else
 		{
@@ -1473,15 +1475,21 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 PassProcessorCreateFunction FPassProcessorManager::JumpTable[(int32)EShadingPath::Num][EMeshPass::Num] = {};
 EMeshPassFlags FPassProcessorManager::Flags[(int32)EShadingPath::Num][EMeshPass::Num] = {};
 
-#if defined(GPUCULL_TODO)
 
-FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager) :
+FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, uint32 InstanceFactorIn) :
 	bNeedsInitialization(false),
 	DynamicPassMeshDrawListContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, bNeedsInitialization)
 {
 	check(View.bIsViewInfo);
 	const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
+	// GPUCULL_TODO: Non-Instanced stereo?
 	InstanceCullingContext = FInstanceCullingContext(InstanceCullingManager, TArrayView<const int32>(&ViewInfo->GPUSceneViewId, 1));
+	bDynamicInstancing = IsDynamicInstancingEnabled(ViewInfo->GetFeatureLevel());
+
+#if defined(GPUCULL_TODO)
+	// GPUCULL_TODO: Instanced stereo?
+	InstanceFactor = InstanceFactorIn;
+#endif // defined(GPUCULL_TODO)
 }
 
 void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
@@ -1489,11 +1497,11 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 	// NOTE: Everything up to InstanceCullingContext.BuildRenderingCommands could be peeled off into an async task.
 	ApplyViewOverridesToMeshDrawCommands(View, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, bNeedsInitialization);
 
-	VisibleMeshDrawCommands.Sort(FCompareFMeshDrawCommands());
-
 	FInstanceCullingResult InstanceCullingResult;
+	VisibleMeshDrawCommands.Sort(FCompareFMeshDrawCommands());
 	if (GPUScene.IsEnabled())
 	{
+#if defined(GPUCULL_TODO)
 		int32 MaxInstances = 0;
 		int32 VisibleMeshDrawCommandsNum = 0;
 		int32 NewPassVisibleMeshDrawCommandsNum = 0;
@@ -1502,8 +1510,16 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 		SetupGPUInstancedDraws(InstanceCullingContext, VisibleMeshDrawCommands, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
 
 		// 2. Run finalize culling commands pass
-		InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, InstanceCullingResult);
+		check(View.bIsViewInfo);
+		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
+		InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange(), InstanceCullingResult);
 		
+#else // defined(GPUCULL_TODO)
+		check(View.bIsViewInfo);
+		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
+		SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange());
+
+#endif // defined(GPUCULL_TODO)
 		// Signal that scene primitives are supported, used for validation, the existence of a valid InstanceCullingResult is the required signal
 		bSupportsScenePrimitives = true;
 	}
@@ -1520,24 +1536,32 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList
 {
 	if (VisibleMeshDrawCommands.Num() > 0)
 	{
-		FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
-		FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
-
-		if (InstanceCullingDrawParams.DrawIndirectArgsBuffer != nullptr && InstanceCullingDrawParams.InstanceIdOffsetBuffer != nullptr)
+#if defined(GPUCULL_TODO)
+		if (bSupportsScenePrimitives)
 		{
-			DrawIndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer->GetRHI();
-			InstanceIdOffsetBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer->GetRHI();
-		}
+			FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
+			FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
 
-		SubmitGPUInstancedMeshDrawCommandsRange(
-			VisibleMeshDrawCommands,
-			GraphicsMinimalPipelineStateSet,
-			0,
-			VisibleMeshDrawCommands.Num(),
-			InstanceIdOffsetBuffer,
-			DrawIndirectArgsBuffer,
-			RHICmdList);
+			if (InstanceCullingDrawParams.DrawIndirectArgsBuffer != nullptr && InstanceCullingDrawParams.InstanceIdOffsetBuffer != nullptr)
+			{
+				DrawIndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer->GetRHI();
+				InstanceIdOffsetBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer->GetRHI();
+			}
+
+			SubmitGPUInstancedMeshDrawCommandsRange(
+				VisibleMeshDrawCommands,
+				GraphicsMinimalPipelineStateSet,
+				0,
+				VisibleMeshDrawCommands.Num(),
+				InstanceIdOffsetBuffer,
+				DrawIndirectArgsBuffer,
+				RHICmdList);
+		}
+		else
+#endif // defined(GPUCULL_TODO)
+		{
+			SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
+		}
 	}
 }
 
-#endif // GPUCULL_TODO

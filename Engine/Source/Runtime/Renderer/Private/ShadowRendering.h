@@ -232,13 +232,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-class FShadowMeshDrawCommandPass
-{
-public:
-	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-	FRHIBuffer* PrimitiveIdVertexBuffer;
-};
-
 /**
  * Information about a projected shadow.
  */
@@ -733,7 +726,7 @@ private:
 	FMeshCommandOneFrameArray ShadowDepthPassVisibleCommands;
 	FParallelMeshDrawCommandPass ShadowDepthPass;
 
-	TArray<FShadowMeshDrawCommandPass, TInlineAllocator<2>> ProjectionStencilingPasses;
+	TArray<FSimpleMeshDrawCommandPass *, TInlineAllocator<8>> ProjectionStencilingPasses;
 
 	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;

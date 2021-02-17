@@ -1947,6 +1947,10 @@ FViewInfo* FViewInfo::CreateSnapshot() const
 		Result->ParallelMeshDrawCommandPasses[i].InitCreateSnapshot();
 	}
 	
+	// Ensure the internal state is maintained, needed because we've just Memcpy'd the member data.
+	static_assert(TIsTriviallyDestructible<FGPUScenePrimitiveCollector>::Value != 0, "The destructor is not invoked properly because of FMemory::Memcpy(*Result, *this) above");
+	Result->DynamicPrimitiveCollector = FGPUScenePrimitiveCollector(DynamicPrimitiveCollector);
+
 	Result->bIsSnapshot = true;
 	ViewInfoSnapshots.Add(Result);
 	return Result;

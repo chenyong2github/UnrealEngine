@@ -3053,11 +3053,6 @@ void FSceneRenderer::GatherDynamicMeshElements(
 		}
 	}
 	MeshCollector.ProcessTasks();
-
-	for (FViewInfo& View : InViews)
-	{
-		View.DynamicPrimitiveCollector.Commit();
-	}
 }
 
 /**

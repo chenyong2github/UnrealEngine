@@ -38,6 +38,9 @@ enum EPrimitiveIdMode
 	PrimID_NumBits						= 2,
 };
 
+// Flag used to mark a primtive ID as dynamic, and thus needing translation (by adding the offset from the dynamic primitive collector).
+static constexpr int32 GPrimIDDynamicFlag = 1 << 31;
+
 /**
  * A batch mesh element definition.
  */

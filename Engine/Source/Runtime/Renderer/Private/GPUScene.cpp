@@ -1050,6 +1050,13 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListI
 
 	FGPUScenePrimitiveCollector& Collector = View.DynamicPrimitiveCollector;
 
+	// Auto-commit if not done (should usually not be done, but sometimes the UploadDynamicPrimitiveShaderDataForViewInternal is called to ensure the 
+	// CachedViewUniformShaderParameters is set on the view.
+	if (!Collector.bCommitted)
+	{
+		Collector.Commit();
+	}
+
 	const int32 NumPrimitiveDataUploads = Collector.Num();
 	ensure(Collector.GetPrimitiveIdRange().Size<int32>() == NumPrimitiveDataUploads);
 	

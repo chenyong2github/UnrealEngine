@@ -1972,15 +1972,13 @@ private:
 	uint32 RayTracingInstanceIndex;
 };
 
-#if defined(GPUCULL_TODO)
-
 /**
- * Same as the parallel one, but intended for use with simpler tasks where the overhead and complexity of parallel is not justified.
+ * Similar to the parallel one, but intended for use with simpler tasks where the overhead and complexity of parallel is not justified.
  */
 class FSimpleMeshDrawCommandPass
 {
 public:
-	RENDERER_API FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager);
+	RENDERER_API FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, uint32 InstanceFactorIn = 1);
 
 	/**
 	 * Run post-instance culling job to create the render commands and instance ID lists and optionally vertex instance data.
@@ -1993,6 +1991,8 @@ public:
 	FDynamicPassMeshDrawListContext* GetDynamicPassMeshDrawListContext() { return &DynamicPassMeshDrawListContext; }
 
 private:
+	FSimpleMeshDrawCommandPass() = delete;
+	FSimpleMeshDrawCommandPass(const FSimpleMeshDrawCommandPass&) = delete;
 	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
 	FInstanceCullingContext InstanceCullingContext;
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
@@ -2004,6 +2004,11 @@ private:
 	bool bSupportsScenePrimitives = false;
 
 	bool bNeedsInitialization = false;
+	bool bDynamicInstancing = false;
+	uint32 InstanceFactor = 1;
+
+	// GPUCULL_TODO: Only for legacy path
+	FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 };
 
 // GPUCULL_TODO: Write documentation
@@ -2142,5 +2147,3 @@ void AddSimpleMeshPass(FRDGBuilder& GraphBuilder, PassParametersType* PassParame
 }
 
 #endif
-
-#endif // GPUCULL_TODO

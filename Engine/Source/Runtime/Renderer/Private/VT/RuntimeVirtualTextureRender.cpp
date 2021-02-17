@@ -544,10 +544,18 @@ namespace RuntimeVirtualTexture
 		if (AllocatedCommands.Num() > 0)
 		{
 			FRHIBuffer* PrimitiveIdsBuffer;
+
+#if defined(GPUCULL_TODO)
+			// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
+			//               we don't support dynamic instancing for this path since we require one primitive per draw command
+			//               This is because the stride on the instance data buffer is set to 0 so only the first will ever be fetched.
+			const bool bDynamicInstancing = false;
+#else
 			const bool bDynamicInstancing = IsDynamicInstancingEnabled(View->FeatureLevel);
+#endif
 			const uint32 InstanceFactor = 1;
 
-			SortAndMergeDynamicPassMeshDrawCommands(View->FeatureLevel, AllocatedCommands, MeshDrawCommandStorage, PrimitiveIdsBuffer, InstanceFactor);
+			SortAndMergeDynamicPassMeshDrawCommands(View->FeatureLevel, AllocatedCommands, MeshDrawCommandStorage, PrimitiveIdsBuffer, InstanceFactor, View->DynamicPrimitiveCollector.GetPrimitiveIdRange());
 			SubmitMeshDrawCommands(AllocatedCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdsBuffer, 0, bDynamicInstancing, InstanceFactor, RHICmdList);
 		}
 	}
