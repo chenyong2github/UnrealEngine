@@ -50,6 +50,7 @@ public:
 	{
 		DelayTimer = DefaultDelayTimer;
 		FindWorkersTimeout = DefaultFindWorkersTimeout;
+		FindWorkerAttempts = 0;
 	}
 
 	void Init()
@@ -233,44 +234,44 @@ public:
 					FilterString.LeftChopInline(1);
 				}
 
-				bool bNeedStartMatch = Filter.MatchFromStart;
-				bool bNeedEndMatch = bMatchFromEnd;
-				bool bMeetsMatch = true;	// assume true
+bool bNeedStartMatch = Filter.MatchFromStart;
+bool bNeedEndMatch = bMatchFromEnd;
+bool bMeetsMatch = true;	// assume true
 
-				// If we need to match at the start or end, 
-				if (bNeedStartMatch || bNeedEndMatch)
-				{
-					if (bNeedStartMatch)
-					{
-						bMeetsMatch = TestNamesNoWhiteSpaces.StartsWith(FilterString);
-					}
+// If we need to match at the start or end, 
+if (bNeedStartMatch || bNeedEndMatch)
+{
+	if (bNeedStartMatch)
+	{
+		bMeetsMatch = TestNamesNoWhiteSpaces.StartsWith(FilterString);
+	}
 
-					if (bNeedEndMatch && bMeetsMatch)
-					{
-						bMeetsMatch = TestNamesNoWhiteSpaces.EndsWith(FilterString);
-					}
-				}
-				else
-				{
-					// match anywhere
-					bMeetsMatch = TestNamesNoWhiteSpaces.Contains(FilterString);
-				}
+	if (bNeedEndMatch && bMeetsMatch)
+	{
+		bMeetsMatch = TestNamesNoWhiteSpaces.EndsWith(FilterString);
+	}
+}
+else
+{
+	// match anywhere
+	bMeetsMatch = TestNamesNoWhiteSpaces.Contains(FilterString);
+}
 
-				if (bMeetsMatch)
-				{
-					OutTestNames.Add(AllTestNames[TestIndex]);
-					TestCount++;
-					break;
-				}
+if (bMeetsMatch)
+{
+	OutTestNames.Add(AllTestNames[TestIndex]);
+	TestCount++;
+	break;
+}
 			}
 		}
-		
+
 		// If we have the TestsRun array set up and are using the same command as before, clear out already run tests. 
 		if (TestsRun.Num() > 0)
 		{
 			if (TestsRun[0] == StringCommand)
 			{
-				for (int i = 1; i < TestsRun.Num(); i++)	
+				for (int i = 1; i < TestsRun.Num(); i++)
 				{
 					if (OutTestNames.Remove(TestsRun[i]))
 					{
@@ -295,6 +296,7 @@ public:
 			AutomationController->RequestAvailableWorkers(SessionID);
 			AutomationTestState = EAutomationTestState::RequestTests;
 			FindWorkersTimeout = DefaultFindWorkersTimeout;
+			FindWorkerAttempts++;
 		}
 	}
 
@@ -312,25 +314,35 @@ public:
 	void HandleRefreshTestCallback()
 	{
 		TArray<FString> AllTestNames;
-		
+
 		if (AutomationController->GetNumDeviceClusters() == 0)
 		{
 			static double FirstWarningTime = FPlatformTime::Seconds();
 			static int WarningCount = 0;
 
-			double TimeWaiting = FPlatformTime::Seconds() - FirstWarningTime;
-
-			// This can get called a number of times before a worker is ready, so be conservative in how often we warn
-			if ((++WarningCount % 5) == 0 && TimeWaiting > 10.0)
+			const float TimeOut = GetDefault<UAutomationControllerSettings>()->GameInstanceLostTimerSeconds;
+			if (FindWorkerAttempts * DefaultFindWorkersTimeout >= TimeOut)
 			{
-				UE_LOG(LogAutomationCommandLine, Warning, TEXT("Can't find any workers! Searching again"));
+				LogCommandLineError(FString::Printf(TEXT("Failed to find workers after %.02f seconds. Giving up"), TimeOut));
+				AutomationTestState = EAutomationTestState::Complete;
 			}
 			else
 			{
-				UE_LOG(LogAutomationCommandLine, Log, TEXT("Can't find any workers! Searching again"));
+				double TimeWaiting = FPlatformTime::Seconds() - FirstWarningTime;
+
+				// This can get called a number of times before a worker is ready, so be conservative in how often we warn
+				if ((++WarningCount % 5) == 0 && TimeWaiting > 10.0)
+				{
+					UE_LOG(LogAutomationCommandLine, Warning, TEXT("Can't find any workers! Searching again"));
+				}
+				else
+				{
+					UE_LOG(LogAutomationCommandLine, Log, TEXT("Can't find any workers! Searching again"));
+				}
+				
+				AutomationTestState = EAutomationTestState::FindWorkers;
 			}
 
-			AutomationTestState = EAutomationTestState::FindWorkers;
 			return;
 		}
 
@@ -473,7 +485,7 @@ public:
 				{
 					AutomationTestState = EAutomationTestState::Idle;
 				}
-
+				FindWorkerAttempts = 0;
 				break;
 			}
 			case EAutomationTestState::FindWorkers:
@@ -742,6 +754,9 @@ private:
 
 	/** Timer Handle for giving up on workers */
 	float FindWorkersTimeout;
+
+	/** How many times we attempted to find a worker... */
+	int	 FindWorkerAttempts;
 
 	/** Holds the session ID */
 	FGuid SessionID;
