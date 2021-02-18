@@ -7,7 +7,7 @@
 #include "LocalVertexFactory.h"
 #include "GrowOnlySpanAllocator.h"
 #include "UnifiedBuffer.h"
-#include "RenderGraphResources.h"
+#include "RenderGraphDefinitions.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
