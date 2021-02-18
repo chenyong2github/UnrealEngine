@@ -3,6 +3,7 @@
 #include "FunctionLoader.h"
 
 #include "FunctionGenerator.h"
+#include "common/Logging.h"
 #include "common/Utility.h"
 
 #include "AssetRegistryModule.h"
@@ -63,6 +64,7 @@ namespace Generator
 	FFunctionLoader::FFunctionLoader()
 	    : FunctionFactory(NewObject<UMaterialFunctionFactoryNew>())
 	    , FunctionGenerator(new FFunctionGenerator(this))
+		, ObjectFlags(RF_Public | RF_Standalone)
 	{
 		FunctionFactory->AddToRoot();  // prevent garbage collection of this object
 
@@ -220,6 +222,10 @@ namespace Generator
 		FunctionGenerateMap.Add(TEXT("mdl_nvidia_distilling_support_refl_from_ior_color"), {&FFunctionGenerator::DistillingSupportReflFromIORFloat3, 3});
 		FunctionGenerateMap.Add(TEXT("mdl_nvidia_distilling_support_refl_from_ior_float"), {&FFunctionGenerator::DistillingSupportReflFromIORFloat, 1});
 
+		// UE4 Omni
+		FunctionGenerateMap.Add(TEXT("mdl_OmniUe4Base_tangent_space_normal"), { &FFunctionGenerator::UE4TangentSpaceNormal, 1 });
+		FunctionGenerateMap.Add(TEXT("mdl_OmniUe4Translucent_get_translucent_opacity"), { &FFunctionGenerator::UE4OpacityWeight, 1 });
+
 		// common functions generation
 		const FString EngineUtilityPath = TEXT("/Engine/Functions/Engine_MaterialFunctions02/Utility");
 		CommonFunctions.SetNum((int)ECommonFunction::Count);
@@ -250,7 +256,10 @@ namespace Generator
 	{
 		FGenerationData* GenerationData = FunctionGenerateMap.Find(AssetName);
 		if (!GenerationData)
+		{
+			UE_LOG(LogMDLImporter, Warning, TEXT("Unkown function: %s"), *AssetName);
 			return nullptr;
+		}
 
 		FString FunctionName = AssetName;
 		if (0 < ArraySize)
@@ -262,7 +271,7 @@ namespace Generator
 		UPackage* Package             = CreatePackage(*FunctionPackageName);
 
 		UMaterialFunction* Function = dynamic_cast<UMaterialFunction*>(
-		    FunctionFactory->FactoryCreateNew(UMaterialFunction::StaticClass(), Package, *FunctionName, RF_Public | RF_Standalone, nullptr, GWarn));
+		    FunctionFactory->FactoryCreateNew(UMaterialFunction::StaticClass(), Package, *FunctionName, ObjectFlags, nullptr, GWarn));
 
 		check(Function);
 		Function->StateId = FGuid::NewGuid();

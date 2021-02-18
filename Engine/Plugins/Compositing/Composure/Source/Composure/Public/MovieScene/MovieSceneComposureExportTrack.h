@@ -51,6 +51,8 @@ public:
 
 	virtual UMovieSceneSection* CreateNewSection() override;
 
+	virtual bool IsEmpty() const override { return Sections.Num() == 0; }
+	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual void AddSection(UMovieSceneSection& Section) override              { Sections.AddUnique(&Section); }
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override { return Sections; }
 	virtual bool HasSection(const UMovieSceneSection& Section) const override  { return Sections.Contains(&Section); }

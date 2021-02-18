@@ -22,10 +22,10 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 		LOCTEXT("Sound_PlaySoundTooltip", "Plays the selected sound."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Play.Small"),
 		FUIAction(
-		FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecutePlaySound, DialogueWaves),
-		FCanExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::CanExecutePlayCommand, DialogueWaves)
+			FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecutePlaySound, DialogueWaves),
+			FCanExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::CanExecutePlayCommand, DialogueWaves)
 		)
-		);
+	);
 
 	Section.AddMenuEntry(
 		"Sound_StopSound",
@@ -33,21 +33,52 @@ void FAssetTypeActions_DialogueWave::GetActions(const TArray<UObject*>& InObject
 		LOCTEXT("Sound_StopSoundTooltip", "Stops the selected sounds."),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "MediaAsset.AssetActions.Stop.Small"),
 		FUIAction(
-		FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteStopSound, DialogueWaves),
-		FCanExecuteAction()
+			FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteStopSound, DialogueWaves),
+			FCanExecuteAction()
 		)
+	);
+
+	bool bCreateCueForEachDialogueWave = true;
+	if (DialogueWaves.Num() == 1)
+	{
+		Section.AddMenuEntry(
+			"DialogueWave_CreateCue",
+			LOCTEXT("DialogueWave_CreateCue", "Create Cue"),
+			LOCTEXT("DialogueWave_CreateCueTooltip", "Creates a sound cue using this dialogue wave."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue, DialogueWaves, bCreateCueForEachDialogueWave),
+				FCanExecuteAction()
+			)
+		);
+	}
+	else
+	{
+		bCreateCueForEachDialogueWave = false;
+		Section.AddMenuEntry(
+			"DialogueWave_CreateSingleCue",
+			LOCTEXT("DialogueWave_CreateSingleCue", "Create Single Cue"),
+			LOCTEXT("DialogueWave_CreateSingleCueTooltip", "Creates a single sound cue using these dialogue waves."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue, DialogueWaves, bCreateCueForEachDialogueWave),
+				FCanExecuteAction()
+			)
 		);
 
-	Section.AddMenuEntry(
-		"DialogueWave_CreateCue",
-		LOCTEXT("DialogueWave_CreateCue", "Create Cue"),
-		LOCTEXT("DialogueWave_CreateCueTooltip", "Creates a sound cue using this dialogue wave."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
-		FUIAction(
-		FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue, DialogueWaves),
-		FCanExecuteAction()
-		)
+		bCreateCueForEachDialogueWave = true;
+		Section.AddMenuEntry(
+			"DialogueWave_CreateMultipleCue",
+			LOCTEXT("DialogueWave_CreateMultipleCue", "Create Multiple Cues"),
+			LOCTEXT("DialogueWave_CreateMultipleCueTooltip", "Creates multiple sound cues, one from each dialogue wave."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue, DialogueWaves, bCreateCueForEachDialogueWave),
+				FCanExecuteAction()
+			)
 		);
+	}
+
 }
 
 void FAssetTypeActions_DialogueWave::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor )
@@ -137,11 +168,11 @@ void FAssetTypeActions_DialogueWave::StopSound()
 	GEditor->ResetPreviewAudioComponent();
 }
 
-void FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr<UDialogueWave>> Objects)
+void FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr<UDialogueWave>> Objects, bool bCreateCueForEachDialogueWave)
 {
 	const FString DefaultSuffix = TEXT("_Cue");
 
-	if (Objects.Num() == 1)
+	if (Objects.Num() == 1 || !bCreateCueForEachDialogueWave)
 	{
 		auto Object = Objects[0].Get();
 
@@ -154,7 +185,7 @@ void FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr
 
 			// Create the factory used to generate the asset
 			USoundCueFactoryNew* Factory = NewObject<USoundCueFactoryNew>();
-			Factory->InitialDialogueWave = Object;
+			Factory->InitialDialogueWaves = Objects;
 
 			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 			ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackagePath), USoundCue::StaticClass(), Factory);
@@ -175,7 +206,7 @@ void FAssetTypeActions_DialogueWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr
 
 				// Create the factory used to generate the asset
 				USoundCueFactoryNew* Factory = NewObject<USoundCueFactoryNew>();
-				Factory->InitialDialogueWave = Object;
+				Factory->InitialDialogueWaves.Add(Object);
 
 				FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 				UObject* NewAsset = AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), USoundCue::StaticClass(), Factory);

@@ -32,9 +32,7 @@
 #include "ShaderCompiler.h"
 
 #if NV_GEFORCENOW
-THIRD_PARTY_INCLUDES_START
-#include "GfnRuntimeSdk_CAPI.h"
-THIRD_PARTY_INCLUDES_END
+#include "GeForceNOWWrapper.h"
 #endif
 
 #pragma comment(lib, "d3d12.lib")
@@ -792,13 +790,13 @@ void FD3D12DynamicRHI::Init()
 
 	bool bIsRunningNvidiaGFN = false;
 #if NV_GEFORCENOW
-	const GfnRuntimeSdk::GfnRuntimeError GfnResult = GfnRuntimeSdk::gfnInitializeRuntimeSdk(GfnRuntimeSdk::gfnDefaultLanguage);
-	const bool bGfnRuntimeSDKInitialized = GfnResult == GfnRuntimeSdk::gfnSuccess || GfnResult == GfnRuntimeSdk::gfnInitSuccessClientOnly;
-	if (bGfnRuntimeSDKInitialized && GfnRuntimeSdk::gfnIsRunningInCloud())
+	const GfnRuntimeError GfnResult = GeForceNOWWrapper::Get().Initialize();
+	const bool bGfnRuntimeSDKInitialized = GfnResult == gfnSuccess || GfnResult == gfnInitSuccessClientOnly;
+
+	if (bGfnRuntimeSDKInitialized && GeForceNOWWrapper::Get().IsRunningInCloud())
 	{
 		UE_LOG(LogRHI, Log, TEXT("GeForceNow cloud instance running. Ray Tracing Windows build version check disabled"));
 		bIsRunningNvidiaGFN = true;
-		GfnRuntimeSdk::gfnShutdownRuntimeSdk();
 	}
 #endif
 
@@ -1014,17 +1012,21 @@ void FD3D12DynamicRHI::Init()
 
 	D3D12_FEATURE_DATA_D3D12_OPTIONS6 options = {};
 	HRESULT hr = GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &options, sizeof(options));
-	if(hr == S_OK)
+	if(hr == S_OK && options.VariableShadingRateTier != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED)
 	{
-		GVariableRateShadingTier 			= options.VariableShadingRateTier;
-		GRHISupportsVariableRateShading 	= GVariableRateShadingTier != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
-		GVariableRateShadingImageTileSize 	= options.ShadingRateImageTileSize;
+		GRHISupportsPerDrawVariableRateShading = true;		// We have at least tier 1.
+		if (options.VariableShadingRateTier == D3D12_VARIABLE_SHADING_RATE_TIER_2)
+		{
+			GRHISupportsImageBasedVariableRateShading = true;
+			GRHIVariableRateShadingImageTileSize = options.ShadingRateImageTileSize;
+			GRHIVariableRateShadingImageDataType = VRSImage_Palette;
+			GRHIVariableRateShadingImageFormat = PF_R8;
+		}
 	}
 	else
 	{
-		GVariableRateShadingTier 			= D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED;
-		GRHISupportsVariableRateShading 	= false;
-		GVariableRateShadingImageTileSize 	= 1;
+		GRHISupportsImageBasedVariableRateShading = GRHISupportsPerDrawVariableRateShading = false;
+		GRHIVariableRateShadingImageTileSize = 1;
 	}
 
 	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().

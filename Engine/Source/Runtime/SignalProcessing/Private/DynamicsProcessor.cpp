@@ -242,7 +242,8 @@ namespace Audio
 
 	void FDynamicsProcessor::ProcessAudioFrame(const float* InFrame, float* OutFrame, const float* InKeyFrame)
 	{
-		if (ProcessKeyFrame(InKeyFrame, OutFrame))
+		const bool bKeyIsInput = InFrame == InKeyFrame;
+		if (ProcessKeyFrame(InKeyFrame, OutFrame, bKeyIsInput))
 		{
 			const int32 NumChannels = GetNumChannels();
 			for (int32 Channel = 0; Channel < NumChannels; ++Channel)
@@ -283,7 +284,7 @@ namespace Audio
 		}
 	}
 
-	bool FDynamicsProcessor::ProcessKeyFrame(const float* InKeyFrame, float* OutFrame)
+	bool FDynamicsProcessor::ProcessKeyFrame(const float* InKeyFrame, float* OutFrame, bool bKeyIsInput)
 	{
 		// Get detector outputs
 		const float* KeyIn = InKeyFrame;
@@ -305,7 +306,14 @@ namespace Audio
 			}
 		}
 
-		const float DetectorGain = KeyGain * InputGain;
+		float DetectorGain = InputGain;
+
+		// Apply key gain only if detector is key (not input)
+		if (!bKeyIsInput)
+		{
+			DetectorGain *= KeyGain;
+		}
+
 		if (bKeyAuditionEnabled)
 		{
 			for (int32 Channel = 0; Channel < NumChannels; ++Channel)

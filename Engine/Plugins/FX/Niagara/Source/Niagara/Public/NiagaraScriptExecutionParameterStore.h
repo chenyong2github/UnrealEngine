@@ -186,7 +186,7 @@ public:
 	TArrayView<const uint8> GetScriptLiterals() const;
 #endif
 
-	virtual TArrayView<const FNiagaraVariableWithOffset> ReadParameterVariables() const override;
+	virtual NIAGARA_API TArrayView<const FNiagaraVariableWithOffset> ReadParameterVariables() const override;
 
 private:
 	FNiagaraCompiledDataReference<FNiagaraScriptExecutionParameterStore> ScriptParameterStore;

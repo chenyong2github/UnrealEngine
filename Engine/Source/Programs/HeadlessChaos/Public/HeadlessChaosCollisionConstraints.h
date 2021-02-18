@@ -29,9 +29,9 @@ public:
 	using FConstraintContainerHandle = FPBDCollisionConstraintHandle;
 	using FPointContactConstraint = FRigidBodyPointContactConstraint;
 	using FConstraintHandleAllocator = TConstraintHandleAllocator<FPBDCollisionConstraints>;
-	using FConstraintHandleID = TPair<const TGeometryParticleHandle<FReal, 3>*, const TGeometryParticleHandle<FReal, 3>*>;
+	using FConstraintHandleID = TPair<const FGeometryParticleHandle*, const FGeometryParticleHandle*>;
 	using FCollisionDetector = FSpatialAccelerationCollisionDetector;
-	using FAccelerationStructure = TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>;
+	using FAccelerationStructure = TBoundingVolume<FAccelerationStructureHandle>;
 
 	FPBDCollisionConstraintAccessor()
 		: SpatialAcceleration(EmptyParticles.GetNonDisabledView())
@@ -40,7 +40,7 @@ public:
 		, CollisionDetector(BroadPhase, NarrowPhase, CollisionConstraints)
 	{}
 
-	FPBDCollisionConstraintAccessor(const TPBDRigidsSOAs<FReal, 3>& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticleUniqueMaterials,
+	FPBDCollisionConstraintAccessor(const FPBDRigidsSOAs& InParticles, TArrayCollectionArray<bool>& Collided, const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PerParticleMaterials, const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& PerParticleUniqueMaterials,
 	const int32 PushOutIterations, const int32 PushOutPairIterations, const FReal Thickness) 
 		: SpatialAcceleration(InParticles.GetNonDisabledView())
 		, BroadPhase(InParticles, (FReal)1, (FReal)0, (FReal)0)
@@ -108,13 +108,13 @@ public:
 		CollisionConstraints.Apply(Dt, InConstraintHandles, It, NumIts);
 	}
 
-	bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
+	bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintHandles, const TSet<const FGeometryParticleHandle*>& IsTemporarilyStatic, int32 Iteration, int32 NumIterations)
 	{
 		return CollisionConstraints.ApplyPushOut(Dt, InConstraintHandles, IsTemporarilyStatic, Iteration, NumIterations);
 	}
 
 	FPointContactConstraint EmptyConstraint;
-	TPBDRigidsSOAs<FReal, 3> EmptyParticles;
+	FPBDRigidsSOAs EmptyParticles;
 	TArrayCollectionArray<bool> EmptyCollided;
 	TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> EmptyPhysicsMaterials;
 	TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>> EmptyUniquePhysicsMaterials;

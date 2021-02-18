@@ -17,6 +17,7 @@
 #define U_DISTRIBUTION_SCALED_UNIFORMLY 0
 #define U_DISTRIBUTION_SCALED_USING_RIBBON_LENGTH 1
 #define U_DISTRIBUTION_TILED_OVER_RIBBON_LENGTH 2
+#define U_DISTRIBUTION_TILED_FROM_START_OVER_RIBBON_LENGTH 3
 
 #define SLICEVERTEXDATA_POSITION_OFFSET 0
 #define SLICEVERTEXDATA_NORMAL_OFFSET 2
@@ -35,7 +36,7 @@ uint UnpackInterpSlice(uint InterpIdx)
 
 uint UnpackParticleVertexId(uint InterpIdx)
 {
-	return (InterpIdx >> NiagaraRibbonVF.SliceVertexIdShift) & NiagaraRibbonVF.SliceVertexIdMask;
+	return InterpIdx & NiagaraRibbonVF.SliceVertexIdMask;
 }
 
 float2 UnpackParticleVertexPosition(uint InterpIdx)
@@ -55,11 +56,6 @@ float2 UnpackParticleVertexNormal(uint InterpIdx)
 float UnpackParticleVertexTextureV(uint InterpIdx)
 {
 	return NiagaraRibbonVFLooseParameters.SliceVertexData[UnpackParticleVertexId(InterpIdx) * SLICEVERTEXDATA_STRIDE + SLICEVERTEXDATA_TEXTUREV_OFFSET];
-}
-
-bool UnpackParticleIsEnd(uint InterpIdx)
-{
-	return (InterpIdx & NiagaraRibbonVF.IsEndMask);
 }
 
 
@@ -286,17 +282,21 @@ void GetNiagaraParticleTextureCoords(in FVertexFactoryInput Input, in FInterpVtx
 {
 	float U0ForSegment = 0;
 	BRANCH
-	if(NiagaraRibbonVF.U0OverrideDataOffset != -1)
+	if (NiagaraRibbonVF.U0OverrideDataOffset != -1)
 	{
 		U0ForSegment = lerp(GetFloat(NiagaraRibbonVF.U0OverrideDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.U0OverrideDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
 	}
 	else if (NiagaraRibbonVF.U0DistributionMode == U_DISTRIBUTION_SCALED_UNIFORMLY)
 	{
-		U0ForSegment = ((float)(InterpVtxData.RawParticleId0 - SegmentData.StartParticleId) + InterpVtxData.Alpha) * SegmentData.U0DistributionScaler;
+		U0ForSegment = ((float) (InterpVtxData.RawParticleId0 - SegmentData.StartParticleId) + InterpVtxData.Alpha) * SegmentData.U0DistributionScaler;
 	}
 	else if (NiagaraRibbonVF.U0DistributionMode == U_DISTRIBUTION_SCALED_USING_RIBBON_LENGTH || NiagaraRibbonVF.U0DistributionMode == U_DISTRIBUTION_TILED_OVER_RIBBON_LENGTH)
 	{
 		U0ForSegment = Intermediates.DistanceOnSegment * SegmentData.U0DistributionScaler;
+	}
+	else if (NiagaraRibbonVF.DistanceFromStartOffset != -1 && NiagaraRibbonVF.U0DistributionMode == U_DISTRIBUTION_TILED_FROM_START_OVER_RIBBON_LENGTH)
+	{
+		U0ForSegment = lerp(GetFloat(NiagaraRibbonVF.DistanceFromStartOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.DistanceFromStartOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha) * SegmentData.U0DistributionScaler;
 	}
 
 	float U1ForSegment = 0;
@@ -312,6 +312,10 @@ void GetNiagaraParticleTextureCoords(in FVertexFactoryInput Input, in FInterpVtx
 	else if (NiagaraRibbonVF.U1DistributionMode == U_DISTRIBUTION_SCALED_USING_RIBBON_LENGTH || NiagaraRibbonVF.U1DistributionMode == U_DISTRIBUTION_TILED_OVER_RIBBON_LENGTH)
 	{
 		U1ForSegment = Intermediates.DistanceOnSegment * SegmentData.U1DistributionScaler;
+	}
+	else if (NiagaraRibbonVF.DistanceFromStartOffset != -1 && NiagaraRibbonVF.U1DistributionMode == U_DISTRIBUTION_TILED_FROM_START_OVER_RIBBON_LENGTH)
+	{
+		U1ForSegment = lerp(GetFloat(NiagaraRibbonVF.DistanceFromStartOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.DistanceFromStartOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha) * SegmentData.U1DistributionScaler;
 	}
 
 	float V0ForSegment;

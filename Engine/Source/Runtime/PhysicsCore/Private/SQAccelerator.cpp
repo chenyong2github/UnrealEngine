@@ -225,7 +225,7 @@ private:
 
 			if (bTestShapeBounds)
 			{
-				TAABB<FReal, 3> InflatedWorldBounds;
+				FAABB3 InflatedWorldBounds;
 				if (SQ == ESQType::Raycast)
 				{
 					InflatedWorldBounds = Shape->GetWorldSpaceInflatedShapeBounds();
@@ -235,7 +235,7 @@ private:
 					// Transform to world bounds and get the proper half extent.
 					const FVec3 WorldHalfExtent = QueryGeom ? QueryGeom->BoundingBox().TransformedAABB(StartTM).Extents() * 0.5f : HalfExtents;
 
-					InflatedWorldBounds = TAABB<FReal, 3>(Shape->GetWorldSpaceInflatedShapeBounds().Min() - WorldHalfExtent, Shape->GetWorldSpaceInflatedShapeBounds().Max() + WorldHalfExtent);
+					InflatedWorldBounds = FAABB3(Shape->GetWorldSpaceInflatedShapeBounds().Min() - WorldHalfExtent, Shape->GetWorldSpaceInflatedShapeBounds().Max() + WorldHalfExtent);
 				}
 				if (SQ != ESQType::Overlap)
 				{
@@ -530,7 +530,7 @@ void SweepHelper(const QueryGeomType& QueryGeom,const Chaos::ISpatialAcceleratio
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	const TAABB<float,3> Bounds = QueryGeom.BoundingBox().TransformedAABB(StartTM);
+	const FAABB3 Bounds = QueryGeom.BoundingBox().TransformedAABB(StartTM);
 	const bool bSweepAsOverlap = DeltaMagnitude == 0;	//question: do we care about tiny sweeps?
 	TSQVisitor<QueryGeomType,TAccelerationStructureHandle<float,3>,FSweepHit> SweepVisitor(StartTM,Dir,HitBuffer,OutputFlags,QueryFilterData,QueryCallback,QueryGeom,DebugParams);
 
@@ -560,7 +560,7 @@ void OverlapHelper(const QueryGeomType& QueryGeom, const Chaos::ISpatialAccelera
 	using namespace Chaos;
 	using namespace ChaosInterface;
 
-	const TAABB<float, 3> Bounds = QueryGeom.BoundingBox().TransformedAABB(GeomPose);
+	const FAABB3 Bounds = QueryGeom.BoundingBox().TransformedAABB(GeomPose);
 
 	HitBuffer.IncFlushCount();
 #if PHYSICS_INTERFACE_PHYSX

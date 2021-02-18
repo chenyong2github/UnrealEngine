@@ -705,11 +705,22 @@ void FSequencer::Tick(float InDeltaTime)
 
 	static const float AutoScrollFactor = 0.1f;
 
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = Sequence ? Sequence->GetMovieScene() : nullptr;
+
 	// Animate the autoscroll offset if it's set
 	if (AutoscrollOffset.IsSet())
 	{
 		float Offset = AutoscrollOffset.GetValue() * AutoScrollFactor;
 		SetViewRange(TRange<double>(TargetViewRange.GetLowerBoundValue() + Offset, TargetViewRange.GetUpperBoundValue() + Offset), EViewRangeInterpolation::Immediate);
+	}
+	else if (MovieScene)
+	{
+		FMovieSceneEditorData& EditorData = MovieScene->GetEditorData();
+		if (EditorData.GetViewRange() != TargetViewRange)
+		{
+			SetViewRange(EditorData.GetViewRange(), EViewRangeInterpolation::Immediate);
+		}
 	}
 
 	// Animate the autoscrub offset if it's set
@@ -721,7 +732,7 @@ void FSequencer::Tick(float InDeltaTime)
 	}
 
 	// Reset to the root sequence if the focused sequence no longer exists. This can happen if either the subsequence has been deleted or the hierarchy has changed.
-	if (!GetFocusedMovieSceneSequence() || !GetFocusedMovieSceneSequence()->GetMovieScene())
+	if (!MovieScene)
 	{
 		PopToSequenceInstance(MovieSceneSequenceID::Root);
 	}
@@ -6199,7 +6210,7 @@ void FSequencer::SaveCurrentMovieScene()
 		}
 	}
 
-	if ( ensure(GCurrentLevelEditingViewportClient) && Viewport != nullptr )
+	if (GCurrentLevelEditingViewportClient && Viewport)
 	{
 		bool bIsInGameView = GCurrentLevelEditingViewportClient->IsInGameView();
 		GCurrentLevelEditingViewportClient->SetGameView(true);
@@ -7067,13 +7078,16 @@ void FSequencer::ZoomToFit()
 
 	for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : Selection.GetSelectedSections())
 	{
-		if (BoundsHull == TRange<FFrameNumber>::All())
+		if (SelectedSection->GetRange().HasUpperBound() && SelectedSection->GetRange().HasLowerBound())
 		{
-			BoundsHull = SelectedSection->GetRange();
-		}
-		else
-		{
-			BoundsHull = TRange<FFrameNumber>::Hull(SelectedSection->GetRange(), BoundsHull);
+			if (BoundsHull == TRange<FFrameNumber>::All())
+			{
+				BoundsHull = SelectedSection->GetRange();
+			}
+			else
+			{
+				BoundsHull = TRange<FFrameNumber>::Hull(SelectedSection->GetRange(), BoundsHull);
+			}
 		}
 	}
 	
@@ -7394,7 +7408,6 @@ void FSequencer::SelectObject(FGuid ObjectBinding)
 	TSharedPtr<FSequencerObjectBindingNode> Node = NodeTree->FindObjectBindingNode(ObjectBinding);
 	if (Node.IsValid())
 	{
-		GetSelection().Empty();
 		GetSelection().AddToSelection(Node.ToSharedRef());
 	}
 }
@@ -9458,19 +9471,27 @@ bool FSequencer::PasteSections(const FString& TextToImport, TArray<FNotification
 			Section->ClearFlags(RF_Transient);
 			Section->Rename(nullptr, Track);
 			Track->AddSection(*Section);
-			if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
-			{
-				Section->SetRowIndex(TrackNode->GetRowIndex());
-			}
-			else
-			{
-				Section->SetRowIndex(MovieSceneToolHelpers::FindAvailableRowIndex(Track, Section));
-			}
-
 			if (Section->HasStartFrame())
 			{
 				FFrameNumber NewStartFrame = LocalTime + (Section->GetInclusiveStartFrame() - FirstFrame.GetValue());
 				Section->MoveSection(NewStartFrame - Section->GetInclusiveStartFrame());
+			}
+
+			if (Track->SupportsMultipleRows())
+			{
+				int32 AvailableRowIndex = MovieSceneToolHelpers::FindAvailableRowIndex(Track, Section);
+
+				if (AvailableRowIndex == Track->GetMaxRowIndex() + 1)
+				{
+					Section->SetRowIndex(AvailableRowIndex);
+				}
+				else
+				{
+					if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
+					{
+						Section->SetRowIndex(TrackNode->GetRowIndex());
+					}
+				}
 			}
 
 			NewSections.Add(Section);
@@ -13155,6 +13176,12 @@ void FSequencer::BuildObjectBindingEditButtons(TSharedPtr<SHorizontalBox> EditBo
 
 void FSequencer::BuildAddSelectedToFolderMenu(FMenuBuilder& MenuBuilder)
 {
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("MoveNodesToNewFolder", "New Folder"),
+		LOCTEXT("MoveNodesToNewFolderTooltip", "Create a new folder and adds the selected nodes"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetTreeFolderOpen"),
+		FUIAction(FExecuteAction::CreateSP(this, &FSequencer::MoveSelectedNodesToNewFolder)));
+		
 	UMovieSceneSequence* FocusedMovieSceneSequence = GetFocusedMovieSceneSequence();
 	UMovieScene* MovieScene = FocusedMovieSceneSequence ? FocusedMovieSceneSequence->GetMovieScene() : nullptr;
 	if (MovieScene)
@@ -13176,6 +13203,11 @@ void FSequencer::BuildAddSelectedToFolderMenu(FMenuBuilder& MenuBuilder)
 				ChildFolders.RemoveAt(Index);
 				--Index;
 			}
+		}
+
+		if (ChildFolders.Num() > 0)
+		{
+			MenuBuilder.AddMenuSeparator();
 		}
 
 		for (UMovieSceneFolder* Folder : ChildFolders)
@@ -13221,7 +13253,7 @@ void FSequencer::BuildAddSelectedToFolderMenuEntry(FMenuBuilder& InMenuBuilder, 
 	{
 		InMenuBuilder.AddSubMenu(
 			FText::FromName(InFolder->GetFolderName()),
-			LOCTEXT("MoveTracksToNewFolderTooltip", "Move the selected nodes to an existing folder."),
+			LOCTEXT("MoveNodesToFolderTooltip", "Move the selected nodes to an existing folder"),
 			FNewMenuDelegate::CreateSP(this, &FSequencer::BuildAddSelectedToFolderSubMenu, InExcludedFolders, InFolder, ChildFolders));
 	}
 	else

@@ -34,7 +34,7 @@ struct FDialogueScriptEntry
 	FString DialogueAsset;
 
 	UPROPERTY()
-	bool IsRecorded;
+	bool IsRecorded = false;
 
 	UPROPERTY()
 	TArray<FString> LocalizationKeys;

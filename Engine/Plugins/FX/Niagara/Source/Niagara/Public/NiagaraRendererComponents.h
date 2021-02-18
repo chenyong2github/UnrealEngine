@@ -71,7 +71,12 @@ private:
 	static FComponentPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);
 	static FComponentPropertyAddress FindProperty(const UObject& Object, const FString& InPropertyPath);
 
+	// this key is used to check if the template object was changed, e.g. a blueprint compilation
 	TObjectKey<USceneComponent> TemplateKey;
+
+	// if the niagara component is not attached to an actor, we need to spawn and keep track of a temporary actor
 	TWeakObjectPtr<AActor> SpawnedOwner;
+
+	// all of the spawned components
 	TArray<FComponentPoolEntry> ComponentPool;
 };

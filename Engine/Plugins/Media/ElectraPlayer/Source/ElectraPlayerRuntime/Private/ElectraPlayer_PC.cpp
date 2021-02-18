@@ -81,7 +81,7 @@ bool CreateDirectXResources(const FParamDict& Params)
 
 		FString DeviceName = Params.GetValue(DeviceNameKey).GetFString();
 
-		if (DeviceName == TEXT("D3D11"))
+		if (DeviceName.StartsWith(TEXT("D3D11")))
 		{
 			ID3D11Device* UE4DxDevice = static_cast<ID3D11Device*>(Params.GetValue(DeviceKey).GetPointer());
 
@@ -96,7 +96,7 @@ bool CreateDirectXResources(const FParamDict& Params)
 
 			Electra::FDXDeviceInfo::s_DXDeviceInfo->DxVersion = Electra::FDXDeviceInfo::ED3DVersion::Version11Win8;
 		}
-		else if (DeviceName == TEXT("D3D12"))
+		else if (DeviceName.StartsWith(TEXT("D3D12")))
 		{
 			TRefCountPtr<IDXGIFactory4> DXGIFactory;
 			CHECK_HR(CreateDXGIFactory(__uuidof(IDXGIFactory4), (void**)DXGIFactory.GetInitReference()));

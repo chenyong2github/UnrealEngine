@@ -1971,29 +1971,36 @@ void FVivoxVoiceChat::ReleaseUser(IVoiceChatUser* User)
 {
 	if (User)
 	{
-		if (IsInitialized()
-			&& IsConnected()
-			&& User->IsLoggedIn())
+		if (User == SingleUserVoiceChatUser)
 		{
-			User->Logout(FOnVoiceChatLogoutCompleteDelegate::CreateLambda([](const FString& PlayerName, const FVoiceChatResult& Result)
-			{
-				if (!Result.IsSuccess())
-				{
-					UE_LOG(LogVivoxVoiceChat, Warning, TEXT("UnregisterVoiceChatUser PlayerName=[%s] Logout %s"), *PlayerName, *LexToString(Result))
-				}
-			}));
+			UE_LOG(LogVivoxVoiceChat, Error, TEXT("ReleaseUser called in SingleUser mode"))
 		}
-
-		FScopeLock Lock(&VoiceChatUsersCriticalSection);
-		VoiceChatUsers.RemoveAll([User](TUniquePtr<FVivoxVoiceChatUser>& OtherUser)
+		else
 		{
-			if(User == OtherUser.Get())
+			if (IsInitialized()
+				&& IsConnected()
+				&& User->IsLoggedIn())
 			{
-				OtherUser->bReleased = true;
-				return true;
+				User->Logout(FOnVoiceChatLogoutCompleteDelegate::CreateLambda([](const FString& PlayerName, const FVoiceChatResult& Result)
+					{
+						if (!Result.IsSuccess())
+						{
+							UE_LOG(LogVivoxVoiceChat, Warning, TEXT("UnregisterVoiceChatUser PlayerName=[%s] Logout %s"), *PlayerName, *LexToString(Result))
+						}
+					}));
 			}
-			return false;
-		});
+
+			FScopeLock Lock(&VoiceChatUsersCriticalSection);
+			VoiceChatUsers.RemoveAll([User](TUniquePtr<FVivoxVoiceChatUser>& OtherUser)
+			{
+				if (User == OtherUser.Get())
+				{
+					OtherUser->bReleased = true;
+					return true;
+				}
+				return false;
+			});
+		}
 	}
 }
 
@@ -2401,7 +2408,7 @@ bool FVivoxVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				}
 			}
 		}
-		else if (SingleUserVoiceChatUser.IsValid())
+		else if (SingleUserVoiceChatUser)
 		{
 			return SingleUserVoiceChatUser->Exec(InWorld, SubCmd, Ar);
 		}
@@ -2459,14 +2466,17 @@ FVivoxVoiceChat::FVivoxVoiceChat()
 
 FVivoxVoiceChat::~FVivoxVoiceChat()
 {
-
+	if (SingleUserVoiceChatUser)
+	{
+		SingleUserVoiceChatUser->bReleased = true;
+	}
 }
 
 FVivoxVoiceChatUser& FVivoxVoiceChat::GetVoiceChatUser()
 {
 	if (!SingleUserVoiceChatUser)
 	{
-		SingleUserVoiceChatUser.Reset(static_cast<FVivoxVoiceChatUser*>(CreateUser()));
+		SingleUserVoiceChatUser = static_cast<FVivoxVoiceChatUser*>(CreateUser());
 		ensureMsgf(VoiceChatUsers.Num() == 1, TEXT("When using multiple users, all connections should be managed by an IVoiceChatUser"));
 	}
 

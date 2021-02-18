@@ -598,6 +598,12 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 				PredictedLODLevel = FMath::Clamp(PredictedLODLevel, MinLodIndex, MaxLODIndex);
 			}
 
+			// Clamp to loaded streaming data if available
+			if (SkeletalMesh->IsStreamable() && MeshObject)
+			{
+				PredictedLODLevel = FMath::Max<int32>(PredictedLODLevel, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
+			}
+
 			// If we have a valid LOD, set up required data, during reimport we may try to create data before we have all the LODs
 			// imported, in that case we skip until we have all the LODs
 			if(SkeletalMesh->IsValidLODIndex(PredictedLODLevel))

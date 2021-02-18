@@ -223,6 +223,18 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 #if VULKAN_RHI_RAYTRACING
 	FVulkanRayTracingPlatform::GetDeviceExtensions(VendorId, OutExtensions);
 #endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
+	OutExtensions.Add(VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	OutExtensions.Add(VK_NV_SHADING_RATE_IMAGE_EXTENSION_NAME);
+#endif
 }
 
 void FVulkanWindowsPlatform::CreateSurface(void* WindowHandle, VkInstance Instance, VkSurfaceKHR* OutSurface)

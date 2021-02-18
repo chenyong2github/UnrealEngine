@@ -106,7 +106,7 @@ namespace Chaos
 		using FImplicitObject::GetTypeName;
 
 		template <typename IdxType>
-		FTriangleMeshImplicitObject(TParticles<FReal, 3>&& Particles, TArray<TVec3<IdxType>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
+		FTriangleMeshImplicitObject(FParticles&& Particles, TArray<TVec3<IdxType>>&& Elements, TArray<uint16>&& InMaterialIndices, TUniquePtr<TArray<int32>>&& InExternalFaceIndexMap = nullptr, TUniquePtr<TArray<int32>>&& InExternalVertexIndexMap = nullptr, const bool bInCullsBackFaceRaycast = false)
 		: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
 		, MParticles(MoveTemp(Particles))
 		, MElements(MoveTemp(Elements))
@@ -178,7 +178,7 @@ namespace Chaos
 		virtual int32 FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDistance) const override;
 		virtual FVec3 FindGeometryOpposingNormal(const FVec3& DenormDir, int32 FaceIndex, const FVec3& OriginalNormal) const override;
 
-		virtual const TAABB<FReal, 3> BoundingBox() const
+		virtual const FAABB3 BoundingBox() const
 		{
 			return MLocalBoundingBox;
 		}
@@ -212,7 +212,7 @@ namespace Chaos
 			}
 			else if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::TrimeshSerializesAABBTree)
 			{
-				TBoundingVolume<int32, FReal, 3> Dummy;
+				TBoundingVolume<int32> Dummy;
 				Ar << Dummy;
 				RebuildBV();
 			}
@@ -286,7 +286,7 @@ namespace Chaos
 
 		virtual uint16 GetMaterialIndex(uint32 HintIndex) const override;
 
-		const TParticles<FReal, 3>& Particles() const;
+		const FParticles& Particles() const;
 		const FTrimeshIndexBuffer& Elements() const;
 
 		void UpdateVertices(const TArray<FVector>& Positions);
@@ -294,16 +294,15 @@ namespace Chaos
 	private:
 		void RebuildBV();
 
-		TParticles<FReal, 3> MParticles;
+		FParticles MParticles;
 		FTrimeshIndexBuffer MElements;
-		TAABB<FReal, 3> MLocalBoundingBox;
+		FAABB3 MLocalBoundingBox;
 		TArray<uint16> MaterialIndices;
 		TUniquePtr<TArray<int32>> ExternalFaceIndexMap;
 		TUniquePtr<TArray<int32>> ExternalVertexIndexMap;
 		bool bCullsBackFaceRaycast;
 
-		//using BVHType = TBoundingVolume<int32, T, 3>;
-		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, FReal, /*bComputeBounds=*/false>, FReal, /*bMutable=*/false>;
+		using BVHType = TAABBTree<int32, TAABBTreeLeafArray<int32, /*bComputeBounds=*/false>, /*bMutable=*/false>;
 
 		// Initialising constructor privately declared for use in CopySlow to copy the underlying BVH
 		template <typename IdxType>
@@ -335,7 +334,7 @@ namespace Chaos
 
 			bool HasBoundingBox() const { return true; }
 
-			TAABB<FReal, 3> BoundingBox() const
+			FAABB3 BoundingBox() const
 			{
 				auto LambdaHelper = [&](const auto& Elements)
 				{

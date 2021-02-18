@@ -9,6 +9,7 @@
 #include "SceneTextureParameters.h"
 #include "ScenePrivate.h"
 #include "Strata/Strata.h"
+#include "ClearQuad.h"
 
 DECLARE_GPU_STAT_NAMED(SSAOSetup, TEXT("ScreenSpace AO Setup") );
 DECLARE_GPU_STAT_NAMED(SSAO, TEXT("ScreenSpace AO") );
@@ -876,26 +877,135 @@ FScreenPassTexture AddAmbientOcclusionPass(
 	}
 	else
 	{
+		const uint32 ScaleToFullRes = CommonParameters.SceneTexturesViewport.Extent.X / InputViewport.Extent.X;
+		const bool bDepthBoundsTestEnabled =
+			!bDoUpsample
+			&& CVarAmbientOcclusionDepthBoundsTest.GetValueOnRenderThread()
+			&& ScaleToFullRes == 1
+			&& GSupportsDepthBoundsTest
+			&& CommonParameters.SceneDepth.IsValid()
+			&& CommonParameters.SceneDepth.Texture->Desc.NumSamples == 1;
+
+		FDepthStencilBinding DepthStencilBinding(CommonParameters.SceneDepth.Texture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+
+		float DepthFar = 0.0f;
+
+		if (bDepthBoundsTestEnabled)
+		{
+			const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
+			const FMatrix& ProjectionMatrix = View.ViewMatrices.GetProjectionMatrix();
+			const FVector4 Far = ProjectionMatrix.TransformFVector4(FVector4(0, 0, Settings.AmbientOcclusionFadeDistance));
+			DepthFar = FMath::Min(1.0f, Far.Z / Far.W);
+
+			static_assert(bool(ERHIZBuffer::IsInverted), "Inverted depth buffer is assumed when setting depth bounds test for AO.");
+
+			FRenderTargetParameters* ClearParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+			ClearParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
+			ClearParameters->RenderTargets.DepthStencil = DepthStencilBinding;
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("DepthBounds ClearQuad(%s)", Output.Texture->Name),
+				ClearParameters,
+				ERDGPassFlags::Raster,
+			[OutputViewport, DepthFar](FRHICommandListImmediate& RHICmdList)
+			{
+				// We must clear all pixels that won't be touched by AO shader.
+				FClearQuadCallbacks Callbacks;
+				Callbacks.PSOModifier = [](FGraphicsPipelineStateInitializer& PSOInitializer)
+				{
+					PSOInitializer.bDepthBounds = true;
+				};
+				Callbacks.PreClear = [DepthFar](FRHICommandList& InRHICmdList)
+				{
+					// This is done by rendering a clear quad over a depth range from AmbientOcclusionFadeDistance to far plane.
+					InRHICmdList.SetDepthBounds(0, DepthFar);	// NOTE: Inverted depth
+				};
+				Callbacks.PostClear = [DepthFar](FRHICommandList& InRHICmdList)
+				{
+					// Set depth bounds test to cover everything from near plane to AmbientOcclusionFadeDistance and run AO pixel shader.
+					InRHICmdList.SetDepthBounds(DepthFar, 1.0f);
+				};
+
+				RHICmdList.SetViewport(OutputViewport.Rect.Min.X, OutputViewport.Rect.Min.Y, 0.0f, OutputViewport.Rect.Max.X, OutputViewport.Rect.Max.Y, 1.0f);
+
+				DrawClearQuad(RHICmdList, FLinearColor::White, Callbacks);
+			});
+
+			// Make sure the following pass doesn't clear or ignore the data
+			Output.LoadAction = ERenderTargetLoadAction::ELoad;
+		}
+
 		// Pixel Shader Path
 		FAmbientOcclusionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FAmbientOcclusionPS::FParameters>();
 		PassParameters->SharedParameters = MoveTemp(SharedParameters);
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
-
+		if (bDepthBoundsTestEnabled)
+		{
+			PassParameters->RenderTargets.DepthStencil = DepthStencilBinding;
+		}
+		
 		FAmbientOcclusionPS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FAmbientOcclusionPS::FUseUpsampleDim>(bDoUpsample);
 		PermutationVector.Set<FAmbientOcclusionPS::FUseAoSetupAsInputDim>(bAOSetupAsInput);
 		PermutationVector.Set<FAmbientOcclusionPS::FShaderQualityDim>(CommonParameters.ShaderQuality);
 
 		TShaderMapRef<FAmbientOcclusionPS> PixelShader(View.ShaderMap, PermutationVector);
-		AddDrawScreenPass(
-			GraphBuilder,
+		TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
+
+		check(PassParameters);
+		ClearUnusedGraphResources(PixelShader, PassParameters);
+
+		GraphBuilder.AddPass(
 			MoveTemp(EventName),
-			View,
-			OutputViewport,
-			InputViewport,
-			PixelShader,
-			PassParameters);
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[&View, OutputViewport, InputViewport, VertexShader, PixelShader, PassParameters, bDepthBoundsTestEnabled, DepthFar] (FRHICommandListImmediate& RHICmdList)
+		{
+			const FIntRect InputRect = InputViewport.Rect;
+			const FIntPoint InputSize = InputViewport.Extent;
+			const FIntRect OutputRect = OutputViewport.Rect;
+			const FIntPoint OutputSize = OutputRect.Size();
+
+			RHICmdList.SetViewport(OutputRect.Min.X, OutputRect.Min.Y, 0.0f, OutputRect.Max.X, OutputRect.Max.Y, 1.0f);
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+			GraphicsPSOInit.bDepthBounds = bDepthBoundsTestEnabled;
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+			if (bDepthBoundsTestEnabled)
+			{
+				RHICmdList.SetDepthBounds(DepthFar, 1.0f);
+			}
+
+			DrawPostProcessPass(
+				RHICmdList,
+				0, 0, OutputSize.X, OutputSize.Y,
+				InputRect.Min.X, InputRect.Min.Y, InputRect.Width(), InputRect.Height(),
+				OutputSize,
+				InputSize,
+				VertexShader,
+				View.StereoPass,
+				false,
+				EDRF_UseTriangleOptimization);
+
+			if (bDepthBoundsTestEnabled)
+			{
+				RHICmdList.SetDepthBounds(0, 1.0f);
+			}
+		});
 	}
 
 	return MoveTemp(Output);

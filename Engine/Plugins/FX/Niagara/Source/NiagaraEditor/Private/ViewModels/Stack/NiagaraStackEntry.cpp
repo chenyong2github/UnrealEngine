@@ -746,9 +746,9 @@ void UNiagaraStackEntry::ChildStructureChanged()
 	StructureChangedDelegate.Broadcast();
 }
 
-void UNiagaraStackEntry::ChildDataObjectModified(UObject* ChangedObject)
+void UNiagaraStackEntry::ChildDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
 {
-	DataObjectModifiedDelegate.Broadcast(ChangedObject);
+	DataObjectModifiedDelegate.Broadcast(ChangedObjects, ChangeType);
 }
 
 void UNiagaraStackEntry::ChildRequestFullRefresh()

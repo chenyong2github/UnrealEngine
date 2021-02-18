@@ -138,11 +138,11 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 
 			float TotalMass = 0.f;
 			const float DensityKgCm3 = Parameters.Density / 1000.0f;
-			Chaos::TMassProperties<float, 3> MassProperties = Group->BuildMassProperties(DensityKgCm3, TotalMass);
+			Chaos::FMassProperties MassProperties = Group->BuildMassProperties(DensityKgCm3, TotalMass);
 
 			const bool DoCollisionGeom = Parameters.CollisionType == ECollisionTypeEnum::Chaos_Surface_Volumetric;
 			TArray<Chaos::FVec3>* SamplePoints = nullptr;
-			Chaos::TAABB<float, 3> SamplePointsBBox = Chaos::TAABB<float, 3>::EmptyAABB();
+			Chaos::FAABB3 SamplePointsBBox = Chaos::FAABB3::EmptyAABB();
 			if (DoCollisionGeom)
 			{
 				SamplePoints =
@@ -153,7 +153,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 				for (const Chaos::FVec3& Point : *SamplePoints)
 					SamplePointsBBox.GrowToInclude(Point);
 			}
-			//Chaos::TTriangleMesh<T> TriMesh = Chaos::TTriangleMesh<T>::GetConvexHullFromParticles(
+			//Chaos::FTriangleMesh TriMesh = Chaos::FTriangleMesh::GetConvexHullFromParticles(
 			//	TArrayView<const Chaos::TVector<T, 3>>(SamplePoints));
 
 			TUniquePtr<Chaos::FImplicitObject> ImplicitObject(Group->BuildSimImplicitObject());
@@ -178,7 +178,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 				// Precision gets worse in opt builds, so only do the phi test in debug.
 				checkSlow(PointVolumeRegistrationCheck(*SamplePoints, *ImplicitObject, 0.01));
 				auto PointBBoxCheck =
-					[&](const auto &InSamplePoints, const Chaos::TAABB<float,3> &BBox) -> bool
+					[&](const auto &InSamplePoints, const Chaos::FAABB3 &BBox) -> bool
 					{
 						for (int32 i = 0; i < InSamplePoints.Num(); i++)
 						{
@@ -194,7 +194,7 @@ void FSkeletalMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particle
 				check(PointBBoxCheck(*SamplePoints, ImplicitObject->BoundingBox()));
 			}
 
-			const Chaos::TAABB<float, 3>& BBox = ImplicitObject->BoundingBox();
+			const Chaos::FAABB3& BBox = ImplicitObject->BoundingBox();
 
 			const FVector Scale = WorldTransform->GetScale3D();
 			const FVector &CenterOfMass = MassProperties.CenterOfMass;

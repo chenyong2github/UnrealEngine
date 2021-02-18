@@ -483,6 +483,7 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
+		OutEnvironment.SetDefine(TEXT("SUPPORTS_ANISOTROPIC_MATERIALS"), FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Parameters.Platform));
 	}
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -1230,8 +1231,7 @@ void RenderScreenSpaceReflections(
 		PassParameters->TileListData = TiledScreenSpaceReflection->TileListStructureBufferSRV;
 		PassParameters->IndirectDrawParameter = TiledScreenSpaceReflection->DispatchIndirectParametersBuffer;
 
-		ValidateShaderParameters(VertexShader, *PassParameters);
-		ValidateShaderParameters(PixelShader, *PassParameters);
+		ClearUnusedGraphResources(VertexShader, PixelShader, PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SSR RayMarch(Quality=%d RayPerPixel=%d%s) %dx%d",

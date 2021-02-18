@@ -80,6 +80,9 @@ public:
 
 	bool GetIsAdvanced() const;
 
+	// Returns true if this stack entry was changed by a user and differs from the default value
+	virtual bool HasOverridenContent() const;
+
 protected:
 	FString GetOwnerStackItemEditorDataKey() const;
 

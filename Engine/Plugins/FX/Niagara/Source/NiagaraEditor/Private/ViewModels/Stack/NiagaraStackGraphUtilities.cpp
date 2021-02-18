@@ -612,7 +612,7 @@ void InitializeStackFunctionInputsInternal(TSharedRef<FNiagaraSystemViewModel> S
 	}
 
 	FunctionInputCollection->Finalize();
-	SystemViewModel->NotifyDataObjectChanged(nullptr);
+	SystemViewModel->NotifyDataObjectChanged(TArray<UObject*>(), ENiagaraDataObjectChange::Unknown);
 }
 
 void FNiagaraStackGraphUtilities::InitializeStackFunctionInputs(TSharedRef<FNiagaraSystemViewModel> SystemViewModel, TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel, UNiagaraStackEditorData& StackEditorData, UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& InputFunctionCallNode)

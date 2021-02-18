@@ -1284,6 +1284,11 @@ void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			Source->MarkNotSynchronized(TEXT("Experimental changed."));
 		}
 	}
+	
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraScript, NoteMessage) && Source)
+	{
+		Source->MarkNotSynchronized(TEXT("Note changed."));
+	}
 
 	CustomAssetRegistryTagCache.Reset();
 	OnPropertyChangedDelegate.Broadcast(PropertyChangedEvent);

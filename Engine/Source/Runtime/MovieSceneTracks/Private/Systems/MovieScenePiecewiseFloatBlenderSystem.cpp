@@ -377,16 +377,7 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_PiecewiseBlenderSystem)
 
-	// @todo: scheduled routine maintenance like this to optimize memory layouts
-	const int32 LastBlendIndex = AllocatedBlendChannels.FindLast(true);
-	if (LastBlendIndex == INDEX_NONE)
-	{
-		AllocatedBlendChannels.Empty();
-	}
-	else if (LastBlendIndex < AllocatedBlendChannels.Num() - 1)
-	{
-		AllocatedBlendChannels.RemoveAt(LastBlendIndex + 1, AllocatedBlendChannels.Num() - LastBlendIndex - 1);
-	}
+	CompactBlendChannels();
 
 	// We allocate space for every blend even if there are gaps so we can do a straight index into each array
 	const int32 MaximumNumBlends = AllocatedBlendChannels.Num();

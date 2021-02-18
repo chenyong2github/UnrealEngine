@@ -254,11 +254,33 @@ void FPropertyValueImpl::RebuildInstancedProperties(const TSharedPtr<IPropertyHa
 		Handle->GetOuterObjects(Outers);
 		UObject* DuplicateOuter = (Outers.Num() > 0) ? Outers[0] : nullptr;
 
-		// This does a deep copy of NewValueAsObject. It's subobjects and property data will be copied.
-		UObject* DuplicateOfNewValue = DuplicateObject<UObject>(NewValueAsObject, DuplicateOuter);
-		TArray<FString> DuplicateValueAsString;
-		DuplicateValueAsString.Add(DuplicateOfNewValue->GetPathName());
-		Handle->SetPerObjectValues(DuplicateValueAsString);
+		// For archetypes to continue working we must maintain the name of the object, 
+		// so an existing object that is going to be replaced must be renamed out of the way
+		TArray<FString> ObjectValueAsString;
+		Handle->GetPerObjectValues(ObjectValueAsString);
+
+		int32 Index;
+		FStringView ObjNameView = ObjectValueAsString[0];
+		ObjNameView.FindLastChar(TEXT(':'),Index);
+		ObjNameView.RightChopInline(Index+1);
+		ObjNameView.LeftChopInline(1);
+
+		const FName ObjName(ObjNameView);
+
+		if (DuplicateOuter)
+		{
+			if (UObject* ExistingObj = (UObject*)FindObjectWithOuter(DuplicateOuter, nullptr, ObjName))
+			{
+				ExistingObj->Rename(*MakeUniqueObjectName(DuplicateOuter,ExistingObj->GetClass()).ToString(), nullptr, REN_ForceNoResetLoaders|REN_DontCreateRedirectors);
+			}
+		}
+
+		// This does a deep copy of NewValueAsObject. Its subobjects and property data will be copied.
+		UObject* DuplicateOfNewValue = DuplicateObject<UObject>(NewValueAsObject, DuplicateOuter, ObjName);
+
+		ObjectValueAsString.Reset();
+		ObjectValueAsString.Add(DuplicateOfNewValue->GetPathName());
+		Handle->SetPerObjectValues(ObjectValueAsString);
 	}
 }
 

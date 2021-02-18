@@ -739,6 +739,7 @@ public:
 	virtual TArray<FName>* GetUniqueMarkerNames() override { return &MarkerData.UniqueMarkerNames; }
 	virtual void RefreshCacheData() override;
 	virtual bool CanBeUsedInComposition() const { return false; }
+	virtual void GetAnimationPose(FAnimationPoseData& OutPoseData, const FAnimExtractContext& ExtractionContext) const override { check(false); /* Should never be called, montages dont use this API */ }
 	//~ End AnimSequenceBase Interface
 
 #if WITH_EDITOR

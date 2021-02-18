@@ -112,6 +112,7 @@ void UMovieSceneSkeletalAnimationTrack::PostLoad()
 			++SectionIndex;
 		}
 	}
+
 	Super::PostLoad();
 
 	if (GetLinkerCustomVersion(FMovieSceneEvaluationCustomVersion::GUID) < FMovieSceneEvaluationCustomVersion::AddBlendingSupport)
@@ -259,7 +260,7 @@ EMovieSceneSectionMovedResult UMovieSceneSkeletalAnimationTrack::OnSectionMoved(
 
 void UMovieSceneSkeletalAnimationTrack::SortSections()
 {
-	AnimationSections.Sort([](UMovieSceneSection& A,  UMovieSceneSection& B) {return ((A).GetTrueRange().GetLowerBoundValue() < (B).GetTrueRange().GetLowerBoundValue());});
+	AnimationSections.Sort([](const UMovieSceneSection& A, const UMovieSceneSection& B) {return ((A).GetTrueRange().GetLowerBoundValue() < (B).GetTrueRange().GetLowerBoundValue());});
 }
 
 //expectation is the weights may be unnormalized.
@@ -528,6 +529,8 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 
 			FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *ValidAnimSequence->GetSkeleton());
 			OutPose.ResetToRefPose(BoneContainer);
+			FBlendedCurve OutCurve;
+			OutCurve.InitFrom(BoneContainer);
 			TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
 			RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
 			RootMotionParams.EndFrame = AnimationSections[AnimationSections.Num() - 1]->GetExclusiveEndFrame() - 1;
@@ -557,7 +560,6 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 					{
 						UMovieSceneSkeletalAnimationSection* AnimSection = CastChecked<UMovieSceneSkeletalAnimationSection>(Section);
 
-						FBlendedCurve OutCurve;
 						FStackCustomAttributes TempAttributes;
 						FAnimationPoseData AnimationPoseData(OutPose, OutCurve, TempAttributes);
 						bool bIsAdditive = false;

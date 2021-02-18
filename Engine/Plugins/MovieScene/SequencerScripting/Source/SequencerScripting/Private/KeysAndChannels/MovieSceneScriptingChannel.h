@@ -16,7 +16,7 @@
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneScriptingChannel.generated.h"
-UCLASS(BlueprintType)
+UCLASS(abstract, BlueprintType)
 class UMovieSceneScriptingKey : public UObject
 {
 	GENERATED_BODY()
@@ -35,7 +35,7 @@ public:
 };
 
 
-UCLASS(BlueprintType)
+UCLASS(abstract, BlueprintType)
 class UMovieSceneScriptingChannel : public UObject
 {
 	GENERATED_BODY()
@@ -47,6 +47,9 @@ public:
 	*			Returns all keys even if clipped by the owning section's boundaries or outside of the current sequence play range.
 	*/
 	virtual TArray<UMovieSceneScriptingKey*> GetKeys() const PURE_VIRTUAL(UMovieSceneScriptingChannel::GetKeys, return TArray<UMovieSceneScriptingKey*>(););
+
+	UPROPERTY(BlueprintReadOnly, Category="Editor Scripting | Sequencer Tools | Keys")
+	FName ChannelName;
 };
 
 template<typename ChannelType, typename ScriptingKeyType, typename ScriptingKeyValueType>
@@ -192,13 +195,22 @@ struct TMovieSceneScriptingChannel
 		return ScriptingRange;
 	}
 
-	void SetDefaultInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, ScriptingKeyValueType& InDefaultValue)
+	void SetDefaultInChannel(TMovieSceneChannelHandle<ChannelType> ChannelHandle, TWeakObjectPtr<UMovieSceneSequence> Sequence, TWeakObjectPtr<UMovieSceneSection> Section, ScriptingKeyValueType& InDefaultValue)
 	{
 		ChannelType* Channel = ChannelHandle.Get();
 		if (Channel)
 		{
 			using namespace UE::MovieScene;
 			SetChannelDefault(Channel, InDefaultValue);
+
+#if WITH_EDITOR
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			if (MetaData && Section.IsValid() && Sequence.IsValid() && Sequence->GetMovieScene())
+			{
+				Section.Get()->MarkAsChanged();
+				Sequence->GetMovieScene()->OnChannelChanged().Broadcast(MetaData, Section.Get());
+			}
+#endif
 			return;
 		}
 		FFrame::KismetExecutionMessage(TEXT("Invalid ChannelHandle for MovieSceneScriptingChannel, failed to set default value."), ELogVerbosity::Error);

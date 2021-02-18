@@ -2406,7 +2406,7 @@ private:
 	FTransform ComponentTransform;
 
 	UPROPERTY()
-	int32 VisibilityId;
+	int32 VisibilityId = INDEX_NONE;
 
 	UPROPERTY()
 	TObjectPtr<UPrimitiveComponent> LODParent = nullptr;

@@ -934,7 +934,7 @@ public:
 	/**
 	 * Helper to fetch a list of child property nodes that are expanded
 	 */
-	void GetExpandedChildPropertyPaths(TSet<FString>& OutExpandedChildPropertyPaths);
+	void GetExpandedChildPropertyPaths(TSet<FString>& OutExpandedChildPropertyPaths) const;
 
 	/**
 	 * Helper to set the expansion state of a list of child property nodes

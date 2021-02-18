@@ -42,6 +42,7 @@ namespace Generator
 		UMaterialFunction& Get(ECommonFunction Function);
 
 		void SetAssetPath(const FString& FunctionsAssetPath);
+		void SetObjectFlags(EObjectFlags InObjectFlags) { ObjectFlags = InObjectFlags; }
 
 	private:
 		int32              GetVersion(const FString& AssetName) const;
@@ -60,6 +61,7 @@ namespace Generator
 		TMap<FString, UMaterialFunction*> LoadedFunctions;
 		TArray<UMaterialFunction*>        CommonFunctions;
 		FString                           FunctionsAssetPath;
+		EObjectFlags                      ObjectFlags;
 	};
 
 	inline UMaterialFunction& FFunctionLoader::Get(ECommonFunction Function)

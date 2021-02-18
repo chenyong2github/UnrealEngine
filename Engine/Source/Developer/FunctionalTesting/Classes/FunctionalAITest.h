@@ -59,6 +59,15 @@ struct FUNCTIONALTESTING_API FAITestSpawnInfoBase
 	virtual bool Spawn(AFunctionalAITestBase* AITest) const PURE_VIRTUAL(, return false;);
 };
 
+template<>
+struct TStructOpsTypeTraits<FAITestSpawnInfoBase> : public TStructOpsTypeTraitsBase2<FAITestSpawnInfoBase>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};
+
 /**
 *	FAITestSpawnInfo
 *
@@ -176,6 +185,14 @@ struct FAITestSpawnSetBase
 	
 	/** Pure virtual method to iterate through the spawn info container and execute Predicate on each. */
 	virtual void ForEachSpawnInfo(TFunctionRef<void(FAITestSpawnInfoBase&)> Predicate) PURE_VIRTUAL(,);
+};
+template<>
+struct TStructOpsTypeTraits<FAITestSpawnSetBase> : public TStructOpsTypeTraitsBase2<FAITestSpawnSetBase>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
 };
 
 /** 

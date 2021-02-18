@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using UnrealBuildTool;
 using System;
 using System.IO;
+using UnrealBuildTool;
 using EpicGames.Core;
 
 public class RigLogicLibTest : ModuleRules

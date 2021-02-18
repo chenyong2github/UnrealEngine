@@ -196,6 +196,7 @@ struct FPushPhysicsData
 	TArray<FSimCallbackCommandObject*> SimCommands;	//commands to run (this is a one off command)
 
 	void Reset();
+	void ResetForHistory();
 	void CopySubstepData(const FPushPhysicsData& FirstStepData);
 };
 
@@ -225,6 +226,7 @@ public:
 
 	void UnregisterSimCallbackObject_External(ISimCallbackObject* SimCallbackObject)
 	{
+		SimCallbackObject->bPendingDelete_External = true;
 		GetProducerData_External()->SimCallbackObjectsToRemove.Add(SimCallbackObject);
 	}
 
@@ -240,6 +242,9 @@ public:
 
 	/** Frees the push data back into the pool. Internal thread should call this when finished processing data*/
 	void FreeData_Internal(FPushPhysicsData* PushData);
+
+	/** May record data to history, or may free immediately depending on rewind needs. Either way you should assume data is gone after calling this */
+	void FreeDataToHistory_Internal(FPushPhysicsData* PushData);
 
 	/** Frees the pull data back into the pool. External thread should call this when finished processing data*/
 	void FreePullData_External(FPullPhysicsData* PullData);
@@ -266,6 +271,11 @@ public:
 		PullDataQueue.Dequeue(Result);
 		return Result;
 	}
+
+	void SetHistoryLength_Internal(int32 InHistoryLength);
+
+	/** Returns the history buffer of the latest NumFrames. The history that comes before these frames is discarded*/
+	TArray<FPushPhysicsData*> StealHistory_Internal(int32 NumFrames);
 		
 private:
 	FReal ExternalTime_External;	//the global time external thread is currently at
@@ -277,6 +287,7 @@ private:
 	TArray<FPushPhysicsData*> ExternalQueue;	//the data pushed from external thread with a time stamp
 	TQueue<FPushPhysicsData*,EQueueMode::Spsc> PushDataPool;	//pool to grab more push data from to avoid expensive reallocs
 	TArray<TUniquePtr<FPushPhysicsData>> BackingBuffer;	//all push data is cleaned up by this
+	TArray<FPushPhysicsData*> HistoryQueue_Internal;	//all push data still needed for potential rewinds. Latest data comes first
 
 	//pull
 	FPullPhysicsData* CurPullData;	//the current pull data sim is writing to
@@ -285,6 +296,8 @@ private:
 	TArray<TUniquePtr<FPullPhysicsData>> BackingPullBuffer;		//all pull data is cleaned up by this
 
 	int32 Delay;
+
+	int32 HistoryLength;	//how long to keep push data for
 
 	void PrepareExternalQueue_External();
 	void PreparePullData();

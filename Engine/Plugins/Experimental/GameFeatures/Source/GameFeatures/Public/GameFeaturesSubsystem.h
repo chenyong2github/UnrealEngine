@@ -215,7 +215,7 @@ private:
 
 private:
 	const UGameFeatureData* GetDataForStateMachine(UGameFeaturePluginStateMachine* GFSM) const;
-	
+
 	/** Gets relevant properties out of a uplugin file */
 	bool GetGameFeaturePluginDetails(const FString& PluginDescriptorFilename, struct FGameFeaturePluginDetails& OutPluginDetails) const;
 

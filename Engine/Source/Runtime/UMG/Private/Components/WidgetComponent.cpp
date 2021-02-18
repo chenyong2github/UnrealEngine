@@ -735,7 +735,7 @@ FPrimitiveSceneProxy* UWidgetComponent::CreateSceneProxy()
 
 	if (WidgetRenderer && CurrentSlateWidget.IsValid())
 	{
-		RequestRedraw();
+		RequestRenderUpdate();
 		LastWidgetRenderTime = 0;
 
 		return new FWidget3DSceneProxy(this, *WidgetRenderer->GetSlateRenderer());
@@ -1314,6 +1314,11 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 			DeltaTime);
 
 		LastWidgetRenderTime = GetCurrentTime();
+
+		if (TickMode == ETickMode::Disabled && IsComponentTickEnabled())
+		{
+			SetComponentTickEnabled(false);
+		}
 	}
 }
 
@@ -2013,6 +2018,15 @@ void UWidgetComponent::SetDrawSize(FVector2D Size)
 void UWidgetComponent::RequestRedraw()
 {
 	bRedrawRequested = true;
+}
+
+void UWidgetComponent::RequestRenderUpdate()
+{
+	bRedrawRequested = true;
+	if (TickMode == ETickMode::Disabled)
+	{
+		SetComponentTickEnabled(true);
+	}
 }
 
 void UWidgetComponent::SetBlendMode( const EWidgetBlendMode NewBlendMode )

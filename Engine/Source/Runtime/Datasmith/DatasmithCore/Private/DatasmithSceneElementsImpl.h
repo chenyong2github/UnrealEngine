@@ -41,9 +41,7 @@ public:
 	virtual       DirectLink::FParameterStore& GetStore()       override { return Store; }
 
 protected:
-	virtual bool IsSubTypeInternal( uint64 InSubType ) const override { return ( InSubType & GetSubType() ) != 0; }
-
-private:
+	virtual bool IsSubTypeInternal( uint64 InSubType ) const { return ( InSubType & GetSubType() ) != 0; }
 	EDatasmithElementType GetElementType() const { return Type.Get(Store); }
 	uint64 GetSubType() const { return Subtype.Get(Store); }
 

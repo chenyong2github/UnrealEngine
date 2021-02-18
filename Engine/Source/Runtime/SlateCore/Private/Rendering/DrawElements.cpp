@@ -897,6 +897,7 @@ FSlateDrawElement& FSlateWindowElementList::AddCachedElement()
 
 void FSlateWindowElementList::PushCachedElementData(FSlateCachedElementData& CachedElementData)
 {
+	check(&CachedElementData); 
 	const int32 Index = CachedElementDataList.AddUnique(&CachedElementData);
 	CachedElementDataListStack.Push(Index);
 }

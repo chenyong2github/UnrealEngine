@@ -56,6 +56,15 @@ namespace Mdl
 			}
 			return false;
 		}
+
+		FString NormalizeDirectoryPathForMdl(const TCHAR* DirectoryPath)
+		{
+			FString NormalizedPath = DirectoryPath;
+			FPaths::NormalizeDirectoryName(NormalizedPath);
+			NormalizedPath += TEXT("/");
+
+			return NormalizedPath;
+		}
 	}
 
 	class FLogger : public mi::base::Interface_implement_singleton<mi::base::ILogger>
@@ -194,29 +203,35 @@ namespace Mdl
 	void FApiContext::AddSearchPath(const FString& ModulesPath)
 	{
 		if (ModulesPath.IsEmpty() || !FPaths::DirectoryExists(ModulesPath))
+		{
 			return;
+		}
 
-		const FString ModuleAbsolutePath = FPaths::GetPath(ModulesPath) + TEXT("/");
-		const char*   PathANSI           = TCHAR_TO_ANSI(*ModuleAbsolutePath);
+		const FString AbsolutePath = NormalizeDirectoryPathForMdl(*ModulesPath);
+		const char*   PathANSI           = TCHAR_TO_ANSI(*AbsolutePath);
 		MDL_CHECK_RESULT()               = ConfigHandle->add_mdl_path(PathANSI);
 	}
 
 	void FApiContext::RemoveSearchPath(const FString& ModulesPath)
 	{
 		if (ModulesPath.IsEmpty() || !FPaths::DirectoryExists(ModulesPath))
+		{
 			return;
+		}
 
-		const FString ModuleAbsolutePath = FPaths::GetPath(ModulesPath) + TEXT("/");
-		const char*   PathANSI           = TCHAR_TO_ANSI(*ModuleAbsolutePath);
+		const FString AbsolutePath = NormalizeDirectoryPathForMdl(*ModulesPath);
+		const char*   PathANSI           = TCHAR_TO_ANSI(*AbsolutePath);
 		MDL_CHECK_RESULT()               = ConfigHandle->remove_mdl_path(PathANSI);
 	}
 
 	void FApiContext::AddResourceSearchPath(const FString& ResourcesPath)
 	{
 		if (ResourcesPath.IsEmpty() || !FPaths::DirectoryExists(ResourcesPath))
+		{
 			return;
+		}
 
-		const FString AbsolutePath = FPaths::GetPath(ResourcesPath) + TEXT("/");
+		const FString AbsolutePath = NormalizeDirectoryPathForMdl(*ResourcesPath);
 		const char*   PathANSI     = TCHAR_TO_ANSI(*AbsolutePath);
 		MDL_CHECK_RESULT()         = ConfigHandle->add_resource_path(PathANSI);
 	}
@@ -224,57 +239,44 @@ namespace Mdl
 	void FApiContext::RemoveResourceSearchPath(const FString& ResourcesPath)
 	{
 		if (ResourcesPath.IsEmpty() || !FPaths::DirectoryExists(ResourcesPath))
+		{
 			return;
+		}
 
-		const FString AbsolutePath = FPaths::GetPath(ResourcesPath) + TEXT("/");
+		const FString AbsolutePath = NormalizeDirectoryPathForMdl(*ResourcesPath);
 		const char*   PathANSI     = TCHAR_TO_ANSI(*AbsolutePath);
 		MDL_CHECK_RESULT()         = ConfigHandle->remove_resource_path(PathANSI);
 	}
 
-	bool FApiContext::LoadModule(const FString& FilePath, FMaterialCollection& OutMaterials)
+	bool FApiContext::LoadModule(const FString& InModuleName, FMaterialCollection& OutMaterials)
 	{
-		if (!FPaths::FileExists(FilePath))
-			return false;
-
-		// MDL expects the Module name and not the filename
-		const FString ModuleName = TEXT("::") + FPaths::GetBaseFilename(FilePath);
-		const FString ModulePath = FPaths::GetPath(FilePath) + TEXT("/");
-
 		// get transaction
 		const mi::base::Handle<mi::neuraylib::IScope>       Scope(DatabaseHandle->get_global_scope());
 		const mi::base::Handle<mi::neuraylib::ITransaction> Transaction(Scope->create_transaction());
 
-		mi::Sint32 Result = ConfigHandle->add_mdl_path(TCHAR_TO_ANSI(*ModulePath));
-		if (Result)
-		{
-			UE_LOG(LogMDLImporter, Error, TEXT("Invalid MDL filepath (%u): %s %s"), Result, *FilePath);
-			MDL_CHECK_RESULT() = Transaction->commit();
-			return false;
-		}
-
 		mi::base::Handle<mi::neuraylib::IMdl_impexp_api> MdlImpExpApi(NeurayHandle->get_api_component<mi::neuraylib::IMdl_impexp_api>());
 
-		Result = MdlImpExpApi->load_module(Transaction.get(), TCHAR_TO_ANSI(*ModuleName));
+		mi::Sint32 Result = MdlImpExpApi->load_module(Transaction.get(), TCHAR_TO_ANSI(*InModuleName));
 		if (Result < 0)
 		{
-			UE_LOG(LogMDLImporter, Error, TEXT("Failed to load MDL file (%u): %s"), Result, *FilePath);
+			UE_LOG(LogMDLImporter, Error, TEXT("Failed to load MDL module (%u): %s"), Result, *InModuleName);
 			MDL_CHECK_RESULT() = Transaction->commit();
 			return false;
 		}
 
-		const FString ElementName = TEXT("mdl") + ModuleName;
+		const FString ElementName = TEXT("mdl") + InModuleName;
 		{
 			mi::base::Handle<const mi::neuraylib::IModule> Module(Transaction->access<mi::neuraylib::IModule>(TCHAR_TO_ANSI(*ElementName)));
 			if (!Module.is_valid_interface())
 			{
-				UE_LOG(LogMDLImporter, Error, TEXT("Invalid Module interface: %s"), *ModuleName);
+				UE_LOG(LogMDLImporter, Error, TEXT("Invalid Module interface: %s"), *ElementName);
 				MDL_CHECK_RESULT() = Transaction->commit();
 				return false;
 			}
 
 			const mi::Size Count = Module->get_material_count();
 			OutMaterials.Reserve(static_cast<int32>(Count));
-			OutMaterials.Name = ModuleName;
+			OutMaterials.Name = InModuleName;
 			OutMaterials.Name.RemoveAt(0, 2);  // remove prefix
 			for (mi::Size Index = 0; Index < Count; ++Index)
 			{
@@ -295,18 +297,15 @@ namespace Mdl
 		}
 		MDL_CHECK_RESULT() = Transaction->commit();
 
-		MDL_CHECK_RESULT() = ConfigHandle->remove_mdl_path(TCHAR_TO_ANSI(*ModulePath));
-
 		return true;
 	}
 
-	bool FApiContext::UnloadModule(const FString& FilePath)
+	bool FApiContext::UnloadModule(const FString& InModuleName)
 	{
 		const mi::base::Handle<mi::neuraylib::IScope>       Scope(DatabaseHandle->get_global_scope());
 		const mi::base::Handle<mi::neuraylib::ITransaction> Transaction(Scope->create_transaction());
 
-		const FString ModuleName  = TEXT("::") + FPaths::GetBaseFilename(FilePath);
-		const FString ElementName = TEXT("mdl") + ModuleName;
+		const FString ElementName = TEXT("mdl") + InModuleName;
 
 		const auto* Module = Transaction->access<mi::neuraylib::IModule>(TCHAR_TO_ANSI(*ElementName));
 		if (Module)

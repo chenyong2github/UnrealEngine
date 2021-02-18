@@ -258,10 +258,7 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 {
 	ensure((Key != EKeys::MouseX && Key != EKeys::MouseY) || NumSamples > 0);
 
-	// first event associated with this key, add it to the map
-	FKeyState& KeyState = KeyStateMap.FindOrAdd(Key);
-
-	auto TestEventEdges = [this, &Delta](FKeyState &TestKeyState, float EdgeValue)
+	auto TestEventEdges = [this, &Delta](FKeyState& TestKeyState, float EdgeValue)
 	{
 		// look for event edges
 		if (EdgeValue == 0.f && Delta != 0.f)
@@ -278,11 +275,16 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 		}
 	};
 
-	TestEventEdges(KeyState, KeyState.Value.X);
+	{
+		// first event associated with this key, add it to the map
+		FKeyState& KeyState = KeyStateMap.FindOrAdd(Key);
 
-	// accumulate deltas until processed next
-	KeyState.SampleCountAccumulator += NumSamples;
-	KeyState.RawValueAccumulator.X += Delta;
+		TestEventEdges(KeyState, KeyState.Value.X);
+
+		// accumulate deltas until processed next
+		KeyState.SampleCountAccumulator += NumSamples;
+		KeyState.RawValueAccumulator.X += Delta;
+	}
 
 	// Mirror the key press to any associated paired axis
 	FKey PairedKey = Key.GetPairedAxisKey();
@@ -292,6 +294,9 @@ bool UPlayerInput::InputAxis(FKey Key, float Delta, float DeltaTime, int32 NumSa
 
 		EPairedAxis PairedAxis = Key.GetPairedAxis();
 		FKeyState& PairedKeyState = KeyStateMap.FindOrAdd(PairedKey);
+
+		// The FindOrAdd can invalidate KeyState, so we must look it back up
+		FKeyState& KeyState = KeyStateMap.FindChecked(Key);
 
 		// Update accumulator for the appropriate axis
 		if (PairedAxis == EPairedAxis::X)

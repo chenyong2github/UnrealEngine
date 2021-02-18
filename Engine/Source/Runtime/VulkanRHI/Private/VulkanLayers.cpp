@@ -845,7 +845,21 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasDriverProperties = HasExtension(DeviceExtensions, VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME);
 #endif
 
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 	HasEXTFragmentDensityMap = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
+	HasEXTFragmentDensityMap2 = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	HasNVShadingRateImage = HasExtension(DeviceExtensions, VK_NV_SHADING_RATE_IMAGE_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_MULTIVIEW
+	HasKHRMultiview = HasExtension(DeviceExtensions, VK_KHR_MULTIVIEW_EXTENSION_NAME);
+#endif
 
 #if VULKAN_SUPPORTS_FULLSCREEN_EXCLUSIVE
 	HasEXTFullscreenExclusive = HasExtension(DeviceExtensions, VK_EXT_FULL_SCREEN_EXCLUSIVE_EXTENSION_NAME);

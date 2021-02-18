@@ -28,6 +28,9 @@ template<class T, int d>
 class TBVHParticles;
 class FImplicitObject;
 
+using FAABB3 = TAABB<FReal, 3>;
+using FParticles = TParticles<FReal, 3>;
+
 namespace ImplicitObjectType
 {
 	enum
@@ -218,7 +221,7 @@ public:
 	};
 
 	Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const TBVHParticles<FReal, 3>* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
-	Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const TParticles<FReal, 3>* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
+	Pair<FVec3, bool> FindDeepestIntersection(const FImplicitObject* Other, const FParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const;
 	Pair<FVec3, bool> FindClosestIntersection(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const;
 
 	//This gives derived types a way to avoid calling PhiWithNormal todo: this api is confusing
@@ -291,7 +294,7 @@ public:
 		Out.Add(MakePair(This, ParentTM));
 	}
 
-	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TAABB<FReal, 3>& LocalBounds) const;
+	virtual void FindAllIntersectingObjects(TArray < Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const;
 
 	virtual FString ToString() const
 	{

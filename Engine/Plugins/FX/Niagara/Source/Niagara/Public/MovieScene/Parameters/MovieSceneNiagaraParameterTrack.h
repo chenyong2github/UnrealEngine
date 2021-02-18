@@ -8,7 +8,7 @@
 #include "MovieSceneNiagaraParameterTrack.generated.h"
 
 /** A base class for tracks that animate niagara parameters. */
-UCLASS(MinimalAPI)
+UCLASS(abstract, MinimalAPI)
 class UMovieSceneNiagaraParameterTrack : public UMovieSceneNiagaraTrack
 {
 	GENERATED_BODY()

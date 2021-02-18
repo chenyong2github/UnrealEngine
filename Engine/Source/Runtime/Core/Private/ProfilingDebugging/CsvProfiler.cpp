@@ -2863,6 +2863,7 @@ void FCsvProfiler::OnEndFramePostFork()
 void FCsvProfiler::BeginFrameRT()
 {
 	LLM_SCOPE(ELLMTag::CsvProfiler);
+	RenderThreadId = FPlatformTLS::GetCurrentThreadId();
 
 	check(IsInRenderingThread());
 	if (GCsvProfilerIsCapturing)

@@ -602,6 +602,7 @@ namespace AutomationTool
 			AgentChoice.Items.Add(CreateSchemaElement("EnvVar", ScriptSchemaStandardType.EnvVar));
 			AgentChoice.Items.Add(CreateSchemaElement("Node", ScriptSchemaStandardType.Node));
 			AgentChoice.Items.Add(CreateSchemaElement("Trace", ScriptSchemaStandardType.Trace));
+			AgentChoice.Items.Add(CreateSchemaElement("Label", ScriptSchemaStandardType.Label));
 			AgentChoice.Items.Add(CreateSchemaElement("Warning", ScriptSchemaStandardType.Warning));
 			AgentChoice.Items.Add(CreateSchemaElement("Error", ScriptSchemaStandardType.Error));
 			AgentChoice.Items.Add(CreateSchemaElement("Expand", ScriptSchemaStandardType.Expand));

@@ -42,6 +42,16 @@ bool UNiagaraStackPropertyRow::GetIsEnabled() const
 	return OwningNiagaraNode == nullptr || OwningNiagaraNode->GetDesiredEnabledState() == ENodeEnabledState::Enabled;
 }
 
+bool UNiagaraStackPropertyRow::HasOverridenContent() const
+{
+	TSharedPtr<IPropertyHandle> PropertyHandle = DetailTreeNode->CreatePropertyHandle();
+	if (PropertyHandle.IsValid() && PropertyHandle.Get())
+	{
+		return PropertyHandle->DiffersFromDefault();
+	}
+	return false;
+}
+
 void UNiagaraStackPropertyRow::FinalizeInternal()
 {
 	Super::FinalizeInternal();

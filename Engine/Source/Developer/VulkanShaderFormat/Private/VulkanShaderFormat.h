@@ -8,33 +8,9 @@
 enum class EVulkanShaderVersion
 {
 	ES3_1,
-	ES3_1_NOUB,
 	ES3_1_ANDROID,
-	ES3_1_ANDROID_NOUB,
 	SM5,
-	SM5_NOUB,
 };
-
-inline bool HasRealUBs(EVulkanShaderVersion Version)
-{
-	switch(Version)
-	{
-	case EVulkanShaderVersion::ES3_1:
-	case EVulkanShaderVersion::ES3_1_ANDROID:
-	case EVulkanShaderVersion::SM5:
-		return true;
-	case EVulkanShaderVersion::ES3_1_NOUB:
-	case EVulkanShaderVersion::ES3_1_ANDROID_NOUB:
-	case EVulkanShaderVersion::SM5_NOUB:
-		return false;
-
-	default:
-		check(0);
-		break;
-	}
-
-	return true;
-}
 
 extern void DoCompileVulkanShader(const struct FShaderCompilerInput& Input,struct FShaderCompilerOutput& Output,const class FString& WorkingDirectory, EVulkanShaderVersion Version);
 

@@ -27,8 +27,9 @@ protected:
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
 	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
-	void RefreshThumbnailBar();
-	void FillThumbnailBar(UObject* ChangedObject, const bool bIsTriggeredByObjectUpdate);
+	void StackViewModelStructureChanged();
+	void StackViewModelDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
+	void FillThumbnailBar();
 	void OnMaterialCompiled(class UMaterialInterface* MaterialInterface);
 private:
 	EVisibility GetIssueIconVisibility() const;

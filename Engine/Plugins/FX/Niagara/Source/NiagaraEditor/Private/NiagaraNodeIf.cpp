@@ -89,6 +89,7 @@ void UNiagaraNodeIf::AllocateDefaultPins()
 
 	//Add the condition pin.
 	UEdGraphPin* ConditionPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetBoolDef()), ConditionPinName);
+	UNiagaraNode::SetPinDefaultToTypeDefaultIfUnset(ConditionPin);
 	ConditionPin->PersistentGuid = ConditionPinGuid;
 
 	//Create the inputs for each path.
@@ -96,6 +97,7 @@ void UNiagaraNodeIf::AllocateDefaultPins()
 	{
 		const FNiagaraVariable& Var = OutputVars[Index];
 		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputTruePinSuffix));
+		UNiagaraNode::SetPinDefaultToTypeDefaultIfUnset(NewPin);
 		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputTruePinGuid;
 	}
 
@@ -103,6 +105,7 @@ void UNiagaraNodeIf::AllocateDefaultPins()
 	{
 		const FNiagaraVariable& Var = OutputVars[Index];
 		UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + InputFalsePinSuffix));
+		UNiagaraNode::SetPinDefaultToTypeDefaultIfUnset(NewPin);
 		NewPin->PersistentGuid = PathAssociatedPinGuids[Index].InputFalsePinGuid;
 	}
 
@@ -191,11 +194,13 @@ FGuid UNiagaraNodeIf::AddOutput(FNiagaraTypeDefinition Type, const FName& Name)
 	FGuid PinTrueGuid = FGuid::NewGuid();
 	UEdGraphPin* PinTrue = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Type), *(Name.ToString() + InputTruePinSuffix), PathAssociatedPinGuids.Num());
 	PinTrue->PersistentGuid = PinTrueGuid;
+	UNiagaraNode::SetPinDefaultToTypeDefaultIfUnset(PinTrue);
 	NewPinGuidsForPath.InputTruePinGuid = PinTrueGuid;
 
 	FGuid PinFalseGuid = FGuid::NewGuid();
 	UEdGraphPin* PinFalse = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Type), *(Name.ToString() + InputFalsePinSuffix), PathAssociatedPinGuids.Num() * 2);
 	PinFalse->PersistentGuid = PinFalseGuid;
+	UNiagaraNode::SetPinDefaultToTypeDefaultIfUnset(PinFalse);
 	NewPinGuidsForPath.InputFalsePinGuid = PinFalseGuid;
 
 	return Guid;

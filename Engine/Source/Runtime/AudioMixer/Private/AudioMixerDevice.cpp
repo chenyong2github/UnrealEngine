@@ -102,9 +102,13 @@ namespace Audio
 
 	void FMixerDevice::AddReferencedObjects(FReferenceCollector& Collector)
 	{
-		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Pair : Submixes)
+		for (TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>& Pair : Submixes)
 		{
-			Collector.AddReferencedObject(Pair.Key);
+			if (Pair.Key.IsValid())
+			{
+				const USoundSubmixBase* Submix = Pair.Key.Get();
+				Collector.AddReferencedObject(Submix);
+			}
 		}
 	}
 
@@ -936,12 +940,13 @@ namespace Audio
 			}
 		}
 
-		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Entry : Submixes)
+		for (TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>& Pair : Submixes)
 		{
-			const USoundSubmixBase* SoundSubmix = Entry.Key;
-			check(SoundSubmix);
-			FMixerSubmixPtr& SubmixInstance = Entry.Value;
-			RebuildSubmixLinks(*SoundSubmix, SubmixInstance);
+			if (Pair.Key.IsValid())
+			{
+				FMixerSubmixPtr& SubmixInstance = Pair.Value;
+				RebuildSubmixLinks(*Pair.Key, SubmixInstance);
+			}
 		}
 	}
 
@@ -1469,10 +1474,8 @@ namespace Audio
 
 		FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
 
-
-		FMixerSubmixPtr ParentSubmixInstance;
-		
 		// Check if this is a submix type that has a parent.
+		FMixerSubmixPtr ParentSubmixInstance;
 		if (const USoundSubmixWithParentBase* InSoundSubmixWithParent = Cast<const USoundSubmixWithParentBase>(&InSoundSubmix))
 		{
 			ParentSubmixInstance = InSoundSubmixWithParent->ParentSubmix
@@ -1536,12 +1539,11 @@ namespace Audio
 			}
 		}
 
-		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Pair : Submixes)
+		for (TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>& Pair : Submixes)
 		{
-			const USoundSubmixBase* SubmixBase = Pair.Key;
-			if (SubmixBase)
+			if (Pair.Key.IsValid())
 			{
-				if (SubmixBase->GetUniqueID() == InObjectId)
+				if (Pair.Key->GetUniqueID() == InObjectId)
 				{
 					return Pair.Value;
 				}
@@ -1563,11 +1565,11 @@ namespace Audio
 			return MixerSubmix;
 		}
 
-		for (TPair<const USoundSubmixBase*, FMixerSubmixPtr>& Pair : Submixes)
+		for (TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>& Pair : Submixes)
 		{
-			FMixerSubmixPtr SubmixPtr = Pair.Value;
-			if (ensure(SubmixPtr.IsValid()))
+			if (Pair.Key.IsValid())
 			{
+				FMixerSubmixPtr SubmixPtr = Pair.Value;
 				if (SubmixPtr->GetId() == InSubmixId)
 				{
 					return SubmixPtr;

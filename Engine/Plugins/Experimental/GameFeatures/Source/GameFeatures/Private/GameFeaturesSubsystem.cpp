@@ -483,7 +483,6 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 			{
 				FBuiltInGameFeaturePluginBehaviorOptions BehaviorOptions;
 				bool bShouldProcess = AdditionalFilter(PluginDescriptorFilename, PluginDetails, BehaviorOptions);
-
 				if (bShouldProcess)
 				{
 					UGameFeaturePluginStateMachine* StateMachine = GetGameFeaturePluginStateMachine(PluginURL, true);
@@ -497,7 +496,6 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 						DestinationState = EGameFeaturePluginState::Installed;
 						break;
 					case EBuiltInAutoState::Registered:
-						DestinationState = EGameFeaturePluginState::Registered;
 						break;
 					case EBuiltInAutoState::Loaded:
 						DestinationState = EGameFeaturePluginState::Loaded;

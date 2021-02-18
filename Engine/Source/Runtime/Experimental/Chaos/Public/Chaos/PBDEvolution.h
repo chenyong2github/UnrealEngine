@@ -10,18 +10,17 @@
 
 namespace Chaos
 {
-template<class T, int d>
-class CHAOS_API TPBDEvolution : public TArrayCollection
+
+class CHAOS_API FPBDEvolution : public TArrayCollection
 {
  public:
-	using FGravityForces = TPerParticleGravity<T, d>;
-	using FVelocityField = TVelocityField<T, d>;
+	using FGravityForces = FPerParticleGravity;
 
 	// TODO(mlentine): Init particles from some type of input
-	TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematicGeometryClothParticles<T, d>&& InGeometryParticles, TArray<TVector<int32, 3>>&& CollisionTriangles, int32 NumIterations = 1, T CollisionThickness = 0, T SelfCollisionsThickness = 0, T CoefficientOfFriction = 0, T Damping = 0.04);
-	~TPBDEvolution() {}
+	FPBDEvolution(FPBDParticles&& InParticles, FKinematicGeometryClothParticles&& InGeometryParticles, TArray<TVec3<int32>>&& CollisionTriangles, int32 NumIterations = 1, FReal CollisionThickness = 0, FReal SelfCollisionsThickness = 0, FReal CoefficientOfFriction = 0, FReal Damping = 0.04);
+	~FPBDEvolution() {}
 
-	void AdvanceOneTimeStep(const T dt);
+	void AdvanceOneTimeStep(const FReal dt);
 
 	// Remove all particles, will also reset all rules
 	void ResetParticles();
@@ -36,9 +35,9 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 	void ActivateParticleRange(int32 Offset, bool bActivate)  { MParticlesActiveView.ActivateRange(Offset, bActivate); }
 
 	// Particles accessors
-	const TPBDParticles<T, d>& Particles() const { return MParticles; }
-	TPBDParticles<T, d>& Particles() { return MParticles; }
-	const TPBDActiveView<TPBDParticles<T, d>>& ParticlesActiveView() { return MParticlesActiveView; }
+	const FPBDParticles& Particles() const { return MParticles; }
+	FPBDParticles& Particles() { return MParticles; }
+	const TPBDActiveView<FPBDParticles>& ParticlesActiveView() { return MParticlesActiveView; }
 
 	const TArray<uint32>& ParticleGroupIds() const { return MParticleGroupIds; }
 
@@ -56,10 +55,10 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 	int32 GetCollisionParticleRangeSize(int32 Offset) const { return MCollisionParticlesActiveView.GetRangeSize(Offset); }
 
 	// Collision particles accessors
-	const TKinematicGeometryClothParticles<T, d>& CollisionParticles() const { return MCollisionParticles; }
-	TKinematicGeometryClothParticles<T, d>& CollisionParticles() { return MCollisionParticles; }
+	const FKinematicGeometryClothParticles& CollisionParticles() const { return MCollisionParticles; }
+	FKinematicGeometryClothParticles& CollisionParticles() { return MCollisionParticles; }
 	const TArray<uint32>& CollisionParticleGroupIds() const { return MCollisionParticleGroupIds; }
-	const TPBDActiveView<TKinematicGeometryClothParticles<T, d>>& CollisionParticlesActiveView() { return MCollisionParticlesActiveView; }
+	const TPBDActiveView<FKinematicGeometryClothParticles>& CollisionParticlesActiveView() { return MCollisionParticlesActiveView; }
 
 	// Reset all constraint init and rule functions.
 	void ResetConstraintRules() { MConstraintInits.Reset(); MConstraintRules.Reset(); MConstraintInitsActiveView.Reset(); MConstraintRulesActiveView.Reset();  };
@@ -77,16 +76,16 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 	void ActivateConstraintRuleRange(int32 Offset, bool bActivate) { MConstraintRulesActiveView.ActivateRange(Offset, bActivate); }
 
 	// Constraint accessors
-	const TArray<TFunction<void(const TPBDParticles<T, d>&)>>& ConstraintInits() const { return MConstraintInits; }
-	TArray<TFunction<void(const TPBDParticles<T, d>&)>>& ConstraintInits() { return MConstraintInits; }
-	const TArray<TFunction<void(TPBDParticles<T, d>&, const T)>>& ConstraintRules() const { return MConstraintRules; }
-	TArray<TFunction<void(TPBDParticles<T, d>&, const T)>>& ConstraintRules() { return MConstraintRules; }
+	const TArray<TFunction<void(const FPBDParticles&)>>& ConstraintInits() const { return MConstraintInits; }
+	TArray<TFunction<void(const FPBDParticles&)>>& ConstraintInits() { return MConstraintInits; }
+	const TArray<TFunction<void(FPBDParticles&, const FReal)>>& ConstraintRules() const { return MConstraintRules; }
+	TArray<TFunction<void(FPBDParticles&, const FReal)>>& ConstraintRules() { return MConstraintRules; }
 	
-	void SetKinematicUpdateFunction(TFunction<void(TPBDParticles<T, d>&, const T, const T, const int32)> KinematicUpdate) { MKinematicUpdate = KinematicUpdate; }
-	void SetCollisionKinematicUpdateFunction(TFunction<void(TKinematicGeometryClothParticles<T, d>&, const T, const T, const int32)> KinematicUpdate) { MCollisionKinematicUpdate = KinematicUpdate; }
+	void SetKinematicUpdateFunction(TFunction<void(FPBDParticles&, const FReal, const FReal, const int32)> KinematicUpdate) { MKinematicUpdate = KinematicUpdate; }
+	void SetCollisionKinematicUpdateFunction(TFunction<void(FKinematicGeometryClothParticles&, const FReal, const FReal, const int32)> KinematicUpdate) { MCollisionKinematicUpdate = KinematicUpdate; }
 
-	TFunction<void(TPBDParticles<T, d>&, const T, const int32)>& GetForceFunction(const uint32 GroupId = 0) { return MGroupForceRules[GroupId]; }
-	const TFunction<void(TPBDParticles<T, d>&, const T, const int32)>& GetForceFunction(const uint32 GroupId = 0) const { return MGroupForceRules[GroupId]; }
+	TFunction<void(FPBDParticles&, const FReal, const int32)>& GetForceFunction(const uint32 GroupId = 0) { return MGroupForceRules[GroupId]; }
+	const TFunction<void(FPBDParticles&, const FReal, const int32)>& GetForceFunction(const uint32 GroupId = 0) const { return MGroupForceRules[GroupId]; }
 
 	FGravityForces& GetGravityForces(const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); return MGroupGravityForces[GroupId]; }
 	const FGravityForces& GetGravityForces(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupGravityForces[GroupId]; }
@@ -101,17 +100,17 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 	int32 GetIterations() const { return MNumIterations; }
 	void SetIterations(const int32 Iterations) { MNumIterations = Iterations; }
 
-	T GetSelfCollisionThickness(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupSelfCollisionThicknesses[GroupId]; }
-	void SetSelfCollisionThickness(const T SelfCollisionThickness, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupSelfCollisionThicknesses[GroupId] = SelfCollisionThickness; }
+	FReal GetSelfCollisionThickness(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupSelfCollisionThicknesses[GroupId]; }
+	void SetSelfCollisionThickness(const FReal SelfCollisionThickness, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupSelfCollisionThicknesses[GroupId] = SelfCollisionThickness; }
 
-	T GetCollisionThickness(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupCollisionThicknesses[GroupId]; }
-	void SetCollisionThickness(const T CollisionThickness, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupCollisionThicknesses[GroupId] = CollisionThickness; }
+	FReal GetCollisionThickness(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupCollisionThicknesses[GroupId]; }
+	void SetCollisionThickness(const FReal CollisionThickness, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupCollisionThicknesses[GroupId] = CollisionThickness; }
 
-	T GetCoefficientOfFriction(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupCoefficientOfFrictions[GroupId]; }
-	void SetCoefficientOfFriction(const T CoefficientOfFriction, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupCoefficientOfFrictions[GroupId] = CoefficientOfFriction; }
+	FReal GetCoefficientOfFriction(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupCoefficientOfFrictions[GroupId]; }
+	void SetCoefficientOfFriction(const FReal CoefficientOfFriction, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupCoefficientOfFrictions[GroupId] = CoefficientOfFriction; }
 
-	T GetDamping(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupDampings[GroupId]; }
-	void SetDamping(const T Damping, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupDampings[GroupId] = Damping; }
+	FReal GetDamping(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupDampings[GroupId]; }
+	void SetDamping(const FReal Damping, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupDampings[GroupId] = Damping; }
 
 	bool GetUseCCD(const uint32 GroupId = 0) const { check(GroupId < TArrayCollection::Size()); return MGroupUseCCDs[GroupId]; }
 	void SetUseCCD(const bool bUseCCD, const uint32 GroupId = 0) { check(GroupId < TArrayCollection::Size()); MGroupUseCCDs[GroupId] = bUseCCD; }
@@ -120,10 +119,10 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 	const bool Collided(int32 index) { return MCollided[index]; }
 
 	const TArray<bool>& GetCollisionStatus() { return MCollided; }
-	const TArray<TVector<T, d>>& GetCollisionContacts() const { return MCollisionContacts; }
-	const TArray<TVector<T, d>>& GetCollisionNormals() const { return MCollisionNormals; }
+	const TArray<FVec3>& GetCollisionContacts() const { return MCollisionContacts; }
+	const TArray<FVec3>& GetCollisionNormals() const { return MCollisionNormals; }
 
-	T GetTime() const { return MTime; }
+	FReal GetTime() const { return MTime; }
 
  private:
 	// Add simulation groups and set default values
@@ -132,47 +131,47 @@ class CHAOS_API TPBDEvolution : public TArrayCollection
 	void ResetGroups();
 	// Selected versions of the pre-iteration updates (euler step, force, velocity field. damping updates)..
 	template<bool bForceRule, bool bVelocityField, bool bDampVelocityRule>
-	void PreIterationUpdate(const T Dt, const int32 Offset, const int32 Range, const int32 MinParallelBatchSize);
+	void PreIterationUpdate(const FReal Dt, const int32 Offset, const int32 Range, const int32 MinParallelBatchSize);
 
 private:
-	TPBDParticles<T, d> MParticles;
-	TPBDActiveView<TPBDParticles<T, d>> MParticlesActiveView;
-	TKinematicGeometryClothParticles<T, d> MCollisionParticles;
-	TPBDActiveView<TKinematicGeometryClothParticles<T, d>> MCollisionParticlesActiveView;
+	FPBDParticles MParticles;
+	TPBDActiveView<FPBDParticles> MParticlesActiveView;
+	FKinematicGeometryClothParticles MCollisionParticles;
+	TPBDActiveView<FKinematicGeometryClothParticles> MCollisionParticlesActiveView;
 
 	TArray<TVector<int32, 3>> MCollisionTriangles;       // Used for self-collisions
 	TSet<TVector<int32, 2>> MDisabledCollisionElements;  // 
 
-	TArrayCollectionArray<TRigidTransform<T, d>> MCollisionTransforms;  // Used for CCD to store the initial state before the kinematic update
+	TArrayCollectionArray<FRigidTransform3> MCollisionTransforms;  // Used for CCD to store the initial state before the kinematic update
 	TArrayCollectionArray<bool> MCollided;
 	TArrayCollectionArray<uint32> MCollisionParticleGroupIds;  // Used for per group parameters for collision particles
 	TArrayCollectionArray<uint32> MParticleGroupIds;  // Used for per group parameters for particles
-	TArray<TVector<T, d>> MCollisionContacts;
-	TArray<TVector<T, d>> MCollisionNormals;
+	TArray<FVec3> MCollisionContacts;
+	TArray<FVec3> MCollisionNormals;
 
 	TArrayCollectionArray<FGravityForces> MGroupGravityForces;
 	TArrayCollectionArray<FVelocityField> MGroupVelocityFields;
-	TArrayCollectionArray<TFunction<void(TPBDParticles<T, d>&, const T, const int32)>> MGroupForceRules;
-	TArrayCollectionArray<T> MGroupCollisionThicknesses;
-	TArrayCollectionArray<T> MGroupSelfCollisionThicknesses;
-	TArrayCollectionArray<T> MGroupCoefficientOfFrictions;
-	TArrayCollectionArray<T> MGroupDampings;
+	TArrayCollectionArray<TFunction<void(FPBDParticles&, const FReal, const int32)>> MGroupForceRules;
+	TArrayCollectionArray<FReal> MGroupCollisionThicknesses;
+	TArrayCollectionArray<FReal> MGroupSelfCollisionThicknesses;
+	TArrayCollectionArray<FReal> MGroupCoefficientOfFrictions;
+	TArrayCollectionArray<FReal> MGroupDampings;
 	TArrayCollectionArray<bool> MGroupUseCCDs;
 	
-	TArray<TFunction<void(const TPBDParticles<T, d>&)>> MConstraintInits;
-	TPBDActiveView<TArray<TFunction<void(const TPBDParticles<T, d>&)>>> MConstraintInitsActiveView;
-	TArray<TFunction<void(TPBDParticles<T, d>&, const T)>> MConstraintRules;
-	TPBDActiveView<TArray<TFunction<void(TPBDParticles<T, d>&, const T)>>> MConstraintRulesActiveView;
+	TArray<TFunction<void(const FPBDParticles&)>> MConstraintInits;
+	TPBDActiveView<TArray<TFunction<void(const FPBDParticles&)>>> MConstraintInitsActiveView;
+	TArray<TFunction<void(FPBDParticles&, const FReal)>> MConstraintRules;
+	TPBDActiveView<TArray<TFunction<void(FPBDParticles&, const FReal)>>> MConstraintRulesActiveView;
 
-	TFunction<void(TPBDParticles<T, d>&, const T, const T, const int32)> MKinematicUpdate;
-	TFunction<void(TKinematicGeometryClothParticles<T, d>&, const T, const T, const int32)> MCollisionKinematicUpdate;
+	TFunction<void(FPBDParticles&, const FReal, const FReal, const int32)> MKinematicUpdate;
+	TFunction<void(FKinematicGeometryClothParticles&, const FReal, const FReal, const int32)> MCollisionKinematicUpdate;
 
 	int32 MNumIterations;
-	TVector<T, d> MGravity;
-	T MCollisionThickness;
-	T MSelfCollisionThickness;
-	T MCoefficientOfFriction;
-	T MDamping;
-	T MTime;
+	FVec3 MGravity;
+	FReal MCollisionThickness;
+	FReal MSelfCollisionThickness;
+	FReal MCoefficientOfFriction;
+	FReal MDamping;
+	FReal MTime;
 };
 }

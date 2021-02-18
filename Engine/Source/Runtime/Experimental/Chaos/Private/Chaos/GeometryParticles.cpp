@@ -64,7 +64,7 @@ namespace Chaos
 		: Proxy(nullptr)
 		, ShapeIdx(InShapeIdx)
 		, Geometry()
-		, WorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0), FVec3(0)))
+		, WorldSpaceInflatedShapeBounds(FAABB3(FVec3(0), FVec3(0)))
 	{
 	}
 
@@ -107,7 +107,7 @@ namespace Chaos
 		else
 		{
 			// This should be set by particle serializing this FPerShapeData.
-			SetWorldSpaceInflatedShapeBounds(TAABB<FReal, 3>(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f)));
+			SetWorldSpaceInflatedShapeBounds(FAABB3(FVec3(0.0f, 0.0f, 0.0f), FVec3(0.0f, 0.0f, 0.0f)));
 		}
 
 	}
@@ -121,7 +121,7 @@ namespace Chaos
 	}
 
 	template <>
-	void TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>::SetHandle(int32 Index, TGeometryParticleHandle<float, 3>* Handle)
+	void TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>::SetHandle(int32 Index, TGeometryParticleHandle<FReal, 3>* Handle)
 	{
 		check(false);  // TODO: Implement EGeometryParticlesSimType::Other (cloth) particle serialization
 	}
@@ -143,7 +143,7 @@ namespace Chaos
 	}
 	
 	template<>
-	TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>* TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>* Particles)
+	TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* Particles)
 	{
 		check(false);  // TODO: Implement EGeometryParticlesSimType::Other (cloth) particle serialization
 		return nullptr;
@@ -235,6 +235,6 @@ namespace Chaos
 
 
 	
-	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::RigidBodySim>;
-	template class TGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>;
+	template class TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::RigidBodySim>;
+	template class TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>;
 }

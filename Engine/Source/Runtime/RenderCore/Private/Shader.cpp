@@ -1497,6 +1497,12 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_NoUB") : TEXT("");
 		}
 
+		if (IsVulkanPlatform(Platform))
+		{
+			// Currently mobile only supports NoUB
+			KeyString += TEXT("_NoUB");
+		}
+
 		{
 			static IConsoleVariable* CVarMobileEnableMovableSpotlights = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableMovableSpotlights"));
 			bool bMobileEnableMovableSpotlights = CVarMobileEnableMovableSpotlights ? (CVarMobileEnableMovableSpotlights->GetInt() != 0) : false;
@@ -1535,6 +1541,20 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			static IConsoleVariable* MobileHDRCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileHDR"));
 			int32 GTAOPreIntegratedTextureType = MobileGTAOPreIntegratedTextureTypeCVar ? MobileGTAOPreIntegratedTextureTypeCVar->GetInt() : 0;
 			KeyString += ((MobileAmbientOcclusionCVar && MobileAmbientOcclusionCVar->GetInt() != 0) && (MobileHDRCVar && MobileHDRCVar->GetInt() !=0)) ? FString::Printf(TEXT("_MobileAO_%d"), GTAOPreIntegratedTextureType) : TEXT("");
+		}
+	}
+	else
+	{
+		if (IsOpenGLPlatform(Platform))
+		{
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("OpenGL.UseEmulatedUBs"));
+			KeyString += (CVar && CVar->GetInt() != 0) ? TEXT("_NoUB") : TEXT("");
+		}
+
+		if (IsVulkanPlatform(Platform))
+		{
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.UseRealUBs"));
+			KeyString += (CVar && CVar->GetInt() == 0) ? TEXT("_NoUB") : TEXT("");
 		}
 	}
 
@@ -1803,5 +1823,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	if (VelocityEncodeDepth(Platform))
 	{
 		KeyString += TEXT("_VED");
+	}
+
+	{
+		const bool bSupportsAnisotropicMaterials = FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Platform);
+		KeyString += FString::Printf(TEXT("_Aniso-%d"), bSupportsAnisotropicMaterials ? 1 : 0);
 	}
 }

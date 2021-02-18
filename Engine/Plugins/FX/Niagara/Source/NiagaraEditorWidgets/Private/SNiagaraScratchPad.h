@@ -42,4 +42,5 @@ private:
 	TWeakObjectPtr<UNiagaraScratchPadViewModel> ViewModel;
 
 	TSharedPtr<FNiagaraScratchPadCommandContext> CommandContext;
+
 };

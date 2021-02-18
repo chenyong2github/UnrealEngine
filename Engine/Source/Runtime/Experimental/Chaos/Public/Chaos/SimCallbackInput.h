@@ -48,7 +48,7 @@ private:
 
 	void Release_Internal(ISimCallbackObject& CallbackObj);
 
-	friend class ISimCallbackObject;
+	friend struct FPushPhysicsData;
 };
 
 struct FSimCallbackNoInput : public FSimCallbackInput

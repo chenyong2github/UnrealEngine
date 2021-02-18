@@ -1440,6 +1440,13 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().FindInContentBrowser );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().CreateCamera );
 			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().RenderMovie );
+			UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
+			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
+			{
+				// Only show this button where it makes sense (ie, if the sequence is not contained within a blueprint already)
+				ToolBarBuilder.AddToolBarButton(FSequencerCommands::Get().OpenDirectorBlueprint);
+			}
+
 			ToolBarBuilder.AddSeparator("Level Sequence Separator");
 		}
 
@@ -2006,10 +2013,7 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().RestoreAnimatedState);
 
-		if (SequencerPtr.Pin()->IsLevelEditorSequencer())
-		{
-			MenuBuilder.AddSubMenu(LOCTEXT("AdvancedHeader", "Advanced"), FText::GetEmpty(), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillAdvancedMenu));
-		}
+		MenuBuilder.AddSubMenu(LOCTEXT("AdvancedHeader", "Advanced"), FText::GetEmpty(), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillAdvancedMenu));
 	}
 	MenuBuilder.EndSection();
 
@@ -2030,6 +2034,33 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 	}
 
 	MenuBuilder.EndSection();
+
+	// selection range actions
+	MenuBuilder.BeginSection("SelectionRange", LOCTEXT("SelectionRangeHeader", "Selection Range"));
+	{
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetSelectionRangeStart);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetSelectionRangeEnd);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ResetSelectionRange);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectKeysInSelectionRange);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectSectionsInSelectionRange);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectAllInSelectionRange);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SSequencer::FillAdvancedMenu(FMenuBuilder& MenuBuilder)
+{
+	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
+	{
+		MenuBuilder.BeginSection("Bindings", LOCTEXT("BindingsMenuHeader", "Bindings"));
+
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().FixActorReferences);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().RebindPossessableReferences);
+
+		MenuBuilder.EndSection();
+	}
 
 	MenuBuilder.BeginSection( "NetworkingOptions", LOCTEXT( "NetworkingOptionsHeader", "Networking" ) );
 	{
@@ -2102,29 +2133,58 @@ TSharedRef<SWidget> SSequencer::MakeActionsMenu()
 	}
 	MenuBuilder.EndSection();
 
-	// selection range actions
-	MenuBuilder.BeginSection("SelectionRange", LOCTEXT("SelectionRangeHeader", "Selection Range"));
+	MenuBuilder.BeginSection( "VolatilityOptions", LOCTEXT( "VolatilityOptionsHeader", "Volatility" ) );
 	{
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetSelectionRangeStart);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetSelectionRangeEnd);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ResetSelectionRange);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectKeysInSelectionRange);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectSectionsInSelectionRange);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SelectAllInSelectionRange);
+		auto ToggleVolatility = [WeakSequencer = SequencerPtr](EMovieSceneSequenceFlags InFlags)
+		{
+			TSharedPtr<FSequencer> SequencerPin = WeakSequencer.Pin();
+			if (SequencerPin)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("ToggleVolatility", "Toggle Volatility"));
+
+				UMovieSceneSequence* RootSequence = SequencerPin->GetRootMovieSceneSequence();
+
+				RootSequence->Modify();
+
+				RootSequence->SetSequenceFlags(RootSequence->GetFlags() ^ InFlags);
+			}
+		};
+		auto IsVolatilityChecked = [WeakSequencer = SequencerPtr](EMovieSceneSequenceFlags InFlags)
+		{
+			TSharedPtr<FSequencer> SequencerPin = WeakSequencer.Pin();
+			if (SequencerPin)
+			{
+				UMovieSceneSequence* RootSequence = SequencerPin->GetRootMovieSceneSequence();
+				return ((uint8)RootSequence->GetFlags() & (uint8)InFlags) != 0;
+			}
+			return false;
+		};
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("VolatilityVolatileLabel", "Volatile"),
+			LOCTEXT("VolatilityVolatileTooltip", "Flag signifying that this sequence can change dynamically at runtime or during the game so the template must be checked for validity and recompiled as necessary before each evaluation.  The absence of this flag will result in the same compiled data being used for the duration of the program, as well as being pre-built during cook. As such, any dynamic changes to the sequence will not be reflected in the evaluation itself. This flag *must* be set if *any* procedural changes will be made to the source sequence data in-game."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda(ToggleVolatility, EMovieSceneSequenceFlags::Volatile),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda(IsVolatilityChecked, EMovieSceneSequenceFlags::Volatile)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("VolatilityBlockingEvaluationLabel", "Blocking Evaluation"),
+			LOCTEXT("VolatilityBlockingEvaluationTooltip", "Indicates that a sequence must fully evaluate and apply its state every time it is updated, blocking until complete. Should be used sparingly as it will severely affect performance."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda(ToggleVolatility, EMovieSceneSequenceFlags::BlockingEvaluation),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda(IsVolatilityChecked, EMovieSceneSequenceFlags::BlockingEvaluation)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton);
 	}
 	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
-}
-
-void SSequencer::FillAdvancedMenu(FMenuBuilder& InMenuBarBuilder)
-{
-	InMenuBarBuilder.BeginSection("Bindings", LOCTEXT("BindingsMenuHeader", "Bindings"));
-
-	InMenuBarBuilder.AddMenuEntry(FSequencerCommands::Get().FixActorReferences);
-	InMenuBarBuilder.AddMenuEntry(FSequencerCommands::Get().RebindPossessableReferences);
-
-	InMenuBarBuilder.EndSection();
 }
 
 TSharedRef<SWidget> SSequencer::MakeViewMenu()

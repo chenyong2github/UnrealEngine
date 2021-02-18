@@ -5,10 +5,116 @@
 #include "NiagaraEditorUtilities.h"
 #include "SNiagaraGraphNodeConvert.h"
 #include "NiagaraHlslTranslator.h"
+#include "UObject/UnrealType.h"
 
 #include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeConvert"
+
+struct FNiagaraConvertEntry
+{
+	bool bConnected = false;
+
+	FGuid PinId;
+	FName Name;
+	FNiagaraTypeDefinition Type;
+	TArray< FNiagaraConvertEntry> Children;
+	UEdGraphPin* Pin;
+
+	FNiagaraConvertEntry(const FGuid& InPinId, const FName& InName, const FNiagaraTypeDefinition& InType, UEdGraphPin* InPin): PinId(InPinId), Name(InName), Pin(InPin){ }
+
+	void  ResolveConnections(const TArray<FNiagaraConvertConnection>& InConnections, TArray<FString>& OutMissingConnections, int32 ConnectionDepth = 0) 
+	{
+		TArray<FNiagaraConvertConnection> CandidateConnections;
+		for (const FNiagaraConvertConnection& Connection : InConnections)
+		{
+			if (Connection.DestinationPinId == PinId)
+			{
+				// If connecting root to root, we are fine.
+				if (ConnectionDepth == 0 && Connection.DestinationPath.Num() == 0)
+				{
+					bConnected = true;
+					break;
+				}
+				else if ((Connection.DestinationPath.Num() == (ConnectionDepth+1) && Connection.DestinationPath[ConnectionDepth] == Name))
+				{
+					bConnected = true;
+					break;
+				}
+
+				if (ConnectionDepth == 0 || (ConnectionDepth > 0 && Connection.DestinationPath.Num() > ConnectionDepth && Connection.DestinationPath[ConnectionDepth] == Name))
+				{
+					CandidateConnections.Add(Connection);
+				}
+			}
+		}
+
+		if (bConnected == true)
+		{
+			return;
+		}
+
+		// Now see if all children are connected and then return that you are connected.
+		if (Children.Num() > 0)
+		{
+			if (CandidateConnections.Num() > 0)
+			{
+				TArray <FString> MissingConnectionsChildren;
+				int32 NumConnected = 0;
+				for (FNiagaraConvertEntry& Entry : Children)
+				{
+					Entry.ResolveConnections(CandidateConnections, MissingConnectionsChildren, 1 + ConnectionDepth);
+
+					if (Entry.bConnected)
+					{
+						NumConnected++;
+					}
+				}
+
+				if (NumConnected == Children.Num())
+				{
+					bConnected = true;
+				}
+				else
+				{
+					for (const FString& MissingConnectionStr : MissingConnectionsChildren)
+					{
+						OutMissingConnections.Emplace(Name.ToString() + TEXT(".") + MissingConnectionStr);
+					}
+				}
+			}
+			else
+			{
+				OutMissingConnections.Emplace(Name.ToString());
+			}
+		}
+		else
+		{
+			OutMissingConnections.Emplace(Name.ToString());
+		}
+	}
+
+	static void CreateEntries(const UEdGraphSchema_Niagara* Schema, const FGuid& InPinId, UEdGraphPin* InPin, const UScriptStruct* InStruct, TArray< FNiagaraConvertEntry>& OutEntries)
+	{
+		check(Schema);
+
+		for (TFieldIterator<FProperty> PropertyIt(InStruct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
+		{
+			const FProperty* Property = *PropertyIt;
+			FNiagaraTypeDefinition PropType = Schema->GetTypeDefForProperty(Property);		
+
+			int32 Index = OutEntries.Emplace(InPinId, Property->GetFName(), PropType, InPin);
+
+			const FStructProperty* StructProperty = CastField<FStructProperty>(Property);
+
+			if (StructProperty != nullptr)
+			{
+				CreateEntries(Schema, InPinId, InPin, StructProperty->Struct, OutEntries[Index].Children);				
+			}
+		}
+	}
+};
+
 
 UNiagaraNodeConvert::UNiagaraNodeConvert() : UNiagaraNodeWithDynamicPins(), bIsWiringShown(true)
 {
@@ -47,7 +153,65 @@ void UNiagaraNodeConvert::Compile(class FHlslNiagaraTranslator* Translator, TArr
 		}
 	}
 
+	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+	check(Schema);
+
+	FPinCollectorArray OutputPins;
+	GetOutputPins(OutputPins);
+
+	// Go through all the output nodes and cross-reference them with the connections list. Output errors if any connections are incomplete.
+	{
+		TArray< FNiagaraConvertEntry> Entries;
+		for (UEdGraphPin* OutputPin : OutputPins)
+		{
+
+			FNiagaraTypeDefinition TypeDef;
+			if (OutputPin && OutputPin->HasAnyConnections())
+			{
+				TypeDef = Schema->PinToTypeDefinition(OutputPin);
+				const UScriptStruct* Struct = TypeDef.GetScriptStruct();
+				if (Struct)
+				{
+					FNiagaraConvertEntry::CreateEntries(Schema, OutputPin->PinId, OutputPin, Struct, Entries);
+				}
+			}
+		}
+
+		for (FNiagaraConvertEntry& Entry : Entries)
+		{
+			TArray<FString> MissingConnections;
+			Entry.ResolveConnections(Connections, MissingConnections);
+
+			if (Entry.bConnected == false)
+			{
+				for (const FString& MissedConnection : MissingConnections)
+				{
+					Translator->Error(FText::Format(LOCTEXT("MissingOutputPinConnection", "Missing internal connection for output pin slot: {0}"), 
+						FText::FromString(MissedConnection)), this, Entry.Pin);
+				}
+			}
+		}
+	}
+
+
 	Translator->Convert(this, CompileInputs, CompileOutputs);
+}
+
+FString FNiagaraConvertConnection::ToString() const
+{
+	FString SrcName;
+	FString DestName;
+	for (const FName& Src : SourcePath)
+	{
+		SrcName += TEXT("/") + Src.ToString();
+	}
+
+	for (const FName& Dest : DestinationPath)
+	{
+		DestName += TEXT("/") + Dest.ToString();
+	}
+
+	return SrcName + TEXT(" to ") + DestName;
 }
 
 void UNiagaraNodeConvert::AutowireNewNode(UEdGraphPin* FromPin)

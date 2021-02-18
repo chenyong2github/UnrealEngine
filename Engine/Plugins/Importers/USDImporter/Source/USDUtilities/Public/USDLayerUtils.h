@@ -27,6 +27,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 namespace UE
 {
 	class FSdfLayer;
+	class FUsdStage;
 	struct FSdfLayerOffset;
 }
 
@@ -39,7 +40,7 @@ namespace UsdUtils
 	};
 
 	/** Inserts the SubLayerFile path into ParentLayer as a sublayer */
-	USDUTILITIES_API bool InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile );
+	USDUTILITIES_API bool InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLayer, const TCHAR* SubLayerFile, int32 Index = -1 );
 
 #if WITH_EDITOR
 	/** Opens a file dialog to open or save a USD file */
@@ -66,6 +67,15 @@ namespace UsdUtils
 
 	/** Makes sure that the layer start and end timecodes include StartTimeCode and EndTimeCode */
 	USDUTILITIES_API void AddTimeCodeRangeToLayer( const pxr::SdfLayerRefPtr& Layer, double StartTimeCode, double EndTimeCode );
+
+	/** Makes Path relative to the file path of Layer. Conversion happens in-place. */
+	USDUTILITIES_API void MakePathRelativeToLayer( const UE::FSdfLayer& Layer, FString& Path );
+
+	/** Loads and returns the session sublayer that is used for storing persistent UE state, which can be saved to disk (e.g. metadata for whether an attribute is muted or not) */
+	USDUTILITIES_API UE::FSdfLayer GetUEPersistentStateSublayer( const UE::FUsdStage& Stage, bool bCreateIfNeeded = true );
+
+	/** Loads and returns the anonymous session sublayer that is used for storing transient UE session state, and won't be saved to disk (e.g. the opinion that actually mutes the attribute) */
+	USDUTILITIES_API UE::FSdfLayer GetUESessionStateSublayer( const UE::FUsdStage& Stage, bool bCreateIfNeeded = true );
 }
 
 #endif // #if USE_USD_SDK

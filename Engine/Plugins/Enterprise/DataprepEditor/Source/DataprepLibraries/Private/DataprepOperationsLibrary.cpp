@@ -716,4 +716,26 @@ void UDataprepOperationsLibrary::SetCollisionComplexity(const TArray<UObject*>& 
 	}
 }
 
+void UDataprepOperationsLibrary::ResizeTextures(const TArray<UTexture2D*>& InTextures, int32 InMaxSize)
+{
+	static const FName MaxTextureSizeName = GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize);
+	FProperty* MaxTextureSizeProperty = FindFProperty<FProperty>( UTexture::StaticClass(), MaxTextureSizeName );
+	FPropertyChangedEvent PropertyChangedEvent(MaxTextureSizeProperty);
+
+	for (UTexture2D* Texture : InTextures)
+	{
+		Texture->PreEditChange(MaxTextureSizeProperty);
+
+		const int32 TextureWidth = Texture->GetSizeX();
+		const int32 TextureHeight = Texture->GetSizeY();
+		if (!FMath::IsPowerOfTwo(TextureWidth) || !FMath::IsPowerOfTwo(TextureHeight))
+		{
+			// Need to specify power of two mode for non-pot textures
+			Texture->PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;
+		}
+		Texture->MaxTextureSize = InMaxSize;
+		Texture->PostEditChangeProperty(PropertyChangedEvent);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

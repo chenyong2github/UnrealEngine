@@ -3372,8 +3372,8 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 	check(Result != nullptr);
 	// Don't call the constructor on recycled subobjects, they haven't been destroyed.
 	if (!bRecycledSubobject)
-	{		
-		STAT(FScopeCycleCounterUObject ConstructorScope(InClass, GET_STATID(STAT_ConstructObject)));
+	{
+		STAT(FScopeCycleCounterUObject ConstructorScope(InClass->GetFName().IsNone() ? nullptr : InClass, GET_STATID(STAT_ConstructObject)));
 		(*InClass->ClassConstructor)(FObjectInitializer(Result, Params));
 	}
 	

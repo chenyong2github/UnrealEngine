@@ -128,9 +128,17 @@ protected:
 	 */
 	virtual void GetCollisions(FClothCollisionData& OutCollisions, bool bIncludeExternal = true) const = 0;
 
-private:
-
 public:
+	/**
+	 * Set the number of iterations used by the solver.
+	 * Implementation is not considered thread safe, and therefore this function must be called at a synchronization point.
+	 */
+	virtual void SetNumIterations(int32 /*NumIterations*/) {}
+	/**
+	 * Set the number of substeps used by the solver.
+	 * Implementation is not considered thread safe, and therefore this function must be called at a synchronization point.
+	 */
+	virtual void SetNumSubsteps(int32 /*NumSubsteps*/) {}
 
 	/**
 	 * Called by the engine once per physics tick to gather non-cycle stats (num sim verts etc.)

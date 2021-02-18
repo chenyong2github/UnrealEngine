@@ -127,7 +127,6 @@ void FMovieSceneTrackEditor::AnimatablePropertyChanged( FOnKeyProperty OnKeyProp
 		}
 
 		UpdatePlaybackRange();
-
 	}
 }
 

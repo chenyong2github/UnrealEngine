@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/MassProperties.h"
+//#include "Chaos/Core.h"
 #include "Chaos/Rotation.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/Particles.h"
@@ -8,78 +9,79 @@
 
 namespace Chaos
 {
-	template<class T, int d>
-	TRotation<T, d> TransformToLocalSpace(PMatrix<T, d, d>& Inertia)
+	FRotation3 TransformToLocalSpace(FMatrix33& Inertia)
 	{
-		TRotation<T, d> FinalRotation;
+		FRotation3 FinalRotation;
 
 		// Extract Eigenvalues
-		T OffDiagSize = FMath::Square(Inertia.M[1][0]) + FMath::Square(Inertia.M[2][0]) + FMath::Square(Inertia.M[2][1]);
-		T Trace = (Inertia.M[0][0] + Inertia.M[1][1] + Inertia.M[2][2]) / 3;
+		FReal OffDiagSize = FMath::Square(Inertia.M[1][0]) + FMath::Square(Inertia.M[2][0]) + FMath::Square(Inertia.M[2][1]);
+		FReal Trace = (Inertia.M[0][0] + Inertia.M[1][1] + Inertia.M[2][2]) / 3;
 
 		if (!ensure(Trace > SMALL_NUMBER))
 		{
 			// Tiny inertia - numerical instability would follow. We should not get this unless we have bad input.
-			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
+			return FRotation3::FromElements(FVec3(0), 1);
 		}
 
 		if ((OffDiagSize / Trace) < SMALL_NUMBER)
 		{
 			// Almost diagonal matrix - we are already in local space.
-			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
+			return FRotation3::FromElements(FVec3(0), 1);
 		}
 
-		T Size = FMath::Sqrt((FMath::Square(Inertia.M[0][0] - Trace) + FMath::Square(Inertia.M[1][1] - Trace) + FMath::Square(Inertia.M[2][2] - Trace) + 2 * OffDiagSize) / 6);
-		PMatrix<T, d, d> NewMat = (Inertia - FMatrix::Identity * Trace) * (1 / Size);
-		T HalfDeterminant = NewMat.Determinant() / 2;
-		T Angle = HalfDeterminant <= -1 ? PI / 3 : (HalfDeterminant >= 1 ? 0 : acos(HalfDeterminant) / 3);
-		T m00 = Trace + 2 * Size * cos(Angle), m11 = Trace + 2 * Size * cos(Angle + (2 * PI / 3)), m22 = 3 * Trace - m00 - m11;
+		FReal Size = FMath::Sqrt((FMath::Square(Inertia.M[0][0] - Trace) + FMath::Square(Inertia.M[1][1] - Trace) + FMath::Square(Inertia.M[2][2] - Trace) + 2 * OffDiagSize) / 6);
+		FMatrix33 NewMat = (Inertia - FMatrix::Identity * Trace) * (1 / Size);
+		FReal HalfDeterminant = NewMat.Determinant() / 2;
+		FReal Angle = HalfDeterminant <= -1 ? PI / 3 : (HalfDeterminant >= 1 ? 0 : acos(HalfDeterminant) / 3);
+		FReal m00 = Trace + 2 * Size * cos(Angle), m11 = Trace + 2 * Size * cos(Angle + (2 * PI / 3)), m22 = 3 * Trace - m00 - m11;
 
 		// Extract Eigenvectors
 		bool DoSwap = ((m00 - m11) > (m11 - m22)) ? false : true;
-		TVector<T, d> Eigenvector0 = (Inertia.SubtractDiagonal(DoSwap ? m22 : m00)).SymmetricCofactorMatrix().LargestColumnNormalized();
-		TVector<T, d> Orthogonal = Eigenvector0.GetOrthogonalVector().GetSafeNormal();
-		PMatrix<T, d, d - 1> Cofactors(Orthogonal, TVector<T, d>::CrossProduct(Eigenvector0, Orthogonal));
-		PMatrix<T, d, d - 1> CofactorsScaled = Inertia * Cofactors;
-		PMatrix<T, d - 1, d - 1> IR(
+		FVec3 Eigenvector0 = (Inertia.SubtractDiagonal(DoSwap ? m22 : m00)).SymmetricCofactorMatrix().LargestColumnNormalized();
+		FVec3 Orthogonal = Eigenvector0.GetOrthogonalVector().GetSafeNormal();
+		PMatrix<FReal, 3, 2> Cofactors(Orthogonal, FVec3::CrossProduct(Eigenvector0, Orthogonal));
+		PMatrix<FReal, 3, 2> CofactorsScaled = Inertia * Cofactors;
+		PMatrix<FReal, 2, 2> IR(
 			CofactorsScaled.M[0] * Cofactors.M[0] + CofactorsScaled.M[1] * Cofactors.M[1] + CofactorsScaled.M[2] * Cofactors.M[2],
 			CofactorsScaled.M[3] * Cofactors.M[0] + CofactorsScaled.M[4] * Cofactors.M[1] + CofactorsScaled.M[5] * Cofactors.M[2],
 			CofactorsScaled.M[3] * Cofactors.M[3] + CofactorsScaled.M[4] * Cofactors.M[4] + CofactorsScaled.M[5] * Cofactors.M[5]);
-		PMatrix<T, d - 1, d - 1> IM1 = IR.SubtractDiagonal(DoSwap ? m00 : m22);
-		T OffDiag = IM1.M[1] * IM1.M[1];
-		T IM1Scale0 = FMath::Max(T(0), IM1.M[3] * IM1.M[3] + OffDiag);
-		T IM1Scale1 = FMath::Max(T(0), IM1.M[0] * IM1.M[0] + OffDiag);
-		T SqrtIM1Scale0 = FMath::Sqrt(IM1Scale0);
-		T SqrtIM1Scale1 = FMath::Sqrt(IM1Scale1);
+		PMatrix<FReal, 2, 2> IM1 = IR.SubtractDiagonal(DoSwap ? m00 : m22);
+		FReal OffDiag = IM1.M[1] * IM1.M[1];
+		FReal IM1Scale0 = FMath::Max(FReal(0), IM1.M[3] * IM1.M[3] + OffDiag);
+		FReal IM1Scale1 = FMath::Max(FReal(0), IM1.M[0] * IM1.M[0] + OffDiag);
+		FReal SqrtIM1Scale0 = FMath::Sqrt(IM1Scale0);
+		FReal SqrtIM1Scale1 = FMath::Sqrt(IM1Scale1);
 
-		TVector<T, d> Eigenvector2, Eigenvector1;
+		FVec3 Eigenvector2, Eigenvector1;
 		if ((SqrtIM1Scale0 < KINDA_SMALL_NUMBER) && (SqrtIM1Scale1 < KINDA_SMALL_NUMBER))
 		{
 			Eigenvector1 = Orthogonal;
-			Eigenvector2 = TVector<T, d>::CrossProduct(Eigenvector0, Orthogonal).GetSafeNormal();
+			Eigenvector2 = FVec3::CrossProduct(Eigenvector0, Orthogonal).GetSafeNormal();
 		}
 		else
 		{
-			TVector<T, d - 1> SmallEigenvector2 = IM1Scale0 > IM1Scale1 ? (TVector<T, d - 1>(IM1.M[3], -IM1.M[1]) / SqrtIM1Scale0) : (IM1Scale1 > 0 ? (TVector<T, d - 1>(-IM1.M[1], IM1.M[0]) / SqrtIM1Scale1) : TVector<T, d - 1>(1, 0));
+			FVec2 SmallEigenvector2 = IM1Scale0 > IM1Scale1 
+				? (FVec2(IM1.M[3], -IM1.M[1]) / SqrtIM1Scale0) 
+				: (IM1Scale1 > 0 ? (FVec2(-IM1.M[1], IM1.M[0]) / SqrtIM1Scale1) : FVec2(1, 0));
 			Eigenvector2 = (Cofactors * SmallEigenvector2).GetSafeNormal();
-			Eigenvector1 = TVector<T, d>::CrossProduct(Eigenvector2, Eigenvector0).GetSafeNormal();
+			Eigenvector1 = FVec3::CrossProduct(Eigenvector2, Eigenvector0).GetSafeNormal();
 		}
 
 		// Return results
-		Inertia = PMatrix<T, d, d>(m00, 0, 0, m11, 0, m22);
-		PMatrix<T, d, d> RotationMatrix = DoSwap ? PMatrix<T, d, d>(Eigenvector2, Eigenvector1, -Eigenvector0) : PMatrix<T, d, d>(Eigenvector0, Eigenvector1, Eigenvector2);
+		Inertia = FMatrix33(m00, 0, 0, m11, 0, m22);
+		FMatrix33 RotationMatrix = DoSwap ? FMatrix33(Eigenvector2, Eigenvector1, -Eigenvector0) : FMatrix33(Eigenvector0, Eigenvector1, Eigenvector2);
 		// NOTE: UE Matrix are column-major, so the PMatrix constructor is not setting eigenvectors - we need to transpose it to get a UE rotation matrix.
-		FinalRotation = TRotation<T,d>(RotationMatrix.GetTransposed());
+		FinalRotation = FRotation3(RotationMatrix.GetTransposed());
 		if (!ensure(FMath::IsNearlyEqual(FinalRotation.Size(), 1.0f, KINDA_SMALL_NUMBER)))
 		{
-			return TRotation<T, d>::FromElements(TVector<T, d>(0), 1);
+			return FRotation3::FromElements(FVec3(0), 1);
 		}
 		
 		return FinalRotation;
 	}
 
-	template<typename T, int d, typename TSurfaces>
-	void CalculateVolumeAndCenterOfMass(const TParticles<T, d>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVector<T, d>& OutCenterOfMass)
+	template<typename TSurfaces>
+	void CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass)
 	{
 		if (!Surfaces.Num())
 		{
@@ -87,19 +89,19 @@ namespace Chaos
 			return;
 		}
 		
-		T Volume = 0;
-		TVector<T, d> VolumeTimesSum(0);
-		TVector<T, d> Center = Vertices.X(Surfaces[0][0]);
+		FReal Volume = 0;
+		FVec3 VolumeTimesSum(0);
+		FVec3 Center = Vertices.X(Surfaces[0][0]);
 		for (const auto& Element : Surfaces)
 		{
 			// For now we only support triangular elements
 			ensure(Element.Num() == 3);
 
-			PMatrix<T, d, d> DeltaMatrix;
-			TVector<T, d> PerElementSize;
+			FMatrix33 DeltaMatrix;
+			FVec3 PerElementSize;
 			for (int32 i = 0; i < Element.Num(); ++i)
 			{
-				TVector<T, d> DeltaVector = Vertices.X(Element[i]) - Center;
+				FVec3 DeltaVector = Vertices.X(Element[i]) - Center;
 				DeltaMatrix.M[0][i] = DeltaVector[0];
 				DeltaMatrix.M[1][i] = DeltaVector[1];
 				DeltaMatrix.M[2][i] = DeltaVector[2];
@@ -107,7 +109,7 @@ namespace Chaos
 			PerElementSize[0] = DeltaMatrix.M[0][0] + DeltaMatrix.M[0][1] + DeltaMatrix.M[0][2];
 			PerElementSize[1] = DeltaMatrix.M[1][0] + DeltaMatrix.M[1][1] + DeltaMatrix.M[1][2];
 			PerElementSize[2] = DeltaMatrix.M[2][0] + DeltaMatrix.M[2][1] + DeltaMatrix.M[2][2];
-			T Det = DeltaMatrix.M[0][0] * (DeltaMatrix.M[1][1] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][1]) -
+			FReal Det = DeltaMatrix.M[0][0] * (DeltaMatrix.M[1][1] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][1]) -
 				DeltaMatrix.M[0][1] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][0]) +
 				DeltaMatrix.M[0][2] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][1] - DeltaMatrix.M[1][1] * DeltaMatrix.M[2][0]);
 			Volume += Det;
@@ -123,44 +125,43 @@ namespace Chaos
 		OutVolume = Volume / 6;
 	}
 
-	template <typename T, int d, typename TSurfaces>
-	void CalculateInertiaAndRotationOfMass(const TParticles<T, d>& Vertices, const TSurfaces& Surfaces, const T Density, const TVector<T,d>& CenterOfMass,
-	PMatrix<T,d,d>& OutInertiaTensor, TRotation<T,d>& OutRotationOfMass)
+	template <typename TSurfaces>
+	void CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
+		FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass)
 	{
 		check(Density > 0);
 
-		static const PMatrix<T, d, d> Standard(2, 1, 1, 2, 1, 2);
-		PMatrix<T, d, d> Covariance(0);
+		static const FMatrix33 Standard(2, 1, 1, 2, 1, 2);
+		FMatrix33 Covariance(0);
 		for (const auto& Element : Surfaces)
 		{
-			PMatrix<T, d, d> DeltaMatrix(0);
+			FMatrix33 DeltaMatrix(0);
 			for (int32 i = 0; i < Element.Num(); ++i)
 			{
-				TVector<T, d> DeltaVector = Vertices.X(Element[i]) - CenterOfMass;
+				FVec3 DeltaVector = Vertices.X(Element[i]) - CenterOfMass;
 				DeltaMatrix.M[0][i] = DeltaVector[0];
 				DeltaMatrix.M[1][i] = DeltaVector[1];
 				DeltaMatrix.M[2][i] = DeltaVector[2];
 			}
-			T Det = DeltaMatrix.M[0][0] * (DeltaMatrix.M[1][1] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][1]) -
+			FReal Det = DeltaMatrix.M[0][0] * (DeltaMatrix.M[1][1] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][1]) -
 				DeltaMatrix.M[0][1] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][0]) +
 				DeltaMatrix.M[0][2] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][1] - DeltaMatrix.M[1][1] * DeltaMatrix.M[2][0]);
-			const PMatrix<T, d, d> ScaledStandard = Standard * Det;
+			const FMatrix33 ScaledStandard = Standard * Det;
 			Covariance += DeltaMatrix * ScaledStandard * DeltaMatrix.GetTransposed();
 		}
-		T Trace = Covariance.M[0][0] + Covariance.M[1][1] + Covariance.M[2][2];
-		PMatrix<T, d, d> TraceMat(Trace, Trace, Trace);
-		OutInertiaTensor = (TraceMat - Covariance) * (1 / (T)120) * Density;
+		FReal Trace = Covariance.M[0][0] + Covariance.M[1][1] + Covariance.M[2][2];
+		FMatrix33 TraceMat(Trace, Trace, Trace);
+		OutInertiaTensor = (TraceMat - Covariance) * (1 / (FReal)120) * Density;
 		OutRotationOfMass = TransformToLocalSpace(OutInertiaTensor);
 	}
 
-
-	template<class T, int d, typename TSurfaces>
-	TMassProperties<T, d> CalculateMassProperties(
-		const TParticles<T, d> & Vertices,
+	template<typename TSurfaces>
+	FMassProperties CalculateMassProperties(
+		const FParticles & Vertices,
 		const TSurfaces& Surfaces,
-		const T Mass)
+		const FReal Mass)
 	{
-		TMassProperties<T, d> MassProperties;
+		FMassProperties MassProperties;
 		CalculateVolumeAndCenterOfMass(Vertices, Surfaces, MassProperties.Volume, MassProperties.CenterOfMass);
 
 		check(Mass > 0);
@@ -170,68 +171,55 @@ namespace Chaos
 		return MassProperties;
 	}
 
-	template<class T, int d>
-	TMassProperties<T, d> Combine(const TArray<TMassProperties<T, d>>& MPArray)
+	FMassProperties Combine(const TArray<FMassProperties>& MPArray)
 	{
-		TMassProperties<T, d> NewMP = CombineWorldSpace(MPArray, 1.f);
-		NewMP.RotationOfMass = TransformToLocalSpace<T, d>(NewMP.InertiaTensor);
+		// todo(chaos) : should we be able to have different density per primitive instead of using this one default?
+		constexpr FReal DefaultDensity = (FReal)1.0;
+		FMassProperties NewMP = CombineWorldSpace(MPArray, (FReal)1.0);
+		NewMP.RotationOfMass = TransformToLocalSpace(NewMP.InertiaTensor);
 		return NewMP;
 	}
 
-	template<class T, int d>
-	TMassProperties<T, d> CombineWorldSpace(const TArray<TMassProperties<T, d>>& MPArray, float InDensityKGPerCM)
+	FMassProperties CombineWorldSpace(const TArray<FMassProperties>& MPArray, FReal InDensityKGPerCM)
 	{
 		check(MPArray.Num() > 0);
 		if (MPArray.Num() == 1)
 			return MPArray[0];
-		TMassProperties<T, d> NewMP;
-		for (const TMassProperties<T, d>& Child : MPArray)
+		FMassProperties NewMP;
+		for (const FMassProperties& Child : MPArray)
 		{
 			NewMP.Volume += Child.Volume;
-			const PMatrix<T, d, d> ChildRI = Child.RotationOfMass * FMatrix::Identity;
-			const PMatrix<T, d, d> ChildWorldSpaceI = ChildRI.GetTransposed() * Child.InertiaTensor * ChildRI;
+			const FMatrix33 ChildRI = Child.RotationOfMass * FMatrix::Identity;
+			const FMatrix33 ChildWorldSpaceI = ChildRI.GetTransposed() * Child.InertiaTensor * ChildRI;
 			NewMP.InertiaTensor += ChildWorldSpaceI;
 			NewMP.CenterOfMass += Child.CenterOfMass * Child.Mass;
 			NewMP.Mass += Child.Mass;
 		}
 		check(NewMP.Mass > SMALL_NUMBER);
 		NewMP.CenterOfMass /= NewMP.Mass;
-		for (const TMassProperties<T, d>& Child : MPArray)
+		for (const FMassProperties& Child : MPArray)
 		{
-			const T M = Child.Volume * InDensityKGPerCM;
-			const TVector<T, d> ParentToChild = Child.CenterOfMass - NewMP.CenterOfMass;
-			const T P0 = ParentToChild[0];
-			const T P1 = ParentToChild[1];
-			const T P2 = ParentToChild[2];
-			const T MP0P0 = M * P0 * P0;
-			const T MP1P1 = M * P1 * P1;
-			const T MP2P2 = M * P2 * P2;
-			NewMP.InertiaTensor += PMatrix<T, d, d>(MP1P1 + MP2P2, -M * P1 * P0, -M * P2 * P0, MP2P2 + MP0P0, -M * P2 * P1, MP1P1 + MP0P0);
+			const FReal M = Child.Volume * InDensityKGPerCM;
+			const FVec3 ParentToChild = Child.CenterOfMass - NewMP.CenterOfMass;
+			const FReal P0 = ParentToChild[0];
+			const FReal P1 = ParentToChild[1];
+			const FReal P2 = ParentToChild[2];
+			const FReal MP0P0 = M * P0 * P0;
+			const FReal MP1P1 = M * P1 * P1;
+			const FReal MP2P2 = M * P2 * P2;
+			NewMP.InertiaTensor += FMatrix33(MP1P1 + MP2P2, -M * P1 * P0, -M * P2 * P0, MP2P2 + MP0P0, -M * P2 * P1, MP1P1 + MP0P0);
 		}
 		return NewMP;
 	}
 
-	template CHAOS_API TMassProperties<float, 3> CalculateMassProperties(const TParticles<float, 3> & Vertices, 
-		const TArray<TVector<int32, 3>>& Surfaces, const float Mass);
+	template CHAOS_API FMassProperties CalculateMassProperties(const FParticles& Vertices, const TArray<TVec3<int32>>& Surfaces, const FReal Mass);
+	template CHAOS_API FMassProperties CalculateMassProperties(const FParticles & Vertices, const TArray<TArray<int32>>& Surfaces, const FReal Mass);
 
-	template CHAOS_API TMassProperties<float, 3> CalculateMassProperties(const TParticles<float, 3> & Vertices, 
-		const TArray<TArray<int32>>& Surfaces, const float Mass);
+	template CHAOS_API void CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TArray<TVec3<int32>>& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
+	template CHAOS_API void CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TArray<TArray<int32>>& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
 
-	template CHAOS_API void CalculateVolumeAndCenterOfMass(const TParticles<float, 3>& Vertices,
-		const TArray<TVector<int32, 3>>& Surfaces, float& OutVolume, TVector<float, 3>& OutCenterOfMass);
-
-	template CHAOS_API void CalculateVolumeAndCenterOfMass(const TParticles<float, 3>& Vertices,
-		const TArray<TArray<int32>>& Surfaces, float& OutVolume, TVector<float, 3>& OutCenterOfMass);
-
-	template CHAOS_API void CalculateInertiaAndRotationOfMass(const TParticles<float, 3>& Vertices, const TArray<TVector<int32, 3>>& Surface, const float Density,
-		const TVector<float, 3>& CenterOfMass, PMatrix<float, 3, 3>& OutInertiaTensor, TRotation<float, 3>& OutRotationOfMass);
-
-	template CHAOS_API void CalculateInertiaAndRotationOfMass(const TParticles<float, 3>& Vertices, const TArray<TArray<int32>>& Surface, const float Density,
-		const TVector<float, 3>& CenterOfMass, PMatrix<float, 3, 3>& OutInertiaTensor, TRotation<float, 3>& OutRotationOfMass);
-
-	template CHAOS_API TMassProperties<float, 3> Combine(const TArray<TMassProperties<float, 3>>& MPArray);
-
-	template CHAOS_API TMassProperties<float, 3> CombineWorldSpace(const TArray<TMassProperties<float, 3>>& MPArray, float InDensityKGPerCM);
-
-	template CHAOS_API TRotation<float, 3> TransformToLocalSpace(PMatrix<float, 3, 3>& Inertia);
+	template CHAOS_API void CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TArray<TVec3<int32>>& Surface, const FReal Density,
+		const FVec3& CenterOfMass, FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
+	template CHAOS_API void CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TArray<TArray<int32>>& Surface, const FReal Density,
+		const FVec3& CenterOfMass, FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 }

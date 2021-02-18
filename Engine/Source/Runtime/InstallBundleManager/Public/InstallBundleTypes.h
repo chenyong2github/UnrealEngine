@@ -282,10 +282,16 @@ struct FInstallBundleSourceUpdateContentResultInfo
 	bool DidBundleSourceDoWork() const { return (ContentPaths.Num() != 0);} 
 };
 
-struct FInstallBundleSourceRemoveContentResultInfo
+struct FInstallBundleSourceReleaseContentResultInfo
 {
 	FName BundleName;
 	EInstallBundleReleaseResult Result = EInstallBundleReleaseResult::OK;
+
+	FDateTime LastAccessTime = FDateTime::MinValue(); // If cached, used to decide eviction order
+
+	// Indicates content was actually removed and bundle manager should consider
+	// this bundle as no longer installed.
+	bool bContentWasRemoved = false;
 };
 
 struct FInstallBundleSourceProgress

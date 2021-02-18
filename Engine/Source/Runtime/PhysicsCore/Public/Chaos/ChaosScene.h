@@ -45,6 +45,7 @@ namespace Chaos
 
 	template <typename T, int d>
 	class TAccelerationStructureHandle;
+	using FAccelerationStructureHandle = TAccelerationStructureHandle<FReal, 3>;
 
 	template <typename TPayload, typename T, int d>
 	class ISpatialAcceleration;
@@ -103,8 +104,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 #endif
 	
-	const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration() const;
-	Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* GetSpacialAcceleration();
+	const Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>* GetSpacialAcceleration() const;
+	Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>* GetSpacialAcceleration();
 
 	void AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles,const bool bImmediate=true);
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
@@ -146,7 +147,7 @@ public:
 
 protected:
 
-	Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>* SolverAccelerationStructure;
+	Chaos::ISpatialAccelerationCollection<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>* SolverAccelerationStructure;
 
 	// Control module for Chaos - cached to avoid constantly hitting the module manager
 	FChaosSolversModule* ChaosModule;

@@ -16,7 +16,7 @@ namespace Chaos
 struct FMTDInfo;
 
 template<class T>
-class TTriangleMesh;
+using TTriangleMesh = FTriangleMesh;
 
 template<class T, int D>
 class TPlane;

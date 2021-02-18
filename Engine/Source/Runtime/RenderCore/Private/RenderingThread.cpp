@@ -566,11 +566,6 @@ public:
 	{
 		GSuspendRenderingTickables = 0;
 		OutstandingHeartbeats.Reset();
-
-#if CSV_PROFILER
-		FCsvProfiler::Get()->SetRenderThreadId(FPlatformTLS::GetCurrentThreadId());
-#endif
-
 		return true; 
 	}
 

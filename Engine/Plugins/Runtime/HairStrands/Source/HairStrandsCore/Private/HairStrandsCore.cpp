@@ -26,10 +26,12 @@ void FHairStrandsCore::StartupModule()
 	// Maps virtual shader source directory /Plugin/FX/Niagara to the plugin's actual Shaders directory.
 	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("HairStrands"))->GetBaseDir(), TEXT("Shaders"));
 	AddShaderSourceDirectoryMapping(TEXT("/Plugin/Runtime/HairStrands"), PluginShaderDir);
+	SetHairStrandsEnabled(true);
 }
 
 void FHairStrandsCore::ShutdownModule()
 {
+	SetHairStrandsEnabled(false);
 }
 
 void FHairStrandsCore::RegisterAssetHelper(const FHairAssetHelper& Helper)

@@ -305,6 +305,7 @@ namespace AutomationTool
             this.StageDirectoryParam = InParams.StageDirectoryParam;
 			this.Manifests = InParams.Manifests;
             this.CreateChunkInstall = InParams.CreateChunkInstall;
+			this.SkipEncryption = InParams.SkipEncryption;
 			this.UE4Exe = InParams.UE4Exe;
 			this.NoDebugInfo = InParams.NoDebugInfo;
 			this.SeparateDebugInfo = InParams.SeparateDebugInfo;
@@ -485,6 +486,7 @@ namespace AutomationTool
 			bool? Stage = null,
 			bool? Manifests = null,
             bool? CreateChunkInstall = null,
+			bool? SkipEncryption = null,
 			bool? Unattended = null,
 			int? NumClients = null,
 			bool? Archive = null,
@@ -725,6 +727,7 @@ namespace AutomationTool
 			this.bUseExtraFlavor = GetParamValueIfNotSpecified(Command, UseExtraFlavor, false, "UseExtraFlavor");
 			this.Manifests = GetParamValueIfNotSpecified(Command, Manifests, this.Manifests, "manifests");
             this.CreateChunkInstall = GetParamValueIfNotSpecified(Command, CreateChunkInstall, this.CreateChunkInstall, "createchunkinstall");
+			this.SkipEncryption = GetParamValueIfNotSpecified(Command, SkipEncryption, this.SkipEncryption, "skipencryption");
 			this.ChunkInstallDirectory = ParseParamValueIfNotSpecified(Command, ChunkInstallDirectory, "chunkinstalldirectory", String.Empty, true);
 			this.ChunkInstallVersionString = ParseParamValueIfNotSpecified(Command, ChunkInstallVersionString, "chunkinstallversion", String.Empty, true);
             this.ChunkInstallReleaseString = ParseParamValueIfNotSpecified(Command, ChunkInstallReleaseString, "chunkinstallrelease", String.Empty, true);
@@ -1296,6 +1299,9 @@ namespace AutomationTool
         /// </summary>
         [Help("createchunkinstall", "generate streaming install data from manifest when cooking data, requires -stage & -manifests")]
         public bool CreateChunkInstall { private set; get; }
+
+		[Help("skipencryption", "skips encrypting pak files even if crypto keys are provided")]
+		public bool SkipEncryption { private set; get; }
 
 		/// <summary>
 		/// Shared: Directory to use for built chunk install data, command line: -chunkinstalldirectory=
@@ -2872,6 +2878,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("IgnorePaksFromDifferentCookSource={0}", IgnorePaksFromDifferentCookSource);
 				CommandUtils.LogLog("IoStore={0}", IoStore);
 				CommandUtils.LogLog("SkipIoStore={0}", SkipIoStore);
+				CommandUtils.LogLog("SkipEncryption={0}", SkipEncryption);
 				CommandUtils.LogLog("GenerateOptimizationData={0}", GenerateOptimizationData);
 				CommandUtils.LogLog("SkipPackage={0}", SkipPackage);
 				CommandUtils.LogLog("Package={0}", Package);

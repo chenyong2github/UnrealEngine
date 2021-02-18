@@ -48,6 +48,7 @@ public:
 	virtual TSharedRef<SWidget> CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const = 0;
 	virtual TSharedRef<SWidget> CreateStackIssueIcon(UNiagaraStackViewModel& StackViewModel, UNiagaraStackEntry& StackEntry) const = 0;
 	virtual TSharedRef<SWidget> CreateScriptScratchPad(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const = 0;
+	virtual TSharedRef<SWidget> CreateCurveOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const = 0;
 	virtual FLinearColor GetColorForExecutionCategory(FName ExecutionCategory) const = 0;
 	virtual FLinearColor GetColorForParameterScope(ENiagaraParameterScope ParameterScope) const = 0;
 };
@@ -278,7 +279,4 @@ private:
 	/** Viewport used when generating the performance baselines for Niagara systems. */
 	TSharedPtr<SNiagaraBaselineViewport> BaselineViewport;
 #endif
-
-	static const FName NiagaraDebuggerTabName;
-	TSharedRef<class SDockTab> SpawnNiagaraDebugger(const class FSpawnTabArgs& Args);
 };

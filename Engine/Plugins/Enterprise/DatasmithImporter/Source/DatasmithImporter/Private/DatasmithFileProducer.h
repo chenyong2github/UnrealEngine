@@ -44,6 +44,8 @@ public:
 		SetFilePath( InFilename );
 	}
 
+	void OnChangeImportSettings();
+
 	// Begin UDataprepContentProducer overrides
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
@@ -75,6 +77,10 @@ private:
 	/** Update the name of the producer based on the filename */
 	void UpdateName();
 
+	bool InitTranslator();
+
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> GetTranslatorImportOptions();
+
 private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;
 	TUniquePtr< FDatasmithTranslatableSceneSource > TranslatableSourcePtr;
@@ -87,6 +93,12 @@ private:
 	UPackage* TransientPackage = nullptr;
 
 	TArray< TWeakObjectPtr< UObject > > Assets;
+
+	UPROPERTY()
+	TArray<UDatasmithOptionsBase*> TranslatorImportOptions;
+
+	UPROPERTY()
+	bool bTranslatorImportOptionsInitialized = false;
 
 	static FDatasmithTessellationOptions DefaultTessellationOptions;
 	static FDatasmithImportBaseOptions DefaultImportOptions;

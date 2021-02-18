@@ -5,13 +5,12 @@
 #include "OpenXRPlatformRHI.h"
 #include "XRThreadUtils.h"
 
+UE_TRACE_CHANNEL_EXTERN(OpenXRChannel)
+
 FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
 	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
-	Handle(InHandle), 
-	IsAcquired(false)
-	
+	Handle(InHandle)
 {
-	IncrementSwapChainIndex_RHIThread((int64)XR_NO_DURATION);
 }
 
 FOpenXRSwapchain::~FOpenXRSwapchain() {
@@ -34,19 +33,25 @@ FOpenXRSwapchain::~FOpenXRSwapchain() {
 	}
 }
 
-void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
+void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread()
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
-	if (IsAcquired)
-		return;
-	
+	SCOPED_NAMED_EVENT(AcquireImage, FColor::Red);
+
 	XrSwapchainImageAcquireInfo Info;
 	Info.type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO;
 	Info.next = nullptr;
 	XR_ENSURE(xrAcquireSwapchainImage(Handle, &Info, &SwapChainIndex_RHIThread));
 
-	IsAcquired = true;
+	GDynamicRHI->RHIAliasTextureResources((FTextureRHIRef&)RHITexture, (FTextureRHIRef&)RHITextureSwapChain[SwapChainIndex_RHIThread]);
+}
+
+void FOpenXRSwapchain::WaitCurrentImage_RHIThread(int64 Timeout)
+{
+	check(IsInRenderingThread() || IsInRHIThread());
+
+	SCOPED_NAMED_EVENT(WaitImage, FColor::Red);
 
 	XrSwapchainImageWaitInfo WaitInfo;
 	WaitInfo.type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO;
@@ -58,7 +63,7 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
 	do
 	{
 		XR_ENSURE(WaitResult = xrWaitSwapchainImage(Handle, &WaitInfo));
-		if (WaitResult == XR_TIMEOUT_EXPIRED)	//-V547
+		if (WaitResult == XR_TIMEOUT_EXPIRED) //-V547
 		{
 			UE_LOG(LogHMD, Warning, TEXT("Timed out waiting on swapchain image %u! Attempts remaining %d."), SwapChainIndex_RHIThread, RetryCount);
 		}
@@ -69,29 +74,24 @@ void FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
 		// We can't continue without acquiring a new swapchain image since we won't have an image available to render to.
 		UE_LOG(LogHMD, Fatal, TEXT("Failed to wait on acquired swapchain image. This usually indicates a problem with the OpenXR runtime."));
 	}
-
-	GDynamicRHI->RHIAliasTextureResources((FTextureRHIRef&)RHITexture, (FTextureRHIRef&)RHITextureSwapChain[SwapChainIndex_RHIThread]);
 }
 
 void FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
-	if (!IsAcquired)
-		return;
+	SCOPED_NAMED_EVENT(ReleaseImage, FColor::Red);
 
 	XrSwapchainImageReleaseInfo ReleaseInfo;
 	ReleaseInfo.type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO;
 	ReleaseInfo.next = nullptr;
 	XR_ENSURE(xrReleaseSwapchainImage(Handle, &ReleaseInfo));
-
-	IsAcquired = false;
 }
 
 void FOpenXRSwapchain::ReleaseResources_RHIThread()
 {
 	FXRSwapChain::ReleaseResources_RHIThread();
-	xrDestroySwapchain(Handle);
+	XR_ENSURE(xrDestroySwapchain(Handle));
 }
 
 uint8 GetNearestSupportedSwapchainFormat(XrSession InSession, uint8 RequestedFormat, TFunction<uint32(uint8)> ToPlatformFormat = nullptr)

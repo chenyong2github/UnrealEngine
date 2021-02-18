@@ -138,9 +138,9 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			check(sizeof(Chaos::FVec3) == sizeof(FVector));
 
 			//TODO: this should all be done on the asset instead of in the callback. Duplicates all mesh vertices every time
-			Chaos::TParticles<float, 3> MeshParticles(MoveTemp(Parameters.MeshVertexPositions));
+			Chaos::FParticles MeshParticles(MoveTemp(Parameters.MeshVertexPositions));
 
-			TUniquePtr<Chaos::TTriangleMesh<float>> TriangleMesh(new Chaos::TTriangleMesh<float>(MoveTemp(Parameters.TriIndices)));
+			TUniquePtr<Chaos::FTriangleMesh> TriangleMesh(new Chaos::FTriangleMesh(MoveTemp(Parameters.TriIndices)));
 			Chaos::FErrorReporter ErrorReporter(Parameters.Name + " | RigidBodyId: " + FString::FromInt(RigidBodyId));;
 			Particles.SetDynamicGeometry(
 				RigidBodyId,
@@ -166,7 +166,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		else if (Parameters.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 		{
 			Chaos::TSphere<float,3>* Sphere = new Chaos::TSphere<float, 3>(Chaos::FVec3(0), Parameters.ShapeParams.SphereRadius);
-			const Chaos::TAABB<float, 3> BBox = Sphere->BoundingBox();
+			const Chaos::FAABB3 BBox = Sphere->BoundingBox();
 			Bounds.Min = BBox.Min();
 			Bounds.Max = BBox.Max();
 			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::FImplicitObject>(Sphere));
@@ -211,7 +211,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 			Chaos::FVec3 x1(0, -Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X, 0);
 			Chaos::FVec3 x2(0, Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X, 0);
 			Chaos::TCapsule<float>* Capsule = new Chaos::TCapsule<float>(x1, x2, Parameters.ShapeParams.CapsuleHalfHeightAndRadius.Y);
-			const Chaos::TAABB<float, 3> BBox = Capsule->BoundingBox();
+			const Chaos::FAABB3 BBox = Capsule->BoundingBox();
 			Bounds.Min = BBox.Min();
 			Bounds.Max = BBox.Max();
 			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::FImplicitObject>(Capsule));

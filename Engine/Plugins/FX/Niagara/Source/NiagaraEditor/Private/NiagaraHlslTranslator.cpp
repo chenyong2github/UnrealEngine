@@ -1201,7 +1201,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 
 	if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleEventScript && bGPUSim)
 	{
-		Error(LOCTEXT("CannotUseEventsWithGPU", "GPU Events scripts are currently unsupported. Consider using DirectReads instead!"), nullptr, nullptr);
+		Error(LOCTEXT("CannotUseEventsWithGPU", "GPU Events scripts are currently unsupported. Consider using the Particle Attribute Reader instead!"), nullptr, nullptr);
 		return TranslateResults;
 	}
 
@@ -7689,7 +7689,12 @@ void FHlslNiagaraTranslator::Convert(class UNiagaraNodeConvert* Convert, TArrayV
 			{
 				Error(FText::Format(LOCTEXT("ConvertTypeError_InvalidOutput", "Cannot handle output pin type {0}! Pin: {1}"), Type.GetNameText(), OutputPin->GetDisplayName()), nullptr, nullptr);
 			}
+			
+			// The convert node should already have issued errors if the connections aren't complete.
+			// So we won't do anything else here.
+			
 			int32 OutChunk = AddBodyChunk(GetUniqueSymbolName(OutputPin->PinName), TEXT(""), Type);
+
 			Outputs.Add(OutChunk);
 		}
 	}
@@ -7974,12 +7979,14 @@ void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBas
 	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespace) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespace) || InVar.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespace))
 		return;
 
-	if (InVar.GetName() == TEXT("Particles.UniqueID"))
-		return;
-
-	if (bEmitAsLinker)
+	if (InVar.GetName() == TEXT("Particles.UniqueID") || InVar.GetName() == TEXT("Emitter.SpawnGroup") || InVar.GetName() == TEXT("Emitter.InterpSpawnStartDt") ||
+		InVar.GetName() == TEXT("Emitter.SpawnInterval") || InVar.GetName() == TEXT("Emitter.RandomSeed"))
 	{
+		return;																							  
+	}
 
+	if (bEmitAsLinker)																					
+	{																									 
 		const UNiagaraNode* CurContextNode = ActiveHistoryForFunctionCalls.GetCallingContext();
 		const UNiagaraNode* TargetNode = Node ? Node : CurContextNode;
 
@@ -8294,7 +8301,13 @@ bool FHlslNiagaraTranslator::AddStructToDefinitionSet(const FNiagaraTypeDefiniti
 		}
 
 		// Add the new type def
-		StructsToDefine.AddUnique(TypeDef);
+		if (!StructsToDefine.Contains(TypeDef))
+		{
+			StructsToDefine.Add(TypeDef);
+
+			// Add the struct name to the unique symbol names to make it so that we don't declare a variable the same name as the struct type.
+			GetUniqueSymbolName(*TypeDef.GetName());
+		}
 	}
 
 	return true;

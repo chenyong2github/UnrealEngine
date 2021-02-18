@@ -214,7 +214,6 @@ namespace UE
 					AppConfig.CommandLine += string.Format(" -ddc={0}", DDC);
 				}
 			}
-
 		}
 	}
 
@@ -474,7 +473,7 @@ namespace UE
 						foreach (AutomationTestResult Result in FailedTests)
 						{
 							MB.H4(Result.FullName);
-							MB.UnorderedList(Result.Events);
+							MB.UnorderedList(Result.Events.Distinct());
 						}
 					}
 

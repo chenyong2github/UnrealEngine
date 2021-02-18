@@ -79,9 +79,10 @@ public:
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual void DestroyNode() override;
 	TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
+	virtual void ResizeNode(const FVector2D& NewSize) override;
 	// End EdGraphNode interface
 
-	void Initialize(UDataprepActionAsset* InDataprepActionAsset, int32 InExecutionOrder);
+	void Initialize(TWeakObjectPtr<UDataprepAsset> InDataprepAssetPtr, UDataprepActionAsset* InDataprepActionAsset, int32 InExecutionOrder);
 
 	const UDataprepActionAsset* GetDataprepActionAsset() const { return DataprepActionAsset; }
 	UDataprepActionAsset* GetDataprepActionAsset() { return DataprepActionAsset; }
@@ -94,6 +95,9 @@ protected:
 
 	UPROPERTY()
 	UDataprepActionAsset* DataprepActionAsset;
+
+	UPROPERTY()
+	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
 	UPROPERTY()
 	int32 ExecutionOrder;
@@ -110,16 +114,11 @@ public:
 	// Begin EdGraphNode interface
 	virtual bool ShowPaletteIconOnNode() const override { return false; }
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	virtual void DestroyNode() override;
 	TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
+	virtual void ResizeNode(const FVector2D& NewSize) override;
 	// End EdGraphNode interface
 
-	void Initialize(TWeakObjectPtr<UDataprepAsset> InDataprepAssetPtr, TArray<UDataprepActionAsset*>& InActions, int32 InExecutionOrder) 
-	{
-		DataprepAssetPtr = InDataprepAssetPtr;
-		Actions = InActions;
-		ExecutionOrder = InExecutionOrder;
-	}
+	void Initialize(TWeakObjectPtr<UDataprepAsset> InDataprepAssetPtr, TArray<UDataprepActionAsset*>& InActions, int32 InExecutionOrder);
 
 	int32 GetExecutionOrder() const { return ExecutionOrder; }
 

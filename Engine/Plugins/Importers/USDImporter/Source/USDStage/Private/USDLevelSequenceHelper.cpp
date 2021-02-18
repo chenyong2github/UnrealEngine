@@ -4,6 +4,7 @@
 
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
+#include "USDAttributeUtils.h"
 #include "USDListener.h"
 #include "USDLog.h"
 #include "USDMemory.h"
@@ -189,7 +190,7 @@ private:
 	void RemoveTimeTrack(const FUsdLevelSequenceHelperImpl::FLayerTimeInfo* Info);
 
 	/** Adds a transform track for the prim xform transform op. */
-	void AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelSequence& Sequence );
+	void AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelSequence& Sequence, bool bIsMuted = false );
 	void RemoveXformTrack( ULevelSequence& Sequence, const UUsdPrimTwin& PrimTwin );
 
 // Prims handling
@@ -236,7 +237,7 @@ private:
 	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event);
 	void HandleMovieSceneChange(UMovieScene& MovieScene);
 	void HandleSubSectionChange(UMovieSceneSubSection& Section);
-	void HandleTransformTrackChange(const UMovieScene3DTransformTrack& TransformTrack);
+	void HandleTransformTrackChange( const UMovieScene3DTransformTrack& TransformTrack, bool bIsMuteChange );
 	void HandleDisplayRateChange(const double DisplayRate);
 
 	bool bMonitorChanges; // Flag to handle or not changes done to the level sequence or one of its subobject
@@ -867,7 +868,8 @@ void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin )
 		{
 			if ( ULevelSequence* TransformSequence = FindOrAddSequenceForAttribute( TransformAttribute ) )
 			{
-				AddXformTrack( PrimTwin, *TransformSequence );
+				const bool bIsMuted = UsdUtils::IsAttributeMuted( TransformAttribute, UsdStage );
+				AddXformTrack( PrimTwin, *TransformSequence, bIsMuted );
 			}
 		}
 	}
@@ -875,7 +877,7 @@ void FUsdLevelSequenceHelperImpl::AddPrim( UUsdPrimTwin& PrimTwin )
 	RefreshSequencer();
 }
 
-void FUsdLevelSequenceHelperImpl::AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelSequence& Sequence )
+void FUsdLevelSequenceHelperImpl::AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelSequence& Sequence, bool bIsMuted /* = false */ )
 {
 	UMovieScene* MovieScene = Sequence.GetMovieScene();
 
@@ -927,6 +929,19 @@ void FUsdLevelSequenceHelperImpl::AddXformTrack( UUsdPrimTwin& PrimTwin, ULevelS
 		}
 
 		XformTrack->SetPropertyNameAndPath( TransformPropertyName, TransformPropertyName.ToString() );
+	}
+
+	if ( bIsMuted )
+	{
+#if WITH_EDITOR
+		// We need to update the MovieScene too, because if MuteNodes disagrees with Track->IsEvalDisabled() the sequencer
+		// will chose in favor of MuteNodes
+		MovieScene->Modify();
+		MovieScene->GetMuteNodes().AddUnique( FString::Printf( TEXT( "%s.%s" ), *ComponentBinding.ToString(), *XformTrack->GetName() ) );
+#endif // WITH_EDITOR
+
+		XformTrack->Modify();
+		XformTrack->SetEvalDisabled( bIsMuted );
 	}
 
 	if ( !UsdStage )
@@ -1240,7 +1255,7 @@ void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const clas
 
 	if ( UMovieScene* MovieScene = Cast< UMovieScene >( Object ) )
 	{
-		HandleMovieSceneChange(*MovieScene);
+		HandleMovieSceneChange( *MovieScene );
 	}
 	else if ( UMovieSceneSubSection* Section = Cast<UMovieSceneSubSection>(Object) )
 	{
@@ -1248,13 +1263,15 @@ void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const clas
 	}
 	else if ( UMovieScene3DTransformTrack* TransformTrack = Cast<UMovieScene3DTransformTrack>(Object) )
 	{
-		HandleTransformTrackChange(*TransformTrack);
+		const bool bIsMuteChange = Event.GetChangedProperties().Contains( TEXT( "bIsEvalDisabled" ) );
+		HandleTransformTrackChange( *TransformTrack, bIsMuteChange );
 	}
 	else if ( UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(Object) )
 	{
 		if ( UMovieScene3DTransformTrack* SectionTrack = TransformSection->GetTypedOuter<UMovieScene3DTransformTrack>() )
 		{
-			HandleTransformTrackChange(*SectionTrack);
+			const bool bIsMuteChange = Event.GetChangedProperties().Contains( TEXT( "bIsActive" ) );
+			HandleTransformTrackChange( *SectionTrack, bIsMuteChange );
 		}
 	}
 }
@@ -1404,7 +1421,7 @@ void FUsdLevelSequenceHelperImpl::HandleSubSectionChange( UMovieSceneSubSection&
 	UpdateUsdLayerOffsetFromSection(ParentSequence, &Section);
 }
 
-void FUsdLevelSequenceHelperImpl::HandleTransformTrackChange( const UMovieScene3DTransformTrack& TransformTrack )
+void FUsdLevelSequenceHelperImpl::HandleTransformTrackChange( const UMovieScene3DTransformTrack& TransformTrack, bool bIsMuteChange )
 {
 	if ( !StageActor.IsValid() )
 	{
@@ -1451,17 +1468,45 @@ void FUsdLevelSequenceHelperImpl::HandleTransformTrackChange( const UMovieScene3
 
 				SceneComponentsBindings.Emplace( PrimTwin ) = TPair< ULevelSequence*, FGuid >( Sequence, PossessableGuid ); // Make sure we track this binding
 
-				FMovieSceneSequenceTransform SequenceTransform;
-
-				if ( const FMovieSceneSequenceID* SequenceID = SequencesID.Find( Sequence ) )
+				if ( bIsMuteChange )
 				{
-					if ( FMovieSceneSubSequenceData* SubSequenceData = SequenceHierarchyCache.FindSubData( *SequenceID ) )
-					{
-						SequenceTransform = SubSequenceData->RootToSequenceTransform;
-					}
-				}
+					UE::FUsdAttribute TransformAttribute = GetXformAttribute( UsdPrim );
 
-				UnrealToUsd::ConvertXformable( TransformTrack, UsdPrim, SequenceTransform );
+					bool bAllSectionsMuted = true;
+					for ( const UMovieSceneSection* Section : TransformTrack.GetAllSections() ) // There's no const version of "FindSection"
+					{
+						if ( const UMovieScene3DTransformSection* TransformSection = Cast< const UMovieScene3DTransformSection >( Section ) )
+						{
+							bAllSectionsMuted &= !TransformSection->IsActive();
+						}
+					}
+
+					if ( TransformTrack.IsEvalDisabled() || bAllSectionsMuted )
+					{
+						UsdUtils::MuteAttribute( TransformAttribute, UsdStage );
+					}
+					else
+					{
+						UsdUtils::UnmuteAttribute( TransformAttribute, UsdStage );
+					}
+
+					// The attribute may have an effect on the stage, so animate it right away
+					StageActor->OnTimeChanged.Broadcast();
+				}
+				else
+				{
+					FMovieSceneSequenceTransform SequenceTransform;
+
+					if ( const FMovieSceneSequenceID* SequenceID = SequencesID.Find( Sequence ) )
+					{
+						if ( FMovieSceneSubSequenceData* SubSequenceData = SequenceHierarchyCache.FindSubData( *SequenceID ) )
+						{
+							SequenceTransform = SubSequenceData->RootToSequenceTransform;
+						}
+					}
+
+					UnrealToUsd::ConvertXformable( TransformTrack, UsdPrim, SequenceTransform );
+				}
 			}
 		}
 	}

@@ -47,10 +47,6 @@ public:
 	 * @return The MD5 hash of the Element properties
 	 */
 	virtual FMD5Hash CalculateElementHash(bool bForce) = 0;
-
-protected:
-	/** returns if this DatasmithElement is of a specified subtype of its EDatasmithElementType*/
-	virtual bool IsSubTypeInternal(uint64 SubType) const = 0;
 };
 
 class DATASMITHCORE_API IDatasmithKeyValueProperty : public IDatasmithElement

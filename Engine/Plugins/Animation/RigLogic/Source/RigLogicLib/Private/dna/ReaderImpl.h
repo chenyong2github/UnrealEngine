@@ -47,16 +47,20 @@ class ReaderImpl : public TReaderBase, public virtual BaseImpl {
         StringView getRawControlName(std::uint16_t index) const override;
         std::uint16_t getJointCount() const override;
         StringView getJointName(std::uint16_t index) const override;
+        std::uint16_t getJointIndexListCount() const override;
         ConstArrayView<std::uint16_t> getJointIndicesForLOD(std::uint16_t lod) const override;
         std::uint16_t getJointParentIndex(std::uint16_t index) const override;
         std::uint16_t getBlendShapeChannelCount() const override;
         StringView getBlendShapeChannelName(std::uint16_t index) const override;
+        std::uint16_t getBlendShapeChannelIndexListCount() const override;
         ConstArrayView<std::uint16_t> getBlendShapeChannelIndicesForLOD(std::uint16_t lod) const override;
         std::uint16_t getAnimatedMapCount() const override;
         StringView getAnimatedMapName(std::uint16_t index) const override;
+        std::uint16_t getAnimatedMapIndexListCount() const override;
         ConstArrayView<std::uint16_t> getAnimatedMapIndicesForLOD(std::uint16_t lod) const override;
         std::uint16_t getMeshCount() const override;
         StringView getMeshName(std::uint16_t index) const override;
+        std::uint16_t getMeshIndexListCount() const override;
         ConstArrayView<std::uint16_t> getMeshIndicesForLOD(std::uint16_t lod) const override;
         std::uint16_t getMeshBlendShapeChannelMappingCount() const override;
         MeshBlendShapeChannelMapping getMeshBlendShapeChannelMapping(std::uint16_t index) const override;
@@ -292,6 +296,11 @@ inline StringView ReaderImpl<TReaderBase>::getJointName(std::uint16_t index) con
 }
 
 template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getJointIndexListCount() const {
+    return dna.definition.lodJointMapping.getIndexListCount();
+}
+
+template<class TReaderBase>
 inline ConstArrayView<std::uint16_t> ReaderImpl<TReaderBase>::getJointIndicesForLOD(std::uint16_t lod) const {
     return dna.definition.lodJointMapping.getIndices(lod);
 }
@@ -319,6 +328,11 @@ inline StringView ReaderImpl<TReaderBase>::getBlendShapeChannelName(std::uint16_
 }
 
 template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getBlendShapeChannelIndexListCount() const {
+    return dna.definition.lodBlendShapeMapping.getIndexListCount();
+}
+
+template<class TReaderBase>
 inline ConstArrayView<std::uint16_t> ReaderImpl<TReaderBase>::getBlendShapeChannelIndicesForLOD(std::uint16_t lod) const {
     return dna.definition.lodBlendShapeMapping.getIndices(lod);
 }
@@ -338,6 +352,11 @@ inline StringView ReaderImpl<TReaderBase>::getAnimatedMapName(std::uint16_t inde
 }
 
 template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getAnimatedMapIndexListCount() const {
+    return dna.definition.lodAnimatedMapMapping.getIndexListCount();
+}
+
+template<class TReaderBase>
 inline ConstArrayView<std::uint16_t> ReaderImpl<TReaderBase>::getAnimatedMapIndicesForLOD(std::uint16_t lod) const {
     return dna.definition.lodAnimatedMapMapping.getIndices(lod);
 }
@@ -354,6 +373,11 @@ inline StringView ReaderImpl<TReaderBase>::getMeshName(std::uint16_t index) cons
         return {meshName.data(), meshName.size()};
     }
     return {};
+}
+
+template<class TReaderBase>
+inline std::uint16_t ReaderImpl<TReaderBase>::getMeshIndexListCount() const {
+    return dna.definition.lodMeshMapping.getIndexListCount();
 }
 
 template<class TReaderBase>

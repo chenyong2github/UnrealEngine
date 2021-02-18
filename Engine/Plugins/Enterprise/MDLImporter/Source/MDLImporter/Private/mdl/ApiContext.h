@@ -52,17 +52,17 @@ namespace Mdl
 		/**
 		 * Loads materials from an MDL module to the given material collection.
 		 *
-		 * @param InFilePath - file path of the MDL module, will be used as a search path.
+		 * @param InModuleName - MDL module name.
 		 * @param OutMaterials - collection of materials that are present in the MDL module.
 		 * @return true if the MDL was loaded to the database.
 		 *
 		 * @note Only the material names and ids are populated, the material(s) must be distilled after.
 		 */
-		virtual bool LoadModule(const FString& InFilePath, FMaterialCollection& OutMaterials)
+		virtual bool LoadModule(const FString& InModuleName, FMaterialCollection& OutMaterials)
 		{
 			return false;
 		}
-		virtual bool UnloadModule(const FString& FilePath)
+		virtual bool UnloadModule(const FString& InModuleName)
 		{
 			return false;
 		}
@@ -134,8 +134,8 @@ namespace Mdl
 		void LogInfo();
 
 	private:
-		void*										        DsoHandle;
-		mi::base::Handle<mi::neuraylib::INeuray>	        NeurayHandle;
+		void*                                               DsoHandle;
+		mi::base::Handle<mi::neuraylib::INeuray>            NeurayHandle;
 		mi::base::Handle<mi::neuraylib::IMdl_configuration> ConfigHandle;
 		mi::base::Handle<mi::neuraylib::IMdl_compiler>      CompilerHandle;
 		mi::base::Handle<mi::neuraylib::IDatabase>          DatabaseHandle;

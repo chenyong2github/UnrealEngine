@@ -131,6 +131,15 @@ void FAndroidApplicationMisc::ClipboardPaste(class FString& Result)
 #endif
 }
 
+
+void FAndroidApplicationMisc::EnableMotionData(bool bEnable)
+{
+#if USE_ANDROID_JNI
+	extern void AndroidThunkCpp_EnableMotion(bool bEnable);
+	AndroidThunkCpp_EnableMotion(bEnable);
+#endif
+}
+
 struct FScreenDensity
 {
 	FString Model;

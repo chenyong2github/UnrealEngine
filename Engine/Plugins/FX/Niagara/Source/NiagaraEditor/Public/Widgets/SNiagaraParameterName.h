@@ -105,6 +105,7 @@ class NIAGARAEDITOR_API SNiagaraParameterNameTextBlock : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterNameTextBlock)
 		: _EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle"))
+		, _ReadOnlyTextStyle(&FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 		, _IsReadOnly(false)
 		, _DecoratorHAlign(HAlign_Left)
 		, _DecoratorPadding(5.0f, 0.0f, 0.0f, 0.0f)
@@ -112,6 +113,7 @@ public:
 		_Clipping = EWidgetClipping::OnDemand;
 	}
 		SLATE_STYLE_ARGUMENT(FInlineEditableTextBlockStyle, EditableTextStyle)
+		SLATE_STYLE_ARGUMENT(FTextBlockStyle, ReadOnlyTextStyle)
 		SLATE_ATTRIBUTE(FText, ParameterText)
 		SLATE_ARGUMENT(bool, IsReadOnly)
 		SLATE_ATTRIBUTE(FText, HighlightText)

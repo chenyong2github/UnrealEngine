@@ -56,8 +56,11 @@ namespace Chaos
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
 	class FRewindData;
+	class IRewindCallback;
 	class FSingleParticleProxy;
 	class FGeometryParticleBuffer;
+
+	CHAOS_API extern int32 RewindCaptureNumFrames;
 
 	template <typename T,typename R,int d>
 	class ISpatialAccelerationCollection;
@@ -144,7 +147,13 @@ namespace Chaos
 		void RegisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 		void UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 
-		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache);
+		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
+		void SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback)
+		{
+			ensure(!RewindCallback || MRewindData);
+			MRewindCallback = MoveTemp(RewindCallback);
+		}
+
 		FRewindData* GetRewindData()
 		{
 			if(Traits::IsRewindable())
@@ -157,6 +166,17 @@ namespace Chaos
 			}
 		}
 
+		IRewindCallback* GetRewindCallback()
+		{
+			if (Traits::IsRewindable())
+			{
+				return MRewindCallback.Get();
+			}
+			else
+			{
+				return nullptr;
+			}
+		}
 		//
 		//  Simulation API
 		//
@@ -354,6 +374,7 @@ namespace Chaos
 		TUniquePtr<FDirtyParticlesBuffer> MDirtyParticlesBuffer;
 		TMap<const Chaos::TGeometryParticleHandle<float, 3>*, TSet<IPhysicsProxyBase*> > MParticleToProxy;
 		TUniquePtr<FRewindData> MRewindData;
+		TUniquePtr<IRewindCallback> MRewindCallback;
 
 		//
 		// Proxies
@@ -392,6 +413,8 @@ namespace Chaos
 		void ProcessSinglePushedData_Internal(FPushPhysicsData& PushData);
 		virtual void ProcessPushedData_Internal(FPushPhysicsData& PushData) override;
 		void DestroyPendingProxies_Internal();
+
+		virtual void ConditionalApplyRewind_Internal() override;
 	};
 
 	template<>

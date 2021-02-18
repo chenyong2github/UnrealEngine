@@ -29,3 +29,18 @@ bool UMovieSceneBlenderSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InL
 {
 	return AllocatedBlendChannels.Find(true) != INDEX_NONE;
 }
+
+
+void UMovieSceneBlenderSystem::CompactBlendChannels()
+{
+	// @todo: scheduled routine maintenance like this to optimize memory layouts
+	const int32 LastBlendIndex = AllocatedBlendChannels.FindLast(true);
+	if (LastBlendIndex == INDEX_NONE)
+	{
+		AllocatedBlendChannels.Empty();
+	}
+	else if (LastBlendIndex < AllocatedBlendChannels.Num() - 1)
+	{
+		AllocatedBlendChannels.RemoveAt(LastBlendIndex + 1, AllocatedBlendChannels.Num() - LastBlendIndex - 1);
+	}
+}

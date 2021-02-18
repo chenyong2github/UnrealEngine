@@ -8038,8 +8038,8 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString
 
 						if (FPackageName::TryConvertLongPackageNameToFilename(PackageNameStr, StandardFilename, bContainsMap ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension()))
 						{
-							StandardFilename = FPaths::ConvertRelativePathToFull(StandardFilename);
-							OutPackageFilenames[AssetIndex] = FName(StandardFilename);
+							OutPackageFilenames[AssetIndex] = FPackageNameCache::GetStandardFileName(StandardFilename);
+							StandardFilename = OutPackageFilenames[AssetIndex].ToString();
 						}
 					}
 				}

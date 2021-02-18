@@ -72,7 +72,7 @@ public:
 
 	virtual void OnSetElement(FSetElementArg& SetElementArg) override
 	{
-		SceneSnapshot.Elements.Add(SetElementArg.Snapshot->NodeId, SetElementArg.Snapshot.ToSharedRef());
+		SceneSnapshot.Elements.Add(SetElementArg.Snapshot->GetNodeId(), SetElementArg.Snapshot.ToSharedRef());
 	}
 
 	virtual void RemoveElements(FRemoveElementsArg& RemoveElementsArg) override

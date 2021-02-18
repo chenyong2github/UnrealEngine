@@ -3092,7 +3092,7 @@ void FBodyInstance::UpdateMassProperties()
 				}
 
 #if WITH_CHAOS
-				Chaos::TMassProperties<float, 3> TotalMassProperties;
+				Chaos::FMassProperties TotalMassProperties;
 #elif PHYSICS_INTERFACE_PHYSX
 				PxMassProperties TotalMassProperties;
 #endif
@@ -3135,7 +3135,7 @@ void FBodyInstance::UpdateMassProperties()
 					}
 
 #if WITH_CHAOS
-					TArray<Chaos::TMassProperties<float, 3>> SubMassProperties;
+					TArray<Chaos::FMassProperties> SubMassProperties;
 					for (auto BodyShapesItr : BodyToShapes)
 					{
 						const FBodyInstance* OwningBI = BodyShapesItr.Key;
@@ -3143,7 +3143,7 @@ void FBodyInstance::UpdateMassProperties()
 						FTransform MassModifierTransform = WeldedBatch.RelTM;
 						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
 
-						Chaos::TMassProperties<float, 3> BodyMassProperties = BodyUtils::ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
+						Chaos::FMassProperties BodyMassProperties = BodyUtils::ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
 						SubMassProperties.Add(BodyMassProperties);
 					}
 

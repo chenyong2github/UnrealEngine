@@ -32,17 +32,47 @@ void FAssetTypeActions_SoundWave::GetActions(const TArray<UObject*>& InObjects, 
 	FAssetTypeActions_SoundBase::GetActions(InObjects, Section);
 
 	TArray<TWeakObjectPtr<USoundWave>> SoundNodes = GetTypedWeakObjectPtrs<USoundWave>(InObjects);
+	bool bCreateCueForEachSoundWave = true;
 
-	Section.AddMenuEntry(
-		"SoundWave_CreateCue",
-		LOCTEXT("SoundWave_CreateCue", "Create Cue"),
-		LOCTEXT("SoundWave_CreateCueTooltip", "Creates a sound cue using this sound wave."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
-		FUIAction(
-		FExecuteAction::CreateSP( this, &FAssetTypeActions_SoundWave::ExecuteCreateSoundCue, SoundNodes ),
-		FCanExecuteAction()
+	if (SoundNodes.Num() == 1)
+	{
+		Section.AddMenuEntry(
+			"SoundWave_CreateCue",
+			LOCTEXT("SoundWave_CreateCue", "Create Cue"),
+			LOCTEXT("SoundWave_CreateCueTooltip", "Creates a sound cue using this sound wave."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundWave::ExecuteCreateSoundCue, SoundNodes, bCreateCueForEachSoundWave),
+				FCanExecuteAction()
 			)
 		);
+	}
+	else
+	{
+		bCreateCueForEachSoundWave = false;
+		Section.AddMenuEntry(
+			"SoundWave_CreateSingleCue",
+			LOCTEXT("SoundWave_CreateSingleCue", "Create Single Cue"),
+			LOCTEXT("SoundWave_CreateSingleCueTooltip", "Creates a single sound cue using these sound waves."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundWave::ExecuteCreateSoundCue, SoundNodes, bCreateCueForEachSoundWave),
+				FCanExecuteAction()
+			)
+		);
+
+		bCreateCueForEachSoundWave = true;
+		Section.AddMenuEntry(
+			"SoundWave_CreateMultiCue",
+			LOCTEXT("SoundWave_CreateMultiCue", "Create Multiple Cues"),
+			LOCTEXT("SoundWave_CreateMultiCueTooltip", "Creates multiple sound cues, one from each selected sound wave."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.SoundCue"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetTypeActions_SoundWave::ExecuteCreateSoundCue, SoundNodes, bCreateCueForEachSoundWave),
+				FCanExecuteAction()
+			)
+		);
+	}
 
 	Section.AddSubMenu(
 		"SoundWave_CreateDialogue",
@@ -65,11 +95,11 @@ void FAssetTypeActions_SoundWave::OpenAssetEditor( const TArray<UObject*>& InObj
 	FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);
 }
 
-void FAssetTypeActions_SoundWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr<USoundWave>> Objects)
+void FAssetTypeActions_SoundWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr<USoundWave>> Objects, bool bCreateCueForEachSoundWave)
 {
 	const FString DefaultSuffix = TEXT("_Cue");
 
-	if ( Objects.Num() == 1 )
+	if ( Objects.Num() == 1 || !bCreateCueForEachSoundWave)
 	{
 		auto Object = Objects[0].Get();
 
@@ -82,13 +112,13 @@ void FAssetTypeActions_SoundWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr<US
 
 			// Create the factory used to generate the asset
 			USoundCueFactoryNew* Factory = NewObject<USoundCueFactoryNew>();
-			Factory->InitialSoundWave = Object;
+			Factory->InitialSoundWaves = Objects;
 
 			FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 			ContentBrowserModule.Get().CreateNewAsset(Name, FPackageName::GetLongPackagePath(PackagePath), USoundCue::StaticClass(), Factory);
 		}
 	}
-	else
+	else if ( bCreateCueForEachSoundWave )
 	{
 		TArray<UObject*> ObjectsToSync;
 
@@ -103,7 +133,7 @@ void FAssetTypeActions_SoundWave::ExecuteCreateSoundCue(TArray<TWeakObjectPtr<US
 
 				// Create the factory used to generate the asset
 				USoundCueFactoryNew* Factory = NewObject<USoundCueFactoryNew>();
-				Factory->InitialSoundWave = Object;
+				Factory->InitialSoundWaves.Add(Object);
 
 				FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 				UObject* NewAsset = AssetToolsModule.Get().CreateAsset(Name, FPackageName::GetLongPackagePath(PackageName), USoundCue::StaticClass(), Factory);

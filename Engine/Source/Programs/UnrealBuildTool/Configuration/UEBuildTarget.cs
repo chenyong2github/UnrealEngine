@@ -1885,6 +1885,7 @@ namespace UnrealBuildTool
 				WriteMetadataAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(MetadataTargetFile));
 				WriteMetadataAction.PrerequisiteItems.AddRange(Makefile.OutputItems);
 				WriteMetadataAction.ProducedItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
+				WriteMetadataAction.ProducedItems.AddRange(MetadataTargetInfo.FileToManifest.Keys.Select(x => FileItem.GetItemByFileReference(x)));
 
 				Makefile.OutputItems.AddRange(WriteMetadataAction.ProducedItems);
 
@@ -3869,6 +3870,10 @@ namespace UnrealBuildTool
 					}
 				}
 			}
+
+			RulesObject.PrivateDefinitions.Add(String.Format("UE_MODULE_NAME=\"{0}\"", ModuleName));
+			RulesObject.PrivateDefinitions.Add(String.Format("UE_PLUGIN_NAME=\"{0}\"", RulesObject.IsPlugin && RulesObject.Plugin != null ? RulesObject.Plugin.Name : ""));
+
 			return RulesObject;
 		}
 

@@ -141,7 +141,7 @@ enum class EOculusDeviceType : uint8
 	Rift = 100,
 	Rift_S,
 	Quest_Link,
-	//OculusPC_Placeholder4102,
+	Quest2_Link,
 	//OculusPC_Placeholder4103,
 
 	//default

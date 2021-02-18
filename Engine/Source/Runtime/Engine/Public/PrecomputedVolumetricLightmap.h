@@ -249,6 +249,8 @@ private:
 
 	bool bAddedToScene;
 
+	TWeakObjectPtr<UMapBuildDataRegistry> SourceRegistry;
+
 	/** Offset from world origin. Non-zero only when world origin was rebased */
 	FVector WorldOriginOffset;
 };

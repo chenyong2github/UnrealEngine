@@ -463,8 +463,6 @@ FString USoundSubmixBase::GetDesc()
 
 void USoundSubmixBase::BeginDestroy()
 {
-	Super::BeginDestroy();
-
 	// Use the main/default audio device for storing and retrieving sound class properties
 	FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
 
@@ -473,6 +471,10 @@ void USoundSubmixBase::BeginDestroy()
 	{
 		AudioDeviceManager->UnregisterSoundSubmix(this);
 	}
+
+	// This has to be called AFTER device unregistration.
+	// Otherwise, the object can be in a partially destroyed state.
+	Super::BeginDestroy();
 }
 
 void USoundSubmixBase::PostLoad()

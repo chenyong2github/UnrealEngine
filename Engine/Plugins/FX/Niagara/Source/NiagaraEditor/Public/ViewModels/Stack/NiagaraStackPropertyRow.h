@@ -20,6 +20,8 @@ public:
 
 	virtual bool GetIsEnabled() const override;
 
+	virtual bool HasOverridenContent() const override;
+
 protected:
 	virtual void FinalizeInternal() override;
 

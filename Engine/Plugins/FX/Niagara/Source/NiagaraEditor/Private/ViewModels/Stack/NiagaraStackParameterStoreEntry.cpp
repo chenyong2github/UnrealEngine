@@ -427,7 +427,8 @@ void UNiagaraStackParameterStoreEntry::Delete()
 	// Notify the system view model that the DI has been modifier.
 	if (CachedSystemViewModel.IsValid() && DataInterface != nullptr)
 	{
-		CachedSystemViewModel->NotifyDataObjectChanged(DataInterface);
+		TArray<UObject*> ChangedObjects = { DataInterface };
+		CachedSystemViewModel->NotifyDataObjectChanged(ChangedObjects, ENiagaraDataObjectChange::Removed);
 	}
 }
 
@@ -514,7 +515,8 @@ void UNiagaraStackParameterStoreEntry::NotifyDataInterfaceChanged()
 	if (ValueObject.IsValid())
 	{
 		TSharedRef<FNiagaraSystemViewModel> ViewModel = GetSystemViewModel(); 
-		ViewModel->NotifyDataObjectChanged(ValueObject.Get());
+		TArray<UObject*> ChangedObjects = { ValueObject.Get() };
+		ViewModel->NotifyDataObjectChanged(ChangedObjects, ENiagaraDataObjectChange::Changed);
 	}
 }
 

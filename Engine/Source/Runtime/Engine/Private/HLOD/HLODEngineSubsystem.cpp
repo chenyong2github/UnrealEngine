@@ -86,8 +86,8 @@ void UHLODEngineSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* In
 	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
 	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 
-	// First, destroy LODActors that were previously constructed from HLODDesc... If needed, they will be recreated below.
-	if (!bDisableHLODCleanupOnLoad)
+	// First, destroy invalid HLOD actors. If needed, they will be recreated below.
+	if (!bDisableHLODCleanupOnLoad && !GIsCookerLoadingPackage)
 	{
 		CleanupHLODs(InLevel);
 	}
@@ -137,14 +137,12 @@ bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
 {
 	bool bShouldDestroyActor = false;
 
-	UWorld* World = InLODActor->GetWorld();
-
 	if (InLODActor->GetLevel()->GetWorldSettings()->GetHierarchicalLODSetup().Num() == 0)
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s found in map with no HLOD setup or disabled HLOD system. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
 		bShouldDestroyActor = true;
 	}
-	else if (!InLODActor->GetProxy() || InLODActor->GetProxy()->GetMap() != TSoftObjectPtr<UWorld>(World))
+	else if (!InLODActor->GetProxy() || InLODActor->GetProxy()->GetMap() != TSoftObjectPtr<UWorld>(InLODActor->GetLevel()->GetTypedOuter<UWorld>()))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s with invalid HLODProxy. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
 		bShouldDestroyActor = true;
@@ -157,7 +155,7 @@ bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
 
 	if (bShouldDestroyActor)
 	{
-		World->EditorDestroyActor(InLODActor, true);
+		InLODActor->GetWorld()->EditorDestroyActor(InLODActor, true);
 	}
 
 	return bShouldDestroyActor;

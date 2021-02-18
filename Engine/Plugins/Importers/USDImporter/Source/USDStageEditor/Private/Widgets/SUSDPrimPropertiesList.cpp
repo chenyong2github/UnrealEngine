@@ -83,15 +83,20 @@ namespace UsdPrimPropertiesListImpl
 		return &UsdPrimPropertiesListImpl::TokenDropdownOptions.Add( ViewModel.Label, Options );
 	}
 
-	EPrimPropertyLabelTypes GetLabelType( const USDViewModels::FPrimPropertyValue& PropertyValue )
+	EPrimPropertyLabelTypes GetLabelType( const UsdUtils::FConvertedVtValue& PropertyValue, const FString& ValueRole )
 	{
-		int32 NumComponents = PropertyValue.Components.Num();
+		if ( PropertyValue.Entries.Num() < 1 )
+		{
+			return EPrimPropertyLabelTypes::NoLabel;
+		}
+
+		int32 NumComponents = PropertyValue.Entries[0].Num();
 		EPrimPropertyLabelTypes LabelType = EPrimPropertyLabelTypes::NoLabel;
-		if ( PropertyValue.SourceRole.StartsWith( TEXT( "color" ), ESearchCase::IgnoreCase ) )
+		if ( ValueRole.StartsWith( TEXT( "color" ), ESearchCase::IgnoreCase ) )
 		{
 			LabelType = EPrimPropertyLabelTypes::RGBA;
 		}
-		else if ( NumComponents > 1 && NumComponents <= 4 && PropertyValue.SourceType != USDViewModels::EUsdBasicDataTypes::Matrix2d )
+		else if ( NumComponents > 1 && NumComponents <= 4 && PropertyValue.SourceType != UsdUtils::EUsdBasicDataTypes::Matrix2d )
 		{
 			LabelType = EPrimPropertyLabelTypes::XYZW;
 		}
@@ -99,9 +104,9 @@ namespace UsdPrimPropertiesListImpl
 		return LabelType;
 	}
 
-	EPrimPropertyWidget GetWidgetType( USDViewModels::EUsdBasicDataTypes SourceType )
+	EPrimPropertyWidget GetWidgetType( UsdUtils::EUsdBasicDataTypes SourceType )
 	{
-		using namespace USDViewModels;
+		using namespace UsdUtils;
 
 		switch ( SourceType )
 		{
@@ -228,32 +233,50 @@ protected:
 	template<typename T>
 	TOptional<T> GetValue( int32 ComponentIndex ) const
 	{
-		if ( UsdPrimAttribute->Value.Components.IsValidIndex( ComponentIndex ) )
+		if ( UsdPrimAttribute->Value.Entries.Num() == 1 ) // Ignore arrays for now
 		{
-			if ( T* Value = UsdPrimAttribute->Value.Components[ ComponentIndex ].TryGet<T>() )
+			if ( UsdPrimAttribute->Value.Entries[0].IsValidIndex( ComponentIndex ) )
 			{
-				return *Value;
+				if ( T* Value = UsdPrimAttribute->Value.Entries[0][ ComponentIndex ].TryGet<T>() )
+				{
+					return *Value;
+				}
 			}
 		}
+
 		return {};
 	}
 
 	// Other overloads as checkbox/text widgets don't use optional values as input, and these should only ever have one component anyway
 	FText GetValueText() const
 	{
-		return UsdPrimAttribute->Value.Components.Num() > 0
-			? FText::FromString( UsdPrimAttribute->Value.Components[ 0 ].Get<FString>() )
-			: FText::GetEmpty();
+		if ( UsdPrimAttribute->Value.Entries.Num() == 1 )
+		{
+			if ( UsdPrimAttribute->Value.Entries[ 0 ].Num() > 0 )
+			{
+				if ( FString* Value = UsdPrimAttribute->Value.Entries[ 0 ][ 0 ].TryGet<FString>() )
+				{
+					return FText::FromString( *Value );
+				}
+			}
+		}
+
+		return FText::GetEmpty();
 	}
 
 	ECheckBoxState GetValueBool() const
 	{
-		if ( UsdPrimAttribute->Value.Components.Num() )
+		if ( UsdPrimAttribute->Value.Entries.Num() == 1 )
 		{
-			return UsdPrimAttribute->Value.Components[0].Get<bool>()
-				? ECheckBoxState::Checked
-				: ECheckBoxState::Unchecked;
+			if ( UsdPrimAttribute->Value.Entries[ 0 ].Num() > 0 )
+			{
+				if ( bool* Value = UsdPrimAttribute->Value.Entries[ 0 ][ 0 ].TryGet<bool>() )
+				{
+					return *Value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				}
+			}
 		}
+
 		return ECheckBoxState::Undetermined;
 	}
 
@@ -276,7 +299,7 @@ private:
 	void OnSpinboxValueChanged( T NewValue, int32 ComponentIndex );
 
 	template<typename T>
-	void OnSpinboxValueCommitted( T NewValue, ETextCommit::Type CommitType, int32 ComponentIndex );
+	void OnSpinboxValueCommitted( T InNewValue, ETextCommit::Type CommitType, int32 ComponentIndex );
 
 	void OnComboBoxSelectionChanged( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo );
 	void OnTextBoxTextCommitted(const FText& NewText, ETextCommit::Type CommitType);
@@ -307,7 +330,7 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 	else
 	{
 		EPrimPropertyWidget WidgetType = GetWidgetType( UsdPrimAttribute->Value.SourceType );
-		EPrimPropertyLabelTypes LabelType = GetLabelType( UsdPrimAttribute->Value );
+		EPrimPropertyLabelTypes LabelType = GetLabelType( UsdPrimAttribute->Value, UsdPrimAttribute->ValueRole );
 
 		switch ( WidgetType )
 		{
@@ -409,9 +432,12 @@ TArray<TAttribute<TOptional<T>>> SUsdPrimPropertyRow::GetAttributeArray()
 	using AttrType = TAttribute<TOptional<T>>;
 
 	TArray<AttrType> Attributes;
-	for ( int32 ComponentIndex = 0; ComponentIndex < UsdPrimAttribute->Value.Components.Num(); ++ComponentIndex )
+	if ( UsdPrimAttribute->Value.Entries.Num() == 1 )
 	{
-		Attributes.Add( AttrType::Create( AttrType::FGetter::CreateSP( this, &SUsdPrimPropertyRow::template GetValue<T>, ComponentIndex ) ) );
+		for ( int32 ComponentIndex = 0; ComponentIndex < UsdPrimAttribute->Value.Entries[0].Num(); ++ComponentIndex )
+		{
+			Attributes.Add( AttrType::Create( AttrType::FGetter::CreateSP( this, &SUsdPrimPropertyRow::template GetValue<T>, ComponentIndex ) ) );
+		}
 	}
 
 	return Attributes;
@@ -539,21 +565,28 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateSpinboxWidgets( const TArray<
 template<typename T>
 void SUsdPrimPropertyRow::OnSpinboxValueChanged( T NewValue, int32 ComponentIndex )
 {
-	UsdPrimAttribute->Value.Components[ ComponentIndex ].Set<T>( NewValue );
+	UsdPrimAttribute->Value.Entries[ 0 ][ ComponentIndex ].Set<T>( NewValue );
 }
 
 template<typename T>
-void SUsdPrimPropertyRow::OnSpinboxValueCommitted( T NewValue, ETextCommit::Type CommitType, int32 ComponentIndex )
+void SUsdPrimPropertyRow::OnSpinboxValueCommitted( T InNewValue, ETextCommit::Type CommitType, int32 ComponentIndex )
 {
 	if ( CommitType == ETextCommit::OnCleared || UsdPrimAttribute->bReadOnly )
 	{
 		return;
 	}
 
-	USDViewModels::FPrimPropertyValue NewPropertyValue = UsdPrimAttribute->Value;
-	NewPropertyValue.Components[ ComponentIndex ].Set<T>( NewValue );
+	FScopedTransaction Transaction(
+		FText::Format(
+			LOCTEXT( "SetUsdAttributeTransaction", "Set attribute '{0}'" ),
+			FText::FromString( UsdPrimAttribute->Label )
+		)
+	);
 
-	UsdPrimAttribute->SetAttributeValue( NewPropertyValue );
+	UsdUtils::FConvertedVtValue NewValue = UsdPrimAttribute->Value;
+	NewValue.Entries[ 0 ][ ComponentIndex ].Set<T>( InNewValue );
+
+	UsdPrimAttribute->SetAttributeValue( NewValue );
 }
 
 void SUsdPrimPropertyRow::OnComboBoxSelectionChanged( TSharedPtr<FString> ChosenOption, ESelectInfo::Type SelectInfo )
@@ -563,8 +596,15 @@ void SUsdPrimPropertyRow::OnComboBoxSelectionChanged( TSharedPtr<FString> Chosen
 		return;
 	}
 
-	USDViewModels::FPrimPropertyValue NewValue = UsdPrimAttribute->Value;
-	NewValue.Components[ 0 ] = USDViewModels::FPrimPropertyValueComponent( TInPlaceType<FString>(), *ChosenOption );
+	FScopedTransaction Transaction(
+		FText::Format(
+			LOCTEXT( "SetUsdAttributeTransaction", "Set attribute '{0}'" ),
+			FText::FromString( UsdPrimAttribute->Label )
+		)
+	);
+
+	UsdUtils::FConvertedVtValue NewValue = UsdPrimAttribute->Value;
+	NewValue.Entries[ 0 ][ 0 ] = UsdUtils::FConvertedVtValueComponent( TInPlaceType<FString>(), *ChosenOption );
 
 	UsdPrimAttribute->SetAttributeValue( NewValue );
 }
@@ -576,8 +616,15 @@ void SUsdPrimPropertyRow::OnTextBoxTextCommitted( const FText& NewText, ETextCom
 		return;
 	}
 
-	USDViewModels::FPrimPropertyValue NewValue = UsdPrimAttribute->Value;
-	NewValue.Components[ 0 ] = USDViewModels::FPrimPropertyValueComponent( TInPlaceType<FString>(), NewText.ToString() );
+	FScopedTransaction Transaction(
+		FText::Format(
+			LOCTEXT( "SetUsdAttributeTransaction", "Set attribute '{0}'" ),
+			FText::FromString( UsdPrimAttribute->Label )
+		)
+	);
+
+	UsdUtils::FConvertedVtValue NewValue = UsdPrimAttribute->Value;
+	NewValue.Entries[ 0 ][ 0 ] = UsdUtils::FConvertedVtValueComponent( TInPlaceType<FString>(), NewText.ToString() );
 
 	UsdPrimAttribute->SetAttributeValue( NewValue );
 }
@@ -589,8 +636,15 @@ void SUsdPrimPropertyRow::OnCheckBoxCheckStateChanged( ECheckBoxState NewState )
 		return;
 	}
 
-	USDViewModels::FPrimPropertyValue NewValue = UsdPrimAttribute->Value;
-	NewValue.Components[ 0 ] = USDViewModels::FPrimPropertyValueComponent( TInPlaceType<bool>(), NewState == ECheckBoxState::Checked );
+	FScopedTransaction Transaction(
+		FText::Format(
+			LOCTEXT( "SetUsdAttributeTransaction", "Set attribute '{0}'" ),
+			FText::FromString( UsdPrimAttribute->Label )
+		)
+	);
+
+	UsdUtils::FConvertedVtValue NewValue = UsdPrimAttribute->Value;
+	NewValue.Entries[ 0 ][ 0 ] = UsdUtils::FConvertedVtValueComponent( TInPlaceType<bool>(), NewState == ECheckBoxState::Checked );
 
 	UsdPrimAttribute->SetAttributeValue( NewValue );
 }

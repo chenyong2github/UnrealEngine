@@ -60,7 +60,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&HierarchicalEasingChannel, TEXT("Hierarchical Easing Channel"));
 	ComponentRegistry->NewComponentType(&HierarchicalEasingProvider, TEXT("Hierarchical Easing Provider"));
 
-	ComponentRegistry->NewComponentType(&BlenderType,           TEXT("Blender System Type"));
+	ComponentRegistry->NewComponentType(&BlenderType,           TEXT("Blender System Type"), EComponentTypeFlags::CopyToChildren);
 	ComponentRegistry->NewComponentType(&BlendChannelInput,     TEXT("Blend Channel Input"));
 	ComponentRegistry->NewComponentType(&HierarchicalBias,      TEXT("Hierarchical Bias"));
 	ComponentRegistry->NewComponentType(&BlendChannelOutput,    TEXT("Blend Channel Output"));
@@ -122,14 +122,12 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	Tags.PreRoll                 = ComponentRegistry->NewTag(TEXT("Pre Roll"));
 	Tags.SectionPreRoll          = ComponentRegistry->NewTag(TEXT("Section Pre Roll"));
 
-	SymbolicTags.CreatesEntities = ComponentRegistry->NewTag(TEXT(" ~~ SYMBOLIC~~ Creates Entities"));
+	SymbolicTags.CreatesEntities = ComponentRegistry->NewTag(TEXT("~~ SYMBOLIC ~~ Creates Entities"));
 
 	FinishedMask.SetAll({ Tags.NeedsUnlink, Tags.Finished });
 
 	// New children always need link
 	ComponentRegistry->Factories.DefineChildComponent(Tags.NeedsLink);
-
-	ComponentRegistry->Factories.DefineChildComponent(BlenderType, BlenderType);
 
 	// Always copy these tags over to children
 	ComponentRegistry->Factories.DefineChildComponent(Tags.RestoreState,  Tags.RestoreState);

@@ -18,6 +18,8 @@ public:
 private:
 	EVisibility GetExpandButtonVisibility() const;
 
+	EVisibility GetOverrideIconVisibility() const;
+
 	const struct FSlateBrush* GetButtonBrush() const;
 
 	FText GetToolTipText() const;

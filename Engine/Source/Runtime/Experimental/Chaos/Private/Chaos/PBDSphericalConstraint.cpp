@@ -16,15 +16,10 @@ FAutoConsoleVariableRef CVarChaosSphericalISPCEnabled(TEXT("p.Chaos.Spherical.IS
 
 using namespace Chaos;
 
-template<typename T, int d>
-void TPBDSphericalConstraint<T, d>::ApplyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt) const
+void FPBDSphericalConstraint::ApplyHelperISPC(FPBDParticles& Particles, const FReal Dt) const
 {
-	ApplyHelper(Particles, Dt);
-}
+	check(bRealTypeCompatibleWithISPC)
 
-template<>
-void TPBDSphericalConstraint<float, 3>::ApplyHelperISPC(TPBDParticles<FReal, 3>& Particles, const float Dt) const
-{
 	const int32 ParticleCount = SphereRadii.Num();
 
 #if INTEL_ISPC
@@ -38,16 +33,10 @@ void TPBDSphericalConstraint<float, 3>::ApplyHelperISPC(TPBDParticles<FReal, 3>&
 		ParticleCount);
 #endif
 }
-
-template<typename T, int d>
-void TPBDSphericalBackstopConstraint<T, d>::ApplyLegacyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt) const
+void FPBDSphericalBackstopConstraint::ApplyLegacyHelperISPC(FPBDParticles& Particles, const FReal Dt) const
 {
-	ApplyLegacyHelper(Particles, Dt);
-}
+	check(bRealTypeCompatibleWithISPC)
 
-template<>
-void TPBDSphericalBackstopConstraint<float, 3>::ApplyLegacyHelperISPC(TPBDParticles<float, 3>& Particles, const float Dt) const
-{
 	const int32 ParticleCount = SphereRadii.Num();
 
 #if INTEL_ISPC
@@ -64,15 +53,9 @@ void TPBDSphericalBackstopConstraint<float, 3>::ApplyLegacyHelperISPC(TPBDPartic
 #endif
 }
 
-template<typename T, int d>
-void TPBDSphericalBackstopConstraint<T, d>::ApplyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt) const
+void FPBDSphericalBackstopConstraint::ApplyHelperISPC(FPBDParticles& Particles, const FReal Dt) const
 {
-	ApplyHelper(Particles, Dt);
-}
-
-template<>
-void TPBDSphericalBackstopConstraint<float, 3>::ApplyHelperISPC(TPBDParticles<float, 3>& Particles, const float Dt) const
-{
+	check(bRealTypeCompatibleWithISPC)
 	const int32 ParticleCount = SphereRadii.Num();
 
 #if INTEL_ISPC
@@ -88,6 +71,3 @@ void TPBDSphericalBackstopConstraint<float, 3>::ApplyHelperISPC(TPBDParticles<fl
 		ParticleCount);
 #endif
 }
-
-template class Chaos::TPBDSphericalConstraint<float, 3>;
-template class Chaos::TPBDSphericalBackstopConstraint<float, 3>;

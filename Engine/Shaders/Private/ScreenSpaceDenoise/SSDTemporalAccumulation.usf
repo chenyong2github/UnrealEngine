@@ -654,36 +654,40 @@ void TemporallyAccumulate(
 				/* inout */ UnusedCompressedAccumulators);
 		
 			// Exports the history sample from accumulator.
-			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
-			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 			{
-				HistorySamples.Array[BatchedSignalId] = SignalAccumulators.Array[BatchedSignalId].Moment1;
-				BRANCH
-				if (bCameraCut[BatchedSignalId])
+				UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
+				for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 				{
-					HistorySamples.Array[BatchedSignalId] = CreateSignalSampleFromScalarValue(0.0);
+					HistorySamples.Array[BatchedSignalId] = SignalAccumulators.Array[BatchedSignalId].Moment1;
+					BRANCH
+					if (bCameraCut[BatchedSignalId])
+					{
+						HistorySamples.Array[BatchedSignalId] = CreateSignalSampleFromScalarValue(0.0);
+					}
 				}
 			}
 
-			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
-			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 			{
-				FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
-				FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
+				UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
+				for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+				{
+					FSSDSignalSample CurrentFrameSample = CurrentFrameSamples.Array[BatchedSignalId];
+					FSSDSignalSample HistorySample = HistorySamples.Array[BatchedSignalId];
 
-				// Applies correction when pre exposure change happen.
-				#if COMPILE_SIGNAL_COLOR
-					HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
-				#endif
+					// Applies correction when pre exposure change happen.
+					#if COMPILE_SIGNAL_COLOR
+						HistorySamples.Array[BatchedSignalId].SceneColor.rgb *= HistoryPreExposureCorrection;
+					#endif
 
-				#if COMPILE_SIGNAL_COLOR_ARRAY > 0
-					UNROLL_N(COMPILE_SIGNAL_COLOR_ARRAY)
-					for (uint ColorId = 0; ColorId < COMPILE_SIGNAL_COLOR_ARRAY; ColorId++)
-					{
-						HistorySamples.Array[BatchedSignalId].ColorArray[ColorId] *= HistoryPreExposureCorrection;
-					}
-				#endif
-			} // for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+					#if COMPILE_SIGNAL_COLOR_ARRAY > 0
+						UNROLL_N(COMPILE_SIGNAL_COLOR_ARRAY)
+						for (uint ColorId = 0; ColorId < COMPILE_SIGNAL_COLOR_ARRAY; ColorId++)
+						{
+							HistorySamples.Array[BatchedSignalId].ColorArray[ColorId] *= HistoryPreExposureCorrection;
+						}
+					#endif
+				} // for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+			}
 		} // if (!bIsPreviousFrameOffscreen)
 	}
 	

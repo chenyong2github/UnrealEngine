@@ -254,9 +254,7 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	, bRequiresResourceStateTracking(true)
 	, bDepthStencil(false)
 	, bDeferDelete(true)
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	, bBackBuffer(false)
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	, HeapType(InHeapType)
 	, GPUVirtualAddress(0)
 	, ResourceBaseAddress(nullptr)
@@ -297,6 +295,18 @@ FD3D12Resource::~FD3D12Resource()
 		GFSDK_Aftermath_DX12_UnregisterResource(AftermathHandle);
 	}
 #endif
+}
+
+ID3D12Pageable* FD3D12Resource::GetPageable()
+{
+	if (IsPlacedResource())
+	{
+		return (ID3D12Pageable*)(GetHeap()->GetHeap());
+	}
+	else
+	{
+		return (ID3D12Pageable*)GetResource();
+	}
 }
 
 void FD3D12Resource::StartTrackingForResidency()

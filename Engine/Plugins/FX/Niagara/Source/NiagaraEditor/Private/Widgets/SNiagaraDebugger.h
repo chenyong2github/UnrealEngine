@@ -9,173 +9,121 @@
 #include "IPropertyChangeListener.h"
 
 #include "Niagara/Private/NiagaraDebugHud.h"
-#include "SNiagaraDebugger.generated.h"
+#include "NiagaraWorldManager.h"
+#include "NiagaraDebuggerCommon.h"
+#include "Niagara/Private/NiagaraDebugHud.h"
+#include "IMessageContext.h"
 
-USTRUCT()
-struct FNiagaraDebugHUDVariable
+class ISessionManager;
+class FMessageEndpoint;
+class ISessionInfo;
+class ISessionInstanceInfo;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraDebugger, Log, All);
+
+class SNiagaraDebugger : public SCompoundWidget
 {
-	GENERATED_BODY()
-		
-	UPROPERTY(EditAnywhere, Category = "Variable")
-	bool bEnabled = true;
-
-	/** Name of variables to match, uses wildcard matching. */
-	UPROPERTY(EditAnywhere, Category = "Variable")
-	FString Name;
-};
-
-UCLASS(config = EditorPerProjectUserSettings, defaultconfig)
-class UNiagaraDebugHUDSettings : public UObject
-{
-	GENERATED_BODY()
-
-public:
-	DECLARE_MULTICAST_DELEGATE(FOnChanged);
-	FOnChanged OnChangedDelegate;
-
-	/** Enables the Debug HUD display. */
-	UPROPERTY(EditAnywhere, Category = "Debug General")
-	bool bEnabled = false;
-
-	/**
-	When enabled GPU particles will be debuggable by copying the data to CPU
-	accessible memory, this has both a performance & memory cost.  The data
-	is also latent so expect a frame or two of lag.
-	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug General")
-	bool bEnableGpuReadback = false;
-
-	/** Modifies the display location of the HUD overview. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug General")
-	FIntPoint HUDLocation = FIntPoint(30.0f, 150.0f);
-
-	UPROPERTY(EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	bool bSystemFilterEnabled = true;
-
-	/**
-	Wildcard filter for the systems to show more detailed information about.
-	For example,. "NS_*" would match all systems starting with NS_.
-	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bSystemFilterEnabled"))
-	FString SystemFilter;
-
-	UPROPERTY(EditAnywhere, Category = "Debug Filter", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	bool bComponentFilterEnabled = true;
-
-	/**
-	Wildcard filter for the components to show more detailed information about.
-	For example, "*MyComp*" would match all components that contain MyComp.
-	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Filter", meta = (EditCondition = "bComponentFilterEnabled"))
-	FString ComponentFilter;
-
-	/** Modifies the in world system display information level. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
-	ENiagaraDebugHudSystemVerbosity SystemVerbosity = ENiagaraDebugHudSystemVerbosity::Basic;
-
-	/** When enabled will show the system bounds for all filtered systems. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
-	bool bSystemShowBounds = false;
-
-	/** When disabled in world rendering will show systems deactivated by scalability. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
-	bool bSystemShowActiveOnlyInWorld = true;
-
-	/** Should we display the system variables. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
-	bool bShowSystemVariables = true;
-
-	/**
-	List of variables to show about the system, each entry uses wildcard matching.
-	For example, "System.*" would match all system variables.
-	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
-	TArray<FNiagaraDebugHUDVariable> SystemVariables;
-
-	/**
-	Maximum number of particles to show information about.
-	Set to 0 to show all variables, but be warned that displaying information about 1000's of particles
-	will result in poor editor performance & potentially OOM on some platforms.
-	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
-	int32 MaxParticlesToDisplay = 32;
-
-	/** When enabled will show particle data in world, otherwise it's attached to the system display. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
-	bool bShowParticlesInWorld = true;
-
-	/** When enabled will show particle variables from the list. */
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
-	bool bShowParticleVariables = true;
-
-	/**
-	List of variables to show per particle, each entry uses wildcard matching.
-	For example, "*Position" would match all variables that end in Position.
-	*/
-	UPROPERTY(Config, EditAnywhere, Category = "Debug Particles")
-	TArray<FNiagaraDebugHUDVariable> ParticlesVariables;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-};
-
-class SNiagaraDebugger : public SCompoundWidget, public FGCObject
-{
-	struct FTargetDeviceEntry
-	{
-		FTargetDeviceId			DeviceId;
-		ITargetDeviceWeakPtr	DeviceWeakPtr;
-		const FSlateBrush*		DeviceIconBrush = nullptr;
-	};
-
-	typedef TSharedPtr<FTargetDeviceEntry> FTargetDeviceEntryPtr;
-
 public:
 	SLATE_BEGIN_ARGS(SNiagaraDebugger) {}
+		SLATE_ARGUMENT(TSharedPtr<class FTabManager>, TabManager)
 	SLATE_END_ARGS();
 
 	SNiagaraDebugger();
 	virtual ~SNiagaraDebugger();
 
 	void Construct(const FArguments& InArgs);
+	void FillWindowMenu(FMenuBuilder& MenuBuilder);
 
-	// SWidget interface
-	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-
-	/** FGCObject interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
-private:
-	TSharedRef<SWidget> MakeDeviceComboButtonMenu();
-
-	void InitDeviceList();
-	void DestroyDeviceList();
-
-	void AddTargetDevice(ITargetDeviceRef TargetDevice);
-	void RemoveTargetDevice(ITargetDeviceRef TargetDevice);
-	
-	void SelectDevice(FTargetDeviceEntryPtr DeviceEntry);
-
-	const FSlateBrush* GetTargetDeviceBrush(FTargetDeviceEntryPtr DeviceEntry) const;
-	FText GetTargetDeviceText(FTargetDeviceEntryPtr DeviceEntry) const;
-
-	const FSlateBrush* GetSelectedTargetDeviceBrush() const;
-	FText GetSelectedTargetDeviceText() const;
+	static void RegisterTabSpawner();
+	static void UnregisterTabSpawner();
+	static TSharedRef<class SDockTab> SpawnNiagaraDebugger(const class FSpawnTabArgs& Args);
 
 	void ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld);
-	void ExecHUDConsoleCommand();
+	void UpdateDebugHUDSettings();
 
-	float GetPlaybackRate() const;
-	void SetPlaybackRate(float Rate);
-
-	TOptional<float> GetGlobalLoopTime() const;
-	void SetGlobalLoopTime(float Time);
+private:
+	TSharedRef<SWidget> MakeToolbar();
+	TSharedRef<SWidget> MakePlaybackOptionsMenu();
 
 protected:
-	TArray<FTargetDeviceEntryPtr>	TargetDeviceList;
-	FTargetDeviceEntryPtr			SelectedTargetDevice;
-	bool							bWasDeviceConnected = true;
-	float							PlaybackRate = 1.0f;
-	float							GlobalLoopTime = 0.0f;
+	TSharedPtr<FTabManager>			TabManager;
+
+	//////////////////////////////////////////////////////////////////////////
+	// Session selection and message handling.
+public:
+	struct FClientInfo
+	{
+		FMessageAddress Address;
+		FGuid SessionId;
+		FGuid InstanceId;
+
+		/** Time this connection began it's current state, pending or connected. Used to timeout pending connections and track uptime of connected clients. */
+		double StartTime;
+
+		FORCEINLINE void Clear()
+		{
+			Address.Invalidate();
+			SessionId.Invalidate();
+			InstanceId.Invalidate();
+			StartTime = 0.0;
+		}
+	};
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConnectionMade, const FClientInfo&);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnConnectionClosed, const FClientInfo&);
+
+	template<typename TAction>
+	void ForAllConnectedClients(TAction Func);
+
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe>& GetMessageEndpoint() { return MessageEndpoint; }
+
+	FOnConnectionMade& GetOnConnectionMade() { return OnConnectionMadeDelegate; }
+	FOnConnectionClosed& GetOnConnectionClosed() { return OnConnectionClosedDelegate; }
+
+protected:
+
+	// Handles a connection accepted message and finalizes establishing the connection to a debugger client.
+	void HandleConnectionAcceptedMessage(const FNiagaraDebuggerAcceptConnection& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+
+	// Handles a connection closed message can be called from debugged clients if their instance shutsdown etc.
+	void HandleConnectionClosedMessage(const FNiagaraDebuggerConnectionClosed& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+
+	/** Callback from session manager when the selected session is changed. */
+	void SessionManager_OnSessionSelectionChanged(const TSharedPtr<ISessionInfo>& Session);
+
+	/** Callback from session manager when the selected instance is changed. */
+	void SessionManager_OnInstanceSelectionChanged(const TSharedPtr<ISessionInstanceInfo>& Instance, bool Selected);
+
+	/** Removes any active or pending connection to the given client and sends a message informing the client. */
+	void CloseConnection(FGuid SessionId, FGuid InstanceId);
+
+	int32 FindPendingConnection(FGuid SessionId, FGuid InstanceId)const;
+	int32 FindActiveConnection(FGuid SessionId, FGuid InstanceId)const;
+
+	/** Holds a pointer to the session manager. */
+	TSharedPtr<ISessionManager> SessionManager;
+
+	/** Holds the messaging endpoint. */
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
+
+	/** Clients that we are actively connected to. */
+	TArray<FClientInfo> ConnectedClients;
+	
+	/** Clients that we are awaiting an connection acceptance message from. */
+	TArray<FClientInfo> PendingClients;
+
+	FOnConnectionMade OnConnectionMadeDelegate;
+	FOnConnectionClosed OnConnectionClosedDelegate;
+	
+	// Session selection and message handling END
+	//////////////////////////////////////////////////////////////////////////
 };
+
+template<typename TAction>
+void SNiagaraDebugger::ForAllConnectedClients(TAction Func)
+{
+	for (SNiagaraDebugger::FClientInfo& Client : ConnectedClients)
+	{
+		Func(Client);
+	}
+}

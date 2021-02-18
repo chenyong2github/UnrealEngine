@@ -240,7 +240,7 @@ public:
 	template <typename TParticle>
 	void SyncToParticle(TParticle& Particle) const;
 	void SyncPrevFrame(FDirtyPropData& Manager,const FDirtyProxy& Dirty);
-	void SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticle& InParticle,const FGeometryParticleStateBase& RewindState);
+	void SyncIfDirty(const FDirtyPropData& Manager,const FGeometryParticleHandle& InParticle,const FGeometryParticleStateBase& RewindState);
 	bool CoalesceState(const FGeometryParticleStateBase& LatestState);
 	bool IsDesynced(const FConstDirtyPropData& SrcManager,const TGeometryParticleHandle<FReal,3>& Handle,const FParticleDirtyFlags Flags) const;
 
@@ -259,12 +259,12 @@ class FGeometryParticleState
 {
 public:
 
-	FGeometryParticleState(const FGeometryParticle& InParticle)
+	FGeometryParticleState(const FGeometryParticleHandle& InParticle)
 	: Particle(InParticle)
 	{
 	}
 
-	FGeometryParticleState(const FGeometryParticleStateBase& InState, const FGeometryParticle& InParticle)
+	FGeometryParticleState(const FGeometryParticleStateBase& InState, const FGeometryParticleHandle& InParticle)
 	: Particle(InParticle)
 	, State(InState)
 	{
@@ -392,7 +392,7 @@ public:
 		return State.AngularImpulse(Particle);
 	}
 
-	const FGeometryParticle& GetParticle() const
+	const FGeometryParticleHandle& GetHandle() const
 	{
 		return Particle;
 	}
@@ -408,7 +408,7 @@ public:
 	}
 
 private:
-	const FGeometryParticle& Particle;
+	const FGeometryParticleHandle& Particle;
 	FGeometryParticleStateBase State;
 };
 
@@ -421,7 +421,7 @@ enum class EFutureQueryResult
 
 struct FDesyncedParticleInfo
 {
-	FGeometryParticle* Particle;
+	FGeometryParticleHandle* Particle;
 	ESyncState MostDesynced;	//Indicates the most desynced this particle got during resim (could be that it was soft desync and then went back to normal)
 };
 
@@ -457,7 +457,7 @@ public:
 	TArray<FDesyncedParticleInfo> CHAOS_API ComputeDesyncInfo() const;
 
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticle& Particle,int32 Frame) const;
+	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const FGeometryParticleHandle& Handle,int32 Frame) const;
 
 	/* Query the state of particles in the future. This operation can fail for particles that are desynced or that we have not been tracking */
 	EFutureQueryResult CHAOS_API GetFutureStateAtFrame(FGeometryParticleState& OutState,int32 Frame) const;
@@ -661,7 +661,6 @@ private:
 		TCircularBuffer<FFrameInfo> Frames;
 		TCircularBuffer<FDirtyFrameInfo> GTDirtyOnFrame;
 	private:
-		FGeometryParticle* GTParticle;
 		TGeometryParticleHandle<FReal,3>* PTParticle;
 	public:
 		FUniqueIdx CachedUniqueIdx;	//Needed when manipulating on physics thread and Particle data cannot be read
@@ -672,7 +671,6 @@ private:
 		FDirtyParticleInfo(FGeometryParticle& UnsafeGTParticle, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
 		: Frames(NumFrames)
 		, GTDirtyOnFrame(NumFrames)
-		, GTParticle(&UnsafeGTParticle)
 		, PTParticle(&InPTParticle)
 		, CachedUniqueIdx(UniqueIdx)
 		, LastDirtyFrame(CurFrame)
@@ -680,12 +678,6 @@ private:
 		, MostDesynced(ESyncState::HardDesync)
 		{
 
-		}
-
-		FGeometryParticle* GetGTParticle() const
-		{
-			ensure(IsInGameThread());
-			return GTParticle;
 		}
 
 		TGeometryParticleHandle<FReal,3>* GetPTParticle() const
@@ -750,5 +742,32 @@ private:
 	int32 DataIdxOffset;
 	bool bNeedsSave;	//Indicates that some data is pointing at head and requires saving before a rewind
 	bool bResimOptimization;
+};
+
+/** Used by user code to determine when rewind should occur and gives it the opportunity to record any additional data */
+class IRewindCallback
+{
+public:
+	virtual ~IRewindCallback() = default;
+	/** Called before any sim callbacks are triggered but after physics data has marshalled over
+	*   This means brand new physics particles are already created for example, and any pending game thread modifications have happened
+	*   See ISimCallbackObject for recording inputs to callbacks associated with this PhysicsStep */
+	virtual void RecordInputs(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs){}
+
+	/** Called after sim step to give the option to rewind. Any pending inputs for the next frame will remain in the queue
+	*   Return the PhysicsStep to start resimulating from. Resim will run up until latest step passed into RecordInputs (i.e. latest physics sim simulated so far)
+	*   Return INDEX_NONE to indicate no rewind
+	*/
+	virtual int32 TriggerRewindIfNeeded(int32 LatestStepCompleted) { return INDEX_NONE; }
+
+	/** Called before each rewind step. This is to give user code the opportunity to trigger other code before each rewind step
+	*   Usually to simulate external systems that ran in lock step with the physics sim
+	*/
+	virtual void PreResimStep(int32 PhysicsStep, bool bFirstStep){}
+
+	/** Called after each rewind step. This is to give user code the opportunity to trigger other code after each rewind step
+	*   Usually to simulate external systems that ran in lock step with the physics sim
+	*/
+	virtual void PostResimStep(int32 PhysicsStep){}
 };
 }

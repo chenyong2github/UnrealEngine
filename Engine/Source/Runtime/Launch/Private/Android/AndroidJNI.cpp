@@ -164,6 +164,9 @@ void FJavaWrapper::FindClassesAndMethods(JNIEnv* Env)
 	AndroidThunkJava_SetNativeDisplayRefreshRate = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_SetNativeDisplayRefreshRate", "(I)Z", bIsOptional);
 	AndroidThunkJava_GetSupportedNativeDisplayRefreshRates = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetSupportedNativeDisplayRefreshRates", "()[I", bIsOptional);
 
+	// motion controls
+	AndroidThunkJava_EnableMotion = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_EnableMotion", "(Z)V", bIsOptional);
+
 	// the rest are optional
 	bIsOptional = true;
 
@@ -454,6 +457,8 @@ jmethodID FJavaWrapper::AndroidThunkJava_RestartApplication;
 jmethodID FJavaWrapper::AndroidThunkJava_GetSupportedNativeDisplayRefreshRates;
 jmethodID FJavaWrapper::AndroidThunkJava_GetNativeDisplayRefreshRate;
 jmethodID FJavaWrapper::AndroidThunkJava_SetNativeDisplayRefreshRate;
+
+jmethodID FJavaWrapper::AndroidThunkJava_EnableMotion;
 
 jclass FJavaWrapper::LaunchNotificationClass;
 jfieldID FJavaWrapper::LaunchNotificationUsed;
@@ -1783,6 +1788,15 @@ int32 AndroidThunkCpp_GetNativeDisplayRefreshRate()
 		Result = FJavaWrapper::CallIntMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_GetNativeDisplayRefreshRate);
 	}
 	return Result;
+}
+
+void AndroidThunkCpp_EnableMotion(bool bEnable)
+{
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		// call the java side
+		FJavaWrapper::CallVoidMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_EnableMotion, bEnable);
+	}
 }
 
 JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnSafetyNetAttestationSucceeded(JNIEnv* jenv, jobject thiz, jstring jwsData)

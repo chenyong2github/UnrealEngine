@@ -25,7 +25,11 @@ const FName PythonOutputsPinName = "PythonOutputs";
 
 FString PythonizePinName(const FName InPinName)
 {
+#if WITH_PYTHON
 	return PyGenUtil::PythonizePropertyName(InPinName.ToString(), PyGenUtil::EPythonizeNameCase::Lower);
+#else
+	return InPinName.ToString();
+#endif
 }
 
 FString PythonizePinName(const UEdGraphPin* InPin)
@@ -217,11 +221,13 @@ void UK2Node_ExecutePythonScript::EarlyValidation(FCompilerResultsLog& MessageLo
 			}
 			else
 			{
+#if WITH_PYTHON
 				FText NameValidationError;
 				if (!PyGenUtil::IsValidName(PythonizedPinName, &NameValidationError))
 				{
 					MessageLog.Error(*FText::Format(LOCTEXT("InvalidPinName_GenValidationError", "Pin '{0}' ({1}) on @@ failed name validation: {2}."), FText::AsCultureInvariant(PinName.ToString()), FText::AsCultureInvariant(PythonizedPinName), NameValidationError).ToString(), this);
 				}
+#endif // WITH_PYTHON
 
 				bool bAlreadyUsed = false;
 				AllPinNames.Add(PythonizedPinName, &bAlreadyUsed);

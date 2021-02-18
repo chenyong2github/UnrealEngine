@@ -182,7 +182,8 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 
 #if NUM_TEX_COORD_INTERPOLATORS
-	float2	TexCoords[NUM_TEX_COORD_INTERPOLATORS]	: TEXCOORD0;
+	// Pack interpolators to reduce the number of semantics used
+	float4	TexCoords[(NUM_TEX_COORD_INTERPOLATORS+1)/2]	: TEXCOORD0;
 #endif
 
 #if INSTANCED_STEREO
@@ -195,6 +196,27 @@ struct FVertexFactoryInterpolantsVSToDS
 	FVertexFactoryInterpolantsVSToPS InterpolantsVSToPS;
 };
 
+#if NUM_TEX_COORD_INTERPOLATORS
+float2 GetUV(FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex)
+{
+	float4 UVVector = Interpolants.TexCoords[UVIndex / 2];
+	return UVIndex % 2 ? UVVector.zw : UVVector.xy;
+}
+
+void SetUV(inout FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex, float2 InValue)
+{
+	FLATTEN
+	if (UVIndex % 2)
+	{
+		Interpolants.TexCoords[UVIndex / 2].zw = InValue;
+	}
+	else
+	{
+		Interpolants.TexCoords[UVIndex / 2].xy = InValue;
+	}
+}
+#endif
+
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
 FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVSToPS Interpolants, float4 SvPosition)
 {
@@ -205,7 +227,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	UNROLL
 	for(int CoordinateIndex = 0;CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS;CoordinateIndex++)
 	{
-		Result.TexCoords[CoordinateIndex] = Interpolants.TexCoords[CoordinateIndex];
+		Result.TexCoords[CoordinateIndex] = GetUV(Interpolants, CoordinateIndex);
 	}
 #endif
 
@@ -824,16 +846,21 @@ float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryInte
 FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
 {
 	FVertexFactoryInterpolantsVSToPS Interpolants;
+	Interpolants = (FVertexFactoryInterpolantsVSToPS)0;	// compiling the SetUV loop will fail if not completely initialized
 
 #if NUM_TEX_COORD_INTERPOLATORS
-	float2 CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS];
+	float2 CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS]; // = (float2[NUM_TEX_COORD_INTERPOLATORS])0; <- our FHlslParser used for RemoveUnusedOutputs doesn't seem to like this, so zero-initialize manually below.
+	// Why zero-initialize? Because material translator stores interpolants in an array of float2, packing them, but the material may have an odd number of interpolants (e.g. float3).
+	// In such a case GetCustomInterpolators() will omit writing the last component, leaving it uninitialized, hence the initialization below.
+	CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS - 1] = float2(0, 0);	
+
 	GetMaterialCustomizedUVs(VertexParameters, CustomizedUVs);
 	GetCustomInterpolators(VertexParameters, CustomizedUVs);
 
 	UNROLL
 	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
 	{
-		Interpolants.TexCoords[CoordinateIndex] = CustomizedUVs[CoordinateIndex];
+		SetUV(Interpolants, CoordinateIndex, CustomizedUVs[CoordinateIndex]);
 	}
 #endif
 
@@ -909,7 +936,7 @@ FMaterialTessellationParameters GetMaterialTessellationParameters(FVertexFactory
 	UNROLL
 	for (int CoordinateIndex = 0;CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS;CoordinateIndex++)
 	{
-		Result.TexCoords[CoordinateIndex] = Interpolants.InterpolantsVSToPS.TexCoords[CoordinateIndex];
+		Result.TexCoords[CoordinateIndex] = GetUV(Interpolants.InterpolantsVSToPS, CoordinateIndex);
 	}
 #endif
 
@@ -945,7 +972,8 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpol
 
 #if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
-	for(int tc = 0; tc < NUM_TEX_COORD_INTERPOLATORS; ++tc)
+	// TexCoords in VSToPS are a float4 array with 2 coords packed together
+	for(int tc = 0; tc < (NUM_TEX_COORD_INTERPOLATORS+1)/2; ++tc)
 	{
 		TESSELLATION_INTERPOLATE_MEMBER(InterpolantsVSToPS.TexCoords[tc]);
 	}

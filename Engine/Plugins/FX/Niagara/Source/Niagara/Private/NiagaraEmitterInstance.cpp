@@ -539,6 +539,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting /*= true*/)
 	TickCount = 0;
 	InstanceSeed = FGenericPlatformMath::Rand();
 	CachedBounds.Init();
+	ParticlesWithComponents.Empty();
 
 	if (MinOverallocation > 100 && GbNiagaraShowAllocationWarnings)
 	{
@@ -579,6 +580,16 @@ void FNiagaraEmitterInstance::OnPooledReuse()
 	{
 		GPUExecContext->Reset(Batcher);
 	}
+}
+
+void FNiagaraEmitterInstance::SetParticleComponentActive(FObjectKey ComponentKey, int32 ParticleID) const
+{
+	ParticlesWithComponents.FindOrAdd(ComponentKey).Add(ParticleID);
+}
+
+bool FNiagaraEmitterInstance::IsParticleComponentActive(FObjectKey ComponentKey, int32 ParticleID) const
+{
+	return ParticlesWithComponents.FindOrAdd(ComponentKey).Contains(ParticleID);
 }
 
 void FNiagaraEmitterInstance::CheckForErrors()
@@ -879,7 +890,7 @@ float FNiagaraEmitterInstance::GetTotalCPUTimeMS()
 	return FPlatformTime::ToMilliseconds(TotalCycles);
 }
 
-int FNiagaraEmitterInstance::GetTotalBytesUsed()
+int64 FNiagaraEmitterInstance::GetTotalBytesUsed()
 {
 	check(ParticleDataSet);
 	int32 BytesUsed = ParticleDataSet->GetSizeBytes();
@@ -1068,6 +1079,27 @@ bool FNiagaraEmitterInstance::RequiresPersistentIDs() const
 	return GetEmitterHandle().GetInstance()->RequiresPersistentIDs() || ParticleDataSet->HasVariable(SYS_PARAM_PARTICLES_ID);
 }
 
+#if WITH_EDITOR
+void FNiagaraEmitterInstance::TickRapidIterationParameters()
+{
+	if (IsComplete())
+	{
+		return;
+	}
+
+	CachedEmitter->SpawnScriptProps.Script->RapidIterationParameters.Tick();
+	CachedEmitter->UpdateScriptProps.Script->RapidIterationParameters.Tick();
+	if (EventInstanceData.IsValid())
+	{
+		ensure(CachedEmitter->GetEventHandlers().Num() == EventInstanceData->EventExecContexts.Num());
+		for (int32 i = 0; i < CachedEmitter->GetEventHandlers().Num(); i++)
+		{
+			CachedEmitter->GetEventHandlers()[i].Script->RapidIterationParameters.Tick();
+		}
+	}
+}
+#endif
+
 /** 
   * PreTick - handles killing dead particles, emitter death, and buffer swaps
   */
@@ -1084,19 +1116,6 @@ void FNiagaraEmitterInstance::PreTick()
 
 	checkSlow(ParticleDataSet);
 	FNiagaraDataSet& Data = *ParticleDataSet;
-
-#if WITH_EDITOR
-	CachedEmitter->SpawnScriptProps.Script->RapidIterationParameters.Tick();
-	CachedEmitter->UpdateScriptProps.Script->RapidIterationParameters.Tick();
-	if (EventInstanceData.IsValid())
-	{
-		ensure(CachedEmitter->GetEventHandlers().Num() == EventInstanceData->EventExecContexts.Num());
-		for (int32 i = 0; i < CachedEmitter->GetEventHandlers().Num(); i++)
-		{
-			CachedEmitter->GetEventHandlers()[i].Script->RapidIterationParameters.Tick();
-		}
-	}
-#endif
 
 	bool bOk = true;
 	bOk &= SpawnExecContext.Tick(ParentSystemInstance, CachedEmitter->SimTarget);

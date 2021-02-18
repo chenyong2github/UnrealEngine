@@ -751,7 +751,7 @@ public:
 class FVulkanQueryPool : public VulkanRHI::FDeviceChild
 {
 public:
-	FVulkanQueryPool(FVulkanDevice* InDevice, FVulkanCommandBufferManager* CommandBufferManager, uint32 InMaxQueries, VkQueryType InQueryType);
+	FVulkanQueryPool(FVulkanDevice* InDevice, FVulkanCommandBufferManager* CommandBufferManager, uint32 InMaxQueries, VkQueryType InQueryType, bool bInShouldAddReset = true);
 	virtual ~FVulkanQueryPool();
 
 	inline uint32 GetMaxQueries() const
@@ -871,7 +871,7 @@ class FVulkanTimingQueryPool : public FVulkanQueryPool
 {
 public:
 	FVulkanTimingQueryPool(FVulkanDevice* InDevice, FVulkanCommandBufferManager* CommandBufferManager, uint32 InBufferSize)
-		: FVulkanQueryPool(InDevice, CommandBufferManager, InBufferSize * 2, VK_QUERY_TYPE_TIMESTAMP)
+		: FVulkanQueryPool(InDevice, CommandBufferManager, InBufferSize * 2, VK_QUERY_TYPE_TIMESTAMP, false)
 		, BufferSize(InBufferSize)
 	{
 		TimestampListHandles.AddZeroed(InBufferSize * 2);

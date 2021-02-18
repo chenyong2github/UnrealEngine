@@ -19,10 +19,13 @@ class ITimeSliderController;
 class CURVEEDITOR_API SCurveEditorViewContainer : public SVerticalBox
 {
 	SLATE_BEGIN_ARGS(SCurveEditorViewContainer)
+		: _MinimumPanelHeight(300.0f)
 	{}
 
 		/** Optional Time Slider Controller which allows us to synchronize with an externally controlled Time Slider */
 		SLATE_ARGUMENT(TSharedPtr<ITimeSliderController>, ExternalTimeSliderController)
+		/** The minimum height for this container panel. */
+		SLATE_ARGUMENT(float, MinimumPanelHeight)
 
 	SLATE_END_ARGS()
 
@@ -85,4 +88,7 @@ private:
 	 * Used to check if the selection should be cleared
 	 */
 	bool bCaughtMouseDown;
+
+	/** The minimum height for this container panel. **/
+	float MinimumPanelHeight;
 };

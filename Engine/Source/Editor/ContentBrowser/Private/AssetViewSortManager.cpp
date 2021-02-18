@@ -399,7 +399,13 @@ void FAssetViewSortManager::SortList(TArray<TSharedPtr<FAssetViewItem>>& AssetIt
 					{
 						FString UnusedValue;
 						AssetItem->GetTagValue(Tag, UnusedValue, &TagType);
-						break;
+
+						// If we get hidden, that usually means that it is a new tag not serialized in this particular asset. At least 
+						// one asset in the list has to have this defined, or else we wouldn't have it in the tag list at all.
+						if (TagType != UObject::FAssetRegistryTag::TT_Hidden)
+						{
+							break;
+						}
 					}
 				}
 			}

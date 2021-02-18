@@ -79,6 +79,12 @@ public:
 		return bIsCancelled;
 	}
 
+	/** Returns whether this update has finished successfully. */
+	bool IsSuccessfullyFinished() const
+	{
+		return bSuccess;
+	}
+
 	/** Perform a lock on the object, preventing any other thread from processing a pending task in Tick(). */
 	ETaskState DoLock();
 
@@ -117,7 +123,16 @@ protected:
 	void MarkAsCancelled()
 	{
 		// StreamableAsset = nullptr; // TODO once Cancel supports it!
-		bIsCancelled = true;
+
+		if (TaskState != TS_Done) // do not cancel if we have already completed, see FORT-345212.
+		{
+			bIsCancelled = true;
+		}
+	}
+
+	void MarkAsSuccessfullyFinished()
+	{
+		bSuccess = true;
 	}
 
 	void ScheduleGTTask();
@@ -176,6 +191,9 @@ protected:
 
 	/** Defer execution even if a task pushes a new task on the same thread. */
 	bool bDeferExecution;
+
+	/** Whether this update finished successfully. True means that it is TS_Done and not cancelled mid way. */
+	bool bSuccess;
 
 	/** The state of the work yet to be performed to complete the update or cancelation. */
 	volatile ETaskState TaskState;

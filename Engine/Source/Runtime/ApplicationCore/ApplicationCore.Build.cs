@@ -35,6 +35,9 @@ public class ApplicationCore : ModuleRules
 			{
 				PublicSystemLibraries.Add("uiautomationcore.lib");
 			}
+
+			// Uses DXGI to query GPU hardware prior to RHI startup
+			PublicSystemLibraries.Add("DXGI.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

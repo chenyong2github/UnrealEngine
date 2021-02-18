@@ -4,14 +4,21 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraCommon.h"
 #include "VectorVM.h"
+#include "NiagaraParameterStore.h"
 #include "Components/SplineComponent.h"
 #include "NiagaraDataInterfaceSpline.generated.h"
 
 
 struct FNDISpline_InstanceData
 {
+	FNDISpline_InstanceData() :CachedUserParam(nullptr){}
 	//Cached ptr to component we sample from. 
 	TWeakObjectPtr<USplineComponent> Component;
+
+	UObject* CachedUserParam;
+
+	/** A binding to the user ptr we're reading the mesh from (if we are). */
+	FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
 
 	//Cached ComponentToWorld.
 	FMatrix Transform;
@@ -23,8 +30,10 @@ struct FNDISpline_InstanceData
 
 	FSplineCurves SplineCurves;
 
+	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceSpline* Interface, FNiagaraSystemInstance* SystemInstance) const;
+
 	float GetSplineLength() const;
-	bool IsValid() const;
+	bool IsValid() const; 
 	FVector GetLocationAtDistanceAlongSpline(float Distance, ESplineCoordinateSpace::Type CoordinateSpace) const;
 	FVector GetLocationAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
 	FQuat GetQuaternionAtSplineInputKey(float InKey, ESplineCoordinateSpace::Type CoordinateSpace) const;
@@ -55,6 +64,10 @@ public:
 	/** The source actor from which to sample.  Note that this can only be set when used as a user variable on a component in the world.*/
 	UPROPERTY(EditAnywhere, Category = "Spline")
 	TObjectPtr<AActor> Source;
+
+	/** Reference to a user parameter if we're reading one. This should  be an Object user parameter that is either a USplineComponent or an AActor containing a USplineComponent. */
+	UPROPERTY(EditAnywhere, Category = "Spline")
+	FNiagaraUserParameterBinding SplineUserParameter;
 	
 	//UObject Interface
 	virtual void PostInitProperties()override;

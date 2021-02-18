@@ -628,11 +628,15 @@ private:
 
 namespace FShaderCompileUtilities
 {
-	bool DoWriteTasks(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& TransferFile);
+	bool DoWriteTasks(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& TransferFile, bool bUseRelativePaths = false);
 	void DoReadTaskResults(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& OutputFile);
 
 	/** Execute the specified (single or pipeline) shader compile job. */
 	void ExecuteShaderCompileJob(FShaderCommonCompileJob& Job);
+
+	class FArchive* CreateFileHelper(const FString& Filename);
+	void MoveFileHelper(const FString& To, const FString& From);
+	void DeleteFileHelper(const FString& Filename);
 
 	void GenerateBrdfHeaders(const EShaderPlatform Platform);
 	void ApplyDerivedDefines(FShaderCompilerEnvironment& OutEnvironment, FShaderCompilerEnvironment * SharedEnvironment, const EShaderPlatform Platform);
@@ -771,6 +775,100 @@ private:
 	void DispatchShaderCompileJobsBatch(TArray<FShaderCommonCompileJobPtr>& JobsToSerialize);
 };
 
+class FShaderCompileFASTBuildThreadRunnable : public FShaderCompileThreadRunnableBase
+{
+private:
+	/** The handle referring to the XGE console process, if a build is in progress. */
+	FProcHandle BuildProcessHandle;
+	void* PipeRead = nullptr;
+	void* PipeWrite = nullptr;
+
+	/** Process ID of the XGE console, if a build is in progress. */
+	uint32 BuildProcessID;
+
+	/**
+	* A map of directory paths to shader jobs contained within that directory.
+	* One entry per XGE task.
+	*/
+	class FShaderBatch
+	{
+		TArray<FShaderCommonCompileJobPtr> Jobs;
+		bool bTransferFileWritten;
+
+	public:
+		bool bSuccessfullyCompleted;
+		const FString& DirectoryBase;
+		const FString InputFileName;
+		const FString& SuccessFileName;
+		const FString OutputFileName;
+
+		int32 BatchIndex;
+		int32 DirectoryIndex;
+
+		FString WorkingDirectory;
+		FString OutputFileNameAndPath;
+		FString SuccessFileNameAndPath;
+		FString InputFileNameAndPath;
+
+		FShaderBatch(const FString& InDirectoryBase, const FString& InInputFileName, const FString& InSuccessFileName, const FString& InOutputFileName, int32 InDirectoryIndex, int32 InBatchIndex)
+			: bTransferFileWritten(false)
+			, bSuccessfullyCompleted(false)
+			, DirectoryBase(InDirectoryBase)
+			, InputFileName(InInputFileName)
+			, SuccessFileName(InSuccessFileName)
+			, OutputFileName(InOutputFileName)
+		{
+			SetIndices(InDirectoryIndex, InBatchIndex);
+		}
+
+		void SetIndices(int32 InDirectoryIndex, int32 InBatchIndex);
+
+		void CleanUpFiles(bool keepInputFile);
+
+		inline int32 NumJobs()
+		{
+			return Jobs.Num();
+		}
+		inline const TArray<FShaderCommonCompileJobPtr>& GetJobs() const
+		{
+			return Jobs;
+		}
+
+		void AddJob(FShaderCommonCompileJobPtr Job);
+
+		void WriteTransferFile();
+	};
+	TArray<FShaderBatch*> ShaderBatchesInFlight;
+	int32 ShaderBatchesInFlightCompleted;
+	TArray<FShaderBatch*> ShaderBatchesFull;
+	TSparseArray<FShaderBatch*> ShaderBatchesIncomplete;
+
+	/** The full path to the two working directories for XGE shader builds. */
+	const FString FASTBuildWorkingDirectory;
+	uint32 FASTBuildDirectoryIndex;
+
+	uint64 LastAddTime;
+	uint64 StartTime;
+	int32 BatchIndexToCreate;
+	int32 BatchIndexToFill;
+
+	FDateTime ScriptFileCreationTime;
+
+	void PostCompletedJobsForBatch(FShaderBatch* Batch);
+
+	void GatherResultsFromFASTBuild();
+
+public:
+	/** Initialization constructor. */
+	FShaderCompileFASTBuildThreadRunnable(class FShaderCompilingManager* InManager);
+	virtual ~FShaderCompileFASTBuildThreadRunnable();
+
+	/** Main work loop. */
+	virtual int32 CompilingLoop() override;
+
+	static bool IsSupported();
+};
+
 /** Results for a single compiled and finalized shader map. */
 using FShaderMapFinalizeResults = FShaderMapCompileResults;
 
@@ -831,6 +929,7 @@ class FShaderCompilingManager
 	friend class FShaderCompileXGEThreadRunnable_XmlInterface;
 #endif // PLATFORM_WINDOWS
 	friend class FShaderCompileDistributedThreadRunnable_Interface;
+	friend class FShaderCompileFASTBuildThreadRunnable;
 
 private:
 

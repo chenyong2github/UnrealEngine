@@ -3,11 +3,10 @@
 #include "OpenXRCore.h"
 #include "HeadMountedDisplayTypes.h"
 
-#define DEFINE_XR_ENTRYPOINTS(Type,Func) Type Func = nullptr;
+#define DEFINE_XR_ENTRYPOINTS(Type,Func) Type OpenXRDynamicAPI::Func = nullptr;
 ENUM_XR_ENTRYPOINTS_GLOBAL(DEFINE_XR_ENTRYPOINTS);
 ENUM_XR_ENTRYPOINTS(DEFINE_XR_ENTRYPOINTS);
 DEFINE_XR_ENTRYPOINTS(PFN_xrGetInstanceProcAddr,xrGetInstanceProcAddr);
-#undef DEFINE_XR_ENTRYPOINTS
 
 #define GET_XR_ENTRYPOINTS(Type,Func) if (!XR_ENSURE(xrGetInstanceProcAddr(Instance, #Func, (PFN_xrVoidFunction*)&Func))) \
 		{ UE_LOG(LogHMD, Warning, TEXT("Failed to find entry point for %s"), TEXT(#Func)); return false; }

@@ -388,33 +388,34 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 			{
 				bool bFoundMaster = false;
-				FTransform CompSpaceTransform;
 				if (MasterBoneMap.IsValidIndex(BoneIndex))
 				{
 					const int32 MasterIndex = MasterBoneMap[BoneIndex];
 					if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
 					{
-						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
-						CurrBones[BoneIndex] = (SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex] * MasterTransforms[MasterIndex]).ToMatrixWithScale();
 						bFoundMaster = true;
+						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
 					}
 				}
 
-				if (!bFoundMaster)
+				if ( !bFoundMaster )
 				{
 					const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
-
-					if (CurrTransforms.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex)
+					FTransform BoneTransform = SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+					if ((ParentIndex >= 0) && (ParentIndex < BoneIndex))
 					{
-						CurrTransforms[BoneIndex] = CurrTransforms[ParentIndex] * SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+						BoneTransform = BoneTransform * CurrTransforms[ParentIndex];
 					}
-					else
-					{
-						CurrTransforms[BoneIndex] = SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
-					}
+					CurrTransforms[BoneIndex] = BoneTransform;
+				}
 
+				if (SkelMesh->GetRefBasesInvMatrix().IsValidIndex(BoneIndex))
+				{
+					CurrBones[BoneIndex] = SkelMesh->GetRefBasesInvMatrix()[BoneIndex] * CurrTransforms[BoneIndex].ToMatrixWithScale();
+				}
+				else
+				{
 					CurrBones[BoneIndex] = CurrTransforms[BoneIndex].ToMatrixWithScale();
-
 				}
 			}
 		}
@@ -509,7 +510,7 @@ FSkeletalMeshSkinningDataHandle FNDI_SkeletalMesh_GeneratedData::GetCachedSkinni
 		bNeedsDataImmediately);
 }
 
-void FNDI_SkeletalMesh_GeneratedData::TickGeneratedData(ETickingGroup TickGroup, float DeltaSeconds)
+void FNDI_SkeletalMesh_GeneratedData::Tick(ETickingGroup TickGroup, float DeltaSeconds)
 {
 	check(IsInGameThread());
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraSkel_PreSkin);
@@ -1817,53 +1818,6 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 	return Mesh;
 }
 
-static void EvaluateSystemUsage(const FNiagaraSystemInstance& SystemInstance, const FName& FunctionName, bool& UsedOnCpu, bool& UsedOnGpu)
-{
-	auto ScriptUsesFunction = [&](UNiagaraScript* Script)
-	{
-		if (Script)
-		{
-			const bool IsGpuScript = UNiagaraScript::IsGPUScript(Script->Usage);
-			const auto& VMExecData = Script->GetVMExecutableData();
-
-			if (!UsedOnGpu && IsGpuScript)
-			{
-				for (const FNiagaraDataInterfaceGPUParamInfo& DIParamInfo : VMExecData.DIParamInfo)
-				{
-					auto GpuFunctionPredicate = [&](const FNiagaraDataInterfaceGeneratedFunction& DIFunction)
-					{
-						return DIFunction.DefinitionName == FunctionName;
-					};
-
-					if (DIParamInfo.GeneratedFunctions.ContainsByPredicate(GpuFunctionPredicate))
-					{
-						UsedOnGpu = true;
-						break;
-					}
-				}
-			}
-
-			if (!UsedOnCpu && !IsGpuScript)
-			{
-				auto CpuFunctionPredicate = [&](const FVMExternalFunctionBindingInfo& BindingInfo)
-				{
-					return BindingInfo.Name == FunctionName;
-				};
-
-				if (VMExecData.CalledVMExternalFunctions.ContainsByPredicate(CpuFunctionPredicate))
-				{
-					UsedOnCpu = true;
-				}
-			}
-		}
-	};
-
-	if (const UNiagaraSystem* System = SystemInstance.GetSystem())
-	{
-		System->ForEachScript(ScriptUsesFunction);
-	}
-}
-
 bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance)
 {
 	check(Interface);
@@ -1985,7 +1939,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		const bool bNeedsDataImmediately = true;
 
 		TWeakObjectPtr<USkeletalMeshComponent> SkelWeakCompPtr = NewSkelComp;
-		FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->GetSkeletalMeshGeneratedData();
+		FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->EditGeneratedData<FNDI_SkeletalMesh_GeneratedData>();
 		SkinningData = GeneratedData.GetCachedSkinningData(SkelWeakCompPtr, Usage, bNeedsDataImmediately);
 	}
 	else
@@ -1998,8 +1952,8 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		bool UsedByCpuUvMapping = false;
 		bool UsedByGpuUvMapping = false;
 
-		EvaluateSystemUsage(*SystemInstance, FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName, UsedByCpuUvMapping, UsedByGpuUvMapping);
-		EvaluateSystemUsage(*SystemInstance, FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName, UsedByCpuUvMapping, UsedByGpuUvMapping);
+		SystemInstance->EvaluateBoundFunction(FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName, UsedByCpuUvMapping, UsedByGpuUvMapping);
+		SystemInstance->EvaluateBoundFunction(FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName, UsedByCpuUvMapping, UsedByGpuUvMapping);
 
 		const bool MeshValid = SkeletalMesh.IsValid();
 		const bool SupportUvMappingCpu = UsedByCpuUvMapping && MeshValid;
@@ -2011,7 +1965,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		{
 			const bool bNeedsDataImmediately = true;
 
-			FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->GetSkeletalMeshGeneratedData();
+			FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->EditGeneratedData<FNDI_SkeletalMesh_GeneratedData>();
 			UvMapping = GeneratedData.GetCachedUvMapping(SkeletalMesh, CachedLODIdx, Interface->UvSetIndex, UvMappingUsage, bNeedsDataImmediately);
 		}
 		else
@@ -2025,8 +1979,8 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		bool UsedByCpuConnectivity = false;
 		bool UsedByGpuConnectivity = false;
 
-		EvaluateSystemUsage(*SystemInstance, FSkeletalMeshInterfaceHelper::GetAdjacentTriangleIndexName, UsedByCpuConnectivity, UsedByGpuConnectivity);
-		EvaluateSystemUsage(*SystemInstance, FSkeletalMeshInterfaceHelper::GetTriangleNeighborName, UsedByCpuConnectivity, UsedByGpuConnectivity);
+		SystemInstance->EvaluateBoundFunction(FSkeletalMeshInterfaceHelper::GetAdjacentTriangleIndexName, UsedByCpuConnectivity, UsedByGpuConnectivity);
+		SystemInstance->EvaluateBoundFunction(FSkeletalMeshInterfaceHelper::GetTriangleNeighborName, UsedByCpuConnectivity, UsedByGpuConnectivity);
 
 		const bool MeshValid = SkeletalMesh.IsValid();
 		const bool SupportConnectivityCpu = UsedByCpuConnectivity && MeshValid;
@@ -2038,7 +1992,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 		{
 			const bool bNeedsDataImmediately = true;
 
-			FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->GetSkeletalMeshGeneratedData();
+			FNDI_SkeletalMesh_GeneratedData& GeneratedData = SystemInstance->GetWorldManager()->EditGeneratedData<FNDI_SkeletalMesh_GeneratedData>();
 			Connectivity = GeneratedData.GetCachedConnectivity(SkeletalMesh, CachedLODIdx, ConnectivityUsage, bNeedsDataImmediately);
 		}
 		else

@@ -110,7 +110,11 @@ public:
 	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
 
+	virtual bool CanRenderVariablesToCanvas() const { return true; }
+	virtual void GetCanvasVariables(TArray<FNiagaraVariableBase>& OutVariables) const override;
+	virtual bool RenderVariableToCanvas(FNiagaraSystemInstanceID SystemInstanceID, FName VariableName, class FCanvas* Canvas, const FIntRect& DrawRect) const override;
 	//~ UNiagaraDataInterface interface END
+
 	void GetSize(FVectorVMContext& Context); 
 	void SetSize(FVectorVMContext& Context);
 
@@ -147,6 +151,8 @@ public:
 
 protected:
 	static FNiagaraVariableBase ExposedRTVar;
+
+	TMap<FNiagaraSystemInstanceID, FRenderTarget2DRWInstanceData_GameThread*> SystemInstancesToProxyData_GT;
 	
 	UPROPERTY(Transient, DuplicateTransient)
 	TMap<uint64, TObjectPtr<UTextureRenderTarget2D>> ManagedRenderTargets;

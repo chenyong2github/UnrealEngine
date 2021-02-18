@@ -10,10 +10,12 @@
 #include "D3D12ShaderResources.h"
 #include "RHIPoolAllocator.h"
 
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-constexpr D3D12_RESOURCE_STATES BackBufferBarrierWriteTransitionTargets = D3D12_RESOURCE_STATE_RENDER_TARGET | D3D12_RESOURCE_STATE_UNORDERED_ACCESS |
-	D3D12_RESOURCE_STATE_STREAM_OUT | D3D12_RESOURCE_STATE_COPY_DEST | D3D12_RESOURCE_STATE_RESOLVE_DEST;
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+constexpr D3D12_RESOURCE_STATES BackBufferBarrierWriteTransitionTargets = D3D12_RESOURCE_STATES(
+	uint32(D3D12_RESOURCE_STATE_RENDER_TARGET) |
+	uint32(D3D12_RESOURCE_STATE_UNORDERED_ACCESS) |
+	uint32(D3D12_RESOURCE_STATE_STREAM_OUT) |
+	uint32(D3D12_RESOURCE_STATE_COPY_DEST) |
+	uint32(D3D12_RESOURCE_STATE_RESOLVE_DEST));
 
 // Forward Decls
 class FD3D12Resource;
@@ -129,9 +131,8 @@ private:
 	bool bRequiresResourceStateTracking : 1;
 	bool bDepthStencil : 1;
 	bool bDeferDelete : 1;
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	bool bBackBuffer : 1;
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
 	D3D12_HEAP_TYPE HeapType;
 	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress;
 	void* ResourceBaseAddress;
@@ -188,6 +189,7 @@ public:
 		ResourceBaseAddress = nullptr;
 	}
 
+	ID3D12Pageable* GetPageable();
 	D3D12_RESOURCE_DESC const& GetDesc() const { return Desc; }
 	D3D12_HEAP_TYPE GetHeapType() const { return HeapType; }
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
@@ -211,10 +213,9 @@ public:
 	void SetCompressedState(D3D12_RESOURCE_STATES State) { CompressedState = State; }
 #endif
 	bool RequiresResourceStateTracking() const { return bRequiresResourceStateTracking; }
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
 	inline bool IsBackBuffer() const { return bBackBuffer; }
 	inline void SetIsBackBuffer(bool bBackBufferIn) { bBackBuffer = bBackBufferIn; }
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 	void SetName(const TCHAR* Name)
 	{

@@ -270,11 +270,11 @@ private:
 	bool					bNeedReBuildOcclusionMesh;
 	bool					bIsMobileMultiViewEnabled;
 	bool					bSupportsHandTracking;
+	bool					bNeedsAcquireOnRHI;
 	float					WorldToMetersScale = 100.0f;
 
 	XrSessionState			CurrentSessionState;
-	FEvent*					FrameEventRHI;
-	FCriticalSection		BeginEndFrameMutex;
+	FRWLock					SessionHandleMutex;
 
 	TArray<const char*>		EnabledExtensions;
 	TArray<class IOpenXRExtensionPlugin*> ExtensionPlugins;
@@ -294,7 +294,7 @@ private:
 	FPipelinedLayerState	PipelinedLayerStateRendering;
 	FPipelinedLayerState	PipelinedLayerStateRHI;
 
-	FCriticalSection		DeviceMutex;
+	FRWLock					DeviceMutex;
 	TArray<FDeviceSpace>	DeviceSpaces;
 
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;

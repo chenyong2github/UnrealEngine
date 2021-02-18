@@ -186,3 +186,16 @@ struct FNiagaraScriptVariableAndViewInfo
 	// Whether this entry is related to the current selection state, e.g. if a module is selected in the Stack, mark this entry if ScriptVariable is a member of that module.
 	bool bIsSelectionRelevant;
 };
+
+/** Defines different types of changes to data objects within a niagara system. */
+enum class ENiagaraDataObjectChange
+{
+	/** An object was added somewhere in the system. */
+	Added,
+	/** An object was changed somewhere in the system. */
+	Changed,
+	/** An object ws removed somewhere in the system. */
+	Removed,
+	/** It's now known how the data object was changed. */
+	Unknown
+};

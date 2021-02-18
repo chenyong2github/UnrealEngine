@@ -282,6 +282,9 @@ protected:
 	EParticleType Type;
 };
 
+// TODO(chaos) LWC : remove template arguments from TAccelerationStructureHandle when only FAccelerationStructureHandle is in use
+using FAccelerationStructureHandle = TAccelerationStructureHandle<FReal, 3>;
+
 template <typename T, int d, bool bPersistent>
 class TKinematicGeometryParticleHandleImp;
 
@@ -553,11 +556,11 @@ protected:
 
 template<>
 template<>
-int32 TGeometryParticleHandleImp<float, 3, true>::GetPayload<int32>(int32 Idx);
+int32 TGeometryParticleHandleImp<FReal, 3, true>::GetPayload<int32>(int32 Idx);
 
 template<>
 template<>
-int32 TGeometryParticleHandleImp<float, 3, false>::GetPayload<int32>(int32 Idx);
+int32 TGeometryParticleHandleImp<FReal, 3, false>::GetPayload<int32>(int32 Idx);
 
 
 
@@ -2500,7 +2503,7 @@ TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArc
 }
 
 template <>
-CHAOS_API void Chaos::TGeometryParticle<float, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate);
+CHAOS_API void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate);
 
 template <typename T, int d>
 TAccelerationStructureHandle<T,d>::TAccelerationStructureHandle(TGeometryParticleHandle<T, d>* InHandle)
@@ -2616,13 +2619,13 @@ void TAccelerationStructureHandle<T, d>::DebugDraw(const bool bExternal, const b
 #endif
 
 #if PLATFORM_MAC || PLATFORM_LINUX
-extern template class CHAOS_API TGeometryParticle<float, 3>;
-extern template class CHAOS_API TKinematicGeometryParticle<float, 3>;
-extern template class CHAOS_API TPBDRigidParticle<float, 3>;
+extern template class CHAOS_API TGeometryParticle<FReal, 3>;
+extern template class CHAOS_API TKinematicGeometryParticle<FReal, 3>;
+extern template class CHAOS_API TPBDRigidParticle<FReal, 3>;
 #else
-extern template class TGeometryParticle<float, 3>;
-extern template class TKinematicGeometryParticle<float, 3>;
-extern template class TPBDRigidParticle<float, 3>;
+extern template class TGeometryParticle<FReal, 3>;
+extern template class TKinematicGeometryParticle<FReal, 3>;
+extern template class TPBDRigidParticle<FReal, 3>;
 #endif
 } // namespace Chaos
 

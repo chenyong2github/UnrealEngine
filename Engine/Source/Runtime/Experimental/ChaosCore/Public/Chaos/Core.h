@@ -18,6 +18,7 @@ namespace Chaos
 	using FVec4 = TVector<FReal, 4>;
 	using FRotation3 = TRotation<FReal, 3>;
 	using FMatrix33 = PMatrix<FReal, 3, 3>;
+	using FMatrix44 = PMatrix<FReal, 4, 4>;
 	using FRigidTransform3 = TRigidTransform<FReal, 3>;
 
 	using FAABB3 = TAABB<FReal, 3>;
@@ -34,5 +35,5 @@ namespace Chaos
 	// NOTE: if you get a merge conflict on the GUID, you must replace it with a new GUID - do not accept the source or target
 	// or you will likely get DDC version conflicts resulting in crashes during load.
 	// Core version string for Chaos data. Any DDC builder dependent on Chaos for serialization should depend on this version
-	static const FString ChaosVersionString = TEXT("5D50D1DC-7B1F-423C-9243-9DAD394603D1");
+	static const FString ChaosVersionString = TEXT("62B106CB-D27A-443D-A612-D82D94C8A6F7");
 }

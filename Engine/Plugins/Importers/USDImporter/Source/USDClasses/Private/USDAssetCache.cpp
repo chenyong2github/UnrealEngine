@@ -6,6 +6,25 @@
 
 //#include "USDLog.h"
 
+UUsdAssetCache::UUsdAssetCache()
+	: bAllowPersistentStorage( true )
+{
+}
+
+#if WITH_EDITOR
+void UUsdAssetCache::PostEditChangeProperty( FPropertyChangedEvent& PropertyChangedEvent )
+{
+	if ( PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED( UUsdAssetCache, bAllowPersistentStorage ) )
+	{
+		if ( !bAllowPersistentStorage )
+		{
+			TransientStorage.Append( PersistentStorage );
+			PersistentStorage.Empty();
+		}
+	}
+}
+#endif // #if WITH_EDITOR
+
 void UUsdAssetCache::CacheAsset( const FString& Hash, UObject* Asset, const FString& PrimPath /*= FString() */ )
 {
 	if ( !Asset )
@@ -16,7 +35,7 @@ void UUsdAssetCache::CacheAsset( const FString& Hash, UObject* Asset, const FStr
 
 	FScopeLock Lock( &CriticalSection );
 
-	if ( Asset->HasAnyFlags( RF_Transient ) )
+	if ( !bAllowPersistentStorage || Asset->HasAnyFlags( RF_Transient ) )
 	{
 		TransientStorage.Add( Hash, Asset );
 	}

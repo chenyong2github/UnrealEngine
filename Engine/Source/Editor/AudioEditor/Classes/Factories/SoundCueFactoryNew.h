@@ -11,23 +11,41 @@
 #include "Factories/Factory.h"
 #include "SoundCueFactoryNew.generated.h"
 
+class USoundCue;
+class USoundWave;
+class USoundNode;
+class UDialogueWave;
+class USoundNodeRandom;
+
 UCLASS(hidecategories=Object, MinimalAPI)
 class USoundCueFactoryNew : public UFactory
 {
 	GENERATED_UCLASS_BODY()
 
-
 	//~ Begin UFactory Interface
 	virtual UObject* FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn) override;
 	//~ Begin UFactory Interface	
 
-	/** An initial sound wave to place in the newly created cue */
+	/** Initial sound wave to place in the newly created cue */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Array InitialSoundWaves instead."))
+	TObjectPtr<USoundWave> InitialSoundWave;
+
+	/** Initial sound wave(s) to place in the newly created cue(s) */
 	UPROPERTY()
-	TObjectPtr<class USoundWave> InitialSoundWave;
+	TArray<TWeakObjectPtr<USoundWave>> InitialSoundWaves;
 
 	/** An initial dialogue wave to place in the newly created cue */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Array InitialDialogueWaves instead."))
+	TObjectPtr<UDialogueWave> InitialDialogueWave;
+
+	/** Initial dialogue wave(s) to place in the newly created cue(s) */
 	UPROPERTY()
-	TObjectPtr<class UDialogueWave> InitialDialogueWave;
+	TArray<TWeakObjectPtr<UDialogueWave>> InitialDialogueWaves;
+
+protected:
+
+	static USoundNodeRandom* InsertRandomNode(USoundCue* SoundCue, int32 NodePosX, int32 NodePosY);
+	static USoundNode* CreateSoundPlayerNode(USoundCue* SoundCue, UObject* SoundObject, int32 NodePosX, int32 NodePosY);
 };
 
 

@@ -22,6 +22,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogHairRendering, Log, All);
 static int32 GHairStrandsRaytracingEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrandsRaytracingEnable(TEXT("r.HairStrands.Raytracing"), GHairStrandsRaytracingEnable, TEXT("Enable/Disable hair strands raytracing geometry. This is anopt-in option per groom asset/groom instance."));
 
+static int32 GHairStrandsPluginEnable = 0;
 static int32 GHairStrandsGlobalEnable = 1;
 static FAutoConsoleVariableRef CVarHairStrandsGlobalEnable(TEXT("r.HairStrands.Enable"), GHairStrandsGlobalEnable, TEXT("Enable/Disable the entire hair strands system. This affects all geometric representations (i.e., strands, cards, and meshes)."));
 
@@ -125,6 +126,8 @@ bool IsHairRayTracingEnabled()
 
 bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
+	if (GHairStrandsPluginEnable <= 0 || GHairStrandsGlobalEnable <= 0) return false;
+
 	// Important:
 	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
 	//                              The runtime setting in these case are r.HairStrands.Binding=0 & r.HairStrands.Simulation=0
@@ -144,7 +147,7 @@ bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platfor
 
 bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
-	if (GHairStrandsGlobalEnable <= 0) return false;
+	if (GHairStrandsPluginEnable <= 0 || GHairStrandsGlobalEnable <= 0) return false;
 
 	// Important:
 	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
@@ -163,6 +166,11 @@ bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 	case EHairStrandsShaderType::All :		return GHairStrandsGlobalEnable > 0 && (GHairCardsEnable > 0 || GHairMeshesEnable > 0 || GHairStrandsEnable > 0) && !bIsMobile;
 	}
 	return false;
+}
+
+void SetHairStrandsEnabled(bool In)
+{
+	GHairStrandsPluginEnable = In ? 1 : 0;
 }
 
 bool IsHairStrandsBindingEnable()

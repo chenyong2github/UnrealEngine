@@ -125,7 +125,11 @@ float3 TotWorldPosition(float2 UV, float Depth)
 
 #if PERMUTATION_OPAQUEMASK_TYPE == OPAQUE_MASK_TYPE_DEEP_SHADOW
 
-float3 ToLightPosition(float3 WorldPosition)
+// Return the light space position of a world space.
+// XY: UV of the shadow space
+//  Z: Normalized depth value in light clip space
+//  W: Positive if the position is valid, negative otherwise
+float4 ToLightPosition(float3 WorldPosition)
 {
 	float4x4 WorldToLightTransform = 0;
 	if (DeepShadow_bIsGPUDriven > 0)
@@ -137,10 +141,10 @@ float3 ToLightPosition(float3 WorldPosition)
 		WorldToLightTransform = DeepShadow_CPUWorldToLightTransform;
 	}
 
-    float4 LightPos = mul(float4(WorldPosition,1), WorldToLightTransform);
+	float4 LightPos = mul(float4(WorldPosition,1), WorldToLightTransform);
 	LightPos.xyz/= LightPos.w;
-    const float2 LightUV = (LightPos.xy + float(1).xx) * 0.5f;
-    return float3(LightUV.x, 1-LightUV.y, LightPos.z);
+	const float2 LightUV = (LightPos.xy + float(1).xx) * 0.5f;
+	return float4(LightUV.x, 1-LightUV.y, LightPos.z, sign(LightPos.w));
 }
 
 bool IsCloser(float DepthA, float DepthB)
@@ -407,11 +411,15 @@ void MainPS(
 	const bool bIsHairPixel = Categorization.PixelCoverage >= 1;
 
 	const float3 WorldPosition		= TotWorldPosition(UV, SceneDepth);
-	const float3 LightSpacePosition = ToLightPosition(WorldPosition);
+	const float4 LightSpacePosition = ToLightPosition(WorldPosition);
 
 	// PCF or simple point sampler
 	float Visibility = 1;
-	if (!bIsHairPixel)
+	const bool bIsValid =
+		LightSpacePosition.w > 0 &&
+		(LightSpacePosition.x >= 0 && LightSpacePosition.x <= 1) &&
+		(LightSpacePosition.y >= 0 && LightSpacePosition.y <= 1);
+	if (!bIsHairPixel && bIsValid)
 	{
 		uint2 ShadowAtlasResolution;
 		DeepShadow_FrontDepthTexture.GetDimensions(ShadowAtlasResolution.x, ShadowAtlasResolution.y);
@@ -442,11 +450,6 @@ void MainPS(
 		Visibility = IsCloser(FrontDepth + ShadowBias, LightSpacePosition.z) ? 0 : 1;
 	#endif
 	}
-
-	const bool bIsValid =
-		(LightSpacePosition.x >= 0 && LightSpacePosition.x <= 1) &&
-		(LightSpacePosition.y >= 0 && LightSpacePosition.y <= 1);
-	Visibility = bIsValid ? Visibility : 1;
 	OutColor = WriteShadowMaskOutput(Visibility);
 
 }

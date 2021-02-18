@@ -15,18 +15,17 @@
 // This is an approximation but only collides with spheres in the velocity direction which can hurt compared to all directions when it comes to thickness
 namespace Chaos
 {
-template<class T, int d>
-class TPBDCollisionSphereConstraints : public TPerParticleRule<T, d>
+class FPBDCollisionSphereConstraints : public FPerParticleRule
 {
   public:
-	TPBDCollisionSphereConstraints(const TPBDParticles<T, d>& InParticles, const TSet<TVector<int32, 2>>& DisabledCollisionElements, const T Dt, const T Height = (T)0)
+	  FPBDCollisionSphereConstraints(const FPBDParticles& InParticles, const TSet<TVec2<int32>>& DisabledCollisionElements, const FReal Dt, const FReal Height = (FReal)0.)
 	    : MH(Height)
 	{
-		for (int32 i = 0; i < InParticles.Size(); ++i)
+		for (int32 i = 0; i < (int32)InParticles.Size(); ++i)
 		{
-			MObjects.Add(TUniquePtr<FImplicitObject>(new TSphere<T, d>(InParticles.P(i), Height)));
+			MObjects.Add(TUniquePtr<FImplicitObject>(new TSphere<FReal, 3>(InParticles.P(i), Height)));
 		}
-		TBoundingVolumeHierarchy<TArray<TUniquePtr<FImplicitObject>>, TArray<int32>, T, d> Hierarchy(MObjects);
+		TBoundingVolumeHierarchy<TArray<TUniquePtr<FImplicitObject>>, TArray<int32>> Hierarchy(MObjects);
 		FCriticalSection CriticalSection;
 		PhysicsParallelFor(InParticles.Size(), [&](int32 Index) {
 			TArray<int32> PotentialIntersections = Hierarchy.FindAllIntersections(InParticles.P(Index));
@@ -44,16 +43,16 @@ class TPBDCollisionSphereConstraints : public TPerParticleRule<T, d>
 			}
 		});
 	}
-	virtual ~TPBDCollisionSphereConstraints() {}
+	virtual ~FPBDCollisionSphereConstraints() {}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
+	void Apply(FPBDParticles& InParticles, const FReal Dt, const int32 Index) const override //-V762
 	{
 		if (InParticles.InvM(Index) == 0 || !MConstraints.Contains(Index))
 			return;
 		for (int32 i = 0; i < MConstraints[Index].Num(); ++i)
 		{
-			TVector<T, d> Normal;
-			T Phi = MObjects[MConstraints[Index][i]]->PhiWithNormal(InParticles.P(Index), Normal);
+			FVec3 Normal;
+			FReal Phi = MObjects[MConstraints[Index][i]]->PhiWithNormal(InParticles.P(Index), Normal);
 			if (Phi < 0)
 			{
 				InParticles.P(Index) += -Phi * Normal;
@@ -62,9 +61,13 @@ class TPBDCollisionSphereConstraints : public TPerParticleRule<T, d>
 	}
 
   private:
-	T MH;
+	FReal MH;
 	TMap<int32, TArray<int32>> MConstraints;
 	TArray<TUniquePtr<FImplicitObject>> MObjects;
 };
+
+template <typename T, int d>
+using TPBDCollisionSphereConstraints UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDCollisionSphereConstraints instead") = FPBDCollisionSphereConstraints;
+
 }
 #endif

@@ -399,13 +399,15 @@ UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollection::GetNode
 		FScopedTransaction ScopedTransaction(FixDescription);
 		TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
 		FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(*PinToRemove, RemovedDataObjects);
+		TArray<UObject*> RemovedObjects;
 		for (TWeakObjectPtr<UNiagaraDataInterface> RemovedDataObject : RemovedDataObjects)
 		{
 			if (RemovedDataObject.IsValid())
 			{
-				OnDataObjectModified().Broadcast(RemovedDataObject.Get());
+				RemovedObjects.Add(RemovedDataObject.Get());
 			}
 		}
+		OnDataObjectModified().Broadcast(RemovedObjects, ENiagaraDataObjectChange::Removed);
 		PinToRemove->GetOwningNode()->RemovePin(PinToRemove);
 	}));
 }
@@ -487,13 +489,15 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& Du
 
 					TArray<TWeakObjectPtr<UNiagaraDataInterface>> RemovedDataObjects;
 					FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(*OverridePin, RemovedDataObjects);
+					TArray<UObject*> RemovedObjects;
 					for (TWeakObjectPtr<UNiagaraDataInterface> RemovedDataObject : RemovedDataObjects)
 					{
 						if (RemovedDataObject.IsValid())
 						{
-							OnDataObjectModified().Broadcast(RemovedDataObject.Get());
+							RemovedObjects.Add(RemovedDataObject.Get());
 						}
 					}
+					OnDataObjectModified().Broadcast(RemovedObjects, ENiagaraDataObjectChange::Removed);
 					OverridePin->GetOwningNode()->RemovePin(OverridePin);
 				}));
 				Fixes.Add(ConvertInputOverrideFix);

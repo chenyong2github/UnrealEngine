@@ -143,6 +143,11 @@ static TAutoConsoleVariable<int32> CVarSkyAtmosphereAerialPerspectiveApplyOnOpaq
 
 ////////////////////////////////////////////////////////////////////////// Transmittance LUT
 
+static TAutoConsoleVariable<int32> CVarSkyAtmosphereTransmittanceLUT(
+	TEXT("r.SkyAtmosphere.TransmittanceLUT"), 1,
+	TEXT("Enable the generation of the sky transmittance.\n"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 static TAutoConsoleVariable<float> CVarSkyAtmosphereTransmittanceLUTSampleCount(
 	TEXT("r.SkyAtmosphere.TransmittanceLUT.SampleCount"), 10.0f,
 	TEXT("The sample count used to evaluate transmittance."),
@@ -1078,13 +1083,20 @@ void InitSkyAtmosphereForScene(FRHICommandListImmediate& RHICmdList, FScene* Sce
 		//
 		// Initialise per scene/atmosphere resources
 		//
-		const bool TranstmittanceLUTUseSmallFormat = CVarSkyAtmosphereTransmittanceLUTUseSmallFormat.GetValueOnRenderThread() > 0;
+		if (CVarSkyAtmosphereTransmittanceLUT.GetValueOnAnyThread() > 0)
+		{
+			const bool TranstmittanceLUTUseSmallFormat = CVarSkyAtmosphereTransmittanceLUTUseSmallFormat.GetValueOnRenderThread() > 0;
 
-		TRefCountPtr<IPooledRenderTarget>& TransmittanceLutTexture = SkyInfo.GetTransmittanceLutTexture();
-		Desc = FPooledRenderTargetDesc::Create2DDesc(
-			FIntPoint(TransmittanceLutWidth, TransmittanceLutHeight),
-			TranstmittanceLUTUseSmallFormat ? TextureLUTSmallFormat : TextureLUTFormat, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false);
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, TransmittanceLutTexture, TEXT("SkyAtmosphere.TransmittanceLut"), ERenderTargetTransience::Transient);
+			TRefCountPtr<IPooledRenderTarget>& TransmittanceLutTexture = SkyInfo.GetTransmittanceLutTexture();
+			Desc = FPooledRenderTargetDesc::Create2DDesc(
+				FIntPoint(TransmittanceLutWidth, TransmittanceLutHeight),
+				TranstmittanceLUTUseSmallFormat ? TextureLUTSmallFormat : TextureLUTFormat, FClearValueBinding::None, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false);
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, TransmittanceLutTexture, TEXT("SkyAtmosphere.TransmittanceLut"), ERenderTargetTransience::Transient);
+		}
+		else
+		{
+			SkyInfo.GetTransmittanceLutTexture() = GSystemTextures.WhiteDummy;
+		}
 
 		TRefCountPtr<IPooledRenderTarget>& MultiScatteredLuminanceLutTexture = SkyInfo.GetMultiScatteredLuminanceLutTexture();
 		Desc = FPooledRenderTargetDesc::Create2DDesc(
@@ -1225,19 +1237,19 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 	SkyInfo.GetInternalCommonParametersUniformBuffer() = TUniformBufferRef<FSkyAtmosphereInternalCommonParameters>::CreateUniformBufferImmediate(InternalCommonParameters, UniformBuffer_SingleFrame);
 
 	FRDGTextureRef TransmittanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetTransmittanceLutTexture());
-	FRDGTextureUAVRef TransmittanceLutUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(TransmittanceLut, 0));
 	FRDGTextureRef MultiScatteredLuminanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetMultiScatteredLuminanceLutTexture());
 	FRDGTextureUAVRef MultiScatteredLuminanceLutUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(MultiScatteredLuminanceLut, 0));
 
 	// Transmittance LUT
 	FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
+	if (CVarSkyAtmosphereTransmittanceLUT.GetValueOnRenderThread() > 0)
 	{
 		TShaderMapRef<FRenderTransmittanceLutCS> ComputeShader(GlobalShaderMap);
 
 		FRenderTransmittanceLutCS::FParameters * PassParameters = GraphBuilder.AllocParameters<FRenderTransmittanceLutCS::FParameters>();
 		PassParameters->Atmosphere = Scene->GetSkyAtmosphereSceneInfo()->GetAtmosphereUniformBuffer();
 		PassParameters->SkyAtmosphere = SkyInfo.GetInternalCommonParametersUniformBuffer();
-		PassParameters->TransmittanceLutUAV = TransmittanceLutUAV;
+		PassParameters->TransmittanceLutUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(TransmittanceLut, 0));
 
 		FIntVector TextureSize = TransmittanceLut->Desc.GetSize();
 		TextureSize.Z = 1;

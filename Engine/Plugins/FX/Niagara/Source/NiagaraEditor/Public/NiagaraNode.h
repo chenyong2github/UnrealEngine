@@ -167,6 +167,8 @@ public:
 	/** Entry point for generating the compile hash.*/
 	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
 
+	static bool SetPinDefaultToTypeDefaultIfUnset(UEdGraphPin* InPin);
+
 protected:
 	/** Go through all class members for a given UClass on this object and hash them into the visitor.*/
 	virtual bool GenerateCompileHashForClassMembers(const UClass* InClass, FNiagaraCompileHashVisitor* InVisitor) const;

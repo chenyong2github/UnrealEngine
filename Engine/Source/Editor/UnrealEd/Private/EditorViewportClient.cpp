@@ -3058,7 +3058,7 @@ void FEditorViewportClient::ProcessClickInViewport( const FInputEventState& Inpu
 		// If the mouse haven't moved too far, treat the button release as a click.
 		if( bNoMouseMovment && !MouseDeltaTracker->WasExternalMovement() )
 		{
-			HHitProxy* HitProxy = InputStateViewport->GetHitProxy(HitX,HitY);
+			TRefCountPtr<HHitProxy> HitProxy = InputStateViewport->GetHitProxy(HitX,HitY);
 
 			// When clicking, the cursor should always appear at the location of the click and not move out from undere the user
 			InputStateViewport->SetPreCaptureMousePosFromSlateCursor();

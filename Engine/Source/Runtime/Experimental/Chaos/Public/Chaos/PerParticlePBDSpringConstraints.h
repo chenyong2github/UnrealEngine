@@ -8,19 +8,18 @@
 
 namespace Chaos
 {
-template<class T, int d>
-class PerParticlePBDSpringConstraints : public TPerParticleRule<T, d>, public TPBDSpringConstraintsBase<T, d>
+class FPerParticlePBDSpringConstraints : public FPerParticleRule, public FPBDSpringConstraintsBase
 {
-	typedef TPBDSpringConstraintsBase<T, d> Base;
-	using Base::Constraints_;
+	typedef FPBDSpringConstraintsBase Base;
+	using Base::MConstraints;
 
   public:
-	PerParticlePBDSpringConstraints(const TDynamicParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1)
+	FPerParticlePBDSpringConstraints(const FDynamicParticles& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1.)
 	    : Base(InParticles, MoveTemp(Constraints), Stiffness)
 	{
-		for (int32 i = 0; i < Constraints_.Num(); ++i)
+		for (int32 i = 0; i < MConstraints.Num(); ++i)
 		{
-			const auto& Constraint = Constraints_[i];
+			const auto& Constraint = MConstraints[i];
 			int32 i1 = Constraint[0];
 			int32 i2 = Constraint[1];
 			if (i1 >= MParticleToConstraints.Num())
@@ -35,15 +34,15 @@ class PerParticlePBDSpringConstraints : public TPerParticleRule<T, d>, public TP
 			MParticleToConstraints[i2].Add(i);
 		}
 	}
-	virtual ~PerParticlePBDSpringConstraints() {}
+	virtual ~FPerParticlePBDSpringConstraints() {}
 
 	// TODO(mlentine): We likely need to use time n positions here
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const int32 Index) const override //-V762
+	void Apply(FPBDParticles& InParticles, const FReal Dt, const int32 Index) const override //-V762
 	{
 		for (int32 i = 0; i < MParticleToConstraints[Index].Num(); ++i)
 		{
 			int32 CIndex = MParticleToConstraints[Index][i];
-			const auto& Constraint = Constraints_[CIndex];
+			const auto& Constraint = MConstraints[CIndex];
 			int32 i1 = Constraint[0];
 			int32 i2 = Constraint[1];
 			if (Index == i1 && InParticles.InvM(i1) > 0)

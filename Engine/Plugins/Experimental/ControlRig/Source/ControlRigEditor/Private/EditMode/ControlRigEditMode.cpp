@@ -2216,7 +2216,7 @@ void FControlRigEditMode::TickGizmo(AControlRigGizmoActor* GizmoActor, const FTr
 			{
 				GizmoActor->SetGizmoColor(Control->GizmoColor);
 				GizmoActor->SetIsTemporarilyHiddenInEditor(!Control->bGizmoVisible || Settings->bHideManipulators);
-				GizmoActor->SetSelectable(Control->bGizmoVisible && !Settings->bHideManipulators);
+				GizmoActor->SetSelectable(Control->bGizmoVisible && !Settings->bHideManipulators && Control->bAnimatable);
 			}
 		}
 	}

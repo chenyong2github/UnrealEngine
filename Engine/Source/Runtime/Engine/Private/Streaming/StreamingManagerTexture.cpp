@@ -1915,7 +1915,7 @@ void FRenderAssetStreamingManager::AddRenderedTextureStats(TMap<FString, FRender
 		{
 			FRenderedTextureStats NewStats;
 			NewStats.MaxMipLevelShown = MipArrayIndex;
-			NewStats.TextureGroup = UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup));;
+			NewStats.TextureGroup = UTexture::GetTextureGroupString(static_cast<TextureGroup>(StreamingRenderAsset.LODGroup));
 			OutRenderedTextureStats.Add(RenderAsset->GetName(), NewStats);
 		}
 	}

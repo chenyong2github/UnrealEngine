@@ -16,7 +16,7 @@ namespace DatasmithRhino.ElementExporters
 	/// <typeparam name="T">The type of the DatasmithInfoBase for the element we are exporting</typeparam>
 	public abstract class IDatasmithRhinoElementExporter<S, T>
 		where S : IDatasmithRhinoElementExporter<S, T>
-		where T : DatasmithInfoBase
+		where T : DatasmithInfoBase<T>
 	{
 		private static S Singleton = null;
 
@@ -88,6 +88,7 @@ namespace DatasmithRhino.ElementExporters
 						{
 							CurrentElementInfo.SetExportedElement(CreatedElement);
 							AddElement(CurrentElementInfo);
+							CurrentElementInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
 						}
 						else
 						{
@@ -96,9 +97,13 @@ namespace DatasmithRhino.ElementExporters
 						break;
 					case DirectLinkSynchronizationStatus.Modified:
 						ModifyElement(CurrentElementInfo);
+						CurrentElementInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
 						break;
 					case DirectLinkSynchronizationStatus.Deleted:
-						DeleteElement(CurrentElementInfo);
+						if (CurrentElementInfo.ExportedElement != null)
+						{
+							DeleteElement(CurrentElementInfo);
+						}
 						break;
 					case DirectLinkSynchronizationStatus.Synced:
 						//Element is synced, nothing to do.
@@ -134,7 +139,10 @@ namespace DatasmithRhino.ElementExporters
 						break;
 					case DirectLinkSynchronizationStatus.Deleted:
 						// Element deletion cannot be done asynchronously.
-						DeleteElement(CurrentElementInfo);
+						if (CurrentElementInfo.ExportedElement != null)
+						{
+							DeleteElement(CurrentElementInfo);
+						}
 						break;
 					case DirectLinkSynchronizationStatus.Synced:
 						//Element is synced, nothing to do.
@@ -167,6 +175,7 @@ namespace DatasmithRhino.ElementExporters
 				else
 				{
 					ModifyElement(CurrentElementInfo);
+					CurrentElementInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
 				}
 
 				// Update the progress, only on rhino's main thread.
@@ -197,6 +206,7 @@ namespace DatasmithRhino.ElementExporters
 				if (CreatedElementInfo.ExportedElement != null)
 				{
 					AddElement(CreatedElementInfo);
+					CreatedElementInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
 				}
 				else
 				{

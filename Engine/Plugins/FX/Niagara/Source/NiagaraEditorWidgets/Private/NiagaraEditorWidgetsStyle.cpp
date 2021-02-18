@@ -151,6 +151,48 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.SystemOverview.NodeBackgroundBorder", new BOX_PLUGIN_BRUSH("Icons/SystemOverviewNodeBackground", FMargin(1.0f / 4.0f)));
 	Style->Set("NiagaraEditor.SystemOverview.NodeBackgroundColor", FLinearColor(FColor(48, 48, 48)));
 
+	FSlateFontInfo CurveOverviewTopLevelFont = DEFAULT_FONT("Bold", 10);
+	FTextBlockStyle CurveOverviewTopLevelText = FTextBlockStyle(NormalText)
+		.SetFont(CurveOverviewTopLevelFont);
+	Style->Set("NiagaraEditor.CurveOverview.TopLevelText", CurveOverviewTopLevelText);
+
+	FSlateFontInfo CurveOverviewScriptFont = DEFAULT_FONT("Bold", 10);
+	FTextBlockStyle CurveOverviewScriptText = FTextBlockStyle(NormalText)
+		.SetFont(CurveOverviewScriptFont);
+	Style->Set("NiagaraEditor.CurveOverview.ScriptText", CurveOverviewScriptText);
+
+	FSlateFontInfo CurveOverviewModuleFont = DEFAULT_FONT("Bold", 10);
+	FTextBlockStyle CurveOverviewModuleText = FTextBlockStyle(NormalText)
+		.SetFont(CurveOverviewModuleFont);
+	Style->Set("NiagaraEditor.CurveOverview.ModuleText", CurveOverviewModuleText);
+
+	FSlateFontInfo CurveOverviewInputFont = DEFAULT_FONT("Bold", 9);
+	FTextBlockStyle CurveOverviewInputText = FTextBlockStyle(NormalText)
+		.SetFont(CurveOverviewInputFont);
+	Style->Set("NiagaraEditor.CurveOverview.InputText", CurveOverviewInputText);
+
+	FSlateFontInfo CurveOverviewDataInterfaceFont = DEFAULT_FONT("Bold", 10);
+	FTextBlockStyle CurveOverviewDataInterfaceText = FTextBlockStyle(NormalText)
+		.SetFont(CurveOverviewDataInterfaceFont);
+	Style->Set("NiagaraEditor.CurveOverview.DataInterfaceText", CurveOverviewDataInterfaceText);
+
+	FSlateFontInfo CurveOverviewSecondaryFont = DEFAULT_FONT("Italic", 9);
+	FTextBlockStyle CurveOverviewSecondaryText = FTextBlockStyle(NormalText)
+		.SetFont(CurveOverviewSecondaryFont);
+	Style->Set("NiagaraEditor.CurveOverview.SecondaryText", CurveOverviewSecondaryText);
+
+	FSlateFontInfo CurveOverviewCurveComponentFont = DEFAULT_FONT("Regular", 9);
+	FTextBlockStyle CurveOverviewCurveComponentText = FTextBlockStyle(NormalText)
+		.SetFont(CurveOverviewCurveComponentFont);
+	Style->Set("NiagaraEditor.CurveOverview.CurveComponentText", CurveOverviewCurveComponentText);
+
+	FSlateFontInfo CurveOverviewDefaultFont = DEFAULT_FONT("Bold", 10);
+	FTextBlockStyle CurveOverviewDefaultText = FTextBlockStyle(NormalText)
+		.SetFont(CurveOverviewDefaultFont);
+	Style->Set("NiagaraEditor.CurveOverview.DefaultText", CurveOverviewDefaultText);
+
+	Style->Set("NiagaraEditor.CurveDetails.TextButtonForeground", FLinearColor::White);
+
 	const FTableRowStyle& NormalTableRowStyle = FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 
 	FSlateBrush StackRowSelectionBrush = BOX_PLUGIN_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), GetDefault<UEditorStyleSettings>()->SelectionColor);
@@ -220,6 +262,12 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.Stack.IconColor.Particle", FLinearColor(FColor(131, 218, 9)));
 	Style->Set("NiagaraEditor.Stack.IconColor.Render", FLinearColor(FColor(230, 102, 102)));
 
+	Style->Set("NiagaraEditor.Stack.InputValueIconColor.Linked", FLinearColor(FColor::Purple));
+	Style->Set("NiagaraEditor.Stack.InputValueIconColor.Data", FLinearColor(FColor::Yellow));
+	Style->Set("NiagaraEditor.Stack.InputValueIconColor.Dynamic", FLinearColor(FColor::Cyan));
+	Style->Set("NiagaraEditor.Stack.InputValueIconColor.Expression", FLinearColor(FColor::Green));
+	Style->Set("NiagaraEditor.Stack.InputValueIconColor.Default", FLinearColor(FColor::White));
+
  	Style->Set("NiagaraEditor.Stack.DropTarget.BackgroundColor", FLinearColor(1.0f, 1.0f, 1.0f, 0.25f));
  	Style->Set("NiagaraEditor.Stack.DropTarget.BackgroundColorHover", FLinearColor(1.0f, 1.0f, 1.0f, 0.1f));
 	Style->Set("NiagaraEditor.Stack.DropTarget.BorderVertical", new IMAGE_PLUGIN_BRUSH("Icons/StackDropTargetBorder_Vertical", FVector2D(2, 8), FLinearColor::White, ESlateBrushTileType::Vertical));
@@ -265,8 +313,6 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 	Style->Set("NiagaraEditor.Stack.ModuleHighlight", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlight", Icon6x6, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.ModuleHighlightMore", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlightMore", Icon6x6, FLinearColor::White));
 	Style->Set("NiagaraEditor.Stack.ModuleHighlightLarge", new IMAGE_PLUGIN_BRUSH("Icons/ModuleHighlightLarge", Icon8x8, FLinearColor::White));
-
-	Style->Set("NiagaraEditor.ShowInCurveEditorIcon", new IMAGE_PLUGIN_BRUSH("Icons/ShowInCurveEditor", Icon16x16, FLinearColor::White));
 
 	// Scratch pad
 	FSlateFontInfo ScratchPadEditorHeaderFont = DEFAULT_FONT("Bold", 11);

@@ -561,6 +561,7 @@ public:
 		/* empty default implementation */
 	} 
 	
+	UE_DEPRECATED(4.27, "RHISetShadingRateImage is deprecated. Bind the shading rate image as part of the RHISetRenderTargetsInfo struct.")
 	virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner)
 	{
 		/* empty default implementation */

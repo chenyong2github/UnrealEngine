@@ -150,7 +150,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	// "Linear" including all color correction and the tone curve, but no device gamma
 	else if (GetOutputDevice() == 9)
 	{
-		float3 OutputGamutColor = mul(AP1_2_Output, mul(sRGB_2_AP1, SceneColor)); 
+		float3 OutputGamutColor = mul(AP1_2_Output, mul(sRGB_2_AP1, SceneColor.rgb)); 
 
 		OutDeviceColor = OutputGamutColor;
 	}

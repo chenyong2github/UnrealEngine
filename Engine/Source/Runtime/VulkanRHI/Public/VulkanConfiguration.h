@@ -258,6 +258,39 @@
 	#endif
 #endif
 
+#ifndef VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+	#ifdef VK_EXT_fragment_density_map
+		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP			1
+	#else
+		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP			0
+	#endif
+#endif
+
+#ifndef VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
+	#ifdef VK_EXT_fragment_density_map2
+		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2			1
+	#else
+		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2			0
+	#endif
+#endif
+
+// TODO: Update to VK_KHR_shading_rate_image when we update Vulkan SDK (same functionality but core extension instead of NV-specific).
+#ifndef VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	#ifdef VK_NV_shading_rate_image
+		#define VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE			1
+	#else
+		#define VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE			0
+	#endif
+#endif
+
+#ifndef VULKAN_SUPPORTS_MULTIVIEW
+	#ifdef VK_KHR_multiview
+		#define VULKAN_SUPPORTS_MULTIVIEW						1
+	#else
+		#define VULKAN_SUPPORTS_MULTIVIEW						0
+	#endif
+#endif
+
 #ifndef VULKAN_SUPPORTS_ASTC_DECODE_MODE
 	#ifdef VK_EXT_astc_decode_mode
 		#define VULKAN_SUPPORTS_ASTC_DECODE_MODE				(VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2)	// Requirement

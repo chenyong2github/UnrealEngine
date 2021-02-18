@@ -833,6 +833,23 @@ public partial class Project : CommandUtils
 				SC.StageFile(StagedFileType.UFS, SC.RawProjectPath);
 
 				StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), null);
+
+				var ToRestoreRestrictedFolder = SC.RestrictedFolderNames;
+
+				// For every platform we depend on also stage their platform config files
+				foreach (var PlatformDepends in Params.ServerDependentPlatformMap)
+				{
+					// StageConfigFiles will fail to find these config files due to filtering out restricted folder names
+					// Just for this loop we remove the filter for these platorms and stage the config files
+					// After the loop we restore the restricted folder to prevent staging anything unwanted
+					SC.RestrictedFolderNames.ExceptWith(PlatformExports.GetIncludedFolderNames(PlatformDepends.Key.Type));
+
+					StageConfigFiles(SC, DirectoryReference.Combine(SC.EngineRoot, "Config"), PlatformDepends.Key.ToString());
+					StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), PlatformDepends.Key.ToString());
+					StagePlatformExtensionConfigFiles(SC, PlatformDepends.Key.ToString());
+				}
+
+				SC.RestrictedFolderNames = ToRestoreRestrictedFolder;
 				
 				// Stage platform extension config files
 				foreach (string PlatformExtensionToStage in PlatformExtensionsToStage)
@@ -1879,6 +1896,7 @@ public partial class Project : CommandUtils
 
 			if (bMatched)
 			{
+				bool bOverrideChunkAssignment = false;
 				if (ModifyPakList != null && ModifyPakList.Count > 0)
 				{
 					// Only override the existing list if bOverrideChunkManifest is set
@@ -1887,6 +1905,7 @@ public partial class Project : CommandUtils
 						return;
 					}
 
+					bOverrideChunkAssignment = true;
 					if (PakRules.OverridePaks != null)
 					{
 						LogInformation("Overridding chunk assignment {0} to {1}, this can cause broken references", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
@@ -1900,22 +1919,28 @@ public partial class Project : CommandUtils
 				bExcludeFromPaks = PakRules.bExcludeFromPaks;
 				if (PakRules.OverridePaks != null && ModifyPakList != null && ChunkNameToDefinition != null)
 				{
-					ModifyPakList.Clear();
-					ModifyPakList.UnionWith(PakRules.OverridePaks.Select(x =>
+					if (!bOverrideChunkAssignment)
 					{
-						if (!ChunkNameToDefinition.ContainsKey(x))
+						LogInformation("Setting pak assignment for file {0} to {1}", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
+					}
+
+					ModifyPakList.Clear();
+					ModifyPakList.UnionWith(PakRules.OverridePaks.Select(OverrideChunkName =>
+					{
+						if (!ChunkNameToDefinition.ContainsKey(OverrideChunkName))
 						{
-							LogInformation("With pak rules, {0} is moved to {1}", StagingFile.Key, x);
-							ChunkNameToDefinition.TryAdd(x, new ChunkDefinition(x));
+							ChunkNameToDefinition.TryAdd(OverrideChunkName, new ChunkDefinition(OverrideChunkName));
 						}
 
-						return ChunkNameToDefinition[x];
+						return ChunkNameToDefinition[OverrideChunkName];
 					}));
-					//LogInformation("Setting pak assignment for file {0} to {1}", StagingFile.Key, string.Join(", ", PakRules.OverridePaks));
 				}
 				else if (bExcludeFromPaks)
 				{
-					//LogInformation("Excluding {0} from pak file", StagingFile.Key);
+					if (!bOverrideChunkAssignment)
+					{
+						LogInformation("Excluding {0} from pak files", StagingFile.Key);
+					}
 				}
 
 				return;
@@ -2551,6 +2576,7 @@ public partial class Project : CommandUtils
 							Params.HasDLCName));
 					}
 
+					string PakEncryptionKeyGuid = Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid;
 					Commands.Add(GetUnrealPakArguments(
 						Params.RawProjectPath,
 						UnrealPakResponseFile,
@@ -2558,10 +2584,10 @@ public partial class Project : CommandUtils
 						PrimaryOrderFiles,
 						SC.StageTargetPlatform.GetPlatformPakCommandLine(Params, SC) + AdditionalArgs + BulkOption + CompressionFormats + " " + Params.AdditionalPakOptions,
 						PakParams.bCompressed,
-						CryptoSettings,
-						CryptoKeysCacheFilename,
+						Params.SkipEncryption ? null : CryptoSettings,
+						Params.SkipEncryption ? null : CryptoKeysCacheFilename,
 						PatchSourceContentPath,
-						PakParams.EncryptionKeyGuid,
+						Params.SkipEncryption ? "" : PakParams.EncryptionKeyGuid,
 						SecondaryOrderFiles));
 
 					LogNames.Add(OutputLocation.GetFileNameWithoutExtension());
@@ -3306,10 +3332,10 @@ public partial class Project : CommandUtils
 		{
 			if (Chunk.ResponseFile.Count > 0)
 			{
+				string EncryptionKeyToUse = Params.SkipEncryption ? "" : Chunk.EncryptionKeyGuid;
 				PakInputs.Add(new CreatePakParams(Chunk.ChunkName, 
 					Chunk.ResponseFile.ToDictionary(entry => entry.Key, entry => entry.Value),
-					Params.Compressed || Chunk.bCompressed, Chunk.EncryptionKeyGuid));
-				//CreatePak(Params, SC, Chunk.ResponseFile, ChunkName, PakCryptoSettings, CryptoKeysCacheFilename, bCompression);
+					Params.Compressed || Chunk.bCompressed, EncryptionKeyToUse));
 			}
 		}
 

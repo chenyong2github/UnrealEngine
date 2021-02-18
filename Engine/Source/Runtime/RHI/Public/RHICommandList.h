@@ -664,7 +664,7 @@ protected:
 	{
 		FRHISetRenderTargetsInfo RTInfo;
 		Info.ConvertToRenderTargetsInfo(RTInfo);
-		CacheActiveRenderTargets(RTInfo.NumColorRenderTargets, RTInfo.ColorRenderTarget, &RTInfo.DepthStencilRenderTarget, RTInfo.FoveationTexture != nullptr, RTInfo.MultiViewCount);
+		CacheActiveRenderTargets(RTInfo.NumColorRenderTargets, RTInfo.ColorRenderTarget, &RTInfo.DepthStencilRenderTarget, RTInfo.ShadingRateTexture != nullptr, RTInfo.MultiViewCount);
 	}
 
 	void IncrementSubpass()
@@ -3244,16 +3244,10 @@ public:
 #endif
 	}
 
+	UE_DEPRECATED(4.27, "SetShadingRateImage is deprecated. Bind the shading rate image as part of the FRHIRenderPassInfo struct.")
 	FORCEINLINE_DEBUGGABLE void SetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner)
 	{
-#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
-		if (Bypass())
-		{
-			GetContext().RHISetShadingRateImage(RateImageTexture, Combiner);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandSetShadingRateImage)(RateImageTexture, Combiner);
-#endif
+		check(false);
 	}
 
 	FORCEINLINE_DEBUGGABLE void CopyToResolveTarget(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FResolveParams& ResolveParams)

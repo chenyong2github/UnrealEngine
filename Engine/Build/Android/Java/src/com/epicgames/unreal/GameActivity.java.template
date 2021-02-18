@@ -5436,6 +5436,33 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return 60;
 	}
 
+	public void AndroidThunkJava_EnableMotion(boolean Enable)
+	{
+		if(bAllowIMU != Enable) 
+		{
+			bAllowIMU = Enable;			
+			if (Enable) 
+			{
+				if (accelerometer != null) 
+				{
+					sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
+				}
+				if (magnetometer != null) 
+				{
+					sensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_GAME);
+				}
+				if (gyroscope != null) 
+				{
+					sensorManager.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_GAME);
+				}
+			} 
+			else 
+			{
+				sensorManager.unregisterListener(this);
+			}
+		}
+	}
+
 	@SuppressWarnings("deprecation")
 	@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
 	public static boolean isAirplaneModeOn(Context context)

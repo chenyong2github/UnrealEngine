@@ -46,7 +46,7 @@ public:
 
 	~NiagaraEmitterInstanceBatcher();
 
-	static const FName Name;
+	static NIAGARA_API const FName Name;
 	virtual FFXSystemInterface* GetInterface(const FName& InName) override;
 
 	/** Notification that the InstanceID has been removed. */
@@ -96,7 +96,7 @@ public:
 	 * game frame so we have an opportunity to flush the ticks avoiding a stall
 	 * when we gain focus again.
 	 */
-	void ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList);
+	NIAGARA_API void ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList, bool bForceFlush);
 
 	/** Processes all pending readbacks */
 	void ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion);

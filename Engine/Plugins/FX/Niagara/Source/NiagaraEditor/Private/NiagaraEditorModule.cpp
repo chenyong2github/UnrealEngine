@@ -76,6 +76,8 @@
 #include "NiagaraClipboard.h"
 #include "NiagaraMessageManager.h"
 #include "NiagaraComponentBroker.h"
+#include "NiagaraFlipbookSettings.h"
+#include "ContentBrowserModule.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -107,6 +109,7 @@
 #include "Customizations/NiagaraTypeCustomizations.h"
 #include "Customizations/NiagaraComponentRendererPropertiesDetails.h"
 #include "Customizations/NiagaraDebugHUDCustomization.h"
+#include "Customizations/NiagaraFlipbookSettingsDetails.h"
 
 #include "NiagaraComponent.h"
 #include "NiagaraNodeStaticSwitch.h"
@@ -164,8 +167,6 @@ const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0
 TArray<TPair<FName, FNiagaraParameterScopeInfo>> FNiagaraEditorModule::RegisteredParameterScopeInfos;
 
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
-
-const FName FNiagaraEditorModule::NiagaraDebuggerTabName(TEXT("NiagaraDebugger"));
 
 int32 GbShowNiagaraDeveloperWindows = 0;
 static FAutoConsoleVariableRef CVarShowNiagaraDeveloperWindows(
@@ -779,6 +780,11 @@ void FNiagaraEditorModule::StartupModule()
 	MenuExtensibilityManager = MakeShareable(new FExtensibilityManager);
 	ToolBarExtensibilityManager = MakeShareable(new FExtensibilityManager);
 
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+	ContentBrowserModule.AddDynamicTagAssetClass(TEXT("NiagaraSystem"));
+	ContentBrowserModule.AddDynamicTagAssetClass(TEXT("NiagaraEmitter"));
+
+
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	NiagaraAssetCategory = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("FX")), LOCTEXT("NiagaraAssetsCategory", "FX"));
 	RegisterAssetTypeAction(AssetTools, MakeShareable(new FAssetTypeActions_NiagaraSystem()));
@@ -886,6 +892,10 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraDebugHUDVariable::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDebugHUDVariableCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraFlipbookTextureSource::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraFlipbookTextureSourceDetails::MakeInstance));
 
 	//Register Stack Object Issue Generators.
 	RegisterStackIssueGenerator(FNiagaraPlatformSet::StaticStruct()->GetFName(), new FNiagaraPlatformSetIssueGenerator());
@@ -1095,18 +1105,12 @@ void FNiagaraEditorModule::StartupModule()
 	UNiagaraEffectType::OnGeneratePerfBaselines().BindRaw(this, &FNiagaraEditorModule::GeneratePerfBaselines);
 #endif
 
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(NiagaraDebuggerTabName, FOnSpawnTab::CreateRaw(this, &FNiagaraEditorModule::SpawnNiagaraDebugger))
-		.SetDisplayName(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTab", "Niagara Debugger"))
-		.SetTooltipText(NSLOCTEXT("UnrealEditor", "NiagaraDebuggerTooltipText", "Open the Niagara Debugger Tab."))
-		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory());
+	SNiagaraDebugger::RegisterTabSpawner();
 }
 
 void FNiagaraEditorModule::ShutdownModule()
 {
-	if (FSlateApplication::IsInitialized())
-	{
-		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(NiagaraDebuggerTabName);
-	}
+	SNiagaraDebugger::UnregisterTabSpawner();
 
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
@@ -1628,17 +1632,6 @@ void FNiagaraEditorModule::OnPerfBaselineWindowClosed(const TSharedRef<SWindow>&
 {
 	ClosedWindow->SetContent(SNullWidget::NullWidget);
 	BaselineViewport.Reset();
-}
-
-TSharedRef<SDockTab> FNiagaraEditorModule::SpawnNiagaraDebugger(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("DebugTools.TabIcon"))
-		.TabRole(ETabRole::NomadTab)
-		.Label(NSLOCTEXT("NiagaraDebugger", "NiagaraDebuggerTabTitle", "Niagara Debugger"))
-		[
-			SNew(SNiagaraDebugger)
-		];
 }
 
 #endif

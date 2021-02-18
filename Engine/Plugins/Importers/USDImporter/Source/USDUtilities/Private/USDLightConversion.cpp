@@ -4,8 +4,11 @@
 
 #include "USDAssetCache.h"
 #include "USDConversionUtils.h"
+#include "USDLayerUtils.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
+
+#include "UsdWrappers/SdfLayer.h"
 
 #include "Components/DirectionalLightComponent.h"
 #include "Components/LightComponent.h"
@@ -436,6 +439,7 @@ bool UnrealToUsd::ConvertSkyLightComponent( const USkyLightComponent& LightCompo
 			if ( UAssetImportData* AssetImportData = TextureCube->AssetImportData )
 			{
 				FString FilePath = AssetImportData->GetFirstFilename();
+				UsdUtils::MakePathRelativeToLayer( UE::FSdfLayer( Prim.GetStage()->GetEditTarget().GetLayer() ), FilePath );
 
 				Attr.Set<pxr::SdfAssetPath>( pxr::SdfAssetPath{ UnrealToUsd::ConvertString( *FilePath ).Get() }, TimeCode );
 			}

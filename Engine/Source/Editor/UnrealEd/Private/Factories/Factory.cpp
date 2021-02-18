@@ -63,7 +63,7 @@ UObject* UFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, FName I
 
 	if (ScriptFactoryCreateFile(Task))
 	{
-		if (Task->Result.Num() > 0)
+		if (Task->Result.Num() == 0)
 		{
 			return nullptr;
 		}

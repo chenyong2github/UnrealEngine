@@ -24,6 +24,7 @@ class FSceneView;
 class UTexture2D;
 struct FUnderwaterPostProcessDebugInfo;
 enum class EWaterBodyQueryFlags;
+class ABuoyancyManager;
 
 bool IsWaterEnabled(bool bIsRenderThread);
 
@@ -91,6 +92,8 @@ public:
 	FWaterBodyManager WaterBodyManager;
 
 	AWaterMeshActor* GetWaterMeshActor() const;
+
+	ABuoyancyManager* GetBuoyancyManager() const { return BuoyancyManager; }
 
 	TWeakObjectPtr<AWaterBody> GetOceanActor() { return OceanActor; }
 	void SetOceanActor(TWeakObjectPtr<AWaterBody> InOceanActor) { OceanActor = InOceanActor; }
@@ -188,6 +191,9 @@ private:
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 public:
+	UPROPERTY(Transient)
+	ABuoyancyManager* BuoyancyManager;
+
 	DECLARE_EVENT_OneParam(UWaterSubsystem, FOnWaterSubsystemInitialized, UWaterSubsystem*)
 	static FOnWaterSubsystemInitialized OnWaterSubsystemInitialized;
 

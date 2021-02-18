@@ -5,12 +5,13 @@
 #include "Chaos/AABB.h"
 #include "Chaos/ConvexStructureData.h"
 #include "Chaos/MassProperties.h"
+
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
 #include "ChaosCheck.h"
 #include "ChaosLog.h"
 #include "UObject/ReleaseObjectVersion.h"
-//#include "UObject/PhysicsObjectVersion.h"
+#include "UObject/PhysicsObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 namespace Chaos
@@ -577,7 +578,7 @@ namespace Chaos
 		{
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
-			//Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
+			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
 			FImplicitObject::SerializeImp(Ar);
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ConvexUsesTPlaneConcrete)
@@ -597,14 +598,9 @@ namespace Chaos
 			}
 
 			// Do we use the old Particles array or the new Vertices array?
-			// Note: This change was back-ported from UE5 to UE4, so we need to check both 
-			// a UE4 and a UE5 object version. If either is >= ConvexUsesVerticesArray we have the new format.
-			//
-			// @todo(chaos): the following change was back-ported to UE4 which requires some ObjectVersion shenanigans.
-			// We should get a merge conflict here, in which case, the code coming from UE4 contains instructions on what to do.
-			// Alternatively ping Chris Caulfield if RM hasn't already done so.
-			//
-			bool bConvexVerticesNewFormatUE4 = false;
+			// Note: This change was back-ported to UE4, so we need to check 
+			// multiple object versions.
+			bool bConvexVerticesNewFormatUE4 = (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::ConvexUsesVerticesArray);
 			bool bConvexVerticesNewFormatUE5 = (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::ConvexUsesVerticesArray);
 			bool bConvexVerticesNewFormat = bConvexVerticesNewFormatUE4 || bConvexVerticesNewFormatUE5;
 
@@ -625,6 +621,7 @@ namespace Chaos
 				Ar << Vertices;
 			}
 			
+
 			TBox<FReal,3>::SerializeAsAABB(Ar, LocalBoundingBox);
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) >= FExternalPhysicsCustomObjectVersion::AddConvexCenterOfMassAndVolume)
@@ -635,14 +632,15 @@ namespace Chaos
 			else if (Ar.IsLoading())
 			{
 				// Rebuild convex in order to extract face indices.
-				// TODO: Make it so it can take SurfaceParticles as both input and output without breaking...
+				// @todo(chaos): Make it so it can take Vertices as both input and output without breaking...
 				TArray<TArray<int32>> FaceIndices;
 				TArray<FVec3> TempVertices;
 				FConvexBuilder::Build(Vertices, Planes, FaceIndices, TempVertices, LocalBoundingBox);
 
 				// Copy vertices and move into particles.
+				// @todo(chaos): make CalculateVolumeAndCenterOfMass take array of positions rather than particles
 				TArray<FVec3> VerticesCopy = Vertices;
-				const TParticles<FReal, 3> SurfaceParticles(MoveTemp(VerticesCopy));
+				const FParticles SurfaceParticles(MoveTemp(VerticesCopy));
 				CalculateVolumeAndCenterOfMass(SurfaceParticles, FaceIndices, Volume, CenterOfMass);
 			}
 

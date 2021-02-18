@@ -22,7 +22,7 @@ namespace TextureShareStrings
 		static constexpr auto GBufferF = TEXT("GBufferF");
 
 		static constexpr auto GBufferVelocity = TEXT("GBufferVelocity");
-		static constexpr auto Foveation = TEXT("Foveation");
+		static constexpr auto ShadingRate = TEXT("ShadingRate");
 
 		static constexpr auto BackBuffer = TEXT("BackBuffer");
 	}

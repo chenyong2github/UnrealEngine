@@ -317,9 +317,9 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 
 					//TODO: this gets used later which is incorrect. However, it was already broken because it passed a view and then moved the underlying data.
 					//Keeping as is for now, needs fixing
-					Chaos::TParticles<float, 3> Particles(MoveTemp(Points));
-					TUniquePtr<Chaos::TTriangleMesh<float>> TriangleMesh(
-						new Chaos::TTriangleMesh<float>(MoveTemp(Triangles)));
+					Chaos::FParticles Particles(MoveTemp(Points));
+					TUniquePtr<Chaos::FTriangleMesh> TriangleMesh(
+						new Chaos::FTriangleMesh(MoveTemp(Triangles)));
 					Chaos::FErrorReporter ErrorReporter;
 
 					const float ActorMaxExtent = ActorBoxExtent.Max();

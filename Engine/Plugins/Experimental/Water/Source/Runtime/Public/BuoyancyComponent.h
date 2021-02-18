@@ -3,175 +3,11 @@
 #pragma once
 
 #include "Components/ActorComponent.h"
+#include "WaterBodyTypes.h"
+#include "BuoyancyManager.h"
 #include "BuoyancyComponent.generated.h"
 
 class AWaterBody;
-
-USTRUCT(Blueprintable)
-struct FSphericalPontoon
-{
-	GENERATED_BODY()
-
-	/** The socket to center this pontoon on */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Buoyancy)
-	FName CenterSocket;
-
-	/** Relative Location of pontoon WRT parent actor. Overridden by Center Socket. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Buoyancy)
-	FVector RelativeLocation;
-
-	/** The radius of the pontoon */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Buoyancy)
-	float Radius;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	FVector LocalForce;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	FVector CenterLocation;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	FQuat SocketRotation;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	FVector Offset;
-
-	float PontoonCoefficient;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	float WaterHeight;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	float WaterDepth;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	float ImmersionDepth;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	FVector WaterPlaneLocation;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	FVector WaterPlaneNormal;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	FVector WaterSurfacePosition;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	FVector WaterVelocity;
-
-	UPROPERTY(BlueprintReadOnly, Category = Buoyancy)
-	int32 WaterBodyIndex;
-
-	TMap<const AWaterBody*, float> SplineInputKeys;
-	TMap<const AWaterBody*, float> SplineSegments;
-
-	uint8 bIsInWater : 1;
-	uint8 bEnabled : 1;
-	uint8 bUseCenterSocket : 1;
-	UPROPERTY(Transient, BlueprintReadOnly, Category = Buoyancy)
-	AWaterBody* CurrentWaterBody;
-
-	FSphericalPontoon()
-		: RelativeLocation(FVector::ZeroVector)
-		, Radius(100.f)
-		, LocalForce(FVector::ZeroVector)
-		, CenterLocation(FVector::ZeroVector)
-		, SocketRotation(FQuat::Identity)
-		, Offset(FVector::ZeroVector)
-		, PontoonCoefficient(1.f)
-		, WaterHeight(-10000.f)
-		, WaterDepth(0.f)
-		, ImmersionDepth(0.f)
-		, WaterPlaneLocation(FVector::ZeroVector)
-		, WaterPlaneNormal(FVector::UpVector)
-		, WaterSurfacePosition(FVector::ZeroVector)
-		, WaterVelocity(FVector::ZeroVector)
-		, WaterBodyIndex(0)
-		, bIsInWater(false)
-		, bEnabled(true)
-		, bUseCenterSocket(false)
-		, CurrentWaterBody(nullptr)
-	{
-	}
-};
-
-USTRUCT(Blueprintable)
-struct FBuoyancyData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = Buoyancy)
-	TArray<FSphericalPontoon> Pontoons;
-
-	/** Increases buoyant force applied on each pontoon. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float BuoyancyCoefficient;
-
-	/** Damping factor to scale damping based on Z velocity. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float BuoyancyDamp;
-
-	/**Second Order Damping factor to scale damping based on Z velocity. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float BuoyancyDamp2;
-
-	/** Minimum velocity to start applying a ramp to buoyancy. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float BuoyancyRampMinVelocity;
-
-	/** Maximum velocity until which the buoyancy can ramp up. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float BuoyancyRampMaxVelocity;
-
-	/** Maximum value that buoyancy can ramp to (at or beyond max velocity). */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float BuoyancyRampMax;
-
-	/** Maximum buoyant force in the Up direction. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float MaxBuoyantForce;
-
-	/** Coefficient for nudging objects to shore (for perf reasons). */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float WaterShorePushFactor;
-
-	/** Coefficient for applying push force in rivers. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float WaterVelocityStrength;
-
-	/** Maximum push force that can be applied by rivers. */
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	float MaxWaterForce;
-
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
-	float DragCoefficient = 20.f;
-
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
-	float DragCoefficient2 = 0.01f;
-
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
-	float AngularDragCoefficient = 1.f;
-
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy, Meta = (EditCondition = "bApplyDragForcesInWater"))
-	float MaxDragSpeed = 15.f;
-
-	UPROPERTY(EditDefaultsOnly, Category = Buoyancy)
-	bool bApplyDragForcesInWater = false;
-
-	FBuoyancyData()
-		: BuoyancyCoefficient(0.1f)
-		, BuoyancyDamp(1000.f)
-		, BuoyancyDamp2(1.f)
-		, BuoyancyRampMinVelocity(20.f)
-		, BuoyancyRampMaxVelocity(50.f)
-		, BuoyancyRampMax(1.f)
-		, MaxBuoyantForce(5000000.f)
-		, WaterShorePushFactor(0.3f)
-		, WaterVelocityStrength(0.01f)
-		, MaxWaterForce(10000.f)
-	{
-	}
-};
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPontoonEnteredWater, const FSphericalPontoon&, Pontoon);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPontoonExitedWater, const FSphericalPontoon&, Pontoon);
@@ -185,6 +21,7 @@ public:
 	UBuoyancyComponent(const FObjectInitializer& ObjectInitializer);
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual void PostLoad() override;
 
@@ -192,12 +29,25 @@ public:
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	void EnableTick();
+	virtual void Update(float DeltaTime);
 
-	void DisableTick();
+	virtual void ApplyForces(float DeltaTime, FVector LinearVelocity, float ForwardSpeed, float ForwardSpeedKmh, UPrimitiveComponent* PrimitiveComponent);
+
+	virtual void FinalizeAuxData() {}
+
+	virtual TUniquePtr<FBuoyancyComponentAsyncInput> SetCurrentAsyncInputOutput(int32 InputIdx, FBuoyancyManagerAsyncOutput* CurOutput, FBuoyancyManagerAsyncOutput* NextOutput, float Alpha, int32 BuoyancyManagerTimestamp);
+	void SetCurrentAsyncInputOutputInternal(FBuoyancyComponentAsyncInput* CurInput, int32 InputIdx, FBuoyancyManagerAsyncOutput* CurOutput, FBuoyancyManagerAsyncOutput* NextOutput, float Alpha, int32 BuoyancyManagerTimestamp);
+	void FinalizeSimCallbackData(FBuoyancyManagerAsyncInput& Input);
+	void GameThread_ProcessIntermediateAsyncOutput(const FBuoyancyManagerAsyncOutput& AsyncOutput);
+	virtual void GameThread_ProcessIntermediateAsyncOutput(const FBuoyancyComponentAsyncOutput& Output);
+
+	bool IsUsingAsyncPath() const;
+
+	virtual TUniquePtr<FBuoyancyComponentAsyncAux> CreateAsyncAux() const;
 
 	virtual void SetupWaterBodyOverlaps();
 
+	UPrimitiveComponent* GetSimulatingComponent() { return SimulatingComponent; }
 	bool HasPontoons() const { return BuoyancyData.Pontoons.Num() > 0; }
 	void AddCustomPontoon(float Radius, FName CenterSocketName);
 	void AddCustomPontoon(float Radius, const FVector& RelativeLocation);
@@ -214,6 +64,10 @@ public:
 	TArray<AWaterBody*>& GetCurrentWaterBodies() { return CurrentWaterBodies; }
 
 	bool IsOverlappingWaterBody() const { return bIsOverlappingWaterBody; }
+
+	virtual bool IsActive() const { return bCanBeActive && IsOverlappingWaterBody(); }
+
+	void SetCanBeActive(bool bInCanBeActive) { bCanBeActive = bInCanBeActive; }
 
 	UFUNCTION(BlueprintCallable, Category = Buoyancy)
 	bool IsInWaterBody() const { return bIsInWaterBody; }
@@ -245,7 +99,7 @@ public:
 	FBuoyancyData BuoyancyData;
 
 protected:
-	void ApplyBuoyancy(UPrimitiveComponent* PrimitiveComponent);
+	virtual void ApplyBuoyancy(UPrimitiveComponent* PrimitiveComponent);
 	void ComputeBuoyancy(FSphericalPontoon& Pontoon, float ForwardSpeedKmh);
 	void ComputePontoonCoefficients();
 
@@ -256,9 +110,37 @@ protected:
 	UPROPERTY()
 	UPrimitiveComponent* SimulatingComponent;
 
+	// async data
+
+	FBuoyancyComponentAsyncInput* CurAsyncInput;
+	FBuoyancyComponentAsyncOutput* CurAsyncOutput;
+	FBuoyancyComponentAsyncOutput* NextAsyncOutput;
+	EAsyncBuoyancyComponentDataType CurAsyncType;
+	float OutputInterpAlpha = 0.f;
+
+	struct FAsyncOutputWrapper
+	{
+		int32 Idx;
+		int32 Timestamp;
+
+		FAsyncOutputWrapper()
+			: Idx(INDEX_NONE)
+			, Timestamp(INDEX_NONE)
+		{
+		}
+	};
+
+	TArray<FAsyncOutputWrapper> OutputsWaitingOn;
+
+	// async end
+
 	uint32 PontoonConfiguration;
 	TMap<uint32, TArray<float>> ConfiguredPontoonCoefficients;
 	int32 VelocityPontoonIndex;
 	int8 bIsOverlappingWaterBody : 1;
+	int8 bCanBeActive : 1;
 	int8 bIsInWaterBody : 1;
+public:
+	uint8 bUseAsyncPath : 1;
+
 };

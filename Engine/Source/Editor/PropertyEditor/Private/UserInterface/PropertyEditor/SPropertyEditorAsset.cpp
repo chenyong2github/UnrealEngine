@@ -383,26 +383,35 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 			if (PropertyEditor.IsValid())
 			{
 				PropertyEditor->GetPropertyHandle()->GetOuterObjects(ObjectList);
-			}
 
-			// If there is no objects, that means we must have a struct asset managing this property
-			if (ObjectList.Num() == 0)
-			{
-				IsEnabledAttribute.Set(false);
-				TooltipAttribute.Set(LOCTEXT("VariableHasDisableEditOnTemplate", "Editing this value in structure's defaults is not allowed"));
-			}
-			else
-			{
-				// Go through all the found objects and see if any are a CDO, we can't set an actor in a CDO default.
-				for (UObject* Obj : ObjectList)
+				if (ObjectList.Num() == 0)
 				{
-					if (Obj->IsTemplate() && !Obj->IsA<ALevelScriptActor>())
-					{
-						IsEnabledAttribute.Set(false);
-						TooltipAttribute.Set(LOCTEXT("VariableHasDisableEditOnTemplateTooltip", "Editing this value in a Class Default Object is not allowed"));
-						break;
-					}
+					TArray<UPackage*> ParentPackages;
+					PropertyEditor->GetPropertyHandle()->GetOuterPackages(ParentPackages);
 
+					// This might be a standalone struct inside an asset, check if the package's asset is a template type like a user struct
+					for (UPackage* Package : ParentPackages)
+					{
+						UObject* ParentAsset = Package->FindAssetInPackage();
+						if (ParentAsset && (ParentAsset->IsTemplate() || ParentAsset->IsA(UStruct::StaticClass())))
+						{
+							IsEnabledAttribute.Set(false);
+							TooltipAttribute.Set(LOCTEXT("VariableHasDisableEditOnTemplate", "Editing this value in structure's defaults is not allowed"));
+							break;
+						}
+					}
+				}
+			}
+
+			// Go through all the found objects and see if any are a CDO, we can't set an actor in a CDO
+			// If we're not inside a template asset and have no parent objects, assume this is an instance like a data table
+			for (UObject* Obj : ObjectList)
+			{
+				if (Obj->IsTemplate() && !Obj->IsA<ALevelScriptActor>())
+				{
+					IsEnabledAttribute.Set(false);
+					TooltipAttribute.Set(LOCTEXT("VariableHasDisableEditOnTemplateTooltip", "Editing this value in a Class Default Object is not allowed"));
+					break;
 				}
 			}
 		}

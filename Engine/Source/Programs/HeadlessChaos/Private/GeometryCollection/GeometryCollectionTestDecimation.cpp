@@ -33,19 +33,19 @@ namespace GeometryCollectionTest
 	
 	using namespace Chaos;
 
-	Chaos::TParticles<FReal, 3>
+	Chaos::FParticles
 	BuildParticlesFeomGeomCollection(FGeometryCollection *TestCollection)
 	{
 		TManagedArray<FVector> &Vertex = TestCollection->Vertex;
 		const int numParticles = Vertex.Num();
-		Chaos::TParticles<FReal, 3> particles;
+		Chaos::FParticles particles;
 		particles.AddParticles(numParticles);
 		for (int i = 0; i < numParticles; i++)
 			particles.X(i).Set(Vertex[i][0], Vertex[i][1], Vertex[i][2]);
 		return particles;
 	}
 
-	Chaos::TTriangleMesh<FReal>
+	Chaos::FTriangleMesh
 	BuildTriMeshFromGeomCollection(FGeometryCollection *TestCollection)
 	{
 		TManagedArray<FIntVector>& Indices = TestCollection->Indices;
@@ -55,7 +55,7 @@ namespace GeometryCollectionTest
 		for (int i = 0; i < numTris; i++)
 			tris[i] = Chaos::TVec3<int32>(Indices[i][0], Indices[i][1], Indices[i][2]);
 
-		Chaos::TTriangleMesh<FReal> triMesh(MoveTemp(tris));
+		Chaos::FTriangleMesh triMesh(MoveTemp(tris));
 		return triMesh;
 	}
 
@@ -135,8 +135,8 @@ namespace GeometryCollectionTest
 	bool
 	RunGeomDecimationTest(FGeometryCollection* TestCollection, const char *BaseName, const char *OutputDir, const uint32 ExpectedHash, const bool RestrictToLocalIndexRange = false)
 	{
-		Chaos::TParticles<FReal, 3> Particles = BuildParticlesFeomGeomCollection(TestCollection);
-		Chaos::TTriangleMesh<FReal> TriMesh = BuildTriMeshFromGeomCollection(TestCollection);
+		Chaos::FParticles Particles = BuildParticlesFeomGeomCollection(TestCollection);
+		Chaos::FTriangleMesh TriMesh = BuildTriMeshFromGeomCollection(TestCollection);
 
 		TArray<int32> CoincidentVertices;
 		const TArray<int32> Importance = TriMesh.GetVertexImportanceOrdering(Particles.X(), &CoincidentVertices, RestrictToLocalIndexRange);

@@ -22,7 +22,7 @@ namespace Generator
 class FMDLMapHandler : public Mdl::IMapDistilHandler
 {
 public:
-	FMDLMapHandler(const Mdl::FApiContext& MdlContext);
+	explicit FMDLMapHandler(const Mdl::FApiContext& MdlContext);
 	virtual ~FMDLMapHandler();
 
 	virtual void PreImport(const mi::neuraylib::IMaterial_definition& MDLMaterialDefinition,
@@ -39,6 +39,8 @@ public:
 	void Cleanup();
 
 	TArray<MDLImporterLogging::FLogMessage> GetLogMessages();
+	void SetFunctionAssetPath(const TCHAR* AssetPath);
+	void SetObjectFlags(EObjectFlags ObjectFlags);
 
 private:
 	void SetupNormalExpression(const FString& MapName);

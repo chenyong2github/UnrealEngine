@@ -373,6 +373,9 @@ bool USocialParty::TryPromoteMember(const UPartyMember& PartyMember)
 	{
 		UE_LOG(LogParty, VeryVerbose, TEXT("Party [%s] Attempting to promote member [%s]"), *ToDebugString(), *PartyMember.ToDebugString(false));
 
+		// We could have some modified RepData pending replication. Ensure it is updated up before promoting a new leader.
+		PartyDataReplicator.Flush();
+
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 		return PartyInterface->PromoteMember(*OwningLocalUserId, GetPartyId(), *PartyMember.GetPrimaryNetId());
 	}

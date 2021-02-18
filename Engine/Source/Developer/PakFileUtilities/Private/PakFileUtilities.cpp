@@ -27,6 +27,7 @@
 #include "Serialization/FileRegions.h"
 #include "Misc/ICompressionFormat.h"
 #include "Misc/KeyChainUtilities.h"
+#include "Algo/MaxElement.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, PakFileUtilities);
 
@@ -66,14 +67,13 @@ int64 GDDCMisses = 0;
 class FThreadLocalScratchSpace
 {
 public:
-#define MAX_SCRATCHSPACE_THREADS 64
-#define ALLOC_BUFFER_SIZE (256 * 1024 * 1024)
 	static FThreadLocalScratchSpace& Get()
 	{
 		static FThreadLocalScratchSpace Result;
 		return Result;
 	}
 	struct FScratchSpace
+		: public FTlsAutoCleanup
 	{
 	public:
 		FScratchSpace()
@@ -81,6 +81,12 @@ public:
 			Size = 0;
 			Buffer = nullptr;
 		}
+
+		virtual ~FScratchSpace()
+		{
+			CleanUp();
+		}
+
 		int64 Size;
 		uint8* Buffer;
 		TArray<uint8> Array;
@@ -107,32 +113,29 @@ public:
 		ScratchSpace = (FScratchSpace*)FPlatformTLS::GetTlsValue(TLSSlot);
 		if (ScratchSpace == nullptr)
 		{
-			int32 MyScratchSpace = FPlatformAtomics::InterlockedIncrement(&ThreadCounter);
-			check(MyScratchSpace < (MAX_SCRATCHSPACE_THREADS - 1));
-			ScratchSpace = &ScratchSpaces[MyScratchSpace];
+			ScratchSpace = new FScratchSpace();
+			ScratchSpace->Register();
 			FPlatformTLS::SetTlsValue(TLSSlot, (void*)ScratchSpace);
 		}
 	}
 
 	void CleanUp()
 	{
-		for (int32 I = 0; I < MAX_SCRATCHSPACE_THREADS; ++I)
+		FScratchSpace* ScratchSpace = (FScratchSpace*)FPlatformTLS::GetTlsValue(TLSSlot);
+		if (ScratchSpace)
 		{
-			ScratchSpaces[I].CleanUp();
+			delete ScratchSpace;
+			FPlatformTLS::SetTlsValue(TLSSlot, nullptr);
 		}
-		ThreadCounter = 0;
 	}
 private:
 
 	FThreadLocalScratchSpace()
 	{
 		TLSSlot = FPlatformTLS::AllocTlsSlot();
-		ThreadCounter = 0;
 	}
 
 	uint32 TLSSlot;
-	volatile int32 ThreadCounter;
-	FScratchSpace ScratchSpaces[MAX_SCRATCHSPACE_THREADS];
 };
 
 
@@ -261,8 +264,18 @@ private:
 
 bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOrderFile, bool bMergeOrder)
 {
-	int32 OrderOffset = (bSecondaryOrderFile || bMergeOrder) ? OrderMap.Num() + 1 : 1;
+	int32 OrderOffset = 0; 
 	int32 OpenOrderNumber = 0;
+
+	if (bSecondaryOrderFile || bMergeOrder)
+	{
+		const auto* maxValue = Algo::MaxElementBy(OrderMap, [](const auto& data) { return data.Value; });
+		if (maxValue)
+		{
+			OrderOffset = maxValue->Value + 1;
+		}
+	}
+
 	if (bSecondaryOrderFile)
 	{
 		MaxPrimaryOrderIndex = OrderOffset;
@@ -278,11 +291,24 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 		for (int32 EntryIndex = 0; EntryIndex < Lines.Num(); EntryIndex++)
 		{
 			FString Path;
+			Lines[EntryIndex].ReplaceInline(TEXT("\r"), TEXT(""));
+			Lines[EntryIndex].ReplaceInline(TEXT("\n"), TEXT(""));
 			const TCHAR* OrderLinePtr = *(Lines[EntryIndex]);
 			if (!FParse::Token(OrderLinePtr, Path, false))
 			{
 				UE_LOG(LogPakFile, Error, TEXT("Invlaid entry in the response file %s."), *Lines[EntryIndex]);
 				return false;
+			}
+
+			if(Lines[EntryIndex].FindLastChar('"', OpenOrderNumber))
+			{
+				FString ReadNum = Lines[EntryIndex].RightChop(OpenOrderNumber + 1);
+				Lines[EntryIndex].LeftInline(OpenOrderNumber + 1, false);
+				ReadNum.TrimStartInline();
+				if (ReadNum.IsNumeric())
+				{
+					OpenOrderNumber = FCString::Atoi(*ReadNum);
+				}
 			}
 
 			FPaths::NormalizeFilename(Path);
@@ -293,8 +319,7 @@ bool FPakOrderMap::ProcessOrderFile(const TCHAR* ResponseFile, bool bSecondaryOr
 				continue;
 			}
 
-			OpenOrderNumber = OrderOffset++;
-			OrderMap.Add(Path, OpenOrderNumber);
+			OrderMap.Add(Path, OpenOrderNumber + OrderOffset);
 		}
 
 		UE_LOG(LogPakFile, Display, TEXT("Finished loading pak order file %s."), ResponseFile);

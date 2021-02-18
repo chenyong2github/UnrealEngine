@@ -149,7 +149,7 @@ namespace DatasmithRhino.ElementExporters
 		{
 			DatasmithMeshActor.SetLabel(InNode.Label);
 
-			Transform OffsetTransform = Transform.Translation(InMeshInfo.PivotOffset);
+			Transform OffsetTransform = InMeshInfo.OffsetTransform;
 			Transform WorldTransform = Transform.Multiply(InNode.WorldTransform, OffsetTransform);
 			DatasmithMeshActor.SetWorldTransform(WorldTransform.ToFloatArray(false));
 
@@ -319,12 +319,13 @@ namespace DatasmithRhino.ElementExporters
 			}
 		}
 
-		private static void SyncTags(FDatasmithFacadeActor InDatasmithActor, DatasmithActorInfo InNode)
+		private void SyncTags(FDatasmithFacadeActor InDatasmithActor, DatasmithActorInfo InNode)
 		{
-			if (!InNode.bIsRoot && InNode.Tags != null)
+			if (!InNode.bIsRoot)
 			{
+				List<string> Tags = InNode.GetTags(ExportContext);
 				InDatasmithActor.ResetTags();
-				foreach (string CurrentTag in InNode.Tags)
+				foreach (string CurrentTag in Tags)
 				{
 					InDatasmithActor.AddTag(CurrentTag);
 				}

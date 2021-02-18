@@ -1,11 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BuoyancyComponent.h"
+#include "BuoyancyComponentSimulation.h"
 #include "WaterBodyActor.h"
 #include "DrawDebugHelpers.h"
 #include "WaterSplineComponent.h"
 #include "WaterVersion.h"
 #include "Physics/SimpleSuspension.h"
+#include "Chaos/Particle/ParticleUtilities.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "PBDRigidsSolver.h"
+#include "WaterSubsystem.h"
 
 TAutoConsoleVariable<int32> CVarWaterDebugBuoyancy(
 	TEXT("r.Water.DebugBuoyancy"),
@@ -19,37 +24,78 @@ TAutoConsoleVariable<int32> CVarWaterUseSplineKeyOptimization(
 	TEXT("Whether to cache spline input key for water bodies."),
 	ECVF_Default);
 
+TAutoConsoleVariable<int32> CVarWaterBuoyancyUseAsyncPath(
+	TEXT("r.Water.UseBuoyancyAsyncPath"),
+	1,
+	TEXT("Whether to use async physics callback for buoyancy."),
+	ECVF_Default);
+
 UBuoyancyComponent::UBuoyancyComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, SimulatingComponent(nullptr)
 	, PontoonConfiguration(0)
 	, VelocityPontoonIndex(0)
 	, bIsOverlappingWaterBody(false)
+	, bCanBeActive(true)
 	, bIsInWaterBody(false)
+	, bUseAsyncPath(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
+
+	CurAsyncInput = nullptr;
+	CurAsyncOutput = nullptr;
 }
 
 void UBuoyancyComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	for (FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
-	{
-		if (Pontoon.CenterSocket != NAME_None)
-		{
-			Pontoon.bUseCenterSocket = true;
-		}
-	}
 	if (AActor* Owner = GetOwner())
 	{
 		SimulatingComponent = Cast<UPrimitiveComponent>(Owner->GetRootComponent());
-		if (SimulatingComponent)
+	}
+	if(SimulatingComponent)
+	{
+		for (FSphericalPontoon& Pontoon : BuoyancyData.Pontoons)
 		{
-			SetupWaterBodyOverlaps();
+			if (Pontoon.CenterSocket != NAME_None)
+			{
+				Pontoon.bUseCenterSocket = true;
+				Pontoon.SocketTransform = SimulatingComponent->GetSocketTransform(Pontoon.CenterSocket, RTS_Actor);
+			}
+		}
+		SetupWaterBodyOverlaps();
+	}
+
+	// Call this before registering with manager
+	FinalizeAuxData();
+
+	if (UWorld* World = GetWorld())
+	{
+		if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
+		{
+			if (ABuoyancyManager* Manager = WaterSubsystem->GetBuoyancyManager())
+			{
+				Manager->Register(this);
+			}
 		}
 	}
+}
+
+void UBuoyancyComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
+		{
+			if (ABuoyancyManager* Manager = WaterSubsystem->GetBuoyancyManager())
+			{
+				Manager->Unregister(this);
+			}
+		}
+	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void UBuoyancyComponent::PostLoad()
@@ -78,26 +124,88 @@ const float ToKmh(float SpeedCms)
 	return SpeedCms * 0.036f; //cm/s to km/h
 }
 
-void UBuoyancyComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UBuoyancyComponent::Update(float DeltaTime)
 {
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (!SimulatingComponent)
 	{
 		return;
 	}
-	const FVector PhysicsVelocity = SimulatingComponent->GetComponentVelocity();
-
-	const FVector ForwardDir = SimulatingComponent->GetForwardVector();
-	const FVector RightDir = SimulatingComponent->GetRightVector();
-
-	const float ForwardSpeed = FVector::DotProduct(ForwardDir, PhysicsVelocity);
-	const float ForwardSpeedKmh = ToKmh(ForwardSpeed);
-
-	const float RightSpeed = FVector::DotProduct(RightDir, PhysicsVelocity);
-	const float RightSpeedKmh = ToKmh(RightSpeed);
 
 	UpdatePontoonCoefficients();
 
+	if (const FBuoyancyComponentBaseAsyncOutput* Output = static_cast<FBuoyancyComponentBaseAsyncOutput*>(CurAsyncOutput))
+	{
+		if (Output->bValid)
+		{
+			// TODO: It would be way nicer to just have async be the only path, and make
+			// everything that accesses these members go through CurAsyncOutput rather
+			// than copying into the vehicle.
+			const FBuoyancySimOutput& SimOut = Output->SimOutput;
+			bIsInWaterBody = SimOut.bIsInWaterBody;
+
+			check(BuoyancyData.Pontoons.Num() == Output->AuxData.Pontoons.Num());
+			for (int32 i = 0; i < BuoyancyData.Pontoons.Num(); ++i)
+			{
+				BuoyancyData.Pontoons[i].CopyDataFromPT(Output->AuxData.Pontoons[i]);
+			}
+		}
+	}
+
+#if WITH_CHAOS
+	if (CurAsyncInput)
+	{
+		if (const FBodyInstance* BodyInstance = SimulatingComponent->GetBodyInstance())
+		{
+			if (auto Handle = BodyInstance->ActorHandle)
+			{
+				CurAsyncInput->Proxy = BodyInstance->ActorHandle;
+			}
+		}
+
+		FBuoyancyComponentBaseAsyncInput* BuoyancyInputState = static_cast<FBuoyancyComponentBaseAsyncInput*>(CurAsyncInput);
+
+		BuoyancyInputState->WaterBodies = GetCurrentWaterBodies();
+		BuoyancyInputState->Pontoons = BuoyancyData.Pontoons;
+		bool bSetSmoothedTime = false;
+		for (AWaterBody* WaterBody : GetCurrentWaterBodies())
+		{
+			if (WaterBody->HasWaves())
+			{
+				BuoyancyInputState->SmoothedWorldTimeSeconds = WaterBody->GetWaveReferenceTime();
+				bSetSmoothedTime = true;
+				break;
+			}
+		}
+		if(!bSetSmoothedTime)
+		{
+			BuoyancyInputState->SmoothedWorldTimeSeconds = GetWorld()->GetTimeSeconds();
+		}
+	}
+#endif
+
+	if (!IsUsingAsyncPath())
+	{
+		const FVector PhysicsVelocity = SimulatingComponent->GetComponentVelocity();
+
+		const FVector ForwardDir = SimulatingComponent->GetForwardVector();
+		const FVector RightDir = SimulatingComponent->GetRightVector();
+
+		const float ForwardSpeed = FVector::DotProduct(ForwardDir, PhysicsVelocity);
+		const float ForwardSpeedKmh = ToKmh(ForwardSpeed);
+
+		const float RightSpeed = FVector::DotProduct(RightDir, PhysicsVelocity);
+		const float RightSpeedKmh = ToKmh(RightSpeed);
+		ApplyForces(DeltaTime, PhysicsVelocity, ForwardSpeed, ForwardSpeedKmh, SimulatingComponent);
+	}
+}
+
+void UBuoyancyComponent::ApplyForces(float DeltaTime, FVector LinearVelocity, float ForwardSpeed, float ForwardSpeedKmh, UPrimitiveComponent* PrimitiveComponent)
+{
+	if (IsUsingAsyncPath())
+	{
+		return;
+	}
+	
 	const int32 NumPontoonsInWater = UpdatePontoons(DeltaTime, ForwardSpeed, ForwardSpeedKmh, SimulatingComponent);
 	bIsInWaterBody = NumPontoonsInWater > 0;
 
@@ -111,11 +219,11 @@ void UBuoyancyComponent::TickComponent(float DeltaTime, enum ELevelTick TickType
 			FVector TotalForce = FVector::ZeroVector;
 			FVector TotalTorque = FVector::ZeroVector;
 
-			TotalForce += ComputeWaterForce(DeltaTime, PhysicsVelocity);
+			TotalForce += ComputeWaterForce(DeltaTime, LinearVelocity);
 
 			if (BuoyancyData.bApplyDragForcesInWater)
 			{
-				TotalForce  += ComputeLinearDragForce(PhysicsVelocity);
+				TotalForce += ComputeLinearDragForce(LinearVelocity);
 				TotalTorque += ComputeAngularDragTorque(SimulatingComponent->GetPhysicsAngularVelocityInDegrees());
 			}
 
@@ -125,14 +233,10 @@ void UBuoyancyComponent::TickComponent(float DeltaTime, enum ELevelTick TickType
 	}
 }
 
-void UBuoyancyComponent::EnableTick()
+void UBuoyancyComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
-	SetComponentTickEnabled(true);
-}
-
-void UBuoyancyComponent::DisableTick()
-{
-	SetComponentTickEnabled(false);
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+	Update(DeltaTime);
 }
 
 void UBuoyancyComponent::SetupWaterBodyOverlaps()
@@ -173,7 +277,6 @@ void UBuoyancyComponent::EnteredWaterBody(AWaterBody* WaterBody)
 	{
 		bIsOverlappingWaterBody = true;
 	}
-	EnableTick();
 }
 
 void UBuoyancyComponent::ExitedWaterBody(AWaterBody* WaterBody)
@@ -186,8 +289,8 @@ void UBuoyancyComponent::ExitedWaterBody(AWaterBody* WaterBody)
 	if (!CurrentWaterBodies.Num())
 	{
 		bIsOverlappingWaterBody = false;
+		bIsInWaterBody = false;
 	}
-	DisableTick();
 }
 
 void UBuoyancyComponent::ApplyBuoyancy(UPrimitiveComponent* PrimitiveComponent)
@@ -629,4 +732,173 @@ FVector UBuoyancyComponent::ComputeAngularDragTorque(const FVector& AngularVeloc
 		DragTorque = -AngularVelocity * BuoyancyData.AngularDragCoefficient;
 	}
 	return DragTorque;
+}
+
+TUniquePtr<FBuoyancyComponentAsyncInput> UBuoyancyComponent::SetCurrentAsyncInputOutput(int32 InputIdx, FBuoyancyManagerAsyncOutput* CurOutput, FBuoyancyManagerAsyncOutput* NextOutput, float Alpha, int32 BuoyancyManagerTimestamp)
+{
+	if (IsUsingAsyncPath())
+	{
+		TUniquePtr<FBuoyancyComponentBaseAsyncInput> CurInput = MakeUnique<FBuoyancyComponentBaseAsyncInput>();
+		SetCurrentAsyncInputOutputInternal(CurInput.Get(), InputIdx, CurOutput, NextOutput, Alpha, BuoyancyManagerTimestamp);
+		return CurInput;
+	}
+	return nullptr;
+}
+
+void UBuoyancyComponent::SetCurrentAsyncInputOutputInternal(FBuoyancyComponentAsyncInput* CurInput, int32 InputIdx, FBuoyancyManagerAsyncOutput* CurOutput, FBuoyancyManagerAsyncOutput* NextOutput, float Alpha, int32 BuoyancyManagerTimestamp)
+{
+	ensure(CurAsyncInput == nullptr);	//should be reset after it was filled
+	ensure(CurAsyncOutput == nullptr);	//should get reset after update is done
+
+	CurAsyncInput = CurInput;
+	CurAsyncInput->BuoyancyComponent = this;
+	CurAsyncType = CurInput->Type;
+	NextAsyncOutput = nullptr;
+	OutputInterpAlpha = 0.f;
+
+	// We need to find our component in the output given
+	if (CurOutput)
+	{
+		for (int32 PendingOutputIdx = 0; PendingOutputIdx < OutputsWaitingOn.Num(); ++PendingOutputIdx)
+		{
+			// Found the correct pending output, use index to get the component.
+			if (OutputsWaitingOn[PendingOutputIdx].Timestamp == CurOutput->Timestamp)
+			{
+				const int32 ComponentIdx = OutputsWaitingOn[PendingOutputIdx].Idx;
+				FBuoyancyComponentAsyncOutput* ComponentOutput = CurOutput->Outputs[ComponentIdx].Get();
+				if (ComponentOutput && ComponentOutput->bValid && ComponentOutput->Type == CurAsyncType)
+				{
+					CurAsyncOutput = ComponentOutput;
+
+					if (NextOutput && NextOutput->Timestamp == CurOutput->Timestamp)
+					{
+						// This can occur when substepping - in this case, VehicleOutputs will be in the same order in NextOutput and CurOutput.
+						FBuoyancyComponentAsyncOutput* ComponentNextOutput = NextOutput->Outputs[ComponentIdx].Get();
+						if (ComponentNextOutput && ComponentNextOutput->bValid && ComponentNextOutput->Type == CurAsyncType)
+						{
+							NextAsyncOutput = ComponentNextOutput;
+							OutputInterpAlpha = Alpha;
+						}
+					}
+				}
+
+				// these are sorted by timestamp, we are using latest, so remove entries that came before it.
+				TArray<FAsyncOutputWrapper> NewOutputsWaitingOn;
+				for (int32 CopyIndex = PendingOutputIdx; CopyIndex < OutputsWaitingOn.Num(); ++CopyIndex)
+				{
+					NewOutputsWaitingOn.Add(OutputsWaitingOn[CopyIndex]);
+				}
+
+				OutputsWaitingOn = MoveTemp(NewOutputsWaitingOn);
+				break;
+			}
+		}
+	}
+
+	if (NextOutput && CurOutput)
+	{
+		if (NextOutput->Timestamp != CurOutput->Timestamp)
+		{
+			// NextOutput and CurOutput occurred in different steps, so we need to search for our specific component.
+			for (int32 PendingOutputIdx = 0; PendingOutputIdx < OutputsWaitingOn.Num(); ++PendingOutputIdx)
+			{
+				// Found the correct pending output, use index to get the vehicle.
+				if (OutputsWaitingOn[PendingOutputIdx].Timestamp == NextOutput->Timestamp)
+				{
+					FBuoyancyComponentAsyncOutput* ComponentOutput = NextOutput->Outputs[OutputsWaitingOn[PendingOutputIdx].Idx].Get();
+					if (ComponentOutput && ComponentOutput->bValid && ComponentOutput->Type == CurAsyncType)
+					{
+						NextAsyncOutput = ComponentOutput;
+						OutputInterpAlpha = Alpha;
+					}
+					break;
+				}
+			}
+		}
+	}
+
+	FAsyncOutputWrapper& NewOutput = OutputsWaitingOn.AddDefaulted_GetRef();
+	NewOutput.Timestamp = BuoyancyManagerTimestamp;
+	NewOutput.Idx = InputIdx;
+}
+
+void UBuoyancyComponent::FinalizeSimCallbackData(FBuoyancyManagerAsyncInput& Input)
+{
+	for (AWaterBody* WaterBody : GetCurrentWaterBodies())
+	{
+		if (WaterBody && !Input.WaterBodyToSolverData.Contains(WaterBody))
+		{
+			TUniquePtr<FSolverSafeWaterBodyData> WaterBodyData = MakeUnique<FSolverSafeWaterBodyData>(WaterBody);
+			Input.WaterBodyToSolverData.Add(WaterBody, MoveTemp(WaterBodyData));
+		}
+	}
+
+	CurAsyncInput = nullptr;
+	CurAsyncOutput = nullptr;
+}
+
+void UBuoyancyComponent::GameThread_ProcessIntermediateAsyncOutput(const FBuoyancyComponentAsyncOutput& Output)
+{
+	if (Output.Type != EAsyncBuoyancyComponentDataType::AsyncBuoyancyInvalid)
+	{
+		const FBuoyancyComponentBaseAsyncOutput& BaseOutput = static_cast<const FBuoyancyComponentBaseAsyncOutput&>(Output);
+		for (const TPair<FSphericalPontoon, EBuoyancyEvent>& Event : BaseOutput.SimOutput.Events)
+		{
+			if (Event.Value == EBuoyancyEvent::EnteredWaterBody)
+			{
+				OnPontoonEnteredWater(Event.Key);
+			}
+			else if (Event.Value == EBuoyancyEvent::ExitedWaterBody)
+			{
+				OnPontoonExitedWater(Event.Key);
+			}
+		}
+	}
+}
+
+void UBuoyancyComponent::GameThread_ProcessIntermediateAsyncOutput(const FBuoyancyManagerAsyncOutput& AsyncOutput)
+{
+	if (!IsUsingAsyncPath())
+	{
+		return;
+	}
+
+	for (int32 PendingOutputIdx = 0; PendingOutputIdx < OutputsWaitingOn.Num(); ++PendingOutputIdx)
+	{
+		// Found the correct pending output, use index to get the vehicle.
+		if (OutputsWaitingOn[PendingOutputIdx].Timestamp == AsyncOutput.Timestamp)
+		{
+			const FBuoyancyComponentAsyncOutput* Output = AsyncOutput.Outputs[OutputsWaitingOn[PendingOutputIdx].Idx].Get();
+			if (Output && Output->bValid)
+			{
+				GameThread_ProcessIntermediateAsyncOutput(*Output);
+			}
+		}
+	}
+}
+
+bool UBuoyancyComponent::IsUsingAsyncPath() const
+{
+#if WITH_CHAOS
+	bool bAsyncSolver = false;
+	if (UWorld* World = GetWorld())
+	{
+		if (const FPhysScene* PhysScene = World->GetPhysicsScene())
+		{
+			if (const Chaos::FPBDRigidsSolver* Solver = PhysScene->GetSolver())
+			{
+				bAsyncSolver = Solver->IsUsingAsyncResults();
+			}
+		}
+	}
+	return bAsyncSolver && bUseAsyncPath && (CVarWaterBuoyancyUseAsyncPath.GetValueOnAnyThread() > 0);
+#endif
+	return false;
+}
+
+TUniquePtr<FBuoyancyComponentAsyncAux> UBuoyancyComponent::CreateAsyncAux() const
+{
+	TUniquePtr<FBuoyancyComponentBaseAsyncAux> Aux = MakeUnique<FBuoyancyComponentBaseAsyncAux>();
+	Aux->BuoyancyData = BuoyancyData;
+	return Aux;
 }

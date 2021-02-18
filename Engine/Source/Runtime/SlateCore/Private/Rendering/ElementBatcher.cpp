@@ -305,7 +305,10 @@ void FSlateElementBatcher::AddElements(FSlateWindowElementList& WindowElementLis
 
 		for (FSlateCachedElementData* CachedElementData : CachedElementDataList)
 		{
-			AddCachedElements(*CachedElementData, ViewportSize);
+			if (CachedElementData)
+			{
+				AddCachedElements(*CachedElementData, ViewportSize);
+			}
 		}
 	}
 

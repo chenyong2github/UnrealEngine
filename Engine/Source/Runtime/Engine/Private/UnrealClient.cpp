@@ -1241,6 +1241,11 @@ bool FViewport::TakeHighResScreenShot()
 
 void FViewport::HighResScreenshot()
 {
+	if (!ViewportClient->GetEngineShowFlags())
+	{
+		return;
+	}
+
 	// We need to cache this as FScreenshotRequest is a global and the filename is
 	// cleared out before we use it below
 	const FString CachedScreenshotName = FScreenshotRequest::GetFilename();

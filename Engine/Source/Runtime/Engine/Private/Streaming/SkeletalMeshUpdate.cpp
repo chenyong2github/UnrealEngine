@@ -226,6 +226,7 @@ void FSkeletalMeshStreamIn::DoFinishUpdate(const FContext& Context)
 #endif
 
 		RenderData->PendingFirstLODIdx = RenderData->CurrentFirstLODIdx = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumRequestedLODs);
+		MarkAsSuccessfullyFinished();
 	}
 	else
 	{
@@ -376,6 +377,7 @@ void FSkeletalMeshStreamOut::ReleaseBuffers(const FContext& Context)
 			}
 #endif
 		}
+		MarkAsSuccessfullyFinished();
 	}
 }
 

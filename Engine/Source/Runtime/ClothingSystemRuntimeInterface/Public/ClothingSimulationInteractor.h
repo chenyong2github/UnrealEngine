@@ -6,6 +6,25 @@
 
 class IClothingSimulation;
 class IClothingSimulationContext;
+class UClothingAssetBase;
+
+/**
+ * Abstract class to control clothing specific interaction.
+ * Must be cast to the end used clothing simulation object before use.
+ */
+UCLASS(Abstract, BlueprintType)
+class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingInteractor : public UObject
+{
+	GENERATED_BODY()
+
+protected:
+	friend class UClothingSimulationInteractor;
+
+	virtual void Sync(IClothingSimulation* Simulation) {}
+
+protected:
+	int32 ClothingId = -1;  // Clothing Asset slot as passed to the CreateActor function
+};
 
 /** 
  * If a clothing simulation is able to be interacted with at runtime then a derived
@@ -20,80 +39,108 @@ class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingSimulationInteractor : public 
 	GENERATED_BODY()
 
 public:
+	/** Create a cloth specific interactor. */
+	void CreateClothingInteractor(const UClothingAssetBase* ClothingAsset, int32 ClothingId);
 
-	// Basic interface that clothing simulations are expected to support
+	/** Destroy all interactors. */
+	void DestroyClothingInteractors();
 
-	// Called to update collision status without restarting the simulation
+	// Basic interface that clothing simulations are required to support
+
+	/**
+	 * Sync the interactor to the provided context for the clothing simulation to use
+	 * on its next update. This will be called at a time that is guaranteed to
+	 * never overlap with the running simulation. The simulation will have to be
+	 * written in a way to pick up these changes on the next update.
+	 * Any inherited class must call this function to also Sync the ClothingInteractors.
+	 */
+	virtual void Sync(IClothingSimulation* Simulation, IClothingSimulationContext* Context);
+
+	/** Called to update collision status without restarting the simulation. */
 	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
 	virtual void PhysicsAssetUpdated()
 	PURE_VIRTUAL(UClothingSimulationInteractor::PhysicsAssetUpdated, );
 
-	// Called to update the cloth config without restarting the simulation
+	/** Called to update the cloth config without restarting the simulation. */
 	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
 	virtual void ClothConfigUpdated()
 	PURE_VIRTUAL(UClothingSimulationInteractor::ClothConfigUpdated, );
 
-	bool IsDirty() { return bDirty; }
-
-	// Sync the interactor to the provided context for the clothing simulation to use
-	// on its next update. This will be called at a time that is guaranteed to
-	// never overlap with the running simulation. The simulation will have to be
-	// written in a way to pick up these changes on the next update
-	virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext)
-	PURE_VIRTUAL(UClothingSimulationInteractor::Sync, );
-
-	// Set the stiffness of the spring force for the animation drive
+	/** Set the stiffness of the spring force for the animation drive. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
 	virtual void SetAnimDriveSpringStiffness(float InStiffness)
 	PURE_VIRTUAL(UClothingSimulationInteractor::SetAnimDriveSpringStiffness, );
 
-	// Set a new gravity override and enable the override
+	/** Set a new gravity override and enable the override. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
 	virtual void EnableGravityOverride(const FVector& InVector)
 	PURE_VIRTUAL(UClothingSimulationInteractor::EnableGravityOverride, );
 
-	// Disable any currently set gravity override
+	/** Disable any currently set gravity override. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
 	virtual void DisableGravityOverride()
 	PURE_VIRTUAL(UClothingSimulationInteractor::DisableGravityOverride, );
 
-	// Return the number of cloths run by the simulation.
+	/** Set the number of solver iterations. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual int32 GetNumCloths() const
-	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumCloths, return 0;);
+	virtual void SetNumIterations(int32 NumIterations = 2)
+	PURE_VIRTUAL(UClothingSimulationInteractor::SetNumIterations, );
 
-	// Return the number of kinematic (animated) particles.
-	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual int32 GetNumKinematicParticles() const
-	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumKinematicParticles, return 0;);
+	/** Set the number of substeps or subdivisions. */
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation, Meta = (Keywords = "Subdivisions"))
+	virtual void SetNumSubsteps(int32 NumSubsteps = 1)
+	PURE_VIRTUAL(UClothingSimulationInteractor::SetNumSubsteps, );
 
-	// Return the number of dynamic (simulated) particles.
-	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual int32 GetNumDynamicParticles() const
-	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumDynamicParticles, return 0;);
+	// Base clothing simulations interface
 
-	// Return the solver number of iterations.
+	/** Return the number of cloths run by the simulation. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual int32 GetNumIterations() const
-	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumIterations, return 0;);
+	int32 GetNumCloths() const { return LastNumCloths; }
 
-	// Return the solver number of subdivisions.
+	/** Return the number of kinematic (animated) particles. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual int32 GetNumSubsteps() const
-	PURE_VIRTUAL(UClothingSimulationInteractor::GetNumSubsteps, return 0;);
+	int32 GetNumKinematicParticles() const { return LastNumKinematicParticles; }
 
-	// Return the instant average simulation time in ms. 
+	/** Return the number of dynamic (simulated) particles. */
 	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
-	virtual float GetSimulationTime() const
-	PURE_VIRTUAL(UClothingSimulationInteractor::GetSimulationTime, return 0.f;);
+	int32 GetNumDynamicParticles() const { return LastNumDynamicParticles; }
+
+	/**
+	 * Return the solver number of iterations.
+	 * This could be different from the number set if the simulation hasn't updated yet.
+	 */
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	int32 GetNumIterations() const { return LastNumIterations; }
+
+	/**
+	 * Return the solver number of subdivisions./
+	 * This could be different from the number set if the simulation hasn't updated yet.
+	 */
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	int32 GetNumSubsteps() const { return LastNumSubsteps; }
+
+	/** Return the instant average simulation time in ms. */
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	float GetSimulationTime() const { return LastSimulationTime; }
+
+	/**Return a cloth interactor for this simulation. */
+	UFUNCTION(BlueprintCallable, Category = ClothingSimulation)
+	UClothingInteractor* GetClothingInteractor(const FString& ClothingAssetName) const;
+
+	/** Cloth interactors currently created. */
+	UPROPERTY()
+	TMap<FName, UClothingInteractor*> ClothingInteractors;
 
 protected:
+	virtual UClothingInteractor* CreateClothingInteractor()
+	PURE_VIRTUAL(UClothingSimulationInteractor::CreateClothingInteractor, return nullptr;);
 
-	// Intended to be called by functions on the interactor to message to the 
-	// owning skeletal mesh component that this interactor requires a sync.
-	void MarkDirty() { bDirty = true; }
-
-	// Flag to control sync calls
-	bool bDirty;
-
+private:
+	// Simulation infos updated during the sync
+	int32 LastNumCloths = 0;
+	int32 LastNumKinematicParticles = 0;
+	int32 LastNumDynamicParticles = 0;
+	int32 LastNumIterations = 0;
+	int32 LastNumSubsteps = 0;
+	float LastSimulationTime = 0.f;
 };

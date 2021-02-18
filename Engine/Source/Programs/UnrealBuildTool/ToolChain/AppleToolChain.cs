@@ -188,18 +188,30 @@ namespace UnrealBuildTool
 		}
 
 		static Version ClangVersion = null;
+		static string FullClangVersion = null;
 
 		protected Version GetClangVersion()
 		{	
 			if (ClangVersion == null)
 			{
 				FileReference ClangLocation = new FileReference("/usr/bin/clang");
-
 				ClangVersion = RunToolAndCaptureVersion(ClangLocation, "--version");			
 			}
 			return ClangVersion;
 		}
-		
+
+		protected string GetFullClangVersion()
+		{
+			if (FullClangVersion == null)
+			{
+				// get the first line that has the full clang and build number
+				FileReference ClangLocation = new FileReference("/usr/bin/clang");
+				FullClangVersion = RunToolAndCaptureOutput(ClangLocation, "--version", "(.*)");
+			}
+
+			return FullClangVersion;
+		}
+
 		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");

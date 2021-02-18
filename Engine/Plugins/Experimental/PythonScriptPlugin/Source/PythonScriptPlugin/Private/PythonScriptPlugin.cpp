@@ -456,7 +456,9 @@ bool FPythonScriptPlugin::ExecPythonCommand(const TCHAR* InPythonCommand)
 
 bool FPythonScriptPlugin::ExecPythonCommandEx(FPythonCommandEx& InOutPythonCommand)
 {
+#if WITH_PYTHON
 	if (!IsPythonAvailable())
+#endif
 	{
 		InOutPythonCommand.CommandResult = TEXT("Python is not available!");
 		ensureAlwaysMsgf(false, TEXT("%s"), *InOutPythonCommand.CommandResult);
@@ -596,7 +598,9 @@ void FPythonScriptPlugin::PreChange(const UUserDefinedEnum* Enum, FEnumEditorUti
 
 void FPythonScriptPlugin::PostChange(const UUserDefinedEnum* Enum, FEnumEditorUtils::EEnumEditorChangeInfo Info)
 {
+#if WITH_PYTHON
 	OnAssetUpdated(Enum);
+#endif //WITH_PYTHON
 }
 
 #if WITH_PYTHON

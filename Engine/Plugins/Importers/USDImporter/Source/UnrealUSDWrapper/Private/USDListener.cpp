@@ -2,17 +2,20 @@
 
 #include "USDListener.h"
 
+#include "USDLog.h"
 #include "USDMemory.h"
 
 #include "UsdWrappers/UsdStage.h"
+#include "UsdWrappers/VtValue.h"
 
 #if USE_USD_SDK
 
 #include "USDIncludesStart.h"
 
 #include "pxr/base/tf/weakBase.h"
-#include "pxr/usd/sdf/path.h"
+#include "pxr/usd/sdf/changeList.h"
 #include "pxr/usd/sdf/notice.h"
+#include "pxr/usd/sdf/path.h"
 #include "pxr/usd/usd/notice.h"
 #include "pxr/usd/usd/stage.h"
 #include "pxr/usd/usdGeom/tokens.h"
@@ -21,6 +24,69 @@
 
 #endif // USE_USD_SDK
 
+namespace UsdToUnreal
+{
+#if USE_USD_SDK
+	bool CollectFieldChanges( const pxr::UsdNotice::ObjectsChanged::PathRange& InfoChanges, UsdUtils::FUsdFieldValueMap& OutOldValues, UsdUtils::FUsdFieldValueMap& OutNewValues )
+	{
+		using namespace pxr;
+		using PathRange = UsdNotice::ObjectsChanged::PathRange;
+		using InfoChange = std::pair<VtValue, VtValue>;
+
+		for ( PathRange::const_iterator It = InfoChanges.begin(); It != InfoChanges.end(); ++It )
+		{
+			// Something like "/Root/Prim.some_field"
+			const TCHAR* FullFieldPath = ANSI_TO_TCHAR( It->GetString().c_str() );
+
+			const std::vector<const SdfChangeList::Entry*>& Changes = It.base()->second;
+			for ( const SdfChangeList::Entry* Entry : Changes )
+			{
+				// For most changes we'll only get one of these, but sometimes multiple changes are fired in sequence
+				// (e.g. if you change framesPerSecond, it will send a notice for it but also for the matching, updated timeCodesPerSecond)
+				for ( const std::pair<TfToken, InfoChange>& Change : Entry->infoChanged )
+				{
+					FString CombinedPath;
+
+					// For regular properties (most common case) FullFieldPath will already carry the property and FieldToken will be "default", "timeSamples", "variability", etc.
+					const TCHAR* FieldToken = ANSI_TO_TCHAR( Change.first.GetString().c_str() );
+					if ( It->IsPropertyPath() )
+					{
+						CombinedPath = FString::Printf( TEXT( "%s.%s" ), FullFieldPath, FieldToken );
+					}
+					// For stage properties it seems like USD likes to send just "/" as the FullFieldPath, and the actual property name in FieldToken (e.g. "metersPerUnit", "timeCodesPerSecond", etc.)
+					// We send "default" here for consistency, so that our consumer code can always strip one suffix and expect a property path
+					else if ( It->IsAbsoluteRootPath() || FieldToken == FString(TEXT( "kind" )) )
+					{
+						CombinedPath = FString::Printf( TEXT( "%s.%s.default" ), FullFieldPath, FieldToken );
+					}
+					else
+					{
+						UE_LOG( LogUsd, Warning, TEXT( "Failed to process a USD field notice for field '%s' and path '%s'" ),
+							FieldToken,
+							FullFieldPath
+						);
+						continue;
+					}
+
+					if ( OutOldValues.Contains( CombinedPath ) )
+					{
+						UE_LOG( LogUsd, Warning, TEXT( "Overwriting existing old value for field '%s'!" ), *CombinedPath );
+					}
+					OutOldValues.Add( CombinedPath, UE::FVtValue{ Change.second.first } );
+
+					if ( OutNewValues.Contains( CombinedPath ) )
+					{
+						UE_LOG( LogUsd, Warning, TEXT( "Overwriting existing new value for field '%s'!" ), *CombinedPath );
+					}
+					OutNewValues.Add( CombinedPath, UE::FVtValue{ Change.second.second } );
+				}
+			}
+		}
+
+		return true;
+	}
+#endif // USE_USD_SDK
+}
 
 class FUsdListenerImpl
 #if USE_USD_SDK
@@ -36,6 +102,7 @@ public:
 	FUsdListener::FOnPrimsChanged OnPrimsChanged;
 	FUsdListener::FOnStageInfoChanged OnStageInfoChanged;
 	FUsdListener::FOnLayersChanged OnLayersChanged;
+	FUsdListener::FOnFieldsChanged OnFieldsChanged;
 
 	FThreadSafeCounter IsBlocked;
 
@@ -111,6 +178,11 @@ FUsdListener::FOnLayersChanged& FUsdListener::GetOnLayersChanged()
 	return Impl->OnLayersChanged;
 }
 
+FUsdListener::FOnFieldsChanged& FUsdListener::GetOnFieldsChanged()
+{
+	return Impl->OnFieldsChanged;
+}
+
 #if USE_USD_SDK
 void FUsdListenerImpl::Register( const pxr::UsdStageRefPtr& Stage )
 {
@@ -150,12 +222,28 @@ FUsdListenerImpl::~FUsdListenerImpl()
 }
 
 #if USE_USD_SDK
-void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged& Notice, const pxr::UsdStageWeakPtr& Sender )
+void FUsdListenerImpl::HandleUsdNotice( const pxr::UsdNotice::ObjectsChanged & Notice, const pxr::UsdStageWeakPtr & Sender )
 {
 	using namespace pxr;
 	using PathRange = UsdNotice::ObjectsChanged::PathRange;
 
-	if ( (!OnPrimsChanged.IsBound() && !OnStageInfoChanged.IsBound()) || IsBlocked.GetValue() > 0 )
+	if ( !OnPrimsChanged.IsBound() && !OnStageInfoChanged.IsBound() && !OnFieldsChanged.IsBound() )
+	{
+		return;
+	}
+
+	// Temp: We always want to emit this one as we just use this notice to keep track of USD stage changes, for undo/redo and multi-user
+	UsdUtils::FUsdFieldValueMap OldValues;
+	UsdUtils::FUsdFieldValueMap NewValues;
+	UsdToUnreal::CollectFieldChanges( Notice.GetChangedInfoOnlyPaths(), OldValues, NewValues );
+	UsdToUnreal::CollectFieldChanges( Notice.GetResyncedPaths(), OldValues, NewValues );
+	if ( OldValues.Num() > 0 || NewValues.Num() > 0 )
+	{
+		FScopedUnrealAllocs UnrealAllocs;
+		OnFieldsChanged.Broadcast( OldValues, NewValues );
+	}
+
+	if ( IsBlocked.GetValue() > 0 )
 	{
 		return;
 	}

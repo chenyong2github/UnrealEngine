@@ -21,35 +21,29 @@ FAutoConsoleVariableRef CVarChaosPerParticleCollisionISPCFastFriction(TEXT("p.Ch
 
 using namespace Chaos;
 
-template<class T, int d, EGeometryParticlesSimType SimType>
-void TPerParticlePBDCollisionConstraint<T, d, SimType>::ApplyHelperISPC(TPBDParticles<T, d>& Particles, const T Dt, const int32 Offset, const int32 Range) const
+template<EGeometryParticlesSimType SimType>
+void TPerParticlePBDCollisionConstraint<SimType>::ApplyHelperISPC(FPBDParticles& Particles, const FReal Dt, const int32 Offset, const int32 Range) const
 {
-	ApplyRange(Particles, Dt, Offset, Range);
-}
-
-template<>
-void TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::RigidBodySim>::ApplyHelperISPC(TPBDParticles<float, 3> & Particles, const float Dt, const int32 Offset, const int32 Range) const
-{
-	ApplyRange(Particles, Dt, Offset, Range);
+	ApplyHelper(Particles, Dt, Offset, Range); // default to non ISPC
 }
 
 // Helper function to call PhiWithNormal and return data to ISPC
-extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const float* InV, float* Normal, float* Phi, const int32 i, const int32 ProgramCount, const int32 Mask)
+extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const FReal* InV, FReal* Normal, FReal* Phi, const int32 i, const int32 ProgramCount, const int32 Mask)
 {
-	const TKinematicGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>& C = *(const TKinematicGeometryParticlesImp<float, 3, EGeometryParticlesSimType::Other>*)CollisionParticles;
+	const TKinematicGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>& C = *(const TKinematicGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>*)CollisionParticles;
 	
 	for (int32 Index = 0; Index < ProgramCount; ++Index)
 	{
 		if (Mask & (1 << Index))
 		{
-			TVector<float, 3> V;
+			FVec3 V;
 
 			// aos_to_soa3
 			V.X = InV[Index];
 			V.Y = InV[Index + ProgramCount];
 			V.Z = InV[Index + 2 * ProgramCount];
 
-			TVector<float, 3> Norm;
+			FVec3 Norm;
 			Phi[Index] = C.Geometry(i)->PhiWithNormal(V, Norm);
 
 			// aos_to_soa3
@@ -61,7 +55,7 @@ extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const float* I
 }
 
 template<>
-void TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::Other>::ApplyHelperISPC(TPBDParticles <float, 3>& InParticles, const float Dt, int32 Offset, int32 Range) const
+void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::ApplyHelperISPC(FPBDParticles& InParticles, const float Dt, int32 Offset, int32 Range) const
 {
 	const uint32 DynamicGroupId = MDynamicGroupIds[Offset];
 	const float PerGroupFriction = MPerGroupFriction[DynamicGroupId];
@@ -184,5 +178,5 @@ void TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::Oth
 	}
 }
 
-template class Chaos::TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::RigidBodySim>;
-template class Chaos::TPerParticlePBDCollisionConstraint<float, 3, EGeometryParticlesSimType::Other>;
+template class Chaos::TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::RigidBodySim>;
+template class Chaos::TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>;

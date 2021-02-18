@@ -385,7 +385,11 @@ TSharedPtr<FExistingSkelMeshData> SkeletalMeshHelper::SaveExistingSkelMeshData(U
 	TSharedPtr<FExistingSkelMeshData> ExistingMeshDataPtr(MakeShared<FExistingSkelMeshData>());
 
 	//Save the package UMetaData
-	ExistingMeshDataPtr->ExistingUMetaDataTagValues = UMetaData::GetMapForObject(SourceSkeletalMesh);
+	TMap<FName, FString>* MetaDataTagValues = UMetaData::GetMapForObject(SourceSkeletalMesh);
+	if (MetaDataTagValues && MetaDataTagValues->Num() > 0)
+	{
+		ExistingMeshDataPtr->ExistingUMetaDataTagValues = *MetaDataTagValues;
+	}
 	ExistingMeshDataPtr->UseMaterialNameSlotWorkflow = SkeletalMeshIsUsingMaterialSlotNameWorkflow(SourceSkeletalMesh->GetAssetImportData());
 	ExistingMeshDataPtr->MinLOD = SourceSkeletalMesh->GetMinLod();
 	ExistingMeshDataPtr->DisableBelowMinLodStripping = SourceSkeletalMesh->GetDisableBelowMinLodStripping();
@@ -682,11 +686,11 @@ void SkeletalMeshHelper::RestoreExistingSkelMeshData(TSharedPtr<const FExistingS
 	}
 
 	//Restore the package metadata
-	if (MeshData->ExistingUMetaDataTagValues)
+	if (MeshData->ExistingUMetaDataTagValues.Num() > 0)
 	{
 		UMetaData* PackageMetaData = SkeletalMesh->GetOutermost()->GetMetaData();
 		checkSlow(PackageMetaData);
-		PackageMetaData->SetObjectValues(SkeletalMesh, *MeshData->ExistingUMetaDataTagValues);
+		PackageMetaData->SetObjectValues(SkeletalMesh, MeshData->ExistingUMetaDataTagValues);
 	}
 
 	int32 SafeReimportLODIndex = ReimportLODIndex < 0 ? 0 : ReimportLODIndex;

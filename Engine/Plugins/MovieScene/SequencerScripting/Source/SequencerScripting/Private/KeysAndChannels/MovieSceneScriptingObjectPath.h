@@ -11,6 +11,7 @@
 #include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
 #include "MovieScene.h"
+#include "MovieSceneSequence.h"
 #include "SequencerBindingProxy.h"
 
 #include "MovieSceneScriptingObjectPath.generated.h"
@@ -115,6 +116,15 @@ public:
 		if (Channel)
 		{
 			Channel->SetDefault(InDefaultValue);
+
+#if WITH_EDITOR
+			const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData();
+			if (MetaData && OwningSection.IsValid() && OwningSequence.IsValid() && OwningSequence->GetMovieScene())
+			{
+				OwningSection.Get()->MarkAsChanged();
+				OwningSequence->GetMovieScene()->OnChannelChanged().Broadcast(MetaData, OwningSection.Get());
+			}
+#endif
 			return;
 		}
 

@@ -22,6 +22,31 @@ class FRigLogicMemoryStream;
 class UAssetUserData;
 enum class EDNADataLayer: uint8;
 
+struct FSharedRigRuntimeContext
+{
+	template <typename T>
+	struct TNestedArray
+	{
+		TArray<T> Values;
+	};
+
+	/** Part of the .dna file needed for run-time execution of RigLogic;
+	 **/
+	TSharedPtr<IBehaviorReader> BehaviorReader;
+
+	/** Part of the .dna file used design-time for updating SkeletalMesh geometry
+	 **/
+	TSharedPtr<IGeometryReader> GeometryReader;
+
+	/** RigLogic itself is stateless, and is designed to be shared between
+	  * multiple rig instances based on the same DNA.
+	**/
+	TSharedPtr<FRigLogic> RigLogic;
+
+	/** Cached joint indices that need to be updated for each LOD **/
+	TArray<TNestedArray<uint16>> VariableJointIndices;
+};
+
 
  /** An asset holding the data needed to generate/update/animate a RigLogic character
   * It is imported from character's DNA file as a bit stream, and separated out it into runtime (behavior) and design-time chunks;
@@ -34,6 +59,7 @@ class RIGLOGICMODULE_API UDNAAsset : public UAssetUserData
 	GENERATED_BODY()
 
 public:
+	UDNAAsset();
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
@@ -42,37 +68,33 @@ public:
 
 	TSharedPtr<IBehaviorReader> GetBehaviorReader()
 	{
-		return BehaviorStreamReader;
+		return Context.BehaviorReader;
 	}
 
 #if WITH_EDITORONLY_DATA
 	TSharedPtr<IGeometryReader> GetGeometryReader()
 	{
-		return GeometryStreamReader;
+		return Context.GeometryReader;
 	}
 #endif
 
 	UPROPERTY()
 	FString DNAFileName; 
 
-	bool Init(const FString Filename);
+	bool Init(const FString& Filename);
 	void Serialize(FArchive& Ar) override;
 
-	/** Used when importing behavior into archetype SkelMesh in the editor, 
-	  * and when updating SkeletalMesh runtime with GeneSplicer; it will split
-	  * GeneSplicerDNAReader will overwrite the behavior-only reader
-	  * allowing the RigLogic RigUnit to read behavior part directly from it
+	/** Used when importing behavior into archetype SkelMesh in the editor,
+	  * and when updating SkeletalMesh runtime with GeneSplicer
 	**/
-	void SetBehaviorReader(const TSharedPtr<IDNAReader> SourceDNAReader);
-	void SetGeometryReader(const TSharedPtr<IDNAReader> SourceDNAReader);
+	void SetBehaviorReader(TSharedPtr<IDNAReader> SourceDNAReader);
+	void SetGeometryReader(TSharedPtr<IDNAReader> SourceDNAReader);
 
 private:
-	/** Part of the .dna file needed for run-time execution of RigLogic;
-	 **/
-    TSharedPtr<IBehaviorReader> BehaviorStreamReader = nullptr;
-
-	/** Part of the .dna file used design-time for updating SkeletalMesh geometry
-	 **/
-	TSharedPtr<IGeometryReader> GeometryStreamReader = nullptr;
+	/** Runtime data necessary for rig computations that is shared between
+	  * multiple rig instances based on the same DNA.
+	**/
+	friend struct FRigUnit_RigLogic;
+	FSharedRigRuntimeContext Context;
 
 };

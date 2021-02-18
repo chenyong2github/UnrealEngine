@@ -2114,6 +2114,14 @@ void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FProp
 		if (!Blueprint->bBeingCompiled && BPGC)
 		{
 			BPGC->UpdateCustomPropertyListForPostConstruction();
+
+			TArray<UClass*> ChildClasses;
+			GetDerivedClasses(BPGC, ChildClasses);
+
+			for (UClass* ChildClass : ChildClasses)
+			{
+				CastChecked<UBlueprintGeneratedClass>(ChildClass)->UpdateCustomPropertyListForPostConstruction();
+			}
 		}
 
 		Blueprint->Status = BS_Dirty;

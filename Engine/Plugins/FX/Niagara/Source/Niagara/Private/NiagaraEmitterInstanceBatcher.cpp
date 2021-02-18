@@ -87,6 +87,15 @@ static FAutoConsoleVariableRef CVarNiagaraGpuLowLatencyTranslucencyEnabled(
 	ECVF_Default
 );
 
+int32 GNiagaraBatcherFreeBufferEarly = 1;
+static FAutoConsoleVariableRef CVarNiagaraBatcherFreeBufferEarly(
+	TEXT("fx.NiagaraBatcher.FreeBufferEarly"),
+	GNiagaraBatcherFreeBufferEarly,
+	TEXT("Will take the path to release GPU buffers when possible.\n")
+	TEXT("This will reduce memory pressure but can result in more allocations if you buffers ping pong from zero particles to many."),
+	ECVF_Default
+);
+
 const FName NiagaraEmitterInstanceBatcher::Name(TEXT("NiagaraEmitterInstanceBatcher"));
 
 namespace NiagaraEmitterInstanceBatcherLocal
@@ -409,12 +418,12 @@ void NiagaraEmitterInstanceBatcher::Tick(float DeltaTime)
 	ENQUEUE_RENDER_COMMAND(NiagaraPumpBatcher)(
 		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
 		{
-			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList);
+			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, false);
 		}
 	);
 }
 
-void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList)
+void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImmediate& RHICmdList, bool bForceFlush)
 {
 	// No ticks are pending
 	if ( Ticks_RT.Num() == 0 )
@@ -425,7 +434,7 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 
 	// We have pending ticks increment our counter, once we cross the threshold we will perform the appropriate operation
 	++FramesBeforeTickFlush;
-	if (FramesBeforeTickFlush < uint32(NiagaraEmitterInstanceBatcherLocal::GTickFlushMaxQueuedFrames) )
+	if (!bForceFlush && (FramesBeforeTickFlush < uint32(NiagaraEmitterInstanceBatcherLocal::GTickFlushMaxQueuedFrames)) )
 	{
 		return;
 	}
@@ -1019,6 +1028,7 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 	}
 
 	const bool bEnqueueReadback = !GPUInstanceCounterManager.HasPendingGPUReadback();
+	const bool bAlwaysAllocateBuffers = GNiagaraBatcherFreeBufferEarly == 0;
 
 	for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
 	{
@@ -1061,8 +1071,8 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 			uint32 PrevNumInstances = 0;
 			if (bResetCounts)
 			{
-				ExecContext->ScratchMaxInstances = InstanceData.SpawnInfo.MaxParticleCount;
 				PrevNumInstances = Tick.bNeedsReset ? 0 : ExecContext->MainDataSet->GetCurrentData()->GetNumInstances();
+				ExecContext->ScratchMaxInstances = PrevNumInstances;
 			}
 			else
 			{
@@ -1073,7 +1083,10 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 
 			const uint32 MaxInstanceCount = ExecContext->MainDataSet->GetMaxInstanceCount();
 			ExecContext->ScratchNumInstances = FMath::Min(ExecContext->ScratchNumInstances, MaxInstanceCount);
-			ExecContext->ScratchMaxInstances = FMath::Max(ExecContext->ScratchMaxInstances, ExecContext->ScratchNumInstances);
+			if (bAlwaysAllocateBuffers || (ExecContext->ScratchNumInstances > 0))
+			{
+				ExecContext->ScratchMaxInstances = FMath::Max3(ExecContext->ScratchMaxInstances, InstanceData.SpawnInfo.MaxParticleCount, ExecContext->ScratchNumInstances);
+			}
 
 			InstanceData.SimStageData[0].SourceNumInstances = PrevNumInstances;
 			InstanceData.SimStageData[0].DestinationNumInstances = ExecContext->ScratchNumInstances;

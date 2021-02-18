@@ -64,6 +64,11 @@ struct FTrackTransforms
 			SceneComponent = Actor ? Actor->GetRootComponent() : nullptr;
 		}
 
+		if (!SceneComponent)
+		{
+			return;
+		}
+
 		FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 
 		TRange<FFrameNumber> ViewRange(TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetLowerBoundValue()), TickResolution.AsFrameNumber(Sequencer->GetViewRange().GetUpperBoundValue()));
@@ -421,6 +426,12 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<ISequencer>& Sequence
 		for (int32 TrajectoryIndex = 0; TrajectoryIndex < TrajectoryKeys.Num(); ++TrajectoryIndex)
 		{
 			const FTrajectoryKey& ThisKey = TrajectoryKeys[TrajectoryIndex];
+
+			if (TransformIndex >= TrackTransforms.Transforms.Num())
+			{
+				continue;
+			}
+
 			FTransform ThisTransform = TrackTransforms.Transforms[TransformIndex];
 
 			if (TrajectoryIndex < TrajectoryKeys.Num()-1)

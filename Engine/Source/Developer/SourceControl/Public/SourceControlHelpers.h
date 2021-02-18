@@ -24,6 +24,26 @@ struct FSourceControlState
 
 public:
 
+	FSourceControlState() :
+		bIsValid(false),
+		bIsUnknown(false),
+		bCanCheckIn(false),
+		bCanCheckOut(false),
+		bIsCheckedOut(false),
+		bIsCurrent(false),
+		bIsSourceControlled(false),
+		bIsAdded(false),
+		bIsDeleted(false),
+		bIsIgnored(false),
+		bCanEdit(false),
+		bCanDelete(false),
+		bIsModified(false),
+		bCanAdd(false),
+		bIsConflicted(false),
+		bCanRevert(false),
+		bIsCheckedOutOther(false)
+	{}
+
 	/** Get the local filename that this state represents */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Editor Scripting | Editor Source Control Helpers")
 	FString Filename;

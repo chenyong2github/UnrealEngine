@@ -638,6 +638,11 @@ public:
 		RHI->RHITransferTextures(Params);
 	}
 
+	void RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer) override final
+	{
+		RHI->RHITransferBufferUnderlyingResource(DestBuffer, SrcBuffer);
+	}
+
 	/**
 	* Creates a Array RHI texture resource
 	* @param SizeX - width of the texture to create
@@ -1336,7 +1341,13 @@ public:
 	virtual FShaderResourceViewRHIRef CreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, const FShaderResourceViewInitializer& Initializer) override final
 	{
 		FShaderResourceViewRHIRef SRV = RHI->CreateShaderResourceView_RenderThread(RHICmdList, Initializer);
-		SRV->ViewIdentity = Initializer.AsBufferSRV().Buffer->GetWholeResourceIdentity();
+
+		SRV->ViewIdentity = RHIValidation::FResourceIdentity{};
+
+		if (Initializer.AsBufferSRV().Buffer)
+		{
+			SRV->ViewIdentity = Initializer.AsBufferSRV().Buffer->GetWholeResourceIdentity();
+		}
 
 		return SRV;
 	}

@@ -1410,9 +1410,7 @@ void FOpenGLDynamicRHI::SetPendingBlendStateForActiveRenderTargets( FOpenGLConte
 	//
 	// Need to expand setting for glBlendFunction and glBlendEquation
 
-	const uint32 NumRenderTargets = FOpenGL::SupportsMultipleRenderTargets() ? MaxSimultaneousRenderTargets : 1;
-
-	for (uint32 RenderTargetIndex = 0;RenderTargetIndex < NumRenderTargets; ++RenderTargetIndex)
+	for (uint32 RenderTargetIndex = 0;RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
 	{
 		if(PendingState.RenderTargets[RenderTargetIndex] == 0)
 		{
@@ -3103,78 +3101,18 @@ void FOpenGLDynamicRHI::ClearCurrentFramebufferWithCurrentScissor(FOpenGLContext
 {
 	VERIFY_GL_SCOPE();
 		
-	if ( FOpenGL::SupportsMultipleRenderTargets() )
+	// Clear color buffers
+	if (ClearType & CT_Color)
 	{
-		// Clear color buffers
-		if (ClearType & CT_Color)
+		for(int32 ColorIndex = 0; ColorIndex < NumClearColors; ++ColorIndex)
 		{
-			for(int32 ColorIndex = 0; ColorIndex < NumClearColors; ++ColorIndex)
-			{
-				FOpenGL::ClearBufferfv( GL_COLOR, ColorIndex, (const GLfloat*)&ClearColorArray[ColorIndex] );
-			}
-		}
-
-		if (ClearType & CT_DepthStencil)
-		{
-			ClearCurrentDepthStencilWithCurrentScissor(ClearType & CT_DepthStencil, Depth, Stencil);
+			FOpenGL::ClearBufferfv( GL_COLOR, ColorIndex, (const GLfloat*)&ClearColorArray[ColorIndex] );
 		}
 	}
-	else
+
+	if (ClearType & CT_DepthStencil)
 	{
-		GLuint Mask = 0;
-		if( ClearType & CT_Color && NumClearColors > 0 )
-		{
-			if (!ContextState.BlendState.RenderTargets[0].ColorWriteMaskR ||
-				!ContextState.BlendState.RenderTargets[0].ColorWriteMaskG ||
-				!ContextState.BlendState.RenderTargets[0].ColorWriteMaskB ||
-				!ContextState.BlendState.RenderTargets[0].ColorWriteMaskA)
-			{
-				FOpenGL::ColorMaskIndexed(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-				ContextState.BlendState.RenderTargets[0].ColorWriteMaskR = 1;
-				ContextState.BlendState.RenderTargets[0].ColorWriteMaskG = 1;
-				ContextState.BlendState.RenderTargets[0].ColorWriteMaskB = 1;
-				ContextState.BlendState.RenderTargets[0].ColorWriteMaskA = 1;
-			}
-
-			if (ContextState.ClearColor != ClearColorArray[0])
-			{
-				glClearColor( ClearColorArray[0].R, ClearColorArray[0].G, ClearColorArray[0].B, ClearColorArray[0].A );
-				ContextState.ClearColor = ClearColorArray[0];
-			}
-			Mask |= GL_COLOR_BUFFER_BIT;
-		}
-		if ( ClearType & CT_Depth )
-		{
-			if (!ContextState.DepthStencilState.bZWriteEnable)
-			{
-				glDepthMask(GL_TRUE);
-				ContextState.DepthStencilState.bZWriteEnable = true;
-			}
-			if (ContextState.ClearDepth != Depth)
-			{
-				FOpenGL::ClearDepth( Depth );
-				ContextState.ClearDepth = Depth;
-			}
-			Mask |= GL_DEPTH_BUFFER_BIT;
-		}
-		if ( ClearType & CT_Stencil )
-		{
-			if (ContextState.DepthStencilState.StencilWriteMask != 0xFFFFFFFF)
-			{
-				glStencilMask(0xFFFFFFFF);
-				ContextState.DepthStencilState.StencilWriteMask = 0xFFFFFFFF;
-			}
-
-			if (ContextState.ClearStencil != Stencil)
-			{
-				glClearStencil( Stencil );
-				ContextState.ClearStencil = Stencil;
-			}
-			Mask |= GL_STENCIL_BUFFER_BIT;
-		}
-
-		// do the clear
-		glClear( Mask );
+		ClearCurrentDepthStencilWithCurrentScissor(ClearType & CT_DepthStencil, Depth, Stencil);
 	}
 
 	REPORT_GL_CLEAR_EVENT_FOR_FRAME_DUMP( ClearType, NumClearColors, (const float*)ClearColorArray, Depth, Stencil );

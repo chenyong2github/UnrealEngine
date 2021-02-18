@@ -390,8 +390,8 @@ void SInteractiveCurveEditorView::DrawCurves(TSharedRef<FCurveEditor> CurveEdito
 	const FVector2D      VisibleSize = AllottedGeometry.GetLocalSize();
 	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();
 
-	const float HoveredCurveThickness = 3.f;
-	const float UnHoveredCurveThickness = 1.f;
+	const float HoveredCurveThickness = 3.5f;
+	const float UnHoveredCurveThickness = 2.f;
 	const bool  bAntiAliasCurves = true;
 
 	TOptional<FCurveModelID> HoveredCurve = GetHoveredCurve();

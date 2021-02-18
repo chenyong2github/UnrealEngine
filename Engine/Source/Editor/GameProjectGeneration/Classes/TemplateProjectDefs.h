@@ -36,7 +36,7 @@ struct FTemplateReplacement
 	FString To;
 
 	UPROPERTY()
-	bool bCaseSensitive;
+	bool bCaseSensitive{false};
 };
 
 USTRUCT()
@@ -200,6 +200,10 @@ struct FTemplateCategoryDef
 	/** Reference to an icon to display for this category. Should be around 300x100. */
 	UPROPERTY()
 	FString Icon;
+
+	/** Is this a major top-level category? Major categories are displayed as full rows, eg. the Game category.*/
+	UPROPERTY()
+		bool IsMajorCategory{ false };
 };
 
 UCLASS(config=TemplateCategories)

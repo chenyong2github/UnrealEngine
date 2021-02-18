@@ -379,13 +379,7 @@ bool FChaosEngineInterface::IsSleeping(const FPhysicsActorHandle& InActorReferen
 
 bool FChaosEngineInterface::IsCcdEnabled(const FPhysicsActorHandle& InActorReference)
 {
-	// #TODO: Implement
-	/*if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
-	{
-		return InActorReference->GetGameThreadAPI().CCDEnabled();
-	}*/
-
-	return false;
+	return InActorReference->GetGameThreadAPI().CCDEnabled();
 }
 
 
@@ -408,7 +402,11 @@ void FChaosEngineInterface::SetSendsSleepNotifies_AssumesLocked(const FPhysicsAc
 
 void FChaosEngineInterface::PutToSleep_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	if(InActorReference->GetGameThreadAPI().ObjectState() == Chaos::EObjectStateType::Dynamic)
+	// NOTE: We want to set the state whether or not it's asleep - if we currently think we're
+	// asleep but the physics thread has queued up a wake event, then we still need to call
+	// SetObjectState, so that this manual call will take priority.
+	Chaos::FRigidBodyHandle_External& BodyHandle_External = InActorReference->GetGameThreadAPI();
+	if (BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Dynamic || BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Sleeping)
 	{
 		InActorReference->GetGameThreadAPI().SetObjectState(Chaos::EObjectStateType::Sleeping);
 	}
@@ -417,8 +415,11 @@ void FChaosEngineInterface::PutToSleep_AssumesLocked(const FPhysicsActorHandle& 
 
 void FChaosEngineInterface::WakeUp_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
+	// NOTE: We want to set the state whether or not it's asleep - if we currently think we're
+	// dynamic but the physics thread has queued up a sleep event, then we still need to call
+	// SetObjectState, so that this manual call will take priority.
 	Chaos::FRigidBodyHandle_External& BodyHandle_External = InActorReference->GetGameThreadAPI();
-	if(BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Sleeping)
+	if(BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Dynamic || BodyHandle_External.ObjectState() == Chaos::EObjectStateType::Sleeping)
 	{
 		BodyHandle_External.SetObjectState(Chaos::EObjectStateType::Dynamic);
 		BodyHandle_External.ClearEvents();
@@ -473,11 +474,7 @@ void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHand
 
 void FChaosEngineInterface::SetCcdEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bIsCcdEnabled)
 {
-	// #todo implement
-	/*if (ensure(FChaosEngineInterface::IsValid(InActorReference)))
-	{
-		InActorReference->GetGameThreadAPI().SetCCDEnabled(bIsCcdEnabled);
-	}*/
+	InActorReference->GetGameThreadAPI().SetCCDEnabled(bIsCcdEnabled);
 }
 
 void FChaosEngineInterface::SetIgnoreAnalyticCollisions_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bIgnoreAnalyticCollisions)
@@ -887,7 +884,7 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 
 	if(bEnableChaosJointConstraints)
 	{
-		if(InActorRef1 && InActorRef2)
+		if(InActorRef1 && InActorRef2 && InActorRef1->GetSolverBase() && InActorRef2->GetSolverBase())
 		{
 			if(InActorRef1->GetSolverBase() && InActorRef2->GetSolverBase())
 			{
@@ -938,9 +935,9 @@ FPhysicsConstraintHandle FChaosEngineInterface::CreateConstraint(const FPhysicsA
 				JointConstraint->SetKinematicEndPoint(KinematicEndPoint, Scene->GetSolver());
 				ConstraintRef.Constraint = JointConstraint;
 
-				JointConstraint->SetParticleProxies({ KinematicEndPoint, ValidParticle });
+				JointConstraint->SetParticleProxies({ ValidParticle, KinematicEndPoint });
 
-				Chaos::FJointConstraint::FTransformPair TransformPair = { InLocalFrame2, InLocalFrame1};
+				Chaos::FJointConstraint::FTransformPair TransformPair = { InLocalFrame1, InLocalFrame2 };
 				if (bSwapped)
 				{
 					Swap(TransformPair[0], TransformPair[1]);

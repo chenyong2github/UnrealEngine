@@ -112,6 +112,7 @@ public:
 	FNiagaraDataBuffer(FNiagaraDataSet* InOwner);
 	void Allocate(uint32 NumInstances, bool bMaintainExisting = false);
 	void AllocateGPU(uint32 InNumInstances, FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, const TCHAR* DebugSimName);
+	void ReleaseGPU();
 	void SwapInstances(uint32 OldIndex, uint32 NewIndex);
 	void KillInstance(uint32 InstanceIdx);
 	void CopyTo(FNiagaraDataBuffer& DestBuffer, int32 SrcStartIdx, int32 DestStartIdx, int32 NumInstances)const;
@@ -156,7 +157,6 @@ public:
 
 	FORCEINLINE void SetNumInstances(uint32 InNumInstances) { check(InNumInstances <= NumInstancesAllocated); NumInstances = InNumInstances; }
 	FORCEINLINE void SetNumSpawnedInstances(uint32 InNumSpawnedInstances) { NumSpawnedInstances = InNumSpawnedInstances; }
-	FORCEINLINE uint32 GetSizeBytes()const { return FloatData.Num() + Int32Data.Num(); }
 	FORCEINLINE FRWBuffer& GetGPUBufferFloat() { return GPUBufferFloat; }
 	FORCEINLINE FRWBuffer& GetGPUBufferInt() { return GPUBufferInt; }
 	FORCEINLINE FRWBuffer& GetGPUBufferHalf() { return GPUBufferHalf; }
@@ -327,7 +327,7 @@ public:
 	void Allocate(int32 NumInstances, bool bMaintainExisting = false);
 
 	/** Returns size in bytes for all data buffers currently allocated by this dataset. */
-	uint32 GetSizeBytes()const;
+	int64 GetSizeBytes() const;
 
 	FORCEINLINE bool IsInitialized() const { return bInitialized; }
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return CompiledData->SimTarget; }
@@ -437,6 +437,11 @@ private:
 
 	/** Buffer we're currently simulating into. Only valid while we're simulating i.e between PrepareForSimulate and EndSimulate calls.*/
 	FNiagaraDataBuffer* DestinationData;
+
+#if NIAGARA_MEMORY_TRACKING
+	/** Tracked memory allocations */
+	std::atomic<int64> BufferSizeBytes;
+#endif
 
 	/**
 	Actual data storage. These are passed to and read directly by the RT.

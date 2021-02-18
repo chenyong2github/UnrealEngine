@@ -16,23 +16,17 @@ static FAutoConsoleVariableRef CVarAnisotropicMaterials(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-static TAutoConsoleVariable<int32> CVarSupportAnisotropicMaterials(
-	TEXT("r.SupportAnisotropicMaterials"),
-	1,
-	TEXT("If true, allow use of anisotropic materials."),
-	ECVF_ReadOnly | ECVF_RenderThreadSafe
-	);
-
 bool SupportsAnisotropicMaterials(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)
 {
 	return GAnisotropicMaterials
 		&& FeatureLevel >= ERHIFeatureLevel::SM5
-		&& (CVarSupportAnisotropicMaterials->GetBool() != 0);
+		&& FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(ShaderPlatform);
 }
 
-static bool IsAnisotropyPassCompatible(FMaterialShaderParameters MaterialParameters)
+static bool IsAnisotropyPassCompatible(const EShaderPlatform Platform, FMaterialShaderParameters MaterialParameters)
 {
 	return 
+		FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Platform) &&
 		MaterialParameters.bHasAnisotropyConnected &&
 		!IsTranslucentBlendMode(MaterialParameters.BlendMode) && 
 		MaterialParameters.ShadingModels.HasAnyShadingModel({ MSM_DefaultLit, MSM_ClearCoat });
@@ -50,7 +44,7 @@ public:
 
 		return 
 			bIsFeatureSupported && 
-			IsAnisotropyPassCompatible(Parameters.MaterialParameters) && 
+			IsAnisotropyPassCompatible(Parameters.Platform, Parameters.MaterialParameters) &&
 			FMeshMaterialShader::ShouldCompilePermutation(Parameters);
 	}
 

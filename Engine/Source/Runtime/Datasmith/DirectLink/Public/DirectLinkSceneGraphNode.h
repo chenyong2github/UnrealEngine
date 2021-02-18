@@ -8,6 +8,7 @@
 namespace DirectLink
 {
 class FParameterStore;
+class FSnapshotProxy;
 struct FReferenceSnapshot;
 
 
@@ -53,6 +54,9 @@ public:
 	/// data
 	virtual const FParameterStore& GetStore() const = 0;
 	virtual FParameterStore& GetStore() = 0; // protected ?
+
+	virtual void CustomSerialize(class FSnapshotProxy& Ar) {}
+	void CustomSerialize(class FSnapshotProxy& Ar) const { const_cast<ISceneGraphNode*>(this)->CustomSerialize(Ar); }
 
 	/// References
 	// This Id is unique within a SceneGraph

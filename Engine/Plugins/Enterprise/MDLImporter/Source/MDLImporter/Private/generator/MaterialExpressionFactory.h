@@ -41,7 +41,7 @@ namespace Generator
 	class FMaterialExpressionFactory : public FBaseExpressionFactory
 	{
 	public:
-		FMaterialExpressionFactory(const Mdl::FApiContext& MdlContext);
+		explicit FMaterialExpressionFactory(const Mdl::FApiContext& MdlContext);
 
 		void SetCurrentMaterial(const mi::neuraylib::IMaterial_definition& MDLMaterialDefinition,
 		                        const mi::neuraylib::ICompiled_material&   MDLMaterial,

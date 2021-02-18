@@ -2812,7 +2812,8 @@ void FNativeClassHeaderGenerator::ExportNatives(FOutputDevice& Out, FClass* Clas
 	{
 		if (Struct->StructFlags & STRUCT_Native)
 		{
-			Out.Logf( TEXT("\t\tUScriptStruct::DeferCppStructOps(FName(TEXT(\"%s\")),new UScriptStruct::TCppStructOps<%s%s>);\r\n"), *Struct->GetName(), Struct->GetPrefixCPP(), *Struct->GetName() );
+			const FString StructName = Struct->GetName();
+			Out.Logf( TEXT("\t\tUScriptStruct::DeferCppStructOps<%s%s>(FName(TEXT(\"%s\")));\r\n"), Struct->GetPrefixCPP(), *StructName, *StructName);
 		}
 	}
 
@@ -3981,9 +3982,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			Out.Logf(TEXT("{\r\n"));
 			Out.Logf(TEXT("\tFScriptStruct_%s_StaticRegisterNatives%s()\r\n"), *ShortPackageName, *StructNameCPP);
 			Out.Logf(TEXT("\t{\r\n"));
-
-			Out.Logf(TEXT("\t\tUScriptStruct::DeferCppStructOps(FName(TEXT(\"%s\")),new UScriptStruct::TCppStructOps<%s>);\r\n"), *ActualStructName, *StructNameCPP);
-
+			Out.Logf(TEXT("\t\tUScriptStruct::DeferCppStructOps<%s>(FName(TEXT(\"%s\")));\r\n"), *StructNameCPP, *ActualStructName);
 			Out.Logf(TEXT("\t}\r\n"));
 			Out.Logf(TEXT("} ScriptStruct_%s_StaticRegisterNatives%s;\r\n"), *ShortPackageName, *StructNameCPP);
 		}
@@ -6537,9 +6536,13 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 
 FString FNativeClassHeaderGenerator::GenerateTempHeaderName( const FString& CurrentFilename, bool bReverseOperation )
 {
-	return bReverseOperation
-		? CurrentFilename.Replace(TEXT(".tmp"), TEXT(""), ESearchCase::CaseSensitive)
-		: CurrentFilename + TEXT(".tmp");
+	if (bReverseOperation)
+	{
+		FString Reversed = CurrentFilename;
+		Reversed.RemoveFromEnd(TEXT(".tmp"), ESearchCase::CaseSensitive);
+		return Reversed;
+	}
+	return CurrentFilename + TEXT(".tmp");
 }
 
 void FNativeClassHeaderGenerator::ExportUpdatedHeaders(FString&& PackageName, TArray<FString>&& TempHeaderPaths, FGraphEventArray& InTempSaveTasks)

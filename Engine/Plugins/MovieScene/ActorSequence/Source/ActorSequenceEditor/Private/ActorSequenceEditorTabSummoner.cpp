@@ -10,6 +10,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EditorStyleSet.h"
+#include "EditorUndoClient.h"
 #include "Widgets/Images/SImage.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"
@@ -185,14 +186,14 @@ private:
 	TArray<TSharedPtr<FSCSEditorTreeNode>> RootNodes;
 };
 
-class SActorSequenceEditorWidgetImpl : public SCompoundWidget
+class SActorSequenceEditorWidgetImpl : public SCompoundWidget, public FEditorUndoClient
 {
 public:
 
 	SLATE_BEGIN_ARGS(SActorSequenceEditorWidgetImpl){}
 	SLATE_END_ARGS();
 
-	~SActorSequenceEditorWidgetImpl()
+	void Close()
 	{
 		if (Sequencer.IsValid())
 		{
@@ -211,8 +212,14 @@ public:
 			}
 		}
 
+		GEditor->UnregisterForUndo(this);
 		GEditor->OnBlueprintPreCompile().Remove(OnBlueprintPreCompileHandle);
 		FCoreUObjectDelegates::OnObjectSaved.Remove(OnObjectSavedHandle);
+	}
+
+	~SActorSequenceEditorWidgetImpl()
+	{
+		Close();
 	}
 	
 	TSharedRef<SDockTab> SpawnCurveEditorTab(const FSpawnTabArgs&)
@@ -249,6 +256,17 @@ public:
 			SAssignNew(Content, SBox)
 			.MinDesiredHeight(200)
 		];
+
+		GEditor->RegisterForUndo(this);
+	}
+
+
+	virtual void PostUndo(bool bSuccess) override
+	{
+		if (!GetActorSequence())
+		{
+			Close();
+		}
 	}
 
 	FText GetDisplayLabel() const

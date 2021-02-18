@@ -26,6 +26,11 @@ struct FEditorParameterGroup
 {
 	GENERATED_USTRUCT_BODY()
 
+	FEditorParameterGroup()
+		: GroupAssociation(GlobalParameter)
+		, GroupSortPriority(0)
+	{}
+
 	UPROPERTY()
 	FName GroupName;
 

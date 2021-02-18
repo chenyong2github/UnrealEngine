@@ -84,7 +84,7 @@ namespace Gauntlet
 				}
 			}
 			Params.Add(ParamName, ParamVal);
-			return true;	
+			return true;
 		}
 
 		/// <summary>
@@ -94,7 +94,7 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="ParamName"></param>
 		/// <param name="ParamVal"></param>
-		public void Add(string ParamName, object ParamVal = null) 
+		public void Add(string ParamName, object ParamVal = null)
 		{
 			if (Params.ContainsKey(ParamName))
 			{
@@ -121,7 +121,7 @@ namespace Gauntlet
 					}
 					Params[ParamName] = ParamVal;
 				}
-			} 			
+			}
 			else
 			{
 				Params.Add(ParamName, ParamVal);
@@ -134,7 +134,7 @@ namespace Gauntlet
 		/// <param name="ParamName"></param>
 		/// <param name="ParamVal"></param>
 		/// <param name="DelimiterToUse"></param>
-		public void AddOrAppendParamValue(string ParamName, string ParamVal, string DelimiterToUse = ",") 
+		public void AddOrAppendParamValue(string ParamName, string ParamVal, string DelimiterToUse = ",")
 		{
 			if (Params.ContainsKey(ParamName))
 			{
@@ -142,7 +142,7 @@ namespace Gauntlet
 				{
 					Params[ParamName] = ParamVal;
 				}
-				else if (Params[ParamName].ToString() != ParamVal) 
+				else if (Params[ParamName].ToString() != ParamVal)
 				{
 					Params[ParamName] = Params[ParamName].ToString() + DelimiterToUse + ParamVal;
 					Params[ParamName] = Params[ParamName].ToString().Replace("\"", "");
@@ -157,9 +157,9 @@ namespace Gauntlet
 		/// Remove the param or flag by the passed-in name if it exists.
 		/// </summary>
 		/// <param name="ParamName"></param>
-		public void RemoveParam(string ParamName) 
+		public void RemoveParam(string ParamName)
 		{
-			if ( Params.ContainsKey(ParamName))
+			if (Params.ContainsKey(ParamName))
 			{
 				Params.Remove(ParamName);
 			}
@@ -171,7 +171,7 @@ namespace Gauntlet
 		/// </summary>
 		/// <param name="ParamName"></param>
 		/// <returns></returns>
-		public object GetParamValue(string ParamName) 
+		public object GetParamValue(string ParamName)
 		{
 			if (!Params.ContainsKey(ParamName))
 			{
@@ -207,7 +207,7 @@ namespace Gauntlet
 				string CurrentArgument;
 				if (Params[Key] != null && !string.IsNullOrWhiteSpace(Params[Key].ToString()))
 				{
-					CurrentArgument = string.Format("-{0}={1}", Key, 
+					CurrentArgument = string.Format("-{0}={1}", Key,
 						(Params[Key].ToString().Contains(' ') && !Params[Key].ToString().Contains('\"'))
 						? string.Format("\"{0}\"", Params[Key]) : Params[Key]);
 				}
@@ -225,47 +225,47 @@ namespace Gauntlet
 		}
 	}
 
-    public enum EWindowMode
-    {
-        /// <summary>
+	public enum EWindowMode
+	{
+		/// <summary>
 		/// The window is in true fullscreen mode.
-        /// </summary>
-        Fullscreen,
-        /// <summary>
+		/// </summary>
+		Fullscreen,
+		/// <summary>
 		/// CURRENTLY UNSUPPORTED. Using this value will enable -fullscreen for now. The window has no border and takes up the entire area of the screen.
-        /// </summary>
-        WindowedFullscreen,
-        /// <summary>
+		/// </summary>
+		WindowedFullscreen,
+		/// <summary>
 		/// The window has a border and may not take up the entire screen area.
-        /// </summary>
-        Windowed,
-        /// <summary>
+		/// </summary>
+		Windowed,
+		/// <summary>
 		/// The total number of supported window modes.
-        /// </summary>
-        NumWindowModes
-    };
+		/// </summary>
+		NumWindowModes
+	};
 
-    /// <summary>
-    /// Generic intent enum for the base of where we would like to copy a file to.
-    /// Interpreted properly in TargetDeviceX.cs.
-    /// </summary>
-    public enum EIntendedBaseCopyDirectory
-    {
-        Build,
+	/// <summary>
+	/// Generic intent enum for the base of where we would like to copy a file to.
+	/// Interpreted properly in TargetDeviceX.cs.
+	/// </summary>
+	public enum EIntendedBaseCopyDirectory
+	{
+		Build,
 		Binaries,
-        Config,
-        Content,
-        Demos,
-        Profiling,
-        Saved,
+		Config,
+		Content,
+		Demos,
+		Profiling,
+		Saved,
 		Platform
-    }
-	
+	}
+
 	/// <summary>
 	/// What reaching the max duration of this test signifies.
 	/// </summary>
 	public enum EMaxDurationReachedResult
-	{ 
+	{
 		Failure,
 		Success
 	}
@@ -292,19 +292,19 @@ namespace Gauntlet
 		public UnrealTestRole(UnrealTargetRole InType, UnrealTargetPlatform? InPlatformOverride)
 		{
 			Type = InType;
-            PlatformOverride = InPlatformOverride;
+			PlatformOverride = InPlatformOverride;
 			CommandLine = string.Empty;
 			MapOverride = string.Empty;
 			ExplicitClientCommandLine = string.Empty;
 			Controllers = new List<string>();
-            FilesToCopy = new List<UnrealFileToCopy>();
+			FilesToCopy = new List<UnrealFileToCopy>();
 			AdditionalArtifactDirectories = new List<EIntendedBaseCopyDirectory>();
-            RoleType = ERoleModifier.None;
+			RoleType = ERoleModifier.None;
 			CommandLineParams = new GauntletCommandLine();
 		}
 
-        public ERoleModifier RoleType { get; set; }
-		
+		public ERoleModifier RoleType { get; set; }
+
 		/// <summary>
 		/// Type of process this role represents
 		/// </summary>
@@ -360,7 +360,7 @@ namespace Gauntlet
 		/// </summary>
 		public string ExplicitClientCommandLine { get; set; }
 
-        public List<UnrealFileToCopy> FilesToCopy { get; set; }
+		public List<UnrealFileToCopy> FilesToCopy { get; set; }
 
 		/// <summary>
 		/// Additional directories to 
@@ -395,7 +395,7 @@ namespace Gauntlet
 		/// Set to true to allow the App Instance to be killed when expected heartbeats are not detected. If left false, heartbeat timeouts will not result in any action or timeouts.
 		/// </summary>
 		public bool bExpectHeartbeats;
-		
+
 		/// <summary>
 		/// The max amount of time allowed before the first "active" heartbeat is detected
 		/// </summary>
@@ -456,28 +456,34 @@ namespace Gauntlet
 		[AutoParam(false)]
 		protected bool Nullrhi { get; set; }
 
-        // Public options that tests can configure
+		// Public options that tests can configure
 
-        /// <summary>
-        /// If true, explicitly do not set the default resolution of 1280x720 or the window mode. Most tests should not do this.
-        /// </summary>
-        /// 
-        [AutoParam(false)]
-        public bool IgnoreDefaultResolutionAndWindowMode { get; set; }
+		/// <summary>
+		/// Map to use
+		/// </summary>
+		[AutoParam]
+		public string Map = "";
 
-        /// <summary>
-        /// The width resolution. Default resolution is 1280x720.
-        /// </summary>
-        /// 
-        [AutoParam(1280)]
-        public int ResX { get; set; }
+		/// <summary>
+		/// If true, explicitly do not set the default resolution of 1280x720 or the window mode. Most tests should not do this.
+		/// </summary>
+		/// 
+		[AutoParam(false)]
+		public bool IgnoreDefaultResolutionAndWindowMode { get; set; }
 
-        /// <summary>
-        /// The height resolution. Default resolution is 1280x720.
-        /// </summary>
-        /// 
-        [AutoParam(720)]
-        public int ResY { get; set; }
+		/// <summary>
+		/// The width resolution. Default resolution is 1280x720.
+		/// </summary>
+		/// 
+		[AutoParam(1280)]
+		public int ResX { get; set; }
+
+		/// <summary>
+		/// The height resolution. Default resolution is 1280x720.
+		/// </summary>
+		/// 
+		[AutoParam(720)]
+		public int ResY { get; set; }
 
 		/// <summary>
 		/// Set to Windowed mode (same as -WindowMode=Windowed);
@@ -569,6 +575,12 @@ namespace Gauntlet
 		[AutoParam(false)]
 		public bool DisableHeartbeatTimeout { get; set; }
 
+		/// <summary>
+		/// Enforce Vertical resolution
+		/// </summary>
+		[AutoParam]
+		public int ForceVerticalRes = 0;
+
 		// Member variables 
 
 		/// <summary>
@@ -581,7 +593,7 @@ namespace Gauntlet
 		/// </summary>
 		public UnrealTestConfiguration()
 		{
-			MaxDuration = 600;	// 10m
+			MaxDuration = 600;  // 10m
 
 			// create the role structure
 			RequiredRoles = new Dictionary<UnrealTargetRole, List<UnrealTestRole>>();
@@ -687,45 +699,42 @@ namespace Gauntlet
 		/// <returns></returns>
 		public virtual void ApplyToConfig(UnrealAppConfig AppConfig, UnrealSessionRole ConfigRole, IEnumerable<UnrealSessionRole> OtherRoles)
 		{
-			if (AppConfig.ProcessType.IsClient())
+			if (Nullrhi)
 			{
-				if (Nullrhi)
+				AppConfig.CommandLine += " -nullrhi";
+			}
+			else if (AppConfig.ProcessType.IsClient())
+			{
+				if (AppConfig.Platform == UnrealTargetPlatform.Win64 || AppConfig.Platform == UnrealTargetPlatform.Mac)
 				{
-					AppConfig.CommandLine += " -nullrhi";
-				}
-				else
-				{
-					if (AppConfig.Platform == UnrealTargetPlatform.Win64 || AppConfig.Platform == UnrealTargetPlatform.Mac)
+					if (!IgnoreDefaultResolutionAndWindowMode)
 					{
-						if(!IgnoreDefaultResolutionAndWindowMode)
+						if (Globals.Params.ParseValues("resx").Count() == 0)
 						{
-							if (Globals.Params.ToString().Contains("-resx") == false)
-							{
-								AppConfig.CommandLine += String.Format(" -ResX={0} -ResY={1}", ResX, ResY);
-							}
-							if (WindowMode == EWindowMode.Windowed || Windowed)
-							{
-								AppConfig.CommandLine += " -windowed";
-							}
-							else if (WindowMode == EWindowMode.Fullscreen)
-							{
-								AppConfig.CommandLine += " -fullscreen";
-							}
-							else if (WindowMode == EWindowMode.WindowedFullscreen) // Proper -windowedfullscreen flag does not exist and some platforms treat both modes as the same.
-							{
-								AppConfig.CommandLine += " -fullscreen";
-							}
-							else
-							{
-								Log.Warning("Test config uses an unsupported WindowMode: {0}! WindowMode not set.", Enum.GetName(typeof(EWindowMode), WindowMode));
-							}
+							AppConfig.CommandLine += String.Format(" -ResX={0} -ResY={1}", ResX, ResY);
+						}
+						if (WindowMode == EWindowMode.Windowed || Windowed)
+						{
+							AppConfig.CommandLine += " -windowed";
+						}
+						else if (WindowMode == EWindowMode.Fullscreen)
+						{
+							AppConfig.CommandLine += " -fullscreen";
+						}
+						else if (WindowMode == EWindowMode.WindowedFullscreen) // Proper -windowedfullscreen flag does not exist and some platforms treat both modes as the same.
+						{
+							AppConfig.CommandLine += " -fullscreen";
+						}
+						else
+						{
+							Log.Warning("Test config uses an unsupported WindowMode: {0}! WindowMode not set.", Enum.GetName(typeof(EWindowMode), WindowMode));
 						}
 					}
+				}
 
-					if (ScreenshotPeriod > 0 && Nullrhi == false)
-					{
-						AppConfig.CommandLine += string.Format(" -gauntlet.screenshotperiod={0}", ScreenshotPeriod);
-					}
+				if (ScreenshotPeriod > 0 && Nullrhi == false)
+				{
+					AppConfig.CommandLine += string.Format(" -gauntlet.screenshotperiod={0}", ScreenshotPeriod);
 				}
 			}
 
@@ -748,12 +757,23 @@ namespace Gauntlet
 				AppConfig.CommandLine += string.Format(" -gauntlet.heartbeatperiod={0}", HeartbeatPeriod);
 			}
 
-			// we write results to Horde test data if we run under Horde agent
+			string MapChoice = string.IsNullOrEmpty(ConfigRole.MapOverride) ? Map : ConfigRole.MapOverride;
+
+			if (string.IsNullOrEmpty(MapChoice) == false)
+			{
+				if (AppConfig.ProcessType.IsServer()
+				|| (AppConfig.ProcessType.IsClient() && RoleCount(UnrealTargetRole.Server) == 0))
+				{
+					AppConfig.CommandLineParams.GameMap = MapChoice;
+				}
+			}
+			
+						// we write results to Horde test data if we run under Horde agent
 			if (HordeReport.IsUnderHordeAgent)
 			{
 				WriteTestResultsForHorde = true;
 			}
-		}
+		}			
 	}
 
 }

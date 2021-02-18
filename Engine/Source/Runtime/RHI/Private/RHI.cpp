@@ -112,29 +112,29 @@ inline FString BuildEnumNameBitList(EnumType Value, const TCHAR*(*GetEnumName)(E
 
 FString GetRHIAccessName(ERHIAccess Access)
 {
-	return BuildEnumNameBitList<ERHIAccess>(Access, [](ERHIAccess AccessBit)
-	{
-		switch (AccessBit)
+		return BuildEnumNameBitList<ERHIAccess>(Access, [](ERHIAccess AccessBit)
 		{
-		default: checkNoEntry(); // fall through
-		case ERHIAccess::Unknown:             return TEXT("Unknown");
-		case ERHIAccess::CPURead:             return TEXT("CPURead");
-		case ERHIAccess::Present:             return TEXT("Present");
-		case ERHIAccess::IndirectArgs:        return TEXT("IndirectArgs");
-		case ERHIAccess::VertexOrIndexBuffer: return TEXT("VertexOrIndexBuffer");
-		case ERHIAccess::SRVCompute:          return TEXT("SRVCompute");
-		case ERHIAccess::SRVGraphics:         return TEXT("SRVGraphics");
-		case ERHIAccess::CopySrc:             return TEXT("CopySrc");
-		case ERHIAccess::ResolveSrc:          return TEXT("ResolveSrc");
-		case ERHIAccess::DSVRead:             return TEXT("DSVRead");
-		case ERHIAccess::UAVCompute:          return TEXT("UAVCompute");
-		case ERHIAccess::UAVGraphics:         return TEXT("UAVGraphics");
-		case ERHIAccess::RTV:                 return TEXT("RTV");
-		case ERHIAccess::CopyDest:            return TEXT("CopyDest");
-		case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
-		case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
-		}
-	});
+			switch (AccessBit)
+			{
+			default: checkNoEntry(); // fall through
+			case ERHIAccess::Unknown:             return TEXT("Unknown");
+			case ERHIAccess::CPURead:             return TEXT("CPURead");
+			case ERHIAccess::Present:             return TEXT("Present");
+			case ERHIAccess::IndirectArgs:        return TEXT("IndirectArgs");
+			case ERHIAccess::VertexOrIndexBuffer: return TEXT("VertexOrIndexBuffer");
+			case ERHIAccess::SRVCompute:          return TEXT("SRVCompute");
+			case ERHIAccess::SRVGraphics:         return TEXT("SRVGraphics");
+			case ERHIAccess::CopySrc:             return TEXT("CopySrc");
+			case ERHIAccess::ResolveSrc:          return TEXT("ResolveSrc");
+			case ERHIAccess::DSVRead:             return TEXT("DSVRead");
+			case ERHIAccess::UAVCompute:          return TEXT("UAVCompute");
+			case ERHIAccess::UAVGraphics:         return TEXT("UAVGraphics");
+			case ERHIAccess::RTV:                 return TEXT("RTV");
+			case ERHIAccess::CopyDest:            return TEXT("CopyDest");
+			case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
+			case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
+			}
+		});
 }
 
 FString GetResourceTransitionFlagsName(EResourceTransitionFlags Flags)
@@ -876,7 +876,6 @@ int32 GRHIMaximumReccommendedOustandingOcclusionQueries = MAX_int32;
 bool GRHISupportsExactOcclusionQueries = true;
 bool GSupportsVolumeTextureRendering = true;
 bool GSupportsSeparateRenderTargetBlendState = false;
-bool GSupportsDepthRenderTargetWithoutColorRenderTarget = true;
 bool GRHINeedsUnatlasedCSMDepthsWorkaround = false;
 bool GSupportsTexture3D = true;
 bool GSupportsMobileMultiView = false;
@@ -885,7 +884,6 @@ bool GSupportsResourceView = true;
 bool GRHISupportsDrawIndirect = true;
 bool GRHISupportsMultithreading = false;
 bool GRHISupportsUpdateFromBufferTexture = false;
-TRHIGlobal<bool> GSupportsMultipleRenderTargets(true);
 bool GSupportsWideMRT = true;
 float GMinClipZ = 0.0f;
 float GProjectionSignY = 1.0f;
@@ -903,6 +901,8 @@ TRHIGlobal<int32> GMaxVolumeTextureDimensions(2048);
 TRHIGlobal<int32> GMaxCubeTextureDimensions(2048);
 TRHIGlobal<int32> GMaxWorkGroupInvocations(1024);
 bool GRHISupportsRWTextureBuffers = true;
+bool GRHISupportsVRS = false;
+bool GRHISupportsLateVRSUpdate = false;
 int32 GMaxTextureArrayLayers = 256;
 int32 GMaxTextureSamplers = 16;
 bool GUsingNullRHI = false;
@@ -941,9 +941,12 @@ bool GRHISupportsBackBufferWithCustomDepthStencil = true;
 bool GRHIIsHDREnabled = false;
 bool GRHISupportsHDROutput = false;
 
-bool GRHISupportsVariableRateShading = false;
-int32 GVariableRateShadingImageTileSize = 0;
-int32 GVariableRateShadingTier = 0;
+bool GRHISupportsPerDrawVariableRateShading = false;
+bool GRHISupportsImageBasedVariableRateShading = false;
+int32 GRHIVariableRateShadingImageTileSize = 0;
+EVRSImageDataType GRHIVariableRateShadingImageDataType = VRSImage_NotSupported;
+EPixelFormat GRHIVariableRateShadingImageFormat = PF_Unknown;
+bool GRHISupportsLateVariableRateShadingUpdate = false;
 
 EPixelFormat GRHIHDRDisplayOutputFormat = PF_FloatRGBA;
 
@@ -1422,7 +1425,8 @@ void FRHIRenderPassInfo::ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& Ou
 	OutRTInfo.bClearDepth = (DepthLoadAction == ERenderTargetLoadAction::EClear);
 	OutRTInfo.bClearStencil = (StencilLoadAction == ERenderTargetLoadAction::EClear);
 
-	OutRTInfo.FoveationTexture = FoveationTexture;
+	OutRTInfo.ShadingRateTexture = ShadingRateTexture;
+	OutRTInfo.ShadingRateTextureCombiner = ShadingRateTextureCombiner;
 	OutRTInfo.MultiViewCount = MultiViewCount;
 }
 
@@ -1669,6 +1673,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bTargetsTiledGPU = GetSectionBool(Section, "bTargetsTiledGPU");
 	Info.bNeedsOfflineCompiler = GetSectionBool(Section, "bNeedsOfflineCompiler");
 	Info.bSupportsComputeFramework = GetSectionBool(Section, "bSupportsComputeFramework");
+	Info.bSupportsAnisotropicMaterials = GetSectionBool(Section, "bSupportsAnisotropicMaterials");
 	Info.bSupportsDualSourceBlending = GetSectionBool(Section, "bSupportsDualSourceBlending");
 	Info.bRequiresGeneratePrevTransformBuffer = GetSectionBool(Section, "bRequiresGeneratePrevTransformBuffer");
 	Info.bRequiresRenderTargetDuringRaster = GetSectionBool(Section, "bRequiresRenderTargetDuringRaster");

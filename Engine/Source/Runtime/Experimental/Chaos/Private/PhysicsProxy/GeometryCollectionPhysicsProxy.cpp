@@ -90,7 +90,7 @@ void FGeometryCollectionResults::Reset()
 //==============================================================================
 
 
-Chaos::TTriangleMesh<float>* CreateTriangleMesh(
+Chaos::FTriangleMesh* CreateTriangleMesh(
 	const int32 FaceStart,
 	const int32 FaceCount, 
 	const TManagedArray<bool>& Visible, 
@@ -120,7 +120,7 @@ Chaos::TTriangleMesh<float>* CreateTriangleMesh(
 			}
 		}
 	}
-	return new Chaos::TTriangleMesh<float>(MoveTemp(Faces)); // Culls geometrically degenerate faces
+	return new Chaos::FTriangleMesh(MoveTemp(Faces)); // Culls geometrically degenerate faces
 }
 
 TArray<int32> ComputeTransformToGeometryMap(const FGeometryCollection& Collection)
@@ -210,9 +210,9 @@ void PopulateSimulatedParticle(
 		Handle->SetSharedGeometry(SharedImplicitTS);
 		Handle->SetHasBounds(true);
 		Handle->SetLocalBounds(SharedImplicitTS->BoundingBox());
-		const Chaos::TAABB<float, 3>& LocalBounds = Handle->LocalBounds();
-		const Chaos::TRigidTransform<float, 3> Xf(Handle->X(), Handle->R());
-		const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
+		const Chaos::FAABB3& LocalBounds = Handle->LocalBounds();
+		const Chaos::FRigidTransform3 Xf(Handle->X(), Handle->R());
+		const Chaos::FAABB3 TransformedBBox = LocalBounds.TransformedAABB(Xf);
 		Handle->SetWorldSpaceInflatedBounds(TransformedBBox);
 	}
 
@@ -223,9 +223,9 @@ void PopulateSimulatedParticle(
 		TUniquePtr<Chaos::TBVHParticles<float, 3>>& CollisionParticles = Handle->CollisionParticles();
 		if (Simplicial->Size())
 		{
-			const Chaos::TAABB<float,3> ImplicitShapeDomain = 
+			const Chaos::FAABB3 ImplicitShapeDomain = 
 				Implicit && Implicit->GetType() == Chaos::ImplicitObjectType::LevelSet && Implicit->HasBoundingBox() ? 
-				Implicit->BoundingBox() : Chaos::TAABB<float,3>::FullAABB();
+				Implicit->BoundingBox() : Chaos::FAABB3::FullAABB();
 
 			CollisionParticles->Resize(0);
 			CollisionParticles->AddParticles(Simplicial->Size());
@@ -925,7 +925,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 			// back on once it's off, but even if we didn't enclose this in an if(),
 			// this function won't be called again unless something dirties the proxy.
 
-			Chaos::TPerParticleGravity<float, 3>& GravityForces = RigidsSolver->GetEvolution()->GetGravityForces();
+			Chaos::FPerParticleGravity& GravityForces = RigidsSolver->GetEvolution()->GetGravityForces();
 			for (int32 HandleIdx = 0; HandleIdx < SolverParticleHandles.Num(); ++HandleIdx)
 			{
 				if (Chaos::TPBDRigidParticleHandle<float, 3>* Handle = SolverParticleHandles[HandleIdx])
@@ -1129,9 +1129,9 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	{
 		Parent->SetHasBounds(true);
 		Parent->SetLocalBounds(Parent->Geometry()->BoundingBox());
-		const Chaos::TAABB<float, 3>& LocalBounds = Parent->LocalBounds();
+		const Chaos::FAABB3& LocalBounds = Parent->LocalBounds();
 		const Chaos::TRigidTransform<float, 3> Xf(Parent->X(), Parent->R());
-		const Chaos::TAABB<float, 3> TransformedBBox = LocalBounds.TransformedAABB(Xf);
+		const Chaos::FAABB3 TransformedBBox = LocalBounds.TransformedAABB(Xf);
 		Parent->SetWorldSpaceInflatedBounds(TransformedBBox);
 
 		Solver->GetEvolution()->DirtyParticle(*Parent);
@@ -1849,17 +1849,17 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	const int32 NumTransforms = CollectionSpaceTransforms.Num();
 	const int32 NumGeometries = RestCollection.NumElements(FGeometryCollection::GeometryGroup);
 
-	TArray<TUniquePtr<TTriangleMesh<float>>> TriangleMeshesArray;	//use to union trimeshes in cluster case
+	TArray<TUniquePtr<FTriangleMesh>> TriangleMeshesArray;	//use to union trimeshes in cluster case
 	TriangleMeshesArray.AddDefaulted(NumTransforms);
 
-	TParticles<float, 3> MassSpaceParticles;
+	FParticles MassSpaceParticles;
 	MassSpaceParticles.AddParticles(Vertex.Num());
 	for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
 	{
 		MassSpaceParticles.X(Idx) = Vertex[Idx];	//mass space computation done later down
 	}
 
-	TArray<TMassProperties<float, 3>> MassPropertiesArray;
+	TArray<FMassProperties> MassPropertiesArray;
 	MassPropertiesArray.AddUninitialized(NumGeometries);
 
 	TArray<bool> InertiaComputationNeeded;
@@ -1878,14 +1878,14 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
 		if (SimulationType[TransformGroupIndex] > FGeometryCollection::ESimulationTypes::FST_None)
 		{
-			TUniquePtr<TTriangleMesh<float>> TriMesh(
+			TUniquePtr<FTriangleMesh> TriMesh(
 				CreateTriangleMesh(
 					FaceStart[GeometryIndex],
 					FaceCount[GeometryIndex],
 					Visible,
 					Indices));
 
-			TMassProperties<float, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+			FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
 			{
 				MassProperties.CenterOfMass = FVector::ZeroVector;
@@ -2019,8 +2019,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 		if (CollectionSimulatableParticles[TransformGroupIndex])
 		{
-			TUniquePtr<TTriangleMesh<float>>& TriMesh = TriangleMeshesArray[TransformGroupIndex];
-			TMassProperties<float, 3>& MassProperties = MassPropertiesArray[GeometryIndex];
+			TUniquePtr<FTriangleMesh>& TriMesh = TriangleMeshesArray[TransformGroupIndex];
+			FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
 
 			const float Mass_i = FMath::Max(DesiredDensity * Volume_i, SharedParams.MinimumMassClamp);
 			const float Density_i = Mass_i / Volume_i;
@@ -2150,7 +2150,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 				{
 					const auto Implicit = CollectionImplicits[TransformGroupIndex];
 					const auto BBox = Implicit->BoundingBox();
-					const FVec3 Extents = BBox.Extents(); // Chaos::TAABB::Extents() is Max - Min
+					const FVec3 Extents = BBox.Extents(); // Chaos::FAABB3::Extents() is Max - Min
 					MaxChildBounds = MaxChildBounds.ComponentwiseMax(Extents);
 				}
 			}
@@ -2264,7 +2264,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					for (TPBDRigidParticleHandle<float, 3>* Child : ChildrenIndices)
 					{
 						const int32 ChildTransformIdx = HandleToTransformIdx[Child];
-						if (Chaos::TTriangleMesh<float>* ChildMesh = TriangleMeshesArray[ChildTransformIdx].Get())
+						if (Chaos::FTriangleMesh* ChildMesh = TriangleMeshesArray[ChildTransformIdx].Get())
 						{
 							BiggestNumElements = FMath::Max(BiggestNumElements, ChildMesh->GetNumElements());
 							NumChildIndices += ChildMesh->GetNumElements();
@@ -2280,7 +2280,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					for (TPBDRigidParticleHandle<float, 3>* Child : ChildrenIndices)
 					{
 						const int32 ChildTransformIdx = HandleToTransformIdx[Child];
-						if (Chaos::TTriangleMesh<float>* ChildMesh = TriangleMeshesArray[ChildTransformIdx].Get())
+						if (Chaos::FTriangleMesh* ChildMesh = TriangleMeshesArray[ChildTransformIdx].Get())
 						{
 							const TArray<TVector<int32, 3>>& ChildIndices = ChildMesh->GetSurfaceElements();
 							UnionMeshIndices.Append(ChildIndices);
@@ -2302,7 +2302,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 					}
 				} // tmp scope
 
-				TUniquePtr<TTriangleMesh<float>> UnionMesh(new TTriangleMesh<float>(MoveTemp(UnionMeshIndices)));
+				TUniquePtr<FTriangleMesh> UnionMesh(new FTriangleMesh(MoveTemp(UnionMeshIndices)));
 				const FMatrix& InertiaMatrix = CollectionSpaceParticles->I(ClusterTransformIdx);
 				const FVector InertiaDiagonal(InertiaMatrix.M[0][0], InertiaMatrix.M[1][1], InertiaMatrix.M[2][2]);
 				CollectionInertiaTensor[ClusterTransformIdx] = InertiaDiagonal;

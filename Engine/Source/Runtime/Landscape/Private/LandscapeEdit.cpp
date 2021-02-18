@@ -3803,7 +3803,10 @@ void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandsc
 			const TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations(InLayerGuid);
 			for (const FWeightmapLayerAllocationInfo& AllocInfo : AllocInfos)
 			{
-				OutUsedLayerInfos.AddUnique(AllocInfo.LayerInfo);
+				if (AllocInfo.LayerInfo != nullptr)
+				{
+					OutUsedLayerInfos.AddUnique(AllocInfo.LayerInfo);
+				}
 			}
 		}
 	});
@@ -5511,7 +5514,7 @@ void ULandscapeInfo::UpdateSelectedComponents(TSet<ULandscapeComponent*>& NewCom
 			ULandscapeComponent* Comp = *It;
 			if ((Comp->EditToolRenderData.SelectedType & InSelectType) == 0)
 			{
-				Comp->Modify();
+				Comp->Modify(false);
 				int32 SelectedType = Comp->EditToolRenderData.SelectedType;
 				SelectedType |= InSelectType;
 				Comp->EditToolRenderData.UpdateSelectionMaterial(SelectedType, Comp);
@@ -5524,7 +5527,7 @@ void ULandscapeInfo::UpdateSelectedComponents(TSet<ULandscapeComponent*>& NewCom
 		for (TSet<ULandscapeComponent*>::TIterator It(RemovedComponents); It; ++It)
 		{
 			ULandscapeComponent* Comp = *It;
-			Comp->Modify();
+			Comp->Modify(false);
 			int32 SelectedType = Comp->EditToolRenderData.SelectedType;
 			SelectedType &= ~InSelectType;
 			Comp->EditToolRenderData.UpdateSelectionMaterial(SelectedType, Comp);
@@ -5542,7 +5545,7 @@ void ULandscapeInfo::UpdateSelectedComponents(TSet<ULandscapeComponent*>& NewCom
 				ULandscapeComponent* Comp = *It;
 				if ((Comp->EditToolRenderData.SelectedType & InSelectType) == 0)
 				{
-					Comp->Modify();
+					Comp->Modify(false);
 					int32 SelectedType = Comp->EditToolRenderData.SelectedType;
 					SelectedType |= InSelectType;
 					Comp->EditToolRenderData.UpdateSelectionMaterial(SelectedType, Comp);
@@ -5558,7 +5561,7 @@ void ULandscapeInfo::UpdateSelectedComponents(TSet<ULandscapeComponent*>& NewCom
 			for (TSet<ULandscapeComponent*>::TIterator It(SelectedRegionComponents); It; ++It)
 			{
 				ULandscapeComponent* Comp = *It;
-				Comp->Modify();
+				Comp->Modify(false);
 				int32 SelectedType = Comp->EditToolRenderData.SelectedType;
 				SelectedType &= ~InSelectType;
 				Comp->EditToolRenderData.UpdateSelectionMaterial(SelectedType, Comp);

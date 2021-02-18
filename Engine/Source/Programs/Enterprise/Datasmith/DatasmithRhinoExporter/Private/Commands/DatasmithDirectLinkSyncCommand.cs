@@ -39,18 +39,11 @@ namespace DatasmithRhino.Commands
 
 		protected override Result RunCommand(RhinoDoc RhinoDocument, RunMode Mode)
 		{
-			// Usually commands in export plug-ins are used to modify settings and behavior.
-			// The export work itself is performed by the DatasmithRhino6 class.
 			DatasmithRhinoDirectLinkManager DirectLinkManager = DatasmithRhinoPlugin.Instance?.DirectLinkManager;
 
 			if (DirectLinkManager != null)
 			{
-				bool bIsValidContext = RhinoDocument == DirectLinkManager.ExportContext.RhinoDocument;
-
-				if (bIsValidContext || DirectLinkManager.SetupDirectLinkScene(RhinoDocument))
-				{
-					return DatasmithRhinoSceneExporter.ExportToDirectLink(DirectLinkManager);
-				}
+				return DirectLinkManager.Synchronize(RhinoDocument);
 			}
 
 			return Result.Failure;

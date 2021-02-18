@@ -55,7 +55,7 @@ FArchive& operator<<(FArchive& Ar, TBVHNode<T,d>& LeafNode)
 	return Ar << LeafNode.LeafIndex << LeafNode.MAxis << LeafNode.MChildren << LeafNode.MMax << LeafNode.MMin;
 }
 
-template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
+template<class OBJECT_ARRAY, class LEAF_TYPE, class T = FReal, int d = 3>
 class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 {
   public:
@@ -176,19 +176,21 @@ class TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 };
 
 #if PLATFORM_MAC || PLATFORM_LINUX
-    extern template class CHAOS_API TBoundingVolumeHierarchy<TArray<Chaos::TSphere<float, 3>*>, TArray<int32>, float, 3>;
-    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TArray<int32>, float, 3>;
-    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, TArray<int32>, float, 3>;
-    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TArray<int32>, float, 3>;
-    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TBoundingVolume<TPBDRigidParticleHandle<float,3>*, float, 3>, float, 3>;
-    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TBoundingVolume<TGeometryParticleHandle<float,3>*, float, 3>, float, 3>;
+    extern template class CHAOS_API TBoundingVolumeHierarchy<TArray<Chaos::TSphere<FReal, 3>*>, TArray<int32>, FReal, 3>;
+    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<FReal, 3>, TArray<int32>, FReal, 3>;
+    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::FParticles, TArray<int32>, FReal, 3>;
+    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TGeometryParticles<FReal, 3>, TArray<int32>, FReal, 3>;
+    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<FReal, 3>, TBoundingVolume<TPBDRigidParticleHandle<FReal,3>*, FReal, 3>, FReal, 3>;
+    extern template class CHAOS_API TBoundingVolumeHierarchy<Chaos::TGeometryParticles<FReal, 3>, TBoundingVolume<TGeometryParticleHandle<FReal,3>*, FReal, 3>, FReal, 3>;
+	extern template class CHAOS_API TBoundingVolumeHierarchy<TArray<TUniquePtr<Chaos::FImplicitObject>>, TArray<int32>, FReal, 3>;
 #else
-    extern template class TBoundingVolumeHierarchy<TArray<Chaos::TSphere<float, 3>*>, TArray<int32>, float, 3>;
-    extern template class TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TArray<int32>, float, 3>;
-    extern template class TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, TArray<int32>, float, 3>;
-    extern template class TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TArray<int32>, float, 3>;
-    extern template class TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, TBoundingVolume<TPBDRigidParticleHandle<float,3>*, float, 3>, float, 3>;
-    extern template class TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, TBoundingVolume<TGeometryParticleHandle<float,3>*, float, 3>, float, 3>;
+    extern template class TBoundingVolumeHierarchy<TArray<Chaos::TSphere<FReal, 3>*>, TArray<int32>, FReal, 3>;
+    extern template class TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<FReal, 3>, TArray<int32>, FReal, 3>;
+    extern template class TBoundingVolumeHierarchy<Chaos::FParticles, TArray<int32>, FReal, 3>;
+    extern template class TBoundingVolumeHierarchy<Chaos::TGeometryParticles<FReal, 3>, TArray<int32>, FReal, 3>;
+    extern template class TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<FReal, 3>, TBoundingVolume<TPBDRigidParticleHandle<FReal,3>*, FReal, 3>, FReal, 3>;
+    extern template class TBoundingVolumeHierarchy<Chaos::TGeometryParticles<FReal, 3>, TBoundingVolume<TGeometryParticleHandle<FReal,3>*, FReal, 3>, FReal, 3>;
+	extern template class TBoundingVolumeHierarchy<TArray<TUniquePtr<Chaos::FImplicitObject>>, TArray<int32>, FReal, 3>;
 #endif
 
 template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>

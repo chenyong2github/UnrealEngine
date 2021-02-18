@@ -12,25 +12,25 @@
 namespace Chaos
 {
 
-class CHAOS_API FPBDAxialSpringConstraints : public TParticleRule<FReal, 3>, public TPBDAxialSpringConstraintsBase<FReal, 3>
+class CHAOS_API FPBDAxialSpringConstraints : public FParticleRule, public FPBDAxialSpringConstraintsBase
 {
-	typedef TPBDAxialSpringConstraintsBase<FReal, 3> Base;
+	typedef FPBDAxialSpringConstraintsBase Base;
 	using Base::MBarys;
 	using Base::MConstraints;
 
   public:
-	FPBDAxialSpringConstraints(const TDynamicParticles<FReal, 3>& InParticles, TArray<TVector<int32, 3>>&& Constraints, const FReal Stiffness = (FReal)1)
-	    : TPBDAxialSpringConstraintsBase<FReal, 3>(InParticles, MoveTemp(Constraints), Stiffness)
+	FPBDAxialSpringConstraints(const FDynamicParticles& InParticles, TArray<TVector<int32, 3>>&& Constraints, const FReal Stiffness = (FReal)1.)
+		: FPBDAxialSpringConstraintsBase(InParticles, MoveTemp(Constraints), Stiffness)
 	{
 		InitColor(InParticles);
 	}
 	virtual ~FPBDAxialSpringConstraints() {}
 
   private:
-	void InitColor(const TDynamicParticles<FReal, 3>& InParticles);
-	void ApplyImp(TPBDParticles<FReal, 3>& InParticles, const FReal Dt, const int32 i) const;
+	void InitColor(const FDynamicParticles& InParticles);
+	void ApplyImp(FPBDParticles& InParticles, const FReal Dt, const int32 i) const;
   public:
-	void Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const override; //-V762
+	void Apply(FPBDParticles& InParticles, const FReal Dt) const override; //-V762
 
 	TArray<TArray<int32>> MConstraintsPerColor;
 };

@@ -623,7 +623,7 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBindingSlots
 	uint32 NumOcclusionQueries = 0;
 	ESubpassHint SubpassHint = ESubpassHint::None;
 	uint8 MultiViewCount = 0;
-	FRDGTexture* FoveationTexture = nullptr;
+	FRDGTexture* ShadingRateTexture = nullptr;
 
 	/** Accessors for regular output to simplify the syntax to:
 	 *
@@ -699,7 +699,7 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBindingSlots
 			(NumOcclusionQueries != Other.NumOcclusionQueries && Other.NumOcclusionQueries != 0) ||
 			SubpassHint != Other.SubpassHint ||
 			MultiViewCount != Other.MultiViewCount ||
-			FoveationTexture != Other.FoveationTexture)
+			ShadingRateTexture != Other.ShadingRateTexture)
 		{
 			return false;
 		}

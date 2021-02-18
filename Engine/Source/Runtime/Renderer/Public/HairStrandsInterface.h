@@ -357,6 +357,7 @@ enum class EHairStrandsShaderType
 };
 RENDERER_API bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform);
 RENDERER_API bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform = EShaderPlatform::SP_NumPlatforms);
+RENDERER_API void SetHairStrandsEnabled(bool In);
 
 // Return strands & guide indices to be preserved, while all others strands/guides should be culled
 enum class EHairCullMode : uint8

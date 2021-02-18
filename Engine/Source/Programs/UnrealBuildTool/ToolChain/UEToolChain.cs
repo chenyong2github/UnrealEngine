@@ -127,6 +127,26 @@ namespace UnrealBuildTool
         }
 
 		/// <summary>
+		/// Runs the provided tool and argument. Returns the output, using a rexex capture if one is provided
+		/// </summary>
+		/// <param name="Command">Full path to the tool to run</param>
+		/// <param name="ToolArg">Argument that will be passed to the tool</param>
+		/// <param name="Expression">null, or a Regular expression to capture in the output</param>
+		/// <returns></returns>
+		public static string RunToolAndCaptureOutput(FileReference Command, string ToolArg, string Expression = null)
+		{
+			string ProcessOutput = Utils.RunLocalProcessAndReturnStdOut(Command.FullName, ToolArg);
+
+			if (string.IsNullOrEmpty(Expression))
+			{
+				return ProcessOutput;
+			}
+			
+			Match M = Regex.Match(ProcessOutput, Expression);
+			return M.Success ? M.Groups[1].ToString() : null;	
+		}
+
+		/// <summary>
 		/// Runs the provided tool and argument and parses the output to retrieve the version
 		/// </summary>
 		/// <param name="Command">Full path to the tool to run</param>
@@ -135,13 +155,11 @@ namespace UnrealBuildTool
 		/// <returns></returns>
 		public static Version RunToolAndCaptureVersion(FileReference Command, string VersionArg, string VersionExpression = @"(\d+\.\d+(\.\d+)?(\.\d+)?)")
 		{
-			string ProcessOutput = Utils.RunLocalProcessAndReturnStdOut(Command.FullName, VersionArg);
-
-			Match M = Regex.Match(ProcessOutput, VersionExpression);
+			string ProcessOutput = RunToolAndCaptureOutput(Command, VersionArg, VersionExpression);
 
 			Version ToolVersion = new Version(0, 0);
 
-			if (M.Success && Version.TryParse(M.Groups[1].ToString(), out ToolVersion))
+			if (Version.TryParse(ProcessOutput, out ToolVersion))
 			{
 				return ToolVersion;
 			}
@@ -298,7 +316,7 @@ namespace UnrealBuildTool
 			return Path.Combine(ISPCCompilerPathCommon, ISPCArchitecturePath, "ispc" + ExeExtension);
 		}
 
-		static Dictionary<UnrealTargetPlatform, Version> ISPCCompilerVersions = new Dictionary<UnrealTargetPlatform, Version>();
+		static Dictionary<UnrealTargetPlatform, string> ISPCCompilerVersions = new Dictionary<UnrealTargetPlatform, string>();
 
 		/// <summary>
 		/// Returns the version of the ISPC compiler for the specified platform. If GetISPCHostCompilerPath() doesn't return a valid path
@@ -306,7 +324,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Platform">Which OS build platform is running on.</param>
 		/// <returns>Version reported by the ISPC compilerr</returns>
-		public virtual Version GetISPCHostCompilerVersion(UnrealTargetPlatform Platform)
+		public virtual string GetISPCHostCompilerVersion(UnrealTargetPlatform Platform)
 		{
 			if (!ISPCCompilerVersions.ContainsKey(Platform))
 			{
@@ -319,7 +337,7 @@ namespace UnrealBuildTool
 					CompilerVersion = new Version(-1, -1);
 				}
 
-				ISPCCompilerVersions[Platform] = RunToolAndCaptureVersion(new FileReference(CompilerPath), "--version");
+				ISPCCompilerVersions[Platform] = RunToolAndCaptureOutput(new FileReference(CompilerPath), "--version", "(.*)");
 			}
 
 			return ISPCCompilerVersions[Platform];			

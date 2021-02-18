@@ -104,27 +104,26 @@ void FMovieSceneIntegerPropertySectionTemplate::Evaluate(const FMovieSceneEvalua
 }
 
 void FMovieSceneIntegerPropertySectionTemplate::Interrogate(const FMovieSceneContext& Context, FMovieSceneInterrogationData& Container, UObject* BindingOverride) const
-
 {
-	//using namespace UE::MovieScene;
+	using namespace UE::MovieScene;
 
-	//int32 Result = 0.f;
+	int32 Result = 0.f;
 
-	//// Only evaluate if the curve has any data
-	//if (IntegerCurve.Evaluate(Context.GetTime(), Result))
-	//{
-	//	FMovieSceneAnimTypeID TypeID = GetPropertyTypeID();
-	//	static FMovieSceneBlendingActuatorID ActuatorTypeID(TypeID);
-	//	if (!Container.GetAccumulator().FindActuator<int32>(ActuatorTypeID))
-	//	{
-	//		PropertyTemplate::FSectionData SectionData;
-	//		SectionData.Initialize(PropertyData.PropertyName, PropertyData.PropertyPath, PropertyData.FunctionName, PropertyData.NotifyFunctionName);
-	//		Container.GetAccumulator().DefineActuator(ActuatorTypeID, MakeShared<TPropertyActuator<int32>>(SectionData));
-	//	}
+	// Only evaluate if the curve has any data
+	if (IntegerCurve.Evaluate(Context.GetTime(), Result))
+	{
+		FMovieSceneAnimTypeID TypeID = GetPropertyTypeID();
+		static FMovieSceneBlendingActuatorID ActuatorTypeID(TypeID);
+		if (!Container.GetAccumulator().FindActuator<int32>(ActuatorTypeID))
+		{
+			PropertyTemplate::FSectionData SectionData;
+			SectionData.Initialize(PropertyData.PropertyName, PropertyData.PropertyPath);
+			Container.GetAccumulator().DefineActuator(ActuatorTypeID, MakeShared<TPropertyActuator<int32>>(SectionData));
+		}
 
-	//	const float Weight = EvaluateEasing(Context.GetTime());
-	//	Container.GetAccumulator().BlendToken(FMovieSceneEvaluationOperand(), ActuatorTypeID, FMovieSceneEvaluationScope(), Context, TBlendableToken<int32>(Result, BlendType, Weight));
-	//}
+		const float Weight = EvaluateEasing(Context.GetTime());
+		Container.GetAccumulator().BlendToken(FMovieSceneEvaluationOperand(), ActuatorTypeID, FMovieSceneEvaluationScope(), Context, TBlendableToken<int32>(Result, BlendType, Weight));
+	}
 }
 
 

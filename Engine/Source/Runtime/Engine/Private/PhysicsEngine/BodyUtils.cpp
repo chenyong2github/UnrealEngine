@@ -48,7 +48,7 @@ namespace BodyUtils
 	}
 
 #if WITH_CHAOS
-	Chaos::TMassProperties<float, 3> ApplyMassPropertiesModifiers(const FBodyInstance* OwningBodyInstance, Chaos::TMassProperties<float, 3> MassProps, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
+	Chaos::FMassProperties ApplyMassPropertiesModifiers(const FBodyInstance* OwningBodyInstance, Chaos::FMassProperties MassProps, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
 	{
 		float OldMass = MassProps.Mass;
 		float NewMass = 0.f;
@@ -96,20 +96,20 @@ namespace BodyUtils
 		return MassProps;
 	}
 
-	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const TArray<FPhysicsShapeHandle>& Shapes, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
+	Chaos::FMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const TArray<FPhysicsShapeHandle>& Shapes, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
 	{
 		// Calculate the mass properties based on the shapes assuming uniform density
-		Chaos::TMassProperties<float, 3> MassProps;
+		Chaos::FMassProperties MassProps;
 		ChaosInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, GetBodyInstanceDensity(OwningBodyInstance));
 
 		// Apply the BodyInstance's mass and inertia modifiers
 		return ApplyMassPropertiesModifiers(OwningBodyInstance, MassProps, MassModifierTransform, bInertaScaleIncludeMass);
 	}
 
-	Chaos::TMassProperties<float, 3> ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const Chaos::FShapesArray& Shapes, const TArray<bool>& bContributesToMass, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
+	Chaos::FMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const Chaos::FShapesArray& Shapes, const TArray<bool>& bContributesToMass, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
 	{
 		// Calculate the mass properties based on the shapes assuming uniform density
-		Chaos::TMassProperties<float, 3> MassProps;
+		Chaos::FMassProperties MassProps;
 		ChaosInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, bContributesToMass, GetBodyInstanceDensity(OwningBodyInstance));
 
 		// Apply the BodyInstance's mass and inertia modifiers

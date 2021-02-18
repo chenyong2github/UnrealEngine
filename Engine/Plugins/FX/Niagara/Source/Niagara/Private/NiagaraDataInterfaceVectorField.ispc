@@ -10,10 +10,10 @@ struct FHalfVector
 	int16 V[3];
 };
 
-inline varying FVector ReadHalfVector(const uniform FHalfVector Data[], int SampleIndex)
+inline varying FVector ReadHalfVector(const uniform FHalfVector Data[], int DataSize, int SampleIndex)
 {
 	#pragma ignore warning(perf)
-	const FHalfVector Sample = Data[SampleIndex];
+	const FHalfVector Sample = Data[SampleIndex >= 0 && SampleIndex <= DataSize ? SampleIndex : 0];
 
 	return SetVector(half_to_float_fast(Sample.V[0]), half_to_float_fast(Sample.V[1]), half_to_float_fast(Sample.V[2]));
 }
@@ -21,7 +21,7 @@ inline varying FVector ReadHalfVector(const uniform FHalfVector Data[], int Samp
 export void SampleVectorField(const uniform float XParam[], const uniform float YParam[], const uniform float ZParam[],
 							const uniform bool bXParamConst, const uniform bool bYParamConst, const uniform bool bZParamConst,
 							uniform float OutSampleX[], uniform float OutSampleY[], uniform float OutSampleZ[],
-							const uniform FHalfVector Data[], const uniform FVector &MinBounds, const uniform FVector &OneOverBoundSize,
+							const uniform FHalfVector Data[], const uniform int DataSize, const uniform FVector &MinBounds, const uniform FVector &OneOverBoundSize,
 							const uniform FVector &Size, const uniform FVector &TilingAxes, const uniform int NumInstances)
 {
 	const uniform FVector SizeMinusOne = Size - OneVector;
@@ -60,24 +60,24 @@ export void SampleVectorField(const uniform float XParam[], const uniform float 
 		// Sample by regular trilinear interpolation:
 
 		// Fetch corners & Blend axes
-		const FVector V000 = ReadHalfVector(Data, (int)(Index0.V[0] + Size.V[0] * Index0.V[1] + Size.V[0] * Size.V[1] * Index0.V[2]));
-		const FVector V100 = ReadHalfVector(Data, (int)(Index1.V[0] + Size.V[0] * Index0.V[1] + Size.V[0] * Size.V[1] * Index0.V[2]));
+		const FVector V000 = ReadHalfVector(Data, DataSize, (int)(Index0.V[0] + Size.V[0] * Index0.V[1] + Size.V[0] * Size.V[1] * Index0.V[2]));
+		const FVector V100 = ReadHalfVector(Data, DataSize, (int)(Index1.V[0] + Size.V[0] * Index0.V[1] + Size.V[0] * Size.V[1] * Index0.V[2]));
 
 		const FVector V00 = VectorLerp(V000, V100, Fraction.V[0]);
 
-		const FVector V010 = ReadHalfVector(Data, (int)(Index0.V[0] + Size.V[0] * Index1.V[1] + Size.V[0] * Size.V[1] * Index0.V[2]));
-		const FVector V110 = ReadHalfVector(Data, (int)(Index1.V[0] + Size.V[0] * Index1.V[1] + Size.V[0] * Size.V[1] * Index0.V[2]));
+		const FVector V010 = ReadHalfVector(Data, DataSize, (int)(Index0.V[0] + Size.V[0] * Index1.V[1] + Size.V[0] * Size.V[1] * Index0.V[2]));
+		const FVector V110 = ReadHalfVector(Data, DataSize, (int)(Index1.V[0] + Size.V[0] * Index1.V[1] + Size.V[0] * Size.V[1] * Index0.V[2]));
 
 		const FVector V10 = VectorLerp(V010, V110, Fraction.V[0]);
 		const FVector V0 = VectorLerp(V00, V10, Fraction.V[1]);
 
-		const FVector V001 = ReadHalfVector(Data, (int)(Index0.V[0] + Size.V[0] * Index0.V[1] + Size.V[0] * Size.V[1] * Index1.V[2]));
-		const FVector V101 = ReadHalfVector(Data, (int)(Index1.V[0] + Size.V[0] * Index0.V[1] + Size.V[0] * Size.V[1] * Index1.V[2]));
+		const FVector V001 = ReadHalfVector(Data, DataSize, (int)(Index0.V[0] + Size.V[0] * Index0.V[1] + Size.V[0] * Size.V[1] * Index1.V[2]));
+		const FVector V101 = ReadHalfVector(Data, DataSize, (int)(Index1.V[0] + Size.V[0] * Index0.V[1] + Size.V[0] * Size.V[1] * Index1.V[2]));
 
 		const FVector V01 = VectorLerp(V001, V101, Fraction.V[0]);
 
-		const FVector V011 = ReadHalfVector(Data, (int)(Index0.V[0] + Size.V[0] * Index1.V[1] + Size.V[0] * Size.V[1] * Index1.V[2]));
-		const FVector V111 = ReadHalfVector(Data, (int)(Index1.V[0] + Size.V[0] * Index1.V[1] + Size.V[0] * Size.V[1] * Index1.V[2]));
+		const FVector V011 = ReadHalfVector(Data, DataSize, (int)(Index0.V[0] + Size.V[0] * Index1.V[1] + Size.V[0] * Size.V[1] * Index1.V[2]));
+		const FVector V111 = ReadHalfVector(Data, DataSize, (int)(Index1.V[0] + Size.V[0] * Index1.V[1] + Size.V[0] * Size.V[1] * Index1.V[2]));
 
 		const FVector V11 = VectorLerp(V011, V111, Fraction.V[0]);
 		const FVector V1 = VectorLerp(V01, V11, Fraction.V[1]);

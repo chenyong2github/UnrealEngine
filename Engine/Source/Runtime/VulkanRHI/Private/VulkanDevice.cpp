@@ -374,6 +374,17 @@ void FVulkanDevice::CreateDevice()
 	}
 #endif
 
+#if VULKAN_SUPPORTS_MULTIVIEW
+	VkPhysicalDeviceMultiviewFeatures DeviceMultiviewFeatures;
+	if (OptionalDeviceExtensions.HasKHRMultiview)
+	{
+		ZeroVulkanStruct(DeviceMultiviewFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES);
+		DeviceMultiviewFeatures.multiview = VK_TRUE;
+		DeviceMultiviewFeatures.pNext = (void*)DeviceInfo.pNext;
+		DeviceInfo.pNext = &DeviceMultiviewFeatures;
+	}
+#endif
+
 	// Create the device
 	VkResult Result = VulkanRHI::vkCreateDevice(Gpu, &DeviceInfo, VULKAN_CPU_ALLOCATOR, &Device);
 	if (Result == VK_ERROR_INITIALIZATION_FAILED)
@@ -838,6 +849,16 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	ZeroVulkanStruct(PhysicalDeviceProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR);
 #endif
 
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+	VkPhysicalDeviceFragmentDensityMapPropertiesEXT FragmentDensityMapProperties;
+	ZeroVulkanStruct(FragmentDensityMapProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_PROPERTIES_EXT);
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	VkPhysicalDeviceShadingRateImagePropertiesNV ShadingRateImagePropertiesNV;
+	ZeroVulkanStruct(ShadingRateImagePropertiesNV, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADING_RATE_IMAGE_PROPERTIES_NV);
+#endif
+
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
@@ -846,11 +867,30 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 		GpuProps2.pNext = &GpuIdProps;
 		ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
 
+		void** NextPropsAddr = &GpuProps2.pNext;
+
 #if VULKAN_SUPPORTS_DRIVER_PROPERTIES
 		if (GetOptionalExtensions().HasDriverProperties)
 		{
 			PhysicalDeviceProperties.pNext = GpuProps2.pNext;
 			GpuProps2.pNext = &PhysicalDeviceProperties;
+			NextPropsAddr = &PhysicalDeviceProperties.pNext;
+		}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+		if (GetOptionalExtensions().HasEXTFragmentDensityMap)
+		{
+			*NextPropsAddr = &FragmentDensityMapProperties;
+			NextPropsAddr = &FragmentDensityMapProperties.pNext;
+		}
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+		if (GetOptionalExtensions().HasNVShadingRateImage)
+		{
+			*NextPropsAddr = &ShadingRateImagePropertiesNV;
+			NextPropsAddr = &ShadingRateImagePropertiesNV.pNext;
 		}
 #endif
 
@@ -924,6 +964,42 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	}
 #endif
 
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP 
+	// Prefer the Fragment Density Map extension (primarily used on mobile devices).
+	if (!GRHISupportsImageBasedVariableRateShading && GetOptionalExtensions().HasEXTFragmentDensityMap)
+	{
+		GRHISupportsImageBasedVariableRateShading = true;
+
+		// Go with the smallest tile size for now, and also force to square, since this seems to be standard.
+		// TODO: Eventually we may want to surface the range of possible tile sizes depending on end use cases, but for now this is being used for foveated rendering and smallest tile size
+		// is preferred.
+		
+		GRHIVariableRateShadingImageTileSize = FragmentDensityMapProperties.minFragmentDensityTexelSize.width;
+		GRHIVariableRateShadingImageTileSize = FMath::Min((uint32)GRHIVariableRateShadingImageTileSize, FragmentDensityMapProperties.minFragmentDensityTexelSize.height);
+
+		check(GRHIVariableRateShadingImageTileSize <= (int32)FragmentDensityMapProperties.maxFragmentDensityTexelSize.width);
+
+		GRHIVariableRateShadingImageDataType = VRSImage_Fractional;
+		GRHIVariableRateShadingImageFormat = PF_R8G8;
+		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via EXTFragmentDensityMap extension. Selected VRS tile size %u by %u pixels per VRS image texel."));
+	}
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	if (!GRHISupportsImageBasedVariableRateShading && GetOptionalExtensions().HasNVShadingRateImage)
+	{
+		GRHISupportsImageBasedVariableRateShading = true;
+
+		// If no FDM, and we have the NV extension version, we'll be using that. We have a fixed tile size in this case.
+		GRHIVariableRateShadingImageTileSize = ShadingRateImagePropertiesNV.shadingRateTexelSize.width;
+		check(ShadingRateImagePropertiesNV.shadingRateTexelSize.width == ShadingRateImagePropertiesNV.shadingRateTexelSize.height);
+
+		GRHIVariableRateShadingImageDataType = VRSImage_Palette;
+		GRHIVariableRateShadingImageFormat = PF_R8;
+		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via NVShadingRateImage extension. Selected VRS tile size %u by %u pixels per VRS image texel."));
+	}
+#endif
+
 	for (const FString& Name : AllValidationLayers)
 	{
 		UE_LOG(LogVulkanRHI, Display, TEXT("-    Found device layer %s"), *Name);
@@ -954,10 +1030,46 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
-		VkPhysicalDeviceShaderAtomicInt64Features AtomicFeatures;
-		ZeroVulkanStruct(AtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
 		VkPhysicalDeviceFeatures2 Features2;
 		ZeroVulkanStruct(Features2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2);
+
+		void** NextPropsAddr = nullptr;
+		NextPropsAddr = &Features2.pNext;
+
+		VkPhysicalDeviceShaderAtomicInt64Features AtomicFeatures;
+		{
+			*NextPropsAddr = &AtomicFeatures;
+			NextPropsAddr = &AtomicFeatures.pNext;
+			ZeroVulkanStruct(AtomicFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR);
+		}
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+		if (GetOptionalExtensions().HasEXTFragmentDensityMap)
+		{
+			*NextPropsAddr = &FragmentDensityMapFeatures;
+			NextPropsAddr = &FragmentDensityMapFeatures.pNext;
+			ZeroVulkanStruct(FragmentDensityMapFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT);
+		}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
+		if (GetOptionalExtensions().HasEXTFragmentDensityMap2)
+		{
+			*NextPropsAddr = &FragmentDensityMap2Features;
+			NextPropsAddr = &FragmentDensityMap2Features.pNext;
+			ZeroVulkanStruct(FragmentDensityMap2Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_2_FEATURES_EXT);
+		}
+#endif
+
+#if VULKAN_SUPPORTS_MULTIVIEW
+		if (GetOptionalExtensions().HasKHRMultiview)
+		{
+			*NextPropsAddr = &MultiviewFeatures;
+			NextPropsAddr = &MultiviewFeatures.pNext;
+			ZeroVulkanStruct(MultiviewFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES);
+		}
+#endif
+
 		Features2.pNext = &AtomicFeatures;
 		VulkanRHI::vkGetPhysicalDeviceFeatures2KHR(Gpu, &Features2);
 		OptionalDeviceExtensions.HasBufferAtomicInt64 = (AtomicFeatures.shaderBufferInt64Atomics == VK_TRUE);

@@ -2268,7 +2268,7 @@ public:
 		checkf(Platform < UE_ARRAY_COUNT(EditorShaderCodeArchive), TEXT("FShaderCodeLibrary::AddShaderCode can only be called with a valid shader platform (expected no more than %d, passed: %d)"),
 			static_cast<int32>(UE_ARRAY_COUNT(EditorShaderCodeArchive)), static_cast<int32>(Platform));
 		FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[Platform];
-		check(CodeArchive);
+		checkf(CodeArchive, TEXT("EditorShaderCodeArchive for (EShaderPlatform)%d is null!"), (int32)Platform);
 
 		CodeArchive->AddShaderCode(CodeStats, Code, AssociatedAssets);
 	}

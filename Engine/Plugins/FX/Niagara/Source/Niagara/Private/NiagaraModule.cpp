@@ -23,6 +23,7 @@
 #include "UObject/CoreRedirects.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "Misc/CoreDelegates.h"
+#include "NiagaraDebuggerClient.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -144,6 +145,7 @@ FNiagaraVariable INiagaraModule::Particles_RibbonU0Override;
 FNiagaraVariable INiagaraModule::Particles_RibbonV0RangeOverride;
 FNiagaraVariable INiagaraModule::Particles_RibbonU1Override;
 FNiagaraVariable INiagaraModule::Particles_RibbonV1RangeOverride;
+FNiagaraVariable INiagaraModule::Particles_RibbonDistanceFromStart;
 FNiagaraVariable INiagaraModule::Particles_VisibilityTag;
 FNiagaraVariable INiagaraModule::Particles_MeshIndex;
 FNiagaraVariable INiagaraModule::Particles_ComponentsEnabled;
@@ -160,6 +162,10 @@ void INiagaraModule::StartupModule()
 	FNiagaraViewDataMgr::Init();
 
 	FNiagaraWorldManager::OnStartup();
+
+#if WITH_NIAGARA_DEBUGGER
+	DebuggerClient = MakePimpl<FNiagaraDebuggerClient>();
+#endif
 
 #if WITH_EDITOR	
 	// Loading uncooked data in a game environment, we still need to get some functionality from the NiagaraEditor module.
@@ -255,6 +261,7 @@ void INiagaraModule::StartupModule()
 	Particles_RibbonTwist = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonTwist"));
 	Particles_RibbonFacing = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particles.RibbonFacing"));
 	Particles_RibbonLinkOrder = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonLinkOrder"));
+	Particles_RibbonDistanceFromStart = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonDistanceFromStart"));
 	Particles_RibbonU0Override = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonU0Override"));
 	Particles_RibbonV0RangeOverride = FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Particles.RibbonV0RangeOverride"));
 	Particles_RibbonU1Override = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonU1Override"));
@@ -325,6 +332,10 @@ void INiagaraModule::OnPreExit()
 		BaselineHandler.Reset();
 	}
 #endif
+
+#if WITH_NIAGARA_DEBUGGER
+	DebuggerClient.Reset();
+#endif
 }
 
 void INiagaraModule::OnWorldTickStart(UWorld* World, ELevelTick TickType, float DeltaSeconds)
@@ -368,6 +379,10 @@ void INiagaraModule::ShutdownModule()
 	ShutdownRenderingResources();
 
 	FNiagaraTypeRegistry::TearDown();
+
+#if WITH_NIAGARA_DEBUGGER
+	DebuggerClient.Reset();
+#endif
 
 #if NIAGARA_PERF_BASELINES
 	UNiagaraEffectType::OnGeneratePerfBaselines().Unbind();

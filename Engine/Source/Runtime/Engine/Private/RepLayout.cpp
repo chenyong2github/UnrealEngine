@@ -7243,10 +7243,10 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 				// Cache off the newest history, the last history sent to this connection, and then update the state
 				// to notify that we're going to send it the newest history.
 				const uint32 NewChangelistHistory = FastArrayState.HistoryEnd;
-				const uint32 LastAckedHistory = NewArrayDeltaState->LastAckedHistory;
+				const uint32 LastAckedHistory = NewArrayDeltaState->GetLastAckedHistory();
 				const uint32 LastAckedChangelistDelta = NewChangelistHistory - LastAckedHistory;
 
-				NewArrayDeltaState->ChangelistHistory = NewChangelistHistory;
+				NewArrayDeltaState->SetChangelistHistory(NewChangelistHistory);
 
 				// Cache off the shadow array buffers.
 				FRepShadowDataBuffer ShadowData(RepChangelistState.StaticBuffer.GetData());
@@ -7905,12 +7905,6 @@ const ELifetimeCondition FRepLayout::GetLifetimeCustomDeltaPropertyCondition(con
 {
 	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->GetCustomDeltaProperty(CustomDeltaPropertyIndex);
 	return Parents[CustomDeltaProperty.PropertyRepIndex].Condition;
-}
-
-bool FRepLayout::IsAFastArray(const uint16 CustomDeltaPropertyIndex) const
-{
-	const FLifetimeCustomDeltaProperty& CustomDeltaProperty = LifetimeCustomPropertyState->GetCustomDeltaProperty(CustomDeltaPropertyIndex);
-	return CustomDeltaProperty.FastArrayNumber != INDEX_NONE;
 }
 
 void FReceivingRepState::CountBytes(FArchive& Ar) const

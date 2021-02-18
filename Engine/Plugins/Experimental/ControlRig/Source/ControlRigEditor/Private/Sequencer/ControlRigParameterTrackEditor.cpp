@@ -226,16 +226,12 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 						if (NewControlRig)
 						{  
 							OldControlRig->ClearControlSelection();
-							OldControlRig->ControlModified().RemoveAll(this);
-							OldControlRig->OnInitialized_AnyThread().RemoveAll(this);
-							OldControlRig->ControlSelected().RemoveAll(this);
-
+							UnbindControlRig(OldControlRig);
 							if (*NewControlRig)
 							{
 								Track->ReplaceControlRig(*NewControlRig, OldControlRig->GetClass() != (*NewControlRig)->GetClass());
-								(*NewControlRig)->ControlModified().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlModified);
-								(*NewControlRig)->OnInitialized_AnyThread().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnInitialized);
-								(*NewControlRig)->ControlSelected().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlSelected);
+								BindControlRig(*NewControlRig);
+
 								GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 							}
 							else
@@ -279,15 +275,14 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 		UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
 		if (Track && Track->GetControlRig())
 		{
-			Track->GetControlRig()->ControlModified().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlModified);
-			Track->GetControlRig()->OnInitialized_AnyThread().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnInitialized);
-			Track->GetControlRig()->ControlSelected().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlSelected);
+			BindControlRig(Track->GetControlRig());
 		}
 	}
 }
 
 FControlRigParameterTrackEditor::~FControlRigParameterTrackEditor()
 {
+	UnbindAllControlRigs();
 	if (GetSequencer().IsValid())
 	{
 		//REMOVE ME IN UE5
@@ -296,20 +291,55 @@ FControlRigParameterTrackEditor::~FControlRigParameterTrackEditor()
 	FMovieSceneToolsModule::Get().UnregisterAnimationBakeHelper(this);
 }
 
+void FControlRigParameterTrackEditor::BindControlRig(UControlRig* ControlRig)
+{
+	if (ControlRig && BoundControlRigs.Contains(ControlRig) == false)
+	{
+		ControlRig->ControlModified().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlModified);
+		ControlRig->OnInitialized_AnyThread().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnInitialized);
+		ControlRig->ControlSelected().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlSelected);
+		BoundControlRigs.Add(ControlRig);
+	}
+}
+void FControlRigParameterTrackEditor::UnbindControlRig(UControlRig* ControlRig)
+{
+	if (ControlRig && BoundControlRigs.Contains(ControlRig) == true)
+	{
+		ControlRig->ControlModified().RemoveAll(this);
+		ControlRig->OnInitialized_AnyThread().RemoveAll(this);
+		ControlRig->ControlSelected().RemoveAll(this);
+		BoundControlRigs.Remove(ControlRig);
+	}
+}
+void FControlRigParameterTrackEditor::UnbindAllControlRigs()
+{
+	for(TWeakObjectPtr<UControlRig>& ObjectPtr: BoundControlRigs)
+	{
+		if (ObjectPtr.IsValid())
+		{
+			UControlRig* ControlRig = ObjectPtr.Get();
+			ControlRig->ControlModified().RemoveAll(this);
+			ControlRig->OnInitialized_AnyThread().RemoveAll(this);
+			ControlRig->ControlSelected().RemoveAll(this);
+		}
+	}
+	BoundControlRigs.SetNum(0);
+}
+
+
 void FControlRigParameterTrackEditor::ObjectImplicitlyAdded(UObject* InObject)
 {
 	UControlRig* ControlRig = Cast<UControlRig>(InObject);
 	if (ControlRig)
 	{
-		ControlRig->ControlModified().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlModified);
-		ControlRig->OnInitialized_AnyThread().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnInitialized);
-		ControlRig->ControlSelected().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlSelected);
+		BindControlRig(ControlRig);
 	}
 }
 
 
 void FControlRigParameterTrackEditor::OnRelease()
 {
+	UnbindAllControlRigs();
 	if (GetSequencer().IsValid())
 	{
 		if (SelectionChangedHandle.IsValid())
@@ -339,17 +369,6 @@ void FControlRigParameterTrackEditor::OnRelease()
 			if (OnMovieSceneChannelChangedHandle.IsValid())
 			{
 				MovieScene->OnChannelChanged().Remove(OnMovieSceneChannelChangedHandle);
-			}
-			const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-			for (const FMovieSceneBinding& Binding : Bindings)
-			{
-				UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
-				if (Track && Track->GetControlRig())
-				{
-					Track->GetControlRig()->ControlModified().RemoveAll(this);
-					Track->GetControlRig()->OnInitialized_AnyThread().RemoveAll(this);
-					Track->GetControlRig()->ControlSelected().RemoveAll(this);
-				}
 			}
 		}
 	}
@@ -646,9 +665,7 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 					UControlRig* OldControlRig = ControlRigEditMode->GetControlRig(false);
 					if (OldControlRig)
 					{
-						OldControlRig->ControlModified().RemoveAll(this);
-						OldControlRig->OnInitialized_AnyThread().RemoveAll(this);
-						OldControlRig->ControlSelected().RemoveAll(this);
+						UnbindControlRig(OldControlRig);
 					}
 				}
 
@@ -703,9 +720,7 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 					{
 						ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
 					}
-					ControlRig->ControlModified().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlModified);
-					ControlRig->OnInitialized_AnyThread().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnInitialized);
-					ControlRig->ControlSelected().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlSelected);
+					BindControlRig(ControlRig);
 
 					TempAnimSequence->MarkPendingKill();
 					AnimSeqExportOption->MarkPendingKill();
@@ -1008,10 +1023,8 @@ void FControlRigParameterTrackEditor::AddControlRig(UClass* InClass, UObject* Bo
 			{
 				ControlRigEditMode->SetObjects(ControlRig, nullptr, GetSequencer());
 			}
-
-			ControlRig->ControlModified().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlModified);
-			ControlRig->OnInitialized_AnyThread().AddRaw(this, &FControlRigParameterTrackEditor::HandleOnInitialized);
-			ControlRig->ControlSelected().AddRaw(this, &FControlRigParameterTrackEditor::HandleControlSelected);
+			BindControlRig(ControlRig);
+			
 		}
 	}
 }

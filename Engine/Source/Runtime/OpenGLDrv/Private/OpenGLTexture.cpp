@@ -1345,6 +1345,15 @@ void TOpenGLTexture<RHIResourceType>::CloneViaCopyImage( TOpenGLTexture<RHIResou
 	if (CanCreateAsEvicted())
 	{
 		// Copy all mips that are present.
+		if (!(!Src->IsEvicted() || Src->EvictionParamsPtr->AreAllMipsPresent()))
+		{
+			UE_LOG(LogRHI, Warning, TEXT("IsEvicted %d, MipsPresent %d, InNumMips %d, SrcOffset %d, DstOffset %d"), Src->IsEvicted(), Src->EvictionParamsPtr->AreAllMipsPresent(), InNumMips, SrcOffset, DstOffset);
+			int MessageCount = 0;
+			for (const auto& MipData : Src->EvictionParamsPtr->MipImageData)
+			{
+				UE_LOG(LogRHI, Warning, TEXT("SrcMipData[%d].Num() == %d"), MessageCount++, MipData.Num());
+			}	
+		}
 		check(!Src->IsEvicted() || Src->EvictionParamsPtr->AreAllMipsPresent() );
 		EvictionParamsPtr->CloneMipData(*Src->EvictionParamsPtr, InNumMips, SrcOffset, DstOffset);
 

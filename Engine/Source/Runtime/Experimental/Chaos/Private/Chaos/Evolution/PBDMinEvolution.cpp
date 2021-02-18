@@ -397,9 +397,9 @@ namespace Chaos
 				// Update world-space bounds
 				if (Particle.HasBounds())
 				{
-					const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
+					const FAABB3& LocalBounds = Particle.LocalBounds();
 					
-					TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
+					FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.P(), Particle.Q()));
 					WorldSpaceBounds.ThickenSymmetrically(WorldSpaceBounds.Extents() * BoundsExtension);
 
 					// Dynamic bodies may get pulled back into their old positions by joints - make sure we find collisions that may prevent this
@@ -494,7 +494,7 @@ namespace Chaos
 				// Update world-space bounds
 				if (Rigids.HasBounds[ParticleIndex])
 				{
-					TAABB<FReal, 3> WorldSpaceBounds = Rigids.LocalBounds[ParticleIndex].TransformedAABB(FRigidTransform3(Rigids.P[ParticleIndex], Rigids.Q[ParticleIndex]));
+					FAABB3 WorldSpaceBounds = Rigids.LocalBounds[ParticleIndex].TransformedAABB(FRigidTransform3(Rigids.P[ParticleIndex], Rigids.Q[ParticleIndex]));
 					WorldSpaceBounds.ThickenSymmetrically(WorldSpaceBounds.Extents() * BoundsExtension);
 
 					// Dynamic bodies may get pulled back into their old positions by joints - make sure we find collisions that may prevent this
@@ -619,12 +619,12 @@ namespace Chaos
 			// Update world space bouunds
 			if (Particle.HasBounds())
 			{
-				const TAABB<FReal, 3>& LocalBounds = Particle.LocalBounds();
+				const FAABB3& LocalBounds = Particle.LocalBounds();
 				
-				TAABB<FReal, 3> WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
+				FAABB3 WorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(Particle.X(), Particle.R()));
 				WorldSpaceBounds.ThickenSymmetrically(WorldSpaceBounds.Extents() * BoundsExtension);
 
-				//TAABB<FReal, 3> PrevWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(PrevX, PrevR));
+				//FAABB3 PrevWorldSpaceBounds = LocalBounds.TransformedAABB(FRigidTransform3(PrevX, PrevR));
 				//WorldSpaceBounds.GrowToInclude(PrevWorldSpaceBounds);
 
 				Particle.SetWorldSpaceInflatedBounds(WorldSpaceBounds);
@@ -691,7 +691,7 @@ namespace Chaos
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_UpdateVelocites);
 
-		TPerParticlePBDUpdateFromDeltaPosition<FReal, 3> UpdateVelocityRule;
+		FPerParticlePBDUpdateFromDeltaPosition UpdateVelocityRule;
 		for (auto& Particle : Particles.GetActiveParticlesView())
 		{
 			UpdateVelocityRule.Apply(Particle, Dt);

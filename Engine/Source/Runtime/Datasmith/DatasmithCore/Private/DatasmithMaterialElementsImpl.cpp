@@ -185,7 +185,7 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	, Refraction(         MakeShared< FDatasmithExpressionInputImpl >( TEXT("Refraction") ) )
 	, AmbientOcclusion(   MakeShared< FDatasmithExpressionInputImpl >( TEXT("AmbientOcclusion") ) )
 	, MaterialAttributes( MakeShared< FDatasmithExpressionInputImpl >( TEXT("MaterialAttributes") ) )
-    , BlendMode(0)
+	, BlendMode(0)
 	, bTwoSided( false )
 	, bUseMaterialAttributes( false )
 	, bMaterialFunctionOnly ( false )
@@ -214,6 +214,49 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 
 	Store.RegisterParameter( ParentLabel, "ParentLabel" );
 	Store.RegisterParameter( ShadingModel, "ShadingModel" );
+}
+
+FMD5Hash FDatasmithUEPbrMaterialElementImpl::CalculateElementHash(bool bForce)
+{
+	if (ElementHash.IsValid() && !bForce)
+	{
+		return ElementHash;
+	}
+
+	FMD5 MD5;
+	MD5.Update(reinterpret_cast<const uint8*>(&BlendMode), sizeof(BlendMode));
+	MD5.Update(reinterpret_cast<const uint8*>(&bTwoSided), sizeof(bTwoSided));
+	MD5.Update(reinterpret_cast<const uint8*>(&bUseMaterialAttributes), sizeof(bUseMaterialAttributes));
+	MD5.Update(reinterpret_cast<const uint8*>(&bMaterialFunctionOnly), sizeof(bMaterialFunctionOnly));
+	MD5.Update(reinterpret_cast<const uint8*>(&OpacityMaskClipValue), sizeof(OpacityMaskClipValue));
+	MD5.Update(reinterpret_cast<const uint8*>(&ShadingModel), sizeof(ShadingModel));
+
+	const FString& NativeParentLabel = ParentLabel.Get(Store);
+	if (!NativeParentLabel.IsEmpty())
+	{
+		MD5.Update(reinterpret_cast<const uint8*>(*NativeParentLabel), NativeParentLabel.Len() * sizeof(TCHAR));
+	}
+
+	TFunction<void(FDatasmithExpressionInputImpl&)> UpdateMD5 = [&](FDatasmithExpressionInputImpl& Input) -> void
+	{
+		const FMD5Hash& InputHashValue = Input.CalculateElementHash(bForce);
+		MD5.Update(InputHashValue.GetBytes(), InputHashValue.GetSize());
+	};
+
+	UpdateMD5(*BaseColor.Edit());
+	UpdateMD5(*Metallic.Edit());
+	UpdateMD5(*Specular.Edit());
+	UpdateMD5(*Roughness.Edit());
+	UpdateMD5(*EmissiveColor.Edit());
+	UpdateMD5(*Opacity.Edit());
+	UpdateMD5(*Normal.Edit());
+	UpdateMD5(*WorldDisplacement.Edit());
+	UpdateMD5(*Refraction.Edit());
+	UpdateMD5(*AmbientOcclusion.Edit());
+	UpdateMD5(*MaterialAttributes.Edit());
+
+	ElementHash.Set(MD5);
+	return ElementHash;
 }
 
 IDatasmithMaterialExpression* FDatasmithUEPbrMaterialElementImpl::GetExpression( int32 Index )
@@ -292,6 +335,27 @@ const TCHAR* FDatasmithUEPbrMaterialElementImpl::GetParentLabel() const
 		return *ParentLabel.Get( Store );
 	}
 }
+
+
+void FDatasmithUEPbrMaterialElementImpl::CustomSerialize(class DirectLink::FSnapshotProxy& Ar)
+{
+	// [4.26.1 .. 4.27.0[ compatibility
+	if (Ar.IsSaving())
+	{
+		// In 4.26, an ExpressionTypes array was used alongside the expressions array.
+		// namely: TReflected<TArray<EDatasmithMaterialExpressionType>, TArray<int32>> FDatasmithUEPbrMaterialElementImpl::ExpressionTypes;
+		// This field was required. In order to be readable by 4.26, that array is recreated here.
+		// Without it, a 4.26 DirectLink receiver could crash on 4.27 data usage.
+		TArray<int32> ExpressionTypes;
+		for (const TSharedPtr<IDatasmithMaterialExpression>& Expression : Expressions.View())
+		{
+			EDatasmithMaterialExpressionType ExpressionType = Expression.IsValid() ? Expression->GetExpressionType() : EDatasmithMaterialExpressionType::None;
+			ExpressionTypes.Add(int32(ExpressionType));
+		}
+		Ar.TagSerialize("ExpressionTypes", ExpressionTypes);
+	}
+}
+
 
 FDatasmithMaterialExpressionCustomImpl::FDatasmithMaterialExpressionCustomImpl() : FDatasmithMaterialExpressionImpl< IDatasmithMaterialExpressionCustom >(EDatasmithMaterialExpressionType::Custom)
 {

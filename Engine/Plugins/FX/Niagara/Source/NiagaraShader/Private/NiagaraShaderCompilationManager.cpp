@@ -254,6 +254,12 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(TMap<int
 								}
 							}
 						}
+
+
+						if (!FUObjectThreadContext::Get().IsRoutingPostLoad)
+						{
+							Script->NotifyCompilationFinished();
+						}
 					}
 					else
 					{

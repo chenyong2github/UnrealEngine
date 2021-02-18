@@ -16,9 +16,7 @@
 #include "PipelineStateCache.h"
 
 #if NV_GEFORCENOW
-THIRD_PARTY_INCLUDES_START
-#include "GfnRuntimeSdk_CAPI.h"
-THIRD_PARTY_INCLUDES_END
+#include "GeForceNOWWrapper.h"
 #endif
 
 IMPLEMENT_TYPE_LAYOUT(FRayTracingGeometryInitializer);
@@ -278,8 +276,8 @@ void RHIInit(bool bHasEditorToken)
 	bool bDetectAndWarnBadDrivers = true;
 	if (IsRHIDeviceNVIDIA() && !!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
 	{
-		const GfnRuntimeSdk::GfnRuntimeError GfnResult = GfnRuntimeSdk::gfnInitializeRuntimeSdk(GfnRuntimeSdk::gfnDefaultLanguage);
-		const bool bGfnRuntimeSDKInitialized = GfnResult == GfnRuntimeSdk::gfnSuccess || GfnResult == GfnRuntimeSdk::gfnInitSuccessClientOnly;
+		const GfnRuntimeError GfnResult = GeForceNOWWrapper::Get().Initialize();
+		const bool bGfnRuntimeSDKInitialized = GfnResult == gfnSuccess || GfnResult == gfnInitSuccessClientOnly;
 		if (bGfnRuntimeSDKInitialized)
 		{
 			UE_LOG(LogRHI, Log, TEXT("GeForceNow SDK initialized: %d"), (int32)GfnResult);
@@ -290,7 +288,7 @@ void RHIInit(bool bHasEditorToken)
 		}
 
 		// Don't pop up a driver version warning window when running on a cloud machine
-		bDetectAndWarnBadDrivers = !bGfnRuntimeSDKInitialized || !GfnRuntimeSdk::gfnIsRunningInCloud();
+		bDetectAndWarnBadDrivers = !bGfnRuntimeSDKInitialized || !GeForceNOWWrapper::Get().IsRunningInCloud();
 	}
 
 	if (bDetectAndWarnBadDrivers)
@@ -322,13 +320,6 @@ void RHIExit()
 		delete GDynamicRHI;
 		GDynamicRHI = NULL;
 	}
-
-#if NV_GEFORCENOW
-	if (GRHIVendorId != 0 && IsRHIDeviceNVIDIA() && !!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
-	{
-		GfnRuntimeSdk::gfnShutdownRuntimeSdk();
-	}
-#endif
 }
 
 

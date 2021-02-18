@@ -26,7 +26,7 @@ static int32 Chaos_Spring_ParallelConstraintCount = 100;
 FAutoConsoleVariableRef CVarChaosSpringParallelConstraintCount(TEXT("p.Chaos.Spring.ParallelConstraintCount"), Chaos_Spring_ParallelConstraintCount, TEXT("If we have more constraints than this, use parallel-for in Apply."));
 #endif
 
-void FPBDSpringConstraints::InitColor(const TDynamicParticles<FReal, 3>& InParticles)
+void FPBDSpringConstraints::InitColor(const FDynamicParticles& InParticles)
 {
 	// In dev builds we always color so we can tune the system without restarting. See Apply()
 #if UE_BUILD_SHIPPING || UE_BUILD_TEST
@@ -57,14 +57,14 @@ void FPBDSpringConstraints::Apply(T_PARTICLES& InParticles, const FReal Dt, cons
 	}
 }
 
-void FPBDSpringConstraints::Apply(TPBDParticles<FReal, 3>& InParticles, const FReal Dt) const
+void FPBDSpringConstraints::Apply(FPBDParticles& InParticles, const FReal Dt) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_PBD_Spring);
 	if ((MConstraintsPerColor.Num() > 0) && (MConstraints.Num() > Chaos_Spring_ParallelConstraintCount))
 	{
 		for (const auto& Constraints : MConstraintsPerColor)
 		{
-			if (bChaos_Spring_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_Spring_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::ApplySpringConstraints(

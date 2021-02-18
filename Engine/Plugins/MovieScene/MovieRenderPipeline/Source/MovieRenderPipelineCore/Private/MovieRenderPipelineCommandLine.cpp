@@ -163,7 +163,31 @@ bool FMovieRenderPipelineCoreModule::IsTryingToRenderMovieFromCommandLine(FStrin
 
 	// If they've specified any of them we'll assume they're trying to start - generous here to give people more flexibility
 	// with what they are trying to do.
-	return OutSequenceAssetPath.Len() > 0 || OutConfigAssetPath.Len() > 0 || OutExecutorType.Len() > 0 || OutPipelineType.Len() > 0;
+	bool bValidRenderCommands = OutSequenceAssetPath.Len() > 0 || OutConfigAssetPath.Len() > 0 || OutExecutorType.Len() > 0 || OutPipelineType.Len() > 0;
+
+	// This can be removed when MovieSceneCapture is removed
+	if (bValidRenderCommands)
+	{
+		FString MovieSceneCaptureType;
+		FParse::Value(FCommandLine::Get(), TEXT("-MovieSceneCaptureType="), MovieSceneCaptureType);
+
+		if (!MovieSceneCaptureType.IsEmpty())
+		{
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Detected a legacy MovieSceneCaptureType %s along with valid render commands for Movie Render Queue. Skipping Movie Render Queue"), *MovieSceneCaptureType);
+			return false;
+		}
+
+		FString MovieSceneCaptureManifest;
+		FParse::Value(FCommandLine::Get(), TEXT("-MovieSceneCaptureManifest="), MovieSceneCaptureManifest);
+
+		if (!MovieSceneCaptureManifest.IsEmpty())
+		{
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Detected a legacy MovieSceneCaptureManifest %s along with valid render commands for Movie Render Queue. Skipping Movie Render Queue"), *MovieSceneCaptureManifest);
+			return false;
+		}
+	}
+
+	return bValidRenderCommands;
 }
 
 /**

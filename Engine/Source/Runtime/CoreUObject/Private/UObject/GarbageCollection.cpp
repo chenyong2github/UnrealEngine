@@ -2559,12 +2559,26 @@ void FStructProperty::EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset, TA
 		void *FunctionPtr = (void*)CppStructOps->AddStructReferencedObjects();
 		OwnerClass.ReferenceTokenStream.EmitPointer(FunctionPtr);
 	}
-	if (ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak))
+
+	// Check if the struct has any properties that reference UObjects
+	bool bHasPropertiesWithObjectReferences = false;
+	if (Struct->PropertyLink)
+	{
+		// Can't use ContainObjectReference here as it also checks for STRUCT_AddStructReferencedObjects but we only care about property exposed refs
+		EncounteredStructProps.Add(this);
+		for (FProperty* Property = Struct->PropertyLink; Property && !bHasPropertiesWithObjectReferences; Property = Property->PropertyLinkNext)
+		{
+			bHasPropertiesWithObjectReferences = Property->ContainsObjectReference(EncounteredStructProps, EPropertyObjectReferenceType::Strong | EPropertyObjectReferenceType::Weak);
+		}
+		EncounteredStructProps.RemoveSingleSwap(this);
+	}
+	// If the struct has UObject properties (and only if) emit tokens for them
+	if (bHasPropertiesWithObjectReferences)
 	{
 		FGCReferenceFixedArrayTokenHelper FixedArrayHelper(OwnerClass, BaseOffset + GetOffset_ForGC(), ArrayDim, ElementSize, *this);
 
 		FProperty* Property = Struct->PropertyLink;
-		while( Property )
+		while (Property)
 		{
 			Property->EmitReferenceInfo(OwnerClass, BaseOffset + GetOffset_ForGC(), EncounteredStructProps);
 			Property = Property->PropertyLinkNext;

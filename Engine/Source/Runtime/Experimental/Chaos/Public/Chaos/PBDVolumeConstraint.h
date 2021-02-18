@@ -8,19 +8,18 @@
 
 namespace Chaos
 {
-template<class T>
-class TPBDVolumeConstraint : public TParticleRule<T, 3>, public TPBDVolumeConstraintBase<T>
+class FPBDVolumeConstraint : public FParticleRule, public FPBDVolumeConstraintBase
 {
-	typedef TPBDVolumeConstraintBase<T> Base;
+	typedef FPBDVolumeConstraintBase Base;
 
   public:
-	TPBDVolumeConstraint(const TDynamicParticles<T, 3>& InParticles, TArray<TVec3<int32>>&& constraints, const T stiffness = (T)1)
-	    : Base(InParticles, MoveTemp(constraints), stiffness) {}
-	virtual ~TPBDVolumeConstraint() {}
+	  FPBDVolumeConstraint(const FDynamicParticles& InParticles, TArray<TVec3<int32>>&& InConstraints, const FReal InStiffness = (FReal)1.)
+	    : Base(InParticles, MoveTemp(InConstraints), InStiffness) {}
+	virtual ~FPBDVolumeConstraint() {}
 
-	void Apply(TPBDParticles<T, 3>& InParticles, const T dt) const override //-V762
+	void Apply(FPBDParticles& InParticles, const FReal dt) const override //-V762
 	{
-		auto W = Base::GetWeights(InParticles, (T)1);
+		auto W = Base::GetWeights(InParticles, (FReal)1.);
 		auto Grads = Base::GetGradients(InParticles);
 		auto S = Base::GetScalingFactor(InParticles, Grads, W);
 		for (uint32 i = 0; i < InParticles.Size(); ++i)
@@ -29,4 +28,8 @@ class TPBDVolumeConstraint : public TParticleRule<T, 3>, public TPBDVolumeConstr
 		}
 	}
 };
+
+template<class T>
+using TPBDVolumeConstraint UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDVolumeConstraint instead") = FPBDVolumeConstraint;
+
 }

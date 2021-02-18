@@ -82,7 +82,7 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 		+ SHeaderRow::Column(ICurveEditorTreeItem::ColumnNames.Label)
 
 		+ SHeaderRow::Column(ICurveEditorTreeItem::ColumnNames.SelectHeader)
-		.FixedWidth(24.f)
+		.FixedWidth(InArgs._SelectColumnWidth)
 
 		+ SHeaderRow::Column(ICurveEditorTreeItem::ColumnNames.PinHeader)
 		.FixedWidth(24.f);
@@ -98,6 +98,7 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 		.OnGetChildren(this, &SCurveEditorTree::GetTreeItemChildren)
 		.OnGenerateRow(this, &SCurveEditorTree::GenerateRow)
 		.OnSetExpansionRecursive(this, &SCurveEditorTree::SetItemExpansionRecursive)
+		.OnMouseButtonDoubleClick(InArgs._OnMouseButtonDoubleClick)
 		.OnSelectionChanged_Lambda(
 			[this](TListTypeTraits<FCurveEditorTreeItemID>::NullableType InItemID, ESelectInfo::Type Type)
 			{

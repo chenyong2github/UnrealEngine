@@ -202,6 +202,7 @@ public:
 		this->OnSelectionChanged = InArgs._OnSelectionChanged;
 		this->OnGenerateWidget = InArgs._OnGenerateWidget;
 		this->EnableGamepadNavigationMode = InArgs._EnableGamepadNavigationMode;
+		this->bControllerInputCaptured = false;
 
 		OptionsSource = InArgs._OptionsSource;
 		CustomScrollbar = InArgs._CustomScrollbar;

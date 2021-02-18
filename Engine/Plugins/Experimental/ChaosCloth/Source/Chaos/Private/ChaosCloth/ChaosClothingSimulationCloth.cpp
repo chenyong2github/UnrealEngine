@@ -37,7 +37,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	check(!SolverData.Find(Solver));
 	FSolverData& SolverDatum = SolverData.Add(Solver);
 	int32& Offset = SolverDatum.Offset;
-	TTriangleMesh<float>& TriangleMesh = SolverDatum.TriangleMesh;
+	FTriangleMesh& TriangleMesh = SolverDatum.TriangleMesh;
 
 	// Add particles
 	Offset = Solver->AddParticles(NumParticles, Cloth->GroupId);  // TODO: Have a per solver map of offset
@@ -190,14 +190,14 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 
 	// Long range constraints
-	if (Cloth->StrainLimitingStiffness)
+	if (Cloth->TetherStiffness)
 	{
 		check(TriangleMesh.GetNumElements() > 0);
 		// PerFormance note: The Per constraint version of this function is quite a bit faster for smaller assets
 		// There might be a cross-over point where the PerParticle version is faster: To be determined
 		ClothConstraints.SetLongRangeConstraints(
 			TriangleMesh.GetPointToNeighborsMap(),
-			Cloth->StrainLimitingStiffness,
+			Cloth->TetherStiffness,
 			Cloth->LimitScale,
 			Cloth->TetherMode,
 			Cloth->bUseXPBDConstraints);
@@ -218,10 +218,11 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 
 	// Animation Drive Constraints
-	const TConstArrayView<float>& AnimDriveMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveMultiplier];
-	if (AnimDriveMultipliers.Num())
+	const TConstArrayView<float>& AnimDriveStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
+	if (Cloth->AnimDriveStiffness[0] > 0.f || (AnimDriveStiffnessMultipliers.Num() == NumParticles && Cloth->AnimDriveStiffness[1] > 0.f))
 	{
-		ClothConstraints.SetAnimDriveConstraints(AnimDriveMultipliers);
+		const TConstArrayView<float>& AnimDriveDampingMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveDamping];
+		ClothConstraints.SetAnimDriveConstraints(AnimDriveStiffnessMultipliers, AnimDriveDampingMultipliers);
 	}
 
 	// Shape target constraint
@@ -265,8 +266,15 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 
 	// Update the animatable constraint parameters
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
-	ClothConstraints.SetMaxDistancesMultiplier(Cloth->MaxDistancesMultiplier);
-	ClothConstraints.SetAnimDriveSpringStiffness(Cloth->AnimDriveSpringStiffness);
+	ClothConstraints.SetMaximumDistanceProperties(Cloth->MaxDistancesMultiplier);
+	ClothConstraints.SetEdgeProperties(Cloth->EdgeStiffness);
+	ClothConstraints.SetBendingProperties(Cloth->BendingStiffness);
+	ClothConstraints.SetAreaProperties(Cloth->AreaStiffness);
+	ClothConstraints.SetLongRangeAttachmentProperties(Cloth->TetherStiffness);
+	ClothConstraints.SetSelfCollisionProperties(Cloth->SelfCollisionThickness);
+	ClothConstraints.SetAnimDriveProperties(Cloth->AnimDriveStiffness, Cloth->AnimDriveDamping);
+	ClothConstraints.SetThinShellVolumeProperties(Cloth->VolumeStiffness);
+	ClothConstraints.SetVolumeProperties(Cloth->VolumeStiffness);
 }
 
 void FClothingSimulationCloth::FLODData::Enable(FClothingSimulationSolver* Solver, bool bEnable) const
@@ -304,7 +312,7 @@ void FClothingSimulationCloth::FLODData::UpdateNormals(FClothingSimulationSolver
 
 	const FSolverData& SolverDatum = SolverData.FindChecked(Solver);
 	const int32 Offset = SolverDatum.Offset;
-	const TTriangleMesh<float>& TriangleMesh = SolverDatum.TriangleMesh;
+	const FTriangleMesh& TriangleMesh = SolverDatum.TriangleMesh;
 
 	check(Offset != INDEX_NONE);
 
@@ -329,11 +337,12 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	float InAreaStiffness,
 	float InVolumeStiffness,
 	bool bInUseThinShellVolumeConstraints,
-	float InStrainLimitingStiffness,
+	float InTetherStiffness,
 	float InLimitScale,
 	ETetherMode InTetherMode,
 	float InMaxDistancesMultiplier,
-	float InAnimDriveSpringStiffness,
+	const TVector<float, 2>& InAnimDriveStiffness,
+	const TVector<float, 2>& InAnimDriveDamping,
 	float InShapeTargetStiffness,
 	bool bInUseXPBDConstraints,
 	float InGravityScale,
@@ -365,11 +374,12 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, AreaStiffness(InAreaStiffness)
 	, VolumeStiffness(InVolumeStiffness)
 	, bUseThinShellVolumeConstraints(bInUseThinShellVolumeConstraints)
-	, StrainLimitingStiffness(InStrainLimitingStiffness)
+	, TetherStiffness(InTetherStiffness)
 	, LimitScale(InLimitScale)
 	, TetherMode(InTetherMode)
 	, MaxDistancesMultiplier(InMaxDistancesMultiplier)
-	, AnimDriveSpringStiffness(InAnimDriveSpringStiffness)
+	, AnimDriveStiffness(InAnimDriveStiffness)
+	, AnimDriveDamping(InAnimDriveDamping)
 	, ShapeTargetStiffness(InShapeTargetStiffness)
 	, bUseXPBDConstraints(bInUseXPBDConstraints)
 	, GravityScale(InGravityScale)
@@ -570,12 +580,12 @@ FVec3 FClothingSimulationCloth::GetGravity(const FClothingSimulationSolver* Solv
 	return Solver->IsClothGravityOverrideEnabled() && bIsGravityOverridden ? GravityOverride : Solver->GetGravity() * GravityScale;
 }
 
-TAABB<float, 3> FClothingSimulationCloth::CalculateBoundingBox(const FClothingSimulationSolver* Solver) const
+FAABB3 FClothingSimulationCloth::CalculateBoundingBox(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 
 	// Calculate local space bounding box
-	TAABB<float, 3> BoundingBox = TAABB<float, 3>::EmptyAABB();
+	FAABB3 BoundingBox = FAABB3::EmptyAABB();
 
 	const TConstArrayView<FVec3> ParticlePositions = GetParticlePositions(Solver);
 	for (const FVec3& ParticlePosition : ParticlePositions)
@@ -593,10 +603,10 @@ int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solve
 	return LODData.IsValidIndex(LODIndex) ? GetOffset(Solver, LODIndex) : INDEX_NONE;
 }
 
-const TTriangleMesh<float>& FClothingSimulationCloth::GetTriangleMesh(const FClothingSimulationSolver* Solver) const
+const FTriangleMesh& FClothingSimulationCloth::GetTriangleMesh(const FClothingSimulationSolver* Solver) const
 {
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
-	static const TTriangleMesh<float> EmptyTriangleMesh;
+	static const FTriangleMesh EmptyTriangleMesh;
 	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SolverData.FindChecked(Solver).TriangleMesh : EmptyTriangleMesh;
 }
 

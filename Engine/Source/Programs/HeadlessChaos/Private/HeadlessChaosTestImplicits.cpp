@@ -1338,7 +1338,7 @@ namespace ChaosTest {
 	void ConvexHull()
 	{
 		{
-			TParticles<FReal, 3> Particles;
+			FParticles Particles;
 			Particles.AddParticles(9);
 			Particles.X(0) = FVec3(-1, -1, -1);
 			Particles.X(1) = FVec3(-1, -1, 1);
@@ -1386,7 +1386,7 @@ namespace ChaosTest {
 		}
 
 		{
-			TParticles<FReal, 3> Particles;
+			FParticles Particles;
 			Particles.AddParticles(6);
 			Particles.X(0) = FVec3(-1, -1, -1);
 			Particles.X(1) = FVec3(1, -1, -1);
@@ -1404,30 +1404,30 @@ namespace ChaosTest {
 	{
 		{
 			//degenerates
-			TArray<FVec3> Particles;
+			TArray<Chaos::FVec3> Particles;
 			Particles.SetNum(3);
-			Particles[0] = FVec3(-1, -1, -1);
-			Particles[1] = FVec3(1, -1, -1);
-			Particles[2] = FVec3(1, 1, -1);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(1, -1, -1);
+			Particles[2] = Chaos::FVec3(1, 1, -1);
 			TArray<TVector<int32, 3>>Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 0);
-			Particles.Add(FVec3( 2, 3, -1 ));
+			Particles.Add(Chaos::FVec3( 2, 3, -1 ));
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 0);
 		}
 		{
-			TArray<FVec3> Particles;
+			TArray <Chaos::FVec3> Particles;
 			Particles.SetNum(9);
-			Particles[0] = FVec3(-1, -1, -1);
-			Particles[1] = FVec3(-1, -1, 1);
-			Particles[2] = FVec3(-1, 1, -1);
-			Particles[3] = FVec3(-1, 1, 1);
-			Particles[4] = FVec3(1, -1, -1);
-			Particles[5] = FVec3(1, -1, 1);
-			Particles[6] = FVec3(1, 1, -1);
-			Particles[7] = FVec3(1, 1, 1);
-			Particles[8] = FVec3(0, 0, 0);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(-1, -1, 1);
+			Particles[2] = Chaos::FVec3(-1, 1, -1);
+			Particles[3] = Chaos::FVec3(-1, 1, 1);
+			Particles[4] = Chaos::FVec3(1, -1, -1);
+			Particles[5] = Chaos::FVec3(1, -1, 1);
+			Particles[6] = Chaos::FVec3(1, 1, -1);
+			Particles[7] = Chaos::FVec3(1, 1, 1);
+			Particles[8] = Chaos::FVec3(0, 0, 0);
 			TArray<TVector<int32, 3>>Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 12);
@@ -1441,11 +1441,11 @@ namespace ChaosTest {
 		{
 			TArray<FVec3> Particles;
 			Particles.SetNum(5);
-			Particles[0] = FVec3(-1, -1, -1);
-			Particles[1] = FVec3(1, -1, -1);
-			Particles[2] = FVec3(1, 1, -1);
-			Particles[3] = FVec3(0, 0, 0.5);
-			Particles[4] = (Particles[3]- Particles[1]) * 0.5 + Particles[1]+ FVec3(0, 0, 0.1);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(1, -1, -1);
+			Particles[2] = Chaos::FVec3(1, 1, -1);
+			Particles[3] = Chaos::FVec3(0, 0, 0.5);
+			Particles[4] = (Particles[3]- Particles[1]) * 0.5 + Particles[1]+ Chaos::TVec3<float>(0, 0, 0.1);
 			TArray<TVector<int32, 3>> Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 6);
@@ -1453,12 +1453,12 @@ namespace ChaosTest {
 		{
 			TArray<FVec3> Particles;
 			Particles.SetNum(6);
-			Particles[0] = FVec3(-1, -1, -1);
-			Particles[1] = FVec3(1, -1, -1);
-			Particles[2] = FVec3(1, 1, -1);
-			Particles[3] = FVec3(0, 0, 0.5);
-			Particles[4] = (Particles[3]- Particles[1]) * 0.5 + Particles[1] + FVec3(0, 0, 0.1);
-			Particles[5] = Particles[4]+ FVec3(-0.1, 0, 0);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(1, -1, -1);
+			Particles[2] = Chaos::FVec3(1, 1, -1);
+			Particles[3] = Chaos::FVec3(0, 0, 0.5);
+			Particles[4] = (Particles[3]- Particles[1]) * 0.5 + Particles[1] + Chaos::TVec3<float>(0, 0, 0.1);
+			Particles[5] = Particles[4]+ Chaos::TVec3<float>(-0.1, 0, 0);
 			TArray<TVector<int32, 3>> Indices;
 			Chaos::FConvexBuilder::BuildConvexHull(Particles, Indices);
 			EXPECT_EQ(Indices.Num(), 8);
@@ -1470,15 +1470,15 @@ namespace ChaosTest {
 			// Using a scaled epsilon resolves this case
 			TArray<FVec3> Particles;
 			Particles.SetNum(9);
-			Particles[0] = FVec3(-1, -1, -1);
-			Particles[1] = FVec3(-1, -1, 1);
-			Particles[2] = FVec3(-1, 1, -1);
-			Particles[3] = FVec3(-1, 1, 1);
-			Particles[4] = FVec3(1, -1, -1);
-			Particles[5] = FVec3(1, -1, 1);
-			Particles[6] = FVec3(1, 1, -1);
-			Particles[7] = FVec3(1, 1, 1);
-			Particles[8] = FVec3(0.966962576, -0.0577232838, 0.959515572);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(-1, -1, 1);
+			Particles[2] = Chaos::FVec3(-1, 1, -1);
+			Particles[3] = Chaos::FVec3(-1, 1, 1);
+			Particles[4] = Chaos::FVec3(1, -1, -1);
+			Particles[5] = Chaos::FVec3(1, -1, 1);
+			Particles[6] = Chaos::FVec3(1, 1, -1);
+			Particles[7] = Chaos::FVec3(1, 1, 1);
+			Particles[8] = Chaos::FVec3(0.966962576, -0.0577232838, 0.959515572);
 			
 			TArray<TVec3<int32>> Indices;
 			Chaos::FConvexBuilder::Params BuildParams;
@@ -1507,18 +1507,18 @@ namespace ChaosTest {
 			TArray<FVec3> Particles;
 			int32 NumParticles = 3600;
 			Particles.SetNum(NumParticles);
-			Particles[0] = FVec3(-1, -1, -1);
-			Particles[1] = FVec3(-1, -1, 1);
-			Particles[2] = FVec3(-1, 1, -1);
-			Particles[3] = FVec3(-1, 1, 1);
-			Particles[4] = FVec3(1, -1, -1);
-			Particles[5] = FVec3(1, -1, 1);
-			Particles[6] = FVec3(1, 1, -1);
-			Particles[7] = FVec3(1, 1, 1);
+			Particles[0] = Chaos::FVec3(-1, -1, -1);
+			Particles[1] = Chaos::FVec3(-1, -1, 1);
+			Particles[2] = Chaos::FVec3(-1, 1, -1);
+			Particles[3] = Chaos::FVec3(-1, 1, 1);
+			Particles[4] = Chaos::FVec3(1, -1, -1);
+			Particles[5] = Chaos::FVec3(1, -1, 1);
+			Particles[6] = Chaos::FVec3(1, 1, -1);
+			Particles[7] = Chaos::FVec3(1, 1, 1);
 			FRandomStream Stream(42);
 			for(int i = 8; i < NumParticles; ++i)
 			{
-				Particles[i]= FVec3(Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f));
+				Particles[i]= Chaos::FVec3(Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f), Stream.FRandRange(-1.f, 1.f));
 			}
 			TArray<TVec3<int32>> Indices;
 
@@ -1545,24 +1545,24 @@ namespace ChaosTest {
 	{
 		TArray<FVec3> Particles;
 		Particles.SetNum(18);
-		Particles[0] = FVec3(0, 0, 12.0f);
-		Particles[1] = FVec3(-0.707f, -0.707f, 10.0f);
-		Particles[2] = FVec3(0, -1, 10.0f);
-		Particles[3] = FVec3(0.707f, -0.707f, 10.0f);
-		Particles[4] = FVec3(1, 0, 10.0f);
-		Particles[5] = FVec3(0.707f, 0.707f, 10.0f);
-		Particles[6] = FVec3(0.0f, 1.0f, 10.0f);
-		Particles[7] = FVec3(-0.707f, 0.707f, 10.0f);
-		Particles[8] = FVec3(-1.0f, 0.0f, 10.0f);
-		Particles[9] = FVec3(-0.707f, -0.707f, 0.0f);
-		Particles[10] = FVec3(0, -1, 0.0f);
-		Particles[11] = FVec3(0.707f, -0.707f, 0.0f);
-		Particles[12] = FVec3(1, 0, 0.0f);
-		Particles[13] = FVec3(0.707f, 0.707f, 0.0f);
-		Particles[14] = FVec3(0.0f, 1.0f, 0.0f);
-		Particles[15] = FVec3(-0.707f, 0.707f, 0.0f);
-		Particles[16] = FVec3(-1.0f, 0.0f, 0.0f);
-		Particles[17] = FVec3(0, 0, -2.0f);
+		Particles[0] = Chaos::FVec3(0, 0, 12.0f);
+		Particles[1] = Chaos::FVec3(-0.707f, -0.707f, 10.0f);
+		Particles[2] = Chaos::FVec3(0, -1, 10.0f);
+		Particles[3] = Chaos::FVec3(0.707f, -0.707f, 10.0f);
+		Particles[4] = Chaos::FVec3(1, 0, 10.0f);
+		Particles[5] = Chaos::FVec3(0.707f, 0.707f, 10.0f);
+		Particles[6] = Chaos::FVec3(0.0f, 1.0f, 10.0f);
+		Particles[7] = Chaos::FVec3(-0.707f, 0.707f, 10.0f);
+		Particles[8] = Chaos::FVec3(-1.0f, 0.0f, 10.0f);
+		Particles[9] = Chaos::FVec3(-0.707f, -0.707f, 0.0f);
+		Particles[10] = Chaos::FVec3(0, -1, 0.0f);
+		Particles[11] = Chaos::FVec3(0.707f, -0.707f, 0.0f);
+		Particles[12] = Chaos::FVec3(1, 0, 0.0f);
+		Particles[13] = Chaos::FVec3(0.707f, 0.707f, 0.0f);
+		Particles[14] = Chaos::FVec3(0.0f, 1.0f, 0.0f);
+		Particles[15] = Chaos::FVec3(-0.707f, 0.707f, 0.0f);
+		Particles[16] = Chaos::FVec3(-1.0f, 0.0f, 0.0f);
+		Particles[17] = Chaos::FVec3(0, 0, -2.0f);
 					
 		FConvex Convex(Particles, 0.0f);
 

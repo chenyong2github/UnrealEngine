@@ -80,15 +80,19 @@
 			"Enabled": true
 		},
 		{
-			"Name": "PythonScriptPlugin",
-			"Enabled": true
-		},
-		{
 			"Name": "EditorScriptingUtilities",
 			"Enabled": true
 		},
 		{
 			"Name": "LevelSequenceEditor",
+			"Enabled": true
+		},
+		{
+			"Name": "MDLImporter",
+			"Enabled": true
+		},
+		{
+			"Name": "PythonScriptPlugin",
 			"Enabled": true
 		},
 		{

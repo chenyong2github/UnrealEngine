@@ -151,10 +151,10 @@ struct FSkelMeshSkinWeightInfo
 
 	/** Index of bones that influence this vertex */
 	UPROPERTY()
-	int32	Bones[MAX_TOTAL_INFLUENCES];
+	int32	Bones[MAX_TOTAL_INFLUENCES] = {};
 	/** Influence of each bone on this vertex */
 	UPROPERTY()
-	uint8	Weights[MAX_TOTAL_INFLUENCES];
+	uint8	Weights[MAX_TOTAL_INFLUENCES] = {};
 };
 
 /** LOD specific setup for the skeletal mesh component. */

@@ -30,6 +30,12 @@ struct CORE_API FPhysicsObjectVersion
 		// Add the ability to enable or disable Continuous Collision Detection
 		AddCCDEnableFlag,
 
+		// Added the weighted value property type to store the cloths weight maps' low/high ranges
+		ChaosClothAddWeightedValue,
+
+		// Chaos FConvex uses array of FVec3s for vertices instead of particles
+		ConvexUsesVerticesArray,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

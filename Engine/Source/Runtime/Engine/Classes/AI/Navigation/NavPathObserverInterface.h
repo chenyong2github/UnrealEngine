@@ -30,6 +30,5 @@ class INavPathObserverInterface
 	/** 
 	 *	Called when path generation by PathGenerator fails
 	 */
-	virtual void OnPathFailed(class INavigationPathGenerator* PathGenerator) PURE_VIRTUAL(INavPathObserverInterface::OnPathInvalid,);
-
+	virtual void OnPathFailed(class INavigationPathGenerator* PathGenerator) PURE_VIRTUAL(INavPathObserverInterface::OnPathFailed,);
 };

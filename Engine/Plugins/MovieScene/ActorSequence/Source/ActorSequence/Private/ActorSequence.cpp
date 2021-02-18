@@ -9,6 +9,9 @@
 #include "GameFramework/Actor.h"
 #include "ActorSequenceComponent.h"
 #include "Engine/LevelScriptActor.h"
+#include "Tracks/MovieSceneAudioTrack.h"
+#include "Tracks/MovieSceneEventTrack.h"
+#include "Tracks/MovieSceneMaterialParameterCollectionTrack.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, ActorSequence);
 
@@ -208,4 +211,18 @@ FText UActorSequence::GetDisplayName() const
 
 	return UMovieSceneSequence::GetDisplayName();
 }
+
+
+ETrackSupport UActorSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const
+{
+	if (InTrackClass == UMovieSceneAudioTrack::StaticClass() ||
+		InTrackClass == UMovieSceneEventTrack::StaticClass() ||
+		InTrackClass == UMovieSceneMaterialParameterCollectionTrack::StaticClass())
+	{
+		return ETrackSupport::Supported;
+	}
+
+	return Super::IsTrackSupported(InTrackClass);
+}
+
 #endif

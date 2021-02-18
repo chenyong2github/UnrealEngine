@@ -160,7 +160,7 @@ namespace Chaos
 						Bounds.GrowToInclude(HullVert);
 					}
 
-					// Create the surface particle for the convex
+					// Create the corner vertices for the convex
 					TArray<FVec3> ConvexVertices;
 					ConvexVertices.SetNumZeroed(NumHullVerts);
 

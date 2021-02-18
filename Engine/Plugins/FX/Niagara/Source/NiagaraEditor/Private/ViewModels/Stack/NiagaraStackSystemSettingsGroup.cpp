@@ -142,6 +142,16 @@ void UNiagaraStackSystemSettingsGroup::RefreshChildrenInternal(const TArray<UNia
 
 void UNiagaraStackSystemSettingsGroup::ParameterAdded(FNiagaraVariable AddedParameter)
 {
+	if (AddedParameter.GetType().IsDataInterface())
+	{
+		UNiagaraDataInterface* DataInterfaceParameter = UserParameterStore->GetDataInterface(AddedParameter);
+		if (DataInterfaceParameter != nullptr)
+		{
+			TArray<UObject*> ChangedObjects;
+			ChangedObjects.Add(DataInterfaceParameter);
+			OnDataObjectModified().Broadcast(ChangedObjects, ENiagaraDataObjectChange::Added);
+		}
+	}
 	RefreshChildren();
 }
 

@@ -15,7 +15,8 @@ public:
 	FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle);
 	virtual ~FOpenXRSwapchain();
 
-	virtual void IncrementSwapChainIndex_RHIThread(int64 Timeout) override final;
+	virtual void IncrementSwapChainIndex_RHIThread() override final;
+	virtual void WaitCurrentImage_RHIThread(int64 Timeout) override final;
 	virtual void ReleaseCurrentImage_RHIThread() override final;
 
 	XrSwapchain GetHandle() { return Handle; }
@@ -23,10 +24,7 @@ public:
 protected:
 	virtual void ReleaseResources_RHIThread() override final;
 
-	FXRSwapChainPtr mSwapChain;
 	XrSwapchain Handle;
-
-	bool IsAcquired;
 };
 
 #ifdef XR_USE_GRAPHICS_API_D3D11

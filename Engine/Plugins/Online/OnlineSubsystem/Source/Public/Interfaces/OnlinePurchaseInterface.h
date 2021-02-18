@@ -267,7 +267,21 @@ public:
 	 * @param ReceiptId purchase id for this platform
 	 */
 	virtual void FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId) = 0;
-	
+
+	/**
+	 * Finalizes a purchase with the supporting platform
+	 * Acknowledges that the purchase has been properly redeemed by the application. Prefer this overload whenever the validation info is available.
+	 *
+	 * @param UserId user where the purchase was made
+	 * @param ReceiptId purchase id for this platform
+	 * @param ReceiptInfo the receipt validation info for this platform
+	 */
+	virtual void FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId, const FString& ReceiptInfo)
+	{
+		// Redirect to the classic method for platforms that don't support this overload yet.
+		FinalizePurchase(UserId, ReceiptId);
+	}
+
 	/**
 	 * Initiate the checkout process for obtaining offers via code redemption
 	 *

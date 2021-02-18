@@ -757,6 +757,8 @@ FReply FSequencerTimeSliderController::OnMouseButtonDown( SWidget& WidgetOwner, 
 {
 	MouseDragType = DRAG_NONE;
 	DistanceDragged = 0;
+	MouseDownPlaybackRange = TimeSliderArgs.PlaybackRange.Get();
+	MouseDownSelectionRange = TimeSliderArgs.SelectionRange.Get();
 	MouseDownPosition[0] = MouseDownPosition[1] = MouseEvent.GetScreenSpacePosition();
 	MouseDownGeometry = MyGeometry;
 	bMouseDownInRegion = false;
@@ -1001,25 +1003,59 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 		{
 			FFrameTime MouseTime = ComputeFrameTimeFromMouse(MyGeometry, MouseEvent.GetScreenSpacePosition(), RangeToScreen);
 			FFrameTime ScrubTime = ComputeScrubTimeFromMouse(MyGeometry, MouseEvent.GetScreenSpacePosition(), RangeToScreen);
+			FFrameTime MouseDownTime = ComputeFrameTimeFromMouse(MyGeometry, MouseDownPosition[0], RangeToScreen);
+			FFrameNumber DiffFrame = MouseTime.FrameNumber - MouseDownTime.FrameNumber;
 
 			// Set the start range time?
 			if (MouseDragType == DRAG_PLAYBACK_START)
 			{
-				SetPlaybackRangeStart(MouseTime.FrameNumber);
+				if (MouseEvent.IsShiftDown())
+				{
+					SetPlaybackRangeStart(MouseDownPlaybackRange.GetLowerBoundValue() + DiffFrame);
+					SetPlaybackRangeEnd(MouseDownPlaybackRange.GetUpperBoundValue() + DiffFrame);
+				}
+				else
+				{
+					SetPlaybackRangeStart(MouseTime.FrameNumber);
+				}
 			}
 			// Set the end range time?
 			else if(MouseDragType == DRAG_PLAYBACK_END)
 			{
-				SetPlaybackRangeEnd(MouseTime.FrameNumber);
+				if (MouseEvent.IsShiftDown())
+				{
+					SetPlaybackRangeStart(MouseDownPlaybackRange.GetLowerBoundValue() + DiffFrame);
+					SetPlaybackRangeEnd(MouseDownPlaybackRange.GetUpperBoundValue() + DiffFrame);
+				}
+				else
+				{		
+					SetPlaybackRangeEnd(MouseTime.FrameNumber);
+				}
 			}
 			else if (MouseDragType == DRAG_SELECTION_START)
 			{
-				SetSelectionRangeStart(MouseTime.FrameNumber);
+				if (MouseEvent.IsShiftDown())
+				{
+					SetSelectionRangeStart(MouseDownSelectionRange.GetLowerBoundValue() + DiffFrame);
+					SetSelectionRangeEnd(MouseDownSelectionRange.GetUpperBoundValue() + DiffFrame);
+				}
+				else
+				{
+					SetSelectionRangeStart(MouseTime.FrameNumber);
+				}
 			}
 			// Set the end range time?
 			else if(MouseDragType == DRAG_SELECTION_END)
 			{
-				SetSelectionRangeEnd(MouseTime.FrameNumber);
+				if (MouseEvent.IsShiftDown())
+				{
+					SetSelectionRangeStart(MouseDownSelectionRange.GetLowerBoundValue() + DiffFrame);
+					SetSelectionRangeEnd(MouseDownSelectionRange.GetUpperBoundValue() + DiffFrame);
+				}
+				else 
+				{
+					SetSelectionRangeEnd(MouseTime.FrameNumber);
+				}
 			}
 			else if (MouseDragType == DRAG_MARK)
 			{

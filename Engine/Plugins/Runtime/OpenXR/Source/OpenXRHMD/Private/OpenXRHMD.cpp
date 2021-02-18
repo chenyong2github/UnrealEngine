@@ -1033,7 +1033,12 @@ bool FOpenXRHMD::EnableStereo(bool stereo)
 	if (stereo)
 	{
 		GEngine->bForceDisableFrameRateSmoothing = true;
-		return OnStereoStartup();
+		if (OnStereoStartup())
+		{
+			StartSession();
+			return true;
+		}
+		return false;
 	}
 	else
 	{
@@ -1079,7 +1084,7 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 
 	XrSwapchainSubImage& ColorImage = LayerState.ColorImages[ViewIndex];
 	ColorImage.swapchain = Swapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle() : XR_NULL_HANDLE;
-	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
+	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled && ViewIndex < 2 ? ViewIndex : 0;
 	ColorImage.imageRect = {
 		{ FinalViewRect.Min.X, FinalViewRect.Min.Y },
 		{ FinalViewRect.Width(), FinalViewRect.Height() }
@@ -1089,8 +1094,14 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 	if (bDepthExtensionSupported)
 	{
 		DepthImage.swapchain = DepthSwapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle() : XR_NULL_HANDLE;
-		DepthImage.imageArrayIndex = bIsMobileMultiViewEnabled ? ViewIndex : 0;
+		DepthImage.imageArrayIndex = bIsMobileMultiViewEnabled && ViewIndex < 2 ? ViewIndex : 0;
 		DepthImage.imageRect = ColorImage.imageRect;
+	}
+
+	if (!PipelineState.PluginViews.IsValidIndex(ViewIndex))
+	{
+		// This plugin is no longer providing this view.
+		return;
 	}
 
 	if (PipelineState.PluginViews[ViewIndex])
@@ -1106,7 +1117,7 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 	Projection.next = nullptr;
 	Projection.subImage = ColorImage;
 
-	if (bDepthExtensionSupported)
+	if (bDepthExtensionSupported && DepthSwapchain.IsValid())
 	{
 		DepthLayer.type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR;
 		DepthLayer.next = nullptr;
@@ -1192,10 +1203,11 @@ bool FOpenXRHMD::GetRelativeEyePose(int32 InDeviceId, EStereoscopicPass InEye, F
 
 	const FPipelinedFrameState& FrameState = GetPipelinedFrameStateForThread();
 
+	const uint32 ViewIndex = GetViewIndexForPass(InEye);
 	if (FrameState.ViewState.viewStateFlags & XR_VIEW_STATE_ORIENTATION_VALID_BIT &&
-		FrameState.ViewState.viewStateFlags & XR_VIEW_STATE_POSITION_VALID_BIT)
+		FrameState.ViewState.viewStateFlags & XR_VIEW_STATE_POSITION_VALID_BIT &&
+		FrameState.Views.IsValidIndex(ViewIndex))
 	{
-		const uint32 ViewIndex = GetViewIndexForPass(InEye);
 		OutOrientation = ToFQuat(FrameState.Views[ViewIndex].pose.orientation);
 		OutPosition = ToFVector(FrameState.Views[ViewIndex].pose.position, GetWorldToMetersScale());
 		return true;
@@ -1287,6 +1299,11 @@ void FOpenXRHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHIC
 	{
 		SpectatorScreenController->UpdateSpectatorScreenMode_RenderThread();
 	}
+
+	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+	{
+		OnBeginRendering_RHIThread();
+	});
 }
 
 bool FOpenXRHMD::IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const
@@ -1304,8 +1321,10 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsSynchronized(false)
 	, bNeedReAllocatedDepth(false)
 	, bNeedReBuildOcclusionMesh(true)
+	, bIsMobileMultiViewEnabled(false)
+	, bSupportsHandTracking(false)
+	, bNeedsAcquireOnRHI(false)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
-	, FrameEventRHI(FPlatformProcess::GetSynchEventFromPool())
 	, EnabledExtensions(std::move(InEnabledExtensions))
 	, ExtensionPlugins(std::move(InExtensionPlugins))
 	, Instance(InInstance)
@@ -1324,10 +1343,12 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	XrInstanceProperties InstanceProps = { XR_TYPE_INSTANCE_PROPERTIES, nullptr };
 	XR_ENSURE(xrGetInstanceProperties(Instance, &InstanceProps));
 
-	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
+	bDepthExtensionSupported = IsExtensionEnabled(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME) &&
+		(!FCStringAnsi::Strstr(InstanceProps.runtimeName, "SteamVR/OpenXR") || FApp::GetGraphicsRHI() != "Vulkan");
 	bHiddenAreaMaskSupported = IsExtensionEnabled(XR_KHR_VISIBILITY_MASK_EXTENSION_NAME) &&
 		!FCStringAnsi::Strstr(InstanceProps.runtimeName, "Oculus");
 	bViewConfigurationFovSupported = IsExtensionEnabled(XR_EPIC_VIEW_CONFIGURATION_FOV_EXTENSION_NAME);
+	bNeedsAcquireOnRHI = FApp::GetGraphicsRHI() == "Vulkan";
 
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 	static const auto CVarMobileHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
@@ -1402,15 +1423,11 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 
 	// Give the all frame states the same initial values.
 	PipelinedFrameStateRHI = PipelinedFrameStateRendering = PipelinedFrameStateGame;
-
-	FrameEventRHI->Trigger();
 }
 
 FOpenXRHMD::~FOpenXRHMD()
 {
 	DestroySession();
-
-	FPlatformProcess::ReturnSynchEventToPool(FrameEventRHI);
 }
 
 const FOpenXRHMD::FPipelinedFrameState& FOpenXRHMD::GetPipelinedFrameStateForThread() const
@@ -1475,13 +1492,14 @@ FOpenXRHMD::FPipelinedLayerState& FOpenXRHMD::GetPipelinedLayerStateForThread()
 
 void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 {
+	SCOPED_NAMED_EVENT(UpdateDeviceLocations, FColor::Red);
+
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
 	// Only update the device locations if the frame state has been predicted
 	if (bIsSynchronized && PipelineState.FrameState.predictedDisplayTime > 0)
 	{
-		FScopeLock Lock(&DeviceMutex);
-
+		FReadScopeLock Lock(DeviceMutex);
 		PipelineState.DeviceLocations.SetNum(DeviceSpaces.Num());
 		for (int32 DeviceIndex = 0; DeviceIndex < PipelineState.DeviceLocations.Num(); DeviceIndex++)
 		{
@@ -1512,6 +1530,8 @@ void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 
 void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 {
+	SCOPED_NAMED_EVENT(EnumerateViews, FColor::Red);
+
 	// Enumerate the viewport configuration views
 	uint32 ViewConfigCount = 0;
 	TArray<XrViewConfigurationViewFovEPIC> ViewFov;
@@ -1600,6 +1620,8 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 #if !PLATFORM_HOLOLENS
 void FOpenXRHMD::BuildOcclusionMeshes()
 {
+	SCOPED_NAMED_EVENT(BuildOcclusionMeshes, FColor::Red);
+
 	uint32_t ViewCount = 0;
 	XR_ENSURE(xrEnumerateViewConfigurationViews(Instance, System, SelectedViewConfigurationType, 0, &ViewCount, nullptr));
 	HiddenAreaMeshes.SetNum(ViewCount);
@@ -1624,10 +1646,18 @@ void FOpenXRHMD::BuildOcclusionMeshes()
 		HiddenAreaMeshes.Empty();
 		VisibleAreaMeshes.Empty();
 	}
+
+	bNeedReBuildOcclusionMesh = false;
 }
 
 bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMDViewMesh& Mesh)
 {
+	FReadScopeLock Lock(SessionHandleMutex);
+	if (!Session)
+	{
+		return false;
+	}
+
 	PFN_xrGetVisibilityMaskKHR GetVisibilityMaskKHR;
 	XR_ENSURE(xrGetInstanceProcAddr(Instance, "xrGetVisibilityMaskKHR", (PFN_xrVoidFunction*)&GetVisibilityMaskKHR));
 
@@ -1705,6 +1735,7 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 
 bool FOpenXRHMD::OnStereoStartup()
 {
+	FWriteScopeLock Lock(SessionHandleMutex);
 	XrSessionCreateInfo SessionInfo;
 	SessionInfo.type = XR_TYPE_SESSION_CREATE_INFO;
 	SessionInfo.next = RenderBridge->GetGraphicsBinding();
@@ -1802,34 +1833,36 @@ bool FOpenXRHMD::OnStereoStartup()
 										&HandTrackingSystemProperties };
 	XR_ENSURE(xrGetSystemProperties(Instance, System, &systemProperties));
 	bSupportsHandTracking = HandTrackingSystemProperties.supportsHandTracking == XR_TRUE;
-
-	StartSession();
-
 	return true;
 }
 
 bool FOpenXRHMD::OnStereoTeardown()
 {
-	if (Session != XR_NULL_HANDLE)
+	XrResult Result = XR_ERROR_SESSION_NOT_RUNNING;
 	{
-		XrResult Result = xrRequestExitSession(Session);
-		if (Result == XR_ERROR_SESSION_NOT_RUNNING)
+		FReadScopeLock Lock(SessionHandleMutex);
+		if (Session != XR_NULL_HANDLE)
 		{
-			// Session was never running - most likely PIE without putting the headset on.
-			DestroySession();
-		}
-		else
-		{
-			XR_ENSURE(Result);
+			Result = xrRequestExitSession(Session);
 		}
 	}
 
+	if (Result == XR_ERROR_SESSION_NOT_RUNNING)
+	{
+		// Session was never running - most likely PIE without putting the headset on.
+		DestroySession();
+	}
+	else
+	{
+		XR_ENSURE(Result);
+	}
 	return true;
 }
 
 void FOpenXRHMD::DestroySession()
 {
-	FScopeLock Lock(&DeviceMutex);
+	FWriteScopeLock DeviceLock(DeviceMutex);
+	FWriteScopeLock SessionLock(SessionHandleMutex);
 
 	if (Session != XR_NULL_HANDLE)
 	{
@@ -1865,6 +1898,8 @@ int32 FOpenXRHMD::AddActionDevice(XrAction Action)
 	ensure(DeviceSpaces.Num() > 0);
 
 	int32 DeviceId = DeviceSpaces.Emplace(Action);
+
+	FReadScopeLock Lock(SessionHandleMutex);
 	if (Session)
 	{
 		DeviceSpaces[DeviceId].CreateSpace(Session);
@@ -1905,7 +1940,8 @@ bool FOpenXRHMD::IsFocused() const
 
 bool FOpenXRHMD::StartSession()
 {
-	// If the session is already running, or is not yet ready,
+	// If the session is not yet ready, we'll call into this function again when it is
+	FReadScopeLock Lock(SessionHandleMutex);
 	if (!bIsReady || bIsRunning)
 	{
 		return false;
@@ -1916,24 +1952,18 @@ bool FOpenXRHMD::StartSession()
 	{
 		Begin.next = Module->OnBeginSession(Session, Begin.next);
 	}
-
-	FScopeLock ScopeLock(&BeginEndFrameMutex);
 	bIsRunning = XR_ENSURE(xrBeginSession(Session, &Begin));
 	return bIsRunning;
 }
 
 bool FOpenXRHMD::StopSession()
 {
-	// Ensures xrEndFrame has been called before the session leaves running state and no new frames are submitted.
-	FScopeLock ScopeLock(&BeginEndFrameMutex);
-
+	FReadScopeLock Lock(SessionHandleMutex);
 	if (!bIsRunning)
 	{
 		return false;
 	}
 
-	// We'll wait a maximum of one second for the last frame to finished
-	FrameEventRHI->Wait(1000);
 	bIsRunning = !XR_ENSURE(xrEndSession(Session));
 	return !bIsRunning;
 }
@@ -1954,6 +1984,12 @@ IStereoRenderTargetManager* FOpenXRHMD::GetRenderTargetManager()
 bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
 	check(IsInRenderingThread());
+
+	FReadScopeLock Lock(SessionHandleMutex);
+	if (!Session)
+	{
+		return false;
+	}
 
 	// We need to ensure we can sample from the texture in CopyTexture
 	Flags |= TexCreate_ShaderResource;
@@ -1989,7 +2025,8 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
 	// FIXME: UE4 constantly calls this function even when there is no reason to reallocate the depth texture
-	if (!bDepthExtensionSupported)
+	FReadScopeLock Lock(SessionHandleMutex);
+	if (!Session || !bDepthExtensionSupported)
 	{
 		return false;
 	}
@@ -2016,13 +2053,6 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 {
 	ensure(IsInRenderingThread());
 
-	// Ensure xrEndFrame has been called before starting rendering the next frame.
-	// We'll discard the frame if it takes longer than 250ms to finish.
-	if (bIsRunning)
-	{
-		FrameEventRHI->Wait(250);
-	}
-
 	PipelinedFrameStateRendering = PipelinedFrameStateGame;
 
 	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
@@ -2045,46 +2075,34 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	}
 #endif
 
-	// We need to re-check bIsRunning to ensure the session didn't end while waiting for FrameEventRHI.
-	// There is a chance xrBeginFrame may time out waiting for FrameEventRHI so a mutex is needed to
-	// ensure the two calls never overlap (spec requires they are externally synchronized).
-	FScopeLock ScopeLock(&BeginEndFrameMutex);
 	if (bIsRunning)
 	{
-		// TODO: This should be moved to the RHI thread at some point
-		XrFrameBeginInfo BeginInfo;
-		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
-		BeginInfo.next = nullptr;
-		XrTime DisplayTime = PipelinedFrameStateRendering.FrameState.predictedDisplayTime;
-		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
-		{
-			BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
-		}
-		XrResult Result;
-		Result = xrBeginFrame(Session, &BeginInfo);
+		SCOPED_NAMED_EVENT(EnqueueFrame, FColor::Red);
 
-		if (XR_SUCCEEDED(Result))
+		if (bNeedsAcquireOnRHI)
 		{
-			bIsRendering = true;
-
-			Swapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRendering.FrameState.predictedDisplayPeriod);
-			if (bDepthExtensionSupported && !bNeedReAllocatedDepth)
+			// TODO: Current spec incorrectly requires this function to have access to the Vulkan queue.
+			// Thus we have to synchronize with the RHI thread
+			ExecuteOnRHIThread([this](FRHICommandListImmediate& InRHICmdList)
 			{
-				ensure(DepthSwapchain != nullptr);
-				DepthSwapchain->IncrementSwapChainIndex_RHIThread(PipelinedFrameStateRendering.FrameState.predictedDisplayPeriod);
-			}
+				Swapchain->IncrementSwapChainIndex_RHIThread();
+				if (bDepthExtensionSupported && DepthSwapchain)
+				{
+					ensure(DepthSwapchain != nullptr);
+					DepthSwapchain->IncrementSwapChainIndex_RHIThread();
+				}
+			});
 		}
 		else
 		{
-			static bool bLoggedBeginFrameFailure = false;
-			if (!bLoggedBeginFrameFailure)
+			Swapchain->IncrementSwapChainIndex_RHIThread();
+			if (bDepthExtensionSupported && DepthSwapchain)
 			{
-				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
-				bLoggedBeginFrameFailure = true;
+				ensure(DepthSwapchain != nullptr);
+				DepthSwapchain->IncrementSwapChainIndex_RHIThread();
 			}
 		}
 	}
-	ScopeLock.Unlock();
 
 	// Snapshot new poses for late update.
 	UpdateDeviceLocations(false);
@@ -2111,6 +2129,7 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeT
 
 void FOpenXRHMD::OnBeginRendering_GameThread()
 {
+	FReadScopeLock Lock(SessionHandleMutex);
 	if (!bIsReady || !bIsRunning)
 	{
 		// @todo: Sleep here?
@@ -2118,6 +2137,8 @@ void FOpenXRHMD::OnBeginRendering_GameThread()
 	}
 
 	ensure(IsInGameThread());
+
+	SCOPED_NAMED_EVENT(WaitFrame, FColor::Red);
 
 	XrFrameWaitInfo WaitInfo;
 	WaitInfo.type = XR_TYPE_FRAME_WAIT_INFO;
@@ -2205,7 +2226,8 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 			if (SessionState.state == XR_SESSION_STATE_READY)
 			{
-				GEngine->SetMaxFPS(0);
+				if (!GIsEditor)
+					GEngine->SetMaxFPS(0);
 				bIsReady = true;
 				StartSession();
 			}
@@ -2216,14 +2238,21 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 			else if (SessionState.state == XR_SESSION_STATE_IDLE)
 			{
 				bIsSynchronized = false;
-				GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
 			}
 			else if (SessionState.state == XR_SESSION_STATE_STOPPING)
 			{
+				if (!GIsEditor)
+					GEngine->SetMaxFPS(OPENXR_PAUSED_IDLE_FPS);
 				bIsReady = false;
 				StopSession();
 			}
-			
+			else if (SessionState.state == XR_SESSION_STATE_EXITING)
+			{
+				// We need to make sure we unlock the frame rate again when exiting VR while idle
+				if (!GIsEditor)
+					GEngine->SetMaxFPS(0);
+			}
+
 			if (SessionState.state != XR_SESSION_STATE_EXITING && SessionState.state != XR_SESSION_STATE_LOSS_PENDING)
 			{
 				break;
@@ -2286,20 +2315,59 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 void FOpenXRHMD::OnBeginRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
+	check(!bIsRendering);
+
+	SCOPED_NAMED_EVENT(BeginFrame, FColor::Red);
+
+	FReadScopeLock Lock(SessionHandleMutex);
+	if (!bIsRunning || !Swapchain)
+	{
+		return;
+	}
 
 	PipelinedFrameStateRHI = PipelinedFrameStateRendering;
 	PipelinedLayerStateRHI = PipelinedLayerStateRendering;
+
+	XrFrameBeginInfo BeginInfo;
+	BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
+	BeginInfo.next = nullptr;
+	XrTime DisplayTime = PipelinedFrameStateRendering.FrameState.predictedDisplayTime;
+	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+	{
+		BeginInfo.next = Module->OnBeginFrame(Session, DisplayTime, BeginInfo.next);
+	}
+
+	XrResult Result = xrBeginFrame(Session, &BeginInfo);
+	if (!XR_UNQUALIFIED_SUCCESS(Result))
+	{
+		static bool bLoggedBeginFrameFailure = false;
+		if (!bLoggedBeginFrameFailure)
+		{
+			UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
+			bLoggedBeginFrameFailure = true;
+		}
+	}
+
+	if (XR_SUCCEEDED(Result))
+	{
+		Swapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+		if (bDepthExtensionSupported && DepthSwapchain)
+		{
+			ensure(DepthSwapchain != nullptr);
+			DepthSwapchain->WaitCurrentImage_RHIThread(PipelinedFrameStateRHI.FrameState.predictedDisplayPeriod);
+		}
+
+		bIsRendering = true;
+	}
 }
 
 void FOpenXRHMD::OnFinishRendering_RHIThread()
 {
 	ensure(IsInRenderingThread() || IsInRHIThread());
 
-	// OnBeginRendering_RenderThread may time out waiting for FrameEventRHI to be signaled. This can result
-	// in xrBeginFrame being called on the render thread while xrEndFrame is being called on the RHI thread,
-	// so a mutex is needed to ensure they are externally synchronized, as required by the OpenXR specification.
-	// This may also result in a XR_ERROR_CALL_ORDER_INVALID error.
-	FScopeLock ScopeLock(&BeginEndFrameMutex);
+	SCOPED_NAMED_EVENT(EndFrame, FColor::Red);
+
+	FReadScopeLock Lock(SessionHandleMutex);
 	if (!bIsRunning || !Swapchain)
 	{
 		return;
@@ -2315,6 +2383,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	Layer.space = PipelineState.TrackingSpace;
 	Layer.viewCount = LayerState.ProjectionLayers.Num();
 	Layer.views = LayerState.ProjectionLayers.GetData();
+
 	for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 	{
 		Layer.next = Module->OnEndProjectionLayer(Session, 0, Layer.next, Layer.layerFlags);
@@ -2346,7 +2415,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 			TArray<XrSwapchainSubImage> DepthImages;
 			for (int32 i = 0; i < PipelineState.PluginViews.Num(); i++)
 			{
-				if (PipelineState.PluginViews[i] == Module)
+				if (PipelineState.PluginViews[i] == Module && LayerState.ColorImages.IsValidIndex(i))
 				{
 					ColorImages.Add(LayerState.ColorImages[i]);
 					if (bDepthExtensionSupported)
@@ -2361,9 +2430,6 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 
 		bIsRendering = false;
 	}
-
-	// Signal that it is now ok to start rendering the next frame.
-	FrameEventRHI->Trigger();
 }
 
 FXRRenderBridge* FOpenXRHMD::GetActiveRenderBridge_GameThread(bool /* bUseSeparateRenderTarget */)

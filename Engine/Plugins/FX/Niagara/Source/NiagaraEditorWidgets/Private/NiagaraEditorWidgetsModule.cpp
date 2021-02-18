@@ -16,6 +16,7 @@
 #include "NiagaraEditorWidgetsUtilities.h"
 #include "Stack/SNiagaraStackIssueIcon.h"
 #include "SNiagaraScratchPad.h"
+#include "SNiagaraCurveOverview.h"
 
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -31,7 +32,7 @@ FNiagaraStackCurveEditorOptions::FNiagaraStackCurveEditorOptions()
 	, ViewMaxOutput(1)
 	, bAreCurvesVisible(true)
 	, bNeedsInitializeView(true)
-	, Height(100)
+	, Height(180)
 {
 }
 
@@ -202,6 +203,11 @@ TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::C
 TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateScriptScratchPad(UNiagaraScratchPadViewModel& ScriptScratchPadViewModel) const
 {
 	return SNew(SNiagaraScratchPad, &ScriptScratchPadViewModel);
+}
+
+TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateCurveOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel) const
+{
+	return SNew(SNiagaraCurveOverview, SystemViewModel);
 }
 
 FLinearColor FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::GetColorForExecutionCategory(FName ExecutionCategory) const

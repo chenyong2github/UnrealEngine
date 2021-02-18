@@ -37,8 +37,6 @@ namespace NiagaraCommands
 	static FAutoConsoleVariable EmitterStatsFormat(TEXT("Niagara.EmitterStatsFormat"), 1, TEXT("0 shows the particles count, ms, mb and state. 1 shows particles count."));
 }
 
-const float Megabyte = 1024.0f * 1024.0f;
-
 FNiagaraEmitterViewModel::FNiagaraEmitterViewModel()
 	: SharedScriptViewModel(MakeShareable(new FNiagaraScriptViewModel(LOCTEXT("SharedDisplayName", "Graph"), ENiagaraParameterEditMode::EditAll)))
 	, bUpdatingSelectionInternally(false)
@@ -281,10 +279,11 @@ FText FNiagaraEmitterViewModel::GetStatsText() const
 				}
 				else
 				{
+					const double Megabyte = 1024 * 1024;
 					return FText::Format(StatsFormat,
 						FText::AsNumber(SimInstance->GetNumParticles()),
 						FText::AsNumber(SimInstance->GetTotalCPUTimeMS(), &FractionalFormatOptions),
-						FText::AsNumber(SimInstance->GetTotalBytesUsed() / Megabyte, &FractionalFormatOptions),
+						FText::AsNumber(double(SimInstance->GetTotalBytesUsed()) / Megabyte, &FractionalFormatOptions),
 						ExecutionStateEnum->GetDisplayNameTextByValue((int32)SimInstance->GetExecutionState()));
 				}
 			}
@@ -295,7 +294,7 @@ FText FNiagaraEmitterViewModel::GetStatsText() const
 		return LOCTEXT("SimulationNotReady", "Preparing simulation...");
 	}
 	
-	return LOCTEXT("InvalidSimulation", "Simulation is invalid.");
+	return LOCTEXT("NoActivePreview", "No running preview...");
 }
 
 TSharedRef<FNiagaraScriptViewModel> FNiagaraEmitterViewModel::GetSharedScriptViewModel()

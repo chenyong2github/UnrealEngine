@@ -863,8 +863,14 @@ X11_SetWindowPosition(_THIS, SDL_Window * window)
     X11_XTranslateCoordinates(display, parent, DefaultRootWindow(display),
                               attrs.x, attrs.y, &orig_x, &orig_y, &childReturn);
 
-    /*Attempt to move the window*/
+    /* Attempt to move the window */
     X11_XMoveWindow(display, data->xwindow, window->x - data->border_left, window->y - data->border_top);
+
+/* This looks to be causing a crash on some WM, return before this loop runs for now */
+/* EG BEGIN */
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+    return;
+#endif /* SDL_WITH_EPIC_EXTENSIONS */
 
     /* Wait a brief time to see if the window manager decided to let this move happen.
        If the window changes at all, even to an unexpected value, we break out. */

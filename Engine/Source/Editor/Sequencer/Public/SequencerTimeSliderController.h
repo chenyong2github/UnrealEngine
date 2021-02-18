@@ -316,6 +316,12 @@ private:
 	/** Geometry on mouse down */
 	FGeometry MouseDownGeometry;
 
+	/** Playback range when the mouse is first pressed down */
+	TRange<FFrameNumber> MouseDownPlaybackRange;
+
+	/** Selection range when the mouse is first pressed down */
+	TRange<FFrameNumber> MouseDownSelectionRange;
+
 	/** Range stack */
 	TArray<TRange<double>> ViewRangeStack;
 

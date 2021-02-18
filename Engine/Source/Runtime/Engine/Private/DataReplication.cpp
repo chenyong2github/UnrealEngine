@@ -221,15 +221,6 @@ public:
 
 public:
 
-	// These can go away once we do a full merge of Custom Delta and RepLayout.
-	static bool IsAFastArray(
-		const FRepLayout& RepLayout,
-		const uint16 CustomDeltaIndex)
-	{
-		return RepLayout.IsAFastArray(CustomDeltaIndex);
-	}
-
-
 	static bool SendCustomDeltaProperty(
 		const FRepLayout& RepLayout,
 		FNetDeltaSerializeInfo& Params,
@@ -859,9 +850,9 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 						// The Nack'd packet did update this property, so we need to replace the buffer in RecentDynamic
 						// with the buffer we used to create this update (which was dropped), so that the update will be recreated on the next replicate actor
 						
-						if (LastAcknowledged != 0 && Rec->DynamicState.IsValid() && FNetSerializeCB::IsAFastArray(*RepLayout, (uint16)i))
+						if (LastAcknowledged != 0 && Rec->DynamicState.IsValid())
 						{
-							((FNetFastTArrayBaseState*)Rec->DynamicState.Get())->LastAckedHistory = LastAcknowledged;
+							Rec->DynamicState->SetLastAckedHistory(LastAcknowledged);
 						}
 
 						SendingRepState->RecentCustomDeltaState[i] = Rec->DynamicState;
@@ -1555,7 +1546,6 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 			continue;
 		}
 
-		const bool bIsAFastArray = FNetSerializeCB::IsAFastArray(*RepLayout, CustomDeltaProperty);
 		FPropertyRetirement** LastNext = nullptr;
 
 		if (!bIsConnectionInternalAck)
@@ -1568,9 +1558,9 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 			uint32 LastAcknowledged = 0;
 			LastNext = UpdateAckedRetirements(Retire, LastAcknowledged, Connection->OutAckPacketId, Object);
 
-			if (LastAcknowledged != 0 && OldState.IsValid() && bIsAFastArray)
+			if (LastAcknowledged != 0 && OldState.IsValid())
 			{
-				((FNetFastTArrayBaseState*)OldState.Get())->LastAckedHistory = LastAcknowledged;
+				OldState->SetLastAckedHistory(LastAcknowledged);
 			}
 
 			check(LastNext != nullptr);
@@ -1600,9 +1590,9 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 			// However, PropertyRetirements associate the OldState with the state of replication **in case of a NAK**.
 			// So, in the case of an ACK, we know that we no longer need to hold onto that OldState because the client has received
 			// the NewState (which will become our OldState the next time we send something).
-			if (NewState.IsValid() && bIsAFastArray)
+			if (NewState.IsValid())
 			{
-				(*LastNext)->FastArrayChangelistHistory = ((FNetFastTArrayBaseState*)NewState.Get())->ChangelistHistory;
+				(*LastNext)->FastArrayChangelistHistory = NewState->GetChangelistHistory();
 			}
 		}
 

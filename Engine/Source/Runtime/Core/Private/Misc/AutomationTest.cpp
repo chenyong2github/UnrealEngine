@@ -880,11 +880,6 @@ bool FAutomationTestFramework::InternalStopTest(FAutomationTestExecutionInfo& Ou
 	// 3) Did we meet any errors that were expected with this test
 	bTestSuccessful = bTestSuccessful && !CurrentTest->HasAnyErrors() && CurrentTest->HasMetExpectedErrors();
 
-	// Re-enable log parsing if it was disabled and empty the expected errors list
-	if (CurrentTest->ExpectedErrors.Num())
-	{
-		GLog->Logf(ELogVerbosity::Display, TEXT("<-- Resume Log Parsing -->"));
-	}
 	CurrentTest->ExpectedErrors.Empty();
 
 	// Set the success state of the test based on the above criteria
@@ -1240,12 +1235,6 @@ void FAutomationTestBase::AddExpectedError(FString ExpectedErrorPattern, EAutoma
 		}
 		else
 		{
-			// Disable log pre-processor the first time we successfully add an expected error
-			// so that successful tests don't trigger CIS failures
-			if (!ExpectedErrors.Num())
-			{
-				GLog->Logf(ELogVerbosity::Display, TEXT("<-- Suspend Log Parsing -->"));
-			}
 			// ToDo: After UE-44340 is resolved, create FAutomationExpectedError and check that its ErrorPattern is valid before adding
 			ExpectedErrors.Add(FAutomationExpectedError(ExpectedErrorPattern, InCompareType, Occurrences));
 		}

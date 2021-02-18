@@ -83,7 +83,7 @@ namespace Gauntlet
 
 				if (TestName != DisplayName)
 				{
-					FullName += string.Format(" ({0})", TestName);
+					FullName += string.Format(": {0}", TestName);
 				}
 
 				return FullName;

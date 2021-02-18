@@ -102,8 +102,10 @@ namespace Chaos
 		const FReal PseudoFraction = (FReal)1 / (FReal)(PushData->IntervalNumSteps - PushData->IntervalStep);
 		
 		Solver.AdvanceSolverBy(PushData->ExternalDt, FSubStepInfo{PseudoFraction, PushData->IntervalStep, PushData->IntervalNumSteps });
-		Solver.GetMarshallingManager().FreeData_Internal(PushData);	//cannot use push data after this point
+		Solver.GetMarshallingManager().FreeDataToHistory_Internal(PushData);	//cannot use push data after this point
 		PushData = nullptr;
+
+		Solver.ConditionalApplyRewind_Internal();
 	}
 
 	CHAOS_API int32 UseAsyncInterpolation = 1;

@@ -1180,6 +1180,12 @@ class FSSDSpatialAccumulationCS : public FGlobalShader
 		return PermutationVector;
 	}
 
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// TODO: UECON-464 - force optimizations to workaround shader compiler issue on DXC until fixed by MS
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_ARRAY(FVector4, InputBufferUVMinMax, [IScreenSpaceDenoiser::kMaxBatchSize])
 
@@ -1225,6 +1231,12 @@ class FSSDTemporalAccumulationCS : public FGlobalShader
 		}
 
 		return ShouldCompileSignalPipeline(SignalProcessing, Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// TODO: UECON-464 - force optimizations to workaround shader compiler issue on DXC until fixed by MS
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )

@@ -597,7 +597,7 @@ namespace Chaos
 			});
 	}
 
-	int32 RewindCaptureNumFrames = -1;
+	CHAOS_API int32 RewindCaptureNumFrames = -1;
 	FAutoConsoleVariableRef CVarRewindCaptureNumFrames(TEXT("p.RewindCaptureNumFrames"),RewindCaptureNumFrames,TEXT("The number of frames to capture rewind for. Requires restart of solver"));
 
 	int32 UseResimCache = 0;
@@ -980,8 +980,6 @@ namespace Chaos
 			ISimCallbackObject* Callback = SimCallbackObjects[Idx];
 			if (Callback->bPendingDelete)
 			{
-				Callback->SetCurrentInput_Internal(nullptr);	//free any pending input
-				delete Callback;
 				SimCallbackObjects.RemoveAtSwap(Idx);
 			}
 		}
@@ -999,6 +997,47 @@ namespace Chaos
 			delete SimCallbackObject;
 		}
 		PushData.SimCommands.Reset();
+
+		if(MRewindCallback && !IsShuttingDown())
+		{
+			MRewindCallback->RecordInputs(MRewindData->CurrentFrame(), PushData.SimCallbackInputs);
+		}
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::ConditionalApplyRewind_Internal()
+	{
+		if(!IsShuttingDown() && MRewindCallback && !MRewindData->IsResim())
+		{
+			const int32 LastStep = MRewindData->CurrentFrame() - 1;
+			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded(LastStep);
+			if(ResimStep != INDEX_NONE)
+			{
+				if(ensure(MRewindData->RewindToFrame(ResimStep)))
+				{
+					CurrentFrame = ResimStep;
+					const int32 NumResimSteps = LastStep - ResimStep + 1;
+					TArray<FPushPhysicsData*> RecordedPushData = MarshallingManager.StealHistory_Internal(NumResimSteps);
+					bool bFirst = true;
+					// Do rollback as necessary
+					for (int32 Step = ResimStep; Step <= LastStep; ++Step)
+					{
+						FPushPhysicsData* PushData = RecordedPushData[LastStep - Step];	//push data is sorted as latest first
+						if(bFirst)
+						{
+							MTime = PushData->StartTime;	//not sure if sub-steps have proper StartTime so just do this once and let solver evolve remaining time
+						}
+
+						MRewindCallback->PreResimStep(Step, bFirst);
+						FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
+						ImmediateTask.AdvanceSolver();
+						MRewindCallback->PostResimStep(Step);
+
+						bFirst = false;
+					}
+				}
+			}
+		}
 	}
 
 	template <typename Traits>
@@ -1212,11 +1251,13 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache)
+	void TPBDRigidsSolver<Traits>::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
 	{
 		check(Traits::IsRewindable());
 		MRewindData = MakeUnique<FRewindData>(NumFrames, InUseCollisionResimCache);
 		bUseCollisionResimCache = InUseCollisionResimCache;
+		MRewindCallback = MoveTemp(RewindCallback);
+		MarshallingManager.SetHistoryLength_Internal(NumFrames);
 	}
 
 	template <typename Traits>

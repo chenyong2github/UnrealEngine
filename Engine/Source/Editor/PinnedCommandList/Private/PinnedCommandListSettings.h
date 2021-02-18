@@ -31,7 +31,7 @@ struct FPinnedCommandListCommand
 
 	/** What type of command this is */
 	UPROPERTY(config)
-	EPinnedCommandListType Type;
+	EPinnedCommandListType Type = EPinnedCommandListType::Command;
 };
 
 /** A pinned command list context, allowing us to persist a set of pinned commands */

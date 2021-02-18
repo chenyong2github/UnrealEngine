@@ -114,6 +114,6 @@ protected:
 	// Source interface
 	virtual TSubclassOf<UDataRegistrySource> GetChildSourceClass() const override;
 	virtual bool SetDataForChild(FName SourceId, UDataRegistrySource* ChildSource) override;
-	virtual bool DoesAssetPassFilter(const FAssetData& AssetData, bool bRegisteredAsset) override;
+	virtual bool DoesAssetPassFilter(const FAssetData& AssetData, bool bNewRegisteredAsset) override;
 
 };

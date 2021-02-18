@@ -1944,7 +1944,7 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 			uint32 PortFlags = 0;
 			if (InProperty->ContainsInstancedObjectProperty())
 			{
-				PortFlags |= PPF_DeepCompareInstances;
+				PortFlags |= PPF_DeepComparison;
 			}
 
 			if ( ValueTracker.GetPropertyValueAddress() == NULL || ValueTracker.GetPropertyDefaultAddress() == NULL )
@@ -2040,38 +2040,38 @@ FString FPropertyNode::GetDefaultValueAsStringForObject( FPropertyItemValueDataT
 	{
 		if ( ValueTracker.IsValidTracker() && ValueTracker.HasDefaultValue() )
 		{
-				uint32 PortFlags = bUseDisplayName ? PPF_PropertyWindow : PPF_None;
+			uint32 PortFlags = bUseDisplayName ? PPF_PropertyWindow : PPF_None;
 			
-				if (InProperty->ContainsInstancedObjectProperty())
-				{
-					PortFlags |= PPF_DeepCompareInstances;
-				}
+			if (InProperty->ContainsInstancedObjectProperty())
+			{
+				PortFlags |= PPF_DeepComparison;
+			}
 
-				if ( ValueTracker.GetPropertyDefaultAddress() == NULL )
+			if ( ValueTracker.GetPropertyDefaultAddress() == NULL )
+			{
+				// no default available, fall back on the default value for our primitive:
+				uint8* TempComplexPropAddr = (uint8*)FMemory::Malloc(InProperty->GetSize(), InProperty->GetMinAlignment());
+				InProperty->InitializeValue(TempComplexPropAddr);
+				ON_SCOPE_EXIT
 				{
-					// no default available, fall back on the default value for our primitive:
-					uint8* TempComplexPropAddr = (uint8*)FMemory::Malloc(InProperty->GetSize(), InProperty->GetMinAlignment());
-					InProperty->InitializeValue(TempComplexPropAddr);
-					ON_SCOPE_EXIT
-					{
-						InProperty->DestroyValue(TempComplexPropAddr);
-						FMemory::Free(TempComplexPropAddr);
-					};
+					InProperty->DestroyValue(TempComplexPropAddr);
+					FMemory::Free(TempComplexPropAddr);
+				};
 					
-					InProperty->ExportText_Direct(DefaultValue, TempComplexPropAddr, TempComplexPropAddr, nullptr, PPF_None);
-				}
-				else if ( GetArrayIndex() == INDEX_NONE && InProperty->ArrayDim > 1 )
-				{
-					FArrayProperty::ExportTextInnerItem(DefaultValue, InProperty, ValueTracker.GetPropertyDefaultAddress(), InProperty->ArrayDim,
-														ValueTracker.GetPropertyDefaultAddress(), InProperty->ArrayDim, nullptr, PortFlags);
-				}
-				else
-				{
-					// Port flags will cause enums to display correctly
-					InProperty->ExportTextItem( DefaultValue, ValueTracker.GetPropertyDefaultAddress(), ValueTracker.GetPropertyDefaultAddress(), InObject, PortFlags, NULL );
-				}
+				InProperty->ExportText_Direct(DefaultValue, TempComplexPropAddr, TempComplexPropAddr, nullptr, PPF_None);
+			}
+			else if ( GetArrayIndex() == INDEX_NONE && InProperty->ArrayDim > 1 )
+			{
+				FArrayProperty::ExportTextInnerItem(DefaultValue, InProperty, ValueTracker.GetPropertyDefaultAddress(), InProperty->ArrayDim,
+													ValueTracker.GetPropertyDefaultAddress(), InProperty->ArrayDim, nullptr, PortFlags);
+			}
+			else
+			{
+				// Port flags will cause enums to display correctly
+				InProperty->ExportTextItem( DefaultValue, ValueTracker.GetPropertyDefaultAddress(), ValueTracker.GetPropertyDefaultAddress(), nullptr, PortFlags, nullptr );
 			}
 		}
+	}
 
 	return DefaultValue;
 }
@@ -2649,19 +2649,19 @@ void FPropertyNode::BroadcastPropertyResetToDefault()
 	PropertyResetToDefaultEvent.Broadcast();
 }
 
-void FPropertyNode::GetExpandedChildPropertyPaths(TSet<FString>& OutExpandedChildPropertyPaths)
+void FPropertyNode::GetExpandedChildPropertyPaths(TSet<FString>& OutExpandedChildPropertyPaths) const
 {
-	TArray<FPropertyNode*> RecursiveStack;
+	TArray<const FPropertyNode*> RecursiveStack;
 	RecursiveStack.Add(this);
 
 	do
 	{
-		FPropertyNode* SearchNode = RecursiveStack.Pop();
+		const FPropertyNode* SearchNode = RecursiveStack.Pop();
 		if (SearchNode->HasNodeFlags(EPropertyNodeFlags::Expanded) != 0)
 		{
 			OutExpandedChildPropertyPaths.Add(SearchNode->PropertyPath);
 
-			for (auto Index = 0; Index < SearchNode->GetNumChildNodes(); ++Index)
+			for (int32 Index = 0; Index < SearchNode->GetNumChildNodes(); ++Index)
 			{
 				TSharedPtr<FPropertyNode> ChildNode = SearchNode->GetChildNode(Index);
 				if (ChildNode.IsValid())
@@ -2686,7 +2686,7 @@ void FPropertyNode::SetExpandedChildPropertyNodes(const TSet<FString>& InNodesTo
 			SearchNode->SetNodeFlags(EPropertyNodeFlags::Expanded, true);
 
 			// Lets recurse over this nodes children to see if they need to be expanded
-			for (auto Index = 0; Index < SearchNode->GetNumChildNodes(); ++Index)
+			for (int32 Index = 0; Index < SearchNode->GetNumChildNodes(); ++Index)
 			{
 				TSharedPtr<FPropertyNode> ChildNode = SearchNode->GetChildNode(Index);
 				if (ChildNode.IsValid())

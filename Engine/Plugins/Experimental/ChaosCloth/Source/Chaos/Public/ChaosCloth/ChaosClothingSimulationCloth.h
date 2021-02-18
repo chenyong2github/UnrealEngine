@@ -39,11 +39,12 @@ namespace Chaos
 			float InAreaStiffness,
 			float InVolumeStiffness,
 			bool bInUseThinShellVolumeConstraints,
-			float InStrainLimitingStiffness,
+			float InTetherStiffness,
 			float InLimitScale,
 			ETetherMode InTetherMode,
 			float InMaxDistancesMultiplier,
-			float InAnimDriveSpringStiffness,
+			const FVec2& InAnimDriveStiffness,
+			const FVec2& InAnimDriveDamping,
 			float InShapeTargetStiffness,
 			bool bInUseXPBDConstraints,
 			float InGravityScale,
@@ -73,7 +74,17 @@ namespace Chaos
 
 		// ---- Animatable property setters ----
 		void SetMaxDistancesMultiplier(float InMaxDistancesMultiplier) { MaxDistancesMultiplier = InMaxDistancesMultiplier; }
-		void SetAnimDriveSpringStiffness(float InAnimDriveSpringStiffness) { AnimDriveSpringStiffness = InAnimDriveSpringStiffness; }
+
+		void SetMaterialProperties(float InEdgeStiffness, float InBendingStiffness, float InAreaStiffness) { EdgeStiffness = InEdgeStiffness; BendingStiffness = InBendingStiffness; AreaStiffness = InAreaStiffness; }
+		void SetLongRangeAttachmentProperties(float InTetherStiffness) { TetherStiffness = InTetherStiffness; }
+		void SetCollisionProperties(float InCollisionThickness, float InFrictionCoefficient, bool bInUseCCD, float InSelfCollisionThickness) { CollisionThickness = InCollisionThickness; FrictionCoefficient = InFrictionCoefficient; bUseCCD = bInUseCCD; SelfCollisionThickness = InSelfCollisionThickness; }
+		void SetDampingProperties(float InDampingCoefficient) { DampingCoefficient = InDampingCoefficient; }
+		void SetAerodynamicsProperties(float InDragCoefficient, float InLiftCoefficient) { DragCoefficient = InDragCoefficient; LiftCoefficient = InLiftCoefficient; }
+		void SetGravityProperties(float InGravityScale, bool bInIsGravityOverridden, const FVec3& InGravityOverride) { GravityScale = InGravityScale; bIsGravityOverridden = bInIsGravityOverridden; GravityOverride = InGravityOverride; }
+		void SetAnimDriveProperties(const FVec2& InAnimDriveStiffness, const FVec2& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
+		void SetVelocityScaleProperties(const FVec3& InLinearVelocityScale, float InAngularVelocityScale) { LinearVelocityScale = InLinearVelocityScale; AngularVelocityScale = InAngularVelocityScale; }
+
+		void GetAnimDriveProperties(FVec2& OutAnimDriveStiffness, FVec2& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
 
 		void Reset() { bNeedsReset = true; }
 		void Teleport() { bNeedsTeleport = true; }
@@ -106,11 +117,11 @@ namespace Chaos
 		// Return the current gravity as applied by the solver using the various overrides, not thread safe, call must be done right after the solver update.
 		FVec3 GetGravity(const FClothingSimulationSolver* Solver) const;
 		// Return the current bounding box based on a given solver, not thread safe, call must be done right after the solver update.
-		TAABB<float, 3> CalculateBoundingBox(const FClothingSimulationSolver* Solver) const;
+		FAABB3 CalculateBoundingBox(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Offset in the solver's particle array, or INDEX_NONE if no LOD is currently selected
 		int32 GetOffset(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Mesh
-		const TTriangleMesh<float>& GetTriangleMesh(const FClothingSimulationSolver* Solver) const;
+		const FTriangleMesh& GetTriangleMesh(const FClothingSimulationSolver* Solver) const;
 		// Return the current LOD Weightmaps
 		const TArray<TConstArrayView<float>>& GetWeightMaps(const FClothingSimulationSolver* Solver) const;
 		// Return the reference bone index for this cloth
@@ -144,7 +155,7 @@ namespace Chaos
 			struct FSolverData
 			{
 				int32 Offset;
-				TTriangleMesh<float> TriangleMesh;  // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
+				FTriangleMesh TriangleMesh;  // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
 			};
 			TMap<FClothingSimulationSolver*, FSolverData> SolverData;
 
@@ -179,11 +190,12 @@ namespace Chaos
 		float AreaStiffness;
 		float VolumeStiffness;
 		bool bUseThinShellVolumeConstraints;
-		float StrainLimitingStiffness;
+		float TetherStiffness;
 		float LimitScale;
 		ETetherMode TetherMode;
-		float MaxDistancesMultiplier;  // Animatable
-		float AnimDriveSpringStiffness;  // Animatable
+		float MaxDistancesMultiplier;
+		FVec2 AnimDriveStiffness;
+		FVec2 AnimDriveDamping;
 		float ShapeTargetStiffness;
 		bool bUseXPBDConstraints;
 		float GravityScale;

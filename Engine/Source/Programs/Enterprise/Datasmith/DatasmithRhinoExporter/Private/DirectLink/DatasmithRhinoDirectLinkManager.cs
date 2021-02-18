@@ -8,11 +8,12 @@ namespace DatasmithRhino.DirectLink
 {
 	public class DatasmithRhinoDirectLinkManager
 	{
-		private const string UntitledSceneNanem = "Untitled";
+		private const string UntitledSceneName = "Untitled";
 
 		public FDatasmithFacadeDirectLink DirectLink { get; private set; } = null;
 		public FDatasmithFacadeScene DatasmithScene { get; private set; } = null;
 		public DatasmithRhinoExportContext ExportContext { get; private set; } = null;
+		public DatasmithRhinoChangeListener ChangeListener { get; private set; } = new DatasmithRhinoChangeListener();
 		public bool bInitialized { get; private set; } = false;
 
 		public void Initialize()
@@ -44,6 +45,7 @@ namespace DatasmithRhino.DirectLink
 			if (bInitialized)
 			{
 				RhinoDoc.EndOpenDocument += OnEndOpenDocument;
+				RhinoDoc.BeginOpenDocument += OnBeginOpenDocument;
 				RhinoDoc.NewDocument += OnNewDocument;
 			}
 
@@ -60,6 +62,20 @@ namespace DatasmithRhino.DirectLink
 				FDatasmithFacadeDirectLink.Shutdown();
 				bInitialized = false;
 			}
+		}
+
+		public Rhino.Commands.Result Synchronize(RhinoDoc RhinoDocument)
+		{
+			Rhino.Commands.Result ExportResult = Rhino.Commands.Result.Failure;
+			bool bIsValidContext = RhinoDocument == ExportContext.RhinoDocument;
+
+			if (bIsValidContext || SetupDirectLinkScene(RhinoDocument))
+			{
+				ExportResult = DatasmithRhinoSceneExporter.ExportScene(DatasmithScene, ExportContext, DirectLink.UpdateScene);
+				ChangeListener.StartListening(ExportContext);
+			}
+
+			return ExportResult;
 		}
 
 		public bool OpenConnectionManangementWindow()
@@ -101,6 +117,16 @@ namespace DatasmithRhino.DirectLink
 			return RhinoEngineDir;
 		}
 
+		private void OnBeginOpenDocument(object Sender, DocumentOpenEventArgs Args)
+		{
+			if (!Args.Merge && !Args.Reference)
+			{
+				// Before opening a new document we need to stop listening to changes in the scene.
+				// Otherwise we'll be updating cache of the old scene with the new document.
+				ChangeListener.StopListening();
+			}
+		}
+
 		private void OnEndOpenDocument(object Sender, DocumentOpenEventArgs Args)
 		{
 			if (!Args.Merge && !Args.Reference)
@@ -114,10 +140,11 @@ namespace DatasmithRhino.DirectLink
 			if (Args.Document != null)
 			{
 				SetupDirectLinkScene(Args.Document);
+				ChangeListener.StopListening();
 			}
 		}
 
-		public bool SetupDirectLinkScene(RhinoDoc RhinoDocument, string FilePath = null)
+		private bool SetupDirectLinkScene(RhinoDoc RhinoDocument, string FilePath = null)
 		{
 			//Override all of the existing scene export data, we are exporting a new document.
 			try
@@ -156,7 +183,7 @@ namespace DatasmithRhino.DirectLink
 			}
 			else
 			{
-				SceneName = UntitledSceneNanem;
+				SceneName = UntitledSceneName;
 			}
 
 			IDirectLinkUI DirectLinkUI = IDatasmithExporterUIModule.Get()?.GetDirectLinkExporterUI();

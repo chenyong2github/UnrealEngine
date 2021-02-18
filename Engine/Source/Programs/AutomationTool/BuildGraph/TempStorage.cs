@@ -107,6 +107,12 @@ namespace AutomationTool
 		public long Length;
 
 		/// <summary>
+		/// Digest for the file. Not all files are hashed.
+		/// </summary>
+		[XmlAttribute]
+		public string Digest;
+
+		/// <summary>
 		/// Default constructor, for XML serialization.
 		/// </summary>
 		private TempStorageFile()
@@ -134,6 +140,11 @@ namespace AutomationTool
 			RelativePath = File.MakeRelativeTo(RootDir).Replace(Path.DirectorySeparatorChar, '/');
 			LastWriteTimeUtcTicks = FileInfo.LastWriteTimeUtc.Ticks;
 			Length = FileInfo.Length;
+
+			if (GenerateDigest())
+			{
+				Digest = ContentHash.MD5(File).ToString();
+			}
 		}
 
 		/// <summary>
@@ -197,10 +208,31 @@ namespace AutomationTool
 
 			// Check the timestamp of the file matches. On FAT filesystems writetime has a two seconds resolution (see http://msdn.microsoft.com/en-us/library/windows/desktop/ms724290%28v=vs.85%29.aspx)
 			TimeSpan TimeDifference = new TimeSpan(Info.LastWriteTimeUtc.Ticks - LastWriteTimeUtcTicks);
-			if(TimeDifference.TotalSeconds < -2 || TimeDifference.TotalSeconds > +2)
+			if (TimeDifference.TotalSeconds >= -2 && TimeDifference.TotalSeconds <= +2)
 			{
-				DateTime ExpectedLocal = new DateTime(LastWriteTimeUtcTicks, DateTimeKind.Utc).ToLocalTime();
-				if(RequireMatchingTimestamps() && !TempStorage.IsDuplicateBuildProduct(LocalFile))
+				Message = null;
+				return true;
+			}
+
+			// Check if the files have been modified
+			DateTime ExpectedLocal = new DateTime(LastWriteTimeUtcTicks, DateTimeKind.Utc).ToLocalTime();
+			if (Digest != null)
+			{
+				string LocalDigest = ContentHash.MD5(LocalFile).ToString();
+				if (Digest.Equals(LocalDigest, StringComparison.Ordinal))
+				{
+					Message = null;
+					return true;
+				}
+				else
+				{
+					Message = String.Format("Digest mismatch for {0} - was {1} ({2}), expected {3} ({4}), TimeDifference {5}", RelativePath, LocalDigest, Info.LastWriteTime, Digest, ExpectedLocal, TimeDifference);
+					return false;
+				}
+			}
+			else
+			{
+				if (RequireMatchingTimestamps() && !TempStorage.IsDuplicateBuildProduct(LocalFile))
 				{
 					Message = String.Format("File date/time mismatch for {0} - was {1}, expected {2}, TimeDifference {3}", RelativePath, Info.LastWriteTime, ExpectedLocal, TimeDifference);
 					return false;
@@ -211,11 +243,6 @@ namespace AutomationTool
 					return true;
 				}
 			}
-			else
-			{
-				Message = null;
-				return true;
-			}
 		}
 
 		/// <summary>
@@ -225,6 +252,24 @@ namespace AutomationTool
 		bool RequireMatchingTimestamps()
 		{
 			return RelativePath.IndexOf("/Binaries/DotNET/", StringComparison.InvariantCultureIgnoreCase) == -1 && RelativePath.IndexOf("/Binaries/Mac/", StringComparison.InvariantCultureIgnoreCase) == -1;
+		}
+
+		/// <summary>
+		/// Determines whether to generate a digest for the current file
+		/// </summary>
+		/// <returns>True to generate a digest for this file, rather than relying on timestamps</returns>
+		bool GenerateDigest()
+		{
+			return RelativePath.EndsWith(".modules", StringComparison.OrdinalIgnoreCase);
+		}
+
+		/// <summary>
+		/// Determine whether to serialize the digest property
+		/// </summary>
+		/// <returns></returns>
+		public bool ShouldSerializeDigest()
+		{
+			return Digest != null;
 		}
 
 		/// <summary>

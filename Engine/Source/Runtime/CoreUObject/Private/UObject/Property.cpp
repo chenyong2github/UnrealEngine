@@ -1422,8 +1422,14 @@ const TCHAR* FProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 					Str++;
 				}
 				int32 removeIdx = FCString::Atoi(*strIdx);
-
-				ArrayHelper.RemoveValues(removeIdx);
+				if (ArrayHelper.IsValidIndex(removeIdx))
+				{
+					ArrayHelper.RemoveValues(removeIdx);
+				}
+				else
+				{
+					Warn->Logf(ELogVerbosity::Warning, TEXT("%s.RemoveIndex(%d): Index not found in array"), *ArrayProperty->GetName(), removeIdx);
+				}
 			}
 			SkipWhitespace(Str);
 			if (*Str != ')')

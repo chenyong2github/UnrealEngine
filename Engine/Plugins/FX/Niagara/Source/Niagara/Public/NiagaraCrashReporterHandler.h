@@ -22,9 +22,9 @@ class FNiagaraCrashReporterScope
 private:
 	bool bWasEnabled = false;
 public:
-	explicit FNiagaraCrashReporterScope(FNiagaraSystemInstance* Inst);
-	explicit FNiagaraCrashReporterScope(FNiagaraSystemSimulation* Sim);
-	explicit FNiagaraCrashReporterScope(UNiagaraSystem* System);
+	explicit FNiagaraCrashReporterScope(const FNiagaraSystemInstance* Inst);
+	explicit FNiagaraCrashReporterScope(const FNiagaraSystemSimulation* Sim);
+	explicit FNiagaraCrashReporterScope(const UNiagaraSystem* System);
 	~FNiagaraCrashReporterScope();
 };
 
@@ -33,9 +33,9 @@ public:
 class FNiagaraCrashReporterScope
 {
 public:
-	explicit FNiagaraCrashReporterScope(FNiagaraSystemInstance* Inst) {}
-	explicit FNiagaraCrashReporterScope(FNiagaraSystemSimulation* Sim) {}
-	explicit FNiagaraCrashReporterScope(UNiagaraSystem* System) {}
+	explicit FNiagaraCrashReporterScope(const FNiagaraSystemInstance* Inst) {}
+	explicit FNiagaraCrashReporterScope(const FNiagaraSystemSimulation* Sim) {}
+	explicit FNiagaraCrashReporterScope(const UNiagaraSystem* System) {}
 	~FNiagaraCrashReporterScope() {}
 };
 

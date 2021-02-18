@@ -12,7 +12,8 @@ enum class EWeightMapTargetCommon : uint8
 	MaxDistance,         // The distance that each vertex can move away from its reference (skinned) position
 	BackstopDistance,    // Distance along the plane of the surface that the particles can travel (separation constraint)
 	BackstopRadius,      // Radius of movement to allow for backstop movement
-	AnimDriveMultiplier  // Strength of anim drive per-particle (spring driving particle back to skinned location
+	AnimDriveStiffness,  // Strength of anim drive per-particle (spring driving particle back to skinned location
+	AnimDriveDamping     // Damping of anim drive springs
 };
 
 /** 

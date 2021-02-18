@@ -341,6 +341,7 @@ void SNiagaraParameterNameTextBlock::Construct(const FArguments& InArgs)
 	[
 		SAssignNew(ParameterName, SNiagaraParameterName)
 		.EditableTextStyle(InArgs._EditableTextStyle)
+		.ReadOnlyTextStyle(InArgs._ReadOnlyTextStyle)
 		.ParameterName(this, &SNiagaraParameterNameTextBlock::GetParameterName)
 		.IsReadOnly(InArgs._IsReadOnly)
 		.HighlightText(InArgs._HighlightText)

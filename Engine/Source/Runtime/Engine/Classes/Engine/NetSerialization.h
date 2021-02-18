@@ -325,8 +325,6 @@ public:
 
 	FNetFastTArrayBaseState()
 		: ArrayReplicationKey(INDEX_NONE)
-		, ChangelistHistory(0)
-		, LastAckedHistory(0)
 	{}
 
 	virtual bool IsStateEqual(INetDeltaBaseState* OtherState)
@@ -347,10 +345,6 @@ public:
 	TMap<int32, int32> IDToCLMap;
 
 	int32 ArrayReplicationKey;
-
-	uint32 ChangelistHistory;
-
-	uint32 LastAckedHistory;
 };
 
 
@@ -1640,8 +1634,8 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 		{
 			OldItemMap = &((FNetFastTArrayBaseState*)Parms.OldState)->IDToCLMap;
 			BaseReplicationKey = ((FNetFastTArrayBaseState*)Parms.OldState)->ArrayReplicationKey;
-			OldChangelistHistory = ((FNetFastTArrayBaseState*)Parms.OldState)->ChangelistHistory;
-			OldLastAckedHistory = ((FNetFastTArrayBaseState*)Parms.OldState)->LastAckedHistory;
+			OldChangelistHistory = Parms.OldState->GetChangelistHistory();
+			OldLastAckedHistory = Parms.OldState->GetLastAckedHistory();
 
 			if (!Helper.ConditionalCreateNewDeltaState(*OldItemMap, BaseReplicationKey))
 			{
@@ -1681,8 +1675,8 @@ bool FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs(TArray<
 		Header.NumChanged = ChangedElements.Num();
 		Helper.WriteDeltaHeader(Header);
 
-		NewState->ChangelistHistory = OldChangelistHistory;
-		NewState->LastAckedHistory = OldLastAckedHistory;
+		NewState->SetChangelistHistory(OldChangelistHistory);
+		NewState->SetLastAckedHistory(OldLastAckedHistory);
 
 		DeltaSerializeParams.WriteChangedElements = &ChangedElements;
 		DeltaSerializeParams.WriteBaseState = NewState;

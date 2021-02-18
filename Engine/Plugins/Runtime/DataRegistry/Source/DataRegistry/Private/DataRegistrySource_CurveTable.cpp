@@ -329,31 +329,23 @@ bool UMetaDataRegistrySource_CurveTable::SetDataForChild(FName SourceId, UDataRe
 	return false;
 }
 
-bool UMetaDataRegistrySource_CurveTable::DoesAssetPassFilter(const FAssetData& AssetData, bool bRegisteredAsset)
+bool UMetaDataRegistrySource_CurveTable::DoesAssetPassFilter(const FAssetData& AssetData, bool bNewRegisteredAsset)
 {
+	const UDataRegistrySettings* Settings = GetDefault<UDataRegistrySettings>();
 	
-	// Call into parent to check search rules if needed
-	if (bRegisteredAsset)
+	// Call into parent to check search rules if needed	
+	if (bNewRegisteredAsset)
 	{
-		bool bPassesFilter = UAssetManager::Get().DoesAssetMatchSearchRules(AssetData, SearchRules);
-		if (!bPassesFilter)
+		FAssetManagerSearchRules ModifiedRules = SearchRules;
+
+		if (Settings->CanIgnoreMissingAssetData())
 		{
-#if !WITH_EDITORONLY_DATA
-			const UDataRegistrySettings* Settings = GetDefault<UDataRegistrySettings>();
-			if (Settings->bIgnoreMissingCookedAssetRegistryData)
-			{
-				// Drop the class check, only do basic path validation
-				FAssetManagerSearchRules ModifiedRules = SearchRules;
-				ModifiedRules.AssetBaseClass = nullptr;
+			// Drop the class check, only do basic path validation
+			ModifiedRules.AssetBaseClass = nullptr;
+		}
 
-				bPassesFilter = UAssetManager::Get().DoesAssetMatchSearchRules(AssetData, ModifiedRules);
-				if (bPassesFilter)
-				{
-					return true;
-				}
-			}
-#endif
-
+		if (!UAssetManager::Get().DoesAssetMatchSearchRules(AssetData, ModifiedRules))
+		{
 			return false;
 		}
 	}

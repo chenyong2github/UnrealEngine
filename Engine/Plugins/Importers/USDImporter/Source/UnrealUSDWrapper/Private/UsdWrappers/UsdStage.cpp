@@ -5,6 +5,7 @@
 #include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/VtValue.h"
 
 #include "USDMemory.h"
 
@@ -207,6 +208,42 @@ namespace UE
 		}
 #else
 		return FSdfLayer();
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdStage::GetMetadata( const TCHAR* Key, UE::FVtValue& Value ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdStageRefPtr.Get()->GetMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) }, &Value.GetUsdValue() );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdStage::HasMetadata( const TCHAR* Key ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdStageRefPtr.Get()->HasMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) } );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdStage::SetMetadata( const TCHAR* Key, const UE::FVtValue& Value ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdStageRefPtr.Get()->SetMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) }, Value.GetUsdValue() );
+#else
+		return false;
+#endif // #if USE_USD_SDK
+	}
+
+	bool FUsdStage::ClearMetadata( const TCHAR* Key ) const
+	{
+#if USE_USD_SDK
+		return Impl->PxrUsdStageRefPtr.Get()->ClearMetadata( pxr::TfToken{ TCHAR_TO_ANSI( Key ) } );
+#else
+		return false;
 #endif // #if USE_USD_SDK
 	}
 

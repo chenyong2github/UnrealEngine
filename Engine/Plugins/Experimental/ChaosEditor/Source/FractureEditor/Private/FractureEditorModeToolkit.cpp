@@ -1139,7 +1139,7 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 
 		if (ensureMsgf(GeometryIndex > INDEX_NONE, TEXT("Leaf node %d expected to map to geometry but did not."), TransformIndex))
 		{
-			TUniquePtr<Chaos::TTriangleMesh<float>> TriMesh(
+			TUniquePtr<Chaos::FTriangleMesh> TriMesh(
 				CreateTriangleMesh(
 					FaceStart[GeometryIndex],
 					FaceCount[GeometryIndex],
@@ -1148,7 +1148,7 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 					true));
 
 			float Volume = 0.0;
-			Chaos::TVector<Chaos::FReal, 3> CenterOfMass;
+			Chaos::FVec3 CenterOfMass;
 			Chaos::CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh->GetElements(), Volume, CenterOfMass);
 
 			// Since we're only interested in relative mass, we assume density = 1.0

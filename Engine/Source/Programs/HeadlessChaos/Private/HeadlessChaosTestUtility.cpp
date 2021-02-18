@@ -532,7 +532,7 @@ namespace ChaosTest {
 	}
 
 	/**/
-	TLevelSet<FReal, 3> ConstructLevelset(TParticles<FReal, 3> & SurfaceParticles, TArray<TVec3<int32>> & Elements)
+	TLevelSet<FReal, 3> ConstructLevelset(FParticles & SurfaceParticles, TArray<TVec3<int32>> & Elements)
 	{
 		// build Particles and bounds
 		Chaos::FAABB3 BoundingBox(FVec3(0), FVec3(0));

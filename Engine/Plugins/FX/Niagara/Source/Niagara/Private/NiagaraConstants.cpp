@@ -54,6 +54,7 @@ const FName FNiagaraConstants::ScriptTransientScopeName(TEXT("ScriptTransient"))
 const FName FNiagaraConstants::ScriptPersistentScopeName(TEXT("ScriptPersistent"));
 
 const int32 FNiagaraConstants::MaxParameterLength(256);
+const int32 FNiagaraConstants::MaxScriptNameLength(256);
 
 void FNiagaraConstants::Init()
 {
@@ -252,6 +253,7 @@ void FNiagaraConstants::Init()
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONTWIST);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONFACING);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER);
+		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE);
@@ -295,6 +297,7 @@ void FNiagaraConstants::Init()
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONTWIST));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONFACING));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONLINKORDER));
+		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, GetAttributeAsParticleDataSetKey(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE));
@@ -462,6 +465,11 @@ void FNiagaraConstants::Init()
 		Var.SetValue<float>(0.0f);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, Var);
 
+		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART, TEXT("0"));
+		Var = SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART;
+		Var.SetValue<float>(0.0f);
+		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART, Var);
+
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, TEXT("0"));
 		Var = SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE;
 		Var.SetValue<float>(0.0f);
@@ -519,6 +527,7 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, LOCTEXT("RibbonTwistDesc", "Sets the ribbon twist for a particle, in degrees."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, LOCTEXT("RibbonFacingDesc", "Sets the facing vector of the ribbon at the particle position, or the side vector the ribbon's width is extended along, depending on the selected facing mode."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, LOCTEXT("RibbonLinkOrderDesc", "Explicit order for linking particles within a ribbon. Particles of the same ribbon id will be connected into a ribbon in incrementing order of this attribute value."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART, LOCTEXT("RibbonDistanceFromStartDesc", "Distance along the ribbon this particle is from the start of the ribbon."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE, LOCTEXT("RibbonU0OverrideDesc", "Overrides the U component of the UV0 texture coordinate of a ribbon particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE, LOCTEXT("RibbonV0RangeOverrideDesc", "Overrives the V range across the width of a ribbon for the UV0 texture coordinate of a particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE, LOCTEXT("RibbonU1OverrideDesc", "Overrides the U component of the UV1 texture coordinate of a ribbon particle."));

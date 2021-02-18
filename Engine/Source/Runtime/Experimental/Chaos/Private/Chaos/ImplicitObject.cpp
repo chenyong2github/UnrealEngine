@@ -98,10 +98,10 @@ FVec3 FImplicitObject::Normal(const FVec3& x) const
 	return Normal;
 }
 
-const TAABB<FReal, 3> FImplicitObject::BoundingBox() const
+const FAABB3 FImplicitObject::BoundingBox() const
 {
 	check(false);
-	static const TAABB<FReal, 3> Unbounded(FVec3(-FLT_MAX), FVec3(FLT_MAX));
+	static const FAABB3 Unbounded(FVec3(-FLT_MAX), FVec3(FLT_MAX));
 	return Unbounded;
 }
 
@@ -118,7 +118,7 @@ Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject
 	FReal Phi = Thickness;
 	if (HasBoundingBox())
 	{
-		TAABB<FReal, 3> ImplicitBox = BoundingBox().TransformedAABB(OtherToLocalTransform.Inverse());
+		FAABB3 ImplicitBox = BoundingBox().TransformedAABB(OtherToLocalTransform.Inverse());
 		ImplicitBox.Thicken(Thickness);
 		TArray<int32> PotentialParticles = Particles->FindAllIntersections(ImplicitBox);
 		for (int32 i : PotentialParticles)
@@ -134,12 +134,12 @@ Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject
 	}
 	else
 	{
-		return FindDeepestIntersection(Other, static_cast<const TParticles<FReal, 3>*>(Particles), OtherToLocalTransform, Thickness);
+		return FindDeepestIntersection(Other, static_cast<const FParticles*>(Particles), OtherToLocalTransform, Thickness);
 	}
 	return MakePair(Point, Phi < Thickness);
 }
 
-Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject* Other, const TParticles<FReal, 3>* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const
+Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject* Other, const FParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const
 {
 	// Do analytics
 	// @todo(mlentine): Should we do a convex pass here?
@@ -274,7 +274,7 @@ Pair<FVec3, bool> FImplicitObject::FindClosestIntersectionImp(const FVec3& Start
 	return MakePair(ClosestPoint, true);
 }
 
-void FImplicitObject::FindAllIntersectingObjects(TArray<Pair<const FImplicitObject*, FRigidTransform3>>& Out, const TAABB<FReal, 3>& LocalBounds) const
+void FImplicitObject::FindAllIntersectingObjects(TArray<Pair<const FImplicitObject*, FRigidTransform3>>& Out, const FAABB3& LocalBounds) const
 {
 	if (!HasBoundingBox() || LocalBounds.Intersects(BoundingBox()))
 	{

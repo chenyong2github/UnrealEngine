@@ -2633,7 +2633,9 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TRin
 		{
 			FDependsNode* DependsNode = State.CreateOrFindDependsNode(NewDependsIt.Key);
 
-			if (DependsNode != nullptr)
+			// Handle failure of CreateOrFindDependsNode
+			// And Skip dependencies to self 
+			if (DependsNode != nullptr && DependsNode != Node)
 			{
 				const FAssetIdentifier& Identifier = DependsNode->GetIdentifier();
 				if (DependsNode->GetConnectionCount() == 0 && Identifier.IsPackage())

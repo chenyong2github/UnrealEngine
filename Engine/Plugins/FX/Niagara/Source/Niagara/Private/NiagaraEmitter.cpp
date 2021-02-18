@@ -646,7 +646,7 @@ void UNiagaraEmitter::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 		}
 	}
 
-	OutTags.Add(FAssetRegistryTag("NumActiveRenderers", LexToString(NumActiveRenderers), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("ActiveRenderers", LexToString(NumActiveRenderers), FAssetRegistryTag::TT_Numerical));
 
 	// Gather up NumActive emitters based off of quality level.
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
@@ -667,7 +667,7 @@ void UNiagaraEmitter::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 
 		for (int32 i = 0; i < NumQualityLevels; i++)
 		{
-			FString QualityLevelKey = TEXT("Quality") + /*LexToString(i)*/ Settings->QualityLevels[i].ToString() + TEXT("NumActiveEmitters") ;
+			FString QualityLevelKey = Settings->QualityLevels[i].ToString() + TEXT("Emitters");
 			OutTags.Add(FAssetRegistryTag(*QualityLevelKey, LexToString(QualityLevelsNumActive[i]), FAssetRegistryTag::TT_Numerical));
 		}
 	}
@@ -723,11 +723,10 @@ void UNiagaraEmitter::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) c
 				PropDefault->GetAssetTagsForContext(this, DataInterfaces, NumericKeys, StringKeys);
 			}
 		}
-	
-		OutTags.Add(FAssetRegistryTag("NumActiveDataInterfaces", LexToString(DataInterfaces.Num()), FAssetRegistryTag::TT_Numerical));
+		OutTags.Add(FAssetRegistryTag("ActiveDIs", LexToString(DataInterfaces.Num()), FAssetRegistryTag::TT_Numerical));
 	}
 
-	
+
 	// Now propagate the custom numeric and string tags from the DataInterfaces and RendererProperties above
 	auto NumericIter = NumericKeys.CreateConstIterator();
 	while (NumericIter)

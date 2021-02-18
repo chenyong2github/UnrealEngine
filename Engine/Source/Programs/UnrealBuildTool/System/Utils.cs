@@ -1182,7 +1182,7 @@ namespace UnrealBuildTool
 				int ReturnCode = Utils.RunLocalProcessAndLogOutput(StartInfo);
 				if(ReturnCode != 0)
 				{
-					throw new BuildException("Custom build step terminated with exit code {0}", ReturnCode);
+					throw new BuildException("Custom build step {0} {1} terminated with exit code {2}", StartInfo.FileName, StartInfo.Arguments, ReturnCode);
 				}
 			}
 		}

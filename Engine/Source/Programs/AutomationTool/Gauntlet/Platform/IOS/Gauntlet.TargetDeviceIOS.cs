@@ -164,9 +164,9 @@ namespace Gauntlet
 			return Platform == UnrealTargetPlatform.IOS;
 		}
 
-		public ITargetDevice CreateDevice(string InRef, string InParam)
+		public ITargetDevice CreateDevice(string InRef, string InCachePath, string InParam)
 		{
-			return new TargetDeviceIOS(InRef);
+			return new TargetDeviceIOS(InRef, InCachePath);
 		}
 	}
 
@@ -184,7 +184,7 @@ namespace Gauntlet
 		
 		protected Dictionary<EIntendedBaseCopyDirectory, string> LocalDirectoryMappings { get; set; }
 
-		public TargetDeviceIOS(string InName)
+		public TargetDeviceIOS(string InName, string InCachePath = null)
 		{
 			KillZombies();
 
@@ -217,13 +217,7 @@ namespace Gauntlet
 			}
 
 			// setup local cache
-			LocalCachePath = Path.Combine(GauntletAppCache, "Device_" + Name);
-			if (Directory.Exists(LocalCachePath))
-			{
-				Directory.Delete(LocalCachePath, true);
-			}
-
-			Directory.CreateDirectory(LocalCachePath);
+			LocalCachePath = InCachePath ?? Path.Combine(GauntletAppCache, "Device_" + Name);
 		}
 
 		bool IsDefaultDevice = false;		

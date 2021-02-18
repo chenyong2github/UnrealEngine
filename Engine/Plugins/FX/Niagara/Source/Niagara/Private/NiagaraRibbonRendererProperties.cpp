@@ -18,6 +18,14 @@
 
 TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> UNiagaraRibbonRendererProperties::RibbonRendererPropertiesToDeferredInit;
 
+
+FNiagaraRibbonShapeCustomVertex::FNiagaraRibbonShapeCustomVertex()
+	: Position(0, 0)
+	, Normal(0, 0)
+	, TextureV(0)
+{
+}
+
 FNiagaraRibbonUVSettings::FNiagaraRibbonUVSettings()
 	: LeadingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
 	, TrailingEdgeMode(ENiagaraRibbonUVEdgeMode::Locked)
@@ -55,7 +63,7 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	FNiagaraTypeDefinition MaterialDef(UMaterialInterface::StaticClass());
 	MaterialUserParamBinding.Parameter.SetType(MaterialDef);
 
-	AttributeBindings.Reserve(18);
+	AttributeBindings.Reserve(19);
 	AttributeBindings.Add(&PositionBinding);
 	AttributeBindings.Add(&ColorBinding);
 	AttributeBindings.Add(&VelocityBinding);
@@ -70,6 +78,7 @@ UNiagaraRibbonRendererProperties::UNiagaraRibbonRendererProperties()
 	AttributeBindings.Add(&DynamicMaterial1Binding);
 	AttributeBindings.Add(&DynamicMaterial2Binding);
 	AttributeBindings.Add(&DynamicMaterial3Binding);
+	AttributeBindings.Add(&RibbonDistanceFromStartBinding);
 	AttributeBindings.Add(&U0OverrideBinding);
 	AttributeBindings.Add(&V0RangeOverrideBinding);
 	AttributeBindings.Add(&U1OverrideBinding);
@@ -198,6 +207,7 @@ void UNiagaraRibbonRendererProperties::InitBindings()
 		RibbonIdBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONID);
 		RibbonLinkOrderBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONLINKORDER);
 		MaterialRandomBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_MATERIAL_RANDOM);
+		RibbonDistanceFromStartBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART);
 		U0OverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE);
 		V0RangeOverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE);
 		U1OverrideBinding = FNiagaraConstants::GetAttributeDefaultBinding(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE);
@@ -225,6 +235,10 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	MaterialParam1DataSetAccessor.Init(CompiledData, DynamicMaterial1Binding.GetDataSetBindableVariable().GetName());
 	MaterialParam2DataSetAccessor.Init(CompiledData, DynamicMaterial2Binding.GetDataSetBindableVariable().GetName());
 	MaterialParam3DataSetAccessor.Init(CompiledData, DynamicMaterial3Binding.GetDataSetBindableVariable().GetName());
+
+	FNiagaraDataSetAccessor<float> RibbonDistanceFromStartAccessor;
+	RibbonDistanceFromStartAccessor.Init(CompiledData, RibbonDistanceFromStartBinding.GetDataSetBindableVariable().GetName());
+	DistanceFromStartIsBound = RibbonDistanceFromStartAccessor.IsValid();
 
 	FNiagaraDataSetAccessor<float> U0OverrideDataSetAccessor;
 	U0OverrideDataSetAccessor.Init(CompiledData, U0OverrideBinding.GetDataSetBindableVariable().GetName());
@@ -257,6 +271,7 @@ void UNiagaraRibbonRendererProperties::CacheFromCompiledData(const FNiagaraDataS
 	}
 	RendererLayout.SetVariableFromBinding(CompiledData, NormalizedAgeBinding, ENiagaraRibbonVFLayout::NormalizedAge);
 	RendererLayout.SetVariableFromBinding(CompiledData, MaterialRandomBinding, ENiagaraRibbonVFLayout::MaterialRandom);
+	RendererLayout.SetVariableFromBinding(CompiledData, RibbonDistanceFromStartBinding, ENiagaraRibbonVFLayout::DistanceFromStart);
 	RendererLayout.SetVariableFromBinding(CompiledData, U0OverrideBinding, ENiagaraRibbonVFLayout::U0Override);
 	RendererLayout.SetVariableFromBinding(CompiledData, V0RangeOverrideBinding, ENiagaraRibbonVFLayout::V0RangeOverride);
 	RendererLayout.SetVariableFromBinding(CompiledData, U1OverrideBinding, ENiagaraRibbonVFLayout::U1Override);
@@ -296,6 +311,7 @@ const TArray<FNiagaraVariable>& UNiagaraRibbonRendererProperties::GetOptionalAtt
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH);
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONFACING);
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER);
+		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONDISTANCEFROMSTART);
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE);
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE);
 		Attrs.Add(SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE);

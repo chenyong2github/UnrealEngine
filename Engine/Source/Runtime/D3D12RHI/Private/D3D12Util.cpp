@@ -15,6 +15,13 @@ D3D12Util.h: D3D RHI utility implementation.
 #define D3DERR(x) case x: ErrorCodeText = TEXT(#x); break;
 #define LOCTEXT_NAMESPACE "Developer.MessageLog"
 
+// GPU crashes are nonfatal on windows/nonshipping so as not to interfere with GPU crash dump processing
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || !UE_BUILD_SHIPPING
+  #define D3D12RHI_GPU_CRASH_LOG_VERBOSITY Error
+#else
+  #define D3D12RHI_GPU_CRASH_LOG_VERBOSITY Fatal
+#endif
+
 extern bool D3D12RHI_ShouldCreateWithD3DDebug();
 
 static FString GetUniqueName()
@@ -506,6 +513,7 @@ extern CORE_API bool GIsGPUCrashed;
 
 static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 {
+#if PLATFORM_WINDOWS
 	if (bCreatingTextures)
 	{
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("OutOfVideoMemoryTextures", "Out of video memory trying to allocate a texture! Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
@@ -518,6 +526,9 @@ static void TerminateOnOutOfMemory(HRESULT D3DResult, bool bCreatingTextures)
 	GetRendererModule().DebugLogOnCrash();
 #endif
 	FPlatformMisc::RequestExit(true);
+#else // PLATFORM_WINDOWS
+	UE_LOG(LogInit, Fatal, TEXT("Out of video memory trying to allocate a rendering resource"));
+#endif // !PLATFORM_WINDOWS
 }
 
 namespace D3D12RHI
@@ -592,7 +603,7 @@ namespace D3D12RHI
 		else
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		{
-			UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *ErrorMessage.ToText().ToString());
+			UE_LOG(LogD3D12RHI, D3D12RHI_GPU_CRASH_LOG_VERBOSITY, TEXT("%s"), *ErrorMessage.ToText().ToString());
 		}
 
 #if PLATFORM_WINDOWS

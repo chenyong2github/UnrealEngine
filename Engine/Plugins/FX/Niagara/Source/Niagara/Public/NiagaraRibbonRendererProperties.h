@@ -64,6 +64,8 @@ struct FNiagaraRibbonShapeCustomVertex
 {
 	GENERATED_BODY();
 
+	FNiagaraRibbonShapeCustomVertex();
+
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	FVector2D Position;
 
@@ -106,8 +108,10 @@ enum class ENiagaraRibbonUVDistributionMode
 	ScaledUniformly,
 	/** Ribbon UVs will be scaled to the 0-1 range and will be distributed along the ribbon segments based on their length, i.e. short segments get less UV range and large segments get more. */
 	ScaledUsingRibbonSegmentLength,
-	/** Ribbon UVs will be tiled along the length of the ribbon based on segment length and the Tile Over Length Scale value. NOTE: This is not equivalent to distance tiling which tiles over owner distance traveled, this requires per particle U override values and can be setup with modules. */
-	TiledOverRibbonLength
+	/** Ribbon UVs will be tiled along the length of the ribbon based on segment length and the Tile Over Length Scale value. */
+	TiledOverRibbonLength,
+	/** Ribbon UVs will be tiled along the length of the ribbon based on DistanceFromStart parameter and the Tile Over Length Scale value, but tiles from the first particle in the ribbon. NOTE: Dependent on Particle Attribute RibbonDistanceFromStart */
+	TiledFromStartOverRibbonLength
 };
 
 /** Defines settings for UV behavior for a UV channel on ribbons. */
@@ -167,6 +171,7 @@ namespace ENiagaraRibbonVFLayout
 		MaterialParam1,
 		MaterialParam2,
 		MaterialParam3,
+		DistanceFromStart,
 		U0Override,
 		V0RangeOverride,
 		U1Override,
@@ -369,6 +374,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding DynamicMaterial3Binding;
 
+	/** Which attribute should we use for ribbon distance traveled for use in UV operations when generating ribbons?*/
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	FNiagaraVariableAttributeBinding RibbonDistanceFromStartBinding;
+
 	/** Which attribute should we use for UV0 U when generating ribbons?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding U0OverrideBinding;
@@ -395,6 +404,7 @@ public:
 	FNiagaraDataSetAccessor<FVector4>	MaterialParam1DataSetAccessor;
 	FNiagaraDataSetAccessor<FVector4>	MaterialParam2DataSetAccessor;
 	FNiagaraDataSetAccessor<FVector4>	MaterialParam3DataSetAccessor;
+	bool								DistanceFromStartIsBound;
 	bool								U0OverrideIsBound;
 	bool								U1OverrideIsBound;
 

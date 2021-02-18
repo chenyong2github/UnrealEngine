@@ -10,50 +10,43 @@
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 namespace Chaos
 {
-	template<class T>
-	class TTriangleMesh;
+	class FTriangleMesh;
 
 	template<class T, int d>
 	class TParticles;
+	using FParticles = TParticles<FReal, 3>;
 
-	template<class T, int d>
-	struct TMassProperties
+	struct CHAOS_API FMassProperties
 	{
-		TMassProperties()
+		FMassProperties()
 		    : Mass(0)
 			, Volume(0)
 		    , CenterOfMass(0)
-		    , RotationOfMass(TRotation<T, d>::FromElements(TVector<T, d>(0), 1))
+		    , RotationOfMass(FRotation3::FromElements(FVec3(0), 1))
 		    , InertiaTensor(0)
 		{}
-		T Mass;
-		T Volume;
-		TVector<T, d> CenterOfMass;
-		TRotation<T, d> RotationOfMass;
-		PMatrix<T, d, d> InertiaTensor;
+		FReal Mass;
+		FReal Volume;
+		FVec3 CenterOfMass;
+		FRotation3 RotationOfMass;
+		FMatrix33 InertiaTensor;
 	};
 
-	template<class T, int d>
-	TRotation<T, d> TransformToLocalSpace(PMatrix<T, d, d>& Inertia);
+	FRotation3 CHAOS_API TransformToLocalSpace(FMatrix33& Inertia);
 
-	template<typename T, int d, typename TSurfaces>
-	void CalculateVolumeAndCenterOfMass(const TParticles<T, d>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVector<T, d>& OutCenterOfMass);
+	template<typename TSurfaces>
+	void CHAOS_API CalculateVolumeAndCenterOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, FReal& OutVolume, FVec3& OutCenterOfMass);
 
-	template<class T, int d, typename TSurfaces>
-	TMassProperties<T, d> CalculateMassProperties(
-	    const TParticles<T, d>& Vertices,
-		const TSurfaces& Surfaces,
-	    const T Mass);
+	template<typename TSurfaces>
+	FMassProperties CHAOS_API CalculateMassProperties(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Mass);
 
-	template<typename T, int d, typename TSurfaces>
-	void CalculateInertiaAndRotationOfMass(const TParticles<T, d>& Vertices, const TSurfaces& Surfaces, const T Density, const TVector<T, d>& CenterOfMass,
-	    PMatrix<T, d, d>& OutInertiaTensor, TRotation<T, d>& OutRotationOfMass);
+	template<typename TSurfaces>
+	void CHAOS_API CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
+	    FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 
-	template<class T, int d>
-	TMassProperties<T, d> Combine(const TArray<TMassProperties<T, d>>& MPArray);
+	FMassProperties CHAOS_API Combine(const TArray<FMassProperties>& MPArray);
 
-	template<class T, int d>
-	TMassProperties<T, d> CombineWorldSpace(const TArray<TMassProperties<T, d>>& MPArray, float InDensityKGPerCM);
+	FMassProperties CHAOS_API CombineWorldSpace(const TArray<FMassProperties>& MPArray, FReal InDensityKGPerCM);
 
 }
 #endif

@@ -30,7 +30,7 @@ public:
 
 	const TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; };
 
-	void FocusGraphElement(const INiagaraScriptGraphFocusInfo* FocusInfo);
+	NIAGARAEDITOR_API void FocusGraphElement(const INiagaraScriptGraphFocusInfo* FocusInfo);
 
 	void FocusGraphSearchBox();
 

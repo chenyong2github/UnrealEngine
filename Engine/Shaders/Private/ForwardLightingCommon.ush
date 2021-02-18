@@ -17,6 +17,12 @@
 #define DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW 0
 #endif
 
+#if USE_HAIR_COMPLEX_TRANSMITTANCE
+#include "HairStrands/HairStrandsCommon.ush"
+#include "HairStrands/HairStrandsDeepTransmittanceCommon.ush"
+#include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
+#endif
+
 float PrevSceneColorPreExposureInv;
 
 void UpdateNearestSample(float Z, float2 UV, float FullResZ, inout float MinDist, inout float2 NearestUV)
@@ -138,6 +144,12 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
 		LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask);
 		LightData.HairTransmittance = InitHairTransmittanceData();
+		#if USE_HAIR_COMPLEX_TRANSMITTANCE
+		if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
+		{
+			LightData.HairTransmittance = EvaluateDualScattering(GBufferData, -CameraVector, LightData.Direction);
+		}
+		#endif
 		// We want to force the directional light shadow when using water material to see shadow on the water. This could be an option later.
 		#if DISABLE_FORWARD_DIRECTIONAL_LIGHT_SHADOW
 			float4 LightAttenuation = float4(1, 1, 1, 1);
@@ -205,6 +217,12 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
 		LightData.SpecularScale = SpecularScale;
 		LightData.HairTransmittance = InitHairTransmittanceData();
+		#if USE_HAIR_COMPLEX_TRANSMITTANCE
+		if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
+		{
+			LightData.HairTransmittance = EvaluateDualScattering(GBufferData, -CameraVector, LightData.Direction);
+		}
+		#endif
 
 		// LightType=bits[17:16], LightingChannelMask=[15:8], DynShadowMask=[7:4] ShadowMapChannelMask=[3:0]
 		uint LightTypeAndPackedShadowMapChannelMask = asuint(LocalLight.LightDirectionAndShadowMask.w);

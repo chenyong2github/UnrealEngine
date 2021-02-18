@@ -308,13 +308,13 @@ static TRefCountPtr<FRHITexture2D> FindStereoDepthTexture(FIntPoint TextureExten
 	return nullptr;
 }
 
-static TRefCountPtr<FRHITexture2D> FindFoveationTexture(FIntPoint TextureExtentRequest)
+static TRefCountPtr<FRHITexture2D> FindShadingRateTexture(FIntPoint TextureExtentRequest)
 {
 	if (IStereoRenderTargetManager* StereoRenderTargetManager = FindStereoRenderTargetManager())
 	{
 		FTexture2DRHIRef Texture;
 		FIntPoint TextureExtentActual;
-		StereoRenderTargetManager->AllocateFoveationTexture(0, TextureExtentRequest.X, TextureExtentRequest.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureExtentActual);
+		StereoRenderTargetManager->AllocateShadingRateTexture(0, TextureExtentRequest.X, TextureExtentRequest.Y, PF_R8G8, 0, TexCreate_None, TexCreate_None, Texture, TextureExtentActual);
 		return MoveTemp(Texture);
 	}
 	return nullptr;
@@ -744,9 +744,9 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 {
 	FSceneTextures& SceneTextures = FMinimalSceneTextures::Create(GraphBuilder, Config);
 
-	if (FTexture2DRHIRef FoveationRHI = FindFoveationTexture(Config.Extent))
+	if (FTexture2DRHIRef ShadingRateRHI = FindShadingRateTexture(Config.Extent))
 	{
-		SceneTextures.Foveation = RegisterExternalTexture(GraphBuilder, FoveationRHI, TEXT("FixedFoveation"));
+		SceneTextures.ShadingRate = RegisterExternalTexture(GraphBuilder, ShadingRateRHI, TEXT("ShadingRate"));
 	}
 
 	if (Config.ShadingPath == EShadingPath::Deferred)

@@ -1716,7 +1716,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWriterSettings& GeneralIoWriterSettings)
 {
-	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
+	UE_LOG(LogIoStore, Display, TEXT("Building patch..."));
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
 	FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
 	check(IoStatus.IsOk());
@@ -1773,7 +1773,20 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 				return true;
 			});
 		}
-		TargetReader->EnumerateChunks([&TargetReader, &SourceHashByChunkId, &IoStoreWriter](const FIoStoreTocChunkInfo& ChunkInfo)
+
+		TMap<FIoChunkId, FString> ChunkFileNamesMap;
+		TargetReader->GetDirectoryIndexReader().IterateDirectoryIndex(FIoDirectoryIndexHandle::RootDirectory(), TEXT(""),
+		[&ChunkFileNamesMap, &TargetReader](FString Filename, uint32 TocEntryIndex) -> bool
+		{
+			TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = TargetReader->GetChunkInfo(TocEntryIndex);
+			if (ChunkInfo.IsOk())
+			{
+				ChunkFileNamesMap.Add(ChunkInfo.ValueOrDie().Id, Filename);
+			}
+			return true;
+		});
+
+		TargetReader->EnumerateChunks([&TargetReader, &SourceHashByChunkId, &IoStoreWriter, &ChunkFileNamesMap](const FIoStoreTocChunkInfo& ChunkInfo)
 		{
 			FIoChunkHash* FindSourceHash = SourceHashByChunkId.Find(ChunkInfo.Id);
 			if (!FindSourceHash || *FindSourceHash != ChunkInfo.Hash)
@@ -1781,6 +1794,19 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 				FIoReadOptions ReadOptions;
 				TIoStatusOr<FIoBuffer> ChunkBuffer = TargetReader->Read(ChunkInfo.Id, ReadOptions);
 				FIoWriteOptions WriteOptions;
+				FString* FindFileName = ChunkFileNamesMap.Find(ChunkInfo.Id);
+				if (FindFileName)
+				{
+					WriteOptions.FileName = *FindFileName;
+					if (FindSourceHash)
+					{
+						UE_LOG(LogIoStore, Display, TEXT("Modified: %s"), **FindFileName);
+					}
+					else
+					{
+						UE_LOG(LogIoStore, Display, TEXT("Added: %s"), **FindFileName);
+					}
+				}
 				WriteOptions.bIsMemoryMapped = ChunkInfo.bIsMemoryMapped;
 				WriteOptions.bForceUncompressed = ChunkInfo.bForceUncompressed; 
 				IoStoreWriter.Append(ChunkInfo.Id, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
@@ -1865,8 +1891,7 @@ int32 ListContainer(
 	}
 
 	TArray<FString> CsvLines;
-	TArray<TPair<uint32, FString>> ContainerCsvLines;
-
+	
 	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, CompressedSize, Hash"));
 
 	for (const FString& ContainerFilePath : ContainerFilePaths)
@@ -1880,73 +1905,53 @@ int32 ListContainer(
 
 		if (!EnumHasAnyFlags(Reader->GetContainerFlags(), EIoContainerFlags::Indexed))
 		{
-			UE_LOG(LogIoStore, Warning, TEXT("Cannot list container '%s' due to missing directory index"), *ContainerFilePath);
-			continue;
+			UE_LOG(LogIoStore, Warning, TEXT("Missing directory index for container '%s'"), *ContainerFilePath);
 		}
 
 		UE_LOG(LogIoStore, Display, TEXT("Listing container '%s'"), *ContainerFilePath);
 
-		ContainerCsvLines.Reset();
-
 		FString ContainerName = FPaths::GetBaseFilename(ContainerFilePath);
 		const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
-
+		TMap<FIoChunkId, FString> ChunkFileNamesMap;
 		IterateDirectoryIndex(
 			FIoDirectoryIndexHandle::RootDirectory(),
 			TEXT(""),
 			IndexReader,
-			[&ContainerCsvLines, &Reader, &ContainerName ](FString Filename, uint32 TocEntryIndex) -> bool
+			[&ChunkFileNamesMap, &Reader](FString Filename, uint32 TocEntryIndex) -> bool
 		{
 			TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = Reader->GetChunkInfo(TocEntryIndex);
+			if (ChunkInfo.IsOk())
+			{
+				ChunkFileNamesMap.Add(ChunkInfo.ValueOrDie().Id, Filename);
+			}
+			return true;
+		});
 
+		Reader->EnumerateChunks([&CsvLines, &ChunkFileNamesMap, &ContainerName](const FIoStoreTocChunkInfo& ChunkInfo)
+		{
 			FString PackageName;
-			FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName, nullptr);
-
+			FString* FindFileName = ChunkFileNamesMap.Find(ChunkInfo.Id);
+			if (FindFileName)
+			{
+				FPackageName::TryConvertFilenameToLongPackageName(*FindFileName, PackageName, nullptr);
+			}
 			FPackageId PackageId = PackageName.Len() > 0
 				? FPackageId::FromName(FName(*PackageName))
 				: FPackageId();
 
-			if (ChunkInfo.IsOk())
-			{
-				ContainerCsvLines.Emplace(TPair<uint32, FString>(
-					TocEntryIndex,
-					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, 0x%s"),
+			CsvLines.Emplace(
+				FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, 0x%s"),
 					PackageId.ValueForDebugging(),
 					*PackageName,
-					*Filename,
+					FindFileName ? **FindFileName : TEXT(""),
 					*ContainerName,
-					ChunkInfo.ValueOrDie().Offset,
-					ChunkInfo.ValueOrDie().Size,
-					ChunkInfo.ValueOrDie().CompressedSize,
-					*ChunkInfo.ValueOrDie().Hash.ToString())));
-			}
-			else
-			{
-				ContainerCsvLines.Emplace(TPair<uint32, FString>(
-					TocEntryIndex,
-					FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %lld, %s"),
-					PackageId.ValueForDebugging(),
-					*PackageName,
-					*Filename,
-					*ContainerName,
-					0,
-					0,
-					0,
-					TEXT("<NotFound>"))));
-			}
+					ChunkInfo.Offset,
+					ChunkInfo.Size,
+					ChunkInfo.CompressedSize,
+					*ChunkInfo.Hash.ToString()));
 
 			return true;
 		});
-
-		Algo::Sort(ContainerCsvLines, [](const TPair<uint32, FString>& LHS, const TPair<uint32, FString>& RHS)
-		{
-			return LHS.Get<0>() < RHS.Get<0>();
-		});
-
-		for (const TPair<uint32, FString>& CsvLine : ContainerCsvLines)
-		{
-			CsvLines.Emplace(CsvLine.Get<1>());
-		}
 	}
 
 	if (CsvLines.Num())

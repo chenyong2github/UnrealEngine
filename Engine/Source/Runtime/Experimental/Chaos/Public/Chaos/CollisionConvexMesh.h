@@ -43,7 +43,7 @@ namespace Chaos
 			FReal HorizonEpsilon;
 		};
 
-		static FReal SuggestEpsilon(const TArray<FVec3>& InVertices)
+		static CHAOS_API FReal SuggestEpsilon(const TArray<FVec3>& InVertices)
 		{
 			if (ComputeHorizonEpsilonFromMeshExtends == 0)
 			{
@@ -65,7 +65,7 @@ namespace Chaos
 
 			for (int32 Index = 0; Index < NumVertices; ++Index)
 			{
-				TVector<FReal, 3> PositionAbs = InVertices[Index].GetAbs();
+				FVec3 PositionAbs = InVertices[Index].GetAbs();
 
 				MaxAxes[0] = FMath::Max(MaxAxes[0], PositionAbs[0]);
 				MaxAxes[1] = FMath::Max(MaxAxes[1], PositionAbs[1]);
@@ -254,11 +254,11 @@ namespace Chaos
 
 	public:
 
-		static void Build(const TArray<FVec3>& InVertices, TArray <TPlaneConcrete<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3>& OutVertices, TAABB<FReal, 3>& OutLocalBounds)
+		static void Build(const TArray<FVec3>& InVertices, TArray <TPlaneConcrete<FReal, 3>>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3>& OutVertices, FAABB3& OutLocalBounds)
 		{
 			OutPlanes.Reset();
 			OutVertices.Reset();
-			OutLocalBounds = TAABB<FReal, 3>::EmptyAABB();
+			OutLocalBounds = FAABB3::EmptyAABB();
 
 			const int32 NumVerticesIn = InVertices.Num();
 			if(NumVerticesIn == 0)
@@ -309,7 +309,7 @@ namespace Chaos
 
 			const int32 NumVerticesToUse = VerticesToUse->Num();
 
-			OutLocalBounds = TAABB<FReal, 3>((*VerticesToUse)[0], (*VerticesToUse)[0]);
+			OutLocalBounds = FAABB3((*VerticesToUse)[0], (*VerticesToUse)[0]);
 			for (int32 VertexIndex = 0; VertexIndex < NumVerticesToUse; ++VertexIndex)
 			{
 				OutLocalBounds.GrowToInclude((*VerticesToUse)[VertexIndex]);
@@ -423,11 +423,11 @@ namespace Chaos
 			}
 		}
 
-		static TTriangleMesh<FReal> BuildConvexHullTriMesh(const TArray<FVec3>& InVertices)
+		static FTriangleMesh BuildConvexHullTriMesh(const TArray<FVec3>& InVertices)
 		{
 			TArray<TVec3<int32>> Indices;
 			BuildConvexHull(InVertices, Indices);
-			return TTriangleMesh<FReal>(MoveTemp(Indices));
+			return FTriangleMesh(MoveTemp(Indices));
 		}
 
 		static CHAOS_API bool IsPerformanceWarning(int32 NumPlanes, int32 NumVertices)
@@ -450,7 +450,7 @@ namespace Chaos
 			return FString::Printf(TEXT("Planes %d, Vertices %d"), NumPlanes, NumVertices);
 		}
 
-		static CHAOS_API void Simplify(TArray <TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TArray<FVec3>& InOutVertices, TAABB<FReal, 3>& InOutLocalBounds)
+		static CHAOS_API void Simplify(TArray <TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaces, TArray<FVec3>& InOutVertices, FAABB3& InOutLocalBounds)
 		{
 			struct TPair
 			{
@@ -644,7 +644,6 @@ namespace Chaos
 		static CHAOS_API int32 PerformGeometryCheck;
 		static CHAOS_API int32 PerformGeometryReduction;
 		static CHAOS_API int32 VerticesThreshold;
-		static CHAOS_API int32 ParticlesThreshold;
 		static CHAOS_API int32 ComputeHorizonEpsilonFromMeshExtends;
 
 	private:

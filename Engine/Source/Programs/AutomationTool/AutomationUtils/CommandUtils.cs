@@ -1729,15 +1729,26 @@ namespace AutomationTool
 		/// <param name="SourceAndTargetPairs">Pairs of source and target files</param>
 		public static void ParallelMoveFiles(IEnumerable<KeyValuePair<FileReference, FileReference>> SourceAndTargetPairs)
 		{
-            try
-            {
-                Parallel.ForEach(SourceAndTargetPairs, x => MoveFile(x.Key, x.Value));
-            }
-            catch (AggregateException Ex)
-            {
-                throw new AutomationException(Ex, "Failed to thread-copy files.");
-            }
+			ParallelMoveFiles(SourceAndTargetPairs, false);
         }
+
+		/// <summary>
+		/// Moves files in parallel
+		/// </summary>
+		/// <param
+		/// <param name="SourceAndTargetPairs">Pairs of source and target files</param>
+		/// <param name="Overwrite">Whether or not to overwrite target files if they already exist</param>
+		public static void ParallelMoveFiles(IEnumerable<KeyValuePair<FileReference, FileReference>> SourceAndTargetPairs, bool Overwrite)
+		{
+			try
+			{
+				Parallel.ForEach(SourceAndTargetPairs, x => MoveFile(x.Key, x.Value, Overwrite));
+			}
+			catch (AggregateException Ex)
+			{
+				throw new AutomationException(Ex, "Failed to thread-copy files.");
+			}
+		}
 
 		/// <summary>
 		/// Move a file from one place to another 
@@ -1745,12 +1756,21 @@ namespace AutomationTool
 		/// <param name="SourceAndTarget">Source and target file</param>
 		public static void MoveFile(FileReference SourceFile, FileReference TargetFile)
 		{
+			MoveFile(SourceFile, TargetFile, false);
+		}
+
+		/// <summary>
+		/// Move a file from one place to another 
+		/// </summary>
+		/// <param name="SourceAndTarget">Source and target file</param>
+		public static void MoveFile(FileReference SourceFile, FileReference TargetFile, bool Overwrite)
+		{
 			// Create the directory for the target file
 			try
 			{
 				Directory.CreateDirectory(TargetFile.Directory.FullName);
 			}
-			catch(Exception Ex)
+			catch (Exception Ex)
 			{
 				throw new AutomationException(Ex, "Unable to create directory {0} while moving {1} to {2}", TargetFile.Directory, SourceFile, TargetFile);
 			}
@@ -1758,9 +1778,13 @@ namespace AutomationTool
 			// Move the file
 			try
 			{
+				if (Overwrite && FileReference.Exists(TargetFile))
+				{
+					FileReference.Delete(TargetFile);
+				}
 				File.Move(SourceFile.FullName, TargetFile.FullName);
 			}
-			catch(Exception Ex)
+			catch (Exception Ex)
 			{
 				throw new AutomationException(Ex, "Unable to move {0} to {1}", SourceFile, TargetFile);
 			}
@@ -2714,7 +2738,6 @@ namespace AutomationTool
 
 		static readonly string[] TimestampServersSHA1 =
 		{
-			"http://timestamp.verisign.com/scripts/timestamp.dll",
 			"http://timestamp.globalsign.com/scripts/timstamp.dll",
 			"http://timestamp.comodoca.com/authenticode"
 		};

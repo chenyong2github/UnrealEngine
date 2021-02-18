@@ -6,21 +6,26 @@
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TPerParticleExternalForces : public TPerParticleRule<T, d>
+	class FPerParticleExternalForces : public FPerParticleRule
 	{
 	public:
-		TPerParticleExternalForces() {}
+		FPerParticleExternalForces() {}
 
-		virtual ~TPerParticleExternalForces() {}
+		virtual ~FPerParticleExternalForces() {}
 
-		inline void Apply(TTransientPBDRigidParticleHandle<T, d>& HandleIn, const T Dt) const override //-V762
+		inline void Apply(TTransientPBDRigidParticleHandle<FReal, 3>& HandleIn, const FReal Dt) const override //-V762
 		{
-			if (TPBDRigidParticleHandleImp<T, d, true>* Handle = HandleIn.Handle())
+			if (TPBDRigidParticleHandleImp<FReal, 3, true>* Handle = HandleIn.Handle())
 			{
+#if CHAOS_PARTICLEHANDLE_TODO
 				Handle->F() += Handle->ExternalForce();
 				Handle->Torque() += Handle->ExternalTorque();
+#endif
 			}
 		}
 	};
+
+	template<class T, int d>
+	using TPerParticleExternalForces UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPerParticleExternalForces instead") = FPerParticleExternalForces;
+
 }

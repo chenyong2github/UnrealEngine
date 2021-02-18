@@ -24,32 +24,27 @@ FAutoConsoleVariableRef CVarChaosTriangleMeshISPCEnabled(TEXT("p.Chaos.TriangleM
 
 using namespace Chaos;
 
-template<class T>
-TTriangleMesh<T>::TTriangleMesh()
+FTriangleMesh::FTriangleMesh()
     : MStartIdx(0)
     , MNumIndices(0)
 {}
 
-template<class T>
-TTriangleMesh<T>::TTriangleMesh(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
+FTriangleMesh::FTriangleMesh(TArray<TVec3<int32>>&& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
 	Init(Elements, StartIdx, EndIdx, CullDegenerateElements);
 }
 
-template<class T>
-TTriangleMesh<T>::TTriangleMesh(TTriangleMesh&& Other)
+FTriangleMesh::FTriangleMesh(FTriangleMesh&& Other)
     : MElements(MoveTemp(Other.MElements))
     , MPointToTriangleMap(MoveTemp(Other.MPointToTriangleMap))
     , MStartIdx(Other.MStartIdx)
     , MNumIndices(Other.MNumIndices)
 {}
 
-template<class T>
-TTriangleMesh<T>::~TTriangleMesh()
+FTriangleMesh::~FTriangleMesh()
 {}
 
-template<class T>
-void TTriangleMesh<T>::Init(TArray<TVector<int32, 3>>&& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
+void FTriangleMesh::Init(TArray<TVec3<int32>>&& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
 	MElements = MoveTemp(Elements);
 	MStartIdx = 0;
@@ -57,8 +52,7 @@ void TTriangleMesh<T>::Init(TArray<TVector<int32, 3>>&& Elements, const int32 St
 	InitHelper(StartIdx, EndIdx, CullDegenerateElements);
 }
 
-template<class T>
-void TTriangleMesh<T>::Init(const TArray<TVector<int32, 3>>& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
+void FTriangleMesh::Init(const TArray<TVec3<int32>>& Elements, const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
 	MElements = Elements;
 	MStartIdx = 0;
@@ -66,8 +60,7 @@ void TTriangleMesh<T>::Init(const TArray<TVector<int32, 3>>& Elements, const int
 	InitHelper(StartIdx, EndIdx, CullDegenerateElements);
 }
 
-template<class T>
-void TTriangleMesh<T>::InitHelper(const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
+void FTriangleMesh::InitHelper(const int32 StartIdx, const int32 EndIdx, const bool CullDegenerateElements)
 {
 	if (MElements.Num())
 	{
@@ -95,7 +88,7 @@ void TTriangleMesh<T>::InitHelper(const int32 StartIdx, const int32 EndIdx, cons
 
 			}
 		}
-		// This assumes vertices are contiguous in the vertex buffer. Assumption is held throughout TTriangleMesh
+		// This assumes vertices are contiguous in the vertex buffer. Assumption is held throughout FTriangleMesh
 		MNumIndices = MaxIdx - MStartIdx + 1;
 	}
 	check(MStartIdx >= 0);
@@ -103,44 +96,39 @@ void TTriangleMesh<T>::InitHelper(const int32 StartIdx, const int32 EndIdx, cons
 	ExpandVertexRange(StartIdx, EndIdx);
 }
 
-template <class T>
-void TTriangleMesh<T>::ResetAuxiliaryStructures()
+void FTriangleMesh::ResetAuxiliaryStructures()
 {
 	MPointToTriangleMap.Reset();
 	MPointToNeighborsMap.Reset();
-	TArray<TVector<int32, 2>> EmptyEdges;
+	TArray<TVec2<int32>> EmptyEdges;
 	MSegmentMesh.Init(EmptyEdges);
 	MFaceToEdges.Reset();
 	MEdgeToFaces.Reset();
 }
 
-template<class T>
-TVector<int32, 2> TTriangleMesh<T>::GetVertexRange() const
+TVec2<int32> FTriangleMesh::GetVertexRange() const
 {
-	return TVector<int32, 2>(MStartIdx, MStartIdx + MNumIndices - 1);
+	return TVec2<int32>(MStartIdx, MStartIdx + MNumIndices - 1);
 }
 
-template<class T>
-TSet<int32> TTriangleMesh<T>::GetVertices() const
+TSet<int32> FTriangleMesh::GetVertices() const
 {
 	TSet<int32> Vertices;
 	GetVertexSet(Vertices);
 	return Vertices;
 }
 
-template<class T>
-void TTriangleMesh<T>::GetVertexSet(TSet<int32>& VertexSet) const
+void FTriangleMesh::GetVertexSet(TSet<int32>& VertexSet) const
 {
 	VertexSet.Reset();
 	VertexSet.Reserve(MNumIndices);
-	for (const TVector<int32, 3>& Element : MElements)
+	for (const TVec3<int32>& Element : MElements)
 	{
 		VertexSet.Append({Element[0], Element[1], Element[2]});
 	}
 }
 
-template<class T>
-const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap() const
+const TMap<int32, TSet<uint32>>& FTriangleMesh::GetPointToNeighborsMap() const
 {
 	if (MPointToNeighborsMap.Num())
 	{
@@ -156,7 +144,7 @@ const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap() cons
 		Elems1.Reserve(Elems1.Num() + 2);
 		Elems2.Reserve(Elems2.Num() + 2);
 
-		const TVector<int32, 3>& Tri = MElements[i];
+		const TVec3<int32>& Tri = MElements[i];
 		Elems0.Add(Tri[1]);
 		Elems0.Add(Tri[2]);
 		Elems1.Add(Tri[0]);
@@ -167,8 +155,7 @@ const TMap<int32, TSet<uint32>>& TTriangleMesh<T>::GetPointToNeighborsMap() cons
 	return MPointToNeighborsMap;
 }
 
-template<class T>
-TConstArrayView<TArray<int32>> TTriangleMesh<T>::GetPointToTriangleMap() const
+TConstArrayView<TArray<int32>> FTriangleMesh::GetPointToTriangleMap() const
 {
 	if (!MPointToTriangleMap.Num())
 	{
@@ -184,28 +171,26 @@ TConstArrayView<TArray<int32>> TTriangleMesh<T>::GetPointToTriangleMap() const
 	return TConstArrayView<TArray<int32>>(MPointToTriangleMap.GetData() - MStartIdx, MStartIdx + MNumIndices);  // Return an array view that is using global indexation
 }
 
-template<class T>
-TArray<TVector<int32, 2>> TTriangleMesh<T>::GetUniqueAdjacentPoints() const
+TArray<TVec2<int32>> FTriangleMesh::GetUniqueAdjacentPoints() const
 {
-	TArray<TVector<int32, 2>> BendingConstraints;
-	const TArray<TVector<int32, 4>> BendingElements = GetUniqueAdjacentElements();
+	TArray<TVec2<int32>> BendingConstraints;
+	const TArray<TVec4<int32>> BendingElements = GetUniqueAdjacentElements();
 	BendingConstraints.Reset(BendingElements.Num());
-	for (const TVector<int32, 4>& Element : BendingElements)
+	for (const TVec4<int32>& Element : BendingElements)
 	{
 		BendingConstraints.Emplace(Element[2], Element[3]);
 	}
 	return BendingConstraints;
 }
 
-template<class T>
-TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements() const
+TArray<TVec4<int32>> FTriangleMesh::GetUniqueAdjacentElements() const
 {
 	// Build a map with a list of opposite points for every edges
-	TMap<TVector<int32, 2> /*Edge*/, TArray<int32> /*OppositePoints*/> EdgeMap;
+	TMap<TVec2<int32> /*Edge*/, TArray<int32> /*OppositePoints*/> EdgeMap;
 
-	auto SortedEdge = [](int32 P0, int32 P1) { return P0 <= P1 ? TVector<int32, 2>(P0, P1) : TVector<int32, 2>(P1, P0); };
+	auto SortedEdge = [](int32 P0, int32 P1) { return P0 <= P1 ? TVec2<int32>(P0, P1) : TVec2<int32>(P1, P0); };
 
-	for (const TVector<int32, 3>& Element : MElements)
+	for (const TVec3<int32>& Element : MElements)
 	{
 		EdgeMap.FindOrAdd(SortedEdge(Element[0], Element[1])).AddUnique(Element[2]);
 		EdgeMap.FindOrAdd(SortedEdge(Element[1], Element[2])).AddUnique(Element[0]);
@@ -213,10 +198,10 @@ TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements() const
 	}
 
 	// Build constraints
-	TArray<TVector<int32, 4>> BendingConstraints;
-	for (const TPair<TVector<int32, 2>, TArray<int32>>& EdgeOppositePoints : EdgeMap)
+	TArray<TVec4<int32>> BendingConstraints;
+	for (const TPair<TVec2<int32>, TArray<int32>>& EdgeOppositePoints : EdgeMap)
 	{
-		const TVector<int32, 2>& Edge = EdgeOppositePoints.Key;
+		const TVec2<int32>& Edge = EdgeOppositePoints.Key;
 		const TArray<int32>& OppositePoints = EdgeOppositePoints.Value;
 
 		for (int32 Index0 = 0; Index0 < OppositePoints.Num(); ++Index0)
@@ -231,28 +216,26 @@ TArray<TVector<int32, 4>> TTriangleMesh<T>::GetUniqueAdjacentElements() const
 	return BendingConstraints;
 }
 
-template<class T>
-TArray<TVector<T, 3>> TTriangleMesh<T>::GetFaceNormals(const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError) const
+TArray<FVec3> FTriangleMesh::GetFaceNormals(const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError) const
 {
-	TArray<TVector<T, 3>> Normals;
+	TArray<FVec3> Normals;
 	GetFaceNormals(Normals, Points, ReturnEmptyOnError);
 	return Normals;
 }
 
 // Note:	This function assumes Counter Clockwise triangle windings in a Left Handed coordinate system
 //			If this is not the case the returned face normals may need to be inverted
-template<class T>
-void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError) const
+void FTriangleMesh::GetFaceNormals(TArray<FVec3>& Normals, const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError) const
 {
 	Normals.Reset(MElements.Num());
 	if (ReturnEmptyOnError)
 	{
-		for (const TVector<int32, 3>& Tri : MElements)
+		for (const TVec3<int32>& Tri : MElements)
 		{
-			TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
-			TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
-			TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
-			const T Size2 = Cross.SizeSquared();
+			FVec3 p10 = Points[Tri[1]] - Points[Tri[0]];
+			FVec3 p20 = Points[Tri[2]] - Points[Tri[0]];
+			FVec3 Cross = FVec3::CrossProduct(p20, p10);
+			const FReal Size2 = Cross.SizeSquared();
 			if (Size2 < SMALL_NUMBER)
 			{
 				//particles should not be coincident by the time they get here. Return empty to signal problem to caller
@@ -268,9 +251,9 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TCon
 	}
 	else
 	{
-		if (bChaos_TriangleMesh_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
 		{
-			static_assert(std::is_same<T, float>::value == true, "ISPC only supports float template type");
+			static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 			Normals.SetNumUninitialized(MElements.Num());
 
 #if INTEL_ISPC
@@ -283,22 +266,21 @@ void TTriangleMesh<T>::GetFaceNormals(TArray<TVector<T, 3>>& Normals, const TCon
 		}
 		else
 		{
-			for (const TVector<int32, 3>& Tri : MElements)
+			for (const TVec3<int32>& Tri : MElements)
 			{
-				TVector<T, 3> p10 = Points[Tri[1]] - Points[Tri[0]];
-				TVector<T, 3> p20 = Points[Tri[2]] - Points[Tri[0]];
-				TVector<T, 3> Cross = TVector<T, 3>::CrossProduct(p20, p10);
+				FVec3 p10 = Points[Tri[1]] - Points[Tri[0]];
+				FVec3 p20 = Points[Tri[2]] - Points[Tri[0]];
+				FVec3 Cross = FVec3::CrossProduct(p20, p10);
 				Normals.Add(Cross.GetSafeNormal());
 			}
 		}
 	}
 }
 
-template<class T>
-TArray<TVector<T, 3>> TTriangleMesh<T>::GetPointNormals(const TConstArrayView<TVector<T, 3>>& Points, const bool ReturnEmptyOnError)
+TArray<FVec3> FTriangleMesh::GetPointNormals(const TConstArrayView<FVec3>& Points, const bool ReturnEmptyOnError)
 {
-	TArray<TVector<T, 3>> PointNormals;
-	const TArray<TVector<T, 3>> FaceNormals = GetFaceNormals(Points, ReturnEmptyOnError);
+	TArray<FVec3> PointNormals;
+	const TArray<FVec3> FaceNormals = GetFaceNormals(Points, ReturnEmptyOnError);
 	if (FaceNormals.Num())
 	{
 		PointNormals.SetNumUninitialized(MNumIndices);
@@ -307,22 +289,20 @@ TArray<TVector<T, 3>> TTriangleMesh<T>::GetPointNormals(const TConstArrayView<TV
 	return PointNormals;
 }
 
-template<class T>
-void TTriangleMesh<T>::GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray)
+void FTriangleMesh::GetPointNormals(TArrayView<FVec3> PointNormals, const TConstArrayView<FVec3>& FaceNormals, const bool bUseGlobalArray)
 {
 	GetPointToTriangleMap(); // build MPointToTriangleMap
-	const TTriangleMesh<T>* ConstThis = this;
+	const FTriangleMesh* ConstThis = this;
 	ConstThis->GetPointNormals(PointNormals, FaceNormals, bUseGlobalArray);
 }
 
-template<class T>
-void TTriangleMesh<T>::GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, const TConstArrayView<TVector<T, 3>>& FaceNormals, const bool bUseGlobalArray) const
+void FTriangleMesh::GetPointNormals(TArrayView<FVec3> PointNormals, const TConstArrayView<FVec3>& FaceNormals, const bool bUseGlobalArray) const
 {
 	check(MPointToTriangleMap.Num() != 0);
 
-	if (bChaos_TriangleMesh_ISPC_Enabled)
+	if (bRealTypeCompatibleWithISPC && bChaos_TriangleMesh_ISPC_Enabled)
 	{
-		static_assert(std::is_same<T, float>::value == true, "ISPC only supports float template type");
+		static_assert(std::is_same<FReal, float>::value == true, "ISPC only supports float template type");
 
 #if INTEL_ISPC
 		ispc::GetPointNormals(
@@ -339,8 +319,8 @@ void TTriangleMesh<T>::GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, c
 		for (int32 Element = 0; Element < MNumIndices; ++Element)  // Iterate points with local indexes
 		{
 			const int32 NormalIndex = bUseGlobalArray ? LocalToGlobal(Element) : Element;  // Select whether the points normal indices match the points indices or start at 0
-			TVector<T, 3>& Normal = PointNormals[NormalIndex];
-			Normal = TVector<T, 3>(0);
+			FVec3& Normal = PointNormals[NormalIndex];
+			Normal = FVec3(0);
 			const TArray<int32>& TriangleMap = MPointToTriangleMap[Element];  // Access MPointToTriangleMap with local index
 			for (int32 k = 0; k < TriangleMap.Num(); ++k)
 			{
@@ -355,7 +335,7 @@ void TTriangleMesh<T>::GetPointNormals(TArrayView<TVector<T, 3>> PointNormals, c
 }
 
 template<class T>
-void AddTrianglesToHull(const TConstArrayView<TVector<T, 3>>& Points, const int32 I0, const int32 I1, const int32 I2, const TPlane<T, 3>& SplitPlane, const TArray<int32>& InIndices, TArray<TVector<int32, 3>>& OutIndices)
+void AddTrianglesToHull(const TConstArrayView<FVec3>& Points, const int32 I0, const int32 I1, const int32 I2, const TPlane<T, 3>& SplitPlane, const TArray<int32>& InIndices, TArray<TVec3<int32>>& OutIndices)
 {
 	int32 MaxD = 0; //This doesn't need to be initialized but we need to avoid the compiler warning
 	T MaxDistance = 0;
@@ -374,36 +354,36 @@ void AddTrianglesToHull(const TConstArrayView<TVector<T, 3>>& Points, const int3
 		//@todo(mlentine): Do we need to do anything here when InIndices is > 0?
 		check(I0 != I1);
 		check(I1 != I2);
-		OutIndices.AddUnique(TVector<int32, 3>(I0, I1, I2));
+		OutIndices.AddUnique(TVec3<int32>(I0, I1, I2));
 		return;
 	}
 	if (MaxDistance > 0)
 	{
-		const TVector<T, 3>& NewX = Points[MaxD];
-		const TVector<T, 3>& X0 = Points[I0];
-		const TVector<T, 3>& X1 = Points[I1];
-		const TVector<T, 3>& X2 = Points[I2];
-		const TVector<T, 3> V1 = (NewX - X0).GetSafeNormal();
-		const TVector<T, 3> V2 = (NewX - X1).GetSafeNormal();
-		const TVector<T, 3> V3 = (NewX - X2).GetSafeNormal();
-		TVector<T, 3> Normal1 = TVector<T, 3>::CrossProduct(V1, V2).GetSafeNormal();
-		if (TVector<T, 3>::DotProduct(Normal1, X2 - X0) > 0)
+		const FVec3& NewX = Points[MaxD];
+		const FVec3& X0 = Points[I0];
+		const FVec3& X1 = Points[I1];
+		const FVec3& X2 = Points[I2];
+		const FVec3 V1 = (NewX - X0).GetSafeNormal();
+		const FVec3 V2 = (NewX - X1).GetSafeNormal();
+		const FVec3 V3 = (NewX - X2).GetSafeNormal();
+		FVec3 Normal1 = FVec3::CrossProduct(V1, V2).GetSafeNormal();
+		if (FVec3::DotProduct(Normal1, X2 - X0) > 0)
 		{
 			Normal1 *= -1;
 		}
-		TVector<T, 3> Normal2 = TVector<T, 3>::CrossProduct(V1, V3).GetSafeNormal();
-		if (TVector<T, 3>::DotProduct(Normal2, X1 - X0) > 0)
+		FVec3 Normal2 = FVec3::CrossProduct(V1, V3).GetSafeNormal();
+		if (FVec3::DotProduct(Normal2, X1 - X0) > 0)
 		{
 			Normal2 *= -1;
 		}
-		TVector<T, 3> Normal3 = TVector<T, 3>::CrossProduct(V2, V3).GetSafeNormal();
-		if (TVector<T, 3>::DotProduct(Normal3, X0 - X1) > 0)
+		FVec3 Normal3 = FVec3::CrossProduct(V2, V3).GetSafeNormal();
+		if (FVec3::DotProduct(Normal3, X0 - X1) > 0)
 		{
 			Normal3 *= -1;
 		}
-		TPlane<T, 3> NewPlane1(NewX, Normal1);
-		TPlane<T, 3> NewPlane2(NewX, Normal2);
-		TPlane<T, 3> NewPlane3(NewX, Normal3);
+		TPlane<FReal, 3> NewPlane1(NewX, Normal1);
+		TPlane<FReal, 3> NewPlane2(NewX, Normal2);
+		TPlane<FReal, 3> NewPlane3(NewX, Normal3);
 		TArray<int32> NewIndices1;
 		TArray<int32> NewIndices2;
 		TArray<int32> NewIndices3;
@@ -458,13 +438,12 @@ void AddTrianglesToHull(const TConstArrayView<TVector<T, 3>>& Points, const int3
 }
 
 // @todo(mlentine, ocohen); Merge different hull creation versions
-template<class T>
-TTriangleMesh<T> TTriangleMesh<T>::GetConvexHullFromParticles(const TConstArrayView<TVector<T, 3>>& Points)
+FTriangleMesh FTriangleMesh::GetConvexHullFromParticles(const TConstArrayView<FVec3>& Points)
 {
-	TArray<TVector<int32, 3>> Indices;
+	TArray<TVec3<int32>> Indices;
 	if (Points.Num() <= 2)
 	{
-		return TTriangleMesh(MoveTemp(Indices));
+		return FTriangleMesh(MoveTemp(Indices));
 	}
 	// Find max and min x points
 	int32 MinX = 0;
@@ -495,11 +474,11 @@ TTriangleMesh<T> TTriangleMesh<T>::GetConvexHullFromParticles(const TConstArrayV
 	if (MaxX == MinX && MinY == MaxY && MinX == MinY)
 	{
 		// Points are co-linear
-		return TTriangleMesh(MoveTemp(Indices));
+		return FTriangleMesh(MoveTemp(Indices));
 	}
 	// Find max distance
-	T DistanceY = (Points[MaxY] - Points[MinY]).Size();
-	T DistanceX = (Points[MaxX] - Points[MinX]).Size();
+	FReal DistanceY = (Points[MaxY] - Points[MinY]).Size();
+	FReal DistanceX = (Points[MaxX] - Points[MinX]).Size();
 	if (DistanceX > DistanceY)
 	{
 		Index1 = MaxX;
@@ -510,9 +489,9 @@ TTriangleMesh<T> TTriangleMesh<T>::GetConvexHullFromParticles(const TConstArrayV
 		Index1 = MaxY;
 		Index2 = MinY;
 	}
-	const TVector<T, 3>& X1 = Points[Index1];
-	const TVector<T, 3>& X2 = Points[Index2];
-	T MaxDist = 0;
+	const FVec3& X1 = Points[Index1];
+	const FVec3& X2 = Points[Index2];
+	FReal MaxDist = 0;
 	int32 MaxD = -1;
 	for (int32 Idx = 0; Idx < Points.Num(); ++Idx)
 	{
@@ -520,8 +499,8 @@ TTriangleMesh<T> TTriangleMesh<T>::GetConvexHullFromParticles(const TConstArrayV
 		{
 			continue;
 		}
-		const TVector<T, 3>& X0 = Points[Idx];
-		T Distance = TVector<T, 3>::CrossProduct(X0 - X1, X0 - X2).Size() / (X2 - X1).Size();
+		const FVec3& X0 = Points[Idx];
+		FReal Distance = FVec3::CrossProduct(X0 - X1, X0 - X2).Size() / (X2 - X1).Size();
 		if (Distance > MaxDist)
 		{
 			MaxDist = Distance;
@@ -530,10 +509,10 @@ TTriangleMesh<T> TTriangleMesh<T>::GetConvexHullFromParticles(const TConstArrayV
 	}
 	if (MaxD != -1)
 	{
-		const TVector<T, 3>& X0 = Points[MaxD];
-		TVector<T, 3> Normal = TVector<T, 3>::CrossProduct((X0 - X1).GetSafeNormal(), (X0 - X2).GetSafeNormal());
-		TPlane<T, 3> SplitPlane(X0, Normal);
-		TPlane<T, 3> SplitPlaneNeg(X0, -Normal);
+		const FVec3& X0 = Points[MaxD];
+		FVec3 Normal = FVec3::CrossProduct((X0 - X1).GetSafeNormal(), (X0 - X2).GetSafeNormal());
+		TPlane<FReal, 3> SplitPlane(X0, Normal);
+		TPlane<FReal, 3> SplitPlaneNeg(X0, -Normal);
 		TArray<int32> Left;
 		TArray<int32> Right;
 		TArray<int32> Coplanar;
@@ -590,13 +569,13 @@ TTriangleMesh<T> TTriangleMesh<T>::GetConvexHullFromParticles(const TConstArrayV
 			}
 		}
 	}
-	return TTriangleMesh<T>(MoveTemp(Indices));
+	return FTriangleMesh(MoveTemp(Indices));
 }
 
-FORCEINLINE TVector<int32, 2> GetOrdered(const TVector<int32, 2>& elem)
+FORCEINLINE TVec2<int32> GetOrdered(const TVec2<int32>& elem)
 {
 	const bool ordered = elem[0] < elem[1];
-	return TVector<int32, 2>(
+	return TVec2<int32>(
 	    ordered ? elem[0] : elem[1],
 	    ordered ? elem[1] : elem[0]);
 }
@@ -611,9 +590,9 @@ void Order(int32& A, int32& B)
 	}
 }
 
-TVector<int32, 3> GetOrdered(const TVector<int32, 3>& Elem)
+TVec3<int32> GetOrdered(const TVec3<int32>& Elem)
 {
-	TVector<int32, 3> OrderedElem = Elem;  // 3 2 1		1 2 3		1 2 1	2 1 1
+	TVec3<int32> OrderedElem = Elem;	   // 3 2 1		1 2 3		1 2 1	2 1 1
 	Order(OrderedElem[0], OrderedElem[1]); // 2 3 1		1 2 3		1 2 1	1 2 1
 	Order(OrderedElem[1], OrderedElem[2]); // 2 1 3		1 2 3		1 1 2	1 1 2
 	Order(OrderedElem[0], OrderedElem[1]); // 1 2 3		1 2 3		1 1 2	1 1 2
@@ -621,32 +600,31 @@ TVector<int32, 3> GetOrdered(const TVector<int32, 3>& Elem)
 }
 
 /**
- * Comparator for TSet<TVector<int32,2>> that compares the components of vectors in ascending
+ * Comparator for TSet<TVec2<int32>> that compares the components of vectors in ascending
  * order.
  */
-struct OrderedEdgeKeyFuncs : BaseKeyFuncs<TVector<int32, 2>, TVector<int32, 2>, false>
+struct OrderedEdgeKeyFuncs : BaseKeyFuncs<TVec2<int32>, TVec2<int32>, false>
 {
-	static FORCEINLINE TVector<int32, 2> GetSetKey(const TVector<int32, 2>& elem)
+	static FORCEINLINE TVec2<int32> GetSetKey(const TVec2<int32>& elem)
 	{
 		return GetOrdered(elem);
 	}
 
-	static FORCEINLINE bool Matches(const TVector<int32, 2>& a, const TVector<int32, 2>& b)
+	static FORCEINLINE bool Matches(const TVec2<int32>& a, const TVec2<int32>& b)
 	{
 		const auto orderedA = GetSetKey(a);
 		const auto orderedB = GetSetKey(b);
 		return orderedA[0] == orderedB[0] && orderedA[1] == orderedB[1];
 	}
 
-	static FORCEINLINE uint32 GetKeyHash(const TVector<int32, 2>& elem)
+	static FORCEINLINE uint32 GetKeyHash(const TVec2<int32>& elem)
 	{
 		const uint32 v = HashCombine(GetTypeHash(elem[0]), GetTypeHash(elem[1]));
 		return v;
 	}
 };
 
-template<class T>
-TSegmentMesh<T>& TTriangleMesh<T>::GetSegmentMesh()
+FSegmentMesh& FTriangleMesh::GetSegmentMesh()
 {
 	if (MSegmentMesh.GetNumElements() != 0)
 	{
@@ -656,7 +634,7 @@ TSegmentMesh<T>& TTriangleMesh<T>::GetSegmentMesh()
 	// XXX - Unfortunately, TSet is not a tree, it's a hash set.  This exposes
 	// us to the possibility we'll see hash collisions, and that's not something
 	// we should allow.  So we use a TArray instead.
-	TArray<TVector<int32, 2>> UniqueEdges;
+	TArray<TVec2<int32>> UniqueEdges;
 	UniqueEdges.Reserve(MElements.Num() * 3);
 
 	MEdgeToFaces.Reset();
@@ -665,11 +643,11 @@ TSegmentMesh<T>& TTriangleMesh<T>::GetSegmentMesh()
 	MFaceToEdges.SetNum(MElements.Num());
 	for (int32 FaceIdx = 0; FaceIdx < MElements.Num(); FaceIdx++)
 	{
-		const TVector<int32, 3>& Tri = MElements[FaceIdx];
-		TVector<int32, 3>& EdgeIds = MFaceToEdges[FaceIdx];
+		const TVec3<int32>& Tri = MElements[FaceIdx];
+		TVec3<int32>& EdgeIds = MFaceToEdges[FaceIdx];
 		for (int32 j = 0; j < 3; j++)
 		{
-			TVector<int32, 2> Edge(Tri[j], Tri[(j + 1) % 3]);
+			TVec2<int32> Edge(Tri[j], Tri[(j + 1) % 3]);
 
 			const int32 EdgeIdx = UniqueEdges.AddUnique(GetOrdered(Edge));
 			EdgeIds[j] = EdgeIdx;
@@ -682,11 +660,11 @@ TSegmentMesh<T>& TTriangleMesh<T>::GetSegmentMesh()
 				MEdgeToFaces.SetNum(EdgeIdx + 1, false);
 				for (int32 k = currNum; k < EdgeIdx + 1; k++)
 				{
-					MEdgeToFaces[k] = TVector<int32, 2>(-1, -1);
+					MEdgeToFaces[k] = TVec2<int32>(-1, -1);
 				}
 			}
 
-			TVector<int32, 2>& FacesSharingThisEdge = MEdgeToFaces[EdgeIdx];
+			TVec2<int32>& FacesSharingThisEdge = MEdgeToFaces[EdgeIdx];
 			if (FacesSharingThisEdge[0] < 0)
 			{
 				// 0th initialized, but not set
@@ -709,34 +687,31 @@ TSegmentMesh<T>& TTriangleMesh<T>::GetSegmentMesh()
 	return MSegmentMesh;
 }
 
-template<class T>
-const TArray<TVector<int32, 3>>& TTriangleMesh<T>::GetFaceToEdges()
+const TArray<TVec3<int32>>& FTriangleMesh::GetFaceToEdges()
 {
 	GetSegmentMesh();
 	return MFaceToEdges;
 }
 
-template<class T>
-const TArray<TVector<int32, 2>>& TTriangleMesh<T>::GetEdgeToFaces()
+const TArray<TVec2<int32>>& FTriangleMesh::GetEdgeToFaces()
 {
 	GetSegmentMesh();
 	return MEdgeToFaces;
 }
 
 
-template <class T>
-TSet<int32> TTriangleMesh<T>::GetBoundaryPoints()
+TSet<int32> FTriangleMesh::GetBoundaryPoints()
 {
-	TSegmentMesh<T>& SegmentMesh = GetSegmentMesh();
-	const TArray<TVector<int32, 2>>& Edges = SegmentMesh.GetElements();
-	const TArray<TVector<int32, 2>>& EdgeToFaces = GetEdgeToFaces();
+	FSegmentMesh& SegmentMesh = GetSegmentMesh();
+	const TArray<TVec2<int32>>& Edges = SegmentMesh.GetElements();
+	const TArray<TVec2<int32>>& EdgeToFaces = GetEdgeToFaces();
 	TSet<int32> OpenBoundaryPoints;
 	for (int32 EdgeIdx = 0; EdgeIdx < EdgeToFaces.Num(); ++EdgeIdx)
 	{
-		const TVector<int32, 2>& CoincidentFaces = EdgeToFaces[EdgeIdx];
+		const TVec2<int32>& CoincidentFaces = EdgeToFaces[EdgeIdx];
 		if (CoincidentFaces[0] == INDEX_NONE || CoincidentFaces[1] == INDEX_NONE)
 		{
-			const TVector<int32, 2>& Edge = Edges[EdgeIdx];
+			const TVec2<int32>& Edge = Edges[EdgeIdx];
 			OpenBoundaryPoints.Add(Edge[0]);
 			OpenBoundaryPoints.Add(Edge[1]);
 		}
@@ -744,10 +719,9 @@ TSet<int32> TTriangleMesh<T>::GetBoundaryPoints()
 	return OpenBoundaryPoints;
 }
 
-template <class T>
-TMap<int32, int32> TTriangleMesh<T>::FindCoincidentVertexRemappings(
+TMap<int32, int32> FTriangleMesh::FindCoincidentVertexRemappings(
 	const TArray<int32>& TestIndices,
-	const TConstArrayView<TVector<T, 3>>& Points)
+	const TConstArrayView<FVec3>& Points)
 {
 	// From index -> To index
 	TMap<int32, int32> Remappings;
@@ -760,17 +734,17 @@ TMap<int32, int32> TTriangleMesh<T>::FindCoincidentVertexRemappings(
 
 	// Move the points to the origin to avoid floating point aliasing far away
 	// from the origin.
-	TAABB<T, 3> Bbox(Points[0], Points[0]);
+	FAABB3 Bbox(Points[0], Points[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
 		Bbox.GrowToInclude(Points[TestIndices[i]]);
 	}
-	const TVector<T, 3> Center = Bbox.Center();
+	const FVec3 Center = Bbox.Center();
 
-	TArray<TVector<T, 3>> LocalPoints;
+	TArray<FVec3> LocalPoints;
 	LocalPoints.AddUninitialized(NumPoints);
 	LocalPoints[0] = Points[TestIndices[0]] - Center;
-	TAABB<T, 3> LocalBBox(LocalPoints[0], LocalPoints[0]);
+	FAABB3 LocalBBox(LocalPoints[0], LocalPoints[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
 		LocalPoints[i] = Points[TestIndices[i]] - Center;
@@ -797,10 +771,10 @@ TMap<int32, int32> TTriangleMesh<T>::FindCoincidentVertexRemappings(
 	}
 
 	LocalBBox.Thicken(1.0e-3);
-	const TVector<T, 3> LocalCenter = LocalBBox.Center();
-	const TVector<T, 3>& LocalMin = LocalBBox.Min();
+	const FVec3 LocalCenter = LocalBBox.Center();
+	const FVec3& LocalMin = LocalBBox.Min();
 
-	const T MaxBBoxDim = LocalBBox.Extents().Max();
+	const FReal MaxBBoxDim = LocalBBox.Extents().Max();
 
 	// Find coincident vertices.
 	// We hash to a grid of fine enough resolution such that if 2 particles 
@@ -809,7 +783,7 @@ TMap<int32, int32> TTriangleMesh<T>::FindCoincidentVertexRemappings(
 	OccupiedCells.Reserve(NumPoints);
 
 	const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / 0.01));
-	const T CellSize = MaxBBoxDim / Resolution;
+	const FReal CellSize = MaxBBoxDim / Resolution;
 	for (int i = 0; i < 2; i++)
 	{
 		OccupiedCells.Reset();
@@ -817,7 +791,7 @@ TMap<int32, int32> TTriangleMesh<T>::FindCoincidentVertexRemappings(
 		// Shift the grid by 1/2 a grid cell the second iteration so that
 		// we don't miss slightly adjacent coincident points across cell
 		// boundaries.
-		const TVector<T, 3> GridCenter = LocalCenter - TVector<T, 3>(i * CellSize / 2);
+		const FVec3 GridCenter = LocalCenter - FVec3(i * CellSize / 2);
 		for (int32 LocalIdx = 0; LocalIdx < NumPoints; LocalIdx++)
 		{
 			const int32 Idx = TestIndices[LocalIdx];
@@ -827,8 +801,8 @@ TMap<int32, int32> TTriangleMesh<T>::FindCoincidentVertexRemappings(
 				continue;
 			}
 
-			const TVector<T, 3>& Pos = LocalPoints[LocalIdx];
-			const TVector<int64, 3> Coord(
+			const FVec3& Pos = LocalPoints[LocalIdx];
+			const TVec3<int64> Coord(
 				static_cast<int64>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
 				static_cast<int64>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
 				static_cast<int64>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
@@ -863,68 +837,64 @@ TMap<int32, int32> TTriangleMesh<T>::FindCoincidentVertexRemappings(
 	return Remappings;
 }
 
-template<class T>
-TArray<T> TTriangleMesh<T>::GetCurvatureOnEdges(const TArray<TVector<T, 3>>& FaceNormals)
+TArray<FReal> FTriangleMesh::GetCurvatureOnEdges(const TArray<FVec3>& FaceNormals)
 {
 	const int32 NumNormals = FaceNormals.Num();
 	check(NumNormals == MElements.Num());
-	const TSegmentMesh<T>& SegmentMesh = GetSegmentMesh(); // builds MEdgeToFaces
-	TArray<T> EdgeAngles;
+	const FSegmentMesh& SegmentMesh = GetSegmentMesh(); // builds MEdgeToFaces
+	TArray<FReal> EdgeAngles;
 	EdgeAngles.SetNumZeroed(MEdgeToFaces.Num());
 	for (int32 EdgeId = 0; EdgeId < MEdgeToFaces.Num(); EdgeId++)
 	{
-		const TVector<int32, 2>& FaceIds = MEdgeToFaces[EdgeId];
+		const TVec2<int32>& FaceIds = MEdgeToFaces[EdgeId];
 		if (FaceIds[0] >= 0 &&
 		    FaceIds[1] >= 0 && // -1 is sentinel, which denotes a boundary edge.
 		    FaceIds[0] < NumNormals &&
 		    FaceIds[1] < NumNormals) // Stay in bounds
 		{
-			const TVector<T, 3>& Norm1 = FaceNormals[FaceIds[0]];
-			const TVector<T, 3>& Norm2 = FaceNormals[FaceIds[1]];
-			EdgeAngles[EdgeId] = TVector<T, 3>::AngleBetween(Norm1, Norm2);
+			const FVec3& Norm1 = FaceNormals[FaceIds[0]];
+			const FVec3& Norm2 = FaceNormals[FaceIds[1]];
+			EdgeAngles[EdgeId] = FVec3::AngleBetween(Norm1, Norm2);
 		}
 	}
 	return EdgeAngles;
 }
 
-template<class T>
-TArray<T> TTriangleMesh<T>::GetCurvatureOnEdges(const TConstArrayView<TVector<T, 3>>& Points)
+TArray<FReal> FTriangleMesh::GetCurvatureOnEdges(const TConstArrayView<FVec3>& Points)
 {
-	const TArray<TVector<T, 3>> FaceNormals = GetFaceNormals(Points, false);
+	const TArray<FVec3> FaceNormals = GetFaceNormals(Points, false);
 	return GetCurvatureOnEdges(FaceNormals);
 }
 
-template<class T>
-TArray<T> TTriangleMesh<T>::GetCurvatureOnPoints(const TArray<T>& EdgeCurvatures)
+TArray<FReal> FTriangleMesh::GetCurvatureOnPoints(const TArray<FReal>& EdgeCurvatures)
 {
-	const TSegmentMesh<T>& SegmentMesh = GetSegmentMesh();
-	const TArray<TVector<int32, 2>>& Segments = SegmentMesh.GetElements();
+	const FSegmentMesh& SegmentMesh = GetSegmentMesh();
+	const TArray<TVec2<int32>>& Segments = SegmentMesh.GetElements();
 	check(EdgeCurvatures.Num() == Segments.Num());
 
 	if (MNumIndices < 1)
 	{
-		return TArray<T>();
+		return TArray<FReal>();
 	}
 
-	TArray<T> PointCurvatures;
+	TArray<FReal> PointCurvatures;
 	// 0.0 means the faces are coplanar.
 	// M_PI are as creased as they can be.
 	// Initialize to -FLT_MAX so that free particles are penalized.
-	PointCurvatures.Init(-TNumericLimits<T>::Max(), MNumIndices);
+	PointCurvatures.Init(-TNumericLimits<FReal>::Max(), MNumIndices);
 	for (int32 i = 0; i < Segments.Num(); i++)
 	{
-		const T EdgeCurvature = EdgeCurvatures[i];
-		const TVector<int32, 2>& Edge = Segments[i];
+		const FReal EdgeCurvature = EdgeCurvatures[i];
+		const TVec2<int32>& Edge = Segments[i];
 		PointCurvatures[GlobalToLocal(Edge[0])] = FMath::Max(PointCurvatures[GlobalToLocal(Edge[0])], EdgeCurvature);
 		PointCurvatures[GlobalToLocal(Edge[1])] = FMath::Max(PointCurvatures[GlobalToLocal(Edge[1])], EdgeCurvature);
 	}
 	return PointCurvatures;
 }
 
-template<class T>
-TArray<T> TTriangleMesh<T>::GetCurvatureOnPoints(const TConstArrayView<TVector<T, 3>>& Points)
+TArray<FReal> FTriangleMesh::GetCurvatureOnPoints(const TConstArrayView<FVec3>& Points)
 {
-	const TArray<T> EdgeCurvatures = GetCurvatureOnEdges(Points);
+	const TArray<FReal> EdgeCurvatures = GetCurvatureOnEdges(Points);
 	return GetCurvatureOnPoints(EdgeCurvatures);
 }
 
@@ -937,12 +907,12 @@ class AscendingPredicate
 {
 public:
 	AscendingPredicate(const TArray<T>& InCompValues, const int32 InOffset)
-	    : CompValues(InCompValues)
-	    , Offset(InOffset)
+		: CompValues(InCompValues)
+		, Offset(InOffset)
 	{}
 
 	bool
-	operator()(const int i, const int j) const
+		operator()(const int i, const int j) const
 	{
 		// If an index is out of range, put it at the end.
 		const int iOffset = i - Offset;
@@ -966,12 +936,12 @@ class DescendingPredicate
 {
 public:
 	DescendingPredicate(const TArray<T>& CompValues, const int32 Offset = 0)
-	    : CompValues(CompValues)
-	    , Offset(Offset)
+		: CompValues(CompValues)
+		, Offset(Offset)
 	{}
 
 	bool
-	operator()(const int i, const int j) const
+		operator()(const int i, const int j) const
 	{
 		// If an index is out of range, put it at the end.
 		const int iOffset = i - Offset;
@@ -986,10 +956,9 @@ private:
 	const int32 Offset;
 };
 
-template<class T>
-TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
-    const TConstArrayView<TVector<T, 3>>& Points,
-    const TArray<T>& PointCurvatures,
+TArray<int32> FTriangleMesh::GetVertexImportanceOrdering(
+    const TConstArrayView<FVec3>& Points,
+    const TArray<FReal>& PointCurvatures,
     TArray<int32>* CoincidentVertices,
     const bool RestrictToLocalIndexRange)
 {
@@ -1061,7 +1030,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 		// -MStartIdx when not RestrictToLocalIndexRange.
 
 		// PointCurvatures[0] always corresponds to Points[MStartIdx]
-		DescendingPredicate<T> curvaturePred(PointCurvatures, MStartIdx); // high to low
+		DescendingPredicate<FReal> curvaturePred(PointCurvatures, MStartIdx); // high to low
 
 		// The indexing scheme used for sorting is a little complicated.  The pointOrder
 		// array contains point indices.  The sorting binary predicate is handed 2 of
@@ -1072,39 +1041,39 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 
 	// Move the points to the origin to avoid floating point aliasing far away
 	// from the origin.
-	TAABB<T, 3> Bbox(Points[0], Points[0]);
+	FAABB3 Bbox(Points[0], Points[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
 		Bbox.GrowToInclude(Points[i + Offset]);
 	}
-	const TVector<T, 3> Center = Bbox.Center();
+	const FVec3 Center = Bbox.Center();
 
-	TArray<TVector<T, 3>> LocalPoints;
+	TArray<FVec3> LocalPoints;
 	LocalPoints.AddUninitialized(NumPoints);
 	LocalPoints[0] = Points[Offset] - Center;
-	TAABB<T, 3> LocalBBox(LocalPoints[0], LocalPoints[0]);
+	FAABB3 LocalBBox(LocalPoints[0], LocalPoints[0]);
 	for (int i = 1; i < NumPoints; i++)
 	{
 		LocalPoints[i] = Points[Offset + i] - Center;
 		LocalBBox.GrowToInclude(LocalPoints[i]);
 	}
 	LocalBBox.Thicken(1.0e-3);
-	const TVector<T, 3> LocalCenter = LocalBBox.Center();
-	const TVector<T, 3>& LocalMin = LocalBBox.Min();
+	const FVec3 LocalCenter = LocalBBox.Center();
+	const FVec3& LocalMin = LocalBBox.Min();
 
 	// Bias towards points further away from the center of the bounding box.
 	// Send points that are the furthest away to the front of the list.
-	TArray<T> Dist;
+	TArray<FReal> Dist;
 	Dist.AddUninitialized(NumPoints);
 	for (int i = 0; i < NumPoints; i++)
 	{
 		Dist[i] = (LocalPoints[i] - LocalCenter).SizeSquared();
 	}
-	DescendingPredicate<T> DescendingDistPred(Dist); // high to low
+	DescendingPredicate<FReal> DescendingDistPred(Dist); // high to low
 	StableSort(&PointOrder[0], NumPoints, DescendingDistPred);
 
 	// If all points are coincident, return early.
-	const T MaxBBoxDim = LocalBBox.Extents().Max();
+	const FReal MaxBBoxDim = LocalBBox.Extents().Max();
 	if (MaxBBoxDim <= 1.0e-6)
 	{
 		if (CoincidentVertices && NumPoints > 0)
@@ -1127,7 +1096,7 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	int32 NumCoincident = 0;
 	{
 		const int64 Resolution = static_cast<int64>(floor(MaxBBoxDim / 0.01));
-		const T CellSize = MaxBBoxDim / Resolution;
+		const FReal CellSize = MaxBBoxDim / Resolution;
 		for (int i = 0; i < 2; i++)
 		{
 			OccupiedCells.Reset();
@@ -1136,13 +1105,13 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 			// Shift the grid by 1/2 a grid cell the second iteration so that
 			// we don't miss slightly adjacent coincident points across cell
 			// boundaries.
-			const TVector<T, 3> GridCenter = LocalCenter - TVector<T, 3>(i * CellSize / 2);
+			const FVec3 GridCenter = LocalCenter - FVec3(i * CellSize / 2);
 			const int NumCoincidentPrev = NumCoincident;
 			for (int j = 0; j < NumPoints - NumCoincidentPrev; j++)
 			{
 				const int32 Idx = PointOrder[j];
-				const TVector<T, 3>& Pos = LocalPoints[Idx - Offset];
-				const TVector<int64, 3> Coord(
+				const FVec3& Pos = LocalPoints[Idx - Offset];
+				const TVec3<int64> Coord(
 				    static_cast<int64>(floor((Pos[0] - GridCenter[0]) / CellSize + Resolution / 2)),
 				    static_cast<int64>(floor((Pos[1] - GridCenter[1]) / CellSize + Resolution / 2)),
 				    static_cast<int64>(floor((Pos[2] - GridCenter[2]) / CellSize + Resolution / 2)));
@@ -1180,16 +1149,16 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 		const int32 Resolution = i;
 		check(Resolution > 0);
 		check(Resolution % 2 == 0);
-		const T CellSize = MaxBBoxDim / Resolution;
+		const FReal CellSize = MaxBBoxDim / Resolution;
 
 		// The order in which we process these points matters.  Must do
 		// the current highest rank first.
 		for (int j = 0; j < NumPoints - NumCoincident; j++)
 		{
 			const int32 Idx = PointOrder[j];
-			const TVector<T, 3>& Pos = LocalPoints[Idx - Offset];
+			const FVec3& Pos = LocalPoints[Idx - Offset];
 			// grid center co-located at bbox center:
-			const TVector<int64, 3> Coord(
+			const TVec3<int64> Coord(
 			    static_cast<int64>(floor((Pos[0] - LocalCenter[0]) / CellSize)) + Resolution / 2,
 			    static_cast<int64>(floor((Pos[1] - LocalCenter[1]) / CellSize)) + Resolution / 2,
 			    static_cast<int64>(floor((Pos[2] - LocalCenter[2]) / CellSize)) + Resolution / 2);
@@ -1226,23 +1195,21 @@ TArray<int32> TTriangleMesh<T>::GetVertexImportanceOrdering(
 	return PointOrder;
 }
 
-template<class T>
 TArray<int32>
-TTriangleMesh<T>::GetVertexImportanceOrdering(const TConstArrayView<TVector<T, 3>>& Points, TArray<int32>* CoincidentVertices, const bool RestrictToLocalIndexRange)
+FTriangleMesh::GetVertexImportanceOrdering(const TConstArrayView<FVec3>& Points, TArray<int32>* CoincidentVertices, const bool RestrictToLocalIndexRange)
 {
-	const TArray<T> pointCurvatures = GetCurvatureOnPoints(Points);
+	const TArray<FReal> pointCurvatures = GetCurvatureOnPoints(Points);
 	return GetVertexImportanceOrdering(Points, pointCurvatures, CoincidentVertices, RestrictToLocalIndexRange);
 }
 
-template<class T>
-void TTriangleMesh<T>::RemapVertices(const TArray<int32>& Order)
+void FTriangleMesh::RemapVertices(const TArray<int32>& Order)
 {
 	// Remap element indices
 	int32 MinIdx = TNumericLimits<int32>::Max();
 	int32 MaxIdx = -TNumericLimits<int32>::Max();
 	for (int32 i = 0; i < MElements.Num(); i++)
 	{
-		TVector<int32, 3>& elem = MElements[i];
+		TVec3<int32>& elem = MElements[i];
 		for (int32 j = 0; j < 3; ++j)
 		{
 			if (elem[j] != Order[elem[j]])
@@ -1262,8 +1229,7 @@ void TTriangleMesh<T>::RemapVertices(const TArray<int32>& Order)
 	}
 }
 
-template <class T>
-void TTriangleMesh<T>::RemapVertices(const TMap<int32, int32>& Remapping)
+void FTriangleMesh::RemapVertices(const TMap<int32, int32>& Remapping)
 {
 	if (!Remapping.Num())
 	{
@@ -1271,7 +1237,7 @@ void TTriangleMesh<T>::RemapVertices(const TMap<int32, int32>& Remapping)
 	}
 	int32 MinIdx = TNumericLimits<int32>::Max();
 	int32 MaxIdx = -TNumericLimits<int32>::Max();
-	for (TVector<int32, 3>& Tri : MElements)
+	for (TVec3<int32>& Tri : MElements)
 	{
 		for (int32 Idx = 0; Idx < 3; ++Idx)
 		{
@@ -1292,15 +1258,14 @@ void TTriangleMesh<T>::RemapVertices(const TMap<int32, int32>& Remapping)
 	}
 }
 
-template <class T>
-void TTriangleMesh<T>::RemoveDuplicateElements()
+void FTriangleMesh::RemoveDuplicateElements()
 {
 	TArray<int32> ToRemove;
-	TSet<TVector<int32, 3>> Existing;
+	TSet<TVec3<int32>> Existing;
 	for (int32 Idx = 0; Idx < MElements.Num(); ++Idx)
 	{
-		const TVector<int32, 3>& Tri = MElements[Idx];
-		const TVector<int32, 3> OrderedTri = GetOrdered(Tri);
+		const TVec3<int32>& Tri = MElements[Idx];
+		const TVec3<int32> OrderedTri = GetOrdered(Tri);
 		if (!Existing.Contains(OrderedTri))
 		{
 			Existing.Add(OrderedTri);
@@ -1314,8 +1279,7 @@ void TTriangleMesh<T>::RemoveDuplicateElements()
 	}
 }
 
-template <class T>
-void TTriangleMesh<T>::RemoveDegenerateElements()
+void FTriangleMesh::RemoveDegenerateElements()
 {
 	for (int i = MElements.Num() - 1; i >= 0; --i)
 	{
@@ -1331,13 +1295,3 @@ void TTriangleMesh<T>::RemoveDegenerateElements()
 		}
 	}
 }
-
-#ifdef __clang__
-#if PLATFORM_WINDOWS
-template class Chaos::TTriangleMesh<float>;
-#else
-template class CHAOS_API Chaos::TTriangleMesh<float>;
-#endif
-#else
-template class Chaos::TTriangleMesh<float>;
-#endif

@@ -85,6 +85,7 @@ protected:
 	void AddSpawnLevelMenu(FMenuBuilder& MenuBuilder);
 	void AddAssignActorMenu(FMenuBuilder& MenuBuilder);
 	void AddTagMenu(FMenuBuilder& MenuBuilder);
+	void AddChangeClassMenu(FMenuBuilder& MenuBuilder);
 
 	/** Get class for object binding */
 	const UClass* GetClassForObjectBinding() const;
@@ -104,6 +105,8 @@ private:
 	void HandleDeleteTag(FName TagName);
 
 	void HandleAddTag(FName TagName);
+
+	void HandleTemplateActorClassPicked(UClass* ChosenClass);
 
 private:
 

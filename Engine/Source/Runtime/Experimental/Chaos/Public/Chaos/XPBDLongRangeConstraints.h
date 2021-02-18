@@ -13,24 +13,23 @@ namespace Chaos
 // Stiffness is in N/CM^2, so it needs to be adjusted from the PBD stiffness ranging between [0,1]
 static const double XPBDLongRangeMaxCompliance = 1.e-3;
 
-template<class T, int d>
-class TXPBDLongRangeConstraints : public TPBDLongRangeConstraintsBase<T, d>, public FPBDConstraintContainer
+class FXPBDLongRangeConstraints : public FPBDLongRangeConstraintsBase, public FPBDConstraintContainer
 {
-	typedef TPBDLongRangeConstraintsBase<T, d> Base;
+	typedef FPBDLongRangeConstraintsBase Base;
 	using Base::MEuclideanConstraints;
 	using Base::MDists;
 	using Base::MStiffness;
 
 public:
-	TXPBDLongRangeConstraints(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const T Stiffness = (T)1)
-	    : TPBDLongRangeConstraintsBase<T, d>(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness)
+	FXPBDLongRangeConstraints(const FDynamicParticles& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments = 1, const FReal Stiffness = (FReal)1.)
+	    : FPBDLongRangeConstraintsBase(InParticles, PointToNeighbors, NumberOfAttachments, Stiffness)
 	{ MLambdas.Init(0.f, MEuclideanConstraints.Num()); }
 
-	virtual ~TXPBDLongRangeConstraints() {}
+	virtual ~FXPBDLongRangeConstraints() {}
 
-	void Init() const { for (T& Lambda : MLambdas) { Lambda = (T)0.; } }
+	void Init() const { for (FReal& Lambda : MLambdas) { Lambda = (FReal)0.; } }
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, int32 Index) const
+	void Apply(FPBDParticles& InParticles, const FReal Dt, int32 Index) const
 	{
 		const auto& Constraint = MEuclideanConstraints[Index];
 		int32 i2 = Constraint[Constraint.Num() - 1];
@@ -38,7 +37,7 @@ public:
 		InParticles.P(i2) += GetDelta(InParticles, Dt, Index);
 	}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt) const 
+	void Apply(FPBDParticles& InParticles, const FReal Dt) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_XPBD_LongRange);
 		for (int32 i = 0; i < MEuclideanConstraints.Num(); ++i)
@@ -47,7 +46,7 @@ public:
 		}
 	}
 
-	void Apply(TPBDParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
+	void Apply(FPBDParticles& InParticles, const FReal Dt, const TArray<int32>& InConstraintIndices) const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_XPBD_LongRange);
 		for (int32 i : InConstraintIndices)
@@ -57,7 +56,7 @@ public:
 	}
 
 private:
-	inline TVector<T, d> GetDelta(const TPBDParticles<T, d>& InParticles, const T Dt, const int32 InConstraintIndices) const
+	inline FVec3 GetDelta(const FPBDParticles& InParticles, const FReal Dt, const int32 InConstraintIndices) const
 	{
 		const TVector<uint32, 2>& Constraint = MEuclideanConstraints[InConstraintIndices];
 		check(Constraint.Num() > 1);
@@ -65,24 +64,24 @@ private:
 		const uint32 i2 = Constraint[1];
 		check(InParticles.InvM(i1) == 0);
 		check(InParticles.InvM(i2) > 0);
-		const T Distance = Base::ComputeGeodesicDistance(InParticles, Constraint); // This function is used for either Euclidean or Geodesic distances
-		if (Distance < MDists[InConstraintIndices]) { return TVector<T, d>(0); }
-		const T Offset = Distance - MDists[InConstraintIndices];
+		const FReal Distance = Base::ComputeGeodesicDistance(InParticles, Constraint); // This function is used for either Euclidean or Geodesic distances
+		if (Distance < MDists[InConstraintIndices]) { return FVec3((FReal)0.); }
+		const FReal Offset = Distance - MDists[InConstraintIndices];
 
-		TVector<T, d> Direction = InParticles.P(i1) - InParticles.P(i2);
+		FVec3 Direction = InParticles.P(i1) - InParticles.P(i2);
 		Direction.SafeNormalize();
 
-		T& Lambda = MLambdas[InConstraintIndices];
-		const T Alpha = (T)XPBDLongRangeMaxCompliance / (MStiffness * Dt * Dt);
+		FReal& Lambda = MLambdas[InConstraintIndices];
+		const FReal Alpha = (FReal)XPBDLongRangeMaxCompliance / (MStiffness * Dt * Dt);
 
-		const T DLambda = (Offset - Alpha * Lambda) / ((T)1. + Alpha);
-		const TVector<T, d> Delta = DLambda * Direction;
+		const FReal DLambda = (Offset - Alpha * Lambda) / ((FReal)1. + Alpha);
+		const FVec3 Delta = DLambda * Direction;
 		Lambda += DLambda;
 
 		return Delta;
 	};
 
 private:
-	mutable TArray<T> MLambdas;
+	mutable TArray<FReal> MLambdas;
 };
 }

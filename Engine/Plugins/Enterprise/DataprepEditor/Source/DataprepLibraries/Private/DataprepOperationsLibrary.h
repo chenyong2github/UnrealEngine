@@ -54,7 +54,7 @@ struct FMeshSubstitutionDataTable
 
 	/** DEPRECATED - Type of matching to perform with SearchString string */
 	UPROPERTY()
-	EEditorScriptingStringMatchType StringMatch_DEPRECATED;
+	EEditorScriptingStringMatchType StringMatch_DEPRECATED = EEditorScriptingStringMatchType::Contains;
 
 	/** DEPRECATED - Mesh to use for the substitution */
 	UPROPERTY()
@@ -327,6 +327,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
 	static void SetCollisionComplexity(const TArray<UObject*>& InSelectedObjects, const ECollisionTraceFlag InCollisionTraceFlag, TArray<UObject*>& InModifiedObjects);
+
+	/**
+	 * Resize textures to max width/height and optionally ensure power of two size.
+	 * @param InTextures:	Textures to resize
+	 * @param InMaxSize:	Max allowed width or height
+	 * @note - This operation only applies on assets
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Dataprep | Operation")
+	static void ResizeTextures(const TArray<UTexture2D*>& InTextures, int32 InMaxSize);
 
 private:
 	static void SubstituteMaterial(const TArray<UObject*>& SelectedObjects, const FString& MaterialSearch, EEditorScriptingStringMatchType StringMatch, const TArray<UMaterialInterface*>& MaterialList, UMaterialInterface* MaterialSubstitute);

@@ -32,7 +32,7 @@ constexpr int32 NUM_FRAMES_TO_WAIT_REUSE_POOL = 10;
 constexpr uint32 NUM_FRAMES_TO_WAIT_RELEASE_POOL = MAX_uint32; // never release
 #endif
 
-FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, FVulkanCommandBufferManager* CommandBufferManager, uint32 InMaxQueries, VkQueryType InQueryType)
+FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, FVulkanCommandBufferManager* CommandBufferManager, uint32 InMaxQueries, VkQueryType InQueryType, bool bInShouldAddReset)
 	: VulkanRHI::FDeviceChild(InDevice)
 	, QueryPool(VK_NULL_HANDLE)
 	, ResetEvent(VK_NULL_HANDLE)
@@ -46,9 +46,12 @@ FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, FVulkanCommandBuffer
 	PoolCreateInfo.queryCount = MaxQueries;
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateQueryPool(Device->GetInstanceHandle(), &PoolCreateInfo, VULKAN_CPU_ALLOCATOR, &QueryPool));
-
-	CommandBufferManager->AddQueryPoolForReset(QueryPool, InMaxQueries);
 	
+	if (bInShouldAddReset)
+	{
+		CommandBufferManager->AddQueryPoolForReset(QueryPool, InMaxQueries);
+	}
+
 	VkEventCreateInfo EventCreateInfo;
 	ZeroVulkanStruct(EventCreateInfo, VK_STRUCTURE_TYPE_EVENT_CREATE_INFO);
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateEvent(Device->GetInstanceHandle(), &EventCreateInfo, VULKAN_CPU_ALLOCATOR, &ResetEvent));

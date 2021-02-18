@@ -306,7 +306,7 @@ static bool BuildAdjacencyBuffer(const FSkeletalMeshLODRenderData& LodRenderData
 			SortedValues.Reserve(MaxAdjacencyCount);
 		}
 
-		for (int32 VertexIt = MinVertexValue; VertexIt < MaxVertexValue; ++VertexIt)
+		for (int32 VertexIt = MinVertexValue; VertexIt <= MaxVertexValue; ++VertexIt)
 		{
 			Ar.Seek(VertexIt * SizePerVertex);
 

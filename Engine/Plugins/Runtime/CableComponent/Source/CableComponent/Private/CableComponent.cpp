@@ -439,23 +439,27 @@ static FORCEINLINE void SolveDistanceConstraint(FCableParticle& ParticleA, FCabl
 {
 	// Find current vector between particles
 	FVector Delta = ParticleB.Position - ParticleA.Position;
-	// 
 	float CurrentDistance = Delta.Size();
-	float ErrorFactor = (CurrentDistance - DesiredDistance)/CurrentDistance;
+
+	bool bNormalizedOK = Delta.Normalize();
+
+	// If particles are right on top of each other, separate with an abitrarily-chosen direction
+	FVector CorrectionDirection = bNormalizedOK ? Delta : FVector{ 1, 0, 0 };
+	FVector VectorCorrection = (CurrentDistance - DesiredDistance) * CorrectionDirection;
 
 	// Only move free particles to satisfy constraints
 	if(ParticleA.bFree && ParticleB.bFree)
 	{
-		ParticleA.Position += ErrorFactor * 0.5f * Delta;
-		ParticleB.Position -= ErrorFactor * 0.5f * Delta;
+		ParticleA.Position += 0.5f * VectorCorrection;
+		ParticleB.Position -= 0.5f * VectorCorrection;
 	}
 	else if(ParticleA.bFree)
 	{
-		ParticleA.Position += ErrorFactor * Delta;
+		ParticleA.Position += VectorCorrection;
 	}
 	else if(ParticleB.bFree)
 	{
-		ParticleB.Position -= ErrorFactor * Delta;
+		ParticleB.Position -= VectorCorrection;
 	}
 }
 
@@ -567,7 +571,7 @@ void UCableComponent::PerformSubstep(float InSubstepTime, const FVector& Gravity
 
 void UCableComponent::SetAttachEndToComponent(USceneComponent* Component, FName SocketName)
 {
-	AttachEndTo.OtherActor = Component->GetOwner();
+	AttachEndTo.OtherActor = Component ? Component->GetOwner() : nullptr;
 	AttachEndTo.ComponentProperty = NAME_None;
 	AttachEndTo.OverrideComponent = Component;
 	AttachEndToSocketName = SocketName;

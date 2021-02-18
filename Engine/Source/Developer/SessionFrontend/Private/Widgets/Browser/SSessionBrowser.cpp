@@ -265,6 +265,7 @@ void SSessionBrowser::HandleSessionManagerInstanceSelectionChanged(const TShared
 
 	if (InstanceItem.IsValid())
 	{
+		SessionTreeView->ClearSelection();
 		SessionTreeView->SetItemSelection(InstanceItem, Selected);
 	}
 }

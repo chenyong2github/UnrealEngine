@@ -498,7 +498,7 @@ void SAnimCurveTypeList::OnAnimCurveTypeShowChecked(ECheckBoxState InState)
 			AnimCurveViewer->CurrentCurveFlag &= ~CurveFlags;
 		}
 
-		AnimCurveViewer->RefreshCurveList();
+		AnimCurveViewer->RefreshCurveList(true);
 	}
 }
 
@@ -627,7 +627,7 @@ void SAnimCurveViewer::Construct(const FArguments& InArgs, const TSharedRef<clas
 	];
 
 	CreateAnimCurveTypeList(AnimTypeBoxContainer.ToSharedRef());
-	CreateAnimCurveList();
+	RefreshCurveList(true);
 }
 
 SAnimCurveViewer::~SAnimCurveViewer()
@@ -658,7 +658,7 @@ void SAnimCurveViewer::OnToggleShowingAllCurves(ECheckBoxState NewState)
 {
 	bShowAllCurves = (NewState == ECheckBoxState::Checked);
 
-	RefreshCurveList();
+	RefreshCurveList(false);
 }
 FReply SAnimCurveViewer::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
@@ -701,19 +701,19 @@ void SAnimCurveViewer::BindCommands()
 
 void SAnimCurveViewer::OnPreviewMeshChanged(class USkeletalMesh* OldPreviewMesh, class USkeletalMesh* NewPreviewMesh)
 {
-	RefreshCurveList();
+	RefreshCurveList(true);
 }
 
 void SAnimCurveViewer::OnFilterTextChanged( const FText& SearchText )
 {
 	FilterText = SearchText;
 
-	RefreshCurveList();
+	RefreshCurveList(false);
 }
 
 void SAnimCurveViewer::OnCurvesChanged()
 {
-	RefreshCurveList();
+	RefreshCurveList(true);
 }
 
 void SAnimCurveViewer::OnFilterTextCommitted( const FText& SearchText, ETextCommit::Type CommitInfo )
@@ -786,9 +786,10 @@ void SAnimCurveViewer::Tick(const FGeometry& AllottedGeometry, const double InCu
 	UDebugSkelMeshComponent* MeshComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
 	UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
 
-	if (AnimInstance)
+	// Only need to refresh the list on tick() if we are filtering to active curves only
+	if (AnimInstance && !bShowAllCurves)
 	{
-		RefreshCurveList();
+		RefreshCurveList(false);
 	}
 }
 
@@ -804,7 +805,7 @@ void SAnimCurveViewer::CreateNewNameEntry(const FText& CommittedText, ETextCommi
 			if (EditableSkeletonPtr.Pin()->AddSmartname(ContainerName, NewName, NewCurveName))
 			{
 				// Successfully added
-				RefreshCurveList();
+				RefreshCurveList(true);
 			}
 		}
 	}
@@ -835,40 +836,83 @@ int32 FindIndexOfAnimCurveInfo(TArray<TSharedPtr<FDisplayedAnimCurveInfo>>& Anim
 	return INDEX_NONE;
 }
 
-void SAnimCurveViewer::CreateAnimCurveList( const FString& SearchText )
+void SAnimCurveViewer::CreateAnimCurveList( const FString& SearchText, bool bInFullRefresh )
 {
+	bool bDirty = false;
+	
 	const FSmartNameMapping* Mapping = GetAnimCurveMapping();
 	if (Mapping)
 	{
 		TArray<SmartName::UID_Type> UidList;
 		Mapping->FillUidArray(UidList);
 
-		// Get set of active curves
-		TMap<FName, float> ActiveCurves;
-		UDebugSkelMeshComponent* MeshComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
-		UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
-		if (!bShowAllCurves && AnimInstance)
+		AnimCurveList.Reset();
+		if(bInFullRefresh)
 		{
-			// attribute curve should contain everything
-			// so only search other container if attribute is off
-			if (CurrentCurveFlag & ACEF_DriveAttribute)
+			AnimCurvesByUID.Reset();
+		}
+		
+		if(AnimCurvesByUID.Num() != UidList.Num())
+		{
+			// Resize the displayed curves we are tracking by UID
+			AnimCurvesByUID.SetNum(UidList.Num());
+
+			// Fill in any missing items
+			int32 UIDIndex = 0;
+			for (SmartName::UID_Type Uid : UidList)
 			{
-				AnimInstance->AppendAnimationCurveList(EAnimCurveType::AttributeCurve, ActiveCurves);
-			}
-			else
-			{
-				if (CurrentCurveFlag & ACEF_DriveMorphTarget)
+				if(!AnimCurvesByUID[UIDIndex].IsValid())
 				{
-					AnimInstance->AppendAnimationCurveList(EAnimCurveType::MorphTargetCurve, ActiveCurves);
+					FSmartName SmartName;
+					Mapping->FindSmartNameByUID(Uid, SmartName);
+					
+					UEditorAnimCurveBoneLinks* EditorMirrorObj = Cast<UEditorAnimCurveBoneLinks> (EditorObjectTracker.GetEditorObjectForClass(UEditorAnimCurveBoneLinks::StaticClass()));
+					EditorMirrorObj->Initialize(EditableSkeletonPtr, SmartName, FOnAnimCurveBonesChange::CreateSP(this, &SAnimCurveViewer::ApplyCurveBoneLinks));
+					TSharedRef<FDisplayedAnimCurveInfo> NewInfo = FDisplayedAnimCurveInfo::Make(EditableSkeletonPtr, ContainerName, SmartName, EditorMirrorObj);
+
+					// See if we have an override set, and if so, grab info
+					float Weight = 0.f;
+					bool bOverride = GetAnimCurveOverride(SmartName.DisplayName, Weight);
+					NewInfo->bAutoFillData = !bOverride;
+					NewInfo->Weight = Weight;
+
+					AnimCurvesByUID[UIDIndex] = NewInfo;
 				}
-				if (CurrentCurveFlag & ACEF_DriveMaterial)
-				{
-					AnimInstance->AppendAnimationCurveList(EAnimCurveType::MaterialCurve, ActiveCurves);
-				}
+				UIDIndex++;
 			}
 		}
 		
+		// Get set of active curves
+		TMap<FName, float> ActiveCurves;
+
+		if(!bShowAllCurves)
+		{
+			UDebugSkelMeshComponent* MeshComponent = PreviewScenePtr.Pin()->GetPreviewMeshComponent();
+			UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
+			if (!bShowAllCurves && AnimInstance)
+			{
+				// attribute curve should contain everything
+				// so only search other container if attribute is off
+				if (CurrentCurveFlag & ACEF_DriveAttribute)
+				{
+					AnimInstance->AppendAnimationCurveList(EAnimCurveType::AttributeCurve, ActiveCurves);
+				}
+				else
+				{
+					if (CurrentCurveFlag & ACEF_DriveMorphTarget)
+					{
+						AnimInstance->AppendAnimationCurveList(EAnimCurveType::MorphTargetCurve, ActiveCurves);
+					}
+					if (CurrentCurveFlag & ACEF_DriveMaterial)
+					{
+						AnimInstance->AppendAnimationCurveList(EAnimCurveType::MaterialCurve, ActiveCurves);
+					}
+				}
+			}
+		}
+
 		// Iterate through all curves..
+		int32 UIDIndex = 0;
 		for (SmartName::UID_Type Uid : UidList)
 		{
 			bool bAddToList = true;
@@ -891,37 +935,23 @@ void SAnimCurveViewer::CreateAnimCurveList( const FString& SearchText )
 				bAddToList = ActiveCurves.Contains(SmartName.DisplayName);
 			}
 
+			if(AnimCurvesByUID[UIDIndex]->bShown != bAddToList)
+			{
+				AnimCurvesByUID[UIDIndex]->bShown = bAddToList;
+				bDirty = true;
+			}
+			
 			// If we still want to add
 			if (bAddToList)
 			{
-				// If not already in list, add it
-				if (FindIndexOfAnimCurveInfo(AnimCurveList, SmartName) == INDEX_NONE)
-				{
-					UEditorAnimCurveBoneLinks* EditorMirrorObj = Cast<UEditorAnimCurveBoneLinks> (EditorObjectTracker.GetEditorObjectForClass(UEditorAnimCurveBoneLinks::StaticClass()));
-					EditorMirrorObj->Initialize(EditableSkeletonPtr, SmartName, FOnAnimCurveBonesChange::CreateSP(this, &SAnimCurveViewer::ApplyCurveBoneLinks));
-					TSharedRef<FDisplayedAnimCurveInfo> NewInfo = FDisplayedAnimCurveInfo::Make(EditableSkeletonPtr, ContainerName, SmartName, EditorMirrorObj);
-
-					// See if we have an override set, and if so, grab info
-					float Weight = 0.f;
-					bool bOverride = GetAnimCurveOverride(SmartName.DisplayName, Weight);
-					NewInfo->bAutoFillData = !bOverride;
-					NewInfo->Weight = Weight;
-
-					AnimCurveList.Add(NewInfo);
-				}
+				AnimCurveList.Add(AnimCurvesByUID[UIDIndex]);
 			}
-			// Don't want in list
-			else
-			{
-				// If already in list, remove it
-				int32 CurrentIndex = FindIndexOfAnimCurveInfo(AnimCurveList, SmartName);
-				if (CurrentIndex != INDEX_NONE)
-				{
-					AnimCurveList.RemoveAt(CurrentIndex);
-				}
-			}
+			UIDIndex++;
 		}
+	}
 
+	if(bDirty)
+	{
 		// Sort final list
 		struct FSortSmartNamesAlphabetically
 		{
@@ -932,9 +962,9 @@ void SAnimCurveViewer::CreateAnimCurveList( const FString& SearchText )
 		};
 
 		AnimCurveList.Sort(FSortSmartNamesAlphabetically());
-	}
 
-	AnimCurveListView->RequestListRefresh();
+		AnimCurveListView->RequestListRefresh();
+	}	
 }
 
 void SAnimCurveViewer::CreateAnimCurveTypeList(TSharedRef<SHorizontalBox> HorizontalBox)
@@ -1018,13 +1048,13 @@ bool SAnimCurveViewer::GetAnimCurveOverride(FName& Name, float& Weight)
 
 void SAnimCurveViewer::PostUndoRedo()
 {
-	RefreshCurveList();
+	RefreshCurveList(true);
 }
 
 void SAnimCurveViewer::OnPreviewAssetChanged(class UAnimationAsset* NewAsset)
 {
 	OverrideCurves.Empty();
-	RefreshCurveList();
+	RefreshCurveList(true);
 }
 
 void SAnimCurveViewer::ApplyCustomCurveOverride(UAnimInstance* AnimInstance) const
@@ -1036,9 +1066,9 @@ void SAnimCurveViewer::ApplyCustomCurveOverride(UAnimInstance* AnimInstance) con
 	}
 }
 
-void SAnimCurveViewer::RefreshCurveList()
+void SAnimCurveViewer::RefreshCurveList(bool bInFullRefresh)
 {
-	CreateAnimCurveList(FilterText.ToString());
+	CreateAnimCurveList(FilterText.ToString(), bInFullRefresh);
 }
 
 void SAnimCurveViewer::OnNameCommitted(const FText& InNewName, ETextCommit::Type, TSharedPtr<FDisplayedAnimCurveInfo> Item)
@@ -1136,7 +1166,7 @@ void SAnimCurveViewer::ApplyCurveBoneLinks(class UEditorAnimCurveBoneLinks* Edit
 void SAnimCurveViewer::HandleSmartNamesChange(const FName& InContainerName)
 {
 	AnimCurveList.Empty();
-	RefreshCurveList();
+	RefreshCurveList(true);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -45,6 +45,8 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasMemoryBudget : 1;
 			uint32 HasDriverProperties : 1;
 			uint32 HasEXTFragmentDensityMap : 1;
+			uint32 HasEXTFragmentDensityMap2 : 1;
+			uint32 HasNVShadingRateImage : 1;
 			uint32 HasEXTFullscreenExclusive : 1;
 			uint32 HasKHRImageFormatList : 1;
 			uint32 HasEXTASTCDecodeMode : 1;
@@ -52,6 +54,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasAtomicInt64 : 1;
 			uint32 HasBufferAtomicInt64 : 1;
 			uint32 HasScalarBlockLayoutFeatures : 1;
+			uint32 HasKHRMultiview : 1;
 			uint32 HasAccelerationStructure : 1;
 			uint32 HasRayTracingPipeline : 1;
 			uint32 HasDescriptorIndexing : 1;
@@ -257,6 +260,34 @@ public:
 	{
 		return GpuProps;
 	}
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+	inline const VkPhysicalDeviceFragmentDensityMapFeaturesEXT& GetFragmentDensityMapFeatures() const
+	{
+		return FragmentDensityMapFeatures;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
+	inline const VkPhysicalDeviceFragmentDensityMap2FeaturesEXT& GetFragmentDensityMap2Features() const
+	{
+		return FragmentDensityMap2Features;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	inline const VkPhysicalDeviceShadingRateImageFeaturesNV& GetShadingRateImageFeaturesNV() const
+	{
+		return ShadingRateImageFeaturesNV;
+	}
+#endif
+
+#if VULKAN_SUPPORTS_MULTIVIEW
+	inline const VkPhysicalDeviceMultiviewFeatures& GetMultiviewFeatures() const
+	{
+		return MultiviewFeatures;
+	}
+#endif
 
 	inline const VkPhysicalDeviceLimits& GetLimits() const
 	{
@@ -512,6 +543,22 @@ private:
 
 	VkPhysicalDevice Gpu;
 	VkPhysicalDeviceProperties GpuProps;
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+	VkPhysicalDeviceFragmentDensityMapFeaturesEXT FragmentDensityMapFeatures;
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
+	VkPhysicalDeviceFragmentDensityMap2FeaturesEXT FragmentDensityMap2Features;
+#endif
+
+#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
+	VkPhysicalDeviceShadingRateImageFeaturesNV ShadingRateImageFeaturesNV;
+#endif
+
+#if VULKAN_SUPPORTS_MULTIVIEW
+	VkPhysicalDeviceMultiviewFeatures MultiviewFeatures;
+#endif
+
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
 

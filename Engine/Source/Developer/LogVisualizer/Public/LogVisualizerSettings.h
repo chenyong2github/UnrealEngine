@@ -22,11 +22,13 @@ struct FCategoryFilter
 {
 	GENERATED_USTRUCT_BODY()
 
+	FCategoryFilter() : Enabled(0) {}
+
 	UPROPERTY(config)
 	FString CategoryName;
 
 	UPROPERTY(config)
-	int32 LogVerbosity;
+	int32 LogVerbosity = ELogVerbosity::Type::NoLogging;
 
 	UPROPERTY(config)
 	uint32 Enabled : 1;

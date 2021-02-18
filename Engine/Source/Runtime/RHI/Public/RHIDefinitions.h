@@ -358,6 +358,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bTargetsTiledGPU: 1;
 	uint32 bNeedsOfflineCompiler: 1;
 	uint32 bSupportsComputeFramework : 1;
+	uint32 bSupportsAnisotropicMaterials : 1;
 	uint32 bSupportsDualSourceBlending : 1;
 	uint32 bRequiresGeneratePrevTransformBuffer : 1;
 	uint32 bRequiresRenderTargetDuringRaster : 1;
@@ -532,6 +533,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsComputeFramework(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsComputeFramework;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsAnisotropicMaterials(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsAnisotropicMaterials;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetTargetsTiledGPU(const FStaticShaderPlatform Platform)
@@ -1279,6 +1285,13 @@ enum EVRSRateCombiner : uint8
 	VRSRB_Min,
 	VRSRB_Max,
 	VRSRB_Sum,
+};
+
+enum EVRSImageDataType : uint8
+{
+	VRSImage_NotSupported,		// Image-based Variable Rate Shading is not supported on the current device/platform.
+	VRSImage_Palette,			// Image-based VRS uses a palette of discrete, enumerated values to describe shading rate per tile.
+	VRSImage_Fractional,		// Image-based VRS uses a floating point value to describe shading rate in X/Y (e.g. 1.0f is full rate, 0.5f is half-rate, 0.25f is 1/4 rate, etc).
 };
 
 /**

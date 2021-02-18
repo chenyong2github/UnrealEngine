@@ -762,6 +762,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the architecture name should be appended to the binary</returns>
 		public override bool RequiresArchitectureSuffix()
 		{
+			// Any -architecture argument passed to UBT only affects the contents of the binaries, not their naming
 			return false;
 		}
 

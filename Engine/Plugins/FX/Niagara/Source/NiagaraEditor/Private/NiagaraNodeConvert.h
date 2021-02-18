@@ -73,6 +73,8 @@ struct FNiagaraConvertConnection
 		, DestinationPath(InDestinationPath)
 	{
 	}
+
+	FString ToString() const;
 };
 
 

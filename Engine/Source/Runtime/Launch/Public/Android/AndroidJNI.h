@@ -129,6 +129,9 @@ public:
 	static jmethodID AndroidThunkJava_SetNativeDisplayRefreshRate;
 	static jmethodID AndroidThunkJava_GetSupportedNativeDisplayRefreshRates;
 
+	// Motion controls
+	static jmethodID AndroidThunkJava_EnableMotion;
+
 	// member fields for getting the launch notification
 	static jclass LaunchNotificationClass;
 	static jfieldID LaunchNotificationUsed;

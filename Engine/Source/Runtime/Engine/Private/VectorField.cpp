@@ -424,7 +424,7 @@ void UVectorFieldStatic::UpdateCPUData(bool bDiscardData)
 		// because of vector implementations in VectorLoadHalf we want to make sure that our buffer
 		// is padded out to support reading the last element
 		constexpr int32 DestComponentCount = 3;
-		CPUData.Reset(FMath::DivideAndRoundUp<int32>(SampleCount * DestComponentCount * sizeof(FFloat16), sizeof(FVector4)));
+		CPUData.Reset(Align(SampleCount * DestComponentCount * sizeof(FFloat16), sizeof(FVector4)));
 
 		for (size_t SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 		{
@@ -433,7 +433,7 @@ void UVectorFieldStatic::UpdateCPUData(bool bDiscardData)
 			Ar << Ptr[SampleIt].B;
 		}
 #else
-		CPUData.Reset(FMath::DivideAndRoundUp<int32>(SampleCount * sizeof(FVector), sizeof(FVector4)));
+		CPUData.Reset(Align(SampleCount * sizeof(FVector), sizeof(FVector4)));
 
 		for (size_t SampleIt = 0; SampleIt < SampleCount; ++SampleIt)
 		{
@@ -512,9 +512,9 @@ FVector UVectorFieldStatic::Sample(const FIntVector& SamplePosition) const
 {
 	check(bAllowCPUAccess);
 
-	const int32 SampleX = FMath::Clamp(SamplePosition.X, 0, SizeX);
-	const int32 SampleY = FMath::Clamp(SamplePosition.Y, 0, SizeY);
-	const int32 SampleZ = FMath::Clamp(SamplePosition.Z, 0, SizeZ);
+	const int32 SampleX = FMath::Clamp(SamplePosition.X, 0, SizeX - 1);
+	const int32 SampleY = FMath::Clamp(SamplePosition.Y, 0, SizeY - 1);
+	const int32 SampleZ = FMath::Clamp(SamplePosition.Z, 0, SizeZ - 1);
 	const int32 SampleIndex = SampleX + SizeX * (SampleY + SampleZ * SizeY);
 
 	return SampleInternal(SampleIndex);
@@ -523,18 +523,27 @@ FVector UVectorFieldStatic::Sample(const FIntVector& SamplePosition) const
 FORCEINLINE static FVector SampleInternalData(TConstArrayView<FFloat16> Samples, int32 SampleIndex)
 {
 	constexpr int32 ComponentCount = 3;
-	const FFloat16* HalfData = Samples.GetData() + SampleIndex * ComponentCount;
+	const int32 SampleOffset = SampleIndex * ComponentCount;
+	const FFloat16* HalfData = Samples.GetData();
+	if (SampleOffset >= 0 && SampleOffset + ComponentCount <= Samples.Num())
+	{
+		HalfData += SampleOffset;
+	}
 
 	FVector4 Result;
 	FPlatformMath::VectorLoadHalf(reinterpret_cast<float*>(&Result), reinterpret_cast<const uint16*>(HalfData));
-
 	return FVector(Result);
 }
 
 FORCEINLINE static FVector SampleInternalData(TConstArrayView<float> Samples, int32 SampleIndex)
 {
 	constexpr int32 ComponentCount = 3;
-	const float* FloatData = Samples.GetData() + SampleIndex * ComponentCount;
+	const int32 SampleOffset = SampleIndex * ComponentCount;
+	const float* FloatData = Samples.GetData();
+	if (SampleOffset >= 0 && SampleOffset + ComponentCount <= Samples.Num())
+	{
+		FloatData += SampleOffset;
+	}
 	return FVector(FloatData[0], FloatData[1], FloatData[2]);
 }
 

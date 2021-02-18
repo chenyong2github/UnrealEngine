@@ -45,7 +45,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const FVirtualVoxelNodeDesc NodeDesc = UnpackVoxelNode(PackedNode, VirtualVoxelParams_PageResolution);
 
 	const uint4 PageIndexCoord = VirtualVoxelParams_PageIndexCoordBuffer[NodeDesc.PageIndexOffset + AllocatedPageIndex];
-	const uint  LinearPageIndexCoord = CoordToIndex(PageIndexCoord, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
+	const uint  LinearPageIndexCoord = CoordToIndex(PageIndexCoord.xyz, NodeDesc.PageIndexResolution, NodeDesc.PageIndexOffset);
 
 	const bool bIsValid = LinearPageIndexCoord < VirtualVoxelParams_PageIndexCount;
 	if (bIsValid)
@@ -69,7 +69,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			if (!bIsOnScreen)
 				return;
 
-			const float ClosestDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScenePixelCoord, 0)));
+			const float ClosestDepth = ConvertFromDeviceZ(SceneDepthTexture.Load(uint3(ScenePixelCoord, 0)).x);
 			const float3 SceneWorldPos = ReconstructWorldPositionFromDepth(SceneUV, ClosestDepth);
 
 			const bool bIsInVolume =

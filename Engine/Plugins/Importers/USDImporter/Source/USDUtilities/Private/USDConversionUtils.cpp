@@ -4,9 +4,11 @@
 
 #include "USDAssetImportData.h"
 #include "USDErrorUtils.h"
+#include "USDLayerUtils.h"
 #include "USDLog.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/SdfLayer.h"
 #include "UsdWrappers/UsdPrim.h"
 
 #include "Algo/Copy.h"
@@ -787,13 +789,10 @@ void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
 		}
 	}
 
-	FString RelativePath = AbsoluteFilePath;
-
 	pxr::SdfLayerHandle EditLayer = UsdPrim.GetStage()->GetEditTarget().GetLayer();
 
-	std::string RepositoryPath = EditLayer->GetRepositoryPath().empty() ? EditLayer->GetRealPath() : EditLayer->GetRepositoryPath();
-	FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
-	FPaths::MakePathRelativeTo( RelativePath, *LayerAbsolutePath );
+	FString RelativePath = AbsoluteFilePath;
+	MakePathRelativeToLayer( UE::FSdfLayer( EditLayer ), RelativePath );
 
 	References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
 #endif // #if USE_USD_SDK

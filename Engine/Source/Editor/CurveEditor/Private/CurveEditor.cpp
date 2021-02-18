@@ -387,7 +387,9 @@ void FCurveEditor::BindCommands()
 
 	// Deactivate Current Tool
 	CommandList->MapAction(FCurveEditorCommands::Get().DeactivateCurrentTool,
-		FExecuteAction::CreateSP(this, &FCurveEditor::MakeToolActive, FCurveEditorToolID::Unset()));
+		FExecuteAction::CreateSP(this, &FCurveEditor::MakeToolActive, FCurveEditorToolID::Unset()),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda( [this]{ return ActiveTool.IsSet() == false; } ) );
 		
 	// Bind commands for Editor Extensions
 	for (TSharedRef<ICurveEditorExtension> Extension : EditorExtensions)

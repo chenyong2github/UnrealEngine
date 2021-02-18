@@ -17,6 +17,7 @@
 #include <android_native_app_glue.h>
 #include <cstdio>
 #include <sys/resource.h>
+#include <sys/system_properties.h>
 #include <dlfcn.h>
 #include "Android/AndroidWindow.h"
 #include "Android/AndroidApplication.h"
@@ -181,6 +182,9 @@ static void* AndroidEventThreadWorker(void* param);
 // How often to process (read & dispatch) events, in seconds.
 static const float EventRefreshRate = 1.0f / 20.0f;
 
+// Name of the UE4 commandline append setprop
+static constexpr char UE4CommandLineSetprop[] = "debug.ue4.commandline";
+
 //Android event callback functions
 static int32_t HandleInputCB(struct android_app* app, AInputEvent* event); //Touch and key input events
 static void OnAppCommandCB(struct android_app* app, int32_t cmd); //Lifetime events
@@ -334,6 +338,14 @@ static void InitCommandLine()
 	{
 		FCommandLine::Append(**ConfigRulesCmdLineAppend);
 		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("ConfigRules appended: %s"), **ConfigRulesCmdLineAppend);
+	}
+
+	char CommandLineSetpropAppend[CMD_LINE_MAX];
+	if (__system_property_get(UE4CommandLineSetprop, CommandLineSetpropAppend) > 0)
+	{
+		FCommandLine::Append(UTF8_TO_TCHAR(" "));
+		FCommandLine::Append(UTF8_TO_TCHAR(CommandLineSetpropAppend));
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("UE4 setprop appended: %s"), UTF8_TO_TCHAR(CommandLineSetpropAppend));
 	}
 #endif
 }

@@ -53,10 +53,12 @@ UDataprepActionAsset::UDataprepActionAsset()
 	: ContextPtr( nullptr )
 	, Label(TEXT("New Action"))
 {
+	Appearance = CreateDefaultSubobject<UActionAppearance>( TEXT("Appearance") );
+
 	bExecutionInterrupted = false;
 	bIsEnabled = true;
-	bIsExpanded = true;
-	GroupId = INDEX_NONE;
+	Appearance->bIsExpanded = true;
+	Appearance->GroupId = INDEX_NONE;
 
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{

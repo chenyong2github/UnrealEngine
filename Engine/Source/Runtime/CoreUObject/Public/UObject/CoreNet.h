@@ -400,7 +400,13 @@ bool FORCEINLINE NetworkGuidSetsAreSame( const TSet< FNetworkGUID >& A, const TS
 class INetDeltaBaseState : public TSharedFromThis<INetDeltaBaseState>
 {
 public:
-	INetDeltaBaseState() { }
+	INetDeltaBaseState()
+		: LastAckedHistory(0)
+		, ChangelistHistory(0)
+	{
+
+	}
+
 	virtual ~INetDeltaBaseState() { }
 
 	virtual bool IsStateEqual(INetDeltaBaseState* Otherstate) = 0;
@@ -411,7 +417,15 @@ public:
 	 */
 	virtual void CountBytes(FArchive& Ar) const {}
 
+	uint32 GetLastAckedHistory() const { return LastAckedHistory; }
+	void SetLastAckedHistory(uint32 InAckedHistory) { LastAckedHistory = InAckedHistory; }
+
+	uint32 GetChangelistHistory() const { return ChangelistHistory; }
+	void SetChangelistHistory(uint32 InChangelistHistory) { ChangelistHistory = InChangelistHistory; }
+
 private:
+	uint32 LastAckedHistory;
+	uint32 ChangelistHistory;
 };
 
 struct FNetDeltaSerializeInfo;

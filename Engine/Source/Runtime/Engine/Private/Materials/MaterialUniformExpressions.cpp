@@ -82,8 +82,15 @@ static void GetTextureParameterValue(const FHashedMaterialParameterInfo& Paramet
 	{
 		UTexture* Value = nullptr;
 
-		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-		if (!Interface || !Interface->GetTextureParameterDefaultValue(ParameterInfo, Value))
+		if (Context.Material.HasMaterialLayers())
+		{
+			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+			if (!Interface || !Interface->GetTextureParameterDefaultValue(ParameterInfo, Value))
+			{
+				Value = GetIndexedTexture<UTexture>(Context.Material, TextureIndex);
+			}
+		}
+		else
 		{
 			Value = GetIndexedTexture<UTexture>(Context.Material, TextureIndex);
 		}
@@ -102,8 +109,15 @@ static void GetTextureParameterValue(const FHashedMaterialParameterInfo& Paramet
 	{
 		URuntimeVirtualTexture* Value = nullptr;
 
-		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-		if (!Interface || !Interface->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value))
+		if (Context.Material.HasMaterialLayers())
+		{
+			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+			if (!Interface || !Interface->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, Value))
+			{
+				Value = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
+			}
+		}
+		else
 		{
 			Value = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, TextureIndex);
 		}
@@ -636,8 +650,15 @@ static void GetVectorParameter(const FUniformExpressionSet& UniformExpressionSet
 	{
 		const bool bOveriddenParameterOnly = Parameter.ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter;
 
-		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-		if (!Interface || !Interface->GetVectorParameterDefaultValue(Parameter.ParameterInfo, OutValue, bOveriddenParameterOnly))
+		if (Context.Material.HasMaterialLayers())
+		{
+			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+			if (!Interface || !Interface->GetVectorParameterDefaultValue(Parameter.ParameterInfo, OutValue, bOveriddenParameterOnly))
+			{
+				bNeedsDefaultValue = true;
+			}
+		}
+		else
 		{
 			bNeedsDefaultValue = true;
 		}
@@ -665,8 +686,15 @@ static void GetScalarParameter(const FUniformExpressionSet& UniformExpressionSet
 	{
 		const bool bOveriddenParameterOnly = Parameter.ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter;
 
-		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-		if (!Interface || !Interface->GetScalarParameterDefaultValue(Parameter.ParameterInfo, OutValue.A, bOveriddenParameterOnly))
+		if (Context.Material.HasMaterialLayers())
+		{
+			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+			if (!Interface || !Interface->GetScalarParameterDefaultValue(Parameter.ParameterInfo, OutValue.A, bOveriddenParameterOnly))
+			{
+				bNeedsDefaultValue = true;
+			}
+		}
+		else
 		{
 			bNeedsDefaultValue = true;
 		}
@@ -1795,7 +1823,7 @@ void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInt
 {
 	if (!ParameterInfo.Name.IsNone())
 	{
-		const bool bOverrideValuesOnly = false;
+		const bool bOverrideValuesOnly = !Material.HasMaterialLayers();
 		if (!MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue, bOverrideValuesOnly))
 		{
 			OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);

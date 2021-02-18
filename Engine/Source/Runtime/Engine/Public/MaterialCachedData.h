@@ -120,6 +120,9 @@ struct FStaticComponentMaskValue
 {
 	GENERATED_USTRUCT_BODY();
 
+	FStaticComponentMaskValue() : R(false), G(false), B(false), A(false) {}
+	FStaticComponentMaskValue(bool InR, bool InG, bool InB, bool InA) : R(InR), G(InG), B(InB), A(InA) {}
+
 	UPROPERTY()
 	bool R;
 	
@@ -219,8 +222,13 @@ USTRUCT()
 struct FMaterialCachedExpressionData
 {
 	GENERATED_USTRUCT_BODY()
-
+	
 	ENGINE_API static const FMaterialCachedExpressionData EmptyData;
+
+	FMaterialCachedExpressionData()
+		: bHasRuntimeVirtualTextureOutput(false)
+		, bHasSceneColor(false)
+	{}
 
 #if WITH_EDITOR
 	/** Returns 'false' if update is incomplete, due to missing expression data (stripped from non-editor build) */

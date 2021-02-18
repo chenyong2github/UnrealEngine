@@ -209,7 +209,7 @@ void FPixelShaderInOut_MainPS(
 	// decal fade
 //	Opacity *= DecalParams.x;
 
-	FGBufferData GBufferData;
+	FGBufferData GBufferData = (FGBufferData)0;
 
 	GBufferData.WorldNormal = MaterialParameters.WorldNormal;
 	GBufferData.BaseColor = BaseColor;

@@ -131,12 +131,15 @@ FORCEINLINE XrTime ToXrTime(FTimespan Time)
 	EnumMacro(PFN_xrApplyHapticFeedback,xrApplyHapticFeedback) \
 	EnumMacro(PFN_xrStopHapticFeedback,xrStopHapticFeedback)
 
-/** Declare all XR functions. */
+/** Declare all XR functions in a namespace to avoid conflicts with the loader exported symbols. */
 #define DECLARE_XR_ENTRYPOINTS(Type,Func) extern Type OPENXRHMD_API Func;
-ENUM_XR_ENTRYPOINTS_GLOBAL(DECLARE_XR_ENTRYPOINTS);
-ENUM_XR_ENTRYPOINTS(DECLARE_XR_ENTRYPOINTS);
-DECLARE_XR_ENTRYPOINTS(PFN_xrGetInstanceProcAddr,xrGetInstanceProcAddr)
-#undef DECLARE_XR_ENTRYPOINTS
+namespace OpenXRDynamicAPI
+{
+	ENUM_XR_ENTRYPOINTS_GLOBAL(DECLARE_XR_ENTRYPOINTS);
+	ENUM_XR_ENTRYPOINTS(DECLARE_XR_ENTRYPOINTS);
+	DECLARE_XR_ENTRYPOINTS(PFN_xrGetInstanceProcAddr, xrGetInstanceProcAddr)
+}
+using namespace OpenXRDynamicAPI;
 
 /**
  * Initialize essential OpenXR functions.

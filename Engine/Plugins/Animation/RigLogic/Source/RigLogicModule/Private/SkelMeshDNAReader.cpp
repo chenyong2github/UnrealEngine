@@ -134,6 +134,11 @@ FString FSkelMeshDNAReader::GetJointName(uint16 Index) const
 	return BehaviorStreamReader->GetJointName(Index);
 }
 
+uint16 FSkelMeshDNAReader::GetJointIndexListCount() const
+{
+	return BehaviorStreamReader->GetJointIndexListCount();
+}
+
 TArrayView<const uint16> FSkelMeshDNAReader::GetJointIndicesForLOD(uint16 LOD) const
 {
 	return BehaviorStreamReader->GetJointIndicesForLOD(LOD);
@@ -149,6 +154,11 @@ FString FSkelMeshDNAReader::GetBlendShapeChannelName(uint16 Index) const
 	return BehaviorStreamReader->GetBlendShapeChannelName(Index);
 }
 
+uint16 FSkelMeshDNAReader::GetBlendShapeChannelIndexListCount() const
+{
+	return BehaviorStreamReader->GetBlendShapeChannelIndexListCount();
+}
+
 TArrayView<const uint16> FSkelMeshDNAReader::GetBlendShapeChannelIndicesForLOD(uint16 LOD) const
 {
 	return BehaviorStreamReader->GetBlendShapeChannelIndicesForLOD(LOD);
@@ -157,6 +167,11 @@ TArrayView<const uint16> FSkelMeshDNAReader::GetBlendShapeChannelIndicesForLOD(u
 FString FSkelMeshDNAReader::GetAnimatedMapName(uint16 Index) const
 {
 	return BehaviorStreamReader->GetAnimatedMapName(Index);
+}
+
+uint16 FSkelMeshDNAReader::GetAnimatedMapIndexListCount() const
+{
+	return BehaviorStreamReader->GetAnimatedMapIndexListCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetAnimatedMapIndicesForLOD(uint16 LOD) const
@@ -172,6 +187,11 @@ uint16 FSkelMeshDNAReader::GetMeshCount() const
 FString FSkelMeshDNAReader::GetMeshName(uint16 Index) const
 {
 	return BehaviorStreamReader->GetMeshName(Index);
+}
+
+uint16 FSkelMeshDNAReader::GetMeshIndexListCount() const
+{
+	return BehaviorStreamReader->GetMeshIndexListCount();
 }
 
 TArrayView<const uint16> FSkelMeshDNAReader::GetMeshIndicesForLOD(uint16 LOD) const

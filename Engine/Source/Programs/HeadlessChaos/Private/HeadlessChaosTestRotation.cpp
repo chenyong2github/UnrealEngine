@@ -49,7 +49,7 @@ namespace ChaosTest {
 		};
 
 		FPBDRigidParticles Particles;
-		TPerParticlePBDEulerStep<FReal, 3> StepRule;
+		FPerParticlePBDEulerStep StepRule;
 
 		for (int32 ParticleIndex = 0; ParticleIndex < AngularVelocities.Num(); ++ParticleIndex)
 		{
@@ -122,7 +122,7 @@ namespace ChaosTest {
 		FVec3 Dims = { 100, 200, 300 };
 
 		FPBDRigidParticles Particles;
-		TPerParticlePBDUpdateFromDeltaPosition<FReal, 3> UpdateRule;
+		FPerParticlePBDUpdateFromDeltaPosition UpdateRule;
 
 		TArray<FRotation3> InitialRotations =
 		{

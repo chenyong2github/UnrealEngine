@@ -41,6 +41,15 @@ static FAutoConsoleVariableRef CVarHairStrandsComposeAfterTranslucency(TEXT("r.H
 
 static float GHairDualScatteringRoughnessOverride = 0;
 static FAutoConsoleVariableRef CVarHairDualScatteringRoughnessOverride(TEXT("r.HairStrands.DualScatteringRoughness"), GHairDualScatteringRoughnessOverride, TEXT("Override all roughness for the dual scattering evaluation. 0 means no override. Default:0"));
+
+static float GHairStrandsDeepShadowMaxAngle = 90.f;
+static FAutoConsoleVariableRef CVarHairStrandsDeepShadowMaxAngle(TEXT("r.HairStrands.DeepShadow.MaxFrustumAngle"), GHairStrandsDeepShadowMaxAngle, TEXT("Max deep shadow frustum angle to avoid strong deformation. Default:90"));
+
+float GetDeepShadowMaxFovAngle()
+{
+	return FMath::Clamp(GHairStrandsDeepShadowMaxAngle, 10.f, 170.f);
+}
+
 float GetHairDualScatteringRoughnessOverride()
 {
 	return GHairDualScatteringRoughnessOverride;
@@ -141,8 +150,10 @@ void ComputeWorldToLightClip(
 	const FSphere SphereBound = PrimitivesBounds.GetSphere();
 	const float SphereRadius = SphereBound.W * GetDeepShadowAABBScale();
 	const FVector LightPosition = LightProxy.GetPosition();
-	const float MinZ = FMath::Max(0.1f, FVector::Distance(LightPosition, SphereBound.Center)) - SphereBound.W;
+	const float MinNear = 1.0f; // 1cm, lower value than this cause precision issue. Similar value than in HairStrandsDeepShadowAllocation.usf
+	const float MinZ = FMath::Max(MinNear, FMath::Max(0.1f, FVector::Distance(LightPosition, SphereBound.Center)) - SphereBound.W);
 	const float MaxZ = FMath::Max(0.2f, FVector::Distance(LightPosition, SphereBound.Center)) + SphereBound.W;
+	const float MaxDeepShadowFrustumHalfAngleInRad = 0.5f * FMath::DegreesToRadians(GetDeepShadowMaxFovAngle());
 
 	const float StrandHairRasterizationScale = GetDeepShadowRasterizationScale();
 	const float StrandHairStableRasterizationScale = FMath::Max(GStrandHairStableRasterizationScale, 1.0f);
@@ -164,7 +175,8 @@ void ComputeWorldToLightClip(
 	{
 		const FVector LightDirection = LightPosition - PrimitivesBounds.GetSphere().Center;
 		const float SphereDistance = FVector::Distance(LightPosition, SphereBound.Center);
-		const float HalfFov = asin(SphereRadius / SphereDistance);
+		float HalfFov = asin(SphereRadius / SphereDistance);
+		HalfFov = FMath::Min(HalfFov, MaxDeepShadowFrustumHalfAngleInRad);
 
 		FReversedZPerspectiveMatrix ProjMatrix(HalfFov, 1, 1, MinZ, MaxZ);
 		FLookAtMatrix WorldToLight(LightPosition, SphereBound.Center, FVector(0, 0, 1));
@@ -175,7 +187,8 @@ void ComputeWorldToLightClip(
 	{
 		const FVector LightDirection = LightPosition - PrimitivesBounds.GetSphere().Center;
 		const float SphereDistance = FVector::Distance(LightPosition, SphereBound.Center);
-		const float HalfFov = asin(SphereRadius / SphereDistance);
+		float HalfFov = asin(SphereRadius / SphereDistance);
+		HalfFov = FMath::Min(HalfFov, MaxDeepShadowFrustumHalfAngleInRad);
 
 		FReversedZPerspectiveMatrix ProjMatrix(HalfFov, 1, 1, MinZ, MaxZ);
 		FLookAtMatrix WorldToLight(LightPosition, SphereBound.Center, FVector(0, 0, 1));

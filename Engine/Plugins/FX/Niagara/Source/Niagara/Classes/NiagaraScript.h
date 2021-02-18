@@ -442,6 +442,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bExperimental", MultiLine = true))
 	FText ExperimentalMessage;
 
+	/** A message to display when adding the module to the stack. This is useful to highlight pitfalls or weird behavior of the module. */
+	UPROPERTY(EditAnywhere, Category = Script, meta = (MultiLine = true))
+	FText NoteMessage;
+
 	/* Deprecated, use LibraryVisibility instead. */
 	UPROPERTY(AssetRegistrySearchable, meta = (DeprecatedProperty))
 	uint32 bExposeToLibrary_DEPRECATED : 1;
@@ -702,7 +706,7 @@ public:
 	
 	virtual ~UNiagaraScript();
 
-	const FNiagaraScriptExecutionParameterStore* GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget);
+	NIAGARA_API const FNiagaraScriptExecutionParameterStore* GetExecutionReadyParameterStore(ENiagaraSimTarget SimTarget);
 	void InvalidateExecutionReadyParameterStores();
 
 	bool IsScriptCooked() const

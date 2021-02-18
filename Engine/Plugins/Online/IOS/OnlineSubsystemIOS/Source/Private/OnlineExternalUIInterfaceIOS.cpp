@@ -17,14 +17,14 @@ bool FOnlineExternalUIIOS::ShowLoginUI(const int ControllerIndex, bool bShowOnli
 	
 	check(IdentityInterface != nullptr);
 	
-	if (IdentityInterface->GetLocalGameCenterUser() == nullptr)
+	if ([GKLocalPlayer localPlayer] == nil)
 	{
 		UE_LOG_ONLINE_EXTERNALUI(Log, TEXT("Game Center localPlayer is null."));
 		Delegate.ExecuteIfBound(nullptr, ControllerIndex, FOnlineError(EOnlineErrorResult::Unknown));
 		return true;
 	}
-	
-	if (IdentityInterface->GetLocalGameCenterUser().isAuthenticated)
+
+	if ([GKLocalPlayer localPlayer].isAuthenticated)
 	{
 		Delegate.ExecuteIfBound(IdentityInterface->GetLocalPlayerUniqueId(), ControllerIndex, FOnlineError::Success());
 		return true;
@@ -81,7 +81,13 @@ bool FOnlineExternalUIIOS::CloseWebURL()
 
 bool FOnlineExternalUIIOS::ShowProfileUI(const FUniqueNetId& Requestor, const FUniqueNetId& Requestee, const FOnProfileUIClosedDelegate& Delegate)
 {
-	return false;
+	if (Delegate.IsBound())
+	{
+		UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("Game Center does not support delegate for notification of profile ui closure."));
+	}
+
+	extern CORE_API bool IOSShowDashboardUI();
+	return IOSShowDashboardUI();
 }
 
 bool FOnlineExternalUIIOS::ShowAccountUpgradeUI(const FUniqueNetId& UniqueId)

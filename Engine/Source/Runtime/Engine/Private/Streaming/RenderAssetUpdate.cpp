@@ -123,6 +123,7 @@ FRenderAssetUpdate::FRenderAssetUpdate(const UStreamableRenderAsset* InAsset)
 	, StreamableAsset(InAsset)
 	, bIsCancelled(false)
 	, bDeferExecution(false)
+	, bSuccess(false)
 	, TaskState(TS_Init)
 {
 	check(InAsset);

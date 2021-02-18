@@ -38,7 +38,7 @@ void ScaleTransformHelper(const FVec3& TriMeshScale, const FRigidTransform3& Que
 }
 
 template <typename IdxType>
-void TransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const TParticles<FReal, 3>& Particles,
+void TransformVertsHelper(const FVec3& TriMeshScale, int32 TriIdx, const FParticles& Particles,
 	const TArray<TVector<IdxType, 3>>& Elements, FVec3& OutA, FVec3& OutB, FVec3& OutC)
 {
 	OutA = Particles.X(Elements[TriIdx][0]) * TriMeshScale;
@@ -75,7 +75,7 @@ void TransformSweepOutputsHelper(FVec3 TriMeshScale, const FVec3& HitNormal, con
 template <typename IdxType>
 struct FTriangleMeshRaycastVisitor
 {
-	FTriangleMeshRaycastVisitor(const FVec3& InStart, const FVec3& InDir, const FReal InThickness, const TParticles<FReal,3>& InParticles, const TArray<TVector<IdxType, 3>>& InElements, bool bInCullsBackFaceRaycast)
+	FTriangleMeshRaycastVisitor(const FVec3& InStart, const FVec3& InDir, const FReal InThickness, const FParticles& InParticles, const TArray<TVector<IdxType, 3>>& InElements, bool bInCullsBackFaceRaycast)
 	: Particles(InParticles)
 	, Elements(InElements)
 	, StartPoint(InStart)
@@ -250,7 +250,7 @@ struct FTriangleMeshRaycastVisitor
 		return true;
 	}
 
-	const TParticles<FReal, 3>& Particles;
+	const FParticles& Particles;
 	const TArray<TVector<IdxType, 3>>& Elements;
 	const FVec3& StartPoint;
 	const FVec3& Dir;
@@ -329,7 +329,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 	{
 		const FVec3 AB = B - A;
 		const FVec3 AC = C - A;
-		TTriangle<FReal> TriangleConvex(A, B, C);
+		FTriangle TriangleConvex(A, B, C);
 
 		FReal LambdaPenetration;
 		FVec3 ClosestA, ClosestB, LambdaNormal;
@@ -351,7 +351,7 @@ bool FTriangleMeshImplicitObject::GJKContactPointImp(const QueryGeomType& QueryG
 		FReal LocalContactPhi = FLT_MAX;
 		FVec3 LocalContactLocation, LocalContactNormal;
 
-		TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
+		FAABB3 QueryBounds = QueryGeom.BoundingBox();
 		QueryBounds.Thicken(Thickness);
 		QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 		const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
@@ -449,7 +449,7 @@ void FTriangleMeshImplicitObject::SetCullsBackFaceRaycast(const bool bInCullsBac
 template <typename IdxType>
 bool FTriangleMeshImplicitObject::OverlapImp(const TArray<TVec3<IdxType>>& Elements, const FVec3& Point, const FReal Thickness) const
 {
-	TAABB<FReal, 3> QueryBounds(Point, Point);
+	FAABB3 QueryBounds(Point, Point);
 	QueryBounds.Thicken(Thickness);
 	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 
@@ -500,7 +500,7 @@ template <typename QueryGeomType>
 bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD, FVec3 TriMeshScale) const
 {
 	bool bResult = false;
-	TAABB<FReal, 3> QueryBounds = QueryGeom.BoundingBox();
+	FAABB3 QueryBounds = QueryGeom.BoundingBox();
 	QueryBounds.Thicken(Thickness);
 	QueryBounds = QueryBounds.TransformedAABB(QueryTM);
 	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
@@ -531,7 +531,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 				FVec3 ClosestA(0.0);
 				FVec3 ClosestB(0.0);
 				int32 ClosestVertexIndexA, ClosestVertexIndexB;
-				if (GJKPenetration(TTriangle<FReal>(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
+				if (GJKPenetration(FTriangle(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Penetration, ClosestA, ClosestB, TriangleNormal, ClosestVertexIndexA, ClosestVertexIndexB, Thickness))
 				{
 					bOverlap = true;
 
@@ -560,7 +560,7 @@ bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom,
 				//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
 				const FVec3 Offset = FVec3::CrossProduct(AB, AC);
 
-				if (GJKIntersection(TTriangle<FReal>(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Thickness, Offset))
+				if (GJKIntersection(FTriangle(A, B, C), WorldScaleQueryGeom, WorldScaleQueryTM, Thickness, Offset))
 				{
 					return true;
 				}
@@ -664,7 +664,7 @@ struct FTriangleMeshSweepVisitor
 
 		FVec3 A, B, C;
 		TransformVertsHelper(TriMeshScale,TriIdx,TriMesh.MParticles,Elements,A,B,C);
-		TTriangle<FReal> Tri(A, B, C);
+		FTriangle Tri(A, B, C);
 
 		const auto& WorldScaleQueryGeom = ScaleGeomIntoWorldHelper(QueryGeom, TriMeshScale);
 
@@ -747,7 +747,7 @@ bool FTriangleMeshImplicitObject::SweepGeomImp(const QueryGeomType& QueryGeom, c
 		VisitorType SQVisitor(*this,Elements, QueryGeom,StartTM,Dir,ScaledDirNormalized,LengthScale,ScaledStartTM,Thickness,bComputeMTD, TriMeshScale);
 
 
-		const TAABB<FReal,3> QueryBounds = QueryGeom.BoundingBox().TransformedAABB(FRigidTransform3(FVec3::ZeroVector,StartTM.GetRotation()));
+		const FAABB3 QueryBounds = QueryGeom.BoundingBox().TransformedAABB(FRigidTransform3(FVec3::ZeroVector,StartTM.GetRotation()));
 		const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
 		const FVec3 Inflation = QueryBounds.Extents() * 0.5 + FVec3(Thickness);
 		BVH.template Sweep<VisitorType>(StartPoint,Dir,Length,Inflation,SQVisitor);
@@ -819,7 +819,7 @@ int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxTy
 	//todo: this is horribly slow, need adjacency information
 	const FReal SearchDist2 = SearchDist * SearchDist;
 
-	TAABB<FReal, 3> QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
+	FAABB3 QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
 
 	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
 	const FReal Epsilon = 1e-4;
@@ -883,7 +883,7 @@ TUniquePtr<FTriangleMeshImplicitObject> FTriangleMeshImplicitObject::CopySlowImp
 	using namespace Chaos;
 
 	TArray<Chaos::FVec3> XArray = MParticles.AllX();
-	TParticles<FReal, 3> ParticlesCopy(MoveTemp(XArray));
+	FParticles ParticlesCopy(MoveTemp(XArray));
 	TArray<TVector<IdxType, 3>> ElementsCopy(InElements);
 	TArray<uint16> MaterialIndicesCopy = MaterialIndices;
 	TUniquePtr<TArray<int32>> ExternalFaceIndexMapCopy = nullptr;
@@ -988,7 +988,7 @@ uint16 FTriangleMeshImplicitObject::GetMaterialIndex(uint32 HintIndex) const
 	return 0;
 }
 
-const TParticles<FReal, 3>& FTriangleMeshImplicitObject::Particles() const
+const FParticles& FTriangleMeshImplicitObject::Particles() const
 {
 	return MParticles;
 }

@@ -164,8 +164,12 @@ struct AUDIOMIXER_API FSubmixEffectDynamicsProcessorSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "Key Audition", EditCondition = "!bBypass"))
 	uint8 bKeyAudition : 1;
 
-	// Gain to apply to key signal if external input is supplied
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (DisplayName = "External Input Gain (dB)", EditCondition = "!bBypass && ExternalSubmix != nullptr", UIMin = "-60.0", UIMax = "30.0"))
+	// Gain to apply to key signal if key source not set to default (input).
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sidechain, meta = (
+		DisplayName = "External Input Gain (dB)",
+		EditCondition = "!bBypass && KeySource != ESubmixEffectDynamicsKeySource::Default",
+		UIMin = "-60.0", UIMax = "30.0")
+	)
 	float KeyGainDb = 0.0f;
 
 	// The output gain of the dynamics processor
@@ -218,20 +222,20 @@ protected:
 	void UpdateKeyFromSettings(const FSubmixEffectDynamicsProcessorSettings& InSettings);
 	bool UpdateKeySourcePatch();
 
-	void OnNewDeviceCreated(Audio::FDeviceId InDeviceId);
+	void OnDeviceCreated(Audio::FDeviceId InDeviceId);
+	void OnDeviceDestroyed(Audio::FDeviceId InDeviceId);
 	
 	Audio::AlignedFloatBuffer AudioExternal;
 
 	TArray<float> AudioKeyFrame;
 	TArray<float> AudioInputFrame;
-	TArray<float> AudioOutputFrame;
 
 	Audio::FDeviceId DeviceId = INDEX_NONE;
 
 	bool bBypass = false;
 
 private:
-	struct FKeySource
+	class FKeySource
 	{
 		ESubmixEffectDynamicsKeySource Type = ESubmixEffectDynamicsKeySource::Default;
 		int32 NumChannels = 0;
@@ -242,18 +246,12 @@ private:
 	public:
 		Audio::FPatchOutputStrongPtr Patch;
 
-		bool IsValid() const
-		{
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
-			return Patch.IsValid();
-		}
-
 		void Reset()
 		{
 			Patch.Reset();
 
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
 			{
+				const FScopeLock ScopeLock(&MutateSourceCritSection);
 				NumChannels = 0;
 				ObjectId = INDEX_NONE;
 				Type = ESubmixEffectDynamicsKeySource::Default;
@@ -272,6 +270,12 @@ private:
 			return NumChannels;
 		}
 
+		ESubmixEffectDynamicsKeySource GetType() const
+		{
+			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			return Type;
+		}
+
 		void SetNumChannels(const int32 InNumChannels)
 		{
 			const FScopeLock ScopeLock(&MutateSourceCritSection);
@@ -280,14 +284,22 @@ private:
 
 		void Update(ESubmixEffectDynamicsKeySource InType, uint32 InObjectId, int32 InNumChannels = 0)
 		{
-			const FScopeLock ScopeLock(&MutateSourceCritSection);
+			bool bResetPatch = false;
 
-			if (Type != InType || ObjectId != InObjectId || NumChannels != InNumChannels)
 			{
-				Type = InType;
-				ObjectId = InObjectId;
-				NumChannels = InNumChannels;
+				const FScopeLock ScopeLock(&MutateSourceCritSection);
+				if (Type != InType || ObjectId != InObjectId || NumChannels != InNumChannels)
+				{
+					Type = InType;
+					ObjectId = InObjectId;
+					NumChannels = InNumChannels;
 
+					bResetPatch = true;
+				}
+			}
+
+			if (bResetPatch)
+			{
 				Patch.Reset();
 			}
 		}
@@ -295,7 +307,9 @@ private:
 
 	FKeySource KeySource;
 	Audio::FDynamicsProcessor DynamicsProcessor;
+
 	FDelegateHandle DeviceCreatedHandle;
+	FDelegateHandle DeviceDestroyedHandle;
 
 	friend class USubmixEffectDynamicsProcessorPreset;
 };
@@ -311,6 +325,10 @@ public:
 	virtual void OnInit() override;
 
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& InChainEvent) override;
+#endif // WITH_EDITOR
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects")
 	void ResetKey();

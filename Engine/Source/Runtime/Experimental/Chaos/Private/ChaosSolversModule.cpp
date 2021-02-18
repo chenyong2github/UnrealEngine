@@ -350,7 +350,7 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 	{
 		Chaos::FPhysicsSolverBase* Solver = AllSolvers[SolverIndex];
 #if TODO_REIMPLEMENT_SPATIAL_ACCELERATION_ACCESS
-		if(const Chaos::ISpatialAcceleration<float,3>* SpatialAcceleration = Solver->GetSpatialAcceleration())
+		if(const Chaos::ISpatialAcceleration<Chaos::FReal,3>* SpatialAcceleration = Solver->GetSpatialAcceleration())
 		{
 #if !UE_BUILD_SHIPPING
 			SpatialAcceleration->DumpStats();
@@ -360,14 +360,14 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 #endif
 #if 0
 
-		const TArray<Chaos::TAABB<float, 3>>& Boxes = Hierarchy->GetWorldSpaceBoxes();
+		const TArray<Chaos::FAABB3>& Boxes = Hierarchy->GetWorldSpaceBoxes();
 
 		if(Boxes.Num() > 0)
 		{
 			FString OutputString = TEXT("\n\n");
 			OutputString += FString::Printf(TEXT("Solver %d - Hierarchy Stats\n"));
 
-			const Chaos::TUniformGrid<float, 3>& Grid = Hierarchy->GetGrid();
+			const Chaos::TUniformGrid<Chaos::FReal, 3>& Grid = Hierarchy->GetGrid();
 
 			const int32 NumCells = Grid.GetNumCells();
 			const FVector Min = Grid.MinCorner();
@@ -421,7 +421,7 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 				(*OutOptMaxCellElements) = MaxElements;
 			}
 
-			const float AveragePopulatedCount = (float)TotalElems / (float)CellsL0;
+			const Chaos::FReal AveragePopulatedCount = (Chaos::FReal)TotalElems / (Chaos::FReal)CellsL0;
 
 			OutputString += FString::Printf(TEXT("\n\tL0: %d\n\tAvg elements per populated cell: %.5f\n\tTotal elems: %d"),
 				CellsL0,
@@ -438,13 +438,13 @@ void FChaosSolversModule::DumpHierarchyStats(int32* OutOptMaxCellElements)
 			}
 
 			const int32 MaxChars = 20;
-			const float CountPerCharacter = (float)MaxBucketCount / (float)MaxChars;
+			const Chaos::FReal CountPerCharacter = (Chaos::FReal)MaxBucketCount / (Chaos::FReal)MaxChars;
 
 			OutputString += TEXT("\n\nElement Count Distribution:\n");
 
 			for(int32 BucketIndex = 1; BucketIndex < NumBuckets; ++BucketIndex)
 			{
-				const int32 NumChars = (float)BucketCounts[BucketIndex] / (float)CountPerCharacter;
+				const int32 NumChars = (Chaos::FReal)BucketCounts[BucketIndex] / (Chaos::FReal)CountPerCharacter;
 
 				if(BucketIndex < (NumBuckets - 1))
 				{
@@ -546,7 +546,7 @@ void FChaosSolversModule::UpdateStats()
 	{
 		Chaos::PBDRigidsSolver* Solver = AllSolvers[SolverIndex];
 
-		const Chaos::TBoundingVolume<Chaos::TPBDRigidParticles<float, 3>, float, 3>* Hierarchy = Solver->GetSpatialAcceleration();
+		const Chaos::TBoundingVolume<Chaos::FPBDRigidParticles>* Hierarchy = Solver->GetSpatialAcceleration();
 
 		if(Hierarchy)
 		{

@@ -13,9 +13,20 @@
 #include "Misc/CoreDelegates.h"
 #include "Windows/WindowsPlatformOutputDevices.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "Templates/RefCounting.h"
 
 // Resource includes.
 #include "Runtime/Launch/Resources/Windows/Resource.h"
+
+THIRD_PARTY_INCLUDES_START
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "Windows/PreWindowsApi.h"
+#include "dxgi1_3.h"
+#include "dxgi1_4.h"
+#include "dxgi1_6.h"
+#include "Windows/PostWindowsApi.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_END
 
 typedef HRESULT(STDAPICALLTYPE *GetDpiForMonitorProc)(HMONITOR Monitor, int32 DPIType, uint32 *DPIX, uint32 *DPIY);
 APPLICATIONCORE_API GetDpiForMonitorProc GetDpiForMonitor;
@@ -312,6 +323,34 @@ int32 FWindowsPlatformApplicationMisc::GetMonitorDPI(const FMonitorInfo& Monitor
 	}
 
 	return DisplayDPI;
+}
+
+// Looks for an adapter with >= 512 MB of dedicated video memory and assumes we use it.
+bool FWindowsPlatformApplicationMisc::ProbablyHasIntegratedGPU()
+{ 
+	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
+	if (CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&DXGIFactory1) != S_OK || !DXGIFactory1)
+	{
+		return false;
+	}
+
+	TRefCountPtr<IDXGIAdapter> TempAdapter;
+	for (uint32 AdapterIndex = 0; DXGIFactory1->EnumAdapters(AdapterIndex, TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
+	{
+		if (TempAdapter)
+		{
+			DXGI_ADAPTER_DESC Desc;
+			TempAdapter->GetDesc(&Desc);
+
+			const int MIN_GPU_MEMORY = 512 * 1024 * 1024;
+			if (Desc.DedicatedVideoMemory >= MIN_GPU_MEMORY)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 float FWindowsPlatformApplicationMisc::GetDPIScaleFactorAtPoint(float X, float Y)

@@ -3,12 +3,15 @@
 #include "NiagaraShader.h"
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
+#include "Engine/Canvas.h"
+#include "CanvasItem.h"
 #include "TextureResource.h"
 #include "Engine/Texture2DArray.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSettings.h"
+#include "NiagaraBatchedElements.h"
 #if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
 #endif
@@ -2066,6 +2069,64 @@ static void TransitionAndCopyTexture(FRHICommandList& RHICmdList, FRHITexture* S
 	};
 
 	RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
+}
+
+void UNiagaraDataInterfaceGrid2DCollection::GetCanvasVariables(TArray<FNiagaraVariableBase>& OutVariables) const
+{
+	TArray<uint32> VariableOffsets;
+	int32 NumAttribChannelsFound;
+	FindAttributes(OutVariables, VariableOffsets, NumAttribChannelsFound);
+
+	//-TODO: We could add anonymous attributes in here as well?
+}
+
+bool UNiagaraDataInterfaceGrid2DCollection::RenderVariableToCanvas(FNiagaraSystemInstanceID SystemInstanceID, FName VariableName, class FCanvas* Canvas, const FIntRect& DrawRect) const
+{
+	if (!Canvas)
+	{
+		return false;
+	}
+
+	FGrid2DCollectionRWInstanceData_GameThread* Grid2DInstanceData = SystemInstancesToProxyData_GT.FindRef(SystemInstanceID);
+	if (!Grid2DInstanceData)
+	{
+		return false;
+	}
+
+	const int32 VariableIndex = Grid2DInstanceData->Vars.IndexOfByPredicate([&VariableName](const FNiagaraVariableBase& VariableBase) { return VariableBase.GetName() == VariableName; });
+	if (VariableIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	const int32 FirstSlice = Grid2DInstanceData->Offsets[VariableIndex];
+	const int32 NumFloats = Grid2DInstanceData->Vars[VariableIndex].GetType().GetSize() / sizeof(float);
+
+	FIntVector4 AttributeSlices;
+	AttributeSlices.X = FirstSlice;
+	AttributeSlices.Y = NumFloats > 1 ? FirstSlice + 1 : INDEX_NONE;
+	AttributeSlices.Z = NumFloats > 2 ? FirstSlice + 2 : INDEX_NONE;
+	AttributeSlices.W = NumFloats > 3 ? FirstSlice + 3 : INDEX_NONE;
+
+	FCanvasTileItem TileItem(FVector2D(DrawRect.Min.X, DrawRect.Min.Y), FVector2D(DrawRect.Width(), DrawRect.Height()), FLinearColor::White);
+	TileItem.BlendMode = SE_BLEND_Opaque;
+	TileItem.BatchedElementParameters = new FBatchedElementNiagara2DArrayAttribute(
+		AttributeSlices,
+		[RT_Proxy=GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>(), RT_SystemInstanceID=SystemInstanceID](FRHITexture*& OutTexture, FRHISamplerState*& OutSamplerState)
+		{
+			if ( const FGrid2DCollectionRWInstanceData_RenderThread* RT_InstanceData = RT_Proxy->SystemInstancesToProxyData_RT.Find(RT_SystemInstanceID) )
+			{
+				if ( RT_InstanceData->CurrentData != nullptr )
+				{
+					OutTexture = RT_InstanceData->CurrentData->GridTexture;
+					OutSamplerState = TStaticSamplerState<SF_Bilinear>::GetRHI();
+				}
+			}
+		}
+	);
+	Canvas->DrawItem(TileItem);
+
+	return true;
 }
 
 UFUNCTION(BlueprintCallable, Category = Niagara)

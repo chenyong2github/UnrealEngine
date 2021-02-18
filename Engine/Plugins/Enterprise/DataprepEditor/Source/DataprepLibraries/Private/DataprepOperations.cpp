@@ -525,4 +525,78 @@ void UDataprepSetCollisionComplexityOperation::OnExecution_Implementation(const 
 	}
 }
 
+void UDataprepSetMaxTextureSizeOperation::OnExecution_Implementation(const FDataprepContext& InContext)
+{
+#ifdef LOG_TIME
+	DataprepOperationTime::FTimeLogger TimeLogger(TEXT("SetMaxTextureSize"), [&](FText Text) { this->LogInfo(Text); });
+#endif
+
+	TSet<UTexture2D*> Textures;
+
+	// Re-create static meshes
+	for (UObject* Object : InContext.Objects)
+	{
+		if (UTexture2D* Texture = Cast< UTexture2D >(Object))
+		{
+			Textures.Add(Texture);
+		}
+	}
+
+	// Execute operation
+	UDataprepOperationsLibrary::ResizeTextures(Textures.Array(), MaxTextureSize);
+}
+
+void FDataprepSetMaxTextureSizeDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	TArray< TWeakObjectPtr< UObject > > Objects;
+	DetailBuilder.GetObjectsBeingCustomized( Objects );
+	check( Objects.Num() > 0 );
+
+	Operation = Cast< UDataprepSetMaxTextureSizeOperation >(Objects[0].Get());
+	check( Operation );
+
+	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory( NAME_None, FText::GetEmpty(), ECategoryPriority::Important );
+
+	MaxTextureSizePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDataprepSetMaxTextureSizeOperation, MaxTextureSize));
+	MaxTextureSizePropertyHandle->MarkHiddenByCustomization();
+
+	FDetailWidgetRow& CustomAssetImportRow = CategoryBuilder.AddCustomRow( FText::FromString( TEXT( "Max Texture Size" ) ) );
+
+	CustomAssetImportRow.NameContent()
+	[
+		MaxTextureSizePropertyHandle->CreatePropertyNameWidget()
+	];
+
+	CustomAssetImportRow.ValueContent()
+	[
+		SAssignNew(TextBox, SEditableTextBox)
+		.OnTextChanged(this, &FDataprepSetMaxTextureSizeDetails::MaxSize_TextChanged)
+		.OnTextCommitted(this, &FDataprepSetMaxTextureSizeDetails::MaxSize_TextCommited)
+		.Text(FText::FromString(FString::FromInt(Operation->MaxTextureSize)))
+	];
+}
+
+void FDataprepSetMaxTextureSizeDetails::MaxSize_TextChanged(const FText& Text)
+{
+	if (!Text.IsEmpty())
+	{
+		// Filter out non-digit chars
+		const int32 MaxSize = FCString::Atoi(*Text.ToString());
+		TextBox->SetText(FText::FromString(FString::FromInt(MaxSize)));
+	}
+}
+
+void FDataprepSetMaxTextureSizeDetails::MaxSize_TextCommited(const FText& InText, ETextCommit::Type InCommitType)
+{
+	int32 MaxSize = FCString::Atoi(*InText.ToString());
+
+	if (!FMath::IsPowerOfTwo(MaxSize))
+	{
+		MaxSize = FMath::RoundUpToPowerOfTwo(MaxSize);
+		TextBox->SetText(FText::FromString(FString::FromInt(MaxSize)));
+	}
+
+	MaxTextureSizePropertyHandle->SetValue(MaxSize);
+}
+
 #undef LOCTEXT_NAMESPACE

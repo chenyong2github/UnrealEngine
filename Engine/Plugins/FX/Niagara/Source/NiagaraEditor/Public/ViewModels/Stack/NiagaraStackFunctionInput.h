@@ -107,6 +107,7 @@ public:
 	virtual bool TestCanPasteWithMessage(const UNiagaraClipboardContent* ClipboardContent, FText& OutMessage) const override;
 	virtual FText GetPasteTransactionText(const UNiagaraClipboardContent* ClipboardContent) const override;
 	virtual void Paste(const UNiagaraClipboardContent* ClipboardContent, FText& OutPasteWarning) override;
+	virtual bool HasOverridenContent() const override;
 
 	/** Gets the tooltip that should be shown for the value of this input. */
 	FText GetValueToolTip() const;

@@ -471,7 +471,7 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> FLandscapeComponentDerivedData::GetRenderData()
 {
 	// This function is expected to be called from either the GameThread or via ParallelFor from the GameThread
-	check(!IsInRenderingThread());
+	check(!IsInActualRenderingThread());
 
 	if (FPlatformProperties::RequiresCookedData() && CachedRenderData.IsValid())
 	{

@@ -162,6 +162,8 @@ void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
 		ENamedThreads::GameThread,
 		[this, Pool_GT = MoveTemp(ComponentPool), Owner_GT = MoveTemp(SpawnedOwner)]()
 		{
+			// we do not reset ParticlesWithComponents here because it's possible the render state is destroyed without destroying the renderer. In this case we want to know which particles
+			// had spawned some components previously 
 			for (auto& PoolEntry : Pool_GT)
 			{
 				if (PoolEntry.Component.IsValid())
@@ -289,6 +291,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 		}
 	}
 
+	FObjectKey ComponentKey(Properties->TemplateComponent);
 	const int32 MaxComponents = Properties->ComponentCountLimit;
 	int32 ComponentCount = 0;
 	for (uint32 ParticleIndex = 0; ParticleIndex < ParticleData.GetNumInstances(); ParticleIndex++)
@@ -309,8 +312,8 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			
 			if (PoolIndex == -1 && Properties->bOnlyCreateComponentsOnParticleSpawn)
 			{
-				// Don't allow this particle to acquire a component unless it was just spawned
-				bool bIsNewlySpawnedParticle = ParticleIndex >= ParticleData.GetNumInstances() - ParticleData.GetNumSpawnedInstances();
+				// Don't allow this particle to acquire a component unless it was just spawned or had a component assigned to it previously
+				bool bIsNewlySpawnedParticle = Emitter->IsParticleComponentActive(ComponentKey, ParticleID) || ParticleIndex >= ParticleData.GetNumInstances() - ParticleData.GetNumSpawnedInstances();
 				if (!bIsNewlySpawnedParticle)
 				{
 					continue;
@@ -399,6 +402,10 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 
 		PoolEntry.LastAssignedToParticleID = ParticleID;
 		PoolEntry.LastActiveTime = CurrentTime;
+		if (Properties->bOnlyCreateComponentsOnParticleSpawn)
+		{
+			Emitter->SetParticleComponentActive(ComponentKey, ParticleID);
+		}
 		
 		++ComponentCount;
 		if (ComponentCount > GNiagaraWarnComponentRenderCount)

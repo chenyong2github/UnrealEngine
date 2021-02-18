@@ -304,7 +304,9 @@ public:
 	virtual void RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuffer, FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override;
 	virtual void RHISetDepthBounds(float MinDepth, float MaxDepth) final override;
     virtual void RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner) final override;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
     virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) final override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture) final override;
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred) final override;
@@ -681,10 +683,12 @@ public:
 		ContextRedirect(RHISetShadingRate(ShadingRate, Combiner));
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FORCEINLINE virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) final override
 	{
-		ContextRedirect(RHISetShadingRateImage(RateImageTexture, Combiner));
+		checkf(false, TEXT("RHISetShadingRateImage API is deprecated. Use the ShadingRateImage attachment in the RHISetRenderTargetsInfo struct instead."));
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FORCEINLINE virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture) final override
 	{

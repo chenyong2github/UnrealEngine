@@ -9,6 +9,8 @@
 #include "NiagaraTypes.h"
 #include "Templates/SharedPointer.h"
 #include "NiagaraPerfBaseline.h"
+#include "NiagaraDebuggerCommon.h"
+#include "Templates/PimplPtr.h"
 
 class FNiagaraWorldManager;
 class UNiagaraEmitter;
@@ -20,6 +22,7 @@ class INiagaraMergeManager;
 class INiagaraEditorOnlyDataUtilities;
 struct FNiagaraParameterStore;
 class FCommonViewportClient;
+class FNiagaraDebuggerClient;
 
 extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 
@@ -179,6 +182,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonTwist() { return Particles_RibbonTwist; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonFacing() { return Particles_RibbonFacing; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonLinkOrder() { return Particles_RibbonLinkOrder; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonDistanceFromStart() { return Particles_RibbonDistanceFromStart; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonU0Override() { return Particles_RibbonU0Override; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonV0RangeOverride() { return Particles_RibbonV0RangeOverride; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonU1Override() { return Particles_RibbonU1Override; }
@@ -293,6 +297,7 @@ private:
 	static FNiagaraVariable Particles_RibbonFacing;
 	static FNiagaraVariable Particles_RibbonLinkOrder;
 	static FNiagaraVariable Particles_ComponentsEnabled;
+	static FNiagaraVariable Particles_RibbonDistanceFromStart;
 	static FNiagaraVariable Particles_RibbonU0Override;
 	static FNiagaraVariable Particles_RibbonV0RangeOverride;
 	static FNiagaraVariable Particles_RibbonU1Override;
@@ -306,6 +311,10 @@ private:
 
 #if NIAGARA_PERF_BASELINES
 	TUniquePtr<FNiagaraPerfBaselineHandler> BaselineHandler;
+#endif
+
+#if WITH_NIAGARA_DEBUGGER
+	TPimplPtr<FNiagaraDebuggerClient> DebuggerClient;
 #endif
 };
 

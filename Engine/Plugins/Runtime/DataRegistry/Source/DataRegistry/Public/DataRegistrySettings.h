@@ -28,6 +28,9 @@ public:
 	bool bIgnoreMissingCookedAssetRegistryData = false;
 
 
+	/** Return true if we are allowed to ignore missing asset registry data based on settings and build */
+	bool CanIgnoreMissingAssetData() const;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif

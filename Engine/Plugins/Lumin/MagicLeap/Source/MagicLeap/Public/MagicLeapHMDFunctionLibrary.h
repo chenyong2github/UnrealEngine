@@ -45,11 +45,10 @@ struct MAGICLEAP_API FMagicLeapHeadTrackingState
 
 public:
 	FMagicLeapHeadTrackingState()
-	{
-		Mode = EMagicLeapHeadTrackingMode::Unknown;
-		Error = EMagicLeapHeadTrackingError::None;
-		Confidence = 1.0f;
-	}
+		: Mode(EMagicLeapHeadTrackingMode::Unknown)
+		, Error(EMagicLeapHeadTrackingError::None)
+		, Confidence(0.0f)
+	{}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "MagicLeap")
 	EMagicLeapHeadTrackingMode Mode;
@@ -65,6 +64,16 @@ USTRUCT(BlueprintType)
 struct MAGICLEAP_API FMagicLeapGraphicsClientPerformanceInfo
 {
 	GENERATED_BODY()
+
+	FMagicLeapGraphicsClientPerformanceInfo()
+		: FrameStartCPUCompAcquireCPUTimeMs(0.0f)
+		, FrameStartCPUFrameEndGPUTimeMs(0.0f)
+		, FrameStartCPUFrameStartCPUTimeMs(0.0f)
+		, FrameDurationCPUTimeMs(0.0f)
+		, FrameDurationGPUTimeMs(0.0f)
+		, FrameInternalDurationCPUTimeMs(0.0f)
+		, FrameInternalDurationGPUTimeMs(0.0f)
+	{}
 
 public:
 	/** The average frame start CPU to composition acquisition of the frame, in milliseconds. */

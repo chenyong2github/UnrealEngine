@@ -216,16 +216,14 @@ private:
 	// These are the strings to pass to Exec to invoke various utilities.
 	// On Mac we'll just use xcrun and the name of the utility
 
-#if PLATFORM_WINDOWS
-	// On Windows we will need to figure out the full path to each
-	
+	// On Windows, or when using an override on Mac, we will need to figure out the full path to each	
 	// The command string to invoke 'metal'
 	FString	MetalFrontendBinaryCommand[AppleSDKCount];
 	// The command string to invoke 'metallib'
 	FString MetalLibBinaryCommand[AppleSDKCount];
 	// The command string to invoke 'metal-ar'
 	FString MetalArBinaryCommand[AppleSDKCount];
-#endif
+
 	// The compiler version string, parsed out of metal -v
 	FString	MetalCompilerVersionString[AppleSDKCount];
 	// The compiler version number, parsed out of metal -v. This is the first number that occurs - not the number that is (metalfe-###)

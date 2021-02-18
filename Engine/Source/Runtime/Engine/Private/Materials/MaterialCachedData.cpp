@@ -533,7 +533,11 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::StaticComponentMask, ParameterInfo, ExpressionStaticComponentMaskParameter->ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				FStaticComponentMaskValue Value {static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultR), static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultG), static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultB), static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultA)};
+				FStaticComponentMaskValue Value(
+					static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultR),
+					static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultG),
+					static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultB),
+					static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultA));
 				if (Context.Parent)
 				{
 					FMaterialCachedParameterEntry& CachedEntry = Parameters.EditorOnlyEntries[static_cast<int32>(EMaterialParameterType::StaticComponentMask) - static_cast<int32>(EMaterialParameterType::RuntimeCount)];

@@ -96,7 +96,7 @@ namespace ChaosInterface
 	{
 #if WITH_CHAOS && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 		TArray<Chaos::TVec3<int32>> CollisionMeshElements = GetMeshElements(PhysXMesh);
-		Chaos::TParticles<float, 3> CollisionMeshParticles;
+		Chaos::FParticles CollisionMeshParticles;
 		CollisionMeshParticles.AddParticles(PhysXMesh->getNbVertices());
 		for (uint32 j = 0; j < CollisionMeshParticles.Size(); ++j)
 		{
@@ -131,7 +131,7 @@ namespace ChaosInterface
 		Counts[1] = Counts[1] < 1 ? 1 : Counts[1];
 		Counts[2] = Counts[2] < 1 ? 1 : Counts[2];
 		Chaos::TUniformGrid<float, 3> Grid(BoundingBox.Min(), BoundingBox.Max(), Counts, 1);
-		Chaos::TTriangleMesh<float> CollisionMesh(MoveTemp(CollisionMeshElements));
+		Chaos::FTriangleMesh CollisionMesh(MoveTemp(CollisionMeshElements));
 		return TUniquePtr<Chaos::FImplicitObject>(new Chaos::TLevelSet<float, 3>(Grid, CollisionMeshParticles, CollisionMesh));
 #endif
 
@@ -393,7 +393,7 @@ namespace ChaosInterface
 
 #if WITH_CHAOS
 	bool CalculateMassPropertiesOfImplicitType(
-		Chaos::TMassProperties<float, 3>& OutMassProperties,
+		Chaos::FMassProperties& OutMassProperties,
 		const Chaos::TRigidTransform<float, 3>& WorldTransform,
 		const Chaos::FImplicitObject* ImplicitObject,
 		float InDensityKGPerCM)
@@ -442,11 +442,11 @@ namespace ChaosInterface
 		return false;
 	}
 
-	void CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
+	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
 	{
 		float TotalMass = 0.f;
 		Chaos::FVec3 TotalCenterOfMass(0.f);
-		TArray< Chaos::TMassProperties<float, 3> > MassPropertiesList;
+		TArray< Chaos::FMassProperties > MassPropertiesList;
 		for (const FPhysicsShapeHandle& ShapeHandle : InShapes)
 		{
 			if (const Chaos::FPerShapeData* Shape = ShapeHandle.Shape)
@@ -454,7 +454,7 @@ namespace ChaosInterface
 				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
 				{
 					FTransform WorldTransform(ShapeHandle.ActorRef->GetGameThreadAPI().R(), ShapeHandle.ActorRef->GetGameThreadAPI().X());
-					Chaos::TMassProperties<float, 3> MassProperties;
+					Chaos::FMassProperties MassProperties;
 					if (CalculateMassPropertiesOfImplicitType(MassProperties, WorldTransform, ImplicitObject, InDensityKGPerCM))
 					{
 						MassPropertiesList.Add(MassProperties);
@@ -473,7 +473,7 @@ namespace ChaosInterface
 		Chaos::PMatrix<float, 3, 3> Tensor;
 		if (MassPropertiesList.Num())
 		{
-			Tensor = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
+			Tensor = Chaos::CombineWorldSpace(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
 		}
 		else
 		{
@@ -487,11 +487,11 @@ namespace ChaosInterface
 		OutProperties.CenterOfMass = TotalCenterOfMass;
 	}
 
-	void CalculateMassPropertiesFromShapeCollection(Chaos::TMassProperties<float, 3>& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, float InDensityKGPerCM)
+	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, float InDensityKGPerCM)
 	{
 		float TotalMass = 0.f;
 		Chaos::FVec3 TotalCenterOfMass(0.f);
-		TArray< Chaos::TMassProperties<float, 3> > MassPropertiesList;
+		TArray< Chaos::FMassProperties > MassPropertiesList;
 		for (int32 ShapeIndex = 0; ShapeIndex < InShapes.Num(); ++ShapeIndex)
 		{
 			const TUniquePtr<Chaos::FPerShapeData>& Shape = InShapes[ShapeIndex];
@@ -500,7 +500,7 @@ namespace ChaosInterface
 			{
 				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
 				{
-					Chaos::TMassProperties<float, 3> MassProperties;
+					Chaos::FMassProperties MassProperties;
 					if (CalculateMassPropertiesOfImplicitType(MassProperties, FTransform::Identity, ImplicitObject, InDensityKGPerCM))
 					{
 						MassPropertiesList.Add(MassProperties);
@@ -519,7 +519,7 @@ namespace ChaosInterface
 		Chaos::PMatrix<float, 3, 3> Tensor;
 		if (MassPropertiesList.Num())
 		{
-			Tensor = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
+			Tensor = Chaos::CombineWorldSpace(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
 		}
 		else
 		{

@@ -66,7 +66,7 @@ struct INTROTUTORIALS_API FTutorialCategory
 
 	/** Sort order, used by the tutorial browser - set in editor game-agnostic INI file */
 	UPROPERTY()
-	int32 SortOrder;
+	int32 SortOrder = INDEX_NONE;
 
 	/** Localized text to use to describe this category */
 	UPROPERTY(EditAnywhere, Category="Content", meta=(MultiLine=true))
@@ -228,7 +228,7 @@ struct INTROTUTORIALS_API FTutorialStage
 
 	/** If false, stage will be skipped if running on any platform in PlatformsToTest. If true, the stage will be if not running on any platform in PlatformsToTest. */
 	UPROPERTY(EditAnywhere, Category = "Stage")
-	bool bInvertPlatformTest;
+	bool bInvertPlatformTest = true;
 };
 
 /** An asset used to build a stage-by-stage tutorial in the editor */

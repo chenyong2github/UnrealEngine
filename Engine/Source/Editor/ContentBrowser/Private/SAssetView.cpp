@@ -1976,7 +1976,12 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 		return bIsFixedNameColumn || bIsFixedClassColumn || bIsFixedPathColumn;
 	};
 
-	if ( NewMajorityAssetType != MajorityAssetType )
+
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>(TEXT("ContentBrowser"));
+
+	bool bHasDynamicColumns = ContentBrowserModule.IsDynamicTagAssetClass(NewMajorityAssetType);
+
+	if ( NewMajorityAssetType != MajorityAssetType || bHasDynamicColumns)
 	{
 		UE_LOG(LogContentBrowser, Verbose, TEXT("The majority of assets in the view are of type: %s"), *NewMajorityAssetType.ToString());
 
@@ -2058,6 +2063,8 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 		// If we have a new majority type, add the new type's columns
 		if (NewMajorityAssetType != NAME_None)
 		{
+			FContentBrowserItemDataAttributeValues UnionedItemAttributes;
+
 			// Find an item of this type so we can extract the relevant attribute data from it
 			TSharedPtr<FAssetViewItem> MajorityAssetItem;
 			for (const TSharedPtr<FAssetViewItem>& FilteredAssetItem : FilteredAssetItems)
@@ -2065,15 +2072,24 @@ void SAssetView::SetMajorityAssetType(FName NewMajorityAssetType)
 				const FContentBrowserItemDataAttributeValue ClassValue = FilteredAssetItem->GetItem().GetItemAttribute(ContentBrowserItemAttributes::ItemTypeName);
 				if (ClassValue.IsValid() && ClassValue.GetValue<FName>() == NewMajorityAssetType)
 				{
-					MajorityAssetItem = FilteredAssetItem;
-					break;
+					if (bHasDynamicColumns)
+					{
+						const FContentBrowserItemDataAttributeValues ItemAttributes = FilteredAssetItem->GetItem().GetItemAttributes(/*bIncludeMetaData*/true);
+						UnionedItemAttributes.Append(ItemAttributes); 
+						MajorityAssetItem = FilteredAssetItem;
+					}
+					else
+					{
+						MajorityAssetItem = FilteredAssetItem;
+						break;
+					}
 				}
 			}
 
 			// Determine the columns by querying the reference item
 			if (MajorityAssetItem)
 			{
-				const FContentBrowserItemDataAttributeValues ItemAttributes = MajorityAssetItem->GetItem().GetItemAttributes(/*bIncludeMetaData*/true);
+				FContentBrowserItemDataAttributeValues ItemAttributes = bHasDynamicColumns ? UnionedItemAttributes : MajorityAssetItem->GetItem().GetItemAttributes(/*bIncludeMetaData*/true);
 
 				// Add a column for every tag that isn't hidden or using a reserved name
 				for (const auto& TagPair : ItemAttributes)

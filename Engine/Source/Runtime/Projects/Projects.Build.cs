@@ -25,7 +25,7 @@ namespace UnrealBuildTool.Rules
 			);
 
 			// Monolithic and non-editor builds compile in the enabled/disabled plugins. Non-monolithic editor builds save them in the plugin receipt to avoid invalidating the shared build environment.
-			if (Target.Type == TargetType.Editor && Target.LinkType != TargetLinkType.Monolithic)
+			if ((Target.Type == TargetType.Editor) && (Target.BuildEnvironment == TargetBuildEnvironment.Shared) && (Target.LinkType != TargetLinkType.Monolithic))
 			{
 				PublicDefinitions.Add("READ_TARGET_ENABLED_PLUGINS_FROM_RECEIPT=1");
 

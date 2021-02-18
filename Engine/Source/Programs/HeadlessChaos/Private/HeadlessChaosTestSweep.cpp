@@ -17,7 +17,7 @@ namespace ChaosTest
 		// Trimesh is from SM_Cattus_POI_Rib, this was a real world failure that is now fixed.
 
 		using namespace Chaos;
-		TParticles<FReal, 3> TrimeshParticles(
+		FParticles TrimeshParticles(
 		{
 			{29.0593967, -5.21321106, -10.2669592},
 			{34.5006638, -3.16600156, -14.5092020},

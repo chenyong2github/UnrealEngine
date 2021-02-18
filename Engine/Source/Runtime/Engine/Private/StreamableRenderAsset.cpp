@@ -100,13 +100,14 @@ void UStreamableRenderAsset::TickStreaming(bool bSendCompletionEvents, TArray<US
 
 		if (PendingUpdate->IsCompleted())
 		{
-			if (PendingUpdate->IsCancelled())
+			if (PendingUpdate->IsSuccessfullyFinished())
 			{
-				CachedSRRState.NumRequestedLODs = CachedSRRState.NumResidentLODs;
+				CachedSRRState.NumResidentLODs = CachedSRRState.NumRequestedLODs;
 			}
 			else
 			{
-				CachedSRRState.NumResidentLODs = CachedSRRState.NumRequestedLODs;
+				check(PendingUpdate->IsCancelled());
+				CachedSRRState.NumRequestedLODs = CachedSRRState.NumResidentLODs;
 			}
 
 			PendingUpdate.SafeRelease();

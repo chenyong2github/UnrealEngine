@@ -1037,7 +1037,8 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	SourceSkeletalMesh = nullptr; 
 	NiagaraComponents.Empty();
 	PhysicsAsset = nullptr;
-	
+	bCanEverAffectNavigation = false;
+
 	// Overlap events are expensive and not needed (at least at the moment) as we don't need to collide against other component.
 	SetGenerateOverlapEvents(false);
 	SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);

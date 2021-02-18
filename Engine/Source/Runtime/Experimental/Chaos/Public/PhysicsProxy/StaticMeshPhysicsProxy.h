@@ -50,7 +50,7 @@ public:
 		{}
 
 		FString Name;
-		Chaos::TParticles<float,3> MeshVertexPositions;
+		Chaos::FParticles MeshVertexPositions;
 		TArray<Chaos::TVector<int32, 3> > TriIndices;
 		FShapeParams ShapeParams;
 		FTransform InitialTransform;

@@ -358,7 +358,7 @@ namespace Audio
 		FAudioPlatformDeviceInfo PlatformInfo;
 
 		/** Map of USoundSubmix static data objects to the dynamic audio mixer submix. */
-		TMap<const USoundSubmixBase*, FMixerSubmixPtr> Submixes;
+		TMap<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr> Submixes;
 
 		// Submixes that will sum their audio and send it directly to AudioMixerPlatform.
 		// Submixes are added to this list in RegisterSoundSubmix, and removed in UnregisterSoundSubmix.

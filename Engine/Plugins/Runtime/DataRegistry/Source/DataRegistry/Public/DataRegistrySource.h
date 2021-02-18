@@ -130,8 +130,8 @@ public:
 	/** Fills in list of desired runtime names, must be overridden! */
 	virtual void DetermineRuntimeNames(TArray<FName>& OutRuntimeNames);
 
-	/** Returns true if this asset data passes the filter for this meta source, bRegisteredAsset is true if it comes from a RegisterSpecificAsset call */
-	virtual bool DoesAssetPassFilter(const FAssetData& AssetData, bool bRegisteredAsset);
+	/** Returns true if this asset data passes the filter for this meta source, bNewRegisteredAsset is true if it comes from a RegisterSpecificAsset call and needs extra path checking */
+	virtual bool DoesAssetPassFilter(const FAssetData& AssetData, bool bNewRegisteredAsset);
 
 	// Source Interface
 	virtual void RefreshRuntimeSources() override;

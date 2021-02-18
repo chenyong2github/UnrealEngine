@@ -168,8 +168,8 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 	// Texture used by the quad overdraw debug view mode when enabled.
 	FRDGTextureRef QuadOverdraw{};
 
-	// (Mobile) Texture used by VR to control foveated rendering.
-	FRDGTextureRef Foveation{};
+	// Texture used to control shading rate for rendering.
+	FRDGTextureRef ShadingRate{};
 
 	// Textures used to composite editor primitives. Also used by the base pass when in wireframe mode.
 #if WITH_EDITOR

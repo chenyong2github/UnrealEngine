@@ -863,6 +863,12 @@ void F3DTransformTrackEditor::ProcessKeyOperation(FFrameNumber InKeyTime, const 
 
 void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayView<const UE::Sequencer::FKeySectionOperation> SectionsToKey, ISequencer& InSequencer, FFrameNumber KeyTime)
 {
+	USceneComponent* Component = MovieSceneHelpers::SceneComponentFromRuntimeObject(ObjectToKey);
+	if (!Component)
+	{
+		return;
+	}
+
 	using namespace UE::MovieScene;
 	using namespace UE::Sequencer;
 
@@ -902,8 +908,6 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 
 	if (ensure(System && ValidEntities.Num() != 0))
 	{
-		USceneComponent* Component = MovieSceneHelpers::SceneComponentFromRuntimeObject(ObjectToKey);
-
 		FDecompositionQuery Query;
 		Query.Entities = ValidEntities;
 		Query.bConvertFromSourceEntityIDs = false;

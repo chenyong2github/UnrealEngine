@@ -47,4 +47,6 @@ class TDynamicParticles : public TParticles<T, d>
 	TArrayCollectionArray<TVector<T, d>> MV, MF;
 	TArrayCollectionArray<T> MM, MInvM;
 };
+
+using FDynamicParticles = TDynamicParticles<FReal, 3>;
 }

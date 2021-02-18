@@ -36,12 +36,15 @@ public:
 	FNiagaraGraphParameterReference() {}
 	FNiagaraGraphParameterReference(const FGuid& InKey, UObject* InValue): Key(InKey), Value(InValue){}
 
-
 	UPROPERTY()
 	FGuid Key;
 
 	UPROPERTY()
 	TWeakObjectPtr<UObject> Value;
+
+	UPROPERTY()
+	// If false then it is just a technical reference (e.g. setting the default value)
+	bool bIsUserFacing = true;
 
 	FORCEINLINE bool operator==(const FNiagaraGraphParameterReference& Other)const
 	{

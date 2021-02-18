@@ -476,8 +476,7 @@ TfToken IUsdPrim::GetKind(const pxr::UsdPrim& Prim)
 	else
 	{
 		// Prim is not a model, read kind directly from metadata
-		const TfToken KindMetaDataToken("kind");
-		Prim.GetMetadata(KindMetaDataToken, &KindType);
+		Prim.GetMetadata( SdfFieldKeys->Kind, &KindType );
 	}
 
 	return KindType;
@@ -490,14 +489,18 @@ bool IUsdPrim::SetKind(const pxr::UsdPrim& Prim, const pxr::TfToken& Kind)
 	{
 		if (!Model.SetKind(Kind))
 		{
-			const TfToken KindMetaDataToken("kind");
-			return Prim.SetMetadata(KindMetaDataToken, Kind);
+			return Prim.SetMetadata( SdfFieldKeys->Kind, Kind );
 		}
 
 		return true;
 	}
 
 	return false;
+}
+
+bool IUsdPrim::ClearKind( const pxr::UsdPrim& Prim )
+{
+	return Prim.ClearMetadata( SdfFieldKeys->Kind );
 }
 
 pxr::GfMatrix4d IUsdPrim::GetLocalTransform(const pxr::UsdPrim& Prim)

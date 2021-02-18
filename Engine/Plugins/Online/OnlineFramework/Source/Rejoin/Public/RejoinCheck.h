@@ -74,7 +74,7 @@ DECLARE_DELEGATE_OneParam(FOnRejoinLastSessionComplete, ERejoinAttemptResult /**
 /**
  * Class responsible for maintaining the status/availability of a session already in progress for a client to join
  */
-UCLASS()
+UCLASS(abstract)
 class REJOIN_API URejoinCheck : public UObject
 {
 	GENERATED_BODY()

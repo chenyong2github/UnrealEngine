@@ -66,6 +66,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 
 	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "Enum"))
 	TArray<FSoftObjectPath> AdditionalParameterEnums;
+
+	/** Sets the default navigation behavior for the system preview viewport. */
+	UPROPERTY(config, EditAnywhere, Category = Viewport)
+	bool bSystemViewportInOrbitMode = true;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Default effect type to use for effects that don't define their own. Can be null. */

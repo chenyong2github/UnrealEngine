@@ -11,9 +11,9 @@ class UClothingAssetCommon;
 
 namespace Chaos
 {
-	template<typename T, int d> class TPBDEvolution;
-	template<typename T> class TTriangleMesh;
-	template<typename T, int d> class TVelocityField;
+	class FTriangleMesh;
+	class FPBDEvolution;
+	class FVelocityField;
 
 	class FClothingSimulationCloth;
 	class FClothingSimulationCollider;
@@ -66,14 +66,14 @@ namespace Chaos
 		int32 AddParticles(int32 NumParticles, uint32 GroupId);
 		void EnableParticles(int32 Offset, bool bEnable);
 
-		void SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
-		void SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
-		void SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const TTriangleMesh<float>& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		void SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		void SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		void SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
 		// Set the amount of velocity allowed to filter from the given change in reference space transform, including local simulation space.
 		void SetReferenceVelocityScale(uint32 GroupId,
-			const TRigidTransform<float, 3>& OldReferenceSpaceTransform,
-			const TRigidTransform<float, 3>& ReferenceSpaceTransform,
+			const FRigidTransform3& OldReferenceSpaceTransform,
+			const FRigidTransform3& ReferenceSpaceTransform,
 			const FVec3& LinearVelocityScale,
 			float AngularVelocityScale);
 
@@ -87,8 +87,8 @@ namespace Chaos
 		void SetGravity(uint32 GroupId, const FVec3& Gravity);
 
 		// Set the geometry affected by wind, or disable if TriangleMesh is null.
-		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const TTriangleMesh<float>* TriangleMesh = nullptr);
-		const TVelocityField<float, 3>&  GetWindVelocityField(uint32 GroupId);
+		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const FTriangleMesh* TriangleMesh = nullptr);
+		const FVelocityField&  GetWindVelocityField(uint32 GroupId);
 
 		// Set legacy noise wind.
 		void SetLegacyWind(uint32 GroupId, bool bUseLegacyWind);
@@ -118,12 +118,12 @@ namespace Chaos
 
 		const int32* GetCollisionBoneIndices(int32 Offset) const { return CollisionBoneIndices.GetData() + Offset; }
 		int32* GetCollisionBoneIndices(int32 Offset) { return CollisionBoneIndices.GetData() + Offset; }
-		const TRigidTransform<float, 3>* GetCollisionBaseTransforms(int32 Offset) const { return CollisionBaseTransforms.GetData() + Offset; }
-		TRigidTransform<float, 3>* GetCollisionBaseTransforms(int32 Offset) { return CollisionBaseTransforms.GetData() + Offset; }
-		const TRigidTransform<float, 3>* GetOldCollisionTransforms(int32 Offset) const { return OldCollisionTransforms.GetData() + Offset; }
-		TRigidTransform<float, 3>* GetOldCollisionTransforms(int32 Offset) { return OldCollisionTransforms.GetData() + Offset; }
-		const TRigidTransform<float, 3>* GetCollisionTransforms(int32 Offset) const { return CollisionTransforms.GetData() + Offset; }
-		TRigidTransform<float, 3>* GetCollisionTransforms(int32 Offset) { return CollisionTransforms.GetData() + Offset; }
+		const FRigidTransform3* GetCollisionBaseTransforms(int32 Offset) const { return CollisionBaseTransforms.GetData() + Offset; }
+		FRigidTransform3* GetCollisionBaseTransforms(int32 Offset) { return CollisionBaseTransforms.GetData() + Offset; }
+		const FRigidTransform3* GetOldCollisionTransforms(int32 Offset) const { return OldCollisionTransforms.GetData() + Offset; }
+		FRigidTransform3* GetOldCollisionTransforms(int32 Offset) { return OldCollisionTransforms.GetData() + Offset; }
+		const FRigidTransform3* GetCollisionTransforms(int32 Offset) const { return CollisionTransforms.GetData() + Offset; }
+		FRigidTransform3* GetCollisionTransforms(int32 Offset) { return CollisionTransforms.GetData() + Offset; }
 		const FVec3* GetCollisionParticleXs(int32 Offset) const;
 		FVec3* GetCollisionParticleXs(int32 Offset);
 		const TRotation<float, 3>* GetCollisionParticleRs(int32 Offset) const;
@@ -139,18 +139,18 @@ namespace Chaos
 		void ResetParticles();
 		void ResetCollisionParticles(int32 InCollisionParticlesOffset = 0);
 		void ApplyPreSimulationTransforms();
-		float SetParticleMassPerArea(int32 Offset, int32 Size, const TTriangleMesh<float>& Mesh);
-		void ParticleMassUpdateDensity(const TTriangleMesh<float>& Mesh, float Density);
+		float SetParticleMassPerArea(int32 Offset, int32 Size, const FTriangleMesh& Mesh);
+		void ParticleMassUpdateDensity(const FTriangleMesh& Mesh, float Density);
 		void ParticleMassClampAndEnslave(int32 Offset, int32 Size, float MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
 	private:
-		TUniquePtr<TPBDEvolution<float, 3>> Evolution;
+		TUniquePtr<FPBDEvolution> Evolution;
 
 		// Object arrays
 		TArray<FClothingSimulationCloth*> Cloths;
 
 		// Simulation group attributes
-		TArrayCollectionArray<TRigidTransform<float, 3>> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
+		TArrayCollectionArray<FRigidTransform3> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
 
 		// Particle attributes
 		TArrayCollectionArray<FVec3> Normals;
@@ -160,9 +160,9 @@ namespace Chaos
 
 		// Collision particle attributes
 		TArrayCollectionArray<int32> CollisionBoneIndices;
-		TArrayCollectionArray<TRigidTransform<float, 3>> CollisionBaseTransforms;
-		TArrayCollectionArray<TRigidTransform<float, 3>> OldCollisionTransforms;
-		TArrayCollectionArray<TRigidTransform<float, 3>> CollisionTransforms;
+		TArrayCollectionArray<FRigidTransform3> CollisionBaseTransforms;
+		TArrayCollectionArray<FRigidTransform3> OldCollisionTransforms;
+		TArrayCollectionArray<FRigidTransform3> CollisionTransforms;
 
 		// Cloth constraints
 		TMap<int32, TUniquePtr<FClothConstraints>> ClothsConstraints;

@@ -30,6 +30,18 @@ public:
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override { return SectionArray; }
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 
+	virtual bool IsEmpty() const override;
+	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
+	virtual void AddSection(UMovieSceneSection& Section) override;
+	virtual class UMovieSceneSection* CreateNewSection() override;
+	virtual bool HasSection(const UMovieSceneSection& Section) const override;
+	virtual void RemoveSection(UMovieSceneSection& Section) override;
+	virtual void RemoveSectionAt(int32 SectionIndex) override;
+
+#if WITH_EDITORONLY_DATA
+	virtual FText GetDisplayName() const override { return FText::FromString(TEXT("Unnamed Track")); }
+#endif
+
 	UPROPERTY()
 	bool bHighPassFilter;
 
@@ -59,6 +71,14 @@ public:
 		}
 	}
 
+	//~ UMovieSceneSequence interface
+	virtual void BindPossessableObject(const FGuid& ObjectId, UObject& PossessedObject, UObject* Context) override {}
+	virtual bool CanPossessObject(UObject& Object, UObject* InPlaybackContext) const override { return false; }
+	virtual void LocateBoundObjects(const FGuid& ObjectId, UObject* Context, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override {}
+	virtual UObject* GetParentObject(UObject* Object) const override { return nullptr; }
+	virtual void UnbindPossessableObjects(const FGuid& ObjectId) override {}
+	virtual void UnbindObjects(const FGuid& ObjectId, const TArray<UObject*>& InObjects, UObject* Context) override {}
+	virtual void UnbindInvalidObjects(const FGuid& ObjectId, UObject* Context) override {}
 	virtual UMovieScene* GetMovieScene() const override { return MovieScene; }
 
 	UPROPERTY()

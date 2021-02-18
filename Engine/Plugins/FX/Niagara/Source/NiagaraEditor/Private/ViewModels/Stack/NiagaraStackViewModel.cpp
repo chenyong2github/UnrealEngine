@@ -639,14 +639,14 @@ void UNiagaraStackViewModel::EntryStructureChanged()
 	InvalidateSearchResults();
 }
 
-void UNiagaraStackViewModel::EntryDataObjectModified(UObject* ChangedObject)
+void UNiagaraStackViewModel::EntryDataObjectModified(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType)
 {
 	if (SystemViewModel.IsValid())
 	{
-		SystemViewModel.Pin()->NotifyDataObjectChanged(ChangedObject);
+		SystemViewModel.Pin()->NotifyDataObjectChanged(ChangedObjects, ChangeType);
 	}
 	InvalidateSearchResults();
-	DataObjectChangedDelegate.Broadcast(ChangedObject);
+	DataObjectChangedDelegate.Broadcast(ChangedObjects, ChangeType);
 }
 
 void UNiagaraStackViewModel::EntryRequestFullRefresh()

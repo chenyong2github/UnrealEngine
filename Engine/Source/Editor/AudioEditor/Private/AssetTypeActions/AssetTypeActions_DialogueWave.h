@@ -34,6 +34,6 @@ private:
 
 	void StopSound();
 
-	void ExecuteCreateSoundCue(TArray<TWeakObjectPtr<UDialogueWave>> Objects);
+	void ExecuteCreateSoundCue(TArray<TWeakObjectPtr<UDialogueWave>> Objects, bool bCreateCueForEachDialogueWave = true);
 
 };

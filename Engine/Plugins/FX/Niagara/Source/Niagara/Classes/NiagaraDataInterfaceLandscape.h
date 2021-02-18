@@ -8,24 +8,28 @@
 
 #include "NiagaraDataInterfaceLandscape.generated.h"
 
-// Landscape data used on the render thread
-struct FNDILandscapeData_RenderThread
-{	
-	TUniquePtr<FTextureReadBuffer2D> LandscapeTextureBuffer = nullptr;
-	FIntPoint NumCells = FIntPoint(EForceInit::ForceInitToZero);
-	FMatrix WorldToActorTransform = FMatrix::Identity;
-	bool IsSet = false;
-};
+class ALandscape;
+struct FNDILandscapeData_GameThread;
 
-// Landscape data used for the game thread
-struct FNDILandscapeData_GameThread
+UENUM()
+enum class ENDILandscape_SourceMode : uint8
 {
-	// #todo(dmp): CPU particles access via a TArray?
-	// TArray<float> Values;
+	/**
+	Default behavior.
+	- Use "Source" when explicitly specified.
+	- When no source is specified, fall back on attached actor or component or world.
+	*/
+	Default,
 
-	FIntPoint NumCells = FIntPoint(EForceInit::ForceInitToZero);
-	FMatrix WorldToActorTransform = FMatrix::Identity;
-	bool IsSet = false;
+	/**
+	Only use "Source".
+	*/
+	Source,
+
+	/**
+	Only use the parent actor or component the system is attached to.
+	*/
+	AttachParent
 };
 
 /** Data Interface allowing sampling of a Landscape */
@@ -40,53 +44,56 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Landscape")
 	TObjectPtr<AActor> SourceLandscape;
 
+	UPROPERTY(EditAnywhere, Category = "Landscape")
+	ENDILandscape_SourceMode SourceMode = ENDILandscape_SourceMode::Default;
+
 	//UObject Interface
 	virtual void PostInitProperties() override;	
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif	
 	//UObject Interface End
 
 	//UNiagaraDataInterface Interface
-	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
-	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
-	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return Target==ENiagaraSimTarget::GPUComputeSim; }
+	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return Target == ENiagaraSimTarget::GPUComputeSim; }
+#if WITH_EDITORONLY_DATA
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+#endif
 	//UNiagaraDataInterface Interface End
-
-	void EmptyVMFunction(FVectorVMContext& Context) {}
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
 
 	// GPU sim functionality
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;	
+	virtual void GetCommonHLSL(FString& OutHLSL) override;
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override {}
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
+	virtual int32 PerInstanceDataSize() const override;
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
-	virtual int32 PerInstanceDataSize() const override { return sizeof(FNDILandscapeData_GameThread); }
 	virtual bool HasPreSimulateTick() const override { return true; }
+
+	ALandscape* GetLandscape(const FNiagaraSystemInstance& SystemInstance) const;
 	
-	static const FString LandscapeTextureName;
-	static const FString SamplerName;
-	static const FString NumCellsBaseName;
-	static const FString WorldToActorBaseName;
+	static const FString HeightVirtualTextureEnabledName;
+	static const FString HeightVirtualTextureName;
+	static const FString HeightVirtualTexturePageTableName;
+	static const FString HeightVirtualTexturePageTableUniform0Name;
+	static const FString HeightVirtualTexturePageTableUniform1Name;
+	static const FString HeightVirtualTextureSamplerName;
+	static const FString HeightVirtualTextureUniformsName;
+	static const FString HeightVirtualTextureWorldToUvTransformName;
+
+	static const FString CachedHeightTextureEnabledName;
+	static const FString CachedHeightTextureName;
+	static const FString CachedHeightTextureSamplerName;
+	static const FString CachedHeightTextureUvScaleBiasName;
+	static const FString CachedHeightTextureWorldToUvTransformName;
+
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	void ApplyLandscape(const FNiagaraSystemInstance& SystemInstance, FNDILandscapeData_GameThread& InstanceData) const;
 		
-	static const FName GetHeightName;	
-	static const FName GetNumCellsName;
-};
-
-struct FNiagaraDataInterfaceProxyLandscape : public FNiagaraDataInterfaceProxy
-{
-
-	FNiagaraDataInterfaceProxyLandscape() {}
-	
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override	{ check(false);	}
-
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
-
-	TMap<FNiagaraSystemInstanceID, FNDILandscapeData_RenderThread> SystemInstancesToProxyData_RT;
+	static const FName GetHeightName;
 };

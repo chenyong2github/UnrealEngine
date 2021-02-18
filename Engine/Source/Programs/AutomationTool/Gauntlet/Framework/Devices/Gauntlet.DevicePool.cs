@@ -476,6 +476,37 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Construct a path to hold cache files and make sure it is empty
+		/// </summary>
+		private string GetCleanCachePath(DeviceDefinition InDeviceDefiniton)
+		{
+			// Give the desktop platform a temp folder with its name under the device cache 
+			string PlatformCache = Path.Combine(LocalTempDir, "DeviceCache", InDeviceDefiniton.Platform.ToString());
+			string ClientTempDir = Path.Combine(PlatformCache, InDeviceDefiniton.Name);
+
+			int CleanAttempts = 1;
+
+			// Make sure this is a fresh directory 
+			while (Directory.Exists(ClientTempDir))
+			{
+				try
+				{
+					Directory.Delete(ClientTempDir, true);
+				}
+				catch (Exception Ex)
+				{
+					// warn and use a different directory
+					Log.Warning("Failed to delete {0}. {1}", ClientTempDir, Ex.Message);
+					ClientTempDir = Path.Combine(PlatformCache, string.Format("{0}_{1}", InDeviceDefiniton.Name, CleanAttempts++));
+				}
+			}
+			// create this path
+			Directory.CreateDirectory(ClientTempDir);
+
+			return ClientTempDir;
+		}
+
+		/// <summary>
 		/// Reserve all devices in the provided list. Once reserved a device will not be seen by any code that
 		/// calls EnumerateDevices
 		/// </summary>
@@ -876,16 +907,15 @@ namespace Gauntlet
 			{
 				bool IsDesktop = Def.Platform != null && UnrealBuildTool.Utils.GetPlatformsInClass(UnrealPlatformClass.Desktop).Contains(Def.Platform.Value);
 
+				string ClientTempDir = GetCleanCachePath(Def);
+
 				if (IsDesktop)
 				{
-					string ClientTempDir = Path.Combine(LocalTempDir, "DeviceCache", Def.Platform.ToString());
-					int DeviceCount = AvailableDevices.Union(ReservedDevices).Where(D => D.Platform == Def.Platform).Count();
-
 					NewDevice = Factory.CreateDevice(Def.Name, ClientTempDir);
 				}
 				else
 				{
-					NewDevice = Factory.CreateDevice(Def.Address, Def.DeviceData);
+					NewDevice = Factory.CreateDevice(Def.Address, ClientTempDir, Def.DeviceData);
 				}
 
 				if (NewDevice.IsAvailable == false)

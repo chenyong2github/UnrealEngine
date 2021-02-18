@@ -27,4 +27,6 @@ namespace ChaosTest {
 
 	void EvolutionPerfHarness();
 
+	void HeightFieldSerialization();
+
 }

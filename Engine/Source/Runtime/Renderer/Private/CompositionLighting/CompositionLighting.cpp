@@ -126,7 +126,8 @@ static FSSAOCommonParameters GetSSAOCommonParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	uint32 Levels)
+	uint32 Levels,
+	bool bAllowGBufferRead)
 {
 	const FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
 
@@ -135,7 +136,7 @@ static FSSAOCommonParameters GetSSAOCommonParameters(
 	CommonParameters.SceneTexturesViewport = FScreenPassTextureViewport(SceneTextureParameters.SceneDepthTexture, View.ViewRect);
 
 	CommonParameters.HZBInput = FScreenPassTexture(View.HZB);
-	CommonParameters.GBufferA = FScreenPassTexture(SceneTextureParameters.GBufferATexture, View.ViewRect);
+	CommonParameters.GBufferA = bAllowGBufferRead ? FScreenPassTexture(SceneTextureParameters.GBufferATexture, View.ViewRect) : FScreenPassTexture();
 	CommonParameters.SceneDepth = FScreenPassTexture(SceneTextureParameters.SceneDepthTexture, View.ViewRect);
 
 	CommonParameters.Levels = Levels;
@@ -518,7 +519,7 @@ void ProcessBeforeBasePass(
 
 			if (bNeedSSAO)
 			{
-				FSSAOCommonParameters Parameters = GetSSAOCommonParameters(GraphBuilder, View, SceneTextures.UniformBuffer, SSAOLevels);
+				FSSAOCommonParameters Parameters = GetSSAOCommonParameters(GraphBuilder, View, SceneTextures.UniformBuffer, SSAOLevels, false);
 				FScreenPassRenderTarget FinalTarget = FScreenPassRenderTarget(SceneTextures.ScreenSpaceAO, View.ViewRect, ERenderTargetLoadAction::ENoAction);
 
 				AddPostProcessingAmbientOcclusion(
@@ -632,7 +633,7 @@ void ProcessAfterBasePass(
 				}
 				else
 				{
-					FSSAOCommonParameters Parameters = GetSSAOCommonParameters(GraphBuilder, View, SceneTextures.UniformBuffer, SSAOLevels);
+					FSSAOCommonParameters Parameters = GetSSAOCommonParameters(GraphBuilder, View, SceneTextures.UniformBuffer, SSAOLevels, true);
 					AmbientOcclusion = AddPostProcessingAmbientOcclusion(GraphBuilder, View, Parameters, FinalTarget);
 				}
 

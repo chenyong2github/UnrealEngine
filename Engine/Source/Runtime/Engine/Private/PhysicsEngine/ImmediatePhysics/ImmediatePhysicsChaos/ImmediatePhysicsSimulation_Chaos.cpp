@@ -368,17 +368,22 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		for (FActorHandle* ActorHandle : Implementation->ActorHandles)
-		{
-			delete ActorHandle;
-		}
-		Implementation->ActorHandles.Empty();
+		// NOTE: Particles now hold a list of all the constraints that reference them, but when
+		// we delete a particle, we do not notify the constraints. When we destroy constarints
+		// it tries to remove itself from the particle's list, so we must destroy the
+		// constraint first.
 
 		for (FJointHandle* JointHandle : Implementation->JointHandles)
 		{
 			delete JointHandle;
 		}
 		Implementation->JointHandles.Empty();
+
+		for (FActorHandle* ActorHandle : Implementation->ActorHandles)
+		{
+			delete ActorHandle;
+		}
+		Implementation->ActorHandles.Empty();
 	}
 
 	int32 FSimulation::NumActors() const
@@ -451,9 +456,27 @@ namespace ImmediatePhysics_Chaos
 	void FSimulation::DestroyActor(FActorHandle* ActorHandle)
 	{
 		// @todo(ccaulfield): FActorHandle could remember its index to optimize this
-		// @todo(ccaulfield): Remove colliding particle pairs
 
 		RemoveFromCollidingPairs(ActorHandle);
+
+		// If any joints reference the particle, we must destroy them
+		TArray<FJointHandle*> ActorJointHandles;
+		for (FJointHandle* JointHandle : Implementation->JointHandles)
+		{
+			if (JointHandle != nullptr)
+			{
+				if ((JointHandle->GetActorHandles()[0] == ActorHandle) || (JointHandle->GetActorHandles()[1] == ActorHandle))
+				{
+					ActorJointHandles.Add(JointHandle);
+				}
+			}
+		}
+		for (FJointHandle* JointHandle : ActorJointHandles)
+		{
+			DestroyJoint(JointHandle);
+		}
+		ActorJointHandles.Empty();
+
 
 		int32 Index = Implementation->ActorHandles.Remove(ActorHandle);
 		delete ActorHandle;

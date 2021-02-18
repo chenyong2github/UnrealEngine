@@ -6,6 +6,32 @@
 #include "CoreMinimal.h"
 #include "ChaosClothConfig.generated.h"
 
+USTRUCT()
+struct FChaosClothWeightedValue
+{
+	GENERATED_BODY()
+
+	/**
+	 * Parameter value corresponding to the lower bound of the Weight Map.
+	 * A Weight Map stores a series of Weight values assigned to each point, all between 0 and 1.
+	 * The weights are used to interpolate the individual values from Low to High assigned to each different point.
+	 * A Weight of 0 always corresponds to the Low parameter value, and a Weight of 1 to the High parameter value.
+	 * The value for Low can be set to be bigger than for High in order to reverse the effect of the Weight Map.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Weighted Value", Meta = (DisplayName = "Low Weight", ChaosClothShortName = "Lo"))
+	float Low = 0.f;
+
+	/**
+	 * Parameter value corresponding to the upper bound of the Weight Map.
+	 * A Weight Map stores a series of Weight values assigned to each point, all between 0 and 1.
+	 * The weights are used to interpolate the individual values from Low to High assigned to each different point.
+	 * A Weight of 0 always corresponds to the Low parameter value, and a Weight of 1 to the High parameter value.
+	 * The value for Low can be set to be bigger than for High in order to reverse the effect of the Weight Map.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Weighted Value", Meta = (DisplayName = "High Weight", ChaosClothShortName = "Hi"))
+	float High = 1.f;
+};
+
 /** Long range attachment options. */
 UENUM()
 enum class EChaosClothTetherMode : uint8
@@ -186,9 +212,29 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (EditCondition = "bUseGravityOverride"))
 	FVector Gravity = { 0.f, 0.f, -980.665f };
 
-	// The strength of the constraint driving the cloth towards the animated goal mesh.
+	// The strength of the constraint driving the cloth towards the animated goal mesh. Deprecated, use AnimDriveStiffness instead.
+	UPROPERTY()
+	float AnimDriveSpringStiffness_DEPRECATED = 0.f;
+
+	/**
+	 * The strength of the constraint driving the cloth towards the animated goal mesh.
+	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Anim Drive Stiffness" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
+	 * in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to enable this constraint.
+	 */
 	UPROPERTY(EditAnywhere, Category = "Animation Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
-	float AnimDriveSpringStiffness = 0.f;
+	FChaosClothWeightedValue AnimDriveStiffness = { 0.f, 1.f };
+
+	/**
+	 * The damping amount of the anim drive.
+	 * If an enabled Weight Map (A.K.A. Mask) targeting the "Anim Drive Damping" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
+	 * in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is sufficient to work on this constraint.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Animation Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	FChaosClothWeightedValue AnimDriveDamping = { 0.f, 1.f };
 
 	// The amount of linear velocities sent to the local cloth space from the reference bone
 	// (the closest bone to the root on which the cloth section has been skinned, or the root itself if the cloth isn't skinned).

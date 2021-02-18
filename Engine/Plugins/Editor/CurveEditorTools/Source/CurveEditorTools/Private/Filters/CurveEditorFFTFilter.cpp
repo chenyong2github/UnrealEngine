@@ -124,7 +124,7 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 		Params.Class = (Response == ECurveEditorFFTFilterClass::Butterworth) ? Audio::FPassiveFilterParams::EClass::Butterworth : Audio::FPassiveFilterParams::EClass::Chebyshev; // Enum Conversion
 		Params.NormalizedCutoffFrequency = CutoffFrequency;
 		Params.Order = Order;
-
+		Params.bScaleByOffset = false;
 		// Our CurveModel now stores dense curve data. FFT filtering works only on values, and requires a POT sized array. Instead of duplicating the 
 		// logic to round up to a POT we use the version of audio filtering which does it for us by adding additional zero samples.
 		Audio::Filter(FFTSamples, Params);

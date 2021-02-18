@@ -10,6 +10,9 @@
 #include "NiagaraEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "NiagaraEditorUtilities.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraScratchPadScriptViewModel.h"
+#include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "NiagaraMessages.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraMessageManager"
@@ -358,6 +361,51 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 				TSharedRef<FNiagaraScriptGraphNodeToFocusInfo> NodeToFocusInfo = MakeShared<FNiagaraScriptGraphNodeToFocusInfo>(InNodeGUID.GetValue());
 				FNiagaraScriptIDAndGraphFocusInfo NodeToFocusAndScriptID = FNiagaraScriptIDAndGraphFocusInfo(ScriptAsset->GetUniqueID(), NodeToFocusInfo);
 				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&NodeToFocusAndScriptID);
+			}
+		}
+		else if (ScriptAsset != nullptr)
+		{
+			UNiagaraSystem* System = ScriptAsset->GetTypedOuter<UNiagaraSystem>();
+			UNiagaraEmitter* Emitter = ScriptAsset->GetTypedOuter<UNiagaraEmitter>();
+			if (System)
+			{
+				if (System->IsAsset())
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(System, EToolkitMode::Standalone);
+				}
+				else if (Emitter && Emitter->IsAsset()) 
+				{
+					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Emitter, EToolkitMode::Standalone);
+				}
+
+				TArray<TSharedPtr<FNiagaraSystemViewModel>> ReferencingSystemViewModels;
+				FNiagaraSystemViewModel::GetAllViewModelsForObject(System, ReferencingSystemViewModels);
+				for (TSharedPtr<FNiagaraSystemViewModel> ReferencingSystemViewModel : ReferencingSystemViewModels)
+				{
+					TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchModuleViewModel =
+						ReferencingSystemViewModel->GetScriptScratchPadViewModel()->GetViewModelForScript(ScriptAsset);
+					if (ScratchModuleViewModel.IsValid())
+					{
+						ReferencingSystemViewModel->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchModuleViewModel.ToSharedRef());
+
+						if (InPinGUID.IsSet())
+						{
+							TSharedRef<FNiagaraScriptGraphPinToFocusInfo> PinToFocusInfo = MakeShared<FNiagaraScriptGraphPinToFocusInfo>(InPinGUID.GetValue());
+							FNiagaraScriptIDAndGraphFocusInfo PinToFocusAndScriptID = FNiagaraScriptIDAndGraphFocusInfo(ScriptAsset->GetUniqueID(), PinToFocusInfo);
+							ScratchModuleViewModel->RaisePinFocusRequested(&PinToFocusAndScriptID);
+						}
+						else if (InNodeGUID.IsSet())
+						{
+							TSharedRef<FNiagaraScriptGraphNodeToFocusInfo> NodeToFocusInfo = MakeShared<FNiagaraScriptGraphNodeToFocusInfo>(InNodeGUID.GetValue());
+							FNiagaraScriptIDAndGraphFocusInfo NodeToFocusAndScriptID = FNiagaraScriptIDAndGraphFocusInfo(ScriptAsset->GetUniqueID(), NodeToFocusInfo);
+							ScratchModuleViewModel->RaiseNodeFocusRequested(&NodeToFocusAndScriptID);
+						}
+					}
+				}
+			}
+			else if (Emitter && Emitter->IsAsset())
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Emitter, EToolkitMode::Standalone);
 			}
 		}
 		else

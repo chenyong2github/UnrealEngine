@@ -468,5 +468,5 @@ protected:
 	FVivoxVoiceChatUser& GetVoiceChatUser() const;
 	FCriticalSection VoiceChatUsersCriticalSection;
 	TArray<TUniquePtr<FVivoxVoiceChatUser>> VoiceChatUsers;
-	TUniquePtr<FVivoxVoiceChatUser> SingleUserVoiceChatUser;
+	FVivoxVoiceChatUser* SingleUserVoiceChatUser = nullptr;
 };

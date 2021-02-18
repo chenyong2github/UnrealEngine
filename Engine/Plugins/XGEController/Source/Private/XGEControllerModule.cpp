@@ -212,6 +212,12 @@ bool FXGEControllerModule::IsSupported()
 				UE_LOG(LogXGEController, Warning, TEXT("XGE version 8.01 (build 1867) or higher is required for XGE shader compilation with the interception interface."));
 				XGEControllerVariables::Enabled = 0;
 			}
+
+			if (!PlatformFile.FileExists(*GetControlWorkerExePath()))
+			{
+				UE_LOG(LogXGEController, Warning, TEXT("XGEControlWorker.exe does not exist, XGE may be disabled in your Build Configuration, cannot use XGE."));
+				XGEControllerVariables::Enabled = 0;
+			}
 		}
 	}
 

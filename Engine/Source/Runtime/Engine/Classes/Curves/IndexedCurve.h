@@ -98,3 +98,12 @@ protected:
 	UPROPERTY(transient)
 	mutable FKeyHandleMap KeyHandlesToIndices;
 };
+
+template<>
+struct TStructOpsTypeTraits<FIndexedCurve> : public TStructOpsTypeTraitsBase2<FIndexedCurve>
+{
+	enum
+	{
+		WithPureVirtual = true,
+	};
+};

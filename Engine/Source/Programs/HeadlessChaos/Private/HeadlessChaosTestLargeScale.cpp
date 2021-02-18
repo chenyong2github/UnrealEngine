@@ -98,7 +98,11 @@ namespace ChaosTest {
 	GTEST_TEST(LargeScaleTests, DISABLED_TestSmallCapsuleLargeBoxGJKRaycast_Vertical)
 	{
 		// Place capsule abovt the plane and shited laterally
-		SmallCapsuleLargeBoxGJKRaycast(FVec3(3,5,20), FVec3(0,0,1));
+		SmallCapsuleLargeBoxGJKRaycast(FVec3(3, 5, 20), FVec3(0, 0, 1));
+		SmallCapsuleLargeBoxGJKRaycast(FVec3(100, 50, 20), FVec3(0, 0, 1));
+		SmallCapsuleLargeBoxGJKRaycast(FVec3(300, 50, 20), FVec3(0, 0, 1));
+		SmallCapsuleLargeBoxGJKRaycast(FVec3(400, 50, 20), FVec3(0, 0, 1));
+		SmallCapsuleLargeBoxGJKRaycast(FVec3(500, 50, 20), FVec3(0, 0, 1));
 	}
 
 

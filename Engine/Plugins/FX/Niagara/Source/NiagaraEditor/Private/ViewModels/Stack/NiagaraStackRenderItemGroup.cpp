@@ -189,7 +189,7 @@ void UNiagaraStackRenderItemGroup::EmitterRenderersChanged()
 	if (IsFinalized() == false)
 	{
 		// With undo/redo sometimes it's not possible to unbind this delegate, so we have to check to insure safety in those cases.
-		OnDataObjectModified().Broadcast(nullptr);
+		OnDataObjectModified().Broadcast(TArray<UObject*>(), ENiagaraDataObjectChange::Unknown);
 		RefreshChildren();
 	}
 }

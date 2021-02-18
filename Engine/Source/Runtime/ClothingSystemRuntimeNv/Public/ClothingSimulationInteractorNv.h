@@ -20,17 +20,26 @@ class CLOTHINGSYSTEMRUNTIMENV_API UClothingSimulationInteractorNv : public UClot
 public:
 
 	// UClothingSimulationInteractor Interface
+	virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext) override;
+
 	virtual void PhysicsAssetUpdated() override;
 	virtual void ClothConfigUpdated() override;
-	virtual void Sync(IClothingSimulation* InSimulation, IClothingSimulationContext* InContext) override;
 	virtual void SetAnimDriveSpringStiffness(float InStiffness) override;
 	virtual void EnableGravityOverride(const FVector& InVector) override;
 	virtual void DisableGravityOverride() override;
+
+	// TODO: These new functions are currently unimplemented
+	virtual void SetNumIterations(int32 /*NumIterations*/) override {}
+	virtual void SetNumSubsteps(int32 /*NumSubsteps*/) override {}
 	//////////////////////////////////////////////////////////////////////////
 
 	// Set the stiffness of the resistive damping force for anim drive
 	UFUNCTION(BlueprintCallable, Category=ClothingSimulation)
 	void SetAnimDriveDamperStiffness(float InStiffness);
+
+protected:
+
+	virtual UClothingInteractor* CreateClothingInteractor() override { return nullptr; }
 
 private:
 

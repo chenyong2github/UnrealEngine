@@ -517,7 +517,7 @@ protected:
 	//~ End UDataprepOperation Interface
 };
 
-UCLASS(Experimental, Category = MeshOperation, Meta = (DisplayName="Set Collision Complexity", ToolTip = "For each static mesh to process, set its collision complexity") )
+UCLASS(Category = MeshOperation, Meta = (DisplayName="Set Collision Complexity", ToolTip = "For each static mesh to process, set its collision complexity") )
 class UDataprepSetCollisionComplexityOperation : public UDataprepOperation
 {
 	GENERATED_BODY()
@@ -541,4 +541,45 @@ public:
 protected:
 	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
 	//~ End UDataprepOperation Interface
+};
+
+UCLASS(Category = AssetOperation, Meta = (DisplayName = "Set Max Texture Size", ToolTip = "Set max size (width or height) each input texture"))
+class UDataprepSetMaxTextureSizeOperation : public UDataprepOperation
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AssetOperation, Meta = (ToolTip = ""))
+	int32 MaxTextureSize;
+
+	//~ Begin UDataprepOperation Interface
+public:
+	virtual FText GetCategory_Implementation() const override
+	{
+		return FDataprepOperationCategories::AssetOperation;
+	}
+
+protected:
+	virtual void OnExecution_Implementation(const FDataprepContext& InContext) override;
+	//~ End UDataprepOperation Interface
+};
+// Customization of the details of the "Set Max Texture Size" operation.
+class FDataprepSetMaxTextureSizeDetails : public IDetailCustomization
+{
+public:
+	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDataprepSetMaxTextureSizeDetails>(); };
+
+	/** Called when details should be customized */
+	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+
+private:
+	void MaxSize_TextChanged(const FText& Text);
+	void MaxSize_TextCommited(const FText& InText, ETextCommit::Type InCommitType);
+
+private:
+	UDataprepSetMaxTextureSizeOperation* Operation = nullptr;
+
+	TSharedPtr<IPropertyHandle> MaxTextureSizePropertyHandle;
+
+	TSharedPtr< class SEditableTextBox > TextBox;
 };

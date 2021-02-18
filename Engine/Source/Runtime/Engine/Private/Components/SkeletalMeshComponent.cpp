@@ -2069,7 +2069,7 @@ void USkeletalMeshComponent::UpdateClothSimulationContext(float InDeltaTime)
 	{
 		ClothingSimulation->FillContext(this, InDeltaTime, ClothingSimulationContext);
 
-		if(ClothingInteractor && ClothingInteractor->IsDirty())
+		if(ClothingInteractor)
 		{
 			ClothingInteractor->Sync(ClothingSimulation, ClothingSimulationContext);
 		}

@@ -15,7 +15,6 @@
 #include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
-#include "Widgets/SNiagaraCurveEditor.h"
 #include "Widgets/SNiagaraSystemScript.h"
 #include "Widgets/SNiagaraSystemViewport.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
@@ -31,6 +30,11 @@
 #include "NiagaraComponent.h"
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraScriptStatsViewModel.h"
+#include "NiagaraFlipbookViewModel.h"
+
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+
 #include "EditorStyleSet.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "ScopedTransaction.h"
@@ -74,6 +78,7 @@ const FName FNiagaraSystemToolkit::MessageLogTabID(TEXT("NiagaraSystemEditor_Mes
 const FName FNiagaraSystemToolkit::SystemOverviewTabID(TEXT("NiagaraSystemEditor_SystemOverview"));
 const FName FNiagaraSystemToolkit::ScratchPadTabID(TEXT("NiagaraSystemEditor_ScratchPad"));
 const FName FNiagaraSystemToolkit::ScriptStatsTabID(TEXT("NiagaraSystemEditor_ScriptStats"));
+const FName FNiagaraSystemToolkit::FlipbookTabID(TEXT("NiagaraSystemEditor_Flipbook"));
 IConsoleVariable* FNiagaraSystemToolkit::VmStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
 IConsoleVariable* FNiagaraSystemToolkit::GpuStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.NiagaraGpuProfilingEnabled"));
 
@@ -158,6 +163,10 @@ void FNiagaraSystemToolkit::RegisterTabSpawners(const TSharedRef<class FTabManag
 	InTabManager->RegisterTabSpawner(ScriptStatsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_ScriptStats))
 		.SetDisplayName(LOCTEXT("NiagaraScriptsStatsTab", "Script Stats"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+
+	InTabManager->RegisterTabSpawner(FlipbookTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkit::SpawnTab_Flipbook))
+		.SetDisplayName(LOCTEXT("NiagaraFlipbookTab", "Flipbook"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
 void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -178,8 +187,8 @@ void FNiagaraSystemToolkit::UnregisterTabSpawners(const TSharedRef<class FTabMan
 	InTabManager->UnregisterTabSpawner(SystemOverviewTabID);
 	InTabManager->UnregisterTabSpawner(ScratchPadTabID);
 	InTabManager->UnregisterTabSpawner(ScriptStatsTabID);
+	InTabManager->UnregisterTabSpawner(FlipbookTabID);
 }
-
 
 FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 {
@@ -190,7 +199,6 @@ FNiagaraSystemToolkit::~FNiagaraSystemToolkit()
 			SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().RemoveAll(this);
 			SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().RemoveAll(this);
 		}
-		SystemViewModel->GetOnPinnedCurvesChanged().RemoveAll(this);
 		SystemViewModel->Cleanup();
 	}
 	SystemViewModel.Reset();
@@ -316,12 +324,13 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	ObjectSelectionForParameterMapView = MakeShared<FNiagaraObjectSelection>();
 	ScriptStats = MakeShared<FNiagaraScriptStatsViewModel>();
 	ScriptStats->Initialize(SystemViewModel);
+	FlipbookViewModel = MakeShared<FNiagaraFlipbookViewModel>();
+	FlipbookViewModel->Initialize(SystemViewModel);
 
 	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetSelectionViewModel()->OnSystemIsSelectedChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
-	SystemViewModel->GetOnPinnedCurvesChanged().AddSP(this, &FNiagaraSystemToolkit::OnPinnedCurvesChanged);
 	SystemViewModel->OnRequestFocusTab().AddSP(this, &FNiagaraSystemToolkit::OnViewModelRequestFocusTab);
 
 	const float InTime = -0.02f;
@@ -362,6 +371,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 							->SetSizeCoefficient(0.6f)
 							->AddTab(SystemOverviewTabID, ETabState::OpenedTab)
 							->AddTab(ScratchPadTabID, ETabState::OpenedTab)
+							->AddTab(FlipbookTabID, ETabState::ClosedTab)
 							->SetForegroundTab(SystemOverviewTabID)
 						)
 					)
@@ -479,7 +489,7 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_CurveEd(const FSpawnTabArgs
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
 		[
-			SNew(SNiagaraCurveEditor, SystemViewModel.ToSharedRef())
+			FNiagaraEditorModule::Get().GetWidgetProvider()->CreateCurveOverview(SystemViewModel.ToSharedRef())
 		];
 
 	return SpawnedTab;
@@ -775,6 +785,23 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_ScriptStats(const FSpawnTab
 	return SpawnedTab;
 }
 
+TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_Flipbook(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == FlipbookTabID);
+
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("NiagaraFlipbookTitle", "Flipbook"))
+		[
+			SNew(SBox)
+			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Flipbook")))
+			[
+				FlipbookViewModel->GetWidget().ToSharedRef()
+			]
+		];
+
+	return SpawnedTab;
+}
+
 void FNiagaraSystemToolkit::SetupCommands()
 {
 	GetToolkitCommands()->MapAction(
@@ -928,6 +955,27 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 			return MenuBuilder.MakeWidget();
 		}
 
+		static TSharedRef<SWidget> GenerateFlipbookMenu(FNiagaraSystemToolkit* Toolkit)
+		{
+			FMenuBuilder MenuBuilder(true, Toolkit->GetToolkitCommands());
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("FlipbookTab", "Open Flipbook Tab"),
+				LOCTEXT("FlipbookTabTooltip", "Opens the flip book tab."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda([TabManager=Toolkit->TabManager]() { TabManager->TryInvokeTab(FlipbookTabID); }))
+			);
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("RenderFlipbook", "Render Flipbook"),
+				LOCTEXT("RenderFlipbookTooltip", "Renders the flipbook using the current settings."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(Toolkit, &FNiagaraSystemToolkit::RenderFlipbook))
+			);
+
+			return MenuBuilder.MakeWidget();
+		}
+
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FNiagaraSystemToolkit* Toolkit)
 		{
 			if (Toolkit->Emitter != nullptr)
@@ -1011,6 +1059,18 @@ void FNiagaraSystemToolkit::ExtendToolbar()
 					LOCTEXT("SimulationOptions", "Simulation"),
 					LOCTEXT("SimulationOptionsTooltip", "Simulation options"),
 					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.SimulationOptions")
+				);
+			}
+			ToolbarBuilder.EndSection();
+
+			ToolbarBuilder.BeginSection("Flipbook");
+			{
+				ToolbarBuilder.AddComboButton(
+					FUIAction(),
+					FOnGetContent::CreateStatic(Local::GenerateFlipbookMenu, Toolkit),
+					LOCTEXT("Flipbook", "Flipbook"),
+					LOCTEXT("FlipbookTooltip", "Options for flipbook rendering."),
+					FSlateIcon(FNiagaraEditorStyle::GetStyleSetName(), "NiagaraEditor.Flipbook")
 				);
 			}
 			ToolbarBuilder.EndSection();
@@ -1740,6 +1800,11 @@ void FNiagaraSystemToolkit::OnSystemSelectionChanged()
 void FNiagaraSystemToolkit::OnViewModelRequestFocusTab(FName TabName)
 {
 	GetTabManager()->TryInvokeTab(TabName);
+}
+
+void FNiagaraSystemToolkit::RenderFlipbook()
+{
+	FlipbookViewModel->RenderFlipbook();
 }
 
 #undef LOCTEXT_NAMESPACE

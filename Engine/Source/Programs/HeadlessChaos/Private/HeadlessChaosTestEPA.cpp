@@ -592,7 +592,7 @@ namespace ChaosTest
 		{
 			//get to EPA from GJKPenetration
 			// Boxes that are very close to each other (Almost penetrating).
-			TAABB<float, 3> Box({ -50, -50, -50 }, { 50, 50, 50 });
+			FAABB3 Box({ -50, -50, -50 }, { 50, 50, 50 });
 
 			const FRigidTransform3 BToATM({ -8.74146843, 4.58291769, -100.029655 }, FRotation3::FromElements(6.63562241e-05, -0.000235952888, 0.00664712908, 0.999977887));
 			FVec3 ClosestA, ClosestB, Normal;
@@ -697,7 +697,7 @@ namespace ChaosTest
 		
 		// Sphere sweep against triangle, fails when it should hit. Raycast added as well for verification purposes.
 		{
-			const TTriangle<FReal> Triangle({ 0.000000000, 0.000000000, 0.000000000 }, { 128.000000, 0.000000000, -114.064575 }, { 128.000000, 128.000000, 2.35327148 });
+			const FTriangle Triangle({ 0.000000000, 0.000000000, 0.000000000 }, { 128.000000, 0.000000000, -114.064575 }, { 128.000000, 128.000000, 2.35327148 });
 			const TSphere<FReal, 3> Sphere({ 0.0, 0.0, 0.0 }, 4);
 			const TRigidTransform<FReal, 3> Transform({ 174.592773, -161.781250, -68.0469971 }, FQuat::Identity);
 			const FVec3 Dir(-0.406315684, 0.913382649, -0.0252906363);
@@ -790,7 +790,7 @@ namespace ChaosTest
 			// InGJKPreDist2 is barely over 1e-6, fall back on EPA
 			// Triangle v Box
 			{
-				TTriangle<FReal> Triangle(FVec3(0.000000000,0.000000000,0.000000000),FVec3(128.000000,0.000000000,35.9375000),FVec3(128.000000,128.000000,134.381042));
+				FTriangle Triangle(FVec3(0.000000000,0.000000000,0.000000000),FVec3(128.000000,0.000000000,35.9375000),FVec3(128.000000,128.000000,134.381042));
 				TBox<FReal,3> Box(FVec3(-50.0000000,-60.0000000,-30.0000000),FVec3 (50.0000000,60.0000000,30.0000000));
 
 				const TRigidTransform<FReal,3> Transform({127.898438,35.0742188,109.781067},FQuat(0.374886870,-0.0289460570,0.313643545,0.871922970),FVec3(1.0));
@@ -1066,7 +1066,7 @@ namespace ChaosTest
 			const FVec3 A = { -10934.1797, -11431.4863, -5661.06982 };
 			const FVec3 B = { -10025.8525, -11155.4160, -6213.55322 };
 			const FVec3 C = { -10938.6836, -11213.3320, -6213.55322 };
-			const TTriangle<FReal> Triangle(A, B, C);
+			const FTriangle Triangle(A, B, C);
 			FVec3 ExpectedNormal = FVec3::CrossProduct(Triangle[1] - Triangle[0], Triangle[2] - Triangle[0]);
 			ExpectedNormal.Normalize();
 
@@ -1197,7 +1197,7 @@ namespace ChaosTest
 
 			FConvex ConvexBox(MoveTemp(ConvexBoxSurfaceParticles), 0.0f);
 
-			TParticles<FReal, 3> TrimeshParticles(
+			FParticles TrimeshParticles(
 				{
 					{50.0000000, 50.0000000, -8.04061356e-15},
 					{50.0000000, -50.0000000, 8.04061356e-15},
@@ -1247,7 +1247,7 @@ namespace ChaosTest
 		{
 			using namespace Chaos;
 			// Triangle w/ world scale
-			TTriangle<FReal> Triangle({
+			FTriangle Triangle({
 				{-306.119476, 1674.38647, 117.138489},
 				{-491.015747, 1526.35803, 116.067123},
 				{-91.0660172, 839.028320, 118.413063}

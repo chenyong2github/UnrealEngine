@@ -8,83 +8,10 @@
 
 struct FNiagaraDataSetDebugAccessor
 {
-	bool Init(const FNiagaraDataSetCompiledData& CompiledData, FName InVariableName)
-	{
-		VariableName = InVariableName;
-		bIsFloat = false;
-		bIsHalf = false;
-		bIsInt = false;
-		NumComponents = 0;
-		ComponentIndex = INDEX_NONE;
+	bool Init(const FNiagaraDataSetCompiledData& CompiledData, FName InVariableName);
 
-		for (int32 i = 0; i < CompiledData.Variables.Num(); ++i)
-		{
-			if (CompiledData.Variables[i].GetName() != VariableName)
-			{
-				continue;
-			}
-
-			if (CompiledData.VariableLayouts[i].GetNumFloatComponents() > 0)
-			{
-				bIsFloat = true;
-				ComponentIndex = CompiledData.VariableLayouts[i].FloatComponentStart;
-				NumComponents = CompiledData.VariableLayouts[i].GetNumFloatComponents();
-			}
-			else if (CompiledData.VariableLayouts[i].GetNumHalfComponents() > 0)
-			{
-				bIsHalf = true;
-				ComponentIndex = CompiledData.VariableLayouts[i].HalfComponentStart;
-				NumComponents = CompiledData.VariableLayouts[i].GetNumHalfComponents();
-			}
-			else if (CompiledData.VariableLayouts[i].GetNumInt32Components() > 0)
-			{
-				bIsInt = true;
-				ComponentIndex = CompiledData.VariableLayouts[i].Int32ComponentStart;
-				NumComponents = CompiledData.VariableLayouts[i].GetNumInt32Components();
-			}
-			return NumComponents > 0;
-		}
-		return false;
-	}
-
-	FVector4 ReadFloats(const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const
-	{
-		FVector4 Value = FVector4(0.0f);
-		if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE && Instance < DataBuffer->GetNumInstances())
-		{
-			if (bIsFloat)
-			{
-				for (uint32 i = 0; i < NumComponents; ++i)
-				{
-					const float* FloatData = reinterpret_cast<const float*>(DataBuffer->GetComponentPtrFloat(ComponentIndex + i));
-					Value[i] = FloatData[Instance];
-				}
-			}
-			else if (bIsHalf)
-			{
-				for (uint32 i = 0; i < NumComponents; ++i)
-				{
-					const FFloat16* HalfData = reinterpret_cast<const FFloat16*>(DataBuffer->GetComponentPtrHalf(ComponentIndex + i));
-					Value[i] = HalfData[Instance];
-				}
-			}
-		}
-		return Value;
-	}
-
-	FIntVector4 ReadInts(const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const
-	{
-		FIntVector4 Value = FIntVector4(0);
-		if (DataBuffer != nullptr && ComponentIndex != INDEX_NONE && Instance < DataBuffer->GetNumInstances())
-		{
-			for (uint32 i = 0; i < NumComponents; ++i)
-			{
-				const int32* IntData = reinterpret_cast<const int32*>(DataBuffer->GetComponentPtrInt32(ComponentIndex + i));
-				Value[i] = IntData[Instance];
-			}
-		}
-		return Value;
-	}
+	FVector4 ReadFloats(const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const;
+	FIntVector4 ReadInts(const FNiagaraDataBuffer* DataBuffer, uint32 Instance) const;
 
 	template<typename TString>
 	void StringAppend(TString& StringType, FNiagaraDataBuffer* DataBuffer, uint32 Instance) const
@@ -118,6 +45,9 @@ struct FNiagaraDataSetDebugAccessor
 	bool IsHalf() const { return bIsHalf; }
 	bool IsInt() const { return bIsInt; }
 	uint32 GetNumComponents() const { return NumComponents; }
+
+	static bool ValidateDataBuffer(const FNiagaraDataSetCompiledData& CompiledData, const FNiagaraDataBuffer* DataBuffer, uint32 iInstance, TFunction<void(const FNiagaraVariable&, int32)> ErrorCallback);
+	static bool ValidateDataBuffer(const FNiagaraDataSetCompiledData& CompiledData, const FNiagaraDataBuffer* DataBuffer, TFunction<void(const FNiagaraVariable&, uint32, int32)> ErrorCallback);
 
 private:
 	FName	VariableName;

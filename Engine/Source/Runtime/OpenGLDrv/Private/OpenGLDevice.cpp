@@ -740,7 +740,7 @@ static void InitRHICapabilitiesForGL()
 	// Verify some assumptions.
 	// Android seems like reports one color attachment even when it supports MRT
 #if !PLATFORM_ANDROID
-	check(Value_GL_MAX_COLOR_ATTACHMENTS >= MaxSimultaneousRenderTargets || !FOpenGL::SupportsMultipleRenderTargets());
+	check(Value_GL_MAX_COLOR_ATTACHMENTS >= MaxSimultaneousRenderTargets);
 #endif
 
 	// We don't check for compressed formats right now because vendors have not
@@ -843,7 +843,6 @@ static void InitRHICapabilitiesForGL()
 
 	GSupportsRenderTargetFormat_PF_FloatRGBA = FOpenGL::SupportsColorBufferHalfFloat();
 
-	GSupportsMultipleRenderTargets = FOpenGL::SupportsMultipleRenderTargets();
 	GSupportsWideMRT = FOpenGL::SupportsWideMRT();
 	GSupportsTexture3D = FOpenGL::SupportsTexture3D();
 	GSupportsMobileMultiView = FOpenGL::SupportsMobileMultiView();
@@ -1092,10 +1091,10 @@ static bool VerifyCompiledShader(GLuint Shader, const ANSICHAR* GlslCode, bool I
 			for (int i = 0; i < 30 && (*Temp != '\0'); ++i)
 			{
 				FString Converted = ANSI_TO_TCHAR(Temp);
-				FString TempString = Converted.LeftChop(256);
+				Converted = Converted.LeftChop(256);
 
-				UE_LOG(LogRHI, Display, TEXT("%s"), *TempString);
-				Temp += TempString.Len();
+				UE_LOG(LogRHI, Display, TEXT("%s"), *Converted);
+				Temp += Converted.Len();
 			}
 		}
 #endif

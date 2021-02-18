@@ -751,6 +751,8 @@ private:
 	int32		CacheIndex;
 	/** Allow the cache of a pak file to never shrink, should be used with caution, it will burn memory */
 	bool UnderlyingCacheTrimDisabled;
+	/** Record of whether the pak file is still mounted, so PakPrecacher can reject requests to register it. */
+	bool bIsMounted;
 
 	static inline int32 CDECL CompareFilenameHashes(const void* Left, const void* Right)
 	{
@@ -810,6 +812,8 @@ public:
 	ECacheType GetCacheType(void) { return CacheType; }
 	void SetCacheIndex(int32 InCacheIndex) { CacheIndex = InCacheIndex; }
 	int32 GetCacheIndex(void) { return CacheIndex; }
+	void SetIsMounted(bool bInIsMounted) { bIsMounted = bInIsMounted; }
+	bool GetIsMounted() const { return bIsMounted; }
 #if IS_PROGRAM
 	/**
 	* Opens a pak file given its filename.

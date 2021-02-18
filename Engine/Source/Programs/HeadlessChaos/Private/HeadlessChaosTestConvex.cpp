@@ -30,7 +30,7 @@ namespace ChaosTest
 		TArray<TPlaneConcrete<FReal, 3>> Planes;
 		TArray<TArray<int32>> FaceVertices;
 		TArray<Chaos::FVec3> SurfaceParticles;
-		TAABB<FReal, 3> LocalBounds;
+		FAABB3 LocalBounds;
 
 		FConvexBuilder::Build(Particles, Planes, FaceVertices, SurfaceParticles, LocalBounds);
 		FConvexBuilder::MergeFaces(Planes, FaceVertices, SurfaceParticles, 1.0f);
@@ -262,16 +262,16 @@ namespace ChaosTest
 		const int32 NumVertices = 1000;
 
 		// Make a convex with points on a sphere.
-		TArray<FVec3> Particles;
-		Particles.SetNum(NumVertices);
-		for (int32 ParticleIndex = 0; ParticleIndex < NumVertices; ++ParticleIndex)
+		TArray<FVec3> Vertices;
+		Vertices.SetNum(NumVertices);
+		for (int32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
 		{
 			const FReal Theta = FMath::RandRange(-PI, PI);
 			const FReal Phi = FMath::RandRange(-0.5f * PI, 0.5f * PI);
 			const FVec3 VertexPos = Radius * FVec3(FMath::Cos(Theta), FMath::Sin(Theta), FMath::Sin(Phi));
-			Particles[ParticleIndex] = VertexPos;
+			Vertices[VertexIndex] = VertexPos;
 		}
-		FConvex Convex(Particles, 0.0f);
+		FConvex Convex(Vertices, 0.0f);
 
 		EXPECT_GT(Convex.NumVertices(), 800);
 		EXPECT_GT(Convex.NumPlanes(), 500);

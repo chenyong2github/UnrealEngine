@@ -36,6 +36,12 @@ namespace BuildGraph.Tasks
 		public string To;
 
 		/// <summary>
+		/// Optionally if files should be overwritten, defaults to false.
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool Overwrite = false;
+
+		/// <summary>
 		/// Tag to be applied to build products of this task.
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
@@ -96,7 +102,7 @@ namespace BuildGraph.Tasks
 
 			// Copy them all
 			CommandUtils.LogInformation("Moving {0} file{1} from {2} to {3}...", TargetFileToSourceFile.Count, (TargetFileToSourceFile.Count == 1)? "" : "s", SourcePattern.BaseDirectory, TargetPattern.BaseDirectory);
-			CommandUtils.ParallelMoveFiles(TargetFileToSourceFile.Select(x => new KeyValuePair<FileReference, FileReference>(x.Value, x.Key)));
+			CommandUtils.ParallelMoveFiles(TargetFileToSourceFile.Select(x => new KeyValuePair<FileReference, FileReference>(x.Value, x.Key)), Parameters.Overwrite);
 
 			// Update the list of build products
 			BuildProducts.UnionWith(TargetFileToSourceFile.Keys);

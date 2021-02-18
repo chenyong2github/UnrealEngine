@@ -142,7 +142,7 @@ void TPBDRigidsEvolutionGBF<Traits>::Advance(const FReal Dt,const FReal MaxStepD
 		{
 			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
 			// E.g., for 4 steps this will be: 1/4, 1/2, 3/4, 1
-			const float StepFraction = (FReal)(Step + 1) / (NumSteps);
+			const FReal StepFraction = (FReal)(Step + 1) / (NumSteps);
 		
 			UE_LOG(LogChaos, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 
@@ -163,17 +163,17 @@ void TPBDRigidsEvolutionGBF<Traits>::Advance(const FReal Dt,const FReal MaxStepD
 
 namespace Collisions
 {
-	extern bool GetTOIHack(const TPBDRigidParticleHandle<FReal, 3>* Particle0, const TGeometryParticleHandle<FReal, 3>* Particle1, FReal& OutTOI, FVec3& OutNormal, FReal& OutPhi);
+	extern bool GetTOIHack(const TPBDRigidParticleHandle<FReal, 3>* Particle0, const FGeometryParticleHandle* Particle1, FReal& OutTOI, FVec3& OutNormal, FReal& OutPhi);
 }
 
 void PostMoveToTOIHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle)
 {
 	// Update bounds, velocity etc
-	TPerParticlePBDUpdateFromDeltaPosition<FReal, 3> VelUpdateRule;
+	FPerParticlePBDUpdateFromDeltaPosition VelUpdateRule;
 	VelUpdateRule.Apply(Particle, Dt);
 }
 
-void MoveToTOIPairHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle1, const TGeometryParticleHandle<FReal, 3>* Particle2)
+void MoveToTOIPairHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle1, const FGeometryParticleHandle* Particle2)
 {
 	FReal TOI = 0.0f;
 	FReal Phi = 0.0f;
@@ -203,21 +203,21 @@ void MoveToTOIPairHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle1, c
 }
 
 
-void MoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* SpatialAcceleration)
+void MoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SpatialAcceleration)
 {
-	if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>, FReal>, FReal>>())
+	if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>>())
 	{
 		MoveToTOIHackImpl(Dt, Particle, AABBTree);
 	}
-	else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
+	else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<FAccelerationStructureHandle>>())
 	{
 		MoveToTOIHackImpl(Dt, Particle, BV);
 	}
-	else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<TAccelerationStructureHandle<FReal, 3>, TBoundingVolume<TAccelerationStructureHandle<FReal, 3>, FReal, 3>, FReal>>())
+	else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>>())
 	{
 		MoveToTOIHackImpl(Dt, Particle, AABBTreeBV);
 	}
-	else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal, 3>, FReal, 3>>())
+	else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>())
 	{
 		Collection->CallMoveToTOIHack(Dt, Particle);
 	}
@@ -240,7 +240,7 @@ bool RequiresCCDHack(FReal Dt, const TTransientPBDRigidParticleHandle<FReal, 3>&
 	return false;
 }
 
-void CCDHack(const FReal Dt, TParticleView<TPBDRigidParticles<FReal, 3>>& ParticlesView, const ISpatialAcceleration<TAccelerationStructureHandle<FReal, 3>, FReal, 3>* SpatialAcceleration)
+void CCDHack(const FReal Dt, TParticleView<TPBDRigidParticles<FReal, 3>>& ParticlesView, const ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SpatialAcceleration)
 {
 	if (HackCCD_EnableThreshold > 0)
 	{
@@ -381,7 +381,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 
 	TArray<bool> SleepedIslands;
 	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
-	TArray<TArray<TPBDRigidParticleHandle<FReal, 3>*>> DisabledParticles;
+	TArray<TArray<FPBDRigidParticleHandle*>> DisabledParticles;
 	DisabledParticles.SetNum(GetConstraintGraph().NumIslands());
 	SleepedIslands.SetNum(GetConstraintGraph().NumIslands());
 	if(Dt > 0)
@@ -397,7 +397,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 				}
 			}
 			
-			const TArray<TGeometryParticleHandle<FReal, 3>*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
+			const TArray<FGeometryParticleHandle*>& IslandParticles = GetConstraintGraph().GetIslandParticles(Island);
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_Evolution_ApplyConstraints);
@@ -517,7 +517,7 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 						const int32 Island = Active.Island();
 						ensure(Island >= 0);
 						const int32 ColorIdx = Island % NumColors;
-						const TAABB<FReal,3> LocalBounds = Geom->BoundingBox();
+						const FAABB3 LocalBounds = Geom->BoundingBox();
 						FDebugDrawQueue::GetInstance().DrawDebugBox(Active.X(),LocalBounds.Extents()*0.5f,Active.R(),IslandColors[ColorIdx],false,-1.f,0,0.f);
 					}
 				}
@@ -546,7 +546,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 {
 	CollisionConstraints.SetCanDisableContacts(!!CollisionDisableCulledContacts);
 
-	SetParticleUpdateVelocityFunction([PBDUpdateRule = TPerParticlePBDUpdateFromDeltaPosition<float, 3>(), this](const TArray<TGeometryParticleHandle<FReal, 3>*>& ParticlesInput, const FReal Dt) {
+	SetParticleUpdateVelocityFunction([PBDUpdateRule = FPerParticlePBDUpdateFromDeltaPosition(), this](const TArray<FGeometryParticleHandle*>& ParticlesInput, const FReal Dt) {
 		ParticlesParallelFor(ParticlesInput, [&](auto& Particle, int32 Index) {
 			if (Particle->CastToRigidParticle() && Particle->ObjectState() == EObjectStateType::Dynamic)
 			{
@@ -555,7 +555,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 		});
 	});
 
-	SetParticleUpdatePositionFunction([this](const TParticleView<TPBDRigidParticles<FReal, 3>>& ParticlesInput, const FReal Dt)
+	SetParticleUpdatePositionFunction([this](const TParticleView<FPBDRigidParticles>& ParticlesInput, const FReal Dt)
 	{
 		ParticlesInput.ParallelFor([&](auto& Particle, int32 Index)
 		{
@@ -580,7 +580,7 @@ TPBDRigidsEvolutionGBF<Traits>::TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal,3>& 
 
 	AddConstraintRule(&CollisionRule);
 
-	SetInternalParticleInitilizationFunction([](const TGeometryParticleHandle<float, 3>*, const TGeometryParticleHandle<float, 3>*) {});
+	SetInternalParticleInitilizationFunction([](const FGeometryParticleHandle*, const FGeometryParticleHandle*) {});
 	NarrowPhase.GetContext().bFilteringEnabled = true;
 	NarrowPhase.GetContext().bDeferUpdate = true;
 	NarrowPhase.GetContext().bAllowManifolds = false;

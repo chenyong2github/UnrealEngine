@@ -103,7 +103,7 @@ FRHIRenderPassInfo FRDGParameterStruct::GetRenderPassInfo() const
 	RenderPassInfo.bOcclusionQueries = RenderTargets.NumOcclusionQueries > 0;
 	RenderPassInfo.SubpassHint = RenderTargets.SubpassHint;
 	RenderPassInfo.MultiViewCount = RenderTargets.MultiViewCount;
-	RenderPassInfo.FoveationTexture = RenderTargets.FoveationTexture ? RenderTargets.FoveationTexture->GetRHI() : nullptr;
+	RenderPassInfo.ShadingRateTexture = RenderTargets.ShadingRateTexture ? RenderTargets.ShadingRateTexture->GetRHI() : nullptr;
 
 	return RenderPassInfo;
 }

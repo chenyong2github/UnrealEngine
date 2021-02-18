@@ -43,23 +43,36 @@ protected:
 private:
 
 	IDatasmithExpressionInput* InternalExpressionInput;
-	
+
 	//We hold a shared pointer to the material to make sure it stays valid while a facade objects points to it.
 	TSharedPtr<IDatasmithUEPbrMaterialElement> ReferencedMaterial;
 };
 
 enum class EDatasmithFacadeMaterialExpressionType : uint64
 {
-	None              = 0, 
-	ConstantBool      = 1 << 0,
-	ConstantColor     = 1 << 1,
-	ConstantScalar    = 1 << 2,
-	FlattenNormal     = 1 << 3,
-	FunctionCall      = 1 << 4,
-	Generic           = 1 << 5,
-	Texture           = 1 << 6,
-	TextureCoordinate = 1 << 7,
+	ConstantBool,
+	ConstantColor,
+	ConstantScalar,
+	FlattenNormal,
+	FunctionCall,
+	Generic,
+	Texture,
+	TextureCoordinate,
+	None = 255,
 };
+
+// not trivial to reuse EDatasmithMaterialExpressionType (eg with a "using" declaration). #swig
+#define DS_CHECK_ENUM_MISMATCH(name) static_assert((uint64)EDatasmithFacadeMaterialExpressionType::name == (uint64)EDatasmithMaterialExpressionType::name, "enum mismatch");
+DS_CHECK_ENUM_MISMATCH(None)
+DS_CHECK_ENUM_MISMATCH(ConstantBool)
+DS_CHECK_ENUM_MISMATCH(ConstantColor)
+DS_CHECK_ENUM_MISMATCH(ConstantScalar)
+DS_CHECK_ENUM_MISMATCH(FlattenNormal)
+DS_CHECK_ENUM_MISMATCH(FunctionCall)
+DS_CHECK_ENUM_MISMATCH(Generic)
+DS_CHECK_ENUM_MISMATCH(Texture)
+DS_CHECK_ENUM_MISMATCH(TextureCoordinate)
+#undef DS_CHECK_ENUM_MISMATCH
 
 class DATASMITHFACADE_API FDatasmithFacadeMaterialExpression
 {
@@ -81,7 +94,7 @@ public:
 	/**
 	 * Returns a pointer to a new FDatasmithFacadeExpressionInput object wrapping the IDatasmithExpressionInput at the specified index if it exists.
 	 * Returns null if the index is invalid.
- 	 * The caller is responsible for the destruction of returned object.
+	 * The caller is responsible for the destruction of returned object.
 	 */
 	FDatasmithFacadeExpressionInput* GetNewFacadeInput( int32 Index );
 
@@ -243,7 +256,7 @@ protected:
 class FDatasmithFacadeMaterialExpressionFlattenNormal : public FDatasmithFacadeMaterialExpression
 {
 public:
-	/** 
+	/**
 	 * Inputs
 	 */
 	FDatasmithFacadeExpressionInput GetNormal() const;

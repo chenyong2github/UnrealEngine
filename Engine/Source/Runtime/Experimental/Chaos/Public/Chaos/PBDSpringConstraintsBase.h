@@ -12,60 +12,61 @@
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TPBDSpringConstraintsBase
+	class FPBDSpringConstraintsBase
 	{
 	public:
-		TPBDSpringConstraintsBase(const T Stiffness = (T)1)
+		FPBDSpringConstraintsBase(const FReal Stiffness = (FReal)1.)
 		    : MStiffness(Stiffness)
 		{}
-		TPBDSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1, bool bStripKinematicConstraints = false)
+		FPBDSpringConstraintsBase(const FDynamicParticles& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
 		{
 			RemoveRedundantConstraints(InParticles, bStripKinematicConstraints);
 			UpdateDistances(InParticles);
 		}
-		TPBDSpringConstraintsBase(const TRigidParticles<T, d>& InParticles, TArray<TVector<int32, 2>>&& Constraints, const T Stiffness = (T)1, bool bStripKinematicConstraints = false)
+		FPBDSpringConstraintsBase(const TRigidParticles<FReal, 3>& InParticles, TArray<TVec2<int32>>&& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		    : MConstraints(MoveTemp(Constraints)), MStiffness(Stiffness)
 		{
 			RemoveRedundantConstraints(InParticles, bStripKinematicConstraints);
 			UpdateDistances(InParticles);
 		}
-		TPBDSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 3>>& Constraints, const T Stiffness = (T)1, bool bStripKinematicConstraints = false)
+		FPBDSpringConstraintsBase(const FDynamicParticles& InParticles, const TArray<TVec3<int32>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		    : MStiffness(Stiffness)
 		{
 			Init<3>(Constraints);
 			RemoveRedundantConstraints(InParticles, bStripKinematicConstraints);
 			UpdateDistances(InParticles);
 		}
-		TPBDSpringConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TArray<TVector<int32, 4>>& Constraints, const T Stiffness = (T)1, bool bStripKinematicConstraints = false)
+		FPBDSpringConstraintsBase(const FDynamicParticles& InParticles, const TArray<TVector<int32, 4>>& Constraints, const FReal Stiffness = (FReal)1., bool bStripKinematicConstraints = false)
 		    : MStiffness(Stiffness)
 		{
 			Init<4>(Constraints);
 			RemoveRedundantConstraints(InParticles, bStripKinematicConstraints);
 			UpdateDistances(InParticles);
 		}
-		virtual ~TPBDSpringConstraintsBase()
+		virtual ~FPBDSpringConstraintsBase()
 		{}
+
+		void SetStiffness(FReal InStiffness) { MStiffness = FMath::Clamp(InStiffness, (FReal)0., (FReal)1.); }
 
 	protected:
 		template<class T_PARTICLES>
-		inline TVector<T, d> GetDelta(const T_PARTICLES& InParticles, const int32 i) const
+		inline FVec3 GetDelta(const T_PARTICLES& InParticles, const int32 i) const
 		{
 			const auto& Constraint = MConstraints[i];
 			const int32 i1 = Constraint[0];
 			const int32 i2 = Constraint[1];
 
 			if (InParticles.InvM(i2) == 0 && InParticles.InvM(i1) == 0)
-				return TVector<T, d>(0);
-			const T CombinedMass = InParticles.InvM(i2) + InParticles.InvM(i1);
+				return FVec3(0);
+			const FReal CombinedMass = InParticles.InvM(i2) + InParticles.InvM(i1);
 
-			const TVector<T, d>& P1 = InParticles.P(i1);
-			const TVector<T, d>& P2 = InParticles.P(i2);
-			TVector<T, d> Direction = P1 - P2;
-			const T Distance = Direction.SafeNormalize();
+			const FVec3& P1 = InParticles.P(i1);
+			const FVec3& P2 = InParticles.P(i2);
+			FVec3 Direction = P1 - P2;
+			const FReal Distance = Direction.SafeNormalize();
 
-			const TVector<T, d> Delta = (Distance - MDists[i]) * Direction;
+			const FVec3 Delta = (Distance - MDists[i]) * Direction;
 			return MStiffness * Delta / CombinedMass;
 		}
 
@@ -73,22 +74,22 @@ namespace Chaos
 		// the dynamic particle positions prior to normalizing. Use this if you happen
 		// to know that the particle positions aren't coincident.
 		template<class T_PARTICLES>
-		inline TVector<T, d> GetUnsafeDelta(const T_PARTICLES& InParticles, const int32 i) const
+		inline FVec3 GetUnsafeDelta(const T_PARTICLES& InParticles, const int32 i) const
 		{
 			const auto& Constraint = MConstraints[i];
 			const int32 i1 = Constraint[0];
 			const int32 i2 = Constraint[1];
 
 			if (InParticles.InvM(i2) == 0 && InParticles.InvM(i1) == 0)
-				return TVector<T, d>(0);
-			const T CombinedMass = InParticles.InvM(i2) + InParticles.InvM(i1);
+				return FVec3(0);
+			const FReal CombinedMass = InParticles.InvM(i2) + InParticles.InvM(i1);
 
-			const TVector<T, d>& P1 = InParticles.P(i1);
-			const TVector<T, d>& P2 = InParticles.P(i2);
-			TVector<T, d> Direction = P1 - P2;
-			const T Distance = Direction.Normalize();
+			const FVec3& P1 = InParticles.P(i1);
+			const FVec3& P2 = InParticles.P(i2);
+			FVec3 Direction = P1 - P2;
+			const FReal Distance = Direction.Normalize();
 
-			const TVector<T, d> Delta = (Distance - MDists[i]) * Direction;
+			const FVec3 Delta = (Distance - MDists[i]) * Direction;
 			return MStiffness * Delta / CombinedMass;
 		}
 
@@ -123,7 +124,7 @@ namespace Chaos
 					{
 						const int32 i1 = Constraint[i];
 						const int32 i2 = Constraint[j];
-						MConstraints.Add(TVector<int32, 2>(i1, i2));
+						MConstraints.Add(TVec2<int32>(i1, i2));
 					}
 				}
 			}
@@ -133,11 +134,11 @@ namespace Chaos
 		uint32 RemoveRedundantConstraints(const T_PARTICLES& InParticles, bool bStripKinematicConstraints)
 		{
 			const uint32 OriginalSize = MConstraints.Num();
-			TArray<TVector<int32, 2>> TrimmedConstraints;
-			TSet<TVector<int32, 2>>   ConstraintsAlreadyAdded;
+			TArray<TVec2<int32>> TrimmedConstraints;
+			TSet<TVec2<int32>>   ConstraintsAlreadyAdded;
 			TrimmedConstraints.Reserve(MConstraints.Num());
 			ConstraintsAlreadyAdded.Reserve(MConstraints.Num());
-			for (TVector<int32, 2> Constraint : MConstraints)
+			for (TVec2<int32> Constraint : MConstraints)
 			{
 				if (Constraint[0] > Constraint[1])
 				{
@@ -166,15 +167,15 @@ namespace Chaos
 			{
 				const int32 i1 = Constraint[0];
 				const int32 i2 = Constraint[1];
-				const TVector<T, d>& P1 = InParticles.X(i1);
-				const TVector<T, d>& P2 = InParticles.X(i2);
+				const FVec3& P1 = InParticles.X(i1);
+				const FVec3& P2 = InParticles.X(i2);
 				MDists.Add((P1 - P2).Size());
 			}
 		}
 
 	protected:
-		TArray<TVector<int32, 2>> MConstraints;
-		TArray<T> MDists;
-		T MStiffness;
+		TArray<TVec2<int32>> MConstraints;
+		TArray<FReal> MDists;
+		FReal MStiffness;
 	};
 }
