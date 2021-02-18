@@ -403,7 +403,7 @@ FString FManagedArrayCollection::ToString() const
 
 void FManagedArrayCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
-	if (Ar.IsSaving()) Version = 5;
+	if (Ar.IsSaving()) Version = 6;
 	Ar << Version;
 
 	if (Ar.IsLoading())

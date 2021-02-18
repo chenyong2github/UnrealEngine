@@ -27,6 +27,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "Engine/InstancedStaticMesh.h"
 
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
@@ -181,6 +182,8 @@ FAutoConsoleVariableRef CVarGeometryCollectionNanite(
 float GGeometryCollectionNavigationSizeThreshold = 20.0f;
 FAutoConsoleVariableRef CVarGeometryCollectionNavigationSizeThreshold(TEXT("p.GeometryCollectionNavigationSizeThreshold"), GGeometryCollectionNavigationSizeThreshold, TEXT("Size in CM used as a threshold for whether a geometry in the collection is collected and exported for navigation purposes. Measured as the diagonal of the leaf node bounds."));
 
+
+
 FGeomComponentCacheParameters::FGeomComponentCacheParameters()
 	: CacheMode(EGeometryCollectionCacheType::None)
 	, TargetCache(nullptr)
@@ -274,6 +277,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	bHasCustomNavigableGeometry = EHasCustomNavigableGeometry::Yes;
 
 	bWantsInitializeComponent = true;
+
 }
 
 Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
@@ -738,6 +742,53 @@ UPhysicalMaterial* UGeometryCollectionComponent::GetPhysicalMaterial() const
 	// Should definitely have a material at this point.
 	check(PhysMatToUse);
 	return PhysMatToUse;
+}
+
+void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
+{
+	const TManagedArray<int32>& ExemplarIndexArray = GetExemplarIndexArray();
+	const int32 TransformCount = GlobalMatrices.Num();
+	
+	const int32 ExemplarCount = EmbeddedGeometryComponents.Num();
+	for (int32 ExemplarIndex = 0; ExemplarIndex < ExemplarCount; ++ExemplarIndex)
+	{		
+		TArray<FTransform> InstanceTransforms;
+		InstanceTransforms.Reserve(TransformCount); // Allocate for worst case
+
+		// Construct instance transforms for this exemplar
+		for (int32 Idx = 0; Idx < TransformCount; ++Idx)
+		{
+			if (ExemplarIndexArray[Idx] == ExemplarIndex)
+			{
+				InstanceTransforms.Add(FTransform(GlobalMatrices[Idx]));
+			}
+		}
+
+		if (EmbeddedGeometryComponents[ExemplarIndex])
+		{
+			const int32 InstanceCount = EmbeddedGeometryComponents[ExemplarIndex]->GetInstanceCount();
+
+			// If the number of instances has changed, we rebuild the structure.
+			if (InstanceCount != InstanceTransforms.Num())
+			{
+				EmbeddedGeometryComponents[ExemplarIndex]->ClearInstances();
+				EmbeddedGeometryComponents[ExemplarIndex]->PreAllocateInstancesMemory(InstanceTransforms.Num());
+				for (const FTransform& InstanceTransform : InstanceTransforms)
+				{
+					EmbeddedGeometryComponents[ExemplarIndex]->AddInstance(InstanceTransform);
+				}
+				EmbeddedGeometryComponents[ExemplarIndex]->MarkRenderStateDirty();
+			}
+			else
+			{
+				// #todo (bmiller) When ISMC has been changed to be able to update transforms in place, we need to switch this function call over.
+
+				EmbeddedGeometryComponents[ExemplarIndex]->BatchUpdateInstancesTransforms(0, InstanceTransforms, false, true, false);
+
+				// EmbeddedGeometryComponents[ExemplarIndex]->UpdateKinematicTransforms(InstanceTransforms);
+			}	
+		}
+	}
 }
 
 void UGeometryCollectionComponent::InitializeComponent()
@@ -1630,11 +1681,13 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 		{
 			if(RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
 			{
+				// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
+				RefreshEmbeddedGeometry();
+				
 				MarkRenderTransformDirty();
 				MarkRenderDynamicDataDirty();
 				bRenderStateDirty = false;
-				//DynamicCollection->MakeClean(); clean?
-
+				
 				const UWorld* MyWorld = GetWorld();
 				if (MyWorld && MyWorld->IsGameWorld())
 				{
@@ -1667,6 +1720,8 @@ void UGeometryCollectionComponent::OnRegister()
 #endif // WITH_CHAOS
 
 	SetIsReplicated(bEnableReplication);
+
+	InitializeEmbeddedGeometry();
 
 	Super::OnRegister();
 }
@@ -2080,6 +2135,10 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 		}
 		else
 		{
+			// #todo (bmiller) Once ISMC changes have been complete, this is the best place to call this method
+			// but we can't currently because it's an inappropraite place to call MarkRenderStateDirty on the ISMC.
+			// RefreshEmbeddedGeometry();
+
 			// Enqueue command to send to render thread
 			if (SceneProxy->IsNaniteMesh())
 			{
@@ -2107,6 +2166,8 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 						}
 					}
 				);
+
+				
 			}
 		}
 
@@ -2128,6 +2189,11 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 		CalculateGlobalMatrices();
 		CalculateLocalBounds();
 
+		if (!IsEmbeddedGeometryValid())
+		{
+			InitializeEmbeddedGeometry();
+		}
+		
 		//ResetDynamicCollection();
 	}
 }
@@ -2665,7 +2731,7 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 	{
 		// Just calc from results
 		GlobalMatrices.Empty();
-		GlobalMatrices.Append(Results->GlobalTransforms);		
+		GlobalMatrices.Append(Results->GlobalTransforms);	
 	}
 	else
 	{
@@ -2729,7 +2795,8 @@ void UGeometryCollectionComponent::SwitchRenderModels(const AActor* Actor)
 
 		if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(PrimitiveComponent))
 		{
-			StaticMeshComp->SetVisibility(false);
+			// unhacked.
+			//StaticMeshComp->SetVisibility(false);
 		}
 		else if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
 		{
@@ -2784,3 +2851,83 @@ void UGeometryCollectionComponent::EnableTransformSelectionMode(bool bEnable)
 	bIsTransformSelectionModeEnabled = bEnable;
 }
 #endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+
+bool UGeometryCollectionComponent::IsEmbeddedGeometryValid() const
+{
+	// Check that the array of ISMCs that implement embedded geometry matches RestCollection Exemplar array.
+	if (!RestCollection)
+	{
+		return false;
+	}
+
+	if (RestCollection->EmbeddedGeometryExemplar.Num() != EmbeddedGeometryComponents.Num())
+	{
+		return false;
+	}
+
+	for (int32 Idx = 0; Idx < EmbeddedGeometryComponents.Num(); ++Idx)
+	{
+		UStaticMesh* ExemplarStaticMesh = Cast<UStaticMesh>(RestCollection->EmbeddedGeometryExemplar[Idx].StaticMeshExemplar.TryLoad());
+		if (!ExemplarStaticMesh)
+		{
+			return false;
+		}
+
+		if (ExemplarStaticMesh != EmbeddedGeometryComponents[Idx]->GetStaticMesh())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void UGeometryCollectionComponent::ClearEmbeddedGeometry()
+{
+	for (UInstancedStaticMeshComponent* EmbeddedGeometryComponent : EmbeddedGeometryComponents)
+	{
+		EmbeddedGeometryComponent->ClearInstances();
+		//EmbeddedGeometryComponent->UnregisterComponent();
+		EmbeddedGeometryComponent->DestroyComponent();
+	}
+
+	EmbeddedGeometryComponents.Empty();
+}
+
+void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
+{
+	if (RestCollection)
+	{
+		ClearEmbeddedGeometry();
+
+		AActor* ActorOwner = GetOwner();
+		check(ActorOwner);
+
+		// Construct an InstancedStaticMeshComponent for each exemplar
+		for (const FGeometryCollectionEmbeddedExemplar& Exemplar : RestCollection->EmbeddedGeometryExemplar)
+		{
+			if (UStaticMesh* ExemplarStaticMesh = Cast<UStaticMesh>(Exemplar.StaticMeshExemplar.TryLoad()))
+			{
+				if (UInstancedStaticMeshComponent* ISMC = NewObject<UInstancedStaticMeshComponent>(ActorOwner))
+				{
+					ISMC->SetStaticMesh(ExemplarStaticMesh);
+					ISMC->SetCullDistances(Exemplar.StartCullDistance, Exemplar.EndCullDistance);
+					ISMC->SetCanEverAffectNavigation(false);
+					ISMC->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
+					ISMC->SetCastShadow(false);
+					ISMC->SetMobility(EComponentMobility::Stationary);
+
+					ISMC->SetupAttachment(ActorOwner->GetRootComponent());
+					ISMC->RegisterComponent();
+					ActorOwner->AddInstanceComponent(ISMC);
+
+					EmbeddedGeometryComponents.Add(ISMC);
+				}
+			}
+		}
+
+		CalculateGlobalMatrices();
+		RefreshEmbeddedGeometry();
+
+	}
+}

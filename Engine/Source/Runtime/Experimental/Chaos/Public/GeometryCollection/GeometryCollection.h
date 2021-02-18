@@ -142,6 +142,16 @@ public:
 	int32 AppendGeometry(const FGeometryCollection & GeometryCollection, int32 MaterialIDOffset = 0, bool ReindexAllMaterials = true, const FTransform& TransformRoot = FTransform::Identity);
 
 	/**
+	* Append single embedded geometry. Returns true if the operation succeeds.
+	*/
+	bool AppendEmbeddedInstance(int32 InExemplarIndex, int32 InParentIndex, const FTransform& InTransform = FTransform::Identity);
+
+	/**
+	 * Reindex exemplar indices to reflect removed exemplars.
+	 */
+	void ReindexExemplarIndices(TArray<int32>& SortedRemovedIndices);
+
+	/**
 	* Remove Geometry and update dependent elements
 	*/
 	virtual void RemoveElements(const FName & Group, const TArray<int32>& DeletionList, FProcessingParameters Params = FProcessingParameters()) override;
@@ -234,6 +244,7 @@ public:
 	TManagedArray<int32>        SimulationType;
 	TManagedArray<int32>        StatusFlags;
 	TManagedArray<int32>		InitialDynamicState;
+	TManagedArray<int32>		ExemplarIndex;
 
 	// Vertices Group
 	TManagedArray<FVector>		Vertex;

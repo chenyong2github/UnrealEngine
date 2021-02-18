@@ -49,6 +49,7 @@ void FGeometryCollection::Construct()
 	AddExternalAttribute<int32>("SimulationType", FTransformCollection::TransformGroup, SimulationType);
 	AddExternalAttribute<int32>("StatusFlags", FTransformCollection::TransformGroup, StatusFlags);
 	AddExternalAttribute<int32>("InitialDynamicState", FTransformCollection::TransformGroup, InitialDynamicState);
+	AddExternalAttribute<int32>("ExemplarIndex", FTransformCollection::TransformGroup, ExemplarIndex);
 
 	// Vertices Group
 	AddExternalAttribute<FVector>("Vertex", FGeometryCollection::VerticesGroup, Vertex);
@@ -92,6 +93,7 @@ void FGeometryCollection::SetDefaults(FName Group, uint32 StartSize, uint32 NumE
 			SimulationType[Idx] = FGeometryCollection::ESimulationTypes::FST_None;
 			StatusFlags[Idx] = 0;
 			InitialDynamicState[Idx] = static_cast<int32>(Chaos::EObjectStateType::Uninitialized);
+			ExemplarIndex[Idx] = INDEX_NONE;
 		}
 
 		FGeometryCollectionConvexUtility::SetDefaults(this, Group, StartSize, NumElements);
@@ -143,6 +145,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 	const TManagedArray<int32>& ElementSimulationType = Element.SimulationType;
 	const TManagedArray<int32>& ElementStatusFlags = Element.StatusFlags;
 	const TManagedArray<int32>& ElementInitialDynamicState = Element.InitialDynamicState;
+	const TManagedArray<int32>& ElementExemplarIndex = Element.ExemplarIndex;
 
 	// --- TRANSFORM ---
 	for (int TransformIdx = 0; TransformIdx < NumNewTransforms; TransformIdx++)
@@ -150,6 +153,7 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 		SimulationType[TransformIdx + StartTransformIndex] = ElementSimulationType[TransformIdx];
 		StatusFlags[TransformIdx + StartTransformIndex] = ElementStatusFlags[TransformIdx];
 		InitialDynamicState[TransformIdx + StartTransformIndex] = ElementInitialDynamicState[TransformIdx];
+		ExemplarIndex[TransformIdx + StartTransformIndex] = ElementExemplarIndex[TransformIdx];
 	}
 
 	// --- VERTICES GROUP ---
@@ -298,6 +302,50 @@ int32 FGeometryCollection::AppendGeometry(const FGeometryCollection & Element, i
 
 	return StartTransformIndex;
 }
+
+bool FGeometryCollection::AppendEmbeddedInstance(int32 InExemplarIndex, int32 InParentIndex, const FTransform& InTransform)
+{
+	if (InParentIndex == INDEX_NONE || InParentIndex >= NumElements(FGeometryCollection::TransformGroup))
+	{
+		return false;
+	}
+
+	// add a new embedded instance
+	int32 Element = AddElements(1, FGeometryCollection::TransformGroup);
+	Transform[Element] = InTransform;
+	Parent[Element] = InParentIndex;
+	Children[InParentIndex].Add(Element);
+	SimulationType[Element] = FST_None;
+	ExemplarIndex[Element] = InExemplarIndex;
+	TransformToGeometryIndex[Element] = INDEX_NONE;
+
+	return true;
+}
+
+
+void FGeometryCollection::ReindexExemplarIndices(TArray<int32>& SortedRemovedIndices)
+{
+	for (int32 Index = 0; Index < NumElements(TransformGroup); ++Index)
+	{
+		if (ExemplarIndex[Index] > INDEX_NONE)
+		{
+			for (int32 RemovalIndex = SortedRemovedIndices.Num()-1; RemovalIndex >= 0; --RemovalIndex)
+			{
+				if (ExemplarIndex[Index] == SortedRemovedIndices[RemovalIndex])
+				{
+					ExemplarIndex[Index] = INDEX_NONE;
+					break;
+				}
+				else if (ExemplarIndex[Index] > SortedRemovedIndices[RemovalIndex])
+				{
+					ExemplarIndex[Index] -= (RemovalIndex + 1);
+					break;
+				}
+			}
+		}
+	}
+}
+
 
 // Input assumes that each face has a materialID that corresponds with a render material
 // This will rebuild all mesh sections
@@ -896,7 +944,7 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 		// Version 5 introduced accurate SimulationType tagging
 		if (Version < 5)
 		{
-			UE_LOG(FGeometryCollectionLogging, Warning, TEXT("GeometryCollection is has inaccurate simulation type tags. Updating tags based on transform topology."));
+			UE_LOG(FGeometryCollectionLogging, Warning, TEXT("GeometryCollection has inaccurate simulation type tags. Updating tags based on transform topology."));
 			TManagedArray<bool>* SimulatableParticles = FindAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
 			TArray<bool> RigidChildren; RigidChildren.Init(false,NumElements(FTransformCollection::TransformGroup));
 			const TArray<int32> RecursiveOrder = GeometryCollectionAlgo::ComputeRecursiveOrder(*this);
@@ -937,6 +985,16 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 
 			// Structure is conditioned, now considered up to date.
 			Version = 5;
+		}
+
+		// Version 6 introduced the Exemplar Index array
+		if (Version < 6)
+		{
+			UE_LOG(FGeometryCollectionLogging, Warning, TEXT("GeometryCollection has uninitialized Exemplar Indices. Setting all indices to NONE."));
+			ExemplarIndex.Fill(INDEX_NONE);
+
+			// Structure is conditioned, now considered up to date.
+			Version = 6;
 		}
 
 	}

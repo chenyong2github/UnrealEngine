@@ -57,7 +57,10 @@ bool UFractureActionTool::IsGeometryCollectionSelected()
 		AActor* Actor = Cast<AActor>(*Iter);
 		if (Actor)
 		{
-			if (Actor->FindComponentByClass<UGeometryCollectionComponent>())
+			TInlineComponentArray<UGeometryCollectionComponent*> GeometryCollectionComponents;
+			Actor->GetComponents<UGeometryCollectionComponent>(GeometryCollectionComponents, true);
+
+			if (GeometryCollectionComponents.Num() > 0)
 			{
 				return true;
 			}
@@ -127,7 +130,7 @@ void UFractureActionTool::GetSelectedGeometryCollectionComponents(TSet<UGeometry
 	}
 }
 
-void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditorModeToolkit* Toolkit)
+void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditorModeToolkit* Toolkit, bool bClearSelection)
 {
 	UGeometryCollectionComponent* GeometryCollectionComponent = Context.GetGeometryCollectionComponent();
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = Context.GetGeometryCollection();
@@ -138,10 +141,18 @@ void UFractureActionTool::Refresh(FFractureToolContext& Context, FFractureEditor
 	Toolkit->RegenerateHistogram();
 
 	FScopedColorEdit EditBoneColor(GeometryCollectionComponent, true);
-	EditBoneColor.SetSelectedBones(Context.GetSelection());
 
-	FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, Context.GetSelection(), true);
-
+	if (bClearSelection)
+	{
+		EditBoneColor.ResetBoneSelection();
+		FFractureSelectionTools::ClearSelectedBones(GeometryCollectionComponent);
+	}
+	else
+	{
+		EditBoneColor.SetSelectedBones(Context.GetSelection());
+		FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionComponent, Context.GetSelection(), true);
+	}
+	
 	Toolkit->UpdateExplodedVectors(GeometryCollectionComponent);
 
 	GeometryCollectionComponent->MarkRenderDynamicDataDirty();
@@ -238,12 +249,12 @@ bool UFractureModalTool::CanExecute() const
 	{
 		return false;
 	}
-
+	/*
 	if (IsStaticMeshSelected())
 	{
 		return false;
 	}
-
+	*/
 	return true;
 }
 

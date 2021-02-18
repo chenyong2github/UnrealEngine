@@ -9,6 +9,7 @@
 #include "GeometryCollection/ManagedArray.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "Chaos/ChaosSolverActor.h"
+
 #include "GeometryCollectionObject.generated.h"
 
 class UMaterialInterface;
@@ -31,6 +32,32 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	TArray<TObjectPtr<UMaterialInterface>> SourceMaterial;
+};
+
+USTRUCT(BlueprintType)
+struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEmbeddedExemplar
+{
+	GENERATED_BODY()
+
+	FGeometryCollectionEmbeddedExemplar() {};
+	FGeometryCollectionEmbeddedExemplar(FSoftObjectPath NewExemplar)
+		: StaticMeshExemplar(NewExemplar)
+		, StartCullDistance(0.0f)
+		, EndCullDistance(0.0f)
+		, InstanceCount(0)
+	{ }
+
+	UPROPERTY(EditAnywhere, Category = "EmbeddedExemplar", meta = (AllowedClasses = "StaticMesh"))
+	FSoftObjectPath StaticMeshExemplar;
+
+	UPROPERTY(EditAnywhere, Category = "EmbeddedExemplar")
+	float StartCullDistance;
+
+	UPROPERTY(EditAnywhere, Category = "EmbeddedExemplar")
+	float EndCullDistance;
+
+	UPROPERTY(VisibleAnywhere, Category = "EmbeddedExemplar")
+	int32 InstanceCount;
 };
 
 
@@ -199,6 +226,12 @@ public:
 	/** Check to see if Simulation Data requires regeneration */
 	bool IsSimulationDataDirty() const;
 
+	/** Attach a Static Mesh exemplar for embedded geometry, if that mesh has not already been attached. Return the exemplar index. */
+	int32 AttachEmbeddedGeometryExemplar(const UStaticMesh* Exemplar);
+
+	/** Remove embedded geometry exemplars with indices matching the sorted removal list. */
+	void RemoveExemplars(const TArray<int32>& SortedRemovalIndices);
+
 #if WITH_EDITOR
 	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
 	bool bManualDataCreate;
@@ -248,6 +281,10 @@ public:
 	
 	UPROPERTY(EditAnywhere, Category = "Materials")
 	TArray<TObjectPtr<UMaterialInterface>> Materials;
+
+	/** References for embedded geometry generation */
+	UPROPERTY(EditAnywhere, Category = "EmbeddedGeometry")
+	TArray<FGeometryCollectionEmbeddedExemplar> EmbeddedGeometryExemplar;
 
 	/**
 	* Enable support for Nanite.

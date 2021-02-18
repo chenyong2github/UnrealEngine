@@ -49,82 +49,60 @@ bool UFractureToolAddEmbeddedGeometry::CanExecute() const
 
 void UFractureToolAddEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	if (!InToolkit.IsValid())
+	if (InToolkit.IsValid())
 	{
-		return;
-	}
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
-	// Get selected static meshes
-	TArray<UStaticMeshComponent*> SelectedStaticMeshComponents = GetSelectedStaticMeshComponents();
+		// Get selected static meshes
+		TArray<UStaticMeshComponent*> SelectedStaticMeshComponents = GetSelectedStaticMeshComponents();
 
-	TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
 
-	for (FFractureToolContext& Context : Contexts)
-	{
-		FGeometryCollectionEdit GeometryCollectionEdit = Context.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
-		UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
-
-		FFractureToolContext::FGeometryCollectionPtr GeometryCollection = Context.GetGeometryCollection();
-		const TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
-		TManagedArray<int32>& Parent = GeometryCollection->Parent;
-		TManagedArray<int32>& SimType = GeometryCollection->SimulationType;
-		TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
-		TManagedArray<bool>& CollectionSimulatableParticles =
-			GeometryCollection->GetAttribute<bool>(
-				FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
-
-		const FTransform TargetActorTransform(Context.GetGeometryCollectionComponent()->GetOwner()->GetTransform());
-
-		Context.ConvertSelectionToRigidNodes();
-		const TArray<int32>& SelectedBones = Context.GetSelection();
-		for (const int32 SelectedBone : SelectedBones)
+		for (FFractureToolContext& Context : Contexts)
 		{
-			FTransform BoneGlobalTransform = GeometryCollectionAlgo::GlobalMatrix(Transform, Parent, SelectedBone);
+			FGeometryCollectionEdit GeometryCollectionEdit = Context.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+			UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
+
+			FFractureToolContext::FGeometryCollectionPtr GeometryCollection = Context.GetGeometryCollection();
+			const TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
+			const TManagedArray<int32>& Parent = GeometryCollection->Parent;
 			
-			for (UStaticMeshComponent* SelectedStaticMeshComponent : SelectedStaticMeshComponents)
+			const FTransform TargetActorTransform(Context.GetGeometryCollectionComponent()->GetOwner()->GetTransform());
+
+			Context.ConvertSelectionToRigidNodes();
+			const TArray<int32>& SelectedBones = Context.GetSelection();
+			for (const int32 SelectedBone : SelectedBones)
 			{
-				const AActor* Actor = SelectedStaticMeshComponent->GetOwner();
-				check(Actor)
+				FTransform BoneGlobalTransform = GeometryCollectionAlgo::GlobalMatrix(Transform, Parent, SelectedBone);
 
-				const FTransform SMActorTransform(Actor->GetTransform());
-
-				UStaticMesh* ComponentStaticMesh = SelectedStaticMeshComponent->GetStaticMesh();
-				if (ComponentStaticMesh)
+				for (UStaticMeshComponent* SelectedStaticMeshComponent : SelectedStaticMeshComponents)
 				{
-					// If any of the static meshes have Nanite enabled, also enable on the new geometry collection asset for convenience.
-					FracturedGeometryCollection->EnableNanite |= ComponentStaticMesh->NaniteSettings.bEnabled;
+					const AActor* Actor = SelectedStaticMeshComponent->GetOwner();
+					check(Actor)
+
+					const FTransform SMActorTransform(Actor->GetTransform());
+
+					UStaticMesh* ComponentStaticMesh = SelectedStaticMeshComponent->GetStaticMesh();
+					
+					FTransform ComponentTransform = SMActorTransform.GetRelativeTransform(TargetActorTransform);
+					FTransform BoneTransform = ComponentTransform.GetRelativeTransform(BoneGlobalTransform);
+
+					int32 ExemplarIndex = FracturedGeometryCollection->AttachEmbeddedGeometryExemplar(ComponentStaticMesh);
+					if (GeometryCollection->AppendEmbeddedInstance(ExemplarIndex, SelectedBone, BoneTransform))
+					{
+						FracturedGeometryCollection->EmbeddedGeometryExemplar[ExemplarIndex].InstanceCount++;
+					}
 				}
-
-				FTransform ComponentTransform = SMActorTransform.GetRelativeTransform(TargetActorTransform);
-				FTransform BoneTransform = ComponentTransform.GetRelativeTransform(BoneGlobalTransform);
-
-				decltype(FGeometryCollectionSource::SourceMaterial) SourceMaterials(SelectedStaticMeshComponent->GetMaterials());
-
-				// Add static mesh geometry to context's geometry collection.
-				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, SelectedStaticMeshComponent, BoneTransform, FracturedGeometryCollection, true);
-
-				int32 NewTransformIndex = Parent.Num() - 1;
-				check(NewTransformIndex > -1)
-
-				// Reparent the new transform to the selected bone
-				Parent[NewTransformIndex] = SelectedBone;
-				Children[SelectedBone].Add(NewTransformIndex);
-
-				// Set properties appropriate to embedded geometry
-				SimType[NewTransformIndex] = FGeometryCollection::ESimulationTypes::FST_None;
-				CollectionSimulatableParticles[NewTransformIndex] = false;
 			}
+
+			Context.GetGeometryCollectionComponent()->InitializeEmbeddedGeometry();
+			Refresh(Context, Toolkit);
+
+			FracturedGeometryCollection->MarkPackageDirty();
 		}
 
-		FracturedGeometryCollection->InitializeMaterials();
-
-		FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection.Get(), -1);
-		Context.GetGeometryCollectionComponent()->MarkRenderStateDirty();
-
-		FracturedGeometryCollection->MarkPackageDirty();
+		SetOutlinerComponents(Contexts, Toolkit);
 	}
-
-	SetOutlinerComponents(Contexts, InToolkit.Pin().Get());
 }
 
 TArray<UStaticMeshComponent*> UFractureToolAddEmbeddedGeometry::GetSelectedStaticMeshComponents()
@@ -183,124 +161,104 @@ bool UFractureToolAutoEmbedGeometry::CanExecute() const
 
 void UFractureToolAutoEmbedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	if (!InToolkit.IsValid())
+	if (InToolkit.IsValid())
 	{
-		return;
-	}
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
-	// Get selected static meshes
-	TArray<UStaticMeshComponent*> SelectedStaticMeshComponents = GetSelectedStaticMeshComponents();
-	TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+		// Get selected static meshes
+		TArray<UStaticMeshComponent*> SelectedStaticMeshComponents = GetSelectedStaticMeshComponents();
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
 
-	// For each static mesh component, we iterate all the convex hulls and determine which convex hull best contains the worldspace pivot of the static mesh.
-	for (UStaticMeshComponent* SelectedStaticMeshComponent : SelectedStaticMeshComponents)
-	{
-		// Static Mesh world space location
-		FVector SMLocation = SelectedStaticMeshComponent->GetComponentLocation();
-
-		// Determine the "closest" bone
-		FFractureToolContext::FGeometryCollectionPtr ClosestGeometryCollection;
-		int32 ClosestConvex = INDEX_NONE;
-		Chaos::FReal ClosestPhi = TNumericLimits<float>::Max();
-		UGeometryCollectionComponent* ClosestComponent = nullptr;
-		
-		for (FFractureToolContext& Context : Contexts)
+		// For each static mesh component, we iterate all the convex hulls and determine which convex hull best contains the worldspace pivot of the static mesh.
+		for (UStaticMeshComponent* SelectedStaticMeshComponent : SelectedStaticMeshComponents)
 		{
-			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
-			FGeometryCollectionConvexUtility::FGeometryCollectionConvexData ConvexData = FGeometryCollectionConvexUtility::GetValidConvexHullData(GeometryCollection);
-			const TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
-			const TManagedArray<int32>& Parent = GeometryCollection->Parent;
-			TArray<FTransform> BoneGlobalTransforms;
-			GeometryCollectionAlgo::GlobalMatrices(Transform, Parent, BoneGlobalTransforms);
-			
-			FTransform WorldToComponent = Context.GetGeometryCollectionComponent()->GetComponentToWorld().Inverse();
-			FVector ComponentSpaceLocation = WorldToComponent.TransformPosition(SMLocation);
+			// Static Mesh world space location
+			FVector SMLocation = SelectedStaticMeshComponent->GetComponentLocation();
 
-			int32 NumConvex = ConvexData.ConvexHull.Num();
-			for (int32 ConvexIndex = 0; ConvexIndex < NumConvex; ++ConvexIndex)
+			// Determine the "closest" bone
+			FFractureToolContext::FGeometryCollectionPtr ClosestGeometryCollection;
+			int32 ClosestConvex = INDEX_NONE;
+			Chaos::FReal ClosestPhi = TNumericLimits<float>::Max();
+			UGeometryCollectionComponent* ClosestComponent = nullptr;
+			FFractureToolContext* ClosestContext = nullptr;
+
+			for (FFractureToolContext& Context : Contexts)
 			{
-				// transform into bone space where the convex hull is described
-				int32 TransformIndex = ConvexData.TransformToConvexIndex.Find(ConvexIndex);
-				FTransform ComponentToBone = BoneGlobalTransforms[TransformIndex].Inverse();
-				FVector BoneSpaceLocation = ComponentToBone.TransformPosition(ComponentSpaceLocation);
-				
-				Chaos::FVec3 Normal;
-				Chaos::FReal Phi = ConvexData.ConvexHull[ConvexIndex]->PhiWithNormal(BoneSpaceLocation, Normal);
-				UE_LOG(LogTemp, Warning, TEXT(" Cone %d Phi %f"), ConvexData.TransformToConvexIndex.Find(ConvexIndex), Phi);
-				if (Phi < ClosestPhi)
+				FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
+				FGeometryCollectionConvexUtility::FGeometryCollectionConvexData ConvexData = FGeometryCollectionConvexUtility::GetValidConvexHullData(GeometryCollection);
+				const TManagedArray<FTransform>& Transform = GeometryCollection->Transform;
+				const TManagedArray<int32>& Parent = GeometryCollection->Parent;
+				TArray<FTransform> BoneGlobalTransforms;
+				GeometryCollectionAlgo::GlobalMatrices(Transform, Parent, BoneGlobalTransforms);
+
+				FTransform WorldToComponent = Context.GetGeometryCollectionComponent()->GetComponentToWorld().Inverse();
+				FVector ComponentSpaceLocation = WorldToComponent.TransformPosition(SMLocation);
+
+				int32 NumConvex = ConvexData.ConvexHull.Num();
+				for (int32 ConvexIndex = 0; ConvexIndex < NumConvex; ++ConvexIndex)
 				{
-					ClosestPhi = Phi;
-					ClosestGeometryCollection = Context.GetGeometryCollection();
-					ClosestConvex = ConvexIndex;
-					ClosestComponent = Context.GetGeometryCollectionComponent();
+					// transform into bone space where the convex hull is described
+					int32 TransformIndex = ConvexData.TransformToConvexIndex.Find(ConvexIndex);
+					FTransform ComponentToBone = BoneGlobalTransforms[TransformIndex].Inverse();
+					FVector BoneSpaceLocation = ComponentToBone.TransformPosition(ComponentSpaceLocation);
+
+					Chaos::FVec3 Normal;
+					Chaos::FReal Phi = ConvexData.ConvexHull[ConvexIndex]->PhiWithNormal(BoneSpaceLocation, Normal);
+					UE_LOG(LogTemp, Warning, TEXT(" Cone %d Phi %f"), ConvexData.TransformToConvexIndex.Find(ConvexIndex), Phi);
+					if (Phi < ClosestPhi)
+					{
+						ClosestPhi = Phi;
+						ClosestGeometryCollection = Context.GetGeometryCollection();
+						ClosestConvex = ConvexIndex;
+						ClosestComponent = Context.GetGeometryCollectionComponent();
+						ClosestContext = &Context;
+					}
+				}
+			}
+
+			if (ClosestGeometryCollection.IsValid() && ClosestComponent && ClosestContext)
+			{
+				// Which bone points to the closest convex?
+				const TManagedArray<FTransform>& Transform = ClosestGeometryCollection->Transform;
+				const TManagedArray<int32>& Parent = ClosestGeometryCollection->Parent;
+				TManagedArray<int32>& TransformToConvexIndex =
+					ClosestGeometryCollection->GetAttribute<int32>("TransformToConvexIndex", FTransformCollection::TransformGroup);
+
+				const int32 BoneIndex = TransformToConvexIndex.Find(ClosestConvex);
+
+				if (BoneIndex > INDEX_NONE)
+				{
+					// We found the closest bone, now we embed the geometry.
+					FGeometryCollectionEdit GeometryCollectionEdit = ClosestComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+					UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
+
+					FTransform BoneGlobalTransform = GeometryCollectionAlgo::GlobalMatrix(Transform, Parent, BoneIndex);
+
+					const FTransform TargetActorTransform(ClosestComponent->GetOwner()->GetTransform());
+					const AActor* Actor = SelectedStaticMeshComponent->GetOwner();
+					check(Actor)
+
+					const FTransform SMActorTransform(Actor->GetTransform());
+					FTransform ComponentTransform = SMActorTransform.GetRelativeTransform(TargetActorTransform);
+					FTransform BoneTransform = ComponentTransform.GetRelativeTransform(BoneGlobalTransform);
+
+					UStaticMesh* ComponentStaticMesh = SelectedStaticMeshComponent->GetStaticMesh();
+					int32 ExemplarIndex = FracturedGeometryCollection->AttachEmbeddedGeometryExemplar(ComponentStaticMesh);
+					if (ClosestGeometryCollection->AppendEmbeddedInstance(ExemplarIndex, BoneIndex, BoneTransform))
+					{
+						FracturedGeometryCollection->EmbeddedGeometryExemplar[ExemplarIndex].InstanceCount++;
+					}
+
+					// #todo there might be a lot of these -- collect and put outside the loop.
+					ClosestComponent->InitializeEmbeddedGeometry();
+					Refresh(*ClosestContext, Toolkit);
+					FracturedGeometryCollection->MarkPackageDirty();
 				}
 			}
 		}
 
-		if (ClosestGeometryCollection.IsValid() && ClosestComponent)
-		{
-			// Which bone points to the closest convex?
-			const TManagedArray<FTransform>& Transform = ClosestGeometryCollection->Transform;
-			TManagedArray<int32>& Parent = ClosestGeometryCollection->Parent;
-			TManagedArray<int32>& SimType = ClosestGeometryCollection->SimulationType;
-			TManagedArray<TSet<int32>>& Children = ClosestGeometryCollection->Children;
-			TManagedArray<bool>& CollectionSimulatableParticles =
-				ClosestGeometryCollection->GetAttribute<bool>(
-					FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
-			TManagedArray<int32>& TransformToConvexIndex =
-				ClosestGeometryCollection->GetAttribute<int32>("TransformToConvexIndex", FTransformCollection::TransformGroup);
-
-			const int32 BoneIndex = TransformToConvexIndex.Find(ClosestConvex);
-
-			if (BoneIndex > INDEX_NONE)
-			{
-				// We found the closest bone, now we embed the geometry.
-				FGeometryCollectionEdit GeometryCollectionEdit = ClosestComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
-				UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
-
-				FTransform BoneGlobalTransform = GeometryCollectionAlgo::GlobalMatrix(Transform, Parent, BoneIndex);
-
-				const FTransform TargetActorTransform(ClosestComponent->GetOwner()->GetTransform());
-				const AActor* Actor = SelectedStaticMeshComponent->GetOwner();
-				check(Actor)
-
-				const FTransform SMActorTransform(Actor->GetTransform());
-				FTransform ComponentTransform = SMActorTransform.GetRelativeTransform(TargetActorTransform);
-				FTransform BoneTransform = ComponentTransform.GetRelativeTransform(BoneGlobalTransform);
-
-				UStaticMesh* ComponentStaticMesh = SelectedStaticMeshComponent->GetStaticMesh();
-				if (ComponentStaticMesh)
-				{
-					// If any of the static meshes have Nanite enabled, also enable on the new geometry collection asset for convenience.
-					FracturedGeometryCollection->EnableNanite |= ComponentStaticMesh->NaniteSettings.bEnabled;
-				}
-
-				// Add static mesh geometry to context's geometry collection.
-				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, SelectedStaticMeshComponent, BoneTransform, FracturedGeometryCollection, true);
-
-				// A new transform has been appended to the TransformGroup
-				int32 NewTransformIndex = Parent.Num() - 1;
-				check(NewTransformIndex > -1)
-
-				// Reparent the new transform to the selected bone
-				Parent[NewTransformIndex] = BoneIndex;
-				Children[BoneIndex].Add(NewTransformIndex);
-
-				// Set properties appropriate to embedded geometry
-				SimType[NewTransformIndex] = FGeometryCollection::ESimulationTypes::FST_None;
-				CollectionSimulatableParticles[NewTransformIndex] = false;
-
-				FracturedGeometryCollection->InitializeMaterials();
-
-				FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(ClosestGeometryCollection.Get(), -1);
-				ClosestComponent->MarkRenderStateDirty();
-
-				FracturedGeometryCollection->MarkPackageDirty();
-			}
-		}
+		SetOutlinerComponents(Contexts, Toolkit);
 	}
-
-	SetOutlinerComponents(Contexts, InToolkit.Pin().Get());
 }
 
 TArray<UStaticMeshComponent*> UFractureToolAutoEmbedGeometry::GetSelectedStaticMeshComponents()
@@ -360,56 +318,72 @@ bool UFractureToolDeleteEmbeddedGeometry::CanExecute() const
 
 void UFractureToolDeleteEmbeddedGeometry::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
-	if (!InToolkit.IsValid())
+	if (InToolkit.IsValid())
 	{
-		return;
-	}
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
-	// Get selected static meshes
-	TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+		// Get selected static meshes
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
 
-	for (FFractureToolContext& Context : Contexts)
-	{
-		Context.Sanitize();
-		
-		FGeometryCollectionEdit GeometryCollectionEdit = Context.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
-		UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
-
-		FFractureToolContext::FGeometryCollectionPtr GeometryCollection = Context.GetGeometryCollection();
-		const TManagedArray<int32>& SimType = GeometryCollection->SimulationType;
-
-		TArray<int32> EmbeddedGeometryToBeRemoved;
-		const TArray<int32>& SelectedBones = Context.GetSelection();
-		for (const int32 SelectedBone : SelectedBones)
+		for (FFractureToolContext& Context : Contexts)
 		{
-			if (SimType[SelectedBone] != FGeometryCollection::ESimulationTypes::FST_None)
+			Context.Sanitize();
+
+			FGeometryCollectionEdit GeometryCollectionEdit = Context.GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
+			UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
+
+			FFractureToolContext::FGeometryCollectionPtr GeometryCollection = Context.GetGeometryCollection();
+			const TManagedArray<int32>& ExemplarIndex = GeometryCollection->ExemplarIndex;
+
+			TArray<int32> EmbeddedGeometryToBeRemoved;
+			const TArray<int32>& SelectedBones = Context.GetSelection();
+			for (const int32 SelectedBone : SelectedBones)
 			{
-				// Select all Embedded Geometry found in the selected branch.
-				TArray<int32> LeafBones;
-				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollection.Get(), SelectedBone, false, LeafBones);
-				for (int32 LeafBone : LeafBones)
+				if (ExemplarIndex[SelectedBone] == INDEX_NONE)
 				{
-					if (SimType[LeafBone] == FGeometryCollection::ESimulationTypes::FST_None)
+					// Select all Embedded Geometry found in the selected branch.
+					TArray<int32> LeafBones;
+					FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollection.Get(), SelectedBone, false, LeafBones);
+					for (int32 LeafBone : LeafBones)
 					{
-						EmbeddedGeometryToBeRemoved.Add(LeafBone);
+						if (ExemplarIndex[LeafBone] > INDEX_NONE)
+						{
+							EmbeddedGeometryToBeRemoved.Add(LeafBone);
+						}
 					}
 				}
+				else
+				{
+					// Selected bone is embedded geometry. Only delete this.
+					EmbeddedGeometryToBeRemoved.Add(SelectedBone);
+				}
 			}
-			else
+
+			TArray<int32> UninstancedExemplars;
+			UninstancedExemplars.Reserve(EmbeddedGeometryToBeRemoved.Num());
+			for (int32 EmbeddedIndex : EmbeddedGeometryToBeRemoved)
 			{
-				// Selected bone is embedded geometry. Only delete this.
-				EmbeddedGeometryToBeRemoved.Add(SelectedBone);
+				if ((--FracturedGeometryCollection->EmbeddedGeometryExemplar[ExemplarIndex[EmbeddedIndex]].InstanceCount) < 1)
+				{
+					UE_LOG(LogFractureTool, Warning, TEXT("Exemplar Index %d is empty. Removing Exemplar from Geometry Collection."), ExemplarIndex[EmbeddedIndex]);
+					UninstancedExemplars.Add(ExemplarIndex[EmbeddedIndex]);
+				}
 			}
+
+			EmbeddedGeometryToBeRemoved.Sort();
+			GeometryCollection->RemoveElements(FGeometryCollection::TransformGroup, EmbeddedGeometryToBeRemoved);
+
+			UninstancedExemplars.Sort();
+			FracturedGeometryCollection->RemoveExemplars(UninstancedExemplars);
+			GeometryCollection->ReindexExemplarIndices(UninstancedExemplars);
+
+			Context.GetGeometryCollectionComponent()->InitializeEmbeddedGeometry();
+			Refresh(Context, Toolkit, true);
+			FracturedGeometryCollection->MarkPackageDirty();
 		}
 
-		EmbeddedGeometryToBeRemoved.Sort();
-		GeometryCollection->RemoveElements(FGeometryCollection::TransformGroup, EmbeddedGeometryToBeRemoved);
-
-		Context.GetGeometryCollectionComponent()->MarkRenderStateDirty();
-		FracturedGeometryCollection->MarkPackageDirty();
+		SetOutlinerComponents(Contexts, Toolkit);
 	}
-
-	SetOutlinerComponents(Contexts, InToolkit.Pin().Get());
 }
 
 
