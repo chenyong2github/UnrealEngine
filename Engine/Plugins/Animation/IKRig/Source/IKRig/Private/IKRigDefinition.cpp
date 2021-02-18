@@ -8,6 +8,11 @@ void UIKRigDefinition::GetGoalNamesFromSolvers(TArray<FName>& OutGoalNames) cons
 {
 	for (UIKRigSolver* Solver : Solvers)
 	{
+		if (!Solver)
+		{
+			continue;
+		}
+		
 		TSet<FName> GoalNames;
 		Solver->CollectGoalNames(GoalNames);
 

@@ -46,7 +46,7 @@ struct FFBIKRigEffector
 
  // run time for UFullBodyIKSolverDefinition
 UCLASS(EditInlineNew)
-class FULLBODYIK_API UIKRigFBIKSolver : public UIKRigSolver
+class IKRIG_API UIKRigFBIKSolver : public UIKRigSolver
 {
 	GENERATED_BODY()
 

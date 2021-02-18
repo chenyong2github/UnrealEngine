@@ -4,7 +4,7 @@
 	FullBodyIKSolver.cpp: Solver execution class for Transform
 =============================================================================*/
 
-#include "IKRigFBIKSolver.h"
+#include "Solvers/IKRigFBIKSolver.h"
 #include "IKRigDataTypes.h"
 #include "IKRigHierarchy.h"
 #include "FBIKConstraint.h"
