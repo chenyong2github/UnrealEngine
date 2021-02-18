@@ -13,8 +13,7 @@ public class PBIK : ModuleRules
 			{
 				"Core",
 				"RigVM",
-				"ControlRig",
-				"IKRig"
+				"ControlRig"
 			}
 			);
 
