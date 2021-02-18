@@ -464,7 +464,7 @@ private:
 		float MaxX = this->SteeringCurve.GetRichCurveConst()->GetLastKey().Time;
 		PSteeringConfig.SpeedVsSteeringCurve.Empty();
 		float NumSamples = 20;
-		for (float X = MinValue; X <= MaxX; X += ((MaxX- MinValue) / NumSamples))
+		for (float X = 0; X <= MaxX; X += (MaxX / NumSamples))
 		{
 			float Y = this->SteeringCurve.GetRichCurveConst()->Eval(X) / MaxValue;
 			PSteeringConfig.SpeedVsSteeringCurve.Add(FVector2D(X, Y));

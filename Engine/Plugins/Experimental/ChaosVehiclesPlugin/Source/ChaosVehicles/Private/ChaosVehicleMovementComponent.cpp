@@ -624,6 +624,7 @@ UChaosVehicleMovementComponent::UChaosVehicleMovementComponent(const FObjectInit
 
 	AngErrorAccumulator = 0.0f;
 
+	bRequiresControllerForInputs = true;
 	IdleBrakeInput = 0.0f;
 	StopThreshold = 10.0f; 
 	WrongDirectionThreshold = 100.f;
@@ -1109,9 +1110,11 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 	AController* Controller = GetController();
 	VehicleState.CaptureState(GetBodyInstance(), GetGravityZ(), DeltaTime);
 
+	bool bProcessLocally = bRequiresControllerForInputs?(Controller && Controller->IsLocalController()):true;
+
 	// IsLocallyControlled will fail if the owner is unpossessed (i.e. Controller == nullptr);
 	// Should we remove input instead of relying on replicated state in that case?
-	if (Controller && Controller->IsLocalController() && PVehicleOutput)
+	if (bProcessLocally && PVehicleOutput)
 	{
 		if (bReverseAsBrake)
 		{

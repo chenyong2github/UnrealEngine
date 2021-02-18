@@ -958,6 +958,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	float GetForwardSpeedMPH() const;
 
+	/** Get the user input for the vehicle throttle - can use this to feed control to a connected trailer */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	float GetThrottleInput() { return RawThrottleInput; }
+
+	/** Get the user input for the vehicle brake - can use this to feed control to a connected trailer */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	float GetBrakeInput() { return RawBrakeInput; }
+
+	/** Get the user input for the vehicle steering - can use this to feed control to a connected trailer */
+	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
+	float GetSteeringInput() { return RawSteeringInput; }
+
+
 	/** Is the vehicle in park mode */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	bool IsParked() const;
@@ -1076,6 +1089,10 @@ protected:
 	// Handbrake output to physics system. Range 0...1
 	UPROPERTY(Transient)
 	float HandbrakeInput;
+
+	// Bypass the need for a controller in order for the controls to be processed.
+	UPROPERTY(EditAnywhere, Category=VehicleInput)
+	bool bRequiresControllerForInputs;
 
 	// How much to press the brake when the player has release throttle
 	UPROPERTY(EditAnywhere, Category=VehicleInput)
