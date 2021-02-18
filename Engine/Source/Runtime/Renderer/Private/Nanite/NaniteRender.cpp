@@ -1971,13 +1971,13 @@ bool FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 N
 
 	const uint32 SizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(NumPrimitives * MaxMaterials, 256u));
 	bool bResized = false;
-	bResized |= ResizeResourceIfNeeded(RHICmdList, DepthTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("DepthTableDataBuffer"));
+	bResized |= ResizeResourceIfNeeded(RHICmdList, DepthTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.DepthTableDataBuffer"));
 	if (bResized)
 	{
 		UAVs.Add(FRHITransitionInfo(DepthTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 	}
 #if WITH_EDITOR
-	bResized |= ResizeResourceIfNeeded(RHICmdList, HitProxyTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("HitProxyTableDataBuffer"));
+	bResized |= ResizeResourceIfNeeded(RHICmdList, HitProxyTableDataBuffer, SizeReserve * sizeof(uint32), TEXT("Nanite.HitProxyTableDataBuffer"));
 	if (bResized)
 	{
 		UAVs.Add(FRHITransitionInfo(HitProxyTableDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
@@ -1988,9 +1988,9 @@ bool FNaniteMaterialTables::Begin(FRHICommandListImmediate& RHICmdList, uint32 N
 
 	if (NumPrimitiveUpdates > 0)
 	{
-		DepthTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("DepthTableUploadBuffer"));
+		DepthTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.DepthTableUploadBuffer"));
 	#if WITH_EDITOR
-		HitProxyTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("HitProxyTableUploadBuffer"));
+		HitProxyTableUploadBuffer.Init(NumPrimitiveUpdates * MaxMaterials, sizeof(uint32), false, TEXT("Nanite.HitProxyTableUploadBuffer"));
 	#endif
 	}
 
@@ -2300,36 +2300,36 @@ FCullingContext InitCullingContext(
 	CullingContext.SOAStrides.X							= Scene.GPUScene.InstanceDataSOAStride;
 	CullingContext.SOAStrides.Y							= NumSceneInstances;
 
-	CullingContext.MainAndPostPassPersistentStates		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 20, 2 ), TEXT("MainAndPostPassPersistentStates") );
+	CullingContext.MainAndPostPassPersistentStates		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 20, 2 ), TEXT("Nanite.MainAndPostPassPersistentStates") );
 
 #if NANITE_USE_SCRATCH_BUFFERS
 	if (bPrimaryContext)
 	{
-		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetPrimaryVisibleClustersBufferRef(), TEXT("VisibleClustersSWHW"));
+		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetPrimaryVisibleClustersBufferRef(), TEXT("Nanite.VisibleClustersSWHW"));
 	}
 	else
 	{
-		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchVisibleClustersBufferRef(), TEXT("VisibleClustersSWHW"));
+		CullingContext.VisibleClustersSWHW = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchVisibleClustersBufferRef(), TEXT("Nanite.VisibleClustersSWHW"));
 	}
 #else
 	FRDGBufferDesc VisibleClustersDesc			= FRDGBufferDesc::CreateStructuredDesc(4, 3 * Nanite::FGlobalResources::GetMaxVisibleClusters());	// Max visible clusters * sizeof(uint3)
 	VisibleClustersDesc.Usage					= EBufferUsageFlags(VisibleClustersDesc.Usage | BUF_ByteAddressBuffer);
 
-	CullingContext.VisibleClustersSWHW			= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("VisibleClustersSWHW"));
+	CullingContext.VisibleClustersSWHW			= GraphBuilder.CreateBuffer(VisibleClustersDesc, TEXT("Nanite.VisibleClustersSWHW"));
 #endif
 
-	CullingContext.MainRasterizeArgsSWHW		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 8 ), TEXT("MainRasterizeArgsSWHW") );
+	CullingContext.MainRasterizeArgsSWHW		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.MainRasterizeArgsSWHW"));
 	
 	if( CullingContext.bTwoPassOcclusion )
 	{
 	#if NANITE_USE_SCRATCH_BUFFERS
-		CullingContext.OccludedInstances		= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("OccludedInstances"));
+		CullingContext.OccludedInstances		= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("Nanite.OccludedInstances"));
 	#else
-		CullingContext.OccludedInstances		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstances), TEXT("OccludedInstances"));
+		CullingContext.OccludedInstances		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstances), TEXT("Nanite.OccludedInstances"));
 	#endif
 
-		CullingContext.OccludedInstancesArgs	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 4 ), TEXT("OccludedInstancesArgs") );
-		CullingContext.PostRasterizeArgsSWHW	= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateIndirectDesc( 8 ), TEXT( "PostRasterizeArgsSWHW" ) );
+		CullingContext.OccludedInstancesArgs	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.OccludedInstancesArgs"));
+		CullingContext.PostRasterizeArgsSWHW	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(8), TEXT("Nanite.PostRasterizeArgsSWHW"));
 	}
 
 	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer()); 
@@ -2340,7 +2340,7 @@ FCullingContext InitCullingContext(
 
 	if (bSupportsMultiplePasses)
 	{
-		CullingContext.TotalPrevDrawClustersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(8, 1), TEXT("TotalPrevDrawClustersBuffer"));
+		CullingContext.TotalPrevDrawClustersBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(8, 1), TEXT("Nanite.TotalPrevDrawClustersBuffer"));
 	}
 
 	return CullingContext;
@@ -2378,16 +2378,20 @@ void AddPass_InstanceHierarchyAndClusterCull(
 	FRDGBufferRef HPageFlags = nullptr;
 	FRDGBufferRef HZBPageTable = nullptr;
 
-	if( VirtualShadowMapArray )
+	if (VirtualShadowMapArray)
 	{
 		RDG_GPU_STAT_SCOPE( GraphBuilder, NaniteInstanceCullVSM );
 
 		PageFlags = VirtualShadowMapArray->PageFlagsRDG;
 		HPageFlags = VirtualShadowMapArray->HPageFlagsRDG;
-		if( VirtualShadowMapArray->HZBPageTable )
-			HZBPageTable	= GraphBuilder.RegisterExternalBuffer( VirtualShadowMapArray->HZBPageTable, TEXT("HZBPageTable") );
+		if (VirtualShadowMapArray->HZBPageTable)
+		{
+			HZBPageTable = GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->HZBPageTable, TEXT("VSM.HZBPageTable"));
+		}
 		else
-			HZBPageTable	= VirtualShadowMapArray->PageTableRDG;
+		{
+			HZBPageTable = VirtualShadowMapArray->PageTableRDG;
+		}
 
 		FInstanceCullVSM_CS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInstanceCullVSM_CS::FParameters >();
 
@@ -2526,10 +2530,10 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		if (CullingContext.RenderFlags & RENDER_FLAG_HAVE_PREV_DRAW_DATA)
 		{
 			PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(CullingContext.TotalPrevDrawClustersBuffer);
-			}
+		}
 		else
 		{
-			FRDGBufferRef Dummy = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("StructuredBufferStride8"));
+			FRDGBufferRef Dummy = GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetStructureBufferStride8(), TEXT("Nanite.StructuredBufferStride8"));
 			PassParameters->InTotalPrevDrawClusters = GraphBuilder.CreateSRV(Dummy);
 		}
 
@@ -2877,11 +2881,11 @@ FRasterContext InitRasterContext(
 	#endif
 	}
 
-	RasterContext.DepthBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("DepthBuffer32") );
-	RasterContext.VisBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("VisBuffer64") );
-	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("DbgBuffer64") );
-	RasterContext.DbgBuffer32	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("DbgBuffer32") );
-	RasterContext.LockBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("LockBuffer") );
+	RasterContext.DepthBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DepthBuffer32") );
+	RasterContext.VisBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.VisBuffer64") );
+	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32G32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DbgBuffer64") );
+	RasterContext.DbgBuffer32	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DbgBuffer32") );
+	RasterContext.LockBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("Nanite.LockBuffer") );
 	
 	const uint32 ClearValue[4] = { 0, 0, 0, 0 };
 
@@ -2945,13 +2949,13 @@ static void AllocateCandidateBuffers(FRDGBuilder& GraphBuilder, FRDGBufferRef* M
 		TRefCountPtr<FRDGPooledBuffer>& CandidateNodesAndClustersBuffer = Nanite::GGlobalResources.GetMainPassBuffers().CandidateNodesAndClustersBuffer;
 		if (CandidateNodesAndClustersBuffer.IsValid())
 		{
-			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.RegisterExternalBuffer(CandidateNodesAndClustersBuffer, TEXT("MainPass.CandidateNodesAndClustersBuffer"));
+			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.RegisterExternalBuffer(CandidateNodesAndClustersBuffer, TEXT("Nanite.MainPass.CandidateNodesAndClustersBuffer"));
 		}
 		else
 		{
 			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxCandidateClusters * 2 + MaxNodes * 2);
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
-			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("MainPass.CandidateNodesAndClustersBuffer"));
+			*MainCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.MainPass.CandidateNodesAndClustersBuffer"));
 			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, GraphBuilder.CreateUAV(*MainCandidateNodesAndClustersBufferRef), false);
 			ConvertToExternalBuffer(GraphBuilder, *MainCandidateNodesAndClustersBufferRef, CandidateNodesAndClustersBuffer);
 		}
@@ -2962,13 +2966,13 @@ static void AllocateCandidateBuffers(FRDGBuilder& GraphBuilder, FRDGBufferRef* M
 		TRefCountPtr<FRDGPooledBuffer>& CandidateNodesAndClustersBuffer = Nanite::GGlobalResources.GetPostPassBuffers().CandidateNodesAndClustersBuffer;
 		if (CandidateNodesAndClustersBuffer.IsValid())
 		{
-			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.RegisterExternalBuffer(CandidateNodesAndClustersBuffer, TEXT("PostPass.CandidateNodesAndClustersBuffer"));
+			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.RegisterExternalBuffer(CandidateNodesAndClustersBuffer, TEXT("Nanite.PostPass.CandidateNodesAndClustersBuffer"));
 		}
 		else
 		{
 			FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(4, MaxCullingBatches + MaxCandidateClusters * 2 + MaxNodes * 3);
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_ByteAddressBuffer);
-			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("PostPass.CandidateNodesAndClustersBuffer"));
+			*PostCandidateNodesAndClustersBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.PostPass.CandidateNodesAndClustersBuffer"));
 			AddPassInitCandidateNodesAndClustersUAV(GraphBuilder, GraphBuilder.CreateUAV(*PostCandidateNodesAndClustersBufferRef), true);
 			ConvertToExternalBuffer(GraphBuilder, *PostCandidateNodesAndClustersBufferRef, CandidateNodesAndClustersBuffer);
 		}
@@ -3009,7 +3013,7 @@ void CullRasterize(
 
 	{
 		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
-		CullingContext.ViewsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Views"), Views.GetTypeSize(), ViewsBufferElements, Views.GetData(), Views.Num() * Views.GetTypeSize());
+		CullingContext.ViewsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.Views"), Views.GetTypeSize(), ViewsBufferElements, Views.GetData(), Views.Num() * Views.GetTypeSize());
 	}
 
 	if (OptionalInstanceDraws)
@@ -3018,7 +3022,7 @@ void CullRasterize(
 		CullingContext.InstanceDrawsBuffer = CreateStructuredBuffer
 		(
 			GraphBuilder,
-			TEXT("InstanceDraws"),
+			TEXT("Nanite.InstanceDraws"),
 			OptionalInstanceDraws->GetTypeSize(),
 			InstanceDrawsBufferElements,
 			OptionalInstanceDraws->GetData(),
@@ -3048,7 +3052,7 @@ void CullRasterize(
 		Stats.NumPostCandidateClusters	= 0;
 		Stats.NumLargePageRectClusters = 0;
 
-		CullingContext.StatsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("StatsBuffer"), sizeof(FNaniteStats), 1, &Stats, sizeof(FNaniteStats));
+		CullingContext.StatsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Nanite.StatsBuffer"), sizeof(FNaniteStats), 1, &Stats, sizeof(FNaniteStats));
 	}
 	else
 	{
@@ -3281,7 +3285,7 @@ void ExtractStats(
 	{
 		auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
-		FRDGBufferRef ClusterStatsArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("ClusterStatsArgs"));
+		FRDGBufferRef ClusterStatsArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.ClusterStatsArgs"));
 
 		{
 			FCalculateStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCalculateStatsCS::FParameters>();
@@ -3664,9 +3668,9 @@ void EmitDepthTargets(
 		DefaultDepthStencil,
 		TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | (UseComputeDepthExport() ? TexCreate_UAV : TexCreate_None));
 
-	FRDGTextureRef NaniteMask		= GraphBuilder.CreateTexture(NaniteMaskDesc, TEXT("NaniteMask"));
-	FRDGTextureRef VelocityBuffer	= GraphBuilder.CreateTexture(VelocityBufferDesc, TEXT("NaniteVelocity"));
-	FRDGTextureRef MaterialDepth	= GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("MaterialDepth"));
+	FRDGTextureRef NaniteMask		= GraphBuilder.CreateTexture(NaniteMaskDesc, TEXT("Nanite.Mask"));
+	FRDGTextureRef VelocityBuffer	= GraphBuilder.CreateTexture(VelocityBufferDesc, TEXT("Nanite.Velocity"));
+	FRDGTextureRef MaterialDepth	= GraphBuilder.CreateTexture(MaterialDepthDesc, TEXT("Nanite.MaterialDepth"));
 
 	if (UseComputeDepthExport())
 	{
@@ -4064,10 +4068,10 @@ void DrawBasePass(
 	const FIntPoint TileGridDim = bTileGridCulling ? FMath::DivideAndRoundUp(ViewSize, { 64, 64 }) : FIntPoint(1, 1);
 
 	FRDGBufferDesc     VisibleMaterialsDesc	= FRDGBufferDesc::CreateStructuredDesc(4, b32BitMaskCulling ? FNaniteCommandInfo::MAX_STATE_BUCKET_ID+1 : 1);
-	FRDGBufferRef      VisibleMaterials		= GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("NaniteVisibleMaterials"));
+	FRDGBufferRef      VisibleMaterials		= GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("Nanite.VisibleMaterials"));
 	FRDGBufferUAVRef   VisibleMaterialsUAV	= GraphBuilder.CreateUAV(VisibleMaterials);
 	FRDGTextureDesc    MaterialRangeDesc	= FRDGTextureDesc::Create2D(TileGridDim, PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
-	FRDGTextureRef     MaterialRange		= GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
+	FRDGTextureRef     MaterialRange		= GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("Nanite.MaterialRange"));
 	FRDGTextureUAVRef  MaterialRangeUAV		= GraphBuilder.CreateUAV(MaterialRange);
 	FRDGTextureSRVDesc MaterialRangeSRVDesc	= FRDGTextureSRVDesc::Create(MaterialRange);
 	FRDGTextureSRVRef  MaterialRangeSRV		= GraphBuilder.CreateSRV(MaterialRangeSRVDesc);
@@ -4280,9 +4284,7 @@ void DrawVisualization(
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
 
-		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
-			DebugOutputDesc,
-			TEXT("NaniteDebug"));
+		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("Nanite.Debug"));
 
 		FDebugVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeCS::FParameters>();
 
@@ -4349,7 +4351,7 @@ void DrawVisualization(
 					PF_A32B32G32R32F,
 					FClearValueBinding::None,
 					TexCreate_ShaderResource | TexCreate_UAV),
-				TEXT("NaniteDebug"));
+				TEXT("Nanite.Debug"));
 
 			FHTileVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHTileVisualizeCS::FParameters>();
 
@@ -4414,14 +4416,14 @@ void DrawLumenMeshCapturePass(
 
 	// Material range placeholder (not used by Lumen, but must still be bound)
 	FRDGTextureDesc MaterialRangeDesc = FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource);
-	FRDGTextureRef  MaterialRange = GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
+	FRDGTextureRef  MaterialRange = GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("Nanite.MaterialRange"));
 	//FRDGTextureSRVRef  MaterialRangeSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MaterialRange));
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	// Visible material mask buffer (currently not used by Lumen, but still must be bound)
 	FRDGBufferDesc   VisibleMaterialsDesc = FRDGBufferDesc::CreateStructuredDesc(4, 1);
-	FRDGBufferRef    VisibleMaterials     = GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("NaniteVisibleMaterials"));
+	FRDGBufferRef    VisibleMaterials     = GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("Nanite.VisibleMaterials"));
 	FRDGBufferUAVRef VisibleMaterialsUAV  = GraphBuilder.CreateUAV(VisibleMaterials);
 	AddClearUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(MaterialRange), FUintVector4(0, 0, 0, 0));

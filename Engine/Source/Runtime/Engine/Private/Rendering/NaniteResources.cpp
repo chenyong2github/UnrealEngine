@@ -1106,17 +1106,17 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 
 		if (!ScratchOccludedInstancesBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), GetMaxInstances()), ScratchOccludedInstancesBuffer, TEXT("OccludedInstances"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), GetMaxInstances()), ScratchOccludedInstancesBuffer, TEXT("Nanite.OccludedInstances"));
 		}
 
 		if (!PrimaryVisibleClustersBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, PrimaryVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, PrimaryVisibleClustersBuffer, TEXT("Nanite.VisibleClustersSWHW"));
 		}
 
 		if (!ScratchVisibleClustersBuffer.IsValid())
 		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, ScratchVisibleClustersBuffer, TEXT("VisibleClustersSWHW"));
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, VisibleClustersBufferDesc, ScratchVisibleClustersBuffer, TEXT("Nanite.VisibleClustersSWHW"));
 		}
 
 		check(PrimaryVisibleClustersBuffer.IsValid());
@@ -1125,7 +1125,7 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 	if(!StructureBufferStride8.IsValid())
 	{
 		FRDGBufferDesc StructureBufferStride8Desc = FRDGBufferDesc::CreateStructuredDesc(8, 1);
-		GetPooledFreeBuffer(GraphBuilder.RHICmdList, StructureBufferStride8Desc, StructureBufferStride8, TEXT("StructureBufferStride8"));
+		GetPooledFreeBuffer(GraphBuilder.RHICmdList, StructureBufferStride8Desc, StructureBufferStride8, TEXT("Nanite.StructureBufferStride8"));
 		check(StructureBufferStride8.IsValid());
 	}
 #endif

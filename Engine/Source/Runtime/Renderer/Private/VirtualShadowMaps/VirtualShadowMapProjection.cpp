@@ -285,7 +285,7 @@ static FRDGTextureRef CreateDebugOutput(FRDGBuilder& GraphBuilder, FIntPoint Ext
 		PF_A32B32G32R32F,
 		FClearValueBinding::Transparent,
 		TexCreate_ShaderResource | TexCreate_RenderTargetable);
-	return GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("VirtSmDebugProj"));
+	return GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("VSM.DebugProj"));
 }
 
 // Returns true if temporal denoising should be used

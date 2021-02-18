@@ -185,11 +185,11 @@ static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray
 			ShadowMapCacheData[SmIndex].DepthOffset = 0.0f;
 		}
 	}
-	CacheDataParameters.ShadowMapCacheData = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("ShadowMapCacheData"), ShadowMapCacheData));
-	CacheDataParameters.PrevPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevPageFlags, TEXT("PrevPageFlags")));
-	CacheDataParameters.PrevPageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevPageTable, TEXT("PrevPageTable")));
-	CacheDataParameters.PrevPhysicalPageMetaData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevPhysicalPageMetaData, TEXT("PrevPhysicalPageMetaData")));
-	CacheDataParameters.PrevDynamicCasterPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevDynamicCasterPageFlags, TEXT("PrevDynamicCasterPageFlags")));
+	CacheDataParameters.ShadowMapCacheData = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("VSM.ShadowMapCacheData"), ShadowMapCacheData));
+	CacheDataParameters.PrevPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevPageFlags, TEXT("VSM.PrevPageFlags")));
+	CacheDataParameters.PrevPageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevPageTable, TEXT("VSM.PrevPageTable")));
+	CacheDataParameters.PrevPhysicalPageMetaData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevPhysicalPageMetaData, TEXT("VSM.PrevPhysicalPageMetaData")));
+	CacheDataParameters.PrevDynamicCasterPageFlags = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArrayCacheManager->PrevDynamicCasterPageFlags, TEXT("VSM.PrevDynamicCasterPageFlags")));
 }
 
 FVirtualShadowMapArray::~FVirtualShadowMapArray()
@@ -420,7 +420,7 @@ IMPLEMENT_GLOBAL_SHADER(FInitIndirectArgs1DCS, "/Engine/Private/VirtualShadowMap
 FRDGBufferRef AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, FRDGBufferRef &InputCountBuffer, uint32 Multiplier, uint32 Divisor = 1U, uint32 InputCountOffset = 0U)
 {
 	// 1. Add setup pass
-	FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("IndirectArgs"));
+	FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("VSM.IndirectArgs"));
 	{
 		FInitIndirectArgs1DCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitIndirectArgs1DCS::FParameters>();
 		PassParameters->InputCountBuffer = GraphBuilder.CreateSRV(InputCountBuffer);
@@ -455,7 +455,7 @@ void FVirtualShadowMapArray::ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDG
 	RDG_EVENT_SCOPE( GraphBuilder, "FVirtualShadowMapArray::ClearPhysicalMemory" );
 
 	{
-		FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("IndirectArgs"));
+		FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("VSM.IndirectArgs"));
 		{
 			FInitClearPhysicalPagesArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitClearPhysicalPagesArgsCS::FParameters>();
 			PassParameters->NumAllocatedPhysicalPages = GraphBuilder.CreateSRV(AllocatedPagesOffsetRDG);
@@ -530,7 +530,7 @@ void FVirtualShadowMapArray::MarkPhysicalPagesRendered(FRDGBuilder& GraphBuilder
 
 	{
 		// One launch per All SMs, since they share page table data structure.
-		FRDGBufferRef VirtualShadowMapFlagsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("VirtualShadowMapFlags"), VirtualShadowMapFlags);
+		FRDGBufferRef VirtualShadowMapFlagsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.Flags"), VirtualShadowMapFlags);
 
 
 		FMarkRenderedPhysicalPagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FMarkRenderedPhysicalPagesCS::FParameters >();
@@ -660,25 +660,25 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	{
 		if (CVarShowStats.GetValueOnRenderThread() || (VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->IsAccumulatingStats()))
 		{
-			StatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumStats), TEXT("StatsBuffer"));
+			StatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumStats), TEXT("VSM.StatsBuffer"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(StatsBufferRDG), 0);
 		}
 
 		CommonParameters.NumShadowMaps = ShadowMaps.Num();
 		// Create and clear the requested page flags
 		const uint32 NumPageFlags = ShadowMaps.Num() * CommonParameters.PageTableSize;
-		FRDGBufferRef PageRequestFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("PageRequestFlags"));
+		FRDGBufferRef PageRequestFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("VSM.PageRequestFlags"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(PageRequestFlagsRDG), 0);
-		DynamicCasterPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("DynamicCasterPageFlags"));
+		DynamicCasterPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("VSM.DynamicCasterPageFlags"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DynamicCasterPageFlagsRDG), 0);
 
 		// Total storage for Hierarchical page tables for all virtual shadow maps
 		const uint32 NumHPageFlags = ShadowMaps.Num() * CommonParameters.HPageTableSize;
-		HPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumHPageFlags), TEXT("HPageFlags"));
+		HPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumHPageFlags), TEXT("VSM.HPageFlags"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HPageFlagsRDG), 0);
 
 		const uint32 NumPageRects = CommonParameters.NumShadowMaps * FVirtualShadowMap::MaxMipLevels;
-		PageRectBoundsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FIntVector4), NumPageRects), TEXT("PageRectBounds"));
+		PageRectBoundsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FIntVector4), NumPageRects), TEXT("VSM.PageRectBounds"));
 		{
 			FInitPageRectBoundsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitPageRectBoundsCS::FParameters >();
 			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
@@ -755,7 +755,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				}
 			}
 		}
-		ShadowMapProjectionDataRDG = CreateStructuredBuffer(GraphBuilder, TEXT("ShadowMapProjectionData"), ShadowMapProjectionData);
+		ShadowMapProjectionDataRDG = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.ProjectionData"), ShadowMapProjectionData);
 		NumDirectionalLights = DirectionalLightSmInds.Num();
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
@@ -796,7 +796,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			}
 
 			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-			VirtualShadowMapIdRemapRDG.Add( CreateStructuredBuffer(GraphBuilder, TEXT("VirtualShadowMapIdRemap"), VirtualShadowMapIdRemap) );
+			VirtualShadowMapIdRemapRDG.Add( CreateStructuredBuffer(GraphBuilder, TEXT("VSM.IdRemap"), VirtualShadowMapIdRemap) );
 			FRDGTextureRef VisBuffer64 = NaniteVisBuffer64 != nullptr ? NaniteVisBuffer64 : SystemTextures.Black;
 
 			FRDGBufferRef ScreenSpaceGridBoundsRDG = nullptr;
@@ -837,23 +837,23 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			}
 		}
 
-		PageTableRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("PageTable"));
+		PageTableRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("VSM.PageTable"));
 		// Note: these are passed to the rendering and are not identical to the PageRequest flags coming in from GeneratePageFlagsFromPixels 
-		PageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("PageFlags"));
+		PageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("VSM.PageFlags"));
 
-		FRDGBufferRef HInvalidPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumHPageFlags), TEXT("HInvalidPageFlags"));
+		FRDGBufferRef HInvalidPageFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumHPageFlags), TEXT("VSM.HInvalidPageFlags"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HInvalidPageFlagsRDG), 0);
 
 		// Create and clear the counter / page offset, it gets atomically incremented to allocate the physical pages
-		AllocatedPagesOffsetRDG = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32),  1), TEXT("AllocatedPagesOffset") );
+		AllocatedPagesOffsetRDG = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32),  1), TEXT("VSM.AllocatedPagesOffset") );
 		AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV(AllocatedPagesOffsetRDG), 0 );
 
 		// Enough space for all physical pages that might be allocated
-		CachedPageInfosRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FCachedPageInfo), CommonParameters.MaxPhysicalPages), TEXT("CachedPageInfos"));
-		PhysicalPageMetaDataRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPhysicalPageMetaData), CommonParameters.MaxPhysicalPages), TEXT("PhysicalPageMetaData"));
+		CachedPageInfosRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FCachedPageInfo), CommonParameters.MaxPhysicalPages), TEXT("VSM.CachedPageInfos"));
+		PhysicalPageMetaDataRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPhysicalPageMetaData), CommonParameters.MaxPhysicalPages), TEXT("VSM.PhysicalPageMetaData"));
 
 #if ENABLE_NON_NANITE_VSM
-		AllocatedPageRectBoundsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FIntVector4), NumPageRects), TEXT("AllocatedPageRectBounds"));
+		AllocatedPageRectBoundsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FIntVector4), NumPageRects), TEXT("VSM.AllocatedPageRectBounds"));
 #endif // ENABLE_NON_NANITE_VSM
 
 		{
@@ -922,7 +922,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 		{
 			// Note: does not actually need mip0 so can be trimmed down a bit
-			FRDGBufferRef CoverageSummary = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 4, NumPageFlags ), TEXT("CoverageSummary") );
+			FRDGBufferRef CoverageSummary = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 4, NumPageFlags ), TEXT("VSM.CoverageSummary") );
 			
 			AddClearUAVPass( GraphBuilder, GraphBuilder.CreateUAV( CoverageSummary ), 0 );
 			
@@ -1071,7 +1071,7 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtual
 
 		FRDGTextureRef DebugOutput = GraphBuilder.CreateTexture(
 			DebugOutputDesc,
-			TEXT("VirtSmDebug"));
+			TEXT("VSM.Debug"));
 
 		FDebugVisualizeVirtualSmCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeVirtualSmCS::FParameters>();
 		PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
@@ -1426,7 +1426,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMapsHw");
 	// Create physical page pool
-	PhysicalPagePoolHw = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(GetPhysicalPoolSize(), PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource), TEXT("PhysicalPagePoolHw"));
+	PhysicalPagePoolHw = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(GetPhysicalPoolSize(), PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource), TEXT("VSM.PhysicalPagePoolHw"));
 
 	FGPUScene& GPUScene = Scene.GPUScene;
 	// Create that pass struct and whatever I guess.
@@ -1529,8 +1529,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 		{
 			TArray<int32, SceneRenderingAllocator> DrawCommandInstanceCountTmp;
 			DrawCommandInstanceCountTmp.AddZeroed(NumDrawCommands);
-			FRDGBufferRef DrawCommandInstanceCountRdg = CreateStructuredBuffer(GraphBuilder, TEXT("DrawCommandInstanceCount"), DrawCommandInstanceCountTmp);
-			FRDGBufferRef TmpInstanceIdOffsetBufferRdg = CreateStructuredBuffer(GraphBuilder, TEXT("TmpInstanceIdOffsetBufferRdg"), DrawCommandInstanceCountTmp);
+			FRDGBufferRef DrawCommandInstanceCountRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.DrawCommandInstanceCount"), DrawCommandInstanceCountTmp);
+			FRDGBufferRef TmpInstanceIdOffsetBufferRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.TmpInstanceIdOffsetBufferRdg"), DrawCommandInstanceCountTmp);
 			//AddBuildInstanceListPass(GraphBuilder, GPUScene, InstanceIdBuffer, InstanceCountBuffer);
 			// 2. Run page culling & command building pass(es)
 			// This takes the per high-level view instance list and performs page overlap tests and amplification/compation for all target mip levels OR clip levels.
@@ -1538,13 +1538,13 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			// AddPageRenderCommandPass(GraphBuilder, GPUScene, InstanceIdBuffer, InstanceCountBuffer, ShadowMapViews);
 			// 2.1. Pass to perform the culling & replication to each page, store 
 			const uint32 MaxNumInstancesPerPass = NumDrawCommands * FInstanceCullingManager::MaxAverageInstanceFactor * 64u;
-			FRDGBufferRef VisibleInstancesRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VisibleInstances"), sizeof(FVisibleInstanceCmd), MaxNumInstancesPerPass, nullptr, 0);
+			FRDGBufferRef VisibleInstancesRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.VisibleInstances"), sizeof(FVisibleInstanceCmd), MaxNumInstancesPerPass, nullptr, 0);
 
 			TArray<uint32> NullArray;
 			NullArray.AddZeroed(1);
-			FRDGBufferRef VisibleInstanceWriteOffsetRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VisibleInstanceWriteOffset"), NullArray);
-			FRDGBufferRef OutputOffsetBufferRdg = CreateStructuredBuffer(GraphBuilder, TEXT("OutputOffsetBuffer"), NullArray);
-			FRDGBufferRef VirtualShadowViewsRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VirtualShadowViews"), VirtualShadowViews);
+			FRDGBufferRef VisibleInstanceWriteOffsetRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.VisibleInstanceWriteOffset"), NullArray);
+			FRDGBufferRef OutputOffsetBufferRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.OutputOffsetBuffer"), NullArray);
+			FRDGBufferRef VirtualShadowViewsRdg = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.VirtualShadowViews"), VirtualShadowViews);
 
 
 			// TODO: Remove this when everything is properly RDG'd
@@ -1816,7 +1816,7 @@ IMPLEMENT_GLOBAL_SHADER(FInitializePhysicalPagesPS, "/Engine/Private/VirtualShad
 
 void FVirtualShadowMapArray::AddInitializePhysicalPagesHwPass(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager)
 {
-	FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("InitializePhysicalPagesArgs"));
+	FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(), TEXT("VSM.InitializePhysicalPagesArgs"));
 	{
 		FSetupClearHwPhysicalPagesDrawArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupClearHwPhysicalPagesDrawArgsCS::FParameters>();
 		PassParameters->NumAllocatedPhysicalPages = GraphBuilder.CreateSRV(AllocatedPagesOffsetRDG);

@@ -177,13 +177,13 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 	// Note: stats accumulation thing is here because it needs to persist over frames.
 	if (!AccumulatedStatsBuffer.IsValid())
 	{
-		AccumulatedStatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1 + FVirtualShadowMapArray::NumStats * MaxStatFrames), TEXT("AccumulatedStatsBuffer"));	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
+		AccumulatedStatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 1 + FVirtualShadowMapArray::NumStats * MaxStatFrames), TEXT("VSM.AccumulatedStatsBuffer"));	// TODO: Can't be a structured buffer as EnqueueCopy is only defined for vertex buffers
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(AccumulatedStatsBufferRDG, PF_R32_UINT), 0);
 		ConvertToExternalBuffer(GraphBuilder, AccumulatedStatsBufferRDG, AccumulatedStatsBuffer);
 	}
 	else
 	{
-		AccumulatedStatsBufferRDG = GraphBuilder.RegisterExternalBuffer(AccumulatedStatsBuffer, TEXT("AccumulatedStatsBuffer"));
+		AccumulatedStatsBufferRDG = GraphBuilder.RegisterExternalBuffer(AccumulatedStatsBuffer, TEXT("VSM.AccumulatedStatsBuffer"));
 	}
 
 	if (IsAccumulatingStats())
@@ -215,7 +215,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 	{
 		bAccumulatingStats = false;
 
-		GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("AccumulatedStatsBuffer"));
+		GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("VSM.AccumulatedStatsBuffer"));
 		AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, AccumulatedStatsBufferRDG, 0u);
 	}
 
@@ -433,16 +433,16 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
 
 		PassParameters->VirtualSmCommon = GraphBuilder.CreateUniformBuffer(&PrevCommonParameters);
-		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceRangesSmall"), InstanceRangesSmall);
+		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.InstanceRangesSmall"), InstanceRangesSmall);
 		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
 		PassParameters->NumRemovedItems = InstanceRangesSmall.Num();
-		PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("PrevShadowMapProjectionData"));
+		PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("VSM.PrevShadowMapProjectionData"));
 
-		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("PrevPageFlags"));
-		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("PrevHPageFlags"));
-		PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("PrevPageRectBounds"));
+		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("VSM.PrevPageFlags"));
+		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("VSM.PrevHPageFlags"));
+		PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("VSM.PrevPageRectBounds"));
 
-		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("DynamicCasterFlags"));
+		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("VSM.DynamicCasterFlags"));
 		PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterFlagsRDG);
 
 		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
@@ -475,16 +475,16 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
 
 		PassParameters->VirtualSmCommon = GraphBuilder.CreateUniformBuffer(&PrevCommonParameters);
-		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceRangesSmall"), InstanceRangesLarge);
+		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("VSM.InstanceRangesSmall"), InstanceRangesLarge);
 		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
 		PassParameters->NumRemovedItems = InstanceRangesLarge.Num();
-		PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("PrevShadowMapProjectionData"));
+		PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("VSM.PrevShadowMapProjectionData"));
 
-		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("PrevPageFlags"));
-		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("PrevHPageFlags"));
-		PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("PrevPageRectBounds"));
+		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("VSM.PrevPageFlags"));
+		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("VSM.PrevHPageFlags"));
+		PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("VSM.PrevPageRectBounds"));
 
-		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("DynamicCasterFlags"));
+		FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("VSM.DynamicCasterFlags"));
 		PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterFlagsRDG);
 
 		PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;

@@ -254,7 +254,7 @@ public:
 			InstallInfoUploadBuffer.Release();
 			InstallInfoUploadBuffer.NumBytes = InstallInfoAllocationSize;
 
-			FRHIResourceCreateInfo CreateInfo(TEXT("InstallInfoUploadBuffer"));
+			FRHIResourceCreateInfo CreateInfo(TEXT("Nanite.InstallInfoUploadBuffer"));
 			InstallInfoUploadBuffer.Buffer = RHICreateStructuredBuffer(sizeof(FPageInstallInfo), InstallInfoUploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile, CreateInfo);
 			InstallInfoUploadBuffer.SRV = RHICreateShaderResourceView(InstallInfoUploadBuffer.Buffer);
 		}
@@ -264,7 +264,7 @@ public:
 			PageUploadBuffer.Release();
 			PageUploadBuffer.NumBytes = PageAllocationSize;
 
-			FRHIResourceCreateInfo CreateInfo(TEXT("PageUploadBuffer"));
+			FRHIResourceCreateInfo CreateInfo(TEXT("Nanite.PageUploadBuffer"));
 			PageUploadBuffer.Buffer = RHICreateStructuredBuffer(sizeof(uint32), PageUploadBuffer.NumBytes, BUF_ShaderResource | BUF_Volatile | BUF_ByteAddressBuffer, CreateInfo);
 			PageUploadBuffer.SRV = RHICreateShaderResourceView(PageUploadBuffer.Buffer);
 		}
@@ -421,10 +421,10 @@ void FStreamingManager::InitRHI()
 	RequestsHashTable	= new FRequestsHashTable();
 	PageUploader		= new FStreamingPageUploader();
 
-	RootPages.DataBuffer.Initialize(TEXT("FStreamingManagerRootPagesInitial"), sizeof(uint32), 0);
-	ClusterPageData.DataBuffer.Initialize(TEXT("FStreamingManagerClusterPageDataInitial"), sizeof(uint32), 0);
-	ClusterPageHeaders.DataBuffer.Initialize(TEXT("FStreamingManagerClusterPageHeadersInitial"), sizeof(uint32), 0);
-	Hierarchy.DataBuffer.Initialize(TEXT("FStreamingManagerHierarchyInitial"), sizeof(uint32), 0);	// Dummy allocation to make sure it is a valid resource
+	RootPages.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.RootPagesInitial"), sizeof(uint32), 0);
+	ClusterPageData.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.ClusterPageDataInitial"), sizeof(uint32), 0);
+	ClusterPageHeaders.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.ClusterPageHeadersInitial"), sizeof(uint32), 0);
+	Hierarchy.DataBuffer.Initialize(TEXT("Nanite.StreamingManager.HierarchyInitial"), sizeof(uint32), 0);	// Dummy allocation to make sure it is a valid resource
 }
 
 void FStreamingManager::ReleaseRHI()
@@ -1078,7 +1078,7 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStreamingManager::ProcessNewResources);
 
 	// Upload hierarchy for pending resources
-	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, Hierarchy.DataBuffer, FMath::RoundUpToPowerOfTwo( Hierarchy.Allocator.GetMaxSize() ) * sizeof( FPackedHierarchyNode ), TEXT("FStreamingManagerHierarchy") );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, Hierarchy.DataBuffer, FMath::RoundUpToPowerOfTwo( Hierarchy.Allocator.GetMaxSize() ) * sizeof( FPackedHierarchyNode ), TEXT("Nanite.StreamingManager.Hierarchy") );
 
 	check( MaxStreamingPages <= MAX_GPU_PAGES );
 	uint32 MaxRootPages = MAX_GPU_PAGES - MaxStreamingPages;
@@ -1088,12 +1088,12 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	uint32 WidthInTiles = 12;
 	uint32 TileSize = 12;
 	uint32 AtlasBytes = FMath::Square( WidthInTiles * TileSize ) * sizeof( uint16 );
-	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, RootPages.DataBuffer, NumAllocatedRootPages * AtlasBytes, TEXT("FStreamingManagerRootPages") );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, RootPages.DataBuffer, NumAllocatedRootPages * AtlasBytes, TEXT("Nanite.StreamingManager.RootPages") );
 
 	uint32 NumAllocatedPages = MaxStreamingPages + NumAllocatedRootPages;
 	check( NumAllocatedPages <= MAX_GPU_PAGES );
-	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, NumAllocatedPages * sizeof( uint32 ), TEXT("FStreamingManagerClusterPageHeaders") );
-	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageData.DataBuffer, NumAllocatedPages << CLUSTER_PAGE_GPU_SIZE_BITS, TEXT("FStreamingManagerClusterPageData") );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageHeaders.DataBuffer, NumAllocatedPages * sizeof( uint32 ), TEXT("Nanite.StreamingManager.ClusterPageHeaders") );
+	ResizeResourceIfNeeded( GraphBuilder.RHICmdList, ClusterPageData.DataBuffer, NumAllocatedPages << CLUSTER_PAGE_GPU_SIZE_BITS, TEXT("Nanite.StreamingManager.ClusterPageData") );
 
 	check( NumAllocatedPages <= ( 1u << ( 31 - CLUSTER_PAGE_GPU_SIZE_BITS ) ) );	// 2GB seems to be some sort of limit.
 																					// TODO: Is it a GPU/API limit or is it a signed integer bug on our end?
@@ -1105,13 +1105,13 @@ bool FStreamingManager::ProcessNewResources( FRDGBuilder& GraphBuilder)
 	// TODO: These uploads can end up being quite large.
 	// We should try to change the high level logic so the proxy is not considered loaded until the root page has been loaded, so we can split this over multiple frames.
 	
-	ClusterPageHeaders.UploadBuffer.Init( NumPendingAdds, sizeof( uint32 ), false, TEXT("FStreamingManagerClusterPageHeadersUpload") );
-	Hierarchy.UploadBuffer.Init( Hierarchy.TotalUpload, sizeof( FPackedHierarchyNode ), false, TEXT("FStreamingManagerHierarchyUpload"));
-	RootPages.UploadBuffer.Init( RootPages.TotalUpload, AtlasBytes, false, TEXT("FStreamingManagerRootPagesUpload"));
+	ClusterPageHeaders.UploadBuffer.Init( NumPendingAdds, sizeof( uint32 ), false, TEXT("Nanite.StreamingManager.ClusterPageHeadersUpload") );
+	Hierarchy.UploadBuffer.Init( Hierarchy.TotalUpload, sizeof( FPackedHierarchyNode ), false, TEXT("Nanite.StreamingManager.HierarchyUpload"));
+	RootPages.UploadBuffer.Init( RootPages.TotalUpload, AtlasBytes, false, TEXT("Nanite.StreamingManager.RootPagesUpload"));
 	
 	// Calculate total requires size
 	uint32 TotalUncompressedSize = 0;
-	for(uint32 i = 0; i < NumPendingAdds; i++)
+	for (uint32 i = 0; i < NumPendingAdds; i++)
 	{
 		TotalUncompressedSize += PendingAdds[i]->PageStreamingStates[0].PageUncompressedSize;
 	}
@@ -1301,7 +1301,7 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 		// Can't do this in InitRHI as RHICmdList doesn't have a valid context yet.
 		FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FStreamingRequest), MAX_STREAMING_REQUESTS);
 		Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);
-		FRDGBufferRef StreamingRequestsBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("StreamingRequests"));
+		FRDGBufferRef StreamingRequestsBufferRef = GraphBuilder.CreateBuffer(Desc, TEXT("Nanite.StreamingRequests"));
 		
 		ClearStreamingRequestCount(GraphBuilder, GraphBuilder.CreateUAV(StreamingRequestsBufferRef));
 
@@ -1316,10 +1316,10 @@ void FStreamingManager::BeginAsyncUpdate(FRDGBuilder& GraphBuilder)
 		TRACE_CPUPROFILER_EVENT_SCOPE(AllocBuffers);
 		// Prepare buffers for upload
 		PageUploader->Init(MaxPageInstallsPerUpdate, MaxPageInstallsPerUpdate * CLUSTER_PAGE_DISK_SIZE);
-		ClusterFixupUploadBuffer.Init(MaxPageInstallsPerUpdate * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
+		ClusterFixupUploadBuffer.Init(MaxPageInstallsPerUpdate * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.ClusterFixupUploadBuffer"));	// No more parents than children, so no more than MAX_CLUSTER_PER_PAGE parents need to be fixed
 
-		ClusterPageHeaders.UploadBuffer.Init(MaxPageInstallsPerUpdate, sizeof(uint32), false, TEXT("ClusterPageHeadersUploadBuffer"));
-		Hierarchy.UploadBuffer.Init(2 * MaxPageInstallsPerUpdate * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
+		ClusterPageHeaders.UploadBuffer.Init(MaxPageInstallsPerUpdate, sizeof(uint32), false, TEXT("Nanite.ClusterPageHeadersUploadBuffer"));
+		Hierarchy.UploadBuffer.Init(2 * MaxPageInstallsPerUpdate * MAX_CLUSTERS_PER_PAGE, sizeof(uint32), false, TEXT("Nanite.HierarchyUploadBuffer"));	// Allocate enough to load all selected pages and evict old pages
 	}
 
 	// Find latest most recent ready readback buffer
@@ -1766,16 +1766,16 @@ void FStreamingManager::SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder)
 	RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteReadback);
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::Readback");
 
-	if( ReadbackBuffersNumPending == MaxStreamingReadbackBuffers )
+	if (ReadbackBuffersNumPending == MaxStreamingReadbackBuffers)
 	{
 		// Return when queue is full. It is NOT safe to EnqueueCopy on a buffer that already has a pending copy.
 		return;
 	}
 
-	if( StreamingRequestReadbackBuffers[ ReadbackBuffersWriteIndex ] == nullptr )
+	if (StreamingRequestReadbackBuffers[ReadbackBuffersWriteIndex] == nullptr)
 	{
-		FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback( TEXT("Nanite streaming requests readback") );
-		StreamingRequestReadbackBuffers[ ReadbackBuffersWriteIndex ] = GPUBufferReadback;
+		FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("Nanite.StreamingRequestReadBack"));
+		StreamingRequestReadbackBuffers[ReadbackBuffersWriteIndex] = GPUBufferReadback;
 	}
 
 	FRDGBufferRef Buffer = GraphBuilder.RegisterExternalBuffer(StreamingRequestsBuffer);
