@@ -7,7 +7,7 @@
 #include "DefaultEdMode.generated.h"
 
 UCLASS(Transient)
-class UEdModeDefault : public UBaseLegacyWidgetEdMode
+class UNREALED_API UEdModeDefault : public UBaseLegacyWidgetEdMode
 {
 	GENERATED_BODY()
 
