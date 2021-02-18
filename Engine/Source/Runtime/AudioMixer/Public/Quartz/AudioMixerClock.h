@@ -53,6 +53,9 @@ namespace Audio
 		// start ticking the clock
 		void Resume();
 
+		// stop ticking and reset the clock
+		void Stop(bool CancelPendingEvents);
+
 		// stop ticking the clock
 		void Pause();
 
@@ -105,10 +108,22 @@ namespace Audio
 
 		FMixerSourceManager* GetSourceManager();
 
+		FQuartzClockManager* GetClockManager();
+
 		void ResetTransport();
 
+		void AddToTickDelay(int32 NumFramesOfDelayToAdd)
+		{
+			TickDelayLengthInFrames += NumFramesOfDelayToAdd;
+		}
+
+		void SetTickDelay(int32 NumFramesOfDelay)
+		{
+			TickDelayLengthInFrames = NumFramesOfDelay;
+		}
+
 	private:
-		void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0);
+		void TickInternal(int32 InNumFramesUntilNextTick, TArray<PendingCommand>& CommandsToTick, int32 FramesOfLatency = 0, int32 FramesOfDelay = 0);
 
 		bool CancelQuantizedCommandInternal(TSharedPtr<IQuartzQuantizedCommand> InCommandPtr, TArray<PendingCommand>& CommandsToTick);
 
@@ -133,6 +148,7 @@ namespace Audio
 
 		bool bIgnoresFlush{ false };
 
+		int32 TickDelayLengthInFrames{ 0 };
 
 	}; // class FQuartzClock
 

@@ -406,6 +406,7 @@ namespace Audio
 		// shared with FQuartzQuantizedCommandInitInfo:
 		FName ClockName;
 		FName ClockHandleName;
+		FName OtherClockName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr;
 		FQuartzQuantizationBoundary QuantizationBoundary{ /* InQuantization */ EQuartzCommandQuantization::Tick, /* InMultiplier */ 1.f };
 		TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> GameThreadCommandQueue{ nullptr };
@@ -434,6 +435,7 @@ namespace Audio
 		// shared with FQuartzQuantizedRequestData
 		FName ClockName;
 		FName ClockHandleName;
+		FName OtherClockName;
 		TSharedPtr<IQuartzQuantizedCommand> QuantizedCommandPtr;
 		FQuartzQuantizationBoundary QuantizationBoundary;
 		TSharedPtr<FShareableQuartzCommandQueue, ESPMode::ThreadSafe> GameThreadCommandQueue;

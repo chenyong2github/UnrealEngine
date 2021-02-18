@@ -319,6 +319,7 @@ namespace Audio
 			FrameCount = 0;
 		}
 
+		PulseDurationIndex = -1;
 	}
 
 	void FQuartzMetronome::RecalculateDurations()

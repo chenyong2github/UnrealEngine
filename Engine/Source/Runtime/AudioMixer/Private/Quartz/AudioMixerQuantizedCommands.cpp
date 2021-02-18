@@ -130,4 +130,59 @@ namespace Audio
 		return TransportResetCommandName;
 	}
 
+
+	TSharedPtr<IQuartzQuantizedCommand> FQuantizedOtherClockStart::GetDeepCopyOfDerivedObject() const
+	{
+		TSharedPtr<FQuantizedOtherClockStart> NewCopy = MakeShared<FQuantizedOtherClockStart>();
+
+		NewCopy->OwningClockPtr = OwningClockPtr;
+		NewCopy->NameOfClockToStart = NameOfClockToStart;
+
+		return NewCopy;
+	}
+
+	void FQuantizedOtherClockStart::OnQueuedCustom(const FQuartzQuantizedCommandInitInfo& InCommandInitInfo)
+	{
+		OwningClockPtr = InCommandInitInfo.OwningClockPointer;
+		check(OwningClockPtr.IsValid());
+
+		NameOfClockToStart = InCommandInitInfo.OtherClockName;
+
+		// shouldn't be trying to start the same clock that owns this command
+		if (OwningClockPtr->GetName() == NameOfClockToStart)
+		{
+			UE_LOG(LogAudioQuartz, Warning, TEXT("Clock: (%s) is attempting to start itself on a quantization boundary.  Ignoring command"), *NameOfClockToStart.ToString());
+			OwningClockPtr->CancelQuantizedCommand(TSharedPtr<IQuartzQuantizedCommand>(this));
+		}
+	}
+
+	void FQuantizedOtherClockStart::OnFinalCallbackCustom(int32 InNumFramesLeft)
+	{
+		// get access to the source & clock manager
+		// access source manager through owning clock (via clock manager)
+		FMixerSourceManager* SourceManager = OwningClockPtr->GetSourceManager();
+		FQuartzClockManager* ClockManager = OwningClockPtr->GetClockManager();
+
+		check(SourceManager && ClockManager && OwningClockPtr.IsValid());
+		bool bShouldStart = SourceManager && ClockManager && OwningClockPtr.IsValid();
+		bShouldStart |= !ClockManager->IsClockRunning(NameOfClockToStart);
+
+		if (bShouldStart)
+		{
+			// ...start the clock
+			ClockManager->ResumeClock(NameOfClockToStart, InNumFramesLeft);
+
+			if (ClockManager->HasClockBeenTickedThisUpdate(NameOfClockToStart))
+			{
+				ClockManager->UpdateClock(NameOfClockToStart, ClockManager->GetLastUpdateSizeInFrames());
+			}
+		}
+	}
+
+	static const FName StartOtherClockName("Start Other Clock Command");
+	FName FQuantizedOtherClockStart::GetCommandName() const
+	{
+		return StartOtherClockName;
+	}
+
 } // namespace Audio

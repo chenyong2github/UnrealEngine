@@ -248,6 +248,26 @@ Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForTransportReset
 	return CommandInitInfo;
 }
 
+Audio::FQuartzQuantizedRequestData UQuartzSubsystem::CreateDataForStartOtherClock(UQuartzClockHandle* InClockHandle, FName InClockToStart, const FQuartzQuantizationBoundary& InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	TSharedPtr<Audio::FQuantizedOtherClockStart> TransportResetCommandPtr = MakeShared<Audio::FQuantizedOtherClockStart>();
+
+	Audio::FQuartzQuantizedRequestData CommandInitInfo;
+
+	CommandInitInfo.ClockName = InClockHandle->GetClockName();
+	CommandInitInfo.ClockHandleName = InClockHandle->GetHandleName();
+	CommandInitInfo.OtherClockName = InClockToStart;
+	CommandInitInfo.QuantizationBoundary = InQuantizationBoundary;
+	CommandInitInfo.QuantizedCommandPtr = TransportResetCommandPtr;
+
+	if (InDelegate.IsBound())
+	{
+		CommandInitInfo.GameThreadDelegateID = InClockHandle->AddCommandDelegate(InDelegate, CommandInitInfo.GameThreadCommandQueue);
+	}
+
+	return CommandInitInfo;
+}
+
 UQuartzClockHandle* UQuartzSubsystem::CreateNewClock(const UObject* WorldContextObject, FName ClockName, FQuartzClockSettings InSettings, bool bOverrideSettingsIfClockExists)
 {
 	if (DisableQuartzCvar)

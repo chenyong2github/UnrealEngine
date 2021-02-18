@@ -65,6 +65,19 @@ void UQuartzClockHandle::StartClock(const UObject* WorldContextObject)
 	ResumeClock(WorldContextObject);
 }
 
+void UQuartzClockHandle::StopClock(const UObject* WorldContextObject, bool CancelPendingEvents)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzClockManager* ClockManager = QuartzSubsystem->GetClockManager(WorldContextObject);
+
+		if (ClockManager)
+		{
+			ClockManager->StopClock(CurrentClockId, CancelPendingEvents);
+		}
+	}
+}
+
 void UQuartzClockHandle::PauseClock(const UObject* WorldContextObject)
 {
 	if (QuartzSubsystem)
@@ -108,6 +121,15 @@ bool UQuartzClockHandle::IsClockRunning(const UObject* WorldContextObject)
 	}
 
 	return false;
+}
+
+void UQuartzClockHandle::StartOtherClock(const UObject* WorldContextObject, FName OtherClockName, FQuartzQuantizationBoundary InQuantizationBoundary, const FOnQuartzCommandEventBP& InDelegate)
+{
+	if (QuartzSubsystem)
+	{
+		Audio::FQuartzQuantizedCommandInitInfo Data(QuartzSubsystem->CreateDataForStartOtherClock(this, OtherClockName, InQuantizationBoundary, InDelegate));
+		QuartzSubsystem->AddCommandToClock(WorldContextObject, Data);
+	}
 }
 
 void UQuartzClockHandle::SubscribeToQuantizationEvent(const UObject* WorldContextObject, EQuartzCommandQuantization InQuantizationBoundary, const FOnQuartzMetronomeEventBP& OnQuantizationEvent)

@@ -21,8 +21,19 @@ namespace Audio
 		// this function should only be called on the Audio Render Thread
 		// (original intent was for this to be called only by the owning FMixerDevice)
 		check(MixerDevice->IsAudioRenderingThread());
-
+		LastUpdateSizeInFrames = NumFramesUntilNextUpdate;
 		TickClocks(NumFramesUntilNextUpdate);
+	}
+
+	void FQuartzClockManager::UpdateClock(FName InClockToAdvance, int32 NumFramesToAdvance)
+	{
+		FScopeLock Lock(&ActiveClockCritSec);
+		TSharedPtr<FQuartzClock> ClockPtr = FindClock(InClockToAdvance);
+
+		if (ClockPtr.IsValid())
+		{
+			ClockPtr->Tick(NumFramesToAdvance);
+		}
 	}
 
 	TSharedPtr<FQuartzClock> FQuartzClockManager::GetOrCreateClock(const FName& InClockName, const FQuartzClockSettings& InClockSettings, bool bOverrideTickRateIfClockExists)
@@ -133,7 +144,7 @@ namespace Audio
 		}
 	}
 
-	void FQuartzClockManager::ResumeClock(const FName& InName)
+	void FQuartzClockManager::ResumeClock(const FName& InName, int32 NumFramesToDelayStart)
 	{
 		if (!MixerDevice->IsAudioRenderingThread())
 		{
@@ -150,7 +161,29 @@ namespace Audio
 		TSharedPtr<FQuartzClock> Clock = FindClock(InName);
 		if (Clock)
 		{
+			Clock->AddToTickDelay(NumFramesToDelayStart);
 			Clock->Resume();
+		}
+	}
+
+	void FQuartzClockManager::StopClock(const FName& InName, bool CancelPendingEvents)
+	{
+		if (!MixerDevice->IsAudioRenderingThread())
+		{
+			MixerDevice->AudioRenderThreadCommand([this, InName, CancelPendingEvents]()
+			{
+				StopClock(InName, CancelPendingEvents);
+			});
+
+			return;
+		}
+
+		// Anything below is being executed on the Audio Render Thread
+		FScopeLock Lock(&ActiveClockCritSec);
+		TSharedPtr<FQuartzClock> Clock = FindClock(InName);
+		if (Clock)
+		{
+			Clock->Stop(CancelPendingEvents);
 		}
 	}
 
@@ -324,6 +357,32 @@ namespace Audio
 		return false;
 	}
 
+	bool FQuartzClockManager::HasClockBeenTickedThisUpdate(FName InClockName)
+	{
+		FScopeLock Lock(&ActiveClockCritSec);
+		int32 NumClocks = ActiveClocks.Num();
+
+		for (int32 i = 0; i < NumClocks; ++i)
+		{
+			TSharedPtr<FQuartzClock> ClockPtr = ActiveClocks[i];
+			check(ClockPtr.IsValid());
+
+			if (ClockPtr->GetName() == InClockName)
+			{
+				// if this clock is earlier in the array than the last clock we ticked,
+				// then it has already been ticked this update
+				if (&ClockPtr < &ActiveClocks[LastClockTickedIndex.GetValue()])
+				{
+					return true;
+				}
+
+				return false;
+			}
+		}
+
+		return false;
+	}
+
 	FMixerDevice* FQuartzClockManager::GetMixerDevice() const
 	{
 		if (MixerDevice)
@@ -347,7 +406,10 @@ namespace Audio
 		for (auto& Clock : ActiveClocks)
 		{
 			Clock->Tick(NumFramesToTick);
+			LastClockTickedIndex.Increment();
 		}
+
+		LastClockTickedIndex.Reset();
 	}
 
 	TSharedPtr<FQuartzClock> FQuartzClockManager::FindClock(const FName& InName)

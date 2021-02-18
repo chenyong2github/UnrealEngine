@@ -23,6 +23,7 @@ namespace Audio
 
 		// Called on AudioRenderThread
 		void Update(int32 NumFramesUntilNextUpdate);
+		void UpdateClock(FName InClockToAdvance, int32 NumFramesToAdvance);
 
 		// add (and take ownership of) a new clock
 		// safe to call from AudioThread (uses critical section)
@@ -47,7 +48,11 @@ namespace Audio
 
 		// start the given clock
 		// safe to call from AudioThread (uses Audio Render Thread command)
-		void ResumeClock(const FName& InName);
+		void ResumeClock(const FName& InName, int32 NumFramesToDelayStart = 0);
+
+		// stop the given clock
+		// safe to call from AudioThread (uses Audio Render Thread command)
+		void StopClock(const FName& InName, bool CancelPendingEvents);
 
 		// stop the given clock
 		// safe to call from AudioThread (uses Audio Render Thread command)
@@ -78,6 +83,10 @@ namespace Audio
 		// cancel a queued command on a clock (i.e. cancel a PlayQuantized command if the sound is stopped before it is played)
 		bool CancelCommandOnClock(FName InOwningClockName, TSharedPtr<IQuartzQuantizedCommand> InCommandPtr);
 
+		bool HasClockBeenTickedThisUpdate(FName InClockName);
+
+		int32 GetLastUpdateSizeInFrames() { return LastUpdateSizeInFrames; }
+
 		// get access to the owning FMixerDevice
 		FMixerDevice* GetMixerDevice() const;
 
@@ -96,5 +105,8 @@ namespace Audio
 
 		// Our array of active clocks (mutation/access acquires clock)
 		TArray<TSharedPtr<FQuartzClock>> ActiveClocks;
+
+		FThreadSafeCounter LastClockTickedIndex{ 0 };
+		int32 LastUpdateSizeInFrames{ 0 };
 	};
 } // namespace Audio

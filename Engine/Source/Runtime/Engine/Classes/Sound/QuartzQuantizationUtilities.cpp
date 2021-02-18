@@ -355,6 +355,7 @@ namespace Audio
 	)
 		: ClockName(RHS.ClockName)
 		, ClockHandleName(RHS.ClockHandleName)
+		, OtherClockName(RHS.OtherClockName)
 		, QuantizedCommandPtr(RHS.QuantizedCommandPtr)
 		, QuantizationBoundary(RHS.QuantizationBoundary)
 		, GameThreadCommandQueue(RHS.GameThreadCommandQueue)
