@@ -161,3 +161,4 @@ void ULevelStreamingLevelInstance::SetLoadedLevel(ULevel* Level)
 			LevelTransform.AddToTranslation(WorldSettings->LevelInstancePivotOffset);
 		}
 	}
+}
