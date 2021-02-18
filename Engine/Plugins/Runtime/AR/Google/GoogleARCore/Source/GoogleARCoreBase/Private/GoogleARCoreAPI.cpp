@@ -1006,8 +1006,7 @@ void FGoogleARCoreFrame::Update(float WorldToMeterScale)
 		// Update trackable that is cached in Unreal
 		ArTrackableList* TrackableListHandle = nullptr;
 		ArTrackableList_create(SessionHandle, &TrackableListHandle);
-		ArFrame_getUpdatedTrackables(SessionHandle, FrameHandle, ArTrackableType::AR_TRACKABLE_BASE_TRACKABLE, TrackableListHandle);
-
+		ArSession_getAllTrackables(SessionHandle, AR_TRACKABLE_BASE_TRACKABLE, TrackableListHandle);
 		auto Trackables = GetTrackables(SessionHandle, TrackableListHandle, true);
 		for (auto TrackableHandle : Trackables)
 		{
@@ -1031,15 +1030,9 @@ void FGoogleARCoreFrame::Update(float WorldToMeterScale)
 		
 		// ARCore doesn't provide a way to mark plane as removed when they're "subsumed"
 		// So here we're getting all the trackables in the session and manually remove the ones that are no longer valid
-		ArSession_getAllTrackables(SessionHandle, AR_TRACKABLE_BASE_TRACKABLE, TrackableListHandle);
-		Trackables = GetTrackables(SessionHandle, TrackableListHandle, true);
 		TArray<UARPin*> ARPinsToRemove;
 		ObjectManager->RemoveInvalidTrackables(Trackables, ARPinsToRemove);
-		for (auto TrackableHandle : Trackables)
-		{
-			ArTrackable_release(TrackableHandle);
-		}
-		
+
 		ArTrackableList_destroy(TrackableListHandle);
 		
 		for (auto Pin : ARPinsToRemove)

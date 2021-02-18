@@ -168,7 +168,7 @@ void FGoogleARCoreAugmentedImageResource::UpdateGeometryData()
 	
 	UGoogleARCoreAugmentedImage* AugmentedImage = CastChecked<UGoogleARCoreAugmentedImage>(TrackedGeometry);
 
-	if (!CheckIsSessionValid("ARCoreTrackableImage", Session) || TrackedGeometry->GetTrackingState() == EARTrackingState::StoppedTracking)
+	if (!CheckIsSessionValid("ARCoreTrackableImage", Session) || TrackedGeometry->GetTrackingState() != EARTrackingState::Tracking)
 	{
 		return;
 	}
