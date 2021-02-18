@@ -189,6 +189,77 @@ namespace AutomationCommon
 
 		return FrameTrace;
 	}
+
+	class FAutomationImageComparisonRequest : public IAutomationLatentCommand
+	{
+	public:
+		FAutomationImageComparisonRequest(const FString& InImageName, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, const FAutomationComparisonToleranceAmount& InTolerance, const FString& InNotes)
+			: ImageName(InImageName), TaskCompleted(false)
+		{
+			FString Context;
+			if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+			{
+				Context = CurrentTest->GetTestContext();
+				if (Context.IsEmpty()) { Context = CurrentTest->GetTestName(); }
+			}
+
+			FAutomationScreenshotData Data = BuildScreenshotData(Context, TEXT(""), ImageName, InWidth, InHeight);
+
+			// Copy the relevant data into the metadata for the screenshot.
+			Data.bHasComparisonRules = true;
+			Data.ToleranceRed = InTolerance.Red;
+			Data.ToleranceGreen = InTolerance.Green;
+			Data.ToleranceBlue = InTolerance.Blue;
+			Data.ToleranceAlpha = InTolerance.Alpha;
+			Data.ToleranceMinBrightness = InTolerance.MinBrightness;
+			Data.ToleranceMaxBrightness = InTolerance.MaxBrightness;
+			Data.bIgnoreAntiAliasing = true;
+			Data.bIgnoreColors = false;
+			Data.MaximumLocalError = 0.10f;
+			Data.MaximumGlobalError = 0.02f;
+
+			// Record any user notes that were made to accompany this shot.
+			Data.Notes = InNotes;
+
+			FAutomationTestFramework::Get().OnScreenshotCaptured().ExecuteIfBound(InImageData, Data);
+
+			UE_LOG(LogEditorAutomationTests, Log, TEXT("Requesting image %s to be compared."), *Data.ScreenshotName);
+
+			FAutomationTestFramework::Get().OnScreenshotCompared.AddRaw(this, &FAutomationImageComparisonRequest::OnComparisonComplete);
+		}
+
+		virtual ~FAutomationImageComparisonRequest()
+		{
+			FAutomationTestFramework::Get().OnScreenshotCompared.RemoveAll(this);
+		}
+
+		void OnComparisonComplete(const FAutomationScreenshotCompareResults& CompareResults)
+		{
+			FAutomationTestFramework::Get().OnScreenshotCompared.RemoveAll(this);
+
+			if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+			{
+				CurrentTest->AddEvent(CompareResults.ToAutomationEvent(ImageName));
+			}
+
+			TaskCompleted = true;
+		}
+
+		bool IsTaskCompleted()
+		{
+			return TaskCompleted;
+		}
+
+		bool Update() override
+		{
+			return IsTaskCompleted();
+		}
+
+	private:
+		FString	ImageName;
+		bool TaskCompleted;
+	};
+
 #endif
 
 	/** These save a PNG and get sent over the network */
@@ -587,6 +658,14 @@ bool FWaitForShadersToFinishCompilingInGame::Update()
 #endif
 
 	return true;
+}
+
+void RequestImageComparison(const FString& InImageName, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, EAutomationComparisonToleranceLevel InTolerance, const FString& InNotes)
+{
+#if WITH_AUTOMATION_TESTS
+	FAutomationComparisonToleranceAmount ToleranceAmount = FAutomationComparisonToleranceAmount::FromToleranceLevel(InTolerance);
+	ADD_LATENT_AUTOMATION_COMMAND(AutomationCommon::FAutomationImageComparisonRequest(InImageName, InWidth, InHeight, InImageData, ToleranceAmount, InNotes));
+#endif
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS

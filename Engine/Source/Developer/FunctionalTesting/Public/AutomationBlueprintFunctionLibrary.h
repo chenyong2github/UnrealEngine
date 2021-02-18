@@ -25,7 +25,7 @@ public:
 	virtual void SetDone() { Done = true; };
 
 protected:
-	bool Done;
+	bool Done = false;
 };
 
 /**

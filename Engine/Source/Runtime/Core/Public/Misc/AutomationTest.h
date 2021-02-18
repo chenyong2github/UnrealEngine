@@ -646,6 +646,60 @@ struct CORE_API FAutomationScreenshotCompareResults
 	FAutomationEvent ToAutomationEvent(const FString& ScreenhotName) const;
 };
 
+enum class EAutomationComparisonToleranceLevel : uint8
+{
+	Zero,
+	Low,
+	Medium,
+	High
+};
+
+struct FAutomationComparisonToleranceAmount
+{
+public:
+
+	FAutomationComparisonToleranceAmount()
+		: Red(0)
+		, Green(0)
+		, Blue(0)
+		, Alpha(0)
+		, MinBrightness(0)
+		, MaxBrightness(255)
+	{
+	}
+
+	FAutomationComparisonToleranceAmount(uint8 R, uint8 G, uint8 B, uint8 A, uint8 InMinBrightness, uint8 InMaxBrightness)
+		: Red(R)
+		, Green(G)
+		, Blue(B)
+		, Alpha(A)
+		, MinBrightness(InMinBrightness)
+		, MaxBrightness(InMaxBrightness)
+	{
+	}
+
+	static FAutomationComparisonToleranceAmount FromToleranceLevel(EAutomationComparisonToleranceLevel InTolerance)
+	{
+		switch (InTolerance)
+		{
+		case EAutomationComparisonToleranceLevel::Low:
+			return FAutomationComparisonToleranceAmount(16, 16, 16, 16, 16, 240);
+		case EAutomationComparisonToleranceLevel::Medium:
+			return FAutomationComparisonToleranceAmount(24, 24, 24, 24, 24, 220);
+		case EAutomationComparisonToleranceLevel::High:
+			return FAutomationComparisonToleranceAmount(32, 32, 32, 32, 64, 96);
+		}
+		// Zero
+		return FAutomationComparisonToleranceAmount(0, 0, 0, 0, 0, 255);
+	}
+
+	uint8 Red;
+	uint8 Green;
+	uint8 Blue;
+	uint8 Alpha;
+	uint8 MinBrightness;
+	uint8 MaxBrightness;
+};
 
 /**
  * Delegate type for when a test screenshot has been captured

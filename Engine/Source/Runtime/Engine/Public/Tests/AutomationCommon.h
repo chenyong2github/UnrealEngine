@@ -203,4 +203,10 @@ private:
 	float MaxWaitTime;
 };
 
+/**
+* Request an Image Comparison and wait for it to complete
+**/
+ENGINE_API void RequestImageComparison(const FString& InImageName, int32 InWidth, int32 InHeight, const TArray<FColor>& InImageData, EAutomationComparisonToleranceLevel InTolerance = EAutomationComparisonToleranceLevel::Low, const FString& InNotes = TEXT(""));
+
+
 #endif
