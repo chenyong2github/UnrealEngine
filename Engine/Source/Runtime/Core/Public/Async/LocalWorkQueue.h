@@ -13,23 +13,27 @@ class TYCombinator
 	LAMBDA Lambda;
 
 public:
-	constexpr TYCombinator(LAMBDA&& InLambda) : Lambda(Forward<LAMBDA>(InLambda)) {}
+	constexpr TYCombinator(LAMBDA&& InLambda): Lambda(MoveTemp(InLambda)) 
+	{}
 
-	template <class... ARGS>
-	constexpr decltype(auto) operator()(ARGS&&... Args) const 
+	constexpr TYCombinator(const LAMBDA& InLambda): Lambda(InLambda) 
+	{}
+
+	template<typename... ARGS>
+	constexpr auto operator()(ARGS&&... Args) const -> decltype(Lambda(static_cast<const TYCombinator<LAMBDA>&>(*this), Forward<ARGS>(Args)...))
 	{
-		return Lambda(*this, Forward<ARGS>(Args)...);
+		return Lambda(static_cast<const TYCombinator<LAMBDA>&>(*this), Forward<ARGS>(Args)...);
 	}
 
-	template <class... ARGS>
-	constexpr decltype(auto) operator()(ARGS&&... Args) 
+	template<typename... ARGS>
+	constexpr auto operator()(ARGS&&... Args) -> decltype(Lambda(static_cast<TYCombinator<LAMBDA>&>(*this), Forward<ARGS>(Args)...))
 	{
-		return Lambda(*this, Forward<ARGS>(Args)...);
+		return Lambda(static_cast<TYCombinator<LAMBDA>&>(*this), Forward<ARGS>(Args)...);
 	}
 };
 
 template<typename LAMBDA>
-constexpr TYCombinator<std::decay_t<LAMBDA>> MakeYCombinator(LAMBDA&& Lambda)
+constexpr auto MakeYCombinator(LAMBDA&& Lambda)
 {
 	return TYCombinator<std::decay_t<LAMBDA>>(Forward<LAMBDA>(Lambda));
 }
@@ -37,7 +41,7 @@ constexpr TYCombinator<std::decay_t<LAMBDA>> MakeYCombinator(LAMBDA&& Lambda)
 template<typename TaskType>
 class TLocalWorkQueue
 {
-	UE_NONCOPYABLE(TLocalWorkQueue)
+	UE_NONCOPYABLE(TLocalWorkQueue);
 
 	struct FInternalData : public FThreadSafeRefCountedObject
 	{
