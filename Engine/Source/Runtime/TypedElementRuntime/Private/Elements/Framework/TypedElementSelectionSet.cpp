@@ -10,7 +10,11 @@ UTypedElementSelectionSet::UTypedElementSelectionSet()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		ElementList = UTypedElementRegistry::GetInstance()->CreateElementList();
+		UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+		Registry->OnElementReplaced().AddUObject(this, &UTypedElementSelectionSet::OnElementReplaced);
+		Registry->OnElementUpdated().AddUObject(this, &UTypedElementSelectionSet::OnElementUpdated);
+
+		ElementList = Registry->CreateElementList();
 		ElementList->OnPreChange().AddUObject(this, &UTypedElementSelectionSet::OnElementListPreChange);
 		ElementList->OnChanged().AddUObject(this, &UTypedElementSelectionSet::OnElementListChanged);
 	}
@@ -301,6 +305,47 @@ FTypedElementSelectionSetElement UTypedElementSelectionSet::ResolveSelectionSetE
 	return InElementHandle
 		? FTypedElementSelectionSetElement(ElementList->GetElement<UTypedElementSelectionInterface>(InElementHandle), ElementList, GetInterfaceCustomizationByTypeId(InElementHandle.GetId().GetTypeId()))
 		: FTypedElementSelectionSetElement();
+}
+
+void UTypedElementSelectionSet::OnElementReplaced(TArrayView<const TTuple<FTypedElementHandle, FTypedElementHandle>> InReplacedElements)
+{
+	const FTypedElementSelectionOptions SelectionOptions = FTypedElementSelectionOptions()
+		.SetAllowHidden(true)
+		.SetAllowGroups(false)
+		.SetAllowLegacyNotifications(false)
+		.SetWarnIfLocked(false);
+
+	for (const TTuple<FTypedElementHandle, FTypedElementHandle>& ReplacedElement : InReplacedElements)
+	{
+		if (ElementList->Num() == 0)
+		{
+			break;
+		}
+
+		if (ElementList->Remove(ReplacedElement.Key))
+		{
+			if (ReplacedElement.Value)
+			{
+				SelectElement(ReplacedElement.Value, SelectionOptions);
+			}
+		}
+	}
+}
+
+void UTypedElementSelectionSet::OnElementUpdated(TArrayView<const FTypedElementHandle> InUpdatedElements)
+{
+	if (ElementList->Num() == 0)
+	{
+		return;
+	}
+	
+	for (const FTypedElementHandle& UpdatedElement : InUpdatedElements)
+	{
+		if (ElementList->Remove(UpdatedElement))
+		{
+			ElementList->Add(UpdatedElement);
+		}
+	}
 }
 
 void UTypedElementSelectionSet::OnElementListPreChange(const UTypedElementList* InElementList)

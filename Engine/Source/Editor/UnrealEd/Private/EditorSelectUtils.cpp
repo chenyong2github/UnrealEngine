@@ -419,9 +419,9 @@ void UUnrealEdEngine::NoteSelectionChange(bool bNotify)
 	if (!bComponentSelectionChanged)
 	{
 		PostActorSelectionChanged();
-		UpdateFloatingPropertyWindows();
 	}
 
+	UpdateFloatingPropertyWindows(/*bForceRefresh*/false, !bComponentSelectionChanged);
 	RedrawLevelEditingViewports();
 }
 

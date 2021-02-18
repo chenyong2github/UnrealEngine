@@ -1008,6 +1008,7 @@ public:
 		SLATE_EVENT(FOnSelectionUpdated, OnSelectionUpdated)
 		SLATE_EVENT(FOnItemDoubleClicked, OnItemDoubleClicked)
 		SLATE_EVENT(FOnHighlightPropertyInDetailsView, OnHighlightPropertyInDetailsView)
+		SLATE_EVENT(FSimpleDelegate, OnObjectReplaced)
 
 	SLATE_END_ARGS()
 
@@ -1302,10 +1303,10 @@ protected:
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
 
 	/** Helper method to update component pointers held by the given actor node's subtree */
-	void ReplaceComponentReferencesInTree(FSCSEditorActorNodePtrType InActorNode, const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	void ReplaceComponentReferencesInTree(FSCSEditorActorNodePtrType InActorNode, const TMap<UObject*, UObject*>& OldToNewInstanceMap, bool& OutHasChanges);
 
 	/** Update component pointers held by tree nodes if components have been replaced following construction script execution */
-	void ReplaceComponentReferencesInTree(const TArray<FSCSEditorTreeNodePtrType>& Nodes, const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	void ReplaceComponentReferencesInTree(const TArray<FSCSEditorTreeNodePtrType>& Nodes, const TMap<UObject*, UObject*>& OldToNewInstanceMap, bool& OutHasChanges);
 
 	/**
 	 * Function to create events for the current selection
@@ -1472,6 +1473,9 @@ public:
 
 	/** Delegate to invoke when the given property should be highlighted in the details view (e.g. diff). */
 	FOnHighlightPropertyInDetailsView OnHighlightPropertyInDetailsView;
+
+	/** Delegate to invoke when objects within the SCS tree are replaced (eg, via re-instancing from a BP compile) */
+	FSimpleDelegate OnObjectReplaced;
 
 	/** Returns the Actor context for which we are viewing/editing the SCS.  Can return null.  Should not be cached as it may change from frame to frame. */
 	class AActor* GetActorContext() const;

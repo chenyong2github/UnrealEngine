@@ -90,6 +90,8 @@ const FPropertyTypeLayoutCallback& FPropertyTypeLayoutCallbackList::Find( const 
 void FPropertyEditorModule::StartupModule()
 {
 	StructOnScopePropertyOwner = nullptr;
+
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FPropertyEditorModule::ReplaceViewedObjects);
 }
 
 void FPropertyEditorModule::ShutdownModule()
@@ -102,6 +104,8 @@ void FPropertyEditorModule::ShutdownModule()
 	//       literally be unloaded from memory after this function exits.  This even includes instantiated
 	//       templates, such as delegate wrapper objects that are allocated by the module!
 	DestroyColorPicker();
+
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 
 	AllDetailViews.Empty();
 	AllSinglePropertyViews.Empty();

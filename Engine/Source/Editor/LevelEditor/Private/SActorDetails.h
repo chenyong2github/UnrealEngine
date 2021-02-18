@@ -77,9 +77,9 @@ private:
 	bool GetAllowComponentTreeEditing() const;
 
 	void OnComponentsEditedInWorld();
-	void OnElementSelectionChanged(const UTypedElementSelectionSet* InSelectionSet);
 	void OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);
 	void OnSCSEditorTreeViewItemDoubleClicked(const TSharedPtr<class FSCSEditorTreeNode> ClickedNode);
+	void OnSCSEditorTreeViewObjectReplaced();
 	void UpdateComponentTreeFromEditorSelection();
 
 	bool IsPropertyReadOnly(const struct FPropertyAndParent& PropertyAndParent) const;
@@ -94,6 +94,7 @@ private:
 	void AddBPComponentCompileEventDelegate(UBlueprint* ComponentBlueprint);
 	void RemoveBPComponentCompileEventDelegate();
 	void OnBlueprintComponentCompiled(UBlueprint* ComponentBlueprint);
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacementObjects);
 
 private:
 	TSharedPtr<SSplitter> DetailsSplitter;
@@ -103,6 +104,10 @@ private:
 
 	// The selection set this details panel is observing
 	UTypedElementSelectionSet* SelectionSet = nullptr;
+
+	// The selection override, if any
+	bool bHasSelectionOverride = false;
+	TArray<AActor*> SelectionOverrideActors;
 
 	// Array of top-level elements that are currently being edited
 	TArray<TUniquePtr<ITypedElementDetailsObject>> TopLevelElements;

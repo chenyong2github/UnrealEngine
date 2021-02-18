@@ -42,6 +42,25 @@ public:
 	static UTypedElementRegistry* GetInstance();
 
 	/**
+	 * Event fired when references to one element should be replaced with a reference to a different element.
+	 */
+	using FOnElementReplaced_Payload = TArrayView<const TTuple<FTypedElementHandle, FTypedElementHandle>>; // Alias for the macro below
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnElementReplaced, FOnElementReplaced_Payload /*ReplacedElements*/);
+	FOnElementReplaced& OnElementReplaced()
+	{
+		return OnElementReplacedDelegate;
+	}
+
+	/**
+	 * Event fired when an element has been internally updated and data cached from it should be refreshed.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnElementUpdated, TArrayView<const FTypedElementHandle> /*UpdatedElements*/);
+	FOnElementUpdated& OnElementUpdated()
+	{
+		return OnElementUpdatedDelegate;
+	}
+
+	/**
 	 * Get the element type ID for the associated element type name, if any.
 	 * @return The element type ID, or 0 if the given name wasn't registered.
 	 */
@@ -487,4 +506,7 @@ private:
 
 	uint8 DisableElementDestructionOnGCCount = 0;
 	bool bIsWithinFrame = false;
+
+	FOnElementReplaced OnElementReplacedDelegate;
+	FOnElementUpdated OnElementUpdatedDelegate;
 };

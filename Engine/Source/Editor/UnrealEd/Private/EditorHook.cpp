@@ -20,24 +20,27 @@ void UUnrealEdEngine::NotifyPostChange(const FPropertyChangedEvent& PropertyChan
 	GLevelEditorModeTools().ActorPropChangeNotify();
 }
 
-void UUnrealEdEngine::UpdateFloatingPropertyWindows(bool bForceRefresh)
+void UUnrealEdEngine::UpdateFloatingPropertyWindows(bool bForceRefresh, bool bNotifyActorSelectionChanged)
 {
 	if (const UTypedElementSelectionSet* SelectionSet = GetSelectedActors()->GetElementSelectionSet())
 	{
 		FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 		LevelEditor.BroadcastElementSelectionChanged(SelectionSet, bForceRefresh);
 
-		// Assemble a set of valid selected actors.
-		TArray<UObject*> SelectedActors;
-		SelectionSet->ForEachSelectedObject<AActor>([&SelectedActors](AActor* InActor)
+		if (bNotifyActorSelectionChanged)
 		{
-			if (!InActor->IsPendingKill())
+			// Assemble a set of valid selected actors.
+			TArray<UObject*> SelectedActors;
+			SelectionSet->ForEachSelectedObject<AActor>([&SelectedActors](AActor* InActor)
 			{
-				SelectedActors.Add(InActor);
-			}
-			return true;
-		});
-		LevelEditor.BroadcastActorSelectionChanged(SelectedActors, bForceRefresh);
+				if (!InActor->IsPendingKill())
+				{
+					SelectedActors.Add(InActor);
+				}
+				return true;
+			});
+			LevelEditor.BroadcastActorSelectionChanged(SelectedActors, bForceRefresh);
+		}
 	}
 }
 

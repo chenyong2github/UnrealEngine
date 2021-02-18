@@ -3856,6 +3856,7 @@ void SSCSEditor::Construct( const FArguments& InArgs )
 	OnSelectionUpdated = InArgs._OnSelectionUpdated;
 	OnItemDoubleClicked = InArgs._OnItemDoubleClicked;
 	OnHighlightPropertyInDetailsView = InArgs._OnHighlightPropertyInDetailsView;
+	OnObjectReplaced = InArgs._OnObjectReplaced;
 	bUpdatingSelection = false;
 	bAllowTreeUpdates = true;
 	bIsDiffing = InArgs._IsDiffing;
@@ -4125,18 +4126,23 @@ void SSCSEditor::OnLevelComponentRequestRename(const UActorComponent* InComponen
 
 void SSCSEditor::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	ReplaceComponentReferencesInTree(GetActorNode(), OldToNewInstanceMap);
-}
-
-void SSCSEditor::ReplaceComponentReferencesInTree(FSCSEditorActorNodePtrType InActorNode, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
-{
-	if (InActorNode.IsValid())
+	bool bHasChanges = false;
+	ReplaceComponentReferencesInTree(GetActorNode(), OldToNewInstanceMap, bHasChanges);
+	if (bHasChanges)
 	{
-		ReplaceComponentReferencesInTree(InActorNode->GetComponentNodes(), OldToNewInstanceMap);
+		OnObjectReplaced.ExecuteIfBound();
 	}
 }
 
-void SSCSEditor::ReplaceComponentReferencesInTree(const TArray<FSCSEditorTreeNodePtrType>& Nodes, const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+void SSCSEditor::ReplaceComponentReferencesInTree(FSCSEditorActorNodePtrType InActorNode, const TMap<UObject*, UObject*>& OldToNewInstanceMap, bool& OutHasChanges)
+{
+	if (InActorNode.IsValid())
+	{
+		ReplaceComponentReferencesInTree(InActorNode->GetComponentNodes(), OldToNewInstanceMap, OutHasChanges);
+	}
+}
+
+void SSCSEditor::ReplaceComponentReferencesInTree(const TArray<FSCSEditorTreeNodePtrType>& Nodes, const TMap<UObject*, UObject*>& OldToNewInstanceMap, bool& OutHasChanges)
 {
 	for (const FSCSEditorTreeNodePtrType& Node : Nodes)
 	{
@@ -4151,10 +4157,11 @@ void SSCSEditor::ReplaceComponentReferencesInTree(const TArray<FSCSEditorTreeNod
 				if (NewObject)
 				{
 					Node->SetObject(*NewObject);
+					OutHasChanges = true;
 				}
 			}
 
-			ReplaceComponentReferencesInTree(Node->GetChildren(), OldToNewInstanceMap);
+			ReplaceComponentReferencesInTree(Node->GetChildren(), OldToNewInstanceMap, OutHasChanges);
 		}
 	}
 }

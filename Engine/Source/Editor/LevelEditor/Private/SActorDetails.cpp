@@ -90,8 +90,9 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 {
 	SelectionSet = InSelectionSet;
 	checkf(SelectionSet, TEXT("SActorDetails must be constructed with a valid selection set!"));
-	SelectionSet->OnChanged().AddRaw(this, &SActorDetails::OnElementSelectionChanged);
-	
+
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &SActorDetails::OnObjectsReplaced);
+
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditor.OnComponentsEdited().AddRaw(this, &SActorDetails::OnComponentsEditedInWorld);
 
@@ -140,6 +141,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 			.ActorContext(this, &SActorDetails::GetActorContext)
 			.OnSelectionUpdated(this, &SActorDetails::OnSCSEditorTreeViewSelectionChanged)
 			.OnItemDoubleClicked(this, &SActorDetails::OnSCSEditorTreeViewItemDoubleClicked)
+			.OnObjectReplaced(this, &SActorDetails::OnSCSEditorTreeViewObjectReplaced)
 		];
 
 	TSharedRef<SWidget> ButtonBox = SCSEditor->GetToolButtonsBox().ToSharedRef();
@@ -221,7 +223,7 @@ SActorDetails::~SActorDetails()
 		GEditor->UnregisterForUndo(this);
 	}
 
-	SelectionSet->OnChanged().RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 
 	RemoveBPComponentCompileEventDelegate();
 
@@ -239,6 +241,11 @@ bool SActorDetails::IsObservingSelectionSet(const UTypedElementSelectionSet* InS
 
 void SActorDetails::RefreshSelection(const bool bForceRefresh)
 {
+	if (bSelectionGuard)
+	{
+		return;
+	}
+
 	TArray<TTypedElement<UTypedElementDetailsInterface>> DetailsElements;
 	DetailsElements.Reserve(SelectionSet->GetNumSelectedElements());
 	SelectionSet->ForEachSelectedElement<UTypedElementDetailsInterface>([&DetailsElements](const TTypedElement<UTypedElementDetailsInterface>& InDetailsElement)
@@ -246,6 +253,9 @@ void SActorDetails::RefreshSelection(const bool bForceRefresh)
 		DetailsElements.Add(InDetailsElement);
 		return true;
 	});
+
+	bHasSelectionOverride = false;
+	SelectionOverrideActors.Reset();
 
 	RefreshTopLevelElements(DetailsElements, bForceRefresh, /*bOverrideLock*/false);
 }
@@ -266,6 +276,9 @@ void SActorDetails::OverrideSelection(const TArray<AActor*>& InActors, const boo
 			}
 		}
 	}
+
+	bHasSelectionOverride = true;
+	SelectionOverrideActors = InActors;
 
 	RefreshTopLevelElements(DetailsElements, bForceRefresh, /*bOverrideLock*/false);
 }
@@ -295,14 +308,12 @@ void SActorDetails::RefreshTopLevelElements(TArrayView<const TTypedElement<UType
 	SetElementDetailsObjects(TopLevelElements, bForceRefresh, bOverrideLock);
 
 	// Update the SCS tree if we were asked to edit a single actor
-	if (InDetailsElements.Num() == 1)
+	if (AActor* Actor = GetActorContext())
 	{
-		if (AActor* Actor = GetActorContext())
-		{
-			// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
-			TGuardValue<bool> SelectionGuard(bSelectionGuard, true);
-			SCSEditor->UpdateTree();
-		}
+		// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
+		TGuardValue<bool> SelectionGuard(bSelectionGuard, true);
+		SCSEditor->UpdateTree();
+		UpdateComponentTreeFromEditorSelection();
 	}
 
 	// Draw attention to this tab if needed
@@ -452,15 +463,6 @@ void SActorDetails::OnComponentsEditedInWorld()
 	}
 }
 
-void SActorDetails::OnElementSelectionChanged(const UTypedElementSelectionSet* InSelectionSet)
-{
-	check(IsObservingSelectionSet(InSelectionSet));
-	if (!bSelectionGuard && SCSEditor)
-	{
-		UpdateComponentTreeFromEditorSelection();
-	}
-}
-
 bool SActorDetails::GetAllowComponentTreeEditing() const
 {
 	return GEditor->PlayWorld == nullptr;
@@ -566,6 +568,13 @@ void SActorDetails::OnSCSEditorTreeViewItemDoubleClicked(const TSharedPtr<class 
 			GEditor->MoveViewportCamerasToComponent(SceneComponent, bActiveViewportOnly);
 		}
 	}
+}
+
+void SActorDetails::OnSCSEditorTreeViewObjectReplaced()
+{
+	// Enable the selection guard to prevent OnTreeSelectionChanged() from altering the editor's component selection
+	TGuardValue<bool> SelectionGuard(bSelectionGuard, true);
+	SCSEditor->UpdateTree();
 }
 
 void SActorDetails::UpdateComponentTreeFromEditorSelection()
@@ -802,4 +811,38 @@ void SActorDetails::OnBlueprintComponentCompiled(UBlueprint* ComponentBlueprint)
 {
 	TGuardValue<bool> SelectedComponentRecompiledGuard(bSelectedComponentRecompiled, true);
 	UpdateComponentTreeFromEditorSelection();
+}
+
+void SActorDetails::OnObjectsReplaced(const TMap<UObject*, UObject*>& InReplacementObjects)
+{
+	if (bHasSelectionOverride && SelectionOverrideActors.Num() > 0)
+	{
+		bool bHasChanges = false;
+
+		for (auto It = SelectionOverrideActors.CreateIterator(); It; ++It)
+		{
+			AActor*& Actor = *It;
+
+			if (UObject* const* ReplacementObjectPtr = InReplacementObjects.Find(Actor))
+			{
+				bHasChanges = true;
+
+				AActor* ReplacementActor = Cast<AActor>(*ReplacementObjectPtr);
+				if (ReplacementActor)
+				{
+					Actor = ReplacementActor;
+				}
+				else
+				{
+					It.RemoveCurrent();
+				}
+			}
+		}
+
+		if (bHasChanges)
+		{
+			TArray<AActor*> NewSelection = SelectionOverrideActors;
+			OverrideSelection(NewSelection);
+		}
+	}
 }

@@ -5989,41 +5989,8 @@ void UEditorEngine::DoConvertActors( const TArray<AActor*>& ActorsToConvert, UCl
 
 void UEditorEngine::NotifyToolsOfObjectReplacement(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	// This can be called early on during startup if blueprints need to be compiled.  
-	// If the property module isn't loaded then there aren't any property windows to update
-	if( FModuleManager::Get().IsModuleLoaded( "PropertyEditor" ) )
-	{
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
-		PropertyEditorModule.ReplaceViewedObjects( OldToNewInstanceMap );
-	}
-
 	// Allow any other observers to act upon the object replacement
 	FCoreUObjectDelegates::OnObjectsReplaced.Broadcast(OldToNewInstanceMap);
-
-	// Check to see if any selected components were reinstanced, as a final step.
-	USelection* ComponentSelection = GetSelectedComponents();
-	if (ComponentSelection)
-	{
-		TArray<TWeakObjectPtr<UObject> > SelectedComponents;
-		ComponentSelection->GetSelectedObjects(SelectedComponents);
-
-		ComponentSelection->BeginBatchSelectOperation();
-		for (int32 i = 0; i < SelectedComponents.Num(); ++i)
-		{
-			UObject* Component = SelectedComponents[i].GetEvenIfUnreachable();
-
-			// If the component corresponds to a new instance in the map, update the selection accordingly
-			if (OldToNewInstanceMap.Contains(Component))
-			{
-				if (UActorComponent* NewComponent = CastChecked<UActorComponent>(OldToNewInstanceMap[Component], ECastCheckedType::NullAllowed))
-				{
-					ComponentSelection->Deselect(Component);
-					SelectComponent(NewComponent, true, false);
-				}
-			}
-		}
-		ComponentSelection->EndBatchSelectOperation();
-	}
 }
 
 void UEditorEngine::SetViewportsRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)

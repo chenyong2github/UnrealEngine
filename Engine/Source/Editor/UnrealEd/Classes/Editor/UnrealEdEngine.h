@@ -260,7 +260,7 @@ public:
 	void DrawComponentVisualizersHUD(const FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
 
 	/** Updates the property windows of selected actors */
-	virtual void UpdateFloatingPropertyWindows(bool bForceRefresh=false);
+	void UpdateFloatingPropertyWindows(bool bForceRefresh=false, bool bNotifyActorSelectionChanged=true);
 
 	/**
 	*	Updates the property windows to show the data of the supplied ActorList
@@ -268,7 +268,7 @@ public:
 	*	@param	ActorList	The list of actors to show the properties for
 	*
 	*/
-	virtual void UpdateFloatingPropertyWindowsFromActorList(const TArray<AActor*>& ActorList, bool bForceRefresh=false);
+	void UpdateFloatingPropertyWindowsFromActorList(const TArray<AActor*>& ActorList, bool bForceRefresh=false);
 
 	/**
 	 * Called whenever the actor selection has changed to invalidate any cached state

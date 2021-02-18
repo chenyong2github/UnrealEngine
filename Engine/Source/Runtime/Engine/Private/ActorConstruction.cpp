@@ -593,6 +593,8 @@ void AActor::RerunConstructionScripts()
 		// Now iterate through all previous construction script created components, looking for a match with reinstanced components.
 		for (const FComponentData& ComponentData : ComponentMapping)
 		{
+			UActorComponent* ResolvedNewComponent = nullptr;
+			
 			if (ComponentData.OldComponent->CreationMethod == EComponentCreationMethod::UserConstructionScript)
 			{
 				if (ComponentData.UCSComponentIndex >= 0)
@@ -606,7 +608,7 @@ void AActor::RerunConstructionScripts()
 							if (   ComponentData.OldComponent->GetClass() == NewComponent->GetClass() 
 							    && ComponentData.OldArchetype == ComponentToArchetypeMap[NewComponent])
 							{
-								OldToNewComponentMapping.Add(ComponentData.OldComponent, NewComponent);
+								ResolvedNewComponent = NewComponent;
 								NewUCSComponentsToConsider->RemoveAtSwap(Index, 1, false);
 								break;
 							}
@@ -643,12 +645,14 @@ void AActor::RerunConstructionScripts()
 					{
 						if (!OuterToMatch || GetComponentAddedByConstructionScript(MatchedComponent) == OuterToMatch)
 						{
-							OldToNewComponentMapping.Add(ComponentData.OldComponent, MatchedComponent);
+							ResolvedNewComponent = MatchedComponent;
 							break;
 						}
 					}
 				}
 			}
+
+			OldToNewComponentMapping.Add(ComponentData.OldComponent, ResolvedNewComponent);
 		}
 
 		if (GEditor && (OldToNewComponentMapping.Num() > 0))

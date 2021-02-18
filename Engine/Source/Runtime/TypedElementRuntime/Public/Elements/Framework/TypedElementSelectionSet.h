@@ -491,6 +491,16 @@ private:
 	FTypedElementSelectionSetElement ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const;
 
 	/**
+	 * Update the selection from a replacement request.
+	 */
+	void OnElementReplaced(TArrayView<const TTuple<FTypedElementHandle, FTypedElementHandle>> InReplacedElements);
+
+	/**
+	 * Force a selection update if an element internal state changes.
+	 */
+	void OnElementUpdated(TArrayView<const FTypedElementHandle> InUpdatedElements);
+
+	/**
 	 * Proxy the internal OnPreChange event from the underlying element list.
 	 */
 	void OnElementListPreChange(const UTypedElementList* InElementList);
