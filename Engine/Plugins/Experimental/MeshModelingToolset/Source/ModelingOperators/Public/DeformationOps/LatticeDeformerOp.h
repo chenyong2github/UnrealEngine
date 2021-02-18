@@ -19,7 +19,8 @@ public:
 	FLatticeDeformerOp(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
 					   TSharedPtr<FFFDLattice, ESPMode::ThreadSafe> InLattice,
 					   const TArray<FVector3d>& InLatticeControlPoints,
-					   ELatticeInterpolation InInterpolationType);
+					   ELatticeInterpolation InInterpolationType,
+					   bool bInDeformNormals);
 
 	// FDynamicMeshOperator implementation
 	void CalculateResult(FProgressCancel* Progress) override;
@@ -31,5 +32,6 @@ protected:
 	const TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	const TArray<FVector3d> LatticeControlPoints;
 	ELatticeInterpolation InterpolationType;
+	bool bDeformNormals = false;
 };
 

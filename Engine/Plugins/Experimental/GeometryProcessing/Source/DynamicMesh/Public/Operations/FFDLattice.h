@@ -5,6 +5,7 @@
 #include "VectorTypes.h"
 #include "BoxTypes.h"
 #include "Containers/StaticArray.h"
+#include "DynamicMeshAttributeSet.h"
 
 class FDynamicMesh3;
 class FProgressCancel;
@@ -48,6 +49,24 @@ public:
 										ELatticeInterpolation Interpolation = ELatticeInterpolation::Linear,
 										FLatticeExecutionInfo ExecutionInfo = FLatticeExecutionInfo(),
 										FProgressCancel* Progress = nullptr) const;
+
+	/// Using the Lattice's current control point positions, the original embedding information, and the original 
+	/// normals contained in an overlay, compute the new rotated normals
+	void GetRotatedOverlayNormals(const TArray<FVector3d>& LatticeControlPoints,
+								  const FDynamicMeshNormalOverlay* NormalOverlay,
+								  TArray<FVector3f>& OutNormals,
+								  ELatticeInterpolation Interpolation = ELatticeInterpolation::Linear,
+								  FLatticeExecutionInfo ExecutionInfo = FLatticeExecutionInfo(),
+								  FProgressCancel* Progress = nullptr) const;
+
+	/// Using the Lattice's current control point positions, the original embedding information, and the original 
+	/// normals, compute the new rotated normals
+	void GetRotatedMeshVertexNormals(const TArray<FVector3d>& LatticeControlPoints,
+									 const TArray<FVector3f>& OriginalNormals,
+									 TArray<FVector3f>& OutNormals,
+									 ELatticeInterpolation Interpolation,
+									 FLatticeExecutionInfo ExecutionInfo,
+									 FProgressCancel* Progress) const;
 
 	void GenerateInitialLatticePositions(TArray<FVector3d>& OutLatticePositions) const;
 	void GenerateLatticeEdges(TArray<FVector2i>& OutLatticeEdges) const;
@@ -93,6 +112,9 @@ protected:
 	/// Use the given cell index and weights to compute the interpolated position
 	FVector3d InterpolatedPosition(const FEmbedding& VertexEmbedding, const TArray<FVector3d>& LatticeControlPoints) const;
 	FVector3d InterpolatedPositionCubic(const FEmbedding& VertexEmbedding, const TArray<FVector3d>& LatticeControlPoints) const;
+
+	FMatrix3d LinearInterpolationJacobian(const FEmbedding& VertexEmbedding, const TArray<FVector3d>& LatticeControlPoints) const;
+	FMatrix3d CubicInterpolationJacobian(const FEmbedding& VertexEmbedding, const TArray<FVector3d>& LatticeControlPoints) const;
 
 	/// Clamp the given index to [0, Dims] and return the current lattice point position at the clamped index
 	FVector3d ClosestLatticePosition(const FVector3i& VirtualControlPointIndex, const TArray<FVector3d>& LatticeControlPoints) const;

@@ -62,6 +62,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Interpolation )
 	ELatticeInterpolationType InterpolationType = ELatticeInterpolationType::Linear;
 
+	/** Whether to use approximate new vertex normals using the deformer */
+	UPROPERTY(EditAnywhere, Category = Interpolation)
+	bool bDeformNormals = false;
+
 	// Not user visible - used to disallow changing the lattice resolution after deformation
 	UPROPERTY(meta = (TransientToolProperty))
 	bool bCanChangeResolution = true;

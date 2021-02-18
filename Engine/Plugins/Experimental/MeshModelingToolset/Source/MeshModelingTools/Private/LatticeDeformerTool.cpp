@@ -56,7 +56,8 @@ TUniquePtr<FDynamicMeshOperator> ULatticeDeformerOperatorFactory::MakeNewOperato
 		LatticeDeformerTool->OriginalMesh,
 		LatticeDeformerTool->Lattice,
 		LatticeDeformerTool->ControlPointsMechanic->GetControlPoints(),
-		OpInterpolationType);
+		OpInterpolationType,
+		LatticeDeformerTool->Settings->bDeformNormals);
 
 	return LatticeDeformOp;
 }
@@ -116,6 +117,10 @@ void ULatticeDeformerTool::Setup()
 	Settings->WatchProperty(Settings->ZAxisResolution, [this](int) { bShouldRebuild = true; });
 	Settings->WatchProperty(Settings->Padding, [this](float) { bShouldRebuild = true; });
 	Settings->WatchProperty(Settings->InterpolationType, [this](ELatticeInterpolationType)
+	{
+		Preview->InvalidateResult();
+	});
+	Settings->WatchProperty(Settings->bDeformNormals, [this](bool)
 	{
 		Preview->InvalidateResult();
 	});

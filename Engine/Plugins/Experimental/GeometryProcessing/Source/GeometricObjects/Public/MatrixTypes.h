@@ -64,6 +64,14 @@ struct TMatrix3
 		}
 	}
 
+	template<typename RealType2>
+	explicit constexpr TMatrix3(const TMatrix3<RealType2>& Mat) :
+		Row0(FVector3<RealType>{Mat.Row0}),
+		Row1(FVector3<RealType>{Mat.Row1}),
+		Row2(FVector3<RealType>{Mat.Row2})
+	{
+	}
+
 	static TMatrix3<RealType> Zero()
 	{
 		return TMatrix3<RealType>(0);
@@ -196,6 +204,30 @@ struct TMatrix3
 			Row0.Y, Row1.Y, Row2.Y,
 			Row0.Z, Row1.Z, Row2.Z);
 	}
+
+	// Computes |A|(A^-1)^T. 
+	// This value is sometimes useful for computing rotated surface normals from a continuous deformation.
+	// Since computing the 3x3 inverse using Cramer's rule divides by the 3x3 determinant in the final step, this 
+	// function avoids computing the determinant at all, since it would just cancel out.
+	TMatrix3<RealType> DeterminantTimesInverseTranspose() const
+	{
+		RealType a11 = Row0.X, a12 = Row0.Y, a13 = Row0.Z, a21 = Row1.X, a22 = Row1.Y, a23 = Row1.Z, a31 = Row2.X, a32 = Row2.Y, a33 = Row2.Z;
+		
+		RealType i00 = a33 * a22 - a32 * a23;
+		RealType i01 = -(a33 * a12 - a32 * a13);
+		RealType i02 = a23 * a12 - a22 * a13;
+
+		RealType i10 = -(a33 * a21 - a31 * a23);
+		RealType i11 = a33 * a11 - a31 * a13;
+		RealType i12 = -(a23 * a11 - a21 * a13);
+
+		RealType i20 = a32 * a21 - a31 * a22;
+		RealType i21 = -(a32 * a11 - a31 * a12);
+		RealType i22 = a22 * a11 - a21 * a12;
+
+		return TMatrix3<RealType>(i00, i10, i20, i01, i11, i21, i02, i12, i22);
+	}
+
 
 	bool EpsilonEqual(const TMatrix3<RealType>& Mat2, RealType Epsilon) const
 	{
