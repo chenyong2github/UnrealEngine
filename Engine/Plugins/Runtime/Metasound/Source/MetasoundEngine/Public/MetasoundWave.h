@@ -21,9 +21,17 @@ namespace Metasound
 	class METASOUNDENGINE_API FWaveAsset
 	{
 	public:
+		// TODO: Implement using TSharedPtr<> to enable cheaper assignment when 
+		// choosing between multiple instances of FWaveAsset.
 		TUniquePtr<FSoundWaveProxy> SoundWaveProxy;
 
 		FWaveAsset() = default;
+		FWaveAsset(const FWaveAsset&) = delete;
+
+		// Define move constructor and move assignment since
+		// object cannot be copied to due TUniquePtr member.
+		FWaveAsset(FWaveAsset&&) = default;
+		FWaveAsset& operator=(FWaveAsset&&) = default;
 
 		FWaveAsset& operator=(const FWaveAsset& Other)
 		{

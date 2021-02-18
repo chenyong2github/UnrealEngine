@@ -11,20 +11,121 @@
 #define WITH_METASOUND_FRONTEND 0
 #endif
 
-namespace MetasoundFrontendRegistryPrivate
+namespace Metasound
 {
-	// All registry keys should be created through this function to ensure consistency.
-	Metasound::Frontend::FNodeRegistryKey GetRegistryKey(const FName& InClassName, int32 InMajorVersion)
+	namespace MetasoundFrontendRegistryPrivate
 	{
-		Metasound::Frontend::FNodeRegistryKey Key;
+		// All registry keys should be created through this function to ensure consistency.
+		Frontend::FNodeRegistryKey GetRegistryKey(const FName& InClassName, int32 InMajorVersion)
+		{
+			Frontend::FNodeRegistryKey Key;
 
-		Key.NodeClassFullName = InClassName;
+			Key.NodeClassFullName = InClassName;
 
-		// NodeHash is hash of node name and major version.
-		Key.NodeHash = FCrc::StrCrc32(*Key.NodeClassFullName.ToString());
-		Key.NodeHash = HashCombine(Key.NodeHash, FCrc::TypeCrc32(InMajorVersion));
+			// NodeHash is hash of node name and major version.
+			Key.NodeHash = FCrc::StrCrc32(*Key.NodeClassFullName.ToString());
+			Key.NodeHash = HashCombine(Key.NodeHash, FCrc::TypeCrc32(InMajorVersion));
 
-		return Key;
+			return Key;
+		}
+
+		// Return the compatible literal with the most descriptive type.
+		// TODO: Currently TIsParsable<> allows for implicit conversion of
+		// constructor arguments of integral types which can cause some confusion
+		// here when trying to match a literal type to a constructor. For example:
+		//
+		// struct FBoolConstructibleType
+		// {
+		// 	FBoolConstructibleType(bool InValue);
+		// };
+		//
+		// static_assert(TIsParsable<FBoolConstructible, double>::Value); 
+		//
+		// Implicit conversions are currently allowed in TIsParsable because this
+		// is perfectly legal syntax.
+		//
+		// double Value = 10.0;
+		// FBoolConstructibleType BoolConstructible = Value;
+		//
+		// There are some tricks to possibly disable implicit conversions when
+		// checking for specific constructors, but they are yet to be implemented 
+		// and are untested. Here's the basic idea.
+		//
+		// template<DataType, DesiredIntegralArgType>
+		// struct TOnlyConvertIfIsSame
+		// {
+		// 		// Implicit conversion only defined if types match.
+		// 		template<typename SuppliedIntegralArgType, std::enable_if<std::is_same<std::decay<SuppliedIntegralArgType>::type, DesiredIntegralArgType>::value, int> = 0>
+		// 		operator DesiredIntegralArgType()
+		// 		{
+		// 			return DesiredIntegralArgType{};
+		// 		}
+		// };
+		//
+		// static_assert(false == std::is_constructible<FBoolConstructibleType, TOnlyConvertIfSame<double>>::value);
+		// static_assert(true == std::is_constructible<FBoolConstructibleType, TOnlyConvertIfSame<bool>>::value);
+		ELiteralType GetMostDescriptiveLiteralForDataType(const FDataTypeRegistryInfo& InDataTypeInfo)
+		{
+			if (InDataTypeInfo.bIsProxyArrayParsable)
+			{
+				return ELiteralType::UObjectProxyArray;
+			}
+			else if (InDataTypeInfo.bIsProxyParsable)
+			{
+				return ELiteralType::UObjectProxy;
+			}
+			else if (InDataTypeInfo.bIsEnum && InDataTypeInfo.bIsIntParsable)
+			{
+				return ELiteralType::Integer;
+			}
+			else if (InDataTypeInfo.bIsStringArrayParsable)
+			{
+				return ELiteralType::StringArray;
+			}
+			else if (InDataTypeInfo.bIsFloatArrayParsable)
+			{
+				return ELiteralType::FloatArray;
+			}
+			else if (InDataTypeInfo.bIsIntArrayParsable)
+			{
+				return ELiteralType::IntegerArray;
+			}
+			else if (InDataTypeInfo.bIsBoolArrayParsable)
+			{
+				return ELiteralType::BooleanArray;
+			}
+			else if (InDataTypeInfo.bIsStringParsable)
+			{
+				return ELiteralType::String;
+			}
+			else if (InDataTypeInfo.bIsFloatParsable)
+			{
+				return ELiteralType::Float;
+			}
+			else if (InDataTypeInfo.bIsIntParsable)
+			{
+				return ELiteralType::Integer;
+			}
+			else if (InDataTypeInfo.bIsBoolParsable)
+			{
+				return ELiteralType::Boolean;
+			}
+			else if (InDataTypeInfo.bIsDefaultArrayParsable)
+			{
+				return ELiteralType::NoneArray; 
+			}
+			else if (InDataTypeInfo.bIsDefaultParsable)
+			{
+				return ELiteralType::None;
+			}
+			else
+			{
+				// if we ever hit this, something has gone wrong with the REGISTER_METASOUND_DATATYPE macro.
+				// we should have failed to compile if any of these are false.
+				checkNoEntry();
+				return ELiteralType::Invalid;
+			}
+		}
 	}
 }
 
@@ -200,6 +301,8 @@ TArray<::Metasound::Frontend::FConverterNodeInfo> FMetasoundFrontendRegistryCont
 	}
 }
 
+
+
 Metasound::ELiteralType FMetasoundFrontendRegistryContainer::GetDesiredLiteralTypeForDataType(FName InDataType) const
 {
 	if (!DataTypeRegistry.Contains(InDataType))
@@ -208,46 +311,15 @@ Metasound::ELiteralType FMetasoundFrontendRegistryContainer::GetDesiredLiteralTy
 	}
 
 	const FDataTypeRegistryElement& DataTypeInfo = DataTypeRegistry[InDataType];
-	
-	if (DataTypeInfo.Info.bIsEnum)
-	{
-		return Metasound::ELiteralType::Integer;
-	}
 
 	// If there's a designated preferred literal type for this datatype, use that.
-	if (DataTypeInfo.Info.PreferredLiteralType != Metasound::ELiteralType::None)
+	if (DataTypeInfo.Info.PreferredLiteralType != Metasound::ELiteralType::Invalid)
 	{
 		return DataTypeInfo.Info.PreferredLiteralType;
 	}
 
 	// Otherwise, we opt for the highest precision construction option available.
-	if (DataTypeInfo.Info.bIsStringParsable)
-	{
-		return Metasound::ELiteralType::String;
-	}
-	else if (DataTypeInfo.Info.bIsFloatParsable)
-	{
-		return Metasound::ELiteralType::Float;
-	}
-	else if (DataTypeInfo.Info.bIsIntParsable)
-	{
-		return Metasound::ELiteralType::Integer;
-	}
-	else if (DataTypeInfo.Info.bIsBoolParsable)
-	{
-		return Metasound::ELiteralType::Boolean;
-	}
-	else if (DataTypeInfo.Info.bIsDefaultParsable)
-	{
-		return Metasound::ELiteralType::None;
-	}
-	else
-	{
-		// if we ever hit this, something has gone terribly wrong with the REGISTER_METASOUND_DATATYPE macro.
-		// we should have failed to compile if any of these are false.
-		checkNoEntry();
-		return Metasound::ELiteralType::Invalid;
-	}
+	return Metasound::MetasoundFrontendRegistryPrivate::GetMostDescriptiveLiteralForDataType(DataTypeInfo.Info);
 }
 
 UClass* FMetasoundFrontendRegistryContainer::GetLiteralUClassForDataType(FName InDataType) const
@@ -383,12 +455,12 @@ bool FMetasoundFrontendRegistryContainer::GetRegistryKey(const Metasound::Fronte
 
 Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FNodeClassMetadata& InNodeMetadata)
 {
-	return MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName.GetFullName(), InNodeMetadata.MajorVersion);
+	return Metasound::MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName.GetFullName(), InNodeMetadata.MajorVersion);
 }
 
 Metasound::Frontend::FNodeRegistryKey FMetasoundFrontendRegistryContainer::GetRegistryKey(const FMetasoundFrontendClassMetadata& InNodeMetadata)
 {
-	return MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName.GetFullName(), InNodeMetadata.Version.Major);
+	return Metasound::MetasoundFrontendRegistryPrivate::GetRegistryKey(InNodeMetadata.ClassName.GetFullName(), InNodeMetadata.Version.Major);
 }
 
 bool FMetasoundFrontendRegistryContainer::GetFrontendClassFromRegistered(const FMetasoundFrontendClassMetadata& InMetadata, FMetasoundFrontendClass& OutClass)

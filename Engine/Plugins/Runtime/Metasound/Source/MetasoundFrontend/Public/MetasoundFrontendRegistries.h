@@ -13,6 +13,49 @@
 
 namespace Metasound
 {
+	// This struct is passed to FInputNodeConstructorCallback and FOutputNodeConstructorCallback.
+	struct FInputNodeConstructorParams
+	{
+		// the instance name and name of the specific connection that we should use.
+		const FString& InNodeName;
+		const FGuid& InInstanceID;
+		const FString& InVertexName;
+
+		FLiteral InitParam;
+	};
+
+	struct FOutputNodeConstructorParams
+	{
+		// the instance name and name of the specific connection that we should use.
+		const FString& InNodeName;
+		const FGuid& InInstanceID;
+		const FString& InVertexName;
+	};
+
+	/*
+	class IMetasoundDataTypeRegistryEntry
+	{
+	public:
+		virtual TUniquePtr<Metasound::INode> CreateInputNode(FInputNodeConstructorParams&&) const = 0;
+		virtual TUniquePtr<Metasound::INode> CreateOutputNode(const FOutputNodeConstructorParams&) const = 0;
+	};
+
+	class IMetasoundProxyRegistryEntry
+	{
+	public:
+		// This function is used to create a proxy from a datatype's base uclass.
+		virtual Audio::IProxyDataPtr CreateAudioProxy(UObject*) const = 0;
+	};
+
+	class IMetasoundNodeRegistryEntry
+	{
+	public:
+		virtual TUniquePtr<Metasound::INode> CreateNode(const Metasound::FNodeInitData&) const = 0;
+		virtual FMetasoundFrontendClass CreateMetasoundFrontendClass() const = 0;
+	};
+	*/
+
+
 	typedef TFunction<TUniquePtr<Metasound::INode>(::Metasound::FInputNodeConstructorParams&&)> FCreateInputNodeFunction;
 	typedef TFunction<TUniquePtr<Metasound::INode>(const ::Metasound::FOutputNodeConstructorParams&)> FCreateOutputNodeFunction;
 
@@ -34,19 +77,21 @@ namespace Metasound
 		// This indicates the type can only be constructed with FOperatorSettings or the default constructor.
 		bool bIsDefaultParsable = false;
 
-		// These bools signify what basic
-		// UProperty primitives we can use to describe this data type as a literal in a document.
+		// These bools signify what basic literal types can be use to describe this data type.
 		bool bIsBoolParsable = false;
 		bool bIsIntParsable = false;
 		bool bIsFloatParsable = false;
 		bool bIsStringParsable = false;
+		bool bIsProxyParsable = false;
+		bool bIsDefaultArrayParsable = false;
+		bool bIsBoolArrayParsable = false;
+		bool bIsIntArrayParsable = false;
+		bool bIsFloatArrayParsable = false;
+		bool bIsStringArrayParsable = false;
+		bool bIsProxyArrayParsable = false;
 
 		// Is an TEnum wrapped enum
 		bool bIsEnum = false;
-		
-		// these are used for using UObjects, or arrays of UObjects.
-		bool bIsProxyParsable = false;
-		bool bIsProxyArrayParsable = false;
 
 		// Determines whether the type can be used with send/receive transmitters
 		bool bIsTransmittable = false;

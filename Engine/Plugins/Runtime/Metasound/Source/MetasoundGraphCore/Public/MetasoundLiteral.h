@@ -331,22 +331,4 @@ namespace Metasound
 	};
 
 
-	// This struct is passed to FInputNodeConstructorCallback and FOutputNodeConstructorCallback.
-	struct FInputNodeConstructorParams
-	{
-		// the instance name and name of the specific connection that we should use.
-		const FString& InNodeName;
-		const FGuid& InInstanceID;
-		const FString& InVertexName;
-
-		FLiteral InitParam;
-	};
-
-	struct FOutputNodeConstructorParams
-	{
-		// the instance name and name of the specific connection that we should use.
-		const FString& InNodeName;
-		const FGuid& InInstanceID;
-		const FString& InVertexName;
-	};
 }

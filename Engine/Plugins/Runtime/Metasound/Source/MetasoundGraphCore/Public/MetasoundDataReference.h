@@ -21,17 +21,31 @@
 		\
 		static const DataType* const TypePtr; \
 	}; \
-	\
+	/*TODO remove typedefs */ \
 	typedef ::Metasound::TDataReferenceTypeInfo<DataType> DataTypeInfoTypeName; \
 	\
 	typedef ::Metasound::TDataReadReference<DataType> DataReadReferenceTypeName; \
-	typedef ::Metasound::TDataWriteReference<DataType> DataWriteReferenceTypeName;
+	typedef ::Metasound::TDataWriteReference<DataType> DataWriteReferenceTypeName;\
+	template<> \
+	struct ::Metasound::TDataReferenceTypeInfo<TArray<DataType>> \
+	{ \
+		static ModuleApi const TCHAR* TypeName; \
+		static ModuleApi const FMetasoundDataTypeId TypeId; \
+		\
+		private: \
+		\
+		static const TArray<DataType>* const TypePtr; \
+	};
 
 // This only needs to be called if you don't plan on calling REGISTER_METASOUND_DATATYPE.
 #define DEFINE_METASOUND_DATA_TYPE(DataType, DataTypeName) \
 	const TCHAR*  				::Metasound::TDataReferenceTypeInfo<DataType>::TypeName = TEXT(DataTypeName); \
 	const DataType* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr = nullptr; \
-	const void* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypeId = static_cast<const FMetasoundDataTypeId>(&::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr);
+	const void* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypeId = static_cast<const FMetasoundDataTypeId>(&::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr); \
+	/* Array definition */\
+	const TCHAR*  				::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypeName = TEXT(DataTypeName ":Array"); \
+	const TArray<DataType>* const ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypePtr = nullptr; \
+	const void* const ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypeId = static_cast<const FMetasoundDataTypeId>(&::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypePtr);
 
 namespace Audio
 {
@@ -96,14 +110,6 @@ namespace Metasound
 	{
 		static METASOUNDGRAPHCORE_API const TCHAR* TypeName;
 		static METASOUNDGRAPHCORE_API const void* const TypeId;
-		static constexpr bool bIsStringParsable = false;
-		static constexpr bool bIsBoolParsable = false;
-		static constexpr bool bIsIntParsable = false;
-		static constexpr bool bIsFloatParsable = false;
-		static constexpr bool bIsProxyParsable = false;
-		static constexpr bool bIsProxyArrayParsable = false;
-		static constexpr bool bIsConstructableWithSettings = false;
-		static constexpr bool bCanUseDefaultConstructor = false;
 
 		private:
 

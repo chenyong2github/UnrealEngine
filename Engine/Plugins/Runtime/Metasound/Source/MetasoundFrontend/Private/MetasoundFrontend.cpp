@@ -193,8 +193,6 @@ REGISTER_METASOUND_DATATYPE(float, "Float", ::Metasound::ELiteralType::Float)
 REGISTER_METASOUND_DATATYPE(double, "Double", ::Metasound::ELiteralType::Float)
 REGISTER_METASOUND_DATATYPE(FString, "String", ::Metasound::ELiteralType::String)
 
-REGISTER_METASOUND_DATATYPE(TArray<float>, "FloatArray", ::Metasound::ELiteralType::FloatArray)
-
 REGISTER_METASOUND_DATATYPE(Metasound::FAudioBuffer, "Audio")
 REGISTER_METASOUND_DATATYPE(Metasound::FSendAddress, "Transmission:Address", ::Metasound::ELiteralType::String)
 

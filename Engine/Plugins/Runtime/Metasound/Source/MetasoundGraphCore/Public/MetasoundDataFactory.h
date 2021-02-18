@@ -409,7 +409,46 @@ namespace Metasound
 			template<
 				typename VariantParseType,
 				typename VariantType,
-				typename std::enable_if< VariantParseType::bCreateArrayWithArg, int>::type = 0
+				typename std::enable_if< VariantParseType::bCreateArrayElementsWithArg, int>::type = 0
+			>
+			static auto CreateNewFromVariant(const FOperatorSettings& InSettings, const VariantType& InVariant)
+			{
+				using FConstructorForwarding = TExplicitArgsConstructorForwarding<DataType>;
+
+				using FArgType = typename VariantParseType::ArgType;
+				using FArgElementType = typename VariantParseType::ArgElementType;
+				using FElementType = typename VariantParseType::ElementType;
+				using FElementConstructorForwarding = TExplicitArgsConstructorForwarding<FElementType, FArgElementType>;
+
+				using FElementFactory = TDataFactoryInternal<FElementType, DataFactoryPrivate::TDataTypeCreator<FElementType>>;
+
+				const FArgType& ConstructorValues = InVariant.template Get<FArgType>();
+
+				// Array construct objects
+				DataType OutputContainer;
+				for (const FArgElementType& ConstructorValue : ConstructorValues)
+				{
+					OutputContainer.Emplace(FElementFactory::template CreateNew<FElementConstructorForwarding>(InSettings, ConstructorValue));
+				}
+
+				// Move construct array.
+				return FInternalFactory::template CreateNew<FConstructorForwarding>(InSettings, MoveTemp(OutputContainer));
+			}
+
+			/** Create a new object using FOperatorSettings and TVariant.
+			 *
+			 * Note: In this implementation, the InVariant object is an array of 
+			 * FLiteral::FNone where each array element simply denotes that a corresponding
+			 * element should be constructed with FOperatorSettings.
+			 *
+			 * @tparam VariantParseType - A type which describes how to parse the InVariant
+			 *                            argument.
+			 * @tparam VariantType - The expected underlying type stored in InVariant.
+			 */
+			template<
+				typename VariantParseType,
+				typename VariantType,
+				typename std::enable_if< VariantParseType::bCreateArrayElementsWithSettings, int>::type = 0
 			>
 			static auto CreateNewFromVariant(const FOperatorSettings& InSettings, const VariantType& InVariant)
 			{
@@ -428,7 +467,7 @@ namespace Metasound
 				DataType OutputContainer;
 				for (const FArgElementType& ConstructorValue : ConstructorValues)
 				{
-					OutputContainer.Add(FElementFactory::template CreateNew<FElementConstructorForwarding>(InSettings, ConstructorValue));
+					OutputContainer.Add(FElementFactory::template CreateNew<FElementConstructorForwarding>(InSettings));
 				}
 
 				// Move construct array.
@@ -448,7 +487,7 @@ namespace Metasound
 			template<
 				typename VariantParseType,
 				typename VariantType,
-				typename std::enable_if< VariantParseType::bCreateArrayWithoutArg, int>::type = 0
+				typename std::enable_if< VariantParseType::bCreateArrayElementsWithDefaultConstructor, int>::type = 0
 			>
 			static auto CreateNewFromVariant(const FOperatorSettings& InSettings, const VariantType& InVariant)
 			{
@@ -649,8 +688,9 @@ namespace Metasound
 			using FFallbackHelper = TDataTypeVariantFallbackHelper<DataType, FirstVariantType, AdditionalVariantTypes...>;
 
 			// Determine which elementwise construction methods are supported
-			static constexpr bool bCanCreateArrayWithArg = FDesiredConstructorTraits::bIsArrayConstructibleWithArgs || FDesiredConstructorTraits::bIsArrayConstructibleWithSettingsAndArgs;
-			static constexpr bool bCanCreateArrayWithoutArg = FDesiredConstructorTraits::bIsArrayConstructibleWithSettings || FDesiredConstructorTraits::bIsArrayDefaultConstructible;
+			static constexpr bool bCanCreateArrayElementsWithArg = FDesiredConstructorTraits::bIsArrayConstructibleWithArgs || FDesiredConstructorTraits::bIsArrayConstructibleWithSettingsAndArgs;
+			static constexpr bool bCanCreateArrayElementsWithSettings = FDesiredConstructorTraits::bIsArrayConstructibleWithSettings; 
+			static constexpr bool bCanCreateArrayElementsWithDefaultConstructor = FDesiredConstructorTraits::bIsArrayDefaultConstructible;
 
 			// Determine which construction methods are supported
 			static constexpr bool bCanCreateWithArg = FDesiredConstructorTraits::bIsConstructibleWithArgs || FDesiredConstructorTraits::bIsConstructibleWithSettingsAndArgs;
@@ -659,15 +699,16 @@ namespace Metasound
 
 		public:
 
-			static constexpr bool bCannotForwardToConstructor = !(bCanCreateWithArg || bCanCreateWithoutArg || bCanCreateWithFallbackArg || bCanCreateArrayWithArg || bCanCreateArrayWithoutArg);
+			static constexpr bool bCannotForwardToConstructor = !(bCanCreateWithArg || bCanCreateWithoutArg || bCanCreateWithFallbackArg || bCanCreateArrayElementsWithArg || bCanCreateArrayElementsWithDefaultConstructor);
 
 			// Determine which construction method to use.
-			static constexpr bool bCreateArrayWithArg = bCanCreateArrayWithArg;
-			static constexpr bool bCreateArrayWithoutArg = !(bCanCreateArrayWithArg) && bCanCreateArrayWithoutArg;
+			static constexpr bool bCreateArrayElementsWithArg = bCanCreateArrayElementsWithArg;
+			static constexpr bool bCreateArrayElementsWithSettings = !(bCanCreateArrayElementsWithArg) && bCanCreateArrayElementsWithSettings;
+			static constexpr bool bCreateArrayElementsWithDefaultConstructor = !(bCanCreateArrayElementsWithArg || bCreateArrayElementsWithSettings) && bCanCreateArrayElementsWithDefaultConstructor;
 
-			static constexpr bool bCreateWithArg = !(bCreateArrayWithArg || bCreateArrayWithoutArg) && bCanCreateWithArg;
-			static constexpr bool bCreateWithoutArg = !(bCreateArrayWithArg || bCreateArrayWithoutArg || bCreateWithArg) && bCanCreateWithoutArg;
-			static constexpr bool bCreateWithFallbackArg = !(bCreateArrayWithArg || bCreateArrayWithoutArg || bCreateWithArg || bCreateWithoutArg) && bCanCreateWithFallbackArg;
+			static constexpr bool bCreateWithArg = !(bCreateArrayElementsWithArg || bCreateArrayElementsWithSettings || bCreateArrayElementsWithDefaultConstructor) && bCanCreateWithArg;
+			static constexpr bool bCreateWithoutArg = !(bCreateArrayElementsWithArg || bCreateArrayElementsWithSettings || bCreateArrayElementsWithDefaultConstructor || bCreateWithArg) && bCanCreateWithoutArg;
+			static constexpr bool bCreateWithFallbackArg = !(bCreateArrayElementsWithArg || bCreateArrayElementsWithSettings || bCreateArrayElementsWithDefaultConstructor || bCreateWithArg || bCreateWithoutArg) && bCanCreateWithFallbackArg;
 
 			// Determine types
 			using ElementType = typename TElementType<DataType>::Type;
