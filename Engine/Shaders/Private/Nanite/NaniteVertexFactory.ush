@@ -15,6 +15,9 @@ struct FVertexFactoryInterpolantsVSToPS
 #if VF_USE_PRIMITIVE_SCENE_DATA && NEEDS_LIGHTMAP_COORDINATE
 	nointerpolation uint LightmapDataIndex : LIGHTMAP_ID;
 #endif
+#if INSTANCED_STEREO
+	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
+#endif
 };
 
 #if NEEDS_LIGHTMAP_COORDINATE

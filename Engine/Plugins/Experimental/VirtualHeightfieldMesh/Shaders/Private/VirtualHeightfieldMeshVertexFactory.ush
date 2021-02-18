@@ -52,6 +52,9 @@ struct FVertexFactoryInterpolantsVSToPS
 #if NUM_TEX_COORD_INTERPOLATORS
 	float4 TexCoords[(NUM_TEX_COORD_INTERPOLATORS + 1) / 2] : TEXCOORD0;
 #endif
+#if INSTANCED_STEREO
+	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
+#endif
 };
 
 /** Fetch the lod bias for the location. */
