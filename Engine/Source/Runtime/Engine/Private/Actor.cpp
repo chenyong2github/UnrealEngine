@@ -3138,7 +3138,7 @@ bool AActor::IsSelectedInEditor() const
 
 bool AActor::SupportsExternalPackaging() const
 {
-	if (HasAllFlags(RF_Transient))
+	if (HasAllFlags(RF_Transient) || GetClass()->HasAllClassFlags(CLASS_Transient))
 	{
 		return false;
 	}
