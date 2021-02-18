@@ -574,7 +574,7 @@ public:
 
 	virtual bool TryToPrefetch(TConstArrayView<FString> CacheKeys, FStringView DebugContext) override
 	{
-		if (CacheKeys.Num() > 1)
+		if (!CacheKeys.IsEmpty())
 		{
 			DDC_SCOPE_CYCLE_COUNTER(DDC_TryToPrefetch);
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("TryToPrefetch %d keys including %s from '%.*s'"),
