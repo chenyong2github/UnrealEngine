@@ -194,19 +194,19 @@ public:
 
 	EHairBindingType GetBindingType(int32 InLODIndex) const
 	{ 
-		if (InLODIndex < 0 && InLODIndex >= BindingTypes.Num()) return EHairBindingType::NoneBinding;
+		if (InLODIndex < 0 || InLODIndex >= BindingTypes.Num()) return EHairBindingType::NoneBinding;
 		return BindingTypes[InLODIndex];
 	}	
 
 	bool IsSimulationEnable(int32 InLODIndex) const
 	{
-		if (InLODIndex < 0 && InLODIndex >= LODSimulations.Num()) return false;
+		if (InLODIndex < 0 || InLODIndex >= LODSimulations.Num()) return false;
 		return LODSimulations[InLODIndex];
 	}
 
 	bool IsGlobalInterpolationEnable(int32 InLODIndex) const 
 	{
-		if (InLODIndex < 0 && InLODIndex >= LODGlobalInterpolations.Num()) return false;
+		if (InLODIndex < 0 || InLODIndex >= LODGlobalInterpolations.Num()) return false;
 		return LODGlobalInterpolations[InLODIndex];
 	}
 
