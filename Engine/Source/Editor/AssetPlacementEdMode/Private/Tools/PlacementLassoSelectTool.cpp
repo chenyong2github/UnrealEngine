@@ -14,6 +14,7 @@
 #include "UObject/Object.h"
 #include "BaseBehaviors/KeyAsModifierInputBehavior.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Modes/PlacementModeSubsystem.h"
 
 constexpr TCHAR UPlacementModeLassoSelectTool::ToolName[];
 
@@ -56,7 +57,7 @@ void UPlacementModeLassoSelectTool::OnTick(float DeltaTime)
 				FoliageActor->ForEachFoliageInfo([this, bSelectElements](UFoliageType* InFoliageType, FFoliageInfo& InFoliageInfo)
 				{
 					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(InFoliageType->GetSource());
-					if (UAssetPlacementEdMode::DoesPaletteSupportElement(SourceObjectHandle, PlacementSettings->PaletteItems))
+					if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
 					{
 						TArray<int32> Instances;
 						FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);

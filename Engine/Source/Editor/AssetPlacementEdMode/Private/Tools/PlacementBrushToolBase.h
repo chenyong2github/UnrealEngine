@@ -20,9 +20,6 @@ public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
-	UPROPERTY()
-	TWeakObjectPtr<UAssetPlacementSettings> PlacementSettings;
-
 protected:
 	virtual UPlacementBrushToolBase* FactoryToolInstance(UObject* Outer) const PURE_VIRTUAL(UPlacementToolBuilderBase::FactoryToolInstance, return nullptr; );
 };
@@ -44,6 +41,4 @@ protected:
 	FTransform GetFinalTransformFromHitLocationAndNormal(const FVector& InLocation, const FVector& InNormal);
 	virtual FRotator GetFinalRotation(const FTransform& InTransform);
 	TArray<FTypedElementHandle> GetElementsInBrushRadius() const;
-
-	TWeakObjectPtr<UAssetPlacementSettings> PlacementSettings;
 };

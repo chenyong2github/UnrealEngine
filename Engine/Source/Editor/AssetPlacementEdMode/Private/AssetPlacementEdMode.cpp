@@ -5,6 +5,7 @@
 #include "InteractiveToolManager.h"
 #include "AssetPlacementEdModeStyle.h"
 #include "AssetPlacementEdModeCommands.h"
+#include "AssetPlacementSettings.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "EditorModeManager.h"
 #include "InstancedFoliageActor.h"
@@ -25,6 +26,7 @@
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 #include "Settings/LevelEditorMiscSettings.h"
+#include "Modes/PlacementModeSubsystem.h"
 
 #include "Subsystems/EditorActorSubsystem.h"
 #include "InstancedFoliageActor.h"
@@ -41,7 +43,6 @@ UAssetPlacementEdMode::UAssetPlacementEdMode()
 		FSlateIcon(FAssetPlacementEdModeStyle::GetStyleSetName(), "PlacementBrowser.ShowAllContent"),
 		MoveTemp(IsEnabledAttr));
 
-	SettingsClass = UAssetPlacementSettings::StaticClass();
 	bIsInSelectionTool = false;
 }
 
@@ -51,31 +52,25 @@ UAssetPlacementEdMode::~UAssetPlacementEdMode()
 
 void UAssetPlacementEdMode::Enter()
 {
+	// Set the settings object before we call Super::Enter, so that it's available for hooking up in the toolkit
+	SettingsObject = const_cast<UAssetPlacementSettings*>(GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject().Get());
+
 	Super::Enter();
 
 	const FAssetPlacementEdModeCommands& PlacementModeCommands = FAssetPlacementEdModeCommands::Get();
 	RegisterTool(PlacementModeCommands.Select, UPlacementModeSelectTool::ToolName, NewObject<UPlacementModeSelectToolBuilder>(this));
+	RegisterTool(PlacementModeCommands.Place, UPlacementModePlacementTool::ToolName, NewObject<UPlacementModePlacementToolBuilder>(this));
+	RegisterTool(PlacementModeCommands.LassoSelect, UPlacementModeLassoSelectTool::ToolName, NewObject<UPlacementModeLassoSelectToolBuilder>(this));
+	RegisterTool(PlacementModeCommands.PlaceSingle, UPlacementModePlaceSingleTool::ToolName, NewObject<UPlacementModePlaceSingleToolBuilder>(this));
+	RegisterTool(PlacementModeCommands.Erase, UPlacementModeEraseTool::ToolName, NewObject<UPlacementModeEraseToolBuilder>(this));
 
-	UPlacementModePlacementToolBuilder* PlaceToolBuilder = NewObject<UPlacementModePlacementToolBuilder>(this);
-	PlaceToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
-	RegisterTool(PlacementModeCommands.Place, UPlacementModePlacementTool::ToolName, PlaceToolBuilder);
-
-	UPlacementModeLassoSelectToolBuilder* LassoToolBuilder = NewObject<UPlacementModeLassoSelectToolBuilder>(this);
-	LassoToolBuilder->PlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
-	RegisterTool(PlacementModeCommands.LassoSelect, UPlacementModeLassoSelectTool::ToolName, LassoToolBuilder);
-
-	UPlacementModePlaceSingleToolBuilder* SinglePlaceToolBuilder = NewObject<UPlacementModePlaceSingleToolBuilder>(this);
-	SinglePlaceToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
-	RegisterTool(PlacementModeCommands.PlaceSingle, UPlacementModePlaceSingleTool::ToolName, SinglePlaceToolBuilder);
-
-	UPlacementModeEraseToolBuilder* EraseToolBuilder = NewObject<UPlacementModeEraseToolBuilder>(this);
-	EraseToolBuilder->PlacementSettings = SettingsObjectAsPlacementSettings;
-	RegisterTool(PlacementModeCommands.Erase, UPlacementModeEraseTool::ToolName, EraseToolBuilder);
-
+	// Enable the select tool by default.
+	// Disable undo tracking so that we can't accidentally undo ourselves out of the select mode and into an invalid state.
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
 	ToolsContext->StartTool(UPlacementModeSelectTool::ToolName);
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::FullUndoRedo);
 
+	// Stash the current editor selection, since this mode will modify it.
 	Owner->StoreSelection(AssetPlacementEdModeID);
 }
 
@@ -90,6 +85,7 @@ void UAssetPlacementEdMode::Exit()
 		IFA->SelectInstance(nullptr, 0, bAppendSelection);
 	}
 
+	// Restore the selection to the original state.
 	Owner->RestoreSelection(AssetPlacementEdModeID);
 
 	SettingsObjectAsPlacementSettings.Reset();
@@ -138,7 +134,7 @@ bool UAssetPlacementEdMode::IsSelectionAllowed(AActor* InActor, bool bInSelectio
 
 	// And we need to have a valid palette item.
 	FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor);
-	return DoesPaletteSupportElement(ActorHandle, SettingsObjectAsPlacementSettings->PaletteItems);
+	return GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(ActorHandle);
 }
 
 void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -195,34 +191,6 @@ bool UAssetPlacementEdMode::ShouldDrawWidget() const
 bool UAssetPlacementEdMode::IsEnabled()
 {
 	return GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode;
-}
-
-bool UAssetPlacementEdMode::DoesPaletteSupportElement(const FTypedElementHandle& InElementToCheck, const TArray<FPaletteItem>& InPaletteToCheck)
-{
-	if (TTypedElement<UTypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementAssetDataInterface>(InElementToCheck))
-	{
-		TArray<FAssetData> ReferencedAssetDatas = AssetDataInterface.GetAllReferencedAssetDatas();
-		for (const FPaletteItem& Item : InPaletteToCheck)
-		{
-			if (ReferencedAssetDatas.Find(Item.AssetData) != INDEX_NONE)
-			{
-				return true;
-			}
-		}
-	}
-
-	// The current implementation of the asset data interface for actors requires that individual actors report on assets contained within their components.
-	// Not all actors do this reliably, so additionally check the supplied factory for a match. 
-	for (const FPaletteItem& Item : InPaletteToCheck)
-	{
-		FAssetData FoundAssetDataFromFactory = Item.FactoryOverride->GetAssetDataFromElementHandle(InElementToCheck);
-		if (FoundAssetDataFromFactory == Item.AssetData)
-		{
-			return true;
-		}
-	}
-
-	return false;
 }
 
 void UAssetPlacementEdMode::DeleteSelection()

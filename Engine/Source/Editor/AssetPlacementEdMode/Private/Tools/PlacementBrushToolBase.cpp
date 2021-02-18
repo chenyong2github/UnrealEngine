@@ -17,18 +17,17 @@
 #include "AssetPlacementEdMode.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Editor.h"
+#include "Modes/PlacementModeSubsystem.h"
 
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
-{
+{	
+	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
 	return PlacementSettings.IsValid() && PlacementSettings->PaletteItems.Num();
 }
 
 UInteractiveTool* UPlacementToolBuilderBase::BuildTool(const FToolBuilderState& SceneState) const
 {
-	UPlacementBrushToolBase* NewTool = FactoryToolInstance(SceneState.ToolManager);
-	NewTool->PlacementSettings = PlacementSettings;
-
-	return NewTool;
+	return FactoryToolInstance(SceneState.ToolManager);
 }
 
 bool UPlacementBrushToolBase::HitTest(const FRay& Ray, FHitResult& OutHit)
@@ -54,15 +53,17 @@ bool UPlacementBrushToolBase::FindHitResultWithStartAndEndTraceVectors(FHitResul
 	UWorld* EditingWorld = GetToolManager()->GetWorld();
 	constexpr TCHAR NAME_PlacementBrushTool[] = TEXT("PlacementBrushTool");
 
-	auto FilterFunc = [this](const UPrimitiveComponent* InComponent) {
-		if (InComponent && this->PlacementSettings.IsValid())
+	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
+
+	auto FilterFunc = [PlacementSettings](const UPrimitiveComponent* InComponent) {
+		if (InComponent && PlacementSettings.IsValid())
 		{
 			bool bFoliageOwned = InComponent->GetOwner() && FFoliageHelper::IsOwnedByFoliage(InComponent->GetOwner());
-			const bool bAllowLandscape = this->PlacementSettings->bLandscape;
-			const bool bAllowStaticMesh = this->PlacementSettings->bStaticMeshes;
-			const bool bAllowBSP = this->PlacementSettings->bBSP;
-			const bool bAllowFoliage = this->PlacementSettings->bFoliage;
-			const bool bAllowTranslucent = this->PlacementSettings->bTranslucent;
+			const bool bAllowLandscape = PlacementSettings->bLandscape;
+			const bool bAllowStaticMesh = PlacementSettings->bStaticMeshes;
+			const bool bAllowBSP = PlacementSettings->bBSP;
+			const bool bAllowFoliage = PlacementSettings->bFoliage;
+			const bool bAllowTranslucent = PlacementSettings->bTranslucent;
 
 			// Whitelist
 			bool bAllowed =
@@ -87,6 +88,7 @@ FTransform UPlacementBrushToolBase::GetFinalTransformFromHitLocationAndNormal(co
 {
 	FTransform FinalizedTransform(InLocation);
 
+	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
 	if (!PlacementSettings.IsValid())
 	{
 		return FinalizedTransform;
@@ -139,6 +141,7 @@ FRotator UPlacementBrushToolBase::GetFinalRotation(const FTransform& InTransform
 {
 	FRotator UpdatedRotation = InTransform.Rotator();
 
+	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
 	if (!PlacementSettings.IsValid())
 	{
 		return UpdatedRotation;
@@ -198,7 +201,7 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() 
 		if (HitActor)
 		{
 			FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(HitActor);
-			if (UAssetPlacementEdMode::DoesPaletteSupportElement(ActorHandle, PlacementSettings->PaletteItems))
+			if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(ActorHandle))
 			{
 				ElementHandles.Emplace(ActorHandle);
 			}
@@ -215,7 +218,7 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() 
 			for (const auto& FoliageInfo : FoliageActor->GetFoliageInfos())
 			{
 				FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageInfo.Key->GetSource());
-				if (UAssetPlacementEdMode::DoesPaletteSupportElement(SourceObjectHandle, PlacementSettings->PaletteItems))
+				if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
 				{
 					TArray<int32> Instances;
 					FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);

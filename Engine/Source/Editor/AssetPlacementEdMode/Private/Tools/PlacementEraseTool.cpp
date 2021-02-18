@@ -13,6 +13,7 @@
 #include "InstancedFoliageActor.h"
 #include "AssetPlacementEdMode.h"
 #include "AssetPlacementSettings.h"
+#include "Modes/PlacementModeSubsystem.h"
 
 constexpr TCHAR UPlacementModeEraseTool::ToolName[];
 
@@ -60,7 +61,7 @@ void UPlacementModeEraseTool::OnTick(float DeltaTime)
 				FoliageActor->ForEachFoliageInfo([this](UFoliageType* FoliageType, FFoliageInfo& FoliageInfo)
 				{
 					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageType->GetSource());
-					if (UAssetPlacementEdMode::DoesPaletteSupportElement(SourceObjectHandle, PlacementSettings->PaletteItems))
+					if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
 					{
 						TArray<int32> Instances;
 						FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);

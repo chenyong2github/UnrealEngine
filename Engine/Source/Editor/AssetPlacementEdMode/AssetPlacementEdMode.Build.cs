@@ -16,6 +16,7 @@ public class AssetPlacementEdMode : ModuleRules
 				"SlateCore",
                 "EditorStyle",
 				"EditorFramework",
+				"EditorSubsystem",
 				"UnrealEd",
 				"EditorInteractiveToolsFramework",
 				"InteractiveToolsFramework",

@@ -5,9 +5,10 @@
 #include "CoreMinimal.h"
 #include "Tools/LegacyEdModeWidgetHelpers.h"
 #include "Elements/Framework/TypedElementHandle.h"
-#include "AssetPlacementSettings.h"
 
 #include "AssetPlacementEdMode.generated.h"
+
+class UAssetPlacementSettings;
 
 UCLASS()
 class UAssetPlacementEdMode : public UBaseLegacyWidgetEdMode
@@ -40,7 +41,6 @@ public:
 	//////////////////
 
 	static bool IsEnabled();
-	static bool DoesPaletteSupportElement(const FTypedElementHandle& InElementToCheck, const TArray<FPaletteItem>& InPaletteToCheck);
 
 protected:
 	enum class ESelectMode

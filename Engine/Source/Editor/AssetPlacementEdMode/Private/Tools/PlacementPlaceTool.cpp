@@ -8,6 +8,7 @@
 #include "Editor.h"
 #include "InstancedFoliage.h"
 #include "InteractiveToolManager.h"
+#include "Modes/PlacementModeSubsystem.h"
 
 constexpr TCHAR UPlacementModePlacementTool::ToolName[];
 
@@ -37,6 +38,7 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 		return;
 	}
 
+	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
 	if (BrushProperties && PlacementSettings.IsValid() && PlacementSettings->PaletteItems.Num())
 	{
 		FVector BrushLocation = LastBrushStamp.WorldPosition;
