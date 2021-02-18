@@ -65,11 +65,11 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/*
-	 * The staticmesh owner of this source model. We need the SM to be able to convert between MeshDesription and RawMesh.
-	 * RawMesh use int32 material index and MeshDescription use FName material slot name.
-	 * This member is fill in the PostLoad of the static mesh.
+	 * We used to maintain the UStaticMesh which owned the source model here.
+	 * Now this is not necessary as we can get it from the Outer of the StaticMeshDescriptionBulkData.
+	 * This means less to maintain
 	 */
-	UPROPERTY(Transient)
+	UE_DEPRECATED(5.0, "StaticMeshOwner is now deprecated.")
 	class UStaticMesh* StaticMeshOwner;
 
 	/**
@@ -82,6 +82,11 @@ public:
 #endif
 
 #if WITH_EDITOR
+	/**
+	 * Returns the static mesh which owns this source model.
+	 */
+	ENGINE_API UStaticMesh* GetStaticMeshOwner() const;
+
 	/**
 	 * Create a new MeshDescription object
 	 */

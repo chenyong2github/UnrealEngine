@@ -2888,8 +2888,8 @@ UStaticMesh::UStaticMesh(const FObjectInitializer& ObjectInitializer)
 	ImportVersion = EImportStaticMeshVersion::BeforeImportStaticMeshVersionWasAdded;
 	LODForOccluderMesh = -1;
 	NumStreamedLODs.Default = -1;
-	GetHiResSourceModel().StaticMeshOwner = this;
 	GetHiResSourceModel().StaticMeshDescriptionBulkData = CreateEditorOnlyDefaultSubobject<UStaticMeshDescriptionBulkData>(TEXT("HiResMeshDescription"));
+	GetHiResSourceModel().StaticMeshDescriptionBulkData->SetFlags(RF_Transactional);
 #endif // #if WITH_EDITORONLY_DATA
 	SetLightMapResolution(4);
 	SetMinLOD(0);
@@ -4924,15 +4924,6 @@ void UStaticMesh::Serialize(FArchive& Ar)
 			SrcModel.SerializeBulkData(Ar, this);
 		}
 
-		if (Ar.IsLoading())
-		{
-			GetHiResSourceModel().StaticMeshOwner = this;
-			if (GetHiResSourceModel().StaticMeshDescriptionBulkData == nullptr)
-			{
-				GetHiResSourceModel().StaticMeshDescriptionBulkData = NewObject<UStaticMeshDescriptionBulkData>(this, NAME_None, RF_Transactional);
-			}
-		}
-
 		if (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::UPropertryForMeshSection)
 		{
 			GetSectionInfoMap().Serialize(Ar);
@@ -5794,6 +5785,7 @@ UStaticMeshDescription* UStaticMesh::GetStaticMeshDescription(int32 LODIndex)
 #if WITH_EDITOR
 	if (LODIndex < GetNumSourceModels())
 	{
+		GetSourceModel(LODIndex).GetOrCacheMeshDescription();
 		return GetSourceModel(LODIndex).GetCachedStaticMeshDescription();
 	}
 #endif
