@@ -269,7 +269,7 @@ FAutoConsoleVariableRef CVarRadianceCacheNumClipmaps(
 	ECVF_RenderThreadSafe
 );
 
-float GLumenRadianceCacheClipmapWorldExtent = 5000.0f;
+float GLumenRadianceCacheClipmapWorldExtent = 2500.0f;
 FAutoConsoleVariableRef CVarLumenRadianceCacheClipmapWorldExtent(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.ClipmapWorldExtent"),
 	GLumenRadianceCacheClipmapWorldExtent,
@@ -293,7 +293,7 @@ FAutoConsoleVariableRef CVarRadianceCacheNumProbeTracesBudget(
 	ECVF_RenderThreadSafe
 );
 
-int32 GRadianceCacheGridResolution = 64;
+int32 GRadianceCacheGridResolution = 48;
 FAutoConsoleVariableRef CVarRadianceCacheResolution(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.GridResolution"),
 	GRadianceCacheGridResolution,
