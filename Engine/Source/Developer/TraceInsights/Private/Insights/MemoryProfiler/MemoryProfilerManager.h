@@ -51,6 +51,7 @@ public:
 	virtual void Shutdown() override;
 	virtual void RegisterMajorTabs(IUnrealInsightsModule& InsightsModule) override;
 	virtual void UnregisterMajorTabs() override;
+	virtual void OnWindowClosedEvent() override;
 
 	//////////////////////////////////////////////////
 

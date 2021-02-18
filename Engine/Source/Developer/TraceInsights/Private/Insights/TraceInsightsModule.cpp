@@ -420,6 +420,11 @@ void FTraceInsightsModule::StartAnalysisForTraceFile(const TCHAR* InTraceFile, b
 
 void FTraceInsightsModule::OnWindowClosedEvent(const TSharedRef<SWindow>&)
 {
+	for (TSharedRef<IInsightsComponent>& Component : Components)
+	{
+		Component->OnWindowClosedEvent();
+	}
+
 	FGlobalTabmanager::Get()->SaveAllVisualState();
 }
 

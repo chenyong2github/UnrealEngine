@@ -367,4 +367,16 @@ void FMemoryProfilerManager::ShowHideMemTagTreeView(const bool bIsVisible)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FMemoryProfilerManager::OnWindowClosedEvent()
+{
+	// Need to close MemAlloc window to prevent it being saved in the layout and spawning as an "Unregister Tab" on the next application start. 
+	TSharedPtr<SMemoryProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd.IsValid())
+	{
+		Wnd->CloseMemAllocTableTreeTabs();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #undef LOCTEXT_NAMESPACE

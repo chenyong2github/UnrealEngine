@@ -304,6 +304,9 @@ public:
 
 	/* Requests this component to unregister its major tabs. */
 	virtual void UnregisterMajorTabs() = 0;
+
+	/* Called by the TraceInsights module when it receives the OnWindowClosedEvent. Can be used to close any panels that should not persist in the layout. */
+	virtual void OnWindowClosedEvent() {};
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
