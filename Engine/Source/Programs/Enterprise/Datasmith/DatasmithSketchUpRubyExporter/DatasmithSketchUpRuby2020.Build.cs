@@ -59,7 +59,7 @@ namespace UnrealBuildTool.Rules
 
 				if (!Directory.Exists(SketchUpSDKLocation))
                 {
-					throw new System.Exception("SketchUp SDK directory doesn't exist: '" + SketchUpSDKLocation + "'");
+					// System.Console.WriteLine("SketchUp SDK directory doesn't exist: '" + SketchUpSDKLocation + "'");
 				}
 			}
 		}
