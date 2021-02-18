@@ -43,28 +43,26 @@ public:
 	}
 
 	virtual int32 LoadPackage(
-			const FString& InPackageName,
-			const FGuid* InGuid,
-			const TCHAR* InPackageToLoadFrom,
-			FLoadPackageAsyncDelegate InCompletionDelegate,
-			EPackageFlags InPackageFlags,
-			int32 InPIEInstanceID,
-			int32 InPackagePriority,
-			const FLinkerInstancingContext* InstancingContext) override
+		const FPackagePath& PackagePath,
+		FName CustomPackageName,
+		FLoadPackageAsyncDelegate InCompletionDelegate,
+		const FGuid* InGuid,
+		EPackageFlags InPackageFlags,
+		int32 InPIEInstanceID,
+		int32 InPackagePriority,
+		const FLinkerInstancingContext* InstancingContext) override
 	{
-		const TCHAR* PackageName = InPackageToLoadFrom ? InPackageToLoadFrom : *InPackageName;
-
 		// Use the old loader if an uncooked package exists on disk
-		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExist(InPackageName, nullptr, nullptr, true) && !DoesPackageExistInIoStore(FName(*InPackageName));
+		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExist(PackagePath) && !DoesPackageExistInIoStore(PackagePath.GetPackageFName());
 		if (bDoesUncookedPackageExist)
 		{
-			UE_LOG(LogEditorPackageLoader, Verbose, TEXT("Loading uncooked package '%s' from filesystem"), PackageName);
-			return UncookedPackageLoader->LoadPackage(InPackageName, InGuid, InPackageToLoadFrom, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+			UE_LOG(LogEditorPackageLoader, Verbose, TEXT("Loading uncooked package '%s' from filesystem"), *PackagePath.GetDebugName());
+			return UncookedPackageLoader->LoadPackage(PackagePath, CustomPackageName, InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
 		}
 		else
 		{
-			UE_LOG(LogEditorPackageLoader, Verbose, TEXT("Loading cooked package '%s' from I/O Store"), PackageName);
-			return CookedPackageLoader->LoadPackage(InPackageName, InGuid, InPackageToLoadFrom, InCompletionDelegate, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
+			UE_LOG(LogEditorPackageLoader, Verbose, TEXT("Loading cooked package '%s' from I/O Store"), *PackagePath.GetDebugName());
+			return CookedPackageLoader->LoadPackage(PackagePath, CustomPackageName, InCompletionDelegate, InGuid, InPackageFlags, InPIEInstanceID, InPackagePriority, InstancingContext);
 		}
 	}
 

@@ -5781,8 +5781,8 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 					SCOPED_LOADTIMER(CreateLinker_DoesExist);
 					bDoesPackageExist = FPackageName::DoesPackageExist(PackagePath, Guid, false /* bMatchCaseOnDisk */, &PackagePath);
 #if WITH_IOSTORE_IN_EDITOR
-				// Only look for non cooked packages on disk
-				DoesPackageExist &= !DoesPackageExistInIoStore(NameToLoadFName);
+					// Only look for non cooked packages on disk
+					bDoesPackageExist &= !DoesPackageExistInIoStore(NameToLoadFName);
 #endif
 				}
 

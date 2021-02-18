@@ -1118,7 +1118,7 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 #if WITH_IOSTORE_IN_EDITOR
 		// Use the old loader if an uncooked package exists on disk
-		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExist(PackagePath, nullptr) && !DoesPackageExistInIoStore(PackageName);
+		const bool bDoesUncookedPackageExist = FPackageName::DoesPackageExist(PackagePath) && !DoesPackageExistInIoStore(PackageName);
 		if (!bDoesUncookedPackageExist)
 #endif
 		{
