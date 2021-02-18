@@ -10,7 +10,7 @@ using UnrealBuildTool;
 /// <summary>
 /// Common UEBuild utilities
 /// </summary>
-public class UE4BuildUtils : CommandUtils
+public class UEBuildUtils : CommandUtils
 {
 	/// <summary>
 	/// Builds BuildPatchTool for the specified platform.

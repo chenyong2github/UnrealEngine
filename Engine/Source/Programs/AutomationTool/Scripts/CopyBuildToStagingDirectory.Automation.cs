@@ -116,7 +116,7 @@ public partial class Project : CommandUtils
 			{
 				if (!CommandUtils.FileExists_NoExceptions(BuildPatchToolExe))
 				{
-					UE4BuildUtils.BuildBuildPatchTool(null, UnrealBuildTool.BuildHostPlatform.Current.Platform);
+					UEBuildUtils.BuildBuildPatchTool(null, UnrealBuildTool.BuildHostPlatform.Current.Platform);
 				}
 			}
 		}
