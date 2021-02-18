@@ -139,6 +139,9 @@ protected:
 	/** Called when the comment text is committed */
 	void OnCommentTextCommitted( const FText& NewText, ETextCommit::Type CommitInfo );
 
+	FSlateColor GetTextBackgroundColor() const;
+	FSlateColor GetTextForegroundColor() const;
+	FSlateColor GetReadOnlyTextForegroundColor() const;
 	/** Returns bubble toggle check state */
 	ECheckBoxState GetToggleButtonCheck() const;
 
@@ -174,7 +177,7 @@ protected:
 	FIsGraphNodeHovered IsGraphNodeHovered;
 
 	/** Current Foreground Color */
-	FLinearColor ForegroundColor;
+	FSlateColor ForegroundColor;
 	/** Allow pin behaviour */
 	bool bAllowPinning;
 	/** Allow in bubble controls */
