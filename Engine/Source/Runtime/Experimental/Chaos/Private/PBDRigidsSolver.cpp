@@ -340,6 +340,8 @@ namespace Chaos
 					}
 				}
 			});
+		
+		JointConstraints.SetUpdateVelocityInApplyConstraints(true);
 	}
 
 	float MaxBoundsForTree = 10000;

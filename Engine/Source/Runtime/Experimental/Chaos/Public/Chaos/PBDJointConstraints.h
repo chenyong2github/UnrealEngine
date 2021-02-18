@@ -141,6 +141,11 @@ namespace Chaos
 		 */
 		void FixConstraints(int32 ConstraintIndex);
 
+		/*
+		* Enable or disable velocity update in apply constraints
+		*/
+		void SetUpdateVelocityInApplyConstraints(bool bEnabled) { bUpdateVelocityInApplyConstraints = bEnabled; }
+
 		void SetPreApplyCallback(const FJointPostApplyCallback& Callback);
 		void ClearPreApplyCallback();
 
@@ -254,6 +259,7 @@ namespace Chaos
 		FConstraintHandleAllocator HandleAllocator;
 		bool bJointsDirty;
 		bool bIsBatched;
+		bool bUpdateVelocityInApplyConstraints;
 
 		FJointPreApplyCallback PreApplyCallback;
 		FJointPostApplyCallback PostApplyCallback;
