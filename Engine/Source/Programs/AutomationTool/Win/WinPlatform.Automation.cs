@@ -129,7 +129,7 @@ public class Win64Platform : Platform
 
 		if (Params.Prereqs)
 		{
-			SC.StageFile(StagedFileType.NonUFS, FileReference.Combine(SC.EngineRoot, "Extras", "Redist", "en-us", "UE4PrereqSetup_x64.exe"));
+			SC.StageFile(StagedFileType.NonUFS, FileReference.Combine(SC.EngineRoot, "Extras", "Redist", "en-us", "UEPrereqSetup_x64.exe"));
 		}
 
 		if (!string.IsNullOrWhiteSpace(Params.AppLocalDirectory))
