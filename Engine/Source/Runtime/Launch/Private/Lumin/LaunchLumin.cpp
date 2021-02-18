@@ -158,6 +158,7 @@ static bool IncreasePerProcessLimits()
 
 int main(int argc, char *argv[])
 {
+	FTaskTagScope Scope(ETaskTag::EGameThread);
 	FPlatformMisc::SetGracefulTerminationHandler();
 
 	int ErrorLevel = 0;
