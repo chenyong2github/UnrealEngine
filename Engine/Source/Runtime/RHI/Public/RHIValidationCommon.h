@@ -800,7 +800,7 @@ namespace RHIValidation
 
 		inline void AssertUAV(FUnorderedAccessView* UAV, ERHIAccess Access, int32 Slot)
 		{
-			checkSlow(!(Access == ~ERHIAccess::UAVMask));
+			checkSlow(!(Access & ~ERHIAccess::UAVMask));
 			AssertUAV(UAV, Access == ERHIAccess::UAVGraphics ? EUAVMode::Graphics : EUAVMode::Compute, Slot);
 		}
 
