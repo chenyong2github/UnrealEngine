@@ -187,12 +187,11 @@ namespace Gauntlet
 					}
 
 					// look for-args= and then -clientargs= and -editorargs etc
-					Role.ExtraArgs = Globals.Params.ParseValue("Args", "");
-					string ExtraRoleArgs = Globals.Params.ParseValue(Type.ToString() + "Args", "");
-
-					if (!string.IsNullOrEmpty(ExtraRoleArgs))
+					Role.ExtraArgs = string.Join(' ', Globals.Params.ParseValues("Args", true));
+					IEnumerable<string> ExtraRoleArgs = Globals.Params.ParseValues(Type.ToString() + "Args", true);
+					if (ExtraRoleArgs.Count() > 0)
 					{
-						Role.ExtraArgs += ExtraRoleArgs;
+						Role.ExtraArgs += " " + string.Join(' ', ExtraRoleArgs);
 					}
 
 					// look for -clientexeccmds=, -editorexeccmds= etc, these are separate from clientargs for sanity
