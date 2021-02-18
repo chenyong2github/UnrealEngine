@@ -34,13 +34,14 @@ namespace AutomationTool
 			this.Platform = Platform;
 		}
 
-		public DeviceInfo(UnrealTargetPlatform Platform, string Name, string Id, string SoftwareVersion, string Type, bool bIsDefault, bool bCanConnect)
+		public DeviceInfo(UnrealTargetPlatform Platform, string Name, string Id, string SoftwareVersion, string Type, bool bIsDefault, bool bCanConnect, string SubType = "")
 		{
 			this.Platform = Platform;
 			this.Name = Name;
 			this.Id = Id;
 			this.SoftwareVersion = SoftwareVersion;
 			this.Type = Type;
+			this.SubType = SubType;
 			this.bIsDefault = bIsDefault;
 			this.bCanConnect = bCanConnect;
 		}
@@ -50,6 +51,7 @@ namespace AutomationTool
 		public string Id;
 		public string SoftwareVersion;
 		public string Type;
+		public string SubType;
 		public bool bIsDefault = false;
 		// is the device able to be connected to (this is more about able to flash SDK or run, not about matching SDK version)
 		// if false, any of the above fields are suspect, especually SoftwareVersion

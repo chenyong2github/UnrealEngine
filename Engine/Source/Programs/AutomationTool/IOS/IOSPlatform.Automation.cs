@@ -525,7 +525,7 @@ public class IOSPlatform : Platform
 		string Output = Utils.RunLocalProcessAndReturnStdOut(IdeviceIdPath, "");
 		var ConnectedDevicesUDIDs = Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
 
-		DeviceInfo CurrentDevice = null;
+		DeviceInfo CurrentDevice = new DeviceInfo(TargetPlatformType);
 
 		foreach (string UnparsedUDID in ConnectedDevicesUDIDs)
 		{
@@ -535,13 +535,15 @@ public class IOSPlatform : Platform
 
 			if (UnparsedUDID.Contains("Network"))
 			{
+				CurrentDevice.SubType = "Network";
 				IdeviceInfoArgs = "-n " + IdeviceInfoArgs;
+			}
+			else
+			{
+				CurrentDevice.SubType = "USB";
 			}
 
 			string OutputInfo = Utils.RunLocalProcessAndReturnStdOut(IdeviceInfoPath, IdeviceInfoArgs);
-
-			CurrentDevice = new DeviceInfo(TargetPlatformType);
-			CurrentDevice.Name = UnparsedUDID;
 
 			foreach (string Line in OutputInfo.Split(Environment.NewLine.ToCharArray()))
 			{
@@ -553,6 +555,10 @@ public class IOSPlatform : Platform
 					{
 						Devices.Remove(CurrentDevice);
 					}
+				}
+				else if (Line.StartsWith("DeviceName: "))
+				{
+					CurrentDevice.Name = Line.Split(": ").Last();
 				}
 				else if (Line.StartsWith("UniqueDeviceID: "))
 				{
@@ -1755,7 +1761,7 @@ public class IOSPlatform : Platform
 	{
 		DeviceInfo[] CachedDevices = GetDevices();
 
-		if (CachedDevices.Where(CachedDevice => CachedDevice.Name.Contains(UDID) && CachedDevice.Name.Contains("Network")).Count() > 0)
+		if (CachedDevices.Where(CachedDevice => CachedDevice.Name == UDID && CachedDevice.SubType == "Network").Count() > 0)
 		{
 			return "-n " + EntryArguments;
 		}
@@ -1857,7 +1863,7 @@ public class IOSPlatform : Platform
 		// deploy the .ipa
 		var DeviceInstaller = GetPathToLibiMobileDeviceTool("ideviceinstaller");
 
-		string LibimobileDeviceArguments =  "-u " + Params.DeviceNames[0] + " -i " + Path.GetFullPath(StagedIPA);
+		string LibimobileDeviceArguments =  "-u " + Params.DeviceNames[0] + " -i " + "\"" +  Path.GetFullPath(StagedIPA) + "\"";
 		LibimobileDeviceArguments = GetLibimobileDeviceNetworkedArgument(LibimobileDeviceArguments, Params.DeviceNames[0]);
 
 		// check for it in the stage directory
