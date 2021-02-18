@@ -433,8 +433,10 @@ SubmitCrashReportResult RunUnattended(FPlatformErrorReport ErrorReport, bool bIm
 	return FPrimaryCrashProperties::Get()->bIsEnsure ? SuccessContinue : SuccessClosed;
 }
 
-FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint32 Pid, const FSharedCrashContext& SharedCrashContext, void* WritePipe)
+FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint32 Pid, const FSharedCrashContext& SharedCrashContext, void* WritePipe, bool& bOutCrashPortableCallstackAvailable)
 {
+	bOutCrashPortableCallstackAvailable = false;
+
 	// @note: This API is only partially implemented on Mac OS and Linux.
 	FProcHandle ProcessHandle = FPlatformProcess::OpenProcess(Pid);
 
@@ -508,6 +510,9 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 				StackFrames,
 				StackFrameCount - SharedCrashContext.NumStackFramesToIgnore
 			);
+
+			// A completely missing portable callstack usually means that the crashing process died before CRC could walk the stack.
+			bOutCrashPortableCallstackAvailable = StackFrameCount > 0;
 		}
 	}
 
@@ -857,7 +862,8 @@ static void HandleAbnormalShutdown(FSharedCrashContext& CrashContext, uint64 Pro
 		// This crash is not a real one, but one to capture the Editor logs in case of abnormal termination.
 		FDiagnosticLogger::Get().LogEvent(TEXT("SyntheticCrash"));
 
-		FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryService.Get(), ProcessID, CrashContext, WritePipe);
+		bool bPortableCallstackAvailable = false; // Should always be false here. The process is dead.
+		FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryService.Get(), ProcessID, CrashContext, WritePipe, bPortableCallstackAvailable);
 		SendErrorReport(ErrorReport, /*bNoDialog*/ true);
 
 		// delete the temporary directory
@@ -1048,7 +1054,15 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					FDiagnosticLogger::Get().LogEvent(TEXT("Report/Collect"));
 
 					// Build error report in memory.
-					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryServicePtr.Get(), MonitorPid, CrashContext, MonitorWritePipe);
+					bool bCrashedThreadCallstackAvailable = false;
+					FPlatformErrorReport ErrorReport = CollectErrorReport(RecoveryServicePtr.Get(), MonitorPid, CrashContext, MonitorWritePipe, bCrashedThreadCallstackAvailable);
+
+					// Log cases where the PCallstack is missing. For analytics, this event hints that the remote app exited before CRC could walk the process stack and possibly means
+					// that the timeout in the crashing process waiting for CRC to reply 'continue' is too short.
+					if (!bCrashedThreadCallstackAvailable)
+					{
+						FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("Report/NoPCallstack")));
+					}
 
 #if CRASH_REPORT_WITH_RECOVERY
 					if (RecoveryServicePtr && !FPrimaryCrashProperties::Get()->bIsEnsure)
