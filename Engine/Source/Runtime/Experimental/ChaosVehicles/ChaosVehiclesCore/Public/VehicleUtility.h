@@ -125,6 +125,17 @@ namespace Chaos
 
 		/** Calculate turn radius from three points. Note: this function is quite inaccurate for large radii. Return 0 if there is no answer, i.e. points lie on a line */
 		static float TurnRadiusFromThreePoints(const FVector& PtA, const FVector& PtB, const FVector& PtC);
+
+		static float CalculateSlipAngle(float Y, float X)
+		{
+			float Value = FMath::Abs(FMath::Atan2(Y, X));
+			if (Value > HALF_PI)
+			{
+				Value = PI - Value;
+			}
+
+			return Value;
+		}
 	};
 
 	FORCEINLINE float MToCmScaling()

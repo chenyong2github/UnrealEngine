@@ -87,9 +87,12 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, FrictionCombineMethod(EFrictionCombineMethod::Multiply)
 		, LateralFrictionMultiplier(1.0f)
 		, LongitudinalFrictionMultiplier(1.0f)
+		, FrictionMultiplier(2.0f)
+		, CorneringStiffness(1000.0f)
 		, SideSlipModifier(1.0f)
 		, SlipThreshold(20.0f)
 		, SkidThreshold(20.0f)
+		, NewSimulationPath(false)
 	{
 
 	}
@@ -123,10 +126,14 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 
 	float LateralFrictionMultiplier;
 	float LongitudinalFrictionMultiplier;
+	float FrictionMultiplier;
+	float CorneringStiffness;
 	float SideSlipModifier;
 
 	float SlipThreshold;
 	float SkidThreshold;
+
+	bool NewSimulationPath;
 
 	// #todo: simulated Damage
 	//EWheelDamageStatus DamageStatus;
@@ -373,6 +380,7 @@ public:
 	 *	#todo: wheel slip angle isn't being used
 	 */
 	void Simulate(float DeltaTime);
+	void SimulateNew(float DeltaTime);
 
 
 	void SetMassPerWheel(float VehicleMassPerWheel)

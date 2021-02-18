@@ -34,7 +34,7 @@ struct FWheeledVehicleDebugParams
 
 	bool ResetPerformanceMeasurements = false;
 
-	bool DisableSuspensionConstraint = false;
+	//bool DisableSuspensionConstraint = false;
 };
 
 /**

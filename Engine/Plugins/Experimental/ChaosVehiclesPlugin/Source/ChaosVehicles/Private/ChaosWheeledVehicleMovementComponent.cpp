@@ -51,7 +51,7 @@ FAutoConsoleVariableRef CVarChaosVehiclesSteeringOverride(TEXT("p.Vehicle.Steeri
 
 FAutoConsoleVariableRef CVarChaosVehiclesResetMeasurements(TEXT("p.Vehicle.ResetMeasurements"), GWheeledVehicleDebugParams.ResetPerformanceMeasurements, TEXT("Reset Vehicle Performance Measurements."));
 
-FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionConstraints(TEXT("p.Vehicle.DisableSuspensionConstraint"), GWheeledVehicleDebugParams.DisableSuspensionConstraint, TEXT("Enable/Disable Suspension Constraints."));
+//FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionConstraints(TEXT("p.Vehicle.DisableSuspensionConstraint"), GWheeledVehicleDebugParams.DisableSuspensionConstraint, TEXT("Enable/Disable Suspension Constraints."));
 
 FAutoConsoleCommand CVarCommandVehiclesNextDebugPage(
 	TEXT("p.Vehicle.NextDebugPage"),
@@ -502,7 +502,7 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 		auto& PSuspension = PVehicle->Suspension[WheelIdx];
 		float SuspensionMovePosition = -PSuspension.Setup().MaxLength;
 
-		if (!GWheeledVehicleDebugParams.DisableSuspensionConstraint)
+		if (PWheel.Setup().NewSimulationPath)
 		{
 #if WITH_CHAOS
 			if (ConstraintHandles.Num() > 0)
@@ -540,7 +540,7 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 			FVector SusApplicationPoint = WheelState.WheelWorldLocation[WheelIdx] + PVehicle->Suspension[WheelIdx].Setup().SuspensionForceOffset;
 
 			check(PWheel.InContact());
-			if (GWheeledVehicleDebugParams.DisableSuspensionConstraint)
+			if (!PWheel.Setup().NewSimulationPath)
 			{
 				AddForceAtPosition(SuspensionForceVector, SusApplicationPoint);
 			}
@@ -995,7 +995,7 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 
 					}
 
-					if (!GWheeledVehicleDebugParams.DisableSuspensionConstraint)
+					if (Wheels[WheelIdx]->bNewWheelSimulation)
 					{
 						FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
 
@@ -1399,7 +1399,7 @@ float UChaosWheeledVehicleMovementComponent::GetEngineRotationSpeed() const
 {
 	float EngineRPM = 0.f;
 
-	if (bMechanicalSimEnabled)
+	if (bMechanicalSimEnabled && PVehicleOutput)
 	{
 		EngineRPM = PVehicleOutput->EngineRPM;
 	}

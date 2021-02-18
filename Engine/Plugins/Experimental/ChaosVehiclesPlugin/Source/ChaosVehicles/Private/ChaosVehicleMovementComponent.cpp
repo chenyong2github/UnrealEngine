@@ -905,7 +905,7 @@ void UChaosVehicleMovementComponent::SetChangeDownInput(bool bNewGearDown)
 
 void UChaosVehicleMovementComponent::SetTargetGear(int32 GearNum, bool bImmediate)
 {
-	if (GearNum != PVehicleOutput->TargetGear)
+	if (PVehicleOutput && GearNum != PVehicleOutput->TargetGear)
 	{
 		FBodyInstance* TargetInstance = UpdatedPrimitive->GetBodyInstance();
 
@@ -931,12 +931,12 @@ void UChaosVehicleMovementComponent::SetUseAutomaticGears(bool bUseAuto)
 
 int32 UChaosVehicleMovementComponent::GetCurrentGear() const
 {
-	return PVehicleOutput->CurrentGear;
+	return (PVehicleOutput)?PVehicleOutput->CurrentGear:0;
 }
 
 int32 UChaosVehicleMovementComponent::GetTargetGear() const
 {
-	return PVehicleOutput->TargetGear; //  or TargetGearInput
+	return (PVehicleOutput)?PVehicleOutput->TargetGear:0;
 }
 
 bool UChaosVehicleMovementComponent::GetUseAutoGears() const
@@ -1731,7 +1731,7 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 {
 	if (const FChaosVehicleAsyncOutput* CurrentOutput = static_cast<FChaosVehicleAsyncOutput*>(CurAsyncOutput))
 	{
-		if (CurrentOutput->bValid)
+		if (CurrentOutput->bValid && PVehicleOutput)
 		{
 			// TODO: It would be nicer to go through CurAsyncOutput rather
 			// than copying into the vehicle, think about non-async path

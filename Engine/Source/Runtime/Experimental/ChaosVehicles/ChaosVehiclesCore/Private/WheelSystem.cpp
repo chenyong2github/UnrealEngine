@@ -32,6 +32,12 @@ namespace Chaos
 
 	void FSimpleWheelSim::Simulate(float DeltaTime)
 	{
+		if (Setup().NewSimulationPath)
+		{
+			SimulateNew(DeltaTime);
+			return;
+		}
+
 		SlipAngle = FMath::Atan2(GroundVelocityVector.Y, GroundVelocityVector.X);
 
 		float FinalLongitudinalForce = 0.f;
@@ -46,7 +52,7 @@ namespace Chaos
 		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
 		float BrakeFactor = 1.0f;
 		float K = 0.4f;
-		
+
 		// are we actually touching the ground
 		if (ForceIntoSurface > SMALL_NUMBER)
 		{
@@ -91,7 +97,7 @@ namespace Chaos
 			SideSlipModifier = 1.0f;
 			bool Locked = false;
 			bool Spinning = false;
-			
+
 			// we can only obtain as much accel/decel force as the friction will allow
 			if (FMath::Abs(FinalLongitudinalForce) > LongitudinalAdhesiveLimit)
 			{
@@ -186,6 +192,145 @@ namespace Chaos
 		return;
 	}
 
+	void FSimpleWheelSim::SimulateNew(float DeltaTime)
+	{
+		float K = 0.4f;
+		float TractionControlAndABSScaling = 0.98f;	// how close to perfection is the system working
+
+		// X is longitudinal direction, Y is lateral
+		SlipAngle = FVehicleUtility::CalculateSlipAngle(GroundVelocityVector.Y, GroundVelocityVector.X);
+
+		// The physics system is mostly unit-less i.e. can work in meters or cm, however there are 
+		// a couple of places where the results are wrong if Cm is used. This is one of them, the simulated radius
+		// for torque must be real size to obtain the correct output values.
+		AppliedLinearDriveForce = DriveTorque / CmToM(Re);
+		AppliedLinearBrakeForce = BrakeTorque / CmToM(Re);
+
+		// Longitudinal multiplier now affecting both brake and steering equally
+		float AvailableGrip = ForceIntoSurface * SurfaceFriction * Setup().FrictionMultiplier;
+
+		float FinalLongitudinalForce = 0.f;
+		float FinalLateralForce = 0.f;
+
+		// currently just letting the brake override the throttle
+		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
+
+		// are we actually touching the ground
+		if (ForceIntoSurface > SMALL_NUMBER)
+		{
+			// ABS limiting brake force to match force from the grip avialable
+			if (Setup().ABSEnabled && Braking && FMath::Abs(AppliedLinearBrakeForce) > AvailableGrip)
+			{
+				if ((Braking && Setup().ABSEnabled) || (!Braking && Setup().TractionControlEnabled))
+				{
+					//	Spin = 0.0f;
+					AppliedLinearBrakeForce = AvailableGrip * TractionControlAndABSScaling;
+				}
+			}
+
+			// Traction control limiting drive force to match force from grip available
+			if (Setup().TractionControlEnabled && !Braking && FMath::Abs(AppliedLinearDriveForce) > AvailableGrip)
+			{
+				AppliedLinearDriveForce = AvailableGrip * TractionControlAndABSScaling;
+			}
+
+			if (Braking)
+			{
+				// whether the velocity is +ve or -ve when we brake we are slowing the vehicle down
+				// so force is opposing current direction of travel.
+				float ForceRequiredToBringToStop = MassPerWheel * K * (GroundVelocityVector.X) / DeltaTime;
+				FinalLongitudinalForce = AppliedLinearBrakeForce;
+
+				// check we are not applying more force than required so we end up overshooting 
+				// and accelerating in the opposite direction
+				if (FinalLongitudinalForce > FMath::Abs(ForceRequiredToBringToStop))
+				{
+					FinalLongitudinalForce = FMath::Abs(ForceRequiredToBringToStop);
+				}
+
+				// ensure the brake opposes current direction of travel
+				if (GroundVelocityVector.X > 0.0f)
+				{
+					FinalLongitudinalForce = -FinalLongitudinalForce;
+				}
+
+			}
+			else
+			{
+				FinalLongitudinalForce = AppliedLinearDriveForce;
+			}
+
+			float ForceRequiredToBringToStop = -(MassPerWheel * K * GroundVelocityVector.Y) / DeltaTime;
+
+			// use slip angle to generate a sideways force
+			float CorneringStiffness = Setup().CorneringStiffness * 10000.0f;
+
+			// Leveling off of the graph
+			float AngleLimit = FMath::DegreesToRadians(8.0f);
+			if (SlipAngle > AngleLimit)
+			{
+				SlipAngle = AngleLimit;
+			}
+			else if (SlipAngle < AngleLimit)
+			{
+				SlipAngle = AngleLimit;
+			}
+			FinalLateralForce = SlipAngle * CorneringStiffness;
+			if (FinalLateralForce > FMath::Abs(ForceRequiredToBringToStop))
+			{
+				FinalLateralForce = FMath::Abs(ForceRequiredToBringToStop);
+			}
+			if (GroundVelocityVector.Y > 0.0f)
+			{
+				FinalLateralForce = -FinalLateralForce;
+			}
+
+			// Friction circle
+			float LengthSquared = FinalLongitudinalForce * FinalLongitudinalForce + FinalLateralForce * FinalLateralForce;
+			if (LengthSquared > 0.05f)
+			{
+				float Length = FMath::Sqrt(LengthSquared);
+
+				float Clip = AvailableGrip / Length;
+				if (Clip < 1.0f)
+				{
+					FinalLongitudinalForce *= Clip;
+					FinalLateralForce *= Clip;
+
+					FinalLongitudinalForce *= Setup().SideSlipModifier;
+					FinalLateralForce *= Setup().SideSlipModifier;
+
+				}
+			}
+		}
+
+		float GroundOmega = GroundVelocityVector.X / Re;
+		Omega += (GroundOmega - Omega);
+
+		// Wheel angular position
+		AngularPosition += Omega * DeltaTime;
+
+		while (AngularPosition >= PI * 2.f)
+		{
+			AngularPosition -= PI * 2.f;
+		}
+		while (AngularPosition <= -PI * 2.f)
+		{
+			AngularPosition += PI * 2.f;
+		}
+
+		if (!bInContact)
+		{
+			ForceFromFriction = FVector::ZeroVector;
+		}
+		else
+		{
+			ForceFromFriction.X = FinalLongitudinalForce;
+			ForceFromFriction.Y = FinalLateralForce;
+		}
+
+		return;
+	}
 
 
 
@@ -198,5 +343,5 @@ namespace Chaos
 } // namespace Chaos
 
 #if VEHICLE_DEBUGGING_ENABLED
-	PRAGMA_ENABLE_OPTIMIZATION
+PRAGMA_ENABLE_OPTIMIZATION
 #endif

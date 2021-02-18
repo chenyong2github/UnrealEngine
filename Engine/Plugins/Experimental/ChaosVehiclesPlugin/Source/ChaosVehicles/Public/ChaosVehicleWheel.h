@@ -97,13 +97,24 @@ class UChaosWheeledVehicleMovementComponent;
 		//UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
 		//float WheelMass;
 
-		/** Longitudinal Friction Force Multiplier */
 		UPROPERTY(EditAnywhere, Category = Wheel)
+		bool bNewWheelSimulation;
+
+		/** Longitudinal Friction Force Multiplier */
+		UPROPERTY(EditAnywhere, Category = Wheel, meta = (EditCondition = "!bNewWheelSimulation"))
 		float LongitudinalFrictionForceMultiplier;
 
 		/** Lateral Friction Force Multiplier */
-		UPROPERTY(EditAnywhere, Category = Wheel)
+		UPROPERTY(EditAnywhere, Category = Wheel, meta = (EditCondition = "!bNewWheelSimulation"))
 		float LateralFrictionForceMultiplier;
+
+		/** Tyre Cornering Ability */
+		UPROPERTY(EditAnywhere, Category = Wheel, meta = (EditCondition = "bNewWheelSimulation"))
+		float CorneringStiffness;
+
+		/** Friction Force Multiplier */
+		UPROPERTY(EditAnywhere, Category = Wheel, meta = (EditCondition = "bNewWheelSimulation"))
+		float FrictionForceMultiplier;
 
 		/** Wheel Lateral Skid Grip Loss, lower number less grip on skid */
 		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
@@ -363,6 +374,9 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.AxleType = static_cast<Chaos::FSimpleWheelConfig::EAxleType>(this->AxleType);
 			PWheelConfig.LongitudinalFrictionMultiplier = this->LongitudinalFrictionForceMultiplier;
 			PWheelConfig.LateralFrictionMultiplier = this->LateralFrictionForceMultiplier;
+			PWheelConfig.FrictionMultiplier = this->FrictionForceMultiplier;
+			PWheelConfig.CorneringStiffness = this->CorneringStiffness;
+			PWheelConfig.NewSimulationPath = this->bNewWheelSimulation;
 			PWheelConfig.SideSlipModifier = this->SideSlipModifier;
 			PWheelConfig.SlipThreshold = this->SlipThreshold;
 			PWheelConfig.SkidThreshold = this->SkidThreshold;
