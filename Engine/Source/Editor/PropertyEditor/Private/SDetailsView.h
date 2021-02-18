@@ -157,6 +157,12 @@ private:
 	/** Called when show hidden properties while playing is clicked */
 	void OnShowHiddenPropertiesWhilePlayingClicked();
 
+	/** Get the color of the toggle favorites button. */
+	FSlateColor GetToggleFavoritesColor() const;
+
+	/** Called when the toggle favorites button is clicked. */
+	FReply OnToggleFavoritesClicked();
+
 private:
 	/** The filter for objects viewed by this details panel */
 	TSharedPtr<FDetailsViewObjectFilter> ObjectFilter;

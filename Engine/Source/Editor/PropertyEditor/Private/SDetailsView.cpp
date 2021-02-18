@@ -19,7 +19,7 @@
 #include "DetailLayoutBuilderImpl.h"
 #include "DetailsViewPropertyGenerationUtilities.h"
 #include "DetailsViewGenericObjectFilter.h"
-
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SDetailsView"
 
@@ -187,7 +187,30 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SDetailsView::SetRootExpansionStates, /*bExpanded=*/true, /*bRecurse=*/false )));
 
-	FilterRow = 
+	TSharedRef<SVerticalBox> VerticalBox = SNew(SVerticalBox);
+		
+	// Create the name area which does not change when selection changes
+	SAssignNew(NameArea, SDetailNameArea, &SelectedObjects)
+		// the name area is only for actors
+		.Visibility(this, &SDetailsView::GetActorNameAreaVisibility)
+		.OnLockButtonClicked(this, &SDetailsView::OnLockButtonClicked)
+		.IsLocked(this, &SDetailsView::IsLocked)
+		.ShowLockButton(DetailsViewArgs.bLockable)
+		.ShowActorLabel(DetailsViewArgs.bShowActorLabel)
+		// only show the selection tip if we're not selecting objects
+		.SelectionTip(!DetailsViewArgs.bHideSelectionTip);
+
+	if( !DetailsViewArgs.bCustomNameAreaLocation )
+	{
+		VerticalBox->AddSlot()
+		.AutoHeight()
+		.Padding(0.0f, 0.0f, 0.0f, 4.0f)
+		[
+			NameArea.ToSharedRef()
+		];
+	}
+
+	TSharedRef<SHorizontalBox> FilterRowHBox = 
 		SNew( SHorizontalBox )
 		.Visibility( this, &SDetailsView::GetFilterBoxVisibility )
 		+SHorizontalBox::Slot()
@@ -204,8 +227,9 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 
 	if (DetailsViewArgs.bShowPropertyMatrixButton)
 	{
-		FilterRow->AddSlot()
-			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		FilterRowHBox->AddSlot()
+			.Padding(0)
+			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[
@@ -221,11 +245,33 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 					.Image(FAppStyle::Get().GetBrush("DetailsView.EditRawProperties"))
 				]
 			];
+	} 
+
+	if (DetailsViewArgs.bAllowFavoriteSystem)
+	{
+		FilterRowHBox->AddSlot()
+			.Padding(0)
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				// Create the toggle favorites button
+				SNew(SButton)
+				.ButtonStyle( FAppStyle::Get(), "SimpleButton" )
+				.OnClicked(this, &SDetailsView::OnToggleFavoritesClicked)
+				.ToolTipText(LOCTEXT("ToggleFavorites", "Toggle Favorites"))
+				[
+					SNew(SImage)
+					.ColorAndOpacity(this, &SDetailsView::GetToggleFavoritesColor)
+					.Image(FAppStyle::Get().GetBrush("PropertyWindow.Favorites_Enabled"))
+				]
+			];
 	}
 
 	if (DetailsViewArgs.bShowOptions)
 	{
-		FilterRow->AddSlot()
+		FilterRowHBox->AddSlot()
+			.Padding(0)
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
@@ -249,28 +295,18 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			];
 	}
 
-	// Create the name area which does not change when selection changes
-	SAssignNew(NameArea, SDetailNameArea, &SelectedObjects)
-		// the name area is only for actors
-		.Visibility(this, &SDetailsView::GetActorNameAreaVisibility)
-		.OnLockButtonClicked(this, &SDetailsView::OnLockButtonClicked)
-		.IsLocked(this, &SDetailsView::IsLocked)
-		.ShowLockButton(DetailsViewArgs.bLockable)
-		.ShowActorLabel(DetailsViewArgs.bShowActorLabel)
-		// only show the selection tip if we're not selecting objects
-		.SelectionTip(!DetailsViewArgs.bHideSelectionTip);
-
-	TSharedRef<SVerticalBox> VerticalBox = SNew(SVerticalBox);
-
-	if( !DetailsViewArgs.bCustomNameAreaLocation )
-	{
-		VerticalBox->AddSlot()
+	FilterRow = SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 		[
-			NameArea.ToSharedRef()
+			FilterRowHBox
+		]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SImage)
+			.Image(FAppStyle::Get().GetBrush("DetailsView.AdvancedDropdownBorder.Open"))
 		];
-	}
 
 	if( !DetailsViewArgs.bCustomFilterAreaLocation )
 	{
@@ -284,7 +320,6 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			]
 		];
 	}
-
 
 	VerticalBox->AddSlot()
 	.FillHeight(1)
@@ -932,6 +967,26 @@ void SDetailsView::OnShowHiddenPropertiesWhilePlayingClicked()
 
 	// Force a refresh of the whole details panel, as the entire set of visible properties may be different
 	ForceRefresh();
+}
+
+FSlateColor SDetailsView::GetToggleFavoritesColor() const
+{
+	if (DetailsViewArgs.bAllowFavoriteSystem && CurrentFilter.bShowFavoritesCategory)
+	{
+		return FSlateColor(EStyleColor::AccentBlue);
+	}
+	else
+	{
+		return FSlateColor(EStyleColor::Foreground);
+	}
+}
+
+FReply SDetailsView::OnToggleFavoritesClicked()
+{
+	CurrentFilter.bShowFavoritesCategory = !CurrentFilter.bShowFavoritesCategory;
+	RerunCurrentFilter();
+
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE
