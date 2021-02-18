@@ -282,10 +282,10 @@ void InitMeshSDFCullingContext(
 	Context.NumCullGridCells = NumCullGridCells;
 	Context.DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
 
-	Context.NumGridCulledMeshSDFObjects = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), NumCullGridCells), TEXT("NumGridCulledMeshSDFObjects"));
-	Context.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Context.MaxNumberOfCulledObjects), TEXT("GridCulledMeshSDFObjectIndicesArray"));
-	Context.NumCulledObjectsToCompact = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("NumCulledObjectsToCompact"));
-	Context.CulledObjectsToCompactArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 2 * Context.MaxNumberOfCulledObjects), TEXT("CulledObjectsToCompactArray"));
+	Context.NumGridCulledMeshSDFObjects = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), NumCullGridCells), TEXT("Lumen.NumGridCulledMeshSDFObjects"));
+	Context.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Context.MaxNumberOfCulledObjects), TEXT("Lumen.GridCulledMeshSDFObjectIndicesArray"));
+	Context.NumCulledObjectsToCompact = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.NumCulledObjectsToCompact"));
+	Context.CulledObjectsToCompactArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 2 * Context.MaxNumberOfCulledObjects), TEXT("Lumen.CulledObjectsToCompactArray"));
 
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT), 0);
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Context.NumCulledObjectsToCompact, PF_R32_UINT), 0);
@@ -344,11 +344,11 @@ void CullMeshSDFObjectsForView(
 	int32 MaxSDFMeshObjects = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
 	MaxSDFMeshObjects = FMath::DivideAndRoundUp(MaxSDFMeshObjects, 128) * 128;
 
-	Context.ObjectIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(1), TEXT("CulledObjectIndirectArguments"));
+	Context.ObjectIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(1), TEXT("Lumen.CulledObjectIndirectArguments"));
 
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Context.ObjectIndirectArguments), 0);
 
-	Context.ObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxSDFMeshObjects), TEXT("ObjectIndices"));
+	Context.ObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxSDFMeshObjects), TEXT("Lumen.ObjectIndices"));
 
 	{
 		FCullMeshSDFObjectsForViewCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullMeshSDFObjectsForViewCS::FParameters>();
@@ -390,10 +390,10 @@ void CompactCulledMeshSDFObjectArray(
 	const FViewInfo& View,
 	FMeshSDFCullingContext& Context)
 {
-	Context.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Context.NumCullGridCells), TEXT("GridCulledMeshSDFObjectStartOffsetArray"));
+	Context.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), Context.NumCullGridCells), TEXT("Lumen.GridCulledMeshSDFObjectStartOffsetArray"));
 
-	FRDGBufferRef CulledMeshSDFObjectAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("CulledMeshSDFObjectAllocator"));
-	FRDGBufferRef CompactCulledObjectsIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("CompactCulledObjectsIndirectArguments"));
+	FRDGBufferRef CulledMeshSDFObjectAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.CulledMeshSDFObjectAllocator"));
+	FRDGBufferRef CompactCulledObjectsIndirectArguments = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.CompactCulledObjectsIndirectArguments"));
 
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CulledMeshSDFObjectAllocator, PF_R32_UINT), 0);
 

@@ -272,7 +272,7 @@ void FLumenCardScatterContext::BuildScatterIndirectArgs(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View)
 {
-	FRDGBufferRef CardIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(MaxScatterInstanceCount), TEXT("CardIndirectArgsBuffer"));
+	FRDGBufferRef CardIndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndexedIndirectParameters>(MaxScatterInstanceCount), TEXT("Lumen.CardIndirectArgsBuffer"));
 	FRDGBufferUAVRef CardIndirectArgsBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(CardIndirectArgsBuffer));
 
 	FInitializeCardScatterIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitializeCardScatterIndirectArgsCS::FParameters>();
@@ -569,7 +569,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 		if (LumenSceneData.VisibleCardsIndices.Num() > 0)
 		{
-			FRDGTextureRef RadiosityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityAtlas, TEXT("RadiosityAtlas"));
+			FRDGTextureRef RadiosityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityAtlas, TEXT("Lumen.RadiosityAtlas"));
 
 			RenderRadiosityForLumenScene(GraphBuilder, TracingInputs, GlobalShaderMap, RadiosityAtlas);
 
@@ -662,8 +662,8 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 					DirectLightingCardScatterContext);
 			}
 
-			FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("AlbedoAtlas"));
-			FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("EmissiveAtlas"));
+			FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.AlbedoAtlas"));
+			FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("Lumen.EmissiveAtlas"));
 			ApplyLumenCardAlbedo(
 				Scene,
 				View,

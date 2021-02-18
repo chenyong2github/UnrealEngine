@@ -250,11 +250,11 @@ void GenerateBRDF_PDF(
 
 		FIntPoint PDFBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * BRDFOctahedronResolution;
 		FRDGTextureDesc BRDFProbabilityDensityFunctionDesc(FRDGTextureDesc::Create2D(PDFBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-		BRDFProbabilityDensityFunction = GraphBuilder.CreateTexture(BRDFProbabilityDensityFunctionDesc, TEXT("BRDFProbabilityDensityFunction"));
+		BRDFProbabilityDensityFunction = GraphBuilder.CreateTexture(BRDFProbabilityDensityFunctionDesc, TEXT("Lumen.ScreenProbeGather.BRDFProbabilityDensityFunction"));
 	
 		const int32 BRDF_SHBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y * 9;
 		FRDGBufferDesc BRDFProbabilityDensityFunctionSHDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(FFloat16), BRDF_SHBufferSize);
-		FRDGBufferRef BRDFProbabilityDensityFunctionSHBuffer = GraphBuilder.CreateBuffer(BRDFProbabilityDensityFunctionSHDesc, TEXT("BRDFProbabilityDensityFunctionSH"));
+		FRDGBufferRef BRDFProbabilityDensityFunctionSHBuffer = GraphBuilder.CreateBuffer(BRDFProbabilityDensityFunctionSHDesc, TEXT("Lumen.ScreenProbeGather.BRDFProbabilityDensityFunctionSH"));
 
 		{
 			FScreenProbeComputeBRDFProbabilityDensityFunctionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeComputeBRDFProbabilityDensityFunctionCS::FParameters>();
@@ -299,7 +299,7 @@ void GenerateImportanceSamplingRays(
 	{
 		FIntPoint LightingProbabilityDensityFunctionBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
 		FRDGTextureDesc LightingProbabilityDensityFunctionDesc(FRDGTextureDesc::Create2D(LightingProbabilityDensityFunctionBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-		LightingProbabilityDensityFunction = GraphBuilder.CreateTexture(LightingProbabilityDensityFunctionDesc, TEXT("LightingProbabilityDensityFunction"));
+		LightingProbabilityDensityFunction = GraphBuilder.CreateTexture(LightingProbabilityDensityFunctionDesc, TEXT("Lumen.ScreenProbeGather.LightingProbabilityDensityFunction"));
 
 		FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
 
@@ -367,7 +367,7 @@ void GenerateImportanceSamplingRays(
 
 	FIntPoint RayInfosForTracingBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
 	FRDGTextureDesc StructuredImportanceSampledRayInfosForTracingDesc(FRDGTextureDesc::Create2D(RayInfosForTracingBufferSize, PF_R16_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-	ScreenProbeParameters.ImportanceSampling.StructuredImportanceSampledRayInfosForTracing = GraphBuilder.CreateTexture(StructuredImportanceSampledRayInfosForTracingDesc, TEXT("RayInfosForTracing"));
+	ScreenProbeParameters.ImportanceSampling.StructuredImportanceSampledRayInfosForTracing = GraphBuilder.CreateTexture(StructuredImportanceSampledRayInfosForTracingDesc, TEXT("Lumen.ScreenProbeGather.RayInfosForTracing"));
 
 	{
 		FScreenProbeGenerateRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeGenerateRaysCS::FParameters>();

@@ -328,11 +328,11 @@ void FilterScreenProbes(
 {
 	const FIntPoint ScreenProbeGatherBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeGatherOctahedronResolution;
 	FRDGTextureDesc ScreenProbeRadianceDesc(FRDGTextureDesc::Create2D(ScreenProbeGatherBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-	FRDGTextureRef ScreenProbeRadiance = GraphBuilder.CreateTexture(ScreenProbeRadianceDesc, TEXT("ScreenProbeRadiance"));
+	FRDGTextureRef ScreenProbeRadiance = GraphBuilder.CreateTexture(ScreenProbeRadianceDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadiance"));
 
 	FRDGTextureDesc ScreenProbeHitDistanceDesc(FRDGTextureDesc::Create2D(ScreenProbeGatherBufferSize, PF_R8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
-	FRDGTextureRef ScreenProbeHitDistance = GraphBuilder.CreateTexture(ScreenProbeHitDistanceDesc, TEXT("ScreenProbeHitDistance"));
-	FRDGTextureRef ScreenProbeTraceMoving = GraphBuilder.CreateTexture(ScreenProbeHitDistanceDesc, TEXT("ScreenProbeTraceMoving"));
+	FRDGTextureRef ScreenProbeHitDistance = GraphBuilder.CreateTexture(ScreenProbeHitDistanceDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeHitDistance"));
+	FRDGTextureRef ScreenProbeTraceMoving = GraphBuilder.CreateTexture(ScreenProbeHitDistanceDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeTraceMoving"));
 
 	{
 		const uint32 CompositeScatterThreadGroupSize = FScreenProbeCompositeTracesWithScatterCS::GetThreadGroupSize(FMath::Max(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution, ScreenProbeParameters.ScreenProbeTracingOctahedronResolution));
@@ -364,7 +364,7 @@ void FilterScreenProbes(
 	{
 		for (int32 PassIndex = 0; PassIndex < GLumenScreenProbeSpatialFilterNumPasses; PassIndex++)
 		{
-			FRDGTextureRef FilteredScreenProbeRadiance = GraphBuilder.CreateTexture(ScreenProbeRadianceDesc, TEXT("ScreenProbeFilteredRadiance"));
+			FRDGTextureRef FilteredScreenProbeRadiance = GraphBuilder.CreateTexture(ScreenProbeRadianceDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeFilteredRadiance"));
 
 			FScreenProbeFilterGatherTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeFilterGatherTracesCS::FParameters>();
 			PassParameters->RWScreenProbeRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(FilteredScreenProbeRadiance));
@@ -399,9 +399,9 @@ void FilterScreenProbes(
 	const EPixelFormat SHAmbientFormat = PF_FloatRGB;
 	const EPixelFormat SHDirectionalFormat = PF_FloatRGBA;
 	FRDGBufferDesc ScreenProbeRadianceSHAmbientDesc = FRDGBufferDesc::CreateBufferDesc(GPixelFormats[SHAmbientFormat].BlockBytes, RadianceSHBufferSize * 1);
-	FRDGBufferRef ScreenProbeRadianceSHAmbient = GraphBuilder.CreateBuffer(ScreenProbeRadianceSHAmbientDesc, TEXT("ScreenProbeRadianceSHAmbient"));
+	FRDGBufferRef ScreenProbeRadianceSHAmbient = GraphBuilder.CreateBuffer(ScreenProbeRadianceSHAmbientDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHAmbient"));
 	FRDGBufferDesc ScreenProbeRadianceSHDirectionalDesc = FRDGBufferDesc::CreateBufferDesc(GPixelFormats[SHDirectionalFormat].BlockBytes, RadianceSHBufferSize * 6);
-	FRDGBufferRef ScreenProbeRadianceSHDirectional = GraphBuilder.CreateBuffer(ScreenProbeRadianceSHDirectionalDesc, TEXT("ScreenProbeRadianceSHDirectional"));
+	FRDGBufferRef ScreenProbeRadianceSHDirectional = GraphBuilder.CreateBuffer(ScreenProbeRadianceSHDirectionalDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHDirectional"));
 
 	if (ConvertToSHThreadGroupSize != MAX_uint32)
 	{
@@ -430,7 +430,7 @@ void FilterScreenProbes(
 	const uint32 CalculateMovingThreadGroupSize = FScreenProbeCalculateMovingCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);
 	const EPixelFormat ProbeMovingFormat = PF_R8;
 	FRDGBufferDesc ScreenProbeMovingDesc = FRDGBufferDesc::CreateBufferDesc(GPixelFormats[ProbeMovingFormat].BlockBytes, ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y);
-	FRDGBufferRef ScreenProbeMoving = GraphBuilder.CreateBuffer(ScreenProbeMovingDesc, TEXT("ScreenProbeMoving"));
+	FRDGBufferRef ScreenProbeMoving = GraphBuilder.CreateBuffer(ScreenProbeMovingDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeMoving"));
 
 	ensureMsgf(CalculateMovingThreadGroupSize != MAX_uint32, TEXT("Unsupported gather resolution"));
 
@@ -458,7 +458,7 @@ void FilterScreenProbes(
 	{
 		const FIntPoint ScreenProbeGatherWithBorderBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeGatherOctahedronResolutionWithBorder;
 		FRDGTextureDesc ScreenProbeRadianceWithBorderDesc(FRDGTextureDesc::Create2D(ScreenProbeGatherWithBorderBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV, GLumenScreenProbeGatherNumMips));
-		ScreenProbeRadianceWithBorder = GraphBuilder.CreateTexture(ScreenProbeRadianceWithBorderDesc, TEXT("ScreenProbeFilteredRadianceWithBorder"));
+		ScreenProbeRadianceWithBorder = GraphBuilder.CreateTexture(ScreenProbeRadianceWithBorderDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeFilteredRadianceWithBorder"));
 
 		FScreenProbeFixupBordersCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeFixupBordersCS::FParameters>();
 		PassParameters->RWScreenProbeRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadianceWithBorder));

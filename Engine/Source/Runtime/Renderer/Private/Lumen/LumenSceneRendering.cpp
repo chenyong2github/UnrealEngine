@@ -1819,7 +1819,7 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 		const uint32 CardSceneNumFloat4s = NumCardEntries * FLumenCardGPUData::DataStrideInFloat4s;
 		const uint32 CardSceneNumBytes = FMath::DivideAndRoundUp(CardSceneNumFloat4s, 16384u) * 16384 * sizeof(FVector4);
 		// Reserve enough space
-		bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4), TEXT("Cards0"));
+		bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4), TEXT("Lumen.Cards0"));
 	}
 
 	if (GLumenSceneUploadCardBufferEveryFrame)
@@ -1838,7 +1838,7 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 	{
 		FCardSourceData NullCard;
 
-		LumenSceneData.CardUploadBuffer.Init(NumCardDataUploads, FLumenCardGPUData::DataStrideInBytes, true, TEXT("LumenSceneUploadBuffer"));
+		LumenSceneData.CardUploadBuffer.Init(NumCardDataUploads, FLumenCardGPUData::DataStrideInBytes, true, TEXT("Lumen.LumenSceneUploadBuffer"));
 
 		FVector2D InvAtlasSize(1.0f / LumenSceneData.MaxAtlasSize.X, 1.0f / LumenSceneData.MaxAtlasSize.Y);
 
@@ -2039,7 +2039,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				}
 
 				NumRects = CardsToRender.Num();
-				RectMinMaxBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateUploadDesc(sizeof(FUintVector4), FMath::RoundUpToPowerOfTwo(NumRects)), TEXT("RectMinMaxBuffer"));
+				RectMinMaxBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateUploadDesc(sizeof(FUintVector4), FMath::RoundUpToPowerOfTwo(NumRects)), TEXT("Lumen.RectMinMaxBuffer"));
 
 				FPixelShaderUtils::UploadRectMinMaxBuffer(GraphBuilder, RectMinMaxToRender, RectMinMaxBuffer);
 
@@ -2294,7 +2294,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 			{
 				FRDGBufferRef CardIndexBuffer = GraphBuilder.CreateBuffer(
 					FRDGBufferDesc::CreateUploadDesc(sizeof(uint32), FMath::Max(LumenCardRenderer.CardIdsToRender.Num(), 1)),
-					TEXT("CardsToRenderIndexBuffer"));
+					TEXT("Lumen.CardsToRenderIndexBuffer"));
 
 				FLumenCardIdUpload* PassParameters = GraphBuilder.AllocParameters<FLumenCardIdUpload>();
 				PassParameters->CardIds = CardIndexBuffer;
@@ -2326,7 +2326,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 				FRDGBufferRef CardHashMapBuffer = GraphBuilder.CreateBuffer(
 					FRDGBufferDesc::CreateUploadDesc(sizeof(uint32), NumHashMapUInt32),
-					TEXT("CardsToRenderHashMapBuffer"));
+					TEXT("Lumen.CardsToRenderHashMapBuffer"));
 
 				LumenCardRenderer.CardsToRenderHashMap.Init(0, NumHashMapBuckets);
 
@@ -2360,7 +2360,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 			{
 				FRDGBufferRef VisibleCardsIndexBuffer = GraphBuilder.CreateBuffer(
 					FRDGBufferDesc::CreateUploadDesc(sizeof(uint32), FMath::Max(LumenSceneData.VisibleCardsIndices.Num(), 1)),
-					TEXT("VisibleCardsIndexBuffer"));
+					TEXT("Lumen.VisibleCardsIndexBuffer"));
 
 				FLumenCardIdUpload* PassParameters = GraphBuilder.AllocParameters<FLumenCardIdUpload>();
 				PassParameters->CardIds = VisibleCardsIndexBuffer;

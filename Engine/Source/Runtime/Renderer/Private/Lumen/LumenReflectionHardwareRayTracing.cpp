@@ -271,7 +271,7 @@ void RenderLumenHardwareRayTracingReflections(
 
 	int DeferredMaterialBufferNumElements = DeferredMaterialBufferResolution.X * DeferredMaterialBufferResolution.Y;
 	FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FDeferredMaterialPayload), DeferredMaterialBufferNumElements);
-	FRDGBufferRef DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("LumenVisualizeHardwareRayTracingDeferredMaterialBuffer"));
+	FRDGBufferRef DeferredMaterialBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("Lumen.Reflections.VisualizeHardwareRayTracingDeferredMaterialBuffer"));
 
 	Lumen::FHardwareRayTracingPermutationSettings PermutationSettings = Lumen::GetReflectionsHardwareRayTracingPermutationSettings(View);
 	if (PermutationSettings.bUseDeferredMaterial)
