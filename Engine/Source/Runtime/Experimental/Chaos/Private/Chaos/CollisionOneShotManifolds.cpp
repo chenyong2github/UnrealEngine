@@ -10,6 +10,8 @@
 #include "Chaos/Transform.h"
 #include "Chaos/Utilities.h"
 
+#include "HAL/IConsoleManager.h"
+
 //PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
