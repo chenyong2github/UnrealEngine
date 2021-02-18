@@ -523,6 +523,7 @@ public:
 		const FShadowProjectionPassParameters& CommonPassParameters,
 		int32 ViewIndex,
 		const FViewInfo* View,
+		FIntRect ScissorRect,
 		const FSceneRenderer* SceneRender,
 		bool bProjectingForForwardShading,
 		bool bMobileModulatedProjections,
@@ -558,6 +559,7 @@ public:
 		const FShadowProjectionPassParameters& CommonPassParameters,
 		int32 ViewIndex,
 		const FViewInfo& View,
+		FIntRect ScissorRect,
 		bool bProjectingForForwardShading,
 		const FHairStrandsVisibilityData* HairVisibilityData,
 		const struct FHairStrandsMacroGroupDatas* HairMacroGroupData) const;
