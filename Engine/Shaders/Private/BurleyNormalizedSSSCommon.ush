@@ -45,42 +45,18 @@ bool GetSubsurfaceTransmittanceProfileUseBurley(uint SubsurfaceProfileInt)
 
 bool GetSubsurfaceProfileUseBurley(uint SubsurfaceProfileInt)
 {
-#if STRATA_ENABLED
-	// STRATA_TODO: For now force Burley to be used by default
-	return true;
-#else
 	// 0..255, which SubSurface profile to pick
 	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
 
 	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
-#endif
-}
-
-bool GetSubsurfaceProfileUseBurley(float2 BufferUV)
-{
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
-	return GetSubsurfaceProfileUseBurley(SubsurfaceProfileInt);
 }
 
 bool GetSubsurfaceProfileUseSeparable(uint SubsurfaceProfileInt)
 {
-#if STRATA_ENABLED
-	// STRATA_TODO: For now force Burley to be used by default
-	return false;
-#else
 	// 0..255, which SubSurface profile to pick
 	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
 
 	return abs(Type - SSS_TYPE_SSSS) < 0.01f;
-#endif
-}
-
-bool GetSubsurfaceProfileUseSeparable(float2 BufferUV)
-{
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
-	return GetSubsurfaceProfileUseSeparable(SubsurfaceProfileInt);
 }
 
 inline float3 Burley_Profile(float Radius, float3 Albedo, float3 S3D, float L)
@@ -172,6 +148,9 @@ float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
 
 //@TODO Revisit here after offline comparison.
 //call this function in TransmissionCommon.ush for Debug. No transmission tint is applied.
+
+// This code is not used
+#if 0
 float4 GetBurleyTransmissionProfile(FGBufferData GBufferData, float Thickness)
 {
 	// 0..255, which SubSurface profile to pick
@@ -187,3 +166,4 @@ float4 GetBurleyTransmissionProfile(FGBufferData GBufferData, float Thickness)
 	Output.xyz= 0.25*SurfaceAlbedo*(exp(-ScalingFactor * r) + 3 * exp(-ScalingFactor * r / 3));
 	return Output;
 }
+#endif

@@ -69,12 +69,13 @@ void ComputePostProcessBSDFData(
 			Classification.bHasSubsurface = true;
 
 			SSS.BaseColor = SLAB_BASECOLOR(BSDF);
-
+			SSS.Specular  = SLAB_SPECULAR(BSDF);
 			// STRATA_TODO when layered translucency is figured out once again, only bottom layer should run SSS
 
 			// Profile ID: we only keep the latest ID, and profile will overtake any non-profile based SSS
+			SSS.bIsValid			= true;
 			SSS.bIsProfile			= SSS.bIsProfile || BSDF_GETHASSSSPROFILE(BSDF);
-			SSS.ProfilePackedId		= SLAB_SSSPROFILEID(BSDF);
+			SSS.ProfileId			= StrataSubsurfaceProfileIdTo8bits(SLAB_SSSPROFILEID(BSDF));
 			SSS.ProfileRadiusScale	= SLAB_SSSPROFILERADIUSSCALE(BSDF);
 
 			// STRATA_TODO This should be accumulated according to the BSDF weight when we run this in the base pass.

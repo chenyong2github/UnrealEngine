@@ -184,7 +184,6 @@ float GetSubsurfaceProfileWorldUnitScale(uint SubsurfaceProfileInt)
 
 float SampleDepthTexture(float2 ScreenUV)
 {
-
 #if SUBSURFACE_HALF_RES && !(SUBSURFACE_SINGLE_PASS)
 	ConvertToDeviceZ(Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, ScreenUV).g);
 #else
@@ -197,61 +196,55 @@ float SampleDepthTexture(float2 ScreenUV)
 // fetch surface albedo and diffuse mean free path
 // The diffuse mean free path is modulated by world scale and a custom term passed in
 // which is the opacity texture.
-FBurleyParameter GetBurleyParameters(FGBufferData GBuffer)
+#if STRATA_ENABLED
+FBurleyParameter GetBurleyParameters(FStrataSubsurfaceData SSSData)
 {
 	FBurleyParameter Out = (FBurleyParameter)0;
-#if STRATA_ENABLED
-	if (GBuffer.ShadingModelID == SHADINGMODELID_STRATA)
+	if (SSSData.bIsProfile)
 	{
-		const bool bUseProfileData = GBuffer.CustomData.y == 0 && GBuffer.CustomData.z == 0;
-		if (bUseProfileData)
-		{
-			uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBuffer);
+		Out.SurfaceAlbedo		= GetSubsurfaceProfileSurfaceAlbedo(SSSData.ProfileId);
+		Out.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SSSData.ProfileId));
+		Out.WorldUnitScale		= DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SSSData.ProfileId)) * BURLEY_CM_2_MM;
 
-			Out.SurfaceAlbedo		= GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
-			Out.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SubsurfaceProfileInt));
-			Out.WorldUnitScale		= DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SubsurfaceProfileInt)) * BURLEY_CM_2_MM;
-
-			Out.SurfaceOpacity		= GBuffer.CustomData.a;
-			Out.DiffuseMeanFreePath*= Out.SurfaceOpacity;
-		}
-		else
-		{
-			// Decode the DMFP stored as Float111110 in a uint over a RGBA8 unorm
-			uint PackedDMFP11_11_10 = PackRGBA8(GBuffer.CustomData);
-			float3 DMFP = UnpackR11G11B10F(PackedDMFP11_11_10);
-
-			// Conversion to match other SSS encoding 
-			DMFP *= BURLEY_CM_2_MM * 5.0f; // STRATA_TODO why a scale of 5 is needed here to match between regular and Strata?
-
-			const float MaxDMFP				= max3(DMFP.x, DMFP.y, DMFP.z);
-			const uint IndexOfMaxDmfp		= (DMFP.r == MaxDMFP) ? 0 : ((DMFP.g == MaxDMFP) ? 1 : 2);
-
-			Out.SurfaceAlbedo				= float4(GBuffer.BaseColor, GBuffer.BaseColor[IndexOfMaxDmfp]);
-			Out.DiffuseMeanFreePath			= float4(DMFP, MaxDMFP);
-			Out.WorldUnitScale				= DecodeWorldUnitScale(1.0f * ENC_WORLDUNITSCALE_IN_CM_TO_UNIT) * BURLEY_CM_2_MM;
-
-			// STRATA_TODO smooth transistion based on pixel footprint w.r.t. MFPRadius and pixel footprint
-			Out.SurfaceOpacity				= 1.0f;
-			Out.DiffuseMeanFreePath			*= Out.SurfaceOpacity;
-		}
-	}
-	else
-#endif
-	{
-		uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBuffer);
-
-		Out.SurfaceAlbedo		= GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
-		Out.DiffuseMeanFreePath	= DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SubsurfaceProfileInt));
-		Out.WorldUnitScale		= DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SubsurfaceProfileInt)) * BURLEY_CM_2_MM;
-
-		// Mask should always be true, we can probably ignore it?
-		Out.SurfaceOpacity		= UseSubsurfaceProfile(GBuffer.ShadingModelID) ? GBuffer.CustomData.a : 0.0f;
+		Out.SurfaceOpacity		= SSSData.ProfileRadiusScale;
 		Out.DiffuseMeanFreePath*= Out.SurfaceOpacity;
 	}
+	else if(SSSData.bIsValid)
+	{
+		// Decode the DMFP stored as Float111110 in a uint over a RGBA8 unorm
+		float3 DMFP = SSSData.DMFP;
+
+		// Conversion to match other SSS encoding 
+		DMFP *= BURLEY_CM_2_MM * 5.0f; // STRATA_TODO why a scale of 5 is needed here to match between regular and Strata?
+
+		const float MaxDMFP				= max3(DMFP.x, DMFP.y, DMFP.z);
+		const uint IndexOfMaxDmfp		= (DMFP.r == MaxDMFP) ? 0 : ((DMFP.g == MaxDMFP) ? 1 : 2);
+
+		Out.SurfaceAlbedo				= float4(SSSData.BaseColor, SSSData.BaseColor[IndexOfMaxDmfp]);
+		Out.DiffuseMeanFreePath			= float4(DMFP, MaxDMFP);
+		Out.WorldUnitScale				= DecodeWorldUnitScale(1.0f * ENC_WORLDUNITSCALE_IN_CM_TO_UNIT) * BURLEY_CM_2_MM;
+
+		// STRATA_TODO smooth transistion based on pixel footprint w.r.t. MFPRadius and pixel footprint
+		Out.SurfaceOpacity				= 1.0f;
+		Out.DiffuseMeanFreePath			*= Out.SurfaceOpacity;
+	}
+	return Out;
+}
+#else
+FBurleyParameter GetBurleyParameters(uint SubsurfaceProfileInt, FGBufferData GBuffer)
+{
+	FBurleyParameter Out = (FBurleyParameter)0;
+	Out.SurfaceAlbedo		= GetSubsurfaceProfileSurfaceAlbedo(SubsurfaceProfileInt);
+	Out.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(GetSubsurfaceProfileDiffuseMeanFreePath(SubsurfaceProfileInt));
+	Out.WorldUnitScale		= DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SubsurfaceProfileInt)) * BURLEY_CM_2_MM;
+
+	// Mask should always be true, we can probably ignore it?
+	Out.SurfaceOpacity = UseSubsurfaceProfile(GBuffer.ShadingModelID) ? GBuffer.CustomData.a : 0.0f;
+	Out.DiffuseMeanFreePath *= Out.SurfaceOpacity;
 
 	return Out;
 }
+#endif
 
 float2 Generate2DRandomNumber(int3 Seed)
 {
@@ -408,11 +401,19 @@ FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathFo
 	return BurleySampleInfo;
 }
 
-float GetProfileMask(float2 BufferUV)
+float GetProfileMask(float2 BufferUV, float2 Extent)
 {
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
+#if STRATA_ENABLED
+	const uint2 PixelCoord = BufferUV * Extent;
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	const bool bIsProfile = SSSData.bIsValid;
+#else
+	const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
+	const bool bIsProfile = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID);	
+#endif
+
 	float Ret = 0;
-	BRANCH if (UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
+	BRANCH if (bIsProfile)
 	{
 		Ret = 1.0f;
 	}
@@ -428,15 +429,15 @@ float GetProfileEdgeMask(float2 BufferUV)
 	#define PIXELOFFSET_UVDELTA 1.0f
 #endif
 
-	float P11 = GetProfileMask((BufferUV + float2(0.0f, 0.0f) * SubsurfaceInput0_ExtentInverse));
-	float P00 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
-	float P01 = GetProfileMask((BufferUV + float2(0.0f, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
-	float P02 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
-	float P10 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse));
-	float P12 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse));
-	float P20 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
-	float P21 = GetProfileMask((BufferUV + float2(0.0f, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
-	float P22 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P11 = GetProfileMask((BufferUV + float2(0.0f, 0.0f) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P00 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P01 = GetProfileMask((BufferUV + float2(0.0f, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P02 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P10 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P12 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P20 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P21 = GetProfileMask((BufferUV + float2(0.0f, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
+	float P22 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse), SubsurfaceInput0_Extent);
 
 	return (P00 + P01 + P02 + P10 + P11 + P12 + P20 + P21 + P22) / 9.0f;
 }
@@ -483,6 +484,12 @@ int GetNumOfSamplesBasedOnQuality(float2 UV)
 
 // If the shading model is valid, return the profile. Otherwise, return SSS_PROFILE_ID_INVALID.
 // That way if we have a valid profile, we can check of the other profile is valid with a single boolean expression.
+#if STRATA_ENABLED
+uint ExtractSubsurfaceProfileIntWithInvalid(FStrataSubsurfaceData SSSData)
+{
+	return SSSData.ProfileId;
+}
+#else
 uint ExtractSubsurfaceProfileIntWithInvalid(FGBufferData BufferData)
 {
 	uint ProfileID = SSS_PROFILE_ID_INVALID;
@@ -492,6 +499,7 @@ uint ExtractSubsurfaceProfileIntWithInvalid(FGBufferData BufferData)
 	}
 	return ProfileID;
 }
+#endif
 
 // BufferUV back to grid posistion of the input
 uint2 ConvertUVPos2Input0GridPos(float2 BufferUV)
@@ -691,11 +699,17 @@ BurleySampleDiffuseNormal SampleSharedDiffuseNormal(float2 SampleGroupThreadId)
 	#define SharedBurleyPointSampler SubsurfaceSampler0
 #endif
 
-float3 GetBilateralNormal(float2 ClampedUV)
+float3 GetBilateralNormal(float2 ClampedUV, float2 Extent)
 {
 	//BRANCH to avoid extra evaluation of the GBuffer.
 #if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
+	#if STRATA_ENABLED
+	const uint2 BufferPos = ClampedUV * Extent;
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(BufferPos, 0)));
+	return TopLayerData.WorldNormal;
+	#else
 	return GetScreenSpaceData(ClampedUV).GBuffer.WorldNormal;
+	#endif
 #elif BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH
 	return BILATERAL_FILTER_DEFAULT_NORMAL;
 #endif
@@ -705,6 +719,15 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 {
 	float2 ClampedUV = clamp(CenterUV+ UVOffset, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
 	
+#if !(ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE !=1))
+	#if STRATA_ENABLED
+	const uint2 CenterPos = ClampedUV * SubsurfaceInput0_Extent;
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(CenterPos, 0)));
+	#else
+	const FGBufferData SSSData = GetScreenSpaceData(ClampedUV).GBuffer;
+	#endif
+#endif
+
 	// Burley works only with point sampler when we support world unit scale. Bilinear and trilinear will create artifacts.
 	// So we use SubsurfaceSampler1 here instead of using SubsurfaceSampler0, which is a point sampler.
 	// The reason that we can have different sampler for SubsurfaceSampler0 is that we have Separable running in the same pass.
@@ -721,13 +744,13 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 	Sample.DiffuseLighting = Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedBurleyPointSampler, ClampedUV, MipLevel);
 
 #if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
-	Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV);
+	Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV, SubsurfaceInput0_Extent);
 #endif
 
-#if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FALCE_SEPARABLE !=1)
+#if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE !=1)
 	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV,Sample.DiffuseLighting.w);
 #else
-	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(GetScreenSpaceData(ClampedUV).GBuffer);
+	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSData);
 #endif
 
 	return Sample;
@@ -745,13 +768,13 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 		{
 			Sample.DiffuseLighting = Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedBurleyPointSampler, ClampedUV, MipLevel);
 #if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
-			Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV);
+			Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV, SubsurfaceInput0_Extent);
 #endif
 
 #if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE != 1)
 			Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV, Sample.DiffuseLighting.w);
 #else
-			Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(GetScreenSpaceData(ClampedUV).GBuffer);
+			Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSData);
 #endif
 
 			return Sample;
@@ -762,13 +785,13 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 	Sample.DiffuseLighting = Texture2DSampleLevel(SubsurfaceInput0_Texture, SharedBurleyPointSampler, ClampedUV, MipLevel);
 
 #if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
-	Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV);
+	Sample.WorldNormal.xyz = GetBilateralNormal(ClampedUV, SubsurfaceInput0_Extent);
 #endif
 	
 #if ENABLE_PROFILE_ID_CACHE && (SUBSURFACE_FORCE_SEPARABLE != 1)
 	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(ClampedUV, Sample.DiffuseLighting.w);
 #else
-	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(GetScreenSpaceData(ClampedUV).GBuffer);
+	Sample.ProfileID = ExtractSubsurfaceProfileIntWithInvalid(SSSData);
 #endif
 
 	return Sample;
@@ -882,9 +905,6 @@ void UpdateSeed(int3 Seed3D, inout int StartSeed)
 
 float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 {
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
-	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
-
 	BurleySampleDiffuseNormal CenterSample = SampleSSSColorConsideringLocalShared(BufferUV, 0, GroupThreadID, 0);
 	float DepthAtDiscCenter = CenterSample.DiffuseLighting.w;
 
@@ -897,11 +917,23 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 		return OutColor;
 	}
 
-	FBurleyParameter BurleyParameter = GetBurleyParameters(ScreenSpaceData.GBuffer);
+#if STRATA_ENABLED
+	const uint2 BufferPos = BufferUV * SubsurfaceInput0_Extent;
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+	const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(BufferPos, 0)));
+	const float3 WorldNormal = TopLayerData.WorldNormal;
+	const uint SubsurfaceProfileInt = SSSData.ProfileId;
+	const FBurleyParameter BurleyParameter = GetBurleyParameters(SSSData);
+#else
+	const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
+	const float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
+	const uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+	const FBurleyParameter BurleyParameter = GetBurleyParameters(SubsurfaceProfileInt, ScreenSpaceData.GBuffer);
+#endif
+
 	float DiffuseMeanFreePathForSampling = GetDiffuseMeanFreePathForSampling(BurleyParameter.DiffuseMeanFreePath);
 	float A = GetComponentForScalingFactorEstimation(BurleyParameter.SurfaceAlbedo);
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
-	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(ScreenSpaceData.GBuffer).xyz;
+	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(SubsurfaceProfileInt).xyz;
 
 	float S = GetScalingFactor(A);
 	float3 S3D = GetScalingFactor3D(BurleyParameter.SurfaceAlbedo.xyz);
@@ -991,9 +1023,16 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 			SDiffuseAndSpecular SampledDiffuseAndSpecular = ReconstructLighting(SampledDiscUV, ReconstructMethod);
 			float4 SampledRadianceAndDepth = float4(SampledDiffuseAndSpecular.Diffuse, CalcSceneDepth(SampledDiscUV));
 
-			FScreenSpaceData SampleScreenSpaceData = GetScreenSpaceData(SampledDiscUV);
-			float3 SampleWorldNormal = SampleScreenSpaceData.GBuffer.WorldNormal;
-			uint LocalProfile = ExtractSubsurfaceProfileIntWithInvalid(GetSubsurfaceProfileId(SampledDiscUV));
+		#if STRATA_ENABLED
+			const uint2 BufferPos = SampledDiscUV * SubsurfaceInput0_Extent;
+			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(BufferPos, 0));
+			const float3 SampleWorldNormal = TopLayerData.WorldNormal;
+		#else
+			const FScreenSpaceData SampleScreenSpaceData = GetScreenSpaceData(SampledDiscUV);
+			const float3 SampleWorldNormal = SampleScreenSpaceData.GBuffer.WorldNormal;
+		#endif
+
+			uint LocalProfile = ExtractSubsurfaceProfileIntWithInvalid(GetSubsurfaceProfileId(SampledDiscUV, SubsurfaceInput0_Extent));
 #else
 
 			// Determine the miplevel with the expected number of samples at the pixel.
@@ -1223,11 +1262,20 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 			SharedSubsurfaceDiffuseLighting[LocalSharedIndex] = SubsurfaceColorWithSSSIndicator;
 
 			// Also fetch the normal and profile ID
-			FScreenSpaceData SampleScreenSpaceData = GetScreenSpaceData(SampleUV);
+		#if STRATA_ENABLED
+			const uint2 BufferPos = SampleUV * Output_Extent;
+			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(BufferPos, 0)));
+			const float3 SampleWorldNormal = TopLayerData.WorldNormal;
+			const FStrataSubsurfaceData SampleSSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+		#else
+			const FGBufferData SampleSSSData = GetScreenSpaceData(SampleUV).GBuffer;
+			const float3 SampleWorldNormal = SampleSSSData.WorldNormal;
+		#endif
+
 #if BILATERAL_FILTER_KERNEL_FUNCTION_TYPE == BILATERAL_FILTER_KERNEL_FUNCTION_DEPTH_AND_NORMAL
-			SharedSubsurfaceWorldNormal[LocalSharedIndex] = SampleScreenSpaceData.GBuffer.WorldNormal;
+			SharedSubsurfaceWorldNormal[LocalSharedIndex] = SampleWorldNormal;
 #endif
-			SharedSubsurfaceProfileID[LocalSharedIndex] = ExtractSubsurfaceProfileIntWithInvalid(SampleScreenSpaceData.GBuffer);
+			SharedSubsurfaceProfileID[LocalSharedIndex] = ExtractSubsurfaceProfileIntWithInvalid(SampleSSSData);
 		}
 	}
 
@@ -1274,7 +1322,7 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 			float4 SurfaceColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, LBufferUV);
 
 			// We have to check per pixel if this is a burley so that we don't overwrite separable pixels
-			uint SelectedProfile = GetSubsurfaceProfileId(LBufferUV);
+			uint SelectedProfile = GetSubsurfaceProfileId(LBufferUV, SubsurfaceInput0_Extent);
 			bool UseBurley = GetSubsurfaceProfileUseBurley(SelectedProfile);
 			if (UseBurley)
 			{

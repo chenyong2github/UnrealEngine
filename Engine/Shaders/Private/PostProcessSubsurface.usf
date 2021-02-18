@@ -10,6 +10,10 @@
 #define STRATA_ENABLED PROJECT_STRATA
 #endif
 
+#ifdef STRATA_ENABLED
+#include "Strata/Strata.ush"
+#endif
+
 #include "PostProcessCommon.ush"
 #include "DeferredShadingCommon.ush"
 #include "SubsurfaceProfileCommon.ush"
@@ -103,12 +107,18 @@ float GetMaskFromDepthInAlpha(float Alpha)
 }
 
 // can be optimized
-float GetSubsurfaceStrength(float2 UV)
+float GetSubsurfaceStrength(uint2 PixelCoord, float2 UV)
 {
+#if STRATA_ENABLED
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	const float Mask = SSSData.bIsValid ? 1.0f : 0.0f;
+	const float RadiusScale = SSSData.ProfileRadiusScale;
+#else
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-
-	float Mask = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID) ? 1.0f : 0.0f;
-	return Mask * ScreenSpaceData.GBuffer.CustomData.a;
+	const float Mask = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID) ? 1.0f : 0.0f;
+	const float RadiusScale = ScreenSpaceData.GBuffer.CustomData.a;
+#endif
+	return Mask * RadiusScale;
 }
 
 // @return .rgb is the weight for color channel, .a is the sample location
@@ -122,26 +132,6 @@ float4 GetSubsurfaceProfileKernel(uint SampleIndex, uint SubsurfaceProfileInt)
 	return ActualSSProfilesTexture.Load(int3(SampleIndex, SubsurfaceProfileInt, 0)) * TableMax;
 }
 
-float GetSubsurfaceProfileRadiusScale(FGBufferData GBufferData)
-{
-	// 0..255, which SubSurface profile to pick
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-#if STRATA_ENABLED
-	if (SubsurfaceProfileInt == SSS_PROFILE_ID_PERPIXEL) return 1.f;
-#endif
-	return GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + SSSS_N_KERNELWEIGHTCOUNT - 1, SubsurfaceProfileInt).a;
-}
-
-float3 GetSubsurfaceProfileColor(FGBufferData GBufferData)
-{
-	// 0..255, which SubSurface profile to pick
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
-#if STRATA_ENABLED
-	if (SubsurfaceProfileInt == SSS_PROFILE_ID_PERPIXEL) return GBufferData.BaseColor;
-#endif
-	return GetSubsurfaceProfileKernel(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt).rgb;
-}
-
 float3 GetSubsurfaceProfileNormal(float2 BufferUV)
 {
 
@@ -151,19 +141,21 @@ float3 GetSubsurfaceProfileNormal(float2 BufferUV)
 	return LocalGBufferData.WorldNormal;
 }
 
-
-uint GetSubsurfaceProfileId(float2 BufferUV)
+uint GetSubsurfaceProfileId(float2 BufferUV, float2 Extent)
 {
 	BufferUV = clamp(BufferUV, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
-
+#if STRATA_ENABLED
+	const uint2 PixelCoord = BufferUV * Extent;
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	return SSSData.ProfileId;
+#else
 	FGBufferData LocalGBufferData = GetGBufferData(BufferUV);
 	return ExtractSubsurfaceProfileInt(LocalGBufferData);
+#endif
 }
 
-float3 GetSubsurfaceProfileBoundaryColorBleed(FGBufferData GBufferData)
+float3 GetSubsurfaceProfileBoundaryColorBleed(uint SubsurfaceProfileInt)
 {
-	// 0..255, which SubSurface profile to pick
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
 #if STRATA_ENABLED
 	if (SubsurfaceProfileInt == SSS_PROFILE_ID_PERPIXEL) return float3(1.f, 1.f, 1.f);
 #endif
@@ -190,7 +182,7 @@ bool InUnitBox(float2 UV)
 }
 
 // @return 0=don't blend in, 1:fully blend in
-float ComputeFullResLerp(FScreenSpaceData ScreenSpaceData, float2 UVSceneColor, float2 FullResInputSizeInverse)
+float ComputeFullResLerp(float ProfileRadiusScale, float PixelRadiusScale, float2 UVSceneColor, float2 FullResInputSizeInverse)
 {
 	float SSSScaleX = SubsurfaceParams.x;
 
@@ -201,7 +193,7 @@ float ComputeFullResLerp(FScreenSpaceData ScreenSpaceData, float2 UVSceneColor, 
 	// Calculate the final step to fetch the surrounding pixels:
 	float finalStep = scale * HorizontalScaler;
 
-	finalStep *= GetSubsurfaceProfileRadiusScale(ScreenSpaceData.GBuffer);
+	finalStep *= ProfileRadiusScale;
 
 	float PixelSizeRadius = finalStep / (FullResInputSizeInverse.x * 0.5f);
 
@@ -211,7 +203,7 @@ float ComputeFullResLerp(FScreenSpaceData ScreenSpaceData, float2 UVSceneColor, 
 	float Ret = saturate(PixelSizeRadius - PixelSize);
 
 	// opacity allows to scale the radius - at some point we should fade in the full resolution, we don't have a masking other than that.
-	Ret *= saturate(ScreenSpaceData.GBuffer.CustomData.a * 10);
+	Ret *= saturate(PixelRadiusScale * 10);
 
 	// todo: Subsurface has some non scatter contribution - all that should come from the Full res
 	return Ret;
@@ -234,13 +226,22 @@ void VisualizePS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPo
 	{
 		float2 UV = SubsurfaceInput0_ViewportMin * SubsurfaceInput0_ExtentInverse + IDAreaLocalUV * (SubsurfaceInput0_ViewportSize * SubsurfaceInput0_ExtentInverse);
 
-		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-
-		int SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+	#if STRATA_ENABLED
+		const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelPos, 0)));
+		const uint SubsurfaceProfileInt = SSSData.ProfileId;
+		const bool bIsProfile = SSSData.bIsProfile;
+		const float PixelRadiusScale = SSSData.ProfileRadiusScale;
+	#else
+		const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
+		const uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+		const bool bIsProfile = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID);
+		const float PixelRadiusScale = ScreenSpaceData.GBuffer.CustomData.a;
+	#endif
+		const float ProfileRadiusScale = GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + SSSS_N_KERNELWEIGHTCOUNT - 1, SubsurfaceProfileInt).a;
 
 		OutColor = float4(0.5f, 0.5f, 0.5f, 0);
 
-		BRANCH if (UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
+		BRANCH if (bIsProfile)
 		{
 			if (SubsurfaceProfileInt == 0)
 			{
@@ -283,10 +284,9 @@ void VisualizePS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPo
 			int2 LeftTop = (PixelPos / 8) * 8;
 			PrintCharacter(PixelPos, OutColor.rgb, float3(1, 1, 1), LeftTop, SubsurfaceProfileInt);
 
-			OutColor.rgb *= ComputeFullResLerp(ScreenSpaceData, UV, SubsurfaceInput0_ExtentInverse);
+			OutColor.rgb *= ComputeFullResLerp(ProfileRadiusScale, PixelRadiusScale, UV, SubsurfaceInput0_ExtentInverse);
 		}
 	}
-
 }
 
 
@@ -388,13 +388,19 @@ SDiffuseAndSpecular ReconstructLighting(float2 UVSceneColor, uint ReconstructMet
 
 // @param UVSceneColor for the full res rendertarget (BufferSize) e.g. SceneColor or GBuffers
 // @return .RGB Color that should be scattared, .A:1 for subsurface scattering material, 0 for not
-float4 SetupSubsurfaceForOnePixel(float2 UVSceneColor)
+float4 SetupSubsurfaceForOnePixel(float2 UVSceneColor, float2 Extent)
 {
-	float4 Ret = 0;
-
+#if STRATA_ENABLED
+	const uint2 PixelCoord = UVSceneColor * Extent;
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(PixelCoord, 0)));
+	const bool bHasSSSProfile = SSSData.bIsValid;
+#else
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UVSceneColor);
+	const bool bHasSSSProfile = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID);
+#endif
 
-	BRANCH if (UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
+	float4 Ret = 0;
+	BRANCH if (bHasSSSProfile)
 	{
 		// '1' is lower quality but that is acceptable here
 		SDiffuseAndSpecular DiffuseAndSpecular = ReconstructLighting(UVSceneColor, 1);
@@ -404,7 +410,6 @@ float4 SetupSubsurfaceForOnePixel(float2 UVSceneColor)
 		// it's a valid sample
 		Ret.a = 1;
 	}
-
 	return Ret;
 }
 
@@ -528,10 +533,10 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	// order aligned with Gather() hardware implementation
 	// RGB: color*A, A:weight 0 if no subsurface scattering
 
-	float4 A = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
-	float4 B = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
-	float4 C = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
-	float4 D = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 A = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax), SubsurfaceInput0_Extent);
+	float4 B = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax), SubsurfaceInput0_Extent);
+	float4 C = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax), SubsurfaceInput0_Extent);
+	float4 D = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax), SubsurfaceInput0_Extent);
 
 	float4 Sum = (A + B) + (C + D);
 
@@ -559,7 +564,7 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 #else // SUBSURFACE_HALF_RES
 	
 	bool bHasSubsurface = false;
-	OutColor = SetupSubsurfaceForOnePixel(BufferUV);
+	OutColor = SetupSubsurfaceForOnePixel(BufferUV, SubsurfaceInput0_Extent);
 
 	if (OutColor.a > 0)
 	{
@@ -578,7 +583,7 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 #endif // SUBSURFACE_HALF_RES
 
 #if !SUBSURFACE_FORCE_SEPARABLE && ENABLE_PROFILE_ID_CACHE
-	uint ProfileId = GetSubsurfaceProfileId(BufferUV);
+	uint ProfileId = GetSubsurfaceProfileId(BufferUV, SubsurfaceInput0_Extent);
 #endif
 
 	// setup the Subsurface type
@@ -590,13 +595,13 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 	#if 0
 		// the code here is designed for half resolution burley.
 		float2 UVA = min(BufferUV + float2(-0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
-		uint PidA = GetSubsurfaceProfileId(UVA);
+		uint PidA = GetSubsurfaceProfileId(UVA, SubsurfaceInput0_Extent);
 		float2 UVB = min(BufferUV + float2(0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
-		uint PidB = GetSubsurfaceProfileId(UVB);
+		uint PidB = GetSubsurfaceProfileId(UVB, SubsurfaceInput0_Extent);
 		float2 UVC = min(BufferUV + float2(0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
-		uint PidC = GetSubsurfaceProfileId(UVC);
+		uint PidC = GetSubsurfaceProfileId(UVC, SubsurfaceInput0_Extent);
 		float2 UVD = min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
-		uint PidD = GetSubsurfaceProfileId(UVD);
+		uint PidD = GetSubsurfaceProfileId(UVD, SubsurfaceInput0_Extent);
 
 		// Gatter available and use the last subsurface type for the current pixel.
 		SelectedProfile = lerp(SelectedProfile, PidA, A.a);
@@ -610,14 +615,14 @@ void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
 		BufferUV = lerp(BufferUV, UVC, C.a);
 		BufferUV = lerp(BufferUV, UVD, D.a);
 		
-		SelectedProfile = GetSubsurfaceProfileId(BufferUV);
+		SelectedProfile = GetSubsurfaceProfileId(BufferUV, SubsurfaceInput0_Extent);
 		Type = GetSubsurfaceType(SelectedProfile);
 	#else
 		Type = TYPE_SEPARABLE; // use separable for half resolution
 	#endif
 		
 #else
-		SelectedProfile = GetSubsurfaceProfileId(BufferUV);
+		SelectedProfile = GetSubsurfaceProfileId(BufferUV, SubsurfaceInput0_Extent);
 		Type = GetSubsurfaceType(SelectedProfile);
 #endif
 	}
@@ -654,10 +659,20 @@ void MainIndirectDispatchCS(
 
 	uint2 Pos = DT_ID.xy*SUBSURFACE_GROUP_SIZE / THREAD_SIZE_1D + Output_ViewportMin;
 	float2 BufferUV = ConvertGridPos2UV(Pos);
+	uint2  BufferPos = Pos;
+
+#if STRATA_ENABLED
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+	const uint bUseBurley = SSSData.bIsProfile ? GetSubsurfaceProfileUseBurley(SSSData.ProfileId) : SSSData.bIsValid;
+#else
+	const FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
+	const uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+	const bool bUseBurley = GetSubsurfaceProfileUseBurley(SubsurfaceProfileInt);
+#endif
 
 	// We need to check Burley here because the previous pass might write burley samplings here unless we have SUBSURFACE_FORCE_SEPARABLE to overwrite the setting.
 #if !SUBSURFACE_FORCE_SEPARABLE
-	BRANCH if (GetSubsurfaceProfileUseBurley(BufferUV))
+	BRANCH if (bUseBurley)
 	{
 		return;
 	}
@@ -674,7 +689,7 @@ void MainIndirectDispatchCS(
 
 	ViewportDirectionUV *= (SubsurfaceInput0_ViewportSize.x * SubsurfaceInput0_ExtentInverse.x);
 
-	float4 OutColor = SSSSBlurPS(BufferUV, ViewportDirectionUV, false);
+	float4 OutColor = SSSSBlurPS(BufferPos, BufferUV, ViewportDirectionUV, false, SubsurfaceInput0_Extent);
 
 #if SUBSURFACE_PASS == SUBSURFACE_PASS_TWO
 	// second pass prepares the setup from the recombine pass which doesn't need depth but wants to reconstruct the color
@@ -693,15 +708,52 @@ void MainIndirectDispatchCS(
 // with the SceneColor.
 void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
-	float2 BufferUV = UVAndScreenPos.xy;
+	const float2 BufferUV  = UVAndScreenPos.xy;
+	const uint2  BufferPos = SvPosition.xy;
 
+#if STRATA_ENABLED
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+	const bool bUseSSSProfile = SSSData.bIsValid;
+#else
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
-	
-	if (!UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
+	const bool bUseSSSProfile = UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID);
+#endif
+
+	if (!bUseSSSProfile)
 	{
 		OutColor = Texture2DSample(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV);
 		return;
 	} 
+
+#if STRATA_ENABLED
+	const uint ProfileId = SSSData.ProfileId;
+	// we multiply the base color later in to get more crips human skin textures (scanned data always has Subsurface included)
+	const float3 StoredBaseColor	= SSSData.BaseColor;
+	const float StoredSpecular		= SSSData.Specular;
+	const float PixelRadiusScale	= SSSData.ProfileRadiusScale;
+
+	// asset specific color
+	float3 SubsurfaceColor = 0.0f;
+	float ProfileRadiusScale = 1.0f;
+	if (SSSData.bIsProfile)
+	{
+		SubsurfaceColor = GetSubsurfaceProfileKernel(SSSS_SUBSURFACE_COLOR_OFFSET, ProfileId).rgb;
+		ProfileRadiusScale = GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + SSSS_N_KERNELWEIGHTCOUNT - 1, ProfileId).a;
+	}
+	else if (ProfileId == SSS_PROFILE_ID_PERPIXEL)
+	{
+		SubsurfaceColor = SSSData.DMFP;
+	}
+#else
+	const uint ProfileId = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+	// we multiply the base color later in to get more crips human skin textures (scanned data always has Subsurface included)
+	const float3 StoredBaseColor	= ScreenSpaceData.GBuffer.StoredBaseColor;
+	const float StoredSpecular		= ScreenSpaceData.GBuffer.StoredSpecular;
+	const float PixelRadiusScale	= ScreenSpaceData.GBuffer.CustomData.a;
+	// asset specific color
+	const float3 SubsurfaceColor	= GetSubsurfaceProfileKernel(SSSS_SUBSURFACE_COLOR_OFFSET, ProfileId).rgb;
+	const float ProfileRadiusScale	= GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET + SSSS_N_KERNELWEIGHTCOUNT - 1, ProfileId).a;
+#endif
 
 	float3 SSSColor = float3(0, 0, 0);
 	float LerpFactor = 1;
@@ -710,7 +762,7 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 #if SUBSURFACE_HALF_RES
 	// fade out subsurface scattering if radius is too small to be more crips (not blend with half resolution)
 	// minor quality improvement (faces are more detailed in distance)
-	LerpFactor = ComputeFullResLerp(ScreenSpaceData, BufferUV, SubsurfaceInput1_ExtentInverse);
+	LerpFactor = ComputeFullResLerp(ProfileRadiusScale, PixelRadiusScale, BufferUV, SubsurfaceInput1_ExtentInverse);
 #endif // SUBSURFACE_HALF_RES
 
 	{
@@ -726,12 +778,14 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 
 	float3 DirectColor = Texture2DSample(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV).rgb;
 
-	uint ProfileId = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
-
 	bool bIsHalfResUpsample = false;
 	if (bIsHalfResUpsample && GetSubsurfaceProfileUseBurley(ProfileId))
 	{
-		FBurleyParameter BurleyParameter = GetBurleyParameters(ScreenSpaceData.GBuffer);
+	#if STRATA_ENABLED
+		FBurleyParameter BurleyParameter = GetBurleyParameters(SSSData);
+	#else
+		FBurleyParameter BurleyParameter = GetBurleyParameters(ProfileId, ScreenSpaceData.GBuffer);
+	#endif
 		
 		float Depth = CalcSceneDepth(BufferUV);
 
@@ -740,34 +794,18 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 		SSSColor = lerp(SSSColor,DirectColor,CenterSampleWeight);
 	}
 
-	// we multiply the base color later in to get more crips human skin textures (scanned data always has Subsurface included)
-	float3 StoredBaseColor = ScreenSpaceData.GBuffer.StoredBaseColor;
-	float StoredSpecular = ScreenSpaceData.GBuffer.StoredSpecular;
-
 	uint ReconstructMethod = (SUBSURFACE_RECOMBINE_QUALITY == SUBSURFACE_RECOMBINE_QUALITY_HIGH) ? 3 : 1;
 
 	SDiffuseAndSpecular DiffuseAndSpecular = ReconstructLighting(BufferUV, ReconstructMethod);
 	
 	float3 ExtractedNonSubsurface = DiffuseAndSpecular.Specular;
 
-	// asset specific color
-	float3 SubsurfaceColor = GetSubsurfaceProfileColor(ScreenSpaceData.GBuffer);
-
 	float3 FadedSubsurfaceColor = SubsurfaceColor * LerpFactor;
 
 	// combine potentially half res with full res
 	float3 SubsurfaceLighting = lerp(DiffuseAndSpecular.Diffuse, SSSColor, FadedSubsurfaceColor);
 
-#if STRATA_ENABLED
-	if (ProfileId == SSS_PROFILE_ID_PERPIXEL)
-	{
-		OutColor = float4(SubsurfaceLighting + ExtractedNonSubsurface, 0);
-	}
-	else
-#endif
-	{
-		OutColor = float4(SubsurfaceLighting * StoredBaseColor + ExtractedNonSubsurface, 0);
-	}
+	OutColor = float4(SubsurfaceLighting * StoredBaseColor + ExtractedNonSubsurface, 0);
 }
 
 void SubsurfaceViewportCopyPS(noperspective float4 InUV : TEXCOORD0, out float4 OutColor : SV_Target0)

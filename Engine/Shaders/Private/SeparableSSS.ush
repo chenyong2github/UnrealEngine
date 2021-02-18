@@ -114,7 +114,7 @@
 #define SSSSSampleShadowmap(coord)	float4(0,0,0,0)	// todo: not used yet
 #define SSSSSampleSceneColor(coord) GetSceneColor(coord)
 #define SSSSSampleSceneColorPoint(coord) GetSceneColor(coord) // todo: could be made point
-#define SSSSSampleProfileId(coord) GetSubsurfaceProfileId(coord)
+#define SSSSSampleProfileId(coord, ext) GetSubsurfaceProfileId(coord, ext)
 #define SSSSLerp(a, b, t) lerp(a, b, t)
 #define SSSSMad(a, b, c) mad(a, b, c)
 #define SSSSMul(v, m) mul(v, m)
@@ -182,7 +182,7 @@ float3 SSSSTransmittance(float translucency, float sssWidth, float3 worldPositio
 // @param texcoord The usual quad texture coordinates.
 // @param dir Direction of the blur: First pass:   float2(1.0, 0.0), Second pass:  float2(0.0, 1.0)
 // @param initStencil indicates whether the stencil buffer should be initialized. Should be set to 'true' for the first pass if not previously initialized, to enable optimization of the second pass.
-float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
+float4 SSSSBlurPS(uint2 BufferPos, float2 BufferUV, float2 dir, bool initStencil, float2 Extent)
 {
     // Fetch color of current pixel:
     float4 colorM = SSSSSampleSceneColorPoint(BufferUV);
@@ -201,7 +201,7 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
 	}
 
 	// 0..1
-	float SSSStrength = GetSubsurfaceStrength(BufferUV);
+	float SSSStrength = GetSubsurfaceStrength(BufferPos, BufferUV);
 
 #if !SSSS_COMPUTESHADER
 	// Initialize the stencil buffer in case it was not already available:
@@ -218,11 +218,17 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
 	// ideally this comes from a half res buffer as well - there are some minor artifacts
 	finalStep *= SSSStrength; // Modulate it using the opacity (0..1 range)
     
-	FGBufferData GBufferData = GetGBufferData(BufferUV);
-
+#if STRATA_ENABLED
+	const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(BufferPos, 0)));
+	// For SSS_PROFILE_ID_PERPIXEL is managed throught the burley passes
+	const uint SubsurfaceProfileInt = SSSData.bIsProfile ? SSSData.ProfileId : SSS_PROFILE_ID_INVALID;
+#else
+	const FGBufferData GBufferData = GetGBufferData(BufferUV);
 	// 0..255, which SubSurface profile to pick
 	// ideally this comes from a half res buffer as well - there are some minor artifacts
-	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
+	const uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
+#endif
+
 
     // Accumulate the center sample:
     float3 colorAccum = 0;
@@ -233,7 +239,7 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
 	colorInvDiv += GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET, SubsurfaceProfileInt).rgb;
 	colorAccum = colorM.rgb * GetSubsurfaceProfileKernel(SSSS_N_KERNELWEIGHTOFFSET, SubsurfaceProfileInt).rgb;
 
-	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(GBufferData);
+	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(SubsurfaceProfileInt);
 
 	// Accumulate the other samples:
     SSSS_UNROLL
@@ -254,7 +260,7 @@ float4 SSSSBlurPS(float2 BufferUV, float2 dir, bool initStencil)
 			// Fetch color and depth for current sample:
 			float2 LocalUV = BufferUV + UVOffset * Side;
 			float4 color = SSSSSampleSceneColor(LocalUV);
-			uint LocalSubsurfaceProfileInt = SSSSSampleProfileId(LocalUV);
+			uint LocalSubsurfaceProfileInt = SSSSSampleProfileId(LocalUV, Extent);
 			float3 ColorTint = LocalSubsurfaceProfileInt == SubsurfaceProfileInt ? 1.0f : BoundaryColorBleed;
 
 

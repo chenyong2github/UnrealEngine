@@ -290,9 +290,11 @@ FStrataTopLayerData StrataUnpackTopLayerData(uint In)
 struct FStrataSubsurfaceData
 {
 	float3 BaseColor;
+	float  Specular;
 
+	bool   bIsValid;
 	bool   bIsProfile;
-	float  ProfilePackedId;		// Integer ID packed in 8bits as float
+	uint   ProfileId;
 	float  ProfileRadiusScale;
 
 	float3 DMFP;				// When the profile is not used, a per pixel DMFP is used
@@ -301,9 +303,15 @@ struct FStrataSubsurfaceData
 uint2 StrataPackSSSData(FStrataSubsurfaceData In)
 {
 	uint2 Out;
-	Out.x = PackColorLinearToGamma2AlphaLinear(float4(In.BaseColor, In.bIsProfile ? 1.0f : 0.0f));
-	Out.y = In.bIsProfile ? PackRGBA8(float4(In.ProfilePackedId, In.ProfileRadiusScale, 0.0f, 0.0f)) : PackR11G11B10F(In.DMFP);
+	Out.x = PackColorLinearToGamma2AlphaLinear(float4(In.BaseColor, In.bIsValid ? (In.bIsProfile ? 1.0f : 0.5f) : 0.0f));
+	Out.y = In.bIsProfile ? ((In.ProfileId & 0xFF) | PackRGBA8(float4(0.f, In.ProfileRadiusScale, In.Specular, 0.0f))) : PackR11G11B10F(In.DMFP);
 	return Out;
+}
+
+uint StrataSubsurfaceProfileIdTo8bits(float In)
+{
+	// Similar encoding than ExtractSubsurfaceProfileInt. Valid profile ID start at 1.
+	return In * 255.0f + 0.5f;
 }
 
 FStrataSubsurfaceData StrataUnpackSSSData(uint2 In)
@@ -312,17 +320,21 @@ FStrataSubsurfaceData StrataUnpackSSSData(uint2 In)
 
 	float4 Data0 = UnpackColorGamma2ToLinearAlphaLinear(In.x);
 	Out.BaseColor = Data0.rgb;
-	Out.bIsProfile= Data0.a > 0.0f;
+	Out.bIsValid  = Data0.a > 0.0f;
+	Out.bIsProfile= Data0.a > 0.75f;
+	Out.ProfileId = SSS_PROFILE_ID_INVALID;
 
 	if (Out.bIsProfile)
 	{
 		float4 Data1 = UnpackRGBA8(In.y);
-		Out.ProfilePackedId = Data1.x;
+		Out.ProfileId = In.y & 0xFF;
 		Out.ProfileRadiusScale = Data1.y;
+		Out.Specular = Data1.z;
 	}
-	else
+	else if (Out.bIsValid)
 	{
-		Out.DMFP = PackR11G11B10F(In.y);
+		Out.ProfileId = SSS_PROFILE_ID_PERPIXEL;
+		Out.DMFP = UnpackR11G11B10F(In.y);
 	}
 	return Out;
 }
