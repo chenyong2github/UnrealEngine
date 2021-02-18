@@ -239,6 +239,7 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 void SetupGPUInstancedDraws(
 	FInstanceCullingContext& InstanceCullingContext,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
+	bool bCompactIdenticalCommands,
 	// Stats
 	int32& MaxInstances,
 	int32& VisibleMeshDrawCommandsNum,

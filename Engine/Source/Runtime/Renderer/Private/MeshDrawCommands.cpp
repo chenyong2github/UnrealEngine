@@ -532,6 +532,7 @@ static void BuildMeshDrawCommandPrimitiveIdBuffer(
 void SetupGPUInstancedDraws(
 	FInstanceCullingContext &InstanceCullingContext,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommandsInOut,
+	bool bCompactIdenticalCommands,
 	// Stats
 	int32& MaxInstances,
 	int32& VisibleMeshDrawCommandsNum,
@@ -560,7 +561,7 @@ void SetupGPUInstancedDraws(
 		const bool bSupportsGPUSceneInstancing = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::HasPrimitiveIdStreamIndex);
 		const bool bMaterialMayModifyPosition = EnumHasAnyFlags(VisibleMeshDrawCommand.Flags, EFVisibleMeshDrawCommandFlags::MaterialMayModifyPosition);
 
-		if (CurrentStateBucketId != -1 && VisibleMeshDrawCommand.StateBucketId == CurrentStateBucketId)
+		if (bCompactIdenticalCommands && CurrentStateBucketId != -1 && VisibleMeshDrawCommand.StateBucketId == CurrentStateBucketId)
 		{
 			// Drop since previous covers for this
 
@@ -608,6 +609,7 @@ void SetupGPUInstancedDraws(
 			}
 		}
 	}
+	ensure(bCompactIdenticalCommands || NumDrawCommandsIn == NumDrawCommandsOut);
 	ensureMsgf(NumDrawCommandsOut == InstanceCullingContext.CullingCommands.Num(), TEXT("There must be a 1:1 mapping between culling commands and mesh draw commands, as this assumption is made in SubmitGPUInstancedMeshDrawCommandsRange."));
 	// Setup instancing stats for logging.
 	VisibleMeshDrawCommandsNum = VisibleMeshDrawCommandsInOut.Num();
@@ -993,7 +995,7 @@ public:
 			{
 #if defined(GPUCULL_TODO)
 				// GPUCULL_TODO: Make a switch to control old / new behaviour, determine minimum reqs.
-				SetupGPUInstancedDraws(Context.InstanceCullingContext, Context.MeshDrawCommands, Context.MaxInstances, Context.VisibleMeshDrawCommandsNum, Context.NewPassVisibleMeshDrawCommandsNum);
+				SetupGPUInstancedDraws(Context.InstanceCullingContext, Context.MeshDrawCommands, true, Context.MaxInstances, Context.VisibleMeshDrawCommandsNum, Context.NewPassVisibleMeshDrawCommandsNum);
 #else //!defined(GPUCULL_TODO)
 				BuildMeshDrawCommandPrimitiveIdBuffer(
 					Context.bDynamicInstancing,

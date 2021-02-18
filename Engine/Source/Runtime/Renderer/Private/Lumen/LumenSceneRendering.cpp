@@ -1939,6 +1939,7 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardPassUniformParameters, CardPass)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -2000,22 +2001,41 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 
 		if (CardsToRender.Num() > 0)
 		{
-			// Prepare primitive Id VB for rendering mesh draw commands.
 			FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
-			if (LumenCardRenderer.MeshDrawPrimitiveIds.Num() > 0)
+			FInstanceCullingResult InstanceCullingResult;
+#if defined(GPUCULL_TODO)
+			if (Scene->GPUScene.IsEnabled())
 			{
-				const uint32 PrimitiveIdBufferDataSize = LumenCardRenderer.MeshDrawPrimitiveIds.Num() * sizeof(int32);
+				int32 MaxInstances = 0;
+				int32 VisibleMeshDrawCommandsNum = 0;
+				int32 NewPassVisibleMeshDrawCommandsNum = 0;
 
-				FPrimitiveIdVertexBufferPoolEntry Entry = GPrimitiveIdVertexBufferPool.Allocate(PrimitiveIdBufferDataSize);
-				PrimitiveIdVertexBuffer = Entry.BufferRHI;
+				FInstanceCullingContext InstanceCullingContext(nullptr, TArrayView<const int32>(&View.GPUSceneViewId, 1));
 
-				void* RESTRICT Data = RHILockBuffer(PrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
-				FMemory::Memcpy(Data, LumenCardRenderer.MeshDrawPrimitiveIds.GetData(), PrimitiveIdBufferDataSize);
-				RHIUnlockBuffer(PrimitiveIdVertexBuffer);
+				SetupGPUInstancedDraws(InstanceCullingContext, LumenCardRenderer.MeshDrawCommands, false, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
+				// Not supposed to do any compaction here.
+				ensure(VisibleMeshDrawCommandsNum == LumenCardRenderer.MeshDrawCommands.Num());
 
-				GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
+				InstanceCullingContext.BuildRenderingCommands(GraphBuilder, Scene->GPUScene, View.DynamicPrimitiveCollector.GetPrimitiveIdRange(), InstanceCullingResult);
 			}
+			else
+#endif // defined(GPUCULL_TODO)
+			{
+				// Prepare primitive Id VB for rendering mesh draw commands.
+				if (LumenCardRenderer.MeshDrawPrimitiveIds.Num() > 0)
+				{
+					const uint32 PrimitiveIdBufferDataSize = LumenCardRenderer.MeshDrawPrimitiveIds.Num() * sizeof(int32);
 
+					FPrimitiveIdVertexBufferPoolEntry Entry = GPrimitiveIdVertexBufferPool.Allocate(PrimitiveIdBufferDataSize);
+					PrimitiveIdVertexBuffer = Entry.BufferRHI;
+
+					void* RESTRICT Data = RHILockBuffer(PrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
+					FMemory::Memcpy(Data, LumenCardRenderer.MeshDrawPrimitiveIds.GetData(), PrimitiveIdBufferDataSize);
+					RHIUnlockBuffer(PrimitiveIdVertexBuffer);
+
+					GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
+				}
+		}
 			FRDGTextureRef AlbedoAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
 			FRDGTextureRef NormalAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 			FRDGTextureRef EmissiveAtlasTexture = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
@@ -2078,6 +2098,8 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				PassParameters->RenderTargets[2] = FRenderTargetBinding(EmissiveAtlasTexture, ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DepthStencilAtlasTexture, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
 
+				InstanceCullingResult.GetDrawParameters(PassParameters->InstanceCullingDrawParams);
+
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("MeshCardCapture"),
 					PassParameters,
@@ -2097,16 +2119,41 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 								Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer.UpdateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters);
 
 								FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-								SubmitMeshDrawCommandsRange(
-									LumenCardRenderer.MeshDrawCommands,
-									GraphicsMinimalPipelineStateSet,
-									PrimitiveIdVertexBuffer,
-									0,
-									false,
-									CardRenderData.StartMeshDrawCommandIndex,
-									CardRenderData.NumMeshDrawCommands,
-									1,
-									RHICmdList);
+#if defined(GPUCULL_TODO)
+								if (Scene->GPUScene.IsEnabled())
+								{
+									FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
+									FRHIBuffer* InstanceIdOffsetBuffer = nullptr;
+									FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;
+									if (InstanceCullingDrawParams.DrawIndirectArgsBuffer != nullptr && InstanceCullingDrawParams.InstanceIdOffsetBuffer != nullptr)
+									{
+										DrawIndirectArgsBuffer = InstanceCullingDrawParams.DrawIndirectArgsBuffer->GetRHI();
+										InstanceIdOffsetBuffer = InstanceCullingDrawParams.InstanceIdOffsetBuffer->GetRHI();
+									}
+
+									SubmitGPUInstancedMeshDrawCommandsRange(
+										LumenCardRenderer.MeshDrawCommands,
+										GraphicsMinimalPipelineStateSet,
+										CardRenderData.StartMeshDrawCommandIndex,
+										CardRenderData.NumMeshDrawCommands,
+										InstanceIdOffsetBuffer,
+										DrawIndirectArgsBuffer,
+										RHICmdList);
+								}
+								else
+#endif // defined(GPUCULL_TODO)
+								{
+									SubmitMeshDrawCommandsRange(
+										LumenCardRenderer.MeshDrawCommands,
+										GraphicsMinimalPipelineStateSet,
+										PrimitiveIdVertexBuffer,
+										0,
+										false,
+										CardRenderData.StartMeshDrawCommandIndex,
+										CardRenderData.NumMeshDrawCommands,
+										1,
+										RHICmdList);
+								}
 							}
 						}
 					}

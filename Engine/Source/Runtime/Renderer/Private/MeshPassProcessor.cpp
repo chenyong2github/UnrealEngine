@@ -1509,7 +1509,7 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 		int32 NewPassVisibleMeshDrawCommandsNum = 0;
 
 		// 1. do the first thing first
-		SetupGPUInstancedDraws(InstanceCullingContext, VisibleMeshDrawCommands, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
+		SetupGPUInstancedDraws(InstanceCullingContext, VisibleMeshDrawCommands, true, MaxInstances, VisibleMeshDrawCommandsNum, NewPassVisibleMeshDrawCommandsNum);
 
 		// 2. Run finalize culling commands pass
 		check(View.bIsViewInfo);
