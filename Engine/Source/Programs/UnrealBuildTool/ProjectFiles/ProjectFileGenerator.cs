@@ -555,7 +555,7 @@ namespace UnrealBuildTool
 					break;
 				}
 				// For csproj files, add them to the sln if the UE4CSharp.prog file also exists.
-				if (bIsCsProj && FileReference.Exists(FileReference.Combine(SearchFolder, "UE4CSharp.prog")))
+				if (bIsCsProj && FileReference.Exists(File.ChangeExtension(".uprogram")))
 				{
 					FoundProjects.Add(File);
 				}
