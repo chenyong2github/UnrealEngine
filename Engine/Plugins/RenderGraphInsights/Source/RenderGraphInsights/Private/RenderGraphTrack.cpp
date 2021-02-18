@@ -1430,6 +1430,11 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 			{
 				Tooltip.AddTextLine(TEXT("Merged RenderPass"), FLinearColor::Red);
 			}
+
+			if (Pass.bImmediateCommandList)
+			{
+				Tooltip.AddTextLine(TEXT("Immediate Command List"), FLinearColor::Red);
+			}
 		}
 		else if (InTooltipEvent.Is<FVisibleTextureEvent>())
 		{

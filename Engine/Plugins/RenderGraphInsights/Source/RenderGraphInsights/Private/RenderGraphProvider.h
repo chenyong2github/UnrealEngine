@@ -126,6 +126,7 @@ public:
 	bool bAsyncComputeEnd{};
 	bool bSkipRenderPassBegin{};
 	bool bSkipRenderPassEnd{};
+	bool bImmediateCommandList{};
 
 	FPassPacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);
 };

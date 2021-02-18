@@ -118,6 +118,7 @@ FPassPacket::FPassPacket(const UE::Trace::IAnalyzer::FOnEventContext& Context)
 	, bAsyncComputeEnd(Context.EventData.GetValue<bool>("IsAsyncComputeEnd"))
 	, bSkipRenderPassBegin(Context.EventData.GetValue<bool>("SkipRenderPassBegin"))
 	, bSkipRenderPassEnd(Context.EventData.GetValue<bool>("SkipRenderPassEnd"))
+	, bImmediateCommandList(Context.EventData.GetValue<bool>("UsesImmediateCommandList"))
 {}
 
 static const uint64 PageSize = 1024;

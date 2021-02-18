@@ -35,6 +35,7 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, PassMessage)
 	UE_TRACE_EVENT_FIELD(bool, IsAsyncComputeEnd)
 	UE_TRACE_EVENT_FIELD(bool, SkipRenderPassBegin)
 	UE_TRACE_EVENT_FIELD(bool, SkipRenderPassEnd)
+	UE_TRACE_EVENT_FIELD(bool, UsesImmediateCommandList)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(RDGTrace, BufferMessage)
@@ -50,7 +51,7 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, BufferMessage)
 	UE_TRACE_EVENT_FIELD(bool, IsExtracted)
 	UE_TRACE_EVENT_FIELD(bool, IsCulled)
 UE_TRACE_EVENT_END()
-
+ 
 UE_TRACE_EVENT_BEGIN(RDGTrace, TextureMessage)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 	UE_TRACE_EVENT_FIELD(uint64, StartCycles)
@@ -107,6 +108,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRDGTrace::OutputGraphEnd);
+
 	const FRDGPassHandle ProloguePassHandle = GraphBuilder.GetProloguePassHandle();
 
 	const auto& Passes = GraphBuilder.Passes;
@@ -141,7 +144,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< PassMessage.IsAsyncComputeBegin(Pass->bAsyncComputeBegin != 0)
 			<< PassMessage.IsAsyncComputeEnd(Pass->bAsyncComputeEnd != 0)
 			<< PassMessage.SkipRenderPassBegin(Pass->bSkipRenderPassBegin != 0)
-			<< PassMessage.SkipRenderPassEnd(Pass->bSkipRenderPassEnd != 0);
+			<< PassMessage.SkipRenderPassEnd(Pass->bSkipRenderPassEnd != 0)
+			<< PassMessage.UsesImmediateCommandList(Pass->bImmediateCommandList != 0);
 	}
 
 #if RDG_EVENTS

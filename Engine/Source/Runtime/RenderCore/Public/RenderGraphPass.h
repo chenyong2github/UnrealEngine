@@ -302,6 +302,9 @@ private:
 			/** Whether the pass writes to a UAV. */
 			uint32 bUAVAccess : 1;
 
+			/** Whether the pass uses the immediate command list. */
+			uint32 bImmediateCommandList : 1;
+
 			/** Whether this pass allocated a texture through the pool. */
 			IF_RDG_ENABLE_DEBUG(uint32 bFirstTextureAllocated : 1);
 		};
@@ -436,6 +439,8 @@ public:
 	{
 		checkf(kSupportsAsyncCompute || !EnumHasAnyFlags(InPassFlags, ERDGPassFlags::AsyncCompute),
 			TEXT("Pass %s is set to use 'AsyncCompute', but the pass lambda's first argument is not FRHIComputeCommandList&."), GetName());
+
+		bImmediateCommandList = TIsSame<TRHICommandList, FRHICommandListImmediate>::Value;
 	}
 
 private:
