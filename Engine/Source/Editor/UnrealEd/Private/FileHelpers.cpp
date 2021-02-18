@@ -4329,7 +4329,7 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 			{
 				for (UPackage* ExternalPackage : WorldIt->PersistentLevel->GetLoadedExternalActorPackages())
 				{
-					if (ExternalPackage->IsDirty())
+					if (ExternalPackage->IsDirty() && !ShouldIgnorePackageFunction(ExternalPackage))
 					{
 						bool bActorPackageNeedsToSave = true;
 
