@@ -89,7 +89,7 @@ const FVector2D& SAssetEditorViewportsOverlay::GetCachedSize() const
 	return CachedSize;
 }
 
-TWeakPtr<FViewportTabContent> SAssetEditorViewportsOverlay::GetViewportTab() const
+TSharedPtr<FViewportTabContent> SAssetEditorViewportsOverlay::GetViewportTab() const
 {
 	return ViewportTab;
 }
