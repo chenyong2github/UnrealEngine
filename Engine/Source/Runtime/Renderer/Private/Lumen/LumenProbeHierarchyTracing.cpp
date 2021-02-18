@@ -436,8 +436,6 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 				GraphBuilder,
 				Scene, View,
 				TracingInputs,
-				DiffuseTracingParameters.DownsampledDepth,
-				DiffuseTracingParameters.CommonDiffuseParameters.DownscaleFactor,
 				DiffuseTracingParameters.IndirectTracingParameters,
 				/* out */ ReferencePassParameters.MeshSDFGridParameters);
 		}

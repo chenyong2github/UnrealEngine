@@ -326,10 +326,11 @@ void FilterScreenProbes(
 	const FScreenProbeParameters& ScreenProbeParameters,
 	FScreenProbeGatherParameters& GatherParameters)
 {
-	FRDGTextureDesc ScreenProbeRadianceDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeGatherBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	const FIntPoint ScreenProbeGatherBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeGatherOctahedronResolution;
+	FRDGTextureDesc ScreenProbeRadianceDesc(FRDGTextureDesc::Create2D(ScreenProbeGatherBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenProbeRadiance = GraphBuilder.CreateTexture(ScreenProbeRadianceDesc, TEXT("ScreenProbeRadiance"));
 
-	FRDGTextureDesc ScreenProbeHitDistanceDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeGatherBufferSize, PF_R8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	FRDGTextureDesc ScreenProbeHitDistanceDesc(FRDGTextureDesc::Create2D(ScreenProbeGatherBufferSize, PF_R8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenProbeHitDistance = GraphBuilder.CreateTexture(ScreenProbeHitDistanceDesc, TEXT("ScreenProbeHitDistance"));
 	FRDGTextureRef ScreenProbeTraceMoving = GraphBuilder.CreateTexture(ScreenProbeHitDistanceDesc, TEXT("ScreenProbeTraceMoving"));
 
@@ -391,7 +392,7 @@ void FilterScreenProbes(
 
 	FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
 	ConvertToExternalTexture(GraphBuilder, ScreenProbeRadiance, ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance);
-	ConvertToExternalTexture(GraphBuilder, ScreenProbeParameters.DownsampledDepth, ScreenProbeGatherState.ImportanceSamplingHistoryDownsampledDepth);
+	ConvertToExternalTexture(GraphBuilder, ScreenProbeParameters.ScreenProbeSceneDepth, ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeSceneDepth);
 
 	const uint32 ConvertToSHThreadGroupSize = FScreenProbeConvertToSphericalHarmonicCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);
 	const int32 RadianceSHBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y;

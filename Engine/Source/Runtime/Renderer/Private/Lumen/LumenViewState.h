@@ -42,7 +42,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
 	FIntRect ImportanceSamplingHistoryViewRect;
 	FVector4 ImportanceSamplingHistoryScreenPositionScaleBias;
-	TRefCountPtr<IPooledRenderTarget> ImportanceSamplingHistoryDownsampledDepth;
+	TRefCountPtr<IPooledRenderTarget> ImportanceSamplingHistoryScreenProbeSceneDepth;
 	TRefCountPtr<IPooledRenderTarget> ImportanceSamplingHistoryScreenProbeRadiance;
 	FLumenGatherCvarState LumenGatherCvars;
 
@@ -65,7 +65,7 @@ public:
 		DownsampledDepthHistoryRT.SafeRelease();
 		HistoryConvergenceStateRT.SafeRelease();
 		OctahedralSolidAngleTextureRT.SafeRelease();
-		ImportanceSamplingHistoryDownsampledDepth.SafeRelease();
+		ImportanceSamplingHistoryScreenProbeSceneDepth.SafeRelease();
 		ImportanceSamplingHistoryScreenProbeRadiance.SafeRelease();
 	}
 };

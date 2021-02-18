@@ -30,7 +30,7 @@ void ScreenProbeCompositeTracesWithScatterCS(
 
 	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
 		{
@@ -146,53 +146,80 @@ float SpatialFilterMaxRadianceHitAngle;
 float SpatialFilterPositionWeightScale;
 int SpatialFilterHalfKernelSize;
 
+float GetFilterPositionWeight(float ProbeDepth, float SceneDepth)
+{
+	float DepthDifference = abs(ProbeDepth - SceneDepth);
+	float RelativeDepthDifference = DepthDifference / SceneDepth;
+	return ProbeDepth >= 0 ? exp2(-SpatialFilterPositionWeightScale * (RelativeDepthDifference * RelativeDepthDifference)) : 0;
+}
+
 void GatherNeighborRadiance(
-	float2 ScreenUV,
-	uint2 ScreenProbeScreenCoord,
-	int2 Offset,
+	int2 NeighborScreenTileCoord,
 	uint2 ProbeTexelCoord,
 	float3 WorldPosition,
 	float3 WorldConeDirection,
-	float InvSceneDepthSq, 
+	float SceneDepth, 
 	float HitDistance, 
 	inout float3 TotalRadiance, 
 	inout float TotalWeight)
 {
-	int2 NeighborScreenProbeScreenCoord = ScreenProbeScreenCoord + Offset;
-
-	if (all(NeighborScreenProbeScreenCoord >= 0 && NeighborScreenProbeScreenCoord < (int2)ScreenProbeViewSize))
+	if (all(NeighborScreenTileCoord >= 0 && NeighborScreenTileCoord < (int2)ScreenProbeViewSize))
 	{
-		float NeighborSceneDepth = DownsampledDepth.Load(int3(NeighborScreenProbeScreenCoord, 0)).x;
+		uint2 NeighborScreenProbeAtlasCoord = NeighborScreenTileCoord;
+		uint2 NeighborScreenProbeScreenPosition = GetUniformScreenProbeScreenPosition(NeighborScreenProbeAtlasCoord);
+		float NeighborSceneDepth = GetScreenProbeDepth(NeighborScreenProbeAtlasCoord);
+		float PositionWeight = GetFilterPositionWeight(NeighborSceneDepth, SceneDepth);
 
-		if (NeighborSceneDepth > 0.0f)
+#define FILTER_SEARCH_ADAPTIVE_PROBES 0
+#if FILTER_SEARCH_ADAPTIVE_PROBES
+		if (PositionWeight <= 0.0f)
 		{
-			float2 NeighborScreenUV = ScreenUV + (float2)Offset * ScreenProbeDownsampleFactor * View.BufferSizeAndInvSize.zw;
-			float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborSceneDepth);
+			uint NumAdaptiveProbes = ScreenTileAdaptiveProbeHeader[NeighborScreenTileCoord];
 
-			float DistanceSq = dot(NeighborWorldPosition - WorldPosition, NeighborWorldPosition - WorldPosition);
-			float PositionWeight = saturate(exp2(-DistanceSq * InvSceneDepthSq * SpatialFilterPositionWeightScale));
-
-			if (PositionWeight > 0.0f)
+			for (uint AdaptiveProbeListIndex = 0; AdaptiveProbeListIndex < NumAdaptiveProbes; AdaptiveProbeListIndex++)
 			{
-				uint2 NeighborTraceCoord = NeighborScreenProbeScreenCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
-				float NeighborRadianceDepth = DecodeProbeHitDistanceForFiltering(ScreenProbeHitDistance.Load(int3(NeighborTraceCoord, 0)).x);
+				uint2 AdaptiveProbeCoord = GetAdaptiveProbeCoord(NeighborScreenTileCoord, AdaptiveProbeListIndex);
+				uint AdaptiveProbeIndex = ScreenTileAdaptiveProbeIndices[AdaptiveProbeCoord];
+				uint ScreenProbeIndex = AdaptiveProbeIndex + NumUniformScreenProbes;
 
-				if (NeighborRadianceDepth >= 0)
+				uint2 NewNeighborScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+				uint2 NewNeighborScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
+				float NewNeighborSceneDepth = GetScreenProbeDepth(NewNeighborScreenProbeAtlasCoord);
+				float NewPositionWeight = GetFilterPositionWeight(NewNeighborSceneDepth, SceneDepth);
+
+				if (NewPositionWeight > PositionWeight)
 				{
-					// Clamp neighbor's hit distance to our own.  This helps preserve contact shadows, as a long neighbor hit distance will cause a small NeighborAngle and bias toward distant lighting.
-					if (HitDistance >= 0)
-					{
-						NeighborRadianceDepth = min(NeighborRadianceDepth, HitDistance);
-					}
-					float3 NeighborHitPosition = NeighborWorldPosition + WorldConeDirection * NeighborRadianceDepth;
-					float3 ToNeighborHit = NeighborHitPosition - WorldPosition;
-					float NeighborAngle = acosFast(dot(ToNeighborHit, WorldConeDirection) / length(ToNeighborHit));
-					float AngleWeight = 1.0f - saturate(NeighborAngle / SpatialFilterMaxRadianceHitAngle);
-
-					float Weight = PositionWeight * AngleWeight;
-					TotalRadiance += ScreenProbeRadiance.Load(int3(NeighborTraceCoord, 0)).xyz * Weight;
-					TotalWeight += Weight;
+					PositionWeight = NewPositionWeight;
+					NeighborScreenProbeAtlasCoord = NewNeighborScreenProbeAtlasCoord;
+					NeighborScreenProbeScreenPosition = NewNeighborScreenProbeScreenPosition;
+					NeighborSceneDepth = NewNeighborSceneDepth;
 				}
+			}
+		}
+#endif
+		
+		if (PositionWeight > 0.0f)
+		{
+			uint2 NeighborTraceCoord = NeighborScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+			float NeighborRadianceDepth = DecodeProbeHitDistanceForFiltering(ScreenProbeHitDistance.Load(int3(NeighborTraceCoord, 0)).x);
+
+			if (NeighborRadianceDepth >= 0)
+			{
+				// Clamp neighbor's hit distance to our own.  This helps preserve contact shadows, as a long neighbor hit distance will cause a small NeighborAngle and bias toward distant lighting.
+				if (HitDistance >= 0)
+				{
+					NeighborRadianceDepth = min(NeighborRadianceDepth, HitDistance);
+				}
+				float2 NeighborScreenUV = (NeighborScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
+				float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborSceneDepth);
+				float3 NeighborHitPosition = NeighborWorldPosition + WorldConeDirection * NeighborRadianceDepth;
+				float3 ToNeighborHit = NeighborHitPosition - WorldPosition;
+				float NeighborAngle = acosFast(dot(ToNeighborHit, WorldConeDirection) / length(ToNeighborHit));
+				float AngleWeight = 1.0f - saturate(NeighborAngle / SpatialFilterMaxRadianceHitAngle);
+
+				float Weight = PositionWeight * AngleWeight;
+				TotalRadiance += ScreenProbeRadiance.Load(int3(NeighborTraceCoord, 0)).xyz * Weight;
+				TotalWeight += Weight;
 			}
 		}
 	}
@@ -208,18 +235,16 @@ void ScreenProbeFilterGatherTracesCS(
 	uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+	uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
 
 	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 		if (SceneDepth > 0.0f)
 		{
-			float InvSceneDepthSq = 1.0f / (SceneDepth * SceneDepth);
-			float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+			float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
 			float2 ProbeTexelCenter = float2(0.5, 0.5);
@@ -242,7 +267,7 @@ void ScreenProbeFilterGatherTracesCS(
 
 					if (any(Offset != int2(0, 0)))
 					{
-						GatherNeighborRadiance(ScreenUV, ScreenProbeScreenCoord, Offset, ProbeTexelCoord, WorldPosition, WorldConeDirection, InvSceneDepthSq, HitDistance, TotalRadiance, TotalWeight);
+						GatherNeighborRadiance(ScreenUV, ScreenTileCoord, Offset, ProbeTexelCoord, WorldPosition, WorldConeDirection, SceneDepth, HitDistance, TotalRadiance, TotalWeight);
 					}
 				}
 			}
@@ -256,7 +281,7 @@ void ScreenProbeFilterGatherTracesCS(
 			LOOP
 			for (uint OffsetIndex = 0; OffsetIndex < 4; OffsetIndex++)
 			{
-				GatherNeighborRadiance(ScreenUV, ScreenProbeScreenCoord, Offsets[OffsetIndex], ProbeTexelCoord, WorldPosition, WorldConeDirection, InvSceneDepthSq, HitDistance, TotalRadiance, TotalWeight);
+				GatherNeighborRadiance(ScreenTileCoord + Offsets[OffsetIndex], ProbeTexelCoord, WorldPosition, WorldConeDirection, SceneDepth, HitDistance, TotalRadiance, TotalWeight);
 			}
 #endif
 
@@ -289,7 +314,7 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 
 	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
 		{
@@ -467,7 +492,7 @@ void ScreenProbeCalculateMovingCS(
 
 	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 		if (SceneDepth > 0)
 		{
@@ -539,7 +564,7 @@ void ScreenProbeFixupBordersCS(
 
 	if (ScreenProbeIndex < GetNumScreenProbes() && all(ProbeTexelCoordWithBorder < ScreenProbeGatherOctahedronResolutionWithBorder))
 	{
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 		if (SceneDepth > 0.0f)
 		{

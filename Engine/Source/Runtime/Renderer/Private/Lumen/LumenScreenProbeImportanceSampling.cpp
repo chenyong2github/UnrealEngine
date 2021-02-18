@@ -115,7 +115,7 @@ class FScreenProbeComputeLightingProbabilityDensityFunctionCS : public FGlobalSh
 		SHADER_PARAMETER(float, ImportanceSamplingHistoryDistanceThreshold)
 		SHADER_PARAMETER(float, PrevInvPreExposure)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, HistoryScreenProbeRadiance)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryDownsampledDepth)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryScreenProbeSceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -303,11 +303,13 @@ void GenerateImportanceSamplingRays(
 
 		FScreenProbeGatherTemporalState& ScreenProbeGatherState = View.ViewState->Lumen.ScreenProbeGatherState;
 
+		const FIntPoint ScreenProbeTraceBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize * ScreenProbeParameters.ScreenProbeTracingOctahedronResolution;
+
 		const bool bUseProbeRadianceHistory = GLumenScreenProbeImportanceSampleProbeRadianceHistory != 0 
 			&& ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance.IsValid()
 			&& !View.bCameraCut 
 			&& !View.bPrevTransformsReset
-			&& ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance->GetDesc().Extent == ScreenProbeParameters.ScreenProbeTraceBufferSize;
+			&& ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance->GetDesc().Extent == ScreenProbeTraceBufferSize;
 
 		{
 			FScreenProbeComputeLightingProbabilityDensityFunctionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeComputeLightingProbabilityDensityFunctionCS::FParameters>();
@@ -337,7 +339,7 @@ void GenerateImportanceSamplingRays(
 
 				PassParameters->ImportanceSamplingHistoryDistanceThreshold = GLumenScreenProbeImportanceSamplingHistoryDistanceThreshold;
 				PassParameters->HistoryScreenProbeRadiance = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance);
-				PassParameters->HistoryDownsampledDepth = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryDownsampledDepth);
+				PassParameters->HistoryScreenProbeSceneDepth = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeSceneDepth);
 			}
 
 			const uint32 ComputeLightingPDFGroupSize = FScreenProbeComputeLightingProbabilityDensityFunctionCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);

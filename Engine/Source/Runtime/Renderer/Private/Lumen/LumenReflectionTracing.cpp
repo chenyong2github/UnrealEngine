@@ -417,8 +417,6 @@ void TraceReflections(
 				GraphBuilder,
 				Scene, View,
 				TracingInputs,
-				ReflectionTracingParameters.DownsampledDepth,
-				ReflectionTracingParameters.ReflectionDownsampleFactor,
 				IndirectTracingParameters,
 				/* out */ MeshSDFGridParameters);
 		}

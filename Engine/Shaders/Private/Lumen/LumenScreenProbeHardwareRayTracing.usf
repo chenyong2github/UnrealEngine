@@ -48,9 +48,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 	float TraceHitDistance;
 	DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
 
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+	uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
 
 	uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
 	uint2 ScreenProbeTracingCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
@@ -68,8 +67,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 	}
 
 	{
-		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 
@@ -77,7 +76,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 		{
 			float2 ProbeUV;
 			float ConeHalfAngle;
-			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeScreenCoord), 1, ProbeUV, ConeHalfAngle);
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 
 			RayDesc Ray;
@@ -95,8 +94,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			FRayTracedLightingContext Context;
 			Context.TLAS = TLAS;
 			Context.RayCone = RayCone;
-			Context.TraceCoord = ScreenProbeScreenCoord;
-			Context.LinearCoord = ScreenProbeScreenCoord.y * ScreenProbeViewSize.x + ScreenProbeScreenCoord.x;
+			Context.TraceCoord = ScreenTileCoord;
+			Context.LinearCoord = ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x;
 
 			bool bTraceRay = true;
 			if (DIM_DEFERRED_MATERIAL_MODE)
@@ -164,21 +163,20 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	float TraceHitDistance;
 	DecodeTraceTexel(CompactedTraceTexelData[DeferredMaterialBufferIndex], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
 
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+	uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
 
 	uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
 	uint2 ScreenProbeTracingCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
-	float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+	float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 
-	float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 	float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 	
 	float2 ProbeUV;
 	float ConeHalfAngle;
-	GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeScreenCoord), 1, ProbeUV, ConeHalfAngle);
+	GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenTileCoord), 1, ProbeUV, ConeHalfAngle);
 	float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
 
 	RayDesc Ray;
@@ -204,8 +202,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	FRayTracedLightingContext Context;
 	Context.TLAS = TLAS;
 	Context.RayCone = RayCone;
-	Context.TraceCoord = ScreenProbeScreenCoord;
-	Context.LinearCoord = ScreenProbeScreenCoord.y * ScreenProbeViewSize.x + ScreenProbeScreenCoord.x;
+	Context.TraceCoord = ScreenTileCoord;
+	Context.LinearCoord = ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x;
 
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 

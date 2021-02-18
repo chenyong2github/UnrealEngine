@@ -11,7 +11,9 @@
 #define PROBE_THREADGROUP_SIZE_2D 8
 #define PROBE_THREADGROUP_SIZE_1D 64
 
+// Main control for Screen Probe tracing resolution.  8 = 8x8 traces per probe
 uint ScreenProbeTracingOctahedronResolution;
+// Screen probe traces are re-sampled to this resolution before filtering / BRDF integration
 uint ScreenProbeGatherOctahedronResolution;
 uint ScreenProbeGatherOctahedronResolutionWithBorder;
 
@@ -23,50 +25,48 @@ uint2 ScreenProbeAtlasViewSize;
 // Size of all the probe atlas textures, in probes
 uint2 ScreenProbeAtlasBufferSize;
 
-uint2 ScreenProbeTraceBufferSize;
-uint2 ScreenProbeGatherBufferSize;
-
 float ScreenProbeGatherMaxMip;
 float RelativeSpeedDifferenceToConsiderLightingMoving;
 float ScreenTraceNoFallbackThicknessScale;
 
 // Downsample factor from full res to Screen Probe res
 uint ScreenProbeDownsampleFactor;
-// Number of adaptive probes we will try to place along one dimension of each screen tile
-uint AdaptiveScreenTileSampleResolution;
-// Number of screen probes with SubsampleIndex == 0
+// ScreenProbeViewSize.x * ScreenProbeViewSize.y
 uint NumUniformScreenProbes;
 uint MaxNumAdaptiveProbes;
-uint UseJitter;
+int FixedJitterIndex;
 
+// Screen Probe GBuffers.  These are indexed by ScreenProbeAtlasCoord and adaptive probes are placed at the bottom of the texture.
 // Note: negative if unlit
-Texture2D DownsampledDepth;
-Texture2D DownsampledWorldSpeed;
+Texture2D<uint> ScreenProbeSceneDepth;
+Texture2D ScreenProbeWorldSpeed;
 
-// [0, ScreenProbeViewSize - 1]
+// Single element, contains the number of adaptive screen probes placed
 Buffer<uint> NumAdaptiveScreenProbes;
 Buffer<uint> AdaptiveScreenProbeData;
 
-#define SCREEN_TEMPORAL_INDEX			(UseJitter != 0 ? View.StateFrameIndexMod8 : 0)
-#define RAY_DIRECTION_TEMPORAL_INDEX	(UseJitter != 0 ? View.StateFrameIndex : 0)
-#define GENERAL_TEMPORAL_INDEX			(UseJitter != 0 ? View.StateFrameIndexMod8 : 0)
+Texture2D<uint> ScreenTileAdaptiveProbeHeader;
+Texture2D<uint> ScreenTileAdaptiveProbeIndices;
+
+#define SCREEN_TEMPORAL_INDEX			(FixedJitterIndex < 0 ? View.StateFrameIndexMod8 : FixedJitterIndex)
+#define RAY_DIRECTION_TEMPORAL_INDEX	(FixedJitterIndex < 0 ? View.StateFrameIndex : FixedJitterIndex)
+#define GENERAL_TEMPORAL_INDEX			(FixedJitterIndex < 0 ? View.StateFrameIndexMod8 : FixedJitterIndex)
 
 // Returns the jitter offset in the range [0, ScreenProbeDownsampleFactor - 1]
-float2 GetScreenTileJitter(uint TemporalIndex, uint SubsampleIndex)
+uint2 GetScreenTileJitter(uint TemporalIndex)
 {
-	uint2 RandomSeed = Rand3DPCG16(int3(uint2(0, 0), SubsampleIndex)).xy;
-	return floor(Hammersley16(TemporalIndex, 8, RandomSeed) * ScreenProbeDownsampleFactor);
+	return Hammersley16(TemporalIndex, 8, 0) * ScreenProbeDownsampleFactor;
 }
 
-float2 GetProbeTexelCenter(uint2 ScreenProbeScreenCoord)
+float2 GetProbeTexelCenter(uint2 ScreenTileCoord)
 {
 #define JITTER_RAY_DIRECTION 1
 #if JITTER_RAY_DIRECTION
 	#define BLUE_NOISE_LUT 1
 	#if BLUE_NOISE_LUT
-		return EvalBlueNoise(ScreenProbeScreenCoord % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
+		return EvalBlueNoise(ScreenTileCoord % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
 	#else
-		uint2 RandomSeed = Rand3DPCG16(int3(ScreenProbeScreenCoord, 0)).xy;
+		uint2 RandomSeed = Rand3DPCG16(int3(ScreenTileCoord, 0)).xy;
 		return Hammersley16(RAY_DIRECTION_TEMPORAL_INDEX % 8, 8, RandomSeed);
 	#endif
 #else
@@ -74,9 +74,22 @@ float2 GetProbeTexelCenter(uint2 ScreenProbeScreenCoord)
 #endif
 }
 
+// Note: Returns negative depth for invalid probe
+float GetScreenProbeDepth(uint2 ScreenProbeAtlasCoord)
+{
+	return asfloat(ScreenProbeSceneDepth[ScreenProbeAtlasCoord]);
+}
+
 uint GetNumAdaptiveScreenProbes()
 {
 	return min(NumAdaptiveScreenProbes[0], MaxNumAdaptiveProbes);
+}
+
+uint2 GetAdaptiveProbeCoord(uint2 ScreenTileCoord, uint AdaptiveProbeListIndex)
+{
+	uint2 AdaptiveProbeCoord = uint2(AdaptiveProbeListIndex % ScreenProbeDownsampleFactor, AdaptiveProbeListIndex / ScreenProbeDownsampleFactor);
+	//return ScreenTileCoord * ScreenProbeDownsampleFactor + AdaptiveProbeCoord;
+	return AdaptiveProbeCoord * ScreenProbeViewSize + ScreenTileCoord;
 }
 
 uint GetNumScreenProbes()
@@ -84,40 +97,56 @@ uint GetNumScreenProbes()
 	return NumUniformScreenProbes + GetNumAdaptiveScreenProbes();
 }
 
-uint EncodeScreenProbeData(uint2 ScreenProbeScreenCoord, uint ScreenProbeSubsampleIndex)
+uint EncodeScreenProbeData(uint2 ScreenProbeScreenPosition)
 {
-	return (ScreenProbeScreenCoord.x & 0xFFF) | ((ScreenProbeScreenCoord.y & 0xFFF) << 12) | ((ScreenProbeSubsampleIndex & 0xFF) << 24);
+	return (ScreenProbeScreenPosition.x & 0xFFFF) | ((ScreenProbeScreenPosition.y & 0xFFFF) << 16);
 }
 
-void DecodeScreenProbeData(uint EncodedProbeData, out uint2 ScreenProbeScreenCoord, out uint ScreenProbeSubsampleIndex)
+uint2 DecodeScreenProbeData(uint EncodedProbeData)
 {
-	ScreenProbeScreenCoord = uint2(EncodedProbeData & 0xFFF, (EncodedProbeData >> 12) & 0xFFF);
-	ScreenProbeSubsampleIndex = (EncodedProbeData >> 24) & 0xFF;
+	return uint2(EncodedProbeData & 0xFFFF, (EncodedProbeData >> 16) & 0xFFFF);
 }
 
-void GetScreenProbeScreenCoord(uint ScreenProbeIndex, out uint2 ScreenProbeScreenCoord, out uint ScreenProbeSubsampleIndex)
+// Note this can return a screen position outside of the valid viewport, since probes can be placed off-screen due to DivideAndRoundUp
+uint2 GetScreenProbeScreenPosition(uint ScreenProbeIndex)
 {
-	ScreenProbeScreenCoord = uint2(ScreenProbeIndex % ScreenProbeViewSize.x, ScreenProbeIndex / ScreenProbeViewSize.x);
-	ScreenProbeSubsampleIndex = 0;
+	uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeViewSize.x, ScreenProbeIndex / ScreenProbeViewSize.x);
+	uint2 ScreenProbeScreenPosition = ScreenProbeAtlasCoord * ScreenProbeDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + (uint2)View.ViewRectMin.xy;
 
 	if (ScreenProbeIndex >= NumUniformScreenProbes)
 	{
-		DecodeScreenProbeData(AdaptiveScreenProbeData[ScreenProbeIndex - NumUniformScreenProbes], ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+		ScreenProbeScreenPosition = DecodeScreenProbeData(AdaptiveScreenProbeData[ScreenProbeIndex - NumUniformScreenProbes]);
 	}
+
+	return ScreenProbeScreenPosition;
 }
 
-float2 GetScreenUVFromScreenProbeCoord(uint2 ScreenProbeScreenCoord, uint ScreenProbeSubsampleIndex)
+uint2 GetScreenTileCoord(uint2 ScreenProbeScreenPosition)
 {
-	float2 ScreenCoord = ScreenProbeScreenCoord * ScreenProbeDownsampleFactor + View.ViewRectMin.xy + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX, ScreenProbeSubsampleIndex) + 0.5f;
+	return (ScreenProbeScreenPosition - GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) - (uint2)View.ViewRectMin.xy) / ScreenProbeDownsampleFactor;
+}
+
+uint2 GetUniformScreenProbeScreenPosition(uint2 ScreenTileCoord)
+{
+	return ScreenTileCoord * ScreenProbeDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + (uint2)View.ViewRectMin.xy;
+}
+
+float2 GetScreenTileCoordFromScreenUV(float2 ScreenUV, uint TemporalIndex)
+{
+	return (ScreenUV - (View.ViewRectMin.xy + GetScreenTileJitter(TemporalIndex) + 0.5f) * View.BufferSizeAndInvSize.zw) / (ScreenProbeDownsampleFactor * View.BufferSizeAndInvSize.zw);
+}
+
+float2 GetScreenUVFromScreenTileCoord(uint2 ScreenTileCoord)
+{
+	uint2 ScreenProbeScreenPosition = ScreenTileCoord * ScreenProbeDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + (uint2)View.ViewRectMin.xy;
+	return (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
+}
+
+float2 GetScreenUVFromScreenProbePosition(uint2 ScreenProbeScreenPosition)
+{
 	// Probe ScreenUV can be outside of valid viewport, since probes are downsampled with DivideAndRoundUp
-	ScreenCoord = min(ScreenCoord, View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy - 1.0f);
-	return ScreenCoord * View.BufferSizeAndInvSize.zw;
-}
-
-float2 GetScreenProbeCoordFromScreenUV(float2 ScreenUV, uint TemporalIndex, uint ScreenProbeSubsampleIndex)
-{
-	float2 ScreenProbeScreenCoord = (ScreenUV - (View.ViewRectMin.xy + GetScreenTileJitter(TemporalIndex, ScreenProbeSubsampleIndex) + 0.5f) * View.BufferSizeAndInvSize.zw) / (ScreenProbeDownsampleFactor * View.BufferSizeAndInvSize.zw);
-	return ScreenProbeScreenCoord;
+	float2 ScreenCoord = min((float2)ScreenProbeScreenPosition, View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy - 1.0f);
+	return (ScreenCoord + .5f) * View.BufferSizeAndInvSize.zw;
 }
 
 float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
@@ -181,13 +210,13 @@ float GetProbeMaxHitDistance()
 
 uint EncodeProbeRayDistance(float HitDistance, bool bHit, bool bMoving)
 {
-	return f32tof16(HitDistance) | (bHit ? 1 << 17 : 0) | (bMoving ? 1 << 18 : 0);
+	return f32tof16(HitDistance) | (bHit ? (1 << 17) : 0) | (bMoving ? (1 << 18) : 0);
 }
 
 float DecodeProbeRayDistance(uint Encoded, out bool bHit, out bool bMoving)
 {
-	bHit = Encoded & (1 << 17);
-	bMoving = Encoded & (1 << 18);
+	bHit = (Encoded & (1 << 17)) != 0;
+	bMoving = (Encoded & (1 << 18)) != 0;
 	return f16tof32(Encoded & 0xFFFF);
 }
 

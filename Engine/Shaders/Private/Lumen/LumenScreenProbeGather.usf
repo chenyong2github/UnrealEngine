@@ -36,34 +36,49 @@ void OctahedralSolidAngleCS(
 	}
 }
 
-RWTexture2D<float> RWDownsampledDepth;
-RWTexture2D<float> RWDownsampledWorldSpeed;
+RWTexture2D<uint> RWScreenProbeSceneDepth;
+RWTexture2D<float> RWScreenProbeWorldSpeed;
 
-void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, FGBufferData GBufferData)
+struct FScreenProbeGBuffer
 {
-	float DownsampledDepth = GBufferData.Depth;
+	float3 WorldNormal;
+	float SceneDepth;
+	bool bLit;
+};
 
-	if (GBufferData.ShadingModelID == SHADINGMODELID_UNLIT)
+FScreenProbeGBuffer GetScreenProbeGBuffer(FGBufferData GBufferData)
+{ 
+	FScreenProbeGBuffer ScreenProbeGBuffer;
+	ScreenProbeGBuffer.WorldNormal = GBufferData.WorldNormal;
+	ScreenProbeGBuffer.SceneDepth = GBufferData.Depth;
+	ScreenProbeGBuffer.bLit = GBufferData.ShadingModelID != SHADINGMODELID_UNLIT;
+	return ScreenProbeGBuffer;
+}
+
+void WriteDownsampledProbeGBuffer(float2 ScreenUV, uint2 ScreenProbeAtlasCoord, FScreenProbeGBuffer ProbeGBuffer)
+{
+	float EncodedDepth = ProbeGBuffer.SceneDepth;
+
+	if (!ProbeGBuffer.bLit)
 	{
 		// Store unlit in sign bit
-		DownsampledDepth *= -1.0f;
+		EncodedDepth *= -1.0f;
 	}
 
-	RWDownsampledDepth[ScreenProbeAtlasCoord] = DownsampledDepth;
+	RWScreenProbeSceneDepth[ScreenProbeAtlasCoord] = asuint(EncodedDepth);
 
 	float3 ProbeWorldVelocity;
 	{
 		float2 ProbeScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-		float ProbeDeviceZ = ConvertToDeviceZ(GBufferData.Depth);
-		float ProbeSceneDepth = GBufferData.Depth;
+		float ProbeDeviceZ = ConvertToDeviceZ(ProbeGBuffer.SceneDepth);
 		float3 ProbeHistoryScreenPosition = GetHistoryScreenPosition(ProbeScreenPosition, ScreenUV, ProbeDeviceZ);
 
-		float3 ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeSceneDepth, ProbeSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+		float3 ProbeTranslatedWorldPosition = mul(float4(ProbeScreenPosition * ProbeGBuffer.SceneDepth, ProbeGBuffer.SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 		ProbeWorldVelocity = ProbeTranslatedWorldPosition - GetPrevTranslatedWorldPosition(ProbeHistoryScreenPosition);
 	}
 
-	RWDownsampledWorldSpeed[ScreenProbeAtlasCoord] = length(ProbeWorldVelocity);
+	RWScreenProbeWorldSpeed[ScreenProbeAtlasCoord] = length(ProbeWorldVelocity);
 }
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -72,55 +87,63 @@ void ScreenProbeDownsampleDepthUniformCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ScreenProbeScreenCoord = DispatchThreadId.xy;
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy;
 
-	if (all(ScreenProbeScreenCoord < ScreenProbeAtlasViewSize))
+	if (all(ScreenProbeAtlasCoord < ScreenProbeAtlasViewSize))
 	{
-		float2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX, 0);
-		int2 SourcePos = min((int2)(ScreenProbeScreenCoord * ScreenProbeDownsampleFactor + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
-		float2 ScreenUV = (SourcePos + .5f) * View.BufferSizeAndInvSize.zw;
-		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
+		uint2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX);
+		uint2 ScreenProbeScreenPosition = min((uint2)(ScreenProbeAtlasCoord * ScreenProbeDownsampleFactor + ScreenJitter), (uint2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
+		float2 ScreenUV = (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
+		FGBufferData GBufferData = GetGBufferDataUint(ScreenProbeScreenPosition);
 		
-		WriteDownsampledProbeGBuffer(ScreenUV, ScreenProbeScreenCoord, GBufferData);
+		WriteDownsampledProbeGBuffer(ScreenUV, ScreenProbeAtlasCoord, GetScreenProbeGBuffer(GBufferData));
 	}
 }
 
+float GetScreenProbeDepthFromUAV(uint2 ScreenProbeAtlasCoord)
+{
+	return asfloat(RWScreenProbeSceneDepth[ScreenProbeAtlasCoord]);
+}
+
 void CalculateUniformUpsampleInterpolationWeights(
-	float2 SVPosition, 
+	uint2 SVPosition, 
 	float2 NoiseOffset, 
 	float3 WorldPosition, 
 	float SceneDepth, 
 	float3 WorldNormal, 
-	out uint2 ScreenProbeScreenCoord00, 
-	out float4 CornerWeights,
-	out float4 DepthWeights)
+	uniform bool bIsUpsamplePass,
+	out uint2 ScreenTileCoord00, 
+	out float4 InterpolationWeights)
 {
-	int2 ScreenProbeFullResScreenCoord = clamp(SVPosition.xy - View.ViewRectMin.xy - (int2)GetScreenTileJitter(SCREEN_TEMPORAL_INDEX, 0) + NoiseOffset, 0, (int2)View.ViewSizeAndInvSize.xy - 1);
-	ScreenProbeScreenCoord00 = clamp(ScreenProbeFullResScreenCoord / (int)ScreenProbeDownsampleFactor, int2(0, 0), (int2) ScreenProbeViewSize - 2);
+	uint2 ScreenProbeFullResScreenCoord = clamp(SVPosition.xy - View.ViewRectMin.xy - (int2)GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + NoiseOffset, 0, (int2)View.ViewSizeAndInvSize.xy - 1);
+	ScreenTileCoord00 = min(ScreenProbeFullResScreenCoord / ScreenProbeDownsampleFactor, (uint2)ScreenProbeViewSize - 2);
 
-	float2 BilinearWeights = (ScreenProbeFullResScreenCoord - ScreenProbeScreenCoord00 * ScreenProbeDownsampleFactor) / (float)ScreenProbeDownsampleFactor;
+	uint BilinearExpand = 0;
+	float2 BilinearWeights = (ScreenProbeFullResScreenCoord - ScreenTileCoord00 * ScreenProbeDownsampleFactor + BilinearExpand) / (float)(ScreenProbeDownsampleFactor + 2 * BilinearExpand);
 
 	float4 CornerDepths;
-	CornerDepths.x = DownsampledDepth.Load(int3(ScreenProbeScreenCoord00, 0)).x;
-	CornerDepths.y = DownsampledDepth.Load(int3(ScreenProbeScreenCoord00 + int2(1, 0), 0)).x;
-	CornerDepths.z = DownsampledDepth.Load(int3(ScreenProbeScreenCoord00 + int2(0, 1), 0)).x;
-	CornerDepths.w = DownsampledDepth.Load(int3(ScreenProbeScreenCoord00 + int2(1, 1), 0)).x;
+	CornerDepths.x = bIsUpsamplePass ? GetScreenProbeDepth(ScreenTileCoord00) : GetScreenProbeDepthFromUAV(ScreenTileCoord00);
+	CornerDepths.y = bIsUpsamplePass ? GetScreenProbeDepth(ScreenTileCoord00 + int2(1, 0)) : GetScreenProbeDepthFromUAV(ScreenTileCoord00 + int2(1, 0));
+	CornerDepths.z = bIsUpsamplePass ? GetScreenProbeDepth(ScreenTileCoord00 + int2(0, 1)) : GetScreenProbeDepthFromUAV(ScreenTileCoord00 + int2(0, 1));
+	CornerDepths.w = bIsUpsamplePass ? GetScreenProbeDepth(ScreenTileCoord00 + int2(1, 1)) : GetScreenProbeDepthFromUAV(ScreenTileCoord00 + int2(1, 1));
 
-	CornerWeights = float4(
+	InterpolationWeights = float4(
 		(1 - BilinearWeights.y) * (1 - BilinearWeights.x),
 		(1 - BilinearWeights.y) * BilinearWeights.x,
 		BilinearWeights.y * (1 - BilinearWeights.x),
 		BilinearWeights.y * BilinearWeights.x);
+
+	float4 DepthWeights;
 
 #define PLANE_WEIGHTING 1
 #if PLANE_WEIGHTING
 	{
 		float4 ScenePlane = float4(WorldNormal, dot(WorldPosition, WorldNormal));
 
-		float3 Position00 = GetWorldPositionFromScreenUV(GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord00, 0), CornerDepths.x);
-		float3 Position10 = GetWorldPositionFromScreenUV(GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord00 + uint2(1, 0), 0), CornerDepths.y);
-		float3 Position01 = GetWorldPositionFromScreenUV(GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord00 + uint2(0, 1), 0), CornerDepths.z);
-		float3 Position11 = GetWorldPositionFromScreenUV(GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord00 + uint2(1, 1), 0), CornerDepths.w);
+		float3 Position00 = GetWorldPositionFromScreenUV(GetScreenUVFromScreenTileCoord(ScreenTileCoord00), CornerDepths.x);
+		float3 Position10 = GetWorldPositionFromScreenUV(GetScreenUVFromScreenTileCoord(ScreenTileCoord00 + uint2(1, 0)), CornerDepths.y);
+		float3 Position01 = GetWorldPositionFromScreenUV(GetScreenUVFromScreenTileCoord(ScreenTileCoord00 + uint2(0, 1)), CornerDepths.z);
+		float3 Position11 = GetWorldPositionFromScreenUV(GetScreenUVFromScreenTileCoord(ScreenTileCoord00 + uint2(1, 1)), CornerDepths.w);
 
 		float4 PlaneDistances;
 		PlaneDistances.x = abs(dot(float4(Position00, -1), ScenePlane));
@@ -139,12 +162,96 @@ void CalculateUniformUpsampleInterpolationWeights(
 		DepthWeights = CornerDepths > 0 ? exp2(-100.0f * (RelativeDepthDifference * RelativeDepthDifference)) : 0;
 	}
 #endif
+
+	InterpolationWeights *= DepthWeights;
+}
+
+RWTexture2D<uint> RWScreenTileAdaptiveProbeHeader;
+RWTexture2D<uint> RWScreenTileAdaptiveProbeIndices;
+RWBuffer<uint> RWAdaptiveScreenProbeData;
+
+void CalculateUpsampleInterpolationWeights(
+	uint2 SVPosition,
+	float2 NoiseOffset,
+	float3 WorldPosition,
+	float SceneDepth,
+	float3 WorldNormal,
+	uniform bool bIsUpsamplePass,
+	out uint2 ScreenProbeAtlasCoordArray[4],
+	out float4 InterpolationWeights)
+{
+	uint2 ScreenTileCoord00;
+	CalculateUniformUpsampleInterpolationWeights(SVPosition, NoiseOffset, WorldPosition, SceneDepth, WorldNormal, bIsUpsamplePass, ScreenTileCoord00, InterpolationWeights);
+
+	ScreenProbeAtlasCoordArray[0] = ScreenTileCoord00;
+	ScreenProbeAtlasCoordArray[1] = ScreenTileCoord00 + uint2(1, 0);
+	ScreenProbeAtlasCoordArray[2] = ScreenTileCoord00 + uint2(0, 1);
+	ScreenProbeAtlasCoordArray[3] = ScreenTileCoord00 + uint2(1, 1);
+
+	bool bUseAdaptiveProbesForUpsample = true;
+
+	if (bUseAdaptiveProbesForUpsample || !bIsUpsamplePass)
+	{		
+		float Epsilon = .01f;
+		float4 ScenePlane = float4(WorldNormal, dot(WorldPosition, WorldNormal));
+
+		UNROLL
+		for (uint CornerIndex = 0; CornerIndex < 4; CornerIndex++)
+		{
+			if (InterpolationWeights[CornerIndex] <= Epsilon)
+			{
+				uint2 ScreenTileCoord = ScreenTileCoord00 + uint2(CornerIndex % 2, CornerIndex / 2);
+				uint NumAdaptiveProbes = bIsUpsamplePass ? ScreenTileAdaptiveProbeHeader[ScreenTileCoord] : RWScreenTileAdaptiveProbeHeader[ScreenTileCoord];
+
+				for (uint AdaptiveProbeListIndex = 0; AdaptiveProbeListIndex < NumAdaptiveProbes; AdaptiveProbeListIndex++)
+				{
+					uint2 AdaptiveProbeCoord = GetAdaptiveProbeCoord(ScreenTileCoord, AdaptiveProbeListIndex);
+					uint AdaptiveProbeIndex = bIsUpsamplePass ? ScreenTileAdaptiveProbeIndices[AdaptiveProbeCoord] : RWScreenTileAdaptiveProbeIndices[AdaptiveProbeCoord];
+					uint ScreenProbeIndex = AdaptiveProbeIndex + NumUniformScreenProbes;
+
+					uint2 ScreenProbeScreenPosition = bIsUpsamplePass ? GetScreenProbeScreenPosition(ScreenProbeIndex) : DecodeScreenProbeData(RWAdaptiveScreenProbeData[AdaptiveProbeIndex]);
+					uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
+					float ProbeDepth = bIsUpsamplePass ? GetScreenProbeDepth(ScreenProbeAtlasCoord) : GetScreenProbeDepthFromUAV(ScreenProbeAtlasCoord);
+					
+					float NewDepthWeight = 0;
+					bool bPlaneWeighting = true;
+					if (bPlaneWeighting)
+					{
+						float3 ProbePosition = GetWorldPositionFromScreenUV(GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition), ProbeDepth);
+						float PlaneDistance = abs(dot(float4(ProbePosition, -1), ScenePlane));
+						float RelativeDepthDifference = PlaneDistance / SceneDepth;
+						NewDepthWeight = exp2(-10000.0f * (RelativeDepthDifference * RelativeDepthDifference));
+					}
+					else
+					{
+						float DepthDifference = abs(ProbeDepth - SceneDepth);
+						float RelativeDepthDifference = DepthDifference / SceneDepth;
+						NewDepthWeight = ProbeDepth > 0 ? exp2(-100.0f * (RelativeDepthDifference * RelativeDepthDifference)) : 0;
+					}
+
+					float2 DistanceToScreenProbe = abs(ScreenProbeScreenPosition - SVPosition);
+					float NewCornerWeight = 1.0f - saturate(min(DistanceToScreenProbe.x, DistanceToScreenProbe.y) / (float)ScreenProbeDownsampleFactor);
+					float NewInterpolationWeight = NewDepthWeight * NewCornerWeight;
+
+					if (NewInterpolationWeight > InterpolationWeights[CornerIndex])
+					{
+						InterpolationWeights[CornerIndex] = NewInterpolationWeight;
+						ScreenProbeAtlasCoordArray[CornerIndex] = ScreenProbeAtlasCoord;
+					}
+				}
+			}
+		}
+	}
 }
 
 RWBuffer<uint> RWNumAdaptiveScreenProbes;
-RWBuffer<uint> RWAdaptiveScreenProbeData;
-RWTexture2D<uint> RWScreenTileAdaptiveProbeHeader;
-RWTexture2D<uint> RWScreenTileAdaptiveProbeIndices;
+
+groupshared uint SharedNumProbesToAllocate;
+groupshared uint SharedAdaptiveProbeBaseIndex;
+groupshared uint2 SharedProbeScreenPositionsToAllocate[THREADGROUP_SIZE * THREADGROUP_SIZE];
+groupshared FScreenProbeGBuffer SharedScreenProbeGBuffer[THREADGROUP_SIZE * THREADGROUP_SIZE];
+
+uint PlacementDownsampleFactor;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void ScreenProbeAdaptivePlacementCS(
@@ -152,77 +259,82 @@ void ScreenProbeAdaptivePlacementCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ScreenProbeScreenCoord = DispatchThreadId.xy / AdaptiveScreenTileSampleResolution;
-	uint2 SampleCoord = DispatchThreadId.xy - ScreenProbeScreenCoord * AdaptiveScreenTileSampleResolution;
-	uint SubsampleIndex = SampleCoord.y * AdaptiveScreenTileSampleResolution + SampleCoord.x + 1;
+	uint ThreadIndex = GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x;
 
-	if (all(ScreenProbeScreenCoord < ScreenProbeViewSize))
+	if (ThreadIndex == 0)
 	{
-		float2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX, SubsampleIndex);
-		int2 SourcePos = min(int2(ScreenProbeScreenCoord * ScreenProbeDownsampleFactor + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
+		SharedNumProbesToAllocate = 0;
+	}
 
-		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
+	GroupMemoryBarrierWithGroupSync();
 
-		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+	{
+		uint2 ScreenProbeScreenPosition = DispatchThreadId.xy * PlacementDownsampleFactor + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + (uint2)View.ViewRectMin.xy;
+
+		if (all(ScreenProbeScreenPosition < (uint2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy)) && any((DispatchThreadId.xy & 0x1) != 0))
 		{
-			float2 ScreenUV = (SourcePos + .5f) * View.BufferSizeAndInvSize.zw;
-			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
-			float2 NoiseOffset = 0.0f;
+			FGBufferData GBufferData = GetGBufferDataUint(ScreenProbeScreenPosition);
 
-			uint2 ScreenProbeScreenCoord00;
-			float4 CornerWeights;
-			float4 DepthWeights;
-			CalculateUniformUpsampleInterpolationWeights(SourcePos, NoiseOffset, WorldPosition, GBufferData.Depth, GBufferData.WorldNormal, ScreenProbeScreenCoord00, CornerWeights, DepthWeights);
-
-			float4 InterpolationWeights = CornerWeights * DepthWeights;
-
-			float Epsilon = .01f;
-			InterpolationWeights /= max(dot(InterpolationWeights, 1), Epsilon);
-
-			float LightingIsValid = (dot(InterpolationWeights, 1) < 1.0f - Epsilon) ? 0.0f : 1.0f;
-
-			if (!LightingIsValid)
+			if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
 			{
-				uint AdaptiveProbeIndex;
-				InterlockedAdd(RWNumAdaptiveScreenProbes[0], 1, AdaptiveProbeIndex);
+				float2 ScreenUV = (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
+				float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, GBufferData.Depth);
+				float2 NoiseOffset = 0.0f;
+				uint2 ScreenProbeAtlasCoord[4];
+				float4 InterpolationWeights;
 
-				if (AdaptiveProbeIndex < MaxNumAdaptiveProbes)
+				CalculateUpsampleInterpolationWeights(
+					ScreenProbeScreenPosition,
+					NoiseOffset,
+					WorldPosition,
+					GBufferData.Depth,
+					GBufferData.WorldNormal,
+					false,
+					ScreenProbeAtlasCoord,
+					InterpolationWeights);
+
+				float Epsilon = .01f;
+				InterpolationWeights /= max(dot(InterpolationWeights, 1), Epsilon);
+
+				float LightingIsValid = (dot(InterpolationWeights, 1) < 1.0f - Epsilon) ? 0.0f : 1.0f;
+
+				if (!LightingIsValid)
 				{
-					RWAdaptiveScreenProbeData[AdaptiveProbeIndex] = EncodeScreenProbeData(ScreenProbeScreenCoord, SubsampleIndex);
-
-					uint TileProbeIndex;
-					InterlockedAdd(RWScreenTileAdaptiveProbeHeader[ScreenProbeScreenCoord], 1, TileProbeIndex);
-					RWScreenTileAdaptiveProbeIndices[uint2(ScreenProbeScreenCoord.x * AdaptiveScreenTileSampleResolution * AdaptiveScreenTileSampleResolution + TileProbeIndex, ScreenProbeScreenCoord.y)] = AdaptiveProbeIndex;
+					uint SharedListIndex;
+					InterlockedAdd(SharedNumProbesToAllocate, 1, SharedListIndex);
+					SharedProbeScreenPositionsToAllocate[SharedListIndex] = ScreenProbeScreenPosition;
+					SharedScreenProbeGBuffer[SharedListIndex] = GetScreenProbeGBuffer(GBufferData);
 				}
 			}
 		}
 	}
-}
 
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void ScreenProbeWriteDepthForAdaptiveProbesCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
-{
-	uint AdaptiveProbeIndex = DispatchThreadId.x;
+	GroupMemoryBarrierWithGroupSync();
 
-	if (AdaptiveProbeIndex < GetNumAdaptiveScreenProbes())
+	if (ThreadIndex == 0)
 	{
+		InterlockedAdd(RWNumAdaptiveScreenProbes[0], SharedNumProbesToAllocate, SharedAdaptiveProbeBaseIndex);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint AdaptiveProbeIndex = ThreadIndex + SharedAdaptiveProbeBaseIndex;
+
+	if (ThreadIndex < SharedNumProbesToAllocate && AdaptiveProbeIndex < MaxNumAdaptiveProbes)
+	{
+		uint2 ScreenProbeScreenPosition = SharedProbeScreenPositionsToAllocate[ThreadIndex];
+		RWAdaptiveScreenProbeData[AdaptiveProbeIndex] = EncodeScreenProbeData(ScreenProbeScreenPosition);
+		uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
+
+		uint TileProbeIndex;
+		InterlockedAdd(RWScreenTileAdaptiveProbeHeader[ScreenTileCoord], 1, TileProbeIndex);
+		uint2 AdaptiveProbeCoord = GetAdaptiveProbeCoord(ScreenTileCoord, TileProbeIndex);
+		RWScreenTileAdaptiveProbeIndices[AdaptiveProbeCoord] = AdaptiveProbeIndex;
+		
+		float2 ScreenUV = (ScreenProbeScreenPosition + .5f) * View.BufferSizeAndInvSize.zw;
 		uint ScreenProbeIndex = NumUniformScreenProbes + AdaptiveProbeIndex;
-
-		uint2 ScreenProbeScreenCoord;
-		uint ScreenProbeSubsampleIndex;
-		GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-
-		float2 ScreenJitter = GetScreenTileJitter(SCREEN_TEMPORAL_INDEX, ScreenProbeSubsampleIndex);
-		int2 SourcePos = min((int2)(ScreenProbeScreenCoord * ScreenProbeDownsampleFactor + uint2(ScreenJitter + .5f)), (int2)(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy) - 1);
-		float2 ScreenUV = (SourcePos + .5f) * View.BufferSizeAndInvSize.zw;
-
-		FGBufferData GBufferData = GetGBufferDataUint(SourcePos);
-
 		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
-		WriteDownsampledProbeGBuffer(ScreenUV, ScreenProbeAtlasCoord, GBufferData);
+		WriteDownsampledProbeGBuffer(ScreenUV, ScreenProbeAtlasCoord, SharedScreenProbeGBuffer[ThreadIndex]);
 	}
 }
 
@@ -259,14 +371,12 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 {
 	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 
 	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
-		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
 		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
@@ -281,71 +391,6 @@ void MarkRadianceProbesUsedByScreenProbesCS(
 			}
 		}
 	}
-}
-
-Texture2D<uint> ScreenTileAdaptiveProbeHeader;
-Texture2D<uint> ScreenTileAdaptiveProbeIndices;
-
-void CalculateUpsampleInterpolationWeights(
-	float2 SVPosition,
-	float2 NoiseOffset,
-	float3 WorldPosition,
-	float SceneDepth,
-	float3 WorldNormal,
-	out uint2 ScreenProbeAtlasCoordArray[4],
-	out float4 InterpolationWeights)
-{
-	uint2 ScreenProbeScreenCoord00;
-	float4 CornerWeights;
-	float4 DepthWeights;
-	CalculateUniformUpsampleInterpolationWeights(SVPosition, NoiseOffset, WorldPosition, SceneDepth, WorldNormal, ScreenProbeScreenCoord00, CornerWeights, DepthWeights);
-
-	ScreenProbeAtlasCoordArray[0] = ScreenProbeScreenCoord00;
-	ScreenProbeAtlasCoordArray[1] = ScreenProbeScreenCoord00 + uint2(1, 0);
-	ScreenProbeAtlasCoordArray[2] = ScreenProbeScreenCoord00 + uint2(0, 1);
-	ScreenProbeAtlasCoordArray[3] = ScreenProbeScreenCoord00 + uint2(1, 1);
-
-#define UPSAMPLE_USE_ADAPTIVE_PROBES 1
-#if UPSAMPLE_USE_ADAPTIVE_PROBES
-
-	float Epsilon = .01f;
-	float4 ScenePlane = float4(WorldNormal, dot(WorldPosition, WorldNormal));
-
-	UNROLL
-	for (uint CornerIndex = 0; CornerIndex < 4; CornerIndex++)
-	{
-		if (DepthWeights[CornerIndex] <= Epsilon)
-		{
-			uint2 ScreenProbeScreenCoord = ScreenProbeScreenCoord00 + uint2(CornerIndex % 2, CornerIndex / 2);
-			uint NumAdaptiveProbes = ScreenTileAdaptiveProbeHeader[ScreenProbeScreenCoord];
-
-			for (uint AdaptiveProbeListIndex = 0; AdaptiveProbeListIndex < NumAdaptiveProbes; AdaptiveProbeListIndex++)
-			{
-				uint AdaptiveProbeIndex = ScreenTileAdaptiveProbeIndices[uint2(ScreenProbeScreenCoord.x * AdaptiveScreenTileSampleResolution * AdaptiveScreenTileSampleResolution + AdaptiveProbeListIndex, ScreenProbeScreenCoord.y)];
-				uint ScreenProbeIndex = AdaptiveProbeIndex + NumUniformScreenProbes;
-
-				uint2 ScreenProbeScreenCoord;
-				uint ScreenProbeSubsampleIndex;
-				GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-
-				uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
-
-				float ProbeDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
-				float3 ProbePosition = GetWorldPositionFromScreenUV(GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex), ProbeDepth);
-				float PlaneDistance = abs(dot(float4(ProbePosition, -1), ScenePlane));
-				float RelativeDepthDifference = PlaneDistance / SceneDepth;
-				float NewDepthWeight = exp2(-10000.0f * (RelativeDepthDifference * RelativeDepthDifference));
-
-				if (NewDepthWeight > DepthWeights[CornerIndex])
-				{
-					DepthWeights[CornerIndex] = NewDepthWeight;
-					ScreenProbeAtlasCoordArray[CornerIndex] = ScreenProbeAtlasCoord;
-				}
-			}
-		}
-	}
-#endif
-	InterpolationWeights = DepthWeights * CornerWeights;
 }
 
 Buffer<float3> ScreenProbeRadianceSHAmbient;
@@ -441,6 +486,38 @@ float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, uint2 S
 	return InterpolatedRadiance;
 }
 
+void DebugVisualizeScreenProbePlacement(uint2 SVPosition, inout float3 DiffuseIndirectOutput)
+{
+	#define DEBUG_VISUALIZE_SCREEN_PROBE_PLACEMENT 0
+	#if DEBUG_VISUALIZE_SCREEN_PROBE_PLACEMENT
+		uint2 ScreenTileCoord = GetScreenTileCoord(SVPosition);
+		uint2 UniformScreenProbeScreenPosition = GetUniformScreenProbeScreenPosition(ScreenTileCoord);
+
+		if (all(UniformScreenProbeScreenPosition == SVPosition) && GetScreenProbeDepth(ScreenTileCoord) >= 0)
+		{
+			DiffuseIndirectOutput = float3(20, 0, 20);
+		}
+
+		uint NumAdaptiveProbes = ScreenTileAdaptiveProbeHeader[ScreenTileCoord];
+
+		for (uint AdaptiveProbeListIndex = 0; AdaptiveProbeListIndex < NumAdaptiveProbes; AdaptiveProbeListIndex++)
+		{
+			uint2 AdaptiveProbeCoord = GetAdaptiveProbeCoord(ScreenTileCoord, AdaptiveProbeListIndex);
+			uint AdaptiveProbeIndex = ScreenTileAdaptiveProbeIndices[AdaptiveProbeCoord];
+			uint ScreenProbeIndex = AdaptiveProbeIndex + NumUniformScreenProbes;
+
+			uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+
+			if (all(ScreenProbeScreenPosition == SVPosition))
+			{
+				DiffuseIndirectOutput = float3(20, 0, 20);
+			}
+		}
+
+		//DiffuseIndirectOutput = NumAdaptiveProbes / 10.0f;
+	#endif
+}
+
 float FullResolutionJitterWidth;
 uint UseScreenBentNormal;
 Texture2D<float3> ScreenBentNormal;
@@ -509,7 +586,9 @@ void ScreenProbeIndirectCS(
 				//@todo - expose fade distance
 				float EffectiveJitterWidth = FullResolutionJitterWidth * lerp(1.0f, .5f, saturate((SceneDepth - 500.0f) / 500.0f));
 				uint2 RandomSeed = Rand3DPCG16(int3(DispatchThreadId.xy, GENERAL_TEMPORAL_INDEX)).xy;
-				float2 JitterNoiseOffset = (Hammersley16(0, 1, RandomSeed) * 2 - 1) * ScreenProbeDownsampleFactor * EffectiveJitterWidth;
+				float2 ScreenTileJitterE = Hammersley16(0, 1, RandomSeed);
+				//float2 ScreenTileJitterE = EvalBlueNoise(DispatchThreadId.xy % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
+				float2 JitterNoiseOffset = (ScreenTileJitterE * 2 - 1) * ScreenProbeDownsampleFactor * EffectiveJitterWidth;
 
 				float2 JitteredScreenUV = clamp(DispatchThreadId.xy + JitterNoiseOffset, View.ViewRectMin.xy, View.ViewSizeAndInvSize.xy - 1) * View.BufferSizeAndInvSize.zw;
 				float JitteredSceneDepth = CalcSceneDepth(JitteredScreenUV);
@@ -539,6 +618,7 @@ void ScreenProbeIndirectCS(
 				WorldPosition,
 				SceneDepth,
 				GBufferData.WorldNormal,
+				true,
 				ScreenProbeAtlasCoord,
 				InterpolationWeights);
 
@@ -725,8 +805,20 @@ void ScreenProbeIndirectCS(
 
 			float EncodedAlpha = (bLightingIsValid ? 1.0f : -1.0f) * max(LightingIsMoving, .001f);
 
+			float3 DiffuseIndirectOutput = DiffuseLighting * (bLightingIsValid ? 1.0f : 0.0f) * Diffuse_Lambert(float3(1, 1, 1));
+
+			DebugVisualizeScreenProbePlacement(DispatchThreadId, DiffuseIndirectOutput);
+
+			#define DEBUG_VISUALIZE_INVALID_UPSAMPLE 0
+			#if DEBUG_VISUALIZE_INVALID_UPSAMPLE
+				if (!bLightingIsValid)
+				{
+					DiffuseIndirectOutput = float3(10, 0, 0);
+				}
+			#endif
+
 			// FDiffuseIndirectCompositePS applies DiffuseColor
-			RWDiffuseIndirect[DispatchThreadId.xy] = float4(DiffuseLighting * (bLightingIsValid ? 1.0f : 0.0f) * Diffuse_Lambert(float3(1, 1, 1)), EncodedAlpha);
+			RWDiffuseIndirect[DispatchThreadId.xy] = float4(DiffuseIndirectOutput, EncodedAlpha);
 
 			float3 SpecularLighting = 0;
 
@@ -837,7 +929,7 @@ float3 ClampHistory(
 	float3 NeighborMax = NewLighting;
 
 	UNROLL
-	for(uint NeighborId = 0; NeighborId < 8; NeighborId++)
+	for (uint NeighborId = 0; NeighborId < 8; NeighborId++)
 	{
 		int2 SampleOffset = kOffsets3x3[NeighborId];
 
@@ -845,13 +937,43 @@ float3 ClampHistory(
 		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
 
 		float3 Lighting = LightingTexture[NeighborScreenCoord].xyz;
-
-		NeighborMin = min(NeighborMin, Lighting);
-		NeighborMax = max(NeighborMax, Lighting);
+		NeighborMin = min(NeighborMin, Lighting.xyz);
+		NeighborMax = max(NeighborMax, Lighting.xyz);
 	}
 
 	HistoryLighting = clamp(HistoryLighting, NeighborMin, NeighborMax);
 	return HistoryLighting;
+}
+
+float3 GetFilteredNeighborhoodLighting(
+	Texture2D LightingTexture,
+	uint2 ScreenCoord, 
+	uint2 MinScreenCoord, 
+	uint2 MaxScreenCoord,
+	out bool bLightingIsValid)
+{
+	float3 FilteredLighting = 0;
+	float TotalWeight = 0;
+
+	for (uint NeighborId = 0; NeighborId < 8; NeighborId++)
+	{
+		int2 SampleOffset = kOffsets3x3[NeighborId];
+
+		uint2 NeighborScreenCoord = ScreenCoord + SampleOffset;
+		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
+
+		float4 Lighting = LightingTexture[NeighborScreenCoord];
+		bool bSampleLightingIsValid = Lighting.w > 0.0f;
+
+		if (bSampleLightingIsValid)
+		{
+			FilteredLighting += Lighting.xyz;
+			TotalWeight++;
+		}
+	}
+
+	bLightingIsValid = TotalWeight > 0;
+	return FilteredLighting /= max(TotalWeight, 1.0f);
 }
 
 void ScreenProbeTemporalReprojectionDepthRejectionPS(
@@ -876,6 +998,13 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	float3 HistoryDiffuseIndirect = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
 	bool bLightingIsValid = NewDiffuseLighting.w > 0.0f;
 	float LightingIsMoving = abs(NewDiffuseLighting.w);
+
+	if (!bLightingIsValid)
+	{
+		uint2 MinScreenCoord = uint2(0, 0);
+		uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);
+		NewDiffuseLighting.xyz = GetFilteredNeighborhoodLighting(DiffuseIndirect, SVPosition.xy, MinScreenCoord, MaxScreenCoord, bLightingIsValid);
+	}
 
 	float EffectiveConvergenceWeight = HistoryConvergenceWeight;
 	float NewConvergence = 1;
@@ -908,7 +1037,7 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	// For performance, skip neighborhood clamp when it would have had a small contribution
 	NeighborhoodClampAmount = saturate((NeighborhoodClampAmount - .2f) / .8f);
 
-	if (NeighborhoodClampAmount > 0 && bLightingIsValid)
+	if (NeighborhoodClampAmount > 0)
 	{
 		uint2 MinScreenCoord = uint2(0, 0);
 		uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);

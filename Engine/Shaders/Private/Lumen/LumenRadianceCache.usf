@@ -414,14 +414,12 @@ void ScatterScreenProbeBRDFToRadianceProbesCS(
 	uint2 ScreenProbeAtlasCoord = GroupId.xy;
 	
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 
 	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
-		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 		if (SceneDepth > 0)
 		{

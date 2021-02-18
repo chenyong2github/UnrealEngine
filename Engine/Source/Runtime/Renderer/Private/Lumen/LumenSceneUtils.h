@@ -458,8 +458,6 @@ extern void CullForCardTracing(
 	const FScene* Scene,
 	const FViewInfo& View,
 	FLumenCardTracingInputs TracingInputs,
-	FRDGTextureRef DownsampledDepth,
-	uint32 DownsampleFactor,
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters);
 

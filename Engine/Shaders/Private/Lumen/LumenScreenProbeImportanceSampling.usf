@@ -63,13 +63,11 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 	uint2 ScreenProbeAtlasCoord = GroupId.xy;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
 
 	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
-		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
 		{
@@ -85,7 +83,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 
 			GroupMemoryBarrierWithGroupSync();
 
-			float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+			float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 
 			{
 				float2 ThreadOffset = GroupThreadId.xy / (float)PROBE_THREADGROUP_SIZE_2D * ScreenProbeDownsampleFactor * 2.0f - 1.0f;
@@ -206,7 +204,7 @@ void ScreenProbeComputeBRDFProbabilityDensityFunctionCS(
 				}
 			#endif
 #else
-			float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+			float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
 
 			{
 				float2 ThreadOffset = GroupThreadId.xy / (float)PROBE_THREADGROUP_SIZE_2D * ScreenProbeDownsampleFactor * 2.0f - 1.0f;
@@ -276,7 +274,7 @@ float4 ImportanceSamplingHistoryScreenPositionScaleBias;
 float4 ImportanceSamplingHistoryUVMinMax;
 float ImportanceSamplingHistoryDistanceThreshold;
 float PrevInvPreExposure;
-Texture2D HistoryDownsampledDepth;
+Texture2D HistoryScreenProbeSceneDepth;
 Texture2D<float3> HistoryScreenProbeRadiance;
 Texture2D VelocityTexture;
 
@@ -304,12 +302,9 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 
-	uint2 ScreenProbeScreenCoord;
-	uint ScreenProbeSubsampleIndex;
-	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-
-	float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
-	float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+	uint2 ScreenProbeScreenPosition = GetScreenProbeScreenPosition(ScreenProbeIndex);
+	float2 ScreenUV = GetScreenUVFromScreenProbePosition(ScreenProbeScreenPosition);
+	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 	if (ScreenProbeIndex < GetNumScreenProbes() 
 		&& SceneDepth > 0 
@@ -359,7 +354,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 
 			if (EffectiveHistoryWeight > 0.0f)
 			{
-				float2 UnclampedHistoryScreenProbeCoord = GetScreenProbeCoordFromScreenUV(HistoryScreenUV, SCREEN_TEMPORAL_INDEX, 0);
+				float2 UnclampedHistoryScreenProbeCoord = GetScreenTileCoordFromScreenUV(HistoryScreenUV, SCREEN_TEMPORAL_INDEX);
 				float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
 
 				float3 HistoryRadiance = 0;
@@ -371,7 +366,7 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 					{
 						uint2 HistoryScreenProbeCoord = clamp(UnclampedHistoryScreenProbeCoord + float2(X, Y), float2(0, 0), float2(ScreenProbeViewSize - 1));
 
-						float HistoryDepth = HistoryDownsampledDepth.Load(int3(HistoryScreenProbeCoord, 0)).x;
+						float HistoryDepth = HistoryScreenProbeSceneDepth.Load(int3(HistoryScreenProbeCoord, 0)).x;
 						float PositionWeight = ComputeHistoryWeightBasedOnPosition(WorldPosition, SceneDepth, HistoryScreenPosition.xy, HistoryDepth, 1.0f);
 						float HistoryWeight = EffectiveHistoryWeight * PositionWeight;
 
@@ -389,7 +384,8 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 				Transparency = 1.0f - saturate(HistoryRadianceWeight / 4.0f);
 			}
 #endif
-			float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenProbeScreenCoord);
+			uint2 ScreenTileCoord = GetScreenTileCoord(ScreenProbeScreenPosition);
+			float2 ProbeTexelCenter = GetProbeTexelCenter(ScreenTileCoord);
 			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / float(ScreenProbeTracingOctahedronResolution);
 
 			if (Transparency > 0.0f)
@@ -413,8 +409,6 @@ void ScreenProbeComputeLightingProbabilityDensityFunctionCS(
 				}
 			}
 
-
-			const float InvScreenProbeResolution = 1.0f / ScreenProbeTracingOctahedronResolution;
 			float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeTracingOctahedronResolution);
 
 			PDF = Luminance(Lighting) * SolidAngle;
@@ -590,7 +584,7 @@ void ScreenProbeGenerateRaysCS(
 	uint2 ScreenProbeAtlasCoord = GroupId.xy;
 	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
 
-	float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+	float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
 
 	if (ScreenProbeIndex < GetNumScreenProbes() && SceneDepth > 0 && SceneDepth < 1000000.0f)
 	{
