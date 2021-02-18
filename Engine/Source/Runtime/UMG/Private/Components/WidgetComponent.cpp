@@ -655,6 +655,7 @@ void UWidgetComponent::Serialize(FArchive& Ar)
 
 void UWidgetComponent::BeginPlay()
 {
+	SetComponentTickEnabled(TickMode != ETickMode::Disabled);
 	InitWidget();
 	Super::BeginPlay();
 
@@ -1134,7 +1135,12 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 			}
 			return;
 		}
-		ensure(TickMode != ETickMode::Disabled);
+
+		if (TickMode == ETickMode::Disabled)
+		{ 
+			SetComponentTickEnabled(false);
+			return;
+		}
 
 	    if ( Space != EWidgetSpace::Screen )
 	    {
