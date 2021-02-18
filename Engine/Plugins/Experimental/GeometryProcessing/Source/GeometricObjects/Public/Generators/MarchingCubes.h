@@ -571,7 +571,7 @@ protected:
 		for (FVector3<double> seed : Seeds)
 		{
 			FVector3i seed_idx = cell_index(seed);
-			if (done_cells[seed_idx] == 1)
+			if (!done_cells.IsValidIndex(seed_idx) || done_cells[seed_idx] == 1)
 			{
 				continue;
 			}
@@ -614,11 +614,11 @@ protected:
 	{
 		parallel_mesh_access = true;
 
-		ParallelFor(Seeds.Num(), [&](int32 Index)
+		ParallelFor(Seeds.Num(), [this, &Seeds](int32 Index)
 		{
 			FVector3<double> Seed = Seeds[Index];
 			FVector3i seed_idx = cell_index(Seed);
-			if (set_cell_if_not_done(seed_idx) == false)
+			if (!done_cells.IsValidIndex(seed_idx) || set_cell_if_not_done(seed_idx) == false)
 			{
 				return;
 			}
