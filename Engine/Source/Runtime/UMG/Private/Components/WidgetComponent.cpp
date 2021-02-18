@@ -473,7 +473,7 @@ public:
 
 	void RenderCollision(UBodySetup* InBodySetup, FMeshElementCollector& Collector, int32 ViewIndex, const FEngineShowFlags& EngineShowFlags, const FBoxSphereBounds& InBounds, bool bRenderInEditor) const
 	{
-		if ( InBodySetup )
+		if ( InBodySetup && InBodySetup->IsValidLowLevel() )
 		{
 			bool bDrawCollision = EngineShowFlags.Collision && IsCollisionEnabled();
 
