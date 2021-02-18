@@ -155,6 +155,9 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 			//Update the original reduction data since we just build a new LODModel.
 			if (LODInfo->ReductionSettings.BaseLOD == LODIndex && SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIndex))
 			{
+				// Inplace reduction is not currently thread-safe
+				check(IsInGameThread());
+
 				//Make the copy of the data only once until the ImportedModel change (re-imported)
 				SkeletalMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIndex]->EmptyBulkData();
 				TMap<FString, TArray<FMorphTargetDelta>> BaseLODMorphTargetData;

@@ -13,6 +13,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Materials/MaterialInstance.h"
 #include "AsyncCompilationHelpers.h"
+#include "SkeletalMeshCompiler.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 #define LOCTEXT_NAMESPACE "AssetCompilingManager"
 
@@ -60,8 +62,11 @@ int32 FAssetCompilingManager::GetNumRemainingAssets() const
 {
 	return 
 		FStaticMeshCompilingManager::Get().GetNumRemainingMeshes() +
-		FTextureCompilingManager::Get().GetNumRemainingTextures();
+		FTextureCompilingManager::Get().GetNumRemainingTextures() + 
+		FSkeletalMeshCompilingManager::Get().GetNumRemainingJobs();
 }
+
+TRACE_DECLARE_INT_COUNTER(AsyncCompilationMaxConcurrency, TEXT("AsyncCompilation/MaxConcurrency"));
 
 class FMemoryBoundQueuedThreadPoolWrapper : public FQueuedThreadPoolWrapper
 {
@@ -86,6 +91,8 @@ public:
 			FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
 			uint64 MemoryMaxConcurrency = FMath::Max(1llu, MemoryStats.AvailablePhysical / ((uint64)MemoryPerCore * 1024 * 1024 * 1024));
 			DynamicMaxConcurrency = FMath::Min((int32)MemoryMaxConcurrency, DynamicMaxConcurrency);
+
+			TRACE_COUNTER_SET(AsyncCompilationMaxConcurrency, DynamicMaxConcurrency);
 		}
 
 		return DynamicMaxConcurrency;
@@ -103,7 +110,8 @@ FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const
 		// We're using GThreadPool instead of GLargeThreadPool because asset compilation is hard on total memory and memory bandwidth and can run slower when going wider than actual cores.
 		// All asset priorities will resolve to a Low priority once being scheduled in the LargeThreadPool.
 		// Any asset supporting being built async should be scheduled lower than Normal to let non-async stuff go first
-		GAssetThreadPool = new FMemoryBoundQueuedThreadPoolWrapper(GThreadPool, -1, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Low; });
+		// However, we let Highest priority pass-through as it to benefit from going to foreground threads when required (i.e. Game-thread is waiting on some assets)
+		GAssetThreadPool = new FMemoryBoundQueuedThreadPoolWrapper(GThreadPool, -1, [](EQueuedWorkPriority Priority) { return Priority == EQueuedWorkPriority::Highest ? Priority : EQueuedWorkPriority::Low; });
 
 		AsyncCompilationHelpers::BindThreadPoolToCVar(
 			GAssetThreadPool,
@@ -123,6 +131,7 @@ void FAssetCompilingManager::FinishAllCompilation()
 {
 	FTextureCompilingManager::Get().FinishAllCompilation();
 	FStaticMeshCompilingManager::Get().FinishAllCompilation();
+	FSkeletalMeshCompilingManager::Get().FinishAllCompilation();
 }
 
 /**
@@ -132,6 +141,12 @@ void FAssetCompilingManager::Shutdown()
 {
 	FStaticMeshCompilingManager::Get().Shutdown();
 	FTextureCompilingManager::Get().Shutdown();
+	FSkeletalMeshCompilingManager::Get().Shutdown();
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("DumpAsyncStallsOnExit")))
+	{
+		AsyncCompilationHelpers::DumpStallStacks();
+	}
 }
 
 FAssetCompilingManager& FAssetCompilingManager::Get()
@@ -147,6 +162,8 @@ void FAssetCompilingManager::ProcessAsyncTasks(bool bLimitExecutionTime)
 	FTextureCompilingManager::Get().ProcessAsyncTasks(bLimitExecutionTime);
 
 	FStaticMeshCompilingManager::Get().ProcessAsyncTasks(bLimitExecutionTime);
+
+	FSkeletalMeshCompilingManager::Get().ProcessAsyncTasks(bLimitExecutionTime);
 }
 
 #undef LOCTEXT_NAMESPACE

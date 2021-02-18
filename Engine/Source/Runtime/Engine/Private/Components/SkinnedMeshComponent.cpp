@@ -16,6 +16,7 @@
 #include "SkeletalRenderGPUSkin.h"
 #include "SkeletalRenderStatic.h"
 #include "Animation/AnimStats.h"
+#include "SkeletalMeshCompiler.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "EngineGlobals.h"
@@ -1096,9 +1097,10 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector& RootOffset,
 	UPhysicsAsset * const MasterPhysicsAsset = (MasterPoseComponentInst != nullptr)? MasterPoseComponentInst->GetPhysicsAsset() : nullptr;
 
 	// Can only use the PhysicsAsset to calculate the bounding box if we are not non-uniformly scaling the mesh.
+	const USkeletalMesh* SkeletalMeshConst = SkeletalMesh;
 	const bool bCanUsePhysicsAsset = DrawScale.IsUniform() && (SkeletalMesh != NULL)
 		// either space base exists or child component
-		&& ( (GetNumComponentSpaceTransforms() == SkeletalMesh->GetRefSkeleton().GetNum()) || (MasterPhysicsAsset) );
+		&& ( (GetNumComponentSpaceTransforms() == SkeletalMeshConst->GetRefSkeleton().GetNum()) || (MasterPhysicsAsset) );
 
 	const bool bDetailModeAllowsRendering = (DetailMode <= GetCachedScalabilityCVars().DetailMode);
 	const bool bIsVisible = ( bDetailModeAllowsRendering && (ShouldRender() || bCastHiddenShadow));
@@ -1109,7 +1111,7 @@ FBoxSphereBounds USkinnedMeshComponent::CalcMeshBound(const FVector& RootOffset,
 	// if not visible, or we were told to use fixed bounds, use skelmesh bounds
 	if ( (!bIsVisible || bComponentUseFixedSkelBounds) && SkeletalMesh ) 
 	{
-		FBoxSphereBounds RootAdjustedBounds = SkeletalMesh->GetBounds();
+		FBoxSphereBounds RootAdjustedBounds = SkeletalMeshConst->GetBounds();
 		RootAdjustedBounds.Origin += RootOffset; // Adjust bounds by root bone translation
 		NewBounds = RootAdjustedBounds.TransformBy(LocalToWorld);
 	}
@@ -3935,6 +3937,12 @@ void USkinnedMeshComponent::SetPostSkinningOffsets(int32 LODIndex, TArray<FVecto
 }
 
 #if WITH_EDITOR
+
+bool USkinnedMeshComponent::IsCompiling() const
+{
+	return SkeletalMesh && SkeletalMesh->IsCompiling();
+}
+
 void USkinnedMeshComponent::BindWorldDelegates()
 {
 	FWorldDelegates::OnPostWorldCreation.AddStatic(&HandlePostWorldCreation);

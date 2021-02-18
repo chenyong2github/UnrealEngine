@@ -9,6 +9,7 @@
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
 #include "Components/SceneComponent.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/MeshComponent.h"
 #include "Containers/SortedMap.h"
@@ -1224,6 +1225,11 @@ protected:
 	mutable FMatrix CachedWorldToLocalTransform;
 
 public:
+#if WITH_EDITOR
+	//~ Begin IInterface_AsyncCompilation Interface.
+	virtual bool IsCompiling() const override;
+	//~ End IInterface_AsyncCompilation Interface.
+#endif
 
 	/** Invalidate Cached Bounds, when Mesh Component has been updated. */
 	void InvalidateCachedBounds();

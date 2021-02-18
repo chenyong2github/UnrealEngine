@@ -10,6 +10,7 @@
 #include "ComponentReregisterContext.h"
 #include "Templates/UniquePtr.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "AnimationBlueprintLibrary.h"
 #include "Async/ParallelFor.h"
 
@@ -373,8 +374,17 @@ public:
 		// Always restore all previously removed bones if not contained by BonesToRemove
 		SkeletalMesh->CalculateRequiredBones(SkeletalMesh->GetImportedModel()->LODModels[DesiredLOD], SkeletalMesh->GetRefSkeleton(), &BonesToRemove);
 		
-		SkeletalMesh->ReleaseResources();
-		SkeletalMesh->ReleaseResourcesFence.Wait();
+		if (IsInGameThread())
+		{
+			SkeletalMesh->ReleaseResources();
+			SkeletalMesh->ReleaseResourcesFence.Wait();
+		}
+		else
+		{
+			// When building async, make sure the release resource has been made before starting the async task
+			FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering();
+			ensureMsgf(!RenderData || !RenderData->IsInitialized(), TEXT("Release Resource of async SkeletalMesh build must be done before going async!"));
+		}
 
 		FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
 		check(SkeletalMeshResource);
@@ -479,7 +489,11 @@ public:
 		{
 			FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(SkeletalMesh);
 		}
-		SkeletalMesh->MarkPackageDirty();
+
+		if (IsInGameThread())
+		{
+			SkeletalMesh->MarkPackageDirty();
+		}
 
 		return true;
 	}

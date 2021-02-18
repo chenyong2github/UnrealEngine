@@ -500,6 +500,8 @@ void FReductionBaseSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 void FReductionBaseSkeletalMeshBulkData::SaveReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData, UObject* Owner)
 {
+	check(IsInGameThread());
+
 	//Saving the bulk data mean we do not need anymore the SerializeLoadingCustomVersionContainer of the parent bulk data
 	SerializeLoadingCustomVersionContainer.Empty();
 	bUseSerializeLoadingCustomVersion = false;
@@ -524,6 +526,8 @@ void FReductionBaseSkeletalMeshBulkData::SaveReductionData(FSkeletalMeshLODModel
 
 void FReductionBaseSkeletalMeshBulkData::LoadReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData, UObject* Owner)
 {
+	check(IsInGameThread());
+
 	BaseLODMorphTargetData.Empty();
 	if (BulkData.GetElementCount() > 0)
 	{
@@ -805,7 +809,21 @@ void FRawSkeletalMeshBulkData::LoadRawMesh(FSkeletalMeshImportData& OutMesh)
 	OutMesh.Empty();
 	if (BulkData.GetElementCount() > 0)
 	{
-		// Get a lock on the bulk data
+#if WITH_EDITOR
+		// An exclusive lock is required so we can safely load the raw data from multiple threads
+		FWriteScopeLock ScopeLock(BulkDataLock.Get());
+
+		// This allows any thread to be able to deserialize from the RawMesh directly
+		// from disk so we can unload bulk data from memory.
+		bool bHasBeenLoadedFromFileReader = false;
+		if (BulkData.IsAsyncLoadingComplete() && !BulkData.IsBulkDataLoaded())
+		{
+			// This can't be called in -game mode because we're not allowed to load bulk data outside of EDL.
+			bHasBeenLoadedFromFileReader = BulkData.LoadBulkDataWithFileReader();
+		}
+#endif
+		// This is in a scope because the FBulkDataReader need to be destroyed in order
+		// to unlock the BulkData and allow UnloadBulkData to actually do its job.
 		{
 			const bool bIsPersistent = true;
 			FBulkDataReader Ar(BulkData, bIsPersistent);
@@ -815,7 +833,16 @@ void FRawSkeletalMeshBulkData::LoadRawMesh(FSkeletalMeshImportData& OutMesh)
 			Ar.SetCustomVersions(SerializeLoadingCustomVersionContainer);
 			Ar << OutMesh;
 		}
-		// Unlock bulk data when we leave scope
+
+#if WITH_EDITOR
+		// Throw away the bulk data allocation only in the case we can safely reload it from disk
+		// and if BulkData.LoadBulkDataWithFileReader() is allowed to work from any thread.
+		// This saves a significant amount of memory during map loading of Nanite Meshes.
+		if (bHasBeenLoadedFromFileReader)
+		{
+			verify(BulkData.UnloadBulkData());
+		}
+#endif
 	}
 }
 

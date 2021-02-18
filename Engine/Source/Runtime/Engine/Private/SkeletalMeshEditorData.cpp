@@ -37,10 +37,6 @@ FRawSkeletalMeshBulkData& USkeletalMeshEditorData::GetLODImportedData(int32 LODI
 	check(LODIndex >= 0);
 	if (LODIndex >= RawSkeletalMeshBulkDatas.Num())
 	{
-		//Avoid changing the array outside of the main thread
-		//The allocation must be done before going multi thread
-		//TArray is not thread safe when allocating
-		check(IsInGameThread());
 		const int32 AddItemCount = 1 + (LODIndex - RawSkeletalMeshBulkDatas.Num());
 		RawSkeletalMeshBulkDatas.Reserve(AddItemCount);
 		while (LODIndex >= RawSkeletalMeshBulkDatas.Num())

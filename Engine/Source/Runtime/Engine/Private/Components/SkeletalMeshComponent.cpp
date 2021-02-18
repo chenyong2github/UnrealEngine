@@ -25,6 +25,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "SkeletalRender.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "SkeletalMeshCompiler.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 
 #include "Logging/MessageLog.h"
@@ -2387,6 +2388,14 @@ void USkeletalMeshComponent::DispatchParallelEvaluationTasks(FActorComponentTick
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
 	SwapEvaluationContextBuffers();
+
+#if WITH_EDITOR
+	// We can only finish compilation on the game-thread, so wait here before spawning eval tasks.
+	if (SkeletalMesh && SkeletalMesh->IsCompiling())
+	{
+		FSkeletalMeshCompilingManager::Get().FinishCompilation({ SkeletalMesh });
+	}
+#endif
 
 	// start parallel work
 	check(!IsValidRef(ParallelAnimationEvaluationTask));

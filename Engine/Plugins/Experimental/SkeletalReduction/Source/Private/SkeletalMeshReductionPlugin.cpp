@@ -25,7 +25,7 @@
 #include "ClothingAsset.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "LODUtilities.h"
-
+#include "Async/Async.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshReduction"
 
@@ -2036,17 +2036,23 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 				SkeletalMesh.GetLODImportedDataVersions(LODIndex, GeoImportVersion, SkinningImportVersion);
 				bPutBackRawMesh = true;
 			}
-			//If the delegate is not bound 
-			if (!Settings.OnDeleteLODModelDelegate.IsBound())
+
+			if (Settings.OnDeleteLODModelDelegate.IsBound())
 			{
-				//If not in game thread we should never delete a structure containing bulkdata since it can crash when the bulkdata is detach from the archive
-				//Use the delegate and delete the pointer in the main thread if you reduce in other thread then game thread (main thread).
-				check(IsInGameThread());
-				delete Old;
+				Settings.OnDeleteLODModelDelegate.Execute(Old);
 			}
 			else
 			{
-				Settings.OnDeleteLODModelDelegate.Execute(Old);
+				// Make sure the deletion is happening on the game-thread.
+				// Deleting a structure containing bulkdata can crash when the bulkdata is detached from the archive.
+				if (IsInGameThread())
+				{
+					delete Old;
+				}
+				else
+				{
+					Async(EAsyncExecution::TaskGraphMainThread, [Old]() { delete Old; });
+				}
 			}
 		}
 		else if(bReducingSourceModel)

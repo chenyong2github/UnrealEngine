@@ -12,6 +12,7 @@
 #include "Components.h"
 #include "Math/GenericOctree.h"
 #include "Animation/MorphTarget.h"
+#include "Templates/DontCopy.h"
 
 class FSkeletalMeshLODModel;
 
@@ -467,8 +468,13 @@ public:
 */
 class FRawSkeletalMeshBulkData
 {
+#if WITH_EDITOR
+	/** Protects simultaneous access to BulkData */
+	TDontCopy<FRWLock> BulkDataLock;
+#endif
 	/** Internally store bulk data as bytes. */
 	FByteBulkData BulkData;
+	/** GUID associated with the data stored herein. */
 	FGuid Guid;
 	/** If true, the GUID is actually a hash of the contents. */
 	bool bGuidIsHash;

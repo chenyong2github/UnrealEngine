@@ -1174,6 +1174,8 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 
 void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 DesiredLOD, bool bRestoreClothing /*= false*/, FThreadSafeBool* OutNeedsPackageDirtied/*= nullptr*/)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLODUtilities::SimplifySkeletalMeshLOD);
+
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
 
@@ -1190,7 +1192,8 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMesh->GetName()));
 		Args.Add(TEXT("LODIndex"), FText::AsNumber(DesiredLOD));
 		FText Message = FText::Format(NSLOCTEXT("UnrealEd", "MeshSimp_GenerateLODCannotGenerateMissingData", "Cannot generate LOD {LODIndex} for skeletal mesh '{SkeletalMeshName}'. This LOD must be re-import to create the necessary data"), Args);
-		if (FApp::IsUnattended())
+
+		if (FApp::IsUnattended() || !IsInGameThread())
 		{
 			UE_LOG(LogLODUtilities, Warning, TEXT("%s"), *(Message.ToString()));
 		}
@@ -1227,7 +1230,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		//We must save the original reduction data, special case when we reduce inline we save even if its already simplified
 		if (SkeletalMeshResource->LODModels.IsValidIndex(DesiredLOD) && (!SkeletalMesh->GetLODInfo(DesiredLOD)->bHasBeenSimplified || DesiredLOD == Settings.BaseLOD))
 		{
-			//Caller should not call this in multithread if the LOD was never simplified or if its doing inline reduction
+			// Caller should not call this in multithread if the LOD was never simplified or if its doing inline reduction
 			check(IsInGameThread());
 
 			FSkeletalMeshLODModel& SrcModel = SkeletalMeshResource->LODModels[DesiredLOD];
@@ -1257,7 +1260,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 					}
 				}
 				
-				//Copy the original SkeletalMesh LODModel
+				// Copy the original SkeletalMesh LODModel
 				// Unbind clothing before saving the original data, we must not restore clothing to do inline reduction
 				{
 					TArray<ClothingAssetUtils::FClothingAssetMeshBinding> TemporaryRemoveClothingBindings;
@@ -1278,7 +1281,6 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 			}
 		}
 	}
-	
 
 	if (MeshReduction->ReduceSkeletalMesh(SkeletalMesh, DesiredLOD))
 	{
@@ -1314,7 +1316,15 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMesh->GetName()));
 		const FText Message = FText::Format(NSLOCTEXT("UnrealEd", "MeshSimp_GenerateLODFailed_F", "An error occurred while simplifying the geometry for mesh '{SkeletalMeshName}'.  Consider adjusting simplification parameters and re-simplifying the mesh."), Args);
-		FMessageDialog::Open(EAppMsgType::Ok, Message);
+
+		if (FApp::IsUnattended() || !IsInGameThread())
+		{
+			UE_LOG(LogLODUtilities, Warning, TEXT("%s"), *(Message.ToString()));
+		}
+		else
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, Message);
+		}
 	}
 
 	//Put back the clothing for the DesiredLOD
@@ -1807,7 +1817,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(USkeletalMesh* SkeletalMeshDest, 
 	return UpdateAlternateSkinWeights(LODModelDest, ImportDataDest, SkeletalMeshDest, SkeletalMeshDest->GetRefSkeleton(), ProfileNameDest, LODIndexDest, OverlappingThresholds, ShouldImportNormals, ShouldImportTangents, bUseMikkTSpace, bComputeWeightedNormals);
 }
 
-bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDest, FSkeletalMeshImportData& ImportDataDest, USkeletalMesh* SkeletalMeshDest, FReferenceSkeleton& RefSkeleton, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals)
+bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDest, FSkeletalMeshImportData& ImportDataDest, USkeletalMesh* SkeletalMeshDest, const FReferenceSkeleton& RefSkeleton, const FName& ProfileNameDest, int32 LODIndexDest, FOverlappingThresholds OverlappingThresholds, bool ShouldImportNormals, bool ShouldImportTangents, bool bUseMikkTSpace, bool bComputeWeightedNormals)
 {
 	//Ensure log message only once
 	bool bNoMatchMsgDone = false;
@@ -2304,6 +2314,8 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 		check(MeshReduction && MeshReduction->IsSupported());
 
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
+
+		if (IsInGameThread())
 		{
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("DesiredLOD"), LODIndex);
@@ -2311,9 +2323,9 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 			const FText StatusUpdate = FText::Format(NSLOCTEXT("UnrealEd", "MeshSimp_GeneratingDependentLODs_F", "Generating All Dependent LODs from LOD {DesiredLOD} for {SkeletalMeshName}..."), Args);
 			GWarn->BeginSlowTask(StatusUpdate, true);
 		}
+
 		for (const auto& Kvp : Dependencies)
 		{
-			SkeletalMesh->Modify();
 			int32 MaxDependentLODIndex = 0;
 			//Use a TQueue which is thread safe, this Queue will be fill by some delegate call from other threads
 			TQueue<FSkeletalMeshLODModel*> LODModelReplaceByReduction;
@@ -2329,27 +2341,11 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 
 				const FSkeletalMeshLODInfo* LODInfo = SkeletalMesh->GetLODInfo(DependentLODIndex);
 				check(LODInfo);
+				
 				LODInfo->ReductionSettings.OnDeleteLODModelDelegate.BindLambda([&LODModelReplaceByReduction](FSkeletalMeshLODModel* ReplacedLODModel)
 				{
 					LODModelReplaceByReduction.Enqueue(ReplacedLODModel);
 				});
-			}
-
-			// Load the BulkData for all dependent LODs; this has to be done on the main thread since it requires access to the Linker and FLinkerLoad::Serialize is not threadsafe
-			{
-				FSkeletalMeshModel* SkeletalMeshResource = SkeletalMesh->GetImportedModel();
-				if (SkeletalMeshResource)
-				{
-					FSkeletalMeshLODModel** LODModels = SkeletalMeshResource->LODModels.GetData();
-					const int32 NumLODModels = SkeletalMeshResource->LODModels.Num();
-					for (int32 DependentLODIndex : DependentLODs)
-					{
-						if (DependentLODIndex < NumLODModels)
-						{
-							SkeletalMesh->ForceBulkDataResident(DependentLODIndex);
-						}
-					}
-				}
 			}
 
 			SkeletalMesh->ReserveLODImportData(MaxDependentLODIndex);
@@ -2368,9 +2364,12 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 				}
 			}
 			
-			//Reduce LODs in parallel
-			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied, &CanReduceLODInParallel](int32 IterationIndex)
+			// Reduce LODs in parallel
+			const bool bHasAccessToLockedProperties = !FSkeletalMeshAsyncBuildScope::ShouldWaitOnLockedProperties(SkeletalMesh);
+			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied, &CanReduceLODInParallel, bHasAccessToLockedProperties](int32 IterationIndex)
 			{
+				TUniquePtr<FSkeletalMeshAsyncBuildScope> AsyncBuildScope(bHasAccessToLockedProperties ? MakeUnique<FSkeletalMeshAsyncBuildScope>(SkeletalMesh) : nullptr);
+
 				check(DependentLODs.IsValidIndex(IterationIndex));
 				int32 DependentLODIndex = DependentLODs[IterationIndex];
 				if (CanReduceLODInParallel[DependentLODIndex])
@@ -2380,7 +2379,7 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 				}
 			});
 
-			if (bNeedsPackageDirtied)
+			if (bNeedsPackageDirtied && IsInGameThread())
 			{
 				SkeletalMesh->MarkPackageDirty();
 			}
@@ -2408,7 +2407,10 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 			check(LODModelReplaceByReduction.IsEmpty());
 		}
 
-		GWarn->EndSlowTask();
+		if (IsInGameThread())
+		{
+			GWarn->EndSlowTask();
+		}
 	}
 }
 
@@ -2769,6 +2771,12 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 	int32 ShapeIndex = 0;
 	int32 TotalShapeCount = BaseImportData.MorphTargetNames.Num();
 
+	TMap<FName, UMorphTarget*> ExistingMorphTargets;
+	for (UMorphTarget* MorphTarget : BaseSkelMesh->GetMorphTargets())
+	{
+		ExistingMorphTargets.Add(MorphTarget->GetFName(), MorphTarget);
+	}
+
 	// iterate through shapename, and create morphtarget
 	for (int32 MorphTargetIndex = 0; MorphTargetIndex < BaseImportData.MorphTargetNames.Num(); ++MorphTargetIndex)
 	{
@@ -2783,10 +2791,13 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 				{
 					PendingWork.RemoveAt(TaskIndex);
 					++NumCompleted;
-					FFormatNamedArguments Args;
-					Args.Add(TEXT("NumCompleted"), NumCompleted);
-					Args.Add(TEXT("NumTasks"), TotalShapeCount);
-					GWarn->StatusUpdate(NumCompleted, TotalShapeCount, FText::Format(LOCTEXT("ImportingMorphTargetStatus", "Importing Morph Target: {NumCompleted} of {NumTasks}"), Args));
+					if (IsInGameThread())
+					{
+						FFormatNamedArguments Args;
+						Args.Add(TEXT("NumCompleted"), NumCompleted);
+						Args.Add(TEXT("NumTasks"), TotalShapeCount);
+						GWarn->StatusUpdate(NumCompleted, TotalShapeCount, FText::Format(LOCTEXT("ImportingMorphTargetStatus", "Importing Morph Target: {NumCompleted} of {NumTasks}"), Args));
+					}
 				}
 			}
 			CurrentNumTasks = PendingWork.Num();
@@ -2800,20 +2811,24 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 		FSkeletalMeshImportData& ShapeImportData = BaseImportData.MorphTargets[MorphTargetIndex];
 		TSet<uint32>& ModifiedPoints = BaseImportData.MorphTargetModifiedPoints[MorphTargetIndex];
 
-		// See if this morph target already exists.
-		UMorphTarget * MorphTarget = FindObject<UMorphTarget>(BaseSkelMesh, *ShapeName);
-		// we only create new one for LOD0, otherwise don't create new one
-		if (!MorphTarget)
+		UMorphTarget* MorphTarget = nullptr;
 		{
-			if (LODIndex == 0)
+			FName ObjectName = *ShapeName;
+			MorphTarget = ExistingMorphTargets.FindRef(ObjectName);
+
+			// we only create new one for LOD0, otherwise don't create new one
+			if (!MorphTarget)
 			{
-				MorphTarget = NewObject<UMorphTarget>(BaseSkelMesh, FName(*ShapeName));
-			}
-			else
-			{
-				/*AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(FText::FromString("Could not find the {0} morphtarget for LOD {1}. \
-					Make sure the name for morphtarget matches with LOD 0"), FText::FromString(ShapeName), FText::FromString(FString::FromInt(LODIndex)))),
-					FFbxErrors::SkeletalMesh_LOD_MissingMorphTarget);*/
+				if (LODIndex == 0)
+				{
+					MorphTarget = NewObject<UMorphTarget>(BaseSkelMesh, ObjectName);
+				}
+				else
+				{
+					/*AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(FText::FromString("Could not find the {0} morphtarget for LOD {1}. \
+						Make sure the name for morphtarget matches with LOD 0"), FText::FromString(ShapeName), FText::FromString(FString::FromInt(LODIndex)))),
+						FFbxErrors::SkeletalMesh_LOD_MissingMorphTarget);*/
+				}
 			}
 		}
 
@@ -2844,10 +2859,13 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 
 		++NumCompleted;
 
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("NumCompleted"), NumCompleted);
-		Args.Add(TEXT("NumTasks"), TotalShapeCount);
-		GWarn->StatusUpdate(NumCompleted, NumTasks, FText::Format(LOCTEXT("ImportingMorphTargetStatus", "Importing Morph Target: {NumCompleted} of {NumTasks}"), Args));
+		if (IsInGameThread())
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("NumCompleted"), NumCompleted);
+			Args.Add(TEXT("NumTasks"), TotalShapeCount);
+			GWarn->StatusUpdate(NumCompleted, NumTasks, FText::Format(LOCTEXT("ImportingMorphTargetStatus", "Importing Morph Target: {NumCompleted} of {NumTasks}"), Args));
+		}
 	}
 
 	bool bNeedToInvalidateRegisteredMorph = false;
@@ -2855,10 +2873,13 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 	// This has to happen on a single thread since the skeletal meshes' bulk data is locked and cant be accessed by multiple threads simultaneously
 	for (int32 Index = 0; Index < MorphTargets.Num(); Index++)
 	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("NumCompleted"), Index + 1);
-		Args.Add(TEXT("NumTasks"), MorphTargets.Num());
-		GWarn->StatusUpdate(Index + 1, MorphTargets.Num(), FText::Format(LOCTEXT("BuildingMorphTargetRenderDataStatus", "Building Morph Target Render Data: {NumCompleted} of {NumTasks}"), Args));
+		if (IsInGameThread())
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("NumCompleted"), Index + 1);
+			Args.Add(TEXT("NumTasks"), MorphTargets.Num());
+			GWarn->StatusUpdate(Index + 1, MorphTargets.Num(), FText::Format(LOCTEXT("BuildingMorphTargetRenderDataStatus", "Building Morph Target Render Data: {NumCompleted} of {NumTasks}"), Args));
+		}
 
 		UMorphTarget* MorphTarget = MorphTargets[Index];
 		MorphTarget->PopulateDeltas(*Results[Index], LODIndex, BaseLODModel.Sections, ShouldImportNormals == false, false, Thresholds.MorphThresholdPosition);
@@ -2871,6 +2892,10 @@ void FLODUtilities::BuildMorphTargets(USkeletalMesh* BaseSkelMesh, FSkeletalMesh
 
 		delete Results[Index];
 		Results[Index] = nullptr;
+
+		// We might have created new MorphTarget in an async thread, so we need to remove the async flag so they can get
+		// garbage collected in the future now that their references are properly setup and reachable by the GC.
+		MorphTarget->ClearInternalFlags(EInternalObjectFlags::Async);
 	}
 
 	if (bNeedToInvalidateRegisteredMorph)

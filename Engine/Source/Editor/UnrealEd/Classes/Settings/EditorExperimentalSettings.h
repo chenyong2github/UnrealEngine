@@ -20,13 +20,17 @@ class UNREALED_API UEditorExperimentalSettings
 	GENERATED_UCLASS_BODY()
 
 public:
-	/** Enable async texture compilation to improve PIE and map load time performance when textures need recompilation */
+	/** Enable async texture compilation to improve PIE and map load time performance when compilation is required */
 	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async texture compilation and loading"))
 	bool bEnableAsyncTextureCompilation;
 
-	/** Enable async static mesh compilation to improve import and map load time performance when static mesh compilation is required */
+	/** Enable async static mesh compilation to improve import and map load time performance when compilation is required */
 	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async static mesh compilation and loading"))
 	bool bEnableAsyncStaticMeshCompilation;
+
+	/** Enable async skeletal mesh compilation to improve import and map load time performance when compilation is required */
+	UPROPERTY(EditAnywhere, config, Category = Performance, meta = (DisplayName = "Enable async skeletal mesh compilation and loading"))
+	bool bEnableAsyncSkeletalMeshCompilation;
 
 	/** Enable interchange framework, the interchange framework is a new import system which can import asynchronously and in parallel. See the interchange project settings to configure the import pipeline*/
 	UPROPERTY(EditAnywhere, config, Category = Interchange, meta = (DisplayName = "Enable interchange framework import"))

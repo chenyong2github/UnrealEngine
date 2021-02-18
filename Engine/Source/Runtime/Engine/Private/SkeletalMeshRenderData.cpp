@@ -17,7 +17,7 @@
 #include "PlatformInfo.h"
 #include "IMeshBuilderModule.h"
 #include "EngineUtils.h"
-
+#include "Async/Async.h"
 
 #if ENABLE_COOK_STATS
 namespace SkeletalMeshCookStats
@@ -71,7 +71,7 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // and set this new GUID as the version.
 #define SKELETALMESH_DERIVEDDATA_VER TEXT("E6CA95D22F564092BE4AE5A8716349B0")
 
-static const FString& GetSkeletalMeshDerivedDataVersion()
+const FString& GetSkeletalMeshDerivedDataVersion()
 {
 	static FString CachedVersionString = SKELETALMESH_DERIVEDDATA_VER;
 	return CachedVersionString;
@@ -242,6 +242,12 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				FSkeletalMeshModel* SkelMeshModel = Owner->GetImportedModel();
 				check(SkelMeshModel);
 
+				TMap<FName, UMorphTarget*> ExistingMorphTargets;
+				for (UMorphTarget* MorphTarget : Owner->GetMorphTargets())
+				{
+					ExistingMorphTargets.Add(MorphTarget->GetFName(), MorphTarget);
+				}
+
 				int32 MorphTargetNumber = 0;
 				Ar << MorphTargetNumber;
 				TArray<UMorphTarget*> ToDeleteMorphTargets;
@@ -253,7 +259,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				{
 					FName MorphTargetName = NAME_None;
 					Ar << MorphTargetName;
-					UMorphTarget* MorphTarget = Cast<UMorphTarget>(StaticFindObjectFast(nullptr, Owner, MorphTargetName));
+					UMorphTarget* MorphTarget = ExistingMorphTargets.FindRef(MorphTargetName);
 					if (!MorphTarget)
 					{
 						MorphTarget = NewObject<UMorphTarget>(Owner, MorphTargetName);
@@ -276,13 +282,38 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				}
 				//Rebuild the mapping and rehook the curve data
 				Owner->InitMorphTargets();
-				for (int32 DeleteMorphIndex = 0; DeleteMorphIndex < ToDeleteMorphTargets.Num(); ++DeleteMorphIndex)
+
+				for (UMorphTarget* ToDeleteMorphTarget : ToDeleteMorphTargets)
 				{
-					ToDeleteMorphTargets[DeleteMorphIndex]->BaseSkelMesh = nullptr;
-					ToDeleteMorphTargets[DeleteMorphIndex]->MorphLODModels.Empty();
-					//Move the unused asset in the transient package and mark it pending kill
-					ToDeleteMorphTargets[DeleteMorphIndex]->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-					ToDeleteMorphTargets[DeleteMorphIndex]->MarkPendingKill();
+					ToDeleteMorphTarget->BaseSkelMesh = nullptr;
+					ToDeleteMorphTarget->MorphLODModels.Empty();
+
+					auto DeleteObject = 
+						[ObjectToDelete = TWeakObjectPtr<UMorphTarget>(ToDeleteMorphTarget)]()
+						{
+							//Move the unused asset in the transient package and mark it pending kill
+							if (ObjectToDelete.IsValid())
+							{
+								ObjectToDelete->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+								ObjectToDelete->MarkPendingKill();
+							}
+						};
+
+					if (IsInGameThread())
+					{
+						DeleteObject();
+					}
+					else
+					{
+						Async(EAsyncExecution::TaskGraphMainThread, MoveTemp(DeleteObject));
+					}
+				}
+
+				// In case we're built async and objects were created, we need to remove the async flag now that they are referenced
+				// and reachable by the GC.
+				for (UMorphTarget* MorphTarget : Owner->GetMorphTargets())
+				{
+					MorphTarget->ClearInternalFlags(EInternalObjectFlags::Async);
 				}
 
 				//Serialize the LODModel sections since they are dependent on the reduction
@@ -445,10 +476,22 @@ void FSkeletalMeshRenderData::SyncUVChannelData(const TArray<FSkeletalMaterial>&
 		UpdateData->Add(SkeletalMaterial.UVChannelData);
 	}
 
-	ENQUEUE_RENDER_COMMAND(SyncUVChannelData)([this, UpdateData = MoveTemp(UpdateData)](FRHICommandListImmediate& RHICmdList)
+	// SyncUVChannelData can be called from any thread during async skeletal mesh compilation. 
+	// There is currently multiple race conditions in ENQUEUE_RENDER_COMMAND making it unsafe to be called from
+	// any other thread than rendering or game because of the render thread suspension mecanism.
+	// We sidestep the issue here by avoiding a call to ENQUEUE_RENDER_COMMAND if the resource has not been initialized and is still unknown
+	// to the render thread.
+	if (bInitialized)
 	{
-		FMemory::Memswap(&UVChannelDataPerMaterial, UpdateData.Get(), sizeof(TArray<FMeshUVChannelInfo>));
-	});
+		ENQUEUE_RENDER_COMMAND(SyncUVChannelData)([this, UpdateData = MoveTemp(UpdateData)](FRHICommandListImmediate& RHICmdList)
+		{
+			FMemory::Memswap(&UVChannelDataPerMaterial, UpdateData.Get(), sizeof(UVChannelDataPerMaterial));
+		});
+	}
+	else
+	{
+		FMemory::Memswap(&UVChannelDataPerMaterial, UpdateData.Get(), sizeof(UVChannelDataPerMaterial));
+	}
 }
 
 #endif // WITH_EDITOR

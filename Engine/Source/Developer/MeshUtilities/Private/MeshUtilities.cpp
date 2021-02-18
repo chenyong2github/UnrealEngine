@@ -4011,6 +4011,7 @@ public:
 		VertIndexAndZ.Empty(BuildData.Faces.Num() * 3);
 		RawVertices.Reserve(BuildData.Faces.Num() * 3);
 
+		bool bIsFirstBoneInfluenceTruncation = true;
 		for (int32 FaceIndex = 0; FaceIndex < BuildData.Faces.Num(); FaceIndex++)
 		{
 			// Only update the status progress bar if we are in the game thread and every thousand faces. 
@@ -4062,7 +4063,21 @@ public:
 					InfluenceCount = FMath::Min<uint32>(InfluenceCount, MAX_TOTAL_INFLUENCES);
 					if (InfluenceCount > EXTRA_BONE_INFLUENCES && !FGPUBaseSkinVertexFactory::UseUnlimitedBoneInfluences(InfluenceCount))
 					{
-						UE_LOG(LogSkeletalMesh, Display, TEXT("Skeletal mesh of %d bone influences requires unlimited bone influence mode on. Influence truncated to %d."), InfluenceCount, EXTRA_BONE_INFLUENCES);
+						// Add a single warning message, there could be too many
+						if (bIsFirstBoneInfluenceTruncation)
+						{
+							if (BuildData.OutWarningMessages)
+							{
+								BuildData.OutWarningMessages->Add(FText::FromString(FString::Printf(TEXT("Skeletal mesh of %d bone influences requires unlimited bone influence mode on. Influence truncated to %d."), InfluenceCount, EXTRA_BONE_INFLUENCES)));
+								if (BuildData.OutWarningNames)
+								{
+									BuildData.OutWarningNames->Add(FFbxErrors::SkeletalMesh_TooManyInfluences);
+								}
+							}
+
+							bIsFirstBoneInfluenceTruncation = false;
+						}
+
 						InfluenceCount = EXTRA_BONE_INFLUENCES;
 					}
 
