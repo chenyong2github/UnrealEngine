@@ -278,7 +278,7 @@ static TAutoConsoleVariable<int32> CVarAlwaysAllocateMaxResolutionAtlases(
 #if ENABLE_NON_NANITE_VSM
 
 static TAutoConsoleVariable<int32> CVarVsmUseFarShadowRules(
-	TEXT("r.Shadow.v.UseFarShadowCulling"),
+	TEXT("r.Shadow.Virtual.UseFarShadowCulling"),
 	1,
 	TEXT("Switch between implementing the far shadow culling logic for VSMs."),
 	ECVF_RenderThreadSafe

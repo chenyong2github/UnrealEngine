@@ -121,12 +121,12 @@ static TAutoConsoleVariable<float> CVarGIHistoryConvolutionKernelSpreadFactor(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarVirtualShadowReconstructionSampleCount(
-	TEXT("r.Shadow.v.Denoiser.ReconstructionSamples"), 8,
+	TEXT("r.Shadow.Virtual.Denoiser.ReconstructionSamples"), 8,
 	TEXT("Maximum number of samples for the reconstruction pass (default = 8)."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarVirtualShadowPreConvolutionCount(
-	TEXT("r.Shadow.v.Denoiser.PreConvolution"), 1,
+	TEXT("r.Shadow.Virtual.Denoiser.PreConvolution"), 1,
 	TEXT("Number of pre-convolution passes (default = 1)."),
 	ECVF_RenderThreadSafe);
 

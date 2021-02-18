@@ -197,13 +197,13 @@ static TAutoConsoleVariable<int32> CVarHairStrandsCullPerObjectShadowCaster(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarVirtualSmDenoiser(
-	TEXT("r.Shadow.v.Denoiser"),
+	TEXT("r.Shadow.Virtual.Denoiser"),
 	1,
 	TEXT("Apply denoiser on virtual shadow map masks."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserTemporal(
-	TEXT("r.Shadow.v.Denoiser.Temporal"),
+	TEXT("r.Shadow.Virtual.Denoiser.Temporal"),
 	1,
 	TEXT("Use temporal reprojection (when applicable)."),
 	ECVF_RenderThreadSafe);

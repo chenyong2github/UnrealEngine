@@ -641,7 +641,7 @@ inline bool UseNanite(EShaderPlatform ShaderPlatform)
 
 inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
 {
-	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.v.Enable"));
+	static const auto EnableVirtualSMCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shadow.Virtual.Enable"));
 
 	// TODO: Add test for required RHI platform stuff like GPUScene
 	// bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);

@@ -210,14 +210,14 @@ public:
 	void RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, FScene& Scene);
 
 	void AddInitializePhysicalPagesHwPass(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager);
-#endif // ENABLE_NON_NANITE_VSM
+#endif
 
-	// Draw debug info into render target 'VirtSmDebug' of screen-size, the mode is controlled by 'r.Shadow.v.DebugVisualize' (defaults to not doing aught). 
+	// Draw debug info into render target 'VSMDebug' of screen-size, the mode is controlled by 'r.Shadow.Virtual.DebugVisualize'.
 	void RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
 	// 
 	void PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
-	// Are virtual shadow maps enabled. We store this at the start of the frame to centralize the logic.
+	// Are virtual shadow maps enabled? We store this at the start of the frame to centralize the logic.
 	bool bEnabled = false;
 
 	TRDGUniformBufferRef<FVirtualShadowMapCommonParameters> GetCommonUniformBuffer(FRDGBuilder& GraphBuilder) const

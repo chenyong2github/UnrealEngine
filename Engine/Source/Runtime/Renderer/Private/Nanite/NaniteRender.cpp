@@ -2386,7 +2386,7 @@ void AddPass_InstanceHierarchyAndClusterCull(
 		HPageFlags = VirtualShadowMapArray->HPageFlagsRDG;
 		if (VirtualShadowMapArray->HZBPageTable)
 		{
-			HZBPageTable = GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->HZBPageTable, TEXT("VSM.HZBPageTable"));
+			HZBPageTable = GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray->HZBPageTable, TEXT("Shadow.Virtual.HZBPageTable"));
 		}
 		else
 		{

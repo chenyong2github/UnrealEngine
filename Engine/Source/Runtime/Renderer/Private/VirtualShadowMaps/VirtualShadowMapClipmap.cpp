@@ -12,19 +12,19 @@ VirtualShadowMapClipmap.cpp
 #include "VirtualShadowMapCacheManager.h"
 
 static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapResolutionLodBias(
-	TEXT( "r.Shadow.v.Clipmap.ResolutionLodBias" ),
+	TEXT( "r.Shadow.Virtual.Clipmap.ResolutionLodBias" ),
 	-0.5f,
 	TEXT( "" ),
 	ECVF_RenderThreadSafe
 );
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstLevel(
-	TEXT( "r.Shadow.v.Clipmap.FirstLevel" ),
+	TEXT( "r.Shadow.Virtual.Clipmap.FirstLevel" ),
 	8,
 	TEXT( "First level of the virtual clipmap. Lower values allow higher resolution shadows closer to the camera." ),
 	ECVF_RenderThreadSafe
 );
 static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapMaxRadius(
-	TEXT( "r.Shadow.v.Clipmap.MaxRadius" ),
+	TEXT( "r.Shadow.Virtual.Clipmap.MaxRadius" ),
 	1000000.0f,
 	TEXT( "Maximum distance the clipmap covers. Determines the number of clipmap levels." ),
 	ECVF_RenderThreadSafe

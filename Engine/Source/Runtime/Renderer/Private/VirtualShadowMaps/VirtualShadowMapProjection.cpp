@@ -25,14 +25,14 @@
 #include "VirtualShadowMapClipmap.h"
 
 static TAutoConsoleVariable<float> CVarContactShadowLength(
-	TEXT( "r.Shadow.v.ContactShadowLength" ),
+	TEXT( "r.Shadow.Virtual.ContactShadowLength" ),
 	0.02f,
 	TEXT( "Length of the screen space contact shadow trace (smart shadow bias) before the virtual shadow map lookup." ),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarNormalOffsetWorld(
-	TEXT( "r.Shadow.v.NormalOffsetWorld" ),
+	TEXT( "r.Shadow.Virtual.NormalOffsetWorld" ),
 	0.1f,
 	TEXT( "World space offset along surface normal for shadow lookup." )
 	TEXT( "Higher values avoid artifacts on surfaces nearly parallel to the light, but also visibility offset shadows and increase the chance of hitting unmapped pages." ),
@@ -40,35 +40,35 @@ static TAutoConsoleVariable<float> CVarNormalOffsetWorld(
 );
 
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
-	TEXT( "r.Shadow.v.DebugVisualizeProjection" ),
+	TEXT( "r.Shadow.Virtual.DebugVisualizeProjection" ),
 	0,
 	TEXT( "Projection pass debug output visualization for use with 'vis VirtSmDebugProj'." ),
 	ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection(
-	TEXT("r.Shadow.v.OnePassProjection"),
+	TEXT("r.Shadow.Virtual.OnePassProjection"),
 	0,
 	TEXT("Single pass projects all local VSMs culled with the light grid. Used in conjunction with clustered deferred shading."),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTRayCountLocal(
-	TEXT( "r.Shadow.v.SMRT.RayCountLocal" ),
+	TEXT( "r.Shadow.Virtual.SMRT.RayCountLocal" ),
 	0,
 	TEXT( "Ray count for shadow map tracing of local lights. 0 = disabled." ),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayLocal(
-	TEXT( "r.Shadow.v.SMRT.SamplesPerRayLocal" ),
+	TEXT( "r.Shadow.Virtual.SMRT.SamplesPerRayLocal" ),
 	16,
 	TEXT( "Shadow map samples per ray for local lights" ),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarSMRTMaxRayAngleFromLight(
-	TEXT( "r.Shadow.v.SMRT.MaxRayAngleFromLight" ),
+	TEXT( "r.Shadow.Virtual.SMRT.MaxRayAngleFromLight" ),
 	0.03f,
 	TEXT( "Max angle (in radians) a ray is allowed to span from the light's perspective for local lights." )
 	TEXT( "Smaller angles limit the screen space size of shadow penumbra. " )
@@ -77,21 +77,21 @@ static TAutoConsoleVariable<float> CVarSMRTMaxRayAngleFromLight(
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTRayCountDirectional(
-	TEXT( "r.Shadow.v.SMRT.RayCountDirectional" ),
+	TEXT( "r.Shadow.Virtual.SMRT.RayCountDirectional" ),
 	0,
 	TEXT( "Ray count for shadow map tracing of directional lights. 0 = disabled." ),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayDirectional(
-	TEXT( "r.Shadow.v.SMRT.SamplesPerRayDirectional" ),
+	TEXT( "r.Shadow.Virtual.SMRT.SamplesPerRayDirectional" ),
 	12,
 	TEXT( "Shadow map samples per ray for directional lights" ),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarSMRTRayLengthScaleDirectional(
-	TEXT( "r.Shadow.v.SMRT.RayLengthScaleDirectional" ),
+	TEXT( "r.Shadow.Virtual.SMRT.RayLengthScaleDirectional" ),
 	1.0f,
 	TEXT( "Length of ray to shoot for directional lights, scaled by distance to camera." )
 	TEXT( "Shorter rays limit the screen space size of shadow penumbra. " )
@@ -100,7 +100,7 @@ static TAutoConsoleVariable<float> CVarSMRTRayLengthScaleDirectional(
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTAdaptiveRayCount(
-	TEXT( "r.Shadow.v.SMRT.AdaptiveRayCount" ),
+	TEXT( "r.Shadow.Virtual.SMRT.AdaptiveRayCount" ),
 	1,
 	TEXT( "Shoot fewer rays in fully shadowed and unshadowed regions. Currently only supported with OnePassProjection. " ),
 	ECVF_RenderThreadSafe
@@ -284,8 +284,10 @@ static FRDGTextureRef CreateDebugOutput(FRDGBuilder& GraphBuilder, FIntPoint Ext
 		Extent,
 		PF_A32B32G32R32F,
 		FClearValueBinding::Transparent,
-		TexCreate_ShaderResource | TexCreate_RenderTargetable);
-	return GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("VSM.DebugProj"));
+		TexCreate_ShaderResource | TexCreate_RenderTargetable
+	);
+
+	return GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("Shadow.Virtual.DebugProj"));
 }
 
 // Returns true if temporal denoising should be used
