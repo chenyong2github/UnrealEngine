@@ -642,7 +642,7 @@ void FEditorModeTools::RebuildModeToolBar()
 					}
 					else if (UEdMode* ScriptableMode = GetActiveScriptableMode(Row.ModeID))
 					{
-						RowToolkit = ScriptableMode->GetToolkit();
+						RowToolkit = ScriptableMode->GetToolkit().Pin();
 					}
 
 					bExclusivePalettes = RowToolkit->HasExclusiveToolPalettes();
@@ -777,7 +777,7 @@ void FEditorModeTools::InvokeToolPaletteTab(FEditorModeID InModeID, FName InPale
 			}
 			else if (UEdMode* ScriptableMode = GetActiveScriptableMode(InModeID))
 			{
-				RowToolkit = ScriptableMode->GetToolkit();
+				RowToolkit = ScriptableMode->GetToolkit().Pin();
 			}
 
 			TSharedPtr<SWidget> ActiveWidget = ModeToolbarPaletteSwitcher.Pin()->GetActiveWidget();
@@ -943,11 +943,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 
 	// Recycle a mode or factory a new one
 	UEdMode* ScriptableMode = RecycledScriptableModes.FindRef(InID);
-	if (ScriptableMode)
-	{
-		RecycledScriptableModes.Remove(InID);
-	}
-	else
+	if (!ScriptableMode)
 	{
 		ScriptableMode = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CreateEditorModeWithToolsOwner(InID, *this);
 	}
@@ -979,7 +975,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 
 	// Ask the mode to build the toolbar.
 	TSharedPtr<FUICommandList> CommandList;
-	const TSharedPtr<FModeToolkit> Toolkit = ScriptableMode->GetToolkit();
+	const TSharedPtr<FModeToolkit> Toolkit = ScriptableMode->GetToolkit().Pin();
 	if (Toolkit.IsValid())
 	{
 		CommandList = Toolkit->GetToolkitCommands();
@@ -1003,6 +999,9 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 			SpawnOrUpdateModeToolbar();
 		}
 	}
+
+	RecycledScriptableModes.Remove(InID);
+
 	// Update the editor UI
 	FEditorSupportDelegates::UpdateUI.Broadcast();
 }

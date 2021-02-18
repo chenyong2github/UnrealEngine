@@ -8,7 +8,7 @@
 
 void UPlacementClickDragToolBase::Setup()
 {
-	UPlacementBrushToolBase::Setup();
+	Super::Setup();
 
 	RemoveToolPropertySource(BrushProperties);
 	BrushStampIndicator->bDrawRadiusCircle = false;
@@ -18,5 +18,5 @@ void UPlacementClickDragToolBase::Setup()
 
 double UPlacementClickDragToolBase::EstimateMaximumTargetDimension()
 {
-	return UBaseBrushTool::EstimateMaximumTargetDimension();
+	return Super::EstimateMaximumTargetDimension();
 }

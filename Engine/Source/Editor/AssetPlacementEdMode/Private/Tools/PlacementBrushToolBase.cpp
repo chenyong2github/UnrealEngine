@@ -18,6 +18,7 @@
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Editor.h"
 #include "Modes/PlacementModeSubsystem.h"
+#include "ActorFactories/ActorFactory.h"
 
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
 {	
@@ -97,34 +98,7 @@ FTransform UPlacementBrushToolBase::GetFinalTransformFromHitLocationAndNormal(co
 	// Update the rotation if we need to
 	FRotator FinalRotation = GetFinalRotation(FinalizedTransform);
 	FinalizedTransform.SetRotation(FinalRotation.Quaternion());
-
-	// Align to normal
-	if (PlacementSettings->bAlignToNormal)
-	{
-		FRotator AlignRotation = InNormal.Rotation();
-		// Static meshes are authored along the vertical axis rather than the X axis, so we add 90 degrees to the static mesh's Pitch.
-		AlignRotation.Pitch -= 90.f;
-		// Clamp its value inside +/- one rotation
-		AlignRotation.Pitch = FRotator::NormalizeAxis(AlignRotation.Pitch);
-
-		// limit the maximum pitch angle if it's > 0.
-		// For now, just set the align max angle to a constant value, until it can be pulled from per object settings
-		constexpr float AlignMaxAngle = 0.0f;
-		if (AlignMaxAngle > 0.f)
-		{
-			int32 MaxPitch = AlignMaxAngle;
-			if (AlignRotation.Pitch > MaxPitch)
-			{
-				AlignRotation.Pitch = MaxPitch;
-			}
-			else if (AlignRotation.Pitch < -MaxPitch)
-			{
-				AlignRotation.Pitch = -MaxPitch;
-			}
-		}
-
-		FinalizedTransform.SetRotation(FQuat(AlignRotation) * FinalizedTransform.GetRotation());
-	}
+	FinalizedTransform.NormalizeRotation();
 
 	if (PlacementSettings->bUseRandomScale)
 	{
@@ -162,7 +136,43 @@ FRotator UPlacementBrushToolBase::GetFinalRotation(const FTransform& InTransform
 		UpdatedRotation.Yaw = PlacementSettings->RandomRotationZ.Interpolate(FMath::FRand());
 	}
 
+	// Cache this rotation before we start aligning to normal
+	LastGeneratedRotation = FQuat(UpdatedRotation);
+
+	// Align to normal
+	if (PlacementSettings->bAlignToNormal)
+	{
+		UpdatedRotation = UpdateRotationAlignedToBrushNormal(PlacementSettings->AxisToAlignWithNormal, PlacementSettings->bInvertNormalAxis).Rotator();
+	}
+
 	return UpdatedRotation;
+}
+
+FQuat UPlacementBrushToolBase::UpdateRotationAlignedToBrushNormal(EAxis::Type InAlignmentAxis, bool bInvertAxis)
+{
+	FVector AlignmentVector = FVector::ZeroVector;
+	switch (InAlignmentAxis)
+	{
+		case EAxis::Type::X:
+		{
+			AlignmentVector = bInvertAxis ? FVector::BackwardVector : FVector::ForwardVector;
+		}
+		break;
+
+		case EAxis::Type::Y:
+		{
+			AlignmentVector = bInvertAxis ? FVector::LeftVector : FVector::RightVector;
+		}
+		break;
+
+		case EAxis::Type::Z:
+		{
+			AlignmentVector = bInvertAxis ? FVector::DownVector : FVector::UpVector;
+		}
+		break;
+	}
+
+	return FindActorAlignmentRotation(LastGeneratedRotation, AlignmentVector, LastBrushStamp.WorldNormal, &LastAlignRotation);
 }
 
 TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() const

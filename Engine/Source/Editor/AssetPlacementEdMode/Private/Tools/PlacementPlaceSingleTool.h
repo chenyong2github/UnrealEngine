@@ -7,6 +7,8 @@
 
 #include "PlacementPlaceSingleTool.generated.h"
 
+struct FAssetPlacementInfo;
+
 UCLASS(Transient, MinimalAPI)
 class UPlacementModePlaceSingleToolBuilder : public UPlacementToolBuilderBase
 {
@@ -46,19 +48,35 @@ public:
 	virtual bool CanEditChange(const FProperty* Property) const override;
 };
 
-UCLASS(MinimalAPI)
+UCLASS(Transient)
 class UPlacementModePlaceSingleTool : public UPlacementClickDragToolBase
 {
 	GENERATED_BODY()
 
 public:
+	UPlacementModePlaceSingleTool();
+	~UPlacementModePlaceSingleTool();
+	UPlacementModePlaceSingleTool(FVTableHelper& Helper);
+	
 	constexpr static TCHAR ToolName[] = TEXT("PlaceSingleTool");
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-	virtual void OnEndDrag(const FRay& Ray) override;
+	virtual void OnClickPress(const FInputDeviceRay& Ray) override;
+
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override;
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
 
 protected:
-	virtual FRotator GetFinalRotation(const FTransform& InTransform) override;
+	void GeneratePreviewPlacementData(const FInputDeviceRay& DevicePos);
+	void CreatePreviewElements(const FInputDeviceRay& DevicePos);
+	void UpdatePreviewElements(const FInputDeviceRay& DevicePos);
+	void DestroyPreviewElements();
+
+	UPROPERTY()
 	TObjectPtr<UPlacementModePlaceSingleSettings> SingleToolSettings;
+
+	TUniquePtr<FAssetPlacementInfo> PreviewPlacementInfo;
+	TArray<FTypedElementHandle> PreviewElements;
 };

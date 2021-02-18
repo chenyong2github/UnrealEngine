@@ -273,7 +273,12 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 			}
 
 			StatusBarMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(LevelEditorStatusBarName, TAttribute<FText>::Create(
-				TAttribute<FText>::FGetter::CreateSP(ModeToolkit.Pin().ToSharedRef(), &FModeToolkit::GetActiveToolDisplayName))
+				TAttribute<FText>::FGetter::CreateLambda([ModeToolkit]()
+					{
+						TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
+						if (PinnedToolkit.IsValid()) { return PinnedToolkit->GetActiveToolDisplayName(); }
+						else { return FText(); }
+					}))
 			);
 		}
 	}

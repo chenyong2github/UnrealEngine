@@ -19,7 +19,8 @@
 
 TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions)
 {
-	if (!InPlacementOptions.bPreferInstancedPlacement)
+	// If we're disallowing instanced placement, or creating preview elements, don't use the ISM placement.
+	if (!InPlacementOptions.bPreferInstancedPlacement || InPlacementOptions.bIsCreatingPreviewElements)
 	{
 		return Super::PlaceAsset(InPlacementInfo, InPlacementOptions);
 	}

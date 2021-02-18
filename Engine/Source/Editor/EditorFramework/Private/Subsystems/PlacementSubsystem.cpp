@@ -30,6 +30,9 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAsset(const FAssetPlacemen
 
 TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FAssetPlacementInfo> InPlacementInfos, const FPlacementOptions& InPlacementOptions)
 {
+	bool bWasCreatingPreviewElements = bIsCreatingPreviewElements;
+	bIsCreatingPreviewElements = InPlacementOptions.bIsCreatingPreviewElements;
+
 	TArray<FTypedElementHandle> PlacedElements;
 	for (const FAssetPlacementInfo& PlacementInfo : InPlacementInfos)
 	{
@@ -59,6 +62,8 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FA
 		}
 	}
 
+	bIsCreatingPreviewElements = bWasCreatingPreviewElements;
+
 	return PlacedElements;
 }
 
@@ -73,6 +78,11 @@ TScriptInterface<IAssetFactoryInterface> UPlacementSubsystem::FindAssetFactoryFr
 	}
 
 	return nullptr;
+}
+
+bool UPlacementSubsystem::IsCreatingPreviewElements() const
+{
+	return bIsCreatingPreviewElements;
 }
 
 void UPlacementSubsystem::RegisterPlacementFactories()

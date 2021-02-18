@@ -149,7 +149,7 @@ DEFINE_LOG_CATEGORY(LogActorFactory);
  * This function attempts to find a 'natural' looking rotation by rotating around a local pitch axis, and a world Z. Rotating in this way
  * should retain the roll around the model space axis, removing rotation artifacts introduced by a simpler quaternion rotation.
  */
-FQuat FindActorAlignmentRotation(const FQuat& InActorRotation, const FVector& InModelAxis, const FVector& InWorldNormal)
+FQuat FindActorAlignmentRotation(const FQuat& InActorRotation, const FVector& InModelAxis, const FVector& InWorldNormal, FQuat* OutDeltaRotation)
 {
 	FVector TransformedModelAxis = InActorRotation.RotateVector(InModelAxis);
 
@@ -157,6 +157,10 @@ FQuat FindActorAlignmentRotation(const FQuat& InActorRotation, const FVector& In
 	const auto DestNormalModelSpace = InverseActorRotation.RotateVector(InWorldNormal);
 
 	FQuat DeltaRotation = FQuat::Identity;
+	if (OutDeltaRotation)
+	{
+		*OutDeltaRotation = FQuat::Identity;
+	}
 
 	const float VectorDot = InWorldNormal | TransformedModelAxis;
 	if (1.f - FMath::Abs(VectorDot) <= KINDA_SMALL_NUMBER)
@@ -196,6 +200,11 @@ FQuat FindActorAlignmentRotation(const FQuat& InActorRotation, const FVector& In
 			// Rotation axis for yaw is the Z axis in world space
 			const FVector WorldYawAxis = (InActorRotation * DeltaRotation).Inverse().RotateVector(Z);
 			DeltaRotation *= FQuat(WorldYawAxis, -Yaw);
+		}
+
+		if (OutDeltaRotation)
+		{
+			*OutDeltaRotation = DeltaRotation;
 		}
 	}
 
@@ -296,7 +305,14 @@ TArray<FTypedElementHandle> UActorFactory::PlaceAsset(const FAssetPlacementInfo&
 	if (NewActor)
 	{
 		PlacedActorHandles.Add(UEngineElementsLibrary::AcquireEditorActorElementHandle(NewActor));
+
+		// Disable collision for preview actors
+		if (InPlacementOptions.bIsCreatingPreviewElements)
+		{
+			NewActor->SetActorEnableCollision(false);
+		}
 	}
+
 	return PlacedActorHandles;
 }
 
@@ -410,9 +426,16 @@ AActor* UActorFactory::SpawnActor( UObject* Asset, ULevel* InLevel, const FTrans
 		SpawnInfo.OverrideLevel = InLevel;
 		SpawnInfo.ObjectFlags = InObjectFlags;
 		SpawnInfo.Name = Name;
-#if WITH_EDITOR
-		SpawnInfo.bTemporaryEditorActor = FLevelEditorViewportClient::IsDroppingPreviewActor();
-#endif
+
+		const bool bIsCreatingPreviewElements = FLevelEditorViewportClient::IsDroppingPreviewActor();
+		bool bIsPlacementSystemCreatingPreviewElements = false;
+		if (UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
+		{
+			bIsPlacementSystemCreatingPreviewElements = PlacementSubsystem->IsCreatingPreviewElements();
+		}
+		SpawnInfo.bTemporaryEditorActor = bIsCreatingPreviewElements || bIsPlacementSystemCreatingPreviewElements;
+		SpawnInfo.bHideFromSceneOutliner = bIsPlacementSystemCreatingPreviewElements;
+
 		return InLevel->OwningWorld->SpawnActor( DefaultActor->GetClass(), &Transform, SpawnInfo );
 	}
 

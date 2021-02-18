@@ -221,7 +221,7 @@ public:
 	virtual bool UsesToolkits() const;
 
 	/** Gets the toolkit created by this mode */
-	TSharedPtr<FModeToolkit> GetToolkit() { return Toolkit; }
+	TWeakPtr<FModeToolkit> GetToolkit() { return Toolkit; }
 
 	/** Returns the world this toolkit is editing */
 	UWorld* GetWorld() const;

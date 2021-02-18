@@ -44,11 +44,15 @@ struct EDITORFRAMEWORK_API FPlacementOptions
 
 	// If true, asset factory implementations should defer to placing instanced items (i.e. instanced static mesh instead of individual static mesh actors).
 	UPROPERTY()
-	bool bPreferInstancedPlacement;
+	bool bPreferInstancedPlacement = true;
 
 	// If true, asset factory implementations should prefer a batch placement algorithm (like duplicating an object) over a single placement algorithm.
 	UPROPERTY()
-	bool bPreferBatchPlacement;
+	bool bPreferBatchPlacement = true;
+
+	// If true, creates transient preview elements, which are transient and not saved to a level.
+	UPROPERTY()
+	bool bIsCreatingPreviewElements = false;
 };
 
 UCLASS(Transient)
@@ -80,10 +84,15 @@ public:
 	 */
 	TScriptInterface<IAssetFactoryInterface> FindAssetFactoryFromAssetData(const FAssetData& InAssetData);
 
+	// @returns true if the current PlaceAssets call is creating preview elements.
+	bool IsCreatingPreviewElements() const;
+
 private:
 	void RegisterPlacementFactories();
 	void UnregisterPlacementFactories();
 
 	UPROPERTY()
 	TArray<TScriptInterface<IAssetFactoryInterface>> AssetFactories;
+
+	bool bIsCreatingPreviewElements = false;
 };

@@ -341,6 +341,10 @@ SLevelEditor::~SLevelEditor()
 	// We're going away now, so make sure all toolkits that are hosted within this level editor are shut down
 	FToolkitManager::Get().OnToolkitHostDestroyed( this );
 	HostedToolkits.Reset();
+
+	// Deactivate any active modes, and reset back to the default mode.
+	GetEditorModeManager().SetDefaultMode(FBuiltinEditorModes::EM_Default);
+	GetEditorModeManager().DeactivateAllModes();
 	
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >( LevelEditorModuleName );
 	LevelEditorModule.OnTitleBarMessagesChanged().RemoveAll( this );

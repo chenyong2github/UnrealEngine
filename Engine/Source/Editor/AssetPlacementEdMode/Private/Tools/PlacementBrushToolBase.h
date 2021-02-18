@@ -39,6 +39,14 @@ protected:
 	virtual double EstimateMaximumTargetDimension() override;
 	bool FindHitResultWithStartAndEndTraceVectors(FHitResult& OutHit, const FVector& TraceStart, const FVector& TraceEnd, float TraceRadius = 0.0f);
 	FTransform GetFinalTransformFromHitLocationAndNormal(const FVector& InLocation, const FVector& InNormal);
-	virtual FRotator GetFinalRotation(const FTransform& InTransform);
+
+	// Gets a random rotation, and aligns it, based on the placement settings.
+	FRotator GetFinalRotation(const FTransform& InTransform);
+
+	// Updates the last generated rotation to realign with the current brush position and normal.
+	FQuat UpdateRotationAlignedToBrushNormal(EAxis::Type InAlignmentAxis, bool bInvertAxis);
 	TArray<FTypedElementHandle> GetElementsInBrushRadius() const;
+
+	FQuat LastGeneratedRotation;
+	FQuat LastAlignRotation;
 };
