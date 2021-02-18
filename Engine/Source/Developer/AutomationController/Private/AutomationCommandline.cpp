@@ -348,7 +348,7 @@ public:
 			UE_LOG(LogAutomationCommandLine, Display, TEXT("Found %d Automation Tests"), AllTestNames.Num());
 			for ( const FString& TestName : AllTestNames )
 			{
-				UE_LOG(LogAutomationCommandLine, Display, TEXT("\t%s"), *TestName);
+				UE_LOG(LogAutomationCommandLine, Display, TEXT("\t'%s'"), *TestName);
 			}
 
 			// Set state to complete
@@ -359,8 +359,15 @@ public:
 			TArray<FString> FilteredTestNames;
 			GenerateTestNamesFromCommandLine(AllTestNames, FilteredTestNames);
 			
-			UE_LOG(LogAutomationCommandLine, Display, TEXT("Found %d Automation Tests, based on '%s'."), FilteredTestNames.Num(), *StringCommand);
-
+			if (FilteredTestNames.Num() == 0)
+			{
+				LogCommandLineError(FString::Printf(TEXT("No automation tests matched '%s'"), *StringCommand));	
+			}
+			else
+			{
+				UE_LOG(LogAutomationCommandLine, Display, TEXT("Found %d automation tests based on '%s'"), *StringCommand);
+			}
+							
 			for ( const FString& TestName : FilteredTestNames )
 			{
 				UE_LOG(LogAutomationCommandLine, Display, TEXT("\t%s"), *TestName);
@@ -376,7 +383,6 @@ public:
 			{
 				AutomationTestState = EAutomationTestState::Complete;
 			}
-
 
 			// Clear delegate to avoid re-running tests due to multiple delegates being added or when refreshing session frontend
 			// The delegate will be readded in Init whenever a new command is executed
@@ -513,18 +519,15 @@ public:
 				{
 					if (!GIsCriticalError)
 					{
-						if (AutomationController->ReportsHaveErrors())
+						if (AutomationController->ReportsHaveErrors() || Errors.Num())
 						{
 							UE_LOG(LogAutomationCommandLine, Display, TEXT("Setting GIsCriticalError due to test failures (will cause non-zero exit code)."));
-							GIsCriticalError = AutomationController->ReportsHaveErrors();
+							GIsCriticalError = true;
 						}
 					}
-
-					UE_LOG(LogAutomationCommandLine, Log, TEXT("Forcing shutdown."));
-					// some tools parse this.
+					UE_LOG(LogAutomationCommandLine, Log, TEXT("Shutting down. GIsCriticalError=%d"), GIsCriticalError);
 					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
 					FPlatformMisc::RequestExit(true);
-					// We have finished the testing, and results are available
 					AutomationTestState = EAutomationTestState::Complete;
 				}
 				break;
@@ -532,6 +535,13 @@ public:
 		}
 
 		return !IsTestingComplete();
+
+
+
+
+		
+		// some tools parse this.
+		// We have finished the testing, and results are available
 	}
 	
 	/** Console commands, see embeded usage statement **/
@@ -701,6 +711,14 @@ public:
 	}
 
 private:
+
+	// Logs and tracks an error
+	void LogCommandLineError(const FString& InErrorMsg)
+	{
+		UE_LOG(LogAutomationCommandLine, Error, TEXT("%s"), *InErrorMsg);
+		Errors.Add(InErrorMsg);
+	}
+
 	/** The automation controller running the tests */
 	IAutomationControllerManagerPtr AutomationController;
 
@@ -746,6 +764,9 @@ private:
 	FString CheckpointCommand;
 
 	TArray<FString> TestsRun;
+
+	// Any that we encountered during processing. Used in 'Quit' to determine error code
+	TArray<FString> Errors;
 };
 
 const float FAutomationExecCmd::DefaultDelayTimer = 5.0f;

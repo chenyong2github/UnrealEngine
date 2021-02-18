@@ -18,6 +18,43 @@ namespace Gauntlet
 	public class UnrealLogParser
 	{
 		/// <summary>
+		/// Represents the level
+		/// </summary>
+		public enum LogLevel
+		{
+			Log,
+			Display,
+			Verbose,
+			VeryVerbose,
+			Warning,
+			Error
+		}
+
+		/// <summary>
+		/// Represents a line in the log
+		/// </summary>
+		public class LogEntry
+		{
+			public string Category { get; private set; }
+
+			public LogLevel Level { get; private set; }
+
+			public string Message { get; private set; }
+
+			public LogEntry(string InCategory, LogLevel InLevel, string InMessage)
+			{
+				Category = InCategory;
+				Level = InLevel;
+				Message = InMessage;
+			}
+
+			public override string ToString()
+			{
+				return string.Format("Log{0}: {1}: {2}", Category, Level, Message);
+			}
+		}
+
+		/// <summary>
 		/// Compound object that represents a fatal entry 
 		/// </summary>
 		public class CallstackMessage
@@ -90,7 +127,18 @@ namespace Gauntlet
 		/// </summary>
 		public string Content { get; protected set; }
 
+		/// <summary>
+		/// All entries in the log
+		/// </summary>
+		public IEnumerable<LogEntry> Entries { get; protected set; }
+
+		/// <summary>
+		/// Summary of the log
+		/// </summary>
 		private LogSummary Summary;
+
+		// Track log levels we couldn't identify
+		protected static HashSet<string> UnidentifiedLogLevels = new HashSet<string>();
 
 		/// <summary>
 		/// Constructor that takes the content to parse
@@ -101,6 +149,37 @@ namespace Gauntlet
 		{
 			// convert linefeed to remove \r which is captured in regex's :(
 			Content = InContent.Replace(Environment.NewLine, "\n");
+
+			// Search for LogFoo:< optional Display|Error etc:> Message
+			MatchCollection MC = Regex.Matches(Content, @"Log(?<category>[\w\d]+):\s*(?:(?<level>Display|Verbose|VeryVerbose|Warning|Error|Fatal):\s)?(?<message>.*)");
+
+			List<LogEntry> ParsedEntries = new List<LogEntry>();
+
+			foreach (Match M in MC)
+			{
+				string Category = M.Groups["category"].ToString();
+				string LevelStr = M.Groups["level"].ToString();
+				string Message = M.Groups["message"].ToString();
+
+				LogLevel Level = LogLevel.Log;
+
+				if (!string.IsNullOrEmpty(LevelStr))
+				{
+					if (!Enum.TryParse(LevelStr, out Level))
+					{
+						// only show a warning once
+						if (!UnidentifiedLogLevels.Contains(LevelStr))
+						{
+							UnidentifiedLogLevels.Add(LevelStr);
+							Log.Warning("Failed to match log level {0} to enum!", LevelStr);
+						}
+					}
+				}
+
+				ParsedEntries.Add(new LogEntry(Category, Level, Message));
+			}
+
+			Entries = ParsedEntries;
 		}
 
 		public LogSummary GetSummary()

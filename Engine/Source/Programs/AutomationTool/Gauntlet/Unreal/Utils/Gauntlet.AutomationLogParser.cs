@@ -120,6 +120,22 @@ namespace Gauntlet
 		public string AutomationReportURL { get; protected set; } = "";
 
 		/// <summary>
+		/// Returns entries in the log file related to automation
+		/// </summary>
+		public IEnumerable<UnrealLogParser.LogEntry> AutomationLogEntries { get; protected set; }
+	
+		/// <summary>
+		/// Returns warning/errors in the logfile related to automation
+		/// </summary>
+		public IEnumerable<UnrealLogParser.LogEntry> AutomationWarningsAndErrors
+		{
+			get
+			{
+				return AutomationLogEntries.Where(E => E.Level == UnrealLogParser.LogLevel.Error || E.Level == UnrealLogParser.LogLevel.Warning);
+			}
+		}
+
+		/// <summary>
 		/// Constructor that uses an existing log parser
 		/// </summary>
 		/// <param name="InParser"></param>
@@ -139,6 +155,12 @@ namespace Gauntlet
 			{
 				AutomationReportURL = ReportUrlMatch.First().Groups[1].ToString();
 			}
+
+			AutomationLogEntries = Parser.Entries.Where(
+										E => E.Category.StartsWith("Automation", StringComparison.OrdinalIgnoreCase)
+										|| E.Category.StartsWith("FunctionalTest", StringComparison.OrdinalIgnoreCase)
+										)
+									.ToArray();
 		}
 
 		/// <summary>

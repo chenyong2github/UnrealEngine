@@ -150,11 +150,12 @@ namespace UE
 
 				if (ConfigRole.RoleType.IsClient())
 				{
-					AppConfig.CommandLine += string.Format(" -sessionid={0} -messaging -log -TcpMessagingConnect={1}:6666", SessionID, HostIP);
+					// have the client list the tests it knows about. useful for troubleshooting discrepencies
+					AppConfig.CommandLine += string.Format(" -sessionid={0} -messaging -log -TcpMessagingConnect={1}:6666 -ExecCmds=\"Automation list\"", SessionID, HostIP);
 				}
 				else if (ConfigRole.RoleType.IsEditor())
 				{
-					AppConfig.CommandLine += string.Format(" -ExecCmds=\"Automation list;StartRemoteSession {0}; {1}\" -TcpMessagingListen={2}:6666 -multihome={3} {4}", SessionID, AutomationTestArgument, HostIP, HostIP, ReportArgs);
+					AppConfig.CommandLine += string.Format(" -ExecCmds=\"Automation StartRemoteSession {0}; {1}\" -TcpMessagingListen={2}:6666 -multihome={3} {4}", SessionID, AutomationTestArgument, HostIP, HostIP, ReportArgs);
 				}
 			}
 
@@ -472,7 +473,18 @@ namespace UE
 
 				if (AllTests.Count() == 0)
 				{
-					MB.Paragraph("No tests were executed!");
+					MB.H3("No tests were executed.");
+
+					IEnumerable<UnrealLogParser.LogEntry> WarningsAndErrors = Parser.AutomationWarningsAndErrors;
+
+					if (WarningsAndErrors.Any())
+					{
+						MB.UnorderedList(WarningsAndErrors.Select(E => E.ToString()));
+					}
+					else
+					{
+						MB.Paragraph("Unknown failure.");
+					}
 				}
 				else
 				{

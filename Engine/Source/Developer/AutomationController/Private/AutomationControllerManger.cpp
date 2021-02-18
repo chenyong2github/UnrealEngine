@@ -141,6 +141,8 @@ void FAutomationControllerManager::RequestTests()
 		{
 			FMessageAddress MessageAddress = DeviceClusterManager.GetDeviceMessageAddress(ClusterIndex, 0);
 
+			UE_LOG(LogAutomationController, Log, TEXT("Requesting test list from %s"), *MessageAddress.ToString());
+
 			//issue tests on appropriate platforms
 			MessageEndpoint->Send(new FAutomationWorkerRequestTests(bDeveloperDirectoryIncluded, RequestedTestFlags), MessageAddress);
 		}
@@ -185,6 +187,8 @@ void FAutomationControllerManager::RunTests(const bool bInIsLocalSession)
 
 			// Send command to reset tests (delete local files, etc)
 			FMessageAddress MessageAddress = DeviceClusterManager.GetDeviceMessageAddress(ClusterIndex, DeviceIndex);
+			UE_LOG(LogAutomationController, Log, TEXT("Sending Reset Tests to %s"), *MessageAddress.ToString());
+
 			MessageEndpoint->Send(new FAutomationWorkerResetTests(), MessageAddress);
 		}
 	}
@@ -222,6 +226,8 @@ void FAutomationControllerManager::StopTests()
 
 				// Send command to reset tests (delete local files, etc)
 				FMessageAddress MessageAddress = DeviceClusterManager.GetDeviceMessageAddress(ClusterIndex, DeviceIndex);
+
+				UE_LOG(LogAutomationController, Log, TEXT("Sending StopTests to %s"), *MessageAddress.ToString());
 				MessageEndpoint->Send(new FAutomationWorkerStopTests(), MessageAddress);
 			}
 		}
@@ -282,6 +288,11 @@ void FAutomationControllerManager::ProcessComparisonQueue()
 					Result.ErrorMessage.ToString()
 				);
 
+				UE_LOG(LogAutomationController, Log, TEXT("Sending ImageComparisonResult to %s (IsNew=%d, AreSimilar=%d)"), 
+					*Entry->Sender.ToString()
+					, Result.IsNew()
+					, Result.AreSimilar()
+					);
 				MessageEndpoint->Send(Message, Entry->Sender);
 			}
 
@@ -569,6 +580,8 @@ void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool
 							FMessageAddress DeviceAddress = DeviceAddresses[AddressIndex];
 
 							// Send the test to the device for execution!
+							UE_LOG(LogAutomationController, Log, TEXT("Sending RunTest %s to %s"), *NextTest->GetDisplayName(), *DeviceAddress.ToString());
+
 							MessageEndpoint->Send(new FAutomationWorkerRunTests(ExecutionCount, AddressIndex, NextTest->GetCommand(), NextTest->GetDisplayName(), bSendAnalytics), DeviceAddress);
 
 							// Add a test so we can check later if the device is still active
@@ -1048,6 +1061,8 @@ bool FAutomationControllerManager::IsTestRunnable(IAutomationReportPtr InReport)
 
 void FAutomationControllerManager::HandleFindWorkersResponseMessage(const FAutomationWorkerFindWorkersResponse& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
+	UE_LOG(LogAutomationController, Log, TEXT("Received FindWorkersResponseMessage from %s"), *Context->GetSender().ToString());
+
 	if ( Message.SessionId == ActiveSessionId )
 	{
 		DeviceClusterManager.AddDeviceFromMessage(Context->GetSender(), Message, DeviceGroupFlags);
@@ -1065,8 +1080,9 @@ void FAutomationControllerManager::HandlePongMessage( const FAutomationWorkerPon
 
 void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWorkerScreenImage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
-	bool bTree = true;
+	UE_LOG(LogAutomationController, Log, TEXT("ReceivedScreenShot for %s (%dx%d) from %s"), *Message.Metadata.TestName, Message.Metadata.Width, Message.Metadata.Height, *Context->GetSender().ToString());
 
+	bool bTree = true;
 
 	FString OutputSubFolder = FPaths::Combine(Message.Metadata.Context, Message.Metadata.ScreenShotName);
 	FString OutputFolder = FPaths::Combine(FPaths::AutomationTransientDir(), FPaths::GetPath(Message.ScreenShotName));
@@ -1123,6 +1139,8 @@ void FAutomationControllerManager::HandleReceivedScreenShot(const FAutomationWor
 
 void FAutomationControllerManager::HandleTestDataRequest(const FAutomationWorkerTestDataRequest& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
+	UE_LOG(LogAutomationController, Log, TEXT("Received TestDataRequest from %s"), *Context->GetSender().ToString());
+
 	const FString TestDataRoot = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir() / TEXT("Test"));
 	const FString DataFile = Message.DataType / Message.DataPlatform / Message.DataTestName / Message.DataName + TEXT(".json");
 	const FString DataFullPath = TestDataRoot / DataFile;
@@ -1171,6 +1189,7 @@ void FAutomationControllerManager::HandleTestDataRequest(const FAutomationWorker
 void FAutomationControllerManager::HandlePerformanceDataRequest(const FAutomationWorkerPerformanceDataRequest& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	//TODO Read/Performance data.
+	UE_LOG(LogAutomationController, Log, TEXT("Received PerformanceDataRequest from %s"), *Context->GetSender().ToString());
 
 	FAutomationWorkerPerformanceDataResponse* ResponseMessage = new FAutomationWorkerPerformanceDataResponse();
 	ResponseMessage->bSuccess = true;
@@ -1181,6 +1200,8 @@ void FAutomationControllerManager::HandlePerformanceDataRequest(const FAutomatio
 
 void FAutomationControllerManager::HandleRequestNextNetworkCommandMessage(const FAutomationWorkerRequestNextNetworkCommand& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
+	UE_LOG(LogAutomationController, Log, TEXT("Received RequestNextNetworkCommandMessage from %s"), *Context->GetSender().ToString());
+
 	// Harvest iteration of running the tests this result came from (stops stale results from being committed to subsequent runs)
 	if ( Message.ExecutionCount == ExecutionCount )
 	{
@@ -1219,6 +1240,8 @@ void FAutomationControllerManager::HandleRequestNextNetworkCommandMessage(const 
 
 void FAutomationControllerManager::HandleRequestTestsReplyCompleteMessage(const FAutomationWorkerRequestTestsReplyComplete& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
+	UE_LOG(LogAutomationController, Log, TEXT("Received RequestTestsReplyCompleteMessage from %s"), *Context->GetSender().ToString());
+
 	TArray<FAutomationTestInfo> TestInfo;
 	TestInfo.Reset(Message.Tests.Num());
 	for (const FAutomationWorkerSingleTestReply& SingleTestReply : Message.Tests)
@@ -1226,6 +1249,8 @@ void FAutomationControllerManager::HandleRequestTestsReplyCompleteMessage(const 
 		FAutomationTestInfo NewTest = SingleTestReply.GetTestInfo();
 		TestInfo.Add(NewTest);
 	}
+
+	UE_LOG(LogAutomationController, Log, TEXT("%d tests available on %s"), TestInfo.Num(), *Context->GetSender().ToString());
 
 	SetTestNames(Context->GetSender(), TestInfo);
 }
