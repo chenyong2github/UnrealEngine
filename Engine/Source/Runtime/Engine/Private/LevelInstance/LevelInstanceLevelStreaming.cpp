@@ -154,10 +154,10 @@ void ULevelStreamingLevelInstance::SetLoadedLevel(ULevel* Level)
 
 	if (ULevel* NewLoadedLevel = GetLoadedLevel())
 	{
-		check(!NewLoadedLevel->bAlreadyMovedActors);
-		if (AWorldSettings* WorldSettings = NewLoadedLevel->GetWorldSettings())
+		if (!NewLoadedLevel->bAlreadyMovedActors)
 		{
+			AWorldSettings* WorldSettings = NewLoadedLevel->GetWorldSettings();
+			check(WorldSettings);
 			LevelTransform.AddToTranslation(WorldSettings->LevelInstancePivotOffset);
 		}
 	}
-}
