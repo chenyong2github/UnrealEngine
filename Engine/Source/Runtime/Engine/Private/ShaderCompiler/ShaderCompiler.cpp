@@ -4422,6 +4422,10 @@ void GlobalBeginCompileShader(
 		}
 	}
 
+#if defined(GPUCULL_TODO)
+	Input.Environment.SetDefine(TEXT("GPUCULL_TODO"), 1);
+#endif // defined(GPUCULL_TODO)	
+
 	// Set VR definitions
 	{
 		static const auto CVarInstancedStereo = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
