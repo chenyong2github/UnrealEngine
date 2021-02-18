@@ -95,20 +95,8 @@ enum class ERDGPassFlags : uint8
 	/** Render pass begin / end is skipped and left to the user. Only valid when combined with 'Raster'. Disables render pass merging for the pass. */
 	SkipRenderPass = 1 << 5,
 
-	/** Pass accesses raw RHI resources which may be registered with the graph, but all resources are kept in their current state. This flag prevents
-	 *  the graph from scheduling split barriers across the pass. Any splitting is deferred until after the pass executes. The resource may not change
-	 *  state within the pass execution. Affects barrier performance. May not be combined with Async Compute.
-	 */
-	UntrackedAccess = 1 << 6,
-
 	/** Pass uses copy commands but writes to a staging resource. */
-	Readback = Copy | NeverCull,
-
-	/** Mask of flags denoting the kinds of RHI commands submitted to a pass. */
-	CommandMask = Raster | Compute | AsyncCompute | Copy,
-
-	/** Mask of flags which can used by a pass flag scope. */
-	ScopeMask = NeverCull | UntrackedAccess
+	Readback = Copy | NeverCull
 };
 ENUM_CLASS_FLAGS(ERDGPassFlags);
 
@@ -431,7 +419,6 @@ struct FRDGTextureDesc;
 
 class FRDGBlackboard;
 
-class FRDGPassFlagsScopeGuard;
 class FRDGAsyncComputeBudgetScopeGuard;
 class FRDGEventScopeGuard;
 class FRDGGPUStatScopeGuard;

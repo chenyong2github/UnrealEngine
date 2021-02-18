@@ -1662,7 +1662,7 @@ void FAtmosphericFogSceneInfo::PrecomputeTextures(FRDGBuilder& GraphBuilder, con
 	// Atmosphere 
 	if (bPrecomputationStarted && !bPrecomputationFinished)
 	{
-		AddUntrackedAccessPass(GraphBuilder, [this, View, ViewFamily](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, [this, View, ViewFamily](FRHICommandListImmediate& RHICmdList)
 		{
 			PrecomputeAtmosphereData(RHICmdList, View, *ViewFamily);
 

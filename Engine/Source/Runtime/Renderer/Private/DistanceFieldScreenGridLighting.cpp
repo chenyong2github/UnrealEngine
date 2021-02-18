@@ -525,7 +525,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldAOScreenGrid(
 		GraphBuilder.AddPass(
 			{},
 			PassParameters,
-			ERDGPassFlags::Compute | ERDGPassFlags::UntrackedAccess | ERDGPassFlags::NeverCull,
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			[&View, &ScreenGridResources, Parameters, DistanceFieldNormal, TileListGroupSize, bUseGlobalDistanceField, bUseObjectDistanceField]
 			(FRHICommandListImmediate& RHICmdList)
 		{

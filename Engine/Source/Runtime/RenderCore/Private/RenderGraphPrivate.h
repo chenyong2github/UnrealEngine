@@ -32,6 +32,25 @@ extern int32 GRDGTransitionLog;
 extern int32 GRDGImmediateMode;
 extern int32 GRDGOverlapUAVs;
 extern int32 GRDGExtendResourceLifetimes;
+extern bool  GRDGAllowRHIAccess;
+
+class FRDGAllowRHIAccessScope
+{
+public:
+	FRDGAllowRHIAccessScope()
+	{
+		check(!GRDGAllowRHIAccess);
+		GRDGAllowRHIAccess = true;
+	}
+
+	~FRDGAllowRHIAccessScope()
+	{
+		check(GRDGAllowRHIAccess);
+		GRDGAllowRHIAccess = false;
+	}
+};
+
+#define RDG_ALLOW_RHI_ACCESS_SCOPE() FRDGAllowRHIAccessScope RDGAllowRHIAccessScopeRAII;
 
 // Colors for texture / buffer clobbering.
 FLinearColor GetClobberColor();
@@ -75,6 +94,8 @@ const int32 GRDGTransitionLog = 0;
 const int32 GRDGImmediateMode = 0;
 const int32 GRDGOverlapUAVs = 1;
 const int32 GRDGExtendResourceLifetimes = 0;
+
+#define RDG_ALLOW_RHI_ACCESS_SCOPE()
 
 #define EmitRDGWarningf(WarningMessageFormat, ...)
 

@@ -649,18 +649,6 @@ FORCEINLINE void AddPass(FRDGBuilder& GraphBuilder, ExecuteLambdaType&& ExecuteL
 }
 
 template <typename ExecuteLambdaType>
-FORCEINLINE void AddUntrackedAccessPass(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, ExecuteLambdaType&& ExecuteLambda)
-{
-	GraphBuilder.AddPass(MoveTemp(Name), ERDGPassFlags::UntrackedAccess, MoveTemp(ExecuteLambda));
-}
-
-template <typename ExecuteLambdaType>
-FORCEINLINE void AddUntrackedAccessPass(FRDGBuilder& GraphBuilder, ExecuteLambdaType&& ExecuteLambda)
-{
-	AddUntrackedAccessPass(GraphBuilder, {}, MoveTemp(ExecuteLambda));
-}
-
-template <typename ExecuteLambdaType>
 FORCEINLINE void AddPassIfDebug(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, ExecuteLambdaType&& ExecuteLambda)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -672,20 +660,6 @@ template <typename ExecuteLambdaType>
 FORCEINLINE void AddPassIfDebug(FRDGBuilder& GraphBuilder, ExecuteLambdaType&& ExecuteLambda)
 {
 	AddPassIfDebug(GraphBuilder, {}, MoveTemp(ExecuteLambda));
-}
-
-template <typename ExecuteLambdaType>
-FORCEINLINE void AddUntrackedAccessPassIfDebug(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, ExecuteLambdaType&& ExecuteLambda)
-{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	AddUntrackedAccessPass(GraphBuilder, MoveTemp(Name), MoveTemp(ExecuteLambda));
-#endif
-}
-
-template <typename ExecuteLambdaType>
-FORCEINLINE void AddUntrackedAccessPassIfDebug(FRDGBuilder& GraphBuilder, ExecuteLambdaType&& ExecuteLambda)
-{
-	AddUntrackedAccessPassIfDebug(GraphBuilder, {}, MoveTemp(ExecuteLambda));
 }
 
 UE_DEPRECATED(5.0, "AddSetCurrentStatPass is deprecated. Use GraphBuilder.SetCommandListStat instead.")

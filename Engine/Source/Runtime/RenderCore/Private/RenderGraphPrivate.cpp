@@ -235,6 +235,8 @@ void EmitRDGWarning(const FString& WarningMessage)
 	}
 }
 
+bool GRDGAllowRHIAccess = false;
+
 #endif
 
 int32 GRDGAsyncCompute = 1;
