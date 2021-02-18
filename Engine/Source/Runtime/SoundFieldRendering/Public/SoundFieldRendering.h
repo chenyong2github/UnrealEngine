@@ -33,6 +33,9 @@ public:
 		, PreviousRotation(FQuat::Identity)
 	{}
 
+	virtual ~FAmbisonicsSoundfieldBuffer()
+	{}
+
 	virtual void Serialize(FArchive& Ar) override;
 	virtual TUniquePtr<ISoundfieldAudioPacket> Duplicate() const override;
 	virtual void Reset() override;
