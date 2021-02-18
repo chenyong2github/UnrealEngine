@@ -1290,6 +1290,15 @@ bool ULevelInstanceSubsystem::CanCommitLevelInstance(const ALevelInstance* Level
 		return false;
 	}
 
+	if (HasDirtyChildrenLevelInstances(LevelInstanceActor))
+	{
+		if (OutReason)
+		{
+			*OutReason = LOCTEXT("CanCommitLevelInstanceUnsavedChild", "Level Instance has an unsaved child level instance");
+		}
+		return false;
+	}
+
 	return true;
 }
 
