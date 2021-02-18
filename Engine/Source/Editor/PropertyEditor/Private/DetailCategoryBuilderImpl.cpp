@@ -1001,6 +1001,11 @@ void FDetailCategoryImpl::FilterNode(const FDetailFilter& InFilter)
 
 	bHasVisibleDetails = false;
 
+	if (bFavoriteCategory && !InFilter.bShowFavoritesCategory)
+	{
+		return;
+	}
+
 	if (InlinePropertyNode.IsValid())
 	{
 		bHasVisibleDetails = true;
