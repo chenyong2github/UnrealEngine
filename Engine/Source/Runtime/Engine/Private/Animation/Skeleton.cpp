@@ -31,7 +31,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "UObject/AnimObjectVersion.h"
 #include "EngineUtils.h"
-#include "Animation/AnimData/AnimDataModel.h"
+#include "Misc/ScopeLock.h"
 
 #define LOCTEXT_NAMESPACE "Skeleton"
 #define ROOT_BONE_PARENT	INDEX_NONE
@@ -52,6 +52,11 @@ const FName USkeleton::AnimTrackCurveMappingName = FName(TEXT("AnimationTrackCur
 
 const FName FAnimSlotGroup::DefaultGroupName = FName(TEXT("DefaultGroup"));
 const FName FAnimSlotGroup::DefaultSlotName = FName(TEXT("DefaultSlot"));
+
+// Skeleton remapping related.
+TArray<USkeleton*> USkeleton::LoadedSkeletons;		// We keep track of a list of loaded skeletons, because we have no thread safe object iterator at the time this code is written.
+FCriticalSection USkeleton::LoadedSkeletonsMutex;	// The mutex we use to lock the LoadedSkeletons array.
+
 
 void SerializeReferencePose(FArchive& Ar, FReferencePose& P, UObject* Outer)
 {
@@ -107,13 +112,336 @@ namespace VirtualBoneNameHelpers
 	}
 }
 
+bool USkeleton::IsCompatible(const USkeleton* InSkeleton) const
+{
+	if (InSkeleton == this)
+	{
+		return true;
+	}
+
+	for (const auto& CompatibleSkeleton : CompatibleSkeletons)
+	{
+		if (CompatibleSkeleton == InSkeleton->CachedSoftObjectPtr)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool USkeleton::IsCompatibleSkeletonByAssetString(const FString& SkeletonAssetString) const
+{
+	// First check against itself.
+	const FString SkeletonString = FAssetData(this).GetExportTextName();
+	if (SkeletonString == SkeletonAssetString)
+	{
+		return true;
+	}
+
+	// Now check against the list of compatible skeletons.
+	FString CompatibleName;
+	for (auto& CompatibleSkeleton : CompatibleSkeletons)
+	{
+		CompatibleName = FString::Printf(TEXT("%s'%s'"), *GetClass()->GetName(), *CompatibleSkeleton.ToString());
+		if (CompatibleName == SkeletonAssetString)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool USkeleton::IsCompatibleSkeletonByAssetData(const FAssetData& AssetData) const
+{
+	return IsCompatibleSkeletonByAssetString(AssetData.GetTagValueRef<FString>(TEXT("Skeleton")));
+}
+
+FSkeletonRemapping::FSkeletonRemapping(const USkeleton* InSourceSkeleton, const USkeleton* InTargetSkeleton)
+	: SourceSkeleton(InSourceSkeleton)
+	, TargetSkeleton(InTargetSkeleton)
+{
+	if (!InSourceSkeleton || !InTargetSkeleton)
+	{
+		return;
+	}
+
+	const FReferenceSkeleton& SourceReferenceSkeleton = InSourceSkeleton->GetReferenceSkeleton();
+	const FReferenceSkeleton& TargetReferenceSkeleton = InTargetSkeleton->GetReferenceSkeleton();
+
+	const int32 SourceNumBones = SourceReferenceSkeleton.GetNum();
+	const int32 TargetNumBones = TargetReferenceSkeleton.GetNum();
+
+	SourceToTargetBoneIndexes.SetNumUninitialized(SourceNumBones);
+	TargetToSourceBoneIndexes.SetNumUninitialized(TargetNumBones);
+	RetargetingTable.SetNumUninitialized(TargetNumBones);
+
+	TArrayView<const FTransform> SourceLocalTransforms;
+	TArrayView<const FTransform> TargetLocalTransforms;
+/*
+	// Build the mapping from source to target bones through the remapping rig if one exists
+	if (true)	// TODO_SKELETON_REMAPPING: Use a remapping rig if it exists
+	{
+		for (int32 SourceBoneIndex = 0; SourceBoneIndex < SourceNumBones; ++SourceBoneIndex)
+		{
+			const FName BoneName = SourceReferenceSkeleton.GetBoneName(SourceBoneIndex);
+			int32 TargetBoneIndex = TargetReferenceSkeleton.FindBoneIndex(BoneName);
+			SourceToTargetBoneIndexes[SourceBoneIndex] = TargetBoneIndex;
+		}
+
+		// Get the matched source and target rest poses from the remapping rig
+		//
+		// TODO_SKELETON_REMAPPING: For now we'll just use the skeleton's rest poses, but we should really be pulling these
+		// poses from a remapping rig so that the use can better align the poses.  Note that we'll want the remapping rig
+		// to be independent from the USkeleton itself because a skeleton may want to participate in multiple remappings with
+		// different other skeletons and may have to pose itself differently to align with the different other skeletons
+		//
+		SourceLocalTransforms = MakeArrayView(SourceReferenceSkeleton.GetRefBonePose());
+		TargetLocalTransforms = MakeArrayView(TargetReferenceSkeleton.GetRefBonePose());
+	}
+	else // Fall back to simple name matching if there is no rig
+*/
+	{
+		// Match source to target bones by name lookup between source and target skeletons
+		for (int32 SourceBoneIndex = 0; SourceBoneIndex < SourceNumBones; ++SourceBoneIndex)
+		{
+			const FName BoneName = SourceReferenceSkeleton.GetBoneName(SourceBoneIndex);
+			const int32 TargetBoneIndex = TargetReferenceSkeleton.FindBoneIndex(BoneName);
+			SourceToTargetBoneIndexes[SourceBoneIndex] = TargetBoneIndex;
+		}
+
+		// Get the matched (hopefully) source and target rest poses from the source and target skeletons
+		SourceLocalTransforms = MakeArrayView(SourceReferenceSkeleton.GetRefBonePose());
+		TargetLocalTransforms = MakeArrayView(TargetReferenceSkeleton.GetRefBonePose());
+	}
+
+	// Force the roots to map onto each other regardless of their names
+	SourceToTargetBoneIndexes[0] = 0;
+
+	// Build the reverse mapping from target back to source bones
+	FMemory::Memset(TargetToSourceBoneIndexes.GetData(), static_cast<uint8>(INDEX_NONE), TargetNumBones * TargetToSourceBoneIndexes.GetTypeSize());
+	for (int32 SourceBoneIndex = 0; SourceBoneIndex < SourceNumBones; ++SourceBoneIndex)
+	{
+		const int32 TargetBoneIndex = SourceToTargetBoneIndexes[SourceBoneIndex];
+		if (TargetBoneIndex != INDEX_NONE)
+		{
+			TargetToSourceBoneIndexes[TargetBoneIndex] = SourceBoneIndex;
+		}
+	}
+
+	TArray<FTransform> SourceComponentTransforms;
+	TArray<FTransform> TargetComponentTransforms;
+	FAnimationRuntime::FillUpComponentSpaceTransforms(SourceReferenceSkeleton, SourceLocalTransforms, SourceComponentTransforms);
+	FAnimationRuntime::FillUpComponentSpaceTransforms(TargetReferenceSkeleton, TargetLocalTransforms, TargetComponentTransforms);
+
+	// Calculate the retargeting constants to map from source skeleton space to target skeleton space
+	//
+	// Simply remapping joint indices is usually not sufficient to give us the desired result pose if the source and target
+	// skeletons are built with different conventions for joint orientations.  We therefore need to compute a remapping
+	// between the source and target joint orientations, which we do in terms of delta rotations from the rest pose:
+	//
+	//		Q = P * D * R
+	//
+	// where:
+	//
+	//		Q is the final joint orientation in component space
+	//		P is the parent joint orientation in component space
+	//		D is the delta rotation that we want to remap
+	//		R is the local space rest pose orientation for the joint
+	//
+	// We want to find a mapping from the source to the target:
+	//
+	//		Ps * Ds * Rs  -->  Pt * Dt * Rt
+	//
+	// such that the deltas produce equivalent rotations on the mesh even if their parent rotation frames are different.
+	// In other words, we need to find Dt such that its component space rotation is equivalent to Ds.  To convert a rotation
+	// from local space (D) to component space (C), given its parent (P), we have:
+	//
+	//		C * P = P * D
+	//		C = P * D * P⁻¹
+	//
+	// Setting the source and target component space rotations to be equal (Cs = Ct) then gives us:
+	//
+	//		Ps * Ds * Ps⁻¹ = Pt * Dt * Pt⁻¹
+	//
+	// which we then solve for Dt to get:
+	//
+	//		Dt = Pt⁻¹ * Ps * Ds * Ps⁻¹ * Pt
+	//
+	// However, when we're remapping an animation pose, we will have the local transforms rather than the deltas from the
+	// rest pose, so we also need to convert between these local transforms and the equivalent deltas:
+	//
+	//		L = D * R
+	//		D = L * R⁻¹
+	//
+	// Combining that with our equation for Dt, we get:
+	//
+	//		Lt * Rt⁻¹ = Pt⁻¹ * Ps * Ls * Rs⁻¹ * Ps⁻¹ * Pt
+	//
+	// Solving for Lt then gives us:
+	//
+	//		Lt = Pt⁻¹ * Ps * Ls * Rs⁻¹ * Ps⁻¹ * Pt * Rt
+	//
+	// Finally, factoring out the constant terms (which we precompute here) gives us:
+	//
+	//		Lt = Q0 * Ls * Q1
+	//		Q0 = Pt⁻¹ * Ps
+	//		Q1 = Rs⁻¹ * Ps⁻¹ * Pt * Rt
+	//
+	// Note that when remapping additive animations, we drop the rest pose terms, but we still need to convert between the
+	// source and target rotation frames.  Dropping Rs and Rt from the equations above gives us:
+	//
+	//		Lt = Pt⁻¹ * Ps * Ls * Ps⁻¹ * Pt			(for additive animations)
+	//
+	// which is equivalent to the following in terms of our precomputed constants:
+	//
+	//		Lt = Q0 * Ls * Q0⁻¹						(for additive animations)
+	//
+	RetargetingTable[0] = MakeTuple(FQuat::Identity, SourceLocalTransforms[0].GetRotation().Inverse() * TargetLocalTransforms[0].GetRotation());
+	for (int32 TargetBoneIndex = 1; TargetBoneIndex < TargetNumBones; ++TargetBoneIndex)
+	{
+		const int32 SourceBoneIndex = TargetToSourceBoneIndexes[TargetBoneIndex];
+		if (SourceBoneIndex != INDEX_NONE)
+		{
+			const int32 SourceParentIndex = SourceReferenceSkeleton.GetParentIndex(SourceBoneIndex);
+			const int32 TargetParentIndex = TargetReferenceSkeleton.GetParentIndex(TargetBoneIndex);
+			check(SourceParentIndex != INDEX_NONE);
+			check(TargetParentIndex != INDEX_NONE);
+
+			const FQuat PS = SourceComponentTransforms[SourceParentIndex].GetRotation();
+			const FQuat PT = TargetComponentTransforms[TargetParentIndex].GetRotation();
+
+			const FQuat RS = SourceLocalTransforms[SourceBoneIndex].GetRotation();
+			const FQuat RT = TargetLocalTransforms[TargetBoneIndex].GetRotation();
+
+			const FQuat Q0 = PT.Inverse() * PS;
+			const FQuat Q1 = RS.Inverse() * PS.Inverse() * PT * RT;
+
+			RetargetingTable[TargetBoneIndex] = MakeTuple(Q0, Q1);
+		}
+		else
+		{
+			RetargetingTable[TargetBoneIndex] = MakeTuple(FQuat::Identity, FQuat::Identity);
+		}
+	}
+
+	GenerateCurveMapping();
+}
+
+void FSkeletonRemapping::ComposeWith(const FSkeletonRemapping& OtherSkeletonRemapping)
+{
+	check(OtherSkeletonRemapping.SourceSkeleton == TargetSkeleton);
+
+	TargetSkeleton = OtherSkeletonRemapping.TargetSkeleton;
+
+	const int32 SourceNumBones = SourceToTargetBoneIndexes.Num();
+	const int32 TargetNumBones = OtherSkeletonRemapping.TargetToSourceBoneIndexes.Num();
+
+	TArray<int32> NewTargetToSourceBoneIndexes;
+	TArray<TTuple<FQuat, FQuat>> NewRetargetingTable;
+
+	NewTargetToSourceBoneIndexes.SetNumUninitialized(TargetNumBones);
+	NewRetargetingTable.SetNumUninitialized(TargetNumBones);
+
+	// Compose the retargeting constants
+	for (int32 NewTargetBoneIndex = 0; NewTargetBoneIndex < TargetNumBones; ++NewTargetBoneIndex)
+	{
+		const int32 OldTargetBoneIndex = OtherSkeletonRemapping.TargetToSourceBoneIndexes[NewTargetBoneIndex];
+		const int32 OldSourceBoneIndex = (OldTargetBoneIndex != INDEX_NONE) ? TargetToSourceBoneIndexes[OldTargetBoneIndex] : INDEX_NONE;
+
+		if (OldSourceBoneIndex != INDEX_NONE)
+		{
+			const TTuple<FQuat, FQuat>& OldQQ = RetargetingTable[OldTargetBoneIndex];
+			const TTuple<FQuat, FQuat>& NewQQ = OtherSkeletonRemapping.RetargetingTable[NewTargetBoneIndex];
+			const FQuat Q0 = NewQQ.Get<0>() * OldQQ.Get<0>();
+			const FQuat Q1 = OldQQ.Get<1>() * NewQQ.Get<1>();
+
+			NewTargetToSourceBoneIndexes[NewTargetBoneIndex] = OldSourceBoneIndex;
+			NewRetargetingTable[NewTargetBoneIndex] = MakeTuple(Q0, Q1);
+		}
+		else
+		{
+			NewTargetToSourceBoneIndexes[NewTargetBoneIndex] = INDEX_NONE;
+			NewRetargetingTable[NewTargetBoneIndex] = MakeTuple(FQuat::Identity, FQuat::Identity);
+		}
+	}
+
+	TargetToSourceBoneIndexes = MoveTemp(NewTargetToSourceBoneIndexes);
+	RetargetingTable = MoveTemp(NewRetargetingTable);
+
+	// Rebuild the mapping from source bones to the target bones
+	FMemory::Memset(SourceToTargetBoneIndexes.GetData(), static_cast<uint8>(INDEX_NONE), SourceNumBones * SourceToTargetBoneIndexes.GetTypeSize());
+	for (int32 TargetBoneIndex = 0; TargetBoneIndex < TargetNumBones; ++TargetBoneIndex)
+	{
+		const int32 SourceBoneIndex = TargetToSourceBoneIndexes[TargetBoneIndex];
+		if (SourceBoneIndex != INDEX_NONE)
+		{
+			SourceToTargetBoneIndexes[SourceBoneIndex] = TargetBoneIndex;
+		}
+	}
+}
+
+void FSkeletonRemapping::GenerateCurveMapping()
+{
+	const USkeleton* Source = GetSourceSkeleton().Get();
+	const USkeleton* Target = GetTargetSkeleton().Get();
+	check(Source && Target);
+
+	// Get the curve mappings.
+	const FSmartNameMapping* SourceMapping = Source->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+	const FSmartNameMapping* TargetMapping = Target->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+	if (!SourceMapping) // Source has no curves, so there is nothing to add.
+	{
+		return;
+	}
+
+	// Check whether we have curves or not in both source and target.
+	bool bHasSourceCurves = false;
+	bool bHasTargetCurves = false;
+	if (TargetMapping)
+	{
+		bHasTargetCurves = (TargetMapping->GetMaxUID() != SmartName::MaxUID);
+		bHasSourceCurves = (SourceMapping->GetMaxUID() != SmartName::MaxUID);
+	}
+
+	// Init the mapping table.
+	const SmartName::UID_Type NumItems = SourceMapping->GetMaxUID() + 1;
+	if (bHasSourceCurves)
+	{
+		SourceToTargetCurveMapping.Init(MAX_uint16, NumItems);
+	}
+
+	// If we have no source or target curves (while having valid smart name mappings), there is nothing to do.
+	if (!bHasTargetCurves && !bHasSourceCurves)
+	{
+		return;
+	}
+
+	// For every source curve, try to find the curve with the same name in the target.
+	for (SmartName::UID_Type Index = 0; Index < NumItems; ++Index)
+	{
+		FName CurveName;
+		SourceMapping->GetName(Index, CurveName);
+
+		// Make sure the curve name is valid and we can actually find a curve with the same name in the target.
+		FSmartName TargetSmartName;
+		if (!CurveName.IsValid() || !TargetMapping->FindSmartName(CurveName, TargetSmartName))
+		{
+			continue;
+		}
+
+		SourceToTargetCurveMapping[Index] = TargetSmartName.UID;
+	}
+}
+
 USkeleton::USkeleton(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Make sure we have somewhere for curve names.
 	AnimCurveMapping = SmartNames.AddContainer(AnimCurveMappingName);
-
 	AnimCurveUidVersion = 0;
+	CachedSoftObjectPtr = TSoftObjectPtr<USkeleton>(this);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -127,6 +455,27 @@ void USkeleton::BeginDestroy()
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+	}
+
+	// Clear our own skeleton mappings.
+	ClearSkeletonRemappings();
+	OnSkeletonDestructEvent.Broadcast(this); // Inform others about this skeleton being destructed, so we can remove mappings inside those skeletons.
+	OnSkeletonDestructEvent.Clear();
+	OnSmartNamesChangedEvent.Clear();
+
+	//  Remove the loaded skeleton from the list.
+	{
+		FScopeLock Lock(&LoadedSkeletonsMutex);
+		LoadedSkeletons.Remove(this);
+
+		// Also unregister this skeleton from other skeletons this one is listening to (events it is listening to).
+		for (USkeleton* Skeleton : LoadedSkeletons)
+		{
+			if (Skeleton->IsCompatible(this))
+			{
+				Skeleton->OnSkeletonDestructEvent.RemoveAll(this);
+			}
+		}
 	}
 }
 
@@ -159,7 +508,7 @@ void USkeleton::PostLoad()
 
 	// catch any case if guid isn't valid
 	check(Guid.IsValid());
-
+	
 	// Cache smart name uids for animation curve names
 	IncreaseAnimCurveUidVersion();
 
@@ -171,6 +520,120 @@ void USkeleton::PostLoad()
 	{
 		CurveMappingTable->InitializeCurveMetaData(this);
 	}
+
+	// Add this skeleton to the loaded skeletons list and register some event listeners.
+	{
+		FScopeLock Lock(&LoadedSkeletonsMutex);
+
+		// Make any loaded skeleton that is compatible with this skeleton listen to destruct events.
+		// This is done so when this skeleton gets destructed, other skeletons can remove mappings to this skeleton.
+		for (USkeleton* Skeleton : LoadedSkeletons)
+		{
+			if (!Skeleton || Skeleton == this)
+			{
+				continue;
+			}
+
+			// If the already loaded other skeleton is compatible with this newly loaded skeleton, then let the
+			// already loaded other skeleton listen to the destruction event of this newly loaded skeleton.
+			if (Skeleton->IsCompatible(this))
+			{
+				Skeleton->CreateSkeletonRemappingIfNeeded(this);
+				if (!OnSkeletonDestructEvent.IsBoundToObject(Skeleton))
+				{
+					OnSkeletonDestructEvent.AddUObject(Skeleton, &USkeleton::HandleSkeletonDestruct);
+				}
+			}
+
+			// If we are compatible with the already loaded skeleton, we want to start listening to destruct events of that one.
+			if (IsCompatible(Skeleton))
+			{
+				CreateSkeletonRemappingIfNeeded(Skeleton);
+				if (!Skeleton->OnSkeletonDestructEvent.IsBoundToObject(this))
+				{
+					Skeleton->OnSkeletonDestructEvent.AddUObject(this, &USkeleton::HandleSkeletonDestruct);
+				}
+			}
+		}
+
+		LoadedSkeletons.Add(this);
+	}
+
+	// Listen to smart name changes so we can regenerate our skeleton mappings.
+	if (!OnSmartNamesChangedEvent.IsBoundToObject(this))
+	{
+		OnSmartNamesChangedEvent.AddUObject(this, &USkeleton::HandleSmartNamesChangedEvent);
+	}
+}
+
+// Regenerate all required skeleton remappings whenever curves change.
+void USkeleton::HandleSmartNamesChangedEvent()
+{
+	FScopeLock Lock(&LoadedSkeletonsMutex);
+	for (USkeleton* Skeleton : LoadedSkeletons)
+	{
+		if (Skeleton == this)
+		{
+			continue;
+		}
+
+		if (!Skeleton)
+		{
+			continue;
+		}
+
+		if (Skeleton->IsCompatible(this))
+		{
+			Skeleton->CreateSkeletonRemappingIfNeeded(this, true);
+		}
+
+		if (IsCompatible(Skeleton))
+		{
+			CreateSkeletonRemappingIfNeeded(Skeleton, true);
+		}
+	}
+}
+
+void USkeleton::HandleSkeletonDestruct(const USkeleton* Skeleton)
+{
+	OnSkeletonDestructEvent.RemoveAll(Skeleton);
+
+	// We aren't interested to hear that we loaded ourselves as we need no mappings to ourselves.
+	// Also if this skeleton isn't in the compatible list, we can ignore it.
+	if (Skeleton == this || !Skeleton || !IsCompatible(Skeleton))
+	{
+		return;
+	}
+
+	// Check if we already have a mapping. If so, remove the existing one and create a new one.
+	// This might only happen when a skeleton asset gets reimported.
+	RemoveSkeletonRemapping(Skeleton);
+}
+
+void USkeleton::CreateSkeletonRemappingIfNeeded(const USkeleton* SourceSkeleton, bool bRebuildIfExists)
+{
+	FScopeLock Lock(&SkeletonRemappingMutex);
+	check(SourceSkeleton != nullptr && SourceSkeleton != this && IsCompatible(SourceSkeleton));
+
+	// Check if we already have a mapping. If so, remove the existing one and create a new one.
+	// This might only happen when a skeleton asset gets reimported.
+	FSkeletonRemapping** Mapping = SkeletonRemappings.Find(SourceSkeleton);
+	if (Mapping)	
+	{
+		if (!bRebuildIfExists)
+		{
+			return;
+		}
+
+		delete *Mapping;
+		SkeletonRemappings.Remove(SourceSkeleton);
+	}
+
+	// Create, add and return the new entry.
+	FSkeletonRemapping* NewMapping = new FSkeletonRemapping(SourceSkeleton, this);
+	SkeletonRemappings.Add(SourceSkeleton, NewMapping);
+
+	UE_LOG(LogAnimation, Verbose, TEXT("Recreating remapping between %s and %s"), *FAssetData(this).AssetName.ToString(), *FAssetData(SourceSkeleton).AssetName.ToString());
 }
 
 void USkeleton::PostDuplicate(bool bDuplicateForPIE)
@@ -182,6 +645,10 @@ void USkeleton::PostDuplicate(bool bDuplicateForPIE)
 		// regenerate Guid
 		RegenerateGuid();
 	}
+
+	// Initialize skeleton remappings.
+	ClearSkeletonRemappings();
+	BuildSkeletonRemappings(true);
 }
 
 void USkeleton::Serialize( FArchive& Ar )
@@ -288,6 +755,18 @@ void USkeleton::Serialize( FArchive& Ar )
 }
 
 #if WITH_EDITOR
+void USkeleton::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	// Rebuild skeleton mappings involving this skeleton when we modified the compatible skeleton list.
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USkeleton, CompatibleSkeletons))
+	{
+		ClearSkeletonRemappings();
+		BuildSkeletonRemappings(false); // Build it, but not bidirectional, meaning only rebuild mappings to skeletons we are compatible with.
+	}
+}
+
 void USkeleton::PreEditUndo()
 {
 	// Undoing so clear cached data as it will now be stale
@@ -328,6 +807,73 @@ void USkeleton::ConvertToFReferenceSkeleton()
 	// VER_UE4_REFERENCE_SKELETON_REFACTOR, this shouldn't be needed. It shouldn't have any 
 	// AnimatedRetargetSources
 	ensure (AnimRetargetSources.Num() == 0);
+}
+
+void USkeleton::ClearSkeletonRemappings()
+{
+	FScopeLock Lock(&SkeletonRemappingMutex);
+	for (auto& Mapping : SkeletonRemappings)
+	{
+		delete Mapping.Value;
+	}
+
+	SkeletonRemappings.Reset();
+}
+
+const FSkeletonRemapping* USkeleton::GetSkeletonRemapping(const USkeleton* SourceSkeleton) const
+{
+	check(SourceSkeleton);
+	if (SourceSkeleton == this)
+	{
+		return nullptr;
+	}
+
+	// Find the existing one.
+	FScopeLock Lock(&SkeletonRemappingMutex);
+	const FSkeletonRemapping* const* Mapping = SkeletonRemappings.Find(SourceSkeleton);
+	if (Mapping)
+	{
+		return *Mapping;
+	}
+
+	return nullptr;
+}
+
+void USkeleton::BuildSkeletonRemappings(bool bBidirectional)
+{
+	for (USkeleton* Skeleton : LoadedSkeletons)
+	{
+		if (Skeleton == this)
+		{
+			continue;
+		}
+
+		// Update the remapping in the other skeleton.
+		if (bBidirectional && Skeleton->IsCompatible(this))
+		{
+			Skeleton->CreateSkeletonRemappingIfNeeded(this, true);
+		}
+
+		// Update the remapping to this skeleton inside our own remapping table.
+		if (IsCompatible(Skeleton))
+		{
+			CreateSkeletonRemappingIfNeeded(Skeleton, true);
+		}
+	}
+}
+
+void USkeleton::RemoveSkeletonRemapping(const USkeleton* SourceSkeleton)
+{
+	check(SourceSkeleton && SourceSkeleton != this);
+
+	// Locate the mapping and remove if found.
+	FScopeLock Lock(&SkeletonRemappingMutex);
+	FSkeletonRemapping** Mapping = SkeletonRemappings.Find(SourceSkeleton);
+	if (Mapping)
+	{
+		delete *Mapping;
+		SkeletonRemappings.Remove(SourceSkeleton);
+	}
 }
 
 bool USkeleton::DoesParentChainMatch(int32 StartBoneIndex, const USkeletalMesh* InSkelMesh) const
@@ -775,24 +1321,23 @@ FName USkeleton::GetRetargetSourceForMesh(USkeletalMesh* InMesh) const
 
 int32 USkeleton::GetRawAnimationTrackIndex(const int32 InSkeletonBoneIndex, const UAnimSequence* InAnimSeq)
 {
-	if( InSkeletonBoneIndex != INDEX_NONE )
+	if (InSkeletonBoneIndex != INDEX_NONE)
 	{
 #if WITH_EDITOR
 		return InAnimSeq->GetDataModel()->GetBoneAnimationTracks().IndexOfByPredicate([InSkeletonBoneIndex](const FBoneAnimationTrack& AnimationTrack)
-		{
-			return AnimationTrack.BoneTreeIndex == InSkeletonBoneIndex;
-		});
+			{
+				return AnimationTrack.BoneTreeIndex == InSkeletonBoneIndex;
+			});
 #else
 		return InAnimSeq->GetCompressedTrackToSkeletonMapTable().IndexOfByPredicate([InSkeletonBoneIndex](const FTrackToSkeletonMap& Mapping)
-		{
-			return Mapping.BoneTreeIndex == InSkeletonBoneIndex;
-		});
+			{
+				return Mapping.BoneTreeIndex == InSkeletonBoneIndex;
+			});
 #endif
 	}
 
 	return INDEX_NONE;
 }
-
 
 int32 USkeleton::GetSkeletonBoneIndexFromMeshBoneIndex(const USkeletalMesh* InSkelMesh, const int32 MeshBoneIndex)
 {
@@ -1075,6 +1620,9 @@ void USkeleton::HandleSkeletonHierarchyChange()
 			VirtualBones.RemoveAt(i);
 		}
 	}
+
+	// Full rebuild of all compatible with this and with ones we are compatible with.
+	BuildSkeletonRemappings(true);
 
 	// Fix up loaded animations (any animations that aren't loaded will be fixed on load)
 	int32 NumLoadedAssets = 0;

@@ -31,9 +31,9 @@ void UAnimGraphNode_PoseHandler::ValidateAnimNodeDuringCompilation(USkeleton* Fo
 	{
 		USkeleton* SeqSkeleton = PoseAssetToCheck->GetSkeleton();
 		if (SeqSkeleton && // if PoseAsset doesn't have skeleton, it might be due to PoseAsset not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
-			!SeqSkeleton->IsCompatible(ForSkeleton))
+			!ForSkeleton->IsCompatible(SeqSkeleton))
 		{
-			MessageLog.Error(TEXT("@@ references poseasset that uses different skeleton @@"), this, SeqSkeleton);
+			MessageLog.Error(TEXT("@@ references poseasset that uses an incompatible skeleton @@"), this, SeqSkeleton);
 		}
 	}
 

@@ -506,8 +506,8 @@ public:
 	static void SetSpaceTransform(FA2CSPose& Pose, int32 Index, FTransform& NewTransform);
 	// space bases
 	static FTransform GetComponentSpaceTransformRefPose(const FReferenceSkeleton& RefSkeleton, int32 BoneIndex);
-	static FTransform GetComponentSpaceTransform(const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> &BoneSpaceTransforms, int32 BoneIndex);
-	static void FillUpComponentSpaceTransforms(const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> &BoneSpaceTransforms, TArray<FTransform> &ComponentSpaceTransforms);
+	static FTransform GetComponentSpaceTransform(const FReferenceSkeleton& RefSkeleton, const TArrayView<const FTransform> &BoneSpaceTransforms, int32 BoneIndex);
+	static void FillUpComponentSpaceTransforms(const FReferenceSkeleton& RefSkeleton, const TArrayView<const FTransform> &BoneSpaceTransforms, TArray<FTransform> &ComponentSpaceTransforms);
 	static void MakeSkeletonRefPoseFromMesh(const USkeletalMesh* InMesh, const USkeleton* InSkeleton, TArray<FTransform>& OutBoneBuffer);
 
 	/**
@@ -540,16 +540,15 @@ public:
 	/**
 	* Retarget a single bone transform, to apply right after extraction.
 	*
-	* @param	MySkeleton			Skeleton this is retargeting
+	* @param	SourceSkeleton		Skeleton from which this is retargeting
 	* @param	RetargetSource		Retarget Source for the retargeting
-	* @param	BoneTransform		BoneTransform to read/write from.
-	* @param	SkeletonBoneIndex	Bone Index in USkeleton.
-	* @param	BoneIndex			Bone Index in Bone Transform array.
-	* @param	RequiredBones		BoneContainer
+	* @param	BoneTransform		BoneTransform to read/write from
+	* @param	SkeletonBoneIndex	Source Bone Index in SourceSkeleton
+	* @param	BoneIndex			Target Bone Index in Bone Transform array
+	* @param	RequiredBones		BoneContainer to which this is retargeting
 	*/
-	static void RetargetBoneTransform(const USkeleton* MySkeleton, const FName& RetargetSource, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive);
+	static void RetargetBoneTransform(const USkeleton* SourceSkeleton, const FName& RetargetSource, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive);
 	static void RetargetBoneTransform(const USkeleton* MySkeleton, const FName& SourceName, const TArray<FTransform>& RetargetTransforms, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive);
-
 	/** 
 	 * Calculate distance how close two strings are. 
 	 * By close, it calculates how many operations to transform First to Second 

@@ -550,7 +550,7 @@ void SAnimationRefPoseViewport::Tick( const FGeometry& AllottedGeometry, const d
 		{
 			Description->SetText( FText::Format( LOCTEXT( "Previewing", "Previewing {0}" ), FText::FromString( Component->AnimClass->GetName() ) ) );
 		}
-		else if ( AnimRef && AnimRef->GetSkeleton() != TargetSkeleton )
+		else if ( AnimRef && !AnimRef->GetSkeleton()->IsCompatible(TargetSkeleton) )
 		{
 			Description->SetText( FText::Format( LOCTEXT( "IncorrectSkeleton", "The preview asset doesn't work for the skeleton '{0}'" ), FText::FromString( TargetSkeletonName ) ) );
 		}

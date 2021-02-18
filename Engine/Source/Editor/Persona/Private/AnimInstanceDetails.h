@@ -8,6 +8,7 @@
 #include "IDetailCustomization.h"
 
 struct FAssetData;
+class USkeleton;
 
 /////////////////////////////////////////////////////
 // FAnimInstanceDetails 
@@ -24,11 +25,8 @@ public:
 protected:
 
 	// Creates a filtered object widget if the supplied property is an object property
-	TSharedRef<SWidget> CreateFilteredObjectPropertyWidget(FProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle);
+	TSharedRef<SWidget> CreateFilteredObjectPropertyWidget(FProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle, const USkeleton* TargetSkeleton);
 
 	/** Delegate to handle filtering of asset pickers */
-	bool OnShouldFilterAnimAsset( const FAssetData& AssetData ) const;
-
-	/** Path to the current blueprints skeleton to allow us to filter asset pickers */
-	FString TargetSkeletonName;
+	bool OnShouldFilterAnimAsset(const FAssetData& AssetData, const USkeleton* TargetSkeleton) const;
 };

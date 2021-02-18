@@ -314,9 +314,7 @@ bool FPoseAssetDetails::ShouldFilterAsset(const FAssetData& AssetData)
 {
 	if (TargetSkeleton.IsValid())
 	{
-		FString SkeletonString = FAssetData(TargetSkeleton.Get()).GetExportTextName();
-		FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag("Skeleton");
-		return (!Result.IsSet() || SkeletonString != Result.GetValue());
+		return !TargetSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
 	}
 
 	return true;
@@ -595,7 +593,7 @@ void FPoseAssetDetails::CachePoseAssetData()
  {
 	 if (PoseAsset.IsValid())
 	 {
-		 FScopedTransaction Transaction(LOCTEXT("ApplyAdditiveSetting_Transaciton", "Apply Additive Setting"));
+		 FScopedTransaction Transaction(LOCTEXT("ApplyAdditiveSetting_Transaction", "Apply Additive Setting"));
 		 PoseAsset->Modify();
 
 		 PoseAsset->ConvertSpace(bCachedAdditive, CachedBasePoseIndex);
@@ -636,9 +634,9 @@ void FPoseAssetDetails::CachePoseAssetData()
 		 SourceAnimationPropertyHandle->GetValue(ObjectSet);
 
 		 UAnimSequence* AnimSequenceSelected = Cast<UAnimSequence>(ObjectSet);
-		 if (AnimSequenceSelected && AnimSequenceSelected->GetSkeleton() == PoseAsset->GetSkeleton())
+		 if (AnimSequenceSelected && PoseAsset->GetSkeleton()->IsCompatible(AnimSequenceSelected->GetSkeleton()))
 		 {
-			 FScopedTransaction Transaction(LOCTEXT("UpdatePoseSourceAnimation_Transaciton", "Update Pose"));
+			 FScopedTransaction Transaction(LOCTEXT("UpdatePoseSourceAnimation_Transaction", "Update Pose"));
 			 PoseAsset->Modify();
 			 PoseAsset->UpdatePoseFromAnimation(AnimSequenceSelected);
 
@@ -664,7 +662,7 @@ void FPoseAssetDetails::CachePoseAssetData()
 			 Args.Add(TEXT("AssetName"), FText::FromString(PoseAsset->GetName()));
 			 Args.Add(TEXT("SourceAsset"), FText::FromString(GetNameSafe(AnimSequenceSelected)));
 			 Args.Add(TEXT("SkeletonName"), FText::FromString(GetNameSafe(PoseAsset->GetSkeleton())));
-			 FText ResultText = FText::Format(LOCTEXT("UpdatePoseWithInvalidSkeleton", "Source Asset {SourceAsset} is invalid or does not have matching skeleton {SkeletonName} with {AssetName}"), Args);
+			 FText ResultText = FText::Format(LOCTEXT("UpdatePoseWithInvalidSkeleton", "Source Asset {SourceAsset} is invalid or does not have a compatible skeleton {SkeletonName} with {AssetName}"), Args);
 
 			 FNotificationInfo Info(ResultText);
 			 Info.bFireAndForget = true;

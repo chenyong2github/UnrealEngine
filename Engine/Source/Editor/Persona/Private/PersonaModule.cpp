@@ -937,7 +937,7 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 						FString TagValue;
 						if (AssetData.GetTagValue("Skeleton", TagValue))
 						{
-							return TagValue != FAssetData(WeakPersonaToolkit.Pin()->GetSkeleton()).GetExportTextName();
+							return !WeakPersonaToolkit.Pin()->GetSkeleton()->IsCompatibleSkeletonByAssetData(AssetData);
 						}
 					}
 					return true;
@@ -1009,7 +1009,7 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 						FString TagValue;
 						if (AssetData.GetTagValue("Skeleton", TagValue))
 						{
-							return TagValue != FAssetData(WeakPersonaToolkit.Pin()->GetSkeleton()).GetExportTextName();
+							return !WeakPersonaToolkit.Pin()->GetSkeleton()->IsCompatibleSkeletonByAssetData(AssetData);
 						}
 					}
 					return true;

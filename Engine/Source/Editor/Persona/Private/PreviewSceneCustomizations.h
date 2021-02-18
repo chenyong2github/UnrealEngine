@@ -21,6 +21,7 @@ class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class IPropertyUtilities;
 class UPreviewMeshCollectionFactory;
+class USkeleton;
 
 // An entry in the preview mode choice box
 struct FPersonaModeComboEntry
@@ -153,7 +154,7 @@ public:
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override {}
 
 private:
-	bool HandleShouldFilterAsset(const FAssetData& InAssetData, FString SkeletonName);
+	bool HandleShouldFilterAsset(const FAssetData& InAssetData, FString SkeletonName, USkeleton* Skeleton);
 
 	void HandleMeshChanged(const FAssetData& InAssetData);
 

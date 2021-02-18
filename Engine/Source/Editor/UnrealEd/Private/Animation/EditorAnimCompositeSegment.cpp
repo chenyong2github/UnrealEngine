@@ -33,7 +33,7 @@ bool UEditorAnimCompositeSegment::ApplyChangesToMontage()
 	{
 		if(Composite->AnimationTrack.AnimSegments.IsValidIndex(AnimSegmentIndex))
 		{
-			if (AnimSegment.AnimReference && Composite->GetSkeleton() == AnimSegment.AnimReference->GetSkeleton())
+			if (AnimSegment.AnimReference && Composite->GetSkeleton()->IsCompatible(AnimSegment.AnimReference->GetSkeleton()))
 			{
 				Composite->AnimationTrack.AnimSegments[AnimSegmentIndex] = AnimSegment;
 				return true;

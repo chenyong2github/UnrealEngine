@@ -613,7 +613,7 @@ void FAnimationEditorPreviewScene::SetPreviewAnimationAsset(UAnimationAsset* Ani
 			}
 
 			// Treat it as invalid if it's got a bogus skeleton pointer
-			if (AnimAsset->GetSkeleton() != Skeleton && Skeleton != nullptr)
+			if (Skeleton != nullptr && !Skeleton->IsCompatible(AnimAsset->GetSkeleton()))
 			{
 				return;
 			}

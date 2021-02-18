@@ -1543,12 +1543,10 @@ bool SAnimationSequenceBrowser::HandleFilterAsset(const FAssetData& InAssetData)
 {
 	if (InAssetData.GetClass()->IsChildOf(UAnimationAsset::StaticClass()))
 	{
-		USkeleton* DesiredSkeleton = PersonaToolkitPtr.Pin()->GetSkeleton();
+		const USkeleton* DesiredSkeleton = PersonaToolkitPtr.Pin()->GetSkeleton();
 		if (DesiredSkeleton)
 		{
-			FString SkeletonString = FAssetData(DesiredSkeleton).GetExportTextName();
-
-			return (InAssetData.TagsAndValues.FindTag(TEXT("Skeleton")) != SkeletonString);
+			return !DesiredSkeleton->IsCompatibleSkeletonByAssetData(InAssetData);
 		}
 	}
 

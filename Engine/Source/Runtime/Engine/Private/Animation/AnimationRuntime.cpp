@@ -2015,7 +2015,7 @@ bool FAnimationRuntime::ContainsNaN(TArray<FBoneIndexType>& RequiredBoneIndices,
 }
 #endif
 
-FTransform FAnimationRuntime::GetComponentSpaceTransform(const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> &BoneSpaceTransforms, int32 BoneIndex)
+FTransform FAnimationRuntime::GetComponentSpaceTransform(const FReferenceSkeleton& RefSkeleton, const TArrayView<const FTransform> &BoneSpaceTransforms, int32 BoneIndex)
 {
 	if (RefSkeleton.IsValidIndex(BoneIndex))
 	{
@@ -2069,7 +2069,7 @@ const FTransform& FAnimationRuntime::GetComponentSpaceTransformWithCache(const F
 	return CachedTransforms[BoneIndex];
 }
 
-void FAnimationRuntime::FillUpComponentSpaceTransforms(const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> &BoneSpaceTransforms, TArray<FTransform> &ComponentSpaceTransforms)
+void FAnimationRuntime::FillUpComponentSpaceTransforms(const FReferenceSkeleton& RefSkeleton, const TArrayView<const FTransform> &BoneSpaceTransforms, TArray<FTransform> &ComponentSpaceTransforms)
 {
 	ComponentSpaceTransforms.Empty(BoneSpaceTransforms.Num());
 	ComponentSpaceTransforms.AddUninitialized(BoneSpaceTransforms.Num());
@@ -2287,26 +2287,32 @@ int32 FAnimationRuntime::GetStringDistance(const FString& First, const FString& 
 	return NextRow[SecondLength];
 }
 
-void FAnimationRuntime::RetargetBoneTransform(const USkeleton* MySkeleton, const FName& RetargetSource, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive)
+void FAnimationRuntime::RetargetBoneTransform(const USkeleton* SourceSkeleton, const FName& RetargetSource, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive)
 {
-	if (MySkeleton)
+	if (SourceSkeleton)
 	{
-		const TArray<FTransform>& RetargetTransforms = MySkeleton->GetRefLocalPoses(RetargetSource);
-		RetargetBoneTransform(MySkeleton, RetargetSource, RetargetTransforms, BoneTransform, SkeletonBoneIndex, BoneIndex, RequiredBones, bIsBakedAdditive);
+		const TArray<FTransform>& RetargetTransforms = SourceSkeleton->GetRefLocalPoses(RetargetSource);
+		RetargetBoneTransform(SourceSkeleton, RetargetSource, RetargetTransforms, BoneTransform, SkeletonBoneIndex, BoneIndex, RequiredBones, bIsBakedAdditive);
 	}
 }
 
-void FAnimationRuntime::RetargetBoneTransform(const USkeleton* MySkeleton, const FName& SourceName, const TArray<FTransform>& RetargetTransforms, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive)
+void FAnimationRuntime::RetargetBoneTransform(const USkeleton* SourceSkeleton, const FName& SourceName, const TArray<FTransform>& RetargetTransforms, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive)
 {
-	if (MySkeleton)
+	if (SourceSkeleton)
 	{
-		switch (MySkeleton->GetBoneTranslationRetargetingMode(SkeletonBoneIndex))
+		const USkeleton* TargetSkeleton = RequiredBones.GetSkeletonAsset();
+		const FSkeletonRemapping* SkeletonRemapping = TargetSkeleton->GetSkeletonRemapping(SourceSkeleton);
+
+		const int32 TargetSkeletonBoneIndex = RequiredBones.GetSkeletonIndex(BoneIndex);
+		const int32 SourceSkeletonBoneIndex = (SkeletonRemapping) ? SkeletonRemapping->GetSourceSkeletonBoneIndex(TargetSkeletonBoneIndex) : SkeletonBoneIndex;
+
+		switch (TargetSkeleton->GetBoneTranslationRetargetingMode(TargetSkeletonBoneIndex))
 		{
 			case EBoneTranslationRetargetingMode::AnimationScaled:
 			{
 				// @todo - precache that in FBoneContainer when we have SkeletonIndex->TrackIndex mapping. So we can just apply scale right away.
 				const TArray<FTransform>& SkeletonRefPoseArray = RetargetTransforms;
-				const float SourceTranslationLength = SkeletonRefPoseArray[SkeletonBoneIndex].GetTranslation().Size();
+				const float SourceTranslationLength = SkeletonRefPoseArray[SourceSkeletonBoneIndex].GetTranslation().Size();
 				if (SourceTranslationLength > KINDA_SMALL_NUMBER)
 				{
 					const float TargetTranslationLength = RequiredBones.GetRefPoseTransform(BoneIndex).GetTranslation().Size();
@@ -2332,10 +2338,17 @@ void FAnimationRuntime::RetargetBoneTransform(const USkeleton* MySkeleton, const
 
 					const FTransform& RefPoseTransform = RequiredBones.GetRefPoseTransform(BoneIndex);
 
+					// Remap the base pose onto the target skeleton so that we are working entirely in target space
+					FTransform BaseTransform = AuthoredOnRefSkeleton[SourceSkeletonBoneIndex];
+					if (SkeletonRemapping)
+					{
+						BaseTransform = SkeletonRemapping->RetargetBoneTransformToTargetSkeleton(TargetSkeletonBoneIndex, BaseTransform);
+					}
+
 					// Apply the retargeting as if it were an additive difference between the current skeleton and the retarget skeleton. 
-					BoneTransform.SetRotation(BoneTransform.GetRotation() * AuthoredOnRefSkeleton[SkeletonBoneIndex].GetRotation().Inverse() * RefPoseTransform.GetRotation());
-					BoneTransform.SetTranslation(BoneTransform.GetTranslation() + (RefPoseTransform.GetTranslation() - AuthoredOnRefSkeleton[SkeletonBoneIndex].GetTranslation()));
-					BoneTransform.SetScale3D(BoneTransform.GetScale3D() * (RefPoseTransform.GetScale3D() * AuthoredOnRefSkeleton[SkeletonBoneIndex].GetSafeScaleReciprocal(AuthoredOnRefSkeleton[SkeletonBoneIndex].GetScale3D())));
+					BoneTransform.SetRotation(BoneTransform.GetRotation() * BaseTransform.GetRotation().Inverse() * RefPoseTransform.GetRotation());
+					BoneTransform.SetTranslation(BoneTransform.GetTranslation() + (RefPoseTransform.GetTranslation() - BaseTransform.GetTranslation()));
+					BoneTransform.SetScale3D(BoneTransform.GetScale3D() * (RefPoseTransform.GetScale3D() * BaseTransform.GetSafeScaleReciprocal(BaseTransform.GetScale3D())));
 					BoneTransform.NormalizeRotation();
 				}
 				break;

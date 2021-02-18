@@ -28,7 +28,7 @@ void FAnimationAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	{
 		if (UAnimationAsset* TestAsset = Cast<UAnimationAsset>(SelectionIt->Get()))
 		{
-			if (TargetSkeleton.IsValid() && TestAsset->GetSkeleton() != TargetSkeleton.Get())
+			if (TargetSkeleton.IsValid() && !TestAsset->GetSkeleton()->IsCompatible(TargetSkeleton.Get()))
 			{
 				TargetSkeleton = nullptr;
 				break;
@@ -72,9 +72,7 @@ bool FAnimationAssetDetails::ShouldFilterAsset(const FAssetData& AssetData)
 {
 	if (TargetSkeleton.IsValid())
 	{
-		FString SkeletonString = FAssetData(TargetSkeleton.Get()).GetExportTextName();
-		FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag("Skeleton");
-		return (!Result.IsSet() || SkeletonString != Result.GetValue());
+		return !TargetSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
 	}
 
 	return true;

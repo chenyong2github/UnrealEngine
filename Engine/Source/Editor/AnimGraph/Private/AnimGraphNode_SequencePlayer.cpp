@@ -312,17 +312,16 @@ bool UAnimGraphNode_SequencePlayer::IsActionFilteredOut(class FBlueprintActionFi
 		{
 			if(Node.Sequence)
 			{
-				if(Node.Sequence->GetSkeleton() != AnimBlueprint->TargetSkeleton)
+				if (!AnimBlueprint->TargetSkeleton->IsCompatible(Node.Sequence->GetSkeleton()))
 				{
-					// Sequence does not use the same skeleton as the Blueprint, cannot use
+					// Asset does not use a compatible skeleton with the Blueprint, cannot use
 					bIsFilteredOut = true;
 					break;
 				}
 			}
 			else 
 			{
-				FAssetData SkeletonData(AnimBlueprint->TargetSkeleton);
-				if(UnloadedSkeletonName != SkeletonData.GetExportTextName())
+				if (!AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(UnloadedSkeletonName))
 				{
 					bIsFilteredOut = true;
 					break;
@@ -387,10 +386,10 @@ void UAnimGraphNode_SequencePlayer::ValidateAnimNodeDuringCompilation(class USke
 	else
 	{
 		USkeleton* SeqSkeleton = SequenceToCheck->GetSkeleton();
-		if (SeqSkeleton&& // if anim sequence doesn't have skeleton, it might be due to anim sequence not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
-			!SeqSkeleton->IsCompatible(ForSkeleton))
+		if (SeqSkeleton && // if anim sequence doesn't have skeleton, it might be due to anim sequence not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
+			!ForSkeleton->IsCompatible(SeqSkeleton))
 		{
-			MessageLog.Error(TEXT("@@ references sequence that uses different skeleton @@"), this, SeqSkeleton);
+			MessageLog.Error(TEXT("@@ references sequence that uses an incompatible skeleton @@"), this, SeqSkeleton);
 		}
 	}
 }

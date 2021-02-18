@@ -434,12 +434,13 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 		// have to propagate output curve before pose asset as it can use pose curve data
 		Proxy->PropagatePreviewCurve(Output);
 
-		// if it has preview pose asset, we have to handle that after we do all animation
+		// if it has a preview pose asset, we have to handle that after we do all animation
 		if (const UPoseAsset* PoseAsset = Proxy->CurrentAsset->PreviewPoseAsset)
 		{
 			USkeleton* MySkeleton = Proxy->CurrentAsset->GetSkeleton();
+
 			// if skeleton doesn't match it won't work
-			if (PoseAsset->GetSkeleton() == MySkeleton)
+			if (MySkeleton->IsCompatible(PoseAsset->GetSkeleton()))
 			{
 				const TArray<FSmartName>& PoseNames = PoseAsset->GetPoseNames();
 

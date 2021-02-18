@@ -19,7 +19,7 @@ void FAnimNode_PoseByName::RebuildPoseList(const FBoneContainer& InBoneContainer
 	const TArray<FSmartName>& PoseNames = InPoseAsset->GetPoseNames();
 	const int32 PoseIndex = InPoseAsset->GetPoseIndexByName(PoseName);
 	TArray<uint16> const& LUTIndex = InBoneContainer.GetUIDToArrayLookupTable();
-	if (PoseIndex != INDEX_NONE && ensure(LUTIndex.IsValidIndex(PoseNames[PoseIndex].UID)) && LUTIndex[PoseNames[PoseIndex].UID] != MAX_uint16)
+	if (PoseIndex != INDEX_NONE && LUTIndex.IsValidIndex(PoseNames[PoseIndex].UID) && LUTIndex[PoseNames[PoseIndex].UID] != MAX_uint16)
 	{
 		// we keep pose index as that is the fastest way to search when extracting pose asset
 		PoseExtractContext.PoseCurves.Add(FPoseCurve(PoseIndex, PoseNames[PoseIndex].UID, 0.f));

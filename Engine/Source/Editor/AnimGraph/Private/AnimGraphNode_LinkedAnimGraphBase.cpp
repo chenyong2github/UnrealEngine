@@ -415,8 +415,7 @@ bool UAnimGraphNode_LinkedAnimGraphBase::OnShouldFilterInstanceBlueprint(const F
 	{
 		if (UAnimBlueprint* CurrentBlueprint = Cast<UAnimBlueprint>(GetBlueprint()))
 		{
-			FString TargetSkeletonName = FString::Printf(TEXT("%s'%s'"), *CurrentBlueprint->TargetSkeleton->GetClass()->GetName(), *CurrentBlueprint->TargetSkeleton->GetPathName());
-			if(Result.GetValue() != TargetSkeletonName)
+			if (!CurrentBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(Result.GetValue()))
 			{
 				return true;
 			}

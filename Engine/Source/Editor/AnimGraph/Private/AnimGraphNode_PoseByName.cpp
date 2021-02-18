@@ -123,10 +123,10 @@ void UAnimGraphNode_PoseByName::ValidateAnimNodeDuringCompilation(class USkeleto
 	else
 	{
 		USkeleton* SeqSkeleton = PoseAssetToCheck->GetSkeleton();
-		if (SeqSkeleton&& // if anim sequence doesn't have skeleton, it might be due to anim sequence not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
-			!SeqSkeleton->IsCompatible(ForSkeleton))
+		if (SeqSkeleton && // if anim sequence doesn't have skeleton, it might be due to anim sequence not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
+			!ForSkeleton->IsCompatible(SeqSkeleton))
 		{
-			MessageLog.Error(TEXT("@@ references sequence that uses different skeleton @@"), this, SeqSkeleton);
+			MessageLog.Error(TEXT("@@ references sequence that uses an incompatible skeleton @@"), this, SeqSkeleton);
 		}
 	}
 }

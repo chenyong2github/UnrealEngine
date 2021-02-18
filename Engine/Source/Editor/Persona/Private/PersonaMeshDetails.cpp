@@ -3909,10 +3909,8 @@ bool FPersonaMeshDetails::OnShouldFilterPostProcessBlueprint(const FAssetData& A
 {
 	if(USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh())
 	{
-		const FString CurrentMeshSkeletonName = FString::Printf(TEXT("%s'%s'"), *SkelMesh->GetSkeleton()->GetClass()->GetName(), *SkelMesh->GetSkeleton()->GetPathName());
 		const FString SkeletonName = AssetData.GetTagValueRef<FString>("TargetSkeleton");
-
-		return SkeletonName != CurrentMeshSkeletonName;
+		return !SkelMesh->GetSkeleton()->IsCompatibleSkeletonByAssetString(SkeletonName);
 	}
 
 	return true;
@@ -6145,10 +6143,7 @@ void FPersonaMeshDetails::OnPreviewMeshChanged(USkeletalMesh* OldSkeletalMesh, U
 
 bool FPersonaMeshDetails::FilterOutBakePose(const FAssetData& AssetData, USkeleton* Skeleton) const
 {
-	FString SkeletonName;
-	AssetData.GetTagValue("Skeleton", SkeletonName);
-	FAssetData SkeletonData(Skeleton);
-	return (SkeletonName != SkeletonData.GetExportTextName());
+	return !(Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(AssetData));
 }
 
 #undef LOCTEXT_NAMESPACE

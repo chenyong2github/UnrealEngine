@@ -271,10 +271,10 @@ public:
 	/** Trigger any anim notifies */
 	void TriggerAnimNotifies(USkeletalMeshComponent* SkelMeshComp, float DeltaSeconds);
 
-	/** Check whether the supplied skeleton is compatible with this instance's skeleton */
-	bool IsSkeletonCompatible(USkeleton const* InSkeleton) const 
-	{ 
-		return InSkeleton->IsCompatible(Skeleton); 
+	/** Check whether animation content authored on the supplied skeleton may be played on this instance's skeleton */
+	bool IsSkeletonCompatible(USkeleton const* InSkeleton) const
+	{
+		return Skeleton->IsCompatible(InSkeleton);
 	}
 
 	/** Check whether we should extract root motion */

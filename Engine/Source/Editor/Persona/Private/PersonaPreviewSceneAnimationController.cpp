@@ -7,6 +7,7 @@
 #include "IEditableSkeleton.h"
 #include "DetailWidgetRow.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Animation/Skeleton.h"
 
 void UPersonaPreviewSceneAnimationController::InitializeView(UPersonaPreviewSceneDescription* SceneDescription, IPersonaPreviewScene* PreviewScene) const
 {
@@ -25,8 +26,6 @@ IDetailPropertyRow* UPersonaPreviewSceneAnimationController::AddPreviewControlle
 	const USkeleton* Skeleton = PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh ? PersonaToolkit->GetPreviewMeshComponent()->SkeletalMesh->GetSkeleton() : nullptr;
 	if (Skeleton)
 	{
-		FString SkeletonName = FAssetData(Skeleton).GetExportTextName();
-
 		IDetailPropertyRow* NewRow = Category.AddExternalObjectProperty(ListOfPreviewController, Property->GetFName(), PropertyLocation);
 	
 		NewRow->CustomWidget()
@@ -41,7 +40,7 @@ IDetailPropertyRow* UPersonaPreviewSceneAnimationController::AddPreviewControlle
 			SNew(SObjectPropertyEntryBox)
 			.AllowedClass(UAnimationAsset::StaticClass())
 			.PropertyHandle(NewRow->GetPropertyHandle())
-			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(this, &UPersonaPreviewSceneAnimationController::HandleShouldFilterAsset, SkeletonName))
+			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(this, &UPersonaPreviewSceneAnimationController::HandleShouldFilterAsset, Skeleton))
 			.ThumbnailPool(DetailBuilder.GetThumbnailPool())
 		];
 		return NewRow;
@@ -50,10 +49,9 @@ IDetailPropertyRow* UPersonaPreviewSceneAnimationController::AddPreviewControlle
 	return nullptr;
 }
 
-bool UPersonaPreviewSceneAnimationController::HandleShouldFilterAsset(const FAssetData& InAssetData, const FString SkeletonName) const
+bool UPersonaPreviewSceneAnimationController::HandleShouldFilterAsset(const FAssetData& InAssetData, const USkeleton* InSkeleton) const
 {
-	FString SkeletonTag = InAssetData.GetTagValueRef<FString>("Skeleton");
-	if (SkeletonTag == SkeletonName)
+	if (InSkeleton && InSkeleton->IsCompatibleSkeletonByAssetData(InAssetData))
 	{
 		return false;
 	}

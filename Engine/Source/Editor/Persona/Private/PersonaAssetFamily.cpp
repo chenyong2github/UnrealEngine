@@ -255,7 +255,7 @@ bool FPersonaAssetFamily::IsAssetCompatible(const FAssetData& InAssetData) const
 	{
 		if (Class->IsChildOf<USkeleton>())
 		{
-			return FAssetData(Skeleton.Get()) == InAssetData;
+			return Skeleton.Get()->IsCompatibleSkeletonByAssetData(InAssetData);
 		}
 		else if (Class->IsChildOf<UAnimationAsset>() || Class->IsChildOf<USkeletalMesh>())
 		{
@@ -263,7 +263,10 @@ bool FPersonaAssetFamily::IsAssetCompatible(const FAssetData& InAssetData) const
 
 			if (Result.IsSet())
 			{
-				return Result.GetValue() == FAssetData(Skeleton.Get()).GetExportTextName();
+				if (Skeleton.Get())
+				{
+					return Skeleton.Get()->IsCompatibleSkeletonByAssetString(Result.GetValue());
+				}
 			}
 		}
 		else if (Class->IsChildOf<UAnimBlueprint>())
@@ -272,7 +275,7 @@ bool FPersonaAssetFamily::IsAssetCompatible(const FAssetData& InAssetData) const
 
 			if (Result.IsSet())
 			{
-				return Result.GetValue() == FAssetData(Skeleton.Get()).GetExportTextName();
+				return Skeleton.Get()->IsCompatibleSkeletonByAssetString(Result.GetValue());
 			}
 		}
 		else if (Class->IsChildOf<UPhysicsAsset>())

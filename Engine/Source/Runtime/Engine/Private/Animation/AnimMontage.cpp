@@ -425,7 +425,7 @@ void UAnimMontage::PostLoad()
 			if ( SlotAnimTracks[I].AnimTrack.AnimSegments.Num() > 0 )
 			{
 				UAnimSequenceBase* SequenceBase = SlotAnimTracks[I].AnimTrack.AnimSegments[0].AnimReference;
-				if (SequenceBase && SequenceBase->GetSkeleton() != MySkeleton )
+				if (SequenceBase && !MySkeleton->IsCompatible(SequenceBase->GetSkeleton()))
 				{
 					SlotAnimTracks[I].AnimTrack.AnimSegments[0].AnimReference = nullptr;
 					MarkPackageDirty();

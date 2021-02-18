@@ -846,9 +846,9 @@ void UAnimSequence::PostLoad()
 	// but this causes issue since once this happens this is unrecoverable until you delete from outside of editor
 	if (IsValidAdditive())
 	{
-		if (RefPoseSeq && RefPoseSeq->GetSkeleton() != GetSkeleton())
+		if (RefPoseSeq && !GetSkeleton()->IsCompatible(RefPoseSeq->GetSkeleton()))
 		{
-			// if this happens, there was a issue with retargeting, 
+			// if this happens, there was a issue with retargeting
 			UE_LOG(LogAnimation, Warning, TEXT("Animation %s - Invalid additive animation base animation (%s)"), *GetName(), *RefPoseSeq->GetName());
 			RefPoseSeq = nullptr;
 		}
@@ -1432,7 +1432,7 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 	{
 		if (bIsBakedAdditive)
 		{
-			OutPose.ResetToAdditiveIdentity(); 
+			OutPose.ResetToAdditiveIdentity();
 		}
 		else
 		{
@@ -1473,8 +1473,12 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 		}
 	}
 
-	// extract curve data . Even if no track, it can contain curve data
-	EvaluateCurveData(OutAnimationPoseData.GetCurve(), ExtractionContext.CurrentTime, bUseRawDataForPoseExtraction);
+	// Evaluate the (remapped if needed) curves.
+	// Scoped so that the RemappedCurve destructs and isn't kept alive longer than needed.
+	{
+		FSkeletonRemappingCurve RemappedCurve(OutAnimationPoseData.GetCurve(), RequiredBones, GetSkeleton());
+		EvaluateCurveData(RemappedCurve.GetCurve(), ExtractionContext.CurrentTime, bUseRawDataForPoseExtraction);
+	}
 
 #if WITH_EDITOR
 	ValidateModel();

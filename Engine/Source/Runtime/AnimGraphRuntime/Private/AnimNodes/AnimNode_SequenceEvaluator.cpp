@@ -97,7 +97,7 @@ void FAnimNode_SequenceEvaluator::Evaluate_AnyThread(FPoseContext& Output)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	check(Output.AnimInstanceProxy != nullptr);
-	if ((Sequence != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton())))
+	if ((Sequence != nullptr) && Output.AnimInstanceProxy->IsSkeletonCompatible(Sequence->GetSkeleton()))
 	{
 		FAnimationPoseData AnimationPoseData(Output);
 		Sequence->GetAnimationPose(AnimationPoseData, FAnimExtractContext(InternalTimeAccumulator, Output.AnimInstanceProxy->ShouldExtractRootMotion()));

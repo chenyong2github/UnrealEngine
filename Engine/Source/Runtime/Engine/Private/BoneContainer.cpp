@@ -9,6 +9,44 @@
 DEFINE_LOG_CATEGORY(LogSkeletalControl);
 
 //////////////////////////////////////////////////////////////////////////
+// FSkeletonRemappingCurve
+
+FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, const FBoneContainer& InBoneContainer, const FSkeletonRemapping* InSkeletonRemapping)
+	: Curve(InCurve)
+	, BoneContainer(InBoneContainer)
+	, bIsRemapping(true)
+{
+	const FCachedSkeletonCurveMapping& CurveMapping = InBoneContainer.GetOrCreateCachedCurveMapping(InSkeletonRemapping);
+	Curve.UIDToArrayIndexLUT = &CurveMapping.UIDToArrayIndices;
+}
+
+FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, const FBoneContainer& InBoneContainer, const USkeleton* SourceSkeleton)
+	: Curve(InCurve)
+	, BoneContainer(InBoneContainer)
+{
+	const FSkeletonRemapping* SkeletonRemapping = BoneContainer.GetSkeletonAsset()->GetSkeletonRemapping(SourceSkeleton);
+	if (SkeletonRemapping) // No remapping is required, just continue as we normally would.
+	{
+		const FCachedSkeletonCurveMapping& CurveMapping = BoneContainer.GetOrCreateCachedCurveMapping(SkeletonRemapping);
+		Curve.UIDToArrayIndexLUT = &CurveMapping.UIDToArrayIndices;
+		bIsRemapping = true;
+	}
+	else
+	{
+		bIsRemapping = false;
+	}
+}
+
+FSkeletonRemappingCurve::~FSkeletonRemappingCurve()
+{
+	if (bIsRemapping)
+	{
+		Curve.UIDToArrayIndexLUT = &BoneContainer.GetUIDToArrayLookupTableBackup();
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////
 // FBoneContainer
 
 FBoneContainer::FBoneContainer()
@@ -290,6 +328,64 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 	{
 		UIDToArrayIndexLUT.Reset();
 	}
+
+	// Make a backup, used for skeleton remapping of curves.
+	UIDToArrayIndexLUTBackup = UIDToArrayIndexLUT;
+
+	// Make sure we regenerate our cached curve mappings next time they are requested.
+	MarkAllCachedCurveMappingsDirty();
+}
+
+void FBoneContainer::MarkAllCachedCurveMappingsDirty()
+{
+	for (auto& CurveMapping : CachedCurveMappingTable)
+	{
+		CurveMapping.Value.bIsDirty = true;
+	}
+}
+
+const FCachedSkeletonCurveMapping& FBoneContainer::GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping) const
+{
+	check(SkeletonRemapping);
+
+	const USkeleton* SourceSkeleton = SkeletonRemapping->GetSourceSkeleton().Get();
+	check(SourceSkeleton);
+
+	// Check if we already have some cached data for this skeleton.
+	FCachedSkeletonCurveMapping* CachedData = CachedCurveMappingTable.Find(SourceSkeleton);
+	if (CachedData)
+	{
+		// Only return the object when we don't need to update its mapping.
+		if (!CachedData->bIsDirty)
+		{
+			return *CachedData;
+		}
+	}
+	else
+	{
+		CachedData = &CachedCurveMappingTable.Add(const_cast<USkeleton*>(SourceSkeleton));
+	}
+
+	UE_LOG(LogAnimation, Verbose, TEXT("Generating mapping for %s to %s"), 
+		*FAssetData(SkeletonRemapping->GetSourceSkeleton().Get()).AssetName.ToString(),
+		*FAssetData(SkeletonRemapping->GetTargetSkeleton().Get()).AssetName.ToString());
+
+	CachedData->UIDToArrayIndices = SkeletonRemapping->GetSourceToTargetCurveMapping();
+
+	// Now remap the UIDs to our local curve indexes.
+	const int32 NumMappings = CachedData->UIDToArrayIndices.Num();
+	for (int32 MappingIndex = 0; MappingIndex < NumMappings; ++MappingIndex)
+	{
+		const SmartName::UID_Type CurrentUID = CachedData->UIDToArrayIndices[MappingIndex];
+		if (CurrentUID != MAX_uint16)
+		{
+			const int32 CurveIndex = UIDToArrayIndexLUT.Find(CurrentUID);
+			CachedData->UIDToArrayIndices[MappingIndex] = (CurveIndex != INDEX_NONE) ? static_cast<SmartName::UID_Type>(CurveIndex) : MAX_uint16;
+		}
+	}
+
+	CachedData->bIsDirty = false;
+	return *CachedData;
 }
 
 const FRetargetSourceCachedData& FBoneContainer::GetRetargetSourceCachedData(const FName& InRetargetSourceName) const

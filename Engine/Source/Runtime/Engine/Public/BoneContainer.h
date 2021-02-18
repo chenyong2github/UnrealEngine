@@ -13,6 +13,9 @@
 class USkeletalMesh;
 class USkeleton;
 class USkeletalMesh;
+struct FBoneContainer;
+struct FSkeletonRemapping;
+struct FBlendedCurve;
 
 /** in the future if we need more bools, please convert to bitfield 
  * These are not saved in asset but per skeleton. 
@@ -90,6 +93,58 @@ struct FOrientAndScaleRetargetingCachedData
 	{
 	}
 };
+
+/**
+ * An array of cached curve remappings. This is used to remap curves between skeletons.
+ * It is used in the FBoneContainer and is generated using a lazy approach. 
+ */
+struct FCachedSkeletonCurveMapping
+{
+	TArray<SmartName::UID_Type>	UIDToArrayIndices; /** The mapping table used for mapping curves. This is indexed by UID and returns the curve index, or MAX_uint16 in case its not used. */
+	bool bIsDirty = true; /** Specifies whether we need to rebuild this cached data or not. */
+};
+
+/**
+ * A scoped curve remapping.
+ * This object is used in a RAII pattern. It initializes the curve remapping on the provided curve.
+ * When the object gets destructed it will automatically revert the remapping on the curve object.
+ * 
+ * Usage would be something like this:
+ * \code{.cpp}
+ * FSkeletonRemapping* Mapping = TargetSkeleton->GetSkeletonRemapping(SourceSkeleton);
+ * if (Mapping)
+ * {
+ *		FSkeletonRemappingCurve Context(BlendedCurve, RequiredBones, Mapping);
+ *		EvaluateCurveData(BlendedCurve);
+ * }
+ * \endcode
+ * 
+ * @param InCurve The curve object that will be used during sampling of the animation data. We will modify its UIDToArrayIndexLUT member to point to a remapped version.
+ * @param InBoneContainer The bone container that we're using. This stores the remappings.
+ * @param InSkeletonMapping The skeleton mapping to use. This can be requested with USkeleton::GetSkeletonRemapping(SourceSkeleton).
+ */
+struct FSkeletonRemappingCurve
+{
+public:
+	FSkeletonRemappingCurve() = delete;
+	FSkeletonRemappingCurve(const FSkeletonRemappingCurve&) = delete;
+	FSkeletonRemappingCurve(FSkeletonRemappingCurve&&) = delete;
+	FSkeletonRemappingCurve(FBlendedCurve& InCurve, const FBoneContainer& InBoneContainer, const FSkeletonRemapping* InSkeletonMapping);
+	FSkeletonRemappingCurve(FBlendedCurve& InCurve, const FBoneContainer& InBoneContainer, const USkeleton* SourceSkeleton);
+	~FSkeletonRemappingCurve();
+
+	FSkeletonRemappingCurve& operator = (const FSkeletonRemappingCurve&) = delete;
+	FSkeletonRemappingCurve& operator = (FSkeletonRemappingCurve&&) = delete;
+
+	FBlendedCurve& GetCurve() { return Curve;  }
+	const FBlendedCurve& GetCurve() const { return Curve; }
+
+private:
+	FBlendedCurve& Curve;
+	const FBoneContainer& BoneContainer;
+	bool bIsRemapping = false;
+};
+
 
 /** Retargeting cached data for a specific Retarget Source */
 struct FRetargetSourceCachedData
@@ -333,6 +388,12 @@ public:
 		return UIDToCurveTypeLUT;
 	}
 
+	/** Get the array that maps UIDs to array indexes. */
+	TArray<SmartName::UID_Type> const& GetUIDToArrayLookupTableBackup() const
+	{
+		return UIDToArrayIndexLUTBackup;
+	}
+
 	/**
 	* Serializes the bones
 	*
@@ -410,7 +471,17 @@ public:
 	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InRetargetSource) const;
 	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InSourceName, const TArray<FTransform>& InRetargetTransforms) const;
 
+	// Curve remapping
+	const FCachedSkeletonCurveMapping& GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping) const;
+	void MarkAllCachedCurveMappingsDirty();
+
 private:
+	/** The map of cached curve mapping indexes, which is used for skeleton remapping. The key of this table is the source skeleton of the asset we are sampling curve values from. */
+	mutable TMap<USkeleton*, FCachedSkeletonCurveMapping> CachedCurveMappingTable;
+
+	/** The backup of the original UIDToArrayIndexLUT array. This is needed for skeleton remapping curves, as we have to modify this array and later need to restore it again. */
+	TArray<SmartName::UID_Type> UIDToArrayIndexLUTBackup;
+
 	/** 
 	 * Runtime cached data for retargeting from a specific RetargetSource to this current SkelMesh LOD.
 	 * @todo: We could also cache this once per skelmesh per lod, rather than creating it at runtime for each skelmesh instance.

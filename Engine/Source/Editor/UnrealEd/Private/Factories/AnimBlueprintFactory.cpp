@@ -30,8 +30,6 @@
 #include "AssetData.h"
 #include "Editor.h"
 #include "Kismet2/KismetEditorUtilities.h"
-
-
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "ClassViewerModule.h"

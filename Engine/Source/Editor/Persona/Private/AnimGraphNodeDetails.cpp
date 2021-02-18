@@ -262,7 +262,7 @@ TSharedRef<SWidget> FAnimGraphNodeDetails::CreatePropertyWidget(FProperty* Targe
 bool FAnimGraphNodeDetails::OnShouldFilterAnimAsset( const FAssetData& AssetData, UClass* NodeToFilterFor ) const
 {
 	FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag("Skeleton");
-	if (Result.IsSet() && Result.GetValue() == TargetSkeletonName)
+	if (Result.IsSet() && TargetSkeleton && TargetSkeleton->IsCompatibleSkeletonByAssetData(AssetData))
 	{
 		const UClass* AssetClass = AssetData.GetClass();
 		// If node is an 'asset player', only let you select the right kind of asset for it
@@ -1020,18 +1020,8 @@ TSharedRef<SWidget> SParentPlayerTreeRow::GenerateWidgetForColumn(const FName& C
 
 bool SParentPlayerTreeRow::OnShouldFilterAsset(const FAssetData& AssetData)
 {
-	const FString SkeletonName = AssetData.GetTagValueRef<FString>("Skeleton");
-
-	if(!SkeletonName.IsEmpty())
-	{
-		USkeleton* CurrentSkeleton = GraphNode->GetAnimBlueprint()->TargetSkeleton;
-		if(SkeletonName == FString::Printf(TEXT("%s'%s'"), *CurrentSkeleton->GetClass()->GetName(), *CurrentSkeleton->GetPathName()))
-		{
-			return false;
-		}
-	}
-
-	return true;
+	const USkeleton* CurrentSkeleton = GraphNode->GetAnimBlueprint()->TargetSkeleton;
+	return !CurrentSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
 }
 
 void SParentPlayerTreeRow::OnAssetSelected(const FAssetData& AssetData)

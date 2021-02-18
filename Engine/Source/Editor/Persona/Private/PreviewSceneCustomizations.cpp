@@ -23,6 +23,7 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "Animation/AnimBlueprint.h"
+#include "Animation/Skeleton.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SComboBox.h"
 #include "PhysicsEngine/PhysicsAsset.h"
@@ -523,8 +524,10 @@ bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset(const FAsset
 		return false;
 	}
 
-	FString SkeletonTag = InAssetData.GetTagValueRef<FString>(InTag);
-	if (SkeletonName.IsEmpty() || SkeletonTag == SkeletonName)
+	const UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScene.Pin()->GetPreviewSceneDescription();
+	const USkeleton* Skeleton = PersonaPreviewSceneDescription->PreviewMesh->GetSkeleton();
+	const FString SkeletonTag = InAssetData.GetTagValueRef<FString>(InTag);
+	if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetString(SkeletonTag))
 	{
 		return false;
 	}
@@ -676,7 +679,7 @@ void FPreviewMeshCollectionEntryCustomization::CustomizeHeader(TSharedRef<IPrope
 	if (OuterObjects[0] != nullptr)
 	{
 		FString SkeletonName = FAssetData(CastChecked<UPreviewMeshCollection>(OuterObjects[0])->Skeleton).GetExportTextName();
-
+		USkeleton* Skeleton = CastChecked<UPreviewMeshCollection>(OuterObjects[0])->Skeleton;
 		PropertyHandle->GetParentHandle()->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPreviewMeshCollectionEntryCustomization::HandleMeshesArrayChanged, CustomizationUtils.GetPropertyUtilities()));
 
 		TSharedPtr<IPropertyHandle> SkeletalMeshProperty = PropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FPreviewMeshCollectionEntry, SkeletalMesh));
@@ -693,7 +696,7 @@ void FPreviewMeshCollectionEntryCustomization::CustomizeHeader(TSharedRef<IPrope
 				SNew(SObjectPropertyEntryBox)
 				.AllowedClass(USkeletalMesh::StaticClass())
 				.PropertyHandle(SkeletalMeshProperty)
-				.OnShouldFilterAsset(this, &FPreviewMeshCollectionEntryCustomization::HandleShouldFilterAsset, SkeletonName)
+				.OnShouldFilterAsset(this, &FPreviewMeshCollectionEntryCustomization::HandleShouldFilterAsset, SkeletonName, Skeleton)
 				.OnObjectChanged(this, &FPreviewMeshCollectionEntryCustomization::HandleMeshChanged)
 				.ThumbnailPool(CustomizationUtils.GetThumbnailPool())
 			];
@@ -701,15 +704,14 @@ void FPreviewMeshCollectionEntryCustomization::CustomizeHeader(TSharedRef<IPrope
 	}
 }
 
-bool FPreviewMeshCollectionEntryCustomization::HandleShouldFilterAsset(const FAssetData& InAssetData, FString SkeletonName)
+bool FPreviewMeshCollectionEntryCustomization::HandleShouldFilterAsset(const FAssetData& InAssetData, FString SkeletonName, USkeleton* Skeleton)
 {
 	if (GetDefault<UPersonaOptions>()->bAllowPreviewMeshCollectionsToSelectFromDifferentSkeletons)
 	{
 		return false;
 	}
 
-	FString SkeletonTag = InAssetData.GetTagValueRef<FString>("Skeleton");
-	if (SkeletonTag == SkeletonName)
+	if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(InAssetData))
 	{
 		return false;
 	}

@@ -213,7 +213,7 @@ void FPersonaToolkit::SetAnimationAsset(class UAnimationAsset* InAnimationAsset)
 {
 	if (InAnimationAsset != nullptr)
 	{
-		check(InAnimationAsset->GetSkeleton() == Skeleton);
+		check(Skeleton->IsCompatible(InAnimationAsset->GetSkeleton()));
 	}
 
 	AnimationAsset = InAnimationAsset;

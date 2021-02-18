@@ -424,7 +424,7 @@ public:
 				{
 					// Store the compatible skeleton's name, and create a property widget with a filter that will check
 					// for animations that match that skeleton.
-					USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(Params.ParentObjectBindingGuid, Params.Sequencer);
+					Skeleton = AcquireSkeletonFromObjectGuid(Params.ParentObjectBindingGuid, Params.Sequencer);
 					SkeletonName = FAssetData(Skeleton).GetExportTextName();
 
 					TSharedPtr<IPropertyUtilities> PropertyUtilities = CustomizationUtils.GetPropertyUtilities();
@@ -463,21 +463,13 @@ public:
 			return true;
 		}
 
-		if (!SkeletonName.IsEmpty())
-		{
-			const FString& SkeletonTag = AssetData.GetTagValueRef<FString>(TEXT("Skeleton"));
-			if (SkeletonTag != SkeletonName)
-			{
-				return true;
-			}
-		}
-
-		return false;
+		return !(Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(AssetData));
 	}
 
 private:
 	FSequencerSectionPropertyDetailsViewCustomizationParams Params;
 	FString SkeletonName;
+	USkeleton* Skeleton = nullptr;
 };
 
 
@@ -1085,7 +1077,7 @@ bool FSkeletalAnimationTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid
 		{
 			USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(TargetObjectGuid, GetSequencer());
 
-			if (Skeleton && Skeleton == AnimSequence->GetSkeleton())
+			if (Skeleton && Skeleton->IsCompatible(AnimSequence->GetSkeleton()))
 			{
 				UObject* Object = SequencerPtr->FindSpawnedObjectOrTemplate(TargetObjectGuid);
 				
@@ -1758,7 +1750,7 @@ bool FSkeletalAnimationTrackEditor::OnAllowDrop(const FDragDropEvent& DragDropEv
 		UAnimSequenceBase* AnimSequence = Cast<UAnimSequenceBase>(AssetData.GetAsset());
 
 		const bool bValidAnimSequence = AnimSequence && AnimSequence->CanBeUsedInComposition();
-		if (bValidAnimSequence && Skeleton && Skeleton == AnimSequence->GetSkeleton())
+		if (bValidAnimSequence && Skeleton && Skeleton->IsCompatible(AnimSequence->GetSkeleton()))
 		{
 			return true;
 		}
@@ -1800,7 +1792,7 @@ FReply FSkeletalAnimationTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent
 	{
 		UAnimSequenceBase* AnimSequence = Cast<UAnimSequenceBase>(AssetData.GetAsset());
 		const bool bValidAnimSequence = AnimSequence && AnimSequence->CanBeUsedInComposition();
-		if (bValidAnimSequence && Skeleton && Skeleton == AnimSequence->GetSkeleton())
+		if (bValidAnimSequence && Skeleton && Skeleton->IsCompatible(AnimSequence->GetSkeleton()))
 		{
 			UObject* Object = GetSequencer()->FindSpawnedObjectOrTemplate(TargetObjectGuid);
 				

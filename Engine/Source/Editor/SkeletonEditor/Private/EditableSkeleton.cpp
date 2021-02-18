@@ -266,7 +266,9 @@ bool FEditableSkeleton::AddSmartname(const FName& InContainerName, const FName& 
 {
 	if (const FSmartNameMapping* NameMapping = Skeleton->GetSmartNameContainer(InContainerName))
 	{
-		return Skeleton->AddSmartNameAndModify(InContainerName, InNewName, OutSmartName);
+		const bool bResult = Skeleton->AddSmartNameAndModify(InContainerName, InNewName, OutSmartName);
+		OnSmartNameChanged.Broadcast(OutSmartName.DisplayName);
+		return bResult;
 	}
 
 	return false;

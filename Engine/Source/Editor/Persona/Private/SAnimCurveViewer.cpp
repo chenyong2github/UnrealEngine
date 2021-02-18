@@ -1167,6 +1167,7 @@ void SAnimCurveViewer::HandleSmartNamesChange(const FName& InContainerName)
 {
 	AnimCurveList.Empty();
 	RefreshCurveList(true);
+	EditableSkeletonPtr.Pin()->GetSkeleton().OnSmartNamesChangedEvent.Broadcast();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -12,6 +12,7 @@ struct FAssetData;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SComboButton;
+class USkeleton;
 
 class DETAILCUSTOMIZATIONS_API FSkeletalMeshComponentDetails : public IDetailCustomization
 {
@@ -98,6 +99,9 @@ private:
 
 	/** Full name of the currently selected skeleton to use for filtering animation assets */
 	FString SelectedSkeletonName;
+
+	/** The skeleton that we grab the name from for filtering. */
+	USkeleton* Skeleton;
 
 	/** Current enabled state of the animation asset picker in the details panel */
 	bool bAnimPickerEnabled;

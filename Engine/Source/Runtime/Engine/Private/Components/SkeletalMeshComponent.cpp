@@ -729,7 +729,7 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 
 		const bool bClearAnimInstance = AnimScriptInstance && !AnimSkeleton;
 		const bool bSkeletonMismatch = AnimSkeleton && (AnimScriptInstance->CurrentSkeleton!=SkeletalMesh->GetSkeleton());
-		const bool bSkeletonNotCompatible = AnimSkeleton && !bSkeletonMismatch && (AnimSkeleton->IsCompatibleMesh(SkeletalMesh) == false);
+		const bool bSkeletonNotCompatible = AnimSkeleton && !bSkeletonMismatch && !SkeletalMesh->GetSkeleton()->IsCompatible(AnimSkeleton);
 
 		LastPoseTickFrame = 0;
 
@@ -1031,7 +1031,7 @@ void USkeletalMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& Prope
 		if ( PropertyThatChanged->GetFName() == GET_MEMBER_NAME_CHECKED( FSingleAnimationPlayData, AnimToPlay ))
 		{
 			// make sure the animation skeleton matches the current skeletalmesh
-			if (AnimationData.AnimToPlay != nullptr && SkeletalMesh && AnimationData.AnimToPlay->GetSkeleton() != SkeletalMesh->GetSkeleton())
+			if (AnimationData.AnimToPlay != nullptr && SkeletalMesh && !SkeletalMesh->GetSkeleton()->IsCompatible(AnimationData.AnimToPlay->GetSkeleton()))
 			{
 				UE_LOG(LogAnimation, Warning, TEXT("Invalid animation"));
 				AnimationData.AnimToPlay = nullptr;
@@ -3638,7 +3638,7 @@ void USkeletalMeshComponent::ValidateAnimation()
 
 	if(AnimationMode == EAnimationMode::AnimationSingleNode)
 	{
-		if(AnimationData.AnimToPlay && SkeletalMesh && AnimationData.AnimToPlay->GetSkeleton() != SkeletalMesh->GetSkeleton())
+		if(AnimationData.AnimToPlay && SkeletalMesh && !AnimationData.AnimToPlay->GetSkeleton()->IsCompatible(SkeletalMesh->GetSkeleton()))
 		{
 			if (SkeletalMesh->GetSkeleton())
 			{
@@ -3655,7 +3655,7 @@ void USkeletalMeshComponent::ValidateAnimation()
 	else if (AnimationMode == EAnimationMode::AnimationBlueprint)
 	{
 		IAnimClassInterface* AnimClassInterface = IAnimClassInterface::GetFromClass(AnimClass);
-		if (AnimClassInterface && SkeletalMesh && AnimClassInterface->GetTargetSkeleton() != SkeletalMesh->GetSkeleton())
+		if (AnimClassInterface && SkeletalMesh && !AnimClassInterface->GetTargetSkeleton()->IsCompatible(SkeletalMesh->GetSkeleton()))
 		{
 			if(SkeletalMesh->GetSkeleton())
 			{

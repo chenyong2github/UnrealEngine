@@ -300,10 +300,10 @@ bool FBlendSampleDetails::ShouldFilterAssetStatic(const FAssetData& AssetData, c
 	FString SkeletonName;
 	if (AssetData.GetTagValue(SkeletonTagName, SkeletonName))
 	{
-		// Check whether or not the skeletons match
-		if (SkeletonName.Contains(BlendSpaceBase->GetSkeleton()->GetPathName()))
+		// Check whether or not the skeletons are compatible
+		if (BlendSpaceBase->GetSkeleton()->IsCompatibleSkeletonByAssetData(AssetData))
 		{
-			// If so check if the additive animation tpye is compatible with the blend space
+			// If so check if the additive animation type is compatible with the blend space
 			const FName AdditiveTypeTagName = GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType);
 			FString AnimationTypeName;
 			if (AssetData.GetTagValue(AdditiveTypeTagName, AnimationTypeName))

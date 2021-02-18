@@ -9,6 +9,7 @@
 #include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/Skeleton.h"
 #include "ObjectEditorUtils.h"
 
 /////////////////////////////////////////////////////
@@ -54,8 +55,6 @@ void FAnimInstanceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBu
 	// If everything uses the same skeleton we can filter based on that skeleton
 	if (TargetSkeleton)
 	{
-		TargetSkeletonName = FString::Printf(TEXT("%s'%s'"), *TargetSkeleton->GetClass()->GetName(), *TargetSkeleton->GetPathName());
-
 		for (TFieldIterator<FProperty> It(CommonBaseClass, EFieldIteratorFlags::IncludeSuper); It; ++It)
 		{
 			FProperty* TargetProperty = *It;
@@ -72,7 +71,7 @@ void FAnimInstanceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBu
 				FDetailWidgetRow Row;
 				PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
 
-				TSharedRef<SWidget> TempWidget = CreateFilteredObjectPropertyWidget(TargetProperty, TargetPropertyHandle);
+				TSharedRef<SWidget> TempWidget = CreateFilteredObjectPropertyWidget(TargetProperty, TargetPropertyHandle, TargetSkeleton);
 				ValueWidget = (TempWidget == SNullWidget::NullWidget) ? ValueWidget : TempWidget;
 
 				const bool bShowChildren = true;
@@ -94,7 +93,7 @@ void FAnimInstanceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBu
 	}
 }
 
-TSharedRef<SWidget> FAnimInstanceDetails::CreateFilteredObjectPropertyWidget(FProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle)
+TSharedRef<SWidget> FAnimInstanceDetails::CreateFilteredObjectPropertyWidget(FProperty* TargetProperty, TSharedRef<IPropertyHandle> TargetPropertyHandle, const USkeleton* TargetSkeleton)
 {
 	if(const FObjectPropertyBase* ObjectProperty = CastField<const FObjectPropertyBase>( TargetProperty ))
 	{
@@ -106,15 +105,14 @@ TSharedRef<SWidget> FAnimInstanceDetails::CreateFilteredObjectPropertyWidget(FPr
 				.PropertyHandle(TargetPropertyHandle)
 				.AllowedClass(ObjectProperty->PropertyClass)
 				.AllowClear(bAllowClear)
-				.OnShouldFilterAsset(FOnShouldFilterAsset::CreateSP(this, &FAnimInstanceDetails::OnShouldFilterAnimAsset));
+				.OnShouldFilterAsset(this, &FAnimInstanceDetails::OnShouldFilterAnimAsset, TargetSkeleton);
 		}
 	}
 
 	return SNullWidget::NullWidget;
 }
 
-bool FAnimInstanceDetails::OnShouldFilterAnimAsset(const FAssetData& AssetData) const
+bool FAnimInstanceDetails::OnShouldFilterAnimAsset(const FAssetData& AssetData, const USkeleton* TargetSkeleton) const
 {
-	const FString SkeletonName = AssetData.GetTagValueRef<FString>("Skeleton");
-	return SkeletonName != TargetSkeletonName;
+	return !(TargetSkeleton && TargetSkeleton->IsCompatibleSkeletonByAssetData(AssetData));
 }
