@@ -2,7 +2,7 @@
 
 #include "Types/SlateAttributeDescriptor.h"
 #include "Types/SlateAttribute.h"
-#include "Misc/MemStack.h"
+#include "Containers/ArrayView.h"
 
 
 FSlateAttributeDescriptor::FInitializer::FAttributeEntry::FAttributeEntry(FSlateAttributeDescriptor& InDescriptor, int32 InAttributeIndex)
@@ -67,7 +67,7 @@ FSlateAttributeDescriptor::FInitializer::~FInitializer()
 		int32 PrerequisitesIndex;
 		int32 Depth = -1;
 
-		void CalculateDepth(TArray<FPrerequisiteSort, TMemStackAllocator<>>& Prerequisites)
+		void CalculateDepth(TArrayView<FPrerequisiteSort> Prerequisites)
 		{
 			if (Depth < 0)
 			{
@@ -101,8 +101,7 @@ FSlateAttributeDescriptor::FInitializer::~FInitializer()
 		}
 	};
 
-	FMemMark Mark(FMemStack::Get());
-	TArray<FPrerequisiteSort, TMemStackAllocator<>> Prerequisites;
+	TArray<FPrerequisiteSort, TInlineAllocator<16>> Prerequisites;
 	Prerequisites.Reserve(Descriptor.Attributes.Num());
 
 	bool bHavePrerequisite = false;
@@ -289,8 +288,7 @@ void FSlateAttributeDescriptor::SetPrerequisite(FSlateAttributeDescriptor::FAttr
 
 			// Verify recursion
 			{
-				FMemMark Mark(FMemStack::Get());
-				TArray<FName, TMemStackAllocator<>> Recursion;
+				TArray<FName, TInlineAllocator<16>> Recursion;
 				Recursion.Reserve(Attributes.Num());
 				FAttribute const* CurrentAttribute = &Attribute;
 				while (!CurrentAttribute->Prerequisite.IsNone())
