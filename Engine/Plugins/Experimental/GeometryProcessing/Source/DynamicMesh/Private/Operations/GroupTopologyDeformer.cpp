@@ -278,7 +278,7 @@ void FGroupTopologyDeformer::ComputeEncoding()
 				VtxEncoding.Weights[k] /= WeightSum;
 				Reconstruct += VtxEncoding.Weights[k] * (Mesh->GetVertex(Face.BoundaryVerts[k]) + VtxEncoding.Deltas[k]);
 			}
-			check(Reconstruct.Distance(Pos) < 0.0001);
+			checkSlow(Reconstruct.Distance(Pos) < 0.0001);   // sanity check
 		}
 	}
 }
