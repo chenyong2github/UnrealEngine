@@ -2925,7 +2925,7 @@ void UEditorEngine::ToggleSelectedActorMovementLock()
 
 		// If nothing is locked then we'll turn on locked for all selected actors
 		// Otherwise, we'll turn off locking for any actors that are locked
-		Actor->bLockLocation = !bFoundLockedActor;
+		Actor->SetLockLocation(!bFoundLockedActor);
 
 		LevelDirtyCallback.Request();
 	}
@@ -2943,7 +2943,7 @@ bool UEditorEngine::HasLockedActors()
 			AActor* Actor = Cast<AActor>( *It );
 			checkSlow( Actor );
 
-			if( Actor->bLockLocation )
+			if( Actor->IsLockLocation() )
 			{
 				bHasLockedActors = true;
 				break;

@@ -827,6 +827,12 @@ public:
 	/** Returns this actor's current Guid. Actor Guids are only available in development builds. */
 	inline const FGuid& GetActorGuid() const { return ActorGuid; }
 
+	/** Returns true if actor location should be locked. */
+	virtual bool IsLockLocation() const { return bLockLocation; }
+
+	/** Set the bLockLocation flag */
+	void SetLockLocation(bool bInLockLocation) { bLockLocation = bInLockLocation; }
+
 private:
 	friend class UActorDescContainer;
 
@@ -885,15 +891,15 @@ public:
 	/** Whether this actor is hidden by the level browser. */
 	UPROPERTY(Transient)
 	uint8 bHiddenEdLevel:1;
-
-	/** If true, prevents the actor from being moved in the editor viewport. */
-	UPROPERTY()
-	uint8 bLockLocation:1;
-
+		
 	/** If true during PostEditMove the construction script will be run every time. If false it will only run when the drag finishes. */
 	uint8 bRunConstructionScriptOnDrag:1;
 
 protected:
+	/** If true, prevents the actor from being moved in the editor viewport. */
+	UPROPERTY()
+	uint8 bLockLocation:1;
+
 	/** Is the actor label editable by the user? */
 	UPROPERTY()
 	uint8 bActorLabelEditable:1; 

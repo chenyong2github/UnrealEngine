@@ -3184,7 +3184,9 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 			checkf(!LandscapeActor || LandscapeActor == Landscape, TEXT("Multiple landscapes with the same GUID detected: %s vs %s"), *LandscapeActor->GetPathName(), *Landscape->GetPathName());
 			LandscapeActor = Landscape;
 			// In world composition user is not allowed to move landscape in editor, only through WorldBrowser 
-			LandscapeActor->bLockLocation |= OwningWorld != nullptr ? OwningWorld->WorldComposition != nullptr : false;
+			bool bIsLockLocation = LandscapeActor->IsLockLocation();
+			bIsLockLocation |= OwningWorld != nullptr ? OwningWorld->WorldComposition != nullptr : false;
+			LandscapeActor->SetLockLocation(bIsLockLocation);
 
 			// update proxies reference actor
 			for (ALandscapeStreamingProxy* StreamingProxy : Proxies)

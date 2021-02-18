@@ -271,7 +271,7 @@ public:
 			FVector CellCenter(CellBounds.GetCenter());
 			FoundActor = CastChecked<APartitionActor>(World->SpawnActor(InActorPartitionId.GetClass(), &CellCenter, nullptr, SpawnParams));
 			FoundActor->GridSize = InGridSize;
-			FoundActor->bLockLocation = true;
+			FoundActor->SetLockLocation(true);
 			
 			InActorCreated(FoundActor);
 

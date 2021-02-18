@@ -24,6 +24,7 @@ ALevelInstance::ALevelInstance(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	, CachedLevelInstanceID(InvalidLevelInstanceID)
 	, bGuardLoadUnload(false)
+	, bEditLockLocation(false)
 #endif
 	, LevelInstanceID(InvalidLevelInstanceID)
 {
@@ -207,12 +208,12 @@ AActor* ALevelInstance::FindEditorInstanceActor() const
 
 void ALevelInstance::OnEdit()
 {
-	bLockLocation = true;
+	bEditLockLocation = true;
 }
 
 void ALevelInstance::OnCommit()
 {
-	bLockLocation = false;
+	bEditLockLocation = false;
 }
 
 ALevelInstance::FOnLevelInstanceActorPostLoad ALevelInstance::OnLevelInstanceActorPostLoad;
@@ -220,7 +221,7 @@ ALevelInstance::FOnLevelInstanceActorPostLoad ALevelInstance::OnLevelInstanceAct
 void ALevelInstance::PostLoad()
 {
 	Super::PostLoad();
-
+		
 	OnLevelInstanceActorPostLoad.Broadcast(this);
 }
 
@@ -579,6 +580,11 @@ void ALevelInstance::GetActorLocationBounds(bool bOnlyCollidingComponents, FVect
 			LevelInstanceBounds.GetCenterAndExtents(Origin, BoxExtent);
 		}
 	}
+}
+
+bool ALevelInstance::IsLockLocation() const
+{
+	return Super::IsLockLocation() || bEditLockLocation;
 }
 
 FBox ALevelInstance::GetComponentsBoundingBox(bool bNonColliding, bool bIncludeFromChildActors) const

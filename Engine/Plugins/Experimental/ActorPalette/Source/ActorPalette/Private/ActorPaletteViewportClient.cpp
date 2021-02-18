@@ -81,7 +81,7 @@ bool FActorPaletteViewportClient::InputKey(FViewport* InViewport, int32 Controll
 
 			if (HActor* ActorProxy = HitProxyCast<HActor>(HitProxy))
 			{
-				if ((ActorProxy->Actor != nullptr) && !ActorProxy->Actor->bLockLocation)
+				if ((ActorProxy->Actor != nullptr) && !ActorProxy->Actor->IsLockLocation())
 				{
 					TArray<UObject*> Assets;
 					ActorProxy->Actor->GetReferencedContentObjects(Assets);

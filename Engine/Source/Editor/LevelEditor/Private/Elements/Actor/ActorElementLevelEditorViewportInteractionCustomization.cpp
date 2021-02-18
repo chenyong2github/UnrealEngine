@@ -127,7 +127,7 @@ bool FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInVie
 	}
 
 	// The actor cannot be location locked
-	if (InActor->bLockLocation)
+	if (InActor->IsLockLocation())
 	{
 		return false;
 	}

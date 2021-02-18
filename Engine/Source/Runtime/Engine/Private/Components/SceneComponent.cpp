@@ -3355,7 +3355,7 @@ bool USceneComponent::CanEditChange( const FProperty* Property ) const
 			   Property->GetFName() == TEXT( "RelativeRotation" ) ||
 			   Property->GetFName() == TEXT( "RelativeScale3D" ))
 			{
-				bIsEditable = !Owner->bLockLocation;
+				bIsEditable = !Owner->IsLockLocation();
 			}
 		}
 

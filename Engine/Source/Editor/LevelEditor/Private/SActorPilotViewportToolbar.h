@@ -50,7 +50,7 @@ public:
 			Pilot = ViewportPtr->GetLevelViewportClient().GetActiveActorLock().Get();
 		}
 
-		return Pilot && Pilot->bLockLocation ? EVisibility::Visible : EVisibility::Collapsed;
+		return Pilot && Pilot->IsLockLocation() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
 	void Construct(const FArguments& InArgs)
