@@ -3949,7 +3949,11 @@ static void BuildNaniteMaterialPassCommands(
 		{
 			const FMeshDrawCommand& MeshDrawCommand = Command.Key;
 			const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = MeshDrawCommand.CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
-			FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, MeshPipelineState.AsGraphicsPipelineStateInitializer(), EApplyRendertargetOption::DoNothing);
+
+			FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState.AsGraphicsPipelineStateInitializer();
+			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+			FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::DoNothing);
 			if (PipelineState)
 			{
 				const uint64 StateSortKey = PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(PipelineState);
