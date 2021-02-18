@@ -307,7 +307,23 @@ if (bMeetsMatch)
 		if (FindWorkersTimeout <= 0)
 		{
 			// Call the refresh callback manually
-			HandleRefreshTestCallback();
+			HandleRefreshTimeout();
+		}
+	}
+
+	void HandleRefreshTimeout()
+	{
+		const float TimeOut = GetDefault<UAutomationControllerSettings>()->GameInstanceLostTimerSeconds;
+		if (FindWorkerAttempts * DefaultFindWorkersTimeout >= TimeOut)
+		{
+			LogCommandLineError(FString::Printf(TEXT("Failed to find workers after %.02f seconds. Giving up"), TimeOut));
+			AutomationTestState = EAutomationTestState::Complete;
+		}
+		else
+		{
+			// Go back to looking for workers
+			UE_LOG(LogAutomationCommandLine, Log, TEXT("Can't find any workers! Searching again"));
+			AutomationTestState = EAutomationTestState::FindWorkers;
 		}
 	}
 
@@ -315,34 +331,11 @@ if (bMeetsMatch)
 	{
 		TArray<FString> AllTestNames;
 
-		if (AutomationController->GetNumDeviceClusters() == 0)
+		// This is called by the controller manager when it receives responses. We want to make sure it has a device, and we
+		// want to make sure it's called while we're waiting for a response
+		if (AutomationController->GetNumDeviceClusters() == 0 || AutomationTestState != EAutomationTestState::RequestTests)
 		{
-			static double FirstWarningTime = FPlatformTime::Seconds();
-			static int WarningCount = 0;
-
-			const float TimeOut = GetDefault<UAutomationControllerSettings>()->GameInstanceLostTimerSeconds;
-			if (FindWorkerAttempts * DefaultFindWorkersTimeout >= TimeOut)
-			{
-				LogCommandLineError(FString::Printf(TEXT("Failed to find workers after %.02f seconds. Giving up"), TimeOut));
-				AutomationTestState = EAutomationTestState::Complete;
-			}
-			else
-			{
-				double TimeWaiting = FPlatformTime::Seconds() - FirstWarningTime;
-
-				// This can get called a number of times before a worker is ready, so be conservative in how often we warn
-				if ((++WarningCount % 5) == 0 && TimeWaiting > 10.0)
-				{
-					UE_LOG(LogAutomationCommandLine, Warning, TEXT("Can't find any workers! Searching again"));
-				}
-				else
-				{
-					UE_LOG(LogAutomationCommandLine, Log, TEXT("Can't find any workers! Searching again"));
-				}
-				
-				AutomationTestState = EAutomationTestState::FindWorkers;
-			}
-
+			UE_LOG(LogAutomationCommandLine, Log, TEXT("Ignoring refresh from ControllerManager. NumDeviceClusters=%d, CurrentState=%d"), AutomationController->GetNumDeviceClusters(), AutomationTestState);
 			return;
 		}
 
@@ -377,7 +370,7 @@ if (bMeetsMatch)
 			}
 			else
 			{
-				UE_LOG(LogAutomationCommandLine, Display, TEXT("Found %d automation tests based on '%s'"), *StringCommand);
+				UE_LOG(LogAutomationCommandLine, Display, TEXT("Found %d automation tests based on '%s'"), FilteredTestNames.Num(), *StringCommand);
 			}
 							
 			for ( const FString& TestName : FilteredTestNames )
@@ -490,8 +483,6 @@ if (bMeetsMatch)
 			}
 			case EAutomationTestState::FindWorkers:
 			{
-				//UE_LOG(LogAutomationCommandLine, Log, TEXT("Finding Workers..."));
-
 				FindWorkers(DeltaTime);
 				break;
 			}
