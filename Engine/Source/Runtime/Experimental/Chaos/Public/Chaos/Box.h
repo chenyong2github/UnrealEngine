@@ -94,7 +94,7 @@ namespace Chaos
 			return TUniquePtr<FImplicitObject>(new TBox<T,d>(*this));
 		}
 
-		float GetRadius() const
+		FReal GetRadius() const
 		{
 			return 0.0f;
 		}

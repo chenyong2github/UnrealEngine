@@ -163,7 +163,7 @@ class TPlane final : public FImplicitObject
 		return ImplicitObjectType::Plane;
 	}
 
-	float GetRadius() const
+	FReal GetRadius() const
 	{
 		return 0.0f;
 	}

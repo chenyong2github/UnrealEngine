@@ -72,7 +72,7 @@ namespace Chaos
 			return TCapsule<T>(X1, X2, Radius);
 		}
 
-		float GetRadius() const
+		FReal GetRadius() const
 		{
 			return Margin;
 		}

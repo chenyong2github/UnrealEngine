@@ -101,7 +101,7 @@ public:
 		return (MObject->GetRadius() > 0.0f) ? 0.0f : Margin;
 	}
 
-	float GetRadius() const
+	FReal GetRadius() const
 	{
 		// If the inner shape is quadratic, so are we
 		return (MObject->GetRadius() > 0.0f) ? Margin : 0.0f;

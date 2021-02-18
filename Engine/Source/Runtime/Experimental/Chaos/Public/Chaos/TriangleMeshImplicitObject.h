@@ -127,7 +127,7 @@ namespace Chaos
 		FTriangleMeshImplicitObject(FTriangleMeshImplicitObject&& Other) = delete;
 		virtual ~FTriangleMeshImplicitObject();
 
-		float GetRadius() const
+		FReal GetRadius() const
 		{
 			return 0.0f;
 		}

@@ -67,7 +67,7 @@ namespace Chaos
 			return ImplicitObjectType::Sphere; 
 		}
 
-		float GetRadius() const
+		FReal GetRadius() const
 		{
 			return Margin;
 		}

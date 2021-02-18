@@ -108,7 +108,7 @@ namespace Chaos
 			return Margin;
 		}
 
-		float GetRadius() const
+		FReal GetRadius() const
 		{
 			return 0.0f;
 		}

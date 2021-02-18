@@ -79,7 +79,7 @@ public:
 		return MObject.Get();
 	}
 
-	float GetRadius() const
+	FReal GetRadius() const
 	{
 		return MObject->GetRadius();
 	}
@@ -413,7 +413,7 @@ public:
 		return MObject.Get();
 	}
 
-	float GetRadius() const
+	FReal GetRadius() const
 	{
 		return (MObject->GetRadius() > 0.0f) ? Margin : 0.0f;
 	}
