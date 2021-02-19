@@ -11,6 +11,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/PlatformTLS.h"
+#include "HAL/PlatformTime.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
