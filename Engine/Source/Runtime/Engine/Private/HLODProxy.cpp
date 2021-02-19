@@ -6,7 +6,7 @@
 
 #if WITH_EDITOR
 #include "Misc/ConfigCacheIni.h"
-#include "Serialization/ArchiveObjectCrc32.h"
+#include "Serialization/ArchiveCrc32.h"
 #include "HierarchicalLOD.h"
 #include "ObjectTools.h"
 #endif
@@ -317,7 +317,7 @@ void UHLODProxy::ExtractComponents(const ALODActor* LODActor, TArray<UPrimitiveC
 
 uint32 UHLODProxy::GetCRC(UMaterialInterface* InMaterialInterface, uint32 InCRC)
 {
-	TArray<uint8> KeyBuffer;
+	FArchiveCrc32 Ar(InCRC);
 
 	UMaterialInterface* MaterialInterface = InMaterialInterface;
 	while(MaterialInterface)
@@ -327,18 +327,18 @@ uint32 UHLODProxy::GetCRC(UMaterialInterface* InMaterialInterface, uint32 InCRC)
 		{
 			if(UMaterialInstanceConstant* MIC = Cast<UMaterialInstanceConstant>(MI))
 			{
-				KeyBuffer.Append((uint8*)&MIC->ParameterStateId, sizeof(FGuid));
+				Ar << MIC->ParameterStateId;
 			}
 			MaterialInterface = MI->Parent;
 		}
 		else if(UMaterial* Material = Cast<UMaterial>(MaterialInterface))
 		{
-			KeyBuffer.Append((uint8*)&Material->StateId, sizeof(FGuid));
+			Ar << Material->StateId;
 			MaterialInterface = nullptr;
 		}
 	}
 
-	return FCrc::MemCrc32(KeyBuffer.GetData(), KeyBuffer.Num(), InCRC);
+	return Ar.GetCrc();
 }
 
 uint32 UHLODProxy::GetCRC(UTexture* InTexture, uint32 InCRC)
@@ -359,49 +359,53 @@ uint32 UHLODProxy::GetCRC(UTexture* InTexture, uint32 InCRC)
 
 uint32 UHLODProxy::GetCRC(UStaticMesh* InStaticMesh, uint32 InCRC)
 {
-	TArray<uint8> KeyBuffer;
+	FArchiveCrc32 Ar(InCRC);
 
 	// Default to just the path name if we don't have render data
 	FString DerivedDataKey = InStaticMesh->GetRenderData() ? InStaticMesh->GetRenderData()->DerivedDataKey : InStaticMesh->GetPathName();
-	KeyBuffer.Append((uint8*)DerivedDataKey.GetCharArray().GetData(), DerivedDataKey.GetCharArray().Num() * DerivedDataKey.GetCharArray().GetTypeSize());
+	Ar << DerivedDataKey;
 
-	const int32 LightMapCoordinateIndex = InStaticMesh->GetLightMapCoordinateIndex();
-	KeyBuffer.Append((uint8*)&LightMapCoordinateIndex, sizeof(int32));
+	int32 LightMapCoordinateIndex = InStaticMesh->GetLightMapCoordinateIndex();
+	Ar << LightMapCoordinateIndex;
+
 	if(InStaticMesh->GetBodySetup())
 	{
 		// Incorporate physics data
-		KeyBuffer.Append((uint8*)&InStaticMesh->GetBodySetup()->BodySetupGuid, sizeof(FGuid));;
+		Ar << InStaticMesh->GetBodySetup()->BodySetupGuid;
 	}
-	return FCrc::MemCrc32(KeyBuffer.GetData(), KeyBuffer.Num(), InCRC);
+
+	return Ar.GetCrc();
 }
 
-static void AppendRoundedTransform(const FRotator& ComponentRotation, const FVector& ComponentLocation, const FVector& ComponentScale, TArray<uint8>& OutKeyBuffer)
+static void AppendRoundedTransform(const FRotator& ComponentRotation, const FVector& ComponentLocation, const FVector& ComponentScale, FArchive& Ar)
 {
 	// Include transform - round sufficiently to ensure stability
 	FIntVector Location(FMath::RoundToInt(ComponentLocation.X), FMath::RoundToInt(ComponentLocation.Y), FMath::RoundToInt(ComponentLocation.Z));
-	OutKeyBuffer.Append((uint8*)&Location, sizeof(Location));
+	Ar << Location;
+
 	FVector RotationVector(ComponentRotation.GetNormalized().Vector());
 	FIntVector Rotation(FMath::RoundToInt(RotationVector.X), FMath::RoundToInt(RotationVector.Y), FMath::RoundToInt(RotationVector.Z));
-	OutKeyBuffer.Append((uint8*)&Rotation, sizeof(Rotation));
+	Ar << Rotation;
+
 	FIntVector Scale(FMath::RoundToInt(ComponentScale.X), FMath::RoundToInt(ComponentScale.Y), FMath::RoundToInt(ComponentScale.Z));
-	OutKeyBuffer.Append((uint8*)&Scale, sizeof(Scale));
+	Ar << Scale;
 }
 
-static void AppendRoundedTransform(const FTransform& InTransform, TArray<uint8>& OutKeyBuffer)
+static void AppendRoundedTransform(const FTransform& InTransform, FArchive& Ar)
 {
-	AppendRoundedTransform(InTransform.Rotator(), InTransform.GetLocation(), InTransform.GetScale3D(), OutKeyBuffer);
+	AppendRoundedTransform(InTransform.Rotator(), InTransform.GetLocation(), InTransform.GetScale3D(), Ar);
 }
 
-static int32 GetTransformCRC(const FTransform& InTransform, uint32 InCRC)
+static int32 GetTransformCRC(const FTransform& InTransform, uint32 InCRC = 0)
 {
-	TArray<uint8> KeyBuffer;
-	AppendRoundedTransform(InTransform, KeyBuffer);
-	return FCrc::MemCrc32(KeyBuffer.GetData(), KeyBuffer.Num(), InCRC);
+	FArchiveCrc32 Ar(InCRC);
+	AppendRoundedTransform(InTransform, Ar);
+	return Ar.GetCrc();
 }
 
 uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const FTransform& TransformComponents)
 {
-	TArray<uint8> KeyBuffer;
+	FArchiveCrc32 Ar(InCRC);
 
 	FVector  ComponentLocation = InComponent->GetComponentLocation();
 	FRotator ComponentRotation = InComponent->GetComponentRotation();
@@ -409,70 +413,51 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 
 	ComponentLocation = TransformComponents.TransformPosition(ComponentLocation);
 	ComponentRotation = TransformComponents.TransformRotation(ComponentRotation.Quaternion()).Rotator();
-	AppendRoundedTransform(ComponentRotation, ComponentLocation, ComponentScale, KeyBuffer);
+	AppendRoundedTransform(ComponentRotation, ComponentLocation, ComponentScale, Ar);
 
 	// Include other relevant properties
-	KeyBuffer.Append((uint8*)&InComponent->ForcedLodModel, sizeof(int32));
+	Ar << InComponent->ForcedLodModel;
 	bool bUseMaxLODAsImposter = InComponent->bUseMaxLODAsImposter;
-	KeyBuffer.Append((uint8*)&bUseMaxLODAsImposter, sizeof(bool));
+	Ar << bUseMaxLODAsImposter;
 	bool bCastShadow = InComponent->CastShadow;
-	KeyBuffer.Append((uint8*)&bCastShadow, sizeof(bool));
+	Ar << bCastShadow;
 	bool bCastStaticShadow = InComponent->bCastStaticShadow;
-	KeyBuffer.Append((uint8*)&bCastStaticShadow, sizeof(bool));
+	Ar << bCastStaticShadow;
 	bool bCastDynamicShadow = InComponent->bCastDynamicShadow;
-	KeyBuffer.Append((uint8*)&bCastDynamicShadow, sizeof(bool));
+	Ar << bCastDynamicShadow;
 	bool bCastFarShadow = InComponent->bCastFarShadow;
-	KeyBuffer.Append((uint8*)&bCastFarShadow, sizeof(bool));
+	Ar << bCastFarShadow;
 	int32 Width, Height;
 	InComponent->GetLightMapResolution(Width, Height);
-	KeyBuffer.Append((uint8*)&Width, sizeof(int32));
-	KeyBuffer.Append((uint8*)&Height, sizeof(int32));
+	Ar << Width;
+	Ar << Height;
 	
 	// incorporate vertex colors
 	for(FStaticMeshComponentLODInfo& LODInfo : InComponent->LODData)
 	{
 		if(LODInfo.OverrideVertexColors)
 		{
-			KeyBuffer.Append((uint8*)LODInfo.OverrideVertexColors->GetVertexData(), LODInfo.OverrideVertexColors->GetNumVertices() * LODInfo.OverrideVertexColors->GetStride());
+			Ar.Serialize((uint8*)LODInfo.OverrideVertexColors->GetVertexData(), LODInfo.OverrideVertexColors->GetNumVertices() * LODInfo.OverrideVertexColors->GetStride());
 		}
 	}
 
-	return FCrc::MemCrc32(KeyBuffer.GetData(), KeyBuffer.Num(), InCRC);
+	// Include instances data in case of a ISMC
+	if (UInstancedStaticMeshComponent* ISMC = Cast<UInstancedStaticMeshComponent>(InComponent))
+	{
+		for (const FInstancedStaticMeshInstanceData& InstanceData : ISMC->PerInstanceSMData)
+		{
+			AppendRoundedTransform(FTransform(InstanceData.Transform), Ar);
+		}
+
+		Ar << ISMC->PerInstanceSMCustomData;
+		Ar << ISMC->InstancingRandomSeed;
+	}
+
+	return Ar.GetCrc();
 }
 
 // Key that forms the basis of the HLOD proxy key. Bump this key (i.e. generate a new GUID) when you want to force a rebuild of ALL HLOD proxies
 #define HLOD_PROXY_BASE_KEY		TEXT("174C29B19AB34A21894058E058F253B3")
-
-namespace 
-{
-	class FHLODProxyCRCArchive : public FArchive
-	{
-	public:
-		FHLODProxyCRCArchive()
-			: Hash(0)
-		{
-			SetIsLoading(false);
-			SetIsSaving(true);
-			SetUseUnversionedPropertySerialization(true);
-		}
-
-		uint32 GetHash() const
-		{
-			return Hash;
-		}
-
-	private:
-		virtual FArchive& operator<<(class UObject*& Value) override { check(0); return *this; }
-		virtual FArchive& operator<<(class FName& Value) override { check(0); return *this; }
-
-		virtual void Serialize(void* Data, int64 Num) override
-		{
-			Hash = FCrc::MemCrc32(Data, Num, Hash);
-		}
-
-		uint32 Hash;
-	};
-}
 
 FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoLevelTransform)
 {
@@ -495,10 +480,9 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 			TArray<FHierarchicalSimplification>& BuildLODLevelSettings = LODActor->GetLevel()->GetWorldSettings()->GetHierarchicalLODSetup();
 			if(BuildLODLevelSettings.IsValidIndex(LODActor->LODLevel - 1))
 			{
-				FHierarchicalSimplification BuildLODLevelSetting = BuildLODLevelSettings[LODActor->LODLevel - 1];
-				FHLODProxyCRCArchive Ar;
-				FHierarchicalSimplification::StaticStruct()->SerializeItem(Ar, &BuildLODLevelSetting, nullptr);
-				CRC = HashCombine(CRC, Ar.GetHash());
+				FArchiveCrc32 Ar(CRC);
+				Ar << BuildLODLevelSettings[LODActor->LODLevel - 1];
+				CRC = Ar.GetCrc();
 			}
 		}
 
@@ -517,10 +501,9 @@ FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoL
 		{
 			if (LODActor->bOverrideMaterialMergeSettings)
 			{
-				FMaterialProxySettings MaterialProxySettings = LODActor->MaterialSettings;
-				FHLODProxyCRCArchive Ar;
-				FMaterialProxySettings::StaticStruct()->SerializeItem(Ar, &MaterialProxySettings, nullptr);
-				CRC = HashCombine(CRC, Ar.GetHash());
+				FArchiveCrc32 Ar(CRC);
+				Ar << const_cast<ALODActor*>(LODActor)->MaterialSettings;
+				CRC = Ar.GetCrc();
 			}
 		}
 

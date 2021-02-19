@@ -155,14 +155,3 @@ public:
 	uint8 bIsEditorOnly : 1;
 #endif
 };
-
-/** Utility object to hash the FISMComponentDescriptor through FArchiveObjectCrc32 */
-UCLASS()
-class UISMComponentDescriptorHasher : public UObject
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-	UPROPERTY()
-	FISMComponentDescriptor Descriptor;
-};

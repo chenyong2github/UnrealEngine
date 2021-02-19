@@ -4,7 +4,7 @@
 
 #if WITH_EDITOR
 
-#include "Serialization/ArchiveObjectCrc32.h"
+#include "Serialization/ArchiveCrc32.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 
@@ -129,14 +129,13 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 
 uint32 FISMComponentDescriptor::ComputeHash() const
 {
-	FArchiveObjectCrc32 CrcArchive;
-	UISMComponentDescriptorHasher* Hasher = NewObject<UISMComponentDescriptorHasher>();
-	Hash = 0; // we don't want the hash to impact the calculation
-	Hasher->Descriptor = *this;
-	uint32 Crc = CrcArchive.Crc32(Hasher);
-	Hash = Crc;
+	FArchiveCrc32 CrcArchive;
 
-	return Crc;
+	Hash = 0; // we don't want the hash to impact the calculation
+	CrcArchive << *this;
+	Hash = CrcArchive.GetCrc();
+
+	return Hash;
 }
 
 UInstancedStaticMeshComponent* FISMComponentDescriptor::CreateComponent(UObject* Outer, FName Name, EObjectFlags ObjectFlags) const
@@ -190,8 +189,3 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 }
 
 #endif
-
-UISMComponentDescriptorHasher::UISMComponentDescriptorHasher(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}

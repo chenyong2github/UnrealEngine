@@ -33,6 +33,7 @@ public:
 	* Serialize the given object, calculate and return its checksum.
 	*/
 	uint32 Crc32(UObject* Object, uint32 CRC = 0);
+	uint32 Crc32(UObject* Object, UObject* Root, uint32 CRC);
 
 protected:
 	/** Return if object was already serialized */

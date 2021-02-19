@@ -47,7 +47,7 @@ FArchive& FArchiveObjectCrc32::operator<<(class UObject*& Object)
 {
 	FArchive& Ar = *this;
 
-	if (!Object || !Object->IsIn(RootObject))
+	if (!RootObject || !Object || !Object->IsIn(RootObject))
 	{
 		auto UniqueName = GetPathNameSafe(Object);
 		Ar << UniqueName;
@@ -60,13 +60,13 @@ FArchive& FArchiveObjectCrc32::operator<<(class UObject*& Object)
 	return Ar;
 }
 
-uint32 FArchiveObjectCrc32::Crc32(UObject* Object, uint32 CRC)
+uint32 FArchiveObjectCrc32::Crc32(UObject* Object, UObject* Root, uint32 CRC)
 {
 #ifdef DEBUG_ARCHIVE_OBJECT_CRC32
 	const double StartTime = FPlatformTime::Seconds();
 	UE_LOG(LogArchiveObjectCrc32, Log, TEXT("### Calculating CRC for object: %s with outer: %s"), *Object->GetName(), Object->GetOuter() ? *Object->GetOuter()->GetName() : TEXT("NULL"));
 #endif
-	RootObject = Object;
+	RootObject = Root;
 	if (Object)
 	{
 		TSet<UObject*> SerializedObjects;
@@ -113,4 +113,9 @@ uint32 FArchiveObjectCrc32::Crc32(UObject* Object, uint32 CRC)
 	UE_LOG(LogArchiveObjectCrc32, Log, TEXT("### Finished (%.02f ms), final checksum: 0x%08x"), (FPlatformTime::Seconds() - StartTime) * 1000.0f, CRC);
 #endif
 	return CRC;
+}
+
+uint32 FArchiveObjectCrc32::Crc32(UObject* Object, uint32 CRC)
+{
+	return Crc32(Object, Object, CRC);
 }
