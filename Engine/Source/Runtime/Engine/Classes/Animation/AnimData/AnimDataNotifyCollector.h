@@ -6,7 +6,7 @@
 #include "Containers/Set.h"
 #include "Containers/Array.h"
 
-enum class EAnimDataModelNotifType : uint8;
+enum class EAnimDataModelNotifyType : uint8;
 
 namespace UE {
 namespace Anim {
