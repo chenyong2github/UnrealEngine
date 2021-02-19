@@ -551,7 +551,6 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
 			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
 			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
-			UpscalerPassInputs.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 
 			UpscalerToUse->AddPasses(
 				GraphBuilder,
@@ -1334,6 +1333,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	const FScreenPassRenderTarget ViewFamilyOutput = FScreenPassRenderTarget::CreateViewFamilyOutput(Inputs.ViewFamilyTexture, View);
 	const FScreenPassTexture SceneDepth((*Inputs.SceneTextures)->SceneDepthTexture, FinalOutputViewRect);
 	const FScreenPassTexture CustomDepth((*Inputs.SceneTextures)->CustomDepthTexture, FinalOutputViewRect);
+	const FScreenPassTexture Velocity((*Inputs.SceneTextures)->SceneVelocityTexture, FinalOutputViewRect);
 	const FScreenPassTexture BlackAlphaOneDummy(GSystemTextures.GetBlackAlphaOneDummy(GraphBuilder));
 
 	// Scene color is updated incrementally through the post process pipeline.
@@ -1352,9 +1352,9 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		EyeAdaptation,
 		SunMerge,
 		SeparateTranslucency,
+		TAA,
 		Tonemap,
 		PostProcessMaterialAfterTonemapping,
-		TAA,
 		FXAA,
 		HighResolutionScreenshotMask,
 		SelectionOutline,
@@ -1375,9 +1375,9 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		TEXT("EyeAdaptation"),
 		TEXT("SunMerge"),
 		TEXT("SeparateTranslucency"),
+		TEXT("TAA"),
 		TEXT("Tonemap"),
 		TEXT("PostProcessMaterial (AfterTonemapping)"),
-		TEXT("TAA"),
 		TEXT("FXAA"),
 		TEXT("HighResolutionScreenshotMask"),
 		TEXT("SelectionOutline"),
@@ -1514,8 +1514,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		PassSequence.SetEnabled(EPass::EyeAdaptation, bUseEyeAdaptation);
 		PassSequence.SetEnabled(EPass::SunMerge, bUseBloom || bUseSun);
 		PassSequence.SetEnabled(EPass::SeparateTranslucency, bUseSeparateTranslucency);
-		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
 		PassSequence.SetEnabled(EPass::TAA, bUseTAA);
+		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
 		PassSequence.SetEnabled(EPass::FXAA, View.AntiAliasingMethod == AAM_FXAA);
 		PassSequence.Finalize();
 			
@@ -1816,24 +1816,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 
 			BloomOutput = AddMobileSunMergePass(GraphBuilder, View, SunMergeInputs);
 
-			if (bUseTAA && View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
-			{
-				GraphBuilder.QueueTextureExtraction(BloomOutput.Texture, &View.ViewState->PrevFrameViewInfo.MobileAaBloomSunVignette);
-			}
-
-			// Mobile temporal AA requires a composite of two of these frames.
-			if (bUseTAA)
-			{
-				FMobileSunAvgInputs SunAvgInputs;
-				SunAvgInputs.SunMerge = BloomOutput;
-				SunAvgInputs.LastFrameSunMerge = FScreenPassTexture(TryRegisterExternalTexture(GraphBuilder, View.PrevViewInfo.MobileAaBloomSunVignette));
-				if (!SunAvgInputs.LastFrameSunMerge.IsValid())
-				{
-					SunAvgInputs.LastFrameSunMerge = BloomOutput;
-				}
-
-				BloomOutput = AddMobileSunAvgPass(GraphBuilder, View, SunAvgInputs);
-			}
 		}
 
 		// mobile separate translucency 
@@ -1848,6 +1830,47 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		}
 
 		AddPostProcessMaterialPass(BL_BeforeTonemapping, false);
+
+		// Temporal Anti-aliasing. Also may perform a temporal upsample from primary to secondary view rect.
+		if (PassSequence.IsEnabled(EPass::TAA))
+		{
+			PassSequence.AcceptPass(EPass::TAA);
+
+			EMainTAAPassConfig TAAConfig = ITemporalUpscaler::GetMainTAAPassConfig(View);
+			checkSlow(TAAConfig != EMainTAAPassConfig::Disabled);
+
+			const ITemporalUpscaler* UpscalerToUse = (TAAConfig == EMainTAAPassConfig::ThirdParty) ? View.Family->GetTemporalUpscalerInterface() : ITemporalUpscaler::GetDefaultTemporalUpscaler();
+
+			const TCHAR* UpscalerName = UpscalerToUse->GetDebugName();
+
+			// Standard event scope for temporal upscaler to have all profiling information not matter what, and with explicit detection of third party.
+			RDG_EVENT_SCOPE_CONDITIONAL(
+				GraphBuilder,
+				TAAConfig == EMainTAAPassConfig::ThirdParty,
+				"ThirdParty %s %dx%d -> %dx%d",
+				UpscalerToUse->GetDebugName(),
+				View.ViewRect.Width(), View.ViewRect.Height(),
+				View.GetSecondaryViewRectSize().X, View.GetSecondaryViewRectSize().Y);
+
+			ITemporalUpscaler::FPassInputs UpscalerPassInputs;
+
+			UpscalerPassInputs.bAllowDownsampleSceneColor = false;
+			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
+			UpscalerPassInputs.SceneDepthTexture = SceneDepth.Texture;
+			UpscalerPassInputs.SceneVelocityTexture = Velocity.Texture;
+
+			FIntRect SecondaryViewRect;
+			FScreenPassTexture HalfResolutionSceneColor;
+
+			UpscalerToUse->AddPasses(
+				GraphBuilder,
+				View,
+				UpscalerPassInputs,
+				&SceneColor.Texture,
+				&SecondaryViewRect,
+				&HalfResolutionSceneColor.Texture,
+				&HalfResolutionSceneColor.ViewRect);
+		}
 	}
 	else
 	{
@@ -1933,26 +1956,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 	if (IsPostProcessingEnabled(View))
 	{
 		AddPostProcessMaterialPass(BL_AfterTonemapping, true);
-
-		if (PassSequence.IsEnabled(EPass::TAA))
-		{
-			if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
-			{
-				GraphBuilder.QueueTextureExtraction(SceneColor.Texture, &View.ViewState->PrevFrameViewInfo.MobileAaColor);
-			}
-
-			FMobileTAAInputs TAAInputs;
-			PassSequence.AcceptOverrideIfLastPass(EPass::TAA, TAAInputs.OverrideOutput);
-			TAAInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
-			TAAInputs.SceneColor = SceneColor;
-			TAAInputs.LastFrameSceneColor = FScreenPassTexture(TryRegisterExternalTexture(GraphBuilder, View.PrevViewInfo.MobileAaColor));
-			if (!TAAInputs.LastFrameSceneColor.IsValid())
-			{
-				TAAInputs.LastFrameSceneColor = SceneColor;
-			}
-
-			SceneColor = AddMobileTAAPass(GraphBuilder, View, TAAInputs);
-		}
 
 		if (PassSequence.IsEnabled(EPass::FXAA))
 		{

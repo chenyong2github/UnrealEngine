@@ -56,6 +56,7 @@ struct FSceneWithoutWaterTextures;
 struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
 struct FHairStrandsRenderingData;
+enum class EVelocityPass : uint32;
 struct FStrataSceneData;
 
 struct FSceneTexturesConfig;
@@ -986,9 +987,6 @@ struct FPreviousViewInfo
 
 	// Mobile bloom setup eye adaptation surface.
 	TRefCountPtr<IPooledRenderTarget> MobileBloomSetup_EyeAdaptation;
-	// Mobile temporal AA surface.
-	TRefCountPtr<IPooledRenderTarget> MobileAaBloomSunVignette;
-	TRefCountPtr<IPooledRenderTarget> MobileAaColor;
 };
 
 class FViewCommands
@@ -1784,6 +1782,8 @@ public:
 
 	virtual void Render(FRDGBuilder& GraphBuilder) = 0;
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) {}
+	virtual bool ShouldRenderVelocities() const { return false; }
+	virtual bool SupportsMSAA() const { return true; }
 
 	/** Creates a scene renderer based on the current feature level. */
 	static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
@@ -2069,6 +2069,12 @@ protected:
 
 	void SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate& RHICmdList);
 
+	void RenderVelocities(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
+		EVelocityPass VelocityPass,
+		bool bForceVelocity);
+
 protected:
 	FGPUSceneDynamicContext GPUSceneDynamicContext;
 private:
@@ -2095,6 +2101,10 @@ public:
 	virtual void Render(FRDGBuilder& GraphBuilder) override;
 
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) override;
+
+	virtual bool ShouldRenderVelocities() const override;
+
+	virtual bool SupportsMSAA() const override;
 
 	void RenderInverseOpacity(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
@@ -2173,6 +2183,7 @@ private:
 	bool bShouldRenderCustomDepth;
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
 	bool bRequriesAmbientOcclusionPass;
+	bool bShouldRenderVelocities;
 	static FGlobalDynamicIndexBuffer DynamicIndexBuffer;
 	static FGlobalDynamicVertexBuffer DynamicVertexBuffer;
 	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBuffer;

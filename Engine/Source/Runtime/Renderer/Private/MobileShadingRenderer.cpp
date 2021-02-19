@@ -106,6 +106,9 @@ DECLARE_CYCLE_STAT(TEXT("Translucency"), STAT_CLMM_Translucency, STATGROUP_Comma
 DECLARE_CYCLE_STAT(TEXT("Shadows"), STAT_CLMM_Shadows, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("SceneSimulation"), STAT_CLMM_SceneSim, STATGROUP_CommandListMarkers);
 DECLARE_CYCLE_STAT(TEXT("PrePass"), STAT_CLM_MobilePrePass, STATGROUP_CommandListMarkers);
+DECLARE_CYCLE_STAT(TEXT("Velocity"), STAT_CLMM_Velocity, STATGROUP_CommandListMarkers);
+DECLARE_CYCLE_STAT(TEXT("AfterVelocity"), STAT_CLMM_AfterVelocity, STATGROUP_CommandListMarkers);
+DECLARE_CYCLE_STAT(TEXT("TranslucentVelocity"), STAT_CLMM_TranslucentVelocity, STATGROUP_CommandListMarkers);
 
 FGlobalDynamicIndexBuffer FMobileSceneRenderer::DynamicIndexBuffer;
 FGlobalDynamicVertexBuffer FMobileSceneRenderer::DynamicVertexBuffer;
@@ -377,6 +380,8 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		// Only support forward shading, we don't want to break tiled deferred shading.
 		&& !bDeferredShading;
 
+	bShouldRenderVelocities = ShouldRenderVelocities();
+
 	// Whether we need to store depth for post-processing
 	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
@@ -391,12 +396,19 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
-		(bDeferredShading && bPostProcessUsesSceneDepth);
+		(bDeferredShading && bPostProcessUsesSceneDepth) ||
+		bShouldRenderVelocities;
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
 	// Finalize and set the scene textures config.
 	SceneTexturesConfig.bKeepDepthContent = bKeepDepthContent;
+
+	if (!SupportsMSAA())
+	{
+		SceneTexturesConfig.NumSamples = 1;
+	}
+	
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
 	// Initialise Sky/View resources before the view global uniform buffer is built.
@@ -662,7 +674,22 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::All;
+	SceneTextures.MobileSetupMode &= ~EMobileSceneTextureSetupMode::SceneVelocity;
 	SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
+
+	if (bShouldRenderVelocities)
+	{
+		// Render the velocities of movable objects
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_Velocity));
+		RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Opaque, false);
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_AfterVelocity));
+
+		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_TranslucentVelocity));
+		RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Translucent, false);
+
+		SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::All;
+		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
+	}
 
 	if (FXSystem && Views.IsValidIndex(0))
 	{
@@ -1658,4 +1685,9 @@ void FMobileSceneRenderer::UpdateMovablePointLightUniformBufferAndShadowInfo()
 			}
 		}
 	}
+}
+
+bool FMobileSceneRenderer::SupportsMSAA() const
+{
+	return !(IsUsingMobilePixelProjectedReflection(ShaderPlatform) || IsUsingMobileAmbientOcclusion(ShaderPlatform) || ShouldRenderVelocities() || bDeferredShading);
 }

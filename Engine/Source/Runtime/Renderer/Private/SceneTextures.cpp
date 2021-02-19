@@ -754,9 +754,6 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 		// Screen Space Ambient Occlusion
 		SceneTextures.ScreenSpaceAO = CreateScreenSpaceAOTexture(GraphBuilder, Config.Extent);
 
-		// Velocity
-		SceneTextures.Velocity = GraphBuilder.CreateTexture(FVelocityRendering::GetRenderTargetDesc(Config.ShaderPlatform, Config.Extent), TEXT("SceneVelocity"));
-
 		// Small Depth
 		const FIntPoint SmallDepthExtent = GetDownscaledExtent(Config.Extent, Config.SmallDepthDownsampleFactor);
 		const FRDGTextureDesc SmallDepthDesc(FRDGTextureDesc::Create2D(SmallDepthExtent, PF_DepthStencil, FClearValueBinding::None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource));
@@ -767,6 +764,9 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 		// Mobile Screen Space Ambient Occlusion
 		SceneTextures.ScreenSpaceAO = CreateMobileScreenSpaceAOTexture(GraphBuilder, Config.Extent);
 	}
+
+	// Velocity
+	SceneTextures.Velocity = GraphBuilder.CreateTexture(FVelocityRendering::GetRenderTargetDesc(Config.ShaderPlatform, Config.Extent), TEXT("SceneVelocity"));
 
 	if (Config.bIsUsingGBuffers)
 	{
@@ -1126,6 +1126,8 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.CustomDepthTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.MobileCustomStencilTexture = SystemTextures.Black;
 	SceneTextureParameters.MobileCustomStencilTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	SceneTextureParameters.SceneVelocityTexture = SystemTextures.Black;
+	SceneTextureParameters.SceneVelocityTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	SceneTextureParameters.GBufferATexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferBTexture = SystemTextures.Black;
 	SceneTextureParameters.GBufferCTexture = SystemTextures.Black;
@@ -1197,6 +1199,14 @@ void SetupMobileSceneTextureUniformParameters(
 			if (HasBeenProduced(CustomDepthTextures.MobileStencil) && !EnumHasAnyFlags(CustomDepthTextures.MobileStencil->Desc.Flags, TexCreate_Memoryless))
 			{
 				SceneTextureParameters.MobileCustomStencilTexture = CustomDepthTextures.MobileStencil;
+			}
+		}
+
+		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneVelocity))
+		{
+			if (HasBeenProduced(SceneTextures->Velocity))
+			{
+				SceneTextureParameters.SceneVelocityTexture = SceneTextures->Velocity;
 			}
 		}
 	}

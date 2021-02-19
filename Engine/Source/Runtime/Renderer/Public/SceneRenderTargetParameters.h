@@ -71,6 +71,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDE
 	SHADER_PARAMETER_SAMPLER(SamplerState, CustomDepthTextureSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, MobileCustomStencilTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, MobileCustomStencilTextureSampler)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneVelocityTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneVelocityTextureSampler)
 	// GBuffer
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferATexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, GBufferBTexture)
@@ -95,8 +97,9 @@ enum class EMobileSceneTextureSetupMode : uint32
 	GBufferC		= 1 << 5,
 	GBufferD		= 1 << 6,
 	SceneDepthAux	= 1 << 7,
+	SceneVelocity	= 1 << 8,
 	GBuffers		= GBufferA | GBufferB | GBufferC | GBufferD | SceneDepthAux,
-	All				= SceneColor | SceneDepth | CustomDepth | GBuffers
+	All				= SceneColor | SceneDepth | CustomDepth | GBuffers | SceneVelocity
 };
 ENUM_CLASS_FLAGS(EMobileSceneTextureSetupMode);
 

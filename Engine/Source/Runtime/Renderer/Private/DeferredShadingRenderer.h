@@ -23,7 +23,6 @@
 #include "RenderGraphUtils.h"
 
 enum class ERayTracingPrimaryRaysFlag : uint32;
-enum class EVelocityPass : uint32;
 
 class FSceneTextureParameters;
 class FDistanceFieldAOParameters;
@@ -251,6 +250,8 @@ public:
 
 	/** Render the view family's hit proxies. */
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) override;
+
+	virtual bool ShouldRenderVelocities() const override;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void RenderVisualizeTexturePool(FRHICommandListImmediate& RHICmdList);
@@ -611,14 +612,6 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FMinimalSceneTextures& SceneTextures,
 		FSeparateTranslucencyTextures& OutSeparateTranslucencyTextures);
-
-	bool ShouldRenderVelocities() const;
-
-	void RenderVelocities(
-		FRDGBuilder& GraphBuilder,
-		const FSceneTextures& SceneTextures,
-		EVelocityPass VelocityPass,
-		bool bForceVelocity);
 
 	bool ShouldRenderDistortion() const;
 	void RenderDistortion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture);
