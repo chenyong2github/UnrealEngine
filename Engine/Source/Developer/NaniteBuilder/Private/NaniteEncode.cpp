@@ -1018,6 +1018,7 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 
 		const FVector2D NormalizedNonGapLength = NonGapLength * UVRcpDelta;
 
+#if 0
 		float TexCoordUnitPrecisionU = (1 << 14);	// 1.0f / 16384.0f			//TODO: figure out how to handle LOD
 		float TexCoordUnitPrecisionV = (1 << 14);
 		if (!bIsLeaf)
@@ -1028,6 +1029,11 @@ static void CalculateEncodingInfo(FEncodingInfo& Info, const Nanite::FCluster& C
 		
 		const int32 TexCoordBitsU = FMath::Min((int32)FMath::CeilLogTwo(FMath::CeilToInt(NonGapLength.X * TexCoordUnitPrecisionU)), 10);
 		const int32 TexCoordBitsV = FMath::Min((int32)FMath::CeilLogTwo(FMath::CeilToInt(NonGapLength.Y * TexCoordUnitPrecisionV)), 10);
+#else
+		// TODO: Temp hack to fix encoding issues
+		const int32 TexCoordBitsU = 12;
+		const int32 TexCoordBitsV = 12;
+#endif
 
 		Info.UVPrec |= ((TexCoordBitsV << 4) | TexCoordBitsU) << (UVIndex * 8);
 
