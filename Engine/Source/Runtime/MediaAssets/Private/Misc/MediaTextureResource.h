@@ -87,9 +87,6 @@ public:
 		/** The player facade that provides the video samples to render. */
 		TWeakPtr<FMediaTextureSampleSource, ESPMode::ThreadSafe> SampleSource;
 
-		/** Whether output should be in sRGB color space. */
-		bool SrgbOutput;
-
 		/** Number of mips wanted */
 		uint8 NumMips;
 
@@ -147,13 +144,12 @@ protected:
 	 *
 	 * @param Sample The texture sample to convert.
 	 * @param ClearColor The clear color to use for the output texture.
-	 * @param SrgbOutput Whether the output texture is in sRGB color space.
 	 * @param Number of mips
 	 * @see CopySample
 	 */
-	void ConvertSample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips);
+	void ConvertSample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, uint8 InNumMips);
 
-	void ConvertTextureToOutput(FRHITexture2D* InputTexture, const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, bool SrgbOutput);
+	void ConvertTextureToOutput(FRHITexture2D* InputTexture, const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample);
 
 	/**
 	 * Render the given texture sample by using it as or copying it to the render target.
@@ -164,7 +160,7 @@ protected:
 	 * @param Number of mips
 	 * @see ConvertSample
 	 */
-	void CopySample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, bool SrgbOutput, uint8 InNumMips, const FGuid & TextureGUID);
+	void CopySample(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FLinearColor& ClearColor, uint8 InNumMips, const FGuid & TextureGUID);
 
 	/** Calculates the current resource size and notifies the owner texture. */
 	void UpdateResourceSize();
@@ -194,8 +190,8 @@ protected:
 	/** Copy to local buffer from external texture */
 	void CopyFromExternalTexture(const TSharedPtr <IMediaTextureSample, ESPMode::ThreadSafe>& Sample, const FGuid & TextureGUID);
 
-	bool RequiresConversion(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, bool SrgbOutput, uint8 numMips) const;
-	bool RequiresConversion(const FTexture2DRHIRef& SampleTexture, const FIntPoint & OutputDim, bool SrgbOutput, uint8 numMips) const;
+	bool RequiresConversion(const TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& Sample, uint8 numMips) const;
+	bool RequiresConversion(const FTexture2DRHIRef& SampleTexture, const FIntPoint & OutputDim, uint8 numMips) const;
 
 private:
 

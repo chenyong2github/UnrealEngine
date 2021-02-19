@@ -71,6 +71,7 @@ UMediaTexture::UMediaTexture(const FObjectInitializer& ObjectInitializer)
 	, Dimensions(FIntPoint::ZeroValue)
 	, Size(0)
 	, CachedNextSampleTime(FTimespan::MinValue())
+	, TextureNumMips(1)
 {
 	NeverStream = true;
 	SRGB = true;
@@ -108,6 +109,10 @@ int32 UMediaTexture::GetWidth() const
 	return Dimensions.X;
 }
 
+int32 UMediaTexture::GetTextureNumMips() const
+{
+	return TextureNumMips;
+}
 
 void UMediaTexture::SetMediaPlayer(UMediaPlayer* NewMediaPlayer)
 {
@@ -148,7 +153,7 @@ FTextureResource* UMediaTexture::CreateResource()
 		}
 	}
 
-	Filter = (EnableGenMips && (NumMips > 1)) ? TF_Trilinear : TF_Bilinear;
+	Filter = (EnableGenMips && (TextureNumMips > 1)) ? TF_Trilinear : TF_Bilinear;
 
 	return new FMediaTextureResource(*this, Dimensions, Size, ClearColor, CurrentGuid.IsValid() ? CurrentGuid : DefaultGuid, EnableGenMips, NumMips);
 }
@@ -341,7 +346,7 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 			if (CurrentPlayerPtr->GetPlayerFacade()->GetPlayer()->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::UsePlaybackTimingV2))
 			{
 				/*
-					We are using the old-style "1sample queue to sink" architecture to actually just pass long only ONE sample at a time from the logic
+					We are using the old-style "sample queue to sink" architecture to actually just pass along only ONE sample at a time from the logic
 					inside the player facade to the sinks. The selection as to what to render this frame is expected to be done earlier
 					this frame on the gamethread, hence only a single output frame is selected and passed along...
 				*/
@@ -363,14 +368,12 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 				RenderParams.Rate = CurrentPlayerPtr->GetRate();
 				RenderParams.Time = Sample->GetTime();
 
-				if (NewStyleOutput)
-				{
-					// For new-style output the sample's sRGB state controls what we output
-					// (FOR NOW: this is too simplified if we have more then Rec703 material)
-					SRGB = Sample->IsOutputSrgb();
-					// Ensure sRGB changes will not trigger rendering the next time around
-					LastSrgb = SRGB;
-				}
+				// Track the sample's sRGB status and make sure the (high level) texture flags reflect it
+				// (this is really only good for Rec.703 type setups and will need enhancements!)
+				SRGB = Sample->IsOutputSrgb();
+				LastSrgb = SRGB;
+
+				TextureNumMips = (Sample->GetNumMips() > 1) ? Sample->GetNumMips() : NumMips;
 			}
 			else
 			{
@@ -381,6 +384,12 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 				if (SampleQueue->Peek(Sample))
 				{
 					UpdateSampleInfo(Sample);
+
+					// See above: track sRGB state (for V1 we don't look at all samples - but this should be fine as this should not change on a per sample basis usually)
+					SRGB = Sample->IsOutputSrgb();
+					LastSrgb = SRGB;
+
+					TextureNumMips = (Sample->GetNumMips() > 1) ? Sample->GetNumMips() : NumMips;
 				}
 
 				RenderParams.SampleSource = SampleQueue;
@@ -406,14 +415,13 @@ void UMediaTexture::TickResource(FTimespan Timecode)
 	}
 
 	// update filter state, responding to mips setting
-	Filter = (EnableGenMips && (NumMips > 1)) ? TF_Trilinear : TF_Bilinear;
+	Filter = (EnableGenMips && (TextureNumMips > 1)) ? TF_Trilinear : TF_Bilinear;
 
 	// setup render parameters
 	RenderParams.CanClear = AutoClear;
 	RenderParams.ClearColor = ClearColor;
 	RenderParams.PreviousGuid = PreviousGuid;
 	RenderParams.CurrentGuid = CurrentGuid;
-	RenderParams.SrgbOutput = SRGB;
 	RenderParams.NumMips = NumMips;
 	
 	// redraw texture resource on render thread

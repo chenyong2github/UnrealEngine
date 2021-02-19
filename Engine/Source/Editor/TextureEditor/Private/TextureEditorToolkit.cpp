@@ -40,6 +40,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Curves/CurveLinearColorAtlas.h"
 #include "TextureEditorSettings.h"
+#include "MediaTexture.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 
@@ -428,6 +429,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	UTexture2DDynamic* Texture2DDynamic = Cast<UTexture2DDynamic>(Texture);
 	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 	UTextureRenderTargetVolume* VolumeTextureRT = Cast<UTextureRenderTargetVolume>(Texture);
+	UMediaTexture* MediaTexture = Cast<UMediaTexture>(Texture);
 
 	const uint32 SurfaceWidth = (uint32)Texture->GetSurfaceWidth();
 	const uint32 SurfaceHeight = (uint32)Texture->GetSurfaceHeight();
@@ -596,6 +598,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	else if (VolumeTextureRT)
 	{
 		NumMips = VolumeTextureRT->GetNumMips();
+	}
+	else if (MediaTexture)
+	{
+		NumMips = MediaTexture->GetTextureNumMips();
 	}
 
 	NumMipsText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips", "Number of Mips: {0}"), FText::AsNumber(NumMips)));
