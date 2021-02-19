@@ -322,6 +322,17 @@ void ALevelInstance::CheckForErrors()
 
 		Error->AddToken(FMapErrorToken::Create(FName(TEXT("LevelInstanceActor_Loop_CheckForErrors"))));
 	}
+
+	FPackagePath WorldAssetPath;
+	if (!FPackagePath::TryFromPackageName(GetWorldAssetPackage(), WorldAssetPath) || !FPackageName::DoesPackageExist(WorldAssetPath))
+	{
+		TSharedRef<FTokenizedMessage> Error = FMessageLog("MapCheck").Error()
+			->AddToken(FTextToken::Create(LOCTEXT("LevelInstanceActor_InvalidPackage", "LevelInstance actor")))
+			->AddToken(FUObjectToken::Create(this))
+			->AddToken(FTextToken::Create(FText::FromString(TEXT("refers to an invalid asset:"))))
+			->AddToken(FAssetNameToken::Create(GetWorldAsset().GetLongPackageName(), FText::FromString(GetWorldAsset().GetLongPackageName())))
+			->AddToken(FMapErrorToken::Create(FName(TEXT("LevelInstanceActor_InvalidPackage_CheckForErrors"))));
+	}
 }
 
 bool ALevelInstance::CheckForLoop(TSoftObjectPtr<UWorld> InLevelInstance, TArray<TPair<FText,TSoftObjectPtr<UWorld>>>* LoopInfo, const ALevelInstance** LoopStart) const
