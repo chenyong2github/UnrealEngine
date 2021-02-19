@@ -25,7 +25,7 @@ struct FVirtualShadowMapProjectionShaderData
 	float3 ClipmapWorldOrigin;
 	int VirtualShadowMapId;
 	
-	int2 ClipmapCenterSnapUnits;
+	int2 ClipmapCornerOffset;
 	int ClipmapIndex;		// 0..ClipmapLevelCount-1
 	int ClipmapLevel;
 	int ClipmapLevelCount;	
@@ -66,7 +66,7 @@ int CalcClipmapLevel(FVirtualShadowMapProjectionShaderData BaseProjectionData, f
 	return int(floor(CalcClipmapLevelFloat(BaseProjectionData, WorldPosition)));
 }
 
-struct FVirtualSmSample
+struct FVirtualShadowMapSample
 {
 	float Depth;
 	uint MipLevel;
@@ -77,9 +77,9 @@ struct FVirtualSmSample
 	uint2 PhysicalTexelAddress;
 };
 
-FVirtualSmSample InitVirtualSmSample()
+FVirtualShadowMapSample InitVirtualShadowMapSample()
 {
-	FVirtualSmSample Result;
+	FVirtualShadowMapSample Result;
 	Result.Depth = 0.0f;
 	Result.MipLevel = 0;
 	Result.VirtualShadowMapId = -1; 
@@ -89,7 +89,7 @@ FVirtualSmSample InitVirtualSmSample()
 	return Result;
 }
 
-float SampleVirtualSmPhysicalDepth(uint2 PhysicalTexelAddress)
+float SampleVirtualShadowMapPhysicalDepth(uint2 PhysicalTexelAddress)
 {
 #if ENABLE_NON_NANITE_VSM
 	return max(
@@ -101,18 +101,18 @@ float SampleVirtualSmPhysicalDepth(uint2 PhysicalTexelAddress)
 #endif // ENABLE_NON_NANITE_VSM
 }
 
-FVirtualSmSample SampleVirtualSmLevel(int VirtualShadowMapId, float2 ShadowMapUV, uint VSMLevel)
+FVirtualShadowMapSample SampleVirtualShadowMapLevel(int VirtualShadowMapId, float2 ShadowMapUV, uint MipLevel)
 {
-	FVirtualSmSample Result = InitVirtualSmSample();
+	FVirtualShadowMapSample Result = InitVirtualShadowMapSample();
 
-	Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(VSMLevel));
+	Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(MipLevel));
 	Result.VirtualTexelAddress = uint2(Result.VirtualTexelAddressFloat);
 
-	bool PagePresent = VirtualToPhysicalTexel(VirtualShadowMapId, VSMLevel, Result.VirtualTexelAddress, Result.PhysicalTexelAddress);
+	bool PagePresent = VirtualToPhysicalTexel(VirtualShadowMapId, MipLevel, Result.VirtualTexelAddress, Result.PhysicalTexelAddress);
 	if (PagePresent)
 	{
-		Result.Depth = SampleVirtualSmPhysicalDepth(Result.PhysicalTexelAddress);
-		Result.MipLevel = VSMLevel;
+		Result.Depth = SampleVirtualShadowMapPhysicalDepth(Result.PhysicalTexelAddress);
+		Result.MipLevel = MipLevel;
 		Result.VirtualShadowMapId = VirtualShadowMapId;
 		Result.bValid = true;
 	}
@@ -127,20 +127,20 @@ struct FVirtualShadowMapClipmapRelativeTransform
 	float3 Bias;
 };
 
-// NOTE: Two virtual shadow IDs must reference different levels from the same clipmap
-// Resulting transform takes coordinates and depths from A to B
-FVirtualShadowMapClipmapRelativeTransform CalcClipmapRelativeTransform(int VirtualShadowIdA, int VirtualShadowIdB)
+// Resulting transform takes UV's/depths from clipmap level ClipmapId to ClipmapId + LevelOffset 
+// ClipmapId + LevelOffset should be a valid level in the same clipmap
+FVirtualShadowMapClipmapRelativeTransform CalcClipmapRelativeTransform(int ClipmapId, int LevelOffset)
 {
-	const FVirtualShadowMapProjectionShaderData ProjectionDataA = GetVirtualShadowMapProjectionData(VirtualShadowIdA);
-	const FVirtualShadowMapProjectionShaderData ProjectionDataB = GetVirtualShadowMapProjectionData(VirtualShadowIdB);
+	const FVirtualShadowMapProjectionShaderData ProjectionDataA = GetVirtualShadowMapProjectionData(ClipmapId);
+	const FVirtualShadowMapProjectionShaderData ProjectionDataB = GetVirtualShadowMapProjectionData(ClipmapId + LevelOffset);
 
 	// TODO: Simplify/optimize
-	float2 UVA = float2(ProjectionDataA.ClipmapCenterSnapUnits) * float2(-0.25f, 0.25f) + float2(0.5f, 0.5f);
-	float2 UVB = float2(ProjectionDataB.ClipmapCenterSnapUnits) * float2(-0.25f, 0.25f) + float2(0.5f, 0.5f);
+	float2 OffsetA = float2(ProjectionDataA.ClipmapCornerOffset);
+	float2 OffsetB = float2(ProjectionDataB.ClipmapCornerOffset);
 
 	FVirtualShadowMapClipmapRelativeTransform Result;
-	Result.Scale = pow(2.0f, float(VirtualShadowIdA - VirtualShadowIdB));
-	Result.Bias.xy = (UVB - Result.Scale * UVA);
+	Result.Scale = exp2(-float(LevelOffset));
+	Result.Bias.xy = 0.25f * (OffsetB - Result.Scale * OffsetA);
 	// NOTE: Currently no snapping in Z
 	Result.Bias.z = 0.5f - Result.Scale * 0.5f;
 	return Result;
@@ -151,36 +151,32 @@ FVirtualShadowMapClipmapRelativeTransform CalcClipmapRelativeTransform(int Virtu
 
 // Will sample from the given clipmap level Id, onwards to coarser levels if no valid data is present
 // ShadowMapUVs are in terms of the given clipmap level/virtual shadow map
-FVirtualSmSample SampleVirtualSmClipmap(int VirtualShadowMapId, float2 ShadowMapUV)
+FVirtualShadowMapSample SampleVirtualShadowMapClipmap(int VirtualShadowMapId, float2 ShadowMapUV)
 {
-	FVirtualSmSample Result = InitVirtualSmSample();
-		
-#if 1
+	FVirtualShadowMapSample Result = InitVirtualShadowMapSample();
+
+#define DEBUG_VSM_CLIPMAP_LEVEL_SEARCH 0
+#if !DEBUG_VSM_CLIPMAP_LEVEL_SEARCH
 	FShadowPageTranslationResult Page = ShadowVirtualToPhysicalUV(VirtualShadowMapId, ShadowMapUV);
 	if (Page.bValid)
 	{
-		// TODO: Clean up - clipmap offset in mip level
-		int ClipmapId = VirtualShadowMapId + Page.MipLevel;
-
-		FVirtualShadowMapClipmapRelativeTransform Transform = CalcClipmapRelativeTransform(VirtualShadowMapId, ClipmapId);
-
+		FVirtualShadowMapClipmapRelativeTransform Transform = CalcClipmapRelativeTransform(VirtualShadowMapId, Page.LODOffset);
 		float2 ClipmapUV = ShadowMapUV * Transform.Scale + Transform.Bias.xy;
-		Result = SampleVirtualSmLevel(ClipmapId, ClipmapUV, 0);
+		Result = SampleVirtualShadowMapLevel(VirtualShadowMapId + Page.LODOffset, ClipmapUV, 0);
 		if (Result.bValid)
 		{
 			// Convert depth into back into the original reference clipmap level range
 			Result.Depth = (Result.Depth - Transform.Bias.z) / Transform.Scale;
 		}
 	}
-#else
+#else // DEBUG_VSM_CLIPMAP_LEVEL_SEARCH
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
-	const int LastId = VirtualShadowMapId + BaseProjectionData.ClipmapLevelCount;
-	for (int ClipmapId = VirtualShadowMapId; ClipmapId < VirtualShadowMapId + 2; ++ClipmapId)
+	const int MaxOffset = BaseProjectionData.ClipmapLevelCount - BaseProjectionData.ClipmapIndex;
+	for (int Offset = 0; Offset < MaxOffset; ++Offset)
 	{
-		FVirtualShadowMapClipmapRelativeTransform Transform = CalcClipmapRelativeTransform(VirtualShadowMapId, ClipmapId);
-		
+		FVirtualShadowMapClipmapRelativeTransform Transform = CalcClipmapRelativeTransform(VirtualShadowMapId, Offset);		
 		float2 ClipmapUV = ShadowMapUV * Transform.Scale + Transform.Bias.xy;
-		Result = SampleVirtualSmLevel(ClipmapId, ClipmapUV, 0);
+		Result = SampleVirtualShadowMapLevel(VirtualShadowMapId + Offset, ClipmapUV, 0);
 		if (Result.bValid)
 		{
 			// Convert depth into back into the original reference clipmap level range
@@ -188,32 +184,37 @@ FVirtualSmSample SampleVirtualSmClipmap(int VirtualShadowMapId, float2 ShadowMap
 			break;
 		}
 	}
-#endif
+#endif // DEBUG_VSM_CLIPMAP_LEVEL_SEARCH
 
 	return Result;
 }
 
 
-FVirtualSmSample SampleVirtualSm(int VirtualShadowMapId, float2 ShadowMapUV)
+FVirtualShadowMapSample SampleVirtualShadowMap(int VirtualShadowMapId, float2 ShadowMapUV)
 {
 	FShadowPageTranslationResult Page = ShadowVirtualToPhysicalUV(VirtualShadowMapId, ShadowMapUV);
 	if (Page.bValid)
 	{
-		FVirtualSmSample Result;
+		FVirtualShadowMapSample Result;
 		Result.bValid = true;
-		Result.MipLevel = Page.MipLevel;
+		Result.MipLevel = Page.LODOffset;
 		Result.VirtualShadowMapId = VirtualShadowMapId;
 		Result.VirtualTexelAddress = Page.VirtualTexelAddress;
 		Result.VirtualTexelAddressFloat = Page.VirtualTexelAddressFloat;
 		Result.PhysicalTexelAddress = Page.PhysicalTexelAddress;
-		Result.Depth = SampleVirtualSmPhysicalDepth(Result.PhysicalTexelAddress);
+		Result.Depth = SampleVirtualShadowMapPhysicalDepth(Result.PhysicalTexelAddress);
 		return Result;
 	}
 
-	return InitVirtualSmSample();
+	return InitVirtualShadowMapSample();
 }
 
-float ComputeVirtualShadowMapOptimalSlopeBias(FVirtualSmSample SmSample, float3 WorldPosition, float3 EstimatedGeoWorldNormal)
+float ComputeVirtualShadowMapOptimalSlopeBias(
+	// Used to compare to the sampled SmSample.VirtualShadowMapId to adjust depth scale for clipmaps
+	int RequestedVirtualShadowMapId,
+	FVirtualShadowMapSample SmSample,
+	float3 WorldPosition,
+	float3 EstimatedGeoWorldNormal)
 {
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(SmSample.VirtualShadowMapId);
 
@@ -223,13 +224,19 @@ float ComputeVirtualShadowMapOptimalSlopeBias(FVirtualSmSample SmSample, float3 
 
 	float2 DepthSlopeUV = -NormalPlaneUV.xy / NormalPlaneUV.z;
 	float MipLevelDim = float(CalcLevelDimsTexels(SmSample.MipLevel));
-	float2 TexelCenter = float2(SmSample.VirtualTexelAddress) + 0.5;
+	float2 TexelCenter = float2(SmSample.VirtualTexelAddress) + 0.5f;
 	float2 TexelCenterOffset = TexelCenter - SmSample.VirtualTexelAddressFloat;
 	float2 TexelCenterOffsetUV = TexelCenterOffset / MipLevelDim;
 	// 2x factor due to lack of precision (probably)
 	float OptimalSlopeBias = 2.0f * max(0.0f, dot(DepthSlopeUV, TexelCenterOffsetUV));
+	
 	// Clamp to avoid excessive degenerate slope biases causing flickering lit pixels
 	OptimalSlopeBias = min(OptimalSlopeBias, abs(10.0f * ProjectionData.ShadowViewToClipMatrix._33));
+
+	// Adjust depth scale if we sampled a different clipmap level
+	// NOTE: Sampled clipmap should always be > the requested one (coarser)
+	// Do this after clamping to be consistent in world space
+	OptimalSlopeBias *= float(1 << (SmSample.VirtualShadowMapId - RequestedVirtualShadowMapId));
 
 	return OptimalSlopeBias;
 }
@@ -287,7 +294,7 @@ uint GetCubeFace( float3 Dir )
 *   - This is used to compute a receiver-plane-based bias for the sample point
 *   - The shading normal can be used if the geometric normal is not available, but divergence from the geometric normal can cause biasing issues.
 * RayStartDistance is an optional offset to move the lookup along the shadow ray towards the light
-*   - Should zero or positive
+*   - Should be zero or positive
 *   - This offset is useful in that it does *not* affect the selection of clipmap level, unlike offsetting the WorldPosition itself
 *   - OccluderDistance will still be relative to the original sample position
 */
@@ -306,16 +313,15 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 		// Check if sample is within the clipmap range (from camera)
 		if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
 		{
-			// NOTE: Clipmap levels are contiguous in the virtual shadow map list
 			int ClipmapLevelVirtualShadowMapId = VirtualShadowMapId + ClipmapIndex;
 			FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(ClipmapLevelVirtualShadowMapId);
 
 			// No perspective divided needed for ortho projection
 			float4 ShadowUVz = mul(float4(WorldPosition + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
 			
-			FVirtualSmSample SmSample;
-			SmSample = SampleVirtualSmLevel(ClipmapLevelVirtualShadowMapId, ShadowUVz.xy, 0);
-			//SmSample = SampleVirtualSmClipmap(ClipmapLevelVirtualShadowMapId, ShadowUVz.xy);
+			FVirtualShadowMapSample SmSample;
+			//SmSample = SampleVirtualShadowMapLevel(ClipmapLevelVirtualShadowMapId, ShadowUVz.xy, 0);
+			SmSample = SampleVirtualShadowMapClipmap(ClipmapLevelVirtualShadowMapId, ShadowUVz.xy);
 			
 			if (SmSample.bValid)
 			{
@@ -327,7 +333,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 				Result.OccluderDistance = -1.0f;
 				Result.ClipmapIndexOrMipLevel = SampledClipmapIndex;
 
-				float OptimalSlopeBias = ComputeVirtualShadowMapOptimalSlopeBias(SmSample, WorldPosition, EstimatedGeoWorldNormal);
+				float OptimalSlopeBias = ComputeVirtualShadowMapOptimalSlopeBias(ClipmapLevelVirtualShadowMapId, SmSample, WorldPosition, EstimatedGeoWorldNormal);
 				float RayStartBias = -RayStartDistance * ProjectionData.ShadowViewToClipMatrix._33;
 				float BiasedDepth = SmSample.Depth - OptimalSlopeBias - RayStartBias;
 
@@ -358,7 +364,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 		float4 ShadowUVz = mul(float4(TranslatedWorldPosition, 1.0f), BaseProjectionData.TranslatedWorldToShadowUVMatrix);
 		ShadowUVz.xyz /= ShadowUVz.w;
 
-		FVirtualSmSample SmSample = SampleVirtualSm(VirtualShadowMapId, ShadowUVz.xy);
+		FVirtualShadowMapSample SmSample = SampleVirtualShadowMap(VirtualShadowMapId, ShadowUVz.xy);
 		if (SmSample.bValid)
 		{
 			FVirtualShadowMapSampleResult Result;
@@ -367,7 +373,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 			Result.OccluderDistance = -1.0f;
 			Result.ClipmapIndexOrMipLevel = SmSample.MipLevel;
 
-			float OptimalSlopeBias = ComputeVirtualShadowMapOptimalSlopeBias(SmSample, WorldPosition, EstimatedGeoWorldNormal);
+			float OptimalSlopeBias = ComputeVirtualShadowMapOptimalSlopeBias(VirtualShadowMapId, SmSample, WorldPosition, EstimatedGeoWorldNormal);
 			float RayStartBias = -RayStartDistance * BaseProjectionData.ShadowViewToClipMatrix._33 / ShadowUVz.w;
 			float BiasedDepth = SmSample.Depth - OptimalSlopeBias - RayStartBias;
 

@@ -59,7 +59,7 @@ FSMRTSample SMRTFindSample(inout FSMRTSingleRayState RayState, float SampleTime)
 
 	if (all(UVz.xy == saturate(UVz.xy)))
 	{
-		FVirtualSmSample SmSample = SampleVirtualSm(RayState.VirtualShadowMapId, UVz.xy);
+		FVirtualShadowMapSample SmSample = SampleVirtualShadowMap(RayState.VirtualShadowMapId, UVz.xy);
 		if (SmSample.bValid)
 		{
 			Sample.bValid = true;

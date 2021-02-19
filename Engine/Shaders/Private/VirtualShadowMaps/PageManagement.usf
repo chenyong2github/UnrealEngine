@@ -258,6 +258,52 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 	}
 }
 
+int ClipmapFirstCoarseLevel;
+
+[numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
+void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
+{
+	int VirtualShadowMapId = int(Index.x);
+	if (VirtualShadowMapId >= int(VirtualShadowMap.NumShadowMaps))
+	{
+		return;
+	}
+
+	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+
+	if (ProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL)
+	{
+		// Idea here is the clipmaps already cover supersets of lower levels
+		// Thus to get coarser pages we can just mark the center page(s) offset by a level/LOD bias
+		// The limit on how far dense data goes out from the camera then becomes the world space size of the marked page(s) on the coarses clipmap
+		// We could of course mark a broader set of pages in the coarses clipmap level, but the effective radius
+		// even from just marking a single one is usually already large enough for the systems that need this
+		// data (volumetric fog, translucent light volume).
+		
+		if (ProjectionData.ClipmapLevel > ClipmapFirstCoarseLevel)
+		{
+			// TODO: Optimize this... can be boiled down to be just in terms of the snap offsets
+			float4 ShadowUVz = mul(float4(ProjectionData.ClipmapWorldOrigin + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
+			float2 VirtualTexelAddressFloat = ShadowUVz.xy * float(CalcLevelDimsTexels(0));
+			float2 PageAddressFloat = VirtualTexelAddressFloat * float(1.0f / VSM_PAGE_SIZE);
+			// NOTE: Page addresses round down/truncate normally, so grab the surrounding 4
+			int4 PageAddressLowHigh = int4(floor(PageAddressFloat - 0.5f), ceil(PageAddressFloat - 0.5f));
+
+			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.xy)] = 1;
+			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.xw)] = 1;
+			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.zy)] = 1;
+			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.zw)] = 1;
+		}
+	}
+	else
+	{
+		// Mark last mip
+		uint PageOffset = CalcPageOffset(VirtualShadowMapId, VSM_MAX_MIP_LEVELS - 1, uint2(0, 0));
+		OutPageRequestFlags[PageOffset] = 1;
+	}
+}
+
+
 
 RWStructuredBuffer<uint> OutHPageFlags;
 RWStructuredBuffer<uint4> PageRectBoundsOut;
@@ -616,17 +662,17 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 		// Directional lights propagate pages to their coarser/larger clipmap levels (and only use mip0 pages)
 		// Each clipmap level is a separate VSM, so we gather any mapped coarser pages as necessary and write only our own page output
 		// There's also technically a race similar to below with other threads writing the PT data we are reading,
-		// but it's still deterministic as long as we only look at pages with "bThisMipValid".
+		// but it's still deterministic as long as we only look at pages with "bThisLODValid".
 		// There's some redundant work of course, but this shader is pretty cheap overall
 
 		uint Page0Offset = CalcPageOffset(VirtualShadowMapID, 0, Level0Page);
 		FShadowPhysicalPage pPage0 = ShadowDecodePageTable(OutPageTable[Page0Offset]);
 
 		BRANCH
-		if (!pPage0.bThisMipValid)
+		if (!pPage0.bThisLODValid)
 		{
 			const int OffsetScale = (VSM_LEVEL0_DIM_PAGES_XY >> 2);
-			int2 BaseOffset = OffsetScale * (ProjectionData.ClipmapCenterSnapUnits * int2(-1, 1) + 2);
+			int2 BaseOffset = OffsetScale * ProjectionData.ClipmapCornerOffset;
 			int2 BasePage   = int2(Level0Page) - BaseOffset;
 
 			// Search for first mapped page past this one
@@ -636,7 +682,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 				const int ClipmapLevelId = VirtualShadowMapID + int(ClipmapOffset);
 
 				FVirtualShadowMapProjectionShaderData LevelProjectionData = GetVirtualShadowMapProjectionData(ClipmapLevelId);								
-				int2 LevelOffset = OffsetScale * (LevelProjectionData.ClipmapCenterSnapUnits * int2(-1, 1) + 2);
+				int2 LevelOffset = OffsetScale * LevelProjectionData.ClipmapCornerOffset;
 
 				const int LevelScale = 1 << ClipmapOffset;
 				int2 LevelPage = (BasePage + LevelScale * LevelOffset) / LevelScale;
@@ -645,7 +691,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 				{
 					uint LevelPageOffset = CalcPageOffset(ClipmapLevelId, 0, uint2(LevelPage));
 					FShadowPhysicalPage pPage = ShadowDecodePageTable(OutPageTable[LevelPageOffset]);
-					if (pPage.bThisMipValid)
+					if (pPage.bThisLODValid)
 					{
 						OutPageTable[Page0Offset] = ShadowEncodePageTable(pPage.PageIndex, ClipmapOffset);
 						break;
@@ -653,8 +699,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 				}
 				else
 				{
-					// TODO: We're off the edge... can we ever get back on?
-					// TODO: Can this ever even happen in practice given the construction?
+					// TODO: We're off the edge... can this ever even happen in practice given the construction?
 				}
 			}
 		}
@@ -672,9 +717,9 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 			FShadowPhysicalPage pPage = ShadowDecodePageTable(OutPageTable[PageOffset]);
 
 			BRANCH
-			if (pPage.bThisMipValid)
+			if (pPage.bThisLODValid)
 			{
-				// This page is mapped, so leave it alone and propogate downwards
+				// This page is mapped, so leave it alone and propagate downwards
 				MappedPageLevel = Level;
 				MappedPageIndex = pPage.PageIndex;
 			}
@@ -682,7 +727,7 @@ void PropagateMappedMips(uint2 ThreadId : SV_DispatchThreadID, uint2 GroupId : S
 			{
 				// This page is not mapped; replace it with our suitably offset parent mapped page
 				// Ensure only one thread writes each value to avoid races, but we read on all threads as the broadcast
-				// Note that this can race with the other threads reading this value, but since bThisMipValid will
+				// Note that this can race with the other threads reading this value, but since bThisLODValid will
 				// always be false on these updated pages the values will be ignored. As long as the writes to the page
 				// table are atomic (currently a single DWORD), this is safe.
 				if (all((vPage << Level) == Level0Page))
@@ -896,7 +941,7 @@ void MarkRenderedPhysicalPages(uint3 PageTableEntryIndex : SV_DispatchThreadID)
 	}
 
 	FShadowPhysicalPage pPage = ShadowGetPhysicalPage(PageTableEntryIndex.x);
-	if (pPage.bThisMipValid)
+	if (pPage.bThisLODValid)
 	{
 		uint PageIndex = PhysPageAddressToIndex(pPage.PageIndex);
 		FPhysicalPageMetaData MetaData = InOutPhysicalPageMetaData[PageIndex];

@@ -137,15 +137,15 @@ uint PhysPageAddressToIndex(uint2 PhysicalPageAddress)
 // NOTE: Some redundancy in flags and encoding, but we have spare bits for now
 //   [0:9] PageIndex.x
 //   [10:19] PageIndex.y
-//   [20:23] MipOffset
-//   [24:30] (currently unused)
-//   [31] bAnyMipValid
+//   [20:25] LODOffset
+//   [26:30] (currently unused)
+//   [31] bAnyLODValid
 struct FShadowPhysicalPage
 {
 	uint2 PageIndex;		// Physical page index X, Y
-	uint MipOffset;			// 0 if page is mapped at this mip; 1 if mapped at next courser level, etc. [0..16)
-	bool bAnyMipValid;		// Valid physical page mapped at some mip level
-	bool bThisMipValid;		// Valid page mapped at this specific mip level (equivalent to bAnyMipValid && MipOffset == 0)
+	uint LODOffset;			// 0 if page is mapped at this mip/clipmap level; 1 if mapped at next courser level, etc. [0..64)
+	bool bAnyLODValid;		// Valid physical page mapped at some LOD level
+	bool bThisLODValid;		// Valid page mapped at this specific level (equivalent to bAnyMipValid && LODOffset == 0)
 };
 
 #define VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG 0x8000000
@@ -158,18 +158,18 @@ uint ShadowEncodePageTable(uint2 PageIndex)
 {
 	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (PageIndex.y << 10) | (PageIndex.x);
 }
-uint ShadowEncodePageTable(uint2 PageIndex, uint MipOffset)
+uint ShadowEncodePageTable(uint2 PageIndex, uint LODOffset)
 {
-	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (MipOffset << 20) | (PageIndex.y << 10) | (PageIndex.x);
+	return VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG | (LODOffset << 20) | (PageIndex.y << 10) | (PageIndex.x);
 }
 
 FShadowPhysicalPage ShadowDecodePageTable(uint Value)
 {
 	FShadowPhysicalPage Result;
 	Result.PageIndex = uint2(Value & 0x3FF, (Value >> 10) & 0x3FF);
-	Result.MipOffset = (Value >> 20) & 0xF;
-	Result.bAnyMipValid = (Value & VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG) != 0;
-	Result.bThisMipValid = Result.bAnyMipValid && Result.MipOffset == 0;
+	Result.LODOffset = (Value >> 20) & 0x3F;
+	Result.bAnyLODValid = (Value & VSM_PHYSICAL_PAGE_ANY_MIP_VALID_FLAG) != 0;
+	Result.bThisLODValid = Result.bAnyLODValid && Result.LODOffset == 0;
 	return Result;
 }
 
@@ -185,13 +185,13 @@ bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddr
 
 	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageOffset(ShadowMapID, Level, uint2(VPageX, VPageY)));
 	PhysicalTexelAddress = PhysicalPageEntry.PageIndex * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
-	return (PhysicalPageEntry.bThisMipValid);
+	return (PhysicalPageEntry.bThisLODValid);
 }
 
 struct FShadowPageTranslationResult
 {
 	bool bValid;
-	uint MipLevel;
+	uint LODOffset;
 	uint2 VirtualTexelAddress;
 	float2 VirtualTexelAddressFloat;
 	uint2 PhysicalTexelAddress;
@@ -207,10 +207,10 @@ FShadowPageTranslationResult ShadowVirtualToPhysicalUV(uint VirtualShadowMapID, 
 	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageOffset(VirtualShadowMapID, 0, vPageLevel0));
 
 	FShadowPageTranslationResult Result;
-	Result.bValid = PhysicalPageEntry.bAnyMipValid;
-	Result.MipLevel = PhysicalPageEntry.MipOffset;	
+	Result.bValid = PhysicalPageEntry.bAnyLODValid;
+	Result.LODOffset = PhysicalPageEntry.LODOffset;
 	// TODO: Can optimize this slightly based on relative offset
-	Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(Result.MipLevel));
+	Result.VirtualTexelAddressFloat = ShadowMapUV * float(CalcLevelDimsTexels(Result.LODOffset));
 	Result.VirtualTexelAddress = uint2(Result.VirtualTexelAddressFloat);
 	Result.PhysicalTexelAddress = PhysicalPageEntry.PageIndex * VSM_PAGE_SIZE + (Result.VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
 
@@ -323,7 +323,7 @@ bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
 			uint PageOffset = PageTableLevelOffset + CalcPageOffsetInLevel( MipLevel, vPage );
 			FShadowPhysicalPage pPage = ShadowDecodePageTable( ShadowHZBPageTable[ PageOffset ] );
 
-			if( !pPage.bThisMipValid )
+			if( !pPage.bThisLODValid )
 			{
 				// If this is a new page we can't consider everything occluded the first time.
 				//if( PageFlags[ PageOffset ] != 0 )

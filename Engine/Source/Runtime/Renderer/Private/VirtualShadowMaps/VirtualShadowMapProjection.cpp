@@ -40,9 +40,9 @@ static TAutoConsoleVariable<float> CVarNormalOffsetWorld(
 );
 
 static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
-	TEXT( "r.Shadow.Virtual.DebugVisualizeProjection" ),
+	TEXT( "r.Shadow.Virtual.DebugProjection" ),
 	0,
-	TEXT( "Projection pass debug output visualization for use with 'vis VirtSmDebugProj'." ),
+	TEXT( "Projection pass debug output visualization for use with 'vis Shadow.Virtual.DebugProjection'." ),
 	ECVF_RenderThreadSafe
 );
 
@@ -287,7 +287,7 @@ static FRDGTextureRef CreateDebugOutput(FRDGBuilder& GraphBuilder, FIntPoint Ext
 		TexCreate_ShaderResource | TexCreate_RenderTargetable
 	);
 
-	return GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("Shadow.Virtual.DebugProj"));
+	return GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("Shadow.Virtual.DebugProjection"));
 }
 
 // Returns true if temporal denoising should be used

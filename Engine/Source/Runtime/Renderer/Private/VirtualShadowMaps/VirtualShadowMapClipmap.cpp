@@ -26,11 +26,13 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstLevel(
 static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapMaxRadius(
 	TEXT( "r.Shadow.Virtual.Clipmap.MaxRadius" ),
 	1000000.0f,
-	TEXT( "Maximum distance the clipmap covers. Determines the number of clipmap levels." ),
+	TEXT( "Maximum distance the clipmap is guaranteed to cover. Determines the number of clipmap levels." ),
 	ECVF_RenderThreadSafe
 );
 
 // "Virtual" clipmap level to clipmap radius
+// NOTE: This is the radius of around the clipmap origin that this level must cover
+// The actual clipmap dimensions will be larger due to snapping and other accomodations
 static float GetLevelRadius(int32 Level)
 {
 	// NOTE: Virtual clipmap indices can be negative (although not commonly)
@@ -97,7 +99,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 		const float RawLevelRadius = GetLevelRadius(LevelIndex);
 
-		float SnappedLevelRadius = 2.0f * RawLevelRadius;
+		float HalfLevelDim = 2.0f * RawLevelRadius;
 		float SnapSize = RawLevelRadius;
 
 		FVector ViewCenter = WorldToViewRotationMatrix.TransformPosition(WorldOrigin);
@@ -107,14 +109,18 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 		ViewCenter.X = CenterSnapUnits.X * SnapSize;
 		ViewCenter.Y = CenterSnapUnits.Y * SnapSize;
 
+		FIntPoint CornerOffset;
+		CornerOffset.X = -CenterSnapUnits.X + 2;
+		CornerOffset.Y =  CenterSnapUnits.Y + 2;
+
 		const FVector SnappedWorldCenter = ViewToWorldRotationMatrix.TransformPosition(ViewCenter);
 
 		const float ZScale = 0.5f / RawLevelRadius;
 		const float ZOffset = RawLevelRadius;
 
 		Level.WorldCenter = SnappedWorldCenter;
-		Level.ViewToClip = FReversedZOrthoMatrix(SnappedLevelRadius, SnappedLevelRadius, ZScale, ZOffset);
-		Level.CenterSnapUnits = CenterSnapUnits;
+		Level.ViewToClip = FReversedZOrthoMatrix(HalfLevelDim, HalfLevelDim, ZScale, ZOffset);
+		Level.CornerOffset = CornerOffset;
 
 		if (VirtualShadowMapArrayCacheManager)
 		{
@@ -124,8 +130,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 			{
 				// We snap to half the size of the VSM at each level
 				check((FVirtualShadowMap::Level0DimPagesXY & 1) == 0);
-				FIntPoint PageOffset(CenterSnapUnits * (FVirtualShadowMap::Level0DimPagesXY >> 1));
-				PageOffset.Y = -PageOffset.Y;		// Viewport
+				FIntPoint PageOffset(CornerOffset * (FVirtualShadowMap::Level0DimPagesXY >> 2));
 				float DepthOffset = -ViewCenter.Z * ZScale;
 
 				CacheEntry->UpdateClipmap(Level.VirtualShadowMap->ID, WorldToLightRotationMatrix, PageOffset, DepthOffset);
@@ -174,7 +179,7 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
 	Data.ClipmapLevelCount = LevelData.Num();
 	Data.ClipmapResolutionLodBias = ResolutionLodBias;
-	Data.ClipmapCenterSnapUnits = Level.CenterSnapUnits;
+	Data.ClipmapCornerOffset = Level.CornerOffset;
 
 	return Data;
 }

@@ -89,20 +89,31 @@ static TAutoConsoleVariable<float> CVarPageDilationBorderSize(
 	ECVF_RenderThreadSafe
 );
 
-FMatrix CalcTranslatedWorldToShadowUVMatrix(
-	const FMatrix& TranslatedWorldToShadowView,
-	const FMatrix& ViewToClip)
-{
-	FMatrix TranslatedWorldToShadowClip = TranslatedWorldToShadowView * ViewToClip;
-	FMatrix ScaleAndBiasToSmUV = FScaleMatrix(FVector(0.5f, -0.5f, 1.0f)) * FTranslationMatrix(FVector(0.5f, 0.5f, 0.0f));
-	FMatrix TranslatedWorldToShadowUv = TranslatedWorldToShadowClip * ScaleAndBiasToSmUV;
-	return TranslatedWorldToShadowUv;
-}
-
 TAutoConsoleVariable<int32> CVarAllocatePagesUsingRects(
 	TEXT("r.Shadow.Virtual.AllocatePagesUsingRects"),
 	0,
 	TEXT("If set to 1 then pages are allocated in a contigious block to support the bounding rectangle of allocated virtual pages leading to a trivial mapping but higher memory overhead."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarMarkPixelPages(
+	TEXT("r.Shadow.Virtual.MarkPixelPages"),
+	1,
+	TEXT("Marks pages in virtual shadow maps based on depth buffer pixels. Ability to disable is primarily for profiling and debugging."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarMarkCoarsePages(
+	TEXT("r.Shadow.Virtual.MarkCoarsePages"),
+	0,
+	TEXT("Marks coarse pages in virtual shadow maps so that low resolution data is available everywhere. Ability to disable is primarily for profiling and debugging."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstCoarseLevel(
+	TEXT("r.Shadow.Virtual.Clipmap.FirstCoarseLevel"),
+	14,
+	TEXT("First level of the clipmap to mark coarse pages for. Lower values allow higher resolution coarse pages near the camera but increase total page counts."),
 	ECVF_RenderThreadSafe
 );
 
@@ -116,6 +127,16 @@ static TAutoConsoleVariable<int32> CVarShowClipmapStats(
 );
 
 #endif // ENABLE_NON_NANITE_VSM
+
+FMatrix CalcTranslatedWorldToShadowUVMatrix(
+	const FMatrix& TranslatedWorldToShadowView,
+	const FMatrix& ViewToClip)
+{
+	FMatrix TranslatedWorldToShadowClip = TranslatedWorldToShadowView * ViewToClip;
+	FMatrix ScaleAndBiasToSmUV = FScaleMatrix(FVector(0.5f, -0.5f, 1.0f)) * FTranslationMatrix(FVector(0.5f, 0.5f, 0.0f));
+	FMatrix TranslatedWorldToShadowUv = TranslatedWorldToShadowClip * ScaleAndBiasToSmUV;
+	return TranslatedWorldToShadowUv;
+}
 
 FMatrix CalcTranslatedWorldToShadowUVNormalMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
@@ -296,6 +317,20 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FGeneratePageFlagsFromPixelsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "GeneratePageFlagsFromPixels", SF_Compute);
+
+class FMarkCoarsePagesCS : public FVirtualPageManagementShader
+{
+	DECLARE_GLOBAL_SHADER(FMarkCoarsePagesCS);
+	SHADER_USE_PARAMETER_STRUCT(FMarkCoarsePagesCS, FVirtualPageManagementShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData)
+		SHADER_PARAMETER(int32, ClipmapFirstCoarseLevel)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FMarkCoarsePagesCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "MarkCoarsePages", SF_Compute);
 
 
 class FGenerateHierarchicalPageFlagsCS : public FVirtualPageManagementShader
@@ -801,39 +836,65 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 			FRDGBufferRef ScreenSpaceGridBoundsRDG = nullptr;
 			
-			// Project Pixels onto SMs
 			{
-				FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FNaniteDepthBufferDim>(NaniteVisBuffer64 != nullptr && !bPostBasePass);
+				// It's safe to overlap these passes that all write to page request flags
+				FRDGBufferUAVRef PageRequestFlagsUAV = GraphBuilder.CreateUAV(PageRequestFlagsRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
-				FGeneratePageFlagsFromPixelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGeneratePageFlagsFromPixelsCS::FParameters >();
-				PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
+				// Mark pages based on projected depth buffer pixels
+				if (CVarMarkPixelPages.GetValueOnRenderThread() != 0)
+				{
+					FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
+					PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FNaniteDepthBufferDim>(NaniteVisBuffer64 != nullptr && !bPostBasePass);
 
-				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-				PassParameters->bPostBasePass = bPostBasePass;
+					FGeneratePageFlagsFromPixelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGeneratePageFlagsFromPixelsCS::FParameters >();
+					PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
+
+					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+					PassParameters->bPostBasePass = bPostBasePass;
 				
-				PassParameters->VisBuffer64 = VisBuffer64;
-				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->OutPageRequestFlags = GraphBuilder.CreateUAV(PageRequestFlagsRDG);
-				PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
-				PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV(VirtualShadowMapIdRemapRDG[ViewIndex]);
-				PassParameters->VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
-				PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
-				PassParameters->LodFootprintScale = LodFootprintScale;
-				PassParameters->PageDilationBorderSize = PageDilationBorderSize;
+					PassParameters->VisBuffer64 = VisBuffer64;
+					PassParameters->View = View.ViewUniformBuffer;
+					PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
+					PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+					PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV(VirtualShadowMapIdRemapRDG[ViewIndex]);
+					PassParameters->VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
+					PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
+					PassParameters->LodFootprintScale = LodFootprintScale;
+					PassParameters->PageDilationBorderSize = PageDilationBorderSize;
 				
-				auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
+					auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 
-				static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");
-				const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVirtualPageManagementShader::DefaultCSGroupXY);
+					static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");
+					const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVirtualPageManagementShader::DefaultCSGroupXY);
 
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("GeneratePageFlagsFromPixels"),
-					ComputeShader,
-					PassParameters,
-					FIntVector(GridSize.X, GridSize.Y, 1)
-				);
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("GeneratePageFlagsFromPixels"),
+						ComputeShader,
+						PassParameters,
+						FIntVector(GridSize.X, GridSize.Y, 1)
+					);
+				}
+
+				// Mark coarse pages
+				if (CVarMarkCoarsePages.GetValueOnRenderThread() != 0)
+				{
+					FMarkCoarsePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FMarkCoarsePagesCS::FParameters >();
+					PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
+					PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
+					PassParameters->VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
+					PassParameters->ClipmapFirstCoarseLevel = CVarVirtualShadowMapClipmapFirstCoarseLevel.GetValueOnRenderThread();
+
+					auto ComputeShader = View.ShaderMap->GetShader<FMarkCoarsePagesCS>();
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("MarkCoarsePages"),
+						ComputeShader,
+						PassParameters,
+						FIntVector(FMath::DivideAndRoundUp(uint32(ShadowMaps.Num()), FMarkCoarsePagesCS::DefaultCSGroupX), 1, 1)
+					);
+				}
 			}
 		}
 

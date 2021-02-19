@@ -66,7 +66,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 			uint2 vPage = vAddress >> VSM_LOG2_PAGE_SIZE;
 			FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageOffset( ShadowMapID, Level, vPage ) );
 
-			if( pPage.bThisMipValid )
+			if( pPage.bThisLODValid )
 			{
 				uint2 pAddress = pPage.PageIndex * VSM_PAGE_SIZE + ( vAddress & VSM_PAGE_SIZE_MASK );
 				Depth = asfloat( PhysicalPagePool[ pAddress ] );
@@ -82,7 +82,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 			//uint2 pPage = HZBPageTable[ CalcPageOffset( ShadowMapID, Level, vPage ) ];
 			FShadowPhysicalPage pPage = ShadowGetPhysicalPage( CalcPageOffset( ShadowMapID, Level, vPage ) );
 
-			if( pPage.bThisMipValid )
+			if( pPage.bThisLODValid )
 			{
 				vAddress >>= 1;
 
@@ -176,7 +176,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 			{
 				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
 				uint PageFlag = PageFlags[Offset];
-				bool PageValid = ShadowGetPhysicalPage(Offset).bThisMipValid;
+				bool PageValid = ShadowGetPhysicalPage(Offset).bThisLODValid;
 				float3 Color = float3(0, !PageValid && PageFlag, 0);
 				DebugOutput[OutputPixel] = float4(Color, 1.0f);
 			}

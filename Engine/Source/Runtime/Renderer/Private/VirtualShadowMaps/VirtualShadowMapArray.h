@@ -97,7 +97,7 @@ struct FVirtualShadowMapProjectionShaderData
 	FVector ClipmapWorldOrigin;
 	int32 VirtualShadowMapId = INDEX_NONE;
 	
-	FIntPoint ClipmapCenterSnapUnits;
+	FIntPoint ClipmapCornerOffset;
 	int32 ClipmapIndex = 0;					// 0 .. ClipmapLevelCount-1
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
 	int32 ClipmapLevelCount = 0;

@@ -95,7 +95,7 @@ FSMRTSample SMRTFindSample(inout FSMRTClipmapRayState RayState, float SampleTime
 
 	if (bValid)
 	{
-		float SampleDepth = ToBaseDepthScaleBias.x * SampleVirtualSmPhysicalDepth(PhysicalTexelAddress) + ToBaseDepthScaleBias.y;
+		float SampleDepth = ToBaseDepthScaleBias.x * SampleVirtualShadowMapPhysicalDepth(PhysicalTexelAddress) + ToBaseDepthScaleBias.y;
 		Sample.bValid = true;
 		Sample.SampleDepth = SampleDepth;
 		Sample.ReferenceDepth = SampleTexelsZ.z;
