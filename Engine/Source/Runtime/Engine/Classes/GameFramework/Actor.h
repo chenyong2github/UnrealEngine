@@ -920,6 +920,9 @@ private:
 	/** Whether this actor is temporarily hidden within the editor; used for show/hide/etc functionality w/o dirtying the actor. */
 	UPROPERTY(Transient)
 	uint8 bHiddenEdTemporary:1;
+
+	UPROPERTY(Transient)
+	uint8 bForceExternalActorLevelReferenceForPIE : 1;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Set while actor is being constructed. Used to ensure that construction is not re-entrant. */
@@ -2086,6 +2089,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Actor Editing")
 	virtual void SetIsTemporarilyHiddenInEditor( bool bIsHidden );
+
+	/** Returns if level should keep a reference to the external actor for PIE (used for always loaded actors). */
+	bool IsForceExternalActorLevelReferenceForPIE() const
+	{
+		return bForceExternalActorLevelReferenceForPIE;
+	}
+
+	void SetForceExternalActorLevelReferenceForPIE(bool bValue)
+	{
+		if (ensure(IsPackageExternal()))
+		{
+			bForceExternalActorLevelReferenceForPIE = bValue;
+		}
+	}
 
 	/**
 	 * Returns whether or not this actor was explicitly hidden in the editor for the duration of the current editor session

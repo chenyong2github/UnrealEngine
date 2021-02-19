@@ -36,8 +36,6 @@ private:
 	int32 GetCellLoadingCount() const;
 
 #if WITH_EDITOR
-	void FixupSoftObjectPath(FSoftObjectPath& ObjectPath);
-
 	TMap<FName, FName> ActorToCellRemapping;
 #endif
 };

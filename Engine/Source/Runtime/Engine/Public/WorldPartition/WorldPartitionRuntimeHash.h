@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "WorldPartition.h"
 #include "WorldPartitionStreamingPolicy.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartitionRuntimeHash.generated.h"
 
 class UWorldPartitionRuntimeCell;
@@ -26,6 +27,10 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool GenerateNavigationData() { return false; }
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const { return NAME_None; }
 	virtual void DrawPreview() const {}
+
+	// PIE methods
+	void OnPreBeginPIE();
+	void OnEndPIE();
 #endif
 
 	// Streaming interface
@@ -42,4 +47,14 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 
 	virtual void Draw2D(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize) const {}
 	virtual void Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const {}
+
+private:
+#if WITH_EDITOR
+	void ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE);
+#endif
+
+protected:
+#if WITH_EDITORONLY_DATA
+	TArray<FWorldPartitionReference> AlwaysLoadedActorsForPIE;
+#endif
 };

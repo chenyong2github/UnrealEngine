@@ -510,6 +510,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid);
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+	const bool bIsMainWorldPartition = (WorldPartition->GetWorld() == WorldPartition->GetTypedOuter<UWorld>());
 
 	check(FMath::IsPowerOfTwo(PartionedActors.GridSize));
 	FSpatialHashStreamingGrid& CurrentStreamingGrid = StreamingGrids.AddDefaulted_GetRef();
@@ -556,14 +557,28 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					}, [](const FGuid& ActorGuid) { return ActorGuid; });
 				}
 
+				// Cell cannot be treated as always loaded if it has data layers
+				const bool bIsCellAlwaysLoaded = (&TempCell == &PartionedActors.GetAlwaysLoadedCell()) && !GridCellDataChunk.HasDataLayers();
+
+				// In PIE, Always loaded cell is not generated. Instead, always loaded actors will be added to AlwaysLoadedActorsForPIE.
+				// This will trigger loading/registration of these actors in the PersistentLevel (if not already loaded).
+				// Then, duplication of world for PIE will duplicate only these actors. 
+				// When stopping PIE, WorldPartition will release these FWorldPartitionReferences which 
+				// will unload actors that were not already loaded in the non PIE world.
+				if (bIsCellAlwaysLoaded && bIsMainWorldPartition && (Mode == EWorldPartitionStreamingMode::PIE))
+				{
+					for (const FGuid& ActorGuid : FilteredActors)
+					{
+						AlwaysLoadedActorsForPIE.Emplace(WorldPartition, ActorGuid);
+					}
+					continue;
+				}
+
 				if (!FilteredActors.Num())
 				{
 					continue;
 				}
 				
-				// Cell cannot be treated as always loaded if it has data layers
-				const bool bIsCellAlwaysLoaded = (&TempCell == &PartionedActors.GetAlwaysLoadedCell()) && !GridCellDataChunk.HasDataLayers();
-
 				FName CellName = GetCellName(CurrentStreamingGrid.GridName, Level, CellCoordX, CellCoordY, GridCellDataChunk.GetDataLayersID());
 
 				UWorldPartitionRuntimeSpatialHashCell* StreamingCell = NewObject<UWorldPartitionRuntimeSpatialHashCell>(WorldPartition, StreamingPolicy->GetRuntimeCellClass(), CellName);

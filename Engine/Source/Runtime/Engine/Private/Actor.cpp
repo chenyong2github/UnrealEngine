@@ -130,6 +130,7 @@ void AActor::InitializeDefaults()
 	SpriteScale = 1.0f;
 	bEnableAutoLODGeneration = true;
 	bOptimizeBPComponentData = false;
+	bForceExternalActorLevelReferenceForPIE = false;
 #endif // WITH_EDITORONLY_DATA
 	NetCullDistanceSquared = 225000000.0f;
 	NetDriverName = NAME_GameNetDriver;

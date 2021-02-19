@@ -453,10 +453,11 @@ void ULevel::Serialize( FArchive& Ar )
 				{
 					return false;
 				}
-				// When the world is partitioned and duplicating for PIE, we don't want to duplicate any external actors as they will be streamed by the runtime grids.
+				// When the world is partitioned and duplicating for PIE, we only duplicate external actors that were explicitely marked (see IsForceExternalActorLevelReferenceForPIE).
+				// All the other actors will be streamed by the runtime grids.
 				else if (bIsPartitioned && (Ar.GetPortFlags() & PPF_DuplicateForPIE))
 				{
-					return false;
+					return Actor->IsForceExternalActorLevelReferenceForPIE();
 				}
 			}
 #endif

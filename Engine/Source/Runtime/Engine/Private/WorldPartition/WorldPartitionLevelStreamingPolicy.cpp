@@ -144,7 +144,6 @@ TSubclassOf<UWorldPartitionRuntimeCell> UWorldPartitionLevelStreamingPolicy::Get
 
 void UWorldPartitionLevelStreamingPolicy::PrepareForPIE()
 {
-	TSet<const UWorldPartitionRuntimeCell*> AlwaysLoadedCells;
 	TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
 	WorldPartition->RuntimeHash->GetAllStreamingCells(StreamingCells, /*bIncludeDataLayers*/ true);
 
@@ -157,26 +156,12 @@ void UWorldPartitionLevelStreamingPolicy::PrepareForPIE()
 		{
 			ActorToCellRemapping.Add(CellObjectMap.Path, StreamingCell->GetFName());
 		}
-
-		if (StreamingCell->IsAlwaysLoaded())
-		{
-			AlwaysLoadedCells.Add(Cell);
-		}
 	}
-
-	// In PIE, this is where we load Always Loaded cells
-	Super::LoadCells(AlwaysLoadedCells);
 }
 
 void UWorldPartitionLevelStreamingPolicy::OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
 {
 	// Once we fix up the path to the proper streaming Level, normal flow of FixupForPIE will adapt the path for PIE.
-	FixupSoftObjectPath(ObjectPath);
-}
-
-// Fix up FSoftObjectPath to remap to proper streaming level
-void UWorldPartitionLevelStreamingPolicy::FixupSoftObjectPath(FSoftObjectPath& ObjectPath)
-{
 	FString SrcPath = ObjectPath.ToString();
 
 	FName* CellName = ActorToCellRemapping.Find(FName(*SrcPath));

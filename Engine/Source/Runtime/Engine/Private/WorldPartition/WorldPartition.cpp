@@ -140,12 +140,14 @@ void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 {
 	check(IsMainWorldPartition());
 	GenerateStreaming(EWorldPartitionStreamingMode::PIE);
+	RuntimeHash->OnPreBeginPIE();
 }
 
 void UWorldPartition::OnEndPIE(bool bStartSimulate)
 {
 	check(IsMainWorldPartition());
 	FlushStreaming();
+	RuntimeHash->OnEndPIE();
 }
 
 FName UWorldPartition::GetWorldPartitionEditorName()
