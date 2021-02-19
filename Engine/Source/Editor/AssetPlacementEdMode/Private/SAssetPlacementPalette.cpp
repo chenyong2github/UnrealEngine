@@ -38,6 +38,7 @@
 #include "Subsystems/PlacementSubsystem.h"
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
+#include "Modes/PlacementModeSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementMode"
 
@@ -111,11 +112,6 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 	bItemsNeedRebuild = false;
 	bIsRebuildTimerRegistered = false;
 	bIsRefreshTimerRegistered = false;
-	PlacementSettings = InArgs._PlacementSettings;
-	if (!PlacementSettings.IsValid())
-	{
-		PlacementSettings = GetMutableDefault<UAssetPlacementSettings>();
-	}
 
 	UICommandList = MakeShared<FUICommandList>();
 
@@ -227,6 +223,15 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 		]
 	];
 
+	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
+	if (PlacementSettings.IsValid())
+	{
+		for (const FPaletteItem& PaletteItem : PlacementSettings->PaletteItems)
+		{
+			PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(MakeShared<FPaletteItem>(PaletteItem), SharedThis(this), ThumbnailPool));
+		}
+	}
+
 	UpdatePalette(true);
 }
 
@@ -305,8 +310,12 @@ void SAssetPlacementPalette::AddPlacementType(const FAssetData& AssetData)
 		return;
 	}
 
-	// Check that we don't already have this item in the palette
-	if (PaletteItems.FindByPredicate([&AssetData](TSharedPtr<FAssetPlacementPaletteItemModel>& InItem) { return InItem.IsValid() && (InItem->GetTypeUIInfo()->AssetData.ObjectPath == AssetData.ObjectPath); }))
+	FAssetPlacementUIInfoPtr PlacementInfo = MakeShared<FPaletteItem>();
+	PlacementInfo->AssetData = AssetData;
+	PlacementInfo->FactoryOverride = FactoryInterface;
+
+	// Try to add the item to the mode's palette
+	if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->AddPaletteItem(*PlacementInfo))
 	{
 		return;
 	}
@@ -314,14 +323,7 @@ void SAssetPlacementPalette::AddPlacementType(const FAssetData& AssetData)
 	// Try to load the asset async so it's ready to place.
 	UAssetManager::GetStreamableManager().RequestAsyncLoad(AssetData.ToSoftObjectPath());
 
-	FAssetPlacementUIInfoPtr PlacementInfo = MakeShared<FPaletteItem>();
-	PlacementInfo->AssetData = AssetData;
-	PlacementInfo->FactoryOverride = FactoryInterface;
 	PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(PlacementInfo, SharedThis(this), ThumbnailPool));
-	if (PlacementSettings.IsValid())
-	{
-		PlacementSettings->PaletteItems.Add(*PlacementInfo);
-	}
 	UpdatePalette(true);
 }
 

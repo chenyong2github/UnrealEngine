@@ -7,6 +7,7 @@
 
 #include "PlacementModeSubsystem.generated.h"
 
+struct FPaletteItem;
 struct FTypedElementHandle;
 class UAssetPlacementSettings;
 
@@ -22,7 +23,7 @@ public:
 	// End USubsystem Interface
 
 	// @returns the settings object for the mode for sharing across all tools and tool builders.
-	TWeakObjectPtr<const UAssetPlacementSettings> GetModeSettingsObject() const;
+	const UAssetPlacementSettings* GetModeSettingsObject() const;
 
 	/**
 	 * Verifies if the given element handle is supported by the current mode settings' palette.
@@ -30,6 +31,13 @@ public:
 	 * @returns true if the element can be placed by the mode.
 	 */
 	bool DoesCurrentPaletteSupportElement(const FTypedElementHandle& InElementToCheck) const;
+
+	/**
+	 * Adds the given palette item to the current palette.
+	 * 
+	 * @returns true if the item was added.
+	 */
+	bool AddPaletteItem(const FPaletteItem& InPaletteItem);
 
 protected:
 	UPROPERTY()

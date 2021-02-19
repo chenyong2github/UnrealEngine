@@ -523,6 +523,7 @@ UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 	QueriesAPI = nullptr;
 	TransactionAPI = nullptr;
 	AssetAPI = nullptr;
+	bIsTrackingMouse = false;
 }
 
 
@@ -1099,15 +1100,8 @@ bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportC
 
 bool UEdModeInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	// capture tracking if we have an active tool
-	if (ToolManager->HasActiveTool(EToolSide::Mouse))
-	{
-#ifdef ENABLE_DEBUG_PRINTING
-		UE_LOG(LogTemp, Warning, TEXT("BEGIN TRACKING"));
-#endif
-		return true;
-	}
-	return false;
+	bIsTrackingMouse = InputRouter->HasActiveMouseCapture();
+	return bIsTrackingMouse;
 }
 
 bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
@@ -1146,11 +1140,9 @@ bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewpo
 	// unlock flight camera
 	InViewportClient->bLockFlightCamera = false;
 
-	if (ToolManager->HasActiveTool(EToolSide::Mouse))
+	if (bIsTrackingMouse)
 	{
-#ifdef ENABLE_DEBUG_PRINTING
-	UE_LOG(LogTemp, Warning, TEXT("END TRACKING"));
-#endif
+		bIsTrackingMouse = false;
 		return true;
 	}
 

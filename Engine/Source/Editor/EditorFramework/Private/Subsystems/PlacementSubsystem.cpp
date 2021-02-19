@@ -30,8 +30,7 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAsset(const FAssetPlacemen
 
 TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FAssetPlacementInfo> InPlacementInfos, const FPlacementOptions& InPlacementOptions)
 {
-	bool bWasCreatingPreviewElements = bIsCreatingPreviewElements;
-	bIsCreatingPreviewElements = InPlacementOptions.bIsCreatingPreviewElements;
+	TGuardValue<bool> bShouldCreatePreviewElements(bIsCreatingPreviewElements, InPlacementOptions.bIsCreatingPreviewElements);
 
 	TArray<FTypedElementHandle> PlacedElements;
 	for (const FAssetPlacementInfo& PlacementInfo : InPlacementInfos)
@@ -61,8 +60,6 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FA
 			PlacedElements.Append(PlacedHandles);
 		}
 	}
-
-	bIsCreatingPreviewElements = bWasCreatingPreviewElements;
 
 	return PlacedElements;
 }

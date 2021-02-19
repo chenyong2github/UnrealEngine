@@ -1,40 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tools/PlacementPlaceSingleTool.h"
-#include "UObject/Object.h"
+
 #include "AssetPlacementSettings.h"
-#include "Subsystems/PlacementSubsystem.h"
-#include "ScopedTransaction.h"
-#include "Editor/EditorEngine.h"
 #include "Editor.h"
-#include "Modes/PlacementModeSubsystem.h"
 #include "InteractiveToolManager.h"
-#include "Elements/Framework/TypedElementRegistry.h"
+#include "ScopedTransaction.h"
+#include "BaseBehaviors/ClickDragBehavior.h"
+#include "Editor/EditorEngine.h"
 #include "Elements/Framework/TypedElementHandle.h"
-#include "Elements/Interfaces/TypedElementObjectInterface.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "Modes/PlacementModeSubsystem.h"
+#include "Subsystems/PlacementSubsystem.h"
+#include "UObject/Object.h"
 
 constexpr TCHAR UPlacementModePlaceSingleTool::ToolName[];
 
 UPlacementBrushToolBase* UPlacementModePlaceSingleToolBuilder::FactoryToolInstance(UObject* Outer) const
 {
 	return NewObject<UPlacementModePlaceSingleTool>(Outer);
-}
-
-bool UPlacementModePlaceSingleSettings::CanEditChange(const FProperty* Property) const
-{
-	if (!Super::CanEditChange(Property))
-	{
-		return false;
-	}
-
-	const FName PropertyName = Property->GetFName();
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UPlacementModePlaceSingleSettings, bInvertCursorAxis))
-	{
-		return bAlignToCursor;
-	}
-
-	return true;
 }
 
 UPlacementModePlaceSingleTool::UPlacementModePlaceSingleTool() = default;
@@ -48,18 +34,18 @@ void UPlacementModePlaceSingleTool::Setup()
 {
 	Super::Setup();
 
-	SingleToolSettings = NewObject<UPlacementModePlaceSingleSettings>(this);
-	SingleToolSettings->LoadConfig();
-	AddToolPropertySource(SingleToolSettings);
+	SetupRightClickMouseBehavior();
+
+	bIsTweaking = false;
 }
 
 void UPlacementModePlaceSingleTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	DestroyPreviewElements();
 
-	SingleToolSettings->SaveConfig();
-	RemoveToolPropertySource(SingleToolSettings);
-	SingleToolSettings = nullptr;
+	// Preserve the selection on exiting the tool, so that a users' state persists as they use the mode.
+	constexpr bool bClearSelectionSet = false;
+	ExitTweakState(bClearSelectionSet);
 
 	Super::Shutdown(ShutdownType);
 }
@@ -68,30 +54,23 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 {
 	Super::OnClickPress(PressPos);
 
-	if (bCtrlToggle)
+	// Update the preview element one final time to be sure the transform is updated.
+	UpdatePreviewElements(PressPos);
+	DestroyPreviewElements();
+
+	// Place the Preview data if we managed to get to a valid handled click.
+	FPlacementOptions PlacementOptions;
+	PlacementOptions.bPreferBatchPlacement = true;
+	PlacementOptions.bPreferInstancedPlacement = true;
+
+	UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
+	if (PlacementSubsystem)
 	{
-		// If this was a ctrl click, regenerate the preview placement information, and destroy any active gizmos.
-		GeneratePreviewPlacementData(PressPos);
-	}
-	else
-	{
-		// Otherwise, and we're not currently editing something that was placed, then place the preview data.
-		// Todo - verify we don't get here if the gizmos are active
-		FPlacementOptions PlacementOptions;
-		PlacementOptions.bPreferBatchPlacement = true;
-		PlacementOptions.bPreferInstancedPlacement = true;
+		// Update the level, just in case the preview moved us out of the current one.
+		PreviewPlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 
-		UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
-		if (PlacementSubsystem)
-		{
-			// Update the level, just in case the preview moved us out of the current one.
-			PreviewPlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
-
-			FScopedTransaction Transaction(NSLOCTEXT("PlacementMode", "SinglePlaceAsset", "Place Single Asset"));
-			PlacementSubsystem->PlaceAsset(*PreviewPlacementInfo, PlacementOptions);
-		}
-
-		DestroyPreviewElements();
+		FScopedTransaction Transaction(NSLOCTEXT("PlacementMode", "SinglePlaceAsset", "Place Single Asset"));
+		EnterTweakState(PlacementSubsystem->PlaceAsset(*PreviewPlacementInfo, PlacementOptions));
 	}
 }
 
@@ -100,7 +79,7 @@ void UPlacementModePlaceSingleTool::OnBeginHover(const FInputDeviceRay& DevicePo
 	Super::OnBeginHover(DevicePos);
 
 	// Always regenerate the placement data when a hover sequence begins
-	GeneratePreviewPlacementData(DevicePos);
+	CreatePreviewElements(DevicePos);
 }
 
 bool UPlacementModePlaceSingleTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
@@ -119,16 +98,36 @@ void UPlacementModePlaceSingleTool::OnEndHover()
 {
 	Super::OnEndHover();
 
-	// remove the preview elements from the level
+	// Destroy the preview elements we created.
 	DestroyPreviewElements();
+}
+
+FInputRayHit UPlacementModePlaceSingleTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	if (!bIsTweaking)
+	{
+		return Super::CanBeginClickDragSequence(PressPos);
+	}
+	
+	return FInputRayHit();
+}
+
+FInputRayHit UPlacementModePlaceSingleTool::BeginHoverSequenceHitTest(const FInputDeviceRay& DevicePos)
+{
+	if (!bIsTweaking)
+	{
+		return Super::BeginHoverSequenceHitTest(DevicePos);
+	}
+
+	return FInputRayHit();
 }
 
 void UPlacementModePlaceSingleTool::GeneratePreviewPlacementData(const FInputDeviceRay& DevicePos)
 {
 	PreviewPlacementInfo.Reset();
 
-	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	if (PlacementSettings.IsValid() && PlacementSettings->PaletteItems.Num())
+	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
+	if (PlacementSettings && PlacementSettings->PaletteItems.Num())
 	{
 		int32 ItemIndex = FMath::RandHelper(PlacementSettings->PaletteItems.Num());
 		const FPaletteItem& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
@@ -144,7 +143,7 @@ void UPlacementModePlaceSingleTool::GeneratePreviewPlacementData(const FInputDev
 void UPlacementModePlaceSingleTool::CreatePreviewElements(const FInputDeviceRay& DevicePos)
 {
 	// Place the preview elements from our stored info
-	if (!PreviewPlacementInfo.IsValid())
+	if (!PreviewPlacementInfo)
 	{
 		GeneratePreviewPlacementData(DevicePos);
 	}
@@ -156,24 +155,21 @@ void UPlacementModePlaceSingleTool::CreatePreviewElements(const FInputDeviceRay&
 
 		PreviewElements = PlacementSubsystem->PlaceAsset(*PreviewPlacementInfo, PlacementOptions);
 	}
-	
-	// Disable collision on any preview elements
-	for (FTypedElementHandle& PreviewElement : PreviewElements)
-	{
-		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(PreviewElement))
-		{
-			WorldInterfaceElement.NotifyMovementStarted();
-		}
-	}
+
+	SetupBrushStampIndicator();
+
+	NotifyMovementStarted(PreviewElements);
 }
 
 void UPlacementModePlaceSingleTool::UpdatePreviewElements(const FInputDeviceRay& DevicePos)
 {
-	if (PreviewElements.Num() == 0)
+	// If we should have preview elements, but do not currently, go ahead and create them.
+	if ((PreviewElements.Num() == 0) && !BrushStampIndicator)
 	{
 		CreatePreviewElements(DevicePos);
 	}
 
+	// If we don't actually have any preview handles created, we don't need to update them, so go ahead and bail.
 	if (PreviewElements.Num() == 0)
 	{
 		return;
@@ -184,31 +180,80 @@ void UPlacementModePlaceSingleTool::UpdatePreviewElements(const FInputDeviceRay&
 	FinalizedTransform.SetLocation(LastBrushStamp.HitResult.ImpactPoint);
 
 	// Update the rotation.
-	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	if (PlacementSettings.IsValid() && PlacementSettings->bAlignToNormal)
+	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
+	if (PlacementSettings && PlacementSettings->bAlignToNormal)
 	{
 		FQuat UpdatedRotation = UpdateRotationAlignedToBrushNormal(PlacementSettings->AxisToAlignWithNormal, PlacementSettings->bInvertNormalAxis);
 		FinalizedTransform.SetRotation(UpdatedRotation);
 	}
 
-	// Update the transform positions for the preview elements.
-	for (FTypedElementHandle& PreviewElement : PreviewElements)
+	UpdateElementTransforms(PreviewElements, FinalizedTransform);
+}
+
+void UPlacementModePlaceSingleTool::DestroyPreviewElements()
+{
+	NotifyMovementEnded(PreviewElements);
+	PreviewElements.Empty();
+	ShutdownBrushStampIndicator();
+}
+
+void UPlacementModePlaceSingleTool::EnterTweakState(TArrayView<const FTypedElementHandle> InElementHandles)
+{
+	if (InElementHandles.Num() == 0)
 	{
-		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(PreviewElement))
+		return;
+	}
+
+	FToolBuilderState SelectionState;
+	GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
+	SelectionState.TypedElementSelectionSet->SetSelection(InElementHandles, FTypedElementSelectionOptions());
+	bIsTweaking = true;
+}
+
+void UPlacementModePlaceSingleTool::ExitTweakState(bool bClearSelectionSet)
+{
+	if (bClearSelectionSet)
+	{
+		FToolBuilderState SelectionState;
+		GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
+		SelectionState.TypedElementSelectionSet->ClearSelection(FTypedElementSelectionOptions());
+	}
+
+	bIsTweaking = false;
+}
+
+void UPlacementModePlaceSingleTool::UpdateElementTransforms(TArrayView<const FTypedElementHandle> InElements, const FTransform& InTransform, bool bLocalTransform)
+{
+	// Update the transform positions for the preview elements.
+	for (const FTypedElementHandle& ElementHandle : InElements)
+	{
+		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(ElementHandle))
 		{
-			WorldInterfaceElement.SetWorldTransform(FinalizedTransform);
+			bLocalTransform ? WorldInterfaceElement.SetRelativeTransform(InTransform) : WorldInterfaceElement.SetWorldTransform(InTransform);
 			WorldInterfaceElement.NotifyMovementOngoing();
 		}
 	}
 }
 
-void UPlacementModePlaceSingleTool::DestroyPreviewElements()
+void UPlacementModePlaceSingleTool::NotifyMovementStarted(TArrayView<const FTypedElementHandle> InElements)
+{
+	// Notify Movement started
+	for (const FTypedElementHandle& PreviewElement : PreviewElements)
+	{
+		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(PreviewElement))
+		{
+			WorldInterfaceElement.NotifyMovementStarted();
+		}
+	}
+}
+
+void UPlacementModePlaceSingleTool::NotifyMovementEnded(TArrayView<const FTypedElementHandle> InElements)
 {
 	FToolBuilderState SelectionState;
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
 	check(SelectionState.TypedElementSelectionSet.IsValid());	// Placement tools expect a valid selection set.
 
-	for (FTypedElementHandle& PreviewElement : PreviewElements)
+	for (const FTypedElementHandle& PreviewElement : PreviewElements)
 	{
 		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(PreviewElement))
 		{
@@ -216,6 +261,20 @@ void UPlacementModePlaceSingleTool::DestroyPreviewElements()
 			WorldInterfaceElement.DeleteElement(WorldInterfaceElement.GetOwnerWorld(), SelectionState.TypedElementSelectionSet.Get(), FTypedElementDeletionOptions());
 		}
 	}
+}
 
-	PreviewElements.Empty();
+void UPlacementModePlaceSingleTool::SetupRightClickMouseBehavior()
+{
+	ULocalClickDragInputBehavior* RightMouseBehavior = NewObject<ULocalClickDragInputBehavior>(this);
+	RightMouseBehavior->CanBeginClickDragFunc = [this](const FInputDeviceRay&) { return bShiftToggle ? FInputRayHit(1.0f) : FInputRayHit(); };
+	RightMouseBehavior->OnClickReleaseFunc = [this](const FInputDeviceRay&)
+	{
+		constexpr bool bClearSelection = true;
+		ExitTweakState(bClearSelection);
+		PreviewPlacementInfo.Reset();
+	};
+	RightMouseBehavior->SetDefaultPriority(FInputCapturePriority(-1));
+	RightMouseBehavior->SetUseRightMouseButton();
+	RightMouseBehavior->Initialize();
+	AddInputBehavior(RightMouseBehavior);
 }

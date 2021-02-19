@@ -12,7 +12,18 @@ bool UPlacementModeSelectToolBuilder::CanBuildTool(const FToolBuilderState& Scen
 	return true;
 }
 
-UInteractiveTool* UPlacementModeSelectToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UPlacementBrushToolBase* UPlacementModeSelectToolBuilder::FactoryToolInstance(UObject* Outer) const
 {
-	return NewObject<UPlacementModeSelectTool>(SceneState.ToolManager, UPlacementModeSelectTool::ToolName);
+	return NewObject<UPlacementModeSelectTool>(Outer);
+}
+
+void UPlacementModeSelectTool::Setup()
+{
+	Super::Setup();
+	ShutdownBrushStampIndicator();
+}
+
+FInputRayHit UPlacementModeSelectTool::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
+{
+	return FInputRayHit();	// always fall-through to the EdMode or viewport handling for clicks.
 }

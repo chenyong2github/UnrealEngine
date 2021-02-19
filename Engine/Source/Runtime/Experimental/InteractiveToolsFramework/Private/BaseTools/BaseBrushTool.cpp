@@ -232,21 +232,30 @@ const FString BaseBrushIndicatorGizmoType = TEXT("BrushIndicatorGizmoType");
 
 void UBaseBrushTool::SetupBrushStampIndicator()
 {
-	// register and spawn brush indicator gizmo
-	GetToolManager()->GetPairedGizmoManager()->RegisterGizmoType(BaseBrushIndicatorGizmoType, NewObject<UBrushStampIndicatorBuilder>());
-	BrushStampIndicator = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UBrushStampIndicator>(BaseBrushIndicatorGizmoType, FString(), this);
+	if (!BrushStampIndicator)
+	{
+		// register and spawn brush indicator gizmo
+		GetToolManager()->GetPairedGizmoManager()->RegisterGizmoType(BaseBrushIndicatorGizmoType, NewObject<UBrushStampIndicatorBuilder>());
+		BrushStampIndicator = GetToolManager()->GetPairedGizmoManager()->CreateGizmo<UBrushStampIndicator>(BaseBrushIndicatorGizmoType, FString(), this);
+	}
 }
 
 void UBaseBrushTool::UpdateBrushStampIndicator()
 {
-	BrushStampIndicator->Update(LastBrushStamp.Radius, LastBrushStamp.WorldPosition, LastBrushStamp.WorldNormal, LastBrushStamp.Falloff);
+	if (BrushStampIndicator)
+	{
+		BrushStampIndicator->Update(LastBrushStamp.Radius, LastBrushStamp.WorldPosition, LastBrushStamp.WorldNormal, LastBrushStamp.Falloff);
+	}
 }
 
 void UBaseBrushTool::ShutdownBrushStampIndicator()
 {
-	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
-	BrushStampIndicator = nullptr;
-	GetToolManager()->GetPairedGizmoManager()->DeregisterGizmoType(BaseBrushIndicatorGizmoType);
+	if (BrushStampIndicator)
+	{
+		GetToolManager()->GetPairedGizmoManager()->DestroyGizmo(BrushStampIndicator);
+		BrushStampIndicator = nullptr;
+		GetToolManager()->GetPairedGizmoManager()->DeregisterGizmoType(BaseBrushIndicatorGizmoType);
+	}
 }
 
 

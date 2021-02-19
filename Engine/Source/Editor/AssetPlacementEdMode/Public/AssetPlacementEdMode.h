@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Tools/LegacyEdModeWidgetHelpers.h"
+#include "Tools/DefaultEdMode.h"
 #include "Elements/Framework/TypedElementHandle.h"
 
 #include "AssetPlacementEdMode.generated.h"
@@ -11,7 +11,7 @@
 class UAssetPlacementSettings;
 
 UCLASS()
-class UAssetPlacementEdMode : public UBaseLegacyWidgetEdMode
+class UAssetPlacementEdMode : public UEdModeDefault
 {
 	GENERATED_BODY()
 
@@ -26,10 +26,12 @@ public:
 	virtual void Enter() override;
 	virtual void Exit() override;
 	virtual void CreateToolkit() override;
+	virtual bool UsesToolkits() const override;
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const override;
 	virtual void BindCommands() override;
 	virtual bool IsSelectionAllowed(AActor* InActor, bool bInSelection) const override;
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	// End of UEdMode interface
 	//////////////////
 

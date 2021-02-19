@@ -43,7 +43,6 @@ class SAssetPlacementPalette : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SAssetPlacementPalette) {}
-		SLATE_ARGUMENT(TWeakObjectPtr<UAssetPlacementSettings>, PlacementSettings)
 		SLATE_ARGUMENT(TSharedPtr<IPropertyHandle>, PalettePropertyHandle)
 	SLATE_END_ARGS()
 
@@ -196,7 +195,6 @@ private:
 	/** Placement mesh details widget  */
 	TSharedPtr<class IDetailsView> DetailsWidget;
 
-	TWeakObjectPtr<UAssetPlacementSettings> PlacementSettings;
 	TSharedPtr<IPropertyHandle> PalettePropertyHandle;
 
 	/** Placement items search box widget */

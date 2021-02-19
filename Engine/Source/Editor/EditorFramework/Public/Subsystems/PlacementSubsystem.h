@@ -84,7 +84,10 @@ public:
 	 */
 	TScriptInterface<IAssetFactoryInterface> FindAssetFactoryFromAssetData(const FAssetData& InAssetData);
 
-	// @returns true if the current PlaceAssets call is creating preview elements.
+	/**
+	 * Determines if the placement system is currently placing preview elements.
+	 * @returns true if the current PlaceAssets call is creating preview elements.
+	 */
 	bool IsCreatingPreviewElements() const;
 
 private:

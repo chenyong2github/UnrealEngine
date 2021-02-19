@@ -151,5 +151,5 @@ protected:
 
 private:
 	FEditorModeTools* EditorModeManager = nullptr;
-
+	bool bIsTrackingMouse;
 };

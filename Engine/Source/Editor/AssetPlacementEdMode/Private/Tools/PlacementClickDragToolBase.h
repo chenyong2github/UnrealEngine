@@ -15,4 +15,5 @@ public:
 
 protected:
 	virtual double EstimateMaximumTargetDimension() override;
+	virtual void SetupBrushStampIndicator() override;
 };

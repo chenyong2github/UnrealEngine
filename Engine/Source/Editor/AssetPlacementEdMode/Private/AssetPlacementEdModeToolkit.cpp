@@ -1,21 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetPlacementEdModeToolkit.h"
-#include "AssetPlacementEdMode.h"
-#include "AssetPlacementSettings.h"
+
 #include "SAssetPlacementPalette.h"
-
-#include "Modules/ModuleManager.h"
-
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 
-#include "EditorModeManager.h"
-
 #define LOCTEXT_NAMESPACE "AssetPlacementEdModeToolkit"
 
-FAssetPlacementEdModeToolkit::FAssetPlacementEdModeToolkit(TWeakObjectPtr<UAssetPlacementSettings> InPlacementSettings)
-	: PlacementSettings(InPlacementSettings)
+FAssetPlacementEdModeToolkit::FAssetPlacementEdModeToolkit()
 {
 }
 
@@ -62,7 +55,6 @@ TSharedPtr<SWidget> FAssetPlacementEdModeToolkit::GetInlineContent() const
 				+ SScrollBox::Slot()
 				[
 					SNew(SAssetPlacementPalette)
-					.PlacementSettings(PlacementSettings)
 				]
 			]
 		];

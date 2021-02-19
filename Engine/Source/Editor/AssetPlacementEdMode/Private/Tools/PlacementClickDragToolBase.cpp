@@ -11,12 +11,18 @@ void UPlacementClickDragToolBase::Setup()
 	Super::Setup();
 
 	RemoveToolPropertySource(BrushProperties);
-	BrushStampIndicator->bDrawRadiusCircle = false;
-	BrushProperties->BrushSize = .5f;
-	BrushProperties->BrushFalloffAmount = 1.f;
 }
 
 double UPlacementClickDragToolBase::EstimateMaximumTargetDimension()
 {
 	return Super::EstimateMaximumTargetDimension();
+}
+
+void UPlacementClickDragToolBase::SetupBrushStampIndicator()
+{
+	Super::SetupBrushStampIndicator();
+
+	BrushStampIndicator->bDrawRadiusCircle = false;
+	BrushProperties->BrushSize = .5f;
+	BrushProperties->BrushFalloffAmount = 1.f;
 }

@@ -20,7 +20,7 @@ void UPlacementModeSubsystem::Deinitialize()
 	ModeSettings = nullptr;
 }
 
-TWeakObjectPtr<const UAssetPlacementSettings> UPlacementModeSubsystem::GetModeSettingsObject() const
+const UAssetPlacementSettings* UPlacementModeSubsystem::GetModeSettingsObject() const
 {
 	return ModeSettings;
 }
@@ -53,6 +53,17 @@ bool UPlacementModeSubsystem::DoesCurrentPaletteSupportElement(const FTypedEleme
 		{
 			return true;
 		}
+	}
+
+	return false;
+}
+
+bool UPlacementModeSubsystem::AddPaletteItem(const FPaletteItem& InPaletteItem)
+{
+	if (ModeSettings && !ModeSettings->PaletteItems.FindByPredicate([InPaletteItem](const FPaletteItem& ItemIter) { return ItemIter.AssetData.ObjectPath == InPaletteItem.AssetData.ObjectPath; }))
+	{
+		ModeSettings->PaletteItems.Add(InPaletteItem);
+		return true;
 	}
 
 	return false;

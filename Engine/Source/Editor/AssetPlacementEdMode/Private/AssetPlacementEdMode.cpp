@@ -42,8 +42,6 @@ UAssetPlacementEdMode::UAssetPlacementEdMode()
 		LOCTEXT("AssetPlacementEdModeName", "Placement"),
 		FSlateIcon(FAssetPlacementEdModeStyle::GetStyleSetName(), "PlacementBrowser.ShowAllContent"),
 		MoveTemp(IsEnabledAttr));
-
-	bIsInSelectionTool = false;
 }
 
 UAssetPlacementEdMode::~UAssetPlacementEdMode()
@@ -52,8 +50,8 @@ UAssetPlacementEdMode::~UAssetPlacementEdMode()
 
 void UAssetPlacementEdMode::Enter()
 {
-	// Set the settings object before we call Super::Enter, so that it's available for hooking up in the toolkit
-	SettingsObject = const_cast<UAssetPlacementSettings*>(GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject().Get());
+	// Set the settings object before we call Super::Enter, since we're using a shared one from the subsystem.
+	SettingsObject = const_cast<UAssetPlacementSettings*>(GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject());
 
 	Super::Enter();
 
@@ -64,14 +62,15 @@ void UAssetPlacementEdMode::Enter()
 	RegisterTool(PlacementModeCommands.PlaceSingle, UPlacementModePlaceSingleTool::ToolName, NewObject<UPlacementModePlaceSingleToolBuilder>(this));
 	RegisterTool(PlacementModeCommands.Erase, UPlacementModeEraseTool::ToolName, NewObject<UPlacementModeEraseToolBuilder>(this));
 
+	// Stash the current editor selection, since this mode will modify it.
+	Owner->StoreSelection(AssetPlacementEdModeID);
+	bIsInSelectionTool = false;
+
 	// Enable the select tool by default.
 	// Disable undo tracking so that we can't accidentally undo ourselves out of the select mode and into an invalid state.
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
 	ToolsContext->StartTool(UPlacementModeSelectTool::ToolName);
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::FullUndoRedo);
-
-	// Stash the current editor selection, since this mode will modify it.
-	Owner->StoreSelection(AssetPlacementEdModeID);
 }
 
 void UAssetPlacementEdMode::Exit()
@@ -85,18 +84,24 @@ void UAssetPlacementEdMode::Exit()
 		IFA->SelectInstance(nullptr, 0, bAppendSelection);
 	}
 
-	// Restore the selection to the original state.
+	Super::Exit();
+
+	// Restore the selection to the original state after all the tools have shutdown in UEdMode::Exit()
+	// Since they can continue messing with selection states.
 	Owner->RestoreSelection(AssetPlacementEdModeID);
 
 	SettingsObjectAsPlacementSettings.Reset();
-
-	Super::Exit();
 }
 
 void UAssetPlacementEdMode::CreateToolkit()
 {
 	SettingsObjectAsPlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
-	Toolkit = MakeShareable(new FAssetPlacementEdModeToolkit(SettingsObjectAsPlacementSettings));
+	Toolkit = MakeShared<FAssetPlacementEdModeToolkit>();
+}
+
+bool UAssetPlacementEdMode::UsesToolkits() const
+{
+	return true;
 }
 
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> UAssetPlacementEdMode::GetModeCommands() const
@@ -143,7 +148,8 @@ void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInt
 
 	bool bWasInSelectionTool = bIsInSelectionTool;
 	FString ActiveToolName = GetToolManager()->GetActiveToolName(EToolSide::Mouse);
-	if (ActiveToolName == UPlacementModeSelectTool::ToolName || ActiveToolName == UPlacementModeLassoSelectTool::ToolName)
+	bool bIsSinglePlaceTool = ActiveToolName == UPlacementModePlaceSingleTool::ToolName;
+	if (ActiveToolName == UPlacementModeSelectTool::ToolName || ActiveToolName == UPlacementModeLassoSelectTool::ToolName || bIsSinglePlaceTool)
 	{
 		bIsInSelectionTool = true;
 	}
@@ -152,17 +158,12 @@ void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInt
 		bIsInSelectionTool = false;
 	}
 
-	// Stash or pop selection
-	if (bWasInSelectionTool != bIsInSelectionTool)
+	// Restore the selection if we're going into the selection tools.
+	// Allow the selection to be empty if we're going into single place tool for a clean slate.
+	bool bRestoreSelectionState = bIsInSelectionTool && !bWasInSelectionTool && !bIsSinglePlaceTool;
+	if (bRestoreSelectionState)
 	{
-		if (bIsInSelectionTool)
-		{
-			Owner->RestoreSelection(UPlacementModeSelectTool::ToolName);
-		}
-		else
-		{
-			Owner->StoreSelection(UPlacementModeSelectTool::ToolName);
-		}
+		Owner->RestoreSelection(UPlacementModeSelectTool::ToolName);
 
 		// Todo: remove with HISM element handles
 		for (TActorIterator<AInstancedFoliageActor> It(GetWorld()); It; ++It)
@@ -170,6 +171,23 @@ void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInt
 			AInstancedFoliageActor* IFA = *It;
 			IFA->ApplySelection(bIsInSelectionTool);
 		}
+	}
+	else if (!bIsInSelectionTool)
+	{
+		// If we can't select, clear out the selection set for the active tool.
+		ClearSelection();
+	}
+}
+
+void UAssetPlacementEdMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	Super::OnToolEnded(Manager, Tool);
+
+	// Always store the most recent selection, even if we are leaving single placement tool to preserve what the user was doing last.
+	if (bIsInSelectionTool)
+	{
+		constexpr bool bClearSelection = false;
+		Owner->StoreSelection(UPlacementModeSelectTool::ToolName, false);
 	}
 }
 
