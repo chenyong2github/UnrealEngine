@@ -32,7 +32,9 @@ namespace Metasound
 		FloatArray,
 		StringArray,
 		UObjectProxyArray,
-		Invalid  //< The literal is in an invalid state and cannot be used to construct an object.
+		Invalid,  //< The literal is in an invalid state and cannot be used to construct an object.
+
+		COUNT
 	};
 
 
