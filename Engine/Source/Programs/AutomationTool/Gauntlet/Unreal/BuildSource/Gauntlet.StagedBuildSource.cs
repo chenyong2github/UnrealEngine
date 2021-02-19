@@ -163,7 +163,7 @@ namespace Gauntlet
 			// Turn FooGame into just Foo as we need to check for client/server builds too
 			string ShortName = Regex.Replace(InProjectName, "Game", "", RegexOptions.IgnoreCase);
 
-			string ContentPath = Path.Combine(InPath, InProjectName, "Content", "Paks");
+			string ContentPath = Path.Combine(InPath, InProjectName, "Content");
 
 			if (Directory.Exists(ContentPath))
 			{

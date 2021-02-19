@@ -31,9 +31,7 @@ namespace Gauntlet
 
 		public bool EditorValid { get; protected set; }
 
-		protected List<IBuild> DiscoveredBuilds;
-
-		public int BuildCount { get { return DiscoveredBuilds.Count; } }
+		protected Dictionary<UnrealTargetPlatform, List<IBuild>> DiscoveredBuilds;
 
 		public UnrealBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference) 
 		{
@@ -94,13 +92,6 @@ namespace Gauntlet
 			BuildName = ResolvedBuildName;
 			BuildPaths = ResolvedPaths;
 
-			DiscoveredBuilds = DiscoverBuilds();
-
-			if (DiscoveredBuilds.Count() == 0)
-			{
-				throw new AutomationException("No builds were discovered from resolved build argument {0}", InBuildArgument);
-			}
-
 			// any Branch/CL info?
 			Match M = Regex.Match(BuildName, @"(\+\+.+)-CL-(\d+)");
 
@@ -118,6 +109,9 @@ namespace Gauntlet
 			// allow user overrides (TODO - centralize all this!)
 			Branch = Globals.Params.ParseValue("branch", Branch);
 			Changelist = Convert.ToInt32(Globals.Params.ParseValue("changelist", Changelist.ToString()));
+
+			// We resolve these on demand
+			DiscoveredBuilds = new Dictionary<UnrealTargetPlatform, List<IBuild>>();
 		}
 
 		virtual protected bool ResolveBuildReference(string InBuildReference, Func<string, string> ResolutionDelegate, out IEnumerable<string> OutBuildPaths, out string OutBuildName)
@@ -249,63 +243,149 @@ namespace Gauntlet
 			return true;
 		}
 
-		virtual protected bool ShouldMakeBuildAvailable(IBuild InBuild)
+		/// <summary>
+		/// Allows derived classes to nix or modify builds as they are discovered
+		/// </summary>
+		/// <param name="InBuild"></param>
+		/// <returns></returns>
+		virtual protected IBuild ShouldMakeBuildAvailable(IBuild InBuild)
 		{
-			return true;
+			return InBuild;
 		}
 
-		virtual protected List<IBuild> DiscoverBuilds()
+		/// <summary>
+		/// True/false on whether we've tried to discover builds for the specified platform
+		/// </summary>
+		/// <param name="InPlatform"></param>
+		/// <returns></returns>
+		bool HaveDiscoveredBuilds(UnrealTargetPlatform InPlatform)
 		{
-			var BuildList = new List<IBuild>();
+			return DiscoveredBuilds.ContainsKey(InPlatform);
+		}
 
-			if (BuildPaths.Count() > 0)
+		/// <summary>
+		/// Discover all builds for the specified platform. Nop if this has already been run
+		/// for the provided platform
+		/// </summary>
+		/// <param name="InPlatform"></param>
+		void DiscoverBuilds(UnrealTargetPlatform InPlatform)
+		{
+			if (!HaveDiscoveredBuilds(InPlatform))
 			{
-				foreach (string Path in BuildPaths)
+				Log.Info("Discovering builds for {0}", InPlatform);
+				DiscoveredBuilds[InPlatform] = new List<IBuild>();
+
+				// Add an editor build if this is our current platform.
+				if (InPlatform == BuildHostPlatform.Current.Platform)
 				{
-					IEnumerable<IFolderBuildSource> BuildSources = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IFolderBuildSource>();
+					AddBuild(CreateEditorBuild(UnrealPath));
+				}
 
-					foreach (var BS in BuildSources)
+				if (BuildPaths.Count() > 0)
+				{
+					foreach (string Path in BuildPaths)
 					{
-						IEnumerable<IBuild> Builds = BS.GetBuildsAtPath(ProjectName, Path);
+						IEnumerable<IFolderBuildSource> BuildSources = Gauntlet.Utils.InterfaceHelpers.FindImplementations<IFolderBuildSource>()
+																			.Where(BS => BS.CanSupportPlatform(InPlatform));
 
-						BuildList.AddRange(Builds);
+						foreach (var BS in BuildSources)
+						{
+							IEnumerable<IBuild> Builds = BS.GetBuildsAtPath(ProjectName, Path);
+
+							foreach (IBuild Build in Builds)
+							{
+								AddBuild(Build);
+							}
+						}
 					}
 				}
 			}
-
-			// Editor?
-			List<EditorBuild> EditorBuilds = CreateEditorBuilds(UnrealPath);
-
-			if (EditorBuilds.Count > 0)
-			{
-				BuildList.AddRange(EditorBuilds);
-			}
-			else
-			{
-				Log.Verbose("No editor found for {0}, editor-builds will be unavailable", ProjectName);
-			}
-
-			// give higher level code a chance to reject stuff
-			return BuildList.Where(B => ShouldMakeBuildAvailable(B)).ToList();
 		}
 
-		IEnumerable<IBuild> GetMatchingBuilds(UnrealTargetRole InRole, UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, BuildFlags InFlags)
+		/// <summary>
+		/// Returns how many builds are available for the specified platform
+		/// </summary>
+		/// <param name="InPlatform"></param>
+		/// <param name="InFlags"></param>
+		/// <returns></returns>
+		public int GetBuildCount(UnrealTargetPlatform InPlatform, BuildFlags InFlags = BuildFlags.None)
 		{
-			if (DiscoveredBuilds == null)
+			if (!HaveDiscoveredBuilds(InPlatform))
 			{
-				return new IBuild[0];
+				DiscoverBuilds(InPlatform);
 			}
 
-			// can't build without a platform
+			return DiscoveredBuilds[InPlatform].Where(B => (B.Flags & InFlags) == InFlags).Count();
+		}
+
+		/// <summary>
+		/// Adds the provided build to our list (calls ShouldMakeBuildAvailable to verify).
+		/// </summary>
+		/// <param name="InPlatform"></param>
+		/// <param name="NewBuild"></param>
+		void AddBuild(IBuild NewBuild)
+		{
+			NewBuild = ShouldMakeBuildAvailable(NewBuild);
+
+			if (NewBuild != null)
+			{
+				if (!DiscoveredBuilds.ContainsKey(NewBuild.Platform))
+				{
+					DiscoveredBuilds[NewBuild.Platform] = new List<IBuild>();
+				}
+
+				DiscoveredBuilds[NewBuild.Platform].Add(NewBuild);
+			}
+		}
+
+		/// <summary>
+		/// Adds an Editor build to our list of available builds if one exists
+		/// </summary>
+		/// <param name="InUnrealPath"></param>
+		IBuild CreateEditorBuild(DirectoryReference InUnrealPath)
+		{
+			if (InUnrealPath != null)
+			{
+				// check for the editor
+				string EditorExe = Path.Combine(InUnrealPath.FullName, GetRelativeExecutablePath(UnrealTargetRole.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development));
+
+				if (Utils.SystemHelpers.ApplicationExists(EditorExe))
+				{
+					EditorBuild NewBuild = new EditorBuild(EditorExe, UnrealTargetConfiguration.Development);
+
+					return NewBuild;
+				}
+			}
+
+			return null;
+		}
+
+		/// <summary>
+		/// Returns all builds that match the specified parameters. If no builds have been discovered then that is performed first
+		/// </summary>
+		/// <param name="InRole"></param>
+		/// <param name="InPlatform"></param>
+		/// <param name="InConfiguration"></param>
+		/// <param name="InFlags"></param>
+		/// <returns></returns>
+		IEnumerable<IBuild> GetMatchingBuilds(UnrealTargetRole InRole, UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, BuildFlags InFlags)
+		{
+			// can't get a build with no platform or if we have none
 			if (InPlatform == null)
 			{
 				return new IBuild[0];
 			}
 
-			IEnumerable<IBuild> MatchingBuilds = DiscoveredBuilds.Where((B) => 
+			if (!HaveDiscoveredBuilds(InPlatform.Value))
 			{
-				if (B.Platform == InPlatform
-					&& B.CanSupportRole(InRole)
+				DiscoverBuilds(InPlatform.Value);
+			}
+
+			IEnumerable<IBuild> PlatformBuilds = DiscoveredBuilds[InPlatform.Value];
+
+			IEnumerable<IBuild> MatchingBuilds = PlatformBuilds.Where((B) => 
+			{
+				if (B.CanSupportRole(InRole)
 					&& B.Configuration == InConfiguration
 					&& (B.Flags & InFlags) == InFlags)
 				{
@@ -320,12 +400,11 @@ namespace Gauntlet
 				return MatchingBuilds;
 			}
 
-			MatchingBuilds = DiscoveredBuilds.Where((B) =>
+			MatchingBuilds = PlatformBuilds.Where((B) =>
 			{
 				if ((InFlags & BuildFlags.CanReplaceExecutable) == BuildFlags.CanReplaceExecutable)
 				{
-					if (B.Platform == InPlatform
-						&& B.CanSupportRole(InRole)
+					if (B.CanSupportRole(InRole)
 						&& (B.Flags & InFlags) == InFlags)
 					{
 						Log.Warning("Build did not have configuration {0} for {1}, but selecting due to presence of -dev flag",
@@ -340,7 +419,13 @@ namespace Gauntlet
 			return MatchingBuilds;
 		}
 
-
+		/// <summary>
+		/// Checks if we are able to support the specified role. This will trigger build discovery if it has not yet
+		/// happened for the specified platform
+		/// </summary>
+		/// <param name="Role"></param>
+		/// <param name="Reasons"></param>
+		/// <returns></returns>
 		public bool CanSupportRole(UnrealSessionRole Role, ref List<string> Reasons)
 		{
 			if (Role.RoleType.UsesEditor() && UnrealPath == null)
@@ -692,28 +777,6 @@ namespace Gauntlet
 			}
 
 			return PlatformPath;
-		}
-
-		List<EditorBuild> CreateEditorBuilds(DirectoryReference InUnrealPath)
-		{
-			List<EditorBuild> EditorBuildList = new List<EditorBuild>();
-			if (InUnrealPath == null)
-			{
-				return EditorBuildList;
-			}
-
-			// check for the editor
-			List<UnrealTargetConfiguration> ConfigsToCheck = new List<UnrealTargetConfiguration>() { UnrealTargetConfiguration.Development, UnrealTargetConfiguration.DebugGame, UnrealTargetConfiguration.Debug };
-			foreach (UnrealTargetConfiguration Config in ConfigsToCheck)
-			{
-				string EditorExe = Path.Combine(InUnrealPath.FullName, GetRelativeExecutablePath(UnrealTargetRole.Editor, BuildHostPlatform.Current.Platform, Config));
-				if (Utils.SystemHelpers.ApplicationExists(EditorExe))
-				{
-					EditorBuildList.Add(new EditorBuild(EditorExe, Config));
-				}
-			}
-
-			return EditorBuildList;
 		}
 	}
 }

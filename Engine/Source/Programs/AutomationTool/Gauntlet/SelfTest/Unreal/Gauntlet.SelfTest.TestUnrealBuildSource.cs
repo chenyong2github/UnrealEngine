@@ -34,7 +34,7 @@ namespace Gauntlet.SelfTest
 
 			// check editor and statged info is valid
 			CheckResult(BuildSource.EditorValid, "Editor build was invalid");
-			CheckResult(BuildSource.BuildCount > 0, "staged build was invalid");
+			//CheckResult(BuildSource.BuildCount > 0, "staged build was invalid");
 
 			// simple check with an editor role
 			UnrealSessionRole EditorRole = new UnrealSessionRole(UnrealTargetRole.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development);

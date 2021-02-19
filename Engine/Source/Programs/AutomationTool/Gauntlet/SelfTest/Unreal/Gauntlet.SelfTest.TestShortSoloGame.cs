@@ -53,7 +53,7 @@ namespace Gauntlet.SelfTest
 			UnrealBuildSource Build = new UnrealBuildSource(this.ProjectName, ProjectFile, this.UnrealPath, UsesSharedBuildType, BuildPath);
 
 			// check it's valid
-			if (!CheckResult(Build.BuildCount > 0, "staged build was invalid"))
+			if (!CheckResult(Build.GetBuildCount(Platform) > 0, "staged build was invalid"))
 			{
 				MarkComplete();
 				return;
