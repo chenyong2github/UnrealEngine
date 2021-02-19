@@ -34,6 +34,7 @@ void FWorldPartitionReferenceImpl::IncRefCount(FWorldPartitionActorDesc* ActorDe
 {
 	if (ActorDesc->IncHardRefCount() == 1)
 	{
+		TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
 		ActorDesc->Load();
 		ActorDesc->RegisterActor();
 	}
