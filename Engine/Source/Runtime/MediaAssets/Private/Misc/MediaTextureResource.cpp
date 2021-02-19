@@ -93,11 +93,15 @@ namespace MediaTextureResourceHelpers
 	{
 		switch (Sample->GetFormat())
 		{
+			// 10-bit formats
 		case EMediaTextureSampleFormat::CharBGR10A2:
 		case EMediaTextureSampleFormat::YUVv210:
 			return PF_A2B10G10R10;
-		case EMediaTextureSampleFormat::Y416:
-			return PF_B8G8R8A8;
+			// Float formats
+		case EMediaTextureSampleFormat::FloatRGB:
+		case EMediaTextureSampleFormat::FloatRGBA:
+			return PF_FloatRGBA;
+			// Everything else maps to 8-bit RGB...
 		default:
 			return PF_B8G8R8A8;
 		}
