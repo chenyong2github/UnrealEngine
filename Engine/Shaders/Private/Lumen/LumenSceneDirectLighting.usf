@@ -275,7 +275,7 @@ void LumenCardDirectLightingPS(
 								if (bShadowingFromValidUVArea) 
 								{
 									ShadowFactor *= NewShadowFactor;
-									bShadowFactorComplete = bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
+									bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
 								}
 							}
 							#endif
