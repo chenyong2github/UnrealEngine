@@ -1468,6 +1468,9 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 			const bool bDirectLighting = ViewFamily.EngineShowFlags.DirectLighting;
 
+			FRDGTextureRef SharedScreenShadowMaskTexture = nullptr;
+			FRDGTextureRef SharedScreenShadowMaskSubPixelTexture = nullptr;
+
 			// Draw shadowed and light function lights
 			for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 			{
@@ -1492,12 +1495,18 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 				if (bDrawShadows || bDrawLightFunction || bDrawPreviewIndicator)
 				{
-					const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.ScreenSpaceShadowMask));
-					ScreenShadowMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("ShadowMaskTexture"));
-					if (bUseHairLighting)
+					if (!SharedScreenShadowMaskTexture)
 					{
-						ScreenShadowMaskSubPixelTexture = GraphBuilder.CreateTexture(Desc, TEXT("ShadowMaskSubPixelTexture"));
+						const FRDGTextureDesc SharedScreenShadowMaskTextureDesc(FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_B8G8R8A8, FClearValueBinding::White, TexCreate_RenderTargetable | TexCreate_ShaderResource | GFastVRamConfig.ScreenSpaceShadowMask));
+						SharedScreenShadowMaskTexture = GraphBuilder.CreateTexture(SharedScreenShadowMaskTextureDesc, TEXT("ShadowMaskTexture"));
+
+						if (bUseHairLighting)
+						{
+							SharedScreenShadowMaskSubPixelTexture = GraphBuilder.CreateTexture(SharedScreenShadowMaskTextureDesc, TEXT("ShadowMaskSubPixelTexture"));
+						}
 					}
+					ScreenShadowMaskTexture = SharedScreenShadowMaskTexture;
+					ScreenShadowMaskSubPixelTexture = SharedScreenShadowMaskSubPixelTexture;
 				}
 
 				FString LightNameWithLevel;
