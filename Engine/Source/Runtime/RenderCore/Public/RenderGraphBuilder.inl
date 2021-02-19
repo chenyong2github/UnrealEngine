@@ -20,18 +20,6 @@ inline FRDGTextureRef FRDGBuilder::FindExternalTexture(IPooledRenderTarget* Exte
 	return nullptr;
 }
 
-inline FRDGTextureRef FRDGBuilder::CreateTexture(
-	const FRDGTextureDesc& Desc,
-	const TCHAR* Name,
-	ERDGTextureFlags Flags)
-{
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Desc, Name, Flags));
-	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, Desc, Flags, ERenderTargetTexture::ShaderResource);
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Texture));
-	IF_RDG_ENABLE_TRACE(Trace.AddResource(Texture));
-	return Texture;
-}
-
 inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	const FRDGBufferDesc& Desc,
 	const TCHAR* Name,

@@ -269,7 +269,6 @@ private:
 	ERHIAccess AccessInitial = ERHIAccess::Unknown;
 	ERHIAccess AccessFinal = ERHIAccess::Unknown;
 
-	FRDGPassHandle AcquirePass;
 	FRDGPassHandle FirstPass;
 	FRDGPassHandle LastPass;
 
@@ -426,7 +425,7 @@ struct RENDERCORE_API FRDGTextureDesc
 
 		// Remove UAV flag for textures that don't need it (some formats are incompatible).
 		Flags |= TexCreate_RenderTargetable;
-		Flags &= ~(TexCreate_UAV | TexCreate_FastVRAM | TexCreate_Transient | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget);
+		Flags &= ~(TexCreate_UAV | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget);
 	}
 
 	bool IsTexture2D() const
