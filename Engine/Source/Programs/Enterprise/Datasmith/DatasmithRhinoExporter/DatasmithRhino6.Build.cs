@@ -28,7 +28,7 @@ namespace UnrealBuildTool.Rules
 		public abstract string GetRhinoVersion();
 	}
 
-	[SupportedPlatforms("Win64")]
+	[SupportedPlatforms("Win64", "Mac")]
 	public class DatasmithRhino6 : DatasmithRhinoBase
 	{
 		public DatasmithRhino6(ReadOnlyTargetRules Target)
