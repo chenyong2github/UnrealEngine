@@ -107,7 +107,7 @@ void FStatsGridRow_Quality::AddPlatform(TSharedPtr<FMaterialStats> StatsManager,
 	TSharedPtr<FGridCell_StaticString> Cell = MakeShareable(new FGridCell_StaticString(CellContent, CellContent));
 
 	Cell->SetContentBold(true);
-	auto CellColor = FMaterialStatsUtils::QualitySettingColor(QualityLevel);
+	FSlateColor CellColor = FMaterialStatsUtils::QualitySettingColor(QualityLevel);
 	Cell->SetColor(CellColor);
 
 	const FName ColumnName = FMaterialStatsGrid::MakePlatformColumnName(Platform, QualityLevel);

@@ -4,6 +4,7 @@
 #include "SceneTypes.h"
 #include "RHIDefinitions.h"
 #include "MaterialShared.h"
+#include "Styling/SlateColor.h"
 
 /** custom resource material class used to mark the resource as used for shader stats extraction */
 class MATERIALEDITOR_API FMaterialResourceStats : public FMaterialResource
