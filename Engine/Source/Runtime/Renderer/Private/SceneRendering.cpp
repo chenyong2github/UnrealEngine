@@ -134,6 +134,12 @@ static TAutoConsoleVariable<float> CVarDemosaicVposOffset(
 	TEXT("This offset is added to the rasterized position used for demosaic in the mobile tonemapping shader. It exists to workaround driver bugs on some Android devices that have a half-pixel offset."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarDecalDepthBias(
+	TEXT("r.DecalDepthBias"),
+	0.005f,
+	TEXT("Global depth bias used by mesh decals. Default is 0.005"),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarRefractionQuality(
 	TEXT("r.RefractionQuality"),
 	2,
@@ -1600,6 +1606,8 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		ViewUniformShaderParameters.DemosaicVposOffset = CVarDemosaicVposOffset.GetValueOnRenderThread();
 	}
+
+	ViewUniformShaderParameters.DecalDepthBias = CVarDecalDepthBias.GetValueOnRenderThread();
 
 	ViewUniformShaderParameters.IndirectLightingColorScale = FVector(FinalPostProcessSettings.IndirectLightingColor.R * FinalPostProcessSettings.IndirectLightingIntensity,
 		FinalPostProcessSettings.IndirectLightingColor.G * FinalPostProcessSettings.IndirectLightingIntensity,

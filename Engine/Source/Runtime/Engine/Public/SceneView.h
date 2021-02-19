@@ -680,6 +680,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GeneralPurposeTweak) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GeneralPurposeTweak2) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, DemosaicVposOffset, EShaderPrecisionModifier::Half) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, DecalDepthBias) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, IndirectLightingColorScale) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, PrecomputedIndirectLightingColorScale) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, AtmosphericFogSunPower, EShaderPrecisionModifier::Half) \

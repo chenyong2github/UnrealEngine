@@ -140,10 +140,10 @@ void MainVS(
 
 #endif // USING_TESSELLATION
 
-// Move all geometry a little bit towards the camera (to not get z fighting with existing zbuffer of the same meshes rendered with slightly different float computations).
-#if !USING_TESSELLATION
-	// todo: tweak or expose (cvar or per mesh/material setting), if needed the artist always can create a WorldPositionOffset adjustment in the shader (e.g. -0.1*CameraDirectionVector )
-	Output.Position.z *= 1.001;
+#if !USING_TESSELLATION && HAS_INVERTED_Z_BUFFER
+	// Move all geometry a small amount towards the camera to avoid z-fighting.
+	// Assuming a reverse z buffer this pushes the near plane a fixed small distance.
+	Output.Position.z += ResolvedView.DecalDepthBias;
 #endif
 
 	OutputVertexID( Output );
