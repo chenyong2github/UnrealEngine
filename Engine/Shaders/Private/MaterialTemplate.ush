@@ -19,10 +19,6 @@
 #include "/Engine/Private/HairStrands/HairCardsAttributeCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
 
-#define TEMPLATE_USES_STRATA (PROJECT_STRATA && MATERIAL_IS_STRATA)
-
-#include "/Engine/Private/Strata/Strata.ush"
-
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"
 #endif
@@ -133,6 +129,11 @@
 #define IS_MESHPARTICLE_FACTORY (PARTICLE_MESH_FACTORY || NIAGARA_MESH_FACTORY)
 
 #define IS_HAIR_FACTORY (HAIR_STRAND_MESH_FACTORY || HAIR_CARD_MESH_FACTORY)
+
+#define TEMPLATE_USES_STRATA			(PROJECT_STRATA && MATERIAL_IS_STRATA)
+#define STRATA_OPAQUE_ENABLED			(TEMPLATE_USES_STRATA && MATERIALBLENDING_ANY_TRANSLUCENT<=0)
+#define STRATA_TRANSLUCENT_ENABLED		(TEMPLATE_USES_STRATA && MATERIALBLENDING_ANY_TRANSLUCENT>0)
+#include "/Engine/Private/Strata/Strata.ush"
 
 /**
  * Parameters used by vertex and pixel shaders to access particle properties.

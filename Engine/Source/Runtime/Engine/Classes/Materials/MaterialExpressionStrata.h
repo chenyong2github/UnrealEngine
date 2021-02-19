@@ -85,7 +85,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput Tangent;
 
 	/**
-	 * Chromatic mean free path . Only used when there is not any sub-surface profile provided. (type = float3, unit = unitless)
+	 * Chromatic mean free path . Only used when there is not any sub-surface profile provided. (type = float3, unit = centimeters, default = 0)
 	 */
 	UPROPERTY()
 	FExpressionInput SSSDMFP;
@@ -109,10 +109,16 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput Haziness;
 
 	/**
-	 * Thin film contosl the thin film layer coating the current slab. 0 means disabled and 1 means a coating layer of 10 micrometer. (type = float, unitless, default = 0)
+	 * Thin film controls the thin film layer coating the current slab. 0 means disabled and 1 means a coating layer of 10 micrometer. (type = float, unitless, default = 0)
 	 */
 	UPROPERTY()
 	FExpressionInput ThinFilmThickness;
+
+	/**
+	 * The slab thickness. (type = float, centimeters, default = 0.01 centimeter = 0.1 millimeter)
+	 */
+	UPROPERTY()
+	FExpressionInput Thickness;
 
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering. The profile needs to be set up on both the Strata diffuse node, and the material node at the moment. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))

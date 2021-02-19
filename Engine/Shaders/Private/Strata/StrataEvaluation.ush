@@ -339,9 +339,29 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			Sample.SpecularHazePathValue	= HazeD * HazeVis * F * HazeMSScale;
 			Sample.SpecularHazePDF			= HazePDF * Sample.SpecularHazePathProbability;
 
-			Sample.EmissivePathValue= BSDF_GETEMISSIVE(BSDFContext.BSDF);
+			Sample.EmissivePathValue = BSDF_GETEMISSIVE(BSDFContext.BSDF);
 
 			Sample.Throughput = OpaqueBSDFThroughput;
+
+			#if STRATA_FASTPATH==0
+			BRANCH
+			if (BSDF_GETISSIMPLEVOLUME(BSDFContext.BSDF))
+			{
+				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSDMFP(BSDFContext.BSDF));
+				const float DiffuseToVolumeBlend = StrataSlabDiffuseToVolumeBlend(PM);
+				const FStrataSlabSingleScattering Result = StrataSlabSingleScattering(PM, BSDFContext.Context.NoV);
+
+				const float3 SpecularThroughput = 1.0f - F; // This is already taken into account by the Chan model above. But for volumetric we need to apply it.
+				const float Phase = IsotropicPhase();
+
+				Sample.DiffusePathValue = lerp(Sample.DiffusePathValue,		Result.SingleScattering * Phase * SpecularThroughput,	DiffuseToVolumeBlend);
+				Sample.DiffusePDF		= lerp(Sample.DiffusePDF,			Phase,													DiffuseToVolumeBlend);
+				Sample.Throughput		= lerp(Sample.Throughput,			Result.Transmittance,									DiffuseToVolumeBlend);
+
+				Sample.bSubsurface = false;	// It should already be the case because Enforce in this case because BSDF_GETHASSCATTERING should be false when BSDF_GETISSIMPLEVOLUME is true
+			}
+			#endif
+
 			break;
 		}
 
@@ -437,7 +457,8 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 			const float3 BaseColor = SLAB_BASECOLOR(BSDFContext.BSDF);
 			const float  Metallic = SLAB_METALLIC(BSDFContext.BSDF);
 
-			// STRATA_TODO take into account roughness
+			// We assume a cosine hemisphere sampling is enough for any roughness.
+			// We also assume that this will work just as well for volumetric (considering it is an isotropic phase function and we are interesting in sampling mostly the hemisphere and not the layers below)
 			float4 ImportanceSample = CosineSampleHemisphere(E);
 			Sample.DiffuseDirection = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
 			PDF = ImportanceSample.w;
@@ -536,14 +557,14 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
 			StrataEnvLightResult.bSubsurface = BSDF_GETHASSCATTERING(BSDFContext.BSDF) > 0;
 
+			float3 FresnelWeight = 1;
 			BRANCH
 			if (bEnableSpecular)
 			{
 				float3 F0 = ComputeF0(SLAB_SPECULAR(BSDFContext.BSDF), BaseColor, Metallic);
 				const float3 F90 = ComputeF90(F0, SLAB_EDGECOLOR(BSDFContext.BSDF), Metallic);
 
-				float3 FresnelWeight = 1;
-#if STRATA_FASTPATH==0
+				#if STRATA_FASTPATH==0
 				const bool bHasThinFilm = BSDF_GETHASTHINFILM(BSDFContext.BSDF);
 				if (bHasThinFilm)
 				{
@@ -552,11 +573,11 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					FresnelWeight = F_ThinFilm(BSDFContext.Context.NoV, BSDFContext.Context.NoL, BSDFContext.Context.VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
 					F0 = 1.f;
 				}
-#endif
+				#endif
 
 				float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 
-#if STRATA_FASTPATH==0
+				#if STRATA_FASTPATH==0
 				const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
 				if (bHasAnisotropy)
 				{
@@ -572,7 +593,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
 					BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
 				}
-#endif
+				#endif
 
 				float3 EvalEnvBRDF = FresnelWeight * StrataEnvBRDF(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
 
@@ -580,7 +601,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;
 				StrataEnvLightResult.SpecularSafeRoughness = SafeRoughnessX;
 
-#if STRATA_FASTPATH==0
+				#if STRATA_FASTPATH==0
 				const bool bHasHaziness = BSDF_GETHASHAZINESS(BSDFContext.BSDF);
 				if (bHasHaziness)
 				{
@@ -597,8 +618,24 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 					StrataEnvLightResult.SpecularHazeWeight = lerp(0.0f, SPECULAR_HAZINESS_WEIGHT, HazinessFadeIn) * StrataEnvBRDF(F0, F90, SafeRoughnessHaze, BSDFContext.SatNoV);
 					StrataEnvLightResult.SpecularHazeSafeRoughness = SafeRoughnessHaze;
 				}
-#endif
+				#endif
 			}
+
+			#if STRATA_FASTPATH==0
+			BRANCH
+			if (BSDF_GETISSIMPLEVOLUME(BSDFContext.BSDF))
+			{
+				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(StrataEnvLightResult.DiffuseColor, SLAB_SSSDMFP(BSDFContext.BSDF));
+				const float DiffuseToVolumeBlend = StrataSlabDiffuseToVolumeBlend(PM);
+				const FStrataSlabSingleScattering Result = StrataSlabSingleScattering(PM, BSDFContext.Context.NoV);
+
+				// STRATA_TODO: big approximation for volumetric + env lighting: We ignore the phase for now due to the sampled convolved env lighting, 
+				// no self shadow and should not be single scattering using StrataSlabSingleScattering. We will propose a better approach. 
+				StrataEnvLightResult.DiffuseColor = lerp(StrataEnvLightResult.DiffuseColor, Result.SingleScattering * FresnelWeight,	DiffuseToVolumeBlend);
+				// We keep the same normal
+				StrataEnvLightResult.bSubsurface = false;
+			}
+			#endif
 			break;
 		}
 

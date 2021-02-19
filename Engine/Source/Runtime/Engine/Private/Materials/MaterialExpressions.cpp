@@ -19775,6 +19775,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
 		CompileWithDefaultFloat1(Compiler, ThinFilmThickness, 0.0f),
+		CompileWithDefaultFloat1(Compiler, Thickness, 0.01f),
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
@@ -19836,6 +19837,9 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	case 12:
 		return MCT_Float1; // ThinFilm Thickness
 		break;
+	case 13:
+		return MCT_Float1; // Thickness
+		break;
 	}
 
 	check(false);
@@ -19895,6 +19899,10 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	else if (InputIndex == 12)
 	{
 		return TEXT("ThinFilm Thickness");
+	}
+	else if (InputIndex == 13)
+	{
+		return TEXT("Thickness");
 	}
 	return TEXT("Unknown");
 }

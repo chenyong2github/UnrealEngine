@@ -6,7 +6,26 @@
 
 #include "Common.ush"
 
+struct FParticipatingMedia
+{
+	float3 ScatteringCoef;	// sigma_s (1/meter)
+	float3 AbsorptionCoef;	// sigma_a (1/meter)
+	float3 ExtinctionCoef;	// sigma_t (1/meter)
+	float3 MeanFreePath;	// (meter)
+	float3 Albedo;			// (unitless)
+};
 
+// The mean free path must be in meters
+FParticipatingMedia CreateMediumFromAlbedoMFP(float3 Albedo, float3 MeanFreePathMeters)
+{
+	FParticipatingMedia PM = (FParticipatingMedia)0;
+	PM.Albedo = Albedo;
+	PM.MeanFreePath = MeanFreePathMeters;
+	PM.ExtinctionCoef = 1.0f / max(0.000001f, PM.MeanFreePath);
+	PM.ScatteringCoef = Albedo * PM.ExtinctionCoef;
+	PM.AbsorptionCoef = max(0.0f, PM.ExtinctionCoef - PM.ScatteringCoef);
+	return PM;
+}
 
 float IsotropicPhase()
 {
