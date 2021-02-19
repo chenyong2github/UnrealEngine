@@ -735,7 +735,7 @@ void AHUD::DrawDebugTextList()
 			// don't draw text behind the camera
 			if (((WorldTextLoc - CameraLoc) | CameraRot.Vector()) > 0.f)
 			{
-				FVector ScreenLoc = Canvas->Project(WorldTextLoc);
+				FVector ScreenLoc = DebugCanvas->Project(WorldTextLoc);
 				TextItem.SetColor(DebugTextList[Idx].TextColor);
 				TextItem.Text = FText::FromString(DebugTextList[Idx].DebugText);
 				TextItem.Scale = FVector2D(DebugTextList[Idx].FontScale, DebugTextList[Idx].FontScale);
