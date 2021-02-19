@@ -232,3 +232,31 @@ void TD3D12ViewDescriptorHandle<TDesc>::FreeDescriptorSlot()
 	}
 	check(!Handle.ptr);
 }
+
+inline void FD3D12DescriptorHandleSRV::CreateView(const D3D12_SHADER_RESOURCE_VIEW_DESC& Desc, ID3D12Resource* Resource)
+{
+#if D3D12_RHI_RAYTRACING
+	// NOTE (from D3D Debug runtime): When ViewDimension is D3D12_SRV_DIMENSION_RAYTRACING_ACCELLERATION_STRUCTURE, pResource must be NULL, since the resource location comes from a GPUVA in pDesc
+	if (Desc.ViewDimension == D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		Resource = nullptr;
+	}
+#endif // D3D12_RHI_RAYTRACING
+
+	GetParentDevice()->GetDevice()->CreateShaderResourceView(Resource, &Desc, Handle);
+}
+
+inline void FD3D12DescriptorHandleRTV::CreateView(const D3D12_RENDER_TARGET_VIEW_DESC& Desc, ID3D12Resource* Resource)
+{
+	GetParentDevice()->GetDevice()->CreateRenderTargetView(Resource, &Desc, Handle);
+}
+
+inline void FD3D12DescriptorHandleDSV::CreateView(const D3D12_DEPTH_STENCIL_VIEW_DESC& Desc, ID3D12Resource* Resource)
+{
+	GetParentDevice()->GetDevice()->CreateDepthStencilView(Resource, &Desc, Handle);
+}
+
+inline void FD3D12DescriptorHandleUAV::CreateViewWithCounter(const D3D12_UNORDERED_ACCESS_VIEW_DESC& Desc, ID3D12Resource* Resource, ID3D12Resource* CounterResource)
+{
+	GetParentDevice()->GetDevice()->CreateUnorderedAccessView(Resource, CounterResource, &Desc, Handle);
+}
