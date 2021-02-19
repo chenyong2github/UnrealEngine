@@ -1010,6 +1010,7 @@ bool AAIController::UseBlackboard(UBlackboardData* BlackboardAsset, UBlackboardC
 	if (Blackboard == nullptr)
 	{
 		Blackboard = NewObject<UBlackboardComponent>(this, TEXT("BlackboardComponent"));
+		REDIRECT_OBJECT_TO_VLOG(Blackboard, this);
 		if (Blackboard != nullptr)
 		{
 			InitializeBlackboard(*Blackboard, *BlackboardAsset);
