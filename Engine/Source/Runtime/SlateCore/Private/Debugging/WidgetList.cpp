@@ -13,6 +13,7 @@
 #include "Misc/OutputDeviceFile.h"
 #include "Misc/Paths.h"
 #include "Misc/StringBuilder.h"
+#include "Types/SlateAttributeMetaData.h"
 #include "Types/SlateCursorMetaData.h"
 #include "Types/SlateMouseEventsMetaData.h"
 #include "Types/ReflectionMetadata.h"
@@ -39,6 +40,7 @@ struct FLogAllWidgetsDebugInfoFlags
 	bool bParent;
 	bool bToolTip;
 	bool bCursor;
+	bool bSlateAttribute;
 	bool bMouseEventsHandler;
 
 	void Parse(const FString& Arg)
@@ -74,6 +76,11 @@ struct FLogAllWidgetsDebugInfoFlags
 		}
 
 		if (FParse::Bool(*Arg, TEXT("Cursor="), bCursor))
+		{
+			return;
+		}
+		
+		if (FParse::Bool(*Arg, TEXT("SlateAttribute="), bSlateAttribute))
 		{
 			return;
 		}
@@ -117,6 +124,10 @@ void LogAllWidgetsDebugInfoImpl(FOutputDevice& Ar, const FLogAllWidgetsDebugInfo
 	if (DebugInfoFlags.bCursor)
 	{
 		MessageBuilder << TEXT(";CursorIsSet;CursorValue");
+	}
+	if (DebugInfoFlags.bSlateAttribute)
+	{
+		MessageBuilder << TEXT(";NumSlateAttribute");
 	}
 	if (DebugInfoFlags.bMouseEventsHandler)
 	{
@@ -236,6 +247,19 @@ void LogAllWidgetsDebugInfoImpl(FOutputDevice& Ar, const FLogAllWidgetsDebugInfo
 			else
 			{
 				MessageBuilder << TEXT(";None;0");
+			}
+		}
+
+		if (DebugInfoFlags.bSlateAttribute)
+		{
+			if (FSlateAttributeMetaData* MetaData = FSlateAttributeMetaData::FindMetaData(*Widget))
+			{
+				MessageBuilder << TEXT(";");
+				MessageBuilder << MetaData->RegisteredNum();
+			}
+			else
+			{
+				MessageBuilder << TEXT(";0");
 			}
 		}
 
