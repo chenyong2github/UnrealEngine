@@ -54,12 +54,6 @@ FAutoConsoleVariableRef CVarDisableCulledContacts(TEXT("p.CollisionDisableCulled
 float BoundsThicknessVelocityMultiplier = 2.0f;	// @todo(chaos): more to FChaosSolverConfiguration
 FAutoConsoleVariableRef CVarBoundsThicknessVelocityMultiplier(TEXT("p.CollisionBoundsVelocityInflation"), BoundsThicknessVelocityMultiplier, TEXT("Collision velocity inflation for speculatibe contact generation.[def:2.0]"));
 
-float HackCCD_EnableThreshold = -1.f;
-FAutoConsoleVariableRef CVarHackCCDVelThreshold(TEXT("p.Chaos.CCD.EnableThreshold"), HackCCD_EnableThreshold, TEXT("If distance moved is greater than this times the minimum object dimension, use CCD"));
-
-float HackCCD_DepthThreshold = 0.05f;
-FAutoConsoleVariableRef CVarHackCCDDepthThreshold(TEXT("p.Chaos.CCD.DepthThreshold"), HackCCD_DepthThreshold, TEXT("When returning to TOI, leave this much contact depth (as a fraction of MinBounds)"));
-
 float SmoothedPositionLerpRate = 0.1f;
 FAutoConsoleVariableRef CVarSmoothedPositionLerpRate(TEXT("p.Chaos.SmoothedPositionLerpRate"), SmoothedPositionLerpRate, TEXT("The interpolation rate for the smoothed position calculation. Used for sleeping."));
 
@@ -79,7 +73,6 @@ DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::DetectCollisions"), STAT_Evolut
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::PostDetectCollisionsCallback"), STAT_Evolution_PostDetectCollisionsCallback, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::UpdateConstraintPositionBasedState"), STAT_Evolution_UpdateConstraintPositionBasedState, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::ComputeIntermediateSpatialAcceleration"), STAT_Evolution_ComputeIntermediateSpatialAcceleration, STATGROUP_Chaos);
-DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CCDHack"), STAT_Evolution_CCDHack, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateConstraintGraph"), STAT_Evolution_CreateConstraintGraph, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::CreateIslands"), STAT_Evolution_CreateIslands, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("TPBDRigidsEvolutionGBF::PreApplyCallback"), STAT_Evolution_PreApplyCallback, STATGROUP_Chaos);
@@ -153,114 +146,6 @@ void TPBDRigidsEvolutionGBF<Traits>::Advance(const FReal Dt,const FReal MaxStepD
 	}
 }
 
-//
-//
-//
-// BEGIN TOI
-//
-//
-//
-
-namespace Collisions
-{
-	extern bool GetTOIHack(const TPBDRigidParticleHandle<FReal, 3>* Particle0, const FGeometryParticleHandle* Particle1, FReal& OutTOI, FVec3& OutNormal, FReal& OutPhi);
-}
-
-void PostMoveToTOIHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle)
-{
-	// Update bounds, velocity etc
-	FPerParticlePBDUpdateFromDeltaPosition VelUpdateRule;
-	VelUpdateRule.Apply(Particle, Dt);
-}
-
-void MoveToTOIPairHack(FReal Dt, TPBDRigidParticleHandle<FReal, 3>* Particle1, const FGeometryParticleHandle* Particle2)
-{
-	FReal TOI = 0.0f;
-	FReal Phi = 0.0f;
-	FVec3 Normal = FVec3(0);
-	if (Collisions::GetTOIHack(Particle1, Particle2, TOI, Normal, Phi))
-	{
-		FReal Depth = -Phi;
-		FReal MinBounds = Particle1->Geometry()->BoundingBox().Extents().Min();
-		FReal MaxDepth = MinBounds * HackCCD_DepthThreshold;
-
-		//UE_LOG(LogChaos, Warning, TEXT("MoveTOIHAck: TOI %f; Depth %f"), TOI, Depth);
-
-		if ((Depth > MaxDepth) && (TOI > KINDA_SMALL_NUMBER) && (TOI < 1.0f))
-		{
-			// Move the particle to just after the TOI so we still have a collision to resolve but won't get tunneling
-			// The time after TOI we want is given by the ratio of max acceptable depth to depth at T = 1
-			FReal ExtraT = (1.0f - TOI) * MaxDepth / Depth;
-			FReal FinalT = TOI + ExtraT;
-			FVec3 FinalP = FVec3::Lerp(Particle1->X(), Particle1->P(), FinalT);
-
-			//UE_LOG(LogChaos, Warning, TEXT("MoveTOIHack: FinalTOI %f; Correction %f"), FinalT, (FinalP - Particle1->P()).Size());
-		
-			Particle1->SetP(FinalP);
-			PostMoveToTOIHack(Dt, Particle1);
-		}
-	}
-}
-
-
-void MoveToTOIHack(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle, const ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SpatialAcceleration)
-{
-	if (const auto AABBTree = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>>())
-	{
-		MoveToTOIHackImpl(Dt, Particle, AABBTree);
-	}
-	else if (const auto BV = SpatialAcceleration->template As<TBoundingVolume<FAccelerationStructureHandle>>())
-	{
-		MoveToTOIHackImpl(Dt, Particle, BV);
-	}
-	else if (const auto AABBTreeBV = SpatialAcceleration->template As<TAABBTree<FAccelerationStructureHandle, TBoundingVolume<FAccelerationStructureHandle>>>())
-	{
-		MoveToTOIHackImpl(Dt, Particle, AABBTreeBV);
-	}
-	else if (const auto Collection = SpatialAcceleration->template As<ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>>())
-	{
-		Collection->CallMoveToTOIHack(Dt, Particle);
-	}
-}
-
-bool RequiresCCDHack(FReal Dt, const TTransientPBDRigidParticleHandle<FReal, 3>& Particle)
-{
-	if (Particle.HasBounds() && (Particle.ObjectState() == EObjectStateType::Dynamic))
-	{
-		FReal Dist2 = Particle.V().SizeSquared() * Dt * Dt;
-		FReal MinBounds = Particle.Geometry()->BoundingBox().Extents().Min();
-		FReal MaxDepth = MinBounds * HackCCD_EnableThreshold;
-		if (Dist2 > MaxDepth * MaxDepth)
-		{
-			//UE_LOG(LogChaos, Warning, TEXT("MoveTOIHack: Enabled at DR = %f / %f"), FMath::Sqrt(Dist2), MaxDepth);
-
-			return true;
-		}
-	}
-	return false;
-}
-
-void CCDHack(const FReal Dt, TParticleView<TPBDRigidParticles<FReal, 3>>& ParticlesView, const ISpatialAcceleration<FAccelerationStructureHandle, FReal, 3>* SpatialAcceleration)
-{
-	if (HackCCD_EnableThreshold > 0)
-	{
-		for (auto& Particle : ParticlesView)
-		{
-			if (RequiresCCDHack(Dt, Particle))
-			{
-				MoveToTOIHack(Dt, Particle, SpatialAcceleration);
-			}
-		}
-	}
-}
-
-//
-//
-//
-// END TOI
-//
-//
-//
 
 template <typename Traits>
 void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStep(const FReal Dt,const FSubStepInfo& SubStepInfo)
@@ -327,11 +212,6 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_ComputeIntermediateSpatialAcceleration);
 		Base::ComputeIntermediateSpatialAcceleration();
-	}
-
-	{
-		SCOPE_CYCLE_COUNTER(STAT_Evolution_CCDHack);
-		CCDHack(Dt, Particles.GetActiveParticlesView(), InternalAcceleration);
 	}
 
 	{

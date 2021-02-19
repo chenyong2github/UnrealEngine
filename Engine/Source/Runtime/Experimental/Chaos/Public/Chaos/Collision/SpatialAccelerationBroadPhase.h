@@ -338,43 +338,4 @@ namespace Chaos
 
 		FIgnoreCollisionManager IgnoreCollisionManager;
 	};
-
-
-
-
-	extern void MoveToTOIPairHack(FReal Dt, FPBDRigidParticleHandle* Particle1, const FGeometryParticleHandle* Particle2);
-
-	template<typename T_SPATIALACCELERATION>
-	void MoveToTOIHackImpl(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle1, const T_SPATIALACCELERATION* SpatialAcceleration)
-	{
-		TArray<FAccelerationStructureHandle> PotentialIntersections;
-		const FAABB3 Box1 = ComputeWorldSpaceBoundingBox(Particle1);
-		FSimOverlapVisitor OverlapVisitor(PotentialIntersections);
-		SpatialAcceleration->Overlap(Box1, OverlapVisitor);
-
-		const int32 NumPotentials = PotentialIntersections.Num();
-		for (int32 i = 0; i < NumPotentials; ++i)
-		{
-			auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
-
-			// We only care about static/kinematics
-			if (Particle2.CastToRigidParticle() && (Particle2.CastToRigidParticle()->ObjectState() == EObjectStateType::Dynamic))
-			{
-				continue;
-			}
-			if (!Particle1.Geometry() && !Particle2.Geometry())
-			{
-				continue;
-			}
-
-			const bool bBody2Bounded = HasBoundingBox(Particle2);
-			if (Particle1.Handle() == Particle2.Handle())
-			{
-				continue;
-			}
-
-			MoveToTOIPairHack(Dt, Particle1.Handle(), &Particle2);
-		}
-	}
-
 }
