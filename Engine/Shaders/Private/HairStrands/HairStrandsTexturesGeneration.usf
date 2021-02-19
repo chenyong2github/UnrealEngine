@@ -413,7 +413,7 @@ void MainPS(
 			dot(Tangent_ObjectSpace, B), 
 			dot(Tangent_ObjectSpace, N));
 
-		OutCoverage /= bValidCount;
+		OutCoverage /= SampleCount;
 		OutTangent.xyz = (Tangent_FrameSpace + 1) * 0.5f;
 		OutTangent.w = 1;
 	}
