@@ -724,6 +724,12 @@ public:
 		return MScale * MObject->GetCenterOfMass();
 	}
 
+	FRotation3 GetRotationOfMass() const
+	{
+		// TODO: use the actual underlying object ( to be consistent with current implementation of GetInertiaTensor and GetVolume )
+		return BoundingBox().GetRotationOfMass();
+	}
+
 	const ObjectType Object() const { return MObject; }
 
 	// Only should be retrieved for copy purposes. Do not modify or access.

@@ -103,7 +103,7 @@ namespace ChaosInterface
 			const auto& Vertex = PhysXMesh->getVertices()[j];
 			CollisionMeshParticles.X(j) = Scale * Chaos::FVec3(Vertex.x, Vertex.y, Vertex.z);
 		}
-		Chaos::TAABB<float, 3> BoundingBox(CollisionMeshParticles.X(0), CollisionMeshParticles.X(0));
+		Chaos::FAABB3 BoundingBox(CollisionMeshParticles.X(0), CollisionMeshParticles.X(0));
 		for (uint32 j = 1; j < CollisionMeshParticles.Size(); ++j)
 		{
 			BoundingBox.GrowToInclude(CollisionMeshParticles.X(j));
@@ -247,7 +247,7 @@ namespace ChaosInterface
 
 				const float CollisionMargin = FMath::Min(2.0f * HalfExtents.GetMin() * CollisionMarginFraction, CollisionMarginMax);
 
-				// TAABB can handle translations internally but if we have a rotation we need to wrap it in a transform
+				// AABB can handle translations internally but if we have a rotation we need to wrap it in a transform
 				TUniquePtr<Chaos::FImplicitObject> Implicit;
 				if (!BoxTransform.GetRotation().IsIdentity())
 				{
@@ -435,7 +435,7 @@ namespace ChaosInterface
 					OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
 					OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
 					OutMassProperties.CenterOfMass = LocalTM.TransformPosition(Object.GetCenterOfMass());
-					OutMassProperties.RotationOfMass = LocalTM.GetRotation();
+					OutMassProperties.RotationOfMass = LocalTM.GetRotation() * Object.GetRotationOfMass();
 				});
 			return true;
 		}
