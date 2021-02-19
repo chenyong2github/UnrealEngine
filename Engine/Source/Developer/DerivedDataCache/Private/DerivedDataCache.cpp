@@ -716,6 +716,13 @@ class FCache final : public ICache
 public:
 	virtual ~FCache() = default;
 
+	virtual FCacheRequest Put(
+		TArrayView<FCacheRecord> Records,
+		FStringView Context,
+		ECachePolicy Policy,
+		ECachePriority Priority,
+		FOnCachePutComplete&& Callback) final;
+
 	virtual FCacheRequest Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
@@ -723,23 +730,23 @@ public:
 		ECachePriority Priority,
 		FOnCacheGetComplete&& Callback) final;
 
-	virtual FCacheRequest Put(
-		TConstArrayView<FCacheRecord> Records,
+	virtual FCacheRequest GetPayloads(
+		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
 		ECachePriority Priority,
-		FOnCachePutComplete&& Callback) final;
-
-	virtual FCacheRequest GetAttachments(
-		TConstArrayView<FCacheAttachmentKey> Keys,
-		FStringView Context,
-		ECachePolicy Policy,
-		ECachePriority Priority,
-		FOnCacheGetAttachmentComplete&& Callback) final;
+		FOnCacheGetPayloadComplete&& Callback) final;
 
 	virtual void CancelAll() final;
 
 private:
+	void Put(
+		FCacheRecord Record,
+		FStringView Context,
+		ECachePolicy Policy,
+		ECachePriority Priority,
+		FOnCachePutComplete& Callback);
+
 	void Get(
 		const FCacheKey& Key,
 		FStringView Context,
@@ -747,19 +754,12 @@ private:
 		ECachePriority Priority,
 		FOnCacheGetComplete& Callback);
 
-	void Put(
-		const FCacheRecord& Record,
+	void GetPayload(
+		const FCachePayloadKey& Key,
 		FStringView Context,
 		ECachePolicy Policy,
 		ECachePriority Priority,
-		FOnCachePutComplete& Callback);
-
-	void GetAttachment(
-		const FCacheAttachmentKey& Key,
-		FStringView Context,
-		ECachePolicy Policy,
-		ECachePriority Priority,
-		FOnCacheGetAttachmentComplete& Callback);
+		FOnCacheGetPayloadComplete& Callback);
 
 	template <int32 BufferSize>
 	class TToString
@@ -781,228 +781,25 @@ private:
 
 	static FString MakeRecordKey(const FCacheKey& Key)
 	{
-		check(Key);
+		check(Key.IsValid());
 		TStringBuilder<96> Out;
 		Out << Key.GetBucket() << TEXT("_") << Key.GetHash();
 		return FDerivedDataCacheInterface::SanitizeCacheKey(Out.ToString());
 	}
 
-	static FString MakeContentKey(const FCacheAttachmentKey& AttachmentKey)
+	static FString MakePayloadKey(const FCachePayloadKey& PayloadKey)
 	{
-		check(AttachmentKey);
-		TStringBuilder<128> Out;
-		Out << AttachmentKey.GetKey().GetBucket() << TEXT("_CAS_") << AttachmentKey.GetHash();
+		check(PayloadKey.IsValid());
+		TStringBuilder<96> Out;
+		Out << PayloadKey.GetKey().GetBucket() << TEXT("_") << PayloadKey.GetKey().GetHash() << TEXT("_") << PayloadKey.GetId();
 		return FDerivedDataCacheInterface::SanitizeCacheKey(Out.ToString());
 	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FCache::Get(
-	const FCacheKey& Key,
-	FStringView Context,
-	ECachePolicy Policy,
-	ECachePriority Priority,
-	FOnCacheGetComplete& Callback)
-{
-	FCacheGetCompleteParams Params;
-	Params.Record.SetKey(Key);
-
-	ON_SCOPE_EXIT
-	{
-		if (Callback)
-		{
-			Callback(MoveTemp(Params));
-		}
-	};
-
-	// Skip the request if querying the cache is disabled.
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::Query))
-	{
-		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Get skipped for %s from '%.*s'"),
-			*TToString<96>(Key), Context.Len(), Context.GetData());
-		return;
-	}
-
-	// Request the metadata and references from storage.
-	TArray<uint8> Data;
-	if (!GetDerivedDataCacheRef().GetSynchronous(*MakeRecordKey(Key), Data, Context))
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss for %s from '%.*s'"),
-			*TToString<96>(Key), Context.Len(), Context.GetData());
-		return;
-	}
-
-	// Validate that Data can be read as compact binary without crashing.
-	if (ValidateCompactBinaryRange(MakeMemoryView(Data), ECbValidateMode::Default) != ECbValidateError::None)
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted record for %s from '%.*s'"),
-			*TToString<96>(Key), Context.Len(), Context.GetData());
-		return;
-	}
-
-	// Read the record from its compact binary fields.
-	FCbObject RecordObject(Data.GetData());
-	FCbField MetaField = RecordObject["Meta"_ASV];
-	FCbField ValueField = RecordObject["Value"_ASV];
-	FCbField AttachmentsField = RecordObject["Attachments"_ASV];
-	FCbArray AttachmentsArray = AttachmentsField.AsArray();
-
-	// Validate that the record was serialized in the expected format.
-	if ((MetaField && !MetaField.IsObject()) ||
-		(ValueField && !ValueField.IsAttachment()) ||
-		(AttachmentsField && !AttachmentsField.IsArray()) ||
-		!Algo::AllOf(AttachmentsArray, &FCbField::IsAttachment))
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with invalid format for %s from '%.*s'"),
-			*TToString<96>(Key), Context.Len(), Context.GetData());
-		return;
-	}
-
-	// Check for existence of the value and attachments if they are being skipped.
-	{
-		TArray<FIoHash, TInlineAllocator<1>> KeysToCheck;
-		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsAttachment())
-		{
-			KeysToCheck.Add(ValueField.AsAttachment());
-			if (KeysToCheck.Last().IsZero())
-			{
-				KeysToCheck.Pop();
-			}
-		}
-		if (EnumHasAnyFlags(Policy, ECachePolicy::SkipAttachments))
-		{
-			KeysToCheck.Reserve(KeysToCheck.Num() + AttachmentsArray.Num());
-			for (FCbField AttachmentField : AttachmentsArray)
-			{
-				KeysToCheck.Add(AttachmentField.AsAttachment());
-			}
-		}
-		if (KeysToCheck.Num())
-		{
-			TArray<FString, TInlineAllocator<1>> ContentKeysToCheck;
-			ContentKeysToCheck.Reserve(KeysToCheck.Num());
-			Algo::Transform(KeysToCheck, ContentKeysToCheck,
-				[&Key](const FIoHash& Hash) -> FString { return MakeContentKey(FCacheAttachmentKey(Key, Hash)); });
-			if (!GetDerivedDataCacheRef().AllCachedDataProbablyExists(ContentKeysToCheck))
-			{
-				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing content for %s from '%.*s'"),
-					*TToString<96>(Key), Context.Len(), Context.GetData());
-				return;
-			}
-		}
-	}
-
-	// Read the value and attachments if they have been requested.
-	const auto GetContent = [&Key, Context](FCbField AttachmentField) -> FCbAttachment
-	{
-		TArray<uint8> ContentData;
-		const FIoHash Hash = AttachmentField.AsAttachment();
-		check(!AttachmentField.HasError());
-		const FCacheAttachmentKey ContentKey(Key, Hash);
-		if (GetDerivedDataCacheRef().GetSynchronous(*MakeContentKey(ContentKey), ContentData, Context))
-		{
-			if (FIoHash::HashBuffer(MakeMemoryView(ContentData)) == Hash)
-			{
-				FSharedBuffer ContentBuffer = FSharedBuffer::Clone(MakeMemoryView(ContentData));
-				if (AttachmentField.IsCompactBinaryAttachment())
-				{
-					return FCbAttachment(FCbFieldRefIterator::MakeRange(MoveTemp(ContentBuffer)), Hash);
-				}
-				else
-				{
-					return FCbAttachment(MoveTemp(ContentBuffer), Hash);
-				}
-			}
-			else
-			{
-				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted content for %s from '%.*s'"),
-					*TToString<160>(ContentKey), Context.Len(), Context.GetData());
-			}
-		}
-		else
-		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing content for %s from '%.*s'"),
-				*TToString<160>(ContentKey), Context.Len(), Context.GetData());
-		}
-		return FCbAttachment();
-	};
-
-	FCbAttachment Value;
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipValue) && ValueField.IsAttachment() && !(Value = GetContent(ValueField)))
-	{
-		return;
-	}
-
-	TArray<FCbAttachment> Attachments;
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipAttachments) && AttachmentsField.IsArray())
-	{
-		Attachments.Reserve(AttachmentsArray.Num());
-		for (FCbField AttachmentField : AttachmentsArray)
-		{
-			Attachments.Add(GetContent(AttachmentField));
-			if (!Attachments.Last())
-			{
-				return;
-			}
-		}
-	}
-
-	// Package
-	if (AttachmentsField.IsArray() && !EnumHasAllFlags(Policy, ECachePolicy::SkipValue | ECachePolicy::SkipAttachments))
-	{
-		FCbPackage Package;
-		if (Value && Value.IsCompactBinary())
-		{
-			Package.SetObject(Value.AsCompactBinary().AsObjectRef(), ValueField.AsAttachment());
-		}
-		for (FCbAttachment Attachment : Attachments)
-		{
-			Package.AddAttachment(MoveTemp(Attachment));
-		}
-		Params.Record.SetPackage(MoveTemp(Package));
-	}
-	else if (Value)
-	{
-		// Object
-		if (Value.IsCompactBinary())
-		{
-			Params.Record.SetObject(Value.AsCompactBinary().AsObjectRef(), ValueField.AsAttachment());
-		}
-		// Binary
-		else
-		{
-			Params.Record.SetBinary(Value.AsBinary(), ValueField.AsAttachment());
-		}
-	}
-
-	// Meta
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta) && MetaField.IsObject())
-	{
-		Params.Record.SetMeta(FCbObjectRef::Clone(MetaField.AsObject()));
-	}
-
-	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache hit for %s from '%.*s'"),
-		*TToString<96>(Key), Context.Len(), Context.GetData());
-	Params.Status = ECacheStatus::Cached;
-}
-
-FCacheRequest FCache::Get(
-	TConstArrayView<FCacheKey> Keys,
-	FStringView Context,
-	ECachePolicy Policy,
-	ECachePriority Priority,
-	FOnCacheGetComplete&& Callback)
-{
-	for (const FCacheKey& Key : Keys)
-	{
-		Get(Key, Context, Policy, Priority, Callback);
-	}
-	return FCacheRequest();
-}
-
 void FCache::Put(
-	const FCacheRecord& Record,
+	FCacheRecord Record,
 	FStringView Context,
 	ECachePolicy Policy,
 	ECachePriority Priority,
@@ -1027,73 +824,37 @@ void FCache::Put(
 		return;
 	}
 
-	FCbAttachment Value;
-	TConstArrayView<FCbAttachment> Attachments;
-
-	switch (Record.GetType())
+	const auto PutPayload = [&Key = Params.Key, Context](const FCachePayload& Payload)
 	{
-	case ECacheRecordType::None:
-		break;
-	case ECacheRecordType::Binary:
-		Value = FCbAttachment(Record.AsBinary(), Record.GetValueHash());
-		break;
-	case ECacheRecordType::Object:
-	case ECacheRecordType::Package:
-		{
-			const FCbPackage& Package = Record.AsPackage();
-			Value = FCbAttachment(FCbFieldRefIterator::MakeSingle(Package.GetObject().AsFieldRef()), Package.GetObjectHash());
-			Attachments = Package.GetAttachments();
-		}
-		break;
-	default:
-		checkNoEntry();
-		break;
-	}
-
-	const auto PutContent = [&Key = Params.Key, Context](const FSharedBuffer& Buffer, const FIoHash& Hash)
-	{
-		check(Buffer.GetSize() <= MAX_int32);
+		const FSharedBuffer& Buffer = Payload.GetCompressedData();
+		check(Buffer && Buffer.GetSize() <= MAX_int32);
 		TConstArrayView<uint8> BufferView = MakeArrayView(
 			static_cast<const uint8*>(Buffer.GetData()),
 			static_cast<int32>(Buffer.GetSize()));
-		GetDerivedDataCacheRef().Put(*MakeContentKey(FCacheAttachmentKey(Key, Hash)), BufferView, Context);
+		GetDerivedDataCacheRef().Put(*MakePayloadKey(FCachePayloadKey(Key, Payload.GetId())), BufferView, Context);
 	};
-
-	if (Value)
-	{
-		PutContent(Value.AsBinary(), Value.GetHash());
-	}
-	for (const FCbAttachment& Attachment : Attachments)
-	{
-		PutContent(Attachment.AsBinary(), Attachment.GetHash());
-	}
 
 	FCbWriter Writer;
 	Writer.BeginObject();
 	{
-		if (Value.IsCompactBinary())
+		if (const FCachePayload& Value = Record.GetValuePayload())
 		{
-			Writer.SetName("Value"_ASV).AddCompactBinaryAttachment(Value.GetHash());
+			PutPayload(Value);
+			Writer.BeginObject("Value"_ASV);
+			Writer.AddObjectId("Id"_ASV, Value.GetId().ToObjectId());
+			Writer.AddBinaryAttachment("Hash"_ASV, Value.GetCompressedDataHash());
+			Writer.EndObject();
 		}
-		else if (Value.IsBinary())
+		if (!Record.GetAttachmentPayloads().IsEmpty())
 		{
-			Writer.SetName("Value"_ASV).AddBinaryAttachment(Value.GetHash());
-		}
-
-		if (Record.GetType() == ECacheRecordType::Package)
-		{
-			Writer.SetName("Attachments"_ASV);
-			Writer.BeginArray();
-			for (const FCbAttachment& Attachment : Attachments)
+			Writer.BeginArray("Attachments"_ASV);
+			for (const FCachePayload& Attachment : Record.GetAttachmentPayloads())
 			{
-				if (Attachment.IsCompactBinary())
-				{
-					Writer.AddCompactBinaryAttachment(Attachment.GetHash());
-				}
-				else
-				{
-					Writer.AddBinaryAttachment(Attachment.GetHash());
-				}
+				PutPayload(Attachment);
+				Writer.BeginObject();
+				Writer.AddObjectId("Id"_ASV, Attachment.GetId().ToObjectId());
+				Writer.AddBinaryAttachment("Hash"_ASV, Attachment.GetCompressedDataHash());
+				Writer.EndObject();
 			}
 			Writer.EndArray();
 		}
@@ -1101,7 +862,7 @@ void FCache::Put(
 		const FCbObjectRef& Meta = Record.GetMeta();
 		if (Meta.CreateIterator())
 		{
-			Writer.SetName("Meta"_ASV).AddObject(Meta);
+			Writer.AddObject("Meta"_ASV, Meta);
 		}
 	}
 	Writer.EndObject();
@@ -1120,33 +881,38 @@ void FCache::Put(
 }
 
 FCacheRequest FCache::Put(
-	TConstArrayView<FCacheRecord> Records,
+	TArrayView<FCacheRecord> Records,
 	FStringView Context,
 	ECachePolicy Policy,
 	ECachePriority Priority,
 	FOnCachePutComplete&& Callback)
 {
-	for (const FCacheRecord& Record : Records)
+	for (FCacheRecord& Record : Records)
 	{
-		Put(Record, Context, Policy, Priority, Callback);
+		Put(MoveTemp(Record), Context, Policy, Priority, Callback);
 	}
 	return FCacheRequest();
 }
 
-void FCache::GetAttachment(
-	const FCacheAttachmentKey& Key,
+void FCache::Get(
+	const FCacheKey& Key,
 	FStringView Context,
 	ECachePolicy Policy,
 	ECachePriority Priority,
-	FOnCacheGetAttachmentComplete& Callback)
+	FOnCacheGetComplete& Callback)
 {
-	FCacheGetAttachmentCompleteParams Params;
-	Params.Key = Key;
+	FCachePayload Value;
+	TArray<FCachePayload> Attachments;
+	TArray<FCachePayloadId, TInlineAllocator<1>> SkippedPayloads;
+	FCacheRecordBuilder Builder;
+	Builder.SetKey(Key);
 
+	FCacheGetCompleteParams Params;
 	ON_SCOPE_EXIT
 	{
 		if (Callback)
 		{
+			Params.Record = Builder.Build();
 			Callback(MoveTemp(Params));
 		}
 	};
@@ -1154,61 +920,259 @@ void FCache::GetAttachment(
 	// Skip the request if querying the cache is disabled.
 	if (!EnumHasAnyFlags(Policy, ECachePolicy::Query))
 	{
-		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: GetAttachment skipped on content for %s from '%.*s'"),
-			*TToString<160>(Key), Context.Len(), Context.GetData());
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Get skipped for %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
 		return;
 	}
 
-	// Check for existence of the attachment if it is being skipped.
-	if (EnumHasAnyFlags(Policy, ECachePolicy::SkipAttachments))
+	// Request the record from storage.
+	TArray<uint8> RecordData;
+	if (!GetDerivedDataCacheRef().GetSynchronous(*MakeRecordKey(Key), RecordData, Context))
 	{
-		if (GetDerivedDataCacheRef().CachedDataProbablyExists(*MakeContentKey(Key)))
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss for %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Validate that the record can be read as compact binary without crashing.
+	if (ValidateCompactBinaryRange(MakeMemoryView(RecordData), ECbValidateMode::Default) != ECbValidateError::None)
+	{
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted record for %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Read the record from its compact binary fields.
+	const FCbObject RecordObject(RecordData.GetData());
+	const FCbObject MetaObject = RecordObject["Meta"_ASV].AsObject();
+	const FCbObject ValueObject = RecordObject["Value"_ASV].AsObject();
+	const FCbArray AttachmentsArray = RecordObject["Attachments"_ASV].AsArray();
+
+	// Read the value and attachments if they have been requested.
+	const auto GetPayload = [&SkippedPayloads, &Key, Policy, Context](FCbObject PayloadObject, ECachePolicy SkipFlag) -> FCachePayload
+	{
+		TArray<uint8> PayloadData;
+		const FCachePayloadId PayloadId = FCachePayloadId::FromObjectId(PayloadObject["Id"_ASV].AsObjectId());
+		const FIoHash PayloadHash = PayloadObject["Hash"_ASV].AsBinaryAttachment();
+		const FCachePayloadKey PayloadKey(Key, PayloadId);
+		if (EnumHasAnyFlags(Policy, SkipFlag))
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment (exists) cache hit on content for %s from '%.*s'"),
-				*TToString<160>(Key), Context.Len(), Context.GetData());
-			Params.Status = ECacheStatus::Cached;
+			SkippedPayloads.Add(PayloadId);
+			return FCachePayload(PayloadId, PayloadHash);
+		}
+		else if (GetDerivedDataCacheRef().GetSynchronous(*MakePayloadKey(PayloadKey), PayloadData, Context))
+		{
+			if (FIoHash::HashBuffer(MakeMemoryView(PayloadData)) == PayloadHash)
+			{
+				FSharedBuffer PayloadBuffer = FSharedBuffer::Clone(MakeMemoryView(PayloadData));
+				return FCachePayload(PayloadId, MoveTemp(PayloadBuffer), PayloadHash);
+			}
+			else
+			{
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted content for %s from '%.*s'"),
+					*TToString<96>(PayloadKey), Context.Len(), Context.GetData());
+				return FCachePayload();
+			}
 		}
 		else
 		{
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment (exists) cache miss on content for %s from '%.*s'"),
-				*TToString<160>(Key), Context.Len(), Context.GetData());
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing content for %s from '%.*s'"),
+				*TToString<96>(PayloadKey), Context.Len(), Context.GetData());
+			return FCachePayload();
+		}
+	};
+
+	if (ValueObject.CreateIterator() && !(Value = GetPayload(ValueObject, ECachePolicy::SkipValue)))
+	{
+		return;
+	}
+
+	Attachments.Reserve(AttachmentsArray.Num());
+	for (FCbField AttachmentField : AttachmentsArray)
+	{
+		Attachments.Add(GetPayload(AttachmentField.AsObject(), ECachePolicy::SkipAttachments));
+		if (!Attachments.Last())
+		{
+			return;
+		}
+	}
+
+	// Check for existence of the value and attachments if they were skipped.
+	if (!SkippedPayloads.IsEmpty())
+	{
+		TArray<FString, TInlineAllocator<1>> SkippedPayloadKeys;
+		SkippedPayloadKeys.Reserve(SkippedPayloads.Num());
+		Algo::Transform(SkippedPayloads, SkippedPayloadKeys,
+			[&Key](const FCachePayloadId& Id) -> FString { return MakePayloadKey(FCachePayloadKey(Key, Id)); });
+		const bool bPayloadsExist = EnumHasAnyFlags(Policy, ECachePolicy::StoreLocal)
+			? GetDerivedDataCacheRef().TryToPrefetch(SkippedPayloadKeys, Context)
+			: GetDerivedDataCacheRef().AllCachedDataProbablyExists(SkippedPayloadKeys);
+		if (!bPayloadsExist)
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing content for %s from '%.*s'"),
+				*TToString<96>(Key), Context.Len(), Context.GetData());
+			return;
+		}
+	}
+
+	// Populate the builder now that any error conditions have been handled.
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta) && MetaObject.CreateIterator())
+	{
+		Builder.SetMeta(FCbObjectRef::Clone(MetaObject));
+	}
+	if (Value)
+	{
+		Builder.SetValue(MoveTemp(Value));
+	}
+	for (FCachePayload& Attachment : Attachments)
+	{
+		Builder.AddAttachment(MoveTemp(Attachment));
+	}
+
+	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache hit for %s from '%.*s'"),
+		*TToString<96>(Key), Context.Len(), Context.GetData());
+	Params.Status = ECacheStatus::Cached;
+}
+
+FCacheRequest FCache::Get(
+	TConstArrayView<FCacheKey> Keys,
+	FStringView Context,
+	ECachePolicy Policy,
+	ECachePriority Priority,
+	FOnCacheGetComplete&& Callback)
+{
+	for (const FCacheKey& Key : Keys)
+	{
+		Get(Key, Context, Policy, Priority, Callback);
+	}
+	return FCacheRequest();
+}
+
+void FCache::GetPayload(
+	const FCachePayloadKey& Key,
+	FStringView Context,
+	ECachePolicy Policy,
+	ECachePriority Priority,
+	FOnCacheGetPayloadComplete& Callback)
+{
+	FCacheGetPayloadCompleteParams Params;
+	Params.Key = Key.GetKey();
+
+	ON_SCOPE_EXIT
+	{
+		if (Callback)
+		{
+			if (!Params.Payload)
+			{
+				Params.Payload = FCachePayload(Key.GetId(), FIoHash());
+			}
+			Callback(MoveTemp(Params));
+		}
+	};
+
+	// Skip the request if querying the cache is disabled.
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::Query))
+	{
+		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: GetPayload skipped %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
+		return;
+	}
+
+	// Check for existence of the payload if it is being skipped.
+	if (EnumHasAnyFlags(Policy, ECachePolicy::SkipValue))
+	{
+		const bool bPayloadExists = EnumHasAnyFlags(Policy, ECachePolicy::StoreLocal)
+			? GetDerivedDataCacheRef().TryToPrefetch({MakePayloadKey(Key)}, Context)
+			: GetDerivedDataCacheRef().CachedDataProbablyExists(*MakePayloadKey(Key));
+		if (bPayloadExists)
+		{
+			// Request the record from storage.
+			TArray<uint8> RecordData;
+			if (!GetDerivedDataCacheRef().GetSynchronous(*MakeRecordKey(Key.GetKey()), RecordData, Context))
+			{
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing record for %s from '%.*s'"),
+					*TToString<96>(Key), Context.Len(), Context.GetData());
+				return;
+			}
+
+			// Validate that the record can be read as compact binary without crashing.
+			if (ValidateCompactBinaryRange(MakeMemoryView(RecordData), ECbValidateMode::Default) != ECbValidateError::None)
+			{
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with corrupted record for %s from '%.*s'"),
+					*TToString<96>(Key), Context.Len(), Context.GetData());
+				return;
+			}
+
+			// Read the record from its compact binary fields.
+			const FCbObject RecordObject(RecordData.GetData());
+			const FCbObject ValueObject = RecordObject["Value"_ASV].AsObject();
+			const FCbArray AttachmentsArray = RecordObject["Attachments"_ASV].AsArray();
+
+			// Find the hash of the payload in the record.
+			const FCbObjectId KeyObjectId = Key.GetId().ToObjectId();
+			if (ValueObject["Id"_ASV].AsObjectId() == KeyObjectId)
+			{
+				Params.Payload = FCachePayload(Key.GetId(), ValueObject["Hash"_ASV].AsBinaryAttachment());
+			}
+			else
+			{
+				for (FCbField AttachmentField : AttachmentsArray)
+				{
+					if (AttachmentField.AsObject()["Id"_ASV].AsObjectId() == KeyObjectId)
+					{
+						Params.Payload = FCachePayload(Key.GetId(), AttachmentField.AsObject()["Hash"_ASV].AsBinaryAttachment());
+						break;
+					}
+				}
+			}
+
+			if (Params.Payload)
+			{
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload (exists) cache hit for %s from '%.*s'"),
+					*TToString<96>(Key), Context.Len(), Context.GetData());
+				Params.Status = ECacheStatus::Cached;
+			}
+			else
+			{
+				UE_LOG(LogDerivedDataCache, Verbose,
+					TEXT("Cache: GetPayload (exists) cache miss with missing payload in record for %s from '%.*s'"),
+					*TToString<96>(Key), Context.Len(), Context.GetData());
+			}
+		}
+		else
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload (exists) cache miss for %s from '%.*s'"),
+				*TToString<96>(Key), Context.Len(), Context.GetData());
 		}
 		return;
 	}
 
-	// Request the attachment from storage.
+	// Request the payload from storage.
 	TArray<uint8> Data;
-	if (!GetDerivedDataCacheRef().GetSynchronous(*MakeContentKey(Key), Data, Context))
+	if (!GetDerivedDataCacheRef().GetSynchronous(*MakePayloadKey(Key), Data, Context))
 	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment cache miss on content for %s from '%.*s'"),
-			*TToString<160>(Key), Context.Len(), Context.GetData());
+		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache miss for %s from '%.*s'"),
+			*TToString<96>(Key), Context.Len(), Context.GetData());
 		return;
 	}
 
-	if (FIoHash::HashBuffer(MakeMemoryView(Data)) != Key.GetHash())
-	{
-		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment cache miss with corrupted content for %s from '%.*s'"),
-			*TToString<160>(Key), Context.Len(), Context.GetData());
-		return;
-	}
+	Params.Payload = FCachePayload(Key.GetId(), FSharedBuffer::Clone(MakeMemoryView(Data)));
 
-	Params.Value = FSharedBuffer::Clone(MakeMemoryView(Data));
-
-	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetAttachment cache hit on content for %s from '%.*s'"),
-		*TToString<160>(Key), Context.Len(), Context.GetData());
+	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache hit for %s from '%.*s'"),
+		*TToString<96>(Key), Context.Len(), Context.GetData());
 	Params.Status = ECacheStatus::Cached;
 }
 
-FCacheRequest FCache::GetAttachments(
-	TConstArrayView<FCacheAttachmentKey> Keys,
+FCacheRequest FCache::GetPayloads(
+	TConstArrayView<FCachePayloadKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
 	ECachePriority Priority,
-	FOnCacheGetAttachmentComplete&& Callback)
+	FOnCacheGetPayloadComplete&& Callback)
 {
-	for (const FCacheAttachmentKey& Key : Keys)
+	for (const FCachePayloadKey& Key : Keys)
 	{
-		GetAttachment(Key, Context, Policy, Priority, Callback);
+		GetPayload(Key, Context, Policy, Priority, Callback);
 	}
 	return FCacheRequest();
 }

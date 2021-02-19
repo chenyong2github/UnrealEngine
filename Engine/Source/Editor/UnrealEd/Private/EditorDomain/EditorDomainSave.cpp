@@ -758,15 +758,16 @@ bool FEditorDomainSaveServer::TrySavePackage(const FPackagePath& PackagePath, FS
 		return false;
 	}
 
-	UE::DerivedData::FCacheRecord Record;
-	Record.SetKey(GetEditorDomainPackageKey(PackageDigest));
+	UE::DerivedData::FCacheRecordBuilder RecordBuilder;
+	RecordBuilder.SetKey(GetEditorDomainPackageKey(PackageDigest));
 	TCbWriter<256> MetaData;
 	MetaData.BeginObject();
 	MetaData << "FileSize" << TempBytes.Num();
 	MetaData.EndObject();
-	Record.SetMeta(MetaData.Save().AsObjectRef());
-	Record.SetBinary(FSharedBuffer::MakeView(TempBytes.GetData(), TempBytes.Num()));
-	GetDerivedDataCacheRef().GetCache().Put({ Record }, PackagePath.GetDebugName());
+	RecordBuilder.SetMeta(MetaData.Save().AsObjectRef());
+	RecordBuilder.SetValue(FSharedBuffer::MakeView(TempBytes.GetData(), TempBytes.Num()));
+	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
+	GetDerivedDataCacheRef().GetCache().Put(MakeArrayView(&Record, 1), PackagePath.GetDebugName());
 	return true;
 }
 

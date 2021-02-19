@@ -10,6 +10,8 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
+class FCbObjectId;
+
 namespace UE
 {
 namespace DerivedData
@@ -27,14 +29,15 @@ public:
 	/** Construct a cache bucket from the alphanumeric name. Names are case-insensitive. */
 	UE_API explicit FCacheBucket(FStringView Name);
 
-	/** Append the name of the cache bucket to the string builder. */
+	/** Convert the name of the cache bucket to a string. */
 	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
 	UE_API void ToString(FWideStringBuilderBase& Builder) const;
+	UE_API FString ToString() const;
 
-	/** Whether the cache bucket is null. */
+	/** Whether this is null. */
 	inline bool IsNull() const { return !Index; }
-	/** Whether the cache bucket is not null. */
-	inline explicit operator bool() const { return !IsNull(); }
+	/** Whether this is not null. */
+	inline bool IsValid() const { return !IsNull(); }
 
 	/** Returns the index that is only stable within this process. */
 	inline uint32 ToIndex() const { return Index; }
@@ -64,7 +67,6 @@ inline uint32 GetTypeHash(FCacheBucket Bucket)
 	return ::GetTypeHash(Bucket.ToIndex());
 }
 
-/** Append the cache bucket name to the string builder. */
 template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCacheBucket& Bucket)
 {
@@ -109,17 +111,18 @@ public:
 	/** Returns the hash component of the cache key. */
 	inline const FIoHash& GetHash() const { return Hash; }
 
-	/** Append the cache key to the string builder. */
+	/** Convert the cache key to a string. */
 	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
 	UE_API void ToString(FWideStringBuilderBase& Builder) const;
+	UE_API FString ToString() const;
 
-	/** Whether the cache key is null. */
+	/** Whether this is null. */
 	inline bool IsNull() const { return Bucket.IsNull(); }
-	/** Whether the cache key is not null. */
-	inline explicit operator bool() const { return !IsNull(); }
+	/** Whether this is not null. */
+	inline bool IsValid() const { return !IsNull(); }
 
 	/** Reset this to null. */
-	void Reset() { *this = FCacheKey(); }
+	inline void Reset() { *this = FCacheKey(); }
 
 private:
 	FCacheBucket Bucket;
@@ -136,7 +139,6 @@ inline uint32 GetTypeHash(const FCacheKey& Key)
 	return HashCombine(GetTypeHash(Key.GetBucket()), GetTypeHash(Key.GetHash()));
 }
 
-/** Append the cache key to the string builder. */
 template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCacheKey& Key)
 {
@@ -168,80 +170,171 @@ struct FCacheKeyLexicalLess
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A key that uniquely identifies an attachment within a cache record. */
-class FCacheAttachmentKey
+/** A 12-byte value that uniquely identifies a cache payload in the scope of a cache record. */
+struct FCachePayloadId
 {
 public:
-	/** Construct a null cache attachment key. */
-	FCacheAttachmentKey() = default;
+	using ByteArray = uint8[12];
 
-	/** Construct a cache attachment key from the non-null key and non-zero hash. */
-	inline FCacheAttachmentKey(const FCacheKey& InKey, const FIoHash& InHash)
+	/** Construct a null ID. */
+	FCachePayloadId() = default;
+
+	/** Construct an ID from a view of 12 bytes. */
+	inline explicit FCachePayloadId(FMemoryView Id);
+
+	/** Construct an ID from a non-zero hash. The hash must be unique in the outer cache record. */
+	static inline FCachePayloadId FromHash(const FIoHash& Hash);
+
+	/** Construct an ID from a non-empty name. The name must be unique in the outer cache record. */
+	UE_API static FCachePayloadId FromName(FAnsiStringView Name);
+	UE_API static FCachePayloadId FromName(FWideStringView Name);
+
+	/** Construct an ID from an ObjectId. The ObjectId must be unique in the outer cache record. */
+	UE_API static FCachePayloadId FromObjectId(const FCbObjectId& ObjectId);
+
+	/** Convert the ID to an ObjectId. */
+	UE_API FCbObjectId ToObjectId() const;
+
+	/** Convert the ID to a 24-character hex string. */
+	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
+	UE_API void ToString(FWideStringBuilderBase& Builder) const;
+	UE_API FString ToString() const;
+
+	/** Returns a view of the raw byte array for the ID. */
+	constexpr inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
+
+	/** Whether this is null. */
+	inline bool IsNull() const;
+	/** Whether this is not null. */
+	inline bool IsValid() const { return !IsNull(); }
+
+	/** Reset this to null. */
+	inline void Reset() { *this = FCachePayloadId(); }
+
+private:
+	alignas(uint32) ByteArray Bytes{};
+};
+
+inline bool operator==(const FCachePayloadId& A, const FCachePayloadId& B)
+{
+	return A.GetView().EqualBytes(B.GetView());
+}
+
+inline bool operator!=(const FCachePayloadId& A, const FCachePayloadId& B)
+{
+	return !A.GetView().EqualBytes(B.GetView());
+}
+
+inline bool operator<(const FCachePayloadId& A, const FCachePayloadId& B)
+{
+	return A.GetView().CompareBytes(B.GetView()) < 0;
+}
+
+inline uint32 GetTypeHash(const FCachePayloadId& Id)
+{
+	return *reinterpret_cast<const uint32*>(Id.GetView().GetData());
+}
+
+inline FCachePayloadId::FCachePayloadId(const FMemoryView InId)
+{
+	checkf(InId.GetSize() == sizeof(ByteArray),
+		TEXT("FCachePayloadId cannot be constructed from a view of %" UINT64_FMT " bytes."), InId.GetSize());
+	FMemory::Memcpy(Bytes, InId.GetData(), sizeof(ByteArray));
+}
+
+inline FCachePayloadId FCachePayloadId::FromHash(const FIoHash& Hash)
+{
+	return FCachePayloadId(MakeMemoryView(Hash.GetBytes()).Left(sizeof(ByteArray)));
+}
+
+inline bool FCachePayloadId::IsNull() const
+{
+	return *this == FCachePayloadId();
+}
+
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCachePayloadId& Id)
+{
+	Id.ToString(Builder);
+	return Builder;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** A key that uniquely identifies a payload within a cache record. */
+class FCachePayloadKey
+{
+public:
+	/** Construct a null cache payload key. */
+	FCachePayloadKey() = default;
+
+	/** Construct a cache payload key from the non-null key and non-null ID. */
+	inline FCachePayloadKey(const FCacheKey& InKey, const FCachePayloadId& InId)
 		: Key(InKey)
-		, Hash(InHash)
+		, Id(InId)
 	{
 	}
 
-	/** Returns the cache key for the record containing the attachment. */
+	/** Returns the cache key for the record containing the payload. */
 	inline const FCacheKey& GetKey() const { return Key; }
 
-	/** Returns the hash of the attachment. */
-	inline const FIoHash& GetHash() const { return Hash; }
+	/** Returns the ID of the payload. */
+	inline const FCachePayloadId& GetId() const { return Id; }
 
-	/** Append the cache attachment key to the string builder. */
+	/** Convert the cache payload key to a string. */
 	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
 	UE_API void ToString(FWideStringBuilderBase& Builder) const;
+	UE_API FString ToString() const;
 
-	/** Whether the cache attachment key is null. */
+	/** Whether this is null. */
 	inline bool IsNull() const { return Key.IsNull(); }
-	/** Whether the cache attachment key is not null. */
-	inline explicit operator bool() const { return !IsNull(); }
+	/** Whether this is not null. */
+	inline bool IsValid() const { return !IsNull(); }
 
 	/** Reset this to null. */
-	void Reset() { *this = FCacheAttachmentKey(); }
+	inline void Reset() { *this = FCachePayloadKey(); }
 
 private:
 	FCacheKey Key;
-	FIoHash Hash;
+	FCachePayloadId Id;
 };
 
-inline bool operator==(const FCacheAttachmentKey& A, const FCacheAttachmentKey& B)
+inline bool operator==(const FCachePayloadKey& A, const FCachePayloadKey& B)
 {
-	return A.GetKey() == B.GetKey() && A.GetHash() == B.GetHash();
+	return A.GetKey() == B.GetKey() && A.GetId() == B.GetId();
 }
 
-inline uint32 GetTypeHash(const FCacheAttachmentKey& Key)
+inline uint32 GetTypeHash(const FCachePayloadKey& Key)
 {
-	return HashCombine(GetTypeHash(Key.GetKey()), GetTypeHash(Key.GetHash()));
+	return HashCombine(GetTypeHash(Key.GetKey()), GetTypeHash(Key.GetId()));
 }
 
-/** Append the cache attachment key to the string builder. */
 template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCacheAttachmentKey& Key)
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCachePayloadKey& Key)
 {
 	Key.ToString(Builder);
 	return Builder;
 }
 
 /** Fast less with an order that is only stable within the lifetime of this process. */
-struct FCacheAttachmentKeyFastLess
+struct FCachePayloadKeyFastLess
 {
-	inline bool operator()(const FCacheAttachmentKey& A, const FCacheAttachmentKey& B) const
+	inline bool operator()(const FCachePayloadKey& A, const FCachePayloadKey& B) const
 	{
 		const FCacheKey& KeyA = A.GetKey();
 		const FCacheKey& KeyB = B.GetKey();
-		return KeyA == KeyB ? A.GetHash() < B.GetHash() : FCacheKeyFastLess()(KeyA, KeyB);
+		return KeyA == KeyB ? A.GetId() < B.GetId() : FCacheKeyFastLess()(KeyA, KeyB);
 	}
 };
 
 /** Slow less with lexical order that is stable between processes. */
-struct FCacheAttachmentKeyLexicalLess
+struct FCachePayloadKeyLexicalLess
 {
-	inline bool operator()(const FCacheAttachmentKey& A, const FCacheAttachmentKey& B) const
+	inline bool operator()(const FCachePayloadKey& A, const FCachePayloadKey& B) const
 	{
 		const FCacheKey& KeyA = A.GetKey();
 		const FCacheKey& KeyB = B.GetKey();
-		return KeyA == KeyB ? A.GetHash() < B.GetHash() : FCacheKeyLexicalLess()(KeyA, KeyB);
+		return KeyA == KeyB ? A.GetId() < B.GetId() : FCacheKeyLexicalLess()(KeyA, KeyB);
 	}
 };
 

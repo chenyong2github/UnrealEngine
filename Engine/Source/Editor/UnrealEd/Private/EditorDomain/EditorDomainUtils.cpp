@@ -19,7 +19,7 @@ namespace EditorDomain
 {
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("D3317196-098A-449B-B740-631D94CD7C93");
+const TCHAR* EditorDomainVersion = TEXT("34A0B57B-32D5-4229-A6A3-DA0FB7BE0440");
 // Identifier of the CacheBucket for EditorDomainPackages
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
 

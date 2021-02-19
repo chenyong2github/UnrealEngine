@@ -185,7 +185,7 @@ void FEditorDomainReadArchive::OnCacheRequestComplete(UE::DerivedData::FCacheGet
 	{
 		const FCbObjectRef& MetaData = Params.Record.GetMeta();
 		int64 FileSize = MetaData["FileSize"].AsInt64(-1);
-		const FSharedBuffer& LocalBytes = Params.Record.AsBinary();
+		FSharedBuffer LocalBytes = Params.Record.GetValue();
 		if (static_cast<int64>(LocalBytes.GetSize()) != FileSize)
 		{
 			UE_LOG(LogEditorDomain, Warning, TEXT("Package %s received invalid record from EditorDomainPackage table ")
@@ -197,8 +197,8 @@ void FEditorDomainReadArchive::OnCacheRequestComplete(UE::DerivedData::FCacheGet
 		{
 			AsyncSource = ESource::Bytes;
 			Size = FileSize;
-			Bytes = LocalBytes;
-			Bytes.MakeOwned();
+			LocalBytes.MakeOwned();
+			Bytes = MoveTemp(LocalBytes);
 			PackageFormat = EPackageFormat::Binary;
 			PackageSource->Source = FEditorDomain::EPackageSource::Editor;
 		}
@@ -414,7 +414,7 @@ void FEditorDomainAsyncReadFileHandle::OnCacheRequestComplete(UE::DerivedData::F
 	{
 		const FCbObjectRef& MetaData = Params.Record.GetMeta();
 		int64 FileSize = MetaData["FileSize"].AsInt64(-1);
-		const FSharedBuffer& LocalBytes = Params.Record.AsBinary();
+		FSharedBuffer LocalBytes = Params.Record.GetValue();
 		if (static_cast<int64>(LocalBytes.GetSize()) != FileSize)
 		{
 			UE_LOG(LogEditorDomain, Warning, TEXT("Package %s received invalid record from EditorDomainPackage ")
@@ -425,8 +425,8 @@ void FEditorDomainAsyncReadFileHandle::OnCacheRequestComplete(UE::DerivedData::F
 		else
 		{
 			AsyncSource = ESource::Bytes;
-			Bytes = LocalBytes;
-			Bytes.MakeOwned();
+			LocalBytes.MakeOwned();
+			Bytes = MoveTemp(LocalBytes);
 			PackageSource->Source = FEditorDomain::EPackageSource::Editor;
 		}
 	}
