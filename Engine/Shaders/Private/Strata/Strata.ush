@@ -17,6 +17,14 @@
 #define STRATA_INLINE_SHADING 1
 #endif
 
+// During the unpacking of the Strata material data, if a slab has some sub-surface scattering, its BaseColor/Specular value will be 
+// patched/overriden with white albedo (and optionally no specular) for computing the incoming irradiance without any albedo information. 
+// This is required by the post-process/screen-space sub-surface methods. This overriden can be opt-out. This is used during the classification 
+// pass for writing out the correct base color value into the FStrataSubsurfaceData
+#ifndef STRATA_SSS_MATERIAL_OVERRIDE
+#define STRATA_SSS_MATERIAL_OVERRIDE 1
+#endif
+
 #ifndef STRATA_CLAMPED_LAYER_COUNT
 #define STRATA_CLAMPED_LAYER_COUNT 1
 #endif
@@ -589,9 +597,10 @@ uint DivideAndRoundUp(uint Dividend, uint Divisor, uint DivisorAsBitShift)
 
 struct FStrataAddressing
 {
-	uint CurrentAddr;
-	uint ByteOffsetToNextUint;
-	uint ReadBytes;
+	uint  CurrentAddr;
+	uint  ByteOffsetToNextUint;
+	uint  ReadBytes;
+	uint2 PixelCoords;
 };
 FStrataAddressing GetStrataPixelDataByteOffset(uint2 PixelPos, uint2 ViewBufferSize, uint StrataMaxBytesPerPixel)
 {
@@ -621,6 +630,7 @@ FStrataAddressing GetStrataPixelDataByteOffset(uint2 PixelPos, uint2 ViewBufferS
 
 #endif
 
+	StrataAddressing.PixelCoords = PixelPos;
 	StrataAddressing.ReadBytes = 0;
 	return StrataAddressing;
 }
@@ -1652,6 +1662,16 @@ FStrataBSDF UnpackStrataBSDFIn(ByteAddressBuffer StrataBuffer, inout FStrataAddr
 			{
 				StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, SLAB_SSSDMFP(OutBSDF));
 			}
+
+			// When loading Strata BSDF which have SSS enable, BaseColor and (optionally) Specular value can be overriden 
+			// based on the SSS method used (screen space SSS / checherboarded screen space SSS / ...)
+			#if STRATA_SSS_MATERIAL_OVERRIDE
+			if (!bIsSimpleVolume)
+			{
+				const bool bChecker = CheckerFromPixelPos(StrataAddressing.PixelCoords);
+				AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(SLAB_BASECOLOR(OutBSDF), SLAB_SPECULAR(OutBSDF), bChecker);
+			}
+			#endif
 		}
 	}
 	break;

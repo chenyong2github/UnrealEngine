@@ -578,7 +578,7 @@ void EncodeGBuffer(
 // SubsurfaceProfile does deferred lighting with a checker board pixel pattern
 // we separate the view from the non view dependent lighting and later recombine the two color constributions in a postprocess
 // We have the option to apply the BaseColor/Specular in the base pass or do it later in the postprocess (has implications to texture detail, fresnel and performance)
-void AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(inout float3 BaseColor, inout float3 SpecularColor, inout float Specular, bool bChecker)
+bool AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(inout float3 BaseColor, inout float Specular, bool bChecker)
 {
 #if SUBSURFACE_CHANNEL_MODE == 0
 	// If SUBSURFACE_CHANNEL_MODE is 0, we can't support full-resolution lighting, so we 
@@ -591,12 +591,19 @@ void AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(inout float3 Ba
 	if (bCheckerboardRequired)
 	{
 		// because we adjust the BaseColor here, we need StoredBaseColor
-
 		// we apply the base color later in SubsurfaceRecombinePS()
 		BaseColor = bChecker;
+		Specular *= !bChecker;
+	}
+	return bCheckerboardRequired;
+}
+void AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(inout float3 BaseColor, inout float3 SpecularColor, inout float Specular, bool bChecker)
+{
+	const bool bCheckerboardRequired = AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(BaseColor, Specular, bChecker);
+	if (bCheckerboardRequired)
+	{
 		// in SubsurfaceRecombinePS() does not multiply with Specular so we do it here
 		SpecularColor *= !bChecker;
-		Specular *= !bChecker;
 	}
 }
 

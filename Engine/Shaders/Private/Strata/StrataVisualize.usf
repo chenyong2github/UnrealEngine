@@ -4,6 +4,7 @@
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
 #define STRATA_INLINE_SHADING 0
+#define STRATA_SSS_MATERIAL_OVERRIDE 0
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 
 #include "/Engine/Private/MiniFontCommon.ush"

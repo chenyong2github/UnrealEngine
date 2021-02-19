@@ -262,13 +262,11 @@ void Main(
 		bool bIsEyeOrHair 			= false;
 	#if STRATA_ENABLED
 		const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(PixelCoord));
+		if (StrataData.bIsStrataMaterial)
 		{
-			if (StrataData.bIsStrataMaterial)
-			{
-				bIsEyeOrHair			= StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_HAIR);
-				bHasSubsurface			= StrataData.bHasSubsurface || bIsEyeOrHair;
-				bHasSubsurfaceProfile	= StrataData.bHasSubsurfaceProfile;
-			}
+			bIsEyeOrHair			= StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_HAIR);
+			bHasSubsurface			= StrataData.bHasSubsurface || bIsEyeOrHair;
+			bHasSubsurfaceProfile	= StrataData.bHasSubsurfaceProfile;
 		}
 	#else // STRATA_ENABLED
 		FGBufferData GBufferData = GetGBufferData(ScreenUV);
@@ -330,14 +328,14 @@ void Main(
 			  #if USE_TRANSMISSION
 				if (bHasSubsurfaceProfile)
 				{
-		#if STRATA_ENABLED
+				#if STRATA_ENABLED
 					const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(SVPos.xy, 0)));
 					const float3 WorldNormal = TopLayerData.WorldNormal;
-					FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
-		#else // STRATA_ENABLED
+					const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
+				#else // STRATA_ENABLED
 					float3 WorldNormal = GBufferData.WorldNormal;
 					FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(GBufferData);
-		#endif // STRATA_ENABLED
+				#endif // STRATA_ENABLED
 					SSSTransmission = CalcTransmissionThickness(ScreenPosition.xyz, LightPositionAndInvRadius.xyz, WorldNormal, TransmissionParams, Settings);
 				}
 				else
@@ -483,7 +481,7 @@ void MainOnePassPointLightPS(
 
 	const bool IsSubsurfaceProfile = StrataData.bHasSubsurfaceProfile;
 	const float3 WorldNormal = TopLayerData.WorldNormal;
-	FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
+	const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
 
 #else // STRATA_ENABLED
 

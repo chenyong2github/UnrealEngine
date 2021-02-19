@@ -389,6 +389,7 @@ void ReflectionEnvironmentSkyLighting(
 		ApplyCloudVolumetricShadow(WorldPosition, SkyLighting);
 
 		OutColor.xyz = SkyLighting;
+		OutColor.a = StrataEnvLighting.a;
 	}
 
 #endif // ENABLE_SKY_LIGHT

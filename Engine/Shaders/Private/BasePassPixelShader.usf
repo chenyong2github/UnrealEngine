@@ -940,11 +940,12 @@ void FPixelShaderInOut_MainPS(
 	Metallic *= Opacity;
 #endif
 
-	// 0..1, SubsurfaceProfileId = int(x * 255)
-	float SubsurfaceProfile = 0;
-
 	// If we don't use this shading model the color should be black (don't generate shader code for unused data, don't do indirectlighting cache lighting with this color).
 	float3 SubsurfaceColor = 0;
+
+#if !STRATA_ENABLED
+	// 0..1, SubsurfaceProfileId = int(x * 255)
+	float SubsurfaceProfile = 0;
 #if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_EYE
 	if (ShadingModel == SHADINGMODELID_SUBSURFACE || ShadingModel == SHADINGMODELID_PREINTEGRATED_SKIN || ShadingModel == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModel == SHADINGMODELID_CLOTH || ShadingModel == SHADINGMODELID_EYE)
 	{
@@ -969,6 +970,7 @@ void FPixelShaderInOut_MainPS(
 		SubsurfaceProfile = SubsurfaceData.a;
 	}
 #endif
+#endif // !STRATA_ENABLED
 
 #if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
 	FStrataData Strata = PixelMaterialInputs.FrontMaterial;
@@ -1111,7 +1113,7 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
-	bool bChecker = CheckerFromPixelPos(MaterialParameters.SvPosition.xy);
+	const bool bChecker = CheckerFromPixelPos(MaterialParameters.SvPosition.xy);
 #if !STRATA_ENABLED || STRATA_INLINE_SINGLELAYERWATER
 
 	// So that the following code can still use DiffuseColor and SpecularColor.
