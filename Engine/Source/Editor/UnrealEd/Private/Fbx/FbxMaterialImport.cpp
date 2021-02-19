@@ -451,6 +451,10 @@ FString UnFbx::FFbxImporter::GetMaterialFullName(const FbxSurfaceMaterial& FbxMa
 			}
 		}
 	}
+	else if (MaterialFullName.IsEmpty())
+	{
+		MaterialFullName = TEXT("UnnamedMaterial");
+	}
 
 	MaterialFullName = ObjectTools::SanitizeObjectName(MaterialFullName);
 
