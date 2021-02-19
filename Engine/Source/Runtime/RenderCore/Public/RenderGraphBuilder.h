@@ -150,9 +150,8 @@ public:
 
 	/** Adds a lambda pass to the graph without any parameters. This useful for deferring RHI work onto the graph timeline,
 	 *  or incrementally porting code to use the graph system. NeverCull and SkipRenderPass (if Raster) are implicitly added
-	 *  to Flags. AsyncCompute is not allowed. Accessing RHI resources which are tracked by the graph is only allowed if the
-	 *  UntrackedAccess flag is specified. It is never permitted to access a created (i.e. not externally registered) RDG resource
-	 *  in an independent pass, as the RHI lifetime is not guaranteed.
+	 *  to Flags. AsyncCompute is not allowed. It is never permitted to access a created (i.e. not externally registered) RDG
+	 *  resource outside of passes it is registered with, as the RHI lifetime is not guaranteed.
 	 */
 	template <typename ExecuteLambdaType>
 	FRDGPassRef AddPass(FRDGEventName&& Name, ERDGPassFlags Flags, ExecuteLambdaType&& ExecuteLambda);
@@ -328,8 +327,8 @@ private:
 	void BeginResourceRHI(FRDGPassHandle, FRDGBufferSRV* SRV);
 	void BeginResourceRHI(FRDGPassHandle, FRDGBufferUAV* UAV);
 
-	void EndResourceRHI(FRDGPassHandle, FRDGTexture* Texture, uint32 ReferenceCount);
-	void EndResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer, uint32 ReferenceCount);
+	void EndResourceRHI(FRDGPassHandle, FRDGTexture* Texture);
+	void EndResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer);
 
 	void SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, ERHIPipeline PassPipeline);
 	void SetupPass(FRDGPass* Pass);
@@ -340,21 +339,20 @@ private:
 	void ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass);
 
 	void CollectPassResources(FRDGPassHandle PassHandle);
-	void CollectPassBarriers(FRDGPassHandle PassHandle, FRDGPassHandle& LastUntrackedPassHandle);
+	void CollectPassBarriers(FRDGPassHandle PassHandle);
 
 	void AddPassDependency(FRDGPassHandle ProducerHandle, FRDGPassHandle ConsumerHandle);
 
-	void AddEpilogueTransition(FRDGTextureRef Texture, FRDGPassHandle LastUntrackedPassHandle);
-	void AddEpilogueTransition(FRDGBufferRef Buffer, FRDGPassHandle LastUntrackedPassHandle);
+	void AddEpilogueTransition(FRDGTextureRef Texture);
+	void AddEpilogueTransition(FRDGBufferRef Buffer);
 
-	void AddTransition(FRDGPassHandle PassHandle, FRDGTextureRef Texture, const FRDGTextureTransientSubresourceStateIndirect& StateAfter, FRDGPassHandle LastUntrackedPassHandle);
-	void AddTransition(FRDGPassHandle PassHandle, FRDGBufferRef Buffer, FRDGSubresourceState StateAfter, FRDGPassHandle LastUntrackedPassHandle);
+	void AddTransition(FRDGPassHandle PassHandle, FRDGTextureRef Texture, const FRDGTextureTransientSubresourceStateIndirect& StateAfter);
+	void AddTransition(FRDGPassHandle PassHandle, FRDGBufferRef Buffer, FRDGSubresourceState StateAfter);
 
 	void AddTransitionInternal(
 		FRDGParentResource* Resource,
 		FRDGSubresourceState StateBefore,
 		FRDGSubresourceState StateAfter,
-		FRDGPassHandle LastUntrackedPassHandle,
 		const FRHITransitionInfo& TransitionInfo);
 
 	FRHIRenderPassInfo GetRenderPassInfo(const FRDGPass* Pass) const;

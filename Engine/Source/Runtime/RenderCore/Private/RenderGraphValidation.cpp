@@ -57,6 +57,7 @@ const ERHIAccess AccessMaskComputeOrRaster = ERHIAccess::IndirectArgs;
 
 /** Validates that only one builder instance exists at any time. This is currently a requirement for state tracking and allocation lifetimes. */
 bool GRDGBuilderActive = false;
+
 } //! namespace
 
 struct FRDGResourceDebugData
@@ -83,7 +84,7 @@ void FRDGResource::ValidateRHIAccess() const
 	// Passthrough resources will not have debug data, since they are not tied to a graph instance.
 	if (DebugData)
 	{
-		checkf(DebugData->bAllowRHIAccess,
+		checkf(DebugData->bAllowRHIAccess || GRDGAllowRHIAccess,
 			TEXT("Accessing the RHI resource of %s at this time is not allowed. If you hit this check in pass, ")
 			TEXT("that is due to this resource not being referenced in the parameters of your pass."),
 			Name);
@@ -483,7 +484,7 @@ void FRDGUserValidation::ValidateAddPass(const void* ParameterStruct, const FSha
 	checkf(ParameterStruct, TEXT("Pass '%s' created with null parameters."), Name.GetTCHAR());
 	ExecuteGuard(TEXT("AddPass"), Name.GetTCHAR());
 
-	checkf(EnumHasAnyFlags(Flags, ERDGPassFlags::CommandMask),
+	checkf(EnumHasAnyFlags(Flags, ERDGPassFlags::Raster | ERDGPassFlags::Compute | ERDGPassFlags::AsyncCompute | ERDGPassFlags::Copy),
 		TEXT("Pass %s must specify at least one of the following flags: (Copy, Compute, AsyncCompute, Raster)"), Name.GetTCHAR());
 
 	checkf(!EnumHasAllFlags(Flags, ERDGPassFlags::Compute | ERDGPassFlags::AsyncCompute),
