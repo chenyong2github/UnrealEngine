@@ -111,7 +111,7 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, TSharedPtr<FIm
 	}
 
 	// Loop over all mips.
-	BYTE* MipDataPtr = (BYTE*)(OutFrame->Data.Get());
+	uint8* MipDataPtr = (uint8*)(OutFrame->Data.Get());
 	FIntPoint Dim = OutFrame->Info.Dim;
 	bool LevelFoundSoFar = false;
 	int32 NumMipLevels = Loader->GetNumMipLevels();
