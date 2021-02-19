@@ -54,7 +54,7 @@ FAutoConsoleVariableRef GVarLumenScreenProbeGatherNumMips(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-float GLumenScreenProbeGatherMaxRayIntensity = 100;
+float GLumenScreenProbeGatherMaxRayIntensity = 20;
 FAutoConsoleVariableRef GVarLumenScreenProbeGatherMaxRayIntensity(
 	TEXT("r.Lumen.ScreenProbeGather.MaxRayIntensity"),
 	GLumenScreenProbeGatherMaxRayIntensity,
