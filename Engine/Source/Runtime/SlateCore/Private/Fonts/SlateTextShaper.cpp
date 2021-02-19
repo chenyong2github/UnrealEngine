@@ -356,12 +356,14 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 
 			const bool bHasKerning = FT_HAS_KERNING(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace()) != 0 || InFontInfo.LetterSpacing != 0;
 
-			// Letter spacing should scale proportional to font size / 1000 (to roughly mimic Photoshop tracking)
-			const float LetterSpacingScaled = InFontInfo.LetterSpacing != 0 ? InFontInfo.LetterSpacing * InFontInfo.Size / 1000 : 0;
+			
 
 			uint32 GlyphFlags = 0;
 			SlateFontRendererUtils::AppendGlyphFlags(*KerningOnlyTextSequenceEntry.FaceAndMemory, *KerningOnlyTextSequenceEntry.FontDataPtr, GlyphFlags);
 			const float FinalFontScale = InFontScale * KerningOnlyTextSequenceEntry.SubFontScalingFactor;
+
+			// Letter spacing should scale proportional to font size / 1000 (to roughly mimic Photoshop tracking)
+			const float LetterSpacingScaled = InFontInfo.LetterSpacing != 0 ? InFontInfo.LetterSpacing * FinalFontScale * InFontInfo.Size / 1000 : 0;
 
 			FreeTypeUtils::ApplySizeAndScale(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), InFontInfo.Size, FinalFontScale);
 			TSharedRef<FShapedGlyphFaceData> ShapedGlyphFaceData = MakeShared<FShapedGlyphFaceData>(KerningOnlyTextSequenceEntry.FaceAndMemory, GlyphFlags, InFontInfo.Size, FinalFontScale);
