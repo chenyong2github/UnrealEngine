@@ -203,6 +203,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequriesAmbientOcclusionPass = false;
+	bRequiresDistanceFieldShadowingPass = false;
 
 	// Don't do occlusion queries when doing scene captures
 	for (FViewInfo& View : Views)
@@ -381,6 +382,17 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		&& !bDeferredShading;
 
 	bShouldRenderVelocities = ShouldRenderVelocities();
+	bRequiresDistanceField = IsMobileDistanceFieldEnabled(ShaderPlatform)
+		&& ViewFamily.EngineShowFlags.Lighting
+		&& !Views[0].bIsReflectionCapture
+		&& !Views[0].bIsPlanarReflection
+		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
+		&& !ViewFamily.UseDebugViewPS()
+		&& !bDeferredShading;
+
+	bRequiresDistanceFieldShadowingPass = bRequiresDistanceField && IsMobileDistanceFieldShadowingEnabled(ShaderPlatform);
+		
 
 	// Whether we need to store depth for post-processing
 	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
@@ -393,6 +405,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		bRequiresMultiPass ||
 		bForceDepthResolve ||
 		bRequriesAmbientOcclusionPass ||
+		bRequiresDistanceFieldShadowingPass ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
@@ -423,6 +436,15 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	else
 	{
 		ReleasePixelProjectedReflectionOutputs();
+	}
+
+	if (bRequiresDistanceFieldShadowingPass)
+	{
+		InitMobileSDFShadowingOutputs(RHICmdList, SceneTexturesConfig.Extent);
+	}
+	else
+	{
+		ReleaseMobileSDFShadowingOutputs();
 	}
 
 	// Find out whether custom depth pass should be rendered.
@@ -494,6 +516,11 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(RHICmdList, Scene, Views[ViewIndex]);
+	}
+
+	if (bRequiresDistanceField)
+	{
+		PrepareDistanceFieldScene(GraphBuilder, false);
 	}
 
 	{
@@ -728,6 +755,12 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			InRHICmdList.SubmitCommandsHint();
 			InRHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 		});
+	}
+
+	if (bRequiresDistanceFieldShadowingPass)
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSDFShadowing);
+		RenderMobileSDFShadowing(GraphBuilder, SceneTextures.Depth.Resolve, Scene, Views, VisibleLightInfos);
 	}
 
 	if (bRequriesAmbientOcclusionPass)

@@ -1864,8 +1864,23 @@ public:
 	/** Cache the FXSystem value from the Scene. Must be ran on the renderthread to ensure it is valid throughout rendering. */
 	void InitFXSystem();
 
+	/** Whether distance field global data structures should be prepared for features that use it. */
+	bool ShouldPrepareForDistanceFieldShadows() const;
+	bool ShouldPrepareForDistanceFieldAO() const;
+	bool ShouldPrepareForDFInsetIndirectShadow() const;
 	FGPUSceneDynamicContext& GetGPUSceneDynamicContext() { return GPUSceneDynamicContext; }
 
+	bool ShouldPrepareDistanceFieldScene() const;
+	bool ShouldPrepareGlobalDistanceField() const;
+	bool ShouldPrepareHeightFieldScene() const;
+
+	void UpdateGlobalDistanceFieldObjectBuffers(FRDGBuilder& GraphBuilder);
+	void UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuilder);
+	void AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd = false);
+	void PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch);
+
+	virtual bool IsLumenEnabled(const FViewInfo& View) const { return false; }
+	virtual bool AnyViewHasSupportingGIMethod() const { return false; }
 protected:
 
 	/** Size of the family. */
@@ -2087,6 +2102,23 @@ private:
 	bool bShadowDepthRenderCompleted;
 };
 
+struct FForwardScreenSpaceShadowMaskTextureMobileOutputs
+{
+	TRefCountPtr<IPooledRenderTarget> ScreenSpaceShadowMaskTextureMobile;
+
+	bool IsValid()
+	{
+		return ScreenSpaceShadowMaskTextureMobile.IsValid();
+	}
+
+	void Release()
+	{
+		ScreenSpaceShadowMaskTextureMobile.SafeRelease();
+	}
+};
+
+extern FForwardScreenSpaceShadowMaskTextureMobileOutputs GScreenSpaceShadowMaskTextureMobileOutputs;
+
 /**
  * Renderer that implements simple forward shading and associated features.
  */
@@ -2184,6 +2216,8 @@ private:
 	bool bRequiresPixelProjectedPlanarRelfectionPass;
 	bool bRequriesAmbientOcclusionPass;
 	bool bShouldRenderVelocities;
+	bool bRequiresDistanceField;
+	bool bRequiresDistanceFieldShadowingPass;
 	static FGlobalDynamicIndexBuffer DynamicIndexBuffer;
 	static FGlobalDynamicVertexBuffer DynamicVertexBuffer;
 	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBuffer;

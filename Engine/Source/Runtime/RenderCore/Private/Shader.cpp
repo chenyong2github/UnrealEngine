@@ -1542,6 +1542,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			int32 GTAOPreIntegratedTextureType = MobileGTAOPreIntegratedTextureTypeCVar ? MobileGTAOPreIntegratedTextureTypeCVar->GetInt() : 0;
 			KeyString += ((MobileAmbientOcclusionCVar && MobileAmbientOcclusionCVar->GetInt() != 0) && (MobileHDRCVar && MobileHDRCVar->GetInt() !=0)) ? FString::Printf(TEXT("_MobileAO_%d"), GTAOPreIntegratedTextureType) : TEXT("");
 		}
+
+		{
+			KeyString += IsMobileDistanceFieldEnabled(Platform) ? TEXT("_MobSDF") : TEXT("");
+		}
 	}
 	else
 	{

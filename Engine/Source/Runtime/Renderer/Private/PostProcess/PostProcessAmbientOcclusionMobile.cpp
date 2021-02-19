@@ -351,6 +351,7 @@ public:
 		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("HORIZONSEARCH_INTEGRAL_PIXEL_SHADER"), 1u);
+		OutEnvironment.SetDefine(TEXT("FORCE_DEPTH_TEXTURE_READS"), 1);
 	}
 
 	static FPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality)
@@ -384,6 +385,7 @@ public:
 	{
 		Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SPATIALFILTER_PIXEL_SHADER"), 1u);
+		OutEnvironment.SetDefine(TEXT("FORCE_DEPTH_TEXTURE_READS"), 1);
 	}
 };
 

@@ -193,11 +193,13 @@ static bool HasLicense()
 FAndroidTargetPlatform::FAndroidTargetPlatform(bool bInIsClient, const TCHAR* FlavorName, const TCHAR* OverrideIniPlatformName)
 	: TNonDesktopTargetPlatformBase(bInIsClient, FlavorName, OverrideIniPlatformName)
 	, DeviceDetection(nullptr)
+	, bDistanceField(false)
 
 {
 #if WITH_ENGINE
 	TextureLODSettings = nullptr; // These are registered by the device profile system.
 	StaticMeshLODSettings.Initialize(this);
+	GetConfigSystem()->GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.DistanceFields"), bDistanceField, GEngineIni);
 #endif
 
 	TickDelegate = FTickerDelegate::CreateRaw(this, &FAndroidTargetPlatform::HandleTicker);
@@ -366,6 +368,9 @@ bool FAndroidTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) 
 		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
 			return SupportsLandscapeMeshLODStreaming();
 
+		case ETargetPlatformFeatures::DistanceFieldAO:
+			return UsesDistanceFields();
+			
 		default:
 			break;
 	}

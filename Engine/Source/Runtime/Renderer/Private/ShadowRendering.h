@@ -58,6 +58,14 @@ void OverrideWithDefaultMaterialForShadowDepth(
 	ERHIFeatureLevel::Type InFeatureLevel
 	);
 
+void InitMobileSDFShadowingOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& Extent);
+void RenderMobileSDFShadowing(FRDGBuilder& GraphBuilder, 
+	FRDGTextureRef SceneDepthTexture, 
+	const FScene* Scene,
+	const TArrayView<const FViewInfo> Views,
+	const TArrayView<const FVisibleLightInfo> VisibleLightInfos);
+void ReleaseMobileSDFShadowingOutputs();
+
 enum EShadowDepthRenderMode
 {
 	/** The render mode used by regular shadows */
@@ -541,7 +549,7 @@ public:
 
 	FRDGTextureRef BeginRenderRayTracedDistanceFieldProjection(
 		FRDGBuilder& GraphBuilder,
-		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+		const FMinimalSceneTextures& SceneTextures,
 		const FViewInfo& View) const;
 
 	/** Renders ray traced distance field shadows. */

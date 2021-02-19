@@ -103,6 +103,9 @@ extern RHI_API uint32 GRHIDeviceRevision;
 // 0 means not defined yet, use functions like IsRHIDeviceAMD() to access
 extern RHI_API uint32 GRHIVendorId;
 
+// true if the RHI supports Pixel Shader UAV
+extern RHI_API bool GRHISupportsPixelShaderUAVs;
+
 // to trigger GPU specific optimizations and fallbacks
 RHI_API bool IsRHIDeviceAMD();
 

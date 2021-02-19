@@ -30,10 +30,12 @@ FIOSTargetPlatform::FIOSTargetPlatform(bool bInIsTVOS, bool bIsClientOnly)
 	// override the ini name up in the base classes, which will go into the FTargetPlatformInfo
 	: TNonDesktopTargetPlatformBase(bIsClientOnly, nullptr, bInIsTVOS ? TEXT("TVOS") : nullptr)
 	, bIsTVOS(bInIsTVOS)
+	, bDistanceField(false)
 {
 #if WITH_ENGINE
 	TextureLODSettings = nullptr; // TextureLODSettings are registered by the device profile.
 	StaticMeshLODSettings.Initialize(this);
+	GetConfigSystem()->GetBool(TEXT("/Script/Engine.RendererSettings"), TEXT("r.DistanceFields"), bDistanceField, GEngineIni);
 #endif // #if WITH_ENGINE
 
 	// initialize the connected device detector
@@ -482,6 +484,9 @@ bool FIOSTargetPlatform::SupportsFeature( ETargetPlatformFeatures Feature ) cons
 
 		case ETargetPlatformFeatures::LandscapeMeshLODStreaming:
 			return SupportsLandscapeMeshLODStreaming() && SupportsMetal();
+
+		case ETargetPlatformFeatures::DistanceFieldAO:
+			return UsesDistanceFields();
 
 		default:
 			break;

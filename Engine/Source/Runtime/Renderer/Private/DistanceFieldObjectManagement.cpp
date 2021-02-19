@@ -19,6 +19,7 @@
 #include "ScenePrivate.h"
 #include "DistanceFieldLightingShared.h"
 #include "DistanceFieldAmbientOcclusion.h"
+#include "GlobalDistanceField.h"
 
 extern void LumenUpdateDFObjectIndex(FScene* Scene, int32 MappingIndex);
 
@@ -38,6 +39,7 @@ FAutoConsoleVariableRef CVarAOLogObjectBufferReallocation(
 	ECVF_RenderThreadSafe
 	);
 
+DECLARE_CYCLE_STAT(TEXT("SceneRenderer DistanceFieldAO Init"), STAT_FSceneRenderer_DistanceFieldAO_Init, STATGROUP_SceneRendering);
 int32 GDFParallelUpdate = 0;
 FAutoConsoleVariableRef CVarDFParallelUpdate(
 	TEXT("r.DF.ParallelUpdate"),
@@ -444,7 +446,7 @@ bool ProcessHeightFieldPrimitiveUpdate(
 
 bool bVerifySceneIntegrity = false;
 
-void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGBuilder& GraphBuilder)
+void FSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGBuilder& GraphBuilder)
 {
 	const bool bExecuteInParallel = GDFParallelUpdate != 0 && FApp::ShouldUseThreadingForPerformance();
 
@@ -750,7 +752,7 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRDGB
 	DistanceFieldSceneData.IndicesToUpdateInObjectBuffers.Reset();
 }
 
-void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuilder)
+void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuilder)
 {
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
@@ -927,7 +929,71 @@ void FDeferredShadingSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBui
 	}
 }
 
-void FDeferredShadingSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd)
+void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch)
+{
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
+	SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_DistanceFieldAO_Init);
+
+	const bool bShouldPrepareHeightFieldScene = ShouldPrepareHeightFieldScene();
+	const bool bShouldPrepareDistanceFieldScene = ShouldPrepareDistanceFieldScene();
+
+	if (bShouldPrepareHeightFieldScene)
+	{
+		extern int32 GHFShadowQuality;
+		if (GHFShadowQuality > 2)
+		{
+			GHFVisibilityTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
+		}
+		GHeightFieldTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
+		UpdateGlobalHeightFieldObjectBuffers(GraphBuilder);
+	}
+	else if (bShouldPrepareDistanceFieldScene)
+	{
+		AddOrRemoveSceneHeightFieldPrimitives();
+	}
+
+	if (bShouldPrepareDistanceFieldScene)
+	{
+		auto DispatchToRHIThreadPass = [](FRHICommandListImmediate& RHICmdList)
+		{
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		};
+
+		GDistanceFieldVolumeTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
+		UpdateGlobalDistanceFieldObjectBuffers(GraphBuilder);
+		if (bSplitDispatch)
+		{
+			AddPass(GraphBuilder, DispatchToRHIThreadPass);
+		}
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			FViewInfo& View = Views[ViewIndex];
+
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+
+			View.HeightfieldLightingViewInfo.SetupVisibleHeightfields(View, GraphBuilder);
+
+			if (ShouldPrepareGlobalDistanceField())
+			{
+				float OcclusionMaxDistance = Scene->DefaultMaxDistanceFieldOcclusionDistance;
+
+				// Use the skylight's max distance if there is one
+				if (Scene->SkyLight && Scene->SkyLight->bCastShadows && !Scene->SkyLight->bWantsStaticShadowing)
+				{
+					OcclusionMaxDistance = Scene->SkyLight->OcclusionMaxDistance;
+				}
+
+				UpdateGlobalDistanceFieldVolume(GraphBuilder, Views[ViewIndex], Scene, OcclusionMaxDistance, IsLumenEnabled(View), Views[ViewIndex].GlobalDistanceFieldInfo);
+			}
+		}
+		if (!bSplitDispatch)
+		{
+			AddPass(GraphBuilder, DispatchToRHIThreadPass);
+		}
+	}
+}
+
+void FSceneRenderer::AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd)
 {
 	FDistanceFieldSceneData& SceneData = Scene->DistanceFieldSceneData;
 

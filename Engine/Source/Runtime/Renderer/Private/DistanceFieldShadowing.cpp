@@ -151,7 +151,7 @@ class FCullObjectsForShadowCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
+		return DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -181,7 +181,7 @@ class FShadowObjectCullVS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
 	{ 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform); 
+		return DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform); 
 	}
 };
 
@@ -204,7 +204,7 @@ class FShadowObjectCullPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform) && RHISupportsPixelShaderUAVs(Parameters.Platform);
+		return DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -238,7 +238,7 @@ class FDistanceFieldShadowingCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, RWShadowFactors)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER(FVector2D, NumGroups)
 		SHADER_PARAMETER(FVector, LightDirection)
 		SHADER_PARAMETER(FVector4, LightPositionAndInvRadius)
@@ -269,7 +269,7 @@ class FDistanceFieldShadowingCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
+		return DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -288,7 +288,7 @@ class FDistanceFieldShadowingUpsamplePS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FDistanceFieldShadowingUpsamplePS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ShadowFactorsTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, ShadowFactorsSampler)
@@ -304,12 +304,13 @@ class FDistanceFieldShadowingUpsamplePS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
+		return DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		OutEnvironment.SetDefine(TEXT("DOWNSAMPLE_FACTOR"), GAODownsampleFactor);
+		OutEnvironment.SetDefine(TEXT("FORCE_DEPTH_TEXTURE_READS"), 1);
 	}
 };
 
@@ -329,7 +330,7 @@ class FComputeCulledObjectStartOffsetCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
+		return DoesPlatformSupportDistanceFieldShadowing(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -609,7 +610,6 @@ bool SupportsDistanceFieldShadows(ERHIFeatureLevel::Type FeatureLevel, EShaderPl
 {
 	return GDistanceFieldShadowing 
 		&& GetDFShadowQuality() > 0
-		&& FeatureLevel >= ERHIFeatureLevel::SM5
 		&& DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform);
 }
 
@@ -621,7 +621,7 @@ bool SupportsHeightFieldShadows(ERHIFeatureLevel::Type FeatureLevel, EShaderPlat
 		&& DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform);
 }
 
-bool FDeferredShadingSceneRenderer::ShouldPrepareForDistanceFieldShadows() const 
+bool FSceneRenderer::ShouldPrepareForDistanceFieldShadows() const
 {
 	bool bSceneHasRayTracedDFShadows = false;
 
@@ -652,7 +652,7 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareForDistanceFieldShadows() const
 		&& SupportsDistanceFieldShadows(Scene->GetFeatureLevel(), Scene->GetShaderPlatform());
 }
 
-bool FDeferredShadingSceneRenderer::ShouldPrepareHeightFieldScene() const
+bool FSceneRenderer::ShouldPrepareHeightFieldScene() const
 {
 	return Scene
 		&& ViewFamily.EngineShowFlags.DynamicShadows
@@ -661,7 +661,7 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareHeightFieldScene() const
 
 void RayTraceShadows(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef RayTracedShadowsTexture,
 	const FViewInfo& View,
 	const FProjectedShadowInfo* ProjectedShadowInfo,
@@ -716,7 +716,7 @@ void RayTraceShadows(
 			
 		PassParameters->RWShadowFactors = GraphBuilder.CreateUAV(RayTracedShadowsTexture);
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+		PassParameters->SceneTextures = SceneTextures.GetSceneTextureShaderParameters(View.GetFeatureLevel());
 
 		const FLightSceneProxy& LightProxy = *(ProjectedShadowInfo->GetLightSceneInfo().Proxy);
 		FLightShaderParameters LightParameters;
@@ -783,7 +783,7 @@ void RayTraceShadows(
 
 FRDGTextureRef FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection(
 	FRDGBuilder& GraphBuilder,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View) const
 {
 	const bool bDFShadowSupported = SupportsDistanceFieldShadows(View.GetFeatureLevel(), View.GetShaderPlatform());
@@ -853,7 +853,7 @@ FRDGTextureRef FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection
 				RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
 			}
 
-			RayTraceShadows(GraphBuilder, SceneTexturesUniformBuffer, RayTracedShadowsTexture, View, this, DFPT_SignedDistanceField, false, nullptr, ObjectBufferParameters, CulledObjectBufferParameters, LightTileIntersectionParameters);
+			RayTraceShadows(GraphBuilder, SceneTextures, RayTracedShadowsTexture, View, this, DFPT_SignedDistanceField, false, nullptr, ObjectBufferParameters, CulledObjectBufferParameters, LightTileIntersectionParameters);
 		}
 	}
 
@@ -914,7 +914,7 @@ FRDGTextureRef FProjectedShadowInfo::BeginRenderRayTracedDistanceFieldProjection
 			RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
 		}
 
-		RayTraceShadows(GraphBuilder, SceneTexturesUniformBuffer, RayTracedShadowsTexture, View, this, DFPT_HeightField, bHasPrevOutput, PrevOutputTexture, ObjectBufferParameters, CulledObjectBufferParameters, LightTileIntersectionParameters);
+		RayTraceShadows(GraphBuilder, SceneTextures, RayTracedShadowsTexture, View, this, DFPT_HeightField, bHasPrevOutput, PrevOutputTexture, ObjectBufferParameters, CulledObjectBufferParameters, LightTileIntersectionParameters);
 	}
 
 	return RayTracedShadowsTexture;
@@ -935,7 +935,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 {
 	check(ScissorRect.Area() > 0);
 
-	FRDGTextureRef RayTracedShadowsTexture = BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures.UniformBuffer, View);
+	FRDGTextureRef RayTracedShadowsTexture = BeginRenderRayTracedDistanceFieldProjection(GraphBuilder, SceneTextures, View);
 
 	if (RayTracedShadowsTexture)
 	{
@@ -944,7 +944,7 @@ void FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
 		
 		PassParameters->PS.View = View.ViewUniformBuffer;
-		PassParameters->PS.SceneTextures = SceneTextures.UniformBuffer;
+		PassParameters->PS.SceneTextures = SceneTextures.GetSceneTextureShaderParameters(View.GetFeatureLevel());
 		PassParameters->PS.ShadowFactorsTexture = RayTracedShadowsTexture;
 		PassParameters->PS.ShadowFactorsSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 		PassParameters->PS.ScissorRectMinAndSize = FIntRect(ScissorRect.Min, ScissorRect.Size());

@@ -110,6 +110,10 @@ public:
 
 	//~ Begin ITargetPlatform Interface
 
+	virtual bool UsesDistanceFields() const override
+	{
+		return bDistanceField;
+	}
 private:
 
 	// Handles received pong messages from the LauncherDaemon.
@@ -128,6 +132,9 @@ private:
 
 	// Holds the message endpoint used for communicating with the LaunchDaemon.
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
+
+	// true if DistanceField is enabled
+	bool bDistanceField;
 
 #if WITH_ENGINE
 	// Holds the cache of the target LOD settings.

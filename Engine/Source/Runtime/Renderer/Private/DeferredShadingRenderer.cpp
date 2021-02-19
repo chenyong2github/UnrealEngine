@@ -219,7 +219,6 @@ DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intention
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer UpdateDownsampledDepthSurface"), STAT_FDeferredShadingSceneRenderer_UpdateDownsampledDepthSurface, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer Render Init"), STAT_FDeferredShadingSceneRenderer_Render_Init, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer Render ServiceLocalQueue"), STAT_FDeferredShadingSceneRenderer_Render_ServiceLocalQueue, STATGROUP_SceneRendering);
-DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer DistanceFieldAO Init"), STAT_FDeferredShadingSceneRenderer_DistanceFieldAO_Init, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer FGlobalDynamicVertexBuffer Commit"), STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer FXSystem PreRender"), STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("DeferredShadingSceneRenderer AllocGBufferTargets"), STAT_FDeferredShadingSceneRenderer_AllocGBufferTargets, STATGROUP_SceneRendering);
@@ -457,70 +456,6 @@ static void RenderOpaqueFX(
 	}
 }
 
-void FDeferredShadingSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch)
-{
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
-	SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DistanceFieldAO_Init);
-
-	const bool bShouldPrepareHeightFieldScene = ShouldPrepareHeightFieldScene();
-	const bool bShouldPrepareDistanceFieldScene = ShouldPrepareDistanceFieldScene();
-
-	if (bShouldPrepareHeightFieldScene)
-	{
-		extern int32 GHFShadowQuality;
-		if (GHFShadowQuality > 2)
-		{
-			GHFVisibilityTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
-		}
-		GHeightFieldTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
-		UpdateGlobalHeightFieldObjectBuffers(GraphBuilder);
-	}
-	else if (bShouldPrepareDistanceFieldScene)
-	{
-		AddOrRemoveSceneHeightFieldPrimitives();
-	}
-
-	if (bShouldPrepareDistanceFieldScene)
-	{
-		auto DispatchToRHIThreadPass = [](FRHICommandListImmediate& RHICmdList)
-		{
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-		};
-
-		GDistanceFieldVolumeTextureAtlas.UpdateAllocations(GraphBuilder, FeatureLevel);
-		UpdateGlobalDistanceFieldObjectBuffers(GraphBuilder);
-		if (bSplitDispatch)
-		{
-			AddPass(GraphBuilder, DispatchToRHIThreadPass);
-		}
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			FViewInfo& View = Views[ViewIndex];
-
-			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-
-			View.HeightfieldLightingViewInfo.SetupVisibleHeightfields(View, GraphBuilder);
-
-			if (ShouldPrepareGlobalDistanceField())
-			{
-				float OcclusionMaxDistance = Scene->DefaultMaxDistanceFieldOcclusionDistance;
-
-				// Use the skylight's max distance if there is one
-				if (Scene->SkyLight && Scene->SkyLight->bCastShadows && !Scene->SkyLight->bWantsStaticShadowing)
-				{
-					OcclusionMaxDistance = Scene->SkyLight->OcclusionMaxDistance;
-				}
-
-				const bool bLumenEnabled = GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen;
-				UpdateGlobalDistanceFieldVolume(GraphBuilder, Views[ViewIndex], Scene, OcclusionMaxDistance, bLumenEnabled, Views[ViewIndex].GlobalDistanceFieldInfo);
-			}
-		}
-		if (!bSplitDispatch)
-		{
-			AddPass(GraphBuilder, DispatchToRHIThreadPass);
-		}
-	}
-}
 
 #if RHI_RAYTRACING
 

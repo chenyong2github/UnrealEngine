@@ -126,6 +126,8 @@ struct RENDERER_API FMinimalSceneTextures
 	// Textures containing depth / stencil information from the custom depth pass.
 	FCustomDepthTextures CustomDepth{};
 
+	FSceneTextureShaderParameters GetSceneTextureShaderParameters(ERHIFeatureLevel::Type FeatureLevel) const;
+
 protected:
 	FMinimalSceneTextures(const FSceneTexturesConfig& InConfig)
 		: Config(InConfig)

@@ -740,6 +740,20 @@ FSceneTextures& FMinimalSceneTextures::Create(FRDGBuilder& GraphBuilder, const F
 	return SceneTextures;
 }
 
+FSceneTextureShaderParameters FMinimalSceneTextures::GetSceneTextureShaderParameters(ERHIFeatureLevel::Type FeatureLevel) const
+{
+	FSceneTextureShaderParameters OutSceneTextureShaderParameters;
+	if (FeatureLevel >= ERHIFeatureLevel::SM5)
+	{
+		OutSceneTextureShaderParameters.SceneTextures = UniformBuffer;
+	}
+	else
+	{
+		OutSceneTextureShaderParameters.MobileSceneTextures = MobileUniformBuffer;
+	}
+	return OutSceneTextureShaderParameters;
+}
+
 FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& Config)
 {
 	FSceneTextures& SceneTextures = FMinimalSceneTextures::Create(GraphBuilder, Config);

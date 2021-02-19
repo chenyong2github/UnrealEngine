@@ -2908,7 +2908,7 @@ static bool ComponentRequestsCPUAccess(UInstancedStaticMeshComponent* InComponen
 	// Check mesh distance fields
 	if (StaticMesh)
 	{
-		if (FeatureLevel > ERHIFeatureLevel::ES3_1)
+		if ((FeatureLevel > ERHIFeatureLevel::ES3_1) || IsMobileDistanceFieldEnabled(GMaxRHIShaderPlatform))
 		{
 			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 

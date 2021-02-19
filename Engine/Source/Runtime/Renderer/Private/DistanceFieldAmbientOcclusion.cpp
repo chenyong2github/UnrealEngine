@@ -672,17 +672,10 @@ bool ShouldRenderDeferredDynamicSkyLight(const FScene* Scene, const FSceneViewFa
 		&& !ShouldRenderRayTracingSkyLight(Scene->SkyLight); // Disable diffuse sky contribution if evaluated by RT Sky;
 }
 
-bool FDeferredShadingSceneRenderer::ShouldPrepareForDistanceFieldAO() const
-{
-	bool bAnyViewHasSupportingGIMethod = false;
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		if (GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled || GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
-		{
-			bAnyViewHasSupportingGIMethod = true;
-		}
-	}
+bool FSceneRenderer::ShouldPrepareForDistanceFieldAO() const
+{
+	bool bAnyViewHasSupportingGIMethod = AnyViewHasSupportingGIMethod();
 
 	return SupportsDistanceFieldAO(Scene->GetFeatureLevel(), Scene->GetShaderPlatform())
 		&& ((ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily) && bAnyViewHasSupportingGIMethod && Scene->SkyLight->bCastShadows && ViewFamily.EngineShowFlags.DistanceFieldAO)
@@ -692,7 +685,7 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareForDistanceFieldAO() const
 			|| (GDistanceFieldAOApplyToStaticIndirect && bAnyViewHasSupportingGIMethod && ViewFamily.EngineShowFlags.DistanceFieldAO));
 }
 
-bool FDeferredShadingSceneRenderer::ShouldPrepareDistanceFieldScene() const
+bool FSceneRenderer::ShouldPrepareDistanceFieldScene() const
 {
 	if (!ensure(Scene != nullptr))
 	{
@@ -713,7 +706,7 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareDistanceFieldScene() const
 	return bShouldPrepareGlobalDistanceField || bShouldPrepareForAO || ShouldPrepareForDistanceFieldShadows() || bShouldPrepareForDFInsetIndirectShadow;
 }
 
-bool FDeferredShadingSceneRenderer::ShouldPrepareGlobalDistanceField() const
+bool FSceneRenderer::ShouldPrepareGlobalDistanceField() const
 {
 	if (!ensure(Scene != nullptr))
 	{
@@ -725,9 +718,7 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareGlobalDistanceField() const
 			|| ((Views.Num() > 0) && Views[0].bUsesGlobalDistanceField)
 			|| ((FXSystem != nullptr) && FXSystem->UsesGlobalDistanceField()));
 
-	bShouldPrepareForAO = bShouldPrepareForAO 
-		|| GetViewPipelineState(Views[0]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen 
-		|| GetViewPipelineState(Views[0]).ReflectionsMethod == EReflectionsMethod::Lumen;
+	bShouldPrepareForAO = bShouldPrepareForAO || IsLumenEnabled(Views[0]);
 
 	return bShouldPrepareForAO && UseGlobalDistanceField();
 }

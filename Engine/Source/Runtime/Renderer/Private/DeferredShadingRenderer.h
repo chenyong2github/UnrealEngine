@@ -330,6 +330,26 @@ private:
 		return *ViewPipelineStates[ViewIndex];
 	}
 
+	virtual bool IsLumenEnabled(const FViewInfo& View) const override
+	{ 
+		return (GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen);
+	}
+
+	virtual bool AnyViewHasSupportingGIMethod() const override
+	{
+		bool bAnyViewHasSupportingGIMethod = false;
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		{
+			if (GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Disabled || GetViewPipelineState(Views[ViewIndex]).DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+			{
+				bAnyViewHasSupportingGIMethod = true;
+			}
+		}
+
+		return bAnyViewHasSupportingGIMethod;
+	}
+
 	static FGraphEventRef TranslucencyTimestampQuerySubmittedFence[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames + 1];
 	static FGlobalDynamicIndexBuffer DynamicIndexBufferForInitViews;
 	static FGlobalDynamicIndexBuffer DynamicIndexBufferForInitShadows;
@@ -793,20 +813,6 @@ private:
 	bool ShouldDoReflectionEnvironment() const;
 	
 	bool ShouldRenderDistanceFieldAO() const;
-
-	/** Whether distance field global data structures should be prepared for features that use it. */
-	bool ShouldPrepareForDistanceFieldShadows() const;
-	bool ShouldPrepareForDistanceFieldAO() const;
-	bool ShouldPrepareForDFInsetIndirectShadow() const;
-
-	bool ShouldPrepareDistanceFieldScene() const;
-	bool ShouldPrepareGlobalDistanceField() const;
-	bool ShouldPrepareHeightFieldScene() const;
-
-	void UpdateGlobalDistanceFieldObjectBuffers(FRDGBuilder& GraphBuilder);
-	void UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuilder);
-	void AddOrRemoveSceneHeightFieldPrimitives(bool bSkipAdd = false);
-	void PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch);
 
 	void CopySceneCaptureComponentToTarget(
 		FRDGBuilder& GraphBuilder,
