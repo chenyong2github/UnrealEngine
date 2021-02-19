@@ -52,7 +52,7 @@ public:
 			.Content()
 			[
 				SNew(STextBlock)
-				.Margin(FMargin(4.0f, 2.0f))
+				.Margin(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
 				.Text(TextAttr)
 				.Font(InArgs._Font)
 			]
