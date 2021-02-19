@@ -374,11 +374,6 @@ SLevelEditor::~SLevelEditor()
 	}
 
 	// Clear USelection from using our selected element list
-	if (GUnrealEd)
-	{
-		GUnrealEd->GetSelectedActors()->SetElementSelectionSet(nullptr);
-		GUnrealEd->GetSelectedComponents()->SetElementSelectionSet(nullptr);
-	}
 	if (UObjectInitialized())
 	{
 		if (!SelectedElements->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
@@ -390,6 +385,11 @@ SLevelEditor::~SLevelEditor()
 
 		CommonActions->RemoveFromRoot();
 		CommonActions = nullptr;
+	}
+	if (GUnrealEd)
+	{
+		GUnrealEd->GetSelectedActors()->SetElementSelectionSet(nullptr);
+		GUnrealEd->GetSelectedComponents()->SetElementSelectionSet(nullptr);
 	}
 }
 

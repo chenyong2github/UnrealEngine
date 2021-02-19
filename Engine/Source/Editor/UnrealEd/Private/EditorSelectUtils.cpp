@@ -29,7 +29,6 @@
 #include "ActorGroupingUtils.h"
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Elements/Framework/TypedElementList.h"
-#include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
@@ -204,46 +203,41 @@ void UUnrealEdEngine::SetPivot( FVector NewPivot, bool bSnapPivotToGrid, bool bI
 	FVector TranslateRotateWidgetWorldXAxis = FVector::ZeroVector;
 	FVector Widget2DWorldXAxis = FVector::ZeroVector;
 
-	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-
 	// Pick a new common pivot, or not.
 	TTypedElement<UTypedElementWorldInterface> SingleWorldElement;
+
+	const UTypedElementList* ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
+	ElementsToManipulate->ForEachElement<UTypedElementWorldInterface>([&NumElements, &TranslateRotateWidgetWorldXAxis, &Widget2DWorldXAxis, &SingleWorldElement](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
 	{
-		const TArray<FTypedElementHandle> ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
-		for (const FTypedElementHandle& Element : ElementsToManipulate)
+		if (NumElements == 0)
 		{
-			if (TTypedElement<UTypedElementWorldInterface> WorldElement = Registry->GetElement<UTypedElementWorldInterface>(Element))
+			FTransform ElementWorldTransform;
+			InWorldElement.GetWorldTransform(ElementWorldTransform);
+
+			TranslateRotateWidgetWorldXAxis = ElementWorldTransform.TransformVector(FVector(1.0f, 0.0f, 0.0f));
+			//get the xy plane project of this vector
+			TranslateRotateWidgetWorldXAxis.Z = 0.0f;
+			if (!TranslateRotateWidgetWorldXAxis.Normalize())
 			{
-				if (NumElements == 0)
-				{
-					FTransform ElementWorldTransform;
-					WorldElement.GetWorldTransform(ElementWorldTransform);
+				TranslateRotateWidgetWorldXAxis = FVector(1.0f, 0.0f, 0.0f);
+			}
 
-					TranslateRotateWidgetWorldXAxis = ElementWorldTransform.TransformVector(FVector(1.0f, 0.0f, 0.0f));
-					//get the xy plane project of this vector
-					TranslateRotateWidgetWorldXAxis.Z = 0.0f;
-					if (!TranslateRotateWidgetWorldXAxis.Normalize())
-					{
-						TranslateRotateWidgetWorldXAxis = FVector(1.0f, 0.0f, 0.0f);
-					}
-
-					Widget2DWorldXAxis = ElementWorldTransform.TransformVector(FVector(1, 0, 0));
-					Widget2DWorldXAxis.Y = 0;
-					if (!Widget2DWorldXAxis.Normalize())
-					{
-						Widget2DWorldXAxis = FVector(1, 0, 0);
-					}
-				}
-
-				SingleWorldElement = MoveTemp(WorldElement);
-				++NumElements;
+			Widget2DWorldXAxis = ElementWorldTransform.TransformVector(FVector(1, 0, 0));
+			Widget2DWorldXAxis.Y = 0;
+			if (!Widget2DWorldXAxis.Normalize())
+			{
+				Widget2DWorldXAxis = FVector(1, 0, 0);
 			}
 		}
-	}
+
+		SingleWorldElement = InWorldElement;
+		++NumElements;
+		return true;
+	});
 	
 	if (bAssignPivot && UActorGroupingUtils::IsGroupingActive())
 	{
-		if (TTypedElement<UTypedElementObjectInterface> ObjectElement = Registry->GetElement<UTypedElementObjectInterface>(SingleWorldElement))
+		if (TTypedElement<UTypedElementObjectInterface> ObjectElement = ElementsToManipulate->GetElement<UTypedElementObjectInterface>(SingleWorldElement))
 		{
 			if (AActor* SingleActor = Cast<AActor>(ObjectElement.GetObject()))
 			{
@@ -331,29 +325,24 @@ void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 		return;
 	}
 
-	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-
 	// Pick a new common pivot, or not.
 	TTypedElement<UTypedElementWorldInterface> SingleWorldElement;
+	
+	const UTypedElementList* ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
+	ElementsToManipulate->ForEachElement<UTypedElementWorldInterface>([&SingleWorldElement](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
 	{
-		const TArray<FTypedElementHandle> ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
-		for (const FTypedElementHandle& Element : ElementsToManipulate)
-		{
-			if (TTypedElement<UTypedElementWorldInterface> WorldElement = Registry->GetElement<UTypedElementWorldInterface>(Element))
-			{
 #if DO_CHECK
-				{
-					ULevel* OwnerLevel = WorldElement.GetOwnerLevel();
-					const bool bIsTemplate = WorldElement.IsTemplateElement();
-					const bool bLevelLocked = FLevelUtils::IsLevelLocked(OwnerLevel);
-					check(bIsTemplate || !bLevelLocked);
-				}
+		{
+			ULevel* OwnerLevel = InWorldElement.GetOwnerLevel();
+			const bool bIsTemplate = InWorldElement.IsTemplateElement();
+			const bool bLevelLocked = FLevelUtils::IsLevelLocked(OwnerLevel);
+			check(bIsTemplate || !bLevelLocked);
+		}
 #endif	// DO_CHECK
 
-				SingleWorldElement = MoveTemp(WorldElement);
-			}
-		}
-	}
+		SingleWorldElement = InWorldElement;
+		return true;
+	});
 	
 	if (SingleWorldElement)
 	{
@@ -376,7 +365,7 @@ void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 			// If grouping is active, see if this element is an actor that's part of a locked group and use that pivot instead
 			if (UActorGroupingUtils::IsGroupingActive())
 			{
-				if (TTypedElement<UTypedElementObjectInterface> ObjectElement = Registry->GetElement<UTypedElementObjectInterface>(SingleWorldElement))
+				if (TTypedElement<UTypedElementObjectInterface> ObjectElement = ElementsToManipulate->GetElement<UTypedElementObjectInterface>(SingleWorldElement))
 				{
 					if (AActor* SingleActor = Cast<AActor>(ObjectElement.GetObject()))
 					{

@@ -6,14 +6,19 @@
 #include "EditorStyleSet.h"
 #include "Textures/SlateIcon.h"
 #include "LevelEditorViewport.h"
+#include "Elements/Framework/TypedElementList.h"
 
 class FLevelEditorSelectModeWidgetHelper : public FLegacyEdModeWidgetHelper
 {
 public:
 	virtual bool ShouldDrawWidget() const override
 	{
-		return GCurrentLevelEditingViewportClient
-			&& GCurrentLevelEditingViewportClient->HasElementsToManipulate();
+		if (GCurrentLevelEditingViewportClient)
+		{
+			const UTypedElementList* ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
+			return ElementsToManipulate->Num() > 0;
+		}
+		return false;
 	}
 };
 

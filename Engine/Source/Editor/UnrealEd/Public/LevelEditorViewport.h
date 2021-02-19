@@ -326,14 +326,9 @@ public:
 	void MirrorSelectedElements(const FVector& InMirrorScale);
 
 	/**
-	 * Are there any elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo).
+	 * Get the elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo).
 	 */
-	bool HasElementsToManipulate() const;
-
-	/**
-	 * Get the array of elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo).
-	 */
-	TArray<FTypedElementHandle> GetElementsToManipulate() const;
+	const UTypedElementList* GetElementsToManipulate(const bool bForceRefresh = false);
 
 	virtual void SetIsSimulateInEditorViewport( bool bInIsSimulateInEditorViewport ) override;
 
@@ -717,7 +712,13 @@ private:
 	bool HaveSelectedObjectsBeenChanged() const;
 
 	/** Cache the list of elements to manipulate based on the current selection set. */
-	void CacheElementsToManipulate();
+	void CacheElementsToManipulate(const bool bForceRefresh = false);
+
+	/** Reset the list of elements to manipulate */
+	void ResetElementsToManipulate();
+
+	/** Reset the list of elements to manipulate, because the selection set they were cached from has changed */
+	void ResetElementsToManipulateFromSelectionChange(const UTypedElementSelectionSet* InSelectionSet);
 
 	/** Get the selection set that associated with our level editor. */
 	const UTypedElementSelectionSet* GetSelectionSet() const;
@@ -882,8 +883,9 @@ private:
 	/** A map of actor locations before a drag operation */
 	mutable TMap<TWeakObjectPtr<const AActor>, FTransform> PreDragActorTransforms;
 
-	/** List of elements that are currently being manipulated (eg, via a drag) */
-	UTypedElementList* ElementsToManipulate;
+	/** The elements (from the current selection set) that this viewport can manipulate (eg, via the transform gizmo) */
+	bool bHasCachedElementsToManipulate = false;
+	UTypedElementList* CachedElementsToManipulate = nullptr;
 
 	/** Bit array representing the visibility of every sprite category in the current viewport */
 	TBitArray<>	SpriteCategoryVisibility;
