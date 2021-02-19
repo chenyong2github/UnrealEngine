@@ -60,11 +60,25 @@ protected:
 	TOptional<NumericType> OnGetMinValue() const;
 
 	/**
+	 * Gets the minimum slider allowed value
+	 *
+	 * @return	The value or unset if it could not be accessed
+	 */
+	TOptional<NumericType> OnGetMinSliderValue() const;
+
+	/**
 	 * Gets the maximum allowed value
 	 *
 	 * @return	The value or unset if it could not be accessed
 	 */
 	TOptional<NumericType> OnGetMaxValue() const;
+
+	/**
+	 * Gets the maximum slider allowed value
+	 *
+	 * @return	The value or unset if it could not be accessed
+	 */
+	TOptional<NumericType> OnGetMaxSliderValue() const;
 
 	/**
 	 * Called when the value is committed from the property editor
@@ -121,6 +135,8 @@ protected:
 	// Min and max allowed values from the metadata
 	TOptional<NumericType> MinAllowedValue;
 	TOptional<NumericType> MaxAllowedValue;
+	TOptional<NumericType> MinAllowedSliderValue;
+	TOptional<NumericType> MaxAllowedSliderValue;
 	
 	// Flags whether the slider is being moved at the moment on any of our widgets
 	bool bIsUsingSlider;
