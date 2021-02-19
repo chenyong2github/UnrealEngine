@@ -72,6 +72,19 @@ void UActorDescContainer::Uninitialize()
 #endif
 }
 
+void UActorDescContainer::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	Uninitialize();
+#if WITH_EDITOR
+	for (TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
+	{
+		ActorDescPtr.Release();
+	}
+#endif
+}
+
 #if WITH_EDITOR
 TUniquePtr<FWorldPartitionActorDesc> UActorDescContainer::GetActorDescriptor(const FAssetData& InAssetData)
 {

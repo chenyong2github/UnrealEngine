@@ -31,6 +31,10 @@ public:
 #endif
 
 protected:
+	//~ Begin UObject Interface
+	virtual void BeginDestroy() override;
+	//~ End UObject Interface
+
 #if WITH_EDITOR
 	TUniquePtr<FWorldPartitionActorDesc> GetActorDescriptor(const FAssetData& InAssetData);
 	
