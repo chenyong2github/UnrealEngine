@@ -238,6 +238,14 @@ bool FEventTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
 bool  FEventTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
 	ETrackSupport TrackSupported = InSequence ? InSequence->IsTrackSupported(UMovieSceneEventTrack::StaticClass()) : ETrackSupport::NotSupported;
+
+	// ---------------------------------------------------------------------------------------------------------
+	// 4.26.2: ActorSequence::IsTrackSupported wasn't implemented, hack here to return true if ActorSequence 
+	if (TrackSupported != ETrackSupport::Supported && InSequence && InSequence->GetClass() && InSequence->GetClass()->GetName() == TEXT("ActorSequence"))
+	{
+		return true;
+	}
+
 	return TrackSupported == ETrackSupport::Supported;
 }
 
