@@ -11,9 +11,6 @@
 #include "PropertyEditorModule.h"
 #include "AssetToolsModule.h"
 #include "AssetRegistryModule.h"
-#include "ContentBrowserModule.h"
-#include "Subsystems/AssetEditorSubsystem.h"
-#include "IContentBrowserSingleton.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
@@ -161,18 +158,6 @@ UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMes
 	}
 
 	UObject* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints, MatchingSection);
-
-	if (BindingAsset)
-	{
-		TArray<UObject*> CreatedObjects;
-		CreatedObjects.Add(BindingAsset);
-
-		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-		ContentBrowserModule.Get().SyncBrowserToAssets(CreatedObjects);
-	#if WITH_EDITOR
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(CreatedObjects);
-	#endif
-	}
 
 	return (UGroomBindingAsset*) BindingAsset;
 }

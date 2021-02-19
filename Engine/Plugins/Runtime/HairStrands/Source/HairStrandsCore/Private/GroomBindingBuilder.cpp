@@ -585,11 +585,11 @@ namespace GroomBinding_RootProjection
 			return FVector::DotProduct(AB, AB) > 0 && FVector::DotProduct(AC, AC) > 0 && FVector::DotProduct(BC, BC) > 0;
 		}
 
-		void Insert(const FTriangle& T)
+		bool Insert(const FTriangle& T)
 		{
 			if (!IsTriangleValid(T))
 			{
-				return;
+				return false;
 			}
 
 			FVector TriMinBound;
@@ -603,12 +603,15 @@ namespace GroomBinding_RootProjection
 			TriMaxBound.Z = FMath::Max(T.P0.Z, FMath::Max(T.P1.Z, T.P2.Z));
 
 			if (IsOutside(TriMinBound, TriMaxBound))
-				return;
+			{
+				return false;
+			}
 
 			const FIntVector MinCoord = ToCellCoord(TriMinBound);
 			const FIntVector MaxCoord = ToCellCoord(TriMaxBound);
 
 			// Insert triangle in all cell covered by the AABB of the triangle
+			bool bInserted = false;
 			for (int32 Z = MinCoord.Z; Z <= MaxCoord.Z; ++Z)
 			{
 				for (int32 Y = MinCoord.Y; Y <= MaxCoord.Y; ++Y)
@@ -620,10 +623,12 @@ namespace GroomBinding_RootProjection
 						{
 							const uint32 CellLinearIndex = ToIndex(CellIndex);
 							Cells[CellLinearIndex].Triangles.Add(T);
+							bInserted = true;
 						}
 					}
 				}
 			}
+			return bInserted;
 		}
 
 		FVector MinBound;
@@ -825,6 +830,7 @@ namespace GroomBinding_RootProjection
 			}
 
 			FTriangleGrid Grid(GridMin, GridMax, VoxelWorldSize);
+			bool bIsGridPopulated = false;
 			for (uint32 SectionIt = 0; SectionIt < SectionCount; ++SectionIt)
 			{
 				// 2.2.2 Insert all triangle within the grid
@@ -863,8 +869,14 @@ namespace GroomBinding_RootProjection
 					T.UV1 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I1, ChannelIndex);
 					T.UV2 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I2, ChannelIndex);
 
-					Grid.Insert(T);
+					bIsGridPopulated = Grid.Insert(T) || bIsGridPopulated;
 				}
+			}
+
+			if (!bIsGridPopulated)
+			{
+				UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. The target skeletal mesh could be missing UVs."));
+				return false;
 			}
 
 			OutRootData.MeshProjectionLODs[LODIt].RootTriangleIndexBuffer.SetNum(CurveCount);
@@ -1081,7 +1093,7 @@ namespace GroomBinding_Transfer
 			return Out;
 		}
 
-		void Insert(const FTriangle& T)
+		bool Insert(const FTriangle& T)
 		{
 			FVector2D TriMinBound;
 			TriMinBound.X = FMath::Min(T.UV0.X, FMath::Min(T.UV1.X, T.UV2.X));
@@ -1092,12 +1104,15 @@ namespace GroomBinding_Transfer
 			TriMaxBound.Y = FMath::Max(T.UV0.Y, FMath::Max(T.UV1.Y, T.UV2.Y));
 
 			if (IsOutside(TriMinBound, TriMaxBound))
-				return;
+			{
+				return false;
+			}
 
 			const FIntPoint MinCoord = ToCellCoord(TriMinBound);
 			const FIntPoint MaxCoord = ToCellCoord(TriMaxBound);
 
 			// Insert triangle in all cell covered by the AABB of the triangle
+			bool bInserted = false;
 			for (int32 Y = MinCoord.Y; Y <= MaxCoord.Y; ++Y)
 			{
 				for (int32 X = MinCoord.X; X <= MaxCoord.X; ++X)
@@ -1107,9 +1122,11 @@ namespace GroomBinding_Transfer
 					{
 						const uint32 CellLinearIndex = ToIndex(CellIndex);
 						Cells[CellLinearIndex].Triangles.Add(T);
+						bInserted = true;
 					}
 				}
 			}
+			return bInserted;
 		}
 
 		FVector2D MinBound;
@@ -1217,7 +1234,7 @@ namespace GroomBinding_Transfer
 		return Out;
 	}
 
-	void Transfer(
+	bool Transfer(
 		const FSkeletalMeshRenderData* InSourceMeshRenderData,
 		const FSkeletalMeshRenderData* InTargetMeshRenderData,
 		TArray<TArray<FVector>>& OutTransferredPositions, const int32 MatchingSection)
@@ -1239,6 +1256,7 @@ namespace GroomBinding_Transfer
 
 		// 1. Insert triangles into a 2D UV grid
 		FTriangleGrid2D Grid(256);
+		bool bIsGridPopulated = false;
 		for (uint32 SourceTriangleIt = 0; SourceTriangleIt < SourceTriangleCount; ++SourceTriangleIt)
 		{
 			FTriangleGrid2D::FTriangle T;
@@ -1258,7 +1276,13 @@ namespace GroomBinding_Transfer
 			T.UV1 = InSourceMeshRenderData->LODRenderData[SourceLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I1, ChannelIndex);
 			T.UV2 = InSourceMeshRenderData->LODRenderData[SourceLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I2, ChannelIndex);
 
-			Grid.Insert(T);
+			bIsGridPopulated = Grid.Insert(T) || bIsGridPopulated;
+		}
+
+		if (!bIsGridPopulated)
+		{
+			UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. The source skeletal mesh is missing or has invalid UVs."));
+			return false;
 		}
 
 		// 2. Look for closest triangle point in UV space
@@ -1269,6 +1293,22 @@ namespace GroomBinding_Transfer
 		{
 			const uint32 TargetTriangleCount = InTargetMeshRenderData->LODRenderData[TargetLODIndex].RenderSections[TargetSectionId].NumTriangles;
 			const uint32 TargetVertexCount = InTargetMeshRenderData->LODRenderData[TargetLODIndex].StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+
+			TSet<FVector2D> UVs;
+			for (uint32 TargetVertexIt = 0; TargetVertexIt < TargetVertexCount; ++TargetVertexIt)
+			{
+				const FVector2D Target_UV = InTargetMeshRenderData->LODRenderData[TargetLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(TargetVertexIt, ChannelIndex);
+				UVs.Add(Target_UV);
+			}
+
+			// Simple check to see if the target UVs are meaningful before doing the heavy work
+			const int32 NumUVLowerLimit = FMath::Max(1, int32(TargetVertexCount * 0.01f));
+			if (UVs.Num() < NumUVLowerLimit)
+			{
+				UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. The target skeletal mesh is missing or has invalid UVs."));
+				return false;
+			}
+
 			OutTransferredPositions[TargetLODIndex].SetNum(TargetVertexCount);
 
 			#if BINDING_PARALLEL_BUILDING
@@ -1330,6 +1370,7 @@ namespace GroomBinding_Transfer
 			);
 			#endif
 		}
+		return true;
 	}
 }
 // namespace GroomBinding_Transfer
@@ -1424,10 +1465,15 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 	TArray<TArray<FVector>> TransferredPositions;
 	if (bNeedTransfertPosition)
 	{
-		GroomBinding_Transfer::Transfer( 
+		bool bSucceed = GroomBinding_Transfer::Transfer( 
 			SourceSkeletalMesh->GetResourceForRendering(),
 			TargetSkeletalMesh->GetResourceForRendering(),
 			TransferredPositions, BindingAsset->MatchingSection);
+
+		if (!bSucceed)
+		{
+			return false;
+		}
 
 		SlowTask.EnterProgressFrame();
 	}
