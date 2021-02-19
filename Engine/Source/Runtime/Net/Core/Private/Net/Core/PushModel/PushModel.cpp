@@ -11,9 +11,11 @@
 #include "Types/PushModelPerObjectState.h"
 #include "Types/PushModelPerNetDriverState.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/Object.h"
 #include "Stats/Stats2.h"
 
 DECLARE_CYCLE_STAT(TEXT("PushModel PostGarbageCollect"), STAT_PushModel_PostGarbageCollect, STATGROUP_Net);
+DEFINE_LOG_CATEGORY_STATIC(LogPushModel, All, All);
 
 namespace UE4PushModelPrivate
 {
@@ -305,6 +307,54 @@ namespace UE4PushModelPrivate
 			return nullptr;
 		}
 
+		bool ValidateObjectIdReassignment(FNetPushObjectId CurrentId, FNetPushObjectId NewId)
+		{
+			if (!PerObjectStates.IsValidIndex(CurrentId))
+			{
+				// This case is fine, because it means we already cleared out the old object slot.
+				// Allow the reassignment.
+				UE_LOG(LogPushModel, Log, TEXT("ValidateObjectIdReassignment:  CurrentId is invalid."));
+				return true;
+			}
+			if (!PerObjectStates.IsValidIndex(NewId))
+			{
+				// This should absolutely not be possible, because we should have just added the object
+				// to the NewId slot. At this point, we're going to crash somewhere either way.
+				UE_LOG(LogPushModel, Fatal, TEXT("ValidateObjectIdReassignment: NewId is invalid."));
+				return false;
+			}
+
+			const FPushModelPerObjectState& CurrentObjectState = PerObjectStates[CurrentId];
+			const FPushModelPerObjectState& NewObjectState = PerObjectStates[NewId];
+
+			if (CurrentObjectState.GetObjectKey() != NewObjectState.GetObjectKey())
+			{
+				// This is probably ok. Somehow, our object had a stale ID, but that slot is already taken up by some other object.
+				// Allow the reassignment so we don't try to reference the object in our current slot.
+				UE_LOG(LogPushModel, Log, TEXT("ValidateObjectIdReassignment: IDs point to different objects. CurrentObject = %s, NewObject = %s"),
+					*GetPathNameSafe(CurrentObjectState.GetObjectKey().ResolveObjectPtr()), *GetPathNameSafe(NewObjectState.GetObjectKey().ResolveObjectPtr()));
+
+				return true;
+			}
+
+			// Somehow, we still have a reference to the object in the old / current slot.
+			// It's probably safer to just keep the old ID in case anything has it cached (not sure how that would be possible).
+			// Bad things have already happened.
+
+			// Want to log this even if ensures are disabled.
+			UE_LOG(LogPushModel, Warning, TEXT("ValidObjectIdReassignment: IDs point to the same object. Object=%s"),
+				*GetPathNameSafe(CurrentObjectState.GetObjectKey().ResolveObjectPtr()));
+
+			ensureMsgf(false, TEXT("ValidObjectIdReassignment: IDs point to the same object. Object=%s"),
+				*GetPathNameSafe(CurrentObjectState.GetObjectKey().ResolveObjectPtr()));
+
+			// Reset the new state because we're not going to use it.
+			PerObjectStates.RemoveAt(NewId);
+			NewObjectLookupPosition = NewId;
+
+			return false;
+		}
+
 	private:
 
 		int32 NewObjectLookupPosition = 0;
@@ -379,6 +429,11 @@ namespace UE4PushModelPrivate
 	FPushModelPerNetDriverState* GetPerNetDriverState(const FPushModelPerNetDriverHandle Handle)
 	{
 		return PushObjectManager.GetPerNetDriverState(Handle);
+	}
+
+	bool ValidateObjectIdReassignment(FNetPushObjectId CurrentId, FNetPushObjectId NewId)
+	{
+		return PushObjectManager.ValidateObjectIdReassignment(CurrentId, NewId);
 	}
 }
 

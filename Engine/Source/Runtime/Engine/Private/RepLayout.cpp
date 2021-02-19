@@ -910,7 +910,19 @@ struct FNetPrivatePushIdHelper
 		const UE4PushModelPrivate::FNetPushObjectId CurrentId = InObject->GetNetPushIdDynamic();
 		if (CurrentId != ObjectId)
 		{
-			check(CurrentId == INDEX_NONE);
+			if (CurrentId != INDEX_NONE)
+			{
+				UE_LOG(LogRep, Error, TEXT("SetNetPushID: %s already has a push id. Existing ID = %s, New ID = %s"),
+					*InObject->GetPathName(),
+					*UE4PushModelPrivate::ToString(CurrentId),
+					*UE4PushModelPrivate::ToString(ObjectId));
+
+				if (!UE4PushModelPrivate::ValidateObjectIdReassignment(CurrentId, ObjectId))
+				{
+					return;
+				}
+			}
+
 			FObjectNetPushIdHelper::SetNetPushIdDynamic(InObject, ObjectId);
 		}
 	}
