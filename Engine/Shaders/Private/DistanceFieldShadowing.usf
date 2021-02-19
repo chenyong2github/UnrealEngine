@@ -706,14 +706,23 @@ void DistanceFieldShadowingCS(
 			bool bUseSubsurfaceTransmission = false;
 
 #if !FORWARD_SHADING && DF_SHADOW_QUALITY > 1 && !SHADING_PATH_MOBILE
+		#if STRATA_ENABLED
+			const FStrataSubsurfaceData SSSData = StrataUnpackSSSData(Strata.SSSTexture.Load(uint3(ScreenPosition, 0)));
+			BRANCH
+			if (SSSData.bIsValid)
+			{
+				SubsurfaceDensity = SSSData.ProfileRadiusScale;
+				bUseSubsurfaceTransmission = true;
+			}
+		#else
 			FGBufferData GBufferData = GetGBufferData(ScreenUV);
-
 			BRANCH
 			if (IsSubsurfaceModel(GBufferData.ShadingModelID))
 			{
 				SubsurfaceDensity = SubsurfaceDensityFromOpacity(GBufferData.CustomData.a);
 				bUseSubsurfaceTransmission = true;
 			}
+		#endif
 #endif
 
 			Result = ShadowRayTraceThroughCulledObjects(
