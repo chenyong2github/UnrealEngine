@@ -227,12 +227,14 @@ void LumenCardDirectLightingPS(
 					#else
 					{
 						bool bShadowFactorComplete = false;
+						bool bVSMValid = false;
 
 						#if VIRTUAL_SHADOW_MAP
 						{
 							// Bias only ray start to maximize chances of hitting an allocated page
 							FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, WorldNormal, VirtualShadowMapSurfaceBias);
 
+							bVSMValid = VirtualShadowMapSample.bValid;
 							bShadowFactorComplete = VirtualShadowMapSample.bValid && VirtualShadowMapSample.bOccluded;
 							ShadowFactor = VirtualShadowMapSample.bValid && VirtualShadowMapSample.bOccluded ? 0.0f : 1.0f;
 						}
@@ -261,7 +263,7 @@ void LumenCardDirectLightingPS(
 									if (bShadowingFromValidUVArea && all(PostProjectionPosition.xy - ValidTexelSize < PostProjectionPosition.w&& PostProjectionPosition.xy + ValidTexelSize > -PostProjectionPosition.w))
 									{ 
 										ShadowFactor *= NewShadowFactor;
-										bShadowFactorComplete = true;
+										bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
 									}
 								#endif
 							}
@@ -273,7 +275,7 @@ void LumenCardDirectLightingPS(
 								if (bShadowingFromValidUVArea) 
 								{
 									ShadowFactor *= NewShadowFactor;
-									bShadowFactorComplete = true;
+									bShadowFactorComplete = bShadowFactorComplete = VIRTUAL_SHADOW_MAP ? bVSMValid : true;
 								}
 							}
 							#endif
