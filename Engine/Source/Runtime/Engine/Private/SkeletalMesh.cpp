@@ -1878,6 +1878,23 @@ uint32 USkeletalMesh::GetVertexBufferFlags() const
 
 thread_local const USkeletalMesh* FSkeletalMeshAsyncBuildScope::SkeletalMeshBeingAsyncCompiled = nullptr;
 
+FSkeletalMeshAsyncBuildScope::FSkeletalMeshAsyncBuildScope(const USkeletalMesh* SkeletalMesh)
+{
+	PreviousScope = SkeletalMeshBeingAsyncCompiled;
+	SkeletalMeshBeingAsyncCompiled = SkeletalMesh;
+}
+
+FSkeletalMeshAsyncBuildScope::~FSkeletalMeshAsyncBuildScope()
+{
+	check(SkeletalMeshBeingAsyncCompiled);
+	SkeletalMeshBeingAsyncCompiled = PreviousScope;
+}
+
+bool FSkeletalMeshAsyncBuildScope::ShouldWaitOnLockedProperties(const USkeletalMesh* SkeletalMesh)
+{
+	return SkeletalMeshBeingAsyncCompiled != SkeletalMesh;
+}
+
 void USkeletalMesh::WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties AsyncProperties, EAsyncPropertyLockType LockType) const
 {
 	// We need to protect internal skeletal mesh data from race conditions during async build

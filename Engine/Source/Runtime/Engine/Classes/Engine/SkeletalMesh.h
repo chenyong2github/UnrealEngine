@@ -140,22 +140,9 @@ public:
 class FSkeletalMeshAsyncBuildScope
 {
 public:
-	ENGINE_API FSkeletalMeshAsyncBuildScope(const USkeletalMesh* SkeletalMesh)
-	{
-		PreviousScope = SkeletalMeshBeingAsyncCompiled;
-		SkeletalMeshBeingAsyncCompiled = SkeletalMesh;
-	}
-
-	ENGINE_API ~FSkeletalMeshAsyncBuildScope()
-	{
-		check(SkeletalMeshBeingAsyncCompiled);
-		SkeletalMeshBeingAsyncCompiled = PreviousScope;
-	}
-
-	ENGINE_API static bool ShouldWaitOnLockedProperties(const USkeletalMesh* SkeletalMesh)
-	{
-		return SkeletalMeshBeingAsyncCompiled != SkeletalMesh;
-	}
+	ENGINE_API FSkeletalMeshAsyncBuildScope(const USkeletalMesh* SkeletalMesh);
+	ENGINE_API ~FSkeletalMeshAsyncBuildScope();
+	ENGINE_API static bool ShouldWaitOnLockedProperties(const USkeletalMesh* SkeletalMesh);
 
 private:
 	const USkeletalMesh* PreviousScope = nullptr;
