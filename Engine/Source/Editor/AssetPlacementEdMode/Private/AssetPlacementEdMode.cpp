@@ -66,11 +66,11 @@ void UAssetPlacementEdMode::Enter()
 	Owner->StoreSelection(AssetPlacementEdModeID);
 	bIsInSelectionTool = false;
 
-	// Enable the select tool by default.
 	// Disable undo tracking so that we can't accidentally undo ourselves out of the select mode and into an invalid state.
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
+
+	// Enable the select tool by default.
 	ToolsContext->StartTool(UPlacementModeSelectTool::ToolName);
-	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::FullUndoRedo);
 }
 
 void UAssetPlacementEdMode::Exit()
