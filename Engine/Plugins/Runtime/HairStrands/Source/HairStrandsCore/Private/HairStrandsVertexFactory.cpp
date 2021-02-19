@@ -13,6 +13,8 @@
 #include "HairStrandsInterface.h"
 #include "GroomInstance.h"
 
+#define VF_STRANDS_SUPPORT_GPU_SCENE 1
+
 /////////////////////////////////////////////////////////////////////////////////////////
 
 template<typename T> inline void VFS_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value)	{ if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
@@ -174,14 +176,18 @@ bool FHairStrandsVertexFactory::ShouldCompilePermutation(const FVertexFactorySha
 
 void FHairStrandsVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	const bool bUseGPUSceneAndPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
+	const bool bUseGPUSceneAndPrimitiveIdStream = 
+		VF_STRANDS_SUPPORT_GPU_SCENE
+		&& Parameters.VertexFactoryType->SupportsPrimitiveIdStream() 
+		&& UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform));
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bUseGPUSceneAndPrimitiveIdStream);
 	OutEnvironment.SetDefine(TEXT("HAIR_STRAND_MESH_FACTORY"), TEXT("1"));
 }
 
 void FHairStrandsVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
 {
-	if (Type->SupportsPrimitiveIdStream() 
+	if (VF_STRANDS_SUPPORT_GPU_SCENE
+		&& Type->SupportsPrimitiveIdStream()
 		&& UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)) 
 		&& ParameterMap.ContainsParameterAllocation(FPrimitiveUniformShaderParameters::StaticStructMetadata.GetShaderVariableName()))
 	{
@@ -222,7 +228,7 @@ void FHairStrandsVertexFactory::InitRHI()
 
 	// VertexFactory needs to be able to support max possible shader platform and feature level
 	// in case if we switch feature level at runtime.
-	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+	const bool bCanUseGPUScene = VF_STRANDS_SUPPORT_GPU_SCENE && UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
 
 	FVertexDeclarationElementList Elements;
 	SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, -1);
@@ -234,10 +240,12 @@ void FHairStrandsVertexFactory::InitRHI()
 		bNeedsDeclaration = true;
 	}
 
-	check(Streams.Num() > 0);
-
-	InitDeclaration(Elements);
-	check(IsValidRef(GetDeclaration()));
+	if (bNeedsDeclaration)
+	{
+		check(Streams.Num() > 0);
+		InitDeclaration(Elements);
+		check(IsValidRef(GetDeclaration()));
+	}
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Vertex,		FHairStrandsVertexFactoryShaderParameters);
@@ -252,4 +260,4 @@ void FHairStrandsVertexFactory::ReleaseRHI()
 	FVertexFactory::ReleaseRHI();
 }
 
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairStrandsVertexFactory,"/Engine/Private/HairStrands/HairStrandsVertexFactory.ush",true,false,true,true,false,true,true,false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FHairStrandsVertexFactory,"/Engine/Private/HairStrands/HairStrandsVertexFactory.ush",true,false,true,true,false,true, VF_STRANDS_SUPPORT_GPU_SCENE,false);

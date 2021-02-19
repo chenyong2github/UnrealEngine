@@ -6,6 +6,7 @@ void Main(
 	in float4 SvPosition: SV_Position
 	, in uint2 Resolution : DISPATCH_RESOLUTION
 	, in uint TotalNodeCount : DISPATCH_NODE_COUNT
+	, in uint InPrimitiveId : PRIMITIVE_ID
 	#if HAIR_MATERIAL_DEBUG_OR_EMISSIVE_OUTPUT
 	, out float4 OutColor0 : SV_Target0
 	#endif
@@ -31,7 +32,7 @@ void Main(
 
 		if (SampleMaterialId == MaterialPass_MaterialId)
 		{
-			FEvaluateOutput Out = Evaluate(SamplePixelCoord, SampleDepth, SamplePrimitiveId, SampleCoverage8bit, MaterialPass_PrimitiveId, MaterialPassParameters.bUpdateSampleCoverage > 0);
+			FEvaluateOutput Out = Evaluate(SamplePixelCoord, SampleDepth, SamplePrimitiveId, SampleCoverage8bit, InPrimitiveId, MaterialPassParameters.bUpdateSampleCoverage > 0);
 
 			// Note: Use the syntax _ over the syntax . as on certain platform the UAV buffers are 
 			// stored within a static const struct preventing doing a write operation

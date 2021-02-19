@@ -9,6 +9,7 @@
 void Main(
 	in float2 UV : TEXCOORD
 	, in float4 SvPosition: SV_Position
+	, in uint  InPrimitiveId : PRIMITIVE_ID
 	, out float4 OutGBufferA : SV_Target0
 	, out float4 OutGBufferB : SV_Target1
 	, out float4 OutGBufferC : SV_Target2
@@ -56,7 +57,7 @@ void Main(
 	const float2 SamplePixelCoord = PixelCoord.xy + float2(0.5f, 0.5f);
 
 	const float SampleCoverage8bit = 1; // TODO?
-	FEvaluateOutput Out = Evaluate(SamplePixelCoord, SampleDepth, VisSample.PrimitiveId, SampleCoverage8bit, MaterialPass_PrimitiveId, false);
+	FEvaluateOutput Out = Evaluate(SamplePixelCoord, SampleDepth, VisSample.PrimitiveId, SampleCoverage8bit, InPrimitiveId, false);
 	WriteGBuffer(
 		Out.NodeData.Tangent,
 		Out.NodeData.Specular,

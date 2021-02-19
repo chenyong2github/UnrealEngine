@@ -10,8 +10,10 @@ float3 DecodeVelocityFromTexture(float4 In);
  
 void Main(
 	uint VertexId : SV_VertexID, 
+	FVertexFactoryInput Input,
 	out float2 OutUV : TEXCOORD,
-	out float4 OutPosition : SV_POSITION)
+	out float4 OutPosition : SV_POSITION,
+	nointerpolation out uint  OutPrimitiveId : PRIMITIVE_ID)
 {
 	const float2 UV = float2(VertexId & 1, VertexId >> 1) * 2;
 	const float2 Pos = float2(UV.x, 1 - UV.y) * 2 - float2(1, 1);// * 4 - float2(2,2);
