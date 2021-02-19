@@ -1889,6 +1889,7 @@ void FLevelEditorToolBar::RegisterCreateMenu()
 {
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
 	UToolMenu* ContentMenu = UToolMenus::Get()->RegisterMenu("LevelEditor.LevelEditorToolBar.CreateQuickMenu");
+	ContentMenu->bSearchable = true;
 	{
 		FToolMenuSection& Section = ContentMenu->FindOrAddSection("Create");
 		Section.InitSection("ProjectContent", LOCTEXT("Create_Label", "Create"), FToolMenuInsert());

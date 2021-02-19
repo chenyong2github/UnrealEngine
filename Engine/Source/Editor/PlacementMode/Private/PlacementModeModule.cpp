@@ -243,10 +243,6 @@ void FPlacementModeModule::StartupModule()
 			for (auto& Pair : Category->Items)
 			{
 				TSharedPtr<const FPlaceableItem> Item = Pair.Value;
-
-				FName TheName = Item->AssetData.AssetName;
-				TSharedRef<SWidget> TheWidget = SNew(SPlacementAssetMenuEntry, Item);
-
 				FToolMenuEntry& NewEntry = Section.AddEntry(
 					FToolMenuEntry::InitWidget(Item->AssetData.AssetName, SNew(SPlacementAssetMenuEntry, Item), FText(), true, true)
 				);
@@ -280,10 +276,6 @@ void FPlacementModeModule::StartupModule()
 						for (auto& Pair : Category->Items)
 						{
 							TSharedPtr<const FPlaceableItem> Item = Pair.Value;
-
-							FName TheName = Item->AssetData.AssetName;
-							TSharedRef<SWidget> TheWidget = SNew(SPlacementAssetMenuEntry, Item);
-
 							FToolMenuEntry& NewEntry = Section.AddEntry(
 								FToolMenuEntry::InitWidget(Item->AssetData.AssetName, SNew(SPlacementAssetMenuEntry, Item), FText(), true, true)
 							);
