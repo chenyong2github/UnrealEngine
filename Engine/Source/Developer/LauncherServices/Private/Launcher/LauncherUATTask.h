@@ -81,7 +81,7 @@ protected:
 		UATCommandLine += CommandLine;
 
 		// launch UAT and monitor its progress
-		ProcessHandle = FPlatformProcess::CreateProc(*(ExecutablePath / Executable), *UATCommandLine, false, true, true, NULL, 0, *ExecutablePath, WritePipe);
+		ProcessHandle = FPlatformProcess::CreateProc(*(ExecutablePath / Executable), *UATCommandLine, false, true, true, NULL, 0, *ExecutablePath, WritePipe, ReadPipe);
 
 		while (FPlatformProcess::IsProcRunning(ProcessHandle) && !EndTextFound)
 		{
