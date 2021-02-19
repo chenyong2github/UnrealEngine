@@ -142,7 +142,7 @@ struct FLumenPrimitiveAddInfo
 		, bPendingUpdate(false)
 	{
 		TArray<FPrimitiveInstance>* Instances = InPrimitive->Proxy->GetPrimitiveInstances();
-		if (Instances)
+		if (Instances && InPrimitive->Proxy->IsNaniteMesh())
 		{
 			NumInstances = Instances->Num();
 		}

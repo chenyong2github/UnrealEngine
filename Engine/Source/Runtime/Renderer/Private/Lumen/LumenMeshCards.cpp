@@ -471,6 +471,11 @@ bool IsMatrixOrthogonal(const FMatrix& Matrix)
 	return false;
 }
 
+inline int32 GetNumInstancesHack(const TArray<FPrimitiveInstance>* PrimitiveInstances, FPrimitiveSceneInfo* PrimitiveSceneInfo)
+{
+	return PrimitiveInstances && PrimitiveSceneInfo->Proxy->IsNaniteMesh() ? PrimitiveInstances->Num() : 1;
+}
+
 void AddMeshCardsForInstance(
 	FPrimitiveSceneInfo* PrimitiveSceneInfo,
 	int32 InstanceIndexOrMergedFlag,
@@ -573,7 +578,7 @@ void AddMeshCardsForInstance(
 				PrimitiveSceneInfo->LumenMeshCardsInstanceIndices[0] = MeshCardsIndex;
 
 				const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
-				const int32 NumInstances = PrimitiveInstances->Num();
+				const int32 NumInstances = GetNumInstancesHack(PrimitiveInstances, PrimitiveSceneInfo);
 
 				for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; InstanceIndex++)
 				{
@@ -610,7 +615,8 @@ FAddMeshCardsResult AddMeshCardsForPrimitive(FLumenPrimitiveAddInfo& AddInfo, FL
 		{
 			const FBox& WorldBounds = PrimitiveSceneInfo->Proxy->GetBounds().GetBox();
 			const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
-			const int32 NumInstances = PrimitiveInstances ? PrimitiveInstances->Num() : 1;
+			const int32 NumInstances = GetNumInstancesHack(PrimitiveInstances, PrimitiveSceneInfo);
+
 
 			bool bMergeInstances = false;
 			float ResolutionScale = 1.0f;
@@ -760,7 +766,7 @@ void UpdateMeshCardsForPrimitive(FPrimitiveSceneInfo* PrimitiveSceneInfo, FLumen
 		if (PrimitiveSceneInfo->HasLumenCaptureMeshPass())
 		{
 			const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
-			const int32 NumInstances = PrimitiveInstances ? PrimitiveInstances->Num() : 1;
+			const int32 NumInstances = GetNumInstancesHack(PrimitiveInstances, PrimitiveSceneInfo);
 
 			if (PrimitiveSceneInfo->LumenMeshCardsInstanceIndices.Num() == NumInstances)
 			{
