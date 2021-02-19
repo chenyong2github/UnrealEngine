@@ -212,7 +212,7 @@ namespace Chaos
 		{ 
 			// since the cylinder stores an axis and the InertiaTensor is assumed to be along the ZAxis
 			// we need to make sure to return the rotation of the axis from Z
-			return TRotation<T, 3>::FromRotatedVector(TVector<T, 3>(0, 0, 1), GetAxis());
+			return TRotation<T, 3>::FromRotatedVector(TVector<T, 3>(0, 0, 1), Axis);
 		}
 
 		virtual void Serialize(FChaosArchive& Ar)
