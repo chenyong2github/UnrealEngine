@@ -13,7 +13,6 @@ namespace Audio
 
 	FQuartzClockManager::~FQuartzClockManager()
 	{
-		check(ActiveClocks.Num() == 0);
 	}
 
 	void FQuartzClockManager::Update(int32 NumFramesUntilNextUpdate)
