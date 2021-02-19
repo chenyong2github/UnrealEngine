@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/Casts.h"
 
+#include "MetasoundArrayNodesRegistration.h"
 #include "MetasoundAutoConverterNode.h"
 #include "MetasoundConverterNodeRegistrationMacro.h"
 #include "MetasoundDataFactory.h"
@@ -243,6 +244,8 @@ namespace Metasound
 
 
 
+
+
 		template<typename TDataType, ELiteralType PreferredArgType = ELiteralType::None, typename UClassToUse = UObject>
 		bool RegisterDataTypeWithFrontendInternal()
 		{
@@ -376,8 +379,12 @@ namespace Metasound
 		bool RegisterDataTypeArrayWithFrontend()
 		{
 			using namespace MetasoundDataTypeRegistrationPrivate;
+			using TArrayType = TArray<TDataType>;
 
-			return RegisterDataTypeWithFrontendInternal<TArray<TDataType>, TLiteralArrayEnum<PreferredArgType>::Value, UClassToUse>();
+			bool bSuccess = RegisterDataTypeWithFrontendInternal<TArrayType, TLiteralArrayEnum<PreferredArgType>::Value, UClassToUse>();
+			bSuccess = bSuccess && RegisterArrayNodes<TArrayType>();
+
+			return bSuccess;
 		}
 	}
 	

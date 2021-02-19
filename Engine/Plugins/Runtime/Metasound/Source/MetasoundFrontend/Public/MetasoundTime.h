@@ -2,9 +2,7 @@
 #pragma once
 
 #include "MetasoundDataReference.h"
-#include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
-
 
 namespace Metasound
 {
@@ -352,5 +350,5 @@ namespace Metasound
 			friend FSampleCounter;
 	};
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FTime, METASOUNDSTANDARDNODES_API, FTimeTypeInfo, FTimeReadRef, FTimeWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FTime, METASOUNDFRONTEND_API, FTimeTypeInfo, FTimeReadRef, FTimeWriteRef);
 }

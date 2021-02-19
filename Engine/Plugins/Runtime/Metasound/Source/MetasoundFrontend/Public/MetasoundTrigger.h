@@ -3,7 +3,6 @@
 #pragma once
 
 #include "MetasoundDataReference.h"
-#include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundTime.h"
 
@@ -18,7 +17,7 @@ namespace Metasound
 	 * Executing audio signal processing on buffers can be performed by calling
 	 * FTrigger::ExecuteBlock or FTrigger::LookAhead.
 	 */
-	class METASOUNDSTANDARDNODES_API FTrigger
+	class METASOUNDFRONTEND_API FTrigger
 	{
 		public:
 			/** FTrigger constructor. 
@@ -170,5 +169,5 @@ namespace Metasound
 			int32 LastTriggerIndexInBlock = 0;
 	};
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FTrigger, METASOUNDSTANDARDNODES_API, FTriggerTypeInfo, FTriggerReadRef, FTriggerWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FTrigger, METASOUNDFRONTEND_API, FTriggerTypeInfo, FTriggerReadRef, FTriggerWriteRef);
 }

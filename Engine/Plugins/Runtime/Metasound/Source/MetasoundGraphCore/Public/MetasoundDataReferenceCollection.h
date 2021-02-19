@@ -226,10 +226,15 @@ namespace Metasound
 			 *
 			 * @return A readable data reference.
 			 */
+			// TODO: FIXME
+			// 1. Remove extra template parameters "DefaultDataType", "ConstructorArgTypes"
+			// 2. Use data factory instead of read reference class to construct
+			// 3. Pipe in FOperatorSettings to the factory call.
+			// 4. Build from literal, not from DefaultDataType.
 			template<typename DataType, typename DefaultDataType = DataType, typename... ConstructorArgTypes>
 			TDataReadReference<DataType> GetDataReadReferenceOrConstructWithVertexDefault(const FInputVertexInterface& InputVertices, const FString& InName) const
 			{
-				using FDataRefType = TDataReadReference<DataType>;
+				using FDataRef = TDataReadReference<DataType>;
 
 				if (ContainsDataReadReference<DataType>(InName))
 				{
@@ -238,7 +243,7 @@ namespace Metasound
 				else
 				{
 					const DefaultDataType DefaultValue = InputVertices[InName].GetDefaultValue().Value.Get<DefaultDataType>();
-					return FDataRefType::CreateNew(DefaultValue);
+					return FDataRef::CreateNew(DefaultValue);
 				}
 			}
 
