@@ -1417,7 +1417,10 @@ void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceAct
 	for (const auto& Actor : LevelStreaming->LoadedLevel->Actors)
 	{
 		const bool bEditing = true;
-		Actor->PushLevelInstanceEditingStateToProxies(bEditing);
+		if (Actor)
+		{
+			Actor->PushLevelInstanceEditingStateToProxies(bEditing);
+		}
 	}
 
 	const bool bHasLevelInstanceEdits = LevelInstanceEdits.Num() > 0;
