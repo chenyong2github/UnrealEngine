@@ -135,8 +135,10 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	virtual FName GetInputName(int32 InputIndex) const override;
 
 	bool HasEdgeColor() const;
-	bool HasScattering() const;
 	bool HasThinFilm() const;
+	bool HasSSS() const;
+	bool HasSSSProfile() const;
+	bool HasDMFPPluggedIn() const;
 #endif
 	//~ End UMaterialExpression Interface
 };

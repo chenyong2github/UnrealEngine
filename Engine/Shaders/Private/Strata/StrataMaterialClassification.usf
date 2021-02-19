@@ -65,7 +65,7 @@ void ComputePostProcessBSDFData(
 		Classification.bIsSimple = Classification.bIsSimple && IsStrataFastPathCompatible(BSDF);
 
 		// Select the latest encoutered SSS BSDF
-		if (BSDF_GETHASSCATTERING(BSDF) && BSDFWeightAvg > 0)
+		if (BSDF_GETHASSSS(BSDF) && BSDFWeightAvg > 0)
 		{
 			Classification.bHasSubsurface = true;
 

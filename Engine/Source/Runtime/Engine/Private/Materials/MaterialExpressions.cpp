@@ -19753,10 +19753,11 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 
 	const bool bHasEdgeColor = HasEdgeColor();
 	const bool bHasThinFilm = HasThinFilm();
+	const bool bHasDMFPPluggedIn = HasDMFPPluggedIn();
 
 	int32 SSSProfileCodeChunk = INDEX_NONE;
-	const bool bHasScattering = HasScattering();
-	if (bHasScattering)
+	const bool bHasSSS = HasSSS();
+	if (bHasSSS)
 	{
 		FName NameSubsurfaceProfile(FString(TEXT("__SubsurfaceProfile")));
 		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(NameSubsurfaceProfile, 1.0f), MCT_Float1);
@@ -19779,7 +19780,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
-	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasEdgeColor, bHasScattering, bHasThinFilm);
+	StrataCompilationInfoCreateSingleBSDFMaterial(Compiler, OutputCodeChunk, SharedNormalIndex, STRATA_BSDF_TYPE_SLAB, bHasSSS, bHasDMFPPluggedIn, bHasEdgeColor, bHasThinFilm);
 
 	return OutputCodeChunk;
 }
@@ -19914,8 +19915,9 @@ bool UMaterialExpressionStrataSlabBSDF::IsResultStrataMaterial(int32 OutputIndex
 
 void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterialInfo& StrataMaterialInfo, int32 OutputIndex)
 {
-	if (HasScattering())
+	if (HasSSS())
 	{
+		// We still do not know if this is going to be a real SSS node because it is only possible for BSDF at the bottom of the stack. Nevertheless, we take the worst case into account.
 		StrataMaterialInfo.AddShadingModel(SSM_SubsurfaceLit);
 		if (SubsurfaceProfile)
 		{
@@ -19928,9 +19930,19 @@ void UMaterialExpressionStrataSlabBSDF::GatherStrataMaterialInfo(FStrataMaterial
 	}
 }
 
-bool UMaterialExpressionStrataSlabBSDF::HasScattering() const
+bool UMaterialExpressionStrataSlabBSDF::HasSSS() const
 {
 	return SubsurfaceProfile != nullptr || SSSDMFP.IsConnected();
+}
+
+bool UMaterialExpressionStrataSlabBSDF::HasSSSProfile() const
+{
+	return SubsurfaceProfile != nullptr;
+}
+
+bool UMaterialExpressionStrataSlabBSDF::HasDMFPPluggedIn() const
+{
+	return SSSDMFP.IsConnected();
 }
 
 bool UMaterialExpressionStrataSlabBSDF::HasEdgeColor() const

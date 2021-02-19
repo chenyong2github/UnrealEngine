@@ -57,14 +57,15 @@ uint8 StrataCompilationInfoCreateSharedNormal(FMaterialCompiler* Compiler, int32
 	return Compiler->StrataCompilationInfoRegisterSharedNormalIndex(NormalCodeChunk, TangentCodeChunk);
 }
 
-void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType, bool bHasEdgeColor, bool bHasScattering, bool bHasThinFilm)
+void StrataCompilationInfoCreateSingleBSDFMaterial(FMaterialCompiler* Compiler, int32 CodeChunk, uint8 SharedNormalIndex, uint8 BSDFType, bool bHasSSS, bool bHasDMFPPluggedIn, bool bHasEdgeColor, bool bHasThinFilm)
 {
 	FStrataMaterialCompilationInfo StrataInfo;
 	StrataInfo.LayerCount = 1;
 	StrataInfo.Layers[0].BSDFCount = 1;
 	StrataInfo.Layers[0].BSDFs[0].Type = BSDFType;
 	StrataInfo.Layers[0].BSDFs[0].SharedNormalIndex = SharedNormalIndex;
-	StrataInfo.Layers[0].BSDFs[0].bHasScattering = bHasScattering;
+	StrataInfo.Layers[0].BSDFs[0].bHasSSS = bHasSSS;
+	StrataInfo.Layers[0].BSDFs[0].bHasDMFPPluggedIn = bHasDMFPPluggedIn;
 	StrataInfo.Layers[0].BSDFs[0].bHasEdgeColor = bHasEdgeColor;
 	StrataInfo.Layers[0].BSDFs[0].bHasThinFilm = bHasThinFilm;
 	UpdateTotalBSDFCount(Compiler, StrataInfo);
@@ -259,13 +260,16 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 	Result.RequestedByteCount += UintByteSize;
 	// Shared normals between BSDFs
 	Result.RequestedByteCount += Compiler->StrataCompilationInfoGetSharedNormalCount() * STRATA_PACKED_NORMAL_STRIDE_BYTES;
-
+	
 	// 2. The list of BSDFs
 
 	// We process layers from top to bottom to cull the bottom ones in case we run out of pixel bytes
 	for (uint32 LayerIt = 0; LayerIt < Material.LayerCount; LayerIt++)
 	{
 		const FStrataMaterialCompilationInfo::FLayer& Layer = Material.Layers[LayerIt];
+
+		const bool bTopLayer = LayerIt == 0;
+		const bool bBottomLayer = LayerIt == (Material.LayerCount - 1);
 
 		for (uint32 BSDFIt = 0; BSDFIt < Layer.BSDFCount; BSDFIt++)
 		{
@@ -281,6 +285,10 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 				Result.RequestedByteCount += UintByteSize;
 			}
 
+			// Compute values closer to the reality for HasSSS and IsSimpleVolume, now that we know that we know the topology of the material.
+			const bool bIsSimpleVolume = !bBottomLayer && BSDF.bHasDMFPPluggedIn;
+			const bool bHasSSS = bBottomLayer && BSDF.bHasSSS && !bIsSimpleVolume;
+
 			switch (BSDF.Type)
 			{
 			case STRATA_BSDF_TYPE_SLAB:
@@ -291,7 +299,7 @@ FStrataMaterialAnalysisResult StrataCompilationInfoMaterialAnalysis(FMaterialCom
 				{
 					Result.RequestedByteCount += UintByteSize;
 				}
-				if (BSDF.bHasScattering)
+				if (bHasSSS || bIsSimpleVolume)
 				{
 					Result.RequestedByteCount += UintByteSize;
 				}

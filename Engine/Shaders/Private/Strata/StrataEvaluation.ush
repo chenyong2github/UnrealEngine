@@ -219,7 +219,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 	{
 		case STRATA_BSDF_TYPE_SLAB:
 		{
-			const bool bHasSubsurface = BSDF_GETHASSCATTERING(BSDFContext.BSDF) > 0;
+			const bool bHasSubsurface = BSDF_GETHASSSS(BSDFContext.BSDF) > 0;
 			const float3 BaseColor = SLAB_BASECOLOR(BSDFContext.BSDF);
 			const float  Metallic = SLAB_METALLIC(BSDFContext.BSDF);
 			const float3 DiffuseColor = BaseColor - BaseColor * Metallic;
@@ -356,9 +356,9 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 
 				Sample.DiffusePathValue = lerp(Sample.DiffusePathValue,		Result.SingleScattering * Phase * SpecularThroughput,	DiffuseToVolumeBlend);
 				Sample.DiffusePDF		= lerp(Sample.DiffusePDF,			Phase,													DiffuseToVolumeBlend);
-				Sample.Throughput		= lerp(Sample.Throughput,			Result.Transmittance,									DiffuseToVolumeBlend);
+				Sample.Throughput		= lerp(Sample.Throughput,			Result.Transmittance * SpecularThroughput,				DiffuseToVolumeBlend);
 
-				Sample.bSubsurface = false;	// It should already be the case because Enforce in this case because BSDF_GETHASSCATTERING should be false when BSDF_GETISSIMPLEVOLUME is true
+				Sample.bSubsurface = false;	// It should already be the case because Enforce in this case because BSDF_GETHASSSS should be false when BSDF_GETISSIMPLEVOLUME is true
 			}
 			#endif
 
@@ -555,7 +555,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 			StrataEnvLightResult.DiffuseColor = BaseColor - BaseColor * Metallic;
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
-			StrataEnvLightResult.bSubsurface = BSDF_GETHASSCATTERING(BSDFContext.BSDF) > 0;
+			StrataEnvLightResult.bSubsurface = BSDF_GETHASSSS(BSDFContext.BSDF) > 0;
 
 			float3 FresnelWeight = 1;
 			BRANCH

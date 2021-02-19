@@ -4727,14 +4727,29 @@ void UMaterial::RebuildShadingModelField()
 		{
 			if (StrataMaterialInfo.CountShadingModels() == 2 && StrataMaterialInfo.HasShadingModel(EStrataShadingModel::SSM_DefaultLit) && StrataMaterialInfo.HasShadingModel(EStrataShadingModel::SSM_SubsurfaceLit))
 			{
-				StrataMaterialInfo = FStrataMaterialInfo();
-				StrataMaterialInfo.AddShadingModel(SSM_SubsurfaceLit);
+				if (BlendMode == EBlendMode::BLEND_Opaque || BlendMode == EBlendMode::BLEND_Masked) 
+				{
+					// We only consider SSS subsurface post process for opaque materials)
+					StrataMaterialInfo = FStrataMaterialInfo();
+					StrataMaterialInfo.AddShadingModel(SSM_SubsurfaceLit);
+				}
+				else
+				{
+					// For transparent, we will fall back to use DefaultLit with simple volumetric
+					bSanitizeMaterial = true;
+				}
 			}
 			else
 			{
+				// Clear the material to default Lit
 				bSanitizeMaterial = true;
 				UE_LOG(LogMaterial, Error, TEXT("%s: Material has more than a single material represented."), *GetName());
 			}
+		}
+		if (StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit) && (BlendMode != EBlendMode::BLEND_Opaque && BlendMode != EBlendMode::BLEND_Masked))
+		{
+			// For transparent, we will fall back to use DefaultLit with simple volumetric
+			bSanitizeMaterial = true;
 		}
 		if (bSanitizeMaterial)
 		{

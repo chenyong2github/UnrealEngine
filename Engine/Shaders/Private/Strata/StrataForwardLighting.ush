@@ -31,10 +31,24 @@ float3 StrataForwardLighting(
 		float3 LayerThroughput = 0.0f;
 		float3 LayerCoverage = 0.0f;
 
+		const bool bTopLayer = l == 0;
+		const bool bBottomLayer = l == (Strata.LayerCount - 1);
+
 		UNROLL
 		for (int i = 0; i < Strata.Layers[l].BSDFCount; ++i)
 		{
 			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
+
+			BRANCH
+			if(BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB)
+			{
+				// We want simple volumetric only if the DMFP input is pluged in, otherwise we avoid dealing with simple volumetric
+				const bool bIsSimpleVolume = BSDF_GETHASDMFP(BSDF);
+				if (bIsSimpleVolume)
+				{
+					EnableSlabBSDFSimpleVolumetric(BSDF);
+				}
+			}
 
 			// Sanitize BSDF before it is used for forward shading
 			StrataSanitizeBSDF(BSDF);
@@ -54,11 +68,7 @@ float3 StrataForwardLighting(
 			FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular);
 			if (any(StrataEnvLight.DiffuseColor > 0.0f))
 			{
-				// SkySHDiffuse is pre integrated according to a Lambert diffuse lobe. Thus, we need to rescale to account for the phase function operating over 4PI.
-				// We apply a 2PI factor to recover average luminance over half hemisphere, and then times the phase function to account for the scattering events.
-				const float VolumeOnlyFactor = 1.0f; // STRATA_TODO BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_VOLUME ? 2.0f * PI * IsotropicPhase() : 1.0f;
-
-				Color += GetEffectiveSkySHDiffuse(StrataEnvLight.DiffuseNormal) * StrataEnvLight.DiffuseColor * SkyLightCommonFactor * VolumeOnlyFactor;
+				Color += GetEffectiveSkySHDiffuse(StrataEnvLight.DiffuseNormal) * StrataEnvLight.DiffuseColor * SkyLightCommonFactor;
 			}
 			if (any(StrataEnvLight.SpecularWeight > 0.0f))
 			{
