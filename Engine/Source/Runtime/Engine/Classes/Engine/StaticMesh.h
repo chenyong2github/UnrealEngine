@@ -725,7 +725,7 @@ public:
 	TArray<TObjectPtr<UMaterialInterface>> Materials_DEPRECATED;
 
 	/** Settings related to building Nanite data. */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=NaniteSettings)
 	FMeshNaniteSettings NaniteSettings;
 
 #endif // #if WITH_EDITORONLY_DATA

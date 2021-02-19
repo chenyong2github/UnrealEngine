@@ -130,6 +130,10 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	LevelOfDetailSettings = MakeShareable( new FLevelOfDetailSettingsLayout( StaticMeshEditor ) );
 	LevelOfDetailSettings->AddToDetailsPanel( DetailBuilder );
 
+	// Hide the existing NaniteSettings property so we can use the customization instead
+	TSharedRef<IPropertyHandle> NaniteSettingsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, NaniteSettings));
+	NaniteSettingsProperty->MarkHiddenByCustomization();
+
 	NaniteSettings = MakeShareable(new FNaniteSettingsLayout(StaticMeshEditor));
 	NaniteSettings->AddToDetailsPanel(DetailBuilder);
 
