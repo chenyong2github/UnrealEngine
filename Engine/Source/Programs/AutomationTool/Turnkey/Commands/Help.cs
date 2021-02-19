@@ -11,6 +11,8 @@ namespace Turnkey.Commands
 {
 	class Help : TurnkeyCommand
 	{
+		protected override CommandGroup Group => CommandGroup.Informational;
+
 		protected override void Execute(string[] CommandOptions)
 		{
 			bool bShowUsingHelp = TurnkeyUtils.ParseParam("Using", CommandOptions);

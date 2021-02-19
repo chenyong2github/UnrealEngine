@@ -13,6 +13,8 @@ namespace Turnkey.Commands
 {
 	class VerifySdk : TurnkeyCommand
 	{
+		protected override CommandGroup Group => CommandGroup.Sdk;
+
 		protected override void Execute(string[] CommandOptions)
 		{
 			bool bUnattended = TurnkeyUtils.ParseParam("Unattended", CommandOptions);

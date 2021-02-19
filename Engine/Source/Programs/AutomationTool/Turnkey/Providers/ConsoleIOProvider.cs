@@ -30,6 +30,8 @@ namespace Turnkey
 
 		public override string ReadInput(string Prompt, string Default, bool bAppendNewLine)
 		{
+			TurnkeyUtils.Log("");
+
 			Log(Prompt, bAppendNewLine);
 			if (!string.IsNullOrEmpty(Default))
 			{
@@ -46,6 +48,8 @@ namespace Turnkey
 
 		public override int ReadInputInt(string Prompt, List<string> Options, bool bIsCancellable, int DefaultValue, bool bAppendNewLine)
 		{
+			TurnkeyUtils.Log("");
+
 			StringBuilder FullPromptBuilder  = new StringBuilder();
 
 			// start with given prompt
@@ -65,7 +69,15 @@ namespace Turnkey
 			// now add the options given
 			foreach (string Option in Options)
 			{
-				FullPromptBuilder.AppendLine(" {0}{1}{2} {3}", DefaultValue == Index ? "[" : " ", Index, DefaultValue == Index++ ? "]" : ")", Option);
+				// don't make an index for commented lines
+				if (Option.StartsWith(";"))
+				{
+					FullPromptBuilder.AppendLine(" {0}", Option.Substring(1));
+				}
+				else
+				{
+					FullPromptBuilder.AppendLine(" {0}{1}{2} {3}", DefaultValue == Index ? "[" : " ", Index, DefaultValue == Index++ ? "]" : ")", Option);
+				}
 			}
 
 			string FullPrompt = FullPromptBuilder.ToString();

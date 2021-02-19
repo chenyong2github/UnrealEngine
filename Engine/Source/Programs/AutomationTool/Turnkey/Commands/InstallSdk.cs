@@ -12,7 +12,8 @@ namespace Turnkey.Commands
 {
 	class InstallSdk : TurnkeyCommand
 	{
-	
+		protected override CommandGroup Group => CommandGroup.Sdk;
+
 		protected override Dictionary<string, string[]> GetExtendedCommandsWithOptions()
 		{
 			return new Dictionary<string, string[]>()

@@ -10,6 +10,8 @@ namespace Turnkey.Commands
 {
 	class ListSdks : TurnkeyCommand
 	{
+		protected override CommandGroup Group => CommandGroup.Informational;
+
 		protected override void Execute(string[] CommandOptions)
 		{
 			TurnkeyUtils.Log("");

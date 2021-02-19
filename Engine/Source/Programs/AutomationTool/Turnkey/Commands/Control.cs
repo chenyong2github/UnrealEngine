@@ -11,6 +11,8 @@ namespace Turnkey.Commands
 {
 	class Control : TurnkeyCommand
 	{
+		protected override CommandGroup Group => CommandGroup.Misc;
+
 		private delegate void PerformOperation(ITargetDevice Device);
 
 		protected override void Execute(string[] CommandOptions)

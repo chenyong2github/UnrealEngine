@@ -10,6 +10,8 @@ namespace Turnkey.Commands
 {
 	class Test : TurnkeyCommand
 	{
+		protected override CommandGroup Group => CommandGroup.Misc;
+
 		protected override void Execute(string[] CommandOptions)
 		{
 			TurnkeyUtils.Log("Testing:");

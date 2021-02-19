@@ -191,7 +191,14 @@ namespace Turnkey
 			int Index = 1;
 			foreach (string Option in Options)
 			{
-				FullPromptBuilder.AppendLine(" ({0}) {1}", Index++, Option);
+				if (Option.StartsWith(";"))
+				{
+					FullPromptBuilder.AppendLine(" {0}", Option.Substring(1));
+				}
+				else
+				{
+					FullPromptBuilder.AppendLine(" ({0}) {1}", Index++, Option);
+				}
 			}
 
 			string FullPrompt = FullPromptBuilder.ToString();

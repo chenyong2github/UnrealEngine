@@ -13,6 +13,8 @@ namespace Turnkey.Commands
 {
 	class ExecuteBuild : TurnkeyCommand
 	{
+		protected override CommandGroup Group => CommandGroup.Builds;
+
 		// could move this to TurnkeyUtils!
 		static string GetStructEntry(string Input, string Property, bool bIsArrayProperty)
 		{

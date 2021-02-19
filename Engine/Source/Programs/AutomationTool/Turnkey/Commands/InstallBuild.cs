@@ -11,6 +11,8 @@ namespace Turnkey.Commands
 {
 	class InstallBuild : TurnkeyCommand
 	{
+		protected override CommandGroup Group => CommandGroup.Builds;
+
 		protected override void Execute(string[] CommandOptions)
 		{
 			// get distinct project names

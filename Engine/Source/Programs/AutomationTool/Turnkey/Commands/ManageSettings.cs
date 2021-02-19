@@ -10,6 +10,8 @@ namespace Turnkey.Commands
 {
 	class ManageSettings : TurnkeyCommand
 	{
+		protected override CommandGroup Group => CommandGroup.Settings;
+
 		protected override Dictionary<string, string[]> GetExtendedCommandsWithOptions()
 		{
 			return new Dictionary<string, string[]>()
