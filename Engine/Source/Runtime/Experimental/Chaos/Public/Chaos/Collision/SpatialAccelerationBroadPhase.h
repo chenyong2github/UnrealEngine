@@ -311,9 +311,17 @@ namespace Chaos
 					
 					{
 						SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
+
+						// We move the bodies during contact resolution and it may be in any direction
+						// @todo(chaos): this expansion can be very large for some objects - we may want to consider extending only along
+						// the velocity direction if CCD is not enabled for either object.
+						const FReal CullDistance1 = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
+						const FReal CullDistance2 = ComputeBoundsThickness(Particle2, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
+						const FReal NetCullDistance = CullDistance + CullDistance1 + CullDistance2;
+
 						// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
 						// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance + BoundsThicknessVelocityInflation);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), NetCullDistance);
 					}
 				}
 
