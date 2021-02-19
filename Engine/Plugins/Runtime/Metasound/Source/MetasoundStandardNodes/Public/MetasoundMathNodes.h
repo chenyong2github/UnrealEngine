@@ -120,13 +120,6 @@ namespace Metasound
 				FText::FromString(GetMetasoundDataTypeString<OperandDataType>()));
 			return DisplayName;
 		}
-
-		template<typename DataType>
-		const FText GetRandRangeDisplayName()
-		{
-			static const FText DisplayName = FText::Format(LOCTEXT("RandRangeNodeDisplayNamePattern", "Random ({0})"), FText::FromString(GetMetasoundDataTypeString<DataType>()));
-			return DisplayName;
-		}
 	}
 
 	template <typename TDerivedClass, typename TMathOpClass, typename TDataClass, typename TOperandDataClass>
@@ -490,7 +483,7 @@ namespace Metasound
 				return;
 			}
 
-			FMemory::Memcpy(OutResult->GetData(), InAdditionalOperands[0]->GetData(), sizeof(float) * NumSamples);
+			FMemory::Memcpy(OutResult->GetData(), InPrimaryOperand->GetData(), sizeof(float) * NumSamples);
 
 			for (int32 i = 0; i < InAdditionalOperands.Num(); ++i)
 			{
@@ -1167,134 +1160,6 @@ namespace Metasound
 		}
 	};
 
-	template <typename TDataClass, typename TOperandDataClass = TDataClass>
-	class TMathOpRandRange
-	{
-	public:
-		using TDataClassReadRef = TDataReadReference<TDataClass>;
-		using TOperandDataClassReadRef = TDataReadReference<TOperandDataClass>;
-		using TDataClassWriteRef = TDataWriteReference<TDataClass>;
-
-		static const FVertexInterface& GetVertexInterface()
-		{
-			static const FVertexInterface Interface(
-				FInputVertexInterface(
-					TInputDataVertexModel<TDataClass>(MathOpNames::PrimaryOperandName, LOCTEXT("MathOpRandomMinTooltip", "Random value minimum."), static_cast<TDataClass>(0.0f)),
-					TInputDataVertexModel<TOperandDataClass>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpRandomMaxTooltip", "Random value maximum."), static_cast<TOperandDataClass>(1.0f))
-				),
-				FOutputVertexInterface(
-					TOutputDataVertexModel<TDataClass>(TEXT("Out"), LOCTEXT("MathOpRandomOutTooltip", "Resulting random value"))
-				)
-			);
-
-			return Interface;
-		}
-
-		static TDataClass GetDefault(const FOperatorSettings& InSettings, const FLiteral& InVertexDefault)
-		{
-			return InVertexDefault.Value.Get<TDataClass>();
-		}
-
-		static TOperandDataClass GetDefaultOp(const FOperatorSettings& InSettings, const FLiteral& InVertexDefault)
-		{
-			return InVertexDefault.Value.Get<TOperandDataClass>();
-		}
-
-		static void Calculate(TMathOpRandRange& InInstanceData, const TDataClassReadRef& InPrimaryOperand, const TArray<TOperandDataClassReadRef>& InAdditionalOperands, TDataClassWriteRef& OutResult)
-		{
-			if (ensure(!InAdditionalOperands.IsEmpty()))
-			{
-				const TDataClass& Min = *InPrimaryOperand;
-				const TOperandDataClass& Max = *InAdditionalOperands[0];
-				*OutResult = FMath::RandRange(Min, Max);
-			}
-		}
-	};
-
-	template <>
-	class TMathOpRandRange<FTime>
-	{
-	public:
-		static const FVertexInterface& GetVertexInterface()
-		{
-			static const FVertexInterface Interface(
-				FInputVertexInterface(
-					TInputDataVertexModel<FTime>(MathOpNames::PrimaryOperandName, LOCTEXT("MathOpRandomMinTooltip", "Random value minimum."), 0.0f),
-					TInputDataVertexModel<FTime>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpRandomMaxTooltip", "Random value maximum."), 1.0f)
-				),
-				FOutputVertexInterface(
-					TOutputDataVertexModel<FTime>(TEXT("Out"), LOCTEXT("MathOpRandomOutTooltip", "Resulting random value"))
-				)
-			);
-
-			return Interface;
-		}
-
-		static FTime GetDefault(const FOperatorSettings& InSettings, const FLiteral& InVertexDefault)
-		{
-			return FTime(InVertexDefault.Value.Get<float>());
-		}
-
-		static FTime GetDefaultOp(const FOperatorSettings& InSettings, const FLiteral& InVertexDefault)
-		{
-			return FTime(InVertexDefault.Value.Get<float>());
-		}
-
-		static void Calculate(TMathOpRandRange& InInstanceData, const FTimeReadRef& InPrimaryOperand, const TArray<FTimeReadRef>& InAdditionalOperands, FTimeWriteRef& OutResult)
-		{
-			if (ensure(!InAdditionalOperands.IsEmpty()))
-			{
-				const FTime& Min = *InPrimaryOperand;
-				const FTime& Max = *InAdditionalOperands[0];
-
-				// Not a true random as precision is lost with randomizing over float range
-				const FTime Delta = Max.GetSeconds() - Min.GetSeconds();
-				const FTime Result = Min.GetSeconds() + (Delta * FMath::FRand());
-				*OutResult = Result;
-			}
-		}
-	};
-
-	// int64 has to be explicitly implemented as they are PODs that are not implemented as a literal base type.
-	template <>
-	class TMathOpRandRange<int64>
-	{
-	public:
-		static const FVertexInterface& GetVertexInterface()
-		{
-			static const FVertexInterface Interface(
-				FInputVertexInterface(
-					TInputDataVertexModel<int64>(MathOpNames::PrimaryOperandName, LOCTEXT("MathOpRandomMinTooltip", "Random value minimum."), 0),
-					TInputDataVertexModel<int64>(MathOpNames::AdditionalOperandsName, LOCTEXT("MathOpRandomMaxTooltip", "Random value maximum."), 1)
-				),
-				FOutputVertexInterface(
-					TOutputDataVertexModel<int64>(TEXT("Out"), LOCTEXT("MathOpRandomOutTooltip", "Resulting random value"))
-				)
-			);
-
-			return Interface;
-		}
-
-		static int64 GetDefault(const FOperatorSettings& InSettings, const FLiteral& InVertexDefault)
-		{
-			return static_cast<int64>(InVertexDefault.Value.Get<int32>());
-		}
-
-		static int64 GetDefaultOp(const FOperatorSettings& InSettings, const FLiteral& InVertexDefault)
-		{
-			return static_cast<int64>(InVertexDefault.Value.Get<int32>());
-		}
-
-		static void Calculate(TMathOpRandRange& InInstanceData, const FInt64ReadRef& InPrimaryOperand, const TArray<FInt64ReadRef>& InAdditionalOperands, FInt64WriteRef& OutResult)
-		{
-			if (ensure(!InAdditionalOperands.IsEmpty()))
-			{
-				const int64 Min = *InPrimaryOperand;
-				const int64 Max = *InAdditionalOperands[0];
-				*OutResult = FMath::RandRange(Min, Max);
-			}
-		}
-	};
 
 	// Definitions
 	DEFINE_METASOUND_MATHOP(Add, Float, float, LOCTEXT("Metasound_MathAddFloatNodeDescription", "Adds floats."))
@@ -1324,12 +1189,6 @@ namespace Metasound
  	DEFINE_METASOUND_MATHOP(Divide, Int64, int64, LOCTEXT("Metasound_MathDivideInt64NodeDescription", "Divide int64 by another int64."))
 
 	DEFINE_METASOUND_OPERAND_TYPED_MATHOP(Divide, Time, FTime, Float, float, LOCTEXT("Metasound_MathDivideTimeNodeDescription", "Divides time by floats."))
-
-	DEFINE_METASOUND_MATHOP(RandRange, Float, float, LOCTEXT("Metasound_MathRandRangeFloatNodeDescription", "Computes random float value in the range [Min, Max]."))
-	DEFINE_METASOUND_MATHOP(RandRange, Int32, int32, LOCTEXT("Metasound_MathRandRangeInt32NodeDescription", "Computes random int32 in the range [Min, Max]."))
- 	DEFINE_METASOUND_MATHOP(RandRange, Int64, int64, LOCTEXT("Metasound_MathRandRangeInt64NodeDescription", "Computes random int64 in the range [Min, Max]."))
-	DEFINE_METASOUND_MATHOP(RandRange, Time, FTime, LOCTEXT("Metasound_MathRandRangeTimeNodeDescription", "Computes random time value in the range [Min, Max]."))
-
 }
 
 #undef LOCTEXT_NAMESPACE // MetasoundMathOpNode
