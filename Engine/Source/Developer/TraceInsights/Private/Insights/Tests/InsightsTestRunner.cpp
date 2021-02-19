@@ -4,6 +4,7 @@
 
 #if !UE_BUILD_SHIPPING && !WITH_EDITOR
 
+#include "Misc/App.h"
 #include "Misc/AutomationTest.h"
 #include "IAutomationControllerModule.h"
 #include "IAutomationWindowModule.h"
@@ -16,6 +17,8 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/Tests/UITests.h"
 #include "Insights/InsightsStyle.h"
+
+#include "Widgets/Docking/SDockTab.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
