@@ -33,20 +33,20 @@ Texture2D<taa_half> HistoryRejectionTexture;
 Texture2D<float2> DilatedVelocityTexture;
 Texture2D<uint> ParallaxFactorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
+Texture2D<taa_half> InterferenceSeedUpdateTexture;
 
 float3 HistoryQuantizationError;
 float HistoryPreExposureCorrection;
-uint bCameraCut;
 
 Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
 Texture2D<taa_half2> PrevHistory_Textures_2;
-Texture2D<uint>      PrevHistory_Textures_3;
+Texture2D<taa_subpixel_details> PrevHistory_Textures_3;
 
 RWTexture2D<taa_half3> HistoryOutput_Textures_0;
 RWTexture2D<taa_half3> HistoryOutput_Textures_1;
 RWTexture2D<taa_half2> HistoryOutput_Textures_2;
-RWTexture2D<uint>      HistoryOutput_Textures_3;
+RWTexture2D<taa_subpixel_details> HistoryOutput_Textures_3;
 
 RWTexture2D<taa_half3> SceneColorOutput;
 
@@ -114,18 +114,29 @@ void MainCS(
 	float2 PrevScreenPos = ScreenPos;
 	taa_half ParallaxRejectionMask = taa_half(1.0);
 	taa_half LowFrequencyRejection;
+	bool bRejectHistoryInterferenceSeed;
 	#if 1
 	{
-		float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
-		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
-		PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
-
 		float2 RejectionBilinearBufferUV = clamp(
 			PPCo * InputInfo_ExtentInverse,
 			RejectionInfo_UVViewportBilinearMin,
 			RejectionInfo_UVViewportBilinearMax);
 		
+		float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
+		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
+		PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+
 		LowFrequencyRejection = HistoryRejectionTexture.SampleLevel(GlobalBilinearClampedSampler, RejectionBilinearBufferUV, 0);
+		
+		bRejectHistoryInterferenceSeed = InterferenceSeedUpdateTexture.SampleLevel(GlobalBilinearClampedSampler, RejectionBilinearBufferUV, 0) > 0.5;
+
+		#if !CONFIG_CLAMP
+		{
+			ParallaxRejectionMask = taa_half(1.0);
+			LowFrequencyRejection = taa_half(1.0);
+			bRejectHistoryInterferenceSeed = false;
+		}
+		#endif
 	}
 	#endif
 
@@ -155,6 +166,7 @@ void MainCS(
 	taa_half3 InputMinColor;
 	taa_half3 InputMaxColor;
 	taa_half InputPixelAlignement;
+	taa_half ClosestInputLuma4;
 	
 	ISOLATE
 	{
@@ -177,14 +189,14 @@ void MainCS(
 		InputMinColor = taa_half(INFINITE_FLOAT);
 		InputMaxColor = taa_half(-INFINITE_FLOAT);
 
-		UNROLL
+		UNROLL_N(CONFIG_SAMPLES)
 		for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
 		{
 			taa_half2 PixelOffset;
 			
 			#if CONFIG_SAMPLES == 9
 			{
-				PixelOffset = taa_half2(kOffsets3x3[SampleId]);
+				PixelOffset = taa_half2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
 			}
 			#elif CONFIG_SAMPLES == 5 || CONFIG_SAMPLES == 6
 			{
@@ -201,12 +213,6 @@ void MainCS(
 				#error Unknown sample count
 			#endif
 
-			//if (any(PixelOffset != 0.0))
-			//	continue;
-
-			//if (i != 4)
-			//	continue;
-
 			float2 SampleInputBufferUV = (InputInfo_ViewportMin + PPCk + PixelOffset) * InputInfo_ExtentInverse;
 			SampleInputBufferUV = clamp(SampleInputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
 
@@ -222,6 +228,11 @@ void MainCS(
 
 			InputMinColor = min(InputMinColor, TransformColorForClampingBox(InputColor));
 			InputMaxColor = max(InputMaxColor, TransformColorForClampingBox(InputColor));
+
+			if (SampleId == 0)
+			{
+				ClosestInputLuma4 = Luma4(InputColor);
+			}
 		}
 		
 		FilteredInputColor *= SafeRcp(FilteredInputColorWeight);
@@ -248,7 +259,7 @@ void MainCS(
 	taa_half3 PrevFallbackColor;
 	taa_half PrevFallbackWeight;
 	
-	uint PrevSubpixelDetails;
+	taa_subpixel_details PrevSubpixelDetails;
 
 	ISOLATE
 	{
@@ -292,8 +303,8 @@ void MainCS(
 				UNROLL_N(SUB_PIXEL_COUNT)
 				for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
 				{
-					uint SubpixelPayload = GetSubpixelPayload(SubpixelNeighborhood, SubpixelId);
-					PrevSubpixelDetails |= SubpixelPayload << (BITS_PER_SUB_PIXEL * SubpixelId);
+					taa_subpixel_payload SubpixelPayload = GetSubpixelPayload(SubpixelNeighborhood, SubpixelId);
+					PrevSubpixelDetails |= SubpixelPayload << (SUB_PIXEL_BIT_COUNT * SubpixelId);
 				}
 			}
 
@@ -360,16 +371,13 @@ void MainCS(
 			PrevYCoCg, ClampedPrevYCoCg,
 			InputCenterYCoCg, InputMinColor, InputMaxColor);
 
-		//Debug.x = FallbackRejection;
+		#if !CONFIG_CLAMP
+		{
+			ClampedFallbackColor = PrevFallbackColor;
+			FallbackRejection = taa_half(1.0);
+		}
+		#endif
 	}
-
-	#if !CONFIG_CLAMP
-	{
-		ClampedFallbackColor = PrevFallbackColor;
-		FallbackRejection = taa_half(1.0);
-		LowFrequencyRejection = taa_half(1.0);
-	}
-	#endif
 
 	// Also reject sub pixel detail low frequency if detect mid frequency changes.
 	#if 0
@@ -566,18 +574,71 @@ void MainCS(
 	}
 
 	// Update subpixel detail
-	uint FinalSubpixelDetails;
+	taa_subpixel_details FinalSubpixelDetails;
 	{
 		taa_half2 dKO = taa_half2(PPCo - PPCk);
 
-		bool bUpdate = all(abs(dKO) < 0.5 * (InputInfo_Extent.x * HistoryInfo_ExtentInverse.x));
+		bool bUpdate = all(abs(dKO) < 0.5 * (InputInfo_ViewportSize.x * HistoryInfo_ViewportSizeInverse.x));
 
 		FinalSubpixelDetails = PrevSubpixelDetails;
-		
-		FLATTEN
-		if (bOffScreen)
+
+		// TODO Save VGPR here
+		taa_subpixel_payload ParallaxFactorBits = ParallaxFactorTexture[InputPixelPos] & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK;
+		taa_half InterferenceSeed = LumaToInterferenceSeed(ClosestInputLuma4);
+		taa_subpixel_payload InterferenceBits = CompressInteferenceSeed(InterferenceSeed);
+
 		{
-			FinalSubpixelDetails = 0;
+			const uint ParallaxFactorMask = (
+				(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 0 * SUB_PIXEL_BIT_COUNT)) | 
+				(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 1 * SUB_PIXEL_BIT_COUNT)) | 
+				(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 2 * SUB_PIXEL_BIT_COUNT)) | 
+				(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK << (SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET + 3 * SUB_PIXEL_BIT_COUNT)) | 
+				0x0);
+
+			const uint InterferenceMask = (
+				(SUB_PIXEL_INTERFERENCE_BIT_MASK << (SUB_PIXEL_INTERFERENCE_BIT_OFFSET + 0 * SUB_PIXEL_BIT_COUNT)) | 
+				(SUB_PIXEL_INTERFERENCE_BIT_MASK << (SUB_PIXEL_INTERFERENCE_BIT_OFFSET + 1 * SUB_PIXEL_BIT_COUNT)) | 
+				(SUB_PIXEL_INTERFERENCE_BIT_MASK << (SUB_PIXEL_INTERFERENCE_BIT_OFFSET + 2 * SUB_PIXEL_BIT_COUNT)) | 
+				(SUB_PIXEL_INTERFERENCE_BIT_MASK << (SUB_PIXEL_INTERFERENCE_BIT_OFFSET + 3 * SUB_PIXEL_BIT_COUNT)) | 
+				0x0);
+
+			uint ResetInterferenceSeed = (
+				(uint(InterferenceBits) << (SUB_PIXEL_INTERFERENCE_BIT_OFFSET + 0 * SUB_PIXEL_BIT_COUNT)) | 
+				(uint(InterferenceBits) << (SUB_PIXEL_INTERFERENCE_BIT_OFFSET + 1 * SUB_PIXEL_BIT_COUNT)) | 
+				(uint(InterferenceBits) << (SUB_PIXEL_INTERFERENCE_BIT_OFFSET + 2 * SUB_PIXEL_BIT_COUNT)) | 
+				(uint(InterferenceBits) << (SUB_PIXEL_INTERFERENCE_BIT_OFFSET + 3 * SUB_PIXEL_BIT_COUNT)) | 
+				0x0);
+			
+			// Reset parallax factor
+			FLATTEN
+			if (bOffScreen)
+			{
+				FinalSubpixelDetails = FinalSubpixelDetails & ~ParallaxFactorMask;
+			}
+
+			// Reset inteference bit
+			FLATTEN
+			if (bRejectHistoryInterferenceSeed)
+			{
+				uint NewSubpixelDetails = FinalSubpixelDetails & ~InterferenceMask;
+				
+				taa_subpixel_payload InterferenceSeedMin = CompressInteferenceSeed(LumaToInterferenceSeed(LumaMin));
+				taa_subpixel_payload InterferenceSeedMax = CompressInteferenceSeed(LumaToInterferenceSeed(LumaMax));
+
+				UNROLL_N(SUB_PIXEL_COUNT)
+				for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
+				{
+					const uint SubpixelShift = SubpixelId * SUB_PIXEL_BIT_COUNT + SUB_PIXEL_INTERFERENCE_BIT_OFFSET;
+
+					taa_subpixel_payload SubpixelInterferenceSeed = (FinalSubpixelDetails >> SubpixelShift) & SUB_PIXEL_INTERFERENCE_BIT_MASK;
+
+					taa_subpixel_payload ClampedSubpixelInterferenceSeed = clamp(SubpixelInterferenceSeed, InterferenceSeedMin, InterferenceSeedMax);
+
+					NewSubpixelDetails |= ClampedSubpixelInterferenceSeed << SubpixelShift;
+				}
+
+				FinalSubpixelDetails = NewSubpixelDetails;
+			}
 		}
 
 		FLATTEN
@@ -586,11 +647,13 @@ void MainCS(
 			bool2 bBool = dKO < 0.0;
 
 			uint SubpixelId = dot(uint2(bBool), uint2(1, SUB_PIXEL_GRID_SIZE));
-			uint SubpixelShift = SubpixelId * BITS_PER_SUB_PIXEL;
+			uint SubpixelShift = SubpixelId * SUB_PIXEL_BIT_COUNT;
 
-			uint SubpixelPayload = ParallaxFactorTexture[InputPixelPos] & SUB_PIXEL_MASK;
+			taa_subpixel_payload SubpixelPayload = (
+				(ParallaxFactorBits << SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET) |
+				(InterferenceBits << SUB_PIXEL_INTERFERENCE_BIT_OFFSET));
 
-			FinalSubpixelDetails = (FinalSubpixelDetails & (~(SUB_PIXEL_MASK << SubpixelShift))) | (SubpixelPayload << SubpixelShift);
+			FinalSubpixelDetails = (FinalSubpixelDetails & (~(SUB_PIXEL_BIT_MASK << SubpixelShift))) | (SubpixelPayload << SubpixelShift);
 		}
 	}
 

@@ -243,6 +243,11 @@ static FAutoConsoleVariableRef CVarLightMaxDrawDistanceScale(
 
 #if !UE_BUILD_SHIPPING
 
+static TAutoConsoleVariable<int32> CVarTAADebugOverrideTemporalIndex(
+	TEXT("r.TemporalAA.Debug.OverrideTemporalIndex"), -1,
+	TEXT("Override the temporal index for debugging purposes."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<float> CVarFreezeTemporalSequences(
 	TEXT("r.Test.FreezeTemporalSequences"), 0,
 	TEXT("Freezes all temporal sequences."),
@@ -3263,7 +3268,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 				{
 					// When doing TAA upsample with screen percentage < 100%, we need extra temporal samples to have a
 					// constant temporal sample density for final output pixels to avoid output pixel aligned converging issues.
-					TemporalAASamples = float(TemporalAASamples) * FMath::Max(1.f, 1.f / (EffectivePrimaryResolutionFraction * EffectivePrimaryResolutionFraction));
+					TemporalAASamples = FMath::RoundToInt(float(TemporalAASamples) * FMath::Max(1.f, 1.f / (EffectivePrimaryResolutionFraction * EffectivePrimaryResolutionFraction)));
 				}
 				else if (CVarTemporalAASamplesValue == 5)
 				{
@@ -3275,10 +3280,17 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 			// Compute the new sample index in the temporal sequence.
 			int32 TemporalSampleIndex			= ViewState->TemporalAASampleIndex + 1;
-			if(TemporalSampleIndex >= TemporalAASamples || View.bCameraCut)
+			if (TemporalSampleIndex >= TemporalAASamples || View.bCameraCut)
 			{
 				TemporalSampleIndex = 0;
 			}
+
+			#if !UE_BUILD_SHIPPING
+			if (CVarTAADebugOverrideTemporalIndex.GetValueOnRenderThread() >= 0)
+			{
+				TemporalSampleIndex = CVarTAADebugOverrideTemporalIndex.GetValueOnRenderThread();
+			}
+			#endif
 
 			// Updates view state.
 			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)

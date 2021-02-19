@@ -11,13 +11,13 @@
 #include "ScenePrivate.h"
 #include "RendererModule.h"
 
+#define COMPILE_TAA_DEBUG_PASSES (!UE_BUILD_SHIPPING)
+
 namespace
 {
 
 const int32 GTemporalAATileSizeX = 8;
 const int32 GTemporalAATileSizeY = 8;
-
-constexpr int32 kHistoryTextures = 4;
 
 TAutoConsoleVariable<int32> CVarTAAAlgorithm(
 	TEXT("r.TemporalAA.Algorithm"), 0,
@@ -91,6 +91,11 @@ TAutoConsoleVariable<int32> CVarTAAFilterShadingRejection(
 	TEXT("Whether the shading rejection should have spatial statistical filtering pass to reduce flickering (default = 1)."),
 	ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<int32> CVarTAAEnableAntiInterference(
+	TEXT("r.TemporalAA.AntiInterference"), 1,
+	TEXT("Enable heuristic to detect geometric interference between input pixel grid alignement and structured geometry."),
+	ECVF_RenderThreadSafe);
+
 inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
 {
 	return (IsPCPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsTemporalHistoryUpscale(Platform))
@@ -111,22 +116,30 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTAACommonParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, HistoryInfo)
 
 	SHADER_PARAMETER(FVector2D, InputJitter)
+	SHADER_PARAMETER(int32, bCameraCut)
+	SHADER_PARAMETER(int32, bEnableInterferenceHeuristic)
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, )
-	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [kHistoryTextures])
+	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, LowResTextures, [FTemporalAAHistory::kLowResRenderTargetCount])
+	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Textures, [FTemporalAAHistory::kRenderTargetCount])
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, Textures, [kHistoryTextures])
+	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, LowResTextures, [FTemporalAAHistory::kLowResRenderTargetCount])
+	SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(RWTexture2D, Textures, [FTemporalAAHistory::kRenderTargetCount])
 END_SHADER_PARAMETER_STRUCT()
 
 FTAAHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTAAHistoryTextures& Textures)
 {
 	FTAAHistoryUAVs UAVs;
-	for (int32 i = 0; i < kHistoryTextures; i++)
+	for (int32 i = 0; i < Textures.LowResTextures.Num(); i++)
+	{
+		UAVs.LowResTextures[i] = GraphBuilder.CreateUAV(Textures.LowResTextures[i]);
+	}
+	for (int32 i = 0; i < Textures.Textures.Num(); i++)
 	{
 		UAVs.Textures[i] = GraphBuilder.CreateUAV(Textures.Textures[i]);
 	}
@@ -370,7 +383,6 @@ class FTAADecimateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER(FVector, OutputQuantizationError)
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 		SHADER_PARAMETER(float, WorldDepthToPixelWorldRadius)
-		SHADER_PARAMETER(int32, bCameraCut)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
@@ -387,9 +399,34 @@ class FTAADecimateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HalfResParallaxRejectionMaskOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, PredictionSceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ParallaxRejectionMaskOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, InterferenceSeedOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 }; // class FTAADecimateHistoryCS
+
+class FTAADetectInterferenceCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAADetectInterferenceCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAADetectInterferenceCS, FTAAGen5Shader);
+	
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputSceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionSceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceSeedTexture)
+
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
+		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
+
+		SHADER_PARAMETER_STRUCT(FTAAHistoryUAVs, HistoryOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, InterferenceWeightOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, InterferenceSeedUpdateOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAADetectInterferenceCS
 
 class FTAAFilterFrequenciesCS : public FTAAGen5Shader
 {
@@ -403,6 +440,7 @@ class FTAAFilterFrequenciesCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceWeightTexture)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredInputOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredPredictionSceneColorOutput)
@@ -420,6 +458,7 @@ class FTAACompareHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredInputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FilteredPredictionSceneColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceWeightTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HistoryRejectionOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
@@ -465,10 +504,10 @@ class FTAAUpdateHistoryCS : public FTAAGen5Shader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxFactorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InterferenceSeedUpdateTexture)
 
 		SHADER_PARAMETER(FVector, HistoryQuantizationError)
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
-		SHADER_PARAMETER(int32, bCameraCut)
 
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
 		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
@@ -483,11 +522,31 @@ IMPLEMENT_GLOBAL_SHADER(FTAAStandaloneCS, "/Engine/Private/TemporalAA/TAAStandal
 IMPLEMENT_GLOBAL_SHADER(FTAAClearPrevTexturesCS, "/Engine/Private/TemporalAA/TAAClearPrevTextures.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAADilateVelocityCS, "/Engine/Private/TemporalAA/TAADilateVelocity.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAADecimateHistoryCS, "/Engine/Private/TemporalAA/TAADecimateHistory.usf", "MainCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FTAADetectInterferenceCS, "/Engine/Private/TemporalAA/TAADetectInterference.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAAFilterFrequenciesCS, "/Engine/Private/TemporalAA/TAAFilterFrequencies.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAACompareHistoryCS, "/Engine/Private/TemporalAA/TAACompareHistory.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAAPostfilterRejectionCS, "/Engine/Private/TemporalAA/TAAPostfilterRejection.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAADilateRejectionCS, "/Engine/Private/TemporalAA/TAADilateRejection.usf", "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTAAUpdateHistoryCS, "/Engine/Private/TemporalAA/TAAUpdateHistory.usf", "MainCS", SF_Compute);
+
+#if COMPILE_TAA_DEBUG_PASSES
+
+class FTAADebugHistoryCS : public FTAAGen5Shader
+{
+	DECLARE_GLOBAL_SHADER(FTAADebugHistoryCS);
+	SHADER_USE_PARAMETER_STRUCT(FTAADebugHistoryCS, FTAAGen5Shader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTAACommonParameters, CommonParameters)
+		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, History)
+		SHADER_PARAMETER_STRUCT(FTAAHistoryTextures, PrevHistory)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
+	END_SHADER_PARAMETER_STRUCT()
+}; // class FTAADebugHistoryCS
+
+IMPLEMENT_GLOBAL_SHADER(FTAADebugHistoryCS, "/Engine/Private/TemporalAA/TAADebugHistory.usf", "MainCS", SF_Compute);
+
+#endif
 
 float CatmullRom(float x)
 {
@@ -1036,6 +1095,8 @@ static void AddGen5MainTemporalAAPasses(
 
 	bool bHalfResLowFrequency = CVarTAAHalfResShadingRejection.GetValueOnRenderThread() != 0;
 
+	bool bEnableInterferenceHeuristic = CVarTAAEnableAntiInterference.GetValueOnRenderThread() != 0;
+
 	FIntPoint InputExtent = PassInputs.SceneColorTexture->Desc.Extent;
 	FIntRect InputRect = View.ViewRect;
 
@@ -1093,6 +1154,7 @@ static void AddGen5MainTemporalAAPasses(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, TAA);
 
 	FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+	FRDGTextureRef WhiteDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
 
 	FTAACommonParameters CommonParameters;
 	{
@@ -1109,6 +1171,8 @@ static void AddGen5MainTemporalAAPasses(
 			HistoryExtent, FIntRect(FIntPoint(0, 0), HistorySize)));
 
 		CommonParameters.InputJitter = View.TemporalJitterPixels;
+		CommonParameters.bCameraCut = bCameraCut;
+		CommonParameters.bEnableInterferenceHeuristic = bEnableInterferenceHeuristic;
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	}
 
@@ -1203,7 +1267,12 @@ static void AddGen5MainTemporalAAPasses(
 		PrevHistoryInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
 			FIntPoint(1, 1), FIntRect(FIntPoint(0, 0), FIntPoint(1, 1))));
 
-		for (int32 i = 0; i < kHistoryTextures; i++)
+		for (int32 i = 0; i < PrevHistory.LowResTextures.Num(); i++)
+		{
+			PrevHistory.LowResTextures[i] = BlackDummy;
+		}
+
+		for (int32 i = 0; i < PrevHistory.Textures.Num(); i++)
 		{
 			PrevHistory.Textures[i] = BlackDummy;
 		}
@@ -1214,7 +1283,19 @@ static void AddGen5MainTemporalAAPasses(
 			InputHistory.ReferenceBufferSize,
 			InputHistory.ViewportRect));
 
-		for (int32 i = 0; i < kHistoryTextures; i++)
+		for (int32 i = 0; i < PrevHistory.LowResTextures.Num(); i++)
+		{
+			if (InputHistory.LowResRT[i].IsValid())
+			{
+				PrevHistory.LowResTextures[i] = GraphBuilder.RegisterExternalTexture(InputHistory.LowResRT[i]);
+			}
+			else
+			{
+				PrevHistory.LowResTextures[i] = BlackDummy;
+			}
+		}
+
+		for (int32 i = 0; i < PrevHistory.Textures.Num(); i++)
 		{
 			if (InputHistory.RT[i].IsValid())
 			{
@@ -1229,12 +1310,40 @@ static void AddGen5MainTemporalAAPasses(
 		// InputHistory.SafeRelease(); TODO
 	}
 
+
+	FTAAHistoryTextures History;
+	{
+		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+			HistoryExtent,
+			(CVarTAAR11G11B10History.GetValueOnRenderThread() != 0) ? PF_FloatR11G11B10 : PF_FloatRGBA,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV);
+
+		FRDGTextureDesc LowResDesc = FRDGTextureDesc::Create2D(
+			InputExtent,
+			PF_R8,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV);
+
+		History.Textures[0] = GraphBuilder.CreateTexture(Desc, TEXT("TAA.History.LowFrequencies"));
+		History.Textures[1] = GraphBuilder.CreateTexture(Desc, TEXT("TAA.History.HighFrequencies"));
+
+		Desc.Format = PF_R8G8;
+		History.Textures[2] = GraphBuilder.CreateTexture(Desc, TEXT("TAA.History.Metadata"));
+
+		Desc.Format = PF_R32_UINT;
+		History.Textures[3] = GraphBuilder.CreateTexture(Desc, TEXT("TAA.History.SubpixelInfo"));
+
+		History.LowResTextures[0] = GraphBuilder.CreateTexture(LowResDesc, TEXT("TAA.History.LowResMetadata"));
+	}
+
 	// Decimate input to flicker at same frequency as input.
 	FRDGTextureRef HalfResInputSceneColorTexture = nullptr;
 	FRDGTextureRef HalfResPredictionSceneColorTexture = nullptr;
 	FRDGTextureRef HalfResParallaxRejectionMaskTexture = nullptr;
 	FRDGTextureRef PredictionSceneColorTexture = nullptr;
 	FRDGTextureRef ParallaxRejectionMaskTexture = nullptr;
+	FRDGTextureRef InterferenceSeedTexture = nullptr;
 	{
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
@@ -1244,6 +1353,10 @@ static void AddGen5MainTemporalAAPasses(
 				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
 			ParallaxRejectionMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.ParallaxRejectionMask"));
+
+			// TODO(G5TAA): can compress to the history seed's 4bit per pixel
+			Desc.Format = PF_R8G8B8A8;
+			InterferenceSeedTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Interference.Seed"));
 		}
 
 		FTAADecimateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADecimateHistoryCS::FParameters>();
@@ -1265,7 +1378,6 @@ static void AddGen5MainTemporalAAPasses(
 			// Should be multiplied 0.5* for the diameter to radius, and by 2.0 because GetTanHalfFieldOfView() cover only half of the pixels.
 			PassParameters->WorldDepthToPixelWorldRadius = TanHalfFieldOfView / float(View.ViewRect.Width());
 		}
-		PassParameters->bCameraCut = bCameraCut;
 
 		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
@@ -1309,6 +1421,7 @@ static void AddGen5MainTemporalAAPasses(
 		}
 
 		PassParameters->ParallaxRejectionMaskOutput = GraphBuilder.CreateUAV(ParallaxRejectionMaskTexture);
+		PassParameters->InterferenceSeedOutput = GraphBuilder.CreateUAV(InterferenceSeedTexture);
 		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TAA.DecimateHistory"));
 
 		FTAADecimateHistoryCS::FPermutationDomain PermutationVector;
@@ -1323,6 +1436,87 @@ static void AddGen5MainTemporalAAPasses(
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
+	}
+
+	// Detect interference between geometry and alignement of input texel centers. It is not about awnser whether an
+	// interference has happened in the past, because interference change based on input resolution or camera position.
+	// So to remain stable on camera movement and input resolution change, it is about awnsering the question on whether
+	// an interference is possible.
+	// TODO(G5TAA): Could sample the interference seed in the DilateVelocity and detect interference in the decimate.
+	TStaticArray<bool, FTemporalAAHistory::kLowResRenderTargetCount> ExtractLowResHistoryTexture;
+	FRDGTextureRef InterferenceWeightTexture;
+	FRDGTextureRef InterferenceSeedUpdateTexture;
+	if (bEnableInterferenceHeuristic)
+	{
+		{
+			// TODO(G5TAA): Compress to 1bit per pixel
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+				InputExtent,
+				PF_R8,
+				FClearValueBinding::None,
+				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
+
+			InterferenceWeightTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Interference.Weight"));
+			InterferenceSeedUpdateTexture = GraphBuilder.CreateTexture(Desc, TEXT("TAA.Interference.SeedUpdateRequest"));
+		}
+
+		FTAADetectInterferenceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADetectInterferenceCS::FParameters>();
+		PassParameters->CommonParameters = CommonParameters;
+
+		PassParameters->InputSceneColorTexture = PassInputs.SceneColorTexture;
+		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
+		PassParameters->PredictionSceneColorTexture = PredictionSceneColorTexture;
+		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
+		PassParameters->InterferenceSeedTexture = InterferenceSeedTexture;
+
+		PassParameters->PrevHistoryInfo = PrevHistoryInfo;
+		PassParameters->PrevHistory = PrevHistory;
+
+		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);
+		PassParameters->InterferenceWeightOutput = GraphBuilder.CreateUAV(InterferenceWeightTexture);
+		PassParameters->InterferenceSeedUpdateOutput = GraphBuilder.CreateUAV(InterferenceSeedUpdateTexture);
+		PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TAA.DetectInterference"));
+
+		TShaderMapRef<FTAADetectInterferenceCS> ComputeShader(View.ShaderMap);
+		ClearUnusedGraphResources(ComputeShader, PassParameters);
+
+		for (int32 i = 0; i < PrevHistory.LowResTextures.Num(); i++)
+		{
+			bool bNeedsExtractForNextFrame = PassParameters->PrevHistory.LowResTextures[i] != nullptr;
+			bool bPrevFrameIsntAvailable = PassParameters->PrevHistory.LowResTextures[i] == BlackDummy;
+			bool bOutputHistory = PassParameters->HistoryOutput.LowResTextures[i] != nullptr;
+
+			ExtractLowResHistoryTexture[i] = bNeedsExtractForNextFrame;
+
+			if (bPrevFrameIsntAvailable && !PassParameters->CommonParameters.bCameraCut)
+			{
+				//ensureMsgf(false, TEXT("Shaders read PrevHistory[%d] but doesn't write HistoryOutput[%d]"), i, i);
+				PassParameters->CommonParameters.bCameraCut = true;
+			}
+
+			if (bOutputHistory && !bNeedsExtractForNextFrame)
+			{
+				ensureMsgf(false, TEXT("Shaders write HistoryOutput[%d] but doesn't read PrevHistory[%d]"), i, i);
+			}
+		}
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("TAA DetectInterference %dx%d", InputRect.Width(), InputRect.Height()),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(InputRect.Size(), 8));
+	}
+	else
+	{
+		for (int32 i = 0; i < ExtractLowResHistoryTexture.Num(); i++)
+		{
+			ExtractLowResHistoryTexture[i] = false;
+		}
+
+		// TODO(G5TAA): Shader permutation.
+		InterferenceWeightTexture = WhiteDummy;
+		InterferenceSeedUpdateTexture = BlackDummy;
 	}
 
 	// Reject the history with frequency decomposition.
@@ -1358,6 +1552,7 @@ static void AddGen5MainTemporalAAPasses(
 				PassParameters->InputTexture = PassInputs.SceneColorTexture;
 				PassParameters->PredictionSceneColorTexture = PredictionSceneColorTexture;
 				PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
+				PassParameters->InterferenceWeightTexture = InterferenceWeightTexture;
 			}
 
 			PassParameters->FilteredInputOutput = GraphBuilder.CreateUAV(FilteredInputTexture);
@@ -1390,6 +1585,7 @@ static void AddGen5MainTemporalAAPasses(
 			PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
 			PassParameters->FilteredInputTexture = FilteredInputTexture;
 			PassParameters->FilteredPredictionSceneColorTexture = FilteredPredictionSceneColorTexture;
+			PassParameters->InterferenceWeightTexture = InterferenceWeightTexture;
 
 			PassParameters->HistoryRejectionOutput = GraphBuilder.CreateUAV(HistoryRejectionTexture);
 			PassParameters->DebugOutput = CreateDebugUAV(LowFrequencyExtent, TEXT("Debug.TAA.CompareHistory"));
@@ -1446,28 +1642,9 @@ static void AddGen5MainTemporalAAPasses(
 			FComputeShaderUtils::GetGroupCount(RejectionRect.Size(), 8));
 	}
 
-	TStaticArray<bool, kHistoryTextures> ExtractHistory;
+	TStaticArray<bool, FTemporalAAHistory::kRenderTargetCount> ExtractHistoryTexture;
 	FRDGTextureRef SceneColorOutputTexture;
-	FTAAHistoryTextures History;
 	{
-		// Allocate a new history
-		{
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				HistoryExtent,
-				(CVarTAAR11G11B10History.GetValueOnRenderThread() != 0) ? PF_FloatR11G11B10 : PF_FloatRGBA,
-				FClearValueBinding::None,
-				TexCreate_ShaderResource | TexCreate_UAV);
-
-			History.Textures[0] = GraphBuilder.CreateTexture(Desc, TEXT("TAA.History.LowFrequencies"));
-			History.Textures[1] = GraphBuilder.CreateTexture(Desc, TEXT("TAA.History.HighFrequencies"));
-
-			Desc.Format = PF_R8G8;
-			History.Textures[2] = GraphBuilder.CreateTexture(Desc, TEXT("TAA.History.Metadata"));
-
-			Desc.Format = PF_R16_UINT;
-			History.Textures[3] = GraphBuilder.CreateTexture(Desc, TEXT("TAA.History.SubpixelInfo"));
-		}
-
 		// Allocate output
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
@@ -1488,10 +1665,10 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
 		PassParameters->ParallaxFactorTexture = ParallaxFactorTexture;
 		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
+		PassParameters->InterferenceSeedUpdateTexture = InterferenceSeedUpdateTexture;
 
 		PassParameters->HistoryQuantizationError = ComputePixelFormatQuantizationError(History.Textures[0]->Desc.Format);
 		PassParameters->HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
-		PassParameters->bCameraCut = bCameraCut;
 
 		PassParameters->PrevHistoryInfo = PrevHistoryInfo;
 		PassParameters->PrevHistory = PrevHistory;
@@ -1503,18 +1680,18 @@ static void AddGen5MainTemporalAAPasses(
 		TShaderMapRef<FTAAUpdateHistoryCS> ComputeShader(View.ShaderMap);
 		ClearUnusedGraphResources(ComputeShader, PassParameters);
 
-		for (int32 i = 0; i < kHistoryTextures; i++)
+		for (int32 i = 0; i < PrevHistory.Textures.Num(); i++)
 		{
 			bool bNeedsExtractForNextFrame = PassParameters->PrevHistory.Textures[i] != nullptr;
 			bool bPrevFrameIsntAvailable = PassParameters->PrevHistory.Textures[i] == BlackDummy;
 			bool bOutputHistory = PassParameters->HistoryOutput.Textures[i] != nullptr;
 
-			ExtractHistory[i] = bNeedsExtractForNextFrame;
+			ExtractHistoryTexture[i] = bNeedsExtractForNextFrame;
 
-			if (bPrevFrameIsntAvailable && !PassParameters->bCameraCut)
+			if (bPrevFrameIsntAvailable && !bCameraCut)
 			{
 				//ensureMsgf(false, TEXT("Shaders read PrevHistory[%d] but doesn't write HistoryOutput[%d]"), i, i);
-				PassParameters->bCameraCut = true;
+				PassParameters->CommonParameters.bCameraCut = true;
 			}
 
 			if (bOutputHistory && !bNeedsExtractForNextFrame)
@@ -1533,14 +1710,42 @@ static void AddGen5MainTemporalAAPasses(
 			FComputeShaderUtils::GetGroupCount(HistorySize, 8));
 	}
 
+	// Debug the history.
+	#if COMPILE_TAA_DEBUG_PASSES
+	{
+		const int32 kHistoryUpscalingFactor = 2;
+
+		FTAADebugHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAADebugHistoryCS::FParameters>();
+		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->History = History;
+		PassParameters->PrevHistory = PrevHistory;
+		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent * kHistoryUpscalingFactor, TEXT("Debug.TAA.History"));
+
+		TShaderMapRef<FTAADebugHistoryCS> ComputeShader(View.ShaderMap);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("TAA DebugHistory %dx%d", RejectionRect.Width(), RejectionRect.Height()),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(HistorySize * kHistoryUpscalingFactor, 8));
+	}
+	#endif
+
 	if (!View.bStatePrevViewInfoIsReadOnly)
 	{
 		OutputHistory->SafeRelease();
 
-		check(kHistoryTextures <= OutputHistory->RT.Num());
-		for (int32 i = 0; i < kHistoryTextures; i++)
+		for (int32 i = 0; i < History.LowResTextures.Num(); i++)
 		{
-			if (ExtractHistory[i])
+			if (ExtractLowResHistoryTexture[i])
+			{
+				GraphBuilder.QueueTextureExtraction(History.LowResTextures[i], &OutputHistory->LowResRT[i]);
+			}
+		}
+
+		for (int32 i = 0; i < History.Textures.Num(); i++)
+		{
+			if (ExtractHistoryTexture[i])
 			{
 				GraphBuilder.QueueTextureExtraction(History.Textures[i], &OutputHistory->RT[i]);
 			}

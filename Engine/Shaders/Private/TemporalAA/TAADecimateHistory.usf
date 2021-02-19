@@ -17,7 +17,6 @@
 float4x4 RotationalClipToPrevClip;
 float3 OutputQuantizationError;
 float HistoryPreExposureCorrection;
-uint bCameraCut;
 
 Texture2D<taa_half3> InputSceneColorTexture;
 Texture2D<float2> DilatedVelocityTexture;
@@ -29,7 +28,8 @@ Texture2D<uint> ParallaxFactorTexture;
 Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
 Texture2D<taa_half2> PrevHistory_Textures_2;
-Texture2D<uint> PrevHistory_Textures_3;
+Texture2D<uint>      PrevHistory_Textures_3;
+Texture2D<taa_half>  PrevHistory_LowResTextures_0;
 
 RWTexture2D<taa_half3> HalfResSceneColorOutput;
 RWTexture2D<taa_half3> HalfResPredictionSceneColorOutput;
@@ -37,6 +37,7 @@ RWTexture2D<taa_half> HalfResParallaxRejectionMaskOutput;
 
 RWTexture2D<taa_half3> PredictionSceneColorOutput;
 RWTexture2D<taa_half> ParallaxRejectionMaskOutput;
+RWTexture2D<taa_half4> InterferenceSeedOutput;
 
 
 //------------------------------------------------------- LDS
@@ -78,6 +79,8 @@ void MainCS(
 	float DeviceZ = ClosestDepthTexture[InputPixelPos];
 	taa_half ParallaxFactor = UncompressParallaxFactor((ParallaxFactorTexture[InputPixelPos] >> 4) & 0xF);
 	taa_half3 InputSceneColor = InputSceneColorTexture[InputPixelPos];
+	
+	taa_half ClosestInputLuma4 = Luma4(InputSceneColor);
 
 
 	float WorldDepth = ConvertFromDeviceZ(DeviceZ);
@@ -142,27 +145,118 @@ void MainCS(
 	
 	// Sample the history
 	taa_half3 DecimatedColor;
-	taa_half HistoryValidity;
 	taa_half HistoryMaxRejectionFactor;
+
+	taa_half ClosestInterferenceSeed;
+	taa_half IntegratedInterferenceSeed;
+	taa_half MinInterferenceSeed;
+	taa_half MaxInterferenceSeed;
 	{
 		float2 KernelHistoryBufferUV = clamp(
 			HistoryPPCk * PrevHistoryInfo_ExtentInverse,
 			PrevHistoryInfo_UVViewportBilinearMin,
 			PrevHistoryInfo_UVViewportBilinearMax);
+		
+		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevOutputScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
 
-		DecimatedColor = PrevHistory_Textures_0.SampleLevel(GlobalBilinearClampedSampler, KernelHistoryBufferUV, 0);
+		taa_half PrevUninterferenceSeed = PrevHistory_LowResTextures_0.SampleLevel(GlobalBilinearClampedSampler, PrevInputBufferUV, 0);
+		taa_half PrevUninterferenceLuma = PrevUninterferenceSeed * HdrWeightInvY(PrevUninterferenceSeed);
 
+		#if 0
+		{
+			DecimatedColor = PrevHistory_Textures_0.SampleLevel(GlobalBilinearClampedSampler, KernelHistoryBufferUV, 0);
+			
+			// Cancels out the flickering Luma component with the interference free luma from the inteference seed of the history.
+			if (bEnableInterferenceHeuristic)
+			{
+				DecimatedColor *= PrevUninterferenceLuma * SafeRcp(Luma4(DecimatedColor));
+			}
+		}
+		#else
+		{
+			DecimatedColor = 0.0;
+			UNROLL_N(4)
+			for (uint i = 0; i < 4; i++)
+			{
+				const float2 PixelOffset = float2(Offsets2x2[i]) - 0.5;
+
+				float2 SampleBufferUV = KernelHistoryBufferUV + PixelOffset * PrevHistoryInfo_ExtentInverse; 
+				SampleBufferUV = clamp(
+					SampleBufferUV,
+					PrevHistoryInfo_UVViewportBilinearMin,
+					PrevHistoryInfo_UVViewportBilinearMax);
+				
+				taa_half3 HistorySample = PrevHistory_Textures_0.SampleLevel(GlobalBilinearClampedSampler, SampleBufferUV, 0);
+
+				// Cancels out the flickering Luma component with the interference free luma from the inteference seed of the history.
+				if (bEnableInterferenceHeuristic)
+				{
+					HistorySample *= PrevUninterferenceLuma * SafeRcp(Luma4(HistorySample));
+				}
+
+				DecimatedColor += HistorySample;
+			}
+
+			DecimatedColor *= rcp(4.0);
+		}
+		#endif
+
+		// Compute the parallax rejection factor of the details in the history.
 		FSubpixelNeighborhood SubpixelNeigborhood = GatherPrevSubpixelNeighborhood(PrevHistory_Textures_3, KernelHistoryBufferUV);
 		{
 			uint EncodedHistoryMaxRejectionFactor = 0;
+
 			UNROLL_N(SUB_PIXEL_COUNT)
 			for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
 			{
-				uint SubpixelPayload = GetSubpixelPayload(SubpixelNeigborhood, SubpixelId);
-				EncodedHistoryMaxRejectionFactor = max(EncodedHistoryMaxRejectionFactor, SubpixelPayload);
+				taa_subpixel_payload SubpixelPayload = GetSubpixelPayload(SubpixelNeigborhood, SubpixelId);
+				taa_subpixel_payload EncodedRejectionFactor = (SubpixelPayload >> SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET) & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK;
+				taa_subpixel_payload EncodedInterference = (SubpixelPayload >> SUB_PIXEL_INTERFERENCE_BIT_OFFSET) & SUB_PIXEL_INTERFERENCE_BIT_MASK;
+
+				EncodedHistoryMaxRejectionFactor = max(EncodedHistoryMaxRejectionFactor, EncodedRejectionFactor);
 			}
 
 			HistoryMaxRejectionFactor = UncompressParallaxFactor(EncodedHistoryMaxRejectionFactor);
+		}
+
+		// Compute the inteference seeds for detection of the interference
+		{
+			const taa_half RefInterferenceSeed = LumaToInterferenceSeed(ClosestInputLuma4);
+			ClosestInterferenceSeed = 0.0;
+			taa_half RefInterferenceSeedDist = 2.0;
+
+			MinInterferenceSeed = 1.0;
+			MaxInterferenceSeed = 0.0;
+
+			// Searches in the entire 2x2 neighborhood instead because this history is nearest reproject that can causes subpixel
+			// shifts over multiple frames.
+			UNROLL_N(4)
+			for (uint SampleId = 0; SampleId < 4; SampleId++)
+			{
+				UNROLL_N(SUB_PIXEL_COUNT)
+				for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
+				{
+					taa_subpixel_payload SubpixelPayload = SubpixelNeigborhood.SampleArray[SampleId] >> (SubpixelId * SUB_PIXEL_BIT_COUNT);
+					taa_subpixel_payload EncodedInterference = (SubpixelPayload >> SUB_PIXEL_INTERFERENCE_BIT_OFFSET) & SUB_PIXEL_INTERFERENCE_BIT_MASK;
+					
+					// TODO(G5TAA): move out of the loop.
+					taa_half SubpixelSeed = UncompressInteferenceSeed(EncodedInterference);
+
+					FLATTEN
+					if (abs(RefInterferenceSeed - SubpixelSeed) < RefInterferenceSeedDist)
+					{
+						ClosestInterferenceSeed = SubpixelSeed;
+						RefInterferenceSeedDist = abs(RefInterferenceSeed - SubpixelSeed);
+					}
+
+					MinInterferenceSeed = min(MinInterferenceSeed, SubpixelSeed);
+					MaxInterferenceSeed = max(MaxInterferenceSeed, SubpixelSeed);
+				}
+			}
+			
+			// actually integrating SubpixelSeed stil suffer interference that causes instability. So instead take
+			// average of min and max that turns out interference free.
+			IntegratedInterferenceSeed = (MinInterferenceSeed + MaxInterferenceSeed) * 0.5;
 		}
 	}
 	
@@ -193,7 +287,7 @@ void MainCS(
 		(PrevOutputScreenPos.y > 1.0))
 	//if (IsOffScreen2(bCameraCut, PrevOutputScreenPos, /* ParallaxRejectionMask = */ 1.0))
 	{
-		HistoryValidity = taa_half(0.0);
+		ParallaxRejectionMask = taa_half(0.0);
 	}
 
 	
@@ -268,7 +362,8 @@ void MainCS(
 		#endif
 		
 		ParallaxRejectionMaskOutput[InputPixelPos] = ParallaxRejectionMask;
-		
+		InterferenceSeedOutput[InputPixelPos] = taa_half4(ClosestInterferenceSeed, IntegratedInterferenceSeed, MinInterferenceSeed, MaxInterferenceSeed);
+
 		#if DEBUG_OUTPUT
 		{
 			DebugOutput[InputPixelPos] = Debug;

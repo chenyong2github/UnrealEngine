@@ -19,8 +19,15 @@
 
 #define CONFIG_ACCUMULATE_KARIS_WEIGHTING 1
 
-#define CONFIG_KERNEL_SPREAD_FACTOR 3
 #define CONFIG_KERNEL (KERNEL_3X3)
+
+// Use a spread factor the size of the clamping box in the history comparison to avoid one flickering input pixel
+// to flicker the entire comparison neighborhood
+#define CONFIG_KERNEL_SPREAD_FACTOR 3
+
+// Uses a spread factor that varies slightly between 2x2 pixel neighborhood to reduce chances of inteference
+// against structured input.
+#define CONFIG_USE_DYNAMIC_SPREAD_FACTOR 1
 
 
 //------------------------------------------------------- CONSTANTS
@@ -93,6 +100,7 @@ float3 OutputQuantizationError;
 Texture2D<taa_half3> InputTexture;
 Texture2D<taa_half3> PredictionSceneColorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
+Texture2D<taa_half> InterferenceWeightTexture;
 
 RWTexture2D<taa_half3> FilteredInputOutput;
 RWTexture2D<taa_half3> FilteredPredictionSceneColorOutput;
@@ -193,6 +201,12 @@ void MainCS(
 		#error Unknown kernel
 	#endif
 
+	#if CONFIG_USE_DYNAMIC_SPREAD_FACTOR
+		float2 DynamicSpreadFactor = CONFIG_KERNEL_SPREAD_FACTOR + float2((InputPixelPos % 2) ^ (InputPixelPos.yx % 2));
+	#else
+		float2 DynamicSpreadFactor = CONFIG_KERNEL_SPREAD_FACTOR;
+	#endif
+
 	// Fetch neighborhood of the kernel
 	UNROLL
 	for (uint SampleId = StartSampleId; SampleId < SampleCount; SampleId++)
@@ -246,7 +260,7 @@ void MainCS(
 			#error Unknown kernel
 		#endif
 
-		float2 SampleInputBufferUV = InputBufferUV + float2(CONFIG_KERNEL_SPREAD_FACTOR * Offset) * LowFrequencyInfo_ExtentInverse;
+		float2 SampleInputBufferUV = InputBufferUV + (DynamicSpreadFactor * Offset) * LowFrequencyInfo_ExtentInverse;
 		SampleInputBufferUV = clamp(SampleInputBufferUV, LowFrequencyInfo_UVViewportBilinearMin, LowFrequencyInfo_UVViewportBilinearMax);
 
 		taa_half3 InputSample = InputTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
@@ -254,8 +268,15 @@ void MainCS(
 		taa_half HistorySampleValidity = ParallaxRejectionMaskToHistoryValidity(
 			ParallaxRejectionMaskTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0));
 		
-		taa_half InputWeight = HistorySampleValidity * ComputeColorWeight(InputSample);
-		taa_half HistoryWeight = HistorySampleValidity * ComputeColorWeight(HistorySample);
+		taa_half SampleInterferenceWeight = InterferenceWeightTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
+		
+		if (!bEnableInterferenceHeuristic)
+		{
+			SampleInterferenceWeight = 1.0;
+		}
+
+		taa_half InputWeight = (HistorySampleValidity * SampleInterferenceWeight) * ComputeColorWeight(InputSample);
+		taa_half HistoryWeight = (HistorySampleValidity * SampleInterferenceWeight) * ComputeColorWeight(HistorySample);
 		
 		#if CONFIG_ACCUMULATE_KARIS_COLOR
 			InputSample *= 10.0 * HdrWeight4(InputSample);

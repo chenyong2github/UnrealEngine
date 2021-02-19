@@ -810,22 +810,31 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 struct FTemporalAAHistory
 {
 	// Number of render target in the history.
-	static constexpr uint32 kRenderTargetCount = 4;
+	static constexpr int32 kLowResRenderTargetCount = 1;
+
+	// Number of render target in the history.
+	static constexpr int32 kRenderTargetCount = 4;
 
 	// Render targets holding's pixel history.
-	//  scene color's RGBA are in RT[0].
+	//  scene color's RGBA are in OutputRT[0].
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kLowResRenderTargetCount> LowResRT;
 	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> RT;
 
 	// Reference size of RT. Might be different than RT's actual size to handle down res.
 	FIntPoint ReferenceBufferSize;
 
 	// Viewport coordinate of the history in RT according to ReferenceBufferSize.
+	FIntRect LowResViewportRect;
 	FIntRect ViewportRect;
 
 
 	void SafeRelease()
 	{
-		for (uint32 i = 0; i < kRenderTargetCount; i++)
+		for (int32 i = 0; i < LowResRT.Num(); i++)
+		{
+			LowResRT[i].SafeRelease();
+		}
+		for (int32 i = 0; i < RT.Num(); i++)
 		{
 			RT[i].SafeRelease();
 		}

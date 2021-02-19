@@ -1,0 +1,221 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "TAACommon.ush"
+
+
+//------------------------------------------------------- CONFIG
+
+#define TILE_SIZE 8
+
+#define CONFIG_KERNEL 0
+
+#define CONFIG_OUTPUT_HALF_RES (DIM_OUTPUT_HALF_RES)
+
+#define CONFIG_SAMPLES 5
+
+
+//------------------------------------------------------- PARAMETERS
+
+float4x4 RotationalClipToPrevClip;
+float3 OutputQuantizationError;
+float HistoryPreExposureCorrection;
+
+Texture2D<taa_half3> InputSceneColorTexture;
+Texture2D<taa_half3> PredictionSceneColorTexture;
+Texture2D<taa_half> ParallaxRejectionMaskTexture;
+Texture2D<taa_half4> InterferenceSeedTexture;
+
+Texture2D<float2> DilatedVelocityTexture;
+
+Texture2D<taa_half> PrevHistory_LowResTextures_0;
+
+RWTexture2D<taa_half2> InterferenceWeightOutput;
+RWTexture2D<taa_half2> InterferenceSeedUpdateOutput;
+RWTexture2D<taa_half2> HistoryOutput_LowResTextures_0;
+
+
+//------------------------------------------------------- ENTRY POINT
+
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+void MainCS(
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	float4 Debug = 0;
+	
+	uint2 DispatchThreadId = (
+		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		GroupId * uint2(TILE_SIZE, TILE_SIZE));
+
+	uint2 InputPixelPos = InputInfo_ViewportMin + DispatchThreadId;
+	
+	float2 ViewportUV = (float2(DispatchThreadId) + 0.5f) * InputInfo_ViewportSizeInverse;
+	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
+
+	float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
+	
+	taa_half ParallaxRejectionMask;
+	taa_half InputLuma;
+	taa_half InputLumaMin;
+	taa_half InputLumaMax;
+	taa_half ClosestInterferenceSeedMin;
+	taa_half ClosestInterferenceSeedMax;
+	taa_half IntegratedInterferenceSeed;
+	taa_half IntegratedInterferenceSeedMin;
+	taa_half IntegratedInterferenceSeedMax;
+	taa_half MinInterferenceSeed;
+	taa_half MaxInterferenceSeed;
+	{
+		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
+
+		InputLuma = Luma4(InputSceneColorTexture[InputPixelPos]);
+		InputLumaMin = InputLuma;
+		InputLumaMax = InputLuma;
+
+		taa_half4 InterferenceSeed = InterferenceSeedTexture[InputPixelPos];
+
+		ClosestInterferenceSeedMin = InterferenceSeed.x;
+		ClosestInterferenceSeedMax = InterferenceSeed.x; 
+		IntegratedInterferenceSeed = InterferenceSeed.y;
+		IntegratedInterferenceSeedMin = InterferenceSeed.y;
+		IntegratedInterferenceSeedMax = InterferenceSeed.y;
+		MinInterferenceSeed = InterferenceSeed.z;
+		MaxInterferenceSeed = InterferenceSeed.w;
+	}
+	
+	float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+	bool bOffScreen = IsOffScreen(bCameraCut, PrevScreenPos, ParallaxRejectionMask);
+
+	taa_half PrevUninterferenceSeed;
+	{
+		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
+		
+		PrevUninterferenceSeed = PrevHistory_LowResTextures_0.SampleLevel(GlobalBilinearClampedSampler, PrevInputBufferUV, 0);
+	}
+
+
+	taa_half NeigborMaxInterferenceSeedGradient = 0.0;
+	
+	UNROLL_N(CONFIG_SAMPLES - 1)
+	for (uint SampleId = 1; SampleId < CONFIG_SAMPLES; SampleId++)
+	{
+		taa_half2 PixelOffset;
+			
+		#if CONFIG_SAMPLES == 9
+		{
+			PixelOffset = taa_half2(kOffsets3x3[kSquareIndexes3x3[SampleId]]);
+		}
+		#elif CONFIG_SAMPLES == 5 || CONFIG_SAMPLES == 6
+		{
+			if (SampleId == 5)
+			{
+				PixelOffset = taa_half2(SignFastInt(InputJitter)); // TODO: shader parameter
+			}
+			else
+			{
+				PixelOffset = taa_half2(kOffsets3x3[kPlusIndexes3x3[SampleId]]);
+			}
+		}
+		#else
+			#error Unknown sample count
+		#endif
+
+		float2 SampleInputBufferUV = (InputPixelPos + PixelOffset + 0.5) * InputInfo_ExtentInverse;
+		SampleInputBufferUV = clamp(SampleInputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
+
+		taa_half NeighborInputLuma = Luma4(InputSceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0));
+		taa_half4 InterferenceSeed = InterferenceSeedTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
+		
+		taa_half InterferenceSeedGradient = InterferenceSeed.w - InterferenceSeed.z;
+
+		InputLumaMin = min(InputLumaMin, NeighborInputLuma);
+		InputLumaMax = max(InputLumaMax, NeighborInputLuma);
+
+		ClosestInterferenceSeedMin = min(ClosestInterferenceSeedMin, InterferenceSeed.x);
+		ClosestInterferenceSeedMax = max(ClosestInterferenceSeedMax, InterferenceSeed.x); 
+		
+		// TODO(G5TAA): this is InterferenceSeed.w - InterferenceSeed.z
+		IntegratedInterferenceSeedMin = min(IntegratedInterferenceSeedMin, InterferenceSeed.y);
+		IntegratedInterferenceSeedMax = max(IntegratedInterferenceSeedMax, InterferenceSeed.y);
+		
+		NeigborMaxInterferenceSeedGradient = max(NeigborMaxInterferenceSeedGradient, InterferenceSeedGradient); 
+	}
+
+	taa_half UninterferenceSeed;
+	bool bRejectHistoryInterferenceSeed;
+	bool bIsInterference;
+	{
+		// Error due to the low bitdepth of the inteference seeds in the history.
+		const taa_half InterferenceSeedEncodingError = rcp(taa_half(SUB_PIXEL_INTERFERENCE_BIT_MASK));
+
+		taa_half InputSeedMin = LumaToInterferenceSeed(InputLumaMin);
+		taa_half InputSeedMax = LumaToInterferenceSeed(InputLumaMax);
+
+		// Clamp the uninteference seed with current frame input to see what happens
+		taa_half ClampedPrevUninterferenceSeed = clamp(PrevUninterferenceSeed, InputSeedMin, InputSeedMax);
+		
+		// Measure the low frequency gradien in the seed. Needs to happen both on current frame input to avoid ghosting on
+		// current frame changes with high contrast geometric edges, and previous frames to avoid ghosting on area that had 
+		// high contrast geometric edges but no longer had in current frame due to shading change.
+		taa_half InterferenceSeedGradient = max(InputSeedMax - InputSeedMin, IntegratedInterferenceSeedMax - IntegratedInterferenceSeedMin);
+
+		// Test whether the current frame will be rejected.
+		bool bRejectPrevScene = abs(ClampedPrevUninterferenceSeed - PrevUninterferenceSeed) > InterferenceSeedEncodingError;
+		
+		// Detect if there is any inteference based on any subpixel detail range from the lowest LDR to highest LDR.
+		bool bRejectInterferenceSeedWithGradient = (
+			(MinInterferenceSeed < ClosestInterferenceSeedMin - InterferenceSeedEncodingError - InterferenceSeedGradient) ||
+			(MaxInterferenceSeed > ClosestInterferenceSeedMax + InterferenceSeedEncodingError + InterferenceSeedGradient));
+			
+		bool bRejectInterferenceSeed = (
+			(MinInterferenceSeed < ClosestInterferenceSeedMin - InterferenceSeedEncodingError) ||
+			(MaxInterferenceSeed > ClosestInterferenceSeedMax + InterferenceSeedEncodingError));
+
+		// Detect interference solely based on the inteference seed, but need to take into account low frequency
+		// gradien that there may be in the neighborhood to avoid ghosting on high contrast geometric edges.
+		bIsInterference = bRejectInterferenceSeedWithGradient;
+		
+		// If the input is not clamping, but the history's interference seeds are, that means the later are ghosting.
+		// Only care about bRejectInterferenceSeed here because it is only about not clamping inteference seeds in the history
+		// that may not be in the input whereas bRejectInterferenceSeedWithGradient is ghosting the seed to much in the history.
+		bRejectHistoryInterferenceSeed = !bRejectPrevScene && bRejectInterferenceSeed;
+
+		#if 0
+			bIsInterference = false;
+			bRejectHistoryInterferenceSeed = false;
+		#endif
+
+		// Don't clamp the seed history if there is an interference to keep luma stability in the input
+		// of the shading heuristic next frame.
+		FLATTEN
+		if (bIsInterference)
+		{
+			ClampedPrevUninterferenceSeed = PrevUninterferenceSeed;
+		}
+
+		FLATTEN
+		if (bOffScreen)
+		{
+			bRejectHistoryInterferenceSeed = true;
+			bIsInterference = false;
+			ClampedPrevUninterferenceSeed = LumaToInterferenceSeed(InputLuma);
+		}
+
+		UninterferenceSeed = lerp(ClampedPrevUninterferenceSeed, LumaToInterferenceSeed(InputLuma), 0.05);
+	}
+
+	// TODO(G5TAA): optimise VGPR here
+	if (all(InputPixelPos < InputInfo_ViewportMax))
+	{
+		InterferenceWeightOutput[InputPixelPos] = bIsInterference ? 0.0 : 1.0;
+		InterferenceSeedUpdateOutput[InputPixelPos] = bRejectHistoryInterferenceSeed ? 1.0 : 0.0;
+		
+		HistoryOutput_LowResTextures_0[InputPixelPos] = UninterferenceSeed;
+
+		#if DEBUG_OUTPUT
+		{
+			DebugOutput[InputPixelPos] = Debug;
+		}
+		#endif
+	}
+}

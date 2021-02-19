@@ -40,6 +40,23 @@
 
 #define MAX_PARALLAX_FACTOR 8.0
 
+// Size and payload size of the subpixel grid in the history
+#define SUB_PIXEL_GRID_SIZE 2
+#define SUB_PIXEL_COUNT (SUB_PIXEL_GRID_SIZE * SUB_PIXEL_GRID_SIZE)
+
+#define SUB_PIXEL_BIT_COUNT 8
+#define SUB_PIXEL_BIT_MASK ((1 << SUB_PIXEL_BIT_COUNT) - 1)
+
+#define SUB_PIXEL_PARALLAX_FACTOR_BIT_COUNT 4
+#define SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET 0
+#define SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK ((1 << SUB_PIXEL_PARALLAX_FACTOR_BIT_COUNT) - 1)
+
+#define SUB_PIXEL_INTERFERENCE_BIT_COUNT 4
+#define SUB_PIXEL_INTERFERENCE_BIT_OFFSET 4
+#define SUB_PIXEL_INTERFERENCE_BIT_MASK ((1 << SUB_PIXEL_INTERFERENCE_BIT_COUNT) - 1)
+
+
+
 // K = Center of the nearest input pixel.
 // O = Center of the output pixel.
 //
@@ -110,6 +127,9 @@ static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 5, 7 };
 	#define taa_half3 float3
 	#define taa_half4 float4
 #endif
+
+#define taa_subpixel_details uint
+#define taa_subpixel_payload uint // TODO: uint16_t
 
 
 //------------------------------------------------------- PARAMETERS
@@ -190,6 +210,9 @@ float2 PrevHistoryInfo_UVViewportSize;
 float2 PrevHistoryInfo_UVViewportSizeInverse;
 float2 PrevHistoryInfo_UVViewportBilinearMin;
 float2 PrevHistoryInfo_UVViewportBilinearMax;
+
+uint bCameraCut;
+uint bEnableInterferenceHeuristic;
 
 #if DEBUG_OUTPUT
 	RWTexture2D<float4> DebugOutput;
@@ -364,19 +387,16 @@ taa_half MeasureRejectionFactor(taa_half3 PrevYCoCg, taa_half3 ClampedPrevYCoCg,
 	return Rejection;
 }
 
-#define BITS_PER_SUB_PIXEL 4
-#define SUB_PIXEL_MASK ((1 << BITS_PER_SUB_PIXEL) - 1)
-
-#define SUB_PIXEL_GRID_SIZE 2
-#define SUB_PIXEL_COUNT (SUB_PIXEL_GRID_SIZE * SUB_PIXEL_GRID_SIZE)
-
 struct FSubpixelNeighborhood
 {
 	// 2x2 quad of subpixels grid
-	uint4 SampleArray;
+	taa_subpixel_details SampleArray[4];
 
 	// Offset of subpixel
 	uint2 SubpixelOffset;
+
+	// Offset of the closest subpixel
+	bool2 ClosestSubpixelOffset;
 };
 
 FSubpixelNeighborhood GatherPrevSubpixelNeighborhood(Texture2D<uint> PrevSubPixelDetailTexture, float2 PrevHistoryBufferUV)
@@ -410,11 +430,12 @@ FSubpixelNeighborhood GatherPrevSubpixelNeighborhood(Texture2D<uint> PrevSubPixe
 
 	taa_half2 Interp = taa_half2(PixelCoord - TopLeftPixelCoord);
 	Neighborhood.SubpixelOffset = uint2(round(Interp * 2.0));
+	Neighborhood.ClosestSubpixelOffset = Interp > 0.5;
 
 	return Neighborhood;
 }
 
-uint GetSubpixelPayload(FSubpixelNeighborhood Neighborhood, uint SubpixelId)
+taa_subpixel_payload GetSubpixelPayload(FSubpixelNeighborhood Neighborhood, uint SubpixelId)
 {
 	const uint2 SubpixelCoord = uint2(SubpixelId % SUB_PIXEL_GRID_SIZE, SubpixelId / SUB_PIXEL_GRID_SIZE);
 
@@ -424,23 +445,59 @@ uint GetSubpixelPayload(FSubpixelNeighborhood Neighborhood, uint SubpixelId)
 
 
 	uint QuadSampleId = dot(InputTexelCoord, uint2(1, 2));
-	uint InputSample = Neighborhood.SampleArray[QuadSampleId];
+	taa_subpixel_details InputSample = Neighborhood.SampleArray[QuadSampleId];
 
-	uint BitShift = BITS_PER_SUB_PIXEL * dot(QuadSubpixelCoord, uint2(1, SUB_PIXEL_GRID_SIZE));
+	uint BitShift = SUB_PIXEL_BIT_COUNT * dot(QuadSubpixelCoord, uint2(1, SUB_PIXEL_GRID_SIZE));
 
-	uint SubpixelPayload = (InputSample >> BitShift) & SUB_PIXEL_MASK;
+	taa_subpixel_payload SubpixelPayload = taa_subpixel_payload(InputSample >> BitShift) & SUB_PIXEL_BIT_MASK;
 
 	return SubpixelPayload;
 }
 
-uint CompressParallaxFactor(taa_half ParallaxFactor)
+taa_subpixel_payload GetClosestSubpixelPayload(FSubpixelNeighborhood Neighborhood)
 {
-	return clamp(uint((ParallaxFactor - taa_half(1.0)) * taa_half(float(SUB_PIXEL_MASK) / MAX_PARALLAX_FACTOR)), 0, SUB_PIXEL_MASK);
+	uint QuadSampleId = dot(uint2(Neighborhood.ClosestSubpixelOffset), uint2(1, 2));
+	taa_subpixel_details InputSample = Neighborhood.SampleArray[QuadSampleId];
+
+	uint BitShift = SUB_PIXEL_BIT_COUNT * (3 - QuadSampleId);
+
+	taa_subpixel_payload SubpixelPayload = taa_subpixel_payload(InputSample >> BitShift) & SUB_PIXEL_BIT_MASK;
+
+	return SubpixelPayload;
 }
 
-taa_half UncompressParallaxFactor(uint CompressedParallaxFactor)
+taa_subpixel_payload CompressParallaxFactor(taa_half ParallaxFactor)
 {
-	return taa_half(CompressedParallaxFactor & SUB_PIXEL_MASK) * taa_half(MAX_PARALLAX_FACTOR / float(SUB_PIXEL_MASK)) + taa_half(1.0);
+	return clamp(
+		taa_subpixel_payload((ParallaxFactor - taa_half(1.0)) * taa_half(float(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK) / MAX_PARALLAX_FACTOR)),
+		taa_subpixel_payload(0), taa_subpixel_payload(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK));
+}
+
+taa_half UncompressParallaxFactor(taa_subpixel_payload CompressedParallaxFactor)
+{
+	return 
+		taa_half(CompressedParallaxFactor & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK) *
+		taa_half(MAX_PARALLAX_FACTOR / float(SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK)) +
+		taa_half(1.0);
+}
+
+taa_half LumaToInterferenceSeed(taa_half Luma)
+{
+	return Luma * HdrWeightY(Luma);
+}
+
+taa_subpixel_payload CompressInteferenceSeed(taa_half InteferenceSeed)
+{
+	return clamp(
+		taa_subpixel_payload(InteferenceSeed * taa_half(SUB_PIXEL_INTERFERENCE_BIT_MASK)),
+		taa_subpixel_payload(0), taa_subpixel_payload(SUB_PIXEL_INTERFERENCE_BIT_MASK));
+}
+
+taa_half UncompressInteferenceSeed(taa_subpixel_payload CompressedInteferenceSeed)
+{
+	return 
+		taa_half(CompressedInteferenceSeed & SUB_PIXEL_INTERFERENCE_BIT_MASK) *
+		taa_half(1.0 / float(SUB_PIXEL_INTERFERENCE_BIT_MASK));
 }
 
 taa_half3 QuantizeForFloatRenderTarget(taa_half3 Color, taa_half E, float3 QuantizationError)

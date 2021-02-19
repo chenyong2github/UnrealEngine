@@ -15,6 +15,7 @@
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
 Texture2D<taa_half3> FilteredInputTexture;
 Texture2D<taa_half3> FilteredPredictionSceneColorTexture;
+Texture2D<taa_half> InterferenceWeightTexture;
 
 RWTexture2D<taa_half> HistoryRejectionOutput;
 
@@ -54,13 +55,15 @@ void MainCS(
 	taa_half3 InputMaxColor;
 	taa_half3 InputCenterColor;
 	taa_half ParallaxRejectionMask;
-
+	taa_half InterferenceWeight;
 	{
 		InputCenterColor = TransformColorForClampingBox(FilteredInputTexture.SampleLevel(GlobalPointClampedSampler, InputBufferUV, 0));
 		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
 
 		InputMinColor = InputCenterColor;
 		InputMaxColor = InputCenterColor;
+		
+		InterferenceWeight = InterferenceWeightTexture[InputPixelPos];
 	}
 
 	UNROLL
@@ -95,6 +98,11 @@ void MainCS(
 	}
 	#endif
 	
+	if (bEnableInterferenceHeuristic)
+	{
+		Rejection = saturate(Rejection + 1.0 - InterferenceWeight);
+	}
+
 	if (ParallaxRejectionMask < taa_half(PARALLAX_REJECTION_MASK_THRESHOLD))
 	{
 		Rejection = taa_half(1.0);
