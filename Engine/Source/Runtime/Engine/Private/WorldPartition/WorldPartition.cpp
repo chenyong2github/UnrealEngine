@@ -265,7 +265,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				// Autoload all cells if the world is smaller than the project setting's value
 				IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
 				const float AutoCellLoadingMaxWorldSize = WorldPartitionEditorModule.GetAutoCellLoadingMaxWorldSize();
-				FVector WorldSize = GetWorldBounds().GetSize();
+				FVector WorldSize = GetEditorWorldBounds().GetSize();
 				const bool bItsASmallWorld = WorldSize.X <= AutoCellLoadingMaxWorldSize && WorldSize.Y <= AutoCellLoadingMaxWorldSize && WorldSize.Z <= AutoCellLoadingMaxWorldSize;
 			
 				// When loading a subworld, load all actors

@@ -64,7 +64,6 @@ public:
 
 	UWorld* World;
 	UWorldPartition* WorldPartition;
-	FBox WorldBounds;
 
 protected:
 	static TMap<FName, PartitionEditorGridCreateInstanceFunc> PartitionEditorGridCreateInstanceFactory;

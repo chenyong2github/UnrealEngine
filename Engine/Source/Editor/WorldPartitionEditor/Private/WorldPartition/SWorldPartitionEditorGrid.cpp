@@ -85,10 +85,4 @@ void SWorldPartitionEditorGrid::Refresh()
 			SceneOutlinerPtr->FullRefresh();
 		}
 	}
-
-	WorldBounds.Init();
-	if (WorldPartition)
-	{
-		WorldBounds = WorldPartition->GetWorldBounds();
-	}
 }

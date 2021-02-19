@@ -480,6 +480,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintScaleRuler(const FGeometry& AllottedGeo
 		FLinearColor::White);
 
 	// Show world bounds
+	const FBox WorldBounds = WorldPartition->GetEditorWorldBounds();
 	const FVector WorldBoundsExtentInKM = (WorldBounds.GetExtent() * 2.0f) / 100000.0f;
 	RulerText = FString::Printf(TEXT("%.2fx%.2fx%.2f km"), WorldBoundsExtentInKM.X, WorldBoundsExtentInKM.Y, WorldBoundsExtentInKM.Z);
 	
@@ -608,6 +609,7 @@ int32 SWorldPartitionEditorGrid2D::OnPaint(const FPaintArgs& Args, const FGeomet
 
 		if (bResetView)
 		{
+			const FBox WorldBounds = WorldPartition->GetEditorWorldBounds();
 			FocusBox(WorldBounds);
 		}
 
@@ -657,16 +659,24 @@ FReply SWorldPartitionEditorGrid2D::FocusSelection()
 	FBox SelectionBox(ForceInit);
 
 	USelection* SelectedActors = GEditor->GetSelectedActors();
-	for (FSelectionIterator It(*SelectedActors); It; ++It)
-	{
-		if (AActor* Actor = Cast<AActor>(*It))
-		{
-			FVector Origin;
-			FVector Extent;
-			Actor->GetActorBounds(false, Origin, Extent);
 
-			SelectionBox += FBox(Origin - Extent, Origin + Extent);
+	if (SelectedActors->Num())
+	{
+		for (FSelectionIterator It(*SelectedActors); It; ++It)
+		{
+			if (AActor* Actor = Cast<AActor>(*It))
+			{
+				FVector Origin;
+				FVector Extent;
+				Actor->GetActorBounds(false, Origin, Extent);
+
+				SelectionBox += FBox(Origin - Extent, Origin + Extent);
+			}
 		}
+	}
+	else
+	{
+		SelectionBox = WorldPartition->GetEditorWorldBounds();
 	}
 
 	FocusBox(SelectionBox);
