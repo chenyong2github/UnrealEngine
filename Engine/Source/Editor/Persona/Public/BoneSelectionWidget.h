@@ -60,6 +60,8 @@ public:
 	TSharedPtr<SWidget> GetFilterTextWidget();
 
 private:
+	// SWidget interface
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 	// Using the current filter, repopulate the tree view
 	void RebuildBoneList(const FName& SelectedBone);
@@ -73,8 +75,12 @@ private:
 	// Called when the user changes the search filter
 	void OnFilterTextChanged(const FText& InFilterText);
 
+	// Handle the tree view selection changing
 	void OnSelectionChanged(TSharedPtr<SBoneTreeMenu::FBoneNameInfo> BoneInfo, ESelectInfo::Type SelectInfo);
 
+	// Select a specific bone, helper for UI handler functions
+	void SelectBone(TSharedPtr<SBoneTreeMenu::FBoneNameInfo> BoneInfo);
+	
 	// Tree info entries for bone picker
 	TArray<TSharedPtr<FBoneNameInfo>> SkeletonTreeInfo;
 	// Mirror of SkeletonTreeInfo but flattened for searching

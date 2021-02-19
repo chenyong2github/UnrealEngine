@@ -133,7 +133,16 @@ public:
 	}
 
 	/** Called when item is selected */
-	void SelectedSocket(TSharedPtr<FSocketInfo> SocketInfo, ESelectInfo::Type /*SelectType*/)
+	void SelectedSocket(TSharedPtr<FSocketInfo> SocketInfo, ESelectInfo::Type SelectType)
+	{
+		if(SelectType == ESelectInfo::OnMouseClick)
+		{
+			ChooseSocket(SocketInfo);
+		}
+	}
+
+	/** Select an item */
+	void ChooseSocket(TSharedPtr<FSocketInfo> SocketInfo)
 	{
 		const FName SocketName = SocketInfo->Description.Name;
 
@@ -207,6 +216,7 @@ public:
 						.ListItemsSource( &FilteredSockets)
 						.OnGenerateRow( this, &SSocketChooserPopup::MakeItemWidget )
 						.OnSelectionChanged( this, &SSocketChooserPopup::SelectedSocket )
+						.SelectionMode(ESelectionMode::Single)
 					]
 				]
 			]
@@ -267,18 +277,33 @@ public:
 		SocketListView->RequestListRefresh();
 	}
 
-	bool SupportsKeyboardFocus() const
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
+	{
+		if(InKeyEvent.GetKey() == EKeys::Enter)
+		{
+			TArray<TSharedPtr<FSocketInfo>> SelectedItems = SocketListView->GetSelectedItems();
+            if(SelectedItems.Num() > 0)
+            {
+            	ChooseSocket(SelectedItems[0]);
+            	return FReply::Handled();
+            }
+		}
+
+		return FReply::Unhandled();
+	}
+
+	virtual bool SupportsKeyboardFocus() const override
 	{
 		return SearchBox->SupportsKeyboardFocus();
 	}
 
-	bool HasKeyboardFocus() const
+	virtual bool HasKeyboardFocus() const override
 	{
 		// Since keyboard focus is forwarded to our editable text, we will test it instead
 		return SearchBox->HasKeyboardFocus();
 	}
 
-	FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent)
+	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override
 	{
 		// Forward keyboard focus to our editable text widget
 		return FReply::Handled().SetUserFocus(SearchBox.ToSharedRef(), InFocusEvent.GetCause());
