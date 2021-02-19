@@ -257,7 +257,11 @@ void FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(FGeomet
 			// determine original parents of moved nodes so we can update their childrens names
 			for (int32 SourceElement : SourceElementsIn)
 			{
-				ParentsToUpdateNames.AddUnique(Parents[SourceElement]);
+				int32 Parent = Parents[SourceElement];
+				if (Parent != FGeometryCollection::Invalid)
+				{
+					ParentsToUpdateNames.AddUnique(Parent);
+				}
 			}
 
 			//ResetSliderTransforms(ExplodedTransforms, Transforms);

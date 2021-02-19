@@ -46,6 +46,10 @@ public:
 
 private:
 	bool HasSelectedAncestor(int32 Index) const;
+	bool IsValidBone(int32 Index) const
+	{
+		return Index >= 0 && Index < GeometryCollection->Parent.Num();
+	}
 	void ConvertSelectionToLeafNodes(int32 Index, TArray<int32>& LeafSelection);
 	void ConvertSelectionToRigidNodes(int32 Index, TArray<int32>& RigidSelection);
 	void ConvertSelectionToEmbeddedGeometryNodes(int32 Index, TArray<int32>& EmbeddedSelection);
