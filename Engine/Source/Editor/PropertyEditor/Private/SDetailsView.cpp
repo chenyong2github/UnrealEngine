@@ -212,7 +212,6 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 
 	TSharedRef<SHorizontalBox> FilterRowHBox = 
 		SNew( SHorizontalBox )
-		.Visibility( this, &SDetailsView::GetFilterBoxVisibility )
 		+SHorizontalBox::Slot()
 		.Padding(6.f)
 		.FillWidth(1)
@@ -296,6 +295,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 	}
 
 	FilterRow = SNew(SVerticalBox)
+		.Visibility( this, &SDetailsView::GetFilterBoxVisibility )
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
