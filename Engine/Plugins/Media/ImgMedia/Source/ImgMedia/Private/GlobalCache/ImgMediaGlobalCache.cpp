@@ -60,12 +60,16 @@ void FImgMediaGlobalCache::Shutdown()
 #endif // WITH_EDITOR
 }
 
-void FImgMediaGlobalCache::AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame)
+void FImgMediaGlobalCache::AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, bool HasMipMaps)
 {
 	FScopeLock Lock(&CriticalSection);
 
 	// Make sure we have enough space in the cache to add this new frame.
 	SIZE_T FrameSize = Frame->Info.UncompressedSize;
+	if (HasMipMaps)
+	{
+		FrameSize = (FrameSize * 4) / 3;
+	}
 	if (FrameSize <= MaxSize)
 	{
 #if WITH_EDITOR
@@ -107,7 +111,7 @@ void FImgMediaGlobalCache::AddFrame(const FString& FileName, const FName& Sequen
 		EnforceMaxSize(FrameSize);
 
 		// Create new entry.
-		FImgMediaGlobalCacheEntry* NewEntry = new FImgMediaGlobalCacheEntry(FileName, Index, Frame);
+		FImgMediaGlobalCacheEntry* NewEntry = new FImgMediaGlobalCacheEntry(FileName, FrameSize, Index, Frame);
 		MapFrameToEntry.Emplace(TPair<FName, int32>(Sequence, Index), NewEntry);
 #if WITH_EDITOR
 		MapFileToIndex.Emplace(FileName, Index);
@@ -175,7 +179,7 @@ void FImgMediaGlobalCache::Remove(const FName& Sequence, FImgMediaGlobalCacheEnt
 	Unlink(Sequence, Entry);
 
 	// Update current cache size.
-	SIZE_T FrameSize = Entry.Frame->Info.UncompressedSize;
+	SIZE_T FrameSize = Entry.FrameSize;
 	CurrentSize -= FrameSize;
 
 	// Delete entry.

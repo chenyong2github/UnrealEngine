@@ -27,6 +27,11 @@
 			"LoadingPhase" : "PostEngineInit"
 		},
 		{
+			"Name": "ImgMediaEngine",
+			"Type": "RuntimeNoCommandlet",
+			"LoadingPhase": "PreDefault"
+		},
+		{
 			"Name" : "ImgMediaFactory",
 			"Type" : "Editor",
 			"LoadingPhase" : "PostEngineInit"

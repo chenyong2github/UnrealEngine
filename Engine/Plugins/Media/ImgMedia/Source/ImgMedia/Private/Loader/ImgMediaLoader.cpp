@@ -19,6 +19,7 @@
 #include "IImageWrapperModule.h"
 #include "IImgMediaReader.h"
 #include "ImgMediaLoaderWork.h"
+#include "ImgMediaMipMapInfo.h"
 #include "ImgMediaScheduler.h"
 #include "ImgMediaTextureSample.h"
 
@@ -38,7 +39,8 @@ DECLARE_CYCLE_STAT(TEXT("ImgMedia Loader Release Cache"), STAT_ImgMedia_LoaderRe
  *****************************************************************************/
 
 FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::ThreadSafe>& InScheduler,
-	const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache)
+	const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
+	const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo)
 	: Frames(1)
 	, ImageWrapperModule(FModuleManager::LoadModuleChecked<IImageWrapperModule>("ImageWrapper"))
 	, Initialized(false)
@@ -46,6 +48,7 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	, NumLoadBehind(0)
 	, Scheduler(InScheduler)
 	, GlobalCache(InGlobalCache)
+	, MipMapInfo(InMipMapInfo)
 	, SequenceDim(FIntPoint::ZeroValue)
 	, SequenceDuration(FTimespan::Zero())
 	, SequenceFrameRate(0, 0)
@@ -146,12 +149,29 @@ TSharedPtr<FImgMediaTextureSample, ESPMode::ThreadSafe> FImgMediaLoader::GetFram
 
 	auto Sample = MakeShared<FImgMediaTextureSample, ESPMode::ThreadSafe>();
 	
-	if (!Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameStartTime, 0), NextStartTime - FrameStartTime))
+	if (!Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameStartTime, 0), NextStartTime - FrameStartTime, GetNumMipLevels()))
 	{
 		return nullptr;
 	}
 
 	return Sample;
+}
+
+
+const FString& FImgMediaLoader::GetImagePath(int32 FrameNumber, int32 MipLevel) const
+{
+	if ((MipLevel < 0) || (MipLevel >= ImagePaths.Num() ||
+		(FrameNumber < 0) || (FrameNumber >= ImagePaths[MipLevel].Num())))
+	{
+		UE_LOG(LogImgMedia, Error, TEXT("Loader %p: GetImagePath has wrong parameters, FrameNumber:%d MipLevel:%d."),
+			this, FrameNumber, MipLevel);
+		static FString EmptyString(TEXT(""));
+		return EmptyString;
+	}
+	else
+	{
+		return ImagePaths[MipLevel][FrameNumber];
+	}
 }
 
 
@@ -239,7 +259,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 		}
 		else if ((uint32)EndIndex == INDEX_NONE)
 		{
-			EndIndex = ImagePaths.Num() - 1;
+			EndIndex = GetNumImages() - 1;
 		}
 
 		// Find the frame that overlaps the most with the given range & is furthest along on the timeline
@@ -250,7 +270,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 			if (StartIndex > EndIndex)
 			{
 				int32 MaxIdx1, MaxIdx2;
-				float MaxOverlap1 = FindMaxOverlapInRange(StartIndex, ImagePaths.Num()-1, StartTime, FrameNumberToTime(ImagePaths.Num()), MaxIdx1);
+				float MaxOverlap1 = FindMaxOverlapInRange(StartIndex, GetNumImages()-1, StartTime, FrameNumberToTime(GetNumImages()), MaxIdx1);
 				float MaxOverlap2 = FindMaxOverlapInRange(0, EndIndex, FTimespan::Zero(), EndTime, MaxIdx2);
 				MaxIdx = (MaxOverlap2 >= MaxOverlap1) ? MaxIdx2 : MaxIdx1;
 			}
@@ -266,7 +286,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 			{
 				int32 MaxIdx1, MaxIdx2;
 				float MaxOverlap1 = FindMaxOverlapInRange(EndIndex, 0, FTimespan::Zero(), EndTime, MaxIdx1);
-				float MaxOverlap2 = FindMaxOverlapInRange(ImagePaths.Num()-1, StartIndex,  StartTime, FrameNumberToTime(ImagePaths.Num()), MaxIdx2);
+				float MaxOverlap2 = FindMaxOverlapInRange(GetNumImages()-1, StartIndex,  StartTime, FrameNumberToTime(GetNumImages()), MaxIdx2);
 				MaxIdx = (MaxOverlap2 >= MaxOverlap1) ? MaxIdx2 : MaxIdx1;
 			}
 			else
@@ -300,7 +320,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 							Frame = GetFrameForBestIndex(MaxIdx, 0);
 							if (!Frame)
 							{
-								MaxIdx = ImagePaths.Num() - 1;
+								MaxIdx = GetNumImages() - 1;
 								Frame = GetFrameForBestIndex(MaxIdx, StartIndex);
 							}
 
@@ -322,7 +342,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 					{
 						if (MaxIdx > EndIndex)
 						{
-							Frame = GetFrameForBestIndex(MaxIdx, ImagePaths.Num() - 1);
+							Frame = GetFrameForBestIndex(MaxIdx, GetNumImages() - 1);
 							if (!Frame)
 							{
 								MaxIdx = 0;
@@ -371,7 +391,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 					// We are clear to return it as new result... Make a sample & initialize it...
 					auto Sample = MakeShared<FImgMediaTextureSample, ESPMode::ThreadSafe>();
 					auto Duration = Frame->Get()->Info.FrameRate.AsInterval();
-					if (Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameNumberToTime(MaxIdx), QueuedSampleFetch.CurrentSequenceIndex), FTimespan::FromSeconds(Duration)))
+					if (Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameNumberToTime(MaxIdx), QueuedSampleFetch.CurrentSequenceIndex), FTimespan::FromSeconds(Duration), GetNumMipLevels()))
 					{
 						OutSample = Sample;
 						return IMediaSamples::EFetchBestSampleResult::Ok;
@@ -396,7 +416,7 @@ bool FImgMediaLoader::PeekVideoSampleTime(FMediaTimeStamp &TimeStamp, bool bIsLo
 		{
 			// Yes. A queue would now yield the next frame (independent of rate). See which index that would be...
 			Idx = int32(QueuedSampleFetch.LastFrameIndex + FMath::Sign(PlayRate));
-			int32 NumFrames = ImagePaths.Num();
+			int32 NumFrames = GetNumImages();
 			if (bIsLoopingEnabled)
 			{
 				if (Idx < 0)
@@ -469,7 +489,21 @@ IQueuedWork* FImgMediaLoader::GetWork()
 	int32 FrameNumber = PendingFrameNumbers.Pop(false);
 	FImgMediaLoaderWork* Work = (WorkPool.Num() > 0) ? WorkPool.Pop() : new FImgMediaLoaderWork(AsShared(), Reader.ToSharedRef());
 	
-	Work->Initialize(FrameNumber, ImagePaths[FrameNumber]);
+	// Get the existing frame so we can add the mip level to it.
+	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* ExistingFramePtr;
+	ExistingFramePtr = GlobalCache->FindAndTouch(SequenceName, FrameNumber);
+	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> ExistingFrame;
+	
+	
+	if (ExistingFramePtr != nullptr)
+	{
+		ExistingFrame = *ExistingFramePtr;
+	}
+
+	int MipLevel = GetDesiredMipLevel(FrameNumber);
+	
+	// Set up work.
+	Work->Initialize(FrameNumber, MipLevel, ExistingFrame);
 	QueuedFrameNumbers.Add(FrameNumber);
 
 	return Work;
@@ -555,34 +589,28 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	}
 
 	// locate image sequence files
-	TArray<FString> FoundFiles;
-	IFileManager::Get().FindFiles(FoundFiles, *SequencePath, TEXT("*"));
-
-	if (FoundFiles.Num() == 0)
+	TArray<FString> FoundPaths;
+	FindFiles(SequencePath, FoundPaths);
+	if (FoundPaths.Num() == 0)
 	{
 		UE_LOG(LogImgMedia, Error, TEXT("The directory %s does not contain any image files"), *SequencePath);
 		return;
 	}
+	ImagePaths.Emplace(FoundPaths);
 
-	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Found %i image files in %s"), this, FoundFiles.Num(), *SequencePath);
-
-	FoundFiles.Sort();
-
-	for (const auto& File : FoundFiles)
-	{
-		ImagePaths.Add(FPaths::Combine(SequencePath, File));
-	}
+	// Get mips.
+	FindMips(SequencePath);
 
 	FScopeLock Lock(&CriticalSection);
 
 	// create image reader
-	const FString FirstExtension = FPaths::GetExtension(ImagePaths[0]);
+	const FString FirstExtension = FPaths::GetExtension(ImagePaths[0][0]);
 
 	if (FirstExtension == TEXT("exr"))
 	{
 #if IMGMEDIA_EXR_SUPPORTED_PLATFORM
 		// Differentiate between Uncompressed exr and the rest.
-		Reader = FExrImgMediaReader::GetReader(ImagePaths[0]);
+		Reader = FExrImgMediaReader::GetReader(AsShared(), ImagePaths[0][0]);
 #else
 		UE_LOG(LogImgMedia, Error, TEXT("EXR image sequences are currently supported on macOS and Windows only"));
 		return;
@@ -590,11 +618,11 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	}
 	else
 	{
-		Reader = MakeShareable(new FGenericImgMediaReader(ImageWrapperModule));
+		Reader = MakeShareable(new FGenericImgMediaReader(ImageWrapperModule, AsShared()));
 	}
 	if (Reader.IsValid() == false)
 	{
-		UE_LOG(LogImgMedia, Error, TEXT("Reader is not valid for file %s."), *ImagePaths[0]);
+		UE_LOG(LogImgMedia, Error, TEXT("Reader is not valid for file %s."), *ImagePaths[0][0]);
 		return;
 	}
 
@@ -616,7 +644,7 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 		{
 			FirstFrameInfo = Frame->Get()->Info;
 		}
-		else if (!Reader->GetFrameInfo(ImagePaths[0], FirstFrameInfo))
+		else if (!Reader->GetFrameInfo(ImagePaths[0][0], FirstFrameInfo))
 		{
 			UE_LOG(LogImgMedia, Error, TEXT("Failed to get frame information from first image in %s"), *SequencePath);
 			return;
@@ -645,15 +673,31 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 		SequenceFrameRate = FirstFrameInfo.FrameRate;
 	}
 
-	SequenceDuration = FrameNumberToTime(ImagePaths.Num());
+	SequenceDuration = FrameNumberToTime(GetNumImages());
+	SIZE_T UncompressedSize = FirstFrameInfo.UncompressedSize;
+
+	// If we have no mips, then get rid of our MipMapInfoObject.
+	// Otherwise, set it up.
+	if (MipMapInfo.IsValid())
+	{
+		if (GetNumMipLevels() == 1)
+		{
+			MipMapInfo.Reset();
+		}
+		else
+		{
+			MipMapInfo->SetTextureInfo(SequenceName, GetNumMipLevels(), SequenceDim);
+			UncompressedSize = (UncompressedSize * 4) / 3;
+		}
+	}
 
 	// initialize loader
 	const FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 	const SIZE_T DesiredCacheSize = Settings->CacheSizeGB * 1024 * 1024 * 1024;
 	const SIZE_T CacheSize = FMath::Clamp(DesiredCacheSize, (SIZE_T)0, (SIZE_T)Stats.AvailablePhysical);
 
-	const int32 MaxFramesToLoad = (int32)(CacheSize / FirstFrameInfo.UncompressedSize);
-	const int32 NumFramesToLoad = FMath::Clamp(MaxFramesToLoad, 0, ImagePaths.Num());
+	const int32 MaxFramesToLoad = (int32)(CacheSize / UncompressedSize);
+	const int32 NumFramesToLoad = FMath::Clamp(MaxFramesToLoad, 0, GetNumImages());
 	const float LoadBehindScale = FMath::Clamp(Settings->CacheBehindPercentage, 0.0f, 100.0f) / 100.0f;
 
 	NumLoadBehind = (int32)(LoadBehindScale * NumFramesToLoad);
@@ -662,7 +706,7 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	// Giving our reader a chance to handle RAM allocation.
 	// Not all readers use this, only those that need to handle large files 
 	// or need to be as efficient as possible.
-	Reader->PreAllocateMemoryPool(NumLoadAhead + NumLoadBehind, FirstFrameInfo.UncompressedSize);
+	Reader->PreAllocateMemoryPool(NumLoadAhead + NumLoadBehind, FirstFrameInfo);
 
 	Frames.Empty(NumFramesToLoad);
 
@@ -673,8 +717,82 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	Info += FString::Printf(TEXT("    Dimension: %i x %i\n"), SequenceDim.X, SequenceDim.Y);
 	Info += FString::Printf(TEXT("    Format: %s\n"), *FirstFrameInfo.FormatName);
 	Info += FString::Printf(TEXT("    Compression: %s\n"), *FirstFrameInfo.CompressionName);
-	Info += FString::Printf(TEXT("    Frames: %i\n"), ImagePaths.Num());
+	Info += FString::Printf(TEXT("    Frames: %i\n"), GetNumImages());
 	Info += FString::Printf(TEXT("    Frame Rate: %.2f (%i/%i)\n"), SequenceFrameRate.AsDecimal(), SequenceFrameRate.Numerator, SequenceFrameRate.Denominator);
+}
+
+
+void FImgMediaLoader::FindFiles(const FString& SequencePath, TArray<FString>& OutputPaths)
+{
+	// locate image sequence files
+	TArray<FString> FoundFiles;
+	IFileManager::Get().FindFiles(FoundFiles, *SequencePath, TEXT("*"));
+
+	UE_LOG(LogImgMedia, Warning, TEXT("Loader %p: Found %i image files in %s"), this, FoundFiles.Num(), *SequencePath);
+
+	FoundFiles.Sort();
+
+	for (const auto& File : FoundFiles)
+	{
+		OutputPaths.Add(FPaths::Combine(SequencePath, File));
+	}
+
+}
+
+void FImgMediaLoader::FindMips(const FString& SequencePath)
+{
+	// Remove trailing '/'.
+	FString SequenceDir = FPaths::GetPath(SequencePath);
+
+	// Get parent directory.
+	FString BaseName = FPaths::GetCleanFilename(SequenceDir);
+	FString ParentDir = FPaths::GetPath(SequenceDir);
+	
+	// Is this a mipmap level, i.e. ends with something like _2048?
+	int32 Index = 0;
+	bool FoundDelimeter = SequenceDir.FindLastChar(TEXT('_'), Index);
+	if (FoundDelimeter)
+	{
+		// Loop over all mip levels.
+		FString MipLevelString = SequenceDir.RightChop(Index + 1);
+		int32 MipLevel = FCString::Atoi(*MipLevelString);
+		while (MipLevel > 1)
+		{
+			// Next level down.
+			MipLevel /= 2;
+
+			// Try and find files for this mip level.
+			FString BaseMipDir = SequenceDir.LeftChop(SequenceDir.Len() - Index - 1);
+			FString MipDir = BaseMipDir.Append(FString::FromInt(MipLevel));
+			TArray<FString> MipFiles;
+			FindFiles(MipDir, MipFiles);
+
+			// Stop once we don't find any files.
+			if (MipFiles.Num() == 0)
+			{
+				break;
+			}
+
+			// Make sure we have the same number of mip files over all levels.
+			if (MipFiles.Num() != GetNumImages())
+			{
+				UE_LOG(LogImgMedia, Error, TEXT("Loader %p: Found %d images, expected %d, for %s"), 
+					this, MipFiles.Num(), GetNumImages(), *MipDir);
+				break;
+			}
+
+			// Make sure we don't have too many levels.
+			if (ImagePaths.Num() >= MAX_MIPMAP_LEVELS)
+			{
+				UE_LOG(LogImgMedia, Error, TEXT("Loader %p: Found too many mipmap levels (max:%d) for %s"),
+					this, MAX_MIPMAP_LEVELS, *MipDir);
+				break;
+			}
+
+			// OK add this level to the list.
+			ImagePaths.Emplace(MipFiles);
+		}
+	}
 }
 
 
@@ -708,7 +826,7 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 	// determine frame numbers to be loaded
 	TArray<int32> FramesToLoad;
 	{
-		const int32 NumImagePaths = ImagePaths.Num();
+		const int32 NumImagePaths = GetNumImages();
 
 		FramesToLoad.Empty(NumLoadAhead + NumLoadBehind);
 
@@ -813,14 +931,29 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 
 	for (int32 FrameNumber : FramesToLoad)
 	{
+		// Get frame from cache.
 		bool NeedFrame = false;
+		const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* FramePtr;
 		if (UseGlobalCache)
 		{
-			NeedFrame = GlobalCache->FindAndTouch(SequenceName, FrameNumber) == nullptr;
+			FramePtr = GlobalCache->FindAndTouch(SequenceName, FrameNumber);
 		}
 		else
 		{
-			NeedFrame = Frames.FindAndTouch(FrameNumber) == nullptr;
+			FramePtr = Frames.FindAndTouch(FrameNumber);
+		}
+
+		// Did we get a frame?
+		if ((FramePtr == nullptr) || ((*FramePtr).IsValid() == false))
+		{
+			// No, we need one.
+			NeedFrame = true;
+		}
+		else
+		{
+			// Yes. Check if we have the desired mip level.
+			int32 MipLevel = GetDesiredMipLevel(FrameNumber);
+			NeedFrame = ((*FramePtr)->MipMapsPresent & (1 << MipLevel)) == 0;
 		}
 		
 		if ((NeedFrame) && !QueuedFrameNumbers.Contains(FrameNumber))
@@ -847,7 +980,12 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 			UE_LOG(LogImgMedia, VeryVerbose, TEXT("Loader %p: Loaded frame %i"), this, FrameNumber);
 			if (UseGlobalCache)
 			{
-				GlobalCache->AddFrame(ImagePaths[FrameNumber], SequenceName, FrameNumber, Frame);
+				const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>* ExistingFrame;
+				ExistingFrame = GlobalCache->FindAndTouch(SequenceName, FrameNumber);
+				if (ExistingFrame == nullptr)
+				{
+					GlobalCache->AddFrame(ImagePaths[0][FrameNumber], SequenceName, FrameNumber, Frame);
+				}
 			}
 			else
 			{
@@ -857,6 +995,18 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 	}
 
 	WorkPool.Push(&CompletedWork);
+}
+
+int32 FImgMediaLoader::GetDesiredMipLevel(int32 FrameIndex)
+{
+	int32 MipLevel = 0;
+
+	if (MipMapInfo.IsValid())
+	{
+		MipLevel = MipMapInfo->GetDesiredMipLevel();
+	}
+
+	return MipLevel;
 }
 
 

@@ -33,10 +33,11 @@ public:
 	 * Initialize this work item.
 	 *
 	 * @param InFrameNumber The number of the image frame.
-	 * @param InImagePath The file path to the image frame to read.
+	 * @param InMipLevel Will read in this level and all higher levels.
+	 * @param InExistingFrame If set, then use this frame to load into.
 	 * @see Shutdown
 	 */
-	void Initialize(int32 InFrameNumber, const FString& InImagePath);
+	void Initialize(int32 InFrameNumber, int32 InMipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> InExistingFrame);
 
 public:
 
@@ -59,8 +60,11 @@ private:
 	/** The number of the image frame. */
 	int32 FrameNumber;
 
-	/** The file path to the image frame to read. */
-	FString ImagePath;
+	/** Mip level of the image frame. */
+	int32 MipLevel;
+	
+	/** If set, then load the image into this frame instead of making a new one. */
+	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> ExistingFrame;
 
 	/** The loader that created this reader task. */
 	TWeakPtr<FImgMediaLoader, ESPMode::ThreadSafe> OwnerPtr;

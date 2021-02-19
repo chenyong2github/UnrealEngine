@@ -36,12 +36,13 @@ public:
 	 * @param InTime The sample time (in the player's local clock).
 	 * @param InDuration The duration for which the sample is valid.
 	 */
-	bool Initialize(FImgMediaFrame& InFrame, const FIntPoint& InOutputDim, FMediaTimeStamp InTime, FTimespan InDuration)
+	bool Initialize(FImgMediaFrame& InFrame, const FIntPoint& InOutputDim, FMediaTimeStamp InTime, FTimespan InDuration, uint8 InNumMipMaps)
 	{
 		Duration = InDuration;
 		Frame = InFrame;
 		OutputDim = InOutputDim;
 		Time = InTime;
+		NumMipMaps = InNumMipMaps;
 
 		return true;
 	}
@@ -58,6 +59,11 @@ public:
 	virtual FIntPoint GetDim() const override
 	{
 		return Frame.Info.Dim;
+	}
+
+	virtual uint8 GetNumMips() const override
+	{
+		return NumMipMaps;
 	}
 
 	virtual FTimespan GetDuration() const override
@@ -120,4 +126,7 @@ private:
 
 	/** Play time for which the sample was generated. */
 	FMediaTimeStamp Time;
+
+	/** Number of mip levels in this sample. */
+	uint8 NumMipMaps;
 };

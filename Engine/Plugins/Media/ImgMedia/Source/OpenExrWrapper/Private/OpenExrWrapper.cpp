@@ -154,7 +154,7 @@ int32 FRgbaInputFile::GetNumChannels() const
 
 int32 FRgbaInputFile::GetUncompressedSize() const
 {
-	const int32 NumChannels = ((Imf::RgbaInputFile*)InputFile)->channels();
+	const int32 NumChannels = GetNumChannels();
 	const int32 ChannelSize = sizeof(int16);
 	const FIntPoint Window = GetDataWindow();
 

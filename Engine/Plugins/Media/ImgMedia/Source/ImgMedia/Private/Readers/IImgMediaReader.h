@@ -52,6 +52,9 @@ struct FImgMediaFrame
 	/** Additional information about the frame. */
 	FImgMediaFrameInfo Info;
 
+	/** Bitmask of which mipmaps are present. */
+	int32 MipMapsPresent;
+
 	/** The frame's horizontal stride (in bytes). */
 	uint32 Stride;
 
@@ -95,12 +98,13 @@ public:
 	/**
 	 * Read a single image frame.
 	 *
-	 * @param ImagePath Path to the image file to read.
+	 * @param FrameId Frame number to read.
+	 * @param MipLevel Will read in this level and all higher levels.
 	 * @param OutFrame Will contain the frame.
 	 * @return true on success, false otherwise.
 	 * @see GetFrameInfo
 	 */
-	virtual bool ReadFrame(const FString& ImagePath, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame, int32 FrameId) = 0;
+	virtual bool ReadFrame(int32 FrameId, int32 MipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) = 0;
 
 	/**
 	 * Mark Frame to be canceled based on Frame number. Typically this will be 
@@ -114,7 +118,7 @@ public:
 	 * maximum number of frames with as much efficiency as possible.
 	 *
 	 */
-	virtual void PreAllocateMemoryPool(int32 NumFrames, int32 AllocSize) {};
+	virtual void PreAllocateMemoryPool(int32 NumFrames, const FImgMediaFrameInfo& FrameInfo) {};
 
 	/**
 	 * Used in case reader needs to do some processing once per frame.

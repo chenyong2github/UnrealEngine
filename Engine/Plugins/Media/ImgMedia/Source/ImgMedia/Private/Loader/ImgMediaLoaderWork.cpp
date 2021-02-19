@@ -32,10 +32,12 @@ FImgMediaLoaderWork::FImgMediaLoaderWork(const TSharedRef<FImgMediaLoader, ESPMo
 /* FImgMediaLoaderWork interface
  *****************************************************************************/
 
-void FImgMediaLoaderWork::Initialize(int32 InFrameNumber, const FString& InImagePath)
+void FImgMediaLoaderWork::Initialize(int32 InFrameNumber,
+	int32 InMipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> InExistingFrame)
 {
 	FrameNumber = InFrameNumber;
-	ImagePath = InImagePath;
+	MipLevel = InMipLevel;
+	ExistingFrame = InExistingFrame;
 }
 
 
@@ -55,7 +57,7 @@ void FImgMediaLoaderWork::DoThreadedWork()
 	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame;
 	UE_LOG(LogImgMedia, Verbose, TEXT("Loader %p: Starting to read %i"), this, FrameNumber);
 
-	if ((FrameNumber == INDEX_NONE) || ImagePath.IsEmpty())
+	if (FrameNumber == INDEX_NONE)
 	{
 		Frame.Reset();
 	}
@@ -64,11 +66,21 @@ void FImgMediaLoaderWork::DoThreadedWork()
 		SCOPE_CYCLE_COUNTER(STAT_ImgMedia_LoaderReadFrame);
 
 		// read the image frame
-		Frame = MakeShareable(new FImgMediaFrame());
-
-		if (!Reader->ReadFrame(ImagePath, Frame, FrameNumber))
+		if (ExistingFrame == nullptr)
 		{
-			Frame.Reset();
+			Frame = MakeShareable(new FImgMediaFrame());
+		}
+		else
+		{
+			Frame = ExistingFrame;
+		}
+
+		if (!Reader->ReadFrame(FrameNumber, MipLevel, Frame))
+		{
+			if (ExistingFrame == nullptr)
+			{
+				Frame.Reset();
+			}
 		}
 	}
 
@@ -83,6 +95,8 @@ void FImgMediaLoaderWork::DoThreadedWork()
 
 void FImgMediaLoaderWork::Finalize(TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> Frame)
 {
+	ExistingFrame.Reset();
+
 	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Owner = OwnerPtr.Pin();
 
 	if (Owner.IsValid())

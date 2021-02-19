@@ -11,6 +11,7 @@
 
 class FImgMediaGlobalCache;
 class FImgMediaLoaderWork;
+class FImgMediaMipMapInfo;
 class FImgMediaScheduler;
 class FImgMediaTextureSample;
 class FMediaTimeStamp;
@@ -35,12 +36,15 @@ public:
 	 * @param InScheduler The scheduler for image loading.
 	 */
 	FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::ThreadSafe>& InScheduler,
-		const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache);
+		const TSharedRef<FImgMediaGlobalCache, ESPMode::ThreadSafe>& InGlobalCache,
+		const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& InMipMapInfo);
 
 	/** Virtual destructor. */
 	virtual ~FImgMediaLoader();
 
 public:
+	/** Max number of mip map levels supported. */
+	static const int32 MAX_MIPMAP_LEVELS = 32;
 
 	/**
 	 * Get the data bit rate of the video frames.
@@ -171,6 +175,33 @@ public:
 	}
 
 	/**
+	 * Get the path to images in the sequence.
+	 *
+	 * @param FrameNumber Frame to get.
+	 * @param MipLevel Mip level to get.
+	 * @return Returns path and filename of image.
+	 */
+	const FString& GetImagePath(int32 FrameNumber, int32 MipLevel) const;
+
+	/**
+	 * Get the number of mipmap levels we have.
+	 */
+	int32 GetNumMipLevels() const
+	{
+		return ImagePaths.Num();
+	}
+
+	/**
+	 * Get the number of images in a single mip level.
+	 *
+	 * @return Number of images.
+	 */
+	int32 GetNumImages() const
+	{
+		return ImagePaths.Num() > 0 ? ImagePaths[0].Num() : 0;
+	}
+
+	/**
 	 * Get the next work item.
 	 *
 	 * This method is called by the scheduler.
@@ -218,7 +249,7 @@ public:
 	 * @return bool if the frame will be loaded, false otherwise.
 	 */
 	bool RequestFrame(FTimespan Time, float PlayRate, bool Loop);
-	
+
 	/**
 	 * Reset "queued fetch" related state used to emulate player output queue behavior
 	 */
@@ -253,6 +284,36 @@ protected:
 	void LoadSequence(const FString& SequencePath, const FFrameRate& FrameRateOverride, bool Loop);
 
 	/**
+	 * Finds all the files in a directory and gets their path.
+	 *
+	 * @param SequencePath Directory to look in.
+	 * @param OutputPaths File paths will be added to this.
+	 */
+	void FindFiles(const FString& SequencePath, TArray<FString>& OutputPaths);
+
+	/**
+	 * Finds the mip map files for this sequence (if any).
+	 *
+	 * Typically with non mips, a single directory holds all the files of a single sequence.
+	 *
+	 * With mip maps, a directory will hold all the files of a single sequence of a specific mip level.
+	 * The naming convention is for the directory name to end in _<SIZE>.
+	 *   SIZE does not need to be a power of 2.
+	 *   Each subsequent level should have SIZE be half of the level preceeding it.
+	 *   If SIZE does not divide evenly by 2, then round down.
+	 * The part of the name preceding _<SIZE> should be the same for all mip levels.
+	 * All mip levels of the same sequence should be in the same location
+	 * E.g. /Sequence/Seq_256/, /Sequence/Seq_128/, /Sequence/Seq_64/, etc.
+
+	 * FindMips will look for mip levels that are the at the level of SequencePath and below.
+	 * E.g. if SequencePath is Seq_1024, then FindMips will look for Seq_1024, Seq_512, etc
+	 * and will NOT look for Seq_2048 even if it is present.
+	 *
+	 * @param SequencePath Directory of sequence.
+	 */
+	void FindMips(const FString& SequencePath);
+
+	/**
 	 * Get the frame number corresponding to the specified play head time.
 	 *
 	 * @param Time The play head time.
@@ -269,6 +330,14 @@ protected:
 	 * @param Loop Whether the cache should loop around.
 	 */
 	void Update(int32 PlayHeadFrame, float PlayRate, bool Loop);
+
+	/**
+	 * Get what mip level we should be using for a given frame.
+	 *
+	 * @param FrameIndex Frame to get mip level for.
+	 * return Returns the mip level.
+	 */
+	int32 GetDesiredMipLevel(int32 FrameIndex);
 
 	/***
 	 * Modulos the time so that it is between 0 and SequenceDuration.
@@ -308,8 +377,11 @@ private:
 	/** The image wrapper module to use. */
 	IImageWrapperModule& ImageWrapperModule;
 
-	/** Paths to each image in the currently opened sequence. */
-	TArray<FString> ImagePaths;
+	/**
+	 * Paths to each image for each mip map level in the currently opened sequence.
+	 * This is an array of mip levels, and each mip level is an array of image paths.
+	 */
+	TArray<TArray<FString>> ImagePaths;
 
 	/** Media information string. */
 	FString Info;
@@ -331,6 +403,9 @@ private:
 
 	/** The scheduler for image loading. */
 	TSharedPtr<FImgMediaGlobalCache, ESPMode::ThreadSafe> GlobalCache;
+
+	/** MipMapInfo object used to handle mipmaps. Could be null if we have no mipmaps. */
+	TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe> MipMapInfo;
 
 	/** Width and height of the image sequence (in pixels) .*/
 	FIntPoint SequenceDim;
@@ -361,7 +436,6 @@ private:
 	/** True if we are using the global cache, false to use the local cache. */
 	bool UseGlobalCache;
 
-private:
 	/** State related to "queue style" frame access functions */
 	struct
 	{

@@ -47,18 +47,18 @@ class FExrImgMediaReaderGpu : public FExrImgMediaReader
 public:
 
 	/** Default constructor. */
-	FExrImgMediaReaderGpu():FExrImgMediaReader(), bIsShuttingDown(false) {};
+	FExrImgMediaReaderGpu(const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader):FExrImgMediaReader(InLoader), bIsShuttingDown(false) {};
 	virtual ~FExrImgMediaReaderGpu();
 
 public:
 
 	//~ FExrImgMediaReader interface
-	virtual bool ReadFrame(const FString& ImagePath, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame, int32 FrameId) override;
+	virtual bool ReadFrame(int32 FrameId, int32 MipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) override;
 	
 	/**
 	* For performance reasons we want to pre-allocate structured buffers to at least the number of concurrent frames.
 	*/
-	virtual void PreAllocateMemoryPool(int32 NumFrames, int32 AllocSize) override;
+	virtual void PreAllocateMemoryPool(int32 NumFrames, const FImgMediaFrameInfo& FrameInfo) override;
 	virtual void OnTick() override;
 
 protected:
@@ -68,6 +68,14 @@ protected:
 	 * Frame is pending for cancellation stops reading the file and returns false.
 	*/
 	bool ReadInChunks(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntPoint& Dim, int32 BufferSize, int32 PixelSize, int32 NumChannels);
+
+	/**
+	 * Get the size of the buffer needed to load in an image.
+	 * 
+	 * @param Dim Dimensions of the image.
+	 * @param NumChannels Number of channels in the image.
+	 */
+	static SIZE_T GetBufferSize(const FIntPoint& Dim, int32 NumChannels);
 
 public:
 
