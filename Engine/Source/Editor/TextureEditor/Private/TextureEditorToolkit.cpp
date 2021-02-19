@@ -61,6 +61,34 @@ const FName FTextureEditorToolkit::PropertiesTabId(TEXT("TextureEditor_Propertie
 
 UNREALED_API void GetBestFitForNumberOfTiles(int32 InSize, int32& OutRatioX, int32& OutRatioY);
 
+EPixelFormatChannelFlags GetPixelFormatChannelFlagForButton(ETextureChannelButton InButton)
+{
+	switch (InButton)
+	{
+		case ETextureChannelButton::Red:
+		{
+			return EPixelFormatChannelFlags::R;
+		}
+		case ETextureChannelButton::Green:
+		{
+			return EPixelFormatChannelFlags::G;
+		}
+		case ETextureChannelButton::Blue:
+		{
+			return EPixelFormatChannelFlags::B;
+		}
+		case ETextureChannelButton::Alpha:
+		{
+			return EPixelFormatChannelFlags::A;
+		}
+		default:
+		{
+			check(false);
+		}
+	}
+
+	return EPixelFormatChannelFlags::None;
+}
 
 /* FTextureEditorToolkit structors
  *****************************************************************************/
@@ -151,7 +179,7 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 
 	ExposureBias = 0;
 
-	bIsVolumeTexture = Texture->IsA<UVolumeTexture>() || Texture->IsA<UTextureRenderTargetVolume>();
+	bIsVolumeTexture = IsVolumeTexture();
 
 	switch (Texture->CompressionSettings)
 	{
@@ -439,18 +467,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	}
 
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-	UTextureRenderTarget2D* Texture2DRT = Cast<UTextureRenderTarget2D>(Texture);
-	UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
-	UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
-	UTextureRenderTarget2DArray* Texture2DArrayRT = Cast<UTextureRenderTarget2DArray>(Texture);
-	UTexture2DDynamic* Texture2DDynamic = Cast<UTexture2DDynamic>(Texture);
-	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
-	UTextureRenderTargetVolume* VolumeTextureRT = Cast<UTextureRenderTargetVolume>(Texture);
-	UMediaTexture* MediaTexture = Cast<UMediaTexture>(Texture);
 
-	const bool bIsVolume = VolumeTexture || VolumeTextureRT;
-	const bool bIsArray2D = Texture2DArray || Texture2DArrayRT;
-	const bool bIsCube = !!TextureCube;
+	const bool bIsVolume = IsVolumeTexture();
+	const bool bIsArray2D = Is2DArrayTexture();
+	const bool bIsCube = IsCubeTexture();
 
 	const uint32 SurfaceWidth = (uint32)Texture->GetSurfaceWidth();
 	const uint32 SurfaceHeight = (uint32)Texture->GetSurfaceHeight();
@@ -542,93 +562,19 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	MethodText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Method", "Method: {0}"), Method));
 	LODBiasText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_LODBias", "Combined LOD Bias: {0}"), FText::AsNumber(Texture->GetCachedLODBias())));
 
-	int32 TextureFormatIndex = PF_MAX;
-	
-	if (Texture2D)
+	EPixelFormat TextureFormat = GetPixelFormat();
+	if (TextureFormat != PF_MAX)
 	{
-		TextureFormatIndex = Texture2D->GetPixelFormat(SpecifiedLayer);
-	}
-	else if (TextureCube)
-	{
-		TextureFormatIndex = TextureCube->GetPixelFormat();
-	}
-	else if (Texture2DArray) 
-	{
-		TextureFormatIndex = Texture2DArray->GetPixelFormat();
-	}
-	else if (Texture2DArrayRT)
-	{
-		TextureFormatIndex = Texture2DArrayRT->GetFormat();
-	}
-	else if (Texture2DRT)
-	{
-		TextureFormatIndex = Texture2DRT->GetFormat();
-	}
-	else if (Texture2DDynamic)
-	{
-		TextureFormatIndex = Texture2DDynamic->Format;
-	}
-	else if (VolumeTexture)
-	{
-		TextureFormatIndex = VolumeTexture->GetPixelFormat();
-	}
-	else if (VolumeTextureRT)
-	{
-		TextureFormatIndex = VolumeTextureRT->GetFormat();
+		FormatText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Format", "Format: {0}"), FText::FromString(GPixelFormats[(uint8)TextureFormat].Name)));
 	}
 
-	if (TextureFormatIndex != PF_MAX)
-	{
-		FormatText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Format", "Format: {0}"), FText::FromString(GPixelFormats[TextureFormatIndex].Name)));
-	}
+	EPixelFormatChannelFlags ValidTextureChannels = GetPixelFormatValidChannels(TextureFormat);
+	HasAlphaChannelText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_HasAlphaChannel", "Has Alpha Channel: {0}"),
+		EnumHasAnyFlags(ValidTextureChannels, EPixelFormatChannelFlags::A) ? NSLOCTEXT("TextureEditor", "True", "True") : NSLOCTEXT("TextureEditor", "False", "False")));
+	HasAlphaChannelText->SetVisibility((ValidTextureChannels != EPixelFormatChannelFlags::None) ? EVisibility::Visible : EVisibility::Collapsed);
 
-	int32 NumMips = 1;
-	if (Texture2D)
-	{
-		NumMips = Texture2D->GetNumMips();
-	}
-	else if (TextureCube)
-	{
-		NumMips = TextureCube->GetNumMips();
-	}
-	else if (Texture2DArray) 
-	{
-		NumMips = Texture2DArray->GetNumMips();
-	}
-	else if (Texture2DArrayRT)
-	{
-		NumMips = Texture2DArrayRT->GetNumMips();
-	}
-	else if (Texture2DRT)
-	{
-		NumMips = Texture2DRT->GetNumMips();
-	}
-	else if (Texture2DDynamic)
-	{
-		NumMips = Texture2DDynamic->NumMips;
-	}
-	else if (VolumeTexture)
-	{
-		NumMips = VolumeTexture->GetNumMips();
-	}
-	else if (VolumeTextureRT)
-	{
-		NumMips = VolumeTextureRT->GetNumMips();
-	}
-	else if (MediaTexture)
-	{
-		NumMips = MediaTexture->GetTextureNumMips();
-	}
-
+	int32 NumMips = GetNumMips();
 	NumMipsText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips", "Number of Mips: {0}"), FText::AsNumber(NumMips)));
-
-	if (Texture2D)
-	{
-		HasAlphaChannelText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_HasAlphaChannel", "Has Alpha Channel: {0}"),
-			Texture2D->HasAlphaChannel() ? NSLOCTEXT("TextureEditor", "True", "True") : NSLOCTEXT("TextureEditor", "False", "False")));
-	}
-
-	HasAlphaChannelText->SetVisibility(Texture2D ? EVisibility::Visible : EVisibility::Collapsed);
 }
 
 
@@ -1088,58 +1034,107 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	}
 }
 
-TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
+TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel() const
 {
-	const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-	const UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
-	const UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
-	const UTextureRenderTargetCube* RTTextureCube = Cast<UTextureRenderTargetCube>(Texture);
-	const UTextureRenderTargetVolume* RTTextureVolume = Cast<UTextureRenderTargetVolume>(Texture);
-	const UTextureRenderTarget2D* RTTexture2D = Cast<UTextureRenderTarget2D>(Texture);
-	const UTextureRenderTarget2DArray* RTTexture2DArray = Cast<UTextureRenderTarget2DArray>(Texture);
-	const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
-
-	if (Texture2D)
+	TOptional<int32> MaxMipLevel;
+	int32 NumMips = GetNumMips();
+	if (NumMips > 0)
 	{
-		return Texture2D->GetNumMips() - 1;
+		MaxMipLevel = NumMips - 1;
 	}
+	return MaxMipLevel;
+}
 
-	if (TextureCube)
+int32 FTextureEditorToolkit::GetNumMips( ) const
+{
+	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
 	{
-		return TextureCube->GetNumMips() - 1;
+		return Texture2D->GetNumMips();
 	}
-
-	if (Texture2DArray) 
+	else if (const UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
 	{
-		return Texture2DArray->GetNumMips() - 1;
+		return TextureCube->GetNumMips();
 	}
-
-	if (RTTextureCube)
+	else if (const UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
 	{
-		return RTTextureCube->GetNumMips() - 1;
+		return Texture2DArray->GetNumMips();
 	}
-
-	if (RTTextureVolume)
+	else if (const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture))
 	{
-		return RTTextureVolume->GetNumMips() - 1;
+		return VolumeTexture->GetNumMips();
 	}
-
-	if (RTTexture2D)
+	else if (const UTextureRenderTarget2D* Texture2DRT = Cast<UTextureRenderTarget2D>(Texture))
 	{
-		return RTTexture2D->GetNumMips() - 1;
+		return Texture2DRT->GetNumMips();
 	}
-
-	if (RTTexture2DArray)
+	else if (const UTextureRenderTargetCube* TextureCubeRT = Cast<UTextureRenderTargetCube>(Texture))
 	{
-		return RTTexture2DArray->GetNumMips() - 1;
+		return TextureCubeRT->GetNumMips();
 	}
-
-	if (VolumeTexture)
+	else if (const UTextureRenderTarget2DArray* Texture2DArrayRT = Cast<UTextureRenderTarget2DArray>(Texture))
 	{
-		return VolumeTexture->GetNumMips() - 1;
+		return Texture2DArrayRT->GetNumMips();
+	}
+	else if (const UTextureRenderTargetVolume* VolumeTextureRT = Cast<UTextureRenderTargetVolume>(Texture))
+	{
+		return VolumeTextureRT->GetNumMips();
+	}
+	else if (const UTexture2DDynamic* Texture2DDynamic = Cast<UTexture2DDynamic>(Texture))
+	{
+		return Texture2DDynamic->NumMips;
+	}
+	else if (const UMediaTexture* MediaTexture = Cast<UMediaTexture>(Texture))
+	{
+		return MediaTexture->GetTextureNumMips();
 	}
 
 	return MIPLEVEL_MAX;
+}
+
+EPixelFormat FTextureEditorToolkit::GetPixelFormat() const
+{
+	if (const UTexture2D* Texture2D = Cast<UTexture2D>(Texture))
+	{
+		return Texture2D->GetPixelFormat(SpecifiedLayer);
+	}
+	else if (const UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
+	{
+		return TextureCube->GetPixelFormat();
+	}
+	else if (const UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
+	{
+		return Texture2DArray->GetPixelFormat();
+	}
+	else if (const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture))
+	{
+		return VolumeTexture->GetPixelFormat();
+	}
+	else if (const UTextureRenderTarget2D* Texture2DRT = Cast<UTextureRenderTarget2D>(Texture))
+	{
+		return Texture2DRT->GetFormat();
+	}
+	else if (const UTextureRenderTargetCube* TextureCubeRT = Cast<UTextureRenderTargetCube>(Texture))
+	{
+		return TextureCubeRT->GetFormat();
+	}
+	else if (const UTextureRenderTarget2DArray* Texture2DArrayRT = Cast<UTextureRenderTarget2DArray>(Texture))
+	{
+		return Texture2DArrayRT->GetFormat();
+	}
+	else if (const UTextureRenderTargetVolume* VolumeTextureRT = Cast<UTextureRenderTargetVolume>(Texture))
+	{
+		return VolumeTextureRT->GetFormat();
+	}
+	else if (const UTexture2DDynamic* Texture2DDynamic = Cast<UTexture2DDynamic>(Texture))
+	{
+		return Texture2DDynamic->Format;
+	}
+	//else if (const UMediaTexture* MediaTexture = Cast<UMediaTexture>(Texture))
+	//{
+	//	UMediaTexture::GetDesc() suggests PF_B8G8R8A8, maybe?
+	//}
+
+	return PF_MAX;
 }
 
 TOptional<int32> FTextureEditorToolkit::GetMaxLayer() const
@@ -1195,18 +1190,10 @@ TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateSettingsMenu()
 
 /* FTextureEditorToolkit callbacks
  *****************************************************************************/
-
-
-bool FTextureEditorToolkit::IsAlphaChannelButtonEnabled( ) const
+bool FTextureEditorToolkit::IsChannelButtonEnabled(ETextureChannelButton Button) const
 {
-	const UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
-
-	if (Texture2D == NULL)
-	{
-		return false;
-	}
-
-	return Texture2D->HasAlphaChannel();
+	EPixelFormatChannelFlags ValidTextureChannels = GetPixelFormatValidChannels(GetPixelFormat());
+	return EnumHasAnyFlags(ValidTextureChannels, GetPixelFormatChannelFlagForButton(Button));
 }
 
 FSlateColor FTextureEditorToolkit::GetChannelButtonBackgroundColor(ETextureChannelButton Button) const
@@ -1681,6 +1668,7 @@ TSharedRef<SWidget> FTextureEditorToolkit::MakeChannelControlWidget()
 			.ForegroundColor(this, &FTextureEditorToolkit::GetChannelButtonForegroundColor, ETextureChannelButton::Red)
 			.OnCheckStateChanged_Lambda(OnChannelCheckStateChanged, ETextureChannelButton::Red)
 			.IsChecked(this, &FTextureEditorToolkit::OnGetChannelButtonCheckState, ETextureChannelButton::Red)
+			.IsEnabled(this, &FTextureEditorToolkit::IsChannelButtonEnabled, ETextureChannelButton::Red)
 			[
 				SNew(STextBlock)
 				.Font(FAppStyle::Get().GetFontStyle("TextureEditor.ChannelButtonFont"))
@@ -1698,6 +1686,7 @@ TSharedRef<SWidget> FTextureEditorToolkit::MakeChannelControlWidget()
 			.ForegroundColor(this, &FTextureEditorToolkit::GetChannelButtonForegroundColor, ETextureChannelButton::Green)
 			.OnCheckStateChanged_Lambda(OnChannelCheckStateChanged, ETextureChannelButton::Green)
 			.IsChecked(this, &FTextureEditorToolkit::OnGetChannelButtonCheckState, ETextureChannelButton::Green)
+			.IsEnabled(this, &FTextureEditorToolkit::IsChannelButtonEnabled, ETextureChannelButton::Green)
 			[
 				SNew(STextBlock)
 				.Font(FAppStyle::Get().GetFontStyle("TextureEditor.ChannelButtonFont"))
@@ -1716,6 +1705,7 @@ TSharedRef<SWidget> FTextureEditorToolkit::MakeChannelControlWidget()
 			.ForegroundColor(this, &FTextureEditorToolkit::GetChannelButtonForegroundColor, ETextureChannelButton::Blue)
 			.OnCheckStateChanged_Lambda(OnChannelCheckStateChanged, ETextureChannelButton::Blue)
 			.IsChecked(this, &FTextureEditorToolkit::OnGetChannelButtonCheckState, ETextureChannelButton::Blue)
+			.IsEnabled(this, &FTextureEditorToolkit::IsChannelButtonEnabled, ETextureChannelButton::Blue)
 			[
 				SNew(STextBlock)
 				.Font(FAppStyle::Get().GetFontStyle("TextureEditor.ChannelButtonFont"))
@@ -1733,7 +1723,7 @@ TSharedRef<SWidget> FTextureEditorToolkit::MakeChannelControlWidget()
 			.ForegroundColor(this, &FTextureEditorToolkit::GetChannelButtonForegroundColor, ETextureChannelButton::Alpha)
 			.OnCheckStateChanged_Lambda(OnChannelCheckStateChanged, ETextureChannelButton::Alpha)
 			.IsChecked(this, &FTextureEditorToolkit::OnGetChannelButtonCheckState, ETextureChannelButton::Alpha)
-			.IsEnabled(this, &FTextureEditorToolkit::IsAlphaChannelButtonEnabled)
+			.IsEnabled(this, &FTextureEditorToolkit::IsChannelButtonEnabled, ETextureChannelButton::Alpha)
 			[
 				SNew(STextBlock)
 				.Font(FAppStyle::Get().GetFontStyle("TextureEditor.ChannelButtonFont"))

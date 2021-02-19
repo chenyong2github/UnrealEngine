@@ -898,7 +898,7 @@ bool UTexture2D::HasAlphaChannel() const
 			return GetDefaultTexture2D(this)->HasAlphaChannel();
 		}
 #endif
-		return PrivatePlatformData->PixelFormat != PF_DXT1;
+		return EnumHasAnyFlags(GetPixelFormatValidChannels(PrivatePlatformData->PixelFormat), EPixelFormatChannelFlags::A);
 	}
 	return false;
 }

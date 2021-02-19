@@ -466,6 +466,14 @@ RENDERCORE_API const TCHAR* GetPixelFormatString(EPixelFormat InPixelFormat);
  */
 RENDERCORE_API EPixelFormat GetPixelFormatFromString(const TCHAR* InPixelFormatStr);
 
+/** 
+ *  Returns the valid channels for this pixel format
+ * 
+ * @return e.g. EPixelFormatChannelFlags::G for PF_G8
+ */
+RENDERCORE_API EPixelFormatChannelFlags GetPixelFormatValidChannels(EPixelFormat InPixelFormat);
+
+
 /**
  * Convert from ECubeFace to text string
  * @param Face - ECubeFace type to convert

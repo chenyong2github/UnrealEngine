@@ -865,6 +865,86 @@ EPixelFormat GetPixelFormatFromString(const TCHAR* InPixelFormatStr)
 	return PF_Unknown;
 }
 
+EPixelFormatChannelFlags GetPixelFormatValidChannels(EPixelFormat InPixelFormat)
+{
+	static constexpr EPixelFormatChannelFlags PixelFormatToChannelFlags[] =
+	{
+		EPixelFormatChannelFlags::None,		// PF_Unknown,
+		EPixelFormatChannelFlags::RGBA,		// PF_A32B32G32R32F
+		EPixelFormatChannelFlags::RGBA,		// PF_B8G8R8A8
+		EPixelFormatChannelFlags::G,		// PF_G8
+		EPixelFormatChannelFlags::G,		// PF_G16
+		EPixelFormatChannelFlags::RGB,		// PF_DXT1
+		EPixelFormatChannelFlags::RGBA,		// PF_DXT3
+		EPixelFormatChannelFlags::RGBA,		// PF_DXT5
+		EPixelFormatChannelFlags::RG,		// PF_UYVY
+		EPixelFormatChannelFlags::RGB,		// PF_FloatRGB
+		EPixelFormatChannelFlags::RGBA,		// PF_FloatRGBA
+		EPixelFormatChannelFlags::None,		// PF_DepthStencil
+		EPixelFormatChannelFlags::None,		// PF_ShadowDepth
+		EPixelFormatChannelFlags::R,		// PF_R32_FLOAT
+		EPixelFormatChannelFlags::RG,		// PF_G16R16
+		EPixelFormatChannelFlags::RG,		// PF_G16R16F
+		EPixelFormatChannelFlags::RG,		// PF_G16R16F_FILTER
+		EPixelFormatChannelFlags::RG,		// PF_G32R32F
+		EPixelFormatChannelFlags::RGBA,		// PF_A2B10G10R10
+		EPixelFormatChannelFlags::RGBA,		// PF_A16B16G16R16
+		EPixelFormatChannelFlags::None,		// PF_D24
+		EPixelFormatChannelFlags::R,		// PF_R16F
+		EPixelFormatChannelFlags::R,		// PF_R16F_FILTER
+		EPixelFormatChannelFlags::RG,		// PF_BC5
+		EPixelFormatChannelFlags::RG,		// PF_V8U8
+		EPixelFormatChannelFlags::A,		// PF_A1
+		EPixelFormatChannelFlags::RGB,		// PF_FloatR11G11B10
+		EPixelFormatChannelFlags::A,		// PF_A8
+		EPixelFormatChannelFlags::R,		// PF_R32_UINT
+		EPixelFormatChannelFlags::RGBA,		// PF_R32_SINT
+		EPixelFormatChannelFlags::RGBA,		// PF_PVRTC2
+		EPixelFormatChannelFlags::RGBA,		// PF_PVRTC4
+		EPixelFormatChannelFlags::R,		// PF_R16_UINT
+		EPixelFormatChannelFlags::R,		// PF_R16_SINT
+		EPixelFormatChannelFlags::RGBA,		// PF_R16G16B16A16_UINT
+		EPixelFormatChannelFlags::RGBA,		// PF_R16G16B16A16_SINT
+		EPixelFormatChannelFlags::RGB,		// PF_R5G6B5_UNORM
+		EPixelFormatChannelFlags::RGBA,		// PF_R8G8B8A8
+		EPixelFormatChannelFlags::RGBA,		// PF_A8R8G8B8
+		EPixelFormatChannelFlags::R,		// PF_BC4
+		EPixelFormatChannelFlags::RG,		// PF_R8G8
+		EPixelFormatChannelFlags::RGB,		// PF_ATC_RGB
+		EPixelFormatChannelFlags::RGBA,		// PF_ATC_RGBA_E
+		EPixelFormatChannelFlags::RGBA,		// PF_ATC_RGBA_I
+		EPixelFormatChannelFlags::G,		// PF_X24_G8		
+		EPixelFormatChannelFlags::RGB,		// PF_ETC1
+		EPixelFormatChannelFlags::RGB,		// PF_ETC2_RGB
+		EPixelFormatChannelFlags::RGBA,		// PF_ETC2_RGBA
+		EPixelFormatChannelFlags::RGBA,		// PF_R32G32B32A32_UINT
+		EPixelFormatChannelFlags::RG,		// PF_R16G16_UINT
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_4x4
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_6x6
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_8x8
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_10x10
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_12x12
+		EPixelFormatChannelFlags::RGB,		// PF_BC6H
+		EPixelFormatChannelFlags::RGBA,		// PF_BC7
+		EPixelFormatChannelFlags::R,		// PF_R8_UINT
+		EPixelFormatChannelFlags::None,		// PF_L8
+		EPixelFormatChannelFlags::RGBA,		// PF_XGXR8
+		EPixelFormatChannelFlags::RGBA,		// PF_R8G8B8A8_UINT
+		EPixelFormatChannelFlags::RGBA,		// PF_R8G8B8A8_SNORM
+		EPixelFormatChannelFlags::RGBA,		// PF_R16G16B16A16_UNORM
+		EPixelFormatChannelFlags::RGBA,		// PF_R16G16B16A16_SNORM
+		EPixelFormatChannelFlags::RGBA,		// PF_PLATFORM_HDR_0
+		EPixelFormatChannelFlags::RGBA,		// PF_PLATFORM_HDR_1
+		EPixelFormatChannelFlags::RGBA,		// PF_PLATFORM_HDR_2
+		EPixelFormatChannelFlags::None,		// PF_NV12
+		EPixelFormatChannelFlags::RG,		// PF_R32G32_UINT
+		EPixelFormatChannelFlags::R,		// PF_ETC2_R11_EAC
+		EPixelFormatChannelFlags::RG,		// PF_ETC2_RG11_EAC
+		EPixelFormatChannelFlags::R,		// PF_R8
+	};
+	static_assert(UE_ARRAY_COUNT(PixelFormatToChannelFlags) == (uint8)PF_MAX, "Missing pixel format");
+	return (InPixelFormat < PF_MAX) ? PixelFormatToChannelFlags[(uint8)InPixelFormat] : EPixelFormatChannelFlags::None;
+}
 
 const TCHAR* GetCubeFaceName(ECubeFace Face)
 {

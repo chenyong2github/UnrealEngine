@@ -145,7 +145,6 @@ enum EPixelFormat
 	op(PF_BC7) \
 	op(PF_R8_UINT) \
 	op(PF_L8) \
-	op(PF_R8) \
 	op(PF_XGXR8) \
 	op(PF_R8G8B8A8_UINT) \
 	op(PF_R8G8B8A8_SNORM) \
@@ -155,5 +154,22 @@ enum EPixelFormat
 	op(PF_PLATFORM_HDR_1) \
 	op(PF_PLATFORM_HDR_2) \
 	op(PF_NV12) \
-	op(PF_R32G32_UINT)
+	op(PF_R32G32_UINT) \
+	op(PF_ETC2_R11_EAC) \
+	op(PF_ETC2_RG11_EAC) \
+	op(PF_R8) 
 
+// Defines which channel is valid for each pixel format
+enum class EPixelFormatChannelFlags : uint8
+{
+	R = 1 << 0,
+	G = 1 << 1,
+	B = 1 << 2,
+	A = 1 << 3,
+	RG = R | G,
+	RGB = R | G | B,
+	RGBA = R | G | B | A,
+
+	None = 0,
+};
+ENUM_CLASS_FLAGS(EPixelFormatChannelFlags);

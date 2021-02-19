@@ -129,6 +129,16 @@ protected:
 	 */
 	TOptional<int32> GetMaxMipLevel( ) const;
 
+	/**
+	 * Gets the number of mips that this texture supports.
+	 */
+	int32 GetNumMips() const;
+
+	/**
+	 * Gets the texture format of this texture.
+	 */
+	EPixelFormat GetPixelFormat() const;
+
 	TOptional<int32> GetMaxLayer() const;
 
 	/**
@@ -149,7 +159,7 @@ protected:
 	TSharedRef<SWidget> OnGenerateMipMapLevelMenu();
 	TSharedRef<SWidget> OnGenerateSettingsMenu();
 private:
-	bool IsAlphaChannelButtonEnabled() const;
+	bool IsChannelButtonEnabled(ETextureChannelButton Button) const;
 	FSlateColor GetChannelButtonBackgroundColor(ETextureChannelButton Button) const;
 	FSlateColor GetChannelButtonForegroundColor(ETextureChannelButton Button) const;
 	void OnChannelButtonCheckStateChanged(ETextureChannelButton Button);
