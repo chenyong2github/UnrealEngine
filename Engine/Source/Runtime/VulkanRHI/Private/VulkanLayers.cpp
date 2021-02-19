@@ -41,7 +41,7 @@ static TAutoConsoleVariable<int32> GStandardValidationCvar(
 	2,
 	TEXT("2 to use VK_LAYER_KHRONOS_validation (default) if available\n")
 	TEXT("1 to use VK_LAYER_LUNARG_standard_validation if available, or \n")
-	TEXT("0 to use individual validation layers (deprecated)"),
+	TEXT("0 to use individual validation layers (removed)"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
@@ -60,19 +60,6 @@ TAutoConsoleVariable<int32> GGPUValidationCvar(
 
 #define KHRONOS_STANDARD_VALIDATION_LAYER_NAME	"VK_LAYER_KHRONOS_validation"
 #define STANDARD_VALIDATION_LAYER_NAME			"VK_LAYER_LUNARG_standard_validation"
-
-static const ANSICHAR* GIndividualValidationLayers[] =
-{
-	"VK_LAYER_GOOGLE_threading",
-	"VK_LAYER_LUNARG_parameter_validation",
-	"VK_LAYER_LUNARG_object_tracker",
-	"VK_LAYER_LUNARG_core_validation",
-#if !PLATFORM_LUMIN
-	// freezes app inside MLGraphicsCreateClientVk() on Lumin if this is enabled.
-	"VK_LAYER_GOOGLE_unique_objects",
-#endif // !PLATFORM_LUMIN
-	nullptr
-};
 
 #endif // VULKAN_HAS_DEBUGGING_ENABLED
 
@@ -387,7 +374,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s;  Do you have the Vulkan SDK Installed?"), TEXT(STANDARD_VALIDATION_LAYER_NAME));
 					bSkipStandard = true;
 #else
-					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s; trying individual layers..."), TEXT(STANDARD_VALIDATION_LAYER_NAME));
+					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s"), TEXT(STANDARD_VALIDATION_LAYER_NAME));
 #endif
 				}
 			}
@@ -400,25 +387,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 				}
 				else
 				{
-					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s; trying individual layers..."), TEXT(STANDARD_VALIDATION_LAYER_NAME));
-				}
-			}
-		}
-
-		if (!bStandardAvailable && !bSkipStandard)
-		{
-			// Verify that all requested debugging device-layers are available
-			for (uint32 LayerIndex = 0; GIndividualValidationLayers[LayerIndex] != nullptr; ++LayerIndex)
-			{
-				const ANSICHAR* CurrValidationLayer = GIndividualValidationLayers[LayerIndex];
-				bool bValidationFound = FindLayerInList(GlobalLayerExtensions, CurrValidationLayer);
-				if (bValidationFound)
-				{
-					OutInstanceLayers.Add(CurrValidationLayer);
-				}
-				else
-				{
-					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer '%s'"), ANSI_TO_TCHAR(CurrValidationLayer));
+					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s"), TEXT(STANDARD_VALIDATION_LAYER_NAME));
 				}
 			}
 		}
@@ -611,24 +580,6 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 			if (bStandardAvailable)
 			{
 				OutDeviceLayers.Add(STANDARD_VALIDATION_LAYER_NAME);
-			}
-		}
-
-		if (!bStandardAvailable)
-		{
-			for (uint32 LayerIndex = 0; GIndividualValidationLayers[LayerIndex] != nullptr; ++LayerIndex)
-			{
-				bool bValidationFound = false;
-				const ANSICHAR* CurrValidationLayer = GIndividualValidationLayers[LayerIndex];
-				for (int32 Index = 1; Index < DeviceLayerExtensions.Num(); ++Index)
-				{
-					if (!FCStringAnsi::Strcmp(DeviceLayerExtensions[Index].LayerProps.layerName, CurrValidationLayer))
-					{
-						bValidationFound = true;
-						OutDeviceLayers.Add(CurrValidationLayer);
-						break;
-					}
-				}
 			}
 		}
 	}
