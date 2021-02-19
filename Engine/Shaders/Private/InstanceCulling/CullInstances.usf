@@ -28,24 +28,28 @@ void CullInstancesCs(uint InstanceId : SV_DispatchThreadID)
 	uint WordMask = 1U << (InstanceId % 32U);
 	uint InstanceWordOffset = InstanceId / 32U;
 
-	bool bIsVisible = InstanceData.PrimitiveId != 0xFFFFFFFFu;
-
-	if (!bIsVisible)
-	{
-		return;
-	}
+	bool bIsValid = InstanceData.PrimitiveId != 0xFFFFFFFFu;
 
 	for (uint ViewId = 0; ViewId < NumViews; ++ViewId)
 	{
-		FNaniteView NaniteView = GetNaniteView(ViewId);
+		// NOTE: Default to flagging as visible, which means that invalid instances are marked as visible. This is a workaround that prevents instances that 
+		// are uploaded after this kernel runs from being culled. When the culling tests are moved into the later kernel we should switch this back to discarding.
+		uint Flag = WordMask;
+		if (bIsValid)
+		{
+			FNaniteView NaniteView = GetNaniteView(ViewId);
 
-		float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
-		LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
-		float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
+			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
+			LocalToTranslatedWorld[3].xyz += NaniteView.PreViewTranslation.xyz;
+			float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
 
-		FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, false);
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, false);
 
-		uint Flag = (Cull.bIsVisible ? WordMask : 0U);
+			if (!Cull.bIsVisible)
+			{
+				Flag = 0U;
+			}
+		}
 
 		// TODO: we can use ballot etc to do this without atomics (and without clearing) - but it would need to be portable and not sure if 
 		// we'll keep this code anyway.

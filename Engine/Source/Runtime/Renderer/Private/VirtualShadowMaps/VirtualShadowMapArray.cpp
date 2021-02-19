@@ -1527,6 +1527,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 		const FViewInfo& View = *ViewUsedToCreateShadow;
 		TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
 
+		ProjectedShadowInfo->BeginRenderView(GraphBuilder, &Scene);
+
 		if( Clipmap )
 		{
 			Nanite::FPackedViewParams BaseParams;
@@ -1571,7 +1573,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(i, true);
 
 				VirtualShadowViews.Add(Nanite::CreatePackedView(Params));
-				//VirtualShadowMapFlags[ProjectedShadowInfo->VirtualShadowMaps[i]->ID] = 1;
+				VirtualShadowMapFlags[ProjectedShadowInfo->VirtualShadowMaps[i]->ID] = 1;
 			}
 		}
 
@@ -1708,8 +1710,6 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 					0
 				);
 			}
-
-			ProjectedShadowInfo->BeginRenderView(GraphBuilder, &Scene);
 
 			FVirtualShadowDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowDepthPassParameters>();
 			PassParameters->View = ShadowDepthView->ViewUniformBuffer;
