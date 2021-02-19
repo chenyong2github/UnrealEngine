@@ -15,10 +15,33 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "SGraphPreviewer.h"
 #include "AnimNodes/AnimNode_BlendSpaceGraphBase.h"
+#include "Widgets/Docking/SDockTab.h"
 
 static const FName BlendSpaceEditorID("BlendSpaceEditor");
 
 #define LOCTEXT_NAMESPACE "FBlendSpaceDocumentTabFactory"
+
+// Simple wrapper widget used to hold a reference to the graph document
+class SBlendSpaceDocumentTab : public SCompoundWidget
+{	
+	SLATE_BEGIN_ARGS(SBlendSpaceDocumentTab) {}
+
+	SLATE_DEFAULT_SLOT(FArguments, Content)
+	
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UBlendSpaceGraph* InDocument)
+	{
+		Document = InDocument;
+		
+		ChildSlot
+		[
+			InArgs._Content.Widget
+		];
+	}
+
+	TWeakObjectPtr<UBlendSpaceGraph> Document;
+};
 
 FBlendSpaceDocumentTabFactory::FBlendSpaceDocumentTabFactory(TSharedPtr<FAnimationBlueprintEditor> InBlueprintEditorPtr)
 	: FDocumentTabFactory(BlendSpaceEditorID, InBlueprintEditorPtr)
@@ -188,17 +211,20 @@ TSharedRef<SWidget> FBlendSpaceDocumentTabFactory::CreateTabBody(const FWorkflow
 
 	Args.StatusBarName = TEXT("AssetEditor.AnimationBlueprintEditor.MainMenu");
 
-	return 
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.AutoHeight()
+	return
+		SNew(SBlendSpaceDocumentTab, DocumentID)
 		[
-			BlueprintEditorPtr.Pin()->CreateGraphTitleBarWidget(Info.TabInfo.ToSharedRef(), DocumentID)
-		]
-		+SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		[
-			PersonaModule.CreateBlendSpaceEditWidget(DocumentID->BlendSpace, Args)
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				BlueprintEditorPtr.Pin()->CreateGraphTitleBarWidget(Info.TabInfo.ToSharedRef(), DocumentID)
+			]
+			+SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			[
+				PersonaModule.CreateBlendSpaceEditWidget(DocumentID->BlendSpace, Args)
+			]
 		];
 }
 
@@ -242,5 +268,28 @@ TAttribute<FText> FBlendSpaceDocumentTabFactory::ConstructTabName(const FWorkflo
 		});
 }
 
+void FBlendSpaceDocumentTabFactory::OnTabActivated(TSharedPtr<SDockTab> Tab) const
+{
+	TSharedRef<SBlendSpaceDocumentTab> DocumentWidget = StaticCastSharedRef<SBlendSpaceDocumentTab>(Tab->GetContent());
+	if(UBlendSpaceGraph* Document = DocumentWidget->Document.Get())
+	{
+		if(TSharedPtr<FAnimationBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin())
+		{
+			BlueprintEditor->SetDetailObject(Document);
+		}
+	}
+}
+
+void FBlendSpaceDocumentTabFactory::OnTabForegrounded(TSharedPtr<SDockTab> Tab) const
+{
+	TSharedRef<SBlendSpaceDocumentTab> DocumentWidget = StaticCastSharedRef<SBlendSpaceDocumentTab>(Tab->GetContent());
+	if(UBlendSpaceGraph* Document = DocumentWidget->Document.Get())
+	{
+		if(TSharedPtr<FAnimationBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin())
+		{
+			BlueprintEditor->SetDetailObject(Document);
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

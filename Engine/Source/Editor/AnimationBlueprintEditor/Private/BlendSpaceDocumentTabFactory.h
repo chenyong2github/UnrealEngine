@@ -19,7 +19,9 @@ protected:
 	virtual bool IsPayloadSupported(TSharedRef<FTabPayload> Payload) const override;
 	virtual bool IsPayloadValid(TSharedRef<FTabPayload> Payload) const override;
 	virtual TAttribute<FText> ConstructTabName(const FWorkflowTabSpawnInfo& Info) const override;
-
+	virtual void OnTabActivated(TSharedPtr<SDockTab> Tab) const override;
+	virtual void OnTabForegrounded(TSharedPtr<SDockTab> Tab) const override;
+	
 protected:
 	TWeakPtr<FAnimationBlueprintEditor> BlueprintEditorPtr;
 };

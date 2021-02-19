@@ -20,6 +20,6 @@ private:
 
 public:
 	// Blendspace that we wrap
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category="BlendSpace", Instanced, NoClear, meta = (ShowOnlyInnerProperties))
 	TObjectPtr<UBlendSpace> BlendSpace;
 };
