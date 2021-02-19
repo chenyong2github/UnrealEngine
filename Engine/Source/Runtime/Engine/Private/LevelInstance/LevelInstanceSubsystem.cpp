@@ -795,9 +795,17 @@ ALevelInstance* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const TArray<AA
 	LevelStreaming->LevelInstanceID = NewLevelInstanceActor->GetLevelInstanceID();
 		
 	GetWorld()->SetCurrentLevel(LoadedLevel);
+
+	TSet<UPackage*> DirtyPackages;
+	DirtyPackages.Add(NewLevelInstanceActor->GetPackage());
+
+	for (AActor* ActorToMove : ActorsToMove)
+	{
+		DirtyPackages.Add(ActorToMove->GetPackage());
+	}
 				
 	// Use LevelStreaming->GetLevelInstanceActor() because OnWorldAssetSaved could've reinstanced the LevelInstanceActor
-	return CommitLevelInstance(LevelStreaming->GetLevelInstanceActor());
+	return CommitLevelInstance(LevelStreaming->GetLevelInstanceActor(), /*bDiscardEdits*/false, &DirtyPackages);
 }
 
 bool ULevelInstanceSubsystem::BreakLevelInstance(ALevelInstance* LevelInstanceActor, uint32 Levels /* = 1 */, TArray<AActor*>* OutMovedActors /* = nullptr */)
@@ -1454,7 +1462,7 @@ void ULevelInstanceSubsystem::CommitChildrenLevelInstances(ALevelInstance* Level
 	});
 }
 
-ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits)
+ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceActor, bool bDiscardEdits, TSet<UPackage*>* DirtyPackages)
 {
 	check(CanCommitLevelInstance(LevelInstanceActor));
 
@@ -1476,6 +1484,10 @@ ALevelInstance* ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* Lev
 		if (!FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined, nullptr,
 			[=](UPackage* DirtyPackage)
 			{
+				if (DirtyPackages && DirtyPackages->Contains(DirtyPackage))
+				{
+					return false;
+				}
 				return ShouldIgnoreDirtyPackage(DirtyPackage, EditingWorld);
 			}))
 		{
