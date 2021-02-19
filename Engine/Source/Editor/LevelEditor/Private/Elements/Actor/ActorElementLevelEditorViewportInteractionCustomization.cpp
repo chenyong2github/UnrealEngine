@@ -15,7 +15,7 @@
 #include "ActorGroupingUtils.h"
 #include "LevelEditorViewport.h"
 
-void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
+void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const ETypedElementViewportInteractionWorldType InWorldType, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove, FElementToMoveFinalizerMap& OutElementsToMoveFinalizers)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
@@ -28,7 +28,7 @@ void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove
 
 	if (CanMoveActorInViewport(Actor, InWorldType))
 	{
-		AppendActorsToMove(Actor, InSelectionSet, OutElementsToMove);
+		AppendActorsToMove(Actor, InSelectionSet, OutElementsToMove, OutElementsToMoveFinalizers);
 	}
 }
 
@@ -146,12 +146,11 @@ bool FActorElementLevelEditorViewportInteractionCustomization::CanMoveActorInVie
 	return true;
 }
 
-void FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMove(AActor* InActor, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove)
+void FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMove(AActor* InActor, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToMove, FElementToMoveFinalizerMap& OutElementsToMoveFinalizers)
 {
-	auto AddActorElement = [&OutElementsToMove](AActor* InActorToAdd)
+	auto AddActorElement = [OutElementsToMove](AActor* InActorToAdd)
 	{
-		FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActorToAdd);
-		if (ActorElementHandle)
+		if(FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActorToAdd))
 		{
 			OutElementsToMove->Add(MoveTemp(ActorElementHandle));
 		}
@@ -160,7 +159,16 @@ void FActorElementLevelEditorViewportInteractionCustomization::AppendActorsToMov
 	AGroupActor* ParentGroup = AGroupActor::GetRootForActor(InActor, true, true);
 	if (ParentGroup && UActorGroupingUtils::IsGroupingActive())
 	{
-		ParentGroup->ForEachMovableActorInGroup(InSelectionSet, AddActorElement);
+		// Defer group enumeration until the finalization phase, so that each group is 
+		// enumerated once, regardless of how many actors within that group are selected
+		FTypedElementHandle ParentGroupElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(ParentGroup);
+		if (ParentGroupElementHandle && !OutElementsToMoveFinalizers.Contains(ParentGroupElementHandle))
+		{
+			OutElementsToMoveFinalizers.Add(ParentGroupElementHandle, [ParentGroup, InSelectionSet, AddActorElement](const FTypedElementHandle&)
+			{
+				ParentGroup->ForEachMovableActorInGroup(InSelectionSet, AddActorElement);
+			});
+		}
 	}
 	else
 	{
