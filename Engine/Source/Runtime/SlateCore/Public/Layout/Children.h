@@ -220,7 +220,7 @@ public:
 		WidgetPtr = InWidget;
 		if (Owner) 
 		{ 
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 
 			if (InWidget.IsValid() && InWidget != SNullWidget::NullWidget)
 			{
@@ -355,6 +355,9 @@ public:
 		, bEmptying(false)
 	{
 	}
+
+	//~ TPanelChildren should have a valid pointer
+	TPanelChildren(std::nullptr_t InOwner) = delete;
 	
 	virtual int32 Num() const override
 	{
@@ -454,7 +457,7 @@ public:
 
 		if (Owner)
 		{
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
@@ -477,7 +480,7 @@ public:
 		::Sort(TIndirectArray< SlotType >::GetData(), TIndirectArray<SlotType>::Num(), Predicate);
 		if (Owner)
 		{
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
@@ -487,7 +490,7 @@ public:
 		::StableSort(TIndirectArray< SlotType >::GetData(), TIndirectArray< SlotType >::Num(), Predicate);
 		if (Owner)
 		{
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
@@ -496,7 +499,7 @@ public:
 		TIndirectArray< SlotType >::Swap(IndexA, IndexB);
 		if (Owner)
 		{
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
@@ -663,7 +666,7 @@ public:
 	{
 		if (Owner && bChangesInvalidatePrepass)
 		{ 
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 
 		int32 Index = TArray< TSharedRef<ChildType> >::Add(Child);
@@ -712,7 +715,7 @@ public:
 	{
 		if (Owner && bChangesInvalidatePrepass) 
 		{
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 
 		TArray< TSharedRef<ChildType> >::Insert(Child, Index);
@@ -769,7 +772,7 @@ public:
 		TArray< TSharedRef<ChildType> >::Sort( Predicate );
 		if (Owner && bChangesInvalidatePrepass)
 		{
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
@@ -778,7 +781,7 @@ public:
 		TIndirectArray< ChildType >::Swap(IndexA, IndexB);
 		if (Owner && bChangesInvalidatePrepass)
 		{
-			Owner->Invalidate(EInvalidateWidget::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 

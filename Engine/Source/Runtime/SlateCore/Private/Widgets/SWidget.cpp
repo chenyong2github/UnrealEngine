@@ -212,7 +212,6 @@ SWidget::SWidget()
 	, bInheritedVolatility(false)
 	, bInvisibleDueToParentOrSelfVisibility(false)
 	, bNeedsPrepass(true)
-	, bUpdatingDesiredSize(false)
 	, bHasRegisteredSlateAttribute(false)
 	, bPauseAttributeInvalidation(true)
 	, bHasCustomPrepass(false)
@@ -1408,7 +1407,11 @@ int32 SWidget::Paint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, 
 	PersistentState.DesktopGeometry = DesktopSpaceGeometry;
 	PersistentState.WidgetStyle = InWidgetStyle;
 	PersistentState.CullingBounds = MyCullingRect;
-	PersistentState.IncomingUserIndex = Args.GetHittestGrid().GetUserIndex();
+
+	const int32 IncomingUserIndex = Args.GetHittestGrid().GetUserIndex();
+	ensure(IncomingUserIndex <= std::numeric_limits<int8>::max()); // shorten to save memory
+	PersistentState.IncomingUserIndex = (int8)IncomingUserIndex;
+
 	PersistentState.IncomingFlowDirection = GSlateFlowDirection;
 
 	FPaintArgs UpdatedArgs = Args.WithNewParent(this);

@@ -207,7 +207,7 @@ public:
 		SHorizontalBox::FSlot& NewSlot = *new SHorizontalBox::FSlot();
 		this->Children.Add( &NewSlot );
 
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidgetReason::Layout);
 
 		return NewSlot;
 	}
@@ -221,7 +221,7 @@ public:
 		SHorizontalBox::FSlot& NewSlot = *new SHorizontalBox::FSlot();
 		this->Children.Insert(&NewSlot, Index);
 
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidgetReason::Layout);
 
 		return NewSlot;
 	}
@@ -352,7 +352,7 @@ public:
 		SVerticalBox::FSlot& NewSlot = *new SVerticalBox::FSlot();
 		this->Children.Add( &NewSlot );
 
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidgetReason::Layout);
 
 		return NewSlot;
 	}
@@ -366,7 +366,7 @@ public:
 		SVerticalBox::FSlot& NewSlot = *new SVerticalBox::FSlot();
 		this->Children.Insert(&NewSlot, Index);
 
-		Invalidate(EInvalidateWidget::Layout);
+		Invalidate(EInvalidateWidgetReason::Layout);
 
 		return NewSlot;
 	}

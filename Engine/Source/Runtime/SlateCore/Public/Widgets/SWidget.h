@@ -920,7 +920,8 @@ public:
 
 	/**
 	 * @return is this widget visible, hidden or collapsed.
-	 * @note this widget can be visible but if a parent is hidden or collapsed, it would not show on screen. */
+	 * @note this widget can be visible but if a parent is hidden or collapsed, it would not show on screen.
+	 */
 	FORCEINLINE EVisibility GetVisibility() const { return Visibility.Get(); }
 
 	/** @param InVisibility  should this widget be */
@@ -1015,7 +1016,7 @@ public:
 		if (bForceVolatile != bForce)
 		{
 			bForceVolatile = bForce;
-			Invalidate(EInvalidateWidgetReason::Volatility);
+			Invalidate(EInvalidateWidgetReason::PaintAndVolatility);
 		}
 	}
 
@@ -1639,9 +1640,6 @@ private:
 	/** Are we currently updating the desired size? */
 	uint8 bNeedsPrepass : 1;
 
-	/** Are we currently updating the desired size? */
-	mutable uint8 bUpdatingDesiredSize : 1;
-
 	/** Is there at least one SlateAttribute currently registered. */
 	uint8 bHasRegisteredSlateAttribute : 1;
 
@@ -1821,7 +1819,7 @@ bool SetWidgetAttribute(SWidget& ThisWidget, TAttribute<TargetValueType>& Target
 		EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
 		if (bBoundnessChanged)
 		{
-			InvalidateReason |= EInvalidateWidgetReason::Volatility;
+			InvalidateReason |= EInvalidateWidgetReason::PaintAndVolatility;
 		}
 
 		ThisWidget.Invalidate(InvalidateReason);

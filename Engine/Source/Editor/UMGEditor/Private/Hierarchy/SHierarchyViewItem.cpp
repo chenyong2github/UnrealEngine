@@ -1085,7 +1085,7 @@ FText FHierarchyWidget::GetImageToolTipText() const
 	if ( WidgetTemplate )
 	{
 		UClass* WidgetClass = WidgetTemplate->GetClass();
-		if ( WidgetClass->IsChildOf( UUserWidget::StaticClass() ) )
+		if ( WidgetClass->IsChildOf( UUserWidget::StaticClass() ) && WidgetClass->ClassGeneratedBy )
 		{
 			auto& Description = Cast<UWidgetBlueprint>( WidgetClass->ClassGeneratedBy )->BlueprintDescription;
 			if ( Description.Len() > 0 )
