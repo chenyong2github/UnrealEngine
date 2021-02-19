@@ -2902,7 +2902,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 			GameViewport->Viewport->SetPlayInEditorViewport(true);
 		}
 
-		if (InParams.EditorPlaySettings->bUseNonRealtimeAudioDevice)
+		if (InParams.EditorPlaySettings->bUseNonRealtimeAudioDevice && AudioDeviceManager)
 		{
 			UE_LOG(LogPlayLevel, Log, TEXT("Creating new non-realtime audio mixer"));
 			FAudioDeviceParams DeviceParams = AudioDeviceManager->GetDefaultParamsForNewWorld();
