@@ -48,7 +48,7 @@ bool FFeedbackContextMarkup::PipeProcessOutput(const FText& Description, const F
 	Warn->BeginSlowTask(Description, true, true);
 
 	// Create the process
-	FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*URL, *Params, false, true, true, NULL, 0, NULL, PipeWrite);
+	FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*URL, *Params, false, true, true, NULL, 0, NULL, PipeWrite, PipeRead);
 	if(ProcessHandle.IsValid())
 	{
 		FString BufferedText;
