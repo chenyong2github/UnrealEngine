@@ -79,4 +79,17 @@ public:
 	 * @param	InArgs	The declaration data for this widget
 	 */
 	void Construct( const FArguments& InArgs );
+
+	
+	virtual void OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
+
+protected:
+
+	/**
+	* Finds the STextBlock that gets displayed in the UI
+	*
+	* @param Content	Widget to check for an STextBlock
+	* @return	The STextBlock widget found
+	*/
+	TSharedRef<SWidget> FindTextBlockWidget(TSharedRef<SWidget> Content);
 };
