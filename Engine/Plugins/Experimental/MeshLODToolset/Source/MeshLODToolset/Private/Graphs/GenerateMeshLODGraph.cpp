@@ -12,6 +12,8 @@
 #include "MeshProcessingNodes/MeshVoxMorphologyNode.h"
 #include "MeshProcessingNodes/MeshSimplifyNode.h"
 #include "MeshProcessingNodes/MeshDeleteTrianglesNode.h"
+#include "MeshProcessingNodes/CompactMeshNode.h"
+#include "MeshProcessingNodes/TransferMeshMaterialIDsNode.h"
 
 #include "MeshProcessingNodes/MeshNormalsNodes.h"
 #include "MeshProcessingNodes/MeshTangentsNodes.h"
@@ -452,13 +454,25 @@ void FGenerateMeshLODGraph::BuildGraph()
 	MorphologySettingsNode = Graph->AddNodeOfType<FVoxClosureSettingsSourceNode>(TEXT("ClosureSettings"));
 	Graph->InferConnection(MorphologySettingsNode, MorphologyNode);
 
+	// todo: if we only have one material ID we can skip this...
+	FGraph::FHandle MatIDTransferNode = Graph->AddNodeOfType<FTransferMeshMaterialIDsNode>(TEXT("TransferMaterialIDs"));
+	Graph->AddConnection(MeshSourceNode, FDynamicMeshSourceNode::OutParamValue(), MatIDTransferNode, FTransferMeshMaterialIDsNode::InParamMaterialSourceMesh());
+	Graph->InferConnection(MorphologyNode, MatIDTransferNode);
+
+	// need to compute valid normals before Simplify, Morphology node does not necessarily do it
+	FGraph::FHandle PerVertexNormalsNode = Graph->AddNodeOfType<FComputeMeshPerVertexOverlayNormalsNode>(TEXT("PerVertexNormals"));
+	Graph->InferConnection(MatIDTransferNode, PerVertexNormalsNode);
+
 	SimplifyNode = Graph->AddNodeOfType<FSimplifyMeshNode>(TEXT("Simplify"));
-	Graph->InferConnection(MorphologyNode, SimplifyNode);
+	Graph->InferConnection(PerVertexNormalsNode, SimplifyNode);
 	SimplifySettingsNode = Graph->AddNodeOfType<FSimplifySettingsSourceNode>(TEXT("SimplifySettings"));
 	Graph->InferConnection(SimplifySettingsNode, SimplifyNode);
 
+	FGraph::FHandle CompactNode = Graph->AddNodeOfType<FCompactMeshNode>(TEXT("Compact"));
+	Graph->InferConnection(SimplifyNode, CompactNode);
+
 	NormalsNode = Graph->AddNodeOfType<FComputeMeshNormalsNode>(TEXT("Normals"));
-	Graph->InferConnection(SimplifyNode, NormalsNode);
+	Graph->InferConnection(CompactNode, NormalsNode);
 	NormalsSettingsNode = Graph->AddNodeOfType<FNormalsSettingsSourceNode>(TEXT("NormalsSettings"));
 	Graph->InferConnection(NormalsSettingsNode, NormalsNode);
 
@@ -560,10 +574,11 @@ void FGenerateMeshLODGraph::BuildGraph()
 	UpdateMorphologySettings(MorphologySettings);
 
 	FMeshSimplifySettings SimplifySettings;
-	SimplifySettings.bDiscardAttributes = true;
-	SimplifySettings.SimplifyType = EMeshSimplifyType::VolumePreserving;
+	SimplifySettings.bDiscardAttributes = false;
+	SimplifySettings.SimplifyType = EMeshSimplifyType::AttributeAware;
 	SimplifySettings.TargetType = EMeshSimplifyTargetType::TriangleCount;
 	SimplifySettings.TargetCount = 500;
+	SimplifySettings.MaterialBorderConstraints = EEdgeRefineFlags::NoFlip;
 	UpdateSimplifySettings(SimplifySettings);
 
 	FMeshNormalsSettings NormalsSettings;

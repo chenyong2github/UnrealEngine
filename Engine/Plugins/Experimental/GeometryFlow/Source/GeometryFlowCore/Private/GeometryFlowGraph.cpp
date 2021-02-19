@@ -116,12 +116,17 @@ EGeometryFlowResult FGraph::InferConnection(FHandle FromNodeHandle, FHandle ToNo
 		int32 OutputType = Output->GetDataType();
 		ToNode->EnumerateInputs([&](const FString& InputName, const TUniquePtr<INodeInput>& Input)
 		{
-			int32 InputType = Input->GetDataType();
-			if (OutputType == InputType)
+			// if input already has a connection, we cannot add another one and can skip it
+			FConnection ExistingConnection;
+			if (FindConnectionForInput(ToNodeHandle, InputName, ExistingConnection) != EGeometryFlowResult::Ok)
 			{
-				TotalMatchesFound++;
-				FromOutputName = OutputName;
-				ToInputName = InputName;
+				int32 InputType = Input->GetDataType();
+				if (OutputType == InputType)
+				{
+					TotalMatchesFound++;
+					FromOutputName = OutputName;
+					ToInputName = InputName;
+				}
 			}
 		});
 	});

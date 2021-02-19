@@ -40,7 +40,9 @@ struct FMeshNormalsSettings
 GEOMETRYFLOW_DECLARE_SETTINGS_TYPES(FMeshNormalsSettings, Normals);
 
 
-
+/**
+ * Recompute Normals overlay for input Mesh. Can apply in-place.
+ */
 class FComputeMeshNormalsNode : public TProcessMeshWithSettingsBaseNode<FMeshNormalsSettings>
 {
 public:
@@ -108,6 +110,48 @@ public:
 		FMeshNormals MeshNormals(&MeshInOut);
 		MeshNormals.RecomputeOverlayNormals(Normals, Settings.bAreaWeighted, Settings.bAngleWeighted);
 		MeshNormals.CopyToOverlay(Normals, Settings.bInvert);
+	}
+
+};
+
+
+
+/**
+ * Recompute per-vertex normals in Normals Overlay for input mesh. Can apply in-place.
+ */
+class FComputeMeshPerVertexOverlayNormalsNode : public FProcessMeshBaseNode
+{
+public:
+	FComputeMeshPerVertexOverlayNormalsNode()
+	{
+		// we can mutate input mesh
+		ConfigureInputFlags(InParamMesh(), FNodeInputFlags::Transformable());
+	}
+
+	virtual void ProcessMesh(
+		const FNamedDataMap& DatasIn,
+		const FDynamicMesh3& MeshIn,
+		FDynamicMesh3& MeshOut) override
+	{
+		MeshOut = MeshIn;
+		if (MeshOut.HasAttributes() == false)
+		{
+			MeshOut.EnableAttributes();
+		}
+		FDynamicMeshNormalOverlay* Normals = MeshOut.Attributes()->PrimaryNormals();
+		FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, false);
+	}
+
+	virtual void ProcessMeshInPlace(
+		const FNamedDataMap& DatasIn,
+		FDynamicMesh3& MeshInOut) override
+	{
+		if (MeshInOut.HasAttributes() == false)
+		{
+			MeshInOut.EnableAttributes();
+		}
+		FDynamicMeshNormalOverlay* Normals = MeshInOut.Attributes()->PrimaryNormals();
+		FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, false);
 	}
 
 };
