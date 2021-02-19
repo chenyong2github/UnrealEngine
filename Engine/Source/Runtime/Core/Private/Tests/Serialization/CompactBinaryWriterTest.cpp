@@ -735,6 +735,33 @@ bool FCbWriterTimeSpanTest::RunTest(const FString& Parameters)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterObjectIdTest, "System.Core.Serialization.CbWriter.ObjectId", CompactBinaryWriterTestFlags)
+bool FCbWriterObjectIdTest::RunTest(const FString& Parameters)
+{
+	TCbWriter<256> Writer;
+
+	const FCbObjectId Values[] = { FCbObjectId(), FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})) };
+	for (const FCbObjectId& Value : Values)
+	{
+		Writer.AddObjectId(Value);
+	}
+
+	FCbFieldRefIterator Fields = Writer.Save();
+	if (TestEqual(TEXT("FCbWriter(ObjectId) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
+	{
+		const FCbObjectId* CheckValue = Values;
+		for (FCbField Field : Fields)
+		{
+			TestEqual(TEXT("FCbWriter(ObjectId).AsObjectId()"), Field.AsObjectId(), *CheckValue++);
+			TestFalse(TEXT("FCbWriter(ObjectId) Error"), Field.HasError());
+		}
+	}
+
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterCustomByIdTest, "System.Core.Serialization.CbWriter.CustomById", CompactBinaryWriterTestFlags)
 bool FCbWriterCustomByIdTest::RunTest(const FString& Parameters)
 {
@@ -902,6 +929,9 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.AddTimeSpanTicks("TimeSpanZero"_ASV, 0);
 		Writer.AddTimeSpan("TimeSpan"_ASV, FTimespan(1, 2, 4, 8));
 
+		Writer.AddObjectId("ObjectIdZero"_ASV, FCbObjectId());
+		Writer.AddObjectId("ObjectId"_ASV, FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})));
+
 		Writer.BeginObject("NestedObjects"_ASV);
 		{
 			Writer.BeginObject("Empty"_ASV);
@@ -1055,6 +1085,9 @@ bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 
 		Writer << "DateTime"_ASV << FDateTime(2020, 5, 13, 15, 10);
 		Writer << "TimeSpan"_ASV << FTimespan(1, 2, 4, 8);
+
+		Writer << "ObjectIdZero"_ASV << FCbObjectId();
+		Writer << "ObjectId"_ASV << FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
 
 		Writer << "LiteralName" << nullptr;
 

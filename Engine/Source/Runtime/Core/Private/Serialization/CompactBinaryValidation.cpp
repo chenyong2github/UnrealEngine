@@ -358,6 +358,9 @@ static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbVali
 	case ECbFieldType::TimeSpan:
 		ValidateCbFixedPayload(View, Mode, Error, 8);
 		break;
+	case ECbFieldType::ObjectId:
+		ValidateCbFixedPayload(View, Mode, Error, 12);
+		break;
 	case ECbFieldType::CustomById:
 	{
 		FMemoryView Value = ValidateCbDynamicPayload(View, Mode, Error);

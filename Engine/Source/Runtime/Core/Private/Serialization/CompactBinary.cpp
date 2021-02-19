@@ -10,6 +10,7 @@
 #include "Misc/Timespan.h"
 #include "Serialization/Archive.h"
 #include "Serialization/VarInt.h"
+#include "String/BytesToHex.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -69,6 +70,25 @@ void FCbFieldType::StaticAssertTypeConstants()
 	static_assert((AttachmentMask & (AllFlags | ECbFieldType::BinaryAttachment)) == ECbFieldType::CompactBinaryAttachment, "AttachmentMask is invalid!");
 	static_assert(!(AttachmentMask & (AttachmentBase ^ ECbFieldType::BinaryAttachment)), "AttachmentMask or AttachmentBase is invalid!");
 	static_assert(TypeMask == (AttachmentMask | (AttachmentBase ^ ECbFieldType::BinaryAttachment)), "AttachmentMask or AttachmentBase is invalid!");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FCbObjectId::FCbObjectId(const FMemoryView ObjectId)
+{
+	checkf(ObjectId.GetSize() == sizeof(Bytes),
+		TEXT("FCbObjectId cannot be constructed from a view of %" UINT64_FMT " bytes."), ObjectId.GetSize());
+	FMemory::Memcpy(Bytes, ObjectId.GetData(), sizeof(Bytes));
+}
+
+void FCbObjectId::ToString(FAnsiStringBuilderBase& Builder) const
+{
+	UE::String::BytesToHexLower(Bytes, Builder);
+}
+
+void FCbObjectId::ToString(FWideStringBuilderBase& Builder) const
+{
+	UE::String::BytesToHexLower(Bytes, Builder);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -383,6 +403,21 @@ FTimespan FCbField::AsTimeSpan(FTimespan Default)
 	return FTimespan(AsTimeSpanTicks(Default.GetTicks()));
 }
 
+FCbObjectId FCbField::AsObjectId(const FCbObjectId& Default)
+{
+	static_assert(sizeof(FCbObjectId) == 12, "FCbObjectId is expected to be 12 bytes.");
+	if (FCbFieldType::IsObjectId(Type))
+	{
+		Error = ECbFieldError::None;
+		return FCbObjectId(MakeMemoryView(Payload, sizeof(FCbObjectId)));
+	}
+	else
+	{
+		Error = ECbFieldError::TypeError;
+		return Default;
+	}
+}
+
 FCbCustomById FCbField::AsCustomById(FCbCustomById Default)
 {
 	if (FCbFieldType::IsCustomById(Type))
@@ -506,6 +541,8 @@ uint64 FCbField::GetPayloadSize() const
 	case ECbFieldType::DateTime:
 	case ECbFieldType::TimeSpan:
 		return 8;
+	case ECbFieldType::ObjectId:
+		return 12;
 	default:
 		return 0;
 	}

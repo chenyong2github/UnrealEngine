@@ -220,6 +220,10 @@ public:
 	CORE_API void AddTimeSpan(FAnsiStringView Name, FTimespan Value);
 	CORE_API void AddTimeSpan(FTimespan Value);
 
+	/** Write an ObjectId field. */
+	inline void AddObjectId(FAnsiStringView Name, const FCbObjectId& Value) { SetName(Name); AddObjectId(Value); }
+	CORE_API void AddObjectId(const FCbObjectId& Value);
+
 	/** Write a custom field with an integer sub-type identifier. */
 	inline void AddCustom(FAnsiStringView FieldName, uint64 TypeId, FMemoryView Value) { SetName(FieldName); AddCustom(TypeId, Value); }
 	CORE_API void AddCustom(uint64 TypeId, FMemoryView Value);
@@ -433,5 +437,11 @@ inline FCbWriter& operator<<(FCbWriter& Writer, const FGuid& Value)
 
 CORE_API FCbWriter& operator<<(FCbWriter& Writer, FDateTime Value);
 CORE_API FCbWriter& operator<<(FCbWriter& Writer, FTimespan Value);
+
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObjectId& Value)
+{
+	Writer.AddObjectId(Value);
+	return Writer;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

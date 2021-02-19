@@ -73,6 +73,9 @@ bool TryMeasureCompactBinary(FMemoryView View, ECbFieldType& OutType, uint64& Ou
 	case ECbFieldType::TimeSpan:
 		FixedSize = 8;
 		break;
+	case ECbFieldType::ObjectId:
+		FixedSize = 12;
+		break;
 	case ECbFieldType::None:
 	default:
 		OutType = ECbFieldType::None;

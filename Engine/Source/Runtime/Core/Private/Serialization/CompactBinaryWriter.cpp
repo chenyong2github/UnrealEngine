@@ -560,6 +560,14 @@ void FCbWriter::AddTimeSpan(const FTimespan Value)
 	AddTimeSpanTicks(Value.GetTicks());
 }
 
+void FCbWriter::AddObjectId(const FCbObjectId& Value)
+{
+	static_assert(sizeof(FCbObjectId) == 12, "FCbObjectId is expected to be 12 bytes.");
+	BeginField();
+	Data.Append(reinterpret_cast<const uint8*>(&Value), sizeof(FCbObjectId));
+	EndField(ECbFieldType::ObjectId);
+}
+
 void FCbWriter::AddCustom(const uint64 TypeId, const FMemoryView Value)
 {
 	BeginField();

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "IO/IoHash.h"
 #include "Memory/MemoryView.h"
@@ -65,6 +66,7 @@ class FBlake3;
 class FCbArray;
 class FCbField;
 class FCbObject;
+class FCbObjectId;
 struct FDateTime;
 struct FGuid;
 struct FTimespan;
@@ -175,6 +177,13 @@ enum class ECbFieldType : uint8
 	TimeSpan                         = 0x13,
 
 	/**
+	 * ObjectId is an opaque object identifier. See FCbObjectId.
+	 *
+	 * Payload is a 12-byte object identifier.
+	 */
+	ObjectId                         = 0x14,
+
+	/**
 	 * CustomById identifies the sub-type of its payload by an integer identifier.
 	 *
 	 * Payload is a VarUInt byte count of the sub-type identifier and the sub-type payload, followed
@@ -267,6 +276,8 @@ public:
 
 	static constexpr inline bool IsDateTime(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::DateTime; }
 	static constexpr inline bool IsTimeSpan(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::TimeSpan; }
+
+	static constexpr inline bool IsObjectId(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::ObjectId; }
 
 	static constexpr inline bool IsCustomById(ECbFieldType Type)   { return GetType(Type) == ECbFieldType::CustomById; }
 	static constexpr inline bool IsCustomByName(ECbFieldType Type) { return GetType(Type) == ECbFieldType::CustomByName; }
@@ -439,6 +450,60 @@ enum class ECbFieldError : uint8
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * An opaque 12-byte object identifier.
+ *
+ * It has no intrinsic meaning, and can only be properly interpreted in the context of its usage.
+ */
+class FCbObjectId
+{
+public:
+	/** Construct an ObjectId with every byte initialized to zero. */
+	FCbObjectId() = default;
+
+	/** Construct an ObjectId from a view of 12 bytes. */
+	CORE_API explicit FCbObjectId(FMemoryView ObjectId);
+
+	/** Convert the ObjectId to a 24-character hex string. */
+	CORE_API void ToString(FAnsiStringBuilderBase& Builder) const;
+	CORE_API void ToString(FWideStringBuilderBase& Builder) const;
+
+	/** Returns a view of the raw byte array for the ObjectId. */
+	constexpr inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
+
+private:
+	alignas(uint32) uint8 Bytes[12]{};
+};
+
+inline bool operator==(const FCbObjectId& A, const FCbObjectId& B)
+{
+	return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) == 0;
+}
+
+inline bool operator!=(const FCbObjectId& A, const FCbObjectId& B)
+{
+	return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) != 0;
+}
+
+inline bool operator<(const FCbObjectId& A, const FCbObjectId& B)
+{
+	return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) <= 0;
+}
+
+inline uint32 GetTypeHash(const FCbObjectId& Id)
+{
+	return *reinterpret_cast<const uint32*>(&Id);
+}
+
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCbObjectId& Id)
+{
+	Id.ToString(Builder);
+	return Builder;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /** A custom compact binary field type with an integer identifier. */
 struct FCbCustomById
 {
@@ -567,6 +632,9 @@ public:
 	/** Access the field as a timespan. Returns the provided default on error. */
 	CORE_API FTimespan AsTimeSpan(FTimespan Default);
 
+	/** Access the field as an object identifier. Returns the provided default on error. */
+	CORE_API FCbObjectId AsObjectId(const FCbObjectId& Default = FCbObjectId());
+
 	/** Access the field as a custom sub-type with an integer identifier. Returns the provided default on error. */
 	CORE_API FCbCustomById AsCustomById(FCbCustomById Default = FCbCustomById());
 	/** Access the field as a custom sub-type with a string identifier. Returns the provided default on error. */
@@ -603,6 +671,8 @@ public:
 
 	constexpr inline bool IsDateTime() const        { return FCbFieldType::IsDateTime(Type); }
 	constexpr inline bool IsTimeSpan() const        { return FCbFieldType::IsTimeSpan(Type); }
+
+	constexpr inline bool IsObjectId() const        { return FCbFieldType::IsObjectId(Type); }
 
 	constexpr inline bool IsCustomById() const      { return FCbFieldType::IsCustomById(Type); }
 	constexpr inline bool IsCustomByName() const    { return FCbFieldType::IsCustomByName(Type); }
