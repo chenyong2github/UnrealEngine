@@ -65,9 +65,15 @@ private:
 	/** Attempts to load and fix redirector references for the supplied assets */
 	bool FixReferencesAndRename(const TArray<FAssetRenameData>& AssetsAndNames, bool bAutoCheckout, bool bWithDialog) const;
 
-	/** Get a list of assets referenced from CDOs */
-	TArray<TWeakObjectPtr<UObject>> FindCDOReferencedAssets(const TArray<FAssetRenameDataWithReferencers>& AssetsToRename) const;
-
+	/**
+	 * Get lists of assets with references from CDOs
+	 * @param AssetsToRename      Master list of assets to be renamed
+	 * @param OutReferences       Output array of hard asset references
+	 * @param OutSoftReferences   Output array of soft path asset references
+	 * @param bSetRedirectorFlags If true, each renamed asset with a soft reference will be marked as needing a redirector
+	 */
+	void FindCDOReferences(const TArrayView<FAssetRenameDataWithReferencers>& AssetsToRename, TArray<FAssetRenameDataWithReferencers*>& OutHardReferences, TArray<FAssetRenameDataWithReferencers*>& OutSoftReferences, bool bSetRedirectorFlags) const;
+	
 	/** Fills out the Referencing packages for all the assets described in AssetsToPopulate */
 	void PopulateAssetReferencers(TArray<FAssetRenameDataWithReferencers>& AssetsToPopulate) const;
 

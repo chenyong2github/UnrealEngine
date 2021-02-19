@@ -47,6 +47,7 @@
 #include "Settings/EditorProjectSettings.h"
 #include "Engine/World.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "GameMapsSettings.h"
 
 #define LOCTEXT_NAMESPACE "AssetRenameManager"
 
@@ -90,11 +91,13 @@ struct FAssetRenameDataWithReferencers : public FAssetRenameData
 	FText FailureReason;
 	bool bCreateRedirector;
 	bool bRenameFailed;
+	bool bWarnAboutProjectSettingsReference;
 
 	FAssetRenameDataWithReferencers(const FAssetRenameData& InRenameData)
 		: FAssetRenameData(InRenameData)
 		, bCreateRedirector(false)
 		, bRenameFailed(false)
+		, bWarnAboutProjectSettingsReference(false)
 	{
 		if (Asset.IsValid() && !OldObjectPath.IsValid())
 		{
@@ -364,22 +367,43 @@ bool FAssetRenameManager::FixReferencesAndRename(const TArray<FAssetRenameData>&
 	}
 
 	// Warn the user if they are about to rename an asset that is referenced by a CDO
-	TArray<TWeakObjectPtr<UObject>> CDOAssets = FindCDOReferencedAssets(AssetsToRename);
+	TArray<FAssetRenameDataWithReferencers*> CDOHardReferencedAssets, CDOSoftReferenceRenames;
+	FindCDOReferences(AssetsToRename, CDOHardReferencedAssets, CDOSoftReferenceRenames, true);
 
 	// Warn the user if there were any references
-	if (CDOAssets.Num())
+	if (CDOHardReferencedAssets.Num() || CDOSoftReferenceRenames.Num())
 	{
 		FString AssetNames;
-		for (auto AssetIt = CDOAssets.CreateConstIterator(); AssetIt; ++AssetIt)
+		for (auto HardAssetIt = CDOHardReferencedAssets.CreateConstIterator(); HardAssetIt; ++HardAssetIt)
 		{
-			UObject* Asset = (*AssetIt).Get();
+			UObject* Asset = (*HardAssetIt)->Asset.Get();
 			if (Asset)
 			{
 				AssetNames += FString("\n") + Asset->GetName();
 			}
 		}
 
-		const FText MessageText = FText::Format(LOCTEXT("RenameCDOReferences", "The following assets are referenced by one or more Class Default Objects: \n{0}\n\nContinuing with the rename may require code changes to fix these references. Do you wish to continue?"), FText::FromString(AssetNames));
+		for (auto SoftRefIt = CDOSoftReferenceRenames.CreateConstIterator(); SoftRefIt; ++SoftRefIt)
+		{
+			UObject* Asset = (*SoftRefIt)->Asset.Get();
+			if (Asset)
+			{
+				FString OptionalTagsString;
+
+				if ((*SoftRefIt)->bWarnAboutProjectSettingsReference)
+				{
+					OptionalTagsString = LOCTEXT("ProjSettingsReferenceTag", "project settings soft reference").ToString();
+				}
+				else
+				{
+					OptionalTagsString = LOCTEXT("SoftReferenceTag", "soft reference").ToString();
+				}
+				
+				AssetNames += FString::Printf(TEXT("\n%s (%s)"), *Asset->GetName(), *OptionalTagsString);
+			}
+		}
+
+		const FText MessageText = FText::Format(LOCTEXT("RenameCDOReferences", "The following assets are referenced by one or more Class Default Objects: \n{0}\n\nContinuing with the rename may require changes to fix references in code or project settings. Assets could otherwise be missing in cooked/packaged builds. Do you wish to continue?"), FText::FromString(AssetNames));
 		if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::No, MessageText) == EAppReturnType::No)
 		{
 			return false;
@@ -463,14 +487,170 @@ bool FAssetRenameManager::FixReferencesAndRename(const TArray<FAssetRenameData>&
 	return ReportFailures(AssetsToRename, bWithDialog) == 0;
 }
 
-TArray<TWeakObjectPtr<UObject>> FAssetRenameManager::FindCDOReferencedAssets(const TArray<FAssetRenameDataWithReferencers>& AssetsToRename) const
+
+struct FSoftObjectPathRenameSerializer : public FArchiveUObject
 {
-	TArray<TWeakObjectPtr<UObject>> CDOAssets, LocalAssetsToRename;
-	for (const FAssetRenameDataWithReferencers& AssetToRename : AssetsToRename)
+	void StartSerializingObject(UObject* InCurrentObject)
+	{
+		CurrentObject = InCurrentObject;
+		bFoundReference = false;
+	}
+	bool HasFoundReference() const
+	{
+		return bFoundReference;
+	}
+
+	FSoftObjectPathRenameSerializer(const TMap<FSoftObjectPath, FSoftObjectPath>& InRedirectorMap,
+		bool bInCheckOnly,
+		TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* InCachedObjectPaths,
+		const FName InPackageName = NAME_None)
+		: RedirectorMap(InRedirectorMap)
+		, CachedObjectPaths(InCachedObjectPaths)
+		, CurrentObject(nullptr)
+		, PackageName(InPackageName)
+		, bSearchOnly(bInCheckOnly)
+		, bFoundReference(false)
+	{
+		if (InCachedObjectPaths)
+		{
+			DirtyDelegateHandle = UPackage::PackageMarkedDirtyEvent.AddRaw(this, &FSoftObjectPathRenameSerializer::OnMarkPackageDirty);
+		}
+
+		this->ArIsObjectReferenceCollector = true;
+		this->ArIsModifyingWeakAndStrongReferences = true;
+
+		// Mark it as saving to correctly process all references
+		this->SetIsSaving(true);
+	}
+
+	virtual ~FSoftObjectPathRenameSerializer()
+	{
+		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
+	}
+
+	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
+	{
+		if (InProperty->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated | CPF_IsPlainOldData))
+		{
+			return true;
+		}
+
+		FFieldClass* PropertyClass = InProperty->GetClass();
+		if (PropertyClass->GetCastFlags() & (CASTCLASS_FBoolProperty | CASTCLASS_FNameProperty | CASTCLASS_FStrProperty | CASTCLASS_FMulticastDelegateProperty))
+		{
+			return true;
+		}
+
+		if (PropertyClass->GetCastFlags() & (CASTCLASS_FArrayProperty | CASTCLASS_FMapProperty | CASTCLASS_FSetProperty))
+		{
+			if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
+			{
+				return ShouldSkipProperty(ArrayProperty->Inner);
+			}
+			else if (const FMapProperty* MapProperty = CastField<FMapProperty>(InProperty))
+			{
+				return ShouldSkipProperty(MapProperty->KeyProp) && ShouldSkipProperty(MapProperty->ValueProp);
+			}
+			else if (const FSetProperty* SetProperty = CastField<FSetProperty>(InProperty))
+			{
+				return ShouldSkipProperty(SetProperty->ElementProp);
+			}
+		}
+
+		return false;
+	}
+
+	FArchive& operator<<(FSoftObjectPath& Value)
+	{
+		using namespace AssetRenameManagerImpl;
+
+		// Ignore untracked references if just doing a search only. We still want to fix them up if they happen to be there
+		if (bSearchOnly)
+		{
+			FSoftObjectPathThreadContext& ThreadContext = FSoftObjectPathThreadContext::Get();
+			FName ReferencingPackageName, ReferencingPropertyName;
+			ESoftObjectPathCollectType CollectType = ESoftObjectPathCollectType::AlwaysCollect;
+			ESoftObjectPathSerializeType SerializeType = ESoftObjectPathSerializeType::AlwaysSerialize;
+
+			ThreadContext.GetSerializationOptions(ReferencingPackageName, ReferencingPropertyName, CollectType, SerializeType, this);
+
+			if (CollectType == ESoftObjectPathCollectType::NeverCollect)
+			{
+				return *this;
+			}
+		}
+
+		if (CachedObjectPaths)
+		{
+			TSet<FWeakObjectPtr>* ObjectSet = &CachedObjectPaths->FindOrAdd(Value);
+			ObjectSet->Add(CurrentObject);
+		}
+
+		const FString& SubPath = Value.GetSubPathString();
+		for (const TPair<FSoftObjectPath, FSoftObjectPath>& Pair : RedirectorMap)
+		{
+			if (Pair.Key.GetAssetPathName() == Value.GetAssetPathName())
+			{
+				// Same asset, fix sub path. Asset will be fixed by normal serializePath call below
+				const FString& CheckSubPath = Pair.Key.GetSubPathString();
+
+				if (IsSubPath(SubPath, CheckSubPath))
+				{
+					bFoundReference = true;
+
+					if (!bSearchOnly)
+					{
+						if (CurrentObject)
+						{
+							check(!CachedObjectPaths); // Modify can invalidate the object paths map, not allowed to be modifying and using the cache at the same time
+							CurrentObject->Modify(true);
+						}
+
+						FString NewSubPath(SubPath);
+						NewSubPath.ReplaceInline(*CheckSubPath, *Pair.Value.GetSubPathString());
+						Value = FSoftObjectPath(Pair.Value.GetAssetPathName(), NewSubPath);
+					}
+					break;
+				}
+			}
+		}
+
+		return *this;
+	}
+
+	void OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
+	{
+		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
+
+		if (CachedObjectPaths && Pkg && Pkg->GetFName() == PackageName)
+		{
+			UE_LOG(LogAssetTools, VeryVerbose, TEXT("Performance: Package unexpectedly modified during serialization by FSoftObjectPathRenameSerializer: %s"), *Pkg->GetFullName());
+		}
+	}
+
+private:
+	const TMap<FSoftObjectPath, FSoftObjectPath>& RedirectorMap;
+	TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* CachedObjectPaths;
+	FDelegateHandle DirtyDelegateHandle;
+	UObject* CurrentObject;
+	FName PackageName;
+	bool bSearchOnly;
+	bool bFoundReference;
+
+};
+
+void FAssetRenameManager::FindCDOReferences(const TArrayView<FAssetRenameDataWithReferencers>& AssetsToRename, TArray<FAssetRenameDataWithReferencers*>& OutHardReferences, TArray<FAssetRenameDataWithReferencers*>& OutSoftReferences, bool bSetRedirectorFlags) const
+{
+	// Checking reference candidates off as we find them to reduce workload
+	TArray<FAssetRenameDataWithReferencers*> RemainingHardRefAssetChecklist;
+	TArray<FAssetRenameDataWithReferencers*> RemainingSoftRefAssetChecklist;
+
+	for (FAssetRenameDataWithReferencers& AssetToRename : AssetsToRename)
 	{
 		if (AssetToRename.Asset.IsValid())
 		{
-			LocalAssetsToRename.Push(AssetToRename.Asset);
+			RemainingHardRefAssetChecklist.Push(&AssetToRename);
+			RemainingSoftRefAssetChecklist.Push(&AssetToRename);
 		}
 	}
 
@@ -479,8 +659,9 @@ TArray<TWeakObjectPtr<UObject>> FAssetRenameManager::FindCDOReferencedAssets(con
 	{
 		UClass* Cls = (*ClassDefaultObjectIt);
 		UObject* CDO = Cls->ClassDefaultObject;
+		bool bWorkingOnGameMapsSettings = (CDO == GetDefault<UGameMapsSettings>());
 
-		if (!CDO || !CDO->HasAllFlags(RF_ClassDefaultObject) || Cls->ClassGeneratedBy != nullptr)
+		if (!CDO || !CDO->HasAllFlags(RF_ClassDefaultObject) || CDO->IsPendingKill() || Cls->ClassGeneratedBy != nullptr)
 		{
 			continue;
 		}
@@ -491,31 +672,74 @@ TArray<TWeakObjectPtr<UObject>> FAssetRenameManager::FindCDOReferencedAssets(con
 			continue;
 		}
 
-		for (TFieldIterator<FObjectProperty> PropertyIt(Cls); PropertyIt; ++PropertyIt)
+		// Search this CDO for hard references
+		for (TFieldIterator<FObjectProperty> PropertyIt(Cls); PropertyIt && RemainingHardRefAssetChecklist.Num(); ++PropertyIt)
 		{
 			const UObject* Object = PropertyIt->GetPropertyValue(PropertyIt->ContainerPtrToValuePtr<UObject>(CDO));
-			for (const TWeakObjectPtr<UObject>& Asset : LocalAssetsToRename)
-			{
-				if (Object == Asset.Get())
-				{
-					CDOAssets.Push(Asset);
-					LocalAssetsToRename.Remove(Asset);
 
-					if (LocalAssetsToRename.Num() == 0)
+			for (FAssetRenameDataWithReferencers* AssetToRename : RemainingHardRefAssetChecklist)
+			{
+				if (Object == AssetToRename->Asset.Get())
+				{
+					OutHardReferences.Push(AssetToRename);
+					RemainingHardRefAssetChecklist.Remove(AssetToRename);
+					break;
+				}
+			}
+		}
+
+		//Search this CDO for soft references
+		TMap<FSoftObjectPath, FSoftObjectPath> DummyEmptyRedirectorMap;
+		TMap<FSoftObjectPath, TSet<FWeakObjectPtr>> SoftReferenceMap;
+		FSoftObjectPathRenameSerializer SoftRefCheckSerializer(DummyEmptyRedirectorMap, true, &SoftReferenceMap);
+
+		// Gather all soft references
+		SoftRefCheckSerializer.StartSerializingObject(CDO);
+		CDO->Serialize(SoftRefCheckSerializer);
+
+		// Check all soft references in the CDO for matching items that are to be renamed, with special handling for UBlueprint assets
+		for (auto Iter = SoftReferenceMap.CreateIterator(); Iter && RemainingSoftRefAssetChecklist.Num(); ++Iter)
+		{
+			FSoftObjectPath SoftRefObjPath = Iter.Key();
+
+			if (SoftRefObjPath.IsValid())
+			{
+				TWeakObjectPtr<UObject> Object = SoftRefObjPath.ResolveObject();
+				TWeakObjectPtr<UBlueprint> ObjectAsBP = UBlueprint::GetBlueprintFromClass(Cast<UBlueprintGeneratedClass>(Object));
+
+				// Resolve to the redirected asset path if necessary
+				FName FinalSoftObjPathName = SoftRefObjPath.GetAssetPathName();
+			
+				if (!Object.IsValid() && SoftRefObjPath.IsValid())
+				{
+					FName RedirObjectPathName = GRedirectCollector.GetAssetPathRedirection(SoftRefObjPath.GetAssetPathName());
+
+					if (RedirObjectPathName != NAME_None && RedirObjectPathName != FinalSoftObjPathName)
 					{
-						// No more assets to check
-						return MoveTemp(CDOAssets);
+						FinalSoftObjPathName = RedirObjectPathName;
 					}
-					else
+				}
+
+				// Check for any matching rename requests
+				for (FAssetRenameDataWithReferencers* AssetToRename : RemainingSoftRefAssetChecklist)
+				{
+					// Look for loaded references, indirect blueprint refs to their generated class counterparts, or path name matching
+					if ((Object == AssetToRename->Asset) ||
+						(ObjectAsBP != nullptr && ObjectAsBP == AssetToRename->Asset) ||
+						(!FinalSoftObjPathName.IsNone() && FinalSoftObjPathName == AssetToRename->OldObjectPath.GetAssetPathName()))
 					{
+						AssetToRename->bCreateRedirector |= bSetRedirectorFlags;
+						AssetToRename->bWarnAboutProjectSettingsReference |= bWorkingOnGameMapsSettings;
+
+						OutSoftReferences.Push(AssetToRename);
+						RemainingSoftRefAssetChecklist.Remove(AssetToRename);
+
 						break;
 					}
 				}
 			}
 		}
 	}
-
-	return MoveTemp(CDOAssets);
 }
 
 void FAssetRenameManager::PopulateAssetReferencers(TArray<FAssetRenameDataWithReferencers>& AssetsToPopulate) const
@@ -993,158 +1217,6 @@ void FAssetRenameManager::DetectReadOnlyPackages(TArray<FAssetRenameDataWithRefe
 		}
 	}
 }
-
-struct FSoftObjectPathRenameSerializer : public FArchiveUObject
-{
-	void StartSerializingObject(UObject* InCurrentObject)
-	{ 
-		CurrentObject = InCurrentObject;
-		bFoundReference = false; 
-	}
-	bool HasFoundReference() const 
-	{ 
-		return bFoundReference; 
-	}
-
-	FSoftObjectPathRenameSerializer(const TMap<FSoftObjectPath, FSoftObjectPath>& InRedirectorMap, bool bInCheckOnly, TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* InCachedObjectPaths, const FName InPackageName = NAME_None)
-		: RedirectorMap(InRedirectorMap)
-		, CachedObjectPaths(InCachedObjectPaths)
-		, CurrentObject(nullptr)
-		, PackageName(InPackageName)
-		, bSearchOnly(bInCheckOnly)
-		, bFoundReference(false)
-	{
-		if (InCachedObjectPaths)
-		{
-			DirtyDelegateHandle = UPackage::PackageMarkedDirtyEvent.AddRaw(this, &FSoftObjectPathRenameSerializer::OnMarkPackageDirty);
-		}
-
-		this->ArIsObjectReferenceCollector = true;
-		this->ArIsModifyingWeakAndStrongReferences = true;
-
-		// Mark it as saving to correctly process all references
-		this->SetIsSaving(true);
-	}
-
-	virtual ~FSoftObjectPathRenameSerializer()
-	{
-		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
-	}
-
-	virtual bool ShouldSkipProperty(const FProperty* InProperty) const override
-	{
-		if (InProperty->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated | CPF_IsPlainOldData))
-		{
-			return true;
-		}
-
-		FFieldClass* PropertyClass = InProperty->GetClass();
-		if (PropertyClass->GetCastFlags() & (CASTCLASS_FBoolProperty | CASTCLASS_FNameProperty | CASTCLASS_FStrProperty | CASTCLASS_FMulticastDelegateProperty))
-		{
-			return true;
-		}
-
-		if (PropertyClass->GetCastFlags() & (CASTCLASS_FArrayProperty | CASTCLASS_FMapProperty | CASTCLASS_FSetProperty))
-		{
-			if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
-			{
-				return ShouldSkipProperty(ArrayProperty->Inner);
-			}
-			else if (const FMapProperty* MapProperty = CastField<FMapProperty>(InProperty))
-			{
-				return ShouldSkipProperty(MapProperty->KeyProp) && ShouldSkipProperty(MapProperty->ValueProp);
-			}
-			else if (const FSetProperty* SetProperty = CastField<FSetProperty>(InProperty))
-			{
-				return ShouldSkipProperty(SetProperty->ElementProp);
-			}
-		}
-
-		return false;
-	}
-
-	FArchive& operator<<(FSoftObjectPath& Value)
-	{
-		using namespace AssetRenameManagerImpl;
-
-		// Ignore untracked references if just doing a search only. We still want to fix them up if they happen to be there
-		if (bSearchOnly)
-		{
-			FSoftObjectPathThreadContext& ThreadContext = FSoftObjectPathThreadContext::Get();
-			FName ReferencingPackageName, ReferencingPropertyName;
-			ESoftObjectPathCollectType CollectType = ESoftObjectPathCollectType::AlwaysCollect;
-			ESoftObjectPathSerializeType SerializeType = ESoftObjectPathSerializeType::AlwaysSerialize;
-
-			ThreadContext.GetSerializationOptions(ReferencingPackageName, ReferencingPropertyName, CollectType, SerializeType, this);
-
-			if (CollectType == ESoftObjectPathCollectType::NeverCollect)
-			{
-				return *this;
-			}
-		}
-
-		if (CachedObjectPaths)
-		{
-			TSet<FWeakObjectPtr>* ObjectSet = CachedObjectPaths->Find(Value);
-			if (ObjectSet == nullptr)
-			{
-				ObjectSet = &CachedObjectPaths->Add(Value);
-			}
-			ObjectSet->Add(CurrentObject);
-		}
-
-		const FString& SubPath = Value.GetSubPathString();
-		for (const TPair<FSoftObjectPath, FSoftObjectPath>& Pair : RedirectorMap)
-		{
-			if (Pair.Key.GetAssetPathName() == Value.GetAssetPathName())
-			{
-				// Same asset, fix sub path. Asset will be fixed by normal serializePath call below
-				const FString& CheckSubPath = Pair.Key.GetSubPathString();
-
-				if (IsSubPath(SubPath, CheckSubPath))
-				{
-					bFoundReference = true;
-
-					if (!bSearchOnly)
-					{
-						if (CurrentObject)
-						{
-							check(!CachedObjectPaths); // Modify can invalidate the object paths map, not allowed to be modifying and using the cache at the same time
-							CurrentObject->Modify(true);
-						}
-
-						FString NewSubPath(SubPath);
-						NewSubPath.ReplaceInline(*CheckSubPath, *Pair.Value.GetSubPathString());
-						Value = FSoftObjectPath(Pair.Value.GetAssetPathName(), NewSubPath);
-					}
-					break;
-				}
-			}
-		}
-
-		return *this;
-	}
-
-	void OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty)
-	{
-		UPackage::PackageMarkedDirtyEvent.Remove(DirtyDelegateHandle);
-
-		if (CachedObjectPaths && Pkg && Pkg->GetFName() == PackageName)
-		{
-			UE_LOG(LogAssetTools, VeryVerbose, TEXT("Performance: Package unexpectedly modified during serialization by FSoftObjectPathRenameSerializer: %s"), *Pkg->GetFullName());
-		}
-	}
-
-private:
-	const TMap<FSoftObjectPath, FSoftObjectPath>& RedirectorMap;
-	TMap<FSoftObjectPath, TSet<FWeakObjectPtr>>* CachedObjectPaths;
-	FDelegateHandle DirtyDelegateHandle;
-	UObject* CurrentObject;
-	FName PackageName;
-	bool bSearchOnly;
-	bool bFoundReference;
-
-};
 
 void FAssetRenameManager::RenameReferencingSoftObjectPaths(const TArray<UPackage *> PackagesToCheck, const TMap<FSoftObjectPath, FSoftObjectPath>& AssetRedirectorMap) const
 {

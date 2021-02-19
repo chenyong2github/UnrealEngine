@@ -5987,43 +5987,49 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 			FConfigFile PlatformEngineIni;
 			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
 
-			// get the server and game default maps and cook them
-			FString Obj;
-			if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameDefaultMap"), Obj))
+			// get the server and game default maps/modes and cook them
+			TArray<FString, TInlineAllocator<5>> GameDefaultObjs; 
+			FString ObjPath;
+
+			if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameDefaultMap"), ObjPath))
 			{
-				if (Obj != FName(NAME_None).ToString())
-				{
-					AddFileToCook(FilesInPath, Obj);
-				}
+				GameDefaultObjs.Add(MoveTemp(ObjPath));
 			}
+
 			if (IsCookFlagSet(ECookInitializationFlags::IncludeServerMaps))
 			{
-				if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("ServerDefaultMap"), Obj))
+				if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("ServerDefaultMap"), ObjPath))
 				{
-					if (Obj != FName(NAME_None).ToString())
+					GameDefaultObjs.Add(MoveTemp(ObjPath));
+				}
+			}
+
+			if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GlobalDefaultGameMode"), ObjPath))
+			{
+				GameDefaultObjs.Add(MoveTemp(ObjPath));
+			}
+
+			if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GlobalDefaultServerGameMode"), ObjPath))
+			{
+				GameDefaultObjs.Add(MoveTemp(ObjPath));
+			}
+
+			if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameInstanceClass"), ObjPath))
+			{
+				GameDefaultObjs.Add(MoveTemp(ObjPath));
+			}
+
+			for (const FString& Obj : GameDefaultObjs)
+			{
+				if (Obj != FName(NAME_None).ToString())
+				{
+					FAssetData DestinationData = AssetRegistry->GetAssetByObjectPath(FName(*Obj), true);
+					if (DestinationData.IsRedirector())
 					{
-						AddFileToCook(FilesInPath, Obj);
+						const FText ErrorMessage = FText::Format(LOCTEXT("GameMapSettingsRedirectorDetected", "GameMapsSettings contains a redirected reference '{0}'. The intended asset will fail to load in a packaged build. Select the intended asset again in Project Settings to fix this issue."), FText::FromString(Obj));
+						LogCookerMessage(ErrorMessage.ToString(), EMessageSeverity::Error);
 					}
-				}
-			}
-			if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GlobalDefaultGameMode"), Obj))
-			{
-				if (Obj != FName(NAME_None).ToString())
-				{
-					AddFileToCook(FilesInPath, Obj);
-				}
-			}
-			if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GlobalDefaultServerGameMode"), Obj))
-			{
-				if (Obj != FName(NAME_None).ToString())
-				{
-					AddFileToCook(FilesInPath, Obj);
-				}
-			}
-			if (PlatformEngineIni.GetString(TEXT("/Script/EngineSettings.GameMapsSettings"), TEXT("GameInstanceClass"), Obj))
-			{
-				if (Obj != FName(NAME_None).ToString())
-				{
+
 					AddFileToCook(FilesInPath, Obj);
 				}
 			}

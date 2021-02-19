@@ -38,6 +38,7 @@ public class AssetTools : ModuleRules
 				"ToolMenus",
 				"PhysicsCore",
 				"DeveloperSettings",
+				"EngineSettings",
 				"InterchangeCore",
 				"InterchangeEngine"
 			}
