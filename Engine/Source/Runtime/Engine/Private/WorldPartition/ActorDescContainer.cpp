@@ -69,6 +69,11 @@ void UActorDescContainer::Uninitialize()
 		UnregisterDelegates();
 		bContainerInitialized = false;
 	}
+
+	for (TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
+	{
+		ActorDescPtr.Reset();
+	}
 #endif
 }
 
@@ -77,12 +82,6 @@ void UActorDescContainer::BeginDestroy()
 	Super::BeginDestroy();
 
 	Uninitialize();
-#if WITH_EDITOR
-	for (TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
-	{
-		ActorDescPtr.Release();
-	}
-#endif
 }
 
 #if WITH_EDITOR
