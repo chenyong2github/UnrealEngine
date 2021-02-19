@@ -104,6 +104,9 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 	{
 		FDetailWidgetRow& AnimationRow = CategoryBuilder.AddCustomRow(FText::FromString(TEXT("Animation")));
 		FBlendSampleDetails::GenerateAnimationWidget(AnimationRow, BlendspaceToUse, AnimationProperty);
+
+		TSharedPtr<IPropertyHandle> RateScaleProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale), FBlendSample::StaticStruct());
+		CategoryBuilder.AddProperty(RateScaleProperty);	
 	}
 	else
 	{
@@ -111,10 +114,7 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 		FDetailWidgetRow& GraphRow = CategoryBuilder.AddCustomRow(FText::FromString(TEXT("Graph")));
 		FBlendSampleDetails::GenerateSampleGraphWidget(GraphRow, BlendSpaceNode, SampleIndex);
 	}
-
-	TSharedPtr<IPropertyHandle> RateScaleProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, RateScale), FBlendSample::StaticStruct());
-	CategoryBuilder.AddProperty(RateScaleProperty);
-
+	
 	TSharedPtr<IPropertyHandle> SnappedProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(FBlendSample, bSnapToGrid), FBlendSample::StaticStruct());
 	CategoryBuilder.AddProperty(SnappedProperty);
 }
