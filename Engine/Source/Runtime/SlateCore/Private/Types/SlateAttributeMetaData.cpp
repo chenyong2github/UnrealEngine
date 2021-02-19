@@ -170,7 +170,11 @@ EInvalidateWidgetReason FSlateAttributeMetaData::FGetterItem::GetInvalidationRea
 
 void FSlateAttributeMetaData::InvalidateWidget(SWidget& OwningWidget, const FSlateAttributeBase& Attribute, ESlateAttributeType AttributeType, EInvalidateWidgetReason Reason)
 {
-	// The widget is in construction phase. It's already invalidated... no need to keep invalidating it.
+	// The widget is in the construction phase or is building in the WidgetList.
+	//It's already invalidated... no need to keep invalidating it.
+	//N.B. no needs to set the bUpatedManually in this case because
+	//	1. they are in construction, so they will all be called anyway
+	//	2. they are in WidgetList, so the SlateAttribute.Set will not be called
 	if (OwningWidget.bPauseAttributeInvalidation)
 	{
 		return;
@@ -331,7 +335,10 @@ void FSlateAttributeMetaData::UpdateAttribute(SWidget& OwningWidget, FSlateAttri
 			ISlateAttributeGetter::FUpdateAttributeResult Result = GetterItem.Getter->UpdateAttribute(OwningWidget);
 			if (Result.bInvalidationRequested)
 			{
-				OwningWidget.Invalidate(GetterItem.GetInvalidationReason(OwningWidget, Result.InvalidationReason));
+				if (!OwningWidget.bPauseAttributeInvalidation)
+				{
+					OwningWidget.Invalidate(GetterItem.GetInvalidationReason(OwningWidget, Result.InvalidationReason));
+				}
 
 				// The dependency attribute need to be updated in the update loop (note that it may not be registered yet)
 				if (GetterItem.bIsADependencyForSomeoneElse)

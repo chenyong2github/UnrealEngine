@@ -102,7 +102,8 @@ void FSlateInvalidationWidgetList::FWidgetAttributeIterator::PostResort()
 
 void FSlateInvalidationWidgetList::FWidgetAttributeIterator::ProxiesBuilt(FIndexRange const& Range)
 {
-	MoveToWidgetIndexOnNextAdvance = Range.GetInclusiveMinWidgetIndex();
+	// The last built item is already updated. We want to update the following item next.
+	MoveToWidgetIndexOnNextAdvance = WidgetList.IncrementIndex(Range.GetInclusiveMaxWidgetIndex());
 }
 
 
@@ -217,8 +218,44 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 	LastestIndex = NewIndex.ArrayIndex;
 
 	FSlateInvalidationWidgetIndex LeafMostChildIndex = NewIndex;
-	const EVisibility Visibility = Widget->GetVisibility();
-	const bool bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
+	EVisibility Visibility = Widget->GetVisibility();
+	bool bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
+
+	bool bUpdateSlateAttribute = false;
+	if (Widget->HasRegisteredSlateAttribute())
+	{
+
+		// The list is already sorted at this point. Add to the end.
+		Data[LastestIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.AddUnsorted(NewIndex.ElementIndex);
+
+		// Update attributes now because the visibility flag may change
+		{
+			Widget->bPauseAttributeInvalidation = true;
+			if (bParentAndSelfVisible)
+			{
+				FSlateAttributeMetaData::UpdateAttributes(Widget.Get());
+				bUpdateSlateAttribute = true;
+
+				Visibility = Widget->GetVisibility();
+				bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
+			}
+			else if (bParentVisible)
+			{
+				FSlateAttributeMetaData::UpdateCollapsedAttributes(Widget.Get());
+				bUpdateSlateAttribute = true;
+
+				Visibility = Widget->GetVisibility();
+				bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
+				if (bParentAndSelfVisible)
+				{
+					FSlateAttributeMetaData::UpdateAttributes(Widget.Get());
+					Visibility = Widget->GetVisibility();
+					bParentAndSelfVisible = bParentVisible && Visibility.IsVisible();
+				}
+			}
+			Widget->bPauseAttributeInvalidation = false;
+		}
+	}
 
 	{
 		InvalidationWidgetType& WidgetProxy = (*this)[NewIndex];
@@ -226,12 +263,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::_BuildWidgetList_Rec
 		WidgetProxy.ParentIndex = ParentIndex;
 		WidgetProxy.LeafMostChildIndex = LeafMostChildIndex;
 		WidgetProxy.Visibility = Visibility;
-	}
-
-	if (Widget->HasRegisteredSlateAttribute())
-	{
-		// The list is already sorted at this point. Add to the end.
-		Data[LastestIndex].ElementIndexList_WidgetWithRegisteredSlateAttribute.AddUnsorted(NewIndex.ElementIndex);
+		WidgetProxy.bDebug_AttributeUpdated = bUpdateSlateAttribute;
 	}
 
 #if UE_SLATE_WITH_INVALIDATIONWIDGETLIST_DEBUGGING
