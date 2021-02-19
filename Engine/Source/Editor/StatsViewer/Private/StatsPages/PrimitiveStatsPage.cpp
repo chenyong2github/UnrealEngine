@@ -45,12 +45,12 @@ struct PrimitiveStatsGenerator
 		check( InObject );
 		check( InWorld );
 
-		UObject* ObjectPackage = InObject->GetOutermost();
+		UObject* ObjectTopMostPackage = InObject->GetOutermostObject()->GetPackage();
 
 		for( int32 LevelIndex=0; LevelIndex<InWorld->GetNumLevels(); LevelIndex++ )
 		{
 			ULevel* Level = InWorld->GetLevel(LevelIndex);
-			if( Level && Level->GetOutermost() == ObjectPackage )
+			if( Level && Level->GetPackage() == ObjectTopMostPackage )
 			{
 				return true;
 			}
