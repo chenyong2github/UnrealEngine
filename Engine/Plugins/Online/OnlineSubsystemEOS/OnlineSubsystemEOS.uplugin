@@ -19,8 +19,7 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Mac",
-				"XboxOneGDK"
+				"Mac"
 			]
 		},
 		{
@@ -30,8 +29,7 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Win32",
-				"Mac",
-				"XboxOneGDK"
+				"Mac"
 			]
 		}
 	],

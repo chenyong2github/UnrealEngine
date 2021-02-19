@@ -79,15 +79,10 @@ public class OnlineSubsystemEOS : ModuleRules
 
 				RuntimeDependencies.Add(SoName);
 			}
-			else if (Target.Platform.ToString() == "XboxOneGDK")
+			else
 			{
-				string EOSLibPath = Path.Combine(EOSPath, "Lib");
-				PublicAdditionalLibraries.Add(Path.Combine(EOSLibPath, "EOSSDK-XboxOneGDK-Shipping.lib"));
-
-				PublicDelayLoadDLLs.Add("EOSSDK-XboxOneGDK-Shipping.dll");
-
-				string EOSDLLPath = Path.Combine(EOSPath, "Bin", "EOSSDK-XboxOneGDK-Shipping.dll");
-				RuntimeDependencies.Add(EOSDLLPath);
+				// platform extension
+				ConfigureTargetPlatform( EOSSDKVersion, EOSPath, EOSIncludePath );
 			}
 		}
 		else
@@ -95,4 +90,6 @@ public class OnlineSubsystemEOS : ModuleRules
 			PrivateDefinitions.Add("WITH_EOS_SDK=0");
 		}
 	}
+
+	protected virtual void ConfigureTargetPlatform( string EOSSDKVersion, string EOSPath, string EOSIncludePath ) { }
 }
