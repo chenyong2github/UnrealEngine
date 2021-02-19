@@ -18,14 +18,14 @@ struct FWorldPartitionPerWorldSettings
 	FWorldPartitionPerWorldSettings()
 	{}
 
-	FWorldPartitionPerWorldSettings(TArray<FVector>& InLoadedEditorGridCells)
+	FWorldPartitionPerWorldSettings(TArray<FName>& InLoadedEditorGridCells)
 		: LoadedEditorGridCells(InLoadedEditorGridCells)
 	{}
 #endif
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<FVector> LoadedEditorGridCells;
+	TArray<FName> LoadedEditorGridCells;
 
 	UPROPERTY()
 	TArray<FName> NotLoadedDataLayers;
@@ -58,14 +58,14 @@ public:
 		}
 	}
 
-	const TArray<FVector>& GetEditorGridLoadedCells(UWorld* InWorld)
+	const TArray<FName>& GetEditorGridLoadedCells(UWorld* InWorld)
 	{ 
 		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
 	}
 
-	void SetEditorGridLoadedCells(UWorld* InWorld, TArray<FVector>& InEditorGridLoadedCells)
+	void SetEditorGridLoadedCells(UWorld* InWorld, TArray<FName>& InEditorGridLoadedCells)
 	{
-		TArray<FVector>& GridLoadedCells = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
+		TArray<FName>& GridLoadedCells = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
 		GridLoadedCells = InEditorGridLoadedCells;
 		SaveConfig();
 	}

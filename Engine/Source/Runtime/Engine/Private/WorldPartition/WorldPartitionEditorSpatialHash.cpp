@@ -30,7 +30,8 @@ void UWorldPartitionEditorSpatialHash::Initialize()
 	AlwaysLoadedCell->Bounds.Init();
 
 	FHashBuilder EditorGridConfigHashBuilder;
-	EditorGridConfigHashBuilder << CellSize;
+	static uint32 Version = 1;
+	EditorGridConfigHashBuilder << Version << CellSize;	
 	GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridConfigHash(EditorGridConfigHashBuilder.GetHash());
 }
 
@@ -162,7 +163,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 			}
 			else
 			{
-				EditorCell = NewObject<UWorldPartitionEditorCell>(this, *FString::Printf(TEXT("EditorCell_X%lld_Y%lld_Z%lld_L%d"), CellCoord.X, CellCoord.Y, CellCoord.Z, CellCoord.Level), RF_Transient);
+				EditorCell = NewObject<UWorldPartitionEditorCell>(this, *FString::Printf(TEXT("EditorCell_X%lld_Y%lld_Z%lld"), CellCoord.X, CellCoord.Y, CellCoord.Z), RF_Transient);
 				EditorCell->Bounds = GetCellBounds(CellCoord);
 
 				Cells.Add(EditorCell);

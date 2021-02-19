@@ -89,12 +89,12 @@ struct FWorldPartionCellUpdateContext
 				// Save last loaded cells settings (ignore while running commandlets)
 				if (!IsRunningCommandlet())
 				{
-					TArray<FVector> EditorGridLastLoadedCells;
+					TArray<FName> EditorGridLastLoadedCells;
 					WorldPartition->EditorHash->ForEachCell([this, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
 					{
 						if ((Cell != WorldPartition->EditorHash->GetAlwaysLoadedCell()) && Cell->bLoaded)
 						{
-							EditorGridLastLoadedCells.Add(Cell->Bounds.GetCenter());
+							EditorGridLastLoadedCells.Add(Cell->GetFName());
 						}
 					});
 
@@ -282,14 +282,14 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				// Load last loaded cells
 				if (WorldPartitionEditorModule.GetEnableLoadingOfLastLoadedCells())
 				{
-					const TArray<FVector>& EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
+					const TArray<FName>& EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
 
-					for (const FVector& EditorGridLastLoadedCellCenter : EditorGridLastLoadedCells)
+					for (FName EditorGridLastLoadedCell : EditorGridLastLoadedCells)
 					{
-						EditorHash->ForEachIntersectingCell(FBox(&EditorGridLastLoadedCellCenter, 1), [this](UWorldPartitionEditorCell* Cell)
+						if (UWorldPartitionEditorCell* Cell = FindObject<UWorldPartitionEditorCell>(EditorHash, *EditorGridLastLoadedCell.ToString()))
 						{
 							UpdateLoadingEditorCell(Cell, true);
-						});
+						}
 					}
 				}
 			}
