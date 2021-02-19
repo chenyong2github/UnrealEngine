@@ -524,7 +524,7 @@ namespace Metasound
 			{
 				ELiteralType DesiredArgType = Registry->GetDesiredLiteralTypeForDataType(InDataType);
 
-				FLiteral::GetDefaultForType(DesiredArgType);
+				return FLiteral::GetDefaultForType(DesiredArgType);
 			}
 			return FLiteral::CreateInvalid();
 		}
