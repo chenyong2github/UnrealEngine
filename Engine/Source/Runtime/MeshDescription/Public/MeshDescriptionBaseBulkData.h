@@ -25,6 +25,8 @@ class MESHDESCRIPTION_API UMeshDescriptionBaseBulkData : public UObject
 public:
 	UMeshDescriptionBaseBulkData();
 	virtual void Serialize(FArchive& Ar) override;
+	virtual bool NeedsLoadForClient() const override { return false; }
+	virtual bool NeedsLoadForServer() const override { return false; }
 	virtual UClass* GetMeshDescriptionType() const;
 
 #if WITH_EDITORONLY_DATA

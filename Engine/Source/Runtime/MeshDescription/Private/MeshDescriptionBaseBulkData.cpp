@@ -16,9 +16,9 @@ UMeshDescriptionBaseBulkData::UMeshDescriptionBaseBulkData()
 
 void UMeshDescriptionBaseBulkData::Serialize(FArchive& Ar)
 {
+#if WITH_EDITORONLY_DATA
 	Super::Serialize(Ar);
 
-#if WITH_EDITORONLY_DATA
 	if (!Ar.IsCooking())
 	{
 		check(BulkData.IsValid());
