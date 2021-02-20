@@ -489,7 +489,7 @@ export class PerforceContext {
 		return this.execAndParse(null, args, {quiet: true}, {
 			expected: {change: 'integer', client: 'string', user: 'string', desc: 'string'},
 			optional: {shelved: 'integer', oldChange: 'integer', IsPromoted: 'integer'}
-		}) as unknown as Promise<Change[]>
+		}) as Promise<unknown> as Promise<Change[]>
 	}
 
 	async latestChange(path: string): Promise<Change> {
@@ -505,7 +505,7 @@ export class PerforceContext {
 
 	changesBetween(path: string, from: number, to: number) {
 		const args = ['changes', '-l', '-ssubmitted', `${path}@${from},${to}`]
-		return this.execAndParse(null, args, {quiet: true}, changeResultExpectedShape) as unknown as Promise<Change[]>
+		return this.execAndParse(null, args, {quiet: true}, changeResultExpectedShape) as Promise<unknown> as Promise<Change[]>
 	}
 
 	// find a workspace for the given user
