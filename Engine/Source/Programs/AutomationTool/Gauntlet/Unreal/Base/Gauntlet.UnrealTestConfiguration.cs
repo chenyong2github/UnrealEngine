@@ -537,6 +537,18 @@ namespace Gauntlet
 		public string HordeArtifactPath = "";
 
 		/// <summary>
+		/// Telemetry Database config to use
+		/// </summary>
+		[AutoParam]
+		public string PublishTelemetryTo = "";
+
+		/// <summary>
+		/// Path to Database config file
+		/// </summary>
+		[AutoParam]
+		public string DatabaseConfigPath = "";
+
+		/// <summary>
 		/// What the test result should be treated as if we reach max duration.
 		/// </summary>
 		public EMaxDurationReachedResult MaxDurationReachedResult { get; set; }

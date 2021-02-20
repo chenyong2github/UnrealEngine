@@ -41,7 +41,7 @@ namespace Gauntlet
 			}
 		}
 
-		public class BaseHordeReport : BaseTestReport
+		public abstract class BaseHordeReport : BaseTestReport
 		{
 			protected string OutputArtifactPath;
 
@@ -262,6 +262,11 @@ namespace Gauntlet
 				Tests.Add(NewTestResult);
 
 				return NewTestResult;
+			}
+
+			public override void AddEvent(string Type, string Message, object Context = null)
+			{
+				throw new System.NotImplementedException("AddEvent not implemented");
 			}
 
 			/// <summary>

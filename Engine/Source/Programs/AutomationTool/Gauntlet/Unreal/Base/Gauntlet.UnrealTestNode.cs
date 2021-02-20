@@ -1146,6 +1146,25 @@ namespace Gauntlet
 				HordeTestDataCollection.AddNewTestReport(HordeTestDataKey, Report);
 				HordeTestDataCollection.WriteToJson(HordeTestDataFilePath, true);
 			}
+			if (!string.IsNullOrEmpty(GetConfiguration().PublishTelemetryTo) && Report is ITelemetryReport Telemetry)
+			{
+				IEnumerable<TelemetryData> DataRows = Telemetry.GetAllTelemetryData();
+				if (DataRows != null)
+				{
+					IDatabaseConfig<TelemetryData> DBConfig = DatabaseConfigManager<TelemetryData>.GetConfigByName(GetConfiguration().PublishTelemetryTo);
+					if (DBConfig != null)
+					{
+						DBConfig.LoadConfig(GetConfiguration().DatabaseConfigPath);
+						IDatabaseDriver<TelemetryData> DB = DBConfig.GetDriver();
+						Log.Verbose("Submitting telemetry data to {0}", DB.ToString());
+						DB.SubmitDataItems(DataRows, Context);
+					}
+					else
+					{
+						Log.Warning("Got telemetry data, but database configuration is unknown '{0}'.", GetConfiguration().PublishTelemetryTo);
+					}
+				}
+			}
 		}
 
 		/// <summary>

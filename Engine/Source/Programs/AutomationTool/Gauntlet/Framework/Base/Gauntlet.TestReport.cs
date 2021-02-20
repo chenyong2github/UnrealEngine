@@ -2,6 +2,7 @@
 
 using System;
 using System.Reflection;
+using System.Collections.Generic;
 
 
 namespace Gauntlet
@@ -42,14 +43,56 @@ namespace Gauntlet
 	}
 
 	/// <summary>
+	/// Hold telemetry data
+	/// </summary>
+	public class TelemetryData
+	{
+		public string TestName { get; private set; }
+		public string DataPoint { get; private set; }
+		public double Measurement { get; private set; }
+		public TelemetryData(string InTestName, string InDataPoint, double InMeasurement)
+		{
+			TestName = InTestName;
+			DataPoint = InDataPoint;
+			Measurement = InMeasurement;
+		}
+	}
+
+	/// <summary>
+	/// Interface for telemetry report
+	/// </summary>
+	public interface ITelemetryReport
+	{ 
+		/// <summary>
+		/// Attach Telemetry data to the ITestReport
+		/// </summary>
+		/// <param name="TestName"></param>
+		/// <param name="DataPoint"></param>
+		/// <param name="Measurement"></param>
+		/// <returns></returns>
+		void AddTelemetry(string TestName, string DataPoint, double Measurement);
+
+		/// <summary>
+		/// Return the telemetry data accumulated
+		/// </summary>
+		/// <returns></returns>
+		IEnumerable<TelemetryData> GetAllTelemetryData();
+	}
+
+	/// <summary>
 	/// Test Report Base class
 	/// </summary>
-	public class BaseTestReport : ITestReport
+	public abstract class BaseTestReport : ITestReport, ITelemetryReport
 	{
 		/// <summary>
 		/// Return report type
 		/// </summary>
 		public virtual string Type { get { return "Base Test Report"; } }
+	
+		/// <summary>
+		/// Hold the list of telemetry data accumulated
+		/// </summary>
+		protected List<TelemetryData> TelemetryDataList;
 
 		/// <summary>
 		/// Set a property of the test report type
@@ -70,10 +113,7 @@ namespace Gauntlet
 		/// <param name="Message"></param>
 		/// <param name="Context"></param>
 		/// <returns></returns>
-		public virtual void AddEvent(string Type, string Message, object Context = null)
-		{
-			throw new System.NotImplementedException("AddEvent not implemented");
-		}
+		public abstract void AddEvent(string Type, string Message, object Context = null);
 
 		public void AddError(string Message, object Context = null)
 		{
@@ -94,9 +134,32 @@ namespace Gauntlet
 		/// <param name="ArtifactPath"></param>
 		/// <param name="Name"></param>
 		/// <returns>return true if the file was successfully attached</returns>
-		public virtual bool AttachArtifact(string ArtifactPath, string Name = null)
+		public abstract bool AttachArtifact(string ArtifactPath, string Name = null);
+
+		/// <summary>
+		/// Attach Telemetry data to the ITestReport
+		/// </summary>
+		/// <param name="TestName"></param>
+		/// <param name="DataPoint"></param>
+		/// <param name="Measurement"></param>
+		/// <returns></returns>
+		public virtual void AddTelemetry(string TestName, string DataPoint, double Measurement)
 		{
-			throw new System.NotImplementedException("AttachArtifact not implemented");
+			if (TelemetryDataList is null)
+			{
+				TelemetryDataList = new List<TelemetryData>();
+			}
+
+			TelemetryDataList.Add(new TelemetryData(TestName, DataPoint, Measurement));
+		}
+
+		/// <summary>
+		/// Return all the telemetry data stored
+		/// </summary>
+		/// <returns></returns>
+		public virtual IEnumerable<TelemetryData> GetAllTelemetryData()
+		{
+			return TelemetryDataList;
 		}
 	}
 }
