@@ -19738,18 +19738,17 @@ UMaterialExpressionStrataSlabBSDF::UMaterialExpressionStrataSlabBSDF(const FObje
 #if WITH_EDITOR
 int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	int32 RoughnessXCodeChunk = CompileWithDefaultFloat1(Compiler, RoughnessX, 0.5f);
-	// If not plugged in, RoughnessYCodeChunk is set to RoughnessXCodeChunk to get an isotropic behavior
-	int32 RoughnessYCodeChunk = CompileWithDefaultCodeChunk(Compiler, RoughnessY, RoughnessXCodeChunk);
+	int32 RoughnessCodeChunk = CompileWithDefaultFloat1(Compiler, Roughness, 0.5f);
+	int32 AnisotropyCodeChunk = CompileWithDefaultFloat1(Compiler, Anisotropy, 0.0f);
 	// As long as both roughness are potentially different, we must take it into account in our encoding.
 	// We also cannot ignore the tangent when using the default Tangent because GetTangentBasis
 	// used in StrataGetBSDFSharedBasis cannot be relied on for smooth tangent used for lighting on any mesh.
-	bool bAnisotropyPotentiallyUsed = RoughnessXCodeChunk != RoughnessYCodeChunk;
+	const bool bHasAnisotropy = HasAnisotropy();
 
 	int32 NormalCodeChunk = CompileWithDefaultNormalWS(Compiler, Normal);
 
 	int32 TangentCodeChunk = CompileWithDefaultTangentWS(Compiler, Tangent);
-	uint8 SharedNormalIndex = bAnisotropyPotentiallyUsed ? StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk) : StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
+	uint8 SharedNormalIndex = bHasAnisotropy ? StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk, TangentCodeChunk) : StrataCompilationInfoCreateSharedNormal(Compiler, NormalCodeChunk);
 
 	const bool bHasEdgeColor = HasEdgeColor();
 	const bool bHasThinFilm = HasThinFilm();
@@ -19768,8 +19767,8 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat3(Compiler, EdgeColor, 1.0f, 1.0f, 1.0f),
 		CompileWithDefaultFloat1(Compiler, Specular, 0.5f),
 		CompileWithDefaultFloat1(Compiler, Metallic, 0.0f),
-		RoughnessXCodeChunk,
-		RoughnessYCodeChunk,
+		RoughnessCodeChunk,
+		AnisotropyCodeChunk,
 		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),	
 		CompileWithDefaultFloat3(Compiler, SSSDMFP, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, SSSDMFPScale, 1.0f),
@@ -19812,10 +19811,10 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 		return MCT_Float1; // Specular
 		break;
 	case 4:
-		return MCT_Float1; // RoughnessX
+		return MCT_Float1; // Roughness
 		break;
 	case 5:
-		return MCT_Float1; // RoughnessY
+		return MCT_Float1; // Anisotropy
 		break;
 	case 6:
 		return MCT_Float3; // Normal
@@ -19867,11 +19866,11 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == 4)
 	{
-		return TEXT("RoughnessX");
+		return TEXT("Roughness");
 	}
 	else if (InputIndex == 5)
 	{
-		return TEXT("RoughnessY");
+		return TEXT("Anisotropy");
 	}
 	else if (InputIndex == 6)
 	{
@@ -19955,6 +19954,10 @@ bool UMaterialExpressionStrataSlabBSDF::HasThinFilm() const
 	return ThinFilmThickness.IsConnected();
 }
 
+bool UMaterialExpressionStrataSlabBSDF::HasAnisotropy() const
+{
+	return Anisotropy.IsConnected();
+}
 #endif // WITH_EDITOR
 
 

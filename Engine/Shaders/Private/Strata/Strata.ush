@@ -432,7 +432,7 @@ FStrataData GetInitialisedStrataData()
 }
 
 FStrataData GetStrataSlabBSDF(
-	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic, float2 Roughness,
+	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic, float Roughness, float Anisotropy,
 	float SSSProfileID, float3 SSSDMFP, float SSSDMFPScale,
 	float3 Emissive, float Haziness, float ThinFilmThickness,  float Thickness, 
 	uint SharedNormalIndex, inout uint SharedNormalTypes)
@@ -443,11 +443,13 @@ FStrataData GetStrataSlabBSDF(
 	const uint bHasEdgeColor = any(EdgeColor < 1);
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
 	const uint bHasThinFilm = ThinFilmThickness > 0.0f ? 1 : 0;
-	const uint bHasAnisotropy = StrataHasAnisotropy(Roughness.x, Roughness.y) ? 1 : 0;
+	const uint bHasAnisotropy = Anisotropy != 0;
 	if (bHasAnisotropy)
 	{
 		StrataRequestSharedNormalTangentBasis(SharedNormalTypes, SharedNormalIndex);
 	}
+
+	const float2 RoughnessXY = GetAnisotropicRoughness(Roughness, Anisotropy);
 
 	// STRATA_TODO apply SSS as a function of pixel footprint w.r.t. MFP
 	const bool bDMFPPlugged = any(SSSDMFP > 0);
@@ -472,8 +474,8 @@ FStrataData GetStrataSlabBSDF(
 	SLAB_EDGECOLOR			(StrataData.Layers[0].BSDFs[0])		= EdgeColor;
 	SLAB_SPECULAR			(StrataData.Layers[0].BSDFs[0])		= Specular;
 	SLAB_METALLIC			(StrataData.Layers[0].BSDFs[0])		= Metallic;
-	SLAB_ROUGHNESSX			(StrataData.Layers[0].BSDFs[0])		= Roughness.x;
-	SLAB_ROUGHNESSY			(StrataData.Layers[0].BSDFs[0])		= Roughness.y;
+	SLAB_ROUGHNESSX			(StrataData.Layers[0].BSDFs[0])		= RoughnessXY.x;
+	SLAB_ROUGHNESSY			(StrataData.Layers[0].BSDFs[0])		= RoughnessXY.y;
 	SLAB_HAZINESS			(StrataData.Layers[0].BSDFs[0])		= Haziness;
 	SLAB_THINFILM_THICKNESS	(StrataData.Layers[0].BSDFs[0])		= ThinFilmThickness;
 	if (bHasSSSProfile)

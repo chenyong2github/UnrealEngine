@@ -3648,37 +3648,15 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		{
 			UMaterialExpressionStrataSlabBSDF* SlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
 
-			if (Anisotropy.IsConnected())
-			{
-				UMaterialExpressionStrataAnisotropyToRoughness* AnisotropyToRoughness = NewObject<UMaterialExpressionStrataAnisotropyToRoughness>(this);
-				MoveConnectionTo(Roughness, AnisotropyToRoughness, 0);	// Roughness
-				CopyConnectionTo(Anisotropy, AnisotropyToRoughness, 1);	// Anisotropy
-
-				UMaterialExpressionComponentMask* RoughnessesMaskX = NewObject<UMaterialExpressionComponentMask>(this);
-				RoughnessesMaskX->GetInput(0)->Connect(0, AnisotropyToRoughness);
-				RoughnessesMaskX->R = 1;
-				RoughnessesMaskX->G = 0;
-				RoughnessesMaskX->B = 0;
-				RoughnessesMaskX->A = 0;
-
-				UMaterialExpressionComponentMask* RoughnessesMaskY = NewObject<UMaterialExpressionComponentMask>(this);
-				RoughnessesMaskY->GetInput(0)->Connect(0, AnisotropyToRoughness);
-				RoughnessesMaskY->R = 0;
-				RoughnessesMaskY->G = 1;
-				RoughnessesMaskY->B = 0;
-				RoughnessesMaskY->A = 0;
-
-				SlabBSDF->RoughnessX.Connect(0, RoughnessesMaskX);
-				SlabBSDF->RoughnessY.Connect(0, RoughnessesMaskY);
-			}
-			else
-			{
-				MoveConnectionTo(Roughness, SlabBSDF, 4);	// RoughnessX
-			}
 
 			MoveConnectionTo(BaseColor, SlabBSDF, 0);		// BaseColor
 			MoveConnectionTo(Metallic, SlabBSDF, 2);		// Metallic
 			MoveConnectionTo(Specular, SlabBSDF, 3);		// Specular
+			MoveConnectionTo(Roughness, SlabBSDF, 4);		// Roughness
+			if (Anisotropy.IsConnected())
+			{
+				MoveConnectionTo(Anisotropy, SlabBSDF, 5);	// Anisotropy
+			}
 			MoveConnectionTo(Normal, SlabBSDF, 6);			// Normal
 			MoveConnectionTo(Tangent, SlabBSDF, 7);			// Tangent
 			// Opacity can remain on the end point node

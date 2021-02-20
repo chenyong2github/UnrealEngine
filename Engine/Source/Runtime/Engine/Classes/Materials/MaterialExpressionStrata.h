@@ -64,13 +64,13 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	 * Controls how rough the Material is. Roughness of 0 (smooth) is a mirror reflection and 1 (rough) is completely matte or diffuse. When using anisotropy, it is the roughness used along the Tangent axis. (type = float, unit = unitless, defaults to 0.5)
 	 */
 	UPROPERTY()
-	FExpressionInput RoughnessX;
+	FExpressionInput Roughness;
 		
 	/**
-	 * Controls the roughness along the secondary surface tangent vector (perpendicular to Tangent). (type = float, unit = unitless). If not plugged in, RoughnessY is set to RoughnessX to disable anisotropy, resulting in an isotropic behavior.
+	 * Controls the anisotropy factor of the roughness. Positive value elongates the specular lobe along the Tangent vector, Negative value elongates the specular lobe along the perpendiculat of the Tangent. (type = float, unit = unitless).
 	 */
 	UPROPERTY()
-	FExpressionInput RoughnessY;
+	FExpressionInput Anisotropy;
 
 	/**
 	 * Take the surface normal as input. The normal is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless, defaults to vertex normal)
@@ -139,6 +139,7 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	bool HasSSS() const;
 	bool HasSSSProfile() const;
 	bool HasDMFPPluggedIn() const;
+	bool HasAnisotropy() const;
 #endif
 	//~ End UMaterialExpression Interface
 };

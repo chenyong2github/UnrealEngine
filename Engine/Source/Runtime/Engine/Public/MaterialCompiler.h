@@ -410,7 +410,7 @@ public:
 	// Strata
 	virtual int32 StrataCreateAndRegisterNullMaterial() = 0;
 	virtual int32 StrataSlabBSDF(
-		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 RoughnessX, int32 RoughnessY, 
+		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 Roughness, int32 Anisotropy, 
 		int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale,
 		int32 EmissiveColor, int32 Haziness, int32 ThinFilmThickness, int32 Thickness,
 		int32 Normal, int32 Tangent, uint8 SharedNormalIndex) = 0;
@@ -893,13 +893,13 @@ public:
 	}
 
 	virtual int32 StrataSlabBSDF(
-		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 RoughnessX, int32 RoughnessY,
+		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic, int32 Roughness, int32 Anisotropy,
 		int32 SSSProfileId, int32 SSSDMFP, int32 SSSDMFPScale,
 		int32 EmissiveColor, int32 Haziness, int32 ThinFilmThickness, int32 Thickness,
 		int32 Normal, int32 Tangent, uint8 SharedNormalIndex) override
 	{
 		return Compiler->StrataSlabBSDF(
-			BaseColor, EdgeColor, Specular, Metallic, RoughnessX, RoughnessY,
+			BaseColor, EdgeColor, Specular, Metallic, Roughness, Anisotropy,
 			SSSProfileId, SSSDMFP, SSSDMFPScale,
 			EmissiveColor, Haziness, ThinFilmThickness, Thickness, Normal, Tangent, SharedNormalIndex);
 	}
