@@ -63,7 +63,7 @@ void SMessageLog::Construct( const FArguments& InArgs, const TSharedRef<FMessage
 			.Value(0.8f)
 			[
 				SAssignNew(CurrentListingDisplay, SBorder)
-					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.BorderImage(FEditorStyle::GetBrush("Brushes.Recessed"))
 					.Padding(0.0f)
 			]
 	];

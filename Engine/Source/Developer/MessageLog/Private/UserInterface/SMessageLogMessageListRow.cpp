@@ -279,6 +279,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 				SourceLink
 			]
 			+ SHorizontalBox::Slot()
+			.AutoWidth()
 			.Padding(0)
 			[
 				SNew(STextBlock)
@@ -326,6 +327,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 	if (RowContent.IsValid())
 	{
 		InHorzBox->AddSlot()
+			.AutoWidth()
 			.VAlign(VAlign_Center)
 			.Padding(Padding, 0.0f, 0.0f, 0.0f)
 			[
@@ -344,6 +346,7 @@ void SMessageLogMessageListRow::CreateMessage(const TSharedRef<SHorizontalBox>& 
 				]
 
 				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 				[
