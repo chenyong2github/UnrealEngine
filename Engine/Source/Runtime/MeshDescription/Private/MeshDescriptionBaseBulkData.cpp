@@ -34,6 +34,30 @@ void UMeshDescriptionBaseBulkData::Serialize(FArchive& Ar)
 }
 
 
+bool UMeshDescriptionBaseBulkData::IsEditorOnly() const
+{
+	return true;
+}
+
+
+bool UMeshDescriptionBaseBulkData::NeedsLoadForClient() const
+{
+	return false;
+}
+
+
+bool UMeshDescriptionBaseBulkData::NeedsLoadForServer() const
+{
+	return false;
+}
+
+
+bool UMeshDescriptionBaseBulkData::NeedsLoadForEditorGame() const
+{
+	return true;
+}
+
+
 UClass* UMeshDescriptionBaseBulkData::GetMeshDescriptionType() const
 {
 	return UMeshDescriptionBase::StaticClass();
