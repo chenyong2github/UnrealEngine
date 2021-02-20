@@ -464,9 +464,16 @@ public:
 	,	StaticMesh(InComponent->GetStaticMesh())
 	,	InstancedRenderData(InComponent, InFeatureLevel)
 #if WITH_EDITOR
-	,	bHasSelectedInstances(InComponent->SelectedInstances.Num() > 0)
+	,	bHasSelectedInstances(false)
 #endif
 	{
+#if WITH_EDITOR
+		for (int32 InstanceIndex = 0; InstanceIndex < InComponent->SelectedInstances.Num() && !bHasSelectedInstances; ++InstanceIndex)
+		{
+			bHasSelectedInstances |= InComponent->SelectedInstances[InstanceIndex];
+		}
+#endif
+
 	#if !defined(GPUCULL_TODO)
 		bVFRequiresPrimitiveUniformBuffer = true;
 	#endif

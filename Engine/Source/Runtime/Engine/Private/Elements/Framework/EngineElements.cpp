@@ -19,6 +19,10 @@
 #include "Elements/Component/ComponentElementWorldInterface.h"
 #include "Elements/Component/ComponentElementSelectionInterface.h"
 
+#include "Elements/SMInstance/SMInstanceElementData.h"
+#include "Elements/SMInstance/SMInstanceElementWorldInterface.h"
+#include "Elements/SMInstance/SMInstanceElementSelectionInterface.h"
+
 #include "Modules/ModuleManager.h"
 
 FSimpleMulticastDelegate OnRegisterEngineElementsDelegate;
@@ -54,6 +58,15 @@ void RegisterEngineComponentElements()
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Components, NewObject<UComponentElementSelectionInterface>());
 }
 
+void RegisterEngineSMInstanceElements()
+{
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+
+	Registry->RegisterElementType<FSMInstanceElementData>(NAME_SMInstance);
+	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_SMInstance, NewObject<USMInstanceElementWorldInterface>());
+	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_SMInstance, NewObject<USMInstanceElementSelectionInterface>());
+}
+
 void RegisterEngineElements()
 {
 	// Ensure the framework and base interfaces are also loaded
@@ -63,6 +76,7 @@ void RegisterEngineElements()
 	RegisterEngineObjectElements();
 	RegisterEngineActorElements();
 	RegisterEngineComponentElements();
+	RegisterEngineSMInstanceElements();
 
 	OnRegisterEngineElementsDelegate.Broadcast();
 }

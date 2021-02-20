@@ -15,6 +15,9 @@
 #include "Elements/Component/ComponentElementData.h"
 #include "Components/ActorComponent.h"
 
+#include "Elements/SMInstance/SMInstanceElementData.h"
+#include "Components/InstancedStaticMeshComponent.h"
+
 // The editor requires ref-counting for object replacement to function correctly
 static_assert(!WITH_EDITOR || UE_TYPED_ELEMENT_HAS_REFCOUNTING, "The editor requires that ref-counting is enabled for typed elements!");
 
@@ -133,6 +136,7 @@ void ReplaceEditorTypedElementHandles(TArray<FTypedElementHandle>& OutUpdatedEle
 TTypedElementOwnerStore<FObjectElementData, const UObject*> GObjectElementOwnerStore;
 TTypedElementOwnerStore<FActorElementData, const AActor*> GActorElementOwnerStore;
 TTypedElementOwnerStore<FComponentElementData, const UActorComponent*> GComponentElementOwnerStore;
+TTypedElementOwnerStore<FSMInstanceElementData, FSMInstanceElementId> GSMInstanceElementOwnerStore;
 #endif
 
 UEngineElementsLibrary::UEngineElementsLibrary()
@@ -146,6 +150,9 @@ UEngineElementsLibrary::UEngineElementsLibrary()
 		// UObject exists inside CoreUObject, so it cannot call through directly to clean-up any element handles that have been created
 		// Instead we rely on this GC hook to clean-up any element handles for unreachable objects prior to them being destroyed
 		FCoreUObjectDelegates::PreGarbageCollectConditionalBeginDestroy.AddStatic(&UEngineElementsLibrary::DestroyUnreachableEditorObjectElements);
+
+		// Static Mesh Instances are unmapped when removed from their owner component, so we must also destroy any corresponding element handle when that happens
+		FSMInstanceElementIdMap::Get().OnInstanceRemoved().AddStatic([](const FSMInstanceElementId& SMInstanceElementId, int32 InstanceIndex) { UEngineElementsLibrary::DestroyEditorSMInstanceElement(SMInstanceElementId); });
 	}
 #endif
 }
@@ -306,3 +313,93 @@ FTypedElementHandle UEngineElementsLibrary::AcquireEditorComponentElementHandle(
 	return EngineElementsLibraryUtil::AcquireEditorTypedElementHandle<UActorComponent, FComponentElementData>(Component, GComponentElementOwnerStore, &UEngineElementsLibrary::CreateComponentElement, bAllowCreate);
 }
 #endif
+
+TTypedElementOwner<FSMInstanceElementData> UEngineElementsLibrary::CreateSMInstanceElement(const FSMInstanceId& InSMInstanceId)
+{
+	const FSMInstanceElementId SMInstanceElementId = FSMInstanceElementIdMap::Get().GetSMInstanceElementIdFromSMInstanceId(InSMInstanceId);
+	checkf(SMInstanceElementId, TEXT("Static Mesh Instance Index failed to map to a valid Static Mesh Instance Element ID!"));
+	return CreateSMInstanceElement(SMInstanceElementId);
+}
+
+TTypedElementOwner<FSMInstanceElementData> UEngineElementsLibrary::CreateSMInstanceElement(const FSMInstanceElementId& InSMInstanceElementId)
+{
+	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
+
+	TTypedElementOwner<FSMInstanceElementData> SMInstanceElement;
+	if (ensureAlways(Registry))
+	{
+#if UE_ENABLE_SMINSTANCE_ELEMENTS
+		SMInstanceElement = Registry->CreateElement<FSMInstanceElementData>(NAME_SMInstance);
+		if (SMInstanceElement)
+		{
+			SMInstanceElement.GetDataChecked().InstanceElementId = InSMInstanceElementId;
+		}
+#endif	// UE_ENABLE_SMINSTANCE_ELEMENTS
+	}
+
+	return SMInstanceElement;
+}
+
+void UEngineElementsLibrary::DestroySMInstanceElement(const FSMInstanceElementId& InSMInstanceElementId, TTypedElementOwner<FSMInstanceElementData>& InOutSMInstanceElement)
+{
+	if (InOutSMInstanceElement)
+	{
+		checkf(InOutSMInstanceElement.GetDataChecked().InstanceElementId == InSMInstanceElementId, TEXT("Static Mesh Instance element was not for this instance! %s"), *InSMInstanceElementId.ISMComponent->GetPathName());
+		UTypedElementRegistry::GetInstance()->DestroyElement(InOutSMInstanceElement);
+	}
+}
+
+#if WITH_EDITOR
+void UEngineElementsLibrary::CreateEditorSMInstanceElement(const FSMInstanceId& SMInstanceId)
+{
+	if (GIsEditor)
+	{
+		const FSMInstanceElementId SMInstanceElementId = FSMInstanceElementIdMap::Get().GetSMInstanceElementIdFromSMInstanceId(SMInstanceId);
+		checkf(SMInstanceElementId, TEXT("Static Mesh Instance Index failed to map to a valid Static Mesh Instance Element ID!"));
+		GSMInstanceElementOwnerStore.RegisterElementOwner(SMInstanceElementId, CreateSMInstanceElement(SMInstanceElementId));
+	}
+}
+
+void UEngineElementsLibrary::DestroyEditorSMInstanceElement(const FSMInstanceElementId& SMInstanceElementId)
+{
+	if (TTypedElementOwner<FSMInstanceElementData> SMInstanceElement = GSMInstanceElementOwnerStore.UnregisterElementOwner(SMInstanceElementId))
+	{
+		DestroySMInstanceElement(SMInstanceElementId, SMInstanceElement);
+	}
+}
+
+FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(const UInstancedStaticMeshComponent* ISMComponent, const int32 InstanceIndex, const bool bAllowCreate)
+{
+	return AcquireEditorSMInstanceElementHandle(FSMInstanceId{ const_cast<UInstancedStaticMeshComponent*>(ISMComponent), InstanceIndex }, bAllowCreate);
+}
+
+FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(const FSMInstanceId& SMInstanceId, const bool bAllowCreate)
+{
+	if (GIsEditor)
+	{
+		const FSMInstanceElementId SMInstanceElementId = FSMInstanceElementIdMap::Get().GetSMInstanceElementIdFromSMInstanceId(SMInstanceId, bAllowCreate);
+		checkf(!bAllowCreate || SMInstanceElementId, TEXT("Static Mesh Instance Index failed to map to a valid Static Mesh Instance Element ID!"));
+		return AcquireEditorSMInstanceElementHandle(SMInstanceElementId, bAllowCreate);
+	}
+
+	return FTypedElementHandle();
+}
+
+FTypedElementHandle UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(const FSMInstanceElementId& SMInstanceElementId, const bool bAllowCreate)
+{
+	if (GIsEditor)
+	{
+		TTypedElementOwnerScopedAccess<FSMInstanceElementData> SMInstanceElement = bAllowCreate
+			? GSMInstanceElementOwnerStore.FindOrRegisterElementOwner(SMInstanceElementId, [&SMInstanceElementId]() { return CreateSMInstanceElement(SMInstanceElementId); })
+			: GSMInstanceElementOwnerStore.FindElementOwner(SMInstanceElementId);
+
+		if (SMInstanceElement)
+		{
+			return SMInstanceElement->AcquireHandle();
+		}
+	}
+
+	return FTypedElementHandle();
+}
+#endif
+

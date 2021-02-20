@@ -439,6 +439,7 @@ struct HInstancedStaticMeshInstance : public HHitProxy
 	HInstancedStaticMeshInstance(UInstancedStaticMeshComponent* InComponent, int32 InInstanceIndex) : HHitProxy(HPP_World), Component(InComponent), InstanceIndex(InInstanceIndex) {}
 
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FTypedElementHandle GetElementHandle() const override;
 
 	virtual EMouseCursor::Type GetMouseCursor() override
 	{

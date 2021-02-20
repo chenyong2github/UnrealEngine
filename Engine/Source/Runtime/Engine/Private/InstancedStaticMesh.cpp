@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/InstancedStaticMesh.h"
+#include "InstancedStaticMeshDelegates.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Components/LightComponent.h"
@@ -31,6 +32,9 @@
 #endif // WITH_EDITOR
 #include "MeshMaterialShader.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/SMInstance/SMInstanceElementData.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
@@ -119,10 +123,23 @@ TGlobalResource<FDummyFloatBuffer> GDummyFloatBuffer;
 
 extern int32 GRenderNaniteMeshes;
 
+FInstancedStaticMeshDelegates::FOnInstanceIndexUpdated FInstancedStaticMeshDelegates::OnInstanceIndexUpdated;
+
 /** InstancedStaticMeshInstance hit proxy */
 void HInstancedStaticMeshInstance::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(Component);
+}
+
+FTypedElementHandle HInstancedStaticMeshInstance::GetElementHandle() const
+{
+#if WITH_EDITOR
+	if (Component)
+	{
+		return UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FSMInstanceId{ Component, InstanceIndex });
+	}
+#endif	// WITH_EDITOR
+	return FTypedElementHandle();
 }
 
 FInstanceUpdateCmdBuffer::FInstanceUpdateCmdBuffer()
@@ -2292,7 +2309,7 @@ int32 UInstancedStaticMeshComponent::AddInstanceInternal(int32 InstanceIndex, FI
 
 	if (NewInstanceData == nullptr)
 	{
-		NewInstanceData = new(PerInstanceSMData) FInstancedStaticMeshInstanceData();
+		NewInstanceData = &PerInstanceSMData.AddDefaulted_GetRef();
 	}
 
 	SetupNewInstanceData(*NewInstanceData, InstanceIndex, InstanceTransform);
@@ -2308,6 +2325,12 @@ int32 UInstancedStaticMeshComponent::AddInstanceInternal(int32 InstanceIndex, FI
 #endif
 
 	PartialNavigationUpdate(InstanceIndex);
+
+	if (FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.IsBound())
+	{
+		FInstancedStaticMeshDelegates::FInstanceIndexUpdateData IndexUpdate{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Added, InstanceIndex };
+		FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Broadcast(this, MakeArrayView(&IndexUpdate, 1));
+	}
 
 	InstanceUpdateCmdBuffer.Edit();
 	MarkRenderStateDirty();
@@ -2339,9 +2362,9 @@ TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(int32 Count, c
 
 	for (int32 i = 0; i < Count; ++i)
 	{
-		FInstancedStaticMeshInstanceData* NewInstanceData = new(PerInstanceSMData) FInstancedStaticMeshInstanceData();
+		FInstancedStaticMeshInstanceData& NewInstanceData = PerInstanceSMData.AddDefaulted_GetRef();
 
-		SetupNewInstanceData(*NewInstanceData, InstanceIndex, InstanceTransforms[i]);
+		SetupNewInstanceData(NewInstanceData, InstanceIndex, InstanceTransforms[i]);
 
 		if (bShouldReturnIndices)
 		{
@@ -2351,6 +2374,12 @@ TArray<int32> UInstancedStaticMeshComponent::AddInstancesInternal(int32 Count, c
 		if (SupportsPartialNavigationUpdate())
 		{
 			PartialNavigationUpdate(InstanceIndex);
+		}
+
+		if (FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.IsBound())
+		{
+			FInstancedStaticMeshDelegates::FInstanceIndexUpdateData IndexUpdate{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Added, InstanceIndex };
+			FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Broadcast(this, MakeArrayView(&IndexUpdate, 1));
 		}
 
 		++InstanceIndex;
@@ -2432,12 +2461,12 @@ bool UInstancedStaticMeshComponent::SetCustomData(int32 InstanceIndex, const TAr
 
 bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, bool InstanceAlreadyRemoved)
 {
-	// Request navigation update
-	PartialNavigationUpdate(InstanceIndex);
-
 	// remove instance
 	if (!InstanceAlreadyRemoved && PerInstanceSMData.IsValidIndex(InstanceIndex))
 	{
+		// Request navigation update
+		PartialNavigationUpdate(InstanceIndex);
+
 		PerInstanceSMData.RemoveAt(InstanceIndex);
 		PerInstanceSMCustomData.RemoveAt(InstanceIndex * NumCustomDataFloats, NumCustomDataFloats);
 	}
@@ -2467,6 +2496,22 @@ bool UInstancedStaticMeshComponent::RemoveInstanceInternal(int32 InstanceIndex, 
 				InstanceBodies[i]->InstanceBodyIndex = i;
 			}
 		}
+	}
+
+	// Notify that these instances have been removed/relocated
+	if (FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.IsBound())
+	{
+		TArray<FInstancedStaticMeshDelegates::FInstanceIndexUpdateData, TInlineAllocator<128>> IndexUpdates;
+		IndexUpdates.Reserve(1 + (PerInstanceSMData.Num() - InstanceIndex));
+
+		IndexUpdates.Add(FInstancedStaticMeshDelegates::FInstanceIndexUpdateData{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Removed, InstanceIndex });
+		for (int32 MovedInstanceIndex = InstanceIndex; MovedInstanceIndex < PerInstanceSMData.Num(); ++MovedInstanceIndex)
+		{
+			// ISMs use standard remove, so each instance above our removal point is shuffled down by 1
+			IndexUpdates.Add(FInstancedStaticMeshDelegates::FInstanceIndexUpdateData{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Relocated, MovedInstanceIndex, MovedInstanceIndex + 1 });
+		}
+
+		FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Broadcast(this, IndexUpdates);
 	}
 
 	// Force recreation of the render data
@@ -2842,6 +2887,8 @@ void UInstancedStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextur
 
 void UInstancedStaticMeshComponent::ClearInstances()
 {
+	const int32 PrevNumInstances = GetInstanceCount();
+
 	// Clear all the per-instance data
 	PerInstanceSMData.Empty();
 	PerInstanceSMCustomData.Empty();
@@ -2857,6 +2904,13 @@ void UInstancedStaticMeshComponent::ClearInstances()
 	InstanceUpdateCmdBuffer.Reset();
 	InstanceUpdateCmdBuffer.Edit();
 	MarkRenderStateDirty();
+
+	// Notify that these instances have been cleared
+	if (FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.IsBound())
+	{
+		FInstancedStaticMeshDelegates::FInstanceIndexUpdateData IndexUpdate{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Cleared, PrevNumInstances - 1 };
+		FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Broadcast(this, MakeArrayView(&IndexUpdate, 1));
+	}
 
 	FNavigationSystem::UpdateComponentData(*this);
 }
@@ -3158,7 +3212,15 @@ void UInstancedStaticMeshComponent::GetResourceSizeEx(FResourceSizeEx& Cumulativ
 
 void UInstancedStaticMeshComponent::BeginDestroy()
 {
+	// Notify that these instances have been cleared due to the destroy
+	if (FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.IsBound())
+	{
+		FInstancedStaticMeshDelegates::FInstanceIndexUpdateData IndexUpdate{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Destroyed, GetInstanceCount() - 1 };
+		FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Broadcast(this, MakeArrayView(&IndexUpdate, 1));
+	}
+
 	ReleasePerInstanceRenderData();
+
 	Super::BeginDestroy();
 }
 

@@ -15,6 +15,12 @@ struct FActorElementData;
 class UActorComponent;
 struct FComponentElementData;
 
+class UInstancedStaticMeshComponent;
+struct FSMInstanceElementData;
+
+struct FSMInstanceId;
+struct FSMInstanceElementId;
+
 class UWorld;
 class UTypedElementList;
 
@@ -51,6 +57,18 @@ public:
 	static void DestroyEditorComponentElement(const UActorComponent* Component);
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Component", meta=(ScriptMethod="AcquireEditorElementHandle"))
 	static FTypedElementHandle AcquireEditorComponentElementHandle(const UActorComponent* Component, const bool bAllowCreate = true);
+#endif
+
+	static TTypedElementOwner<FSMInstanceElementData> CreateSMInstanceElement(const FSMInstanceId& InSMInstanceId);
+	static TTypedElementOwner<FSMInstanceElementData> CreateSMInstanceElement(const FSMInstanceElementId& InSMInstanceElementId);
+	static void DestroySMInstanceElement(const FSMInstanceElementId& InSMInstanceElementId, TTypedElementOwner<FSMInstanceElementData>& InOutSMInstanceElement);
+#if WITH_EDITOR
+	static void CreateEditorSMInstanceElement(const FSMInstanceId& SMInstanceId);
+	static void DestroyEditorSMInstanceElement(const FSMInstanceElementId& SMInstanceElementId);
+	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|StaticMeshInstance", meta=(ScriptMethod="AcquireEditorElementHandle"))
+	static FTypedElementHandle AcquireEditorSMInstanceElementHandle(const UInstancedStaticMeshComponent* ISMComponent, const int32 InstanceIndex, const bool bAllowCreate = true);
+	static FTypedElementHandle AcquireEditorSMInstanceElementHandle(const FSMInstanceId& SMInstanceId, const bool bAllowCreate = true);
+	static FTypedElementHandle AcquireEditorSMInstanceElementHandle(const FSMInstanceElementId& SMInstanceElementId, const bool bAllowCreate = true);
 #endif
 
 private:

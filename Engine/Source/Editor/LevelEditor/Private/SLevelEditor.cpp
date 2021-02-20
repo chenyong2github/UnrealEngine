@@ -60,13 +60,15 @@
 #include "SourceCodeNavigation.h"
 #include "Editor/EnvironmentLightingViewer/Public/EnvironmentLightingModule.h"
 #include "Misc/MessageDialog.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/TypedElementCommonActions.h"
 #include "Elements/Actor/ActorElementLevelEditorSelectionCustomization.h"
 #include "Elements/Actor/ActorElementLevelEditorCommonActionsCustomization.h"
 #include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
 #include "Elements/Component/ComponentElementLevelEditorCommonActionsCustomization.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
+#include "Elements/SMInstance/SMInstanceElementId.h"
+#include "Elements/SMInstance/SMInstanceElementLevelEditorSelectionCustomization.h"
 #include <atomic>
 
 #define LOCTEXT_NAMESPACE "SLevelEditor"
@@ -242,6 +244,11 @@ void SLevelEditor::Initialize( const TSharedRef<SDockTab>& OwnerTab, const TShar
 		TUniquePtr<FComponentElementLevelEditorSelectionCustomization> ComponentCustomization = MakeUnique<FComponentElementLevelEditorSelectionCustomization>();
 		ComponentCustomization->SetToolkitHost(this);
 		SelectedElements->RegisterInterfaceCustomizationByTypeName(NAME_Components, MoveTemp(ComponentCustomization));
+	}
+	{
+		TUniquePtr<FSMInstanceElementLevelEditorSelectionCustomization> SMInstanceCustomization = MakeUnique<FSMInstanceElementLevelEditorSelectionCustomization>();
+		SMInstanceCustomization->SetToolkitHost(this);
+		SelectedElements->RegisterInterfaceCustomizationByTypeName(NAME_SMInstance, MoveTemp(SMInstanceCustomization));
 	}
 
 	// Allow USelection to bridge to our selected element list

@@ -186,34 +186,9 @@ FText SObjectNameEditableTextBox::GetNameTooltipText() const
 
 EVisibility SObjectNameEditableTextBox::GetNameVisibility() const
 {
-	if (Objects.Num() == 1 && Objects[0].IsValid())
-	{
-		if (!IsReadOnly())
-		{
-			return EVisibility::Visible;
-		}
-		else if (Objects[0].Get()->IsA(AActor::StaticClass()))
-		{
-			return EVisibility::Visible;
-		}
-		else
-		{
-			return EVisibility::Collapsed;
-		}
-	}
-	else if (Objects.Num() > 1)
-	{
-		if (!IsReadOnly())
-		{
-			return EVisibility::Visible;
-		}
-		else
-		{
-			return EVisibility::Collapsed;
-		}
-	}
-
-	return EVisibility::Collapsed;
+	return ((Objects.Num() == 1 && Objects[0].IsValid()) || Objects.Num() > 1)
+		? EVisibility::Visible
+		: EVisibility::Collapsed;
 } 
 
 

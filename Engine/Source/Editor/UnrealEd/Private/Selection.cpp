@@ -187,13 +187,13 @@ UObject* USelection::GetObjectForElementHandle(const FTypedElementHandle& InElem
 {
 	check(InElementHandle && ElementSelectionSet);
 
-	TTypedElement<UTypedElementObjectInterface> ObjectElement = ElementSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(InElementHandle);
-	check(ObjectElement);
-
-	UObject* Object = ObjectElement.GetObject();
-	if (Object && SelectionElementBridge->IsValidObjectType(Object))
+	if (TTypedElement<UTypedElementObjectInterface> ObjectElement = ElementSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(InElementHandle))
 	{
-		return Object;
+		UObject* Object = ObjectElement.GetObject();
+		if (Object && SelectionElementBridge->IsValidObjectType(Object))
+		{
+			return Object;
+		}
 	}
 
 	return nullptr;

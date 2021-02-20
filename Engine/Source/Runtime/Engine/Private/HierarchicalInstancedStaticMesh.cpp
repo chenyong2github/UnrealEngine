@@ -27,6 +27,7 @@
 #include "StaticMeshResources.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/InstancedStaticMesh.h"
+#include "InstancedStaticMeshDelegates.h"
 #include "SceneManagement.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/ReleaseObjectVersion.h"
@@ -1544,8 +1545,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 								}
 								else
 								{
-									NewBatchElement = new(MeshElement.Elements) FMeshBatchElement();
-									*NewBatchElement = MeshElement.Elements[0];
+									NewBatchElement = &MeshElement.Elements.Add_GetRef(MeshElement.Elements[0]);
 								}
 
 								const int32 InstanceOffset = RunArray[CurrentRun];
@@ -2237,6 +2237,8 @@ void UHierarchicalInstancedStaticMeshComponent::RemoveInstancesInternal(const in
 		}
 	#endif
 
+		const int32 LastInstanceIndex = PerInstanceSMData.Num();
+
 		// update the physics state
 		if (bPhysicsStateCreated)
 		{
@@ -2246,8 +2248,6 @@ void UHierarchicalInstancedStaticMeshComponent::RemoveInstancesInternal(const in
 				InstanceBodies[InstanceIndex]->TermBody();
 				delete InstanceBodies[InstanceIndex];
 			}
-
-			int32 LastInstanceIndex = PerInstanceSMData.Num();
 
 			if (InstanceIndex == LastInstanceIndex)
 			{
@@ -2271,6 +2271,21 @@ void UHierarchicalInstancedStaticMeshComponent::RemoveInstancesInternal(const in
 					InitInstanceBody(InstanceIndex, InstanceBodies[InstanceIndex]);
 				}
 			}
+		}
+
+		// Notify that these instances have been removed/relocated
+		if (FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.IsBound())
+		{
+			TArray<FInstancedStaticMeshDelegates::FInstanceIndexUpdateData, TInlineAllocator<2>> IndexUpdates;
+
+			IndexUpdates.Add(FInstancedStaticMeshDelegates::FInstanceIndexUpdateData{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Removed, InstanceIndex });
+			if (InstanceIndex != LastInstanceIndex)
+			{
+				// HISMs use swap remove, so the last index has been moved to the spot we removed from
+				IndexUpdates.Add(FInstancedStaticMeshDelegates::FInstanceIndexUpdateData{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Relocated, InstanceIndex, LastInstanceIndex });
+			}
+
+			FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Broadcast(this, IndexUpdates);
 		}
 	}
 
@@ -2627,6 +2642,8 @@ void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 		}
 	}
 
+	const int32 PrevNumInstances = GetInstanceCount();
+
 	// Clear all the per-instance data
 	PerInstanceSMData.Empty();
 	PerInstanceSMCustomData.Empty();
@@ -2639,6 +2656,13 @@ void UHierarchicalInstancedStaticMeshComponent::ClearInstances()
 	ClearAllInstanceBodies();
 
 	MarkRenderStateDirty();
+
+	// Notify that these instances have been cleared
+	if (FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.IsBound())
+	{
+		FInstancedStaticMeshDelegates::FInstanceIndexUpdateData IndexUpdate{ FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Cleared, PrevNumInstances - 1 };
+		FInstancedStaticMeshDelegates::OnInstanceIndexUpdated.Broadcast(this, MakeArrayView(&IndexUpdate, 1));
+	}
 
 	FNavigationSystem::UpdateComponentData(*this);
 }
