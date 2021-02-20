@@ -153,6 +153,11 @@ public:
 	 */
 	float CascadeDistributionExponent;
 
+	/**
+	 * Scale the cascade frustum bound sphere 
+	 */
+	float CascadeBoundScale;
+
 	/** see UDirectionalLightComponent::CascadeTransitionFraction */
 	float CascadeTransitionFraction;
 
@@ -201,6 +206,7 @@ public:
 		SunDiscOuterSpaceLuminance(FLinearColor::White),
 		DynamicShadowCascades(Component->DynamicShadowCascades > 0 ? Component->DynamicShadowCascades : 0),
 		CascadeDistributionExponent(Component->CascadeDistributionExponent),
+		CascadeBoundScale(Component->CascadeBoundScale),
 		CascadeTransitionFraction(Component->CascadeTransitionFraction),
 		ShadowDistanceFadeoutFraction(Component->ShadowDistanceFadeoutFraction),
 		DistanceFieldShadowDistance(Component->bUseRayTracedDistanceFieldShadows ? Component->DistanceFieldShadowDistance : 0),
@@ -371,7 +377,7 @@ public:
 		const FBoxSphereBounds SubjectBounds(Bounds.Center, FVector(ShadowExtent, ShadowExtent, ShadowExtent), Bounds.W);
 		OutInitializer.PreShadowTranslation = -Bounds.Center;
 		OutInitializer.WorldToLight = FInverseRotationMatrix(GetDirection().GetSafeNormal().Rotation());
-		OutInitializer.Scales = FVector(1.0f,1.0f / Bounds.W,1.0f / Bounds.W);
+		OutInitializer.Scales = FVector(1.0f,1.0f * CascadeBoundScale / Bounds.W,1.0f * CascadeBoundScale / Bounds.W);
 		OutInitializer.FaceDirection = FVector(1,0,0);
 		OutInitializer.SubjectBounds = FBoxSphereBounds(FVector::ZeroVector,SubjectBounds.BoxExtent,SubjectBounds.SphereRadius);
 		OutInitializer.WAxis = FVector4(0,0,0,1);
@@ -984,6 +990,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 
 	DynamicShadowCascades = 3;
 	CascadeDistributionExponent = 3.0f;
+	CascadeBoundScale = 1.0f;
 	CascadeTransitionFraction = 0.1f;
 	ShadowDistanceFadeoutFraction = 0.1f;
 	IndirectLightingIntensity = 1.0f;
@@ -1031,6 +1038,7 @@ void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 	DynamicShadowCascades = FMath::Clamp(DynamicShadowCascades, 0, 10);
 	FarShadowCascadeCount = FMath::Clamp(FarShadowCascadeCount, 0, 10);
 	CascadeDistributionExponent = FMath::Clamp(CascadeDistributionExponent, .1f, 10.0f);
+	CascadeBoundScale = FMath::Clamp(CascadeBoundScale, .1f, 10.0f);
 	CascadeTransitionFraction = FMath::Clamp(CascadeTransitionFraction, KINDA_SMALL_NUMBER, 0.3f);
 	ShadowDistanceFadeoutFraction = FMath::Clamp(ShadowDistanceFadeoutFraction, 0.0f, 1.0f);
 	// max range is larger than UI
@@ -1064,6 +1072,7 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, DynamicShadowCascades)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CascadeDistributionExponent)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CascadeBoundScale)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CascadeTransitionFraction)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, ShadowDistanceFadeoutFraction)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, bUseInsetShadowsForMovableObjects)
@@ -1197,6 +1206,15 @@ void UDirectionalLightComponent::SetCascadeDistributionExponent(float NewValue)
 	if (CascadeDistributionExponent != NewValue)
 	{
 		CascadeDistributionExponent = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void UDirectionalLightComponent::SetCascadeBoundScale(float NewValue)
+{
+	if (CascadeBoundScale != NewValue)
+	{
+		CascadeBoundScale = NewValue;
 		MarkRenderStateDirty();
 	}
 }

@@ -79,6 +79,12 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=CascadedShadowMaps, meta=(UIMin = "1", UIMax = "4", DisplayName = "Distribution Exponent"))
 	float CascadeDistributionExponent;
 
+	/**
+	 * Scale the cascade frustum bound sphere  
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CascadedShadowMaps, meta = (UIMin = "1", UIMax = "4", DisplayName = "Bound Scale"))
+	float CascadeBoundScale;
+
 	/** 
 	 * Proportion of the fade region between cascades.
 	 * Pixels within the fade region of two cascades have their shadows blended to avoid hard transitions between quality levels.
@@ -262,6 +268,9 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetCascadeDistributionExponent(float NewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetCascadeBoundScale(float NewValue);
 
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetCascadeTransitionFraction(float NewValue);
