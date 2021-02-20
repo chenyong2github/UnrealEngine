@@ -7,38 +7,50 @@
 #include "PluginDescriptor.h"
 #include "Interfaces/IPluginManager.h"
 
-#define LOCTEXT_NAMESPACE "FNativeGameplayTagSource"
-
-FGameplayTag FNativeGameplayTagSource::Add(FName TagName, const FString& TagDevComment)
-{
-	if (TagName.IsNone())
-	{
-		return FGameplayTag();
-	}
-
-	FGameplayTag NewTag = FGameplayTag(TagName);
-	NativeTags.Add(FGameplayTagTableRow(TagName, TagDevComment));
-
-	return NewTag;
-}
+#define LOCTEXT_NAMESPACE "FNativeGameplayTag"
 
 TSet<const class FNativeGameplayTag*> FNativeGameplayTag::RegisteredNativeTags;
 
-static bool VerifyModuleCanContainGameplayTag(FName ModuleName, FName TagName, const FModuleDescriptor* Module)
+#if !UE_BUILD_SHIPPING
+
+//FEditorDelegates
+
+static bool VerifyModuleCanContainGameplayTag(FName ModuleName, FName TagName, const FModuleDescriptor* Module, TSharedPtr<IPlugin> OptionalOwnerPlugin)
 {
 	if (Module)
 	{
-		if (Module->Type == EHostType::ServerOnly || Module->Type == EHostType::ClientOnly || Module->Type == EHostType::ClientOnlyNoCommandlet)
+		if (!(Module->Type == EHostType::Runtime || Module->Type == EHostType::RuntimeAndProgram))
 		{
-			ensureAlwaysMsgf(false, TEXT("Native Gameplay Tag '%s' defined in '%s', which is Client or Server only module.  Client and Server tags must match."), *TagName.ToString(), *ModuleName.ToString());
+			// TODO NDarnell - If it's not a module we load always we need to make sure the tag is available in some other fashion
+			// such as through an ini.
+
+			//TSharedPtr<IPlugin> ThisPlugin = IPluginManager::Get().FindPlugin(TEXT("CommonDialogue"));
+			//check(ThisPlugin.IsValid());
+			//UGameplayTagsManager::Get().AddTagIniSearchPath(ThisPlugin->GetBaseDir() / TEXT("Config") / TEXT("Tags"));
+
+			//const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
+			//const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
+			//UGameplayTagsManager::Get().AddTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
+
+
+			//const FString& PluginDescriptorFilename = Plugin->GetDescriptorFileName();
+
+			//// Make sure you are in the game feature plugins folder. All GameFeaturePlugins are in this folder.
+			////@TODO: GameFeaturePluginEnginePush: Comments elsewhere allow plugins outside of the folder as long as they explicitly opt in, either those are wrong or this check is wrong
+			//if (!PluginDescriptorFilename.IsEmpty() && FPaths::ConvertRelativePathToFull(PluginDescriptorFilename).StartsWith(GetDefault<UGameFeaturesSubsystemSettings>()->BuiltInGameFeaturePluginsFolder) && FPaths::FileExists(PluginDescriptorFilename))
+			//{
+
+			ensureAlwaysMsgf(false, TEXT("Native Gameplay Tag '%s' defined in '%s'.  The module type is '%s' but needs to be 'Runtime' or 'RuntimeAndProgram'.  Client and Server tags must match."), *TagName.ToString(), *ModuleName.ToString(), EHostType::ToString(Module->Type));
 		}
 
-		// Not a mistake - we return true even if it fails the test, the return value is an invalidation we were able to verify that it could or could not.
+		// Not a mistake - we return true even if it fails the test, the return value is a validation we were able to verify that it could or could not.
 		return true;
 	}
 
 	return false;
 }
+
+#endif
 
 FNativeGameplayTag::FNativeGameplayTag(FName PluginName, FName ModuleName, FName TagName, const FString& TagDevComment, ENativeGameplayTagToken)
 {
@@ -49,7 +61,7 @@ FNativeGameplayTag::FNativeGameplayTag(FName PluginName, FName ModuleName, FName
 	const FModuleDescriptor* ProjectModule =
 		CurrentProject->Modules.FindByPredicate([ModuleName](const FModuleDescriptor& Module) { return Module.Name == ModuleName; });
 
-	if (!VerifyModuleCanContainGameplayTag(ModuleName, TagName, ProjectModule))
+	if (!VerifyModuleCanContainGameplayTag(ModuleName, TagName, ProjectModule, TSharedPtr<IPlugin>()))
 	{
 		const FModuleDescriptor* PluginModule = nullptr;
 
@@ -61,14 +73,17 @@ FNativeGameplayTag::FNativeGameplayTag(FName PluginName, FName ModuleName, FName
 			PluginModule = PluginDescriptor.Modules.FindByPredicate([ModuleName](const FModuleDescriptor& Module) { return Module.Name == ModuleName; });
 		}
 
-		if (!VerifyModuleCanContainGameplayTag(ModuleName, TagName, PluginModule))
+		if (!VerifyModuleCanContainGameplayTag(ModuleName, TagName, PluginModule, Plugin))
 		{
 			ensureAlwaysMsgf(false, TEXT("Unable to find information about module '%s' in plugin '%s'"), *ModuleName.ToString(), *PluginName.ToString());
 		}
 	}
 #endif
 
-	//TODO We could restrict creation to during module loading, at least in editor builds.
+	// TODO NDarnell To try and make sure nobody is using these during non-static init
+	// of the module, we could add an indicator on the module manager indicating
+	// if we're actively loading model and make sure we only run this code during
+	// that point.
 
 	InternalTag = TagName.IsNone() ? FGameplayTag() : FGameplayTag(TagName);
 #if WITH_EDITOR
