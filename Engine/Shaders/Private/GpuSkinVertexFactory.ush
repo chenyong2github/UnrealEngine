@@ -189,6 +189,10 @@ struct FVertexFactoryInterpolantsVSToPS
 #if INSTANCED_STEREO
 	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
 #endif
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	nointerpolation uint PrimitiveId : PRIMITIVE_ID;
+#endif
 };
 
 struct FVertexFactoryInterpolantsVSToDS
@@ -244,6 +248,11 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.VertexColor = 0;
 #endif
 	Result.TwoSidedSign = 1;
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Result.PrimitiveId = Interpolants.PrimitiveId;
+#endif
+
 	return Result;
 }
 
@@ -878,6 +887,10 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.EyeIndex = 0;
 #endif
 
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Interpolants.PrimitiveId = Intermediates.SceneData.PrimitiveId;
+#endif
+
 	return Interpolants;
 }
 
@@ -1004,7 +1017,11 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 
 uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	return Interpolants.PrimitiveId;
+#else // VF_USE_PRIMITIVE_SCENE_DATA
 	return 0;
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
 }
 
 #include "VertexFactoryDefaultInterface.ush"
