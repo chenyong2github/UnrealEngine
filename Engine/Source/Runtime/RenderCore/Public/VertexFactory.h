@@ -686,6 +686,8 @@ protected:
 		PrimitiveIdStreamIndex[static_cast<uint8>(InputStreamType)] = StreamIndex;
 	}
 
+	bool AddPrimitiveIdStreamElement(EVertexInputStreamType InputStreamType, uint8 AttributeIndex, FVertexDeclarationElementList& VertexDeclarationElements);
+
 	/**
 	 * Creates a vertex element for a vertex stream components.  Adds a unique stream index for the vertex buffer used by the component.
 	 * @param Component - The vertex stream component.

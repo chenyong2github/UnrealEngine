@@ -9,6 +9,9 @@ struct FLandscapeGrassWeightInterpolantsVSToPS
 	float4 Position : SV_POSITION;
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
 	float4 PositionPreOffset : TEXCOORD9;
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	float LocalPosZ : TEXCOORD10;
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
 };
 
 #if VERTEXSHADER
@@ -34,10 +37,12 @@ void VSMain(
 	// (ii) take the full offset which means that grass can be missing or corrupt at edges of each tile.
 	// We choose (i) here.
 	float3 WPO = GetMaterialWorldPositionOffset(VertexParameters);
-	WPO = mul(WPO, (float3x3)Primitive.WorldToLocal) * float3(0, 0, 1);
-	WPO = mul(WPO, (float3x3)Primitive.LocalToWorld);
+	WPO = mul(WPO, (float3x3)VertexFactoryGetWorldToLocal(VFIntermediates)) * float3(0, 0, 1);
+	WPO = mul(WPO, (float3x3)VertexFactoryGetLocalToWorld(VFIntermediates));
 	WorldPosition.xyz += WPO;
-
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Output.LocalPosZ = mul(float4(WorldPosition.xyz - ResolvedView.PreViewTranslation, 1), VertexFactoryGetWorldToLocal(VFIntermediates)).z;
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 
 	float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPosition);
@@ -67,8 +72,12 @@ void PSMain(
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPositionPreOffset, bIsFrontFace);
 
 	// Calculate and pack landscape height.
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	float Height = clamp(round(Interpolants.LocalPosZ / TERRAIN_ZSCALE) + 32768.0, 0, 65535);
+#else // !VF_USE_PRIMITIVE_SCENE_DATA
 	float3 LocalPos = mul(float4(MaterialParameters.AbsoluteWorldPosition, 1), Primitive.WorldToLocal).xyz;
 	float Height = clamp(round(LocalPos.z / TERRAIN_ZSCALE) + 32768.0, 0, 65535);
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
 	float2 PackedHeight = float2(floor(Height / 256), fmod(Height, 256)) / 255;
 
 #if NUM_MATERIAL_OUTPUTS_GETGRASSWEIGHT > 2

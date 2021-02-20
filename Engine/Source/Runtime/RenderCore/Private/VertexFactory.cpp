@@ -9,6 +9,7 @@
 #include "UObject/DebugSerializationFlags.h"
 #include "PipelineStateCache.h"
 #include "ShaderCompilerCore.h"
+#include "RenderUtils.h"
 
 IMPLEMENT_TYPE_LAYOUT(FVertexFactoryShaderParameters);
 
@@ -275,6 +276,19 @@ void FVertexFactory::ReleaseRHI()
 	Streams.Empty();
 	PositionStream.Empty();
 	PositionAndNormalStream.Empty();
+}
+
+bool FVertexFactory::AddPrimitiveIdStreamElement(EVertexInputStreamType InputStreamType, uint8 AttributeIndex, FVertexDeclarationElementList& VertexDeclarationElements)
+{
+	if (GetType()->SupportsPrimitiveIdStream() && UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel))
+	{
+		// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
+		VertexDeclarationElements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), AttributeIndex, InputStreamType));
+		SetPrimitiveIdStreamIndex(InputStreamType, VertexDeclarationElements.Last().StreamIndex);
+		return true;
+	}
+
+	return false;
 }
 
 FVertexElement FVertexFactory::AccessStreamComponent(const FVertexStreamComponent& Component, uint8 AttributeIndex)
