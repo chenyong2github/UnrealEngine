@@ -132,6 +132,49 @@ void UConstraintInstanceBlueprintLibrary::GetLinearLimits(
 	}
 }
 
+void UConstraintInstanceBlueprintLibrary::SetLinearSoftLimitParams(
+	FConstraintInstanceAccessor& Accessor,
+	bool bSoftLinearLimit,
+	float LinearLimitStiffness,
+	float LinearLimitDamping,
+	float LinearLimitRestitution,
+	float LinearLimitContactDistance
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		ConstraintInstance->SetSoftLinearLimitParams(bSoftLinearLimit, LinearLimitStiffness, LinearLimitDamping, LinearLimitRestitution, LinearLimitContactDistance);
+	}
+}
+
+void UConstraintInstanceBlueprintLibrary::GetLinearSoftLimitParams(
+	FConstraintInstanceAccessor& Accessor,
+	bool& bSoftLinearLimit,
+	float& LinearLimitStiffness,
+	float& LinearLimitDamping,
+	float& LinearLimitRestitution,
+	float& LinearLimitContactDistance
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		bSoftLinearLimit = ConstraintInstance->GetIsSoftLinearLimit();
+		LinearLimitStiffness = ConstraintInstance->GetSoftLinearLimitStiffness();
+		LinearLimitDamping = ConstraintInstance->GetSoftLinearLimitDamping();
+		LinearLimitRestitution = ConstraintInstance->GetSoftLinearLimitRestitution();
+		LinearLimitContactDistance = ConstraintInstance->GetSoftLinearLimitContactDistance();
+	}
+	else
+	{
+		bSoftLinearLimit = false;
+		LinearLimitStiffness = 0.;
+		LinearLimitDamping = 0.;
+		LinearLimitRestitution = 0.;
+		LinearLimitContactDistance = 0.;
+
+	}
+}
+
 void UConstraintInstanceBlueprintLibrary::SetLinearBreakable(
 	FConstraintInstanceAccessor& Accessor,
 	bool bLinearBreakable,
@@ -213,6 +256,92 @@ void UConstraintInstanceBlueprintLibrary::GetAngularLimits(
 		Swing2LimitAngle = 0.0f;
 		TwistMotionType = EAngularConstraintMotion::ACM_Free;
 		TwistLimitAngle = 0.0f;
+	}
+}
+
+void UConstraintInstanceBlueprintLibrary::SetAngularSoftSwingLimitParams(
+	FConstraintInstanceAccessor& Accessor,
+	bool bSoftSwingLimit,
+	float SwingLimitStiffness,
+	float SwingLimitDamping,
+	float SwingLimitRestitution,
+	float SwingLimitContactDistance
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		ConstraintInstance->SetSoftSwingLimitParams(bSoftSwingLimit, SwingLimitStiffness, SwingLimitDamping, SwingLimitRestitution, SwingLimitContactDistance);
+	}
+}
+
+void UConstraintInstanceBlueprintLibrary::GetAngularSoftSwingLimitParams(
+	FConstraintInstanceAccessor& Accessor,
+	bool& bSoftSwingLimit,
+	float& SwingLimitStiffness,
+	float& SwingLimitDamping,
+	float& SwingLimitRestitution,
+	float& SwingLimitContactDistance
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		bSoftSwingLimit = ConstraintInstance->GetIsSoftSwingLimit();
+		SwingLimitStiffness = ConstraintInstance->GetSoftSwingLimitStiffness();
+		SwingLimitDamping = ConstraintInstance->GetSoftSwingLimitDamping();
+		SwingLimitRestitution = ConstraintInstance->GetSoftSwingLimitRestitution();
+		SwingLimitContactDistance = ConstraintInstance->GetSoftSwingLimitContactDistance();
+	}
+	else
+	{
+		bSoftSwingLimit = false;
+		SwingLimitStiffness = 0.;
+		SwingLimitDamping = 0.;
+		SwingLimitRestitution = 0.;
+		SwingLimitContactDistance = 0.;
+		
+	}
+}
+
+void UConstraintInstanceBlueprintLibrary::SetAngularSoftTwistLimitParams(
+	FConstraintInstanceAccessor& Accessor,
+	bool bSoftTwistLimit,
+	float TwistLimitStiffness,
+	float TwistLimitDamping,
+	float TwistLimitRestitution,
+	float TwistLimitContactDistance
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		ConstraintInstance->SetSoftTwistLimitParams(bSoftTwistLimit, TwistLimitStiffness, TwistLimitDamping, TwistLimitRestitution, TwistLimitContactDistance);
+	}
+}
+
+void UConstraintInstanceBlueprintLibrary::GetAngularSoftTwistLimitParams(
+	FConstraintInstanceAccessor& Accessor,
+	bool& bSoftTwistLimit,
+	float& TwistLimitStiffness,
+	float& TwistLimitDamping,
+	float& TwistLimitRestitution,
+	float& TwistLimitContactDistance
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		bSoftTwistLimit = ConstraintInstance->GetIsSoftTwistLimit();
+		TwistLimitStiffness = ConstraintInstance->GetSoftTwistLimitStiffness();
+		TwistLimitDamping = ConstraintInstance->GetSoftTwistLimitDamping();
+		TwistLimitRestitution = ConstraintInstance->GetSoftTwistLimitRestitution();
+		TwistLimitContactDistance = ConstraintInstance->GetSoftTwistLimitContactDistance();
+	}
+	else
+	{
+		bSoftTwistLimit = false;
+		TwistLimitStiffness = 0.;
+		TwistLimitDamping = 0.;
+		TwistLimitRestitution = 0.;
+		TwistLimitContactDistance = 0.;
+
 	}
 }
 

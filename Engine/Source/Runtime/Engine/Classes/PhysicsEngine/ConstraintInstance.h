@@ -423,57 +423,81 @@ public:
 	}
 
 	/** Whether the linear limits are soft (only if at least one axis if Limited) */
-	bool GetIsSoftLinearLimit() const
-	{
-		return ProfileInstance.LinearLimit.bSoftConstraint;
-	}
+	bool GetIsSoftLinearLimit() const { return ProfileInstance.LinearLimit.bSoftConstraint;	}
 
 	/** Linear stiffness if the constraint is set to use soft linear limits */
-	float GetSoftLinearLimitStiffness() const
-	{
-		return ProfileInstance.LinearLimit.Stiffness;
-	}
+	float GetSoftLinearLimitStiffness() const {	return ProfileInstance.LinearLimit.Stiffness; }
 
 	/** Linear damping if the constraint is set to use soft linear limits */
-	float GetSoftLinearLimitDamping() const
+	float GetSoftLinearLimitDamping() const { return ProfileInstance.LinearLimit.Damping; }
+
+	/** Linear restitution if the constraint is set to use soft linear limits */
+	float GetSoftLinearLimitRestitution() const { return ProfileInstance.LinearLimit.Restitution; }
+
+	/** Linear contact distance if the constraint is set to use soft linear limits */
+	float GetSoftLinearLimitContactDistance() const { return ProfileInstance.LinearLimit.ContactDistance; }
+
+	/** Set twist soft limit parameters */
+	void SetSoftLinearLimitParams(bool bIsSoftLimit, float Stiffness, float Damping, float Restitution, float ContactDistance)
 	{
-		return ProfileInstance.LinearLimit.Damping;
+		ProfileInstance.LinearLimit.bSoftConstraint = bIsSoftLimit;
+		ProfileInstance.LinearLimit.Stiffness = Stiffness;
+		ProfileInstance.LinearLimit.Damping = Damping;
+		ProfileInstance.LinearLimit.Restitution = Restitution;
+		ProfileInstance.LinearLimit.ContactDistance = ContactDistance;
+		UpdateLinearLimit();
 	}
 
 	/** Whether the twist limits are soft (only available if twist is Limited) */
-	bool GetIsSoftTwistLimit() const
-	{
-		return ProfileInstance.TwistLimit.bSoftConstraint;
-	}
+	bool GetIsSoftTwistLimit() const { return ProfileInstance.TwistLimit.bSoftConstraint; }
 
 	/** Twist stiffness if the constraint is set to use soft limits */
-	float GetSoftTwistLimitStiffness() const
-	{
-		return ProfileInstance.TwistLimit.Stiffness;
-	}
+	float GetSoftTwistLimitStiffness() const {	return ProfileInstance.TwistLimit.Stiffness; }
 
 	/** Twist damping if the constraint is set to use soft limits */
-	float GetSoftTwistLimitDamping() const
-	{
-		return ProfileInstance.TwistLimit.Damping;
+	float GetSoftTwistLimitDamping() const { return ProfileInstance.TwistLimit.Damping;	}
+
+	/** Twist restitution if the constraint is set to use soft limits */
+	float GetSoftTwistLimitRestitution() const { return ProfileInstance.TwistLimit.Restitution; }
+
+	/** Twist contact distance if the constraint is set to use soft limits */
+	float GetSoftTwistLimitContactDistance() const { return ProfileInstance.TwistLimit.ContactDistance; }
+
+	/** Set twist soft limit parameters */
+	void SetSoftTwistLimitParams(bool bIsSoftLimit, float Stiffness, float Damping, float Restitution, float ContactDistance) 
+	{ 
+		ProfileInstance.TwistLimit.bSoftConstraint = bIsSoftLimit;
+		ProfileInstance.TwistLimit.Stiffness = Stiffness;
+		ProfileInstance.TwistLimit.Damping = Damping;
+		ProfileInstance.TwistLimit.Restitution = Restitution;
+		ProfileInstance.TwistLimit.ContactDistance = ContactDistance;
+		UpdateAngularLimit();
 	}
 
 	/** Whether the swing limits are soft (only available if swing1 and/or swing2 is Limited) */
-	bool GetIsSoftSwingLimit() const
-	{
-		return ProfileInstance.ConeLimit.bSoftConstraint;
-	}
+	bool GetIsSoftSwingLimit() const { return ProfileInstance.ConeLimit.bSoftConstraint; }
 
 	/** Swing stiffness if the constraint is set to use soft limits */
-	float GetSoftSwingLimitStiffness() const
-	{
-		return ProfileInstance.ConeLimit.Stiffness;
-	}
+	float GetSoftSwingLimitStiffness() const { return ProfileInstance.ConeLimit.Stiffness; }
 
 	/** Swing damping if the constraint is set to use soft limits */
-	float GetSoftSwingLimitDamping() const
+	float GetSoftSwingLimitDamping() const { return ProfileInstance.ConeLimit.Damping; }
+
+	/** Swing restitution if the constraint is set to use soft limits */
+	float GetSoftSwingLimitRestitution() const { return ProfileInstance.ConeLimit.Restitution; }
+
+	/** Swing Contact distance if the constraint is set to use soft limits */
+	float GetSoftSwingLimitContactDistance() const { return ProfileInstance.ConeLimit.ContactDistance; }
+
+	/** Set twist soft limit parameters */
+	void SetSoftSwingLimitParams(bool bIsSoftLimit, float Stiffness, float Damping, float Restitution, float ContactDistance)
 	{
-		return ProfileInstance.ConeLimit.Damping;
+		ProfileInstance.ConeLimit.bSoftConstraint = bIsSoftLimit;
+		ProfileInstance.ConeLimit.Stiffness = Stiffness;
+		ProfileInstance.ConeLimit.Damping = Damping;
+		ProfileInstance.ConeLimit.Restitution = Restitution;
+		ProfileInstance.ConeLimit.ContactDistance = ContactDistance;
+		UpdateAngularLimit();
 	}
 
 	/** Sets the Linear Breakable properties
