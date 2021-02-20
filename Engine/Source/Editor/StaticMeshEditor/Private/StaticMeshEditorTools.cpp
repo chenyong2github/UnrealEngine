@@ -47,6 +47,7 @@
 #include "Widgets/Input/SFilePathPicker.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "PerPlatformPropertyCustomization.h"
+#include "Misc/ScopedSlowTask.h"
 
 const uint32 MaxHullCount = 64;
 const uint32 MinHullCount = 2;
@@ -4686,19 +4687,17 @@ void FNaniteSettingsLayout::ApplyChanges()
 	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
 	check(StaticMesh);
 
-	// Calling Begin and EndSlowTask are rather dangerous because they tick
-	// Slate. Call them here and flush rendering commands to be sure!.
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("StaticMeshName"), FText::FromString(StaticMesh->GetName()));
+		FScopedSlowTask SlowTask(0, FText::Format(LOCTEXT("ApplyNaniteChanges", "Applying changes to {StaticMeshName}..."), Args), true);
+		SlowTask.MakeDialog();
 
-	FFormatNamedArguments Args;
-	Args.Add(TEXT("StaticMeshName"), FText::FromString(StaticMesh->GetName()));
-	GWarn->BeginSlowTask(FText::Format(LOCTEXT("ApplyNaniteChanges", "Applying changes to {StaticMeshName}..."), Args), true);
-	FlushRenderingCommands();
+		StaticMesh->Modify();
+		StaticMesh->NaniteSettings = NaniteSettings;
+		StaticMesh->PostEditChange();
+	}
 
-	StaticMesh->Modify();
-	StaticMesh->NaniteSettings = NaniteSettings;
-	StaticMesh->PostEditChange();
-
-	GWarn->EndSlowTask();
 
 	StaticMeshEditor.RefreshTool();
 }

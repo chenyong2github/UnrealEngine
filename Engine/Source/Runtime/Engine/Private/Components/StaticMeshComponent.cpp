@@ -182,6 +182,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bCustomOverrideVertexColorPerLOD = false;
 	bDisplayVertexColors = false;
 	bDisplayPhysicalMaterialMasks = false;
+	bDisplayNaniteProxyMesh = false;
 #endif
 }
 

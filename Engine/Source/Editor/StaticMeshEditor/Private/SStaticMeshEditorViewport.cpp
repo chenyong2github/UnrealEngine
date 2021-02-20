@@ -20,6 +20,7 @@
 #include "Engine/StaticMeshSocket.h"
 #include "Editor/UnrealEd/Public/SEditorViewportToolBarMenu.h"
 #include "Editor.h"
+#include "Widgets/Text/SRichTextBlock.h"
 
 #define HITPROXY_SOCKET	1
 
@@ -85,7 +86,7 @@ void SStaticMeshEditorViewport::PopulateViewportOverlays(TSharedRef<SOverlay> Ov
 			.BorderImage( FAppStyle::Get().GetBrush( "FloatingBorder" ) )
 			.Padding(4.f)
 			[
-				SAssignNew(OverlayTextVerticalBox, SVerticalBox)
+				SAssignNew(OverlayText, SRichTextBlock)
 			]
 		];
 
@@ -116,19 +117,26 @@ SStaticMeshEditorViewport::~SStaticMeshEditorViewport()
 	}
 }
 
-void SStaticMeshEditorViewport::PopulateOverlayText(const TArray<FOverlayTextItem>& TextItems)
+void SStaticMeshEditorViewport::PopulateOverlayText(const TArrayView<FOverlayTextItem> TextItems)
 {
-	OverlayTextVerticalBox->ClearChildren();
+	FTextBuilder FinalText;
+
+	static FText WarningTextStyle = FText::FromString(TEXT("<TextBlock.ShadowedTextWarning>{0}</>"));
+	static FText NormalTextStyle = FText::FromString(TEXT("<TextBlock.ShadowedText>{0}</>"));
 
 	for (const auto& TextItem : TextItems)
 	{
-		OverlayTextVerticalBox->AddSlot()
-		[
-			SNew(STextBlock)
-			.Text(TextItem.Text)
-			.TextStyle(FEditorStyle::Get(), TextItem.Style)
-		];
+		if (!TextItem.bIsCustomFormat)
+		{
+			FinalText.AppendLineFormat(TextItem.bIsWarning ? WarningTextStyle : NormalTextStyle, TextItem.Text);
+		}
+		else
+		{
+			FinalText.AppendLine(TextItem.Text);
+		}
 	}
+
+	OverlayText->SetText(FinalText.ToText());
 }
 
 TSharedRef<SEditorViewport> SStaticMeshEditorViewport::GetViewportWidget()
@@ -199,6 +207,27 @@ bool SStaticMeshEditorViewport::PreviewComponentSelectionOverride(const UPrimiti
 	}
 
 	return false;
+}
+
+void SStaticMeshEditorViewport::ToggleShowNaniteProxy()
+{
+	if (PreviewMeshComponent)
+	{
+		FComponentReregisterContext ReregisterContext(PreviewMeshComponent);
+		PreviewMeshComponent->bDisplayNaniteProxyMesh = !PreviewMeshComponent->bDisplayNaniteProxyMesh;
+	}
+}
+
+bool SStaticMeshEditorViewport::IsShowNaniteProxyChecked() const
+{
+	return PreviewMeshComponent ? PreviewMeshComponent->bDisplayNaniteProxyMesh : false;
+}
+
+bool SStaticMeshEditorViewport::IsShowNaniteProxyVisible() const
+{
+	const UStaticMesh* PreviewStaticMesh = PreviewMeshComponent ? PreviewMeshComponent->GetStaticMesh() : nullptr;
+
+	return PreviewStaticMesh && PreviewStaticMesh->NaniteSettings.bEnabled ? true : false;
 }
 
 void SStaticMeshEditorViewport::UpdatePreviewSocketMeshes()
@@ -535,6 +564,13 @@ void SStaticMeshEditorViewport::BindCommands()
 	const FStaticMeshEditorCommands& Commands = FStaticMeshEditorCommands::Get();
 
 	TSharedRef<FStaticMeshEditorViewportClient> EditorViewportClientRef = EditorViewportClient.ToSharedRef();
+
+	CommandList->MapAction(
+		Commands.SetShowNaniteProxy,
+		FExecuteAction::CreateSP(this, &SStaticMeshEditorViewport::ToggleShowNaniteProxy),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &SStaticMeshEditorViewport::IsShowNaniteProxyChecked),
+		FIsActionButtonVisible::CreateSP(this, &SStaticMeshEditorViewport::IsShowNaniteProxyVisible));
 
 	CommandList->MapAction(
 		Commands.SetShowWireframe,

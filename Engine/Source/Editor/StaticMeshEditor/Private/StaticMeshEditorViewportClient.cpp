@@ -785,7 +785,7 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 		}
 	}
 
-	TArray<SStaticMeshEditorViewport::FOverlayTextItem> TextItems;
+	TArray<SStaticMeshEditorViewport::FOverlayTextItem, TInlineAllocator<10>> TextItems;
 
 	const int32 CurrentLODLevel = [this, &StaticMeshEditor, &View]()
 	{
@@ -796,17 +796,19 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 			LOD - 1;
 	}();
 
-	const int32 CurrentMinLODLevel = StaticMesh->GetMinLOD().GetValue();
-	const bool bBelowMinLOD = CurrentLODLevel < CurrentMinLODLevel;
-	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-		FText::Format(NSLOCTEXT("UnrealEd", "LOD_F", "LOD:  {0}"), FText::AsNumber(CurrentLODLevel)),
-		bBelowMinLOD ? "TextBlock.ShadowedTextWarning" : "TextBlock.ShadowedText"));
-	
-	if ( bBelowMinLOD )
+	if (StaticMesh->NaniteSettings.bEnabled)
 	{
-		TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-			FText::Format(NSLOCTEXT("UnrealEd", "BelowMinLODWarning_F", "Selected LOD is below the minimum of {0}"),
-				FText::AsNumber(CurrentMinLODLevel)), "TextBlock.ShadowedTextWarning"));
+		TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NaniteEnabled", "<TextBlock.ShadowedText>Nanite Enabled</> <TextBlock.ShadowedTextWarning>{0}</>"), StaticMeshComponent->bDisplayNaniteProxyMesh ? NSLOCTEXT("UnrealEd", "ShowingNaniteProxy", "(Showing Proxy)") : FText::GetEmpty()), false, true);
+	}
+	else
+	{
+		const int32 CurrentMinLODLevel = StaticMesh->GetMinLOD().GetValue();
+		const bool bBelowMinLOD = CurrentLODLevel < CurrentMinLODLevel;
+
+		if ( bBelowMinLOD )
+		{
+			TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "BelowMinLODWarning_F", "Selected LOD is below the minimum of {0}"),FText::AsNumber(CurrentMinLODLevel)), true);
+		}
 	}
 
 	const float CurrentScreenSize = ComputeBoundsScreenSize(StaticMeshComponent->Bounds.Origin, StaticMeshComponent->Bounds.SphereRadius, View);
@@ -814,17 +816,13 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 	FormatOptions.MinimumFractionalDigits = 3;
 	FormatOptions.MaximumFractionalDigits = 6;
 	FormatOptions.MaximumIntegralDigits = 6;
-	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-		FText::Format(NSLOCTEXT("UnrealEd", "ScreenSize_F", "Current Screen Size:  {0}"), FText::AsNumber(CurrentScreenSize, &FormatOptions))));
+	TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "ScreenSize_F", "Current Screen Size:  {0}"), FText::AsNumber(CurrentScreenSize, &FormatOptions)));
 
-	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-		FText::Format(NSLOCTEXT("UnrealEd", "Triangles_F", "Triangles:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumTriangles(CurrentLODLevel)))));
+	TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Triangles_F", "Triangles:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumTriangles(CurrentLODLevel))));
 
-	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-		FText::Format(NSLOCTEXT("UnrealEd", "Vertices_F", "Vertices:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumVertices(CurrentLODLevel)))));
+	TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "Vertices_F", "Vertices:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumVertices(CurrentLODLevel))));
 
-	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-		FText::Format(NSLOCTEXT("UnrealEd", "UVChannels_F", "UV Channels:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumUVChannels(CurrentLODLevel)))));
+	TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "UVChannels_F", "UV Channels:  {0}"), FText::AsNumber(StaticMeshEditorPtr.Pin()->GetNumUVChannels(CurrentLODLevel))));
 
 	if(StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->LODResources.Num() > 0 )
 	{
@@ -844,31 +842,29 @@ void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneV
 				NumberOptions.MinimumFractionalDigits = 2;
 				NumberOptions.MaximumFractionalDigits = 2;
 
-				TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-					FText::Format(NSLOCTEXT("UnrealEd", "DistanceFieldRes_F", "Distance Field:  {0}x{1}x{2} = {3}Mb"), FText::AsNumber(VolumeData.Size.X), FText::AsNumber(VolumeData.Size.Y), FText::AsNumber(VolumeData.Size.Z), FText::AsNumber(MemoryMb, &NumberOptions))));
+				TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "DistanceFieldRes_F", "Distance Field:  {0}x{1}x{2} = {3}Mb"), FText::AsNumber(VolumeData.Size.X), FText::AsNumber(VolumeData.Size.Y), FText::AsNumber(VolumeData.Size.Z), FText::AsNumber(MemoryMb, &NumberOptions)));
 			}
 		}
 	}
 
-	TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
+	TextItems.Emplace(
 		FText::Format(NSLOCTEXT("UnrealEd", "ApproxSize_F", "Approx Size: {0}x{1}x{2}"),
 		FText::AsNumber(int32(StaticMesh->GetBounds().BoxExtent.X * 2.0f)), // x2 as artists wanted length not radius
 		FText::AsNumber(int32(StaticMesh->GetBounds().BoxExtent.Y * 2.0f)),
-		FText::AsNumber(int32(StaticMesh->GetBounds().BoxExtent.Z * 2.0f)))));
+		FText::AsNumber(int32(StaticMesh->GetBounds().BoxExtent.Z * 2.0f))));
 
 	// Show the number of collision primitives
 	if(StaticMesh->GetBodySetup())
 	{
-		TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(
-			FText::Format(NSLOCTEXT("UnrealEd", "NumPrimitives_F", "Num Collision Primitives:  {0}"), FText::AsNumber(StaticMesh->GetBodySetup()->AggGeom.GetElementCount()))));
+		TextItems.Emplace(FText::Format(NSLOCTEXT("UnrealEd", "NumPrimitives_F", "Num Collision Primitives:  {0}"), FText::AsNumber(StaticMesh->GetBodySetup()->AggGeom.GetElementCount())));
 	}
 
 	if (StaticMeshComponent && StaticMeshComponent->SectionIndexPreview != INDEX_NONE)
 	{
-		TextItems.Add(SStaticMeshEditorViewport::FOverlayTextItem(NSLOCTEXT("UnrealEd", "MeshSectionsHiddenWarning",  "Mesh Sections Hidden")));
+		TextItems.Emplace(NSLOCTEXT("UnrealEd", "MeshSectionsHiddenWarning",  "Mesh Sections Hidden"));
 	}
 
-	StaticMeshEditorViewport->PopulateOverlayText(TextItems);
+	StaticMeshEditorViewport->PopulateOverlayText(MakeArrayView(TextItems));
 
  	int32 X = Canvas.GetRenderTarget()->GetSizeXY().X - 300;
  	int32 Y = 30;

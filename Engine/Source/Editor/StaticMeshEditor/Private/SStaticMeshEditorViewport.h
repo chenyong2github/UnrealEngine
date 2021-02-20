@@ -13,11 +13,13 @@
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 #include "SAssetEditorViewport.h"
+#include "Styling/StyleColors.h"
 
 class IStaticMeshEditor;
 class SVerticalBox;
 class UStaticMesh;
 class UStaticMeshComponent;
+class SRichTextBlock;
 
 /**
  * StaticMesh Editor Preview viewport widget
@@ -101,16 +103,17 @@ public:
 	/** Struct defining the text and its style of each item in the overlay widget */
 	struct FOverlayTextItem
 	{
-		explicit FOverlayTextItem(const FText& InText, const FName& InStyle = "TextBlock.ShadowedText")
-			: Text(InText), Style(InStyle)
+		explicit FOverlayTextItem(const FText& InText, bool bInIsWarning = false, bool bInIsCustomFormat=false)
+			: Text(InText), bIsWarning(bInIsWarning), bIsCustomFormat(bInIsCustomFormat)
 		{}
 
 		FText Text;
-		FName Style;
+		bool bIsWarning;
+		bool bIsCustomFormat;
 	};
 
 	/** Specifies an array of text items which will be added to the viewport overlay */
-	void PopulateOverlayText( const TArray<FOverlayTextItem>& TextItems );
+	void PopulateOverlayText( const TArrayView<FOverlayTextItem> TextItems );
 
 	// ICommonEditorViewportToolbarInfoProvider interface
 	virtual TSharedRef<class SEditorViewport> GetViewportWidget() override;
@@ -171,6 +174,12 @@ private:
 
 	/** Override for preview component selection to inform the editor we consider it selected. */
 	bool PreviewComponentSelectionOverride(const UPrimitiveComponent* InComponent) const;
+
+	void ToggleShowNaniteProxy();
+
+	bool IsShowNaniteProxyChecked() const;
+
+	bool IsShowNaniteProxyVisible() const;
 private:
 	
 	/** The parent tab where this viewport resides */
@@ -191,8 +200,8 @@ private:
 	/** The currently selected view mode. */
 	EViewModeIndex CurrentViewMode;
 
-	/** Pointer to the vertical box into which the overlay text items are added */
-	TSharedPtr<SVerticalBox> OverlayTextVerticalBox;
+	/** Pointer to the box into which the overlay text items are added */
+	TSharedPtr<SRichTextBlock> OverlayText;
 
 	/** Current LOD Selection where 0 is Auto */
 	int32 LODSelection;

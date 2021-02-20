@@ -315,6 +315,9 @@ public:
 	UPROPERTY(transient)
 	uint8 bDisplayPhysicalMaterialMasks : 1;
 
+	/** For nanite enabled meshes, we'll only show the proxy mesh if this is true */
+	UPROPERTY()
+	uint8 bDisplayNaniteProxyMesh:1;
 #endif
 
 	/**

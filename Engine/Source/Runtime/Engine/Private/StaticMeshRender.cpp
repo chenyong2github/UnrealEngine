@@ -2363,8 +2363,15 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
+	// Whether or not to allow nanite for this component
+#if WITH_EDITORONLY_DATA
+	const bool bAllowNanite = !bDisplayNaniteProxyMesh;
+#else
+	const bool bAllowNanite = true;
+#endif
+
 	// TODO: Abstract with a common helper
-	if (UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.PageStreamingStates.Num())
+	if (bAllowNanite && UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.PageStreamingStates.Num())
 	{
 		LLM_SCOPE(ELLMTag::StaticMesh);
 		return ::new Nanite::FSceneProxy(this);

@@ -43,24 +43,25 @@ TSharedRef<SWidget> SStaticMeshEditorViewportToolbar::GenerateShowMenu() const
 	{
 		auto Commands = FStaticMeshEditorCommands::Get();
 
+		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNaniteProxy);
+
+		ShowMenuBuilder.BeginSection("MeshComponents", LOCTEXT("MeshComponments", "Mesh Components"));
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowSockets);
-		ShowMenuBuilder.AddMenuEntry(Commands.SetShowPivot);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowVertices);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowVertexColor);
-
+		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNormals);
+		ShowMenuBuilder.AddMenuEntry(Commands.SetShowTangents);
+		ShowMenuBuilder.AddMenuEntry(Commands.SetShowBinormals);
 		ShowMenuBuilder.AddMenuSeparator();
 
+		ShowMenuBuilder.AddMenuEntry(Commands.SetShowPivot);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowGrid);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowBounds);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowSimpleCollision);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowComplexCollision);
 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowPhysicalMaterialMasks);
 
-		ShowMenuBuilder.AddMenuSeparator();
 
- 		ShowMenuBuilder.AddMenuEntry(Commands.SetShowNormals);
-		ShowMenuBuilder.AddMenuEntry(Commands.SetShowTangents);
-		ShowMenuBuilder.AddMenuEntry(Commands.SetShowBinormals);
 
 		//ShowMenuBuilder.AddMenuSeparator();
 		//ShowMenuBuilder.AddMenuEntry(Commands.SetShowMeshEdges);

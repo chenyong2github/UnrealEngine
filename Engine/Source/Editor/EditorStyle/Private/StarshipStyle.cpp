@@ -334,7 +334,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f)));
 
 		Set("TextBlock.ShadowedTextWarning", FTextBlockStyle(NormalText)
-			.SetColorAndOpacity(FLinearColor(1.0f, 0.0f, 0.0f))
+			.SetColorAndOpacity(FStyleColors::Warning)
 			.SetShadowOffset(FVector2D(1.0f, 1.0f))
 			.SetShadowColorAndOpacity(FLinearColor(0.0f, 0.0f, 0.0f)));
 
