@@ -415,8 +415,11 @@ void UFractureToolResetAsset::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 				GeometryCollectionComponent->MarkRenderDynamicDataDirty();
 				GeometryCollectionComponent->MarkRenderStateDirty();
 			}
+
 			GeometryCollectionObject->MarkPackageDirty();
 		}
+		
+		GeometryCollectionComponent->InitializeEmbeddedGeometry();
 		
 		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
 		EditBoneColor.ResetBoneSelection();

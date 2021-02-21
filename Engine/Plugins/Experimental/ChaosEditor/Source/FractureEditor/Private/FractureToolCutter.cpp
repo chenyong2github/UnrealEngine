@@ -29,12 +29,7 @@ bool UFractureToolCutterBase::CanExecute() const
 	{
 		return false;
 	}
-
-	if (IsStaticMeshSelected())
-	{
-		return false;
-	}
-
+	
 	return true;
 }
 

@@ -2884,11 +2884,16 @@ bool UGeometryCollectionComponent::IsEmbeddedGeometryValid() const
 
 void UGeometryCollectionComponent::ClearEmbeddedGeometry()
 {
-	for (UInstancedStaticMeshComponent* EmbeddedGeometryComponent : EmbeddedGeometryComponents)
+	AActor* OwningActor = GetOwner();
+	TArray<UActorComponent*> TargetComponents = OwningActor->GetComponentsByClass(UInstancedStaticMeshComponent::StaticClass());
+	
+	for (UActorComponent* EmbeddedGeometryComponent : TargetComponents)
 	{
-		EmbeddedGeometryComponent->ClearInstances();
-		//EmbeddedGeometryComponent->UnregisterComponent();
-		EmbeddedGeometryComponent->DestroyComponent();
+		if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(EmbeddedGeometryComponent))
+		{
+			ISMComponent->ClearInstances();
+			ISMComponent->DestroyComponent();
+		}
 	}
 
 	EmbeddedGeometryComponents.Empty();

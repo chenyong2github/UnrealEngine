@@ -189,6 +189,7 @@ void UGeometryCollection::Reset()
 		Modify();
 		GeometryCollection->Empty();
 		Materials.Empty();
+		EmbeddedGeometryExemplar.Empty();
 		InvalidateCollection();
 	}
 }

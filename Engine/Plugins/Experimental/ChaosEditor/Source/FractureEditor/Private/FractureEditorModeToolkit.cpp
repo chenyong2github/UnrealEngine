@@ -415,6 +415,10 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 		]
 	];
 
+
+
+
+
 	// Bind Chaos Commands;
 	BindCommands();
 
@@ -459,7 +463,7 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 	}
 }
 
-const TArray<FName> FFractureEditorModeToolkit::PaletteNames = { FName(TEXT("Generate")), FName(TEXT("Select")), FName(TEXT("Fracture")), FName(TEXT("Cluster")), FName(TEXT("Embed")), FName(TEXT("Properties")) };
+const TArray<FName> FFractureEditorModeToolkit::PaletteNames = { FName(TEXT("Generate")), FName(TEXT("Select")), FName(TEXT("Fracture")), FName(TEXT("Edit")), FName(TEXT("Cluster")), FName(TEXT("Embed")), FName(TEXT("Properties")) };
 
 FText FFractureEditorModeToolkit::GetToolPaletteDisplayName(FName Palette) const
 { 
@@ -508,6 +512,10 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.Brick);
 		ToolbarBuilder.AddToolBarButton(Commands.Resample);
 	}
+	else if (PaletteIndex == TEXT("Edit"))
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.DeleteBranch);
+	}
 	else if (PaletteIndex == TEXT("Cluster"))
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.AutoCluster);
@@ -521,7 +529,6 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.AddEmbeddedGeometry);
 		ToolbarBuilder.AddToolBarButton(Commands.AutoEmbedGeometry);
-		ToolbarBuilder.AddToolBarButton(Commands.DeleteEmbeddedGeometry);
 	}
 	else if (PaletteIndex == TEXT("Properties"))
 	{
@@ -704,13 +711,15 @@ void FFractureEditorModeToolkit::OnExplodedViewValueChanged()
 			AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(Actor);
 			if(GeometryCollectionActor)
 			{
-				UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent);
-				FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection();
-				UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
+				if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(PrimitiveComponent))
+				{
+					FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection();
+					UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
 
-				UpdateExplodedVectors(GeometryCollectionComponent);
+					UpdateExplodedVectors(GeometryCollectionComponent);
 
-				GeometryCollectionComponent->MarkRenderStateDirty();
+					GeometryCollectionComponent->MarkRenderStateDirty();
+				}	
 			}
 		}
 	}
