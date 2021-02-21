@@ -1912,6 +1912,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 		PassSequence.SetEnabled(EPass::DesktopTAA, false);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, false);
 		PassSequence.SetEnabled(EPass::MobileTAA, false);
+		PassSequence.SetEnabled(EPass::FXAA, false);
 		PassSequence.Finalize();
 	}
 	
