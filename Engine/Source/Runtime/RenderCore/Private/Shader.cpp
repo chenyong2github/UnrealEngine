@@ -1483,8 +1483,12 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 
 		if (IsVulkanPlatform(Platform))
 		{
-			// Currently mobile only supports NoUB
-			KeyString += TEXT("_NoUB");
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.UseRealUBs"));
+			if ((CVar && CVar->GetInt() == 0) || 
+				Platform == SP_VULKAN_ES3_1_ANDROID) // we force eUB on mobile Android
+			{
+				KeyString += TEXT("_NoUB");
+			}
 		}
 
 		{

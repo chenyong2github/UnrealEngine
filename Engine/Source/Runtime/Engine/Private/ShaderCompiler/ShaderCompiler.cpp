@@ -4547,8 +4547,12 @@ void GlobalBeginCompileShader(
 		}
 		else if(IsVulkanPlatform((EShaderPlatform)Target.Platform))
 		{
-			// Always use Emulated UB's for Vulkan Mobile
-			Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.UseRealUBs"));
+			if ((CVar && CVar->GetInt() == 0) || 
+				Target.Platform == SP_VULKAN_ES3_1_ANDROID) // we force eUB on mobile Android
+			{
+				Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
+			}
 		}
 	}
 	else
