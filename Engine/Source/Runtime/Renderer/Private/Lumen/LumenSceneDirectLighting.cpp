@@ -46,7 +46,7 @@ FAutoConsoleVariableRef CVarLumenDirectLightingBatchSize(
 	ECVF_RenderThreadSafe
 );
 
-float GOffscreenShadowingMaxTraceDistance = 10000;
+float GOffscreenShadowingMaxTraceDistance = 15000;
 FAutoConsoleVariableRef CVarOffscreenShadowingMaxTraceDistance(
 	TEXT("r.Lumen.DirectLighting.OffscreenShadowingMaxTraceDistance"),
 	GOffscreenShadowingMaxTraceDistance,
