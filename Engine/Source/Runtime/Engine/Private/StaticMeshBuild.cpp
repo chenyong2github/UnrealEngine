@@ -377,12 +377,6 @@ void UStaticMesh::BeginBuildInternal(FStaticMeshBuildContext* Context)
 
 	PreMeshBuild.Broadcast(this);
 	
-	// Make sure the BulkData is always created before going async
-	if (GetHiResSourceModel().StaticMeshDescriptionBulkData == nullptr)
-	{
-		GetHiResSourceModel().StaticMeshDescriptionBulkData = NewObject<UStaticMeshDescriptionBulkData>(this, NAME_None, RF_Transactional);
-	}
-
 	// Ensure we have a bodysetup.
 	CreateBodySetup();
 	check(GetBodySetup() != nullptr);
