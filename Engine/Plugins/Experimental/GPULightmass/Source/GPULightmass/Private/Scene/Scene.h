@@ -66,6 +66,10 @@ struct FCachedRayTracingSceneData
 	FBufferRHIRef LightmapSceneDataBufferRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataBufferSRV;
 
+	FBufferRHIRef InstanceSceneDataBufferRHI;
+	FShaderResourceViewRHIRef InstanceSceneDataBufferSRV;
+	uint32 InstanceSceneDataSOAStride;
+
 	TArray<FRayTracingGeometryInstance> RayTracingGeometryInstances;
 
 	TUniformBufferRef<FViewUniformShaderParameters> CachedViewUniformBuffer;
