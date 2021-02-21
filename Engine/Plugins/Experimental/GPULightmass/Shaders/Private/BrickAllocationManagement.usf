@@ -4,7 +4,7 @@
 	BrickAllocationManagement.usf
 =============================================================================*/
 
-#include "/Engine/Public/Platform.ush"
+#include "/Engine/Public/Platform.ush" 
 #include "BrickAllocationDefs.ush"
 #include "/Engine/Generated/UniformBuffers/VLMVoxelizationParams.ush"
  
