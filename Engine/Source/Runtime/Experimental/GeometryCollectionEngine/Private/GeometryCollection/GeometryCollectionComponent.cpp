@@ -2885,7 +2885,8 @@ bool UGeometryCollectionComponent::IsEmbeddedGeometryValid() const
 void UGeometryCollectionComponent::ClearEmbeddedGeometry()
 {
 	AActor* OwningActor = GetOwner();
-	TArray<UActorComponent*> TargetComponents = OwningActor->GetComponentsByClass(UInstancedStaticMeshComponent::StaticClass());
+	TArray<UActorComponent*> TargetComponents;
+	OwningActor->GetComponents(TargetComponents, false);
 	
 	for (UActorComponent* EmbeddedGeometryComponent : TargetComponents)
 	{
