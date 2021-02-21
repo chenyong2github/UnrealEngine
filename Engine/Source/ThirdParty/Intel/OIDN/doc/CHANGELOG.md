@@ -1,6 +1,71 @@
 Version History
 ---------------
 
+### Changes in v1.3.0:
+
+-   Improved denoising quality
+    -   Improved sharpness of fine details / less blurriness
+    -   Fewer noisy artifacts
+-   Slightly improved performance and lowered memory consumption
+-   Added directional (e.g. spherical harmonics) lightmap denoising to the
+    `RTLightmap` filter
+-   Added `inputScale` filter parameter which generalizes the existing
+    (and thus now deprecated) `hdrScale` parameter for non-HDR images
+-   Added native support for Apple Silicon and the BNNS library on macOS
+    (currently requires rebuilding from source)
+-   Added `OIDN_NEURAL_RUNTIME` CMake option for setting the neural network
+    runtime library
+-   Reduced the size of the library binary
+-   Fixed compile error on some older macOS versions
+-   Upgraded release builds to use oneTBB 2021.1.1
+-   Removed tbbmalloc dependency
+-   Appended the library version to the name of the directory containing the
+    installed CMake files
+-   Training:
+    -   Faster training performance
+    -   Added mixed precision training (enabled by default)
+    -   Added efficient data-parallel training on multiple GPUs
+    -   Enabled preprocessing datasets multiple times with possibly different
+        options
+    -   Minor bugfixes
+
+### Changes in v1.2.4:
+
+-   Added OIDN_API_NAMESPACE CMake option that allows to put all API functions
+    inside a user-defined namespace
+-   Fixed bug when TBB_USE_GLIBCXX_VERSION is defined
+-   Fixed compile error when using an old compiler which does not support
+    OpenMP SIMD
+-   Added compatibility with oneTBB 2021
+-   Export only necessary symbols on Linux and macOS
+
+### Changes in v1.2.3:
+
+-   Fixed incorrect detection of AVX-512 on macOS (sometimes causing a crash)
+-   Fixed inconsistent performance and costly initialization for AVX-512
+-   Fixed JIT'ed AVX-512 kernels not showing up correctly in VTune
+
+### Changes in v1.2.2:
+
+-   Fixed unhandled exception when canceling filter execution from the
+    progress monitor callback function
+
+### Changes in v1.2.1:
+
+-   Fixed tiling artifacts when in-place denoising (using one of the input
+    images as the output) high-resolution (> 1080p) images
+-   Fixed ghosting/color bleeding artifacts in black regions when using
+    albedo/normal buffers
+-   Fixed error when building as a static library (`OIDN_STATIC_LIB` option)
+-   Fixed compile error for ISPC 1.13 and later
+-   Fixed minor TBB detection issues
+-   Fixed crash on pre-SSE4 CPUs when using some recent compilers (e.g. GCC 10)
+-   Link C/C++ runtime library dynamically on Windows too by default
+-   Renamed example apps (`oidnDenoise`, `oidnTest`)
+-   Added benchmark app (`oidnBenchmark`)
+-   Fixed random data augmentation seeding in training
+-   Fixed training warning with PyTorch 1.5 and later
+
 ### Changes in v1.2.0:
 
 -   Added neural network training code
