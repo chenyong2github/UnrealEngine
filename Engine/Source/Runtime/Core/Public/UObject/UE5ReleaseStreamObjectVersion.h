@@ -14,6 +14,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 
 		// Added Lumen reflections to new reflection enum, changed defaults
 		ReflectionMethodEnum,
+		
+		// Serialize HLOD info in WorldPartitionActorDesc
+		WorldPartitionActorDescSerializeHLODInfo,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
