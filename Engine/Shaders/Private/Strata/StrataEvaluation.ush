@@ -354,7 +354,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 				// STRATA_TODO Fresnel throughput, Use a LUT, this is currently in progress and will be coming soon.
 				// In the meantime, we use a simple approach to feed Fresnel function and compute an approximation of the general transmition/througput.
 				// We also ignored ThinFilm interaction as another simplification for perf.
-				const float ApproxFresnelForTransmittance = F_Schlick(F0, F90, BSDFContext.Context.NoV);
+				const float3 ApproxFresnelForTransmittance = F_Schlick(F0, F90, BSDFContext.Context.NoV);
 
 				const float3 SpecularThroughput = 1.0f - ApproxFresnelForTransmittance; // This is already taken into account by the Chan model above. But for volumetric we need to apply it.
 				const float Phase = IsotropicPhase();
@@ -386,7 +386,7 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 
 			// STRATA_TODO Fresnel throughput, Use a LUT, this is currently in progress and will be coming soon.
 			// In the meantime, we use a simple approach to feed Fresnel function and compute an approximation of the general transmition/througput.
-			const float ApproxFresnelForTransmittance = F_Schlick(F0, BSDFContext.Context.NoV);
+			const float3 ApproxFresnelForTransmittance = F_Schlick(F0, BSDFContext.Context.NoV);
 
 			Sample.DiffusePathValue	= D * Vis * F;
 			Sample.DiffusePDF		= BSDFContext.SatNoV / PI; // Per "Production Friendly Microfacet Sheen BRDF", hemispherical sampling give good result as the roughness is usually high.
