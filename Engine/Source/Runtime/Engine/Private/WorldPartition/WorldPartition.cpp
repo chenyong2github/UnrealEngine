@@ -21,6 +21,7 @@
 #include "Editor.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"
+#include "LevelEditorViewport.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeExit.h"
 #include "ScopedTransaction.h"
@@ -465,12 +466,16 @@ const TArray<FWorldPartitionStreamingSource>& UWorldPartition::GetStreamingSourc
 	return EmptyStreamingSources;
 }
 
-#if WITH_EDITOR
-bool UWorldPartition::IsSimulating() const
+bool UWorldPartition::IsSimulating()
 {
-	return GEditor->bIsSimulatingInEditor || !!GEditor->PlayWorld;
+#if WITH_EDITOR
+	return GEditor && GEditor->bIsSimulatingInEditor && GCurrentLevelEditingViewportClient && GCurrentLevelEditingViewportClient->IsSimulateInEditorViewport();
+#else
+	return false;
+#endif
 }
 
+#if WITH_EDITOR
 void UWorldPartition::LoadEditorCells(const FBox& Box)
 {
 	TArray<UWorldPartitionEditorCell*> CellsToLoad;
@@ -862,21 +867,26 @@ class ULevel* UWorldPartition::GetPreferredLoadedLevelToAddToWorld() const
 	return nullptr;
 }
 
+bool UWorldPartition::CanDrawRuntimeHash() const
+{
+	return GetWorld()->IsGameWorld() || UWorldPartition::IsSimulating();
+}
+
 FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
 {
-	check(GetWorld()->IsGameWorld());
+	check(CanDrawRuntimeHash());
 	return GetStreamingPolicy()->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
 }
 
 void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize)
 {
-	check(GetWorld()->IsGameWorld());
+	check(CanDrawRuntimeHash());
 	GetStreamingPolicy()->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
 }
 
 void UWorldPartition::DrawRuntimeHash3D()
 {
-	check(GetWorld()->IsGameWorld());
+	check(CanDrawRuntimeHash());
 	GetStreamingPolicy()->DrawRuntimeHash3D();
 }
 

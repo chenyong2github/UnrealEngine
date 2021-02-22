@@ -35,11 +35,13 @@ struct ENGINE_API FWorldPartitionRuntimeSpatialHashGridPreviewer
 		FGridParametersCache()
 			: bEnabled(false)
 			, CellSize(0)
+			, LoadingRange(0.f)
 			, GridColor(0.f, 0.f, 0.f, 0.f)
 		{}
 
 		bool bEnabled;
 		int32 CellSize;
+		float LoadingRange;
 		FLinearColor GridColor;
 	};
 

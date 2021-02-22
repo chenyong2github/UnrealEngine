@@ -62,6 +62,12 @@ void FWorldPartitionRuntimeSpatialHashGridPreviewer::Draw(UWorld* World, const T
 						CachedParameters.CellSize = Grid.CellSize;
 					}
 
+					if (CachedParameters.LoadingRange != Grid.LoadingRange)
+					{
+						MID->SetScalarParameterValue(*FString::Printf(TEXT("Grid%d_LoadingRange"), i), Grid.LoadingRange);
+						CachedParameters.LoadingRange = Grid.LoadingRange;
+					}
+
 					if (CachedParameters.GridColor != Grid.DebugColor)
 					{
 						MID->SetVectorParameterValue(*FString::Printf(TEXT("Grid%d_Color"), i), Grid.DebugColor);

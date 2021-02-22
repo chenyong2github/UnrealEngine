@@ -47,7 +47,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 
 #if WITH_EDITOR
 	// We are in the SIE
-	if (GEditor->bIsSimulatingInEditor && GCurrentLevelEditingViewportClient->IsSimulateInEditorViewport())
+	if (UWorldPartition::IsSimulating())
 	{
 		// Transform to Local
 		const FVector ViewLocation = GCurrentLevelEditingViewportClient->GetViewLocation();

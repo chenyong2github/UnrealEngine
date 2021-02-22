@@ -344,7 +344,7 @@ struct FSquare2DGridHelper
 #endif
 	};
 
-	FSquare2DGridHelper(int32 InNumLevels, const FVector& InOrigin, int32 InCellSize, int32 InGridSize);
+	FSquare2DGridHelper(const FBox& InWorldBounds, const FVector& InOrigin, int32 InCellSize);
 
 #if WITH_EDITOR
 	// Returns the lowest grid level
@@ -397,9 +397,9 @@ struct FSquare2DGridHelper
 #endif
 
 public:
+	FBox WorldBounds;
 	FVector Origin;
 	int32 CellSize;
-	int32 GridSize;
 	TArray<FGridLevel> Levels;
 };
 

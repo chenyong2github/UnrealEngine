@@ -70,12 +70,10 @@ static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributi
 FSpatialHashStreamingGrid::FSpatialHashStreamingGrid()
 	: Origin(ForceInitToZero)
 	, CellSize(0)
-	, GridSize(0)
 	, LoadingRange(0.0f)
-#if WITH_EDITOR
 	, DebugColor(ForceInitToZero)
-	, OverrideLoadingRange(0)
-#endif
+	, WorldBounds(ForceInitToZero)
+	, OverrideLoadingRange(0.f)
 	, GridHelper(nullptr)
 {
 }
@@ -92,15 +90,14 @@ const FSquare2DGridHelper& FSpatialHashStreamingGrid::GetGridHelper() const
 {
 	if (!GridHelper)
 	{
-		GridHelper = new FSquare2DGridHelper(GridLevels.Num(), Origin, CellSize, GridSize);
+		GridHelper = new FSquare2DGridHelper(WorldBounds, Origin, CellSize);
 	}
-	else
-	{
-		check(GridHelper->Levels.Num() == GridLevels.Num());
-		check(GridHelper->Origin == Origin);
-		check(GridHelper->CellSize == CellSize);
-		check(GridHelper->GridSize == GridSize);
-	}
+
+	check(GridHelper->Levels.Num() == GridLevels.Num());
+	check(GridHelper->Origin == Origin);
+	check(GridHelper->CellSize == CellSize);
+	check(GridHelper->WorldBounds == WorldBounds);
+
 	return *GridHelper;
 }
 
@@ -323,6 +320,20 @@ void FSpatialHashStreamingGrid::Draw2D(UCanvas* Canvas, const TArray<FWorldParti
 		Box.SetColor(DebugColor);
 		Canvas->DrawItem(Box);
 	}
+
+	// Draw WorldBounds
+	FBox2D WorldScreenBounds = FBox2D(WorldToScreen(FVector2D(WorldBounds.Min)), WorldToScreen(FVector2D(WorldBounds.Max)));
+	if (!GridScreenBounds.IsInside(WorldScreenBounds))
+	{
+		WorldScreenBounds.Min.X = FMath::Clamp(WorldScreenBounds.Min.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
+		WorldScreenBounds.Min.Y = FMath::Clamp(WorldScreenBounds.Min.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
+		WorldScreenBounds.Max.X = FMath::Clamp(WorldScreenBounds.Max.X, GridScreenBounds.Min.X, GridScreenBounds.Max.X);
+		WorldScreenBounds.Max.Y = FMath::Clamp(WorldScreenBounds.Max.Y, GridScreenBounds.Min.Y, GridScreenBounds.Max.Y);
+	}
+	FCanvasBoxItem Box(WorldScreenBounds.Min, WorldScreenBounds.GetSize());
+	Box.SetColor(FColor::Yellow);
+	Box.BlendMode = SE_BLEND_Translucent;
+	Canvas->DrawItem(Box);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -511,13 +522,13 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 	const bool bIsMainWorldPartition = (WorldPartition->GetWorld() == WorldPartition->GetTypedOuter<UWorld>());
+	check(PartionedActors.WorldBounds == WorldPartition->GetWorldBounds());
 
-	check(FMath::IsPowerOfTwo(PartionedActors.GridSize));
 	FSpatialHashStreamingGrid& CurrentStreamingGrid = StreamingGrids.AddDefaulted_GetRef();
 	CurrentStreamingGrid.GridName = RuntimeGrid.GridName;
 	CurrentStreamingGrid.Origin = PartionedActors.Origin;
 	CurrentStreamingGrid.CellSize = PartionedActors.CellSize;
-	CurrentStreamingGrid.GridSize = PartionedActors.GridSize;
+	CurrentStreamingGrid.WorldBounds = PartionedActors.WorldBounds;
 	CurrentStreamingGrid.LoadingRange = RuntimeGrid.LoadingRange;
 	CurrentStreamingGrid.DebugColor = RuntimeGrid.DebugColor;
 
@@ -849,7 +860,10 @@ void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 	for (const FSpatialHashStreamingGrid* StreamingGrid : SortedStreamingGrids)
 	{
 		// Display view sides based on extended grid loading range (minimum of N cells)
-		const float GridSideDistance = FMath::Max((2.f * StreamingGrid->GetLoadingRange() * GridViewLoadingRangeExtentRatio), StreamingGrid->CellSize * GridViewMinimumSizeInCellCount);
+		// Take into consideration GShowRuntimeSpatialHashGridLevel when using CellSize
+		int32 MinGridLevel = FMath::Clamp<int32>(GShowRuntimeSpatialHashGridLevel, 0, StreamingGrid->GridLevels.Num() - 1);
+		int32 CellSize = (1 << MinGridLevel) * StreamingGrid->CellSize;
+		const float GridSideDistance = FMath::Max((2.f * StreamingGrid->GetLoadingRange() * GridViewLoadingRangeExtentRatio), CellSize * GridViewMinimumSizeInCellCount);
 		FSphere AverageSphere(ForceInit);
 		for (const FWorldPartitionStreamingSource& Source : Sources)
 		{

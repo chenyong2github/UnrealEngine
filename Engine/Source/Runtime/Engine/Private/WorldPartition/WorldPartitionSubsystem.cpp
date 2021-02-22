@@ -64,7 +64,7 @@ void UWorldPartitionSubsystem::PostInitialize()
 	{
 		MainPartition->Initialize(GetWorld(), FTransform::Identity);
 
-		if (GetWorld()->IsGameWorld() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
+		if (MainPartition->CanDrawRuntimeHash() && (GetWorld()->GetNetMode() != NM_DedicatedServer))
 		{
 			DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
 		}
@@ -115,7 +115,7 @@ void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 	{
 		Partition->Tick(DeltaSeconds);
 		
-		if (GDrawRuntimeHash3D && GetWorld()->IsGameWorld())
+		if (GDrawRuntimeHash3D && Partition->CanDrawRuntimeHash())
 		{
 			Partition->DrawRuntimeHash3D();
 		}

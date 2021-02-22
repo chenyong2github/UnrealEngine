@@ -121,7 +121,6 @@ public:
 	//~ End UObject Interface
 
 	FName GetWorldPartitionEditorName();
-	bool IsSimulating() const;
 
 	void LoadEditorCells(const FBox& Box);
 	void UnloadEditorCells(const FBox& Box);
@@ -151,6 +150,8 @@ public:
 #endif
 
 public:
+	static bool IsSimulating();
+
 	void Initialize(UWorld* World, const FTransform& InTransform);
 	bool IsInitialized() const;
 	virtual void Uninitialize() override;
@@ -163,6 +164,7 @@ public:
 	void UpdateStreamingState();
 	class ULevel* GetPreferredLoadedLevelToAddToWorld() const;
 
+	bool CanDrawRuntimeHash() const;
 	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
 	void DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize);
 	void DrawRuntimeHash3D();

@@ -97,9 +97,6 @@ struct FSpatialHashStreamingGrid
 	int32 CellSize;
 
 	UPROPERTY()
-	int32 GridSize;
-
-	UPROPERTY()
 	float LoadingRange;
 
 	UPROPERTY()
@@ -107,6 +104,9 @@ struct FSpatialHashStreamingGrid
 
 	UPROPERTY()
 	TArray<FSpatialHashStreamingGridLevel> GridLevels;
+
+	UPROPERTY()
+	FBox WorldBounds;
 
 	float OverrideLoadingRange;
 
@@ -126,7 +126,6 @@ struct FSpatialHashStreamingGrid
 	void Draw3D(UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FTransform& Transform) const;
 
 private:
-	mutable TMap<uint32, FVector> CachedLineTrace;
 	const FSquare2DGridHelper& GetGridHelper() const;
 	mutable FSquare2DGridHelper* GridHelper;
 };

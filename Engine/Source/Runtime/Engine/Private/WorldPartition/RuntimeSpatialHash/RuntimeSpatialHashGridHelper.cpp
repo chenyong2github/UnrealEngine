@@ -4,26 +4,49 @@
 
 #include "ProfilingDebugging/ScopedTimers.h"
 
-FSquare2DGridHelper::FSquare2DGridHelper(int32 InNumLevels, const FVector& InOrigin, int32 InCellSize, int32 InGridSize)
-	: Origin(InOrigin)
+FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVector& InOrigin, int32 InCellSize)
+	: WorldBounds(InWorldBounds)
+	, Origin(InOrigin)
 	, CellSize(InCellSize)
-	, GridSize(InGridSize)
 {
-	Levels.Reserve(InNumLevels);
+	// Compute Grid's size and level count based on World bounds
+	float WorldBoundsMaxExtent = 0.f;
+	if (WorldBounds.IsValid)
+	{
+		const FVector2D DistMin = FMath::Abs(FVector2D(WorldBounds.Min - Origin));
+		const FVector2D DistMax = FMath::Abs(FVector2D(WorldBounds.Max - Origin));
+		WorldBoundsMaxExtent = FMath::Max(DistMin.GetMax(), DistMax.GetMax());
+	}
+	int32 GridSize = 1;
+	int32 GridLevelCount = 1;
+	if (WorldBoundsMaxExtent > 0.f)
+	{
+		GridSize = 2.f * FMath::CeilToFloat(WorldBoundsMaxExtent / CellSize);
+		if (!FMath::IsPowerOfTwo(GridSize))
+		{
+			GridSize = FMath::Pow(2.f, FMath::CeilToFloat(FMath::Log2(static_cast<float>(GridSize))));
+		}
+		GridLevelCount = FMath::Log2(static_cast<float>(GridSize)) + 1;
+	}
+	else
+	{
+		UE_LOG(LogWorldPartitionRuntimeSpatialHash, Warning, TEXT("Invalid world bounds, grid partitioning will use a runtime grid with 1 cell."));
+	}
 
+	check(FMath::IsPowerOfTwo(GridSize));
+
+	Levels.Reserve(GridLevelCount);
 	int32 CurrentCellSize = CellSize;
 	int32 CurrentGridSize = GridSize;
-
-	const FVector2D BaseLevelOffset = 0.5 * FVector2D(CellSize, CellSize);
-	for (int32 Level = 0; Level < InNumLevels; ++Level)
+	for (int32 Level = 0; Level < GridLevelCount; ++Level)
 	{
-		// Add offset on origin based on level's cell size to break pattern of perfectly aligned cell edges at multiple level.
-		// This will prevent weird artefact during actor promotion.
-		// Apply base level offset so that first level isn't offset.
-		const FVector2D GridLevelOffset = 0.5f * FVector2D(CurrentCellSize, CurrentCellSize) - BaseLevelOffset;
-		const FVector2D LevelOrigin = FVector2D(InOrigin) + GridLevelOffset;
-
-		Levels.Emplace(LevelOrigin, CurrentCellSize, CurrentGridSize);
+		// Except for top level, adding 1 to CurrentGridSize (which is always a power of 2) breaks the pattern of perfectly aligned cell edges between grid level cells.
+		// This will prevent weird artefact during actor promotion when an actor is placed using its bounds and which overlaps multiple cells.
+		// In this situation, the algorithm will try to find a cell that encapsulates completely the actor's bounds by searching in the upper levels, until it finds one.
+		// Also note that, the default origin of each level will always be centered at the middle of the bounds of (level's cellsize * level's grid size).
+		int32 LevelGridSize = (Level == GridLevelCount-1) ? CurrentGridSize : CurrentGridSize + 1;
+		
+		Levels.Emplace(FVector2D(InOrigin), CurrentCellSize, LevelGridSize);
 
 		CurrentCellSize <<= 1;
 		CurrentGridSize >>= 1;
@@ -97,32 +120,7 @@ FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int32 GridCellSize)
 {
 	// Default grid to a minimum of 1 level and 1 cell, for always loaded actors
 	FVector GridOrigin = FVector::ZeroVector;
-	int32 GridSize = 1;
-	int32 GridLevelCount = 1;
-
-	float WorldBoundsMaxExtent = 0.f;
-	// If World bounds is valid, compute Grid's size and level count based on it
-	if (WorldBounds.IsValid)
-	{
-		const FVector2D DistMin = FMath::Abs(FVector2D(WorldBounds.Min - GridOrigin));
-		const FVector2D DistMax = FMath::Abs(FVector2D(WorldBounds.Max - GridOrigin));
-		WorldBoundsMaxExtent = FMath::Max(DistMin.GetMax(), DistMax.GetMax());
-	}
-	if (WorldBoundsMaxExtent > 0.f)
-	{
-		GridSize = 2.f * FMath::CeilToFloat(WorldBoundsMaxExtent / GridCellSize);
-		if (!FMath::IsPowerOfTwo(GridSize))
-		{
-			GridSize = FMath::Pow(2.f, FMath::CeilToFloat(FMath::Log2(static_cast<float>(GridSize))));
-		}
-		GridLevelCount = FMath::Log2(static_cast<float>(GridSize)) + 1;
-	}
-	else
-	{
-		UE_LOG(LogWorldPartitionRuntimeSpatialHash, Warning, TEXT("Invalid world bounds, grid partitioning will use a runtime grid with 1 cell."));
-	}
-
-	return FSquare2DGridHelper(GridLevelCount, GridOrigin, GridCellSize, GridSize);
+	return FSquare2DGridHelper(WorldBounds, GridOrigin, GridCellSize);
 }
 
 FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<FActorCluster>& GridActors)
@@ -133,6 +131,16 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 	// Create the hierarchical grids for the game
 	//	
 	FSquare2DGridHelper PartitionedActors = GetGridHelper(WorldBounds, Grid.CellSize);
+	if (ensure(PartitionedActors.Levels.Num()) && WorldBounds.IsValid)
+	{
+		int32 IntersectingCellCount = 0;
+		FSquare2DGridHelper::FGridLevel& LastGridLevel = PartitionedActors.Levels.Last();
+		LastGridLevel.ForEachIntersectingCells(WorldBounds, [&IntersectingCellCount](const FIntVector2& Coords) { ++IntersectingCellCount; });
+		if (!ensure(IntersectingCellCount == 1))
+		{
+			UE_LOG(LogWorldPartitionRuntimeSpatialHash, Warning, TEXT("Can't find grid cell that encompasses world bounds."));
+		}
+	}
 
 	for (const FActorCluster& ActorCluster : GridActors)
 	{
@@ -155,7 +163,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			check(ActorCluster.Actors.Num() == 1);
 			const FGuid& ActorGuid = *ActorCluster.Actors.CreateConstIterator();
 			const FWorldPartitionActorDesc& ActorDesc = *WorldPartition->GetActorDesc(ActorGuid);
-			if (PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorDesc.GetOrigin()), CellCoords))
+			if (ensure(PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorDesc.GetOrigin()), CellCoords)))
 			{
 				TArray<const UDataLayer*> ActorDataLayers;
 				if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(WorldPartition->GetWorld()))
@@ -174,6 +182,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			{
 				GridPlacement = EActorGridPlacement::AlwaysLoaded;
 				bAlwaysLoadedPromotedOutOfGrid = true;
+				PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
 			}
 			break;
 		}
@@ -195,10 +204,11 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 					break;
 				}
 			}
-			if (!bFoundCell)
+			if (!(ensure(bFoundCell)))
 			{
 				GridPlacement = EActorGridPlacement::AlwaysLoaded;
 				bAlwaysLoadedPromotedOutOfGrid = true;
+				PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
 			}
 			break;
 		}

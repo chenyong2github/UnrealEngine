@@ -623,7 +623,7 @@ int32 SWorldPartitionEditorGrid2D::OnPaint(const FPaintArgs& Args, const FGeomet
 		LayerId = PaintSoftwareCursor(AllottedGeometry, MyCullingRect, OutDrawElements, ++LayerId);
 		
 		// Draw a surrounding indicator when PIE is active
-		if (WorldPartition->IsSimulating())
+		if (UWorldPartition::IsSimulating())
 		{
 			FSlateDrawElement::MakeBox(
 				OutDrawElements,
