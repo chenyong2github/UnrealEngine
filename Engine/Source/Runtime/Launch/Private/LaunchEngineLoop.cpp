@@ -1771,29 +1771,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	FString Token = FParse::Token(ParsedCmdLine, 0);
 
 #if WITH_ENGINE
-	// Add the default engine shader dir
-	AddShaderSourceDirectoryMapping(TEXT("/Engine"), FGenericPlatformProcess::ShaderDir());
-
-#if WITH_EDITOR
-	{
-		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-		FString ProjectIntermediateDir = FPaths::ProjectIntermediateDir();
-		bool bCreateIntermediateSuccess = PlatformFile.CreateDirectory(*ProjectIntermediateDir);
-		if (!bCreateIntermediateSuccess)
-		{
-			UE_LOG(LogInit,Fatal,TEXT("Failed to create Intermediate directory '%s'."), *ProjectIntermediateDir);
-		}
-
-		FString AutogenAbsolutePath = FPaths::ConvertRelativePathToFull(ProjectIntermediateDir / TEXT("ShaderAutogen"));
-		bool bCreateAutogenSuccess = PlatformFile.CreateDirectory(*AutogenAbsolutePath);
-		if (!bCreateAutogenSuccess)
-		{
-			UE_LOG(LogInit,Fatal,TEXT("Failed to create Intermediate/ShaderAutogen/ directory '%s'. Make sure Intermediate exists."), *AutogenAbsolutePath);
-		}
-
-		AddShaderSourceDirectoryMapping(TEXT("/ShaderAutogen"), AutogenAbsolutePath);
-	}
-#endif
 
 	TArray<FString> Tokens;
 	TArray<FString> Switches;
@@ -2076,6 +2053,32 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		LaunchFixGameNameCase();
 	}
 #endif
+
+#if WITH_ENGINE
+	// Add the default engine shader dir
+	AddShaderSourceDirectoryMapping(TEXT("/Engine"), FGenericPlatformProcess::ShaderDir());
+
+#if WITH_EDITOR
+	{
+		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		FString ProjectIntermediateDir = FPaths::ProjectIntermediateDir();
+		bool bCreateIntermediateSuccess = PlatformFile.CreateDirectory(*ProjectIntermediateDir);
+		if (!bCreateIntermediateSuccess)
+		{
+			UE_LOG(LogInit, Fatal, TEXT("Failed to create Intermediate directory '%s'."), *ProjectIntermediateDir);
+		}
+
+		FString AutogenAbsolutePath = FPaths::ConvertRelativePathToFull(ProjectIntermediateDir / TEXT("ShaderAutogen"));
+		bool bCreateAutogenSuccess = PlatformFile.CreateDirectory(*AutogenAbsolutePath);
+		if (!bCreateAutogenSuccess)
+		{
+			UE_LOG(LogInit, Fatal, TEXT("Failed to create Intermediate/ShaderAutogen/ directory '%s'. Make sure Intermediate exists."), *AutogenAbsolutePath);
+		}
+
+		AddShaderSourceDirectoryMapping(TEXT("/ShaderAutogen"), AutogenAbsolutePath);
+	}
+#endif //WITH_EDITOR
+#endif //WITH_ENGINE
 
 	// Some programs might not use the taskgraph or thread pool
 	bool bCreateTaskGraphAndThreadPools = true;
