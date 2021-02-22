@@ -121,7 +121,7 @@ private:
 	* Update the pins on this node based on the given function. This modifies pins, meant 
 	* for use by PinConnectionListChanged, not during node construction. 
 	*/
-	void UpdatePinsFromFunction(const UFunction* Function, UEdGraphPin* ChangedPin = nullptr);
+	void UpdatePinsFromFunction(const UFunction* Function, UEdGraphPin* ChangedPin = nullptr, bool bIsFromConversion = false);
 
 	/**
 	* Returns all pins that have the EGPD_Input direction
