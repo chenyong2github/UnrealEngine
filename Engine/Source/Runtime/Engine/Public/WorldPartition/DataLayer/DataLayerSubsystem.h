@@ -12,6 +12,8 @@
  * UDataLayerSubsystem
  */
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerActivationStateChanged, const UDataLayer*, DataLayer, bool, bIsActive);
+
 UCLASS()
 class ENGINE_API UDataLayerSubsystem : public UWorldSubsystem
 {
@@ -42,6 +44,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	bool IsDataLayerActiveByLabel(const FName& InDataLayerName) const;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnDataLayerActivationStateChanged OnDataLayerActivationStateChanged;
 	//~ End Blueprint callable functions
 
 	UDataLayer* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;

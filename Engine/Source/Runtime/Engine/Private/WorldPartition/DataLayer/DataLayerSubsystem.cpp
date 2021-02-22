@@ -106,6 +106,10 @@ void UDataLayerSubsystem::ActivateDataLayer(const UDataLayer* InDataLayer, bool 
 		{
 			ActiveDataLayerNames.Remove(DataLayerName);
 		}
+		if (OnDataLayerActivationStateChanged.IsBound())
+		{
+			OnDataLayerActivationStateChanged.Broadcast(InDataLayer, bInActivate);
+		}
 	}
 }
 

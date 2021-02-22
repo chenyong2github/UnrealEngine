@@ -10,7 +10,7 @@
 
 #include "DataLayer.generated.h"
 
-UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers)
+UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, BlueprintType)
 class ENGINE_API UDataLayer : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -32,9 +32,16 @@ public:
 	bool IsLocked() const { return bIsLocked; }
 #endif
 	
+	UFUNCTION(Category = DataLayer, BlueprintCallable)
 	FName GetDataLayerLabel() const  { return DataLayerLabel; }
+
+	UFUNCTION(Category = DataLayer, BlueprintCallable)
 	bool IsVisible() const { return bIsVisible; }
+
+	UFUNCTION(Category = DataLayer, BlueprintCallable)
 	bool IsDynamicallyLoaded() const { return bIsDynamicallyLoaded; }
+
+	UFUNCTION(Category = DataLayer, BlueprintCallable)
 	bool IsInitiallyActive() const { return IsDynamicallyLoaded() && bIsInitiallyActive; }	
 
 private:
