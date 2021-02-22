@@ -9,20 +9,31 @@
 #include "EngineUtils.h"
 #include "ContextualAnimEdModeSettings.h"
 #include "DrawDebugHelpers.h"
+#include "ContextualAnimSceneAsset.h"
+#include "ContextualAnimCompositeSceneAsset.h"
+#include "ContextualAnimUtilities.h"
+#include "ContextualAnimManager.h"
+#include "ContextualAnimPreviewManager.h"
+#include "ContextualAnimSceneActorComponent.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "NavigationSystem.h"
-#include "AIController.h"
-#include "ContextualAnimComponent.h"
+#include "ContextualAnimMetadata.h"
 
 const FEditorModeID FContextualAnimEdMode::EM_ContextualAnimEdModeId = TEXT("EM_ContextualAnimEdMode");
 
 FContextualAnimEdMode::FContextualAnimEdMode()
 {
+	PreviewManager = NewObject<UContextualAnimPreviewManager>(UContextualAnimPreviewManager::StaticClass());
 }
 
 FContextualAnimEdMode::~FContextualAnimEdMode()
 {
+}
+
+void FContextualAnimEdMode::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	FEdMode::AddReferencedObjects(Collector);
+
+	Collector.AddReferencedObject(PreviewManager);
 }
 
 void FContextualAnimEdMode::Enter()
@@ -47,7 +58,7 @@ void FContextualAnimEdMode::Exit()
 	FEdMode::Exit();
 }
 
-TSharedPtr<FContextualAnimEdModeToolkit> FContextualAnimEdMode::GetContextualAnimEdModeToolkit()
+TSharedPtr<FContextualAnimEdModeToolkit> FContextualAnimEdMode::GetContextualAnimEdModeToolkit() const
 {
 	return StaticCastSharedPtr<FContextualAnimEdModeToolkit>(Toolkit);
 }
@@ -56,72 +67,90 @@ void FContextualAnimEdMode::Tick(FEditorViewportClient* ViewportClient, float De
 {
 	FEdMode::Tick(ViewportClient, DeltaTime);
 
-	if(TestCharacter.IsValid() && GEditor->IsSimulatingInEditor())
+	if(GEditor->IsSimulatingInEditor())
 	{
-		if (ViewportClient->Viewport->KeyState(EKeys::W) || ViewportClient->Viewport->KeyState(EKeys::S))
+		if (!ViewportClient->Viewport->KeyState(EKeys::RightMouseButton))
 		{
-			const FVector WorldDirection = FRotationMatrix(TestCharacter->GetActorRotation()).GetScaledAxis(EAxis::X);
-			TestCharacter->AddMovementInput(WorldDirection, ViewportClient->Viewport->KeyState(EKeys::W) ? 1.f : -1.f);
-		}
+			if (ViewportClient->Viewport->KeyState(EKeys::W) || ViewportClient->Viewport->KeyState(EKeys::S))
+			{
+				PreviewManager->MoveForward(ViewportClient->Viewport->KeyState(EKeys::W) ? 1.f : -1.f);
+			}
 
-		if (ViewportClient->Viewport->KeyState(EKeys::A) || ViewportClient->Viewport->KeyState(EKeys::D))
+			if (ViewportClient->Viewport->KeyState(EKeys::A) || ViewportClient->Viewport->KeyState(EKeys::D))
+			{
+				PreviewManager->MoveRight(ViewportClient->Viewport->KeyState(EKeys::D) ? 1.f : -1.f);
+			}
+		}
+	}
+	else
+	{
+		if(PreviewManager)
 		{
-			const FVector WorldDirection = FRotationMatrix(TestCharacter->GetActorRotation()).GetScaledAxis(EAxis::Y);
-			TestCharacter->AddMovementInput(WorldDirection, ViewportClient->Viewport->KeyState(EKeys::D) ? 1.f : -1.f);
+			if (PreviewManager->bDrawDebugScene)
+			{
+				if (UContextualAnimSceneAsset* Asset = GetContextualAnimEdModeToolkit()->GetSettings()->SceneAsset)
+				{
+					DrawDebugCoordinateSystem(GetWorld(), PreviewManager->ScenePivot.GetLocation(), PreviewManager->ScenePivot.Rotator(), 50.f, false, 0.f, 0, 1.f);
+					UContextualAnimUtilities::DrawDebugScene(GetWorld(), Asset, PreviewManager->Time, PreviewManager->ScenePivot, FColor::White, 0.f, 1.f);
+				}
+			}
+
+			//@TODO: Move this to an event that triggers after stop Simulating Mode (not sure if we have one)
+			if(PreviewManager->PreviewActors.Num())
+			{
+				PreviewManager->PreviewActors.Reset();
+			}
 		}
 	}
 }
 
 bool FContextualAnimEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
-	if(Key == EKeys::Enter && Event == IE_Released && TestCharacter.IsValid() && GEditor->IsSimulatingInEditor())
+	if(Key == EKeys::Enter && Event == IE_Released && PreviewManager->TestCharacter.IsValid() && GEditor->IsSimulatingInEditor())
 	{
-		UContextualAnimComponent* ContextualAnimComp = nullptr;
+		UContextualAnimManager* Manager = UContextualAnimManager::Get(GetWorld());
+		check(Manager);		
 
-		TArray<UPrimitiveComponent*> OverlappingComps;
-		TestCharacter->GetOverlappingComponents(OverlappingComps);
-
-		for (UPrimitiveComponent* Comp : OverlappingComps)
+		if(!Manager->IsActorInAnyScene(PreviewManager->TestCharacter.Get()))
 		{
-			if (Comp && Comp->GetClass()->IsChildOf<UContextualAnimComponent>())
+			UContextualAnimSceneAsset* Asset = GetContextualAnimEdModeToolkit()->GetSettings()->SceneAsset;
+			if (Asset && PreviewManager->PreviewActors.Num() > 0)
 			{
-				ContextualAnimComp = Cast<UContextualAnimComponent>(Comp);
-				break;
+				Manager->TryStartScene(Asset, PreviewManager->PreviewActors);
 			}
-		}
-
-		if(ContextualAnimComp == nullptr)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING: The preview actor is not overlapping any interactable")));
-			return FEdMode::InputKey(ViewportClient, Viewport, Key, Event);
-		}
-
-		// Check if the preview actor is already playing a contextual animation
-		if (!ContextualAnimComp->IsActorPlayingContextualAnimation(TestCharacter.Get()))
-		{
-			// Try to find best entry point
-			FContextualAnimQueryResult Result;
-			const bool bQueryResult = ContextualAnimComp->QueryData(FContextualAnimQueryParams(TestCharacter.Get(), true, true), Result);
-
-			// Early out of no valid entry point is found
-			if(bQueryResult == false)
+			else
 			{
-				GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString::Printf(TEXT("WARNING: The preview actor is overlapping an interactable (%s) but there is no valid entry point for his current position"),
-					*GetNameSafe(ContextualAnimComp->GetOwner())));
-				return FEdMode::InputKey(ViewportClient, Viewport, Key, Event);
+				UContextualAnimSceneActorComponent* Comp = nullptr;
+
+				TArray<UPrimitiveComponent*> OverlappingComps;
+				PreviewManager->TestCharacter->GetOverlappingComponents(OverlappingComps);
+
+				for (UPrimitiveComponent* OverlappingComp : OverlappingComps)
+				{
+					if (OverlappingComp && OverlappingComp->GetClass()->IsChildOf<UContextualAnimSceneActorComponent>())
+					{
+						Comp = Cast<UContextualAnimSceneActorComponent>(OverlappingComp);
+						break;
+					}
+				}
+
+				if (Comp)
+				{
+					TMap<FName, AActor*> Bindings;
+					Bindings.Add(UContextualAnimCompositeSceneAsset::InteractableRoleName, Comp->GetOwner());
+					Bindings.Add(UContextualAnimCompositeSceneAsset::InteractorRoleName, PreviewManager->TestCharacter.Get());
+
+					UContextualAnimManager::Get(GetWorld())->TryStartScene(Comp->SceneAsset, Bindings);
+				}
+				else
+				{
+					GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING: The preview actor is not overlapping any interactable")));
+				}
 			}
-
-			// QueryData does not load the animation and TryStartContextualAnimation expects the animation to be loaded
-			// @TODO: We may want to provide functions to query the data and load the animation asynchronous
-			Result.Animation.LoadSynchronous();
-
-			// Attempt to start the interaction
-			ContextualAnimComp->TryStartContextualAnimation(TestCharacter.Get(), Result);
 		}
 		else
 		{
-			//@TODO: For now we don't care where in the animation the preview actor is
-			ContextualAnimComp->TryEndContextualAnimation(TestCharacter.Get());
+			Manager->TryStopSceneWithActor(PreviewManager->TestCharacter.Get());
 		}
 
 		return true;
@@ -132,7 +161,7 @@ bool FContextualAnimEdMode::InputKey(FEditorViewportClient* ViewportClient, FVie
 
 bool FContextualAnimEdMode::HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click)
 {
-	if (!Click.IsControlDown())
+	if (!Click.IsAltDown())
 	{
 		return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
 	}
@@ -143,6 +172,41 @@ bool FContextualAnimEdMode::HandleClick(FEditorViewportClient* InViewportClient,
 		return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
 	}
 
+	FHitResult HitResult;
+	GetHitResultUnderCursor(HitResult, InViewportClient, Click);
+
+	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("INFO: HandleClick: IsValidHit: %d Actor: %s Location: %s"),
+		HitResult.IsValidBlockingHit(), *GetNameSafe(HitResult.GetActor()), *HitResult.ImpactPoint.ToString()));
+
+	if (!HitResult.IsValidBlockingHit())
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING. HitResult from click event is not a valid blocking hit.")));
+		return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
+	}	
+	
+	FTransform SpawnTransform = FTransform(HitResult.ImpactPoint);
+	UContextualAnimSceneAsset* Asset = GetContextualAnimEdModeToolkit()->GetSettings()->SceneAsset;
+	if (Asset && PreviewManager->PreviewActors.Num() == 0)
+	{
+		PreviewManager->SpawnPreviewActors(Asset, SpawnTransform); 
+	}
+	else
+	{
+		if (!PreviewManager->TestCharacter.IsValid())
+		{
+			PreviewManager->TestCharacter = Cast<ACharacter>(PreviewManager->SpawnPreviewActor(PreviewManager->DefaultPreviewClass, SpawnTransform));
+		}
+		else
+		{
+			PreviewManager->MoveToLocation(HitResult.ImpactPoint);
+		}
+	}
+
+	return true;
+}
+
+bool FContextualAnimEdMode::GetHitResultUnderCursor(FHitResult& OutHitResult, FEditorViewportClient* InViewportClient, const FViewportClick& Click) const
+{
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(InViewportClient->Viewport, InViewportClient->GetScene(), InViewportClient->EngineShowFlags).SetRealtimeUpdate(InViewportClient->IsRealtime()));
 	FSceneView* View = InViewportClient->CalcSceneView(&ViewFamily);
 	FViewportCursorLocation Cursor(View, InViewportClient, Click.GetClickPos().X, Click.GetClickPos().Y);
@@ -151,59 +215,7 @@ bool FContextualAnimEdMode::HandleClick(FEditorViewportClient* InViewportClient,
 	const FVector RayStart = Cursor.GetOrigin();
 	const FVector RayEnd = RayStart + Cursor.GetDirection() * HALF_WORLD_MAX;
 
-	FHitResult HitResult;
-	InViewportClient->GetWorld()->LineTraceSingleByChannel(HitResult, RayStart, RayEnd, ECC_WorldStatic, FCollisionQueryParams::DefaultQueryParam);
-
-	GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::White, FString::Printf(TEXT("INFO: HandleClick: IsValidHit: %d Actor: %s Location: %s"),
-		HitResult.IsValidBlockingHit(), *GetNameSafe(HitResult.GetActor()), *HitResult.ImpactPoint.ToString()));
-
-	if (!HitResult.IsValidBlockingHit())
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING. Can't spawn preview actor. Reason: HitResult from click event is not a valid blocking hit.")));
-		return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
-	}
-
-	if (!TestCharacter.IsValid())
-	{
-		TSubclassOf<ACharacter> TestActorClass = GetContextualAnimEdModeToolkit()->GetSettings()->TestCharacterClass;
-		if (!TestActorClass)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Yellow, FString(TEXT("WARNING. Can't spawn preview actor. Reason: TestCharacterClass is invalid")));
-			return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
-		}
-
-		TestCharacter = GetWorld()->SpawnActor<ACharacter>(TestActorClass, FTransform(HitResult.ImpactPoint));
-		if (ensureAlways(TestCharacter.IsValid()))
-		{
-			TestCharacter->bUseControllerRotationYaw = false;
-			if (UCharacterMovementComponent* CharacterMovementComp = TestCharacter->GetCharacterMovement())
-			{
-				CharacterMovementComp->bOrientRotationToMovement = true;
-				CharacterMovementComp->bUseControllerDesiredRotation = false;
-				CharacterMovementComp->RotationRate = FRotator(0.f, 540.0, 0.f);
-			}
-
-			if (!TestCharacter->AIControllerClass || !TestCharacter->AIControllerClass->IsChildOf<AAIController>())
-			{
-				TestCharacter->AIControllerClass = AAIController::StaticClass();
-			}
-
-			TestCharacter->SpawnDefaultController();
-		}
-	}
-	else
-	{
-		if (AAIController* Controller = Cast<AAIController>(TestCharacter->GetController()))
-		{
-			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Controller->GetWorld());
-			const ANavigationData* NavData = NavSys ? NavSys->GetNavDataForProps(Controller->GetNavAgentPropertiesRef(), Controller->GetNavAgentLocation()) : nullptr;
-
-			const bool bUsePathfinding = (NavData != nullptr);
-			Controller->MoveToLocation(HitResult.ImpactPoint, 10.f, true, bUsePathfinding);
-		}
-	}
-
-	return true;
+	return InViewportClient->GetWorld()->LineTraceSingleByChannel(OutHitResult, RayStart, RayEnd, ECC_WorldStatic, FCollisionQueryParams::DefaultQueryParam);
 }
 
 bool FContextualAnimEdMode::UsesToolkits() const
@@ -211,6 +223,8 @@ bool FContextualAnimEdMode::UsesToolkits() const
 	return true;
 }
 
-
-
+FContextualAnimEdMode& FContextualAnimEdMode::Get()
+{
+	return *(static_cast<FContextualAnimEdMode*>(GLevelEditorModeTools().GetActiveMode(FContextualAnimEdMode::EM_ContextualAnimEdModeId)));
+}
 

@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/SphereComponent.h"
-#include "ContextualAnimAsset.h"
-#include "ContextualAnimComponent.generated.h"
+#include "ContextualAnimCompositeSceneAsset.h"
+#include "ContextualAnimSceneActorComponent.generated.h"
 
 class UAnimInstance;
 class UAnimMontage;
@@ -24,16 +24,16 @@ struct FContextualAnimDebugParams
 };
 
 UCLASS(meta = (BlueprintSpawnableComponent))
-class CONTEXTUALANIMATION_API UContextualAnimComponent : public USphereComponent
+class CONTEXTUALANIMATION_API UContextualAnimSceneActorComponent : public USphereComponent
 {
 	GENERATED_BODY()
 
 public:
 
-	UContextualAnimComponent(const FObjectInitializer& ObjectInitializer);
+	UContextualAnimSceneActorComponent(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
-	UContextualAnimAsset* ContextualAnimAsset;
+	UContextualAnimCompositeSceneAsset* SceneAsset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
 	bool bEnableDebug;
@@ -44,25 +44,6 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
 
-	UFUNCTION(BlueprintCallable, Category = "Contextual Animation")
+	UFUNCTION(BlueprintCallable, Category = "Contextual Animation System")
 	bool QueryData(const FContextualAnimQueryParams& QueryParams, FContextualAnimQueryResult& Result) const;
-
-	bool TryStartContextualAnimation(AActor* Actor, const FContextualAnimQueryResult& Data);
-
-	bool TryEndContextualAnimation(AActor* Actor);
-
-	bool IsActorPlayingContextualAnimation(AActor* Actor) const;
-
-	void SetIgnoreOwnerComponentsWhenMovingForActor(AActor* Actor, bool bShouldIgnore);
-
-	UAnimInstance* GetAnimInstanceForActor(AActor* Actor) const;
-
-protected:
-
-	UPROPERTY()
-	TMap<UAnimMontage*, AActor*> MontageToActorMap;
-
-	UFUNCTION()
-	void OnMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
-
 };

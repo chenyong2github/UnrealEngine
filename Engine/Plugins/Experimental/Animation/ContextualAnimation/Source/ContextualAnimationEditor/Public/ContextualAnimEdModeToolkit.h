@@ -35,5 +35,8 @@ private:
 	UContextualAnimEdModeSettings* Settings;
 
 	TSharedPtr<SWidget> ToolkitWidget;
+
 	TSharedPtr<IDetailsView> EdModeSettingsWidget;
+
+	TSharedPtr<IDetailsView> PreviewManagerWidget;
 };

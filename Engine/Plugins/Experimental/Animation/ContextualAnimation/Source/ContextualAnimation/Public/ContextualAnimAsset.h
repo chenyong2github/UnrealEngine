@@ -4,171 +4,13 @@
 
 #include "Engine/DataAsset.h"
 #include "Animation/AnimSequence.h"
+#include "ContextualAnimMetadata.h"
+#include "ContextualAnimTypes.h"
+#include "ContextualAnimUtilities.h"
+#include "ContextualAnimCompositeSceneAsset.h"
 #include "ContextualAnimAsset.generated.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogContextualAnim, Log, All);
-
-UCLASS()
-class UContextualAnimUtilities : public UBlueprintFunctionLibrary
-{
-	GENERATED_BODY()
-
-public:
-
-	static void ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose);
-	static void ExtractComponentSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCSPose<FCompactPose>& OutPose);
-	static FTransform ExtractRootMotionFromAnimation(const UAnimSequenceBase* Animation, float StartTime, float EndTime);
-};
-
-USTRUCT()
-struct FAlignmentTrackContainer
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FRawAnimSequenceTrack Track;
-
-	UPROPERTY()
-	float SampleInterval;
-
-	FTransform ExtractTransformAtTime(float Time) const;
-
-	void Initialize(float InSampleInterval)
-	{
-		Track.PosKeys.Empty();
-		Track.RotKeys.Empty();
-		Track.ScaleKeys.Empty();
-
-		SampleInterval = InSampleInterval;
-	}
-};
-
-/** Stores the result of a query function */
-USTRUCT(BlueprintType)
-struct FContextualAnimQueryResult
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
-	TSoftObjectPtr<UAnimMontage> Animation;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
-	FTransform EntryTransform;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
-	FTransform SyncTransform;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
-	float AnimStartTime = 0.f;
-
-	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
-	int32 DataIndex = INDEX_NONE;
-
-	void Reset()
-	{
-		Animation = nullptr;
-		EntryTransform = SyncTransform = FTransform::Identity;
-		AnimStartTime = 0.f;
-		DataIndex = INDEX_NONE;
-	}
-
-	FORCEINLINE bool IsValid() const { return DataIndex != INDEX_NONE; }
-};
-
-/** Stores the parameters passed into query function */
-USTRUCT(BlueprintType)
-struct FContextualAnimQueryParams
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TWeakObjectPtr<const AActor> Querier;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FTransform QueryTransform;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	bool bComplexQuery = false;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	bool bFindAnimStartTime = false;
-
-	FContextualAnimQueryParams(){}
-
-	FContextualAnimQueryParams(const AActor* InQuerier, bool bInComplexQuery, bool bInFindAnimStartTime)
-		: Querier(InQuerier), bComplexQuery(bInComplexQuery), bFindAnimStartTime(bInFindAnimStartTime) {}
-
-	FContextualAnimQueryParams(const FTransform& InQueryTransform, bool bInComplexQuery, bool bInFindAnimStartTime)
-		: QueryTransform(InQueryTransform), bComplexQuery(bInComplexQuery), bFindAnimStartTime(bInFindAnimStartTime) {}
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimDistanceParam
-{
-	GENERATED_BODY()
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float Value = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float MinDistance = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float MaxDistance = 0.f;
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimAngleParam
-{
-	GENERATED_BODY()
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Defaults")
-	float Value = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	float Tolerance = 0.f;
-};
-
-USTRUCT(BlueprintType)
-struct FContextualAnimData
-{
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TSoftObjectPtr<UAnimMontage> Animation;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float EntryTime = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float SyncTime = 0.f;
-
-	//@TODO: Temp solution to prevent FindBestAnimStartTime from returning a time that leaves us without enough room for warping
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (UIMin = 0, ClampMin = 0))
-	float AnimMinStartTime = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	float OffsetFromOrigin = 0.f;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimDistanceParam Distance;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimAngleParam Angle;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FContextualAnimAngleParam Facing;
-
-	UPROPERTY()
-	FAlignmentTrackContainer AlignmentData;
-
-	FORCEINLINE FTransform GetAlignmentTransformAtTime(float Time) const { return AlignmentData.ExtractTransformAtTime(Time); }
-	FORCEINLINE FTransform GetAlignmentTransformAtEntryTime() const { return AlignmentData.ExtractTransformAtTime(EntryTime); }
-	FORCEINLINE FTransform GetAlignmentTransformAtSyncTime() const  { return AlignmentData.ExtractTransformAtTime(SyncTime); }
-
-	float FindBestAnimStartTime(const FVector& LocalLocation) const;
-};
-
+/** Deprecated, it has been replaced by ContextualAnimCompositeSceneAsset. This file will be removed very soon */
 UCLASS(Blueprintable)
 class CONTEXTUALANIMATION_API UContextualAnimAsset : public UDataAsset
 {
@@ -193,7 +35,5 @@ public:
 
 	UContextualAnimAsset(const FObjectInitializer& ObjectInitializer);
 
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-
-	bool QueryData(FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const;
+	bool QueryData(FContextualAnimQueryResult& OutResult, const FContextualAnimQueryParams& QueryParams, const FTransform& ToWorldTransform) const { return false; } 
 };

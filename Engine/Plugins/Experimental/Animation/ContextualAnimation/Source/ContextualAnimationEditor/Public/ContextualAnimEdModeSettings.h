@@ -6,7 +6,9 @@
 #include "Templates/SubclassOf.h"
 #include "ContextualAnimEdModeSettings.generated.h"
 
+class AActor;
 class ACharacter;
+class UContextualAnimSceneAsset;
 
 UCLASS()
 class UContextualAnimEdModeSettings : public UObject
@@ -16,7 +18,7 @@ class UContextualAnimEdModeSettings : public UObject
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	TSubclassOf<ACharacter> TestCharacterClass;
+	UContextualAnimSceneAsset* SceneAsset;
 
 	UContextualAnimEdModeSettings(const FObjectInitializer& ObjectInitializer);
 };

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
 #include "EdMode.h"
 
 class FContextualAnimEdModeToolkit;
@@ -10,8 +11,9 @@ class FContextualAnimEdModeToolkit;
 class FContextualAnimEdMode : public FEdMode
 {
 public:
+
 	const static FEditorModeID EM_ContextualAnimEdModeId;
-public:
+
 	FContextualAnimEdMode();
 	virtual ~FContextualAnimEdMode();
 
@@ -24,7 +26,14 @@ public:
 	virtual bool UsesToolkits() const override;
 	// End of FEdMode interface
 
-	TSharedPtr<FContextualAnimEdModeToolkit> GetContextualAnimEdModeToolkit();
+	/** FGCObject interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	TWeakObjectPtr<class ACharacter> TestCharacter;
+	static FContextualAnimEdMode& Get();
+
+	TSharedPtr<FContextualAnimEdModeToolkit> GetContextualAnimEdModeToolkit() const;
+
+	class UContextualAnimPreviewManager* PreviewManager;
+
+	bool GetHitResultUnderCursor(FHitResult& OutHitResult, FEditorViewportClient* InViewportClient, const FViewportClick& Click) const;
 };

@@ -8,6 +8,7 @@
 #include "EditorModeManager.h"
 #include "Modules/ModuleManager.h"
 #include "ContextualAnimEdModeSettings.h"
+#include "ContextualAnimPreviewManager.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimEdModeToolkit"
 
@@ -33,6 +34,9 @@ void FContextualAnimEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitTool
 	EdModeSettingsWidget = PropertyModule.CreateDetailView(Args);
 	EdModeSettingsWidget->SetObject(Settings);
 
+	PreviewManagerWidget = PropertyModule.CreateDetailView(Args);
+	PreviewManagerWidget->SetObject(GetContextualAnimEdMode()->PreviewManager);
+
 	SAssignNew(ToolkitWidget, SBorder)
 		.HAlign(HAlign_Center)
 		.Padding(5)
@@ -49,8 +53,8 @@ void FContextualAnimEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitTool
 				.Text(FText::FromString("\
 					- Select the class for your test actor\n\
 					- Start Simulating Mode\n\
-					- Ctrl + Click to spawn a test actor\n\
-					- Ctrl + Click or WASD to move the test actor around\n\
+					- Alt + Click to spawn a test actor\n\
+					- Alt + Click or WASD to move the test actor around\n\
 					- [Enter] to start / stop an interaction"))
 			]
 
@@ -59,6 +63,13 @@ void FContextualAnimEdModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitTool
 			.AutoHeight()
 			[
 				EdModeSettingsWidget.ToSharedRef()
+			]
+
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Left)
+			.AutoHeight()
+			[
+				PreviewManagerWidget.ToSharedRef()
 			]
 		];
 

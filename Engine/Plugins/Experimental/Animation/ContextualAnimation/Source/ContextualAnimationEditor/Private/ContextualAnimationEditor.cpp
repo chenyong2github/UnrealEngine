@@ -27,7 +27,8 @@ void FContextualAnimationEditorModule::ShutdownModule()
 	FContextualAnimEditorStyle::Shutdown();
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	PropertyModule.UnregisterCustomPropertyTypeLayout("ContextualAnimFloatParam");
+	PropertyModule.UnregisterCustomPropertyTypeLayout("ContextualAnimDistanceParam");
+	PropertyModule.UnregisterCustomPropertyTypeLayout("ContextualAnimAngleParam");
 
 	FEditorModeRegistry::Get().UnregisterMode(FContextualAnimEdMode::EM_ContextualAnimEdModeId);
 }
