@@ -113,8 +113,15 @@ void ULevelSequencePlayer::ResolveBoundObjects(const FGuid& InBindingId, FMovieS
 			ResolutionContext = Level.Get();
 		}
 
-		// Passing through the streamed level asset path ensures that bindings within instance sub levels resolve correctly
-		CastChecked<ULevelSequence>(&InSequence)->LocateBoundObjects(InBindingId, ResolutionContext, StreamedLevelAssetPath, OutObjects);
+		if (ULevelSequence* LevelSequence = Cast<ULevelSequence>(&InSequence))
+		{
+			// Passing through the streamed level asset path ensures that bindings within instance sub levels resolve correctly
+			LevelSequence->LocateBoundObjects(InBindingId, ResolutionContext, StreamedLevelAssetPath, OutObjects);
+		}
+		else
+		{
+			InSequence.LocateBoundObjects(InBindingId, ResolutionContext, OutObjects);
+		}
 	}
 }
 
