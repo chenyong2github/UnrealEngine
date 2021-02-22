@@ -1567,6 +1567,9 @@ namespace EditorUtilities
 
 							CopySingleProperty(SourceComponent, TargetComponent, Property);
 
+							// Notify the target one of it's properties might have changed
+							TargetComponent->PostReinitProperties();
+
 							if( Options.Flags & ECopyOptions::CallPostEditChangeProperty )
 							{
 								FPropertyChangedEvent PropertyChangedEvent( Property );
