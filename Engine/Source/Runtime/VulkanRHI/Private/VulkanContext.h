@@ -102,6 +102,11 @@ public:
 	virtual void RHIEndRenderPass() final override;
 	virtual void RHINextSubpass() final override;
 
+#if VULKAN_RHI_RAYTRACING
+	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params) final override;
+	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene) final override;
+#endif
+
 	inline FVulkanCommandBufferManager* GetCommandBufferManager()
 	{
 		return CommandBufferManager;

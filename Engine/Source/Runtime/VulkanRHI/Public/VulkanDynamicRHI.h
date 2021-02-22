@@ -336,6 +336,11 @@ public:
 
 	void RHICalibrateTimers() override;
 
+#if VULKAN_RHI_RAYTRACING
+	virtual FRayTracingGeometryRHIRef RHICreateRayTracingGeometry(const FRayTracingGeometryInitializer& Initializer) final override;
+	virtual FRayTracingSceneRHIRef RHICreateRayTracingScene(const FRayTracingSceneInitializer& Initializer) final override;
+#endif
+
 	// Historical number of times we've presented any and all viewports
 	uint32 TotalPresentCount = 0;
 

@@ -712,7 +712,9 @@ void FVulkanDynamicRHI::InitInstance()
 #if VULKAN_SUPPORTS_MULTIVIEW
 		GSupportsMobileMultiView = Device->GetMultiviewFeatures().multiview == VK_TRUE ? true : false;
 #endif
-
+#if VULKAN_RHI_RAYTRACING
+		GRHISupportsRayTracing = Device->GetOptionalExtensions().HasRaytracingExtensions();
+#endif
 #if VULKAN_ENABLE_DUMP_LAYER
 		// Disable RHI thread by default if the dump layer is enabled
 		GRHISupportsRHIThread = false;

@@ -1645,3 +1645,16 @@ static FORCEINLINE typename TVulkanResourceTraits<TRHIType>::TConcreteType* Reso
 {
 	return static_cast<const typename TVulkanResourceTraits<TRHIType>::TConcreteType*>(Resource);
 }
+
+#if VULKAN_RHI_RAYTRACING
+template<>
+struct TVulkanResourceTraits<FRHIRayTracingScene>
+{
+	typedef FVulkanRayTracingScene TConcreteType;
+};
+template<>
+struct TVulkanResourceTraits<FRHIRayTracingGeometry>
+{
+	typedef FVulkanRayTracingGeometry TConcreteType;
+};
+#endif // VULKAN_RHI_RAYTRACING
