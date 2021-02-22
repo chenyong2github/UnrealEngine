@@ -369,12 +369,13 @@ bool UInterchangeManager::RegisterTranslator(const UClass* TranslatorClass)
 		return false;
 	}
 
-	uint32 TranslatorClassHash = GetTypeHash(TranslatorClass);
-	if(RegisteredTranslatorsClass.ContainsByHash(TranslatorClassHash, TranslatorClass))
+	decltype(RegisteredTranslatorsClass)::ElementType TranslatorAsKey(TranslatorClass);
+	uint32 TranslatorClassHash = GetTypeHash(TranslatorAsKey);
+	if(RegisteredTranslatorsClass.ContainsByHash(TranslatorClassHash, TranslatorAsKey))
 	{
 		return true;
 	}
-	RegisteredTranslatorsClass.AddByHash(TranslatorClassHash, TranslatorClass);
+	RegisteredTranslatorsClass.AddByHash(TranslatorClassHash, TranslatorAsKey);
 
 
 	UInterchangeTranslatorBase* TranslatorToRegister = NewObject<UInterchangeTranslatorBase>(GetTransientPackage(), TranslatorClass, NAME_None);

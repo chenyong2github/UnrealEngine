@@ -367,6 +367,8 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 	bExternalEvaluationRateLimited = false;
 	bExternalTickRateControlled = false;
 
+	bMipLevelCallbackRegistered = false;
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	bDrawDebugSkeleton = false;
 #endif
@@ -3245,14 +3247,16 @@ void USkinnedMeshComponent::RegisterLODStreamingCallback(FLODStreamingCallback&&
 	if (SkeletalMesh)
 	{
 		SkeletalMesh->RegisterMipLevelChangeCallback(this, LODIdx, TimeoutSecs, bOnStreamIn, MoveTemp(Callback));
+		bMipLevelCallbackRegistered = true;
 	}
 }
 
 void USkinnedMeshComponent::BeginDestroy()
 {
-	if (SkeletalMesh)
+	if (SkeletalMesh && bMipLevelCallbackRegistered)
 	{
 		SkeletalMesh->RemoveMipLevelChangeCallback(this);
+		bMipLevelCallbackRegistered = false;
 	}
 
 	Super::BeginDestroy();

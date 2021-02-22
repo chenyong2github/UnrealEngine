@@ -639,6 +639,9 @@ protected:
 	/** External flag indicating that we may not be evaluated every frame */
 	uint8 bExternalEvaluationRateLimited:1;
 
+	/** Whether mip callbacks have been registered and need to be removed on destroy */
+	uint8 bMipLevelCallbackRegistered:1;
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 private:
 	/** Whether to draw this mesh's debug skeleton (regardless of showflags) */
