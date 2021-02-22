@@ -6,6 +6,7 @@
 #include "ChaosClothSharedConfigCustomVersion.h"
 #include "ClothingSimulationInteractor.h"
 #include "UObject/PhysicsObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 // Legacy parameters not yet migrated to Chaos parameters:
 //  VerticalConstraintConfig.CompressionLimit
@@ -112,6 +113,7 @@ void UChaosClothConfig::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 	Ar.UsingCustomVersion(FChaosClothConfigCustomVersion::GUID);
 	Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 }
 
 void UChaosClothConfig::PostLoad()
@@ -119,6 +121,7 @@ void UChaosClothConfig::PostLoad()
 	Super::PostLoad();
 	const int32 ChaosClothConfigCustomVersion = GetLinkerCustomVersion(FChaosClothConfigCustomVersion::GUID);
 	const int32 PhysicsObjectVersion = GetLinkerCustomVersion(FPhysicsObjectVersion::GUID);
+	const int32 FortniteMainBranchObjectVersion = GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::UpdateDragDefault)
 	{
@@ -134,12 +137,13 @@ void UChaosClothConfig::PostLoad()
 	{
 		bUseLegacyBackstop = true;
 	}
+
 	if (PhysicsObjectVersion < FPhysicsObjectVersion::ChaosClothAddWeightedValue)
 	{
 		AnimDriveStiffness.Low = 0.f;
 		AnimDriveStiffness.High = FMath::Clamp(FMath::Loge(AnimDriveSpringStiffness_DEPRECATED) / FMath::Loge(1.e3f) + 1.f, 0.f, 1.f);
 	}
-	if (ChaosClothConfigCustomVersion < FPhysicsObjectVersion::ChaosClothAddfictitiousforces)
+	if (FortniteMainBranchObjectVersion < FFortniteMainBranchObjectVersion::ChaosClothAddfictitiousforces)
 	{
 		FictitiousAngularScale = 0.f;  // Maintain early behavior with no fictitious forces
 	}

@@ -350,6 +350,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	const FVec3& InGravityOverride,
 	const FVec3& InLinearVelocityScale,
 	float InAngularVelocityScale,
+	float InFictitiousAngularScale,
 	float InDragCoefficient,
 	float InLiftCoefficient,
 	bool bInUseLegacyWind,
@@ -387,6 +388,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, GravityOverride(InGravityOverride)
 	, LinearVelocityScale(InLinearVelocityScale)
 	, AngularVelocityScale(InAngularVelocityScale)
+	, FictitiousAngularScale(InFictitiousAngularScale)
 	, DragCoefficient(InDragCoefficient)
 	, LiftCoefficient(InLiftCoefficient)
 	, bUseLegacyWind(bInUseLegacyWind)
@@ -778,7 +780,8 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 			OldReferenceSpaceTransform,
 			ReferenceSpaceTransform,
 			OutLinearVelocityScale,
-			OutAngularVelocityScale);
+			OutAngularVelocityScale,
+			FictitiousAngularScale);
 	}
 
 	// Reset trigger flags

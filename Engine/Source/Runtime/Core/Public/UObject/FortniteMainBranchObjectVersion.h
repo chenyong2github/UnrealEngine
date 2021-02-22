@@ -141,6 +141,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Moving some UFortGameFeatureData properties and behaviors into the UGameFeatureAction pattern
 		GameFeatureData_MovedComponentListAndCheats,
 
+		// Add centrifugal forces for cloth
+		ChaosClothAddfictitiousforces,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

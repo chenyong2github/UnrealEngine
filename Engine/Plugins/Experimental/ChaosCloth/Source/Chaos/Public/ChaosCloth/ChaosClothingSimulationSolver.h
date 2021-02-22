@@ -75,7 +75,8 @@ namespace Chaos
 			const FRigidTransform3& OldReferenceSpaceTransform,
 			const FRigidTransform3& ReferenceSpaceTransform,
 			const FVec3& LinearVelocityScale,
-			float AngularVelocityScale);
+			float AngularVelocityScale,
+			float FictitiousAngularScale);
 
 		// Set general cloth simulation properties.
 		void SetProperties(uint32 GroupId, float DampingCoefficient, float CollisionThickness, float FrictionCoefficient);
@@ -151,6 +152,7 @@ namespace Chaos
 
 		// Simulation group attributes
 		TArrayCollectionArray<FRigidTransform3> PreSimulationTransforms;  // Allow a different frame of reference for each cloth groups
+		TArrayCollectionArray<FVec3> FictitiousAngularDisplacement;  // Relative angular displacement of the reference bone that depends on the fictitious angular scale factor
 
 		// Particle attributes
 		TArrayCollectionArray<FVec3> Normals;
