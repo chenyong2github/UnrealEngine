@@ -19,7 +19,7 @@ namespace dna {
 
 LODConstraint::LODConstraint(std::uint16_t maxLOD, std::uint16_t minLOD, MemoryResource* memRes) : lods{memRes} {
     assert(maxLOD <= minLOD);
-    lods.resize(static_cast<std::size_t>(minLOD - maxLOD + 1));
+    lods.resize(static_cast<std::size_t>(minLOD - maxLOD) + 1ul);
     std::iota(lods.begin(), lods.end(), maxLOD);
 }
 

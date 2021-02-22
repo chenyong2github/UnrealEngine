@@ -1,9 +1,9 @@
 {
 	"FileVersion": 3,
 	"Version": 7,
-	"VersionName": "7.0.2",
-	"FriendlyName": "RigLogic Plugin v7.0.2",
-	"Description": "3Lateral RigLogic Plugin for Facial Animation v7.0.2",
+	"VersionName": "7.0.3",
+	"FriendlyName": "RigLogic Plugin v7.0.3",
+	"Description": "3Lateral RigLogic Plugin for Facial Animation v7.0.3",
 	"Category": "Animation",
 	"CreatedBy": "3Lateral",
 	"CreatedByURL": "http://www.3lateral.com/",
@@ -12,7 +12,7 @@
 	"SupportURL": "",
 	"CanContainContent": true,
 	"IsBetaVersion": true,
-	"Installed": true,
+	"Installed": false,
 	"Modules": [
 		{
 			"Name": "RigLogicLib",

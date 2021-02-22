@@ -132,7 +132,14 @@ StreamReader::~StreamReader() = default;
 
 StreamReader* StreamReader::create(BoundedIOStream* stream, DataLayer layer, std::uint16_t maxLOD, MemoryResource* memRes) {
     if (maxLOD == LODLimits::max()) {
-        memRes = ArenaFactory::create(layer, stream->size(), memRes);
+        #if !defined(__clang__) && defined(__GNUC__)
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wuseless-cast"
+        #endif
+        memRes = ArenaFactory::create(layer, static_cast<std::size_t>(stream->size()), memRes);
+        #if !defined(__clang__) && defined(__GNUC__)
+            #pragma GCC diagnostic pop
+        #endif
     }
     PolyAllocator<StreamReaderImpl> alloc{memRes};
     return alloc.newObject(stream, layer, maxLOD, LODLimits::min(), memRes);
