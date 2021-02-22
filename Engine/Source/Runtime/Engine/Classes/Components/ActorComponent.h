@@ -982,6 +982,9 @@ public:
 	/** Override to specify that a component is relevant to the navigation system */
 	virtual bool IsNavigationRelevant() const { return false; }
 
+	/** Override to specify that a component is relevant to the HLOD generation. */
+	virtual bool IsHLODRelevant() const { return false; }
+
 	/** Prefix used to identify template component instances */
 	static const FString ComponentTemplateNameSuffix;
 

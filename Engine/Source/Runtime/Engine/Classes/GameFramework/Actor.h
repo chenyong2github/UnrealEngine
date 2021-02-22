@@ -2037,6 +2037,9 @@ public:
 	/** Indicates whether this actor should participate in level bounds calculations */
 	virtual bool IsLevelBoundsRelevant() const { return bRelevantForLevelBounds; }
 
+	/** Indicates whether this actor contributes to the HLOD generation. */
+	virtual bool IsHLODRelevant() const;
+
 	/** 
 	 * Set LOD Parent component for all of our components, normally associated with an ALODActor. 
 	 * @param InLODParent			This component used to compute visibility when hierarchical LOD is enabled. 

@@ -668,27 +668,12 @@ bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 H
 		return false;
 	}
 
-	if (Actor->IsHidden())
+	if (!Actor->IsHLODRelevant())
 	{
 		return false;
 	}
 
 	if( Actor->HasAnyFlags( RF_Transient ) )
-	{
-		return false;
-	}
-
-	if( Actor->IsTemplate() )
-	{
-		return false;
-	}
-	
-	if( Actor->IsPendingKill() )
-	{
-		return false;
-	}
-
-	if (!Actor->bEnableAutoLODGeneration)
 	{
 		return false;
 	}
@@ -708,48 +693,21 @@ bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 H
 		}
 	}
 
-	FVector Origin, Extent;
-	Actor->GetActorBounds(false, Origin, Extent);
-	if (Extent.SizeSquared() <= 0.1)
-	{
-		return false;
-	}	
-
-	// for now only consider staticmesh - I don't think skel mesh would work with simplygon merge right now @fixme
 	TArray<UStaticMeshComponent*> Components;
 	Actor->GetComponents<UStaticMeshComponent>(Components);
 
-	int32 ValidComponentCount = 0;
-
-	if (Components.Num() > 0)
+	bool bHasValidComponent = false;
+	for (UStaticMeshComponent* Component : Components)
 	{
-		for (UStaticMeshComponent* Component : Components)
-		{			
-			if (Component->bHiddenInGame)
-			{
-				continue;
-			}
-
-			if (Component->bIsEditorOnly)
-			{
-				continue;
-			}
-
-			if (!Component->GetStaticMesh())
-			{
-				continue;
-			}
-
-			// see if we should generate it
-			if (Component->ShouldGenerateAutoLOD(HLODLevelIndex))
-			{
-				++ValidComponentCount;
-				break;
-			}
+		// see if we should generate it
+		if (Component->ShouldGenerateAutoLOD(HLODLevelIndex))
+		{
+			bHasValidComponent = true;
+			break;
 		}
 	}
 
-	return (ValidComponentCount > 0);
+	return bHasValidComponent;
 }
 
 void FHierarchicalLODBuilder::ClearHLODs()

@@ -3903,6 +3903,11 @@ void UPrimitiveComponent::SetLastRenderTime(float InLastRenderTime)
 #if WITH_EDITOR
 const bool UPrimitiveComponent::ShouldGenerateAutoLOD(const int32 HierarchicalLevelIndex) const
 {	
+	if (!IsHLODRelevant())
+	{
+		return false;
+	}
+
 	// bAllowSpecificExclusion
 	bool bExcluded = false;
 	if (ExcludeForSpecificHLODLevels.Contains(HierarchicalLevelIndex))
@@ -3915,10 +3920,10 @@ const bool UPrimitiveComponent::ShouldGenerateAutoLOD(const int32 HierarchicalLe
 				bExcluded = true;
 			}
 		}
-	} 
-		
-	return (Mobility != EComponentMobility::Movable) && bEnableAutoLODGeneration && !bExcluded;
+	}
+
+	return !bExcluded;
 }
-#endif 
+#endif
 
 #undef LOCTEXT_NAMESPACE

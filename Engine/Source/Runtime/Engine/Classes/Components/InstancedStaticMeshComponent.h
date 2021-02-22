@@ -305,6 +305,7 @@ public:
 
 	//~ Begin UActorComponent Interface
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	virtual bool IsHLODRelevant() const override;
 	//~ End UActorComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface

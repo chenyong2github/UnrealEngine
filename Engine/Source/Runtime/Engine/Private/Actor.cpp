@@ -48,6 +48,7 @@
 #include "LevelUtils.h"
 #include "Components/DecalComponent.h"
 #include "GameFramework/InputSettings.h"
+#include "Algo/AnyOf.h"
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"
@@ -5407,6 +5408,43 @@ void AActor::PostRename(UObject* OldOuter, const FName OldName)
 			DemoNetDriver->NotifyActorRenamed(this, OldName);
 		}
 	}
+}
+
+bool AActor::IsHLODRelevant() const
+{
+	if (IsHidden())
+	{
+		return false;
+	}
+
+	if (IsEditorOnly())
+	{
+		return false;
+	}
+
+	if (IsTemplate())
+	{
+		return false;
+	}
+
+	if (IsPendingKill())
+	{
+		return false;
+	}
+
+	if (!bEnableAutoLODGeneration)
+	{
+		return false;
+	}
+
+	FVector Origin, Extent;
+	GetActorBounds(false, Origin, Extent);
+	if (Extent.SizeSquared() <= 0.1)
+	{
+		return false;
+	}
+
+	return Algo::AnyOf(GetComponents(), [](const UActorComponent* Component) { return Component->IsHLODRelevant(); });
 }
 
 void AActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance)

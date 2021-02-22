@@ -1553,6 +1553,16 @@ void UInstancedStaticMeshComponent::FlushInstanceUpdateCommands()
 	PerInstanceRenderData->UpdateFromPreallocatedData(RenderInstanceData);
 }
 
+bool UInstancedStaticMeshComponent::IsHLODRelevant() const
+{
+	if (GetInstanceCount() == 0)
+	{
+		return false;
+	}
+
+	return Super::IsHLODRelevant();
+}
+
 FPrimitiveSceneProxy* UInstancedStaticMeshComponent::CreateSceneProxy()
 {
 	LLM_SCOPE(ELLMTag::InstancedMesh);

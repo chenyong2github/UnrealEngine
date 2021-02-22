@@ -486,6 +486,7 @@ public:
 	virtual bool IsCompiling() const override;
 #endif
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
+	virtual bool IsHLODRelevant() const override;
 	//~ End UActorComponent Interface.
 
 	//~ Begin UPrimitiveComponent Interface.

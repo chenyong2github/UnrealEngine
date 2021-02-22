@@ -2463,6 +2463,36 @@ void UStaticMeshComponent::ApplyComponentInstanceData(FStaticMeshComponentInstan
 #endif
 }
 
+bool UStaticMeshComponent::IsHLODRelevant() const
+{
+	if (!GetStaticMesh())
+	{
+		return false;
+	}
+
+	if (bHiddenInGame)
+	{
+		return false;
+	}
+
+	if (bIsEditorOnly)
+	{
+		return false;
+	}
+
+	if (Mobility == EComponentMobility::Movable)
+	{
+		return false;
+	}
+
+	if (!bEnableAutoLODGeneration)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool UStaticMeshComponent::DoCustomNavigableGeometryExport(FNavigableGeometryExport& GeomExport) const
 {
 	const FVector Scale3D = GetComponentToWorld().GetScale3D();
