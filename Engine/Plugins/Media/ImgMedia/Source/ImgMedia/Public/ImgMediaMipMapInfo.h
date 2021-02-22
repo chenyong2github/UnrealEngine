@@ -49,6 +49,58 @@ struct FImgMediaMipMapObjectInfo
 };
 
 /**
+ * Describes which tiles are visible.
+ */
+struct FImgMediaTileSelection
+{
+	/** X position of the most top left visibile tile. */
+	uint16 TopLeftX;
+	/** Y position of the most top left visible tile. */
+	uint16 TopLeftY;
+	/**
+	 * X position of the most bottom right visible tile + 1.
+	 * If this is equal to TopLeftX, then this implies that the tile is not visible.
+	 */
+	uint16 BottomRightX;
+	/** Y position of the most bottom right visible tile + 1. */
+	uint16 BottomRightY;
+
+	FImgMediaTileSelection()
+	{
+		SetAllNotVisible();
+	}
+
+	/**
+	 * Marks all tiles as visible.
+	 */
+	void SetAllVisible()
+	{
+		TopLeftX = 0;
+		TopLeftY = 0;
+		BottomRightX = 0xffff;
+		BottomRightY = 0xffff;
+	}
+
+	/**
+	 * Marks all tiles as not visible.
+	 */
+	void SetAllNotVisible()
+	{
+		TopLeftX = 0;
+		TopLeftY = 0;
+		BottomRightX = 0;
+		BottomRightY = 0;
+	}
+
+	/**
+	 * See if this selection is visible.
+	 *
+	 * @return True if so.
+	 */
+	bool IsVisible() { return (TopLeftX <= BottomRightX); };
+};
+
+/**
  * Contains information for working with mip maps.
  */
 class FImgMediaMipMapInfo : public IMediaOptions::FDataContainer, public FTickableGameObject
@@ -111,9 +163,10 @@ public:
 	 * Returns the lowest level (highest resolution) mipmap.
 	 * Assumes all higher levels will also be used.
 	 *
+	 * @param TileSelection Will be set with which tiles are visible.
 	 * @return Mipmap level.
 	 */
-	int32 GetDesiredMipLevel();
+	int32 GetDesiredMipLevel(FImgMediaTileSelection& InTileSelection);
 
 	/**
 	 * Calculate object distance to camera. 
@@ -202,6 +255,8 @@ protected:
 
 	/** Desired mipmap level at this current time. */
 	int32 CachedMipLevel;
+	/** Desired tiles at this current tmie. */
+	FImgMediaTileSelection CachedTileSelection;
 	/** True if the cached mipmap data has been calculated this frame. */
 	bool bIsCachedMipLevelValid;
 };

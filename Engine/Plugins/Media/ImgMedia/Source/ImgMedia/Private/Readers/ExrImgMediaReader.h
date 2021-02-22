@@ -28,7 +28,7 @@ public:
 	//~ IImgMediaReader interface
 
 	virtual bool GetFrameInfo(const FString& ImagePath, FImgMediaFrameInfo& OutInfo) override;
-	virtual bool ReadFrame(int32 FrameId, int32 MipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) override;
+	virtual bool ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) override;
 	virtual void CancelFrame(int32 FrameNumber) override;
 
 public:

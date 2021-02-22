@@ -91,7 +91,7 @@ bool FGenericImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFra
 }
 
 
-bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
+bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelectio, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
 {
 	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = LoaderPtr.Pin();
 	if (Loader.IsValid() == false)

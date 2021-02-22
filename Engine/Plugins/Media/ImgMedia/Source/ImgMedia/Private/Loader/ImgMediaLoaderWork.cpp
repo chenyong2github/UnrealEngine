@@ -33,10 +33,12 @@ FImgMediaLoaderWork::FImgMediaLoaderWork(const TSharedRef<FImgMediaLoader, ESPMo
  *****************************************************************************/
 
 void FImgMediaLoaderWork::Initialize(int32 InFrameNumber,
-	int32 InMipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> InExistingFrame)
+	int32 InMipLevel, const FImgMediaTileSelection& InTileSelection,
+	TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> InExistingFrame)
 {
 	FrameNumber = InFrameNumber;
 	MipLevel = InMipLevel;
+	TileSelection = InTileSelection;
 	ExistingFrame = InExistingFrame;
 }
 
@@ -75,7 +77,7 @@ void FImgMediaLoaderWork::DoThreadedWork()
 			Frame = ExistingFrame;
 		}
 
-		if (!Reader->ReadFrame(FrameNumber, MipLevel, Frame))
+		if (!Reader->ReadFrame(FrameNumber, MipLevel, TileSelection, Frame))
 		{
 			if (ExistingFrame == nullptr)
 			{

@@ -10,6 +10,8 @@
 #include "RHI.h"
 #include "RHIResources.h"
 
+struct FImgMediaTileSelection;
+
 /**
  * Information about an image sequence frame.
  */
@@ -100,11 +102,12 @@ public:
 	 *
 	 * @param FrameId Frame number to read.
 	 * @param MipLevel Will read in this level and all higher levels.
+	 * @param InTileSelection Which tiles to read.
 	 * @param OutFrame Will contain the frame.
 	 * @return true on success, false otherwise.
 	 * @see GetFrameInfo
 	 */
-	virtual bool ReadFrame(int32 FrameId, int32 MipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) = 0;
+	virtual bool ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame) = 0;
 
 	/**
 	 * Mark Frame to be canceled based on Frame number. Typically this will be 

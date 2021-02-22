@@ -125,7 +125,7 @@ FExrImgMediaReaderGpu::~FExrImgMediaReaderGpu()
 /* FExrImgMediaReaderGpu interface
  *****************************************************************************/
 
-bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
+bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelection, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
 {
 	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = LoaderPtr.Pin();
 	if (Loader.IsValid() == false)

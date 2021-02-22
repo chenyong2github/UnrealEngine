@@ -130,7 +130,7 @@ void FImgMediaMipMapInfo::SetTextureInfo(FName InSequenceName, int NumMipMaps, c
 	UpdateMipLevelDistances();
 }
 
-int32 FImgMediaMipMapInfo::GetDesiredMipLevel()
+int32 FImgMediaMipMapInfo::GetDesiredMipLevel(FImgMediaTileSelection& OutTileSelection)
 {
 	// This is called from the loader one thread at a time as the call is guarded by a critical section.
 	// So no need for thread safety here with regards to this function.
@@ -145,6 +145,7 @@ int32 FImgMediaMipMapInfo::GetDesiredMipLevel()
 
 	// Get desired mip level from the cache.
 	int32 MipLevel = CachedMipLevel;
+	OutTileSelection = CachedTileSelection;
 
 	return MipLevel;
 }
@@ -154,6 +155,8 @@ void FImgMediaMipMapInfo::UpdateMipLevelCache()
 	SCOPE_CYCLE_COUNTER(STAT_ImgMedia_MipMapUpdateCache);
 
 	CachedMipLevel = 0;
+	CachedTileSelection.SetAllVisible();
+
 	// Loop over all objects.
 	float ClosestDistToCamera = TNumericLimits<float>::Max();
 	{

@@ -500,10 +500,11 @@ IQueuedWork* FImgMediaLoader::GetWork()
 		ExistingFrame = *ExistingFramePtr;
 	}
 
-	int MipLevel = GetDesiredMipLevel(FrameNumber);
+	FImgMediaTileSelection TileSelection;
+	int MipLevel = GetDesiredMipLevel(FrameNumber, TileSelection);
 	
 	// Set up work.
-	Work->Initialize(FrameNumber, MipLevel, ExistingFrame);
+	Work->Initialize(FrameNumber, MipLevel, TileSelection, ExistingFrame);
 	QueuedFrameNumbers.Add(FrameNumber);
 
 	return Work;
@@ -952,7 +953,8 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 		else
 		{
 			// Yes. Check if we have the desired mip level.
-			int32 MipLevel = GetDesiredMipLevel(FrameNumber);
+			FImgMediaTileSelection TileSelection;
+			int32 MipLevel = GetDesiredMipLevel(FrameNumber, TileSelection);
 			NeedFrame = ((*FramePtr)->MipMapsPresent & (1 << MipLevel)) == 0;
 		}
 		
@@ -997,13 +999,13 @@ void FImgMediaLoader::NotifyWorkComplete(FImgMediaLoaderWork& CompletedWork, int
 	WorkPool.Push(&CompletedWork);
 }
 
-int32 FImgMediaLoader::GetDesiredMipLevel(int32 FrameIndex)
+int32 FImgMediaLoader::GetDesiredMipLevel(int32 FrameIndex, FImgMediaTileSelection& OutTileSelection)
 {
 	int32 MipLevel = 0;
 
 	if (MipMapInfo.IsValid())
 	{
-		MipLevel = MipMapInfo->GetDesiredMipLevel();
+		MipLevel = MipMapInfo->GetDesiredMipLevel(OutTileSelection);
 	}
 
 	return MipLevel;

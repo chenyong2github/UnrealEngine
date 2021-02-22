@@ -20,6 +20,7 @@ class IImgMediaReader;
 class IQueuedWork;
 
 struct FImgMediaFrame;
+struct FImgMediaTileSelection;
 
 
 /**
@@ -335,9 +336,10 @@ protected:
 	 * Get what mip level we should be using for a given frame.
 	 *
 	 * @param FrameIndex Frame to get mip level for.
-	 * return Returns the mip level.
+	 * @param OutTileSelection Will be filled in with what tiles are actually needed.
+	 * @return Returns the mip level.
 	 */
-	int32 GetDesiredMipLevel(int32 FrameIndex);
+	int32 GetDesiredMipLevel(int32 FrameIndex, FImgMediaTileSelection& OutTileSelection);
 
 	/***
 	 * Modulos the time so that it is between 0 and SequenceDuration.
