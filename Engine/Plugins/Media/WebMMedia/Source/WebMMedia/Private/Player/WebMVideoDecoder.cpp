@@ -104,17 +104,15 @@ void FWebMVideoDecoder::DecodeVideoFramesAsync(const TArray<TSharedPtr<FWebMFram
 	static bool bUseRenderThread = FPlatformMisc::UseRenderThread();
 	if (bUseRenderThread)
 	{
-		FGraphEventRef PreviousDecodingTask = VideoDecodingTask;
-
-		VideoDecodingTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this, PreviousDecodingTask, VideoFrames]()
+		FGraphEventArray Prerequisites;
+		if (VideoDecodingTask)
 		{
-			if(PreviousDecodingTask && !PreviousDecodingTask->IsComplete())
-			{
-				FTaskGraphInterface::Get().WaitUntilTaskCompletes(PreviousDecodingTask);
-			}
-
+			Prerequisites.Emplace(VideoDecodingTask);
+		}
+		VideoDecodingTask = FFunctionGraphTask::CreateAndDispatchWhenReady([this,  VideoFrames]()
+		{
 			DoDecodeVideoFrames(VideoFrames);
-		}, TStatId(), nullptr, ENamedThreads::AnyThread);
+		}, TStatId(), &Prerequisites, ENamedThreads::AnyThread);
 	}
 	else
 	{
