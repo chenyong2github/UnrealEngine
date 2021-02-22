@@ -377,7 +377,7 @@ namespace AutomationTool
 				{
 					string ClientName = Result.Output.Substring(KeyName.Length).Trim();
 					P4ClientInfo ClientInfo = Connection.GetClientInfo(ClientName, true);
-					if (Connection.IsValidClientForFile(ClientInfo, UATLocation))
+					if (ClientInfo != null && Connection.IsValidClientForFile(ClientInfo, UATLocation))
 					{
 						return ClientInfo;
 					}
