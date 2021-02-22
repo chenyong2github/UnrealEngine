@@ -7,6 +7,10 @@
 UTemplateSequenceSection::UTemplateSequenceSection()
 {
 	SetBlendType(EMovieSceneBlendType::Absolute);
+
+	// Template sequences always adopt the same hierarchical bias as their parent sequence so that their
+	// animation can blend with any complementary animation set directly on their target object.
+	Parameters.HierarchicalBias = 0;
 }
 
 void UTemplateSequenceSection::OnDilated(float DilationFactor, FFrameNumber Origin)
