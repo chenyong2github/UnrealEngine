@@ -11,6 +11,7 @@ struct FObjectCacheEventSink
 	static void NotifyRenderStateChanged_Concurrent(UActorComponent*);
 	static void NotifyReferencedTextureChanged_Concurrent(UMaterialInterface*);
 	static void NotifyStaticMeshChanged_Concurrent(UStaticMeshComponent*);
+	static void NotifyMaterialDestroyed_Concurrent(UMaterialInterface*);
 };
 
 #endif // #if WITH_EDITOR

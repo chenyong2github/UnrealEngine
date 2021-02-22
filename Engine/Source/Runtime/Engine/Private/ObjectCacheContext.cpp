@@ -71,6 +71,27 @@ template <typename FromType, typename ToType>
 class FObjectReverseLookupCache
 {
 public:
+	void RemoveFrom(FromType* InFrom)
+	{
+		FWriteScopeLock ScopeLock(Lock);
+
+		TRawSet<ToType*>* ToObjects = FromToMapping.Find(InFrom);
+		if (ToObjects)
+		{
+			for (ToType* ToObject : *ToObjects)
+			{
+				TRawSet<FromType*>* FromObjects = ToFromMapping.Find(ToObject);
+				if (FromObjects)
+				{
+					UE_LOG(LogObjectCache, VeryVerbose, TEXT("Lookup mapping removed %s -> %s"), *InFrom->GetFullName(), *ToObject->GetFullName());
+					FromObjects->Remove(InFrom);
+				}
+			}
+
+			FromToMapping.Remove(InFrom);
+		}
+	}
+
 	void Update(ToType* InTo, const TArray<FromType*>& NewFromObjects)
 	{
 		FWriteScopeLock ScopeLock(Lock);
@@ -659,6 +680,21 @@ FObjectCacheContext& FObjectCacheContextScope::GetContext()
 }
 
 #if WITH_EDITOR
+
+void FObjectCacheEventSink::NotifyMaterialDestroyed_Concurrent(UMaterialInterface* MaterialInterface)
+{
+	if (GetObjectReverseLookupMode() != EObjectReverseLookupMode::Temporary)
+	{
+		// If a material is destroyed, remove it from the cache so we don't return it anymore
+		// This can happen if a component doesn't update its render state after modifying its used materials
+		// (i.e. LandscapeComponent won't update it's render state when modifying MobileMaterialInterfaces during cook since they aren't meaningful for rendering)
+		// The net result is that the SceneProxy->UsedMaterialsForVerification will continue to hold an invalid material interface object but if it's not used for rendering, no harm will be done...
+		GMaterialToPrimitiveLookupCache.RemoveFrom(MaterialInterface);
+
+		// Remove any Material to Texture that might be present in the cache for this Material
+		GTextureToMaterialLookupCache.Update(MaterialInterface, {});
+	}
+}
 
 void FObjectCacheEventSink::NotifyUsedMaterialsChanged_Concurrent(const UPrimitiveComponent* PrimitiveComponent, const TArray<UMaterialInterface*>& UsedMaterials)
 {

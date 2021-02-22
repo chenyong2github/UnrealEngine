@@ -349,7 +349,7 @@ void UMaterialInterface::BeginDestroy()
 
 #if WITH_EDITOR
 	// The object cache needs to be notified when we're getting destroyed
-	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+	FObjectCacheEventSink::NotifyMaterialDestroyed_Concurrent(this);
 #endif
 }
 
