@@ -22,6 +22,17 @@ class FMemAllocGroupingByCallstack : public FTreeNodeGrouping
 {
 	INSIGHTS_DECLARE_RTTI(FMemAllocGroupingByCallstack, FTreeNodeGrouping)
 
+private:
+	struct FCallstackGroup
+	{
+		FCallstackGroup* Parent = nullptr;
+		FName Name;
+		FTableTreeNode* Node = nullptr;
+		const TraceServices::FStackFrame* Frame = nullptr;
+		TMap<uint64, FCallstackGroup*> GroupMap; // Callstack Frame Address -> FCallstackGroup*
+		TMap<FName, FCallstackGroup*> GroupMapByName; // Group Name --> FCallstackGroup*
+	};
+
 public:
 	FMemAllocGroupingByCallstack(bool bInIsInverted, bool bInIsGroupingByFunction);
 	virtual ~FMemAllocGroupingByCallstack();
@@ -37,7 +48,8 @@ private:
 	FName GetGroupName(const TraceServices::FStackFrame* Frame) const;
 	FText GetGroupTooltip(const TraceServices::FStackFrame* Frame) const;
 
-	FTableTreeNode* CreateGroup(const FName GroupName, TWeakPtr<FTable> ParentTable, FTableTreeNode& Parent) const;
+	FCallstackGroup* CreateGroup(TArray<FCallstackGroup*>& InOutAllCallstackGroup, FCallstackGroup* InParentGroup, const FName InGroupName, TWeakPtr<FTable> InParentTable, const TraceServices::FStackFrame* InFrame) const;
+
 	FTableTreeNode* CreateUnsetGroup(TWeakPtr<FTable> ParentTable, FTableTreeNode& Parent) const;
 
 private:

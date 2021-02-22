@@ -2,10 +2,12 @@
 
 #include "SMemAllocTableTreeView.h"
 
+#include "EditorStyleSet.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/AllocationsProvider.h"
 #include "TraceServices/Model/Callstack.h"
 #include "TraceServices/Model/Modules.h"
+#include "Widgets/SToolTip.h"
 
 // Insights
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
@@ -455,10 +457,59 @@ TSharedPtr<SWidget> SMemAllocTableTreeView::ConstructToolbar()
 			SNew(SCheckBox)
 			.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
 			.HAlign(HAlign_Center)
-			.Padding(2.0f)
+			.Padding(FMargin(2.0f, 4.0f, 2.0f, 0.0f))
 			.OnCheckStateChanged(this, &SMemAllocTableTreeView::CallstackGroupingByFunction_OnCheckStateChanged)
 			.IsChecked(this, &SMemAllocTableTreeView::CallstackGroupingByFunction_IsChecked)
-			.ToolTipText(LOCTEXT("CallstackGroupingByFunction_Tooltip", "Callstack Grouping by Function Name\nIf enabled, the callstack grouping will create a single group node per function name\n(ex. when two callstack frames have same function but different file line numbers).\nOtherwise it will create separate group nodes for each unique callstack frame."))
+			.ToolTip(
+				SNew(SToolTip)
+				[
+					SNew(SVerticalBox)
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CallstackGroupingByFunction_Tooltip_Title", "Callstack Grouping by Function Name"))
+						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2.0f, 8.0f, 2.0f, 2.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("CallstackGroupingByFunction_Tooltip_Content", "If enabled, the callstack grouping will create a single group node per function name.\nExample 1: When two callstack frames are located in same function, but at different line numbers; \nExample 2: When a function is called recursively.\nOtherwise it will create separate group nodes for each unique callstack frame."))
+						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(2.0f, 8.0f, 2.0f, 2.0f)
+					[
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Top)
+						.Padding(0.0f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("CallstackGroupingByFunction_Warning", "Warning:"))
+							.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+							.ColorAndOpacity(FLinearColor(1.0f, 0.6f, 0.3f, 1.0f))
+						]
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("CallstackGroupingByFunction_Warning_Content", "When this option is enabled, the tree nodes that have merged multiple callstack frames\nwill show in their tooltips the source file name and the line number of an arbitrary\ncallstack frame from ones merged by respective tree node."))
+							.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
+						]
+					]
+				])
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CallstackGroupingByFunction_Text", " Fn "))

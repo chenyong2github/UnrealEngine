@@ -45,13 +45,6 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 {
 	ParentGroup.ClearChildren();
 
-	struct FCallstackGroup
-	{
-		FTableTreeNode* Node = nullptr;
-		const TraceServices::FStackFrame* Frame = nullptr;
-		TMap<uint64, FCallstackGroup*> GroupMap; // Callstack Frame Address -> FCallstackGroup*
-		TMap<FName, FCallstackGroup*> GroupMapByName; // Group Name --> FCallstackGroup*
-	};
 	TArray<FCallstackGroup*> CallstackGroups;
 
 	FCallstackGroup* Root = new FCallstackGroup();
@@ -81,7 +74,13 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 		if (Alloc)
 		{
 			const TraceServices::FCallstack* Callstack = Alloc->GetCallstack();
-			if (Callstack)
+
+			FCallstackGroup** FoundGroupPtrPtr = GroupMapByCallstack.Find(Callstack);
+			if (FoundGroupPtrPtr)
+			{
+				GroupPtr = *FoundGroupPtrPtr;
+			}
+			else if (Callstack)
 			{
 				const int32 NumFrames = static_cast<int32>(Callstack->Num());
 				for (int32 FrameDepth = NumFrames - 1; FrameDepth >= 0; --FrameDepth)
@@ -92,17 +91,19 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 					if (bIsGroupingByFunction)
 					{
 						const FName GroupName = GetGroupName(Frame);
+
+						// Merge with parent group, if it has the same name (i.e. same function).
+						if (GroupPtr->Parent != nullptr && GroupPtr->Name == GroupName)
+						{
+							GroupPtr = GroupPtr->Parent;
+						}
+
+						// Merge groups by name.
 						FCallstackGroup** GroupPtrPtr = GroupPtr->GroupMapByName.Find(GroupName);
 						if (!GroupPtrPtr)
 						{
-							FCallstackGroup* NewGroupPtr = new FCallstackGroup();
-							CallstackGroups.Add(NewGroupPtr);
-
-							NewGroupPtr->Node = CreateGroup(GroupName, InParentTable, *(GroupPtr->Node));
-							NewGroupPtr->Node->SetTooltip(GetGroupTooltip(Frame));
-							
-							GroupPtr->GroupMapByName.Add(GroupName, NewGroupPtr);
-							GroupPtr = NewGroupPtr;
+							GroupPtr = CreateGroup(CallstackGroups, GroupPtr, GroupName, InParentTable, Frame);
+							GroupPtr->Parent->GroupMapByName.Add(GroupName, GroupPtr);
 						}
 						else
 						{
@@ -111,19 +112,13 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 					}
 					else
 					{
+						// Merge groups by unique callstack frame.
 						FCallstackGroup** GroupPtrPtr = GroupPtr->GroupMap.Find(Frame->Addr);
 						if (!GroupPtrPtr)
 						{
 							const FName GroupName = GetGroupName(Frame);
-
-							FCallstackGroup* NewGroupPtr = new FCallstackGroup();
-							CallstackGroups.Add(NewGroupPtr);
-
-							NewGroupPtr->Node = CreateGroup(GroupName, InParentTable, *(GroupPtr->Node));
-							NewGroupPtr->Node->SetTooltip(GetGroupTooltip(Frame));
-
-							GroupPtr->GroupMap.Add(Frame->Addr, NewGroupPtr);
-							GroupPtr = NewGroupPtr;
+							GroupPtr = CreateGroup(CallstackGroups, GroupPtr, GroupName, InParentTable, Frame);
+							GroupPtr->Parent->GroupMap.Add(Frame->Addr, GroupPtr);
 						}
 						else
 						{
@@ -131,6 +126,8 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 						}
 					}
 				}
+
+				GroupMapByCallstack.Add(Callstack, GroupPtr);
 			}
 		}
 
@@ -195,12 +192,27 @@ FText FMemAllocGroupingByCallstack::GetGroupTooltip(const TraceServices::FStackF
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FTableTreeNode* FMemAllocGroupingByCallstack::CreateGroup(const FName GroupName, TWeakPtr<FTable> ParentTable, FTableTreeNode& Parent) const
+FMemAllocGroupingByCallstack::FCallstackGroup* FMemAllocGroupingByCallstack::CreateGroup(
+	TArray<FCallstackGroup*>& InOutAllCallstackGroup,
+	FCallstackGroup* InParentGroup,
+	const FName InGroupName,
+	TWeakPtr<FTable> InParentTable,
+	const TraceServices::FStackFrame* InFrame) const
 {
-	FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(GroupName, ParentTable);
+	FCallstackGroup* NewGroupPtr = new FCallstackGroup();
+	NewGroupPtr->Parent = InParentGroup;
+	NewGroupPtr->Name = InGroupName;
+
+	InOutAllCallstackGroup.Add(NewGroupPtr);
+
+	FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(InGroupName, InParentTable);
 	NodePtr->SetExpansion(false);
-	Parent.AddChildAndSetGroupPtr(NodePtr);
-	return NodePtr.Get();
+	InParentGroup->Node->AddChildAndSetGroupPtr(NodePtr);
+
+	NewGroupPtr->Node = NodePtr.Get();
+	NewGroupPtr->Node->SetTooltip(GetGroupTooltip(InFrame));
+
+	return NewGroupPtr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
