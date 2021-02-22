@@ -1275,6 +1275,15 @@ bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelIn
 		return false;
 	}
 
+	if (GetWorld()->PersistentLevel->GetPackage()->GetName() == LevelInstanceActor->GetWorldAssetPackage())
+	{
+		if (OutReason)
+		{
+			*OutReason = LOCTEXT("CanEditLevelInstancePersistentLevel", "The Persistent level and the Level Instance are the same");
+		}
+		return false;
+	}
+
 	if (FLevelUtils::FindStreamingLevel(GetWorld(), *LevelInstanceActor->GetWorldAssetPackage()))
 	{
 		if (OutReason)
@@ -1390,6 +1399,12 @@ void ULevelInstanceSubsystem::EditLevelInstance(ALevelInstance* LevelInstanceAct
 		
 	// Load Edit LevelInstance level
 	ULevelStreamingLevelInstanceEditor* LevelStreaming = ULevelStreamingLevelInstanceEditor::Load(LevelInstanceActor);
+	if (!LevelStreaming)
+	{
+		LevelInstanceActor->LoadLevelInstance();
+		return;
+	}
+
 	FLevelInstanceEdit& LevelInstanceEdit = LevelInstanceEdits.Add(FName(*LevelInstanceActor->GetWorldAssetPackage()));
 	LevelInstanceEdit.LevelStreaming = LevelStreaming;
 		
