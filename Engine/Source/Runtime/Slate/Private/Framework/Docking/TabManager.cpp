@@ -1314,7 +1314,14 @@ TSharedPtr<SDockTab> FTabManager::InvokeTab_Internal( const FTabId& TabId )
 
 		if (ExistingTab.IsValid())
 		{
-			if (!ExistingTab->IsActive())
+			TSharedPtr<SDockTab> MajorTab = FGlobalTabmanager::Get()->GetMajorTabForTabManager(ExistingTab->GetTabManager());
+
+			// Rules for drawing attention to a tab:
+			// 1. Tab is not active
+			// 2. Tab's owning major tab is not in the foreground (making the tab we want to draw attention to is not visible)
+			// 3. Tab is nomad and is not in the foreground
+			// If the tab is not active or the tabs major tab is not in the foreground, activate it
+			if (!ExistingTab->IsActive() || (MajorTab && !MajorTab->IsForeground()) || !ExistingTab->IsForeground())
 			{
 				// Draw attention to this tab if it didn't already have focus
 				DrawAttention(ExistingTab.ToSharedRef());
