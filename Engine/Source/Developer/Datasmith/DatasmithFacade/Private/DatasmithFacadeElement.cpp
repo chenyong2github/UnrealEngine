@@ -97,13 +97,6 @@ FVector FDatasmithFacadeElement::ConvertTranslation(
 	return ConvertPosition(InVertex.X, InVertex.Y, InVertex.Z);
 }
 
-void FDatasmithFacadeElement::ExportAsset(
-	FString const& InAssetFolder
-)
-{
-	// By default, there is no Datasmith scene element asset to build and export.
-}
-
 FVector FDatasmithFacadeElement::ConvertFromPositionLeftHandedYup(
 	float InX,
 	float InY,

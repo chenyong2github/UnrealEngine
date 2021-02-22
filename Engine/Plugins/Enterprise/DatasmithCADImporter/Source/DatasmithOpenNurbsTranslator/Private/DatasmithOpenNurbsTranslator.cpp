@@ -1068,23 +1068,23 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 				{
 				case ON_Texture::TYPE::bitmap_texture:
 				{
-					IDatasmithMaterialExpression* TextureExpression = DatasmithMaterialsUtils::CreateTextureExpression(Material, TEXT("Diffuse Map"), TextureElement->GetName(), UVParameters);
-					IDatasmithMaterialExpression* Expression = DatasmithMaterialsUtils::CreateWeightedMaterialExpression(Material, TEXT("Diffuse Color"), LinearColor, TOptional<float>(), TextureExpression, Weight);
-					Material->GetBaseColor().SetExpression(Expression);
+					TSharedPtr<IDatasmithMaterialExpression> TextureExpression = DatasmithMaterialsUtils::CreateTextureExpression(Material, TEXT("Diffuse Map"), TextureElement->GetName(), UVParameters);
+					TSharedPtr<IDatasmithMaterialExpression> Expression = DatasmithMaterialsUtils::CreateWeightedMaterialExpression(Material, TEXT("Diffuse Color"), LinearColor, TOptional<float>(), TextureExpression, Weight);
+					Material->GetBaseColor()->SetExpression(Expression);
 				}
 				break;
 				case ON_Texture::TYPE::bump_texture:
 				{
-					IDatasmithMaterialExpression* TextureExpression = DatasmithMaterialsUtils::CreateTextureExpression(Material, TEXT("Bump Map"), TextureElement->GetName(), UVParameters);
-					IDatasmithMaterialExpression* Expression = DatasmithMaterialsUtils::CreateWeightedMaterialExpression(Material, TEXT("Bump Height"), TOptional<FLinearColor>(), TOptional<float>(), TextureExpression, Weight, EDatasmithTextureMode::Bump);
-					Material->GetNormal().SetExpression(Expression);
+					TSharedPtr<IDatasmithMaterialExpression> TextureExpression = DatasmithMaterialsUtils::CreateTextureExpression(Material, TEXT("Bump Map"), TextureElement->GetName(), UVParameters);
+					TSharedPtr<IDatasmithMaterialExpression> Expression = DatasmithMaterialsUtils::CreateWeightedMaterialExpression(Material, TEXT("Bump Height"), TOptional<FLinearColor>(), TOptional<float>(), TextureExpression, Weight, EDatasmithTextureMode::Bump);
+					Material->GetNormal()->SetExpression(Expression);
 				}
 				break;
 				case ON_Texture::TYPE::transparency_texture:
 				{
-					IDatasmithMaterialExpression* TextureExpression = DatasmithMaterialsUtils::CreateTextureExpression(Material, TEXT("Opacity Map"), TextureElement->GetName(), UVParameters);
-					IDatasmithMaterialExpression* Expression = DatasmithMaterialsUtils::CreateWeightedMaterialExpression(Material, TEXT("White"), FLinearColor::White, TOptional<float>(), TextureExpression, Weight);
-					Material->GetOpacity().SetExpression(Expression);
+					TSharedPtr<IDatasmithMaterialExpression> TextureExpression = DatasmithMaterialsUtils::CreateTextureExpression(Material, TEXT("Opacity Map"), TextureElement->GetName(), UVParameters);
+					TSharedPtr<IDatasmithMaterialExpression> Expression = DatasmithMaterialsUtils::CreateWeightedMaterialExpression(Material, TEXT("White"), FLinearColor::White, TOptional<float>(), TextureExpression, Weight);
+					Material->GetOpacity()->SetExpression(Expression);
 					if (!FMath::IsNearlyZero(Weight, KINDA_SMALL_NUMBER))
 					{
 						Material->SetBlendMode(/*EBlendMode::BLEND_Translucent*/2);
@@ -1096,43 +1096,43 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 		}
 
 		// Set a diffuse color if there's nothing in the BaseColor
-		if (Material->GetBaseColor().GetExpression() == nullptr)
+		if (Material->GetBaseColor()->GetExpression() == nullptr)
 		{
-			IDatasmithMaterialExpressionColor* ColorExpression = Material->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+			TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = Material->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 			ColorExpression->SetName(TEXT("Diffuse Color"));
 			ColorExpression->GetColor() = LinearColor;
 
-			Material->GetBaseColor().SetExpression(ColorExpression);
+			Material->GetBaseColor()->SetExpression(ColorExpression);
 		}
 
 		// Setup the blend mode for transparent material
 		if (LinearColor.A < 1.0f)
 		{
 			Material->SetBlendMode(/*EBlendMode::BLEND_Translucent*/2);
-			if (Material->GetOpacity().GetExpression() == nullptr)
+			if (Material->GetOpacity()->GetExpression() == nullptr)
 			{
 				// Transparent color
-				IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
+				TSharedPtr<IDatasmithMaterialExpressionScalar> Scalar = Material->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 				Scalar->SetName( TEXT( "Opacity" ) );
 				Scalar->GetScalar() = LinearColor.A;
 
-				Material->GetOpacity().SetExpression(Scalar);
+				Material->GetOpacity()->SetExpression(Scalar);
 			}
 			else
 			{
 				// Modulate the opacity map with the color transparency setting
-				IDatasmithMaterialExpressionGeneric* Multiply = static_cast<IDatasmithMaterialExpressionGeneric*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::Generic));
+				TSharedPtr<IDatasmithMaterialExpressionGeneric> Multiply = Material->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 				Multiply->SetExpressionName( TEXT( "Multiply" ) );
 
-				IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
+				TSharedPtr<IDatasmithMaterialExpressionScalar> Scalar = Material->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 				Scalar->SetName( TEXT( "Opacity Output Level" ) );
 				Scalar->GetScalar() = LinearColor.A;
-				Scalar->ConnectExpression(*Multiply->GetInput(0));
+				Scalar->ConnectExpression(Multiply->GetInput(0));
 
-				IDatasmithMaterialExpression* CurrentOpacityExpression = Material->GetOpacity().GetExpression();
-				CurrentOpacityExpression->ConnectExpression(*Multiply->GetInput(1));
+				TSharedPtr<IDatasmithMaterialExpression> CurrentOpacityExpression = Material->GetOpacity()->GetExpression();
+				CurrentOpacityExpression->ConnectExpression(Multiply->GetInput(1));
 
-				Material->GetOpacity().SetExpression(Multiply);
+				Material->GetOpacity()->SetExpression(Multiply);
 			}
 		}
 
@@ -1140,19 +1140,19 @@ void FOpenNurbsTranslatorImpl::TranslateMaterialTable(const ON_ObjectArray<ON_Ma
 		float Shininess = OpenNurbsMaterial.Shine() / ON_Material::MaxShine;
 		if (!FMath::IsNearlyZero(Shininess))
 		{
-			IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
+			TSharedPtr<IDatasmithMaterialExpressionScalar> Scalar = Material->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 			Scalar->SetName( TEXT( "Roughness" ) );
 			Scalar->GetScalar() = 1.f - Shininess;
-			Material->GetRoughness().SetExpression(Scalar);
+			Material->GetRoughness()->SetExpression(Scalar);
 		}
 
 		float Reflectivity = OpenNurbsMaterial.Reflectivity();
 		if (!FMath::IsNearlyZero(Reflectivity))
 		{
-			IDatasmithMaterialExpressionScalar* Scalar = static_cast<IDatasmithMaterialExpressionScalar*>(Material->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar));
+			TSharedPtr<IDatasmithMaterialExpressionScalar> Scalar = Material->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 			Scalar->SetName( TEXT( "Metallic" ) );
 			Scalar->GetScalar() = Reflectivity;
-			Material->GetMetallic().SetExpression(Scalar);
+			Material->GetMetallic()->SetExpression(Scalar);
 		}
 	}
 }
@@ -2251,11 +2251,11 @@ TSharedPtr<IDatasmithBaseMaterialElement> FOpenNurbsTranslatorImpl::GetDefaultMa
 	FColor Color(250, 250, 250, 255);
 	FLinearColor LinearColor = FLinearColor::FromSRGBColor(Color);
 
-	IDatasmithMaterialExpressionColor* ColorExpression = Material->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = Material->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	ColorExpression->SetName(TEXT("Diffuse Color"));
 	ColorExpression->GetColor() = LinearColor;
 
-	Material->GetBaseColor().SetExpression(ColorExpression);
+	Material->GetBaseColor()->SetExpression(ColorExpression);
 
 	DefaultMaterial = Material;
 

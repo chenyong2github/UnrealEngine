@@ -11,12 +11,10 @@
 //------------------------------------------------------------------------------
 
 
-public class FDatasmithFacadeMaterialExpression : global::System.IDisposable {
+public class FDatasmithFacadeMaterialExpression : FDatasmithFacadeElement {
   private global::System.Runtime.InteropServices.HandleRef swigCPtr;
-  protected bool swigCMemOwn;
 
-  internal FDatasmithFacadeMaterialExpression(global::System.IntPtr cPtr, bool cMemoryOwn) {
-    swigCMemOwn = cMemoryOwn;
+  internal FDatasmithFacadeMaterialExpression(global::System.IntPtr cPtr, bool cMemoryOwn) : base(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpression_SWIGUpcast(cPtr), cMemoryOwn) {
     swigCPtr = new global::System.Runtime.InteropServices.HandleRef(this, cPtr);
   }
 
@@ -24,16 +22,7 @@ public class FDatasmithFacadeMaterialExpression : global::System.IDisposable {
     return (obj == null) ? new global::System.Runtime.InteropServices.HandleRef(null, global::System.IntPtr.Zero) : obj.swigCPtr;
   }
 
-  ~FDatasmithFacadeMaterialExpression() {
-    Dispose(false);
-  }
-
-  public void Dispose() {
-    Dispose(true);
-    global::System.GC.SuppressFinalize(this);
-  }
-
-  protected virtual void Dispose(bool disposing) {
+  protected override void Dispose(bool disposing) {
     lock(this) {
       if (swigCPtr.Handle != global::System.IntPtr.Zero) {
         if (swigCMemOwn) {
@@ -42,16 +31,8 @@ public class FDatasmithFacadeMaterialExpression : global::System.IDisposable {
         }
         swigCPtr = new global::System.Runtime.InteropServices.HandleRef(null, global::System.IntPtr.Zero);
       }
+      base.Dispose(disposing);
     }
-  }
-
-  public string GetName() {
-    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpression_GetName(swigCPtr));
-    return ret;
-  }
-
-  public void SetName(string InName) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpression_SetName(swigCPtr, InName);
   }
 
   public EDatasmithFacadeMaterialExpressionType GetExpressionType() {

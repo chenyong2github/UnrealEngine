@@ -54,7 +54,7 @@ namespace DatasmithMaterialsUtils
 	 * @param UVParameters			The UVEditParameters to apply
 	 * @return						Texture expression with UVEdit applied to it; nullptr if no TextureMapPath is specified
 	 */
-	DATASMITHCORE_API IDatasmithMaterialExpressionTexture* CreateTextureExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TCHAR* ParameterName, const TCHAR* TextureMapPath, const FUVEditParameters& UVParameters );
+	DATASMITHCORE_API TSharedPtr< IDatasmithMaterialExpressionTexture > CreateTextureExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TCHAR* ParameterName, const TCHAR* TextureMapPath, const FUVEditParameters& UVParameters );
 
 	/**
 	 * Generate material expressions on a given DatasmithUEPbrMaterialElement that output a color or scalar interpolated with a MaterialExpression
@@ -67,5 +67,5 @@ namespace DatasmithMaterialsUtils
 	 * @param TextureMode			The TextureMode of the Expression to determine if it requires normal flattening (bump and normal mode) or interpolation
 	 * @return						Material expression that outputs a Color or Scalar interpolated with Expression; nullptr if no Color, Scalar or Expression are given
 	 */
-	DATASMITHCORE_API IDatasmithMaterialExpression* CreateWeightedMaterialExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TCHAR* ParameterName, TOptional< FLinearColor > Color, TOptional< float > Scalar, IDatasmithMaterialExpression* Expression, float Weight, EDatasmithTextureMode TextureMode = EDatasmithTextureMode::Diffuse );
+	DATASMITHCORE_API TSharedPtr< IDatasmithMaterialExpression > CreateWeightedMaterialExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TCHAR* ParameterName, TOptional< FLinearColor > Color, TOptional< float > Scalar, const TSharedPtr< IDatasmithMaterialExpression >& Expression, float Weight, EDatasmithTextureMode TextureMode = EDatasmithTextureMode::Diffuse );
 }

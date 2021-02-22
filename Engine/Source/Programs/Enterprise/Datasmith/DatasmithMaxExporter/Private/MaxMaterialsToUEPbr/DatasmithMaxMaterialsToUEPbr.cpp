@@ -134,14 +134,14 @@ bool FDatasmithMaxMaterialsToUEPbr::IsTexmapSupported( Texmap* InTexmap ) const
 	return bIsTexmapSupported;
 }
 
-IDatasmithMaterialExpression* FDatasmithMaxMaterialsToUEPbr::ConvertTexmap( const DatasmithMaxTexmapParser::FMapParameter& MapParameter )
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithMaxMaterialsToUEPbr::ConvertTexmap( const DatasmithMaxTexmapParser::FMapParameter& MapParameter )
 {
 	if ( !MapParameter.bEnabled || !MapParameter.Map || FMath::IsNearlyZero( MapParameter.Weight ) )
 	{
 		return nullptr;
 	}
 
-	IDatasmithMaterialExpression* MaterialExpression = nullptr;
+	TSharedPtr< IDatasmithMaterialExpression > MaterialExpression = nullptr;
 
 	for ( IDatasmithMaxTexmapToUEPbr& TexmapConverter : TexmapConverters )
 	{

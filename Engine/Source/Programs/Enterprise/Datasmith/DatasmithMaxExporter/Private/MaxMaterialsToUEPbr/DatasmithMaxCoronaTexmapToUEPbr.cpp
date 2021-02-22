@@ -71,7 +71,7 @@ bool FDatasmithMaxCoronaAOToUEPbr::IsSupported( const FDatasmithMaxMaterialsToUE
 	return InTexmap ? (bool)( InTexmap->ClassID() == CORONAAOCLASS ) : false;
 }
 
-IDatasmithMaterialExpression* FDatasmithMaxCoronaAOToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithMaxCoronaAOToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	if ( !InTexmap )
 	{
@@ -88,7 +88,7 @@ bool FDatasmithMaxCoronaColorToUEPbr::IsSupported( const FDatasmithMaxMaterialsT
 	return InTexmap ? (bool)( InTexmap->ClassID() == CORONACOLORCLASS ) : false;
 }
 
-IDatasmithMaterialExpression* FDatasmithMaxCoronaColorToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithMaxCoronaColorToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	if ( !InTexmap )
 	{
@@ -137,7 +137,7 @@ IDatasmithMaterialExpression* FDatasmithMaxCoronaColorToUEPbr::Convert( FDatasmi
 		CoronaColor = FLinearColor::FromSRGBColor( CoronaColor.ToFColor( bConvertToSRGB ) );
 	}
 
-	IDatasmithMaterialExpressionColor* ColorExpression = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+	TSharedPtr< IDatasmithMaterialExpressionColor > ColorExpression = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 	ColorExpression->SetName( TEXT("Corona Color") );
 	ColorExpression->GetColor() = CoronaColor;
 
@@ -203,7 +203,7 @@ DatasmithMaxTexmapParser::FNormalMapParameters FDatasmithMaxCoronalNormalToUEPbr
 	return NormalMapParameters;
 }
 
-IDatasmithMaterialExpression* FDatasmithMaxCoronalNormalToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithMaxCoronalNormalToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	TGuardValue< bool > ForceNormalMapsToLinearGuard( MaxMaterialToUEPbr->ConvertState.bTreatNormalMapsAsLinear, FDatasmithMaxMatWriter::GetCoronaFixNormal( InTexmap ) );
 	return Super::Convert( MaxMaterialToUEPbr, InTexmap );
@@ -214,7 +214,7 @@ bool FDatasmithMaxCoronalBitmapToUEPbr::IsSupported( const FDatasmithMaxMaterial
 	return ( InTexmap && InTexmap->ClassID() == CORONABITMAPCLASS );
 }
 
-IDatasmithMaterialExpression* FDatasmithMaxCoronalBitmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithMaxCoronalBitmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	DatasmithMaxTexmapParser::FCoronaBitmapParameters CoronaBitmapParameters = DatasmithMaxTexmapParser::ParseCoronaBitmap( InTexmap );
 

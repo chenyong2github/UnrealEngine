@@ -37,16 +37,16 @@ public:
 	TSharedRef<IDatasmithUEPbrMaterialElement> GetMaterial() const;
 
 private:
-	void CreateExpressions(TArray<IDatasmithMaterialExpression*>& MaterialExpressions) const;
+	void CreateExpressions(TArray<TSharedPtr<IDatasmithMaterialExpression>>& MaterialExpressions) const;
 
-	void ConnectInput(const GLTF::FMaterialExpressionInput& ExpressionInput, const TArray<IDatasmithMaterialExpression*>& MaterialExpressions,
-	                  IDatasmithExpressionInput& MaterialInput) const;
+	void ConnectInput(const GLTF::FMaterialExpressionInput& ExpressionInput, const TArray<TSharedPtr<IDatasmithMaterialExpression>>& MaterialExpressions,
+	                  const TSharedPtr<IDatasmithExpressionInput>& MaterialInput) const;
 
-	static void ConnectExpression(const GLTF::FMaterialExpression*             Expression,           //
-	                              const TArray<GLTF::FMaterialExpression*>&    Expressions,          //
-	                              const TArray<IDatasmithMaterialExpression*>& MaterialExpressions,  //
-	                              IDatasmithExpressionInput&                   ExpressionInput,      //
-	                              int32                                        OutputIndex);
+	static void ConnectExpression(const GLTF::FMaterialExpression*                        Expression,           //
+	                              const TArray<GLTF::FMaterialExpression*>&               Expressions,          //
+	                              const TArray<TSharedPtr<IDatasmithMaterialExpression>>& MaterialExpressions,  //
+	                              const TSharedPtr<IDatasmithExpressionInput>&            ExpressionInput,      //
+	                              int32                                                   OutputIndex);
 
 private:
 	TSharedPtr<IDatasmithUEPbrMaterialElement> MaterialElement;

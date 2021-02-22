@@ -78,7 +78,7 @@ public:
 		FWeightedMaterialExpressionParameters( float InWeight )
 			: Weight( InWeight )
 			, TextureMode( FDatasmithFacadeTexture::ETextureMode::Diffuse )
-			, Expression( nullptr, TSharedPtr<IDatasmithUEPbrMaterialElement>() )
+			, Expression( nullptr )
 		{}
 
 		// Set the color parameter taking linear channel input.
@@ -90,7 +90,7 @@ public:
 
 		void SetTextureMode( FDatasmithFacadeTexture::ETextureMode InTextureMode );
 
-		void SetExpression( const FDatasmithFacadeMaterialExpression& InExpression );
+		void SetExpression( const FDatasmithFacadeMaterialExpression* InExpression );
 
 #ifdef SWIG_FACADE
 	protected:
@@ -105,9 +105,7 @@ public:
 
 		FDatasmithFacadeTexture::ETextureMode TextureMode;
 
-		// Local copy of the optional FDatasmithFacadeMaterialExpression.
-		// We shall not create a getter for this member as Expression may hold invalid pointer to the actual IDatasmithMaterialExpression.
-		FDatasmithFacadeMaterialExpression Expression;
+		TSharedPtr<IDatasmithMaterialExpression> Expression;
 	};
 
 	/**

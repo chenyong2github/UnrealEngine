@@ -54,9 +54,9 @@ public:
 	explicit FDatasmithExpressionInputImpl( const TCHAR* InInputName );
 	virtual ~FDatasmithExpressionInputImpl() = default;
 
-	virtual IDatasmithMaterialExpression* GetExpression() override { return Expression.Edit().Get(); }
-	virtual const IDatasmithMaterialExpression* GetExpression() const { return Expression.View().Get(); }
-	virtual void SetExpression( IDatasmithMaterialExpression* InExpression ) override;
+	virtual const TSharedPtr< IDatasmithMaterialExpression >& GetExpression() { return Expression.View(); }
+	virtual TSharedPtr< const IDatasmithMaterialExpression > GetExpression() const { return Expression.View(); }
+	virtual void SetExpression( const TSharedPtr< IDatasmithMaterialExpression >& InExpression ) override { Expression.Edit() = InExpression; }
 
 	virtual int32 GetOutputIndex() const override { return OutputIndex; }
 	virtual void SetOutputIndex( int32 InOutputIndex ) override { OutputIndex = InOutputIndex; }
@@ -122,16 +122,16 @@ public:
 
 	virtual bool IsSubTypeInternal( uint64 InSubType ) const override { return InSubType == this->GetSubType(); } // as our subtype is not a bitfield
 
-	virtual void ConnectExpression( IDatasmithExpressionInput& ExpressionInput ) override
+	virtual void ConnectExpression( const TSharedPtr<IDatasmithExpressionInput>& ExpressionInput ) override
 	{
 		ConnectExpression( ExpressionInput, GetDefaultOutputIndex() );
 	}
 
-	inline virtual void ConnectExpression( IDatasmithExpressionInput& ExpressionInput, int32 OutputIndex ) override;
+	inline virtual void ConnectExpression( const TSharedPtr<IDatasmithExpressionInput>& ExpressionInput, int32 OutputIndex ) override;
 
 	virtual int32 GetInputCount() const override { return 0; }
-	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return nullptr; }
-	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return nullptr; }
+	virtual TSharedPtr<IDatasmithExpressionInput> GetInput( int32 Index ) override { return nullptr; }
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetInput( int32 Index ) const override { return nullptr; }
 
 	virtual int32 GetDefaultOutputIndex() const override { return DefaultOutputIndex; }
 	virtual void SetDefaultOutputIndex( int32 InDefaultOutputIndex ) override { DefaultOutputIndex = InDefaultOutputIndex; }
@@ -292,12 +292,12 @@ public:
 	/**
 	 * Inputs
 	 */
-	virtual IDatasmithExpressionInput& GetInputCoordinate() override { return *TextureCoordinate.Edit(); }
-	virtual const IDatasmithExpressionInput& GetInputCoordinate() const override { return *TextureCoordinate.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetInputCoordinate() override { return TextureCoordinate.View(); }
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetInputCoordinate() const override { return TextureCoordinate.View(); }
 
 	virtual int32 GetInputCount() const override { return 1; }
-	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return TextureCoordinate.Edit().Get(); }
-	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return TextureCoordinate.View().Get(); }
+	virtual TSharedPtr<IDatasmithExpressionInput> GetInput( int32 Index ) override { return TextureCoordinate.View(); }
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetInput( int32 Index ) const override { return TextureCoordinate.View(); }
 
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -322,7 +322,7 @@ public:
 protected:
 	TReflected< FString > TexturePathName;
 
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > TextureCoordinate;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > TextureCoordinate;
 
 	/**
 	 * Outputs:
@@ -379,15 +379,15 @@ class FDatasmithMaterialExpressionFlattenNormalImpl : public FDatasmithMaterialE
 public:
 	FDatasmithMaterialExpressionFlattenNormalImpl();
 
-	virtual IDatasmithExpressionInput& GetNormal() override { return *Normal.Edit(); }
-	virtual const IDatasmithExpressionInput& GetNormal() const override { return *Normal.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetNormal() override { return Normal.View(); }
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetNormal() const override { return Normal.View(); }
 
-	virtual IDatasmithExpressionInput& GetFlatness() override { return *Flatness.Edit(); }
-	virtual const IDatasmithExpressionInput& GetFlatness() const override { return *Flatness.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetFlatness() override { return Flatness.View(); }
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetFlatness() const override { return Flatness.View(); }
 
 	virtual int32 GetInputCount() const override { return 2; }
-	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return Index == 0 ? Normal.Edit().Get() : Flatness.Edit().Get(); }
-	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Index == 0 ? Normal.View().Get() : Flatness.View().Get(); }
+	virtual TSharedPtr<IDatasmithExpressionInput> GetInput( int32 Index ) override { return Index == 0 ? Normal.View() : Flatness.View(); }
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetInput( int32 Index ) const override { return Index == 0 ? Normal.View() : Flatness.View(); }
 
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -409,8 +409,8 @@ public:
 	}
 
 protected:
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Normal;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Flatness;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > Normal;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > Flatness;
 };
 
 class FDatasmithMaterialExpressionGenericImpl : public FDatasmithMaterialExpressionImpl< IDatasmithMaterialExpressionGeneric >
@@ -432,26 +432,26 @@ public:
 
 	int32 GetPropertiesCount() const override { return Properties.Num(); }
 
-	const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty( int32 InIndex ) const override;
-	TSharedPtr< IDatasmithKeyValueProperty >& GetProperty( int32 InIndex ) override;
+	TSharedPtr< const IDatasmithKeyValueProperty > GetProperty( int32 InIndex ) const override;
+	TSharedPtr< IDatasmithKeyValueProperty > GetProperty( int32 InIndex ) override;
 
-	const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) const override;
-	TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName( const TCHAR* InName ) override;
+	TSharedPtr< const IDatasmithKeyValueProperty > GetPropertyByName( const TCHAR* InName ) const override;
+	TSharedPtr< IDatasmithKeyValueProperty > GetPropertyByName( const TCHAR* InName ) override;
 
 	void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& InProperty ) override;
 
 	virtual int32 GetInputCount() const override { return Inputs.Num(); }
-	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override
+	virtual TSharedPtr<IDatasmithExpressionInput> GetInput( int32 Index ) override
 	{
 		while ( !Inputs.IsValidIndex( Index ) )
 		{
 			Inputs.Add( MakeShared< FDatasmithExpressionInputImpl >( *FString::FromInt( Inputs.Num() ) ) );
 		}
 
-		return Inputs[Index].Get();
+		return Inputs[Index];
 	}
 
-	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index].Get() : nullptr; }
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index] : nullptr; }
 
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -474,7 +474,7 @@ public:
 	}
 
 protected:
-	TDatasmithReferenceArrayProxy< FDatasmithExpressionInputImpl > Inputs;
+	TDatasmithReferenceArrayProxy< IDatasmithExpressionInput > Inputs;
 	TReflected<FString> ExpressionName;
 
 	TDatasmithReferenceArrayProxy< IDatasmithKeyValueProperty > Properties;
@@ -494,17 +494,17 @@ public:
 	virtual const TCHAR* GetFunctionPathName() const override { return *FunctionPathName.Get( Store ); }
 
 	virtual int32 GetInputCount() const override { return Inputs.Num(); }
-	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override
+	virtual TSharedPtr<IDatasmithExpressionInput> GetInput( int32 Index ) override
 	{
 		while (!Inputs.IsValidIndex( Index ))
 		{
 			Inputs.Add( MakeShared< FDatasmithExpressionInputImpl >( *FString::FromInt( Inputs.Num() ) ) );
 		}
 
-		return Inputs[Index].Get();
+		return Inputs[Index];
 	}
 
-	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index].Get() : nullptr; }
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs.View()[Index] : nullptr; }
 
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -526,7 +526,7 @@ public:
 	}
 
 protected:
-	TDatasmithReferenceArrayProxy< FDatasmithExpressionInputImpl > Inputs;
+	TDatasmithReferenceArrayProxy< IDatasmithExpressionInput > Inputs;
 	TReflected<FString> FunctionPathName;
 };
 
@@ -536,8 +536,8 @@ public:
 	FDatasmithMaterialExpressionCustomImpl();
 
 	virtual int32 GetInputCount() const override { return Inputs.Num(); }
-	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override;
-	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index].Get() : nullptr; }
+	virtual TSharedPtr<IDatasmithExpressionInput> GetInput( int32 Index ) override;
+	virtual TSharedPtr<const IDatasmithExpressionInput> GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs.View()[Index] : nullptr; }
 
 	virtual void SetCode(const TCHAR* InCode) override { Code = InCode; }
 	virtual const TCHAR* GetCode() const override { return *Code.Get(this->Store); }
@@ -602,17 +602,17 @@ public:
 
 	virtual FMD5Hash CalculateElementHash(bool bForce) override;
 
-	virtual IDatasmithExpressionInput& GetBaseColor() override { return *BaseColor.Edit(); }
-	virtual IDatasmithExpressionInput& GetMetallic() override { return *Metallic.Edit(); }
-	virtual IDatasmithExpressionInput& GetSpecular() override { return *Specular.Edit(); }
-	virtual IDatasmithExpressionInput& GetRoughness() override { return *Roughness.Edit(); }
-	virtual IDatasmithExpressionInput& GetEmissiveColor() override { return *EmissiveColor.Edit(); }
-	virtual IDatasmithExpressionInput& GetOpacity() override { return *Opacity.Edit(); }
-	virtual IDatasmithExpressionInput& GetNormal() override { return *Normal.Edit(); }
-	virtual IDatasmithExpressionInput& GetWorldDisplacement() override { return *WorldDisplacement.Edit(); }
-	virtual IDatasmithExpressionInput& GetRefraction() override { return *Refraction.Edit(); }
-	virtual IDatasmithExpressionInput& GetAmbientOcclusion() override { return *AmbientOcclusion.Edit(); }
-	virtual IDatasmithExpressionInput& GetMaterialAttributes() override { return *MaterialAttributes.Edit(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetBaseColor() override { return BaseColor.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetMetallic() override { return Metallic.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetSpecular() override { return Specular.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetRoughness() override { return Roughness.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetEmissiveColor() override { return EmissiveColor.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetOpacity() override { return Opacity.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetNormal() override { return Normal.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetWorldDisplacement() override { return WorldDisplacement.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetRefraction() override { return Refraction.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetAmbientOcclusion() override { return AmbientOcclusion.View(); }
+	virtual const TSharedPtr<IDatasmithExpressionInput>& GetMaterialAttributes() override { return MaterialAttributes.View(); }
 
 	virtual int GetBlendMode() const override {return BlendMode; }
 	virtual void SetBlendMode( int InBlendMode ) override { BlendMode = InBlendMode; }
@@ -630,10 +630,10 @@ public:
 	virtual void SetOpacityMaskClipValue(float InClipValue) override { OpacityMaskClipValue = InClipValue; }
 
 	virtual int32 GetExpressionsCount() const override { return Expressions.View().Num(); }
-	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) override;
-	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const override;
+	virtual TSharedPtr<IDatasmithMaterialExpression> GetExpression( int32 Index ) const override;
+	virtual int32 GetExpressionIndex( const TSharedPtr<const IDatasmithMaterialExpression>& Expression ) const override;
 
-	virtual IDatasmithMaterialExpression* AddMaterialExpression( const EDatasmithMaterialExpressionType ExpressionType ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > AddMaterialExpression( const EDatasmithMaterialExpressionType ExpressionType ) override;
 
 	virtual void SetParentLabel( const TCHAR* InParentLabel ) override { ParentLabel = InParentLabel; }
 	virtual const TCHAR* GetParentLabel() const override;
@@ -644,17 +644,17 @@ public:
 	virtual void CustomSerialize(class DirectLink::FSnapshotProxy& Ar) override;
 
 protected:
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > BaseColor;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Metallic;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Specular;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Roughness;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > EmissiveColor;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Opacity;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Normal;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > WorldDisplacement;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > Refraction;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > AmbientOcclusion;
-	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > MaterialAttributes;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > BaseColor;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > Metallic;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > Specular;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > Roughness;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > EmissiveColor;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > Opacity;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > Normal;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > WorldDisplacement;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > Refraction;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > AmbientOcclusion;
+	TDatasmithReferenceProxy< IDatasmithExpressionInput > MaterialAttributes;
 
 	TDatasmithReferenceArrayProxy< IDatasmithMaterialExpression > Expressions;
 
@@ -678,8 +678,13 @@ FDatasmithMaterialExpressionImpl< InterfaceType >::FDatasmithMaterialExpressionI
 }
 
 template< typename InterfaceType >
-void FDatasmithMaterialExpressionImpl< InterfaceType >::ConnectExpression( IDatasmithExpressionInput& ExpressionInput, int32 InOutputIndex )
+void FDatasmithMaterialExpressionImpl< InterfaceType >::ConnectExpression( const TSharedPtr<IDatasmithExpressionInput>& ExpressionInput, int32 InOutputIndex )
 {
+	if(!ExpressionInput)
+	{
+		return;
+	}
+
 	while ( !Outputs.IsValidIndex( InOutputIndex ) && InOutputIndex >= 0 )
 	{
 		Outputs.Add( MakeShared<FDatasmithExpressionOutputImpl>( TEXT( "Ouput" ) ) );
@@ -689,7 +694,7 @@ void FDatasmithMaterialExpressionImpl< InterfaceType >::ConnectExpression( IData
 
 	if ( OutputIndex != INDEX_NONE )
 	{
-		ExpressionInput.SetExpression( this );
-		ExpressionInput.SetOutputIndex( OutputIndex );
+		ExpressionInput->SetExpression( this->AsShared() );
+		ExpressionInput->SetOutputIndex( OutputIndex );
 	}
 }

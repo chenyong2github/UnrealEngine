@@ -90,12 +90,6 @@ protected:
 		FVector const& InVertex // translation in world unit coordinates
 	);
 
-	// Build and export the Datasmith scene element asset when required.
-	// This must be done before building a Datasmith scene element.
-	virtual void ExportAsset(
-		FString const& InAssetFolder // Datasmith asset folder path
-	);
-
 	TSharedRef<IDatasmithElement>& GetDatasmithElement() { return InternalDatasmithElement;	}
 
 	const TSharedRef<IDatasmithElement>& GetDatasmithElement() const { return InternalDatasmithElement;	}

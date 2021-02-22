@@ -43,7 +43,7 @@ public:
 	/**
 	 * Returns a LinearInterpolate expression if the map weight is smaller than 1.f, input 0 is not connected in that case
 	 */
-	IDatasmithMaterialExpression* ConvertTexmap( const DatasmithMaxTexmapParser::FMapParameter& MapParameter );
+	TSharedPtr< IDatasmithMaterialExpression > ConvertTexmap( const DatasmithMaxTexmapParser::FMapParameter& MapParameter );
 
 	struct FConvertState
 	{
@@ -86,5 +86,5 @@ public:
 	virtual ~IDatasmithMaxTexmapToUEPbr() = default;
 
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const = 0;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) = 0;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) = 0;
 };

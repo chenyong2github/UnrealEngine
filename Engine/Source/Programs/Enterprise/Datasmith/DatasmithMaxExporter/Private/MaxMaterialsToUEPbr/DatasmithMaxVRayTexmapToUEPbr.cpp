@@ -144,11 +144,11 @@ bool FDatasmithMaxVRayColorTexmapToUEPbr::IsSupported( const FDatasmithMaxMateri
 	return InTexmap ? (bool)( InTexmap->ClassID() == VRAYCOLORCLASS ) : false;
 }
 
-IDatasmithMaterialExpression* FDatasmithMaxVRayColorTexmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithMaxVRayColorTexmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	BMM_Color_fl VrayColor = DatasmithMaxVRayTexmapToUEPbrImpl::ExtractVrayColor( InTexmap, false );
 
-	IDatasmithMaterialExpressionColor* ColorExpression = static_cast< IDatasmithMaterialExpressionColor* >( MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantColor ) );
+	TSharedPtr< IDatasmithMaterialExpressionColor > ColorExpression = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	ColorExpression->SetName( TEXT("Vray Color") );
 	ColorExpression->GetColor() = FDatasmithMaxMatHelper::MaxLinearColorToFLinearColor( VrayColor );
 
@@ -160,7 +160,7 @@ bool FDatasmithMaxVRayHDRITexmapToUEPbr::IsSupported( const FDatasmithMaxMateria
 	return InTexmap ? (bool)( InTexmap->ClassID() == VRAYHDRICLASS ) : false;
 }
 
-IDatasmithMaterialExpression* FDatasmithMaxVRayHDRITexmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithMaxVRayHDRITexmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	FString TexturePath;
 	float VrayMultiplier = 1.0f;
@@ -188,25 +188,25 @@ IDatasmithMaterialExpression* FDatasmithMaxVRayHDRITexmapToUEPbr::Convert( FData
 		ParamBlock2->ReleaseDesc();
 	}
 
-	IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression( EDatasmithMaterialExpressionType::Texture ) );
+	TSharedPtr< IDatasmithMaterialExpressionTexture > TextureExpression = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
 	FString ActualBitmapName = FDatasmithMaxMatWriter::GetActualVRayBitmapName( (BitmapTex*)InTexmap );
 
 	TextureExpression->SetTexturePathName( *ActualBitmapName );
 	FDatasmithMaxTexmapToUEPbrUtils::SetupTextureCoordinates( MaxMaterialToUEPbr, TextureExpression->GetInputCoordinate(), InTexmap );
 
-	IDatasmithMaterialExpression* ResultExpression = TextureExpression;
+	TSharedPtr< IDatasmithMaterialExpression > ResultExpression = TextureExpression;
 
 	if ( !FMath::IsNearlyEqual( VrayMultiplier, 1.f ) )
 	{
-		IDatasmithMaterialExpressionGeneric* MultiplyExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression( EDatasmithMaterialExpressionType::Generic ) );
+		TSharedPtr< IDatasmithMaterialExpressionGeneric > MultiplyExpression = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		MultiplyExpression->SetExpressionName( TEXT("Multiply") );
 
-		IDatasmithMaterialExpressionScalar* VrayMultiplierScalar = static_cast< IDatasmithMaterialExpressionScalar* >( MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantScalar ) );
+		TSharedPtr< IDatasmithMaterialExpressionScalar > VrayMultiplierScalar = MaxMaterialToUEPbr->ConvertState.MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		VrayMultiplierScalar->SetName( TEXT("Multiplier") );
 		VrayMultiplierScalar->GetScalar() = VrayMultiplier;
 
-		TextureExpression->ConnectExpression( *MultiplyExpression->GetInput(0), 0 );
-		VrayMultiplierScalar->ConnectExpression( *MultiplyExpression->GetInput(1), 0 );
+		TextureExpression->ConnectExpression( MultiplyExpression->GetInput(0), 0 );
+		VrayMultiplierScalar->ConnectExpression( MultiplyExpression->GetInput(1), 0 );
 
 		ResultExpression = MultiplyExpression;
 	}
@@ -219,7 +219,7 @@ bool FDatasmithMaxVRayDirtTexmapToUEPbr::IsSupported( const FDatasmithMaxMateria
 	return InTexmap ? (bool)( InTexmap->ClassID() == VRAYDIRTCLASS ) : false;
 }
 
-IDatasmithMaterialExpression* FDatasmithMaxVRayDirtTexmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
+TSharedPtr< IDatasmithMaterialExpression > FDatasmithMaxVRayDirtTexmapToUEPbr::Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap )
 {
 	if ( !InTexmap )
 	{

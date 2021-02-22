@@ -9,14 +9,14 @@ class FDatasmithMaxCoronaAOToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxCoronaColorToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxCoronalNormalToUEPbr : public FDatasmithMaxNormalToUEPbr
@@ -26,13 +26,13 @@ class FDatasmithMaxCoronalNormalToUEPbr : public FDatasmithMaxNormalToUEPbr
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
 	DatasmithMaxTexmapParser::FNormalMapParameters ParseMap( Texmap* InTexmap ) override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxCoronalBitmapToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 

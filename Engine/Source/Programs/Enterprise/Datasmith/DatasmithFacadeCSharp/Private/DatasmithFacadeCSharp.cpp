@@ -1019,25 +1019,11 @@ SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeMaterialID_GetId(void * jarg1)
 }
 
 
-SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeExpressionInput_GetName(void * jarg1) {
-  wchar_t * jresult ;
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeExpressionInput(void * jarg1) {
   FDatasmithFacadeExpressionInput *arg1 = (FDatasmithFacadeExpressionInput *) 0 ;
-  TCHAR *result = 0 ;
   
   arg1 = (FDatasmithFacadeExpressionInput *)jarg1; 
-  result = (TCHAR *)((FDatasmithFacadeExpressionInput const *)arg1)->GetName();
-  jresult = (wchar_t *)result; 
-  return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeExpressionInput_SetName(void * jarg1, wchar_t * jarg2) {
-  FDatasmithFacadeExpressionInput *arg1 = (FDatasmithFacadeExpressionInput *) 0 ;
-  TCHAR *arg2 = (TCHAR *) 0 ;
-  
-  arg1 = (FDatasmithFacadeExpressionInput *)jarg1; 
-  arg2 = (TCHAR *)jarg2; 
-  (arg1)->SetName((TCHAR const *)arg2);
+  delete arg1;
 }
 
 
@@ -1085,33 +1071,11 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeExpressionInput_SetOutputInde
 }
 
 
-SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeExpressionInput(void * jarg1) {
-  FDatasmithFacadeExpressionInput *arg1 = (FDatasmithFacadeExpressionInput *) 0 ;
+SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeMaterialExpression(void * jarg1) {
+  FDatasmithFacadeMaterialExpression *arg1 = (FDatasmithFacadeMaterialExpression *) 0 ;
   
-  arg1 = (FDatasmithFacadeExpressionInput *)jarg1; 
+  arg1 = (FDatasmithFacadeMaterialExpression *)jarg1; 
   delete arg1;
-}
-
-
-SWIGEXPORT wchar_t * SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpression_GetName(void * jarg1) {
-  wchar_t * jresult ;
-  FDatasmithFacadeMaterialExpression *arg1 = (FDatasmithFacadeMaterialExpression *) 0 ;
-  TCHAR *result = 0 ;
-  
-  arg1 = (FDatasmithFacadeMaterialExpression *)jarg1; 
-  result = (TCHAR *)((FDatasmithFacadeMaterialExpression const *)arg1)->GetName();
-  jresult = (wchar_t *)result; 
-  return jresult;
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpression_SetName(void * jarg1, wchar_t * jarg2) {
-  FDatasmithFacadeMaterialExpression *arg1 = (FDatasmithFacadeMaterialExpression *) 0 ;
-  TCHAR *arg2 = (TCHAR *) 0 ;
-  
-  arg1 = (FDatasmithFacadeMaterialExpression *)jarg1; 
-  arg2 = (TCHAR *)jarg2; 
-  (arg1)->SetName((TCHAR const *)arg2);
 }
 
 
@@ -1202,14 +1166,6 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpression_SetDefault
   arg1 = (FDatasmithFacadeMaterialExpression *)jarg1; 
   arg2 = (int32)jarg2; 
   (arg1)->SetDefaultOutputIndex(arg2);
-}
-
-
-SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeMaterialExpression(void * jarg1) {
-  FDatasmithFacadeMaterialExpression *arg1 = (FDatasmithFacadeMaterialExpression *) 0 ;
-  
-  arg1 = (FDatasmithFacadeMaterialExpression *)jarg1; 
-  delete arg1;
 }
 
 
@@ -2427,15 +2383,11 @@ SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMaterialsUtils_FWeightedMater
 
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMaterialsUtils_FWeightedMaterialExpressionParameters_SetExpression(void * jarg1, void * jarg2) {
   FDatasmithFacadeMaterialsUtils::FWeightedMaterialExpressionParameters *arg1 = (FDatasmithFacadeMaterialsUtils::FWeightedMaterialExpressionParameters *) 0 ;
-  FDatasmithFacadeMaterialExpression *arg2 = 0 ;
+  FDatasmithFacadeMaterialExpression *arg2 = (FDatasmithFacadeMaterialExpression *) 0 ;
   
   arg1 = (FDatasmithFacadeMaterialsUtils::FWeightedMaterialExpressionParameters *)jarg1; 
-  arg2 = (FDatasmithFacadeMaterialExpression *)jarg2;
-  if (!arg2) {
-    SWIG_CSharpSetPendingExceptionArgument(SWIG_CSharpArgumentNullException, "FDatasmithFacadeMaterialExpression const & type is null", 0);
-    return ;
-  } 
-  (arg1)->SetExpression((FDatasmithFacadeMaterialExpression const &)*arg2);
+  arg2 = (FDatasmithFacadeMaterialExpression *)jarg2; 
+  (arg1)->SetExpression((FDatasmithFacadeMaterialExpression const *)arg2);
 }
 
 
@@ -5551,6 +5503,14 @@ SWIGEXPORT FDatasmithFacadeBaseMaterial * SWIGSTDCALL CSharp_FDatasmithFacadeMas
 }
 
 SWIGEXPORT FDatasmithFacadeElement * SWIGSTDCALL CSharp_FDatasmithFacadeMaterialID_SWIGUpcast(FDatasmithFacadeMaterialID *jarg1) {
+    return (FDatasmithFacadeElement *)jarg1;
+}
+
+SWIGEXPORT FDatasmithFacadeElement * SWIGSTDCALL CSharp_FDatasmithFacadeExpressionInput_SWIGUpcast(FDatasmithFacadeExpressionInput *jarg1) {
+    return (FDatasmithFacadeElement *)jarg1;
+}
+
+SWIGEXPORT FDatasmithFacadeElement * SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpression_SWIGUpcast(FDatasmithFacadeMaterialExpression *jarg1) {
     return (FDatasmithFacadeElement *)jarg1;
 }
 

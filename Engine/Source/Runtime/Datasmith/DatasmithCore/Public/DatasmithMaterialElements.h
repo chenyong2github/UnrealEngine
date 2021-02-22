@@ -11,9 +11,9 @@ public:
 	UE_DEPRECATED(4.27, "IDatasmithExpressionInput now derive from IDatasmithElement, please use GetName() instead")
 	const TCHAR* GetInputName() const { return GetName(); }
 
-	virtual IDatasmithMaterialExpression* GetExpression() = 0;
-	virtual const IDatasmithMaterialExpression* GetExpression() const = 0;
-	virtual void SetExpression( IDatasmithMaterialExpression* InExpression ) = 0;
+	virtual const TSharedPtr < IDatasmithMaterialExpression >& GetExpression() = 0;
+	virtual TSharedPtr < const IDatasmithMaterialExpression > GetExpression() const = 0;
+	virtual void SetExpression( const TSharedPtr < IDatasmithMaterialExpression >& InExpression ) = 0;
 
 	virtual int32 GetOutputIndex() const = 0;
 	virtual void SetOutputIndex( int32 InOutputIndex ) = 0;
@@ -51,14 +51,14 @@ public:
 	virtual bool IsSubType( const EDatasmithMaterialExpressionType ExpressionType ) const = 0;
 
 	/** Connects the default output to an expression input */
-	virtual void ConnectExpression( IDatasmithExpressionInput& ExpressionInput ) = 0;
+	virtual void ConnectExpression( const TSharedPtr< IDatasmithExpressionInput >& ExpressionInput ) = 0;
 
 	/** Connects a specific output to an expression input */
-	virtual void ConnectExpression( IDatasmithExpressionInput& ExpressionInput, int32 OutputIndex ) = 0;
+	virtual void ConnectExpression( const TSharedPtr< IDatasmithExpressionInput >& ExpressionInput, int32 OutputIndex ) = 0;
 
 	virtual int32 GetInputCount() const = 0;
-	virtual IDatasmithExpressionInput* GetInput( int32 Index ) = 0;
-	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const = 0;
+	virtual TSharedPtr< IDatasmithExpressionInput > GetInput( int32 Index ) = 0;
+	virtual TSharedPtr< const IDatasmithExpressionInput > GetInput( int32 Index ) const = 0;
 
 	/** The output index to use by default for this expression when connecting it to other inputs. */
 	virtual int32 GetDefaultOutputIndex() const = 0;
@@ -107,8 +107,8 @@ public:
 	/**
 	 * Inputs
 	 */
-	virtual IDatasmithExpressionInput& GetInputCoordinate() = 0;
-	virtual const IDatasmithExpressionInput& GetInputCoordinate() const = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetInputCoordinate() = 0;
+	virtual TSharedPtr< const IDatasmithExpressionInput > GetInputCoordinate() const = 0;
 
 	/**
 	 * Outputs:
@@ -139,11 +139,11 @@ public:
 	/**
 	 * Inputs
 	 */
-	virtual IDatasmithExpressionInput& GetNormal() = 0;
-	virtual const IDatasmithExpressionInput& GetNormal() const = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetNormal() = 0;
+	virtual TSharedPtr< const IDatasmithExpressionInput > GetNormal() const = 0;
 
-	virtual IDatasmithExpressionInput& GetFlatness() = 0;
-	virtual const IDatasmithExpressionInput& GetFlatness() const = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetFlatness() = 0;
+	virtual TSharedPtr< const IDatasmithExpressionInput > GetFlatness() const = 0;
 
 	/**
 	 * Outputs:
@@ -187,12 +187,12 @@ public:
 	virtual int32 GetPropertiesCount() const = 0;
 
 	/** Get the property i-th of this expression */
-	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) const = 0;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetProperty(int32 i) = 0;
+	virtual TSharedPtr< const IDatasmithKeyValueProperty > GetProperty(int32 i) const = 0;
+	virtual TSharedPtr< IDatasmithKeyValueProperty > GetProperty(int32 i) = 0;
 
 	/** Get a property by its name if it exists */
-	virtual const TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) const = 0;
-	virtual TSharedPtr< IDatasmithKeyValueProperty >& GetPropertyByName(const TCHAR* Name) = 0;
+	virtual TSharedPtr< const IDatasmithKeyValueProperty > GetPropertyByName(const TCHAR* Name) const = 0;
+	virtual TSharedPtr< IDatasmithKeyValueProperty > GetPropertyByName(const TCHAR* Name) = 0;
 
 	/** Add a property to this expression*/
 	virtual void AddProperty( const TSharedPtr< IDatasmithKeyValueProperty >& Property ) = 0;
@@ -209,17 +209,17 @@ public:
 class DATASMITHCORE_API IDatasmithUEPbrMaterialElement : public IDatasmithBaseMaterialElement
 {
 public:
-	virtual IDatasmithExpressionInput& GetBaseColor() = 0;
-	virtual IDatasmithExpressionInput& GetMetallic() = 0;
-	virtual IDatasmithExpressionInput& GetSpecular() = 0;
-	virtual IDatasmithExpressionInput& GetRoughness() = 0;
-	virtual IDatasmithExpressionInput& GetEmissiveColor() = 0;
-	virtual IDatasmithExpressionInput& GetOpacity() = 0;
-	virtual IDatasmithExpressionInput& GetNormal() = 0;
-	virtual IDatasmithExpressionInput& GetWorldDisplacement() = 0;
-	virtual IDatasmithExpressionInput& GetRefraction() = 0;
-	virtual IDatasmithExpressionInput& GetAmbientOcclusion() = 0;
-	virtual IDatasmithExpressionInput& GetMaterialAttributes() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetBaseColor() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetMetallic() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetSpecular() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetRoughness() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetEmissiveColor() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetOpacity() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetNormal() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetWorldDisplacement() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetRefraction() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetAmbientOcclusion() = 0;
+	virtual const TSharedPtr< IDatasmithExpressionInput >& GetMaterialAttributes() = 0;
 
 	virtual int GetBlendMode() const = 0;
 	virtual void SetBlendMode( int bInBlendMode ) = 0;
@@ -238,13 +238,13 @@ public:
 	virtual void SetOpacityMaskClipValue(float InClipValue) = 0;
 
 	virtual int32 GetExpressionsCount() const = 0;
-	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) = 0;
-	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const = 0;
+	virtual TSharedPtr< IDatasmithMaterialExpression > GetExpression( int32 Index ) const = 0;
+	virtual int32 GetExpressionIndex( const TSharedPtr< const IDatasmithMaterialExpression >& Expression ) const = 0;
 
-	virtual IDatasmithMaterialExpression* AddMaterialExpression( const EDatasmithMaterialExpressionType ExpressionType ) = 0;
+	virtual TSharedPtr< IDatasmithMaterialExpression > AddMaterialExpression( EDatasmithMaterialExpressionType ExpressionType ) = 0;
 
 	template< typename T >
-	T* AddMaterialExpression()
+	TSharedPtr<T> AddMaterialExpression()
 	{
 	}
 
@@ -257,55 +257,55 @@ public:
 };
 
 template<>
-inline IDatasmithMaterialExpressionBool* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionBool >()
+inline TSharedPtr< IDatasmithMaterialExpressionBool> IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionBool >()
 {
-	return static_cast< IDatasmithMaterialExpressionBool* >( AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantBool ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionBool >( AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantBool ) );
 }
 
 template<>
-inline IDatasmithMaterialExpressionColor* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionColor >()
+inline TSharedPtr < IDatasmithMaterialExpressionColor > IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionColor >()
 {
-	return static_cast< IDatasmithMaterialExpressionColor* >( AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantColor ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionColor >( AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantColor ) );
 }
 
 template<>
-inline IDatasmithMaterialExpressionFlattenNormal* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionFlattenNormal >()
+inline TSharedPtr < IDatasmithMaterialExpressionFlattenNormal > IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionFlattenNormal >()
 {
-	return static_cast< IDatasmithMaterialExpressionFlattenNormal* >( AddMaterialExpression( EDatasmithMaterialExpressionType::FlattenNormal ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionFlattenNormal >( AddMaterialExpression( EDatasmithMaterialExpressionType::FlattenNormal ) );
 }
 
 template<>
-inline IDatasmithMaterialExpressionFunctionCall* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >()
+inline TSharedPtr < IDatasmithMaterialExpressionFunctionCall > IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >()
 {
-	return static_cast< IDatasmithMaterialExpressionFunctionCall* >( AddMaterialExpression( EDatasmithMaterialExpressionType::FunctionCall ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionFunctionCall >( AddMaterialExpression( EDatasmithMaterialExpressionType::FunctionCall ) );
 }
 
 template<>
-inline IDatasmithMaterialExpressionGeneric* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionGeneric >()
+inline TSharedPtr < IDatasmithMaterialExpressionGeneric > IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionGeneric >()
 {
-	return static_cast< IDatasmithMaterialExpressionGeneric* >( AddMaterialExpression( EDatasmithMaterialExpressionType::Generic ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionGeneric >( AddMaterialExpression( EDatasmithMaterialExpressionType::Generic ) );
 }
 
 template<>
-inline IDatasmithMaterialExpressionScalar* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionScalar >()
+inline TSharedPtr < IDatasmithMaterialExpressionScalar > IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionScalar >()
 {
-	return static_cast< IDatasmithMaterialExpressionScalar* >( AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantScalar ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionScalar >( AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantScalar ) );
 }
 
 template<>
-inline IDatasmithMaterialExpressionTexture* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionTexture >()
+inline TSharedPtr < IDatasmithMaterialExpressionTexture > IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionTexture >()
 {
-	return static_cast< IDatasmithMaterialExpressionTexture* >( AddMaterialExpression( EDatasmithMaterialExpressionType::Texture ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionTexture >( AddMaterialExpression( EDatasmithMaterialExpressionType::Texture ) );
 }
 
 template<>
-inline IDatasmithMaterialExpressionTextureCoordinate* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionTextureCoordinate >()
+inline TSharedPtr < IDatasmithMaterialExpressionTextureCoordinate > IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionTextureCoordinate >()
 {
-	return static_cast< IDatasmithMaterialExpressionTextureCoordinate* >( AddMaterialExpression( EDatasmithMaterialExpressionType::TextureCoordinate ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionTextureCoordinate >( AddMaterialExpression( EDatasmithMaterialExpressionType::TextureCoordinate ) );
 }
 
 template<>
-inline IDatasmithMaterialExpressionCustom* IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionCustom >()
+inline TSharedPtr < IDatasmithMaterialExpressionCustom > IDatasmithUEPbrMaterialElement::AddMaterialExpression< IDatasmithMaterialExpressionCustom >()
 {
-	return static_cast< IDatasmithMaterialExpressionCustom* >( AddMaterialExpression( EDatasmithMaterialExpressionType::Custom ) );
+	return StaticCastSharedPtr< IDatasmithMaterialExpressionCustom >( AddMaterialExpression( EDatasmithMaterialExpressionType::Custom ) );
 }

@@ -256,8 +256,8 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 			{
 				const TSharedPtr< IDatasmithUEPbrMaterialElement >& MaterialElement = StaticCastSharedPtr< IDatasmithUEPbrMaterialElement >( BaseMaterialElement );
 
-				TFunction< bool( IDatasmithMaterialExpression* ) > IsTextureConnected;
-				IsTextureConnected = [ &TextureName, &IsTextureConnected ]( IDatasmithMaterialExpression* MaterialExpression ) -> bool
+				TFunction< bool( const TSharedPtr< IDatasmithMaterialExpression >& ) > IsTextureConnected;
+				IsTextureConnected = [ &TextureName, &IsTextureConnected ]( const TSharedPtr< IDatasmithMaterialExpression > &MaterialExpression ) -> bool
 				{
 					if ( !MaterialExpression )
 					{
@@ -266,7 +266,7 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 
 					if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 					{
-						IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( MaterialExpression );
+						const IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( MaterialExpression.Get() );
 
 						if ( TextureExpression->GetTexturePathName() == TextureName )
 						{
@@ -276,7 +276,7 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 
 					for ( int32 InputIndex = 0; InputIndex < MaterialExpression->GetInputCount(); ++InputIndex )
 					{
-						IDatasmithMaterialExpression* ConnectedExpression = MaterialExpression->GetInput( InputIndex )->GetExpression();
+						const TSharedPtr< IDatasmithMaterialExpression>& ConnectedExpression = MaterialExpression->GetInput( InputIndex )->GetExpression();
 
 						if ( ConnectedExpression && IsTextureConnected( ConnectedExpression ) )
 						{
@@ -287,15 +287,15 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 					return false;
 				};
 
-				if ( IsTextureConnected( MaterialElement->GetBaseColor().GetExpression() ) )
+				if ( IsTextureConnected( MaterialElement->GetBaseColor()->GetExpression() ) )
 				{
 					TextureElement->SetTextureMode(EDatasmithTextureMode::Diffuse);
 				}
-				else if ( IsTextureConnected( MaterialElement->GetSpecular().GetExpression() ) )
+				else if ( IsTextureConnected( MaterialElement->GetSpecular()->GetExpression() ) )
 				{
 					TextureElement->SetTextureMode(EDatasmithTextureMode::Specular);
 				}
-				else if ( IsTextureConnected( MaterialElement->GetNormal().GetExpression() ) )
+				else if ( IsTextureConnected( MaterialElement->GetNormal()->GetExpression() ) )
 				{
 					if ( TextureElement->GetTextureMode() != EDatasmithTextureMode::Bump )
 					{

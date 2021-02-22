@@ -11,32 +11,32 @@ class IDatasmithMaterialExpression;
 class FDatasmithMaxTexmapToUEPbrUtils
 {
 public:
-	static IDatasmithMaterialExpression* ConvertTextureOutput( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, IDatasmithMaterialExpression* InputExpression, class TextureOutput* InTextureOutput );
-	static void SetupTextureCoordinates( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, IDatasmithExpressionInput& UVCoordinatesInput, Texmap* InTexmap );
-	static IDatasmithMaterialExpression* MapOrValue( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, const DatasmithMaxTexmapParser::FMapParameter& MapParameter, const TCHAR* ParameterName,
+	static TSharedPtr< IDatasmithMaterialExpression > ConvertTextureOutput( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, TSharedPtr< IDatasmithMaterialExpression >& InputExpression, class TextureOutput* InTextureOutput );
+	static void SetupTextureCoordinates( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, const TSharedPtr< IDatasmithExpressionInput >& UVCoordinatesInput, Texmap* InTexmap );
+	static TSharedPtr< IDatasmithMaterialExpression > MapOrValue( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, const DatasmithMaxTexmapParser::FMapParameter& MapParameter, const TCHAR* ParameterName,
 		TOptional< FLinearColor > Color, TOptional< float > Scalar );
-	static IDatasmithMaterialExpression* ConvertBitMap(FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap, FString& ActualBitmapName, bool bUseAlphaAsMono, bool bIsSRGB);
+	static TSharedPtr< IDatasmithMaterialExpression > ConvertBitMap(FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap, FString& ActualBitmapName, bool bUseAlphaAsMono, bool bIsSRGB);
 };
 
 class FDatasmithMaxBitmapToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxAutodeskBitmapToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported(const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap) const override;
-	virtual IDatasmithMaterialExpression* Convert(FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert(FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap) override;
 };
 
 class FDatasmithMaxNormalToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 	virtual DatasmithMaxTexmapParser::FNormalMapParameters ParseMap( Texmap* InTexmap );
 };
 
@@ -44,49 +44,49 @@ class FDatasmithMaxRGBMultiplyToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxRGBTintToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxMixToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxFalloffToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxNoiseToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxCompositeToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 class FDatasmithMaxTextureOutputToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 /**
@@ -95,7 +95,7 @@ public:
 class FDatasmithMaxColorCorrectionToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 /**
@@ -105,7 +105,7 @@ class FDatasmithMaxBakeableToUEPbr : public IDatasmithMaxTexmapToUEPbr
 {
 public:
 	virtual bool IsSupported( const FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) const override;
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 };
 
 /**
@@ -118,7 +118,7 @@ public:
 
 	virtual const TCHAR* GetColorParameterName() const;
 
-	virtual IDatasmithMaterialExpression* Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
+	virtual TSharedPtr< IDatasmithMaterialExpression > Convert( FDatasmithMaxMaterialsToUEPbr* MaxMaterialToUEPbr, Texmap* InTexmap ) override;
 	FLinearColor GetColorParameter( Texmap* InTexmap, const TCHAR* ParameterName );
 };
 

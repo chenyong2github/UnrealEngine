@@ -7,21 +7,16 @@
 #include "DatasmithFacadeMaterial.h"
 
 #include "CoreMinimal.h"
+#include "DatasmithMaterialElements.h"
 
-class IDatasmithExpressionInput;
-class IDatasmithExpressionParameter;
 class FDatasmithFacadeKeyValueProperty;
-class IDatasmithMaterialExpression;
-class IDatasmithUEPbrMaterialElement;
-
 class FDatasmithFacadeMaterialExpression;
 
-class DATASMITHFACADE_API FDatasmithFacadeExpressionInput
+class DATASMITHFACADE_API FDatasmithFacadeExpressionInput : public FDatasmithFacadeElement
 {
 public:
-	const TCHAR* GetName() const;
-	void SetName(const TCHAR* InName);
-
+	virtual ~FDatasmithFacadeExpressionInput() = default;
+	
 	/** Returns a new FDatasmithFacadeMaterialExpression pointing to the connected expression, the returned value must be deleted after used, can be nullptr. */
 	FDatasmithFacadeMaterialExpression* GetNewFacadeExpression();
 	void SetExpression( FDatasmithFacadeMaterialExpression* InExpression );
@@ -32,20 +27,11 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeExpressionInput( IDatasmithExpressionInput* InExpressionInput, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: InternalExpressionInput(InExpressionInput)
-		, ReferencedMaterial(InMaterialElement)
-	{}
+	FDatasmithFacadeExpressionInput(
+		const TSharedRef<IDatasmithExpressionInput>& InExpressionInput
+	);
 
-	IDatasmithExpressionInput& GetExpressionInput() { return *InternalExpressionInput; }
-	const IDatasmithExpressionInput& GetExpressionInput() const { return *InternalExpressionInput; }
-
-private:
-
-	IDatasmithExpressionInput* InternalExpressionInput;
-
-	//We hold a shared pointer to the material to make sure it stays valid while a facade objects points to it.
-	TSharedPtr<IDatasmithUEPbrMaterialElement> ReferencedMaterial;
+	TSharedRef<IDatasmithExpressionInput> GetExpressionInput() const;
 };
 
 enum class EDatasmithFacadeMaterialExpressionType : uint64
@@ -74,13 +60,10 @@ DS_CHECK_ENUM_MISMATCH(Texture)
 DS_CHECK_ENUM_MISMATCH(TextureCoordinate)
 #undef DS_CHECK_ENUM_MISMATCH
 
-class DATASMITHFACADE_API FDatasmithFacadeMaterialExpression
+class DATASMITHFACADE_API FDatasmithFacadeMaterialExpression : public FDatasmithFacadeElement
 {
 public:
-
-	/** The name of the expression. Used as parameter name for material instances. */
-	const TCHAR* GetName() const;
-	void SetName( const TCHAR* InName );
+	virtual ~FDatasmithFacadeMaterialExpression() = default;
 
 	EDatasmithFacadeMaterialExpressionType GetExpressionType() const;
 
@@ -102,23 +85,12 @@ public:
 	int32 GetDefaultOutputIndex() const;
 	void SetDefaultOutputIndex( int32 OutputIndex );
 
-	virtual ~FDatasmithFacadeMaterialExpression() = default;
-
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpression( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: InternalMaterialExpression( InMaterialExpression )
-		, ReferencedMaterial( InMaterialElement )
-	{}
+	FDatasmithFacadeMaterialExpression( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression );
 
-	IDatasmithMaterialExpression* GetMaterialExpression() { return InternalMaterialExpression; }
-	const IDatasmithMaterialExpression* GetMaterialExpression() const { return InternalMaterialExpression; }
-
-	IDatasmithMaterialExpression* InternalMaterialExpression;
-
-	//We hold a shared pointer to the material to make sure it stays valid while a facade objects points to it.
-	TSharedPtr<IDatasmithUEPbrMaterialElement> ReferencedMaterial;
+	TSharedRef<IDatasmithMaterialExpression> GetMaterialExpression() const;
 };
 
 /**
@@ -148,8 +120,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpressionBool( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: FDatasmithFacadeMaterialExpression( InMaterialExpression, InMaterialElement )
+	FDatasmithFacadeMaterialExpressionBool( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression )
+		: FDatasmithFacadeMaterialExpression( InMaterialExpression )
 	{}
 };
 
@@ -180,8 +152,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpressionColor( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: FDatasmithFacadeMaterialExpression( InMaterialExpression, InMaterialElement )
+	FDatasmithFacadeMaterialExpressionColor( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression )
+		: FDatasmithFacadeMaterialExpression( InMaterialExpression )
 	{}
 };
 
@@ -197,8 +169,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpressionScalar( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: FDatasmithFacadeMaterialExpression( InMaterialExpression, InMaterialElement )
+	FDatasmithFacadeMaterialExpressionScalar( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression )
+		: FDatasmithFacadeMaterialExpression( InMaterialExpression )
 	{}
 };
 
@@ -228,8 +200,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpressionTexture( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: FDatasmithFacadeMaterialExpression( InMaterialExpression, InMaterialElement )
+	FDatasmithFacadeMaterialExpressionTexture( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression )
+		: FDatasmithFacadeMaterialExpression( InMaterialExpression )
 	{}
 };
 
@@ -248,8 +220,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpressionTextureCoordinate( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: FDatasmithFacadeMaterialExpression( InMaterialExpression, InMaterialElement )
+	FDatasmithFacadeMaterialExpressionTextureCoordinate( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression )
+		: FDatasmithFacadeMaterialExpression( InMaterialExpression )
 	{}
 };
 
@@ -266,8 +238,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpressionFlattenNormal( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: FDatasmithFacadeMaterialExpression( InMaterialExpression, InMaterialElement )
+	FDatasmithFacadeMaterialExpressionFlattenNormal( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression )
+		: FDatasmithFacadeMaterialExpression( InMaterialExpression )
 	{}
 };
 
@@ -289,8 +261,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpressionGeneric( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: FDatasmithFacadeMaterialExpression( InMaterialExpression, InMaterialElement )
+	FDatasmithFacadeMaterialExpressionGeneric( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression )
+		: FDatasmithFacadeMaterialExpression( InMaterialExpression )
 	{}
 };
 
@@ -303,8 +275,8 @@ public:
 #ifdef SWIG_FACADE
 protected:
 #endif
-	FDatasmithFacadeMaterialExpressionFunctionCall( IDatasmithMaterialExpression* InMaterialExpression, const TSharedPtr<IDatasmithUEPbrMaterialElement>& InMaterialElement )
-		: FDatasmithFacadeMaterialExpression( InMaterialExpression, InMaterialElement )
+	FDatasmithFacadeMaterialExpressionFunctionCall( const TSharedRef<IDatasmithMaterialExpression>& InMaterialExpression )
+		: FDatasmithFacadeMaterialExpression( InMaterialExpression )
 	{}
 };
 
@@ -369,7 +341,7 @@ protected:
 
 	FDatasmithFacadeUEPbrMaterial( const TSharedRef<IDatasmithUEPbrMaterialElement>& InMaterialRef );
 
-	IDatasmithMaterialExpression* AddMaterialExpression( const EDatasmithFacadeMaterialExpressionType ExpressionType );
+	TSharedPtr<IDatasmithMaterialExpression> AddMaterialExpression( const EDatasmithFacadeMaterialExpressionType ExpressionType );
 
 	TSharedRef<IDatasmithUEPbrMaterialElement> GetDatasmithUEPbrMaterialElement() const;
 };
@@ -377,47 +349,47 @@ protected:
 template<>
 inline FDatasmithFacadeMaterialExpressionBool FDatasmithFacadeUEPbrMaterial::AddMaterialExpression< FDatasmithFacadeMaterialExpressionBool >()
 {
-	return FDatasmithFacadeMaterialExpressionBool( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::ConstantBool), GetDatasmithUEPbrMaterialElement() );
+	return FDatasmithFacadeMaterialExpressionBool( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::ConstantBool).ToSharedRef() );
 }
 
 template<>
 inline FDatasmithFacadeMaterialExpressionColor FDatasmithFacadeUEPbrMaterial::AddMaterialExpression< FDatasmithFacadeMaterialExpressionColor >()
 {
-	return FDatasmithFacadeMaterialExpressionColor( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::ConstantColor ), GetDatasmithUEPbrMaterialElement() );
+	return FDatasmithFacadeMaterialExpressionColor( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::ConstantColor ).ToSharedRef());
 }
 
 template<>
 inline FDatasmithFacadeMaterialExpressionFlattenNormal FDatasmithFacadeUEPbrMaterial::AddMaterialExpression< FDatasmithFacadeMaterialExpressionFlattenNormal >()
 {
-	return FDatasmithFacadeMaterialExpressionFlattenNormal( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::FlattenNormal ), GetDatasmithUEPbrMaterialElement() );
+	return FDatasmithFacadeMaterialExpressionFlattenNormal( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::FlattenNormal ).ToSharedRef());
 }
 
 template<>
 inline FDatasmithFacadeMaterialExpressionFunctionCall FDatasmithFacadeUEPbrMaterial::AddMaterialExpression< FDatasmithFacadeMaterialExpressionFunctionCall >()
 {
-	return FDatasmithFacadeMaterialExpressionFunctionCall( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::FunctionCall ), GetDatasmithUEPbrMaterialElement() );
+	return FDatasmithFacadeMaterialExpressionFunctionCall( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::FunctionCall ).ToSharedRef());
 }
 
 template<>
 inline FDatasmithFacadeMaterialExpressionGeneric FDatasmithFacadeUEPbrMaterial::AddMaterialExpression< FDatasmithFacadeMaterialExpressionGeneric >()
 {
-	return FDatasmithFacadeMaterialExpressionGeneric( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::Generic ), GetDatasmithUEPbrMaterialElement() );
+	return FDatasmithFacadeMaterialExpressionGeneric( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::Generic ).ToSharedRef());
 }
 
 template<>
 inline FDatasmithFacadeMaterialExpressionScalar FDatasmithFacadeUEPbrMaterial::AddMaterialExpression< FDatasmithFacadeMaterialExpressionScalar >()
 {
-	return FDatasmithFacadeMaterialExpressionScalar( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::ConstantScalar ), GetDatasmithUEPbrMaterialElement() );
+	return FDatasmithFacadeMaterialExpressionScalar( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::ConstantScalar ).ToSharedRef());
 }
 
 template<>
 inline FDatasmithFacadeMaterialExpressionTexture FDatasmithFacadeUEPbrMaterial::AddMaterialExpression< FDatasmithFacadeMaterialExpressionTexture >()
 {
-	return FDatasmithFacadeMaterialExpressionTexture( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::Texture ), GetDatasmithUEPbrMaterialElement() );
+	return FDatasmithFacadeMaterialExpressionTexture( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::Texture ).ToSharedRef() );
 }
 
 template<>
 inline FDatasmithFacadeMaterialExpressionTextureCoordinate FDatasmithFacadeUEPbrMaterial::AddMaterialExpression< FDatasmithFacadeMaterialExpressionTextureCoordinate >()
 {
-	return FDatasmithFacadeMaterialExpressionTextureCoordinate( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::TextureCoordinate ), GetDatasmithUEPbrMaterialElement() );
+	return FDatasmithFacadeMaterialExpressionTextureCoordinate( AddMaterialExpression( EDatasmithFacadeMaterialExpressionType::TextureCoordinate ).ToSharedRef() );
 }

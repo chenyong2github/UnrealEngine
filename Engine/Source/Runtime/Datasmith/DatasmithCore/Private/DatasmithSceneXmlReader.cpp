@@ -1659,7 +1659,7 @@ void FDatasmithSceneXmlReader::ParseDecalMaterial(FXmlNode* InNode, TSharedPtr< 
 }
 
 template< typename ExpressionInputType >
-void ParseExpressionInput(const FXmlNode* InNode, TSharedPtr< IDatasmithUEPbrMaterialElement >& OutElement, ExpressionInputType& ExpressionInput)
+void ParseExpressionInput(const FXmlNode* InNode, const TSharedPtr< IDatasmithUEPbrMaterialElement >& OutElement, const TSharedPtr< ExpressionInputType >& ExpressionInput)
 {
 	if ( !InNode )
 	{
@@ -1678,7 +1678,7 @@ void ParseExpressionInput(const FXmlNode* InNode, TSharedPtr< IDatasmithUEPbrMat
 
 		int32 OutputIndex = FCString::Atoi( *InNode->GetAttribute( TEXT("OutputIndex") ) );
 
-		IDatasmithMaterialExpression* Expression = OutElement->GetExpression( ExpressionIndex );
+		TSharedPtr< IDatasmithMaterialExpression > Expression = OutElement->GetExpression( ExpressionIndex );
 
 		if ( Expression )
 		{
@@ -1707,22 +1707,20 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 		{
 			if ( ChildNode->GetTag() == TEXT("Texture") )
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::Texture );
+				TSharedPtr< IDatasmithMaterialExpressionTexture > TextureExpression = OutElement->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
 
-				if ( Expression )
+				if ( TextureExpression )
 				{
-					Expression->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
-					IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( Expression );
+					TextureExpression->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
 					TextureExpression->SetTexturePathName( *ChildNode->GetAttribute( TEXT("PathName") ) );
 				}
 			}
 			else if ( ChildNode->GetTag() == TEXT("TextureCoordinate") )
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::TextureCoordinate );
+				TSharedPtr< IDatasmithMaterialExpressionTextureCoordinate > TextureCoordinateExpression = OutElement->AddMaterialExpression< IDatasmithMaterialExpressionTextureCoordinate >();
 
-				if ( Expression )
+				if ( TextureCoordinateExpression )
 				{
-					IDatasmithMaterialExpressionTextureCoordinate* TextureCoordinateExpression = static_cast< IDatasmithMaterialExpressionTextureCoordinate* >( Expression );
 					TextureCoordinateExpression->SetCoordinateIndex( DatasmithSceneXmlReaderImpl::ValueFromString< int32 >( ChildNode->GetAttribute( TEXT("Index") ) ) );
 					TextureCoordinateExpression->SetUTiling( DatasmithSceneXmlReaderImpl::ValueFromString< float >( ChildNode->GetAttribute( TEXT("UTiling") ) ) );
 					TextureCoordinateExpression->SetVTiling( DatasmithSceneXmlReaderImpl::ValueFromString< float >( ChildNode->GetAttribute( TEXT("VTiling") ) ) );
@@ -1730,65 +1728,50 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 			}
 			else if ( ChildNode->GetTag() == TEXT("FlattenNormal") )
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::FlattenNormal );
-
-				if ( Expression )
-				{
-					IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< IDatasmithMaterialExpressionFlattenNormal* >( Expression );
-				}
+				OutElement->AddMaterialExpression< IDatasmithMaterialExpressionFlattenNormal >();
 			}
 			else if ( ChildNode->GetTag() == TEXT("Bool") )
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantBool );
+				TSharedPtr< IDatasmithMaterialExpressionBool > ConstantBool = OutElement->AddMaterialExpression< IDatasmithMaterialExpressionBool >();
 
-				if ( Expression )
+				if ( ConstantBool )
 				{
-					Expression->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
-
-					IDatasmithMaterialExpressionBool* ConstantBool = static_cast< IDatasmithMaterialExpressionBool* >( Expression );
-
+					ConstantBool->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
 					ConstantBool->GetBool() = DatasmithSceneXmlReaderImpl::ValueFromString< bool >( ChildNode->GetAttribute( TEXT("Constant") ) );
 				}
 			}
 			else if ( ChildNode->GetTag() == TEXT("Color") )
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantColor );
+				TSharedPtr< IDatasmithMaterialExpressionColor > ConstantColor = OutElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 
-				if ( Expression )
+				if ( ConstantColor )
 				{
-					Expression->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
-
-					IDatasmithMaterialExpressionColor* ConstantColor = static_cast< IDatasmithMaterialExpressionColor* >( Expression );
-
+					ConstantColor->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
 					ConstantColor->GetColor() = DatasmithSceneXmlReaderImpl::ValueFromString< FLinearColor >( ChildNode->GetAttribute( TEXT("Constant") ) );
 				}
 			}
 			else if ( ChildNode->GetTag() == TEXT("Scalar") )
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::ConstantScalar );
+				TSharedPtr< IDatasmithMaterialExpressionScalar > ConstantScalar = OutElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 
-				if ( Expression )
+				if ( ConstantScalar )
 				{
-					Expression->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
-
-					IDatasmithMaterialExpressionScalar* ConstantScalar = static_cast< IDatasmithMaterialExpressionScalar* >( Expression );
-
+					ConstantScalar->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
 					ConstantScalar->GetScalar() = DatasmithSceneXmlReaderImpl::ValueFromString< float >( ChildNode->GetAttribute( TEXT("Constant") ) );
 				}
 			}
 			else if ( ChildNode->GetTag() == TEXT("FunctionCall") )
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::FunctionCall );
+				TSharedPtr< IDatasmithMaterialExpressionFunctionCall > FunctionCall = OutElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
 
-				if ( Expression )
+				if ( FunctionCall )
 				{
-					IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast< IDatasmithMaterialExpressionFunctionCall* >( Expression );
 					FunctionCall->SetFunctionPathName( *ChildNode->GetAttribute( TEXT("Function") ) );
 				}
 			}
 			else if ( ChildNode->GetTag() == TEXT("Custom") )
 			{
-				if ( IDatasmithMaterialExpressionCustom* Expression = OutElement->AddMaterialExpression<IDatasmithMaterialExpressionCustom>() )
+				if ( TSharedPtr< IDatasmithMaterialExpressionCustom > Expression = OutElement->AddMaterialExpression< IDatasmithMaterialExpressionCustom >() )
 				{
 					for (const FXmlNode* CustomChildNode : ChildNode->GetChildrenNodes())
 					{
@@ -1830,13 +1813,11 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 			}
 			else
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->AddMaterialExpression( EDatasmithMaterialExpressionType::Generic );
+				TSharedPtr< IDatasmithMaterialExpressionGeneric > GenericExpression = OutElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 
-				if ( Expression )
+				if ( GenericExpression )
 				{
-					IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( Expression );
 					GenericExpression->SetName( *ChildNode->GetAttribute( TEXT("Name") ) );
-
 					GenericExpression->SetExpressionName( *ChildNode->GetTag() );
 					ParseKeyValueProperties( ChildNode, *GenericExpression );
 				}
@@ -1849,18 +1830,18 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 		{
 			if ( ChildNode->GetTag() == TEXT("FlattenNormal") )
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->GetExpression( ExpressionIndex );
+				TSharedPtr< IDatasmithMaterialExpression > Expression = OutElement->GetExpression( ExpressionIndex );
 
 				if ( Expression )
 				{
-					IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< IDatasmithMaterialExpressionFlattenNormal* >( Expression );
+					TSharedPtr< IDatasmithMaterialExpressionFlattenNormal > FlattenNormal = StaticCastSharedPtr< IDatasmithMaterialExpressionFlattenNormal >( Expression );
 
 					{
-						FXmlNode* const* NormalNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetNormal().GetName()]( FXmlNode* Node ) -> bool
+						FXmlNode* const* NormalNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetNormal()->GetName()]( FXmlNode* Node ) -> bool
 						{
 							return Node->GetTag() == InputName;
 						} );
-						FXmlNode* const* FlatnessNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetFlatness().GetName()]( FXmlNode* Node ) -> bool
+						FXmlNode* const* FlatnessNode = Algo::FindByPredicate( ChildNode->GetChildrenNodes(), [InputName = FlattenNormal->GetFlatness()->GetName()]( FXmlNode* Node ) -> bool
 						{
 							return Node->GetTag() == InputName;
 						} );
@@ -1872,20 +1853,18 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 			}
 			else // Generic
 			{
-				IDatasmithMaterialExpression* Expression = OutElement->GetExpression( ExpressionIndex );
+				TSharedPtr< IDatasmithMaterialExpressionGeneric > GenericExpression = StaticCastSharedPtr< IDatasmithMaterialExpressionGeneric >( OutElement->GetExpression( ExpressionIndex ) );
 
-				if ( Expression )
+				if ( GenericExpression )
 				{
-					IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( Expression );
-
 					for ( const FXmlNode* InputChildNode : ChildNode->GetChildrenNodes() )
 					{
 						const FString& NameAttribute = InputChildNode->GetAttribute(TEXT("Name"));
 						int32 InputIndex = DatasmithSceneXmlReaderImpl::ValueFromString< int32 >( NameAttribute.IsEmpty() ? InputChildNode->GetTag() : NameAttribute );
 
-						if (IDatasmithExpressionInput* Input = GenericExpression->GetInput( InputIndex ))
+						if (TSharedPtr<IDatasmithExpressionInput> Input = GenericExpression->GetInput( InputIndex ))
 						{
-							ParseExpressionInput( InputChildNode, OutElement, *Input );
+							ParseExpressionInput( InputChildNode, OutElement, Input );
 						}
 					}
 				}
@@ -1897,9 +1876,9 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 
 	const TArray<FXmlNode*>& ChildrenNodes = InNode->GetChildrenNodes();
 
-	auto TryConnectMaterialInput = [&ChildrenNodes, &OutElement](IDatasmithExpressionInput& Input)
+	auto TryConnectMaterialInput = [&ChildrenNodes, &OutElement](const TSharedPtr<IDatasmithExpressionInput>& Input)
 	{
-		const TCHAR* InputName = Input.GetName();
+		const TCHAR* InputName = Input->GetName();
 		for (FXmlNode* XmlNode : ChildrenNodes)
 		{
 			if (XmlNode && (XmlNode->GetAttribute(TEXT("Name")) == InputName || XmlNode->GetTag() == InputName ))

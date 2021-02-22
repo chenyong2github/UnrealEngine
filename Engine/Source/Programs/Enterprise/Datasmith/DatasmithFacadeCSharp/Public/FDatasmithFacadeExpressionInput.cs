@@ -11,12 +11,10 @@
 //------------------------------------------------------------------------------
 
 
-public class FDatasmithFacadeExpressionInput : global::System.IDisposable {
+public class FDatasmithFacadeExpressionInput : FDatasmithFacadeElement {
   private global::System.Runtime.InteropServices.HandleRef swigCPtr;
-  protected bool swigCMemOwn;
 
-  internal FDatasmithFacadeExpressionInput(global::System.IntPtr cPtr, bool cMemoryOwn) {
-    swigCMemOwn = cMemoryOwn;
+  internal FDatasmithFacadeExpressionInput(global::System.IntPtr cPtr, bool cMemoryOwn) : base(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeExpressionInput_SWIGUpcast(cPtr), cMemoryOwn) {
     swigCPtr = new global::System.Runtime.InteropServices.HandleRef(this, cPtr);
   }
 
@@ -24,16 +22,7 @@ public class FDatasmithFacadeExpressionInput : global::System.IDisposable {
     return (obj == null) ? new global::System.Runtime.InteropServices.HandleRef(null, global::System.IntPtr.Zero) : obj.swigCPtr;
   }
 
-  ~FDatasmithFacadeExpressionInput() {
-    Dispose(false);
-  }
-
-  public void Dispose() {
-    Dispose(true);
-    global::System.GC.SuppressFinalize(this);
-  }
-
-  protected virtual void Dispose(bool disposing) {
+  protected override void Dispose(bool disposing) {
     lock(this) {
       if (swigCPtr.Handle != global::System.IntPtr.Zero) {
         if (swigCMemOwn) {
@@ -42,16 +31,8 @@ public class FDatasmithFacadeExpressionInput : global::System.IDisposable {
         }
         swigCPtr = new global::System.Runtime.InteropServices.HandleRef(null, global::System.IntPtr.Zero);
       }
+      base.Dispose(disposing);
     }
-  }
-
-  public string GetName() {
-    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeExpressionInput_GetName(swigCPtr));
-    return ret;
-  }
-
-  public void SetName(string InName) {
-    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeExpressionInput_SetName(swigCPtr, InName);
   }
 
   public FDatasmithFacadeMaterialExpression GetExpression() {

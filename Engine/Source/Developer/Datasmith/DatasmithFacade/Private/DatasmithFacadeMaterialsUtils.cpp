@@ -108,20 +108,27 @@ void FDatasmithFacadeMaterialsUtils::FWeightedMaterialExpressionParameters::SetT
 	TextureMode = InTextureMode;
 }
 
-void FDatasmithFacadeMaterialsUtils::FWeightedMaterialExpressionParameters::SetExpression( const FDatasmithFacadeMaterialExpression& InExpression )
+void FDatasmithFacadeMaterialsUtils::FWeightedMaterialExpressionParameters::SetExpression( const FDatasmithFacadeMaterialExpression* InExpression )
 {
-	Expression = InExpression;
+	if ( InExpression )
+	{
+		Expression = InExpression->GetMaterialExpression();
+	}
+	else
+	{
+		Expression.Reset();
+	}
 }
 
 
 FDatasmithFacadeMaterialExpressionTexture* FDatasmithFacadeMaterialsUtils::CreateNewFacadeTextureExpression( FDatasmithFacadeUEPbrMaterial& MaterialElement, const TCHAR* ParameterName, const TCHAR* TextureMapPath, const FUVEditParameters& UVParameters )
 {
 	TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElementRef = StaticCastSharedRef<IDatasmithUEPbrMaterialElement>( MaterialElement.GetDatasmithBaseMaterial() );
-	IDatasmithMaterialExpressionTexture* Expression = DatasmithMaterialsUtils::CreateTextureExpression( MaterialElementRef, ParameterName, TextureMapPath, UVParameters.UVEditParameters );
+	TSharedPtr<IDatasmithMaterialExpressionTexture> Expression = DatasmithMaterialsUtils::CreateTextureExpression( MaterialElementRef, ParameterName, TextureMapPath, UVParameters.UVEditParameters );
 
 	if ( Expression )
 	{
-		return new FDatasmithFacadeMaterialExpressionTexture( Expression, MaterialElementRef );
+		return new FDatasmithFacadeMaterialExpressionTexture( Expression.ToSharedRef());
 	}
 
 	return nullptr;
@@ -132,14 +139,14 @@ FDatasmithFacadeMaterialExpression* FDatasmithFacadeMaterialsUtils::CreateNewFac
 	TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElementRef = StaticCastSharedRef<IDatasmithUEPbrMaterialElement>( MaterialElement.GetDatasmithBaseMaterial() );
 	TOptional<FLinearColor>& ColorParam = WeightedExpressionParameter.Color;
 	TOptional<float>& ScalarParam = WeightedExpressionParameter.Scalar;
-	IDatasmithMaterialExpression* Expression = WeightedExpressionParameter.Expression.GetMaterialExpression();
+	TSharedPtr<IDatasmithMaterialExpression>& Expression = WeightedExpressionParameter.Expression;
 	float& Weight = WeightedExpressionParameter.Weight;
 	EDatasmithTextureMode TextureMode = static_cast<EDatasmithTextureMode>( WeightedExpressionParameter.TextureMode );
 
-	IDatasmithMaterialExpression* ResultExpression = DatasmithMaterialsUtils::CreateWeightedMaterialExpression( MaterialElementRef, ParameterName, ColorParam, ScalarParam, Expression, Weight, TextureMode );
+	TSharedPtr<IDatasmithMaterialExpression> ResultExpression = DatasmithMaterialsUtils::CreateWeightedMaterialExpression( MaterialElementRef, ParameterName, ColorParam, ScalarParam, Expression, Weight, TextureMode );
 	if ( ResultExpression )
 	{
-		return new FDatasmithFacadeMaterialExpression( ResultExpression, MaterialElementRef );
+		return new FDatasmithFacadeMaterialExpression( ResultExpression.ToSharedRef() );
 	}
 
 	return nullptr;

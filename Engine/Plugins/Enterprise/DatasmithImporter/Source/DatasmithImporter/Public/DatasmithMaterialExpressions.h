@@ -149,17 +149,17 @@ private:
 	static UMaterialExpressionMaterialFunctionCall* BlendFunctions(UMaterial* UnrealMaterial, const FDatasmithAssetsImportContext& AssetsContext, const TSharedPtr< IDatasmithShaderElement >& ShaderTop,
 																   UMaterialExpressionMaterialFunctionCall* CallTop, UMaterialExpressionMaterialFunctionCall* CallBase, UMaterialFunction* BlendFunc);
 
-	static UMaterialExpression* CreateExpression( class IDatasmithMaterialExpression* MaterialExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction );
-	static UMaterialExpression* CreateTextureExpression( class IDatasmithMaterialExpressionTexture& DatasmithTextureExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static UMaterialExpression* CreateTextureCoordinateExpression( class IDatasmithMaterialExpressionTextureCoordinate& DatasmithTextureCoordinateExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static UMaterialExpression* CreateFlattenNormalExpression( class IDatasmithMaterialExpressionFlattenNormal& DatasmithFlattenNormal, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static UMaterialExpression* CreateBoolExpression( class IDatasmithMaterialExpressionBool& DatasmithBool, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static UMaterialExpression* CreateColorExpression( class IDatasmithMaterialExpressionColor& DatasmithColor, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static UMaterialExpression* CreateScalarExpression( class IDatasmithMaterialExpressionScalar& DatasmithScalar, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static UMaterialExpression* CreateGenericExpression( class IDatasmithMaterialExpressionGeneric& DatasmithGeneric, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static UMaterialExpression* CreateFunctionCallExpression( class IDatasmithMaterialExpressionFunctionCall& DatasmithFunctionCall, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
-	static UMaterialExpression* CreateCustomExpression( class IDatasmithMaterialExpressionCustom& DatasmithCustom, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateExpression( const TSharedPtr< class IDatasmithMaterialExpression >& MaterialExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction );
+	static UMaterialExpression* CreateTextureExpression( const TSharedPtr< class IDatasmithMaterialExpressionTexture >& DatasmithTextureExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateTextureCoordinateExpression( const TSharedPtr< class IDatasmithMaterialExpressionTextureCoordinate >& DatasmithTextureCoordinateExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateFlattenNormalExpression( const TSharedPtr< class IDatasmithMaterialExpressionFlattenNormal >& DatasmithFlattenNormal, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateBoolExpression( const TSharedPtr< class IDatasmithMaterialExpressionBool >& DatasmithBool, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateColorExpression( const TSharedPtr< class IDatasmithMaterialExpressionColor >& DatasmithColor, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateScalarExpression( const TSharedPtr< class IDatasmithMaterialExpressionScalar >& DatasmithScalar, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateGenericExpression( const TSharedPtr< class IDatasmithMaterialExpressionGeneric >& DatasmithGeneric, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateFunctionCallExpression( const TSharedPtr< class IDatasmithMaterialExpressionFunctionCall >& DatasmithFunctionCall, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
+	static UMaterialExpression* CreateCustomExpression( const TSharedPtr< class IDatasmithMaterialExpressionCustom >& DatasmithCustom, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction);
 
-	static void ConnectExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions, class IDatasmithMaterialExpression* MaterialExpression, FExpressionInput* MaterialInput, int32 OutputIndex);
-	static void ConnectAnyExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions, class IDatasmithMaterialExpression& DatasmithExpression, FExpressionInput* ExpressionInput, int32 OutputIndex);
+	static void ConnectExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions, const TSharedPtr<class IDatasmithMaterialExpression>& DatasmithExpression, FExpressionInput* MaterialInput, int32 OutputIndex);
+	static void ConnectAnyExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions, const TSharedPtr<class IDatasmithMaterialExpression>& DatasmithExpression, FExpressionInput* ExpressionInput, int32 OutputIndex);
 };
