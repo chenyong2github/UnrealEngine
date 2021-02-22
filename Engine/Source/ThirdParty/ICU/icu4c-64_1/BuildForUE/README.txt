@@ -22,3 +22,17 @@ Note: Building ICU data requires that you have Python 3 installed and available 
  4) Run BuildICUData.bat from the root of your ICU folder.
  5) Copy the built ICU data from icu-data to Engine/Content/Internationalization (these are used by packaged projects).
  6) Copy the ICU data folder from the "All" data set to directly under the Engine/Content/Internationalization (this is used by the editor).
+
+=== UPDATING TIMEZONE DATA (adapted from https://unicode-org.github.io/icu/userguide/datetime/timezone/#icu4c-tz-update-with-drop-in-res-files-icu-54-and-newer) ===
+The ICU timezone data from IANA (colloquially, tzdata) gets updated much more frequently than the monolithic CLDR data embedded in ICU.
+To update this data in engine content in-place (for icu4c versions > 54.0):
+
+1) Sync the latest tzdata from the icu-data repo (the most recent folder in https://github.com/unicode-org/icu-data/tree/master/tzdata/icunew)
+	Note: we are specifically looking at the "44" (for ICU 4.4) folder inside of here.
+2) Replace "metaZones.res", "timezoneTypes.res", "windowsZones.res", and "zoneinfo64.res" in each of the filtered data directories in Engine/Content/Internationalization (including the base version the editor uses) for your icu4c version with the copies from the repo's "le" (little-endian) folder.
+	Note: these binary files can be used directly (as long as icu4c 54.0 or greater is being used) and do not need to be regenerated or filtered; each filtered content set receives the whole resource.
+
+	ex:
+		Engine/Content/Internationalization/All/icudt64l/(metaZones|timezoneTypes|windowsZones|zoneinfo64).res
+		Engine/Content/Internationalization/icudt64l/(metaZones|timezoneTypes|windowsZones|zoneinfo64).res
+		et al.
