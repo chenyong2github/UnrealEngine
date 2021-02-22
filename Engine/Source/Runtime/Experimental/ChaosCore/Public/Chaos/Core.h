@@ -32,6 +32,8 @@ namespace Chaos
 	template <typename T>
 	using TVec4 = TVector<T, 4>;
 
-	/** Core version string for Chaos data. Any DDC builder dependent on Chaos for serialization should depend on this version */
-	static const FString ChaosVersionString = TEXT("036D358A-2660-4CF7-A898-0561B51DC997");
+	// NOTE: if you get a merge conflict on the GUID, you must replace it with a new GUID - do not accept the source or target
+	// or you will likely get DDC version conflicts resulting in crashes during load.
+	// Core version string for Chaos data. Any DDC builder dependent on Chaos for serialization should depend on this version
+	static const FString ChaosVersionString = TEXT("D73FE7CB-C9B6-4684-BA41-D069887656D2");
 }

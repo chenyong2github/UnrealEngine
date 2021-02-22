@@ -14,6 +14,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/PhysicsObjectVersion.h"
 //#include "UObject/DownstreamObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 namespace Chaos
 {
@@ -588,6 +589,7 @@ namespace Chaos
 			Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 			//Ar.UsingCustomVersion(Downstream::GUID);
 			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
+			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 			FImplicitObject::SerializeImp(Ar);
 
 			if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::ConvexUsesTPlaneConcrete)
@@ -614,9 +616,11 @@ namespace Chaos
 			// downstream version and remove this todo. Also uncomment the UsingCustomVersion at the start of this function
 			// and the include at the top of the file.
 			//
+			// This is a mess because the change was back-integrated to 2 different streams. Be careful...
 			bool bConvexVerticesNewFormatUE4 = (Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::ConvexUsesVerticesArray);
 			bool bConvexVerticesNewFormatDownstream = false;
-			bool bConvexVerticesNewFormat = bConvexVerticesNewFormatUE4 || bConvexVerticesNewFormatDownstream;
+			bool bConvexVerticesNewFormatFN = (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::ChaosConvexVariableStructureDataAndVerticesArray);
+			bool bConvexVerticesNewFormat = bConvexVerticesNewFormatUE4 || bConvexVerticesNewFormatDownstream || bConvexVerticesNewFormatFN;
 
 			if (!bConvexVerticesNewFormat)
 			{

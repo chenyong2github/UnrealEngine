@@ -30,7 +30,7 @@ namespace ChaosTest
 		TArray<TPlaneConcrete<FReal, 3>> Planes;
 		TArray<TArray<int32>> FaceVertices;
 		TArray<Chaos::FVec3> SurfaceParticles;
-		FAABB3 LocalBounds;
+		TAABB<FReal, 3> LocalBounds;
 
 		FConvexBuilder::Build(Particles, Planes, FaceVertices, SurfaceParticles, LocalBounds);
 		FConvexBuilder::MergeFaces(Planes, FaceVertices, SurfaceParticles, 1.0f);

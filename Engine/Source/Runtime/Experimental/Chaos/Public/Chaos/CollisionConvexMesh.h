@@ -358,7 +358,7 @@ namespace Chaos
 			UE_CLOG(OutVertices.Num() == 0, LogChaos, Warning, TEXT("Convex hull generation produced zero convex particles, collision will fail for this primitive."));
 		}
 
-		static void BuildConvexHull(const TArray<FVec3>& InVertices, TArray<TVector<int32, 3>>& OutIndices, const Params& InParams = Params())
+		static void BuildConvexHull(const TArray<FVec3>& InVertices, TArray<TVec3<int32>>& OutIndices, const Params& InParams = Params())
 		{
 			OutIndices.Reset();
 			FMemPool Pool;
