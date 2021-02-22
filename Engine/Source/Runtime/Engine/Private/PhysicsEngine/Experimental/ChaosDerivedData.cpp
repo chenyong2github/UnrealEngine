@@ -59,6 +59,20 @@ const TCHAR* FChaosDerivedDataCooker::GetVersionString() const
 	return *Chaos::ChaosVersionString;
 }
 
+FString FChaosDerivedDataCooker::GetDebugContextString() const
+{
+	if (Setup)
+	{
+		UObject* Outer = Setup->GetOuter();
+		if (Outer)
+		{
+			return Outer->GetFullName();
+		}
+	}
+
+	return TEXT("Unknown Context");
+}
+
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const
 {
 	FString SetupGeometryKey(TEXT("INVALID"));

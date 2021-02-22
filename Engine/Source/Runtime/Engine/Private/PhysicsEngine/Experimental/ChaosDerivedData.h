@@ -50,6 +50,7 @@ public:
 	virtual FString GetPluginSpecificCacheKeySuffix() const override;
 	virtual bool IsBuildThreadsafe() const override;
 	virtual bool Build(TArray<uint8>& OutData) override;
+	virtual FString GetDebugContextString() const override;
 	//End FDerivedDataPluginInterface Interface
 
 	FChaosDerivedDataCooker(UBodySetup* InSetup, FName InFormat, bool bUseRefHolder = true);
