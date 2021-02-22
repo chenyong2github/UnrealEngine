@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Common.ush"
+#include "SceneData.ush"
 
 #if defined(GPUCULL_TODO)
 float3 TransformLocalToWorld(float3 LocalPosition, float4x4 LocalToWorld)

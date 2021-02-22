@@ -4,7 +4,6 @@
 	LocalVertexFactory.usf: Local vertex factory shader code.
 =============================================================================*/
 
-#include "SceneData.ush"
 #include "VertexFactoryCommon.ush"
 #include "LocalVertexFactoryCommon.ush"
 #include "LightmapData.ush"

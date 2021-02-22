@@ -632,6 +632,10 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 #endif // 1
 #endif // 0
 
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Result.PrimitiveId = Intermediates.SceneData.PrimitiveId;
+#endif
+
 	return Result;
 }
 
@@ -910,6 +914,10 @@ FVertexFactoryInterpolantsVSToDS VertexFactoryInterpolate(FVertexFactoryInterpol
 	TESSELLATION_INTERPOLATE_MEMBER(TangentToWorld0);
 	TESSELLATION_INTERPOLATE_MEMBER(TangentToWorld2);
 	TESSELLATION_INTERPOLATE_MEMBER(CalculatedLOD);
+#endif
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	O.InterpolantsVSToPS.PrimitiveId = a.InterpolantsVSToPS.PrimitiveId;
 #endif
 
 	return O;
