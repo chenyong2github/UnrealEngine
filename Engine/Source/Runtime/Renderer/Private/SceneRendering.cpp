@@ -2651,11 +2651,17 @@ void FSceneRenderer::InitFXSystem()
 	}
 }
 
+#if WITH_MGPU
+DECLARE_GPU_STAT_NAMED(CrossGPUTransfers, TEXT("Cross GPU Tranfer"));
+#endif // WITH_MGPU
+
 void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask RenderTargetGPUMask, FRDGTextureRef ViewFamilyTexture)
 {
 #if WITH_MGPU
 	if (ViewFamily.bMultiGPUForkAndJoin)
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, CrossGPUTransfers);
+
 		// A readback pass is the closest analog to what this is doing. There isn't a way to express cross-GPU transfers via the RHI barrier API.
 		AddReadbackTexturePass(GraphBuilder, RDG_EVENT_NAME("CrossGPUTransfers"), ViewFamilyTexture, 
 			[this, RenderTargetGPUMask, ViewFamilyTexture] (FRHICommandListImmediate& RHICmdList)

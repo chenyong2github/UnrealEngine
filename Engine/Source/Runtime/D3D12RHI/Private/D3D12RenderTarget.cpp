@@ -514,6 +514,14 @@ void FD3D12DynamicRHI::RHITransferTexture(FRHITexture2D* TextureRHI, FIntRect Re
 {
 	FD3D12Adapter& Adapter = GetAdapter();
 
+	// Could be back buffer reference texture, so get the correct D3D12 texture here
+	// We know already that it's a FD3D12Texture2D so cast is safe
+	if (TextureRHI->GetFlags() & TexCreate_Presentable)
+	{
+		FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)TextureRHI;
+		TextureRHI = BufferBufferReferenceTexture->GetBackBufferTexture()->GetTexture2D();
+	}
+
 	FD3D12Texture2D* SrcTexture2D = ResourceCast(TextureRHI->GetTexture2D(), SrcGPUIndex);
 	FD3D12Texture2D* DestTexture2D = ResourceCast(TextureRHI->GetTexture2D(), DestGPUIndex);
 
