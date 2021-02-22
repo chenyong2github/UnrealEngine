@@ -784,6 +784,9 @@ void FNiagaraScriptStatsViewModel::BuildShaderPlatformDetails()
 	ValidShaderPlatforms.Add(SP_METAL_SM5);
 	ValidShaderPlatforms.Add(SP_METAL);
 	ValidShaderPlatforms.Add(SP_METAL_MRT);
+	ValidShaderPlatforms.Add(SP_SWITCH);
+	ValidShaderPlatforms.Add(SP_SWITCH_FORWARD);
+
 	for (int32 iPlatform = SP_StaticPlatform_First; iPlatform <= SP_StaticPlatform_Last; ++iPlatform)
 	{
 		const EShaderPlatform ShaderPlatform = (EShaderPlatform)iPlatform;
