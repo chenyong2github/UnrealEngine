@@ -226,7 +226,7 @@ FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 TArray<FRHIResource::ResourcesToDelete> FRHIResource::DeferredDeletionQueue;
 uint32 FRHIResource::CurrentFrame = 0;
 RHI_API FDrawCallCategoryName* FDrawCallCategoryName::Array[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
-RHI_API int32 FDrawCallCategoryName::DisplayCounts[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
+RHI_API int32 FDrawCallCategoryName::DisplayCounts[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY][MAX_NUM_GPUS];
 RHI_API int32 FDrawCallCategoryName::NumCategory = 0;
 
 FString FVertexElement::ToString() const
@@ -902,11 +902,11 @@ RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = 
 // simple stats about draw calls. GNum is the previous frame and 
 // GCurrent is the current frame.
 // GCurrentNumDrawCallsRHIPtr points to the drawcall counter to increment
-RHI_API int32 GCurrentNumDrawCallsRHI = 0;
-RHI_API int32 GNumDrawCallsRHI = 0;
-RHI_API int32* GCurrentNumDrawCallsRHIPtr = &GCurrentNumDrawCallsRHI;
-RHI_API int32 GCurrentNumPrimitivesDrawnRHI = 0;
-RHI_API int32 GNumPrimitivesDrawnRHI = 0;
+RHI_API int32 GCurrentNumDrawCallsRHI[MAX_NUM_GPUS] = {};
+RHI_API int32 GNumDrawCallsRHI[MAX_NUM_GPUS] = {};
+RHI_API int32(*GCurrentNumDrawCallsRHIPtr)[MAX_NUM_GPUS] = &GCurrentNumDrawCallsRHI;
+RHI_API int32 GCurrentNumPrimitivesDrawnRHI[MAX_NUM_GPUS] = {};
+RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS] = {};
 
 RHI_API uint64 GRHITransitionPrivateData_SizeInBytes = 0;
 RHI_API uint64 GRHITransitionPrivateData_AlignInBytes = 0;
@@ -916,7 +916,10 @@ ERHIAccess GRHITextureReadAccessMask = ERHIAccess::ReadOnlyMask;
 /** Called once per frame only from within an RHI. */
 void RHIPrivateBeginFrame()
 {
-	GNumDrawCallsRHI = GCurrentNumDrawCallsRHI;
+	for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
+	{
+		GNumDrawCallsRHI[GPUIndex] = GCurrentNumDrawCallsRHI[GPUIndex];
+	}
 	
 #if CSV_PROFILER
 	// Only copy the display counters every so many frames to keep things more stable.
@@ -933,20 +936,34 @@ void RHIPrivateBeginFrame()
 	for (int32 Index=0; Index<FDrawCallCategoryName::NumCategory; ++Index)
 	{
 		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
-		if (bCopyDisplayFrames)
+		for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
 		{
-			FDrawCallCategoryName::DisplayCounts[Index] = CategoryName->Counter;
+			if (bCopyDisplayFrames)
+			{
+				FDrawCallCategoryName::DisplayCounts[Index][GPUIndex] = CategoryName->Counters[GPUIndex];
+			}
+			GNumDrawCallsRHI[GPUIndex] += CategoryName->Counters[GPUIndex];
 		}
-		GNumDrawCallsRHI += CategoryName->Counter;
-		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), CategoryName->Counter, ECsvCustomStatOp::Set);
-		CategoryName->Counter = 0;
+		// Multi-GPU support : CSV stats do not support MGPU yet
+		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), CategoryName->Counters[0], ECsvCustomStatOp::Set);
+		for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
+		{
+			CategoryName->Counters[GPUIndex] = 0;
+		}
 	}
 #endif
 
-	GNumPrimitivesDrawnRHI = GCurrentNumPrimitivesDrawnRHI;
-	CSV_CUSTOM_STAT(RHI, DrawCalls, GNumDrawCallsRHI, ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT(RHI, PrimitivesDrawn, GNumPrimitivesDrawnRHI, ECsvCustomStatOp::Set);
-	GCurrentNumDrawCallsRHI = GCurrentNumPrimitivesDrawnRHI = 0;
+	for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
+	{
+		GNumPrimitivesDrawnRHI[GPUIndex] = GCurrentNumPrimitivesDrawnRHI[GPUIndex];
+	}
+	// Multi-GPU support : CSV stats do not support MGPU yet
+	CSV_CUSTOM_STAT(RHI, DrawCalls, GNumDrawCallsRHI[0], ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RHI, PrimitivesDrawn, GNumPrimitivesDrawnRHI[0], ECsvCustomStatOp::Set);
+	for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
+	{
+		GCurrentNumDrawCallsRHI[GPUIndex] = GCurrentNumPrimitivesDrawnRHI[GPUIndex] = 0;
+	}
 }
 
 /** Whether to initialize 3D textures using a bulk data (or through a mip update if false). */

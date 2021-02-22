@@ -647,7 +647,7 @@ void SDataprepEditorViewport::UpdatePerfStats()
 
 	extern ENGINE_API float GAverageFPS;
 
-	DrawCallsAccumulator += GNumDrawCallsRHI;
+	DrawCallsAccumulator += GNumDrawCallsRHI[0];
 	++CurrentDrawCalls;
 
 	if (CurrentDrawCalls >= DrawCallsUpdateInterval)
