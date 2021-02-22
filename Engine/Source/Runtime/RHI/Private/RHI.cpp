@@ -872,9 +872,14 @@ bool GRHISupportsBackBufferWithCustomDepthStencil = true;
 bool GRHIIsHDREnabled = false;
 bool GRHISupportsHDROutput = false;
 
-bool GRHISupportsPerDrawVariableRateShading = false;
-bool GRHISupportsImageBasedVariableRateShading = false;
-int32 GRHIVariableRateShadingImageTileSize = 0;
+bool GRHISupportsPipelineVariableRateShading = false;
+bool GRHISupportsAttachmentVariableRateShading = false;
+bool GRHISupportsComplexVariableRateShadingCombinerOps = false;
+bool GRHISupportsVariableRateShadingAttachmentArrayTextures = false;
+int32 GRHIVariableRateShadingImageTileMaxWidth = 0;
+int32 GRHIVariableRateShadingImageTileMaxHeight = 0;
+int32 GRHIVariableRateShadingImageTileMinWidth = 0;
+int32 GRHIVariableRateShadingImageTileMinHeight = 0;
 EVRSImageDataType GRHIVariableRateShadingImageDataType = VRSImage_NotSupported;
 EPixelFormat GRHIVariableRateShadingImageFormat = PF_Unknown;
 bool GRHISupportsLateVariableRateShadingUpdate = false;

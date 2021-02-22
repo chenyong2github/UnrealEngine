@@ -743,18 +743,16 @@ void FVulkanDynamicRHI::InitInstance()
 		GSupportsSeparateRenderTargetBlendState = true;
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-		GRHISupportsImageBasedVariableRateShading = (GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap && Device->GetFragmentDensityMapFeatures().fragmentDensityMap);
+		GRHISupportsAttachmentVariableRateShading = (GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap && Device->GetFragmentDensityMapFeatures().fragmentDensityMap);
 #endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
 		GRHISupportsLateVariableRateShadingUpdate = GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap2 && Device->GetFragmentDensityMap2Features().fragmentDensityMapDeferred;
 #endif
 
-		// NVidia GPUs don't support the Fragment Density Map extension... but they do support this, which can also be used in the same way.
-		// This extension has since been elevated to a KHR extension, but is not available in the current VulkanSDK used in the engine. 
-		// TODO: Update to the KHRShadingRateImage extension when available.
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-		GRHISupportsImageBasedVariableRateShading |= GetDevice()->GetOptionalExtensions().HasNVShadingRateImage && Device->GetShadingRateImageFeaturesNV().shadingRateImage;
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		// TODO: Complete logic when render pass support is complete for the KHR_Fragment_shading_rate extension.
+		// GRHISupportsAttachmentVariableRateShading = GetDevice()->GetOptionalExtensions().HasKHRFragmentShadingRate && Device->GetFragmentShadingRateFeatures().attachmentFragmentShadingRate;
 #endif
 
 		FVulkanPlatform::SetupFeatureLevels();

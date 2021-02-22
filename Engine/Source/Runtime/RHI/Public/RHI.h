@@ -586,13 +586,28 @@ extern RHI_API bool GRHIIsHDREnabled;
 extern RHI_API bool GRHISupportsHDROutput;
 
 /** Whether or not the RHI can support per-draw Variable Rate Shading. */
-extern RHI_API bool GRHISupportsPerDrawVariableRateShading;
+extern RHI_API bool GRHISupportsPipelineVariableRateShading;
 
 /** Whether or not the RHI can support image-based Variable Rate Shading. */
-extern RHI_API bool GRHISupportsImageBasedVariableRateShading;
+extern RHI_API bool GRHISupportsAttachmentVariableRateShading;
 
-/** Size of the tiles in a screen space texture that can be used to drive Variable Rate Shading. */
-extern RHI_API int32 GRHIVariableRateShadingImageTileSize;
+/** Whether or not the RHI can support complex combiner operatations between per-draw (pipeline) VRS and image VRS. */
+extern RHI_API bool GRHISupportsComplexVariableRateShadingCombinerOps;
+
+/** Whether or not the RHI can support shading rate attachments as array textures. */
+extern RHI_API bool GRHISupportsVariableRateShadingAttachmentArrayTextures;
+
+/** Maximum tile width in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GRHIVariableRateShadingImageTileMaxWidth;
+
+/** Maximum tile height in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GRHIVariableRateShadingImageTileMaxHeight;
+
+/** Minimum tile width in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GRHIVariableRateShadingImageTileMinWidth;
+
+/** Minimum tile height in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GRHIVariableRateShadingImageTileMinHeight;
 
 /** Data type contained in a shading-rate image for image-based Variable Rate Shading. */
 extern RHI_API EVRSImageDataType GRHIVariableRateShadingImageDataType;

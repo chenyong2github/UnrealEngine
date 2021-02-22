@@ -869,19 +869,28 @@ void FD3D12DynamicRHI::Init()
 	HRESULT hr = GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS6, &options, sizeof(options));
 	if(hr == S_OK && options.VariableShadingRateTier != D3D12_VARIABLE_SHADING_RATE_TIER_NOT_SUPPORTED)
 	{
-		GRHISupportsPerDrawVariableRateShading = true;		// We have at least tier 1.
+		GRHISupportsPipelineVariableRateShading = true;		// We have at least tier 1.
 		if (options.VariableShadingRateTier == D3D12_VARIABLE_SHADING_RATE_TIER_2)
 		{
-			GRHISupportsImageBasedVariableRateShading = true;
-			GRHIVariableRateShadingImageTileSize = options.ShadingRateImageTileSize;
+			GRHISupportsAttachmentVariableRateShading = true;
+			GRHISupportsComplexVariableRateShadingCombinerOps = true;
+
+			GRHIVariableRateShadingImageTileMinWidth = options.ShadingRateImageTileSize;
+			GRHIVariableRateShadingImageTileMinHeight = options.ShadingRateImageTileSize;
+			GRHIVariableRateShadingImageTileMaxWidth = options.ShadingRateImageTileSize;
+			GRHIVariableRateShadingImageTileMaxHeight = options.ShadingRateImageTileSize;
+
 			GRHIVariableRateShadingImageDataType = VRSImage_Palette;
-			GRHIVariableRateShadingImageFormat = PF_R8;
+			GRHIVariableRateShadingImageFormat = PF_R8_UINT;
 		}
 	}
 	else
 	{
-		GRHISupportsImageBasedVariableRateShading = GRHISupportsPerDrawVariableRateShading = false;
-		GRHIVariableRateShadingImageTileSize = 1;
+		GRHISupportsAttachmentVariableRateShading = GRHISupportsPipelineVariableRateShading = false;
+		GRHIVariableRateShadingImageTileMinWidth = 1;
+		GRHIVariableRateShadingImageTileMinHeight = 1;
+		GRHIVariableRateShadingImageTileMaxWidth = 1;
+		GRHIVariableRateShadingImageTileMaxHeight = 1;
 	}
 
 	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().

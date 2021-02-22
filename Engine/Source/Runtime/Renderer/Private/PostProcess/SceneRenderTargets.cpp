@@ -1591,7 +1591,7 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 void FSceneRenderTargets::AllocateShadingRateTexture(FRHICommandList& RHICmdList)
 {
 	// Only do any work if the RHI/Device supports VRS in some form.
-	if (!GRHISupportsImageBasedVariableRateShading)		// TODO: Check if the stereo rendering device supports the shading rate image data type.
+	if (!GRHISupportsAttachmentVariableRateShading)		// TODO: Check if the stereo rendering device supports the shading rate image data type.
 	{
 		return;
 	}

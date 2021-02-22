@@ -46,7 +46,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasDriverProperties : 1;
 			uint32 HasEXTFragmentDensityMap : 1;
 			uint32 HasEXTFragmentDensityMap2 : 1;
-			uint32 HasNVShadingRateImage : 1;
+			uint32 HasKHRFragmentShadingRate : 1;
 			uint32 HasEXTFullscreenExclusive : 1;
 			uint32 HasKHRImageFormatList : 1;
 			uint32 HasEXTASTCDecodeMode : 1;
@@ -229,10 +229,15 @@ public:
 	}
 #endif
 
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	inline const VkPhysicalDeviceShadingRateImageFeaturesNV& GetShadingRateImageFeaturesNV() const
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	inline const VkPhysicalDeviceFragmentShadingRateFeaturesKHR& GetFragmentShadingRateFeatures() const
 	{
-		return ShadingRateImageFeaturesNV;
+		return FragmentShadingRateFeatures;
+	}
+
+	inline const VkPhysicalDeviceFragmentShadingRatePropertiesKHR& GetFragmentShadingRateProperties() const
+	{
+		return FragmentShadingRateProperties;
 	}
 #endif
 
@@ -497,8 +502,10 @@ private:
 	VkPhysicalDeviceFragmentDensityMap2FeaturesEXT FragmentDensityMap2Features;
 #endif
 
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	VkPhysicalDeviceShadingRateImageFeaturesNV ShadingRateImageFeaturesNV;
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	VkPhysicalDeviceFragmentShadingRatePropertiesKHR FragmentShadingRateProperties;
+	VkPhysicalDeviceFragmentShadingRateFeaturesKHR FragmentShadingRateFeatures;
+	TArray<VkPhysicalDeviceFragmentShadingRateKHR> FragmentShadingRates;
 #endif
 
 #if VULKAN_SUPPORTS_MULTIVIEW

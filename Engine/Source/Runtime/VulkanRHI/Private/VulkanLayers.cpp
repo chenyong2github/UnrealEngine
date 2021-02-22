@@ -790,8 +790,11 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasEXTFragmentDensityMap2 = HasExtension(DeviceExtensions, VK_EXT_FRAGMENT_DENSITY_MAP_2_EXTENSION_NAME);
 #endif
 
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	HasNVShadingRateImage = HasExtension(DeviceExtensions, VK_NV_SHADING_RATE_IMAGE_EXTENSION_NAME);
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	// TODO: the VK_KHR_fragment_shading_rate extension is dependent on vkCreateRenderPass2, VkRenderPassCreateInfo2, VkAttachmentDescription2 and VkSubpassDescription2.
+	// Disabling this path for now; adding this support in a later checkin.
+
+	// HasKHRFragmentShadingRate = HasExtension(DeviceExtensions, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
 #endif
 
 #if VULKAN_SUPPORTS_MULTIVIEW

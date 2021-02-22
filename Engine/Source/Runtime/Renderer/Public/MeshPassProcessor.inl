@@ -8,7 +8,7 @@ MeshPassProcessor.inl:
 
 static EVRSShadingRate GetShadingRateFromMaterial(EMaterialShadingRate MaterialShadingRate)
 {
-	if (GRHISupportsPerDrawVariableRateShading)
+	if (GRHISupportsPipelineVariableRateShading)
 	{
 		switch (MaterialShadingRate)
 		{

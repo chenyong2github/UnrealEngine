@@ -561,7 +561,7 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 		StateCache.SetDepthBounds(0.0f, 1.0f);
 	}
 
-	if (GRHISupportsPerDrawVariableRateShading)
+	if (GRHISupportsPipelineVariableRateShading)
 	{
 		StateCache.SetShadingRate(GraphicsPipelineState->PipelineStateInitializer.ShadingRate, VRSRB_Passthrough);
 	}
@@ -1178,7 +1178,7 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 	}
 
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
-	if (GRHISupportsImageBasedVariableRateShading && CommandListHandle.GraphicsCommandList5() && RenderTargetsInfo.ShadingRateTexture != nullptr)
+	if (GRHISupportsAttachmentVariableRateShading && CommandListHandle.GraphicsCommandList5() && RenderTargetsInfo.ShadingRateTexture != nullptr)
 	{
 		VRSCombiners[1] = ConvertShadingRateCombiner(RenderTargetsInfo.ShadingRateTextureCombiner); // Combiner 1 is used to mix rates from a texture and the previous combiner
 		if (RenderTargetsInfo.ShadingRateTexture != nullptr)
@@ -1966,7 +1966,7 @@ void FD3D12CommandContext::RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRa
  void FD3D12CommandContext::SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner)
  {
  #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
- 	if (GRHISupportsPerDrawVariableRateShading && CommandListHandle.GraphicsCommandList5())
+ 	if (GRHISupportsPipelineVariableRateShading && CommandListHandle.GraphicsCommandList5())
  	{
  		VRSCombiners[0] = ConvertShadingRateCombiner(Combiner);	// Combiner 0 is used to mix per draw and per VS/GS rates
  		VRSShadingRate = static_cast<D3D12_SHADING_RATE>(ShadingRate);
