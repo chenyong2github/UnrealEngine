@@ -560,8 +560,8 @@ void FEditorAnalyticsSession::Unlock()
 		return;
 	}
 
-	StoredValuesLock.Reset();
 	StoredValuesLockOwnerInfo.store(0);
+	StoredValuesLock.Reset();
 }
 
 bool FEditorAnalyticsSession::IsLockedBy(uint32 ThreadId)
