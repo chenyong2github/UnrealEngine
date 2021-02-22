@@ -32,7 +32,7 @@ FRigUnit_TransformConstraintPerItem_Execute()
 		ConstraintData.Reset();
 		ConstraintDataToTargets.Reset();
 
-		FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if(Hierarchy)
 		{
 			if (Item.IsValid())
@@ -40,20 +40,20 @@ FRigUnit_TransformConstraintPerItem_Execute()
 				const int32 TargetNum = Targets.Num();
 				if (TargetNum > 0)
 				{
-					const FTransform SourceTransform = bUseInitialTransforms ? Hierarchy->GetInitialGlobalTransform(Item) : Hierarchy->GetGlobalTransform(Item);
+					const FTransform SourceTransform = bUseInitialTransforms ? Hierarchy->GetGlobalTransform(Item, true) : Hierarchy->GetGlobalTransform(Item, false);
 					FTransform InputBaseTransform =
 						bUseInitialTransforms ?
 						UtilityHelpers::GetBaseTransformByMode(
 							BaseTransformSpace,
-							[Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetInitialGlobalTransform(Item); },
-							Hierarchy->GetParentKey(Item),
+							[Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetGlobalTransform(Item, true); },
+							Hierarchy->GetFirstParent(Item),
 							BaseItem,
 							BaseTransform
 						) :
 						UtilityHelpers::GetBaseTransformByMode(
 							BaseTransformSpace,
-							[Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetGlobalTransform(Item); },
-							Hierarchy->GetParentKey(Item),
+							[Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetGlobalTransform(Item, false); },
+							Hierarchy->GetFirstParent(Item),
 							BaseItem,
 							BaseTransform
 						);
@@ -100,7 +100,7 @@ FRigUnit_TransformConstraintPerItem_Execute()
 	}
 	else if (Context.State == EControlRigState::Update)
 	{
-		FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
 		{
 			if ((ConstraintData.Num() != Targets.Num()))
@@ -126,7 +126,7 @@ FRigUnit_TransformConstraintPerItem_Execute()
 					}
 
 					FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetGlobalTransform(Item); },
-							Hierarchy->GetParentKey(Item), BaseItem, BaseTransform);
+							Hierarchy->GetFirstParent(Item), BaseItem, BaseTransform);
 
 					FTransform SourceTransform = Hierarchy->GetGlobalTransform(Item);
 

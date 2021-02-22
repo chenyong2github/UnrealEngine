@@ -8,6 +8,7 @@
 #include "HelperUtil.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "ControlRigObjectVersion.h"
+#include "Rigs/RigHierarchyController.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Execution/RigUnit_InverseExecution.h"
@@ -127,7 +128,6 @@ void UControlRig::Initialize(bool bInitRigUnits)
 	InstantiateVMFromCDO();
 
 	// should refresh mapping 
-	Hierarchy.Initialize();
 	RequestSetup();
 
 	if (bInitRigUnits)
@@ -135,11 +135,10 @@ void UControlRig::Initialize(bool bInitRigUnits)
 		RequestInit();
 	}
 
-	Hierarchy.ControlHierarchy.OnControlSelected.RemoveAll(this);
-	Hierarchy.ControlHierarchy.OnControlSelected.AddUObject(this, &UControlRig::HandleOnControlSelected);
-	Hierarchy.ControlHierarchy.OnControlUISettingsChanged.AddUObject(this, &UControlRig::HandleOnControlUISettingChanged);
-	Hierarchy.OnEventReceived.RemoveAll(this);
-	Hierarchy.OnEventReceived.AddUObject(this, &UControlRig::HandleOnRigEvent);
+	DynamicHierarchy->OnModified().RemoveAll(this);
+	DynamicHierarchy->OnModified().AddUObject(this, &UControlRig::HandleHierarchyModified);
+	DynamicHierarchy->OnEventReceived().RemoveAll(this);
+	DynamicHierarchy->OnEventReceived().AddUObject(this, &UControlRig::HandleHierarchyEvent);
 }
 
 void UControlRig::InitializeFromCDO()
@@ -152,8 +151,8 @@ void UControlRig::InitializeFromCDO()
 		UControlRig* CDO = GetClass()->GetDefaultObject<UControlRig>();
 
 		// copy hierarchy
-		Hierarchy = CDO->Hierarchy;
-		Hierarchy.Initialize();
+		GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
+		GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
 
 		// copy draw container
 		DrawContainer = CDO->DrawContainer;
@@ -493,7 +492,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.FramesPerSecond = GetCurrentFramesPerSecond();
 	Context.bDuringInteraction = IsInteracting();
 	Context.State = InState;
-	Context.Hierarchy = &Hierarchy;
+	Context.Hierarchy = DynamicHierarchy;
 
 	Context.ToWorldSpaceTransform = FTransform::Identity;
 	Context.OwningComponent = nullptr;
@@ -577,7 +576,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			{
 				if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 				{
-					Hierarchy.CopyInitialTransforms(CDO->Hierarchy);
+					DynamicHierarchy->CopyPose(CDO->DynamicHierarchy, false, true);
 				}
 			}
 
@@ -597,7 +596,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 			if (bSetupModeEnabled)
 			{
-				Hierarchy.BoneHierarchy.ResetTransforms();
+				DynamicHierarchy->ResetPoseToInitial(ERigElementType::Bone);
 			}
 		}
 		else
@@ -709,44 +708,52 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	{
 		Context.DrawInterface->Instructions.Append(Context.DrawContainer->Instructions);
 
-		for (const FRigControl& Control : Hierarchy.ControlHierarchy)
+		DynamicHierarchy->ForEach<FRigControlElement>([this](FRigControlElement* ControlElement) -> bool
 		{
-			if (Control.bGizmoEnabled && Control.bGizmoVisible && !Control.bIsTransientControl && Control.bDrawLimits && (Control.bLimitTranslation || Control.bLimitRotation || Control.bLimitScale))
+			const FRigControlSettings& Settings = ControlElement->Settings;
+			
+			if (Settings.bGizmoEnabled &&
+				Settings.bGizmoVisible &&
+				!Settings.bIsTransientControl &&
+				Settings.bDrawLimits &&
+				(Settings.bLimitTranslation
+					|| Settings.bLimitRotation
+					|| Settings.bLimitScale))
 			{
 				// for now we don't draw rotational limits
-				if(!Control.bLimitTranslation)
+				if(!Settings.bLimitTranslation)
 				{
-					continue;
+					return true;
 				}
 
-				FTransform Transform = Hierarchy.ControlHierarchy.GetParentTransform(Control.Index);
-				FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, Control.GizmoColor, 0.f, Transform);
+				FTransform Transform = DynamicHierarchy->GetGlobalControlOffsetTransformByIndex(ControlElement->GetIndex());
+				FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, Settings.GizmoColor, 0.f, Transform);
 
-				switch (Control.ControlType)
+				switch (Settings.ControlType)
 				{
 					case ERigControlType::Float:
 					{
 						FVector MinPos = FVector::ZeroVector;
 						FVector MaxPos = FVector::ZeroVector;
 
-						switch (Control.PrimaryAxis)
+						switch (Settings.PrimaryAxis)
 						{
 							case ERigControlAxis::X:
 							{
-								MinPos.X = Control.MinimumValue.Get<float>();
-								MaxPos.X = Control.MaximumValue.Get<float>();
+								MinPos.X = Settings.MinimumValue.Get<float>();
+								MaxPos.X = Settings.MaximumValue.Get<float>();
 								break;
 							}
 							case ERigControlAxis::Y:
 							{
-								MinPos.Y = Control.MinimumValue.Get<float>();
-								MaxPos.Y = Control.MaximumValue.Get<float>();
+								MinPos.Y = Settings.MinimumValue.Get<float>();
+								MaxPos.Y = Settings.MaximumValue.Get<float>();
 								break;
 							}
 							case ERigControlAxis::Z:
 							{
-								MinPos.Z = Control.MinimumValue.Get<float>();
-								MaxPos.Z = Control.MaximumValue.Get<float>();
+								MinPos.Z = Settings.MinimumValue.Get<float>();
+								MaxPos.Z = Settings.MaximumValue.Get<float>();
 								break;
 							}
 						}
@@ -760,24 +767,24 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 						FVector MinPos = FVector::ZeroVector;
 						FVector MaxPos = FVector::ZeroVector;
 
-						switch (Control.PrimaryAxis)
+						switch (Settings.PrimaryAxis)
 						{
 							case ERigControlAxis::X:
 							{
-								MinPos.X = (float)Control.MinimumValue.Get<int32>();
-								MaxPos.X = (float)Control.MaximumValue.Get<int32>();
+								MinPos.X = (float)Settings.MinimumValue.Get<int32>();
+								MaxPos.X = (float)Settings.MaximumValue.Get<int32>();
 								break;
 							}
 							case ERigControlAxis::Y:
 							{
-								MinPos.Y = (float)Control.MinimumValue.Get<int32>();
-								MaxPos.Y = (float)Control.MaximumValue.Get<int32>();
+								MinPos.Y = (float)Settings.MinimumValue.Get<int32>();
+								MaxPos.Y = (float)Settings.MaximumValue.Get<int32>();
 								break;
 							}
 							case ERigControlAxis::Z:
 							{
-								MinPos.Z = (float)Control.MinimumValue.Get<int32>();
-								MaxPos.Z = (float)Control.MaximumValue.Get<int32>();
+								MinPos.Z = (float)Settings.MinimumValue.Get<int32>();
+								MaxPos.Z = (float)Settings.MaximumValue.Get<int32>();
 								break;
 							}
 						}
@@ -789,10 +796,10 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					case ERigControlType::Vector2D:
 					{
 						Instruction.PrimitiveType = EControlRigDrawSettings::LineStrip;
-						FVector2D MinPos = Control.MinimumValue.Get<FVector2D>();
-						FVector2D MaxPos = Control.MaximumValue.Get<FVector2D>();
+						FVector2D MinPos = Settings.MinimumValue.Get<FVector2D>();
+						FVector2D MaxPos = Settings.MaximumValue.Get<FVector2D>();
 
-						switch (Control.PrimaryAxis)
+						switch (Settings.PrimaryAxis)
 						{
 							case ERigControlAxis::X:
 							{
@@ -832,31 +839,31 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					{
 						FVector MinPos, MaxPos;
 
-						switch (Control.ControlType)
+						switch (Settings.ControlType)
 						{
 							case ERigControlType::Position:
 							case ERigControlType::Scale:
 							{
-								MinPos = Control.MinimumValue.Get<FVector>();
-								MaxPos = Control.MaximumValue.Get<FVector>();
+								MinPos = Settings.MinimumValue.Get<FVector>();
+								MaxPos = Settings.MaximumValue.Get<FVector>();
 								break;
 							}
 							case ERigControlType::Transform:
 							{
-								MinPos = Control.MinimumValue.Get<FTransform>().GetLocation();
-								MaxPos = Control.MaximumValue.Get<FTransform>().GetLocation();
+								MinPos = Settings.MinimumValue.Get<FTransform>().GetLocation();
+								MaxPos = Settings.MaximumValue.Get<FTransform>().GetLocation();
 								break;
 							}
 							case ERigControlType::TransformNoScale:
 							{
-								MinPos = Control.MinimumValue.Get<FTransformNoScale>().Location;
-								MaxPos = Control.MaximumValue.Get<FTransformNoScale>().Location;
+								MinPos = Settings.MinimumValue.Get<FTransformNoScale>().Location;
+								MaxPos = Settings.MaximumValue.Get<FTransformNoScale>().Location;
 								break;
 							}
 							case ERigControlType::EulerTransform:
 							{
-								MinPos = Control.MinimumValue.Get<FEulerTransform>().Location;
-								MaxPos = Control.MaximumValue.Get<FEulerTransform>().Location;
+								MinPos = Settings.MinimumValue.Get<FEulerTransform>().Location;
+								MaxPos = Settings.MaximumValue.Get<FEulerTransform>().Location;
 								break;
 							}
 						}
@@ -896,7 +903,9 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 					DrawInterface.Instructions.Add(Instruction);
 				}
 			}
-		}
+
+			return true;
+		});
 	}
 }
 
@@ -945,67 +954,6 @@ URigVM* UControlRig::GetVM()
 	return VM;
 }
 
-FTransform UControlRig::GetGlobalTransform(const FRigElementKey& InKey) const
-{
-	return Hierarchy.GetGlobalTransform(InKey);
-}
-
-void UControlRig::SetGlobalTransform(const FRigElementKey& InKey, const FTransform& InTransform, bool bPropagateTransform)
-{
-	Hierarchy.SetGlobalTransform(InKey, InTransform, bPropagateTransform);
-}
-
-FTransform UControlRig::GetGlobalTransform(const FName& BoneName) const
-{
-	int32 Index = Hierarchy.BoneHierarchy.GetIndex(BoneName);
-	if (Index != INDEX_NONE)
-	{
-		return Hierarchy.BoneHierarchy.GetGlobalTransform(Index);
-	}
-
-	return FTransform::Identity;
-
-}
-
-void UControlRig::SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform)
-{
-	int32 Index = Hierarchy.BoneHierarchy.GetIndex(BoneName);
-	if (Index != INDEX_NONE)
-	{
-		return Hierarchy.BoneHierarchy.SetGlobalTransform(Index, InTransform, bPropagateTransform);
-	}
-}
-
-FTransform UControlRig::GetGlobalTransform(const int32 BoneIndex) const
-{
-	return Hierarchy.BoneHierarchy.GetGlobalTransform(BoneIndex);
-}
-
-void UControlRig::SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform)
-{
-	Hierarchy.BoneHierarchy.SetGlobalTransform(BoneIndex, InTransform, bPropagateTransform);
-}
-
-float UControlRig::GetCurveValue(const FName& CurveName) const
-{
-	return Hierarchy.CurveContainer.GetValue(CurveName);
-}
-
-void UControlRig::SetCurveValue(const FName& CurveName, const float CurveValue)
-{
-	Hierarchy.CurveContainer.SetValue(CurveName, CurveValue);
-}
-
-float UControlRig::GetCurveValue(const int32 CurveIndex) const
-{
-	return Hierarchy.CurveContainer.GetValue(CurveIndex);
-}
-
-void UControlRig::SetCurveValue(const int32 CurveIndex, const float CurveValue)
-{
-	Hierarchy.CurveContainer.SetValue(CurveIndex, CurveValue);
-}
-
 void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>& OutNodeItems) const
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -1014,13 +962,19 @@ void UControlRig::GetMappableNodeData(TArray<FName>& OutNames, TArray<FNodeItem>
 	OutNodeItems.Reset();
 
 	// now add all nodes
-	const FRigBoneHierarchy& BoneHierarchy = Hierarchy.BoneHierarchy;
+	DynamicHierarchy->ForEach<FRigBoneElement>([&OutNames, &OutNodeItems, this](FRigBoneElement* BoneElement) -> bool
+    {
+		OutNames.Add(BoneElement->GetName());
+		FRigElementKey ParentKey = DynamicHierarchy->GetFirstParent(BoneElement->GetKey());
+		if(ParentKey.Type != ERigElementType::Bone)
+		{
+			ParentKey.Name = NAME_None;
+		}
 
-	for (const FRigBone& Bone : BoneHierarchy)
-	{
-		OutNames.Add(Bone.Name);
-		OutNodeItems.Add(FNodeItem(Bone.ParentName, Bone.InitialTransform));
-	}
+		const FTransform GlobalInitial = DynamicHierarchy->GetGlobalTransformByIndex(BoneElement->GetIndex(), true);
+		OutNodeItems.Add(FNodeItem(ParentKey.Name, GlobalInitial));
+		return true;
+	});
 }
 
 UAnimationDataSourceRegistry* UControlRig::GetDataSourceRegistry()
@@ -1073,86 +1027,33 @@ void UControlRig::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
+}
 
-	if (Ar.IsLoading())
+TArray<FRigControlElement*> UControlRig::AvailableControls() const
+{
+	if(DynamicHierarchy)
 	{
-		Hierarchy.ControlHierarchy.PostLoad();
+		return DynamicHierarchy->GetElementsOfType<FRigControlElement>();
 	}
+	return TArray<FRigControlElement*>();
 }
 
-const TArray<FRigSpace>& UControlRig::AvailableSpaces() const
+FRigControlElement* UControlRig::FindControl(const FName& InControlName) const
 {
-	return Hierarchy.SpaceHierarchy.GetSpaces();
-}
-
-// do we need to return pointer? They can't save this
-FRigSpace* UControlRig::FindSpace(const FName& InSpaceName)
-{
-	const int32 SpaceIndex = Hierarchy.SpaceHierarchy.GetIndex(InSpaceName);
-	if (SpaceIndex != INDEX_NONE)
-	{
-		return &Hierarchy.SpaceHierarchy[SpaceIndex];
-	}
-
-	return nullptr;
-}
-
-FTransform UControlRig::GetSpaceGlobalTransform(const FName& InSpaceName)
-{
-	return Hierarchy.SpaceHierarchy.GetGlobalTransform(InSpaceName);
-}
-
-bool UControlRig::SetSpaceGlobalTransform(const FName& InSpaceName, const FTransform& InTransform)
-{
-	Hierarchy.SpaceHierarchy.SetGlobalTransform(InSpaceName, InTransform);
-	return true;
-}
-
-const TArray<FRigControl>& UControlRig::AvailableControls() const
-{
-#if WITH_EDITOR
-	if (AvailableControlsOverride.Num() > 0)
-	{
-		return AvailableControlsOverride;
-	}
-#endif
-	return Hierarchy.ControlHierarchy.GetControls();
-}
-
-FRigControl* UControlRig::FindControl(const FName& InControlName)
-{
-	const int32 ControlIndex = Hierarchy.ControlHierarchy.GetIndex(InControlName);
-	if (ControlIndex != INDEX_NONE)
-	{
-		return &Hierarchy.ControlHierarchy[ControlIndex];
-	}
-
-#if WITH_EDITOR
-	if (TransientControls.Num() > 0)
-	{
-		for (int32 Index = 0; Index < TransientControls.Num(); Index++)
-		{
-			if (TransientControls[Index].Name == InControlName)
-			{
-				return &TransientControls[Index];
-			}
-		}
-	}
-#endif
-
-	return nullptr;
+	return DynamicHierarchy->Find<FRigControlElement>(FRigElementKey(InControlName, ERigElementType::Control));
 }
 
 FTransform UControlRig::SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
 {
 	if (IsSetupModeEnabled())
 	{
-		FRigControl* Control = FindControl(InControlName);
-		if (Control && !Control->bIsTransientControl)
+		FRigControlElement* ControlElement = FindControl(InControlName);
+		if (ControlElement && !ControlElement->Settings.bIsTransientControl)
 		{
-			FTransform ParentTransform = Hierarchy.ControlHierarchy.GetParentTransform(Control->Index, false);
-			FTransform OffsetTransform = InGlobalTransform.GetRelativeTransform(ParentTransform);
-			Hierarchy.ControlHierarchy.SetControlOffset(Control->Index, OffsetTransform);
+			const FTransform ParentTransform = DynamicHierarchy->GetParentTransform(ControlElement, ERigTransformType::CurrentGlobal);
+			const FTransform OffsetTransform = InGlobalTransform.GetRelativeTransform(ParentTransform);
+			DynamicHierarchy->SetControlOffsetTransform(ControlElement, OffsetTransform, ERigTransformType::InitialLocal, true, true);
+			ControlElement->Offset.Current = ControlElement->Offset.Initial; 
 		}
 	}
 	return InGlobalTransform;
@@ -1161,72 +1062,60 @@ FTransform UControlRig::SetupControlFromGlobalTransform(const FName& InControlNa
 void UControlRig::CreateRigControlsForCurveContainer()
 {
 	const bool bCreateFloatControls = CVarControlRigCreateFloatControlsForCurves->GetInt() == 0 ? false : true;
-	if(bCreateFloatControls)
+	if(bCreateFloatControls && DynamicHierarchy)
 	{
-		FRigCurveContainer& CurveContainer = GetCurveContainer();
-		FString CTRLName(TEXT("CTRL_"));
-		for (FRigCurve& Curve : CurveContainer)
+		URigHierarchyController* Controller = DynamicHierarchy->GetController(true);
+		if(Controller == nullptr)
 		{
-			FString Name = Curve.Name.ToString();
-			if (Name.Contains(CTRLName) && Hierarchy.ControlHierarchy.GetIndex(Curve.Name) == INDEX_NONE) //-V1051
-			{
-				FRigControlValue Value;
-				Value.Set<float>(Curve.Value);
-				FRigControl& Control = Hierarchy.ControlHierarchy.Add(Curve.Name, ERigControlType::Float, NAME_None, NAME_None, FTransform::Identity, Value
-	#if WITH_EDITORONLY_DATA
-					, Curve.Name,
-					FTransform::Identity,
-					FLinearColor::Red
-	#endif
-				);
-				Control.bIsCurve = true;
-			}
+			return;
 		}
+		static const FString CtrlPrefix(TEXT("CTRL_"));
+
+		DynamicHierarchy->ForEach<FRigCurveElement>([this, Controller](FRigCurveElement* CurveElement) -> bool
+        {
+			const FString Name = CurveElement->GetName().ToString();
+			
+			if (Name.Contains(CtrlPrefix) && !DynamicHierarchy->Contains(FRigElementKey(*Name, ERigElementType::Curve))) //-V1051
+			{
+				FRigControlSettings Settings;
+				Settings.ControlType = ERigControlType::Float;
+				Settings.bIsCurve = true;
+				Settings.bAnimatable = true;
+				Settings.bDrawLimits = false;
+				Settings.bGizmoEnabled = false;
+				Settings.bGizmoVisible = false;
+				Settings.GizmoColor = FLinearColor::Red;
+
+				FRigControlValue Value;
+				Value.Set<float>(CurveElement->Value);
+
+				Controller->AddControl(CurveElement->GetName(), FRigElementKey(), Settings, Value, FTransform::Identity, FTransform::Identity); 
+			}
+
+			return true;
+		});
 
 		ControlModified().AddUObject(this, &UControlRig::HandleOnControlModified);
 	}
 }
 
-void UControlRig::HandleOnControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context)
+void UControlRig::HandleOnControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context)
 {
-	if (Control.bIsCurve)
+	if (Control->Settings.bIsCurve && DynamicHierarchy)
 	{
-		SetCurveValue(Control.Name, Control.Value.Get<float>());
+		const FRigControlValue Value = DynamicHierarchy->GetControlValue(Control, IsSetupModeEnabled() ? ERigControlValueType::Initial : ERigControlValueType::Current);
+		DynamicHierarchy->SetCurveValue(FRigElementKey(Control->GetName(), ERigElementType::Curve), Value.Get<float>());
 	}	
 }
 
-bool UControlRig::IsCurveControl(const FRigControl* InControl) const
+bool UControlRig::IsCurveControl(const FRigControlElement* InControlElement) const
 {
-	return InControl->bIsCurve;
+	return InControlElement->Settings.bIsCurve;
 }
 
 FTransform UControlRig::GetControlGlobalTransform(const FName& InControlName) const
 {
-#if WITH_EDITOR
-	if (TransientControls.Num() > 0)
-	{
-		for (int32 Index = 0; Index < TransientControls.Num(); Index++)
-		{
-			const FRigControl& Control = TransientControls[Index];
-			if (Control.Name == InControlName)
-			{
-				FTransform ParentTransform = FTransform::Identity;
-				if (Control.ParentIndex != INDEX_NONE)
-				{
-					ParentTransform = Hierarchy.BoneHierarchy.GetGlobalTransform(Control.ParentIndex);
-				}
-// 				else if (Control.SpaceIndex != INDEX_NONE)
-// 				{
-// 					ParentTransform = Hierarchy.SpaceHierarchy.GetGlobalTransform(Control.SpaceIndex);
-// 				}
-
-				FTransform Transform = Control.GetTransformFromValue(ERigControlValueType::Current);
-				return Transform * Control.OffsetTransform * ParentTransform;
-			}
-		}
-	}
-#endif
-	return Hierarchy.ControlHierarchy.GetGlobalTransform(InControlName);
+	return DynamicHierarchy->GetGlobalTransform(FRigElementKey(InControlName, ERigElementType::Control), false);
 }
 
 bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify, const FRigControlModifiedContext& Context)
@@ -1240,10 +1129,10 @@ bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FT
 	FRigControlValue Value = GetControlValueFromGlobalTransform(InControlName, GlobalTransform);
 	if (OnFilterControl.IsBound())
 	{
-		FRigControl* Control = FindControl(InControlName);
+		FRigControlElement* Control = FindControl(InControlName);
 		if (Control)
 		{
-			OnFilterControl.Broadcast(this, *Control, Value);
+			OnFilterControl.Broadcast(this, Control, Value);
 		}
 	}
 
@@ -1253,72 +1142,42 @@ bool UControlRig::SetControlGlobalTransform(const FName& InControlName, const FT
 
 FRigControlValue UControlRig::GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)
 {
-	FRigControlValue RetVal;
+	FRigControlValue Value;
 
-	if (FRigControl* Control = FindControl(InControlName))
+	if (FRigControlElement* ControlElement = FindControl(InControlName))
 	{
-		FTransform ParentTransform = FTransform::Identity;
-		if ((Control->ParentIndex != INDEX_NONE || Control->SpaceIndex != INDEX_NONE) && Control->bIsTransientControl)
-		{
-			if (Control->ParentIndex != INDEX_NONE)
-			{
-				ParentTransform = Hierarchy.BoneHierarchy.GetGlobalTransform(Control->ParentIndex);
-			}
-		}
-		else if(Control->Index != INDEX_NONE)
-		{
-			ParentTransform = Hierarchy.ControlHierarchy.GetParentTransform(Control->Index);
-		}
-
+		FTransform ParentTransform = DynamicHierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentGlobal);
 		FTransform Transform = InGlobalTransform.GetRelativeTransform(ParentTransform);
-
-		FRigControlValue PreviousVal = Control->Value;
-		Control->SetValueFromTransform(Transform, ERigControlValueType::Current);
-		RetVal = Control->Value;
-		Control->Value = PreviousVal;
+		Value.SetFromTransform(Transform, ControlElement->Settings.ControlType, ControlElement->Settings.PrimaryAxis);
 
 		if (ShouldApplyLimits())
 		{
-			Control->ApplyLimits(RetVal);
+			ControlElement->Settings.ApplyLimits(Value);
 		}
 	}
 
-	return RetVal;
+	return Value;
 }
 
 void UControlRig::SetControlLocalTransform(const FName& InControlName, const FTransform& InLocalTransform, bool bNotify, const FRigControlModifiedContext& Context)
 {
-
-	if (FRigControl* Control = FindControl(InControlName))
+	if (FRigControlElement* ControlElement = FindControl(InControlName))
 	{
-		FRigControlValue PreviousVal = Control->Value;
-		Control->SetValueFromTransform(InLocalTransform, ERigControlValueType::Current);
-		FRigControlValue ValueToSet = Control->Value;
-		Control->Value = PreviousVal;
+		FRigControlValue Value;
+		Value.SetFromTransform(InLocalTransform, ControlElement->Settings.ControlType, ControlElement->Settings.PrimaryAxis);
+
 		if (OnFilterControl.IsBound())
 		{
-			OnFilterControl.Broadcast(this, *Control, ValueToSet);
+			OnFilterControl.Broadcast(this, ControlElement, Value);
 			
 		}
-		SetControlValue(InControlName, ValueToSet, bNotify, Context);
+		SetControlValue(InControlName, Value, bNotify, Context);
 	}
-
 }
 
 FTransform UControlRig::GetControlLocalTransform(const FName& InControlName)
 {
-	FRigControl* Control = FindControl(InControlName);
-	if (Control->bIsTransientControl)
-	{
-		return Control->GetTransformFromValue(ERigControlValueType::Current);
-	}
-	return GetControlHierarchy().GetLocalTransform(InControlName);
-}
-
-bool UControlRig::SetControlSpace(const FName& InControlName, const FName& InSpaceName)
-{
-	Hierarchy.ControlHierarchy.SetSpace(InControlName, InSpaceName);
-	return true;
+	return DynamicHierarchy->GetLocalTransform(FRigElementKey(InControlName, ERigElementType::Control));
 }
 
 UControlRigGizmoLibrary* UControlRig::GetGizmoLibrary() const
@@ -1337,60 +1196,78 @@ UControlRigGizmoLibrary* UControlRig::GetGizmoLibrary() const
 	return nullptr;
 }
 
-void UControlRig::HandleOnControlUISettingChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
-{
-	if (InKey.Type == ERigElementType::Control)
-	{
-		if (FRigControl* Control = FindControl(InKey.Name))
-		{
-			ControlModified().Broadcast(this, *Control, FRigControlModifiedContext(EControlRigSetKey::Never));
-		}
-	}
-}
-
 void UControlRig::SelectControl(const FName& InControlName, bool bSelect)
 {
-	Hierarchy.ControlHierarchy.Select(InControlName, bSelect);
+	if(URigHierarchyController* Controller = DynamicHierarchy->GetController(true))
+	{
+		Controller->SelectElement(FRigElementKey(InControlName, ERigElementType::Control), bSelect);
+	}
 }
 
 bool UControlRig::ClearControlSelection()
 {
-	return Hierarchy.ControlHierarchy.ClearSelection();
+	if(URigHierarchyController* Controller = DynamicHierarchy->GetController(true))
+	{
+		return Controller->ClearSelection();
+	}
+	return false;
 }
 
 TArray<FName> UControlRig::CurrentControlSelection() const
 {
-	return Hierarchy.ControlHierarchy.CurrentSelection();
+	TArray<FName> SelectedControlNames;
+	TArray<FRigBaseElement*> SelectedControls = DynamicHierarchy->GetSelectedElements(ERigElementType::Control);
+	for (FRigBaseElement* SelectedControl : SelectedControls)
+	{
+		SelectedControlNames.Add(SelectedControl->GetName());
+	}
+	return SelectedControlNames;
 }
 
 bool UControlRig::IsControlSelected(const FName& InControlName)const
 {
-	return Hierarchy.ControlHierarchy.IsSelected(InControlName);
+	if(FRigControlElement* ControlElement = FindControl(InControlName))
+	{
+		return DynamicHierarchy->IsSelected(ControlElement);
+	}
+	return false;
 }
 
-void UControlRig::HandleOnControlSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected)
+void UControlRig::HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy,
+    const FRigBaseElement* InElement)
 {
-	if (InKey.Type == ERigElementType::Control)
+	switch(InNotification)
 	{
-		FRigControl* Control = FindControl(InKey.Name);
-		if (Control)
+		case ERigHierarchyNotification::ElementSelected:
+		case ERigHierarchyNotification::ElementDeselected:
 		{
-			ControlSelected().Broadcast(this, *Control, bSelected);
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>((FRigBaseElement*)InElement))
+			{
+				const bool bSelected = InNotification == ERigHierarchyNotification::ElementSelected;
+				ControlSelected().Broadcast(this, ControlElement, bSelected);
+			}
+			break;
+		}
+		case ERigHierarchyNotification::ControlSettingChanged:
+		{
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>((FRigBaseElement*)InElement))
+			{
+				ControlModified().Broadcast(this, ControlElement, FRigControlModifiedContext(EControlRigSetKey::Never));
+			}
+			break;
+		}
+		default:
+		{
+			break;
 		}
 	}
 }
 
 #if WITH_EDITOR
 
-void UControlRig::UpdateAvailableControls()
-{
-	AvailableControlsOverride = Hierarchy.ControlHierarchy.GetControls();
-	AvailableControlsOverride.Append(TransientControls);
-}
-
 FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey)
 {
-	if (InPin == nullptr)
+	if ((InPin == nullptr) || (DynamicHierarchy == nullptr))
 	{
 		return NAME_None;
 	}
@@ -1404,94 +1281,110 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey
 
 	RemoveTransientControl(InPin);
 
-	FName ControlName = *InPin->GetPinPath();
-
-	FRigControl NewControl;
-	NewControl.Name = ControlName;
-	NewControl.bIsTransientControl = true;
-	NewControl.GizmoTransform.SetScale3D(FVector::ZeroVector);
+	URigHierarchyController* Controller = DynamicHierarchy->GetController(true);
+	if(Controller == nullptr)
+	{
+		return NAME_None;
+	}
 
 	URigVMPin* PinForLink = InPin->GetPinForLink();
+
+	const FName ControlName = GetNameForTransientControl(InPin);
+	FTransform GizmoTransform = FTransform::Identity;
+	GizmoTransform.SetScale3D(FVector::ZeroVector);
+
+	FRigControlSettings Settings;
 	if (URigVMPin* ColorPin = PinForLink->GetNode()->FindPin(TEXT("Color")))
 	{
 		if (ColorPin->GetCPPType() == TEXT("FLinearColor"))
 		{
 			FRigControlValue Value;
-			NewControl.GizmoColor = Value.SetFromString<FLinearColor>(ColorPin->GetDefaultValue());
+			Settings.GizmoColor = Value.SetFromString<FLinearColor>(ColorPin->GetDefaultValue());
 		}
 	}
+	Settings.bIsTransientControl = true;
 
+	FRigElementKey Parent;
 	if(SpaceKey.IsValid() && SpaceKey.Type == ERigElementType::Bone)
 	{
-		NewControl.ParentIndex = Hierarchy.BoneHierarchy.GetIndex(SpaceKey.Name);
-		if (NewControl.ParentIndex != INDEX_NONE)
-		{
-			NewControl.ParentName = Hierarchy.BoneHierarchy[NewControl.ParentIndex].Name;
-		}
+		Parent = DynamicHierarchy->GetFirstParent(SpaceKey);
 	}
 
-	TransientControls.Add(NewControl);
+	Controller->ClearSelection();
+
+    const FRigElementKey ControlKey = Controller->AddControl(
+    	ControlName,
+    	Parent,
+    	Settings,
+    	FRigControlValue::Make(FTransform::Identity),
+    	FTransform::Identity,
+    	GizmoTransform, false);
 
 	SetTransientControlValue(InPin);
-	UpdateAvailableControls();
+
+	if(const FRigBaseElement* Element = DynamicHierarchy->Find(ControlKey))
+	{
+		DynamicHierarchy->Notify(ERigHierarchyNotification::ElementSelected, Element);
+	}
 
 	return ControlName;
 }
 
 bool UControlRig::SetTransientControlValue(URigVMPin* InPin)
 {
-	FString PinPath = InPin->GetPinForLink()->GetPinPath();
-	FString OriginalPinPath = InPin->GetOriginalPinFromInjectedNode()->GetPinPath();
-	for (FRigControl& Control : TransientControls)
+	const FName ControlName = GetNameForTransientControl(InPin);
+	if (FRigControlElement* ControlElement = FindControl(ControlName))
 	{
-		FString ControlName = Control.Name.ToString();
-		if (ControlName == PinPath || ControlName == OriginalPinPath)
+		FString DefaultValue = InPin->GetPinForLink()->GetDefaultValue();
+		if (!DefaultValue.IsEmpty())
 		{
-			FString DefaultValue = InPin->GetPinForLink()->GetDefaultValue();
-			if (!DefaultValue.IsEmpty())
+			if (InPin->GetCPPType() == TEXT("FVector"))
 			{
-				if (InPin->GetCPPType() == TEXT("FVector"))
-				{
-					Control.ControlType = ERigControlType::Position;
-					FVector Value = Control.Value.SetFromString<FVector>(DefaultValue);
-					Control.InitialValue.Set<FVector>(Value);
-				}
-				else if (InPin->GetCPPType() == TEXT("FQuat"))
-				{
-					Control.ControlType = ERigControlType::Rotator;
-					FQuat Value = Control.Value.SetFromString<FQuat>(DefaultValue);
-					Control.Value.Set<FRotator>(Value.Rotator());
-					Control.InitialValue.Set<FRotator>(Value.Rotator());
-				}
-				else
-				{
-					Control.ControlType = ERigControlType::Transform;
-					FTransform Value = Control.Value.SetFromString<FTransform>(DefaultValue);
-					Control.InitialValue.Set<FTransform>(Value);
-				}
+				ControlElement->Settings.ControlType = ERigControlType::Position;
+				FRigControlValue Value;
+				Value.SetFromString<FVector>(DefaultValue);
+				DynamicHierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Current, false);
 			}
-			return true;
+			else if (InPin->GetCPPType() == TEXT("FQuat"))
+			{
+				ControlElement->Settings.ControlType = ERigControlType::Rotator;
+				FRigControlValue Value;
+				Value.SetFromString<FRotator>(DefaultValue);
+				DynamicHierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Current, false);
+			}
+			else
+			{
+				ControlElement->Settings.ControlType = ERigControlType::Transform;
+				FRigControlValue Value;
+				Value.SetFromString<FTransform>(DefaultValue);
+				DynamicHierarchy->SetControlValue(ControlElement, Value, ERigControlValueType::Current, false);
+			}
 		}
+		return true;
 	}
 	return false;
 }
 
 FName UControlRig::RemoveTransientControl(URigVMPin* InPin)
 {
-	if (InPin == nullptr)
+	if ((InPin == nullptr) || (DynamicHierarchy == nullptr))
 	{
 		return NAME_None;
 	}
 
-	FName ControlName = *InPin->GetPinPath();
-	for (int32 Index = 0; Index < TransientControls.Num(); Index++)
+	URigHierarchyController* Controller = DynamicHierarchy->GetController(true);
+	if(Controller == nullptr)
 	{
-		if (TransientControls[Index].Name == ControlName)
+		return NAME_None;
+	}
+
+	const FName ControlName = GetNameForTransientControl(InPin);
+	if(FRigControlElement* ControlElement = FindControl(ControlName))
+	{
+		//Hierarchy->Notify(ERigHierarchyNotification::ElementDeselected, ControlElement);
+		if(Controller->RemoveElement(ControlElement))
 		{
-			FRigControl ControlToRemove = TransientControls[Index];
-			TransientControls.RemoveAt(Index);
-			UpdateAvailableControls();
-			return ControlToRemove.Name;
+			return ControlName;
 		}
 	}
 
@@ -1505,49 +1398,82 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 		return NAME_None;
 	}
 
-	RemoveTransientControl(InElement);
+	if(DynamicHierarchy == nullptr)
+	{
+		return NAME_None;
+	}
 
-	int32 ElementIndex = Hierarchy.GetIndex(InElement);
+	URigHierarchyController* Controller = DynamicHierarchy->GetController(true);
+	if(Controller == nullptr)
+	{
+		return NAME_None;
+	}
+
+	RemoveTransientControl(InElement);
+	const int32 ElementIndex = DynamicHierarchy->GetIndex(InElement);
 	if (ElementIndex == INDEX_NONE)
 	{
 		return NAME_None;
 	}
 
-	FName ControlName = GetNameForTransientControl(InElement);
+	const FName ControlName = GetNameForTransientControl(InElement);
 
-	FRigControl NewControl;
-	NewControl.Name = ControlName;
-	NewControl.bIsTransientControl = true;
-	NewControl.GizmoTransform.SetScale3D(FVector::ZeroVector);
+	FTransform GizmoTransform = FTransform::Identity;
+	GizmoTransform.SetScale3D(FVector::ZeroVector);
 
+	FRigControlSettings Settings;
+	Settings.bIsTransientControl = true;
+
+	FRigElementKey Parent;
 	switch (InElement.Type)
 	{
 		case ERigElementType::Bone:
 		{
-			NewControl.ParentIndex = Hierarchy.BoneHierarchy[ElementIndex].ParentIndex;
-			NewControl.ParentName = Hierarchy.BoneHierarchy[ElementIndex].ParentName;
+			Parent = DynamicHierarchy->GetFirstParent(InElement);
 			break;
 		}
 		case ERigElementType::Space:
 		{
-			NewControl.SpaceIndex = ElementIndex;
-			NewControl.SpaceName = InElement.Name;
+			Parent = InElement;
+			break;
+		}
+		default:
+		{
 			break;
 		}
 	}
 
-	TransientControls.Add(NewControl);
+	TArray<FRigElementKey> SelectedControls = DynamicHierarchy->GetSelectedKeys(ERigElementType::Control);
+	for(const FRigElementKey& SelectedControl : SelectedControls)
+	{
+		Controller->DeselectElement(SelectedControl);
+	}
+
+	const FRigElementKey ControlKey = Controller->AddControl(
+        ControlName,
+        Parent,
+        Settings,
+        FRigControlValue::Make(FTransform::Identity),
+        FTransform::Identity,
+        GizmoTransform, false);
 
 	if (InElement.Type == ERigElementType::Bone)
 	{
-		if (PreviewInstance && Hierarchy.BoneHierarchy[ElementIndex].Type == ERigBoneType::Imported)
+		if(FRigBoneElement* BoneElement = DynamicHierarchy->Find<FRigBoneElement>(InElement))
 		{
-			PreviewInstance->ModifyBone(InElement.Name);
+			if (PreviewInstance && BoneElement->BoneType == ERigBoneType::Imported)
+			{
+				PreviewInstance->ModifyBone(InElement.Name);
+			}
 		}
 	}
 
 	SetTransientControlValue(InElement);
-	UpdateAvailableControls();
+
+	if(const FRigBaseElement* Element = DynamicHierarchy->Find(ControlKey))
+	{
+		DynamicHierarchy->Notify(ERigHierarchyNotification::ElementSelected, Element);
+	}
 
 	return ControlName;
 }
@@ -1559,39 +1485,34 @@ bool UControlRig::SetTransientControlValue(const FRigElementKey& InElement)
 		return false;
 	}
 
-	FName ControlName = GetNameForTransientControl(InElement);
-	for (FRigControl& Control : TransientControls)
+	const FName ControlName = GetNameForTransientControl(InElement);
+	if(FRigControlElement* ControlElement = FindControl(ControlName))
 	{
-		if (Control.Name == ControlName)
+		if (InElement.Type == ERigElementType::Bone)
 		{
-			Control.ControlType = ERigControlType::Transform;
+			const FTransform LocalTransform = DynamicHierarchy->GetLocalTransform(InElement);
+			DynamicHierarchy->SetTransform(ControlElement, LocalTransform, ERigTransformType::InitialLocal, true, false);
+			DynamicHierarchy->SetTransform(ControlElement, LocalTransform, ERigTransformType::CurrentLocal, true, false);
 
-			if (InElement.Type == ERigElementType::Bone)
+			if (PreviewInstance)
 			{
-				FTransform LocalTransform = Hierarchy.GetLocalTransform(InElement);
-				Control.Value.Set<FTransform>(LocalTransform);
-				Control.InitialValue.Set<FTransform>(LocalTransform);
-
-				if (PreviewInstance)
+				if (FAnimNode_ModifyBone* Modify = PreviewInstance->FindModifiedBone(InElement.Name))
 				{
-					if (FAnimNode_ModifyBone* Modify = PreviewInstance->FindModifiedBone(InElement.Name))
-					{
-						Modify->Translation = LocalTransform.GetTranslation();
-						Modify->Rotation = LocalTransform.GetRotation().Rotator();
-						Modify->TranslationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
-						Modify->RotationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
-					}
+					Modify->Translation = LocalTransform.GetTranslation();
+					Modify->Rotation = LocalTransform.GetRotation().Rotator();
+					Modify->TranslationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
+					Modify->RotationSpace = EBoneControlSpace::BCS_ParentBoneSpace;
 				}
 			}
-			else if (InElement.Type == ERigElementType::Space)
-			{
-				FTransform GlobalTransform = Hierarchy.GetGlobalTransform(InElement);
-				Control.Value.Set<FTransform>(GlobalTransform);
-				Control.InitialValue.Set<FTransform>(GlobalTransform);
-			}
-
-			return true;
 		}
+		else if (InElement.Type == ERigElementType::Space)
+		{
+			const FTransform GlobalTransform = DynamicHierarchy->GetGlobalTransform(InElement);
+			DynamicHierarchy->SetTransform(ControlElement, GlobalTransform, ERigTransformType::InitialGlobal, true, false);
+			DynamicHierarchy->SetTransform(ControlElement, GlobalTransform, ERigTransformType::CurrentGlobal, true, false);
+		}
+
+		return true;
 	}
 	return false;
 }
@@ -1603,20 +1524,42 @@ FName UControlRig::RemoveTransientControl(const FRigElementKey& InElement)
 		return NAME_None;
 	}
 
-	FName ControlName = GetNameForTransientControl(InElement);
-	for (int32 Index = 0; Index < TransientControls.Num(); Index++)
+	URigHierarchyController* Controller = DynamicHierarchy->GetController(true);
+	if(Controller == nullptr)
 	{
-		if (TransientControls[Index].Name == ControlName)
+		return NAME_None;
+	}
+
+	const FName ControlName = GetNameForTransientControl(InElement);
+	if(FRigControlElement* ControlElement = FindControl(ControlName))
+	{
+		//Hierarchy->Notify(ERigHierarchyNotification::ElementDeselected, ControlElement);
+		if(Controller->RemoveElement(ControlElement))
 		{
-			FRigControl ControlToRemove = TransientControls[Index];
-			TransientControls.RemoveAt(Index);
-			UpdateAvailableControls();
-			return ControlToRemove.Name;
+			return ControlName;
 		}
 	}
 
 	return NAME_None;
+}
 
+FName UControlRig::GetNameForTransientControl(URigVMPin* InPin) const
+{
+	check(InPin);
+	check(DynamicHierarchy);
+	
+	const FString OriginalPinPath = InPin->GetOriginalPinFromInjectedNode()->GetPinPath();
+	return DynamicHierarchy->GetSanitizedName(FString::Printf(TEXT("ControlForPin_%s"), *OriginalPinPath));
+}
+
+FString UControlRig::GetPinNameFromTransientControl(const FRigElementKey& InKey)
+{
+	FString Name = InKey.Name.ToString();
+	if(Name.StartsWith(TEXT("ControlForPin_")))
+	{
+		Name.RightChopInline(14);
+	}
+	return Name;
 }
 
 FName UControlRig::GetNameForTransientControl(const FRigElementKey& InElement)
@@ -1626,59 +1569,120 @@ FName UControlRig::GetNameForTransientControl(const FRigElementKey& InElement)
 		return InElement.Name;
 	}
 
-	FName EnumName = StaticEnum<ERigElementType>()->GetNameByValue((int64)InElement.Type);
+	const FName EnumName = *StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)InElement.Type).ToString();
 	return *FString::Printf(TEXT("ControlForRigElement_%s_%s"), *EnumName.ToString(), *InElement.Name.ToString());
+}
+
+FRigElementKey UControlRig::GetElementKeyFromTransientControl(const FRigElementKey& InKey)
+{
+	static FString ControlRigForElementBoneName;
+	static FString ControlRigForElementSpaceName;
+
+	if (ControlRigForElementBoneName.IsEmpty())
+	{
+		ControlRigForElementBoneName = FString::Printf(TEXT("ControlForRigElement_%s_"),
+            *StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)ERigElementType::Bone).ToString());
+		ControlRigForElementSpaceName = FString::Printf(TEXT("ControlForRigElement_%s_"),
+            *StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)ERigElementType::Space).ToString());
+	}
+	
+	FString Name = InKey.Name.ToString();
+	if(Name.StartsWith(ControlRigForElementBoneName))
+	{
+		Name.RightChopInline(ControlRigForElementBoneName.Len());
+		return FRigElementKey(*Name, ERigElementType::Bone);
+	}
+	if(Name.StartsWith(ControlRigForElementSpaceName))
+	{
+		Name.RightChopInline(ControlRigForElementSpaceName.Len());
+		return FRigElementKey(*Name, ERigElementType::Space);
+	}
+	
+	return FRigElementKey();;
 }
 
 void UControlRig::ClearTransientControls()
 {
-	for (int32 Index = TransientControls.Num() - 1; Index >= 0; Index--)
+	if(DynamicHierarchy == nullptr)
 	{
-		FRigControl ControlToRemove = TransientControls[Index];
-		TransientControls.RemoveAt(Index);
-		UpdateAvailableControls();
+		return;
+	}
+
+	URigHierarchyController* Controller = DynamicHierarchy->GetController(true);
+	if(Controller == nullptr)
+	{
+		return;
+	}
+
+	const TArray<FRigControlElement*> ControlsToRemove = DynamicHierarchy->GetTransientControls();
+	for (FRigControlElement* ControlToRemove : ControlsToRemove)
+	{
+		DynamicHierarchy->Notify(ERigHierarchyNotification::ElementDeselected, ControlToRemove);
+		Controller->RemoveElement(ControlToRemove);
 	}
 }
 
 #endif
 
-void UControlRig::HandleOnRigEvent(FRigHierarchyContainer* InContainer, const FRigEventContext& InEvent)
+void UControlRig::HandleHierarchyEvent(URigHierarchy* InHierarchy, const FRigEventContext& InEvent)
 {
 	if (RigEventDelegate.IsBound())
 	{
-		RigEventDelegate.Broadcast(InContainer, InEvent);
+		RigEventDelegate.Broadcast(InHierarchy, InEvent);
 	}
 
 	switch (InEvent.Event)
 	{
 		case ERigEvent::RequestAutoKey:
 		{
-			int32 Index = InContainer->GetIndex(InEvent.Key);
+			int32 Index = InHierarchy->GetIndex(InEvent.Key);
 			if (Index != INDEX_NONE && InEvent.Key.Type == ERigElementType::Control)
 			{
-				const FRigControl& Control = InContainer->ControlHierarchy[Index];
-
-				FRigControlModifiedContext Context;
-				Context.SetKey = EControlRigSetKey::Always;
-				Context.LocalTime = InEvent.LocalTime;
-				Context.EventName = InEvent.SourceEventName;
-				ControlModified().Broadcast(this, Control, Context);
+				if(FRigControlElement* ControlElement = InHierarchy->GetChecked<FRigControlElement>(Index))
+				{
+					FRigControlModifiedContext Context;
+					Context.SetKey = EControlRigSetKey::Always;
+					Context.LocalTime = InEvent.LocalTime;
+					Context.EventName = InEvent.SourceEventName;
+					ControlModified().Broadcast(this, ControlElement, Context);
+				}
 			}
+		}
+		default:
+		{
+			break;
 		}
 	}
 }
 
-void UControlRig::GetControlsInOrder(TArray<FRigControl>& SortedControls) const
+void UControlRig::GetControlsInOrder(TArray<FRigControlElement*>& SortedControls) const
 {
-	TArray<FRigElementKey> Keys = Hierarchy.GetAllItems(true);
-	for (const FRigElementKey& Key : Keys)
-	{ 
-		if (Key.Type == ERigElementType::Control)
-		{
-			const FRigControl& RigControl = Hierarchy.ControlHierarchy[Key.Name];
-			FRigControl NewControl(RigControl);
-			SortedControls.Add(NewControl);
-		}
+	SortedControls.Reset();
+
+	if(DynamicHierarchy == nullptr)
+	{
+		return;
+	}
+
+	TArray<bool> ElementVisited;
+	ElementVisited.AddZeroed(DynamicHierarchy->Num());
+		
+	for (FRigBaseElement* Element : *DynamicHierarchy)
+	{
+		DynamicHierarchy->Traverse(Element, true, [&ElementVisited, &SortedControls](FRigBaseElement* InElement, bool& bContinue)
+        {
+            bContinue = !ElementVisited[InElement->GetIndex()];
+
+            if(bContinue)
+            {
+            	if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
+            	{
+            		SortedControls.Add(ControlElement);
+            	}
+            	
+                ElementVisited[InElement->GetIndex()] = true;
+            }
+        });
 	}
 }
 
@@ -1845,36 +1849,40 @@ const TArray<UAssetUserData*>* UControlRig::GetAssetUserDataArray() const
 
 void UControlRig::CopyPoseFromOtherRig(UControlRig* Subject)
 {
+	check(DynamicHierarchy);
 	check(Subject);
+	URigHierarchy* OtherHierarchy = Subject->GetHierarchy();
+	check(OtherHierarchy);
 
-	const FRigBoneHierarchy& SourceBones = Subject->GetBoneHierarchy();
-	FRigBoneHierarchy& TargetBones = GetBoneHierarchy();
-
-	for (const FRigBone& SourceBone : SourceBones)
+	for (FRigBaseElement* Element : *DynamicHierarchy)
 	{
-		int32 Index = TargetBones.GetIndex(SourceBone.Name);
-		if (Index != INDEX_NONE)
+		FRigBaseElement* OtherElement = OtherHierarchy->Find(Element->GetKey());
+		if(OtherElement == nullptr)
 		{
-			TargetBones[Index].LocalTransform = SourceBone.LocalTransform;
+			continue;
 		}
-	}
 
-	TargetBones.RecomputeGlobalTransforms();
-
-	const FRigCurveContainer& SourceCurves = Subject->GetCurveContainer();
-	FRigCurveContainer& TargetCurves = GetCurveContainer();
-
-	for (const FRigCurve& SourceCurve : SourceCurves)
-	{
-		int32 Index = TargetCurves.GetIndex(SourceCurve.Name);
-		if (Index != INDEX_NONE)
+		if(OtherElement->GetType() != Element->GetType())
 		{
-			TargetCurves[Index].Value = SourceCurve.Value;
+			continue;
+		}
+
+		if(FRigBoneElement* BoneElement = Cast<FRigBoneElement>(Element))
+		{
+			FRigBoneElement* OtherBoneElement = CastChecked<FRigBoneElement>(OtherElement);
+			const FTransform Transform = OtherHierarchy->GetTransform(OtherBoneElement, ERigTransformType::CurrentLocal);
+			DynamicHierarchy->SetTransform(BoneElement, Transform, ERigTransformType::CurrentLocal, true, false);
+		}
+		else if(FRigCurveElement* CurveElement = Cast<FRigCurveElement>(Element))
+		{
+			FRigCurveElement* OtherCurveElement = CastChecked<FRigCurveElement>(OtherElement);
+			const float Value = OtherHierarchy->GetCurveValue(OtherCurveElement);
+			DynamicHierarchy->SetCurveValue(CurveElement, Value, false);
 		}
 	}
 }
 
-void UControlRig::HandleInteractionRigControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context)
+void UControlRig::HandleInteractionRigControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context)
 {
 	check(Subject);
 
@@ -1891,15 +1899,15 @@ void UControlRig::HandleInteractionRigControlModified(UControlRig* Subject, cons
 
 	if (const FRigInfluenceMap* InfluenceMap = Subject->FindInfluenceMap(Context.EventName))
 	{
-		if (const FRigInfluenceEntry* InfluenceEntry = InfluenceMap->Find(Control.GetElementKey()))
+		if (const FRigInfluenceEntry* InfluenceEntry = InfluenceMap->Find(Control->GetKey()))
 		{
 			for (const FRigElementKey& AffectedKey : *InfluenceEntry)
 			{
 				if (AffectedKey.Type == ERigElementType::Control)
 				{
-					if (const FRigControl* AffectedControl = FindControl(AffectedKey.Name))
+					if (FRigControlElement* AffectedControl = FindControl(AffectedKey.Name))
 					{
-						QueuedModifiedControls.Add(*AffectedControl);
+						QueuedModifiedControls.Add(AffectedControl->GetKey());
 					}
 				}
 				else if (
@@ -1908,9 +1916,9 @@ void UControlRig::HandleInteractionRigControlModified(UControlRig* Subject, cons
 				{
 					// special case controls with a CONTROL suffix
 					FName BoneControlName = *FString::Printf(TEXT("%s_CONTROL"), *AffectedKey.Name.ToString());
-					if (const FRigControl* AffectedControl = FindControl(BoneControlName))
+					if (FRigControlElement* AffectedControl = FindControl(BoneControlName))
 					{
-						QueuedModifiedControls.Add(*AffectedControl);
+						QueuedModifiedControls.Add(AffectedControl->GetKey());
 					}
 				}
 			}
@@ -1948,13 +1956,16 @@ void UControlRig::HandleInteractionRigExecuted(UControlRig* Subject, EControlRig
 	Context.EventName = FRigUnit_InverseExecution::EventName;
 	Context.SetKey = EControlRigSetKey::DoNotCare;
 
-	for (const FRigControl& QueuedModifiedControl : QueuedModifiedControls)
+	for (const FRigElementKey& QueuedModifiedControl : QueuedModifiedControls)
 	{
-		ControlModified().Broadcast(this, QueuedModifiedControl, Context);
+		if(FRigControlElement* ControlElement = FindControl(QueuedModifiedControl.Name))
+		{
+			ControlModified().Broadcast(this, ControlElement, Context);
+		}
 	}
 }
 
-void UControlRig::HandleInteractionRigControlSelected(UControlRig* Subject, const FRigControl& InControl, bool bSelected, bool bInverted)
+void UControlRig::HandleInteractionRigControlSelected(UControlRig* Subject, FRigControlElement* Control, bool bSelected, bool bInverted)
 {
 	check(Subject);
 
@@ -2025,14 +2036,14 @@ void UControlRig::HandleInteractionRigControlSelected(UControlRig* Subject, cons
 			}
 		};
 
-		Local::SelectAffectedElements(this, InfluenceMap, InControl.GetElementKey(), bSelected, bInverted);
+		Local::SelectAffectedElements(this, InfluenceMap, Control->GetKey(), bSelected, bInverted);
 
 		if (bInverted)
 		{
-			FString ControlName = InControl.Name.ToString();
+			const FString ControlName = Control->GetName().ToString();
 			if (ControlName.EndsWith(TEXT("_CONTROL")))
 			{
-				FString BaseName = ControlName.Left(ControlName.Len() - 8);
+				const FString BaseName = ControlName.Left(ControlName.Len() - 8);
 				Local::SelectAffectedElements(this, InfluenceMap, FRigElementKey(*BaseName, ERigElementType::Bone), bSelected, bInverted);
 				Local::SelectAffectedElements(this, InfluenceMap, FRigElementKey(*BaseName, ERigElementType::Curve), bSelected, bInverted);
 			}
@@ -2165,8 +2176,8 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& 
 
 FRigVMExternalVariable UControlRig::GetExternalVariableFromDescription(const FBPVariableDescription& InVariableDescription)
 {
-	bool bIsPublic = !((InVariableDescription.PropertyFlags & CPF_DisableEditOnInstance) == CPF_DisableEditOnInstance);
-	bool bIsReadOnly = ((InVariableDescription.PropertyFlags & CPF_BlueprintReadOnly) == CPF_BlueprintReadOnly);
+	const bool bIsPublic = !((InVariableDescription.PropertyFlags & CPF_DisableEditOnInstance) == CPF_DisableEditOnInstance);
+	const bool bIsReadOnly = ((InVariableDescription.PropertyFlags & CPF_BlueprintReadOnly) == CPF_BlueprintReadOnly);
 	return GetExternalVariableFromPinType(InVariableDescription.VarName, InVariableDescription.VarType, bIsPublic, bIsReadOnly);
 }
 
@@ -2180,15 +2191,21 @@ void UControlRig::SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkel
 
 void UControlRig::SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkeleton& InReferenceSkeleton)
 {
-	for (const FRigBone& Bone : GetBoneHierarchy())
+	check(DynamicHierarchy);
+
+	DynamicHierarchy->ForEach<FRigBoneElement>([this, InReferenceSkeleton](FRigBoneElement* BoneElement) -> bool
 	{
-		int32 BoneIndex = InReferenceSkeleton.FindBoneIndex(Bone.Name);
-		if (BoneIndex != INDEX_NONE)
+		if(BoneElement->BoneType == ERigBoneType::Imported)
 		{
-			FTransform LocalInitialTransform = InReferenceSkeleton.GetRefBonePose()[BoneIndex];
-			GetBoneHierarchy().SetInitialLocalTransform(Bone.Index, LocalInitialTransform);
+			const int32 BoneIndex = InReferenceSkeleton.FindBoneIndex(BoneElement->GetName());
+			if (BoneIndex != INDEX_NONE)
+			{
+				const FTransform LocalInitialTransform = InReferenceSkeleton.GetRefBonePose()[BoneIndex];
+				DynamicHierarchy->SetTransform(BoneElement, LocalInitialTransform, ERigTransformType::InitialLocal, true, false);
+			}
 		}
-	}
+		return true;
+	});
 	bResetInitialTransformsBeforeSetup = false;
 }
 

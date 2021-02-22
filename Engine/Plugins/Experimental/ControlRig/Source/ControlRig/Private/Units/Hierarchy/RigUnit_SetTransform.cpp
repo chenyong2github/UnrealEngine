@@ -22,7 +22,7 @@ FRigUnit_SetTransform_Execute()
 		return;
 	}
 
-	if (FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy)
+	if (URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
 		switch (Context.State)
 		{
@@ -43,59 +43,20 @@ FRigUnit_SetTransform_Execute()
 				}
 				else
 				{
-					if(bInitial)
+					FTransform WeightedTransform = Transform;
+					if (Weight < 1.f - SMALL_NUMBER)
 					{
-						// special case controls - since we want their offset to behave differently
-						if (CachedIndex.GetKey().Type == ERigElementType::Control)
-						{
-							FTransform OffsetTransform = Transform;
-
-							if (Space == EBoneGetterSetterMode::GlobalSpace)
-							{
-								FRigElementKey ParentKey = Hierarchy->GetParentKey(CachedIndex);
-								if (ParentKey.IsValid())
-								{
-									FTransform ParentTransform = Hierarchy->GetInitialGlobalTransform(ParentKey);
-									OffsetTransform = OffsetTransform.GetRelativeTransform(ParentTransform);
-								}
-							}
-
-							FRigControl& Control = (*ExecuteContext.GetControls())[CachedIndex];
-							Control.OffsetTransform = OffsetTransform;
-
-							if (Control.ControlType == ERigControlType::Transform ||
-								Control.ControlType == ERigControlType::TransformNoScale || 
-								Control.ControlType == ERigControlType::Position || 
-								Control.ControlType == ERigControlType::Rotator || 
-								Control.ControlType == ERigControlType::Scale)
-							{
-								Control.SetValueFromTransform(FTransform::Identity, ERigControlValueType::Initial);
-								Control.SetValueFromTransform(FTransform::Identity, ERigControlValueType::Current);
-							}
-
-							return;
-						}
-
+						FTransform PreviousTransform = WeightedTransform;
 						switch (Space)
 						{
 							case EBoneGetterSetterMode::GlobalSpace:
 							{
-								Hierarchy->SetInitialGlobalTransform(CachedIndex, Transform);
-
-								if (ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
-								{
-									Hierarchy->SetGlobalTransform(CachedIndex, Transform);
-								}
+								PreviousTransform = Hierarchy->GetGlobalTransformByIndex(CachedIndex, bInitial);
 								break;
 							}
 							case EBoneGetterSetterMode::LocalSpace:
 							{
-								Hierarchy->SetInitialTransform(CachedIndex, Transform);
-
-								if (ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
-								{
-									Hierarchy->SetLocalTransform(CachedIndex, Transform);
-								}
+								PreviousTransform = Hierarchy->GetLocalTransformByIndex(CachedIndex, bInitial);
 								break;
 							}
 							default:
@@ -103,49 +64,34 @@ FRigUnit_SetTransform_Execute()
 								break;
 							}
 						}
+						WeightedTransform = FControlRigMathLibrary::LerpTransform(PreviousTransform, WeightedTransform, Weight);
 					}
-					else
-					{
-						FTransform WeightedTransform = Transform;
-						if (Weight < 1.f - SMALL_NUMBER)
-						{
-							FTransform PreviousTransform = WeightedTransform;
-							switch (Space)
-							{
-								case EBoneGetterSetterMode::GlobalSpace:
-								{
-									PreviousTransform = Hierarchy->GetGlobalTransform(CachedIndex);
-									break;
-								}
-								case EBoneGetterSetterMode::LocalSpace:
-								{
-									PreviousTransform = Hierarchy->GetLocalTransform(CachedIndex);
-									break;
-								}
-								default:
-								{
-									break;
-								}
-							}
-							WeightedTransform = FControlRigMathLibrary::LerpTransform(PreviousTransform, WeightedTransform, Weight);
-						}
 
-						switch (Space)
+					switch (Space)
+					{
+						case EBoneGetterSetterMode::GlobalSpace:
 						{
-							case EBoneGetterSetterMode::GlobalSpace:
+							Hierarchy->SetGlobalTransformByIndex(CachedIndex, WeightedTransform, bInitial, bPropagateToChildren);
+
+							if (bInitial && ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
 							{
-								Hierarchy->SetGlobalTransform(CachedIndex, WeightedTransform, bPropagateToChildren);
-								break;
+								Hierarchy->SetGlobalTransformByIndex(CachedIndex, WeightedTransform, false, bPropagateToChildren);
 							}
-							case EBoneGetterSetterMode::LocalSpace:
+							break;
+						}
+						case EBoneGetterSetterMode::LocalSpace:
+						{
+							Hierarchy->SetLocalTransformByIndex(CachedIndex, WeightedTransform, bInitial, bPropagateToChildren);
+
+							if (bInitial && ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
 							{
-								Hierarchy->SetLocalTransform(CachedIndex, WeightedTransform, bPropagateToChildren);
-								break;
+								Hierarchy->SetLocalTransformByIndex(CachedIndex, WeightedTransform, false, bPropagateToChildren);
 							}
-							default:
-							{
-								break;
-							}
+							break;
+						}
+						default:
+						{
+							break;
 						}
 					}
 				}

@@ -6,7 +6,7 @@
 FRigUnit_PointSimulation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 
 	float DeltaTime = Context.DeltaTime;
 
@@ -158,7 +158,8 @@ FRigUnit_PointSimulation_Execute()
 
 		for (int32 TargetIndex = 0; TargetIndex < BoneTargets.Num(); TargetIndex++)
 		{
-			if (BoneIndices[TargetIndex].UpdateCache(BoneTargets[TargetIndex].Bone, Hierarchy))
+			const FRigElementKey Key(BoneTargets[TargetIndex].Bone, ERigElementType::Bone);
+			if (BoneIndices[TargetIndex].UpdateCache(Key, Hierarchy))
 			{
 				const FRigUnit_PointSimulation_BoneTarget& BoneTarget = BoneTargets[TargetIndex];
 				FTransform Transform = Hierarchy->GetGlobalTransform(BoneIndices[TargetIndex]);
@@ -170,12 +171,12 @@ FRigUnit_PointSimulation_Execute()
 
 				if (bLimitLocalPosition)
 				{
-					int32 ParentIndex = (*Hierarchy)[BoneIndices[TargetIndex]].ParentIndex;
-					if (ParentIndex != INDEX_NONE)
+					FRigElementKey ParentKey = Hierarchy->GetFirstParent(BoneIndices[TargetIndex].GetKey());
+					if (ParentKey.IsValid())
 					{
 						FTransform InitialTransform = Hierarchy->GetInitialGlobalTransform(BoneIndices[TargetIndex]);
-						FTransform ParentInitialTransform = Hierarchy->GetInitialGlobalTransform(ParentIndex);
-						FTransform ParentTransform = Hierarchy->GetGlobalTransform(ParentIndex);
+						FTransform ParentInitialTransform = Hierarchy->GetGlobalTransform(ParentKey, true);
+						FTransform ParentTransform = Hierarchy->GetGlobalTransform(ParentKey);
 						float ExpectedDistance = (InitialTransform.GetLocation() - ParentInitialTransform.GetLocation()).Size();
 						if (ExpectedDistance > SMALL_NUMBER)
 						{

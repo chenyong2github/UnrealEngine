@@ -5,30 +5,37 @@
 #include "Misc/AutomationTest.h"
 #include "RigUnit.h"
 #include "RigUnitContext.h"
-#include "Rigs/RigHierarchyContainer.h"
-#include "Rigs/RigCurveContainer.h"
+#include "Rigs/RigHierarchy.h"
+#include "Rigs/RigHierarchyController.h"
 
 class FControlRigUnitTestBase : public FAutomationTestBase
 {
 public:
 	FControlRigUnitTestBase(const FString& InName, bool bIsComplex)
 		: FAutomationTestBase(InName, bIsComplex)
-		, HierarchyContainer()
-		, BoneHierarchy(HierarchyContainer.BoneHierarchy)
-		, SpaceHierarchy(HierarchyContainer.SpaceHierarchy)
-		, ControlHierarchy(HierarchyContainer.ControlHierarchy)
-		, CurveContainer(HierarchyContainer.CurveContainer)
+		, Hierarchy(nullptr)
+		, Controller(nullptr)
 	{
-		Context.Hierarchy = &HierarchyContainer;
-		ExecuteContext.Hierarchy= &HierarchyContainer;
+		Hierarchy = NewObject<URigHierarchy>();
+		Controller = NewObject<URigHierarchyController>();
+		Controller->SetHierarchy(Hierarchy);
+
+		Hierarchy->AddToRoot();
+		Controller->AddToRoot();
+		
+		Context.Hierarchy = Hierarchy;;
+		ExecuteContext.Hierarchy= Hierarchy;
 		Context.NameCache = &NameCache;
 	}
 
-	FRigHierarchyContainer HierarchyContainer;
-	FRigBoneHierarchy& BoneHierarchy;
-	FRigSpaceHierarchy& SpaceHierarchy;
-	FRigControlHierarchy& ControlHierarchy;
-	FRigCurveContainer& CurveContainer;
+	~FControlRigUnitTestBase()
+	{
+		Controller->RemoveFromRoot();
+		Hierarchy->RemoveFromRoot();
+	}
+
+	URigHierarchy* Hierarchy;
+	URigHierarchyController* Controller;
 	FControlRigExecuteContext ExecuteContext;
 	FRigNameCache NameCache;
 	FRigUnitContext Context;
@@ -56,8 +63,7 @@ public:
 		TUnitStruct Unit; \
 		virtual bool RunTest(const FString& Parameters) override \
 		{ \
-			HierarchyContainer.Reset(); \
-			CurveContainer.Reset(); \
+			Hierarchy->Reset(); \
 			Unit = TUnitStruct(); \
 			return RunControlRigUnitTest(Parameters); \
 		} \

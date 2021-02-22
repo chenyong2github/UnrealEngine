@@ -67,7 +67,7 @@ FRigUnit_RigLogic_Data& FRigUnit_RigLogic_Data::operator=(const FRigUnit_RigLogi
 	HierarchyBoneIndices = Other.HierarchyBoneIndices;
 	MorphTargetCurveIndices = Other.MorphTargetCurveIndices;
 	BlendShapeIndices = Other.BlendShapeIndices;
-	CurveContainerIndicesForAnimMaps = Other.CurveContainerIndicesForAnimMaps;
+	CurveElementIndicesForAnimMaps = Other.CurveElementIndicesForAnimMaps;
 	RigLogicIndicesForAnimMaps = Other.RigLogicIndicesForAnimMaps;
 	CurrentLOD = Other.CurrentLOD;
 	return *this;
@@ -78,7 +78,7 @@ bool FRigUnit_RigLogic_Data::IsRigLogicInitialized()
 	return (SharedRigRuntimeContext != nullptr) && SharedRigRuntimeContext->RigLogic.IsValid() && RigInstance.IsValid();
 }
 
-void FRigUnit_RigLogic_Data::InitializeRigLogic(const FRigBoneHierarchy* BoneHierarchy, const FRigCurveContainer* CurveContainer)
+void FRigUnit_RigLogic_Data::InitializeRigLogic(const URigHierarchy* InHierarchy)
 {
 	if (!SharedRigRuntimeContext->BehaviorReader.IsValid() || SharedRigRuntimeContext->BehaviorReader->GetJointCount() == 0u)
 	{
@@ -98,15 +98,15 @@ void FRigUnit_RigLogic_Data::InitializeRigLogic(const FRigBoneHierarchy* BoneHie
 		RigInstance = MakeUnique<FRigInstance>(SharedRigRuntimeContext->RigLogic.Get());
 		RigInstance->SetLOD(CurrentLOD);
 
-		MapJoints(BoneHierarchy);
-		MapInputCurveIndices(CurveContainer);
-		MapMorphTargets(CurveContainer);
-		MapMaskMultipliers(CurveContainer);
+		MapJoints(InHierarchy);
+		MapInputCurveIndices(InHierarchy);
+		MapMorphTargets(InHierarchy);
+		MapMaskMultipliers(InHierarchy);
 	}
 }
 
 //maps indices of input curves from dna file to control rig curves
-void FRigUnit_RigLogic_Data::MapInputCurveIndices(const FRigCurveContainer* CurveContainer)
+void FRigUnit_RigLogic_Data::MapInputCurveIndices(const URigHierarchy* InHierarchy)
 {
 	const IBehaviorReader* DNABehavior = SharedRigRuntimeContext->BehaviorReader.Get();
 	const uint32 ControlCount = DNABehavior->GetRawControlCount();
@@ -120,12 +120,12 @@ void FRigUnit_RigLogic_Data::MapInputCurveIndices(const FRigCurveContainer* Curv
 			return;
 		}
 		const FName ControlFName(*AnimatedControlName);
-		const int32 CurveIndex = CurveContainer ? CurveContainer->GetIndex(ControlFName) : INDEX_NONE;
+		const int32 CurveIndex = InHierarchy ? InHierarchy->GetIndex(FRigElementKey(ControlFName, ERigElementType::Curve)) : INDEX_NONE;
 		InputCurveIndices.Add(CurveIndex); //can be INDEX_NONE
 	}
 }
 
-void FRigUnit_RigLogic_Data::MapJoints(const FRigBoneHierarchy* Hierarchy)
+void FRigUnit_RigLogic_Data::MapJoints(const URigHierarchy* Hierarchy)
 {
 	const IBehaviorReader* DNABehavior = SharedRigRuntimeContext->BehaviorReader.Get();
 	const uint16 JointCount = DNABehavior->GetJointCount();
@@ -134,7 +134,7 @@ void FRigUnit_RigLogic_Data::MapJoints(const FRigBoneHierarchy* Hierarchy)
 	{
 		const FString RLJointName = DNABehavior->GetJointName(JointIndex);
 		const FName JointFName = FName(*RLJointName);
-		const int32 BoneIndex = Hierarchy->GetIndex(JointFName);
+		const int32 BoneIndex = Hierarchy->GetIndex(FRigElementKey(JointFName, ERigElementType::Bone));
 		HierarchyBoneIndices.Add(BoneIndex);
 	}
 }
@@ -160,7 +160,7 @@ void FRigUnit_RigLogic_Data::CacheVariableJointIndices()
 	}
 }
 
-void FRigUnit_RigLogic_Data::MapMorphTargets(const FRigCurveContainer* CurveContainer)
+void FRigUnit_RigLogic_Data::MapMorphTargets(const URigHierarchy* InHierarchy)
 {
 	const IBehaviorReader* DNABehavior = SharedRigRuntimeContext->BehaviorReader.Get();
 	const uint16 LODCount = DNABehavior->GetLODCount();
@@ -185,19 +185,19 @@ void FRigUnit_RigLogic_Data::MapMorphTargets(const FRigCurveContainer* CurveCont
 			const FString MeshStr = DNABehavior->GetMeshName(MeshIndex);
 			const FString MorphTargetStr = MeshStr + TEXT("__") + BlendShapeStr;
 			const FName MorphTargetName(*MorphTargetStr);
-			const int32 MorphTargetIndex = CurveContainer->GetIndex(MorphTargetName);
+			const int32 MorphTargetIndex = InHierarchy->GetIndex(FRigElementKey(MorphTargetName, ERigElementType::Curve));
 			MorphTargetCurveIndices[LodIndex].Values.Add(MorphTargetIndex);
 			BlendShapeIndices[LodIndex].Values.Add(Mapping.BlendShapeChannelIndex);
 		}
 	}
 }
 
-void FRigUnit_RigLogic_Data::MapMaskMultipliers(const FRigCurveContainer* CurveContainer)
+void FRigUnit_RigLogic_Data::MapMaskMultipliers(const URigHierarchy* InHierarchy)
 {
 	const IBehaviorReader* DNABehavior = SharedRigRuntimeContext->BehaviorReader.Get();
 	const uint16 LODCount = DNABehavior->GetLODCount();
-	CurveContainerIndicesForAnimMaps.Reset();
-	CurveContainerIndicesForAnimMaps.AddDefaulted(LODCount);
+	CurveElementIndicesForAnimMaps.Reset();
+	CurveElementIndicesForAnimMaps.AddDefaulted(LODCount);
 
 	RigLogicIndicesForAnimMaps.Reset();
 	RigLogicIndicesForAnimMaps.AddDefaulted(LODCount);
@@ -205,7 +205,7 @@ void FRigUnit_RigLogic_Data::MapMaskMultipliers(const FRigCurveContainer* CurveC
 	for (uint16 LodIndex = 0; LodIndex < LODCount; ++LodIndex)
 	{		
 		TArrayView<const uint16> AnimMapIndicesPerLOD = DNABehavior->GetAnimatedMapIndicesForLOD(LodIndex);
-		CurveContainerIndicesForAnimMaps[LodIndex].Values.Reserve(AnimMapIndicesPerLOD.Num());
+		CurveElementIndicesForAnimMaps[LodIndex].Values.Reserve(AnimMapIndicesPerLOD.Num());
 		RigLogicIndicesForAnimMaps[LodIndex].Values.Reserve(AnimMapIndicesPerLOD.Num());
 		for (uint16 AnimMapIndexPerLOD: AnimMapIndicesPerLOD)
 		{
@@ -215,14 +215,14 @@ void FRigUnit_RigLogic_Data::MapMaskMultipliers(const FRigCurveContainer* CurveC
 				return;
 			}
 			const FName MaskMultiplierFName(*MaskMultiplierNameStr);
-			const int32 CurveIndex = CurveContainer->GetIndex(MaskMultiplierFName);
-			CurveContainerIndicesForAnimMaps[LodIndex].Values.Add(CurveIndex); //can be INDEX_NONE if curve was not found
+			const int32 CurveIndex = InHierarchy->GetIndex(FRigElementKey(MaskMultiplierFName, ERigElementType::Curve));
+			CurveElementIndicesForAnimMaps[LodIndex].Values.Add(CurveIndex); //can be INDEX_NONE if curve was not found
 			RigLogicIndicesForAnimMaps[LodIndex].Values.Add(AnimMapIndexPerLOD);
 		}
 	}
 }
 
-void FRigUnit_RigLogic_Data::CalculateRigLogic(const FRigCurveContainer* CurveContainer)
+void FRigUnit_RigLogic_Data::CalculateRigLogic(const URigHierarchy* InHierarchy)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_Calculate);
 
@@ -233,13 +233,13 @@ void FRigUnit_RigLogic_Data::CalculateRigLogic(const FRigCurveContainer* CurveCo
 	for (int32 ControlIndex = 0; ControlIndex < RawControlCount; ++ControlIndex)
 	{
 		const uint32 CurveIndex = InputCurveIndices[ControlIndex];
-		const float Value = CurveContainer->GetValue(CurveIndex);
+		const float Value = InHierarchy->GetCurveValue(CurveIndex);
 		RigInstance->SetRawControl(ControlIndex, Value);
 	}
 	SharedRigRuntimeContext->RigLogic->Calculate(RigInstance.Get());
 }
 
-void FRigUnit_RigLogic_Data::UpdateJoints(FRigHierarchyContainer* Hierarchy, const FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams)
+void FRigUnit_RigLogic_Data::UpdateJoints(URigHierarchy* Hierarchy, const FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams)
 {
 	for (const uint16 JointIndex : SharedRigRuntimeContext->VariableJointIndices[CurrentLOD].Values)
 	{
@@ -254,13 +254,12 @@ void FRigUnit_RigLogic_Data::UpdateJoints(FRigHierarchyContainer* Hierarchy, con
 				Neutral.GetTranslation() + Delta.GetTranslation(),
 				Neutral.GetScale3D() + Delta.GetScale3D()  // Neutral scale is always 1.0
 			};
-			Hierarchy->BoneHierarchy[BoneIndex].LocalTransform = Transform;
+			Hierarchy->SetLocalTransform(BoneIndex, Transform);
 		}
 	}
-	Hierarchy->BoneHierarchy.RecomputeGlobalTransforms();
 }
 
-void FRigUnit_RigLogic_Data::UpdateBlendShapeCurves(FRigCurveContainer* CurveContainer, TArrayView<const float> BlendShapeValues)
+void FRigUnit_RigLogic_Data::UpdateBlendShapeCurves(URigHierarchy* InHierarchy, TArrayView<const float> BlendShapeValues)
 {
 	// set output blend shapes
 	if (BlendShapeIndices.IsValidIndex(CurrentLOD) && MorphTargetCurveIndices.IsValidIndex(CurrentLOD))
@@ -276,7 +275,7 @@ void FRigUnit_RigLogic_Data::UpdateBlendShapeCurves(FRigCurveContainer* CurveCon
 				if (MorphTargetCurveIndex != INDEX_NONE)
 				{
 					const float Value = BlendShapeValues[BlendShapeIndex];
-					CurveContainer->SetValue(MorphTargetCurveIndex, Value);
+					InHierarchy->SetCurveValue(MorphTargetCurveIndex, Value);
 				}
 			}
 		}
@@ -287,22 +286,22 @@ void FRigUnit_RigLogic_Data::UpdateBlendShapeCurves(FRigCurveContainer* CurveCon
 	}
 }
 
-void FRigUnit_RigLogic_Data::UpdateAnimMapCurves(FRigCurveContainer* CurveContainer, TArrayView<const float> AnimMapOutputs)
+void FRigUnit_RigLogic_Data::UpdateAnimMapCurves(URigHierarchy* InHierarchy, TArrayView<const float> AnimMapOutputs)
 {
 	// set output mask multipliers
 	// In case curves are not imported yet into CL, AnimatedMapsCurveIndices will be empty, so we need to check
 	// array bounds before trying to access it:
-	if (RigLogicIndicesForAnimMaps.IsValidIndex(CurrentLOD) && CurveContainerIndicesForAnimMaps.IsValidIndex(CurrentLOD))
+	if (RigLogicIndicesForAnimMaps.IsValidIndex(CurrentLOD) && CurveElementIndicesForAnimMaps.IsValidIndex(CurrentLOD))
 	{
 		const uint32 AnimMapPerLODCount = RigLogicIndicesForAnimMaps[CurrentLOD].Values.Num();
 		for (uint32 AnimMapIndexForLOD = 0; AnimMapIndexForLOD < AnimMapPerLODCount; ++AnimMapIndexForLOD)
 		{
 			const int32 RigLogicAnimMapIndex = RigLogicIndicesForAnimMaps[CurrentLOD].Values[AnimMapIndexForLOD];
-			const int32 CurveContainerAnimMapIndex = CurveContainerIndicesForAnimMaps[CurrentLOD].Values[AnimMapIndexForLOD];
-			if (CurveContainerAnimMapIndex != INDEX_NONE)
+			const int32 InHierarchyAnimMapIndex = CurveElementIndicesForAnimMaps[CurrentLOD].Values[AnimMapIndexForLOD];
+			if (InHierarchyAnimMapIndex != INDEX_NONE)
 			{
 				const float Value = AnimMapOutputs[RigLogicAnimMapIndex];
-				CurveContainer->SetValue(CurveContainerAnimMapIndex, Value);
+				InHierarchy->SetCurveValue(InHierarchyAnimMapIndex, Value);
 			}
 		}
 	}
@@ -327,7 +326,7 @@ FRigUnit_RigLogic_Execute()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RigUnit_RigLogic_Execute);
 
- 	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+ 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -351,20 +350,18 @@ FRigUnit_RigLogic_Execute()
 				Data.SharedRigRuntimeContext = GetSharedRigRuntimeContext(Data.SkelMeshComponent->SkeletalMesh);
 				// Context is initialized with a BehaviorReader, which can be imported into SkeletalMesh from DNA file
 				// or overwritten by GeneSplicer when making a new character
-				FRigCurveContainer* CurveContainer = ExecuteContext.GetCurves();
-				Data.InitializeRigLogic(&Hierarchy->BoneHierarchy, CurveContainer);
+				Data.InitializeRigLogic(Hierarchy);
 				break; 
 			}
 			case EControlRigState::Update:
 			{
 				// Fetch shared runtime context of rig from DNAAsset
-				FRigCurveContainer* CurveContainer = ExecuteContext.GetCurves();
-				if (!Data.SkelMeshComponent.IsValid() || !Data.IsRigLogicInitialized() || CurveContainer == nullptr)
+				if (!Data.SkelMeshComponent.IsValid() || !Data.IsRigLogicInitialized() || Hierarchy == nullptr)
 				{
 					return;
 				}
 				Data.CurrentLOD = Data.SkelMeshComponent->PredictedLODLevel;
-				Data.CalculateRigLogic(CurveContainer);
+				Data.CalculateRigLogic(Hierarchy);
 
 				//Filing a struct so we can call the same method for updating joints from tests
 				FRigUnit_RigLogic_JointUpdateParams JointUpdateParamsTemp
@@ -376,10 +373,10 @@ FRigUnit_RigLogic_Execute()
 				Data.UpdateJoints(Hierarchy, JointUpdateParamsTemp);
 
 				TArrayView<const float> BlendShapeValues = Data.RigInstance->GetBlendShapeOutputs();
-				Data.UpdateBlendShapeCurves(CurveContainer, BlendShapeValues);
+				Data.UpdateBlendShapeCurves(Hierarchy, BlendShapeValues);
 
 				TArrayView<const float> AnimMapOutputs = Data.RigInstance->GetAnimatedMapOutputs();
-				Data.UpdateAnimMapCurves(CurveContainer, AnimMapOutputs);
+				Data.UpdateAnimMapCurves(Hierarchy, AnimMapOutputs);
 			}
 			default:
 			{

@@ -7,7 +7,7 @@
 FRigUnit_SetControlBool_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -19,9 +19,10 @@ FRigUnit_SetControlBool_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				const FRigElementKey Key(Control, ERigElementType::Control);
+				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
-					Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<bool>(BoolValue));
+					Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<bool>(BoolValue));
 				}
 				break;
 			}
@@ -36,7 +37,7 @@ FRigUnit_SetControlBool_Execute()
 FRigUnit_SetMultiControlBool_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		CachedControlIndices.SetNum(Entries.Num());
@@ -64,7 +65,7 @@ FRigUnit_SetMultiControlBool_Execute()
 FRigUnit_SetControlFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -76,16 +77,17 @@ FRigUnit_SetControlFloat_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				const FRigElementKey Key(Control, ERigElementType::Control);
+				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
 					if(FMath::IsNearlyEqual(Weight, 1.f))
 					{
-						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<float>(FloatValue));
+						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<float>(FloatValue));
 					}
 					else
 					{
-						float PreviousValue = Hierarchy->GetValue(CachedControlIndex).Get<float>();
-						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<float>(FMath::Lerp<float>(PreviousValue, FloatValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
+						float PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<float>();
+						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<float>(FMath::Lerp<float>(PreviousValue, FloatValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
 					}
 				}
 				break;
@@ -101,7 +103,7 @@ FRigUnit_SetControlFloat_Execute()
 FRigUnit_SetMultiControlFloat_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{ 
 		CachedControlIndices.SetNum(Entries.Num());
@@ -129,7 +131,7 @@ FRigUnit_SetMultiControlFloat_Execute()
 FRigUnit_SetControlInteger_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -141,16 +143,17 @@ FRigUnit_SetControlInteger_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				const FRigElementKey Key(Control, ERigElementType::Control);
+				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
 					if(FMath::IsNearlyEqual(Weight, 1.f))
 					{
-						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<int32>(IntegerValue));
+						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<int32>(IntegerValue));
 					}
 					else
 					{
-						int32 PreviousValue = Hierarchy->GetValue(CachedControlIndex).Get<int32>();
-						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<int32>((int32)FMath::Lerp<float>((float)PreviousValue, (float)IntegerValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
+						int32 PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<int32>();
+						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<int32>((int32)FMath::Lerp<float>((float)PreviousValue, (float)IntegerValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
 					}
 				}
 				break;
@@ -166,7 +169,7 @@ FRigUnit_SetControlInteger_Execute()
 FRigUnit_SetMultiControlInteger_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		CachedControlIndices.SetNum(Entries.Num());
@@ -194,7 +197,7 @@ FRigUnit_SetMultiControlInteger_Execute()
 FRigUnit_SetControlVector2D_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -206,16 +209,17 @@ FRigUnit_SetControlVector2D_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				const FRigElementKey Key(Control, ERigElementType::Control);
+				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
 					if(FMath::IsNearlyEqual(Weight, 1.f))
 					{
-						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<FVector2D>(Vector));
+						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector2D>(Vector));
 					}
 					else
 					{
-						FVector2D PreviousValue = Hierarchy->GetValue(CachedControlIndex).Get<FVector2D>();
-						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<FVector2D>(FMath::Lerp<FVector2D>(PreviousValue, Vector, FMath::Clamp<float>(Weight, 0.f, 1.f))));
+						FVector2D PreviousValue = Hierarchy->GetControlValue(CachedControlIndex).Get<FVector2D>();
+						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector2D>(FMath::Lerp<FVector2D>(PreviousValue, Vector, FMath::Clamp<float>(Weight, 0.f, 1.f))));
 					}
 				}
 				break;
@@ -231,7 +235,7 @@ FRigUnit_SetControlVector2D_Execute()
 FRigUnit_SetMultiControlVector2D_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		CachedControlIndices.SetNum(Entries.Num());
@@ -259,7 +263,7 @@ FRigUnit_SetMultiControlVector2D_Execute()
 FRigUnit_SetControlVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -271,15 +275,18 @@ FRigUnit_SetControlVector_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				const FRigElementKey Key(Control, ERigElementType::Control);
+				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
+					const ERigControlType ControlType = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex)->Settings.ControlType;
+					
 					FTransform Transform = FTransform::Identity;
 					if (Space == EBoneGetterSetterMode::GlobalSpace)
 					{
 						Transform = Hierarchy->GetGlobalTransform(CachedControlIndex);
 					}
 
-					if ((*Hierarchy)[CachedControlIndex].ControlType == ERigControlType::Position)
+					if (ControlType == ERigControlType::Position)
 					{
 						if(FMath::IsNearlyEqual(Weight, 1.f))
 						{
@@ -291,7 +298,7 @@ FRigUnit_SetControlVector_Execute()
 							Transform.SetLocation(FMath::Lerp<FVector>(PreviousValue, Vector, FMath::Clamp<float>(Weight, 0.f, 1.f)));
 						}
 					}
-					else if ((*Hierarchy)[CachedControlIndex].ControlType == ERigControlType::Scale)
+					else if (ControlType == ERigControlType::Scale)
 					{
 						if(FMath::IsNearlyEqual(Weight, 1.f))
 						{
@@ -334,7 +341,7 @@ FRigUnit_SetControlVector_Execute()
 FRigUnit_SetControlRotator_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -346,7 +353,8 @@ FRigUnit_SetControlRotator_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				const FRigElementKey Key(Control, ERigElementType::Control);
+				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
 					FTransform Transform = FTransform::Identity;
 					if (Space == EBoneGetterSetterMode::GlobalSpace)
@@ -396,7 +404,7 @@ FRigUnit_SetControlRotator_Execute()
 FRigUnit_SetMultiControlRotator_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		CachedControlIndices.SetNum(Entries.Num());
@@ -424,7 +432,7 @@ FRigUnit_SetMultiControlRotator_Execute()
 FRigUnit_SetControlTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -436,7 +444,8 @@ FRigUnit_SetControlTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				const FRigElementKey Key(Control, ERigElementType::Control);
+				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
 					switch (Space)
 					{
@@ -487,10 +496,12 @@ FRigUnit_SetControlTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlBool)
 {
-	ControlHierarchy.Add(TEXT("Control1"), ERigControlType::Bool, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Add(TEXT("Control2"), ERigControlType::Bool, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	FRigControlSettings Settings;
+	Settings.ControlType = ERigControlType::Bool;
+	
+	Controller->AddControl(TEXT("Control1"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Controller->AddControl(TEXT("Control2"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	// this unit has an empty entry by default, clear it for testing purpose
 	Unit.Entries.Reset();
@@ -510,18 +521,20 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlBool)
 	Init();
 	Execute();
 
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control1")].GetValue(ERigControlValueType::Current).Get<bool>() == true, TEXT("unexpected control value"));
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control2")].GetValue(ERigControlValueType::Current).Get<bool>() == true, TEXT("unexpected control value")); 
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<bool>() == true, TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<bool>() == true, TEXT("unexpected control value")); 
 
 	return true;
 }
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlFloat)
 {
-	ControlHierarchy.Add(TEXT("Control1"), ERigControlType::Float, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Add(TEXT("Control2"), ERigControlType::Float, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	FRigControlSettings Settings;
+	Settings.ControlType = ERigControlType::Float;
+	
+	Controller->AddControl(TEXT("Control1"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Controller->AddControl(TEXT("Control2"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	// this unit has an empty entry by default, clear it for testing purpose
 	Unit.Entries.Reset();
@@ -541,8 +554,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlFloat)
 	Init();
 	Execute();
 
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control1")].GetValue(ERigControlValueType::Current).Get<float>() == 10.0f, TEXT("unexpected control value"));
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control2")].GetValue(ERigControlValueType::Current).Get<float>() == 20.0f, TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<float>() == 10.0f, TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<float>() == 20.0f, TEXT("unexpected control value"));
 
 	// test if the caches were updated 
 	AddErrorIfFalse(Unit.CachedControlIndices.Num() == 2, TEXT("unexpected number of cache entries"));
@@ -567,7 +580,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlFloat)
 
 	Execute();
 
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control2")].GetValue(ERigControlValueType::Current).Get<float>() == 30.0f, TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<float>() == 30.0f, TEXT("unexpected control value"));
 
 	AddErrorIfFalse(Unit.CachedControlIndices.Num() == 1, TEXT("unexpected number of cache entries"));
 	AddErrorIfFalse(Unit.CachedControlIndices[0].GetKey().Name == Unit.Entries[0].Control, TEXT("unexpected cached control"));
@@ -577,10 +590,12 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlFloat)
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlInteger)
 {
-	ControlHierarchy.Add(TEXT("Control1"), ERigControlType::Integer, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Add(TEXT("Control2"), ERigControlType::Integer, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	FRigControlSettings Settings;
+	Settings.ControlType = ERigControlType::Integer;
+	
+	Controller->AddControl(TEXT("Control1"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Controller->AddControl(TEXT("Control2"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	// this unit has an empty entry by default, clear it for testing purpose
 	Unit.Entries.Reset();
@@ -600,18 +615,20 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlInteger)
 	Init();
 	Execute();
 
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control1")].GetValue(ERigControlValueType::Current).Get<int32>() == 10, TEXT("unexpected control value"));
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control2")].GetValue(ERigControlValueType::Current).Get<int32>() == 20, TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<int32>() == 10, TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<int32>() == 20, TEXT("unexpected control value"));
 
 	return true;
 }
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlVector2D)
 {
-	ControlHierarchy.Add(TEXT("Control1"), ERigControlType::Vector2D, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Add(TEXT("Control2"), ERigControlType::Vector2D, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	FRigControlSettings Settings;
+	Settings.ControlType = ERigControlType::Vector2D;
+	
+	Controller->AddControl(TEXT("Control1"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Controller->AddControl(TEXT("Control2"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	// this unit has an empty entry by default, clear it for testing purpose
 	Unit.Entries.Reset();
@@ -631,18 +648,20 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlVector2D)
 	Init();
 	Execute();
 
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control1")].GetValue(ERigControlValueType::Current).Get<FVector2D>() == FVector2D(1.f, 1.f), TEXT("unexpected control value"));
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control2")].GetValue(ERigControlValueType::Current).Get<FVector2D>() == FVector2D(2.f, 2.f), TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector2D>() == FVector2D(1.f, 1.f), TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<FVector2D>() == FVector2D(2.f, 2.f), TEXT("unexpected control value"));
 
 	return true;
 }
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlRotator)
 {
-	ControlHierarchy.Add(TEXT("Control1"), ERigControlType::Rotator, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Add(TEXT("Control2"), ERigControlType::Rotator, NAME_None, NAME_None, FTransform(), FRigControlValue(), NAME_None, FTransform(), FLinearColor());
-	ControlHierarchy.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	FRigControlSettings Settings;
+	Settings.ControlType = ERigControlType::Rotator;
+	
+	Controller->AddControl(TEXT("Control1"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Controller->AddControl(TEXT("Control2"), FRigElementKey(), Settings, FRigControlValue(), FTransform::Identity, FTransform::Identity);
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	// this unit has an empty entry by default, clear it for testing purpose
 	Unit.Entries.Reset();
@@ -664,8 +683,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetMultiControlRotator)
 	Init();
 	Execute(); 
 	
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control1")].GetValue(ERigControlValueType::Current).Get<FRotator>() != FRotator(0.f, 0.f, 0.f), TEXT("unexpected control value"));
-	AddErrorIfFalse(ControlHierarchy[TEXT("Control2")].GetValue(ERigControlValueType::Current).Get<FRotator>() != FRotator(0.f, 0.f, 0.f), TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control1"), ERigElementType::Control), ERigControlValueType::Current).Get<FRotator>() != FRotator(0.f, 0.f, 0.f), TEXT("unexpected control value"));
+	AddErrorIfFalse(Hierarchy->GetControlValue(FRigElementKey(TEXT("Control2"), ERigElementType::Control), ERigControlValueType::Current).Get<FRotator>() != FRotator(0.f, 0.f, 0.f), TEXT("unexpected control value"));
 
 	return true;
 }

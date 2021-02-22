@@ -14,10 +14,11 @@ FRigUnit_ApplyFK_Execute()
 	}
 	else if (Context.State == EControlRigState::Update)
 	{
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
 		{
-			int32 Index = Hierarchy->GetIndex(Joint);
+			const FRigElementKey Key(Joint, ERigElementType::Bone);
+			int32 Index = Hierarchy->GetIndex(Key);
 			if (Index != INDEX_NONE)
 			{
 				// first filter input transform
@@ -26,8 +27,8 @@ FRigUnit_ApplyFK_Execute()
 
 				FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(
 					ApplyTransformSpace,
-					[Hierarchy](const FRigElementKey& BoneKey) { return Hierarchy->GetGlobalTransform(BoneKey.Name); },
-					(*Hierarchy)[Index].GetParentElementKey(),
+					[Hierarchy](const FRigElementKey& BoneKey) { return Hierarchy->GetGlobalTransform(BoneKey); },
+					Hierarchy->GetFirstParent(Key),
 					FRigElementKey(BaseJoint, ERigElementType::Bone),
 					BaseTransform
 				);
@@ -58,8 +59,8 @@ FRigUnit_ApplyFK_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ApplyFK)
 {
-	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(1.f, 2.f, 3.f)));
+	const FRigElementKey Root = Controller->AddBone(TEXT("Root"), FRigElementKey(), FTransform(FVector(1.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey BoneA = Controller->AddBone(TEXT("BoneA"), Root, FTransform(FVector(1.f, 2.f, 3.f)), true, ERigBoneType::User);
 
 	Unit.ExecuteContext = ExecuteContext;
 	Unit.Joint = TEXT("BoneA");
@@ -67,25 +68,25 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ApplyFK)
 	Unit.ApplyTransformSpace = ETransformSpaceMode::GlobalSpace;
 	Unit.Transform = FTransform(FVector(0.f, 5.f, 0.f));
 
-	BoneHierarchy.Initialize();
+	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
 	Execute();
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(0.f, 5.f, 0.f)), TEXT("unexpected global transform"));
-	AddErrorIfFalse(BoneHierarchy.GetLocalTransform(1).GetTranslation().Equals(FVector(-1.f, 5.f, 0.f)), TEXT("unexpected local transform"));
+	AddErrorIfFalse(Hierarchy->GetGlobalTransform(1).GetTranslation().Equals(FVector(0.f, 5.f, 0.f)), TEXT("unexpected global transform"));
+	AddErrorIfFalse(Hierarchy->GetLocalTransform(1).GetTranslation().Equals(FVector(-1.f, 5.f, 0.f)), TEXT("unexpected local transform"));
 
 	Unit.ApplyTransformMode = EApplyTransformMode::Override;
 	Unit.ApplyTransformSpace = ETransformSpaceMode::LocalSpace;
 
-	BoneHierarchy.Initialize();
+	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
 	Execute();
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 5.f, 0.f)), TEXT("unexpected global transform"));
-	AddErrorIfFalse(BoneHierarchy.GetLocalTransform(1).GetTranslation().Equals(FVector(0.f, 5.f, 0.f)), TEXT("unexpected local transform"));
+	AddErrorIfFalse(Hierarchy->GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 5.f, 0.f)), TEXT("unexpected global transform"));
+	AddErrorIfFalse(Hierarchy->GetLocalTransform(1).GetTranslation().Equals(FVector(0.f, 5.f, 0.f)), TEXT("unexpected local transform"));
 
 	Unit.ApplyTransformMode = EApplyTransformMode::Additive;
 
-	BoneHierarchy.Initialize();
+	Hierarchy->ResetPoseToInitial(ERigElementType::Bone);
 	Execute();
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 7.f, 3.f)), TEXT("unexpected global transform"));
-	AddErrorIfFalse(BoneHierarchy.GetLocalTransform(1).GetTranslation().Equals(FVector(0.f, 7.f, 3.f)), TEXT("unexpected local transform"));
+	AddErrorIfFalse(Hierarchy->GetGlobalTransform(1).GetTranslation().Equals(FVector(1.f, 7.f, 3.f)), TEXT("unexpected global transform"));
+	AddErrorIfFalse(Hierarchy->GetLocalTransform(1).GetTranslation().Equals(FVector(0.f, 7.f, 3.f)), TEXT("unexpected local transform"));
 	return true;
 }
 #endif

@@ -228,7 +228,8 @@ void FMovieSceneControlTransformTrail::UpdateCacheTimes(const FTrailEvaluateTime
 	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSection());
 	check(Section);
 
-	const FTransform InitialTransform = Section->ControlRig->GetControlHierarchy().GetInitialValue<FTransform>(ControlName);
+	const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
+	const FTransform InitialTransform = Section->ControlRig->GetHierarchy()->GetControlValue(ControlKey, ERigControlValueType::Initial).Get<FTransform>();
 
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 	FloatChannels = FloatChannels.Slice(GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
@@ -247,7 +248,9 @@ UE::MovieScene::FIntermediate3DTransform FMovieSceneControlTransformTrail::Calcu
 {
 	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSection());
 
-	const FTransform InitialTransform = Section->ControlRig->GetControlHierarchy().GetInitialValue<FTransform>(ControlName);
+	const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
+	const FTransform InitialTransform = Section->ControlRig->GetHierarchy()->GetControlValue(ControlKey, ERigControlValueType::Initial).Get<FTransform>();
+
 	const UE::MovieScene::FIntermediate3DTransform Delta = UE::MovieScene::FIntermediate3DTransform(
 		Current.GetTranslation() - Start.GetTranslation(),
 		Current.GetRotation() - Start.GetRotation(),

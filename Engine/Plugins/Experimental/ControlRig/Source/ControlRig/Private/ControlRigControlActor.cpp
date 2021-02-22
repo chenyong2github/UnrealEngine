@@ -143,15 +143,15 @@ void AControlRigControlActor::Refresh()
 			ColorParameterName = GizmoLibrary->MaterialColorParameter;
 		}
 
-		const FRigControlHierarchy& ControlHierarchy = ControlRig->GetControlHierarchy();
-		for (const FRigControl& Control : ControlHierarchy)
-		{
-			if (!Control.bGizmoEnabled)
+		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+		Hierarchy->ForEach<FRigControlElement>([this, GizmoLibrary, BaseMaterial, Hierarchy](FRigControlElement* ControlElement) -> bool
+        {
+			if (!ControlElement->Settings.bGizmoEnabled)
 			{
-				continue;
+				return true;
 			}
 
-			switch (Control.ControlType)
+			switch (ControlElement->Settings.ControlType)
 			{
 				case ERigControlType::Float:
 				case ERigControlType::Integer:
@@ -163,7 +163,7 @@ void AControlRigControlActor::Refresh()
 				case ERigControlType::TransformNoScale:
 				case ERigControlType::EulerTransform:
 				{
-					if (const FControlRigGizmoDefinition* GizmoDef = GizmoLibrary->GetGizmoByName(Control.GizmoName))
+					if (const FControlRigGizmoDefinition* GizmoDef = GizmoLibrary->GetGizmoByName(ControlElement->Settings.GizmoName))
 					{
 						UStaticMesh* StaticMesh = GizmoDef->StaticMesh.LoadSynchronous();
 						UStaticMeshComponent* Component = NewObject< UStaticMeshComponent>(ActorRootComponent);
@@ -177,8 +177,8 @@ void AControlRigControlActor::Refresh()
 						UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(BaseMaterial, Component);
 						Component->SetMaterial(0, MaterialInstance);
 
-						ControlNames.Add(Control.Name);
-						GizmoTransforms.Add(Control.GizmoTransform * GizmoDef->Transform);
+						ControlNames.Add(ControlElement->GetName());
+						GizmoTransforms.Add(Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal) * GizmoDef->Transform);
 						Components.Add(Component);
 						Materials.Add(MaterialInstance);
 					}
@@ -188,24 +188,25 @@ void AControlRigControlActor::Refresh()
 					break;
 				}
 			}
-		}
+			return true;
+		});
 	}
 
 	for (int32 GizmoIndex = 0; GizmoIndex < ControlNames.Num(); GizmoIndex++)
 	{
-		const FRigControlHierarchy& ControlHierarchy = ControlRig->GetControlHierarchy();
-		int32 ControlIndex = ControlHierarchy.GetIndex(ControlNames[GizmoIndex]);
-		if (ControlIndex == INDEX_NONE)
+		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+
+		const FRigElementKey ControlKey(ControlNames[GizmoIndex], ERigElementType::Control);
+		FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(ControlKey);
+		if(ControlElement == nullptr)
 		{
 			Components[GizmoIndex]->SetVisibility(false);
 			continue;
 		}
 
-		const FRigControl& Control = ControlHierarchy[ControlIndex];
-
 		FTransform ControlTransform = ControlRig->GetControlGlobalTransform(ControlNames[GizmoIndex]);
 		Components[GizmoIndex]->SetRelativeTransform(GizmoTransforms[GizmoIndex] * ControlTransform);
-		Materials[GizmoIndex]->SetVectorParameterValue(ColorParameterName, FVector(Control.GizmoColor));
+		Materials[GizmoIndex]->SetVectorParameterValue(ColorParameterName, FVector(ControlElement->Settings.GizmoColor));
 	}
 }
 

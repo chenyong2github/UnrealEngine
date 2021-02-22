@@ -7,8 +7,8 @@
 FRigUnit_SetControlVisibility_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Controls = ExecuteContext.GetControls();
-	if (Controls)
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+	if (Hierarchy)
 	{
 		switch (Context.State)
 		{
@@ -31,14 +31,14 @@ FRigUnit_SetControlVisibility_Execute()
 				}
 				else if (!Pattern.IsEmpty())
 				{
-					for (int32 Index = 0; Index < Controls->Num(); Index++)
+					Hierarchy->ForEach<FRigControlElement>([&Keys, Pattern](FRigControlElement* ControlElement) -> bool
 					{
-						const FRigControl& Control = (*Controls)[Index];
-						if (Control.Name.ToString().Contains(Pattern, ESearchCase::CaseSensitive))
+						if (ControlElement->GetName().ToString().Contains(Pattern, ESearchCase::CaseSensitive))
 						{
-							Keys.Add(Control.GetElementKey());
+							Keys.Add(ControlElement->GetKey());
 						}
-					}
+						return true;
+					});
 				}
 
 				if (CachedControlIndices.Num() != Keys.Num())
@@ -56,7 +56,7 @@ FRigUnit_SetControlVisibility_Execute()
 				{
 					if (CachedControlIndex.IsValid())
 					{
-						(*Controls)[CachedControlIndex].bGizmoVisible = bVisible;
+						Hierarchy->SetControlVisibility(CachedControlIndex, bVisible);
 					}
 				}
 				break;

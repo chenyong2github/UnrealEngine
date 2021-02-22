@@ -4,7 +4,8 @@
 
 #include "EdGraph/EdGraph.h"
 #include "Graph/ControlRigGraphNode.h"
-#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigHierarchy.h"
+#include "Rigs/RigHierarchyController.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMCore/RigVM.h"
 #include "Drawing/ControlRigDrawContainer.h"
@@ -39,7 +40,7 @@ public:
 #if WITH_EDITOR
 
 
-	void CacheNameLists(const FRigHierarchyContainer* HierarchyContainer, const FControlRigDrawContainer* DrawContainer);
+	void CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer);
 
 	const TArray<TSharedPtr<FString>>& GetBoneNameList(URigVMPin* InPin = nullptr) const;
 	const TArray<TSharedPtr<FString>>& GetControlNameList(URigVMPin* InPin = nullptr) const;
@@ -71,10 +72,29 @@ public:
 private:
 
 	template<class T>
+	void CacheNameListForHierarchy(URigHierarchy* InHierarchy, TArray<TSharedPtr<FString>>& OutNameList)
+	{
+        TArray<FString> Names;
+		for (auto Element : *InHierarchy)
+		{
+			if(Element->IsA<T>())
+			{
+				Names.Add(Element->GetName().ToString());
+			}
+		}
+		Names.Sort();
+
+		OutNameList.Reset();
+		OutNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
+		for (const FString& Name : Names)
+		{
+			OutNameList.Add(MakeShared<FString>(Name));
+		}
+	}
+
+	template<class T>
 	void CacheNameList(const T& ElementList, TArray<TSharedPtr<FString>>& OutNameList)
 	{
-		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-
 		TArray<FString> Names;
 		for (auto Element : ElementList)
 		{
@@ -89,7 +109,6 @@ private:
 			OutNameList.Add(MakeShared<FString>(Name));
 		}
 	}
-
 
 	TArray<TSharedPtr<FString>> BoneNameList;
 	TArray<TSharedPtr<FString>> ControlNameList;

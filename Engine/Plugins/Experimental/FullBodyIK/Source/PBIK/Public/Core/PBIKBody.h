@@ -18,6 +18,7 @@ struct FEffector;
 struct FBone
 {
 	FName Name;
+	int ElementIndex = INDEX_NONE; // used to map to the element this bone references
 	int ParentIndex = -2; // -2 is unset, -1 for root, or 0...n otherwise
 	bool bIsSolverRoot = false;
 	bool bIsSolved = false;
@@ -38,7 +39,8 @@ struct FBone
 		const int& InParentIndex,		// must pass -1 for root of whole skeleton
 		const FVector& InOrigPosition,
 		const FQuat& InOrigRotation,
-		bool bInIsSolverRoot);
+		bool bInIsSolverRoot,
+		const int& InElementIndex = INDEX_NONE);
 
 	bool HasChild(const FBone* Bone);
 };

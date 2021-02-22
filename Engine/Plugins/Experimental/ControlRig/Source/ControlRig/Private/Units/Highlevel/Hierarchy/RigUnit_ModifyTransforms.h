@@ -104,12 +104,9 @@ struct CONTROLRIG_API FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseM
 
 				if (Mode == EControlRigModifyBoneMode::OverrideLocal)
 				{
-					if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+					if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 					{
-						if (ItemToModify[Index].Item.IsValid())
-						{
-							return Container->GetParentKey(ItemToModify[Index].Item);
-						}
+						return Hierarchy->GetFirstParent(ItemToModify[Index].Item);
 					}
 				}
 			}

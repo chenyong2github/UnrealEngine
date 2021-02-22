@@ -173,14 +173,14 @@ void FControlRigEditorModule::StartupModule()
 	ClassesToUnregisterOnShutdown.Add(UMovieSceneControlRigParameterSection::StaticClass()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FMovieSceneControlRigSectionDetailsCustomization::MakeInstance));
 
-	ClassesToUnregisterOnShutdown.Add(FRigBone::StaticStruct()->GetFName());
-	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigBoneDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(FRigBoneElement::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigBoneElementDetails::MakeInstance));
+	
+	ClassesToUnregisterOnShutdown.Add(FRigControlElement::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigControlElementDetails::MakeInstance));
 
-	ClassesToUnregisterOnShutdown.Add(FRigControl::StaticStruct()->GetFName());
-	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigControlDetails::MakeInstance));
-
-	ClassesToUnregisterOnShutdown.Add(FRigSpace::StaticStruct()->GetFName());
-	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigSpaceDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(FRigSpaceElement::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigSpaceElementDetails::MakeInstance));
 
 	ClassesToUnregisterOnShutdown.Add(FRigInfluenceMapPerEvent::StaticStruct()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigInfluenceMapPerEventDetails::MakeInstance));
@@ -201,6 +201,9 @@ void FControlRigEditorModule::StartupModule()
 
 	PropertiesToUnregisterOnShutdown.Add(FRigElementKey::StaticStruct()->GetFName());
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown.Last(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FRigElementKeyDetails::MakeInstance));
+
+	PropertiesToUnregisterOnShutdown.Add(FRigComputedTransform::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown.Last(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FRigComputedTransformDetails::MakeInstance));
 
 	// Register asset tools
 	auto RegisterAssetTypeAction = [this](const TSharedRef<IAssetTypeActions>& InAssetTypeAction)
@@ -1469,7 +1472,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 													FRigElementKey SpaceKey;
 													if (URigVMPin::SplitPinPathAtStart(PinPath, Left, Right))
 													{
-														SpaceKey = DefaultStruct->DetermineSpaceForPin(Right, &RigBlueprint->HierarchyContainer);
+														SpaceKey = DefaultStruct->DetermineSpaceForPin(Right, RigBlueprint->Hierarchy);
 													}
 
 													if (SpaceKey.IsValid())
@@ -1539,6 +1542,9 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 				URigVMGraph* Model = RigBlueprint->GetModel(Context->Node->GetGraph());
 				URigVMController* Controller = RigBlueprint->GetController(Model);
 
+				URigHierarchy* TemporaryHierarchy = NewObject<URigHierarchy>();
+				TemporaryHierarchy->CopyHierarchy(RigBlueprint->Hierarchy);
+
 				TArray<FRigElementKey> RigElementsToSelect;
 				TMap<const URigVMPin*, FRigElementKey> PinToKey;
 				TArray<FName> SelectedNodeNames = Model->GetSelectNodes();
@@ -1549,7 +1555,6 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 					if (URigVMNode* ModelNode = Model->FindNodeByName(SelectedNodeName))
 					{
 						TSharedPtr<FStructOnScope> StructOnScope;
-						FRigHierarchyContainer TemporaryHierarchy = RigBlueprint->HierarchyContainer;
 						FRigUnit* StructMemory = nullptr;
 						UScriptStruct* ScriptStruct = nullptr;
 						if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
@@ -1559,7 +1564,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							StructMemory = (FRigUnit*)StructOnScope->GetStructMemory();
 
 							FRigUnitContext RigUnitContext;
-							RigUnitContext.Hierarchy = &TemporaryHierarchy;
+							RigUnitContext.Hierarchy = TemporaryHierarchy;
 							RigUnitContext.State = EControlRigState::Update;
 							StructMemory->Execute(RigUnitContext);
 						}
@@ -1670,10 +1675,10 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						FSlateIcon(),
 						FUIAction(FExecuteAction::CreateLambda([RigBlueprint, RigElementsToSelect]() {
 
-							RigBlueprint->HierarchyContainer.ClearSelection();
+							RigBlueprint->GetHierarchyController()->ClearSelection();
 							for(const FRigElementKey& RigElementToSelect : RigElementsToSelect)
 							{
-								RigBlueprint->HierarchyContainer.Select(RigElementToSelect, true);
+								RigBlueprint->GetHierarchyController()->SelectElement(RigElementToSelect, true);
 							}
 
 						})
@@ -1717,7 +1722,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								if(NewNameStr != OldNameStr)
 								{
 									Key.Name = *NewNameStr;
-									if(RigBlueprint->HierarchyContainer.GetIndex(Key) != INDEX_NONE)
+									if(RigBlueprint->Hierarchy->GetIndex(Key) != INDEX_NONE)
 									{
 										Controller->SetPinDefaultValue(Pin->GetPinPath(), NewNameStr, false);
 										ReplacedNames++;

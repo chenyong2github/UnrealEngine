@@ -1322,11 +1322,11 @@ void FControlRigParameterTrackEditor::OnTreeViewChanged()
 				const TArray<FName>SelectedControls = ControlRig->CurrentControlSelection();
 				for (const FName  ControlName: SelectedControls)
 				{
-					int32 Index = ControlRig->GetControlHierarchy().GetIndex(ControlName);
+					const int32 Index = ControlRig->GetHierarchy()->GetIndex(FRigElementKey(ControlName, ERigElementType::Control));
 					if (Index != INDEX_NONE)
 					{
-						const FRigControl& RigControl = ControlRig->GetControlHierarchy().GetControls()[Index];
-						HandleControlSelected(ControlRig, RigControl, true);
+						FRigControlElement* ControlElement = ControlRig->GetHierarchy()->GetChecked<FRigControlElement>(Index);
+						HandleControlSelected(ControlRig, ControlElement, true);
 					}
 				}
 			}
@@ -1522,20 +1522,26 @@ FMovieSceneTrackEditor::FFindOrCreateHandleResult FControlRigParameterTrackEdito
 }
 
 
-void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected)
+void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
 	//if parent selected we select child here if it's a bool,integer or single float
 	TArray<FRigControl> Controls;
-	FRigControlHierarchy& ControlHierarchy = Subject->GetControlHierarchy();
-	for (const FRigControl& OtherControl : ControlHierarchy.GetControls())
+
+	URigHierarchy* Hierarchy = Subject->GetHierarchy();
+	if(URigHierarchyController* Controller = Hierarchy->GetController())
 	{
-		if (OtherControl.ParentIndex == Control.Index &&
-			(OtherControl.ControlType == ERigControlType::Bool ||
-				OtherControl.ControlType == ERigControlType::Float ||
-				OtherControl.ControlType == ERigControlType::Integer))
+		Hierarchy->ForEach<FRigControlElement>([ControlElement, Controller, bSelected](FRigControlElement* OtherControlElement) -> bool
 		{
-			Subject->SelectControl(OtherControl.Name, bSelected);
-		}
+			if (OtherControlElement->ParentElements.Contains(ControlElement) &&
+                (OtherControlElement->Settings.ControlType == ERigControlType::Bool ||
+                    OtherControlElement->Settings.ControlType == ERigControlType::Float ||
+                    OtherControlElement->Settings.ControlType == ERigControlType::Integer))
+			{
+				Controller->SelectElement(OtherControlElement->GetKey(), bSelected);
+			}
+
+			return true;
+		});
 	}
 
 	if (bIsDoingSelection)
@@ -1576,7 +1582,7 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 				UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(Section);
 				if (ParamSection)
 				{
-					FChannelMapInfo* pChannelIndex = ParamSection->ControlChannelMap.Find(Control.Name);
+					FChannelMapInfo* pChannelIndex = ParamSection->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex != nullptr)
 					{
 						if (pChannelIndex->ParentControlIndex == INDEX_NONE)
@@ -1697,7 +1703,7 @@ void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRi
 }
 
 
-void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* ControlRig, const FRigControl& Control, const FRigControlModifiedContext& Context)
+void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* ControlRig, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context)
 {
 	if (GetSequencer().IsValid() && !GetSequencer()->IsAllowedToChange())
 	{
@@ -1735,7 +1741,7 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 					{
 						KeyMode = ESequencerKeyMode::ManualKey; //best we have here
 					}
-					AddControlKeys(Component, ControlRig, Name, Control.Name, EMovieSceneTransformChannel::All, KeyMode, Context.LocalTime);
+					AddControlKeys(Component, ControlRig, Name, ControlElement->GetName(), EMovieSceneTransformChannel::All, KeyMode, Context.LocalTime);
 				}
 			}
 		}
@@ -1752,7 +1758,7 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 
 void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRig, FName ParameterName, EMovieSceneTransformChannel ChannelsToKey, FGeneratedTrackKeys& OutGeneratedKeys)
 {
-	TArray<FRigControl> Controls;
+	TArray<FRigControlElement*> Controls;
 	InControlRig->GetControlsInOrder(Controls);
 	// If key all is enabled, for a key on all the channels
 	if (GetSequencer()->GetKeyGroupMode() == EKeyGroupMode::KeyAll)
@@ -1765,44 +1771,47 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 	int32 BoolChannelIndex = 0;
 	int32 EnumChannelIndex = 0;
 	int32 IntChannelIndex = 0;
-	for (const FRigControl& RigControl : Controls)
+	for (FRigControlElement* ControlElement : Controls)
 	{
-		if (!RigControl.bAnimatable)
+		if (!ControlElement->Settings.bAnimatable)
 		{
 			continue;
 		}
-		bool bSetKey = RigControl.Name == ParameterName;
-		switch (RigControl.ControlType)
+		bool bSetKey = ControlElement->GetName() == ParameterName;
+
+		FRigControlValue ControlValue = InControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current);
+		
+		switch (ControlElement->Settings.ControlType)
 		{
 		case ERigControlType::Bool:
 		{
-			bool Val = RigControl.Value.Get<bool>();
+			bool Val = ControlValue.Get<bool>();
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneBoolChannel>(BoolChannelIndex++, Val, bSetKey));
 			break;
 		}
 		case ERigControlType::Integer:
 		{
-			if (RigControl.ControlEnum)
+			if (ControlElement->Settings.ControlEnum)
 			{
-				uint8 Val = (uint8)RigControl.Value.Get<uint8>();
+				uint8 Val = (uint8)ControlValue.Get<uint8>();
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneByteChannel>(EnumChannelIndex++, Val, bSetKey));
 			}
 			else
 			{
-				int32 Val = RigControl.Value.Get<int32>();
+				int32 Val = ControlValue.Get<int32>();
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneIntegerChannel>(IntChannelIndex++, Val, bSetKey));
 			}
 			break;
 		}
 		case ERigControlType::Float:
 		{
-			float Val = RigControl.Value.Get<float>();
+			float Val = ControlValue.Get<float>();
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val, bSetKey));
 			break;
 		}
 		case ERigControlType::Vector2D:
 		{
-			FVector2D Val = RigControl.Value.Get<FVector2D>();
+			FVector2D Val = ControlValue.Get<FVector2D>();
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
 			break;
@@ -1811,7 +1820,7 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 		case ERigControlType::Scale:
 		case ERigControlType::Rotator:
 		{
-			FVector Val = RigControl.Value.Get<FVector>();
+			FVector Val = ControlValue.Get<FVector>();
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Z, bSetKey));
@@ -1825,22 +1834,22 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			FVector Translation, Scale(1.0f, 1.0f, 1.0f);
 			FRotator Rotation;
 
-			if (RigControl.ControlType == ERigControlType::TransformNoScale)
+			if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 			{
-				FTransformNoScale NoScale = RigControl.Value.Get<FTransformNoScale>();
+				FTransformNoScale NoScale = ControlValue.Get<FTransformNoScale>();
 				Translation = NoScale.Location;
 				Rotation = NoScale.Rotation.Rotator();
 			}
-			else if (RigControl.ControlType == ERigControlType::EulerTransform)
+			else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				FEulerTransform Euler = RigControl.Value.Get < FEulerTransform >();
+				FEulerTransform Euler = ControlValue.Get < FEulerTransform >();
 				Translation = Euler.Location;
 				Rotation = Euler.Rotation;
 				Scale = Euler.Scale;
 			}
 			else
 			{
-				FTransform Val = RigControl.Value.Get<FTransform>();
+				FTransform Val = ControlValue.Get<FTransform>();
 				Translation = Val.GetTranslation();
 				Rotation = Val.GetRotation().Rotator();
 				Scale = Val.GetScale3D();
@@ -1883,7 +1892,7 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Pitch, bKeyY));
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Yaw, bKeyZ));
 
-			if (RigControl.ControlType == ERigControlType::Transform || RigControl.ControlType == ERigControlType::EulerTransform)
+			if (ControlElement->Settings.ControlType == ERigControlType::Transform || ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
 				CurrentVector = Scale;
 				bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EMovieSceneTransformChannel::ScaleX);
@@ -2050,26 +2059,26 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 
 	FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
 	EvalTrack.Interrogate(Context, InterrogationData, Object);
-	const TArray<FRigControl>& Controls = InControlRig->AvailableControls();
+	TArray<FRigControlElement*> Controls = InControlRig->AvailableControls();
 	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(SectionToKey);
 	FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
 	int32 ChannelIndex = 0;
 	FChannelMapInfo* pChannelIndex = nullptr;
-	for (const FRigControl& RigControl : Controls)
+	for (FRigControlElement* ControlElement : Controls)
 	{
-		if (!RigControl.bAnimatable)
+		if (!ControlElement->Settings.bAnimatable)
 		{
 			continue;
 		}
-		switch (RigControl.ControlType)
+		switch (ControlElement->Settings.ControlType)
 		{
 		case ERigControlType::Float:
 		{
 			for (const FFloatInterrogationData& Val : InterrogationData.Iterate<FFloatInterrogationData>(UMovieSceneControlRigParameterSection::GetFloatInterrogationKey()))
 			{
-				if ((Val.ParameterName == RigControl.Name))
+				if ((Val.ParameterName == ControlElement->GetName()))
 				{
-					pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
+					pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex)
 					{
 						ChannelIndex = pChannelIndex->TotalChannelIndex;
@@ -2091,9 +2100,9 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 		{
 			for (const FVector2DInterrogationData& Val : InterrogationData.Iterate<FVector2DInterrogationData>(UMovieSceneControlRigParameterSection::GetVector2DInterrogationKey()))
 			{
-				if ((Val.ParameterName == RigControl.Name))
+				if ((Val.ParameterName == ControlElement->GetName()))
 				{
-					pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
+					pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex)
 					{
 						ChannelIndex = pChannelIndex->TotalChannelIndex;
@@ -2111,16 +2120,16 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 		{
 			for (const FVectorInterrogationData& Val : InterrogationData.Iterate<FVectorInterrogationData>(UMovieSceneControlRigParameterSection::GetVectorInterrogationKey()))
 			{
-				if ((Val.ParameterName == RigControl.Name))
+				if ((Val.ParameterName == ControlElement->GetName()))
 				{
-					pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
+					pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex)
 					{
 						ChannelIndex = pChannelIndex->TotalChannelIndex;
 
 						/* @Mike.Zyracki why is this causing the value to continuously grow?
 						*/
-						if (RigControl.ControlType != ERigControlType::Rotator)
+						if (ControlElement->Settings.ControlType != ERigControlType::Rotator)
 						{
 							GeneratedTotalKeys[ChannelIndex]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void*)&Val.Val.X, Weight);
 							GeneratedTotalKeys[ChannelIndex + 1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void*)&Val.Val.Y, Weight);
@@ -2140,9 +2149,9 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 			for (const FTransformInterrogationData& Val : InterrogationData.Iterate<FTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
 			{
 
-				if ((Val.ParameterName == RigControl.Name))
+				if ((Val.ParameterName == ControlElement->GetName()))
 				{
-					pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
+					pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 					if (pChannelIndex)
 					{
 						ChannelIndex = pChannelIndex->TotalChannelIndex;
@@ -2156,7 +2165,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 						GeneratedTotalKeys[ChannelIndex + 4]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentRot.Pitch, Weight);
 						GeneratedTotalKeys[ChannelIndex + 5]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentRot.Yaw, Weight);
 
-						if (RigControl.ControlType == ERigControlType::Transform || RigControl.ControlType == ERigControlType::EulerTransform)
+						if (ControlElement->Settings.ControlType == ERigControlType::Transform || ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 						{
 							FVector CurrentScale = Val.Val.GetScale3D();
 							GeneratedTotalKeys[ChannelIndex + 6]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurrentScale.X, Weight);
@@ -2621,7 +2630,8 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 				}
 			}
 		}
-		const TArray<FRigControl>& Controls = ControlRig->AvailableControls();
+		
+		TArray<FRigControlElement*> Controls = ControlRig->AvailableControls();
 
 		auto MakeUIAction = [=](EMovieSceneTransformChannel ChannelsToToggle)
 		{
@@ -2733,9 +2743,9 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 				LOCTEXT("ToggleRigControlsText", "Toggle Rig Controls"), LOCTEXT("ToggleRigControlsText_Tooltip", "Toggle Rig Controls"),
 				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
 				int32 Index = 0;
-				for (const FRigControl& RigControl : Controls)
+				for (FRigControlElement* ControlElement : Controls)
 				{
-					const FName RigName = RigControl.Name;
+					const FName RigName = ControlElement->GetName();
 					FText Name = FText::FromName(RigName);
 					FText Text = FText::Format(LOCTEXT("RigControlToggle", "{0}"), Name);
 					FText TooltipText = FText::Format(LOCTEXT("RigControlToggleTooltip", "Toggle Rig Control {0}"), Name);

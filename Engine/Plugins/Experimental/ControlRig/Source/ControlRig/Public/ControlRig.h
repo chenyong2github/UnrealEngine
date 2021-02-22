@@ -9,7 +9,7 @@
 #include "Templates/SubclassOf.h"
 #include "ControlRigDefines.h"
 #include "ControlRigGizmoLibrary.h"
-#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigHierarchy.h"
 #include "Units/RigUnitContext.h"
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Units/RigUnit.h"
@@ -51,13 +51,13 @@ class CONTROLRIG_API UControlRig : public UObject, public INodeMappingProviderIn
 public:
 
 	/** Bindable event for external objects to contribute to / filter a control value */
-	DECLARE_EVENT_ThreeParams(UControlRig, FFilterControlEvent, UControlRig*, const FRigControl&, FRigControlValue&);
+	DECLARE_EVENT_ThreeParams(UControlRig, FFilterControlEvent, UControlRig*, FRigControlElement*, FRigControlValue&);
 
 	/** Bindable event for external objects to be notified of Control changes */
-	DECLARE_EVENT_ThreeParams(UControlRig, FControlModifiedEvent, UControlRig*, const FRigControl&, const FRigControlModifiedContext&);
+	DECLARE_EVENT_ThreeParams(UControlRig, FControlModifiedEvent, UControlRig*, FRigControlElement*, const FRigControlModifiedContext&);
 
 	/** Bindable event for external objects to be notified that a Control is Selected */
-	DECLARE_EVENT_ThreeParams(UControlRig, FControlSelectedEvent, UControlRig*, const FRigControl&, bool);
+	DECLARE_EVENT_ThreeParams(UControlRig, FControlSelectedEvent, UControlRig*, FRigControlElement*, bool);
 
 	static const FName OwnerComponent;
 
@@ -184,72 +184,28 @@ public:
 		return ObjectName;
 	}
 
-	FRigHierarchyContainer* GetHierarchy()
-	{
-		return &Hierarchy;
-	}
-
-	FRigBoneHierarchy& GetBoneHierarchy()
-	{
-		return Hierarchy.BoneHierarchy;
-	}
-
-	FRigSpaceHierarchy& GetSpaceHierarchy()
-	{
-		return Hierarchy.SpaceHierarchy;
-	}
-
-	FRigControlHierarchy& GetControlHierarchy()
-	{
-		return Hierarchy.ControlHierarchy;
-	}
-
-	FRigCurveContainer& GetCurveContainer()
-	{
-		return Hierarchy.CurveContainer;
-	}
-
-	/** Evaluate another animation ControlRig */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	FTransform GetGlobalTransform(const FRigElementKey& InKey) const;
-
-	/** Evaluate another animation ControlRig */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	void SetGlobalTransform(const FRigElementKey& InKey, const FTransform& InTransform, bool bPropagateTransform = true);
-
-	/** Evaluate another animation ControlRig */
-	FTransform GetGlobalTransform(const FName& BoneName) const;
-
-	/** Evaluate another animation ControlRig */
-	void SetGlobalTransform(const FName& BoneName, const FTransform& InTransform, bool bPropagateTransform = true) ;
-
-	/** Evaluate another animation ControlRig */
-	FTransform GetGlobalTransform(const int32 BoneIndex) const;
-
-	/** Evaluate another animation ControlRig */
-	void SetGlobalTransform(const int32 BoneIndex, const FTransform& InTransform, bool bPropagateTransform = true) ;
-
-	/** Evaluate another animation ControlRig */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	float GetCurveValue(const FName& CurveName) const;
-
-	/** Evaluate another animation ControlRig */
-	UFUNCTION(BlueprintCallable, Category = "Control Rig")
-	void SetCurveValue(const FName& CurveName, const float CurveValue);
-
-	/** Evaluate another animation ControlRig */
-	float GetCurveValue(const int32 CurveIndex) const;
-
-	/** Evaluate another animation ControlRig */
-	void SetCurveValue(const int32 CurveIndex, const float CurveValue);
+	FORCEINLINE_DEBUGGABLE URigHierarchy* GetHierarchy()
+	{
+		if(DynamicHierarchy != nullptr && DynamicHierarchy->GetOuter() != this)
+		{
+			DynamicHierarchy = nullptr;
+		}
+		
+		if(DynamicHierarchy == nullptr)
+		{
+			DynamicHierarchy = NewObject<URigHierarchy>(this);
+		}
+		return DynamicHierarchy;
+	}
 
 #if WITH_EDITOR
 
 	// called after post reinstance when compilng blueprint by Sequencer
 	void PostReinstanceCallback(const UControlRig* Old);
 
-
 #endif // WITH_EDITOR
+	
 	// BEGIN UObject interface
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void BeginDestroy() override;
@@ -287,12 +243,8 @@ public:
 	/** Data Source Registry Getter */
 	UAnimationDataSourceRegistry* GetDataSourceRegistry();
 
-	virtual const TArray<FRigSpace>& AvailableSpaces() const;
-	virtual FRigSpace* FindSpace(const FName& InSpaceName);
-	virtual FTransform GetSpaceGlobalTransform(const FName& InSpaceName);
-	virtual bool SetSpaceGlobalTransform(const FName& InSpaceName, const FTransform& InTransform);
-	virtual const TArray<FRigControl>& AvailableControls() const;
-	virtual FRigControl* FindControl(const FName& InControlName);
+	virtual TArray<FRigControlElement*> AvailableControls() const;
+	virtual FRigControlElement* FindControl(const FName& InControlName) const;
 	virtual bool ShouldApplyLimits() const { return !bSetupModeEnabled; }
 	virtual bool IsSetupModeEnabled() const { return bSetupModeEnabled; }
 	virtual FTransform SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
@@ -307,30 +259,25 @@ public:
 	}
 
 	// Returns the value of a Control
-	FORCEINLINE_DEBUGGABLE const FRigControlValue& GetControlValue(const FName& InControlName)
+	FORCEINLINE_DEBUGGABLE FRigControlValue GetControlValue(const FName& InControlName)
 	{
-		const FRigControl* Control = FindControl(InControlName);
-		check(Control);
-		return Control->Value;
+		const FRigElementKey Key(InControlName, ERigElementType::Control);
+		return DynamicHierarchy->GetControlValue(Key);
 	}
 
 	// Sets the relative value of a Control
 	FORCEINLINE_DEBUGGABLE virtual void SetControlValueImpl(const FName& InControlName, const FRigControlValue& InValue, bool bNotify = true,
 		const FRigControlModifiedContext& Context = FRigControlModifiedContext())
 	{
-		FRigControl* Control = FindControl(InControlName);
-		check(Control);
-
-		Control->Value = InValue;
-
-		if (ShouldApplyLimits())
-		{
-			Control->ApplyLimits(Control->Value);
-		}
+		const FRigElementKey Key(InControlName, ERigElementType::Control);
+		DynamicHierarchy->SetControlValue(Key, InValue);
 
 		if (bNotify && OnControlModified.IsBound())
 		{
-			OnControlModified.Broadcast(this, *Control, Context);
+			if(FRigControlElement* ControlElement = FindControl(InControlName))
+			{
+				OnControlModified.Broadcast(this, ControlElement, Context);
+			}
 		}
 	}
 
@@ -355,10 +302,9 @@ public:
 	virtual void SetControlLocalTransform(const FName& InControlName, const FTransform& InLocalTransform, bool bNotify = true, const FRigControlModifiedContext& Context = FRigControlModifiedContext());
 	virtual FTransform GetControlLocalTransform(const FName& InControlName) ;
 
-	virtual bool SetControlSpace(const FName& InControlName, const FName& InSpaceName);
 	virtual UControlRigGizmoLibrary* GetGizmoLibrary() const;
 	virtual void CreateRigControlsForCurveContainer();
-	virtual void GetControlsInOrder(TArray<FRigControl>& SortedControls) const;
+	virtual void GetControlsInOrder(TArray<FRigControlElement*>& SortedControls) const;
 
 	virtual void SelectControl(const FName& InControlName, bool bSelect = true);
 	virtual bool ClearControlSelection();
@@ -395,7 +341,7 @@ public:
 	// selection changes coming from the manipulated subject.
 	FControlSelectedEvent& ControlSelected() { return OnControlSelected; }
 
-	bool IsCurveControl(const FRigControl* InRigControl) const;
+	bool IsCurveControl(const FRigControlElement* InControlElement) const;
 
 	DECLARE_EVENT_ThreeParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState, const FName&);
 	FControlRigExecuteEvent& OnInitialized_AnyThread() { return InitializedEvent; }
@@ -422,7 +368,7 @@ private:
 	URigVM* VM;
 
 	UPROPERTY()
-	FRigHierarchyContainer Hierarchy;
+	URigHierarchy *DynamicHierarchy;
 
 	UPROPERTY()
 	TSoftObjectPtr<UControlRigGizmoLibrary> GizmoLibrary;
@@ -445,8 +391,8 @@ private:
 	FRigNameCache NameCache;
 
 private:
-	// Controls for the container
-	void HandleOnControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
+	
+	void HandleOnControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context);
 
 	TArray<FRigVMExternalVariable> GetExternalVariablesImpl(bool bFallbackToBlueprint) const;
 
@@ -496,16 +442,10 @@ private:
 	/** Broadcasts a notification whenever the controlrig is executed / updated. */
 	FControlRigExecuteEvent ExecutedEvent;
 
-	/** Handle a Control UI Settting Changed */
-	void HandleOnControlUISettingChanged(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
-
-	/** Handle a Control Being Selected */
-	void HandleOnControlSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);
+	/** Handle changes within the hierarchy */
+	void HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
 #if WITH_EDITOR
-	/** Update the available controls within the control rig editor */
-	void UpdateAvailableControls();
-
 	/** Remove a transient / temporary control used to interact with a pin */
 	FName AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey = FRigElementKey());
 
@@ -524,17 +464,18 @@ private:
 	FName RemoveTransientControl(const FRigElementKey& InElement);
 
 	static FName GetNameForTransientControl(const FRigElementKey& InElement);
+	FName GetNameForTransientControl(URigVMPin* InPin) const;
+	static FString GetPinNameFromTransientControl(const FRigElementKey& InKey);
+	static FRigElementKey GetElementKeyFromTransientControl(const FRigElementKey& InKey);
 
 	/** Removes all  transient / temporary control used to interact with pins */
 	void ClearTransientControls();
 
-	TArray<FRigControl> AvailableControlsOverride;
-	TArray<FRigControl> TransientControls;
 	UAnimPreviewInstance* PreviewInstance;
 
 #endif
 
-	void HandleOnRigEvent(FRigHierarchyContainer* InContainer, const FRigEventContext& InEvent);
+	void HandleHierarchyEvent(URigHierarchy* InHierarchy, const FRigEventContext& InEvent);
 	FRigEventDelegate RigEventDelegate;
 
 	void InitializeFromCDO();
@@ -585,10 +526,10 @@ protected:
 private:
 
 	void CopyPoseFromOtherRig(UControlRig* Subject);
-	void HandleInteractionRigControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
+	void HandleInteractionRigControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context);
 	void HandleInteractionRigInitialized(UControlRig* Subject, EControlRigState State, const FName& EventName);
 	void HandleInteractionRigExecuted(UControlRig* Subject, EControlRigState State, const FName& EventName);
-	void HandleInteractionRigControlSelected(UControlRig* Subject, const FRigControl& InControl, bool bSelected, bool bInverted);
+	void HandleInteractionRigControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected, bool bInverted);
 
 #if WITH_EDITOR
 
@@ -651,7 +592,7 @@ protected:
 	FControlModifiedEvent OnControlModified;
 	FControlSelectedEvent OnControlSelected;
 
-	TArray<FRigControl> QueuedModifiedControls;
+	TArray<FRigElementKey> QueuedModifiedControls;
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;

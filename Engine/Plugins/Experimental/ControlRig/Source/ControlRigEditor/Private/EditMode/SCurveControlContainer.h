@@ -190,7 +190,7 @@ private:
 
 	void OnSelectionChanged(FDisplayedCurveControlInfoPtr Selection, ESelectInfo::Type SelectInfo);
 
-	void OnRigElementSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
+	void OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
 
 	/** Box to filter to a specific morph target name */
 	TSharedPtr<SSearchBox>	NameFilterBox;
@@ -210,7 +210,7 @@ private:
 	/** Commands that are bound to delegates*/
 	TSharedPtr<FUICommandList> UICommandList;
 
-	FRigCurveContainer* GetCurveContainer() const;
+	URigHierarchy* GetHierarchy() const;
 
 	friend class SCurveControlListRow;
 	friend class SCurveControlTypeList;

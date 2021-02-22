@@ -35,7 +35,7 @@ FRigUnit_SlideChain_Execute()
 
 FRigUnit_SlideChainPerItem_Execute()
 {
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;

@@ -25,7 +25,7 @@ FRigUnit_HierarchyGetParent_Execute()
 
 		if(CachedChild.UpdateCache(Child, Context.Hierarchy))
 		{
-			Parent = Context.Hierarchy->GetParentKey(Child);
+			Parent = Context.Hierarchy->GetFirstParent(Child);
 			if(Parent.IsValid())
 			{
 				CachedParent.UpdateCache(Parent, Context.Hierarchy);
@@ -58,7 +58,7 @@ FRigUnit_HierarchyGetParents_Execute()
 				{
 					Keys.Add(Parent);
 				}
-				Parent = Context.Hierarchy->GetParentKey(Parent);
+				Parent = Context.Hierarchy->GetFirstParent(Parent);
 			}
 			while(Parent.IsValid());
 
@@ -95,7 +95,9 @@ FRigUnit_HierarchyGetChildren_Execute()
 			{
 				Keys.Add(Parent);
 			}
-			Keys.Append(Context.Hierarchy->GetChildKeys(Parent, bRecursive));
+
+			
+			Keys.Append(Context.Hierarchy->GetChildren(Parent, bRecursive));
 
 			CachedChildren = FRigElementKeyCollection(Keys);
 		}
@@ -122,10 +124,10 @@ FRigUnit_HierarchyGetSiblings_Execute()
 		{
 			TArray<FRigElementKey> Keys;
 
-			FRigElementKey Parent = Context.Hierarchy->GetParentKey(Item);
+			FRigElementKey Parent = Context.Hierarchy->GetFirstParent(Item);
 			if(Parent.IsValid())
 			{
-				TArray<FRigElementKey> Children = Context.Hierarchy->GetChildKeys(Parent, false);
+				TArray<FRigElementKey> Children = Context.Hierarchy->GetChildren(Parent, false);
 				for(FRigElementKey Child : Children)
 				{
 					if(bIncludeItem || Child != Item)

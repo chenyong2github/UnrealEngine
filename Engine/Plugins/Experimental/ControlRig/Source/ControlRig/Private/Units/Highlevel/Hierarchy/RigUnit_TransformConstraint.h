@@ -70,13 +70,9 @@ struct CONTROLRIG_API FRigUnit_TransformConstraint : public FRigUnit_HighlevelBa
 
 			if (BaseTransformSpace == ETransformSpaceMode::LocalSpace)
 			{
-				if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+				if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 				{
-					int32 BoneIndex = Container->BoneHierarchy.GetIndex(Bone);
-					if (BoneIndex != INDEX_NONE)
-					{
-						return Container->BoneHierarchy[BoneIndex].GetParentElementKey();
-					}
+					return Hierarchy->GetFirstParent(FRigElementKey(Bone, ERigElementType::Bone));
 				}
 			}
 		}
@@ -139,9 +135,9 @@ struct CONTROLRIG_API FRigUnit_TransformConstraintPerItem : public FRigUnit_High
 
 			if (BaseTransformSpace == ETransformSpaceMode::LocalSpace)
 			{
-				if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+				if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 				{
-					return Container->GetParentKey(Item);
+					return Hierarchy->GetFirstParent(Item);
 				}
 			}
 		}

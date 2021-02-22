@@ -106,8 +106,8 @@ private:
 	void AddTrackForComponent(USceneComponent* Component);
 
 	/** Control Rig Delegates*/
-	void HandleControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
-	void HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
+	void HandleControlModified(UControlRig* Subject, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context);
+	void HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
 	void HandleOnInitialized(UControlRig* Subject, const EControlRigState InState, const FName& InEventName);
 	/** Post Edit Delegates */
 	void OnPropagateObjectChanges(UObject* InChangedObject);

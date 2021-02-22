@@ -2,6 +2,7 @@
 
 #pragma once
 #include "ControlRig.h"
+#include "Rigs/RigHierarchyController.h"
 #include "Units/Hierarchy/RigUnit_SetTransform.h"
 #include "Units/Hierarchy/RigUnit_SetCurveValue.h"
 #include "FKControlRig.generated.h"
@@ -68,6 +69,9 @@ private:
 
 	UPROPERTY()
 	EControlRigFKRigExecuteMode ApplyMode;
+
+	UPROPERTY(transient)
+	URigHierarchyController* Controller;
 
 	friend class FControlRigInteractionTest;
 };

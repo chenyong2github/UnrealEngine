@@ -178,7 +178,7 @@ void FControlRigDrawInterface::DrawBezier(const FTransform& WorldOffset, const F
 	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, const FRigBoneHierarchy& Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, URigHierarchy* Hierarchy, EControlRigDrawHierarchyMode::Type Mode, float Scale, const FLinearColor& Color, float Thickness)
 {
 	switch (Mode)
 	{
@@ -188,18 +188,18 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, cons
 			FControlRigDrawInstruction InstructionY(EControlRigDrawSettings::Lines, FLinearColor::Green, Thickness, WorldOffset);
 			FControlRigDrawInstruction InstructionZ(EControlRigDrawSettings::Lines, FLinearColor::Blue, Thickness, WorldOffset);
 			FControlRigDrawInstruction InstructionParent(EControlRigDrawSettings::Lines, Color, Thickness, WorldOffset);
-			InstructionX.Positions.Reserve(Hierarchy.Num() * 2);
-			InstructionY.Positions.Reserve(Hierarchy.Num() * 2);
-			InstructionZ.Positions.Reserve(Hierarchy.Num() * 2);
-			InstructionParent.Positions.Reserve(Hierarchy.Num() * 6);
+			InstructionX.Positions.Reserve(Hierarchy->Num() * 2);
+			InstructionY.Positions.Reserve(Hierarchy->Num() * 2);
+			InstructionZ.Positions.Reserve(Hierarchy->Num() * 2);
+			InstructionParent.Positions.Reserve(Hierarchy->Num() * 6);
 
-			for (const FRigBone& Bone : Hierarchy)
+			Hierarchy->ForEach<FRigTransformElement>([&](FRigTransformElement* Child) -> bool
 			{
-				FTransform Transform = Bone.GlobalTransform;
-				FVector P0 = Transform.GetLocation();
-				FVector PX = Transform.TransformPosition(FVector(Scale, 0.f, 0.f));
-				FVector PY = Transform.TransformPosition(FVector(0.f, Scale, 0.f));
-				FVector PZ = Transform.TransformPosition(FVector(0.f, 0.f, Scale));
+				const FTransform Transform = Hierarchy->GetTransform(Child, ERigTransformType::CurrentGlobal);
+				const FVector P0 = Transform.GetLocation();
+				const FVector PX = Transform.TransformPosition(FVector(Scale, 0.f, 0.f));
+				const FVector PY = Transform.TransformPosition(FVector(0.f, Scale, 0.f));
+				const FVector PZ = Transform.TransformPosition(FVector(0.f, 0.f, Scale));
 				InstructionX.Positions.Add(P0);
 				InstructionX.Positions.Add(PX);
 				InstructionY.Positions.Add(P0);
@@ -207,19 +207,28 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, cons
 				InstructionZ.Positions.Add(P0);
 				InstructionZ.Positions.Add(PZ);
 
-				if (Bone.ParentIndex != INDEX_NONE)
+				TArray<FRigBaseElement*> Parents = Hierarchy->GetParents(Child);
+				for (FRigBaseElement* Parent : Parents)
 				{
-					FTransform ParentTransform = Hierarchy[Bone.ParentIndex].GlobalTransform;
-					FVector P1 = ParentTransform.GetLocation();
-					InstructionParent.Positions.Add(P0);
-					InstructionParent.Positions.Add(P1);
+					if(FRigTransformElement* ParentTransformElement = Cast<FRigTransformElement>(Parent))
+					{
+						const FTransform ParentTransform = Hierarchy->GetTransform(ParentTransformElement, ERigTransformType::CurrentGlobal);
+						const FVector P1 = ParentTransform.GetLocation();
+						InstructionParent.Positions.Add(P0);
+						InstructionParent.Positions.Add(P1);
+					}
 				}
-			}
+				return true;
+			});
 
 			Instructions.Add(InstructionX);
 			Instructions.Add(InstructionY);
 			Instructions.Add(InstructionZ);
 			Instructions.Add(InstructionParent);
+			break;
+		}
+		default:
+		{
 			break;
 		}
 	}

@@ -50,88 +50,93 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 	{
 		FRigVMExecuteContext VMContext;
 
-		FRigBoneHierarchy& BoneHierarchy = GetBoneHierarchy();
-		FRigCurveContainer& CurveContainer = GetCurveContainer();
-		const FRigControlHierarchy& ControlHierarchy = GetControlHierarchy();
-
-		for(FRigBone& Bone : BoneHierarchy)
-		{
-			FName ControlName = GetControlName(Bone.Name);
-			const int32 ControlIndex = ControlHierarchy.GetIndex(ControlName);
+		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
+        {
+			const FName ControlName = GetControlName(BoneElement->GetName());
+			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
+			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
 			if (IsControlActive[ControlIndex])
 			{
-				FTransform Transform = ControlHierarchy[ControlIndex].GetValue(ERigControlValueType::Current).Get<FEulerTransform>().ToFTransform();
+				const FTransform Transform = GetHierarchy()->GetLocalTransform(ControlIndex);
 				switch (ApplyMode)
 				{
 					case EControlRigFKRigExecuteMode::Replace:
 					{
-						BoneHierarchy.SetLocalTransform(Bone.Index, Transform, false);
+						GetHierarchy()->SetTransform(BoneElement, Transform, ERigTransformType::CurrentLocal, true, false);
 						break;
 					}
 					case EControlRigFKRigExecuteMode::Additive:
 					{
-						FTransform PreviousTransform = BoneHierarchy.GetLocalTransform(Bone.Index);
-						BoneHierarchy.SetLocalTransform(Bone.Index, Transform * PreviousTransform, false);
+						const FTransform PreviousTransform = GetHierarchy()->GetTransform(BoneElement, ERigTransformType::CurrentLocal);
+						GetHierarchy()->SetTransform(BoneElement, Transform * PreviousTransform, ERigTransformType::CurrentLocal, true, false);
 						break;
 					}
 				}
 			}
-		}
+			return true;
+		});
 
-		BoneHierarchy.RecomputeGlobalTransforms();
-
-		for (FRigCurve& Curve : CurveContainer)
-		{
-			FName ControlName = GetControlName(Curve.Name);
-			const int32 ControlIndex = ControlHierarchy.GetIndex(ControlName);
+		GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
+        {
+			const FName ControlName = GetControlName(CurveElement->GetName());
+			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
+			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
+			
 			if (IsControlActive[ControlIndex])
 			{
-				float CurveValue = ControlHierarchy[ControlIndex].GetValue(ERigControlValueType::Current).Get<float>();
+				const float CurveValue = GetHierarchy()->GetControlValue(ControlIndex).Get<float>();
+
 				switch (ApplyMode)
 				{
-				case EControlRigFKRigExecuteMode::Replace:
-				{
-					CurveContainer.SetValue(Curve.Index, CurveValue);
-					break;
-				}
-				case EControlRigFKRigExecuteMode::Additive:
-				{
-					float PreviousValue = CurveContainer.GetValue(Curve.Index);
-					CurveContainer.SetValue(Curve.Index, PreviousValue + CurveValue);
-					break;
-				}
+					case EControlRigFKRigExecuteMode::Replace:
+					{
+						GetHierarchy()->SetCurveValue(CurveElement, CurveValue, false);
+						break;
+					}
+					case EControlRigFKRigExecuteMode::Additive:
+					{
+						const float PreviousValue = GetHierarchy()->GetCurveValue(CurveElement);
+						GetHierarchy()->SetCurveValue(CurveElement, PreviousValue + CurveValue, false);
+						break;
+					}
 				}
 			}
-		}
+			return true;
+		});
 	}
 	else if (InEventName == FRigUnit_InverseExecution::EventName)
 	{
 		FRigVMExecuteContext VMContext;
 
-		const FRigBoneHierarchy& BoneHierarchy = GetBoneHierarchy();
-		const FRigCurveContainer& CurveContainer = GetCurveContainer();
-		FRigControlHierarchy& ControlHierarchy = GetControlHierarchy();
-
-		for (const FRigBone& Bone : BoneHierarchy)
-		{
-			FName ControlName = GetControlName(Bone.Name);
-			const int32 ControlIndex = ControlHierarchy.GetIndex(ControlName);
+		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
+        {
+            const FName ControlName = GetControlName(BoneElement->GetName());
+			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
+			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
+			
 			if (IsControlActive[ControlIndex])
 			{
-				FEulerTransform EulerTransform(BoneHierarchy.GetLocalTransform(Bone.Index));
-				SetControlValue<FEulerTransform>(ControlName, EulerTransform);
+				const FEulerTransform EulerTransform(GetHierarchy()->GetTransform(BoneElement, ERigTransformType::CurrentLocal));
+				SetControlValue(ControlName, FRigControlValue::Make(EulerTransform));
 			}
-		}
+			
+			return true;
+		});
 
-		for (const FRigCurve& Curve : CurveContainer)
-		{
-			FName ControlName = GetControlName(Curve.Name);
-			const int32 ControlIndex = ControlHierarchy.GetIndex(ControlName);
+		GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
+        {
+            const FName ControlName = GetControlName(CurveElement->GetName());
+			const FRigElementKey ControlKey(ControlName, ERigElementType::Control);
+			const int32 ControlIndex = GetHierarchy()->GetIndex(ControlKey);
+
 			if (IsControlActive[ControlIndex])
 			{
-				SetControlValue<float>(ControlName, CurveContainer.GetValue(Curve.Index));
+				const float CurveValue = GetHierarchy()->GetCurveValue(CurveElement);
+				SetControlValue(ControlName, FRigControlValue::Make(CurveValue));
 			}
-		}
+
+			return true;
+		});
 	}
 }
 
@@ -156,11 +161,13 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 }
 TArray<FName> UFKControlRig::GetControlNames()
 {
-	FRigHierarchyContainer* Container = GetHierarchy();
 	TArray<FName> Names;
-	for (FRigControl& Control : Container->ControlHierarchy)
+	for (FRigBaseElement* Element : *GetHierarchy())
 	{
-		Names.Add(Control.Name);
+		if(Element->IsTypeOf(ERigElementType::Control))
+		{
+			Names.Add(Element->GetName());
+		}
 	}
 	return Names;
 }
@@ -173,7 +180,6 @@ bool UFKControlRig::GetControlActive(int32 Index) const
 	}
 	return false;
 }
-
 
 void UFKControlRig::SetControlActive(int32 Index, bool bActive)
 {
@@ -193,11 +199,14 @@ void UFKControlRig::SetControlActive(const TArray<FFKBoneCheckInfo>& BoneChecks)
 
 void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
 {
-	FRigHierarchyContainer* Container = GetHierarchy();
-	Container->Reset();
-	FRigBoneHierarchy& BoneHierarchy = Container->BoneHierarchy;
-	BoneHierarchy.ImportSkeleton(InReferenceSkeleton, NAME_None, false, false, true, false);
-	FRigCurveContainer& CurveContainer = Container->CurveContainer;
+	if(Controller == nullptr)
+	{
+		Controller = NewObject<URigHierarchyController>(this);
+		Controller->SetHierarchy(GetHierarchy());
+	}
+	
+	GetHierarchy()->Reset();
+	Controller->ImportBones(InReferenceSkeleton, NAME_None, false, false, true, false);
 
 	if (InSmartNameMapping)
 	{
@@ -205,59 +214,66 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 		InSmartNameMapping->FillNameArray(NameArray);
 		for (int32 Index = 0; Index < NameArray.Num(); ++Index)
 		{
-			CurveContainer.Add(NameArray[Index]);
-		}
-	}
-
-	if (IsControlActive.Num() != (BoneHierarchy.Num() + CurveContainer.Num()))
-	{
-		IsControlActive.SetNum(BoneHierarchy.Num() + CurveContainer.Num());
-		for (bool& bIsActive : IsControlActive)
-		{
-			bIsActive = true;
+			Controller->AddCurve(NameArray[Index], 0.f, false);
 		}
 	}
 
 	// add control for all bone hierarchy 
 	int32 ControlIndex = 0;
-	for (; ControlIndex < BoneHierarchy.Num(); ++ControlIndex)
+
+	GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
 	{
-		const FRigBone& RigBone = BoneHierarchy[ControlIndex];
-		FName BoneName = RigBone.Name;
-		FName ParentName = RigBone.ParentName;
-		FName SpaceName = GetSpaceName(BoneName);// name conflict?
-		FName ControlName = GetControlName(BoneName); // name conflict?
-		FTransform LocalTransform = FTransform::Identity;
-		if (ParentName != NAME_None)
+		const FName BoneName = BoneElement->GetName();
+		const int32 ParentIndex = GetHierarchy()->GetFirstParent(BoneElement->GetIndex());
+		const FName SpaceName = GetSpaceName(BoneName);// name conflict?
+		const FName ControlName = GetControlName(BoneName); // name conflict?
+
+		FRigElementKey SpaceKey;
+
+		FTransform LocalTransform;
+		if (ParentIndex != INDEX_NONE)
 		{
-			FTransform Transform = BoneHierarchy.GetGlobalTransform(BoneName);
-			FTransform ParentTransform = BoneHierarchy.GetGlobalTransform(ParentName);
-			LocalTransform = Transform.GetRelativeTransform(ParentTransform);
-			Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Bone, ParentName);
+			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
+			FTransform ParentTransform = GetHierarchy()->GetGlobalTransform(ParentIndex);
+			LocalTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
+			SpaceKey = Controller->AddSpace(SpaceName, GetHierarchy()->GetKey(ParentIndex), FTransform::Identity, false, false);
 		}
 		else
 		{
-			FTransform Transform = BoneHierarchy.GetGlobalTransform(BoneName);
-			FTransform ParentTransform = FTransform::Identity;
-			LocalTransform = Transform.GetRelativeTransform(ParentTransform);
-			Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Global, ParentName);
+			LocalTransform = GetHierarchy()->GetLocalTransform(BoneElement->GetIndex());
+			SpaceKey = Controller->AddSpace(SpaceName, FRigElementKey(), FTransform::Identity, true, false);
 		}
 
-		FRigControl& RigControl = Container->ControlHierarchy.Add(ControlName, ERigControlType::EulerTransform, NAME_None, SpaceName); // NAME_None, LocalTransform);//SpaceName);  LocalTransform);
-		RigControl.DisplayName = BoneName;
-		RigControl.SetValueFromTransform(LocalTransform, ERigControlValueType::Initial);
-	}
-	for (int32 Index = 0; Index < CurveContainer.Num(); ++Index)
+		FRigControlSettings Settings;
+		Settings.ControlType = ERigControlType::EulerTransform;
+		Settings.DisplayName = BoneName;
+		const FRigElementKey ControlKey = Controller->AddControl(ControlName, SpaceKey, Settings, FRigControlValue::Make(FEulerTransform::Identity), FTransform::Identity, FTransform::Identity, false);
+		GetHierarchy()->SetLocalTransform(ControlKey, LocalTransform, true, true, false);
+
+		return true;
+	});
+	
+	GetHierarchy()->ForEach<FRigCurveElement>([&](FRigCurveElement* CurveElement) -> bool
+    {
+        const FName ControlName = GetControlName(CurveElement->GetName()); // name conflict?
+
+		FRigControlSettings Settings;
+		Settings.ControlType = ERigControlType::Float;
+		Settings.DisplayName = CurveElement->GetName();
+
+		Controller->AddControl(ControlName, FRigElementKey(), Settings, FRigControlValue::Make(CurveElement->Value), FTransform::Identity, FTransform::Identity, false);
+		
+		return true;
+	});
+
+	if (IsControlActive.Num() != GetHierarchy()->Num())
 	{
-		FRigCurve& RigCurve = CurveContainer[Index];
-		FName ControlName = GetControlName(RigCurve.Name); // name conflict?
-
-		FRigControl& RigControl = Container->ControlHierarchy.Add(ControlName, ERigControlType::Float, NAME_None, NAME_None); // NAME_None, LocalTransform);//SpaceName);  LocalTransform);
-		RigControl.DisplayName = RigCurve.Name;
-		RigControl.Value.Set<float>(RigCurve.Value);
+		IsControlActive.SetNum(GetHierarchy()->Num());
+		for (bool& bIsActive : IsControlActive)
+		{
+			bIsActive = true;
+		}
 	}
-
-	Container->Initialize(true);
 }
 
 void UFKControlRig::CreateRigElements(const USkeletalMesh* InReferenceMesh)
@@ -285,51 +301,44 @@ void UFKControlRig::ToggleApplyMode()
 		FRigControlModifiedContext Context;
 		Context.SetKey = EControlRigSetKey::Never;
 
-		FRigControlHierarchy& ControlHierarchy = GetControlHierarchy();
 		FTransform ZeroScale = FTransform::Identity;
 		ZeroScale.SetScale3D(FVector::ZeroVector);
-		FEulerTransform EulerZero(ZeroScale);
-		for (int32 ControlIndex = 0; ControlIndex < ControlHierarchy.Num(); ControlIndex++)
-		{
-			const FRigControl& ControlToChange = ControlHierarchy[ControlIndex];
-			if (ControlToChange.ControlType == ERigControlType::EulerTransform)
+		const FEulerTransform EulerZero(ZeroScale);
+
+		GetHierarchy()->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
+        {
+            if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				SetControlValue<FEulerTransform>(ControlToChange.Name, EulerZero, true, Context);
+				SetControlValue<FEulerTransform>(ControlElement->GetName(), EulerZero, true, Context);
 			}
-			else if (ControlToChange.ControlType == ERigControlType::Float)
+			else if (ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
-				SetControlValue<float>(ControlToChange.Name, 0.f, true, Context);
+				SetControlValue<float>(ControlElement->GetName(), 0.f, true, Context);
 			}
-		}
+
+			return true;
+		});
 	}
 	else
 	{
-		FRigControlHierarchy& ControlHierarchy = GetControlHierarchy();
 		FRigControlModifiedContext Context;
 		Context.SetKey = EControlRigSetKey::Never;
 
-		for (int32 ControlIndex = 0; ControlIndex < ControlHierarchy.Num(); ControlIndex++)
-		{
-			const FRigControl& ControlToChange = ControlHierarchy[ControlIndex];
-			if (ControlToChange.ControlType == ERigControlType::EulerTransform)
+		GetHierarchy()->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
+        {
+            if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				const FRigControl* Control = FindControl(ControlToChange.Name);
-				if (Control)
-				{
-					FEulerTransform InitValue = Control->InitialValue.Get<FEulerTransform>();
-					SetControlValue<FEulerTransform>(ControlToChange.Name, InitValue, true, Context);
-				}
+				const FEulerTransform InitValue = GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Initial).Get<FEulerTransform>();
+				SetControlValue<FEulerTransform>(ControlElement->GetName(), InitValue, true, Context);
 			}
-			else if (ControlToChange.ControlType == ERigControlType::Float)
+			else if (ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
-				const FRigControl* Control = FindControl(ControlToChange.Name);
-				if (Control)
-				{
-					float InitValue = Control->InitialValue.Get<float>();
-					SetControlValue<float>(ControlToChange.Name, InitValue, true, Context);
-				}
+				const float InitValue = GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Initial).Get<float>();
+				SetControlValue<float>(ControlElement->GetName(), InitValue, true, Context);
 			}
-		}
+
+			return true;
+		});
 	}
 }
 

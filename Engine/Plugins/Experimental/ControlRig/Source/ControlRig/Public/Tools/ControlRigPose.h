@@ -26,8 +26,7 @@ struct CONTROLRIG_API FRigControlCopy
 		: Name(NAME_None)
 		, ControlType(ERigControlType::Transform)
 		, Value()
-		, ParentName(NAME_None)
-		, SpaceName(NAME_None)
+		, ParentKey()
 		, OffsetTransform(FTransform::Identity)
 		, ParentTransform(FTransform::Identity)
 		, LocalTransform(FTransform::Identity)
@@ -36,19 +35,17 @@ struct CONTROLRIG_API FRigControlCopy
 	{
 	}
 
-	FRigControlCopy(const FRigControl& InControl, const FRigControlHierarchy& Hierarchy)
+	FRigControlCopy(FRigControlElement* InControlElement, URigHierarchy* InHierarchy)
 	{
-		Name = InControl.Name;
-		ControlType = InControl.ControlType;
-		Value = InControl.Value;
-		ParentName = InControl.ParentName;
-		SpaceName = InControl.SpaceName;
-		OffsetTransform = InControl.OffsetTransform;
+		Name = InControlElement->GetName();
+		ControlType = InControlElement->Settings.ControlType;
+		Value = InHierarchy->GetControlValue(InControlElement, ERigControlValueType::Current);
+		ParentKey = InHierarchy->GetFirstParent(InControlElement->GetKey());
+		OffsetTransform = InHierarchy->GetControlOffsetTransform(InControlElement, ERigTransformType::CurrentLocal);
 
-		int32 Index = Hierarchy.GetIndex(Name);
-		ParentTransform = Index != INDEX_NONE ? Hierarchy.GetParentTransform(Index) : FTransform::Identity;
-		LocalTransform = Hierarchy.GetLocalTransform(Name);
-		GlobalTransform = Hierarchy.GetGlobalTransform(Name);
+		ParentTransform = InHierarchy->GetParentTransform(InControlElement, ERigTransformType::CurrentGlobal);
+		LocalTransform = InHierarchy->GetTransform(InControlElement, ERigTransformType::CurrentLocal);
+		GlobalTransform = InHierarchy->GetTransform(InControlElement, ERigTransformType::CurrentGlobal);
 	}
 	virtual ~FRigControlCopy() {}
 
@@ -62,10 +59,7 @@ struct CONTROLRIG_API FRigControlCopy
 	FRigControlValue Value;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Names")
-	FName ParentName;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Names")
-	FName SpaceName;
+	FRigElementKey ParentKey;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Transforms")
 	FTransform OffsetTransform;

@@ -4,7 +4,7 @@
 #include "EditorModeManager.h"
 #include "ControlRigEditMode.h"
 #include "Sequencer/ControlRigSequence.h"
-#include "Rigs/RigControlHierarchy.h"
+#include "Rigs/RigHierarchy.h"
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -73,7 +73,7 @@ void FControlRigEnumControlProxyValueDetails::OnEnumValueChanged(int32 InValue, 
 
 void UControlRigControlsProxy::SelectionChanged(bool bInSelected)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("bSelected");
@@ -101,7 +101,7 @@ void UControlRigControlsProxy::PostEditChangeProperty(struct FPropertyChangedEve
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigControlsProxy, bSelected))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			if (bSelected)
 			{
@@ -118,7 +118,7 @@ void UControlRigControlsProxy::PostEditChangeProperty(struct FPropertyChangedEve
 #if WITH_EDITOR
 void UControlRigControlsProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -136,7 +136,7 @@ void UControlRigTransformControlProxy::PostEditChangeProperty(struct FPropertyCh
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformControlProxy, Transform))
 		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformControlProxy, Transform)))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -149,22 +149,20 @@ void UControlRigTransformControlProxy::PostEditChangeProperty(struct FPropertyCh
 
 void UControlRigTransformControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement && ControlRig.IsValid())
 	{
 		Modify();
 		const FName PropertyName("Transform");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		FTransform NewTransform = RigControl->Value.Get<FTransform>();
-
+		const FTransform NewTransform = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransform>();
 		Binding.CallFunction<FTransform>(*this, NewTransform);
-
 	}
 }
 
 #if WITH_EDITOR
 void UControlRigTransformControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -179,7 +177,7 @@ void UControlRigTransformControlProxy::PostEditUndo()
 void UControlRigTransformControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
 
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FTransform>(ControlName, Transform, true, EControlRigSetKey::Always);
 	}
@@ -191,7 +189,7 @@ void UControlRigTransformNoScaleControlProxy::PostEditChangeProperty(struct FPro
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformNoScaleControlProxy, Transform))
 		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformNoScaleControlProxy, Transform)))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -204,12 +202,12 @@ void UControlRigTransformNoScaleControlProxy::PostEditChangeProperty(struct FPro
 
 void UControlRigTransformNoScaleControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("Transform");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		FTransformNoScale NewTransform = RigControl->Value.Get<FTransformNoScale>();
+		const FTransformNoScale NewTransform = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FTransformNoScale>();
 		Binding.CallFunction<FTransformNoScale>(*this, NewTransform);
 	}
 }
@@ -217,7 +215,7 @@ void UControlRigTransformNoScaleControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigTransformNoScaleControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -231,7 +229,7 @@ void UControlRigTransformNoScaleControlProxy::PostEditUndo()
 
 void UControlRigTransformNoScaleControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FTransformNoScale>(ControlName, Transform, true, EControlRigSetKey::Always);
 	}
@@ -244,7 +242,7 @@ void UControlRigEulerTransformControlProxy::PostEditChangeProperty(struct FPrope
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigEulerTransformControlProxy, Transform))
 		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigEulerTransformControlProxy, Transform)))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -257,12 +255,12 @@ void UControlRigEulerTransformControlProxy::PostEditChangeProperty(struct FPrope
 
 void UControlRigEulerTransformControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("Transform");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		FEulerTransform NewTransform = RigControl->Value.Get<FEulerTransform>();
+		const FEulerTransform NewTransform = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FEulerTransform>();
 
 		Binding.CallFunction<FEulerTransform>(*this, NewTransform);
 
@@ -272,7 +270,7 @@ void UControlRigEulerTransformControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigEulerTransformControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -286,7 +284,7 @@ void UControlRigEulerTransformControlProxy::PostEditUndo()
 
 void UControlRigEulerTransformControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FEulerTransform>(ControlName, Transform, true, EControlRigSetKey::Always);
 	}
@@ -297,7 +295,7 @@ void UControlRigFloatControlProxy::PostEditChangeProperty(struct FPropertyChange
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigFloatControlProxy, Float))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -310,13 +308,12 @@ void UControlRigFloatControlProxy::PostEditChangeProperty(struct FPropertyChange
 
 void UControlRigFloatControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("Float");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		float Val = RigControl->Value.Get<float>();
-
+		const float Val = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<float>();
 		Binding.CallFunction<float>(*this, Val);
 	}
 }
@@ -324,7 +321,7 @@ void UControlRigFloatControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigFloatControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -339,7 +336,7 @@ void UControlRigFloatControlProxy::PostEditUndo()
 
 void UControlRigFloatControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<float>(ControlName, Float, true, EControlRigSetKey::Always);
 	}
@@ -350,7 +347,7 @@ void UControlRigIntegerControlProxy::PostEditChangeProperty(struct FPropertyChan
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigIntegerControlProxy, Integer))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -362,13 +359,12 @@ void UControlRigIntegerControlProxy::PostEditChangeProperty(struct FPropertyChan
 
 void UControlRigIntegerControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("Integer");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		int32 Val = RigControl->Value.Get<int32>();
-
+		const int32 Val = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<int32>();
 		Binding.CallFunction<int32>(*this, Val);
 	}
 }
@@ -376,7 +372,7 @@ void UControlRigIntegerControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigIntegerControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -390,7 +386,7 @@ void UControlRigIntegerControlProxy::PostEditUndo()
 
 void UControlRigIntegerControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<int32>(ControlName, Integer, true, EControlRigSetKey::Always);
 	}
@@ -401,7 +397,7 @@ void UControlRigEnumControlProxy::PostEditChangeProperty(struct FPropertyChanged
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigEnumControlProxy, Enum))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -414,15 +410,15 @@ void UControlRigEnumControlProxy::PostEditChangeProperty(struct FPropertyChanged
 
 void UControlRigEnumControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("Enum");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
 
 		FControlRigEnumControlProxyValue Val;
-		Val.EnumType = RigControl->ControlEnum;
-		Val.EnumIndex = RigControl->Value.Get<int32>();
+		Val.EnumType = ControlElement->Settings.ControlEnum;
+		Val.EnumIndex = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<int32>();
 
 		Binding.CallFunction<FControlRigEnumControlProxyValue>(*this, Val);
 	}
@@ -431,7 +427,7 @@ void UControlRigEnumControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigEnumControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -445,7 +441,7 @@ void UControlRigEnumControlProxy::PostEditUndo()
 
 void UControlRigEnumControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<int32>(ControlName, Enum.EnumIndex, true, EControlRigSetKey::Always);
 	}
@@ -457,7 +453,7 @@ void UControlRigVectorControlProxy::PostEditChangeProperty(struct FPropertyChang
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVectorControlProxy, Vector))
 		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVectorControlProxy, Vector)))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -470,13 +466,12 @@ void UControlRigVectorControlProxy::PostEditChangeProperty(struct FPropertyChang
 
 void UControlRigVectorControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("Vector");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		FVector Val = RigControl->Value.Get<FVector>();
-
+		const FVector Val = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector>();
 		Binding.CallFunction<FVector>(*this, Val);
 	}
 }
@@ -484,7 +479,7 @@ void UControlRigVectorControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigVectorControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -499,7 +494,7 @@ void UControlRigVectorControlProxy::PostEditUndo()
 
 void UControlRigVectorControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FVector>(ControlName, Vector, true, EControlRigSetKey::Always);
 	}
@@ -511,7 +506,7 @@ void UControlRigVector2DControlProxy::PostEditChangeProperty(struct FPropertyCha
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVector2DControlProxy, Vector2D))
 		|| ((PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVector2DControlProxy, Vector2D))))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -524,13 +519,12 @@ void UControlRigVector2DControlProxy::PostEditChangeProperty(struct FPropertyCha
 
 void UControlRigVector2DControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("Vector2D");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		FVector2D Val = RigControl->Value.Get<FVector2D>();
-
+		const FVector2D Val = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
 		Binding.CallFunction<FVector2D>(*this, Val);
 	}
 }
@@ -538,7 +532,7 @@ void UControlRigVector2DControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigVector2DControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -553,7 +547,7 @@ void UControlRigVector2DControlProxy::PostEditUndo()
 
 void UControlRigVector2DControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FVector2D>(ControlName, Vector2D, true, EControlRigSetKey::Always);
 	}
@@ -565,7 +559,7 @@ void UControlRigBoolControlProxy::PostEditChangeProperty(struct FPropertyChanged
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigBoolControlProxy, Bool))
 	{
-		if (RigControl && ControlRig.IsValid())
+		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
@@ -577,13 +571,12 @@ void UControlRigBoolControlProxy::PostEditChangeProperty(struct FPropertyChanged
 
 void UControlRigBoolControlProxy::ValueChanged()
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		Modify();
 		const FName PropertyName("Bool");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		bool Val = RigControl->Value.Get<bool>();
-
+		const bool Val = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<bool>();
 		Binding.CallFunction<bool>(*this, Val);
 	}
 }
@@ -591,7 +584,7 @@ void UControlRigBoolControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigBoolControlProxy::PostEditUndo()
 {
-	if (RigControl && ControlRig.IsValid() && ControlRig->GetControlHierarchy().GetIndex(ControlName) != INDEX_NONE)
+	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
 		{
@@ -606,7 +599,7 @@ void UControlRigBoolControlProxy::PostEditUndo()
 
 void UControlRigBoolControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-	if (RigControl)
+	if (ControlElement)
 	{
 		ControlRig->SetControlValue<bool>(ControlName, Bool, true, EControlRigSetKey::Always);
 	}
@@ -625,12 +618,12 @@ UControlRigControlsProxy* UControlRigDetailPanelControlProxies::FindProxy(const 
 	return nullptr;
 }
 
-void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlRig* ControlRig, FRigControl* RigControl)
+void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlRig* ControlRig, FRigControlElement* ControlElement)
 {
 	UControlRigControlsProxy* Proxy = FindProxy(Name);
-	if (!Proxy && RigControl != nullptr)
+	if (!Proxy && ControlElement != nullptr)
 	{
-		switch(RigControl->ControlType)
+		switch(ControlElement->Settings.ControlType)
 		{
 			case ERigControlType::Transform:
 			{
@@ -657,14 +650,14 @@ void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlR
 			}
 			case ERigControlType::Integer:
 			{
-				if(RigControl->ControlEnum == nullptr)
+				if(ControlElement->Settings.ControlEnum == nullptr)
 				{
 					Proxy = NewObject<UControlRigIntegerControlProxy>(GetTransientPackage(), NAME_None);
 				}
 				else
 				{
 					UControlRigEnumControlProxy* EnumProxy = NewObject<UControlRigEnumControlProxy>(GetTransientPackage(), NAME_None);
-					EnumProxy->Enum.EnumType = RigControl->ControlEnum;
+					EnumProxy->Enum.EnumType = ControlElement->Settings.ControlEnum;
 					Proxy = EnumProxy;
 				}
 				break;
@@ -697,7 +690,7 @@ void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlR
 		{
 			Proxy->SetFlags(RF_Transactional);
 			Proxy->SetName(Name);
-			Proxy->RigControl = RigControl;
+			Proxy->ControlElement = ControlElement;
 			Proxy->ControlRig = ControlRig;
 			Proxy->ValueChanged();
 			AllProxies.Add(Name, Proxy);
@@ -732,13 +725,12 @@ void UControlRigDetailPanelControlProxies::RemoveAllProxies()
 void UControlRigDetailPanelControlProxies::RecreateAllProxies(UControlRig* InControlRig)
 {
 	RemoveAllProxies();
-	const TArray<FRigControl>& Controls = InControlRig->AvailableControls();
-	for (const FRigControl& RigControl : Controls)
+	TArray<FRigControlElement*> Controls = InControlRig->AvailableControls();
+	for (FRigControlElement* ControlElement : Controls)
 	{
-		FRigControl* PRigControl = const_cast<FRigControl*>(&RigControl);
-		if(PRigControl->bGizmoEnabled && PRigControl->bAnimatable)
+		if(ControlElement->Settings.bGizmoEnabled && ControlElement->Settings.bAnimatable)
 		{
-			AddProxy(RigControl.Name, InControlRig, PRigControl);
+			AddProxy(ControlElement->GetName(), InControlRig, ControlElement);
 		}
 	}
 }

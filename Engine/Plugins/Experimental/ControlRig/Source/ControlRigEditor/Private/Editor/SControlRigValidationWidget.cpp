@@ -251,10 +251,14 @@ void SControlRigValidationWidget::HandleMessageTokenClicked(const TSharedRef<cla
 					if (BlueprintClass)
 					{
 						UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(BlueprintClass->ClassGeneratedBy);
-						RigBlueprint->HierarchyContainer.ClearSelection();
-						RigBlueprint->HierarchyContainer.Select(Key, true);
-						ControlRig->GetHierarchy()->ClearSelection();
-						ControlRig->GetHierarchy()->Select(Key, true);
+						RigBlueprint->GetHierarchyController()->ClearSelection();
+						RigBlueprint->GetHierarchyController()->SelectElement(Key, true);
+
+						if(URigHierarchyController* Controller = ControlRig->GetHierarchy()->GetController())
+						{
+							Controller->ClearSelection();
+							Controller->SelectElement(Key, true);
+						}
 					}
 				}
 			}

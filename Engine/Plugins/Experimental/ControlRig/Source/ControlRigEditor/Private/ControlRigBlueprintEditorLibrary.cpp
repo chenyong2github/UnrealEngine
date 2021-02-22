@@ -95,11 +95,20 @@ TArray<UStruct*> UControlRigBlueprintEditorLibrary::GetAvailableRigUnits()
 	return UControlRigBlueprint::GetAvailableRigUnits();
 }
 
-UControlRigHierarchyModifier* UControlRigBlueprintEditorLibrary::GetHierarchyModifier(UControlRigBlueprint* InRigBlueprint)
+URigHierarchy* UControlRigBlueprintEditorLibrary::GetHierarchy(UControlRigBlueprint* InRigBlueprint)
 {
 	if(InRigBlueprint == nullptr)
 	{
 		return nullptr;
 	}
-	return InRigBlueprint->GetHierarchyModifier();
+	return InRigBlueprint->Hierarchy;
+}
+
+URigHierarchyController* UControlRigBlueprintEditorLibrary::GetHierarchyController(UControlRigBlueprint* InRigBlueprint)
+{
+	if(InRigBlueprint == nullptr)
+	{
+		return nullptr;
+	}
+	return InRigBlueprint->GetHierarchyController();
 }

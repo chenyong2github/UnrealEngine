@@ -135,14 +135,8 @@ public:
 	FControlRigAddedOrRemoved& OnControlRigAddedOrRemoved() { return OnControlRigAddedOrRemovedDelegate; }
 
 	// callback that gets called when rig element is selected in other view
-	void OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
-	void OnRigElementReparented(FRigHierarchyContainer* Container, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
-	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
-	void OnRigElementChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnControlUISettingChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
+	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
+	void OnControlModified(UControlRig* Subject, FRigControlElement* InControlElement, const FRigControlModifiedContext& Context);
 
 	/** return true if it can be removed from preview scene 
 	- this is to ensure preview scene doesn't remove Gizmo actors */

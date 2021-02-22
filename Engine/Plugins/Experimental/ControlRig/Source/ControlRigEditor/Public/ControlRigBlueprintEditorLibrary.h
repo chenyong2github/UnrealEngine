@@ -64,6 +64,9 @@ public:
 	static TArray<UStruct*> GetAvailableRigUnits();
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Control Rig Blueprint")
-	static UControlRigHierarchyModifier* GetHierarchyModifier(UControlRigBlueprint* InRigBlueprint);
+	static URigHierarchy* GetHierarchy(UControlRigBlueprint* InRigBlueprint);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Control Rig Blueprint")
+	static URigHierarchyController* GetHierarchyController(UControlRigBlueprint* InRigBlueprint);
 };
 

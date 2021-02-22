@@ -6,7 +6,7 @@
 FRigUnit_GetControlInitialTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigControlHierarchy* Hierarchy = Context.GetControls();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -17,7 +17,8 @@ FRigUnit_GetControlInitialTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				const FRigElementKey Key(Control, ERigElementType::Control); 
+				if (!CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
 				}
@@ -32,7 +33,7 @@ FRigUnit_GetControlInitialTransform_Execute()
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
-							Transform = Hierarchy->GetInitialValue<FTransform>(CachedControlIndex);
+							Transform = Hierarchy->GetInitialLocalTransform(CachedControlIndex);
 							break;
 						}
 						default:

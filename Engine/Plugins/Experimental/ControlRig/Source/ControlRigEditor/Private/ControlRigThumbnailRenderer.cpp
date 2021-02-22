@@ -25,18 +25,22 @@ bool UControlRigThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 		{
 			if (InRigBlueprint->GizmoLibrary.IsValid())
 			{
-				for (const FRigControl& Control : InRigBlueprint->HierarchyContainer.ControlHierarchy)
+				bool bMissingMeshCount = true;
+				InRigBlueprint->Hierarchy->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
 				{
-					if (const FControlRigGizmoDefinition* GizmoDef = InRigBlueprint->GizmoLibrary->GetGizmoByName(Control.GizmoName))
+					if (const FControlRigGizmoDefinition* GizmoDef = InRigBlueprint->GizmoLibrary->GetGizmoByName(ControlElement->Settings.GizmoName))
 					{
 						UStaticMesh* StaticMesh = GizmoDef->StaticMesh.Get();
 						if (StaticMesh == nullptr) // not yet loaded
 						{
+							bMissingMeshCount = true;
 							return false;
 						}
 					}
 					return true;
-				}
+				});
+
+				return !bMissingMeshCount;
 			}
 		}
 
@@ -97,9 +101,9 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 
 		FTransform ComponentToWorld = ThumbnailScene->GetPreviewActor()->GetSkeletalMeshComponent()->GetComponentToWorld();
 
-		for (const FRigControl& Control : ControlRig->GetControlHierarchy())
+		ControlRig->GetHierarchy()->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
 		{
-			switch (Control.ControlType)
+			switch (ControlElement->Settings.ControlType)
 			{
 				case ERigControlType::Float:
 				case ERigControlType::Integer:
@@ -111,14 +115,15 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 				case ERigControlType::TransformNoScale:
 				case ERigControlType::EulerTransform:
 				{
-					if (const FControlRigGizmoDefinition* GizmoDef = RigBlueprint->GizmoLibrary->GetGizmoByName(Control.GizmoName))
+					if (const FControlRigGizmoDefinition* GizmoDef = RigBlueprint->GizmoLibrary->GetGizmoByName(ControlElement->Settings.GizmoName))
 					{
-						FTransform GizmoTransform = Control.GizmoTransform * (GizmoDef->Transform * ControlRig->GetControlGlobalTransform(Control.Name)) * ComponentToWorld;
 						UStaticMesh* StaticMesh = GizmoDef->StaticMesh.Get();
 						if (StaticMesh == nullptr) // not yet loaded
 						{
-							continue;
+							return true;
 						}
+
+						const FTransform GizmoGlobalTransform = ControlRig->GetHierarchy()->GetGlobalControlGizmoTransform(ControlElement->GetKey());
 
 						FActorSpawnParameters SpawnInfo;
 						SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -130,16 +135,17 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 						UMaterial* DefaultMaterial = RigBlueprint->GizmoLibrary->DefaultMaterial.Get();
 						if (DefaultMaterial == nullptr) // not yet loaded
 						{
-							continue;
+							return true;
 						}
+
 						UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(DefaultMaterial, GizmoActor);
-						MaterialInstance->SetVectorParameterValue(RigBlueprint->GizmoLibrary->MaterialColorParameter, FVector(Control.GizmoColor));
+						MaterialInstance->SetVectorParameterValue(RigBlueprint->GizmoLibrary->MaterialColorParameter, FVector(ControlElement->Settings.GizmoColor));
 						GizmoActor->GetStaticMeshComponent()->SetMaterial(0, MaterialInstance);
 
-						GizmoActors.Add(Control.Name, GizmoActor);
+						GizmoActors.Add(ControlElement->GetName(), GizmoActor);
 
 						GizmoActor->GetStaticMeshComponent()->SetStaticMesh(StaticMesh);
-						GizmoActor->SetActorTransform(GizmoTransform);
+						GizmoActor->SetActorTransform(GizmoGlobalTransform);
 					}
 					break;
 				}
@@ -148,6 +154,7 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 					break;
 				}
 			}
-		}
+			return true;
+        });
 	}
 }

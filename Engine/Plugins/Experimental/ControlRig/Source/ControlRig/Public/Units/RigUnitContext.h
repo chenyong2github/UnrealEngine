@@ -69,7 +69,7 @@ struct FRigUnitContext
 	EControlRigState State;
 
 	/** The current hierarchy being executed */
-	const FRigHierarchyContainer* Hierarchy;
+	URigHierarchy* Hierarchy;
 
 	/** True if the rig is executing during an interaction */
 	bool bDuringInteraction;
@@ -93,42 +93,6 @@ struct FRigUnitContext
 
 	/** A container to store all names */
 	FRigNameCache* NameCache;
-
-	FORCEINLINE const FRigBoneHierarchy* GetBones() const
-	{
-		if (Hierarchy != nullptr)
-		{
-			return &Hierarchy->BoneHierarchy;
-		}
-		return nullptr;
-	}
-
-	FORCEINLINE const FRigSpaceHierarchy* GetSpaces() const
-	{
-		if (Hierarchy != nullptr)
-		{
-			return &Hierarchy->SpaceHierarchy;
-		}
-		return nullptr;
-	}
-
-	FORCEINLINE const FRigControlHierarchy* GetControls() const
-	{
-		if (Hierarchy != nullptr)
-		{
-			return &Hierarchy->ControlHierarchy;
-		}
-		return nullptr;
-	}
-
-	FORCEINLINE const FRigCurveContainer* GetCurves() const
-	{
-		if (Hierarchy != nullptr)
-		{
-			return &Hierarchy->CurveContainer;
-		}
-		return nullptr;
-	}
 
 	/**
 	 * Returns a given data source and cast it to the expected class.

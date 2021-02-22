@@ -7,7 +7,7 @@
 FRigUnit_SetSpaceTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigSpaceHierarchy* Hierarchy = ExecuteContext.GetSpaces();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -19,7 +19,9 @@ FRigUnit_SetSpaceTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedSpaceIndex.UpdateCache(Space, Hierarchy))
+				const FRigElementKey SpaceKey(Space, ERigElementType::Space);
+
+				if (CachedSpaceIndex.UpdateCache(SpaceKey, Hierarchy))
 				{
 					switch (SpaceType)
 					{
@@ -27,12 +29,12 @@ FRigUnit_SetSpaceTransform_Execute()
 						{
 							if(FMath::IsNearlyEqual(Weight, 1.f))
 							{
-								Hierarchy->SetGlobalTransform(CachedSpaceIndex, Transform);
+								Hierarchy->SetGlobalTransform(CachedSpaceIndex, Transform, true);
 							}
 							else
 							{
-								FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedSpaceIndex);
-								Hierarchy->SetGlobalTransform(CachedSpaceIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)));
+								const FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedSpaceIndex);
+								Hierarchy->SetGlobalTransform(CachedSpaceIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)), true);
 							}
 							break;
 						}
@@ -40,12 +42,12 @@ FRigUnit_SetSpaceTransform_Execute()
 						{
 							if(FMath::IsNearlyEqual(Weight, 1.f))
 							{
-								Hierarchy->SetLocalTransform(CachedSpaceIndex, Transform);
+								Hierarchy->SetLocalTransform(CachedSpaceIndex, Transform, true);
 							}
 							else
 							{
-								FTransform PreviousTransform = Hierarchy->GetLocalTransform(CachedSpaceIndex);
-								Hierarchy->SetLocalTransform(CachedSpaceIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)));
+								const FTransform PreviousTransform = Hierarchy->GetLocalTransform(CachedSpaceIndex);
+								Hierarchy->SetLocalTransform(CachedSpaceIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, FMath::Clamp<float>(Weight, 0.f, 1.f)), true);
 							}
 							break;
 						}

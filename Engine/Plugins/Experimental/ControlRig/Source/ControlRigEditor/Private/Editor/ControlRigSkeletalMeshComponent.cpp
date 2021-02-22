@@ -47,7 +47,7 @@ void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 		if (ControlRig)
 		{
 			// just copy it because this is not thread safe
-			const FRigBoneHierarchy& BaseHiearchy = ControlRig->GetBoneHierarchy();
+			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 
 			DebugDrawSkeleton.Empty();
 			DebugDrawBones.Reset();
@@ -55,16 +55,24 @@ void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 			// create ref modifier
 			FReferenceSkeletonModifier RefSkelModifier(DebugDrawSkeleton, nullptr);
 
-			for (int32 Index = 0; Index < BaseHiearchy.Num(); Index++)
+			Hierarchy->ForEach<FRigBoneElement>([&RefSkelModifier, this, Hierarchy](FRigBoneElement* BoneElement) -> bool
 			{
+				const int32 Index = BoneElement->GetIndex();
+				int32 ParentIndex = Hierarchy->GetFirstParent(Index);
+				if(ParentIndex != INDEX_NONE)
+				{
+					ParentIndex = Hierarchy->Get(ParentIndex)->GetSubIndex();
+				}
+					
 				FMeshBoneInfo NewMeshBoneInfo;
-				NewMeshBoneInfo.Name = BaseHiearchy.GetName(Index);
-				NewMeshBoneInfo.ParentIndex = BaseHiearchy[Index].ParentIndex;
+				NewMeshBoneInfo.Name = BoneElement->GetName();
+				NewMeshBoneInfo.ParentIndex = ParentIndex; 
 				// give ref pose here
-				RefSkelModifier.Add(NewMeshBoneInfo, BaseHiearchy.GetInitialGlobalTransform(Index));
+				RefSkelModifier.Add(NewMeshBoneInfo, Hierarchy->GetInitialGlobalTransform(Index));
 
-				DebugDrawBones.Add(Index);
-			}
+				DebugDrawBones.Add(DebugDrawBones.Num());
+				return true;
+			});
 		}
 	}
 }
@@ -79,8 +87,8 @@ FTransform UControlRigSkeletalMeshComponent::GetDrawTransform(int32 BoneIndex) c
 		if (ControlRig)
 		{
 			// just copy it because this is not thread safe
-			const FRigBoneHierarchy& BaseHiearchy = ControlRig->GetBoneHierarchy();
-			return BaseHiearchy.GetGlobalTransform(BoneIndex);
+			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+			return Hierarchy->GetGlobalTransform(BoneIndex);
 		}
 	}
 

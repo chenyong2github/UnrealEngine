@@ -31,9 +31,9 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 	return MakeShared<TestBehaviorReader>();
 }
 
-TUniquePtr<FRigCurveContainer> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerEmpty()
+TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerEmpty()
 {
-	return MakeUnique<FRigCurveContainer>();
+	return TStrongObjectPtr<URigHierarchy>(NewObject<URigHierarchy>());
 }
 
 TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorReaderOneCurve(FString ControlNameStr)
@@ -45,34 +45,35 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 	return BehaviorReader;
 }
 
-TUniquePtr<FRigCurveContainer> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneCurve(FString CurveNameStr)
+TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneCurve(FString CurveNameStr)
 {
-	TUniquePtr<FRigCurveContainer> ValidCurveContainer = MakeUnique<FRigCurveContainer>();
-	ValidCurveContainer->Add(FName(*CurveNameStr));
-	ValidCurveContainer->Initialize();
+	TStrongObjectPtr<URigHierarchy> ValidCurveContainer(NewObject<URigHierarchy>());
+	URigHierarchyController* Controller = NewObject<URigHierarchyController>();
+	Controller->SetHierarchy(ValidCurveContainer.Get());
+	Controller->AddCurve(FName(*CurveNameStr));
 	return ValidCurveContainer;
 }
 
-void FRigUnit_RigLogic::TestAccessor::Exec_MapInputCurve(FRigCurveContainer* TestCurveContainer)
+void FRigUnit_RigLogic::TestAccessor::Exec_MapInputCurve(URigHierarchy* TestHierarchy)
 {
-	Unit->Data.MapInputCurveIndices(TestCurveContainer); //inside the method so we can access data, which is a private member
+	Unit->Data.MapInputCurveIndices(TestHierarchy); //inside the method so we can access data, which is a private member
 }
 
 /** ====== Map Joints ===== **/
 
 
-TUniquePtr<FRigBoneHierarchy> FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyEmpty()
+TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyEmpty()
 {
-	return MakeUnique<FRigBoneHierarchy>();
+	return TStrongObjectPtr<URigHierarchy>(NewObject<URigHierarchy>());
 }
 
-TUniquePtr<FRigBoneHierarchy> FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyTwoBones(FString Bone1NameStr, FString Bone2NameStr)
+TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateBoneHierarchyTwoBones(FString Bone1NameStr, FString Bone2NameStr)
 {
-	TUniquePtr<FRigBoneHierarchy> TestHierarchy = MakeUnique<FRigBoneHierarchy>();
-	TestHierarchy->Reset();
-	TestHierarchy->Add(*Bone1NameStr, NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
-	TestHierarchy->Add(*Bone2NameStr, *Bone1NameStr, ERigBoneType::User, FTransform(FVector(1.f, 2.f, 0.f)));
-	TestHierarchy->Initialize();
+	TStrongObjectPtr<URigHierarchy> TestHierarchy(NewObject<URigHierarchy>());
+	URigHierarchyController* Controller = NewObject<URigHierarchyController>();
+	Controller->SetHierarchy(TestHierarchy.Get());
+	const FRigElementKey Bone1Key = Controller->AddBone(*Bone1NameStr, FRigElementKey(), FTransform(FVector(1.f, 0.f, 0.f)), true, ERigBoneType::User);
+	Controller->AddBone(*Bone2NameStr, Bone1Key, FTransform(FVector(1.f, 2.f, 3.f)), true, ERigBoneType::User);
 	return TestHierarchy;
 }
 
@@ -85,7 +86,7 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 	return TestReader;
 }
 
-void FRigUnit_RigLogic::TestAccessor::Exec_MapJoints(FRigBoneHierarchy* TestHierarchy)
+void FRigUnit_RigLogic::TestAccessor::Exec_MapJoints(URigHierarchy* TestHierarchy)
 {
 	Unit->Data.MapJoints(TestHierarchy);
 }
@@ -126,24 +127,26 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 	return BehaviorReader;
 }
 
-TUniquePtr<FRigCurveContainer> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneMorphTarget(FString MorphTargetStr)
+TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerOneMorphTarget(FString MorphTargetStr)
 {
-	TUniquePtr<FRigCurveContainer> ValidCurveContainer = MakeUnique<FRigCurveContainer>();
-	ValidCurveContainer->Add(FName(*MorphTargetStr));
-	ValidCurveContainer->Initialize();
+	TStrongObjectPtr<URigHierarchy> ValidCurveContainer(NewObject<URigHierarchy>());
+	URigHierarchyController* Controller = NewObject<URigHierarchyController>();
+	Controller->SetHierarchy(ValidCurveContainer.Get());
+	Controller->AddCurve(FName(*MorphTargetStr));
 	return ValidCurveContainer;
 }
 
-TUniquePtr<FRigCurveContainer> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerTwoMorphTargets(FString MorphTarget1Str, FString MorphTarget2Str)
+TStrongObjectPtr<URigHierarchy> FRigUnit_RigLogic::TestAccessor::CreateCurveContainerTwoMorphTargets(FString MorphTarget1Str, FString MorphTarget2Str)
 {
-	TUniquePtr<FRigCurveContainer> ValidCurveContainer = MakeUnique<FRigCurveContainer>();
-	ValidCurveContainer->Add(FName(*MorphTarget1Str));
-	ValidCurveContainer->Add(FName(*MorphTarget2Str));
-	ValidCurveContainer->Initialize();
+	TStrongObjectPtr<URigHierarchy> ValidCurveContainer(NewObject<URigHierarchy>());
+	URigHierarchyController* Controller = NewObject<URigHierarchyController>();
+	Controller->SetHierarchy(ValidCurveContainer.Get());
+	Controller->AddCurve(FName(*MorphTarget1Str));
+	Controller->AddCurve(FName(*MorphTarget2Str));
 	return ValidCurveContainer;
 }
 
-void FRigUnit_RigLogic::TestAccessor::Exec_MapMorphTargets(FRigCurveContainer* TestCurveContainer)
+void FRigUnit_RigLogic::TestAccessor::Exec_MapMorphTargets(URigHierarchy* TestCurveContainer)
 {
 	//put into a separate method so we can access the private Data member
 	Unit->Data.MapMorphTargets(TestCurveContainer); 
@@ -160,9 +163,9 @@ TSharedPtr<TestBehaviorReader> FRigUnit_RigLogic::TestAccessor::CreateBehaviorRe
 	return BehaviorReader;
 }
 
-void FRigUnit_RigLogic::TestAccessor::Exec_MapMaskMultipliers(FRigCurveContainer* TestCurveContainer)
+void FRigUnit_RigLogic::TestAccessor::Exec_MapMaskMultipliers(URigHierarchy* TestHierarchy)
 {
-	Unit->Data.MapMaskMultipliers(TestCurveContainer); //inside the method so we can access data, which is a private member
+	Unit->Data.MapMaskMultipliers(TestHierarchy); //inside the method so we can access data, which is a private member
 }
 
 void FRigUnit_RigLogic::TestAccessor::AddToTransformArray(float* InArray, FTransform& Transform)
@@ -237,9 +240,9 @@ TArrayView<const uint16> FRigUnit_RigLogic::TestAccessor::CreateTwoJointVariable
 	return TArrayView<const uint16>(InVariableAttributeIndices, FRigUnit_RigLogic::TestAccessor::MAX_ATTRS_PER_JOINT);
 }
 
-void FRigUnit_RigLogic::TestAccessor::Exec_UpdateJoints(FRigHierarchyContainer* TestHierarchyContainer, FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams)
+void FRigUnit_RigLogic::TestAccessor::Exec_UpdateJoints(URigHierarchy* TestHierarchy, FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams)
 {
-	Unit->Data.UpdateJoints(TestHierarchyContainer, JointUpdateParams);
+	Unit->Data.UpdateJoints(TestHierarchy, JointUpdateParams);
 }
 
 FSharedRigRuntimeContext* FRigUnit_RigLogic::TestAccessor::GetSharedRigRuntimeContext(USkeletalMesh* SkelMesh)
@@ -273,7 +276,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	}
 
 	Test.GetData()->SkelMeshComponent = SkelMeshComponent;
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	//Test
 	InitAndExecute();
@@ -296,7 +299,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 		// Check mask multipliers
 		Test.GetData()->RigLogicIndicesForAnimMaps.Num() > 0 &&
-		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() > 0,
+		Test.GetData()->CurveElementIndicesForAnimMaps.Num() > 0,
 
 		TEXT("InitAndExecute failed to initialize rig logic.")
 	);
@@ -307,7 +310,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//Prepare
 	TSharedPtr<TestBehaviorReader> TestReaderValid = Test.CreateBehaviorReaderOneCurve("CTRL_Expressions.Some_Control");
-	TUniquePtr<FRigCurveContainer> TestCurveContainerNameMismatch = Test.CreateCurveContainerOneCurve("CTRL_Expressions_NOT_ThatControl");
+	TStrongObjectPtr<URigHierarchy> TestCurveContainerNameMismatch = Test.CreateCurveContainerOneCurve("CTRL_Expressions_NOT_ThatControl");
 	SharedRigRuntimeContext->BehaviorReader = TestReaderValid;
 	//Test
 	Test.Exec_MapInputCurve(TestCurveContainerNameMismatch.Get());
@@ -322,7 +325,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//Prepare
 	TSharedPtr<TestBehaviorReader> TestReaderEmpty = Test.CreateBehaviorReaderEmpty();
-	TUniquePtr<FRigCurveContainer> TestCurveContainerValid = Test.CreateCurveContainerOneCurve("CTRL_Expressions_Some_Control");
+	TStrongObjectPtr<URigHierarchy> TestCurveContainerValid = Test.CreateCurveContainerOneCurve("CTRL_Expressions_Some_Control");
 	SharedRigRuntimeContext->BehaviorReader = TestReaderEmpty;
 	//Test
 	Test.Exec_MapInputCurve(TestCurveContainerValid.Get());
@@ -335,8 +338,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//=== MapInputCurve ValidReader EmptyCurveContainer ===
 
 	//Prepare
-	TUniquePtr<FRigCurveContainer> TestCurveContainerEmpty = Test.CreateCurveContainerEmpty();
-	TestCurveContainerEmpty->Initialize();
+	TStrongObjectPtr<URigHierarchy> TestCurveContainerEmpty = Test.CreateCurveContainerEmpty();
 	SharedRigRuntimeContext->BehaviorReader = TestReaderValid;
 	//Test
 	Test.Exec_MapInputCurve(TestCurveContainerEmpty.Get());
@@ -380,7 +382,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//=== MapJoints EmptyInputs ===
 	//Prepare
-	TUniquePtr<FRigBoneHierarchy> TestHierarchyEmpty = Test.CreateBoneHierarchyEmpty();
+	TStrongObjectPtr<URigHierarchy> TestHierarchyEmpty = Test.CreateBoneHierarchyEmpty();
 	SharedRigRuntimeContext->BehaviorReader = TestReaderEmpty;
 	//Test
 	Test.Exec_MapJoints(TestHierarchyEmpty.Get());
@@ -392,7 +394,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//=== MapJoints EmptyReader TwoBones ===
 	//Prepare
-	TUniquePtr<FRigBoneHierarchy> TestHierarchyTwoBones = Test.CreateBoneHierarchyTwoBones("BoneA", "BoneB");
+	TStrongObjectPtr<URigHierarchy> TestHierarchyTwoBones = Test.CreateBoneHierarchyTwoBones("BoneA", "BoneB");
 	SharedRigRuntimeContext->BehaviorReader = TestReaderEmpty;
 	//Test
 	Test.Exec_MapJoints(TestHierarchyTwoBones.Get());
@@ -450,7 +452,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//=== MapMorphTargets ValidReader MorphTargetWithNameMismatch ===
 
 	//Prepare
-	TUniquePtr<FRigCurveContainer> TestMorphTargetNameMismatch = Test.CreateCurveContainerOneMorphTarget("head_NOT_that_blendshape");
+	TStrongObjectPtr<URigHierarchy> TestMorphTargetNameMismatch = Test.CreateCurveContainerOneMorphTarget("head_NOT_that_blendshape");
 	TSharedPtr<TestBehaviorReader> TestReaderBlendshapeValid = Test.CreateBehaviorReaderOneBlendShape("head", "blendshape");
 	SharedRigRuntimeContext->BehaviorReader = TestReaderBlendshapeValid;
 	//Test
@@ -470,7 +472,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//Prepare
 	//Empty reader (no meshes, no blendshapes)
-	TUniquePtr<FRigCurveContainer> TestMorphTargetCurveValid = Test.CreateCurveContainerOneMorphTarget("head__blendshape");
+	TStrongObjectPtr<URigHierarchy> TestMorphTargetCurveValid = Test.CreateCurveContainerOneMorphTarget("head__blendshape");
 	SharedRigRuntimeContext->BehaviorReader = TestReaderEmpty;
 	//Test
 	Test.Exec_MapMorphTargets(TestMorphTargetCurveValid.Get());
@@ -534,7 +536,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//=== MapMorphTargets ValidReader InvalidMorphTargetCurve ===
 
 	//Prepare
-	TUniquePtr<FRigCurveContainer> TestMorphTargetCurvesInvalid = Test.CreateCurveContainerOneMorphTarget("");
+	TStrongObjectPtr<URigHierarchy> TestMorphTargetCurvesInvalid = Test.CreateCurveContainerOneMorphTarget("");
 	SharedRigRuntimeContext->BehaviorReader = TestReaderBlendshapeValid;
 	//Test
 	Test.Exec_MapMorphTargets(TestMorphTargetCurvesInvalid.Get());
@@ -570,7 +572,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//Prepare
 	TSharedPtr<TestBehaviorReader> TestReaderBlendshapes_LOD0AB_LOD1A = Test.CreateBehaviorReaderTwoBlendShapes("head", "blendshapeA", "blendshapeB");
-	TUniquePtr<FRigCurveContainer> TestMorphTargetTwoCurves = Test.CreateCurveContainerTwoMorphTargets("head__blendshapeA", "head__blendshapeB");
+	TStrongObjectPtr<URigHierarchy> TestMorphTargetTwoCurves = Test.CreateCurveContainerTwoMorphTargets("head__blendshapeA", "head__blendshapeB");
 	//NOTE: indices in the first param here are not blendshape indices, but rather mappings from blendshapes to meshes
 	//in this test, they will correspond to blendshape indices
 
@@ -687,15 +689,15 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 
 	//Prepare
 	TSharedPtr<TestBehaviorReader> TestReaderAnimMapsValid = Test.CreateBehaviorReaderOneAnimatedMap("CTRL_AnimMap.Some_Multiplier");
-	TUniquePtr<FRigCurveContainer> TestCurveContainerForAnimMapsNameMismatch = Test.CreateCurveContainerOneCurve("CTRL_AnimMap_NOT_ThatMultiploer");
+	TStrongObjectPtr<URigHierarchy> TestCurveContainerForAnimMapsNameMismatch = Test.CreateCurveContainerOneCurve("CTRL_AnimMap_NOT_ThatMultiploer");
 	//Test
 	SharedRigRuntimeContext->BehaviorReader = TestReaderAnimMapsValid;
 	Test.Exec_MapMaskMultipliers(TestCurveContainerForAnimMapsNameMismatch.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->CurveContainerIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->CurveContainerIndicesForAnimMaps[0].Values[0] == INDEX_NONE &&
+		Test.GetData()->CurveElementIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values[0] == INDEX_NONE &&
 		Test.GetData()->RigLogicIndicesForAnimMaps.Num() == 1 &&
 		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
 		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
@@ -705,13 +707,13 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	//=== MapMaskMultipliers EmptyReader ValidAnimatedMap ===
 
 	//Prepare
-	TUniquePtr<FRigCurveContainer> TestCurveContainerForAnimMapsValid = Test.CreateCurveContainerOneCurve("CTRL_AnimMap_Some_Multiplier");
+	TStrongObjectPtr<URigHierarchy> TestCurveContainerForAnimMapsValid = Test.CreateCurveContainerOneCurve("CTRL_AnimMap_Some_Multiplier");
 	//Test
 	SharedRigRuntimeContext->BehaviorReader = TestReaderEmpty;
 	Test.Exec_MapMaskMultipliers(TestCurveContainerForAnimMapsValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() == 0 &&
+		Test.GetData()->CurveElementIndicesForAnimMaps.Num() == 0 &&
 		Test.GetData()->RigLogicIndicesForAnimMaps.Num() == 0,
 		TEXT("MapMaskMultipliers - EmptyReader ValidAnimatedMap")
 	);
@@ -723,9 +725,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMaskMultipliers(TestCurveContainerEmpty.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->CurveContainerIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->CurveContainerIndicesForAnimMaps[0].Values[0] == INDEX_NONE &&
+		Test.GetData()->CurveElementIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values[0] == INDEX_NONE &&
 		Test.GetData()->RigLogicIndicesForAnimMaps.Num() == 1 &&
 		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
 		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
@@ -741,9 +743,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	Test.Exec_MapMaskMultipliers(TestCurveContainerForAnimMapsValid.Get());
 	//Assert
 	AddErrorIfFalse(
-		Test.GetData()->CurveContainerIndicesForAnimMaps.Num() == 1 &&
-		Test.GetData()->CurveContainerIndicesForAnimMaps[0].Values.Num() == 1 &&
-		Test.GetData()->CurveContainerIndicesForAnimMaps[0].Values[0] == 0 &&
+		Test.GetData()->CurveElementIndicesForAnimMaps.Num() == 1 &&
+		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values.Num() == 1 &&
+		Test.GetData()->CurveElementIndicesForAnimMaps[0].Values[0] == 0 &&
 		Test.GetData()->RigLogicIndicesForAnimMaps.Num() == 1 &&
 		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values.Num() == 1 &&
 		Test.GetData()->RigLogicIndicesForAnimMaps[0].Values[0] == 0,
@@ -751,10 +753,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 	);
 
 	//BoneHierarchy belongs to HierarchyContainer
-	BoneHierarchy = *TestHierarchyTwoBones;
-	BoneHierarchy.Initialize();
-	BoneHierarchy.ResetTransforms();
-	FRigHierarchyContainer* HierarchyContainerPtr = &HierarchyContainer;
+	TestHierarchyTwoBones->ResetPoseToInitial();
 
 	//Prepare
 	//-----
@@ -782,11 +781,11 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RigLogic)
 		TwoJointNeutralTransforms,
 		DeltaTransforms);
 	//Test
-	Test.Exec_UpdateJoints(HierarchyContainerPtr, TestJointUpdateParamsTwoJoints_LOD0);
+	Test.Exec_UpdateJoints(TestHierarchyTwoBones.Get(), TestJointUpdateParamsTwoJoints_LOD0);
 	//Assert
 	//Note that BoneB.GlobalTransform.Z should be zero since the scale.Z is zero. Also, translation Y becomes -Y 
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("UpdateJoints LOD0 Bone 01 - unexpected transform"));
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(1).GetTranslation().Equals(FVector(2.f, -2.f, 0.f)), TEXT("UpdateJoints LOD0 Bone 02 - unexpected transform"));
+	AddErrorIfFalse(TestHierarchyTwoBones->GetGlobalTransform(0).GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("UpdateJoints LOD0 Bone 01 - unexpected transform"));
+	AddErrorIfFalse(TestHierarchyTwoBones->GetGlobalTransform(1).GetTranslation().Equals(FVector(2.f, -2.f, 0.f)), TEXT("UpdateJoints LOD0 Bone 02 - unexpected transform"));
 
 	return true;
 }

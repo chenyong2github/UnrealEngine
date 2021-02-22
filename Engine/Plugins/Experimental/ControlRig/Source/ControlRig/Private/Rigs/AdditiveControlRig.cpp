@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "IControlRigObjectBinding.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Rigs/RigHierarchyController.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 
 #define LOCTEXT_NAMESPACE "AdditiveControlRig"
@@ -44,12 +45,11 @@ void UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FNam
 		return;
 	}
 
-	FRigControlHierarchy& ControlHierarchy = GetControlHierarchy();
 	for (FRigUnit_AddBoneTransform& Unit : AddBoneRigUnits)
 	{
 		FName ControlName = GetControlName(Unit.Bone);
-		const int32 Index = ControlHierarchy.GetIndex(ControlName);
-		Unit.Transform = ControlHierarchy.GetLocalTransform(Index);
+		const int32 Index = GetHierarchy()->GetIndex(FRigElementKey(ControlName, ERigElementType::Control));
+		Unit.Transform = GetHierarchy()->GetLocalTransform(Index);
 		Unit.ExecuteContext.Hierarchy = GetHierarchy();
 		Unit.ExecuteContext.EventName = InEventName;
 		Unit.Execute(InOutContext);
@@ -74,15 +74,15 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 
 	// add units and initialize
 	AddBoneRigUnits.Reset();
-	FRigBoneHierarchy& BoneHierarchy = GetBoneHierarchy();
 
-	for (int32 BoneIndex = 0; BoneIndex < BoneHierarchy.Num(); ++BoneIndex)
+	GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
 	{
 		FRigUnit_AddBoneTransform NewUnit;
-		NewUnit.Bone = BoneHierarchy[BoneIndex].Name;
-		NewUnit.bPropagateToChildren = true;
-		AddBoneRigUnits.Add(NewUnit);
-	}
+        NewUnit.Bone = BoneElement->GetName();
+        NewUnit.bPropagateToChildren = true;
+        AddBoneRigUnits.Add(NewUnit);
+		return true;
+    });
 
 	// execute init
 	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
@@ -90,53 +90,54 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 
 void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
 {
-	FRigHierarchyContainer* Container = GetHierarchy();
-	Container->Reset();
-	FRigBoneHierarchy& BoneHierarchy = Container->BoneHierarchy;
-	BoneHierarchy.ImportSkeleton(InReferenceSkeleton, NAME_None, false, false, true, false);
+	if(Controller == nullptr)
+	{
+		Controller = NewObject<URigHierarchyController>(this);
+		Controller->SetHierarchy(GetHierarchy());
+	}
+	
+	GetHierarchy()->Reset();
+	Controller->ImportBones(InReferenceSkeleton, NAME_None, false, false, true, false);
 
 	if (InSmartNameMapping)
 	{
-		FRigCurveContainer& CurveContainer = Container->CurveContainer;
 		TArray<FName> NameArray;
 		InSmartNameMapping->FillNameArray(NameArray);
 		for (int32 Index = 0; Index < NameArray.Num(); ++Index)
 		{
-			CurveContainer.Add(NameArray[Index]);
+			Controller->AddCurve(NameArray[Index], 0.f, false);
 		}
 	}
 
-	// add control for all bone hierarchy 
-	for (int32 BoneIndex = 0; BoneIndex < BoneHierarchy.Num(); ++BoneIndex)
-	{
+	// add control for all bone hierarchy
+	GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
+    {
+		const FName BoneName = BoneElement->GetName();
+		const int32 ParentIndex = GetHierarchy()->GetFirstParent(BoneElement->GetIndex());
+		const FName SpaceName = GetSpaceName(BoneName);// name conflict?
+		const FName ControlName = GetControlName(BoneName); // name conflict?
 
-		const FRigBone& RigBone = BoneHierarchy[BoneIndex];
-		FName BoneName = RigBone.Name;
-		FName ParentName = RigBone.ParentName;
-		FName SpaceName = GetSpaceName(BoneName);// name conflict?
-		FName ControlName = GetControlName(BoneName); // name conflict?
-		if (ParentName != NAME_None)
+		FRigElementKey SpaceKey;
+		
+		if (ParentIndex != INDEX_NONE)
 		{
-			FTransform Transform = BoneHierarchy.GetGlobalTransform(BoneName);
-			FTransform ParentTransform = BoneHierarchy.GetGlobalTransform(ParentName);
-			FTransform LocalTransform = Transform.GetRelativeTransform(ParentTransform);
-			FRigSpace& Space = Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Bone, ParentName);
-			Space.InitialTransform = LocalTransform;
+			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
+			FTransform ParentTransform = GetHierarchy()->GetGlobalTransform(ParentIndex);
+			FTransform LocalTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
+			SpaceKey = Controller->AddSpace(SpaceName, GetHierarchy()->GetKey(ParentIndex), LocalTransform, false, false);
 		}
 		else
 		{
-			FTransform Transform = BoneHierarchy.GetGlobalTransform(BoneName);
-			FTransform ParentTransform = FTransform::Identity;
-			FTransform LocalTransform = Transform.GetRelativeTransform(ParentTransform);
-			FRigSpace& Space = Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Global, ParentName);
-			Space.InitialTransform = LocalTransform;
+			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
+			SpaceKey = Controller->AddSpace(SpaceName, FRigElementKey(), GlobalTransform, true, false);
 		}
 
-		FRigControl& RigControl = Container->ControlHierarchy.Add(ControlName, ERigControlType::Transform, NAME_None, SpaceName);
-		RigControl.DisplayName = BoneName;
-	}
+		FRigControlSettings Settings;
+		Settings.DisplayName = BoneName;
+		Controller->AddControl(ControlName, SpaceKey, Settings, FRigControlValue::Make(FTransform::Identity), FTransform::Identity, FTransform::Identity, false);
 
-	Container->Initialize(true);
+		return true;
+	});
 }
 
 void UAdditiveControlRig::CreateRigElements(const USkeletalMesh* InReferenceMesh)

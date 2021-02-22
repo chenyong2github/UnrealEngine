@@ -13,7 +13,7 @@ FRigUnit_CollectionChain_Execute()
 		CachedHierarchyHash = INDEX_NONE;
 	}
 
-	int32 CurrentHierarchyHash = Context.Hierarchy->Version * 17;
+	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
 	CurrentHierarchyHash += GetTypeHash(FirstItem);
 	CurrentHierarchyHash += GetTypeHash(LastItem);
 	CurrentHierarchyHash += Reverse ? 1 : 0;
@@ -54,7 +54,7 @@ FRigUnit_CollectionNameSearch_Execute()
 		CachedHierarchyHash = INDEX_NONE;
 	}
 
-	int32 CurrentHierarchyHash = Context.Hierarchy->Version * 17;
+	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
 	CurrentHierarchyHash += GetTypeHash(PartialName);
 	CurrentHierarchyHash += (int32)TypeToSearch * 8;
 
@@ -76,7 +76,7 @@ FRigUnit_CollectionChildren_Execute()
 		CachedHierarchyHash = INDEX_NONE;
 	}
 
-	int32 CurrentHierarchyHash = Context.Hierarchy->Version * 17;
+	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
 	CurrentHierarchyHash += GetTypeHash(Parent);
 	CurrentHierarchyHash += bRecursive ? 2 : 0;
 	CurrentHierarchyHash += bIncludeParent ? 1 : 0;
@@ -107,7 +107,7 @@ FRigUnit_CollectionReplaceItems_Execute()
 		CachedHierarchyHash = INDEX_NONE;
 	}
 
-	int32 CurrentHierarchyHash = Context.Hierarchy->Version * 17;
+	int32 CurrentHierarchyHash = Context.Hierarchy->GetTopologyVersion() * 17;
 	CurrentHierarchyHash += GetTypeHash(Items);
 	CurrentHierarchyHash += 12 * GetTypeHash(Old);
 	CurrentHierarchyHash += 13 * GetTypeHash(New);

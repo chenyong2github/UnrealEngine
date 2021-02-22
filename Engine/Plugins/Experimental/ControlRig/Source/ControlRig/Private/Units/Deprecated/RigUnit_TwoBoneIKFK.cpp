@@ -11,23 +11,26 @@ FRigUnit_TwoBoneIKFK_Execute()
 
 	if (Context.State == EControlRigState::Init)
 	{
-		const FRigBoneHierarchy* Hierarchy = Context.GetBones();
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
 		{
 			// reset
 			StartJointIndex = MidJointIndex = EndJointIndex = INDEX_NONE;
 			UpperLimbLength = LowerLimbLength = 0.f;
 
+			const FRigElementKey StartJointKey(StartJoint, ERigElementType::Bone);
+			const FRigElementKey EndJointKey(EndJoint, ERigElementType::Bone);
+			
 			// verify the chain
-			int32 StartIndex = Hierarchy->GetIndex(StartJoint);
-			int32 EndIndex = Hierarchy->GetIndex(EndJoint);
+			int32 StartIndex = Hierarchy->GetIndex(StartJointKey);
+			int32 EndIndex = Hierarchy->GetIndex(EndJointKey);
 			if (StartIndex != INDEX_NONE && EndIndex != INDEX_NONE)
 			{
 				// ensure the chain
-				int32 EndParentIndex = (*Hierarchy)[EndIndex].ParentIndex;
+				int32 EndParentIndex = Hierarchy->GetFirstParent(EndIndex);
 				if (EndParentIndex != INDEX_NONE)
 				{
-					int32 MidParentIndex = (*Hierarchy)[EndParentIndex].ParentIndex;
+					int32 MidParentIndex = Hierarchy->GetFirstParent(EndParentIndex);
 					if (MidParentIndex == StartIndex)
 					{
 						StartJointIndex = StartIndex;
@@ -71,7 +74,7 @@ FRigUnit_TwoBoneIKFK_Execute()
 			else if (FMath::IsNearlyEqual(IKBlend, 1.f))
 			{
 				// update transform before going through IK
-				const FRigBoneHierarchy* Hierarchy = Context.GetBones();
+				const URigHierarchy* Hierarchy = Context.Hierarchy;
 				check(Hierarchy);
 
 				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
@@ -88,7 +91,7 @@ FRigUnit_TwoBoneIKFK_Execute()
 			else
 			{
 				// update transform before going through IK
-				const FRigBoneHierarchy* Hierarchy = Context.GetBones();
+				const URigHierarchy* Hierarchy = Context.Hierarchy;
 				check(Hierarchy);
 
 				StartJointIKTransform = Hierarchy->GetGlobalTransform(StartJointIndex);
@@ -103,7 +106,7 @@ FRigUnit_TwoBoneIKFK_Execute()
 				EndJointTransform.Blend(MidJointFKTransform, EndJointIKTransform, IKBlend);
 			}
 
-			FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+			URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 			check(Hierarchy);
 			Hierarchy->SetGlobalTransform(StartJointIndex, StartJointTransform);
 			Hierarchy->SetGlobalTransform(MidJointIndex, MidJointTransform);

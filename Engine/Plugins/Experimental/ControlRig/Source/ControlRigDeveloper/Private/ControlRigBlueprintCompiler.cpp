@@ -90,10 +90,8 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 	UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (ControlRigBlueprint)
 	{
-		ControlRigBlueprint->CleanupBoneHierarchyDeprecated();
-
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
-		ControlRig->Hierarchy = ControlRigBlueprint->HierarchyContainer;
+		ControlRig->GetHierarchy()->CopyHierarchy(ControlRigBlueprint->Hierarchy);
 		ControlRig->DrawContainer = ControlRigBlueprint->DrawContainer;
 		ControlRig->Influences = ControlRigBlueprint->Influences;
 	}

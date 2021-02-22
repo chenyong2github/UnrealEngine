@@ -11,8 +11,8 @@
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintFactory.generated.h"
 
-UCLASS(MinimalAPI, HideCategories=Object)
-class UControlRigBlueprintFactory : public UFactory
+UCLASS(HideCategories=Object)
+class CONTROLRIGEDITOR_API UControlRigBlueprintFactory : public UFactory
 {
 	GENERATED_BODY()
 

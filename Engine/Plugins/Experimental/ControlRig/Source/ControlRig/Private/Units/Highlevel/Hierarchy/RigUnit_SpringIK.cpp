@@ -6,7 +6,7 @@
 FRigUnit_SpringIK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -29,10 +29,10 @@ FRigUnit_SpringIK_Execute()
 		Simulation.Reset();
 		Simulation.TimeStep = 1.f / 60.f;
 
-		int32 EndBoneIndex = Hierarchy->GetIndex(EndBone);
+		int32 EndBoneIndex = Hierarchy->GetIndex(FRigElementKey(EndBone, ERigElementType::Bone));
 		if (EndBoneIndex != INDEX_NONE)
 		{
-			int32 StartBoneIndex = Hierarchy->GetIndex(StartBone);
+			int32 StartBoneIndex = Hierarchy->GetIndex(FRigElementKey(StartBone, ERigElementType::Bone));
 			if (StartBoneIndex == EndBoneIndex)
 			{
 				return;
@@ -40,12 +40,13 @@ FRigUnit_SpringIK_Execute()
 
 			while (EndBoneIndex != INDEX_NONE)
 			{
-				CachedBones.Add(FCachedRigElement((*Hierarchy)[EndBoneIndex].Name, Hierarchy));
+				const FRigElementKey Key(EndBone, ERigElementType::Bone);
+				CachedBones.Add(FCachedRigElement(Key, Hierarchy));
 				if (EndBoneIndex == StartBoneIndex)
 				{
 					break;
 				}
-				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
+				EndBoneIndex = Hierarchy->GetIndex(Hierarchy->GetFirstParent(Key));
 			}
 		}
 
@@ -114,7 +115,8 @@ FRigUnit_SpringIK_Execute()
 			}
 		}
 
-		CachedPoleVector = FCachedRigElement(PoleVectorSpace, Hierarchy);
+		const FRigElementKey CachedPoleVectorKey(PoleVectorSpace, ERigElementType::Bone);
+		CachedPoleVector = FCachedRigElement(CachedPoleVectorKey, Hierarchy);
 	}
 
 	if (CachedBones.Num() < 3)
@@ -261,7 +263,7 @@ FRigUnit_SpringIK_Execute()
 
 		if(bLimitLocalPosition)
 		{
-			int32 ParentIndex = (*Hierarchy)[CachedBones[PointIndex]].ParentIndex;
+			int32 ParentIndex = Hierarchy->GetIndex(Hierarchy->GetFirstParent(CachedBones[PointIndex].GetKey()));
 			if (ParentIndex != INDEX_NONE)
 			{
 				FTransform InitialTransform = Hierarchy->GetInitialGlobalTransform(CachedBones[PointIndex]);

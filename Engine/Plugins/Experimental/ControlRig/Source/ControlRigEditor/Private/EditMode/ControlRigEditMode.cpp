@@ -258,10 +258,10 @@ void FControlRigEditMode::SetObjects_Internal()
 
 	if (InteractionControlRig)
 	{
-		InteractionControlRig->Hierarchy.OnElementSelected.RemoveAll(this);
+		InteractionControlRig->GetHierarchy()->OnModified().RemoveAll(this);
 		InteractionControlRig->ControlModified().RemoveAll(this);
 			
-		InteractionControlRig->Hierarchy.OnElementSelected.AddSP(this, &FControlRigEditMode::OnRigElementSelected);
+		InteractionControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditMode::OnHierarchyModified);
 		InteractionControlRig->ControlModified().AddSP(this, &FControlRigEditMode::OnControlModified);
 	}
 
@@ -415,12 +415,12 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 				{
 					if (UControlRig* ControlRig = GetControlRig(true))
 					{
-						FRigControl* Control = ControlRig->FindControl(SelectedKey.Name);
-						if (Control)
+						FRigControlElement* ControlElement = ControlRig->FindControl(SelectedKey.Name);
+						if (ControlElement)
 						{
-							if (!ControlRig->IsCurveControl(Control))
+							if (!ControlRig->IsCurveControl(ControlElement))
 							{
-								ControlProxy->AddProxy(SelectedKey.Name, ControlRig, Control);
+								ControlProxy->AddProxy(SelectedKey.Name, ControlRig, ControlElement);
 							}
 						}
 					}
@@ -447,9 +447,9 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 				{
 					if (!ModeSupportedByGizmoActor(GizmoActor, CurrentWidgetMode))
 					{
-						if (FRigControl* Control = ControlRig->FindControl(SelectedRigElement.Name))
+						if (FRigControlElement* ControlElement = ControlRig->FindControl(SelectedRigElement.Name))
 						{
-							switch (Control->ControlType)
+							switch (ControlElement->Settings.ControlType)
 							{
 								case ERigControlType::Float:
 								case ERigControlType::Integer:
@@ -509,36 +509,37 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 			}
 		}
 
+		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 		if (Settings->bDisplayHierarchy)
 		{
-			// each base hierarchy Bone
-			const FRigBoneHierarchy& BaseHierarchy = ControlRig->GetBoneHierarchy();
-			for (int32 BoneIndex = 0; BoneIndex < BaseHierarchy.Num(); ++BoneIndex)
+			Hierarchy->ForEach<FRigTransformElement>([PDI, Hierarchy, ComponentTransform](FRigTransformElement* TransformElement) -> bool
 			{
-				const FRigBone& CurrentBone = BaseHierarchy[BoneIndex];
-				const FTransform Transform = BaseHierarchy.GetGlobalTransform(BoneIndex);
+				const FTransform Transform = Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
 
-				if (CurrentBone.ParentIndex != INDEX_NONE)
+				TArray<FRigBaseElement*> Parents = Hierarchy->GetParents(TransformElement);
+				for(FRigBaseElement* ParentElement : Parents)
 				{
-					const FTransform ParentTransform = BaseHierarchy.GetGlobalTransform(CurrentBone.ParentIndex);
-
-					PDI->DrawLine(ComponentTransform.TransformPosition(Transform.GetLocation()),ComponentTransform.TransformPosition(ParentTransform.GetLocation()), FLinearColor::White, SDPG_Foreground);
-				}
+					if(FRigTransformElement* ParentTransformElement = Cast<FRigTransformElement>(ParentElement))
+					{
+						const FTransform ParentTransform = Hierarchy->GetTransform(ParentTransformElement, ERigTransformType::CurrentGlobal);
+                        PDI->DrawLine(ComponentTransform.TransformPosition(Transform.GetLocation()),ComponentTransform.TransformPosition(ParentTransform.GetLocation()), FLinearColor::White, SDPG_Foreground);
+					}
+                }
 
 				PDI->DrawPoint(ComponentTransform.TransformPosition(Transform.GetLocation()), FLinearColor::White, 5.0f, SDPG_Foreground);
-			}
+
+				return true;
+			});
 		}
 
 		if (Settings->bDisplaySpaces || ControlRig->IsSetupModeEnabled())
 		{
-			FRigSpaceHierarchy& SpaceHierarchy = ControlRig->GetSpaceHierarchy();
-
 			TArray<FTransform> SpaceTransforms;
-			for (const FRigSpace& Space : SpaceHierarchy)
-			{
-				SpaceTransforms.Add(SpaceHierarchy.GetGlobalTransform(Space.Index));
-			}
-
+			Hierarchy->ForEach<FRigSpaceElement>([&SpaceTransforms, Hierarchy](FRigSpaceElement* SpaceElement) -> bool
+            {
+				SpaceTransforms.Add(Hierarchy->GetTransform(SpaceElement, ERigTransformType::CurrentGlobal));
+				return true;
+			});
 			GetControlRig(true)->DrawInterface.DrawAxes(FTransform::Identity, SpaceTransforms, Settings->AxisScale);
 		}
 
@@ -546,7 +547,6 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 		{
 			if (ControlRig->GetWorld() && ControlRig->GetWorld()->IsPreviewWorld())
 			{
-				const FRigHierarchyContainer* Hierarchy = ControlRig->GetHierarchy();
 				const float Scale = Settings->AxisScale;
 				PDI->AddReserveLines(SDPG_Foreground, SelectedRigElements.Num() * 3);
 
@@ -1253,11 +1253,14 @@ void FControlRigEditMode::ClearRigElementSelection(uint32 InTypes)
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(InteractionRig->GetClass()->ClassGeneratedBy);
 	if (Blueprint)
 	{
-		Blueprint->HierarchyContainer.ClearSelection();
+		Blueprint->GetHierarchyController()->ClearSelection();
 	}
 	if (IsInLevelEditor())
 	{
-		InteractionRig->Hierarchy.ClearSelection();
+		if(URigHierarchyController* Controller = InteractionRig->GetHierarchy()->GetController())
+		{
+			Controller->ClearSelection();
+		}
 	}
 }
 
@@ -1273,11 +1276,14 @@ void FControlRigEditMode::SetRigElementSelectionInternal(ERigElementType Type, c
 	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(InteractionRig->GetClass()->ClassGeneratedBy);
 	if (Blueprint)
 	{
-		Blueprint->HierarchyContainer.Select(FRigElementKey(InRigElementName, Type), bSelected);
+		Blueprint->GetHierarchyController()->SelectElement(FRigElementKey(InRigElementName, Type), bSelected);
 	}
 	if (IsInLevelEditor())
 	{
-		InteractionRig->Hierarchy.Select(FRigElementKey(InRigElementName, Type), bSelected);
+		if(URigHierarchyController* Controller = InteractionRig->GetHierarchy()->GetController())
+		{
+			Controller->SelectElement(FRigElementKey(InRigElementName, Type), bSelected);
+		}
 	}
 }
 
@@ -1616,7 +1622,7 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 		TArray<FRigElementKey> ControlsToReset = SelectedRigElements;
 		if (!bSelectionOnly)
 		{
-			ControlsToReset = ControlRig->GetHierarchy()->GetAllItems();
+			ControlsToReset = ControlRig->GetHierarchy()->GetAllKeys(true, ERigElementType::Control);
 		}
 
 		FScopedTransaction Transaction(LOCTEXT("HierarchyResetTransforms", "Reset Transforms"));
@@ -1624,17 +1630,17 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 		{
 			if (ControlToReset.Type == ERigElementType::Control)
 			{
-				FRigControl* Control = ControlRig->FindControl(ControlToReset.Name);
-				if (Control && !Control->bIsTransientControl)
+				FRigControlElement* ControlElement = ControlRig->FindControl(ControlToReset.Name);
+				if (ControlElement && !ControlElement->Settings.bIsTransientControl)
 				{
-					FTransform Transform = ControlRig->GetControlHierarchy().GetLocalTransform(ControlToReset.Name, ERigControlValueType::Initial);
+					const FTransform InitialLocalTransform = ControlRig->GetHierarchy()->GetInitialLocalTransform(ControlToReset);
 					ControlRig->Modify();
-					ControlRig->GetControlHierarchy().SetLocalTransform(ControlToReset.Name, Transform);
-					ControlRig->ControlModified().Broadcast(ControlRig, *Control, EControlRigSetKey::DoNotCare);
+					ControlRig->GetHierarchy()->SetLocalTransform(ControlToReset, InitialLocalTransform);
+					ControlRig->ControlModified().Broadcast(ControlRig, ControlElement, EControlRigSetKey::DoNotCare);
 
 					if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(ControlRig->GetClass()->ClassGeneratedBy))
 					{
-						Blueprint->HierarchyContainer.SetLocalTransform(ControlToReset, Transform);
+						Blueprint->Hierarchy->SetLocalTransform(ControlToReset, InitialLocalTransform);
 					}
 				}
 			}
@@ -1721,13 +1727,15 @@ void FControlRigEditMode::RecreateGizmoActors(const TArray<FRigElementKey>& InSe
 				ControlProxy->RecreateAllProxies(InteractionRig);
 			}
 		}
-	}
 
-	for (const FRigElementKey& SelectedElement : InSelectedElements)
-	{
-		OnRigElementSelected(nullptr, SelectedElement, true);
+		for (const FRigElementKey& SelectedElement : InSelectedElements)
+		{
+			if(FRigControlElement* ControlElement = ControlRig->FindControl(SelectedElement.Name))
+			{
+				OnHierarchyModified(ERigHierarchyNotification::ElementSelected, ControlRig->GetHierarchy(), ControlElement);
+			}
+		}
 	}
-
 }
 
 FControlRigEditMode* FControlRigEditMode::GetEditModeFromWorldContext(UWorld* InWorldContext)
@@ -1803,103 +1811,98 @@ bool FControlRigEditMode::AreRigElementSelectedAndMovable() const
 		return true;
 }
 
-void FControlRigEditMode::OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
+void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
-	RequestToRecreateGizmoActors();
-}
-
-void FControlRigEditMode::OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
-{
-	RequestToRecreateGizmoActors();
-}
-
-void FControlRigEditMode::OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName)
-{
-	RequestToRecreateGizmoActors();
-}
-
-void FControlRigEditMode::OnRigElementReparented(FRigHierarchyContainer* Container, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName)
-{
-	RequestToRecreateGizmoActors();
-}
-
-void FControlRigEditMode::OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected)
-{
-	switch (InKey.Type)
+	switch(InNotif)
 	{
-		case ERigElementType::Bone:
-		case ERigElementType::Control:
-		case ERigElementType::Space:
-		case ERigElementType::Curve:
+		case ERigHierarchyNotification::ElementAdded:
+		case ERigHierarchyNotification::ElementRemoved:
+		case ERigHierarchyNotification::ElementRenamed:
+		case ERigHierarchyNotification::ParentChanged:
+		case ERigHierarchyNotification::HierarchyReset:
+		case ERigHierarchyNotification::ControlSettingChanged:
 		{
-			if (bSelected)
-			{
-				SelectedRigElements.AddUnique(InKey);
-			}
-			else
-			{
-				SelectedRigElements.Remove(InKey);
-			}
+			RequestToRecreateGizmoActors();
+			break;
+		}
+		case ERigHierarchyNotification::ElementSelected:
+		case ERigHierarchyNotification::ElementDeselected:
+		{
+			const FRigElementKey Key = InElement->GetKey();
 
-			// if it's control
-			if (InKey.Type == ERigElementType::Control)
+			switch (InElement->GetType())
 			{
-				FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);	
-				if (IsInLevelEditor())
+				case ERigElementType::Bone:
+            	case ERigElementType::Space:
+            	case ERigElementType::Curve:
+            	case ERigElementType::Control:
 				{
-					ControlProxy->Modify();
-				}
-				// users may select gizmo and control rig units, so we have to let them go through both of them if they do
-				// first go through gizmo actor
-				AControlRigGizmoActor* GizmoActor = GetGizmoFromControlName(InKey.Name);
-				if (GizmoActor)
-				{
-					GizmoActor->SetSelected(bSelected);
-
-				}
-				if (IsInLevelEditor())
-				{
+					const bool bSelected = InNotif == ERigHierarchyNotification::ElementSelected;
 					if (bSelected)
 					{
-						if (UControlRig* ControlRig = GetControlRig(true))
-						{
-							FRigControl* Control = ControlRig->FindControl(InKey.Name);
-							if (Control)
-							{
-								ControlProxy->SelectProxy(InKey.Name, true);
-							}
-						}
+						SelectedRigElements.AddUnique(Key);
 					}
 					else
 					{
-						ControlProxy->SelectProxy(InKey.Name, false);
+						SelectedRigElements.Remove(Key);
 					}
+
+					// if it's control
+					if (Key.Type == ERigElementType::Control)
+					{
+						FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);	
+						if (IsInLevelEditor())
+						{
+							ControlProxy->Modify();
+						}
+						// users may select gizmo and control rig units, so we have to let them go through both of them if they do
+						// first go through gizmo actor
+						AControlRigGizmoActor* GizmoActor = GetGizmoFromControlName(Key.Name);
+						if (GizmoActor)
+						{
+							GizmoActor->SetSelected(bSelected);
+
+						}
+						if (IsInLevelEditor())
+						{
+							if (bSelected)
+							{
+								if (UControlRig* ControlRig = GetControlRig(true))
+								{
+									if (ControlRig->GetHierarchy()->Find<FRigControlElement>(Key))
+									{
+										ControlProxy->SelectProxy(Key.Name, true);
+									}
+								}
+							}
+							else
+							{
+								ControlProxy->SelectProxy(Key.Name, false);
+							}
+						}
+					}
+					bSelectionChanged = true;
+		
+					break;
+				}
+				default:
+				{
+					ensureMsgf(false, TEXT("Unsupported Type of RigElement: %s"), *Key.ToString());
+					break;
 				}
 			}
-			bSelectionChanged = true;
-			
-			break;
 		}
 		default:
 		{
-			ensureMsgf(false, TEXT("Unsupported Type of RigElement: %d"), InKey.Type);
 			break;
 		}
 	}
 }
 
-void FControlRigEditMode::OnRigElementChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
-{
-	if(!InKey) // all of them changed
-	{
-		RequestToRecreateGizmoActors();
-	}
-}
-
-void FControlRigEditMode::OnControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context)
+void FControlRigEditMode::OnControlModified(UControlRig* Subject, FRigControlElement* InControlElement, const FRigControlModifiedContext& Context)
 {
 	//this makes sure the details panel ui get's updated, don't remove
-	ControlProxy->ProxyChanged(Control.Name);
+	ControlProxy->ProxyChanged(InControlElement->GetName());
 
 	/*
 	FScopedTransaction ScopedTransaction(LOCTEXT("ModifyControlTransaction", "Modify Control"),!GIsTransacting && Context.SetKey != EControlRigSetKey::Never);
@@ -1915,12 +1918,6 @@ void FControlRigEditMode::OnControlModified(UControlRig* Subject, const FRigCont
 		}
 	}
 	*/
-}
-
-void FControlRigEditMode::OnControlUISettingChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey)
-{
-	// todo: simplify - this is pretty slow for what it does
-	RequestToRecreateGizmoActors();
 }
 
 void FControlRigEditMode::OnWidgetModeChanged(UE::Widget::EWidgetMode InWidgetMode)
@@ -1997,7 +1994,7 @@ void FControlRigEditMode::MoveGizmo(AControlRigGizmoActor* GizmoActor, const boo
 			{
 				InteractionControlRig->SetControlLocalTransform(GizmoActor->ControlName, CurrentLocalTransform);
 
-				FTransform CurrentTransform  = InteractionControlRig->GetGlobalTransform(GizmoActor->ControlName);			// assumes it's attached to actor
+				FTransform CurrentTransform  = InteractionControlRig->GetControlGlobalTransform(GizmoActor->ControlName);			// assumes it's attached to actor
 				CurrentTransform = ToWorldTransform * CurrentTransform;
 
 				GizmoActor->SetGlobalTransform(CurrentTransform);
@@ -2116,16 +2113,16 @@ bool FControlRigEditMode::ModeSupportedByGizmoActor(const AControlRigGizmoActor*
 {
 	if (UControlRig* ControlRig = GetControlRig(true, GizmoActor->ControlRigIndex))
 	{
-		const FRigControl* RigControl = ControlRig->FindControl(GizmoActor->ControlName);
-		if (RigControl)
+		const FRigControlElement* ControlElement = ControlRig->FindControl(GizmoActor->ControlName);
+		if (ControlElement)
 		{
-			if (IsSupportedControlType(RigControl->ControlType))
+			if (IsSupportedControlType(ControlElement->Settings.ControlType))
 			{
 				switch (InMode)
 				{
 					case UE::Widget::WM_Rotate:
 					{
-						switch (RigControl->ControlType)
+						switch (ControlElement->Settings.ControlType)
 						{
 							case ERigControlType::Rotator:
 							case ERigControlType::Transform:
@@ -2143,7 +2140,7 @@ bool FControlRigEditMode::ModeSupportedByGizmoActor(const AControlRigGizmoActor*
 					}
 					case UE::Widget::WM_Translate:
 					{
-						switch (RigControl->ControlType)
+						switch (ControlElement->Settings.ControlType)
 						{
 							case ERigControlType::Float:
 							case ERigControlType::Integer:
@@ -2164,7 +2161,7 @@ bool FControlRigEditMode::ModeSupportedByGizmoActor(const AControlRigGizmoActor*
 					}
 					case UE::Widget::WM_Scale:
 					{
-						switch (RigControl->ControlType)
+						switch (ControlElement->Settings.ControlType)
 						{
 							case ERigControlType::Scale:
 							case ERigControlType::Transform:
@@ -2181,7 +2178,7 @@ bool FControlRigEditMode::ModeSupportedByGizmoActor(const AControlRigGizmoActor*
 					}
 					case UE::Widget::WM_TranslateRotateZ:
 					{
-						switch (RigControl->ControlType)
+						switch (ControlElement->Settings.ControlType)
 						{
 							case ERigControlType::Transform:
 							case ERigControlType::TransformNoScale:
@@ -2209,14 +2206,14 @@ void FControlRigEditMode::TickGizmo(AControlRigGizmoActor* GizmoActor, const FTr
 	{
 		if (UControlRig* ControlRig = GetControlRig(true, GizmoActor->ControlRigIndex))
 		{
-			FTransform Transform = ControlRig->GetControlGlobalTransform(GizmoActor->ControlName);
+			const FTransform Transform = ControlRig->GetControlGlobalTransform(GizmoActor->ControlName);
 			GizmoActor->SetActorTransform(Transform * ComponentTransform);
 
-			if (FRigControl* Control = ControlRig->FindControl(GizmoActor->ControlName))
+			if (FRigControlElement* ControlElement = ControlRig->FindControl(GizmoActor->ControlName))
 			{
-				GizmoActor->SetGizmoColor(Control->GizmoColor);
-				GizmoActor->SetIsTemporarilyHiddenInEditor(!Control->bGizmoVisible || Settings->bHideManipulators);
-				GizmoActor->SetSelectable(Control->bGizmoVisible && !Settings->bHideManipulators && Control->bAnimatable);
+				GizmoActor->SetGizmoColor(ControlElement->Settings.GizmoColor);
+				GizmoActor->SetIsTemporarilyHiddenInEditor(!ControlElement->Settings.bGizmoVisible || Settings->bHideManipulators);
+				GizmoActor->SetSelectable(ControlElement->Settings.bGizmoVisible && !Settings->bHideManipulators && ControlElement->Settings.bAnimatable);
 			}
 		}
 	}
@@ -2238,6 +2235,10 @@ AControlRigGizmoActor* FControlRigEditMode::GetGizmoFromControlName(const FName&
 void FControlRigEditMode::AddControlRig(UControlRig* InControlRig)
 {
 	RuntimeControlRigs.AddUnique(InControlRig);
+
+	InControlRig->GetHierarchy()->OnModified().RemoveAll(this);
+	InControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditMode::OnHierarchyModified);
+
 	OnControlRigAddedOrRemovedDelegate.Broadcast(InControlRig, true);
 }
 
@@ -2266,6 +2267,7 @@ void FControlRigEditMode::RemoveControlRig(UControlRig* InControlRig)
 	{
 		OnControlRigAddedOrRemovedDelegate.Broadcast(InControlRig, false);
 		RuntimeControlRigs[Index]->ControlModified().RemoveAll(this);
+		RuntimeControlRigs[Index]->GetHierarchy()->OnModified().RemoveAll(this);
 		RuntimeControlRigs.RemoveAt(Index);
 
 		DelegateHelper->RemoveDelegates();
@@ -2309,28 +2311,28 @@ bool FControlRigEditMode::CreateGizmoActors(UWorld* World)
 			continue;
 		}
 
-		const TArray<FRigControl>& Controls = ControlRig->AvailableControls();
+		TArray<FRigControlElement*> Controls = ControlRig->AvailableControls();
 		UControlRigGizmoLibrary* GizmoLibrary = ControlRig->GetGizmoLibrary();
 
-		for (const FRigControl& Control : Controls)
+		for (FRigControlElement* ControlElement : Controls)
 		{
-			if (!Control.bGizmoEnabled)
+			if (!ControlElement->Settings.bGizmoEnabled)
 			{
 				continue;
 			}
-			if (IsSupportedControlType(Control.ControlType))
+			if (IsSupportedControlType(ControlElement->Settings.ControlType))
 			{
 				FGizmoActorCreationParam Param;
 				Param.ManipObj = ControlRig;
 				Param.ControlRigIndex = ControlRigIndex;
-				Param.ControlName = Control.Name;
-				Param.SpawnTransform = ControlRig->GetControlGlobalTransform(Control.Name);
-				Param.GizmoTransform = Control.GizmoTransform;
-				Param.bSelectable = Control.bAnimatable;
+				Param.ControlName = ControlElement->GetName();
+				Param.SpawnTransform = ControlRig->GetControlGlobalTransform(ControlElement->GetName());
+				Param.GizmoTransform = ControlRig->GetHierarchy()->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal);
+				Param.bSelectable = ControlElement->Settings.bAnimatable;
 
 				if (GizmoLibrary)
 				{
-					if (const FControlRigGizmoDefinition* Gizmo = GizmoLibrary->GetGizmoByName(Control.GizmoName, true /* use default */))
+					if (const FControlRigGizmoDefinition* Gizmo = GizmoLibrary->GetGizmoByName(ControlElement->Settings.GizmoName, true /* use default */))
 					{
 						Param.MeshTransform = Gizmo->Transform;
 						Param.StaticMesh = Gizmo->StaticMesh;
@@ -2339,7 +2341,7 @@ bool FControlRigEditMode::CreateGizmoActors(UWorld* World)
 					}
 				}
 
-				Param.Color = Control.GizmoColor;
+				Param.Color = ControlElement->Settings.GizmoColor;
 
 				AControlRigGizmoActor* GizmoActor = FControlRigGizmoHelper::CreateDefaultGizmoActor(World, Param);
 				if (GizmoActor)

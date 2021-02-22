@@ -1,24 +1,66 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigHierarchyDefines.h"
-#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigHierarchy.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// FRigElementKey
+////////////////////////////////////////////////////////////////////////////////
+
+void FRigElementKey::Serialize(FArchive& Ar)
+{
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	{
+		Save(Ar);
+	}
+	else if (Ar.IsLoading())
+	{
+		Load(Ar);
+	}
+	else
+	{
+		checkNoEntry();
+	}
+}
+
+void FRigElementKey::Save(FArchive& Ar)
+{
+	static const UEnum* ElementTypeEnum = StaticEnum<ERigElementType>();
+
+	FName TypeName = ElementTypeEnum->GetNameByValue((int64)Type);
+	Ar << TypeName;
+	Ar << Name;
+}
+
+void FRigElementKey::Load(FArchive& Ar)
+{
+	static const UEnum* ElementTypeEnum = StaticEnum<ERigElementType>();
+
+	FName TypeName;
+	Ar << TypeName;
+
+	const int64 TypeValue = ElementTypeEnum->GetValueByName(TypeName);
+	Type = (ERigElementType)TypeValue;
+
+	Ar << Name;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigElementKeyCollection
 ////////////////////////////////////////////////////////////////////////////////
 
 FRigElementKeyCollection FRigElementKeyCollection::MakeFromChildren(
-	const FRigHierarchyContainer* InContainer,
+	URigHierarchy* InHierarchy,
 	const FRigElementKey& InParentKey,
 	bool bRecursive,
 	bool bIncludeParent,
 	uint8 InElementTypes)
 {
-	check(InContainer);
+	check(InHierarchy);
 
 	FRigElementKeyCollection Collection;
 
-	int32 Index = InContainer->GetIndex(InParentKey);
+	int32 Index = InHierarchy->GetIndex(InParentKey);
 	if (Index == INDEX_NONE)
 	{
 		return Collection;
@@ -40,76 +82,16 @@ FRigElementKeyCollection FRigElementKeyCollection::MakeFromChildren(
 	for (int32 ParentIndex = 0; ParentIndex < ParentKeys.Num(); ParentIndex++)
 	{
 		const FRigElementKey ParentKey = ParentKeys[ParentIndex];
-		switch (ParentKey.Type)
+		TArray<FRigElementKey> Children = InHierarchy->GetChildren(ParentKey);
+		for(const FRigElementKey& Child : Children)
 		{
-			case ERigElementType::Bone:
+			if((InElementTypes & (uint8)Child.Type) == (uint8)Child.Type)
 			{
-				const FRigBoneHierarchy& Bones = InContainer->BoneHierarchy;
-				const FRigBone& Bone = Bones[ParentKey.Name];
-
-				if (bAddBones)
+				const int32 PreviousSize = Collection.Num();
+				if(PreviousSize == Collection.AddUnique(Child))
 				{
-					for (int32 Dependent : Bone.Dependents)
-					{
-						FRigElementKey DependentKey = Bones[Dependent].GetElementKey();
-						Collection.AddUnique(DependentKey);
-
-						if (bRecursive)
-						{
-							ParentKeys.AddUnique(DependentKey);
-						}
-					}
+					ParentKeys.Add(Child);
 				}
-
-				// fall through so that we get the spaces under bones as well
-			}
-			case ERigElementType::Space:
-			case ERigElementType::Control:
-			{
-				if (bAddSpaces)
-				{
-					const FRigSpaceHierarchy& Spaces = InContainer->SpaceHierarchy;
-					for (const FRigSpace& Space : Spaces)
-					{
-						if (Space.GetParentElementKey() == ParentKey)
-						{
-							FRigElementKey DependentKey = Space.GetElementKey();
-							Collection.AddUnique(DependentKey);
-
-							if (bRecursive)
-							{
-								ParentKeys.AddUnique(DependentKey);
-							}
-						}
-					}
-				}
-
-				if (bAddControls && ParentKey.Type != ERigElementType::Bone)
-				{
-					const FRigControlHierarchy& Controls = InContainer->ControlHierarchy;
-					for (const FRigControl& Control : Controls)
-					{
-						if (Control.GetSpaceElementKey() == ParentKey || 
-							Control.GetParentElementKey() == ParentKey)
-						{
-							FRigElementKey DependentKey = Control.GetElementKey();
-							Collection.AddUnique(DependentKey);
-
-							if (bRecursive)
-							{
-								ParentKeys.AddUnique(DependentKey);
-							}
-						}
-					}
-				}
-				break;
-			}
-			case ERigElementType::Curve:
-			case ERigElementType::All:
-			case ERigElementType::None:
-			default:
-			{
-				break;
 			}
 		}
 	}
@@ -118,37 +100,37 @@ FRigElementKeyCollection FRigElementKeyCollection::MakeFromChildren(
 }
 
 FRigElementKeyCollection FRigElementKeyCollection::MakeFromName(
-	const FRigHierarchyContainer* InContainer,
+	URigHierarchy* InHierarchy,
 	const FName& InPartialName,
 	uint8 InElementTypes
 )
 {
 	if (InPartialName.IsNone())
 	{
-		return MakeFromCompleteHierarchy(InContainer, InElementTypes);
+		return MakeFromCompleteHierarchy(InHierarchy, InElementTypes);
 	}
 
-	check(InContainer);
+	check(InHierarchy);
 
-	FRigElementKeyCollection Collection(InContainer->GetAllItems(true));
+	FRigElementKeyCollection Collection(InHierarchy->GetAllKeys(true));
 	Collection = Collection.FilterByType(InElementTypes);
 	Collection = Collection.FilterByName(InPartialName);
 	return Collection;
 }
 
 FRigElementKeyCollection FRigElementKeyCollection::MakeFromChain(
-	const FRigHierarchyContainer* InContainer,
+	URigHierarchy* InHierarchy,
 	const FRigElementKey& InFirstItem,
 	const FRigElementKey& InLastItem,
 	bool bReverse
 )
 {
-	check(InContainer);
+	check(InHierarchy);
 
 	FRigElementKeyCollection Collection;
 
-	int32 FirstIndex = InContainer->GetIndex(InFirstItem);
-	int32 LastIndex = InContainer->GetIndex(InLastItem);
+	int32 FirstIndex = InHierarchy->GetIndex(InFirstItem);
+	int32 LastIndex = InHierarchy->GetIndex(InLastItem);
 
 	if (FirstIndex == INDEX_NONE || LastIndex == INDEX_NONE)
 	{
@@ -159,7 +141,7 @@ FRigElementKeyCollection FRigElementKeyCollection::MakeFromChain(
 	while (LastKey.IsValid() && LastKey != InFirstItem)
 	{
 		Collection.Keys.Add(LastKey);
-		LastKey = InContainer->GetParentKey(LastKey);
+		LastKey = InHierarchy->GetFirstParent(LastKey);
 	}
 
 	if (LastKey != InFirstItem)
@@ -180,13 +162,13 @@ FRigElementKeyCollection FRigElementKeyCollection::MakeFromChain(
 }
 
 FRigElementKeyCollection FRigElementKeyCollection::MakeFromCompleteHierarchy(
-	const FRigHierarchyContainer* InContainer,
+	URigHierarchy* InHierarchy,
 	uint8 InElementTypes
 )
 {
-	check(InContainer);
+	check(InHierarchy);
 
-	FRigElementKeyCollection Collection(InContainer->GetAllItems(true));
+	FRigElementKeyCollection Collection(InHierarchy->GetAllKeys(true));
 	return Collection.FilterByType(InElementTypes);
 }
 
@@ -267,4 +249,53 @@ FRigElementKeyCollection FRigElementKeyCollection::FilterByName(const FName& InP
 		}
 	}
 	return Collection;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// FRigMirrorSettings
+////////////////////////////////////////////////////////////////////////////////
+
+FTransform FRigMirrorSettings::MirrorTransform(const FTransform& InTransform) const
+{
+	FTransform Transform = InTransform;
+	FQuat Quat = Transform.GetRotation();
+
+	Transform.SetLocation(MirrorVector(Transform.GetLocation()));
+
+	switch (AxisToFlip)
+	{
+	case EAxis::X:
+		{
+			FVector Y = MirrorVector(Quat.GetAxisY());
+			FVector Z = MirrorVector(Quat.GetAxisZ());
+			FMatrix Rotation = FRotationMatrix::MakeFromYZ(Y, Z);
+			Transform.SetRotation(FQuat(Rotation));
+			break;
+		}
+	case EAxis::Y:
+		{
+			FVector X = MirrorVector(Quat.GetAxisX());
+			FVector Z = MirrorVector(Quat.GetAxisZ());
+			FMatrix Rotation = FRotationMatrix::MakeFromXZ(X, Z);
+			Transform.SetRotation(FQuat(Rotation));
+			break;
+		}
+	default:
+		{
+			FVector X = MirrorVector(Quat.GetAxisX());
+			FVector Y = MirrorVector(Quat.GetAxisY());
+			FMatrix Rotation = FRotationMatrix::MakeFromXY(X, Y);
+			Transform.SetRotation(FQuat(Rotation));
+			break;
+		}
+	}
+
+	return Transform;
+}
+
+FVector FRigMirrorSettings::MirrorVector(const FVector& InVector) const
+{
+	FVector Axis = FVector::ZeroVector;
+	Axis.SetComponentForAxis(MirrorAxis, 1.f);
+	return InVector.MirrorByVector(Axis);
 }

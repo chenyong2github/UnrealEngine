@@ -47,7 +47,7 @@ FRigUnit_FitChainToCurvePerItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -379,7 +379,7 @@ FRigUnit_FitChainToCurvePerItem_Execute()
 	if (Rotations.Num() > 0)
 	{
 		FTransform BaseTransform = FTransform::Identity;
-		FRigElementKey ParentKey = Hierarchy->GetParentKey(CachedItems[0]);
+		FRigElementKey ParentKey = Hierarchy->GetFirstParent(CachedItems[0].GetKey());
 		if (ParentKey.IsValid())
 		{
 			BaseTransform = Hierarchy->GetGlobalTransform(ParentKey);

@@ -6,7 +6,7 @@
 FRigUnit_SetControlColor_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -18,9 +18,11 @@ FRigUnit_SetControlColor_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				if (CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
-					(*Hierarchy)[CachedControlIndex].GizmoColor = Color;
+					FRigControlElement* ControlElement = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex);
+					ControlElement->Settings.GizmoColor = Color;
+					Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 				}
 				break;
 			}

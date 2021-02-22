@@ -61,7 +61,7 @@ private:
 	FReply OnPastePose();
 	FReply OnSelectControls();
 	FReply OnCaptureThumbnail();
-	void HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
+	void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected);
 	void HandleControlAdded(UControlRig* ControlRig, bool bIsAdded);
 
 	static bool bIsKey;

@@ -79,15 +79,14 @@ void UControlRigNumericalValidationPass::OnEvent(UControlRig* InControlRig, cons
 			if(Key.Type == ERigElementType::Curve)
 			{
 				float A = PoseElement.CurveValue;
-				const FRigCurve& Curve = InControlRig->GetCurveContainer()[ElementIndex];
-				float B = Curve.Value;
+				float B = InControlRig->GetHierarchy()->GetCurveValue(ElementIndex);
 
 				if (FMath::Abs(A - B) > CurvePrecision + SMALL_NUMBER)
 				{
 					FString EventNameADisplayString = InContext->GetDisplayNameForEvent(EventNameA);
 					FString EventNameBDisplayString = InContext->GetDisplayNameForEvent(EventNameB);
 					FString Message = FString::Printf(TEXT("Values don't match between %s and %s."), *EventNameADisplayString, *EventNameBDisplayString);
-					InContext->Report(EMessageSeverity::Warning, Curve.GetElementKey(), Message);
+					InContext->Report(EMessageSeverity::Warning, Key, Message);
 				}
 				continue;
 			}

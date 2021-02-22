@@ -93,7 +93,7 @@ struct FRigUnit_RigLogic_Data
 
 	/** RL animated map index to ControlRig's output anim map curve index for each LOD **/
 	UPROPERTY(transient)
-	TArray<FRigUnit_RigLogic_IntArray> CurveContainerIndicesForAnimMaps;
+	TArray<FRigUnit_RigLogic_IntArray> CurveElementIndicesForAnimMaps;
 
 	/** RL animated map index to RL anim map curve index for each LOD **/
 	UPROPERTY(transient)
@@ -106,29 +106,29 @@ struct FRigUnit_RigLogic_Data
 	static const uint8 MAX_ATTRS_PER_JOINT;
 
 	bool IsRigLogicInitialized();
-	void InitializeRigLogic(const FRigBoneHierarchy* BoneHierarchy, const FRigCurveContainer* CurveContainer);
+	void InitializeRigLogic(const URigHierarchy* InHierarchy);
 
 	/** Makes a map of input curve indices from DNA file to the control rig curves **/
-	void MapInputCurveIndices(const FRigCurveContainer* CurveContainer);
+	void MapInputCurveIndices(const URigHierarchy* InHierarchy);
 	/** Uses names to map joint indices from DNA file to the indices of bones in control rig hierarchy **/
-	void MapJoints(const FRigBoneHierarchy* Hierarchy);
+	void MapJoints(const URigHierarchy* Hierarchy);
 	/** Cache the joint indices that change per each LOD **/
 	void CacheVariableJointIndices();
 	/** Uses names of blend shapes and meshes in DNA file, for all LODs, to map their indices to the indices of
 	  * morph target curves in the curve container; curve name format is <mesh>__<blendshape> **/
-	void MapMorphTargets(const FRigCurveContainer* CurveContainer);
+	void MapMorphTargets(const URigHierarchy* InHierarchy);
 	/** Uses names to map mask multiplier indices from DNA file, for all LODs, to the indices of curves in the
 	  * control rig's curve container **/
-	void MapMaskMultipliers(const FRigCurveContainer* CurveContainer);
+	void MapMaskMultipliers(const URigHierarchy* InHierarchy);
 
 	/** Calculates joint positions, orientation and scale based on inputs curves of the control rig **/
-	void CalculateRigLogic(const FRigCurveContainer* CurveContainer);
+	void CalculateRigLogic(const URigHierarchy* InHierarchy);
 	/** Updates joint positions in the hierarchy based on inputs curves of the control rig **/
-	void UpdateJoints(FRigHierarchyContainer* Hierarchy, const FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams);
+	void UpdateJoints(URigHierarchy* Hierarchy, const FRigUnit_RigLogic_JointUpdateParams& JointUpdateParams);
 	/** Updates morph target curve values based on values of input curves of the control rig **/
-	void UpdateBlendShapeCurves(FRigCurveContainer* CurveContainer, TArrayView<const float> BlendShapeValues);
+	void UpdateBlendShapeCurves(URigHierarchy* InHierarchy, TArrayView<const float> BlendShapeValues);
 	/** Updates anim map curve values based on values of input curves of the control rig **/
-	void UpdateAnimMapCurves(FRigCurveContainer* CurveContainer, TArrayView<const float> AnimMapOutputs);
+	void UpdateAnimMapCurves(URigHierarchy* InHierarchy, TArrayView<const float> AnimMapOutputs);
 };
 
 

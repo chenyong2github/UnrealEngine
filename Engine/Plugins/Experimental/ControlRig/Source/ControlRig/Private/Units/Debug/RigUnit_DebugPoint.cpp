@@ -18,9 +18,9 @@ FRigUnit_DebugPoint_Execute()
 
 	FVector Center = FVector::ZeroVector;
 	FVector DrawVector = Vector;
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space != NAME_None && Context.Hierarchy != nullptr)
 	{
-		FTransform Transform = Context.GetBones()->GetGlobalTransform(Space);
+		const FTransform Transform = Context.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
 		Center = Transform.GetLocation();
 		DrawVector = Transform.TransformPosition(DrawVector);
 	}
@@ -55,9 +55,9 @@ FRigUnit_DebugPointMutable_Execute()
 
 	FVector Center = FVector::ZeroVector;
 	FVector DrawVector = Vector;
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space != NAME_None && Context.Hierarchy != nullptr)
 	{
-		FTransform Transform = Context.GetBones()->GetGlobalTransform(Space);
+		const FTransform Transform = Context.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
 		Center = Transform.GetLocation();
 		DrawVector = Transform.TransformPosition(DrawVector);
 	}

@@ -64,20 +64,20 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 
-void UControlRigGraph::CacheNameLists(const FRigHierarchyContainer* HierarchyContainer, const FControlRigDrawContainer* DrawContainer)
+void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer)
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
 	{
 		return;
 	}
 
-	check(HierarchyContainer);
+	check(InHierarchy);
 	check(DrawContainer);
 
-	CacheNameList<FRigBoneHierarchy>(HierarchyContainer->BoneHierarchy, BoneNameList);
-	CacheNameList<FRigControlHierarchy>(HierarchyContainer->ControlHierarchy, ControlNameList);
-	CacheNameList<FRigSpaceHierarchy>(HierarchyContainer->SpaceHierarchy, SpaceNameList);
-	CacheNameList<FRigCurveContainer>(HierarchyContainer->CurveContainer, CurveNameList);
+	CacheNameListForHierarchy<FRigBoneElement>(InHierarchy, BoneNameList);
+	CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList);
+	CacheNameListForHierarchy<FRigSpaceElement>(InHierarchy, SpaceNameList);
+	CacheNameListForHierarchy<FRigCurveElement>(InHierarchy, CurveNameList);
 	CacheNameList<FControlRigDrawContainer>(*DrawContainer, DrawingNameList);
 }
 

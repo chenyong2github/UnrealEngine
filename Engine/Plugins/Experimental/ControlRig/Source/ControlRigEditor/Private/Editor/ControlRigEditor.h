@@ -155,12 +155,7 @@ public:
 
 	void OnCurveContainerChanged();
 
-	void OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bForce = false);
-	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
-	void OnRigElementReparented(FRigHierarchyContainer* Container, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
-	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
-	void OnControlUISettingChanged(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
+	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
 	void OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp> DragDropOp, UEdGraph* Graph, const FVector2D& NodePosition, const FVector2D& ScreenPosition);
 
@@ -297,7 +292,7 @@ private:
 
 	 void HandleMakeElementGetterSetter(ERigElementGetterSetterType Type, bool bIsGetter, TArray<FRigElementKey> Keys, UEdGraph* Graph, FVector2D NodePosition);
 
-	 void HandleOnControlModified(UControlRig* Subject, const FRigControl& Control, const FRigControlModifiedContext& Context);
+	 void HandleOnControlModified(UControlRig* Subject, FRigControlElement* ControlElement, const FRigControlModifiedContext& Context);
 
 	 void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 
@@ -355,6 +350,7 @@ protected:
 	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	/** delegate for changing property */
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
+	void OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent& PropertyChangedChainEvent);
 
 	URigVMGraph* GetFocusedModel() const;
 	URigVMController* GetFocusedController() const;
@@ -377,9 +373,6 @@ protected:
 	FControlRigLog ControlRigLog;
 	/** Once the log is collected update the graph */
 	void UpdateGraphCompilerErrors();
-
-	/** This can be used to enable dumping of a unit test */
-	void DumpUnitTestCode();
 
 	void OnAnimInitialized();
 

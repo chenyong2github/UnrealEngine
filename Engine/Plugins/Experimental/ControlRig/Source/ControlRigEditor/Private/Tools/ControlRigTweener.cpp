@@ -39,9 +39,9 @@ void FControlsToTween::Setup(const TArray<UControlRig*>& SelectedControlRigs, TW
 				{
 					Section->Modify();
 					UControlRig* ControlRig = Track->GetControlRig();
-					TArray<FRigControl> CurrentControls;
+					TArray<FRigControlElement*> CurrentControls;
 					ControlRig->GetControlsInOrder(CurrentControls);
-					FRigControlHierarchy& Hierarchy = ControlRig->GetControlHierarchy();
+					URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 					FMovieSceneChannelProxy& Proxy = Section->GetChannelProxy();
 
 					const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
@@ -51,18 +51,18 @@ void FControlsToTween::Setup(const TArray<UControlRig*>& SelectedControlRigs, TW
 					//reuse these arrays
 					TArray<FFrameNumber> KeyTimes;
 					TArray<FKeyHandle> Handles;
-					for (const FRigControl& RigControl : CurrentControls)
+					for (FRigControlElement* ControlElement : CurrentControls)
 					{
-						if (RigControl.bAnimatable &&  ControlRig->IsControlSelected(RigControl.Name))
+						if (ControlElement->Settings.bAnimatable &&  ControlRig->IsControlSelected(ControlElement->GetName()))
 						{
 							FControlRigChannels ControlRigChannels;
 							ControlRigChannels.NumChannels = 0;
 							ControlRigChannels.Section = Section;
 							KeyTimes.SetNum(0);
 							Handles.SetNum(0);
-							FChannelMapInfo* pChannelIndex = Section->ControlChannelMap.Find(RigControl.Name);
+							FChannelMapInfo* pChannelIndex = Section->ControlChannelMap.Find(ControlElement->GetName());
 							int NumChannels = 0;
-							switch (RigControl.ControlType)
+							switch (ControlElement->Settings.ControlType)
 							{
 								case ERigControlType::Float:
 								{
@@ -102,7 +102,7 @@ void FControlsToTween::Setup(const TArray<UControlRig*>& SelectedControlRigs, TW
 							}
 							if (ControlRigChannels.NumChannels > 0)
 							{
-								ControlRigChannelsMap.Add(RigControl.Name, ControlRigChannels);
+								ControlRigChannelsMap.Add(ControlElement->GetName(), ControlRigChannels);
 							}
 						}
 					}

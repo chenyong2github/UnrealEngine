@@ -215,7 +215,7 @@ namespace MultiFABRIK
 FRigUnit_MultiFABRIK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -239,15 +239,15 @@ FRigUnit_MultiFABRIK_Execute()
 		if(BoneTree.Num() == 0)
 		{
 			// verify the chain
-			const int32 RootBoneIndex = Hierarchy->GetIndex(RootBone);
+			const FRigElementKey RootKey(RootBone, ERigElementType::Bone);
+			const int32 RootBoneIndex = Hierarchy->GetIndex(RootKey);
 			if (RootBoneIndex != INDEX_NONE)
 			{
-				const FRigBone& RootRigBone = (*Hierarchy)[RootBoneIndex];
-
 				// fill up all effector indices
 				for (int32 Index = 0; Index < Effectors.Num(); ++Index)
 				{
-					EffectorIndices.Add(FCachedRigElement(Effectors[Index].Bone, Hierarchy));
+					const FRigElementKey EffectorKey(Effectors[Index].Bone, ERigElementType::Bone);
+					EffectorIndices.Add(FCachedRigElement(EffectorKey, Hierarchy));
 				}
 
 				// go up to until you meet root
@@ -265,13 +265,23 @@ FRigUnit_MultiFABRIK_Execute()
 						, ParentIndex(InParentIndex)
 					{}
 
-					FLocalBoneData(const FRigBone& InRigBone)
-						: BoneName(InRigBone.Name)
-						, BoneIndex(InRigBone.Index)
-						, ParentBoneName(InRigBone.ParentName)
-						, ParentIndex(InRigBone.ParentIndex)
-					{}
-					
+					FLocalBoneData(URigHierarchy* InHierarchy, int32 InBoneIndex)
+					: BoneName(NAME_None)
+					, BoneIndex(InBoneIndex)
+					, ParentBoneName(NAME_None)
+				    , ParentIndex(INDEX_NONE)
+					{
+						FRigBaseElement* BoneElement = InHierarchy->Get(InBoneIndex);
+						BoneName = BoneElement->GetName();
+						BoneIndex = BoneElement->GetIndex();
+
+						if(FRigBaseElement* ParentBoneElement = InHierarchy->GetFirstParent(BoneElement))
+						{
+							ParentBoneName = ParentBoneElement->GetName();
+							ParentIndex = ParentBoneElement->GetIndex();
+						}
+					}
+
 				};
 
 				TMap<FName, int32> ExistingBoneList;
@@ -287,16 +297,15 @@ FRigUnit_MultiFABRIK_Execute()
 						int32 CurrentIndex = EffectorIndex;
 						do 
 						{
-							const FRigBone& RigBone = (*Hierarchy)[CurrentIndex];
-							BoneList.Insert(FLocalBoneData(RigBone), 0);
-							CurrentIndex = RigBone.ParentIndex;
-						} while (CurrentIndex != RootRigBone.Index && CurrentIndex != INDEX_NONE);
+							BoneList.Insert(FLocalBoneData(Hierarchy, CurrentIndex), 0);
+							CurrentIndex = Hierarchy->GetIndex(Hierarchy->GetFirstParent(Hierarchy->GetKey(CurrentIndex)));
+						} while (CurrentIndex != RootBoneIndex && CurrentIndex != INDEX_NONE);
 
 						// if we haven't got to root, this is not valid chain
-						if (CurrentIndex == RootRigBone.Index)
+						if (CurrentIndex == RootBoneIndex)
 						{
 							// add root
-							BoneList.Insert(FLocalBoneData(RootRigBone), 0);
+							BoneList.Insert(FLocalBoneData(Hierarchy, RootBoneIndex), 0);
 
 							// go through all bone list collected
 							for (const FLocalBoneData& Bone : BoneList)
@@ -311,8 +320,8 @@ FRigUnit_MultiFABRIK_Execute()
 									Data = &BoneTree[TreeIndex];
 
 									Data->BoneName = Bone.BoneName;
-									Data->BoneIndex = FCachedRigElement(Bone.BoneName, Hierarchy);
-									Data->ParentIndex = FCachedRigElement(Bone.ParentBoneName, Hierarchy);
+									Data->BoneIndex = FCachedRigElement(FRigElementKey(Bone.BoneName, ERigElementType::Bone), Hierarchy);
+									Data->ParentIndex = FCachedRigElement(FRigElementKey(Bone.ParentBoneName, ERigElementType::Bone), Hierarchy);
 
 									// set bone length 
 									if (Data->ParentIndex.IsValid())
@@ -464,16 +473,12 @@ FRigUnit_MultiFABRIK_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MultiFABRIK)
 {
-	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
-	// add  2 chains of length 2,2 
-	BoneHierarchy.Add(TEXT("Chain1_0"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(1.f, 2.f, 0.f)));
-	BoneHierarchy.Add(TEXT("Chain1_1"), TEXT("Chain1_0"), ERigBoneType::User, FTransform(FVector(3.f, 2.f, 0.f)));
-	//length 3,3
-	BoneHierarchy.Add(TEXT("Chain2_0"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(-2.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("Chain2_1"), TEXT("Chain2_0"), ERigBoneType::User, FTransform(FVector(-2.f, 3.f, 0.f)));
-
-	BoneHierarchy.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	const FRigElementKey Root = Controller->AddBone(TEXT("Root"), FRigElementKey(), FTransform(FVector(1.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey Chain1_0 = Controller->AddBone(TEXT("Chain1_0"), Root, FTransform(FVector(1.f, 2.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey Chain1_1 = Controller->AddBone(TEXT("Chain1_1"), Chain1_0, FTransform(FVector(3.f, 2.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey Chain2_0 = Controller->AddBone(TEXT("Chain2_0"), Root, FTransform(FVector(-2.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey Chain2_1 = Controller->AddBone(TEXT("Chain2_1"), Chain2_0, FTransform(FVector(-2.f, 3.f, 0.f)), true, ERigBoneType::User);
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	// first validation test
 	// make sure this doesn't crash
@@ -493,8 +498,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MultiFABRIK)
 	Unit.bPropagateToChildren = true;
 
 	InitAndExecute();
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain1_1")).GetTranslation().Equals(FVector(3.f, 2.f, 0.f)), TEXT("unexpected transform"));
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain2_1")).GetTranslation().Equals(FVector(-2.f, 3.f, 0.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(Hierarchy->GetGlobalTransform(Chain1_1).GetTranslation().Equals(FVector(3.f, 2.f, 0.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(Hierarchy->GetGlobalTransform(Chain2_1).GetTranslation().Equals(FVector(-2.f, 3.f, 0.f)), TEXT("unexpected transform"));
 
 	// root is (1, 0, 0)
 	Unit.Effectors[0].Bone = TEXT("Chain1_1");
@@ -504,8 +509,8 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MultiFABRIK)
 	Unit.bPropagateToChildren = true;
 
 	InitAndExecute();
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain1_1")).GetTranslation().Equals(FVector(4.f, 0.f, 0.f), 0.1f), TEXT("unexpected transform"));
-	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain2_1")).GetTranslation().Equals(FVector(0.f, -5.f, 0.f), 0.1f), TEXT("unexpected transform"));
+	AddErrorIfFalse(Hierarchy->GetGlobalTransform(Chain1_1).GetTranslation().Equals(FVector(4.f, 0.f, 0.f), 0.1f), TEXT("unexpected transform"));
+	AddErrorIfFalse(Hierarchy->GetGlobalTransform(Chain2_1).GetTranslation().Equals(FVector(0.f, -5.f, 0.f), 0.1f), TEXT("unexpected transform"));
 	return true;
 }
 #endif

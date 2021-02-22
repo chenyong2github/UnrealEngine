@@ -100,7 +100,7 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 		// reset transforms here to prevent additive transforms from accumulating to INF
 		// we only update transforms from the mesh pose for bones in the current LOD, 
 		// so the reset here ensures excluded bones are also reset
-		ControlRig->GetBoneHierarchy().ResetTransforms();
+		ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
 
 		// @re-think - now control rig contains init pose from their default hierarchy and current pose from this instance.
 		// we may need this init pose somewhere (instance refpose)
@@ -108,6 +108,7 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 		{
 			const FName& Name = Iter.Key();
 			const uint16 Index = Iter.Value();
+			const FRigElementKey Key(Name, ERigElementType::Bone);
 
 			FTransform ComponentTransform = MeshPoses.GetComponentSpaceTransform(FCompactPoseBoneIndex(Index));
 			if (NodeMappingContainer.IsValid())
@@ -115,7 +116,7 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(Name).GetRelativeTransformReverse(ComponentTransform);
 			}
 
-			ControlRig->SetGlobalTransform(Name, ComponentTransform, false);
+			ControlRig->GetHierarchy()->SetGlobalTransform(Key, ComponentTransform, false);
 		}
 	}
 
@@ -126,8 +127,9 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 		{
 			const FName& Name = Iter.Key();
 			const uint16 Index = Iter.Value();
+			const FRigElementKey Key(Name, ERigElementType::Bone);
 
-			ControlRig->SetCurveValue(Name, InOutput.Curve.Get(Index));
+			ControlRig->GetHierarchy()->SetCurveValue(Key, InOutput.Curve.Get(Index));
 		}
 	}
 }
@@ -149,9 +151,10 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 		{
 			const FName& Name = Iter.Key();
 			const uint16 Index = Iter.Value();
+			const FRigElementKey Key(Name, ERigElementType::Bone);
 
 			FCompactPoseBoneIndex CompactPoseIndex(Index);
-			FTransform ComponentTransform = ControlRig->GetGlobalTransform(Name);
+			FTransform ComponentTransform = ControlRig->GetHierarchy()->GetGlobalTransform(Key);
 			if (NodeMappingContainer.IsValid())
 			{
 				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(Name) * ComponentTransform;
@@ -171,8 +174,9 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 		{
 			const FName& Name = Iter.Key();
 			const uint16 Index = Iter.Value();
+			const FRigElementKey Key(Name, ERigElementType::Bone);
 
-			const float Value = ControlRig->GetCurveValue(Name);
+			const float Value = ControlRig->GetHierarchy()->GetCurveValue(Key);
 			InOutput.Curve.Set(Index, Value);
 		}
 	}
@@ -261,8 +265,12 @@ struct FControlRigControlScope
 	{
 		if (ControlRig.IsValid())
 		{
-			CopyOfControls = ControlRig->AvailableControls();
-			
+			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+			Hierarchy->ForEach<FRigControlElement>([this, Hierarchy](FRigControlElement* ControlElement) -> bool
+			{
+				ControlValues.Add(ControlElement->GetKey(), Hierarchy->GetControlValueByIndex(ControlElement->GetIndex()));
+				return true; // continue
+			});
 		}
 	}
 
@@ -270,76 +278,15 @@ struct FControlRigControlScope
 	{
 		if (ControlRig.IsValid())
 		{
-			for (const FRigControl& CopyRigControl: CopyOfControls)
+			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+			for (const TPair<FRigElementKey, FRigControlValue>& Pair: ControlValues)
 			{
-				FRigControl* RigControl = ControlRig->FindControl(CopyRigControl.Name);
-				if (RigControl)
-				{
-					if (CopyRigControl.ControlType == RigControl->ControlType)
-					{
-						switch (RigControl->ControlType)
-						{
-						case ERigControlType::Transform:
-						{
-							FTransform Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FTransform>();
-							RigControl->GetValue(ERigControlValueType::Current).Set<FTransform>(Val);
-							break;
-						}
-						case ERigControlType::TransformNoScale:
-						{
-							FTransformNoScale Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FTransformNoScale>();
-							RigControl->GetValue(ERigControlValueType::Current).Set<FTransformNoScale>(Val);
-							break;
-						}
-						case ERigControlType::EulerTransform:
-						{
-							FEulerTransform Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FEulerTransform>();
-							RigControl->GetValue(ERigControlValueType::Current).Set<FEulerTransform>(Val);
-							break;
-						}
-						case ERigControlType::Float:
-						{
-							float Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<float>();
-							RigControl->GetValue(ERigControlValueType::Current).Set<float>(Val);
-							break;
-						}
-						case ERigControlType::Bool:
-						{
-							bool Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<bool>();
-							RigControl->GetValue(ERigControlValueType::Current).Set<bool>(Val);
-							break;
-						}
-						case ERigControlType::Integer:
-						{
-							int32 Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<int32>();
-							RigControl->GetValue(ERigControlValueType::Current).Set<int32>(Val);
-							break;
-						}
-						case ERigControlType::Vector2D:
-						{
-							FVector2D Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FVector2D>();
-							RigControl->GetValue(ERigControlValueType::Current).Set<FVector2D>(Val);
-							break;
-						}
-						case ERigControlType::Position:
-						case ERigControlType::Scale:
-						case ERigControlType::Rotator:
-						{
-							FVector Val = CopyRigControl.GetValue(ERigControlValueType::Current).Get<FVector>();
-							RigControl->GetValue(ERigControlValueType::Current).Set<FVector>(Val);
-							break;
-						}
-						default:
-							break;
-
-						};
-					}
-				}
+				Hierarchy->SetControlValue(Pair.Key, Pair.Value);
 			}
 		}
 	}
 
-	TArray<FRigControl> CopyOfControls;
+	TMap<FRigElementKey, FRigControlValue> ControlValues;
 	TWeakObjectPtr<UControlRig> ControlRig;
 };
 
@@ -403,11 +350,11 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 			
 			// we just support curves by name only
 			TArray<FName> const& CurveNames = RequiredBones.GetUIDToNameLookupTable();
-			const FRigCurveContainer& RigCurveContainer = ControlRig->GetCurveContainer();
+			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 			for (uint16 Index = 0; Index < CurveNames.Num(); ++Index)
 			{
 				// see if the curve name exists in the control rig
-				if (RigCurveContainer.GetIndex(CurveNames[Index]) != INDEX_NONE)
+				if (Hierarchy->GetIndex(FRigElementKey(CurveNames[Index], ERigElementType::Curve)) != INDEX_NONE)
 				{
 					ControlRigCurveMapping.Add(CurveNames[Index], Index);
 				}

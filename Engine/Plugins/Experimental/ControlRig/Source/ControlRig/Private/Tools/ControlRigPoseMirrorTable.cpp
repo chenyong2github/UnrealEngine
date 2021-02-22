@@ -11,10 +11,10 @@ void FControlRigPoseMirrorTable::SetUpMirrorTable(const UControlRig* ControlRig)
 	MatchedControls.Reset();
 	if (Settings && ControlRig)
 	{
-		const TArray<FRigControl>& CurrentControls = ControlRig->AvailableControls();
-		for (const FRigControl& RigControl : CurrentControls)
+		TArray<FRigControlElement*> CurrentControls = ControlRig->AvailableControls();
+		for (FRigControlElement* ControlElement : CurrentControls)
 		{
-			FString CurrentString = RigControl.Name.ToString();
+			FString CurrentString = ControlElement->GetName().ToString();
 			if (CurrentString.Contains(Settings->RightSide))
 			{
 				FString NewString = CurrentString.Replace(*Settings->RightSide, *Settings->LeftSide);

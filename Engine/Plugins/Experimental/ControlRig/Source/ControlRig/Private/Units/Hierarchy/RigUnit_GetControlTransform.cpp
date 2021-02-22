@@ -6,7 +6,7 @@
 FRigUnit_GetControlBool_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigControlHierarchy* Hierarchy = Context.GetControls();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -17,13 +17,13 @@ FRigUnit_GetControlBool_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				if (!CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
 				}
 				else
 				{
-					BoolValue = Hierarchy->GetValue(CachedControlIndex).Get<bool>();
+					BoolValue = Hierarchy->GetControlValue(CachedControlIndex).Get<bool>();
 				}
 			}
 			default:
@@ -37,7 +37,7 @@ FRigUnit_GetControlBool_Execute()
 FRigUnit_GetControlFloat_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigControlHierarchy* Hierarchy = Context.GetControls();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -48,15 +48,15 @@ FRigUnit_GetControlFloat_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				if (!CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
 				}
 				else
 				{
-					FloatValue = Hierarchy->GetValue(CachedControlIndex).Get<float>();
-					Minimum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Minimum).Get<float>();
-					Maximum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Maximum).Get<float>();
+					FloatValue = Hierarchy->GetControlValue(CachedControlIndex).Get<float>();
+					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<float>();
+					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<float>();
 				}
 			}
 			default:
@@ -71,7 +71,7 @@ FRigUnit_GetControlFloat_Execute()
 FRigUnit_GetControlInteger_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigControlHierarchy* Hierarchy = Context.GetControls();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -82,15 +82,15 @@ FRigUnit_GetControlInteger_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				if (!CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
 				}
 				else
 				{
-					IntegerValue = Hierarchy->GetValue(CachedControlIndex).Get<int32>();
-					Minimum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Minimum).Get<int32>();
-					Maximum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Maximum).Get<int32>();
+					IntegerValue = Hierarchy->GetControlValue(CachedControlIndex).Get<int32>();
+					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<int32>();
+					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<int32>();
 				}
 			}
 			default:
@@ -104,7 +104,7 @@ FRigUnit_GetControlInteger_Execute()
 FRigUnit_GetControlVector2D_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigControlHierarchy* Hierarchy = Context.GetControls();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -115,15 +115,15 @@ FRigUnit_GetControlVector2D_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				if (!CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
 				}
 				else
 				{
-					Vector = Hierarchy->GetValue(CachedControlIndex).Get<FVector2D>();
-					Minimum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector2D>();
-					Maximum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector2D>();
+					Vector = Hierarchy->GetControlValue(CachedControlIndex).Get<FVector2D>();
+					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector2D>();
+					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector2D>();
 				}
 			}
 			default:
@@ -137,7 +137,7 @@ FRigUnit_GetControlVector2D_Execute()
 FRigUnit_GetControlVector_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigControlHierarchy* Hierarchy = Context.GetControls();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -148,7 +148,7 @@ FRigUnit_GetControlVector_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				if (!CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
 				}
@@ -173,17 +173,19 @@ FRigUnit_GetControlVector_Execute()
 						}
 					}
 
-					if((*Hierarchy)[CachedControlIndex].ControlType == ERigControlType::Position)
+					const ERigControlType ControlType = Hierarchy->GetChecked<FRigControlElement>(CachedControlIndex)->Settings.ControlType;
+					
+					if(ControlType == ERigControlType::Position)
 					{
 						Vector = Transform.GetLocation();
 					}
-					else if((*Hierarchy)[CachedControlIndex].ControlType == ERigControlType::Scale)
+					else if(ControlType == ERigControlType::Scale)
 					{
 						Vector = Transform.GetScale3D();
 					}
 
-					Minimum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector>();
-					Maximum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector>();
+					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FVector>();
+					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FVector>();
 				}
 			}
 			default:
@@ -197,7 +199,7 @@ FRigUnit_GetControlVector_Execute()
 FRigUnit_GetControlRotator_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigControlHierarchy* Hierarchy = Context.GetControls();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -208,7 +210,7 @@ FRigUnit_GetControlRotator_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				if (!CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
 				}
@@ -234,8 +236,8 @@ FRigUnit_GetControlRotator_Execute()
 					}
 
 					Rotator = Transform.GetRotation().Rotator();
-					Minimum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FRotator>();
-					Maximum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FRotator>();
+					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FRotator>();
+					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FRotator>();
 				}
 			}
 			default:
@@ -249,7 +251,7 @@ FRigUnit_GetControlRotator_Execute()
 FRigUnit_GetControlTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigControlHierarchy* Hierarchy = Context.GetControls();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -260,7 +262,7 @@ FRigUnit_GetControlTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				if (!CachedControlIndex.UpdateCache(FRigElementKey(Control, ERigElementType::Control), Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
 				}
@@ -283,8 +285,8 @@ FRigUnit_GetControlTransform_Execute()
 							break;
 						}
 					}
-					Minimum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FTransform>();
-					Maximum = Hierarchy->GetValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FTransform>();
+					Minimum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Minimum).Get<FTransform>();
+					Maximum = Hierarchy->GetControlValue(CachedControlIndex, ERigControlValueType::Maximum).Get<FTransform>();
 				}
 			}
 			default:
@@ -300,9 +302,21 @@ FRigUnit_GetControlTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetControlTransform)
 {
-	ControlHierarchy.Add(TEXT("Root"), ERigControlType::Transform, NAME_None, NAME_None, FTransform(FVector(1.f, 0.f, 0.f)));
-	ControlHierarchy.Add(TEXT("ControlA"), ERigControlType::Transform, TEXT("Root"), NAME_None, FTransform(FVector(1.f, 2.f, 3.f)));
-	ControlHierarchy.Initialize();
+	const FRigElementKey Root = Controller->AddControl(
+		TEXT("Root"),
+		FRigElementKey(),
+		FRigControlSettings(),
+		FRigControlValue::Make(FTransform(FVector(1.f, 0.f, 0.f))),
+		FTransform::Identity,
+		FTransform::Identity);
+
+	const FRigElementKey ControlA = Controller->AddControl(
+	    TEXT("ControlA"),
+	    Root,
+	    FRigControlSettings(),
+	    FRigControlValue::Make(FTransform(FVector(1.f, 2.f, 3.f))),
+	    FTransform::Identity,
+	    FTransform::Identity);
 
 	Unit.Control = TEXT("Unknown");
 	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
@@ -318,7 +332,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetControlTransform)
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected global transform (1)"));
 	Unit.Space = EBoneGetterSetterMode::LocalSpace;
 	InitAndExecute();
-	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 0.f, 0.f)), TEXT("unexpected local transform (1)"));
+	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 0.f, 0.f)), TEXT("unexpected local transform (1)"));
 
 	Unit.Control = TEXT("ControlA");
 	Unit.Space = EBoneGetterSetterMode::GlobalSpace;
@@ -326,7 +340,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetControlTransform)
 	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(2.f, 2.f, 3.f)), TEXT("unexpected global transform (2)"));
 	Unit.Space = EBoneGetterSetterMode::LocalSpace;
 	InitAndExecute();
-	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(0.f, 0.f, 0.f)), TEXT("unexpected local transform (2)"));
+	AddErrorIfFalse(Unit.Transform.GetTranslation().Equals(FVector(1.f, 2.f, 3.f)), TEXT("unexpected local transform (2)"));
 
 	return true;
 }

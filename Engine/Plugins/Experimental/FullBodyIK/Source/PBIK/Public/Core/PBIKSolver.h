@@ -115,7 +115,8 @@ public:
 		const int32 ParentIndex,
 		const FVector& InOrigPosition,
 		const FQuat& InOrigRotation,
-		bool bIsSolverRoot);
+		bool bIsSolverRoot,
+		const int& InElementIndex = INDEX_NONE);
 
 	int32 AddEffector(FName BoneName);
 	
@@ -141,4 +142,5 @@ private:
 	
 	PBIK::FDebugDraw DebugDraw;
 	friend PBIK::FDebugDraw;
+	friend struct FRigUnit_PBIK;
 };

@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FBIKUtil.h"
-#include "Rigs/RigHierarchyDefines.h"
-#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigHierarchy.h"
 
 // in the future, we expose rotation axis 
 namespace FBIKUtil
@@ -28,7 +27,7 @@ namespace FBIKUtil
 	}
 
 	// the output should be from current index -> to root parent 
-	bool GetBoneChain(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const FRigElementKey& Current, TArray<FRigElementKey>& ChainIndices)
+	bool GetBoneChain(URigHierarchy* Hierarchy, const FRigElementKey& Root, const FRigElementKey& Current, TArray<FRigElementKey>& ChainIndices)
 	{
 		ChainIndices.Reset();
 
@@ -38,7 +37,7 @@ namespace FBIKUtil
 		while (Iterator.IsValid() && Iterator != Root)
 		{
 			ChainIndices.Insert(Iterator, 0);
-			Iterator = Hierarchy->GetParentKey(Iterator);
+			Iterator = Hierarchy->GetFirstParent(Iterator);
 		}
 
  		// add the last one if valid

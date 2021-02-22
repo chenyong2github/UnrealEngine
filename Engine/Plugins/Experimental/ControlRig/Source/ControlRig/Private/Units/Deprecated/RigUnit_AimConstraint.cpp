@@ -15,10 +15,11 @@ FRigUnit_AimConstraint_Execute()
 	{
 		ConstraintData.Reset();
 
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
 		{
-			int32 BoneIndex = Hierarchy->GetIndex(Joint);
+			const FRigElementKey Key(Joint, ERigElementType::Bone); 
+			int32 BoneIndex = Hierarchy->GetIndex(Key);
 			if (BoneIndex != INDEX_NONE)
 			{
 				const int32 TargetNum = AimTargets.Num();
@@ -42,10 +43,11 @@ FRigUnit_AimConstraint_Execute()
 	}
 	else if (Context.State == EControlRigState::Update)
 	{
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
 		{
-			int32 BoneIndex = Hierarchy->GetIndex(Joint);
+			const FRigElementKey Key(Joint, ERigElementType::Bone); 
+			int32 BoneIndex = Hierarchy->GetIndex(Key);
 			if (BoneIndex != INDEX_NONE)
 			{
 				const int32 TargetNum = AimTargets.Num();
@@ -68,7 +70,7 @@ FRigUnit_AimConstraint_Execute()
 					}
 
 					FTransform BaseTransform = FTransform::Identity;
-					int32 ParentIndex = (*Hierarchy)[BoneIndex].ParentIndex;
+					int32 ParentIndex = Hierarchy->GetIndex(Hierarchy->GetFirstParent(Key));
 					if (ParentIndex != INDEX_NONE)
 					{
 						BaseTransform = Hierarchy->GetGlobalTransform(ParentIndex);

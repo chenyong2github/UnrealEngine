@@ -10,7 +10,7 @@ FRigUnit_ParentSwitchConstraint_Execute()
 	Switched = false;
 	Transform = FTransform::Identity;
 
-	if (FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy)
+	if (URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
 		switch (Context.State)
 		{

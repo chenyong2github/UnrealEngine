@@ -17,7 +17,7 @@ FRigUnit_SendEvent_Execute()
 		return;
 	}
 
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)

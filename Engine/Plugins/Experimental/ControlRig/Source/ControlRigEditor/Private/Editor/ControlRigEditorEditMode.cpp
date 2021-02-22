@@ -24,56 +24,59 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 	{
 		if (UControlRig* ControlRig = GetControlRig(false))
 		{
-			const FRigBoneHierarchy& Hierarchy = ControlRig->GetBoneHierarchy();
-			const FRigBoneHierarchy* HierarchyForSelection = &Hierarchy;
+			URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+			URigHierarchy* HierarchyForSelection = Hierarchy;
 
 			if (UClass* ControlRigClass = ControlRig->GetClass())
 			{
 				if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(ControlRigClass->ClassGeneratedBy))
 				{
-					HierarchyForSelection = &RigBlueprint->HierarchyContainer.BoneHierarchy;
+					HierarchyForSelection = RigBlueprint->Hierarchy;
 				}
 			}
 
 			if (BoneDrawMode == EBoneDrawMode::SelectedAndParents)
 			{
-				if (BoneHasSelectedChild.Num() < Hierarchy.Num())
+				if (BoneHasSelectedChild.Num() != Hierarchy->Num())
 				{
-					BoneHasSelectedChild.SetNumZeroed(Hierarchy.Num());
+					BoneHasSelectedChild.SetNumZeroed(Hierarchy->Num());
 				}
-				for (const FRigBone& Bone : Hierarchy)
+
+				Hierarchy->ForEach<FRigBoneElement>([this, Hierarchy, HierarchyForSelection](FRigBoneElement* BoneElement) -> bool
 				{
-					BoneHasSelectedChild[Bone.Index] = false;
-					if (!HierarchyForSelection->IsSelected(Bone.Name))
+					BoneHasSelectedChild[BoneElement->GetIndex()] = false;
+					if (!HierarchyForSelection->IsSelected(BoneElement->GetKey()))
 					{
-						continue;
+						return true;
 					}
 
-					int32 ParentIndex = Bone.ParentIndex;
+					int32 ParentIndex = Hierarchy->GetFirstParent(BoneElement->GetIndex());
 					while (ParentIndex != INDEX_NONE)
 					{
 						BoneHasSelectedChild[ParentIndex] = true;
-						ParentIndex = Hierarchy[ParentIndex].ParentIndex;
+						ParentIndex = Hierarchy->GetFirstParent(ParentIndex);
 					}
-				}
+
+					return true;
+				});
 			}
 			
-			for (const FRigBone& Bone : Hierarchy)
+			Hierarchy->ForEach<FRigBoneElement>([this, PDI, Hierarchy, HierarchyForSelection, &BoneDrawMode](FRigBoneElement* BoneElement) -> bool
 			{
-				const int32 ParentIndex = Bone.ParentIndex;
-				const bool bSelected = HierarchyForSelection->IsSelected(Bone.Name);
+				const int32 ParentIndex = Hierarchy->GetFirstParent(BoneElement->GetIndex());
+				const bool bSelected = HierarchyForSelection->IsSelected(BoneElement->GetKey());
 
 				if (!bSelected)
 				{
 					if (BoneDrawMode == EBoneDrawMode::Selected)
 					{
-						continue;
+						return true;
 					}
 					else if (BoneDrawMode == EBoneDrawMode::SelectedAndParents)
 					{
-						if (!BoneHasSelectedChild[Bone.Index])
+						if (!BoneHasSelectedChild[BoneElement->GetIndex()])
 						{
-							continue;
+							return true;
 						}
 					}
 				}
@@ -81,15 +84,15 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 				const FLinearColor LineColor = bSelected ? FLinearColor(1.0f, 0.34f, 0.0f, 1.0f) : FLinearColor::White;
 
 				FVector Start, End;
-				if (ParentIndex >= 0)
+				if (ParentIndex != INDEX_NONE)
 				{
-					Start = Hierarchy[ParentIndex].GlobalTransform.GetLocation();
-					End = Bone.GlobalTransform.GetLocation();
+					Start = Hierarchy->GetGlobalTransform(ParentIndex).GetLocation();
+					End = Hierarchy->GetGlobalTransform(BoneElement->GetIndex()).GetLocation();
 				}
 				else
 				{
 					Start = FVector::ZeroVector;
-					End = Bone.GlobalTransform.GetLocation();
+					End = Hierarchy->GetGlobalTransform(BoneElement->GetIndex()).GetLocation();
 				}
 
 				const float BoneLength = (End - Start).Size();
@@ -97,7 +100,8 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 
 				//Render Sphere for bone end point and a cone between it and its parent.
 				SkeletalDebugRendering::DrawWireBone(PDI, Start, End, LineColor, SDPG_Foreground, Radius);
-			}
+				return true;
+			});
 		}
 	}
 }

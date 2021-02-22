@@ -7,7 +7,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
-#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigHierarchy.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FDisplayedRigCurveInfo
@@ -16,7 +16,6 @@ class SInlineEditableTextBlock;
 class FControlRigEditor;
 struct FAssetData;
 class UControlRigBlueprint;
-struct FRigCurveContainer;
 
 class FDisplayedRigCurveInfo
 {
@@ -234,10 +233,7 @@ private:
 	void OnSelectionChanged(FDisplayedRigCurveInfoPtr Selection, ESelectInfo::Type SelectInfo);
 
 	bool bIsChangingRigHierarchy;
-	void OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
-	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
+	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 
 	// import curve part
@@ -264,8 +260,8 @@ private:
 	/** Commands that are bound to delegates*/
 	TSharedPtr<FUICommandList> UICommandList;
 
-	FRigCurveContainer* GetCurveContainer() const;
-	FRigCurveContainer* GetInstanceCurveContainer() const;
+	URigHierarchy* GetHierarchy() const;
+	URigHierarchy* GetInstanceHierarchy() const;
 
 	friend class SRigCurveListRow;
 	friend class SRigCurveTypeList;

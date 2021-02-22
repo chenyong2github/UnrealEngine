@@ -8,11 +8,9 @@ FRigUnit_SetBoneInitialTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		FRigBoneHierarchy& HierarchyRef = *Hierarchy;
-
 		switch (Context.State)
 		{
 			case EControlRigState::Init:
@@ -22,7 +20,8 @@ FRigUnit_SetBoneInitialTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedBone.UpdateCache(Bone, Hierarchy))
+				const FRigElementKey Key(Bone, ERigElementType::Bone);
+				if (!CachedBone.UpdateCache(Key, Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
 					return;
@@ -30,11 +29,11 @@ FRigUnit_SetBoneInitialTransform_Execute()
 
 				if (Space == EBoneGetterSetterMode::LocalSpace)
 				{
-					HierarchyRef.SetInitialLocalTransform(CachedBone, Transform);
+					Hierarchy->SetInitialLocalTransform(CachedBone, Transform);
 				}
 				else
 				{
-					HierarchyRef.SetInitialGlobalTransform(CachedBone, Transform);
+					Hierarchy->SetInitialGlobalTransform(CachedBone, Transform);
 				}
 			}
 			default:

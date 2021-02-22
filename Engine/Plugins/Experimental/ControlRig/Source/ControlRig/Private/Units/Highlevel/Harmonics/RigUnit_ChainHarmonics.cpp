@@ -23,7 +23,7 @@ FRigUnit_ChainHarmonics_Execute()
 FRigUnit_ChainHarmonicsPerItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -55,11 +55,11 @@ FRigUnit_ChainHarmonicsPerItem_Execute()
 
 		Items.Add(FCachedRigElement(ChainRoot, Hierarchy));
 
-		TArray<FRigElementKey> Children = Hierarchy->GetChildKeys(Items.Last(), false);
+		TArray<FRigElementKey> Children = Hierarchy->GetChildren(Items.Last().GetKey());
 		while (Children.Num() > 0)
 		{
 			Items.Add(FCachedRigElement(Children[0], Hierarchy));
-			Children = Hierarchy->GetChildKeys(Children[0], false);
+			Children = Hierarchy->GetChildren(Children[0]);
 		}
 
 		if (Items.Num() < 2)
@@ -100,7 +100,7 @@ FRigUnit_ChainHarmonicsPerItem_Execute()
 	}
 
 	FTransform ParentTransform = FTransform::Identity;
-	FRigElementKey ParentKey = Hierarchy->GetParentKey(Items[0]);
+	FRigElementKey ParentKey = Hierarchy->GetFirstParent(Items[0].GetKey());
 	if (ParentKey.IsValid())
 	{
 		ParentTransform = Hierarchy->GetGlobalTransform(ParentKey);

@@ -6,7 +6,7 @@
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
 #include "Rigs/RigHierarchyDefines.h"
-#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigHierarchy.h"
 #include "ControlRig.h"
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"
@@ -85,7 +85,29 @@ enum class ERigElementDetailsTransformComponent : uint8
 	ScaleZ
 };
 
-class FRigElementDetails : public IDetailCustomization
+class FRigComputedTransformDetails : public IPropertyTypeCustomization
+{
+public:
+
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShareable(new FRigComputedTransformDetails);
+	}
+
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+
+protected:
+
+	TSharedPtr<IPropertyHandle> TransformHandle;
+	FEditPropertyChain PropertyChain;
+	UControlRigBlueprint* BlueprintBeingCustomized;
+
+	void OnTransformChanged(FEditPropertyChain* InPropertyChain);
+};
+
+class FRigBaseElementDetails : public IDetailCustomization
 {
 public:
 
@@ -93,36 +115,39 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 	FRigElementKey GetElementKey() const { return ElementKeyBeingCustomized; }
-	FRigHierarchyContainer* GetHierarchy() const { return ContainerBeingCustomized; }
+	URigHierarchy* GetHierarchy() const { return HierarchyBeingCustomized; }
 	FText GetName() const { return FText::FromName(GetElementKey().Name); }
 	void SetName(const FText& InNewText, ETextCommit::Type InCommitType);
 
-	static float GetTransformComponent(const FTransform& InTransform, ERigElementDetailsTransformComponent InComponent);
-	static void SetTransformComponent(FTransform& OutTransform, ERigElementDetailsTransformComponent InComponent, float InNewValue);
-	static float GetEulerTransformComponent(const FEulerTransform& InTransform, ERigElementDetailsTransformComponent InComponent);
-	static void SetEulerTransformComponent(FEulerTransform& OutTransform, ERigElementDetailsTransformComponent InComponent, float InNewValue);
+	void OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
+
 protected:
 
 	FRigElementKey ElementKeyBeingCustomized;
 	UControlRigBlueprint* BlueprintBeingCustomized;
-	FRigHierarchyContainer* ContainerBeingCustomized;
+	URigHierarchy* HierarchyBeingCustomized;
 };
 
-class FRigBoneDetails : public FRigElementDetails
+class FRigTransformElementDetails : public FRigBaseElementDetails
+{
+public:
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+};
+
+class FRigBoneElementDetails : public FRigTransformElementDetails
 {
 public:
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
-		return MakeShareable(new FRigBoneDetails);
+		return MakeShareable(new FRigBoneElementDetails);
 	}
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
-
-	void OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	void OnAffectedListChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
 
 private:
 
@@ -130,14 +155,14 @@ private:
 	TSharedPtr<FStructOnScope> InfluenceModifierStruct;
 };
 
-class FRigControlDetails : public FRigElementDetails
+class FRigControlElementDetails : public FRigTransformElementDetails
 {
 public:
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
-		return MakeShareable(new FRigControlDetails);
+		return MakeShareable(new FRigControlElementDetails);
 	}
 
 	/** IDetailCustomization interface */
@@ -145,19 +170,8 @@ public:
 
 	FText GetDisplayName() const;
 	void SetDisplayName(const FText& InNewText, ETextCommit::Type InCommitType, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	ECheckBoxState GetComponentValueBool(bool bInitial) const;
-	void SetComponentValueBool(ECheckBoxState InNewValue, bool bInitial, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	TOptional<float> GetComponentValueFloat(ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component) const;
-	void SetComponentValueFloat(float InNewValue, ETextCommit::Type InCommitType, ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	void SetComponentValueFloat(float InNewValue, ERigControlValueType InValueType, ERigElementDetailsTransformComponent Component, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	TOptional<int32> GetComponentValueInteger(ERigControlValueType InValueType) const;
-	void SetComponentValueInteger(int32 InNewValue, ERigControlValueType InValueType, const TSharedRef<IPropertyUtilities> PropertyUtilities);
 	bool IsGizmoEnabled() const;
 	bool IsEnabled(ERigControlValueType InValueType) const;
-	void OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	void OnAffectedListChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
-	int32 GetControlEnumValue(ERigControlValueType InValueType) const;
-	void OnControlEnumChanged(int32 InValue, ESelectInfo::Type InSelectInfo, ERigControlValueType InValueType, const TSharedRef<IPropertyUtilities> PropertyUtilities);
 
 	const TArray<TSharedPtr<FString>>& GetGizmoNameList() const;
 	const TArray<TSharedPtr<FString>>& GetControlTypeList() const;
@@ -167,16 +181,18 @@ private:
 	static TArray<TSharedPtr<FString>> ControlTypeList;
 	TSharedPtr<FRigInfluenceEntryModifier> InfluenceModifier;
 	TSharedPtr<FStructOnScope> InfluenceModifierStruct;
+	FEditPropertyChain OffsetPropertyChain;
+	FEditPropertyChain GizmoPropertyChain;
 };
 
-class FRigSpaceDetails : public FRigElementDetails
+class FRigSpaceElementDetails : public FRigTransformElementDetails
 {
 public:
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
-		return MakeShareable(new FRigSpaceDetails);
+		return MakeShareable(new FRigSpaceElementDetails);
 	}
 
 	/** IDetailCustomization interface */

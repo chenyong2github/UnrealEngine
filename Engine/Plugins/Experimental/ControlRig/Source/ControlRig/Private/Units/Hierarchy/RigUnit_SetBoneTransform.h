@@ -25,14 +25,9 @@ struct CONTROLRIG_API FRigUnit_SetBoneTransform : public FRigUnitMutable
 	{
 		if (InPinPath.StartsWith(TEXT("Transform")) && Space == EBoneGetterSetterMode::LocalSpace)
 		{
-			if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+			if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 			{
-				int32 BoneIndex = Container->BoneHierarchy.GetIndex(Bone);
-				if (BoneIndex != INDEX_NONE)
-				{
-					return Container->BoneHierarchy[BoneIndex].GetParentElementKey();
-				}
-
+				return Hierarchy->GetFirstParent(FRigElementKey(Bone, ERigElementType::Bone));
 			}
 		}
 		return FRigElementKey();

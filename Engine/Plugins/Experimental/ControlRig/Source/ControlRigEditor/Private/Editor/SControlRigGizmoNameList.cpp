@@ -10,10 +10,10 @@
 #include "ControlRigBlueprint.h"
 #include "ControlRig.h"
 
-void SControlRigGizmoNameList::Construct(const FArguments& InArgs, FRigControl* InControl, UControlRigBlueprint* InBlueprint)
+void SControlRigGizmoNameList::Construct(const FArguments& InArgs, FRigControlElement* ControlElement, UControlRigBlueprint* InBlueprint)
 {
 	this->OnGetNameListContent = InArgs._OnGetNameListContent;
-	this->ControlKey = InControl->GetElementKey();
+	this->ControlKey = ControlElement->GetKey();
 	this->Blueprint = InBlueprint;
 
 	SBox::Construct(SBox::FArguments());
@@ -58,40 +58,41 @@ const TArray<TSharedPtr<FString>>& SControlRigGizmoNameList::GetNameList() const
 
 FText SControlRigGizmoNameList::GetNameListText() const
 {
-	int32 ControlIndex = Blueprint->HierarchyContainer.GetIndex(ControlKey);
+	int32 ControlIndex = Blueprint->Hierarchy->GetIndex(ControlKey);
 	if (ControlIndex != INDEX_NONE)
 	{
-		return FText::FromName(Blueprint->HierarchyContainer.ControlHierarchy[ControlIndex].GizmoName);
+		return FText::FromName(Blueprint->Hierarchy->GetChecked<FRigControlElement>(ControlIndex)->Settings.GizmoName);
 	}
 	return FText();
 }
 
 void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/)
 {
-	int32 ControlIndex = Blueprint->HierarchyContainer.GetIndex(ControlKey);
+	int32 ControlIndex = Blueprint->Hierarchy->GetIndex(ControlKey);
 	if (ControlIndex != INDEX_NONE)
 	{
 		FName NewName = *NewTypeInValue.ToString();
 
 		bool bIsOnInstance = false;
-		FRigHierarchyContainer* Container = &Blueprint->HierarchyContainer;
+		URigHierarchy* Hierarchy = Blueprint->Hierarchy;
 		UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged());
 
 		if (DebuggedControlRig)
 		{
 			if (!DebuggedControlRig->IsSetupModeEnabled())
 			{
-				Container = DebuggedControlRig->GetHierarchy();
+				Hierarchy = DebuggedControlRig->GetHierarchy();
 				bIsOnInstance = true;
 			}
 		}
 
-		FRigControl& Control = Container->ControlHierarchy[ControlIndex];
-		if (Control.GizmoName != NewName)
+		FRigControlElement* ControlElement = Hierarchy->Get<FRigControlElement>(ControlIndex);
+		if ((ControlElement != nullptr) && (ControlElement->Settings.GizmoName != NewName))
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeGizmoName", "Change Gizmo Name"));
 			Blueprint->Modify();
-			Control.GizmoName = NewName;
+			
+			ControlElement->Settings.GizmoName = NewName;
 
 			if (bIsOnInstance && DebuggedControlRig)
 			{
@@ -100,7 +101,7 @@ void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETex
 
 			Blueprint->PropagatePropertyFromBPToInstances(ControlKey, FRigControl::StaticStruct()->FindPropertyByName(TEXT("GizmoName")));
 
-			Blueprint->HierarchyContainer.ControlHierarchy.OnControlUISettingsChanged.Broadcast(&Blueprint->HierarchyContainer, ControlKey);
+			Blueprint->Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, Blueprint->Hierarchy->Find(ControlElement->GetKey()));
 		}
 	}
 }

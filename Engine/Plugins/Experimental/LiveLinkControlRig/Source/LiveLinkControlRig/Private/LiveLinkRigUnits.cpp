@@ -47,6 +47,7 @@ FRigUnit_LiveLinkEvaluteFrameAnimation_Execute()
 		// Debug Drawing if required
 		if (bDrawDebug && Context.DrawInterface != nullptr)
 		{
+			/*
 			FRigBoneHierarchy DebugHierarchy;
 
 			for (int BoneIdx = 0; BoneIdx < SubjectFrame.GetNumberOfTransforms(); ++BoneIdx)
@@ -68,6 +69,7 @@ FRigUnit_LiveLinkEvaluteFrameAnimation_Execute()
 				DebugHierarchy.Add(CurrentBoneName, CurrentParentName, ERigBoneType::User, LocalSpaceTransform, LocalSpaceTransform, GlobalSpaceTransform);
 			}
 			Context.DrawInterface->DrawHierarchy(DebugDrawOffset, DebugHierarchy, EControlRigDrawHierarchyMode::Axes, 1.0f, DebugColor, 1.0f);
+			*/
 		}
 	}
 		break;
@@ -160,6 +162,8 @@ FRigUnit_LiveLinkEvaluteFrameTransform_Execute()
 		{
 			// Rather than drawing as an axis guide, draw as a hierarchy with a dummy root bone which makes it clearer what the origin of the transform
 			// space is
+
+			/*
 			FRigBoneHierarchy DebugHierarchy;
 
 			FName RootName("root");
@@ -168,6 +172,7 @@ FRigUnit_LiveLinkEvaluteFrameTransform_Execute()
 			DebugHierarchy.Add(TransformName, RootName, ERigBoneType::User, Transform, Transform, Transform);
 
 			Context.DrawInterface->DrawHierarchy(DebugDrawOffset, DebugHierarchy, EControlRigDrawHierarchyMode::Axes, 1.0f, DebugColor, 1.0f);
+			*/
 		}
 	}
 		break;

@@ -89,6 +89,9 @@ struct FRigUnit_PBIK : public FRigUnit_HighlevelBaseMutable
 	UPROPERTY(meta = (Input))
 	TArray<FPBIKBoneSetting> BoneSettings;
 
+	UPROPERTY(transient)
+	TArray<int32> BoneSettingToSolverBoneIndex;
+
 	UPROPERTY(meta = (Input))
 	FPBIKSolverSettings Settings;
 

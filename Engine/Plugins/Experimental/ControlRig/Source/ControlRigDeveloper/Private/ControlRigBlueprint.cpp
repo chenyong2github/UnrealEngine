@@ -75,6 +75,11 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	bExposesAnimatableControls = false;
 
 	VMCompileSettings.ASTSettings.ReportDelegate.BindUObject(this, &UControlRigBlueprint::HandleReportFromCompiler);
+
+	Hierarchy = CreateDefaultSubobject<URigHierarchy>(TEXT("Hierarchy"));
+	HierarchyController = CreateDefaultSubobject<URigHierarchyController>(TEXT("HierarchyController"));
+	HierarchyController->SetHierarchy(Hierarchy);
+	HierarchyController->OnModified().AddUObject(this, &UControlRigBlueprint::HandleHierarchyModified);
 }
 
 void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
@@ -102,12 +107,6 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 		}
 
 		FunctionLibraryEdGraph->Initialize(this);
-
-		HierarchyContainer.OnElementAdded.AddUObject(this, &UControlRigBlueprint::HandleOnElementAdded);
-		HierarchyContainer.OnElementRemoved.AddUObject(this, &UControlRigBlueprint::HandleOnElementRemoved);
-		HierarchyContainer.OnElementRenamed.AddUObject(this, &UControlRigBlueprint::HandleOnElementRenamed);
-		HierarchyContainer.OnElementReparented.AddUObject(this, &UControlRigBlueprint::HandleOnElementReparented);
-		HierarchyContainer.OnElementSelected.AddUObject(this, &UControlRigBlueprint::HandleOnElementSelected);
 	}
 }
 
@@ -156,6 +155,12 @@ bool UControlRigBlueprint::ExportGraphToText(UEdGraph* InEdGraph, FString& OutTe
 bool UControlRigBlueprint::CanImportGraphFromText(const FString& InClipboardText)
 {
 	return GetTemplateController()->CanImportNodesFromText(InClipboardText);
+}
+
+void UControlRigBlueprint::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	PostEditChangeChainPropertyEvent.Broadcast(PropertyChangedEvent);
 }
 
 bool UControlRigBlueprint::TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr)
@@ -229,14 +234,15 @@ void UControlRigBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 	}
 
 	bExposesAnimatableControls = false;
-	for (FRigControl& RigControl : HierarchyContainer.ControlHierarchy)
-	{
-		if (RigControl.bAnimatable)
+	Hierarchy->ForEach<FRigControlElement>([this](FRigControlElement* ControlElement) -> bool
+    {
+		if (ControlElement->Settings.bAnimatable)
 		{
 			bExposesAnimatableControls = true;
-			break;
+			return false;
 		}
-	}
+		return true;
+	});
 }
 
 void UControlRigBlueprint::PostLoad()
@@ -246,19 +252,18 @@ void UControlRigBlueprint::PostLoad()
 	// temporarily disable default value validation during load time, serialized values should always be accepted
 	TGuardValue<bool> DisablePinDefaultValueValidation(GetOrCreateController()->bValidatePinDefaults, false);
 
-	HierarchyContainer.ControlHierarchy.PostLoad();
-
 	// correct the offset transforms
 	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::ControlOffsetTransform)
 	{
-		if (HierarchyContainer.ControlHierarchy.Num() > 0)
+		HierarchyContainer_DEPRECATED.ControlHierarchy.PostLoad();
+		if (HierarchyContainer_DEPRECATED.ControlHierarchy.Num() > 0)
 		{
 			bDirtyDuringLoad = true;
 		}
 
-		for (FRigControl& Control : HierarchyContainer.ControlHierarchy)
+		for (FRigControl& Control : HierarchyContainer_DEPRECATED.ControlHierarchy)
 		{
-			FTransform PreviousOffsetTransform = HierarchyContainer.ControlHierarchy.GetLocalTransform(Control.Index, ERigControlValueType::Initial);
+			const FTransform PreviousOffsetTransform = Control.GetTransformFromValue(ERigControlValueType::Initial);
 			Control.OffsetTransform = PreviousOffsetTransform;
 			Control.InitialValue = Control.Value;
 
@@ -275,7 +280,83 @@ void UControlRigBlueprint::PostLoad()
 				Control.InitialValue = FRigControlValue::Make<FEulerTransform>(FEulerTransform::Identity);
 			}
 		}
-		PropagateHierarchyFromBPToInstances(true, true);
+	}
+
+	// convert the hierarchy from V1 to V2
+	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::RigHierarchyV2)
+	{
+		Modify();
+		
+		Hierarchy->Reset();
+
+		for(const FRigBone& Bone : HierarchyContainer_DEPRECATED.BoneHierarchy)
+		{
+			HierarchyController->AddBone(Bone.Name, Bone.GetParentElementKey(true), Bone.InitialTransform, true, Bone.Type, false);
+		}
+		for(const FRigSpace& Space : HierarchyContainer_DEPRECATED.SpaceHierarchy)
+		{
+			HierarchyController->AddSpace(Space.Name, FRigElementKey(), Space.InitialTransform, false, false);
+		}
+		for(const FRigControl& Control : HierarchyContainer_DEPRECATED.ControlHierarchy)
+		{
+			FRigControlSettings Settings;
+			Settings.ControlType = Control.ControlType;
+			Settings.DisplayName = Control.DisplayName;
+			Settings.PrimaryAxis = Control.PrimaryAxis;
+			Settings.bIsCurve = Control.bIsCurve;
+			Settings.bAnimatable = Control.bAnimatable;
+			Settings.bLimitTranslation = Control.bLimitTranslation;
+			Settings.bLimitRotation = Control.bLimitRotation;
+			Settings.bLimitScale = Control.bLimitScale;
+			Settings.bDrawLimits = Control.bDrawLimits;
+			Settings.MinimumValue = Control.MinimumValue;
+			Settings.MaximumValue = Control.MaximumValue;
+			Settings.bGizmoEnabled = Control.bGizmoEnabled;
+			Settings.bGizmoVisible = Control.bGizmoVisible;
+			Settings.GizmoName = Control.GizmoName;
+			Settings.GizmoColor = Control.GizmoColor;
+			Settings.ControlEnum = Control.ControlEnum;
+
+			FRigControlValue InitialValue = Control.InitialValue;
+			if(!InitialValue.IsValid())
+			{
+				InitialValue.SetFromTransform(InitialValue.Storage_DEPRECATED, Settings.ControlType, Settings.PrimaryAxis);
+			}
+			
+			HierarchyController->AddControl(
+				Control.Name,
+				FRigElementKey(),
+				Settings,
+				InitialValue,
+				Control.OffsetTransform,
+				Control.GizmoTransform,
+				false);
+		}
+		
+		for(const FRigCurve& Curve : HierarchyContainer_DEPRECATED.CurveContainer)
+		{
+			HierarchyController->AddCurve(Curve.Name, Curve.Value, false);
+		}
+
+		for(const FRigSpace& Space : HierarchyContainer_DEPRECATED.SpaceHierarchy)
+		{
+			FRigElementKey ParentKey = Space.GetParentElementKey(true);
+			if(ParentKey.IsValid())
+			{
+				HierarchyController->SetParent(Space.GetElementKey(), ParentKey, false, false);
+			}
+		}
+
+		for(const FRigControl& Control : HierarchyContainer_DEPRECATED.ControlHierarchy)
+		{
+			FRigElementKey ParentKey = Control.GetParentElementKey(true);
+			const FRigElementKey SpaceKey = Control.GetSpaceElementKey(true);
+			ParentKey = SpaceKey.IsValid() ? SpaceKey : ParentKey;
+			if(ParentKey.IsValid())
+			{
+				HierarchyController->SetParent(Control.GetElementKey(), ParentKey, false, false);
+			}
+		}
 	}
 
 	// remove all non-controlrig-graphs
@@ -351,7 +432,7 @@ void UControlRigBlueprint::RecompileVM()
 		TGuardValue<bool> ReentrantGuardSelf(bSuspendModelNotificationsForSelf, true);
 		TGuardValue<bool> ReentrantGuardOthers(bSuspendModelNotificationsForOthers, true);
 
-		CDO->Hierarchy = HierarchyContainer;
+		CDO->GetHierarchy()->CopyHierarchy(Hierarchy);
 
 		if (CDO->VM->GetOuter() != CDO)
 		{
@@ -366,7 +447,7 @@ void UControlRigBlueprint::RecompileVM()
 
 		FRigUnitContext InitContext;
 		InitContext.State = EControlRigState::Init;
-		InitContext.Hierarchy = &CDO->Hierarchy;
+		InitContext.Hierarchy = CDO->DynamicHierarchy;
 
 		FRigUnitContext UpdateContext = InitContext;
 		InitContext.State = EControlRigState::Update;
@@ -396,7 +477,6 @@ void UControlRigBlueprint::RecompileVM()
 		{
 			if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
 			{
-				InstanceRig->Hierarchy.Initialize(false);
 				InstanceRig->InstantiateVMFromCDO();
 			}
 		}
@@ -858,18 +938,17 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 				return;
 			}
 
-			PropagateHierarchyFromBPToInstances(true, true);
-			HierarchyContainer.OnElementChanged.Broadcast(&HierarchyContainer, FRigElementKey());
+			PropagateHierarchyFromBPToInstances();
 
 			// make sure the bone name list is up 2 date for the editor graph
-	for (UEdGraph* Graph : UbergraphPages)
-	{
-		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			for (UEdGraph* Graph : UbergraphPages)
+			{
+				UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 				if (RigGraph == nullptr)
 				{
 					continue;
 				}
-				RigGraph->CacheNameLists(&HierarchyContainer, &DrawContainer);
+				RigGraph->CacheNameLists(Hierarchy, &DrawContainer);
 			}
 
 			RequestAutoVMRecompilation();
@@ -948,16 +1027,6 @@ TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
 	}
 
 	return Structs;
-}
-
-UControlRigHierarchyModifier* UControlRigBlueprint::GetHierarchyModifier()
-{
-	if (HierarchyModifier == nullptr)
-	{
-		HierarchyModifier = NewObject<UControlRigHierarchyModifier>(this, TEXT("HierarchyModifier"));
-		HierarchyModifier->Container = &HierarchyContainer;
-	}
-	return HierarchyModifier;
 }
 
 #if WITH_EDITOR
@@ -1055,7 +1124,7 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 
 			if (URigVMPin::SplitPinPathAtStart(PinPath, Left, Right))
 		{
-				SpaceKey = DefaultStruct->DetermineSpaceForPin(Right, &HierarchyContainer);
+				SpaceKey = DefaultStruct->DetermineSpaceForPin(Right, Hierarchy);
 			}
 		}
 	}
@@ -1074,12 +1143,6 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 				ReturnName = ControlName;
 			}
 		}
-	}
-
-	if (ReturnName != NAME_None)
-	{
-		HierarchyContainer.OnElementAdded.Broadcast(&HierarchyContainer, FRigElementKey(ReturnName, ERigElementType::Control));
-		HierarchyContainer.OnElementSelected.Broadcast(&HierarchyContainer, FRigElementKey(ReturnName, ERigElementType::Control), true);
 	}
 
 	return ReturnName;
@@ -1112,11 +1175,6 @@ FName UControlRigBlueprint::RemoveTransientControl(URigVMPin* InPin)
 		}
 	}
 
-	if (RemovedName != NAME_None)
-		{
-		HierarchyContainer.OnElementSelected.Broadcast(&HierarchyContainer, FRigElementKey(RemovedName, ERigElementType::Control), false);
-		HierarchyContainer.OnElementRemoved.Broadcast(&HierarchyContainer, FRigElementKey(RemovedName, ERigElementType::Control));
-	}
 	return RemovedName;
 }
 
@@ -1141,19 +1199,13 @@ FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
 	{
 		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
 		if (InstancedControlRig)
-			{
+		{
 			FName ControlName = InstancedControlRig->AddTransientControl(InElement);
 			if (ReturnName == NAME_None)
-				{
-				ReturnName = ControlName;
-				}
+			{
+			ReturnName = ControlName;
 			}
 		}
-
-	if (ReturnName != NAME_None)
-	{
-		HierarchyContainer.OnElementAdded.Broadcast(&HierarchyContainer, FRigElementKey(ReturnName, ERigElementType::Control));
-		HierarchyContainer.OnElementSelected.Broadcast(&HierarchyContainer, FRigElementKey(ReturnName, ERigElementType::Control), true);
 	}
 
 	return ReturnName;
@@ -1187,11 +1239,6 @@ FName UControlRigBlueprint::RemoveTransientControl(const FRigElementKey& InEleme
 		}
 	}
 
-	if (RemovedName != NAME_None)
-	{
-		HierarchyContainer.OnElementSelected.Broadcast(&HierarchyContainer, FRigElementKey(RemovedName, ERigElementType::Control), false);
-		HierarchyContainer.OnElementRemoved.Broadcast(&HierarchyContainer, FRigElementKey(RemovedName, ERigElementType::Control));
-	}
 	return RemovedName;
 }
 
@@ -1206,7 +1253,6 @@ void UControlRigBlueprint::ClearTransientControls()
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
-	TArray<FRigControl> PreviousControls;
 	TArray<UObject*> ArchetypeInstances;
 	CDO->GetArchetypeInstances(ArchetypeInstances);
 	for (UObject* ArchetypeInstance : ArchetypeInstances)
@@ -1214,18 +1260,8 @@ void UControlRigBlueprint::ClearTransientControls()
 		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
 		if (InstancedControlRig)
 		{
-			if (PreviousControls.Num() == 0)
-			{
-				PreviousControls = InstancedControlRig->TransientControls;
-			}
 			InstancedControlRig->ClearTransientControls();
 		}
-	}
-
-	for(const FRigControl& RemovedControl : PreviousControls)
-	{
-		HierarchyContainer.OnElementSelected.Broadcast(&HierarchyContainer, FRigElementKey(RemovedControl.Name, ERigElementType::Control), false);
-		HierarchyContainer.OnElementRemoved.Broadcast(&HierarchyContainer, FRigElementKey(RemovedControl.Name, ERigElementType::Control));
 	}
 }
 
@@ -1571,7 +1607,7 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 	{
 		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
 		{
-			RigGraph->CacheNameLists(&HierarchyContainer, &DrawContainer);
+			RigGraph->CacheNameLists(Hierarchy, &DrawContainer);
 		}
 	}
 
@@ -1698,9 +1734,14 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 							{
 								if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
 								{
-									for (const FRigControl& Control : InstanceRig->TransientControls)
-									{
-										if (URigVMPin* ControlledPin = Model->FindPin(Control.Name.ToString()))
+									Hierarchy->ForEach<FRigControlElement>([this, InstanceRig, Pin](FRigControlElement* ControlElement) -> bool
+                                    {
+										if(!ControlElement->Settings.bIsTransientControl)
+										{
+											return true;
+										}
+										
+										if (URigVMPin* ControlledPin = Model->FindPin(ControlElement->GetName().ToString()))
 										{
 											URigVMPin* ControlledPinForLink = ControlledPin->GetPinForLink();
 
@@ -1715,9 +1756,11 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 												InstanceRig->ClearTransientControls();
 												InstanceRig->AddTransientControl(ControlledPin);
 											}
-											break;
+											return false;
 										}
-									}
+
+										return true;
+									});
 								}
 							}
 						}
@@ -1881,22 +1924,6 @@ void UControlRigBlueprint::SuspendNotifications(bool bSuspendNotifs)
 		RefreshEditorEvent.Broadcast(this);
 		RequestAutoVMRecompilation();
 	}
-}
-
-void UControlRigBlueprint::CleanupBoneHierarchyDeprecated()
-{
-	if (Hierarchy_DEPRECATED.Num() > 0)
-	{
-		HierarchyContainer.BoneHierarchy = Hierarchy_DEPRECATED;
-		Hierarchy_DEPRECATED.Reset();
-	}
-
-	if (CurveContainer_DEPRECATED.Num() > 0)
-	{
-		HierarchyContainer.CurveContainer = CurveContainer_DEPRECATED;
-		CurveContainer_DEPRECATED.Reset();
-	}
-
 }
 
 void UControlRigBlueprint::CreateMemberVariablesOnLoad()
@@ -2144,29 +2171,7 @@ void UControlRigBlueprint::PatchVariableNodesOnLoad()
 void UControlRigBlueprint::PropagatePoseFromInstanceToBP(UControlRig* InControlRig)
 {
 	check(InControlRig);
-
-	for (const FRigBone& InputBone : InControlRig->Hierarchy.BoneHierarchy)
-	{
-		FRigBone& OutputBone = HierarchyContainer.BoneHierarchy[InputBone.Name];
-		OutputBone.InitialTransform = InputBone.InitialTransform;
-		OutputBone.LocalTransform = InputBone.LocalTransform;
-		OutputBone.GlobalTransform = InputBone.GlobalTransform;
-	}
-
-	for (const FRigSpace& InputSpace: InControlRig->Hierarchy.SpaceHierarchy)
-	{
-		FRigSpace& OutputSpace = HierarchyContainer.SpaceHierarchy[InputSpace.Name];
-		OutputSpace.InitialTransform = InputSpace.InitialTransform;
-		OutputSpace.LocalTransform = InputSpace.LocalTransform;
-	}
-
-	for (const FRigControl& InputControl : InControlRig->Hierarchy.ControlHierarchy)
-		{
-		FRigControl& OutputControl = HierarchyContainer.ControlHierarchy[InputControl.Name];
-		OutputControl.OffsetTransform = InputControl.OffsetTransform;
-		OutputControl.InitialValue = InputControl.InitialValue;
-		OutputControl.Value = InputControl.Value;
-		}
+	Hierarchy->CopyPose(InControlRig->GetHierarchy(), true, true);
 }
 
 void UControlRigBlueprint::PropagatePoseFromBPToInstances()
@@ -2180,72 +2185,31 @@ void UControlRigBlueprint::PropagatePoseFromBPToInstances()
 			for (UObject* ArchetypeInstance : ArchetypeInstances)
 			{
 				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-		{
-					for (const FRigBone& InputBone : HierarchyContainer.BoneHierarchy)
-					{
-						FRigBone& OutputBone = InstanceRig->Hierarchy.BoneHierarchy[InputBone.Name];
-						OutputBone.InitialTransform = InputBone.InitialTransform;
-						OutputBone.LocalTransform = InputBone.LocalTransform;
-						OutputBone.GlobalTransform = InputBone.GlobalTransform;
-		}
-
-					for (const FRigSpace& InputSpace : HierarchyContainer.SpaceHierarchy)
-					{
-						FRigSpace& OutputSpace = InstanceRig->Hierarchy.SpaceHierarchy[InputSpace.Name];
-						OutputSpace.InitialTransform = InputSpace.InitialTransform;
-						OutputSpace.LocalTransform = InputSpace.LocalTransform;
-					}
-
-					for (const FRigControl& InputControl : HierarchyContainer.ControlHierarchy)
-		{
-						FRigControl& OutputControl = InstanceRig->Hierarchy.ControlHierarchy[InputControl.Name];
-						OutputControl.OffsetTransform = InputControl.OffsetTransform;
-						OutputControl.InitialValue = InputControl.InitialValue;
-						OutputControl.Value = InputControl.Value;
-		}
-		}
-	}
+				{
+					InstanceRig->GetHierarchy()->CopyPose(Hierarchy, true, true);
+				}
+			}
 		}
 	}
 }
 
-void UControlRigBlueprint::PropagateHierarchyFromBPToInstances(bool bInitializeContainer, bool bInitializeRigs)
+void UControlRigBlueprint::PropagateHierarchyFromBPToInstances()
 {
 	if (UClass* MyControlRigClass = GeneratedClass)
 	{
 		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
 		{
-			if (bInitializeContainer)
-			{
-				HierarchyContainer.Initialize();
-				HierarchyContainer.ResetTransforms();
-			}
+			DefaultObject->GetHierarchy()->CopyHierarchy(Hierarchy);
+			DefaultObject->Initialize(true);
 
-			DefaultObject->Hierarchy = HierarchyContainer;
-			if (bInitializeRigs)
+			TArray<UObject*> ArchetypeInstances;
+			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
+			for (UObject* ArchetypeInstance : ArchetypeInstances)
 			{
-				DefaultObject->Initialize(true);
-			}
-			else
-				{
-				DefaultObject->Hierarchy.Initialize(false);
-			}
-
-						TArray<UObject*> ArchetypeInstances;
-						DefaultObject->GetArchetypeInstances(ArchetypeInstances);
-						for (UObject* ArchetypeInstance : ArchetypeInstances)
-						{
 				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
 				{
-					InstanceRig->Hierarchy = HierarchyContainer;
-					if (bInitializeRigs)
-					{
-						InstanceRig->Initialize(true);
-						}
-					else
-					{
-						InstanceRig->Hierarchy.Initialize(false);
-					}
+					InstanceRig->GetHierarchy()->CopyHierarchy(Hierarchy);
+					InstanceRig->Initialize(true);
 				}
 			}
 		}
@@ -2282,13 +2246,13 @@ void UControlRigBlueprint::PropagateDrawInstructionsFromBPToInstances()
 		{
 			continue;
 		}
-		RigGraph->CacheNameLists(&HierarchyContainer, &DrawContainer);
+		RigGraph->CacheNameLists(Hierarchy, &DrawContainer);
 	}
 }
 
 void UControlRigBlueprint::PropagatePropertyFromBPToInstances(FRigElementKey InRigElement, const FProperty* InProperty)
 {
-	int32 ElementIndex = HierarchyContainer.GetIndex(InRigElement);
+	int32 ElementIndex = Hierarchy->GetIndex(InRigElement);
 	ensure(ElementIndex != INDEX_NONE);
 	check(InProperty);
 
@@ -2299,184 +2263,94 @@ void UControlRigBlueprint::PropagatePropertyFromBPToInstances(FRigElementKey InR
 			TArray<UObject*> ArchetypeInstances;
 			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
 
-			int32 PropertyOffset = InProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
-			int32 PropertySize = InProperty->GetSize();
+			const int32 PropertyOffset = InProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
+			const int32 PropertySize = InProperty->GetSize();
 
-			switch (InRigElement.Type)
+			uint8* Source = ((uint8*)Hierarchy->Get(ElementIndex)) + PropertyOffset;
+			for (UObject* ArchetypeInstance : ArchetypeInstances)
 			{
-				case ERigElementType::Bone:
+				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
 				{
-					uint8* Source = ((uint8*)&HierarchyContainer.BoneHierarchy[ElementIndex]) + PropertyOffset;
-					for (UObject* ArchetypeInstance : ArchetypeInstances)
-					{
-						if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-						{
-							uint8* Dest = ((uint8*)&InstanceRig->Hierarchy.BoneHierarchy[ElementIndex]) + PropertyOffset;
-							FMemory::Memcpy(Dest, Source, PropertySize);
-						}
-					}
-					break;
-				}
-				case ERigElementType::Space:
-				{
-					uint8* Source = ((uint8*)&HierarchyContainer.SpaceHierarchy[ElementIndex]) + PropertyOffset;
-					for (UObject* ArchetypeInstance : ArchetypeInstances)
-					{
-						if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-						{
-							uint8* Dest = ((uint8*)&InstanceRig->Hierarchy.SpaceHierarchy[ElementIndex]) + PropertyOffset;
-							FMemory::Memcpy(Dest, Source, PropertySize);
-						}
-					}
-					break;
-				}
-				case ERigElementType::Control:
-				{
-					uint8* Source = ((uint8*)&HierarchyContainer.ControlHierarchy[ElementIndex]) + PropertyOffset;
-					for (UObject* ArchetypeInstance : ArchetypeInstances)
-					{
-						if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-						{
-							uint8* Dest = ((uint8*)&InstanceRig->Hierarchy.ControlHierarchy[ElementIndex]) + PropertyOffset;
-							FMemory::Memcpy(Dest, Source, PropertySize);
-						}
-					}
-					break;
-				}
-				case ERigElementType::Curve:
-				{
-					uint8* Source = ((uint8*)&HierarchyContainer.CurveContainer[ElementIndex]) + PropertyOffset;
-					for (UObject* ArchetypeInstance : ArchetypeInstances)
-					{
-						if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
-						{
-							uint8* Dest = ((uint8*)&InstanceRig->Hierarchy.CurveContainer[ElementIndex]) + PropertyOffset;
-							FMemory::Memcpy(Dest, Source, PropertySize);
-						}
-					}
-					break;
-				}
-				default:
-			{
-					break;
+					uint8* Dest = ((uint8*)InstanceRig->GetHierarchy()->Get(ElementIndex)) + PropertyOffset;
+					FMemory::Memcpy(Dest, Source, PropertySize);
 				}
 			}
 		}
-			}
+	}
 }
 
 void UControlRigBlueprint::PropagatePropertyFromInstanceToBP(FRigElementKey InRigElement, const FProperty* InProperty, UControlRig* InInstance)
 {
-	int32 ElementIndex = HierarchyContainer.GetIndex(InRigElement);
+	const int32 ElementIndex = Hierarchy->GetIndex(InRigElement);
 	ensure(ElementIndex != INDEX_NONE);
 	check(InProperty);
 
-	int32 PropertyOffset = InProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
-	int32 PropertySize = InProperty->GetSize();
+	const int32 PropertyOffset = InProperty->GetOffset_ReplaceWith_ContainerPtrToValuePtr();
+	const int32 PropertySize = InProperty->GetSize();
+	uint8* Source = ((uint8*)InInstance->GetHierarchy()->Get(ElementIndex)) + PropertyOffset;
+	uint8* Dest = ((uint8*)Hierarchy->Get(ElementIndex)) + PropertyOffset;
+	FMemory::Memcpy(Dest, Source, PropertySize);
+}
 
-	switch (InRigElement.Type)
+
+void UControlRigBlueprint::HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+{
+#if WITH_EDITOR
+
+	if(bSuspendAllNotifications)
 	{
-		case ERigElementType::Bone:
+		return;
+	}
+
+	switch(InNotification)
+	{
+		case ERigHierarchyNotification::ElementRemoved:
 		{
-			uint8* Source = ((uint8*)&InInstance->Hierarchy.BoneHierarchy[ElementIndex]) + PropertyOffset;
-			uint8* Dest = ((uint8*)&HierarchyContainer.BoneHierarchy[ElementIndex]) + PropertyOffset;
-			FMemory::Memcpy(Dest, Source, PropertySize);
+			Modify();
+			Influences.OnKeyRemoved(InElement->GetKey());
+			PropagateHierarchyFromBPToInstances();
 			break;
 		}
-		case ERigElementType::Space:
+		case ERigHierarchyNotification::ElementRenamed:
+		{
+			Modify();
+			Influences.OnKeyRenamed(FRigElementKey(InHierarchy->GetPreviousName(InElement->GetKey()), InElement->GetType()), InElement->GetKey());
+			PropagateHierarchyFromBPToInstances();
+			break;
+		}
+		case ERigHierarchyNotification::ElementAdded:
+		case ERigHierarchyNotification::ParentChanged:
+		case ERigHierarchyNotification::HierarchyReset:
+		{
+			Modify();
+			PropagateHierarchyFromBPToInstances();
+			break;
+		}
+		case ERigHierarchyNotification::ElementSelected:
+		{
+			bool bClearTransientControls = true;
+			if (const FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
 			{
-			uint8* Source = ((uint8*)&InInstance->Hierarchy.SpaceHierarchy[ElementIndex]) + PropertyOffset;
-			uint8* Dest = ((uint8*)&HierarchyContainer.SpaceHierarchy[ElementIndex]) + PropertyOffset;
-			FMemory::Memcpy(Dest, Source, PropertySize);
+				if (ControlElement->Settings.bIsTransientControl)
+				{
+					bClearTransientControls = false;
+				}
+			}
+
+			if(bClearTransientControls)
+			{
+				ClearTransientControls();
+			}
 			break;
 		}
-		case ERigElementType::Control:
-				{
-			uint8* Source = ((uint8*)&InInstance->Hierarchy.ControlHierarchy[ElementIndex]) + PropertyOffset;
-			uint8* Dest = ((uint8*)&HierarchyContainer.ControlHierarchy[ElementIndex]) + PropertyOffset;
-			FMemory::Memcpy(Dest, Source, PropertySize);
-			break;
-				}
-		case ERigElementType::Curve:
-		{
-			uint8* Source = ((uint8*)&InInstance->Hierarchy.CurveContainer[ElementIndex]) + PropertyOffset;
-			uint8* Dest = ((uint8*)&HierarchyContainer.CurveContainer[ElementIndex]) + PropertyOffset;
-			FMemory::Memcpy(Dest, Source, PropertySize);
-			break;
-			}
 		default:
 		{
 			break;
 		}
 	}
-}
-
-#if WITH_EDITOR
-
-void UControlRigBlueprint::HandleOnElementAdded(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey)
-{
-	if (bSuspendAllNotifications)
-	{
-		return;
-	}
-	PropagateHierarchyFromBPToInstances();
-}
-
-void UControlRigBlueprint::HandleOnElementRemoved(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey)
-{
-	if (bSuspendAllNotifications)
-	{
-		return;
-	}
-
-	Modify();
-	Influences.OnKeyRemoved(InKey);
-	PropagateHierarchyFromBPToInstances();
-}
-
-void UControlRigBlueprint::HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName)
-{
-	if (bSuspendAllNotifications)
-	{
-		return;
-	}
-
-	Modify();
-	Influences.OnKeyRenamed(FRigElementKey(InOldName, InElementType), FRigElementKey(InNewName, InElementType));
-	PropagateHierarchyFromBPToInstances();
-}
-
-void UControlRigBlueprint::HandleOnElementReparented(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName)
-{
-	if (bSuspendAllNotifications)
-	{
-		return;
-	}
-	PropagateHierarchyFromBPToInstances();
-}
-
-void UControlRigBlueprint::HandleOnElementSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected)
-{
-	if (bSuspendAllNotifications)
-	{
-		return;
-	}
-	if (InKey.Type == ERigElementType::Control)
-	{
-		if (UControlRig* RigBeingDebugged = Cast<UControlRig>(GetObjectBeingDebugged()))
-		{
-			if (FRigControl* Control = RigBeingDebugged->FindControl(InKey.Name))
-			{
-				if (!Control->bIsTransientControl)
-				{
-					ClearTransientControls();
-				}
-			}
-		}
-	}
-}
-
+	
 #endif
+}
 
 UControlRigBlueprint::FControlValueScope::FControlValueScope(UControlRigBlueprint* InBlueprint)
 : Blueprint(InBlueprint)
@@ -2486,10 +2360,10 @@ UControlRigBlueprint::FControlValueScope::FControlValueScope(UControlRigBlueprin
 
 	if (UControlRig* CR = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
 	{
-		const TArray<FRigControl>& Controls = CR->AvailableControls();
-		for (const FRigControl& Control : Controls)
+		TArray<FRigControlElement*> Controls = CR->AvailableControls();
+		for (FRigControlElement* ControlElement : Controls)
 		{
-			ControlValues.Add(Control.Name, CR->GetControlValue(Control.Name));
+			ControlValues.Add(ControlElement->GetName(), CR->GetControlValue(ControlElement->GetName()));
 		}
 	}
 #endif
@@ -2651,6 +2525,11 @@ void UControlRigBlueprint::BroadcastNodeDoubleClicked(URigVMNode* InNode)
 void UControlRigBlueprint::BroadcastGraphImported(UEdGraph* InGraph)
 {
 	GraphImportedEvent.Broadcast(InGraph);
+}
+
+void UControlRigBlueprint::BroadcastPostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
+{
+	PostEditChangeChainPropertyEvent.Broadcast(PropertyChangedChainEvent);
 }
 
 #endif

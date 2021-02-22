@@ -649,7 +649,7 @@ void SControlRigPoseView::HandleControlAdded(UControlRig* ControlRig, bool bIsAd
 	UpdateStatusBlocks();
 }
 
-void SControlRigPoseView::HandleControlSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected)
+void SControlRigPoseView::HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected)
 {
 	UpdateStatusBlocks();
 }

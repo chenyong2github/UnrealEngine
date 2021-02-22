@@ -9,7 +9,7 @@
  * Propagate Transform can be used to force a recalculation of a bone's global transform
  * from its local - as well as propagating that change onto the children.
  */
-USTRUCT(meta=(DisplayName="Propagate Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "PropagateToChildren,RecomputeGlobal,RecalculateGlobal", Varying))
+USTRUCT(meta=(DisplayName="Propagate Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "PropagateToChildren,RecomputeGlobal,RecalculateGlobal", Varying, Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_PropagateTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()

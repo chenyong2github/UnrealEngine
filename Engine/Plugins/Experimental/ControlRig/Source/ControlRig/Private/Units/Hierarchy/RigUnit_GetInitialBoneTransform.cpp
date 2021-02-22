@@ -6,7 +6,7 @@
 FRigUnit_GetInitialBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigBoneHierarchy* Hierarchy = Context.GetBones();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -17,7 +17,7 @@ FRigUnit_GetInitialBoneTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedBone.UpdateCache(Bone, Hierarchy))
+				if (!CachedBone.UpdateCache(FRigElementKey(Bone, ERigElementType::Bone), Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
 				}
@@ -55,9 +55,8 @@ FRigUnit_GetInitialBoneTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_GetInitialBoneTransform)
 {
-	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(1.f, 2.f, 3.f)));
-	BoneHierarchy.Initialize();
+	const FRigElementKey Root = Controller->AddBone(TEXT("Root"), FRigElementKey(), FTransform(FVector(1.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey BoneA = Controller->AddBone(TEXT("BoneA"), Root, FTransform(FVector(1.f, 2.f, 3.f)), true, ERigBoneType::User);
 
 	Unit.Bone = TEXT("Root");
 	Unit.Space = EBoneGetterSetterMode::GlobalSpace;

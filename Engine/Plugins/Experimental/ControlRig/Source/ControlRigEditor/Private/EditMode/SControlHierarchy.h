@@ -85,11 +85,10 @@ private:
 	static TSharedPtr<FControlTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FControlTreeElement> CurrentItem);
 
 	void SetExpansionRecursive(TSharedPtr<FControlTreeElement> InElements, bool bTowardsParent);
-	void OnRigElementSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
-	FRigHierarchyContainer* GetHierarchyContainer() const;
+	void OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
+	URigHierarchy* GetHierarchy() const;
 	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey());
-	void AddControlElement(FRigControl InControl);
-	void AddSpaceElement(FRigSpace InSpace);
+	void AddElement(FRigBaseElement* InElement);
 public:
 
 	friend class SControlHierarchyItem;

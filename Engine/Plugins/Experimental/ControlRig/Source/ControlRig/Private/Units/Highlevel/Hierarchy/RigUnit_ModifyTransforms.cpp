@@ -9,7 +9,7 @@ FRigUnit_ModifyTransforms_Execute()
 
 	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
 
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)

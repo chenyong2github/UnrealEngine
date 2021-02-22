@@ -417,15 +417,15 @@ TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChan
 			if (StringArray.Num() > 0)
 			{
 				FString NodeName = StringArray[0];
-				FRigControl* Control = GetControlRig() ? GetControlRig()->FindControl(FName(*StringArray[0])) : nullptr;
-				if (Control)
+				FRigControlElement* ControlElement = GetControlRig() ? GetControlRig()->FindControl(FName(*StringArray[0])) : nullptr;
+				if (ControlElement)
 				{
 					NodeName = NodeName.ToUpper();
 					if (NodeAndChannels->Num() == 0 || (*NodeAndChannels)[NodeAndChannels->Num() - 1].NodeName != NodeName)
 					{
 						FFBXNodeAndChannels NodeAndChannel;
 						NodeAndChannel.MovieSceneTrack = this;
-						NodeAndChannel.ControlType = (FFBXControlRigTypeProxyEnum)(uint8)Control->ControlType;
+						NodeAndChannel.ControlType = (FFBXControlRigTypeProxyEnum)(uint8)ControlElement->Settings.ControlType;
 						NodeAndChannel.NodeName = NodeName;
 						NodeAndChannels->Add(NodeAndChannel);
 					}

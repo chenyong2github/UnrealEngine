@@ -12,7 +12,7 @@
 /////////////////////////////////////////////////////
 
 
-static float EnsureToAddBoneToLinkData(FRigHierarchyContainer* Hierarchy, const FRigElementKey& CurrentItem, TArray<FFBIKLinkData>& LinkData,
+static float EnsureToAddBoneToLinkData(URigHierarchy* Hierarchy, const FRigElementKey& CurrentItem, TArray<FFBIKLinkData>& LinkData,
 	TMap<FRigElementKey, int32>& HierarchyToLinkDataMap, TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices)
 {
 	float ChainLength = 0;
@@ -25,14 +25,18 @@ static float EnsureToAddBoneToLinkData(FRigHierarchyContainer* Hierarchy, const 
 		FFBIKLinkData& NewLink = LinkData[NewLinkIndex];
 
 		// find parent LinkIndex
-		const FRigElementKey& ParentItem = Hierarchy->GetParentKey(CurrentItem);
+		FRigElementKey ParentItem = Hierarchy->GetFirstParent(CurrentItem);
+
+		const int32 CurrentItemIndex = Hierarchy->GetIndex(CurrentItem);
+		const int32 ParentItemIndex = Hierarchy->GetIndex(ParentItem); 
+		
 		FoundLinkIndex = HierarchyToLinkDataMap.Find(ParentItem);
 		NewLink.ParentLinkIndex = (FoundLinkIndex) ? *FoundLinkIndex : INDEX_NONE;
 		NewLink.SetTransform(Hierarchy->GetGlobalTransform(CurrentItem));
 
 		if (ParentItem.IsValid())
 		{
-			FVector DiffLocation = Hierarchy->GetInitialGlobalTransform(CurrentItem).GetLocation() - Hierarchy->GetInitialGlobalTransform(ParentItem).GetLocation();
+			FVector DiffLocation = Hierarchy->GetInitialGlobalTransform(CurrentItemIndex).GetLocation() - Hierarchy->GetInitialGlobalTransform(ParentItemIndex).GetLocation();
 			// set Length
 			NewLink.Length = DiffLocation.Size();
 		}
@@ -75,7 +79,7 @@ static void AddToEffectorTarget(int32 EffectorIndex, const FRigElementKey& Effec
 	}
 }
 
-static void AddEffectors(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const TArray<FFBIKEndEffector>& Effectors,
+static void AddEffectors(URigHierarchy* Hierarchy, const FRigElementKey& Root, const TArray<FFBIKEndEffector>& Effectors,
 	TArray<FFBIKLinkData>& LinkData, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, TArray<int32>& EffectorLinkIndices, 
 	TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices, TMap<FRigElementKey, int32>& HierarchyToLinkDataMap, const FSolverInput& SolverProperty)
 {
@@ -168,7 +172,7 @@ FRigUnit_FullbodyIK_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;

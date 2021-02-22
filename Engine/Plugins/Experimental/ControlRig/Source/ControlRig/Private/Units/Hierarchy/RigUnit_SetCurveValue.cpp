@@ -6,8 +6,8 @@
 FRigUnit_SetCurveValue_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigCurveContainer* CurveContainer = ExecuteContext.GetCurves();
-	if (CurveContainer)
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+	if (Hierarchy)
 	{
 		switch (Context.State)
 		{
@@ -18,9 +18,10 @@ FRigUnit_SetCurveValue_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedCurveIndex.UpdateCache(Curve, CurveContainer))
+				const FRigElementKey Key(Curve, ERigElementType::Curve);
+				if (CachedCurveIndex.UpdateCache(Key, Hierarchy))
 				{
-					CurveContainer->SetValue(CachedCurveIndex, Value);
+					Hierarchy->SetCurveValue(CachedCurveIndex, Value);
 				}
 			}
 			default:
@@ -36,24 +37,23 @@ FRigUnit_SetCurveValue_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_SetCurveValue)
 {
-	CurveContainer.Add(TEXT("CurveA"));
-	CurveContainer.Add(TEXT("CurveB"));
-	CurveContainer.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	const FRigElementKey CurveA = Controller->AddCurve(TEXT("CurveA"), 0.f);
+	const FRigElementKey CurveB = Controller->AddCurve(TEXT("CurveB"), 0.f);
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 	
-	CurveContainer.ResetValues();
+	Hierarchy->ResetCurveValues();
 	Unit.Curve = TEXT("CurveA");
 	Unit.Value = 3.0f;
 	InitAndExecute();
 
-	AddErrorIfFalse(CurveContainer.GetValue(FName(TEXT("CurveA"))) == 3.f, TEXT("unexpected value"));
+	AddErrorIfFalse(Hierarchy->GetCurveValue(CurveA) == 3.f, TEXT("unexpected value"));
 
-	CurveContainer.ResetValues();
+	Hierarchy->ResetCurveValues();
 	Unit.Curve = TEXT("CurveB");
 	Unit.Value = 13.0f;
 	InitAndExecute();
 
-	AddErrorIfFalse(CurveContainer.GetValue(FName(TEXT("CurveB"))) == 13.f, TEXT("unexpected value"));
+	AddErrorIfFalse(Hierarchy->GetCurveValue(CurveB) == 13.f, TEXT("unexpected value"));
 
 	return true;
 }

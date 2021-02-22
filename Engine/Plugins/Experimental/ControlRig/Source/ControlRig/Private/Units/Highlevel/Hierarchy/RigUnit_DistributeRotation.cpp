@@ -9,16 +9,16 @@ FRigUnit_DistributeRotation_Execute()
 
 	if(WorkData.CachedItems.Num() == 0)
 	{
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy == nullptr)
 		{
 			return;
 		}
 
-		int32 EndBoneIndex = Hierarchy->GetIndex(EndBone);
+		int32 EndBoneIndex = Hierarchy->GetIndex(FRigElementKey(EndBone, ERigElementType::Bone));
 		if (EndBoneIndex != INDEX_NONE)
 		{
-			int32 StartBoneIndex = Hierarchy->GetIndex(StartBone);
+			int32 StartBoneIndex = Hierarchy->GetIndex(FRigElementKey(StartBone, ERigElementType::Bone));
 			if (StartBoneIndex == EndBoneIndex)
 			{
 				return;
@@ -26,12 +26,12 @@ FRigUnit_DistributeRotation_Execute()
 
 			while (EndBoneIndex != INDEX_NONE)
 			{
-				Items.Add((*Hierarchy)[EndBoneIndex].GetElementKey());
+				Items.Add(Hierarchy->GetKey(EndBoneIndex));
 				if (EndBoneIndex == StartBoneIndex)
 				{
 					break;
 				}
-				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
+				EndBoneIndex = Hierarchy->GetFirstParent(EndBoneIndex);
 			}
 		}
 
@@ -59,7 +59,7 @@ FRigUnit_DistributeRotation_Execute()
 FRigUnit_DistributeRotationForCollection_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -251,13 +251,12 @@ FRigUnit_DistributeRotationForCollection_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 {
-	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneA"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(2.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneB"), TEXT("BoneA"), ERigBoneType::User, FTransform(FVector(2.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneC"), TEXT("BoneB"), ERigBoneType::User, FTransform(FVector(2.f, 0.f, 0.f)));
-	BoneHierarchy.Add(TEXT("BoneD"), TEXT("BoneC"), ERigBoneType::User, FTransform(FVector(2.f, 0.f, 0.f)));
-	BoneHierarchy.Initialize();
-	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+	const FRigElementKey Root = Controller->AddBone(TEXT("Root"), FRigElementKey(), FTransform(FVector(1.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey BoneA = Controller->AddBone(TEXT("BoneA"), Root, FTransform(FVector(2.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey BoneB = Controller->AddBone(TEXT("BoneB"), BoneA, FTransform(FVector(2.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey BoneC = Controller->AddBone(TEXT("BoneC"), BoneB, FTransform(FVector(2.f, 0.f, 0.f)), true, ERigBoneType::User);
+	const FRigElementKey BoneD = Controller->AddBone(TEXT("BoneD"), BoneC, FTransform(FVector(2.f, 0.f, 0.f)), true, ERigBoneType::User);
+	Unit.ExecuteContext.Hierarchy = Hierarchy;
 
 	Unit.StartBone = TEXT("Root");
 	Unit.EndBone = TEXT("BoneD");
@@ -293,15 +292,15 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DistributeRotation)
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.WorkData.ItemRotationT[4], 0.0f, 0.001f), TEXT("unexpected bone t"));
 
 	FVector Euler = FVector::ZeroVector;
-	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(0).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(0).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 0.f, 0.1f), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(1).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(1).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 45.f, 0.1f), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(2).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(2).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 90.f, 0.1f), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(3).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(3).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 45.f, 0.1f), TEXT("unexpected rotation Y"));
-	Euler = FControlRigMathLibrary::EulerFromQuat(BoneHierarchy.GetLocalTransform(4).GetRotation(), EControlRigRotationOrder::XYZ);
+	Euler = FControlRigMathLibrary::EulerFromQuat(Hierarchy->GetLocalTransform(4).GetRotation(), EControlRigRotationOrder::XYZ);
 	AddErrorIfFalse(FMath::IsNearlyEqual(Euler.Y, 0.f, 0.1f), TEXT("unexpected rotation Y"));
 
 	return true;

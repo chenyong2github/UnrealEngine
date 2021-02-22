@@ -65,13 +65,13 @@ public:
 		for (UControlRigControlsProxy* Proxy : ProxiesBeingCustomized)
 		{
 			FName ValuePropertyName = TEXT("Transform");
-			if (Proxy->RigControl->ControlType == ERigControlType::Float)
+			if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
 				ValuePropertyName = TEXT("Float");
 			}
-			else if (Proxy->RigControl->ControlType == ERigControlType::Integer)
+			else if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Integer)
 			{
-				if (Proxy->RigControl->ControlEnum == nullptr)
+				if (Proxy->ControlElement->Settings.ControlEnum == nullptr)
 				{
 					ValuePropertyName = TEXT("Integer");
 				}
@@ -80,16 +80,16 @@ public:
 					ValuePropertyName = TEXT("Enum");
 				}
 			}
-			else if (Proxy->RigControl->ControlType == ERigControlType::Bool)
+			else if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Bool)
 			{
 				ValuePropertyName = TEXT("Bool");
 			}
-			else if (Proxy->RigControl->ControlType == ERigControlType::Position ||
-				Proxy->RigControl->ControlType == ERigControlType::Scale)
+			else if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Position ||
+				Proxy->ControlElement->Settings.ControlType == ERigControlType::Scale)
 			{
 				ValuePropertyName = TEXT("Vector");
 			}
-			else if (Proxy->RigControl->ControlType == ERigControlType::Vector2D)
+			else if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Vector2D)
 			{
 				ValuePropertyName = TEXT("Vector2D");
 			}
@@ -97,19 +97,27 @@ public:
 			TSharedPtr<IPropertyHandle> ValuePropertyHandle = DetailLayout.GetProperty(ValuePropertyName, Proxy->GetClass());
 			if (ValuePropertyHandle)
 			{
-				ValuePropertyHandle->SetPropertyDisplayName(FText::FromName(Proxy->RigControl->GetDisplayName()));
+				ValuePropertyHandle->SetPropertyDisplayName(FText::FromName(Proxy->ControlElement->Settings.DisplayName));
 			}
 
-			for (const FRigControl& ChildControl : Proxy->ControlRig->GetControlHierarchy())
-			{
-				if (ChildControl.ParentName == Proxy->RigControl->Name)
+			URigHierarchy* Hierarchy = Proxy->ControlRig->GetHierarchy();
+			Hierarchy->ForEach<FRigControlElement>([Hierarchy, Proxy, &Category](FRigControlElement* ControlElement) -> bool
+            {
+				FName ParentControlName = NAME_None;
+				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(Hierarchy->GetFirstParent(ControlElement));
+				if(ParentControlElement)
+				{
+					ParentControlName = ParentControlElement->GetName();
+				}
+				
+				if (ParentControlName == Proxy->ControlElement->GetName())
 				{
 					if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 					{
-						if (UObject* NestedProxy = EditMode->ControlProxy->FindProxy(ChildControl.Name))
+						if (UObject* NestedProxy = EditMode->ControlProxy->FindProxy(ControlElement->GetName()))
 						{
 							FName PropertyName(NAME_None);
-							switch (ChildControl.ControlType)
+							switch (ControlElement->Settings.ControlType)
 							{
 								case ERigControlType::Bool:
 								{
@@ -123,7 +131,7 @@ public:
 								}
 								case ERigControlType::Integer:
 								{
-									if (ChildControl.ControlEnum == nullptr)
+									if (ControlElement->Settings.ControlEnum == nullptr)
 									{
 										PropertyName = TEXT("Integer");
 									}
@@ -141,7 +149,7 @@ public:
 
 							if (PropertyName.IsNone())
 							{
-								continue;
+								return true;
 							}
 
 							TArray<UObject*> NestedProxies;
@@ -155,13 +163,14 @@ public:
 								PropertyName,
 								EPropertyLocation::Advanced,
 								Params);
-							NestedRow->DisplayName(FText::FromName(ChildControl.GetDisplayName()));
+							NestedRow->DisplayName(FText::FromName(ControlElement->Settings.DisplayName));
 
 							Category.SetShowAdvanced(true);
 						}
 					}
 				}
-			}
+				return true;
+			});
 		}
 	}
 };

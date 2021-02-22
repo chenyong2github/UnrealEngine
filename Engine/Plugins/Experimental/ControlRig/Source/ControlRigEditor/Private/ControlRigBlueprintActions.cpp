@@ -179,11 +179,11 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 		return nullptr;
 	}
 
-	NewControlRigBlueprint->HierarchyContainer.BoneHierarchy.ImportSkeleton(*RefSkeleton, NAME_None, false, false, false, false);
-	NewControlRigBlueprint->HierarchyContainer.CurveContainer.ImportCurvesFromSkeleton(Skeleton, NAME_None, false, false, false);
+	NewControlRigBlueprint->GetHierarchyController()->ImportBones(*RefSkeleton, NAME_None, false, false, false, false);
+	NewControlRigBlueprint->GetHierarchyController()->ImportCurves(Skeleton, NAME_None, false, false);
 	NewControlRigBlueprint->SourceHierarchyImport = Skeleton;
 	NewControlRigBlueprint->SourceCurveImport = Skeleton;
-	NewControlRigBlueprint->PropagateHierarchyFromBPToInstances(true);
+	NewControlRigBlueprint->PropagateHierarchyFromBPToInstances();
 
 	if(SkeletalMesh)
 	{

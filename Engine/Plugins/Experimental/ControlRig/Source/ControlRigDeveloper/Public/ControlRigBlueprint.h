@@ -9,14 +9,14 @@
 #include "Misc/Crc.h"
 #include "ControlRigDefines.h"
 #include "Rigs/RigHierarchyContainer.h"
-#include "Rigs/RigCurveContainer.h"
+#include "Rigs/RigHierarchy.h"
+#include "Rigs/RigHierarchyController.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
 #include "ControlRigGizmoLibrary.h"
 #include "RigVMCore/RigVM.h"
 #include "RigVMCore/RigVMStatistics.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMCompiler/RigVMCompiler.h"
-#include "ControlRigHierarchyModifier.h"
 #include "ControlRigValidationPass.h"
 #include "Drawing/ControlRigDrawContainer.h"
 
@@ -36,6 +36,7 @@ DECLARE_EVENT_FourParams(UControlRigBlueprint, FOnVariableDroppedEvent, UObject*
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnExternalVariablesChanged, const TArray<FRigVMExternalVariable>&);
 DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnNodeDoubleClicked, UControlRigBlueprint*, URigVMNode*);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnGraphImported, UEdGraph*);
+DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnPostEditChangeChainProperty, FPropertyChangedChainEvent&);
 
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
@@ -78,6 +79,9 @@ public:
 	virtual bool ExportGraphToText(UEdGraph* InEdGraph, FString& OutText) override;
 	virtual bool TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr = nullptr) override;
 	virtual bool CanImportGraphFromText(const FString& InClipboardText) override;
+
+	// UObject interface
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
 #endif	// #if WITH_EDITOR
 
@@ -189,9 +193,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VM")
 	static TArray<UStruct*> GetAvailableRigUnits();
 
-	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
-	UControlRigHierarchyModifier* GetHierarchyModifier();
-
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = "Variables")
 	FName AddMemberVariable(const FName& InName, const FString& InCPPType, bool bIsPublic = false, bool bIsReadOnly = false, FString InDefaultValue = TEXT(""));
@@ -233,16 +234,17 @@ public:
 	FRigInfluenceMapPerEvent Influences;
 
 public:
+
 	UPROPERTY()
-	FRigHierarchyContainer HierarchyContainer;
+	FRigHierarchyContainer HierarchyContainer_DEPRECATED;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Hierarchy")
+	URigHierarchy* Hierarchy;
+
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	URigHierarchyController* GetHierarchyController() { return HierarchyController; }
 
 private:
-
-	UPROPERTY()
-	FRigBoneHierarchy Hierarchy_DEPRECATED;
-
-	UPROPERTY()
-	FRigCurveContainer CurveContainer_DEPRECATED;
 
 	/** Whether or not this rig has an Inversion Event */
 	UPROPERTY(AssetRegistrySearchable)
@@ -282,7 +284,7 @@ private:
 	int32 VMRecompilationBracket;
 
 	UPROPERTY(transient)
-	UControlRigHierarchyModifier* HierarchyModifier;
+	URigHierarchyController* HierarchyController;
 
 	FRigVMGraphModifiedEvent ModifiedEvent;
 	void Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject);
@@ -310,7 +312,6 @@ private:
 
 	static TArray<UControlRigBlueprint*> sCurrentlyOpenedRigBlueprints;
 
-	void CleanupBoneHierarchyDeprecated();
 	void CreateMemberVariablesOnLoad();
 #if WITH_EDITOR
 	static FName FindCRMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName);
@@ -325,7 +326,7 @@ private:
 public:
 	void PropagatePoseFromInstanceToBP(UControlRig* InControlRig);
 	void PropagatePoseFromBPToInstances();
-	void PropagateHierarchyFromBPToInstances(bool bInitializeContainer = true, bool bInitializeRigs = true);
+	void PropagateHierarchyFromBPToInstances();
 	void PropagateDrawInstructionsFromBPToInstances();
 	void PropagatePropertyFromBPToInstances(FRigElementKey InRigElement, const FProperty* InProperty);
 	void PropagatePropertyFromInstanceToBP(FRigElementKey InRigElement, const FProperty* InProperty, UControlRig* InInstance);
@@ -335,14 +336,7 @@ private:
 	UPROPERTY()
 	UControlRigValidator* Validator;
 
-#if WITH_EDITOR
-
-	void HandleOnElementAdded(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
-	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
-	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName);
-	void HandleOnElementReparented(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
-	void HandleOnElementSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);
-#endif
+	void HandleHierarchyModified(ERigHierarchyNotification InNotification, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
 	// Class used to temporarily cache all 
 	// current control values and reapply them
@@ -378,6 +372,9 @@ public:
 	FOnGraphImported& OnGraphImported() { return GraphImportedEvent; }
 	void BroadcastGraphImported(UEdGraph* InGraph);
 
+	FOnPostEditChangeChainProperty& OnPostEditChangeChainProperty() { return PostEditChangeChainPropertyEvent; }
+	void BroadcastPostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent);
+
 private:
 
 	FOnExternalVariablesChanged ExternalVariablesChangedEvent;
@@ -385,6 +382,7 @@ private:
 
 	FOnNodeDoubleClicked NodeDoubleClickedEvent;
 	FOnGraphImported GraphImportedEvent;
+	FOnPostEditChangeChainProperty PostEditChangeChainPropertyEvent;
 
 #endif
 

@@ -4,13 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "RigHierarchyDefines.h"
+#include "RigHierarchyElements.h"
+
 #include "RigHierarchyCache.generated.h"
 
-struct FRigHierarchyContainer;
-struct FRigBoneHierarchy;
-struct FRigSpaceHierarchy;
-struct FRigControlHierarchy;
-struct FRigCurveContainer;
+class URigHierarchy;
 
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FCachedRigElement
@@ -25,44 +23,12 @@ public:
 		, ContainerVersion(INDEX_NONE)
 	{}
 
-	FORCEINLINE FCachedRigElement(const FRigElementKey& InKey, const FRigHierarchyContainer* InContainer)
+	FORCEINLINE FCachedRigElement(const FRigElementKey& InKey, const URigHierarchy* InHierarchy)
 		: Key()
 		, Index(UINT16_MAX)
 		, ContainerVersion(INDEX_NONE)
 	{
-		UpdateCache(InKey, InContainer);
-	}
-
-	FORCEINLINE FCachedRigElement(const FName& InName, const FRigBoneHierarchy* InHierarchy)
-		: Key()
-		, Index(UINT16_MAX)
-		, ContainerVersion(INDEX_NONE)
-	{
-		UpdateCache(InName, InHierarchy);
-	}
-
-	FORCEINLINE FCachedRigElement(const FName& InName, const FRigSpaceHierarchy* InHierarchy)
-		: Key()
-		, Index(UINT16_MAX)
-		, ContainerVersion(INDEX_NONE)
-	{
-		UpdateCache(InName, InHierarchy);
-	}
-
-	FORCEINLINE FCachedRigElement(const FName& InName, const FRigControlHierarchy* InHierarchy)
-		: Key()
-		, Index(UINT16_MAX)
-		, ContainerVersion(INDEX_NONE)
-	{
-		UpdateCache(InName, InHierarchy);
-	}
-
-	FORCEINLINE FCachedRigElement(const FName& InName, const FRigCurveContainer* InHierarchy)
-		: Key()
-		, Index(UINT16_MAX)
-		, ContainerVersion(INDEX_NONE)
-	{
-		UpdateCache(InName, InHierarchy);
+		UpdateCache(InKey, InHierarchy);
 	}
 
 	FORCEINLINE bool IsValid() const
@@ -75,11 +41,22 @@ public:
 		Key = FRigElementKey();
 		Index = UINT16_MAX;
 		ContainerVersion = INDEX_NONE;
+		Element = nullptr;
 	}
 
-	FORCEINLINE operator bool() const
+	FORCEINLINE explicit operator bool() const
 	{
 		return IsValid();
+	}
+
+	FORCEINLINE operator int32() const
+	{
+		return GetIndex();
+	}
+
+	FORCEINLINE explicit operator FRigElementKey() const
+	{
+		return Key;
 	}
 
 	FORCEINLINE int32 GetIndex() const
@@ -96,24 +73,21 @@ public:
 		return Key;
 	}
 
-	bool UpdateCache(const FRigHierarchyContainer* InContainer);
+	FORCEINLINE const FRigBaseElement* GetElement() const
+	{
+		return Element;
+	}
 
-	bool UpdateCache(const FRigElementKey& InKey, const FRigHierarchyContainer* InContainer);
+	bool UpdateCache(const URigHierarchy* InHierarchy);
 
-	bool UpdateCache(const FName& InName, const FRigBoneHierarchy* InHierarchy);
-
-	bool UpdateCache(const FName& InName, const FRigSpaceHierarchy* InHierarchy);
-
-	bool UpdateCache(const FName& InName, const FRigControlHierarchy* InHierarchy);
-
-	bool UpdateCache(const FName& InName, const FRigCurveContainer* InHierarchy);
+	bool UpdateCache(const FRigElementKey& InKey, const URigHierarchy* InHierarchy);
 
 	friend FORCEINLINE uint32 GetTypeHash(const FCachedRigElement& Cache)
 	{
 		return GetTypeHash(Cache.Key) * 13 + (uint32)Cache.Index;
 	}
 
-	bool IsIdentical(const FRigElementKey& InKey, const FRigHierarchyContainer* InContainer);
+	bool IsIdentical(const FRigElementKey& InKey, const URigHierarchy* InHierarchy);
 
 	FORCEINLINE bool operator ==(const FCachedRigElement& Other) const
 	{
@@ -163,16 +137,6 @@ public:
 		return Index > Other.Index;
 	}
 
-	FORCEINLINE operator int32() const
-	{
-		return GetIndex();
-	}
-
-	FORCEINLINE operator FRigElementKey() const
-	{
-		return Key;
-	}
-
 private:
 
 	UPROPERTY()
@@ -183,4 +147,6 @@ private:
 
 	UPROPERTY()
 	int32 ContainerVersion;
+
+	const FRigBaseElement* Element;
 };

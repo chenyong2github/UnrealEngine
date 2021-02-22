@@ -6,8 +6,8 @@
 FRigUnit_GetCurveValue_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigCurveContainer* CurveContainer = Context.GetCurves();
-	if (CurveContainer)
+	URigHierarchy* Hierarchy = Context.Hierarchy;
+	if (Hierarchy)
 	{
 		switch (Context.State)
 		{
@@ -17,9 +17,9 @@ FRigUnit_GetCurveValue_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if(CachedCurveIndex.UpdateCache(Curve, CurveContainer))
+				if(CachedCurveIndex.UpdateCache(FRigElementKey(Curve, ERigElementType::Curve), Hierarchy))
 				{
-					Value = CurveContainer->GetValue(CachedCurveIndex);
+					Value = Hierarchy->GetCurveValue(CachedCurveIndex);
 				}
 			}
 			default:

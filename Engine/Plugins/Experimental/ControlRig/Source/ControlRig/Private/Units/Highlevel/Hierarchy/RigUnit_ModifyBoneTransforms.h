@@ -76,13 +76,9 @@ struct CONTROLRIG_API FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelB
 
 				if (Mode == EControlRigModifyBoneMode::OverrideLocal)
 				{
-					if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+					if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 					{
-						int32 BoneIndex = Container->BoneHierarchy.GetIndex(BoneToModify[Index].Bone);
-						if (BoneIndex != INDEX_NONE)
-						{
-							return Container->BoneHierarchy[BoneIndex].GetParentElementKey();
-						}
+						return Hierarchy->GetFirstParent(FRigElementKey(BoneToModify[Index].Bone, ERigElementType::Bone));
 					}
 				}
 			}

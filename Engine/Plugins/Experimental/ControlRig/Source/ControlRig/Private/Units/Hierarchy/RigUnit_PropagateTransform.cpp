@@ -15,8 +15,11 @@ FRigUnit_PropagateTransform_Execute()
     	return;
     }
 
-    if (FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy)
+    if (URigHierarchy* Hierarchy = ExecuteContext.Hierarchy)
 	{
+    	/*
+    	 * This node doesn't do anything anymore now that the hierarchy is lazy
+    	 *
 		switch (Context.State)
 		{
 			case EControlRigState::Init:
@@ -59,6 +62,6 @@ FRigUnit_PropagateTransform_Execute()
 				break;
 			}
 		}
+		*/
 	}
-
 }

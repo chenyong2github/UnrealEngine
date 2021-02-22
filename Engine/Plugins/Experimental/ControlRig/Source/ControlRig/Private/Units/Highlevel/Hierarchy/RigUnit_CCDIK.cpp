@@ -51,7 +51,7 @@ FRigUnit_CCDIK_Execute()
 FRigUnit_CCDIKPerItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -77,7 +77,7 @@ FRigUnit_CCDIKPerItem_Execute()
 	{
 		if (CachedItems.Num() == 0 && Items.Num() > 0)
 		{
-			CachedItems.Add(FCachedRigElement(Hierarchy->GetParentKey(Items[0]), Hierarchy));
+			CachedItems.Add(FCachedRigElement(Hierarchy->GetFirstParent(Items[0]), Hierarchy));
 
 			for (FRigElementKey Item : Items)
 			{

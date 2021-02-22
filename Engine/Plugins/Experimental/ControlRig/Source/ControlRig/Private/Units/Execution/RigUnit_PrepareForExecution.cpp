@@ -8,6 +8,6 @@ FName FRigUnit_PrepareForExecution::EventName = TEXT("Setup");
 FRigUnit_PrepareForExecution_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	ExecuteContext.Hierarchy = (FRigHierarchyContainer*)Context.Hierarchy;
+	ExecuteContext.Hierarchy = Context.Hierarchy;
 	ExecuteContext.EventName = FRigUnit_PrepareForExecution::EventName;
 }

@@ -9,7 +9,7 @@ FRigUnit_AimBoneMath_Execute()
 
 	Result = InputTransform;
 
-	const FRigHierarchyContainer* Hierarchy = Context.Hierarchy;
+	URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -176,7 +176,7 @@ FRigUnit_AimBone_Execute()
 FRigUnit_AimItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;

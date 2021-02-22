@@ -8,11 +8,9 @@ FRigUnit_SetSpaceInitialTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	FRigSpaceHierarchy* Hierarchy = ExecuteContext.GetSpaces();
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy)
 	{
-		FRigSpaceHierarchy& HierarchyRef = *Hierarchy;
-
 		switch (Context.State)
 		{
 			case EControlRigState::Init:
@@ -22,7 +20,8 @@ FRigUnit_SetSpaceInitialTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (!CachedSpaceIndex.UpdateCache(SpaceName, Hierarchy))
+				const FRigElementKey SpaceKey(SpaceName, ERigElementType::Space);
+				if (!CachedSpaceIndex.UpdateCache(SpaceKey, Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Space '%s' is not valid."), *SpaceName.ToString());
 					return;
@@ -31,12 +30,11 @@ FRigUnit_SetSpaceInitialTransform_Execute()
 				FTransform InitialTransform = Transform;
 				if (Space == EBoneGetterSetterMode::GlobalSpace)
 				{
-					FRigSpace& SpaceRef = HierarchyRef[CachedSpaceIndex];
-					FTransform ParentTransform = ExecuteContext.Hierarchy->GetInitialGlobalTransform(SpaceRef.GetParentElementKey());
+					const FTransform ParentTransform = Hierarchy->GetParentTransformByIndex(CachedSpaceIndex, true);
 					InitialTransform = InitialTransform.GetRelativeTransform(ParentTransform);
 				}
 
-				HierarchyRef.SetInitialTransform(CachedSpaceIndex, InitialTransform);
+				Hierarchy->SetInitialLocalTransform(CachedSpaceIndex, InitialTransform);
 			}
 			default:
 			{

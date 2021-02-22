@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/Views/STreeView.h"
-#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigHierarchy.h"
 #include "EditorUndoClient.h"
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 #include "Engine/SkeletalMesh.h"
@@ -210,6 +210,7 @@ private:
 	void HandlePasteItems();
 	void HandlePasteLocalTransforms();
 	void HandlePasteGlobalTransforms();
+	void HandlePasteTransforms(ERigTransformType::Type InTransformType, bool bAffectChildren);
 
 	/** Set Selection Changed */
 	void OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
@@ -288,8 +289,8 @@ private:
 	bool IsControlSelected() const;
 	bool IsControlOrSpaceSelected() const;
 
-	FRigHierarchyContainer* GetHierarchyContainer() const;
-	FRigHierarchyContainer* GetDebuggedHierarchyContainer() const;
+	URigHierarchy* GetHierarchy() const;
+	URigHierarchy* GetDebuggedHierarchy() const;
 
 	void ImportHierarchy(const FAssetData& InAssetData);
 	void CreateImportMenu(FMenuBuilder& MenuBuilder);
@@ -299,7 +300,6 @@ private:
 
 	void HandleResetTransform(bool bSelectionOnly);
 	void HandleResetInitialTransform();
-	void HandleResetSpace();
 	void HandleSetInitialTransformFromCurrentTransform();
 	void HandleSetInitialTransformFromClosestBone();
 	void HandleSetGizmoTransformFromCurrent();
@@ -315,19 +315,13 @@ private:
 	void ClearDetailPanel() const;
 
 	bool bIsChangingRigHierarchy;
-	void OnRigElementAdded(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnRigElementRemoved(FRigHierarchyContainer* Container, const FRigElementKey& InKey);
-	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
-	void OnRigElementReparented(FRigHierarchyContainer* Container, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
-	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
+	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 
 	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
 	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey(), const bool bIgnoreTextFilter = false);
+	void AddElement(FRigBaseElement* InElement, const bool bIgnoreTextFilter = false);
 	void AddSpacerElement();
-	void AddBoneElement(FRigBone InBone, const bool bIgnoreTextFilter = false);
-	void AddControlElement(FRigControl InControl, const bool bIgnoreTextFilter = false);
-	void AddSpaceElement(FRigSpace InSpace, const bool bIgnoreTextFilter = false);
 	void ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
 
 public:

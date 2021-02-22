@@ -38,7 +38,7 @@ FRigUnit_TwistBones_Execute()
 FRigUnit_TwistBonesPerItem_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
@@ -134,23 +134,6 @@ FRigUnit_TwistBonesPerItem_Execute()
 
 		OffsetQuat = FQuat::Slerp(ItemTransforms[Index].GetRotation(), OffsetQuat * ItemTransforms[Index].GetRotation(), FMath::Clamp<float>(Weight, 0.f, 1.f));
 		ItemTransforms[Index].SetRotation(OffsetQuat);
-		Hierarchy->SetGlobalTransform(CachedItems[Index], ItemTransforms[Index], false);
-
-		if (bPropagateToChildren)
-		{
-			if (CachedItems[Index].GetKey().Type == ERigElementType::Bone)
-			{
-				const TArray<int32> Dependents = Hierarchy->BoneHierarchy[CachedItems[Index]].Dependents;
-				for (int32 DependentIndex = 0; DependentIndex < Dependents.Num(); ++DependentIndex)
-				{
-					const FRigBone& Dependent = Hierarchy->BoneHierarchy[Dependents[DependentIndex]];
-					if (!CachedItems.Contains(FCachedRigElement(Dependent.GetElementKey(), Hierarchy)))
-					{
-						Hierarchy->BoneHierarchy.RecalculateGlobalTransform(Dependent.Index);
-						Hierarchy->BoneHierarchy.PropagateTransform(Dependent.Index);
-					}
-				}
-			}
-		}
+		Hierarchy->SetGlobalTransform(CachedItems[Index], ItemTransforms[Index], bPropagateToChildren);
 	}
 }

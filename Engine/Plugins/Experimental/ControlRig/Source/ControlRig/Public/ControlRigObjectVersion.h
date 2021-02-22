@@ -30,6 +30,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Full variable support
 		BlueprintVariableSupport,
 
+		// Hierarchy V2.0
+		RigHierarchyV2,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

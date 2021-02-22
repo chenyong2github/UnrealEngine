@@ -14,7 +14,7 @@ FRigUnit_GetTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	if (const FRigHierarchyContainer* Hierarchy = Context.Hierarchy)
+	if (URigHierarchy* Hierarchy = Context.Hierarchy)
 	{
 		switch (Context.State)
 		{
@@ -41,7 +41,7 @@ FRigUnit_GetTransform_Execute()
 							}
 							case EBoneGetterSetterMode::LocalSpace:
 							{
-								Transform = Hierarchy->GetInitialTransform(CachedIndex);
+								Transform = Hierarchy->GetInitialLocalTransform(CachedIndex);
 								break;
 							}
 							default:

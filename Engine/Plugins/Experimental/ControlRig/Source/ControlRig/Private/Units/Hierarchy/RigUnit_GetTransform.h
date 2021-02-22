@@ -27,9 +27,9 @@ struct CONTROLRIG_API FRigUnit_GetTransform : public FRigUnit
 	{
 		if(Space == EBoneGetterSetterMode::LocalSpace)
 		{
-			if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+			if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 			{
-				return Container->GetParentKey(Item);
+				return Hierarchy->GetFirstParent(Item);
 			}
 		}
 		return FRigElementKey();

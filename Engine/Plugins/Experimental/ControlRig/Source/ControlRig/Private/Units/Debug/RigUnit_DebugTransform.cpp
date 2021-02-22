@@ -17,9 +17,9 @@ FRigUnit_DebugTransform_Execute()
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space != NAME_None && Context.Hierarchy != nullptr)
 	{
-		DrawTransform = Transform * Context.GetBones()->GetGlobalTransform(Space);
+		DrawTransform = Transform * Context.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
 	}
 
 	switch (Mode)
@@ -73,9 +73,9 @@ FRigUnit_DebugTransformMutableItemSpace_Execute()
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space.IsValid() && Context.Hierarchy != nullptr)
 	{
-		DrawTransform = Transform * Context.GetBones()->GetGlobalTransform(Space);
+		DrawTransform = Transform * Context.Hierarchy->GetGlobalTransform(Space);
 	}
 
 	switch (Mode)
@@ -113,9 +113,9 @@ FRigUnit_DebugTransformArrayMutable_Execute()
 	}
 
 	WorkData.DrawTransforms.SetNumUninitialized(Transforms.Num());
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space != NAME_None && Context.Hierarchy)
 	{
-		FTransform SpaceTransform = Context.GetBones()->GetGlobalTransform(Space);
+		FTransform SpaceTransform = Context.Hierarchy->GetGlobalTransform(FRigElementKey(Space, ERigElementType::Bone));
 		for(int32 Index=0;Index<Transforms.Num();Index++)
 		{
 			WorkData.DrawTransforms[Index] = Transforms[Index] * SpaceTransform;

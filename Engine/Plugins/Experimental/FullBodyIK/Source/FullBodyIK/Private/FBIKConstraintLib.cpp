@@ -3,7 +3,7 @@
 #include "FBIKConstraintLib.h"
 #include "FullBodyIK.h"
 #include "FBIKConstraintOption.h"
-#include "Rigs/RigHierarchyContainer.h"
+#include "Rigs/RigHierarchy.h"
 
 // in the future, we expose rotation axis 
 namespace FBIKConstraintLib
@@ -41,7 +41,7 @@ namespace FBIKConstraintLib
 
 	// for now allow linkdata to be modified here
 	void BuildConstraints(const TArray<FFBIKConstraintOption>& Constraints, TArray<ConstraintType>& OutConstraints,
-		const FRigHierarchyContainer* Hierarchy, TArray<FFBIKLinkData>& InOutLinkData, const TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices,
+		const URigHierarchy* Hierarchy, TArray<FFBIKLinkData>& InOutLinkData, const TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices,
 		const TMap<FRigElementKey, int32>& HierarchyToLinkDataMap)
 	{
 		OutConstraints.Reset();
@@ -86,7 +86,7 @@ namespace FBIKConstraintLib
 								NewLimitConstraint.bYLimitSet = GetLimit(Constraints[Index].AngularLimit.LimitType_Y, FMath::DegreesToRadians(Constraints[Index].AngularLimit.Limit.Y), NewLimitConstraint.Limit.Y);
 								NewLimitConstraint.bZLimitSet = GetLimit(Constraints[Index].AngularLimit.LimitType_Z, FMath::DegreesToRadians(Constraints[Index].AngularLimit.Limit.Z), NewLimitConstraint.Limit.Z);
 
-								FTransform LocalTransform = Hierarchy->GetInitialGlobalTransform(Item).GetRelativeTransform(Hierarchy->GetInitialGlobalTransform(ParentItem));
+								FTransform LocalTransform = Hierarchy->GetGlobalTransform(Item, true).GetRelativeTransform(Hierarchy->GetGlobalTransform(ParentItem, true));
 								// @todo: think about 
 								// set rotation frame
 								NewLimitConstraint.BaseFrameOffset = FQuat(Constraints[Index].OffsetRotation);
@@ -110,7 +110,7 @@ namespace FBIKConstraintLib
 								PoleVectorConstraint.ParentBoneIndex = InOutLinkData[LinkIndex].ParentLinkIndex;
 								PoleVectorConstraint.BoneIndex = LinkIndex; //*ChildLinkIndex;
 
-								TArray<FRigElementKey> Children = Hierarchy->GetChildKeys(Item, false);
+								TArray<FRigElementKey> Children = Hierarchy->GetChildren(Item);
 								for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
 								{
 									const int32* ChildLinkIndex = HierarchyToLinkDataMap.Find(Children[ChildIndex]);

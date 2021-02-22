@@ -203,7 +203,7 @@ SCurveControlContainer::~SCurveControlContainer()
 {
 	if (ControlRig.IsValid())
 	{
-		ControlRig->GetHierarchy()->OnElementSelected.RemoveAll(this);
+		ControlRig->ControlSelected().RemoveAll(this);
 	}
 }
 
@@ -235,31 +235,33 @@ TSharedRef<ITableRow> SCurveControlContainer::GenerateCurveControlRow(FDisplayed
 
 void SCurveControlContainer::CreateCurveControlList( const FString& SearchText )
 {
-	const FRigCurveContainer* Container = GetCurveContainer();
-	if (Container)
+	URigHierarchy* Hierarchy = GetHierarchy();
+	if (Hierarchy)
 	{
 		CurveControlList.Reset();
 
-		FString CTRLName(TEXT("CTRL_"));
+		const FString CTRLName(TEXT("CTRL_"));
 
 		// Iterate through all curves..
-		for (const FRigCurve& Curve : (*Container))
-		{
-			FString Name = Curve.Name.ToString();
+		Hierarchy->ForEach<FRigCurveElement>([CTRLName, this](FRigCurveElement* CurveElement) -> bool
+        {
+			const FString Name = CurveElement->GetName().ToString();
 			if (Name.Contains(CTRLName))
 			{
-				FString CurveString = Curve.Name.ToString();
+				const FString CurveString = CurveElement->GetName().ToString();
 
 				// See if we pass the search filter
 				if (!FilterText.IsEmpty() && !CurveString.Contains(*FilterText.ToString()))
 				{
-					continue;
+					return true;
 				}
 
-				TSharedRef<FDisplayedCurveControlInfo> NewItem = FDisplayedCurveControlInfo::Make(Curve.Name);
+				const TSharedRef<FDisplayedCurveControlInfo> NewItem = FDisplayedCurveControlInfo::Make(CurveElement->GetName());
 				CurveControlList.Add(NewItem);
 			}
-		}
+
+			return true;
+		});
 
 		// Sort final list
 		struct FSortNamesAlphabetically
@@ -274,19 +276,16 @@ void SCurveControlContainer::CreateCurveControlList( const FString& SearchText )
 	}
 	CurveControlListView->RequestListRefresh();
 
-	if (ControlRig.IsValid())
+	if (Hierarchy)
 	{
-		FRigControlHierarchy& ControlHierarchy = ControlRig->GetControlHierarchy();
-		TArray<FName> Selection = ControlHierarchy.CurrentSelection();
-		for (const FName& Name : Selection)
+		TArray<FRigElementKey> Selection = Hierarchy->GetSelectedKeys(ERigElementType::Control);
+
+		for (const FRigElementKey& SelectedKey : Selection)
 		{
-			for (const FRigControl& Control : ControlHierarchy.GetControls())
+			if(FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(SelectedKey))
 			{
-				if (Name == Control.Name)
-				{
-					OnRigElementSelected(ControlRig.Get(), Control, true);
-					break;
-				}
+				OnRigElementSelected(ControlRig.Get(), ControlElement, true);
+				break;
 			}
 		}
 	}
@@ -301,8 +300,8 @@ void SCurveControlContainer::SetCurveValue(const FName& CurveName, float CurveVa
 {
 	if (ControlRig.IsValid())
 	{
-		FRigControl* RigControl = ControlRig->FindControl(CurveName);
-		if (RigControl && RigControl->ControlType == ERigControlType::Float)
+		FRigControlElement* ControlElement = ControlRig->FindControl(CurveName);
+		if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Float)
 		{
 			ControlRig->SetControlValue<float>(CurveName, CurveValue,true, EControlRigSetKey::Always);
 		}
@@ -312,12 +311,11 @@ void SCurveControlContainer::SetCurveValue(const FName& CurveName, float CurveVa
 
 float SCurveControlContainer::GetCurveValue(const FName& CurveName)
 {
-	FRigCurveContainer* Container = GetCurveContainer();
-	if (Container)
+	URigHierarchy* Hierarchy = GetHierarchy();
+	if (Hierarchy)
 	{
-		return Container->GetValue(CurveName);
+		return Hierarchy->GetCurveValue(FRigElementKey(CurveName, ERigElementType::Curve));
 	}
-
 	return 0.f;
 }
 
@@ -327,37 +325,36 @@ void SCurveControlContainer::OnSelectionChanged(FDisplayedCurveControlInfoPtr Se
 	{
 		FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
 
-		FRigControlHierarchy& ControlHierarchy = ControlRig->GetControlHierarchy();
-		TArray<FName> OldSelection = ControlHierarchy.CurrentSelection();
-		TArray<FName> NewSelection;
+		URigHierarchy* Hierarchy = GetHierarchy();
+		TArray<FRigElementKey> OldSelection = Hierarchy->GetSelectedKeys();
+		TArray<FRigElementKey> NewSelection;
 
 		TArray<FDisplayedCurveControlInfoPtr> SelectedItems = CurveControlListView->GetSelectedItems();
 		for (const FDisplayedCurveControlInfoPtr& SelectedItem : SelectedItems)
 		{
-			NewSelection.Add(SelectedItem->CurveName);
+			NewSelection.Add(FRigElementKey(SelectedItem->CurveName, ERigElementType::Curve));
 		}
 
-		for (const FName& PreviouslySelected : OldSelection)
+		for (const FRigElementKey& PreviouslySelected : OldSelection)
 		{
 			if (NewSelection.Contains(PreviouslySelected))
 			{
 				continue;
 			}
-			ControlRig->SelectControl(PreviouslySelected, false);
+			ControlRig->SelectControl(PreviouslySelected.Name, false);
 		}
 
-		for (const FName& NewlySelected : NewSelection)
+		for (const FRigElementKey& NewlySelected : NewSelection)
 		{
-			ControlRig->SelectControl(NewlySelected, true);
+			ControlRig->SelectControl(NewlySelected.Name, true);
 		}
 	}
 }
-void SCurveControlContainer::OnRigElementSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected)
+void SCurveControlContainer::OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
-
 	for(const FDisplayedCurveControlInfoPtr& Item : CurveControlList)
 	{
-		if (Item->CurveName == Control.Name)
+		if (Item->CurveName == ControlElement->GetName())
 		{
 			CurveControlListView->SetItemSelection(Item, bSelected);
 			break;
@@ -365,11 +362,11 @@ void SCurveControlContainer::OnRigElementSelected(UControlRig* Subject, const FR
 	}
 }
 
-FRigCurveContainer* SCurveControlContainer::GetCurveContainer() const
+URigHierarchy* SCurveControlContainer::GetHierarchy() const
 {
 	if (ControlRig.IsValid())
 	{
-		return &ControlRig->GetHierarchy()->CurveContainer;
+		return ControlRig->GetHierarchy();
 	}
 
 	return nullptr;

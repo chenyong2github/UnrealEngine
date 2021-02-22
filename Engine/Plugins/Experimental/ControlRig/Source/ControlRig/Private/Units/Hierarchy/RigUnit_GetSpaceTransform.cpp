@@ -6,7 +6,7 @@
 FRigUnit_GetSpaceTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	const FRigSpaceHierarchy* Hierarchy = Context.GetSpaces();
+	const URigHierarchy* Hierarchy = Context.Hierarchy;
 	if (Hierarchy)
 	{
 		switch (Context.State)
@@ -17,7 +17,7 @@ FRigUnit_GetSpaceTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedSpaceIndex.UpdateCache(Space, Hierarchy))
+				if (CachedSpaceIndex.UpdateCache(FRigElementKey(Space, ERigElementType::Space), Hierarchy))
 				{
 					switch (SpaceType)
 					{

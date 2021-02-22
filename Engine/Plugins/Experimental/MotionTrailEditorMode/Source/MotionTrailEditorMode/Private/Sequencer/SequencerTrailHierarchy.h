@@ -72,7 +72,7 @@ private:
 	void ResolveComponentToRoot(USceneComponent* Component);
 	void AddComponentToHierarchy(USceneComponent* CompToAdd, UMovieScene3DTransformTrack* TransformTrack);
 	void AddSkeletonToHierarchy(USkeletalMeshComponent* CompToAdd);
-	void ResolveRigElementToRootComponent(FRigHierarchyContainer* RigHierarchy, FRigElementKey InElementKey, USkeletalMeshComponent* Component);
+	void ResolveRigElementToRootComponent(URigHierarchy* RigHierarchy, FRigElementKey InElementKey, USkeletalMeshComponent* Component);
 	void AddControlsToHierarchy(USkeletalMeshComponent* CompToAdd, UMovieSceneControlRigParameterTrack* CRParamTrack);
 
 	void RegisterControlRigDelegates(USkeletalMeshComponent* Component, UMovieSceneControlRigParameterSection* CRParamSection);
@@ -93,10 +93,7 @@ private:
 
 	struct FControlRigDelegateHandles
 	{
-		FDelegateHandle OnControlAddedHandle;
-		FDelegateHandle OnControlRemovedHandle;
-		FDelegateHandle OnControlReparentedHandle;
-		FDelegateHandle OnControlRenamedHandle;
+		FDelegateHandle OnHierarchyModified;
 	};
 	TMap<UMovieSceneSection*, FControlRigDelegateHandles> ControlRigDelegateHandles;
 };

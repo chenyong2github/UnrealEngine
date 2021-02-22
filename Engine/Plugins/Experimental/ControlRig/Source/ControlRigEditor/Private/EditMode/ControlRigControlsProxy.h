@@ -13,7 +13,7 @@
 
 #include "ControlRigControlsProxy.generated.h"
 
-struct FRigControl;
+struct FRigControlElement;
 class UControlRig;
 class IPropertyHandle;
 
@@ -38,7 +38,7 @@ public:
 
 public:
 
-	FRigControl* RigControl;
+	FRigControlElement* ControlElement;
 	TWeakObjectPtr<UControlRig> ControlRig;
 
 	UPROPERTY()
@@ -310,7 +310,7 @@ protected:
 
 public:
 	UControlRigControlsProxy* FindProxy(const FName& Name) const;
-	void AddProxy(const FName& Name, UControlRig* InControlRig, FRigControl* InControl);
+	void AddProxy(const FName& Name, UControlRig* InControlRig, FRigControlElement* ControlElement);
 	void RemoveProxy(const FName& Name );
 	void ProxyChanged(const FName& Name);
 	void RemoveAllProxies();

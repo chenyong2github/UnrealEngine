@@ -194,14 +194,17 @@ FBoxSphereBounds UControlRigComponent::CalcBounds(const FTransform& LocalToWorld
 			}
 		}
 
-		FTransform Transform = GetComponentToWorld();
+		const FTransform Transform = GetComponentToWorld();
 
 		// Get bounding box for bones
-		const FRigBoneHierarchy& BoneHierarchy = ControlRig->GetBoneHierarchy();
-		for (const FRigBone& Bone : BoneHierarchy)
+		URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+		check(Hierarchy);
+
+		Hierarchy->ForEach<FRigTransformElement>([&BBox, Transform, Hierarchy](FRigTransformElement* TransformElement) -> bool
 		{
-			BBox += Transform.TransformPosition(Bone.GlobalTransform.GetLocation());
-		}
+			BBox += Transform.TransformPosition(Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal).GetLocation());
+			return true;
+        });
 	}
 
 	if (BBox.IsValid)
@@ -270,7 +273,7 @@ void UControlRigComponent::Initialize()
 		else
 		{
 			CR->DrawInterface.Reset();
-			CR->GetHierarchy()->Initialize(true);
+			CR->GetHierarchy()->ResetPoseToInitial(ERigElementType::All);
 			CR->RequestInit();
 		}
 	}
@@ -294,7 +297,7 @@ void UControlRigComponent::Update(float DeltaTime)
 
 			if (bResetTransformBeforeTick)
 			{
-				CR->GetBoneHierarchy().ResetTransforms();
+				CR->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
 			}
 
 #if WITH_EDITOR
@@ -328,39 +331,11 @@ TArray<FName> UControlRigComponent::GetElementNames(ERigElementType ElementType)
 
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		switch (ElementType)
+		for (FRigBaseElement* Element : *CR->GetHierarchy())
 		{
-			case ERigElementType::Bone:
+			if(Element->IsTypeOf(ElementType))
 			{
-				for (const FRigBone& Element : CR->GetBoneHierarchy())
-				{
-					Names.Add(Element.Name);
-				}
-				break;
-			}
-			case ERigElementType::Space:
-			{
-				for (const FRigSpace& Element : CR->GetSpaceHierarchy())
-				{
-					Names.Add(Element.Name);
-				}
-				break;
-			}
-			case ERigElementType::Control:
-			{
-				for (const FRigControl& Element : CR->GetControlHierarchy())
-				{
-					Names.Add(Element.Name);
-				}
-				break;
-			}
-			case ERigElementType::Curve:
-			{
-				for (const FRigCurve& Element : CR->GetCurveContainer())
-				{
-					Names.Add(Element.Name);
-				}
-				break;
+				Names.Add(Element->GetName());
 			}
 		}
 	}
@@ -480,16 +455,17 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 		{
 			if (const USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
-				for (const FRigBone& RigBone : CR->GetBoneHierarchy())
+				CR->GetHierarchy()->ForEach<FRigBoneElement>([Skeleton, &BonesToMap](FRigBoneElement* BoneElement) -> bool
 				{
-					if (Skeleton->GetReferenceSkeleton().FindBoneIndex(RigBone.Name) != INDEX_NONE)
+					if (Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneElement->GetName()) != INDEX_NONE)
 					{
 						FControlRigComponentMappedBone BoneToMap;
-						BoneToMap.Source = RigBone.Name;
-						BoneToMap.Target = RigBone.Name;
+						BoneToMap.Source = BoneElement->GetName();
+						BoneToMap.Target = BoneElement->GetName();
 						BonesToMap.Add(BoneToMap);
 					}
-				}
+					return true;
+				});
 			}
 			else
 			{
@@ -505,21 +481,22 @@ void UControlRigComponent::AddMappedSkeletalMesh(USkeletalMeshComponent* Skeleta
 		{
 			if (USkeleton* Skeleton = SkeletalMesh->GetSkeleton())
 			{
-				for (const FRigCurve& RigCurve : CR->GetCurveContainer())
-				{
-					const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+				CR->GetHierarchy()->ForEach<FRigCurveElement>([Skeleton, &CurvesToMap](FRigCurveElement* CurveElement) -> bool
+                {
+                    const FSmartNameMapping* CurveNameMapping = Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 					if (CurveNameMapping)
 					{
 						FSmartName SmartName;
-						if (CurveNameMapping->FindSmartName(RigCurve.Name, SmartName))
+						if (CurveNameMapping->FindSmartName(CurveElement->GetName(), SmartName))
 						{
 							FControlRigComponentMappedCurve CurveToMap;
-							CurveToMap.Source = RigCurve.Name;
-							CurveToMap.Target = RigCurve.Name;
+							CurveToMap.Source = CurveElement->GetName();
+							CurveToMap.Target = CurveElement->GetName();
 							CurvesToMap.Add(CurveToMap);
 						}
 					}
-				}
+					return true;
+				});
 			}
 			else
 			{
@@ -590,16 +567,16 @@ FTransform UControlRigComponent::GetBoneTransform(FName BoneName, EControlRigCom
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		int32 BoneIndex = CR->GetBoneHierarchy().GetIndex(BoneName);
+		const int32 BoneIndex = CR->GetHierarchy()->GetIndex(FRigElementKey(BoneName, ERigElementType::Bone));
 		if (BoneIndex != INDEX_NONE)
 		{
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				return CR->GetBoneHierarchy().GetLocalTransform(BoneIndex);
+				return CR->GetHierarchy()->GetLocalTransform(BoneIndex);
 			}
 			else
 			{
-				FTransform RootTransform = CR->GetBoneHierarchy().GetGlobalTransform(BoneIndex);
+				FTransform RootTransform = CR->GetHierarchy()->GetGlobalTransform(BoneIndex);
 				ConvertTransformFromRigSpace(RootTransform, Space);
 				return RootTransform;
 			}
@@ -613,16 +590,16 @@ FTransform UControlRigComponent::GetInitialBoneTransform(FName BoneName, EContro
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		int32 BoneIndex = CR->GetBoneHierarchy().GetIndex(BoneName);
+		const int32 BoneIndex = CR->GetHierarchy()->GetIndex(FRigElementKey(BoneName, ERigElementType::Bone));
 		if (BoneIndex != INDEX_NONE)
 		{
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				return CR->GetHierarchy()->GetInitialTransform(ERigElementType::Bone, BoneIndex);
+				return CR->GetHierarchy()->GetInitialLocalTransform(BoneIndex);
 			}
 			else
 			{
-				FTransform RootTransform = CR->GetHierarchy()->GetInitialGlobalTransform(ERigElementType::Bone, BoneIndex);
+				FTransform RootTransform = CR->GetHierarchy()->GetInitialGlobalTransform(BoneIndex);
 				ConvertTransformFromRigSpace(RootTransform, Space);
 				return RootTransform;
 			}
@@ -641,7 +618,7 @@ void UControlRigComponent::SetBoneTransform(FName BoneName, FTransform Transform
 
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		int32 BoneIndex = CR->GetBoneHierarchy().GetIndex(BoneName);
+		int32 BoneIndex = CR->GetHierarchy()->GetIndex(FRigElementKey(BoneName, ERigElementType::Bone));
 		if (BoneIndex != INDEX_NONE)
 		{
 			ConvertTransformToRigSpace(Transform, Space);
@@ -650,26 +627,26 @@ void UControlRigComponent::SetBoneTransform(FName BoneName, FTransform Transform
 			{
 				if (Weight >= 1.f - SMALL_NUMBER)
 				{
-					CR->GetBoneHierarchy().SetLocalTransform(BoneIndex, Transform, bPropagateToChildren);
+					CR->GetHierarchy()->SetLocalTransform(BoneIndex, Transform, bPropagateToChildren);
 				}
 				else
 				{
-					FTransform PreviousTransform = CR->GetBoneHierarchy().GetLocalTransform(BoneIndex);
+					FTransform PreviousTransform = CR->GetHierarchy()->GetLocalTransform(BoneIndex);
 					FTransform BlendedTransform = FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, Weight);
-					CR->GetBoneHierarchy().SetLocalTransform(BoneIndex, Transform, bPropagateToChildren);
+					CR->GetHierarchy()->SetLocalTransform(BoneIndex, Transform, bPropagateToChildren);
 				}
 			}
 			else
 			{
 				if (Weight >= 1.f - SMALL_NUMBER)
 				{
-					CR->GetBoneHierarchy().SetGlobalTransform(BoneIndex, Transform, bPropagateToChildren);
+					CR->GetHierarchy()->SetGlobalTransform(BoneIndex, Transform, bPropagateToChildren);
 				}
 				else
 				{
-					FTransform PreviousTransform = CR->GetBoneHierarchy().GetGlobalTransform(BoneIndex);
+					FTransform PreviousTransform = CR->GetHierarchy()->GetGlobalTransform(BoneIndex);
 					FTransform BlendedTransform = FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, Weight);
-					CR->GetBoneHierarchy().SetGlobalTransform(BoneIndex, Transform, bPropagateToChildren);
+					CR->GetHierarchy()->SetGlobalTransform(BoneIndex, Transform, bPropagateToChildren);
 				}
 			}
 		}
@@ -680,8 +657,7 @@ void UControlRigComponent::SetInitialBoneTransform(FName BoneName, FTransform In
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		FRigBoneHierarchy& HierarchyRef = CR->GetBoneHierarchy();
-		int32 BoneIndex = HierarchyRef.GetIndex(BoneName);
+		const int32 BoneIndex = CR->GetHierarchy()->GetIndex(FRigElementKey(BoneName, ERigElementType::Bone));
 		if (BoneIndex != INDEX_NONE)
 		{
 			if(!CR->IsRunningPreSetup() && !CR->IsRunningPostSetup())
@@ -694,14 +670,14 @@ void UControlRigComponent::SetInitialBoneTransform(FName BoneName, FTransform In
 
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				int32 ParentIndex = HierarchyRef[BoneIndex].ParentIndex;
+				const int32 ParentIndex = CR->GetHierarchy()->GetFirstParent(BoneIndex);
 				if(ParentIndex != INDEX_NONE)
 				{
-					InitialTransform = InitialTransform * HierarchyRef[ParentIndex].InitialTransform;
+					InitialTransform = InitialTransform * CR->GetHierarchy()->GetInitialGlobalTransform(ParentIndex);
 				}
 			}
 
-			HierarchyRef.SetInitialGlobalTransform(BoneIndex, InitialTransform, bPropagateToChildren);
+			CR->GetHierarchy()->SetInitialGlobalTransform(BoneIndex, InitialTransform, bPropagateToChildren);
 		}
 	}	
 }
@@ -710,11 +686,11 @@ bool UControlRigComponent::GetControlBool(FName ControlName)
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
-			if (Control->ControlType == ERigControlType::Bool)
+			if (ControlElement->Settings.ControlType == ERigControlType::Bool)
 			{
-				return Control->GetValue().Get<bool>();
+				return CR->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<bool>();
 			}
 		}
 	}
@@ -726,11 +702,11 @@ float UControlRigComponent::GetControlFloat(FName ControlName)
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
-			if (Control->ControlType == ERigControlType::Float)
+			if (ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
-				return Control->GetValue().Get<float>();
+				return CR->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<float>();
 			}
 		}
 	}
@@ -742,11 +718,11 @@ int32 UControlRigComponent::GetControlInt(FName ControlName)
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
-			if (Control->ControlType == ERigControlType::Integer)
+			if (ControlElement->Settings.ControlType == ERigControlType::Integer)
 			{
-				return Control->GetValue().Get<int32>();
+				return CR->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<int>();
 			}
 		}
 	}
@@ -758,11 +734,11 @@ FVector2D UControlRigComponent::GetControlVector2D(FName ControlName)
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
-			if (Control->ControlType == ERigControlType::Vector2D)
+			if (ControlElement->Settings.ControlType == ERigControlType::Vector2D)
 			{
-				return Control->GetValue().Get<FVector2D>();
+				return CR->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector2D>();
 			}
 		}
 	}
@@ -772,115 +748,36 @@ FVector2D UControlRigComponent::GetControlVector2D(FName ControlName)
 
 FVector UControlRigComponent::GetControlPosition(FName ControlName, EControlRigComponentSpace Space)
 {
-	if (UControlRig* CR = SetupControlRigIfRequired())
-	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
-		{
-			if (Space == EControlRigComponentSpace::LocalSpace)
-			{
-				if (Control->ControlType == ERigControlType::Position)
-				{
-					return Control->GetValue().Get<FVector>();
-				}
-				else if (Control->ControlType == ERigControlType::TransformNoScale)
-				{
-					return Control->GetValue().Get<FTransformNoScale>().Location;
-				}
-				else if (Control->ControlType == ERigControlType::Transform)
-				{
-					return Control->GetValue().Get<FTransform>().GetLocation();
-				}
-			}
-			else
-			{
-				FTransform RootTransform = CR->GetHierarchy()->GetGlobalTransform(ERigElementType::Control, Control->Index);
-				ConvertTransformFromRigSpace(RootTransform, Space);
-				return RootTransform.GetLocation();
-			}
-		}
-	}
-
-	return FVector::ZeroVector;
+	return GetControlTransform(ControlName, Space).GetLocation();
 }
 
 FRotator UControlRigComponent::GetControlRotator(FName ControlName, EControlRigComponentSpace Space)
 {
-	if (UControlRig* CR = SetupControlRigIfRequired())
-	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
-		{
-			if (Space == EControlRigComponentSpace::LocalSpace)
-			{
-				if (Control->ControlType == ERigControlType::Rotator)
-				{
-					return Control->GetValue().Get<FRotator>();
-				}
-				else if (Control->ControlType == ERigControlType::TransformNoScale)
-				{
-					return Control->GetValue().Get<FTransformNoScale>().Rotation.Rotator();
-				}
-				else if (Control->ControlType == ERigControlType::Transform)
-				{
-					return Control->GetValue().Get<FTransform>().GetRotation().Rotator();
-				}
-			}
-			else
-			{
-				FTransform RootTransform = CR->GetHierarchy()->GetGlobalTransform(ERigElementType::Control, Control->Index);
-				ConvertTransformFromRigSpace(RootTransform, Space);
-				return RootTransform.GetRotation().Rotator();
-			}
-		}
-	}
-
-	return FRotator::ZeroRotator;
+	return GetControlTransform(ControlName, Space).GetRotation().Rotator();
 }
 
 FVector UControlRigComponent::GetControlScale(FName ControlName, EControlRigComponentSpace Space)
 {
-	if (UControlRig* CR = SetupControlRigIfRequired())
-	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
-		{
-			if (Space == EControlRigComponentSpace::LocalSpace)
-			{
-				if (Control->ControlType == ERigControlType::Scale)
-				{
-					return Control->GetValue().Get<FVector>();
-				}
-				else if (Control->ControlType == ERigControlType::Transform)
-				{
-					return Control->GetValue().Get<FTransform>().GetScale3D();
-				}
-			}
-			else
-			{
-				FTransform RootTransform = CR->GetHierarchy()->GetGlobalTransform(ERigElementType::Control, Control->Index);
-				ConvertTransformFromRigSpace(RootTransform, Space);
-				return RootTransform.GetScale3D();
-			}
-		}
-	}
-
-	return FVector::OneVector;
+	return GetControlTransform(ControlName, Space).GetScale3D();
 }
 
 FTransform UControlRigComponent::GetControlTransform(FName ControlName, EControlRigComponentSpace Space)
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
+			FTransform Transform;
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				return CR->GetHierarchy()->GetLocalTransform(ERigElementType::Control, Control->Index);
+				Transform = CR->GetHierarchy()->GetTransform(ControlElement, ERigTransformType::CurrentLocal);
 			}
 			else
 			{
-				FTransform RootTransform = CR->GetHierarchy()->GetGlobalTransform(ERigElementType::Control, Control->Index);
-				ConvertTransformFromRigSpace(RootTransform, Space);
-				return RootTransform;
+				Transform = CR->GetHierarchy()->GetTransform(ControlElement, ERigTransformType::CurrentGlobal);
+				ConvertTransformFromRigSpace(Transform, Space);
 			}
+			return Transform;
 		}
 	}
 
@@ -923,34 +820,25 @@ void UControlRigComponent::SetControlPosition(FName ControlName, FVector Value, 
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (Space == EControlRigComponentSpace::LocalSpace)
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
-			if (FRigControl* Control = CR->FindControl(ControlName))
+			FTransform InputTransform = FTransform::Identity;
+			InputTransform.SetLocation(Value);
+
+			FTransform PreviousTransform = FTransform::Identity;
+
+			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				if (Control->ControlType == ERigControlType::Position)
-				{
-					CR->SetControlValue<FVector>(ControlName, Value);
-				}
-				else if (Control->ControlType == ERigControlType::TransformNoScale)
-				{
-					FTransformNoScale Previous = Control->GetValue().Get<FTransformNoScale>();
-					Previous.Location = Value;
-					CR->SetControlValue<FTransformNoScale>(ControlName, Previous);
-				}
-				else if (Control->ControlType == ERigControlType::Transform)
-				{
-					FTransform Previous = Control->GetValue().Get<FTransform>();
-					Previous.SetLocation(Value);
-					CR->SetControlValue<FTransform>(ControlName, Previous);
-				}
+				PreviousTransform = CR->GetHierarchy()->GetTransform(ControlElement, ERigTransformType::CurrentLocal); 
 			}
-		}
-		else
-		{
-			FTransform Transform = FTransform::Identity;
-			Transform.SetLocation(Value);
-			ConvertTransformToRigSpace(Transform, Space);
-			CR->SetControlGlobalTransform(ControlName, Transform);
+			else
+			{
+				PreviousTransform = CR->GetHierarchy()->GetTransform(ControlElement, ERigTransformType::CurrentGlobal); 
+				ConvertTransformToRigSpace(InputTransform, Space);
+			}
+
+			PreviousTransform.SetTranslation(InputTransform.GetTranslation());
+			SetControlTransform(ControlName, PreviousTransform, Space);
 		}
 	}
 }
@@ -959,34 +847,25 @@ void UControlRigComponent::SetControlRotator(FName ControlName, FRotator Value, 
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (Space == EControlRigComponentSpace::LocalSpace)
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
-			if (FRigControl* Control = CR->FindControl(ControlName))
+			FTransform InputTransform = FTransform::Identity;
+			InputTransform.SetRotation(FQuat(Value));
+
+			FTransform PreviousTransform = FTransform::Identity;
+
+			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				if (Control->ControlType == ERigControlType::Rotator)
-				{
-					CR->SetControlValue<FRotator>(ControlName, Value);
-				}
-				else if (Control->ControlType == ERigControlType::TransformNoScale)
-				{
-					FTransformNoScale Previous = Control->GetValue().Get<FTransformNoScale>();
-					Previous.Rotation = FQuat(Value);
-					CR->SetControlValue<FTransformNoScale>(ControlName, Previous);
-				}
-				else if (Control->ControlType == ERigControlType::Transform)
-				{
-					FTransform Previous = Control->GetValue().Get<FTransform>();
-					Previous.SetRotation(FQuat(Value));
-					CR->SetControlValue<FTransform>(ControlName, Previous);
-				}
+				PreviousTransform = CR->GetHierarchy()->GetTransform(ControlElement, ERigTransformType::CurrentLocal); 
 			}
-		}
-		else
-		{
-			FTransform Transform = FTransform::Identity;
-			Transform.SetRotation(FQuat(Value));
-			ConvertTransformToRigSpace(Transform, Space);
-			CR->SetControlGlobalTransform(ControlName, Transform);
+			else
+			{
+				PreviousTransform = CR->GetHierarchy()->GetTransform(ControlElement, ERigTransformType::CurrentGlobal); 
+				ConvertTransformToRigSpace(InputTransform, Space);
+			}
+
+			PreviousTransform.SetRotation(InputTransform.GetRotation());
+			SetControlTransform(ControlName, PreviousTransform, Space);
 		}
 	}
 }
@@ -995,28 +874,25 @@ void UControlRigComponent::SetControlScale(FName ControlName, FVector Value, ECo
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (Space == EControlRigComponentSpace::LocalSpace)
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
-			if (FRigControl* Control = CR->FindControl(ControlName))
+			FTransform InputTransform = FTransform::Identity;
+			InputTransform.SetScale3D(Value);
+
+			FTransform PreviousTransform = FTransform::Identity;
+
+			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				if (Control->ControlType == ERigControlType::Scale)
-				{
-					CR->SetControlValue<FVector>(ControlName, Value);
-				}
-				else if (Control->ControlType == ERigControlType::Transform)
-				{
-					FTransform Previous = Control->GetValue().Get<FTransform>();
-					Previous.SetScale3D(Value);
-					CR->SetControlValue<FTransform>(ControlName, Previous);
-				}
+				PreviousTransform = CR->GetHierarchy()->GetTransform(ControlElement, ERigTransformType::CurrentLocal); 
 			}
-		}
-		else
-		{
-			FTransform Transform = FTransform::Identity;
-			Transform.SetScale3D(Value);
-			ConvertTransformToRigSpace(Transform, Space);
-			CR->SetControlGlobalTransform(ControlName, Transform);
+			else
+			{
+				PreviousTransform = CR->GetHierarchy()->GetTransform(ControlElement, ERigTransformType::CurrentGlobal); 
+				ConvertTransformToRigSpace(InputTransform, Space);
+			}
+
+			PreviousTransform.SetScale3D(InputTransform.GetScale3D());
+			SetControlTransform(ControlName, PreviousTransform, Space);
 		}
 	}
 }
@@ -1025,16 +901,16 @@ void UControlRigComponent::SetControlTransform(FName ControlName, FTransform Val
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				CR->GetHierarchy()->SetLocalTransform(ERigElementType::Control, Control->Index, Value);
+				CR->GetHierarchy()->SetTransform(ControlElement, Value, ERigTransformType::CurrentLocal, true);
 			}
 			else
 			{
 				ConvertTransformToRigSpace(Value, Space);
-				CR->GetHierarchy()->SetGlobalTransform(ERigElementType::Control, Control->Index, Value);
+				CR->GetHierarchy()->SetTransform(ControlElement, Value, ERigTransformType::CurrentGlobal, true);
 			}
 		}
 	}
@@ -1044,15 +920,15 @@ FTransform UControlRigComponent::GetControlOffset(FName ControlName, EControlRig
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				return Control->OffsetTransform;
+				return CR->GetHierarchy()->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
 			}
 			else
 			{
-				FTransform RootTransform = CR->GetControlHierarchy().GetParentInitialTransform(Control->Index, true);
+				FTransform RootTransform = CR->GetHierarchy()->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentGlobal);
 				ConvertTransformFromRigSpace(RootTransform, Space);
 				return RootTransform;
 			}
@@ -1066,17 +942,15 @@ void UControlRigComponent::SetControlOffset(FName ControlName, FTransform Offset
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if (FRigControl* Control = CR->FindControl(ControlName))
+		if(FRigControlElement* ControlElement = CR->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control)))
 		{
 			if (Space != EControlRigComponentSpace::LocalSpace)
 			{
 				ConvertTransformToRigSpace(OffsetTransform, Space);
-
-				FTransform ParentTransform = CR->GetControlHierarchy().GetParentInitialTransform(Control->Index, false);
-				OffsetTransform = OffsetTransform.GetRelativeTransform(ParentTransform);
 			}
 
-			CR->GetControlHierarchy().SetControlOffset(Control->Index, OffsetTransform);
+			CR->GetHierarchy()->SetControlOffsetTransform(ControlElement, OffsetTransform,
+				Space == EControlRigComponentSpace::LocalSpace ? ERigTransformType::CurrentLocal : ERigTransformType::CurrentGlobal, true, false); 
 		}
 	}
 }
@@ -1085,17 +959,15 @@ FTransform UControlRigComponent::GetSpaceTransform(FName SpaceName, EControlRigC
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		int32 SpaceIndex = CR->GetSpaceHierarchy().GetIndex(SpaceName);
-		if (SpaceIndex != INDEX_NONE)
+		if(FRigSpaceElement* SpaceElement = CR->GetHierarchy()->Find<FRigSpaceElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
 		{
-			const FRigSpace& SpaceElement = CR->GetSpaceHierarchy()[SpaceIndex];
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				return CR->GetHierarchy()->GetLocalTransform(ERigElementType::Space, SpaceElement.Index);
+				return CR->GetHierarchy()->GetTransform(SpaceElement, ERigTransformType::CurrentLocal);
 			}
 			else
 			{
-				FTransform RootTransform = CR->GetHierarchy()->GetGlobalTransform(ERigElementType::Space, SpaceElement.Index);
+				FTransform RootTransform = CR->GetHierarchy()->GetTransform(SpaceElement, ERigTransformType::CurrentGlobal);
 				ConvertTransformFromRigSpace(RootTransform, Space);
 				return RootTransform;
 			}
@@ -1109,17 +981,15 @@ FTransform UControlRigComponent::GetInitialSpaceTransform(FName SpaceName, ECont
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		int32 SpaceIndex = CR->GetSpaceHierarchy().GetIndex(SpaceName);
-		if (SpaceIndex != INDEX_NONE)
+		if(FRigSpaceElement* SpaceElement = CR->GetHierarchy()->Find<FRigSpaceElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
 		{
-			const FRigSpace& SpaceElement = CR->GetSpaceHierarchy()[SpaceIndex];
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				return CR->GetHierarchy()->GetInitialTransform(ERigElementType::Space, SpaceElement.Index);
+				return CR->GetHierarchy()->GetTransform(SpaceElement, ERigTransformType::InitialLocal);
 			}
 			else
 			{
-				FTransform RootTransform = CR->GetHierarchy()->GetInitialGlobalTransform(ERigElementType::Space, SpaceElement.Index);
+				FTransform RootTransform = CR->GetHierarchy()->GetTransform(SpaceElement, ERigTransformType::InitialGlobal);
 				ConvertTransformFromRigSpace(RootTransform, Space);
 				return RootTransform;
 			}
@@ -1133,20 +1003,17 @@ void UControlRigComponent::SetInitialSpaceTransform(FName SpaceName, FTransform 
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		int32 SpaceIndex = CR->GetSpaceHierarchy().GetIndex(SpaceName);
-		if (SpaceIndex != INDEX_NONE)
+		if(FRigSpaceElement* SpaceElement = CR->GetHierarchy()->Find<FRigSpaceElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
 		{
-			const FRigSpace& SpaceElement = CR->GetSpaceHierarchy()[SpaceIndex];
-
-			if (Space != EControlRigComponentSpace::LocalSpace)
+			if (Space == EControlRigComponentSpace::LocalSpace)
+			{
+				CR->GetHierarchy()->SetTransform(SpaceElement, InitialTransform, ERigTransformType::InitialLocal, true, false);
+			}
+			else
 			{
 				ConvertTransformToRigSpace(InitialTransform, Space);
-
-				FTransform ParentTransform = CR->GetHierarchy()->GetInitialGlobalTransform(SpaceElement.GetParentElementKey());
-				InitialTransform = InitialTransform.GetRelativeTransform(ParentTransform);
+				CR->GetHierarchy()->SetTransform(SpaceElement, InitialTransform, ERigTransformType::InitialGlobal, true, false);
 			}
-
-			CR->GetHierarchy()->SetInitialTransform(SpaceElement.GetElementKey(), InitialTransform);
 		}
 	}
 }
@@ -1350,15 +1217,7 @@ void UControlRigComponent::TransferInputs()
 			Transform = MappedElement.Offset * Transform;
 
 			ConvertTransformToRigSpace(Transform, MappedElement.Space);
-
-			if (MappedElement.ElementType == ERigElementType::Control)
-			{
-				ControlRig->SetControlGlobalTransform(MappedElement.ElementName, Transform);
-			}
-			else
-			{
-				ControlRig->GetHierarchy()->SetGlobalTransform(MappedElement.ElementType, MappedElement.ElementIndex, Transform);
-			}
+			ControlRig->GetHierarchy()->SetGlobalTransform(MappedElement.ElementIndex, Transform);
 		}
 	}
 }
@@ -1397,7 +1256,7 @@ void UControlRigComponent::TransferOutputs()
 				MappedElement.ElementType == ERigElementType::Control ||
 				MappedElement.ElementType == ERigElementType::Space)
 			{
-				FTransform Transform = ControlRig->GetHierarchy()->GetGlobalTransform(MappedElement.ElementType, MappedElement.ElementIndex);
+				FTransform Transform = ControlRig->GetHierarchy()->GetGlobalTransform(MappedElement.ElementIndex);
 				ConvertTransformFromRigSpace(Transform, MappedElement.Space);
 
 				Transform = MappedElement.Offset * Transform;
@@ -1458,7 +1317,7 @@ void UControlRigComponent::TransferOutputs()
 					if (Proxy)
 					{
 						ComponentsToTick.AddUnique(Cast<USkeletalMeshComponent>(MappedElement.SceneComponent));
-						Proxy->StoredCurves.FindOrAdd((SmartName::UID_Type)MappedElement.SubIndex) = ControlRig->GetCurveContainer()[MappedElement.ElementIndex].Value;
+						Proxy->StoredCurves.FindOrAdd((SmartName::UID_Type)MappedElement.SubIndex) = ControlRig->GetHierarchy()->GetCurveValue(MappedElement.ElementIndex);
 					}
 				}
 			}
@@ -1783,25 +1642,25 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 			if (bShouldDrawBones)
 			{
-				FTransform Transform = ControlRigComponent->GetComponentToWorld();
+				const FTransform Transform = ControlRigComponent->GetComponentToWorld();
 				const float MaxDrawRadius = ControlRigComponent->Bounds.SphereRadius * 0.02f;
-				const FRigBoneHierarchy& Hierarchy = ControlRigComponent->ControlRig->GetBoneHierarchy();
 
-				for (const FRigBone& Bone : Hierarchy)
-				{
-					const int32 ParentIndex = Bone.ParentIndex;
+				URigHierarchy* Hierarchy = ControlRigComponent->ControlRig->GetHierarchy();
+				Hierarchy->ForEach<FRigBoneElement>([PDI, Hierarchy, Transform, MaxDrawRadius](FRigBoneElement* BoneElement) -> bool
+                {
+                    const int32 ParentIndex = Hierarchy->GetFirstParent(BoneElement->GetIndex());
 					const FLinearColor LineColor = FLinearColor::White;
 
 					FVector Start, End;
 					if (ParentIndex >= 0)
 					{
-						Start = Hierarchy[ParentIndex].GlobalTransform.GetLocation();
-						End = Bone.GlobalTransform.GetLocation();
+						Start = Hierarchy->GetGlobalTransform(ParentIndex).GetLocation();
+						End = Hierarchy->GetGlobalTransform(BoneElement->GetIndex()).GetLocation();
 					}
 					else
 					{
 						Start = FVector::ZeroVector;
-						End = Bone.GlobalTransform.GetLocation();
+						End = Hierarchy->GetGlobalTransform(BoneElement->GetIndex()).GetLocation();
 					}
 
 					Start = Transform.TransformPosition(Start);
@@ -1813,7 +1672,9 @@ void FControlRigSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 					//Render Sphere for bone end point and a cone between it and its parent.
 					SkeletalDebugRendering::DrawWireBone(PDI, Start, End, LineColor, SDPG_Foreground, Radius);
-				}
+
+					return true;
+				});
 			}
 
 			if (ControlRigComponent->bShowDebugDrawing)

@@ -12,6 +12,7 @@
 #include "ControlRig.h"
 #include "ControlRigEditorStyle.h"
 #include "ScopedTransaction.h"
+#include "Rigs/RigHierarchyController.h"
 
 #define LOCTEXT_NAMESPACE "SControlHierarchy"
 
@@ -179,7 +180,6 @@ void SControlHierarchy::OnFilterTextChanged(const FText& SearchText)
 
 void SControlHierarchy::RefreshTreeView()
 {
-	
 	TMap<FRigElementKey, bool> ExpansionState;
 	for (TPair<FRigElementKey, TSharedPtr<FControlTreeElement>> Pair : ElementMap)
 	{
@@ -192,13 +192,14 @@ void SControlHierarchy::RefreshTreeView()
 
 	if (ControlRig.IsValid())
 	{
-		TArray<FRigControl> SortedControls;
+		TArray<FRigControlElement*> SortedControls;
 		ControlRig->GetControlsInOrder(SortedControls);
-		for (const FRigControl& Element : SortedControls)
+		
+		for (FRigControlElement* ControlElement : SortedControls)
 		{
-			if (!ControlRig->IsCurveControl(&Element))
+			if (!ControlRig->IsCurveControl(ControlElement))
 			{
-				AddControlElement(Element);
+				AddElement(ControlElement);
 			}
 		}
 		if (ExpansionState.Num() == 0)
@@ -225,17 +226,12 @@ void SControlHierarchy::RefreshTreeView()
 
 		TreeView->RequestTreeRefresh();
 
-		FRigControlHierarchy& ControlHierarchy = ControlRig->GetControlHierarchy();
-		TArray<FName> Selection = ControlHierarchy.CurrentSelection();
-		for (const FName& Name : Selection)
+		TArray<FRigElementKey> Selection = GetHierarchy()->GetSelectedKeys(ERigElementType::Control);
+		for (const FRigElementKey& SelectedKey : Selection)
 		{
-			for (const FRigControl& Control : ControlHierarchy.GetControls())
+			if(FRigControlElement* SelectedElement = GetHierarchy()->Find<FRigControlElement>(SelectedKey))
 			{
-				if (Name == Control.Name)
-				{
-					OnRigElementSelected(ControlRig.Get(),Control, true);
-					break;
-				}
+				OnRigElementSelected(ControlRig.Get(), SelectedElement, true);
 			}
 		}
 	}
@@ -282,13 +278,15 @@ void SControlHierarchy::OnSelectionChanged(TSharedPtr<FControlTreeElement> Selec
 	if (!bSelecting)
 	{
 		TGuardValue<bool> Guard(bSelecting, true);
-		FRigHierarchyContainer* Hierarchy = GetHierarchyContainer();
+		URigHierarchy* Hierarchy = GetHierarchy();
+		URigHierarchyController* Controller = Hierarchy->GetController(true);
+		check(Controller);
 
 		if (Hierarchy)
 		{
 			FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
 
-			TArray<FRigElementKey> OldSelection = Hierarchy->CurrentSelection();
+			TArray<FRigElementKey> OldSelection = Hierarchy->GetSelectedKeys(ERigElementType::Control);
 			TArray<FRigElementKey> NewSelection;
 
 			TArray<TSharedPtr<FControlTreeElement>> SelectedItems = TreeView->GetSelectedItems();
@@ -303,12 +301,12 @@ void SControlHierarchy::OnSelectionChanged(TSharedPtr<FControlTreeElement> Selec
 				{
 					continue;
 				}
-				Hierarchy->Select(PreviouslySelected, false);
+				Controller->SelectElement(PreviouslySelected, false);
 			}
 
 			for (const FRigElementKey& NewlySelected : NewSelection)
 			{
-				Hierarchy->Select(NewlySelected, true);
+				Controller->SelectElement(NewlySelected, true);
 			}
 		}
 	}
@@ -334,12 +332,9 @@ TSharedPtr<FControlTreeElement> SControlHierarchy::FindElement(const FRigElement
 	return TSharedPtr<FControlTreeElement>();
 }
 
-void SControlHierarchy::OnRigElementSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected)
+void SControlHierarchy::OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
-	
-	FRigElementKey Key;
-	Key.Name = Control.Name;
-	Key.Type = ERigElementType::Control;
+	const FRigElementKey Key = ControlElement->GetKey();
 	for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
 	{
 		TSharedPtr<FControlTreeElement> Found = FindElement(Key, RootElements[RootIndex]);
@@ -361,58 +356,15 @@ void SControlHierarchy::OnRigElementSelected(UControlRig* Subject, const FRigCon
 	
 }
 
-void SControlHierarchy::AddControlElement(FRigControl InControl)
+void SControlHierarchy::AddElement(FRigBaseElement* InElement)
 {
-	const FRigHierarchyContainer* Container = GetHierarchyContainer();
-	const FRigControlHierarchy& ControlHierarchy = Container->ControlHierarchy;
-	const FRigSpaceHierarchy& SpaceHierarchy = Container->SpaceHierarchy;
-
-	FRigElementKey ParentKey;
-	if (InControl.SpaceIndex != INDEX_NONE)
+	const URigHierarchy* Hierarchy = GetHierarchy();
+	FRigElementKey ParentKey = Hierarchy->GetFirstParent(InElement->GetKey());
+	while(ParentKey.IsValid() && ParentKey.Type != ERigElementType::Control)
 	{
-		AddSpaceElement(SpaceHierarchy[InControl.SpaceIndex]);
-		ParentKey = SpaceHierarchy[InControl.SpaceIndex].GetElementKey();
+		ParentKey = Hierarchy->GetFirstParent(InElement->GetKey());
 	}
-	else if (InControl.ParentIndex != INDEX_NONE)
-	{
-		AddControlElement(ControlHierarchy[InControl.ParentIndex]);
-		ParentKey = ControlHierarchy[InControl.ParentIndex].GetElementKey();
-	}
-	AddElement(InControl.GetElementKey(), ParentKey);
-}
-
-
-void SControlHierarchy::AddSpaceElement(FRigSpace InSpace)
-{
-	const FRigHierarchyContainer* Container = GetHierarchyContainer();
-	const FRigBoneHierarchy& BoneHierarchy = Container->BoneHierarchy;
-	const FRigControlHierarchy& ControlHierarchy = Container->ControlHierarchy;
-	const FRigSpaceHierarchy& SpaceHierarchy = Container->SpaceHierarchy;
-
-	FRigElementKey ParentKey;
-	if (InSpace.ParentIndex != INDEX_NONE)
-	{
-		switch (InSpace.SpaceType)
-		{
-		case ERigSpaceType::Control:
-		{
-			AddControlElement(ControlHierarchy[InSpace.ParentIndex]);
-			ParentKey = ControlHierarchy[InSpace.ParentIndex].GetElementKey();
-			break;
-		}
-		case ERigSpaceType::Space:
-		{
-			AddSpaceElement(SpaceHierarchy[InSpace.ParentIndex]);
-			ParentKey = SpaceHierarchy[InSpace.ParentIndex].GetElementKey();
-			break;
-		}
-		default:
-		{
-			break;
-		}
-		}
-	}
-	AddElement(InSpace.GetElementKey(), ParentKey);
+	AddElement(InElement->GetKey(), ParentKey);
 }
 
 void SControlHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParentKey)
@@ -468,14 +420,12 @@ void SControlHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParent
 	}
 }
 
-
-FRigHierarchyContainer* SControlHierarchy::GetHierarchyContainer() const
+URigHierarchy* SControlHierarchy::GetHierarchy() const
 {
 	if (ControlRig.IsValid())
 	{
 		return ControlRig->GetHierarchy();
 	}
-
 	return nullptr;
 }
 #undef LOCTEXT_NAMESPACE

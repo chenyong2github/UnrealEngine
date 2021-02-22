@@ -22,7 +22,7 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FRigControl* InControl, UControlRigBlueprint* InBlueprint);
+	void Construct(const FArguments& InArgs, FRigControlElement* ControlElement, UControlRigBlueprint* InBlueprint);
 
 protected:
 

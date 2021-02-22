@@ -29,9 +29,9 @@ struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 	{
 		if(Space == EBoneGetterSetterMode::LocalSpace)
 		{
-			if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+			if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 			{
-				return Container->GetParentKey(Item);
+				return Hierarchy->GetFirstParent(Item);
 			}
 		}
 		return FRigElementKey();
@@ -101,9 +101,9 @@ struct CONTROLRIG_API FRigUnit_SetTranslation : public FRigUnitMutable
 	{
 		if(Space == EBoneGetterSetterMode::LocalSpace)
 		{
-			if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+			if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 			{
-				return Container->GetParentKey(Item);
+				return Hierarchy->GetFirstParent(Item);
 			}
 		}
 		return FRigElementKey();
@@ -165,9 +165,9 @@ struct CONTROLRIG_API FRigUnit_SetRotation : public FRigUnitMutable
 	{
 		if(Space == EBoneGetterSetterMode::LocalSpace)
 		{
-			if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+			if (const URigHierarchy* Hierarchy = (const URigHierarchy*)InUserContext)
 			{
-				return Container->GetParentKey(Item);
+				return Hierarchy->GetFirstParent(Item);
 			}
 		}
 		return FRigElementKey();

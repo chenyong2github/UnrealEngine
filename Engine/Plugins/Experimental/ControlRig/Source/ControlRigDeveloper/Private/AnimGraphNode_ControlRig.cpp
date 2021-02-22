@@ -149,23 +149,24 @@ void UAnimGraphNode_ControlRig::ValidateAnimNodeDuringCompilation(USkeleton* For
 	{
 		if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(TargetClass->ClassGeneratedBy))
 		{
-			const FRigBoneHierarchy& BoneHierarchy = Blueprint->HierarchyContainer.BoneHierarchy;
+			URigHierarchy* Hierarchy = Blueprint->Hierarchy;
 			const FReferenceSkeleton& ReferenceSkeleton = ForSkeleton->GetReferenceSkeleton();
 			const TArray<FMeshBoneInfo>& BoneInfos = ReferenceSkeleton.GetRefBoneInfo();
 
 			for (const FMeshBoneInfo& BoneInfo : BoneInfos)
 			{
-				int32 BoneIndex = BoneHierarchy.GetIndex(BoneInfo.Name);
-				if (BoneIndex != INDEX_NONE)
+				const FRigElementKey BoneKey(BoneInfo.Name, ERigElementType::Bone);
+				if (Hierarchy->Contains(BoneKey))
 				{
+					const FRigElementKey ParentKey = Hierarchy->GetFirstParent(BoneKey);
+
 					FName DesiredParentName = NAME_None;
 					if (BoneInfo.ParentIndex != INDEX_NONE)
 					{
 						DesiredParentName = BoneInfos[BoneInfo.ParentIndex].Name;
 					}
 
-					const FRigBone& Bone = BoneHierarchy[BoneIndex];
-					if (DesiredParentName != Bone.ParentName)
+					if (DesiredParentName != ParentKey.Name)
 					{
 						FString Message = FString::Printf(TEXT("@@ - Hierarchy discrepancy for bone '%s' - different parents on Control Rig vs SkeletalMesh."), *BoneInfo.Name.ToString());
 						MessageLog.Warning(*Message, this);

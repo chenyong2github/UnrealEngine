@@ -496,9 +496,10 @@ int32 FPBIKSolver::AddBone(
 	const int32 ParentIndex,
 	const FVector& InOrigPosition,
 	const FQuat& InOrigRotation,
-	bool bIsSolverRoot)
+	bool bIsSolverRoot,
+	const int& InElementIndex)
 {
-	return Bones.Emplace(Name, ParentIndex, InOrigPosition, InOrigRotation, bIsSolverRoot);
+	return Bones.Emplace(Name, ParentIndex, InOrigPosition, InOrigRotation, bIsSolverRoot, InElementIndex);
 }
 
 int32 FPBIKSolver::AddEffector(FName BoneName)

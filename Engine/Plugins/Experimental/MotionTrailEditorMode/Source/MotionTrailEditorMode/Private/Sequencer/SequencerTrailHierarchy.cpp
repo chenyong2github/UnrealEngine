@@ -131,11 +131,8 @@ void FSequencerTrailHierarchy::Destroy()
 	for (const TPair<UMovieSceneSection*, FControlRigDelegateHandles>& SectionHandlesPair : ControlRigDelegateHandles)
 	{
 		UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(SectionHandlesPair.Key);
-		FRigHierarchyContainer* RigHierarchy = Section->ControlRig->GetHierarchy();
-		RigHierarchy->OnElementAdded.Remove(SectionHandlesPair.Value.OnControlAddedHandle);
-		RigHierarchy->OnElementRemoved.Remove(SectionHandlesPair.Value.OnControlRemovedHandle);
-		RigHierarchy->OnElementReparented.Remove(SectionHandlesPair.Value.OnControlReparentedHandle);
-		RigHierarchy->OnElementRenamed.Remove(SectionHandlesPair.Value.OnControlRenamedHandle);
+		URigHierarchy* RigHierarchy = Section->ControlRig->GetHierarchy();
+		RigHierarchy->OnModified().Remove(SectionHandlesPair.Value.OnHierarchyModified);
 	}
 
 	for (TPair<FGuid, TUniquePtr<FTrail>>& GuidTrailPair : AllTrails)
@@ -600,12 +597,12 @@ void FSequencerTrailHierarchy::AddSkeletonToHierarchy(class USkeletalMeshCompone
 	TimingStats.Add("FSequencerTrailHierarchy::AddSkeletonToHierarchy", Timespan);
 }
 
-void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(FRigHierarchyContainer* RigHierarchy, FRigElementKey InElementKey, class USkeletalMeshComponent* Component)
+void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(URigHierarchy* RigHierarchy, FRigElementKey InElementKey, class USkeletalMeshComponent* Component)
 {
 	TMap<FName, FGuid>& ControlMap = ControlsTracked[Component];
 	
-	int32 ElementIndex = RigHierarchy->ControlHierarchy.GetIndex(InElementKey.Name);
-	FRigElementKey ParentKey = RigHierarchy->ControlHierarchy[ElementIndex].SpaceName != NAME_None ? RigHierarchy->ControlHierarchy[ElementIndex].GetSpaceElementKey() : RigHierarchy->ControlHierarchy[ElementIndex].GetParentElementKey();
+	int32 ElementIndex = RigHierarchy->GetIndex(InElementKey);
+	FRigElementKey ParentKey = RigHierarchy->GetFirstParent(InElementKey);
 
 	FRigElementKey ChildItr = InElementKey;
 	while (ParentKey.IsValid() && ParentKey.Type != ERigElementType::Bone)
@@ -613,8 +610,8 @@ void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(FRigHierarchyCon
 		if (ParentKey.Type == ERigElementType::Space) // TODO: add empty space trail with initial transform
 		{
 			ChildItr = ParentKey;
-			ElementIndex = RigHierarchy->ControlHierarchy.GetIndex(ChildItr.Name);
-			ParentKey = RigHierarchy->SpaceHierarchy[ElementIndex].GetParentElementKey();
+			ElementIndex = RigHierarchy->GetIndex(FRigElementKey(ChildItr.Name, ERigElementType::Control));
+			ParentKey = RigHierarchy->GetFirstParent(FRigElementKey(ChildItr.Name, ERigElementType::Space));
 			continue;
 		}
 
@@ -633,8 +630,8 @@ void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(FRigHierarchyCon
 		}
 
 		ChildItr = ParentKey;
-		ElementIndex = RigHierarchy->ControlHierarchy.GetIndex(ChildItr.Name);
-		ParentKey = RigHierarchy->ControlHierarchy[ElementIndex].GetParentElementKey();
+		ElementIndex = RigHierarchy->GetIndex(FRigElementKey(ChildItr.Name, ERigElementType::Control));
+		ParentKey = RigHierarchy->GetFirstParent(FRigElementKey(ChildItr.Name, ERigElementType::Control));
 	}
 
 	if (!ParentKey.IsValid()) // Add to root component trail
@@ -687,7 +684,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 	UMovieSceneControlRigParameterSection* CRParamSection = Cast<UMovieSceneControlRigParameterSection>(Sections[0]);
 	check(CRParamSection);
 
-	FRigHierarchyContainer* RigHierarchy = CRParamSection->ControlRig->GetHierarchy();
+	URigHierarchy* RigHierarchy = CRParamSection->ControlRig->GetHierarchy();
 	if (!ControlRigDelegateHandles.Contains(CRParamSection))
 	{
 		RegisterControlRigDelegates(CompToAdd, CRParamSection);
@@ -695,12 +692,13 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 
 	CRParamSection->ReconstructChannelProxy(true);
 
-	TArray<FRigControl> SortedControls;
+	TArray<FRigControlElement*> SortedControls;
 	CRParamSection->ControlRig->GetControlsInOrder(SortedControls);
+	
 	for (const TPair<FName, FChannelMapInfo>& NameInfoPair : CRParamSection->ControlChannelMap)
 	{
-		const FRigControl& Control = SortedControls[NameInfoPair.Value.ControlIndex];
-		const FRigElementKey RigKey = Control.GetElementKey();
+		FRigControlElement* ControlElement = SortedControls[NameInfoPair.Value.ControlIndex];
+		const FRigElementKey RigKey = ControlElement->GetKey();
 
 		if (RigKey.Type != ERigElementType::Control)
 		{
@@ -724,103 +722,99 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 
 void FSequencerTrailHierarchy::RegisterControlRigDelegates(USkeletalMeshComponent* Component, class UMovieSceneControlRigParameterSection* CRParamSection)
 {
-	FRigHierarchyContainer* RigHierarchy = CRParamSection->ControlRig->GetHierarchy();
+	URigHierarchy* RigHierarchy = CRParamSection->ControlRig->GetHierarchy();
 	FControlRigDelegateHandles& DelegateHandles = ControlRigDelegateHandles.Add(CRParamSection);
-	DelegateHandles.OnControlAddedHandle = RigHierarchy->OnElementAdded.AddLambda(
-		[this, RigHierarchy, Component, CRParamSection](FRigHierarchyContainer*, const FRigElementKey& NewElemKey) {
+	DelegateHandles.OnHierarchyModified = RigHierarchy->OnModified().AddLambda(
+		[this, RigHierarchy, Component, CRParamSection](ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement) {
 			TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 			check(Sequencer);
-			if (NewElemKey.Type != ERigElementType::Control) // We only care about controls
+
+			const FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement); 
+			if(ControlElement == nullptr)
 			{
 				return;
 			}
 
-			const FRigControl& Control = RigHierarchy->ControlHierarchy[NewElemKey.Name];
-			if (Control.ParentName != NAME_None)
+			if(InNotif == ERigHierarchyNotification::ElementAdded)
 			{
-				TMap<FName, FGuid>& ControlMap = ControlsTracked[Component];
+				const FRigElementKey ParentKey = InHierarchy->GetFirstParent(ControlElement->GetKey());
+                if (ParentKey.IsValid())
+                {
+                    TMap<FName, FGuid>& ControlMap = ControlsTracked[Component];
 
-				const FGuid ControlGuid = ControlMap.FindOrAdd(NewElemKey.Name, FGuid::NewGuid());
-				FTrailHierarchyNode& ControlNode = Hierarchy.FindOrAdd(ControlGuid, FTrailHierarchyNode());
+                    const FGuid ControlGuid = ControlMap.FindOrAdd(ControlElement->GetName(), FGuid::NewGuid());
+                    FTrailHierarchyNode& ControlNode = Hierarchy.FindOrAdd(ControlGuid, FTrailHierarchyNode());
 
-				ResolveRigElementToRootComponent(RigHierarchy, NewElemKey, Component);
+                    ResolveRigElementToRootComponent(RigHierarchy, ControlElement->GetKey(), Component);
 
-				const int32 ChannelIndex = CRParamSection->ControlChannelMap[NewElemKey.Name].ChannelIndex;
-				TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneControlTransformTrail>(FLinearColor::White, false, CRParamSection, Sequencer, ChannelIndex, NewElemKey.Name);
-				if (AllTrails.Contains(ControlMap[NewElemKey.Name])) 
+                    const int32 ChannelIndex = CRParamSection->ControlChannelMap[ControlElement->GetName()].ChannelIndex;
+                    TUniquePtr<FTrail> CurTrail = MakeUnique<FMovieSceneControlTransformTrail>(FLinearColor::White, false, CRParamSection, Sequencer, ChannelIndex, ControlElement->GetName());
+                    if (AllTrails.Contains(ControlMap[ControlElement->GetName()])) 
+                    {
+                        AllTrails.Remove(ControlMap[ControlElement->GetName()]);
+                    }
+
+                    AddTrail(ControlMap[ControlElement->GetName()], Hierarchy[ControlMap[ControlElement->GetName()]], MoveTemp(CurTrail));
+                }
+			}
+			else if(InNotif == ERigHierarchyNotification::ElementRemoved)
+			{
+				if (!ControlsTracked.Contains(Component) || !ControlsTracked[Component].Contains(ControlElement->GetName())) // We only care about controls
 				{
-					AllTrails.Remove(ControlMap[NewElemKey.Name]);
+					return;
+				}
+				
+				const FGuid TrailGuid = ControlsTracked[Component][ControlElement->GetName()];
+				RemoveTrail(TrailGuid);
+			}
+            else if(InNotif == ERigHierarchyNotification::ParentChanged)
+            {
+				if (!ControlsTracked.Contains(Component) || 
+					!ControlsTracked[Component].Contains(ControlElement->GetName())) // We only care about controls
+				{
+					return;
 				}
 
-				AddTrail(ControlMap[NewElemKey.Name], Hierarchy[ControlMap[NewElemKey.Name]], MoveTemp(CurTrail));
-			}
-			else
-			{
-				// TODO: handle spaces
-			}
-		}
-	);
+				const FGuid ElemGuid = ControlsTracked[Component][ControlElement->GetName()];
+            	for(TPair<FGuid, FTrailHierarchyNode>& Pair : Hierarchy)
+            	{
+					Pair.Value.Children.Remove(ElemGuid);
+            	}
+            	Hierarchy[ElemGuid].Parents.Reset();
 
-	DelegateHandles.OnControlRemovedHandle = RigHierarchy->OnElementRemoved.AddLambda(
-		[this, Component](FRigHierarchyContainer*, const FRigElementKey& ElemKey) {
-			TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-			check(Sequencer);
-			if (ElemKey.Type != ERigElementType::Control || !ControlsTracked.Contains(Component) || !ControlsTracked[Component].Contains(ElemKey.Name)) // We only care about controls
-			{
-				return;
-			}
-			
-			const FGuid TrailGuid = ControlsTracked[Component][ElemKey.Name];
-			RemoveTrail(TrailGuid);
-		}
-	);
+            	const FRigElementKey NewParentKey = InHierarchy->GetFirstParent(ControlElement->GetKey());
+            	if(NewParentKey.IsValid())
+            	{
+            		// Assuming parent is already in hierarchy
+                    const FGuid NewParentGuid = ControlsTracked[Component].Contains(NewParentKey.Name) ? ControlsTracked[Component][NewParentKey.Name] :
+                        BonesTracked[Component].Contains(NewParentKey.Name) ? BonesTracked[Component][NewParentKey.Name] : FGuid();
+                    check(NewParentGuid.IsValid());
+            		
+                    if (!Hierarchy[NewParentGuid].Children.Contains(ElemGuid))
+                    {
+                        Hierarchy[NewParentGuid].Children.Add(ElemGuid);
+                    }
+                    if (!Hierarchy[ElemGuid].Parents.Contains(NewParentGuid))
+                    {
+                        Hierarchy[ElemGuid].Parents.Add(NewParentGuid);
+                    }
+            	}
+            }
+            else if(InNotif == ERigHierarchyNotification::ElementRenamed)
+            {
+            	const FName OldName = InHierarchy->GetPreviousName(ControlElement->GetKey());
 
-	DelegateHandles.OnControlReparentedHandle = RigHierarchy->OnElementReparented.AddLambda(
-		[this, Component](FRigHierarchyContainer*, const FRigElementKey& ElemKey, const FName& OldParent, const FName& NewParent) {
-			TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-			check(Sequencer);
-			if (ElemKey.Type != ERigElementType::Control || !ControlsTracked.Contains(Component) || 
-				!ControlsTracked[Component].Contains(ElemKey.Name)) // We only care about controls
-			{
-				return;
-			}
+            	if (!ControlsTracked.Contains(Component) || !ControlsTracked[Component].Contains(OldName))
+				{
+					return;
+				}
 
-			const FGuid ElemGuid = ControlsTracked[Component][ElemKey.Name];
-			const FGuid OldParentGuid = ControlsTracked[Component].Contains(OldParent) ? ControlsTracked[Component][OldParent] : 
-				BonesTracked[Component].Contains(OldParent) ? BonesTracked[Component][OldParent] : FGuid();
-			if (OldParentGuid.IsValid())
-			{
-				Hierarchy[OldParentGuid].Children.Remove(ElemGuid);
-				Hierarchy[ElemGuid].Parents.Remove(OldParentGuid);
-			}
-
-			// Assuming parent is already in hierarchy
-			const FGuid NewParentGuid = ControlsTracked[Component].Contains(NewParent) ? ControlsTracked[Component][NewParent] :
-				BonesTracked[Component].Contains(NewParent) ? BonesTracked[Component][NewParent] : FGuid();
-			check(NewParentGuid.IsValid());
-			if (!Hierarchy[NewParentGuid].Children.Contains(ElemGuid))
-			{
-				Hierarchy[NewParentGuid].Children.Add(ElemGuid);
-			}
-			if (!Hierarchy[ElemGuid].Parents.Contains(NewParentGuid))
-			{
-				Hierarchy[ElemGuid].Parents.Add(NewParentGuid);
-			}
-		}
-	);
-
-	DelegateHandles.OnControlRenamedHandle = RigHierarchy->OnElementRenamed.AddLambda(
-		[this, Component](FRigHierarchyContainer*, ERigElementType ElemType , const FName& OldName, const FName& NewName) {
-			if (ElemType != ERigElementType::Control || !ControlsTracked.Contains(Component) || !ControlsTracked[Component].Contains(OldName))
-			{
-				return;
-			}
-
-			const FGuid TempTrailGuid = ControlsTracked[Component][OldName];
-			ControlsTracked[Component].Remove(OldName);
-			ControlsTracked[Component].Add(NewName, TempTrailGuid);
-		}
-	);
+				const FGuid TempTrailGuid = ControlsTracked[Component][OldName];
+				ControlsTracked[Component].Remove(OldName);
+				ControlsTracked[Component].Add(ControlElement->GetName(), TempTrailGuid);
+            }
+        }
+    );
 }
 
 } // namespace MovieScene
