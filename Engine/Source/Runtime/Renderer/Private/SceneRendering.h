@@ -2132,6 +2132,7 @@ private:
 	bool bRequiresAmbientOcclusionPass;
 	bool bRequiresDistanceField;
 	bool bRequiresDistanceFieldShadowingPass;
+	bool bIsFullPrepassEnabled;
 	bool bShouldRenderVelocities;
 	static FGlobalDynamicIndexBuffer DynamicIndexBuffer;
 	static FGlobalDynamicVertexBuffer DynamicVertexBuffer;
