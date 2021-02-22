@@ -612,6 +612,7 @@ void FNiagaraSystemSimulation::Destroy()
 		FNiagaraSystemInstance* Inst = PendingSystemInstances.Last();
 		check(Inst);
 		Inst->Deactivate(true);		
+		Inst->SetPendingSpawn(false);
 	}
 	SystemInstances.Empty();
 	PendingSystemInstances.Empty();
@@ -766,6 +767,7 @@ int32 FNiagaraSystemSimulation::AddPendingSystemInstance(FNiagaraSystemInstance*
 		WorldManager->MarkSimulationForPostActorWork(this);
 	}
 
+	Instance->SetPendingSpawn(true);
 	return PendingSystemInstances.Add(Instance);
 }
 
@@ -948,7 +950,6 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 			}
 
 			// If we are paused continue
-
 			if (!bIsSolo)
 			{
 				const ETickingGroup DesiredTickGroup = Inst->CalculateTickGroup();
@@ -1251,7 +1252,6 @@ void FNiagaraSystemSimulation::Spawn_Concurrent(FNiagaraSystemSimulationTickCont
 	SystemInstances.Reserve(SystemInstances.Num() + SpawningInstances.Num());
 	for (FNiagaraSystemInstance* Instance : SpawningInstances)
 	{
-		checkSlow(!Instance->IsComplete());
 		Instance->SystemInstanceIndex = SystemInstances.Add(Instance);
 		Instance->SetPendingSpawn(false);
 	}
@@ -1726,6 +1726,9 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 		System->UnregisterActiveInstance();
 	}
 
+	// If we are pending spawn we are in one of two stages
+	// 1 - A spawn task is running and we are in the spawning list
+	// 2 - We are in the pending list
 	if (Instance->IsPendingSpawn())
 	{
 		if (GbDumpSystemData || (System && System->bDumpDebugSystemInfo))
@@ -1734,33 +1737,37 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 			MainDataSet.GetCurrentDataChecked().Dump(Instance->SystemInstanceIndex, 1, TEXT("System data being removed."));
 		}
 
-		// If we are in the spawn phase we may be running concurrently so handle this by waiting for the system tick to complete
+		// bInSpawnPhase is true until the spawning task completes
 		if (bInSpawnPhase)
 		{
+			// Wait for the spawning task to complete, at the end all spawning instances will be in the main instances list
 			WaitForSystemTickComplete();
 			Instance->WaitForAsyncTickDoNotFinalize();
 
 			check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
 			check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
+			check(SpawningInstances.Num() == 0);
+			check(Instance->IsPendingSpawn() == false);
 
 			int32 SystemIndex = Instance->SystemInstanceIndex;
 			if (SystemIndex != INDEX_NONE)
 			{
-				check(SpawningInstances.IsValidIndex(SystemIndex));
-				check(Instance == SpawningInstances[SystemIndex]);
+				check(SystemInstances.IsValidIndex(SystemIndex));
+				check(Instance == SystemInstances[SystemIndex]);
 
-				SpawningDataSet.GetCurrentDataChecked().KillInstance(Instance->SystemInstanceIndex);
+				MainDataSet.GetCurrentDataChecked().KillInstance(Instance->SystemInstanceIndex);
 
-				SpawningInstances.RemoveAtSwap(SystemIndex);
+				SystemInstances.RemoveAtSwap(SystemIndex);
 				Instance->SystemInstanceIndex = INDEX_NONE;
-				Instance->SetPendingSpawn(false);
-				if (SpawningInstances.IsValidIndex(SystemIndex))
+				if (SystemInstances.IsValidIndex(SystemIndex))
 				{
-					SpawningInstances[SystemIndex]->SystemInstanceIndex = SystemIndex;
+					SystemInstances[SystemIndex]->SystemInstanceIndex = SystemIndex;
 				}
 			}
 		}
-		else
+		// We must ensure we are still pending spawn as there is a slim window where the instances is no longer pending spawn
+		// as the spawning task completed inbetween the two tests
+		else if ( Instance->IsPendingSpawn() )
 		{
 			int32 SystemIndex = Instance->SystemInstanceIndex;
 			check(PendingSystemInstances.IsValidIndex(SystemIndex));
@@ -1772,6 +1779,27 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 			if (PendingSystemInstances.IsValidIndex(SystemIndex))
 			{
 				PendingSystemInstances[SystemIndex]->SystemInstanceIndex = SystemIndex;
+			}
+		}
+		// The spawning task completed and we are no longer pending spawn, the instance is in the main list
+		else
+		{
+			check(SpawningInstances.Num() == 0);
+
+			int32 SystemIndex = Instance->SystemInstanceIndex;
+			if (SystemIndex != INDEX_NONE)
+			{
+				check(SystemInstances.IsValidIndex(SystemIndex));
+				check(Instance == SystemInstances[SystemIndex]);
+
+				MainDataSet.GetCurrentDataChecked().KillInstance(Instance->SystemInstanceIndex);
+
+				SystemInstances.RemoveAtSwap(SystemIndex);
+				Instance->SystemInstanceIndex = INDEX_NONE;
+				if (SystemInstances.IsValidIndex(SystemIndex))
+				{
+					SystemInstances[SystemIndex]->SystemInstanceIndex = SystemIndex;
+				}
 			}
 		}
 	}

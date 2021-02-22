@@ -647,6 +647,7 @@ bool FNiagaraSystemInstance::DeallocateSystemInstance(TUniquePtr< FNiagaraSystem
 		SystemInstanceAllocation->OverrideParameters = nullptr;
 		SystemInstanceAllocation->OnPostTickDelegate.Unbind();
 		SystemInstanceAllocation->OnCompleteDelegate.Unbind();
+		SystemInstanceAllocation->OnExecuteMaterialRecacheDelegate.Unbind();
 
 		WorldManager->DestroySystemInstance(SystemInstanceAllocation);
 		check(SystemInstanceAllocation == nullptr);
@@ -690,8 +691,6 @@ void FNiagaraSystemInstance::Complete(bool bExternalCompletion)
 	{
 		UnbindParameters(true);
 	}
-
-	bPendingSpawn = false;
 
 	if (bNeedToNotifyOthers)
 	{
@@ -837,7 +836,6 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 		//Interface init can disable the system.
 		if (!IsComplete())
 		{
-			bPendingSpawn = true;
 			SystemSimulation->AddInstance(this);
 
 			UNiagaraSystem* System = GetSystem();
@@ -2092,7 +2090,6 @@ bool FNiagaraSystemInstance::HandleCompletion()
 		return true;
 	}
 
-	bPendingSpawn = false;
 	return false;
 }
 
