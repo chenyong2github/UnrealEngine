@@ -1304,8 +1304,8 @@ public:
 class RHI_API FRHITimestampCalibrationQuery : public FRHIResource
 {
 public:
-	uint64 GPUMicroseconds = 0;
-	uint64 CPUMicroseconds = 0;
+	uint64 GPUMicroseconds[MAX_NUM_GPUS] = {};
+	uint64 CPUMicroseconds[MAX_NUM_GPUS] = {};
 };
 
 /*

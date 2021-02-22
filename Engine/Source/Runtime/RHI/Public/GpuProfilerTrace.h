@@ -23,7 +23,7 @@ struct FGpuProfilerTrace
 	RHI_API static void SpecifyEventByName(const FName& Name);
 	RHI_API static void BeginEventByName(const FName& Name, uint32 FrameNumber, uint64 TimestampMicroseconds);
 	RHI_API static void EndEvent(uint64 TimestampMicroseconds);
-	RHI_API static void EndFrame();
+	RHI_API static void EndFrame(uint32 GPUIndex);
 };
 
 #define TRACE_GPUPROFILER_DEFINE_EVENT_TYPE(Name) \

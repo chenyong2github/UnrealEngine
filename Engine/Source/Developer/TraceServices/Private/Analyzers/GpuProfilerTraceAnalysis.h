@@ -22,16 +22,15 @@ private:
 	enum : uint16
 	{
 		RouteId_EventSpec,
-		RouteId_Frame,
+		RouteId_Frame, // GPU Index 0
+		RouteId_Frame2, // GPU Index 1
 	};
-
-	double GpuTimestampToSessionTime(uint64 GpuMicroseconds);
 
 	Trace::FAnalysisSession& Session;
 	Trace::FTimingProfilerProvider& TimingProfilerProvider;
 	Trace::FTimingProfilerProvider::TimelineInternal& Timeline;
+	Trace::FTimingProfilerProvider::TimelineInternal& Timeline2;
 	TMap<uint64, uint32> EventTypeMap;
-	uint64 GpuTimeOffset;
 	double MinTime = 0.0f;
-	bool Calibrated;
+	double MinTime2 = 0.0f;
 };

@@ -1245,8 +1245,8 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 void FD3D12CommandContext::RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
 {
 	FGPUTimingCalibrationTimestamp Timestamp = GetParentDevice()->GetCommandListManager().GetCalibrationTimestamp();
-	CalibrationQuery->CPUMicroseconds = Timestamp.CPUMicroseconds;
-	CalibrationQuery->GPUMicroseconds = Timestamp.GPUMicroseconds;
+	CalibrationQuery->CPUMicroseconds[GetGPUIndex()] = Timestamp.CPUMicroseconds;
+	CalibrationQuery->GPUMicroseconds[GetGPUIndex()] = Timestamp.GPUMicroseconds;
 }
 
 // Primitive drawing.

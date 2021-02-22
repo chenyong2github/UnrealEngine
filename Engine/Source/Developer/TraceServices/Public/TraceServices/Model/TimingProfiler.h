@@ -75,6 +75,7 @@ public:
 	virtual ~ITimingProfilerProvider() = default;
 	virtual bool GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const = 0;
 	virtual bool GetGpuTimelineIndex(uint32& OutTimelineIndex) const = 0;
+	virtual bool GetGpu2TimelineIndex(uint32& OutTimelineIndex) const = 0;
 	virtual bool ReadTimeline(uint32 Index, TFunctionRef<void(const Timeline&)> Callback) const = 0;
 	virtual uint32 GetTimelineCount() const = 0;
 	virtual void EnumerateTimelines(TFunctionRef<void(const Timeline&)> Callback) const = 0;
