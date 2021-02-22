@@ -2088,11 +2088,10 @@ void FShaderCompileThreadRunnable::ReadAvailableResults()
 			TRACE_CPUPROFILER_EVENT_SCOPE(FShaderCompileThreadRunnable::ReadAvailableResults);
 
 			// Distributed compiles always use the same directory
-			const FString WorkingDirectory = Manager->AbsoluteShaderBaseWorkingDirectory + FString::FromInt(WorkerIndex) + TEXT("/");
 			// 'Only' indicates to the worker that it should log and continue checking for the input file after the first one is processed
-			const TCHAR* InputFileName = TEXT("WorkerInputOnly.in");
-			const FString OutputFileNameAndPath = WorkingDirectory + TEXT("WorkerOutputOnly.out");
-
+			TStringBuilder<512> OutputFileNameAndPath;
+			OutputFileNameAndPath << Manager->AbsoluteShaderBaseWorkingDirectory << WorkerIndex << TEXT("/WorkerOutputOnly.out");
+			
 			// In the common case the output file will not exist, so check for existence before opening
 			// This is only a win if FileExists is faster than CreateFileReader, which it is on Windows
 			if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*OutputFileNameAndPath))
