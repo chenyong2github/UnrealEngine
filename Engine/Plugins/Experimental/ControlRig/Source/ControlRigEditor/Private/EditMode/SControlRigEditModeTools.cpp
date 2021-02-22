@@ -64,14 +64,20 @@ public:
 
 		for (UControlRigControlsProxy* Proxy : ProxiesBeingCustomized)
 		{
+			FRigControlElement* ControlElement = Proxy->GetControlElement();
+			if(ControlElement == nullptr)
+			{
+				continue;
+			}
+			
 			FName ValuePropertyName = TEXT("Transform");
-			if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Float)
+			if (ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
 				ValuePropertyName = TEXT("Float");
 			}
-			else if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Integer)
+			else if (ControlElement->Settings.ControlType == ERigControlType::Integer)
 			{
-				if (Proxy->ControlElement->Settings.ControlEnum == nullptr)
+				if (ControlElement->Settings.ControlEnum == nullptr)
 				{
 					ValuePropertyName = TEXT("Integer");
 				}
@@ -80,16 +86,16 @@ public:
 					ValuePropertyName = TEXT("Enum");
 				}
 			}
-			else if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Bool)
+			else if (ControlElement->Settings.ControlType == ERigControlType::Bool)
 			{
 				ValuePropertyName = TEXT("Bool");
 			}
-			else if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Position ||
-				Proxy->ControlElement->Settings.ControlType == ERigControlType::Scale)
+			else if (ControlElement->Settings.ControlType == ERigControlType::Position ||
+				ControlElement->Settings.ControlType == ERigControlType::Scale)
 			{
 				ValuePropertyName = TEXT("Vector");
 			}
-			else if (Proxy->ControlElement->Settings.ControlType == ERigControlType::Vector2D)
+			else if (ControlElement->Settings.ControlType == ERigControlType::Vector2D)
 			{
 				ValuePropertyName = TEXT("Vector2D");
 			}
@@ -97,7 +103,7 @@ public:
 			TSharedPtr<IPropertyHandle> ValuePropertyHandle = DetailLayout.GetProperty(ValuePropertyName, Proxy->GetClass());
 			if (ValuePropertyHandle)
 			{
-				ValuePropertyHandle->SetPropertyDisplayName(FText::FromName(Proxy->ControlElement->Settings.DisplayName));
+				ValuePropertyHandle->SetPropertyDisplayName(FText::FromName(ControlElement->Settings.DisplayName));
 			}
 
 			URigHierarchy* Hierarchy = Proxy->ControlRig->GetHierarchy();
@@ -110,7 +116,7 @@ public:
 					ParentControlName = ParentControlElement->GetName();
 				}
 				
-				if (ParentControlName == Proxy->ControlElement->GetName())
+				if (ParentControlName == ControlElement->GetName())
 				{
 					if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
 					{

@@ -73,6 +73,7 @@ void FControlRigEnumControlProxyValueDetails::OnEnumValueChanged(int32 InValue, 
 
 void UControlRigControlsProxy::SelectionChanged(bool bInSelected)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -101,6 +102,7 @@ void UControlRigControlsProxy::PostEditChangeProperty(struct FPropertyChangedEve
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigControlsProxy, bSelected))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			if (bSelected)
@@ -114,10 +116,10 @@ void UControlRigControlsProxy::PostEditChangeProperty(struct FPropertyChangedEve
 	}
 }
 
-
 #if WITH_EDITOR
 void UControlRigControlsProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -129,6 +131,14 @@ void UControlRigControlsProxy::PostEditUndo()
 }
 #endif
 
+FRigControlElement* UControlRigControlsProxy::GetControlElement() const
+{
+	if(ControlRig.IsValid())
+	{
+		return ControlRig->GetHierarchy()->Find<FRigControlElement>(FRigElementKey(ControlName, ERigElementType::Control));
+	}
+	return nullptr;
+}
 
 void UControlRigTransformControlProxy::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -136,6 +146,7 @@ void UControlRigTransformControlProxy::PostEditChangeProperty(struct FPropertyCh
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformControlProxy, Transform))
 		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformControlProxy, Transform)))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -149,6 +160,7 @@ void UControlRigTransformControlProxy::PostEditChangeProperty(struct FPropertyCh
 
 void UControlRigTransformControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid())
 	{
 		Modify();
@@ -162,6 +174,7 @@ void UControlRigTransformControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigTransformControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -176,7 +189,7 @@ void UControlRigTransformControlProxy::PostEditUndo()
 
 void UControlRigTransformControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
-
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FTransform>(ControlName, Transform, true, EControlRigSetKey::Always);
@@ -189,6 +202,7 @@ void UControlRigTransformNoScaleControlProxy::PostEditChangeProperty(struct FPro
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformNoScaleControlProxy, Transform))
 		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformNoScaleControlProxy, Transform)))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -202,6 +216,7 @@ void UControlRigTransformNoScaleControlProxy::PostEditChangeProperty(struct FPro
 
 void UControlRigTransformNoScaleControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -215,6 +230,7 @@ void UControlRigTransformNoScaleControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigTransformNoScaleControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -229,6 +245,7 @@ void UControlRigTransformNoScaleControlProxy::PostEditUndo()
 
 void UControlRigTransformNoScaleControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FTransformNoScale>(ControlName, Transform, true, EControlRigSetKey::Always);
@@ -242,6 +259,7 @@ void UControlRigEulerTransformControlProxy::PostEditChangeProperty(struct FPrope
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigEulerTransformControlProxy, Transform))
 		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigEulerTransformControlProxy, Transform)))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -255,6 +273,7 @@ void UControlRigEulerTransformControlProxy::PostEditChangeProperty(struct FPrope
 
 void UControlRigEulerTransformControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -270,6 +289,7 @@ void UControlRigEulerTransformControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigEulerTransformControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -284,6 +304,7 @@ void UControlRigEulerTransformControlProxy::PostEditUndo()
 
 void UControlRigEulerTransformControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FEulerTransform>(ControlName, Transform, true, EControlRigSetKey::Always);
@@ -295,6 +316,7 @@ void UControlRigFloatControlProxy::PostEditChangeProperty(struct FPropertyChange
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigFloatControlProxy, Float))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -308,6 +330,7 @@ void UControlRigFloatControlProxy::PostEditChangeProperty(struct FPropertyChange
 
 void UControlRigFloatControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -321,6 +344,7 @@ void UControlRigFloatControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigFloatControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -336,6 +360,7 @@ void UControlRigFloatControlProxy::PostEditUndo()
 
 void UControlRigFloatControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<float>(ControlName, Float, true, EControlRigSetKey::Always);
@@ -347,6 +372,7 @@ void UControlRigIntegerControlProxy::PostEditChangeProperty(struct FPropertyChan
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigIntegerControlProxy, Integer))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -359,6 +385,7 @@ void UControlRigIntegerControlProxy::PostEditChangeProperty(struct FPropertyChan
 
 void UControlRigIntegerControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -372,6 +399,7 @@ void UControlRigIntegerControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigIntegerControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -386,6 +414,7 @@ void UControlRigIntegerControlProxy::PostEditUndo()
 
 void UControlRigIntegerControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<int32>(ControlName, Integer, true, EControlRigSetKey::Always);
@@ -397,6 +426,7 @@ void UControlRigEnumControlProxy::PostEditChangeProperty(struct FPropertyChanged
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigEnumControlProxy, Enum))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -410,6 +440,7 @@ void UControlRigEnumControlProxy::PostEditChangeProperty(struct FPropertyChanged
 
 void UControlRigEnumControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -427,6 +458,7 @@ void UControlRigEnumControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigEnumControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -441,6 +473,7 @@ void UControlRigEnumControlProxy::PostEditUndo()
 
 void UControlRigEnumControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<int32>(ControlName, Enum.EnumIndex, true, EControlRigSetKey::Always);
@@ -453,6 +486,7 @@ void UControlRigVectorControlProxy::PostEditChangeProperty(struct FPropertyChang
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVectorControlProxy, Vector))
 		|| (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVectorControlProxy, Vector)))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -466,6 +500,7 @@ void UControlRigVectorControlProxy::PostEditChangeProperty(struct FPropertyChang
 
 void UControlRigVectorControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -479,6 +514,7 @@ void UControlRigVectorControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigVectorControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -494,6 +530,7 @@ void UControlRigVectorControlProxy::PostEditUndo()
 
 void UControlRigVectorControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FVector>(ControlName, Vector, true, EControlRigSetKey::Always);
@@ -506,6 +543,7 @@ void UControlRigVector2DControlProxy::PostEditChangeProperty(struct FPropertyCha
 	if ((PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVector2DControlProxy, Vector2D))
 		|| ((PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigVector2DControlProxy, Vector2D))))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -519,6 +557,7 @@ void UControlRigVector2DControlProxy::PostEditChangeProperty(struct FPropertyCha
 
 void UControlRigVector2DControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -532,6 +571,7 @@ void UControlRigVector2DControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigVector2DControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -547,6 +587,7 @@ void UControlRigVector2DControlProxy::PostEditUndo()
 
 void UControlRigVector2DControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<FVector2D>(ControlName, Vector2D, true, EControlRigSetKey::Always);
@@ -559,6 +600,7 @@ void UControlRigBoolControlProxy::PostEditChangeProperty(struct FPropertyChanged
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigBoolControlProxy, Bool))
 	{
+		FRigControlElement* ControlElement = GetControlElement();
 		if (ControlElement && ControlRig.IsValid())
 		{
 			//MUST set through ControlRig
@@ -571,6 +613,7 @@ void UControlRigBoolControlProxy::PostEditChangeProperty(struct FPropertyChanged
 
 void UControlRigBoolControlProxy::ValueChanged()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		Modify();
@@ -584,6 +627,7 @@ void UControlRigBoolControlProxy::ValueChanged()
 #if WITH_EDITOR
 void UControlRigBoolControlProxy::PostEditUndo()
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		if (bSelected)
@@ -599,6 +643,7 @@ void UControlRigBoolControlProxy::PostEditUndo()
 
 void UControlRigBoolControlProxy::SetKey(const IPropertyHandle& KeyedPropertyHandle)
 {
+	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
 		ControlRig->SetControlValue<bool>(ControlName, Bool, true, EControlRigSetKey::Always);
@@ -690,7 +735,6 @@ void UControlRigDetailPanelControlProxies::AddProxy(const FName& Name, UControlR
 		{
 			Proxy->SetFlags(RF_Transactional);
 			Proxy->SetName(Name);
-			Proxy->ControlElement = ControlElement;
 			Proxy->ControlRig = ControlRig;
 			Proxy->ValueChanged();
 			AllProxies.Add(Name, Proxy);

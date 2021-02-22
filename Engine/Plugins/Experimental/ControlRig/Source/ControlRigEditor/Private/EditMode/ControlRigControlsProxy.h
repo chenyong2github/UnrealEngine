@@ -38,7 +38,7 @@ public:
 
 public:
 
-	FRigControlElement* ControlElement;
+	FRigControlElement* GetControlElement() const;
 	TWeakObjectPtr<UControlRig> ControlRig;
 
 	UPROPERTY()

@@ -395,24 +395,20 @@ public:
 		{
 			TArray<bool> ElementVisited;
 			ElementVisited.AddZeroed(Elements.Num());
-		
-			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
-			{
-				FRigBaseElement* Element = Elements[ElementIndex];
-				Traverse(Element, true, [&ElementVisited, &Results](FRigBaseElement* InElement, bool& bContinue)
-                {
-                    bContinue = !ElementVisited[InElement->GetIndex()];
 
-                    if(bContinue)
-                    {
-                        if(T* CastElement = Cast<T>(InElement))
-                        {
-                            Results.Add(CastElement);
-                        }
-                        ElementVisited[InElement->GetIndex()] = true;
-                    }
-                });
-			}
+			Traverse([&ElementVisited, &Results](FRigBaseElement* InElement, bool& bContinue)
+			{
+			    bContinue = !ElementVisited[InElement->GetIndex()];
+
+			    if(bContinue)
+			    {
+			        if(T* CastElement = Cast<T>(InElement))
+			        {
+			            Results.Add(CastElement);
+			        }
+			        ElementVisited[InElement->GetIndex()] = true;
+			    }
+			});
 		}
 		else
 		{
@@ -458,26 +454,22 @@ public:
 			TArray<bool> ElementVisited;
 			ElementVisited.AddZeroed(Elements.Num());
 		
-			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
-			{
-				FRigBaseElement* Element = Elements[ElementIndex];
-				Traverse(Element, true, [&ElementVisited, &Results, InKeepElementFunction](FRigBaseElement* InElement, bool& bContinue)
-                {
-                    bContinue = !ElementVisited[InElement->GetIndex()];
+			Traverse([&ElementVisited, &Results, InKeepElementFunction](FRigBaseElement* InElement, bool& bContinue)
+            {
+                bContinue = !ElementVisited[InElement->GetIndex()];
 
-                    if(bContinue)
+                if(bContinue)
+                {
+                    if(T* CastElement = Cast<T>(InElement))
                     {
-                        if(T* CastElement = Cast<T>(InElement))
-                        {
-							if(InKeepElementFunction(CastElement))
-							{
-								Results.Add(CastElement);
-							}
-                        }
-                        ElementVisited[InElement->GetIndex()] = true;
+						if(InKeepElementFunction(CastElement))
+						{
+							Results.Add(CastElement);
+						}
                     }
-                });
-			}
+                    ElementVisited[InElement->GetIndex()] = true;
+                }
+            });
 		}
 		else
 		{

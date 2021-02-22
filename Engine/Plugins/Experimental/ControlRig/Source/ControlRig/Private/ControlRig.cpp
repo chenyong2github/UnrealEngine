@@ -1664,26 +1664,7 @@ void UControlRig::GetControlsInOrder(TArray<FRigControlElement*>& SortedControls
 		return;
 	}
 
-	TArray<bool> ElementVisited;
-	ElementVisited.AddZeroed(DynamicHierarchy->Num());
-		
-	for (FRigBaseElement* Element : *DynamicHierarchy)
-	{
-		DynamicHierarchy->Traverse(Element, true, [&ElementVisited, &SortedControls](FRigBaseElement* InElement, bool& bContinue)
-        {
-            bContinue = !ElementVisited[InElement->GetIndex()];
-
-            if(bContinue)
-            {
-            	if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
-            	{
-            		SortedControls.Add(ControlElement);
-            	}
-            	
-                ElementVisited[InElement->GetIndex()] = true;
-            }
-        });
-	}
+	SortedControls = DynamicHierarchy->GetControls(true);
 }
 
 const FRigInfluenceMap* UControlRig::FindInfluenceMap(const FName& InEventName)
