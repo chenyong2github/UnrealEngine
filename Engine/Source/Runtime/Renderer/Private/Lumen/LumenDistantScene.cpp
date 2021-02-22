@@ -270,7 +270,7 @@ void UpdateDistantScene(FScene* Scene, FViewInfo& View)
 	{
 		for (int32 DistantCardIndex : LumenSceneData.DistantCardIndices)
 		{
-			FCardSourceData& DistantCard = LumenSceneData.Cards[DistantCardIndex];
+			FLumenCard& DistantCard = LumenSceneData.Cards[DistantCardIndex];
 			DistantCard.RemoveFromAtlas(LumenSceneData);
 			LumenSceneData.RemoveCardFromVisibleCardList(DistantCardIndex);
 			LumenSceneData.CardIndicesToUpdateInBuffer.Add(DistantCardIndex);
@@ -294,7 +294,6 @@ void UpdateDistantScene(FScene* Scene, FViewInfo& View)
 				const int32 CardIndex = FirstCardIndex + CascadeIndex;
 				LumenSceneData.DistantCardIndices.Add(CardIndex);
 				LumenSceneData.Cards[CardIndex].bDistantScene = true;
-				LumenSceneData.Cards[CardIndex].bMovable = true;
 			}
 
 			bDistantCardsNeedFirstTransform = true;
@@ -343,7 +342,7 @@ void UpdateDistantScene(FScene* Scene, FViewInfo& View)
 			for (int32 CascadeIndex = 0; CascadeIndex < NumDesiredCascades; CascadeIndex++)
 			{
 				const int32 DistantCardIndex = LumenSceneData.DistantCardIndices[CascadeIndex];
-				const FCardSourceData& DistantCard = LumenSceneData.Cards[DistantCardIndex];
+				const FLumenCard& DistantCard = LumenSceneData.Cards[DistantCardIndex];
 
 				const uint8 DepthPriority = SDPG_World;
 				const uint8 CardHue = (CascadeIndex * 10) & 0xFF;

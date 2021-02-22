@@ -30,6 +30,22 @@ public:
 	int32 Orientation;
 	int32 LODLevel;
 
+	static FVector TransformFaceExtent(FVector Extent, int32 Orientation)
+	{
+		if (Orientation / 2 == 2)
+		{
+			return FVector(Extent.Y, Extent.X, Extent.Z);
+		}
+		else if (Orientation / 2 == 1)
+		{
+			return FVector(Extent.Z, Extent.X, Extent.Y);
+		}
+		else
+		{
+			return FVector(Extent.Y, Extent.Z, Extent.X);
+		}
+	}
+
 	friend FArchive& operator<<(FArchive& Ar, FLumenCardBuildData& Data)
 	{
 		// Note: this is derived data, no need for versioning (bump the DDC guid)

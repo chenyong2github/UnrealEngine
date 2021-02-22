@@ -4595,7 +4595,7 @@ void DrawLumenMeshCapturePass(
 
 				const uint32 InstanceFactor = 1; // Rendering a single rect per Lumen card, unlike main GBuffer export path that may render 32 if tiled material culling is used.
 
-				if (CardRenderData.CardData.bDistantScene)
+				if (CardRenderData.bDistantScene)
 				{
 					TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator> NaniteMaterialPassCommands;
 					BuildNaniteMaterialPassCommands(RHICmdList, Scene.NaniteDrawCommands[ENaniteMeshPass::LumenCardCapture], NaniteMaterialPassCommands);

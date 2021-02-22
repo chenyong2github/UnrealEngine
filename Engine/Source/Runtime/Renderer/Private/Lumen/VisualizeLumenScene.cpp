@@ -510,7 +510,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		int32 NumVisibleCards = 0;
 		int32 NumVisibleTexels = 0;
 
-		for (const FCardSourceData& Card : LumenSceneData.Cards)
+		for (const FLumenCard& Card : LumenSceneData.Cards)
 		{
 			++NumCards;
 
@@ -521,39 +521,50 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 			}
 		}
 
+		int32 NumLumenPrimitives = 0;
+		int32 NumLumenPrimitiveInstances = 0;
+		int32 NumInstancesMerged = 0;
 		int32 NumMeshCards = 0;
-		int32 NumMeshCardsInstances = 0;
-		int32 NumMeshCardsInstancesMerged = 0;
-		for (const FLumenMeshCards& MeshCards : LumenSceneData.MeshCards)
-		{
-			++NumMeshCards;
-			if (MeshCards.InstanceIndexOrMergedFlag > 0)
-			{
-				++NumMeshCardsInstances;
-			}
+		SIZE_T LumenPrimitiveInstanceAllocatedMemory = 0;
 
-			if (MeshCards.InstanceIndexOrMergedFlag == -1)
+		for (const FLumenPrimitive& LumenPrimitive : LumenSceneData.LumenPrimitives)
+		{
+			++NumLumenPrimitives;
+			LumenPrimitiveInstanceAllocatedMemory += LumenPrimitive.Instances.GetAllocatedSize();
+
+			if (LumenPrimitive.bMergedInstances)
 			{
-				const TArray<FPrimitiveInstance>* PrimitiveInstances = MeshCards.PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
+				const TArray<FPrimitiveInstance>* PrimitiveInstances = LumenPrimitive.Primitive->Proxy->GetPrimitiveInstances();
 				if (PrimitiveInstances)
 				{
-					const int32 NumInstances = PrimitiveInstances->Num();
-					NumMeshCardsInstancesMerged += NumInstances;
+					NumInstancesMerged += PrimitiveInstances->Num();
+				}
+			}
+
+			for (const FLumenPrimitiveInstance& LumenPrimitiveInstance : LumenPrimitive.Instances)
+			{
+				++NumLumenPrimitiveInstances;
+
+				if (LumenPrimitiveInstance.MeshCardsIndex >= 0)
+				{
+					++NumMeshCards;
 				}
 			}
 		}
 
 		UE_LOG(LogRenderer, Log, TEXT("LumenScene Stats"));
 		UE_LOG(LogRenderer, Log, TEXT("  Mesh SDF Objects: %d"), DistanceFieldSceneData.NumObjectsInBuffer);
+		UE_LOG(LogRenderer, Log, TEXT("  Lumen Primitives: %d"), NumLumenPrimitives);
+		UE_LOG(LogRenderer, Log, TEXT("  Lumen Primitive Instances: %d"), NumLumenPrimitiveInstances);
+		UE_LOG(LogRenderer, Log, TEXT("  Merged instances: %d"), NumInstancesMerged);
 		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards: %d"), NumMeshCards);
-		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards instances: %d"), NumMeshCardsInstances);
-		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards instances merged: %d"), NumMeshCardsInstancesMerged);
 		UE_LOG(LogRenderer, Log, TEXT("  Cards: %d"), NumCards);
 		UE_LOG(LogRenderer, Log, TEXT("  Visible cards: %d"), NumVisibleCards);
 		UE_LOG(LogRenderer, Log, TEXT("  Visible cards texels: %.3fM"), NumVisibleTexels / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  Cards left to capture: %d"), LumenSceneData.NumCardsLeftToCapture);
-		UE_LOG(LogRenderer, Log, TEXT("  Cards left to reallocate: %d"), LumenSceneData.NumCardsLeftToReallocate);
-		UE_LOG(LogRenderer, Log, TEXT("  Texels left to capture: %.3fM"), LumenSceneData.NumTexelsLeftToCapture / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  Mesh cards to add to the surface cache: %d"), LumenSceneData.NumMeshCardsToAddToSurfaceCache);
+		UE_LOG(LogRenderer, Log, TEXT("CPU Memory:"));
+		UE_LOG(LogRenderer, Log, TEXT("  Primitives allocated memory: %.3fMb"), LumenSceneData.LumenPrimitives.GetAllocatedSize() / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  Instances allocated memory: %.3fMb"), LumenPrimitiveInstanceAllocatedMemory / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  Cards allocated memory: %.3fMb"), LumenSceneData.Cards.GetAllocatedSize() / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  MeshCards allocated memory: %.3fMb"), LumenSceneData.MeshCards.GetAllocatedSize() / (1024.0f * 1024.0f));
 
@@ -561,7 +572,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		UE_LOG(LogRenderer, Log, TEXT("  CardBuffer: %.3fMb"), LumenSceneData.CardBuffer.NumBytes / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  MeshCardsBuffer: %.3fMb"), LumenSceneData.MeshCardsBuffer.NumBytes / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  DFObjectToMeshCardsIndexBuffer: %.3fMb"), LumenSceneData.DFObjectToMeshCardsIndexBuffer.NumBytes / (1024.0f * 1024.0f));
-		UE_LOG(LogRenderer, Log, TEXT("  LumenInstanceToDFObjectIndexBuffer: %.3fMb"), LumenSceneData.LumenInstanceToDFObjectIndexBuffer.NumBytes / (1024.0f * 1024.0f));
+		UE_LOG(LogRenderer, Log, TEXT("  LumenDFInstanceToDFObjectIndexBuffer: %.3fMb"), LumenSceneData.LumenDFInstanceToDFObjectIndexBuffer.NumBytes / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  CardUploadBuffer: %.3fMb"), LumenSceneData.CardUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  UploadMeshCardsBuffer: %.3fMb"), LumenSceneData.UploadMeshCardsBuffer.GetNumBytes() / (1024.0f * 1024.0f));
 		UE_LOG(LogRenderer, Log, TEXT("  ByteBufferUploadBuffer: %.3fMb"), LumenSceneData.ByteBufferUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
@@ -585,7 +596,7 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		FConvexVolume ViewFrustum;
 		GetViewFrustumBounds(ViewFrustum, Views[0].ViewMatrices.GetViewProjectionMatrix(), true);
 
-		for (const FCardSourceData& Card : LumenSceneData.Cards)
+		for (const FLumenCard& Card : LumenSceneData.Cards)
 		{
 			bool bVisible = Card.bVisible;
 

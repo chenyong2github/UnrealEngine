@@ -27,6 +27,7 @@ namespace Lumen
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FViewInfo& View, bool bRequireSoftwareTracing);
 	bool ShouldVisualizeHardwareRayTracing();
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
+	bool IsPrimitiveToDFObjectMappingRequired();
 
 	// Hardware ray-traced reflections
 	bool UseHardwareRayTracing();

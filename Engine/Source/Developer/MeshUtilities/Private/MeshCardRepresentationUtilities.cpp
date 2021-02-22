@@ -27,22 +27,6 @@ public:
 	{}
 };
 
-FVector TransformFaceExtent(FVector Extent, int32 Orientation)
-{
-	if (Orientation / 2 == 2)
-	{
-		return FVector(Extent.Y, Extent.X, Extent.Z);
-	}
-	else if (Orientation / 2 == 1)
-	{
-		return FVector(Extent.Z, Extent.X, Extent.Y);
-	}
-	else
-	{
-		return FVector(Extent.Y, Extent.Z, Extent.X); 
-	}
-}
-
 class FPlacedCard
 {
 public:
@@ -198,7 +182,7 @@ void SerializePlacedCards(TArray<FPlacedCard, TInlineAllocator<16>>& PlacedCards
 			FLumenCardBuildData CardBuildData;
 			CardBuildData.Center = ClampedBox.GetCenter();
 			CardBuildData.Extent = ClampedBox.GetExtent();
-			CardBuildData.Extent = TransformFaceExtent(CardBuildData.Extent, Orientation);
+			CardBuildData.Extent = FLumenCardBuildData::TransformFaceExtent(CardBuildData.Extent, Orientation);
 			CardBuildData.Orientation = Orientation;
 			CardBuildData.LODLevel = LODLevel;
 

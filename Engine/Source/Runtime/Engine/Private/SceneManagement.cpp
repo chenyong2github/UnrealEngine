@@ -762,6 +762,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	GlobalDistanceFieldPageTableTexture = BlackVolume;
 	GlobalDistanceFieldMipTexture = BlackVolume;
 
+	// #lumen_todo: Rename ViewUniformShaderParameters LumenInstance to LumenDFInstance in a separate CL
 	// Lumen
 	PrimitiveToLumenInstanceOffsetBuffer = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
 	PrimitiveToLumenInstanceOffsetBufferSize = 0;

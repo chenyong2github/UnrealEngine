@@ -12,7 +12,7 @@
 #include "LumenSparseSpanArray.h"
 
 class FPrimitiveSceneInfo;
-class FCardSourceData;
+class FLumenCard;
 
 struct FLumenMeshCardsGPUData
 {
@@ -26,8 +26,7 @@ struct FLumenMeshCardsGPUData
 class FLumenMeshCards
 {
 public:
-	void Initialize(FPrimitiveSceneInfo* InPrimitiveSceneInfo, 
-		int32 InInstanceIndexOrMergedFlag, 
+	void Initialize(
 		const FMatrix& InLocalToWorld, 
 		const FBox& InBounds,
 		uint32 InFirstCardIndex,
@@ -35,8 +34,6 @@ public:
 		uint32 InNumCardsPerOrientation[6],
 		uint32 InCardOffsetPerOrientation[6])
 	{
-		PrimitiveSceneInfo = InPrimitiveSceneInfo;
-		InstanceIndexOrMergedFlag = InInstanceIndexOrMergedFlag;
 		Bounds = InBounds;
 		SetTransform(InLocalToWorld);
 		FirstCardIndex = InFirstCardIndex;
@@ -54,9 +51,6 @@ public:
 		LocalToWorld = InLocalToWorld;
 	}
 
-	FPrimitiveSceneInfo* PrimitiveSceneInfo = nullptr;
-	// -1 if representing all instances belonging to the primitive (merged instances), otherwise instance index
-	int32 InstanceIndexOrMergedFlag = 0;
 	FMatrix LocalToWorld;
 	FBox Bounds;
 
@@ -65,64 +59,3 @@ public:
 	uint32 NumCardsPerOrientation[6];
 	uint32 CardOffsetPerOrientation[6];
 };
-
-class FLumenMeshCardsBounds
-{
-public:
-
-	FLumenMeshCardsBounds() = default;
-
-	void InitFromMeshCards(const FLumenMeshCards& MeshCards, const TSparseSpanArray<FCardSourceData>& Cards);
-	void UpdateBounds(const FLumenMeshCards& MeshCards, const TSparseSpanArray<FCardSourceData>& Cards);
-
-	float ComputeSquaredDistanceFromBoxToPoint(const FVector& Point) const
-	{
-		return ::ComputeSquaredDistanceFromBoxToPoint(WorldBoundsMin, WorldBoundsMax, Point);
-	}
-
-	bool HasVisibleCards() const
-	{
-		return NumVisibleCards != 0;
-	}
-
-	int32 GetFirstCardIndex() const
-	{
-		return FirstCardIndex;
-	}
-
-	int32 GetLastCardIndex() const
-	{
-		return FirstCardIndex + NumCards;
-	}
-
-	void IncrementVisible()
-	{
-		check(NumVisibleCards < NumCards);
-		++NumVisibleCards;
-	}
-
-	void DecrementVisible()
-	{
-		check(NumVisibleCards != 0);
-		--NumVisibleCards;
-	}
-
-	FVector GetWorldBoundsExtent() const
-	{
-		return WorldBoundsMax - WorldBoundsMin;
-	}
-
-	float GetResolutionScale() const
-	{
-		return ResolutionScale;
-	}
-
-private:
-	FVector WorldBoundsMin = FVector::ZeroVector;
-	FVector WorldBoundsMax = FVector::ZeroVector;
-	uint32 FirstCardIndex = 0;
-	float ResolutionScale = 1.0f;
-	uint16 NumCards = 0;
-	uint16 NumVisibleCards = 0;
-};
-

@@ -23,50 +23,39 @@ inline bool DoesPlatformSupportLumenGI(EShaderPlatform Platform)
 class FCardRenderData
 {
 public:
-	FCardSourceData& CardData;
+	FPrimitiveSceneInfo* PrimitiveSceneInfo = nullptr;
+	int32 PrimitiveInstanceIndexOrMergedFlag = -1;
+
+	// CardData
+	int32 CardIndex = -1.0f;
+	bool bDistantScene = false;
+	FIntPoint DesiredResolution;
+	FIntRect AtlasAllocation;
+	FVector Origin;
+	FVector LocalExtent;
+	FVector LocalToWorldRotationX;
+	FVector LocalToWorldRotationY;
+	FVector LocalToWorldRotationZ;
 
 	FViewMatrices ViewMatrices;
 	FMatrix ProjectionMatrixUnadjustedForRHI;
 
-	int32 StartMeshDrawCommandIndex;
-	int32 NumMeshDrawCommands;
+	int32 StartMeshDrawCommandIndex = 0;
+	int32 NumMeshDrawCommands = 0;
 
 	TArray<uint32, SceneRenderingAllocator> NaniteInstanceIds;
 	TArray<FNaniteCommandInfo, SceneRenderingAllocator> NaniteCommandInfos;
+	float NaniteLODScaleFactor = 1.0f;
 
-	int32 CardIndex;
-	float NaniteLODScaleFactor;
-
-	FCardRenderData(FCardSourceData& InCardData, ERHIFeatureLevel::Type InFeatureLevel, int32 InCardIndex);
+	FCardRenderData(FLumenCard& InCardData, 
+		FPrimitiveSceneInfo* InPrimitiveSceneInfo,
+		int32 InPrimitiveInstanceIndex,
+		ERHIFeatureLevel::Type InFeatureLevel,
+		int32 InCardIndex);
 
 	void UpdateViewMatrices(const FViewInfo& MainView);
 
 	void PatchView(FRHICommandList& RHICmdList, const FScene* Scene, FViewInfo* View) const;
-
-	FIntRect GetAtlasAllocation() const
-	{
-		return CardData.AtlasAllocation;
-	}
-
-	void SetAtlasAllocation(FIntRect NewAllocation)
-	{
-		CardData.AtlasAllocation = NewAllocation;
-	}
-
-	FVector GetLocalToWorldRotationX() const
-	{
-		return CardData.LocalToWorldRotationX;
-	}
-
-	FVector GetLocalToWorldRotationY() const
-	{
-		return CardData.LocalToWorldRotationY;
-	}
-
-	FVector GetLocalToWorldRotationZ() const
-	{
-		return CardData.LocalToWorldRotationZ;
-	}
 };
 
 FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
