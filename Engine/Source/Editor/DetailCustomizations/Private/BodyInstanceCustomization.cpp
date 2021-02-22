@@ -138,7 +138,6 @@ void FBodyInstanceCustomization::AddCollisionCategory(TSharedRef<class IProperty
 		]
 	]
 	.ValueContent()
-	.MinDesiredWidth(131.0f)
 	[
 		SNew(SHorizontalBox)
 		.IsEnabled(this, &FBodyInstanceCustomization::IsCollisionEnabled)
