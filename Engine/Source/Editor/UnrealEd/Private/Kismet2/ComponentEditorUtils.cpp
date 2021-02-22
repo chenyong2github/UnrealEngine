@@ -1139,7 +1139,7 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(UToolMenu* Menu, con
 	}
 }
 
-UActorComponent* FComponentEditorUtils::FindMatchingComponent(UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList)
+UActorComponent* FComponentEditorUtils::FindMatchingComponent(const UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList)
 {
 	if (ComponentInstance == nullptr)
 	{
@@ -1169,7 +1169,7 @@ UActorComponent* FComponentEditorUtils::FindMatchingComponent(UActorComponent* C
 		return LastFoundComponent;
 	}
 
-	if (USceneComponent* CurrentSceneComponent = Cast<USceneComponent>(ComponentInstance))
+	if (const USceneComponent* CurrentSceneComponent = Cast<USceneComponent>(ComponentInstance))
 	{
 		// Sort by matching hierarchy
 		FoundComponents.Sort([&](const UActorComponent& ComponentA, const UActorComponent& ComponentB)

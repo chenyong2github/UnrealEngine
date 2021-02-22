@@ -275,7 +275,7 @@ public:
 	 * @param ComponentList List containing possible matches
 	 * @return Valid Component pointer if match was found. nullptr otherwise.
 	 */
-	static UActorComponent* FindMatchingComponent(UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList);
+	static UActorComponent* FindMatchingComponent(const UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList);
 
 	/**
 	 * Make a FComponentReference from a component pointer.
