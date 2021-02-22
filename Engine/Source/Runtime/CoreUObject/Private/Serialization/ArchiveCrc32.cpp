@@ -3,6 +3,9 @@
 #include "Serialization/ArchiveCrc32.h"
 #include "Serialization/ArchiveObjectCrc32.h"
 
+#include "UObject/Object.h"
+
+
 FArchiveCrc32::FArchiveCrc32(uint32 InCRC, UObject* InRootObject)
 	: CRC(InCRC)
 	, RootObject(InRootObject)
