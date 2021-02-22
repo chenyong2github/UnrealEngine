@@ -1748,8 +1748,8 @@ int32 FRenderAssetStreamingManager::BlockTillAllRequestsFinished( float TimeLimi
 
 		for (FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 		{
-			StreamingRenderAsset.UpdateStreamingStatus(false);
-			if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
+			const bool bValid = StreamingRenderAsset.UpdateStreamingStatus(false).IsValid();
+			if (bValid && StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
 			{
 				++NumOfInFlights;
 			}
