@@ -382,7 +382,10 @@ UActorComponent* UInheritableComponentHandler::FindBestArchetype(const FComponen
 	UBlueprintGeneratedClass* ActualBPGC = Cast<UBlueprintGeneratedClass>(GetOuter());
 	if (ActualBPGC && Key.GetComponentOwner() && (ActualBPGC != Key.GetComponentOwner()))
 	{
-		ActualBPGC = Cast<UBlueprintGeneratedClass>(ActualBPGC->GetSuperClass());
+		// During reparenting the outer's Class isn't always the Blueprint's class when the ICH is updating so reference
+		// the Blueprint's ParentClass instead
+		ActualBPGC = Cast<UBlueprintGeneratedClass>(CastChecked<UBlueprint>(ActualBPGC->ClassGeneratedBy)->ParentClass);
+
 		while (!ClosestArchetype && ActualBPGC)
 		{
 			if (ActualBPGC->InheritableComponentHandler)
