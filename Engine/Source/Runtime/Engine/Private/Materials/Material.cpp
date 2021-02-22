@@ -3616,7 +3616,15 @@ void UMaterial::GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQual
 
 void UMaterial::ConvertMaterialToStrataMaterial()
 {
-#if WITH_EDITOR && CONVERT_MATERIAL_TO_STRATA_ON_LOAD
+#if WITH_EDITOR
+	static const auto CVarStrata = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	const bool bStrata = CVarStrata ? CVarStrata->GetValueOnAnyThread() > 0 : false;
+
+	if (!bStrata)
+	{
+		return;
+	}
+
 	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
 	const bool bStrataEnabled = RendererSettings && RendererSettings->bEnableStrata;
 

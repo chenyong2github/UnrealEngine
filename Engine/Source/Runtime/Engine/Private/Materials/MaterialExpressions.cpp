@@ -19167,8 +19167,11 @@ int32 UMaterialExpressionSingleLayerWaterMaterialOutput::Compile(class FMaterial
 {
 	int32 CodeInput = INDEX_NONE;
 
+	static const auto CVarStrata = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	const bool bStrata = CVarStrata ? CVarStrata->GetValueOnAnyThread() > 0 : false;
+
 	if (!ScatteringCoefficients.IsConnected() && !AbsorptionCoefficients.IsConnected() && !PhaseG.IsConnected()
-		&& CONVERT_MATERIAL_TO_STRATA_ON_LOAD == 0)
+		&& !bStrata)
 	{
 		Compiler->Error(TEXT("No inputs to Single Layer Water Material."));
 	}
