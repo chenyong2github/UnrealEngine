@@ -523,33 +523,6 @@ class UMaterialExpressionStrataMultiply : public UMaterialExpressionStrataBSDF
 ///////////////////////////////////////////////////////////////////////////////
 // Utilities
 
-UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Anisotropy-To-Roughnesses")
-class UMaterialExpressionStrataAnisotropyToRoughness : public UMaterialExpressionStrataBSDF
-{
-	GENERATED_UCLASS_BODY()
-
-	/**
-	 * Input roughness
-	 */
-	UPROPERTY()
-	FExpressionInput Roughness;
-
-	/**
-	 * Anisotropy factor - 0: isotropic behavior, -1: anisotropy along the bitangent vector, 1: anisotropy along the tangent vector
-	 */
-	UPROPERTY()
-	FExpressionInput Anisotropy;
-
-	//~ Begin UMaterialExpression Interface
-#if WITH_EDITOR
-	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
-	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
-	virtual uint32 GetOutputType(int32 OutputIndex) override;
-	virtual uint32 GetInputType(int32 InputIndex) override;
-#endif
-	//~ End UMaterialExpression Interface
-};
-
 UCLASS(MinimalAPI, collapsecategories, hidecategories = Object, DisplayName = "Strata Transmittance-To-MeanFreePath")
 class UMaterialExpressionStrataTransmittanceToMFP : public UMaterialExpressionStrataBSDF
 {

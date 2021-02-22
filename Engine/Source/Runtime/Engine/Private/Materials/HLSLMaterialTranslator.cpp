@@ -9171,23 +9171,6 @@ int32 FHLSLMaterialTranslator::StrataMultiply(int32 A, int32 Weight)
 	);
 }
 
-int32 FHLSLMaterialTranslator::StrataAnisotropyToRoughness(int32 Roughness, int32 Anisotropy, int32 OutputIndex)
-{
-	if (Roughness == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-	else if (Anisotropy == INDEX_NONE)
-	{
-		return INDEX_NONE;
-	}
-	return AddCodeChunk(
-		MCT_Float2,
-		TEXT("GetAnisotropicRoughness(%s,%s)"),
-		*GetParameterCode(Roughness),
-		*GetParameterCode(Anisotropy));
-}
-
 int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor, int32 OutputIndex)
 {
 	if (OutputIndex == INDEX_NONE)

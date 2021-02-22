@@ -20674,61 +20674,6 @@ void UMaterialExpressionStrataMultiply::GatherStrataMaterialInfo(FStrataMaterial
 
 
 
-UMaterialExpressionStrataAnisotropyToRoughness::UMaterialExpressionStrataAnisotropyToRoughness(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-	struct FConstructorStatics
-	{
-		FText NAME_Strata;
-		FConstructorStatics() : NAME_Strata(LOCTEXT("Strata Helpers", "Strata Helpers")) { }
-	};
-	static FConstructorStatics ConstructorStatics;
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Strata);
-
-	bShowOutputNameOnPin = true;
-
-	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT("Roughnesses")));
-#endif
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionStrataAnisotropyToRoughness::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	return Compiler->StrataAnisotropyToRoughness(
-		Roughness.GetTracedInput().Expression ? Roughness.Compile(Compiler) : Compiler->Constant(0.5f),
-		Anisotropy.GetTracedInput().Expression ? Anisotropy.Compile(Compiler) : Compiler->Constant(0.f),
-		OutputIndex);
-}
-
-void UMaterialExpressionStrataAnisotropyToRoughness::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Strata Anisotropy-To-Roughnesses"));
-}
-
-uint32 UMaterialExpressionStrataAnisotropyToRoughness::GetOutputType(int32 OutputIndex)
-{
-	return MCT_Float2;
-}
-
-uint32 UMaterialExpressionStrataAnisotropyToRoughness::GetInputType(int32 InputIndex)
-{
-	switch (InputIndex)
-	{
-	case 0:
-		return MCT_Float1;
-		break;
-	case 1:
-		return MCT_Float1;
-		break;
-	}
-
-	check(false);
-	return MCT_Float1;
-}
-#endif // WITH_EDITOR
-
 UMaterialExpressionStrataTransmittanceToMFP::UMaterialExpressionStrataTransmittanceToMFP(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
