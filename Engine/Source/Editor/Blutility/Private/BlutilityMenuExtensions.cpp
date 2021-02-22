@@ -55,7 +55,7 @@ class SFunctionParamDialog : public SCompoundWidget
 			DetailsViewArgs.bUpdatesFromSelection = false;
 			DetailsViewArgs.bShowOptions = false;
 			DetailsViewArgs.bShowModifiedPropertiesOption = false;
-			DetailsViewArgs.bShowActorLabel = false;
+			DetailsViewArgs.bShowObjectLabel = false;
 			DetailsViewArgs.bForceHiddenPropertyVisibility = true;
 			DetailsViewArgs.bShowScrollBar = false;
 		}

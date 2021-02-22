@@ -37,7 +37,7 @@ void FCompositeCurveTableEditor::CreateAndRegisterPropertiesTab(const TSharedRef
 {
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 
 	DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
 

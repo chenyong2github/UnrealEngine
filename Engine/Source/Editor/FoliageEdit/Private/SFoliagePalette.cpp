@@ -189,7 +189,6 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 	Args.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	Args.bAllowSearch = false; 
 	Args.bHideSelectionTip = true;
-	Args.bShowActorLabel = false;
 	DetailsWidget = PropertyModule.CreateDetailView(Args);
 	DetailsWidget->SetVisibility(FoliageEditMode->UISettings.GetShowPaletteItemDetails() ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed);
 	DetailsWidget->SetIsPropertyEditingEnabledDelegate(FIsPropertyEditingEnabled::CreateSP(this, &SFoliagePalette::GetIsPropertyEditingEnabled));

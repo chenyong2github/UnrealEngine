@@ -23,7 +23,7 @@ public:
 	SLATE_BEGIN_ARGS( SDetailNameArea ){}
 		SLATE_EVENT( FOnClicked, OnLockButtonClicked )
 		SLATE_ARGUMENT( bool, ShowLockButton )
-		SLATE_ARGUMENT( bool, ShowActorLabel )
+		SLATE_ARGUMENT( bool, ShowObjectLabel )
 		SLATE_ATTRIBUTE( bool, IsLocked )
 		SLATE_ATTRIBUTE( bool, SelectionTip )
 	SLATE_END_ARGS()
@@ -67,7 +67,7 @@ private:
 	TSharedPtr<SWidget> CustomContent;
 
 	bool bShowLockButton;
-	bool bShowActorLabel;
+	bool bShowObjectLabel;
 
 	/** Area where the customs content resides */
 	SHorizontalBox::FSlot* CustomContentSlot;

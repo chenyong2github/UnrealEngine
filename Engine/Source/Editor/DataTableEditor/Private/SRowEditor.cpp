@@ -415,7 +415,7 @@ void SRowEditor::ConstructInternal(UDataTable* Changed)
 		FDetailsViewArgs ViewArgs;
 		ViewArgs.bAllowSearch = false;
 		ViewArgs.bHideSelectionTip = false;
-		ViewArgs.bShowActorLabel = false;
+		ViewArgs.bShowObjectLabel = false;
 		ViewArgs.NotifyHook = this;
 
 		FStructureDetailsViewArgs StructureViewArgs;

@@ -24,7 +24,7 @@ void SDetailNameArea::Construct( const FArguments& InArgs, const TArray< TWeakOb
 	IsLocked = InArgs._IsLocked;
 	SelectionTip = InArgs._SelectionTip;
 	bShowLockButton = InArgs._ShowLockButton;
-	bShowActorLabel = InArgs._ShowActorLabel;
+	bShowObjectLabel = InArgs._ShowObjectLabel;
 	CustomContent = SNullWidget::NullWidget;
 }
 
@@ -132,7 +132,7 @@ TSharedRef< SWidget > SDetailNameArea::BuildObjectNameArea( const TArray< TWeakO
 	const int32 NumSelectedSurfaces = AssetSelectionUtils::GetNumSelectedSurfaces( GWorld );
 	if( SelectedObjects.Num() > 0 )
 	{
-		if ( bShowActorLabel )
+		if ( bShowObjectLabel )
 		{
 			FEditorWidgetsModule& EdWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>(TEXT("EditorWidgets"));
 			TSharedRef<IObjectNameEditableTextBox> ObjectNameBox = EdWidgetsModule.CreateObjectNameEditableTextBox(SelectedObjects);

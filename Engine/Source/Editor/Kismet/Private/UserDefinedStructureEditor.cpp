@@ -110,7 +110,6 @@ public:
 		FDetailsViewArgs ViewArgs;
 		ViewArgs.bAllowSearch = false;
 		ViewArgs.bHideSelectionTip = false;
-		ViewArgs.bShowActorLabel = false;
 		ViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 		ViewArgs.NotifyHook = this;
 

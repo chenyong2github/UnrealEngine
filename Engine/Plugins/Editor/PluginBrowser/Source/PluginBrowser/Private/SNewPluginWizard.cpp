@@ -81,7 +81,7 @@ void SNewPluginWizard::Construct(const FArguments& Args, TSharedPtr<SDockTab> In
 		DetailsViewArgs.bShowOptions = false;
 		DetailsViewArgs.bAllowMultipleTopLevelObjects = false;
 		DetailsViewArgs.bAllowFavoriteSystem = false;
-		DetailsViewArgs.bShowActorLabel = false;
+		DetailsViewArgs.bShowObjectLabel = false;
 		DetailsViewArgs.bHideSelectionTip = true;
 	}
 	TSharedPtr<IDetailsView> DescriptorDetailView = EditModule.CreateDetailView(DetailsViewArgs);

@@ -156,7 +156,6 @@ namespace FbxAutomationBuilder
 		FDetailsViewArgs DetailsViewArgs;
 		DetailsViewArgs.bAllowSearch = true;
 		DetailsViewArgs.bLockable = false;
-		DetailsViewArgs.bShowActorLabel = false;
 		DetailsViewArgs.bShowOptions = false;
 		DetailsViewArgs.bUpdatesFromSelection = false;
 		DetailsViewArgs.bHideSelectionTip = true;

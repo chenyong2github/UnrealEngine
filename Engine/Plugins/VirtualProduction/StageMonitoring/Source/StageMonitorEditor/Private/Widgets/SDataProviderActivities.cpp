@@ -62,7 +62,7 @@ void SDataProviderActivities::Construct(const FArguments& InArgs, TSharedPtr<SSt
 	DetailsViewArgs.bUpdatesFromSelection = true;
 	DetailsViewArgs.bLockable = false;
 	DetailsViewArgs.bShowPropertyMatrixButton = false;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.ViewIdentifier = NAME_None;
 	DetailsViewArgs.bShowCustomFilterOption = false;
 	DetailsViewArgs.bShowOptions = false;

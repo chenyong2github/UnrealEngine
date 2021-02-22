@@ -60,46 +60,46 @@ struct FDetailsViewArgs
 	FNotifyHook* NotifyHook;
 	/** Settings for displaying the name area */
 	ENameAreaSettings NameAreaSettings;
-	/** True if the viewed objects updates from editor selection */
-	uint32 bUpdatesFromSelection : 1;
-	/** True if this property view can be locked */
-	uint32 bLockable : 1;
-	/** True if we allow searching */
-	uint32 bAllowSearch : 1;
-	/** True if you want to not show the tip when no objects are selected (should only be used if viewing actors properties or bObjectsUseNameArea is true ) */
-	uint32 bHideSelectionTip : 1;
-	/** True if you want the search box to have initial keyboard focus */
-	uint32 bSearchInitialKeyFocus : 1;
-	/** True if the 'Open Selection in Property Matrix' button should be shown */
-	uint32 bShowPropertyMatrixButton : 1;
-	/** Allow options to be changed */
-	uint32 bShowOptions : 1;
-	/** True if you want to show the 'Show Only Modified Properties'. Only valid in conjunction with bShowOptions */
-	uint32 bShowModifiedPropertiesOption : 1;
-	/** True if you want to show the actor label */
-	uint32 bShowActorLabel : 1;
-	/** Bind this delegate to hide differing properties */
-	uint32 bShowDifferingPropertiesOption : 1;
-	/** If true, the name area will be created but will not be displayed so it can be placed in a custom location.  */
-	uint32 bCustomNameAreaLocation : 1;
-	/** If true, the filter area will be created but will not be displayed so it can be placed in a custom location.  */
-	uint32 bCustomFilterAreaLocation : 1;
-	/** If false, the current properties editor will never display the favorite system */
-	uint32 bAllowFavoriteSystem : 1;
-	/** If true the details panel will assume each object passed in through SetObjects will be a unique object shown in the tree and not combined with other objects */
-	uint32 bAllowMultipleTopLevelObjects : 1;
-	/** If false, the details panel's scrollbar will always be hidden. Useful when embedding details panels in widgets that either grow to accommodate them, or with scrollbars of their own. */
-	uint32 bShowScrollBar : 1;
-	/** If true, all properties will be visible, not just those with CPF_Edit */
-	uint32 bForceHiddenPropertyVisibility : 1;
-	/** True if you want to show the 'Show Only Keyable Properties'. Only valid in conjunction with bShowOptions */
-	uint32 bShowKeyablePropertiesOption : 1;
-	/** True if you want to show the 'Show Only Animated Properties'. Only valid in conjunction with bShowOptions */
-	uint32 bShowAnimatedPropertiesOption: 1;
-	/** True if you want to show a custom filter. */
-	uint32 bShowCustomFilterOption : 1;
 	/** The default column width */
 	float ColumnWidth;
+	/** True if the viewed objects updates from editor selection */
+	bool bUpdatesFromSelection : 1;
+	/** True if this property view can be locked */
+	bool bLockable : 1;
+	/** True if we allow searching */
+	bool bAllowSearch : 1;
+	/** True if you want to not show the tip when no objects are selected (should only be used if viewing actors properties or bObjectsUseNameArea is true ) */
+	bool bHideSelectionTip : 1;
+	/** True if you want the search box to have initial keyboard focus */
+	bool bSearchInitialKeyFocus : 1;
+	/** True if the 'Open Selection in Property Matrix' button should be shown */
+	bool bShowPropertyMatrixButton : 1;
+	/** Allow options to be changed */
+	bool bShowOptions : 1;
+	/** True if you want to show the object label */
+	bool bShowObjectLabel : 1;
+	/** True if you want to show the 'Show Only Modified Properties'. Only valid in conjunction with bShowOptions */
+	bool bShowModifiedPropertiesOption : 1;
+	/** Bind this delegate to hide differing properties */
+	bool bShowDifferingPropertiesOption : 1;
+	/** If true, the name area will be created but will not be displayed so it can be placed in a custom location.  */
+	bool bCustomNameAreaLocation : 1;
+	/** If true, the filter area will be created but will not be displayed so it can be placed in a custom location.  */
+	bool bCustomFilterAreaLocation : 1;
+	/** If false, the current properties editor will never display the favorite system */
+	bool bAllowFavoriteSystem : 1;
+	/** If true the details panel will assume each object passed in through SetObjects will be a unique object shown in the tree and not combined with other objects */
+	bool bAllowMultipleTopLevelObjects : 1;
+	/** If false, the details panel's scrollbar will always be hidden. Useful when embedding details panels in widgets that either grow to accommodate them, or with scrollbars of their own. */
+	bool bShowScrollBar : 1;
+	/** If true, all properties will be visible, not just those with CPF_Edit */
+	bool bForceHiddenPropertyVisibility : 1;
+	/** True if you want to show the 'Show Only Keyable Properties'. Only valid in conjunction with bShowOptions */
+	bool bShowKeyablePropertiesOption : 1;
+	/** True if you want to show the 'Show Only Animated Properties'. Only valid in conjunction with bShowOptions */
+	bool bShowAnimatedPropertiesOption: 1;
+	/** True if you want to show a custom filter. */
+	bool bShowCustomFilterOption : 1;
 
 public:
 
@@ -108,6 +108,7 @@ public:
 		, ViewIdentifier(NAME_None)
 		, NotifyHook(nullptr)
 		, NameAreaSettings(ActorsUseNameArea)
+		, ColumnWidth(.65f)
 		, bUpdatesFromSelection(false)
 		, bLockable(false)
 		, bAllowSearch(true)
@@ -115,8 +116,8 @@ public:
 		, bSearchInitialKeyFocus(false)
 		, bShowPropertyMatrixButton(true)
 		, bShowOptions(true)
+		, bShowObjectLabel(true)
 		, bShowModifiedPropertiesOption(true)
-		, bShowActorLabel(true)
 		, bShowDifferingPropertiesOption(false)
 		, bCustomNameAreaLocation(false)
 		, bCustomFilterAreaLocation(false)
@@ -127,7 +128,6 @@ public:
 		, bShowKeyablePropertiesOption(true)
 		, bShowAnimatedPropertiesOption(true)
 		, bShowCustomFilterOption(false)
-		, ColumnWidth(.65f)
 	{
 	}
 

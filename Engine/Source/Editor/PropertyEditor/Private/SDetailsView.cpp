@@ -196,7 +196,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		.OnLockButtonClicked(this, &SDetailsView::OnLockButtonClicked)
 		.IsLocked(this, &SDetailsView::IsLocked)
 		.ShowLockButton(DetailsViewArgs.bLockable)
-		.ShowActorLabel(DetailsViewArgs.bShowActorLabel)
+		.ShowObjectLabel(DetailsViewArgs.bShowObjectLabel)
 		// only show the selection tip if we're not selecting objects
 		.SelectionTip(!DetailsViewArgs.bHideSelectionTip);
 

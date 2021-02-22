@@ -70,7 +70,6 @@ void SWorldDetails::OnBrowseWorld(UWorld* InWorld)
 		Args.bAllowSearch = false;
 		Args.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 		Args.bHideSelectionTip = true;
-		Args.bShowActorLabel = false;
 	
 		DetailsView = PropertyModule.CreateDetailView(Args);
 		WorldDetailsView = PropertyModule.CreateDetailView(Args);

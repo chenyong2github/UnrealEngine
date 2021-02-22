@@ -311,7 +311,6 @@ namespace PixelInspector
 		FDetailsViewArgs DetailsViewArgs;
 		DetailsViewArgs.bAllowSearch = false;
 		DetailsViewArgs.bLockable = false;
-		DetailsViewArgs.bShowActorLabel = false;
 		DetailsViewArgs.bShowOptions = false;
 		DetailsViewArgs.bUpdatesFromSelection = false;
 		DetailsViewArgs.bHideSelectionTip = true;

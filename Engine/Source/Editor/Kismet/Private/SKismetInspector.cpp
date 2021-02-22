@@ -427,7 +427,7 @@ void SKismetInspector::Construct(const FArguments& InArgs)
 	FDetailsViewArgs ViewArgs;
 	ViewArgs.bAllowSearch = false;
 	ViewArgs.bHideSelectionTip = false;
-	ViewArgs.bShowActorLabel = false;
+	ViewArgs.bShowObjectLabel = false;
 	ViewArgs.NotifyHook = NotifyHook;
 
 	StructureDetailsView = EditModule.CreateStructureDetailView(ViewArgs, StructureViewArgs, StructToDisplay, LOCTEXT("Struct", "Struct View"));

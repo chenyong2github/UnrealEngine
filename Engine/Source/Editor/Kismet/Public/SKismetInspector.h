@@ -30,7 +30,7 @@ class KISMET_API SKismetInspector : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS( SKismetInspector )
 		: _ShowPublicViewControl(false)
-		, _HideNameArea(false)
+		, _HideNameArea(true)
 		, _SetNotifyHook(true)
 		, _ShowTitleArea(false)
 		{}

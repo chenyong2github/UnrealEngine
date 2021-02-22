@@ -54,7 +54,7 @@ void SDataLayerBrowser::Construct(const FArguments& InArgs)
 	Args.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	Args.bAllowSearch = false;
 	Args.bHideSelectionTip = true;
-	Args.bShowActorLabel = false;
+	Args.bShowObjectLabel = false;
 	DetailsWidget = PropertyModule.CreateDetailView(Args);
 	DetailsWidget->SetVisibility(EVisibility::Visible);
 

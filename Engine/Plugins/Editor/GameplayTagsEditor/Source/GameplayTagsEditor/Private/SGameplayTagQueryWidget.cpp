@@ -41,7 +41,7 @@ void SGameplayTagQueryWidget::Construct(const FArguments& InArgs, const TArray<F
 	FDetailsViewArgs ViewArgs;
 	ViewArgs.bAllowSearch = false;
 	ViewArgs.bHideSelectionTip = true;
-	ViewArgs.bShowActorLabel = false;
+	ViewArgs.bShowObjectLabel = false;
 	
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	Details = PropertyModule.CreateDetailView(ViewArgs);

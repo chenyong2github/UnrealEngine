@@ -96,7 +96,6 @@ TSharedRef<SDockTab> FGPULightmassEditorModule::SpawnSettingsTab(const FSpawnTab
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.NotifyHook = GUnrealEd;
-	DetailsViewArgs.bShowActorLabel = false;
 
 	SettingsView = PropPlugin.CreateDetailView(DetailsViewArgs);
 

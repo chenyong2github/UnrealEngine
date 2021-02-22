@@ -933,7 +933,7 @@ TSharedRef<SDockTab> SWidgetReflector::SpawnWidgetDetails(const FSpawnTabArgs& A
 		DetailsViewArgs.bShowOptions = true;
 		DetailsViewArgs.bAllowMultipleTopLevelObjects = false;
 		DetailsViewArgs.bAllowFavoriteSystem = true;
-		DetailsViewArgs.bShowActorLabel = false;
+		DetailsViewArgs.bShowObjectLabel = false;
 		DetailsViewArgs.bHideSelectionTip = true;
 	}
 	TSharedRef<IDetailsView> PropertyView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);

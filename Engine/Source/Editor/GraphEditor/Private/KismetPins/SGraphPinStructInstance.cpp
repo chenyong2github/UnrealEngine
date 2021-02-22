@@ -125,7 +125,6 @@ TSharedRef<SWidget> SGraphPinStructInstance::GetEditContent()
 	ViewArgs.bUpdatesFromSelection = false;
 	ViewArgs.bShowOptions = false;
 	ViewArgs.bShowModifiedPropertiesOption = false;
-	ViewArgs.bShowActorLabel = false;
 
 	FStructureDetailsViewArgs StructureViewArgs;
 	StructureViewArgs.bShowObjects = true;

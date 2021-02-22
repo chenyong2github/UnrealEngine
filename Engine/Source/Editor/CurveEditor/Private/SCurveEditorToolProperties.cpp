@@ -16,7 +16,7 @@ void SCurveEditorToolProperties::Construct(const FArguments& InArgs, TSharedRef<
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bAllowSearch = false;
 	DetailsViewArgs.bShowScrollBar = false;
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 
 	FStructureDetailsViewArgs StructureDetailsViewArgs;
 	StructureDetailsViewArgs.bShowObjects = true;
