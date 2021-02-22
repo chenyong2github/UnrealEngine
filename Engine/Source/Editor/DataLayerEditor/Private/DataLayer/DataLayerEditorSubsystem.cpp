@@ -218,7 +218,6 @@ void UDataLayerEditorSubsystem::PostUndoRedo()
 {
 	DataLayerChanged.Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
 	UpdateAllActorsVisibility(true, true);
-	RefreshWorldPartitionEditorCells();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
