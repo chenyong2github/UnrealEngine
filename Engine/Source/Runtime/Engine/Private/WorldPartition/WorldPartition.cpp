@@ -928,9 +928,9 @@ void UWorldPartition::FlushStreaming()
 	RuntimeHash->FlushStreaming();
 }
 
-void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper)
+void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
 {
-	RuntimeHash->GenerateHLOD(SourceControlHelper);
+	RuntimeHash->GenerateHLOD(SourceControlHelper, bCreateActorsOnly);
 }
 
 void UWorldPartition::GenerateNavigationData()

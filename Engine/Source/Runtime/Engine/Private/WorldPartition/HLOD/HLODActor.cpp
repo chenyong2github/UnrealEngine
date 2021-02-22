@@ -8,6 +8,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "WorldPartition/HLOD/HLODBuilder.h"
 #endif
 
 AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitializer)
@@ -17,6 +18,8 @@ AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitial
 	SetActorEnableCollision(false);
 
 #if WITH_EDITORONLY_DATA
+	HLODHash = 0;
+	HLODBounds = FBox(EForceInit::ForceInit);
 	bListedInSceneOutliner = false;
 #endif
 }
@@ -192,21 +195,13 @@ void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& 
 	}
 }
 
-void AWorldPartitionHLOD::SetSubActors(const TArray<const AActor*>& InSubActors)
+void AWorldPartitionHLOD::SetSubActors(const TArray<FGuid>& InSubActors)
 {
-	check(GetHLODComponent());
-
 	ResetLoadedSubActors();
-	SubActors.Empty();
 
-	for (const AActor* SubActor : InSubActors)
-	{
-		if (!LoadedSubActors.Contains(SubActor))
-		{
-			OnSubActorLoaded(*SubActor);
-			SubActors.Add(SubActor->GetActorGuid());
-		}
-	}
+	SubActors = InSubActors;
+
+	SetupLoadedSubActors();
 }
 
 const TArray<FGuid>& AWorldPartitionHLOD::GetSubActors() const
@@ -227,6 +222,45 @@ void AWorldPartitionHLOD::PostDuplicate(bool bDuplicateForPIE)
 	{
 		HLODGuid = GetActorGuid();
 	}
+}
+
+const FBox& AWorldPartitionHLOD::GetHLODBounds() const
+{
+	return HLODBounds;
+}
+
+void AWorldPartitionHLOD::SetHLODBounds(const FBox& InBounds)
+{
+	HLODBounds = InBounds;
+}
+
+void AWorldPartitionHLOD::GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+{
+	Super::GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
+
+	FBox Bounds = FBox(Origin - BoxExtent, Origin + BoxExtent);
+	Bounds += HLODBounds;
+	Bounds.GetCenterAndExtents(Origin, BoxExtent);
+}
+
+void AWorldPartitionHLOD::GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const
+{
+	GetActorBounds(bOnlyCollidingComponents, Origin, BoxExtent, bIncludeFromChildActors);
+}
+
+uint32 AWorldPartitionHLOD::GetHLODHash() const
+{
+	return HLODHash;
+}
+
+void AWorldPartitionHLOD::BuildHLOD(bool bForceBuild)
+{
+	if (bForceBuild)
+	{
+		HLODHash = 0;
+	}
+
+	HLODHash = FHLODBuilderUtilities::BuildHLOD(this);
 }
 
 #endif // WITH_EDITOR

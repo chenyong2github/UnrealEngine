@@ -10,15 +10,16 @@
 #if WITH_EDITOR
 #include "Algo/Copy.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Materials/MaterialInterface.h"
+#include "Materials/Material.h"
+#include "Engine/HLODProxy.h"
+#include "Serialization/ArchiveCrc32.h"
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "WorldPartition/HLOD/HLODBuilder.h"
-
-#include "LevelInstance/LevelInstanceActor.h"
-#include "LevelInstance/LevelInstanceSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #endif
+
+DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);
 
 UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -34,66 +35,44 @@ UHLODLayer::UHLODLayer(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITOR
 
-TArray<AWorldPartitionHLOD*> UHLODLayer::GenerateHLODForCell(UWorldPartition* InWorldPartition, FHLODGenerationContext* InContext, FName InCellName, const FBox& InCellBounds, uint32 InHLODLevel, const TArray<AActor*>& InCellActors)
+uint32 UHLODLayer::GetCRC() const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODLayer::GenerateHLODForCell);
+	UHLODLayer& This = *const_cast<UHLODLayer*>(this);
 
-	TMap<UHLODLayer*, TArray<const AActor*>> HLODLayersActors;
-	for (AActor* Actor : InCellActors)
+	FArchiveCrc32 Ar;
+
+	Ar << This.LayerType;
+	UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - LayerType = %d"), Ar.GetCrc());
+
+	if (LayerType == EHLODLayerType::MeshMerge)
 	{
-		if (ShouldIncludeInHLOD(Actor))
-		{
-			UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(Actor);
-			if (HLODLayer)
-			{
-				if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(Actor))
-				{
-					// Wait for level instance loading
-					LevelInstance->GetLevelInstanceSubsystem()->BlockLoadLevelInstance(LevelInstance);
-				}
+		Ar << This.MeshMergeSettings;
+		UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - MeshMergeSettings = %d"), Ar.GetCrc());
+	}
+	else if (LayerType == EHLODLayerType::MeshSimplify)
+	{
+		Ar << This.MeshSimplifySettings;
+		UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - MeshSimplifySettings = %d"), Ar.GetCrc());
+	}
 
-				HLODLayersActors.FindOrAdd(HLODLayer).Add(Actor);
-			}
+	Ar << This.CellSize;
+	UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - CellSize = %d"), Ar.GetCrc());
+
+	uint32 Hash = Ar.GetCrc();
+
+	const bool bUseHLODMaterial = LayerType == EHLODLayerType::MeshMerge || LayerType == EHLODLayerType::MeshSimplify;
+	if (bUseHLODMaterial && !HLODMaterial.IsNull())
+	{
+		UMaterialInterface* Material = HLODMaterial.LoadSynchronous();
+		if (Material)
+		{
+			uint32 MaterialCRC = UHLODProxy::GetCRC(Material);
+			UE_LOG(LogHLODLayer, VeryVerbose, TEXT(" - Material = %d"), MaterialCRC);
+			Hash = HashCombine(Hash, MaterialCRC);
 		}
 	}
 
-	TArray<AWorldPartitionHLOD*> HLODActors;
-	for (const auto& HLODLayerActors : HLODLayersActors)
-	{
-		if (!HLODLayerActors.Value.IsEmpty())
-		{
-			HLODActors += FHLODBuilderUtilities::BuildHLODs(InWorldPartition, InContext, InCellName, InCellBounds, HLODLayerActors.Key, InHLODLevel, HLODLayerActors.Value);
-		}
-	}
-	return HLODActors;
-}
-
-bool UHLODLayer::ShouldIncludeInHLOD(const UPrimitiveComponent* InComponent, int32 InLevelIndex)
-{
-	if (const UStaticMeshComponent* SMC = Cast<const UStaticMeshComponent>(InComponent))
-	{
-		if (!SMC->GetStaticMesh())
-		{
-			return false;
-		}
-	}
-
-	if (InComponent->IsEditorOnly())
-	{
-		return false;
-	}
-
-	if (InComponent->bHiddenInGame)
-	{
-		return false;
-	}
-
-	if (!InComponent->ShouldGenerateAutoLOD(InLevelIndex))
-	{
-		return false;
-	}
-
-	return true;
+	return Hash;
 }
 
 UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
@@ -127,6 +106,42 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 	return nullptr;
 }
 
+UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition)
+{
+	check(InWorldPartition);
+
+	if (UHLODLayer* HLODLayer = InActorDesc.GetHLODLayer())
+	{
+		return HLODLayer;
+	}
+
+	// Only fallback to the default HLODLayer for the first level of HLOD
+	bool bIsHLOD0 = !InActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
+	if (bIsHLOD0)
+	{
+		if (UDataLayerSubsystem* DataLayerSubsystem = InWorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>())
+		{
+			if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(InWorldPartition->GetWorld()))
+			{
+				for (const FName& DataLayerName : InActorDesc.GetDataLayers())
+				{
+					const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName);
+					UHLODLayer* HLODLayer = DataLayer ? DataLayer->GetDefaultHLODLayer() : nullptr;
+					if (HLODLayer)
+					{
+						return HLODLayer;
+					}
+				}
+			}
+		}
+
+		// Fallback to the world partition default HLOD layer
+		return InWorldPartition->DefaultHLODLayer;
+	}
+
+	return nullptr;
+}
+
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
@@ -142,50 +157,3 @@ FName UHLODLayer::GetRuntimeGrid(uint32 InHLODLevel) const
 }
 
 #endif // WITH_EDITOR
-
-bool UHLODLayer::ShouldIncludeInHLOD(const AActor* InActor, bool bInFromLevelInstance)
-{
-	if (!InActor)
-	{
-		return false;
-	}
-
-	if (InActor->IsHidden())
-	{
-		return false;
-	}
-
-	if (InActor->IsEditorOnly())
-	{
-		return false;
-	}
-
-	if (!bInFromLevelInstance && InActor->HasAnyFlags(RF_Transient))
-	{
-		return false;
-	}
-
-	if (InActor->IsTemplate())
-	{
-		return false;
-	}
-
-	if (InActor->IsPendingKill())
-	{
-		return false;
-	}
-
-	if (!InActor->bEnableAutoLODGeneration)
-	{
-		return false;
-	}
-
-	FVector Origin, Extent;
-	InActor->GetActorBounds(false, Origin, Extent);
-	if (Extent.SizeSquared() <= 0.1)
-	{
-		return false;
-	}
-
-	return true;
-}

@@ -16,8 +16,6 @@ class ENGINE_API AWorldPartitionHLOD : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-	friend class UHLODSubsystem;
-
 public:
 	void OnCellShown(FName InCellName);
 	void OnCellHidden(FName InCellName);
@@ -31,7 +29,7 @@ public:
 
 	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives);
 
-	void SetSubActors(const TArray<const AActor*>& InSubActors);
+	void SetSubActors(const TArray<FGuid>& InSubActors);
 	const TArray<FGuid>& GetSubActors() const;
 
 	void SetSubActorsHLODLayer(const UHLODLayer* InSubActorsHLODLayer) { SubActorsHLODLayer = InSubActorsHLODLayer; }
@@ -52,6 +50,12 @@ public:
 	}
 
 	inline void SetLODLevel(uint32 InLODLevel) { LODLevel = InLODLevel; }
+
+	const FBox& GetHLODBounds() const;
+	void SetHLODBounds(const FBox& InBounds);
+
+	void BuildHLOD(bool bForceBuild = false);
+	uint32 GetHLODHash() const;
 #endif // WITH_EDITOR
 
 protected:
@@ -66,6 +70,9 @@ protected:
 
 	virtual void PostActorCreated() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
+
+	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
+	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
 #endif
 	//~ End AActor Interface.
 
@@ -97,6 +104,12 @@ private:
 	int64 GridIndexZ;
 
 	TSet<TWeakObjectPtr<const AActor>> LoadedSubActors;
+
+	UPROPERTY()
+	FBox HLODBounds;
+
+	UPROPERTY()
+	uint32 HLODHash;
 #endif
 
 	UPROPERTY(NonPIEDuplicateTransient, TextExportTransient, NonTransactional)

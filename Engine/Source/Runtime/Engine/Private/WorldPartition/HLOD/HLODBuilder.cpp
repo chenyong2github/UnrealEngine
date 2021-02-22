@@ -10,19 +10,27 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
 
+#include "ISMPartition/ISMComponentDescriptor.h"
+
 #include "Algo/ForEach.h"
 #include "Algo/RemoveIf.h"
 #include "Algo/Transform.h"
 #include "Misc/HashBuilder.h"
+#include "Serialization/ArchiveCrc32.h"
 #include "Templates/UniquePtr.h"
 
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/HLODProxy.h"
 #include "Materials/Material.h"
+#include "StaticMeshCompiler.h"
 
 #include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogHLODBuilder, Log, All);
 
 /**
  * Base class for all HLODBuilders
@@ -32,89 +40,86 @@ class FHLODBuilder
 public:
 	virtual ~FHLODBuilder() {}
 
-	virtual const TCHAR* GetActorSuffix() const = 0;
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const TArray<UPrimitiveComponent*>& InSubComponents) = 0;
+	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) = 0;
 
-	void Build(const TArray<const AActor*>& InSubActors)
+	void Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<const AActor*>& InSubActors)
 	{
-		TArray<UPrimitiveComponent*> SubComponents = GatherPrimitiveComponents(0, InSubActors);
+		TArray<UPrimitiveComponent*> SubComponents = GatherPrimitiveComponents(InSubActors);
 		if (SubComponents.IsEmpty())
 		{
 			return;
 		}
 
-		AWorldPartitionHLOD* HLODActor = nullptr;
-
-		// Compute HLODActor hash
-		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), Context->GridIndexX, Context->GridIndexY, Context->GridIndexZ, Context->DataLayersID);
-
-		int32 HLODActorRefIndex = INDEX_NONE;
-		FWorldPartitionHandle HLODActorHandle;
-		if (Context->HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorHandle))
-		{
-			HLODActorRefIndex = Context->ActorReferences.Add(HLODActorHandle);
-			HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorHandle->GetActor());
-		}
-
-		if (!HLODActor)
-		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.Name = *FString::Printf(TEXT("%s_%016llx_%s"), *HLODLayer->GetName(), CellHash, GetActorSuffix());
-			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
-			HLODActor = World->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
-			HLODActor->SetActorLabel(CellName.ToString());
-		}
-
-		TArray<UPrimitiveComponent*> HLODPrimitives = CreateComponents(HLODActor, SubComponents);
+		TArray<UPrimitiveComponent*> HLODPrimitives = CreateComponents(InHLODActor, InHLODLayer, SubComponents);
 		HLODPrimitives.RemoveSwap(nullptr);
 
 		if (!HLODPrimitives.IsEmpty())
 		{
-			HLODActor->Modify();
-			HLODActor->SetHLODPrimitives(HLODPrimitives);
-			HLODActor->SetSubActors(InSubActors);
-			HLODActor->SetRuntimeGrid(HLODLayer->GetRuntimeGrid(HLODLevel));
-			HLODActor->SetLODLevel(HLODLevel);
-			HLODActor->SetHLODLayer(HLODLayer->GetParentLayer().LoadSynchronous());
-			HLODActor->SetSubActorsHLODLayer(HLODLayer);
-			HLODActor->SetGridIndices(Context->GridIndexX, Context->GridIndexY, Context->GridIndexZ);
-		}
-		else
-		{
-			if (HLODActorRefIndex != INDEX_NONE)
-			{
-				Context->HLODActorDescs.Add(CellHash, FWorldPartitionHandle(WorldPartition, HLODActor->GetActorGuid()));
-				Context->ActorReferences.RemoveAtSwap(HLODActorRefIndex);
-			}
-			else
-			{
-				World->DestroyActor(HLODActor);
-				HLODActor = nullptr;
-			}
-		}
-
-		if (HLODActor)
-		{
-			HLODActors.Add(HLODActor);
+			InHLODActor->Modify();
+			InHLODActor->SetHLODPrimitives(HLODPrimitives);
 		}
 	}
 
-	TArray<UPrimitiveComponent*> GatherPrimitiveComponents(uint32 InHLODLevel, const TArray<const AActor*>& InActors)
+	static bool LoadSubActors(AWorldPartitionHLOD* InHLODActor, TArray<const AActor*>& OutActors, TArray<FWorldPartitionReference>& OutActorReferences)
+	{
+		OutActors.Reserve(InHLODActor->GetSubActors().Num());
+		OutActorReferences.Reserve(InHLODActor->GetSubActors().Num());
+
+		UWorld* World = InHLODActor->GetWorld();
+		UWorldPartition* WorldPartition = World->GetWorldPartition();
+		check(WorldPartition);
+
+		bool bIsDirty = false;
+
+		// Gather (and potentially load) actors
+		for (const FGuid& SubActorGuid : InHLODActor->GetSubActors())
+		{
+			FWorldPartitionReference ActorRef(WorldPartition, SubActorGuid);
+
+			if (ActorRef.IsValid())
+			{
+				AActor* LoadedActor = ActorRef.Get()->GetActor();
+
+				// Load level instances
+				if (ALevelInstance* LevelInstance = Cast<ALevelInstance>(LoadedActor))
+				{
+					// Wait for level instance loading
+					LevelInstance->GetLevelInstanceSubsystem()->BlockLoadLevelInstance(LevelInstance);
+				}
+
+				OutActors.Add(LoadedActor);
+				OutActorReferences.Add(MoveTemp(ActorRef));
+			}
+			else
+			{
+				bIsDirty = true;
+			}
+		}
+
+		// Wait for compilation to finish
+		FStaticMeshCompilingManager::Get().FinishAllCompilation();
+
+		return !bIsDirty;
+	}
+
+	static TArray<UPrimitiveComponent*> GatherPrimitiveComponents(const TArray<const AActor*>& InActors)
 	{
 		TArray<UPrimitiveComponent*> PrimitiveComponents;
 
-		auto GatherPrimitivesFromActor = [&PrimitiveComponents, InHLODLevel](const AActor* Actor)
+		auto GatherPrimitivesFromActor = [&PrimitiveComponents](const AActor* Actor)
 		{
-			if (UHLODLayer::ShouldIncludeInHLOD(Actor, Actor->IsA<ALevelInstance>()))
+			const bool bIncludeTransientActors = Actor->IsA<ALevelInstance>();
+			for (UActorComponent* SubComponent : Actor->GetComponents())
 			{
-				for (UActorComponent* SubComponent : Actor->GetComponents())
+				if (SubComponent && SubComponent->IsHLODRelevant())
 				{
 					if (UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(SubComponent))
 					{
-						if (UHLODLayer::ShouldIncludeInHLOD(PrimitiveComponent, InHLODLevel))
-						{
-							PrimitiveComponents.Add(PrimitiveComponent);
-						}
+						PrimitiveComponents.Add(PrimitiveComponent);
+					}
+					else
+					{
+						UE_LOG(LogHLODBuilder, Warning, TEXT("Component \"%s\" is marked as HLOD-relevant but this type of component currently unsupported."), *SubComponent->GetFullName());
 					}
 				}
 			}
@@ -141,17 +146,80 @@ public:
 		return PrimitiveComponents;
 	}
 
-public:
-	UWorld*					World;
-	UWorldPartition*		WorldPartition;
-	const UHLODLayer*		HLODLayer;
-	uint32					HLODLevel;
-	FName					CellName;
-	FBox					CellBounds;
-	float					CellLoadingRange;
-	FHLODGenerationContext* Context;
+	static uint32 ComputeHLODHash(AWorldPartitionHLOD* InHLODActor, const TArray<const AActor*>& InActors)
+	{
+		FArchiveCrc32 Ar;
 
-	TArray<AWorldPartitionHLOD*> HLODActors;
+		// Base key, changing this will force a rebuild of all HLODs
+		FString HLODBaseKey = "5184EABE2BEF440DB5A461554A28A3E4";
+		Ar << HLODBaseKey;
+
+		// HLOD Layer
+		uint32 HLODLayerHash = InHLODActor->GetSubActorsHLODLayer()->GetCRC();
+		UE_LOG(LogHLODBuilder, Log, TEXT(" - HLODLayer (%s) = %x"), *InHLODActor->GetSubActorsHLODLayer()->GetName(), HLODLayerHash);
+		Ar << HLODLayerHash;
+
+		// We get the CRC of each component
+		TArray<uint32> ComponentsCRCs;
+		for (UPrimitiveComponent* Component : GatherPrimitiveComponents(InActors))
+		{
+			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Component))
+			{
+				uint32 ComponentCRC = 0;
+
+				UE_LOG(LogHLODBuilder, Log, TEXT(" - Component \'%s\' from actor \'%s\'"), *Component->GetName(), *Component->GetOwner()->GetName());
+
+				// CRC component
+				uint32 StaticMeshComponentCRC = UHLODProxy::GetCRC(StaticMeshComponent);
+				UE_LOG(LogHLODBuilder, Log, TEXT("     - StaticMeshComponent (%s) = %x"), *StaticMeshComponent->GetName(), StaticMeshComponentCRC);
+				ComponentCRC = HashCombine(ComponentCRC, StaticMeshComponentCRC);
+
+				if (UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh())
+				{
+					// CRC static mesh
+					int32 StaticMeshCRC = UHLODProxy::GetCRC(StaticMesh);
+					UE_LOG(LogHLODBuilder, Log, TEXT("     - StaticMesh (%s) = %x"), *StaticMesh->GetName(), StaticMeshCRC);
+					ComponentCRC = HashCombine(ComponentCRC, StaticMeshCRC);
+
+					// CRC materials
+					const int32 NumMaterials = StaticMeshComponent->GetNumMaterials();
+					for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
+					{
+						UMaterialInterface* MaterialInterface = StaticMeshComponent->GetMaterial(MaterialIndex);
+						if (MaterialInterface)
+						{
+							if (MaterialInterface->GetName() == "M_Sidewalk_Master_Inst")
+							{
+								__debugbreak();
+							}
+							uint32 MaterialInterfaceCRC = UHLODProxy::GetCRC(MaterialInterface);
+							UE_LOG(LogHLODBuilder, Log, TEXT("     - MaterialInterface (%s) = %x"), *MaterialInterface->GetName(), MaterialInterfaceCRC);
+							ComponentCRC = HashCombine(ComponentCRC, MaterialInterfaceCRC);
+
+							TArray<UTexture*> Textures;
+							MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::High, true, ERHIFeatureLevel::SM5, true);
+							for (UTexture* Texture : Textures)
+							{
+								uint32 TextureCRC = UHLODProxy::GetCRC(Texture);
+								UE_LOG(LogHLODBuilder, Log, TEXT("     - Texture (%s) = %x"), *Texture->GetName(), TextureCRC);
+								ComponentCRC = HashCombine(ComponentCRC, TextureCRC);
+							}
+						}
+					}
+				}
+
+				ComponentsCRCs.Add(ComponentCRC);
+			}
+		}
+
+		// Sort the components CRCs to ensure the order of components won't have an impact on the final CRC
+		ComponentsCRCs.Sort();
+
+		// Append all components CRCs
+		Ar << ComponentsCRCs;
+			
+		return Ar.GetCrc();
+	}
 };
 
 
@@ -213,9 +281,7 @@ class FHLODBuilder_Instancing : public FHLODBuilder
 		uint32						Hash;
 	};
 
-	virtual const TCHAR* GetActorSuffix() const override { return TEXT("InstancedMeshes"); }
-
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const TArray<UPrimitiveComponent*>& InSubComponents) override
+	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_Instancing::CreateComponents);
 
@@ -273,9 +339,7 @@ class FHLODBuilder_Instancing : public FHLODBuilder
  */
 class FHLODBuilder_MeshMerge : public FHLODBuilder
 {
-	virtual const TCHAR* GetActorSuffix() const override { return TEXT("MergedMesh"); }
-
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const TArray<UPrimitiveComponent*>& InSubComponents) override
+	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_MeshMerge::CreateComponents);
 
@@ -283,7 +347,7 @@ class FHLODBuilder_MeshMerge : public FHLODBuilder
 		FVector MergedActorLocation;
 
 		const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-		MeshMergeUtilities.MergeComponentsToStaticMesh(InSubComponents, InHLODActor->GetWorld(), HLODLayer->GetMeshMergeSettings(), HLODLayer->GetHLODMaterial().LoadSynchronous(), InHLODActor->GetPackage(), CellName.ToString(), Assets, MergedActorLocation, 0.25f, false);
+		MeshMergeUtilities.MergeComponentsToStaticMesh(InSubComponents, InHLODActor->GetWorld(), InHLODLayer->GetMeshMergeSettings(), InHLODLayer->GetHLODMaterial().LoadSynchronous(), InHLODActor->GetPackage(), InHLODActor->GetActorLabel(), Assets, MergedActorLocation, 0.25f, false);
 
 		UStaticMeshComponent* Component = nullptr;
 		Algo::ForEach(Assets, [InHLODActor, &Component, &MergedActorLocation](UObject* Asset)
@@ -308,9 +372,7 @@ class FHLODBuilder_MeshMerge : public FHLODBuilder
  */
 class FHLODBuilder_MeshSimplify : public FHLODBuilder
 {
-	virtual const TCHAR* GetActorSuffix() const override { return TEXT("SimplifiedMesh"); }
-
-	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const TArray<UPrimitiveComponent*>& InSubComponents) override
+	virtual TArray<UPrimitiveComponent*> CreateComponents(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InHLODLayer, const TArray<UPrimitiveComponent*>& InSubComponents) override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilder_MeshSimplify::CreateComponents);
 
@@ -322,13 +384,13 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 		Algo::TransformIf(InSubComponents, StaticMeshComponents, [](UPrimitiveComponent* InPrimitiveComponent) { return InPrimitiveComponent->IsA<UStaticMeshComponent>(); }, [](UPrimitiveComponent* InPrimitiveComponent) { return Cast<UStaticMeshComponent>(InPrimitiveComponent); });
 
 		const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-		MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, HLODLayer->GetMeshSimplifySettings(), HLODLayer->GetHLODMaterial().LoadSynchronous(), InHLODActor->GetPackage(), CellName.ToString(), FGuid::NewGuid(), ProxyDelegate, true);
+		MeshMergeUtilities.CreateProxyMesh(StaticMeshComponents, InHLODLayer->GetMeshSimplifySettings(), InHLODLayer->GetHLODMaterial().LoadSynchronous(), InHLODActor->GetPackage(), InHLODActor->GetActorLabel(), FGuid::NewGuid(), ProxyDelegate, true);
 
 		UStaticMeshComponent* Component = nullptr;
 		Algo::ForEach(Assets, [InHLODActor, &Component](UObject* Asset)
 		{
 			Asset->ClearFlags(RF_Public | RF_Standalone);
-			Asset->Rename(nullptr, InHLODActor);
+			Asset->Rename(nullptr, InHLODActor, REN_ForceNoResetLoaders | REN_NonTransactional | REN_DoNotDirty);
 
 			if (Cast<UStaticMesh>(Asset))
 			{
@@ -341,11 +403,161 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 	}
 };
 
-TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FHLODGenerationContext* InContext, FName InCellName, const FBox& InCellBounds, const UHLODLayer* InHLODLayer, uint32 InHLODLevel, const TArray<const AActor*>& InSubActors)
+TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FGuid>& InActors, const TArray<const UDataLayer*>& InDataLayers)
 {
-	TUniquePtr<FHLODBuilder> HLODBuilder = nullptr;
+	TMap<UHLODLayer*, TArray<FGuid>> HLODLayersActors;
+	for (const FGuid& ActorGuid : InActors)
+	{
+		FWorldPartitionActorDesc& ActorDesc = InCreationParams.WorldPartition->GetActorDescChecked(ActorGuid);
+		if (ActorDesc.GetActorIsHLODRelevant())
+		{
+			UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(ActorDesc, InCreationParams.WorldPartition);
+			if (HLODLayer)
+			{
+				HLODLayersActors.FindOrAdd(HLODLayer).Add(ActorGuid);
+			}
+		}
+	}
 
-	EHLODLayerType HLODLevelType = InHLODLayer->GetLayerType();
+	TArray<AWorldPartitionHLOD*> HLODActors;
+	for (const auto& Pair : HLODLayersActors)
+	{
+		const UHLODLayer* HLODLayer = Pair.Key;
+		const TArray<FGuid> HLODLayerActors = Pair.Value;
+		check(!HLODLayerActors.IsEmpty());
+
+		// Compute HLODActor hash
+		uint64 CellHash = FHLODActorDesc::ComputeCellHash(HLODLayer->GetName(), InCreationParams.GridIndexX, InCreationParams.GridIndexY, InCreationParams.GridIndexZ, InCreationParams.DataLayersID);
+
+		AWorldPartitionHLOD* HLODActor = nullptr;
+		FWorldPartitionHandle HLODActorHandle;
+		if (InCreationContext.HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorHandle))
+		{
+			InCreationContext.ActorReferences.Add(HLODActorHandle);
+			HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorHandle->GetActor());
+		}
+
+		bool bNewActor = HLODActor == nullptr;
+		if (bNewActor)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Name = *FString::Printf(TEXT("%s_%016llx"), *HLODLayer->GetName(), CellHash);
+			SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
+			HLODActor = InCreationParams.WorldPartition->GetWorld()->SpawnActor<AWorldPartitionHLOD>(SpawnParams);
+
+			HLODActor->SetActorLabel(InCreationParams.CellName.ToString());
+			HLODActor->SetSubActorsHLODLayer(HLODLayer);
+			HLODActor->SetGridIndices(InCreationParams.GridIndexX, InCreationParams.GridIndexY, InCreationParams.GridIndexZ);
+
+			// Make sure the generated HLOD actor has the same data layers as the source actors
+			for (const UDataLayer* DataLayer : InDataLayers)
+			{
+				HLODActor->AddDataLayer(DataLayer);
+			}
+		}
+		else
+		{
+#if DO_CHECK
+			uint64 GridIndexX, GridIndexY, GridIndexZ;
+			HLODActor->GetGridIndices(GridIndexX, GridIndexY, GridIndexZ);
+			check(GridIndexX == InCreationParams.GridIndexX);
+			check(GridIndexY == InCreationParams.GridIndexY);
+			check(GridIndexZ == InCreationParams.GridIndexZ);
+			check(HLODActor->GetSubActorsHLODLayer() == HLODLayer);
+			check(FDataLayersID(HLODActor->GetDataLayerObjects()) == InCreationParams.DataLayersID);
+#endif
+		}
+
+		bool bIsDirty = false;
+
+		// Sub actors
+		{
+			bool bSubActorsChanged = HLODActor->GetSubActors().Num() != HLODLayerActors.Num();
+			if (!bSubActorsChanged)
+			{
+				TArray<FGuid> A = HLODActor->GetSubActors();
+				TArray<FGuid> B = HLODLayerActors;
+				A.Sort();
+				B.Sort();
+				bSubActorsChanged = A != B;
+			}
+
+			if (bSubActorsChanged)
+			{
+				HLODActor->SetSubActors(HLODLayerActors);
+				bIsDirty = true;
+			}
+		}
+
+		// Runtime grid
+		FName RuntimeGrid = HLODLayer->GetRuntimeGrid(InCreationParams.HLODLevel);
+		if (HLODActor->GetRuntimeGrid() != RuntimeGrid)
+		{
+			HLODActor->SetRuntimeGrid(RuntimeGrid);
+			bIsDirty = true;
+		}
+
+		// HLOD level
+		if (HLODActor->GetLODLevel() != InCreationParams.HLODLevel)
+		{
+			HLODActor->SetLODLevel(InCreationParams.HLODLevel);
+			bIsDirty = true;
+		}
+
+		// Parent HLOD layer
+		UHLODLayer* ParentHLODLayer = HLODLayer->GetParentLayer().LoadSynchronous();
+		if (HLODActor->GetHLODLayer() != ParentHLODLayer)
+		{
+			HLODActor->SetHLODLayer(ParentHLODLayer);
+			bIsDirty = true;
+		}
+
+		// Cell bounds
+		if (HLODActor->GetHLODBounds().Equals(InCreationParams.CellBounds))
+		{
+			HLODActor->SetHLODBounds(InCreationParams.CellBounds);
+			bIsDirty = true;
+		}
+
+		// If any change was performed, mark HLOD package as dirty
+		if (bIsDirty)
+		{
+			HLODActor->MarkPackageDirty();
+		}
+
+		HLODActors.Add(HLODActor);
+	}
+
+	return HLODActors;
+}
+
+uint32 FHLODBuilderUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
+{
+	TArray<FWorldPartitionReference> ActorReferences;
+	TArray<const AActor*> SubActors;
+	
+	bool bIsDirty = !FHLODBuilder::LoadSubActors(InHLODActor, SubActors, ActorReferences);
+	if (bIsDirty)
+	{
+		UE_LOG(LogHLODBuilder, Warning, TEXT("HLOD actor \"%s\" needs to be rebuilt as it references actors that have been deleted."), *InHLODActor->GetActorLabel());
+	}
+
+	uint32 OldHLODHash = bIsDirty ? 0 : InHLODActor->GetHLODHash();
+	uint32 NewHLODHash = FHLODBuilder::ComputeHLODHash(InHLODActor, SubActors);
+
+	if (OldHLODHash == NewHLODHash)
+	{
+		return OldHLODHash;
+	}
+
+	// Hack to resave hashes
+	InHLODActor->MarkPackageDirty();
+	return NewHLODHash;
+
+	TUniquePtr<FHLODBuilder> HLODBuilder = nullptr;
+	
+	const UHLODLayer* HLODLayer = InHLODActor->GetSubActorsHLODLayer();
+	EHLODLayerType HLODLevelType = HLODLayer->GetLayerType();
 	switch (HLODLevelType)
 	{
 	case EHLODLayerType::Instancing:
@@ -364,24 +576,14 @@ TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::BuildHLODs(UWorldPartition* 
 		checkf(false, TEXT("Unsupported type"));
 	}
 
-	TArray<AWorldPartitionHLOD*> HLODActors;
-
-	if (HLODBuilder)
+	if (ensure(HLODBuilder))
 	{
-		HLODBuilder->World = InWorldPartition->GetWorld();
-		HLODBuilder->WorldPartition = InWorldPartition;
-		HLODBuilder->HLODLayer = InHLODLayer;
-		HLODBuilder->HLODLevel = InHLODLevel;
-		HLODBuilder->CellName = InCellName;
-		HLODBuilder->CellBounds = InCellBounds;
-		HLODBuilder->Context = InContext;
-
-		HLODBuilder->Build(InSubActors);
-			
-		HLODActors = HLODBuilder->HLODActors;
+		HLODBuilder->Build(InHLODActor, HLODLayer, SubActors);
 	}
 
-	return HLODActors;
+	InHLODActor->MarkPackageDirty();
+
+	return NewHLODHash;
 }
 
 #endif

@@ -33,31 +33,23 @@
 DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionRuntimeSpatialHashHLOD, Log, All);
 
 
-static void CheckoutAndSavePackage(UPackage* Package, ISourceControlHelper* SourceControlHelper)
+static void SavePackage(UPackage* Package, ISourceControlHelper* SourceControlHelper)
 {
-	// Checkout package
-	Package->MarkAsFullyLoaded();
-
-	if (SourceControlHelper && !SourceControlHelper->Checkout(Package))
+	if (SourceControlHelper)
 	{
-		UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Error, TEXT("Error checking out package %s."), *Package->GetName());
-		check(0);
+		SourceControlHelper->Save(Package);
 	}
-
-	// Save package
-	FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(Package->GetName());
-	const FString PackageFileName = PackagePath.GetLocalFullPath();
-	if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
+	else
 	{
-		UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Error, TEXT("Error saving package %s."), *Package->GetName());
-		check(0);
-	}
+		Package->MarkAsFullyLoaded();
 
-	// Add new package to source control
-	if (SourceControlHelper && !SourceControlHelper->Add(Package))
-	{
-		UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
-		check(0);
+		FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(Package->GetName());
+		const FString PackageFileName = PackagePath.GetLocalFullPath();
+		if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName))
+		{
+			UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Error, TEXT("Error saving package %s."), *Package->GetName());
+			check(0);
+		}
 	}
 }
 
@@ -100,7 +92,7 @@ static void DeletePackage(FWorldPartitionActorDesc* ActorDesc, ISourceControlHel
 	}
 }
 
-static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, FHLODGenerationContext& Context, ISourceControlHelper* SourceControlHelper, const TArray<FActorCluster>& ActorClusters)
+static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, FHLODCreationContext& Context, ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly, const TArray<FActorCluster>& ActorClusters)
 {
 	auto HasExceededMaxMemory = []()
 	{
@@ -174,6 +166,10 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 	{
 		const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell = PartitionedActors.GetCell(CellCoord);
 
+		FBox2D CellBounds2D;
+		PartitionedActors.GetCellBounds(CellCoord, CellBounds2D);
+		FBox CellBounds = FBox(FVector(CellBounds2D.Min, WorldBounds.Min.Z), FVector(CellBounds2D.Max, WorldBounds.Max.Z));
+
 		for (const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk& GridCellDataChunk : GridCell.GetDataChunks())
 		{
 			const bool bShouldGenerateHLODs = ShouldGenerateHLODs(GridCell, GridCellDataChunk);
@@ -181,46 +177,29 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 			{
 				SlowTask.EnterProgressFrame(1);
 
-				FBox2D CellBounds2D;
-				PartitionedActors.GetCellBounds(CellCoord, CellBounds2D);
-
 				FName CellName = UWorldPartitionRuntimeSpatialHash::GetCellName(WorldPartition, RuntimeGrid.GridName, CellCoord.Z, CellCoord.X, CellCoord.Y, GridCellDataChunk.GetDataLayersID());
-				FBox CellBounds = FBox(FVector(CellBounds2D.Min, WorldBounds.Min.Z), FVector(CellBounds2D.Max, WorldBounds.Max.Z));
 
-				Context.GridIndexX = CellCoord.X;
-				Context.GridIndexY = CellCoord.Y;
-				Context.GridIndexZ = CellCoord.Z;
-				Context.DataLayersID = GridCellDataChunk.GetDataLayersID();
+				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*CellName.ToString());
 
-				// Gather (and potentially load) actors
-				TArray<AActor*> CellActors;
-				for (const FGuid& ActorGuid : GridCellDataChunk.GetActors())
-				{
-					FWorldPartitionReference& ActorRef = Context.ActorReferences.Emplace_GetRef(WorldPartition, ActorGuid);
-					FWorldPartitionActorDesc* ActorDesc = ActorRef.Get();
-					CellActors.Add(ActorDesc->GetActor());
-				}
+				UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Display, TEXT("[%d / %d] Creating/updating HLOD actor(s) for cell %s"), (int32)SlowTask.CompletedWork, (int32)SlowTask.TotalAmountOfWork, *CellName.ToString());
 
-				FStaticMeshCompilingManager::Get().FinishAllCompilation();
+				FHLODCreationParams CreationParams;
+				CreationParams.WorldPartition = WorldPartition;
+				CreationParams.GridIndexX = CellCoord.X;
+				CreationParams.GridIndexY = CellCoord.Y;
+				CreationParams.GridIndexZ = CellCoord.Z;
+				CreationParams.DataLayersID = GridCellDataChunk.GetDataLayersID();
+				CreationParams.CellName = CellName;
+				CreationParams.CellBounds = CellBounds;
+				CreationParams.HLODLevel = HLODLevel;
 
-				if (HasExceededMaxMemory())
-				{
-					DoCollectGarbage();
-				}
-
-				TArray<AWorldPartitionHLOD*> CellHLODActors = UHLODLayer::GenerateHLODForCell(WorldPartition, &Context, CellName, CellBounds, HLODLevel, CellActors);
+				TArray<AWorldPartitionHLOD*> CellHLODActors = FHLODBuilderUtilities::CreateHLODActors(Context, CreationParams, GridCellDataChunk.GetActors(), GridCellDataChunk.GetDataLayers());
 				if (!CellHLODActors.IsEmpty())
 				{
 					TArray<AWorldPartitionHLOD*> NewCellHLODActors;
 
 					for (AWorldPartitionHLOD* CellHLODActor : CellHLODActors)
 					{
-						// Make sure the generated HLOD actor has the same data layers as the source actors
-						for(const UDataLayer* DataLayer : GridCellDataChunk.GetDataLayers())
-						{
-							CellHLODActor->AddDataLayer(DataLayer);
-						}
-
 						FGuid ActorGuid = CellHLODActor->GetActorGuid();
 						GridHLODActors.Add(ActorGuid);
 
@@ -229,8 +208,26 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 						{
 							NewCellHLODActors.Add(CellHLODActor);
 						}
+					}
 
-						CheckoutAndSavePackage(CellHLODActorPackage, SourceControlHelper);
+					for (AWorldPartitionHLOD* CellHLODActor : CellHLODActors)
+					{
+						if (!bCreateActorsOnly)
+						{
+							FStaticMeshCompilingManager::Get().FinishAllCompilation();
+
+							if (HasExceededMaxMemory())
+							{
+								DoCollectGarbage();
+							}
+
+							CellHLODActor->BuildHLOD();
+						}
+
+						if (CellHLODActor->GetPackage()->IsDirty())
+						{
+							SavePackage(CellHLODActor->GetPackage(), SourceControlHelper);
+						}
 					}
 
 					// Manually tick the directory watcher and the asset registry to register newly created actors
@@ -251,7 +248,7 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 	});
 
 	// Need to collect garbage here since some HLOD actors have been marked pending kill when destroying them
-	// and they may be loaded when generating the nexty HLOD layer.
+	// and they may be loaded when generating the next HLOD layer.
 	DoCollectGarbage();
 
 	return GridHLODActors;
@@ -429,12 +426,12 @@ static void UpdateHLODGridsActors(UWorld* World, const TMap<FName, FSpatialHashR
 			HLODLevel = FMath::Clamp(HLODLevel + 2, 0U, LastLODColorationColorIdx);
 			GridActor->GridSettings.DebugColor = GEngine->HLODColorationColors[HLODLevel];
 
-			CheckoutAndSavePackage(GridActor->GetPackage(), SourceControlHelper);
+			SavePackage(GridActor->GetPackage(), SourceControlHelper);
 		}
 	}
 }
 
-bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* SourceControlHelper)
+bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::GenerateHLOD);
 
@@ -473,8 +470,8 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 
-	// Create HLODs generation context
-	FHLODGenerationContext Context;
+	// HLOD creation context
+	FHLODCreationContext Context;
 	TArray<FWorldPartitionHandle> InvalidHLODActors;
 
 	for (UActorDescContainer::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
@@ -515,10 +512,10 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	// Keep track of all valid HLOD actors, along with which runtime grid they live in
 	TMap<FName, TArray<FGuid>> GridsHLODActors;
 
-	auto GenerateHLODs = [&GridsHLODActors, WorldPartition, &GridsDepth, &Context, SourceControlHelper](const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, const TArray<FActorCluster>& ActorClusters)
+	auto GenerateHLODs = [&GridsHLODActors, WorldPartition, &GridsDepth, &Context, SourceControlHelper, bCreateActorsOnly](const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, const TArray<FActorCluster>& ActorClusters)
 	{
 		// Generate HLODs for this grid
-		TArray<FGuid> HLODActors = GenerateHLODsForGrid(WorldPartition, RuntimeGrid, HLODLevel, Context, SourceControlHelper, ActorClusters);
+		TArray<FGuid> HLODActors = GenerateHLODsForGrid(WorldPartition, RuntimeGrid, HLODLevel, Context, SourceControlHelper, bCreateActorsOnly, ActorClusters);
 
 		for (const FGuid& HLODActorGuid : HLODActors)
 		{

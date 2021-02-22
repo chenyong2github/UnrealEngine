@@ -14,9 +14,7 @@
 #include "HLODLayer.generated.h"
 
 class UWorldPartition;
-class AWorldPartitionHLOD;
 class AActor;
-struct FHLODGenerationContext;
 
 UENUM()
 enum class EHLODLayerType : uint8
@@ -33,10 +31,10 @@ class ENGINE_API UHLODLayer : public UObject
 	
 #if WITH_EDITOR
 public:
-	static TArray<AWorldPartitionHLOD*> GenerateHLODForCell(UWorldPartition* InWorldPartition, FHLODGenerationContext* Context, FName InCellName, const FBox& InCellBounds, uint32 InLODLevel, const TArray<AActor*>& InCellActors);
-
 	static UHLODLayer* GetHLODLayer(const AActor* InActor);
-	static bool ShouldIncludeInHLOD(const UPrimitiveComponent* InComponent, int32 InLevelIndex);
+	static UHLODLayer* GetHLODLayer(const FWorldPartitionActorDesc& InActorDesc, const UWorldPartition* InWorldPartition);
+
+	uint32 GetCRC() const;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -51,8 +49,6 @@ public:
 
 	static FName GetRuntimeGridName(uint32 InLODLevel, int32 InCellSize, float InLoadingRange);
 #endif
-
-	static bool ShouldIncludeInHLOD(const AActor* InActor, bool bInFromLevelInstance = false);
 
 #if WITH_EDITORONLY_DATA
 private:

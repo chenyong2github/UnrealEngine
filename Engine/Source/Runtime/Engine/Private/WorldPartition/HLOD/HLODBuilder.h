@@ -14,17 +14,26 @@ class UWorldPartition;
 class UHLODLayer;
 class AWorldPartitionHLOD;
 
-struct ENGINE_API FHLODGenerationContext
+struct ENGINE_API FHLODCreationContext
 {
 	TMap<uint64, FWorldPartitionHandle> HLODActorDescs;
 	TArray<FWorldPartitionReference> ActorReferences;
-	
+};
+
+struct ENGINE_API FHLODCreationParams
+{
+	UWorldPartition* WorldPartition;
+
 	// Everything needed to build the cell hash
 	int64 GridIndexX;
 	int64 GridIndexY;
 	int64 GridIndexZ;
 	FDataLayersID DataLayersID;
 	FName HLODLayerName;
+
+	FName CellName;
+	FBox  CellBounds;
+	uint32 HLODLevel;
 };
 
 /**
@@ -34,19 +43,22 @@ class FHLODBuilderUtilities
 {
 public:
 	/**
-	 * Build HLODs for a given cell of a WorldPartition level.
-	 * May spawn multiple AWorldPartitionHLOD actors depending on the HLODLayer settings.
-	 *
-	 * @param 	InWorldPartition	The WorldPartition for which we are building HLODs
-	 * @param	InContext			The HLODs generation context
-	 * @param 	InCellName			The name of the cell
-	 * @param 	InCellBounds		Bounds of the cell, will be assigned to the created HLOD actors.
-	 * @param 	InHLODLayer			The HLODLayer which will provide the HLOD building parameters.
-	 * @param	InHLODLevel			Level of HLOD (HLOD 0...N)
-	 * @param 	InSubActors			The actors from which we'll gather geometry to generate an HLOD mesh
-	 * @return The list of HLOD actors for this cell.
+	 * Create HLOD actors for a given cell
+	 * 
+	 * @param	InCreationContext	HLOD creation context object
+	 * @param	InCreationParams	HLOD creation parameters object
+	 * @param	InActors			The actors for which we'll build an HLOD representation
+	 * @param	InDataLayers		The data layers to assign to the newly created HLOD actors
 	 */
-	static TArray<AWorldPartitionHLOD*> BuildHLODs(UWorldPartition* InWorldPartition, FHLODGenerationContext* InContext, FName InCellName, const FBox& InCellBounds, const UHLODLayer* InHLODLayer, uint32 InHLODLevel, const TArray<const AActor*>& InSubActors);
+	static TArray<AWorldPartitionHLOD*> CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FGuid>& InActors, const TArray<const UDataLayer*>& InDataLayers);
+
+	/**
+	 * Build HLOD for the specified AWorldPartitionHLOD actor.
+	 *
+	 * @param 	InHLODActor		The HLOD actor for which we'll build the HLOD
+	 * @return An hash that represent the content used to build this HLOD.
+	 */
+	static uint32 BuildHLOD(AWorldPartitionHLOD* InHLODActor);
 };
 
 #endif

@@ -61,6 +61,7 @@ public:
 	virtual bool Add(UPackage* Package) const =0;
 	virtual bool Delete(const FString& PackageName) const =0;
 	virtual bool Delete(UPackage* Package) const =0;
+	virtual bool Save(UPackage* Package) const =0;
 };
 #endif
 
@@ -141,7 +142,7 @@ public:
 
 	FBox GetWorldBounds() const;
 	FBox GetEditorWorldBounds() const;
-	void GenerateHLOD(ISourceControlHelper* SourceControlHelper);
+	void GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly);
 	void GenerateNavigationData();
 
 	// Debugging Methods
