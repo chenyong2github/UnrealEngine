@@ -368,14 +368,16 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 		DrawIndirectArgGenTasks.Empty();
 		DrawIndirectArgMap.Empty();
 		InstanceCountClearTasks.Empty();
-
-		if (bAcquiredCulledCounts && RequiredCulledCounts > 0)
-		{
-			CulledCountBuffer.DiscardTransientResource();
-		}
-		bAcquiredCulledCounts = false;
-		RequiredCulledCounts = 0; // reset this counter now that we're done with them
 	}
+
+	// Release culled count buffers
+	// This is done outside of the above if as a mesh renderer could request a culled count but never add any indirect draws
+	if (bAcquiredCulledCounts && RequiredCulledCounts > 0)
+	{
+		CulledCountBuffer.DiscardTransientResource();
+	}
+	bAcquiredCulledCounts = false;
+	RequiredCulledCounts = 0; // reset this counter now that we're done with them
 }
 
 const uint32* FNiagaraGPUInstanceCountManager::GetGPUReadback() 
