@@ -180,6 +180,7 @@ protected:
 	/** Reference to the menu content that's displayed when the type button is clicked on */
 	TSharedPtr<SMenuOwner> MenuContent;
 	virtual TSharedRef<SWidget>	GetMenuContent(bool bForSecondaryType);
+	TSharedRef<SWidget> GetPinContainerTypeMenuContent();
 
 	/** Type searching support */
 	FText SearchText;
