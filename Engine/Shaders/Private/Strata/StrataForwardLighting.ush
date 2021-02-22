@@ -39,6 +39,9 @@ float3 StrataForwardLighting(
 		{
 			FStrataBSDF BSDF = Strata.Layers[l].BSDFs[i];
 
+			// Sanitize BSDF before it is used for forward shading
+			StrataSanitizeBSDF(BSDF);
+
 			BRANCH
 			if(BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB)
 			{
@@ -49,9 +52,6 @@ float3 StrataForwardLighting(
 					EnableSlabBSDFSimpleVolumetric(BSDF);
 				}
 			}
-
-			// Sanitize BSDF before it is used for forward shading
-			StrataSanitizeBSDF(BSDF);
 
 			const float3 BSDFCoverage = BSDF.Weight;
 
