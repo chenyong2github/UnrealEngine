@@ -2237,7 +2237,8 @@ struct FRelevancePacket
 							&& !bHiddenByHLODFade)
 						{
 							bool bMobileIsInDepthPassMaskedMesh = (bMobileMaskedInEarlyPass && ViewRelevance.bMasked) && ShadingPath == EShadingPath::Mobile;
-							if ((StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly && ShadingPath != EShadingPath::Mobile) || bMobileIsInDepthPassMaskedMesh)
+							bool bMobileIsInFullDepthPass = (StaticMeshRelevance.bUseForDepthPass && Scene->EarlyZPassMode == DDM_AllOpaque) && ShadingPath == EShadingPath::Mobile;
+							if ((StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly && ShadingPath != EShadingPath::Mobile) || bMobileIsInDepthPassMaskedMesh || bMobileIsInFullDepthPass)
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DepthPass);
 

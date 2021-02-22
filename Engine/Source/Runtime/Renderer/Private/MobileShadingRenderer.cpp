@@ -201,6 +201,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
 	bRequiresAmbientOcclusionPass = false;
 	bRequiresDistanceFieldShadowingPass = false;
+	bIsFullPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
 
 	// Don't do occlusion queries when doing scene captures
 	for (FViewInfo& View : Views)
@@ -362,9 +363,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		&& !Views[0].bIsPlanarReflection
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS()
-		// Only support forward shading, we don't want to break tiled deferred shading.
-		&& !bDeferredShading;
+		&& !ViewFamily.UseDebugViewPS();
 
 	bRequiresDistanceField = IsMobileDistanceFieldEnabled(ShaderPlatform)
 		&& ViewFamily.EngineShowFlags.Lighting
@@ -372,8 +371,7 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		&& !Views[0].bIsPlanarReflection
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS()
-		&& !bDeferredShading;
+		&& !ViewFamily.UseDebugViewPS();
 
 	bRequiresDistanceFieldShadowingPass = bRequiresDistanceField && IsMobileDistanceFieldShadowingEnabled(ShaderPlatform);
 		
@@ -389,8 +387,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	bKeepDepthContent = 
 		bRequiresMultiPass || 
 		bForceDepthResolve ||
-		bRequiresAmbientOcclusionPass ||
-		bRequiresDistanceFieldShadowingPass ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
@@ -705,7 +701,35 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderCustomDepthPass(GraphBuilder);
 		GraphBuilder.Execute();
 	}
-	
+
+	if (bIsFullPrepassEnabled)
+	{
+		//SDF and AO require full depth prepass
+
+		FRHIRenderPassInfo DepthPrePassRenderPassInfo(
+			SceneContext.GetSceneDepthSurface(),
+			EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil);
+
+		RHICmdList.BeginRenderPass(DepthPrePassRenderPassInfo, TEXT("DepthPrepass"));
+
+		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_MobilePrePass));
+		// Full Depth pre-pass
+		RenderPrePass(RHICmdList);
+
+		RHICmdList.EndRenderPass();
+
+		if (bRequiresDistanceFieldShadowingPass)
+		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSDFShadowing);
+			RenderSDFShadowing(RHICmdList);
+		}
+
+		if (bRequiresAmbientOcclusionPass)
+		{
+			RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
+		}
+	}
+
 	FRHITexture* SceneColor = nullptr;
 	if (bDeferredShading)
 	{
@@ -762,17 +786,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (!bGammaSpace || bRenderToSceneColor)
 	{
 		RHICmdList.Transition(FRHITransitionInfo(SceneColor, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-	}
-
-	if (bRequiresDistanceFieldShadowingPass)
-	{
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSDFShadowing);
-		RenderSDFShadowing(RHICmdList);
-	}
-
-	if (bRequiresAmbientOcclusionPass)
-	{
-		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
 	}
 
 	if (bDeferredShading)
@@ -938,6 +951,13 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		}
 	}
 
+	if (bIsFullPrepassEnabled)
+	{
+		ERenderTargetActions DepthTarget = MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, GetStoreAction(GetDepthActions(DepthTargetAction)));
+		ERenderTargetActions StencilTarget = MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, GetStoreAction(GetStencilActions(DepthTargetAction)));
+		DepthTargetAction = MakeDepthStencilTargetActions(DepthTarget, StencilTarget);
+	}
+
 	FRHITexture* ShadingRateTexture = nullptr;
 	
 	if (SceneContext.IsShadingRateTextureTextureAllocated()	&& !View.bIsSceneCapture && !View.bIsReflectionCapture)
@@ -970,9 +990,12 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		DrawClearQuad(RHICmdList, Views[0].BackgroundColor);
 	}
 
-	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_MobilePrePass));
-	// Depth pre-pass
-	RenderPrePass(RHICmdList);
+	if (!bIsFullPrepassEnabled)
+	{
+		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_MobilePrePass));
+		// Depth pre-pass
+		RenderPrePass(RHICmdList);
+	}
 	
 	// Opaque and masked
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Opaque));
@@ -1145,6 +1168,12 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 	EDepthStencilTargetActions DepthAction = bKeepDepthContent ? EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil : EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
 		
 	ERenderTargetActions ColorTargetsAction[4] = {ERenderTargetActions::Clear_Store, GBufferAction, GBufferAction, GBufferAction};
+	if (bIsFullPrepassEnabled)
+	{
+		ERenderTargetActions DepthTarget = MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, GetStoreAction(GetDepthActions(DepthAction)));
+		ERenderTargetActions StencilTarget = MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, GetStoreAction(GetStencilActions(DepthAction)));
+		DepthAction = MakeDepthStencilTargetActions(DepthTarget, StencilTarget);
+	}
 	
 	FRHIRenderPassInfo BasePassInfo = FRHIRenderPassInfo();
 	int32 ColorTargetIndex = 0;
@@ -1186,10 +1215,13 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 		DrawClearQuad(RHICmdList, Views[0].BackgroundColor);
 	}
 
-	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_MobilePrePass));
-	// Depth pre-pass
-	RenderPrePass(RHICmdList);
-	
+	if (!bIsFullPrepassEnabled)
+	{
+		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_MobilePrePass));
+		// Depth pre-pass
+		RenderPrePass(RHICmdList);
+	}
+
 	// Opaque and masked
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Opaque));
 	RenderMobileBasePass(RHICmdList, ViewList);

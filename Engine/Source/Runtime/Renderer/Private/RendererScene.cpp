@@ -3403,13 +3403,16 @@ void FScene::UpdateEarlyZPassMode()
 	}
 	else if (GetShadingPath(GetFeatureLevel()) == EShadingPath::Mobile)
 	{
+		EarlyZPassMode = DDM_None;
+
 		if (MaskedInEarlyPass(GetFeatureLevelShaderPlatform(FeatureLevel)))
 		{
 			EarlyZPassMode = DDM_MaskedOnly;
 		}
-		else
+
+		if (IsMobileDistanceFieldEnabled(GetShaderPlatform()) || IsMobileAmbientOcclusionEnabled(GetShaderPlatform()))
 		{
-			EarlyZPassMode = DDM_None;
+			EarlyZPassMode = DDM_AllOpaque;
 		}
 	}
 }

@@ -613,31 +613,11 @@ void Main(
 	GBuffer.ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
 	half MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
-#if (APPLY_AO || APPLY_DISTANCE_FIELD) && !DEFERRED_SHADING_PATH
-	// Compute velocity screen UV used to sample AO or DF buffer generated from previous frame
-	float4 ScreenPosition = SvPositionToResolvedScreenPosition(float4(SvPosition.xyz, 1));
-	float4 CurrClip = float4(ScreenPosition.xy, SvPosition.z, 1); // Inverted Far Depth = 0.0f
-	float4 PrevClip = mul(CurrClip, View.ClipToPrevClip);
-	float2 PrevScreen = PrevClip.xy / PrevClip.w;
-	float2 ScreenVelocity = ScreenPosition.xy - PrevScreen;
-	// TODO Sample screen velocity when available
-
-	float2 PrevScreenPosition = (ScreenPosition - ScreenVelocity);// NDC in [-1,1]
-	float2 PrevScreenUV = float2(PrevScreen.xy * MobileBasePass.PrevScreenPositionScaleBias.xy + MobileBasePass.PrevScreenPositionScaleBias.wz);
-	const bool bValidPreviousUV = all(PrevScreenUV > 0.0) && all(PrevScreenUV < 1.0f);
-#endif
-
 #if APPLY_AO
-	if (bValidPreviousUV)
-	{
-#if DEFERRED_SHADING_PATH
-		half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, SvPositionToBufferUV(SvPosition));
-#else
-		half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, PrevScreenUV);
-#endif
+	
+	half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, SvPositionToBufferUV(SvPosition));
 
-		MaterialAO *= GatheredAmbientOcclusion.r;
-	}
+	MaterialAO *= GatheredAmbientOcclusion.r;
 #endif
 
 	GBuffer.GBufferAO = MaterialAO;
@@ -756,13 +736,9 @@ void Main(
 #endif /* DIRECTIONAL_LIGHT_CSM */
 
 #if APPLY_DISTANCE_FIELD
-	if (ShadowPositionZ == 0 && bValidPreviousUV)
+	if (ShadowPositionZ == 0)
 	{
-		#if DEFERRED_SHADING_PATH
-			Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition)).x;
-		#else
-			Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, PrevScreenUV).x;
-		#endif
+		Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition)).x;
 	}
 #endif
 

@@ -27,7 +27,6 @@
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileBasePassUniformParameters, )
 	SHADER_PARAMETER(int32, UseCSM)
 	SHADER_PARAMETER(float, AmbientOcclusionStaticFraction)
-	SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
 	SHADER_PARAMETER_STRUCT(FFogUniformParameters, Fog)
 	SHADER_PARAMETER_STRUCT(FPlanarReflectionUniformParameters, PlanarReflection) // Single global planar reflection for the forward pass.
 	SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, SceneTextures)

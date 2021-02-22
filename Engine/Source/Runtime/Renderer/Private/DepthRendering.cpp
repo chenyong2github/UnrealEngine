@@ -744,8 +744,8 @@ void FMobileSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHICmdList)
 	SCOPED_GPU_STAT(RHICmdList, Prepass);
 
 	// Draw a depth pass to avoid overdraw in the other passes.
-	// Mobile only does MaskedOnly DepthPass for the moment
-	if (Scene->EarlyZPassMode == DDM_MaskedOnly)
+	// Mobile only does MaskedOnly and AllOpaque(when SDF or AO are activated) DepthPass for the moment
+	if (Scene->EarlyZPassMode == DDM_MaskedOnly || Scene->EarlyZPassMode == DDM_AllOpaque)
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
