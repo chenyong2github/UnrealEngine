@@ -25,19 +25,6 @@ float3 StrataForwardLighting(
 	float3 Color = 0;
 	OutThroughput = 1.0f;
 
-#if STRATA_INLINE_SHADING
-	// In forward, we must normalize each normal and tangent to avoid non normalised vectors due to per vertex interpolation or texture filtering.
-	UNROLL
-	for (uint i = 0; i < Header.SharedNormals.NormalCount; ++i)
-	{
-		Header.SharedNormals.Normals[i] = normalize(Header.SharedNormals.Normals[i]);
-		if (StrataGetSharedNormalType(Header.SharedNormals.NormalTypes, i) == STRATA_BASIS_TYPE_TANGENT)
-		{
-			Header.SharedNormals.Tangents[i] = normalize(Header.SharedNormals.Tangents[i]);
-		}
-	}
-#endif
-
 	UNROLL
 	for (int l = 0; l < Strata.LayerCount; ++l)
 	{

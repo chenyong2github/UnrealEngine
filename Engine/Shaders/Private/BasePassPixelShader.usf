@@ -1541,6 +1541,20 @@ void FPixelShaderInOut_MainPS(
 	bool bStrataSubsurfaceEnable = false;
 #if STRATA_ENABLED && !MATERIAL_SHADINGMODEL_UNLIT
 
+#if STRATA_INLINE_SHADING
+	// We must normalize each normal and tangent to avoid non normalised vectors due to per vertex interpolation or texture filtering,
+	// for the deferred (our packing relies on normalized normal) and forward (normals are going to be used as-is from registers) paths.
+	UNROLL
+	for (uint i = 0; i < StrataPixelHeader.SharedNormals.NormalCount; ++i)
+	{
+		StrataPixelHeader.SharedNormals.Normals[i] = normalize(StrataPixelHeader.SharedNormals.Normals[i]);
+		if (StrataGetSharedNormalType(StrataPixelHeader.SharedNormals.NormalTypes, i) == STRATA_BASIS_TYPE_TANGENT)
+		{
+			StrataPixelHeader.SharedNormals.Tangents[i] = normalize(StrataPixelHeader.SharedNormals.Tangents[i]);
+		}
+	}
+#endif
+
 #if STRATA_OPAQUE_ENABLED
 
 #if STRATA_INLINE_SINGLELAYERWATER==0
