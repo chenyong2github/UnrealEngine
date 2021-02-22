@@ -594,10 +594,19 @@ void FPhysScene_Chaos::RemoveObject(FSingleParticlePhysicsProxy* InObject)
 void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 {
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver<Chaos::FPhysicsSolver>();
-	if(Solver)
+
+	for (TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>& GTParticleUnique : InObject->GetExternalParticles())
 	{
-		Solver->UnregisterObject(InObject);
+		Chaos::TGeometryParticle<Chaos::FReal, 3>* GTParticle = GTParticleUnique.Get();
+		RemoveActorFromAccelerationStructure(GTParticle);
+		if(Solver)
+		{
+			Solver->UpdateParticleInAccelerationStructure_External(GTParticle, /*bDelete=*/true); // ensures deletion will be applied to structures passed from physics thread.
+		}
 	}
+
+	Solver->UnregisterObject(InObject);
+
 	RemoveFromComponentMaps(InObject);
 }
 

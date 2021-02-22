@@ -23,8 +23,10 @@ namespace Chaos
 	template <typename T> class TSerializablePtr;
 	class FErrorReporter;
 	struct FClusterCreationParameters;
-
 	struct FDirtyGeometryCollectionData;
+	
+	template <typename Traits>
+	class TPBDRigidsEvolutionBase;
 }
 
 class FStubGeometryCollectionData : public Chaos::FParticleData 
@@ -90,7 +92,8 @@ public:
 	 * Construct \c PTDynamicCollection, copying attributes from the game thread, 
 	 * and prepare for simulation.
 	 */
-	void Initialize();
+	template <typename Traits>
+	void Initialize(Chaos::TPBDRigidsEvolutionBase<Traits>* Evolution);
 	void Reset() { }
 
 	/** 
@@ -221,6 +224,9 @@ public:
 		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
 		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		const EFieldFilterType FilterType);
+		
+	/* Implemented so we can construct TAccelerationStructureHandle. */
+	virtual void* GetHandleUnsafe() const override { return nullptr; }
 
 protected:
 	/**
@@ -348,6 +354,7 @@ private:
 		TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,\
 		const TArray<int32>& ChildTransformGroupIndices,\
 		const Chaos::FClusterCreationParameters & Parameters);\
+	extern template void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Chaos::Traits>* Evolution);\
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT

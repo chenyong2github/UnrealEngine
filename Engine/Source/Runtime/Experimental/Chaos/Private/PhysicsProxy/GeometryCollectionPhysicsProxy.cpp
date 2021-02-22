@@ -26,6 +26,7 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "Modules/ModuleManager.h"
 #include "Chaos/PullPhysicsDataImp.h"
+#include "Chaos/PBDRigidsEvolution.h"
 
 #ifndef TODO_REIMPLEMENT_INIT_COMMANDS
 #define TODO_REIMPLEMENT_INIT_COMMANDS 0
@@ -406,8 +407,8 @@ FGeometryCollectionPhysicsProxy::~FGeometryCollectionPhysicsProxy()
 float ReportHighParticleFraction = -1.f;
 FAutoConsoleVariableRef CVarReportHighParticleFraction(TEXT("p.gc.ReportHighParticleFraction"), ReportHighParticleFraction, TEXT("Report any objects with particle fraction above this threshold"));
 
-
-void FGeometryCollectionPhysicsProxy::Initialize()
+template <typename Traits>
+void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Traits> *Evolution)
 {
 	check(IsInGameThread());
 
@@ -537,6 +538,9 @@ void FGeometryCollectionPhysicsProxy::Initialize()
 			P->SetUserData(Parameters.UserData);
 			P->SetProxy(this);
 			P->SetGeometry(GameThreadCollection.Implicits[Index]);
+			
+			P->SetUniqueIdx(Evolution->GenerateUniqueIdx());
+
 
 			const Chaos::FShapesArray& Shapes = P->ShapesArray();
 			const int32 NumShapes = Shapes.Num();
@@ -689,17 +693,25 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 		int NumRigids = 0; // ryan - Since we're doing SOA, we start at zero?
 		BaseParticleIndex = NumRigids;
 
+		// Gather unique indices from GT to pass into PT handle creation
+		TArray<Chaos::FUniqueIdx> UniqueIndices;
+		UniqueIndices.Reserve(SimulatableParticles.Num());
+
 		// Count geometry collection leaf node particles to add
 		int NumSimulatedParticles = 0;
 		for (int32 Idx = 0; Idx < SimulatableParticles.Num(); ++Idx)
 		{
 			NumSimulatedParticles += SimulatableParticles[Idx];
-			NumRigids += (SimulatableParticles[Idx] && !RestCollection->IsClustered(Idx));
+			if (SimulatableParticles[Idx] && !RestCollection->IsClustered(Idx))
+			{
+				NumRigids++;
+				UniqueIndices.Add(GTParticles[Idx]->UniqueIdx());
+			}
 		}
 
 		// Add entries into simulation array
 		RigidsSolver->GetEvolution()->ReserveParticles(NumSimulatedParticles);
-		TArray<Chaos::TPBDGeometryCollectionParticleHandle<float, 3>*> Handles = RigidsSolver->GetEvolution()->CreateGeometryCollectionParticles(NumRigids);
+		TArray<Chaos::TPBDGeometryCollectionParticleHandle<float, 3>*> Handles = RigidsSolver->GetEvolution()->CreateGeometryCollectionParticles(NumRigids, UniqueIndices.GetData());
 
 		int32 NextIdx = 0;
 		for (int32 Idx = 0; Idx < SimulatableParticles.Num(); ++Idx)
@@ -1406,9 +1418,28 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::TPBDRigidsSolver
 {
 	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
+	Chaos::TPBDRigidsEvolutionGBF<Traits>* Evolution = RBDSolver->GetEvolution();
+
 	for (const FClusterHandle* Handle : SolverClusterHandles)
 	{
 		RBDSolver->RemoveParticleToProxy(Handle);
+	}
+
+	for (FClusterHandle* Handle : SolverParticleHandles)
+	{	
+		if (Handle)
+		{
+			if (Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* Cluster = Handle->CastToClustered())
+			{
+				Evolution->GetRigidClustering().GetTopLevelClusterParents().Remove(Cluster);
+				Evolution->GetRigidClustering().GetChildrenMap().Remove(Cluster);
+				Evolution->DestroyParticle(Cluster);
+			}
+			else
+			{
+				Evolution->DestroyParticle(Handle);
+			}
+		}
 	}
 }
 
@@ -2734,6 +2765,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 		TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,\
 		const TArray<int32>& ChildTransformGroupIndices,\
 		const Chaos::FClusterCreationParameters & Parameters);\
+	template void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Chaos::Traits>*Evolution);\
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
