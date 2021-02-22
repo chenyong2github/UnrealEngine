@@ -49,12 +49,12 @@ static constexpr bool IsUniformType(const ECbFieldType Type)
 }
 
 /** Append the payload from the compact binary value to the array and return its type. */
-static inline ECbFieldType AppendCompactBinary(const FCbField& Value, TArray64<uint8>& OutData)
+static inline ECbFieldType AppendCompactBinary(const FCbFieldView& Value, TArray64<uint8>& OutData)
 {
-	struct FCopy : public FCbField
+	struct FCopy : public FCbFieldView
 	{
-		using FCbField::GetType;
-		using FCbField::GetPayloadView;
+		using FCbFieldView::GetType;
+		using FCbFieldView::GetPayloadView;
 	};
 	const FCopy& ValueCopy = static_cast<const FCopy&>(Value);
 	const FMemoryView SourceView = ValueCopy.GetPayloadView();
@@ -85,15 +85,15 @@ void FCbWriter::Reset()
 	States.Emplace();
 }
 
-FCbFieldRefIterator FCbWriter::Save() const
+FCbFieldIterator FCbWriter::Save() const
 {
 	const uint64 Size = GetSaveSize();
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(Size);
-	const FCbFieldIterator Output = Save(Buffer);
-	return FCbFieldRefIterator::MakeRangeView(Output, FSharedBuffer(MoveTemp(Buffer)));
+	const FCbFieldViewIterator Output = Save(Buffer);
+	return FCbFieldIterator::MakeRangeView(Output, FSharedBuffer(MoveTemp(Buffer)));
 }
 
-FCbFieldIterator FCbWriter::Save(const FMutableMemoryView Buffer) const
+FCbFieldViewIterator FCbWriter::Save(const FMutableMemoryView Buffer) const
 {
 	checkf(States.Num() == 1 && States.Last().Flags == EStateFlags::None,
 		TEXT("It is invalid to save while there are incomplete write operations."));
@@ -101,7 +101,7 @@ FCbFieldIterator FCbWriter::Save(const FMutableMemoryView Buffer) const
 	checkf(Buffer.GetSize() == Data.Num(),
 		TEXT("Buffer is %" UINT64_FMT " bytes but %" INT64_FMT " is required."), Buffer.GetSize(), Data.Num());
 	FMemory::Memcpy(Buffer.GetData(), Data.GetData(), Data.Num());
-	return FCbFieldIterator::MakeRange(Buffer);
+	return FCbFieldViewIterator::MakeRange(Buffer);
 }
 
 void FCbWriter::Save(FArchive& Ar) const
@@ -232,16 +232,16 @@ void FCbWriter::MakeFieldsUniform(const int64 FieldBeginOffset, const int64 Fiel
 	}
 }
 
-void FCbWriter::AddField(const FCbField& Value)
+void FCbWriter::AddField(const FCbFieldView& Value)
 {
 	checkf(Value.HasValue(), TEXT("It is invalid to write a field with no value."));
 	BeginField();
 	EndField(AppendCompactBinary(Value, Data));
 }
 
-void FCbWriter::AddField(const FCbFieldRef& Value)
+void FCbWriter::AddField(const FCbField& Value)
 {
-	AddField(FCbField(Value));
+	AddField(FCbFieldView(Value));
 }
 
 void FCbWriter::BeginObject()
@@ -286,15 +286,15 @@ void FCbWriter::EndObject()
 	EndField(bUniform ? ECbFieldType::UniformObject : ECbFieldType::Object);
 }
 
-void FCbWriter::AddObject(const FCbObject& Value)
+void FCbWriter::AddObject(const FCbObjectView& Value)
 {
 	BeginField();
-	EndField(AppendCompactBinary(Value.AsField(), Data));
+	EndField(AppendCompactBinary(Value.AsFieldView(), Data));
 }
 
-void FCbWriter::AddObject(const FCbObjectRef& Value)
+void FCbWriter::AddObject(const FCbObject& Value)
 {
-	AddObject(FCbObject(Value));
+	AddObject(FCbObjectView(Value));
 }
 
 void FCbWriter::BeginArray()
@@ -341,15 +341,15 @@ void FCbWriter::EndArray()
 	EndField(bUniform ? ECbFieldType::UniformArray : ECbFieldType::Array);
 }
 
-void FCbWriter::AddArray(const FCbArray& Value)
+void FCbWriter::AddArray(const FCbArrayView& Value)
 {
 	BeginField();
-	EndField(AppendCompactBinary(Value.AsField(), Data));
+	EndField(AppendCompactBinary(Value.AsFieldView(), Data));
 }
 
-void FCbWriter::AddArray(const FCbArrayRef& Value)
+void FCbWriter::AddArray(const FCbArray& Value)
 {
-	AddArray(FCbArray(Value));
+	AddArray(FCbArrayView(Value));
 }
 
 void FCbWriter::AddNull()

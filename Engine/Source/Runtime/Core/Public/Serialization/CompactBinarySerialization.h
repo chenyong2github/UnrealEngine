@@ -54,24 +54,24 @@ CORE_API bool TryMeasureCompactBinary(
 /**
  * Load a compact binary field from an archive.
  *
- * The field may be an array or an object, which the caller can convert to by using AsArrayRef or
- * AsObjectRef as appropriate. The buffer allocator is called to provide the buffer for the field
+ * The field may be an array or an object, which the caller can convert to by using AsArray or
+ * AsObject as appropriate. The buffer allocator is called to provide the buffer for the field
  * to load into once its size has been determined.
  *
  * @param Ar Archive to read the field from.
  * @param Allocator Allocator for the buffer that the field is loaded into.
  * @return A field with a reference to the provided buffer if it is owned.
  */
-CORE_API FCbFieldRef LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
+CORE_API FCbField LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 
 /** Save a compact binary value to an archive. */
-CORE_API void SaveCompactBinary(FArchive& Ar, const FCbField& Field);
-CORE_API void SaveCompactBinary(FArchive& Ar, const FCbArray& Array);
-CORE_API void SaveCompactBinary(FArchive& Ar, const FCbObject& Object);
+CORE_API void SaveCompactBinary(FArchive& Ar, const FCbFieldView& Field);
+CORE_API void SaveCompactBinary(FArchive& Ar, const FCbArrayView& Array);
+CORE_API void SaveCompactBinary(FArchive& Ar, const FCbObjectView& Object);
 
 /** Serialize a compact binary value to/from an archive. */
-CORE_API FArchive& operator<<(FArchive& Ar, FCbFieldRef& Field);
-CORE_API FArchive& operator<<(FArchive& Ar, FCbArrayRef& Array);
-CORE_API FArchive& operator<<(FArchive& Ar, FCbObjectRef& Object);
+CORE_API FArchive& operator<<(FArchive& Ar, FCbField& Field);
+CORE_API FArchive& operator<<(FArchive& Ar, FCbArray& Array);
+CORE_API FArchive& operator<<(FArchive& Ar, FCbObject& Object);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

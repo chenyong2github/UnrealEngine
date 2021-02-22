@@ -28,11 +28,11 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 		Writer.Reset();
 		Writer.BeginObject();
 		Writer.EndObject();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Empty) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Object, Empty).IsObject()"), Field.IsObject());
-			TestFalse(TEXT("FCbWriter(Object, Empty).AsObject()"), Field.AsObject().CreateIterator().HasValue());
+			TestFalse(TEXT("FCbWriter(Object, Empty).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
 		}
 	}
 
@@ -42,11 +42,11 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 		Writer.SetName("Object"_ASV);
 		Writer.BeginObject();
 		Writer.EndObject();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Empty, Name) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Object, Empty, Name).IsObject()"), Field.IsObject());
-			TestFalse(TEXT("FCbWriter(Object, Empty, Name).AsObject()"), Field.AsObject().CreateIterator().HasValue());
+			TestFalse(TEXT("FCbWriter(Object, Empty, Name).AsObjectView()"), Field.AsObjectView().CreateViewIterator().HasValue());
 		}
 	}
 
@@ -57,13 +57,13 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 		Writer.SetName("Integer"_ASV).AddInteger(0);
 		Writer.SetName("Float"_ASV).AddFloat(0.0f);
 		Writer.EndObject();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Basic) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Object, Basic).IsObject()"), Field.IsObject());
-			FCbObject Object = Field.AsObject();
-			TestTrue(TEXT("FCbWriter(Object, Basic).AsObject()[Integer]"), Object["Integer"_ASV].IsInteger());
-			TestTrue(TEXT("FCbWriter(Object, Basic).AsObject()[Float]"), Object["Float"_ASV].IsFloat());
+			FCbObjectView Object = Field.AsObjectView();
+			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Integer]"), Object["Integer"_ASV].IsInteger());
+			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Float]"), Object["Float"_ASV].IsFloat());
 		}
 	}
 
@@ -74,13 +74,13 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 		Writer.SetName("Field1"_ASV).AddInteger(0);
 		Writer.SetName("Field2"_ASV).AddInteger(1);
 		Writer.EndObject();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Uniform) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Object, Uniform).IsObject()"), Field.IsObject());
-			FCbObject Object = Field.AsObject();
-			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObject()[Field1]"), Object["Field1"_ASV].IsInteger());
-			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObject()[Field2]"), Object["Field2"_ASV].IsInteger());
+			FCbObjectView Object = Field.AsObjectView();
+			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field1]"), Object["Field1"_ASV].IsInteger());
+			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field2]"), Object["Field2"_ASV].IsInteger());
 		}
 	}
 
@@ -99,11 +99,11 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 		Writer.Reset();
 		Writer.BeginArray();
 		Writer.EndArray();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Array, Empty) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Array, Empty).IsArray()"), Field.IsArray());
-			TestEqual(TEXT("FCbWriter(Array, Empty).AsArray()"), Field.AsArray().Num(), uint64(0));
+			TestEqual(TEXT("FCbWriter(Array, Empty).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
 		}
 	}
 
@@ -113,11 +113,11 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 		Writer.SetName("Array"_ASV);
 		Writer.BeginArray();
 		Writer.EndArray();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Array, Empty, Name) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Array, Empty, Name).IsArray()"), Field.IsArray());
-			TestEqual(TEXT("FCbWriter(Array, Empty, Name).AsArray()"), Field.AsArray().Num(), uint64(0));
+			TestEqual(TEXT("FCbWriter(Array, Empty, Name).AsArrayView()"), Field.AsArrayView().Num(), uint64(0));
 		}
 	}
 
@@ -128,16 +128,16 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 		Writer.AddInteger(0);
 		Writer.AddFloat(0.0f);
 		Writer.EndArray();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Array, Basic) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Array, Basic).IsArray()"), Field.IsArray());
-			FCbFieldIterator Iterator = Field.AsArray().CreateIterator();
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArray()[Integer]"), Iterator.IsInteger());
+			FCbFieldViewIterator Iterator = Field.AsArrayView().CreateViewIterator();
+			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Integer]"), Iterator.IsInteger());
 			++Iterator;
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArray()[Float]"), Iterator.IsFloat());
+			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Float]"), Iterator.IsFloat());
 			++Iterator;
-			TestFalse(TEXT("FCbWriter(Array, Basic).AsArray()[End]"), Iterator.HasValue());
+			TestFalse(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
 		}
 	}
 
@@ -148,16 +148,16 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 		Writer.AddInteger(0);
 		Writer.AddInteger(1);
 		Writer.EndArray();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Array, Uniform) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Array, Uniform).IsArray()"), Field.IsArray());
-			FCbFieldIterator Iterator = Field.AsArray().CreateIterator();
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArray()[Field1]"), Iterator.IsInteger());
+			FCbFieldViewIterator Iterator = Field.AsArrayView().CreateViewIterator();
+			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field1]"), Iterator.IsInteger());
 			++Iterator;
-			TestTrue(TEXT("FCbWriter(Array, Basic).AsArray()[Field2]"), Iterator.IsInteger());
+			TestTrue(TEXT("FCbWriter(Array, Basic).AsArrayView()[Field2]"), Iterator.IsInteger());
 			++Iterator;
-			TestFalse(TEXT("FCbWriter(Array, Basic).AsArray()[End]"), Iterator.HasValue());
+			TestFalse(TEXT("FCbWriter(Array, Basic).AsArrayView()[End]"), Iterator.HasValue());
 		}
 	}
 
@@ -175,7 +175,7 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		Writer.AddNull();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Null) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestFalse(TEXT("FCbWriter(Null).HasName()"), Field.HasName());
@@ -188,7 +188,7 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		Writer.Reset();
 		Writer.SetName("Null"_ASV);
 		Writer.AddNull();
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Null, Name) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestEqual(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), "Null"_ASV);
@@ -213,7 +213,7 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		Writer.SetName("N3"_ASV).AddNull();
 		Writer.EndObject();
 
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		TestEqual(TEXT("FCbWriter(Null, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None);
 	}
 
@@ -226,7 +226,7 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 			Writer.AddNull();
 		}
 		uint8 Buffer[NullCount]{};
-		FCbFieldIterator Fields = Writer.Save(MakeMemoryView(Buffer));
+		FCbFieldViewIterator Fields = Writer.Save(MakeMemoryView(Buffer));
 		if (TestEqual(TEXT("FCbWriter(Null, Memory) Validate"), ValidateCompactBinaryRange(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (int Index = 0; Index < NullCount; ++Index)
@@ -265,12 +265,12 @@ bool FCbWriterBinaryTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		Writer.AddBinary(nullptr, 0);
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Binary, Empty) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestFalse(TEXT("FCbWriter(Binary, Empty).HasName()"), Field.HasName());
 			TestTrue(TEXT("FCbWriter(Binary, Empty).IsBinary()"), Field.IsBinary());
-			TestTrue(TEXT("FCbWriter(Binary, Empty).AsBinary()"), Field.AsBinary().IsEmpty());
+			TestTrue(TEXT("FCbWriter(Binary, Empty).AsBinaryView()"), Field.AsBinaryView().IsEmpty());
 		}
 	}
 
@@ -280,13 +280,13 @@ bool FCbWriterBinaryTest::RunTest(const FString& Parameters)
 		const uint8 BinaryValue[] = { 1, 2, 3, 4, 5, 6 };
 		Writer.SetName("Binary"_ASV);
 		Writer.AddBinary(BinaryValue, sizeof(BinaryValue));
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Binary, Array) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestEqual(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), "Binary"_ASV);
 			TestTrue(TEXT("FCbWriter(Binary, Array).HasName()"), Field.HasName());
 			TestTrue(TEXT("FCbWriter(Binary, Array).IsBinary()"), Field.IsBinary());
-			TestTrue(TEXT("FCbWriter(Binary, Array).AsBinary()"), Field.AsBinary().EqualBytes(MakeMemoryView(BinaryValue)));
+			TestTrue(TEXT("FCbWriter(Binary, Array).AsBinaryView()"), Field.AsBinaryView().EqualBytes(MakeMemoryView(BinaryValue)));
 		}
 	}
 
@@ -305,10 +305,10 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		Writer.Reset();
 		Writer.AddString(FAnsiStringView());
 		Writer.AddString(FWideStringView());
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(String, Empty) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			for (FCbField Field : Fields)
+			for (FCbFieldView Field : Fields)
 			{
 				TestFalse(TEXT("FCbWriter(String, Empty).HasName()"), Field.HasName());
 				TestTrue(TEXT("FCbWriter(String, Empty).IsString()"), Field.IsString());
@@ -322,10 +322,10 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		Writer.Reset();
 		Writer.SetName("String"_ASV).AddString("Value"_ASV);
 		Writer.SetName("String"_ASV).AddString(TEXT("Value"_SV));
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(String, Basic) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			for (FCbField Field : Fields)
+			for (FCbFieldView Field : Fields)
 			{
 				TestEqual(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), "String"_ASV);
 				TestTrue(TEXT("FCbWriter(String, Basic).HasName()"), Field.HasName());
@@ -346,10 +346,10 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		}
 		Writer.AddString(Dots);
 		Writer.AddString(FString::ChrN(DotCount, TEXT('.')));
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(String, Long) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			for (FCbField Field : Fields)
+			for (FCbFieldView Field : Fields)
 			{
 				TestEqual(TEXT("FCbWriter(String, Long).AsString()"), Field.AsString(), FAnsiStringView(Dots));
 			}
@@ -362,10 +362,10 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 		WIDECHAR Value[2] = { 0xd83d, 0xde00 };
 		Writer.AddString("\xf0\x9f\x98\x80"_ASV);
 		Writer.AddString(FWideStringView(Value, UE_ARRAY_COUNT(Value)));
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(String, Unicode) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			for (FCbField Field : Fields)
+			for (FCbFieldView Field : Fields)
 			{
 				TestEqual(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), "\xf0\x9f\x98\x80"_ASV);
 			}
@@ -386,7 +386,7 @@ bool FCbWriterIntegerTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		Writer.AddInteger(Value);
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Integer, Int32) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestEqual(TEXT("FCbWriter(Integer, Int32) Value"), Field.AsInt32(), Value);
@@ -398,7 +398,7 @@ bool FCbWriterIntegerTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		Writer.AddInteger(Value);
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Integer, UInt32) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestEqual(TEXT("FCbWriter(Integer, UInt32) Value"), Field.AsUInt32(), Value);
@@ -410,7 +410,7 @@ bool FCbWriterIntegerTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		Writer.AddInteger(Value);
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Integer, Int64) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestEqual(TEXT("FCbWriter(Integer, Int64) Value"), Field.AsInt64(), Value);
@@ -422,7 +422,7 @@ bool FCbWriterIntegerTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		Writer.AddInteger(Value);
-		FCbFieldRef Field = Writer.Save();
+		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Integer, UInt64) Validate"), ValidateCompactBinary(Field.GetBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestEqual(TEXT("FCbWriter(Integer, UInt64) Value"), Field.AsUInt64(), Value);
@@ -481,11 +481,11 @@ bool FCbWriterFloatTest::RunTest(const FString& Parameters)
 		{
 			Writer.AddFloat(Value);
 		}
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Float, Single) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			const float* CheckValue = Values;
-			for (FCbField Field : Fields)
+			for (FCbFieldView Field : Fields)
 			{
 				TestEqual(TEXT("FCbWriter(Float, Single).AsFloat()"), Field.AsFloat(), *CheckValue++);
 				TestFalse(TEXT("FCbWriter(Float, Single) Error"), Field.HasError());
@@ -501,11 +501,11 @@ bool FCbWriterFloatTest::RunTest(const FString& Parameters)
 		{
 			Writer.AddFloat(Value);
 		}
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Float, Double) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			const double* CheckValue = Values;
-			for (FCbField Field : Fields)
+			for (FCbFieldView Field : Fields)
 			{
 				TestEqual(TEXT("FCbWriter(Float, Double).AsDouble()"), Field.AsDouble(), *CheckValue++);
 				TestFalse(TEXT("FCbWriter(Float, Double) Error"), Field.HasError());
@@ -528,7 +528,7 @@ bool FCbWriterBoolTest::RunTest(const FString& Parameters)
 		Writer.AddBool(true);
 		Writer.AddBool(false);
 
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Bool) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Bool).AsBool()"), Fields.AsBool());
@@ -555,7 +555,7 @@ bool FCbWriterBoolTest::RunTest(const FString& Parameters)
 		Writer.SetName("B3"_ASV).AddBool(false);
 		Writer.EndObject();
 
-		FCbFieldRefIterator Fields = Writer.Save();
+		FCbFieldIterator Fields = Writer.Save();
 		TestEqual(TEXT("FCbWriter(Bool, Uniform) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None);
 	}
 
@@ -578,11 +578,11 @@ bool FCbWriterCompactBinaryAttachmentTest::RunTest(const FString& Parameters)
 		Writer.AddCompactBinaryAttachment(Value);
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(CompactBinaryAttachment) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FIoHash* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(CompactBinaryAttachment).AsCompactBinaryAttachment()"), Field.AsCompactBinaryAttachment(), *CheckValue++);
 			TestFalse(TEXT("FCbWriter(CompactBinaryAttachment) Error"), Field.HasError());
@@ -608,11 +608,11 @@ bool FCbWriterBinaryAttachmentTest::RunTest(const FString& Parameters)
 		Writer.AddBinaryAttachment(Value);
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(BinaryAttachment) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FIoHash* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(BinaryAttachment).AsBinaryAttachment()"), Field.AsBinaryAttachment(), *CheckValue++);
 			TestFalse(TEXT("FCbWriter(BinaryAttachment) Error"), Field.HasError());
@@ -638,11 +638,11 @@ bool FCbWriterHashTest::RunTest(const FString& Parameters)
 		Writer.AddHash(Value);
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(Hash) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FIoHash* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(Hash).AsHash()"), Field.AsHash(), *CheckValue++);
 			TestFalse(TEXT("FCbWriter(Hash) Error"), Field.HasError());
@@ -665,11 +665,11 @@ bool FCbWriterUuidTest::RunTest(const FString& Parameters)
 		Writer.AddUuid(Value);
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(Uuid) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FGuid* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(Uuid).AsUuid()"), Field.AsUuid(), *CheckValue++);
 			TestFalse(TEXT("FCbWriter(Uuid) Error"), Field.HasError());
@@ -692,11 +692,11 @@ bool FCbWriterDateTimeTest::RunTest(const FString& Parameters)
 		Writer.AddDateTime(Value);
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(DateTime) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FDateTime* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(DateTime).AsDateTime()"), Field.AsDateTime(), *CheckValue++);
 			TestFalse(TEXT("FCbWriter(DateTime) Error"), Field.HasError());
@@ -719,11 +719,11 @@ bool FCbWriterTimeSpanTest::RunTest(const FString& Parameters)
 		Writer.AddTimeSpan(Value);
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(TimeSpan) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FTimespan* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(TimeSpan).AsTimeSpan()"), Field.AsTimeSpan(), *CheckValue++);
 			TestFalse(TEXT("FCbWriter(TimeSpan) Error"), Field.HasError());
@@ -746,11 +746,11 @@ bool FCbWriterObjectIdTest::RunTest(const FString& Parameters)
 		Writer.AddObjectId(Value);
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(ObjectId) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FCbObjectId* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestEqual(TEXT("FCbWriter(ObjectId).AsObjectId()"), Field.AsObjectId(), *CheckValue++);
 			TestFalse(TEXT("FCbWriter(ObjectId) Error"), Field.HasError());
@@ -783,11 +783,11 @@ bool FCbWriterCustomByIdTest::RunTest(const FString& Parameters)
 		Writer.AddCustom(Value.Type, MakeMemoryView(Value.Bytes));
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(CustomById) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FCustomValue* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestTrue(TEXT("FCbWriter(CustomById).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
 			TestFalse(TEXT("FCbWriter(CustomById) Error"), Field.HasError());
@@ -821,11 +821,11 @@ bool FCbWriterCustomByNameTest::RunTest(const FString& Parameters)
 		Writer.AddCustom(Value.Type, MakeMemoryView(Value.Bytes));
 	}
 
-	FCbFieldRefIterator Fields = Writer.Save();
+	FCbFieldIterator Fields = Writer.Save();
 	if (TestEqual(TEXT("FCbWriter(CustomByName) Validate"), ValidateCompactBinaryRange(Fields.GetRangeBuffer(), ECbValidateMode::All), ECbValidateError::None))
 	{
 		const FCustomValue* CheckValue = Values;
-		for (FCbField Field : Fields)
+		for (FCbFieldView Field : Fields)
 		{
 			TestTrue(TEXT("FCbWriter(CustomByName).AsCustom()"), Field.AsCustom(CheckValue->Type).EqualBytes(MakeMemoryView(CheckValue->Bytes)));
 			TestFalse(TEXT("FCbWriter(CustomByName) Error"), Field.HasError());
@@ -841,26 +841,26 @@ bool FCbWriterCustomByNameTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterComplexTest, "System.Core.Serialization.CbWriter.Complex", CompactBinaryWriterTestFlags)
 bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 {
-	FCbObjectRef Object;
+	FCbObject Object;
 	FBufferArchive Archive;
 	{
 		FCbWriter Writer;
 		Writer.BeginObject();
 
 		const uint8 LocalField[] = { uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42 };
-		Writer.AddField("FieldCopy"_ASV, FCbField(LocalField));
-		Writer.AddField("FieldRefCopy"_ASV, FCbFieldRef(FSharedBuffer::Clone(MakeMemoryView(LocalField))));
+		Writer.AddField("FieldViewCopy"_ASV, FCbFieldView(LocalField));
+		Writer.AddField("FieldCopy"_ASV, FCbField(FSharedBuffer::Clone(MakeMemoryView(LocalField))));
 
 		const uint8 LocalObject[] = { uint8(ECbFieldType::Object | ECbFieldType::HasFieldName), 1, 'O', 7,
 			uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42,
 			uint8(ECbFieldType::Null | ECbFieldType::HasFieldName), 1, 'N' };
-		Writer.AddObject("ObjectCopy"_ASV, FCbObject(LocalObject));
-		Writer.AddObject("ObjectRefCopy"_ASV, FCbObjectRef(FSharedBuffer::Clone(MakeMemoryView(LocalObject))));
+		Writer.AddObject("ObjectViewCopy"_ASV, FCbObjectView(LocalObject));
+		Writer.AddObject("ObjectCopy"_ASV, FCbObject(FSharedBuffer::Clone(MakeMemoryView(LocalObject))));
 
 		const uint8 LocalArray[] = { uint8(ECbFieldType::UniformArray | ECbFieldType::HasFieldName), 1, 'A', 4, 2,
 			uint8(ECbFieldType::IntegerPositive), 42, 21 };
-		Writer.AddArray("ArrayCopy"_ASV, FCbArray(LocalArray));
-		Writer.AddArray("ArrayRefCopy"_ASV, FCbArrayRef(FSharedBuffer::Clone(MakeMemoryView(LocalArray))));
+		Writer.AddArray("ArrayViewCopy"_ASV, FCbArrayView(LocalArray));
+		Writer.AddArray("ArrayCopy"_ASV, FCbArray(FSharedBuffer::Clone(MakeMemoryView(LocalArray))));
 
 		Writer.AddNull("Null"_ASV);
 
@@ -868,8 +868,8 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		{
 			Writer.AddBinary("Empty"_ASV, FMemoryView());
 			Writer.AddBinary("Value"_ASV, MakeMemoryView("BinaryValue"));
-			Writer.AddBinary("LargeValue"_ASV, MakeMemoryView(FString::ChrN(256, TEXT('.'))));
-			Writer.AddBinary("LargeRefValue"_ASV, FSharedBuffer::Clone(MakeMemoryView(FString::ChrN(256, TEXT('!')))));
+			Writer.AddBinary("LargeViewValue"_ASV, MakeMemoryView(FString::ChrN(256, TEXT('.'))));
+			Writer.AddBinary("LargeValue"_ASV, FSharedBuffer::Clone(MakeMemoryView(FString::ChrN(256, TEXT('!')))));
 		}
 		Writer.EndObject();
 
@@ -1006,7 +1006,7 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.EndArray();
 
 		Writer.EndObject();
-		Object = Writer.Save().AsObjectRef();
+		Object = Writer.Save().AsObject();
 
 		Writer.Save(Archive);
 		TestEqual(TEXT("FCbWriter(Complex).Save(Ar)->Num()"), uint64(Archive.Num()), Writer.GetSaveSize());
@@ -1029,7 +1029,7 @@ bool FCbWriterOwnedReadOnlyTest::RunTest(const FString& Parameters)
 	FCbWriter Writer;
 	Writer.BeginObject();
 	Writer.EndObject();
-	FCbObjectRef Object = Writer.Save().AsObjectRef();
+	FCbObject Object = Writer.Save().AsObject();
 	TestTrue(TEXT("FCbWriter().Save().IsOwned()"), Object.IsOwned());
 
 	return true;
@@ -1040,22 +1040,22 @@ bool FCbWriterOwnedReadOnlyTest::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCbWriterStreamTest, "System.Core.Serialization.CbWriter.Stream", CompactBinaryWriterTestFlags)
 bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 {
-	FCbObjectRef Object;
+	FCbObject Object;
 	{
 		FCbWriter Writer;
 		Writer.BeginObject();
 
 		const uint8 LocalField[] = { uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42 };
-		Writer << "FieldCopy"_ASV << FCbField(LocalField);
+		Writer << "FieldCopy"_ASV << FCbFieldView(LocalField);
 
 		const uint8 LocalObject[] = { uint8(ECbFieldType::Object | ECbFieldType::HasFieldName), 1, 'O', 7,
 			uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42,
 			uint8(ECbFieldType::Null | ECbFieldType::HasFieldName), 1, 'N' };
-		Writer << "ObjectCopy"_ASV << FCbObject(LocalObject);
+		Writer << "ObjectCopy"_ASV << FCbObjectView(LocalObject);
 
 		const uint8 LocalArray[] = { uint8(ECbFieldType::UniformArray | ECbFieldType::HasFieldName), 1, 'A', 4, 2,
 			uint8(ECbFieldType::IntegerPositive), 42, 21 };
-		Writer << "ArrayCopy"_ASV << FCbArray(LocalArray);
+		Writer << "ArrayCopy"_ASV << FCbArrayView(LocalArray);
 
 		Writer << "Null"_ASV << nullptr;
 
@@ -1092,7 +1092,7 @@ bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 		Writer << "LiteralName" << nullptr;
 
 		Writer.EndObject();
-		Object = Writer.Save().AsObjectRef();
+		Object = Writer.Save().AsObject();
 	}
 
 	TestEqual(TEXT("FCbWriter(Stream) Validate"), ValidateCompactBinary(Object.GetBuffer(), ECbValidateMode::All), ECbValidateError::None);
@@ -1166,7 +1166,7 @@ bool FCbWriterStateTest::RunTest(const FString& Parameters)
 	//Writer.EndObject();
 
 	// Assert on writing a field with no value.
-	//Writer.Field(FCbField());
+	//Writer.Field(FCbFieldView());
 
 	return true;
 }

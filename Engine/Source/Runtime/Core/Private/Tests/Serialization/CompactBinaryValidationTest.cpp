@@ -368,7 +368,7 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 	// Test CompactBinary
 	{
 		FBufferArchive Buffer;
-		FCbAttachment(FCbFieldRefIterator::MakeSingle(FCbFieldRef::MakeView(FCbField(nullptr, ECbFieldType::Null)))).Save(Buffer);
+		FCbAttachment(FCbFieldIterator::MakeSingle(FCbField::MakeView(FCbFieldView(nullptr, ECbFieldType::Null)))).Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(CompactBinary)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::None);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(CompactBinary, MissingHash)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer).Left(3), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(CompactBinary, MissingHash, Mode)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer).Left(3), ECbValidateMode::All & ~ECbValidateMode::Package), ECbValidateError::None);
@@ -392,7 +392,7 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 	}
 	{
 		FBufferArchive Buffer;
-		FCbFieldRefIterator::MakeSingle(FCbObjectRef().AsFieldRef()).CopyRangeTo(Buffer);
+		FCbFieldIterator::MakeSingle(FCbObject().AsField()).CopyRangeTo(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(Object)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(Object, Mode)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All & ~ECbValidateMode::Package), ECbValidateError::None);
 	}
@@ -581,7 +581,7 @@ bool FCbValidatePackageTest::RunTest(const FString& Parameters)
 		TCbWriter<256> Writer;
 		Writer.BeginObject();
 		Writer.EndObject();
-		Writer.AddCompactBinaryAttachment(FCbObject().GetHash());
+		Writer.AddCompactBinaryAttachment(FCbObjectView().GetHash());
 		Writer.AddNull();
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryPackage(NullObject)"), ValidateCompactBinaryPackage(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::NullPackageObject);

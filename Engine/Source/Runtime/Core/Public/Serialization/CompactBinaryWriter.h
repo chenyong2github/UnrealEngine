@@ -21,7 +21,7 @@ struct FTimespan;
  *
  * The writer produces a sequence of fields that can be saved to a provided memory buffer or into
  * a new owned buffer. The typical use case is to write a single object, which can be accessed by
- * calling Save().AsObjectRef() or Save(Buffer).AsObject().
+ * calling Save().AsObject() or Save(Buffer).AsObjectView().
  *
  * The writer will assert on most incorrect usage and will always produce valid compact binary if
  * provided with valid input. The writer does not check for invalid UTF-8 string encoding, object
@@ -36,7 +36,7 @@ struct FTimespan;
  *
  * Example:
  *
- * FCbObjectRef WriteObject()
+ * FCbObject WriteObject()
  * {
  *     TCbWriter<256> Writer;
  *     Writer.BeginObject();
@@ -50,7 +50,7 @@ struct FTimespan;
  *     Writer.EndArray();
  * 
  *     Writer.EndObject();
- *     return Writer.Save().AsObjectRef();
+ *     return Writer.Save().AsObject();
  * }
  */
 class FCbWriter
@@ -71,7 +71,7 @@ public:
 	 * It is not valid to call this function in the middle of writing an object, array, or field.
 	 * The writer remains valid for further use when this function returns.
 	 */
-	CORE_API FCbFieldRefIterator Save() const;
+	CORE_API FCbFieldIterator Save() const;
 
 	/**
 	 * Serialize the field(s) to memory.
@@ -82,7 +82,7 @@ public:
 	 * @param Buffer A mutable memory view to write to. Must be exactly GetSaveSize() bytes.
 	 * @return An iterator for the field(s) written to the buffer.
 	 */
-	CORE_API FCbFieldIterator Save(FMutableMemoryView Buffer) const;
+	CORE_API FCbFieldViewIterator Save(FMutableMemoryView Buffer) const;
 
 	/**
 	 * Serialize the field(s) to an archive.
@@ -110,11 +110,11 @@ public:
 	CORE_API FCbWriter& SetName(FAnsiStringView Name);
 
 	/** Copy the value (not the name) of an existing field. */
+	inline void AddField(FAnsiStringView Name, const FCbFieldView& Value) { SetName(Name); AddField(Value); }
+	CORE_API void AddField(const FCbFieldView& Value);
+	/** Copy the value (not the name) of an existing field. Holds a reference if owned. */
 	inline void AddField(FAnsiStringView Name, const FCbField& Value) { SetName(Name); AddField(Value); }
 	CORE_API void AddField(const FCbField& Value);
-	/** Copy the value (not the name) of an existing field. Holds a reference if owned. */
-	inline void AddField(FAnsiStringView Name, const FCbFieldRef& Value) { SetName(Name); AddField(Value); }
-	CORE_API void AddField(const FCbFieldRef& Value);
 
 	/** Begin a new object. Must have a matching call to EndObject. */
 	inline void BeginObject(FAnsiStringView Name) { SetName(Name); BeginObject(); }
@@ -123,11 +123,11 @@ public:
 	CORE_API void EndObject();
 
 	/** Copy the value (not the name) of an existing object. */
+	inline void AddObject(FAnsiStringView Name, const FCbObjectView& Value) { SetName(Name); AddObject(Value); }
+	CORE_API void AddObject(const FCbObjectView& Value);
+	/** Copy the value (not the name) of an existing object. Holds a reference if owned. */
 	inline void AddObject(FAnsiStringView Name, const FCbObject& Value) { SetName(Name); AddObject(Value); }
 	CORE_API void AddObject(const FCbObject& Value);
-	/** Copy the value (not the name) of an existing object. Holds a reference if owned. */
-	inline void AddObject(FAnsiStringView Name, const FCbObjectRef& Value) { SetName(Name); AddObject(Value); }
-	CORE_API void AddObject(const FCbObjectRef& Value);
 
 	/** Begin a new array. Must have a matching call to EndArray. */
 	inline void BeginArray(FAnsiStringView Name) { SetName(Name); BeginArray(); }
@@ -136,11 +136,11 @@ public:
 	CORE_API void EndArray();
 
 	/** Copy the value (not the name) of an existing array. */
+	inline void AddArray(FAnsiStringView Name, const FCbArrayView& Value) { SetName(Name); AddArray(Value); }
+	CORE_API void AddArray(const FCbArrayView& Value);
+	/** Copy the value (not the name) of an existing array. Holds a reference if owned. */
 	inline void AddArray(FAnsiStringView Name, const FCbArray& Value) { SetName(Name); AddArray(Value); }
 	CORE_API void AddArray(const FCbArray& Value);
-	/** Copy the value (not the name) of an existing array. Holds a reference if owned. */
-	inline void AddArray(FAnsiStringView Name, const FCbArrayRef& Value) { SetName(Name); AddArray(Value); }
-	CORE_API void AddArray(const FCbArrayRef& Value);
 
 	/** Write a null field. */
 	inline void AddNull(FAnsiStringView Name) { SetName(Name); AddNull(); }
@@ -321,15 +321,21 @@ inline FCbWriter& operator<<(FCbWriter& Writer, const ANSICHAR* NameOrValue)
 	return Writer << FAnsiStringView(NameOrValue);
 }
 
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbFieldView& Value)
+{
+	Writer.AddField(Value);
+	return Writer;
+}
+
 inline FCbWriter& operator<<(FCbWriter& Writer, const FCbField& Value)
 {
 	Writer.AddField(Value);
 	return Writer;
 }
 
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbFieldRef& Value)
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObjectView& Value)
 {
-	Writer.AddField(Value);
+	Writer.AddObject(Value);
 	return Writer;
 }
 
@@ -339,19 +345,13 @@ inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObject& Value)
 	return Writer;
 }
 
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObjectRef& Value)
-{
-	Writer.AddObject(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArray& Value)
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArrayView& Value)
 {
 	Writer.AddArray(Value);
 	return Writer;
 }
 
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArrayRef& Value)
+inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArray& Value)
 {
 	Writer.AddArray(Value);
 	return Writer;

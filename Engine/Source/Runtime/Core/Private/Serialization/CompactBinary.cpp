@@ -93,7 +93,7 @@ void FCbObjectId::ToString(FWideStringBuilderBase& Builder) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCbField::FCbField(const void* const InData, const ECbFieldType InType)
+FCbFieldView::FCbFieldView(const void* const InData, const ECbFieldType InType)
 {
 	const uint8* Bytes = static_cast<const uint8*>(InData);
 	const ECbFieldType LocalType = FCbFieldType::HasFieldType(InType) ? (ECbFieldType(*Bytes++) | ECbFieldType::HasFieldType) : InType;
@@ -106,35 +106,35 @@ FCbField::FCbField(const void* const InData, const ECbFieldType InType)
 	Payload = Bytes;
 }
 
-FCbObject FCbField::AsObject()
+FCbObjectView FCbFieldView::AsObjectView()
 {
 	if (FCbFieldType::IsObject(Type))
 	{
 		Error = ECbFieldError::None;
-		return FCbObject::FromFieldNoCheck(*this);
+		return FCbObjectView::FromFieldNoCheck(*this);
 	}
 	else
 	{
 		Error = ECbFieldError::TypeError;
-		return FCbObject();
+		return FCbObjectView();
 	}
 }
 
-FCbArray FCbField::AsArray()
+FCbArrayView FCbFieldView::AsArrayView()
 {
 	if (FCbFieldType::IsArray(Type))
 	{
 		Error = ECbFieldError::None;
-		return FCbArray::FromFieldNoCheck(*this);
+		return FCbArrayView::FromFieldNoCheck(*this);
 	}
 	else
 	{
 		Error = ECbFieldError::TypeError;
-		return FCbArray();
+		return FCbArrayView();
 	}
 }
 
-FMemoryView FCbField::AsBinary(const FMemoryView Default)
+FMemoryView FCbFieldView::AsBinaryView(const FMemoryView Default)
 {
 	if (FCbFieldType::IsBinary(Type))
 	{
@@ -152,7 +152,7 @@ FMemoryView FCbField::AsBinary(const FMemoryView Default)
 	}
 }
 
-FAnsiStringView FCbField::AsString(const FAnsiStringView Default)
+FAnsiStringView FCbFieldView::AsString(const FAnsiStringView Default)
 {
 	if (FCbFieldType::IsString(Type))
 	{
@@ -176,7 +176,7 @@ FAnsiStringView FCbField::AsString(const FAnsiStringView Default)
 	}
 }
 
-uint64 FCbField::AsInteger(const uint64 Default, const FIntegerParams Params)
+uint64 FCbFieldView::AsInteger(const uint64 Default, const FIntegerParams Params)
 {
 	if (FCbFieldType::IsInteger(Type))
 	{
@@ -201,7 +201,7 @@ uint64 FCbField::AsInteger(const uint64 Default, const FIntegerParams Params)
 	}
 }
 
-float FCbField::AsFloat(const float Default)
+float FCbFieldView::AsFloat(const float Default)
 {
 	switch (FCbFieldType::GetType(Type))
 	{
@@ -232,7 +232,7 @@ float FCbField::AsFloat(const float Default)
 	}
 }
 
-double FCbField::AsDouble(const double Default)
+double FCbFieldView::AsDouble(const double Default)
 {
 	switch (FCbFieldType::GetType(Type))
 	{
@@ -266,7 +266,7 @@ double FCbField::AsDouble(const double Default)
 	}
 }
 
-bool FCbField::AsBool(const bool bDefault)
+bool FCbFieldView::AsBool(const bool bDefault)
 {
 	const ECbFieldType LocalType = Type;
 	const bool bIsBool = FCbFieldType::IsBool(LocalType);
@@ -274,7 +274,7 @@ bool FCbField::AsBool(const bool bDefault)
 	return (uint8(bIsBool) & uint8(LocalType) & 1) | ((!bIsBool) & bDefault);
 }
 
-FIoHash FCbField::AsCompactBinaryAttachment(const FIoHash& Default)
+FIoHash FCbFieldView::AsCompactBinaryAttachment(const FIoHash& Default)
 {
 	if (FCbFieldType::IsCompactBinaryAttachment(Type))
 	{
@@ -288,7 +288,7 @@ FIoHash FCbField::AsCompactBinaryAttachment(const FIoHash& Default)
 	}
 }
 
-FIoHash FCbField::AsBinaryAttachment(const FIoHash& Default)
+FIoHash FCbFieldView::AsBinaryAttachment(const FIoHash& Default)
 {
 	if (FCbFieldType::IsBinaryAttachment(Type))
 	{
@@ -302,7 +302,7 @@ FIoHash FCbField::AsBinaryAttachment(const FIoHash& Default)
 	}
 }
 
-FIoHash FCbField::AsAttachment(const FIoHash& Default)
+FIoHash FCbFieldView::AsAttachment(const FIoHash& Default)
 {
 	if (FCbFieldType::IsAttachment(Type))
 	{
@@ -316,7 +316,7 @@ FIoHash FCbField::AsAttachment(const FIoHash& Default)
 	}
 }
 
-FIoHash FCbField::AsHash(const FIoHash& Default)
+FIoHash FCbFieldView::AsHash(const FIoHash& Default)
 {
 	if (FCbFieldType::IsHash(Type))
 	{
@@ -330,12 +330,12 @@ FIoHash FCbField::AsHash(const FIoHash& Default)
 	}
 }
 
-FGuid FCbField::AsUuid()
+FGuid FCbFieldView::AsUuid()
 {
 	return AsUuid(FGuid());
 }
 
-FGuid FCbField::AsUuid(const FGuid& Default)
+FGuid FCbFieldView::AsUuid(const FGuid& Default)
 {
 	if (FCbFieldType::IsUuid(Type))
 	{
@@ -355,7 +355,7 @@ FGuid FCbField::AsUuid(const FGuid& Default)
 	}
 }
 
-int64 FCbField::AsDateTimeTicks(const int64 Default)
+int64 FCbFieldView::AsDateTimeTicks(const int64 Default)
 {
 	if (FCbFieldType::IsDateTime(Type))
 	{
@@ -369,17 +369,17 @@ int64 FCbField::AsDateTimeTicks(const int64 Default)
 	}
 }
 
-FDateTime FCbField::AsDateTime()
+FDateTime FCbFieldView::AsDateTime()
 {
 	return FDateTime(AsDateTimeTicks(0));
 }
 
-FDateTime FCbField::AsDateTime(FDateTime Default)
+FDateTime FCbFieldView::AsDateTime(FDateTime Default)
 {
 	return FDateTime(AsDateTimeTicks(Default.GetTicks()));
 }
 
-int64 FCbField::AsTimeSpanTicks(const int64 Default)
+int64 FCbFieldView::AsTimeSpanTicks(const int64 Default)
 {
 	if (FCbFieldType::IsTimeSpan(Type))
 	{
@@ -393,17 +393,17 @@ int64 FCbField::AsTimeSpanTicks(const int64 Default)
 	}
 }
 
-FTimespan FCbField::AsTimeSpan()
+FTimespan FCbFieldView::AsTimeSpan()
 {
 	return FTimespan(AsTimeSpanTicks(0));
 }
 
-FTimespan FCbField::AsTimeSpan(FTimespan Default)
+FTimespan FCbFieldView::AsTimeSpan(FTimespan Default)
 {
 	return FTimespan(AsTimeSpanTicks(Default.GetTicks()));
 }
 
-FCbObjectId FCbField::AsObjectId(const FCbObjectId& Default)
+FCbObjectId FCbFieldView::AsObjectId(const FCbObjectId& Default)
 {
 	static_assert(sizeof(FCbObjectId) == 12, "FCbObjectId is expected to be 12 bytes.");
 	if (FCbFieldType::IsObjectId(Type))
@@ -418,7 +418,7 @@ FCbObjectId FCbField::AsObjectId(const FCbObjectId& Default)
 	}
 }
 
-FCbCustomById FCbField::AsCustomById(FCbCustomById Default)
+FCbCustomById FCbFieldView::AsCustomById(FCbCustomById Default)
 {
 	if (FCbFieldType::IsCustomById(Type))
 	{
@@ -441,7 +441,7 @@ FCbCustomById FCbField::AsCustomById(FCbCustomById Default)
 	}
 }
 
-FCbCustomByName FCbField::AsCustomByName(FCbCustomByName Default)
+FCbCustomByName FCbFieldView::AsCustomByName(FCbCustomByName Default)
 {
 	if (FCbFieldType::IsCustomByName(Type))
 	{
@@ -469,7 +469,7 @@ FCbCustomByName FCbField::AsCustomByName(FCbCustomByName Default)
 	}
 }
 
-FMemoryView FCbField::AsCustom(uint64 Id, FMemoryView Default)
+FMemoryView FCbFieldView::AsCustom(uint64 Id, FMemoryView Default)
 {
 	FCbCustomById Custom = AsCustomById(FCbCustomById{Id, Default});
 	if (Custom.Id == Id)
@@ -483,7 +483,7 @@ FMemoryView FCbField::AsCustom(uint64 Id, FMemoryView Default)
 	}
 }
 
-FMemoryView FCbField::AsCustom(FAnsiStringView Name, FMemoryView Default)
+FMemoryView FCbFieldView::AsCustom(FAnsiStringView Name, FMemoryView Default)
 {
 	const FCbCustomByName Custom = AsCustomByName(FCbCustomByName{Name, Default});
 	if (Custom.Name.Equals(Name, ESearchCase::CaseSensitive))
@@ -497,12 +497,12 @@ FMemoryView FCbField::AsCustom(FAnsiStringView Name, FMemoryView Default)
 	}
 }
 
-uint64 FCbField::GetSize() const
+uint64 FCbFieldView::GetSize() const
 {
 	return sizeof(ECbFieldType) + GetViewNoType().GetSize();
 }
 
-uint64 FCbField::GetPayloadSize() const
+uint64 FCbFieldView::GetPayloadSize() const
 {
 	switch (FCbFieldType::GetType(Type))
 	{
@@ -548,27 +548,27 @@ uint64 FCbField::GetPayloadSize() const
 	}
 }
 
-FIoHash FCbField::GetHash() const
+FIoHash FCbFieldView::GetHash() const
 {
 	FBlake3 Hash;
 	GetHash(Hash);
 	return FIoHash(Hash.Finalize());
 }
 
-void FCbField::GetHash(FBlake3& Hash) const
+void FCbFieldView::GetHash(FBlake3& Hash) const
 {
 	const ECbFieldType SerializedType = FCbFieldType::GetSerializedType(Type);
 	Hash.Update(&SerializedType, sizeof(SerializedType));
 	Hash.Update(GetViewNoType());
 }
 
-bool FCbField::Equals(const FCbField& Other) const
+bool FCbFieldView::Equals(const FCbFieldView& Other) const
 {
 	return FCbFieldType::GetSerializedType(Type) == FCbFieldType::GetSerializedType(Other.Type) &&
 		GetViewNoType().EqualBytes(Other.GetViewNoType());
 }
 
-void FCbField::CopyTo(FMutableMemoryView Buffer) const
+void FCbFieldView::CopyTo(FMutableMemoryView Buffer) const
 {
 	const FMemoryView Source = GetViewNoType();
 	checkf(Buffer.GetSize() == sizeof(ECbFieldType) + Source.GetSize(),
@@ -579,7 +579,7 @@ void FCbField::CopyTo(FMutableMemoryView Buffer) const
 	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), Source.GetSize());
 }
 
-void FCbField::CopyTo(FArchive& Ar) const
+void FCbFieldView::CopyTo(FArchive& Ar) const
 {
 	check(Ar.IsSaving());
 	const FMemoryView Source = GetViewNoType();
@@ -588,16 +588,16 @@ void FCbField::CopyTo(FArchive& Ar) const
 	Ar.Serialize(const_cast<void*>(Source.GetData()), static_cast<int64>(Source.GetSize()));
 }
 
-void FCbField::IterateAttachments(FCbFieldVisitor Visitor) const
+void FCbFieldView::IterateAttachments(FCbFieldVisitor Visitor) const
 {
 	switch (FCbFieldType::GetType(Type))
 	{
 	case ECbFieldType::Object:
 	case ECbFieldType::UniformObject:
-		return FCbObject::FromFieldNoCheck(*this).IterateAttachments(Visitor);
+		return FCbObjectView::FromFieldNoCheck(*this).IterateAttachments(Visitor);
 	case ECbFieldType::Array:
 	case ECbFieldType::UniformArray:
-		return FCbArray::FromFieldNoCheck(*this).IterateAttachments(Visitor);
+		return FCbArrayView::FromFieldNoCheck(*this).IterateAttachments(Visitor);
 	case ECbFieldType::CompactBinaryAttachment:
 	case ECbFieldType::BinaryAttachment:
 		return Visitor(*this);
@@ -606,7 +606,7 @@ void FCbField::IterateAttachments(FCbFieldVisitor Visitor) const
 	}
 }
 
-FMemoryView FCbField::GetView() const
+FMemoryView FCbFieldView::GetView() const
 {
 	const uint32 TypeSize = FCbFieldType::HasFieldType(Type) ? sizeof(ECbFieldType) : 0;
 	const uint32 NameSize = FCbFieldType::HasFieldName(Type) ? NameLen + MeasureVarUInt(NameLen) : 0;
@@ -614,7 +614,7 @@ FMemoryView FCbField::GetView() const
 	return MakeMemoryView(static_cast<const uint8*>(Payload) - TypeSize - NameSize, TypeSize + NameSize + PayloadSize);
 }
 
-FMemoryView FCbField::GetViewNoType() const
+FMemoryView FCbFieldView::GetViewNoType() const
 {
 	const uint32 NameSize = FCbFieldType::HasFieldName(Type) ? NameLen + MeasureVarUInt(NameLen) : 0;
 	const uint64 PayloadSize = GetPayloadSize();
@@ -623,12 +623,12 @@ FMemoryView FCbField::GetViewNoType() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCbArray::FCbArray()
-	: FCbField(CompactBinaryPrivate::GEmptyArrayPayload)
+FCbArrayView::FCbArrayView()
+	: FCbFieldView(CompactBinaryPrivate::GEmptyArrayPayload)
 {
 }
 
-uint64 FCbArray::Num() const
+uint64 FCbArrayView::Num() const
 {
 	const uint8* PayloadBytes = static_cast<const uint8*>(GetPayload());
 	PayloadBytes += MeasureVarUInt(PayloadBytes);
@@ -636,7 +636,7 @@ uint64 FCbArray::Num() const
 	return ReadVarUInt(PayloadBytes, NumByteCount);
 }
 
-FCbFieldIterator FCbArray::CreateIterator() const
+FCbFieldViewIterator FCbArrayView::CreateViewIterator() const
 {
 	const uint8* PayloadBytes = static_cast<const uint8*>(GetPayload());
 	uint32 PayloadSizeByteCount;
@@ -649,37 +649,37 @@ FCbFieldIterator FCbArray::CreateIterator() const
 		PayloadBytes += NumByteCount;
 		const ECbFieldType UniformType = FCbFieldType::GetType(GetType()) == ECbFieldType::UniformArray ?
 			ECbFieldType(*PayloadBytes++) : ECbFieldType::HasFieldType;
-		return FCbFieldIterator::MakeRange(MakeMemoryView(PayloadBytes, PayloadEnd), UniformType);
+		return FCbFieldViewIterator::MakeRange(MakeMemoryView(PayloadBytes, PayloadEnd), UniformType);
 	}
-	return FCbFieldIterator();
+	return FCbFieldViewIterator();
 }
 
-uint64 FCbArray::GetSize() const
+uint64 FCbArrayView::GetSize() const
 {
 	return sizeof(ECbFieldType) + GetPayloadSize();
 }
 
-FIoHash FCbArray::GetHash() const
+FIoHash FCbArrayView::GetHash() const
 {
 	FBlake3 Hash;
 	GetHash(Hash);
 	return FIoHash(Hash.Finalize());
 }
 
-void FCbArray::GetHash(FBlake3& Hash) const
+void FCbArrayView::GetHash(FBlake3& Hash) const
 {
 	const ECbFieldType SerializedType = FCbFieldType::GetType(GetType());
 	Hash.Update(&SerializedType, sizeof(SerializedType));
 	Hash.Update(GetPayloadView());
 }
 
-bool FCbArray::Equals(const FCbArray& Other) const
+bool FCbArrayView::Equals(const FCbArrayView& Other) const
 {
 	return FCbFieldType::GetType(GetType()) == FCbFieldType::GetType(Other.GetType()) &&
 		GetPayloadView().EqualBytes(Other.GetPayloadView());
 }
 
-void FCbArray::CopyTo(FMutableMemoryView Buffer) const
+void FCbArrayView::CopyTo(FMutableMemoryView Buffer) const
 {
 	const FMemoryView Source = GetPayloadView();
 	checkf(Buffer.GetSize() == sizeof(ECbFieldType) + Source.GetSize(),
@@ -690,7 +690,7 @@ void FCbArray::CopyTo(FMutableMemoryView Buffer) const
 	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), Source.GetSize());
 }
 
-void FCbArray::CopyTo(FArchive& Ar) const
+void FCbArrayView::CopyTo(FArchive& Ar) const
 {
 	check(Ar.IsSaving());
 	const FMemoryView Source = GetPayloadView();
@@ -701,12 +701,12 @@ void FCbArray::CopyTo(FArchive& Ar) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCbObject::FCbObject()
-	: FCbField(CompactBinaryPrivate::GEmptyObjectPayload)
+FCbObjectView::FCbObjectView()
+	: FCbFieldView(CompactBinaryPrivate::GEmptyObjectPayload)
 {
 }
 
-FCbFieldIterator FCbObject::CreateIterator() const
+FCbFieldViewIterator FCbObjectView::CreateViewIterator() const
 {
 	const uint8* PayloadBytes = static_cast<const uint8*>(GetPayload());
 	uint32 PayloadSizeByteCount;
@@ -717,61 +717,61 @@ FCbFieldIterator FCbObject::CreateIterator() const
 		const void* const PayloadEnd = PayloadBytes + PayloadSize;
 		const ECbFieldType UniformType = FCbFieldType::GetType(GetType()) == ECbFieldType::UniformObject ?
 			ECbFieldType(*PayloadBytes++) : ECbFieldType::HasFieldType;
-		return FCbFieldIterator::MakeRange(MakeMemoryView(PayloadBytes, PayloadEnd), UniformType);
+		return FCbFieldViewIterator::MakeRange(MakeMemoryView(PayloadBytes, PayloadEnd), UniformType);
 	}
-	return FCbFieldIterator();
+	return FCbFieldViewIterator();
 }
 
-FCbField FCbObject::Find(const FAnsiStringView Name) const
+FCbFieldView FCbObjectView::FindView(const FAnsiStringView Name) const
 {
-	for (const FCbField Field : *this)
+	for (const FCbFieldView Field : *this)
 	{
 		if (Name.Equals(Field.GetName(), ESearchCase::CaseSensitive))
 		{
 			return Field;
 		}
 	}
-	return FCbField();
+	return FCbFieldView();
 }
 
-FCbField FCbObject::FindIgnoreCase(const FAnsiStringView Name) const
+FCbFieldView FCbObjectView::FindViewIgnoreCase(const FAnsiStringView Name) const
 {
-	for (const FCbField Field : *this)
+	for (const FCbFieldView Field : *this)
 	{
 		if (Name.Equals(Field.GetName(), ESearchCase::IgnoreCase))
 		{
 			return Field;
 		}
 	}
-	return FCbField();
+	return FCbFieldView();
 }
 
-uint64 FCbObject::GetSize() const
+uint64 FCbObjectView::GetSize() const
 {
 	return sizeof(ECbFieldType) + GetPayloadSize();
 }
 
-FIoHash FCbObject::GetHash() const
+FIoHash FCbObjectView::GetHash() const
 {
 	FBlake3 Hash;
 	GetHash(Hash);
 	return FIoHash(Hash.Finalize());
 }
 
-void FCbObject::GetHash(FBlake3& Hash) const
+void FCbObjectView::GetHash(FBlake3& Hash) const
 {
 	const ECbFieldType SerializedType = FCbFieldType::GetType(GetType());
 	Hash.Update(&SerializedType, sizeof(SerializedType));
 	Hash.Update(GetPayloadView());
 }
 
-bool FCbObject::Equals(const FCbObject& Other) const
+bool FCbObjectView::Equals(const FCbObjectView& Other) const
 {
 	return FCbFieldType::GetType(GetType()) == FCbFieldType::GetType(Other.GetType()) &&
 		GetPayloadView().EqualBytes(Other.GetPayloadView());
 }
 
-void FCbObject::CopyTo(FMutableMemoryView Buffer) const
+void FCbObjectView::CopyTo(FMutableMemoryView Buffer) const
 {
 	const FMemoryView Source = GetPayloadView();
 	checkf(Buffer.GetSize() == sizeof(ECbFieldType) + Source.GetSize(),
@@ -782,7 +782,7 @@ void FCbObject::CopyTo(FMutableMemoryView Buffer) const
 	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), Source.GetSize());
 }
 
-void FCbObject::CopyTo(FArchive& Ar) const
+void FCbObjectView::CopyTo(FArchive& Ar) const
 {
 	check(Ar.IsSaving());
 	const FMemoryView Source = GetPayloadView();
@@ -904,12 +904,12 @@ void TCbFieldIterator<FieldType>::IterateRangeAttachments(FCbFieldVisitor Visito
 	}
 }
 
+template class TCbFieldIterator<FCbFieldView>;
 template class TCbFieldIterator<FCbField>;
-template class TCbFieldIterator<FCbFieldRef>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCbFieldRefIterator FCbFieldRefIterator::CloneRange(const FCbFieldIterator& It)
+FCbFieldIterator FCbFieldIterator::CloneRange(const FCbFieldViewIterator& It)
 {
 	FMemoryView View;
 	if (It.TryGetSerializedRangeView(View))
@@ -924,7 +924,7 @@ FCbFieldRefIterator FCbFieldRefIterator::CloneRange(const FCbFieldIterator& It)
 	}
 }
 
-FSharedBuffer FCbFieldRefIterator::GetRangeBuffer() const
+FSharedBuffer FCbFieldIterator::GetRangeBuffer() const
 {
 	const FMemoryView RangeView = GetRangeView();
 	const FSharedBuffer& OuterBuffer = GetOuterBuffer();

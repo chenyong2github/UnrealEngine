@@ -30,13 +30,13 @@ public:
 	FCbAttachment() = default;
 
 	/** Construct a compact binary attachment. Value is cloned if not owned. */
-	inline explicit FCbAttachment(FCbFieldRefIterator Value)
+	inline explicit FCbAttachment(FCbFieldIterator Value)
 		: FCbAttachment(MoveTemp(Value), nullptr)
 	{
 	}
 
 	/** Construct a compact binary attachment. Value is cloned if not owned. Hash must match Value. */
-	inline explicit FCbAttachment(FCbFieldRefIterator Value, const FIoHash& Hash)
+	inline explicit FCbAttachment(FCbFieldIterator Value, const FIoHash& Hash)
 		: FCbAttachment(MoveTemp(Value), &Hash)
 	{
 	}
@@ -63,10 +63,10 @@ public:
 	inline bool IsNull() const { return !Buffer; }
 
 	/** Access the attachment as binary. Defaults to a null buffer on error. */
-	CORE_API FSharedBuffer AsBinary() const;
+	CORE_API FSharedBuffer AsBinaryView() const;
 
 	/** Access the attachment as compact binary. Defaults to a field iterator with no value on error. */
-	CORE_API FCbFieldRefIterator AsCompactBinary() const;
+	CORE_API FCbFieldIterator AsCompactBinary() const;
 
 	/** Returns whether the attachment is binary or compact binary. */
 	inline bool IsBinary() const { return !Buffer.IsNull(); }
@@ -89,7 +89,7 @@ public:
 	 *
 	 * The iterator is advanced as attachment fields are consumed from it.
 	 */
-	CORE_API void Load(FCbFieldRefIterator& Fields);
+	CORE_API void Load(FCbFieldIterator& Fields);
 
 	/**
 	 * Load the attachment from compact binary as written by Save.
@@ -108,13 +108,13 @@ public:
 	CORE_API void Save(FArchive& Ar) const;
 
 private:
-	CORE_API FCbAttachment(FCbFieldRefIterator Value, const FIoHash* Hash);
+	CORE_API FCbAttachment(FCbFieldIterator Value, const FIoHash* Hash);
 	CORE_API FCbAttachment(FSharedBuffer Value, const FIoHash* Hash);
 
 	/** An owned buffer containing the binary or compact binary data. */
 	FSharedBuffer Buffer;
 	/** A field iterator that is valid only for compact binary attachments. */
-	FCbFieldIterator CompactBinary;
+	FCbFieldViewIterator CompactBinary;
 	/** A hash of the attachment value. */
 	FIoHash Hash;
 };
@@ -168,7 +168,7 @@ public:
 	 *
 	 * @param InObject The root object, which will be cloned unless it is owned.
 	 */
-	inline explicit FCbPackage(FCbObjectRef InObject)
+	inline explicit FCbPackage(FCbObject InObject)
 	{
 		SetObject(MoveTemp(InObject));
 	}
@@ -179,7 +179,7 @@ public:
 	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
-	inline explicit FCbPackage(FCbObjectRef InObject, FAttachmentResolver InResolver)
+	inline explicit FCbPackage(FCbObject InObject, FAttachmentResolver InResolver)
 	{
 		SetObject(MoveTemp(InObject), InResolver);
 	}
@@ -190,7 +190,7 @@ public:
 	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 */
-	inline explicit FCbPackage(FCbObjectRef InObject, const FIoHash& InObjectHash)
+	inline explicit FCbPackage(FCbObject InObject, const FIoHash& InObjectHash)
 	{
 		SetObject(MoveTemp(InObject), InObjectHash);
 	}
@@ -202,7 +202,7 @@ public:
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
-	inline explicit FCbPackage(FCbObjectRef InObject, const FIoHash& InObjectHash, FAttachmentResolver InResolver)
+	inline explicit FCbPackage(FCbObject InObject, const FIoHash& InObjectHash, FAttachmentResolver InResolver)
 	{
 		SetObject(MoveTemp(InObject), InObjectHash, InResolver);
 	}
@@ -216,11 +216,11 @@ public:
 	/** Whether the package has an empty object and no attachments. */
 	inline bool IsNull() const
 	{
-		return !Object.CreateIterator() && Attachments.Num() == 0;
+		return !Object.CreateViewIterator() && Attachments.Num() == 0;
 	}
 
 	/** Returns the compact binary object for the package. */
-	inline const FCbObjectRef& GetObject() const { return Object; }
+	inline const FCbObject& GetObject() const { return Object; }
 
 	/** Returns the has of the compact binary object for the package. */
 	inline const FIoHash& GetObjectHash() const { return ObjectHash; }
@@ -230,7 +230,7 @@ public:
 	 *
 	 * @param InObject The root object, which will be cloned unless it is owned.
 	 */
-	inline void SetObject(FCbObjectRef InObject)
+	inline void SetObject(FCbObject InObject)
 	{
 		SetObject(MoveTemp(InObject), nullptr, nullptr);
 	}
@@ -241,7 +241,7 @@ public:
 	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
-	inline void SetObject(FCbObjectRef InObject, FAttachmentResolver InResolver)
+	inline void SetObject(FCbObject InObject, FAttachmentResolver InResolver)
 	{
 		SetObject(MoveTemp(InObject), nullptr, &InResolver);
 	}
@@ -252,7 +252,7 @@ public:
 	 * @param InObject The root object, which will be cloned unless it is owned.
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 */
-	inline void SetObject(FCbObjectRef InObject, const FIoHash& InObjectHash)
+	inline void SetObject(FCbObject InObject, const FIoHash& InObjectHash)
 	{
 		SetObject(MoveTemp(InObject), &InObjectHash, nullptr);
 	}
@@ -264,7 +264,7 @@ public:
 	 * @param InObjectHash The hash of the object, which must match to avoid validation errors.
 	 * @param InResolver A function that is invoked for every reference and binary reference field.
 	 */
-	inline void SetObject(FCbObjectRef InObject, const FIoHash& InObjectHash, FAttachmentResolver InResolver)
+	inline void SetObject(FCbObject InObject, const FIoHash& InObjectHash, FAttachmentResolver InResolver)
 	{
 		SetObject(MoveTemp(InObject), &InObjectHash, &InResolver);
 	}
@@ -319,7 +319,7 @@ public:
 	 *
 	 * The iterator is advanced as object and attachment fields are consumed from it.
 	 */
-	CORE_API void Load(FCbFieldRefIterator& Fields);
+	CORE_API void Load(FCbFieldIterator& Fields);
 
 	/**
 	 * Load the object and attachments from compact binary as written by Save.
@@ -338,14 +338,14 @@ public:
 	CORE_API void Save(FArchive& Ar) const;
 
 private:
-	CORE_API void SetObject(FCbObjectRef Object, const FIoHash* Hash, FAttachmentResolver* Resolver);
+	CORE_API void SetObject(FCbObject Object, const FIoHash* Hash, FAttachmentResolver* Resolver);
 	CORE_API void AddAttachment(const FCbAttachment& Attachment, FAttachmentResolver* Resolver);
 
-	void GatherAttachments(const FCbFieldIterator& Fields, FAttachmentResolver Resolver);
+	void GatherAttachments(const FCbFieldViewIterator& Fields, FAttachmentResolver Resolver);
 
 	/** Attachments ordered by their hash. */
 	TArray<FCbAttachment> Attachments;
-	FCbObjectRef Object;
+	FCbObject Object;
 	FIoHash ObjectHash;
 };
 

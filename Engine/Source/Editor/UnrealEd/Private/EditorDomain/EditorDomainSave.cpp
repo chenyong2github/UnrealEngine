@@ -764,7 +764,7 @@ bool FEditorDomainSaveServer::TrySavePackage(const FPackagePath& PackagePath, FS
 	MetaData.BeginObject();
 	MetaData << "FileSize" << TempBytes.Num();
 	MetaData.EndObject();
-	RecordBuilder.SetMeta(MetaData.Save().AsObjectRef());
+	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	RecordBuilder.SetValue(FSharedBuffer::MakeView(TempBytes.GetData(), TempBytes.Num()));
 	UE::DerivedData::FCacheRecord Record = RecordBuilder.Build();
 	GetDerivedDataCacheRef().GetCache().Put(MakeArrayView(&Record, 1), PackagePath.GetDebugName());

@@ -114,7 +114,7 @@ public:
 	UE_API const FCacheKey& GetKey() const;
 
 	/** Returns the metadata for the cache record unless it was skipped in the request. */
-	UE_API const FCbObjectRef& GetMeta() const;
+	UE_API const FCbObject& GetMeta() const;
 
 	/** Returns the value. Null if the value was skipped in the request. */
 	UE_API FSharedBuffer GetValue() const;
@@ -183,7 +183,7 @@ public:
 	 *
 	 * The metadata is cloned if not owned.
 	 */
-	UE_API void SetMeta(FCbObjectRef Meta);
+	UE_API void SetMeta(FCbObject Meta);
 
 	/**
 	 * Set the value for the cache record.

@@ -157,7 +157,7 @@ bool TryMeasureCompactBinary(FMemoryView View, ECbFieldType& OutType, uint64& Ou
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCbFieldRef LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
+FCbField LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 {
 	TArray<uint8, TInlineAllocator<64>> HeaderBytes;
 	ECbFieldType FieldType;
@@ -188,24 +188,24 @@ FCbFieldRef LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 	{
 		Ar.Serialize(View.GetData(), static_cast<int64>(View.GetSize()));
 	}
-	return FCbFieldRef(FSharedBuffer(MoveTemp(Buffer)));
+	return FCbField(FSharedBuffer(MoveTemp(Buffer)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SaveCompactBinary(FArchive& Ar, const FCbField& Field)
+void SaveCompactBinary(FArchive& Ar, const FCbFieldView& Field)
 {
 	check(Ar.IsSaving());
 	Field.CopyTo(Ar);
 }
 
-void SaveCompactBinary(FArchive& Ar, const FCbArray& Array)
+void SaveCompactBinary(FArchive& Ar, const FCbArrayView& Array)
 {
 	check(Ar.IsSaving());
 	Array.CopyTo(Ar);
 }
 
-void SaveCompactBinary(FArchive& Ar, const FCbObject& Object)
+void SaveCompactBinary(FArchive& Ar, const FCbObjectView& Object)
 {
 	check(Ar.IsSaving());
 	Object.CopyTo(Ar);
@@ -231,19 +231,19 @@ static FArchive& SerializeCompactBinary(FArchive& Ar, T& Value, ConvertType&& Co
 	return Ar;
 }
 
-FArchive& operator<<(FArchive& Ar, FCbFieldRef& Field)
+FArchive& operator<<(FArchive& Ar, FCbField& Field)
 {
 	return SerializeCompactBinary(Ar, Field, FIdentityFunctor());
 }
 
-FArchive& operator<<(FArchive& Ar, FCbArrayRef& Array)
+FArchive& operator<<(FArchive& Ar, FCbArray& Array)
 {
-	return SerializeCompactBinary(Ar, Array, [](FCbFieldRef&& Field) { return MoveTemp(Field).AsArrayRef(); });
+	return SerializeCompactBinary(Ar, Array, [](FCbField&& Field) { return MoveTemp(Field).AsArray(); });
 }
 
-FArchive& operator<<(FArchive& Ar, FCbObjectRef& Object)
+FArchive& operator<<(FArchive& Ar, FCbObject& Object)
 {
-	return SerializeCompactBinary(Ar, Object, [](FCbFieldRef&& Field) { return MoveTemp(Field).AsObjectRef(); });
+	return SerializeCompactBinary(Ar, Object, [](FCbField&& Field) { return MoveTemp(Field).AsObject(); });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

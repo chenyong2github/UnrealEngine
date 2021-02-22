@@ -185,8 +185,8 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 			if ((PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor) &&
 				Params.Status == UE::DerivedData::ECacheStatus::Cached)
 			{
-				const FCbObjectRef& MetaData = Params.Record.GetMeta();
-				FCbField FileSizeField = MetaData["FileSize"];
+				const FCbObject& MetaData = Params.Record.GetMeta();
+				FCbFieldView FileSizeField = MetaData["FileSize"];
 				FileSize = FileSizeField.AsInt64();
 				PackageSource->Source = EPackageSource::Editor;
 			}

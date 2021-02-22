@@ -859,8 +859,8 @@ void FCache::Put(
 			Writer.EndArray();
 		}
 
-		const FCbObjectRef& Meta = Record.GetMeta();
-		if (Meta.CreateIterator())
+		const FCbObject& Meta = Record.GetMeta();
+		if (Meta.CreateViewIterator())
 		{
 			Writer.AddObject("Meta"_ASV, Meta);
 		}
@@ -943,13 +943,13 @@ void FCache::Get(
 	}
 
 	// Read the record from its compact binary fields.
-	const FCbObject RecordObject(RecordData.GetData());
-	const FCbObject MetaObject = RecordObject["Meta"_ASV].AsObject();
-	const FCbObject ValueObject = RecordObject["Value"_ASV].AsObject();
-	const FCbArray AttachmentsArray = RecordObject["Attachments"_ASV].AsArray();
+	const FCbObjectView RecordObject(RecordData.GetData());
+	const FCbObjectView MetaObject = RecordObject["Meta"_ASV].AsObjectView();
+	const FCbObjectView ValueObject = RecordObject["Value"_ASV].AsObjectView();
+	const FCbArrayView AttachmentsArray = RecordObject["Attachments"_ASV].AsArrayView();
 
 	// Read the value and attachments if they have been requested.
-	const auto GetPayload = [&SkippedPayloads, &Key, Policy, Context](FCbObject PayloadObject, ECachePolicy SkipFlag) -> FCachePayload
+	const auto GetPayload = [&SkippedPayloads, &Key, Policy, Context](FCbObjectView PayloadObject, ECachePolicy SkipFlag) -> FCachePayload
 	{
 		TArray<uint8> PayloadData;
 		const FCachePayloadId PayloadId = FCachePayloadId::FromObjectId(PayloadObject["Id"_ASV].AsObjectId());
@@ -982,15 +982,15 @@ void FCache::Get(
 		}
 	};
 
-	if (ValueObject.CreateIterator() && !(Value = GetPayload(ValueObject, ECachePolicy::SkipValue)))
+	if (ValueObject.CreateViewIterator() && !(Value = GetPayload(ValueObject, ECachePolicy::SkipValue)))
 	{
 		return;
 	}
 
 	Attachments.Reserve(AttachmentsArray.Num());
-	for (FCbField AttachmentField : AttachmentsArray)
+	for (FCbFieldView AttachmentField : AttachmentsArray)
 	{
-		Attachments.Add(GetPayload(AttachmentField.AsObject(), ECachePolicy::SkipAttachments));
+		Attachments.Add(GetPayload(AttachmentField.AsObjectView(), ECachePolicy::SkipAttachments));
 		if (!Attachments.Last())
 		{
 			return;
@@ -1016,9 +1016,9 @@ void FCache::Get(
 	}
 
 	// Populate the builder now that any error conditions have been handled.
-	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta) && MetaObject.CreateIterator())
+	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta) && MetaObject.CreateViewIterator())
 	{
-		Builder.SetMeta(FCbObjectRef::Clone(MetaObject));
+		Builder.SetMeta(FCbObject::Clone(MetaObject));
 	}
 	if (Value)
 	{
@@ -1104,9 +1104,9 @@ void FCache::GetPayload(
 			}
 
 			// Read the record from its compact binary fields.
-			const FCbObject RecordObject(RecordData.GetData());
-			const FCbObject ValueObject = RecordObject["Value"_ASV].AsObject();
-			const FCbArray AttachmentsArray = RecordObject["Attachments"_ASV].AsArray();
+			const FCbObjectView RecordObject(RecordData.GetData());
+			const FCbObjectView ValueObject = RecordObject["Value"_ASV].AsObjectView();
+			const FCbArrayView AttachmentsArray = RecordObject["Attachments"_ASV].AsArrayView();
 
 			// Find the hash of the payload in the record.
 			const FCbObjectId KeyObjectId = Key.GetId().ToObjectId();
@@ -1116,11 +1116,11 @@ void FCache::GetPayload(
 			}
 			else
 			{
-				for (FCbField AttachmentField : AttachmentsArray)
+				for (FCbFieldView AttachmentField : AttachmentsArray)
 				{
-					if (AttachmentField.AsObject()["Id"_ASV].AsObjectId() == KeyObjectId)
+					if (AttachmentField.AsObjectView()["Id"_ASV].AsObjectId() == KeyObjectId)
 					{
-						Params.Payload = FCachePayload(Key.GetId(), AttachmentField.AsObject()["Hash"_ASV].AsBinaryAttachment());
+						Params.Payload = FCachePayload(Key.GetId(), AttachmentField.AsObjectView()["Hash"_ASV].AsBinaryAttachment());
 						break;
 					}
 				}

@@ -74,7 +74,7 @@ FSharedBuffer FCachePayload::Decompress(FSharedBuffer Buffer)
 struct FCacheRecordBuilderData
 {
 	FCacheKey Key;
-	FCbObjectRef Meta;
+	FCbObject Meta;
 	FCachePayload Value;
 	TArray<FCachePayload> Attachments;
 };
@@ -87,7 +87,7 @@ struct FCacheRecordData
 	explicit FCacheRecordData(FCacheRecordBuilderData&& Builder);
 
 	FCacheKey Key;
-	FCbObjectRef Meta;
+	FCbObject Meta;
 	FCachePayload Value;
 	FSharedBuffer ValueCache;
 	TArray<FCachePayload> Attachments;
@@ -143,7 +143,7 @@ const FCacheKey& FCacheRecord::GetKey() const
 	return (Data ? *Data : GetEmptyCacheRecord()).Key;
 }
 
-const FCbObjectRef& FCacheRecord::GetMeta() const
+const FCbObject& FCacheRecord::GetMeta() const
 {
 	return (Data ? *Data : GetEmptyCacheRecord()).Meta;
 }
@@ -215,7 +215,7 @@ void FCacheRecordBuilder::SetKey(const FCacheKey& Key)
 	Data->Key = Key;
 }
 
-void FCacheRecordBuilder::SetMeta(FCbObjectRef Meta)
+void FCacheRecordBuilder::SetMeta(FCbObject Meta)
 {
 	Meta.MakeOwned();
 	Data->Meta = MoveTemp(Meta);

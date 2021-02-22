@@ -165,7 +165,7 @@ static FAnsiStringView ValidateCbString(FMemoryView& View, ECbValidateMode Mode,
 	return Value;
 }
 
-static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ExternalType);
+static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ExternalType);
 
 /** A type that checks whether all validated fields are of the same type. */
 class FCbUniformFieldsValidator
@@ -176,10 +176,10 @@ public:
 	{
 	}
 
-	inline FCbField ValidateField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+	inline FCbFieldView ValidateField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 	{
 		const void* const FieldData = View.GetData();
-		if (FCbField Field = ValidateCbField(View, Mode, Error, ExternalType))
+		if (FCbFieldView Field = ValidateCbField(View, Mode, Error, ExternalType))
 		{
 			++FieldCount;
 			if (FCbFieldType::HasFieldType(ExternalType))
@@ -199,7 +199,7 @@ public:
 
 		// It may not safe to check for uniformity if the field was invalid.
 		bUniform = false;
-		return FCbField();
+		return FCbFieldView();
 	}
 
 	inline bool IsUniform() const { return FieldCount > 0 && bUniform; }
@@ -226,7 +226,7 @@ static void ValidateCbObject(FMemoryView& View, ECbValidateMode Mode, ECbValidat
 		FCbUniformFieldsValidator UniformValidator(ExternalType);
 		do
 		{
-			if (FCbField Field = UniformValidator.ValidateField(ObjectView, Mode, Error))
+			if (FCbFieldView Field = UniformValidator.ValidateField(ObjectView, Mode, Error))
 			{
 				if (EnumHasAnyFlags(Mode, ECbValidateMode::Names))
 				{
@@ -277,7 +277,7 @@ static void ValidateCbArray(FMemoryView& View, ECbValidateMode Mode, ECbValidate
 
 	for (uint64 Index = 0; Index < Count; ++Index)
 	{
-		if (FCbField Field = UniformValidator.ValidateField(ArrayView, Mode, Error))
+		if (FCbFieldView Field = UniformValidator.ValidateField(ArrayView, Mode, Error))
 		{
 			if (Field.HasName() && EnumHasAnyFlags(Mode, ECbValidateMode::Names))
 			{
@@ -292,7 +292,7 @@ static void ValidateCbArray(FMemoryView& View, ECbValidateMode Mode, ECbValidate
 	}
 }
 
-static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, const ECbFieldType ExternalType = ECbFieldType::HasFieldType)
+static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, const ECbFieldType ExternalType = ECbFieldType::HasFieldType)
 {
 	const FMemoryView FieldView = View;
 	const ECbFieldType Type = ValidateCbFieldType(View, Mode, Error, ExternalType);
@@ -300,7 +300,7 @@ static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbVali
 
 	if (EnumHasAnyFlags(Error, ECbValidateError::OutOfBounds | ECbValidateError::InvalidType))
 	{
-		return FCbField();
+		return FCbFieldView();
 	}
 
 	switch (FCbFieldType::GetType(Type))
@@ -381,13 +381,13 @@ static FCbField ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbVali
 
 	if (EnumHasAnyFlags(Error, ECbValidateError::OutOfBounds | ECbValidateError::InvalidType))
 	{
-		return FCbField();
+		return FCbFieldView();
 	}
 
-	return FCbField(FieldView.GetData(), ExternalType);
+	return FCbFieldView(FieldView.GetData(), ExternalType);
 }
 
-static FCbField ValidateCbPackageField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static FCbFieldView ValidateCbPackageField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	if (View.IsEmpty())
 	{
@@ -395,9 +395,9 @@ static FCbField ValidateCbPackageField(FMemoryView& View, ECbValidateMode Mode, 
 		{
 			AddError(Error, ECbValidateError::InvalidPackageFormat);
 		}
-		return FCbField();
+		return FCbFieldView();
 	}
-	if (FCbField Field = ValidateCbField(View, Mode, Error))
+	if (FCbFieldView Field = ValidateCbField(View, Mode, Error))
 	{
 		if (Field.HasName() && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
@@ -405,12 +405,12 @@ static FCbField ValidateCbPackageField(FMemoryView& View, ECbValidateMode Mode, 
 		}
 		return Field;
 	}
-	return FCbField();
+	return FCbFieldView();
 }
 
-static FIoHash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static FIoHash ValidateCbPackageAttachment(FCbFieldView& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
-	const FMemoryView ValueView = Value.AsBinary();
+	const FMemoryView ValueView = Value.AsBinaryView();
 	if (Value.HasError() && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 	{
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
@@ -420,7 +420,7 @@ static FIoHash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& View, E
 	}
 	else if (ValueView.GetSize())
 	{
-		if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
+		if (FCbFieldView HashField = ValidateCbPackageField(View, Mode, Error))
 		{
 			const FIoHash Hash = HashField.AsAttachment();
 			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
@@ -440,9 +440,9 @@ static FIoHash ValidateCbPackageAttachment(FCbField& Value, FMemoryView& View, E
 	return FIoHash();
 }
 
-static FIoHash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static FIoHash ValidateCbPackageObject(FCbFieldView& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
-	FCbObject Object = Value.AsObject();
+	FCbObjectView Object = Value.AsObjectView();
 	if (Value.HasError())
 	{
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
@@ -450,12 +450,12 @@ static FIoHash ValidateCbPackageObject(FCbField& Value, FMemoryView& View, ECbVa
 			AddError(Error, ECbValidateError::InvalidPackageFormat);
 		}
 	}
-	else if (FCbField HashField = ValidateCbPackageField(View, Mode, Error))
+	else if (FCbFieldView HashField = ValidateCbPackageField(View, Mode, Error))
 	{
 		const FIoHash Hash = HashField.AsAttachment();
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
-			if (!Object.CreateIterator())
+			if (!Object.CreateViewIterator())
 			{
 				AddError(Error, ECbValidateError::NullPackageObject);
 			}
@@ -505,7 +505,7 @@ ECbValidateError ValidateCompactBinaryAttachment(FMemoryView View, ECbValidateMo
 	ECbValidateError Error = ECbValidateError::None;
 	if (EnumHasAnyFlags(Mode, ECbValidateMode::All))
 	{
-		if (FCbField Value = ValidateCbPackageField(View, Mode, Error))
+		if (FCbFieldView Value = ValidateCbPackageField(View, Mode, Error))
 		{
 			ValidateCbPackageAttachment(Value, View, Mode, Error);
 		}
@@ -524,7 +524,7 @@ ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode 
 	if (EnumHasAnyFlags(Mode, ECbValidateMode::All))
 	{
 		uint32 ObjectCount = 0;
-		while (FCbField Value = ValidateCbPackageField(View, Mode, Error))
+		while (FCbFieldView Value = ValidateCbPackageField(View, Mode, Error))
 		{
 			if (Value.IsBinary())
 			{
@@ -532,7 +532,7 @@ ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode 
 				if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 				{
 					Attachments.Add(Hash);
-					if (Value.AsBinary().IsEmpty())
+					if (Value.AsBinaryView().IsEmpty())
 					{
 						AddError(Error, ECbValidateError::NullPackageAttachment);
 					}
