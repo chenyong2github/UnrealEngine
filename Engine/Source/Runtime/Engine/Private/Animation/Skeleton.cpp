@@ -114,6 +114,11 @@ namespace VirtualBoneNameHelpers
 
 bool USkeleton::IsCompatible(const USkeleton* InSkeleton) const
 {
+	if (InSkeleton == nullptr)
+	{
+		return false;
+	}
+
 	if (InSkeleton == this)
 	{
 		return true;
