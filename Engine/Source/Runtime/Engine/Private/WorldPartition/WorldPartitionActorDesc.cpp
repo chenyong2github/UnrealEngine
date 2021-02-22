@@ -17,6 +17,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/HLOD/HLODLayer.h"
 #include "Engine/Public/ActorReferencesUtils.h"
 #endif
 
@@ -63,6 +64,8 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	RuntimeGrid = InActor->GetRuntimeGrid();
 	bActorIsEditorOnly = InActor->IsEditorOnly();
 	bLevelBoundsRelevant = InActor->IsLevelBoundsRelevant();
+	bActorIsHLODRelevant = InActor->IsHLODRelevant();
+	HLODLayer = InActor->GetHLODLayer() ? FName(InActor->GetHLODLayer()->GetPathName()) : FName();
 	DataLayers = InActor->GetDataLayerNames();
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
@@ -199,11 +202,27 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	{
 		Ar << ActorLabel;
 	}
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::WorldPartitionActorDescSerializeHLODInfo)
+	{
+		Ar << bActorIsHLODRelevant;
+		Ar << HLODLayer;
+	}
+	else
+	{
+		bActorIsHLODRelevant = true;
+		HLODLayer = FName();
+	}
 }
 
 FBox FWorldPartitionActorDesc::GetBounds() const
 {
 	return FBox(BoundsLocation - BoundsExtent, BoundsLocation + BoundsExtent);
+}
+
+UHLODLayer* FWorldPartitionActorDesc::GetHLODLayer() const
+{
+	return HLODLayer.IsNone() ? nullptr : Cast<UHLODLayer>(FSoftObjectPath(HLODLayer).TryLoad());
 }
 
 bool FWorldPartitionActorDesc::IsLoaded() const

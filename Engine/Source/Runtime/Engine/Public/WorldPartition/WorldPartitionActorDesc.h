@@ -58,6 +58,8 @@ public:
 	inline FName GetRuntimeGrid() const { return RuntimeGrid; }
 	inline bool GetActorIsEditorOnly() const { return bActorIsEditorOnly; }
 	inline bool GetLevelBoundsRelevant() const { return bLevelBoundsRelevant; }
+	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
+	inline class UHLODLayer* GetHLODLayer() const;
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
@@ -147,6 +149,8 @@ protected:
 	FName							RuntimeGrid;
 	bool							bActorIsEditorOnly;
 	bool							bLevelBoundsRelevant;
+	bool							bActorIsHLODRelevant;
+	FName							HLODLayer;
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
 	
