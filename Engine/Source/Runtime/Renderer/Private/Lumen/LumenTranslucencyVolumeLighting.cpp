@@ -131,17 +131,19 @@ FAutoConsoleVariableRef CVarTranslucencyVoxelTraceStartDistanceScale(
 
 const static uint32 MaxTranslucencyVolumeConeDirections = 64;
 
-FLumenTranslucencyLightingParameters GetLumenTranslucencyLightingParameters(const FLumenTranslucencyGIVolume& LumenTranslucencyGIVolume)
+FLumenTranslucencyLightingParameters GetLumenTranslucencyLightingParameters(FRDGBuilder& GraphBuilder, const FLumenTranslucencyGIVolume& LumenTranslucencyGIVolume)
 {
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+
 	FLumenTranslucencyLightingParameters Parameters;
-	Parameters.TranslucencyGIVolume0 = (LumenTranslucencyGIVolume.Texture0 ? LumenTranslucencyGIVolume.Texture0 : GSystemTextures.VolumetricBlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
-	Parameters.TranslucencyGIVolume1 = (LumenTranslucencyGIVolume.Texture1 ? LumenTranslucencyGIVolume.Texture1 : GSystemTextures.VolumetricBlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
-	Parameters.TranslucencyGIVolumeHistory0 = (LumenTranslucencyGIVolume.HistoryTexture0 ? LumenTranslucencyGIVolume.HistoryTexture0 : GSystemTextures.VolumetricBlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
-	Parameters.TranslucencyGIVolumeHistory1 = (LumenTranslucencyGIVolume.HistoryTexture1 ? LumenTranslucencyGIVolume.HistoryTexture1 : GSystemTextures.VolumetricBlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
-	Parameters.TranslucencyGIVolumeSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Parameters.TranslucencyGIGridZParams = LumenTranslucencyGIVolume.GridZParams;
+	Parameters.TranslucencyGIVolume0            = LumenTranslucencyGIVolume.Texture0        ? LumenTranslucencyGIVolume.Texture0        : SystemTextures.VolumetricBlack;
+	Parameters.TranslucencyGIVolume1            = LumenTranslucencyGIVolume.Texture1        ? LumenTranslucencyGIVolume.Texture1        : SystemTextures.VolumetricBlack;
+	Parameters.TranslucencyGIVolumeHistory0     = LumenTranslucencyGIVolume.HistoryTexture0 ? LumenTranslucencyGIVolume.HistoryTexture0 : SystemTextures.VolumetricBlack;
+	Parameters.TranslucencyGIVolumeHistory1     = LumenTranslucencyGIVolume.HistoryTexture1 ? LumenTranslucencyGIVolume.HistoryTexture1 : SystemTextures.VolumetricBlack;
+	Parameters.TranslucencyGIVolumeSampler      = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	Parameters.TranslucencyGIGridZParams        = LumenTranslucencyGIVolume.GridZParams;
 	Parameters.TranslucencyGIGridPixelSizeShift = LumenTranslucencyGIVolume.GridPixelSizeShift;
-	Parameters.TranslucencyGIGridSize = LumenTranslucencyGIVolume.GridSize;
+	Parameters.TranslucencyGIGridSize           = LumenTranslucencyGIVolume.GridSize;
 	return Parameters;
 }
 
@@ -344,11 +346,11 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 			ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory1, View.ViewState->Lumen.TranslucencyVolume1);
 		}
 
-		ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolume0, View.LumenTranslucencyGIVolume.Texture0);
-		ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolume1, View.LumenTranslucencyGIVolume.Texture1);
+		View.LumenTranslucencyGIVolume.Texture0 = TranslucencyGIVolume0;
+		View.LumenTranslucencyGIVolume.Texture1 = TranslucencyGIVolume1;
 
-		ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory0, View.LumenTranslucencyGIVolume.HistoryTexture0);
-		ConvertToExternalTexture(GraphBuilder, TranslucencyGIVolumeNewHistory1, View.LumenTranslucencyGIVolume.HistoryTexture1);
+		View.LumenTranslucencyGIVolume.HistoryTexture0 = TranslucencyGIVolumeNewHistory0;
+		View.LumenTranslucencyGIVolume.HistoryTexture1 = TranslucencyGIVolumeNewHistory1;
 
 		View.LumenTranslucencyGIVolume.GridZParams = ZParams;
 		View.LumenTranslucencyGIVolume.GridPixelSizeShift = FMath::FloorLog2(GTranslucencyFroxelGridPixelSize);

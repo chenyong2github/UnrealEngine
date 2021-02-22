@@ -715,7 +715,7 @@ class TVolumetricFogLightScatteringCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevConservativeDepthTexture)
 		SHADER_PARAMETER(FVector2D, PrevConservativeDepthTextureSize)
 		SHADER_PARAMETER(uint32, UseConservativeDepthTexture)
-		SHADER_PARAMETER_STRUCT_REF(FLumenTranslucencyLightingUniforms, LumenGIVolumeStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenTranslucencyLightingUniforms, LumenGIVolumeStruct)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWLightScattering)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1272,9 +1272,9 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 				PassParameters->PrevConservativeDepthTextureSize = FVector2D(1, 1);
 			}
 
-			FLumenTranslucencyLightingUniforms LumenUniforms;
-			LumenUniforms.Parameters = GetLumenTranslucencyLightingParameters(View.LumenTranslucencyGIVolume);
-			PassParameters->LumenGIVolumeStruct = CreateUniformBufferImmediate(LumenUniforms, UniformBuffer_SingleDraw);
+			auto* LumenUniforms = GraphBuilder.AllocParameters<FLumenTranslucencyLightingUniforms>();
+			LumenUniforms->Parameters = GetLumenTranslucencyLightingParameters(GraphBuilder, View.LumenTranslucencyGIVolume);
+			PassParameters->LumenGIVolumeStruct = GraphBuilder.CreateUniformBuffer(LumenUniforms);
 			PassParameters->RWLightScattering = IntegrationData.LightScatteringUAV;
 
 			const bool bUseLumenGI = View.LumenTranslucencyGIVolume.Texture0 != nullptr;

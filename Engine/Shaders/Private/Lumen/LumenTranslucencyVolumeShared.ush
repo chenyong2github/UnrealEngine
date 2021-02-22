@@ -4,6 +4,10 @@
 	LumenTranslucencyShared.usf
 =============================================================================*/
 
+// Temp version GUID to force rebuild of shaders using the FLumenTranslucencyLightingParameters
+// uniform buffer, until versioning of uniform buffer structs works properly.
+// GUID = 62C0F6D1-F9AB-46A8-9E0C-9E72345B722A
+
 bool IsLumenTranslucencyGIEnabled()
 {
 	return LumenGIVolumeStruct.TranslucencyGIGridSize.z > 0;
