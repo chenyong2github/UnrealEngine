@@ -220,6 +220,18 @@ FWorldPartitionActorDesc* UActorDescContainer::GetActorDesc(const FGuid& Guid)
 	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
 }
 
+const FWorldPartitionActorDesc& UActorDescContainer::GetActorDescChecked(const FGuid& Guid) const
+{
+	const TUniquePtr<FWorldPartitionActorDesc>* const ActorDesc = Actors.FindChecked(Guid);
+	return *ActorDesc->Get();
+}
+
+FWorldPartitionActorDesc& UActorDescContainer::GetActorDescChecked(const FGuid& Guid)
+{
+	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc = Actors.FindChecked(Guid);
+	return *ActorDesc->Get();
+}
+
 void UActorDescContainer::RegisterDelegates()
 {
 	if (GEditor && !IsTemplate())

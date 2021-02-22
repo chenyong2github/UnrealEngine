@@ -28,6 +28,9 @@ public:
 
 	FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
 	const FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid) const;
+
+	FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid);
+	const FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid) const;
 #endif
 
 protected:
