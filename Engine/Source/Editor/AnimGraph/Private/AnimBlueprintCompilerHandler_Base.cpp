@@ -932,7 +932,7 @@ bool FAnimBlueprintCompilerHandler_Base::FEvaluationHandlerRecord::CheckForSplit
 			if(Function && Function->HasMetaData(TEXT("NativeMakeFunc")) && IsWhitelistedNativeMake(Function->GetFName()))
 			{
 				// Idea here is to account for split pins, so we want to narrow the scope to not also include user-placed makes
-				UObject* SourceObject = Context.MessageLog.FindSourceObject(MakeStructNode);
+				UObject* SourceObject = Context.MessageLog.FindSourceObject(NativeMakeNode);
 				if(SourceObject && SourceObject->IsA<UAnimGraphNode_Base>())
 				{
 					return ForEachInputPin(NativeMakeNode, [this, &Context, &OriginalRecord](UEdGraphPin* InputPin)
