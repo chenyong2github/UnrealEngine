@@ -1572,7 +1572,7 @@ namespace ChaosTest {
 		FAABB3 OriginalBoundingBox = Convex.BoundingBox();
 
 		const TArray<FVec3>& CulledParticles = Convex.GetVertices();
-		const TArray<TPlaneConcrete<FReal, 3>> Planes = Convex.GetFaces();
+		const TArray<TPlaneConcrete<Chaos::FReal, 3>> Planes = Convex.GetFaces();
 
 		// set target number of particles in simplified convex
 		FConvexBuilder::PerformGeometryReduction = 1;
