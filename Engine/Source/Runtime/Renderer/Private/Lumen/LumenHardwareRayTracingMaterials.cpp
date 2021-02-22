@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "RHIDefinitions.h"
+
 #if RHI_RAYTRACING
 
-#include "RHIDefinitions.h"
 #include "RenderCore.h"
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
