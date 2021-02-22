@@ -17,11 +17,13 @@ public:
 		GraphBuilder.AddPass(Forward<FRDGEventName>(PassName), PassParameters, ERDGPassFlags::Raster,
 			[LocalScissorRect = ScissorRect, LocalViewportRect = ViewportRect, LocalExecuteLambda = Forward<ExecuteLambdaType&&>(ExecuteLambda)](FRHICommandListImmediate& RHICmdList)
 		{
+			RHICmdList.SetViewport(LocalViewportRect.Min.X, LocalViewportRect.Min.Y, 0.0f, LocalViewportRect.Max.X, LocalViewportRect.Max.Y, 1.0f);
+
 			if (LocalScissorRect.Area() > 0)
 			{
 				RHICmdList.SetScissorRect(true, LocalScissorRect.Min.X, LocalScissorRect.Min.Y, LocalScissorRect.Max.X, LocalScissorRect.Max.Y);
 			}
-			RHICmdList.SetViewport(LocalViewportRect.Min.X, LocalViewportRect.Min.Y, 0.0f, LocalViewportRect.Max.X, LocalViewportRect.Max.Y, 1.0f);
+		
 			LocalExecuteLambda(RHICmdList);
 		});
 	}
