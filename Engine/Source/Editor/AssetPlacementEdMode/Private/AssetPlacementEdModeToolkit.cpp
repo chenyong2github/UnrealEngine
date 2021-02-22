@@ -2,6 +2,7 @@
 
 #include "AssetPlacementEdModeToolkit.h"
 
+#include "IDetailsView.h"
 #include "SAssetPlacementPalette.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
