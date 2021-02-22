@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/ContainersFwd.h"
 #include "Memory/MemoryView.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Invoke.h"
@@ -805,5 +806,40 @@ inline bool TBufferOwnerPtr<FOps>::operator!=(const TBufferOwnerPtr<FOtherOps>& 
 }
 
 } // BufferOwnerPrivate
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace BufferOwnerPrivate
+{
+
+template <typename T, typename Allocator>
+class TBufferOwnerTArray final : public FBufferOwner
+{
+public:
+	explicit TBufferOwnerTArray(TArray<T, Allocator>&& InArray)
+		: Array(MoveTemp(InArray))
+	{
+		SetBuffer(Array.GetData(), uint64(Array.Num()) * sizeof(T));
+		SetIsMaterialized();
+		SetIsOwned();
+	}
+
+private:
+	virtual void FreeBuffer() final
+	{
+		Array.Empty();
+	}
+
+	TArray<T, Allocator> Array;
+};
+
+} // BufferOwnerPrivate
+
+/** Construct a shared buffer by taking ownership of an array. */
+template <typename T, typename Allocator>
+FSharedBuffer MakeSharedBufferFromArray(TArray<T, Allocator>&& Array)
+{
+	return FSharedBuffer(new BufferOwnerPrivate::TBufferOwnerTArray<T, Allocator>(MoveTemp(Array)));
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -450,4 +450,18 @@ bool FBufferOwnerTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSharedBufferFromArrayTest, "System.Core.Memory.SharedBufferFromArray", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FSharedBufferFromArrayTest::RunTest(const FString& Parameters)
+{
+	TArray<uint16> Array{1, 2, 3, 4, 5, 6, 7, 8};
+	const void* const ExpectedData = Array.GetData();
+	const uint64 ExpectedSize = Array.Num() * sizeof(uint16);
+	const FSharedBuffer Buffer = MakeSharedBufferFromArray(MoveTemp(Array));
+	TestTrue(TEXT("MakeSharedBufferFromArray -> Array.IsEmpty"), Array.IsEmpty());
+	TestEqual(TEXT("MakeSharedBufferFromArray -> Buffer.GetData()"), Buffer.GetData(), ExpectedData);
+	TestEqual(TEXT("MakeSharedBufferFromArray -> Buffer.GetSize()"), Buffer.GetSize(), ExpectedSize);
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
