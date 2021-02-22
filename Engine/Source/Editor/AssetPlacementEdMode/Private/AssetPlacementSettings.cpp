@@ -10,28 +10,24 @@ bool UAssetPlacementSettings::CanEditChange(const FProperty* InProperty) const
 	}
 
 	const FName PropertyName = InProperty->GetFName();
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, ScaleRangeUniform) || PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bAllowNegativeUniformScale))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, ScaleRange) || PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bAllowNegativeScale))
 	{
-		return (ScalingType == EFoliageScaling::Uniform) && bUseRandomScale;
+		return bUseRandomScale;
 	}
 
-	const bool bCanFreeScale = (ScalingType != EFoliageScaling::Uniform) && bUseRandomScale;
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, ScaleRangeX) || PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bAllowNegativeXScale))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bAllowNegativeRotationX))
 	{
-		const bool bLockX = (ScalingType == EFoliageScaling::LockXY) || (ScalingType == EFoliageScaling::LockXZ);
-		return bCanFreeScale && !bLockX;
+		return bUseRandomRotationX;
 	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, ScaleRangeY) || PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bAllowNegativeYScale))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bAllowNegativeRotationY))
 	{
-		const bool bLockY = (ScalingType == EFoliageScaling::LockXY) || (ScalingType == EFoliageScaling::LockYZ);
-		return bCanFreeScale && !bLockY;
+		return bUseRandomRotationY;
 	}
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, FreeScaleRangeZ) || PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bAllowNegativeZScale))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bAllowNegativeRotationZ))
 	{
-		const bool bLockZ = (ScalingType == EFoliageScaling::LockYZ) || (ScalingType == EFoliageScaling::LockXZ);
-		return bCanFreeScale && !bLockZ;
+		return bUseRandomRotationZ;
 	}
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAssetPlacementSettings, bInvertNormalAxis))

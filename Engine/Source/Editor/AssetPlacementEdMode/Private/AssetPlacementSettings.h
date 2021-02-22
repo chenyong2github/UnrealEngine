@@ -28,80 +28,107 @@ class UAssetPlacementSettings : public UObject
 	GENERATED_BODY()
 
 public:
+	/** Set to true if the tool should automatically align placement to an axis. */
 	UPROPERTY(config, EditAnywhere, Category = "Axis Alignment", meta = (InlineEditConditionToggle))
 	bool bAlignToNormal = true;
-	
+
+	/** The axis which the tool should use for alignment calculations. This axis is positive unless Invert Normal Axis is set. */
 	UPROPERTY(config, EditAnywhere, Category = "Axis Alignment", meta = (DisplayName = "Align To Normal", EditCondition = "bAlignToNormal"))
 	TEnumAsByte<EAxis::Type> AxisToAlignWithNormal = EAxis::Type::Z;
 
+	/** Set to true if the tool should negate the alignment axis. */
 	UPROPERTY(config, EditAnywhere, Category = "Axis Alignment")
 	bool bInvertNormalAxis = false;
+
+	/** Set to true if the tool should generate a random rotation on the X axis */
+	UPROPERTY(config, EditAnywhere, Category = "Rotation", meta = (InlineEditConditionToggle))
+	bool bUseRandomRotationX = false;
+
+	/** The range in degrees at which the tool should generate a random rotation on the X axis. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Rotation", meta = (EditCondition = "bUseRandomRotationX", UIMin = "0.0", UIMax = "180.0"))
+	FFloatInterval RandomRotationX = FFloatInterval(0.0f, 180.0f);
+
+	/** Set to true if the tool should generate a negatively signed rotation on the X axis. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Rotation")
+	bool bAllowNegativeRotationX = true;
+
+	/** Set to true if the tool should generate a random rotation on the Y axis */
+	UPROPERTY(config, EditAnywhere, Category = "Rotation", meta = (InlineEditConditionToggle))
+	bool bUseRandomRotationY = false;
+
+	/** The range in degrees at which the tool should generate a random rotation on the Y axis. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Rotation", meta = (EditCondition = "bUseRandomRotationY", UIMin = "0.0", UIMax = "180.0"))
+	FFloatInterval RandomRotationY = FFloatInterval(0.0f, 180.0f);
+
+	/** Set to true if the tool should generate a negatively signed rotation on the Y axis. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Rotation")
+	bool bAllowNegativeRotationY = true;
+
+	/** Set to true if the tool should generate a random rotation on the Z axis */
+	UPROPERTY(config, EditAnywhere, Category = "Rotation", meta = (InlineEditConditionToggle))
+	bool bUseRandomRotationZ = true;
+
+	/** The range in degrees at which the tool should generate a random rotation on the Z axis. */
+	UPROPERTY(config, EditAnywhere, Category = "Rotation", meta = (EditCondition = "bUseRandomRotationZ", UIMin = "0.0", UIMax = "180.0"))
+	FFloatInterval RandomRotationZ = FFloatInterval(0.0f, 180.0f);
 	
-	UPROPERTY(config, EditAnywhere, Category = "Rotation", meta = (InlineEditConditionToggle))
-	bool bUseRandomXRotation = false;
+	/** Set to true if the tool should generate a negatively signed rotation on the Z axis. */
+	UPROPERTY(config, EditAnywhere, Category = "Rotation")
+	bool bAllowNegativeRotationZ = true;
 
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Rotation", meta = (EditCondition = "bUseRandomXRotation", UIMin = "0.0", UIMax = "360.0"))
-	FFloatInterval RandomRotationX = FFloatInterval(0.0f, 360.0f);
-	
-	UPROPERTY(config, EditAnywhere, Category = "Rotation", meta = (InlineEditConditionToggle))
-	bool bUseRandomYRotation = false;
-
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Rotation", meta = (EditCondition = "bUseRandomYRotation", UIMin = "0.0", UIMax = "360.0"))
-	FFloatInterval RandomRotationY = FFloatInterval(0.0f, 360.0f);
-
-	UPROPERTY(config, EditAnywhere, Category = "Rotation", meta = (InlineEditConditionToggle))
-	bool bUseRandomZRotation = true;
-
-	UPROPERTY(config, EditAnywhere, Category = "Rotation", meta = (EditCondition = "bUseRandomZRotation", UIMin = "0.0", UIMax = "360.0"))
-	FFloatInterval RandomRotationZ = FFloatInterval(0.0f, 360.0f);
-
+	/** Set to true if the tool should randomly scale any generated assets */
 	UPROPERTY(config, EditAnywhere, Category = "Scale", meta = (InlineEditConditionToggle))
 	bool bUseRandomScale = true;
 
-	UPROPERTY(config, EditAnywhere, Category = "Scale", meta = (DisplayName="Use Random Scale", EditCondition = "bAllowRandomScale"))
+	/** Which axes any randomly generated scale should be applied to. Any locked axes will be scaled to 1.0f. */
+	UPROPERTY(config, EditAnywhere, Category = "Scale", meta = (DisplayName="Use Random Scale", EditCondition = "bUseRandomScale"))
 	EFoliageScaling ScalingType = EFoliageScaling::Uniform;
 	
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale", meta = (UIMin = ".01"))
-	FFloatInterval ScaleRangeUniform = FFloatInterval(.8f, 1.0f);
-	
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale")
-	bool bAllowNegativeUniformScale = false;
-	
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale", meta = (UIMin = ".01"))
-	FFloatInterval ScaleRangeX = FFloatInterval(.8f, 1.0f);
-	
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale")
-	bool bAllowNegativeXScale = false;
+	/** The min and max at which a random scale is generated. */
+	UPROPERTY(config, EditAnywhere, Category = "Scale", meta = (UIMin = ".01"))
+	FFloatInterval ScaleRange = FFloatInterval(.5f, 2.0f);
 
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale", meta = (UIMin = ".01"))
-	FFloatInterval ScaleRangeY = FFloatInterval(.8f, 1.0f);
-	
+	/** Set to true if the tool should generate a negatively signed scale. */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale")
-	bool bAllowNegativeYScale = false;
+	bool bAllowNegativeScale = false;
 
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale", meta = (UIMin = ".01"))
-	FFloatInterval FreeScaleRangeZ = FFloatInterval(.8f, 1.0f);
-	
-	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale")
-	bool bAllowNegativeZScale = false;
+	/** The spawn location offset in relative space. */
+	UPROPERTY(config, EditAnywhere, Category = "Location")
+	FVector RelativeLocationOffset = FVector::ZeroVector;
 
+	/** If the relative location offset should match scale with the placed asset. */
+	UPROPERTY(config, EditAnywhere, Category = "Location")
+	bool bScaleRelativeLocationOffset = true;
+
+	/** The spawn rotation offset in world space. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Location")
+	FVector WorldLocationOffset = FVector::ZeroVector;
+
+	/** If the world location offset should match scale with the placed asset. */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Location")
+	bool bScaleWorldLocationOffset = false;
+
+	/** If the tool should place on landscape surfaces. */
 	UPROPERTY(config, EditAnywhere, Category = "Place on Filters")
 	bool bLandscape = true;
 
+	/** If the tool should place on static mesh surfaces. */
 	UPROPERTY(config, EditAnywhere, Category = "Place on Filters")
 	bool bStaticMeshes = true;
 
+	/** If the tool should place on BSP surfaces. */
 	UPROPERTY(config, EditAnywhere, Category = "Place on Filters")
 	bool bBSP = true;
 
+	/** If the tool should place on foliage surfaces. */
 	UPROPERTY(config, EditAnywhere, Category = "Place on Filters")
 	bool bFoliage = false;
 
+	/** If the tool should place on translucent surfaces. */
 	UPROPERTY(config, EditAnywhere, Category = "Place on Filters")
 	bool bTranslucent = false;
 
-	// todo: asset data does not serialize out correctly
-	// maybe save soft object pointers, and convert in the UI to asset data?
+	// todo: palette save and load between sessions
 	//UPROPERTY(config)
 	TArray<FPaletteItem> PaletteItems;
 

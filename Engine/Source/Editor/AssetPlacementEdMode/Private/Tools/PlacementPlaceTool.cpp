@@ -43,7 +43,7 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 	{
 		FVector BrushLocation = LastBrushStamp.WorldPosition;
 
-		// Assume a default density of 100 *  whatever the user has selected as brush size.
+		// Assume a default density of 100 * whatever the user has selected as brush size.
 		float DefaultDensity = 100.0f * BrushProperties->BrushSize;
 		// This is the total set of instances disregarding parameters like slope, height or layer.
 		float DesiredInstanceCountFloat = DefaultDensity /** todo: individual item's Density*/ * BrushProperties->BrushStrength;
@@ -90,7 +90,7 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 			FAssetPlacementInfo NewInfo;
 			NewInfo.AssetToPlace = ItemToPlace.AssetData;
 			NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
-			NewInfo.FinalizedTransform = GetFinalTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
+			NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
 
 			DesiredInfoSpawnLocations.Emplace(NewInfo);
 		}

@@ -85,70 +85,93 @@ bool UPlacementBrushToolBase::FindHitResultWithStartAndEndTraceVectors(FHitResul
 	return AInstancedFoliageActor::FoliageTrace(EditingWorld, OutHit, FDesiredFoliageInstance(TraceStart, TraceEnd, /* FoliageType= */ nullptr, TraceRadius), NAME_PlacementBrushTool, /* bReturnFaceIndex */ false, FilterFunc);
 }
 
-FTransform UPlacementBrushToolBase::GetFinalTransformFromHitLocationAndNormal(const FVector& InLocation, const FVector& InNormal)
+FTransform UPlacementBrushToolBase::GenerateTransformFromHitLocationAndNormal(const FVector& InLocation, const FVector& InNormal)
 {
-	FTransform FinalizedTransform(InLocation);
-
-	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	if (!PlacementSettings.IsValid())
-	{
-		return FinalizedTransform;
-	}
-
-	// Update the rotation if we need to
-	FRotator FinalRotation = GetFinalRotation(FinalizedTransform);
-	FinalizedTransform.SetRotation(FinalRotation.Quaternion());
-	FinalizedTransform.NormalizeRotation();
-
-	if (PlacementSettings->bUseRandomScale)
-	{
-		// Until we have per object settings, just use a uniform scale, clamped from half to double size
-		FFloatInterval ScaleRange(0.5f, 2.0f);
-		FVector NewScale(ScaleRange.Interpolate(FMath::FRand()));
-		FinalizedTransform.SetScale3D(NewScale);
-	}
-
-	return FinalizedTransform;
+	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
+	FTransform FinalizedTransform(GenerateRandomRotation(PlacementSettings), InLocation, GenerateRandomScale(PlacementSettings));
+	return FinalizeTransform(FinalizedTransform, InNormal, PlacementSettings);
 }
 
-FRotator UPlacementBrushToolBase::GetFinalRotation(const FTransform& InTransform)
+FQuat UPlacementBrushToolBase::GenerateRandomRotation(const UAssetPlacementSettings* PlacementSettings)
 {
-	FRotator UpdatedRotation = InTransform.Rotator();
-
-	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	if (!PlacementSettings.IsValid())
+	if (!PlacementSettings)
 	{
-		return UpdatedRotation;
+		return FQuat::Identity;
 	}
 
-	if (PlacementSettings->bUseRandomXRotation)
+	FRotator GeneratedRotation = FRotator::ZeroRotator;
+	auto GetRandomSignedValueInRange = [](const FFloatInterval& Range, bool bAllowSigned) -> float
 	{
-		UpdatedRotation.Roll = PlacementSettings->RandomRotationX.Interpolate(FMath::FRand());
+		float Sign = (FMath::RandBool() && bAllowSigned) ? -1.0f : 1.0f;
+		return Range.Interpolate(FMath::FRand()) * Sign;
+	};
+
+	if (PlacementSettings->bUseRandomRotationX)
+	{
+		GeneratedRotation.Roll = GetRandomSignedValueInRange(PlacementSettings->RandomRotationX, PlacementSettings->bAllowNegativeRotationX);
 	}
 
-	if (PlacementSettings->bUseRandomYRotation)
+	if (PlacementSettings->bUseRandomRotationY)
 	{
-		UpdatedRotation.Pitch = PlacementSettings->RandomRotationY.Interpolate(FMath::FRand());
+		GeneratedRotation.Pitch = GetRandomSignedValueInRange(PlacementSettings->RandomRotationY, PlacementSettings->bAllowNegativeRotationY);
 	}
 
-	if (PlacementSettings->bUseRandomZRotation)
+	if (PlacementSettings->bUseRandomRotationZ)
 	{
-		UpdatedRotation.Yaw = PlacementSettings->RandomRotationZ.Interpolate(FMath::FRand());
+		GeneratedRotation.Yaw = GetRandomSignedValueInRange(PlacementSettings->RandomRotationZ, PlacementSettings->bAllowNegativeRotationZ);
 	}
 
-	// Cache this rotation before we start aligning to normal
-	LastGeneratedRotation = FQuat(UpdatedRotation);
-
-	// Align to normal
-	if (PlacementSettings->bAlignToNormal)
-	{
-		UpdatedRotation = UpdateRotationAlignedToBrushNormal(PlacementSettings->AxisToAlignWithNormal, PlacementSettings->bInvertNormalAxis).Rotator();
-	}
-
-	return UpdatedRotation;
+	return GeneratedRotation.Quaternion();
 }
 
-FQuat UPlacementBrushToolBase::UpdateRotationAlignedToBrushNormal(EAxis::Type InAlignmentAxis, bool bInvertAxis)
+FVector UPlacementBrushToolBase::GenerateRandomScale(const UAssetPlacementSettings* PlacementSettings)
+{
+	FVector GeneratedScale(1.0f);
+	if (!PlacementSettings || !PlacementSettings->bUseRandomScale)
+	{
+		return GeneratedScale;
+	}
+
+	auto GenerateRandomScaleComponent = [PlacementSettings]() -> float
+	{
+		float Sign = (FMath::RandBool() && PlacementSettings->bAllowNegativeScale) ? -1.0f : 1.0f;
+		return PlacementSettings->ScaleRange.Interpolate(FMath::FRand()) * Sign;
+	};
+
+	switch (PlacementSettings->ScalingType)
+	{
+		case EFoliageScaling::Free:
+		{
+			GeneratedScale = FVector(GenerateRandomScaleComponent(), GenerateRandomScaleComponent(), GenerateRandomScaleComponent());
+			break;
+		}
+		case EFoliageScaling::Uniform:
+		{
+			float ScaleComponent = GenerateRandomScaleComponent();
+			GeneratedScale = FVector(ScaleComponent, ScaleComponent, ScaleComponent);
+			break;
+		}
+		case EFoliageScaling::LockXY:
+		{
+			GeneratedScale.Z = GenerateRandomScaleComponent();
+			break;
+		}
+		case EFoliageScaling::LockYZ:
+		{
+			GeneratedScale.X = GenerateRandomScaleComponent();
+			break;
+		}
+		case EFoliageScaling::LockXZ:
+		{
+			GeneratedScale.Y = GenerateRandomScaleComponent();
+			break;
+		}
+	}
+
+	return GeneratedScale;
+}
+
+FQuat UPlacementBrushToolBase::AlignRotationWithNormal(const FQuat& InRotation, const FVector& InNormal, EAxis::Type InAlignmentAxis, bool bInvertAxis)
 {
 	FVector AlignmentVector = FVector::ZeroVector;
 	switch (InAlignmentAxis)
@@ -172,7 +195,46 @@ FQuat UPlacementBrushToolBase::UpdateRotationAlignedToBrushNormal(EAxis::Type In
 		break;
 	}
 
-	return FindActorAlignmentRotation(LastGeneratedRotation, AlignmentVector, LastBrushStamp.WorldNormal, &LastAlignRotation);
+	return FindActorAlignmentRotation(InRotation, AlignmentVector, InNormal);
+}
+
+FTransform UPlacementBrushToolBase::FinalizeTransform(const FTransform& OriginalTransform, const FVector& InNormal, const UAssetPlacementSettings* PlacementSettings)
+{
+	if (!PlacementSettings)
+	{
+		return OriginalTransform;
+	}
+
+	FTransform FinalizedTransform(FQuat::Identity, OriginalTransform.GetTranslation(), OriginalTransform.GetScale3D());
+
+	// Add the world offset.
+	FVector WorldOffset = PlacementSettings->WorldLocationOffset;
+	if (PlacementSettings->bScaleWorldLocationOffset)
+	{
+		WorldOffset *= OriginalTransform.GetScale3D();
+	}
+	FinalizedTransform.AddToTranslation(WorldOffset);
+
+	// Align to normal.
+	FQuat AdjustedRotation(OriginalTransform.GetRotation());
+	if (PlacementSettings->bAlignToNormal)
+	{
+		AdjustedRotation = AlignRotationWithNormal(AdjustedRotation, InNormal, PlacementSettings->AxisToAlignWithNormal, PlacementSettings->bInvertNormalAxis);
+	}
+	AdjustedRotation.Normalize();
+	FinalizedTransform.SetRotation(AdjustedRotation);
+
+	// Add the relative offset.
+	{
+		FVector RelativeOffset = PlacementSettings->RelativeLocationOffset;
+		if (PlacementSettings->bScaleRelativeLocationOffset)
+		{
+			RelativeOffset *= OriginalTransform.GetScale3D();
+		}
+		FinalizedTransform.SetTranslation(FinalizedTransform.TransformPosition(RelativeOffset));
+	}
+
+	return FinalizedTransform;
 }
 
 TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() const

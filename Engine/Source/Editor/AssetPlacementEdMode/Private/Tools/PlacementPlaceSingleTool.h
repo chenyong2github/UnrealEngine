@@ -51,6 +51,7 @@ protected:
 	void NotifyMovementEnded(TArrayView<const FTypedElementHandle> InElements);
 	void SetupRightClickMouseBehavior();
 
+	FQuat LastGeneratedRotation;
 	TUniquePtr<FAssetPlacementInfo> PreviewPlacementInfo;
 	TArray<FTypedElementHandle> PreviewElements;
 	bool bIsTweaking;

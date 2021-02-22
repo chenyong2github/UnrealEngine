@@ -27,6 +27,7 @@ UPlacementModePlaceSingleTool::UPlacementModePlaceSingleTool() = default;
 UPlacementModePlaceSingleTool::~UPlacementModePlaceSingleTool() = default;
 UPlacementModePlaceSingleTool::UPlacementModePlaceSingleTool(FVTableHelper& Helper)
 	: Super(Helper)
+	, LastGeneratedRotation(FQuat::Identity)
 {
 }
 
@@ -61,7 +62,7 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 	// Place the Preview data if we managed to get to a valid handled click.
 	FPlacementOptions PlacementOptions;
 	PlacementOptions.bPreferBatchPlacement = true;
-	PlacementOptions.bPreferInstancedPlacement = true;
+	PlacementOptions.bPreferInstancedPlacement = false;	// Off until ISM single selection support added.
 
 	UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
 	if (PlacementSubsystem)
@@ -125,17 +126,20 @@ FInputRayHit UPlacementModePlaceSingleTool::BeginHoverSequenceHitTest(const FInp
 void UPlacementModePlaceSingleTool::GeneratePreviewPlacementData(const FInputDeviceRay& DevicePos)
 {
 	PreviewPlacementInfo.Reset();
+	LastGeneratedRotation = FQuat::Identity;
 
 	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
 	if (PlacementSettings && PlacementSettings->PaletteItems.Num())
 	{
 		int32 ItemIndex = FMath::RandHelper(PlacementSettings->PaletteItems.Num());
 		const FPaletteItem& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
+		LastGeneratedRotation = GenerateRandomRotation(PlacementSettings);
+		FTransform TransformToUpdate(LastGeneratedRotation, LastBrushStamp.WorldPosition, GenerateRandomScale(PlacementSettings));
 
 		PreviewPlacementInfo = MakeUnique<FAssetPlacementInfo>();
 		PreviewPlacementInfo->AssetToPlace = ItemToPlace.AssetData;
 		PreviewPlacementInfo->FactoryOverride = ItemToPlace.FactoryOverride;
-		PreviewPlacementInfo->FinalizedTransform = GetFinalTransformFromHitLocationAndNormal(LastBrushStamp.HitResult.ImpactPoint, LastBrushStamp.HitResult.ImpactNormal);
+		PreviewPlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
 		PreviewPlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 	}
 }
@@ -175,19 +179,11 @@ void UPlacementModePlaceSingleTool::UpdatePreviewElements(const FInputDeviceRay&
 		return;
 	}
 
-	// Update the location.
-	FTransform& FinalizedTransform = PreviewPlacementInfo->FinalizedTransform;
-	FinalizedTransform.SetLocation(LastBrushStamp.HitResult.ImpactPoint);
+	FTransform UpdatedTransform(LastGeneratedRotation, LastBrushStamp.WorldPosition, PreviewPlacementInfo->FinalizedTransform.GetScale3D());
+	UpdatedTransform = FinalizeTransform(UpdatedTransform, LastBrushStamp.WorldNormal, GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject());
 
-	// Update the rotation.
-	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	if (PlacementSettings && PlacementSettings->bAlignToNormal)
-	{
-		FQuat UpdatedRotation = UpdateRotationAlignedToBrushNormal(PlacementSettings->AxisToAlignWithNormal, PlacementSettings->bInvertNormalAxis);
-		FinalizedTransform.SetRotation(UpdatedRotation);
-	}
-
-	UpdateElementTransforms(PreviewElements, FinalizedTransform);
+	UpdateElementTransforms(PreviewElements, UpdatedTransform);
+	PreviewPlacementInfo->FinalizedTransform = UpdatedTransform;
 }
 
 void UPlacementModePlaceSingleTool::DestroyPreviewElements()
