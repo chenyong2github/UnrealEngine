@@ -21,13 +21,12 @@ public:
 
 	bool FindPolygonsFromFaceNormals(double DotTolerance = 0.0001);
 	bool FindPolygonsFromUVIslands();
+	bool FindPolygonsFromConnectedTris();
 
 	bool FindPolygonEdges();
 
 
 protected:
-
-	TArray<int> PolygonGroupIDs;
 
 	void SetGroupsFromPolygons();
 };

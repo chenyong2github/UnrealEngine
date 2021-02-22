@@ -12,6 +12,7 @@
 #include "DynamicMeshToMeshDescription.h"
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"
+#include "Polygroups/PolygroupUtil.h"
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
@@ -158,18 +159,26 @@ void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UConvertToPolygonsTool::UpdatePolygons()
 {
 	Polygons = FFindPolygonsAlgorithm(&SearchMesh);
-	if (Settings->ConversionMode == EConvertToPolygonsMode::FromUVISlands)
+	switch (Settings->ConversionMode)
 	{
-		Polygons.FindPolygonsFromUVIslands();
-	}
-	else if (Settings->ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation)
-	{
-		double DotTolerance = 1.0 - FMathd::Cos(Settings->AngleTolerance * FMathd::DegToRad);
-		Polygons.FindPolygonsFromFaceNormals(DotTolerance);
-	}
-	else
-	{
-		check(false);
+		case EConvertToPolygonsMode::FromUVIslands:
+		{
+			Polygons.FindPolygonsFromUVIslands();
+			break;
+		}
+		case EConvertToPolygonsMode::FromConnectedTris:
+		{
+			Polygons.FindPolygonsFromConnectedTris();
+			break;
+		}
+		case EConvertToPolygonsMode::FaceNormalDeviation:
+		{
+			double DotTolerance = 1.0 - FMathd::Cos(Settings->AngleTolerance * FMathd::DegToRad);
+			Polygons.FindPolygonsFromFaceNormals(DotTolerance);
+			break;
+		}
+		default:
+			check(0);
 	}
 	
 	Polygons.FindPolygonEdges();
@@ -178,7 +187,7 @@ void UConvertToPolygonsTool::UpdatePolygons()
 		FText::Format(LOCTEXT("UpdatePolygonsMessage", "Found {0} Polygroups in {1} Triangles"),
 			FText::AsNumber(Polygons.FoundPolygons.Num()), FText::AsNumber(SearchMesh.TriangleCount())), EToolMessageLevel::Internal);
 
-	if (Settings->bCalculateNormals)
+	if (Settings->bCalculateNormals && Settings->ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation)
 	{
 		if (SearchMesh.HasAttributes() == false)
 		{
@@ -212,7 +221,7 @@ void UConvertToPolygonsTool::UpdatePolygons()
 void UConvertToPolygonsTool::ConvertToPolygons(FMeshDescription* MeshIn)
 {
 	// restore input normals
-	if (Settings->bCalculateNormals == false)
+	if (Settings->bCalculateNormals == false || Settings->ConversionMode != EConvertToPolygonsMode::FaceNormalDeviation)
 	{
 		SearchMesh.Attributes()->PrimaryNormals()->Copy(InitialNormals);
 	}

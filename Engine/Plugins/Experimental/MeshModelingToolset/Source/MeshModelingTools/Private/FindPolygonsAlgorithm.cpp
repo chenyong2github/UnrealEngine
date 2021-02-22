@@ -3,6 +3,7 @@
 #include "FindPolygonsAlgorithm.h"
 #include "MeshNormals.h"
 #include "Selections/MeshConnectedComponents.h"
+#include "Util/IndexUtil.h"
 
 
 
@@ -15,13 +16,36 @@ FFindPolygonsAlgorithm::FFindPolygonsAlgorithm(FDynamicMesh3* MeshIn)
 
 bool FFindPolygonsAlgorithm::FindPolygonsFromUVIslands()
 {
-	PolygonGroupIDs.SetNum(Mesh->MaxTriangleID());
 	const FDynamicMeshUVOverlay* UV = Mesh->Attributes()->GetUVLayer(0);
 
 	FMeshConnectedComponents Components(Mesh);
-	Components.FindConnectedTriangles([&](int32 TriIdx0, int32 TriIdx1)
+	Components.FindConnectedTriangles([&UV](int32 TriIdx0, int32 TriIdx1)
 	{
 		return UV->AreTrianglesConnected(TriIdx0, TriIdx1);
+	});
+
+	int32 NumComponents = Components.Num();
+	for (int32 ci = 0; ci < NumComponents; ++ci)
+	{
+		FoundPolygons.Add(Components.GetComponent(ci).Indices);
+	}
+
+	SetGroupsFromPolygons();
+
+	return (FoundPolygons.Num() > 0);
+}
+
+
+
+bool FFindPolygonsAlgorithm::FindPolygonsFromConnectedTris()
+{
+
+	FMeshConnectedComponents Components(Mesh);
+	Components.FindConnectedTriangles([this](int32 TriIdx0, int32 TriIdx1)
+	{
+		FIndex3i NbrTris = Mesh->GetTriNeighbourTris(TriIdx0);
+		int NbrIndex = IndexUtil::FindTriIndex(TriIdx1, NbrTris);
+		return (NbrIndex != IndexConstants::InvalidID);
 	});
 
 	int32 NumComponents = Components.Num();
@@ -47,7 +71,6 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromFaceNormals(double DotTolerance)
 
 	TArray<bool> DoneTriangle;
 	DoneTriangle.SetNum(Mesh->MaxTriangleID());
-	PolygonGroupIDs.SetNum(Mesh->MaxTriangleID());
 
 	TArray<int> Stack;
 
@@ -72,8 +95,7 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromFaceNormals(double DotTolerance)
 			for (int j = 0; j < 3; ++j)
 			{
 				if (NbrTris[j] >= 0
-					&& DoneTriangle[NbrTris[j]] == false
-					&& PolygonGroupIDs[CurTri] == PolygonGroupIDs[NbrTris[j]])
+					&& DoneTriangle[NbrTris[j]] == false)
 				{
 					double Dot = Normals[CurTri].Dot(Normals[NbrTris[j]]);
 					if (Dot > DotTolerance)

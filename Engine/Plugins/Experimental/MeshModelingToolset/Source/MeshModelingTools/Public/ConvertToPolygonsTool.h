@@ -34,9 +34,11 @@ UENUM()
 enum class EConvertToPolygonsMode
 {
 	/** Convert based on Angle Tolerance between Face Normals */
-	FaceNormalDeviation,
+	FaceNormalDeviation UMETA(DisplayName = "Face Normal Deviation"),
 	/** Create PolyGroups based on UV Islands */
-	FromUVISlands
+	FromUVIslands  UMETA(DisplayName = "From UV Islands"),
+	/** Create Polygroups based on Connected Triangles */
+	FromConnectedTris UMETA(DisplayName = "From Connected Tris")
 };
 
 
@@ -52,11 +54,11 @@ public:
 	EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
 
 	/** Tolerance for planarity */
-	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (UIMin = "0.001", UIMax = "20.0", ClampMin = "0.0", ClampMax = "90.0", EditCondition = "ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation"))
+	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (UIMin = "0.001", UIMax = "20.0", ClampMin = "0.0", ClampMax = "90.0", EditCondition = "ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation", EditConditionHides))
 	float AngleTolerance = 0.1f;
 
 	/** If true, normals are recomputed per-group, with hard edges at group boundaries */
-	UPROPERTY(EditAnywhere, Category = PolyGroups)
+	UPROPERTY(EditAnywhere, Category = PolyGroups, meta = (EditCondition = "ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation", EditConditionHides))
 	bool bCalculateNormals = true;
 	
 	/** Display each group with a different auto-generated color */
