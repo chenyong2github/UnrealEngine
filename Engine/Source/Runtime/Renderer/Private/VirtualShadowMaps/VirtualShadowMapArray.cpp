@@ -117,6 +117,15 @@ TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstCoarseLevel(
 	ECVF_RenderThreadSafe
 );
 
+int32 GVirtualShadowMapAtomicWrites = 1;
+FAutoConsoleVariableRef CVarAtomicWrites(
+	TEXT("r.Shadow.Virtual.AtomicWrites"),
+	GVirtualShadowMapAtomicWrites,
+	TEXT("Use per pixel page table routing and atomic writes instead of an instance per page."),
+	FConsoleVariableDelegate::CreateStatic(&RecreateGlobalRenderState),
+	ECVF_RenderThreadSafe
+);
+
 #if ENABLE_NON_NANITE_VSM
 
 static TAutoConsoleVariable<int32> CVarShowClipmapStats(
@@ -1486,21 +1495,27 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 	}
 
 	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMapsHw");
-	// Create physical page pool
-	PhysicalPagePoolHw = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(GetPhysicalPoolSize(), PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource), TEXT("Shadow.Virtual.PhysicalPagePoolHw"));
+
+	const bool bAllocatePageRectAtlas = CVarAllocatePagesUsingRects.GetValueOnRenderThread() != 0;
+	const bool bAtomicWrites = GVirtualShadowMapAtomicWrites != 0;
 
 	FGPUScene& GPUScene = Scene.GPUScene;
 	// Create that pass struct and whatever I guess.
 
 	// track whether the page pool was cleared
-	bool bWasCleared = false;
+	bool bWasCleared = bAtomicWrites;
 
-
+	if( !bAtomicWrites )
 	{
-		AddInitializePhysicalPagesHwPass(GraphBuilder, Scene.VirtualShadowMapArrayCacheManager);
-		bWasCleared = true;
+		// Create physical page pool
+		PhysicalPagePoolHw = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(GetPhysicalPoolSize(), PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource), TEXT("Shadow.Virtual.PhysicalPagePoolHw"));
+
+		if( !bAllocatePageRectAtlas )
+		{
+			AddInitializePhysicalPagesHwPass(GraphBuilder, Scene.VirtualShadowMapArrayCacheManager);
+			bWasCleared = true;
+		}
 	}
-	const bool bAllocatePageRectAtlas = CVarAllocatePagesUsingRects.GetValueOnRenderThread() != 0;
 
 	TArray<uint32, SceneRenderingAllocator> VirtualShadowMapFlags;
 	VirtualShadowMapFlags.AddZeroed(ShadowMaps.Num());
@@ -1592,8 +1607,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 		{
 			TArray<int32, SceneRenderingAllocator> DrawCommandInstanceCountTmp;
 			DrawCommandInstanceCountTmp.AddZeroed(NumDrawCommands);
-			FRDGBufferRef DrawCommandInstanceCountRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.DrawCommandInstanceCount"), DrawCommandInstanceCountTmp);
-			FRDGBufferRef TmpInstanceIdOffsetBufferRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.TmpInstanceIdOffsetBufferRdg"), DrawCommandInstanceCountTmp);
+			FRDGBufferRef DrawCommandInstanceCountRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.DrawCommandInstanceCount"), DrawCommandInstanceCountTmp);
+			FRDGBufferRef TmpInstanceIdOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.TmpInstanceIdOffsetBuffer"), DrawCommandInstanceCountTmp);
 			//AddBuildInstanceListPass(GraphBuilder, GPUScene, InstanceIdBuffer, InstanceCountBuffer);
 			// 2. Run page culling & command building pass(es)
 			// This takes the per high-level view instance list and performs page overlap tests and amplification/compaction for all target mip levels OR clip levels.
@@ -1605,9 +1620,9 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 
 			TArray<uint32> NullArray;
 			NullArray.AddZeroed(1);
-			FRDGBufferRef VisibleInstanceWriteOffsetRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstanceWriteOffset"), NullArray);
-			FRDGBufferRef OutputOffsetBufferRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.OutputOffsetBuffer"), NullArray);
-			FRDGBufferRef VirtualShadowViewsRdg = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);
+			FRDGBufferRef VisibleInstanceWriteOffsetRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VisibleInstanceWriteOffset"), NullArray);
+			FRDGBufferRef OutputOffsetBufferRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.OutputOffsetBuffer"), NullArray);
+			FRDGBufferRef VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);
 
 
 			// TODO: Remove this when everything is properly RDG'd
@@ -1638,14 +1653,14 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				PassParameters->NumInstanceIdsBuffer = GraphBuilder.CreateSRV(Params.InstanceIdWriteOffsetBuffer);
 				PassParameters->FirstPrimaryView = 0;
 				PassParameters->NumPrimaryViews = NumPrimaryViews;
-				PassParameters->InViews = GraphBuilder.CreateSRV(VirtualShadowViewsRdg);
+				PassParameters->InViews = GraphBuilder.CreateSRV(VirtualShadowViewsRDG);
 				PassParameters->PrimitiveCullingCommands = GraphBuilder.CreateSRV(Params.PrimitiveCullingCommands);
 				PassParameters->VisibleInstancesOut = GraphBuilder.CreateUAV(VisibleInstancesRdg);
-				PassParameters->DrawCommandInstanceCountBufferOut = GraphBuilder.CreateUAV(DrawCommandInstanceCountRdg);
-				PassParameters->VisibleInstanceCountBufferOut = GraphBuilder.CreateUAV(VisibleInstanceWriteOffsetRdg);
+				PassParameters->DrawCommandInstanceCountBufferOut = GraphBuilder.CreateUAV(DrawCommandInstanceCountRDG);
+				PassParameters->VisibleInstanceCountBufferOut = GraphBuilder.CreateUAV(VisibleInstanceWriteOffsetRDG);
 				PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterPageFlagsRDG);
 				PassParameters->IndirectArgs = IndirectArgs;
-				PassParameters->bInstancePerPage = !bAllocatePageRectAtlas;
+				PassParameters->bInstancePerPage = !bAllocatePageRectAtlas && !bAtomicWrites;
 
 				FCullPerPageDrawCommandsCs::FPermutationDomain PermutationVector;
 				PermutationVector.Set< FCullPerPageDrawCommandsCs::FNearClipDim >( !Clipmap.IsValid() );
@@ -1672,8 +1687,8 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				PassParameters->DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(Params.DrawIndirectArgs, PF_R32_UINT);
 				PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(Params.InstanceIdStartOffsetBuffer, PF_R32_UINT);;
 				PassParameters->OutputOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOutOffsetBufferRDG);
-				PassParameters->TmpInstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(TmpInstanceIdOffsetBufferRdg);
-				PassParameters->DrawCommandInstanceCountBuffer = GraphBuilder.CreateSRV(DrawCommandInstanceCountRdg);
+				PassParameters->TmpInstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(TmpInstanceIdOffsetBufferRDG);
+				PassParameters->DrawCommandInstanceCountBuffer = GraphBuilder.CreateSRV(DrawCommandInstanceCountRDG);
 
 				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FAllocateCommandInstanceOutputSpaceCs>();
 
@@ -1688,15 +1703,15 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			}
 			// 2.3. Perform final pass to re-shuffle the instance ID's to their final resting places
 			{
-				FRDGBufferRef IndirectArgs = AddIndirectArgsSetupCsPass1D(GraphBuilder, VisibleInstanceWriteOffsetRdg, 1, FOutputCommandInstanceListsCs::NumThreadsPerGroup);
+				FRDGBufferRef IndirectArgs = AddIndirectArgsSetupCsPass1D(GraphBuilder, VisibleInstanceWriteOffsetRDG, 1, FOutputCommandInstanceListsCs::NumThreadsPerGroup);
 
 				FOutputCommandInstanceListsCs::FParameters* PassParameters = GraphBuilder.AllocParameters<FOutputCommandInstanceListsCs::FParameters>();
 
 				PassParameters->VisibleInstances = GraphBuilder.CreateSRV(VisibleInstancesRdg);
 				PassParameters->PageInfoBufferLegacyOut = GInstanceCullingManagerResources.GetPageInfoBufferUav();
 				PassParameters->InstanceIdsBufferLegacyOut = GInstanceCullingManagerResources.GetInstancesIdBufferUav();
-				PassParameters->TmpInstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(TmpInstanceIdOffsetBufferRdg);
-				PassParameters->VisibleInstanceCountBuffer = GraphBuilder.CreateSRV(VisibleInstanceWriteOffsetRdg);
+				PassParameters->TmpInstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(TmpInstanceIdOffsetBufferRDG);
+				PassParameters->VisibleInstanceCountBuffer = GraphBuilder.CreateSRV(VisibleInstanceWriteOffsetRDG);
 				PassParameters->IndirectArgs = IndirectArgs;
 
 				auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FOutputCommandInstanceListsCs>();
@@ -1711,10 +1726,21 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				);
 			}
 
+			if( PhysicalPagePoolRDG == nullptr )
+			{
+				PhysicalPagePoolRDG = GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D( GetPhysicalPoolSize(), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV ), TEXT("DepthBuffer32") );
+
+				ClearPhysicalMemory(GraphBuilder, PhysicalPagePoolRDG, Scene.VirtualShadowMapArrayCacheManager);
+			}
+
 			FVirtualShadowDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowDepthPassParameters>();
 			PassParameters->View = ShadowDepthView->ViewUniformBuffer;
-			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(PhysicalPagePoolHw, bWasCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);
-			bWasCleared = true;
+
+			if( !bAtomicWrites )
+			{
+				PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(PhysicalPagePoolHw, bWasCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);
+				bWasCleared = true;
+			}
 
 			FShadowDepthPassUniformParameters* ShadowDepthPassParameters = GraphBuilder.AllocParameters<FShadowDepthPassUniformParameters>();
 
@@ -1727,24 +1753,25 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 			ShadowDepthPassParameters->ViewMatrix = FMatrix::Identity;
 			ShadowDepthPassParameters->ShadowParams = FVector4(0.0f, 0.0f, 0.0f, 1.0f);
 			ShadowDepthPassParameters->bRenderToVirtualShadowMap = true;
-			ShadowDepthPassParameters->VirtualSmPageTable = GraphBuilder.CreateSRV(PageTableRDG);
-			ShadowDepthPassParameters->PackedNaniteViews = GraphBuilder.CreateSRV(VirtualShadowViewsRdg);
-			ShadowDepthPassParameters->PageRectBounds = GraphBuilder.CreateSRV(PageRectBoundsRDG);
-			ShadowDepthPassParameters->bInstancePerPage = !bAllocatePageRectAtlas;
+			ShadowDepthPassParameters->bInstancePerPage = !bAllocatePageRectAtlas && !bAtomicWrites;
+			ShadowDepthPassParameters->bAtomicWrites = bAtomicWrites;
 			
-			PassParameters->ShadowDepthPass = GraphBuilder.CreateUniformBuffer(ShadowDepthPassParameters);;
+			ShadowDepthPassParameters->VirtualSmPageTable	= GraphBuilder.CreateSRV( PageTableRDG );
+			ShadowDepthPassParameters->PackedNaniteViews	= GraphBuilder.CreateSRV( VirtualShadowViewsRDG );
+			ShadowDepthPassParameters->PageRectBounds		= GraphBuilder.CreateSRV( PageRectBoundsRDG );
+			ShadowDepthPassParameters->OutDepthBuffer		= GraphBuilder.CreateUAV( PhysicalPagePoolRDG );
+			
+			PassParameters->ShadowDepthPass = GraphBuilder.CreateUniformBuffer(ShadowDepthPassParameters);
 			PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
-			PassParameters->InViews = GraphBuilder.CreateSRV(VirtualShadowViewsRdg);
+			PassParameters->InViews = GraphBuilder.CreateSRV(VirtualShadowViewsRDG);
 
 			FInstanceCullingResult InstanceCullingResult;
 			InstanceCullingResult.DrawIndirectArgsBuffer = Params.DrawIndirectArgs;
 			InstanceCullingResult.InstanceIdOffsetBuffer = Params.InstanceIdStartOffsetBuffer;
 			InstanceCullingResult.GetDrawParameters(PassParameters->InstanceCullingDrawParams);
 
-			FMeshPassProcessorRenderState DrawRenderState;
-			DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
-			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-
+			FIntRect ViewRect;
+			ViewRect.Max = bAtomicWrites ? FVirtualShadowMap::VirtualMaxResolutionXY : GetPhysicalPoolSize();
 
 			// TODO: Remove this when everything is properly RDG'd
 			AddPass(GraphBuilder, [](FRHICommandList& RHICmdList)
@@ -1762,16 +1789,10 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				RDG_EVENT_NAME("RenderVirtualShadowMapsHw"),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[this, ProjectedShadowInfo , &MeshCommandPass, PassParameters, ShadowDepthPassParameters](FRHICommandList& RHICmdList)
+				[this, ProjectedShadowInfo , &MeshCommandPass, PassParameters, ShadowDepthPassParameters, ViewRect](FRHICommandList& RHICmdList)
 				{
-					RHICmdList.SetViewport(
-						0.0f,
-						0.0f,
-						0.0f,
-						GetPhysicalPoolSize().X,
-						GetPhysicalPoolSize().Y,
-						1.0f
-					);
+					RHICmdList.SetViewport( ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min( ViewRect.Max.X, 32767 ), FMath::Min( ViewRect.Max.Y, 32767 ), 1.0f );
+
 					MeshCommandPass.DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 				});
 		}
@@ -1900,7 +1921,7 @@ void FVirtualShadowMapArray::AddInitializePhysicalPagesHwPass(FRDGBuilder& Graph
 		ParametersPS->IndirectArgsBuffer = IndirectArgsBuffer;
 		ParametersPS->bRectPrimitive = GRHISupportsRectTopology ? 1 : 0;
 
-		bool bCacheDataAvailable = VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->PrevPhysicalPageMetaData;
+		bool bCacheDataAvailable = VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->PrevPhysicalPagePoolHw;
 		if (bCacheDataAvailable)
 		{
 			ParametersPS->PrevPhysicalPagePoolHw = GraphBuilder.RegisterExternalTexture(VirtualShadowMapArrayCacheManager->PrevPhysicalPagePoolHw);

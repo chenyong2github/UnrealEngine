@@ -14,10 +14,10 @@
 
 
 #if ENABLE_NON_NANITE_VSM
-	#define VIRTUAL_SM_ENABLED (!(USING_TESSELLATION || ONEPASS_POINTLIGHT_SHADOW))
-#else //!ENABLE_NON_NANITE_VSM
+	#define VIRTUAL_SM_ENABLED (!(USING_TESSELLATION || ONEPASS_POINTLIGHT_SHADOW || PERSPECTIVE_CORRECT_DEPTH))
+#else
 	#define VIRTUAL_SM_ENABLED 0
-#endif // ENABLE_NON_NANITE_VSM
+#endif
 
 // Need to get the definition of nanite packed view for generated unform buffer (which is pulled in by Common.ush)
 #include "Nanite/PackedNaniteView.ush"
@@ -123,16 +123,29 @@ FPageInfo UnPackPageInfo(uint PackedData)
 void ScaleBiasClipToPhysicalSmPage(FNaniteView NaniteView, inout float4 PositionClip, inout float4 ClipPlanesInOut, FPageInfo PageInfo)
 {
 	uint2 vPage = PageInfo.VirtualPage;
-	uint2 pPage = ShadowDecodePageTable( PassStruct.VirtualSmPageTable[ CalcPageOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, vPage ) ] ).PageIndex;
 
 	float2 vClip = PositionClip.xy;
 	float2 vUV = vClip * float2(0.5, -0.5) + 0.5 * PositionClip.w;
 	float2 vPixels = vUV * ( VSM_VIRTUAL_MAX_RESOLUTION_XY >> NaniteView.TargetMipLevel );
-	float2 pPixels = vPixels + ( (float2)pPage - (float2)vPage ) * VSM_PAGE_SIZE * PositionClip.w;
-	float2 pUV = pPixels * VirtualShadowMap.RecPhysicalPoolSize.xy;
-	float2 pClip = pUV * float2(2, -2) + float2(-1, 1) * PositionClip.w;
 
-	PositionClip.xy = pClip;
+	if( PassStruct.bAtomicWrites )
+	{
+		//PointClip.xy = NaniteView.ClipSpaceScaleOffset.xy * PointClip.xy + NaniteView.ClipSpaceScaleOffset.zw * PointClip.w;
+
+		float2 Scale = exp2( -NaniteView.TargetMipLevel );
+		PositionClip.xy *= Scale;
+		PositionClip.xy += ( Scale * float2(1,-1) + float2(-1,1) ) * PositionClip.w;
+	}
+	else
+	{
+		uint2 pPage = ShadowDecodePageTable( PassStruct.VirtualSmPageTable[ CalcPageOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, vPage ) ] ).PageIndex;
+
+		float2 pPixels = vPixels + ( (float2)pPage - (float2)vPage ) * VSM_PAGE_SIZE * PositionClip.w;
+		float2 pUV = pPixels * VirtualShadowMap.RecPhysicalPoolSize.xy;
+		float2 pClip = pUV * float2(2, -2) + float2(-1, 1) * PositionClip.w;
+
+		PositionClip.xy = pClip;
+	}
 
 	if( PassStruct.bInstancePerPage )
 	{
@@ -155,23 +168,23 @@ void ScaleBiasClipToPhysicalSmPage(FNaniteView NaniteView, inout float4 Position
 	}
 }
 
-void TransformToVirtualSmPage(inout float4 PosCsHInOut, inout float4 ClipPlanesInOut, FPageInfo PageInfo, float3 TranslatedWorldPos)
+void TransformToVirtualSmPage(inout float4 PointClip, inout float4 ClipPlanesInOut, FPageInfo PageInfo, float3 PointTranslatedWorld)
 {
 	// Load nanite view and perform transform to SM space.
 	FNaniteView NaniteView = UnpackNaniteView(PassStruct.PackedNaniteViews[PageInfo.ViewId]);
-	PosCsHInOut = mul(float4(TranslatedWorldPos - ResolvedView.PreViewTranslation.xyz + NaniteView.PreViewTranslation.xyz, 1.0f), NaniteView.TranslatedWorldToClip);
 
+	PointTranslatedWorld += ( -ResolvedView.PreViewTranslation.xyz + NaniteView.PreViewTranslation.xyz );
+	PointClip = mul( float4( PointTranslatedWorld, 1 ), NaniteView.TranslatedWorldToClip );
 
 	// Clamp the vertex to the near plane if it is in front of the near plane
 	// This has problems if some vertices of a triangle get clamped and others do not, also causes artifacts with non-ortho projections
-	if (PassStruct.bClampToNearPlane > 0 && PosCsHInOut.z > PosCsHInOut.w)
+	if (PassStruct.bClampToNearPlane > 0 && PointClip.z > PointClip.w)
 	{
-		PosCsHInOut.z = 0.999999f;
-		PosCsHInOut.w = 1.0f;
+		PointClip.z = 0.999999f;
+		PointClip.w = 1.0f;
 	}
 
-	// 
-	ScaleBiasClipToPhysicalSmPage(NaniteView, PosCsHInOut, ClipPlanesInOut, PageInfo);
+	ScaleBiasClipToPhysicalSmPage(NaniteView, PointClip, ClipPlanesInOut, PageInfo);
 }
 
 #endif // VIRTUAL_SM_ENABLED
@@ -390,6 +403,9 @@ void Main(
 #else
 	out FShadowDepthVSToPS OutParameters,
 #endif
+#if VIRTUAL_SM_ENABLED
+	out nointerpolation uint ViewId : TEXCOORD8,
+#endif
 	OPTIONAL_VertexID
 	out float4 OutPosition : SV_POSITION
 #if VIRTUAL_SM_ENABLED	
@@ -486,6 +502,8 @@ void Main(
 #endif
 
 #if VIRTUAL_SM_ENABLED
+	ViewId = 0;
+	
 	OutVirtualSmPageClip = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	if (PassStruct.bRenderToVirtualShadowMap != 0)
 	{
@@ -494,6 +512,8 @@ void Main(
 		FPageInfo PageInfo = UnPackPageInfo(View.PageInfoBuffer[InstanceIdIndex]);
 
 		TransformToVirtualSmPage(OutPosition, OutVirtualSmPageClip, PageInfo, WorldPos.xyz);
+		
+		ViewId = PageInfo.ViewId;
 	}
 #endif // VIRTUAL_SM_ENABLED
 
@@ -551,6 +571,9 @@ void PositionOnlyMain(
 	out FShadowDepthVSToGS OutParameters,
 #else
 	out FShadowDepthVSToPS OutParameters,
+#endif
+#if VIRTUAL_SM_ENABLED
+	out nointerpolation uint ViewId : TEXCOORD8,
 #endif
 	out float4 OutPosition : SV_POSITION
 #if VIRTUAL_SM_ENABLED	
@@ -614,6 +637,8 @@ void PositionOnlyMain(
 #endif
 
 #if VIRTUAL_SM_ENABLED
+	ViewId = 0;
+
 	OutVirtualSmPageClip = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	if (PassStruct.bRenderToVirtualShadowMap != 0)
 	{
@@ -623,6 +648,8 @@ void PositionOnlyMain(
 		//       Or perhaps both are different, as they are managed somewhat differently anyway, maybe.
 		FPageInfo PageInfo = UnPackPageInfo(View.PageInfoBuffer[InstanceIdIndex]);
 		TransformToVirtualSmPage(OutPosition, OutVirtualSmPageClip, PageInfo, WorldPos.xyz);
+
+		ViewId = PageInfo.ViewId;
 	}
 #endif // VIRTUAL_SM_ENABLED
 }

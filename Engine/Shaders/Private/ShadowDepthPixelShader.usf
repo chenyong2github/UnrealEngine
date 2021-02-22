@@ -24,10 +24,19 @@
 #include "/Engine/Generated/VertexFactory.ush"
 #include "ShadowDepthCommon.ush"
 
+#if ENABLE_NON_NANITE_VSM
+#include "Nanite/NaniteDataDecode.ush"
+#include "SceneData.ush"
+#include "VirtualShadowMaps/PageAccessCommon.ush"
+#endif
+
 #define SECONDARY_OCCLUSION			1
 
 void Main( 
 	FShadowDepthVSToPS Inputs,
+#if VIRTUAL_TEXTURE_TARGET
+	nointerpolation uint ViewId : TEXCOORD8,
+#endif
 	in float4 SvPosition : SV_Position		// after all interpolators
 #if PERSPECTIVE_CORRECT_DEPTH || COMPILER_METAL
 	,out float OutDepth : SV_DEPTH
@@ -69,5 +78,25 @@ void Main(
 	// Metal fragment shader must not be empty,
 	// so output depth value explicitly if this shader permuation was not discarded
 	OutDepth = SvPosition.z;
+#endif
+
+#if VIRTUAL_TEXTURE_TARGET
+	uint2 vAddress = (uint2)SvPosition.xy;
+	float DeviceZ = SvPosition.z;
+
+#if !NEAR_CLIP
+	//DeviceZ = max(0.0f, DeviceZ);
+#endif
+
+	FNaniteView NaniteView = UnpackNaniteView( PassStruct.PackedNaniteViews[ ViewId ] );
+
+	FShadowPhysicalPage Page = ShadowDecodePageTable( PassStruct.VirtualSmPageTable[ CalcPageOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, vAddress >> VSM_LOG2_PAGE_SIZE ) ] );
+
+	if( Page.bThisLODValid )
+	{
+		uint2 pAddress = Page.PageIndex * VSM_PAGE_SIZE + (vAddress & VSM_PAGE_SIZE_MASK);
+
+		InterlockedMax( PassStruct.OutDepthBuffer[ pAddress ], asuint( DeviceZ ) );
+	}
 #endif
 }

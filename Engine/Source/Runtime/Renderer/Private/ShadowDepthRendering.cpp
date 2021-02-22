@@ -117,7 +117,7 @@ static FAutoConsoleVariableRef CVarShadowShadowUseGS(
 	TEXT("Use geometry shaders to render cube map shadows."),
 	ECVF_RenderThreadSafe);
 
-
+extern int32 GVirtualShadowMapAtomicWrites;
 extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
 
@@ -164,9 +164,14 @@ void SetupShadowDepthPassUniformBuffer(
 #if ENABLE_NON_NANITE_VSM
 	ShadowDepthPassParameters.bRenderToVirtualShadowMap = false;
 	ShadowDepthPassParameters.bInstancePerPage = false;
+	ShadowDepthPassParameters.bAtomicWrites = false;
 	ShadowDepthPassParameters.VirtualSmPageTable = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-VirtualSmPageTable"), TArray<uint32>()));
 	ShadowDepthPassParameters.PackedNaniteViews = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-PackedNaniteViews"), TArray<Nanite::FPackedView>()));
 	ShadowDepthPassParameters.PageRectBounds = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("Dummy-PageRectBounds"), TArray<FIntVector4>()));
+
+	FRDGTextureRef DepthBuffer = GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D( FIntPoint(4,4), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV ), TEXT("Dummy-OutDepthBuffer") );
+
+	ShadowDepthPassParameters.OutDepthBuffer = GraphBuilder.CreateUAV( DepthBuffer );
 #endif // ENABLE_NON_NANITE_VSM
 }
 
@@ -554,7 +559,8 @@ enum EShadowDepthPixelShaderMode
 {
 	PixelShadowDepth_NonPerspectiveCorrect,
 	PixelShadowDepth_PerspectiveCorrect,
-	PixelShadowDepth_OnePassPointLight
+	PixelShadowDepth_OnePassPointLight,
+	PixelShadowDepth_VirtualShadowMap
 };
 
 template <EShadowDepthPixelShaderMode ShaderMode>
@@ -566,32 +572,29 @@ public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		const EShaderPlatform Platform = Parameters.Platform;
-
-		if (!IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
+		
+		// Only compile one pass point light shaders for feature levels >= SM5
+		if (ShaderMode == PixelShadowDepth_OnePassPointLight && !IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 		{
-			return (Parameters.MaterialParameters.bIsSpecialEngineMaterial
-				// Only compile for masked or lit translucent materials
-				|| !Parameters.MaterialParameters.bWritesEveryPixelShadowPass
-				|| (Parameters.MaterialParameters.bMaterialMayModifyMeshPosition && Parameters.MaterialParameters.bIsUsedWithInstancedStaticMeshes)
-				// Perspective correct rendering needs a pixel shader and WPO materials can't be overridden with default material.
-				|| (ShaderMode == PixelShadowDepth_PerspectiveCorrect && Parameters.MaterialParameters.bMaterialMayModifyMeshPosition))
-				&& ShaderMode != PixelShadowDepth_OnePassPointLight
-				// Don't render ShadowDepth for translucent unlit materials
-				&& Parameters.MaterialParameters.bShouldCastDynamicShadows;
+			return false;
 		}
+
+		if (ShaderMode == PixelShadowDepth_VirtualShadowMap && !IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
+		{
+			return false;
+		}
+
+		bool bModeRequiresPS = ShaderMode == PixelShadowDepth_PerspectiveCorrect || ShaderMode == PixelShadowDepth_VirtualShadowMap;
 
 		//Note: This logic needs to stay in sync with OverrideWithDefaultMaterialForShadowDepth!
 		return (Parameters.MaterialParameters.bIsSpecialEngineMaterial
 			// Only compile for masked or lit translucent materials
 			|| !Parameters.MaterialParameters.bWritesEveryPixelShadowPass
 			|| (Parameters.MaterialParameters.bMaterialMayModifyMeshPosition && Parameters.MaterialParameters.bIsUsedWithInstancedStaticMeshes)
-			// Perspective correct rendering needs a pixel shader and WPO materials can't be overridden with default material.
-			|| (ShaderMode == PixelShadowDepth_PerspectiveCorrect && Parameters.MaterialParameters.bMaterialMayModifyMeshPosition))
-			// Only compile one pass point light shaders for feature levels >= SM5
-			&& (ShaderMode != PixelShadowDepth_OnePassPointLight || IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
+			// This mode needs a pixel shader and WPO materials can't be overridden with default material.
+			|| (bModeRequiresPS && Parameters.MaterialParameters.bMaterialMayModifyMeshPosition))
 			// Don't render ShadowDepth for translucent unlit materials
-			&& Parameters.MaterialParameters.bShouldCastDynamicShadows
-			&& IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+			&& Parameters.MaterialParameters.bShouldCastDynamicShadows;
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -599,6 +602,16 @@ public:
 		FShadowDepthBasePS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("PERSPECTIVE_CORRECT_DEPTH"), (uint32)(ShaderMode == PixelShadowDepth_PerspectiveCorrect));
 		OutEnvironment.SetDefine(TEXT("ONEPASS_POINTLIGHT_SHADOW"), (uint32)(ShaderMode == PixelShadowDepth_OnePassPointLight));
+		OutEnvironment.SetDefine(TEXT("VIRTUAL_TEXTURE_TARGET"), (uint32)(ShaderMode == PixelShadowDepth_VirtualShadowMap));
+
+		uint32 bEnableNonNaniteVSM = (uint32)(ENABLE_NON_NANITE_VSM != 0 && UseGPUScene(Parameters.Platform));
+		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), bEnableNonNaniteVSM);
+#if ENABLE_NON_NANITE_VSM
+		if (bEnableNonNaniteVSM != 0)
+		{
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		}
+#endif
 	}
 
 	TShadowDepthPS()
@@ -619,6 +632,9 @@ public:
 IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_NonPerspectiveCorrect);
 IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_PerspectiveCorrect);
 IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_OnePassPointLight);
+#if ENABLE_NON_NANITE_VSM
+IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_VirtualShadowMap);
+#endif
 
 /**
 * Overrides a material used for shadow depth rendering with the default material when appropriate.
@@ -652,6 +668,7 @@ bool GetShadowDepthPassShaders(
 	bool bOnePassPointLightShadow,
 	bool bPositionOnlyVS,
 	bool bUsePerspectiveCorrectShadowDepths,
+	bool bAtomicWrites,
 	TShaderRef<FShadowDepthVS>& VertexShader,
 	TShaderRef<FBaseHS>& HullShader,
 	TShaderRef<FBaseDS>& DomainShader,
@@ -742,9 +759,16 @@ bool GetShadowDepthPassShaders(
 	}
 
 	// Pixel shaders
-	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && VertexFactory->SupportsNullPixelShader();
+	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bAtomicWrites && VertexFactory->SupportsNullPixelShader();
 	if (!bNullPixelShader)
 	{
+#if ENABLE_NON_NANITE_VSM
+		if( bAtomicWrites )
+		{
+			ShaderTypes.AddShaderType<TShadowDepthPS<PixelShadowDepth_VirtualShadowMap>>();
+		}
+		else
+#endif
 		if (bUsePerspectiveCorrectShadowDepths)
 		{
 			ShaderTypes.AddShaderType<TShadowDepthPS<PixelShadowDepth_PerspectiveCorrect>>();
@@ -837,7 +861,11 @@ void SetStateForShadowDepth(bool bOnePassPointLightShadow, bool bDirectionalLigh
 	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
 
 #if ENABLE_NON_NANITE_VSM
-	if (bOnePassPointLightShadow || InMeshPassTargetType == EMeshPass::VSMShadowDepth)
+	if( InMeshPassTargetType == EMeshPass::VSMShadowDepth && GVirtualShadowMapAtomicWrites )
+	{
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
+	}
+	else if (bOnePassPointLightShadow || InMeshPassTargetType == EMeshPass::VSMShadowDepth)
 #else //!ENABLE_NON_NANITE_VSM
 	if (bOnePassPointLightShadow)
 #endif // ENABLE_NON_NANITE_VSM
@@ -1115,7 +1143,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FShadowDepthPassParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FShadowDepthPassUniformParameters, DeferredPassUniformBuffer)
 #if ENABLE_NON_NANITE_VSM
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
-#endif // ENABLE_NON_NANITE_VSM
+#endif
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -1783,10 +1811,6 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	const bool bUseHZB = (CVarNaniteShadowsUseHZB.GetValueOnRenderThread() != 0);
 	const bool bAllocatePageRectAtlas = CVarAllocatePagesUsingRects.GetValueOnRenderThread() != 0;
 
-#if ENABLE_NON_NANITE_VSM
-	VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
-#endif
-
 	if (bNaniteEnabled && (bHasVSMShadows || bHasVSMClipMaps))
 	{
 		if (bUseHZB)
@@ -2023,6 +2047,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &Scene->VirtualShadowMapArrayCacheManager->HZBPageTable);
 	}
 
+#if ENABLE_NON_NANITE_VSM
+	VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
+#endif
+
 	// Render non-VSM shadows
 	FSceneRenderer::RenderShadowDepthMapAtlases(GraphBuilder);
 
@@ -2256,12 +2284,14 @@ bool FShadowDepthPassMeshProcessor::Process(
 	// One pass point lights don't output a linear depth, so they are already perspective correct.
 	bool bUsePerspectiveCorrectShadowDepths = !ShadowDepthType.bDirectionalLight && !ShadowDepthType.bOnePassPointLightShadow;
 	bool bOnePassPointLightShadow = ShadowDepthType.bOnePassPointLightShadow;
+	bool bAtomicWrites = false;
 
 #if ENABLE_NON_NANITE_VSM
 	if( MeshPassTargetType == EMeshPass::VSMShadowDepth )
 	{
 		bUsePerspectiveCorrectShadowDepths = false;
 		bOnePassPointLightShadow = false;
+		bAtomicWrites = GVirtualShadowMapAtomicWrites != 0;
 	}
 #endif
 
@@ -2273,6 +2303,7 @@ bool FShadowDepthPassMeshProcessor::Process(
 		bOnePassPointLightShadow,
 		bUsePositionOnlyVS,
 		bUsePerspectiveCorrectShadowDepths,
+		bAtomicWrites,
 		ShadowDepthPassShaders.VertexShader,
 		ShadowDepthPassShaders.HullShader,
 		ShadowDepthPassShaders.DomainShader,
