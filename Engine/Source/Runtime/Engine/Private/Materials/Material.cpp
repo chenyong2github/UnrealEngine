@@ -80,6 +80,7 @@
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "Materials/MaterialExpressionStrata.h"
 #include "Materials/StrataMaterial.h"
+#include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 
 #if WITH_EDITOR
 #include "Logging/TokenizedMessage.h"
@@ -3739,6 +3740,59 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			}
 
 			FrontMaterial.Connect(0, SLWBSDF);
+		}
+		else if (MaterialDomain == MD_Surface && ShadingModel == MSM_ThinTranslucent)
+		{
+			// Top slab BSDF as a simple Disney material
+			UMaterialExpressionStrataSlabBSDF* TopSlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
+			MoveConnectionTo(BaseColor, TopSlabBSDF, 0);								// BaseColor
+			MoveConnectionTo(Metallic, TopSlabBSDF, 2);									// Metallic
+			CopyConnectionTo(Specular, TopSlabBSDF, 3);									// Specular
+			CopyConnectionTo(Roughness, TopSlabBSDF, 4);								// Roughness
+			CopyConnectionTo(Normal, TopSlabBSDF, 6);									// Normal
+			MoveConnectionTo(EmissiveColor, TopSlabBSDF, 10);							// Emissive
+
+			// Now weight the top base material by opacity
+			UMaterialExpressionStrataMultiply* TopMaterialWithCoverage = NewObject<UMaterialExpressionStrataMultiply>(this);
+			TopMaterialWithCoverage->GetInput(0)->Connect(0, TopSlabBSDF);				// TopSlabBSDF -> A
+			MoveConnectionTo(Opacity, TopMaterialWithCoverage, 1);						// Opacity -> Weight
+
+			// Bottom slab BSDF will be a simple absorption only layer
+			UMaterialExpressionStrataSlabBSDF* BottomSlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
+			// Assign specular properties shared with the top layer.
+			MoveConnectionTo(Specular, BottomSlabBSDF, 3);								// Specular
+			MoveConnectionTo(Roughness, BottomSlabBSDF, 4);								// Roughness
+			MoveConnectionTo(Normal, BottomSlabBSDF, 6);								// Normal
+
+			TArray<class UMaterialExpressionCustomOutput*> CustomOutputExpressions;
+			GetAllCustomOutputExpressions(CustomOutputExpressions);
+			UMaterialExpressionThinTranslucentMaterialOutput* TTCustomOutput = nullptr;
+			for (UMaterialExpressionCustomOutput* Expression : CustomOutputExpressions)
+			{
+				TTCustomOutput = Cast<UMaterialExpressionThinTranslucentMaterialOutput>(Expression);
+				if (TTCustomOutput)
+				{
+					break;
+				}
+			}
+			if (TTCustomOutput)
+			{
+				UMaterialExpressionStrataTransmittanceToMFP* TransToMDFP = NewObject<UMaterialExpressionStrataTransmittanceToMFP>(this);
+				MoveConnectionTo(*TTCustomOutput->GetInput(0), TransToMDFP, 0);			// TransmittanceColor -> TransmittanceColor
+				BottomSlabBSDF->GetInput(8 )->Connect(0, TransToMDFP);					// MFP -> MFP
+				BottomSlabBSDF->GetInput(13)->Connect(1, TransToMDFP);					// Thickness -> Thickness
+
+				UMaterialExpressionStrataVerticalLayering* VerticalLayering = NewObject<UMaterialExpressionStrataVerticalLayering>(this);
+				VerticalLayering->GetInput(0)->Connect(0, TopMaterialWithCoverage);		// Top -> Top
+				VerticalLayering->GetInput(1)->Connect(0, BottomSlabBSDF);				// Bottom -> Base
+
+				// Connect the result of the layering to the front material
+				FrontMaterial.Connect(0, VerticalLayering);
+			}
+			else
+			{
+				FrontMaterial.Connect(0, TopSlabBSDF);
+			}
 		}
 		else if (MaterialDomain == MD_Volume)
 		{

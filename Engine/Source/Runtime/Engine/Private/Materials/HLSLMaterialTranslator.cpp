@@ -9188,6 +9188,25 @@ int32 FHLSLMaterialTranslator::StrataAnisotropyToRoughness(int32 Roughness, int3
 		*GetParameterCode(Anisotropy));
 }
 
+int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor, int32 OutputIndex)
+{
+	if (OutputIndex == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	switch (OutputIndex)
+	{
+	case 0:
+		return AddCodeChunk(MCT_Float3, TEXT("TransmittanceToMeanFreePath(%s, STRATA_SIMPLEVOLUME_THICKNESS_CM)"), *GetParameterCode(TransmittanceColor));
+		break;
+	case 1:
+		return AddInlinedCodeChunk(MCT_Float1, TEXT("STRATA_SIMPLEVOLUME_THICKNESS_CM")); // Thickness
+		break;
+	}
+	return INDEX_NONE;
+}
+
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)
 {
 	if (UV == INDEX_NONE)
