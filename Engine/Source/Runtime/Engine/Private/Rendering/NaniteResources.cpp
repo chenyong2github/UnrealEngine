@@ -385,7 +385,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	const auto& MeshSections = RenderData->LODResources[0].Sections;
 	const int32 MeshSectionCount = MeshSections.Num();
 
-	MaterialSections.Reserve(MeshSectionCount);
+	MaterialSections.SetNumZeroed(MeshSectionCount);
+	int32 MaterialSectionIndex = 0;
 
 	const bool bHasSurfaceStaticLighting = MeshInfo.GetLightMap() != nullptr || MeshInfo.GetShadowMap() != nullptr;
 
@@ -396,17 +397,9 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 			continue;
 		}
 
-		if (!MaterialSections.IsValidIndex(MeshSection.MaterialIndex))
-		{
-			MaterialSections.SetNumZeroed(MeshSection.MaterialIndex + 1);
-		}
-
-		FMaterialSection& Section = MaterialSections[MeshSection.MaterialIndex];
-		if (!Section.Material)
-		{
-			UMaterialInterface* Material = Component->GetMaterial(MeshSection.MaterialIndex);
-			Section.Material = Material;
-		}
+		FMaterialSection& Section = MaterialSections[MaterialSectionIndex++];
+		UMaterialInterface* Material = Component->GetMaterial(MeshSection.MaterialIndex);
+		Section.Material = Material;
 
 		const bool bInvalidMaterial = !Section.Material || Section.Material->GetBlendMode() != BLEND_Opaque;
 		if (bInvalidMaterial)
