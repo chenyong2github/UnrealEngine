@@ -32,3 +32,6 @@
 
 #define STRATA_DATA_TILE_SIZE				8
 #define STRATA_DATA_TILE_SIZE_DIV_AS_SHIFT	3
+
+// The default thickness of a layer is considered to be 0.01 centimeter = 0.1 millimeter
+#define STRATA_LAYER_DEFAULT_THICKNESS_CM	0.01f
