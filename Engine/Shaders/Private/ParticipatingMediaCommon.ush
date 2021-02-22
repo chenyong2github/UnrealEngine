@@ -15,7 +15,9 @@ struct FParticipatingMedia
 	float3 Albedo;			// (unitless)
 };
 
-#define PARTICIPATING_MEDIA_MIN_MFP		0.000001f
+#define PARTICIPATING_MEDIA_MIN_MFP_METER		0.000001f
+#define PARTICIPATING_MEDIA_MIN_EXTINCTION		0.000001f
+#define PARTICIPATING_MEDIA_MIN_TRANSMITTANCE	0.000000000001f
 
 // The mean free path must be in meters
 FParticipatingMedia CreateMediumFromAlbedoMFP(float3 Albedo, float3 MeanFreePathMeters)
@@ -23,7 +25,7 @@ FParticipatingMedia CreateMediumFromAlbedoMFP(float3 Albedo, float3 MeanFreePath
 	FParticipatingMedia PM = (FParticipatingMedia)0;
 	PM.Albedo = Albedo;
 	PM.MeanFreePath = MeanFreePathMeters;
-	PM.ExtinctionCoef = 1.0f / max(PARTICIPATING_MEDIA_MIN_MFP, PM.MeanFreePath);
+	PM.ExtinctionCoef = 1.0f / max(PARTICIPATING_MEDIA_MIN_MFP_METER, PM.MeanFreePath);
 	PM.ScatteringCoef = Albedo * PM.ExtinctionCoef;
 	PM.AbsorptionCoef = max(0.0f, PM.ExtinctionCoef - PM.ScatteringCoef);
 	return PM;
@@ -88,15 +90,15 @@ float4 ImportanceSampleHenyeyGreensteinPhase(float2 E, float G)
 	return float4(H, HenyeyGreensteinPhase(G, CosTheta));
 }
 
-float3 TransmittanceToExtinction(in float3 TransmittanceColor, in float Thickness)
+float3 TransmittanceToExtinction(in float3 TransmittanceColor, in float ThicknessMeters)
 {
 	// TransmittanceColor	= exp(-Extinction * Thickness)
 	// Extinction			= -log(TransmittanceColor) / Thickness
-	return -log(saturate(TransmittanceColor)) / max(PARTICIPATING_MEDIA_MIN_MFP, Thickness);
+	return -log(clamp(TransmittanceColor, PARTICIPATING_MEDIA_MIN_TRANSMITTANCE, 1.0f)) / max(PARTICIPATING_MEDIA_MIN_MFP_METER, ThicknessMeters);
 }
 
-float3 TransmittanceToMeanFreePath(in float3 TransmittanceColor, in float Thickness)
+float3 TransmittanceToMeanFreePath(in float3 TransmittanceColor, in float ThicknessMeters)
 {
-	return 1.0f / TransmittanceToExtinction(TransmittanceColor, Thickness);
+	return 1.0f / max(PARTICIPATING_MEDIA_MIN_EXTINCTION, TransmittanceToExtinction(TransmittanceColor, ThicknessMeters));
 }
 

@@ -9181,10 +9181,14 @@ int32 FHLSLMaterialTranslator::StrataTransmittanceToMFP(int32 TransmittanceColor
 	switch (OutputIndex)
 	{
 	case 0:
-		return AddCodeChunk(MCT_Float3, TEXT("TransmittanceToMeanFreePath(%s, STRATA_SIMPLEVOLUME_THICKNESS_CM)"), *GetParameterCode(TransmittanceColor));
+		return AddCodeChunk(MCT_Float3, 
+			// For the math to be valid, input to TransmittanceToMeanFreePath must be in meter.
+			// Then the output needs to be is converted to centimeters.
+			TEXT("(TransmittanceToMeanFreePath(%s, STRATA_SIMPLEVOLUME_THICKNESS_M) * STRATA_METER_TO_CENTIMETER)"), 
+			*GetParameterCode(TransmittanceColor));
 		break;
 	case 1:
-		return AddInlinedCodeChunk(MCT_Float1, TEXT("STRATA_SIMPLEVOLUME_THICKNESS_CM")); // Thickness
+		return AddInlinedCodeChunk(MCT_Float1, TEXT("STRATA_SIMPLEVOLUME_THICKNESS_CM")); // Thickness to be plugged into other nodes thickness input (in centimeters to match other nodes)
 		break;
 	}
 	return INDEX_NONE;

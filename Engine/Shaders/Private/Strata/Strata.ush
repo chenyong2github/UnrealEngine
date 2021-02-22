@@ -39,6 +39,7 @@
 // If the user specifies a different thickness to simulate varying appearance, we rescale the mean free path in order to not have to store thickness as part of the BSDF description.
 #define STRATA_SIMPLEVOLUME_THICKNESS_CM	1.0f
 #define STRATA_CENTIMETER_TO_METER			0.01f
+#define STRATA_METER_TO_CENTIMETER			100.0f
 #define STRATA_SIMPLEVOLUME_THICKNESS_M		(STRATA_SIMPLEVOLUME_THICKNESS_CM * STRATA_CENTIMETER_TO_METER)
 
 ///////////////////////////////////////////////////////////////////////////////

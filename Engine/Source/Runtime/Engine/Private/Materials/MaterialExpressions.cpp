@@ -19778,7 +19778,7 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
 		CompileWithDefaultFloat1(Compiler, ThinFilmThickness, 0.0f),
-		CompileWithDefaultFloat1(Compiler, Thickness, 0.01f),
+		CompileWithDefaultFloat1(Compiler, Thickness, 1.0f),	// thickness is in centimeters, it defaults to 1 centimeter
 		NormalCodeChunk,
 		TangentCodeChunk,
 		SharedNormalIndex);
@@ -20730,17 +20730,17 @@ void UMaterialExpressionStrataTransmittanceToMFP::GetConnectorToolTip(int32 Inpu
 	switch (OutputIndex)
 	{
 	case 0:
-		ConvertToMultilineToolTip(TEXT("The Mean Free Path in centimeters defining the participating media constituting the slab of material."), 80, OutToolTip);
+		ConvertToMultilineToolTip(TEXT("The Mean Free Path defining the participating media constituting the slab of material (unit = centimeters)."), 80, OutToolTip);
 		break;
 	case 1:
-		ConvertToMultilineToolTip(TEXT("The thickness of the slab of material."), 80, OutToolTip);
+		ConvertToMultilineToolTip(TEXT("The thickness of the slab of material (unit = centimeters)."), 80, OutToolTip);
 		break;
 	}
 }
 
 void UMaterialExpressionStrataTransmittanceToMFP::GetExpressionToolTip(TArray<FString>& OutToolTip)
 {
-	ConvertToMultilineToolTip(TEXT("Convert a transmittance color corresponding to a loab of participating media viewed perpendicularly to its surface.\nThis node directly maps to the Slab BSDF input."), 80, OutToolTip);
+	ConvertToMultilineToolTip(TEXT("Convert a transmittance color corresponding to a slab of participating media viewed perpendicularly to its surface.\nThis node directly maps to the Slab BSDF input."), 80, OutToolTip);
 
 }
 #endif // WITH_EDITOR
