@@ -82,7 +82,10 @@ void IPackageResourceManager::FindPackagesRecursive(TArray<FPackagePath>& OutPac
 	OutPackages.Reserve(PackageSegments.Num());
 	for (const TPair<FPackagePath, EPackageSegment>& PackageSegment : PackageSegments)
 	{
-		OutPackages.Add(PackageSegment.Get<0>());
+		if (PackageSegment.Get<1>() == EPackageSegment::Header)
+		{
+			OutPackages.Add(PackageSegment.Get<0>());
+		}
 	}
 }
 

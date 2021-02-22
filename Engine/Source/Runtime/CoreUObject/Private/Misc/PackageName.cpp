@@ -1481,7 +1481,6 @@ bool FPackageName::SearchForPackageOnDisk(const FString& PackageName, FString* O
 					}
 					else
 					{
-						FirstResult = FoundPackagePath;
 						if (OutLongPackageName)
 						{
 							*OutLongPackageName = FoundPackagePath.GetPackageName();
@@ -1490,6 +1489,7 @@ bool FPackageName::SearchForPackageOnDisk(const FString& PackageName, FString* O
 						{
 							*OutFilename = FoundPackagePath.GetLocalFullPath();
 						}
+						FirstResult = FoundPackagePath;
 					}
 				}
 			}

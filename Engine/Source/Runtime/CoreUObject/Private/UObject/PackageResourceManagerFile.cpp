@@ -336,16 +336,32 @@ void FPackageResourceManagerFile::FindPackagesRecursive(TArray<TPair<FPackagePat
 		BasenameWildcardNullTerminated.ToString(), true /* Files */, false /* Directories */);
 	OutPackages.Reserve(OutPackages.Num() + FoundFilenames.Num());
 	TStringBuilder<256> ResultFile;
+	FString BufferPath;
 	for (const FString& Filename : FoundFilenames)
 	{
-		if (!Filename.StartsWith(FileMountAbsPath))
+		FStringView RelPath;
+		if (Filename.StartsWith(FileMountAbsPath, ESearchCase::IgnoreCase))
 		{
-			UE_LOG(LogPackageResourceManager, Warning,
-				TEXT("FindPackagesRecursive: Filename \"%s\" returned from FindFilesRecursive does not start with RootPath \"%s\". Ignoring it."),
-				*Filename, *FileMountAbsPath);
-			continue;
+			RelPath = FStringView(Filename);
 		}
-		FStringView RelPath(FStringView(Filename).RightChop(FileMountAbsPath.Len()));
+		else
+		{
+			// Check whether the reason it doesn't start with FileMountAbsPath is because it is not normalized or is e.g. a relative path
+			// ConvertRelativePathToFull will normalize it in addition to converting it to an absolute path
+			BufferPath = FPaths::ConvertRelativePathToFull(Filename);
+			if (BufferPath.StartsWith(FileMountAbsPath, ESearchCase::IgnoreCase))
+			{
+				RelPath = FStringView(BufferPath);
+			}
+			else
+			{
+				UE_LOG(LogPackageResourceManager, Warning,
+					TEXT("FindPackagesRecursive: Filename \"%s\" returned from FindFilesRecursive does not start with RootPath \"%s\". Ignoring it."),
+					*Filename, *FileMountAbsPath);
+				continue;
+			}
+		}
+		RelPath.RightChopInline(FileMountAbsPath.Len());
 		int32 ExtensionStart;
 		EPackageExtension Extension = FPackagePath::ParseExtension(RelPath, &ExtensionStart);
 		if (Extension == EPackageExtension::Custom || // Files with unrecognized extensions on disk are not returned for IteratePackages
