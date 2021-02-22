@@ -22,6 +22,9 @@ public:
 		: PackageHelper(InPackageHelper)
 	{}
 
+	virtual ~FSourceControlHelper()
+	{}
+
 	virtual FString GetFilename(const FString& PackageName) const override
 	{
 		return SourceControlHelpers::PackageFilename(PackageName);
