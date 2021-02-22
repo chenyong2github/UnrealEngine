@@ -2,6 +2,7 @@
 
 #pragma once
 #include "TraceServices/Model/AnalysisSession.h"
+#include "Templates/UnrealTemplate.h"
 #include <atomic>
 
 namespace TraceServices {
