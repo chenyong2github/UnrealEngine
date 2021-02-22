@@ -699,8 +699,8 @@ namespace UnrealBuildTool
 				}
 				else if (Token == "/we4668")
 				{
-					// Replace this to make windows builds compile happily
-					Token = "/wd4668";
+					// Replace this to make Windows builds compile happily
+					ProcessedTokens[i] = "/wd4668";
 				}
 				else if (Token.Contains("clang++"))
 				{
