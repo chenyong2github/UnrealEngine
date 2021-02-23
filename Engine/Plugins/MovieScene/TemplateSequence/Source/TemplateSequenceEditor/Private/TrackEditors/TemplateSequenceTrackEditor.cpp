@@ -126,14 +126,15 @@ public:
 
 		GConfig->GetBool(TEXT("TemplateSequence"), TEXT("ShowOutdatedAssetsInCameraAnimationTrackEditor"), bShowingHiddenAssets, GEditorPerProjectIni);
 
-		// Find all the class names that derive from this class.
-		FARFilter Filter;
-		Filter.bRecursiveClasses = true;
-		Filter.ClassNames.Add(BaseClass->GetFName());
-
-		IAssetRegistry& AssetRegistry = FAssetRegistryModule::GetRegistry();
-		FARCompiledFilter CompiledFilter;
-		AssetRegistry.CompileFilter(Filter, CompiledFilter);
+		// We will be looking for any template sequence whose root bound object is compatible with the current object binding.
+		// That means any template sequence bound to something of the same class, or a parent class.
+		TSet<FName> BaseClassNames;
+		const UClass* CurBaseClass = InBaseClass;
+		while (CurBaseClass)
+		{
+			BaseClassNames.Add(CurBaseClass->GetFName());
+			CurBaseClass = CurBaseClass->GetSuperClass();
+		}
 
 		FAssetPickerConfig AssetPickerConfig;
 		{
@@ -152,7 +153,7 @@ public:
 			}
 
 			AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda(
-				[this, ChildClassNames = CompiledFilter.ClassNames](const FAssetData& AssetData) -> bool
+				[this, BaseClassNames](const FAssetData& AssetData) -> bool
 				{
 					if (LegacyBaseClass == nullptr || AssetData.AssetClass != LegacyBaseClass->GetFName())
 					{
@@ -161,7 +162,7 @@ public:
 						{
 							// Filter this out if it's got an incompatible bound actor class.
 							const FName FoundBoundActorClassName(*FoundBoundActorClass.GetValue());
-							return !ChildClassNames.Contains(FoundBoundActorClassName);
+							return !BaseClassNames.Contains(FoundBoundActorClassName);
 						}
 						else
 						{
