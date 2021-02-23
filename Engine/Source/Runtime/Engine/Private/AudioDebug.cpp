@@ -2481,7 +2481,7 @@ namespace Audio
 					WaveInstanceInfo.WaveInstanceName = *WaveInstance->GetName();
 					WaveInstanceInfo.bPlayWhenSilent = ActiveSound->IsPlayWhenSilent() ? 1 : 0;
 					WaveInstanceInfo.DebugInfo = Source ? Source->DebugInfo : WaveInstanceInfo.DebugInfo;
-					WaveInstanceInfo.SoundClassName = SoundClass->GetFName();
+					WaveInstanceInfo.SoundClassName = SoundClass ? SoundClass->GetFName() : NAME_None;
 					StatSoundInfos[*SoundInfoIndex].WaveInstanceInfos.Add(MoveTemp(WaveInstanceInfo));
 				}
 			}
