@@ -14,6 +14,7 @@ namespace MovieScene
 
 struct FPropertyStats;
 struct FPropertyDefinition;
+struct FInitialValueCache;
 struct FSystemSubsequentTasks;
 struct FSystemTaskPrerequisites;
 struct FFloatDecompositionParams;
@@ -123,6 +124,18 @@ private:
 	int32 ArrayNum;
 };
 
+/** Interface required for initializing initial values on entities */
+struct IInitialValueProcessor
+{
+	virtual ~IInitialValueProcessor(){}
+
+	/** Initialize this processor before any allocations are visited */
+	virtual void Initialize(UMovieSceneEntitySystemLinker* Linker, const FPropertyDefinition* Definition, FInitialValueCache* InitialValueCache) = 0;
+	/** Process all initial values for the specified allocation */
+	virtual void Process(const FEntityAllocation* Allocation, const FComponentMask& AllocationType) = 0;
+	/** Finish processing */
+	virtual void Finalize() = 0;
+};
 
 /** Interface for a property type handler that is able to interact with properties in sequencer */
 struct IPropertyComponentHandler
@@ -160,16 +173,6 @@ struct IPropertyComponentHandler
 	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
 	 */
 	virtual void DispatchRestorePreAnimatedStateTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) = 0;
-
-	/**
-	 * Dispatch tasks that cache an initial unblended value for any entities that have the NeedsLink tag
-	 *
-	 * @param Definition       The property definition this handler was registered for
-	 * @param InPrerequisites  Task prerequisites for any entity system tasks that are dispatched
-	 * @param Subsequents      Subsequents to add any dispatched tasks to
-	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
-	 */
-	virtual void DispatchCacheInitialValueTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) = 0;
 
 	/**
 	 * Run a recomposition using the specified params and values. The current value and result views must be of type PropertyType
@@ -236,6 +239,11 @@ struct IPropertyComponentHandler
 	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
 	 */
 	virtual void SaveGlobalPreAnimatedState(const FPropertyDefinition& Definition, UMovieSceneEntitySystemLinker* Linker) = 0;
+
+	/**
+	 * Retrieve an initial value processor interface for this property type
+	 */
+	virtual IInitialValueProcessor* GetInitialValueProcessor() = 0;
 };
 
 

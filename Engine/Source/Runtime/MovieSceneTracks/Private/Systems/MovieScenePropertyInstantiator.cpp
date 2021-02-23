@@ -82,12 +82,6 @@ void UMovieScenePropertyInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPr
 		ProcessInvalidatedProperties(InvalidatedProperties);
 	}
 
-	// Kick off initial value gather task immediately
-	if (InitialValueStateTasks.Find(true) != INDEX_NONE)
-	{
-		AssignInitialValues(InPrerequisites, Subsequents);
-	}
-
 	if (CachePreAnimatedStateTasks.Find(true) != INDEX_NONE)
 	{
 		UMovieSceneCachePreAnimatedStateSystem* PreAnimatedState = Linker->LinkSystem<UMovieSceneCachePreAnimatedStateSystem>();
@@ -442,8 +436,6 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 	if (!bWasAlreadyBlended)
 	{
 		NewMask.Set(Params.PropertyDefinition->InitialValueType);
-		InitialValueStateTasks.PadToNum(Params.PropertyInfo->PropertyDefinitionIndex+1, false);
-		InitialValueStateTasks[Params.PropertyInfo->PropertyDefinitionIndex] = true;
 
 		for (int32 Index = 0; Index < Composites.Num(); ++Index)
 		{
@@ -581,21 +573,6 @@ UE::MovieScene::FPropertyRecomposerPropertyInfo UMovieScenePropertyInstantiatorS
 	}
 
 	return FPropertyRecomposerPropertyInfo::Invalid();
-}
-
-void UMovieScenePropertyInstantiatorSystem::AssignInitialValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
-{
-	using namespace UE::MovieScene;
-
-	for (TConstSetBitIterator<> TypesToCache(InitialValueStateTasks); TypesToCache; ++TypesToCache)
-	{
-		FCompositePropertyTypeID PropertyID = FCompositePropertyTypeID::FromIndex(TypesToCache.GetIndex());
-
-		const FPropertyDefinition& Definition = BuiltInComponents->PropertyRegistry.GetDefinition(PropertyID);
-		Definition.Handler->DispatchCacheInitialValueTasks(Definition, InPrerequisites, Subsequents, Linker);
-	}
-
-	InitialValueStateTasks.Empty();
 }
 
 void UMovieScenePropertyInstantiatorSystem::SavePreAnimatedState(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

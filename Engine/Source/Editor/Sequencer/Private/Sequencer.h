@@ -77,6 +77,17 @@ struct FEditorViewportViewModifierParams;
 
 enum class EMapChangeType : uint8;
 
+namespace UE
+{
+namespace MovieScene
+{
+
+	struct FInitialValueCache;
+
+} // namespace MovieScene
+} // namespace UE
+
+
 /**
  * Sequencer is the editing tool for MovieScene assets.
  */
@@ -1427,6 +1438,8 @@ private:
 	TUniquePtr<FSequencerKeyCollection> SelectedKeyCollection;
 
 	TSharedPtr<FCurveEditor> CurveEditorModel;
+
+	TSharedPtr<UE::MovieScene::FInitialValueCache> InitialValueCache;
 
 	/** A signature that will suppress auto evaluation when it is the only change dirtying the template. */
 	TOptional<TTuple<TWeakObjectPtr<UMovieSceneSequence>, FGuid>> SuppressAutoEvalSignature;

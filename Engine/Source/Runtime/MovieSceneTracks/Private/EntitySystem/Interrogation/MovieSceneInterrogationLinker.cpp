@@ -7,6 +7,7 @@
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneInitialValueCache.h"
 
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneSequence.h"
@@ -65,10 +66,21 @@ struct FSystemInterrogatorEntityTracker
 };
 
 
+TEntitySystemLinkerExtensionID<IInterrogationExtension> IInterrogationExtension::GetExtensionID()
+{
+	static TEntitySystemLinkerExtensionID<IInterrogationExtension> ID = UMovieSceneEntitySystemLinker::RegisterExtension<IInterrogationExtension>();
+	return ID;
+}
+
 FSystemInterrogator::FSystemInterrogator()
 {
+	InitialValueCache = FInitialValueCache::GetGlobalInitialValues();
+
 	Linker = NewObject<UMovieSceneEntitySystemLinker>(GetTransientPackage());
 	Linker->SetSystemContext(EEntitySystemContext::Interrogation);
+
+	Linker->AddExtension(IInterrogationExtension::GetExtensionID(), static_cast<IInterrogationExtension*>(this));
+	Linker->AddExtension(InitialValueCache.Get());
 
 	// Always add a bit for the default channel
 	ImportedChannelBits.Add(false);
@@ -88,7 +100,7 @@ FString FSystemInterrogator::GetReferencerName() const
 	return TEXT("FSystemInterrogator");
 }
 
-FInterrogationChannel FSystemInterrogator::AllocateChannel(FInterrogationChannel ParentChannel)
+FInterrogationChannel FSystemInterrogator::AllocateChannel(FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding)
 {
 	if (!ensureMsgf(ImportedChannelBits.Num() < MAX_int32, TEXT("Reached the maximum available number of interrogation channels")))
 	{
@@ -98,20 +110,22 @@ FInterrogationChannel FSystemInterrogator::AllocateChannel(FInterrogationChannel
 	FInterrogationChannel Channel = FInterrogationChannel::FromIndex(ImportedChannelBits.Num());
 	ImportedChannelBits.Add(false);
 
-	if (ParentChannel)
+	if (ParentChannel || !PropertyBinding.PropertyPath.IsNone())
 	{
-		SparseChannelInfo.FindOrAdd(Channel).ParentChannel = ParentChannel;
+		FInterrogationChannelInfo& ChannelInfo = SparseChannelInfo.Get(Channel);
+		ChannelInfo.ParentChannel   = ParentChannel;
+		ChannelInfo.PropertyBinding = PropertyBinding;
 	}
 	return Channel;
 }
 
-FInterrogationChannel FSystemInterrogator::AllocateChannel(UObject* Object, FInterrogationChannel ParentChannel)
+FInterrogationChannel FSystemInterrogator::AllocateChannel(UObject* Object, FInterrogationChannel ParentChannel, const FMovieScenePropertyBinding& PropertyBinding)
 {
-	FInterrogationChannel NewChannel = AllocateChannel(ParentChannel);
+	FInterrogationChannel NewChannel = AllocateChannel(ParentChannel, PropertyBinding);
 	if (NewChannel)
 	{
 		ObjectToChannel.Add(Object, NewChannel);
-		SparseChannelInfo.FindOrAdd(NewChannel).WeakObject = Object;
+		SparseChannelInfo.Get(NewChannel).WeakObject = Object;
 	}
 	return NewChannel;
 }
@@ -268,6 +282,7 @@ void FSystemInterrogator::Update()
 	.Write(FBuiltInComponentTypes::Get()->EvalTime)
 	.FilterNone({ FBuiltInComponentTypes::Get()->Tags.FixedTime })
 	.Iterate_PerEntity(&Linker->EntityManager, [this](const FInterrogationKey& InterrogationKey, FFrameTime& OutEvalTime) { OutEvalTime = this->Interrogations[InterrogationKey.InterrogationIndex].Time; });
+
 	FMovieSceneEntitySystemRunner Runner;
 	Runner.AttachToLinker(Linker);
 	Runner.Flush();
@@ -316,7 +331,7 @@ FInterrogationChannel FSystemInterrogator::ImportLocalTransforms(USceneComponent
 	FInterrogationChannel Channel = ObjectToChannel.FindRef(SceneComponent);
 	if (!Channel.IsValid())
 	{
-		Channel = AllocateChannel(SceneComponent, ParentChannel);
+		Channel = AllocateChannel(SceneComponent, ParentChannel, FMovieScenePropertyBinding("Transform", TEXT("Transform")));
 	}
 
 	if (!Channel.IsValid())
@@ -483,7 +498,7 @@ void FSystemInterrogator::QueryWorldSpaceTransforms(const TBitArray<>& ChannelsT
 		int32 NumChildren = 0;
 
 		FInterrogationChannel Channel = FInterrogationChannel::FromIndex(ChannelBit.GetIndex());
-		if (ImportedChannelBits[Channel.AsIndex()] == false && FindObjectFromChannel(Channel) == nullptr)
+		if (ImportedChannelBits[Channel.AsIndex()] == false && SparseChannelInfo.FindObject(Channel) == nullptr)
 		{
 			continue;
 		}
@@ -501,8 +516,8 @@ void FSystemInterrogator::QueryWorldSpaceTransforms(const TBitArray<>& ChannelsT
 			// Update the component's current value
 			FTransform BaseValue = FTransform::Identity;
 
-			FInterrogationChannelInfo ChannelInfo = SparseChannelInfo.FindRef(Channel);
-			if (USceneComponent* SceneComponent = Cast<USceneComponent>(ChannelInfo.WeakObject.Get()))
+			const FInterrogationChannelInfo* ChannelInfo = SparseChannelInfo.Find(Channel);
+			if (USceneComponent* SceneComponent = Cast<USceneComponent>(ChannelInfo ? ChannelInfo->WeakObject.Get() : nullptr))
 			{
 				BaseValue = SceneComponent->GetRelativeTransform();
 			}
@@ -520,7 +535,7 @@ void FSystemInterrogator::QueryWorldSpaceTransforms(const TBitArray<>& ChannelsT
 				VariableTransformsByChannel[ThisChannelIndex].SetNum(Interrogations.Num());
 			}
 
-			Channel = ChannelInfo.ParentChannel;
+			Channel = ChannelInfo ? ChannelInfo->ParentChannel : FInterrogationChannel::Invalid();
 			++NumChildren;
 		}
 	}
@@ -635,7 +650,8 @@ void FSystemInterrogator::QueryWorldSpaceTransforms(const TBitArray<>& ChannelsT
 
 			const int32 ChannelIndex = Channel.AsIndex();
 
-			FInterrogationChannel Parent = SparseChannelInfo.FindRef(Channel).ParentChannel;
+
+			FInterrogationChannel Parent = SparseChannelInfo.FindParent(Channel);
 			FTransform OffsetFromAnimatedParent = FTransform::Identity;
 
 			bool bProcessedTransforms = false;
@@ -671,7 +687,7 @@ void FSystemInterrogator::QueryWorldSpaceTransforms(const TBitArray<>& ChannelsT
 				}
 
 				OffsetFromAnimatedParent = BaseValues[Parent.AsIndex()] * OffsetFromAnimatedParent;
-				Parent = SparseChannelInfo.FindRef(Parent).ParentChannel;
+				Parent = SparseChannelInfo.FindParent(Parent);
 			}
 
 			if (!bProcessedTransforms)
@@ -709,15 +725,14 @@ void FSystemInterrogator::QueryLocalSpaceTransforms(const TBitArray<>& ChannelsT
 	for (TConstSetBitIterator<> ChannelBit(ChannelsToQuery); ChannelBit; ++ChannelBit)
 	{
 		FInterrogationChannel Channel = FInterrogationChannel::FromIndex(ChannelBit.GetIndex());
-		if (ImportedChannelBits[Channel.AsIndex()] == false && FindObjectFromChannel(Channel) == nullptr)
+		if (ImportedChannelBits[Channel.AsIndex()] == false && SparseChannelInfo.FindObject(Channel) == nullptr)
 		{
 			continue;
 		}
 
 		FIntermediate3DTransform BaseValue;
 
-		FInterrogationChannelInfo ChannelInfo = SparseChannelInfo.FindRef(Channel);
-		if (USceneComponent* SceneComponent = Cast<USceneComponent>(ChannelInfo.WeakObject.Get()))
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(SparseChannelInfo.FindObject(Channel)))
 		{
 			BaseValue = FIntermediate3DTransform(SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeScale3D());
 		}

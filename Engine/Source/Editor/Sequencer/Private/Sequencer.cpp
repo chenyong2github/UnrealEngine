@@ -139,6 +139,7 @@
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "EntitySystem/MovieSceneInitialValueCache.h"
 #include "SequencerCustomizationManager.h"
 #include "SSequencerGroupManager.h"
 
@@ -424,6 +425,9 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	ActiveTemplateIDs.Add(MovieSceneSequenceID::Root);
 	ActiveTemplateStates.Add(true);
 	RootTemplateInstance.Initialize(*InitParams.RootSequence, *this, CompiledDataManager);
+
+	InitialValueCache = UE::MovieScene::FInitialValueCache::GetGlobalInitialValues();
+	RootTemplateInstance.GetEntitySystemLinker()->AddExtension(InitialValueCache.Get());
 
 	ResetTimeController();
 

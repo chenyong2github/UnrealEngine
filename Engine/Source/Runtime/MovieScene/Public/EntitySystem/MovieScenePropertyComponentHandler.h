@@ -9,9 +9,11 @@
 #include "EntitySystem/MovieSceneDecompositionQuery.h"
 #include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieScenePreAnimatedPropertyHelper.h"
+#include "EntitySystem/MovieSceneInitialValueCache.h"
 #include "EntitySystem/MovieScenePropertySystemTypes.inl"
-
 #include "EntitySystem/MovieSceneOperationalTypeConversions.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationExtension.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 
 
@@ -148,19 +150,237 @@ struct TPropertyComponentHandlerImpl<TIntegerSequence<int, Indices...>, Property
 		.RunInline_PerAllocation(&Linker->EntityManager, SetProperties);
 	}
 
-	virtual void DispatchCacheInitialValueTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) override
+
+	struct FInitialValueProcessor : IInitialValueProcessor
 	{
-		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+		TSortedMap<FInterrogationChannel, OperationalType> ValuesByChannel;
 
-		TGetPropertyValues<PropertyType, OperationalType> GetProperties(Definition.CustomPropertyRegistration);
+		FBuiltInComponentTypes* BuiltInComponents;
+		IInterrogationExtension* Interrogation;
+		const FPropertyDefinition* PropertyDefinition;
+		FCustomAccessorView CustomAccessors;
 
-		FEntityTaskBuilder()
-		.Read(BuiltInComponents->BoundObject)
-		.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-		.Write(Definition.InitialValueType.ReinterpretCast<OperationalType>())
-		.FilterAll({ BuiltInComponents->Tags.NeedsLink, Definition.PropertyType })
-		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
-		.RunInline_PerAllocation(&Linker->EntityManager, GetProperties);
+		FEntityAllocationWriteContext WriteContext;
+		TPropertyValueStorage<PropertyType>* CacheStorage;
+
+		FInitialValueProcessor()
+			: WriteContext(FEntityAllocationWriteContext::NewAllocation())
+		{
+			BuiltInComponents = FBuiltInComponentTypes::Get();
+
+			Interrogation = nullptr;
+			CacheStorage = nullptr;
+		}
+
+		virtual void Initialize(UMovieSceneEntitySystemLinker* Linker, const FPropertyDefinition* Definition, FInitialValueCache* InitialValueCache) override
+		{
+			PropertyDefinition = Definition;
+			Interrogation = Linker->FindExtension<IInterrogationExtension>();
+			WriteContext  = FEntityAllocationWriteContext(Linker->EntityManager);
+
+			CustomAccessors = PropertyDefinition->CustomPropertyRegistration->GetAccessors();
+
+			if (InitialValueCache)
+			{
+				CacheStorage = InitialValueCache->GetStorage<PropertyType>(Definition->InitialValueType);
+			}
+		}
+
+		virtual void Process(const FEntityAllocation* Allocation, const FComponentMask& AllocationType) override
+		{
+			if (Interrogation && AllocationType.Contains(BuiltInComponents->Interrogation.OutputKey))
+			{
+				VisitInterrogationAllocation(Allocation);
+			}
+			else if (CacheStorage)
+			{
+				VisitAllocationCached(Allocation);
+			}
+			else
+			{
+				VisitAllocation(Allocation);
+			}
+		}
+
+		virtual void Finalize() override
+		{
+			ValuesByChannel.Empty();
+			Interrogation = nullptr;
+			CacheStorage = nullptr;
+			CustomAccessors = FCustomAccessorView();
+		}
+
+		void VisitAllocation(const FEntityAllocation* Allocation)
+		{
+			const int32 Num = Allocation->Num();
+
+			TComponentWriter<OperationalType> InitialValues = Allocation->WriteComponents(PropertyDefinition->InitialValueType.ReinterpretCast<OperationalType>(), WriteContext);
+			TComponentReader<UObject*>        BoundObjects  = Allocation->ReadComponents(BuiltInComponents->BoundObject);
+
+			if (TOptionalComponentReader<FCustomPropertyIndex> CustomIndices = Allocation->TryReadComponents(BuiltInComponents->CustomPropertyIndex))
+			{
+				const FCustomPropertyIndex* RawIndices = CustomIndices.AsPtr();
+				for (int32 Index = 0; Index < Num; ++Index)
+				{
+					const TCustomPropertyAccessor<PropertyType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<PropertyType>&>(CustomAccessors[RawIndices[Index].Value]);
+
+					PropertyType CurrentValue = CustomAccessor.Functions.Getter(BoundObjects[Index]);
+					ConvertOperationalProperty(CurrentValue, InitialValues[Index]);
+				}
+			}
+
+			else if (TOptionalComponentReader<uint16> FastOffsets = Allocation->TryReadComponents(BuiltInComponents->FastPropertyOffset))
+			{
+				const uint16* RawOffsets = FastOffsets.AsPtr();
+				for (int32 Index = 0; Index < Num; ++Index)
+				{
+					PropertyType CurrentValue = *reinterpret_cast<const PropertyType*>(reinterpret_cast<const uint8*>(static_cast<const void*>(BoundObjects[Index])) + RawOffsets[Index]);
+					ConvertOperationalProperty(CurrentValue, InitialValues[Index]);
+				}
+			}
+
+			else if (TOptionalComponentReader<TSharedPtr<FTrackInstancePropertyBindings>> SlowProperties = Allocation->TryReadComponents(BuiltInComponents->SlowProperty))
+			{
+				const TSharedPtr<FTrackInstancePropertyBindings>* RawProperties = SlowProperties.AsPtr();
+				for (int32 Index = 0; Index < Num; ++Index)
+				{
+					PropertyType CurrentValue = RawProperties[Index]->GetCurrentValue<PropertyType>(*BoundObjects[Index]);
+					ConvertOperationalProperty(CurrentValue, InitialValues[Index]);
+				}
+			}
+		}
+
+		void VisitAllocationCached(const FEntityAllocation* Allocation)
+		{
+			const int32 Num = Allocation->Num();
+
+			TComponentWriter<FInitialValueIndex> InitialValueIndices = Allocation->WriteComponents(BuiltInComponents->InitialValueIndex, WriteContext);
+			TComponentWriter<OperationalType>    InitialValues       = Allocation->WriteComponents(PropertyDefinition->InitialValueType.ReinterpretCast<OperationalType>(), WriteContext);
+			TComponentReader<UObject*>           BoundObjects        = Allocation->ReadComponents(BuiltInComponents->BoundObject);
+
+			if (TOptionalComponentReader<FCustomPropertyIndex> CustomIndices = Allocation->TryReadComponents(BuiltInComponents->CustomPropertyIndex))
+			{
+				const FCustomPropertyIndex* RawIndices = CustomIndices.AsPtr();
+				for (int32 Index = 0; Index < Num; ++Index)
+				{
+					TPair<FInitialValueIndex, PropertyType> CachedValue = CacheStorage->CacheInitialValue(BoundObjects[Index], CustomAccessors, RawIndices[Index]);
+
+					ConvertOperationalProperty(CachedValue.Value, InitialValues[Index]);
+					InitialValueIndices[Index] = CachedValue.Key;
+				}
+			}
+
+			else if (TOptionalComponentReader<uint16> FastOffsets = Allocation->TryReadComponents(BuiltInComponents->FastPropertyOffset))
+			{
+				const uint16* RawOffsets = FastOffsets.AsPtr();
+				for (int32 Index = 0; Index < Num; ++Index)
+				{
+					TPair<FInitialValueIndex, PropertyType> CachedValue = CacheStorage->CacheInitialValue(BoundObjects[Index], RawOffsets[Index]);
+
+					ConvertOperationalProperty(CachedValue.Value, InitialValues[Index]);
+					InitialValueIndices[Index] = CachedValue.Key;
+				}
+			}
+
+			else if (TOptionalComponentReader<TSharedPtr<FTrackInstancePropertyBindings>> SlowProperties = Allocation->TryReadComponents(BuiltInComponents->SlowProperty))
+			{
+				const TSharedPtr<FTrackInstancePropertyBindings>* RawProperties = SlowProperties.AsPtr();
+				for (int32 Index = 0; Index < Num; ++Index)
+				{
+					TPair<FInitialValueIndex, PropertyType> CachedValue = CacheStorage->CacheInitialValue(BoundObjects[Index], RawProperties[Index].Get());
+
+					ConvertOperationalProperty(CachedValue.Value, InitialValues[Index]);
+					InitialValueIndices[Index] = CachedValue.Key;
+				}
+			}
+		}
+
+		void VisitInterrogationAllocation(const FEntityAllocation* Allocation)
+		{
+			const int32 Num = Allocation->Num();
+
+			TComponentWriter<OperationalType>   InitialValues = Allocation->WriteComponents(PropertyDefinition->InitialValueType.ReinterpretCast<OperationalType>(), WriteContext);
+			TComponentReader<FInterrogationKey> OutputKeys    = Allocation->ReadComponents(BuiltInComponents->Interrogation.OutputKey);
+
+			const FSparseInterrogationChannelInfo& SparseChannelInfo = Interrogation->GetSparseChannelInfo();
+
+			for (int32 Index = 0; Index < Num; ++Index)
+			{
+				FInterrogationChannel Channel = OutputKeys[Index].Channel;
+
+				// Did we already cache this value?
+				if (const OperationalType* CachedValue = ValuesByChannel.Find(Channel))
+				{
+					InitialValues[Index] = *CachedValue;
+					continue;
+				}
+
+				const FInterrogationChannelInfo* ChannelInfo = SparseChannelInfo.Find(Channel);
+				UObject* Object = ChannelInfo ? ChannelInfo->WeakObject.Get() : nullptr;
+				if (!ChannelInfo || !Object || ChannelInfo->PropertyBinding.PropertyName.IsNone())
+				{
+					continue;
+				}
+
+				TOptional< FResolvedFastProperty > Property = FPropertyRegistry::ResolveFastProperty(Object, ChannelInfo->PropertyBinding, CustomAccessors);
+
+				// Retrieve a cached value if possible
+				if (CacheStorage)
+				{
+					const PropertyType* CachedValue = nullptr;
+					if (!Property.IsSet())
+					{
+						CachedValue = CacheStorage->FindCachedValue(Object, ChannelInfo->PropertyBinding.PropertyPath);
+					}
+					else if (const FCustomPropertyIndex* CustomIndex = Property->TryGet<FCustomPropertyIndex>())
+					{
+						CachedValue = CacheStorage->FindCachedValue(Object, *CustomIndex);
+					}
+					else
+					{
+						CachedValue = CacheStorage->FindCachedValue(Object, Property->Get<uint16>());
+					}
+					if (CachedValue)
+					{
+						OperationalType ConvertedProperty;
+						ConvertOperationalProperty(*CachedValue, ConvertedProperty);
+
+						InitialValues[Index] = ConvertedProperty;
+						ValuesByChannel.Add(Channel, ConvertedProperty);
+						continue;
+					}
+				}
+
+				// No cached value available, must retrieve it now
+				TOptional<PropertyType> CurrentValue;
+
+				if (!Property.IsSet())
+				{
+					CurrentValue = FTrackInstancePropertyBindings::StaticValue<PropertyType>(Object, ChannelInfo->PropertyBinding.PropertyPath.ToString());
+				}
+				else if (const FCustomPropertyIndex* Custom = Property->TryGet<FCustomPropertyIndex>())
+				{
+					CurrentValue = static_cast<const TCustomPropertyAccessor<PropertyType>&>(CustomAccessors[Custom->Value]).Functions.Getter(Object);
+				}
+				else
+				{
+					const uint16 FastPtrOffset = Property->Get<uint16>();
+					CurrentValue = *reinterpret_cast<const PropertyType*>(reinterpret_cast<const uint8*>(static_cast<const void*>(Object)) + FastPtrOffset);
+				}
+
+				OperationalType NewValue;
+				ConvertOperationalProperty(CurrentValue.GetValue(), NewValue);
+
+				InitialValues[Index] = NewValue;
+				ValuesByChannel.Add(Channel, NewValue);
+			};
+		}
+	};
+
+	virtual IInitialValueProcessor* GetInitialValueProcessor() override
+	{
+		static FInitialValueProcessor Processor;
+		return &Processor;
 	}
 
 	virtual void SaveGlobalPreAnimatedState(const FPropertyDefinition& Definition, UMovieSceneEntitySystemLinker* Linker) override

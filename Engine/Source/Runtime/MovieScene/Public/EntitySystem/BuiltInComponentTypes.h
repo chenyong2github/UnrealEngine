@@ -11,7 +11,7 @@
 #include "Templates/SubclassOf.h"
 
 #include "EntitySystem/MovieScenePropertyRegistry.h"
-#include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "EntitySystem/MovieSceneInitialValueCache.h"
 
 #include "BuiltInComponentTypes.generated.h"
 
@@ -145,6 +145,7 @@ public:
 
 	TComponentTypeID<uint16>              BlendChannelOutput;
 
+	TComponentTypeID<FInitialValueIndex>  InitialValueIndex;
 public:
 
 	// An FMovieScenePropertyBinding structure
