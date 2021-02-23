@@ -9128,6 +9128,12 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 						}
 					}
 				}
+
+				// If the parent doesn't actually exist, clear it.
+				if (!MovieScene->FindPossessable(ParentGuid) && !MovieScene->FindSpawnable(ParentGuid))
+				{
+					Possessable->SetParent(FGuid());
+				}
 			}
 		}
 	}
