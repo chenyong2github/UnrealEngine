@@ -521,7 +521,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 	{
 		return SDetailTableRowBase::IsScrollBarVisible(OwnerTableViewWeak) ?
 			FSlateColor(EStyleColor::White) : 
-			this->GetInnerBackgroundColor();
+			this->GetOuterBackgroundColor();
 	};
 
 	this->ChildSlot
