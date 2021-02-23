@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Bus/MessageBus.h"
+#include "IMessagingModule.h"
 #include "HAL/RunnableThread.h"
 #include "Bus/MessageRouter.h"
 #include "Bus/MessageContext.h"

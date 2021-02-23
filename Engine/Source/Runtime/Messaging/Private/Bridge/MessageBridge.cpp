@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Bridge/MessageBridge.h"
-
+#include "IMessagingModule.h"
 #include "IMessageBus.h"
 #include "IMessageSubscription.h"
 #include "IMessageTransport.h"

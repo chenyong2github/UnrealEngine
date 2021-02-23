@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Bus/MessageRouter.h"
+#include "IMessagingModule.h"
 #include "HAL/PlatformProcess.h"
 #include "Bus/MessageDispatchTask.h"
 #include "IMessageSubscription.h"
@@ -9,7 +10,6 @@
 #include "IMessageBusListener.h"
 #include "Misc/ConfigCacheIni.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogMessaging, Log, All);
 
 /* FMessageRouter structors
  *****************************************************************************/
