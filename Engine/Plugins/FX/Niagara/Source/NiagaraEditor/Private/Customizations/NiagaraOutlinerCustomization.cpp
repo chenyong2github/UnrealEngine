@@ -19,6 +19,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "Widgets/Images/SImage.h"
 ///Niagara
 #include "NiagaraEditorModule.h"
 #include "NiagaraComponent.h"
