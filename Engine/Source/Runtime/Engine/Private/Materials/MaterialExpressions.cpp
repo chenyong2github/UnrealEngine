@@ -18164,7 +18164,12 @@ int32  UMaterialExpressionClearCoatNormalCustomOutput::Compile(class FMaterialCo
 	}
 	else
 	{
-		return CompilerError(Compiler, TEXT("Input missing"));
+		static const auto CVarStrata = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+		const bool bStrata = CVarStrata ? CVarStrata->GetValueOnAnyThread() > 0 : false;
+		if (!bStrata)
+		{
+			return CompilerError(Compiler, TEXT("Input missing"));
+		}
 	}
 	return INDEX_NONE;
 }
