@@ -103,6 +103,7 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 						if (!GroupPtrPtr)
 						{
 							GroupPtr = CreateGroup(CallstackGroups, GroupPtr, GroupName, InParentTable, Frame);
+							check(GroupPtr->Parent != nullptr);
 							GroupPtr->Parent->GroupMapByName.Add(GroupName, GroupPtr);
 						}
 						else
@@ -118,6 +119,7 @@ void FMemAllocGroupingByCallstack::GroupNodes(const TArray<FTableTreeNodePtr>& N
 						{
 							const FName GroupName = GetGroupName(Frame);
 							GroupPtr = CreateGroup(CallstackGroups, GroupPtr, GroupName, InParentTable, Frame);
+							check(GroupPtr->Parent != nullptr);
 							GroupPtr->Parent->GroupMap.Add(Frame->Addr, GroupPtr);
 						}
 						else

@@ -16,7 +16,7 @@
  * @param nShowCmd Specifies how the window is to be shown.
  * @return Application's exit value.
  */
-int32 WINAPI WinMain(HINSTANCE hInInstance, HINSTANCE hPrevInstance, char* lpCmdLine, int32 nShowCmd)
+int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
 	hInstance = hInInstance;
 
