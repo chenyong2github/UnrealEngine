@@ -228,3 +228,26 @@ FScreenPassTexture AddGTAOUpsamplePass(
 	FScreenPassTexture Input,
 	FScreenPassTexture SceneDepth,
 	FScreenPassRenderTarget Output);
+
+
+// Shared declarations for PC and mobile. 
+
+BEGIN_SHADER_PARAMETER_STRUCT(FHZBParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
+	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, HZBRemapping)
+END_SHADER_PARAMETER_STRUCT();
+
+BEGIN_SHADER_PARAMETER_STRUCT(FTextureBinding, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Texture)
+	SHADER_PARAMETER(FIntPoint, TextureSize)
+	SHADER_PARAMETER(FVector2D, InverseTextureSize)
+END_SHADER_PARAMETER_STRUCT();
+
+enum class EAOTechnique
+{
+	SSAO,
+	GTAO,
+};
+
+FHZBParameters GetHZBParameters(const FViewInfo& View, FScreenPassTexture HZBInput, FIntPoint InputTextureSize, EAOTechnique AOTechnique);

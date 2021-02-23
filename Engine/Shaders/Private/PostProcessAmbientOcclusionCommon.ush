@@ -102,7 +102,7 @@ float3 GetWorldSpaceNormalFromAOInput(float2 UV, float4 SvPosition)
 	#if USE_AO_SETUP_AS_INPUT
 		// Low resolution normal computed in the setup (downscaled) pass.
 		WorldNormal = Texture2DSample(SSAO_SetupTexture, SSAO_Sampler, frac(UV)).xyz * 2 - 1;
-	#elif COMPUTE_SHADER || FORWARD_SHADING
+	#elif COMPUTE_SHADER || FORWARD_SHADING || SHADING_PATH_MOBILE
 		// Async compute and forward shading don't have access to the gbuffer.
 		WorldNormal = ReconstructNormalFromDepthBuffer(SvPosition);
 	#else

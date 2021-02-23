@@ -2071,6 +2071,12 @@ protected:
 
 	/** Issues occlusion queries */
 	void RenderOcclusion(FRHICommandListImmediate& RHICmdList);
+
+	bool ShouldRenderHZB();
+
+	/** Generate HZB */
+	void RenderHZB(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ);
+	void RenderHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
 	
 	/** Computes how many queries will be issued this frame */
 	int32 ComputeNumOcclusionQueriesToBatch() const;
@@ -2134,6 +2140,7 @@ private:
 	bool bRequiresDistanceFieldShadowingPass;
 	bool bIsFullPrepassEnabled;
 	bool bShouldRenderVelocities;
+	bool bShouldRenderHZB;
 	static FGlobalDynamicIndexBuffer DynamicIndexBuffer;
 	static FGlobalDynamicVertexBuffer DynamicVertexBuffer;
 	static TGlobalResource<FGlobalDynamicReadBuffer> DynamicReadBuffer;

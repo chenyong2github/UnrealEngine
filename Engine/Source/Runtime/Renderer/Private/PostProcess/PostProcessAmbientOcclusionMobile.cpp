@@ -70,9 +70,6 @@ static TAutoConsoleVariable<int32> CVarMobileAmbientOcclusionDepthBoundsTest(
 
 // --------------------------------------------------------------------------------------------------------------------
 DECLARE_GPU_STAT_NAMED(MobileSSAO, TEXT("SSAO"));
-DECLARE_GPU_STAT_NAMED_EXTERN(HZB, TEXT("HZB"));
-
-extern void BuildHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef InSceneDepthTexture, FViewInfo& View);
 
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -659,29 +656,6 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 }
 
 // --------------------------------------------------------------------------------------------------------------------
-BEGIN_SHADER_PARAMETER_STRUCT(FHZBParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
-	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, HZBRemapping)
-END_SHADER_PARAMETER_STRUCT();
-
-static FHZBParameters GetHZBParameters(const FViewInfo& View, FScreenPassTexture HZBInput, FIntPoint InputTextureSize)
-{
-	FHZBParameters Parameters;
-	Parameters.HZBTexture = HZBInput.Texture;
-	Parameters.HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-	const FVector2D HZBScaleFactor(
-		float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
-		float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
-
-	// from -1..1 to UV 0..1*HZBScaleFactor
-	Parameters.HZBRemapping.Scale = FVector2D(0.5f * HZBScaleFactor.X, -0.5f * HZBScaleFactor.Y);
-	Parameters.HZBRemapping.Bias = FVector2D(0.5f * HZBScaleFactor.X, 0.5f * HZBScaleFactor.Y);
-	return Parameters;
-}
-
-// --------------------------------------------------------------------------------------------------------------------
 struct FMobileSSAOCommonParameters
 {
 	TUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTexturesUniformBufferRHI;
@@ -691,20 +665,13 @@ struct FMobileSSAOCommonParameters
 	FScreenPassTexture SceneDepth;
 };
 
-static const uint32 kSSAOParametersArraySize = 5; 
+static const uint32 kMobileSSAOParametersArraySize = 5; 
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMobileSSAOShaderParameters, )
-	SHADER_PARAMETER_ARRAY(FVector4, ScreenSpaceAOParams, [kSSAOParametersArraySize])
+	SHADER_PARAMETER_ARRAY(FVector4, ScreenSpaceAOParams, [kMobileSSAOParametersArraySize])
 
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, AOViewport)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, AOSceneViewport)
-END_SHADER_PARAMETER_STRUCT();
-
-
-BEGIN_SHADER_PARAMETER_STRUCT(FTextureBinding, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Texture)
-	SHADER_PARAMETER(FIntPoint, TextureSize)
-	SHADER_PARAMETER(FVector2D, InverseTextureSize)
 END_SHADER_PARAMETER_STRUCT();
 
 
@@ -908,7 +875,7 @@ static void AddMobileAmbientOcclusionPass(
 	FMobileAmbientOcclusionParameters SharedParameters;
 	SharedParameters.View = View.ViewUniformBuffer;
 	SharedParameters.SceneTextures = CommonParameters.SceneTexturesUniformBufferRHI;
-	SharedParameters.HZBParameters = GetHZBParameters(View, CommonParameters.HZBInput, CommonParameters.SceneTexturesViewport.Extent);
+	SharedParameters.HZBParameters = GetHZBParameters(View, CommonParameters.HZBInput, CommonParameters.SceneTexturesViewport.Extent, EAOTechnique::SSAO);
 	SharedParameters.SSAOParameters = GetMobileSSAOShaderParameters(View, InputViewport, OutputViewport, CommonParameters.SceneTexturesViewport);
 
 	SharedParameters.SSAO_Sampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -1015,34 +982,6 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRHICommandListImmediate& RHIC
 	checkSlow(GAmbientOcclusionMobileOutputs.IsValid() && SceneDepthZ.IsValid());
 
 	const int32 Technique = CVarMobileAmbientOcclusionTechnique.GetValueOnRenderThread();
-
-	if (Technique==1)
-	{
-		if (!IsSwitchPlatform(ShaderPlatform))
-		{
-			check(false); // Unsupported for the moment
-			return;
-		}
-
-		// SSAO needs HZB pass
-		FRDGBuilder GraphBuilder(RHICmdList);
-		{
-			RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
-
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-			{
-				FViewInfo& View = Views[ViewIndex];
-
-				RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-				{
-					RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);
-					FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneDepthZ, TEXT("SceneDepthTexture"));
-					BuildHZB(GraphBuilder, SceneDepthTexture, Views[ViewIndex]);
-				}
-			}
-		}
-		GraphBuilder.Execute();
-	}
 
 	SCOPED_DRAW_EVENT(RHICmdList, AmbientOcclusion);
 

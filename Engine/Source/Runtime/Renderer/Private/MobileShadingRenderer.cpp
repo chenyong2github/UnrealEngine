@@ -54,6 +54,7 @@
 #include "GPUSortManager.h"
 #include "MobileDeferredShadingPass.h"
 #include "PlanarReflectionSceneProxy.h"
+#include "SceneOcclusion.h"
 
 uint32 GetShadowQuality();
 
@@ -114,6 +115,8 @@ FGlobalDynamicVertexBuffer FMobileSceneRenderer::DynamicVertexBuffer;
 TGlobalResource<FGlobalDynamicReadBuffer> FMobileSceneRenderer::DynamicReadBuffer;
 
 extern bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
+
+extern void BuildHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef InSceneDepthTexture, FViewInfo& View);
 
 static bool UsesCustomDepthStencilLookup(const FViewInfo& View)
 {
@@ -376,6 +379,8 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	bRequiresDistanceFieldShadowingPass = bRequiresDistanceField && IsMobileDistanceFieldShadowingEnabled(ShaderPlatform);
 		
 	bShouldRenderVelocities = ShouldRenderVelocities();
+
+	bShouldRenderHZB = ShouldRenderHZB();
 
 	// Whether we need to store depth for post-processing
 	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
@@ -723,6 +728,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		{
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderSDFShadowing);
 			RenderSDFShadowing(RHICmdList);
+		}
+
+		if (bShouldRenderHZB)
+		{
+			RenderHZB(RHICmdList, SceneContext.SceneDepthZ);
 		}
 
 		if (bRequiresAmbientOcclusionPass)
@@ -1691,4 +1701,46 @@ void FMobileSceneRenderer::UpdateMovablePointLightUniformBufferAndShadowInfo()
 bool FMobileSceneRenderer::SupportsMSAA() const
 {
 	return !(IsUsingMobilePixelProjectedReflection(ShaderPlatform) || IsUsingMobileAmbientOcclusion(ShaderPlatform) || ShouldRenderVelocities() || bDeferredShading);
+}
+
+bool FMobileSceneRenderer::ShouldRenderHZB()
+{
+	static const auto MobileAmbientOcclusionTechniqueCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionTechnique"));
+
+	// Mobile SSAO requests HZB
+	bool bIsFeatureRequested = bRequiresAmbientOcclusionPass && MobileAmbientOcclusionTechniqueCVar->GetValueOnRenderThread() == 1;
+
+	bool bNeedsHZB = bIsFeatureRequested;
+
+	return bNeedsHZB;
+}
+
+void FMobileSceneRenderer::RenderHZB(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ)
+{
+	checkSlow(bShouldRenderHZB);
+
+	FRDGBuilder GraphBuilder(RHICmdList);
+	{
+		FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneDepthZ, TEXT("SceneDepthTexture"));
+
+		RenderHZB(GraphBuilder, SceneDepthTexture);
+	}
+	GraphBuilder.Execute();
+}
+
+void FMobileSceneRenderer::RenderHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture)
+{
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);
+			
+			BuildHZB(GraphBuilder, SceneDepthTexture, Views[ViewIndex]);
+		}
+	}
 }

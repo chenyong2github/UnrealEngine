@@ -42,7 +42,7 @@ class FHZBBuildPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -80,7 +80,7 @@ class FHZBBuildCS : public FGlobalShader
 			return false;
 		}
 
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES3_1);
+		return true;
 	}
 };
 
@@ -113,6 +113,13 @@ void BuildHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef InSceneDepthTexture, FVi
 
 	bool bReduceClosestDepth = RequireClosestDepthHZB(View);
 	bool bUseCompute = bReduceClosestDepth || CVarHZBBuildUseCompute.GetValueOnRenderThread();
+
+	// The PF_R16F UAV is not supported on mobile devices.
+	if (RHIHasTiledGPU(View.GetShaderPlatform()))
+	{
+		bUseCompute = false;
+		bReduceClosestDepth = false;
+	}
 
 	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2D(
 		HZBSize, PF_R16F,
