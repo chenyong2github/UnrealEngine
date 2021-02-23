@@ -181,6 +181,15 @@ float StrataBSDFProjectedSolidAngleFactor(in FStrataBSDFContext BSDFContext)
 	return BSDFType == STRATA_BSDF_TYPE_HAIR ? 1.0f : BSDFContext.SatNoL;
 }
 
+#if STRATA_MICROFACET_MULTIPLESCATTERING
+
+FStrataGGXLUTResult StrataEvaluateGGXLUT(float3 DiffuseAlbedo, float3 F0, float NoV, float Metallic, float SafeRoughnessX, float SafeRoughnessY)
+{
+	return StrataSampleGGXLUT(Strata.GGXEnergyLUT2DTexture, Strata.GGXEnergyLUT3DTexture, Strata.GGXEnergyLUTSampler, Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughnessX, SafeRoughnessY, F0, Metallic, DiffuseAlbedo);
+}
+
+#else // STRATA_MICROFACET_MULTIPLESCATTERING
+
 float3 StrataEnvBRDF(float3 F0, float3 F90, float SafeRoughnessX, float SatNoV)
 {
 #if STRATA_USE_ENV_BRDF_APPROX
@@ -190,23 +199,9 @@ float3 StrataEnvBRDF(float3 F0, float3 F90, float SafeRoughnessX, float SatNoV)
 #endif
 }
 
-float3 StrataEvaluateMicrofacetMultipleScattering(float3 F0, float NoV, float Metallic, float SafeRoughnessX, float SafeRoughnessY)
-{
-#if STRATA_MICROFACET_MULTIPLESCATTERING
-	// Use the main Roughness term to drive the energy compensation.
-	// "Revisiting Physically Based Shading at Imageworks" Kulla 2017
-	const float SafeRoughness = SafeRoughnessX;
+#endif // STRATA_MICROFACET_MULTIPLESCATTERING
 
-	const FStrataGGXLUTResult LUTSample = StrataSampleGGXLUT(Strata.GGXEnergyLUT2DTexture, Strata.GGXEnergyLUT3DTexture, Strata.GGXEnergyLUTSampler, Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughness, F0);
-	const float3 Fs_0 = StrataEvaluateMultipleScatteringDielectric(F0, LUTSample);
-	const float3 Fs_1 = StrataEvaluateMultipleScatteringConductor(F0, LUTSample);
-	const float3 Fs   = lerp(Fs_0, Fs_1, Metallic);
 
-	return Fs;
-#else
-	return 1.0f;
-#endif
-}
 
 FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadowTerms ShadowTerms)
 {
@@ -304,11 +299,11 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			float3 HazeMSScale = 1;
 			#if STRATA_MICROFACET_MULTIPLESCATTERING
 			{
-				MSScale	= StrataEvaluateMicrofacetMultipleScattering(F0, BSDFContext.Context.NoV, Metallic, SafeRoughnessX, SafeRoughnessY);
+				MSScale	= StrataEvaluateGGXLUT(DiffuseColor, F0, BSDFContext.Context.NoV, Metallic, SafeRoughnessX, SafeRoughnessY).SpecularMultipleScatteringScale;
 				#if STRATA_FASTPATH==0
 				if (bHaziness)
 				{
-					HazeMSScale = StrataEvaluateMicrofacetMultipleScattering(F0, BSDFContext.Context.NoV, Metallic, HazeSafeRoughnessX, HazeSafeRoughnessY);
+					HazeMSScale = StrataEvaluateGGXLUT(DiffuseColor, F0, BSDFContext.Context.NoV, Metallic, HazeSafeRoughnessX, HazeSafeRoughnessY).SpecularMultipleScatteringScale;
 				}
 				#endif
 			}
@@ -542,6 +537,7 @@ struct FStrataEnvLightResult
 {
 	float3 DiffuseColor;
 	float3 DiffuseNormal;
+	float3 DiffuseWeight;
 
 	float3 SpecularDirection;
 	float3 SpecularWeight;
@@ -570,6 +566,9 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			StrataEnvLightResult.DiffuseColor = BaseColor - BaseColor * Metallic;
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
 			StrataEnvLightResult.bSubsurface = BSDF_GETHASSSS(BSDFContext.BSDF) > 0;
+			StrataEnvLightResult.DiffuseWeight = 1;
+
+			float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 
 			float3 FresnelWeight = 1;
 			BRANCH
@@ -589,7 +588,6 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				}
 				#endif
 
-				float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 
 				#if STRATA_FASTPATH==0
 				const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
@@ -609,7 +607,17 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 				}
 				#endif
 
-				float3 EvalEnvBRDF = FresnelWeight * StrataEnvBRDF(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
+				// Compute the directional albedo for specular and diffuse
+			#if STRATA_MICROFACET_MULTIPLESCATTERING
+				float3 EvalEnvBRDF = 0;
+				{
+					FStrataGGXLUTResult GGXLUT	= StrataEvaluateGGXLUT(StrataEnvLightResult.DiffuseColor, F0, BSDFContext.Context.NoV, Metallic, SafeRoughnessX, SafeRoughnessX);
+					EvalEnvBRDF					= FresnelWeight * GGXLUT.DirectionalAlbedo.SpecularR;
+					StrataEnvLightResult.DiffuseWeight = GGXLUT.DirectionalAlbedo.Diffuse;
+				}
+			#else
+				const float3 EvalEnvBRDF = FresnelWeight * StrataEnvBRDF(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
+			#endif
 
 				StrataEnvLightResult.SpecularDirection = StrataGetOffSpecularPeakReflectionDir(BSDFContext.N, BSDFContext.R, SafeRoughnessX);
 				StrataEnvLightResult.SpecularWeight = EvalEnvBRDF;
@@ -629,11 +637,28 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 					// Compute the second specular weight and roughness
 					float SafeRoughnessHaze = ComputeHazyLobeRoughness(SafeRoughnessX, Haziness);
-					StrataEnvLightResult.SpecularHazeWeight = lerp(0.0f, SPECULAR_HAZINESS_WEIGHT, HazinessFadeIn) * StrataEnvBRDF(F0, F90, SafeRoughnessHaze, BSDFContext.SatNoV);
+
+					// Compute the directional albedo for hazy specular
+				#if STRATA_MICROFACET_MULTIPLESCATTERING
+					FStrataGGXLUTResult GGXLUTHaze = StrataEvaluateGGXLUT(StrataEnvLightResult.DiffuseColor, F0, BSDFContext.Context.NoV, Metallic, SafeRoughnessHaze, SafeRoughnessHaze);
+					const float3 EvalEnvBRDFHaze = FresnelWeight * GGXLUTHaze.DirectionalAlbedo.SpecularR;
+				#else
+					const float3 EvalEnvBRDFHaze = FresnelWeight * StrataEnvBRDF(F0, F90, SafeRoughnessX, BSDFContext.SatNoV);
+				#endif
+
+					StrataEnvLightResult.SpecularHazeWeight = lerp(0.0f, SPECULAR_HAZINESS_WEIGHT, HazinessFadeIn) * EvalEnvBRDFHaze;
 					StrataEnvLightResult.SpecularHazeSafeRoughness = SafeRoughnessHaze;
 				}
 				#endif
 			}
+			#if STRATA_MICROFACET_MULTIPLESCATTERING
+			else
+			{
+				// Compute the directional albedo for diffuse
+				FStrataGGXLUTResult GGXLUT = StrataEvaluateGGXLUT(StrataEnvLightResult.DiffuseColor, 1.f, BSDFContext.Context.NoV, 0.f, SafeRoughnessX, SafeRoughnessX);
+				StrataEnvLightResult.DiffuseWeight = GGXLUT.DirectionalAlbedo.Diffuse;
+			}
+			#endif
 
 			#if STRATA_FASTPATH==0
 			BRANCH

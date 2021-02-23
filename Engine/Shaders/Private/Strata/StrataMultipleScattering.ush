@@ -7,23 +7,71 @@
 // Multiple scattering computation use a precomputed LUT. There are two variant: 
 //  1) Using 2D LUT using Schlick Fresnel decomposition (view angle, roughness)
 //  2) Using 3D LUT building a full 3D LUT (view angle, roughness, F0)
-// 
-// These two variants exist only for testing purpose at the moment
+
+struct FStrataGGXDirectionalAlbedo
+{
+	float3 SpecularR;	// Specular Directional albedo with multiple scattering (reflection)
+	float3 SpecularT;	// Specular Directional albedo with multiple scattering (transmission)
+	float3 Diffuse;		// Diffuse  Directional albedo with multiple scattering (embedded into Chan's model itself)
+};
 
 struct FStrataGGXLUTResult
 {
-	// Fresnel A/B term for reconstructing directional albedo for reflection
+	// Fresnel A/B term for reconstructing directional albedo for reflection (used to evaluate a chromatic F0). These values are dependent of F0.
 	float A_R;
 	float B_R;
 
-	// Complete directional albedo for reflection, refraction, and diffuse
+	// Complete directional albedo for reflection, refraction, and diffuse (used to evluate an achromatic F0). These values are independent of F0
 	float E_R;
 	float E_T;
 	float E_D;
+
+	// Derived terms
+	float3 SpecularMultipleScatteringScale;			// Multiple scattering scale factor for specular reflection
+	FStrataGGXDirectionalAlbedo DirectionalAlbedo;	// Directional albedo (with multiple scattering for reflection/transmission/diffuse
 };
 
-FStrataGGXLUTResult StrataSampleGGXLUT(Texture2D<float4> LUT2D, Texture3D<float2> LUT3D, SamplerState LUTSampler, float2 LUTScaleBias, float NoV, float Roughness, float3 F0)
+// Return a scaling factor to multiple a specular GGX interface with, to add multiple scattering contribution (for conductor)
+// From "Practical multiple scattering compensation for microfacet models." E. Turquin
+float3 StrataEvaluateMultipleScatteringConductor(float3 F0, FStrataGGXLUTResult LUT)
 {
+	// Reconstruction of the directional Albedo for upper hemisphere
+	// E_R = F0.A_R + (1-F0).B_R
+	// 
+	// Microfacet multiple scattering term for *conductor*
+	//  f_ms(wo,wi) = F_ss . (1 +  F0 (1-E_R)/ E_R)
+	
+	const float3 E_R = F0 * LUT.A_R + (1 - F0) * LUT.B_R;
+	return (1 + F0 * (1 - E_R) / E_R);
+}
+
+// Return a scaling factor to multiple a specular GGX interface with, to add multiple scattering contribution (for dieletric)
+float3 StrataEvaluateMultipleScatteringDielectric(float3 F0, FStrataGGXLUTResult LUT)
+{
+	// Microfacet multiple scattering term for *dielietric*
+	//  f_ms(wo,wi) = F_ss / (E_T + E_R)
+
+	return 1.f / (LUT.E_R + LUT.E_T);
+}
+
+// Return the directional albedo of a specular GGX interface for reflection term without multiple scattering
+float3 StrataEvaluateSpecularGGXDirectionalAlbedo(float3 F0, FStrataGGXLUTResult LUT)
+{
+	return F0 * LUT.A_R + (1 - F0) * LUT.B_R;
+}
+
+// Return the directional alebedo of a diffuse GGX interface without multiple scattering
+float3 StrataEvaluateDiffuseGGXDirectionalAlbedo(float3 Albedo, FStrataGGXLUTResult LUT)
+{
+	return Albedo * LUT.E_D;
+}
+
+FStrataGGXLUTResult StrataSampleGGXLUT(Texture2D<float4> LUT2D, Texture3D<float2> LUT3D, SamplerState LUTSampler, float2 LUTScaleBias, float NoV, float RoughnessX, float RoughnessY, float3 F0, float Metallic, float3 DiffuseAlbedo)
+{
+	// Use the main Roughness term to drive the energy compensation.
+	// "Revisiting Physically Based Shading at Imageworks" Kulla 2017
+	const float Roughness = RoughnessX;
+
 	FStrataGGXLUTResult Out = (FStrataGGXLUTResult)0;
 
 	// 2D LUT sampling
@@ -43,28 +91,18 @@ FStrataGGXLUTResult StrataSampleGGXLUT(Texture2D<float4> LUT2D, Texture3D<float2
 		Out.E_T = S.y;
 	}
 
+	// Derived MS scales
+	{
+		const float3 DA_ConductorSS = StrataEvaluateSpecularGGXDirectionalAlbedo(F0, Out);
+
+		const float3 MSScale_Dieletric = StrataEvaluateMultipleScatteringDielectric(F0, Out);
+		const float3 MSScale_Conductor = StrataEvaluateMultipleScatteringConductor(F0, Out);
+		const float3 MSScale		   = lerp(MSScale_Dieletric, MSScale_Conductor, Metallic);
+
+		Out.SpecularMultipleScatteringScale = MSScale;
+		Out.DirectionalAlbedo.SpecularR		= MSScale * lerp(Out.E_R.xxx, DA_ConductorSS, Metallic);
+		Out.DirectionalAlbedo.SpecularT		= MSScale * lerp(Out.E_T, 0.f, Metallic);
+		Out.DirectionalAlbedo.Diffuse		= StrataEvaluateDiffuseGGXDirectionalAlbedo(DiffuseAlbedo, Out);
+	}
 	return Out;
 }
-
-// From "Practical multiple scattering compensation for microfacet models." E. Turquin
-float3 StrataEvaluateMultipleScatteringConductor(float3 F0, FStrataGGXLUTResult LUT)
-{
-	// Reconstruction of the directional Albedo for upper hemisphere
-	// E_R = F0.A_R + (1-F0).B_R
-	// 
-	// Microfacet multiple scattering term for *conductor*
-	//  f_ms(wo,wi) = F_ss . (1 +  F0 (1-E_R)/ E_R)
-	
-	const float3 E_R = F0 * LUT.A_R + (1 - F0) * LUT.B_R;
-	return (1 + F0 * (1 - E_R) / E_R);
-}
-
-float3 StrataEvaluateMultipleScatteringDielectric(float3 F0, FStrataGGXLUTResult LUT)
-{
-	// Microfacet multiple scattering term for *dielietric*
-	//  f_ms(wo,wi) = F_ss / (E_T + E_R)
-
-	return 1.f / (LUT.E_R + LUT.E_T);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////

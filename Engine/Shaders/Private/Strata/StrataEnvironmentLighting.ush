@@ -38,11 +38,11 @@ float4 StrataEnvironmentLighting(
 	for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 #endif
 	{
-#if STRATA_FASTPATH
+	#if STRATA_FASTPATH
 		FStrataBSDF BSDF = UnpackFastPathStrataBSDFIn(StrataDataBuffer, StrataAddressing);
-#else
+	#else
 		FStrataBSDF BSDF = UnpackStrataBSDFIn(StrataDataBuffer, StrataAddressing);
-#endif
+	#endif
 		const float3 BSDFThroughput = BSDF.Weight;
 
 		// Create the BSDF context
@@ -68,9 +68,10 @@ float4 StrataEnvironmentLighting(
 			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, StrataPixelHeader.MaterialAO, AmbientOcclusion, StrataEnvLight.DiffuseNormal);
 
 			// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
-			float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb;			// STRATA_TODO compute SH coefficients for ON or Chan
+			float3 DiffuseLookup = GetSkySHDiffuse(StrataEnvLight.DiffuseNormal) * View.SkyLightColor.rgb;		
 			// And accumulate
-			DiffuseSkyLighting = BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseColor;
+			// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
+			DiffuseSkyLighting = BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseWeight;
 		}
 
 		// Specular component
@@ -85,7 +86,7 @@ float4 StrataEnvironmentLighting(
 				(bIsTopLayer ? TopLayerSpecularContributionFactor : 1.0f);
 		}
 
-#if STRATA_FASTPATH==0
+	#if STRATA_FASTPATH==0
 		if (BSDF_GETHASHAZINESS(BSDF))
 		{
 			float SkyAverageBrightness = 1.0f;
@@ -97,7 +98,7 @@ float4 StrataEnvironmentLighting(
 			// And we also try to make the transition smooth using Haziness
 			SSRReductionFactor -= bIsTopLayer ? dot(BSDFThroughput, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f)) * StrataEnvLight.SSRReduction : 0.0f;
 		}
-#endif 
+	#endif 
 
 		if (bIsTopLayer)
 		{
