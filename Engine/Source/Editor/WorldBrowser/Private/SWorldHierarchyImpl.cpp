@@ -122,7 +122,7 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 		/** Lighting Scenario column */
 		+ SHeaderRow::Column(HierarchyColumns::ColumnID_LightingScenario)
 			.Visibility(bFoldersOnlyMode ? EVisibility::Collapsed : EVisibility::Visible)
-			.FixedWidth( 18.0f )
+			.FixedWidth( 24.0f )
 			.HeaderContent()
 			[
 				SNew(STextBlock)
