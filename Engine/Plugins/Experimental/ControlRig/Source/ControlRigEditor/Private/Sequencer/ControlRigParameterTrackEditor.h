@@ -173,6 +173,11 @@ private:
 	FDelegateHandle OnActorAddedToSequencerHandle;
 	FDelegateHandle OnTreeViewChangedHandle;
 
+
+	//used to sync curve editor selections/displays on next tick for performance reasons
+	TArray<FMovieSceneChannelHandle> DisplayedChannels;
+	TArray<FMovieSceneChannelHandle> UnDisplayedChannels;
+	bool bCurveDisplayTickIsPending;
 	void BindControlRig(UControlRig* ControlRig);
 	void UnbindControlRig(UControlRig* ControlRig);
 	void UnbindAllControlRigs();

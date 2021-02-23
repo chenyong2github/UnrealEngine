@@ -186,6 +186,7 @@ void SSequencerTreeView::Construct(const FArguments& InArgs, const TSharedRef<FS
 		.OnContextMenuOpening( this, &SSequencerTreeView::OnContextMenuOpening )
 		.OnSetExpansionRecursive(this, &SSequencerTreeView::SetItemExpansionRecursive)
 		.HighlightParentNodesForSelection(true)
+		.AllowInvisibleItemSelection(true)  //without this we deselect everything when we filter or we collapse, etc..
 	);
 }
 
