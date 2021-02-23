@@ -244,6 +244,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV11_14(FUdpDeserializedMessage& 
 
 		if (!DeserializedMessage.TypeInfo.IsValid(false, true))
 		{
+			UE_LOG(LogUdpMessaging, Verbose, TEXT("No valid type info found for message type %s"), *MessageType.ToString());
 			return false;
 		}
 	}

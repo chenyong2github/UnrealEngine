@@ -6,6 +6,11 @@
 #include "Bus/MessageContext.h"
 #include "Bus/MessageSubscription.h"
 #include "IMessageSender.h"
+#include "IMessageReceiver.h"
+#include "HAL/ThreadSingleton.h"
+
+
+
 
 
 /* FMessageBus structors
@@ -40,6 +45,15 @@ void FMessageBus::Forward(
 	const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Forwarder
 )
 {
+	if (LogMessaging.GetVerbosity() >= ELogVerbosity::Verbose)
+	{
+		FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
+
+		UE_LOG(LogMessaging, Verbose, TEXT("Forwarding %s from %s to %s"),
+			*Context->GetMessageType().ToString(),
+			*Context->GetSender().ToString(), *RecipientStr);
+	}
+
 	Router->RouteMessage(MakeShareable(new FMessageContext(
 		Context,
 		Forwarder->GetSenderAddress(),
@@ -66,6 +80,7 @@ void FMessageBus::Intercept(const TSharedRef<IMessageInterceptor, ESPMode::Threa
 
 	if (!RecipientAuthorizer.IsValid() || RecipientAuthorizer->AuthorizeInterceptor(Interceptor, MessageType))
 	{
+		UE_LOG(LogMessaging, Log, TEXT("Adding invterceptor %s"), *Interceptor->GetDebugName().ToString());
 		Router->AddInterceptor(Interceptor, MessageType);
 	}			
 }
@@ -87,6 +102,8 @@ void FMessageBus::Publish(
 	const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Publisher
 )
 {
+	UE_LOG(LogMessaging, Log, TEXT("Publishing %s from sender %s"), *TypeInfo->GetName(), *Publisher->GetSenderAddress().ToString());
+
 	Router->RouteMessage(MakeShared<FMessageContext, ESPMode::ThreadSafe>(
 		Message,
 		TypeInfo,
@@ -105,6 +122,7 @@ void FMessageBus::Publish(
 
 void FMessageBus::Register(const FMessageAddress& Address, const TSharedRef<IMessageReceiver, ESPMode::ThreadSafe>& Recipient)
 {
+	UE_LOG(LogMessaging, Log, TEXT("Registering %s"), *Address.ToString());
 	Router->AddRecipient(Address, Recipient);
 }
 
@@ -121,6 +139,8 @@ void FMessageBus::Send(
 	const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Sender
 )
 {
+	UE_LOG(LogMessaging, Log, TEXT("Sending %s to %d recipients"), *TypeInfo->GetName(), Recipients.Num());
+
 	Router->RouteMessage(MakeShared<FMessageContext, ESPMode::ThreadSafe>(
 		Message,
 		TypeInfo,
@@ -160,6 +180,7 @@ TSharedPtr<IMessageSubscription, ESPMode::ThreadSafe> FMessageBus::Subscribe(
 	{
 		if (!RecipientAuthorizer.IsValid() || RecipientAuthorizer->AuthorizeSubscription(Subscriber, MessageType))
 		{
+			UE_LOG(LogMessaging, Log, TEXT("Subscribing %s"), *Subscriber->GetDebugName().ToString());
 			TSharedRef<IMessageSubscription, ESPMode::ThreadSafe> Subscription = MakeShareable(new FMessageSubscription(Subscriber, MessageType, ScopeRange));
 			Router->AddSubscription(Subscription);
 
@@ -175,6 +196,7 @@ void FMessageBus::Unintercept(const TSharedRef<IMessageInterceptor, ESPMode::Thr
 {
 	if (MessageType != NAME_None)
 	{
+		UE_LOG(LogMessaging, Log, TEXT("Unintercepting %s"), *Interceptor->GetDebugName().ToString());
 		Router->RemoveInterceptor(Interceptor, MessageType);
 	}
 }
@@ -182,8 +204,10 @@ void FMessageBus::Unintercept(const TSharedRef<IMessageInterceptor, ESPMode::Thr
 
 void FMessageBus::Unregister(const FMessageAddress& Address)
 {
+	UE_LOG(LogMessaging, Log, TEXT("Attempting to unregister %s"), *Address.ToString());
 	if (!RecipientAuthorizer.IsValid() || RecipientAuthorizer->AuthorizeUnregistration(Address))
 	{
+		UE_LOG(LogMessaging, Log, TEXT("Unregistered %s"), *Address.ToString());
 		Router->RemoveRecipient(Address);
 	}
 }
@@ -195,6 +219,7 @@ void FMessageBus::Unsubscribe(const TSharedRef<IMessageReceiver, ESPMode::Thread
 	{
 		if (!RecipientAuthorizer.IsValid() || RecipientAuthorizer->AuthorizeUnsubscription(Subscriber, MessageType))
 		{
+			UE_LOG(LogMessaging, Log, TEXT("Unsubscribing %s"), *Subscriber->GetDebugName().ToString());
 			Router->RemoveSubscription(Subscriber, MessageType);
 		}
 	}
@@ -214,3 +239,32 @@ const FString& FMessageBus::GetName() const
 {
 	return Name;
 }
+
+struct FThreadLocalMessageRouterState : TThreadSingleton<FThreadLocalMessageRouterState>
+{
+	bool IsLoggingEnabled() const
+	{
+		return State.Last();
+	}
+
+	void PushLoggingEnabled(const bool bState)
+	{
+		State.Push(bState);
+	}
+
+	void PopLoggingEnabled()
+	{
+		State.Pop();
+		checkf(State.Num(), TEXT("Too many pops!"));
+	}
+
+protected:
+	
+	friend class  TThreadSingleton<FThreadLocalMessageRouterState>;
+	FThreadLocalMessageRouterState()
+	{
+		State.Push(true);
+	}
+
+	TArray<bool> State;
+};

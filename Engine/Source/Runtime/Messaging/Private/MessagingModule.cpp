@@ -17,6 +17,7 @@
 	#define PLATFORM_SUPPORTS_MESSAGEBUS !(WITH_SERVER_CODE && UE_BUILD_SHIPPING)
 #endif
 
+DEFINE_LOG_CATEGORY(LogMessaging);
 
 /**
  * Implements the Messaging module.

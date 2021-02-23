@@ -166,6 +166,8 @@ void FUdpSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const F
 		SerializedMessage->UpdateState(EUdpSerializedMessageState::Invalid);
 	}
 
+	UE_LOG(LogUdpMessaging, Verbose, TEXT("Serialized %s from %s to %d bytes"), *MessageContext->GetMessageType().ToString(), *MessageContext->GetSender().ToString(), SerializedMessage->TotalSize());
+
 	// signal task completion
 	TSharedPtr<FEvent, ESPMode::ThreadSafe> CompletionEvent = CompletionEventPtr.Pin();
 

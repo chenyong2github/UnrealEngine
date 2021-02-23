@@ -18,6 +18,7 @@
 #include "Transport/UdpDeserializedMessage.h"
 #include "Transport/UdpSerializedMessage.h"
 #include "Transport/UdpMessageProcessor.h"
+#include "Misc/Guid.h"
 
 
 /* FUdpMessageTransport structors
@@ -66,6 +67,8 @@ void FUdpMessageTransport::AddStaticEndpoint(const FIPv4Endpoint& InEndpoint)
 	{
 		MessageProcessor->AddStaticEndpoint(InEndpoint);
 	}
+	UE_LOG(LogUdpMessaging, Verbose, TEXT("Added StaticEndpoint at %s"), *InEndpoint.ToString());
+
 }
 
 
@@ -76,6 +79,7 @@ void FUdpMessageTransport::RemoveStaticEndpoint(const FIPv4Endpoint& InEndpoint)
 	{
 		MessageProcessor->RemoveStaticEndpoint(InEndpoint);
 	}
+	UE_LOG(LogUdpMessaging, Verbose, TEXT("Removed StaticEndpoint at %s"), *InEndpoint.ToString());
 }
 
 bool FUdpMessageTransport::RestartTransport()
@@ -185,6 +189,7 @@ bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 	}
 #endif
 
+	UE_LOG(LogUdpMessaging, Verbose, TEXT("Started Transport"));
 	return true;
 }
 
@@ -220,6 +225,7 @@ void FUdpMessageTransport::StopTransport()
 
 	TransportHandler = nullptr;
 	ErrorFuture.Reset();
+	UE_LOG(LogUdpMessaging, Verbose, TEXT("Stopped Transport"));
 }
 
 
@@ -234,6 +240,9 @@ bool FUdpMessageTransport::TransportMessage(const TSharedRef<IMessageContext, ES
 	{
 		return false;
 	}
+
+	FString RecipientStr = FString::JoinBy(Recipients, TEXT("+"), [](const FGuid& Guid) { return Guid.ToString(); });
+	UE_LOG(LogUdpMessaging, Log, TEXT("TransportMessage %s from %s to %s"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString(), *RecipientStr);
 
 	return MessageProcessor->EnqueueOutboundMessage(Context, Recipients);
 }
@@ -250,6 +259,10 @@ void FUdpMessageTransport::HandleProcessorMessageReassembled(const FUdpReassembl
 	if (DeserializedMessage->Deserialize(ReassembledMessage))
 	{
 		TransportHandler->ReceiveTransportMessage(DeserializedMessage, NodeId);
+	}
+	else
+	{
+		UE_LOG(LogUdpMessaging, Display, TEXT("Failed to deserialize message from %s"), *NodeId.ToString());
 	}
 }
 

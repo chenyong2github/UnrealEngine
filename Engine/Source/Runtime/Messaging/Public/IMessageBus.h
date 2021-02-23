@@ -29,6 +29,9 @@ struct FTimespan;
 /** Delegate type for message bus shutdowns. */
 DECLARE_MULTICAST_DELEGATE(FOnMessageBusShutdown);
 
+/** Log category for message bus code */
+DECLARE_LOG_CATEGORY_EXTERN(LogMessaging, Log, All);
+
 
 /**
  * Interface for message buses.
