@@ -4,6 +4,7 @@
 
 #include "Chaos/Declares.h"
 #include "UObject/GCObject.h"
+#include "Chaos/Core.h"
 
 enum class EPhysicsProxyType
 {
