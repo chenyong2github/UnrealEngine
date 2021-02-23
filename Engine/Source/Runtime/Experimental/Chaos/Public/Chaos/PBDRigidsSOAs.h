@@ -212,6 +212,8 @@ public:
 		{
 			InsertToMapAndArray(Rigid, TransientDirtyToIndex, TransientDirtyArray);
 		}
+
+		UpdateViews();
 	}
 
 	void DestroyParticle(FGeometryParticleHandle* Particle)
