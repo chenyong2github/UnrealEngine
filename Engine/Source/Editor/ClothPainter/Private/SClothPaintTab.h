@@ -10,6 +10,7 @@ class SClothAssetSelector;
 class IDetailsView;
 class ISkeletalMeshEditor;
 class IPersonaToolkit;
+class SScrollBox;
 
 class CLOTHPAINTER_API SClothPaintTab : public SCompoundWidget
 {
@@ -51,7 +52,7 @@ protected:
 	
 	TSharedPtr<SClothAssetSelector> SelectorWidget;
 	TSharedPtr<SClothPaintWidget> ModeWidget;
-	TSharedPtr<SVerticalBox> ContentBox;
+	TSharedPtr<SScrollBox> ContentBox;
 	TSharedPtr<IDetailsView> DetailsView;
 
 	bool bModeApplied;

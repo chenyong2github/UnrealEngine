@@ -77,15 +77,9 @@ void SClothPaintTab::Construct(const FArguments& InArgs)
 	FSlateIcon TexturePaintIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.MeshPaintMode.TexturePaint");
 
 	this->ChildSlot
+	.Padding(4.f)
 	[
-		SNew(SScrollBox)
-		+ SScrollBox::Slot()
-		[
-			SAssignNew(ContentBox, SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.VAlign(VAlign_Center)
-		]
+		SAssignNew(ContentBox, SScrollBox)
 	];
 
 	ISkeletalMeshEditor* SkeletalMeshEditor = static_cast<ISkeletalMeshEditor*>(HostingApp.Pin().Get());
@@ -95,14 +89,12 @@ void SClothPaintTab::Construct(const FArguments& InArgs)
 		IPersonaToolkit& Persona = SkeletalMeshEditor->GetPersonaToolkit().Get();
 
 		ContentBox->AddSlot()
-		.AutoHeight()
 		[
 			SAssignNew(SelectorWidget, SClothAssetSelector, Persona.GetMesh())
 				.OnSelectionChanged(this, &SClothPaintTab::OnAssetSelectionChanged)
 		];
 
 		ContentBox->AddSlot()
-		.AutoHeight()
 		[
 			DetailsView->AsShared()
 		];
@@ -150,7 +142,6 @@ void SClothPaintTab::UpdatePaintTools()
 			PaintMode->SetPersonaToolKit(SkeletalMeshEditor->GetPersonaToolkit());
 
 			ContentBox->AddSlot()
-			.AutoHeight()
 			[
 				ModeWidget->AsShared()
 			];
