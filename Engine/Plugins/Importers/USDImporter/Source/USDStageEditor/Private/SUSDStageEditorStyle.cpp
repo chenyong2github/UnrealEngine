@@ -8,6 +8,7 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
+#include "Styling/StyleColors.h"
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FUsdStageEditorStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
@@ -52,6 +53,25 @@ void FUsdStageEditorStyle::Initialize()
 	{
 		/** Height of items in the stage/layer tree views, prim info panel, etc. */
 		StyleSet->Set( "UsdStageEditor.ListItemHeight", 20.0f );
+
+		/** Color of Prim labels that have composition arcs */
+		StyleSet->Set( "UsdStageEditor.PrimCompositionArcColor", FLinearColor( FColor::Orange ) );
+
+		/** Highlighted color of Prim labels that have composition arcs */
+		StyleSet->Set( "UsdStageEditor.HighlightPrimCompositionArcColor", FLinearColor( 0.2f, 0.08f, 0.0f, 1.0f ) );
+
+		/**
+		 * Button without a background, border or foreground color that doesn't move when pressed.
+		 * No foreground color is important to let the automatic slate foreground color propagate down.
+		 */
+		const FButtonStyle Style = FButtonStyle()
+			.SetNormal( FSlateNoResource() )
+			.SetHovered( FSlateNoResource() )
+			.SetPressed( FSlateNoResource() )
+			.SetDisabled( FSlateNoResource() )
+			.SetNormalPadding( FMargin( 2, 2, 2, 2 ) )
+			.SetPressedPadding( FMargin( 2, 2, 2, 2 ) );
+		StyleSet->Set( "NoBorder", Style );
 	}
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());

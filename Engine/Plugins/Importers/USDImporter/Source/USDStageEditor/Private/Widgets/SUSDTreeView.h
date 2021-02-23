@@ -16,7 +16,7 @@ class FUsdTreeViewColumn
 public:
 	virtual ~FUsdTreeViewColumn() = default;
 
-	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > TreeItem ) = 0;
+	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > TreeItem, const TSharedPtr< ITableRow > TableRow ) = 0;
 
 public:
 	bool bIsMainColumn = false;
@@ -109,12 +109,15 @@ private:
 
 template< typename ItemType >
 inline TSharedRef< SWidget > SUsdTreeRow< ItemType >::GenerateWidgetForColumn( const FName& ColumnName )
-{	
+{
 	TSharedRef< SWidget > ColumnWidget = SNullWidget::NullWidget;
 
 	if ( SharedData && SharedData->Columns.Contains( ColumnName ) )
 	{
-		ColumnWidget = SharedData->Columns[ ColumnName ]->GenerateWidget( StaticCastSharedPtr< IUsdTreeViewItem >( TSharedPtr< typename ItemType::ElementType >( TreeItem ) ) );
+		ColumnWidget = SharedData->Columns[ ColumnName ]->GenerateWidget(
+			StaticCastSharedPtr< IUsdTreeViewItem >( TSharedPtr< typename ItemType::ElementType >( TreeItem ) ),
+			SharedThis(this)
+		);
 	}
 
 	if ( SharedData->Columns[ ColumnName ]->bIsMainColumn )

@@ -389,7 +389,7 @@ void SUsdStage::FillActionsMenu( FMenuBuilder& MenuBuilder )
 
 void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 {
-	MenuBuilder.BeginSection( "Options", LOCTEXT("Options", "Options") );
+	MenuBuilder.BeginSection( TEXT( "StageOptions" ), LOCTEXT( "StageOptions", "Stage options" ) );
 	{
 		MenuBuilder.AddSubMenu(
 			LOCTEXT("Payloads", "Payloads"),
@@ -408,9 +408,11 @@ void SUsdStage::FillOptionsMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("RenderContext", "Render Context"),
 			LOCTEXT("RenderContext_ToolTip", "Choose which render context to use when parsing materials"),
 			FNewMenuDelegate::CreateSP(this, &SUsdStage::FillRenderContextSubMenu));
+	}
+	MenuBuilder.EndSection();
 
-		MenuBuilder.AddMenuSeparator();
-
+	MenuBuilder.BeginSection( TEXT( "EditorOptions" ), LOCTEXT( "EditorOptions", "Editor options" ) );
+	{
 		MenuBuilder.AddSubMenu(
 			LOCTEXT( "SelectionText", "Selection" ),
 			LOCTEXT( "SelectionText_ToolTip", "How the selection of prims, actors and components should behave" ),

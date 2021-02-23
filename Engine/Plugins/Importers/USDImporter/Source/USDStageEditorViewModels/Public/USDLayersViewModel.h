@@ -38,6 +38,7 @@ public:
 
 	UE::FSdfLayer GetLayer() const;
 
+	bool IsLayerMuted() const;
 	bool CanMuteLayer() const;
 	void ToggleMuteLayer();
 

@@ -20,6 +20,7 @@
 #include "Styling/SlateTypes.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/SToolTip.h"
 
 #if USE_USD_SDK
 
@@ -28,7 +29,7 @@
 class FUsdLayerNameColumn : public FUsdTreeViewColumn
 {
 public:
-	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
+	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
 
@@ -36,9 +37,7 @@ public:
 			.VAlign( VAlign_Center )
 			[
 				SNew(STextBlock)
-				.TextStyle( FEditorStyle::Get(), "LargeText" )
 				.Text( TreeItem->LayerModel, &FUsdLayerModel::GetDisplayName )
-				.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) )
 			];
 	}
 };
@@ -53,23 +52,53 @@ public:
 		return FReply::Handled();
 	}
 
-	const FSlateBrush* GetBrush( const FUsdLayerViewModelRef TreeItem ) const
+	const FSlateBrush* GetBrush( const FUsdLayerViewModelRef TreeItem, const TSharedPtr< SButton > Button ) const
 	{
+		const bool bIsButtonHovered = Button.IsValid() && Button->IsHovered();
+
 		if ( !CanMuteLayer( TreeItem ) )
 		{
 			return nullptr;
 		}
 		else if ( TreeItem->LayerModel->bIsMuted )
 		{
-			return FEditorStyle::GetBrush( "Level.NotVisibleIcon16x" );
+			return bIsButtonHovered
+				? FEditorStyle::GetBrush( "Level.NotVisibleHighlightIcon16x" )
+				: FEditorStyle::GetBrush( "Level.NotVisibleIcon16x" );
 		}
 		else
 		{
-			return FEditorStyle::GetBrush( "Level.VisibleIcon16x" );
+			return bIsButtonHovered
+				? FEditorStyle::GetBrush( "Level.VisibleHighlightIcon16x" )
+				: FEditorStyle::GetBrush( "Level.VisibleIcon16x" );
 		}
 	}
 
-	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
+	FSlateColor GetForegroundColor( const FUsdLayerViewModelRef TreeItem, const TSharedPtr< ITableRow > TableRow, const TSharedPtr< SButton > Button ) const
+	{
+		if ( !TableRow.IsValid() || !Button.IsValid() )
+		{
+			return FSlateColor::UseForeground();
+		}
+
+		const bool bIsRowHovered = TableRow->AsWidget()->IsHovered();
+		const bool bIsButtonHovered = Button->IsHovered();
+		const bool bIsRowSelected = TableRow->IsItemSelected();
+		const bool bIsLayerMuted = TreeItem->IsLayerMuted();
+
+		if ( !bIsLayerMuted && !bIsRowHovered && !bIsRowSelected )
+		{
+			return FLinearColor::Transparent;
+		}
+		else if ( bIsButtonHovered && !bIsRowSelected )
+		{
+			return FEditorStyle::GetSlateColor( TEXT( "Colors.ForegroundHover" ) );
+		}
+
+		return FSlateColor::UseForeground();
+	}
+
+	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		if ( !InTreeItem )
 		{
@@ -77,29 +106,37 @@ public:
 		}
 
 		FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
+		const float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
 
-		TSharedRef< SWidget > Item =
-			SNew( SButton )
-			.ContentPadding(0)
-			.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
+		if ( !TreeItem->CanMuteLayer() )
+		{
+			return SNew( SBox )
+				.HeightOverride( ItemSize )
+				.WidthOverride( ItemSize )
+				.Visibility( EVisibility::Visible )
+				.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "CantMuteLayerTooltip", "This layer cannot be muted!" ) ) );
+		}
+
+		TSharedPtr<SButton> Button = SNew( SButton )
+			.ContentPadding( 0 )
+			.ButtonStyle( FUsdStageEditorStyle::Get(), TEXT("NoBorder") )
 			.OnClicked( this, &FUsdLayerMutedColumn::OnClicked, TreeItem )
+			.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "MuteLayerTooltip", "Mute or unmute this layer" ) ) )
 			.HAlign( HAlign_Center )
-			.VAlign( VAlign_Center )
-			.Content()
-			[
-				SNew( SImage )
-				.Image( this, &FUsdLayerMutedColumn::GetBrush, TreeItem )
-			];
+			.VAlign( VAlign_Center );
 
-		float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
+		TSharedPtr<SImage> Image = SNew( SImage )
+			.Image( this, &FUsdLayerMutedColumn::GetBrush, TreeItem, Button )
+			.ColorAndOpacity( this, &FUsdLayerMutedColumn::GetForegroundColor, TreeItem, TableRow, Button );
+
+		Button->SetContent( Image.ToSharedRef() );
 
 		return SNew( SBox )
 			.HeightOverride( ItemSize )
 			.WidthOverride( ItemSize )
-			.HAlign( HAlign_Center )
-			.VAlign( VAlign_Center )
+			.Visibility( EVisibility::Visible )
 			[
-				Item
+				Button.ToSharedRef()
 			];
 	}
 
@@ -135,14 +172,14 @@ public:
 			nullptr;
 	}
 
-	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
+	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		const FUsdLayerViewModelRef TreeItem = StaticCastSharedRef< FUsdLayerViewModel >( InTreeItem.ToSharedRef() );
 
 		TSharedRef< SWidget > Item =
 			SNew(SImage)
 				.Image( this, &FUsdLayerEditColumn::GetCheckedImage, TreeItem )
-				.ColorAndOpacity( FEditorStyle::Get().GetWidgetStyle< FCheckBoxStyle >( "Checkbox" ).ForegroundColor );
+				.ColorAndOpacity( FSlateColor::UseForeground() );
 
 		float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
 

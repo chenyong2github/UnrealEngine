@@ -51,7 +51,7 @@ public:
 
 	TWeakPtr< SUsdStageTreeView > OwnerTree;
 
-	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
+	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		if ( !InTreeItem )
 		{
@@ -63,7 +63,6 @@ public:
 		TSharedRef< SInlineEditableTextBlock > Item =
 			SNew( SInlineEditableTextBlock )
 			.Text( TreeItem->RowData, &FUsdPrimModel::GetName )
-			.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) )
 			.ColorAndOpacity( this, &FUsdStageNameColumn::GetTextColor, TreeItem )
 			.OnTextCommitted( this, &FUsdStageNameColumn::OnTextCommitted, TreeItem )
 			.OnVerifyTextChanged( this, &FUsdStageNameColumn::OnTextUpdated, TreeItem )
@@ -106,18 +105,22 @@ protected:
 
 	FSlateColor GetTextColor( TSharedPtr< FUsdPrimViewModel > TreeItem ) const
 	{
-		FSlateColor TextColor = FLinearColor::White;
+		FSlateColor TextColor = FSlateColor::UseForeground();
+		if ( !TreeItem )
+		{
+			return TextColor;
+		}
 
-		if ( TreeItem && TreeItem->RowData->HasCompositionArcs() )
+		if ( TreeItem->RowData->HasCompositionArcs() )
 		{
 			const TSharedPtr< SUsdStageTreeView > OwnerTreePtr = OwnerTree.Pin();
 			if ( OwnerTreePtr && OwnerTreePtr->IsItemSelected( TreeItem.ToSharedRef() ) )
 			{
-				TextColor = FSlateColor::UseForeground();
+				TextColor = FUsdStageEditorStyle::Get()->GetColor( "UsdStageEditor.HighlightPrimCompositionArcColor" );
 			}
 			else
 			{
-				TextColor = FLinearColor( FColor::Orange );
+				TextColor = FUsdStageEditorStyle::Get()->GetColor( "UsdStageEditor.PrimCompositionArcColor" );
 			}
 		}
 
@@ -160,7 +163,7 @@ public:
 		}
 	}
 
-	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
+	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		bool bHasPayload = false;
 
@@ -198,26 +201,60 @@ public:
 		return FReply::Handled();
 	}
 
-	const FSlateBrush* GetBrush( const FUsdPrimViewModelPtr TreeItem ) const
+	const FSlateBrush* GetBrush( const FUsdPrimViewModelPtr TreeItem, const TSharedPtr< SButton > Button ) const
 	{
+		const bool bIsButtonHovered = Button.IsValid() && Button->IsHovered();
+
 		if ( TreeItem->RowData->IsVisible() )
 		{
-			return FEditorStyle::GetBrush( "Level.VisibleIcon16x" );
+			return bIsButtonHovered
+				? FEditorStyle::GetBrush( "Level.VisibleHighlightIcon16x" )
+				: FEditorStyle::GetBrush( "Level.VisibleIcon16x" );
 		}
 		else
 		{
-			return FEditorStyle::GetBrush( "Level.NotVisibleIcon16x" );
+			return bIsButtonHovered
+				? FEditorStyle::GetBrush( "Level.NotVisibleHighlightIcon16x" )
+				: FEditorStyle::GetBrush( "Level.NotVisibleIcon16x" );
 		}
 	}
 
-	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
+	FSlateColor GetForegroundColor( const FUsdPrimViewModelPtr TreeItem, const TSharedPtr< ITableRow > TableRow, const TSharedPtr< SButton > Button ) const
 	{
+		if ( !TreeItem.IsValid() || !TableRow.IsValid() || !Button.IsValid() )
+		{
+			return FSlateColor::UseForeground();
+		}
+
+		const bool bIsRowHovered = TableRow->AsWidget()->IsHovered();
+		const bool bIsButtonHovered = Button->IsHovered();
+		const bool bIsRowSelected = TableRow->IsItemSelected();
+		const bool bIsPrimVisible = TreeItem->RowData->IsVisible();
+
+		if ( bIsPrimVisible && !bIsRowHovered && !bIsRowSelected )
+		{
+			return FLinearColor::Transparent;
+		}
+		else if ( bIsButtonHovered && !bIsRowSelected )
+		{
+			return FEditorStyle::GetSlateColor( TEXT( "Colors.ForegroundHover" ) );
+		}
+
+		return FSlateColor::UseForeground();
+	}
+
+	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
+	{
+		if ( !InTreeItem )
+		{
+			return SNullWidget::NullWidget;
+		}
+
 		const TSharedPtr< FUsdPrimViewModel > TreeItem = StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem );
+		const float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
 
 		if ( !TreeItem->HasVisibilityAttribute() )
 		{
-			float ItemSize = FUsdStageEditorStyle::Get()->GetFloat( "UsdStageEditor.ListItemHeight" );
-
 			return SNew(SBox)
 				.HeightOverride( ItemSize )
 				.WidthOverride( ItemSize )
@@ -225,27 +262,34 @@ public:
 				.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "NoGeomImageable", "Only prims with the GeomImageable schema (or derived) have the visibility attribute!" ) ) );
 		}
 
-		TSharedRef< SWidget > Item = SNew( SButton )
-										.ContentPadding(0)
-										.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
-										.OnClicked( this, &FUsdStageVisibilityColumn::OnToggleVisibility, TreeItem )
-										.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "GeomImageable", "Toggle the visibility of this prim" ) ) )
-										.HAlign( HAlign_Center )
-										.VAlign( VAlign_Center )
-										.Content()
-										[
-											SNew( SImage )
-											.Image( this, &FUsdStageVisibilityColumn::GetBrush, TreeItem )
-										];
+		TSharedPtr<SButton> Button = SNew( SButton )
+			.ContentPadding( 0 )
+			.ButtonStyle( FUsdStageEditorStyle::Get(), TEXT("NoBorder") )
+			.OnClicked( this, &FUsdStageVisibilityColumn::OnToggleVisibility, TreeItem )
+			.ToolTip( SNew( SToolTip ).Text( LOCTEXT( "GeomImageable", "Toggle the visibility of this prim" ) ) )
+			.HAlign( HAlign_Center )
+			.VAlign( VAlign_Center );
 
-		return Item;
+		TSharedPtr<SImage> Image = SNew( SImage )
+			.Image( this, &FUsdStageVisibilityColumn::GetBrush, TreeItem, Button )
+			.ColorAndOpacity( this, &FUsdStageVisibilityColumn::GetForegroundColor, TreeItem, TableRow, Button );
+
+		Button->SetContent( Image.ToSharedRef() );
+
+		return SNew( SBox )
+			.HeightOverride( ItemSize )
+			.WidthOverride( ItemSize )
+			.Visibility( EVisibility::Visible )
+			[
+				Button.ToSharedRef()
+			];
 	}
 };
 
 class FUsdStagePrimTypeColumn : public FUsdTreeViewColumn
 {
 public:
-	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem ) override
+	virtual TSharedRef< SWidget > GenerateWidget( const TSharedPtr< IUsdTreeViewItem > InTreeItem, const TSharedPtr< ITableRow > TableRow ) override
 	{
 		TSharedPtr< FUsdPrimViewModel > TreeItem = StaticCastSharedPtr< FUsdPrimViewModel >( InTreeItem );
 
@@ -253,9 +297,7 @@ public:
 			.VAlign( VAlign_Center )
 			[
 				SNew(STextBlock)
-				.TextStyle( FEditorStyle::Get(), "LargeText" )
 				.Text( TreeItem->RowData, &FUsdPrimModel::GetType )
-				.Font( FEditorStyle::GetFontStyle( "ContentBrowser.SourceTreeItemFont" ) )
 			];
 	}
 };

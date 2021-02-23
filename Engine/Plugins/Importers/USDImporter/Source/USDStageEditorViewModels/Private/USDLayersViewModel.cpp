@@ -163,6 +163,23 @@ UE::FSdfLayer FUsdLayerViewModel::GetLayer() const
 	return UE::FSdfLayer::FindOrOpen( *LayerIdentifier );
 }
 
+bool FUsdLayerViewModel::IsLayerMuted() const
+{
+	bool bIsMuted = false;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	const TUsdStore< std::string > UsdLayerIdentifier = UnrealToUsd::ConvertString( *LayerIdentifier );
+
+	pxr::UsdStageRefPtr UsdStageRef( UsdStage );
+
+	bIsMuted = UsdStageRef->IsLayerMuted( UsdLayerIdentifier.Get() );
+#endif // USE_USD_SDK
+
+	return bIsMuted;
+}
+
 bool FUsdLayerViewModel::CanMuteLayer() const
 {
 	if ( !IsValid() )
