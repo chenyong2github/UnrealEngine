@@ -1964,6 +1964,12 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	Ar.UsingCustomVersion(FUE5CookerObjectVersion::GUID);
 #endif //UE_USE_VIRTUALBULKDATA
 
+	// Make sure to serialize only actual data
+	if (Ar.ShouldSkipBulkData() || Ar.IsObjectReferenceCollector() || !Ar.IsPersistent())
+	{
+		return;
+	}
+
 	if( Ar.IsTransacting() )
 	{
 		// If transacting, keep these members alive the other side of an undo, otherwise their values will get lost
@@ -2038,6 +2044,10 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 void FMeshDescriptionBulkData::SaveMeshDescription( FMeshDescription& MeshDescription )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshDescriptionBulkData::SaveMeshDescription);
+
+#if WITH_EDITOR
+	FRWScopeLock ScopeLock(BulkDataLock, SLT_Write);
+#endif
 
 #if UE_USE_VIRTUALBULKDATA
 	BulkData.Reset();
