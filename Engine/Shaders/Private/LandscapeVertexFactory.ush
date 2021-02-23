@@ -81,14 +81,7 @@ float2 GetLodBias(uint ComponentIndex)
 
 float2 GetSectionTessellationFalloff(uint ComponentIndex)
 {
-#if FIXED_GRID
-	// Fixed grid doesn't support tessellation
 	return 0;
-#else
-	return float2(
-		LandscapeContinuousLODParameters.SectionTessellationFalloffC[ComponentIndex],
-		LandscapeContinuousLODParameters.SectionTessellationFalloffK[ComponentIndex]);
-#endif
 }
 
 /** 

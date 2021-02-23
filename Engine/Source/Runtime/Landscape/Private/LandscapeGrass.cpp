@@ -411,8 +411,6 @@ void FLandscapeGrassWeightMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FLandscapeGrassWeightVS,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		FLandscapeGrassWeightPS> PassShaders;
 
 	PassShaders.PixelShader = MaterialResource.GetShader<FLandscapeGrassWeightPS>(VertexFactory->GetType());

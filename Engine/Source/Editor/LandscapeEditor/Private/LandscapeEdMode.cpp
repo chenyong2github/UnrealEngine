@@ -3388,10 +3388,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			NewLandscape->MaxLODLevel = OldLandscape->MaxLODLevel;
 			NewLandscape->LODDistanceFactor_DEPRECATED = OldLandscape->LODDistanceFactor_DEPRECATED;
 			NewLandscape->LODFalloff_DEPRECATED = OldLandscape->LODFalloff_DEPRECATED;
-			NewLandscape->TessellationComponentScreenSize = OldLandscape->TessellationComponentScreenSize;
 			NewLandscape->ComponentScreenSizeToUseSubSections = OldLandscape->ComponentScreenSizeToUseSubSections;
-			NewLandscape->UseTessellationComponentScreenSizeFalloff = OldLandscape->UseTessellationComponentScreenSizeFalloff;
-			NewLandscape->TessellationComponentScreenSizeFalloff = OldLandscape->TessellationComponentScreenSizeFalloff;
 			NewLandscape->LODDistributionSetting = OldLandscape->LODDistributionSetting;
 			NewLandscape->LOD0DistributionSetting = OldLandscape->LOD0DistributionSetting;
 			NewLandscape->OccluderGeometryLOD = OldLandscape->OccluderGeometryLOD;

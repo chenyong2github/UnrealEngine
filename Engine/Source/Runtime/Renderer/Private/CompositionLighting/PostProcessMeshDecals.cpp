@@ -46,43 +46,7 @@ public:
 	{}
 };
 
-class FMeshDecalsHS : public FBaseHS
-{
-public:
-	DECLARE_SHADER_TYPE(FMeshDecalsHS, MeshMaterial);
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseHS::ShouldCompilePermutation(Parameters)
-			&& FMeshDecalAccumulatePolicy::ShouldCompilePermutation(Parameters);
-	}
-
-	FMeshDecalsHS() = default;
-	FMeshDecalsHS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
-		: FBaseHS(Initializer)
-	{}
-};
-
-class FMeshDecalsDS : public FBaseDS
-{
-public:
-	DECLARE_SHADER_TYPE(FMeshDecalsDS, MeshMaterial);
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseDS::ShouldCompilePermutation(Parameters)
-			&& FMeshDecalAccumulatePolicy::ShouldCompilePermutation(Parameters);
-	}
-
-	FMeshDecalsDS() = default;
-	FMeshDecalsDS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)
-		: FBaseDS(Initializer)
-	{}
-};
-
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FMeshDecalsVS,TEXT("/Engine/Private/MeshDecals.usf"),TEXT("MainVS"),SF_Vertex); 
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FMeshDecalsHS,TEXT("/Engine/Private/MeshDecals.usf"),TEXT("MainHull"),SF_Hull); 
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FMeshDecalsDS,TEXT("/Engine/Private/MeshDecals.usf"),TEXT("MainDomain"),SF_Domain);
 
 class FMeshDecalsPS : public FMeshMaterialShader
 {
@@ -270,20 +234,8 @@ void FMeshDecalMeshProcessor::Process(
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 	FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
 
-	const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
-
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders()
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
 	FMaterialShaderTypes ShaderTypes;
 	ShaderTypes.AddShaderType<FMeshDecalsVS>();
-
-	if (bNeedsHSDS)
-	{
-		ShaderTypes.AddShaderType<FMeshDecalsDS>();
-		ShaderTypes.AddShaderType<FMeshDecalsHS>();
-	}
 
 	if (PassDecalStage == DRS_Emissive)
 	{
@@ -303,13 +255,9 @@ void FMeshDecalMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FMeshDecalsVS,
-		FMeshDecalsHS,
-		FMeshDecalsDS,
 		FMeshDecalsPS> MeshDecalPassShaders;
 	Shaders.TryGetVertexShader(MeshDecalPassShaders.VertexShader);
 	Shaders.TryGetPixelShader(MeshDecalPassShaders.PixelShader);
-	Shaders.TryGetHullShader(MeshDecalPassShaders.HullShader);
-	Shaders.TryGetDomainShader(MeshDecalPassShaders.DomainShader);
 
 	FMeshMaterialShaderElementData ShaderElementData;
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, true);

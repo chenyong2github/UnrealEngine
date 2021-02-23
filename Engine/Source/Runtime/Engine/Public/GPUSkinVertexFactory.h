@@ -305,8 +305,6 @@ public:
 	virtual uint32 GetNumBoneInfluences() const { return 0; }
 	virtual bool Use16BitBoneIndex() const { return false; }
 
-	static bool SupportsTessellationShaders() { return true; }
-
 	uint32 GetNumVertices() const
 	{
 		return NumVertices;

@@ -356,75 +356,6 @@ public:
 	{}
 };
 
-/**
-* A Hull shader for rendering the depth of a mesh.
-*/
-template <EShadowDepthVertexShaderMode ShaderMode>
-class TShadowDepthHS : public FBaseHS
-{
-public:
-	DECLARE_SHADER_TYPE(TShadowDepthHS, MeshMaterial);
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		// Re-use ShouldCache from vertex shader
-		return FBaseHS::ShouldCompilePermutation(Parameters)
-			&& TShadowDepthVS<ShaderMode, false>::ShouldCompilePermutation(Parameters);
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		// Re-use compilation env from vertex shader
-		TShadowDepthVS<ShaderMode, false>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	TShadowDepthHS() = default;
-	TShadowDepthHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseHS(Initializer)
-	{}
-};
-
-/**
-* A Domain shader for rendering the depth of a mesh.
-*/
-template <EShadowDepthVertexShaderMode ShaderMode>
-class TShadowDepthDS : public FBaseDS
-{
-	DECLARE_SHADER_TYPE(TShadowDepthDS, MeshMaterial);
-public:
-
-	TShadowDepthDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FBaseDS(Initializer)
-	{
-		const ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
-
-		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FShadowDepthPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-
-		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileShadowDepthPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-	}
-
-	TShadowDepthDS() {}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		// Re-use ShouldCache from vertex shader
-		return FBaseDS::ShouldCompilePermutation(Parameters)
-			&& TShadowDepthVS<ShaderMode, false>::ShouldCompilePermutation(Parameters);
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		// Re-use compilation env from vertex shader
-		TShadowDepthVS<ShaderMode, false>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-};
-
 /** Geometry shader that allows one pass point light shadows by cloning triangles to all faces of the cube map. */
 class FOnePassPointShadowDepthGS : public FMeshMaterialShader
 {
@@ -491,11 +422,7 @@ IMPLEMENT_SHADER_TYPE(, FOnePassPointShadowDepthGS, TEXT("/Engine/Private/Shadow
 
 #define IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(ShaderMode) \
 	typedef TShadowDepthVS<ShaderMode, false> TShadowDepthVS##ShaderMode; \
-	typedef TShadowDepthHS<ShaderMode       > TShadowDepthHS##ShaderMode; \
-	typedef TShadowDepthDS<ShaderMode       > TShadowDepthDS##ShaderMode; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVS##ShaderMode, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("Main"),       SF_Vertex); \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthHS##ShaderMode, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainHull"),   SF_Hull  ); \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthDS##ShaderMode, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("MainDomain"), SF_Domain);
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, TShadowDepthVS##ShaderMode, TEXT("/Engine/Private/ShadowDepthVertexShader.usf"), TEXT("Main"),       SF_Vertex);
 
 IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(VertexShadowDepth_PerspectiveCorrect);
 IMPLEMENT_SHADOW_DEPTH_SHADERMODE_SHADERS(VertexShadowDepth_OutputDepth);
@@ -670,17 +597,10 @@ bool GetShadowDepthPassShaders(
 	bool bUsePerspectiveCorrectShadowDepths,
 	bool bAtomicWrites,
 	TShaderRef<FShadowDepthVS>& VertexShader,
-	TShaderRef<FBaseHS>& HullShader,
-	TShaderRef<FBaseDS>& DomainShader,
 	TShaderRef<FShadowDepthBasePS>& PixelShader,
 	TShaderRef<FOnePassPointShadowDepthGS>& GeometryShader)
 {
 	const FVertexFactoryType* VFType = VertexFactory->GetType();
-
-	const bool bInitializeTessellationShaders =
-		Material.GetTessellationMode() != MTM_NoTessellation
-		&& RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VFType->SupportsTessellationShaders();
 
 	FMaterialShaderTypes ShaderTypes;
 
@@ -702,12 +622,6 @@ bool GetShadowDepthPassShaders(
 			{
 				// Use the geometry shader which will clone output triangles to all faces of the cube map
 				ShaderTypes.AddShaderType<FOnePassPointShadowDepthGS>();
-			}
-
-			if (bInitializeTessellationShaders)
-			{
-				ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_OnePassPointLight>>();
-				ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_OnePassPointLight>>();
 			}
 		}
 		else
@@ -732,12 +646,6 @@ bool GetShadowDepthPassShaders(
 		{
 			ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_PerspectiveCorrect, false>>();
 		}
-
-		if (bInitializeTessellationShaders)
-		{
-			ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_PerspectiveCorrect>>();
-			ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_PerspectiveCorrect>>();
-		}
 	}
 	else
 	{
@@ -749,12 +657,6 @@ bool GetShadowDepthPassShaders(
 		else
 		{
 			ShaderTypes.AddShaderType<TShadowDepthVS<VertexShadowDepth_OutputDepth, false>>();
-		}
-
-		if (bInitializeTessellationShaders)
-		{
-			ShaderTypes.AddShaderType<TShadowDepthHS<VertexShadowDepth_OutputDepth>>();
-			ShaderTypes.AddShaderType<TShadowDepthDS<VertexShadowDepth_OutputDepth>>();
 		}
 	}
 
@@ -789,8 +691,6 @@ bool GetShadowDepthPassShaders(
 		return false;
 	}
 
-	Shaders.TryGetHullShader(HullShader);
-	Shaders.TryGetDomainShader(DomainShader);
 	Shaders.TryGetGeometryShader(GeometryShader);
 	Shaders.TryGetVertexShader(VertexShader);
 	Shaders.TryGetPixelShader(PixelShader);
@@ -2268,8 +2168,6 @@ bool FShadowDepthPassMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FShadowDepthVS,
-		FBaseHS,
-		FBaseDS,
 		FShadowDepthBasePS,
 		FOnePassPointShadowDepthGS> ShadowDepthPassShaders;
 
@@ -2305,8 +2203,6 @@ bool FShadowDepthPassMeshProcessor::Process(
 		bUsePerspectiveCorrectShadowDepths,
 		bAtomicWrites,
 		ShadowDepthPassShaders.VertexShader,
-		ShadowDepthPassShaders.HullShader,
-		ShadowDepthPassShaders.DomainShader,
 		ShadowDepthPassShaders.PixelShader,
 		ShadowDepthPassShaders.GeometryShader))
 	{

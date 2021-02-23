@@ -57,11 +57,10 @@ public:
 
 	FPrimitiveDistanceAccuracyInterface() : FDebugViewModeInterface(TEXT("PrimitiveDistanceAccuracy"), false, false, false) {}
 	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
-		EMaterialTessellationMode InMaterialTessellationMode,
 		const FVertexFactoryType* InVertexFactoryType,
 		FMaterialShaderTypes& OutShaderTypes) const override
 	{
-		AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
+		AddDebugViewModeShaderTypes(InFeatureLevel, InVertexFactoryType, OutShaderTypes);
 		OutShaderTypes.AddShaderType<FPrimitiveDistanceAccuracyPS>();
 	}
 

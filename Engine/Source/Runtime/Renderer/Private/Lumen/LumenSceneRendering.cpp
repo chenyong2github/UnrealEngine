@@ -376,8 +376,6 @@ void FLumenCardMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 
 			TMeshProcessorShaders<
 				FLumenCardVS,
-				FMeshMaterialShader,
-				FMeshMaterialShader,
 				FLumenCardPS> PassShaders;
 
 			PassShaders.VertexShader = Material.GetShader<FLumenCardVS>(VertexFactoryType);
@@ -448,7 +446,7 @@ FLumenCardNaniteMeshProcessor::FLumenCardNaniteMeshProcessor(
 {
 }
 
-using FLumenCardNanitePassShaders = TMeshProcessorShaders<FNaniteMaterialVS, FMeshMaterialShader, FMeshMaterialShader, FLumenCardPS>;
+using FLumenCardNanitePassShaders = TMeshProcessorShaders<FNaniteMaterialVS, FLumenCardPS>;
 
 void FLumenCardNaniteMeshProcessor::AddMeshBatch(
 	const FMeshBatch& RESTRICT MeshBatch, 

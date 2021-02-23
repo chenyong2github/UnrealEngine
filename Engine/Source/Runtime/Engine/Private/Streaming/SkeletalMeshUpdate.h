@@ -77,7 +77,6 @@ protected:
 		FSkinWeightRHIInfo SkinWeightVertexBuffer;
 		FBufferRHIRef ClothVertexBuffer;
 		FBufferRHIRef IndexBuffer;
-		FBufferRHIRef AdjacencyIndexBuffer;
 		TArray<TPair<FName, FSkinWeightRHIInfo>> AltSkinWeightVertexBuffers;
 
 		void CreateFromCPUData_RenderThread(FSkeletalMeshLODRenderData& LODResource);

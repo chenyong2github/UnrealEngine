@@ -9,7 +9,6 @@
 #include "Engine/Engine.h"
 #include "Materials/Material.h"
 #include "Particles/ParticleSystem.h"
-#include "TessellationRendering.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshResources.h"
 #include "FXSystem.h"
@@ -3850,17 +3849,6 @@ void FParticleMeshEmitterInstance::GetMeshMaterials(
 			if (Material == NULL)
 			{
 				Material = MeshTypeData->Mesh->GetMaterial(LODModel.Sections[SectionIndex].MaterialIndex);
-			}
-
-			// Check that adjacency data is not required since the implementation does not support it.
-			// we know that we will use FLocalVertexFactory Type therefore passing nullptr is valid
-			if (RequiresAdjacencyInformation(Material, nullptr, InFeatureLevel))
-			{
-				if (bLogWarnings)
-				{
-					UE_LOG(LogParticles, Warning, TEXT("Material %s requires adjacency information because of Crack Free Displacement or PN Triangle Tesselation, which is not supported with particles. Falling back to DefaultMaterial."), *Material->GetName());
-				}
-				Material = NULL;
 			}
 
 			// Use the default material...

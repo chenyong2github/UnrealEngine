@@ -1888,8 +1888,6 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 		bRenderSkylight,
 		false,
 		nullptr,
-		nullptr,
-		nullptr,
 		&BasePassPixelShader
 		);
 
@@ -1901,8 +1899,6 @@ bool FNaniteMeshProcessor::TryAddMeshBatch(
 	TMeshProcessorShaders
 	<
 		FNaniteMaterialVS,
-		FBaseHS,
-		FBaseDS,
 		TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>
 	>
 	PassShaders;

@@ -409,7 +409,7 @@ void FLandscapeComponentSceneProxyMobile::CreateRenderThreadResources()
 				
 		SharedBuffers = new FLandscapeSharedBuffers(
 			SharedBuffersKey, SubsectionSizeQuads, NumSubsections,
-			GetScene().GetFeatureLevel(), false, NumOcclusionVertices);
+			GetScene().GetFeatureLevel(), NumOcclusionVertices);
 
 		FLandscapeComponentSceneProxy::SharedBuffersMap.Add(SharedBuffersKey, SharedBuffers);
 	}

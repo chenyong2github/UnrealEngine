@@ -591,11 +591,6 @@ void FMaterial::GetStaticParameterSet(EShaderPlatform Platform, FStaticParameter
 }
 #endif // WITH_EDITORONLY_DATA
 
-EMaterialTessellationMode FMaterial::GetTessellationMode() const 
-{ 
-	return MTM_NoTessellation; 
-}
-
 ERefractionMode FMaterial::GetRefractionMode() const 
 { 
 	return RM_IndexOfRefraction; 
@@ -782,7 +777,7 @@ bool FMaterial::MaterialModifiesMeshPosition_RenderThread() const
 	check(IsInParallelRenderingThread());
 	bool bUsesWPO = RenderingThreadShaderMap ? RenderingThreadShaderMap->ModifiesMeshPosition() : false;
 
-	return bUsesWPO || GetTessellationMode() != MTM_NoTessellation;
+	return bUsesWPO;
 }
 
 bool FMaterial::MaterialModifiesMeshPosition_GameThread() const
@@ -791,14 +786,14 @@ bool FMaterial::MaterialModifiesMeshPosition_GameThread() const
 	FMaterialShaderMap* ShaderMap = GameThreadShaderMap.GetReference();
 	bool bUsesWPO = ShaderMap ? ShaderMap->ModifiesMeshPosition() : false;
 
-	return bUsesWPO || GetTessellationMode() != MTM_NoTessellation;
+	return bUsesWPO;
 }
 
 bool FMaterial::MaterialMayModifyMeshPosition() const
 {
 	// Conservative estimate when called before material translation has occurred. 
 	// This function is only intended for use in deciding whether or not shader permutations are required.
-	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected() || HasMaterialAttributesConnected() || GetTessellationMode() != MTM_NoTessellation
+	return HasVertexPositionOffsetConnected() || HasPixelDepthOffsetConnected() || HasMaterialAttributesConnected()
 		|| (GetMaterialDomain() == MD_DeferredDecal && GetDecalBlendMode() == DBM_Volumetric_DistanceFunction);
 }
 
@@ -1324,20 +1319,6 @@ bool FMaterialResource::IsUsedWithAPEXCloth() const
 	return Material->bUsedWithClothing;
 }
 
-EMaterialTessellationMode FMaterialResource::GetTessellationMode() const 
-{ 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return (EMaterialTessellationMode)Material->D3D11TessellationMode; 
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-bool FMaterialResource::IsCrackFreeDisplacementEnabled() const 
-{ 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return Material->bEnableCrackFreeDisplacement;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
 { 
 	return Material->bEnableSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
@@ -1353,13 +1334,6 @@ bool FMaterialResource::IsDualBlendingEnabled(EShaderPlatform Platform) const
 bool FMaterialResource::IsMobileSeparateTranslucencyEnabled() const
 {
 	return Material->bEnableMobileSeparateTranslucency && !IsUIMaterial() && !IsDeferredDecal();
-}
-
-bool FMaterialResource::IsAdaptiveTessellationEnabled() const
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return Material->bEnableAdaptiveTessellation;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FMaterialResource::IsFullyRough() const
@@ -1505,9 +1479,6 @@ float FMaterialResource::GetTranslucentBackscatteringExponent() const { return M
 FLinearColor FMaterialResource::GetTranslucentMultipleScatteringExtinction() const { return Material->TranslucentMultipleScatteringExtinction; }
 float FMaterialResource::GetTranslucentShadowStartOffset() const { return Material->TranslucentShadowStartOffset; }
 float FMaterialResource::GetRefractionDepthBiasValue() const { return Material->RefractionDepthBias; }
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-float FMaterialResource::GetMaxDisplacement() const { return Material->MaxDisplacement; }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 bool FMaterialResource::ShouldApplyFogging() const { return Material->bUseTranslucencyVertexFog; }
 bool FMaterialResource::ShouldApplyCloudFogging() const { return Material->bApplyCloudFogging; }
 bool FMaterialResource::IsSky() const { return Material->bIsSky; }
@@ -1853,46 +1824,9 @@ void FMaterial::SetupMaterialEnvironment(
 		OutEnvironment.CompilerFlags.Add(CFLAG_UsesExternalTexture);
 	}
 
-	if ((RHISupportsTessellation(Platform) == false) || (GetTessellationMode() == MTM_NoTessellation))
 	{
 		// Make sure this define is in sync with FShaderCompilerInput::IsUsingTessellation
 		OutEnvironment.SetDefine(TEXT("USING_TESSELLATION"),TEXT("0"));
-	}
-	else
-	{
-		// Make sure this define is in sync with FShaderCompilerInput::IsUsingTessellation
-		OutEnvironment.SetDefine(TEXT("USING_TESSELLATION"),TEXT("1"));
-
-		if (GetTessellationMode() == MTM_FlatTessellation)
-		{
-			OutEnvironment.SetDefine(TEXT("TESSELLATION_TYPE_FLAT"),TEXT("1"));
-		}
-		else if (GetTessellationMode() == MTM_PNTriangles)
-		{
-			OutEnvironment.SetDefine(TEXT("TESSELLATION_TYPE_PNTRIANGLES"),TEXT("1"));
-		}
-
-		// This is dominant vertex/edge information.  Note, mesh must have preprocessed neighbors IB of material will fallback to default.
-		//  PN triangles needs preprocessed buffers regardless of c
-		if (IsCrackFreeDisplacementEnabled())
-		{
-			OutEnvironment.SetDefine(TEXT("DISPLACEMENT_ANTICRACK"),TEXT("1"));
-		}
-		else
-		{
-			OutEnvironment.SetDefine(TEXT("DISPLACEMENT_ANTICRACK"),TEXT("0"));
-		}
-
-		// Set whether to enable the adaptive tessellation, which tries to maintain a uniform number of pixels per triangle.
-		if (IsAdaptiveTessellationEnabled())
-		{
-			OutEnvironment.SetDefine(TEXT("USE_ADAPTIVE_TESSELLATION_FACTOR"),TEXT("1"));
-		}
-		else
-		{
-			OutEnvironment.SetDefine(TEXT("USE_ADAPTIVE_TESSELLATION_FACTOR"),TEXT("0"));
-		}
-		
 	}
 
 	switch(GetBlendMode())

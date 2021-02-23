@@ -398,8 +398,6 @@ void FTranslucencyDepthPassMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		TTranslucencyShadowDepthVS<ShaderMode>,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		TTranslucencyShadowDepthPS<ShaderMode>> PassShaders;
 
 	PassShaders.VertexShader = MaterialResource.GetShader<TTranslucencyShadowDepthVS<ShaderMode> >(VertexFactory->GetType());

@@ -1990,7 +1990,6 @@ private:
 	{
 		SCOPED_LOADTIMER(FMaterialShaderMapLayoutCache_CreateLayout);
 
-		const bool bHasTessellation = MaterialParameters.TessellationMode != MTM_NoTessellation;
 		const TArray<FShaderType*>& SortedMaterialShaderTypes = FShaderType::GetSortedTypes(FShaderType::EShaderTypeForDynamicCast::Material);
 		const TArray<FShaderType*>& SortedMeshMaterialShaderTypes = FShaderType::GetSortedTypes(FShaderType::EShaderTypeForDynamicCast::MeshMaterial);
 		const TArray<FShaderPipelineType*>& SortedMaterialPipelineTypes = FShaderPipelineType::GetSortedTypes(FShaderType::EShaderTypeForDynamicCast::Material);
@@ -2021,8 +2020,7 @@ private:
 			// Iterate over all pipeline types
 			for (FShaderPipelineType* ShaderPipelineType : SortedMaterialPipelineTypes)
 			{
-				if (ShaderPipelineType->HasTessellation() == bHasTessellation &&
-					FMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters, Flags))
+				if (FMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters, Flags))
 				{
 					Layout.ShaderPipelines.Add(ShaderPipelineType);
 
@@ -2071,8 +2069,7 @@ private:
 						continue;
 					}
 
-					if (ShaderPipelineType->HasTessellation() == bHasTessellation &&
-						FMeshMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters, VertexFactoryType, Flags))
+					if (FMeshMaterialShaderType::ShouldCompilePipeline(ShaderPipelineType, Platform, MaterialParameters, VertexFactoryType, Flags))
 					{
 						// Now check the completeness of the shader map
 						if (!MeshLayout)
@@ -2242,11 +2239,10 @@ void FMaterialShaderMap::LoadMissingShadersFromMemory(const FMaterial* Material)
 	}
 
 	// Try to find necessary FShaderPipelineTypes in memory
-	const bool bHasTessellation = Material->GetTessellationMode() != MTM_NoTessellation;
 	for (TLinkedList<FShaderPipelineType*>::TIterator ShaderPipelineIt(FShaderPipelineType::GetTypeList());ShaderPipelineIt;ShaderPipelineIt.Next())
 	{
 		const FShaderPipelineType* PipelineType = *ShaderPipelineIt;
-		if (PipelineType && PipelineType->IsMaterialTypePipeline() && !HasShaderPipeline(PipelineType) && PipelineType->HasTessellation() == bHasTessellation)
+		if (PipelineType && PipelineType->IsMaterialTypePipeline() && !HasShaderPipeline(PipelineType))
 		{
 			auto& Stages = PipelineType->GetStages();
 			int32 NumShaders = 0;

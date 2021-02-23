@@ -9,7 +9,6 @@
 #include "Materials/MaterialInterface.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
-#include "TessellationRendering.h"
 
 namespace DataprepOperationsLibraryUtil
 {
@@ -153,7 +152,6 @@ namespace DataprepOperationsLibraryUtil
 			SourceModel.BuildSettings.bGenerateLightmapUVs = false;
 			SourceModel.BuildSettings.bRecomputeNormals = false;
 			SourceModel.BuildSettings.bRecomputeTangents = false;
-			SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 			SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 			SourceModel.BuildSettings.bComputeWeightedNormals = false;
 		}
@@ -181,7 +179,6 @@ namespace DataprepOperationsLibraryUtil
 				BuildSettings.bGenerateLightmapUVs = CachedBuildSettings.bGenerateLightmapUVs;
 				BuildSettings.bRecomputeNormals = CachedBuildSettings.bRecomputeNormals;
 				BuildSettings.bRecomputeTangents = CachedBuildSettings.bRecomputeTangents;
-				BuildSettings.bBuildAdjacencyBuffer = CachedBuildSettings.bBuildAdjacencyBuffer;
 				BuildSettings.bBuildReversedIndexBuffer = CachedBuildSettings.bBuildReversedIndexBuffer;
 				BuildSettings.bComputeWeightedNormals = CachedBuildSettings.bComputeWeightedNormals;
 			}
@@ -200,16 +197,6 @@ namespace DataprepOperationsLibraryUtil
 				if ( StaticMaterial.MaterialSlotName == NAME_None )
 				{
 					StaticMaterial.MaterialSlotName = NewMaterial->GetFName();
-				}
-
-				// Make sure adjacency information fit new material change
-				if( RequiresAdjacencyInformation( NewMaterial, nullptr, GWorld->FeatureLevel ) )
-				{
-					int32 NumSourceModels = StaticMesh->GetNumSourceModels();
-					for (int32 LodIndex = 0; LodIndex < NumSourceModels; LodIndex++)
-					{
-						StaticMesh->GetSourceModel(LodIndex).BuildSettings.bBuildAdjacencyBuffer = true;
-					}
 				}
 			}
 		}
@@ -298,7 +285,6 @@ namespace DataprepOperationsLibraryUtil
 
 						SourceModel.BuildSettings.bRecomputeNormals = !(Attributes.GetVertexInstanceNormals().IsValid() && Attributes.GetVertexInstanceNormals().GetNumChannels() > 0);
 						SourceModel.BuildSettings.bRecomputeTangents = false;
-						//SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 						//SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 					}
 				}

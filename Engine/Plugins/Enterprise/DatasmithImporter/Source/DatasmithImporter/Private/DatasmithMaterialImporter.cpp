@@ -445,15 +445,5 @@ int32 FDatasmithMaterialImporter::GetMaterialRequirements(UMaterialInterface * M
 	// Currently all Datasmith materials require at least normals and tangents
 	// @todo: Adjust initial value and logic based on future materials' requirements
 	int32 MaterialRequirement = EMaterialRequirements::RequiresNormals | EMaterialRequirements::RequiresTangents;
-
-	UMaterial* Material = MaterialInterface->GetMaterial();
-	// Material with displacement or support for PNT requires adjacency and has their TessellationMultiplier set
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (Material->TessellationMultiplier.Expression != nullptr || Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		MaterialRequirement |= EMaterialRequirements::RequiresAdjacency;
-	}
-
 	return MaterialRequirement;
 }

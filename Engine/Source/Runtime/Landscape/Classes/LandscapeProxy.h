@@ -408,18 +408,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "LOD Distribution", meta = (DisplayName = "Other LODs", ClampMin = "1.0", ClampMax = "10.0", UIMin = "1.0", UIMax = "10.0"))
 	float LODDistributionSetting;
 
-	/** Component screen size (0.0 - 1.0) at which we should enable tessellation. */
-	UPROPERTY(EditAnywhere, Category = Tessellation, meta = (ClampMin = "0.01", ClampMax = "1.0", UIMin = "0.01", UIMax = "1.0"))
-	float TessellationComponentScreenSize;
-
-	/** Tell if we should enable tessellation falloff. It will ramp down the Tessellation Multiplier from the material linearly. It should be disabled if you plan on using a custom implementation in material/shaders. */
-	UPROPERTY(EditAnywhere, Category = Tessellation, meta=(DisplayName = "Use Default Falloff"))
-	bool UseTessellationComponentScreenSizeFalloff;
-
-	/** Component screen size (0.0 - 1.0) at which we start the tessellation falloff. */
-	UPROPERTY(EditAnywhere, Category = Tessellation, meta=(editcondition= UseTessellationComponentScreenSizeFalloff, ClampMin = "0.01", ClampMax = "1.0", UIMin = "0.01", UIMax = "1.0", DisplayName = "Tessellation Component Screen Size Falloff"))
-	float TessellationComponentScreenSizeFalloff;
-
 	/** Landscape LOD to use as an occluder geometry for software occlusion */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=LOD)
 	int32 OccluderGeometryLOD;
@@ -748,21 +736,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta=(DeprecatedFunction, DeprecationMessage = "This value can't be changed anymore, you should edit the property LODDistributionSetting of the Landscape"))
 	virtual void ChangeLODDistanceFactor(float InLODDistanceFactor);
 
-	/** Change TessellationComponentScreenSize value on the render proxy.*/
-	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	virtual void ChangeTessellationComponentScreenSize(float InTessellationComponentScreenSize);
-
 	/** Change ComponentScreenSizeToUseSubSections value on the render proxy.*/
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	virtual void ChangeComponentScreenSizeToUseSubSections(float InComponentScreenSizeToUseSubSections);
-
-	/** Change UseTessellationComponentScreenSizeFalloff value on the render proxy.*/
-	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	virtual void ChangeUseTessellationComponentScreenSizeFalloff(bool InComponentScreenSizeToUseSubSections);
-
-	/** Change TessellationComponentScreenSizeFalloff value on the render proxy.*/
-	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	virtual void ChangeTessellationComponentScreenSizeFalloff(float InUseTessellationComponentScreenSizeFalloff);
 
 	/* Setter for LandscapeMaterial. Has no effect outside the editor. */
 	UFUNCTION(BlueprintSetter)

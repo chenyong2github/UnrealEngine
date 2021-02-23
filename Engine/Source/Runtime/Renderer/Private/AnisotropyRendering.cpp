@@ -54,38 +54,6 @@ public:
 	{}
 };
 
-class FAnisotropyHS : public FBaseHS
-{
-public:
-	DECLARE_SHADER_TYPE(FAnisotropyHS, MeshMaterial);
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseHS::ShouldCompilePermutation(Parameters) && FAnisotropyVS::ShouldCompilePermutation(Parameters);
-	}
-
-	FAnisotropyHS() = default;
-	FAnisotropyHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseHS(Initializer)
-	{}
-};
-
-class FAnisotropyDS : public FBaseDS
-{
-public:
-	DECLARE_SHADER_TYPE(FAnisotropyDS, MeshMaterial);
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseDS::ShouldCompilePermutation(Parameters) && FAnisotropyVS::ShouldCompilePermutation(Parameters);
-	}
-
-	FAnisotropyDS() = default;
-	FAnisotropyDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseDS(Initializer)
-	{}
-};
-
 class FAnisotropyPS : public FMeshMaterialShader
 {
 public:
@@ -108,8 +76,6 @@ public:
 };
 
 IMPLEMENT_SHADER_TYPE(, FAnisotropyVS, TEXT("/Engine/Private/AnisotropyPassShader.usf"), TEXT("MainVertexShader"), SF_Vertex);
-IMPLEMENT_SHADER_TYPE(, FAnisotropyHS, TEXT("/Engine/Private/AnisotropyPassShader.usf"), TEXT("MainHull"), SF_Hull);
-IMPLEMENT_SHADER_TYPE(, FAnisotropyDS, TEXT("/Engine/Private/AnisotropyPassShader.usf"), TEXT("MainDomain"), SF_Domain);
 IMPLEMENT_SHADER_TYPE(, FAnisotropyPS, TEXT("/Engine/Private/AnisotropyPassShader.usf"), TEXT("MainPixelShader"), SF_Pixel);
 IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(AnisotropyPipeline, FAnisotropyVS, FAnisotropyPS, true);
 
@@ -147,26 +113,12 @@ void GetAnisotropyPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	TShaderRef<FAnisotropyHS>& HullShader,
-	TShaderRef<FAnisotropyDS>& DomainShader,
 	TShaderRef<FAnisotropyVS>& VertexShader,
 	TShaderRef<FAnisotropyPS>& PixelShader
 	)
 {
-	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
-
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders()
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
-	if (bNeedsHSDS)
-	{
-		DomainShader = Material.GetShader<FAnisotropyDS>(VertexFactoryType);
-		HullShader = Material.GetShader<FAnisotropyHS>(VertexFactoryType);
-	}
-
 	static const auto* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ShaderPipelines"));
-	const bool bUseShaderPipelines = RHISupportsShaderPipelines(GShaderPlatformForFeatureLevel[FeatureLevel]) && !bNeedsHSDS && CVar && CVar->GetValueOnAnyThread() != 0;
+	const bool bUseShaderPipelines = RHISupportsShaderPipelines(GShaderPlatformForFeatureLevel[FeatureLevel]) && CVar && CVar->GetValueOnAnyThread() != 0;
 
 	FShaderPipelineRef ShaderPipeline = bUseShaderPipelines ? Material.GetShaderPipeline(&AnisotropyPipeline, VertexFactoryType, false) : FShaderPipelineRef();
 	if (ShaderPipeline.IsValid())
@@ -220,16 +172,12 @@ void FAnisotropyMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FAnisotropyVS,
-		FAnisotropyHS,
-		FAnisotropyDS,
 		FAnisotropyPS> AnisotropyPassShaders;
 
 	GetAnisotropyPassShaders(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
-		AnisotropyPassShaders.HullShader,
-		AnisotropyPassShaders.DomainShader,
 		AnisotropyPassShaders.VertexShader,
 		AnisotropyPassShaders.PixelShader
 		);

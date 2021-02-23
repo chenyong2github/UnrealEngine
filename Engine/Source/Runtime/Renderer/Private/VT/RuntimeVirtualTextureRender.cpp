@@ -335,8 +335,6 @@ namespace RuntimeVirtualTexture
 
 			TMeshProcessorShaders<
 				FShader_VirtualTextureMaterialDraw_VS< MaterialPolicy >,
-				FBaseHS,
-				FBaseDS,
 				FShader_VirtualTextureMaterialDraw_PS< MaterialPolicy > > Shaders;
 
 			Shaders.VertexShader = MaterialResource.GetShader< FShader_VirtualTextureMaterialDraw_VS< MaterialPolicy > >(VertexFactory->GetType());

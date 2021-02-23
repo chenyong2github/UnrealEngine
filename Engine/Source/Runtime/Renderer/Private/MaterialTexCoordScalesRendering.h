@@ -76,11 +76,10 @@ public:
 	) : FDebugViewModeInterface(TEXT("MaterialTexCoordScale"), InNeedsOnlyLocalVertexFactor, InNeedsMaterialProperties, InNeedsInstructionCount) {}
 
 	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
-		EMaterialTessellationMode InMaterialTessellationMode,
 		const FVertexFactoryType* InVertexFactoryType,
 		FMaterialShaderTypes& OutShaderTypes) const override
 	{
-		AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
+		AddDebugViewModeShaderTypes(InFeatureLevel, InVertexFactoryType, OutShaderTypes);
 		OutShaderTypes.AddShaderType<FMaterialTexCoordScalePS>();
 	}
 

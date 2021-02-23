@@ -135,8 +135,6 @@ private:
 
 		TMeshProcessorShaders<
 			FVLMVoxelizationVS,
-			FMeshMaterialShader,
-			FMeshMaterialShader,
 			FVLMVoxelizationPS,
 			FVLMVoxelizationGS> Shaders;
 

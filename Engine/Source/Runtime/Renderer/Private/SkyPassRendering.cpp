@@ -49,8 +49,6 @@ void FSkyPassMeshProcessor::Process(
 	typedef FUniformLightMapPolicy LightMapPolicyType;
 	TMeshProcessorShaders<
 		TBasePassVertexShaderPolicyParamType<LightMapPolicyType>,
-		FBaseHS,
-		FBaseDS,
 		TBasePassPixelShaderPolicyParamType<LightMapPolicyType>> SkyPassShaders;
 
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
@@ -64,8 +62,6 @@ void FSkyPassMeshProcessor::Process(
 		bRenderAtmosphericFog,
 		bRenderSkylight,
 		false,
-		&SkyPassShaders.HullShader,
-		&SkyPassShaders.DomainShader,
 		&SkyPassShaders.VertexShader,
 		&SkyPassShaders.PixelShader
 		);

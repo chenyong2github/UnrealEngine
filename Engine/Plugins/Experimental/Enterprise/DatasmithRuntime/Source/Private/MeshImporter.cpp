@@ -335,27 +335,6 @@ namespace DatasmithRuntime
 
 		TSharedRef< IDatasmithMeshElement > MeshElement = StaticCastSharedPtr< IDatasmithMeshElement >(Elements[ElementId]).ToSharedRef();
 
-		TFunction<bool()> MaterialRequiresAdjacency;
-		MaterialRequiresAdjacency = [this, MeshElementPtr = &MeshElement.Get()]() -> bool
-		{
-			for (int32 Index = 0; Index < MeshElementPtr->GetMaterialSlotCount(); Index++)
-			{
-				if (const IDatasmithMaterialIDElement* MaterialIDElement = MeshElementPtr->GetMaterialSlotAt(Index).Get())
-				{
-					// #ue_datasmithruntime: Missing code to handle the case where a MaterialID's name is an asset's path
-					if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
-					{
-						if (AssetDataList[*MaterialElementIdPtr].Requirements & EMaterialRequirements::RequiresAdjacency)
-						{
-							return true;
-						}
-					}
-				}
-			}
-
-			return false;
-		};
-
 		FAssetData& MeshData = AssetDataList[ElementId];
 
 		UStaticMesh* StaticMesh = MeshData.GetObject<UStaticMesh>();
@@ -519,9 +498,6 @@ namespace DatasmithRuntime
 			BuildSettings.DstLightmapIndex = DestinationIndex;
 			BuildSettings.MinLightmapResolution = MinLightmapSize;
 			BuildScale3D = BuildSettings.BuildScale3D;
-
-			// Don't build adjacency buffer for meshes with over 500 000 triangles because it's too slow
-			BuildSettings.bBuildAdjacencyBuffer = MeshDescription.Polygons().Num() < 500000 ? MaterialRequiresAdjacency() : false;
 #endif
 			if (DatasmithMeshHelper::IsMeshValid(MeshDescription, BuildScale3D))
 			{

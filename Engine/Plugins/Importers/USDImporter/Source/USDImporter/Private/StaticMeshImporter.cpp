@@ -301,7 +301,6 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 		SrcModel.BuildSettings.bGenerateLightmapUVs = false;
 		SrcModel.BuildSettings.bRecomputeNormals = false;
 		SrcModel.BuildSettings.bRecomputeTangents = true;
-		SrcModel.BuildSettings.bBuildAdjacencyBuffer = false;
 
 		NewMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 	}

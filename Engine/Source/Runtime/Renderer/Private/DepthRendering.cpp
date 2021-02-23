@@ -138,8 +138,6 @@ DECLARE_GPU_DRAWCALL_STAT(Prepass);
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TDepthOnlyVS<true>,TEXT("/Engine/Private/PositionOnlyDepthVertexShader.usf"),TEXT("Main"),SF_Vertex);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TDepthOnlyVS<false>,TEXT("/Engine/Private/DepthOnlyVertexShader.usf"),TEXT("Main"),SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FDepthOnlyHS,TEXT("/Engine/Private/DepthOnlyVertexShader.usf"),TEXT("MainHull"),SF_Hull);	
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FDepthOnlyDS,TEXT("/Engine/Private/DepthOnlyVertexShader.usf"),TEXT("MainDomain"),SF_Domain);
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,FDepthOnlyPS<true>,TEXT("/Engine/Private/DepthOnlyPixelShader.usf"),TEXT("Main"),SF_Pixel);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,FDepthOnlyPS<false>,TEXT("/Engine/Private/DepthOnlyPixelShader.usf"),TEXT("Main"),SF_Pixel);
@@ -165,8 +163,6 @@ bool GetDepthPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	TShaderRef<FDepthOnlyHS>& HullShader,
-	TShaderRef<FDepthOnlyDS>& DomainShader,
 	TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader,
 	TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline)
@@ -191,42 +187,20 @@ bool GetDepthPassShaders(
 			ShaderTypes.AddShaderType<FDepthOnlyPS<bUsesMobileColorValue>>();
 		}
 
-		const EMaterialTessellationMode TessellationMode = Material.GetTessellationMode();
-		if (RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-			&& VertexFactoryType->SupportsTessellationShaders() 
-			&& TessellationMode != MTM_NoTessellation)
+		if (bNeedsPixelShader)
 		{
-			ShaderTypes.AddShaderType<FDepthOnlyHS>();
-			ShaderTypes.AddShaderType<FDepthOnlyDS>();
-
-			/*ShaderPipeline = FShaderPipelineRef();
-			VertexShader = Material.GetShader<TDepthOnlyVS<bPositionOnly> >(VertexFactoryType, 0, false);
-			HullShader = Material.GetShader<FDepthOnlyHS>(VertexFactoryType, 0, false);
-			DomainShader = Material.GetShader<FDepthOnlyDS>(VertexFactoryType, 0, false);
-			if (bNeedsPixelShader)
+			if (bUsesMobileColorValue)
 			{
-				PixelShader = Material.GetShader<FDepthOnlyPS<bUsesMobileColorValue>>(VertexFactoryType, 0, false);
-			}
-
-			return VertexShader.IsValid() && HullShader.IsValid() && DomainShader.IsValid() && (!bNeedsPixelShader || PixelShader.IsValid());*/
-		}
-		else
-		{
-			if (bNeedsPixelShader)
-			{
-				if (bUsesMobileColorValue)
-				{
-					ShaderTypes.PipelineType = &DepthWithColorOutputPipeline;
-				}
-				else
-				{
-					ShaderTypes.PipelineType = &DepthNoColorOutputPipeline;
-				}
+				ShaderTypes.PipelineType = &DepthWithColorOutputPipeline;
 			}
 			else
 			{
-				ShaderTypes.PipelineType = &DepthNoPixelPipeline;
+				ShaderTypes.PipelineType = &DepthNoColorOutputPipeline;
 			}
+		}
+		else
+		{
+			ShaderTypes.PipelineType = &DepthNoPixelPipeline;
 		}
 	}
 
@@ -239,8 +213,6 @@ bool GetDepthPassShaders(
 	Shaders.TryGetPipeline(ShaderPipeline);
 	Shaders.TryGetVertexShader(VertexShader);
 	Shaders.TryGetPixelShader(PixelShader);
-	Shaders.TryGetHullShader(HullShader);
-	Shaders.TryGetDomainShader(DomainShader);
 	return true;
 }
 
@@ -249,8 +221,6 @@ bool GetDepthPassShaders(
 		const FMaterial& Material, \
 		FVertexFactoryType* VertexFactoryType, \
 		ERHIFeatureLevel::Type FeatureLevel, \
-		TShaderRef<FDepthOnlyHS>& HullShader, \
-		TShaderRef<FDepthOnlyDS>& DomainShader, \
 		TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader, \
 		TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader, \
 		FShaderPipelineRef& ShaderPipeline \
@@ -771,8 +741,6 @@ bool FDepthPassMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		TDepthOnlyVS<bPositionOnly>,
-		FDepthOnlyHS,
-		FDepthOnlyDS,
 		FDepthOnlyPS<false>> DepthPassShaders;
 
 	FShaderPipelineRef ShaderPipeline;
@@ -781,8 +749,6 @@ bool FDepthPassMeshProcessor::Process(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
-		DepthPassShaders.HullShader,
-		DepthPassShaders.DomainShader,
 		DepthPassShaders.VertexShader,
 		DepthPassShaders.PixelShader,
 		ShaderPipeline))

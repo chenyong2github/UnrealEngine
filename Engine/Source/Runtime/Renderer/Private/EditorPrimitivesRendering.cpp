@@ -70,8 +70,6 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 
 	TMeshProcessorShaders<
 		TBasePassVertexShaderPolicyParamType<LightMapPolicyType>,
-		FBaseHS,
-		FBaseDS,
 		TBasePassPixelShaderPolicyParamType<LightMapPolicyType>> BasePassShaders;
 
 	if (!GetBasePassShaders<LightMapPolicyType>(
@@ -82,8 +80,6 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessDeferredShadingPath(const FM
 		bRenderAtmosphericFog,
 		bRenderSkylight,
 		false,
-		&BasePassShaders.HullShader,
-		&BasePassShaders.DomainShader,
 		&BasePassShaders.VertexShader,
 		&BasePassShaders.PixelShader
 		))
@@ -136,8 +132,6 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMes
 
 	TMeshProcessorShaders<
 		TMobileBasePassVSPolicyParamType<FUniformLightMapPolicy>,
-		FBaseHS,
-		FBaseDS,
 		TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>> BasePassShaders;
 	if (!MobileBasePass::GetShaders(
 		NoLightmapPolicy.GetIndirectPolicy(),

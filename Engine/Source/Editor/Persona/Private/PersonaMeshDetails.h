@@ -290,7 +290,6 @@ private:
 	ECheckBoxState ShouldRemoveDegenerates() const;
 	ECheckBoxState ShouldUseHighPrecisionTangentBasis() const;
 	ECheckBoxState ShouldUseFullPrecisionUVs() const;
-	ECheckBoxState ShouldBuildAdjacencyBuffer() const;
 
 	void OnRecomputeNormalsChanged(ECheckBoxState NewState);
 	void OnRecomputeTangentsChanged(ECheckBoxState NewState);
@@ -299,7 +298,6 @@ private:
 	void OnRemoveDegeneratesChanged(ECheckBoxState NewState);
 	void OnUseHighPrecisionTangentBasisChanged(ECheckBoxState NewState);
 	void OnUseFullPrecisionUVsChanged(ECheckBoxState NewState);
-	void OnBuildAdjacencyBufferChanged(ECheckBoxState NewState);
 
 private:
 	FSkeletalMeshBuildSettings& BuildSettings;

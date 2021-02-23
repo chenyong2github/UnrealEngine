@@ -567,22 +567,6 @@ void FMeshBuildSettingsLayout::GenerateChildContent( IDetailChildrenBuilder& Chi
 	}
 
 	{
-		ChildrenBuilder.AddCustomRow( LOCTEXT("BuildAdjacencyBuffer", "Build Adjacency Buffer") )
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Font( IDetailLayoutBuilder::GetDetailFont() )
-			.Text(LOCTEXT("BuildAdjacencyBuffer", "Build Adjacency Buffer"))
-		]
-		.ValueContent()
-		[
-			SNew(SCheckBox)
-			.IsChecked(this, &FMeshBuildSettingsLayout::ShouldBuildAdjacencyBuffer)
-			.OnCheckStateChanged(this, &FMeshBuildSettingsLayout::OnBuildAdjacencyBufferChanged)
-		];
-	}
-
-	{
 		ChildrenBuilder.AddCustomRow( LOCTEXT("BuildReversedIndexBuffer", "Build Reversed Index Buffer") )
 		.NameContent()
 		[
@@ -841,11 +825,6 @@ ECheckBoxState FMeshBuildSettingsLayout::ShouldRemoveDegenerates() const
 	return BuildSettings.bRemoveDegenerates ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-ECheckBoxState FMeshBuildSettingsLayout::ShouldBuildAdjacencyBuffer() const
-{
-	return BuildSettings.bBuildAdjacencyBuffer ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
 ECheckBoxState FMeshBuildSettingsLayout::ShouldBuildReversedIndexBuffer() const
 {
 	return BuildSettings.bBuildReversedIndexBuffer ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -964,33 +943,6 @@ void FMeshBuildSettingsLayout::OnRemoveDegeneratesChanged(ECheckBoxState NewStat
 			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.BuildSettings"), TEXT("bRemoveDegenerates"), bRemoveDegenerates ? TEXT("True") : TEXT("False"));
 		}
 		BuildSettings.bRemoveDegenerates = bRemoveDegenerates;
-	}
-}
-
-void FMeshBuildSettingsLayout::OnBuildAdjacencyBufferChanged(ECheckBoxState NewState)
-{
-	const bool bBuildAdjacencyBuffer = (NewState == ECheckBoxState::Checked) ? true : false;
-	if (BuildSettings.bBuildAdjacencyBuffer != bBuildAdjacencyBuffer)
-	{
-		if (FEngineAnalytics::IsAvailable())
-		{
-			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.StaticMesh.BuildSettings"), TEXT("bBuildAdjacencyBuffer"), bBuildAdjacencyBuffer ? TEXT("True") : TEXT("False"));
-		}
-		BuildSettings.bBuildAdjacencyBuffer = bBuildAdjacencyBuffer;
-		if (!BuildSettings.bBuildAdjacencyBuffer && ParentLODSettings.IsValid())
-		{
-			if (ParentLODSettings.Pin()->PreviewLODRequiresAdjacencyInformation(LODIndex))
-			{
-				//Prompt the user
-				FText ConfirmRequiredAdjacencyText = LOCTEXT("ConfirmRequiredAdjacencyBufferRemove", "This LOD is using at least one tessellation material that required the adjacency buffer to be computed.\nAre you sure to want to remove the adjacency buffer?");
-				EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, ConfirmRequiredAdjacencyText);
-				if (Result == EAppReturnType::No)
-				{
-					//Put back the adjacency buffer option to true
-					BuildSettings.bBuildAdjacencyBuffer = true;
-				}
-			}
-		}
 	}
 }
 
@@ -2036,14 +1988,7 @@ void FMeshSectionSettingsLayout::OnSectionChanged(int32 ForLODIndex, int32 Secti
 			int32 CancelOldValue = Info.MaterialIndex;
 			Info.MaterialIndex = NewStaticMaterialIndex;
 			StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
-			bool bUserCancel = false;
-			bRefreshAll = StaticMesh.FixLODRequiresAdjacencyInformation(ForLODIndex, false, true, &bUserCancel);
-			if (bUserCancel)
-			{
-				//Revert the section info map change
-				Info.MaterialIndex = CancelOldValue;
-				StaticMesh.GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
-			}
+
 			CallPostEditChange();
 		}
 		if (bRefreshAll)
@@ -4125,13 +4070,6 @@ void FLevelOfDetailSettingsLayout::ApplyChanges()
 	GWarn->EndSlowTask();
 
 	StaticMeshEditor.RefreshTool();
-}
-
-bool FLevelOfDetailSettingsLayout::PreviewLODRequiresAdjacencyInformation(int32 LODIndex)
-{
-	UStaticMesh* StaticMesh = StaticMeshEditor.GetStaticMesh();
-	check(StaticMesh);
-	return StaticMesh->FixLODRequiresAdjacencyInformation(LODIndex, true, false, nullptr);
 }
 
 FReply FLevelOfDetailSettingsLayout::OnApply()

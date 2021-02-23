@@ -84,7 +84,7 @@ bool ShouldCompileDebugViewModeShader(EDebugViewShaderMode ShaderMode, const FMe
 	const FDebugViewModeInterface* DebugViewModeInterface = FDebugViewModeInterface::GetInterface(ShaderMode);
 	if (!DebugViewModeInterface->bNeedsMaterialProperties &&
 		!Parameters.MaterialParameters.bIsDefaultMaterial &&
-		FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Parameters.MaterialParameters.TessellationMode, Parameters.MaterialParameters.bHasVertexPositionOffsetConnected, Parameters.MaterialParameters.bHasPixelDepthOffsetConnected))
+		FDebugViewModeInterface::AllowFallbackToDefaultMaterial(Parameters.MaterialParameters.bHasVertexPositionOffsetConnected, Parameters.MaterialParameters.bHasPixelDepthOffsetConnected))
 	{
 		// We can replace this material with the default material
 		return false;
@@ -310,7 +310,7 @@ bool CompileDebugViewModeShaders(EDebugViewShaderMode ShaderMode, EMaterialQuali
 				}
 
 				FMaterialShaderTypes ShaderTypes;
-				DebugViewModeInterface->AddShaderTypes(FeatureLevel, Material->GetTessellationMode(), LocalVertexFactory, ShaderTypes);
+				DebugViewModeInterface->AddShaderTypes(FeatureLevel, LocalVertexFactory, ShaderTypes);
 				if (!Material->HasShaders(ShaderTypes, LocalVertexFactory))
 				{
 					bMaterialFinished = false;

@@ -154,10 +154,6 @@ struct FMinimalBoundShaderStateInput
 	{
 		return FBoundShaderStateInput(VertexDeclarationRHI
 			, VertexShaderResource ? static_cast<FRHIVertexShader*>(VertexShaderResource->GetShader(VertexShaderIndex)) : nullptr
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			, HullShaderResource ? static_cast<FRHIHullShader*>(HullShaderResource->GetShader(HullShaderIndex)) : nullptr
-			, DomainShaderResource ? static_cast<FRHIDomainShader*>(DomainShaderResource->GetShader(DomainShaderIndex)) : nullptr
-#endif
 			, PixelShaderResource ? static_cast<FRHIPixelShader*>(PixelShaderResource->GetShader(PixelShaderIndex)) : nullptr
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			, GeometryShaderResource ? static_cast<FRHIGeometryShader*>(GeometryShaderResource->GetShader(GeometryShaderIndex)) : nullptr
@@ -176,14 +172,6 @@ struct FMinimalBoundShaderStateInput
 		{
 			return true;
 		}
-		if (HullShaderResource && !HullShaderResource->HasShader(HullShaderIndex))
-		{
-			return true;
-		}
-		if (DomainShaderResource && !DomainShaderResource->HasShader(DomainShaderIndex))
-		{
-			return true;
-		}
 		if (PixelShaderResource && !PixelShaderResource->HasShader(PixelShaderIndex))
 		{
 			return true;
@@ -197,13 +185,9 @@ struct FMinimalBoundShaderStateInput
 
 	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
 	TRefCountPtr<FShaderMapResource> VertexShaderResource;
-	TRefCountPtr<FShaderMapResource> HullShaderResource;
-	TRefCountPtr<FShaderMapResource> DomainShaderResource;
 	TRefCountPtr<FShaderMapResource> PixelShaderResource;
 	TRefCountPtr<FShaderMapResource> GeometryShaderResource;
 	int32 VertexShaderIndex = INDEX_NONE;
-	int32 HullShaderIndex = INDEX_NONE;
-	int32 DomainShaderIndex = INDEX_NONE;
 	int32 PixelShaderIndex = INDEX_NONE;
 	int32 GeometryShaderIndex = INDEX_NONE;
 };
@@ -302,12 +286,6 @@ public:
 			BoundShaderState.GeometryShaderResource != rhs.BoundShaderState.GeometryShaderResource ||
 			BoundShaderState.GeometryShaderIndex != rhs.BoundShaderState.GeometryShaderIndex ||
 #endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			BoundShaderState.DomainShaderResource != rhs.BoundShaderState.DomainShaderResource ||
-			BoundShaderState.HullShaderResource != rhs.BoundShaderState.HullShaderResource ||
-			BoundShaderState.DomainShaderIndex != rhs.BoundShaderState.DomainShaderIndex ||
-			BoundShaderState.HullShaderIndex != rhs.BoundShaderState.HullShaderIndex ||
-#endif		
 			BlendState != rhs.BlendState ||
 			RasterizerState != rhs.RasterizerState ||
 			DepthStencilState != rhs.DepthStencilState ||
@@ -371,12 +349,6 @@ public:
 			COMPARE_FIELD(BoundShaderState.GeometryShaderIndex)
 			COMPARE_FIELD(BoundShaderState.GeometryShaderResource)
 #endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			COMPARE_FIELD(BoundShaderState.DomainShaderIndex)
-			COMPARE_FIELD(BoundShaderState.HullShaderIndex)
-			COMPARE_FIELD(BoundShaderState.DomainShaderResource)
-			COMPARE_FIELD(BoundShaderState.HullShaderResource)
-#endif
 			COMPARE_FIELD(BlendState)
 			COMPARE_FIELD(RasterizerState)
 			COMPARE_FIELD(DepthStencilState)
@@ -402,12 +374,6 @@ public:
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			COMPARE_FIELD(BoundShaderState.GeometryShaderIndex)
 			COMPARE_FIELD(BoundShaderState.GeometryShaderResource)
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			COMPARE_FIELD(BoundShaderState.DomainShaderIndex)
-			COMPARE_FIELD(BoundShaderState.HullShaderIndex)
-			COMPARE_FIELD(BoundShaderState.DomainShaderResource)
-			COMPARE_FIELD(BoundShaderState.HullShaderResource)
 #endif
 			COMPARE_FIELD(BlendState)
 			COMPARE_FIELD(RasterizerState)
@@ -574,8 +540,6 @@ public:
 struct FMeshProcessorShaders
 {
 	mutable TShaderRef<FShader> VertexShader;
-	mutable TShaderRef<FShader> HullShader;
-	mutable TShaderRef<FShader> DomainShader;
 	mutable TShaderRef<FShader> PixelShader;
 	mutable TShaderRef<FShader> GeometryShader;
 	mutable TShaderRef<FShader> ComputeShader;
@@ -588,14 +552,6 @@ struct FMeshProcessorShaders
 		if (Frequency == SF_Vertex)
 		{
 			return VertexShader;
-		}
-		else if (Frequency == SF_Hull)
-		{
-			return HullShader;
-		}
-		else if (Frequency == SF_Domain)
-		{
-			return DomainShader;
 		}
 		else if (Frequency == SF_Pixel)
 		{
@@ -1536,12 +1492,10 @@ private:
 	const FScene& Scene;
 };
 
-template<typename VertexType, typename HullType, typename DomainType, typename PixelType, typename GeometryType = FMeshMaterialShader, typename RayHitGroupType = FMeshMaterialShader, typename ComputeType = FMeshMaterialShader>
+template<typename VertexType, typename PixelType, typename GeometryType = FMeshMaterialShader, typename RayHitGroupType = FMeshMaterialShader, typename ComputeType = FMeshMaterialShader>
 struct TMeshProcessorShaders
 {
 	TShaderRef<VertexType> VertexShader;
-	TShaderRef<HullType> HullShader;
-	TShaderRef<DomainType> DomainShader;
 	TShaderRef<PixelType> PixelShader;
 	TShaderRef<GeometryType> GeometryShader;
 	TShaderRef<ComputeType> ComputeShader;
@@ -1555,8 +1509,6 @@ struct TMeshProcessorShaders
 	{
 		FMeshProcessorShaders Shaders;
 		Shaders.VertexShader = VertexShader;
-		Shaders.HullShader = HullShader;
-		Shaders.DomainShader = DomainShader;
 		Shaders.PixelShader = PixelShader;
 		Shaders.GeometryShader = GeometryShader;
 		Shaders.ComputeShader = ComputeShader;

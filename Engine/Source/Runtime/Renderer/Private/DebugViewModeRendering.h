@@ -127,56 +127,6 @@ public:
 	}
 };
 
-/**
- * Hull shader for quad overdraw. Required because overdraw shaders need to have SV_Position as first PS interpolant.
- */
-class FDebugViewModeHS : public FBaseHS
-{
-	DECLARE_SHADER_TYPE(FDebugViewModeHS,MeshMaterial);
-public:
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseHS::ShouldCompilePermutation(Parameters) && FDebugViewModeVS::ShouldCompilePermutation(Parameters);
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FDebugViewModeVS::SetCommonDefinitions(Parameters, OutEnvironment);
-		FBaseHS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	FDebugViewModeHS() = default;
-	FDebugViewModeHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseHS(Initializer)
-	{}
-};
-
-/**
- * Domain shader for quad overdraw. Required because overdraw shaders need to have SV_Position as first PS interpolant.
- */
-class FDebugViewModeDS : public FBaseDS
-{
-	DECLARE_SHADER_TYPE(FDebugViewModeDS,MeshMaterial);
-public:
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseDS::ShouldCompilePermutation(Parameters) && FDebugViewModeVS::ShouldCompilePermutation(Parameters);		
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FDebugViewModeVS::SetCommonDefinitions(Parameters, OutEnvironment);
-		FBaseDS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	FDebugViewModeDS() = default;
-	FDebugViewModeDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseDS(Initializer)
-	{}
-};
-
 class FDebugViewModePS : public FMeshMaterialShader
 {
 public:
@@ -218,7 +168,6 @@ private:
 };
 
 void AddDebugViewModeShaderTypes(ERHIFeatureLevel::Type FeatureLevel,
-	EMaterialTessellationMode MaterialTessellationMode,
 	const FVertexFactoryType* VertexFactoryType,
 	FMaterialShaderTypes& OutShaderTypes);
 

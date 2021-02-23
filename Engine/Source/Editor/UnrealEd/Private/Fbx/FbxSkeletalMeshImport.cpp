@@ -1744,7 +1744,6 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 
 	FSkeletalMeshBuildSettings BuildOptions;
 	//Make sure the build option change in the re-import ui is reconduct
-	BuildOptions.bBuildAdjacencyBuffer = true;
 	BuildOptions.bUseFullPrecisionUVs = false;
 	BuildOptions.bUseHighPrecisionTangentBasis = false;
 	BuildOptions.bRecomputeNormals = !ImportOptions->ShouldImportNormals() || !SkelMeshImportDataPtr->bHasNormals;
@@ -1766,8 +1765,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		FSkeletalMeshLODInfo* LODInfoPtr = ExistingSkelMesh->GetLODInfo(SafeReimportLODIndex);
 		if (LODInfoPtr)
 		{
-			//Adjacency buffer, full precision UV and High precision tangent cannot be change in the re-import options, it must not be change from the original data.
-			BuildOptions.bBuildAdjacencyBuffer = LODInfoPtr->BuildSettings.bBuildAdjacencyBuffer;
+			// Full precision UV and High precision tangent cannot be change in the re-import options, it must not be change from the original data.
 			BuildOptions.bUseFullPrecisionUVs = LODInfoPtr->BuildSettings.bUseFullPrecisionUVs;
 			BuildOptions.bUseHighPrecisionTangentBasis = LODInfoPtr->BuildSettings.bUseHighPrecisionTangentBasis;
 
@@ -2360,7 +2358,6 @@ USkeletalMesh* UnFbx::FFbxImporter::ReimportSkeletalMesh(USkeletalMesh* Mesh, UF
 			if (!Mesh->IsLODImportedDataBuildAvailable(0))
 			{
 				//Set the build settings
-				LODInfo->BuildSettings.bBuildAdjacencyBuffer = true;
 				LODInfo->BuildSettings.bComputeWeightedNormals = SKImportData->bComputeWeightedNormals;
 				LODInfo->BuildSettings.bRecomputeNormals = SKImportData->NormalImportMethod == EFBXNormalImportMethod::FBXNIM_ComputeNormals;
 				LODInfo->BuildSettings.bRecomputeTangents = SKImportData->NormalImportMethod != EFBXNormalImportMethod::FBXNIM_ImportNormalsAndTangents;

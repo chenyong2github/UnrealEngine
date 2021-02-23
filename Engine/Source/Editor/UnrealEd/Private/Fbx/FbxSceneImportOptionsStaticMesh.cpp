@@ -10,7 +10,6 @@ UFbxSceneImportOptionsStaticMesh::UFbxSceneImportOptionsStaticMesh(const FObject
 	, StaticMeshLODGroup(NAME_None)
 	, bAutoGenerateCollision(true)
 	, bRemoveDegenerates(true)
-	, bBuildAdjacencyBuffer(true)
 	, bBuildReversedIndexBuffer(true)
 	, bGenerateLightmapUVs(true)
 	, bOneConvexHullPerUCX(true)
@@ -25,7 +24,6 @@ void UFbxSceneImportOptionsStaticMesh::FillStaticMeshInmportData(UFbxStaticMeshI
 	check(StaticMeshImportData != nullptr);
 	check(SceneImportOptions != nullptr);
 	StaticMeshImportData->bAutoGenerateCollision = bAutoGenerateCollision;
-	StaticMeshImportData->bBuildAdjacencyBuffer = bBuildAdjacencyBuffer;
 	StaticMeshImportData->bBuildReversedIndexBuffer = bBuildReversedIndexBuffer;
 	StaticMeshImportData->bGenerateLightmapUVs = bGenerateLightmapUVs;
 	StaticMeshImportData->bOneConvexHullPerUCX = bOneConvexHullPerUCX;

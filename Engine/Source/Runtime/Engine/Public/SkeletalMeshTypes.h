@@ -29,7 +29,6 @@ struct ESkeletalMeshVertexFlags
 		UseFullPrecisionUVs = 0x1,
 		HasVertexColors = 0x2,
 		UseHighPrecisionTangentBasis = 0x4,
-		BuildAdjacencyIndexBuffer = 0x8
 	};
 };
 

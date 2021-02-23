@@ -70,7 +70,6 @@ void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread(F
 		ReversedIndexBuffer = LODResource.AdditionalIndexBuffers->ReversedIndexBuffer.CreateRHIBuffer_RenderThread();
 		ReversedDepthOnlyIndexBuffer = LODResource.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.CreateRHIBuffer_RenderThread();
 		WireframeIndexBuffer = LODResource.AdditionalIndexBuffers->WireframeIndexBuffer.CreateRHIBuffer_RenderThread();
-		AdjacencyIndexBuffer = LODResource.AdditionalIndexBuffers->AdjacencyIndexBuffer.CreateRHIBuffer_RenderThread();
 	}
 }
 
@@ -89,7 +88,6 @@ void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_Async(FStaticM
 		ReversedIndexBuffer = LODResource.AdditionalIndexBuffers->ReversedIndexBuffer.CreateRHIBuffer_Async();
 		ReversedDepthOnlyIndexBuffer = LODResource.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.CreateRHIBuffer_Async();
 		WireframeIndexBuffer = LODResource.AdditionalIndexBuffers->WireframeIndexBuffer.CreateRHIBuffer_Async();
-		AdjacencyIndexBuffer = LODResource.AdditionalIndexBuffers->AdjacencyIndexBuffer.CreateRHIBuffer_Async();
 	}
 }
 
@@ -104,7 +102,6 @@ void FStaticMeshStreamIn::FIntermediateBuffers::SafeRelease()
 	DepthOnlyIndexBuffer.SafeRelease();
 	ReversedDepthOnlyIndexBuffer.SafeRelease();
 	WireframeIndexBuffer.SafeRelease();
-	AdjacencyIndexBuffer.SafeRelease();
 }
 
 template <uint32 MaxNumUpdates>
@@ -122,7 +119,6 @@ void FStaticMeshStreamIn::FIntermediateBuffers::TransferBuffers(FStaticMeshLODRe
 		LODResource.AdditionalIndexBuffers->ReversedIndexBuffer.InitRHIForStreaming(ReversedIndexBuffer, Batcher);
 		LODResource.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.InitRHIForStreaming(ReversedDepthOnlyIndexBuffer, Batcher);
 		LODResource.AdditionalIndexBuffers->WireframeIndexBuffer.InitRHIForStreaming(WireframeIndexBuffer, Batcher);
-		LODResource.AdditionalIndexBuffers->AdjacencyIndexBuffer.InitRHIForStreaming(AdjacencyIndexBuffer, Batcher);
 	}
 	SafeRelease();
 }
@@ -137,8 +133,7 @@ void FStaticMeshStreamIn::FIntermediateBuffers::CheckIsNull() const
 		&& !ReversedIndexBuffer
 		&& !DepthOnlyIndexBuffer
 		&& !ReversedDepthOnlyIndexBuffer
-		&& !WireframeIndexBuffer
-		&& !AdjacencyIndexBuffer);
+		&& !WireframeIndexBuffer);
 }
 
 FStaticMeshStreamIn::FStaticMeshStreamIn(const UStaticMesh* InMesh)

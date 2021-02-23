@@ -378,7 +378,6 @@ namespace FbxMeshUtils
 				FSkeletalMeshLODInfo* LODInfo = SelectedSkelMesh->GetLODInfo(LODLevel);
 				if (LODInfo)
 				{
-					LODInfo->BuildSettings.bBuildAdjacencyBuffer = true;
 					LODInfo->BuildSettings.bRecomputeNormals = !ImportOptions->ShouldImportNormals();
 					LODInfo->BuildSettings.bRecomputeTangents = !ImportOptions->ShouldImportTangents();
 					LODInfo->BuildSettings.bUseMikkTSpace = (ImportOptions->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!ImportOptions->ShouldImportNormals() || !ImportOptions->ShouldImportTangents());

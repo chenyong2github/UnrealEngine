@@ -165,8 +165,6 @@ public:
 	// FRenderResource interface.
 	virtual void InitRHI() override;
 
-	static bool SupportsTessellationShaders() { return true; }
-
 	FMeshParticleInstanceVertices*& GetInstanceVerticesCPU()
 	{
 		return InstanceVerticesCPU;

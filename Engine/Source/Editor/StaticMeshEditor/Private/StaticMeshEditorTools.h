@@ -192,7 +192,6 @@ private:
 	ECheckBoxState ShouldUseMikkTSpace() const;
 	ECheckBoxState ShouldComputeWeightedNormals() const;
 	ECheckBoxState ShouldRemoveDegenerates() const;
-	ECheckBoxState ShouldBuildAdjacencyBuffer() const;
 	ECheckBoxState ShouldBuildReversedIndexBuffer() const;
 	ECheckBoxState ShouldUseHighPrecisionTangentBasis() const;
 	ECheckBoxState ShouldUseFullPrecisionUVs() const;
@@ -211,7 +210,6 @@ private:
 	void OnUseMikkTSpaceChanged(ECheckBoxState NewState);
 	void OnComputeWeightedNormalsChanged(ECheckBoxState NewState);
 	void OnRemoveDegeneratesChanged(ECheckBoxState NewState);
-	void OnBuildAdjacencyBufferChanged(ECheckBoxState NewState);
 	void OnBuildReversedIndexBufferChanged(ECheckBoxState NewState);
 	void OnUseHighPrecisionTangentBasisChanged(ECheckBoxState NewState);
 	void OnUseFullPrecisionUVsChanged(ECheckBoxState NewState);
@@ -525,8 +523,6 @@ public:
 
 	/** Apply current LOD settings to the mesh. */
 	void ApplyChanges();
-
-	bool PreviewLODRequiresAdjacencyInformation(int32 LODIndex);
 
 private:
 

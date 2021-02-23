@@ -879,18 +879,4 @@ void BuildAllBufferOptimizations(FStaticMeshLODResources& StaticMeshLOD, const F
 		}
 		StaticMeshLOD.AdditionalIndexBuffers->WireframeIndexBuffer.SetIndices(WireframeIndices, IndexBufferStride);
 	}
-
-	// Build the adjacency index buffer used for tessellation.
-	if (LODBuildSettings.bBuildAdjacencyBuffer)
-	{
-		TArray<uint32> AdjacencyIndices;
-
-		BuildOptimizationThirdParty::NvTriStripHelper::BuildStaticAdjacencyIndexBuffer(
-			StaticMeshLOD.VertexBuffers.PositionVertexBuffer,
-			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer,
-			IndexBuffer,
-			AdjacencyIndices
-		);
-		StaticMeshLOD.AdditionalIndexBuffers->AdjacencyIndexBuffer.SetIndices(AdjacencyIndices, IndexBufferStride);
-	}
 }

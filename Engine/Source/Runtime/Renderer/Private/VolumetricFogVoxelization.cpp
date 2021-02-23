@@ -424,8 +424,6 @@ void FVoxelizeVolumeMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FVoxelizeVolumeVS,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		FVoxelizeVolumePS,
 		FVoxelizeVolumeGS> PassShaders;
 

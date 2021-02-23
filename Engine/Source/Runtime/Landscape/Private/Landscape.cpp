@@ -900,65 +900,6 @@ void ULandscapeComponent::PostLoad()
 
 	TArray<ULandscapeMaterialInstanceConstant*> ResolvedMaterials;
 
-	if (MaterialIndexToDisabledTessellationMaterial.Num() < MaxLOD)
-	{
-		MaterialIndexToDisabledTessellationMaterial.Init(INDEX_NONE, MaxLOD+1);
-	}
-
-	// Be sure we have the appropriate material count
-	for (int32 i = 0; i < MaterialInstances.Num(); ++i)
-	{
-		ULandscapeMaterialInstanceConstant* LandscapeMIC = Cast<ULandscapeMaterialInstanceConstant>(MaterialInstances[i]);
-
-		if (LandscapeMIC == nullptr || LandscapeMIC->Parent == nullptr || ResolvedMaterials.Contains(LandscapeMIC))
-		{
-			continue;
-		}
-
-		UMaterial* Material = LandscapeMIC->GetMaterial();
-		bool FoundMatchingDisablingMaterial = false;
-
-		// If we have tessellation, find the equivalent with disable tessellation set
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (Material->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		{
-			for (int32 j = i + 1; j < MaterialInstances.Num(); ++j)
-			{
-				ULandscapeMaterialInstanceConstant* OtherLandscapeMIC = Cast<ULandscapeMaterialInstanceConstant>(MaterialInstances[j]);
-
-				if (OtherLandscapeMIC == nullptr || OtherLandscapeMIC->Parent == nullptr)
-				{
-					continue;
-				}
-
-				UMaterial* OtherMaterial = OtherLandscapeMIC->GetMaterial();
-
-				if (OtherMaterial == Material && OtherLandscapeMIC->bDisableTessellation)  // we have a matching material
-				{			
-					FoundMatchingDisablingMaterial = true;
-					ResolvedMaterials.Add(LandscapeMIC);
-					ResolvedMaterials.Add(OtherLandscapeMIC);
-					MaterialIndexToDisabledTessellationMaterial[i] = j;
-					break;
-				}
-			}
-
-			if (!FoundMatchingDisablingMaterial)
-			{
-				if (GIsEditor)
-				{
-					UpdateMaterialInstances();
-					break;
-				}
-				else
-				{
-					UE_LOG(LogLandscape, Error, TEXT("Landscape component (%d, %d) have a material with Tessellation enabled but we do not have the corresponding disabling one. To correct this issue, open the map in the editor and resave the map."), SectionBaseX, SectionBaseY);
-				}
-			}
-		}
-	}	
-
 	if (LODIndexToMaterialIndex.Num() != MaxLOD+1)
 	{
 		if (GIsEditor)
@@ -1090,10 +1031,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	bLockLocation = true;
 	bIsMovingToLevel = false;
 #endif // WITH_EDITORONLY_DATA
-	TessellationComponentScreenSize = 0.8f;
 	ComponentScreenSizeToUseSubSections = 0.65f;
-	UseTessellationComponentScreenSizeFalloff = true;
-	TessellationComponentScreenSizeFalloff = 0.75f;
 	LOD0ScreenSize = 0.5f;
 	LOD0DistributionSetting = 1.25f;
 	LODDistributionSetting = 3.0f;
@@ -2589,10 +2527,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		MaxLODLevel = Landscape->MaxLODLevel;
 		LODDistanceFactor_DEPRECATED = Landscape->LODDistanceFactor_DEPRECATED;
 		LODFalloff_DEPRECATED = Landscape->LODFalloff_DEPRECATED;
-		TessellationComponentScreenSize = Landscape->TessellationComponentScreenSize;
 		ComponentScreenSizeToUseSubSections = Landscape->ComponentScreenSizeToUseSubSections;
-		UseTessellationComponentScreenSizeFalloff = Landscape->UseTessellationComponentScreenSizeFalloff;
-		TessellationComponentScreenSizeFalloff = Landscape->TessellationComponentScreenSizeFalloff;
 		LODDistributionSetting = Landscape->LODDistributionSetting;
 		LOD0DistributionSetting = Landscape->LOD0DistributionSetting;
 		LOD0ScreenSize = Landscape->LOD0ScreenSize;
@@ -2642,27 +2577,9 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 		bUpdated = true;
 	}
 	
-	if (TessellationComponentScreenSize != Landscape->TessellationComponentScreenSize)
-	{
-		TessellationComponentScreenSize = Landscape->TessellationComponentScreenSize;
-		bUpdated = true;
-	}
-
 	if (ComponentScreenSizeToUseSubSections != Landscape->ComponentScreenSizeToUseSubSections)
 	{
 		ComponentScreenSizeToUseSubSections = Landscape->ComponentScreenSizeToUseSubSections;
-		bUpdated = true;
-	}
-
-	if (UseTessellationComponentScreenSizeFalloff != Landscape->UseTessellationComponentScreenSizeFalloff)
-	{
-		UseTessellationComponentScreenSizeFalloff = Landscape->UseTessellationComponentScreenSizeFalloff;
-		bUpdated = true;
-	}
-
-	if (TessellationComponentScreenSizeFalloff != Landscape->TessellationComponentScreenSizeFalloff)
-	{
-		TessellationComponentScreenSizeFalloff = Landscape->TessellationComponentScreenSizeFalloff;
 		bUpdated = true;
 	}
 	

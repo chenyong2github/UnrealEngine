@@ -120,8 +120,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeSectionLODUniformParameters, )
 	SHADER_PARAMETER(FIntPoint, Size)
 	SHADER_PARAMETER_SRV(Buffer<float>, SectionLOD)
 	SHADER_PARAMETER_SRV(Buffer<float>, SectionLODBias)
-	SHADER_PARAMETER_SRV(Buffer<float>, SectionTessellationFalloffC)
-	SHADER_PARAMETER_SRV(Buffer<float>, SectionTessellationFalloffK)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, LANDSCAPE_API)
@@ -206,8 +204,6 @@ public:
 
 	// FRenderResource interface.
 	virtual void InitRHI() override;
-
-	static bool SupportsTessellationShaders() { return true; }
 
 	/**
 	 * An implementation of the interface used by TSynchronizedResource to update the resource with new data from the game thread.
@@ -296,19 +292,6 @@ public:
 	virtual void InitRHI() override;
 };
 
-
-//
-// FLandscapeSharedAdjacencyIndexBuffer
-//
-class FLandscapeSharedAdjacencyIndexBuffer
-{
-public:
-	FLandscapeSharedAdjacencyIndexBuffer(class FLandscapeSharedBuffers* SharedBuffer);
-	virtual ~FLandscapeSharedAdjacencyIndexBuffer();
-
-	TArray<FIndexBuffer*> IndexBuffers; // For tessellation
-};
-
 //
 // FLandscapeSharedBuffers
 //
@@ -334,7 +317,6 @@ public:
 	FLandscapeVertexBuffer* VertexBuffer;
 	FIndexBuffer** IndexBuffers;
 	FLandscapeIndexRanges* IndexRanges;
-	FLandscapeSharedAdjacencyIndexBuffer* AdjacencyIndexBuffers;
 	FOccluderIndexArraySP OccluderIndicesSP;
 	bool bUse32BitIndices;
 #if WITH_EDITOR
@@ -346,10 +328,10 @@ public:
 	TArray<FIndexBuffer*> ZeroOffsetIndexBuffers;
 #endif
 
-	FLandscapeSharedBuffers(int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel, bool bRequiresAdjacencyInformation, int32 NumOcclusionVertices);
+	FLandscapeSharedBuffers(int32 SharedBuffersKey, int32 SubsectionSizeQuads, int32 NumSubsections, ERHIFeatureLevel::Type FeatureLevel, int32 NumOcclusionVertices);
 
 	template <typename INDEX_TYPE>
-	void CreateIndexBuffers(ERHIFeatureLevel::Type InFeatureLevel, bool bRequiresAdjacencyInformation);
+	void CreateIndexBuffers(ERHIFeatureLevel::Type InFeatureLevel);
 
 	void CreateOccluderIndexBuffer(int32 NumOcclderVertices);
 	
@@ -474,8 +456,6 @@ public:
 		Parameters.Size = FIntPoint(1, 1);
 		Parameters.SectionLOD = SectionLODSRV;
 		Parameters.SectionLODBias = SectionLODSRV;
-		Parameters.SectionTessellationFalloffC = SectionLODSRV;
-		Parameters.SectionTessellationFalloffK = SectionLODSRV;
 		UniformBuffer = TUniformBufferRef<FLandscapeSectionLODUniformParameters>::CreateUniformBufferImmediate(Parameters, UniformBuffer_MultiFrame);
 	}
 
@@ -528,23 +508,13 @@ struct FLandscapeRenderSystem
 	}
 
 	int32 NumRegisteredEntities;
-	int32 NumEntitiesWithTessellation;
 
 	FIntPoint Min;
 	FIntPoint Size;
 
-	struct SystemTessellationFalloffSettings // Global settings on the render system, not as a component of an entity
-	{
-		bool UseTessellationComponentScreenSizeFalloff;
-		float TessellationComponentSquaredScreenSize;
-		float TessellationComponentScreenSizeFalloff;
-	} TessellationFalloffSettings;
-
 	TArray<LODSettingsComponent> SectionLODSettings;
 	TResourceArray<float> SectionLODValues;
 	TResourceArray<float> SectionLODBiases;
-	TResourceArray<float> SectionTessellationFalloffC;
-	TResourceArray<float> SectionTessellationFalloffK;
 	TArray<FVector4> SectionOriginAndRadius;
 	TArray<FLandscapeComponentSceneProxy*> SceneProxies;
 	TArray<uint8> SectionCurrentFirstLODIndices;
@@ -553,17 +523,11 @@ struct FLandscapeRenderSystem
 	FShaderResourceViewRHIRef SectionLODSRV;
 	FBufferRHIRef SectionLODBiasBuffer;
 	FShaderResourceViewRHIRef SectionLODBiasSRV;
-	FBufferRHIRef SectionTessellationFalloffCBuffer;
-	FShaderResourceViewRHIRef SectionTessellationFalloffCSRV;
-	FBufferRHIRef SectionTessellationFalloffKBuffer;
-	FShaderResourceViewRHIRef SectionTessellationFalloffKSRV;
 
 	TUniformBufferRef<FLandscapeSectionLODUniformParameters> UniformBuffer;
 
 	FCriticalSection CachedValuesCS;
 	TMap<const FSceneView*, TResourceArray<float>> CachedSectionLODValues;
-	TMap<const FSceneView*, TResourceArray<float>> CachedSectionTessellationFalloffC;
-	TMap<const FSceneView*, TResourceArray<float>> CachedSectionTessellationFalloffK;
 	const FSceneView* CachedView;
 
 	TMap<const FSceneView*, FGraphEventRef> PerViewParametersTasks;
@@ -650,15 +614,12 @@ struct FLandscapeRenderSystem
 
 	FLandscapeRenderSystem()
 		: NumRegisteredEntities(0)
-		, NumEntitiesWithTessellation(0)
 		, Min(MAX_int32, MAX_int32)
 		, Size(EForceInit::ForceInitToZero)
 		, CachedView(nullptr)
 	{
 		SectionLODValues.SetAllowCPUAccess(true);
 		SectionLODBiases.SetAllowCPUAccess(true);
-		SectionTessellationFalloffC.SetAllowCPUAccess(true);
-		SectionTessellationFalloffK.SetAllowCPUAccess(true);
 	}
 
 	void RegisterEntity(FLandscapeComponentSceneProxy* SceneProxy);
@@ -807,8 +768,6 @@ public:
 #endif // defined(GPUCULL_TODO)
 protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
-	bool						UseTessellationComponentScreenSizeFalloff:1;	// Tell if we should apply a Tessellation falloff
-	bool						bRequiresAdjacencyInformation:1;
 	int8						NumWeightmapLayerAllocations;
 	uint8						StaticLightingLOD;
 	float						WeightmapSubsectionOffset;
@@ -821,8 +780,6 @@ protected:
 	float						ComponentSquaredScreenSizeToUseSubSections; // Size at which we start to draw in sub lod if LOD are different per sub section
 	float						MinValidLOD;							// Min LOD Taking into account LODBias
 	float						MaxValidLOD;							// Max LOD Taking into account LODBias
-	float						TessellationComponentSquaredScreenSize;	// Screen size of the component at which we start to apply tessellation
-	float						TessellationComponentScreenSizeFalloff;	// Min Component screen size before we start applying the tessellation falloff
 
 	FLandscapeRenderSystem::LODSettingsComponent LODSettings;
 
@@ -889,17 +846,11 @@ protected:
 	/** All available materials for non mobile, including LOD Material, Tessellation generated materials*/
 	TArray<UMaterialInterface*> AvailableMaterials;
 
-	/** A cache to know if the material stored in AvailableMaterials[X] has tessellation enabled */
-	TBitArray<> MaterialHasTessellationEnabled;
-
 	// FLightCacheInterface
 	TUniquePtr<FLandscapeLCI> ComponentLightInfo;
 
 	/** Mapping between LOD and Material Index*/
 	TArray<int8> LODIndexToMaterialIndex;
-	
-	/** Mapping between Material Index to associated generated disabled Tessellation Material*/
-	TArray<int8> MaterialIndexToDisabledTessellationMaterial;
 	
 	/** Mapping between Material Index to Static Mesh Batch */
 	TArray<int8> MaterialIndexToStaticMeshBatchLOD;
@@ -984,10 +935,7 @@ public:
 #endif
 
 	// FLandcapeSceneProxy
-	void ChangeTessellationComponentScreenSize_RenderThread(float InTessellationComponentScreenSize);
 	void ChangeComponentScreenSizeToUseSubSections_RenderThread(float InComponentScreenSizeToUseSubSections);
-	void ChangeUseTessellationComponentScreenSizeFalloff_RenderThread(bool InUseTessellationComponentScreenSizeFalloff);
-	void ChangeTessellationComponentScreenSizeFalloff_RenderThread(float InTessellationComponentScreenSizeFalloff);
 
 	virtual bool HeightfieldHasPendingStreaming() const override;
 

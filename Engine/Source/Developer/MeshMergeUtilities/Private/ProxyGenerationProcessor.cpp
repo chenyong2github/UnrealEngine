@@ -209,7 +209,6 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 	SrcModel.BuildSettings.bUseFullPrecisionUVs = false;
 	SrcModel.BuildSettings.bGenerateLightmapUVs = Data->MergeData->InProxySettings.bGenerateLightmapUVs;
 	SrcModel.BuildSettings.bBuildReversedIndexBuffer = false;
-	SrcModel.BuildSettings.bBuildAdjacencyBuffer = Data->MergeData->InProxySettings.bAllowAdjacency;
 	if (!Data->MergeData->InProxySettings.bAllowDistanceField)
 	{
 		SrcModel.BuildSettings.DistanceFieldResolutionScale = 0.0f;

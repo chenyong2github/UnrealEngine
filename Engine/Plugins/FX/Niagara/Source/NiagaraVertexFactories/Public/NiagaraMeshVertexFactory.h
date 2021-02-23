@@ -165,8 +165,6 @@ public:
 	// FRenderResource interface.
 	virtual void InitRHI() override;
 
-	static bool SupportsTessellationShaders() { return true; }
-	
 	int32 GetMeshIndex() const { return MeshIndex; }
 	void SetMeshIndex(int32 InMeshIndex) { MeshIndex = InMeshIndex; }
 

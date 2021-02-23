@@ -285,8 +285,6 @@ void FRayTracingMeshProcessor::Process(
 		FMeshMaterialShader,
 		FMeshMaterialShader,
 		FMeshMaterialShader,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		FMaterialCHS> RayTracingShaders;
 
 	if (bMaterialsCompiled)

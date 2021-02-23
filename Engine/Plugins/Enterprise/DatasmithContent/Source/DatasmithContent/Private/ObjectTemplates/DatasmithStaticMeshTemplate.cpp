@@ -26,8 +26,6 @@ void FDatasmithMeshBuildSettingsTemplate::Apply( FMeshBuildSettings* Destination
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bRemoveDegenerates, Destination, PreviousTemplate );
 
-	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bBuildAdjacencyBuffer, Destination, PreviousTemplate );
-
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bUseHighPrecisionTangentBasis, Destination, PreviousTemplate );
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bUseFullPrecisionUVs, Destination, PreviousTemplate );
@@ -47,7 +45,6 @@ void FDatasmithMeshBuildSettingsTemplate::Load( const FMeshBuildSettings& Source
 	bRecomputeNormals = Source.bRecomputeNormals;
 	bRecomputeTangents = Source.bRecomputeTangents;
 	bRemoveDegenerates = Source.bRemoveDegenerates;
-	bBuildAdjacencyBuffer = Source.bBuildAdjacencyBuffer;
 	bUseHighPrecisionTangentBasis = Source.bUseHighPrecisionTangentBasis;
 	bUseFullPrecisionUVs = Source.bUseFullPrecisionUVs;
 	bGenerateLightmapUVs = Source.bGenerateLightmapUVs;
@@ -62,7 +59,6 @@ bool FDatasmithMeshBuildSettingsTemplate::Equals( const FDatasmithMeshBuildSetti
 	bEquals = bEquals && ( bRecomputeNormals == Other.bRecomputeNormals );
 	bEquals = bEquals && ( bRecomputeTangents == Other.bRecomputeTangents );
 	bEquals = bEquals && ( bRemoveDegenerates == Other.bRemoveDegenerates );
-	bEquals = bEquals && ( bBuildAdjacencyBuffer == Other.bBuildAdjacencyBuffer );
 	bEquals = bEquals && ( bUseHighPrecisionTangentBasis == Other.bUseHighPrecisionTangentBasis );
 	bEquals = bEquals && ( bUseFullPrecisionUVs == Other.bUseFullPrecisionUVs );
 	bEquals = bEquals && ( bGenerateLightmapUVs == Other.bGenerateLightmapUVs );

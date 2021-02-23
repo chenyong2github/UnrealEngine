@@ -107,38 +107,6 @@ public:
 	{}
 };
 
-class FVelocityHS : public FBaseHS
-{
-public:
-	DECLARE_SHADER_TYPE(FVelocityHS, MeshMaterial);
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseHS::ShouldCompilePermutation(Parameters) && FVelocityVS::ShouldCompilePermutation(Parameters);
-	}
-
-	FVelocityHS() = default;
-	FVelocityHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseHS(Initializer)
-	{}
-};
-
-class FVelocityDS : public FBaseDS
-{
-public:
-	DECLARE_SHADER_TYPE(FVelocityDS, MeshMaterial);
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseDS::ShouldCompilePermutation(Parameters) && FVelocityVS::ShouldCompilePermutation(Parameters);
-	}
-
-	FVelocityDS() = default;
-	FVelocityDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseDS(Initializer)
-	{}
-};
-
 class FVelocityPS : public FMeshMaterialShader
 {
 public:
@@ -162,8 +130,6 @@ public:
 };
 
 IMPLEMENT_SHADER_TYPE(,FVelocityVS, TEXT("/Engine/Private/VelocityShader.usf"), TEXT("MainVertexShader"), SF_Vertex);
-IMPLEMENT_SHADER_TYPE(,FVelocityHS, TEXT("/Engine/Private/VelocityShader.usf"), TEXT("MainHull"), SF_Hull);
-IMPLEMENT_SHADER_TYPE(,FVelocityDS, TEXT("/Engine/Private/VelocityShader.usf"), TEXT("MainDomain"), SF_Domain);
 IMPLEMENT_SHADER_TYPE(,FVelocityPS, TEXT("/Engine/Private/VelocityShader.usf"), TEXT("MainPixelShader"), SF_Pixel);
 IMPLEMENT_SHADERPIPELINE_TYPE_VSPS(VelocityPipeline, FVelocityVS, FVelocityPS, true);
 
@@ -630,29 +596,13 @@ bool GetVelocityPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	TShaderRef<FVelocityHS>& HullShader,
-	TShaderRef<FVelocityDS>& DomainShader,
 	TShaderRef<FVelocityVS>& VertexShader,
 	TShaderRef<FVelocityPS>& PixelShader)
 {
-	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
-
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders()
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
 	FMaterialShaderTypes ShaderTypes;
 
-	if (bNeedsHSDS)
-	{
-		ShaderTypes.AddShaderType<FVelocityDS>();
-		ShaderTypes.AddShaderType<FVelocityHS>();
-	}
-	else
-	{
-		// Don't use pipeline if we have hull/domain shaders
-		ShaderTypes.PipelineType = &VelocityPipeline;
-	}
+	// Don't use pipeline if we have hull/domain shaders
+	ShaderTypes.PipelineType = &VelocityPipeline;
 
 	ShaderTypes.AddShaderType<FVelocityVS>();
 	ShaderTypes.AddShaderType<FVelocityPS>();
@@ -665,8 +615,6 @@ bool GetVelocityPassShaders(
 
 	Shaders.TryGetVertexShader(VertexShader);
 	Shaders.TryGetPixelShader(PixelShader);
-	Shaders.TryGetHullShader(HullShader);
-	Shaders.TryGetDomainShader(DomainShader);
 	return true;
 }
 
@@ -684,16 +632,12 @@ bool FVelocityMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FVelocityVS,
-		FVelocityHS,
-		FVelocityDS,
 		FVelocityPS> VelocityPassShaders;
 
 	if (!GetVelocityPassShaders(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
-		VelocityPassShaders.HullShader,
-		VelocityPassShaders.DomainShader,
 		VelocityPassShaders.VertexShader,
 		VelocityPassShaders.PixelShader))
 	{

@@ -142,7 +142,6 @@ namespace GLTF
 		Settings.bComputeWeightedNormals = true;
 
 		Settings.bRemoveDegenerates        = false;
-		Settings.bBuildAdjacencyBuffer     = false;
 		Settings.bBuildReversedIndexBuffer = false;
 
 		Settings.bUseHighPrecisionTangentBasis = false;

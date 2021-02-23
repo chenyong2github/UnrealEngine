@@ -289,18 +289,13 @@ void FHairRasterMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		VertexShaderType,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		PixelShaderType> PassShaders;
 	{
-		const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
 		const bool bIsHairStrandsFactory = MeshBatch.VertexFactory->GetType()->GetHashedName() == CompatibleVF->GetHashedName();
 		if (!bIsHairStrandsFactory)
 			return;
 
-		PassShaders.DomainShader.Reset();
-		PassShaders.HullShader.Reset();
 		PassShaders.VertexShader = MaterialResource.GetShader<VertexShaderType>(VertexFactoryType);
 		PassShaders.PixelShader = MaterialResource.GetShader<PixelShaderType>(VertexFactoryType);
 	}

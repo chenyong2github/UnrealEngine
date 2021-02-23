@@ -24,7 +24,7 @@
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
 #include "UObject/RenderingObjectVersion.h"
-#include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UObjectAnnotation.h"
 #include "EngineUtils.h"
 #include "Engine/AssetUserData.h"
@@ -64,7 +64,6 @@
 #include "IMeshBuilderModule.h"
 #include "IMeshReductionManagerModule.h"
 #include "IMeshReductionInterfaces.h"
-#include "TessellationRendering.h"
 #include "Misc/MessageDialog.h"
 #include "StaticMeshCompiler.h"
 #include "AssetCompilingManager.h"
@@ -123,12 +122,6 @@ static TAutoConsoleVariable<int32> CVarStaticMeshKeepMobileMinLODSettingOnDeskto
 	TEXT("r.StaticMesh.KeepMobileMinLODSettingOnDesktop"),
 	0,
 	TEXT("If non-zero, mobile setting for MinLOD will be stored in the cooked data for desktop platforms"));
-
-int32 GForceStripMeshAdjacencyDataDuringCooking = 0;
-static FAutoConsoleVariableRef CVarForceStripMeshAdjacencyDataDuringCooking(
-	TEXT("r.ForceStripAdjacencyDataDuringCooking"),
-	GForceStripMeshAdjacencyDataDuringCooking,
-	TEXT("If set, adjacency data will be stripped for all static and skeletal meshes during cooking (acting like the target platform did not support tessellation)."));
 
 static TAutoConsoleVariable<int32> CVarSupportDepthOnlyIndexBuffers(
 	TEXT("r.SupportDepthOnlyIndexBuffers"),
@@ -311,13 +304,10 @@ uint8 FStaticMeshLODResources::GenerateClassStripFlags(FArchive& Ar, UStaticMesh
 {
 #if WITH_EDITOR
 	// Defined class flags for possible stripping
-	const uint8 AdjacencyDataStripFlag = CDSF_AdjacencyData;
 	const uint8 MinLodDataStripFlag = CDSF_MinLodData;
 	const uint8 ReversedIndexBufferStripFlag = CDSF_ReversedIndexBuffer;
 	const uint8 RayTracingResourcesFlag = CDSF_RayTracingResources;
 
-	const bool bWantToStripTessellation = Ar.IsCooking()
-		&& ((GForceStripMeshAdjacencyDataDuringCooking != 0) || !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::Tessellation));
 	const bool bWantToStripLOD = Ar.IsCooking()
 		&& (CVarStripMinLodDataDuringCooking.GetValueOnAnyThread() != 0)
 		&& OwnerStaticMesh
@@ -326,7 +316,6 @@ uint8 FStaticMeshLODResources::GenerateClassStripFlags(FArchive& Ar, UStaticMesh
 	const bool bWantToStripRayTracingResources = Ar.IsCooking() && (!Ar.CookingTarget()->UsesRayTracing() || !bSupportRayTracing);
 
 	return
-		(bWantToStripTessellation ? AdjacencyDataStripFlag : 0) |
 		(bWantToStripLOD ? MinLodDataStripFlag : 0) |
 		(bWantToStripRayTracingResources ? RayTracingResourcesFlag : 0);
 #else
@@ -475,7 +464,6 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 
 	bHasRayTracingGeometry = false;
 	bHasWireframeIndices = false;
-	bHasAdjacencyInfo = false;
 	bHasDepthOnlyIndices = false;
 	bHasReversedIndices = false;
 	bHasReversedDepthOnlyIndices = false;
@@ -494,13 +482,12 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 	AccumIndexBufferSize(IndexBuffer, OutBuffersSize.SerializedBuffersSize);
 
 	const bool bSerializeReversedIndexBuffer = !StripFlags.IsClassDataStripped(CDSF_ReversedIndexBuffer);
-	const bool bSerializeAdjacencyDataIndexBuffer = !StripFlags.IsClassDataStripped(CDSF_AdjacencyData);
 	const bool bSerializeWireframeIndexBuffer = !StripFlags.IsEditorDataStripped();
 	const bool bSerializeRayTracingGeometry = !StripFlags.IsClassDataStripped(CDSF_RayTracingResources);
 
 	FAdditionalStaticMeshIndexBuffers DummyBuffers;
 	FAdditionalStaticMeshIndexBuffers* SerializedAdditionalIndexBuffers = &DummyBuffers;
-	if ((bEnableDepthOnlyIndexBuffer || bEnableReversedIndexBuffer) && (bSerializeReversedIndexBuffer || bSerializeAdjacencyDataIndexBuffer || bSerializeWireframeIndexBuffer || bEnableDepthOnlyIndexBuffer))
+	if ((bEnableDepthOnlyIndexBuffer || bEnableReversedIndexBuffer) && (bSerializeReversedIndexBuffer || bSerializeWireframeIndexBuffer || bEnableDepthOnlyIndexBuffer))
 	{
 		if (AdditionalIndexBuffers == nullptr)
 		{
@@ -546,11 +533,10 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 		bHasWireframeIndices = AdditionalIndexBuffers && SerializedAdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices() != 0;
 	}
 
-	if (bSerializeAdjacencyDataIndexBuffer)
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemovingTessellation && !StripFlags.IsClassDataStripped(CDSF_AdjacencyData_DEPRECATED))
 	{
-		SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
-		AccumIndexBufferSize(SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer, OutBuffersSize.SerializedBuffersSize);
-		bHasAdjacencyInfo = AdditionalIndexBuffers && SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.GetNumIndices() != 0;
+		FRawStaticIndexBuffer AdjacencyIndexBuffer;
+		AdjacencyIndexBuffer.Serialize(Ar, bNeedsCPUAccess);
 	}
 
 	if (bSerializeRayTracingGeometry)
@@ -577,6 +563,7 @@ void FStaticMeshLODResources::SerializeBuffers(FArchive& Ar, UStaticMesh* OwnerS
 
 void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 {
+	bool bHasAdjacencyInfo = false;
 	const bool bEnableDepthOnlyIndexBuffer = !!CVarSupportDepthOnlyIndexBuffers.GetValueOnAnyThread();
 	const bool bEnableReversedIndexBuffer = !!CVarSupportReversedIndexBuffers.GetValueOnAnyThread();
 
@@ -585,8 +572,7 @@ void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 #if WITH_EDITOR
 	if (Ar.IsSaving())
 	{
-		Packed = bHasAdjacencyInfo
-			| (bHasDepthOnlyIndices << 1u)
+		Packed = (bHasDepthOnlyIndices << 1u)
 			| (bHasReversedIndices << 2u)
 			| (bHasReversedDepthOnlyIndices << 3u)
 			| (bHasColorVertexData << 4u)
@@ -615,7 +601,7 @@ void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 
 	FAdditionalStaticMeshIndexBuffers DummyBuffers;
 	FAdditionalStaticMeshIndexBuffers* SerializedAdditionalIndexBuffers = &DummyBuffers;
-	if ((bEnableDepthOnlyIndexBuffer || bEnableReversedIndexBuffer) && (bHasReversedIndices || bHasAdjacencyInfo || bHasWireframeIndices || bHasDepthOnlyIndices))
+	if ((bEnableDepthOnlyIndexBuffer || bEnableReversedIndexBuffer) && (bHasReversedIndices || bHasWireframeIndices || bHasDepthOnlyIndices))
 	{
 		if (AdditionalIndexBuffers == nullptr)
 		{
@@ -646,10 +632,10 @@ void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 	{
 		SerializedAdditionalIndexBuffers->WireframeIndexBuffer.Discard();
 	}
-	SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.SerializeMetaData(Ar);
-	if (!bHasAdjacencyInfo)
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemovingTessellation)
 	{
-		SerializedAdditionalIndexBuffers->AdjacencyIndexBuffer.Discard();
+		FRawStaticIndexBuffer AdjacencyIndexBuffer;
+		AdjacencyIndexBuffer.SerializeMetaData(Ar);
 	}
 	// No metadata to serialize for ray tracing geometry
 	if (!bHasRayTracingGeometry)
@@ -661,7 +647,6 @@ void FStaticMeshLODResources::SerializeAvailabilityInfo(FArchive& Ar)
 void FStaticMeshLODResources::ClearAvailabilityInfo()
 {
 	DepthOnlyNumTriangles = 0;
-	bHasAdjacencyInfo = false;
 	bHasDepthOnlyIndices = false;
 	bHasReversedIndices = false;
 	bHasReversedDepthOnlyIndices = false;
@@ -826,7 +811,6 @@ void FStaticMeshLODResources::GetResourceSizeEx(FResourceSizeEx& CumulativeResou
 		NumIndicies += AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices();
 		NumIndicies += AdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices();
 		NumIndicies += AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices();
-		NumIndicies += (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? AdditionalIndexBuffers->AdjacencyIndexBuffer.GetNumIndices() : 0);
 	}
 
 	int32 IBSize = NumIndicies * (IndexBuffer.Is32Bit() ? 4 : 2);
@@ -1169,7 +1153,6 @@ void FStaticMeshVertexBuffers::InitFromDynamicVertex(FLocalVertexFactory* Vertex
 FStaticMeshLODResources::FStaticMeshLODResources(bool bAddRef)
 	: CardRepresentationData(nullptr)
 	, MaxDeviation(0.0f)
-	, bHasAdjacencyInfo(false)
 	, bHasDepthOnlyIndices(false)
 	, bHasReversedIndices(false)
 	, bHasReversedDepthOnlyIndices(false)
@@ -1212,7 +1195,6 @@ void FStaticMeshLODResources::UpdateIndexMemoryStats()
 			StaticMeshIndexMemory += AdditionalIndexBuffers->WireframeIndexBuffer.GetAllocatedSize();
 			StaticMeshIndexMemory += AdditionalIndexBuffers->ReversedIndexBuffer.GetAllocatedSize();
 			StaticMeshIndexMemory += AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetAllocatedSize();
-			StaticMeshIndexMemory += AdditionalIndexBuffers->AdjacencyIndexBuffer.GetAllocatedSize();
 		}
 
 		INC_DWORD_STAT_BY(STAT_StaticMeshIndexMemory, StaticMeshIndexMemory);
@@ -1275,11 +1257,6 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 	if (bHasReversedDepthOnlyIndices)
 	{
 		BeginInitResource(&AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer);
-	}
-
-	if (bHasAdjacencyInfo && RHISupportsTessellation(GMaxRHIShaderPlatform))
-	{
-		BeginInitResource(&AdditionalIndexBuffers->AdjacencyIndexBuffer);
 	}
 
 	if (Parent->bSupportGpuUniformlyDistributedSampling && Parent->bSupportUniformlyDistributedSampling && Parent->bAllowCPUAccess)
@@ -1359,10 +1336,9 @@ void FStaticMeshLODResources::ReleaseResources()
 
 	if (AdditionalIndexBuffers)
 	{
-		// AdjacencyIndexBuffer may not be initialized at this time, but it is safe to release it anyway.
+		// These may not be initialized at this time, but it is safe to release it anyway.
 		// The bInitialized flag will be safely checked in the render thread.
 		// This avoids a race condition regarding releasing this resource.
-		BeginReleaseResource(&AdditionalIndexBuffers->AdjacencyIndexBuffer);
 		BeginReleaseResource(&AdditionalIndexBuffers->ReversedIndexBuffer);
 		BeginReleaseResource(&AdditionalIndexBuffers->WireframeIndexBuffer);
 		BeginReleaseResource(&AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer);
@@ -1412,7 +1388,6 @@ void FStaticMeshLODResources::DiscardCPUData()
 		AdditionalIndexBuffers->ReversedIndexBuffer.Discard();
 		AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.Discard();
 		AdditionalIndexBuffers->WireframeIndexBuffer.Discard();
-		AdditionalIndexBuffers->AdjacencyIndexBuffer.Discard();
 	}
 }
 
@@ -2355,7 +2330,6 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseMikkTSpace);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bComputeWeightedNormals);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bRemoveDegenerates);
-	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bBuildAdjacencyBuffer);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bBuildReversedIndexBuffer);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseHighPrecisionTangentBasis);
 	FArchive_Serialize_BitfieldBool(Ar, BuildSettings.bUseFullPrecisionUVs);
@@ -2387,7 +2361,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("48D1C55525F44EB3BD953D57E4BF5C72")
+#define STATICMESH_DERIVEDDATA_VER TEXT("3590ADE1085140A68202E37A3EACED95")
 
 const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -3868,83 +3842,6 @@ void UStaticMesh::SetHiResSourceModel(FStaticMeshSourceModel&& InSourceModel)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-
-bool UStaticMesh::FixLODRequiresAdjacencyInformation(const int32 LODIndex, const bool bPreviewMode, bool bPromptUser, bool* OutUserCancel)
-{
-	if (OutUserCancel != nullptr)
-	{
-		*OutUserCancel = false;
-	}
-
-	bool bIsUnattended = FApp::IsUnattended() == true || GIsRunningUnattendedScript || GIsAutomationTesting;
-	//Cannot prompt user in unattended mode
-	if (!IsSourceModelValid(LODIndex) || (bIsUnattended && bPromptUser))
-	{
-		return false;
-	}
-	FStaticMeshSourceModel& SourceModel = GetSourceModel(LODIndex);
-	const FMeshDescription* MeshDescription = GetMeshDescription(LODIndex);
-
-	//In preview mode we simulate a false BuildAdjacencyBuffer
-	if (MeshDescription && (!(SourceModel.BuildSettings.bBuildAdjacencyBuffer) || bPreviewMode))
-	{
-		FStaticMeshConstAttributes StaticMeshAttributes(*MeshDescription);
-
-		TPolygonGroupAttributesConstRef<FName> PolygonGroupImportedMaterialSlotNames = StaticMeshAttributes.GetPolygonGroupMaterialSlotNames();
-		int32 SectionIndex = 0;
-		
-		for (const FPolygonGroupID PolygonGroupID : MeshDescription->PolygonGroups().GetElementIDs())
-		{
-			const FName MaterialImportedName = PolygonGroupImportedMaterialSlotNames[PolygonGroupID];
-			int32 MaterialIndex = 0;
-			for (FStaticMaterial& Material : GetStaticMaterials())
-			{
-				if (Material.ImportedMaterialSlotName != NAME_None && Material.ImportedMaterialSlotName == MaterialImportedName)
-				{
-					FStaticMaterial *RemapMaterial = &Material;
-					FMeshSectionInfo SectionInfo = GetSectionInfoMap().Get(LODIndex, SectionIndex);
-					if (GetStaticMaterials().IsValidIndex(SectionInfo.MaterialIndex))
-					{
-						RemapMaterial = &GetStaticMaterials()[SectionInfo.MaterialIndex];
-					}
-					const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation(RemapMaterial->MaterialInterface, nullptr, GWorld->FeatureLevel);
-					if (bRequiresAdjacencyInformation)
-					{
-						if (bPromptUser)
-						{
-							FText ConfirmRequiredAdjacencyText = FText::Format(LOCTEXT("ConfirmRequiredAdjacency", "Using a tessellation material required the adjacency buffer to be computed.\nDo you want to set the adjacency options to true?\n\n\tSaticMesh: {0}\n\tLOD Index: {1}\n\tMaterial: {2}"), FText::FromString(GetPathName()), LODIndex, FText::FromString(RemapMaterial->MaterialInterface->GetPathName()));
-							EAppReturnType::Type Result = FMessageDialog::Open((OutUserCancel != nullptr) ? EAppMsgType::YesNoCancel : EAppMsgType::YesNo, ConfirmRequiredAdjacencyText);
-							switch(Result)
-							{
-								//Handle cancel and negative answer
-								case EAppReturnType::Cancel:
-								{
-									check(OutUserCancel != nullptr);
-									*OutUserCancel = true;
-									return false;
-								}
-								case EAppReturnType::No:
-								{
-									return false;
-								}
-							}
-						}
-						if (!bPreviewMode)
-						{
-							UE_LOG(LogStaticMesh, Warning, TEXT("Adjacency information not built for static mesh with a material that requires it. Forcing build setting to use adjacency.\n\tLOD Index: %d\n\tMaterial: %s\n\tStaticMesh: %s"), LODIndex, *RemapMaterial->MaterialInterface->GetPathName(), *GetPathName());
-							SourceModel.BuildSettings.bBuildAdjacencyBuffer = true;
-						}
-						return true;
-					}
-				}
-				MaterialIndex++;
-			}
-			SectionIndex++;
-		}
-	}
-	return false;
-}
-
 bool UStaticMesh::TryCancelAsyncTasks()
 {
 	if (AsyncTask)
@@ -4830,6 +4727,7 @@ void UStaticMesh::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
 	FStripDataFlags StripFlags( Ar );
 
@@ -5241,11 +5139,6 @@ void UStaticMesh::BeginPostLoadInternal(FStaticMeshPostLoadContext& Context)
 					GetSourceModel(i).RawMeshBulkData->LoadRawMesh(TempRawMesh);
 					TotalIndexCount += TempRawMesh.WedgeIndices.Num();
 				}
-			}
-
-			for (int32 i = 0; i < GetNumSourceModels(); ++i)
-			{
-				GetSourceModel(i).BuildSettings.bBuildAdjacencyBuffer = (TotalIndexCount < 50000);
 			}
 		}
 
@@ -5771,8 +5664,6 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 
 	LODResources.bHasReversedDepthOnlyIndices = true;
 	LODResources.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.SetIndices(ReversedIndexBuffer, IndexBufferStride);
-
-	LODResources.bHasAdjacencyInfo = false;
 }
 
 
@@ -6996,48 +6887,6 @@ void UStaticMesh::SetMaterial(int32 MaterialIndex, UMaterialInterface* NewMateri
 					}
 				}
 				GetStaticMaterials()[MaterialIndex].ImportedMaterialSlotName = FName(*MaterialSlotName);
-			}
-
-			//Make sure adjacency information fit new material change
-			TArray<bool> FixLODAdjacencyOption;
-			FixLODAdjacencyOption.AddZeroed(GetNumLODs());
-			bool bPromptUser = false;
-			for (int32 LODIndex = 0; LODIndex < GetNumLODs(); ++LODIndex)
-			{
-				FixLODAdjacencyOption[LODIndex] = FixLODRequiresAdjacencyInformation(LODIndex);
-				bPromptUser |= FixLODAdjacencyOption[LODIndex];
-			}
-
-			//Prompt the user only once
-			if (bPromptUser)
-			{
-				FText ConfirmRequiredAdjacencyText = FText::Format(LOCTEXT("ConfirmRequiredAdjacencyNoLODIndex", "Using a tessellation material required the adjacency buffer to be computed.\nDo you want to set the adjacency options to true?\n\n\tSaticMesh: {0}\n\tMaterial: {1}"), FText::FromString(GetPathName()), FText::FromString(GetStaticMaterials()[MaterialIndex].MaterialInterface->GetPathName()));
-				EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNoCancel, ConfirmRequiredAdjacencyText);
-				bool bRevertAdjacency = false;
-				switch(Result)
-				{
-					//Handle cancel and negative answer
-					case EAppReturnType::Cancel:
-					{
-						GetStaticMaterials()[MaterialIndex].MaterialInterface = CancelOldMaterial;
-						bRevertAdjacency = true;
-					}
-					case EAppReturnType::No:
-					{
-						bRevertAdjacency = true;
-					}
-				}
-				if (bRevertAdjacency)
-				{
-					//Revert previous change since the material was reverse
-					for (int32 FixLODIndex = 0; FixLODIndex < FixLODAdjacencyOption.Num(); ++FixLODIndex)
-					{
-						if (FixLODAdjacencyOption[FixLODIndex])
-						{
-							GetSourceModel(FixLODIndex).BuildSettings.bBuildAdjacencyBuffer = false;
-						}
-					}
-				}
 			}
 		}
 

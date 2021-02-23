@@ -53,7 +53,6 @@ public:
 	virtual ~FDebugViewModeInterface() {}
 
 	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
-		EMaterialTessellationMode InMaterialTessellationMode,
 		const FVertexFactoryType* InVertexFactoryType,
 		FMaterialShaderTypes& OutShaderTypes) const = 0;
 
@@ -98,7 +97,7 @@ public:
 	
 	/** Whether this material can be substituted by the default material. */
 	static bool AllowFallbackToDefaultMaterial(const FMaterial* InMaterial);
-	static bool AllowFallbackToDefaultMaterial(EMaterialTessellationMode TessellationMode, bool bHasVertexPositionOffsetConnected, bool bHasPixelDepthOffsetConnected);
+	static bool AllowFallbackToDefaultMaterial(bool bHasVertexPositionOffsetConnected, bool bHasPixelDepthOffsetConnected);
 
 private:
 	

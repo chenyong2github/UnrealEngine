@@ -11,6 +11,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "GPUSkinCache.h"
 
 #if WITH_EDITOR
@@ -139,11 +140,6 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 		BeginInitResource(&ClothVertexBuffer);
 	}
 
-	if (RHISupportsTessellation(GMaxRHIShaderPlatform))
-	{
-		AdjacencyMultiSizeIndexContainer.InitResources();
-	}
-
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
     if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5))
 	{
@@ -254,7 +250,6 @@ void FSkeletalMeshLODRenderData::ReleaseResources()
 	DecrementMemoryStats();
 
 	MultiSizeIndexContainer.ReleaseResources();
-	AdjacencyMultiSizeIndexContainer.ReleaseResources();
 
 	BeginReleaseResource(&StaticVertexBuffers.PositionVertexBuffer);
 	BeginReleaseResource(&StaticVertexBuffers.StaticMeshVertexBuffer);
@@ -302,17 +297,11 @@ void FSkeletalMeshLODRenderData::IncrementMemoryStats(bool bNeedsVertexColors)
 	{
 		INC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, ClothVertexBuffer.GetVertexDataSize());
 	}
-
-	if (RHISupportsTessellation(GMaxRHIShaderPlatform))
-	{
-		INC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() ? (AdjacencyMultiSizeIndexContainer.GetIndexBuffer()->Num() * AdjacencyMultiSizeIndexContainer.GetDataTypeSize()) : 0);
-	}
 }
 
 void FSkeletalMeshLODRenderData::DecrementMemoryStats()
 {
 	DEC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, MultiSizeIndexContainer.IsIndexBufferValid() ? (MultiSizeIndexContainer.GetIndexBuffer()->Num() * MultiSizeIndexContainer.GetDataTypeSize()) : 0);
-	DEC_DWORD_STAT_BY(STAT_SkeletalMeshIndexMemory, AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() ? (AdjacencyMultiSizeIndexContainer.GetIndexBuffer()->Num() * AdjacencyMultiSizeIndexContainer.GetDataTypeSize()) : 0);
 
 	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.PositionVertexBuffer.GetStride() * StaticVertexBuffers.PositionVertexBuffer.GetNumVertices());
 	DEC_DWORD_STAT_BY(STAT_SkeletalMeshVertexMemory, StaticVertexBuffers.StaticMeshVertexBuffer.GetResourceSize());
@@ -329,7 +318,6 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 	bool bUseFullPrecisionUVs = (BuildFlags & ESkeletalMeshVertexFlags::UseFullPrecisionUVs) != 0;
 	bool bUseHighPrecisionTangentBasis = (BuildFlags & ESkeletalMeshVertexFlags::UseHighPrecisionTangentBasis) != 0;
 	bool bHasVertexColors = (BuildFlags & ESkeletalMeshVertexFlags::HasVertexColors) != 0;
-	bool bBuildAdjacencyBuffer = (BuildFlags & ESkeletalMeshVertexFlags::BuildAdjacencyIndexBuffer) != 0;
 
 	// Copy required info from source sections
 	RenderSections.Empty();
@@ -402,12 +390,6 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 	MultiSizeIndexContainer.RebuildIndexBuffer(DataTypeSize, ImportedModel->IndexBuffer);
 	
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
-	if (bBuildAdjacencyBuffer)
-	{
-		TArray<uint32> BuiltAdjacencyIndices;
-		MeshUtilities.BuildSkeletalAdjacencyIndexBuffer(Vertices, ImportedModel->NumTexCoords, ImportedModel->IndexBuffer, BuiltAdjacencyIndices);
-		AdjacencyMultiSizeIndexContainer.RebuildIndexBuffer(DataTypeSize, BuiltAdjacencyIndices);
-	}
 
 	// MorphTargetVertexInfoBuffers are created in InitResources
 
@@ -433,10 +415,6 @@ void FSkeletalMeshLODRenderData::ReleaseCPUResources(bool bForStreaming)
 		{
 			MultiSizeIndexContainer.GetIndexBuffer()->Empty();
 		}
-		if (AdjacencyMultiSizeIndexContainer.IsIndexBufferValid())
-		{
-			AdjacencyMultiSizeIndexContainer.GetIndexBuffer()->Empty();
-		}
 
 		SkinWeightVertexBuffer.CleanUp();
 		StaticVertexBuffers.PositionVertexBuffer.CleanUp();
@@ -460,15 +438,6 @@ void FSkeletalMeshLODRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeRe
 		if (IndexBuffer)
 		{
 			CumulativeResourceSize.AddUnknownMemoryBytes(IndexBuffer->GetResourceDataSize());
-		}
-	}
-
-	if (AdjacencyMultiSizeIndexContainer.IsIndexBufferValid())
-	{
-		const FRawStaticIndexBuffer16or32Interface* AdjacentIndexBuffer = AdjacencyMultiSizeIndexContainer.GetIndexBuffer();
-		if (AdjacentIndexBuffer)
-		{
-			CumulativeResourceSize.AddUnknownMemoryBytes(AdjacentIndexBuffer->GetResourceDataSize());
 		}
 	}
 
@@ -497,9 +466,6 @@ uint8 FSkeletalMeshLODRenderData::GenerateClassStripFlags(FArchive& Ar, const US
 	const bool bIsCook = Ar.IsCooking();
 	const ITargetPlatform* CookTarget = Ar.CookingTarget();
 
-	extern int32 GForceStripMeshAdjacencyDataDuringCooking;
-	const bool bWantToStripTessellation = bIsCook && ((GForceStripMeshAdjacencyDataDuringCooking != 0) || !CookTarget->SupportsFeature(ETargetPlatformFeatures::Tessellation));
-
 	int32 MinMeshLod = 0;
 	bool bMeshDisablesMinLodStrip = false;
 	if (bIsCook)
@@ -510,7 +476,6 @@ uint8 FSkeletalMeshLODRenderData::GenerateClassStripFlags(FArchive& Ar, const US
 	const bool bWantToStripBelowMinLod = bIsCook && GStripSkeletalMeshLodsDuringCooking != 0 && MinMeshLod > LODIdx && !bMeshDisablesMinLodStrip;
 
 	uint8 ClassDataStripFlags = 0;
-	ClassDataStripFlags |= bWantToStripTessellation ? CDSF_AdjacencyData : 0;
 	ClassDataStripFlags |= bWantToStripBelowMinLod ? CDSF_MinLodData : 0;
 	return ClassDataStripFlags;
 #else
@@ -652,8 +617,9 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkeletalMe
 		StaticVertexBuffers.ColorVertexBuffer.Serialize(Ar, bForceKeepCPUResources);
 	}
 
-	if (!StripFlags.IsClassDataStripped(CDSF_AdjacencyData))
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemovingTessellation && !StripFlags.IsClassDataStripped(CDSF_AdjacencyData_DEPRECATED))
 	{
+		FMultiSizeIndexContainer AdjacencyMultiSizeIndexContainer;
 		AdjacencyMultiSizeIndexContainer.Serialize(Ar, bForceKeepCPUResources);
 	}
 
@@ -686,8 +652,9 @@ void FSkeletalMeshLODRenderData::SerializeStreamedData(FArchive& Ar, USkeletalMe
 void FSkeletalMeshLODRenderData::SerializeAvailabilityInfo(FArchive& Ar, USkeletalMesh* Owner, int32 LODIdx, bool bAdjacencyDataStripped, bool bNeedsCPUAccess)
 {
 	MultiSizeIndexContainer.SerializeMetaData(Ar, bNeedsCPUAccess);
-	if (!bAdjacencyDataStripped)
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::RemovingTessellation && !bAdjacencyDataStripped)
 	{
+		FMultiSizeIndexContainer AdjacencyMultiSizeIndexContainer;
 		AdjacencyMultiSizeIndexContainer.SerializeMetaData(Ar, bNeedsCPUAccess);
 	}
 	StaticVertexBuffers.StaticMeshVertexBuffer.SerializeMetaData(Ar);
@@ -850,7 +817,7 @@ void FSkeletalMeshLODRenderData::Serialize(FArchive& Ar, UObject* Owner, int32 I
 
 			if (!bDiscardBulkData)
 			{
-				SerializeAvailabilityInfo(Ar, OwnerMesh, Idx, StripFlags.IsClassDataStripped(CDSF_AdjacencyData), bNeedsCPUAccess);
+				SerializeAvailabilityInfo(Ar, OwnerMesh, Idx, StripFlags.IsClassDataStripped(CDSF_AdjacencyData_DEPRECATED), bNeedsCPUAccess);
 			}
 		}
 	}

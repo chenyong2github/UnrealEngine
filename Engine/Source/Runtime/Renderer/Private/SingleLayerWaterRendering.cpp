@@ -825,8 +825,6 @@ void FSingleLayerWaterPassMeshProcessor::Process(
 	typedef FUniformLightMapPolicy LightMapPolicyType;
 	TMeshProcessorShaders<
 		TBasePassVertexShaderPolicyParamType<LightMapPolicyType>,
-		FBaseHS,
-		FBaseDS,
 		TBasePassPixelShaderPolicyParamType<LightMapPolicyType>> WaterPassShaders;
 
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
@@ -840,8 +838,6 @@ void FSingleLayerWaterPassMeshProcessor::Process(
 		bRenderAtmosphericFog,
 		bRenderSkylight,
 		false,
-		&WaterPassShaders.HullShader,
-		&WaterPassShaders.DomainShader,
 		&WaterPassShaders.VertexShader,
 		&WaterPassShaders.PixelShader
 		);

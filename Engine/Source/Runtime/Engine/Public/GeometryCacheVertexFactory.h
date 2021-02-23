@@ -99,8 +99,6 @@ public:
 		FVertexStreamComponent MotionBlurDataComponent;
 	};
 
-	static bool SupportsTessellationShaders() { return true; }
-
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 

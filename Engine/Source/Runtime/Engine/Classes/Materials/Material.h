@@ -785,21 +785,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Material, AdvancedDisplay)
 	uint8 bNormalCurvatureToRoughness : 1;
 
-	/** The type of tessellation to apply to this object.  Note D3D11 required for anything except MTM_NoTessellation. */
-	UE_DEPRECATED(4.26, "Tessellation is deprecated.")
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Tessellation)
-	TEnumAsByte<enum EMaterialTessellationMode> D3D11TessellationMode;
-
-	/** Prevents cracks in the surface of the mesh when using tessellation. */
-	UE_DEPRECATED(4.26, "Tessellation is deprecated.")
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Tessellation, meta=(DisplayName = "Crack Free Displacement"))
-	uint8 bEnableCrackFreeDisplacement : 1;
-
-	/** Enables adaptive tessellation, which tries to maintain a uniform number of pixels per triangle. */
-	UE_DEPRECATED(4.26, "Tessellation is deprecated.")
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Tessellation, meta=(DisplayName = "Adaptive Tessellation"))
-	uint8 bEnableAdaptiveTessellation : 1;
-
 	/** Allows a translucent material to be used with custom depth writing by compiling additional shaders. */
 	UPROPERTY(EditAnywhere, Category = Translucency, AdvancedDisplay, meta = (DisplayName = "Allow Custom Depth Writes"))
 	uint8 AllowTranslucentCustomDepthWrites : 1;
@@ -946,10 +931,6 @@ public:
 	 */
 	UPROPERTY()
 	FGuid StateId;
-
-	UE_DEPRECATED(4.26, "Tessellation is deprecated.")
-	UPROPERTY(EditAnywhere, Category = Tessellation)
-	float MaxDisplacement;
 
 #if STORE_ONLY_ACTIVE_SHADERMAPS
 	// Relative offset to the beginning of the package containing this

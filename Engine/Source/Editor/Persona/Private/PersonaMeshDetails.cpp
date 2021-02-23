@@ -1791,10 +1791,6 @@ ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldUseFullPrecisionUVs() con
 {
 	return BuildSettings.bUseFullPrecisionUVs ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
-ECheckBoxState FSkeletalMeshBuildSettingsLayout::ShouldBuildAdjacencyBuffer() const
-{
-	return BuildSettings.bBuildAdjacencyBuffer ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
 
 void FSkeletalMeshBuildSettingsLayout::OnRecomputeNormalsChanged(ECheckBoxState NewState)
 {
@@ -1886,18 +1882,6 @@ void FSkeletalMeshBuildSettingsLayout::OnUseFullPrecisionUVsChanged(ECheckBoxSta
 
 			BuildSettings.bUseFullPrecisionUVs = bUseFullPrecisionUVs;
 		}
-	}
-}
-void FSkeletalMeshBuildSettingsLayout::OnBuildAdjacencyBufferChanged(ECheckBoxState NewState)
-{
-	const bool bBuildAdjacencyBuffer = (NewState == ECheckBoxState::Checked) ? true : false;
-	if (BuildSettings.bBuildAdjacencyBuffer != bBuildAdjacencyBuffer)
-	{
-		FText TransactionText = FText::Format(LOCTEXT("PersonaChangedOnBuildAdjacencyBufferLOD", "LOD{0} build settings: build adjacency buffer changed"), LODIndex);
-		FScopedTransaction Transaction(TransactionText);
-		ModifyMeshLODSettingsDelegate.ExecuteIfBound(LODIndex);
-
-		BuildSettings.bBuildAdjacencyBuffer = bBuildAdjacencyBuffer;
 	}
 }
 

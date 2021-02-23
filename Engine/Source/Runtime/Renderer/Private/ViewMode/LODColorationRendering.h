@@ -54,11 +54,10 @@ public:
 
 	FLODColorationInterface() : FDebugViewModeInterface(TEXT("LODColoration"), false, true, false) {}
 	virtual void AddShaderTypes(ERHIFeatureLevel::Type InFeatureLevel,
-		EMaterialTessellationMode InMaterialTessellationMode,
 		const FVertexFactoryType* InVertexFactoryType,
 		FMaterialShaderTypes& OutShaderTypes) const override
 	{
-		AddDebugViewModeShaderTypes(InFeatureLevel, InMaterialTessellationMode, InVertexFactoryType, OutShaderTypes);
+		AddDebugViewModeShaderTypes(InFeatureLevel, InVertexFactoryType, OutShaderTypes);
 		OutShaderTypes.AddShaderType<FLODColorationPS>();
 	}
 

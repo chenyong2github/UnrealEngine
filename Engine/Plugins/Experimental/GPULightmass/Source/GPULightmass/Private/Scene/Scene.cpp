@@ -1296,11 +1296,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 	}
 
 	int32 LODIndex = 0;
-	InstanceRenderState.MaterialInterface = AvailableMaterials[
-		InComponent->MaterialIndexToDisabledTessellationMaterial[InComponent->LODIndexToMaterialIndex[LODIndex]] != INDEX_NONE ? 
-			InComponent->MaterialIndexToDisabledTessellationMaterial[InComponent->LODIndexToMaterialIndex[LODIndex]] :
-			InComponent->LODIndexToMaterialIndex[LODIndex]
-	];
+	InstanceRenderState.MaterialInterface = AvailableMaterials[InComponent->LODIndexToMaterialIndex[LODIndex]];
 
 	InstanceRenderState.LocalToWorldNoScaling = InstanceRenderState.LocalToWorld;
 	InstanceRenderState.LocalToWorldNoScaling.RemoveScaling();
@@ -1343,7 +1339,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 		{
 			InstanceRenderState.SharedBuffers = new FLandscapeSharedBuffers(
 				InstanceRenderState.SharedBuffersKey, Initializer.SubsectionSizeQuads, Initializer.NumSubsections,
-				FeatureLevel, false, /*NumOcclusionVertices*/ 0);
+				FeatureLevel, /*NumOcclusionVertices*/ 0);
 
 			FLandscapeComponentSceneProxy::SharedBuffersMap.Add(InstanceRenderState.SharedBuffersKey, InstanceRenderState.SharedBuffers);
 

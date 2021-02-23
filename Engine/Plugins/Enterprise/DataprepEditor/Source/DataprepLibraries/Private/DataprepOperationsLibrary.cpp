@@ -33,7 +33,6 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
-#include "TessellationRendering.h"
 #include "UObject/SoftObjectPath.h"
 #include "StaticMeshEditorSubsystem.h"
 

@@ -248,11 +248,10 @@ void FMeshMaterialShaderMap::LoadMissingShadersFromMemory(
 	}
 
 	// Try to find necessary FShaderPipelineTypes in memory
-	const bool bHasTessellation = Material->GetTessellationMode() != MTM_NoTessellation;
 	for (TLinkedList<FShaderPipelineType*>::TIterator ShaderPipelineIt(FShaderPipelineType::GetTypeList());ShaderPipelineIt;ShaderPipelineIt.Next())
 	{
 		const FShaderPipelineType* PipelineType = *ShaderPipelineIt;
-		if (PipelineType && PipelineType->IsMeshMaterialTypePipeline() && !HasShaderPipeline(PipelineType) && PipelineType->HasTessellation() == bHasTessellation)
+		if (PipelineType && PipelineType->IsMeshMaterialTypePipeline() && !HasShaderPipeline(PipelineType))
 		{
 			auto& Stages = PipelineType->GetStages();
 			int32 NumShaders = 0;

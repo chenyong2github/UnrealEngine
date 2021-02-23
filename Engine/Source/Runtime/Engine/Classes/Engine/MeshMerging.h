@@ -299,10 +299,6 @@ struct FMeshProxySettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = LandscapeCulling)
 	uint8 bUseLandscapeCulling:1;
 
-	/** Whether to allow adjacency buffers for tessellation in the merged mesh */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ProxySettings)
-	uint8 bAllowAdjacency:1;
-
 	/** Whether to allow distance field to be computed for this mesh. Disable this to save memory if the merged mesh will only be rendered in the distance. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ProxySettings)
 	uint8 bAllowDistanceField:1;
@@ -350,7 +346,6 @@ struct FMeshProxySettings
 		, bComputeLightMapResolution(false)
 		, bRecalculateNormals(true)
 		, bUseLandscapeCulling(false)
-		, bAllowAdjacency(false)
 		, bAllowDistanceField(false)
 		, bReuseMeshLightmapUVs(true)
 		, bCreateCollision(true)

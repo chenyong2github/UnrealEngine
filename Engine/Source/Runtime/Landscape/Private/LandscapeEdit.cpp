@@ -372,8 +372,6 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 	MaterialPerLOD = NewMaterialPerLOD;
 
 	MaterialInstances.SetNumZeroed(MaterialPerLOD.Num() * 2); // over allocate in case we are using tessellation
-	MaterialIndexToDisabledTessellationMaterial.Init(INDEX_NONE, MaxLOD + 1);
-	int8 TessellatedMaterialCount = 0;
 	int8 MaterialIndex = 0;
 
 	TArray<FWeightmapLayerAllocationInfo>& WeightmapBaseLayerAllocation = GetWeightmapLayerAllocations();
@@ -425,22 +423,6 @@ void ULandscapeComponent::UpdateMaterialInstances_Internal(FMaterialUpdateContex
 				MaterialInstance->SetTextureParameterValueEditorOnly(FName(TEXT("Heightmap")), BaseHeightmap);
 			}
 			MaterialInstance->PostEditChange();
-
-			// Setup material instance with disabled tessellation
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			if (CombinationMaterialInstance->GetMaterial()->D3D11TessellationMode != EMaterialTessellationMode::MTM_NoTessellation)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			{
-				ULandscapeMaterialInstanceConstant* TessellationMaterialInstance = NewObject<ULandscapeMaterialInstanceConstant>(this);
-				int32 TessellatedMaterialIndex = MaterialPerLOD.Num() + TessellatedMaterialCount++;
-				MaterialInstances[TessellatedMaterialIndex] = TessellationMaterialInstance;
-				MaterialIndexToDisabledTessellationMaterial[MaterialIndex] = TessellatedMaterialIndex;
-
-				TessellationMaterialInstance->SetParentEditorOnly(MaterialInstance);
-				TessellationMaterialInstance->bDisableTessellation = true;
-				TessellationMaterialInstance->UpdateStaticPermutation(&Context); // must be done after SetParent
-				TessellationMaterialInstance->PostEditChange();
-			}
 		}
 
 		++MaterialIndex;
@@ -4704,10 +4686,7 @@ bool ALandscapeProxy::CanEditChange(const FProperty* InProperty) const
 		FName PropertyName = InProperty ? InProperty->GetFName() : NAME_None;
 
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MaxLODLevel) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TessellationComponentScreenSize) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ComponentScreenSizeToUseSubSections) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, UseTessellationComponentScreenSizeFalloff) ||
-			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TessellationComponentScreenSizeFalloff) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LODDistributionSetting) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0ScreenSize) ||
@@ -4821,21 +4800,9 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			RecreateCollisionComponents();
 		}
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TessellationComponentScreenSize))
-	{
-		ChangeTessellationComponentScreenSize(TessellationComponentScreenSize);
-	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ComponentScreenSizeToUseSubSections))
 	{
 		ChangeComponentScreenSizeToUseSubSections(ComponentScreenSizeToUseSubSections);
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, UseTessellationComponentScreenSizeFalloff))
-	{
-		ChangeUseTessellationComponentScreenSizeFalloff(UseTessellationComponentScreenSizeFalloff);
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TessellationComponentScreenSizeFalloff))
-	{
-		ChangeTessellationComponentScreenSizeFalloff(TessellationComponentScreenSizeFalloff);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LODDistributionSetting)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting)
@@ -5160,23 +5127,9 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 		MaxLODLevel = FMath::Clamp<int32>(MaxLODLevel, -1, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 		bPropagateToProxies = true;
 	}
-	else if (PropertyName == FName(TEXT("TessellationComponentScreenSize")))
-	{
-		TessellationComponentScreenSize = FMath::Clamp<float>(TessellationComponentScreenSize, 0.01f, 1.0f);
-		bPropagateToProxies = true;
-	}
 	else if (PropertyName == FName(TEXT("ComponentScreenSizeToUseSubSections")))
 	{
 		ComponentScreenSizeToUseSubSections = FMath::Clamp<float>(ComponentScreenSizeToUseSubSections, 0.01f, 1.0f);
-		bPropagateToProxies = true;
-	}
-	else if (PropertyName == FName(TEXT("UseTessellationComponentScreenSizeFalloff")))
-	{
-		bPropagateToProxies = true;
-	}
-	else if (PropertyName == FName(TEXT("TessellationComponentScreenSizeFalloff")))
-	{
-		TessellationComponentScreenSizeFalloff = FMath::Clamp<float>(TessellationComponentScreenSizeFalloff, 0.01f, 1.0f);
 		bPropagateToProxies = true;
 	}
 	else if (PropertyName == FName(TEXT("LODDistributionSetting")))

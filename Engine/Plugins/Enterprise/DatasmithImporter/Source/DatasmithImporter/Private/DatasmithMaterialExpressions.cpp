@@ -1058,10 +1058,6 @@ void FDatasmithMaterialExpressions::ConnectToSlot(UMaterialExpression* ToBeConne
 			UnrealMaterial->BlendMode = EBlendMode::BLEND_Masked;
 			break;
 		case EDatasmithTextureSlot::DISPLACE:
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			UnrealMaterial->bEnableCrackFreeDisplacement = 1;
-			UnrealMaterial->D3D11TessellationMode = EMaterialTessellationMode::MTM_FlatTessellation;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			break;
 		}
 	}
@@ -3360,14 +3356,6 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 		{
 			UnrealMaterial->TranslucencyLightingMode = ETranslucencyLightingMode::TLM_Surface;
 		}
-	}
-
-	if ( MaterialElement->GetWorldDisplacement().GetExpression() )
-	{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UnrealMaterial->bEnableCrackFreeDisplacement = 1;
-		UnrealMaterial->D3D11TessellationMode = EMaterialTessellationMode::MTM_FlatTessellation;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	UnrealMaterial->UpdateCachedExpressionData();

@@ -69,10 +69,6 @@ class UFbxSceneImportOptionsStaticMesh : public UObject
 	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
 	uint32 bRemoveDegenerates : 1;
 
-	/** Required for PNT tessellation but can be slow. Recommend disabling for larger meshes. */
-	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
-	uint32 bBuildAdjacencyBuffer : 1;
-
 	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
 	uint32 bBuildReversedIndexBuffer : 1;
 

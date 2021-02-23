@@ -204,8 +204,6 @@ private:
 
 		TMeshProcessorShaders<
 			FLightmapGBufferVS,
-			FMeshMaterialShader,
-			FMeshMaterialShader,
 			FLightmapGBufferPS> Shaders;
 
 		Shaders.VertexShader = MaterialResource.GetShader<FLightmapGBufferVS>(VertexFactory->GetType());

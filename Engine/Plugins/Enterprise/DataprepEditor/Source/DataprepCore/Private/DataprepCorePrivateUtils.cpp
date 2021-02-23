@@ -128,7 +128,6 @@ void DataprepCorePrivateUtils::BuildStaticMeshes(TSet<UStaticMesh*>& StaticMeshe
 
 					SourceModel.BuildSettings.bRecomputeNormals = !(Attributes.GetVertexInstanceNormals().IsValid() && Attributes.GetVertexInstanceNormals().GetNumChannels() > 0);
 					SourceModel.BuildSettings.bRecomputeTangents = false;
-					//SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 					//SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 				}
 			}

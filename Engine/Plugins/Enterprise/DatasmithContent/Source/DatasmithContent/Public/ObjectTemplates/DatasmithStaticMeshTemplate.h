@@ -30,9 +30,6 @@ public:
 	uint8 bRemoveDegenerates:1;
 
 	UPROPERTY()
-	uint8 bBuildAdjacencyBuffer:1;
-
-	UPROPERTY()
 	uint8 bUseHighPrecisionTangentBasis:1;
 
 	UPROPERTY()

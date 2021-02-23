@@ -974,12 +974,6 @@ UMaterial::UMaterial(const FObjectInitializer& ObjectInitializer)
 	OpacityMaskClipValue = 0.3333f;
 	bCastDynamicShadowAsMasked = false;
 	bUsedWithStaticLighting = false;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	D3D11TessellationMode = MTM_NoTessellation;
-	bEnableCrackFreeDisplacement = false;
-	bEnableAdaptiveTessellation = true;
-	MaxDisplacement = 0.0f;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bEnableSeparateTranslucency = true;
 	bEnableMobileSeparateTranslucency = false;
 	bEnableResponsiveAA = false;
@@ -4362,25 +4356,6 @@ bool UMaterial::CanEditChange(const FProperty* InProperty) const
 			return MaterialDomain == MD_Surface;
 		}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, D3D11TessellationMode))
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		{
-			return MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface;
-		}
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableCrackFreeDisplacement) ||
-			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, MaxDisplacement) ||
-			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bEnableAdaptiveTessellation)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			)
-		{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			return (MaterialDomain == MD_DeferredDecal || MaterialDomain == MD_Surface) && D3D11TessellationMode != MTM_NoTessellation;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendableLocation) ||
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendablePriority) || 
 			PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, BlendableOutputAlpha) ||
@@ -6376,7 +6351,6 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 	ETranslucencyLightingMode TranslucencyLightingMode,
 	EDecalBlendMode DecalBlendMode,
 	bool bBlendableOutputAlpha,
-	bool bHasTessellation,
 	bool bHasRefraction,
 	bool bUsesShadingModelFromMaterialExpression)
 {
@@ -6601,7 +6575,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		break;
 	case MP_TessellationMultiplier:
 	case MP_WorldDisplacement:
-		Active = bHasTessellation;
+		Active = false;
 		break;
 	case MP_EmissiveColor:
 		// Emissive is always active, even for light functions and post process materials, 
@@ -6648,9 +6622,6 @@ bool UMaterial::IsPropertyActiveInEditor(EMaterialProperty InProperty) const
 		TranslucencyLightingMode,
 		DecalBlendMode,
 		BlendableOutputAlpha,
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		D3D11TessellationMode != MTM_NoTessellation,
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Refraction.IsConnected(),
 		IsShadingModelFromMaterialExpression());
 }
@@ -6665,9 +6636,6 @@ bool UMaterial::IsPropertyActiveInDerived(EMaterialProperty InProperty, const UM
 		TranslucencyLightingMode,
 		DecalBlendMode,
 		BlendableOutputAlpha,
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		D3D11TessellationMode != MTM_NoTessellation,
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Refraction.IsConnected(),
 		DerivedMaterial->IsShadingModelFromMaterialExpression());
 }

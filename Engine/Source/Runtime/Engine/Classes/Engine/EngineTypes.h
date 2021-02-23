@@ -626,19 +626,6 @@ private:
 	TArray<TObjectPtr<USubsurfaceProfile>> SubsurfaceProfiles;
 };
 
-/** This is used by the drawing passes to determine tessellation policy, so changes here need to be supported in native code. */
-UENUM()
-enum EMaterialTessellationMode
-{
-	/** Tessellation disabled. */
-	MTM_NoTessellation UMETA(DisplayName="No Tessellation"),
-	/** Simple tessellation. */
-	MTM_FlatTessellation UMETA(DisplayName="Flat Tessellation"),
-	/** Simple spline based tessellation. */
-	MTM_PNTriangles UMETA(DisplayName="PN Triangles"),
-	MTM_MAX,
-};
-
 /** Describes how textures are sampled for materials */
 UENUM(BlueprintType)
 enum EMaterialSamplerType
@@ -2744,10 +2731,6 @@ struct FMeshBuildSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
 	uint8 bRemoveDegenerates:1;
 	
-	/** Required for PNT tessellation but can be slow. Recommend disabling for larger meshes. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
-	uint8 bBuildAdjacencyBuffer:1;
-
 	/** Required to optimize mesh in mirrored transform. Double index buffer size. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
 	uint8 bBuildReversedIndexBuffer:1;
@@ -2811,7 +2794,6 @@ struct FMeshBuildSettings
 		, bRecomputeTangents(true)
 		, bComputeWeightedNormals(false)
 		, bRemoveDegenerates(true)
-		, bBuildAdjacencyBuffer(true)
 		, bBuildReversedIndexBuffer(true)
 		, bUseHighPrecisionTangentBasis(false)
 		, bUseFullPrecisionUVs(false)
@@ -2838,7 +2820,6 @@ struct FMeshBuildSettings
 			&& bComputeWeightedNormals == Other.bComputeWeightedNormals
 			&& bUseMikkTSpace == Other.bUseMikkTSpace
 			&& bRemoveDegenerates == Other.bRemoveDegenerates
-			&& bBuildAdjacencyBuffer == Other.bBuildAdjacencyBuffer
 			&& bBuildReversedIndexBuffer == Other.bBuildReversedIndexBuffer
 			&& bUseHighPrecisionTangentBasis == Other.bUseHighPrecisionTangentBasis
 			&& bUseFullPrecisionUVs == Other.bUseFullPrecisionUVs
@@ -2895,10 +2876,6 @@ struct FSkeletalMeshBuildSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
 	uint8 bUseFullPrecisionUVs:1;
 	
-	/** Required for PNT tessellation but can be slow. Recommend disabling for larger meshes. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=BuildSettings)
-	uint8 bBuildAdjacencyBuffer:1;
-
 	/** Threshold use to decide if two vertex position are equal. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
 	float ThresholdPosition;
@@ -2924,7 +2901,6 @@ struct FSkeletalMeshBuildSettings
 		, bRemoveDegenerates(true)
 		, bUseHighPrecisionTangentBasis(false)
 		, bUseFullPrecisionUVs(false)
-		, bBuildAdjacencyBuffer(true)
 		, ThresholdPosition(0.00002)
 		, ThresholdTangentNormal(0.00002)
 		, ThresholdUV(0.0009765625)
@@ -2941,7 +2917,6 @@ struct FSkeletalMeshBuildSettings
 			&& bRemoveDegenerates == Other.bRemoveDegenerates
 			&& bUseHighPrecisionTangentBasis == Other.bUseHighPrecisionTangentBasis
 			&& bUseFullPrecisionUVs == Other.bUseFullPrecisionUVs
-			&& bBuildAdjacencyBuffer == Other.bBuildAdjacencyBuffer
 			&& ThresholdPosition == Other.ThresholdPosition
 			&& ThresholdTangentNormal == Other.ThresholdTangentNormal
 			&& ThresholdUV == Other.ThresholdUV

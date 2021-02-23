@@ -22,7 +22,6 @@
 #include "Materials/Material.h"
 #include "MeshBatch.h"
 #include "SceneManagement.h"
-#include "TessellationRendering.h"
 #include "Engine/Engine.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
@@ -694,12 +693,6 @@ private:
 
 			// Determine the material applied to the model element.
 			Material = InModelElement.Material;
-
-			if (RequiresAdjacencyInformation(Material, InVertexFactory->GetType(), InModelElement.Component->GetScene()->GetFeatureLevel()))
-			{
-				UE_LOG(LogModelComponent, Warning, TEXT("Material %s requires adjacency information because of Crack Free Displacement or PN Triangle Tesselation, which is not supported with model components. Falling back to DefaultMaterial."), *Material->GetName());
-				Material = nullptr;
-			}
 
 			// If there isn't an applied material, or if we need static lighting and it doesn't support it, fall back to the default material.
 			if(!Material || (bHasStaticLighting && !Material->CheckMaterialUsage(MATUSAGE_StaticLighting)))

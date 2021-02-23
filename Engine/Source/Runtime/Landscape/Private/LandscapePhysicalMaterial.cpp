@@ -180,8 +180,6 @@ void FLandscapePhysicalMaterialMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FLandscapePhysicalMaterialVS,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		FLandscapePhysicalMaterialPS> PassShaders;
 
 	PassShaders.PixelShader = MaterialResource.GetShader<FLandscapePhysicalMaterialPS>(VertexFactory->GetType());

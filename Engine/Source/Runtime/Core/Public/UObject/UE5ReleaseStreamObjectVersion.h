@@ -18,6 +18,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Serialize HLOD info in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeHLODInfo,
 
+		// Removing Tessellation from materials and meshes.
+		RemovingTessellation,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

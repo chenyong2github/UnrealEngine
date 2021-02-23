@@ -326,8 +326,6 @@ struct FAdditionalStaticMeshIndexBuffers
 	FRawStaticIndexBuffer ReversedDepthOnlyIndexBuffer;
 	/** Index buffer resource for rendering wireframe mode. */
 	FRawStaticIndexBuffer WireframeIndexBuffer;
-	/** Index buffer containing adjacency information required by tessellation. */
-	FRawStaticIndexBuffer AdjacencyIndexBuffer;
 };
 
 class FStaticMeshSectionArray : public TArray<FStaticMeshSection, TInlineAllocator<1>>
@@ -371,9 +369,6 @@ public:
 
 	/** The maximum distance by which this LOD deviates from the base from which it was generated. */
 	float MaxDeviation;
-
-	/** True if the adjacency index buffer contained data at init. Needed as it will not be available to the CPU afterwards. */
-	uint32 bHasAdjacencyInfo : 1;
 
 	/** True if the depth only index buffers contained data at init. Needed as it will not be available to the CPU afterwards. */
 	uint32 bHasDepthOnlyIndices : 1;
@@ -457,7 +452,6 @@ public:
 			AdditionalIndexBuffers->ReversedIndexBuffer.ReleaseRHIForStreaming(Batcher);
 			AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.ReleaseRHIForStreaming(Batcher);
 			AdditionalIndexBuffers->WireframeIndexBuffer.ReleaseRHIForStreaming(Batcher);
-			AdditionalIndexBuffers->AdjacencyIndexBuffer.ReleaseRHIForStreaming(Batcher);
 		}
 	}
 
@@ -483,7 +477,7 @@ public:
 private:
 	enum EClassDataStripFlag : uint8
 	{
-		CDSF_AdjacencyData = 1,
+		CDSF_AdjacencyData_DEPRECATED = 1,
 		CDSF_MinLodData = 2,
 		CDSF_ReversedIndexBuffer = 4,
 		CDSF_RayTracingResources = 8
@@ -954,7 +948,6 @@ protected:
 		int32 LODIndex,
 		int32 ElementIndex,
 		bool bWireframe,
-		bool bRequiresAdjacencyInformation,
 		bool bUseInversedIndices,
 		bool bAllowPreCulledIndices,
 		const FVertexFactory* VertexFactory,

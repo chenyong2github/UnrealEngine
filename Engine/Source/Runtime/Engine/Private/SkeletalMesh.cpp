@@ -34,7 +34,6 @@
 #include "EngineUtils.h"
 #include "EditorSupportDelegates.h"
 #include "GPUSkinVertexFactory.h"
-#include "TessellationRendering.h"
 #include "SkeletalRenderPublic.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -1834,7 +1833,6 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			// Restore the deprecated settings
 			ThisLODInfo.BuildSettings.bUseFullPrecisionUVs = bUseFullPrecisionUVs_DEPRECATED;
 			ThisLODInfo.BuildSettings.bUseHighPrecisionTangentBasis = bUseHighPrecisionTangentBasis_DEPRECATED;
-			ThisLODInfo.BuildSettings.bBuildAdjacencyBuffer = true;
 			ThisLODInfo.BuildSettings.bRemoveDegenerates = true;
 
 			//We cannot get back the imported build option here since those option are store in the UAssetImportData which FBX has derive in the UnrealEd module
@@ -5440,17 +5438,6 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 				MaterialRelevance |= Material->GetRelevance(FeatureLevel);
 			}
 
-			const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation( Material, &TGPUSkinVertexFactory<GPUSkinBoneInfluenceType::DefaultBoneInfluence>::StaticType, FeatureLevel );
-			if ( bRequiresAdjacencyInformation && LODData.AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() == false )
-			{
-				UE_LOG(LogSkeletalMesh, Warning, 
-					TEXT("Material %s requires adjacency information, but skeletal mesh %s does not have adjacency information built. The mesh must be rebuilt to be used with this material. The mesh will be rendered with DefaultMaterial."), 
-					*Material->GetPathName(), 
-					*Component->SkeletalMesh->GetPathName() )
-				Material = UMaterial::GetDefaultMaterial(MD_Surface);
-				MaterialRelevance |= UMaterial::GetDefaultMaterial(MD_Surface)->GetRelevance(FeatureLevel);
-			}
-
 			bool bSectionCastsShadow = !bSectionHidden && bCastShadow &&
 				(Component->SkeletalMesh->GetMaterials().IsValidIndex(UseMaterialIndex) == false || Section.bCastShadow);
 
@@ -5969,14 +5956,6 @@ void FSkeletalMeshSceneProxy::GetDynamicElementsSection(const TArray<const FScen
 			Mesh.bSelectable = bInSelectable;
 
 			FMeshBatchElement& BatchElement = Mesh.Elements[0];
-			const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation( SectionElementInfo.Material, Mesh.VertexFactory->GetType(), ViewFamily.GetFeatureLevel() );
-			if ( bRequiresAdjacencyInformation )
-			{
-				check(LODData.AdjacencyMultiSizeIndexContainer.IsIndexBufferValid() );
-				BatchElement.IndexBuffer = LODData.AdjacencyMultiSizeIndexContainer.GetIndexBuffer();
-				Mesh.Type = PT_12_ControlPointPatchList;
-				BatchElement.FirstIndex *= 4;
-			}
 
 		#if WITH_EDITOR
 			Mesh.BatchHitProxyId = SectionElementInfo.HitProxy ? SectionElementInfo.HitProxy->Id : FHitProxyId();

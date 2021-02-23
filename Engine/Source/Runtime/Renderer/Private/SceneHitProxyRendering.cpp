@@ -99,52 +99,6 @@ protected:
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyVS,TEXT("/Engine/Private/HitProxyVertexShader.usf"),TEXT("Main"),SF_Vertex); 
 
 /**
- * A hull shader for rendering the depth of a mesh.
- */
-class FHitProxyHS : public FBaseHS
-{
-	DECLARE_SHADER_TYPE(FHitProxyHS,MeshMaterial);
-protected:
-
-	FHitProxyHS() {}
-
-	FHitProxyHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FBaseHS(Initializer)
-	{}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseHS::ShouldCompilePermutation(Parameters)
-			&& FHitProxyVS::ShouldCompilePermutation(Parameters);
-	}
-};
-
-/**
- * A domain shader for rendering the depth of a mesh.
- */
-class FHitProxyDS : public FBaseDS
-{
-	DECLARE_SHADER_TYPE(FHitProxyDS,MeshMaterial);
-
-protected:
-
-	FHitProxyDS() {}
-
-	FHitProxyDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FBaseDS(Initializer)
-	{}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseDS::ShouldCompilePermutation(Parameters)
-			&& FHitProxyVS::ShouldCompilePermutation(Parameters);
-	}
-};
-
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyHS,TEXT("/Engine/Private/HitProxyVertexShader.usf"),TEXT("MainHull"),SF_Hull); 
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyDS,TEXT("/Engine/Private/HitProxyVertexShader.usf"),TEXT("MainDomain"),SF_Domain);
-
-/**
  * A pixel shader for rendering the HitProxyId of an object as a unique color in the scene.
  */
 class FHitProxyPS : public FMeshMaterialShader
@@ -838,23 +792,10 @@ bool GetHitProxyPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	TShaderRef<FHitProxyHS>& HullShader,
-	TShaderRef<FHitProxyDS>& DomainShader,
 	TShaderRef<FHitProxyVS>& VertexShader,
 	TShaderRef<FHitProxyPS>& PixelShader)
 {
-	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
-
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders()
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
 	FMaterialShaderTypes ShaderTypes;
-	if (bNeedsHSDS)
-	{
-		ShaderTypes.AddShaderType<FHitProxyDS>();
-		ShaderTypes.AddShaderType<FHitProxyHS>();
-	}
 
 	ShaderTypes.AddShaderType<FHitProxyVS>();
 	ShaderTypes.AddShaderType<FHitProxyPS>();
@@ -867,8 +808,6 @@ bool GetHitProxyPassShaders(
 
 	Shaders.TryGetVertexShader(VertexShader);
 	Shaders.TryGetPixelShader(PixelShader);
-	Shaders.TryGetHullShader(HullShader);
-	Shaders.TryGetDomainShader(DomainShader);
 	return true;
 }
 
@@ -886,16 +825,12 @@ bool FHitProxyMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FHitProxyVS,
-		FHitProxyHS,
-		FHitProxyDS,
 		FHitProxyPS> HitProxyPassShaders;
 
 	if (!GetHitProxyPassShaders(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
-		HitProxyPassShaders.HullShader,
-		HitProxyPassShaders.DomainShader,
 		HitProxyPassShaders.VertexShader,
 		HitProxyPassShaders.PixelShader))
 	{
@@ -1010,16 +945,12 @@ bool FEditorSelectionMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FHitProxyVS,
-		FHitProxyHS,
-		FHitProxyDS,
 		FHitProxyPS> HitProxyPassShaders;
 
 	if (!GetHitProxyPassShaders(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
-		HitProxyPassShaders.HullShader,
-		HitProxyPassShaders.DomainShader,
 		HitProxyPassShaders.VertexShader,
 		HitProxyPassShaders.PixelShader))
 	{
@@ -1150,16 +1081,12 @@ void FEditorLevelInstanceMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FHitProxyVS,
-		FHitProxyHS,
-		FHitProxyDS,
 		FHitProxyPS> HitProxyPassShaders;
 
 	GetHitProxyPassShaders(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
-		HitProxyPassShaders.HullShader,
-		HitProxyPassShaders.DomainShader,
 		HitProxyPassShaders.VertexShader,
 		HitProxyPassShaders.PixelShader
 	);

@@ -428,7 +428,6 @@ void UAttributeEditorTool::OptimizeForEditing()
 		FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
 		BuildSettings.bGenerateLightmapUVs = false;
 		BuildSettings.bBuildReversedIndexBuffer = false;
-		BuildSettings.bBuildAdjacencyBuffer = false;
 		BuildSettings.bRemoveDegenerates = false;
 
 		// dramatically reduce distance field resolution to speed up editing

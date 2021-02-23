@@ -110,9 +110,6 @@ public:
 	// Index Buffer (MultiSize: 16bit or 32bit)
 	FMultiSizeIndexContainer	MultiSizeIndexContainer;
 
-	/** Resources needed to render the model using PN-AEN */
-	FMultiSizeIndexContainer	AdjacencyMultiSizeIndexContainer;
-
 	/** static vertices from chunks for skinning on GPU */
 	FStaticMeshVertexBuffers	StaticVertexBuffers;
 
@@ -284,7 +281,7 @@ public:
 private:
 	enum EClassDataStripFlag : uint8
 	{
-		CDSF_AdjacencyData = 1,
+		CDSF_AdjacencyData_DEPRECATED = 1,
 		CDSF_MinLodData = 2
 	};
 

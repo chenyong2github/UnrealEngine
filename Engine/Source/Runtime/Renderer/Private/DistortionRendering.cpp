@@ -134,42 +134,6 @@ public:
 	}
 };
 
-class FDistortionMeshHS : public FBaseHS
-{
-public:
-	DECLARE_SHADER_TYPE(FDistortionMeshHS,MeshMaterial);
-
-	FDistortionMeshHS() = default;
-
-	FDistortionMeshHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseHS(Initializer)
-	{}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseHS::ShouldCompilePermutation(Parameters)
-			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
-	}
-};
-
-class FDistortionMeshDS : public FBaseDS
-{
-public:
-	DECLARE_SHADER_TYPE(FDistortionMeshDS,MeshMaterial);
-
-	FDistortionMeshDS() = default;
-
-	FDistortionMeshDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FBaseDS(Initializer)
-	{}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseDS::ShouldCompilePermutation(Parameters)
-			&& IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
-	}
-};
-
 class FDistortionMeshPS : public FMeshMaterialShader
 {
 public:
@@ -200,8 +164,6 @@ public:
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshVS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("Main"), SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshHS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("MainHull"), SF_Hull);
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshDS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("MainDomain"), SF_Domain);
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshPS,TEXT("/Engine/Private/DistortAccumulatePS.usf"),TEXT("Main"),SF_Pixel);
 
 bool FDeferredShadingSceneRenderer::ShouldRenderDistortion() const
@@ -452,23 +414,9 @@ void GetDistortionPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	TShaderRef<FDistortionMeshHS>& HullShader,
-	TShaderRef<FDistortionMeshDS>& DomainShader,
 	TShaderRef<FDistortionMeshVS>& VertexShader,
 	TShaderRef<FDistortionMeshPS>& PixelShader)
 {
-	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
-
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders()
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
-	if (bNeedsHSDS)
-	{
-		DomainShader = Material.GetShader<FDistortionMeshDS>(VertexFactoryType);
-		HullShader = Material.GetShader<FDistortionMeshHS>(VertexFactoryType);
-	}
-
 	VertexShader = Material.GetShader<FDistortionMeshVS>(VertexFactoryType);
 	PixelShader = Material.GetShader<FDistortionMeshPS>(VertexFactoryType);
 }
@@ -487,16 +435,12 @@ void FDistortionMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		FDistortionMeshVS,
-		FDistortionMeshHS,
-		FDistortionMeshDS,
 		FDistortionMeshPS> DistortionPassShaders;
 
 	GetDistortionPassShaders(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
-		DistortionPassShaders.HullShader,
-		DistortionPassShaders.DomainShader,
 		DistortionPassShaders.VertexShader,
 		DistortionPassShaders.PixelShader
 		);

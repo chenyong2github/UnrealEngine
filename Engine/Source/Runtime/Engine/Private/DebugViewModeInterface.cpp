@@ -45,18 +45,17 @@ void FDebugViewModeInterface::SetInterface(EDebugViewShaderMode InDebugViewMode,
 	}
 }
 
-bool FDebugViewModeInterface::AllowFallbackToDefaultMaterial(EMaterialTessellationMode TessellationMode, bool bHasVertexPositionOffsetConnected, bool bHasPixelDepthOffsetConnected)
+bool FDebugViewModeInterface::AllowFallbackToDefaultMaterial(bool bHasVertexPositionOffsetConnected, bool bHasPixelDepthOffsetConnected)
 {
 	// Check for anything that could change the shape from the default material.
 	return !bHasVertexPositionOffsetConnected &&
-		!bHasPixelDepthOffsetConnected &&
-		TessellationMode == MTM_NoTessellation;
+		!bHasPixelDepthOffsetConnected;
 }
 
 bool FDebugViewModeInterface::AllowFallbackToDefaultMaterial(const FMaterial* InMaterial)
 {
 	check(InMaterial);
-	return FDebugViewModeInterface::AllowFallbackToDefaultMaterial(InMaterial->GetTessellationMode(), InMaterial->HasVertexPositionOffsetConnected(), InMaterial->HasPixelDepthOffsetConnected());
+	return FDebugViewModeInterface::AllowFallbackToDefaultMaterial(InMaterial->HasVertexPositionOffsetConnected(), InMaterial->HasPixelDepthOffsetConnected());
 }
 
 

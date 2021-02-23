@@ -1023,7 +1023,7 @@ private:
 
 		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
-		TMeshProcessorShaders< FRenderVolumetricCloudVS, FMeshMaterialShader, FMeshMaterialShader, RenderVolumetricCloudRenderViewPsType> PassShaders;
+		TMeshProcessorShaders< FRenderVolumetricCloudVS, RenderVolumetricCloudRenderViewPsType> PassShaders;
 		PassShaders.PixelShader = MaterialResource.GetShader<RenderVolumetricCloudRenderViewPsType>(VertexFactory->GetType());
 		PassShaders.VertexShader = MaterialResource.GetShader<FRenderVolumetricCloudVS>(VertexFactory->GetType());
 		const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(PassShaders.VertexShader, PassShaders.PixelShader);
@@ -1135,7 +1135,8 @@ private:
 
 		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
 
-		TMeshProcessorShaders< FRenderVolumetricCloudVS, FMeshMaterialShader, FMeshMaterialShader,
+		TMeshProcessorShaders<
+			FRenderVolumetricCloudVS,
 			FVolumetricCloudShadowPS> PassShaders;
 		PassShaders.PixelShader = MaterialResource.GetShader<FVolumetricCloudShadowPS>(VertexFactory->GetType());
 		PassShaders.VertexShader = MaterialResource.GetShader<FRenderVolumetricCloudVS>(VertexFactory->GetType());

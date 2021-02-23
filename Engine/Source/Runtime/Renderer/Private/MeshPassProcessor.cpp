@@ -443,8 +443,6 @@ FMeshDrawShaderBindings::~FMeshDrawShaderBindings()
 void FMeshDrawShaderBindings::Initialize(FMeshProcessorShaders Shaders)
 {
 	const int32 NumShaderFrequencies = (Shaders.VertexShader.IsValid() ? 1 : 0) +
-		(Shaders.HullShader.IsValid() ? 1 : 0) +
-		(Shaders.DomainShader.IsValid() ? 1 : 0) +
 		(Shaders.PixelShader.IsValid() ? 1 : 0) +
 		(Shaders.GeometryShader.IsValid() ? 1 : 0) +
 		(Shaders.ComputeShader.IsValid() ? 1 : 0)
@@ -462,22 +460,6 @@ void FMeshDrawShaderBindings::Initialize(FMeshProcessorShaders Shaders)
 		ShaderBindingDataSize += ShaderLayouts.Last().GetDataSizeBytes();
 		check(ShaderFrequencyBits < (1 << SF_Vertex));
 		ShaderFrequencyBits |= (1 << SF_Vertex);
-	}
-
-	if (Shaders.HullShader.IsValid())
-	{
-		ShaderLayouts.Add(FMeshDrawShaderBindingsLayout(Shaders.HullShader));
-		ShaderBindingDataSize += ShaderLayouts.Last().GetDataSizeBytes();
-		check(ShaderFrequencyBits < (1 << SF_Hull));
-		ShaderFrequencyBits |= (1 << SF_Hull);
-	}
-
-	if (Shaders.DomainShader.IsValid())
-	{
-		ShaderLayouts.Add(FMeshDrawShaderBindingsLayout(Shaders.DomainShader));
-		ShaderBindingDataSize += ShaderLayouts.Last().GetDataSizeBytes();
-		check(ShaderFrequencyBits < (1 << SF_Domain));
-		ShaderFrequencyBits |= (1 << SF_Domain);
 	}
 
 	if (Shaders.PixelShader.IsValid())
@@ -741,22 +723,6 @@ void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, cons
 		check(PipelineState.BoundShaderState.GeometryShaderResource->IsValidShaderIndex(PipelineState.BoundShaderState.GeometryShaderIndex));
 	}
 #endif // PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-	if (Shaders.HullShader.IsValid())
-	{
-		checkSlow(Shaders.HullShader->GetFrequency() == SF_Hull);
-		PipelineState.BoundShaderState.HullShaderResource = Shaders.HullShader.GetResource();
-		PipelineState.BoundShaderState.HullShaderIndex = Shaders.HullShader->GetResourceIndex();
-		check(PipelineState.BoundShaderState.HullShaderResource->IsValidShaderIndex(PipelineState.BoundShaderState.HullShaderIndex));
-	}
-	if (Shaders.DomainShader.IsValid())
-	{
-		checkSlow(Shaders.DomainShader->GetFrequency() == SF_Domain);
-		PipelineState.BoundShaderState.DomainShaderResource = Shaders.DomainShader.GetResource();
-		PipelineState.BoundShaderState.DomainShaderIndex = Shaders.DomainShader->GetResourceIndex();
-		check(PipelineState.BoundShaderState.DomainShaderResource->IsValidShaderIndex(PipelineState.BoundShaderState.DomainShaderIndex));
-	}
-#endif // PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	ShaderBindings.Initialize(Shaders);
 }
 
@@ -831,14 +797,6 @@ void FMeshDrawShaderBindings::SetOnCommandList(FRHICommandList& RHICmdList, FBou
 		else if (Frequency == SF_Pixel)
 		{
 			SetShaderBindings(RHICmdList, Shaders.PixelShaderRHI, SingleShaderBindings, ShaderBindingState);
-		}
-		else if (Frequency == SF_Hull)
-		{
-			SetShaderBindings(RHICmdList, Shaders.HullShaderRHI, SingleShaderBindings, ShaderBindingState);
-		}
-		else if (Frequency == SF_Domain)
-		{
-			SetShaderBindings(RHICmdList, Shaders.DomainShaderRHI, SingleShaderBindings, ShaderBindingState);
 		}
 		else if (Frequency == SF_Geometry)
 		{

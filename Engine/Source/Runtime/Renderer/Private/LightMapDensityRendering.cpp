@@ -14,11 +14,7 @@
 // Typedef is necessary because the C preprocessor thinks the comma in the template parameter list is a comma in the macro parameter list.
 #define IMPLEMENT_DENSITY_VERTEXSHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
 	typedef TLightMapDensityVS< LightMapPolicyType > TLightMapDensityVS##LightMapPolicyName; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TLightMapDensityVS##LightMapPolicyName,TEXT("/Engine/Private/LightMapDensityShader.usf"),TEXT("MainVertexShader"),SF_Vertex); \
-	typedef TLightMapDensityHS< LightMapPolicyType > TLightMapDensityHS##LightMapPolicyName; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TLightMapDensityHS##LightMapPolicyName,TEXT("/Engine/Private/LightMapDensityShader.usf"),TEXT("MainHull"),SF_Hull); \
-	typedef TLightMapDensityDS< LightMapPolicyType > TLightMapDensityDS##LightMapPolicyName; \
-	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TLightMapDensityDS##LightMapPolicyName,TEXT("/Engine/Private/LightMapDensityShader.usf"),TEXT("MainDomain"),SF_Domain); 
+	IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,TLightMapDensityVS##LightMapPolicyName,TEXT("/Engine/Private/LightMapDensityShader.usf"),TEXT("MainVertexShader"),SF_Vertex);
 
 #define IMPLEMENT_DENSITY_PIXELSHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
 	typedef TLightMapDensityPS< LightMapPolicyType > TLightMapDensityPS##LightMapPolicyName; \
@@ -123,21 +119,7 @@ void FLightmapDensityMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		TLightMapDensityVS<LightMapPolicyType>,
-		TLightMapDensityHS<LightMapPolicyType>,
-		TLightMapDensityDS<LightMapPolicyType>,
 		TLightMapDensityPS<LightMapPolicyType>> LightmapDensityPassShaders;
-
-	const EMaterialTessellationMode MaterialTessellationMode = MaterialResource.GetTessellationMode();
-
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders()
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
-	if (bNeedsHSDS)
-	{
-		LightmapDensityPassShaders.DomainShader = MaterialResource.GetShader<TLightMapDensityDS<LightMapPolicyType>>(VertexFactoryType);
-		LightmapDensityPassShaders.HullShader = MaterialResource.GetShader<TLightMapDensityHS<LightMapPolicyType>>(VertexFactoryType);
-	}
 
 	LightmapDensityPassShaders.VertexShader = MaterialResource.GetShader<TLightMapDensityVS<LightMapPolicyType>>(VertexFactoryType);
 	LightmapDensityPassShaders.PixelShader = MaterialResource.GetShader<TLightMapDensityPS<LightMapPolicyType>>(VertexFactoryType);

@@ -462,7 +462,6 @@ namespace UsdGeomMeshTranslatorImpl
 				SourceModel.BuildSettings.bGenerateLightmapUVs = false;
 				SourceModel.BuildSettings.bRecomputeNormals = bHasInvalidNormals;
 				SourceModel.BuildSettings.bRecomputeTangents = bHasInvalidTangents;
-				SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 				SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 
 				FMeshDescription* StaticMeshDescription = StaticMesh->CreateMeshDescription(LODIndex);

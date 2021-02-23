@@ -465,7 +465,6 @@ void FDestructibleMeshEditorViewportClient::ImportFBXChunks()
 			ImportOptions->bInvertNormalMap = false;
 			ImportOptions->bPreserveSmoothingGroups = true;
 			ImportOptions->bAutoComputeLodDistances = false;
-			ImportOptions->bBuildAdjacencyBuffer = true;
 			ImportOptions->bBuildReversedIndexBuffer = true;
 			ImportOptions->bTransformVertexToAbsolute = true;
 			ImportOptions->bUsedAsFullName = true;

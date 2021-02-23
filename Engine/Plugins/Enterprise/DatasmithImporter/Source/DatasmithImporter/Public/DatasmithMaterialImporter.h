@@ -21,7 +21,6 @@ namespace EMaterialRequirements
 		RequiresNothing = 0x00,
 		RequiresNormals = 0x01,
 		RequiresTangents = 0x02,
-		RequiresAdjacency = 0x04,
 	};
 };
 

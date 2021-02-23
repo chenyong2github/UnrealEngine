@@ -469,10 +469,6 @@ class ULandscapeComponent : public UPrimitiveComponent
 	UPROPERTY(TextExportTransient)
 	TArray<int8> LODIndexToMaterialIndex;
 
-	/** Mapping between Material Index to associated generated disabled Tessellation Material*/
-	UPROPERTY(TextExportTransient)
-	TArray<int8> MaterialIndexToDisabledTessellationMaterial;
-
 	/** XYOffsetmap texture reference */
 	UPROPERTY(TextExportTransient)
 	TObjectPtr<UTexture2D> XYOffsetmapTexture;

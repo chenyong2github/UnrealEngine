@@ -182,8 +182,6 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 			FMeshMaterialShader,
 			FMeshMaterialShader,
 			FMeshMaterialShader,
-			FMeshMaterialShader,
-			FMeshMaterialShader,
 			FRayTracingDynamicGeometryConverterCS> Shaders;
 
 		FMeshComputeDispatchCommand DispatchCmd;

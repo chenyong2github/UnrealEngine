@@ -1712,9 +1712,6 @@ public:
 	virtual bool IsUsedWithHairStrands() const { return false; }
 	virtual bool IsUsedWithLidarPointCloud() const { return false; }
 	virtual bool IsUsedWithVirtualHeightfieldMesh() const { return false; }
-	ENGINE_API virtual enum EMaterialTessellationMode GetTessellationMode() const;
-	virtual bool IsCrackFreeDisplacementEnabled() const { return false; }
-	virtual bool IsAdaptiveTessellationEnabled() const { return false; }
 	virtual bool IsFullyRough() const { return false; }
 	virtual bool UseNormalCurvatureToRoughness() const { return false; }
 	virtual bool IsUsingFullPrecision() const { return false; }
@@ -1747,7 +1744,6 @@ public:
 	virtual FLinearColor GetTranslucentMultipleScatteringExtinction() const { return FLinearColor::White; }
 	virtual float GetTranslucentShadowStartOffset() const { return 0.0f; }
 	virtual float GetRefractionDepthBiasValue() const { return 0.0f; }
-	virtual float GetMaxDisplacement() const { return 0.0f; }
 	virtual bool ShouldApplyFogging() const { return false; }
 	virtual bool ShouldApplyCloudFogging() const { return false; }
 	virtual bool ComputeFogPerPixel() const { return false; }
@@ -2577,9 +2573,6 @@ public:
 	ENGINE_API virtual bool IsUsedWithHairStrands() const override;
 	ENGINE_API virtual bool IsUsedWithLidarPointCloud() const override;
 	ENGINE_API virtual bool IsUsedWithVirtualHeightfieldMesh() const override;
-	ENGINE_API virtual enum EMaterialTessellationMode GetTessellationMode() const override;
-	ENGINE_API virtual bool IsCrackFreeDisplacementEnabled() const override;
-	ENGINE_API virtual bool IsAdaptiveTessellationEnabled() const override;
 	ENGINE_API virtual bool IsFullyRough() const override;
 	ENGINE_API virtual bool UseNormalCurvatureToRoughness() const override;
 	ENGINE_API virtual bool IsUsingFullPrecision() const override;
@@ -2631,7 +2624,6 @@ public:
 	ENGINE_API virtual uint32 GetStencilRefValue() const override;
 	ENGINE_API virtual uint32 GetStencilCompare() const override;
 	ENGINE_API virtual float GetRefractionDepthBiasValue() const override;
-	ENGINE_API virtual float GetMaxDisplacement() const override;
 	ENGINE_API virtual bool ShouldApplyFogging() const override;
 	ENGINE_API virtual bool ShouldApplyCloudFogging() const override;
 	ENGINE_API virtual bool IsSky() const override;
@@ -3160,7 +3152,6 @@ struct FMaterialShaderParameters
 	EBlendMode BlendMode;
 	ERHIFeatureLevel::Type FeatureLevel;
 	EMaterialQualityLevel::Type QualityLevel;
-	EMaterialTessellationMode TessellationMode;
 	int32 BlendableLocation;
 	uint32 DecalBlendMode;
 	int32 NumCustomizedUVs;
@@ -3221,7 +3212,6 @@ struct FMaterialShaderParameters
 		BlendMode = InMaterial->GetBlendMode();
 		FeatureLevel = InMaterial->GetFeatureLevel();
 		QualityLevel = InMaterial->GetQualityLevel();
-		TessellationMode = InMaterial->GetTessellationMode();
 		BlendableLocation = InMaterial->GetBlendableLocation();
 		DecalBlendMode = InMaterial->GetDecalBlendMode();
 		NumCustomizedUVs = InMaterial->GetNumCustomizedUVs();

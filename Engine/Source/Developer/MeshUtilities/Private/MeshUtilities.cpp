@@ -2892,20 +2892,6 @@ public:
 				}
 				LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.SetIndices(WireframeIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
 			}
-
-			// Build the adjacency index buffer used for tessellation.
-			if (LODModel.AdditionalIndexBuffers && StaticMesh->GetSourceModel(0).BuildSettings.bBuildAdjacencyBuffer)
-			{
-				TArray<uint32> AdjacencyIndices;
-
-				BuildOptimizationThirdParty::NvTriStripHelper::BuildStaticAdjacencyIndexBuffer(
-					LODModel.VertexBuffers.PositionVertexBuffer,
-					LODModel.VertexBuffers.StaticMeshVertexBuffer,
-					CombinedIndices,
-					AdjacencyIndices
-					);
-				LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer.SetIndices(AdjacencyIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
-			}
 		}
 
 		// Copy the original material indices to fixup meshes before compacting of materials was done.

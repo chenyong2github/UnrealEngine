@@ -87,7 +87,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "BatchedElements.h"
 #include "MeshBatch.h"
 #include "SceneUtils.h"
-#include "TessellationRendering.h"
 #include "SceneManagement.h"
 #include "MeshParticleVertexFactory.h"
 #include "ParticleHelper.h"

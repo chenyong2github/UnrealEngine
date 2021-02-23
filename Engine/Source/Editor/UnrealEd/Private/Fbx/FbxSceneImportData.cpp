@@ -101,7 +101,6 @@ UnFbx::FBXImportOptions *JSONToFbxOption(TSharedPtr<FJsonValue> OptionJsonValue,
 		Option->VertexOverrideColor.A = (float)A;
 	}
 	OptionObj->TryGetBoolField("bRemoveDegenerates", Option->bRemoveDegenerates);
-	OptionObj->TryGetBoolField("bBuildAdjacencyBuffer", Option->bBuildAdjacencyBuffer);
 	OptionObj->TryGetBoolField("bBuildReversedIndexBuffer", Option->bBuildReversedIndexBuffer);
 	OptionObj->TryGetBoolField("bGenerateLightmapUVs", Option->bGenerateLightmapUVs);
 	OptionObj->TryGetBoolField("bOneConvexHullPerUCX", Option->bOneConvexHullPerUCX);
@@ -193,9 +192,8 @@ FString FbxOptionToJSON(FString OptionName, UnFbx::FBXImportOptions *Option)
 		Option->VertexOverrideColor.A
 		);
 
-	JsonString += FString::Printf(TEXT("\"bRemoveDegenerates\" : \"%d\", \"bBuildAdjacencyBuffer\" : \"%d\", \"bBuildReversedIndexBuffer\" : \"%d\", \"bGenerateLightmapUVs\" : \"%d\", \"bOneConvexHullPerUCX\" : \"%d\", \"bAutoGenerateCollision\" : \"%d\", \"StaticMeshLODGroup\" : \"%s\", \"bImportStaticMeshLODs\" : \"%d\", "),
+	JsonString += FString::Printf(TEXT("\"bRemoveDegenerates\" : \"%d\", \"bBuildReversedIndexBuffer\" : \"%d\", \"bGenerateLightmapUVs\" : \"%d\", \"bOneConvexHullPerUCX\" : \"%d\", \"bAutoGenerateCollision\" : \"%d\", \"StaticMeshLODGroup\" : \"%s\", \"bImportStaticMeshLODs\" : \"%d\", "),
 		Option->bRemoveDegenerates ? 1 : 0,
-		Option->bBuildAdjacencyBuffer ? 1 : 0,
 		Option->bBuildReversedIndexBuffer ? 1 : 0,
 		Option->bGenerateLightmapUVs ? 1 : 0,
 		Option->bOneConvexHullPerUCX ? 1 : 0,

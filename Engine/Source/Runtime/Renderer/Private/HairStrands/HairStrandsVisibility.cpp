@@ -583,8 +583,6 @@ void FHairMaterialGBufferProcessor::Process(
 
 	TMeshProcessorShaders<
 		FHairMaterialGBufferVS,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		FHairMaterialGBufferPS> PassShaders;
 	{
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
@@ -944,8 +942,6 @@ void FHairMaterialProcessor::Process(
 
 	TMeshProcessorShaders<
 		FHairMaterialVS,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		FHairMaterialPS> PassShaders;
 	{
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();
@@ -1619,8 +1615,6 @@ void FHairVisibilityProcessor::Process(
 
 	TMeshProcessorShaders<
 		FHairVisibilityVS<TRenderMode, bCullingEnable>,
-		FMeshMaterialShader,
-		FMeshMaterialShader,
 		FHairVisibilityPS<TRenderMode>> PassShaders;
 	{
 		FVertexFactoryType* VertexFactoryType = VertexFactory->GetType();

@@ -34,10 +34,6 @@ class UFbxStaticMeshImportData : public UFbxMeshImportData
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, config, Category = Mesh, meta = (ImportType = "StaticMesh", ReimportRestrict = "true"))
 	uint32 bRemoveDegenerates:1;
 
-	/** Required for PNT tessellation but can be slow. Recommend disabling for larger meshes. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, config, Category = Mesh, meta = (ImportType = "StaticMesh", ReimportRestrict = "true"))
-	uint32 bBuildAdjacencyBuffer:1;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, config, Category = Mesh, meta = (ImportType = "StaticMesh", ReimportRestrict = "true"))
 	uint32 bBuildReversedIndexBuffer:1;
 

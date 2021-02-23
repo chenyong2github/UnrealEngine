@@ -489,7 +489,6 @@ void ApplyImportUIToImportOptions(UFbxImportUI* ImportUI, FBXImportOptions& InOu
 	{
 		InOutImportOptions.bCombineToSingle				= ImportUI->StaticMeshImportData->bCombineMeshes;
 		InOutImportOptions.bRemoveDegenerates			= ImportUI->StaticMeshImportData->bRemoveDegenerates;
-		InOutImportOptions.bBuildAdjacencyBuffer		= ImportUI->StaticMeshImportData->bBuildAdjacencyBuffer;
 		InOutImportOptions.bBuildReversedIndexBuffer	= ImportUI->StaticMeshImportData->bBuildReversedIndexBuffer;
 		InOutImportOptions.bGenerateLightmapUVs			= ImportUI->StaticMeshImportData->bGenerateLightmapUVs;
 		InOutImportOptions.bOneConvexHullPerUCX			= ImportUI->StaticMeshImportData->bOneConvexHullPerUCX;
@@ -1607,7 +1606,6 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 				  * @EventParam MorphThresholdPosition float Returns the morph target threshold delta to compute deltas
 				  * @EventParam AutoComputeLodDistances boolean Returns whether the importer should set the auto compute LOD distance
 				  * @EventParam LodNumber integer Returns the LOD number we should have after the import
-				  * @EventParam BuildAdjacencyBuffer boolean Returns whether the importer should fill the adjacency buffer when building the static mesh
 				  * @EventParam BuildReversedIndexBuffer boolean Returns whether the importer should fill the reverse index buffer when building the static mesh
 				  * @EventParam GenerateLightmapUVs boolean Returns whether the importer should generate light map UVs
 				  * @EventParam ImportStaticMeshLODs boolean Returns whether the importer should import the LODs
@@ -1709,7 +1707,6 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 						{
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("StaticMeshOpt AutoComputeLodDistances"), CaptureImportOptions->bAutoComputeLodDistances));
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("StaticMeshOpt LodNumber"), CaptureImportOptions->LodNumber));
-							Attribs.Add(FAnalyticsEventAttribute(TEXT("StaticMeshOpt BuildAdjacencyBuffer"), CaptureImportOptions->bBuildAdjacencyBuffer));
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("StaticMeshOpt BuildReversedIndexBuffer"), CaptureImportOptions->bBuildReversedIndexBuffer));
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("StaticMeshOpt GenerateLightmapUVs"), CaptureImportOptions->bGenerateLightmapUVs));
 							Attribs.Add(FAnalyticsEventAttribute(TEXT("StaticMeshOpt ImportStaticMeshLODs"), CaptureImportOptions->bImportStaticMeshLODs));

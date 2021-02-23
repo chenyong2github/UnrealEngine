@@ -15,8 +15,6 @@
 
 IMPLEMENT_TYPE_LAYOUT(FMaterialShader);
 IMPLEMENT_TYPE_LAYOUT(FMeshMaterialShader);
-IMPLEMENT_TYPE_LAYOUT(FBaseHS);
-IMPLEMENT_TYPE_LAYOUT(FBaseDS);
 IMPLEMENT_TYPE_LAYOUT(FDebugUniformExpressionSet);
 
 /** If true, cached uniform expressions are allowed. */

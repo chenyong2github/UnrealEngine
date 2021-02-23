@@ -155,7 +155,6 @@ struct FBXImportOptions
 	FColor VertexOverrideColor;
 	float DistanceFieldResolutionScale;
 	bool bRemoveDegenerates;
-	bool bBuildAdjacencyBuffer;
 	bool bBuildReversedIndexBuffer;
 	bool bBuildNanite;
 	bool bGenerateLightmapUVs;

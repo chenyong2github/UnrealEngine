@@ -83,8 +83,6 @@ public:
 		FVertexFactory::ReleaseRHI();
 	}
 
-	static bool SupportsTessellationShaders() { return true; }
-
 	FORCEINLINE_DEBUGGABLE void SetColorOverrideStream(FRHICommandList& RHICmdList, const FVertexBuffer* ColorVertexBuffer) const
 	{
 		checkf(ColorVertexBuffer->IsInitialized(), TEXT("Color Vertex buffer was not initialized! Name %s"), *ColorVertexBuffer->GetFriendlyName());

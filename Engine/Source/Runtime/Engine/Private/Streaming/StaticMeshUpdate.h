@@ -82,7 +82,6 @@ protected:
 		FBufferRHIRef DepthOnlyIndexBuffer;
 		FBufferRHIRef ReversedDepthOnlyIndexBuffer;
 		FBufferRHIRef WireframeIndexBuffer;
-		FBufferRHIRef AdjacencyIndexBuffer;
 
 		void CreateFromCPUData_RenderThread(FStaticMeshLODResources& LODResource);
 		void CreateFromCPUData_Async(FStaticMeshLODResources& LODResource);

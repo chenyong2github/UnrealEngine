@@ -650,9 +650,6 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 		BuildSettingsTemplate.DstLightmapIndex = DestinationIndex;
 		BuildSettingsTemplate.MinLightmapResolution = MinLightmapSize;
 
-		// Don't build adjacency buffer for meshes with over 500 000 triangles because it's too slow
-		BuildSettingsTemplate.bBuildAdjacencyBuffer = ((BuildRequirements & EMaterialRequirements::RequiresAdjacency) != 0) && DatasmithMeshHelper::GetPolygonCount(MeshDescription) < 500000;
-
 		StaticMeshTemplate->BuildSettings.Add( MoveTemp( BuildSettingsTemplate ) );
 
 		if ( bUseImportedLightmap || StaticMeshImportOptions.bGenerateLightmapUVs )

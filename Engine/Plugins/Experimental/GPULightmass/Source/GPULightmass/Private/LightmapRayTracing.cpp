@@ -161,7 +161,6 @@ void FLightmapRayTracingMeshProcessor::Process(
 		FMeshMaterialShader,
 		FMeshMaterialShader,
 		FMeshMaterialShader,
-		FMeshMaterialShader,
 		FLightmapMaterialCHS> RayTracingShaders;
 
 	RayTracingShaders.RayHitGroupShader = GetLightmapMaterialHitShader(MaterialResource, VertexFactory);

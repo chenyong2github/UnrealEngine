@@ -298,68 +298,6 @@ public:
 };
 
 /**
- * The base shader type for hull shaders.
- */
-template<typename LightMapPolicyType, bool bEnableAtmosphericFog>
-class TBasePassHS : public FBaseHS
-{
-	DECLARE_SHADER_TYPE(TBasePassHS,MeshMaterial);
-
-protected:
-
-	TBasePassHS() {}
-
-	TBasePassHS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer):
-		FBaseHS(Initializer)
-	{}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		// Re-use vertex shader gating
-		// Metal requires matching permutations, but no other platform should worry about this complication.
-		return (bEnableAtmosphericFog == false || IsMetalPlatform(Parameters.Platform))
-			&& FBaseHS::ShouldCompilePermutation(Parameters)
-			&& TBasePassVS<LightMapPolicyType,bEnableAtmosphericFog>::ShouldCompilePermutation(Parameters);
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		// Re-use vertex shader compilation environment
-		TBasePassVS<LightMapPolicyType,bEnableAtmosphericFog>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-};
-
-/**
- * The base shader type for Domain shaders.
- */
-template<typename LightMapPolicyType>
-class TBasePassDS : public FBaseDS
-{
-	DECLARE_SHADER_TYPE(TBasePassDS,MeshMaterial);
-
-protected:
-
-	TBasePassDS() {}
-
-	TBasePassDS(const FMeshMaterialShaderType::CompiledShaderInitializerType& Initializer):
-		FBaseDS(Initializer)
-	{}
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		// Re-use vertex shader gating
-		return FBaseDS::ShouldCompilePermutation(Parameters)
-			&& TBasePassVS<LightMapPolicyType,false>::ShouldCompilePermutation(Parameters);
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		// Re-use vertex shader compilation environment
-		TBasePassVS<LightMapPolicyType,false>::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-};
-
-/**
  * The base type for pixel shaders that render the emissive color, and light-mapped/ambient lighting of a mesh.
  * The base type is shared between the versions with and without sky light.
  */
@@ -545,38 +483,11 @@ bool GetBasePassShaders(
 	bool bEnableAtmosphericFog,
 	bool bEnableSkyLight,
 	bool bUse128bitRT,
-	TShaderRef<FBaseHS>* HullShader,
-	TShaderRef<FBaseDS>* DomainShader,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<LightMapPolicyType>>* VertexShader,
 	TShaderRef<TBasePassPixelShaderPolicyParamType<LightMapPolicyType>>* PixelShader
 	)
 {
-	const EMaterialTessellationMode MaterialTessellationMode = Material.GetTessellationMode();
-
-	const bool bNeedsHSDS = (DomainShader && HullShader)
-		&& RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders() 
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
 	FMaterialShaderTypes ShaderTypes;
-	if (bNeedsHSDS)
-	{
-		ShaderTypes.AddShaderType<TBasePassDS<LightMapPolicyType>>();
-		//DomainShader = Material.GetShader<TBasePassDS<LightMapPolicyType > >(VertexFactoryType, 0, false);
-		
-		// Metal requires matching permutations, but no other platform should worry about this complication.
-		if (bEnableAtmosphericFog && DomainShader->IsValid() && IsMetalPlatform((*DomainShader)->GetTarget().GetPlatform()))
-		{
-			ShaderTypes.AddShaderType<TBasePassHS<LightMapPolicyType, true>>();
-			//HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, true > >(VertexFactoryType, 0, false);
-		}
-		else
-		{
-			ShaderTypes.AddShaderType<TBasePassHS<LightMapPolicyType, false>>();
-			//HullShader = Material.GetShader<TBasePassHS<LightMapPolicyType, false > >(VertexFactoryType, 0, false);
-		}
-	}
-
 	if (VertexShader)
 	{
 		if (bEnableAtmosphericFog)
@@ -612,8 +523,6 @@ bool GetBasePassShaders(
 
 	Shaders.TryGetVertexShader(VertexShader);
 	Shaders.TryGetPixelShader(PixelShader);
-	Shaders.TryGetHullShader(HullShader);
-	Shaders.TryGetDomainShader(DomainShader);
 	return true;
 }
 
@@ -626,8 +535,6 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 	bool bEnableAtmosphericFog,
 	bool bEnableSkyLight,
 	bool bUse128bitRT,
-	TShaderRef<FBaseHS>* HullShader,
-	TShaderRef<FBaseDS>* DomainShader,
 	TShaderRef<TBasePassVertexShaderPolicyParamType<FUniformLightMapPolicy>>* VertexShader,
 	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>* PixelShader
 	);

@@ -372,8 +372,6 @@ void FCustomDepthPassMeshProcessor::Process(
 
 	TMeshProcessorShaders<
 		TDepthOnlyVS<bPositionOnly>,
-		FDepthOnlyHS,
-		FDepthOnlyDS,
 		FDepthOnlyPS<bUsesMobileColorValue>> DepthPassShaders;
 
 	FShaderPipelineRef ShaderPipeline;
@@ -381,8 +379,6 @@ void FCustomDepthPassMeshProcessor::Process(
 		MaterialResource,
 		VertexFactory->GetType(),
 		FeatureLevel,
-		DepthPassShaders.HullShader,
-		DepthPassShaders.DomainShader,
 		DepthPassShaders.VertexShader,
 		DepthPassShaders.PixelShader,
 		ShaderPipeline

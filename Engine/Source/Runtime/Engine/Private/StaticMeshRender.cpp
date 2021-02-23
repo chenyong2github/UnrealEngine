@@ -33,7 +33,6 @@
 #include "Engine/Engine.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
-#include "TessellationRendering.h"
 #include "DistanceFieldAtlas.h"
 #include "MeshCardRepresentation.h"
 #include "Components/BrushComponent.h"
@@ -639,16 +638,13 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 
 	const bool bWireframe = false;
 
-	// Disable adjacency information when the selection outline is enabled, since tessellation won't be used.
-	const bool bRequiresAdjacencyInformation = !bUseSelectionOutline && RequiresAdjacencyInformation(MaterialInterface, VertexFactory->GetType(), FeatureLevel);
-
-	// Two sided material use bIsFrontFace which is wrong with Reversed Indices. AdjacencyInformation use another index buffer.
-	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !bRequiresAdjacencyInformation && !Material.IsTwoSided();
+	// Two sided material use bIsFrontFace which is wrong with Reversed Indices.
+	const bool bUseReversedIndices = GUseReversedIndexBuffer && IsLocalToWorldDeterminantNegative() && (LOD.bHasReversedIndices != 0) && !Material.IsTwoSided();
 
 	// No support for stateless dithered LOD transitions for movable meshes
 	const bool bDitheredLODTransition = !IsMovable() && Material.IsDitheredLODTransition();
 
-	const uint32 NumPrimitives = SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
+	const uint32 NumPrimitives = SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
 
 	if (NumPrimitives > 0)
 	{
@@ -758,7 +754,6 @@ bool FStaticMeshSceneProxy::GetWireframeMeshElement(int32 LODIndex, int32 BatchI
 	}
 
 	const bool bWireframe = true;
-	const bool bRequiresAdjacencyInformation = false;
 	const bool bUseReversedIndices = false;
 	const bool bDitheredLODTransition = false;
 
@@ -770,7 +765,7 @@ bool FStaticMeshSceneProxy::GetWireframeMeshElement(int32 LODIndex, int32 BatchI
 	OutBatchElement.MinVertexIndex = 0;
 	OutBatchElement.MaxVertexIndex = LODModel.GetNumVertices() - 1;
 
-	const uint32_t NumPrimitives = SetMeshElementGeometrySource(LODIndex, 0, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
+	const uint32_t NumPrimitives = SetMeshElementGeometrySource(LODIndex, 0, bWireframe, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
 	SetMeshElementScreenSize(LODIndex, bDitheredLODTransition, OutMeshBatch);
 
 	return NumPrimitives > 0;
@@ -798,12 +793,11 @@ bool FStaticMeshSceneProxy::GetCollisionMeshElement(
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
 
 	const bool bWireframe = false;
-	const bool bRequiresAdjacencyInformation = false;
 	const bool bUseReversedIndices = false;
 	const bool bAllowPreCulledIndices = true;
 	const bool bDitheredLODTransition = false;
 
-	SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
+	SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
 
 	FMeshBatchElement& OutMeshBatchElement = OutMeshBatch.Elements[0];
 
@@ -944,7 +938,6 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 	int32 LODIndex,
 	int32 SectionIndex,
 	bool bWireframe,
-	bool bRequiresAdjacencyInformation,
 	bool bUseReversedIndices,
 	bool bAllowPreCulledIndices,
 	const FVertexFactory* VertexFactory,
@@ -969,9 +962,7 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 
 	if (bWireframe)
 	{
-		const bool bSupportsTessellation = RHISupportsTessellation(GetScene().GetShaderPlatform()) && VertexFactory->GetType()->SupportsTessellationShaders();
-
-		if (LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized() && !bSupportsTessellation)
+		if (LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized())
 		{
 			OutMeshBatch.Type = PT_LineList;
 			OutMeshBatchElement.FirstIndex = 0;
@@ -1015,15 +1006,6 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 			OutMeshBatchElement.FirstIndex = Section.FirstIndex;
 			NumPrimitives = Section.NumTriangles;
 		}
-	}
-
-	if (bRequiresAdjacencyInformation)
-	{
-		check(LODModel.bHasAdjacencyInfo);
-		check(LODModel.AdditionalIndexBuffers);
-		OutMeshBatchElement.IndexBuffer = &LODModel.AdditionalIndexBuffers->AdjacencyIndexBuffer;
-		OutMeshBatch.Type = PT_12_ControlPointPatchList;
-		OutMeshBatchElement.FirstIndex *= 4;
 	}
 
 	OutMeshBatchElement.NumPrimitives = NumPrimitives;
@@ -2153,15 +2135,6 @@ FStaticMeshSceneProxy::FLODInfo::FLODInfo(const UStaticMeshComponent* InComponen
 		// If there isn't an applied material, or if we need static lighting and it doesn't support it, fall back to the default material.
 		if(!SectionInfo.Material || (bHasSurfaceStaticLighting && !SectionInfo.Material->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting)))
 		{
-			SectionInfo.Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-
-		const bool bRequiresAdjacencyInformation = RequiresAdjacencyInformation(SectionInfo.Material, VFs.VertexFactory.GetType(), FeatureLevel);
-		if ( bRequiresAdjacencyInformation && !LODModel.bHasAdjacencyInfo )
-		{
-			UE_LOG(LogStaticMesh, Warning, TEXT("Adjacency information not built for static mesh with a material that requires it. Using default material instead.\n\tMaterial: %s\n\tStaticMesh: %s"),
-				*SectionInfo.Material->GetPathName(), 
-				*InComponent->GetStaticMesh()->GetPathName() );
 			SectionInfo.Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 

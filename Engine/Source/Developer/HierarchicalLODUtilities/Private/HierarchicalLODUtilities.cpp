@@ -325,7 +325,6 @@ static UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, 
 		SrcModel.BuildSettings.bUseFullPrecisionUVs = false;
 		SrcModel.BuildSettings.bGenerateLightmapUVs = InProxySettings.bGenerateLightmapUVs;
 		SrcModel.BuildSettings.bBuildReversedIndexBuffer = false;
-		SrcModel.BuildSettings.bBuildAdjacencyBuffer = InProxySettings.bAllowAdjacency;
 		if (!InProxySettings.bAllowDistanceField)
 		{
 			SrcModel.BuildSettings.DistanceFieldResolutionScale = 0.0f;

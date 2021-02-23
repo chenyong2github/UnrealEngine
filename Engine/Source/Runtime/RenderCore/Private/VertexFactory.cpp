@@ -89,8 +89,7 @@ FVertexFactoryType::FVertexFactoryType(
 	GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
 	ShouldCacheType InShouldCache,
 	ModifyCompilationEnvironmentType InModifyCompilationEnvironment,
-	ValidateCompiledResultType InValidateCompiledResult,
-	SupportsTessellationShadersType InSupportsTessellationShaders
+	ValidateCompiledResultType InValidateCompiledResult
 	):
 	Name(InName),
 	ShaderFilename(InShaderFilename),
@@ -111,7 +110,6 @@ FVertexFactoryType::FVertexFactoryType(
 	ShouldCacheRef(InShouldCache),
 	ModifyCompilationEnvironmentRef(InModifyCompilationEnvironment),
 	ValidateCompiledResultRef(InValidateCompiledResult),
-	SupportsTessellationShadersRef(InSupportsTessellationShaders),
 	GlobalListLink(this)
 {
 	// Make sure the format of the source file path is right.

@@ -312,7 +312,6 @@ public:
 	typedef bool (*ShouldCacheType)(const FVertexFactoryShaderPermutationParameters&);
 	typedef void (*ModifyCompilationEnvironmentType)(const FVertexFactoryShaderPermutationParameters&, FShaderCompilerEnvironment&);
 	typedef void (*ValidateCompiledResultType)(const FVertexFactoryType*, EShaderPlatform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
-	typedef bool (*SupportsTessellationShadersType)();
 
 	static int32 GetNumVertexFactoryTypes() { return NumVertexFactories; }
 
@@ -355,8 +354,7 @@ public:
 		GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
 		ShouldCacheType InShouldCache,
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironment,
-		ValidateCompiledResultType InValidateCompiledResult,
-		SupportsTessellationShadersType InSupportsTessellationShaders
+		ValidateCompiledResultType InValidateCompiledResult
 		);
 
 	RENDERCORE_API virtual ~FVertexFactoryType();
@@ -427,14 +425,6 @@ public:
 		(*ValidateCompiledResultRef)(this, Platform, ParameterMap, OutErrors);
 	}
 
-	/**
-	 * Does this vertex factory support tessellation shaders?
-	 */
-	bool SupportsTessellationShaders() const
-	{
-		return (*SupportsTessellationShadersRef)(); 
-	}
-
 	/** Adds include statements for uniform buffers that this shader type references, and builds a prefix for the shader file with the include statements. */
 	RENDERCORE_API void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const;
 
@@ -468,7 +458,6 @@ private:
 	ShouldCacheType ShouldCacheRef;
 	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
 	ValidateCompiledResultType ValidateCompiledResultRef;
-	SupportsTessellationShadersType SupportsTessellationShadersRef;
 
 	TLinkedList<FVertexFactoryType*> GlobalListLink;
 
@@ -511,8 +500,7 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 	&GetVertexFactoryParametersElementShaderBindings<FactoryClass>, \
 	FactoryClass::ShouldCompilePermutation, \
 	FactoryClass::ModifyCompilationEnvironment, \
-	FactoryClass::ValidateCompiledResult, \
-	FactoryClass::SupportsTessellationShaders
+	FactoryClass::ValidateCompiledResult
 
 /**
  * A macro for implementing the static vertex factory type object, and specifying parameters used by the type.
@@ -631,11 +619,6 @@ public:
 	* Can be overridden by FVertexFactory subclasses to fail a compile based on compilation output.
 	*/
 	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors) {}
-
-	/**
-	* Can be overridden by FVertexFactory subclasses to enable HS/DS in D3D11
-	*/
-	static bool SupportsTessellationShaders() { return false; }
 
 	// FRenderResource interface.
 	virtual void ReleaseRHI();

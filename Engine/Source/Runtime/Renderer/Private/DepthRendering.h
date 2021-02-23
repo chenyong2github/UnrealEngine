@@ -120,48 +120,6 @@ public:
 };
 
 /**
- * Hull shader for depth rendering
- */
-class FDepthOnlyHS : public FBaseHS
-{
-	DECLARE_SHADER_TYPE(FDepthOnlyHS,MeshMaterial);
-public:
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseHS::ShouldCompilePermutation(Parameters)
-			&& TDepthOnlyVS<false>::ShouldCompilePermutation(Parameters);
-	}
-
-	FDepthOnlyHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FBaseHS(Initializer)
-	{}
-
-	FDepthOnlyHS() {}
-};
-
-/**
- * Domain shader for depth rendering
- */
-class FDepthOnlyDS : public FBaseDS
-{
-	DECLARE_SHADER_TYPE(FDepthOnlyDS,MeshMaterial);
-public:
-
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return FBaseDS::ShouldCompilePermutation(Parameters)
-			&& TDepthOnlyVS<false>::ShouldCompilePermutation(Parameters);		
-	}
-
-	FDepthOnlyDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FBaseDS(Initializer)
-	{}
-
-	FDepthOnlyDS() {}
-};
-
-/**
 * A pixel shader for rendering the depth of a mesh.
 */
 template <bool bUsesMobileColorValue>
@@ -230,8 +188,6 @@ bool GetDepthPassShaders(
 	const FMaterial& Material,
 	FVertexFactoryType* VertexFactoryType,
 	ERHIFeatureLevel::Type FeatureLevel,
-	TShaderRef<FDepthOnlyHS>& HullShader,
-	TShaderRef<FDepthOnlyDS>& DomainShader,
 	TShaderRef<TDepthOnlyVS<bPositionOnly>>& VertexShader,
 	TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline);

@@ -100,8 +100,6 @@ TRDGUniformBufferRef<FDebugViewModePassUniformParameters> CreateDebugViewModePas
 }
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeVS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("Main"),SF_Vertex);	
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeHS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("MainHull"),SF_Hull);	
-IMPLEMENT_MATERIAL_SHADER_TYPE(,FDebugViewModeDS,TEXT("/Engine/Private/DebugViewModeVertexShader.usf"),TEXT("MainDomain"),SF_Domain);
 
 bool FDebugViewModeVS::ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 {
@@ -212,20 +210,10 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 }
 
 void AddDebugViewModeShaderTypes(ERHIFeatureLevel::Type FeatureLevel,
-	EMaterialTessellationMode MaterialTessellationMode,
 	const FVertexFactoryType* VertexFactoryType,
 	FMaterialShaderTypes& OutShaderTypes)
 {
-	const bool bNeedsHSDS = RHISupportsTessellation(GShaderPlatformForFeatureLevel[FeatureLevel])
-		&& VertexFactoryType->SupportsTessellationShaders()
-		&& MaterialTessellationMode != MTM_NoTessellation;
-
 	OutShaderTypes.AddShaderType<FDebugViewModeVS>();
-	if (bNeedsHSDS)
-	{
-		OutShaderTypes.AddShaderType<FDebugViewModeDS>();
-		OutShaderTypes.AddShaderType<FDebugViewModeHS>();
-	}
 }
 
 void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
@@ -251,10 +239,9 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 	}
 
 	FVertexFactoryType* VertexFactoryType = MeshBatch.VertexFactory->GetType();
-	const EMaterialTessellationMode MaterialTessellationMode = Material->GetTessellationMode();
 
 	FMaterialShaderTypes ShaderTypes;
-	DebugViewModeInterface->AddShaderTypes(FeatureLevel, MaterialTessellationMode, VertexFactoryType, ShaderTypes);
+	DebugViewModeInterface->AddShaderTypes(FeatureLevel, VertexFactoryType, ShaderTypes);
 
 	FMaterialShaders Shaders;
 	if (!Material->TryGetShaders(ShaderTypes, VertexFactoryType, Shaders))
@@ -262,11 +249,9 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 		return;
 	}
 
-	TMeshProcessorShaders<FDebugViewModeVS,	FDebugViewModeHS, FDebugViewModeDS,	FDebugViewModePS> DebugViewModePassShaders;
+	TMeshProcessorShaders<FDebugViewModeVS,	FDebugViewModePS> DebugViewModePassShaders;
 	Shaders.TryGetVertexShader(DebugViewModePassShaders.VertexShader);
 	Shaders.TryGetPixelShader(DebugViewModePassShaders.PixelShader);
-	Shaders.TryGetHullShader(DebugViewModePassShaders.HullShader);
-	Shaders.TryGetDomainShader(DebugViewModePassShaders.DomainShader);
 
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
 	const ERasterizerFillMode MeshFillMode = ComputeMeshFillMode(MeshBatch, *BatchMaterial, OverrideSettings);

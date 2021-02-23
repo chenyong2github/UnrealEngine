@@ -1630,7 +1630,6 @@ namespace DataprepEditor3DPreviewUtils
 					SourceModel.BuildSettings.bGenerateLightmapUVs = false;
 					SourceModel.BuildSettings.bRecomputeNormals = false;
 					SourceModel.BuildSettings.bRecomputeTangents = false;
-					SourceModel.BuildSettings.bBuildAdjacencyBuffer = false;
 					SourceModel.BuildSettings.bBuildReversedIndexBuffer = false;
 				}
 
