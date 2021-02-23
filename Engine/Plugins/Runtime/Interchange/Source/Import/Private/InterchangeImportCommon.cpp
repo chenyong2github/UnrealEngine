@@ -24,7 +24,6 @@ namespace UE
 			, NodeContainer(InNodeContainer)
 		{
 			ensure(AssetImportDataOuter);
-			ensure(AssetImportData);
 			ensure(SourceData);
 			ensure(!NodeUniqueID.IsEmpty());
 			ensure(NodeContainer);
