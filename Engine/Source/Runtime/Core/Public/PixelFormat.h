@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/EnumClassFlags.h"
 
 #if defined(PF_MAX)
 #undef PF_MAX
