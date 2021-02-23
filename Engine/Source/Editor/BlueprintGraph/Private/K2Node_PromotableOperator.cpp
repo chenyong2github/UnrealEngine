@@ -1208,18 +1208,18 @@ void UK2Node_PromotableOperator::UpdatePinsFromFunction(const UFunction* Functio
 	};
 
 	// Check if we need to add a tolerance pin or not with this new function
-	if (FTypePromotion::IsComparisonFunc(Function) && PromotableOpUtils::FindTolerancePinType(Function, ToleranceType))
+	if (FTypePromotion::IsComparisonFunc(Function))
 	{
+		UEdGraphPin* ExistingTolPin = FindTolerancePin();
+		const bool bHasTolerancePin = PromotableOpUtils::FindTolerancePinType(Function, ToleranceType);
+
+		if (!ExistingTolPin)
+		{
+			ExistingTolPin = CreatePin(EGPD_Input, ToleranceType, TolerancePin_Name);
+		}
+
 		// Set the tolerance pin to visible if it is currently on the node
-		if (UEdGraphPin* ExistingTolPin = FindTolerancePin())
-		{
-			ExistingTolPin->bHidden = false;
-		}
-		// Otherwise we need to create a tolerance pin
-		else
-		{
-			CreatePin(EGPD_Input, ToleranceType, TolerancePin_Name);
-		}
+		ExistingTolPin->bHidden = !bHasTolerancePin;
 	}
 
 	int32 CurPinIndex = 0;
