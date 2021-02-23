@@ -333,7 +333,7 @@ void FD3D12Viewport::ResizeInternal()
 		for (uint32 i = 0; i < NumBackBuffers; ++i)
 		{
 			// When BackbufferMultiGPUBinding == INDEX_NONE, cycle through each GPU (for AFR or debugging).
-			const uint32 BackBufferGPUIndex = BackbufferMultiGPUBinding >= 0 ? (uint32)BackbufferMultiGPUBinding : (i % GNumExplicitGPUsForRendering);
+			const uint32 BackBufferGPUIndex = BackbufferMultiGPUBinding >= 0 ? (uint32)BackbufferMultiGPUBinding : (i % GNumAlternateFrameRenderingGroups);
 			BackBufferGPUIndices.Add(BackBufferGPUIndex);
 		}
 
