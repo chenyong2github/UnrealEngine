@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/MapErrors.h"
-	
+
+FLazyName FMapErrors::MatchingActorGUID(TEXT("MatchingActorGUID"));
 FLazyName FMapErrors::MatchingLightGUID(TEXT("MatchingLightGUID"));
 FLazyName FMapErrors::ActorLargeShadowCaster(TEXT("ActorLargeShadowCaster"));
 FLazyName FMapErrors::NoDamageType(TEXT("NoDamageType"));

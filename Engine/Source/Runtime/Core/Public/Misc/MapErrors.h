@@ -19,7 +19,10 @@ struct CORE_API FMapErrors
     static FLazyName MatchingLightGUID;
  
     /**  Actor */
-    
+
+	/** {Actor} has same GUID as {Actor} (Duplicate and replace the orig with the new one): Duplicate and replace the original with the new one. */
+    static FLazyName MatchingActorGUID;
+
 	/** {Actor} : Large actor casts a shadow and will cause an extreme performance hit unless bUseBooleanEnvironmentShadowing is set to true: A large actor has been set to cast shadows - this will cause extreme performance issues and should have bUseBooleanEnvironmentShadowing set to true. */
     static FLazyName ActorLargeShadowCaster;
 

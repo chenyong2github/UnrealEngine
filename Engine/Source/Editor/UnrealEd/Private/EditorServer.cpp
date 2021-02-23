@@ -3993,6 +3993,7 @@ bool UEditorEngine::Map_Check( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 
 	int32 LastUpdateCount = 0;
 	int32 UpdateGranularity = ProgressDenominator / 5;
+	TMap<ULevel*, TMap<FGuid, AActor*>> ActorGuidMap;
 	for( FActorIterator It(InWorld); It; ++It ) 
 	{
 		if(It.GetProgressNumerator() >= LastUpdateCount + UpdateGranularity)
@@ -4062,6 +4063,23 @@ bool UEditorEngine::Map_Check( UWorld* InWorld, const TCHAR* Str, FOutputDevice&
 						LightGuidToActorMap.Add( LightComponent->LightGuid, LightActor );
 					}
 				}
+			}
+
+			// Check for duplicated Guids
+			TMap<FGuid, AActor*>& PerLevelActorGuidMap = ActorGuidMap.FindOrAdd(Actor->GetLevel());
+			if (AActor** DuplicatedGuidActor = PerLevelActorGuidMap.Find(Actor->GetActorGuid()))
+			{
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("Actor0"), FText::FromString(Actor->GetName()));
+				Arguments.Add(TEXT("Actor1"), FText::FromString((*DuplicatedGuidActor)->GetName()));
+				FMessageLog("MapCheck").Warning()
+					->AddToken(FUObjectToken::Create(Actor))
+					->AddToken(FTextToken::Create(FText::Format(LOCTEXT( "MapCheck_Message_MatchingActorGUID", "'{Actor0}' has same GUID as '{Actor1}' (Duplicate and replace the orig with the new one)" ), Arguments)))
+					->AddToken(FMapErrorToken::Create(FMapErrors::MatchingActorGUID));
+			}
+			else
+			{
+				PerLevelActorGuidMap.Add(Actor->GetActorGuid(), Actor);
 			}
 		}
 
