@@ -477,7 +477,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 			if (RootComponentField && RootComponentField->HasAnyOneShotEntities())
 			{
 				EntitiesScratch.Reset();
-				RootComponentField->QueryOneShotEntities(Context.GetFrameNumberRange(), EntitiesScratch);
+				RootComponentField->QueryOneShotEntities(RootContext.GetFrameNumberRange(), EntitiesScratch);
 
 				if (EntitiesScratch.Num() != 0)
 				{
@@ -533,7 +533,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				FSequenceInstance& SubSequenceInstance = InstanceRegistry->MutateInstance(SubSequenceHandle);
 
 				// Update the sub sequence's context
-				FMovieSceneContext SubContext = Context.Transform(SubData->RootToSequenceTransform, SubData->TickResolution);
+				FMovieSceneContext SubContext = RootContext.Transform(SubData->RootToSequenceTransform, SubData->TickResolution);
 				SubContext.ReportOuterSectionRanges(SubData->PreRollRange.Value, SubData->PostRollRange.Value);
 				SubContext.SetHierarchicalBias(SubData->HierarchicalBias);
 
@@ -562,7 +562,6 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 
 				// Update entities if necessary
 				const FFrameTime SubSequenceTime = SubContext.GetTime();
-				const FMovieSceneTimeTransform SequenceToRootTransform = SubContext.GetSequenceToRootTransform();
 
 				FEntityImportSequenceParams Params;
 				Params.InstanceHandle = SubSequenceHandle;
@@ -580,7 +579,20 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 
 					SubSequenceInstance.Ledger.UpdateEntities(Linker, Params, SubComponentField, EntitiesScratch);
 
-					SubEntityRange *= SequenceToRootTransform;
+					// Clamp to the current warp loop if necessary
+					FMovieSceneWarpCounter WarpCounter;
+					FFrameTime Unused;
+					SubData->RootToSequenceTransform.TransformTime(RootTime, Unused, WarpCounter);
+
+					if (WarpCounter.WarpCounts.Num() > 0)
+					{
+						FMovieSceneTimeTransform InverseTransform = SubData->RootToSequenceTransform.InverseFromWarp(WarpCounter);
+						CachedEntityRange = TRange<FFrameNumber>::Intersection(CachedEntityRange, SubData->PlayRange.Value * InverseTransform);
+					}
+
+					const FMovieSceneSequenceTransform SequenceToRootOverrideTransform = FMovieSceneSequenceTransform(SubContext.GetSequenceToRootTransform()) * RootContext.GetRootToSequenceTransform();
+					SubEntityRange = SequenceToRootOverrideTransform.TransformRangeConstrained(SubEntityRange);
+
 					CachedEntityRange = TRange<FFrameNumber>::Intersection(CachedEntityRange, SubEntityRange);
 				}
 

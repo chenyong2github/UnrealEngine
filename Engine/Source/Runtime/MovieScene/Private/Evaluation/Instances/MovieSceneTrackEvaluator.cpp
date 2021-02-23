@@ -174,7 +174,7 @@ const FMovieSceneEvaluationGroup* FMovieSceneTrackEvaluator::SetupFrame(UMovieSc
 	RootOverridePath.Set(InOverrideRootID, RootHierarchy);
 
 	const FMovieSceneEvaluationField* OverrideRootField = nullptr;
-	FMovieSceneSequenceTransform RootOverrideTransform;
+	FFrameTime RootTime = Context.GetTime();
 
 	if (InOverrideRootID == MovieSceneSequenceID::Root)
 	{
@@ -189,7 +189,7 @@ const FMovieSceneEvaluationGroup* FMovieSceneTrackEvaluator::SetupFrame(UMovieSc
 		OverrideRootField = CompiledDataManager->FindTrackTemplateField(OverrideRootDataID);
 		if (const FMovieSceneSubSequenceData* OverrideSubData = RootHierarchy->FindSubData(InOverrideRootID))
 		{
-			RootOverrideTransform = OverrideSubData->RootToSequenceTransform;
+			RootTime *= OverrideSubData->RootToSequenceTransform;
 		}
 	}
 
@@ -200,7 +200,7 @@ const FMovieSceneEvaluationGroup* FMovieSceneTrackEvaluator::SetupFrame(UMovieSc
 
 	// The one that we want to evaluate is either the first or last index in the range.
 	// FieldRange is always of the form [First, Last+1)
-	const int32 TemplateFieldIndex = OverrideRootField->GetSegmentFromTime(Context.GetTime().FloorToFrame());
+	const int32 TemplateFieldIndex = OverrideRootField->GetSegmentFromTime(RootTime.FloorToFrame());
 	if (TemplateFieldIndex != INDEX_NONE)
 	{
 		// Set meta-data
