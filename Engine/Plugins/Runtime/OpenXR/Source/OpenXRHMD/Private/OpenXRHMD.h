@@ -60,6 +60,8 @@ public:
 		TArray<XrCompositionLayerDepthInfoKHR> DepthLayers;
 		TArray<XrSwapchainSubImage> ColorImages;
 		TArray<XrSwapchainSubImage> DepthImages;
+		FXRSwapChainPtr ColorSwapchain;
+		FXRSwapChainPtr DepthSwapchain;
 	};
 
 	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions

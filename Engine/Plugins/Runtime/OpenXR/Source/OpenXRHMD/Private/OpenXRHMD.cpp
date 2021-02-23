@@ -1076,6 +1076,10 @@ void FOpenXRHMD::SetFinalViewRect(const enum EStereoscopicPass StereoPass, const
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 	FPipelinedLayerState& LayerState = GetPipelinedLayerStateForThread();
 
+	// Keep the swapchains alive in the LayerState to ensure the XrSwapchain handles remain valid until xrEndFrame.
+	LayerState.ColorSwapchain = Swapchain;
+	LayerState.DepthSwapchain = DepthSwapchain;
+
 	XrSwapchainSubImage& ColorImage = LayerState.ColorImages[ViewIndex];
 	ColorImage.swapchain = Swapchain.IsValid() ? static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle() : XR_NULL_HANDLE;
 	ColorImage.imageArrayIndex = bIsMobileMultiViewEnabled && ViewIndex < 2 ? ViewIndex : 0;
