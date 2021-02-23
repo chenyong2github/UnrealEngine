@@ -5,7 +5,6 @@
 #include "GameplayEffect.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystemInterface.h"
 
 UAbilitySystemBlueprintLibrary::UAbilitySystemBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
@@ -21,19 +20,15 @@ void UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AActor* Actor, FGa
 {
 	if (Actor && !Actor->IsPendingKill())
 	{
-		IAbilitySystemInterface* AbilitySystemInterface = Cast<IAbilitySystemInterface>(Actor);
-		if (AbilitySystemInterface != nullptr)
+		UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
+		if (AbilitySystemComponent != nullptr && !AbilitySystemComponent->IsPendingKill())
 		{
-			UAbilitySystemComponent* AbilitySystemComponent = AbilitySystemInterface->GetAbilitySystemComponent();
-			if (AbilitySystemComponent != nullptr && !AbilitySystemComponent->IsPendingKill())
-			{
-				FScopedPredictionWindow NewScopedWindow(AbilitySystemComponent, true);
-				AbilitySystemComponent->HandleGameplayEvent(EventTag, &Payload);
-			}
-			else
-			{
-				ABILITY_LOG(Error, TEXT("UAbilitySystemBlueprintLibrary::SendGameplayEventToActor: Invalid ability system component retrieved from Actor %s. EventTag was %s"), *Actor->GetName(), *EventTag.ToString());
-			}
+			FScopedPredictionWindow NewScopedWindow(AbilitySystemComponent, true);
+			AbilitySystemComponent->HandleGameplayEvent(EventTag, &Payload);
+		}
+		else
+		{
+			ABILITY_LOG(Error, TEXT("UAbilitySystemBlueprintLibrary::SendGameplayEventToActor: Invalid ability system component retrieved from Actor %s. EventTag was %s"), *Actor->GetName(), *EventTag.ToString());
 		}
 	}
 }

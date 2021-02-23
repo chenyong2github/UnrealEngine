@@ -25,14 +25,13 @@ class GAMEPLAYABILITIES_API UAbilitySystemBlueprintLibrary : public UBlueprintFu
 {
 	GENERATED_UCLASS_BODY()
 
-	/** Tries to find an ability system component on the actor, will use AbilitySystemInterface */
+	/** Tries to find an ability system component on the actor, will use AbilitySystemInterface or fall back to a component search */
 	UFUNCTION(BlueprintPure, Category = Ability)
 	static UAbilitySystemComponent* GetAbilitySystemComponent(AActor *Actor);
 
 	/**
 	 * This function can be used to trigger an ability on the actor in question with useful payload data.
-	 * NOTE: The Actor passed in must implement IAbilitySystemInterface! or else this function will silently fail to
-	 * send the event.  The actor needs the interface to find the UAbilitySystemComponent, and if the component isn't
+	 * NOTE: GetAbilitySystemComponent is called on the actor to find a good component, and if the component isn't
 	 * found, the event will not be sent.
 	 */
 	UFUNCTION(BlueprintCallable, Category = Ability, Meta = (Tooltip = "This function can be used to trigger an ability on the actor in question with useful payload data."))

@@ -2,7 +2,7 @@
 
 #include "GameplayCueFunctionLibrary.h"
 #include "GameplayCueManager.h"
-#include "AbilitySystemInterface.h"
+#include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
 
 
@@ -27,8 +27,7 @@ void UGameplayCueFunctionLibrary::ExecuteGameplayCueOnActor(AActor* Target, cons
 		return;
 	}
 
-	const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Target);
-	UAbilitySystemComponent *ASC = (ASI ? ASI->GetAbilitySystemComponent() : nullptr);
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target);
 
 	if (ASC)
 	{
@@ -52,8 +51,7 @@ void UGameplayCueFunctionLibrary::AddGameplayCueOnActor(AActor* Target, const FG
 		return;
 	}
 
-	const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Target);
-	UAbilitySystemComponent *ASC = (ASI ? ASI->GetAbilitySystemComponent() : nullptr);
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target);
 
 	if (ASC)
 	{
@@ -77,8 +75,7 @@ void UGameplayCueFunctionLibrary::RemoveGameplayCueOnActor(AActor* Target, const
 		return;
 	}
 
-	const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Target);
-	UAbilitySystemComponent *ASC = (ASI ? ASI->GetAbilitySystemComponent() : nullptr);
+	UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target);
 
 	if (ASC)
 	{

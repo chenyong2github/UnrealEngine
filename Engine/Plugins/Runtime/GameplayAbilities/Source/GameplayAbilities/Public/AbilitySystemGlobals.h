@@ -68,8 +68,8 @@ class GAMEPLAYABILITIES_API UAbilitySystemGlobals : public UObject
 	/** Returns data used to initialize attributes to their default values */
 	FAttributeSetInitter* GetAttributeSetInitter() const;
 
-	/** Searches the passed in actor for an ability system component, will use the AbilitySystemInterface */
-	static UAbilitySystemComponent* GetAbilitySystemComponentFromActor(const AActor* Actor, bool LookForComponent=false);
+	/** Searches the passed in actor for an ability system component, will use IAbilitySystemInterface or fall back to a component search */
+	static UAbilitySystemComponent* GetAbilitySystemComponentFromActor(const AActor* Actor, bool LookForComponent=true);
 
 	/** Should allocate a project specific AbilityActorInfo struct. Caller is responsible for deallocation */
 	virtual FGameplayAbilityActorInfo* AllocAbilityActorInfo() const;

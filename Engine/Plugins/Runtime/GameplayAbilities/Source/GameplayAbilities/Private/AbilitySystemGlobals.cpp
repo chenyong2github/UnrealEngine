@@ -179,9 +179,7 @@ UAbilitySystemComponent* UAbilitySystemGlobals::GetAbilitySystemComponentFromAct
 
 	if (LookForComponent)
 	{
-		/** This is slow and not desirable */
-		ABILITY_LOG(Warning, TEXT("GetAbilitySystemComponentFromActor called on %s that is not IAbilitySystemInterface. This slow!"), *Actor->GetName());
-
+		// Fall back to a component search to better support BP-only actors
 		return Actor->FindComponentByClass<UAbilitySystemComponent>();
 	}
 
@@ -468,8 +466,8 @@ void UAbilitySystemGlobals::ListPlayerAbilities()
 {
 #if WITH_ABILITY_CHEATS	
 	APlayerController* PC = GWorld->GetFirstPlayerController();
-	IAbilitySystemInterface* AbilitySystem = PC ? Cast<IAbilitySystemInterface>(PC->GetPawn()) : nullptr;
-	if(AbilitySystem)
+	UAbilitySystemComponent* AbilityComponent = PC ? GetAbilitySystemComponentFromActor(PC->GetPawn()) : nullptr;
+	if(AbilityComponent)
 	{
 		const UEnum* ExecutionEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EGameplayAbilityNetExecutionPolicy"), true);
 		check(ExecutionEnumPtr && TEXT("Couldn't locate EGameplayAbilityNetExecutionPolicy enum!"));
@@ -478,7 +476,6 @@ void UAbilitySystemGlobals::ListPlayerAbilities()
 
 		PC->ClientMessage(TEXT("Available abilities:"));
 
-		UAbilitySystemComponent* AbilityComponent = AbilitySystem->GetAbilitySystemComponent();
 		check(AbilityComponent && TEXT("Failed to find ability component on player pawn."));
 		for (FGameplayAbilitySpec &Activatable : AbilityComponent->GetActivatableAbilities())
 		{
@@ -498,10 +495,9 @@ void UAbilitySystemGlobals::ServerActivatePlayerAbility(FString AbilityNameMatch
 	}
 
 	APlayerController* PC = GWorld->GetFirstPlayerController();
-	IAbilitySystemInterface* AbilitySystem = PC ? Cast<IAbilitySystemInterface>(PC->GetPawn()) : nullptr;
-	if(AbilitySystem)
+	UAbilitySystemComponent* AbilityComponent = PC ? GetAbilitySystemComponentFromActor(PC->GetPawn()) : nullptr;
+	if(AbilityComponent)
 	{
-		UAbilitySystemComponent* AbilityComponent = AbilitySystem->GetAbilitySystemComponent();
 		for (FGameplayAbilitySpec &Activatable : AbilityComponent->GetActivatableAbilities())
 		{
 			// Trigger on first match only
@@ -523,10 +519,9 @@ void UAbilitySystemGlobals::ServerActivatePlayerAbility(FString AbilityNameMatch
 static void TerminatePlayerAbility(const FString &AbilityNameMatch, TFunction<FString(UAbilitySystemComponent*, FGameplayAbilitySpec&)> TerminateFn)
 {
 	APlayerController* PC = GWorld->GetFirstPlayerController();
-	IAbilitySystemInterface* AbilitySystem = PC ? Cast<IAbilitySystemInterface>(PC->GetPawn()) : nullptr;
-	if (AbilitySystem)
+	UAbilitySystemComponent* AbilityComponent = PC ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(PC->GetPawn()) : nullptr;
+	if (AbilityComponent)
 	{
-		UAbilitySystemComponent* AbilityComponent = AbilitySystem->GetAbilitySystemComponent();
 		for (FGameplayAbilitySpec &ActivatableSpec : AbilityComponent->GetActivatableAbilities())
 		{
 			if (ActivatableSpec.Ability->IsActive() &&

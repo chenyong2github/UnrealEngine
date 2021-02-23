@@ -8,7 +8,6 @@
 #include "Misc/ConfigCacheIni.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystemInterface.h"
 #include "Engine/PackageMapClient.h"
 
 
@@ -120,11 +119,7 @@ void FGameplayEffectContext::AddInstigator(class AActor *InInstigator, class AAc
 	InstigatorAbilitySystemComponent = NULL;
 
 	// Cache off his AbilitySystemComponent.
-	IAbilitySystemInterface* AbilitySystemInterface = Cast<IAbilitySystemInterface>(Instigator.Get());
-	if (AbilitySystemInterface)
-	{
-		InstigatorAbilitySystemComponent = AbilitySystemInterface->GetAbilitySystemComponent();
-	}
+	InstigatorAbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Instigator.Get());
 }
 
 void FGameplayEffectContext::SetAbility(const UGameplayAbility* InGameplayAbility)

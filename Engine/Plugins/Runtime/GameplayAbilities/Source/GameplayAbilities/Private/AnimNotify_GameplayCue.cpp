@@ -3,7 +3,6 @@
 #include "AnimNotify_GameplayCue.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "AbilitySystemGlobals.h"
-#include "AbilitySystemInterface.h"
 #include "AbilitySystemComponent.h"
 #include "Animation/AnimMontage.h"
 #include "GameplayCueManager.h"
@@ -37,21 +36,18 @@ static void ProcessGameplayCue(GameplayCueFunc Func, USkeletalMeshComponent* Mes
 
 		// Try to get the ability level. This may not be able to find the ability level
 		// in cases where a blend out is happening or two abilities are trying to play animations
-		if (const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(OwnerActor))
+		if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(OwnerActor))
 		{
-			if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
+			if (ASC->GetCurrentMontage() == Animation)
 			{
-				if (ASC->GetCurrentMontage() == Animation)
+				if (const UGameplayAbility* Ability = ASC->GetAnimatingAbility())
 				{
-					if (const UGameplayAbility* Ability = ASC->GetAnimatingAbility())
-					{
-						Parameters.AbilityLevel = Ability->GetAbilityLevel();
-					}
+					Parameters.AbilityLevel = Ability->GetAbilityLevel();
 				}
-
-				// Always use ASC's owner for instigator
-				Parameters.Instigator = ASC->GetOwner();
 			}
+
+			// Always use ASC's owner for instigator
+			Parameters.Instigator = ASC->GetOwner();
 		}
 
 		Parameters.TargetAttachComponent = MeshComp;

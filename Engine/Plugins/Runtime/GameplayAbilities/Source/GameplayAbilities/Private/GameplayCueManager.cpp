@@ -16,7 +16,6 @@
 #include "GameplayCueSet.h"
 #include "GameplayCueNotify_Static.h"
 #include "AbilitySystemComponent.h"
-#include "AbilitySystemInterface.h"
 #include "Net/DataReplication.h"
 #include "Engine/ActorChannel.h"
 #include "Engine/NetConnection.h"
@@ -235,12 +234,9 @@ void UGameplayCueManager::TranslateGameplayCue(FGameplayTag& Tag, AActor* Target
 
 void UGameplayCueManager::AddGameplayCue_NonReplicated(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters)
 {
-	if (const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Target))
+	if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target))
 	{
-		if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
-		{
-			ASC->AddLooseGameplayTag(GameplayCueTag);
-		}
+		ASC->AddLooseGameplayTag(GameplayCueTag);
 	}
 
 	if (UGameplayCueManager* GCM = UAbilitySystemGlobals::Get().GetGameplayCueManager())
@@ -252,12 +248,9 @@ void UGameplayCueManager::AddGameplayCue_NonReplicated(AActor* Target, const FGa
 
 void UGameplayCueManager::RemoveGameplayCue_NonReplicated(AActor* Target, const FGameplayTag GameplayCueTag, const FGameplayCueParameters& Parameters)
 {
-	if (const IAbilitySystemInterface* ASI = Cast<IAbilitySystemInterface>(Target))
+	if (UAbilitySystemComponent* ASC = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Target))
 	{
-		if (UAbilitySystemComponent* ASC = ASI->GetAbilitySystemComponent())
-		{
-			ASC->RemoveLooseGameplayTag(GameplayCueTag);
-		}
+		ASC->RemoveLooseGameplayTag(GameplayCueTag);
 	}
 
 	if (UGameplayCueManager* GCM = UAbilitySystemGlobals::Get().GetGameplayCueManager())
