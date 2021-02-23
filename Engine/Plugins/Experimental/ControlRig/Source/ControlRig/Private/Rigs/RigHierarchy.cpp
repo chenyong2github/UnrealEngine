@@ -3,6 +3,7 @@
 #include "Rigs/RigHierarchy.h"
 #include "Rigs/RigHierarchyElements.h"
 #include "Rigs/RigHierarchyController.h"
+#include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 #include "UObject/AnimObjectVersion.h"
 #include "Serialization/MemoryReader.h"
@@ -116,6 +117,16 @@ void URigHierarchy::Load(FArchive& Ar)
 			case ERigElementType::Curve:
 			{
 				Element = new FRigCurveElement();
+				break;
+			}
+			case ERigElementType::RigidBody:
+			{
+				Element = new FRigRigidBodyElement();
+				break;
+			}
+			case ERigElementType::Auxiliary:
+			{
+				Element = new FRigAuxiliaryElement();
 				break;
 			}
 			default:
@@ -238,6 +249,32 @@ void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bIn
 		if(FRigBaseElement* OtherElement = InHierarchy->Find(Element->GetKey()))
 		{
 			Element->CopyPose(OtherElement, bCurrent, bInitial);
+		}
+	}
+}
+
+void URigHierarchy::UpdateAuxiliaryElements(const FRigUnitContext* InContext)
+{
+	check(InContext);
+	
+	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	{
+		if(FRigAuxiliaryElement* AuxiliaryElement = Cast<FRigAuxiliaryElement>(Elements[ElementIndex]))
+		{
+			const FTransform InitialWorldTransform = AuxiliaryElement->GetAuxiliaryWorldTransform(InContext, true);
+			const FTransform CurrentWorldTransform = AuxiliaryElement->GetAuxiliaryWorldTransform(InContext, false);
+
+			const FTransform InitialGlobalTransform = InitialWorldTransform.GetRelativeTransform(InContext->ToWorldSpaceTransform);
+			const FTransform CurrentGlobalTransform = CurrentWorldTransform.GetRelativeTransform(InContext->ToWorldSpaceTransform);
+
+			const FTransform InitialParentTransform = GetParentTransform(AuxiliaryElement, ERigTransformType::InitialGlobal); 
+			const FTransform CurrentParentTransform = GetParentTransform(AuxiliaryElement, ERigTransformType::CurrentGlobal);
+
+			const FTransform InitialLocalTransform = InitialGlobalTransform.GetRelativeTransform(InitialParentTransform);
+			const FTransform CurrentLocalTransform = CurrentGlobalTransform.GetRelativeTransform(CurrentParentTransform);
+
+			SetTransform(AuxiliaryElement, InitialLocalTransform, ERigTransformType::InitialLocal, true, false);
+			SetTransform(AuxiliaryElement, CurrentLocalTransform, ERigTransformType::CurrentLocal, true, false);
 		}
 	}
 }

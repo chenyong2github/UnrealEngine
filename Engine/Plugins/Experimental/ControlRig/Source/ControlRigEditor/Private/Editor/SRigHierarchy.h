@@ -256,6 +256,12 @@ private:
 	/** Whether or not to show spaces in the hierarchy */
 	bool bShowSpaces;
 
+	/** Whether or not to show rigidbodies in the hierarchy */
+	bool bShowRigidBodies;
+
+	/** Whether or not to show auxiliary elements in the hierarchy */
+	bool bShowAuxiliaryElements;
+
 	/** Search box widget */
 	TSharedPtr<SSearchBox> FilterBox;
 	FText FilterText;

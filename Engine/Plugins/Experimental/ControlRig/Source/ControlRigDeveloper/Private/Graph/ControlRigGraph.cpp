@@ -74,47 +74,29 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 	check(InHierarchy);
 	check(DrawContainer);
 
+	TArray<TSharedPtr<FString>>& BoneNameList = ElementNameLists.FindOrAdd(ERigElementType::Bone);
+	TArray<TSharedPtr<FString>>& SpaceNameList = ElementNameLists.FindOrAdd(ERigElementType::Space);
+	TArray<TSharedPtr<FString>>& ControlNameList = ElementNameLists.FindOrAdd(ERigElementType::Control);
+	TArray<TSharedPtr<FString>>& CurveNameList = ElementNameLists.FindOrAdd(ERigElementType::Curve);
+	TArray<TSharedPtr<FString>>& RigidBodyNameList = ElementNameLists.FindOrAdd(ERigElementType::RigidBody);
+	TArray<TSharedPtr<FString>>& AuxiliaryNameList = ElementNameLists.FindOrAdd(ERigElementType::Auxiliary);
+	
 	CacheNameListForHierarchy<FRigBoneElement>(InHierarchy, BoneNameList);
-	CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList);
 	CacheNameListForHierarchy<FRigSpaceElement>(InHierarchy, SpaceNameList);
+	CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList);
 	CacheNameListForHierarchy<FRigCurveElement>(InHierarchy, CurveNameList);
+	CacheNameListForHierarchy<FRigRigidBodyElement>(InHierarchy, RigidBodyNameList);
+	CacheNameListForHierarchy<FRigAuxiliaryElement>(InHierarchy, AuxiliaryNameList);
 	CacheNameList<FControlRigDrawContainer>(*DrawContainer, DrawingNameList);
 }
 
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetBoneNameList(URigVMPin* InPin) const
+const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElementType InElementType) const
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
 	{
-		return OuterGraph->GetBoneNameList(InPin);
+		return OuterGraph->GetElementNameList(InElementType);
 	}
-	return BoneNameList;
-}
-
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetControlNameList(URigVMPin* InPin) const
-{
-	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
-	{
-		return OuterGraph->GetControlNameList(InPin);
-	}
-	return ControlNameList;
-}
-
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetSpaceNameList(URigVMPin* InPin) const
-{
-	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
-	{
-		return OuterGraph->GetSpaceNameList(InPin);
-	}
-	return SpaceNameList;
-}
-
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetCurveNameList(URigVMPin* InPin) const
-{
-	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
-	{
-		return OuterGraph->GetCurveNameList(InPin);
-	}
-	return CurveNameList;
+	return ElementNameLists.FindChecked(InElementType);
 }
 
 const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(URigVMPin* InPin) const
@@ -135,36 +117,6 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(URigVMPi
 					}
 				}
 			}
-		}
-	}
-
-	return GetBoneNameList(nullptr);
-}
-
-const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElementType InElementType) const
-{
-	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
-	{
-		return OuterGraph->GetElementNameList(InElementType);
-	}
-
-	switch (InElementType)
-	{
-		case ERigElementType::Bone:
-		{
-			return GetBoneNameList();
-		}
-		case ERigElementType::Control:
-		{
-			return GetControlNameList();
-		}
-		case ERigElementType::Space:
-		{
-			return GetSpaceNameList();
-		}
-		case ERigElementType::Curve:
-		{
-			return GetCurveNameList();
 		}
 	}
 

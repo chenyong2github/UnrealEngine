@@ -99,6 +99,8 @@ public:
 			Set("ControlRig.Tree.BoneImported", new IMAGE_BRUSH("Slate/BoneImported_16x", Icon16x16));
 			Set("ControlRig.Tree.Control", new IMAGE_BRUSH("Slate/Control_16x", Icon16x16));
 			Set("ControlRig.Tree.Space", new IMAGE_BRUSH("Slate/Space_16x", Icon16x16));
+			Set("ControlRig.Tree.RigidBody", new IMAGE_BRUSH("Slate/RigidBody_16x", Icon16x16));
+			Set("ControlRig.Tree.Auxiliary", new IMAGE_BRUSH("Slate/Auxiliary_16x", Icon16x16));
 		}
 
 		// Font?

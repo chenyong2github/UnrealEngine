@@ -6,8 +6,11 @@
 #include "RigHierarchyDefines.h"
 #include "RigHierarchyElements.generated.h"
 
+struct FRigUnitContext;
 struct FRigBaseElement;
 class URigHierarchy;
+
+DECLARE_DELEGATE_RetVal_ThreeParams(FTransform, FRigAuxiliaryElementGetWorldTransformDelegate, const FRigUnitContext*, const FRigElementKey& /* Key */, bool /* bInitial */);
 
 #define DECLARE_RIG_ELEMENT_METHODS(ElementType) \
 template<typename T> \
@@ -575,7 +578,9 @@ protected:
 	{
 		return InElement->GetType() == ERigElementType::Bone ||
 			InElement->GetType() == ERigElementType::Space ||
-			InElement->GetType() == ERigElementType::Control;
+			InElement->GetType() == ERigElementType::Control ||
+			InElement->GetType() == ERigElementType::RigidBody ||
+			InElement->GetType() == ERigElementType::Auxiliary;
 	}
 
 public:
@@ -615,7 +620,9 @@ protected:
 	
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
-		return InElement->GetType() == ERigElementType::Bone;
+		return InElement->GetType() == ERigElementType::Bone ||
+			InElement->GetType() == ERigElementType::RigidBody ||
+			InElement->GetType() == ERigElementType::Auxiliary;
 	}
 
 	friend struct FRigBaseElement;
@@ -917,4 +924,87 @@ public:
 protected:
 	
 	friend struct FRigBaseElement;
+};
+
+USTRUCT(BlueprintType)
+struct CONTROLRIG_API FRigRigidBodySettings
+{
+	GENERATED_BODY()
+
+	FRigRigidBodySettings();
+
+	void Save(FArchive& Ar);
+	void Load(FArchive& Ar);
+
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
+	float Mass;
+};
+
+USTRUCT(BlueprintType)
+struct CONTROLRIG_API FRigRigidBodyElement : public FRigSingleParentElement
+{
+public:
+	
+	GENERATED_BODY()
+	DECLARE_RIG_ELEMENT_METHODS(FRigRigidBodyElement)
+
+    FRigRigidBodyElement()
+        : FRigSingleParentElement()
+	{
+		Key.Type = ERigElementType::RigidBody;
+	}
+	
+	virtual ~FRigRigidBodyElement(){}
+
+	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
+	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Control, meta=(ShowOnlyInnerProperties))
+	FRigRigidBodySettings Settings;
+
+protected:
+	
+	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	{
+		return InElement->GetType() == ERigElementType::RigidBody;
+	}
+
+	friend struct FRigBaseElement;
+};
+
+USTRUCT(BlueprintType)
+struct CONTROLRIG_API FRigAuxiliaryElement : public FRigSingleParentElement
+{
+public:
+	
+	GENERATED_BODY()
+	DECLARE_RIG_ELEMENT_METHODS(FRigAuxiliaryElement)
+
+    FRigAuxiliaryElement()
+        : FRigSingleParentElement()
+	{
+		Key.Type = ERigElementType::Auxiliary;
+	}
+	
+	virtual ~FRigAuxiliaryElement(){}
+
+	virtual void Save(FArchive& A, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
+	virtual void Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase) override;
+
+	FTransform GetAuxiliaryWorldTransform(const FRigUnitContext* InContext, bool bInitial) const;
+
+	virtual void CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial) override;
+
+protected:
+
+	FRigAuxiliaryElementGetWorldTransformDelegate GetWorldTransformDelegate;
+
+	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
+	{
+		return InElement->GetType() == ERigElementType::Auxiliary;
+	}
+
+	friend struct FRigBaseElement;
+	friend class URigHierarchyController;
 };

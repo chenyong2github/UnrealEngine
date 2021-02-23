@@ -287,6 +287,72 @@ FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bo
 	return NewElement->Key;
 }
 
+FRigElementKey URigHierarchyController::AddRigidBody(FName InName, FRigElementKey InParent,
+	FRigRigidBodySettings InSettings, FTransform InLocalTransform, bool bSetupUndo)
+{
+	if(!IsValid())
+	{
+		return FRigElementKey();
+	}
+
+#if WITH_EDITOR
+	TSharedPtr<FScopedTransaction> TransactionPtr;
+	if(bSetupUndo)
+	{
+		TransactionPtr = MakeShared<FScopedTransaction>(NSLOCTEXT("RigHierarchyController", "Add RigidBody", "Add RigidBody"));
+		Hierarchy->Modify();
+	}
+#endif
+
+	FRigRigidBodyElement* NewElement = new FRigRigidBodyElement();
+	NewElement->Key.Type = ERigElementType::RigidBody;
+	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
+	NewElement->Settings = InSettings;
+	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
+
+	Hierarchy->SetTransform(NewElement, InLocalTransform, ERigTransformType::InitialLocal, true, false);
+	NewElement->Pose.Current = NewElement->Pose.Initial;
+
+#if WITH_EDITOR
+	TransactionPtr.Reset();
+#endif
+
+	return NewElement->Key;
+}
+
+FRigElementKey URigHierarchyController::AddAuxiliaryElement(FName InName, FRigElementKey InParent,
+	FRigAuxiliaryElementGetWorldTransformDelegate InDelegate, bool bSetupUndo)
+{
+	if(!IsValid())
+	{
+		return FRigElementKey();
+	}
+
+#if WITH_EDITOR
+	TSharedPtr<FScopedTransaction> TransactionPtr;
+	if(bSetupUndo)
+	{
+		TransactionPtr = MakeShared<FScopedTransaction>(NSLOCTEXT("RigHierarchyController", "Add Auxiliary Element", "Add Auxiliary Element"));
+		Hierarchy->Modify();
+	}
+#endif
+
+	FRigAuxiliaryElement* NewElement = new FRigAuxiliaryElement();
+	NewElement->Key.Type = ERigElementType::Auxiliary;
+	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
+	NewElement->GetWorldTransformDelegate = InDelegate;
+	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
+
+	Hierarchy->SetTransform(NewElement, FTransform::Identity, ERigTransformType::InitialLocal, true, false);
+	NewElement->Pose.Current = NewElement->Pose.Initial;
+
+#if WITH_EDITOR
+	TransactionPtr.Reset();
+#endif
+
+	return NewElement->Key;
+}
+
 FRigControlSettings URigHierarchyController::GetControlSettings(FRigElementKey InKey) const
 {
 	if(!IsValid())
@@ -669,6 +735,18 @@ FString URigHierarchyController::ExportToText(TArray<FRigElementKey> InKeys) con
 				FRigCurveElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
 				break;
 			}
+			case ERigElementType::RigidBody:
+			{
+				FRigRigidBodyElement DefaultElement;
+				FRigRigidBodyElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
+				break;
+			}
+			case ERigElementType::Auxiliary:
+			{
+				FRigAuxiliaryElement DefaultElement;
+				FRigAuxiliaryElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
+				break;
+			}
 			default:
 			{
 				ensure(false);
@@ -770,6 +848,18 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 			{
 				NewElement = new FRigCurveElement();
 				FRigCurveElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigCurveElement::StaticStruct()->GetName(), true);
+				break;
+			}
+			case ERigElementType::RigidBody:
+			{
+				NewElement = new FRigRigidBodyElement();
+				FRigRigidBodyElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigRigidBodyElement::StaticStruct()->GetName(), true);
+				break;
+			}
+			case ERigElementType::Auxiliary:
+			{
+				NewElement = new FRigAuxiliaryElement();
+				FRigAuxiliaryElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigAuxiliaryElement::StaticStruct()->GetName(), true);
 				break;
 			}
 			default:

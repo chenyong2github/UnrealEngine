@@ -1187,6 +1187,16 @@ void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement)
 			StructToDisplay = MakeShareable(new FStructOnScope(FRigCurveElement::StaticStruct(), (uint8*)Element));
 			break;
 		}
+		case ERigElementType::RigidBody:
+		{
+			StructToDisplay = MakeShareable(new FStructOnScope(FRigRigidBodyElement::StaticStruct(), (uint8*)Element));
+			break;
+		}
+		case ERigElementType::Auxiliary:
+		{
+			StructToDisplay = MakeShareable(new FStructOnScope(FRigAuxiliaryElement::StaticStruct(), (uint8*)Element));
+			break;
+		}
 		default:
 		{
 			break;

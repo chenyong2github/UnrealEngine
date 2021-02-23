@@ -170,6 +170,16 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, TSharedPtr<FControlR
 
 			break;
 		}
+		case ERigElementType::RigidBody:
+		{
+			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.RigidBody");
+			break;
+		}
+		case ERigElementType::Auxiliary:
+		{
+			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Auxiliary");
+			break;
+		}
 		default:
 		{
 			break;
@@ -418,6 +428,8 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 	bShowBones = true;
 	bShowControls = true;
 	bShowSpaces = true;
+	bShowRigidBodies = true;
+	bShowAuxiliaryElements = true;
 	bIsChangingRigHierarchy = false;
 	RefreshTreeView();
 
@@ -552,6 +564,18 @@ void SRigHierarchy::BindCommands()
 		FExecuteAction::CreateLambda([this]() { bShowSpaces = !bShowSpaces; RefreshTreeView(); }),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([this]() { return bShowSpaces; }));
+
+	CommandList->MapAction(
+		Commands.ShowRigidBodies,
+		FExecuteAction::CreateLambda([this]() { bShowRigidBodies = !bShowRigidBodies; RefreshTreeView(); }),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]() { return bShowRigidBodies; }));
+
+	CommandList->MapAction(
+		Commands.ShowAuxiliaryElements,
+		FExecuteAction::CreateLambda([this]() { bShowAuxiliaryElements = !bShowAuxiliaryElements; RefreshTreeView(); }),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]() { return bShowAuxiliaryElements; }));
 }
 
 FReply SRigHierarchy::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -664,6 +688,24 @@ void SRigHierarchy::RefreshTreeView()
                     {
                         FRigControlElement* ControlElement = CastChecked<FRigControlElement>(Element);
                         AddElement(ControlElement);
+                    }
+                    break;
+                }
+				case ERigElementType::RigidBody:
+				{
+                    if(bShowRigidBodies)
+                    {
+                        FRigRigidBodyElement* RigidBodyElement = CastChecked<FRigRigidBodyElement>(Element);
+                        AddElement(RigidBodyElement);
+                    }
+                    break;
+                }
+				case ERigElementType::Auxiliary:
+				{
+                    if(bShowAuxiliaryElements)
+                    {
+                        FRigAuxiliaryElement* AuxiliaryElement = CastChecked<FRigAuxiliaryElement>(Element);
+                        AddElement(AuxiliaryElement);
                     }
                     break;
                 }
@@ -1615,7 +1657,16 @@ void SRigHierarchy::HandleMirrorItem()
 /** Check whether we can deleting the selected item(s) */
 bool SRigHierarchy::CanRenameItem() const
 {
-	return IsSingleSelected();
+	if(IsSingleSelected())
+	{
+		if(GetSelectedKeys()[0].Type == ERigElementType::RigidBody ||
+			GetSelectedKeys()[0].Type == ERigElementType::Auxiliary)
+		{
+			return false;
+		}
+		return true;
+	}
+	return false;
 }
 
 /** Delete Item */
@@ -1863,6 +1914,8 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 			}
 			case ERigElementType::Control:
 			case ERigElementType::Space:
+			case ERigElementType::RigidBody:
+			case ERigElementType::Auxiliary:
 			{
 				for (const FRigElementKey& DraggedKey : RigDragDropOp->GetElements())
 				{
@@ -1870,6 +1923,8 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 					{
 						case ERigElementType::Control:
 						case ERigElementType::Space:
+						case ERigElementType::RigidBody:
+						case ERigElementType::Auxiliary:
 						{
 							break;
 						}

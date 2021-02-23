@@ -557,6 +557,12 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		}
 	}
 
+	if(DynamicHierarchy)
+	{
+		// if we have any aux elements dirty them
+		DynamicHierarchy->UpdateAuxiliaryElements(&Context);
+	}
+
 #if WITH_EDITOR
 	Context.Log = ControlRigLog;
 	if (ControlRigLog != nullptr)

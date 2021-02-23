@@ -41,13 +41,25 @@ public:
 
 
 	void CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer);
+	const TArray<TSharedPtr<FString>>& GetElementNameList(ERigElementType InElementType = ERigElementType::Bone) const;
 
-	const TArray<TSharedPtr<FString>>& GetBoneNameList(URigVMPin* InPin = nullptr) const;
-	const TArray<TSharedPtr<FString>>& GetControlNameList(URigVMPin* InPin = nullptr) const;
-	const TArray<TSharedPtr<FString>>& GetSpaceNameList(URigVMPin* InPin = nullptr) const;
-	const TArray<TSharedPtr<FString>>& GetCurveNameList(URigVMPin* InPin = nullptr) const;
+	FORCEINLINE const TArray<TSharedPtr<FString>>& GetBoneNameList(URigVMPin* InPin = nullptr) const
+	{
+		return GetElementNameList(ERigElementType::Bone);
+	}
+	FORCEINLINE const TArray<TSharedPtr<FString>>& GetControlNameList(URigVMPin* InPin = nullptr) const
+	{
+		return GetElementNameList(ERigElementType::Control);
+	}
+	FORCEINLINE const TArray<TSharedPtr<FString>>& GetSpaceNameList(URigVMPin* InPin = nullptr) const
+	{
+		return GetElementNameList(ERigElementType::Space);
+	}
+	FORCEINLINE const TArray<TSharedPtr<FString>>& GetCurveNameList(URigVMPin* InPin = nullptr) const
+	{
+		return GetElementNameList(ERigElementType::Curve);
+	}
 	const TArray<TSharedPtr<FString>>& GetElementNameList(URigVMPin* InPin = nullptr) const;
-	const TArray<TSharedPtr<FString>>& GetElementNameList(ERigElementType InElementType) const;
 	const TArray<TSharedPtr<FString>>& GetDrawingNameList(URigVMPin* InPin = nullptr) const;
 
 	bool bSuspendModelNotifications;
@@ -110,10 +122,7 @@ private:
 		}
 	}
 
-	TArray<TSharedPtr<FString>> BoneNameList;
-	TArray<TSharedPtr<FString>> ControlNameList;
-	TArray<TSharedPtr<FString>> SpaceNameList;
-	TArray<TSharedPtr<FString>> CurveNameList;
+	TMap<ERigElementType, TArray<TSharedPtr<FString>>> ElementNameLists;
 	TArray<TSharedPtr<FString>> DrawingNameList;
 
 	bool bIsSelecting;

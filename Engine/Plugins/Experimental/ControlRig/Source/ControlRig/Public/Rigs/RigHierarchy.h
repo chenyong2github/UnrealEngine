@@ -60,6 +60,11 @@ public:
 	void CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial);
 
 	/**
+	 * Update all elements that depend on auxiliary data
+	 */
+	void UpdateAuxiliaryElements(const FRigUnitContext* InContext);
+
+	/**
 	 * Resets the current pose of a filtered lost if elements to the initial / ref pose.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
@@ -572,6 +577,43 @@ public:
 		return GetKeysOfType<FRigCurveElement>(false);
 	}
 
+	/**
+	 * Returns all RigidBody elements
+	 * @param bTraverse Returns the elements in order of a depth first traversal
+	 */
+	FORCEINLINE TArray<FRigRigidBodyElement*> GetRigidBodies(bool bTraverse = false) const
+	{
+		return GetElementsOfType<FRigRigidBodyElement>(bTraverse);
+	}
+
+	/**
+	 * Returns all RigidBody elements
+	 * @param bTraverse Returns the elements in order of a depth first traversal
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get RigidBodies", ScriptName = "GetRigidBodies"))
+    FORCEINLINE TArray<FRigElementKey> GetRigidBodyKeys(bool bTraverse = true) const
+	{
+		return GetKeysOfType<FRigRigidBodyElement>(bTraverse);
+	}
+
+	/**
+	 * Returns all Auxiliary elements
+	 * @param bTraverse Returns the elements in order of a depth first traversal
+	 */
+	FORCEINLINE TArray<FRigAuxiliaryElement*> GetAuxiliaryElements(bool bTraverse = false) const
+	{
+		return GetElementsOfType<FRigAuxiliaryElement>(bTraverse);
+	}
+
+	/**
+	 * Returns all Auxiliary elements
+	 * @param bTraverse Returns the elements in order of a depth first traversal
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Auxiliarys", ScriptName = "GetAuxiliaryElements"))
+    FORCEINLINE TArray<FRigElementKey> GetAuxiliaryKeys(bool bTraverse = true) const
+	{
+		return GetKeysOfType<FRigAuxiliaryElement>(bTraverse);
+	}
 
 	/**
 	 * Returns the selected elements
@@ -1566,7 +1608,7 @@ public:
 	 * @return The Controller for this hierarchy
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
-	URigHierarchyController* GetController(bool bCreateIfNeeded = false);
+	URigHierarchyController* GetController(bool bCreateIfNeeded = true);
 
 	/**
 	 * Returns the topology version of this hierarchy

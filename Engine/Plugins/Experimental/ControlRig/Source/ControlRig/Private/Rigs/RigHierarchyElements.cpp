@@ -2,6 +2,7 @@
 
 #include "Rigs/RigHierarchyElements.h"
 #include "Rigs/RigHierarchy.h"
+#include "Units/RigUnitContext.h"
 #include "UObject/AnimObjectVersion.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -121,6 +122,8 @@ void FRigTransformElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeriali
 
 void FRigTransformElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
 {
+	Super::CopyPose(InOther, bCurrent, bInitial);
+
 	if(FRigTransformElement* Other = Cast<FRigTransformElement>(InOther))
 	{
 		if(bCurrent)
@@ -236,6 +239,8 @@ void FRigMultiParentElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeria
 
 void FRigMultiParentElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
 {
+	Super::CopyPose(InOther, bCurrent, bInitial);
+
 	if(FRigMultiParentElement* Other = Cast<FRigMultiParentElement>(InOther))
 	{
 		if(bCurrent)
@@ -406,6 +411,8 @@ void FRigControlElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializa
 
 void FRigControlElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
 {
+	Super::CopyPose(InOther, bCurrent, bInitial);
+	
 	if(FRigControlElement* Other = Cast<FRigControlElement>(InOther))
 	{
 		if(bCurrent)
@@ -452,5 +459,84 @@ void FRigCurveElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bI
 	if(FRigCurveElement* Other = Cast<FRigCurveElement>(InOther))
 	{
 		Value = Other->Value;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// FRigRigidBodySettings
+////////////////////////////////////////////////////////////////////////////////
+
+FRigRigidBodySettings::FRigRigidBodySettings()
+	: Mass(1.f)
+{
+}
+
+void FRigRigidBodySettings::Save(FArchive& Ar)
+{
+	Ar << Mass;
+}
+
+void FRigRigidBodySettings::Load(FArchive& Ar)
+{
+	Ar << Mass;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// FRigRigidBodyElement
+////////////////////////////////////////////////////////////////////////////////
+
+void FRigRigidBodyElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
+{
+	Super::Save(Ar, Hierarchy, SerializationPhase);
+
+	if(SerializationPhase == ESerializationPhase::StaticData)
+	{
+		Settings.Save(Ar);
+	}
+}
+
+void FRigRigidBodyElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
+{
+	Super::Load(Ar, Hierarchy, SerializationPhase);
+
+	if(SerializationPhase == ESerializationPhase::StaticData)
+	{
+		Settings.Load(Ar);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// FRigAuxiliaryElement
+////////////////////////////////////////////////////////////////////////////////
+
+void FRigAuxiliaryElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
+{
+	Super::Save(Ar, Hierarchy, SerializationPhase);
+}
+
+void FRigAuxiliaryElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
+{
+	Super::Load(Ar, Hierarchy, SerializationPhase);
+}
+
+FTransform FRigAuxiliaryElement::GetAuxiliaryWorldTransform(const FRigUnitContext* InContext, bool bInitial) const
+{
+	if(GetWorldTransformDelegate.IsBound())
+	{
+		return GetWorldTransformDelegate.Execute(InContext, GetKey(), bInitial);
+	}
+	return FTransform::Identity;
+}
+
+void FRigAuxiliaryElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
+{
+	Super::CopyPose(InOther, bCurrent, bInitial);
+	
+	if(FRigAuxiliaryElement* Other = Cast<FRigAuxiliaryElement>(InOther))
+	{
+		if(Other->GetWorldTransformDelegate.IsBound())
+		{
+			GetWorldTransformDelegate = Other->GetWorldTransformDelegate;
+		}
 	}
 }

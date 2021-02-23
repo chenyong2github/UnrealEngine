@@ -99,6 +99,11 @@ public:
 	/* Show spaces */
 	TSharedPtr< FUICommandInfo > ShowSpaces;
 
+	/* Show rigidbodies */
+	TSharedPtr< FUICommandInfo > ShowRigidBodies;
+
+	/* Show auxiliary elements */
+	TSharedPtr< FUICommandInfo > ShowAuxiliaryElements;
 
 	/**
 	 * Initialize commands

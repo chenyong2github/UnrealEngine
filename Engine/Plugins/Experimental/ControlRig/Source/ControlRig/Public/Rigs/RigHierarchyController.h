@@ -148,6 +148,37 @@ public:
         );
 
 	/**
+	* Adds a rigidbody to the hierarchy
+	* @param InName The suggested name of the new rigidbody - will eventually be corrected by the namespace
+	* @param InParent The (optional) parent of the new rigidbody. If you don't need a parent, pass FRigElementKey()
+	* @param InSettings All of the rigidbody's settings
+	* @param InLocalTransform The transform for the new rigidbody - in the space of the provided parent
+	* @param bSetupUndo If set to true the stack will record the change for undo / redo
+	* @return The key for the newly created rigidbody.
+	*/
+	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
+    FRigElementKey AddRigidBody(
+    	FName InName,
+    	FRigElementKey InParent,
+        FRigRigidBodySettings InSettings,
+    	FTransform InLocalTransform,
+    	bool bSetupUndo = false);
+
+	/**
+	* Adds an auxiliary element to the hierarchy
+	* @param InName The suggested name of the new auxiliary element - will eventually be corrected by the namespace
+	* @param InParent The (optional) parent of the new auxiliary element. If you don't need a parent, pass FRigElementKey()
+	* @param InDelegate The delegate to use to pull the local transform
+	* @param bSetupUndo If set to true the stack will record the change for undo / redo
+	* @return The key for the newly created auxiliary element.
+	*/
+    FRigElementKey AddAuxiliaryElement(
+        FName InName,
+        FRigElementKey InParent,
+        FRigAuxiliaryElementGetWorldTransformDelegate InDelegate,
+        bool bSetupUndo = false);
+
+	/**
 	 * Returns the control settings of a given control
 	 * @param InKey The key of the control to receive the settings for
 	 * @return The settings of the given control
