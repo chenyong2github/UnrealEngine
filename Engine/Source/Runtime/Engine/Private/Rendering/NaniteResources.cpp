@@ -951,7 +951,14 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 					continue;
 				}
 
-				FMaterialSection& Section = MaterialSections[LODModel.Sections[SectionIndex].MaterialIndex];
+				int32 MaterialIndex = LODModel.Sections[SectionIndex].MaterialIndex;
+				if (!ensureMsgf(MaterialIndex < MaterialSections.Num(), TEXT("Material index %d is out of bounds for MaterialSections (%d elements)."),
+					MaterialIndex, MaterialSections.Num()))
+				{
+					continue;
+				}
+
+				FMaterialSection& Section = MaterialSections[MaterialIndex];
 
 				FMeshBatch& MeshBatch = RayTracingInstanceTemplate.Materials.AddDefaulted_GetRef();
 				MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;

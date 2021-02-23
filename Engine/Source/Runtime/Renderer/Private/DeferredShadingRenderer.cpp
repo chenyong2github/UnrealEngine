@@ -853,9 +853,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
 
 					// Thin geometries like hair don't have material, as they only support shadow at the moment.
-					check(Instance.Materials.Num() == Instance.Geometry->Initializer.Segments.Num() ||
+					if (!ensureMsgf(Instance.Materials.Num() == Instance.Geometry->Initializer.Segments.Num() ||
 						(Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.Materials.Num() == 1) ||
-						(Instance.Materials.Num() == 0 && (Instance.Mask & RAY_TRACING_MASK_THIN_SHADOW) > 0));
+						(Instance.Materials.Num() == 0 && (Instance.Mask & RAY_TRACING_MASK_THIN_SHADOW) > 0),
+						TEXT("Ray tracing material assignment validation failed for geometry '%s'. "
+							"Instance.Materials.Num() = %d, Instance.Geometry->Initializer.Segments.Num() = %d, Instance.Mask = 0x%X."),
+						*Instance.Geometry->Initializer.DebugName.ToString(), Instance.Materials.Num(),
+						Instance.Geometry->Initializer.Segments.Num(), Instance.Mask))
+					{
+						continue;
+					}
 
 					if (Instance.InstanceGPUTransformsSRV.IsValid())
 					{
