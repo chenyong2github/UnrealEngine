@@ -151,7 +151,7 @@ void UNiagaraGraph::PostLoad()
 	{
 		UNiagaraScriptVariable*& ScriptVar = It.Value();
 
-		if (!ScriptVar->Metadata.GetVariableGuid().IsValid())
+		if (ScriptVar && !ScriptVar->Metadata.GetVariableGuid().IsValid())
 		{
 			ScriptVar->Metadata.CreateNewGuid();
 		}
