@@ -1833,13 +1833,15 @@ void FD3D12SegListAllocator::FreeRetiredBlocks(TArray<TArray<FRetiredBlock, Allo
 		for (int32 X = 0; X < RetiredBlocks.Num(); ++X)
 		{
 			FRetiredBlock& Block = RetiredBlocks[X];
-			FD3D12SegHeap* BackingHeap = static_cast<FD3D12SegHeap*>(Block.PlacedResource->GetHeap());
-			check(Block.PlacedResource->GetRefCount() == 1);
-			Block.PlacedResource->Release();
-			FD3D12SegList* Owner = BackingHeap->OwnerList;
-			check(!!Owner);
-			Owner->FreeBlock(BackingHeap, Block.Offset);
-			OnFree(Block.Offset, BackingHeap, Block.ResourceSize);
+			if (ensureAlwaysMsgf(Block.PlacedResource->GetRefCount() == 1, TEXT("Invalid refcount while releasing %s"), *Block.PlacedResource->GetName().ToString()))
+			{
+				FD3D12SegHeap* BackingHeap = static_cast<FD3D12SegHeap*>(Block.PlacedResource->GetHeap());
+				Block.PlacedResource->Release();
+				FD3D12SegList* Owner = BackingHeap->OwnerList;
+				check(!!Owner);
+				Owner->FreeBlock(BackingHeap, Block.Offset);
+				OnFree(Block.Offset, BackingHeap, Block.ResourceSize);
+			}
 		}
 	}
 }
