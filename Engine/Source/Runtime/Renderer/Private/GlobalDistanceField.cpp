@@ -759,7 +759,7 @@ void FHeightfieldLightingViewInfo::CompositeHeightfieldsIntoGlobalDistanceField(
 				FHeightfieldComponentDescription NewComponentDescription(HeightfieldPrimitive->Proxy->GetLocalToWorld());
 				HeightfieldPrimitive->Proxy->GetHeightfieldRepresentation(HeightfieldTexture, DiffuseColorTexture, VisibilityTexture, NewComponentDescription);
 
-				if (HeightfieldTexture && HeightfieldTexture->Resource->TextureRHI)
+				if (HeightfieldTexture && HeightfieldTexture->Resource && HeightfieldTexture->Resource->TextureRHI)
 				{
 					const FIntPoint HeightfieldSize = NewComponentDescription.HeightfieldRect.Size();
 
