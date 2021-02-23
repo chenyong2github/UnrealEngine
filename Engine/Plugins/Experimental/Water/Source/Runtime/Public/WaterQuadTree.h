@@ -176,7 +176,7 @@ struct FWaterQuadTree
 	/** Max depth of the tree */
 	int32 GetTreeDepth() const { return TreeDepth; }
 
-	const TArray<UMaterialInterface*>& GetWaterMaterials() const { return WaterMaterials; }
+	const TArray<FMaterialRenderProxy*>& GetWaterMaterials() const { return WaterMaterials; }
 
 	/** Calculate the world distance to a LOD */
 	static float GetLODDistance(int32 InLODLevel, float InLODScale)
@@ -273,7 +273,7 @@ private:
 		TArray<FWaterBodyRenderData> WaterBodyRenderData;
 	} NodeData;
 
-	TArray<UMaterialInterface*> WaterMaterials;
+	TArray<FMaterialRenderProxy*> WaterMaterials;
 
 	/** If true, the tree may not change */
 	bool bIsReadOnly = true;
