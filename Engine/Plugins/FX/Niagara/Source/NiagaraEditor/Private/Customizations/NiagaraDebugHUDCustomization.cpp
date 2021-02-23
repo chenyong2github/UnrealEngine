@@ -33,6 +33,8 @@
 //#include "NiagaraDataInterfaceRW.h"
 //#include "NiagaraSettings.h"
 
+#include "Modules/ModuleManager.h"
+
 //Customization
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"

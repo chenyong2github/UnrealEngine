@@ -15,6 +15,7 @@ class FNiagaraDebugger;
 class SNiagaraOutlinerTree;
 class SNiagaraOutlinerTreeItem;
 class IStructureDetailsView;
+class STreeView;
 
 //////////////////////////////////////////////////////////////////////////
 

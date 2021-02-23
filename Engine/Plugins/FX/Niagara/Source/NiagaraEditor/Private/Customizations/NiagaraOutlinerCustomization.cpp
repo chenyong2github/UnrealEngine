@@ -2,6 +2,8 @@
 
 #include "NiagaraOutlinerCustomization.h"
 
+#include "Modules/ModuleManager.h"
+
 //Customization
 #include "IStructureDetailsView.h"
 #include "DetailLayoutBuilder.h"
