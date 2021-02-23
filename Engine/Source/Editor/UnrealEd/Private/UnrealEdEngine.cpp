@@ -70,6 +70,7 @@
 #include "Misc/MessageDialog.h"
 #include "Logging/MessageLog.h"
 #include "Subsystems/EditorActorSubsystem.h"
+#include "ProfilingDebugging/StallDetector.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
 
@@ -218,6 +219,17 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 	}
 
 	bPivotMovedIndependently = false;
+
+#if STALL_DETECTOR
+	// Start tracking stalls when we open the Main Frame
+	IMainFrameModule::Get().OnMainFrameCreationFinished().AddLambda([](TSharedPtr<SWindow>, bool)
+		{
+			UE::FStallDetector::Startup();
+		});
+
+	// Stop tracking stalls when we close the Main Frame, the closest event around
+	OnEditorClose().AddStatic(&UE::FStallDetector::Shutdown);
+#endif
 }
 
 bool CanCookForPlatformInThisProcess( const FString& PlatformName )

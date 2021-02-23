@@ -2626,13 +2626,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bool bSlateApplication = !IsRunningDedicatedServer() && (bIsRegularClient || bHasEditorToken);
 	if (bSlateApplication)
 	{
-#if STALL_DETECTOR
-		if (GIsEditor)
-		{
-			UE::FStallDetector::Startup();
-		}
-#endif
-
 		if (FPlatformProcess::SupportsMultithreading())
 		{
 			SCOPED_BOOT_TIMING("FPlatformSplash::Show()");
@@ -5978,13 +5971,6 @@ void FEngineLoop::AppPreExit( )
 
 void FEngineLoop::AppExit()
 {
-#if STALL_DETECTOR
-	if (UE::FStallDetector::IsRunning())
-	{
-		UE::FStallDetector::Shutdown();
-	}
-#endif
-
 #if !WITH_ENGINE
 	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();
