@@ -1259,20 +1259,22 @@ namespace Chaos
 			//
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateDirtyImpulses);
-				const auto& ActiveClusteredArray = MEvolution.GetActiveClusteredArray();
-				for (const auto& ActiveCluster : ActiveClusteredArray)
+				for (const auto& ActiveCluster : GetTopLevelClusterParents() )
 				{
-					if (ActiveCluster->ClusterIds().NumChildren > 0) //active index is a cluster
+					if (!ActiveCluster->Disabled())
 					{
-						TArray<FPBDRigidParticleHandle*>& ParentToChildren = MChildren[ActiveCluster];
-						for (FPBDRigidParticleHandle* Child : ParentToChildren)
+						if (ActiveCluster->ClusterIds().NumChildren > 0) //active index is a cluster
 						{
-							if (FPBDRigidClusteredParticleHandle* ClusteredChild = Child->CastToClustered())
+							TArray<FRigidHandle>& ParentToChildren = MChildren[ActiveCluster];
+							for (FRigidHandle Child : ParentToChildren)
 							{
-								if (ClusteredChild->Strain() <= 0.f)
+								if (FClusterHandle ClusteredChild = Child->CastToClustered())
 								{
-									ClusteredChild->CollisionImpulse() = FLT_MAX;
-									MCollisionImpulseArrayDirty = true;
+									if (ClusteredChild->Strain() <= 0.f)
+									{
+										ClusteredChild->CollisionImpulse() = FLT_MAX;
+										MCollisionImpulseArrayDirty = true;
+									}
 								}
 							}
 						}
@@ -1355,7 +1357,7 @@ namespace Chaos
 			if (ClusteredParticle->ClusterIds().NumChildren)
 			{
 				AllActivatedChildren.Add(
-					ClusteredParticle, 
+					ClusteredParticle,
 					ReleaseClusterParticles(ClusteredParticle, ExternalStrainMap));
 			}
 			else
@@ -1394,9 +1396,9 @@ namespace Chaos
 		if (FPBDRigidClusteredParticleHandle* ClusteredCurrentNode = CurrentNode->CastToClustered())
 		{
 			FReal ChildrenStrains = (FReal)0.;
-			if (MChildren.Contains(CurrentNode))
+			if (MChildren.Contains(ClusteredCurrentNode))
 			{
-				for (FPBDRigidParticleHandle* Child : MChildren[CurrentNode])
+				for (FRigidHandle Child : MChildren[ClusteredCurrentNode])
 				{
 					ChildrenStrains += PromoteStrains(Child);
 				}
@@ -1414,46 +1416,52 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateKinematicProperties()"), STAT_UpdateKinematicProperties, STATGROUP_Chaos);
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateKinematicProperties(
-		Chaos::FPBDRigidParticleHandle* Parent)
+		Chaos::FPBDRigidParticleHandle* InParent)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateKinematicProperties);
 
 		EObjectStateType ObjectState = EObjectStateType::Dynamic;
-		check(Parent != nullptr);
-		if (MChildren.Contains(Parent) && MChildren[Parent].Num())
+		check(InParent != nullptr);
+		if (FClusterHandle ClusteredCurrentNode = InParent->CastToClustered())
 		{
-			// TQueue is a linked list, which has no preallocator.
-			TQueue<Chaos::FPBDRigidParticleHandle*> Queue;
-			for (Chaos::FPBDRigidParticleHandle* Child : MChildren[Parent])
+			if (MChildren.Contains(ClusteredCurrentNode) && MChildren[ClusteredCurrentNode].Num())
 			{
-				Queue.Enqueue(Child);
-			}
-
-			Chaos::FPBDRigidParticleHandle* CurrentHandle;
-			while (Queue.Dequeue(CurrentHandle) && ObjectState == EObjectStateType::Dynamic)
-			{
-				// @question : Maybe we should just store the leaf node bodies in a
-				// map, that will require Memory(n*log(n))
-				if (MChildren.Contains(CurrentHandle))
+				// TQueue is a linked list, which has no preallocator.
+				TQueue<Chaos::FPBDRigidParticleHandle*> Queue;
+				for (Chaos::FPBDRigidParticleHandle* Child : MChildren[ClusteredCurrentNode])
 				{
-					for (Chaos::FPBDRigidParticleHandle* Child : MChildren[CurrentHandle])
+					Queue.Enqueue(Child);
+				}
+
+				Chaos::FPBDRigidParticleHandle* CurrentHandle;
+				while (Queue.Dequeue(CurrentHandle) && ObjectState == EObjectStateType::Dynamic)
+				{
+					if (FClusterHandle CurrentClusterHandle = CurrentHandle->CastToClustered())
 					{
-						Queue.Enqueue(Child);
+						// @question : Maybe we should just store the leaf node bodies in a
+						// map, that will require Memory(n*log(n))
+						if (MChildren.Contains(CurrentClusterHandle))
+						{
+							for( Chaos::FPBDRigidParticleHandle* Child : MChildren[CurrentClusterHandle])
+							{
+								Queue.Enqueue(Child);
+							}
+						}
+					}
+
+					const EObjectStateType CurrState = CurrentHandle->ObjectState();
+					if (CurrState == EObjectStateType::Kinematic)
+					{
+						ObjectState = EObjectStateType::Kinematic;
+					}
+					else if (CurrState == EObjectStateType::Static)
+					{
+						ObjectState = EObjectStateType::Static;
 					}
 				}
 
-				const EObjectStateType CurrState = CurrentHandle->ObjectState();
-				if (CurrState == EObjectStateType::Kinematic)
-				{
-					ObjectState = EObjectStateType::Kinematic;
-				}
-				else if (CurrState == EObjectStateType::Static)
-				{
-					ObjectState = EObjectStateType::Static;
-				}
+				ClusteredCurrentNode->SetObjectState(ObjectState);
 			}
-
-			Parent->SetObjectState(ObjectState);
 		}
 	}
 
@@ -1932,12 +1940,12 @@ namespace Chaos
 				}
 			};
 
-			if (const TArray<FPBDRigidParticleHandle*>* ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[0]->CastToRigidParticle()))
+			if (const TArray<FPBDRigidParticleHandle*>* ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[0]->CastToClustered()))
 			{
 				ComputeStrainLambda(ConstrainedParticles[0]->CastToClustered(), *ChildrenPtr);
 			}
 
-			if (const TArray<FPBDRigidParticleHandle*>* ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[1]->CastToRigidParticle()))
+			if (const TArray<FPBDRigidParticleHandle*>* ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[1]->CastToClustered()))
 			{
 				ComputeStrainLambda(ConstrainedParticles[1]->CastToClustered(), *ChildrenPtr);
 			}
@@ -2232,7 +2240,9 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingDelaunayTriangulation"), STAT_UpdateConnectivityGraphUsingDelaunayTriangulation, STATGROUP_Chaos);
 
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateConnectivityGraphUsingDelaunayTriangulation(Chaos::FPBDRigidClusteredParticleHandle* Parent, const FClusterCreationParameters<FReal>& Parameters)
+	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateConnectivityGraphUsingDelaunayTriangulation(
+		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
+		const FClusterCreationParameters<FReal>& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateConnectivityGraphUsingDelaunayTriangulation);
 

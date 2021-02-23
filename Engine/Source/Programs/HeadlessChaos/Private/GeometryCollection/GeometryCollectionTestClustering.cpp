@@ -36,23 +36,26 @@ namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
 
-	bool ClusterMapContains(const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints>::FClusterMap& ClusterMap, const FPBDRigidParticleHandle* Key, TArray<FPBDRigidParticleHandle*> Elements)
+	bool ClusterMapContains(const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints>::FClusterMap& ClusterMap, const FPBDRigidParticleHandle* InKey, TArray<FPBDRigidParticleHandle*> Elements)
 	{
 		if (ClusterMap.Num())
 		{
-			if(ClusterMap.Contains(Key))
+			if (const Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>* Key = InKey->CastToClustered())
 			{
-				if(ClusterMap[Key].Num() == Elements.Num())
+				if (ClusterMap.Contains(Key))
 				{
-					for(FPBDRigidParticleHandle* Element : Elements)
+					if (ClusterMap[Key].Num() == Elements.Num())
 					{
-						if(!ClusterMap[Key].Contains(Element))
+						for (FPBDRigidParticleHandle* Element : Elements)
 						{
-							return false;
+							if (!ClusterMap[Key].Contains(Element))
+							{
+								return false;
+							}
 						}
-					}
 
-					return true;
+						return true;
+					}
 				}
 			}
 		}

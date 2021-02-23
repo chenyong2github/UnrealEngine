@@ -42,7 +42,15 @@ class CHAOS_API TPBDRigidClustering
 	typedef typename T_FPBDCollisionConstraint::FPointContactConstraint FPointContactConstraint;
 public:
 	/** Parent to children */
-	typedef TMap<FPBDRigidParticleHandle*, TArray<FPBDRigidParticleHandle*> > FClusterMap;
+
+	typedef FPBDRigidParticleHandle*					FRigidHandle;
+	typedef TArray<FRigidHandle>						FRigidHandleArray;
+
+	typedef FPBDRigidClusteredParticleHandle*			FClusterHandle;
+
+	typedef TPair<FClusterHandle, FRigidHandleArray>	FClusterMapEntry;
+	typedef TMap<FClusterHandle, FRigidHandleArray>	    FClusterMap;
+
 
 	using FCollisionConstraintHandle = FPBDCollisionConstraintHandle;
 
@@ -184,8 +192,8 @@ public:
 	*    active id, see the GetActiveClusterIndex to find the active cluster.
 	*    INDEX_NONE represents a non-clustered body.
 	*/
-	TArrayCollectionArray<ClusterId>&       GetClusterIdsArray() { return MParticles.ClusterIdsArray(); }
-	const TArrayCollectionArray<ClusterId>& GetClusterIdsArray() const { return MParticles.ClusterIdsArray(); }
+	TArrayCollectionArray<ClusterId>&					GetClusterIdsArray() { return MParticles.ClusterIdsArray(); }
+	const TArrayCollectionArray<ClusterId>&             GetClusterIdsArray() const { return MParticles.ClusterIdsArray(); }
 
 	/*
 	*  GetInternalClusterArray

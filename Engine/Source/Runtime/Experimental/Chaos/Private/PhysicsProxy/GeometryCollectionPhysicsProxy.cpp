@@ -1238,10 +1238,9 @@ void FGeometryCollectionPhysicsProxy::GetRelevantParticleHandles(
 				Handles.Add(ClusterHandle);
 				if (ClusterHandle->ClusterIds().NumChildren)
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ClusterHandle->CastToRigidParticle();
-					if (ClusterMap.Contains(RigidHandle))
+					if (ClusterMap.Contains(ClusterHandle))
 					{
-						for (Chaos::TPBDRigidParticleHandle<float, 3> * Child : ClusterMap[RigidHandle])
+						for (Chaos::TPBDRigidParticleHandle<float, 3> * Child : ClusterMap[ClusterHandle])
 						{
 							Handles.Add(Child);
 						}

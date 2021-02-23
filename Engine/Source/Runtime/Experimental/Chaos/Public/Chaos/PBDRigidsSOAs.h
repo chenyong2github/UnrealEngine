@@ -192,7 +192,6 @@ public:
 		if (!Params.bStartSleeping)
 		{
 			InsertToMapAndArray(reinterpret_cast<TArray<TPBDRigidParticleHandle<T,d>*>&>(NewClustered), ActiveParticlesToIndex, ActiveParticlesArray);
-			InsertToMapAndArray(NewClustered, ActiveClusteredToIndex, ActiveClusteredArray);
 		}
 
 		UpdateViews();
@@ -233,12 +232,6 @@ public:
 				{
 					RemoveFromMapAndArray(PBDRigidClustered,
 						NonDisabledClusteredToIndex, NonDisabledClusteredArray);
-
-					if (Particle->ObjectState() == EObjectStateType::Dynamic)
-					{
-						RemoveFromMapAndArray(PBDRigidClustered,
-							ActiveClusteredToIndex, ActiveClusteredArray);
-					}
 				}
 			}
 			else
@@ -289,11 +282,6 @@ public:
 				{
 					RemoveFromMapAndArray(PBDRigidClustered, 
 						NonDisabledClusteredToIndex, NonDisabledClusteredArray);
-					if (Particle->ObjectState() == EObjectStateType::Dynamic)
-					{
-						RemoveFromMapAndArray(PBDRigidClustered, 
-							ActiveClusteredToIndex, ActiveClusteredArray);
-					}
 				}
 			}
 			else
@@ -339,12 +327,6 @@ public:
 				{
 					InsertToMapAndArray(PBDRigidClustered, 
 						NonDisabledClusteredToIndex, NonDisabledClusteredArray);
-					if (!PBDRigid->Sleeping() && Particle->ObjectState() == EObjectStateType::Dynamic)
-					{
-						// Clustered, enabled, (dynamic, !sleeping)
-						InsertToMapAndArray(PBDRigidClustered, 
-							ActiveClusteredToIndex, ActiveClusteredArray);
-					}
 				}
 			}
 			else
@@ -392,12 +374,6 @@ public:
 						{
 							bGeometryCollectionDirty = true;
 							return;
-						}
-						else
-						{
-							// Clustered, non geometry collection:
-							InsertToMapAndArray(PBDRigidClustered, 
-								ActiveClusteredToIndex, ActiveClusteredArray);
 						}
 					}
 					else
@@ -461,11 +437,6 @@ public:
 						if (Particle->GetParticleType() == Chaos::EParticleType::GeometryCollection)
 						{
 							bGeometryCollectionDirty = true;
-						}
-						else
-						{
-							RemoveFromMapAndArray(PBDRigidClustered, 
-								ActiveClusteredToIndex, ActiveClusteredArray);
 						}
 					}
 					else
@@ -580,7 +551,6 @@ public:
 		Ar << GeometryCollectionParticles;
 
 		SerializeMapAndArray(Ar, ActiveParticlesToIndex, ActiveParticlesArray);
-		//SerializeMapAndArray(Ar, ActiveClusteredToIndex, ActiveClusteredArray);
 		//SerializeMapAndArray(Ar, NonDisabledClusteredToIndex, NonDisabledClusteredArray);
 
 		//todo: update deterministic ID
@@ -745,8 +715,6 @@ public:
 		bGeometryCollectionDirty = false;
 	}
 
-	//TEMP: only needed while clustering code continues to use direct indices
-	const auto& GetActiveClusteredArray() const { return ActiveClusteredArray; }
 	const auto& GetNonDisabledClusteredArray() const { return NonDisabledClusteredArray; }
 
 	const auto& GetClusteredParticles() const { return *ClusteredParticles; }
@@ -976,8 +944,6 @@ private:
 	//Utility structures for maintaining an Active particles view
 	TMap<TPBDRigidParticleHandle<T, d>*, int32> ActiveParticlesToIndex;
 	TArray<TPBDRigidParticleHandle<T, d>*> ActiveParticlesArray;
-	TMap<TPBDRigidClusteredParticleHandle<T, d>*, int32> ActiveClusteredToIndex;
-	TArray<TPBDRigidClusteredParticleHandle<T, d>*> ActiveClusteredArray;
 	TArray<TPBDRigidParticleHandle<T,d>*> TransientDirtyArray;
 	TMap<TPBDRigidParticleHandle<T,d>*,int32> TransientDirtyToIndex;
 
