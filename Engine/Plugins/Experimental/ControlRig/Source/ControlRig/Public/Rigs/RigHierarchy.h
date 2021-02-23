@@ -11,7 +11,7 @@
 class URigHierarchy;
 class URigHierarchyController;
 
-#define URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION 0
+#define URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION 1
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyModifiedEvent, ERigHierarchyNotification /* type */, URigHierarchy* /* hierarchy */, const FRigBaseElement* /* element */);
 
@@ -1959,10 +1959,14 @@ private:
 	/**
 	 * Marks all affected elements of a given element as dirty
 	 * @param InTransformElement The element that has changed
-	 * @param InTransformType The type of transform to propagate for
+	 * @param bInitial If true the initial transform will be dirtied
 	 * @param bAffectChildren If set to false children will not move (maintain global).
 	 */
-	void PropagateDirtyFlags(FRigTransformElement* InTransformElement, const ERigTransformType::Type InTransformType, bool bAffectChildren) const;
+#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
+	void PropagateDirtyFlags(FRigTransformElement* InTransformElement, bool bInitial, bool bAffectChildren, bool bComputeOpposed = true, bool bMarkDirty = true) const;
+#else
+	void PropagateDirtyFlags(FRigTransformElement* InTransformElement, bool bInitial, bool bAffectChildren) const;
+#endif
 
 	/**
 	 * The topology version of the hierarchy changes when elements are

@@ -1219,8 +1219,8 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 
 			if(!bMaintainGlobalTransform)
 			{
-				Hierarchy->PropagateDirtyFlags(SingleParentElement, ERigTransformType::CurrentGlobal, true);
-				Hierarchy->PropagateDirtyFlags(SingleParentElement, ERigTransformType::InitialGlobal, true);
+				Hierarchy->PropagateDirtyFlags(SingleParentElement, true, true);
+				Hierarchy->PropagateDirtyFlags(SingleParentElement, false, true);
 			}
 
 			Notify(ERigHierarchyNotification::ParentChanged, SingleParentElement);
@@ -1253,8 +1253,8 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 
 			if(!bMaintainGlobalTransform)
 			{
-				Hierarchy->PropagateDirtyFlags(MultiParentElement, ERigTransformType::CurrentGlobal, true);
-				Hierarchy->PropagateDirtyFlags(MultiParentElement, ERigTransformType::InitialGlobal, true);
+				Hierarchy->PropagateDirtyFlags(MultiParentElement, true, true);
+				Hierarchy->PropagateDirtyFlags(MultiParentElement, false, true);
 			}
 
 			Notify(ERigHierarchyNotification::ParentChanged, MultiParentElement);
@@ -1351,8 +1351,8 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 
 			if(!bMaintainGlobalTransform)
 			{
-				Hierarchy->PropagateDirtyFlags(SingleParentElement, ERigTransformType::CurrentGlobal, true);
-				Hierarchy->PropagateDirtyFlags(SingleParentElement, ERigTransformType::InitialGlobal, true);
+				Hierarchy->PropagateDirtyFlags(SingleParentElement, true, true);
+				Hierarchy->PropagateDirtyFlags(SingleParentElement, false, true);
 			}
 
 			Notify(ERigHierarchyNotification::ParentChanged, SingleParentElement);
@@ -1415,8 +1415,8 @@ bool URigHierarchyController::RemoveParent(FRigBaseElement* InChild, FRigBaseEle
 
 			if(!bMaintainGlobalTransform)
 			{
-				Hierarchy->PropagateDirtyFlags(MultiParentElement, ERigTransformType::CurrentGlobal, true);
-				Hierarchy->PropagateDirtyFlags(MultiParentElement, ERigTransformType::InitialGlobal, true);
+				Hierarchy->PropagateDirtyFlags(MultiParentElement, true, true);
+				Hierarchy->PropagateDirtyFlags(MultiParentElement, false, true);
 			}
 
 			Notify(ERigHierarchyNotification::ParentChanged, MultiParentElement);
