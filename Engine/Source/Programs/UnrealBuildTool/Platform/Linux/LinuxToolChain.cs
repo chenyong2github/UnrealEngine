@@ -1908,11 +1908,6 @@ namespace UnrealBuildTool
 			LinkCommandString += " -lrt"; // needed for clock_gettime()
 			LinkCommandString += " -lm"; // math
 
-			if (LinkEnvironment.Architecture.StartsWith("aarch64"))
-			{
-				LinkCommandString += " -latomic";
-			}
-
 			if (ShouldUseLibcxx(LinkEnvironment.Architecture))
 			{
 				// libc++ and its abi lib
