@@ -24,9 +24,6 @@
 
 void UHLODProxy::SetMap(const UWorld* InMap)
 {
-	// Level should only be set once
-	check(OwningMap.IsNull());
-
 	OwningMap = InMap;
 }
 
