@@ -42,8 +42,8 @@ public:
 	UPROPERTY()
 	TWeakObjectPtr<UObject> Value;
 
-	UPROPERTY()
 	// If false then it is just a technical reference (e.g. setting the default value)
+	UPROPERTY()
 	bool bIsUserFacing = true;
 
 	FORCEINLINE bool operator==(const FNiagaraGraphParameterReference& Other)const
