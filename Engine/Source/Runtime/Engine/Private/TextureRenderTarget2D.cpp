@@ -525,6 +525,7 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 			RenderTargetTextureRHI,
 			Texture2DRHI
 			);
+		SetGPUMask(CreateInfo.GPUMask);
 		TextureRHI = (FTextureRHIRef&)Texture2DRHI;
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,TextureRHI);
 
