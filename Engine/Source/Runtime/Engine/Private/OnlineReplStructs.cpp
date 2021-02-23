@@ -202,7 +202,7 @@ void FUniqueNetIdRepl::MakeReplicationData()
 void FUniqueNetIdRepl::UniqueIdFromString(FName Type, const FString& Contents)
 {
 	// Don't need to distinguish OSS interfaces here with world because we just want the create function below
-	TSharedPtr<const FUniqueNetId> UniqueNetIdPtr = UOnlineEngineInterface::Get()->CreateUniquePlayerId(Contents, Type);
+	FUniqueNetIdPtr UniqueNetIdPtr = UOnlineEngineInterface::Get()->CreateUniquePlayerId(Contents, Type);
 	SetUniqueNetId(UniqueNetIdPtr);
 }
 
@@ -521,7 +521,7 @@ void TestUniqueIdRepl(UWorld* InWorld)
 
 	bool bSetupSuccess = true;
 
-	TSharedPtr<const FUniqueNetId> UserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0);
+	FUniqueNetIdPtr UserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0);
 
 	FUniqueNetIdRepl EmptyIdIn;
 	if (EmptyIdIn.IsValid())
@@ -733,9 +733,9 @@ void TestUniqueIdRepl(UWorld* InWorld)
 	if (bSetupSuccess)
 	{
 #if PLATFORM_XBOXONE
-		TSharedPtr<const FUniqueNetId> PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0, FName(TEXT("LIVE")));
+		FUniqueNetIdPtr PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0, FName(TEXT("LIVE")));
 #elif PLATFORM_PS4
-		TSharedPtr<const FUniqueNetId> PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0, FName(TEXT("PS4")));
+		FUniqueNetIdPtr PlatformUserId = UOnlineEngineInterface::Get()->GetUniquePlayerId(InWorld, 0, FName(TEXT("PS4")));
 #endif
 
 		FUniqueNetIdRepl ValidPlatformIdIn(PlatformUserId);

@@ -39,19 +39,19 @@ struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 	{
 	}
 
-	FUniqueNetIdRepl(const TSharedRef<const FUniqueNetId>& InUniqueNetId)
+	FUniqueNetIdRepl(const FUniqueNetIdRef& InUniqueNetId)
 		: FUniqueNetIdWrapper(InUniqueNetId)
 	{
 	}
  
-	FUniqueNetIdRepl(const TSharedPtr<const FUniqueNetId>& InUniqueNetId)
+	FUniqueNetIdRepl(const FUniqueNetIdPtr& InUniqueNetId)
 		: FUniqueNetIdWrapper(InUniqueNetId)
 	{
 	}
 
 	virtual ~FUniqueNetIdRepl() {}
 
-	virtual void SetUniqueNetId(const TSharedPtr<const FUniqueNetId>& InUniqueNetId) override
+	virtual void SetUniqueNetId(const FUniqueNetIdPtr& InUniqueNetId) override
 	{
 		ReplicationBytes.Empty();
 		FUniqueNetIdWrapper::SetUniqueNetId(InUniqueNetId);

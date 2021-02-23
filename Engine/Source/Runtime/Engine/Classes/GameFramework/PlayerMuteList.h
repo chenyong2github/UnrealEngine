@@ -27,11 +27,11 @@ public:
 	}
 
 	/** List of player id's muted explicitly by the player */
-	TArray< TSharedRef<const FUniqueNetId> > VoiceMuteList;
+	TArray< FUniqueNetIdRef > VoiceMuteList;
 	/** List of player id's muted for gameplay reasons (teams, spectators, etc) */
-	TArray< TSharedRef<const FUniqueNetId> > GameplayVoiceMuteList;
+	TArray< FUniqueNetIdRef > GameplayVoiceMuteList;
 	/** Combined list of the above for efficient processing of voice packets */
-	TArray< TSharedRef<const FUniqueNetId> > VoicePacketFilter;
+	TArray< FUniqueNetIdRef > VoicePacketFilter;
 	/** Has server and client handshake completed */
 	UPROPERTY()
 	bool bHasVoiceHandshakeCompleted;

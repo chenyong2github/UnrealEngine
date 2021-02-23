@@ -438,7 +438,7 @@ public:
 	FUniqueNetIdRepl GetCachedUniqueNetId() const;
 
 	/** Sets the players current cached unique net id */
-	void SetCachedUniqueNetId(TSharedPtr<const FUniqueNetId> NewUniqueNetId);
+	void SetCachedUniqueNetId(FUniqueNetIdPtr NewUniqueNetId);
 
 	/** 
 	 * Retrieves the preferred unique net id. This is for backwards compatibility for games that don't use the cached unique net id logic

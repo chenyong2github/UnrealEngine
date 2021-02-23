@@ -83,7 +83,7 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param UniqueId uniqueId they sent over on Login
 	 * @param bWasFromInvite was this from an invite
 	 */
-	virtual void RegisterPlayer(APlayerController* NewPlayer, const TSharedPtr<const FUniqueNetId>& UniqueId, bool bWasFromInvite);
+	virtual void RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdPtr& UniqueId, bool bWasFromInvite);
 
 	/**
 	 * Called by GameMode::PostLogin to give session code chance to do work after PostLogin
@@ -120,7 +120,7 @@ class ENGINE_API AGameSession : public AInfo
 	 * @param UniqueId id of the player to unregister
 	 */
 	virtual void UnregisterPlayer(FName InSessionName, const FUniqueNetIdRepl& UniqueId);
-	virtual void UnregisterPlayers(FName InSessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players);
+	virtual void UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRef >& Players);
 	
 	/**
 	 * Unregister a player from the online service session

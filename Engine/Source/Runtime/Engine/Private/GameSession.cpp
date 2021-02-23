@@ -227,7 +227,7 @@ int32 AGameSession::GetNextPlayerID()
 	return NextPlayerID++;
 }
 
-void AGameSession::RegisterPlayer(APlayerController* NewPlayer, const TSharedPtr<const FUniqueNetId>& UniqueId, bool bWasFromInvite)
+void AGameSession::RegisterPlayer(APlayerController* NewPlayer, const FUniqueNetIdPtr& UniqueId, bool bWasFromInvite)
 {
 	if (NewPlayer != NULL)
 	{
@@ -251,7 +251,7 @@ void AGameSession::UnregisterPlayer(FName InSessionName, const FUniqueNetIdRepl&
 	}
 }
 
-void AGameSession::UnregisterPlayers(FName InSessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players)
+void AGameSession::UnregisterPlayers(FName InSessionName, const TArray< FUniqueNetIdRef >& Players)
 {
 	UWorld* World = GetWorld();
 	if (GetNetMode() != NM_Standalone &&

@@ -949,7 +949,7 @@ APlayerController* UGameInstance::GetPrimaryPlayerController(bool bRequiresValid
 	return PrimaryController;
 }
 
-TSharedPtr<const FUniqueNetId> UGameInstance::GetPrimaryPlayerUniqueId() const
+FUniqueNetIdPtr UGameInstance::GetPrimaryPlayerUniqueId() const
 {
 	ULocalPlayer* PrimaryLP = nullptr;
 
@@ -1007,7 +1007,7 @@ ULocalPlayer* UGameInstance::FindLocalPlayerFromUniqueNetId(const FUniqueNetId& 
 	return nullptr;
 }
 
-ULocalPlayer* UGameInstance::FindLocalPlayerFromUniqueNetId(TSharedPtr<const FUniqueNetId> UniqueNetId) const
+ULocalPlayer* UGameInstance::FindLocalPlayerFromUniqueNetId(FUniqueNetIdPtr UniqueNetId) const
 {
 	if (!UniqueNetId.IsValid())
 	{
