@@ -996,6 +996,8 @@ static void InitRHICapabilitiesForGL()
 	// Temporary fix for nvidia driver issue with non-power-of-two shadowmaps (9/8/2016) UE-35312
 	// @TODO revisit this with newer drivers
 	GRHINeedsUnatlasedCSMDepthsWorkaround = true;
+
+	GRHISupportsPipelineFileCache = true;
 }
 
 FDynamicRHI* FOpenGLDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequestedFeatureLevel)

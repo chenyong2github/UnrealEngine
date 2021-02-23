@@ -2588,7 +2588,7 @@ bool FPipelineFileCache::IsPipelineFileCacheEnabled()
 		bCmdLineForce = FParse::Param(FCommandLine::Get(), TEXT("psocache"));
 		UE_CLOG(bCmdLineForce, LogRHI, Warning, TEXT("****************************** Forcing PSO cache from command line"));
 	}
-	return FileCacheEnabled && (bCmdLineForce || CVarPSOFileCacheEnabled.GetValueOnAnyThread() == 1);
+	return GRHISupportsPipelineFileCache && FileCacheEnabled && (bCmdLineForce || CVarPSOFileCacheEnabled.GetValueOnAnyThread() == 1);
 }
 
 bool FPipelineFileCache::LogPSOtoFileCache()

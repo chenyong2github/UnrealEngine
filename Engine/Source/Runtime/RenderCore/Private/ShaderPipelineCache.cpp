@@ -168,13 +168,13 @@ static bool GetShaderPipelineCacheSaveBoundPSOLog()
 		bOnce = true;
 		bCmdLineForce = FParse::Param(FCommandLine::Get(), TEXT("logpso"));
 	}
-	return (bCmdLineForce || CVarPSOFileCacheSaveBoundPSOLog.GetValueOnAnyThread() == 1);
+	return GRHISupportsPipelineFileCache && (bCmdLineForce || CVarPSOFileCacheSaveBoundPSOLog.GetValueOnAnyThread() == 1);
 }
 
 static bool GetPSOFileCacheSaveUserCache()
 {
 	static const auto CVarPSOFileCacheSaveUserCache = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ShaderPipelineCache.SaveUserCache"));
-	return (CVarPSOFileCacheSaveUserCache && CVarPSOFileCacheSaveUserCache->GetInt() > 0);
+	return GRHISupportsPipelineFileCache && (CVarPSOFileCacheSaveUserCache && CVarPSOFileCacheSaveUserCache->GetInt() > 0);
 }
 
 void ConsoleCommandLoadPipelineFileCache(const TArray< FString >& Args)

@@ -890,6 +890,8 @@ uint64 GRHIPresentCounter = 1;
 
 bool GRHISupportsArrayIndexFromAnyShader = false;
 
+bool GRHISupportsPipelineFileCache = false;
+
 /** Whether we are profiling GPU hitches. */
 bool GTriggerGPUHitchProfile = false;
 

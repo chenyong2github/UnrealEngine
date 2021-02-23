@@ -205,6 +205,7 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 	GPoolSizeVRAMPercentage = 0;
 	GTexturePoolSize = 0;
 	GRHISupportsMultithreading = true;
+	GRHISupportsPipelineFileCache = true;
 	GRHITransitionPrivateData_SizeInBytes = sizeof(FVulkanPipelineBarrier);
 	GRHITransitionPrivateData_AlignInBytes = alignof(FVulkanPipelineBarrier);
 	GConfig->GetInt(TEXT("TextureStreaming"), TEXT("PoolSizeVRAMPercentage"), GPoolSizeVRAMPercentage, GEngineIni);

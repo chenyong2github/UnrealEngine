@@ -627,6 +627,8 @@ extern RHI_API uint64 GRHIPresentCounter;
 /** True if the RHI supports setting the render target array index from any shader stage */
 extern RHI_API bool GRHISupportsArrayIndexFromAnyShader;
 
+/** True if the pipeline file cache can be used with this RHI */
+extern RHI_API bool GRHISupportsPipelineFileCache;
 
 /** Information about a pixel format. */
 struct FPixelFormatInfo
