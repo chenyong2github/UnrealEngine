@@ -12,15 +12,28 @@ struct FWorldPartitionRuntimeCellObjectMapping
 	GENERATED_USTRUCT_BODY()
 
 	FWorldPartitionRuntimeCellObjectMapping()
+#if WITH_EDITORONLY_DATA
 		: Package(NAME_None)
 		, Path(NAME_None)
+		, ContainerID(0)
+		, ContainerTransform(FTransform::Identity)
+		, ContainerPackage(NAME_None)
+		, LoadedPath(NAME_None)
+#endif
 	{}
 
-	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath)
+	FWorldPartitionRuntimeCellObjectMapping(FName InPackage, FName InPath, uint32 InContainerID, const FTransform& InContainerTransform, FName InContainerPackage)
+#if WITH_EDITORONLY_DATA
 		: Package(InPackage)
 		, Path(InPath)
+		, ContainerID(InContainerID)
+		, ContainerTransform(InContainerTransform)
+		, ContainerPackage(InContainerPackage)
+		, LoadedPath(InPath)
+#endif
 	{}
 
+#if WITH_EDITORONLY_DATA
 	/** 
 	 * The name of the package to load to resolve on disk (can contain a single actor or a data chunk)
 	 */
@@ -32,6 +45,36 @@ struct FWorldPartitionRuntimeCellObjectMapping
 	 */
 	UPROPERTY()
 	FName Path;
+
+	/**
+	 * ID of the owning container instance
+	 */
+	UPROPERTY()
+	uint32 ContainerID;
+
+	/** 
+	 * Transform of the owning container instance
+	 */
+	UPROPERTY()
+	FTransform ContainerTransform;
+		
+	/**
+	 * Package of the owning container instance
+	 */
+	UPROPERTY()
+	FName ContainerPackage;
+
+	/**
+	* Loaded actor path (when cooking or pie)
+	* 
+	* Depending on if the actor was part of a container instance or the main partition this will be the path
+	* of the loaded or duplicated actor before it is moved into its runtime cell.
+	* 
+	* If the actor was part of the world partition this path should match the Path property.
+	*/
+	UPROPERTY()
+	FName LoadedPath;
+#endif
 };
 
 /**
@@ -42,6 +85,8 @@ class UWorldPartitionRuntimeCellData : public UObject
 {
 	GENERATED_UCLASS_BODY()
 };
+
+class UActorDescContainer;
 
 /**
  * Represents a PIE/Game streaming cell which points to external actor/data chunk packages
@@ -60,7 +105,7 @@ class UWorldPartitionRuntimeCell : public UObject
 #if WITH_EDITOR
 	void SetDataLayers(const TArray<const UDataLayer*> InDataLayers);
 	void AddCellData(const UWorldPartitionRuntimeCellData* InCellData);
-	virtual void AddActorToCell(const FGuid& ActorGuid, FName Package, FName Path) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
+	virtual void AddActorToCell(const FGuid& InActorGuid, uint32 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
 	// Cook methods

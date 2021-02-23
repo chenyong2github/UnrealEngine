@@ -90,7 +90,7 @@ void FSquare2DGridHelper::ValidateSingleActorReferer()
 {
 	UE_SCOPED_TIMER(TEXT("ValidateSingleActorReferer"), LogWorldPartitionRuntimeSpatialHash);
 
-	TSet<FGuid> ActorUsage;
+	TSet<FActorInstance> ActorUsage;
 	for (int32 Level = 0; Level < Levels.Num() - 1; Level++)
 	{
 		const int32 CurrentGridSize = Levels[Level].GridSize;
@@ -101,10 +101,10 @@ void FSquare2DGridHelper::ValidateSingleActorReferer()
 				FGridLevel::FGridCell& ThisCell = Levels[Level].Cells[y * CurrentGridSize + x];
 				for (const FGridLevel::FGridCellDataChunk& DataChunk : ThisCell.GetDataChunks())
 				{
-					for (const FGuid& ActorGuid : DataChunk.GetActors())
+					for (const FActorInstance& ActorInstance : DataChunk.GetActors())
 					{
 						bool bWasAlreadyInSet;
-						ActorUsage.Add(ActorGuid, &bWasAlreadyInSet);
+						ActorUsage.Add(ActorInstance, &bWasAlreadyInSet);
 						check(!bWasAlreadyInSet);
 					}
 				}
@@ -123,7 +123,7 @@ FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int32 GridCellSize)
 	return FSquare2DGridHelper(WorldBounds, GridOrigin, GridCellSize);
 }
 
-FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<FActorCluster>& GridActors)
+FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const FActorClusterInstance*>& GridActors)
 {
 	UE_SCOPED_TIMER(TEXT("GetPartitionedActors"), LogWorldPartitionRuntimeSpatialHash);
 
@@ -142,11 +142,11 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		}
 	}
 
-	for (const FActorCluster& ActorCluster : GridActors)
+	for (const FActorClusterInstance* ClusterInstance : GridActors)
 	{
-		check(ActorCluster.Actors.Num() > 0);
-
-		EActorGridPlacement GridPlacement = ActorCluster.GridPlacement;
+		const FActorCluster* ActorCluster = ClusterInstance->Cluster;
+		check(ActorCluster && ActorCluster->Actors.Num() > 0);
+		EActorGridPlacement GridPlacement = ActorCluster->GridPlacement;
 		bool bAlwaysLoadedPromotedCluster = (GridPlacement == EActorGridPlacement::None);
 		bool bAlwaysLoadedPromotedOutOfGrid = false;
 
@@ -160,29 +160,18 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 		case EActorGridPlacement::Location:
 		{
 			FIntVector2 CellCoords;
-			check(ActorCluster.Actors.Num() == 1);
-			const FGuid& ActorGuid = *ActorCluster.Actors.CreateConstIterator();
-			const FWorldPartitionActorDesc& ActorDesc = *WorldPartition->GetActorDesc(ActorGuid);
-			if (ensure(PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorDesc.GetOrigin()), CellCoords)))
+			check(ActorCluster->Actors.Num() == 1);
+			const FGuid& ActorGuid = *ActorCluster->Actors.CreateConstIterator();
+			FActorInstance ActorInstance(ActorGuid, ClusterInstance->ContainerInstance);
+			if (ensure(PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorInstance.GetActorDesc()->GetOrigin()), CellCoords)))
 			{
-				TArray<const UDataLayer*> ActorDataLayers;
-				if (const AWorldDataLayers* WorldDataLayers = AWorldDataLayers::Get(WorldPartition->GetWorld()))
-				{
-					for (const FName& DataLayerName : ActorDesc.GetDataLayers())
-					{
-						if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
-						{
-							ActorDataLayers.Add(DataLayer);
-						}
-					}
-				}
-				PartitionedActors.GetLowestLevel().GetCell(CellCoords).AddActor(ActorGuid, ActorDataLayers);
+				PartitionedActors.GetLowestLevel().GetCell(CellCoords).AddActor(MoveTemp(ActorInstance), ClusterInstance->DataLayers);
 			}
 			else
 			{
 				GridPlacement = EActorGridPlacement::AlwaysLoaded;
 				bAlwaysLoadedPromotedOutOfGrid = true;
-				PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
+				PartitionedActors.GetAlwaysLoadedCell().AddActor(MoveTemp(ActorInstance), ClusterInstance->DataLayers);
 			}
 			break;
 		}
@@ -193,12 +182,12 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			for (FSquare2DGridHelper::FGridLevel& GridLevel : PartitionedActors.Levels)
 			{
 				int32 IntersectingCellCount = 0;
-				GridLevel.ForEachIntersectingCellsBreakable(ActorCluster.Bounds, [&IntersectingCellCount](const FIntVector2& Coords) { return ++IntersectingCellCount <= 1; });
+				GridLevel.ForEachIntersectingCellsBreakable(ClusterInstance->Bounds, [&IntersectingCellCount](const FIntVector2& Coords) { return ++IntersectingCellCount <= 1; });
 				if (IntersectingCellCount == 1)
 				{
-					GridLevel.ForEachIntersectingCells(ActorCluster.Bounds, [&GridLevel, &ActorCluster](const FIntVector2& Coords)
+					GridLevel.ForEachIntersectingCells(ClusterInstance->Bounds, [&GridLevel, &ActorCluster, &ClusterInstance](const FIntVector2& Coords)
 						{
-							GridLevel.GetCell(Coords).AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
+							GridLevel.GetCell(Coords).AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);
 						});
 					bFoundCell = true;
 					break;
@@ -208,13 +197,13 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			{
 				GridPlacement = EActorGridPlacement::AlwaysLoaded;
 				bAlwaysLoadedPromotedOutOfGrid = true;
-				PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
+				PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);
 			}
 			break;
 		}
 		case EActorGridPlacement::AlwaysLoaded:
 		{
-			PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster.Actors, ActorCluster.DataLayers);
+			PartitionedActors.GetAlwaysLoadedCell().AddActors(ActorCluster->Actors, ClusterInstance->ContainerInstance, ClusterInstance->DataLayers);
 			break;
 		}
 		default:
@@ -223,23 +212,24 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 
 		if (UE_LOG_ACTIVE(LogWorldPartitionRuntimeSpatialHash, Verbose))
 		{
-			if (ActorCluster.Actors.Num() > 1)
+			if (ActorCluster->Actors.Num() > 1)
 			{
 				static UEnum* ActorGridPlacementEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EActorGridPlacement"));
 
 				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Clustered %d actors (%s%s%s), generated shared BV of [%d x %d] (meters)"),
-					ActorCluster.Actors.Num(),
+					ActorCluster->Actors.Num(),
 					*ActorGridPlacementEnum->GetNameStringByValue((int64)GridPlacement),
 					bAlwaysLoadedPromotedCluster ? TEXT(":PromotedCluster") : TEXT(""),
 					bAlwaysLoadedPromotedOutOfGrid ? TEXT(":PromotedOutOfGrid") : TEXT(""),
-					(int)(0.01f * ActorCluster.Bounds.GetSize().X),
-					(int)(0.01f * ActorCluster.Bounds.GetSize().Y));
+					(int)(0.01f * ClusterInstance->Bounds.GetSize().X),
+					(int)(0.01f * ClusterInstance->Bounds.GetSize().Y));
 
-				for (const FGuid& ActorGuid : ActorCluster.Actors)
+				for (const FGuid& ActorGuid : ActorCluster->Actors)
 				{
-					const FWorldPartitionActorDesc& Desc = *WorldPartition->GetActorDesc(ActorGuid);
+					const FWorldPartitionActorDesc& Desc = *ClusterInstance->ContainerInstance->Container->GetActorDesc(ActorGuid);
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("   - Actor: %s (%s)"), *Desc.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
-					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("            %s"), *Desc.GetActorPackage().ToString());
+					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("         Package: %s"), *Desc.GetActorPackage().ToString());
+					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("         Container (%08x): %s"), ClusterInstance->ContainerInstance->ID, *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
 				}
 			}
 		}

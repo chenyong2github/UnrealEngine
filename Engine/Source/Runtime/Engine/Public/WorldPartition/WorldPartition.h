@@ -143,6 +143,8 @@ public:
 	void GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly);
 	void GenerateNavigationData();
 
+	const UActorDescContainer* RegisterActorDescContainer(FName PackageName);
+
 	// Debugging Methods
 	void DrawRuntimeHashPreview();
 	void DumpActorDescs(const FString& Path);
@@ -168,13 +170,9 @@ public:
 	void DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize);
 	void DrawRuntimeHash3D();
 
-	virtual UWorld* GetWorld() const override;
-
 	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 
-	UPROPERTY(Transient)
-	TObjectPtr<UWorld> World;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)
@@ -197,6 +195,8 @@ public:
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 
 	TArray<FWorldPartitionReference> LoadedSubobjects;
+
+	TMap<FName, TWeakObjectPtr<UActorDescContainer>> ActorDescContainers;
 #endif
 
 private:

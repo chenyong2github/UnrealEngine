@@ -17,9 +17,11 @@ class ENGINE_API UActorDescContainer : public UObject
 	friend struct FWorldPartitionHandleUtils;
 
 public:
-	void Initialize(FName InPackageName, bool bRegisterDelegates);
+	void Initialize(UWorld* World, FName InPackageName, bool bRegisterDelegates);
 	virtual void Uninitialize();
 	
+	virtual UWorld* GetWorld() const override;
+
 #if WITH_EDITOR
 	// Asset registry events
 	virtual void OnAssetAdded(const FAssetData& InAssetData);
@@ -31,8 +33,13 @@ public:
 
 	FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid);
 	const FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid) const;
+
+	int32 GetActorDescCount() const { return Actors.Num(); }
+	FName GetContainerPackage() const { return ContainerPackageName; }
 #endif
 
+	UPROPERTY(Transient)
+	TObjectPtr<UWorld> World;
 protected:
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;

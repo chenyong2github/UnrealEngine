@@ -7,7 +7,17 @@
 #include "GameFramework/Actor.h"
 #include "Containers/Array.h"
 #include "LevelInstance/LevelInstanceTypes.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 #include "LevelInstanceActor.generated.h"
+
+UENUM()
+enum class ELevelInstanceRuntimeBehavior : uint8
+{
+	None UMETA(Hidden),
+	Embedded UMETA(ToolTip="Level Instance is discarded at runtime and all its actors are part of the same runtime World Partition cell"),
+	Partitioned UMETA(Hidden), 
+	LevelStreaming UMETA(ToolTip="Level Instance is streamed like a regular level"),
+};
 
 UCLASS()
 class ENGINE_API ALevelInstance : public AActor
@@ -18,7 +28,13 @@ protected:
 	/** Level LevelInstance */
 	UPROPERTY(EditAnywhere, Category = LevelInstance, meta = (NoCreate))
 	TSoftObjectPtr<UWorld> WorldAsset;
+
 public:
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = Runtime)
+	ELevelInstanceRuntimeBehavior DesiredRuntimeBehavior;
+#endif
 
 	void LoadLevelInstance();
 	void UnloadLevelInstance();
@@ -57,6 +73,8 @@ public:
 	virtual FBox GetComponentsBoundingBox(bool bNonColliding = false, bool bIncludeFromChildActors = false) const override;
 	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors = false) const override;
 	virtual bool IsLockLocation() const override;
+	virtual ELevelInstanceRuntimeBehavior GetDesiredRuntimeBehavior() const { return DesiredRuntimeBehavior; }
+	virtual bool IsHLODRelevant() const override { return true; }
 
 	bool CanEdit(FText* OutReason = nullptr) const;
 	bool CanCommit(FText* OutReason = nullptr) const;

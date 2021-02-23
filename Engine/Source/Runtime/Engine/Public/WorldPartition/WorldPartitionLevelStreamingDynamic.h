@@ -16,6 +16,7 @@
 #include "WorldPartition/WorldPartition.h"
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
+#include "WorldPartition/WorldPartitionPackageCache.h"
 #endif
 #include "WorldPartitionLevelStreamingDynamic.generated.h"
 
@@ -52,7 +53,8 @@ private:
 #endif
 
 	FDelegateHandle OnCleanupLevelDelegateHandle;
-	uint32 NumPendingActorRequests;
+	bool bLoadRequestInProgress;
+	FWorldPartitionPackageCache PackageCache;
 #endif
 
 	bool bIsActivated;

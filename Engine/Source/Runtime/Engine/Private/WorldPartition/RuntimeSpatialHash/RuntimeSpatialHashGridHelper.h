@@ -7,7 +7,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
-#include "WorldPartition/RuntimeSpatialHash/RuntimeSpatialHashActorCluster.h"
+#include "WorldPartition/WorldPartitionActorCluster.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
 
 /**
@@ -253,21 +253,21 @@ struct FSquare2DGridHelper
 				DataLayersID = FDataLayersID(DataLayers);
 			}
 
-			void AddActor(const FGuid& Actor) { Actors.Add(Actor); }
-			const TSet<FGuid>& GetActors() const { return Actors; }
+			void AddActor(FActorInstance ActorInstance) { Actors.Add(MoveTemp(ActorInstance)); }
+			const TSet<FActorInstance>& GetActors() const { return Actors; }
 			bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
 			const TArray<const UDataLayer*>& GetDataLayers() const { return DataLayers; }
 			const FDataLayersID& GetDataLayersID() const { return DataLayersID; }
 
 		private:
-			TSet<FGuid> Actors;
+			TSet<FActorInstance> Actors;
 			TArray<const UDataLayer*> DataLayers;
 			FDataLayersID DataLayersID;
 		};
 
 		struct FGridCell
 		{
-			void AddActor(const FGuid& InActor, const TArray<const UDataLayer*>& InDataLayers)
+			void AddActor(FActorInstance ActorInstance, const TArray<const UDataLayer*>& InDataLayers)
 			{
 				FDataLayersID DataLayersID = FDataLayersID(InDataLayers);
 				FGridCellDataChunk* ActorDataChunk = Algo::FindByPredicate(DataChunks, [&](FGridCellDataChunk& InDataChunk) { return InDataChunk.GetDataLayersID() == DataLayersID; });
@@ -275,14 +275,14 @@ struct FSquare2DGridHelper
 				{
 					ActorDataChunk = &DataChunks.Emplace_GetRef(InDataLayers);
 				}
-				ActorDataChunk->AddActor(InActor);
+				ActorDataChunk->AddActor(MoveTemp(ActorInstance));
 			}
 
-			void AddActors(const TSet<FGuid>& InActors, const TArray<const UDataLayer*>& InDataLayers)
+			void AddActors(const TSet<FGuid>& InActors, const FActorContainerInstance* ContainerInstance, const TArray<const UDataLayer*>& InDataLayers)
 			{
 				for (const FGuid& Actor : InActors)
 				{
-					AddActor(Actor, InDataLayers);
+					AddActor(FActorInstance(Actor, ContainerInstance), InDataLayers);
 				}
 			}
 
@@ -405,5 +405,5 @@ public:
 
 #if WITH_EDITOR
 FSquare2DGridHelper GetGridHelper(const FBox& WorldBounds, int32 GridCellSize);
-FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<FActorCluster>& GridActors);
+FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, const FBox& WorldBounds, const FSpatialHashRuntimeGrid& Grid, const TArray<const FActorClusterInstance*>& GridActors);
 #endif // #if WITH_EDITOR

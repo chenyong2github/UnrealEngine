@@ -14,6 +14,10 @@ APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectIniti
 	, bChildChanged(false)
 #endif
 {
+#if WITH_EDITORONLY_DATA
+	// Packed Level Instances don't support level streaming or sub actors
+	DesiredRuntimeBehavior = ELevelInstanceRuntimeBehavior::None;
+#endif
 }
 
 bool APackedLevelInstance::SupportsLoading() const
@@ -123,6 +127,12 @@ bool APackedLevelInstance::IsHiddenEd() const
 bool APackedLevelInstance::CanEditChange(const FProperty* InProperty) const
 {
 	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	// PackedLevelInstance doesn't support a runtime behavior
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(APackedLevelInstance, DesiredRuntimeBehavior))
 	{
 		return false;
 	}

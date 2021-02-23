@@ -14,12 +14,19 @@
 #include "Engine/World.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 
+class FWorldPartitionPackageCache;
+
 class FWorldPartitionLevelHelper
 {
 public:
 	static ULevel* CreateEmptyLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, UPackage* DestPackage = nullptr);
 	static void MoveExternalActorsToLevel(const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages, ULevel* InLevel);
+	
+	DECLARE_DELEGATE_OneParam(FOnLoadActorsCompleted, bool);
+
+	static bool LoadActors(ULevel* InDestLevel, TArrayView<FWorldPartitionRuntimeCellObjectMapping> InActorPackages, FWorldPartitionPackageCache& InPackageCache, FOnLoadActorsCompleted InCompletionCallback, bool bLoadForPie, bool bLoadAsync = true, FLinkerInstancingContext* InOutInstancingContext = nullptr);
 private:
 	static UWorld::InitializationValues GetWorldInitializationValues();
 };
+
 #endif

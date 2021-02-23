@@ -11,6 +11,7 @@
 
 UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, World(nullptr)
 #if WITH_EDITOR
 	, bContainerInitialized(false)
 	, bIgnoreAssetRegistryEvents(false)
@@ -18,8 +19,10 @@ UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitial
 {
 }
 
-void UActorDescContainer::Initialize(FName InPackageName, bool bRegisterDelegates)
+void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, bool bRegisterDelegates)
 {
+	check(!World || World == InWorld);
+	World = InWorld;
 #if WITH_EDITOR
 	check(!bContainerInitialized);
 	ContainerPackageName = InPackageName;
@@ -63,6 +66,7 @@ void UActorDescContainer::Initialize(FName InPackageName, bool bRegisterDelegate
 
 void UActorDescContainer::Uninitialize()
 {
+	World = nullptr;
 #if WITH_EDITOR
 	if (bContainerInitialized)
 	{
@@ -75,6 +79,15 @@ void UActorDescContainer::Uninitialize()
 		ActorDescPtr.Reset();
 	}
 #endif
+}
+
+UWorld* UActorDescContainer::GetWorld() const
+{
+	if (World)
+	{
+		return World;
+	}
+	return Super::GetWorld();
 }
 
 void UActorDescContainer::BeginDestroy()

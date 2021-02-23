@@ -456,21 +456,22 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	}
 
 	// Create actor clusters
-	TArray<FActorCluster> ActorClusters = CreateActorClusters(WorldPartition);
+	FActorClusterContext Context(WorldPartition);
 
-	TArray<TArray<FActorCluster>> GridActors;
+	TArray<TArray<const FActorClusterInstance*>> GridActors;
 	GridActors.InsertDefaulted(0, AllGrids.Num());
 
-	for (FActorCluster& ActorCluster : ActorClusters)
+	for (const FActorClusterInstance& ClusterInstance : Context.GetClusterInstances())
 	{
-		int32* FoundIndex = GridsMapping.Find(ActorCluster.RuntimeGrid);
+		check(ClusterInstance.Cluster);
+		int32* FoundIndex = GridsMapping.Find(ClusterInstance.Cluster->RuntimeGrid);
 		if (!FoundIndex)
 		{
-			UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Invalid partition grid '%s' referenced by actor cluster"), *ActorCluster.RuntimeGrid.ToString());
+			UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT("Invalid partition grid '%s' referenced by actor cluster"), *ClusterInstance.Cluster->RuntimeGrid.ToString());
 		}
 
 		int32 GridIndex = FoundIndex ? *FoundIndex : 0;
-		GridActors[GridIndex].Add(MoveTemp(ActorCluster));
+		GridActors[GridIndex].Add(&ClusterInstance);
 	}
 	
 	const FBox WorldBounds = WorldPartition->GetWorldBounds();
@@ -535,7 +536,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	// Move actors into the final streaming grids
 	CurrentStreamingGrid.GridLevels.Reserve(PartionedActors.Levels.Num());
 
-	TArray<FGuid> FilteredActors;
+	TArray<FActorInstance> FilteredActors;
 	int32 Level = INDEX_NONE;
 	for (const FSquare2DGridHelper::FGridLevel& TempLevel : PartionedActors.Levels)
 	{
@@ -559,13 +560,14 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				FilteredActors.Reset(GridCellDataChunk.GetActors().Num());
 				if (GridCellDataChunk.GetActors().Num())
 				{
-					Algo::TransformIf(GridCellDataChunk.GetActors(), FilteredActors, [&WorldPartition](const FGuid& ActorGuid)
+					Algo::TransformIf(GridCellDataChunk.GetActors(), FilteredActors, [](const FActorInstance& ActorInstance)
 					{
-						const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid);
-						const bool bShouldStripActorFromStreaming = ActorDesc->GetActorIsEditorOnly();
-						UE_CLOG(bShouldStripActorFromStreaming, LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Stripping Actor %s (%s) from streaming grid"), *(ActorDesc->GetActorPath().ToString()), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
+						const FWorldPartitionActorDesc* ActorDesc = ActorInstance.GetActorDesc();
+						const bool bShouldStripActorFromStreaming = ActorInstance.ShouldStripFromStreaming();
+						UE_CLOG(bShouldStripActorFromStreaming, LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Stripping Actor %s (%s) from streaming grid (Container %08x)"), 
+							*(ActorDesc->GetActorPath().ToString()), *ActorInstance.Actor.ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID);
 						return !bShouldStripActorFromStreaming;
-					}, [](const FGuid& ActorGuid) { return ActorGuid; });
+					}, [](const FActorInstance& ActorInstance) { return ActorInstance; });
 				}
 
 				// Cell cannot be treated as always loaded if it has data layers
@@ -578,9 +580,10 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				// will unload actors that were not already loaded in the non PIE world.
 				if (bIsCellAlwaysLoaded && bIsMainWorldPartition && (Mode == EWorldPartitionStreamingMode::PIE))
 				{
-					for (const FGuid& ActorGuid : FilteredActors)
+					for (const FActorInstance& ActorInstance : FilteredActors)
 					{
-						AlwaysLoadedActorsForPIE.Emplace(WorldPartition, ActorGuid);
+						check(ActorInstance.ContainerInstance->Container == WorldPartition);
+						AlwaysLoadedActorsForPIE.Emplace(WorldPartition, ActorInstance.Actor);
 					}
 					continue;
 				}
@@ -601,21 +604,21 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				verify(TempLevel.GetCellBounds(FIntVector2(CellCoordX, CellCoordY), Bounds));
 				StreamingCell->Position = FVector(Bounds.GetCenter(), 0.f);
 
-				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Cell%s %s Actors = %d"), bIsCellAlwaysLoaded ? TEXT(" (AlwaysLoaded)") : TEXT(""), *StreamingCell->GetName(), FilteredActors.Num());
+				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Cell%s %s Actors = %d Bounds (%s)"), bIsCellAlwaysLoaded ? TEXT(" (AlwaysLoaded)") : TEXT(""), *StreamingCell->GetName(), FilteredActors.Num(), *Bounds.ToString());
 
 				// Keep track of all AWorldPartitionHLOD actors referenced by this cell
 				TSet<FGuid> ReferencedHLODActors;
 
-				for (const FGuid& ActorGuid : FilteredActors)
+				for (const FActorInstance& ActorInstance : FilteredActors)
 				{
-					const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid);
-					FGuid ParentHLOD = CachedHLODParents.FindRef(ActorGuid);
+					const FWorldPartitionActorDesc* ActorDesc = ActorInstance.GetActorDesc();
+					FGuid ParentHLOD = CachedHLODParents.FindRef(ActorInstance.Actor);
 					if (ParentHLOD.IsValid())
 					{
 						ReferencedHLODActors.Add(ParentHLOD);
 					}
-					StreamingCell->AddActorToCell(ActorGuid, ActorDesc->GetActorPackage(), ActorDesc->GetActorPath());
-					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("  Actor : %s (%s) Origin(%s)"), *(ActorDesc->GetActorPath().ToString()), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid), *FVector2D(ActorDesc->GetOrigin()).ToString());
+					StreamingCell->AddActorToCell(ActorInstance.Actor, ActorInstance.ContainerInstance->ID, ActorInstance.ContainerInstance->Transform, ActorInstance.ContainerInstance->Container);
+					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("  Actor : %s (%s) (Container %08x) Origin(%s)"), *(ActorDesc->GetActorPath().ToString()), *ActorDesc->GetGuid().ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID, *FVector2D(ActorInstance.GetOrigin()).ToString());
 				}
 
 				if (ReferencedHLODActors.Num() > 0)

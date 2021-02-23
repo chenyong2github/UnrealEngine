@@ -21,6 +21,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// Removing Tessellation from materials and meshes.
 		RemovingTessellation,
 
+		// LevelInstance serialize runtime behavior
+		LevelInstanceSerializeRuntimeBehavior,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

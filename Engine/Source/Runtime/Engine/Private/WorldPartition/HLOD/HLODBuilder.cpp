@@ -399,18 +399,18 @@ class FHLODBuilder_MeshSimplify : public FHLODBuilder
 	}
 };
 
-TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FGuid>& InActors, const TArray<const UDataLayer*>& InDataLayers)
+TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::CreateHLODActors(FHLODCreationContext& InCreationContext, const FHLODCreationParams& InCreationParams, const TSet<FActorInstance>& InActors, const TArray<const UDataLayer*>& InDataLayers)
 {
 	TMap<UHLODLayer*, TArray<FGuid>> HLODLayersActors;
-	for (const FGuid& ActorGuid : InActors)
+	for (const FActorInstance& ActorInstance : InActors)
 	{
-		FWorldPartitionActorDesc& ActorDesc = InCreationParams.WorldPartition->GetActorDescChecked(ActorGuid);
+		FWorldPartitionActorDesc& ActorDesc = InCreationParams.WorldPartition->GetActorDescChecked(ActorInstance.Actor);
 		if (ActorDesc.GetActorIsHLODRelevant())
 		{
 			UHLODLayer* HLODLayer = UHLODLayer::GetHLODLayer(ActorDesc, InCreationParams.WorldPartition);
 			if (HLODLayer)
 			{
-				HLODLayersActors.FindOrAdd(HLODLayer).Add(ActorGuid);
+				HLODLayersActors.FindOrAdd(HLODLayer).Add(ActorInstance.Actor);
 			}
 		}
 	}
@@ -572,7 +572,7 @@ uint32 FHLODBuilderUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 	{
 		HLODBuilder->Build(InHLODActor, HLODLayer, SubActors);
 	}
-
+			
 	InHLODActor->MarkPackageDirty();
 
 	return NewHLODHash;

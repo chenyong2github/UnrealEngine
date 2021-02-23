@@ -20,6 +20,12 @@ struct FWorldPartitionActorDescInitData
 };
 
 class UActorDescContainer;
+
+enum class EContainerClusterMode : uint8
+{
+	Partitioned, // Per Actor Partitioning
+	Embedded // Per Container Partitioning: Every actor of the container are going to be clustered together
+};
 #endif
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -65,6 +71,8 @@ public:
 	inline FName GetActorPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
 	FBox GetBounds() const;
+
+	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 
 protected:
 	inline uint32 IncSoftRefCount() const
@@ -116,7 +124,7 @@ public:
 	void UnregisterActor();
 
 	virtual void Init(const AActor* InActor);
-	void Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData);
+	virtual void Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData);
 
 	void SerializeTo(TArray<uint8>& OutData);
 

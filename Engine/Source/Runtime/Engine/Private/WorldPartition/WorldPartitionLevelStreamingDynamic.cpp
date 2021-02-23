@@ -19,6 +19,7 @@
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
+#include "WorldPartition/WorldPartitionRuntimeHash.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "World"
@@ -31,7 +32,7 @@ UWorldPartitionLevelStreamingDynamic::UWorldPartitionLevelStreamingDynamic(const
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
 	, RuntimeLevel(nullptr)
-	, NumPendingActorRequests(0)
+	, bLoadRequestInProgress(false)
 #endif
 	, bIsActivated(false)
 	, bShouldBeAlwaysLoaded(false)
@@ -219,81 +220,39 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	check(ShouldBeVisible());
 	check(!HasLoadedLevel());
 	check(RuntimeLevel);
-	check(!NumPendingActorRequests);
+	check(!bLoadRequestInProgress);
 
 	TArray<FString> ActorPackageInstanceNames;
 	ActorPackageInstanceNames.Reserve(ChildPackages.Num());
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
 
+	bLoadRequestInProgress = true;
 	FLinkerInstancingContext InstancingContext;
 	InstancingContext.AddMapping(OriginalLevelPackageName, RuntimePackage->GetFName());
-
-	FString ShortLevelPackageName = FPackageName::GetShortName(RuntimePackage->GetFName());
-	for (const FWorldPartitionRuntimeCellObjectMapping& PackageObjectMapping : ChildPackages)
-	{
-		FString ObjectPath = PackageObjectMapping.Package.ToString();
-		FString ActorPackageName = FPackageName::ObjectPathToPackageName(ObjectPath);
-		FString ActorPackageInstanceName = ActorPackageName + TEXT("_") + ShortLevelPackageName;
-		ActorPackageInstanceNames.Add(ActorPackageInstanceName);
-		
-		InstancingContext.AddMapping(FName(*ActorPackageName), FName(*ActorPackageInstanceName));
-	}
-
-	NumPendingActorRequests = ChildPackages.Num();
-	for (int32 ChildIndex=0; ChildIndex<ChildPackages.Num();  ChildIndex++)
-	{
-		const FWorldPartitionRuntimeCellObjectMapping& PackageObjectMapping = ChildPackages[ChildIndex];	
-		const FString ActorPackageName = FPackageName::ObjectPathToPackageName(PackageObjectMapping.Package.ToString());
-		FName ActorName = *FPaths::GetExtension(PackageObjectMapping.Path.ToString());
-
-		FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([this, ActorName](const FName& PackageName, UPackage* Package, EAsyncLoadingResult::Type Result)
+	FWorldPartitionLevelHelper::FOnLoadActorsCompleted CompletionCallback = FWorldPartitionLevelHelper::FOnLoadActorsCompleted::CreateLambda([this](bool bSucceeded)
 		{
-			check(NumPendingActorRequests);
-			NumPendingActorRequests--;
-
-			if (Package)
+			if (bSucceeded)
 			{
-				AActor* Actor = FindObject<AActor>(Package, *ActorName.ToString());
-
-				check(Actor);
-				check(Actor->IsPackageExternal());
-				check(Actor->GetLevel() == RuntimeLevel);
-				
-				RuntimeLevel->Actors.Add(Actor);
-
-				UE_LOG(LogLevelStreaming, Verbose, TEXT(" ==> Loaded %s (remaining: %d)"), *Actor->GetFullName(), NumPendingActorRequests);
-			}
-			else if (Result == EAsyncLoadingResult::Canceled)
-			{
-				UE_LOG(LogLevelStreaming, Warning, TEXT("Async load cancelled for package '%s'"), *GetWorldAssetPackageName());
-				//@todo_ow: cumulate and process when NumPendingActorRequests == 0
+				check(bLoadRequestInProgress);
+				bLoadRequestInProgress = false;
+				FinalizeRuntimeLevel();
 			}
 			else
 			{
-				UE_LOG(LogLevelStreaming, Warning, TEXT("Failed to load package '%s'"), *GetWorldAssetPackageName());
-				//@todo_ow: cumulate and process when NumPendingActorRequests == 0
-			}
-
-			if (!NumPendingActorRequests)
-			{
-				FinalizeRuntimeLevel();
+				UE_LOG(LogLevelStreaming, Fatal, TEXT("UWorldPartitionLevelStreamingDynamic::IssueLoadRequests failed %s"), *GetWorldAssetPackageName());
 			}
 		});
 
-		FPackagePath PackagePath;
-		FPackagePath::TryFromMountedName(!ActorPackageName.IsEmpty() ? ActorPackageName : ActorPackageInstanceNames[ChildIndex], PackagePath);
-		FName PackageName(*ActorPackageInstanceNames[ChildIndex]);
-		LoadPackageAsync(PackagePath, PackageName, CompletionCallback, nullptr, PKG_PlayInEditor, RuntimePackage->PIEInstanceID, 0, &InstancingContext);
-	}
+	FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackages, PackageCache, CompletionCallback, /*bLoadForPie=*/true, /*bLoadAsync=*/true, &InstancingContext);
 
-	return !!NumPendingActorRequests;
+	return bLoadRequestInProgress;
 }
 
 void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 {
 	check(!HasLoadedLevel());
 	check(RuntimeLevel);
-	check(!NumPendingActorRequests);
+	check(!bLoadRequestInProgress);
 
 	// For RuntimeLevel's world NetGUID to be valid, make sure to flag bIsNameStableForNetworking so that IsNameStableForNetworking() returns true. (see FNetGUIDCache::SupportsObject)
 	RuntimeLevel->GetTypedOuter<UWorld>()->bIsNameStableForNetworking = true;
@@ -333,6 +292,8 @@ void UWorldPartitionLevelStreamingDynamic::OnCleanupLevel()
 {
 	if (RuntimeLevel)
 	{
+		PackageCache.UnloadPackages();
+
 		RuntimeLevel->OnCleanupLevel.Remove(OnCleanupLevelDelegateHandle);
 
 		// Clears RF_Standalone flag on objects in package (Metadata)

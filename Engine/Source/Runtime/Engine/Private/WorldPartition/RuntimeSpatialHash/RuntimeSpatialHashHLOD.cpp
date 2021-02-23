@@ -92,7 +92,9 @@ static void DeletePackage(FWorldPartitionActorDesc* ActorDesc, ISourceControlHel
 	}
 }
 
-static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, FHLODCreationContext& Context, ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly, const TArray<FActorCluster>& ActorClusters)
+PRAGMA_DISABLE_OPTIMIZATION
+
+static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, FHLODCreationContext& Context, ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly, const TArray<const FActorClusterInstance*>& ClusterInstances)
 {
 	auto HasExceededMaxMemory = []()
 	{
@@ -126,7 +128,7 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 
 	const FBox WorldBounds = WorldPartition->GetWorldBounds();
 
-	const FSquare2DGridHelper PartitionedActors = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, ActorClusters);
+	const FSquare2DGridHelper PartitionedActors = GetPartitionedActors(WorldPartition, WorldBounds, RuntimeGrid, ClusterInstances);
 	const FSquare2DGridHelper::FGridLevel::FGridCell& AlwaysLoadedCell = PartitionedActors.GetAlwaysLoadedCell();
 
 	auto ShouldGenerateHLODs = [&AlwaysLoadedCell](const FSquare2DGridHelper::FGridLevel::FGridCell& GridCell, const FSquare2DGridHelper::FGridLevel::FGridCellDataChunk& GridCellDataChunk)
@@ -253,6 +255,8 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 
 	return GridHLODActors;
 }
+
+PRAGMA_ENABLE_OPTIMIZATION
 
 // Find all HLOD grids from the HLODLayer assets we have and build a dependency graph
 static void GatherHLODGrids(TMap<FName, FSpatialHashRuntimeGrid>& OutHLODGrids, TMap<FName, TSet<FName>>& OutHLODGridsGraph)
@@ -489,33 +493,35 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	}
 
 	// Create actor clusters - ignore HLOD actors
-	TArray<FActorCluster> ActorClusters = CreateActorClusters(WorldPartition, [](const FWorldPartitionActorDesc& ActorDesc)
-	{
-		return !ActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
-	});
-
-	TArray<TArray<FActorCluster>> GridsClusters;
+	FActorClusterContext ClusterContext(WorldPartition, TOptional<FActorClusterContext::FFilterPredicate>([](const FWorldPartitionActorDesc& ActorDesc)
+		{
+			return !ActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
+		}), /* bInIncludeChildContainers=*/ false);
+		
+	TArray<TArray<const FActorClusterInstance*>> GridsClusters;
 	GridsClusters.InsertDefaulted(0, Grids.Num());
 
-	for (FActorCluster& ActorCluster : ActorClusters)
+	for (const FActorClusterInstance& ClusterInstance : ClusterContext.GetClusterInstances())
 	{
-		int32* FoundIndex = GridsMapping.Find(ActorCluster.RuntimeGrid);
+		const FActorCluster* ActorCluster = ClusterInstance.Cluster;
+		check(ActorCluster);
+		int32* FoundIndex = GridsMapping.Find(ActorCluster->RuntimeGrid);
 		if (!FoundIndex)
 		{
-			UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Error, TEXT("Invalid partition grid '%s' referenced by actor cluster"), *ActorCluster.RuntimeGrid.ToString());
+			UE_LOG(LogWorldPartitionRuntimeSpatialHashHLOD, Error, TEXT("Invalid partition grid '%s' referenced by actor cluster"), *ActorCluster->RuntimeGrid.ToString());
 		}
 
 		int32 GridIndex = FoundIndex ? *FoundIndex : 0;
-		GridsClusters[GridIndex].Add(MoveTemp(ActorCluster));
+		GridsClusters[GridIndex].Add(&ClusterInstance);
 	}
 
 	// Keep track of all valid HLOD actors, along with which runtime grid they live in
 	TMap<FName, TArray<FGuid>> GridsHLODActors;
 
-	auto GenerateHLODs = [&GridsHLODActors, WorldPartition, &GridsDepth, &Context, SourceControlHelper, bCreateActorsOnly](const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, const TArray<FActorCluster>& ActorClusters)
+	auto GenerateHLODs = [&GridsHLODActors, WorldPartition, &GridsDepth, &Context, SourceControlHelper, bCreateActorsOnly](const FSpatialHashRuntimeGrid& RuntimeGrid, uint32 HLODLevel, const TArray<const FActorClusterInstance*>& ActorClusterInstances)
 	{
 		// Generate HLODs for this grid
-		TArray<FGuid> HLODActors = GenerateHLODsForGrid(WorldPartition, RuntimeGrid, HLODLevel, Context, SourceControlHelper, bCreateActorsOnly, ActorClusters);
+		TArray<FGuid> HLODActors = GenerateHLODsForGrid(WorldPartition, RuntimeGrid, HLODLevel, Context, SourceControlHelper, bCreateActorsOnly, ActorClusterInstances);
 
 		for (const FGuid& HLODActorGuid : HLODActors)
 		{
@@ -534,6 +540,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	}
 
 	// Now, go on and create HLOD actors from HLOD grids (HLOD 1-N)
+	FActorContainerInstance MainContainerInstance(WorldPartition);
 	for (const FName HLODGridName : SortedGrids)
 	{
 		// No need to process empty grids
@@ -545,19 +552,25 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 		// Create one actor cluster per HLOD actor
 		TArray<FActorCluster> HLODActorClusters;
+		TArray<FActorClusterInstance> HLODActorClusterInstances;
+		TArray<const FActorClusterInstance*> HLODActorClusterInstancePtrs;
 		HLODActorClusters.Reserve(GridsHLODActors[HLODGridName].Num());
+		HLODActorClusterInstances.Reserve(GridsHLODActors[HLODGridName].Num());
+		HLODActorClusterInstancePtrs.Reserve(GridsHLODActors[HLODGridName].Num());
 
 		for (const FGuid& HLODActorGuid : GridsHLODActors[HLODGridName])
 		{
 			FWorldPartitionActorDesc* HLODActorDesc = WorldPartition->GetActorDesc(HLODActorGuid);
 			check(HLODActorDesc);
-
-			HLODActorClusters.Emplace(HLODActorDesc, HLODActorDesc->GetGridPlacement(), GetWorld());
+						
+			FActorCluster& NewHLODActorCluster = HLODActorClusters.Emplace_GetRef(HLODActorDesc, HLODActorDesc->GetGridPlacement(), WorldPartition);
+			FActorClusterInstance& NewHLODActorClusterInstance = HLODActorClusterInstances.Emplace_GetRef(&NewHLODActorCluster, &MainContainerInstance);
+			HLODActorClusterInstancePtrs.Add(&NewHLODActorClusterInstance);
 		};
 
 		// Generate HLODs for this grid - retrieve actors from our ValidHLODActors map
 		// We can't rely on actor descs for newly created HLOD actors
-		GenerateHLODs(HLODGrids[HLODGridName], GridsDepth[HLODGridName] + 1, HLODActorClusters);
+		GenerateHLODs(HLODGrids[HLODGridName], GridsDepth[HLODGridName] + 1, HLODActorClusterInstancePtrs);
 	}
 
 	auto DeleteHLODActor = [&SourceControlHelper](FWorldPartitionHandle ActorHandle)

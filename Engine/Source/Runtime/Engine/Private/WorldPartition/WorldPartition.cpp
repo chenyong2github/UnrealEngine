@@ -119,7 +119,6 @@ UWorldPartition::FWorldPartitionChangedEvent UWorldPartition::WorldPartitionChan
 
 UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, World(nullptr)
 #if WITH_EDITOR
 	, EditorHash(nullptr)
 	, WorldPartitionEditor(nullptr)
@@ -229,7 +228,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		}
 
 		const bool bRegisterDelegates = bEditorOnly && IsMainWorldPartition();
-		UActorDescContainer::Initialize(PackageName, bRegisterDelegates);
+		UActorDescContainer::Initialize(World, PackageName, bRegisterDelegates);
 		check(bContainerInitialized);
 
 		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
@@ -318,15 +317,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 #endif
 }
 
-UWorld* UWorldPartition::GetWorld() const
-{
-	if (World)
-	{
-		return World;
-	}
-	return Super::GetWorld();
-}
-
 void UWorldPartition::RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
 {
 	StreamingSourceProviders.Add(StreamingSource);
@@ -348,8 +338,6 @@ void UWorldPartition::WorldPartitionOnLevelRemovedFromWorld(ULevel* Level, UWorl
 
 void UWorldPartition::Uninitialize()
 {
-	Super::Uninitialize();
-
 	if (IsInitialized())
 	{
 		check(World);
@@ -363,6 +351,15 @@ void UWorldPartition::Uninitialize()
 		}
 
 #if WITH_EDITOR
+		for (auto& Pair : ActorDescContainers)
+		{
+			if (UActorDescContainer* Container = Pair.Value.Get())
+			{
+				Container->Uninitialize();
+			}
+		}
+		ActorDescContainers.Empty();
+
 		if (World->IsPlayInEditor())
 		{
 			CleanupForPIE();
@@ -393,6 +390,8 @@ void UWorldPartition::Uninitialize()
 
 		InitState = EWorldPartitionInitState::Uninitialized;
 	}
+
+	Super::Uninitialize();
 }
 
 void UWorldPartition::CleanupWorldPartition()
@@ -937,6 +936,24 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 void UWorldPartition::GenerateNavigationData()
 {
 	RuntimeHash->GenerateNavigationData();
+}
+
+const UActorDescContainer* UWorldPartition::RegisterActorDescContainer(FName PackageName)
+{
+	TWeakObjectPtr<UActorDescContainer>* ExistingContainerPtr = ActorDescContainers.Find(PackageName);
+	if (ExistingContainerPtr)
+	{
+		if (UActorDescContainer* LevelContainer = ExistingContainerPtr->Get())
+		{
+			return LevelContainer;
+		}
+	}
+		
+	UActorDescContainer* NewContainer = NewObject<UActorDescContainer>(GetTransientPackage());
+	NewContainer->Initialize(GetWorld(), PackageName, true);
+	ActorDescContainers.Add(PackageName, TWeakObjectPtr<UActorDescContainer>(NewContainer));
+
+	return NewContainer;
 }
 
 void UWorldPartition::DumpActorDescs(const FString& Path)

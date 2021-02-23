@@ -431,25 +431,22 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 
 	if (IsPackageExternal() && !IsChildActor())
 	{
-		if (UWorldPartition* WorldPartition = GetLevel()->GetWorldPartition())
+		TUniquePtr<FWorldPartitionActorDesc> ActorDesc(CreateActorDesc());
+
+		const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetName();
+		static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
+		OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));
+
+		TArray<uint8> SerializedData;
+		ActorDesc->SerializeTo(SerializedData);
+		const FString ActorMetaData = FBase64::Encode(SerializedData);
+		static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
+		OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaData, ActorMetaData, UObject::FAssetRegistryTag::TT_Hidden));
+
+		if (ActorLabel.Len() > 0)
 		{
-			TUniquePtr<FWorldPartitionActorDesc> ActorDesc(CreateActorDesc());
-			
-			const FString ActorMetaDataClass = GetParentNativeClass(GetClass())->GetName();
-			static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-			OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaDataClass, ActorMetaDataClass, UObject::FAssetRegistryTag::TT_Hidden));
-
-			TArray<uint8> SerializedData;
-			ActorDesc->SerializeTo(SerializedData);
-			const FString ActorMetaData = FBase64::Encode(SerializedData);
-			static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-			OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorMetaData, ActorMetaData, UObject::FAssetRegistryTag::TT_Hidden));
-
-			if (ActorLabel.Len() > 0)
-			{
-				static FName NAME_ActorLabel(TEXT("ActorLabel"));
-				OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorLabel, ActorLabel, UObject::FAssetRegistryTag::TT_Hidden));
-			}
+			static FName NAME_ActorLabel(TEXT("ActorLabel"));
+			OutTags.Add(UObject::FAssetRegistryTag(NAME_ActorLabel, ActorLabel, UObject::FAssetRegistryTag::TT_Hidden));
 		}
 	}
 }

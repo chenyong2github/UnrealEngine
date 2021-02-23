@@ -85,7 +85,6 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	ActorLabel = *InActor->GetActorLabel(false);
 
 	Container = InActor->GetLevel()->GetWorldPartition();
-	check(Container);
 }
 
 void FWorldPartitionActorDesc::Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData)

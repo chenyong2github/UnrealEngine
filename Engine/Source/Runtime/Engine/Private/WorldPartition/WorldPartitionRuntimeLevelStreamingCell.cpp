@@ -11,6 +11,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
+#include "WorldPartition/WorldPartitionPackageCache.h"
 #include "Engine/LevelStreamingAlwaysLoaded.h"
 #endif
 
@@ -49,13 +50,11 @@ void UWorldPartitionRuntimeLevelStreamingCell::SetIsAlwaysLoaded(bool bInIsAlway
 
 #if WITH_EDITOR
 
-void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FGuid& ActorGuid, FName Package, FName Path)
+void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FGuid& InActorGuid, uint32 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer)
 {
-	Packages.Emplace(Package, Path);
-	if (!GetOuterUWorldPartition()->GetActorDesc(ActorGuid)->GetActorIsEditorOnly())
-	{
-		ActorsToLoadForCook.Add(ActorGuid);
-	}
+	const FWorldPartitionActorDesc* ActorDesc = InContainer->GetActorDesc(InActorGuid);
+	check(!ActorDesc->GetActorIsEditorOnly());
+	Packages.Emplace(ActorDesc->GetActorPackage(), ActorDesc->GetActorPath(), InContainerID, InContainerTransform, InContainer->GetContainerPackage());
 }
 
 ULevelStreaming* UWorldPartitionRuntimeLevelStreamingCell::CreateLevelStreaming(const FString& InPackageName) const
@@ -98,18 +97,10 @@ ULevelStreaming* UWorldPartitionRuntimeLevelStreamingCell::CreateLevelStreaming(
 
 void UWorldPartitionRuntimeLevelStreamingCell::LoadActorsForCook()
 {
-	// Load cell Actors
-	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-	for (const FGuid& ActorGuid : ActorsToLoadForCook)
-	{
-		const FWorldPartitionActorDesc* ActorDesc = WorldPartition->GetActorDesc(ActorGuid);
-		AActor* Actor = ActorDesc->GetActor();
-		if (!Actor)
-		{
-			Actor = ActorDesc->Load();
-			ensure(Actor);
-		}
-	}
+	FWorldPartitionPackageCache PackageCache;
+	FWorldPartitionLevelHelper::FOnLoadActorsCompleted CompletionCallback = FWorldPartitionLevelHelper::FOnLoadActorsCompleted::CreateLambda([](bool) {});
+	bool bResult = FWorldPartitionLevelHelper::LoadActors(nullptr, Packages, PackageCache, CompletionCallback, /*bLoadForPIE=*/false, /*bLoadAsync=*/false);
+	check(bResult);
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersistentLevel()
@@ -138,10 +129,10 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
 		ULevelStreaming* NewLevelStreaming = CreateLevelStreaming(InPackageCookName);
 		check(NewLevelStreaming)
-		
+
 		// Load cell Actors
 		LoadActorsForCook();
-
+		
 		LevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(NewLevelStreaming);
 		ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(OuterWorld, NewLevelStreaming->GetWorldAsset().ToString(), InPackage);
 		check(NewLevel->GetPackage() == InPackage);
