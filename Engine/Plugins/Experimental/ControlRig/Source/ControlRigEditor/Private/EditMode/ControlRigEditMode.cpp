@@ -43,7 +43,9 @@
 #include "ControlRigComponent.h"
 #include "EngineUtils.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
-
+//#include "IPersonaPreviewScene.h"
+//#include "Animation/DebugSkelMeshComponent.h"
+//#include "Persona/Private/AnimationEditorViewportClient.h"
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
 	if (EditMode)
@@ -870,9 +872,6 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 		}
 	}
 
-		
-	
-
 	// for now we show this menu all the time if body is selected
 	// if we want some global menu, we'll have to move this
 	if (Click.GetKey() == EKeys::RightMouseButton)
@@ -891,6 +890,39 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 	// clear selected controls
 	ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
 
+	/*
+	if(!InViewportClient->IsLevelEditorClient() && !InViewportClient->IsSimulateInEditorViewport())
+	{
+		bool bHandled = false;
+		const bool bSelectingSections = GetAnimPreviewScene().AllowMeshHitProxies();
+
+		USkeletalMeshComponent* MeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
+
+		if ( HitProxy )
+		{
+			if ( HitProxy->IsA( HPersonaBoneProxy::StaticGetType() ) )
+			{			
+				SetRigElementSelection(ERigElementType::Bone, static_cast<HPersonaBoneProxy*>(HitProxy)->BoneName, true);
+				bHandled = true;
+			}
+		}
+		
+		if ( !bHandled && !bSelectingSections )
+		{
+			// Cast for phys bodies if we didn't get any hit proxies
+			FHitResult Result(1.0f);
+			UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
+			bool bHit = PreviewMeshComponent->LineTraceComponent(Result, Click.GetOrigin(), Click.GetOrigin() + Click.GetDirection() * 10000.0f, FCollisionQueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(),true));
+			
+			if(bHit)
+			{
+				SetRigElementSelection(ERigElementType::Bone, Result.BoneName, true);
+				bHandled = true;
+			}
+		}
+	}
+	*/
+	
 	return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
 }
 
@@ -1505,6 +1537,8 @@ bool FControlRigEditMode::GetRigElementGlobalTransform(const FRigElementKey& InE
 
 bool FControlRigEditMode::CanFrameSelection()
 {
+	return SelectedRigElements.Num() > 0;
+	/*
 	for (const FRigElementKey& SelectedKey : SelectedRigElements)
 	{
 		if (SelectedKey.Type == ERigElementType::Control)
@@ -1513,10 +1547,24 @@ bool FControlRigEditMode::CanFrameSelection()
 		}
 	}
 	return false;
+	*/
 }
 
 void FControlRigEditMode::FrameSelection()
 {
+	if(CurrentViewportClient)
+	{
+		FSphere Sphere(EForceInit::ForceInit);
+		if(GetCameraTarget(Sphere))
+		{
+			FBox Bounds(EForceInit::ForceInit);
+			Bounds += Sphere.Center;
+			Bounds += Sphere.Center + FVector::OneVector * Sphere.W;
+			Bounds += Sphere.Center - FVector::OneVector * Sphere.W;
+			CurrentViewportClient->FocusViewportOnBox(Bounds);
+		}
+    }
+
 	TArray<AActor*> Actors;
 	for (const FRigElementKey& SelectedKey : SelectedRigElements)
 	{
@@ -1530,7 +1578,7 @@ void FControlRigEditMode::FrameSelection()
 		}
 	}
 
-	if (Actors.Num() )
+	if (Actors.Num())
 	{
 		TArray<UPrimitiveComponent*> SelectedComponents;
 		GEditor->MoveViewportCamerasToActor(Actors, SelectedComponents, true);
