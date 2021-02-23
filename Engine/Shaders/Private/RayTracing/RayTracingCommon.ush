@@ -129,9 +129,32 @@ struct FDeferredMaterialPayload : FMinimalPayload
 
 struct FLumenMinimalPayload : FMinimalPayload
 {
-	int DistanceFieldObjectIndex;
-    // TODO: WorldNormal support
-	// float3 WorldNormal;
+	uint PackedData[3];
+
+	void SetDistanceFieldObjectIndex(int DistanceFieldObjectIndex)
+	{
+		PackedData[0] = asuint(DistanceFieldObjectIndex);
+	}
+
+	int GetDistanceFieldObjectIndex()
+	{
+		return asint(PackedData[0]);
+	}
+
+	void SetWorldNormal(float3 WorldNormal)
+	{
+		PackedData[1] = (f32tof16(WorldNormal.x) << 16) | f32tof16(WorldNormal.y);
+		PackedData[2] = f32tof16(WorldNormal.z);
+	}
+
+	float3 GetWorldNormal()
+	{
+		float3 WorldNormal;
+		WorldNormal.x = f16tof32(PackedData[1] >> 16);
+		WorldNormal.y = f16tof32(PackedData[1]);
+		WorldNormal.z = f16tof32(PackedData[2]);
+		return WorldNormal;
+	}
 };
 
 struct FDefaultAttributes

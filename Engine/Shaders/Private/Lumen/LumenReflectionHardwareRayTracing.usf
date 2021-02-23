@@ -104,7 +104,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 	if (bTraceRay)
 	{
 		float HitDistance = 0.0;
-		bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_NORMAL_MODE == SDF_NORMAL_TYPE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
+		bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 		if (bUseMinimalPayload)
 		{
 			bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, DIM_NORMAL_MODE, HitDistance, Radiance);

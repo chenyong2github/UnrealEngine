@@ -43,8 +43,8 @@ static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingL
 
 static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingNormalMode(
 	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.NormalMode"),
-	0,
-	TEXT("Determines the tracing normal (Default = 0)\n")
+	1,
+	TEXT("Determines the tracing normal (Default = 1)\n")
 	TEXT("0: SDF normal\n")
 	TEXT("1: Geometry normal"),
 	ECVF_RenderThreadSafe
@@ -101,7 +101,7 @@ namespace Lumen
 		FHardwareRayTracingPermutationSettings ModesAndPermutationSettings;
 		ModesAndPermutationSettings.LightingMode = GetScreenProbeGatherHardwareRayTracingLightingMode();
 		ModesAndPermutationSettings.NormalMode = CVarLumenScreenProbeGatherHardwareRayTracingNormalMode.GetValueOnRenderThread();
-		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache) && (ModesAndPermutationSettings.NormalMode == 0);
+		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
 		ModesAndPermutationSettings.bUseDeferredMaterial = (CVarLumenScreenProbeGatherHardwareRayTracingDeferredMaterial.GetValueOnRenderThread()) != 0 && !ModesAndPermutationSettings.bUseMinimalPayload;
 		return ModesAndPermutationSettings;
 	}
@@ -375,9 +375,10 @@ void RenderHardwareRayTracingScreenProbe(
 
 		const TCHAR* PassName = PermutationSettings.bUseDeferredMaterial ? TEXT("DeferredMaterialAndLighting") : TEXT("HardwareRayTracing");
 		const TCHAR* LightingModeName = Lumen::GetRayTracedLightingModeName(PermutationSettings.LightingMode);
+		const TCHAR* NormalModeName = Lumen::GetRayTracedNormalModeName(PermutationSettings.NormalMode);
 		const TCHAR* PayloadName = PermutationSettings.bUseMinimalPayload ? TEXT("Minimal") : TEXT("Default");
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("%s(LightingMode=%s Payload=%s) %ux%u", PassName, LightingModeName, PayloadName, RayTracingResolution.X, RayTracingResolution.Y),
+			RDG_EVENT_NAME("%s(LightingMode=%s NormalMode=%s Payload=%s) %ux%u", PassName, LightingModeName, NormalModeName, PayloadName, RayTracingResolution.X, RayTracingResolution.Y),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, RayTracingResolution, PermutationSettings](FRHICommandList& RHICmdList)

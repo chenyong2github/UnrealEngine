@@ -1,25 +1,47 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "../Common.ush"
-#include "../RayTracing/RayTracingCommon.ush"
-#include "../RayTracing/RayTracingHitGroupCommon.ush"
-#include "../Lumen/LumenHardwareRayTracingPayloadCommon.ush"
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
+#include "/Engine/Private/Lumen/LumenHardwareRayTracingPayloadCommon.ush"
 
-#include "../SceneData.ush"
+#include "/Engine/Private/SceneData.ush"
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(LumenHardwareRayTracingMaterialCHS,
 	FLumenMinimalPayload, Payload,
 	FDefaultAttributes, Attributes)
 {
-	const int PrimitiveIndex = GetInstanceUserData();
+	const int Primitive = GetInstanceUserData();
 	const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
 
 	Payload.HitT = RayTCurrent();
-	Payload.DistanceFieldObjectIndex = GetLumenDistanceFieldObjectIndex(PrimitiveIndex, PrimitiveInstanceIndex);
+	Payload.SetDistanceFieldObjectIndex(GetLumenDistanceFieldObjectIndex(Primitive, PrimitiveInstanceIndex));
 
-	// TODO: WorldNormal support
-	// float3 LocalNormal = 0;
-	// Payload.Normal = RotateLocalToWorld(LocalNormal, PrimitiveID());
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
+#if 0
+	float3x3 ObjectToWorld3x3 = ObjectToWorld4x3();
+	float3 WorldPositions[3] = {
+		mul(float4(Tri.LocalPositions[0], 1), ObjectToWorld3x3),
+		mul(float4(Tri.LocalPositions[1], 1), ObjectToWorld3x3),
+		mul(float4(Tri.LocalPositions[2], 1), ObjectToWorld3x3)
+	};
+
+	float3 WorldEdges[2] = {
+		WorldPositions[1] - WorldPositions[0],
+		WorldPositions[2] - WorldPositions[0]
+	};
+	float3 WorldNormal = normalize(cross(WorldEdges[1], WorldEdges[0]));
+#else
+	float3 LocalEdges[2] = {
+		Tri.LocalPositions[1] - Tri.LocalPositions[0],
+		Tri.LocalPositions[2] - Tri.LocalPositions[0]
+	};
+	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
+
+	float3x3 InverseTranspose3x3 = transpose(WorldToObject4x3());
+	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
+#endif
+
+	Payload.SetWorldNormal(WorldNormal);
 }
 
 RAY_TRACING_ENTRY_MISS(LumenHardwareRayTracingMaterialMS,

@@ -45,8 +45,8 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingLightin
 
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingNormalMode(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing.NormalMode"),
-	0,
-	TEXT("Determines the tracing normal (Default = 0)\n")
+	1,
+	TEXT("Determines the tracing normal (Default = 1)\n")
 	TEXT("0: SDF normal\n")
 	TEXT("1: Geometry normal"),
 	ECVF_RenderThreadSafe
@@ -133,7 +133,7 @@ namespace Lumen
 		FHardwareRayTracingPermutationSettings ModesAndPermutationSettings;
 		ModesAndPermutationSettings.LightingMode = GetReflectionsHardwareRayTracingLightingMode(View);
 		ModesAndPermutationSettings.NormalMode = CVarLumenReflectionsHardwareRayTracingNormalMode.GetValueOnRenderThread();
-		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache) && (ModesAndPermutationSettings.NormalMode == 0);
+		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
 		ModesAndPermutationSettings.bUseDeferredMaterial = (CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread()) != 0 && !ModesAndPermutationSettings.bUseMinimalPayload;
 		return ModesAndPermutationSettings;
 	}
@@ -369,7 +369,7 @@ void RenderLumenHardwareRayTracingReflections(
 			DispatchResolution = FIntPoint(DeferredMaterialBufferNumElements, 1);
 		}
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("LumenReflectionHardwareRayTracingRGS %ux%u LightingMode=%s, DeferredMaterial=%u", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(PermutationSettings.LightingMode), PermutationSettings.bUseDeferredMaterial),
+			RDG_EVENT_NAME("LumenReflectionHardwareRayTracingRGS %ux%u LightingMode=%s, NormalMode=%s, DeferredMaterial=%u", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(PermutationSettings.LightingMode), Lumen::GetRayTracedNormalModeName(PermutationSettings.NormalMode), PermutationSettings.bUseDeferredMaterial),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, DispatchResolution, PermutationSettings](FRHICommandList& RHICmdList)

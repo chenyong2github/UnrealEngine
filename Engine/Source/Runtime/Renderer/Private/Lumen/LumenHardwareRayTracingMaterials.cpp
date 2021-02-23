@@ -63,12 +63,13 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTra
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
-	Initializer.MaxPayloadSizeInBytes = 8; // sizeof FLumenMinimalPayload
+	Initializer.MaxPayloadSizeInBytes = 16; // sizeof FLumenMinimalPayload
 
 	// Get the ray tracing materials
 	auto ClosestHitShader = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialCHS>();
 	FRHIRayTracingShader* HitShaderTable[] = { ClosestHitShader.GetRayTracingShader() };
 	Initializer.SetHitGroupTable(HitShaderTable);
+	Initializer.bAllowHitGroupIndexing = true;
 
 	auto MissShader = View.ShaderMap->GetShader<FLumenHardwareRayTracingMaterialMS>();
 	FRHIRayTracingShader* MissShaderTable[] = { MissShader.GetRayTracingShader() };

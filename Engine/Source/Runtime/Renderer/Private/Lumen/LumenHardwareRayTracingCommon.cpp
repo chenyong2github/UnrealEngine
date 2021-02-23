@@ -33,6 +33,16 @@ namespace Lumen
 		return false;
 #endif
 	}
+
+	const TCHAR* GetRayTracedNormalModeName(int NormalMode)
+	{
+		if (NormalMode == 0)
+		{
+			return TEXT("SDF");
+		}
+
+		return TEXT("Geometry");
+	}
 }
 
 void SetLumenHardwareRayTracingSharedParameters(

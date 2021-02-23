@@ -41,8 +41,8 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingLightingM
 
 static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingNormalMode(
 	TEXT("r.Lumen.Visualize.HardwareRayTracing.NormalMode"),
-	0,
-	TEXT("Determines the tracing normal (Default = 0)\n")
+	1,
+	TEXT("Determines the tracing normal (Default = 1)\n")
 	TEXT("0: SDF normal\n")
 	TEXT("1: Geometry normal"),
 	ECVF_RenderThreadSafe
@@ -92,7 +92,7 @@ namespace Lumen
 		FHardwareRayTracingPermutationSettings ModesAndPermutationSettings;
 		ModesAndPermutationSettings.LightingMode = GetVisualizeHardwareRayTracingLightingMode();
 		ModesAndPermutationSettings.NormalMode = CVarLumenVisualizeHardwareRayTracingNormalMode.GetValueOnRenderThread();
-		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache) && (ModesAndPermutationSettings.NormalMode == 0);
+		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
 		ModesAndPermutationSettings.bUseDeferredMaterial = (CVarLumenVisualizeHardwareRayTracingDeferredMaterial.GetValueOnRenderThread()) != 0 && !ModesAndPermutationSettings.bUseMinimalPayload;
 		return ModesAndPermutationSettings;
 	}
@@ -278,7 +278,7 @@ void VisualizeHardwareRayTracing(
 			DispatchResolution = FIntPoint(DeferredMaterialBufferNumElements, 1);
 		}
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("VisualizeHardwareRayTracing %ux%u LightingMode=%s", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode) PermutationSettings.LightingMode)),
+			RDG_EVENT_NAME("VisualizeHardwareRayTracing %ux%u LightingMode=%s NormalMode=%s", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode) PermutationSettings.LightingMode), Lumen::GetRayTracedNormalModeName(PermutationSettings.NormalMode)),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, DispatchResolution, PermutationSettings](FRHICommandList& RHICmdList)

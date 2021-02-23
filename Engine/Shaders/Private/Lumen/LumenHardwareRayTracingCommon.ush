@@ -202,11 +202,8 @@ float3 CalculateRayTracedLightingFromSurfaceCache(
 {
 	float3 Radiance = 0;
 
-	// TODO: Expose world normal through LumenMinimalPayload
-	float3 PayloadWorldNormal = 0;
 	bool bAccurateHit = false;
-	float3 RayHitWorldNormal = CalculateRayHitWorldNormal(Ray, HitDistance, DFObjectIndex, NormalMode, PayloadWorldNormal, bAccurateHit);
-
+	float3 RayHitWorldNormal = CalculateRayHitWorldNormal(Ray, HitDistance, DFObjectIndex, NormalMode, Payload.GetWorldNormal(), bAccurateHit);
 	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	float3 DiffuseColor = 0;
 	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, DFObjectIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE);
@@ -333,7 +330,7 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	if (bHit)
 	{
 		TraceHitDistance = Payload.HitT;
-		int DFObjectIndex = Payload.DistanceFieldObjectIndex;
+		int DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
 		if (DFObjectIndex != INVALID_DF_OBJECT_INDEX)
 		{
 			Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, TraceHitDistance, DFObjectIndex, NormalMode);
