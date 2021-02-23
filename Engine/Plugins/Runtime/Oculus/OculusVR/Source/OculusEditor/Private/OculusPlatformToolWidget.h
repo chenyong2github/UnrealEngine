@@ -81,6 +81,8 @@ private:
 	FReply OnClearRiftBuildDirectory();
 	FReply OnSelectLaunchFilePath();
 	FReply OnClearLaunchFilePath();
+	FReply OnSelectSymbolDirPath();
+	FReply OnClearSymbolDirPath();
 	FReply OnSelect2DLaunchPath();
 	FReply OnClear2DLaunchPath();
 	FReply OnCancelUpload();
@@ -88,6 +90,8 @@ private:
 	FReply OnClearLanguagePacksPath();
 	FReply OnSelectExpansionFilesPath();
 	FReply OnClearExpansionFilesPath();
+
+	FString GenerateSymbolPath();
 
 	void OnPlatformSettingChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo);
 	void OnApplicationIDChanged(const FText& InText, ETextCommit::Type InCommitType);
@@ -105,13 +109,16 @@ private:
 	void OnAssetConfigRequiredChanged(ECheckBoxState CheckState, int i);
 	void OnAssetConfigTypeChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo, int i);
 	void OnAssetConfigSKUChanged(const FText& InText, ETextCommit::Type InCommitType, int i);
+	void OnUploadDebugSymbolsChanged(ECheckBoxState CheckState);
+	void OnDebugSymbolsOnlyChanged(ECheckBoxState CheckState);
+	void OnBuildIDChanged(const FText& InText, ETextCommit::Type InCommitType);
 
 	// UI Constructors
 	void BuildGeneralSettingsBox(TSharedPtr<SVerticalBox> box);
-	void BuildTextComboBoxField(TSharedPtr<SVerticalBox> box, FText name, TArray<TSharedPtr<FString>>* options, TSharedPtr<FString> current, PTextComboBoxDel deleg);
-	void BuildTextField(TSharedPtr<SVerticalBox> box, FText name, FText text, FText tooltip, PTextComittedDel deleg, bool isPassword = false);
-	void BuildFileDirectoryField(TSharedPtr<SVerticalBox> box, FText name, FText path, FText tooltip, PButtonClickedDel deleg, PButtonClickedDel clearDeleg);
-	void BuildCheckBoxField(TSharedPtr<SVerticalBox> box, FText name, bool check, FText tooltip, PCheckBoxChangedDel deleg);
+	void BuildTextComboBoxField(TSharedPtr<SVerticalBox> box, FText name, TArray<TSharedPtr<FString>>* options, TSharedPtr<FString> current, PTextComboBoxDel deleg, int32 indentAmount = 0);
+	void BuildTextField(TSharedPtr<SVerticalBox> box, FText name, FText text, FText tooltip, PTextComittedDel deleg, bool isPassword = false, int32 indentAmount = 0);
+	void BuildFileDirectoryField(TSharedPtr<SVerticalBox> box, FText name, FText path, FText tooltip, PButtonClickedDel deleg, PButtonClickedDel clearDeleg, int32 indentAmount = 0);
+	void BuildCheckBoxField(TSharedPtr<SVerticalBox> box, FText name, bool check, FText tooltip, PCheckBoxChangedDel deleg, int32 indentAmount = 0);
 	void BuildButtonToolbar(TSharedPtr<SHorizontalBox> box);
 	void BuildRiftOptionalFields(TSharedPtr<SVerticalBox> area);
 	void BuildRedistPackagesBox(TSharedPtr<SVerticalBox> box);
@@ -121,12 +128,13 @@ private:
 	// Text Field Validators
 	void ValidateTextField(PFieldValidatorDel del, FString text, FString name, bool& success);
 	bool GenericFieldValidator(FString text, FString& error);
-	bool ApplicationIDFieldValidator(FString text, FString& error);
+	bool IDFieldValidator(FString text, FString& error);
 	bool DirectoryFieldValidator(FString text, FString& error);
 	bool FileFieldValidator(FString text, FString& error);
 	bool LaunchParamValidator(FString text, FString& error);
 
 	bool ConstructArguments(FString& args);
+	bool ConstructDebugSymbolArguments(FString& args);
 	void EnableUploadButton(bool enabled);
 	void LoadConfigSettings();
 	void UpdateLogText(FString text);

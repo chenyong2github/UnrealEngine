@@ -12,9 +12,11 @@ UOculusPlatformToolSettings::UOculusPlatformToolSettings()
 	OculusReleaseChannel.Init("Alpha", NumPlatforms);
 	OculusReleaseNote.Init("", NumPlatforms);
 	OculusLaunchFilePath.Init("", NumPlatforms);
+	OculusSymbolDirPath.Init("", NumPlatforms);
 	OculusLanguagePacksPath.Init("", NumPlatforms);
 	OculusExpansionFilesPath.Init("", NumPlatforms);
 	OculusAssetConfigs.Init(FAssetConfigArray(), NumPlatforms);
+	UploadDebugSymbols = true;
 
 	for (int i = 0; i < NumPlatforms; i++)
 	{
