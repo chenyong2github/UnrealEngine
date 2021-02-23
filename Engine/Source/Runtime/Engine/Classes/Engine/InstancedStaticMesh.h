@@ -584,6 +584,7 @@ protected:
 	};
 
 	TArray<FRayTracingCullCluster> RayTracingCullClusters;
+	bool bSupportRayTracing = true;
 #endif
 
 	/** Common path for the Get*MeshElement functions */

@@ -1022,6 +1022,8 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	// unselected only
 	UserData_DeselectedInstances = UserData_AllInstances;
 	UserData_DeselectedInstances.bRenderSelected = false;
+
+	bSupportRayTracing = InComponent->GetStaticMesh()->bSupportRayTracing;
 }
 
 void FInstancedStaticMeshSceneProxy::DestroyRenderThreadResources()
@@ -1142,6 +1144,11 @@ HHitProxy* FInstancedStaticMeshSceneProxy::CreateHitProxies(UPrimitiveComponent*
 void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
 	if (!CVarRayTracingRenderInstances.GetValueOnRenderThread())
+	{
+		return;
+	}
+
+	if (!bSupportRayTracing)
 	{
 		return;
 	}
