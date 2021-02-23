@@ -5336,54 +5336,66 @@ void FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable(const TArra
 	}	
 	MeshObject->PreGDMECallback(ViewFamily.Scene->GetGPUSkinCache(), ViewFamily.FrameNumber);
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-	{
-		if (VisibilityMap & (1 << ViewIndex))
-		{
-			const FSceneView* View = Views[ViewIndex];
-			MeshObject->UpdateMinDesiredLODLevel(View, GetBounds(), ViewFamily.FrameNumber, FMath::Max(SkeletalMeshRenderData->PendingFirstLODIdx, SkeletalMeshRenderData->CurrentFirstLODIdx));
-		}
-	}
-
 	const FEngineShowFlags& EngineShowFlags = ViewFamily.EngineShowFlags;
 
-	const int32 LODIndex = MeshObject->GetLOD();
-	check(LODIndex < SkeletalMeshRenderData->LODRenderData.Num());
-	const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
-
-	if( LODSections.Num() > 0 && LODIndex >= SkeletalMeshRenderData->CurrentFirstLODIdx )
+	int32 FirstLODIdx = SkeletalMeshRenderData->GetFirstValidLODIdx(FMath::Max(SkeletalMeshRenderData->PendingFirstLODIdx, SkeletalMeshRenderData->CurrentFirstLODIdx));
+	if (FirstLODIdx == INDEX_NONE)
 	{
-		const FLODSectionElements& LODSection = LODSections[LODIndex];
-
-		check(LODSection.SectionElements.Num() == LODData.RenderSections.Num());
-
-		for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
+#if DO_CHECK
+		UE_LOG(LogSkeletalMesh, Warning, TEXT("Skeletal mesh %s has no valid LODs for rendering."), *GetResourceName().ToString());
+#endif
+	}
+	else
+	{
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			const FSkelMeshRenderSection& Section = Iter.GetSection();
-			const int32 SectionIndex = Iter.GetSectionElementIndex();
-			const FSectionElementInfo& SectionElementInfo = Iter.GetSectionElementInfo();
+			if (VisibilityMap & (1 << ViewIndex))
+			{
+				const FSceneView* View = Views[ViewIndex];
+				MeshObject->UpdateMinDesiredLODLevel(View, GetBounds(), ViewFamily.FrameNumber, FirstLODIdx);
+			}
+		}
 
-			bool bSectionSelected = false;
+		const int32 LODIndex = MeshObject->GetLOD();
+		check(LODIndex < SkeletalMeshRenderData->LODRenderData.Num());
+		const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
+
+		if (LODSections.Num() > 0 && LODIndex >= FirstLODIdx)
+		{
+			check(SkeletalMeshRenderData->LODRenderData[LODIndex].GetNumVertices() > 0);
+
+			const FLODSectionElements& LODSection = LODSections[LODIndex];
+
+			check(LODSection.SectionElements.Num() == LODData.RenderSections.Num());
+
+			for (FSkeletalMeshSectionIter Iter(LODIndex, *MeshObject, LODData, LODSection); Iter; ++Iter)
+			{
+				const FSkelMeshRenderSection& Section = Iter.GetSection();
+				const int32 SectionIndex = Iter.GetSectionElementIndex();
+				const FSectionElementInfo& SectionElementInfo = Iter.GetSectionElementInfo();
+
+				bool bSectionSelected = false;
 
 #if WITH_EDITORONLY_DATA
-			// TODO: This is not threadsafe! A render command should be used to propagate SelectedEditorSection to the scene proxy.
-			if (MeshObject->SelectedEditorMaterial != INDEX_NONE)
-			{
-				bSectionSelected = (MeshObject->SelectedEditorMaterial == SectionElementInfo.UseMaterialIndex);
-			}
-			else
-			{
-				bSectionSelected = (MeshObject->SelectedEditorSection == SectionIndex);
-			}
+				// TODO: This is not threadsafe! A render command should be used to propagate SelectedEditorSection to the scene proxy.
+				if (MeshObject->SelectedEditorMaterial != INDEX_NONE)
+				{
+					bSectionSelected = (MeshObject->SelectedEditorMaterial == SectionElementInfo.UseMaterialIndex);
+				}
+				else
+				{
+					bSectionSelected = (MeshObject->SelectedEditorSection == SectionIndex);
+				}
 			
 #endif
-			// If hidden skip the draw
-			if (MeshObject->IsMaterialHidden(LODIndex, SectionElementInfo.UseMaterialIndex) || Section.bDisabled)
-			{
-				continue;
-			}
+				// If hidden skip the draw
+				if (MeshObject->IsMaterialHidden(LODIndex, SectionElementInfo.UseMaterialIndex) || Section.bDisabled)
+				{
+					continue;
+				}
 
-			GetDynamicElementsSection(Views, ViewFamily, VisibilityMap, LODData, LODIndex, SectionIndex, bSectionSelected, SectionElementInfo, bInSelectable, Collector);
+				GetDynamicElementsSection(Views, ViewFamily, VisibilityMap, LODData, LODIndex, SectionIndex, bSectionSelected, SectionElementInfo, bInSelectable, Collector);
+			}
 		}
 	}
 
