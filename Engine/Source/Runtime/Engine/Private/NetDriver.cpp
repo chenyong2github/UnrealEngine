@@ -67,6 +67,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/LevelScriptActor.h"
 #include "Engine/NetworkSettings.h"
+#include "Engine/NetworkDelegates.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "SocketSubsystem.h"
 #include "AddressInfoTypes.h"
@@ -148,6 +149,8 @@ DECLARE_CYCLE_STAT(TEXT("Process Prioritized Actors Time"), STAT_NetProcessPrior
 DECLARE_CYCLE_STAT(TEXT("NetDriver TickFlush"), STAT_NetTickFlush, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("NetDriver TickFlush GatherStats"), STAT_NetTickFlushGatherStats, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("NetDriver TickFlush GatherStatsPerfCounters"), STAT_NetTickFlushGatherStatsPerfCounters, STATGROUP_Game);
+
+DEFINE_LOG_CATEGORY_STATIC(LogNetSyncLoads, Log, All);
 
 int32 GNumSaturatedConnections; // Counter for how many connections are skipped/early out due to bandwidth saturation
 int32 GNumSharedSerializationHit;
@@ -470,6 +473,7 @@ void UNetDriver::PostInitProperties()
 		OnLevelRemovedFromWorldHandle = FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UNetDriver::OnLevelRemovedFromWorld);
 		OnLevelAddedToWorldHandle = FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UNetDriver::OnLevelAddedToWorld);
 		PostGarbageCollectHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UNetDriver::PostGarbageCollect);
+		ReportSyncLoadDelegateHandle = FNetDelegates::OnSyncLoadDetected.AddUObject(this, &UNetDriver::ReportSyncLoad);
 
 		LoadChannelDefinitions();
 	}
@@ -2654,6 +2658,7 @@ void UNetDriver::FinishDestroy()
 		FWorldDelegates::LevelRemovedFromWorld.Remove(OnLevelRemovedFromWorldHandle);
 		FWorldDelegates::LevelAddedToWorld.Remove(OnLevelAddedToWorldHandle);
 		FCoreUObjectDelegates::GetPostGarbageCollect().Remove(PostGarbageCollectHandle);
+		FNetDelegates::OnSyncLoadDetected.Remove(ReportSyncLoadDelegateHandle);
 	}
 	else
 	{
@@ -2675,6 +2680,11 @@ void UNetDriver::LowLevelDestroy()
 	// We are closing down all our sockets and low level communications.
 	// Sever the link with UWorld to ensure we don't tick again
 	SetWorld(NULL);
+
+	if(GuidCache.IsValid())
+	{
+		GuidCache->ReportSyncLoadedGUIDs();
+	}
 }
 
 FString UNetDriver::LowLevelGetNetworkNumber()
@@ -4596,6 +4606,42 @@ int64 UNetDriver::SendDestructionInfo(UNetConnection* Connection, FActorDestruct
 
 	return NumBits;
 }
+
+void UNetDriver::ReportSyncLoad(const FNetSyncLoadReport& Report)
+{
+	if (Report.NetDriver != this)
+	{
+		return;
+	}
+
+	switch(Report.Type)
+	{
+		case ENetSyncLoadType::ActorSpawn:
+		{
+			UE_LOG(LogNetSyncLoads, Log, TEXT("Spawning actor %s caused a sync load of %s!"), *GetNameSafe(Report.OwningObject), *GetFullNameSafe(Report.LoadedObject));
+			break;
+		}
+
+		case ENetSyncLoadType::PropertyReference:
+		{
+			UE_LOG(LogNetSyncLoads, Log, TEXT("%s of object %s caused a sync load of %s!"), *GetFullNameSafe(Report.Property), *GetNameSafe(Report.OwningObject), *GetFullNameSafe(Report.LoadedObject));
+			break;
+		}
+
+		case ENetSyncLoadType::Unknown:
+		{
+			UE_LOG(LogNetSyncLoads, Log, TEXT("%s was sync loaded by an unknown source."), *GetFullNameSafe(Report.LoadedObject));
+			break;
+		}
+
+		default:
+		{
+			UE_LOG(LogNetSyncLoads, Error, TEXT("%s was sync loaded but its type %d isn't supported by UNetDriver::ReportSyncLoad."), *GetFullNameSafe(Report.LoadedObject), static_cast<int32>(Report.Type));
+			break;
+		}
+	}
+}
+
 
 // -------------------------------------------------------------------------------------------------------------------------
 //	Replication profiling (server cpu) helpers.

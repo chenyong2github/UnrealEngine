@@ -1374,7 +1374,8 @@ public:
 		FBitArchive& Ar,
 		UPackageMap* Map,
 		FRepObjectDataBuffer Data,
-		bool& bHasUnmapped) const;
+		bool& bHasUnmapped,
+		const UObject* OwningObject = nullptr) const;
 
 	/** Serializes all replicated properties of a UObject in or out of an archive (depending on what type of archive it is). */
 	ENGINE_API void SerializeObjectReplicatedProperties(UObject* Object, FBitArchive & Ar) const;
@@ -1398,7 +1399,8 @@ public:
 		FNetBitReader& InBunch,
 		bool& bOutHasUnmapped,
 		const bool bEnableRepNotifies,
-		bool& bOutGuidsChanged) const;
+		bool& bOutGuidsChanged,
+		UObject* OwningObject = nullptr) const;
 
 	//~ Begin FGCObject Interface
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -1607,7 +1609,8 @@ private:
 		FRepObjectDataBuffer Data,
 		FGuidReferencesMap* GuidReferencesMap,
 		bool& bOutHasUnmapped,
-		bool& bOutGuidsChanged) const;
+		bool& bOutGuidsChanged,
+		UObject* OwningObject) const;
 
 	void GatherGuidReferences_r(
 		const FGuidReferencesMap* GuidReferencesMap,
@@ -1655,7 +1658,8 @@ private:
 		bool& bHasUnmapped,
 		const int32 ArrayDepth,
 		const FRepSerializationSharedInfo& SharedInfo,
-		FNetTraceCollector* Collector = nullptr) const;
+		FNetTraceCollector* Collector,
+		const UObject* OwningObject) const;
 
 	void SerializeProperties_r(
 		FBitArchive& Ar, 
@@ -1667,7 +1671,8 @@ private:
 		const int32 ArrayIndex,
 		const int32 ArrayDepth,
 		const FRepSerializationSharedInfo& SharedInfo,
-		FNetTraceCollector* Collector = nullptr) const;
+		FNetTraceCollector* Collector,
+		const UObject* OwningObject) const;
 
 	void MergeChangeList_r(
 		FRepHandleIterator& RepHandleIterator1,

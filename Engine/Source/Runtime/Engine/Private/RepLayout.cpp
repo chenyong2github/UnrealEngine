@@ -2099,7 +2099,7 @@ void FRepLayout::SerializeObjectReplicatedProperties(UObject* Object, FBitArchiv
 		if (ObjectProperty == nullptr && StructProperty == nullptr)
 		{
 			bool bHasUnmapped = false;
-			SerializeProperties_r(Ar, NULL, Parents[i].CmdStart, Parents[i].CmdEnd, (uint8*)Object, bHasUnmapped, 0, 0, Empty);
+			SerializeProperties_r(Ar, NULL, Parents[i].CmdStart, Parents[i].CmdEnd, (uint8*)Object, bHasUnmapped, 0, 0, Empty, nullptr, nullptr);
 		}
 	}
 }
@@ -3084,7 +3084,8 @@ static bool ReceivePropertyHelper(
 	const bool bDoChecksum,
 	bool& bOutGuidsChanged,
 	const bool bSkipSwapRoles,
-	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts)
+	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts,
+	const UObject* OwningObject)
 {
 	const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
 	const FRepParentCmd& Parent = Parents[Cmd.ParentIndex];
@@ -3115,6 +3116,8 @@ static bool ReceivePropertyHelper(
 		// Let package map know we want to track and know about any guids that are unmapped during the serialize call
 		Bunch.PackageMap->ResetTrackedGuids(true);
 	}
+
+	Bunch.PackageMap->ResetTrackedSyncLoadedGuids();
 
 	// Remember where we started reading from, so that if we have unmapped properties, we can re-deserialize from this data later
 	FBitReaderMark Mark(Bunch);
@@ -3150,6 +3153,8 @@ static bool ReceivePropertyHelper(
 		SerializeReadWritePropertyChecksum(Cmd, CmdIndex, FConstRepObjectDataBuffer(Data + SwappedCmd), Bunch);
 	}
 #endif
+
+	Bunch.PackageMap->ReportSyncLoadsForProperty(Cmd.Property, OwningObject);
 
 	if (GuidReferencesMap)
 	{
@@ -3470,7 +3475,8 @@ static bool ReceiveProperties_r(FReceivePropertiesSharedParams& Params, FReceive
 					Params.bDoChecksum,
 					Params.bOutGuidsChanged,
 					Params.bSkipRoleSwap,
-					Params.NetSerializeLayouts))
+					Params.NetSerializeLayouts,
+					Params.OwningObject))
 				{
 					Params.bOutHasUnmapped = true;
 				}
@@ -3511,7 +3517,7 @@ bool FRepLayout::ReceiveProperties(
 
 	if (OwningChannel->Connection->IsInternalAck())
 	{
-		return ReceiveProperties_BackwardsCompatible(OwningChannel->Connection, RepState, Data, InBunch, bOutHasUnmapped, bEnableRepNotifies, bOutGuidsChanged);
+		return ReceiveProperties_BackwardsCompatible(OwningChannel->Connection, RepState, Data, InBunch, bOutHasUnmapped, bEnableRepNotifies, bOutGuidsChanged, Object);
 	}
 
 #ifdef ENABLE_PROPERTY_CHECKSUMS
@@ -3582,7 +3588,8 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible(
 	FNetBitReader& InBunch,
 	bool& bOutHasUnmapped,
 	const bool bEnableRepNotifies,
-	bool& bOutGuidsChanged) const
+	bool& bOutGuidsChanged,
+	UObject* OwningObject) const
 {
 #ifdef ENABLE_PROPERTY_CHECKSUMS
 	const bool bDoChecksum = InBunch.ReadBit() ? true : false;
@@ -3597,7 +3604,7 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible(
 
 	UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible: Owner=%s, NetFieldExportGroupFound=%d"), *OwnerPathName, !!NetFieldExportGroup.IsValid());
 
-	return ReceiveProperties_BackwardsCompatible_r(RepState, NetFieldExportGroup.Get(), InBunch, 0, Cmds.Num() - 1, (bEnableRepNotifies && RepState) ? RepState->StaticBuffer.GetData() : nullptr, Data, Data, RepState ? &RepState->GuidReferencesMap : nullptr, bOutHasUnmapped, bOutGuidsChanged);
+	return ReceiveProperties_BackwardsCompatible_r(RepState, NetFieldExportGroup.Get(), InBunch, 0, Cmds.Num() - 1, (bEnableRepNotifies && RepState) ? RepState->StaticBuffer.GetData() : nullptr, Data, Data, RepState ? &RepState->GuidReferencesMap : nullptr, bOutHasUnmapped, bOutGuidsChanged, OwningObject);
 }
 
 int32 FRepLayout::FindCompatibleProperty(
@@ -3637,7 +3644,8 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 	FRepObjectDataBuffer Data,
 	FGuidReferencesMap* GuidReferencesMap,
 	bool& bOutHasUnmapped,
-	bool& bOutGuidsChanged) const
+	bool& bOutGuidsChanged,
+	UObject* OwningObject) const
 {
 	auto ReadHandle = [this, &Reader](uint32& Handle) -> bool
 	{
@@ -3830,7 +3838,7 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 				FRepObjectDataBuffer ElementData = LocalData + ArrayElementOffset;
 				FRepShadowDataBuffer ElementShadowData = (LocalShadowData && (Index < (ShadowArray ? static_cast<uint32>(ShadowArray->Num()) : 0))) ? LocalShadowData + ArrayElementOffset : nullptr;
 
-				if (!ReceiveProperties_BackwardsCompatible_r(RepState, NetFieldExportGroup, TempReader, CmdIndex + 1, Cmd.EndCmd - 1, ElementShadowData, LocalData, ElementData, NewGuidReferencesArray, bOutHasUnmapped, bOutGuidsChanged))
+				if (!ReceiveProperties_BackwardsCompatible_r(RepState, NetFieldExportGroup, TempReader, CmdIndex + 1, Cmd.EndCmd - 1, ElementShadowData, LocalData, ElementData, NewGuidReferencesArray, bOutHasUnmapped, bOutGuidsChanged, OwningObject))
 				{
 					return false;
 				}
@@ -3867,7 +3875,8 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 
 				// We can skip role swapping if we're not an actor.
 				!EnumHasAnyFlags(Flags, ERepLayoutFlags::IsActor),
-				NetSerializeLayouts))
+				NetSerializeLayouts,
+				OwningObject))
 			{
 				bOutHasUnmapped = true;
 			}
@@ -6190,7 +6199,8 @@ void FRepLayout::SerializeProperties_DynamicArray_r(
 	bool& bHasUnmapped,
 	const int32 ArrayDepth,
 	const FRepSerializationSharedInfo& SharedInfo,
-	FNetTraceCollector* Collector) const
+	FNetTraceCollector* Collector,
+	const UObject* OwningObject) const
 {
 	const FRepLayoutCmd& Cmd = Cmds[ CmdIndex ];
 
@@ -6223,7 +6233,7 @@ void FRepLayout::SerializeProperties_DynamicArray_r(
 		for (int32 i = 0; i < Array->Num() && !Ar.IsError(); i++)
 		{
 			const int32 ArrayElementOffset = i * Cmd.ElementSize;
-			SerializeProperties_r(Ar, Map, CmdIndex + 1, Cmd.EndCmd - 1, ArrayData + ArrayElementOffset, bHasUnmapped, i, ArrayDepth, SharedInfo, Collector);
+			SerializeProperties_r(Ar, Map, CmdIndex + 1, Cmd.EndCmd - 1, ArrayData + ArrayElementOffset, bHasUnmapped, i, ArrayDepth, SharedInfo, Collector, OwningObject);
 		}
 	}	
 }
@@ -6238,7 +6248,8 @@ void FRepLayout::SerializeProperties_r(
 	const int32 ArrayIndex,
 	const int32 ArrayDepth,
 	const FRepSerializationSharedInfo& SharedInfo,
-	FNetTraceCollector* Collector) const
+	FNetTraceCollector* Collector,
+	const UObject* OwningObject) const
 {
 	for (int32 CmdIndex = CmdStart; CmdIndex < CmdEnd && !Ar.IsError(); CmdIndex++)
 	{
@@ -6250,7 +6261,7 @@ void FRepLayout::SerializeProperties_r(
 		{
 			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Ar, Collector, ENetTraceVerbosity::Trace);
 
-			SerializeProperties_DynamicArray_r(Ar, Map, CmdIndex, Data + Cmd, bHasUnmapped, ArrayDepth + 1, SharedInfo, Collector);
+			SerializeProperties_DynamicArray_r(Ar, Map, CmdIndex, Data + Cmd, bHasUnmapped, ArrayDepth + 1, SharedInfo, Collector, OwningObject);
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
 			continue;
 		}
@@ -6272,6 +6283,11 @@ void FRepLayout::SerializeProperties_r(
 			{ 
 				return (Info.Guid == PropertyGuid); 
 			});
+		}
+
+		if (Ar.IsLoading() && Map)
+		{
+			Map->ResetTrackedSyncLoadedGuids();
 		}
 
 		// Use shared serialization state if it exists
@@ -6317,6 +6333,11 @@ void FRepLayout::SerializeProperties_r(
 			{
 				bHasUnmapped = true;
 			}
+		}
+
+		if (Ar.IsLoading() && Map)
+		{
+			Map->ReportSyncLoadsForProperty(Cmd.Property, OwningObject);
 		}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -6605,7 +6626,7 @@ void FRepLayout::SendPropertiesForRPC(
 				if (Send)
 				{
 					bool bHasUnmapped = false;
-					SerializeProperties_r(Writer, Writer.PackageMap, Parents[i].CmdStart, Parents[i].CmdEnd, const_cast<uint8*>(Data.Data), bHasUnmapped, 0, 0, SharedInfoRPC, GetTraceCollector(Writer));
+					SerializeProperties_r(Writer, Writer.PackageMap, Parents[i].CmdStart, Parents[i].CmdEnd, const_cast<uint8*>(Data.Data), bHasUnmapped, 0, 0, SharedInfoRPC, GetTraceCollector(Writer), nullptr);
 				}
 			}
 		}	
@@ -6642,7 +6663,7 @@ void FRepLayout::ReceivePropertiesForRPC(
 			// We have to do this manually since we aren't passing in any unmapped info
 			Reader.PackageMap->ResetTrackedGuids(true);
 
-			ReceiveProperties_BackwardsCompatible(Channel->Connection, nullptr, Data, Reader, bHasUnmapped, false, bGuidsChanged);
+			ReceiveProperties_BackwardsCompatible(Channel->Connection, nullptr, Data, Reader, bHasUnmapped, false, bGuidsChanged, Object);
 
 			if (Reader.PackageMap->GetTrackedUnmappedGuids().Num() > 0)
 			{
@@ -6671,7 +6692,7 @@ void FRepLayout::ReceivePropertiesForRPC(
 				{
 					bool bHasUnmapped = false;
 
-					SerializeProperties_r(Reader, Reader.PackageMap, Parents[i].CmdStart, Parents[i].CmdEnd, Data, bHasUnmapped, 0, 0, Empty, Collector);
+					SerializeProperties_r(Reader, Reader.PackageMap, Parents[i].CmdStart, Parents[i].CmdEnd, Data, bHasUnmapped, 0, 0, Empty, Collector, Object);
 
 					if (Reader.IsError())
 					{
@@ -6701,7 +6722,8 @@ void FRepLayout::SerializePropertiesForStruct(
 	FBitArchive& Ar,
 	UPackageMap* Map,
 	FRepObjectDataBuffer Data,
-	bool& bHasUnmapped) const
+	bool& bHasUnmapped,
+	const UObject* OwningObject) const
 {
 	check(Struct == Owner);
 
@@ -6709,7 +6731,7 @@ void FRepLayout::SerializePropertiesForStruct(
 
 	for (int32 i = 0; i < Parents.Num(); i++)
 	{
-		SerializeProperties_r(Ar, Map, Parents[i].CmdStart, Parents[i].CmdEnd, Data, bHasUnmapped, 0, 0, Empty);
+		SerializeProperties_r(Ar, Map, Parents[i].CmdStart, Parents[i].CmdEnd, Data, bHasUnmapped, 0, 0, Empty, nullptr, OwningObject);
 
 		if (Ar.IsError())
 		{
@@ -7673,7 +7695,8 @@ ERepLayoutResult FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSeri
 					ThisElement,
 					&GuidReferences,
 					bOutHasUnmapped,
-					bOutGuidsChanged);
+					bOutGuidsChanged,
+					Object);
 
 				if (!bSuccess)
 				{
