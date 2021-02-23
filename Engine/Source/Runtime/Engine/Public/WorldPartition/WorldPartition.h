@@ -99,7 +99,6 @@ private:
 #endif
 
 	//~ Begin UObject Interface
-	virtual void Serialize(FArchive& Ar) override;
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 
