@@ -22,6 +22,21 @@
 #include "Chaos/TrackedGeometryManager.h"
 #include "RewindData.h"
 
+/** 
+ * Picks a snap distance for a UModel planes->verts conversion. To preserve PhysX behavior SMALL_NUMBER is used for its snap distance.
+ * Chaos uses a scaled snap distance in relation to the model bounds to create hulls with less points.
+ */
+static float SuggestConvexVertexSnapDistance(UModel* InModel)
+{
+#if PHYSICS_INTERFACE_PHYSX
+	return SMALL_NUMBER;
+#else
+	// For an object around 1cmx1cmx1cm this is the vertex snap distance, then scaled to match the input model
+	constexpr float UnitSphereSnapDistance = 0.0015f;
+	return UnitSphereSnapDistance * InModel->Bounds.SphereRadius;
+#endif
+}
+
 /** Returns false if ModelToHulls operation should halt because of vertex count overflow. */
 static bool AddConvexPrim(FKAggregateGeom* OutGeom, TArray<FPlane> &Planes, UModel* InModel)
 {
@@ -43,7 +58,7 @@ static bool AddConvexPrim(FKAggregateGeom* OutGeom, TArray<FPlane> &Planes, UMod
 	}
 
 	// Create a hull from a set of planes
-	bool bSuccess = NewConvex.HullFromPlanes(Planes, SnapVerts);
+	bool bSuccess = NewConvex.HullFromPlanes(Planes, SnapVerts, SuggestConvexVertexSnapDistance(InModel));
 
 	// If it failed for some reason, remove from the array
 	if(bSuccess && NewConvex.ElemBox.IsValid)
