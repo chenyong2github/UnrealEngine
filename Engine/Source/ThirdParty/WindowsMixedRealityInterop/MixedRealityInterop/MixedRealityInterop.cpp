@@ -226,6 +226,7 @@ namespace WindowsMixedReality
 	// IDs for unhanded controllers.
 	int HandIDs[2];
 
+	std::mutex MeshUpdateObserverLock;
 	std::map<uint32_t, std::shared_ptr<HandMeshUpdateObserver> > MeshUpdateObserverMap;
 
 	// Controller state
@@ -2966,6 +2967,7 @@ namespace WindowsMixedReality
 							HandPose handPose = state.TryGetHandPose();
 							if (handPose != nullptr)
 							{
+								std::lock_guard<std::mutex> lock(MeshUpdateObserverLock);
 								if (HandMeshUpdateObserver::IsInitialized())
 								{
 									std::shared_ptr<HandMeshUpdateObserver> Observer;
@@ -4282,6 +4284,8 @@ namespace WindowsMixedReality
 		}
 
 		MeshUpdateObserver::Release();
+
+		std::lock_guard<std::mutex> lock(MeshUpdateObserverLock);
 		HandMeshUpdateObserver::InitStatic(nullptr, nullptr, nullptr);
 		MeshUpdateObserverMap.clear();
 
