@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateIncludePaths.Add("PlanarCut/Private");
             PublicIncludePaths.Add(ModuleDirectory + "/Public");
-            PrivateDependencyModuleNames.Add("MeshUtilitiesCommon");
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -16,11 +16,8 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
                     "Voronoi",
 					"GeometricObjects",
-					"DynamicMesh",
 					"Chaos",
-					"GeometryAlgorithms",
-					"MeshDescription",
-					"MeshConversion",
+					"GeometryAlgorithms"
                 }
                 );
 		}
