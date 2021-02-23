@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Android/AndroidPlatformMemory.h"
+#include "Android/AndroidHeapProfiling.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/MallocBinned.h"
 #include "HAL/MallocBinned2.h"
 #include "HAL/MallocBinned3.h"
 #include "HAL/MallocAnsi.h"
+#include "HAL/MallocStomp2.h"
 #include "Misc/ScopeLock.h"
 #include "unistd.h"
 #include <jni.h>
@@ -291,18 +293,33 @@ EPlatformMemorySizeBucket FAndroidPlatformMemory::GetMemorySizeBucket()
 FMalloc* FAndroidPlatformMemory::BaseAllocator()
 {
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-	// make sure LLM is using UsedPhysical for program size, instead of Availble-Free
+	// make sure LLM is using UsedPhysical for program size, instead of Available-Free
 	FPlatformMemoryStats Stats = FAndroidPlatformMemory::GetStats();
 	FLowLevelMemTracker::Get().SetProgramSize(Stats.UsedPhysical);
 #endif
+
+	//FMallocStomp2* Alloc = new FMallocStomp2(FMallocStomp2::EForceIgnoreAlignment);
+	//int* Mem = (int*)Alloc->Malloc(15);
+	//Memset(Mem, 0, 16);
+
 
 #if RUNNING_WITH_ASAN
 	return new FMallocAnsi();
 #endif
 
+	const bool bHeapProfilingSupported = AndroidHeapProfiling::Init();
+
 #if USE_MALLOC_BINNED3 && PLATFORM_ANDROID_ARM64
+	if (bHeapProfilingSupported)
+	{
+		return new FMallocProfilingProxy<FMallocBinned3>();
+	}
 	return new FMallocBinned3();
 #elif USE_MALLOC_BINNED2
+	if (bHeapProfilingSupported)
+	{
+		return new FMallocProfilingProxy<FMallocBinned2>();
+	}
 	return new FMallocBinned2();
 #else
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
