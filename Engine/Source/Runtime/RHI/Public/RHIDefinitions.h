@@ -1738,7 +1738,7 @@ inline bool RHISupportsSeparateMSAAAndResolveTextures(const FStaticShaderPlatfor
 inline bool RHISupportsComputeShaders(const FStaticShaderPlatform Platform)
 {
 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) 
-		|| (GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1 && !IsSwitchPlatform(Platform));
+		|| (GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::ES3_1);
 }
 
 inline bool RHISupportsGeometryShaders(const FStaticShaderPlatform Platform)
