@@ -1740,28 +1740,54 @@ void FNiagaraSystemSimulation::RemoveInstance(FNiagaraSystemInstance* Instance)
 		// bInSpawnPhase is true until the spawning task completes
 		if (bInSpawnPhase)
 		{
-			// Wait for the spawning task to complete, at the end all spawning instances will be in the main instances list
+			// Wait for the spawning task to complete this can not be called from inside a concurrent tick
 			WaitForSystemTickComplete();
 			Instance->WaitForAsyncTickDoNotFinalize();
-
-			check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
-			check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
-			check(SpawningInstances.Num() == 0);
-			check(Instance->IsPendingSpawn() == false);
-
-			int32 SystemIndex = Instance->SystemInstanceIndex;
-			if (SystemIndex != INDEX_NONE)
+			
+			// If we have SpawningInstances then we are inside Spawn_GameThread and must remove the data from the Spawning data set
+			if (SpawningInstances.Num() > 0)
 			{
-				check(SystemInstances.IsValidIndex(SystemIndex));
-				check(Instance == SystemInstances[SystemIndex]);
+				check(SpawningInstances.Num() == SpawningDataSet.GetCurrentDataChecked().GetNumInstances());
+				check(Instance->IsPendingSpawn() == true);
 
-				MainDataSet.GetCurrentDataChecked().KillInstance(Instance->SystemInstanceIndex);
-
-				SystemInstances.RemoveAtSwap(SystemIndex);
-				Instance->SystemInstanceIndex = INDEX_NONE;
-				if (SystemInstances.IsValidIndex(SystemIndex))
+				int32 SystemIndex = Instance->SystemInstanceIndex;
+				if (SystemIndex != INDEX_NONE)
 				{
-					SystemInstances[SystemIndex]->SystemInstanceIndex = SystemIndex;
+					check(SpawningInstances.IsValidIndex(SystemIndex));
+					check(Instance == SpawningInstances[SystemIndex]);
+
+					SpawningDataSet.GetCurrentDataChecked().KillInstance(Instance->SystemInstanceIndex);
+
+					SpawningInstances.RemoveAtSwap(SystemIndex);
+					Instance->SystemInstanceIndex = INDEX_NONE;
+					if (SpawningInstances.IsValidIndex(SystemIndex))
+					{
+						SpawningInstances[SystemIndex]->SystemInstanceIndex = SystemIndex;
+					}
+				}
+				Instance->SetPendingSpawn(false);
+			}
+			// No spawning instances we were called from elsewhere and the instance will now be in the MainDataSet
+			else
+			{
+				check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
+				check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
+				check(Instance->IsPendingSpawn() == false);
+
+				int32 SystemIndex = Instance->SystemInstanceIndex;
+				if (SystemIndex != INDEX_NONE)
+				{
+					check(SystemInstances.IsValidIndex(SystemIndex));
+					check(Instance == SystemInstances[SystemIndex]);
+
+					MainDataSet.GetCurrentDataChecked().KillInstance(Instance->SystemInstanceIndex);
+
+					SystemInstances.RemoveAtSwap(SystemIndex);
+					Instance->SystemInstanceIndex = INDEX_NONE;
+					if (SystemInstances.IsValidIndex(SystemIndex))
+					{
+						SystemInstances[SystemIndex]->SystemInstanceIndex = SystemIndex;
+					}
 				}
 			}
 		}
