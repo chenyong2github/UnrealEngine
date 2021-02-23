@@ -159,17 +159,6 @@ void FRigHierarchyContainer::Initialize(bool bResetTransforms)
 	CurveContainer.OnCurveRenamed.AddRaw(this, &FRigHierarchyContainer::HandleOnElementRenamed);
 	CurveContainer.OnCurveSelected.AddRaw(this, &FRigHierarchyContainer::HandleOnElementSelected);
 
-	// wire them between each other
-	BoneHierarchy.OnBoneRenamed.RemoveAll(&SpaceHierarchy);
-	SpaceHierarchy.OnSpaceRenamed.RemoveAll(&ControlHierarchy);
-	ControlHierarchy.OnControlRenamed.RemoveAll(&SpaceHierarchy);
-	BoneHierarchy.OnBoneRenamed.AddRaw(&SpaceHierarchy, &FRigSpaceHierarchy::HandleOnElementRenamed);
-	SpaceHierarchy.OnSpaceRenamed.AddRaw(&ControlHierarchy, &FRigControlHierarchy::HandleOnElementRenamed);
-	ControlHierarchy.OnControlRenamed.AddRaw(&SpaceHierarchy, &FRigSpaceHierarchy::HandleOnElementRenamed);
-	BoneHierarchy.OnBoneRemoved.AddRaw(&SpaceHierarchy, &FRigSpaceHierarchy::HandleOnElementRemoved);
-	ControlHierarchy.OnControlRemoved.AddRaw(&SpaceHierarchy, &FRigSpaceHierarchy::HandleOnElementRemoved);
-	SpaceHierarchy.OnSpaceRemoved.AddRaw(&ControlHierarchy, &FRigControlHierarchy::HandleOnElementRemoved);
-
 #endif
 
 	BoneHierarchy.Initialize(bResetTransforms);
@@ -473,6 +462,26 @@ void FRigHierarchyContainer::HandleOnElementRemoved(FRigHierarchyContainer* InCo
 
 	OnElementRemoved.Broadcast(InContainer, InKey);
 	OnElementChanged.Broadcast(InContainer, InKey);
+
+	// update them between each other
+	switch(InKey.Type)
+	{
+		case ERigElementType::Space:
+		{
+			ControlHierarchy.HandleOnElementRemoved(InContainer, InKey);
+			break;
+		}
+		case ERigElementType::Bone:
+		case ERigElementType::Control:
+		{
+			SpaceHierarchy.HandleOnElementRemoved(InContainer, InKey);
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
 }
 
 void FRigHierarchyContainer::HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName)
@@ -482,6 +491,26 @@ void FRigHierarchyContainer::HandleOnElementRenamed(FRigHierarchyContainer* InCo
 
 	OnElementRenamed.Broadcast(InContainer, InElementType, InOldName, InNewName);
 	OnElementChanged.Broadcast(InContainer, FRigElementKey(InNewName, InElementType));
+
+	// update them between each other
+	switch(InElementType)
+	{
+		case ERigElementType::Space:
+		{
+			ControlHierarchy.HandleOnElementRenamed(InContainer, InElementType, InOldName, InNewName);
+			break;
+		}
+		case ERigElementType::Bone:
+		case ERigElementType::Control:
+		{
+			SpaceHierarchy.HandleOnElementRenamed(InContainer, InElementType, InOldName, InNewName);
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
 }
 
 void FRigHierarchyContainer::HandleOnElementReparented(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName)
