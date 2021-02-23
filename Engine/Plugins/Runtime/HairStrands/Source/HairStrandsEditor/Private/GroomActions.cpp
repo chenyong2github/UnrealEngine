@@ -24,6 +24,13 @@
 #include "GroomBindingBuilder.h"
 #include "GroomTextureBuilder.h"
 #include "GroomBindingAsset.h"
+#include "ContentBrowserModule.h"
+#include "IContentBrowserSingleton.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "ObjectTools.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
+
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -246,7 +253,32 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 				CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
 
 				UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints, CurrentOptions->MatchingSection);
-				BindingAsset->Build();
+				if (BindingAsset)
+				{
+					BindingAsset->Build();
+					if (BindingAsset->bIsValid)
+					{
+						TArray<UObject*> CreatedObjects;
+						CreatedObjects.Add(BindingAsset);
+
+						FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+						ContentBrowserModule.Get().SyncBrowserToAssets(CreatedObjects);
+#if WITH_EDITOR
+						GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAssets(CreatedObjects);
+#endif
+					}
+					else
+					{
+						FNotificationInfo Info(LOCTEXT("FailedToCreateBinding", "Failed to create groom binding. See Output Log for details"));
+						Info.ExpireDuration = 5.0f;
+						FSlateNotificationManager::Get().AddNotification(Info);
+
+						if (ObjectTools::DeleteSingleObject(BindingAsset))
+						{
+							CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+						}
+					}
+				}
 			}
 		}
 	}
