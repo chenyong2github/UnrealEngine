@@ -1201,6 +1201,12 @@ static void ActivateApp_EventThread()
 		FAppEventManager::GetInstance()->ResumeAudio();
 	}));
 
+	if (EventHandlerEvent)
+	{
+		// Must flush the queue before enabling rendering.
+		EventHandlerEvent->Trigger();
+	}
+
 	FPreLoadScreenManager::EnableRendering(true);
 
 	extern void AndroidThunkCpp_ShowHiddenAlertDialog();

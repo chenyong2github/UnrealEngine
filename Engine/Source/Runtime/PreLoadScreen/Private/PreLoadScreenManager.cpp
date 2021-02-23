@@ -482,15 +482,15 @@ void FPreLoadScreenManager::EarlyPlayRenderFrameTick()
 {
 	bool bIsResponsibleForRendering_Local = true;
 
-	if (!bRenderingEnabled)
+	if (!bRenderingEnabled || !FSlateApplication::IsInitialized())
 	{
-		// In this case FPreLoadScreenManager is responsible for rendering but choosing not to, probably because the
+		// If rendering disabled, FPreLoadScreenManager is responsible for rendering but choosing not to, probably because the
 		// app is not in the foreground.
-		return;
-	}
 
-	if (!FSlateApplication::IsInitialized())
-	{
+		// Cycle lock to give a chance to another thread to re-enable rendering.
+		AcquireCriticalSection.Unlock();
+		FPlatformProcess::Sleep(0);
+		AcquireCriticalSection.Lock();
 		return;
 	}
 
