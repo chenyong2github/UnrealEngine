@@ -801,12 +801,12 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 	
 	if (bIsActionGroupNode)
 	{
-		FUIAction BreakGroupAction;
-		BreakGroupAction.ExecuteAction.BindLambda([this, InGraphNode]() 
-		{
-			const UDataprepGraphActionGroupNode* ActionGroupNode = Cast<UDataprepGraphActionGroupNode>(InGraphNode);
+		const UDataprepGraphActionGroupNode* ActionGroupNode = Cast<UDataprepGraphActionGroupNode>(InGraphNode);
 
-			const FScopedTransaction Transaction(NSLOCTEXT("BreakActions", "BreakActions", "Break Action Group"));
+		FUIAction BreakGroupAction;
+		BreakGroupAction.ExecuteAction.BindLambda([this, ActionGroupNode]() 
+		{
+			const FScopedTransaction Transaction(NSLOCTEXT("BreakActions", "BreakActions", "Ungroup Actions"));
 
 			DataprepAssetPtr->Modify();
 
@@ -820,12 +820,40 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			NotifyGraphChanged();
 		});
 
+		const bool bShouldDisable = ActionGroupNode->IsGroupEnabled();
+		const FText EnableOrDisableText = bShouldDisable ? FText::FromString("Disable") : FText::FromString("Enable");
+		FUIAction EnableOrDisableGroupAction;
+		EnableOrDisableGroupAction.ExecuteAction.BindLambda([this, ActionGroupNode, bShouldDisable, EnableOrDisableText]() 
+		{
+			if (ActionGroupNode->GetActionsCount() > 0)
+			{
+				const FScopedTransaction Transaction(FText::Format(NSLOCTEXT("EnableOrDisableGroup", "EnableOrDisableGroup", "{0} Action Group"), EnableOrDisableText));
+
+				DataprepAssetPtr->Modify();
+
+				for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
+				{
+					UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
+					Action->Modify();
+					Action->Appearance->Modify();
+					Action->Appearance->bGroupIsEnabled = !bShouldDisable;
+				}
+
+				NotifyGraphChanged();
+			}
+		});
+
 		MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
 		{
-			MenuBuilder->AddMenuEntry(LOCTEXT( "BreakGroup", "Break" ),
+			MenuBuilder->AddMenuEntry(LOCTEXT( "BreakGroup", "Ungroup Actions" ),
 									  LOCTEXT( "BreakGroupTooltip", "Break group to single actions" ),
 									  FSlateIcon(),
 									  BreakGroupAction);
+
+			MenuBuilder->AddMenuEntry( FText::Format( LOCTEXT( "EnableOrDisableEnableGroupLabel", "{0} Action Group" ), EnableOrDisableText ),
+									   FText::Format( LOCTEXT( "EnableOrDisableEnableGroupTooltip", "{0} Action Group" ), EnableOrDisableText ),
+									   FSlateIcon(),
+									   EnableOrDisableGroupAction);
 		}
 		MenuBuilder->EndSection();
 
@@ -977,13 +1005,14 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 								Action->Modify();
 								Action->Appearance->Modify();
 								Action->Appearance->GroupId = NewGroupId;
+								Action->Appearance->bGroupIsEnabled = true;
 							}
 						}
 
 						NotifyGraphChanged();
 					});
 
-					FText Label = FText::FromString("Collapse");
+					FText Label = FText::FromString("Group Actions");
 					MenuBuilder->AddMenuEntry(FText::Format( LOCTEXT( "CollapsActionsAction", "{0}" ), Label ),
 											  FText::Format( LOCTEXT( "CollapsActionsActionTooltip", "{0} steps/actions" ), Label ),
 											  FSlateIcon(),

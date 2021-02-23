@@ -124,6 +124,8 @@ public:
 
 	int32 GetGroupId() const;
 
+	bool IsGroupEnabled() const;
+
 	UDataprepActionAsset* GetAction(int32 Index) const
 	{
 		check(Index < Actions.Num());
