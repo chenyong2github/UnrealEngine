@@ -206,7 +206,7 @@ static TAutoConsoleVariable<int32> CVarVirtualSmDenoiser(
 
 static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserTemporal(
 	TEXT("r.Shadow.Virtual.Denoiser.Temporal"),
-	1,
+	0,
 	TEXT("Use temporal reprojection (when applicable)."),
 	ECVF_RenderThreadSafe);
 

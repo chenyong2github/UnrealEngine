@@ -463,8 +463,11 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCS);
 	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCS, FGlobalShader)
 	
-	class FSMRTAdaptiveRayCountDim : SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
-	using FPermutationDomain = TShaderPermutationDomain<FSMRTAdaptiveRayCountDim>;
+	class FSMRTAdaptiveRayCountDim	: SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
+	class FTwoPhysicalTexturesDim	: SHADER_PERMUTATION_BOOL("TWO_PHYSICAL_TEXTURES");
+	using FPermutationDomain = TShaderPermutationDomain<
+		FSMRTAdaptiveRayCountDim,
+		FTwoPhysicalTexturesDim >;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
@@ -506,6 +509,8 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapProjection", SF_Compute);
 
+extern int32 GVirtualShadowMapAtomicWrites;
+
 void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
@@ -537,6 +542,8 @@ void RenderVirtualShadowMapProjection(
 
 	FVirtualShadowMapProjectionCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( bAdaptiveRayCount );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FTwoPhysicalTexturesDim >( GVirtualShadowMapAtomicWrites == 0 );
+
 	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );
 
 	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( View.ViewRect.Size(), 8 );

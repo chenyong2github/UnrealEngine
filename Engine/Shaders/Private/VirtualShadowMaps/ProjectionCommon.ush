@@ -89,16 +89,20 @@ FVirtualShadowMapSample InitVirtualShadowMapSample()
 	return Result;
 }
 
+#ifndef TWO_PHYSICAL_TEXTURES
+#define TWO_PHYSICAL_TEXTURES 1
+#endif
+
 float SampleVirtualShadowMapPhysicalDepth(uint2 PhysicalTexelAddress)
 {
-#if ENABLE_NON_NANITE_VSM
+#if ENABLE_NON_NANITE_VSM && TWO_PHYSICAL_TEXTURES
 	return max(
 		asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0))),
 		PhysicalPagePoolHw.Load(int3(PhysicalTexelAddress, 0))
 	);
-#else //!ENABLE_NON_NANITE_VSM
+#else
 	return asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0)));
-#endif // ENABLE_NON_NANITE_VSM
+#endif
 }
 
 FVirtualShadowMapSample SampleVirtualShadowMapLevel(int VirtualShadowMapId, float2 ShadowMapUV, uint MipLevel)
