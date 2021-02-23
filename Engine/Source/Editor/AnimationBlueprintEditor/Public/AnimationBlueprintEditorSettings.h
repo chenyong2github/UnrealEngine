@@ -20,6 +20,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Debugging")
 	bool bPoseWatchSelectedNodes = false;
 
+	/** Whether to display the corner text in an animation graph. Changing this only affects newly opened graphs. */
+	UPROPERTY(EditAnywhere, config, Category = "Graphs")
+	bool bShowGraphCornerText = true;
+
 public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnUpdateSettingsMulticaster, const UAnimationBlueprintEditorSettings*, EPropertyChangeType::Type);
 	FOnUpdateSettingsMulticaster OnSettingsChange;

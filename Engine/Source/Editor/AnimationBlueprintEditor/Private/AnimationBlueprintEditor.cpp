@@ -86,6 +86,7 @@
 #include "AnimGraphNode_RotationOffsetBlendSpaceGraph.h"
 #include "AnimGraphNode_BlendSpaceGraph.h"
 #include "ScopedTransaction.h"
+#include "Preferences/PersonaOptions.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintEditor"
 
@@ -1465,7 +1466,7 @@ FGraphAppearanceInfo FAnimationBlueprintEditor::GetGraphAppearance(UEdGraph* InG
 
 	if ( GetBlueprintObj()->IsA(UAnimBlueprint::StaticClass()) )
 	{
-		AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_Animation", "ANIMATION");
+		AppearanceInfo.CornerText = (GetDefault<UAnimationBlueprintEditorSettings>()->bShowGraphCornerText) ? LOCTEXT("AppearanceCornerText_Animation", "ANIMATION") : FText::GetEmpty();
 	}
 
 	return AppearanceInfo;
