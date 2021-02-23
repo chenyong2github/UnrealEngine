@@ -18,9 +18,5 @@ public class heapprofd : ModuleRules
 			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "heapprofd_UPL.xml"));
 			PublicDefinitions.Add("ANDROID_HEAP_PROFILING_SUPPORTED=1");
         }
-        else
-        {
-			PublicDefinitions.Add("ANDROID_HEAP_PROFILING_SUPPORTED=0");
-		}
     }
 }

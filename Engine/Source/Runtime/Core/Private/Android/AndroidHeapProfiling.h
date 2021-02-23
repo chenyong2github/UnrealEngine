@@ -2,6 +2,10 @@
 
 #pragma once
 
+#ifndef ANDROID_HEAP_PROFILING_SUPPORTED
+#	define ANDROID_HEAP_PROFILING_SUPPORTED 0
+#endif
+
 #if ANDROID_HEAP_PROFILING_SUPPORTED
 	#include <type_traits>
 	#include "HAL/MallocAnsi.h"
