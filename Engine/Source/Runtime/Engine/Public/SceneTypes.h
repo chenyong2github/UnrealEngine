@@ -143,6 +143,8 @@ namespace EMaterialQualityLevel
 	};
 }
 
+ENGINE_API FString LexToString(EMaterialQualityLevel::Type QualityLevel);
+
 //
 //	EMaterialProperty
 //

@@ -390,6 +390,26 @@ TLinkedList<FSceneViewStateReference*>*& FSceneViewStateReference::GetSceneViewS
 	return List;
 }
 
+FString LexToString(EMaterialQualityLevel::Type QualityLevel)
+{
+	switch (QualityLevel)
+	{
+		case EMaterialQualityLevel::Low:
+			return TEXT("Low");
+		case EMaterialQualityLevel::High:
+			return TEXT("High");
+		case EMaterialQualityLevel::Medium:
+			return TEXT("Medium");
+		case EMaterialQualityLevel::Epic:
+			return TEXT("Epic");
+		case EMaterialQualityLevel::Num:
+			return TEXT("Default");
+		default:
+			break;
+	}
+	return TEXT("UnknownFeatureLevel");
+}
+
 /**
  * Utility function to create the inverse depth projection transform to be used
  * by the shader system.

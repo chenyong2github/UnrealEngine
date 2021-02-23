@@ -1579,6 +1579,12 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 	}
 }
 
+FString LexToString(EShaderPlatform Platform)
+{
+	bool bError = true;
+	return LexToString(Platform, bError);
+}
+
 void LexFromString(EShaderPlatform& Value, const TCHAR* String)
 {
 	Value = EShaderPlatform::SP_NumPlatforms;
@@ -1593,6 +1599,23 @@ void LexFromString(EShaderPlatform& Value, const TCHAR* String)
 	}
 }
 
+FString LexToString(ERHIFeatureLevel::Type Level)
+{
+	switch (Level)
+	{
+		case ERHIFeatureLevel::ES2_REMOVED:
+			return TEXT("ES2_REMOVED");
+		case ERHIFeatureLevel::ES3_1:
+			return TEXT("ES3_1");
+		case ERHIFeatureLevel::SM4_REMOVED:
+			return TEXT("SM4_REMOVED");
+		case ERHIFeatureLevel::SM5:
+			return TEXT("SM5");
+		default:
+			break;
+	}
+	return TEXT("UnknownFeatureLevel");
+}
 
 const FName LANGUAGE_D3D("D3D");
 const FName LANGUAGE_Metal("Metal");

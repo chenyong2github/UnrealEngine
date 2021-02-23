@@ -1484,6 +1484,7 @@ bool FMaterialResource::ShouldApplyCloudFogging() const { return Material->bAppl
 bool FMaterialResource::IsSky() const { return Material->bIsSky; }
 bool FMaterialResource::ComputeFogPerPixel() const {return Material->bComputeFogPerPixel;}
 FString FMaterialResource::GetFriendlyName() const { return *GetNameSafe(Material); } //avoid using the material instance name here, we want materials that share a shadermap to also share a friendly name.
+FString FMaterialResource::GetAssetName() const { return MaterialInstance ? *GetNameSafe(MaterialInstance) : *GetNameSafe(Material); }
 
 uint32 FMaterialResource::GetDecalBlendMode() const
 {
@@ -2015,6 +2016,9 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CacheShaders);
 	UE_CLOG(!ShaderMapId.IsValid(), LogMaterial, Warning, TEXT("Invalid shader map ID caching shaders for '%s', will use default material."), *GetFriendlyName());
+#if WITH_EDITOR
+	FString DDCKeyHash;
+#endif // WITH_EDITOR
 
 	// If we loaded this material with inline shaders, use what was loaded (GameThreadShaderMap) instead of looking in the DDC
 	if (bContainsInlineShaders)
@@ -2058,7 +2062,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 		if (!ShaderMap && !FPlatformProperties::RequiresCookedData())
 		{
 			TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
-			FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap);
+			FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
 			ShaderMap = LoadedShaderMap;
 		}
 
@@ -2126,7 +2130,23 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 			{
 				ShaderMapCondition = TEXT("Missing");
 			}
-			UE_LOG(LogMaterial, Display, TEXT("%s cached shader map for material %s, compiling. %s"),ShaderMapCondition,*GetFriendlyName(), IsSpecialEngineMaterial() ? TEXT("Is special engine material.") : TEXT("") );
+#if WITH_EDITOR
+			UE_LOG(LogMaterial, Display, TEXT("%s cached shadermap for %s in %s, %s, %s (DDC key hash: %s), compiling. %s"),
+				ShaderMapCondition,
+				*GetAssetName(),
+				*LexToString(Platform),
+				*LexToString(ShaderMapId.QualityLevel),
+				*LexToString(ShaderMapId.FeatureLevel),
+				*DDCKeyHash,
+				IsSpecialEngineMaterial() ? TEXT("Is special engine material.") : TEXT("") 
+			);
+#else
+			UE_LOG(LogMaterial, Display, TEXT("%s cached shader map for material %, compiling. %s"),
+				ShaderMapCondition,
+				*GetAssetName(),
+				IsSpecialEngineMaterial() ? TEXT("Is special engine material.") : TEXT("")
+			);
+#endif
 
 #if WITH_EDITORONLY_DATA
 			FStaticParameterSet StaticParameterSet;

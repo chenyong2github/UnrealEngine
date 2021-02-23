@@ -1072,8 +1072,9 @@ public:
 	/** 
 	 * Attempts to load the shader map for the given material from the Derived Data Cache.
 	 * If InOutShaderMap is valid, attempts to load the individual missing shaders instead.
+	 * Returns (via OutDDCKeyDesc parameter) a helpful string to debug the DDC key and parameters
 	 */
-	static void LoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TRefCountPtr<FMaterialShaderMap>& InOutShaderMap);
+	static void LoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TRefCountPtr<FMaterialShaderMap>& InOutShaderMap, FString& OutDDCKeyDesc);
 #endif
 
 	FMaterialShaderMap();
@@ -1749,6 +1750,8 @@ public:
 	virtual bool ComputeFogPerPixel() const { return false; }
 	virtual bool IsSky() const { return false; }
 	virtual FString GetFriendlyName() const = 0;
+	/** Similar to GetFriendlyName, but but avoids historical behavior of the former, returning the exact asset name for material instances instead of just the material. */
+	virtual FString GetAssetName() const { return GetFriendlyName(); }
 	virtual bool HasVertexPositionOffsetConnected() const { return false; }
 	virtual bool HasPixelDepthOffsetConnected() const { return false; }
 	virtual bool HasMaterialAttributesConnected() const { return false; }
@@ -2615,6 +2618,7 @@ public:
 	ENGINE_API virtual bool IsDitherMasked() const override;
 	ENGINE_API virtual bool AllowNegativeEmissiveColor() const override;
 	ENGINE_API virtual FString GetFriendlyName() const override;
+	ENGINE_API virtual FString GetAssetName() const override;
 	ENGINE_API virtual bool RequiresSynchronousCompilation() const override;
 	ENGINE_API virtual bool IsDefaultMaterial() const override;
 	ENGINE_API virtual int32 GetNumCustomizedUVs() const override;
