@@ -39,15 +39,21 @@ internal:
 
 	void DeleteContext()
 	{
-		TextEntryWidget->OnSelectionChanged.Unbind();
+		if (TextEntryWidget)
+		{
+			TextEntryWidget->OnSelectionChanged.Unbind();
+		}
 
 		CoreWindow::GetForCurrentThread()->KeyDown -= KeyDownCoreWindowToken;
 
-		coreTextContext->SelectionRequested -= SelectionRequestedToken;
-		coreTextContext->SelectionUpdating -= SelectionUpdatingToken;
-		coreTextContext->TextRequested -= TextRequestedToken;
-		coreTextContext->TextUpdating -= TextUpdatingToken;
-		coreTextContext->FormatUpdating -= FormatUpdatingToken;
+		if (coreTextContext)
+		{
+			coreTextContext->SelectionRequested -= SelectionRequestedToken;
+			coreTextContext->SelectionUpdating -= SelectionUpdatingToken;
+			coreTextContext->TextRequested -= TextRequestedToken;
+			coreTextContext->TextUpdating -= TextUpdatingToken;
+			coreTextContext->FormatUpdating -= FormatUpdatingToken;
+		}
 
 		coreTextContext = nullptr;
 	}
@@ -118,8 +124,16 @@ internal:
 
 	void Stop()
 	{
-		InputPane::GetForCurrentView()->TryHide();
-		coreTextContext->NotifyFocusLeave();
+		if (InputPane::GetForCurrentView() != nullptr)
+		{
+			InputPane::GetForCurrentView()->TryHide();
+		}
+		
+		if (coreTextContext)
+		{
+			coreTextContext->NotifyFocusLeave();
+		}
+
 		DeleteContext();
 		TextEntryWidget = nullptr;
 	}
@@ -261,7 +275,22 @@ private:
 
 FHoloLensPlatformTextField::FHoloLensPlatformTextField()
 {
+	PreLoadMapHandle = FCoreUObjectDelegates::PreLoadMap.AddRaw(this, &FHoloLensPlatformTextField::LevelChanging);
+
 	inputContext = ref new VirtualKeyboardInputContext();
+}
+
+FHoloLensPlatformTextField::~FHoloLensPlatformTextField()
+{
+	FCoreUObjectDelegates::PreLoadMap.Remove(PreLoadMapHandle);
+}
+
+void FHoloLensPlatformTextField::LevelChanging(const FString& MapName)
+{
+	if (inputContext)
+	{
+		inputContext->Stop();
+	}
 }
 
 void FHoloLensPlatformTextField::ShowVirtualKeyboard(bool bShow, int32 UserIndex, TSharedPtr<IVirtualKeyboardEntry> TextEntryWidget) 
