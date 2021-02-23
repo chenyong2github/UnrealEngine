@@ -80,11 +80,9 @@ void MainPS(
 	float A_R = 0.0f;
 	float B_R = 0.0f;
 
-	float A_T = 0.0f;
-	float B_T = 0.0f;
-
-	float E_R = 0.0f;
-	float E_T = 0.0f;
+	float E_R = 0.0f; // Directional albedo for 'specular' reflection 
+	float E_T = 0.0f; // Directional albedo for 'specular' transmission
+	float E_D = 0.0f; // Directional albedo for 'diffuse'  term
 
 	// Roughness
 	const float Roughness = float(Coord.y + 0.5f) / LUTResolution.y;
@@ -99,6 +97,24 @@ void MainPS(
 	for (uint i = 0; i < NumSamples; i++)
 	{
 		const float2 E = Hammersley(i, NumSamples, uint2(0, 0));
+
+		// Diffuse term integration
+		{
+			const float4 S = UniformSampleHemisphere(E);
+			const float3 L = S.xyz;
+
+			const float DiffuseColor = 1.0f;
+
+			const float  SatNoV = saturate(NoV);
+			const float  SatNoL = saturate(L.z);
+			const float3 H = normalize(V + L);
+			const float  VoH = saturate(dot(V, H));
+			const float  NoH = saturate(H.z);
+			if (S.w > 0)
+			{
+				E_D += Diffuse_Chan(DiffuseColor.xxx, m2, SatNoV, SatNoL, VoH, NoH).x * SatNoL / S.w;
+			}
+		}
 
 		// Decomposition based on Schlick's fresnel formula
 		// F_Schlick = F0 + (1-F0) (1-cos)^5 = F0 + (1-F0) Fc
@@ -116,26 +132,6 @@ void MainPS(
 		//
 		// Reconstruction of the directional Albedo for upper hemisphere
 		// E_R = F0.A_R + (1-F0).B_R
-		//
-		//
-		// LOWER \int{Omera_{-}}
-		// =====================
-		// Decomposition in A B terms of the directional albedo for microfacter for *lower* hemisphere
-		//
-		// E_T
-		// = \int (1-F).D.G
-		// = \int (1- (F0 + (1-F0) Fc)).D.G
-		// = \int (1 - F0 - (1-F0) Fc).D.G
-		// = \int D.G - F0.D.G - (1-F0) Fc.D.G
-		// = \int D.G - \int F0.D.G - \int (1-F0) Fc.D.G
-		// = \int D.G - F0 \int D.G - (1-F0) \int Fc.D.G
-		//   ========      ========          ===========
-		//     A_T            A_T                B_T
-		//
-		//
-		// Reconstruction of the directional Albedo for lower hemisphere
-		// E_T = A_T + F0.A_T + (1-F0).B_T
-		//
 		
 		// "Based on "Practical multiple scattering compensation for microfacet models". E. Turquin
 		//
@@ -182,27 +178,23 @@ void MainPS(
 			A_R += R_WeightPdf;
 			B_R += R_WeightPdf * Fc;
 
-			A_T += T_WeightPdf;
-			B_T += T_WeightPdf * Fc;
+			E_D /= NumSamples;
 		}
 	}
 
 	A_R /= NumSamples;
 	B_R /= NumSamples;
-			
-	A_T /= NumSamples;
-	B_T /= NumSamples;
 
 	E_R /= NumSamples;
 	E_T /= NumSamples;
 
 	const float2 Out3D = float2(E_R, E_T);
-	const float4 Out2D = float4(A_R, B_R, A_T, B_T);
+	const float4 Out2D = float4(A_R, B_R, E_D, 0.0f);
 
 	// At the moment ouput 2 LUTs:
 	// * A 2D LUT which factor out IOR/F0 data
-	// * A 3D LUT which compute the directional albedo for all F0 value (for debug purpose)
-	if (Coord.z == 2) // ~ IOR 1.5 for 64x64 LUT (this is still experimental)
+	// * A 3D LUT which compute the directional albedo for all F0 value
+	if (Coord.z == 2) // ~ IOR 1.5 for 64x64 LUT (the actual IOR does not matter as the factors A_R/B_R are independent of F0)
 	{
 		OutLUT2D[Coord.xy]	= Out2D;
 	}

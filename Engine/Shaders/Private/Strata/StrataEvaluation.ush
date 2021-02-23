@@ -197,9 +197,9 @@ float3 StrataEvaluateMicrofacetMultipleScattering(float3 F0, float NoV, float Me
 	// "Revisiting Physically Based Shading at Imageworks" Kulla 2017
 	const float SafeRoughness = SafeRoughnessX;
 
-	const FStrataLUTResult StrataLUTSample = StrataSampleGGXLUT(Strata.GGXEnergyLUT2DTexture, Strata.GGXEnergyLUT3DTexture, Strata.GGXEnergyLUTSampler, Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughness, F0);
-	const float3 Fs_0 = StrataEvaluateMultipleScatteringDielectric3D(F0, StrataLUTSample);
-	const float3 Fs_1 = StrataEvaluateMultipleScatteringConductor(F0, StrataLUTSample);
+	const FStrataGGXLUTResult LUTSample = StrataSampleGGXLUT(Strata.GGXEnergyLUT2DTexture, Strata.GGXEnergyLUT3DTexture, Strata.GGXEnergyLUTSampler, Strata.GGXEnergyLUTScaleBias, NoV, SafeRoughness, F0);
+	const float3 Fs_0 = StrataEvaluateMultipleScatteringDielectric(F0, LUTSample);
+	const float3 Fs_1 = StrataEvaluateMultipleScatteringConductor(F0, LUTSample);
 	const float3 Fs   = lerp(Fs_0, Fs_1, Metallic);
 
 	return Fs;
