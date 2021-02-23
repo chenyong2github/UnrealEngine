@@ -8,7 +8,6 @@
 
 #include "PathTracingCommon.ush"
 #include "Sensor/PathTracingPinholeCamera.ush"
-//#include "Sensor/PathTracingAdaptivePinholeCamera.ush"
 
 void SampleEmitter(
 	uint2 LaunchIndex,

@@ -507,8 +507,6 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FViewInfo& View, TA
 void FSceneViewState::PathTracingInvalidate()
 {
 	PathTracingRadianceRT.SafeRelease();
-	VarianceMipTreeDimensions = FIntVector(0);
-	TotalRayCount = 0;
 	PathTracingSampleIndex = 0;
 }
 

@@ -5,7 +5,6 @@ ReferencePathTracinPixelShader.ush: Reference path tracing  compositing pixel sh
 ===============================================================================================*/
 
 #include "../Common.ush"
-#include "Utilities/PathTracingFixedPointArithmetic.ush"
 
 uint Iteration;
 uint MaxSamples;
