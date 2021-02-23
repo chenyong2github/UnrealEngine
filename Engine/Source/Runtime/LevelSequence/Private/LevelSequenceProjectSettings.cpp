@@ -6,6 +6,7 @@ ULevelSequenceProjectSettings::ULevelSequenceProjectSettings()
 	: bDefaultLockEngineToDisplayRate(false)
 	, DefaultDisplayRate("30fps")
 	, DefaultTickResolution("24000fps")
+	, DefaultClockSource(EUpdateClockSource::Tick)
 { }
 
 

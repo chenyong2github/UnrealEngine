@@ -46,13 +46,19 @@ static TAutoConsoleVariable<int32> CVarDefaultLockEngineToDisplayRate(
 static TAutoConsoleVariable<FString> CVarDefaultTickResolution(
 	TEXT("LevelSequence.DefaultTickResolution"),
 	TEXT("24000fps"),
-	TEXT("Specifies default a tick resolution for newly created level sequences. Examples: 30 fps, 120/1 (120 fps), 30000/1001 (29.97), 0.01s (10ms)."),
+	TEXT("Specifies the default tick resolution for newly created level sequences. Examples: 30 fps, 120/1 (120 fps), 30000/1001 (29.97), 0.01s (10ms)."),
 	ECVF_Default);
 
 static TAutoConsoleVariable<FString> CVarDefaultDisplayRate(
 	TEXT("LevelSequence.DefaultDisplayRate"),
 	TEXT("30fps"),
-	TEXT("Specifies default a display frame rate for newly created level sequences; also defines frame locked frame rate where sequences are set to be frame locked. Examples: 30 fps, 120/1 (120 fps), 30000/1001 (29.97), 0.01s (10ms)."),
+	TEXT("Specifies the default display frame rate for newly created level sequences; also defines frame locked frame rate where sequences are set to be frame locked. Examples: 30 fps, 120/1 (120 fps), 30000/1001 (29.97), 0.01s (10ms)."),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarDefaultClockSource(
+	TEXT("LevelSequence.DefaultClockSource"),
+	0,
+	TEXT("Specifies the default clock source for newly created level sequences. 0: Tick, 1: Platform, 2: Audio, 3: RelativeTimecode, 4: Timecode, 5: Custom"),
 	ECVF_Default);
 
 ULevelSequence::ULevelSequence(const FObjectInitializer& ObjectInitializer)
@@ -77,6 +83,9 @@ void ULevelSequence::Initialize()
 	FFrameRate DisplayRate(30, 1);
 	TryParseString(DisplayRate, *CVarDefaultDisplayRate.GetValueOnGameThread());
 	MovieScene->SetDisplayRate(DisplayRate);
+
+	int32 ClockSource = CVarDefaultClockSource.GetValueOnGameThread();
+	MovieScene->SetClockSource((EUpdateClockSource)ClockSource);
 }
 
 UObject* ULevelSequence::MakeSpawnableTemplateFromInstance(UObject& InSourceObject, FName ObjectName)
