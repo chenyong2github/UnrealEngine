@@ -116,7 +116,7 @@ inline TSharedRef< SWidget > SUsdTreeRow< ItemType >::GenerateWidgetForColumn( c
 	{
 		ColumnWidget = SharedData->Columns[ ColumnName ]->GenerateWidget(
 			StaticCastSharedPtr< IUsdTreeViewItem >( TSharedPtr< typename ItemType::ElementType >( TreeItem ) ),
-			SharedThis(this)
+			this->SharedThis(this)
 		);
 	}
 
