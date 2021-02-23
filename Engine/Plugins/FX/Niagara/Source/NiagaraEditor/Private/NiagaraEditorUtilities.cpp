@@ -2304,6 +2304,11 @@ bool FNiagaraEditorUtilities::IsScopeUserAssignable(const FName& InScopeName)
 
 void FNiagaraEditorUtilities::GetParameterMetaDataFromName(const FName& InVarNameToken, FNiagaraVariableMetaData& OutMetaData)
 {
+	if (!OutMetaData.GetVariableGuid().IsValid())
+	{
+		OutMetaData.CreateNewGuid();
+	}
+	
 	auto MarkAsLegacyCustomName = [&OutMetaData]() {
 		OutMetaData.SetScopeName(FNiagaraConstants::CustomScopeName);
 		OutMetaData.SetIsUsingLegacyNameString(true);

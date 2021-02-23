@@ -147,6 +147,16 @@ void UNiagaraGraph::PostLoad()
 		}
 	}
 
+	for (auto It = VariableToScriptVariable.CreateIterator(); It; ++It)
+	{
+		UNiagaraScriptVariable*& ScriptVar = It.Value();
+
+		if (!ScriptVar->Metadata.GetVariableGuid().IsValid())
+		{
+			ScriptVar->Metadata.CreateNewGuid();
+		}
+	}
+
 	for (FNiagaraGraphScriptUsageInfo& CachedUsageInfoItem : CachedUsageInfo)
 	{
 		CachedUsageInfoItem.PostLoad(this);
@@ -1360,6 +1370,7 @@ UNiagaraScriptVariable* UNiagaraGraph::AddParameter(const FNiagaraVariable& Para
 		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional);
 		NewScriptVariable->Variable = Parameter;
 		NewScriptVariable->Metadata.SetIsStaticSwitch(bIsStaticSwitch);
+		NewScriptVariable->Metadata.CreateNewGuid();
 		VariableToScriptVariable.Add(Parameter, NewScriptVariable);
 		return NewScriptVariable;
 	}
@@ -1422,6 +1433,7 @@ UNiagaraScriptVariable* UNiagaraGraph::AddParameter(FNiagaraVariable& Parameter,
 		NewScriptVariable->Variable = Parameter;
 		NewScriptVariable->Metadata.SetIsStaticSwitch(Options.bIsStaticSwitch);
 		NewScriptVariable->Metadata.SetWasCreatedInSystemEditor(Options.bAddedFromSystemEditor);
+		NewScriptVariable->Metadata.CreateNewGuid();
 		VariableToScriptVariable.Add(Parameter, NewScriptVariable);
 
 		FName NewParamName;
@@ -1550,6 +1562,7 @@ bool UNiagaraGraph::RenameParameterFromPin(const FNiagaraVariable& Parameter, FN
 	NewParameter.SetName(NewName);
 
 	FNiagaraVariableMetaData MetaData;
+	MetaData.CreateNewGuid();
 	UNiagaraScriptVariable** OldScriptVariable = VariableToScriptVariable.Find(Parameter);
 	UNiagaraScriptVariable** NewScriptVariableFound = VariableToScriptVariable.Find(NewParameter);
 
@@ -1650,6 +1663,7 @@ bool UNiagaraGraph::RenameParameter(const FNiagaraVariable& Parameter, FName New
 
 	UNiagaraScriptVariable** OldScriptVariable = VariableToScriptVariable.Find(Parameter);
 	FNiagaraVariableMetaData OldMetaData;
+	OldMetaData.CreateNewGuid();
 	if (OldScriptVariable)
 	{
 		if (!bRenameRequestedFromStaticSwitch && (*OldScriptVariable)->Metadata.GetIsStaticSwitch())
@@ -2534,18 +2548,18 @@ void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVar
 {
 	ensure(FNiagaraConstants::IsNiagaraConstant(InVar) == false);
 
-
-	//FName CachedName;
-	//InMetaData.GetParameterName(CachedName);
-	//UE_LOG(LogNiagaraEditor, Log, TEXT("SetMetaData %s %s!"), *InVar.GetName().ToString(), *CachedName.ToString());
-
 	if (UNiagaraScriptVariable** FoundMetaData = VariableToScriptVariable.Find(InVar))
 	{
 		if (*FoundMetaData)
 		{
 			// Replace the old metadata..
-			(*FoundMetaData)->Modify();
-			(*FoundMetaData)->Metadata = InMetaData;
+			UNiagaraScriptVariable* ScriptVariable = (*FoundMetaData);
+			ScriptVariable->Modify();
+			ScriptVariable->Metadata = InMetaData;
+			if (!ScriptVariable->Metadata.GetVariableGuid().IsValid())
+			{
+				ScriptVariable->Metadata.CreateNewGuid();
+			}
 		} 
 	}
 	else 
@@ -2554,6 +2568,10 @@ void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVar
 		UNiagaraScriptVariable*& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, FName(), RF_Transactional));
 		NewScriptVariable->Variable = InVar;
 		NewScriptVariable->Metadata = InMetaData;
+		if (!NewScriptVariable->Metadata.GetVariableGuid().IsValid())
+		{
+			NewScriptVariable->Metadata.CreateNewGuid();
+		}
 	}
 }
 
@@ -2568,8 +2586,6 @@ void UNiagaraGraph::SetPerScriptMetaData(const FNiagaraVariable& InVar, const FN
 			FNiagaraVariableMetaData& OldMetaData = (*FoundMetaData)->Metadata;
 			OldMetaData.CopyPerScriptMetaData(InMetaData);
 			OldMetaData.SetIsStaticSwitch(InMetaData.GetIsStaticSwitch());
-
-
 		}
 	}
 	else
@@ -2579,10 +2595,6 @@ void UNiagaraGraph::SetPerScriptMetaData(const FNiagaraVariable& InVar, const FN
 		NewScriptVariable->Variable = InVar;
 		NewScriptVariable->Metadata = InMetaData;
 	}
-
-	//FName CachedName;
-	//InMetaData.GetParameterName(CachedName);
-	//UE_LOG(LogNiagaraEditor, Log, TEXT("SetPerScriptMetaData %s %s!"), *InVar.GetName().ToString(), *CachedName.ToString());
 }
 
 UNiagaraGraph::FOnDataInterfaceChanged& UNiagaraGraph::OnDataInterfaceChanged()
@@ -2741,6 +2753,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 			UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this));
 			NewScriptVariable->Variable = Variable;
 			NewScriptVariable->Metadata.SetIsStaticSwitch(false);
+			NewScriptVariable->Metadata.CreateNewGuid();
 			GenerateMetaDataForScriptVariable(NewScriptVariable);
 			VariableToScriptVariable.Add(Variable, NewScriptVariable);
 		}
