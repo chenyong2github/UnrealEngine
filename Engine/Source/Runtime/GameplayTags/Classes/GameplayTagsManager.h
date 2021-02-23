@@ -14,7 +14,6 @@
 
 class UGameplayTagsList;
 struct FStreamableHandle;
-class FNativeGameplayTagSource;
 class FNativeGameplayTag;
 
 /** Simple struct for a table row in the gameplay tag table and element in the ini list */
@@ -328,25 +327,10 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	 * @return Will return the corresponding FGameplayTag
 	 */
 	FGameplayTag AddNativeGameplayTag(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
-	
-	/**
-	 * 
-	 */
-	void AddNativeGameplayTagSource(const FString& NativeSourceName, TSharedRef<const FNativeGameplayTagSource> NativeSource);
-
-	/**
-	 *
-	 */
-	void RemoveNativeGameplayTagSource(const FString& NativeSourceName);
 
 private:
 	void AddNativeGameplayTag(FNativeGameplayTag* TagSource, FName TagName, const FString& TagDevComment);
 	void RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource);
-
-	/**
-	 * 
-	 */
-	void AddTagsFromNativeSource(FName NativeSourceName, TSharedPtr<const FNativeGameplayTagSource> NativeSource);
 
 public:
 	/** Call to flush the list of native tags, once called it is unsafe to add more */
@@ -770,8 +754,6 @@ private:
 
 	/** List of native tags to add when reconstructing tree */
 	TSet<FName> NativeTagsToAdd;
-
-	TMap<FName, TSharedPtr<const FNativeGameplayTagSource>> NativeSourcesToAdd;
 
 	TSet<FName> RestrictedGameplayTagSourceNames;
 

@@ -320,15 +320,6 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 			}
 		}
 
-		{
-			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Add sourced native tags"));
-			// Add native tags from a named source.
-			for (const auto& KVP : NativeSourcesToAdd)
-			{
-				AddTagsFromNativeSource(KVP.Key, KVP.Value);
-			}
-		}
-
 		// If we didn't load any tables it might be async loading, so load again with a flush
 		if (GameplayTagTables.Num() == 0)
 		{
@@ -338,7 +329,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Construct from data asset"));
 			for (UDataTable* DataTable : GameplayTagTables)
-				{
+			{
 				if (DataTable)
 				{
 					PopulateTreeFromDataTable(DataTable);
@@ -1884,58 +1875,17 @@ void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource, F
 
 void UGameplayTagsManager::RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource)
 {
-	//TODO - Removing tags isn't really a thing right now, but setting this up for the future.
-	//DestroyGameplayTagTree();
-	//ConstructGameplayTagTree();
-	//OnEditorRefreshGameplayTagTree.Broadcast();
-}
-
-void UGameplayTagsManager::AddNativeGameplayTagSource(const FString& InNativeSourceName, TSharedRef<const FNativeGameplayTagSource> NativeSource)
-{
-	const FName NativeSourceName = FName(*(FGameplayTagSource::GetNativeName().ToString() + TEXT("+") + InNativeSourceName));
-
-	// Create native source specific to a plugin+module
-	FindOrAddTagSource(NativeSourceName, EGameplayTagSourceType::Native);
-
-	// Replace the old one, in case we reload or something, allow new ones to come in.
-	NativeSourcesToAdd.Add(NativeSourceName, NativeSource);
-
-#if WITH_EDITOR
-	EditorRefreshGameplayTagTree();
-#else
-	AddTagsFromNativeSource(NativeSourceName, NativeSource);
-#endif
-}
-
-void UGameplayTagsManager::RemoveNativeGameplayTagSource(const FString& InNativeSourceName)
-{
-	const FName NativeSourceName = FName(*(FGameplayTagSource::GetNativeName().ToString() + TEXT("+") + InNativeSourceName));
-
-	if (NativeSourcesToAdd.Remove(NativeSourceName) > 0)
+	// TODO This is awful, need to invalidate the tag tree, not rebuild it.
 	{
 #if WITH_EDITOR
 		EditorRefreshGameplayTagTree();
 #else
-		//TODO - Removing tags isn't really a thing right now, but setting this up for the future.
+	//TODO - Removing tags isn't really a thing right now, but setting this up for the future.
+	//DestroyGameplayTagTree();
+	//ConstructGameplayTagTree();
+	//OnEditorRefreshGameplayTagTree.Broadcast();
 #endif
 	}
-}
-
-void UGameplayTagsManager::AddTagsFromNativeSource(FName NativeSourceName, TSharedPtr<const FNativeGameplayTagSource> NativeSource)
-{
-	if (!NativeSource.IsValid())
-	{
-		return;
-	}
-
-	for (const FGameplayTagTableRow& Row : NativeSource->NativeTags)
-	{
-		AddTagTableRow(Row, NativeSourceName);
-	}
-
-	InvalidateNetworkIndex();
-
-	IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 }
 
 void UGameplayTagsManager::CallOrRegister_OnDoneAddingNativeTagsDelegate(FSimpleMulticastDelegate::FDelegate Delegate)

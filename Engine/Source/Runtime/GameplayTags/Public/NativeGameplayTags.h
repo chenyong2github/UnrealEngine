@@ -6,63 +6,6 @@
 #include "GameplayTagContainer.h"
 #include "GameplayTagsManager.h"
 
-#define DECLARE_NATIVE_GAMEPLAY_TAG_SOURCE(ClassType)						\
-public:																		\
-	static const TSharedRef<const ClassType>& Get()							\
-	{																		\
-		static TSharedRef<const ClassType> Tags = MakeShared<ClassType>();	\
-		return Tags;														\
-	}																		\
-																			\
-	virtual void Register()	const override									\
-	{																		\
-		UGameplayTagsManager& Manager = UGameplayTagsManager::Get();		\
-		Manager.AddNativeGameplayTagSource(#ClassType, Get());				\
-	}																		\
-																			\
-	virtual void Unregister() const override								\
-	{																		\
-		UGameplayTagsManager& Manager = UGameplayTagsManager::Get();		\
-		Manager.RemoveNativeGameplayTagSource(#ClassType);					\
-	}
-
-/**
- * Useful for making a dedicated groups of native tags that are registered
- * and unregistered as a block.  You define it as follows,
- * 
- *	struct FMyTagsForThings : public FNativeGameplayTagSource
- *	{
- *		DECLARE_NATIVE_GAMEPLAY_TAG_SOURCE(FMyTagsForThings)
- *
- *		FGameplayTag TagForThing1 = Add(TEXT("Thing.One"));
- * 		FGameplayTag TagForThing2 = Add(TEXT("Thing.Two"));
- *		// Add more tags here...
- *	};
- * 
- * During your module startup you can register them together in your startup by
- * calling FMyTagsForThings::Get()->Register(), and Unregister on module shutdown.
- */
-class GAMEPLAYTAGS_API FNativeGameplayTagSource
-{
-public:
-	FNativeGameplayTagSource() { }
-	virtual ~FNativeGameplayTagSource() { }
-
-	virtual void Register() const = 0;
-	virtual void Unregister() const = 0;
-
-protected:
-	/**
-	 * Call this during the struct member initialization to create the tags.
-	 */
-	FGameplayTag Add(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
-
-private:
-	TArray<FGameplayTagTableRow> NativeTags;
-
-	friend class UGameplayTagsManager;
-};
-
 enum class ENativeGameplayTagToken { PRIVATE_USE_MACRO_INSTEAD };
 
 /**
