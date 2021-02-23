@@ -1743,11 +1743,11 @@ FNaniteMeshProcessor::FNaniteMeshProcessor(
 }
 
 void FNaniteMeshProcessor::AddMeshBatch(
-	const FMeshBatch& RESTRICT MeshBatch, 
-	uint64 BatchElementMask, 
-	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, 
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
 	int32 StaticMeshId /*= -1 */
-	)
+)
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
@@ -1756,11 +1756,27 @@ void FNaniteMeshProcessor::AddMeshBatch(
 		return;
 	}
 
-	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-	const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
+	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = MeshBatch.MaterialRenderProxy;
+	while (FallbackMaterialRenderProxyPtr)
+	{
+		const FMaterial* Material = FallbackMaterialRenderProxyPtr->GetMaterialNoFallback(FeatureLevel);
+		if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *FallbackMaterialRenderProxyPtr, *Material))
+		{
+			break;
+		}
+		FallbackMaterialRenderProxyPtr = FallbackMaterialRenderProxyPtr->GetFallback(FeatureLevel);
+	}
+}
 
-	const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-
+bool FNaniteMeshProcessor::TryAddMeshBatch(
+	const FMeshBatch & RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy * RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material
+)
+{
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 
@@ -1863,7 +1879,7 @@ void FNaniteMeshProcessor::AddMeshBatch(
 	TShaderMapRef<FNaniteMaterialVS> NaniteVertexShader(GetGlobalShaderMap(FeatureLevel));
 	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>> BasePassPixelShader;
 
-	GetBasePassShaders<FUniformLightMapPolicy>(
+	bool bShadersValid = GetBasePassShaders<FUniformLightMapPolicy>(
 		Material,
 		MeshBatch.VertexFactory->GetType(),
 		LightMapPolicy,
@@ -1876,6 +1892,11 @@ void FNaniteMeshProcessor::AddMeshBatch(
 		nullptr,
 		&BasePassPixelShader
 		);
+
+	if (!bShadersValid)
+	{
+		return false;
+	}
 
 	TMeshProcessorShaders
 	<
@@ -1906,6 +1927,8 @@ void FNaniteMeshProcessor::AddMeshBatch(
 		EMeshPassFeatures::Default,
 		ShaderElementData
 	);
+
+	return true;
 }
 
 FMeshPassProcessor* CreateNaniteMeshProcessor(

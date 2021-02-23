@@ -276,6 +276,16 @@ public:
 		) override final;
 
 private:
+
+	bool TryAddMeshBatch(
+		const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		int32 StaticMeshId,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material
+	);
+
 	FMeshPassProcessorRenderState PassDrawRenderState;
 };
 
