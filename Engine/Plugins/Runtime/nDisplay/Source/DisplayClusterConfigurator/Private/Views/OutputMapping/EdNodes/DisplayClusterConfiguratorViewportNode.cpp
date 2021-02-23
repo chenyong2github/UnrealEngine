@@ -7,8 +7,6 @@
 
 #include "DisplayClusterConfigurationTypes.h"
 
-#include "Engine/Texture.h"
-
 
 void UDisplayClusterConfiguratorViewportNode::Initialize(const FString& InViewportName, UDisplayClusterConfigurationViewport* InCfgViewport, UDisplayClusterConfiguratorWindowNode* InParentWindow, const TSharedRef<FDisplayClusterConfiguratorToolkit>& InToolkit)
 {

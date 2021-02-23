@@ -4,13 +4,13 @@
 
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorBaseNode.h"
 
+#include "Engine/Texture.h"
+
 #include "DisplayClusterConfiguratorViewportNode.generated.h"
 
 class UDisplayClusterConfigurationViewport;
 class UDisplayClusterConfiguratorWindowNode;
 struct FDisplayClusterConfigurationRectangle;
-
-class UTexture;
 
 
 UCLASS(MinimalAPI)
