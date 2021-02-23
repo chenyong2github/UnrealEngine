@@ -40,7 +40,7 @@ struct FNiagaraFlipbookTextureSettings
 	/** Optional output name, if left empty a name will be auto generated using the index of the texture/ */
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	FName OutputName;
-
+	
 	/** Source visualization we should capture, i.e. Scene Color, World Normal, etc */
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	FNiagaraFlipbookTextureSource SourceBinding;
@@ -63,6 +63,8 @@ struct FNiagaraFlipbookTextureSettings
 	/** Final texture generated, an existing entry will be updated with new capture data. */
 	UPROPERTY(EditAnywhere, Category = "Texture")
 	UTexture2D* GeneratedTexture = nullptr;
+
+	bool Equals(const FNiagaraFlipbookTextureSettings& Other) const;
 };
 
 UCLASS()
@@ -71,15 +73,38 @@ class NIAGARA_API UNiagaraFlipbookSettings : public UObject
 	GENERATED_BODY()
 
 public:
+	struct FDisplayInfo
+	{
+		float NormalizedTime;
+		int FrameIndexA;
+		int FrameIndexB;
+		float Interp;
+	};
+
 	UNiagaraFlipbookSettings(const FObjectInitializer& Init);
 
-	/** Time we start the capture at. */
+	/**
+	This is the start time of the simultion where we being the capture.
+	I.e. 2.0 would mean the simulation warms up by 2 seconds before we begin capturing.
+	*/
 	UPROPERTY(EditAnywhere, Category="Timeline")
 	float StartSeconds = 0.0f;
 
 	/** Duration in seconds to take the capture over. */
 	UPROPERTY(EditAnywhere, Category = "Timeline")
 	float DurationSeconds = 4.0f;
+
+	/**
+	The frame rate to run the simulation at during capturing.
+	This is only used for the preview view and calculating the number of ticks to execute
+	as we capture the generated texture.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Timeline", meta = (ClampMin=1, ClampMax=480))
+	int FramesPerSecond = 60;
+
+	/** Should the preview playback as looping or not. */
+	UPROPERTY(EditAnywhere, Category = "Preview")
+	uint8 bPreviewLooping : 1;
 
 	/** Number of frames in each dimension. */
 	UPROPERTY(EditAnywhere, Category = "Texture")
@@ -101,29 +126,54 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	FRotator CameraViewportRotation[(int)ENiagaraFlipbookViewMode::Num];
 
+	/** Perspective camera orbit distance. */
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "CameraViewportMode == ENiagaraFlipbookViewMode::Perspective", ClampMin = "0.01"))
+	float CameraOrbitDistance = 200.f;
+
 	/** Camera FOV to use when in perspective mode. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta=(EditCondition="CameraViewportMode == ENiagaraFlipbookViewMode::Perspective"))
+	UPROPERTY(EditAnywhere, Category = "Camera", meta=(EditCondition="CameraViewportMode == ENiagaraFlipbookViewMode::Perspective", ClampMin="1.0", ClampMax="180.0"))
 	float CameraFOV = 90.0f;
 
-	/** Camera Orthographic size to use with in orthographic mode. */
-	UPROPERTY(EditAnywhere, Category = "Camera", meta=(EditCondition="CameraViewportMode != ENiagaraFlipbookViewMode::Perspective"))
-	FVector2D CameraOrthoSize = FVector2D(512.0f, 512.0f);
+	/** Camera Orthographic width to use with in orthographic mode. */
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "CameraViewportMode != ENiagaraFlipbookViewMode::Perspective", ClampMin="1.0"))
+	float CameraOrthoWidth = 512.0f;
 
-	/** Should we render just the component or the whole scene . */
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bUseCameraAspectRatio : 1;
+
+	/** Custom aspect ratio to use rather than using the width & height to automatically calculate. */
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (EditCondition = "bUseCameraAspectRatio", ClampMin="0.01"))
+	float CameraAspectRatio = 1.0f;
+
+	/** Should we render just the component or the whole scene. */
 	UPROPERTY(EditAnywhere, Category = "Environment")
 	uint8 bRenderComponentOnly : 1;
 
-	/** Type of level setup to use. */
-	UPROPERTY(EditAnywhere, Category = "Environment", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bLoadLevel : 1;
+	///** Type of level setup to use. */
+	//UPROPERTY(EditAnywhere, Category = "Environment", meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	//uint8 bLoadLevel : 1;
 
-	/** Used to determine type of level setup. */
-	UPROPERTY(EditAnywhere, Category = "Environment", meta = (EditCondition = "bLoadLevel"))
-	TSoftObjectPtr<class ULevel> LevelEnvironment;
+	///** Used to determine type of level setup. */
+	//UPROPERTY(EditAnywhere, Category = "Environment", meta = (EditCondition = "bLoadLevel"))
+	//TSoftObjectPtr<class ULevel> LevelEnvironment;
 
+	bool Equals(const UNiagaraFlipbookSettings& Other) const;
+
+	int GetNumFrames() const { return FramesPerDimension.X * FramesPerDimension.Y; }
+
+	float GetSeekDelta() const { return 1.0f / float(FramesPerSecond); }
+
+	float GetAspectRatio(int32 iOutputTextureIndex) const;
+	FVector2D GetOrthoSize(int32 iOutputTextureIndex) const;
 	FVector GetCameraLocation() const;
 	FMatrix GetViewMatrix() const;
 	FMatrix GetProjectionMatrixForTexture(int32 iOutputTextureIndex) const;
+
+	bool IsOrthographic() const { return CameraViewportMode != ENiagaraFlipbookViewMode::Perspective; }
+	bool IsPerspective() const { return CameraViewportMode == ENiagaraFlipbookViewMode::Perspective; }
+
+	// Get display info, the input time is expected to tbe relative, i.e. StartDuration is not taking into account
+	FDisplayInfo GetDisplayInfo(float Time, bool bLooping) const;
 
 	virtual void PostLoad() override;
 

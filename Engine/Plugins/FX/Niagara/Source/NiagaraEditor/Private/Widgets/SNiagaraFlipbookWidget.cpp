@@ -143,10 +143,10 @@ void SNiagaraFlipbookWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 	{
 		float StartSeconds = 0.0f;
 		float DurationSeconds = 0.0f;
-		if ( ViewModel->IsGeneratedDataValid() )
+		if (const UNiagaraFlipbookSettings* GeneratedSettings = GetFlipbookGeneratedSettings())
 		{
-			StartSeconds = ViewModel->GetGeneratedStartSeconds();
-			DurationSeconds = ViewModel->GetGeneratedDurationSeconds();
+			StartSeconds = GeneratedSettings->StartSeconds;
+			DurationSeconds = GeneratedSettings->DurationSeconds;
 		}
 		else if (UNiagaraFlipbookSettings* FlipbookSettings = GetFlipbookSettings())
 		{
@@ -197,6 +197,15 @@ UNiagaraFlipbookSettings* SNiagaraFlipbookWidget::GetFlipbookSettings() const
 	return nullptr;
 }
 
+const UNiagaraFlipbookSettings* SNiagaraFlipbookWidget::GetFlipbookGeneratedSettings() const
+{
+	if (auto ViewModel = WeakViewModel.Pin())
+	{
+		return ViewModel->GetFlipbookGeneratedSettings();
+	}
+	return nullptr;
+}
+
 FReply SNiagaraFlipbookWidget::OnTransportBackwardEnd()
 {
 	bIsPlaying = false;
@@ -210,9 +219,13 @@ FReply SNiagaraFlipbookWidget::OnTransportBackwardStep()
 	bIsPlaying = false;
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		const auto DisplayData = ViewModel->GetDisplayDataFromRelativeTime(PreviewRelativeTime);
-		const int32 NewFrame = FMath::Clamp(FMath::RoundToInt(DisplayData.FrameTime - 0.6f), 0, DisplayData.NumFrames);
-		PreviewRelativeTime = (DisplayData.DurationSeconds / float(DisplayData.NumFrames)) * float(NewFrame);
+		if(UNiagaraFlipbookSettings* Settings = ViewModel->GetFlipbookSettings())
+		{
+			const auto DisplayData = Settings->GetDisplayInfo(PreviewRelativeTime, Settings->bPreviewLooping);
+			const int NumFrames = Settings->GetNumFrames();
+			const int NewFrame = DisplayData.Interp > 0.25f ? DisplayData.FrameIndexA : FMath::Max(DisplayData.FrameIndexA - 1, 0);
+			PreviewRelativeTime = (Settings->DurationSeconds / float(NumFrames)) * float(NewFrame);
+		}
 	}
 
 	return FReply::Handled();
@@ -229,9 +242,13 @@ FReply SNiagaraFlipbookWidget::OnTransportForwardStep()
 	bIsPlaying = false;
 	if (auto ViewModel = WeakViewModel.Pin())
 	{
-		const auto DisplayData = ViewModel->GetDisplayDataFromRelativeTime(PreviewRelativeTime);
-		const int32 NewFrame = FMath::Clamp(FMath::RoundToInt(DisplayData.FrameTime + 0.6f), 0, DisplayData.NumFrames);
-		PreviewRelativeTime = (DisplayData.DurationSeconds / float(DisplayData.NumFrames)) * float(NewFrame);
+		if (UNiagaraFlipbookSettings* Settings = ViewModel->GetFlipbookSettings())
+		{
+			const auto DisplayData = Settings->GetDisplayInfo(PreviewRelativeTime, Settings->bPreviewLooping);
+			const int NumFrames = Settings->GetNumFrames();
+			const int NewFrame = DisplayData.Interp < 0.75f ? DisplayData.FrameIndexB : FMath::Min(DisplayData.FrameIndexB + 1, NumFrames - 1);
+			PreviewRelativeTime = (Settings->DurationSeconds / float(NumFrames)) * float(NewFrame);
+		}
 	}
 
 	return FReply::Handled();
