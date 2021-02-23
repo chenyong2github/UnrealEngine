@@ -27,6 +27,7 @@ public:
 	FText GetSelectedTextureAsText() const;
 
 	class UNiagaraFlipbookSettings* GetFlipbookSettings() const;
+	const class UNiagaraFlipbookSettings* GetFlipbookGeneratedSettings() const;
 
 	void SetPreviewRelativeTime(float RelativeTime);
 
@@ -43,6 +44,6 @@ private:
 	TSharedPtr<IDetailsView>					FlipbookSettingsDetails;
 	TSharedPtr<SWidget>							TransportControls;
 
-	bool										bIsPlaying = false;
+	bool										bIsPlaying = true;
 	float										PreviewRelativeTime = 0.0f;
 };

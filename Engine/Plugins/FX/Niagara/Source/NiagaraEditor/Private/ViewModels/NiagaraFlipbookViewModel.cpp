@@ -57,7 +57,6 @@ void FNiagaraFlipbookViewModel::Initialize(TWeakPtr<FNiagaraSystemViewModel> InW
 		PreviewComponent->SetForceSolo(true);
 		PreviewComponent->SetAgeUpdateMode(ENiagaraAgeUpdateMode::DesiredAge);
 		PreviewComponent->SetCanRenderWhileSeeking(false);
-		PreviewComponent->SetAgeUpdateMode(ENiagaraAgeUpdateMode::DesiredAge);
 		PreviewComponent->Activate(true);
 
 		AdvancedPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
@@ -74,63 +73,13 @@ void FNiagaraFlipbookViewModel::RefreshView()
 	//-TOOD:
 }
 
-FNiagaraFlipbookViewModel::FDisplayData FNiagaraFlipbookViewModel::GetDisplayDataFromAbsoluteTime(float AbsoluteTime) const
-{
-	FDisplayData DisplayData;
-	if (IsGeneratedDataValid())
-	{
-		DisplayData.NumFrames = GeneratedNumFrames;
-		DisplayData.StartSeconds = GeneratedStartSeconds;
-		DisplayData.DurationSeconds = GeneratedDurationSeconds;
-	}
-	else if ( UNiagaraFlipbookSettings* FlipbookSettings = GetFlipbookSettings() )
-	{
-		DisplayData.NumFrames = FlipbookSettings->FramesPerDimension.X * FlipbookSettings->FramesPerDimension.Y;
-		DisplayData.StartSeconds = FlipbookSettings->StartSeconds;
-		DisplayData.DurationSeconds = FlipbookSettings->DurationSeconds;
-	}
-
-	if ( DisplayData.DurationSeconds > 0.0f )
-	{
-		DisplayData.NormalizedTime = FMath::Clamp((AbsoluteTime - DisplayData.StartSeconds) / DisplayData.DurationSeconds, 0.0f, 1.0f);
-		DisplayData.FrameTime = DisplayData.NormalizedTime * float(DisplayData.NumFrames);
-		DisplayData.FrameIndex = FMath::FloorToInt(DisplayData.FrameTime);
-	}
-	return DisplayData;
-}
-
-FNiagaraFlipbookViewModel::FDisplayData FNiagaraFlipbookViewModel::GetDisplayDataFromRelativeTime(float RelativeTime) const
-{
-	FDisplayData DisplayData;
-	if (IsGeneratedDataValid())
-	{
-		DisplayData.NumFrames = GeneratedNumFrames;
-		DisplayData.StartSeconds = GeneratedStartSeconds;
-		DisplayData.DurationSeconds = GeneratedDurationSeconds;
-	}
-	else if (UNiagaraFlipbookSettings* FlipbookSettings = GetFlipbookSettings())
-	{
-		DisplayData.NumFrames = FlipbookSettings->FramesPerDimension.X * FlipbookSettings->FramesPerDimension.Y;
-		DisplayData.StartSeconds = FlipbookSettings->StartSeconds;
-		DisplayData.DurationSeconds = FlipbookSettings->DurationSeconds;
-	}
-
-	if (DisplayData.DurationSeconds > 0.0f)
-	{
-		DisplayData.NormalizedTime = FMath::Clamp(RelativeTime / DisplayData.DurationSeconds, 0.0f, 1.0f);
-		DisplayData.FrameTime = DisplayData.NormalizedTime * float(DisplayData.NumFrames);
-		DisplayData.FrameIndex = FMath::FloorToInt(DisplayData.FrameTime);
-	}
-	return DisplayData;
-}
-
 void FNiagaraFlipbookViewModel::SetDisplayTimeFromNormalized(float NormalizeTime)
 {
 	if ( Widget )
 	{
-		if ( IsGeneratedDataValid() )
+		if (const UNiagaraFlipbookSettings* GeneratedSettings = GetFlipbookGeneratedSettings())
 		{
-			const float RelativeTime = FMath::Clamp(NormalizeTime, 0.0f, 1.0f) * GeneratedDurationSeconds;
+			const float RelativeTime = FMath::Clamp(NormalizeTime, 0.0f, 1.0f) * GeneratedSettings->DurationSeconds;
 			Widget->SetPreviewRelativeTime(RelativeTime);
 		}
 		else if (UNiagaraFlipbookSettings* FlipbookSettings = GetFlipbookSettings())
@@ -157,6 +106,29 @@ UNiagaraFlipbookSettings* FNiagaraFlipbookViewModel::GetFlipbookSettings() const
 	return nullptr;
 }
 
+const UNiagaraFlipbookSettings* FNiagaraFlipbookViewModel::GetFlipbookGeneratedSettings() const
+{
+	if (PreviewComponent)
+	{
+		UNiagaraSystem* Asset = PreviewComponent->GetAsset();
+		return Asset ? Asset->GetFlipbookGeneratedSettings() : nullptr;
+	}
+
+	return nullptr;
+}
+
+const FNiagaraFlipbookTextureSettings* FNiagaraFlipbookViewModel::GetPreviewTextureSettings() const
+{
+	if ( UNiagaraFlipbookSettings* Settings = GetFlipbookSettings() )
+	{
+		if ( Settings->OutputTextures.IsValidIndex(PreviewTextureIndex) )
+		{
+			return &Settings->OutputTextures[PreviewTextureIndex];
+		}
+	}
+	return nullptr;
+}
+
 TSharedPtr<class SWidget> FNiagaraFlipbookViewModel::GetWidget()
 {
 	return Widget;
@@ -164,23 +136,10 @@ TSharedPtr<class SWidget> FNiagaraFlipbookViewModel::GetWidget()
 
 void FNiagaraFlipbookViewModel::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	for (FNiagaraFlipbookTextureSettings& Texture : GeneratedTextures)
-	{
-		if (Texture.GeneratedTexture != nullptr)
-		{
-			Collector.AddReferencedObject(Texture.GeneratedTexture);
-		}
-	}
 }
 
 void FNiagaraFlipbookViewModel::RenderFlipbook()
 {
-	GeneratedNumFrames = 0;
-	GeneratedStartSeconds = 0.0f;
-	GeneratedDurationSeconds = 0.0f;
-	GeneratedFramesPerDimension = FIntPoint(0, 0);
-	GeneratedTextures.Empty();
-
 	UNiagaraFlipbookSettings* FlipbookSettings = GetFlipbookSettings();
 	if ( (PreviewComponent == nullptr) || (FlipbookSettings == nullptr) )
 	{
@@ -233,8 +192,9 @@ void FNiagaraFlipbookViewModel::RenderFlipbook()
 
 		// Step component to time
 		const float FrameTime = FlipbookSettings->StartSeconds + (float(iFrame) * FrameDeltaSeconds);
+		PreviewComponent->SetSeekDelta(FlipbookSettings->GetSeekDelta());
 		PreviewComponent->SeekToDesiredAge(FrameTime);
-		PreviewComponent->TickComponent(1.0f / 60.0f, ELevelTick::LEVELTICK_All, nullptr);
+		PreviewComponent->TickComponent(FlipbookSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
 
 		// We need any GPU sims to flush pending ticks
 		if (NiagaraBatcher)
@@ -277,11 +237,6 @@ void FNiagaraFlipbookViewModel::RenderFlipbook()
 	}
 
 	// Send data to generated textures
-	GeneratedNumFrames = TotalFrames;
-	GeneratedStartSeconds = FlipbookSettings->StartSeconds;
-	GeneratedDurationSeconds = FlipbookSettings->DurationSeconds;
-	GeneratedFramesPerDimension = FlipbookSettings->FramesPerDimension;
-
 	for (int32 iOutputTexture = 0; iOutputTexture < FlipbookSettings->OutputTextures.Num(); ++iOutputTexture)
 	{
 		FNiagaraFlipbookTextureSettings& OutputTexture = FlipbookSettings->OutputTextures[iOutputTexture];
@@ -313,8 +268,12 @@ void FNiagaraFlipbookViewModel::RenderFlipbook()
 		OutputTexture.GeneratedTexture->UpdateResource();
 		OutputTexture.GeneratedTexture->PostEditChange();
 		OutputTexture.GeneratedTexture->MarkPackageDirty();
+	}
 
-		GeneratedTextures.Add(OutputTexture);
+	// Duplicate and set as generated data
+	if (UNiagaraSystem* Asset = PreviewComponent->GetAsset())
+	{
+		Asset->SetFlipbookGeneratedSettings(DuplicateObject<UNiagaraFlipbookSettings>(FlipbookSettings, Asset));
 	}
 
 	// Clean up render targets

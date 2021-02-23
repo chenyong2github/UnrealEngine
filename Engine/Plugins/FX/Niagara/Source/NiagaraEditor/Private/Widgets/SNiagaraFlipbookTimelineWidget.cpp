@@ -46,7 +46,8 @@ int32 SNiagaraFlipbookTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeo
 	static const FLinearColor SelectedBarColor(FLinearColor::White);
 
 	// Gather information to display
-	const auto FlipbookDisplayData = ViewModel->GetDisplayDataFromRelativeTime(RelativeTime);
+	const int NumFrames = FlipbookSettings->GetNumFrames();
+	const auto FlipbookDisplayData = FlipbookSettings->GetDisplayInfo(RelativeTime, FlipbookSettings->bPreviewLooping);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Draw boxes to show frames
@@ -54,15 +55,15 @@ int32 SNiagaraFlipbookTimelineWidget::OnPaint(const FPaintArgs& Args, const FGeo
 		const FSlateBrush* BoxBrush = FEditorStyle::GetBrush("Sequencer.Section.BackgroundTint");
 		const FLinearColor BoxTints[2] = { FLinearColor(0.5f, 0.5f, 0.5f, 1.0f), FLinearColor(0.3f, 0.3f, 0.3f, 1.0f) };
 		const FLinearColor CurrentTint(0.5f, 0.5f, 1.0f, 1.0f);
-		if (FlipbookDisplayData.NumFrames > 0)
+		if (NumFrames > 0)
 		{
-			const float UStep = AllottedGeometry.Size.X / float(FlipbookDisplayData.NumFrames);
+			const float UStep = AllottedGeometry.Size.X / float(NumFrames);
 
-			for (int32 i = 0; i < FlipbookDisplayData.NumFrames; ++i)
+			for (int32 i = 0; i < NumFrames; ++i)
 			{
 				const FVector2D BoxLocation(UStep * float(i), 0.0f);
 				const FVector2D BoxSize(UStep, AllottedGeometry.Size.Y);
-				const FLinearColor& Tint = (i == FlipbookDisplayData.FrameIndex) ? CurrentTint : BoxTints[i & 1];
+				const FLinearColor& Tint = (i == FlipbookDisplayData.FrameIndexA) ? CurrentTint : BoxTints[i & 1];
 				FSlateDrawElement::MakeBox(OutDrawElements, RetLayerId++, AllottedGeometry.ToPaintGeometry(BoxLocation, BoxSize), BoxBrush, ESlateDrawEffect::None, Tint);
 			}
 		}

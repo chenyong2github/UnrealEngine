@@ -515,6 +515,8 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	UNiagaraFlipbookSettings* GetFlipbookSettings();
+	const UNiagaraFlipbookSettings* GetFlipbookGeneratedSettings() const { return FlipbookGeneratedSettings; }
+	void SetFlipbookGeneratedSettings(UNiagaraFlipbookSettings* Settings) { FlipbookGeneratedSettings = Settings; }
 #endif
 
 private:
@@ -634,9 +636,13 @@ protected:
 	float WarmupTickDelta;
 
 #if WITH_EDITORONLY_DATA
-	/** Flipbook generation settings. */
-	UPROPERTY(EditAnywhere, Export, Category = Flipbook, meta = (EditInline))
+	/** Settings used when generating the flipbook */
+	UPROPERTY(Export)
 	UNiagaraFlipbookSettings* FlipbookSettings;
+
+	/** Generated flipbook settings, will be null until we have generated at least once. */
+	UPROPERTY(Export)
+	UNiagaraFlipbookSettings* FlipbookGeneratedSettings;
 #endif
 
 	UPROPERTY()

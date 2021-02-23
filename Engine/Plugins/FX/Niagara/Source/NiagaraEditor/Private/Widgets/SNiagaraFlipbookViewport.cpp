@@ -10,6 +10,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "CanvasTypes.h"
+#include "EditorViewportCommands.h"
 #include "EngineModule.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "ImageUtils.h"
@@ -30,43 +31,197 @@ public:
 
 	virtual bool InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad) override
 	{
-		return false;
-	}
-
-	virtual void CapturedMouseMove(FViewport* InViewport, int32 X, int32 Y) override
-	{
-	}
-
-	FIntRect ConstrainRect(const FIntRect& InRect, FIntPoint InSize)
-	{
-		const float Scale = FMath::Min(float(InRect.Width()) /  float(InSize.X), float(InRect.Height()) / float(InSize.Y));
-		const FIntPoint ScaledSize(FMath::FloorToInt(float(InSize.X) * Scale), FMath::FloorToInt(float(InSize.Y) * Scale));
-		FIntPoint RectMin(
-			InRect.Min.X + ((InRect.Width()  - ScaledSize.X) >> 1),
-			InRect.Min.Y + ((InRect.Height() - ScaledSize.Y) >> 1)
-		);
-
-		return FIntRect(RectMin, RectMin + ScaledSize);
-	}
-
-	void ClearViewArea(FCanvas* Canvas, const FIntRect& InRect)
-	{
-		UTexture2D* Texture = nullptr;
-		FLinearColor Color = ClearColor;
-		FVector2D EndUV(1.0f, 1.0f);
-
-		if (bShowCheckerBoard)
+		// Only allow movement when in preview mode
+		auto ViewModel = WeakViewModel.Pin();
+		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
+		if ( bShowPreview && FlipbookSettings )
 		{
-			Texture = GetCheckerboardTexture();
-			Color = FLinearColor::White;
-			EndUV.X = float(InRect.Width()) / float(FMath::Max(Texture->GetSizeX(), 1));
-			EndUV.Y = float(InRect.Height()) / float(FMath::Max(Texture->GetSizeY(), 1));
+			bool bForwardKeyState = false;
+			bool bBackwardKeyState = false;
+			bool bRightKeyState = false;
+			bool bLeftKeyState = false;
+
+			bool bUpKeyState = false;
+			bool bDownKeyState = false;
+			bool bZoomOutKeyState = false;
+			bool bZoomInKeyState = false;
+
+			bool bFocus = false;
+
+			// Iterate through all key mappings to generate key state flags
+			for (uint32 i = 0; i < static_cast<uint8>(EMultipleKeyBindingIndex::NumChords); ++i)
+			{
+				EMultipleKeyBindingIndex ChordIndex = static_cast<EMultipleKeyBindingIndex> (i);
+				bForwardKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Forward->GetActiveChord(ChordIndex)->Key);
+				bBackwardKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Backward->GetActiveChord(ChordIndex)->Key);
+				bRightKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Right->GetActiveChord(ChordIndex)->Key);
+				bLeftKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Left->GetActiveChord(ChordIndex)->Key);
+
+				bUpKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Up->GetActiveChord(ChordIndex)->Key);
+				bDownKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().Down->GetActiveChord(ChordIndex)->Key);
+				bZoomOutKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().FovZoomOut->GetActiveChord(ChordIndex)->Key);
+				bZoomInKeyState |= Viewport->KeyState(FViewportNavigationCommands::Get().FovZoomIn->GetActiveChord(ChordIndex)->Key);
+
+				bFocus |= Viewport->KeyState(FEditorViewportCommands::Get().FocusViewportToSelection->GetActiveChord(ChordIndex)->Key);
+			}
+
+			if ( FlipbookSettings->IsOrthographic() )
+			{
+				LocalMovement.X += bLeftKeyState ? KeyboardMoveSpeed : 0.0f;
+				LocalMovement.X -= bRightKeyState ? KeyboardMoveSpeed : 0.0f;
+				LocalMovement.Y += bBackwardKeyState ? KeyboardMoveSpeed : 0.0f;
+				LocalMovement.Y -= bForwardKeyState ? KeyboardMoveSpeed : 0.0f;
+			}
+			else
+			{
+				//LocalMovement.X += bLeftKeyState ? KeyboardMoveSpeed : 0.0f;
+				//LocalMovement.X -= bRightKeyState ? KeyboardMoveSpeed : 0.0f;
+				//LocalMovement.Y += bUpKeyState ? KeyboardMoveSpeed : 0.0f;
+				//LocalMovement.Y -= bDownKeyState ? KeyboardMoveSpeed : 0.0f;
+				//LocalMovement.Z += bBackwardKeyState ? KeyboardMoveSpeed : 0.0f;
+				//LocalMovement.Z -= bForwardKeyState ? KeyboardMoveSpeed : 0.0f;
+			}
+
+			LocalZoom += bZoomOutKeyState ? KeyboardMoveSpeed : 0.0f;
+			LocalZoom -= bZoomInKeyState ? KeyboardMoveSpeed : 0.0f;
+
+			// Focus
+			if (bFocus)
+			{
+				FocusCamera();
+			}
 		}
-		Canvas->DrawTile(InRect.Min.X, InRect.Min.Y, InRect.Width(), InRect.Height(), 0.0f, 0.0f, EndUV.X, EndUV.Y, Color, Texture ? Texture->Resource : nullptr, false);
+
+		return true;
+	}
+
+	virtual bool InputAxis(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float InDeltaTime, int32 NumSamples, bool bGamepad) override
+	{
+		// Viewport movement only enabled when preview is enabled otherwise there is no feedback
+		auto ViewModel = WeakViewModel.Pin();
+		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
+		if ( bShowPreview && FlipbookSettings && (Key == EKeys::MouseX || Key == EKeys::MouseY) )
+		{
+			if (FlipbookSettings->IsOrthographic())
+			{
+				if (InViewport->KeyState(EKeys::RightMouseButton))
+				{
+					// Zoom
+					if (InViewport->KeyState(EKeys::LeftControl) || InViewport->KeyState(EKeys::RightControl))
+					{
+						LocalZoom += (Key == EKeys::MouseY) ? Delta : 0.0f;
+					}
+					// Aspect
+					else if (InViewport->KeyState(EKeys::LeftAlt) || InViewport->KeyState(EKeys::RightAlt))
+					{
+						LocalAspect += (Key == EKeys::MouseY) ? Delta : 0.0f;
+					}
+					// Move
+					else
+					{
+						LocalMovement.X += (Key == EKeys::MouseX) ? Delta : 0.0f;
+						LocalMovement.Y += (Key == EKeys::MouseY) ? Delta : 0.0f;
+					}
+				}
+			}
+			else
+			{
+				// Zoom
+				if (InViewport->KeyState(EKeys::RightMouseButton))
+				{
+					if (InViewport->KeyState(EKeys::LeftAlt) || InViewport->KeyState(EKeys::RightAlt))
+					{
+						LocalAspect += (Key == EKeys::MouseY) ? Delta : 0.0f;
+					}
+					else
+					{
+						LocalMovement.Z += (Key == EKeys::MouseY) ? Delta : 0.0f;
+					}
+				}
+				// Middle button translate orbit location
+				else if (InViewport->KeyState(EKeys::MiddleMouseButton))
+				{
+					LocalMovement.X += (Key == EKeys::MouseX) ? Delta : 0.0f;
+					LocalMovement.Y += (Key == EKeys::MouseY) ? Delta : 0.0f;
+				}
+				// Rotation
+				else if (InViewport->KeyState(EKeys::LeftMouseButton))
+				{
+					LocalRotation.X += (Key == EKeys::MouseX) ? Delta : 0.0f;
+					LocalRotation.Y += (Key == EKeys::MouseY) ? Delta : 0.0f;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	virtual void Tick(float DeltaSeconds) override
 	{
+		//FEditorViewportClient::Tick(DeltaSeconds);
+
+		// Apply local movement
+		auto ViewModel = WeakViewModel.Pin();
+		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
+		if ( FlipbookSettings )
+		{
+			const FMatrix ViewMatrix = FlipbookSettings->GetViewMatrix().Inverse();
+			const FVector XAxis = ViewMatrix.GetUnitAxis(EAxis::X);
+			const FVector YAxis = ViewMatrix.GetUnitAxis(EAxis::Y);
+			const FVector ZAxis = ViewMatrix.GetUnitAxis(EAxis::Z);
+
+			FVector WorldMovement = FVector::ZeroVector;
+			if (FlipbookSettings->IsOrthographic())
+			{
+				const FVector2D MoveSpeed = GetPreviewOrthoUnits();
+
+				WorldMovement -= LocalMovement.X * MoveSpeed.X * XAxis;
+				WorldMovement -= LocalMovement.Y * MoveSpeed.Y * YAxis;
+				//WorldMovement += LocalMovement.Z * MoveSpeed * ZAxis;
+
+				FlipbookSettings->CameraViewportLocation[(int)FlipbookSettings->CameraViewportMode] += WorldMovement;
+			}
+			else
+			{
+				FRotator& WorldRotation = FlipbookSettings->CameraViewportRotation[(int)FlipbookSettings->CameraViewportMode];
+				WorldRotation.Yaw = FRotator::ClampAxis(WorldRotation.Yaw + LocalRotation.X);
+				WorldRotation.Roll = FMath::Clamp(WorldRotation.Roll + LocalRotation.Y, 0.0f, 180.0f);
+
+				const float MoveSpeed = PerspectiveMoveSpeed;
+				WorldMovement -= LocalMovement.X * MoveSpeed * XAxis;
+				WorldMovement -= LocalMovement.Y * MoveSpeed * YAxis;
+				//WorldMovement -= LocalMovement.Z * MoveSpeed * ZAxis;
+				FlipbookSettings->CameraViewportLocation[(int)FlipbookSettings->CameraViewportMode] += WorldMovement;
+
+				FlipbookSettings->CameraOrbitDistance = FMath::Max(FlipbookSettings->CameraOrbitDistance + LocalMovement.Z, 0.01f);
+			}
+
+			if (!FMath::IsNearlyZero(LocalZoom))
+			{
+				if (FlipbookSettings->IsPerspective())
+				{
+					FlipbookSettings->CameraFOV = FMath::Clamp(FlipbookSettings->CameraFOV + LocalZoom, 0.001f, 179.0f);
+				}
+				else
+				{
+					FlipbookSettings->CameraOrthoWidth = FMath::Max(FlipbookSettings->CameraOrthoWidth + LocalZoom, 1.0f);
+				}
+			}
+
+			if (!FMath::IsNearlyZero(LocalAspect))
+			{
+				if (FlipbookSettings->bUseCameraAspectRatio)
+				{
+					FlipbookSettings->CameraAspectRatio = FMath::Max(FlipbookSettings->CameraAspectRatio + (LocalAspect / 50.0f), 0.01f);
+				}
+			}
+		}
+
+		// Clear data
+		LocalMovement = FVector::ZeroVector;
+		LocalZoom = 0.0f;
+		LocalAspect = 0.0f;
+		LocalRotation = FVector::ZeroVector;
 	}
 
 	/** FViewportClient interface */
@@ -90,12 +245,12 @@ public:
 		const FVector2D TextStartOffset(5.0f, 30.0f);
 
 		const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel->GetFlipbookSettings();
-		const FNiagaraFlipbookTextureSettings* PreviewTextureSettings = ViewModel->GetPreviewTexture();
+		const UNiagaraFlipbookSettings* FlipbookGeneratedSettings = ViewModel->GetFlipbookGeneratedSettings();
 		const int32 PreviewTextureIndex = ViewModel->GetPreviewTextureIndex();
 
 		// Determine view rects
-		FIntRect PreviewViewRect;
-		FIntRect FlipbookViewRect;
+		PreviewViewRect = FIntRect();
+		FlipbookViewRect = FIntRect();
 		{
 			const FIntRect ViewRect = Canvas->GetViewRect();
 			const int32 Border = 3;
@@ -115,13 +270,13 @@ public:
 
 			if ( bShowFlipbook )
 			{
-				if (FlipbookSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
+				if (FlipbookGeneratedSettings && FlipbookGeneratedSettings->OutputTextures.IsValidIndex(PreviewTextureIndex))
 				{
-					FlipbookViewRect = ConstrainRect(FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y), FlipbookSettings->OutputTextures[PreviewTextureIndex].FrameSize);
+					FlipbookViewRect = ConstrainRect(FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y), FlipbookGeneratedSettings->OutputTextures[PreviewTextureIndex].FrameSize);
 				}
 				else
 				{
-					FlipbookViewRect = FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Min.X, ViewRect.Max.Y);
+					FlipbookViewRect = FIntRect(ViewRect.Max.X - ViewWidth, ViewRect.Min.Y, ViewRect.Max.X, ViewRect.Max.Y);
 				}
 			}
 		}
@@ -150,15 +305,17 @@ public:
 
 				// Seek to correct time and render
 				UNiagaraComponent* PreviewComponent = ViewModel->GetPreviewComponent();
+				PreviewComponent->SetSeekDelta(FlipbookSettings->GetSeekDelta());
 				PreviewComponent->SeekToDesiredAge(WorldTime);
-				PreviewComponent->TickComponent(1.0f / 60.0f, ELevelTick::LEVELTICK_All, nullptr);
+				PreviewComponent->TickComponent(FlipbookSettings->GetSeekDelta(), ELevelTick::LEVELTICK_All, nullptr);
 
 				FNiagaraFlipbookRenderer FlipbookRenderer(PreviewComponent, WorldTime);
 				FlipbookRenderer.RenderView(RealtimeRenderTarget, PreviewTextureIndex);
 
+				const FVector2D HalfPixel(0.5f / float(OutputTexture.FrameSize.X), 0.5f / float(OutputTexture.FrameSize.Y));
 				Canvas->DrawTile(
 					PreviewViewRect.Min.X, PreviewViewRect.Min.Y, PreviewViewRect.Width(), PreviewViewRect.Height(),
-					0.0f, 0.0f, 1.0f, 1.0f,
+					HalfPixel.X, HalfPixel.Y, 1.0f - HalfPixel.X, 1.0f - HalfPixel.Y,
 					FLinearColor::White,
 					RealtimeRenderTarget->Resource,
 					false	//-TODO: Preview with alpha?
@@ -168,6 +325,9 @@ public:
 				if (bShowInfoText)
 				{
 					Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Live Preview"), DisplayFont, FLinearColor::White);
+					TextPosition.Y += FontHeight;
+
+					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
 				}
 			}
@@ -185,22 +345,29 @@ public:
 		{
 			ClearViewArea(Canvas, FlipbookViewRect);
 
-			const bool bFlipbookValid = PreviewTextureSettings != nullptr;
-			const auto DisplayData = ViewModel->GetDisplayDataFromAbsoluteTime(CurrentTime);
+			const bool bFlipbookValid =
+				(FlipbookGeneratedSettings != nullptr) &&
+				FlipbookGeneratedSettings->OutputTextures.IsValidIndex(PreviewTextureIndex) &&
+				(FlipbookGeneratedSettings->OutputTextures[PreviewTextureIndex].GeneratedTexture != nullptr);
 			FVector2D TextPosition(FlipbookViewRect.Min.X + TextStartOffset.X, FlipbookViewRect.Min.Y + TextStartOffset.Y);
 
 			if (bFlipbookValid)
 			{
-				const FIntPoint TextureSize = FIntPoint(FMath::Max(PreviewTextureSettings->GeneratedTexture->GetSizeX(), 1), FMath::Max(PreviewTextureSettings->GeneratedTexture->GetSizeY(), 1));
-				const FIntPoint FramesPerDimension = ViewModel->GetGeneratedFramesPerDimension();
-				const FIntPoint FrameIndex2D = FIntPoint(DisplayData.FrameIndex % FramesPerDimension.X, DisplayData.FrameIndex / FramesPerDimension.X);
-				const FIntPoint FramePixel = FIntPoint(FrameIndex2D.X * PreviewTextureSettings->FrameSize.X, FrameIndex2D.Y * PreviewTextureSettings->FrameSize.Y);
+				const auto DisplayData = FlipbookGeneratedSettings->GetDisplayInfo(CurrentTime - FlipbookGeneratedSettings->StartSeconds, FlipbookGeneratedSettings->bPreviewLooping);
+				const FNiagaraFlipbookTextureSettings& OutputTexture = FlipbookGeneratedSettings->OutputTextures[PreviewTextureIndex];
+
+				const FIntPoint TextureSize = FIntPoint(FMath::Max(OutputTexture.GeneratedTexture->GetSizeX(), 1), FMath::Max(OutputTexture.GeneratedTexture->GetSizeY(), 1));
+				const FIntPoint FramesPerDimension = FlipbookGeneratedSettings->FramesPerDimension;
+				const FIntPoint FrameIndexA = FIntPoint(DisplayData.FrameIndexA % FramesPerDimension.X, DisplayData.FrameIndexA / FramesPerDimension.X);
+				const FIntPoint FrameIndexB = FIntPoint(DisplayData.FrameIndexB % FramesPerDimension.X, DisplayData.FrameIndexB / FramesPerDimension.X);
+				const FIntPoint FramePixelA = FIntPoint(FrameIndexA.X * OutputTexture.FrameSize.X, FrameIndexA.Y * OutputTexture.FrameSize.Y);
+				const FIntPoint FramePixelB = FIntPoint(FrameIndexB.X * OutputTexture.FrameSize.X, FrameIndexB.Y * OutputTexture.FrameSize.Y);
 
 				Canvas->DrawTile(
 					FlipbookViewRect.Min.X, FlipbookViewRect.Min.Y, FlipbookViewRect.Width(), FlipbookViewRect.Height(),
-					float(FramePixel.X) / float(TextureSize.X), float(FramePixel.Y) / float(TextureSize.Y), float(FramePixel.X + PreviewTextureSettings->FrameSize.X) / float(TextureSize.X), float(FramePixel.Y + PreviewTextureSettings->FrameSize.Y) / float(TextureSize.Y),
+					(float(FramePixelA.X) + 0.5f) / float(TextureSize.X), (float(FramePixelA.Y) + 0.5f) / float(TextureSize.Y), (float(FramePixelA.X + OutputTexture.FrameSize.X) - 0.5f) / float(TextureSize.X), (float(FramePixelA.Y + OutputTexture.FrameSize.Y) - 0.5f) / float(TextureSize.Y),
 					FLinearColor::White,
-					PreviewTextureSettings->GeneratedTexture->Resource,
+					OutputTexture.GeneratedTexture->Resource,
 					false	//-TODO: Preview with alpha?
 				);
 
@@ -210,21 +377,52 @@ public:
 					Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Flipbook"), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
 
-					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d) Frame(%d/%d)"), PreviewTextureIndex, PreviewTextureSettings->FrameSize.X, PreviewTextureSettings->FrameSize.Y, DisplayData.FrameIndex, DisplayData.NumFrames), DisplayFont, FLinearColor::White);
+					Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, *FString::Printf(TEXT("Texture(%d) FrameSize(%d x %d) Frame(%d/%d)"), PreviewTextureIndex, OutputTexture.FrameSize.X, OutputTexture.FrameSize.Y, DisplayData.FrameIndexA, FlipbookGeneratedSettings->GetNumFrames()), DisplayFont, FLinearColor::White);
 					TextPosition.Y += FontHeight;
+
+					if (!FlipbookGeneratedSettings->Equals(*FlipbookSettings))
+					{
+						Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, TEXT("Warning: Out Of Date"), DisplayFont, FLinearColor::White);
+						TextPosition.Y += FontHeight;
+					}
 				}
 			}
 			else
 			{
-				Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Flipbook"), DisplayFont, FLinearColor::White);
+				Canvas->DrawShadowedString(TextPosition.X, TextPosition.Y, TEXT("Flipbook Not Generated"), DisplayFont, FLinearColor::White);
 				TextPosition.Y += FontHeight;
-
-				Canvas->DrawShadowedString(TextPosition.X + 5.0f, TextPosition.Y, TEXT("Texture Not Generated"), DisplayFont, FLinearColor::White);
-			}
+				}
 		}
 	}
 
-	
+	FIntRect ConstrainRect(const FIntRect& InRect, FIntPoint InSize) const
+	{
+		const float Scale = FMath::Min(float(InRect.Width()) /  float(InSize.X), float(InRect.Height()) / float(InSize.Y));
+		const FIntPoint ScaledSize(FMath::FloorToInt(float(InSize.X) * Scale), FMath::FloorToInt(float(InSize.Y) * Scale));
+		FIntPoint RectMin(
+			InRect.Min.X + ((InRect.Width()  - ScaledSize.X) >> 1),
+			InRect.Min.Y + ((InRect.Height() - ScaledSize.Y) >> 1)
+		);
+
+		return FIntRect(RectMin, RectMin + ScaledSize);
+	}
+
+	void ClearViewArea(FCanvas* Canvas, const FIntRect& InRect)
+	{
+		UTexture2D* Texture = nullptr;
+		FLinearColor Color = ClearColor;
+		FVector2D EndUV(1.0f, 1.0f);
+
+		if (bShowCheckerBoard)
+		{
+			Texture = GetCheckerboardTexture();
+			Color = FLinearColor::White;
+			EndUV.X = float(InRect.Width()) / float(FMath::Max(Texture->GetSizeX(), 1));
+			EndUV.Y = float(InRect.Height()) / float(FMath::Max(Texture->GetSizeY(), 1));
+		}
+		Canvas->DrawTile(InRect.Min.X, InRect.Min.Y, InRect.Width(), InRect.Height(), 0.0f, 0.0f, EndUV.X, EndUV.Y, Color, Texture ? Texture->Resource : nullptr, false);
+	}
+
 	UTexture2D* GetCheckerboardTexture()
 	{
 		if (CheckerboardTexture == nullptr)
@@ -255,12 +453,68 @@ public:
 		Collector.AddReferencedObject(RealtimeRenderTarget);
 	}
 
-	virtual UWorld* GetWorld() const override { return nullptr; }
+	void FocusCamera()
+	{
+		auto ViewModel = WeakViewModel.Pin();
+		UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
+		UNiagaraComponent* NiagaraComponent = ViewModel->GetPreviewComponent();
+		if ( bShowPreview && FlipbookSettings && NiagaraComponent )
+		{
+			//-TODO: Should take aspect ratio into account here
+			const FBoxSphereBounds ComponentBounds = NiagaraComponent->CalcBounds(NiagaraComponent->GetComponentTransform());
+			if ( FlipbookSettings->IsOrthographic() )
+			{
+				FlipbookSettings->CameraViewportLocation[(int)FlipbookSettings->CameraViewportMode] = ComponentBounds.Origin;
+				FlipbookSettings->CameraOrthoWidth = ComponentBounds.SphereRadius * 2.0f;
+			}
+			else
+			{
+				const float HalfFOVRadians = FMath::DegreesToRadians(FlipbookSettings->CameraFOV) * 0.5f;
+				const float CameraDistance = ComponentBounds.SphereRadius / FMath::Tan(HalfFOVRadians);
+				//const FVector CameraOffset = FlipbookSettings->GetViewMatrix().Inverse().GetUnitAxis(EAxis::Z) * CameraDistance;
+				//FlipbookSettings->CameraViewportLocation[(int)ENiagaraFlipbookViewMode::Perspective] = ComponentBounds.Origin - CameraOffset;
+				FlipbookSettings->CameraViewportLocation[(int)FlipbookSettings->CameraViewportMode] = ComponentBounds.Origin;
+				FlipbookSettings->CameraOrbitDistance = CameraDistance;
+			}
+		}
+	}
+
+	FVector2D GetPreviewOrthoUnits() const
+	{
+		FVector2D OrthoUnits = FVector2D::ZeroVector;
+
+		auto ViewModel = WeakViewModel.Pin();
+		const UNiagaraFlipbookSettings* FlipbookSettings = ViewModel ? ViewModel->GetFlipbookSettings() : nullptr;
+		if (FlipbookSettings && (PreviewViewRect.Area() > 0))
+		{
+			OrthoUnits = FlipbookSettings->GetOrthoSize(ViewModel->GetPreviewTextureIndex());
+			OrthoUnits.X = OrthoUnits.X / float(PreviewViewRect.Width());
+			OrthoUnits.Y = OrthoUnits.Y / float(PreviewViewRect.Height());
+		}
+		return OrthoUnits;
+	}
+
+
+	virtual UWorld* GetWorld() const override
+	{
+		auto ViewModel = WeakViewModel.Pin();
+		return ViewModel ? ViewModel->GetPreviewComponent()->GetWorld() : nullptr;
+	}
 
 	UFont* GetFont() const { return GetStatsFont(); }
 
 public:
 	UTextureRenderTarget2D*						RealtimeRenderTarget = nullptr;
+
+	FVector										LocalMovement = FVector::ZeroVector;
+	float										LocalZoom = 0.0f;
+	float										LocalAspect = 0.0f;
+	FVector										LocalRotation = FVector::ZeroVector;
+	float										KeyboardMoveSpeed = 5.0f;
+	float										PerspectiveMoveSpeed = 2.0f;
+
+	FIntRect									PreviewViewRect;
+	FIntRect									FlipbookViewRect;
 
 	bool										bShowCheckerBoard = true;
 	UTexture2D*									CheckerboardTexture = nullptr;
