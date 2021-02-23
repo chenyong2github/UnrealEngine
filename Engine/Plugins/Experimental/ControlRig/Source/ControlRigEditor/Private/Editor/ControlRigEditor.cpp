@@ -3472,9 +3472,9 @@ void FControlRigEditor::SynchronizeViewportBoneSelection()
 		TArray<FRigBaseElement*> SelectedBones = RigBlueprint->Hierarchy->GetSelectedElements(ERigElementType::Bone);
 		for (const FRigBaseElement* SelectedBone : SelectedBones)
 		{
-			if(EditorSkelComp->GetReferenceSkeleton().IsValidIndex(SelectedBone->GetIndex()))
+			if(EditorSkelComp->GetReferenceSkeleton().IsValidIndex(SelectedBone->GetSubIndex()))
 			{
-				EditorSkelComp->BonesOfInterest.AddUnique(SelectedBone->GetIndex());
+				EditorSkelComp->BonesOfInterest.AddUnique(SelectedBone->GetSubIndex());
 			}
 		}
 	}

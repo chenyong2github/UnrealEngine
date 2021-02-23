@@ -444,11 +444,11 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(const FReferenceSkel
 
 	if (bReplaceExistingBones)
 	{
-		GetHierarchy()->ForEach<FRigBoneElement>([&BoneNameMap](FRigBoneElement* BoneElement) -> bool
-        {
+		TArray<FRigBoneElement*> AllBones = GetHierarchy()->GetElementsOfType<FRigBoneElement>(true);
+		for(FRigBoneElement* BoneElement : AllBones)
+		{
 			BoneNameMap.Add(BoneElement->GetName(), BoneElement->GetName());
-			return true;
-		});
+		}
 
 		for (int32 Index = 0; Index < BoneInfos.Num(); ++Index)
 		{
@@ -524,7 +524,8 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(const FReferenceSkel
 		}
 		
 		TArray<FRigElementKey> BonesToDelete;
-		GetHierarchy()->ForEach<FRigBoneElement>([BoneNameToIndexInSkeleton, &BonesToDelete](FRigBoneElement* BoneElement) -> bool
+		TArray<FRigBoneElement*> AllBones = GetHierarchy()->GetElementsOfType<FRigBoneElement>(true);
+		for(FRigBoneElement* BoneElement : AllBones)
         {
             if (!BoneNameToIndexInSkeleton.Contains(BoneElement->GetName()))
 			{
@@ -533,8 +534,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(const FReferenceSkel
 					BonesToDelete.Add(BoneElement->GetKey());
 				}
 			}
-			return true;
-		});
+		}
 
 		for (const FRigElementKey& BoneToDelete : BonesToDelete)
 		{
@@ -556,6 +556,17 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(const FReferenceSkel
 			RemoveElement(BoneToDelete);
 			BonesToSelect.Remove(BoneToDelete);
 		}
+
+		// update the sub index to match the bone index in the skeleton
+		for (int32 Index = 0; Index < BoneInfos.Num(); ++Index)
+		{
+			FName DesiredBoneName = Local::DetermineBoneName(BoneInfos[Index].Name, InNameSpace);
+			const FRigElementKey Key(DesiredBoneName, ERigElementType::Bone);
+			if(FRigBoneElement* BoneElement = Hierarchy->Find<FRigBoneElement>(Key))
+			{
+				BoneElement->SubIndex = Index;
+			}
+		}		
 	}
 
 	if (bSelectBones)
@@ -564,7 +575,6 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(const FReferenceSkel
 	}
 
 	return AddedBones;
-
 }
 
 #if WITH_EDITOR
@@ -1103,7 +1113,7 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 
 	if(InElement->SubIndex != INDEX_NONE)
 	{
-		for(FRigBaseElement* Element : *Hierarchy)
+		for(FRigBaseElement* Element : Hierarchy->Elements)
 		{
 			if(Element->SubIndex > InElement->SubIndex && Element->GetType() == InElement->GetType())
 			{

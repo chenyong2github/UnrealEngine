@@ -46,4 +46,5 @@ public:
 private:
 	FReferenceSkeleton DebugDrawSkeleton;
 	TArray<FBoneIndexType> DebugDrawBones;
+	TArray<int32> DebugDrawBoneIndexInHierarchy;
 };
