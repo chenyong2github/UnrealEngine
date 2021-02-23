@@ -845,6 +845,17 @@ void FD3D11DynamicRHI::CommitRenderTargets(bool bClearUAVs)
 	}
 }
 
+void FD3D11DynamicRHI::InternalClearUAVPS(FD3D11PixelShader* PixelShader)
+{
+	for (int32 i = 0; i < D3D11_PS_CS_UAV_REGISTER_COUNT; ++i)
+	{
+		if ((PixelShader->UAVMask & (1 << i)) == 0)
+		{
+			CurrentUAVs[i] = nullptr;
+		}
+	}
+}
+
 void FD3D11DynamicRHI::InternalSetUAVPS(uint32 BindIndex, FD3D11UnorderedAccessView* UnorderedAccessViewRHI)
 {
 	check(BindIndex < D3D11_PS_CS_UAV_REGISTER_COUNT);
@@ -1618,6 +1629,7 @@ void FD3D11DynamicRHI::CommitGraphicsResourceTables()
 
 		if(SetUAVPSResourcesFromTables(PixelShader, bRTVInvalidate) || UAVSChanged)
 		{
+			InternalClearUAVPS(PixelShader);
 			CommitUAVs();
 		}
 	}
