@@ -7,7 +7,6 @@
 #include "HAL/MallocBinned2.h"
 #include "HAL/MallocBinned3.h"
 #include "HAL/MallocAnsi.h"
-#include "HAL/MallocStomp2.h"
 #include "Misc/ScopeLock.h"
 #include "unistd.h"
 #include <jni.h>
@@ -297,11 +296,6 @@ FMalloc* FAndroidPlatformMemory::BaseAllocator()
 	FPlatformMemoryStats Stats = FAndroidPlatformMemory::GetStats();
 	FLowLevelMemTracker::Get().SetProgramSize(Stats.UsedPhysical);
 #endif
-
-	//FMallocStomp2* Alloc = new FMallocStomp2(FMallocStomp2::EForceIgnoreAlignment);
-	//int* Mem = (int*)Alloc->Malloc(15);
-	//Memset(Mem, 0, 16);
-
 
 #if RUNNING_WITH_ASAN
 	return new FMallocAnsi();
