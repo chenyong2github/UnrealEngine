@@ -335,11 +335,98 @@ public:
 };
 TGlobalResource<FOcclusionQueryIndexBuffer> GOcclusionQueryIndexBuffer;
 
+FRHIRenderQuery* FFrameBasedOcclusionQueryPool::AllocateQuery()
+{
+	FFrameOcclusionQueries& CurrentFrame = FrameQueries[CurrentFrameIndex];
+
+	// If we have a free query in the current frame pool, just take it
+	if (CurrentFrame.FirstFreeIndex < CurrentFrame.Queries.Num())
+	{
+		return CurrentFrame.Queries[CurrentFrame.FirstFreeIndex++];
+	}
+
+	// If current frame runs out of queries, try to get some from other frames
+	for (uint32 Index = 0; Index < UE_ARRAY_COUNT(FrameQueries); ++Index)
+	{
+		if (Index != CurrentFrameIndex)
+		{
+			FFrameOcclusionQueries& OtherFrame = FrameQueries[Index];
+			while (OtherFrame.FirstFreeIndex < OtherFrame.Queries.Num())
+			{
+				CurrentFrame.Queries.Add(OtherFrame.Queries.Pop(false));
+			}
+
+			if (CurrentFrame.FirstFreeIndex < CurrentFrame.Queries.Num())
+			{
+				return CurrentFrame.Queries[CurrentFrame.FirstFreeIndex++];
+			}
+		}
+	}
+
+	// If all fails, create a new query
+	FRenderQueryRHIRef NewQuery = GDynamicRHI->RHICreateRenderQuery(RQT_Occlusion);
+	if (NewQuery)
+	{
+		CurrentFrame.Queries.Add(MoveTemp(NewQuery));
+		return CurrentFrame.Queries[CurrentFrame.FirstFreeIndex++];
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+void FFrameBasedOcclusionQueryPool::AdvanceFrame(uint32 InOcclusionFrameCounter, uint32 InNumBufferedFrames, bool bStereoRoundRobin)
+{
+	if (InOcclusionFrameCounter == OcclusionFrameCounter)
+	{
+		return;
+	}
+
+	OcclusionFrameCounter = InOcclusionFrameCounter;
+
+	if (bStereoRoundRobin)
+	{
+		InNumBufferedFrames *= 2;
+	}
+
+	if (InNumBufferedFrames != NumBufferedFrames)
+	{
+		FFrameOcclusionQueries TmpFrameQueries[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames * 2];
+
+		for (uint32 Index = 0; Index < NumBufferedFrames; ++Index)
+		{
+			FFrameOcclusionQueries& Frame = FrameQueries[Index];
+			const uint32 NewIndex = FOcclusionQueryHelpers::GetQueryIssueIndex(Frame.OcclusionFrameCounter, InNumBufferedFrames);
+			FFrameOcclusionQueries& NewFrame = TmpFrameQueries[NewIndex];
+
+			if (Frame.OcclusionFrameCounter > NewFrame.OcclusionFrameCounter)
+			{
+				Frame.Queries.Append(MoveTemp(NewFrame.Queries));
+				FMemory::Memswap(&Frame, &NewFrame, sizeof(FFrameOcclusionQueries));
+			}
+			else
+			{
+				NewFrame.Queries.Append(MoveTemp(Frame.Queries));
+			}
+		}
+
+		FMemory::Memswap(FrameQueries, TmpFrameQueries, sizeof(FrameQueries));
+		NumBufferedFrames = InNumBufferedFrames;
+	}
+	
+	CurrentFrameIndex = FOcclusionQueryHelpers::GetQueryIssueIndex(OcclusionFrameCounter, NumBufferedFrames);
+	check(CurrentFrameIndex < FOcclusionQueryHelpers::MaxBufferedOcclusionFrames * 2);
+
+	FrameQueries[CurrentFrameIndex].FirstFreeIndex = 0;
+	FrameQueries[CurrentFrameIndex].OcclusionFrameCounter = OcclusionFrameCounter;
+}
+
 FOcclusionQueryBatcher::FOcclusionQueryBatcher(class FSceneViewState* ViewState,uint32 InMaxBatchedPrimitives)
 :	CurrentBatchOcclusionQuery(NULL)
 ,	MaxBatchedPrimitives(InMaxBatchedPrimitives)
 ,	NumBatchedPrimitives(0)
-,	OcclusionQueryPool(ViewState ? ViewState->OcclusionQueryPool : NULL)
+,	OcclusionQueryPool(ViewState ? &ViewState->PrimitiveOcclusionQueryPool : NULL)
 {}
 
 FOcclusionQueryBatcher::~FOcclusionQueryBatcher()
@@ -360,7 +447,7 @@ void FOcclusionQueryBatcher::Flush(FRHICommandList& RHICmdList)
 		for(int32 BatchIndex = 0, NumBatches = BatchOcclusionQueries.Num();BatchIndex < NumBatches;BatchIndex++)
 		{
 			FOcclusionBatch& Batch = BatchOcclusionQueries[BatchIndex];
-			FRHIRenderQuery* BatchOcclusionQuery = Batch.Query.GetQuery();
+			FRHIRenderQuery* BatchOcclusionQuery = Batch.Query;
 			FRHIVertexBuffer* VertexBufferRHI = Batch.VertexAllocation.VertexBuffer->VertexBufferRHI;
 			uint32 VertexBufferOffset = Batch.VertexAllocation.VertexOffset;
 			const int32 NumPrimitivesThisBatch = (BatchIndex != (NumBatches-1)) ? MaxBatchedPrimitives : NumBatchedPrimitives;
@@ -386,14 +473,14 @@ void FOcclusionQueryBatcher::Flush(FRHICommandList& RHICmdList)
 	}
 }
 
-FRefCountedRHIPooledRenderQuery FOcclusionQueryBatcher::BatchPrimitive(const FVector& BoundsOrigin,const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
+FRHIRenderQuery* FOcclusionQueryBatcher::BatchPrimitive(const FVector& BoundsOrigin,const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer)
 {
 	// Check if the current batch is full.
 	if(CurrentBatchOcclusionQuery == NULL || NumBatchedPrimitives >= MaxBatchedPrimitives)
 	{
 		check(OcclusionQueryPool);
 		CurrentBatchOcclusionQuery = new(BatchOcclusionQueries) FOcclusionBatch;
-		CurrentBatchOcclusionQuery->Query = FRefCountedRHIPooledRenderQuery(OcclusionQueryPool->AllocateQuery());
+		CurrentBatchOcclusionQuery->Query = OcclusionQueryPool->AllocateQuery();
 		CurrentBatchOcclusionQuery->VertexAllocation = DynamicVertexBuffer.Allocate(MaxBatchedPrimitives * 8 * sizeof(FVector));
 		check(CurrentBatchOcclusionQuery->VertexAllocation.IsValid());
 		NumBatchedPrimitives = 0;

@@ -230,6 +230,39 @@ struct FOcclusionPrimitive
 	FVector Extent;
 };
 
+// An occlusion query pool with frame based lifetime management
+class FFrameBasedOcclusionQueryPool
+{
+public:
+	FFrameBasedOcclusionQueryPool()
+		: OcclusionFrameCounter(-1)
+		, NumBufferedFrames(0)
+	{}
+
+	FRHIRenderQuery* AllocateQuery();
+
+	// Recycle queries that are (OcclusionFrameCounter - NumBufferedFrames) old or older
+	void AdvanceFrame(uint32 InOcclusionFrameCounter, uint32 InNumBufferedFrames, bool bStereoRoundRobin);
+
+private:
+	struct FFrameOcclusionQueries
+	{
+		TArray<FRenderQueryRHIRef> Queries;
+		int32 FirstFreeIndex;
+		uint32 OcclusionFrameCounter;
+
+		FFrameOcclusionQueries()
+			: FirstFreeIndex(0)
+			, OcclusionFrameCounter(0)
+		{}
+	};
+
+	FFrameOcclusionQueries FrameQueries[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames * 2];
+	uint32 CurrentFrameIndex;
+	uint32 OcclusionFrameCounter;
+	uint32 NumBufferedFrames;
+};
+
 class FRefCountedRHIPooledRenderQuery
 {
 public:
@@ -351,7 +384,7 @@ public:
 	 * Batches a primitive's occlusion query for rendering.
 	 * @param Bounds - The primitive's bounds.
 	 */
-	FRefCountedRHIPooledRenderQuery BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
+	FRHIRenderQuery* BatchPrimitive(const FVector& BoundsOrigin, const FVector& BoundsBoxExtent, FGlobalDynamicVertexBuffer& DynamicVertexBuffer);
 	inline int32 GetNumBatchOcclusionQueries() const
 	{
 		return BatchOcclusionQueries.Num();
@@ -361,7 +394,7 @@ private:
 
 	struct FOcclusionBatch
 	{
-		FRefCountedRHIPooledRenderQuery Query;
+		FRHIRenderQuery* Query;
 		FGlobalDynamicVertexBuffer::FAllocation VertexAllocation;
 	};
 
@@ -378,7 +411,7 @@ private:
 	uint32 NumBatchedPrimitives;
 
 	/** The pool to allocate occlusion queries from. */
-	TRefCountPtr<FRHIRenderQueryPool> OcclusionQueryPool;
+	FFrameBasedOcclusionQueryPool* OcclusionQueryPool;
 };
 
 class FHZBOcclusionTester : public FRenderResource

@@ -91,7 +91,7 @@ public:
 	FPrimitiveComponentId PrimitiveId;
 
 	/** The occlusion query which contains the primitive's pending occlusion results. */
-	FRefCountedRHIPooledRenderQuery PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
+	FRHIRenderQuery* PendingOcclusionQuery[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames];
 	uint32 PendingOcclusionQueryFrames[FOcclusionQueryHelpers::MaxBufferedOcclusionFrames]; 
 
 	uint32 LastTestFrameNumber;
@@ -146,7 +146,8 @@ private:
 		{
 			const uint32 ThisFrameNumber = PendingOcclusionQueryFrames[Index];
 			const int32 LaggedFrames = FrameNumber - ThisFrameNumber;
-			if (PendingOcclusionQuery[Index].IsValid() && LaggedFrames <= LagTolerance && ThisFrameNumber < OldestFrame)
+			// Queries older than LagTolerance are invalid. They may have already been reused and will give incorrect results if read
+			if (PendingOcclusionQuery[Index] && LaggedFrames <= LagTolerance && ThisFrameNumber < OldestFrame)
 			{
 				OldestFrame = ThisFrameNumber;
 				OldestQueryIndex = Index;
@@ -173,6 +174,7 @@ public:
 	{
 		for (int32 Index = 0; Index < FOcclusionQueryHelpers::MaxBufferedOcclusionFrames; Index++)
 		{
+			PendingOcclusionQuery[Index] = nullptr;
 			PendingOcclusionQueryFrames[Index] = 0;
 			bGroupedQuery[Index] = false;
 		}
@@ -193,6 +195,7 @@ public:
 	{
 		for (int32 Index = 0; Index < FOcclusionQueryHelpers::MaxBufferedOcclusionFrames; Index++)
 		{
+			PendingOcclusionQuery[Index] = nullptr;
 			PendingOcclusionQueryFrames[Index] = 0;
 			bGroupedQuery[Index] = false;
 		}
@@ -200,33 +203,17 @@ public:
 
 	inline void ReleaseStaleQueries(uint32 FrameNumber, int32 NumBufferedFrames)
 	{
-		for (uint32 DeltaFrame = NumBufferedFrames; DeltaFrame > 0; DeltaFrame--)
-		{
-			if (FrameNumber >= (DeltaFrame - 1))
-			{
-				uint32 TestFrame = FrameNumber - (DeltaFrame - 1);
-				const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(TestFrame, NumBufferedFrames);
-				if (PendingOcclusionQueryFrames[QueryIndex] != TestFrame)
-				{
-					PendingOcclusionQuery[QueryIndex].ReleaseQuery();
-				}
-			}
-		}
+		// No need to release. FFrameBasedOcclusionQueryPool automatically reuses stale queries
 	}
 
 	inline void ReleaseQuery(uint32 FrameNumber, int32 NumBufferedFrames)
 	{
-		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		PendingOcclusionQuery[QueryIndex].ReleaseQuery();
+		// No need to release. FFrameBasedOcclusionQueryPool automatically reuses stale queries
 	}
 
 	inline FRHIRenderQuery* GetQueryForEviction(uint32 FrameNumber, int32 NumBufferedFrames) const
 	{
-		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
-		if (PendingOcclusionQuery[QueryIndex].IsValid())
-		{
-			return PendingOcclusionQuery[QueryIndex].GetQuery();
-		}
+		// No need to release. FFrameBasedOcclusionQueryPool automatically reuses stale queries
 		return nullptr;
 	}
 
@@ -236,20 +223,21 @@ public:
 		const int32 OldestQueryIndex = bNeedsScanOnRead ? ScanOldestNonStaleQueryIndex(FrameNumber, NumBufferedFrames, LagTolerance)
 														: FOcclusionQueryHelpers::GetQueryLookupIndex(FrameNumber, NumBufferedFrames);
 		const int32 LaggedFrames = FrameNumber - PendingOcclusionQueryFrames[OldestQueryIndex];
-		if (OldestQueryIndex == -1 || !PendingOcclusionQuery[OldestQueryIndex].IsValid() || LaggedFrames > LagTolerance)
+		// Nenever read from queries are older than LagTolerance. They may have already been reused and will give incorrect results
+		if (OldestQueryIndex == -1 || !PendingOcclusionQuery[OldestQueryIndex] || LaggedFrames > LagTolerance)
 		{
 			bOutGrouped = false;
 			return nullptr;
 		}
 		bOutGrouped = bGroupedQuery[OldestQueryIndex];
-		return PendingOcclusionQuery[OldestQueryIndex].GetQuery();
+		return PendingOcclusionQuery[OldestQueryIndex];
 	}
 
-	inline void SetCurrentQuery(uint32 FrameNumber, FRefCountedRHIPooledRenderQuery&& NewQuery, int32 NumBufferedFrames, bool bGrouped, bool bNeedsScan)
+	inline void SetCurrentQuery(uint32 FrameNumber, FRHIRenderQuery* NewQuery, int32 NumBufferedFrames, bool bGrouped, bool bNeedsScan)
 	{
 		// Get the current occlusion query
 		const uint32 QueryIndex = FOcclusionQueryHelpers::GetQueryIssueIndex(FrameNumber, NumBufferedFrames);
-		PendingOcclusionQuery[QueryIndex] = MoveTemp(NewQuery);
+		PendingOcclusionQuery[QueryIndex] = NewQuery;
 		PendingOcclusionQueryFrames[QueryIndex] = FrameNumber;
 		bGroupedQuery[QueryIndex] = bGrouped;
 
@@ -703,6 +691,7 @@ public:
 
 	/** The view's occlusion query pool. */
 	FRenderQueryPoolRHIRef OcclusionQueryPool;
+	FFrameBasedOcclusionQueryPool PrimitiveOcclusionQueryPool;
 
 	FHZBOcclusionTester HZBOcclusionTests;
 
