@@ -320,6 +320,11 @@ void RHIExit()
 		delete GDynamicRHI;
 		GDynamicRHI = NULL;
 	}
+	else if (GUsingNullRHI)
+	{
+		// If we are using NullRHI flush the command list here in case somethings has been added to the command list during exit calls
+		FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResourcesFlushDeferredDeletes);
+	}
 }
 
 
