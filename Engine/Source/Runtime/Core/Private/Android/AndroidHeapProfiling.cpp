@@ -1,11 +1,14 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Android/AndroidHeapProfiling.h"
-#include "Containers/StringConv.h"
 
 
 #if ANDROID_HEAP_PROFILING_SUPPORTED
-	AHeapInfo* (*AHeapInfoCreate)(const char* _Nonnull heap_name) = nullptr;
-	uint32_t(*AHeapProfileRegisterHeap)(AHeapInfo* _Nullable info) = nullptr;
+	#include <dlfcn.h>
+	#include "Containers/StringConv.h"
+
+	AHeapInfo* (*AHeapInfoCreate)(const char* heap_name) = nullptr;
+	uint32_t(*AHeapProfileRegisterHeap)(AHeapInfo* info) = nullptr;
 	bool (*AHeapProfileReportAllocation)(uint32_t heap_id, uint64_t alloc_id, uint64_t size) = nullptr;
 	void (*AHeapProfileReportFree)(uint32_t heap_id, uint64_t alloc_id) = nullptr;
 

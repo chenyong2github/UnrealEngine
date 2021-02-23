@@ -3,11 +3,10 @@
 #pragma once
 
 #if ANDROID_HEAP_PROFILING_SUPPORTED
-	#include <dlfcn.h>
 	#include <type_traits>
-	#include "heap_profile.h"
 	#include "HAL/MallocAnsi.h"
 
+	struct AHeapInfo;
 	extern AHeapInfo* (*AHeapInfoCreate)(const char* heap_name);
 	extern uint32_t (*AHeapProfileRegisterHeap)(AHeapInfo* info);
 	extern bool (*AHeapProfileReportAllocation)(uint32_t heap_id, uint64_t alloc_id, uint64_t size);
