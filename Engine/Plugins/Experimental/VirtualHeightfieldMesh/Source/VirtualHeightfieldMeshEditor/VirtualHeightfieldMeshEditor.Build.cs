@@ -14,6 +14,7 @@ public class VirtualHeightfieldMeshEditor : ModuleRules
 			"RenderCore",
 			"Renderer",
 			"RHI",
+			"SourceControl",
 			"Slate",
 			"SlateCore",
 			"UnrealEd",
