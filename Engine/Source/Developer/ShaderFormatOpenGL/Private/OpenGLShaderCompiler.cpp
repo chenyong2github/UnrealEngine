@@ -2530,7 +2530,6 @@ struct FDeviceCapabilities
 {
 	EPlatformType TargetPlatform = EPlatformType::Android;
 	bool bSupportsSeparateShaderObjects;
-	bool bRequiresUEShaderFramebufferFetchDef;
 };
 
 void FOpenGLFrontend::FillDeviceCapsOfflineCompilation(struct FDeviceCapabilities& Capabilities, const GLSLVersion ShaderVersion) const
@@ -2540,7 +2539,6 @@ void FOpenGLFrontend::FillDeviceCapsOfflineCompilation(struct FDeviceCapabilitie
 	if (ShaderVersion == GLSL_ES3_1_ANDROID)
 	{
 		Capabilities.TargetPlatform = EPlatformType::Android;
-		Capabilities.bRequiresUEShaderFramebufferFetchDef = true;
 	}
 	else
 	{
@@ -2628,11 +2626,6 @@ TSharedPtr<ANSICHAR> FOpenGLFrontend::PrepareCodeForOfflineCompilation(const GLS
 	const GLenum TypeEnum = GLFrequencyTable[Frequency];
 	// The incoming glsl may have preprocessor code that is dependent on defines introduced via the engine.
 	// This is the place to insert such engine preprocessor defines, immediately after the glsl version declaration.
-	if (Capabilities.bRequiresUEShaderFramebufferFetchDef && TypeEnum == GL_FRAGMENT_SHADER)
-	{
-		// Mali offline shader compiler does not support GL_EXT_shader_framebuffer_fetch
-		//StrOutSource.Append(TEXT("#define UE_EXT_shader_framebuffer_fetch 1\n"));
-	}
 
 	if (bEmitMobileMultiView)
 	{

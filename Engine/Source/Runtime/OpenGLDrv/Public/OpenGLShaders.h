@@ -26,7 +26,6 @@ struct FOpenGLShaderDeviceCapabilities
 	EShaderPlatform MaxRHIShaderPlatform;
 	bool bSupportsSeparateShaderObjects;
 	bool bSupportsShaderFramebufferFetch;
-	bool bRequiresUEShaderFramebufferFetchDef;
 	bool bRequiresARMShaderFramebufferFetchDepthStencilUndef;
 	GLint MaxVaryingVectors;
 	bool bRequiresDisabledEarlyFragmentTests;

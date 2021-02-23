@@ -217,7 +217,6 @@ struct FOpenGLES : public FOpenGLBase
 	static FORCEINLINE bool SupportsBufferStorage() { return bSupportsBufferStorage; }
 	
 
-	static FORCEINLINE bool RequiresUEShaderFramebufferFetchDef() { return bRequiresUEShaderFramebufferFetchDef; }
 	static FORCEINLINE bool HasBinaryProgramRetrievalFailed() { return bBinaryProgramRetrievalFailed; }
 	static FORCEINLINE bool RequiresDisabledEarlyFragmentTests() { return bRequiresDisabledEarlyFragmentTests; }
 	static FORCEINLINE bool RequiresARMShaderFramebufferFetchDepthStencilUndef() { return bRequiresARMShaderFramebufferFetchDepthStencilUndef; }
@@ -765,9 +764,6 @@ protected:
 
 	/** GL_EXT_shader_framebuffer_fetch */
 	static bool bSupportsShaderFramebufferFetch;
-
-	/** workaround for GL_EXT_shader_framebuffer_fetch */
-	static bool bRequiresUEShaderFramebufferFetchDef;
 
 	/** GL_ARM_shader_framebuffer_fetch_depth_stencil */
 	static bool bSupportsShaderDepthStencilFetch;
