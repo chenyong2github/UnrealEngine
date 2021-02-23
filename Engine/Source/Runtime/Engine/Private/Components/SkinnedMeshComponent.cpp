@@ -1721,8 +1721,12 @@ void USkinnedMeshComponent::SetMasterPoseComponent(class USkinnedMeshComponent* 
 	{
 		OldMasterPoseComponent->RemoveSlavePoseComponent(this);
 
-		// remove tick dependency between master & slave components
-		PrimaryComponentTick.RemovePrerequisite(OldMasterPoseComponent, OldMasterPoseComponent->PrimaryComponentTick);
+		// Only remove tick dependency if the old master pose comp isn't our attach parent. We should always have a tick dependency with our parent (see USceneComponent::AttachToComponent)
+		if (GetAttachParent() != OldMasterPoseComponent)
+		{
+			// remove tick dependency between master & slave components
+			PrimaryComponentTick.RemovePrerequisite(OldMasterPoseComponent, OldMasterPoseComponent->PrimaryComponentTick);
+		}
 	}
 
 	AllocateTransformData();
