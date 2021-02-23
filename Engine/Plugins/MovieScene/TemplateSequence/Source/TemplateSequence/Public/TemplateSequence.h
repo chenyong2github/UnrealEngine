@@ -8,6 +8,7 @@
 #include "TemplateSequence.generated.h"
 
 class MovieSceneTrack;
+DECLARE_LOG_CATEGORY_EXTERN(LogTemplateSequence, Log, All);
 
 /*
  * Movie scene animation that can be instanced multiple times inside a level sequence.
@@ -35,6 +36,7 @@ public:
 	virtual void UnbindObjects(const FGuid& ObjectId, const TArray<UObject*>& InObjects, UObject* Context) override;
 	virtual void UnbindInvalidObjects(const FGuid& ObjectId, UObject* Context) override;
 
+	virtual FGuid CreatePossessable(UObject* ObjectToPossess) override;
 	virtual bool AllowsSpawnableObjects() const override;
 
 #if WITH_EDITOR
@@ -44,6 +46,10 @@ public:
 	virtual void GetAssetRegistryTagMetadata(TMap<FName, FAssetRegistryTagMetadata>& OutMetadata) const override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
+
+private:
+	
+	FGuid FindOrAddBinding(UObject* ObjectToPossess);
 
 public:
 

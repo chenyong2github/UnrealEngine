@@ -15,6 +15,8 @@ class UFbxExportOption;
 class UAnimSequenceExportOption;
 class UAnimSequence;
 class UPoseAsset;
+class UMovieSceneSequencePlayer;
+class UTemplateSequence;
 
 class UMovieSceneEventSectionBase;
 class UK2Node_CustomEvent;
@@ -112,6 +114,7 @@ public:
 	static TArray<FSequencerBoundObjects> GetObjectBindings(UWorld* InWorld, ULevelSequence* InSequence, const TArray<UObject*>& InObject, const FSequencerScriptingRange& InRange);
 
 public:
+
 	/*
 	 * Export Passed in Bindings to FBX
 	 *
@@ -121,7 +124,13 @@ public:
 	 * @InFBXFileName File to create
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
-	static bool ExportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions,const FString& InFBXFileName);
+	static bool ExportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions, const FString& InFBXFileName);
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
+	static bool ExportTemplateSequenceFBX(UWorld* InWorld, UTemplateSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions, const FString& InFBXFileName);
+
+	UE_DEPRECATED(4.27, "Please use ExportLevelSequenceFBX instead")
+	static bool ExportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions,const FString& InFBXFileName) { return ExportLevelSequenceFBX(InWorld, InSequence, InBindings, OverrideOptions, InFBXFileName); }
 
 	/*
 	 * Export Passed in Binding as an Anim Seqquence.
@@ -137,16 +146,23 @@ public:
 	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOption, const FSequencerBindingProxy& Binding);
 
 	/*
-	 * Import Passed in Bindings to FBX
+	 * Import FBX onto Passed in Bindings
 	 *
 	 * @InWorld World to import to
 	 * @InSequence InSequence to import
 	 * @InBindings InBindings to import
 	 * @InImportFBXSettings Settings to control import.
-	 * @InImportFileName Path to fbx file to create
+	 * @InImportFileName Path to fbx file to import from
+	 * @InPlayer Player to bind to
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
-	static bool ImportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString&  InImportFilename);
+	static bool ImportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString& InImportFilename);
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
+	static bool ImportTemplateSequenceFBX(UWorld* InWorld, UTemplateSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString& InImportFilename);
+
+	UE_DEPRECATED(4.27, "Please use ImportLevelSequenceFBX instead")
+	static bool ImportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString& InImportFilename) { return ImportLevelSequenceFBX(InWorld, InSequence, InBindings, InImportFBXSettings, InImportFilename); }
 
 public:
 	/**

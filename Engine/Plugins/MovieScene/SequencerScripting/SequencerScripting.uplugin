@@ -17,7 +17,12 @@
 		{
 			"Name": "PythonScriptPlugin",
 			"Enabled": true
+		},
+		{
+			"Name": "TemplateSequence",
+			"Enabled": true
 		}
+
 	],
 	"Modules": [
 		{

@@ -32,6 +32,8 @@ public class SequencerScriptingEditor : ModuleRules
                 "MovieSceneTracks",
 				"CinematicCamera",
 				"SequencerScripting",
+				"TemplateSequence",
+				"TemplateSequenceEditor",
 			}
 		);
 
