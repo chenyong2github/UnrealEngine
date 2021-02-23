@@ -10,6 +10,8 @@
 #include "Chaos/Transform.h"
 #include "Chaos/Utilities.h"
 
+#include "HAL/IConsoleManager.h"
+
 //PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
@@ -539,6 +541,10 @@ namespace Chaos
 
 			// Find the deepest penetration. This is used to determine the planes and points to use for the manifold
 			FContactPoint GJKContactPoint = GenericConvexConvexContactPoint(Convex1, Convex1Transform, Convex2, Convex2Transform, CullDistance, Constraint.Manifold.RestitutionPadding);
+			if (GJKContactPoint.Phi > CullDistance)
+			{
+				return;
+			}
 
 			// @todo(chaos): get the vertex index from GJK and use to to get the plane
 			const FVec3 SeparationDirectionLocalConvex1 = Convex1Transform.InverseTransformVectorNoScale(GJKContactPoint.Normal);

@@ -95,6 +95,18 @@ public:
 		return MObject.Get();
 	}
 
+	float GetMargin() const
+	{
+		// If the inner shape is quadratic, we have no margin
+		return (MObject->GetRadius() > 0.0f) ? 0.0f : Margin;
+	}
+
+	FReal GetRadius() const
+	{
+		// If the inner shape is quadratic, so are we
+		return (MObject->GetRadius() > 0.0f) ? Margin : 0.0f;
+	}
+
 	bool GetDoCollide() const
 	{
 		return MObject->GetDoCollide();

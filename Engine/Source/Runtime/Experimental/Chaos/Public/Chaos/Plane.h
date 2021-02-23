@@ -163,6 +163,11 @@ class TPlane final : public FImplicitObject
 		return ImplicitObjectType::Plane;
 	}
 
+	FReal GetRadius() const
+	{
+		return 0.0f;
+	}
+
 	/**
 	 * Phi is positive on the side of the normal, and negative otherwise.
 	 */

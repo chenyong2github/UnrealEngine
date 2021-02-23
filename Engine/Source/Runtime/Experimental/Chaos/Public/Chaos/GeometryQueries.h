@@ -1,23 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Box.h"
+#include "Chaos/Capsule.h"
 #include "Chaos/CastingUtilities.h"
+#include "Chaos/Convex.h"
+#include "Chaos/GJK.h"
+#include "Chaos/HeightField.h"
 #include "Chaos/ImplicitObject.h"
+#include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/Levelset.h"
 #include "Chaos/Plane.h"
+#include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
-#include "Chaos/HeightField.h"
-#include "Chaos/Convex.h"
-#include "Chaos/Capsule.h"
-#include "ImplicitObjectScaled.h"
-#include "Chaos/Box.h"
-#include "Chaos/Sphere.h"
-#include "Chaos/Levelset.h"
 
 #include "ChaosArchive.h"
 #include <algorithm>
 #include <utility>
-#include "GJK.h"
 
 namespace Chaos
 {
@@ -180,7 +180,12 @@ namespace Chaos
 			}
 
 			const FVec3 Offset = ATM.GetLocation() - BTM.GetLocation();
-			bResult = Utilities::CastHelper(A, BToATM, [&](const auto& ADowncast, const auto& BToAFullTM){ return GJKRaycast2(ADowncast, B, BToAFullTM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness); });
+			bResult = Utilities::CastHelperNoUnwrap(A, BToATM, 
+				[&](const auto& ADowncast, const auto& BToAFullTM)
+				{
+					return GJKRaycast2(ADowncast, B, BToAFullTM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, Thickness, bComputeMTD, Offset, Thickness);
+				});
+
 			if (AType == ImplicitObjectType::Convex)
 			{
 				//todo: find face index

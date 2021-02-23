@@ -2,6 +2,8 @@
 #pragma once
 
 #include "Chaos/Box.h"
+#include "Chaos/GJKShape.h"
+#include "Chaos/ImplicitFwd.h"
 #include "Chaos/ImplicitObject.h"
 #include "ChaosArchive.h"
 
@@ -63,6 +65,11 @@ namespace Chaos
 		static constexpr EImplicitObjectType StaticType()
 		{ 
 			return ImplicitObjectType::Sphere; 
+		}
+
+		FReal GetRadius() const
+		{
+			return Margin;
 		}
 
 		virtual T PhiWithNormal(const TVector<T, d>& InSamplePoint, TVector<T, d>& OutNormal) const override
@@ -191,11 +198,13 @@ namespace Chaos
 
 		FORCEINLINE const TVector<T, d>& SupportCore(const TVector<T, d>& Direction, float InMargin) const
 		{
+			// Note: ignores InMargin, assumed Radius
 			return Center;
 		}
 
 		FORCEINLINE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, float InMargin, const TVector<T, d>& Scale) const
 		{
+			// Note: ignores InMargin, assumed Radius
 			return Center * Scale;
 		}
 
@@ -236,11 +245,6 @@ namespace Chaos
 		const TVector<T, d>& GetCenterOfMass() const 
 		{ 
 			return Center; 
-		}
-
-		T GetRadius() const 
-		{ 
-			return GetMargin(); 
 		}
 
 		virtual FString ToString() const

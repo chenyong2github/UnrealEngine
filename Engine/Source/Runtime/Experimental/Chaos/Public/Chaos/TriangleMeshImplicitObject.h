@@ -127,6 +127,11 @@ namespace Chaos
 		FTriangleMeshImplicitObject(FTriangleMeshImplicitObject&& Other) = delete;
 		virtual ~FTriangleMeshImplicitObject();
 
+		FReal GetRadius() const
+		{
+			return 0.0f;
+		}
+
 		virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const;
 
 		virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override;

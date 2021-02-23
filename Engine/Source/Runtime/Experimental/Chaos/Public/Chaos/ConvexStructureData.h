@@ -6,7 +6,6 @@
 #include "Chaos/MassProperties.h"
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
-#include "GJK.h"
 #include "ChaosCheck.h"
 #include "ChaosLog.h"
 #include "UObject/PhysicsObjectVersion.h"

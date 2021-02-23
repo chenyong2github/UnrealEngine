@@ -96,11 +96,12 @@ namespace Chaos
 
 		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, float InMargin, const FVec3& Scale) const
 		{
-			// No margin support in triangles (they are zero thickness so cannot have an internal margin)
+			// Note: ignores InMargin, assumed 0 (triangles cannot have a margin as they are zero thickness)
 			return SupportCore(Direction * Scale, 0.0f) * Scale;
 		}
 
 		FORCEINLINE FReal GetMargin() const { return 0; }
+		FORCEINLINE FReal GetRadius() const { return 0; }
 
 		FORCEINLINE bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
 		{

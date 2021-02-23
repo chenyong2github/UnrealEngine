@@ -8,7 +8,6 @@
 
 #include "CollisionConvexMesh.h"
 #include "ChaosArchive.h"
-#include "GJK.h"
 #include "ChaosCheck.h"
 #include "ChaosLog.h"
 #include "UObject/ReleaseObjectVersion.h"
@@ -104,6 +103,16 @@ namespace Chaos
 		static constexpr EImplicitObjectType StaticType()
 		{
 			return ImplicitObjectType::Convex;
+		}
+
+		FReal GetMargin() const
+		{
+			return Margin;
+		}
+
+		FReal GetRadius() const
+		{
+			return 0.0f;
 		}
 
 		virtual const FAABB3 BoundingBox() const override
@@ -263,13 +272,7 @@ namespace Chaos
 		 * and \c OutNormal should be.  The burden for detecting this case is deferred to the
 		 * caller. 
 		 */
-		virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override
-		{
-			OutFaceIndex = INDEX_NONE;	//finding face is expensive, should be called directly by user
-			const FRigidTransform3 StartTM(StartPoint, FRotation3::FromIdentity());
-			const TSphere<FReal, 3> Sphere(FVec3(0), Thickness);
-			return GJKRaycast(*this, Sphere, StartTM, Dir, Length, OutTime, OutPosition, OutNormal);
-		}
+		virtual bool Raycast(const FVec3& StartPoint, const FVec3& Dir, const FReal Length, const FReal Thickness, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const override;
 
 		virtual Pair<FVec3, bool> FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const override
 		{
@@ -472,11 +475,9 @@ namespace Chaos
 			const int32 SupportVertexIndex = GetSupportVertex(Direction);
 			if (SupportVertexIndex != INDEX_NONE)
 			{
-				// @chaos(todo): apply an upper limit to the margin to prevent an inverted shape
-				const float NetMargin = InMargin + GetMargin();
-				if (NetMargin > SMALL_NUMBER)
+				if (InMargin > SMALL_NUMBER)
 				{
-					return GetMarginAdjustedVertex(SupportVertexIndex, NetMargin);
+					return GetMarginAdjustedVertex(SupportVertexIndex, InMargin);
 				}
 				return Vertices[SupportVertexIndex];
 			}
@@ -488,23 +489,18 @@ namespace Chaos
 		FVec3 SupportCoreScaled(const FVec3& Direction, float InMargin, const FVec3& Scale) const
 		{
 			// Find the supporting vertex index
-			const FVec3 DirectionScaled = Scale * Direction;	// Not normalized
+			const FVec3 DirectionScaled = Scale * Direction;	// does not need to be normalized
 			const int32 SupportVertexIndex = GetSupportVertex(DirectionScaled);
 
 			// Adjust the vertex position based on margin
 			FVec3 VertexPosition = FVec3(0);
 			if (SupportVertexIndex != INDEX_NONE)
 			{
-				// Note: Shapes wrapped in a non-uniform scale should not have their own margin
-				// because we do not support non-uniformly scaled margins on convex (to do so would 
-				// require that we dupe the convex data for each scale).
-				const FReal InverseScale = 1.0f / Scale[0];
-				const float NetMargin = InMargin + InverseScale * GetMargin();
-
+				// Note: Shapes wrapped in a non-uniform scale should not have their own margin and we assume that here
 				// @chaos(todo): apply an upper limit to the margin to prevent a non-convex or null shape (also see comments in GetMarginAdjustedVertex)
-				if (NetMargin > SMALL_NUMBER)
+				if (InMargin > SMALL_NUMBER)
 				{
-					VertexPosition = GetMarginAdjustedVertexScaled(SupportVertexIndex, NetMargin, Scale);
+					VertexPosition = GetMarginAdjustedVertexScaled(SupportVertexIndex, InMargin, Scale);
 				}
 				else
 				{

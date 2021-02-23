@@ -311,9 +311,21 @@ namespace Chaos
 					
 					{
 						SCOPE_CYCLE_COUNTER(STAT_Collisions_GenerateCollisions);
+
+						// We move the bodies during contact resolution and it may be in any direction
+						// @todo(chaos): this expansion can be very large for some objects - we may want to consider extending only along
+						// the velocity direction if CCD is not enabled for either object.
+						const FReal CullDistance1 = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
+						FReal CullDistance2 = 0.0f;
+						if (FKinematicGeometryParticleHandle* KinematicParticle2 = Particle2.CastToKinematicParticle())
+						{
+							CullDistance2 = ComputeBoundsThickness(*KinematicParticle2, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
+						}
+						const FReal NetCullDistance = CullDistance + CullDistance1 + CullDistance2;
+
 						// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate
 						// the contact position and normal (for contacts within CullDistance) for use in collision callbacks.
-						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), CullDistance);
+						NarrowPhase.GenerateCollisions(NewConstraints, Dt, Particle1.Handle(), Particle2.Handle(), NetCullDistance);
 					}
 				}
 
@@ -338,43 +350,4 @@ namespace Chaos
 
 		FIgnoreCollisionManager IgnoreCollisionManager;
 	};
-
-
-
-
-	extern void MoveToTOIPairHack(FReal Dt, FPBDRigidParticleHandle* Particle1, const FGeometryParticleHandle* Particle2);
-
-	template<typename T_SPATIALACCELERATION>
-	void MoveToTOIHackImpl(FReal Dt, TTransientPBDRigidParticleHandle<FReal, 3>& Particle1, const T_SPATIALACCELERATION* SpatialAcceleration)
-	{
-		TArray<FAccelerationStructureHandle> PotentialIntersections;
-		const FAABB3 Box1 = ComputeWorldSpaceBoundingBox(Particle1);
-		FSimOverlapVisitor OverlapVisitor(PotentialIntersections);
-		SpatialAcceleration->Overlap(Box1, OverlapVisitor);
-
-		const int32 NumPotentials = PotentialIntersections.Num();
-		for (int32 i = 0; i < NumPotentials; ++i)
-		{
-			auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
-
-			// We only care about static/kinematics
-			if (Particle2.CastToRigidParticle() && (Particle2.CastToRigidParticle()->ObjectState() == EObjectStateType::Dynamic))
-			{
-				continue;
-			}
-			if (!Particle1.Geometry() && !Particle2.Geometry())
-			{
-				continue;
-			}
-
-			const bool bBody2Bounded = HasBoundingBox(Particle2);
-			if (Particle1.Handle() == Particle2.Handle())
-			{
-				continue;
-			}
-
-			MoveToTOIPairHack(Dt, Particle1.Handle(), &Particle2);
-		}
-	}
-
 }

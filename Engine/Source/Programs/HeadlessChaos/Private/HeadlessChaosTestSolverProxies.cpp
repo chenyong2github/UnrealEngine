@@ -63,7 +63,7 @@ namespace ChaosTest {
 	}
 
 	template<typename Traits>
-	void SingleParticleProxyWakeEventPropergationTest()
+	void SingleParticleProxyWakeEventPropagationTest()
 	{
 		using namespace Chaos;
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
@@ -122,6 +122,6 @@ namespace ChaosTest {
 	TYPED_TEST(AllTraits, SingleParticleProxyTests)
 	{
 		ChaosTest::SingleParticleProxySingleThreadTest<TypeParam>();
-		ChaosTest::SingleParticleProxyWakeEventPropergationTest<TypeParam>();
+		ChaosTest::SingleParticleProxyWakeEventPropagationTest<TypeParam>();
 	}
 }
