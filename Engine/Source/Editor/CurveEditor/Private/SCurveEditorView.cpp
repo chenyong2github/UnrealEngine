@@ -227,7 +227,9 @@ void SCurveEditorView::GetCurveDrawParams(TArray<FCurveDrawParams>& OutDrawParam
 				const FKeyPosition&   KeyPosition = AllKeyPositions[Index];
 				const FKeyAttributes& Attributes = AllKeyAttributes[Index];
 
-				bool bShowTangents = TangentVisibility == ECurveEditorTangentVisibility::AllTangents || (TangentVisibility == ECurveEditorTangentVisibility::SelectedKeys && SelectedKeys && SelectedKeys->Contains(VisibleKeys[Index]));
+				bool bShowTangents = TangentVisibility == ECurveEditorTangentVisibility::AllTangents || 
+					(TangentVisibility == ECurveEditorTangentVisibility::SelectedKeys && SelectedKeys && 
+					 (SelectedKeys->Contains(VisibleKeys[Index], ECurvePointType::Any) ) );
 
 				float TimeScreenPos = CurveSpace.SecondsToScreen(KeyPosition.InputValue + InputOffset);
 				float ValueScreenPos = CurveSpace.ValueToScreen(KeyPosition.OutputValue);

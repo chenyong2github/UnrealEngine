@@ -123,7 +123,7 @@ void UCurveEditorReduceFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurve
 				else
 				{
 					KeysToRemove.Add(KeyHandles[TestIndex]);
-					OutHandleSet.Remove(KeyHandles[TestIndex]);
+					OutHandleSet.Remove(KeyHandles[TestIndex], ECurvePointType::Key);
 				}
 			}
 			Curve->Modify();

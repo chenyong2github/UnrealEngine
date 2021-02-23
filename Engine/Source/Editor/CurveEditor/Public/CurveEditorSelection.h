@@ -22,22 +22,22 @@ struct CURVEEDITOR_API FKeyHandleSet
 	/**
 	 * Add a new key handle to this set
 	 */
-	void Add(FKeyHandle Handle);
+	void Add(FKeyHandle Handle, ECurvePointType PointType);
 
 	/**
 	 * Remove a handle from this set if it already exists, otherwise add it to the set
 	 */
-	void Toggle(FKeyHandle Handle);
+	void Toggle(FKeyHandle Handle, ECurvePointType PointType);
 
 	/**
 	 * Remove a handle from this set
 	 */
-	void Remove(FKeyHandle Handle);
+	void Remove(FKeyHandle Handle, ECurvePointType PointType);
 
 	/**
 	 * Check whether the specified handle exists in this set
 	 */
-	bool Contains(FKeyHandle Handle) const;
+	bool Contains(FKeyHandle Handle, ECurvePointType PointType) const;
 
 	/**
 	 * Retrieve the number of handles in this set
@@ -49,10 +49,18 @@ struct CURVEEDITOR_API FKeyHandleSet
 	 */
 	FORCEINLINE TArrayView<const FKeyHandle> AsArray() const { return SortedHandles; }
 
+	/**
+	 *  Retrieve the point type for this handle
+	 */
+	ECurvePointType PointType(FKeyHandle Handle) const { return HandleToPointType.FindChecked(Handle); }
+
 private:
 
 	/** Sorted array of key handles */
 	TArray<FKeyHandle, TInlineAllocator<1>> SortedHandles;
+
+	/** Map of handle to point type (point, left, or right tangent) */
+	TMap<FKeyHandle, ECurvePointType> HandleToPointType;
 };
 
 
@@ -72,11 +80,6 @@ struct CURVEEDITOR_API FCurveEditorSelection
 	 * which is used to find if a model is read only
 	 */
 	FCurveEditorSelection(TWeakPtr<FCurveEditor> InWeakCurveEditor);
-
-	/**
-	 * Retrieve the current type of selection
-	 */
-	FORCEINLINE ECurvePointType GetSelectionType() const { return SelectionType; }
 
 	/**
 	 * Retrieve this selection's serial number. Incremented whenever a change is made to the selection.
@@ -110,10 +113,8 @@ struct CURVEEDITOR_API FCurveEditorSelection
 
 	/**
 	 * Check whether the specified handle and curve ID is contained in this selection.
-	 *
-	 * @note: Does not compare the current selection type
 	 */
-	bool Contains(FCurveModelID CurveID, FKeyHandle KeyHandle) const;
+	bool Contains(FCurveModelID CurveID, FKeyHandle KeyHandle, ECurvePointType PointType) const;
 
 public:
 
@@ -175,11 +176,6 @@ public:
 	 */
 	void Clear();
 
-	/**
-	 * Change the current selection type if it differs from the type specified
-	 */
-	void ChangeSelectionPointType(ECurvePointType InPointType);
-
 private:
 
 	/** Weak reference to the curve editor to check whether keys are locked or not */
@@ -187,9 +183,6 @@ private:
 
 	/** A serial number that increments every time a change is made to the selection */
 	uint32 SerialNumber;
-
-	/** The type of point currently selected */
-	ECurvePointType SelectionType;
 
 	/** A map of selected handles stored by curve ID */
 	TMap<FCurveModelID, FKeyHandleSet> CurveToSelectedKeys;

@@ -7,20 +7,17 @@
 
 FCurveEditorSelection::FCurveEditorSelection()
 {
-	SelectionType = ECurvePointType::Key;
 	SerialNumber = 0;
 }
 
 FCurveEditorSelection::FCurveEditorSelection(TWeakPtr<FCurveEditor> InWeakCurveEditor)
 {
 	WeakCurveEditor = InWeakCurveEditor;
-	SelectionType = ECurvePointType::Key;
 	SerialNumber = 0;
 }
 
 void FCurveEditorSelection::Clear()
 {
-	SelectionType = ECurvePointType::Key;
 	CurveToSelectedKeys.Reset();
 	++SerialNumber;
 }
@@ -43,13 +40,13 @@ int32 FCurveEditorSelection::Count() const
 bool FCurveEditorSelection::IsSelected(FCurvePointHandle InHandle) const
 {
 	const FKeyHandleSet* SelectedKeys = CurveToSelectedKeys.Find(InHandle.CurveID);
-	return SelectionType == InHandle.PointType && Contains(InHandle.CurveID, InHandle.KeyHandle);
+	return Contains(InHandle.CurveID, InHandle.KeyHandle, InHandle.PointType);
 }
 
-bool FCurveEditorSelection::Contains(FCurveModelID CurveID, FKeyHandle KeyHandle) const
+bool FCurveEditorSelection::Contains(FCurveModelID CurveID, FKeyHandle KeyHandle, ECurvePointType PointType) const
 {
 	const FKeyHandleSet* SelectedKeys = CurveToSelectedKeys.Find(CurveID);
-	return SelectedKeys && SelectedKeys->Contains(KeyHandle);
+	return SelectedKeys && SelectedKeys->Contains(KeyHandle, PointType);
 }
 
 void FCurveEditorSelection::Add(FCurvePointHandle InHandle)
@@ -70,12 +67,10 @@ void FCurveEditorSelection::Add(FCurveModelID CurveID, ECurvePointType PointType
 		const TUniquePtr<FCurveModel> *CurveModel = CurveEditor->GetCurves().Find(CurveID);
 		if (CurveModel && CurveModel->IsValid() && !(*CurveModel)->IsReadOnly())
 		{
-			ChangeSelectionPointType(PointType);
-
 			FKeyHandleSet& SelectedKeys = CurveToSelectedKeys.FindOrAdd(CurveID);
 			for (FKeyHandle Key : Keys)
 			{
-				SelectedKeys.Add(Key);
+				SelectedKeys.Add(Key, PointType);
 			}
 
 		}
@@ -98,12 +93,10 @@ void FCurveEditorSelection::Toggle(FCurveModelID CurveID, ECurvePointType PointT
 {
 	if (Keys.Num() > 0)
 	{
-		ChangeSelectionPointType(PointType);
-
 		FKeyHandleSet& SelectedKeys = CurveToSelectedKeys.FindOrAdd(CurveID);
 		for (FKeyHandle Key : Keys)
 		{
-			SelectedKeys.Toggle(Key);
+			SelectedKeys.Toggle(Key, PointType);
 		}
 
 		if (SelectedKeys.Num() == 0)
@@ -129,12 +122,10 @@ void FCurveEditorSelection::Remove(FCurveModelID CurveID, ECurvePointType PointT
 {
 	if (Keys.Num() > 0)
 	{
-		ChangeSelectionPointType(PointType);
-
 		FKeyHandleSet& SelectedKeys = CurveToSelectedKeys.FindOrAdd(CurveID);
 		for (FKeyHandle Key : Keys)
 		{
-			SelectedKeys.Remove(Key);
+			SelectedKeys.Remove(Key, PointType);
 		}
 	}
 
@@ -147,49 +138,65 @@ void FCurveEditorSelection::Remove(FCurveModelID InCurveID)
 	++SerialNumber;
 }
 
-void FCurveEditorSelection::ChangeSelectionPointType(ECurvePointType InPointType)
-{
-	if (SelectionType != InPointType)
-	{
-		SelectionType = InPointType;
-		//CurveToSelectedKeys.Reset();
-		++SerialNumber;
-	}
-}
-
-
-void FKeyHandleSet::Add(FKeyHandle Handle)
+void FKeyHandleSet::Add(FKeyHandle Handle, ECurvePointType PointType)
 {
 	int32 ExistingIndex = Algo::LowerBound(SortedHandles, Handle);
 	if (ExistingIndex >= SortedHandles.Num() || SortedHandles[ExistingIndex] != Handle)
 	{
 		SortedHandles.Insert(Handle, ExistingIndex);
 	}
+
+	EnumAddFlags(HandleToPointType.FindOrAdd(Handle), PointType);
 }
 
-void FKeyHandleSet::Toggle(FKeyHandle Handle)
+void FKeyHandleSet::Toggle(FKeyHandle Handle, ECurvePointType PointType)
 {
 	int32 ExistingIndex = Algo::LowerBound(SortedHandles, Handle);
 	if (ExistingIndex < SortedHandles.Num() && SortedHandles[ExistingIndex] == Handle)
 	{
-		SortedHandles.RemoveAt(ExistingIndex, 1, false);
+		if (HandleToPointType.Contains(Handle))
+		{
+			EnumRemoveFlags(HandleToPointType.FindChecked(Handle), PointType);
+
+			if (HandleToPointType.FindChecked(Handle) == ECurvePointType::None)
+			{
+				HandleToPointType.FindAndRemoveChecked(Handle);		
+				SortedHandles.RemoveAt(ExistingIndex, 1, false);
+			}
+		}
 	}
 	else
 	{
 		SortedHandles.Insert(Handle, ExistingIndex);
+			
+		EnumAddFlags(HandleToPointType.FindOrAdd(Handle), PointType);
 	}
 }
 
-void FKeyHandleSet::Remove(FKeyHandle Handle)
+void FKeyHandleSet::Remove(FKeyHandle Handle, ECurvePointType PointType)
 {
 	int32 ExistingIndex = Algo::LowerBound(SortedHandles, Handle);
 	if (ExistingIndex < SortedHandles.Num() && SortedHandles[ExistingIndex] == Handle)
 	{
-		SortedHandles.RemoveAt(ExistingIndex, 1, false);
+		if (HandleToPointType.Contains(Handle))
+		{
+			EnumRemoveFlags(HandleToPointType.FindChecked(Handle), PointType);
+
+			if (HandleToPointType.FindChecked(Handle) == ECurvePointType::None)
+			{
+				HandleToPointType.FindAndRemoveChecked(Handle);		
+				SortedHandles.RemoveAt(ExistingIndex, 1, false);
+			}
+		}
 	}
 }
 
-bool FKeyHandleSet::Contains(FKeyHandle Handle) const
+bool FKeyHandleSet::Contains(FKeyHandle Handle, ECurvePointType PointType) const
 {
-	return Algo::BinarySearch(SortedHandles, Handle) != INDEX_NONE;
+	if (Algo::BinarySearch(SortedHandles, Handle) != INDEX_NONE && HandleToPointType.Contains(Handle))
+	{
+		return EnumHasAnyFlags(HandleToPointType.FindChecked(Handle), PointType);
+	}
+	
+	return false;
 }
