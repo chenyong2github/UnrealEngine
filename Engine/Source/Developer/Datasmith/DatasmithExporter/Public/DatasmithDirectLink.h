@@ -26,10 +26,9 @@ public:
 
 public:
 	FDatasmithDirectLink();
-	~FDatasmithDirectLink();
 
-	bool InitializeForScene(TSharedRef<IDatasmithScene>& Scene);
-	bool UpdateScene(TSharedRef<IDatasmithScene>& Scene);
+	bool InitializeForScene(const TSharedRef<IDatasmithScene>& Scene);
+	bool UpdateScene(const TSharedRef<IDatasmithScene>& Scene);
 
 	static TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> GetEnpoint();
 };

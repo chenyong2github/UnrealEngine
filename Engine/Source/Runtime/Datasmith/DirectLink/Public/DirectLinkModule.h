@@ -23,4 +23,6 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded(DIRECTLINK_MODULE_NAME);
 	}
+
+	virtual void StartupModule() override;
 };

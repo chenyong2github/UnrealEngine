@@ -21,25 +21,15 @@ DEFINE_LOG_CATEGORY(LogDatasmithDirectLinkExporterAPI);
 class FDatasmithDirectLinkImpl
 {
 public:
-
-	static int32 ValidateCommunicationSetup()
-	{
-		return
-			(FModuleManager::Get().LoadModule(TEXT("Messaging")) ? 0 : 1) +
-			(FModuleManager::Get().LoadModule(TEXT("UdpMessaging")) ? 0 : 2) +
-			(FModuleManager::Get().LoadModule(TEXT("Networking")) ? 0 : 3) +
-			(FParse::Param(FCommandLine::Get(), TEXT("Messaging")) ? 0 : 4);
-	}
-
 	FDatasmithDirectLinkImpl()
 		: Endpoint(MakeShared<DirectLink::FEndpoint, ESPMode::ThreadSafe>(TEXT("DatasmithExporter")))
 	{
+		check(DirectLink::ValidateCommunicationStatus() == DirectLink::ECS_NoIssue);
 		Endpoint->SetVerbose();
-		check(ValidateCommunicationSetup() == 0);
 		// #ue_directlink_integration app specific endpoint name, and source name.
 	}
 
-	bool InitializeForScene(TSharedRef<IDatasmithScene>& Scene)
+	bool InitializeForScene(const TSharedRef<IDatasmithScene>& Scene)
 	{
 		UE_LOG(LogDatasmithDirectLinkExporterAPI, Log, TEXT("InitializeForScene"));
 
@@ -56,7 +46,7 @@ public:
 		return true;
 	}
 
-	bool UpdateScene(TSharedRef<IDatasmithScene>& Scene)
+	bool UpdateScene(const TSharedRef<IDatasmithScene>& Scene)
 	{
 		UE_LOG(LogDatasmithDirectLinkExporterAPI, Log, TEXT("UpdateScene"));
 		if (CurrentScene != Scene)
@@ -84,12 +74,11 @@ private:
 TUniquePtr<FDatasmithDirectLinkImpl> DirectLinkImpl;
 
 int32 FDatasmithDirectLink::ValidateCommunicationSetup()
-{ return FDatasmithDirectLinkImpl::ValidateCommunicationSetup(); }
+{ return (int32)DirectLink::ValidateCommunicationStatus(); }
 
 bool FDatasmithDirectLink::Shutdown()
 {
 	DirectLinkImpl.Reset();
-	FDatasmithExporterManager::Shutdown();
 	return true;
 }
 
@@ -101,12 +90,11 @@ FDatasmithDirectLink::FDatasmithDirectLink()
 	}
 }
 
-FDatasmithDirectLink::~FDatasmithDirectLink() = default;
 
-bool FDatasmithDirectLink::InitializeForScene(TSharedRef<IDatasmithScene>& Scene)
+bool FDatasmithDirectLink::InitializeForScene(const TSharedRef<IDatasmithScene>& Scene)
 { return DirectLinkImpl->InitializeForScene(Scene); }
 
-bool FDatasmithDirectLink::UpdateScene(TSharedRef<IDatasmithScene>& Scene)
+bool FDatasmithDirectLink::UpdateScene(const TSharedRef<IDatasmithScene>& Scene)
 { return DirectLinkImpl->UpdateScene(Scene); }
 
 TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> FDatasmithDirectLink::GetEnpoint()

@@ -23,7 +23,7 @@ bool FDatasmithFacadeDirectLink::Init(bool bUseDatasmithExporterUI, const TCHAR*
 	Options.bUseDatasmithExporterUI = bUseDatasmithExporterUI;
 	Options.RemoteEngineDirPath = RemoteEngineDirPath;
 
-	// #ue_directlink_cleanup it's not our role to init exporter manager here
+	// #ue_directlink_cleanup it's not our role to init/deinit exporter manager here. See also Shutdown()
 	if (!FDatasmithExporterManager::Initialize(Options))
 	{
 		UE_LOG(LogDatasmithFacade, Error, TEXT("Fail to initialize FDatasmithExporterManager"));
@@ -42,7 +42,9 @@ bool FDatasmithFacadeDirectLink::Init(bool bUseDatasmithExporterUI, const TCHAR*
 
 bool FDatasmithFacadeDirectLink::Shutdown()
 {
-	return FDatasmithDirectLink::Shutdown();
+	FDatasmithDirectLink::Shutdown();
+	FDatasmithExporterManager::Shutdown();
+	return true;
 }
 
 bool FDatasmithFacadeDirectLink::InitializeForScene(FDatasmithFacadeScene* FacadeScene)

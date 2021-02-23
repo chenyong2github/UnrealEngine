@@ -15,6 +15,16 @@ namespace DirectLink
 {
 class ISceneGraphNode;
 
+
+enum ECommunicationStatus{
+	ECS_NoIssue                      = 0,
+	ECS_ModuleNotLoaded_Messaging    = 1<<0,
+	ECS_ModuleNotLoaded_UdpMessaging = 1<<1,
+	ECS_ModuleNotLoaded_Networking   = 1<<2,
+};
+ECommunicationStatus ValidateCommunicationStatus();
+
+
 struct FRawInfo
 {
 	struct FDataPointId

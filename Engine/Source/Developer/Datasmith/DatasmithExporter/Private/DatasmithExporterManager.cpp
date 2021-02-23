@@ -6,7 +6,7 @@
 #include "UObject/GarbageCollection.h"
 
 #if IS_PROGRAM
-#include "DatasmithDirectLink.h"
+#include "DirectLinkModule.h"
 
 #include "Async/Future.h"
 #include "Async/TaskGraphInterfaces.h"
@@ -252,11 +252,10 @@ void FDatasmithGameThread::OnInit()
 
 		ModuleManager.LoadModuleChecked(FName(TEXT("DatasmithExporterUI")));
 
-
 		if (bUseMessaging)
 		{
-			// Init the modules for live link
-			check(FDatasmithDirectLink::ValidateCommunicationSetup() == 0);
+			// Init DirectLink module (and dependencies)
+			FDirectLinkModule::Get();
 		}
 	}
 	else

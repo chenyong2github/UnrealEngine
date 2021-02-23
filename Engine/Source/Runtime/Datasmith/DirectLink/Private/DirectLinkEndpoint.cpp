@@ -35,6 +35,21 @@ struct
 } gConfig;
 
 
+double gUdpMessagingInitializationTime = -1.;
+ECommunicationStatus ValidateCommunicationStatus()
+{
+	if (!FModuleManager::Get().IsModuleLoaded("UdpMessaging"))
+	{
+		gUdpMessagingInitializationTime = FPlatformTime::Seconds();
+	}
+
+	return ECommunicationStatus(
+		   (FModuleManager::Get().LoadModule("Messaging")         ? ECS_NoIssue : ECS_ModuleNotLoaded_Messaging)
+		 | (FModuleManager::Get().LoadModule("UdpMessaging")      ? ECS_NoIssue : ECS_ModuleNotLoaded_UdpMessaging)
+		 | (FModuleManager::Get().LoadModule("Networking")        ? ECS_NoIssue : ECS_ModuleNotLoaded_Networking)
+	);
+}
+
 
 class FSharedState
 {
@@ -62,7 +77,6 @@ public:
 
 	std::atomic<bool> bInnerThreadShouldRun{false};
 	bool bDebugLog = false;
-	bool bUdpJustInitialized = false;
 	const FString NiceName; // not locked (wrote once)
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
 
@@ -147,6 +161,13 @@ FEndpoint::FEndpoint(const FString& InName)
 	, InternalPtr(MakeUnique<FInternalThreadState>(*this, SharedState))
 	, Internal(*InternalPtr)
 {
+	ECommunicationStatus ComStatus = ValidateCommunicationStatus();
+	if (ComStatus != ECS_NoIssue)
+	{
+		UE_LOG(LogDirectLinkNet, Error, TEXT("Endpoint '%s': Unable to start communication (error code:%d):"), *SharedState.NiceName, ComStatus);
+		return;
+	}
+
 	if (Internal.Init())
 	{
 		UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s' Start internal thread"), *SharedState.NiceName);
@@ -1017,23 +1038,6 @@ FRawInfo::FEndpointInfo FromMsg(const FDirectLinkMsg_EndpointState& Msg)
 
 bool FInternalThreadState::Init()
 {
-	bool bUdpIsLoaded = FModuleManager::Get().IsModuleLoaded("UdpMessaging");
-	if (!bUdpIsLoaded)
-	{
-		UE_LOG(LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': UDP module is not loaded yet. Try to load..."), *SharedState.NiceName);
-		if (IModuleInterface* UdpModuleInterface = FModuleManager::Get().LoadModule("UdpMessaging"))
-		{
-			UE_LOG(LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': UDP module loaded successfully."), *SharedState.NiceName);
-			SharedState.bUdpJustInitialized = true;
-		}
-		else
-		{
-			UE_LOG(LogDirectLinkNet, Warning, TEXT("Fail to initialize UDP module. "
-				"Endpoint '%s' cannot communicate with remote endpoints.\n"
-				"UDP module should be loaded in the GameThread before creating a DirectLink::Endpoint."), *SharedState.NiceName);
-		}
-	}
-
 	MessageEndpoint = FMessageEndpoint::Builder(TEXT("DirectLinkEndpoint"))
 		.Handling<FDirectLinkMsg_DeltaMessage>(this, &FInternalThreadState::Handle_DeltaMessage)
 		.Handling<FDirectLinkMsg_HaveListMessage>(this, &FInternalThreadState::Handle_HaveListMessage)
@@ -1045,26 +1049,17 @@ bool FInternalThreadState::Init()
 		.Handling<FDirectLinkMsg_CloseStreamRequest>(this, &FInternalThreadState::Handle_CloseStreamRequest)
 		.WithInbox();
 
-	if (ensure(MessageEndpoint.IsValid()))
+	if (!ensure(MessageEndpoint.IsValid()))
 	{
-		MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointLifecycle>();
-		MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointState>();
-		SharedState.MessageEndpoint = MessageEndpoint;
-		SharedState.bInnerThreadShouldRun = true;
-		Now_s = FPlatformTime::Seconds();
-		return true;
-	}
-	else
-	{
-		UE_LOG(LogDirectLinkNet, Error, TEXT("Endpoint '%s': Unable to start communication:"), *SharedState.NiceName);
-		auto ValidateModule = [&](const TCHAR* MName) {
-			UE_CLOG(FModuleManager::Get().LoadModule(MName) == nullptr, LogDirectLinkNet, Error, TEXT("\tModule '%s' not loaded."), MName);
-		};
-		ValidateModule(TEXT("Messaging"));
-		ValidateModule(TEXT("UdpMessaging"));
-		ValidateModule(TEXT("Networking"));
 		return false;
 	}
+
+	MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointLifecycle>();
+	MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointState>();
+	SharedState.MessageEndpoint = MessageEndpoint;
+	SharedState.bInnerThreadShouldRun = true;
+	Now_s = FPlatformTime::Seconds();
+	return true;
 }
 
 
@@ -1078,10 +1073,14 @@ void FInternalThreadState::Run()
 	ThisDescription.ExecutableName = FPlatformProcess::ExecutableName();
 	ThisDescription.NiceName = SharedState.NiceName;
 
-	if (SharedState.bUdpJustInitialized)
+	if (gUdpMessagingInitializationTime > 0.)
 	{
-		UE_LOG(LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': wait after UDP init. (In order to avoid that temporisation, Load 'UdpMessaging' module sooner in the game thread)."), *SharedState.NiceName);
-		FPlatformProcess::Sleep(0.7);
+		double WaitTime = FMath::Min(FPlatformTime::Seconds() - gUdpMessagingInitializationTime, 0.5);
+		if (WaitTime > 0.)
+		{
+			UE_LOG(LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': wait after UDP init. (In order to avoid that temporisation, Load 'UdpMessaging' module sooner in the game thread)."), *SharedState.NiceName);
+			FPlatformProcess::Sleep(WaitTime);
+		}
 	}
 
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Publishing FDirectLinkMsg_EndpointLifecycle Start"), *SharedState.NiceName);
