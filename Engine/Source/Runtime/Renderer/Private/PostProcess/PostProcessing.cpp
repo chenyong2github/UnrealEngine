@@ -1897,6 +1897,9 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 				&SecondaryViewRect,
 				&HalfResolutionSceneColor.Texture,
 				&HalfResolutionSceneColor.ViewRect);
+
+			//! SceneColorTexture is now upsampled to the SecondaryViewRect. Use SecondaryViewRect for input / output.
+			SceneColor.ViewRect = SecondaryViewRect;
 		}
 	}
 	else
@@ -2092,7 +2095,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 #endif
 
 	// Apply ScreenPercentage
-	if (PassSequence.IsEnabled(EPass::PrimaryUpscale) || (bShouldPrimaryUpscale && !PassSequence.IsLastPass(EPass::Tonemap)))
+	if (PassSequence.IsEnabled(EPass::PrimaryUpscale))
 	{
 		FUpscaleInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::PrimaryUpscale, PassInputs.OverrideOutput);

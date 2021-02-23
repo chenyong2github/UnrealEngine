@@ -130,7 +130,7 @@
 		#if AA_DOWNSAMPLE
 			#define AA_SAMPLES 9
 		#else
-			#if SWITCH_PROFILE || SWITCH_PROFILE_FORWARD
+			#if SWITCH_PROFILE || SWITCH_PROFILE_FORWARD || AA_MOBILE_CONFIG
 				#define AA_SAMPLES 5
 			#else
 				#define AA_SAMPLES 6
@@ -150,7 +150,11 @@
 
 
 	#else
-		#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_LDS)
+		#if AA_MOBILE_CONFIG
+			#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_DISABLE) // the shared memory is not as efficient as expected on mobile devices, try not to use it on mobile devices.
+		#else
+			#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_LDS)
+		#endif
 	#endif
 
 	#if !COMPUTESHADER

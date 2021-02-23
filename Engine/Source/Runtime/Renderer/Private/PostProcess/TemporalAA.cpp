@@ -295,8 +295,8 @@ class FTAAStandaloneCS : public FGlobalShader
 			return false;
 		}
 		
-		//Only Main config without DownSample permutations are supported on mobile platform.
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || (PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::Main && !PermutationVector.Get<FTAADownsampleDim>());
+		//Only Main and MainUpsampling config without DownSample permutations are supported on mobile platform.
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) || ((PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::Main || PermutationVector.Get<FTAAPassConfigDim>() == ETAAPassConfig::MainUpsampling) && !PermutationVector.Get<FTAADownsampleDim>());
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

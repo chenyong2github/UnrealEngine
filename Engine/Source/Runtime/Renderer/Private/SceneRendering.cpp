@@ -2425,7 +2425,7 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 
 		// Fallback to no anti aliasing.
 		{
-			const bool bWillApplyTemporalAA = IsPostProcessingEnabled(View) || (View.bIsPlanarReflection && FeatureLevel >= ERHIFeatureLevel::SM5);
+			const bool bWillApplyTemporalAA = IsPostProcessingEnabled(View) || View.bIsPlanarReflection;
 
 			if (!bWillApplyTemporalAA)
 			{
@@ -2493,10 +2493,9 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 
 		// Automatic screen percentage fallback.
 		{
-			// Tenmporal upsample is supported on SM5 only if TAA is turned on.
+			// Tenmporal upsample is supported only if TAA is turned on.
 			if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale &&
 				(View.AntiAliasingMethod != AAM_TemporalAA ||
-				 FeatureLevel < ERHIFeatureLevel::SM5 ||
 				 ViewFamily.EngineShowFlags.VisualizeBuffer))
 			{
 				View.PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::SpatialUpscale;
