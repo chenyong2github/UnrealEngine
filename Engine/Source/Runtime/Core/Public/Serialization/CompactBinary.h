@@ -1176,15 +1176,15 @@ public:
 
 	/** Access the field as an object. Defaults to an empty object on error. */
 	inline FCbObject AsObject() &;
-
-	/** Access the field as an object. Defaults to an empty object on error. */
 	inline FCbObject AsObject() &&;
 
 	/** Access the field as an array. Defaults to an empty array on error. */
 	inline FCbArray AsArray() &;
-
-	/** Access the field as an array. Defaults to an empty array on error. */
 	inline FCbArray AsArray() &&;
+
+	/** Access the field as binary. Returns the provided default on error. */
+	inline FSharedBuffer AsBinary(const FSharedBuffer& Default = FSharedBuffer()) &;
+	inline FSharedBuffer AsBinary(const FSharedBuffer& Default = FSharedBuffer()) &&;
 };
 
 /**
@@ -1355,6 +1355,18 @@ inline FCbArray FCbField::AsArray() &
 inline FCbArray FCbField::AsArray() &&
 {
 	return IsArray() ? FCbArray(AsArrayView(), MoveTemp(*this)) : FCbArray();
+}
+
+inline FSharedBuffer FCbField::AsBinary(const FSharedBuffer& Default) &
+{
+	const FMemoryView View = AsBinaryView();
+	return !HasError() ? FSharedBuffer::MakeView(View, GetOuterBuffer()) : Default;
+}
+
+inline FSharedBuffer FCbField::AsBinary(const FSharedBuffer& Default) &&
+{
+	const FMemoryView View = AsBinaryView();
+	return !HasError() ? FSharedBuffer::MakeView(View, MoveTemp(*this).GetOuterBuffer()) : Default;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
