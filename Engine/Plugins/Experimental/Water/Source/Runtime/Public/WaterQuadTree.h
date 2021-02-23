@@ -5,6 +5,7 @@
 #include "ConvexVolume.h"
 #include "Templates/RefCounting.h"
 
+class FMaterialRenderProxy;
 class UMaterialInterface;
 class HHitProxy;
 
