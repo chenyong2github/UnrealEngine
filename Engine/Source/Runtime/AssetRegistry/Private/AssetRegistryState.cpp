@@ -1409,7 +1409,7 @@ FDependsNode* FAssetRegistryState::ResolveRedirector(FDependsNode* InDependency,
 
 void FAssetRegistryState::SetAssetDatas(TArrayView<FAssetData> AssetDatas, const FAssetRegistryLoadOptions& Options)
 {
-	ensure(NumAssets == 0);
+	UE_CLOG(NumAssets != 0, LogAssetRegistry, Fatal, TEXT("Can only load into empty asset registry states. Load into temporary and append using InitializeFromExisting() instead."));
 
 	NumAssets = AssetDatas.Num();
 	

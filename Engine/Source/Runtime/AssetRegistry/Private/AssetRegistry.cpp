@@ -319,7 +319,11 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 				if (IFileManager::Get().FileExists(*PluginAssetRegistry) && FFileHelper::LoadFileToArray(SerializedAssetData, *PluginAssetRegistry))
 				{
 					SerializedAssetData.Seek(0);
-					Serialize(SerializedAssetData);
+					FAssetRegistryState PluginState;
+					PluginState.Load(SerializedAssetData);
+
+					State.InitializeFromExisting(PluginState, SerializationOptions, FAssetRegistryState::EInitializationMode::Append);
+					CachePathsFromState(PluginState);
 				}
 			}
 		}
