@@ -1644,6 +1644,8 @@ int32 FEntityManager::MutateAll(const FEntityComponentFilter& Filter, const IMov
 		EntityAllocationMasks[Pair.Key] = Pair.Value;
 		EntityAllocations[Pair.Key] = NewAllocation;
 
+		Mutation.InitializeAllocation(NewAllocation, Pair.Value);
+
 		DestroyAllocation(SourceAllocation);
 	}
 

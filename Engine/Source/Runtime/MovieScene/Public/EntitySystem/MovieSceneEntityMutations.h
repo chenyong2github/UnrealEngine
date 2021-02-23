@@ -15,6 +15,7 @@ struct IMovieSceneEntityMutation
 {
 	virtual ~IMovieSceneEntityMutation() {}
 	virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const = 0;
+	virtual void InitializeAllocation(FEntityAllocation* Allocation, const FComponentMask& AllocationType) const {}
 };
 
 struct FAddSingleMutation : IMovieSceneEntityMutation
