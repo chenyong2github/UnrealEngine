@@ -62,6 +62,12 @@ static TAutoConsoleVariable<int32> CVarStrataFurnaceTest(
 	TEXT("Enable Strata furnace test (for debug purpose) 1: roughness/metallic 2: a selection of conductors."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarStrataFurnaceTestIntegratorType(
+	TEXT("r.Strata.FurnaceTest.IntegratorType"),
+	0,
+	TEXT("Change Strata furnace test integrator (for debug purpose) 0: evaluate integrator 1: importance sampling integrator 2: env. integrator."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarStrataFurnaceTestSampleCount(
 	TEXT("r.Strata.FurnaceTest.SampleCount"),
 	1024,
@@ -805,6 +811,9 @@ class FStrataFurnaceTestPassPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER(uint32, NumSamples)
 		SHADER_PARAMETER(uint32, SceneType)
+		SHADER_PARAMETER(uint32, IntegratorType)
+		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, OutLUT3D)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OutLUT2D)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -836,6 +845,9 @@ static void AddStrataFurnacePass(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	Parameters->SceneType = FMath::Clamp(CVarStrataFurnaceTest.GetValueOnAnyThread(), 1, 2);
+	Parameters->IntegratorType = FMath::Clamp(CVarStrataFurnaceTestIntegratorType.GetValueOnAnyThread(), 0, 2);
+	Parameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
+	Parameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters->NumSamples = FMath::Clamp(CVarStrataFurnaceTestSampleCount.GetValueOnAnyThread(), 16, 2048);
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutTexture, ERenderTargetLoadAction::ELoad);
 

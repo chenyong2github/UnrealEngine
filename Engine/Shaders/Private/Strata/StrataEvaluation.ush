@@ -128,8 +128,8 @@ FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BS
 	}
 	BSDFContext.TangentBasis = float3x3(BSDFContext.X, BSDFContext.Y, BSDFContext.N);
 
-	BSDFContext.TangentV = mul(BSDFContext.V, BSDFContext.TangentBasis);
-	BSDFContext.TangentH = mul(BSDFContext.H, BSDFContext.TangentBasis);
+	BSDFContext.TangentV = mul(BSDFContext.TangentBasis, BSDFContext.V);
+	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
 
 	BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
 	BSDFContext.SatNoV = saturate(BSDFContext.Context.NoV);
@@ -434,12 +434,10 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext)
 struct FStrataImportanceSampleResult
 {
 	float3 SpecularDirection;
-	float  SpecularConeAngle;		// bad approximate of Cone angle as 1/PDF as done by Lumen STRATA_TODO update when Lumen is pluged in...
+	float  SpecularPDF;
 
 	float3 DiffuseDirection;
-	float  DiffuseConeAngle;		// bad approximate of Cone angle as 1/PDF as done by Lumen STRATA_TODO update when Lumen is pluged in...
-
-//	FStrataEvaluateResult Eval;
+	float  DiffusePDF;
 };
 
 /**
@@ -448,14 +446,9 @@ struct FStrataImportanceSampleResult
  * E: two random numbers
  * CameraVector: vector from the camera to the considered direction (not V)
  */
-FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, const FStrataAddressing StrataAddressing, float2 E, float3 CameraVector)
+FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDFContext, FStrataBSDF BSDF, float2 E)
 {
 	FStrataImportanceSampleResult Sample = (FStrataImportanceSampleResult)0;
-
-	// Create a context from the information we have
-	const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
-	const float3 V = -CameraVector;
-	FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V, UnusedL);
 
 	float PDF = 0.0f;
 	const uint BSDFType = BSDF_GETTYPE(BSDF);
@@ -470,31 +463,34 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 			// We also assume that this will work just as well for volumetric (considering it is an isotropic phase function and we are interesting in sampling mostly the hemisphere and not the layers below)
 			float4 ImportanceSample = CosineSampleHemisphere(E);
 			Sample.DiffuseDirection = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
-			PDF = ImportanceSample.w;
-			Sample.DiffuseConeAngle = 1.0f / PDF;
+			Sample.DiffusePDF = ImportanceSample.w;
+			PDF = Sample.DiffusePDF;
 
 			const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDF), BaseColor, Metallic);
-			// STRATA_TODO F82
+			// STRATA_TODO F82pb 
 
 			const float SafeRoughnessX = MakeRoughnessSafe(SLAB_ROUGHNESSX(BSDFContext.BSDF));
 			const bool bHasAnisotropy = BSDF_GETANISOTROPY(BSDFContext.BSDF);
-			float4 GGXSample = 0;
+			float4 TangentH = 0;
 			if (bHasAnisotropy)
 			{
 				const float SafeRoughnessY = MakeRoughnessSafe(SLAB_ROUGHNESSY(BSDFContext.BSDF));
-				GGXSample = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(E), float2(Pow2(SafeRoughnessX), Pow2(SafeRoughnessY)), BSDFContext.TangentV);
+				TangentH = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(E), float2(Pow2(SafeRoughnessX), Pow2(SafeRoughnessY)), BSDFContext.TangentV);
 			}
 			else
 			{
-				GGXSample = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SafeRoughnessX), BSDFContext.TangentV);
+				TangentH = ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(SafeRoughnessX), BSDFContext.TangentV);
 			}
 
 			// STRATA_TODO: take into account Haziness
 
-			float3 WorldH = mul(GGXSample.xyz, BSDFContext.TangentBasis);
-			Sample.SpecularDirection = reflect(CameraVector, WorldH);
-			PDF = GGXSample.w;
-			Sample.SpecularConeAngle = 1.0f / PDF;
+			const float HPDF = TangentH.w;
+			const float3 H = mul(TangentH.xyz, BSDFContext.TangentBasis);
+			const float VoH = saturate(dot(BSDFContext.V, H));
+
+			Sample.SpecularDirection = 2 * dot(BSDFContext.V, H) * H - BSDFContext.V;
+			Sample.SpecularPDF = RayPDFToReflectionRayPDF(VoH, HPDF);
+			PDF = Sample.SpecularPDF;
 			break;
 		}
 
@@ -505,7 +501,6 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 			float4 ImportanceSample = CosineSampleHemisphere(E);
 			Sample.DiffuseDirection = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
 			PDF = ImportanceSample.w;
-			Sample.DiffuseConeAngle = 1.0f / PDF;
 			break;
 		}
 
@@ -515,7 +510,6 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 			float4 ImportanceSample = CosineSampleHemisphere(E);
 			Sample.DiffuseDirection = mul(ImportanceSample.xyz, BSDFContext.TangentBasis);
 			PDF = ImportanceSample.w;
-			Sample.DiffuseConeAngle = 1.0f / PDF;
 			break;
 		}
 
@@ -531,6 +525,17 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 	//Sample.Eval.PDF = PDF;	// We override the pdf to make sure the compiler skips all pdf code from StrataEvaluateBSDF because GGXSample.w si the pdf already for instance.
 
 	return Sample;
+}
+
+FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, const FStrataAddressing StrataAddressing, float2 E, float3 CameraVector)
+{
+	FStrataImportanceSampleResult Sample = (FStrataImportanceSampleResult)0;
+
+	// Create a context from the information we have
+	const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
+	const float3 V = -CameraVector;
+	FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V, UnusedL);
+	return StrataImportanceSampleBSDF(BSDFContext, BSDF, E);
 }
 
 struct FStrataEnvLightResult

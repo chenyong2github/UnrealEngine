@@ -8,9 +8,14 @@
 #include "StrataMultipleScattering.ush"
 #include "StrataEvaluation.ush"
 
+#define STRATA_INTEGRATION_EVALUATE 0
+#define STRATA_INTEGRATION_SAMPLING 1
+#define STRATA_INTEGRATION_ENV 2
+
 #if SHADER_FURNACE_ANALYTIC
 
 uint SceneType;
+uint IntegratorType;
 uint NumSamples;
 
 void MainPS(
@@ -30,13 +35,13 @@ void MainPS(
 	const uint2 TileCoord = floor(UV * TileCount);
 	const uint2 TilePixelCoord = TileUV * TileResolution;
 
-	float3 V = float3(0, 0, -1);
+	float3 V = float3(0, 0, 1);
 	float3 N = 0;
 	bool bEvaluate = false;
 	{
-		const float3 RayO = float3(TileUV, 0);
-		const float3 RayD = float3(0, 0, 1);
-		const float4 Sphere = float4(0.5f, 0.5f, 1.f, 0.4f);
+		const float3 RayO = float3(TileUV, 1);
+		const float3 RayD = -V;
+		const float4 Sphere = float4(0.5f, 0.5f, 0.f, 0.4f);
 		const float2 Hit = RayIntersectSphere(RayO, RayD, Sphere);
 		if (Hit.x >= 0)
 		{
@@ -126,26 +131,79 @@ void MainPS(
 		// Sample uniformly the upper hemisphere of each pixel
 		float3 Acc = 0;
 		const FShadowTerms ShadowTerms = { 1.0f, 1.0, 1.0, InitHairTransmittanceData() };
-		LOOP
-		for (uint SampleIt = 0; SampleIt < NumSamples; ++SampleIt)
+		const float3x3 TangentBasis = GetTangentBasis(N);
+
+		if (IntegratorType == STRATA_INTEGRATION_EVALUATE)
 		{
-			const float3x3 TangentBasis = GetTangentBasis(N);
-			const float2 U = Hammersley(SampleIt, NumSamples, 0);
+			LOOP
+			for (uint SampleIt = 0; SampleIt < NumSamples; ++SampleIt)
+			{
+				const float2 U = Hammersley(SampleIt, NumSamples, 0);
 
-			const float4 S = UniformSampleHemisphere(U);
-			const float3 L = mul(S.xyz, TangentBasis);
+				const float4 S = UniformSampleHemisphere(U);
+				const float3 L = mul(S.xyz, TangentBasis);
 
-			const float SatNoL = saturate(dot(L, N));
+				const float SatNoL = saturate(dot(L, N));
 
-			FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L);
-			FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
+				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L);
+				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
 
-			const float3 DiffusePathWeight  = BSDF.Weight * BSDFEvaluate.DiffusePathValue;
-			const float3 SpecularPathWeight = BSDF.Weight * BSDFEvaluate.SpecularPathValue;
+				const float3 DiffusePathWeight  = BSDF.Weight * BSDFEvaluate.DiffusePathValue;
+				const float3 SpecularPathWeight = BSDF.Weight * BSDFEvaluate.SpecularPathValue;
 
-			Acc += SatNoL * InRadiance * (DiffusePathWeight + SpecularPathWeight) / (S.w != 0 ?  S.w : 1);
+				Acc += SatNoL * InRadiance * (DiffusePathWeight + SpecularPathWeight) / (S.w != 0 ?  S.w : 1);
+			}
+			OutColor = Acc / max(1, NumSamples);
 		}
-		OutColor = Acc / max(1, SampleIt); 
+		else if (IntegratorType == STRATA_INTEGRATION_SAMPLING)
+		{
+			LOOP
+			for (uint SampleIt = 0; SampleIt < NumSamples; ++SampleIt)
+			{
+				const float2 U = Hammersley(SampleIt, NumSamples, 0);
+
+				const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
+				FStrataBSDFContext BSDFContextIS = StrataCreateBSDFContext(TangentBasis, BSDF, V, UnusedL);
+				FStrataImportanceSampleResult S = StrataImportanceSampleBSDF(BSDFContextIS, BSDF, U);
+
+				// Evaluate specular part for now. 
+				// Importance sample (STRATA_TODO: change API to support diffuse/specular filter and MIS)
+				const float3 L = S.SpecularDirection;
+				const float PDF = S.SpecularPDF;
+				//const float3 L = S.DiffuseDirection;
+				//const float PDF = S.DiffusePDF;
+
+				const float SatNoL = saturate(dot(L, N));
+				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L);
+				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
+
+				const float3 DiffusePathWeight  = BSDF.Weight * BSDFEvaluate.DiffusePathValue;
+				const float3 SpecularPathWeight = BSDF.Weight * BSDFEvaluate.SpecularPathValue;
+
+				Acc += SatNoL * InRadiance * (DiffusePathWeight + SpecularPathWeight) / (PDF != 0 ? PDF : 1);
+
+			}
+			OutColor = Acc / max(1, NumSamples);
+		}
+		else if (IntegratorType == STRATA_INTEGRATION_ENV)
+		{
+			const float3 BSDFThroughput = BSDF.Weight;
+
+			const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
+			const float3x3 TangentBasis = GetTangentBasis(N);
+			FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, UnusedL);
+
+			const bool bEnableSpecular = true;
+			FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(BSDFContext, bEnableSpecular);
+
+			const float3 InIrradiance = InRadiance; //It should have a Pi factor though
+			const float3 SpecularSkyLighting = BSDF.Weight * StrataEnvLight.SpecularWeight * InRadiance;
+			const float3 DiffuseSkyLighting  = BSDF.Weight * StrataEnvLight.DiffuseColor * InIrradiance;
+
+			OutColor = 
+				SpecularSkyLighting + 
+				DiffuseSkyLighting;;
+		}
 	}
 }
 
