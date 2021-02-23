@@ -532,20 +532,26 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 	// Make sure our legacy lightmap data is initialized so it can be renamed
 	PersistentLevel->HandleLegacyMapBuildData();
 
+	const bool bTestRename = (Flags & REN_Test) != 0;
+
 	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
 	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 
 	TArray<UPackage*> OldHLODPackages;
 	const int32 NumHLODLevels = PersistentLevel->GetWorldSettings()->GetNumHierarchicalLODLevels();
-	OldHLODPackages.SetNumZeroed(NumHLODLevels);
 
-	if (PersistentLevel->Actors.ContainsByPredicate([](const AActor* Actor) { return Actor != nullptr && Actor->IsA<ALODActor>(); }))
+	if (!bTestRename)
 	{
-		for (int32 HLODIndex = 0; HLODIndex < NumHLODLevels; ++HLODIndex)
+		OldHLODPackages.SetNumZeroed(NumHLODLevels);
+
+		for (AActor* Actor : PersistentLevel->Actors)
 		{
-			// See if any LODActors were found in the level, and if so retrieve the HLOD Package
-			OldHLODPackages[HLODIndex] = Utilities->RetrieveLevelHLODPackage(PersistentLevel, HLODIndex);
-		}		
+			if (ALODActor* LODActor = Cast<ALODActor>(Actor))
+			{
+				UHLODProxy* HLODProxy = LODActor->GetProxy();
+				OldHLODPackages[LODActor->LODLevel - 1] = HLODProxy->GetPackage();
+			}
+		}
 	}
 
 	if (bShouldFail)
@@ -558,8 +564,6 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 	{
 		return false;
 	}
-
-	const bool bTestRename = (Flags & REN_Test) != 0;
 
 	// We're moving the world to a new package, rename UObjects which are map data but don't have the UWorld in their Outer chain.  There are two cases:
 	// 1) legacy lightmap textures and MapBuildData object will be in the same package as the UWorld.  We need to move these to the new world package.
@@ -699,6 +703,7 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 					{
 						// HLOD proxy gets the same name as the package
 						HLODProxy->Rename(*FPackageName::GetShortName(*NewHLODPackage->GetName()), NewHLODPackage);
+						HLODProxy->SetMap(this);
 					}
 					else
 					{
