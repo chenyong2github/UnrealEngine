@@ -26,9 +26,21 @@ const FName UNiagaraDataInterfaceRenderTarget2DArray::SetSizeFunctionName("SetRe
 const FName UNiagaraDataInterfaceRenderTarget2DArray::GetSizeFunctionName("GetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTarget2DArray::LinearToIndexName("LinearToIndex");
 
-
 FNiagaraVariableBase UNiagaraDataInterfaceRenderTarget2DArray::ExposedRTVar;
 
+/*--------------------------------------------------------------------------------------------------------------------------*/
+
+struct FNDIRenderTarget2DArrayFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+		AddedOptionalExecute = 1,
+
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+};
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_RenderTarget2DArray : public FNiagaraDataInterfaceParametersCS
@@ -148,6 +160,9 @@ void UNiagaraDataInterfaceRenderTarget2DArray::GetFunctions(TArray<FNiagaraFunct
 		Sig.bExperimental = true;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DArrayFunctionVersion::LatestVersion;
+	#endif
 	}
 
 	{
@@ -166,12 +181,16 @@ void UNiagaraDataInterfaceRenderTarget2DArray::GetFunctions(TArray<FNiagaraFunct
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = true;
 		Sig.bSupportsGPU = false;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DArrayFunctionVersion::LatestVersion;
+	#endif
 	}
 
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = SetValueFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled"))).SetValue(true);
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
@@ -184,6 +203,9 @@ void UNiagaraDataInterfaceRenderTarget2DArray::GetFunctions(TArray<FNiagaraFunct
 		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DArrayFunctionVersion::LatestVersion;
+	#endif
 	}
 
 	{
@@ -201,9 +223,33 @@ void UNiagaraDataInterfaceRenderTarget2DArray::GetFunctions(TArray<FNiagaraFunct
 		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DArrayFunctionVersion::LatestVersion;
+	#endif
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceRenderTarget2DArray::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	bool bWasChanged = false;
+
+	if (FunctionSignature.FunctionVersion < FNDIRenderTarget2DArrayFunctionVersion::AddedOptionalExecute)
+	{
+		if (FunctionSignature.Name == SetValueFunctionName)
+		{
+			check(FunctionSignature.Inputs.Num() == 5);
+			FunctionSignature.Inputs.Insert_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled")), 1).SetValue(true);
+			bWasChanged = true;
+		}
+	}
+
+	// Set latest version
+	FunctionSignature.FunctionVersion = FNDIRenderTarget2DArrayFunctionVersion::LatestVersion;
+
+	return bWasChanged;
+}
+#endif
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2DArray, GetSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2DArray, SetSize);
@@ -300,9 +346,12 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::GetFunctionHLSL(const FNiagaraDat
 	if (FunctionInfo.DefinitionName == SetValueFunctionName)
 	{
 		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(int IndexX, int IndexY, int IndexZ, float4 Value)
+			void {FunctionName}(bool bEnabled, int IndexX, int IndexY, int IndexZ, float4 Value)
 			{			
-				{OutputName}[int3(IndexX, IndexY, IndexZ)] = Value;
+				if ( bEnabled )
+				{
+					{OutputName}[int3(IndexX, IndexY, IndexZ)] = Value;
+				}
 			}
 		)");
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);

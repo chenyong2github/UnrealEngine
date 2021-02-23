@@ -48,6 +48,20 @@ static FAutoConsoleVariableRef CVarNiagaraRenderTargetResolutionMultiplier(
 );
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
+
+struct FNDIRenderTarget2DFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+		AddedOptionalExecute = 1,
+
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+};
+
+/*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_RenderTarget2D : public FNiagaraDataInterfaceParametersCS
 {
 	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_RenderTarget2D, NonVirtual);
@@ -190,6 +204,9 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.bExperimental = true;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
+	#endif
 	}
 
 	{
@@ -207,12 +224,16 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = true;
 		Sig.bSupportsGPU = false;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
+	#endif
 	}
 
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = SetValueFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled"))).SetValue(true);
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
@@ -224,6 +245,9 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
+	#endif
 	}
 
 	{
@@ -240,9 +264,33 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
+	#endif
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceRenderTarget2D::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	bool bWasChanged = false;
+
+	if ( FunctionSignature.FunctionVersion < FNDIRenderTarget2DFunctionVersion::AddedOptionalExecute )
+	{
+		if ( FunctionSignature.Name == SetValueFunctionName )
+		{
+			check(FunctionSignature.Inputs.Num() == 4);
+			FunctionSignature.Inputs.Insert_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled")), 1).SetValue(true);
+			bWasChanged = true;
+		}
+	}
+
+	// Set latest version
+	FunctionSignature.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
+
+	return bWasChanged;
+}
+#endif
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, GetSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, SetSize);
@@ -341,9 +389,12 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInte
 	if (FunctionInfo.DefinitionName == SetValueFunctionName)
 	{
 		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(int In_IndexX, int In_IndexY, float4 In_Value)
+			void {FunctionName}(bool bEnabled, int In_IndexX, int In_IndexY, float4 In_Value)
 			{			
-				{OutputName}[int2(In_IndexX, In_IndexY)] = In_Value;
+				if ( bEnabled )
+				{
+					{OutputName}[int2(In_IndexX, In_IndexY)] = In_Value;
+				}
 			}
 		)");
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
