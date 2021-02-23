@@ -795,30 +795,38 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	auto RenderCubeFaces_DiffuseIrradiance = [&](TRefCountPtr<IPooledRenderTarget>& SourceCubemap)
 	{
 		// ComputeDiffuseIrradiance using N uniform samples
+		AddPass(GraphBuilder, [SkyIrradianceEnvironmentMap = SkyIrradianceEnvironmentMap.Buffer, SkyIrradianceEnvironmentMapUAV = SkyIrradianceEnvironmentMap.UAV](FRHIComputeCommandList& RHICmdList)
 		{
-			FRDGTextureRef SourceCubemapTexture = GraphBuilder.RegisterExternalTexture(SourceCubemap, TEXT("SourceCubemap"));
-			FRDGTextureSRVRef SourceCubemapTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SourceCubemapTexture));
+			RHICmdList.Transition(FRHITransitionInfo(SkyIrradianceEnvironmentMapUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+		});
 
-			TShaderMapRef<FComputeSkyEnvMapDiffuseIrradianceCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
+		FRDGTextureRef SourceCubemapTexture = GraphBuilder.RegisterExternalTexture(SourceCubemap);
+		FRDGTextureSRVRef SourceCubemapTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SourceCubemapTexture));
 
-			const float SampleCount = FComputeSkyEnvMapDiffuseIrradianceCS::ThreadGroupSizeX * FComputeSkyEnvMapDiffuseIrradianceCS::ThreadGroupSizeY;
-			const float UniformSampleSolidAngle = 4.0f * PI / SampleCount; // uniform distribution
+		TShaderMapRef<FComputeSkyEnvMapDiffuseIrradianceCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
 
-			FComputeSkyEnvMapDiffuseIrradianceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeSkyEnvMapDiffuseIrradianceCS::FParameters>();
-			PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Point>::GetRHI();
-			PassParameters->SourceCubemapTexture = SourceCubemapTextureSRV;
-			PassParameters->OutIrradianceEnvMapSH = SkyIrradianceEnvironmentMap.UAV;
-			PassParameters->UniformSampleSolidAngle = UniformSampleSolidAngle;
+		const float SampleCount = FComputeSkyEnvMapDiffuseIrradianceCS::ThreadGroupSizeX * FComputeSkyEnvMapDiffuseIrradianceCS::ThreadGroupSizeY;
+		const float UniformSampleSolidAngle = 4.0f * PI / SampleCount; // uniform distribution
 
-			// For 64 uniform samples on the unit sphere, we roughly have 10 samples per face.
-			// Considering mip generation and bilinear sampling, we can assume 10 samples is enough to integrate 10*4=40 texels.
-			// With that, we target integration of 16*16 face.
-			const uint32 Log2_16 = 4; // FMath::Log2(16.0f)
-			PassParameters->MipIndex = uint32(FMath::Log2(float(CapturedSkyRenderTarget->GetDesc().GetSize().X))) - Log2_16;
+		FComputeSkyEnvMapDiffuseIrradianceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeSkyEnvMapDiffuseIrradianceCS::FParameters>();
+		PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->SourceCubemapTexture = SourceCubemapTextureSRV;
+		PassParameters->OutIrradianceEnvMapSH = SkyIrradianceEnvironmentMap.UAV;
+		PassParameters->UniformSampleSolidAngle = UniformSampleSolidAngle;
 
-			const FIntVector NumGroups = FIntVector(1, 1, 1);
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ComputeSkyEnvMapDiffuseIrradianceCS"), ComputeShader, PassParameters, NumGroups);
-		}
+		// For 64 uniform samples on the unit sphere, we roughly have 10 samples per face.
+		// Considering mip generation and bilinear sampling, we can assume 10 samples is enough to integrate 10*4=40 texels.
+		// With that, we target integration of 16*16 face.
+		const uint32 Log2_16 = 4; // FMath::Log2(16.0f)
+		PassParameters->MipIndex = uint32(FMath::Log2(float(CapturedSkyRenderTarget->GetDesc().GetSize().X))) - Log2_16;
+
+		const FIntVector NumGroups = FIntVector(1, 1, 1);
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ComputeSkyEnvMapDiffuseIrradianceCS"), ComputeShader, PassParameters, NumGroups);
+
+		AddPass(GraphBuilder, [SkyIrradianceEnvironmentMap = SkyIrradianceEnvironmentMap.Buffer, SkyIrradianceEnvironmentMapUAV = SkyIrradianceEnvironmentMap.UAV](FRHICommandList& RHICmdList)
+		{
+			RHICmdList.Transition(FRHITransitionInfo(SkyIrradianceEnvironmentMapUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+		});
 	};
 
 	const uint32 LastMipLevel = CubeMipCount - 1;
@@ -1013,6 +1021,11 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 #if DEBUG_TIME_SLICE
 		}
 #endif
+	}
+
+	if (ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex])
+	{
+		ConvertToUntrackedTexture(GraphBuilder, GraphBuilder.RegisterExternalTexture(ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex]), ERHIAccess::SRVMask);
 	}
 }
 

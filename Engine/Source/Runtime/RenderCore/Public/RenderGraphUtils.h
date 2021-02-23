@@ -635,19 +635,31 @@ inline void ConvertToExternalTexture(FRDGBuilder& GraphBuilder, FRDGTextureRef T
 
 RENDERCORE_API void AddAsyncComputeSRVTransitionHackPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture);
 
-// Performs the same steps as ConvertToExternalX but forces the resource into the final state. Assuming the resource isn't used again
-// after this pass, the graph will leave it in that state and it's technically safe to read from the raw RHI resource.
-RENDERCORE_API void ConvertToUntrackedExternalTexture(
+// Forces a resource into its final state early in the graph. Useful if an external texture is produced by the graph but consumed
+// later in the graph without being registered. For example, if the resource is read-only embedded in a non-RDG uniform buffer and
+// or registration with RDG is too expensive or difficult.
+RENDERCORE_API void ConvertToUntrackedTexture(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, ERHIAccess AccessFinal);
+RENDERCORE_API void ConvertToUntrackedBuffer(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, ERHIAccess AccessFinal);
+
+inline void ConvertToUntrackedExternalTexture(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef Texture,
 	TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget,
-	ERHIAccess AccessFinal);
+	ERHIAccess AccessFinal)
+{
+	ConvertToExternalTexture(GraphBuilder, Texture, OutPooledRenderTarget);
+	ConvertToUntrackedTexture(GraphBuilder, Texture, AccessFinal);
+}
 
-RENDERCORE_API void ConvertToUntrackedExternalBuffer(
+inline void ConvertToUntrackedExternalBuffer(
 	FRDGBuilder& GraphBuilder,
 	FRDGBufferRef Buffer,
 	TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer,
-	ERHIAccess AccessFinal);
+	ERHIAccess AccessFinal)
+{
+	ConvertToExternalBuffer(GraphBuilder, Buffer, OutPooledBuffer);
+	ConvertToUntrackedBuffer(GraphBuilder, Buffer, AccessFinal);
+}
 
 // Used to help port code over to RDG. If the graph builder is null, creates a passthrough RDG texture instead. Will be removed once port is complete.
 RENDERCORE_API FRDGTextureRef RegisterExternalOrPassthroughTexture(

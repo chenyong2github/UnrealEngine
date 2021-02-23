@@ -1582,7 +1582,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder)
 							FilterTracedCloudTexture(&CloudSkyAOTexture, VolumetricCloudParamsAO.VolumetricCloud.CloudSkyAOSizeInvSize, CloudAOTextureTexelWorldSizeInvSize, true);
 						}
 
-						ConvertToExternalTexture(GraphBuilder, CloudSkyAOTexture, ViewInfo.VolumetricCloudSkyAO);
+						ConvertToUntrackedExternalTexture(GraphBuilder, CloudSkyAOTexture, ViewInfo.VolumetricCloudSkyAO, ERHIAccess::SRVMask);
 					}
 
 
@@ -1673,7 +1673,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder)
 									{
 										FilterTracedCloudTexture(&SpatiallyFilteredShadowTexture, VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex], CloudShadowTextureTexelWorldSizeInvSize, false);
 									}
-									ConvertToExternalTexture(GraphBuilder, SpatiallyFilteredShadowTexture, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
+									ConvertToUntrackedExternalTexture(GraphBuilder, SpatiallyFilteredShadowTexture, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex], ERHIAccess::SRVMask);
 								}
 								else
 								{
@@ -1692,11 +1692,11 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder)
 									{
 										FilterTracedCloudTexture(&SpatiallyFilteredShadowTexture, VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex], CloudShadowTextureTexelWorldSizeInvSize, false);
 									}
-									ConvertToExternalTexture(GraphBuilder, SpatiallyFilteredShadowTexture, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
+									ConvertToUntrackedExternalTexture(GraphBuilder, SpatiallyFilteredShadowTexture, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex], ERHIAccess::SRVMask);
 								}
 								else
 								{
-									ConvertToExternalTexture(GraphBuilder, NewCloudShadowTexture, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
+									ConvertToUntrackedExternalTexture(GraphBuilder, NewCloudShadowTexture, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex], ERHIAccess::SRVMask);
 								}
 							}
 						}
