@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Math/NumericLimits.h"
+
 // NOTE: This file only needs to exist as long as we need to maintain the editor and runtime versions of Bulkdata.
 // Code common to both can be placed here.
 
@@ -12,7 +14,12 @@ enum EBulkDataFlags : uint32
 {
 	/** Empty flag set. */
 	BULKDATA_None = 0,
-	/** If set, payload is stored at the end of the file and not inline. */
+	/**
+	 * INTERNAL SET ONLY - callers of bulkdata should not set this flag on the bulk data
+	 * It is overwritten according to global configuration by Serialize.
+	 * If set, payload is stored not inline; it is stored either at the end of the file
+	 * or in a separate file.
+	 */
 	BULKDATA_PayloadAtEndOfFile = 1 << 0,
 	/** If set, payload should be [un]compressed using ZLIB during serialization. */
 	BULKDATA_SerializeCompressedZLIB = 1 << 1,
@@ -28,7 +35,11 @@ enum EBulkDataFlags : uint32
 	BULKDATA_SerializeCompressed = (BULKDATA_SerializeCompressedZLIB),
 	/** Forces the payload to be always streamed, regardless of its size. */
 	BULKDATA_ForceStreamPayload = 1 << 7,
-	/** If set, payload is stored in a .upack file alongside the uasset. */
+	/**
+	 * INTERNAL SET ONLY - callers of bulkdata should not set this flag on the bulk data
+	 * It is overwritten according to global configuration by Serialize.
+	 * If set, payload is stored in a separate file such as .ubulk.
+	 * */
 	BULKDATA_PayloadInSeperateFile = 1 << 8,
 	/** DEPRECATED: If set, payload is compressed using platform specific bit window. */
 	BULKDATA_SerializeCompressedBitWindow = 1 << 9,
@@ -67,6 +78,22 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, EBulkDataFlags& Flags)
 {
 	Ar << (uint32&)Flags;
 	return Ar;
+}
+
+/** Serialize the given Value as an int32 or int64 depending on InBulkDataFlags&BULKDATA_Size64Bit. */
+inline void SerializeBulkDataSizeInt(FArchive& Ar, int64& Value, EBulkDataFlags InBulkDataFlags)
+{
+	if (InBulkDataFlags & BULKDATA_Size64Bit)
+	{
+		Ar << Value;
+	}
+	else
+	{
+		check(!Ar.IsSaving() || (MIN_int32 <= Value && Value <= MAX_int32));
+		int32 ValueAsInt32 = Value;
+		Ar << ValueAsInt32;
+		Value = ValueAsInt32;
+	}
 }
 
 /**

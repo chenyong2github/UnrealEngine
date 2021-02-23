@@ -642,7 +642,11 @@ public:
 	 *
 	 * @param	Ar					Archive to serialize with
 	 * @param	Data				Memory to serialize either to or from
-	 */ 
+	 * @param	InBulkDataFlags		Flags describing how the data was/shouldbe serialized
+	 */
+	void SerializeBulkData(FArchive& Ar, void* Data, EBulkDataFlags InBulkDataFlags);
+
+	UE_DEPRECATED(5.0, "Use the version that takes InBulkDataFlags")
 	void SerializeBulkData( FArchive& Ar, void* Data );
 
 	/*-----------------------------------------------------------------------------
@@ -709,6 +713,13 @@ public:
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const FString& Filename, const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 #endif
 
+	/** Enable the given flags in the given accumulator variable. */
+	static void SetBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToSet);
+	/** Disable the given flags in the given accumulator variable. */
+	static void ClearBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToClear);
+	/** Returns decompress method flags specified by the given bulk data flags. */
+	static FName GetDecompressionFormat(EBulkDataFlags InFlags);
+
 	/*-----------------------------------------------------------------------------
 		Class specific virtuals.
 	-----------------------------------------------------------------------------*/
@@ -753,18 +764,6 @@ private:
 	void DetachFromArchive( FArchive* Ar, bool bEnsureBulkDataIsLoaded );
 #endif // WITH_EDITOR
 
-#if WITH_IOSTORE_IN_EDITOR
-	/**
-	 * Serialize bulk data structure from I/O store.
-	 *
-	 * @param Ar	Archive to serialize with
-	 * @param Owner	Object owning the bulk data
-	 * @param Idx	Index of bulk data item being serialized
-	 * @param bAttemptFileMapping	If true, attempt to map this instead of loading it into malloc'ed memory
-	 */
-	void SerializeFromIoStore( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping );
-#endif
-
 	/*-----------------------------------------------------------------------------
 		Internal helpers
 	-----------------------------------------------------------------------------*/
@@ -791,8 +790,10 @@ private:
 	 * archive we can use for serialization.
 	 *
 	 * @param Dest Memory to serialize data into
+	 *
+	 * @return Whether the load succeeded
 	 */
-	void LoadDataIntoMemory( void* Dest );
+	bool TryLoadDataIntoMemory(void* Dest);
 
 	/** Create the async load task */
 	void AsyncLoadBulkData();
@@ -810,7 +811,7 @@ private:
 	void ResetAsyncData();
 	
 	/** Returns true if bulk data should be loaded asynchronously */
-	bool ShouldStreamBulkData();
+	bool ShouldStreamBulkData(FArchive& Ar);
 
 	/** Returns if the offset needs fixing when serialized */
 	bool NeedsOffsetFixup() const;

@@ -15,6 +15,7 @@ struct FOwnedBulkDataPtr;
 class IMappedFileHandle;
 class IMappedFileRegion;
 class FBulkDataBase;
+class FLinkerLoad;
 
 /** A loose hash value that can be created from either a filenames or a FIoChunkId */
 using FIoFilenameHash = uint32;
@@ -262,7 +263,9 @@ private:
 	 */
 	bool CanDiscardInternalData() const;
 
-	void ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FPackagePath* PackagePath, int64& InOutOffsetInFile);
+	void ProcessDuplicateData(EBulkDataFlags NewFlags, int64 NewSizeOnDisk, int64 NewOffset, const UPackage* Package,
+		const FPackagePath* PackagePath, const FLinkerLoad* Linker);
+	void ConditionalSetInlineAlwaysAllowDiscard();
 	void SerializeDuplicateData(FArchive& Ar, EBulkDataFlags& OutBulkDataFlags, int64& OutBulkDataSizeOnDisk, int64& OutBulkDataOffsetInFile);
 	void SerializeBulkData(FArchive& Ar, void* DstBuffer, int64 DataLength);
 

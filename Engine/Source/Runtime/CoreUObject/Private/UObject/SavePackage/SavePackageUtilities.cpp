@@ -1841,11 +1841,12 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			MappedBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
 		}
 
-		// If we are not allowing BulkData to go to the IoStore and we will be saving the BulkData to a separate file then 
-		// we cannot manipulate the offset as we cannot 'fix' it at runtime with the AsyncLoader2
-		// 
-		// We should remove the manipulated offset entirely, at least for separate files but for now we need to leave it to
-		// prevent larger patching sizes.
+		// If we are using IoStore (implemented in AsyncLoader2), then we will have no linkers and can not manipulate the
+		// offset as we will not have the Linker's Summary.BulkDataStartOffset information at runtime.
+		// This means that manipulated offsets are incompatible with IoStore.
+		// We now by default do not manipulate the offset for separate files, but we need to optionally leave it on
+		// to prevent larger patching sizes. In the future we may want to remove it even for end-of-file BulkData.
+		// Note that bForceLegacyOffsets is incompatible with using IoStore.
 		if (SavePackageContext != nullptr && SavePackageContext->bForceLegacyOffsets == false && bShouldUseSeparateBulkFile)
 		{
 			ExtraBulkDataFlags |= BULKDATA_NoOffsetFixUp;
@@ -1880,6 +1881,8 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 				bBulkItemIsMapped = false;
 			}
 
+			// TODO: BulkData Serialize no longer requires BulkData flags to be set; it takes the BulkDataFlags for the save as arguments.
+			//       Remove this unnecessary set of the BulkData's BulkDataFlags.
 			BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
 			BulkDataStorageInfo.BulkData->SetBulkDataFlags(ModifiedBulkDataFlags);
 
@@ -1940,7 +1943,8 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 
 			int64 StoredBulkStartOffset = (ModifiedBulkDataFlags & BULKDATA_NoOffsetFixUp) == 0 ? BulkStartOffset - StartOfBulkDataArea : BulkStartOffset;
 
-			BulkDataStorageInfo.BulkData->SerializeBulkData(*TargetArchive, BulkDataStorageInfo.BulkData->Lock(LOCK_READ_ONLY));
+			BulkDataStorageInfo.BulkData->SerializeBulkData(*TargetArchive, BulkDataStorageInfo.BulkData->Lock(LOCK_READ_ONLY),
+				static_cast<EBulkDataFlags>(ModifiedBulkDataFlags));
 
 			int64 BulkEndOffset = TargetArchive->Tell();
 			const int64 LinkerEndOffset = Linker->Tell();
@@ -1954,16 +1958,7 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			*Linker << StoredBulkStartOffset;
 
 			Linker->Seek(BulkDataStorageInfo.BulkDataSizeOnDiskPos);
-			if (ModifiedBulkDataFlags & BULKDATA_Size64Bit)
-			{
-				*Linker << SizeOnDisk;
-			}
-			else
-			{
-				check(SizeOnDisk < (1LL << 31));
-				int32 SizeOnDiskAsInt32 = SizeOnDisk;
-				*Linker << SizeOnDiskAsInt32;
-			}
+			SerializeBulkDataSizeInt(*Linker, SizeOnDisk, static_cast<EBulkDataFlags>(ModifiedBulkDataFlags));
 
 			if (SavePackageContext != nullptr && SavePackageContext->BulkDataManifest != nullptr)
 			{
@@ -1995,9 +1990,16 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			Linker->Seek(LinkerEndOffset);
 
 			// Restore BulkData flags to before serialization started
+			BulkDataStorageInfo.BulkData->Unlock();
 			BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
 			BulkDataStorageInfo.BulkData->SetBulkDataFlags(OldBulkDataFlags);
-			BulkDataStorageInfo.BulkData->Unlock();
+
+			// If we are overwriting the LoadedPath for the current package, the bulk data flags need to be updated to match
+			// the values set in the package on disk. This function is responsible for setting some of those flags, so set them now
+			if (!TargetPlatform)
+			{
+				BulkDataStorageInfo.BulkData->SetBulkDataFlags(ExtraBulkDataFlags);
+			}
 		}
 
 		if (BulkArchive)

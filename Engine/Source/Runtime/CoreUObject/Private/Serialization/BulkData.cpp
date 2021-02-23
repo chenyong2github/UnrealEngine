@@ -445,7 +445,12 @@ bool FUntypedBulkData::DoesExist() const
  */
 FName FUntypedBulkData::GetDecompressionFormat() const
 {
-	return (BulkDataFlags & BULKDATA_SerializeCompressedZLIB) ? NAME_Zlib: NAME_None;
+	return GetDecompressionFormat(this->BulkDataFlags);
+}
+
+FName FUntypedBulkData::GetDecompressionFormat(EBulkDataFlags InFlags)
+{
+	return (InFlags & BULKDATA_SerializeCompressedZLIB) ? NAME_Zlib : NAME_None;
 }
 
 /**
@@ -517,7 +522,7 @@ void FUntypedBulkData::GetCopy( void** Dest, bool bDiscardInternalCopy )
 		// Data isn't currently loaded so we need to load it from disk.
 		else
 		{
-			LoadDataIntoMemory( *Dest );
+			ensure(TryLoadDataIntoMemory(*Dest));
 		}
 	}
 	// Passed in memory is NULL so we need to allocate some.
@@ -562,7 +567,7 @@ void FUntypedBulkData::GetCopy( void** Dest, bool bDiscardInternalCopy )
 				*Dest = FMemory::Malloc( BulkDataSize, BulkDataAlignment );
 
 				// ... and directly load into it.
-				LoadDataIntoMemory( *Dest );
+				ensure(TryLoadDataIntoMemory(*Dest));
 			}
 			else
 			{
@@ -796,12 +801,12 @@ bool FUntypedBulkData::StartAsyncLoading()
  */
 void FUntypedBulkData::SetBulkDataFlags( uint32 BulkDataFlagsToSet )
 {
-	BulkDataFlags = EBulkDataFlags(BulkDataFlags | BulkDataFlagsToSet);
+	BulkDataFlags = static_cast<EBulkDataFlags>(BulkDataFlags | BulkDataFlagsToSet);
 }
 
 void FUntypedBulkData::ResetBulkDataFlags(uint32 BulkDataFlagsToSet)
 {
-	BulkDataFlags = (EBulkDataFlags)BulkDataFlagsToSet;
+	BulkDataFlags = static_cast<EBulkDataFlags>(BulkDataFlagsToSet);
 }
 
 /**
@@ -841,7 +846,7 @@ uint32 FUntypedBulkData::GetBulkDataAlignment() const
  */
 void FUntypedBulkData::ClearBulkDataFlags( uint32 BulkDataFlagsToClear )
 {
-	BulkDataFlags = EBulkDataFlags(BulkDataFlags & ~BulkDataFlagsToClear);
+	BulkDataFlags = static_cast<EBulkDataFlags>(BulkDataFlags & ~BulkDataFlagsToClear);
 }
 
 void FUntypedBulkData::AsyncLoadBulkData()
@@ -854,7 +859,7 @@ void FUntypedBulkData::AsyncLoadBulkData()
 
 	// Seek to the beginning of the bulk data in the file.
 	Result.Archive->Seek(BulkDataOffsetInFile);
-	SerializeBulkData(*Result.Archive, BulkDataAsync.Get());
+	SerializeBulkData(*Result.Archive, BulkDataAsync.Get(), BulkDataFlags);
 }
 
 /*-----------------------------------------------------------------------------
@@ -889,22 +894,25 @@ static FAutoConsoleVariableRef CVarMinimumBulkDataSizeForAsyncLoading(
 	ECVF_Default
 	);
 
-bool FUntypedBulkData::ShouldStreamBulkData()
+bool FUntypedBulkData::ShouldStreamBulkData(FArchive& Ar)
 {
-	if (GEventDrivenLoaderEnabled && !(BulkDataFlags&BULKDATA_PayloadAtEndOfFile))
+	if (Ar.IsUsingEventDrivenLoader())
 	{
-		return false; // if it is inline, it is already precached, so use it
-	}
-
-	if (GEventDrivenLoaderEnabled)
-	{
-		const bool bSeperateFile = !!(BulkDataFlags&BULKDATA_PayloadInSeperateFile);
-
-		if (!bSeperateFile)
+#if WITH_IOSTORE_IN_EDITOR
+		// Streaming not yet implemented
+		return false;
+#else
+		if (!(BulkDataFlags & BULKDATA_PayloadAtEndOfFile))
 		{
-			check(!"Bulk data should either be inline or stored in a separate file for the new uobject loader.");
+			return false; // if it is inline, it is already precached, so use it
+		}
+
+		if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
+		{
+			checkf(false, TEXT("Bulk data should either be inline or stored in a separate file for the new uobject loader."));
 			return false; // if it is not in a separate file, then we can't easily find the correct offset in the uexp file; we don't want this case anyway!
 		}
+#endif
 	}
 
 	const bool bForceStream = !!(BulkDataFlags & BULKDATA_ForceStreamPayload);
@@ -920,6 +928,16 @@ bool FUntypedBulkData::NeedsOffsetFixup() const
 	return (BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0;
 }
 
+void FUntypedBulkData::SetBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToSet)
+{
+	InOutAccumulator = static_cast<EBulkDataFlags>(InOutAccumulator | FlagsToSet);
+}
+
+void FUntypedBulkData::ClearBulkDataFlagsOn(EBulkDataFlags& InOutAccumulator, EBulkDataFlags FlagsToClear)
+{
+	InOutAccumulator = static_cast<EBulkDataFlags>(InOutAccumulator & ~FlagsToClear);
+}
+
 void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping, EFileRegionType FileRegionType)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::Serialize"), STAT_UBD_Serialize, STATGROUP_Memory);
@@ -930,18 +948,19 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 
 	check(!bAttemptFileMapping || Ar.IsLoading()); // makes no sense to map unless we are loading
 
-	if(Ar.IsTransacting())
+	if (Ar.IsTransacting())
 	{
 		// Special case for transacting bulk data arrays.
 
-		// constructing the object during load will save it to the transaction buffer. If it tries to load the bulk data now it will try to break it.
+		// Constructing the object during load will save it to the transaction buffer.
+		// We need to cancel that save because trying to load the bulk data now would break.
 		bool bActuallySave = Ar.IsSaving() && (!Owner || !Owner->HasAnyFlags(RF_NeedLoad));
 
 		Ar << bActuallySave;
 
 		if (bActuallySave)
 		{
-			if(Ar.IsLoading())
+			if (Ar.IsLoading())
 			{
 				// Flags for bulk data.
 				Ar << BulkDataFlags;
@@ -952,9 +971,9 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				BulkData.Reallocate( GetBulkDataSize(), BulkDataAlignment );
 
 				// Deserialize bulk data.
-				SerializeBulkData( Ar, BulkData.Get() );
+				SerializeBulkData(Ar, BulkData.Get(), BulkDataFlags);
 			}
-			else if(Ar.IsSaving())
+			else if (Ar.IsSaving())
 			{
 				// Flags for bulk data.
 				Ar << BulkDataFlags;
@@ -970,105 +989,91 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					MakeSureBulkDataIsLoaded();
 
 					// Serialize bulk data.
-					SerializeBulkData(Ar, BulkData.Get());
+					SerializeBulkData(Ar, BulkData.Get(), BulkDataFlags);
 				}
 			}
 		}
 	}
-	else if( Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData() )
+	else if ( Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData() )
 	{
 #if TRACK_BULKDATA_USE
 		FThreadSafeBulkDataToObjectMap::Get().Add( this, Owner );
 #endif
-		// When saving, this block mutates values in order to write them out to the archive, even if just cooking. Store the existing version of them so we can restore them if necessary after writing out the bytes.
-		EBulkDataFlags SavedBulkDataFlags = BulkDataFlags;
-
-		// Offset where the bulkdata flags are stored
-		int64 SavedBulkDataFlagsPos = Ar.Tell();
-		{
-			FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-
-			// If the bulk data size is greater than can be held in an int32, then potentially the ElementCount
-			// and BulkDataSizeOnDisk need to be held as int64s, so set a flag indicating the new format.
-			if (Ar.IsSaving() && GetBulkDataSize() >= (1LL << 31))
-			{
-				SetBulkDataFlags(BULKDATA_Size64Bit);
-			}
-			Ar << BulkDataFlags;
-		}
-
-
-		// Number of elements in array.
-		if (BulkDataFlags & BULKDATA_Size64Bit)
-		{
-			Ar << ElementCount;
-		}
-		else
-		{
-			int32 ElementCountAsInt32 = ElementCount;
-			Ar << ElementCountAsInt32;
-			ElementCount = ElementCountAsInt32;
-		}
-
 		// We're loading from the persistent archive.
 		if (Ar.IsLoading())
 		{
-			PackagePath = FPackagePath();
-			PackageSegment = EPackageSegment::Header;
+			EBulkDataFlags AddedFlags = static_cast<EBulkDataFlags>(0);
+			EBulkDataFlags RemovedFlags = static_cast<EBulkDataFlags>(0);
+			auto SetLocalBulkDataFlags = [this, &AddedFlags, &RemovedFlags](EBulkDataFlags BulkDataFlagsToSet)
+			{
+				AddedFlags = static_cast<EBulkDataFlags>(AddedFlags | BulkDataFlagsToSet);
+				RemovedFlags = static_cast<EBulkDataFlags>(RemovedFlags & ~BulkDataFlagsToSet);
+				SetBulkDataFlags(BulkDataFlagsToSet);
+			};
+			auto ClearLocalBulkDataFlags = [this, &AddedFlags, &RemovedFlags](EBulkDataFlags BulkDataFlagsToClear)
+			{
+				AddedFlags = static_cast<EBulkDataFlags>(AddedFlags & ~BulkDataFlagsToClear);
+				RemovedFlags = static_cast<EBulkDataFlags>(RemovedFlags | BulkDataFlagsToClear);
+				ClearBulkDataFlags(BulkDataFlagsToClear);
+			};
 
+			Ar << BulkDataFlags;
+			SerializeBulkDataSizeInt(Ar, ElementCount, BulkDataFlags);
+
+			// Size on disk, which in the case of compression is != GetBulkDataSize()
+			SerializeBulkDataSizeInt(Ar, BulkDataSizeOnDisk, BulkDataFlags);
+			Ar << BulkDataOffsetInFile;
+
+			// Oct 2019: We erroneously wrote uint16 ChunkID during the saving of BulkData; it should've been written only when saving AND cooking to avoid writing it to the uasset or DDC.
+			// To fix this we use a flag that was also set by those bad versions - BULKDATA_BadDataVersion - to identify them here when loading and load and discard the value.
+			// TODO: Increase the DDC keys for the data types that write BulkData to the DDC and remove this check and BULKDATA_BadDataVersion.
+			if ((BulkDataFlags & BULKDATA_BadDataVersion) != 0)
+			{
+				uint16 DummyValue;
+				Ar << DummyValue;
+				ClearLocalBulkDataFlags(BULKDATA_BadDataVersion);
+			}
+
+			EBulkDataFlags DuplicateDataFlags = static_cast<EBulkDataFlags>(0);
+			int64 DuplicateSizeOnDisk = 0;
+			int64 DuplicateDataOffsetInFile = 0;
+			if (BulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
+			{
+				Ar << DuplicateDataFlags;
+				SerializeBulkDataSizeInt(Ar, DuplicateSizeOnDisk, DuplicateDataFlags);
+				Ar << DuplicateDataOffsetInFile;
+			}
+			
 			// @todo when Landscape (and others?) only Lock/Unlock once, we can enable this
 			if (false) // FPlatformProperties::RequiresCookedData())
 			{
 				// Bulk data that is being serialized via seekfree loading is single use only. This allows us 
 				// to free the memory as e.g. the bulk data won't be attached to an archive in the case of
 				// seek free loading.
-				SetBulkDataFlags(BULKDATA_SingleUse);
+				SetLocalBulkDataFlags(BULKDATA_SingleUse);
 			}
 
 			// Hacky fix for using cooked data in editor. Cooking sets BULKDATA_SingleUse for textures, but PIEing needs to keep bulk data around.
 			if (GIsEditor)
 			{
-				ClearBulkDataFlags(BULKDATA_SingleUse);
+				ClearLocalBulkDataFlags(BULKDATA_SingleUse);
 			}
 
-			// Size on disk, which in the case of compression is != GetBulkDataSize()
-			if (BulkDataFlags & BULKDATA_Size64Bit)
-			{
-				Ar << BulkDataSizeOnDisk;
-			}
-			else
-			{
-				int32 BulkDataSizeOnDiskAsInt32;
-				Ar << BulkDataSizeOnDiskAsInt32;
-				BulkDataSizeOnDisk = BulkDataSizeOnDiskAsInt32;
-			}
-
-			Ar << BulkDataOffsetInFile;
-
-			if ((BulkDataFlags & BULKDATA_BadDataVersion) != 0)
-			{
-				uint16 DummyValue;
-				Ar << DummyValue;
-
-				ClearBulkDataFlags(BULKDATA_BadDataVersion);	
-			}
-			
-			// determine whether the payload is stored inline or at the end of the file
-			const bool bPayloadInline = !(BulkDataFlags&BULKDATA_PayloadAtEndOfFile);
-#if WITH_IOSTORE_IN_EDITOR
-			if (Ar.IsUsingEventDrivenLoader())
-			{
-				check(Owner);
-				check(Owner->GetPackage()->GetPackageId().IsValid());
-				SetBulkDataFlags(BULKDATA_UsesIoDispatcher);
-				PackageId = Owner->GetPackage()->GetPackageId();
-				SerializeFromIoStore(Ar, Owner, Idx, bAttemptFileMapping);
-				return;
-			}
-#endif // WITH_IOSTORE_IN_EDITOR
+			const bool bPayloadInline = !(BulkDataFlags & BULKDATA_PayloadAtEndOfFile);
+			const bool bPayloadInSeparateFile = !bPayloadInline && (BulkDataFlags & BULKDATA_PayloadInSeperateFile);
 
 			// GetLinker
+			bool bUseIOStore = false;
 #if WITH_EDITOR
+#if WITH_IOSTORE_IN_EDITOR
+			if (Ar.IsUsingEventDrivenLoader() && bPayloadInSeparateFile)
+			{
+				check(Owner && Owner->GetPackage()->GetPackageId().IsValid());
+				SetLocalBulkDataFlags(BULKDATA_UsesIoDispatcher);
+				PackageId = Owner->GetPackage()->GetPackageId();
+				bUseIOStore = true;
+			}
+#endif // WITH_IOSTORE_IN_EDITOR
 			if (Owner != nullptr)
 			{
 				Linker = Owner->GetLinker();
@@ -1080,139 +1085,116 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				Package = Owner->GetOutermost();
 				check(Package.IsValid());
 				Linker = FLinkerLoad::FindExistingLinkerForPackage(Package.Get());
+				check(!Owner->GetLinker() || Owner->GetLinker() == Linker);
 			}
 #endif
 
-			// fix up the file offset, but only if not stored inline
-			int64 OffsetInFileFixup = 0;
-			if (Owner != NULL && Linker && !bPayloadInline && NeedsOffsetFixup())
+			// fix up the file offset if the offset is relative to the file's bulkdata section
+			if (!bPayloadInline && NeedsOffsetFixup())
 			{
-				OffsetInFileFixup = Linker->Summary.BulkDataStartOffset;
+				check(Linker);
+				check(!bUseIOStore);
+				BulkDataOffsetInFile += Linker->Summary.BulkDataStartOffset;
 			}
-			BulkDataOffsetInFile += OffsetInFileFixup;
 
-			// We're allowing deferred serialization.
-			FArchive* CacheableArchive = Ar.GetCacheableArchive();
-			if (Ar.IsAllowingLazyLoading() && Owner != NULL && CacheableArchive)
-			{				
-#if WITH_EDITOR
-				check(Linker);
-				CacheableArchive->AttachBulkData(Owner, this);
-				check(!CacheableArchive->IsTextFormat());
-				AttachedAr = CacheableArchive;
+			// Get the PackagePath and PackageSegment
+			PackagePath = FPackagePath();
+			if (Linker)
+			{
 				PackagePath = Linker->GetPackagePath();
-				PackageSegment = EPackageSegment::Header;
-#else
-				check(Linker);
-				PackagePath = Linker->GetPackagePath();
-				PackageSegment = EPackageSegment::Header;
-
-				check(!Owner->GetLinker() || Owner->GetLinker() == Linker);
-#endif // WITH_EDITOR
-
-				if (bPayloadInline)
+			}
+			PackageSegment = EPackageSegment::Header;
+			if (bPayloadInSeparateFile)
+			{
+				if (BulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
 				{
-					if (ShouldStreamBulkData())
-					{
-						// Start serializing immediately
-						StartSerializingBulkData(Ar, Owner, Idx, bPayloadInline);
-					}
-					else
-					{
-						bool bWasMapped = false;
-						if (bAttemptFileMapping)
-						{
-							UE_LOG(LogSerialization, Error, TEXT("Attempt to file map inline bulk data. This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
-
-							if (GEventDrivenLoaderEnabled && PackageSegment == EPackageSegment::Header)
-							{
-								BulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, PackageSegment);
-								check(BulkDataOffsetInFile >= 0);
-								PackageSegment = EPackageSegment::Exports;
-							}
-							bWasMapped = BulkData.MapFile(PackagePath, PackageSegment, BulkDataOffsetInFile, GetBulkDataSize());
-						}
-						if (bWasMapped)
-						{
-							// we need to seek past the inline bulk data 
-							// @todo, we really don't want to do this with inline data
-							Ar.Seek(Ar.Tell() + GetBulkDataSize());
-						}
-						else
-						{
-							// Force non-lazy loading of inline bulk data to prevent PostLoad spikes.
-							BulkData.Reallocate(GetBulkDataSize(), BulkDataAlignment);
-							// if the payload is stored inline, just serialize it
-							SerializeBulkData(Ar, BulkData.Get());
-						}
-					}
-				}
-				else if (BulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
-				{
-					// Load from optional payload instead if optional payload is available
-					if (IPackageResourceManager::Get().DoesPackageExist(PackagePath, EPackageSegment::BulkDataOptional))
+					// The (required) payload is stored in both the default segment and the optional segment.
+					// Load it from the optional segment; this is preferable to loading it from the default segment
+					// because it reduces seek times if we want to load optional bulk data elsewhere in this package.
+					if (!bUseIOStore && IPackageResourceManager::Get().DoesPackageExist(PackagePath, EPackageSegment::BulkDataOptional))
 					{
 						PackageSegment = EPackageSegment::BulkDataOptional;
-						Ar << BulkDataFlags;
-						SetBulkDataFlags(BULKDATA_OptionalPayload);
-
-						if (BulkDataFlags & BULKDATA_Size64Bit)
+						BulkDataFlags = static_cast<EBulkDataFlags>((DuplicateDataFlags | AddedFlags) & ~RemovedFlags);
+						SetBulkDataFlags(BULKDATA_OptionalPayload | BULKDATA_PayloadInSeperateFile | BULKDATA_PayloadAtEndOfFile);
+						BulkDataOffsetInFile = DuplicateDataOffsetInFile;
+						if (NeedsOffsetFixup())
 						{
-							Ar << BulkDataSizeOnDisk;
+							check(Linker);
+							BulkDataOffsetInFile += Linker->Summary.BulkDataStartOffset;
 						}
-						else
-						{
-							int32 BulkDataSizeOnDiskAsInt32;
-							Ar << BulkDataSizeOnDiskAsInt32;
-							BulkDataSizeOnDisk = BulkDataSizeOnDiskAsInt32;
-						}
-
-						Ar << BulkDataOffsetInFile;
-						BulkDataOffsetInFile += OffsetInFileFixup;
 					}
 					else
 					{
 						PackageSegment = EPackageSegment::BulkDataDefault;
-						// Skip all bulkdata info of the copy in uptnl.
-						uint32 DummyBulkDataFlags;
-						Ar << DummyBulkDataFlags;
-
-						if (BulkDataFlags & BULKDATA_Size64Bit)
-						{
-							int64 DummyBulkDataSizeOnDisk;
-							Ar << DummyBulkDataSizeOnDisk;
-						}
-						else
-						{
-							int32 DummyBulkDataSizeOnDiskAsInt32;
-							Ar << DummyBulkDataSizeOnDiskAsInt32;
-						}
-
-						int64 DummyBulkDataOffsetInFile;
-						Ar << DummyBulkDataOffsetInFile;
 					}
 				}
 				else if (BulkDataFlags & BULKDATA_OptionalPayload)
 				{
 					PackageSegment = EPackageSegment::BulkDataOptional;
 				}
-				else if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
+				else if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
 				{
-					if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
+					PackageSegment = EPackageSegment::BulkDataMemoryMapped;
+				}
+				else
+				{
+					PackageSegment = EPackageSegment::BulkDataDefault;
+				}
+			}
+			else
+			{
+				check(PackageSegment == EPackageSegment::Header)
+				if (GEventDrivenLoaderEnabled)
+				{
+					BulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, PackageSegment);
+					check(BulkDataOffsetInFile >= 0);
+					PackageSegment = EPackageSegment::Exports;
+				}
+			}
+
+			FArchive* CacheableArchive = Ar.GetCacheableArchive();
+			if (Ar.IsAllowingLazyLoading() && Owner != nullptr && CacheableArchive && !bUseIOStore)
+			{
+				// Deferred serialization is allowed by the archive/caller. Set flags for how to read
+				// the data, but skip synchronous reading of it until TryLoadDataIntoMemory is called.
+#if WITH_EDITOR
+				CacheableArchive->AttachBulkData(Owner, this);
+				check(!CacheableArchive->IsTextFormat());
+				AttachedAr = CacheableArchive;
+#endif // WITH_EDITOR
+
+				if (bPayloadInline)
+				{
+					// Inline payloads load immediately even though the archive/caller is allowing deferred loads.
+
+					// Check whether we should load the data asynchronously before we proceed to synchronous or mapped load.
+					if (ShouldStreamBulkData(Ar))
 					{
-						PackageSegment = EPackageSegment::BulkDataMemoryMapped;
+						// Serialize the bulk data asynchronously, and start the task immediately
+						StartSerializingBulkData(Ar, Owner, Idx, bPayloadInline);
+					}
+					// Check whether we should memory map the data before we proceed to synchronous load.
+					else if (bAttemptFileMapping &&
+						BulkData.MapFile(PackagePath, PackageSegment, BulkDataOffsetInFile, GetBulkDataSize()))
+					{
+						UE_LOG(LogSerialization, Error, TEXT("Attempt to file map inline bulk data. This is not desireable. File %s"),
+							*PackagePath.GetDebugName(PackageSegment));
+						// we need to seek past the inline bulk data 
+						Ar.Seek(Ar.Tell() + GetBulkDataSize());
 					}
 					else
 					{
-						PackageSegment = EPackageSegment::BulkDataDefault;
+						// Force non-lazy loading of inline bulk data to prevent PostLoad spikes.
+						BulkData.Reallocate(GetBulkDataSize(), BulkDataAlignment);
+						// if the payload is stored inline, just serialize it
+						SerializeBulkData(Ar, BulkData.Get(), BulkDataFlags);
 					}
-
-
+				}
+				else
+				{
 					if (bAttemptFileMapping)
 					{
-						check(!FPlatformProperties::GetMemoryMappingAlignment() || IsAligned(BulkDataOffsetInFile, FPlatformProperties::GetMemoryMappingAlignment()));
-						bool bWasMapped = BulkData.MapFile(PackagePath, PackageSegment, BulkDataOffsetInFile, GetBulkDataSize());
-						if (!bWasMapped)
+						if (!BulkData.MapFile(PackagePath, PackageSegment, BulkDataOffsetInFile, GetBulkDataSize()))
 						{
 							// we failed to map when requested, so they will be looking for the memory, do a sync load now.
 							ForceBulkDataResident();
@@ -1220,15 +1202,13 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					}
 				}
 			}
-			// Serialize the bulk data right away.
 			else
 			{
-				if (Owner && Owner->GetLinker())
-				{
-					PackagePath = Owner->GetLinker()->GetPackagePath();
-					PackageSegment = EPackageSegment::Header;
-				}
-				if (ShouldStreamBulkData())
+				// Serialize the bulk data right away.
+				// bAttemptFileMapping is ignored in this case, since we are going to load the memory before returning anyway.
+
+				// Check whether we should load the data asynchronously before we proceed to synchronous load.
+				if (ShouldStreamBulkData(Ar))
 				{
 					StartSerializingBulkData(Ar, Owner, Idx, bPayloadInline);
 				}
@@ -1239,31 +1219,39 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					if (bPayloadInline)
 					{
 						// if the payload is stored inline, just serialize it
-						SerializeBulkData( Ar, BulkData.Get() );
+						SerializeBulkData(Ar, BulkData.Get(), BulkDataFlags);
 					}
 					else
 					{
 						// if the payload is NOT stored inline ...
-						if (BulkDataFlags & BULKDATA_PayloadInSeperateFile)
+						if (bPayloadInSeparateFile)
 						{
-							// open separate bulk data file
-							UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (separate file). This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
-
-							if (GEventDrivenLoaderEnabled && PackageSegment == EPackageSegment::Header)
+#if WITH_IOSTORE_IN_EDITOR
+							if (bUseIOStore)
 							{
-								BulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, PackageSegment);
-								check(BulkDataOffsetInFile >= 0);
-								PackageSegment = EPackageSegment::Exports;
+								TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateBulkDataChunkId(PackageId, BulkDataFlags));
+								Request->WaitCompletion();
+
+								FLargeMemoryReader MemoryAr(Request->GetReadResults(), Request->GetSize());
+								MemoryAr.Seek(BulkDataOffsetInFile);
+
+								SerializeBulkData(MemoryAr, BulkData.Get(), BulkDataFlags);
 							}
+							else
+#endif
+							{
+								// open separate bulk data file
+								UE_CLOG(GEventDrivenLoaderEnabled, LogSerialization, Error, TEXT("Attempt to sync load bulk data with EDL enabled (separate file). This is not desireable. File %s"), *PackagePath.GetDebugName(PackageSegment));
 
-							FOpenPackageResult TargetArchive = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
-							checkf(TargetArchive.Archive.IsValid() && TargetArchive.Format == EPackageFormat::Binary, TEXT("Attempted to load bulk data from an invalid PackagePath '%s': %s."),
-								*PackagePath.GetDebugName(PackageSegment), (!TargetArchive.Archive.IsValid() ? TEXT("could not find package") : TEXT("package is a TextAsset which is not supported")));
+								FOpenPackageResult TargetArchive = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+								checkf(TargetArchive.Archive.IsValid() && TargetArchive.Format == EPackageFormat::Binary, TEXT("Attempted to load bulk data from an invalid PackagePath '%s': %s."),
+									*PackagePath.GetDebugName(PackageSegment), (!TargetArchive.Archive.IsValid() ? TEXT("could not find package") : TEXT("package is a TextAsset which is not supported")));
 
-							// seek to the location in the file where the payload is stored
-							TargetArchive.Archive->Seek(BulkDataOffsetInFile);
-							// serialize the payload
-							SerializeBulkData(*TargetArchive.Archive, BulkData.Get());
+								// seek to the location in the file where the payload is stored
+								TargetArchive.Archive->Seek(BulkDataOffsetInFile);
+								// serialize the payload
+								SerializeBulkData(*TargetArchive.Archive, BulkData.Get(), BulkDataFlags);
+							}
 						}
 						else
 						{
@@ -1274,7 +1262,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 							// seek to the location in the file where the payload is stored
 							Ar.Seek(BulkDataOffsetInFile);
 							// serialize the payload
-							SerializeBulkData(Ar, BulkData.Get());
+							SerializeBulkData(Ar, BulkData.Get(), BulkDataFlags);
 							// seek to the location we came from
 							Ar.Seek(CurOffset);
 						}
@@ -1283,53 +1271,63 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			}
 		}
 		// We're saving to the persistent archive.
-		else if( Ar.IsSaving() )
+		else if ( Ar.IsSaving() )
 		{
-			// This block mutates values in order to write them out to the archive, even if just cooking. Store the existing version of them so we can restore them if necessary after writing out the bytes.
-			int64 SavedBulkDataSizeOnDisk = BulkDataSizeOnDisk;
-			int64 SavedBulkDataOffsetInFile = BulkDataOffsetInFile;
-
-			// Remove single element serialization requirement before saving out bulk data flags.
-			ClearBulkDataFlags(BULKDATA_ForceSingleElementSerialization);
-
 			// Make sure bulk data is loaded.
 			MakeSureBulkDataIsLoaded();
-			
+
+			// Make mutable copies of the bulkdata location variables
+			EBulkDataFlags LocalBulkDataFlags = BulkDataFlags;
+			int64 LocalBulkDataSizeOnDisk = BulkDataSizeOnDisk;
+			int64 LocalBulkDataOffsetInFile = BulkDataOffsetInFile;
+
+			// If the bulk data size is greater than can be held in an int32, then potentially the ElementCount
+			// and BulkDataSizeOnDisk need to be held as int64s, so set a flag indicating the new format.
+			if (GetBulkDataSize() >= (1LL << 31))
+			{
+				SetBulkDataFlagsOn(LocalBulkDataFlags, BULKDATA_Size64Bit);
+			}
+			else
+			{
+				ClearBulkDataFlagsOn(LocalBulkDataFlags, BULKDATA_Size64Bit);
+			}
+			// Remove single element serialization requirement before saving out bulk data flags.
+			ClearBulkDataFlagsOn(LocalBulkDataFlags, BULKDATA_ForceSingleElementSerialization);
+
+			// Save offset where we are serializing BulkDataFlags and store a placeholder
+			int64 SavedBulkDataFlagsPos = Ar.Tell();
+			{
+				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
+				Ar << LocalBulkDataFlags;
+			}
+
+			// Number of elements in array.
+			SerializeBulkDataSizeInt(Ar, ElementCount, LocalBulkDataFlags);
+
 			// Only serialize status information if wanted.
 			int64 SavedBulkDataSizeOnDiskPos	= INDEX_NONE;
 			int64 SavedBulkDataOffsetInFilePos	= INDEX_NONE;
 			
-			// Keep track of position we are going to serialize placeholder BulkDataSizeOnDisk.
-			SavedBulkDataSizeOnDiskPos = Ar.Tell();
-			BulkDataSizeOnDisk = INDEX_NONE;
-
 			{
 				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
 
-				// And serialize the placeholder which is going to be overwritten later.
-				if (BulkDataFlags & BULKDATA_Size64Bit)
-				{
-					Ar << BulkDataSizeOnDisk;
-				}
-				else
-				{
-					int32 BulkDataSizeOnDiskAsInt32 = BulkDataSizeOnDisk;
-					Ar << BulkDataSizeOnDiskAsInt32;
-				}
-				// Keep track of position we are going to serialize placeholder BulkDataOffsetInFile.
+				// Save offset where we are serializing BulkDataSizeOnDisk and store a placeholder
+				SavedBulkDataSizeOnDiskPos = Ar.Tell();
+				LocalBulkDataSizeOnDisk = INDEX_NONE;
+				SerializeBulkDataSizeInt(Ar, LocalBulkDataSizeOnDisk, LocalBulkDataFlags);
+
+				// Save offset where we are serializing BulkDataOffsetInFile and store a placeholder
 				SavedBulkDataOffsetInFilePos = Ar.Tell();
-				BulkDataOffsetInFile = INDEX_NONE;
-				// And serialize the placeholder which is going to be overwritten later.
-				Ar << BulkDataOffsetInFile;
+				LocalBulkDataOffsetInFile = INDEX_NONE;
+				Ar << LocalBulkDataOffsetInFile;
 			}
 
 			// try to get the linkersave object
 			FLinkerSave* LinkerSave = Cast<FLinkerSave>(Ar.GetLinker());
 
 			// determine whether we are going to store the payload inline or not.
-			bool bStoreInline = !!(BulkDataFlags&BULKDATA_ForceInlinePayload) || !LinkerSave || Ar.IsTextFormat();
-
-			if (IsEventDrivenLoaderEnabledInCookedBuilds() && Ar.IsCooking() && !bStoreInline && !(BulkDataFlags&BULKDATA_Force_NOT_InlinePayload))
+			bool bStoreInline = !!(LocalBulkDataFlags & BULKDATA_ForceInlinePayload) || !LinkerSave || Ar.IsTextFormat();
+			if (IsEventDrivenLoaderEnabledInCookedBuilds() && Ar.IsCooking() && !(LocalBulkDataFlags & BULKDATA_Force_NOT_InlinePayload))
 			{
 				bStoreInline = true;
 			}
@@ -1337,59 +1335,51 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 			if (!bStoreInline)
 			{
 				// set the flag indicating where the payload is stored
-				SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile);
+				SetBulkDataFlagsOn(LocalBulkDataFlags, BULKDATA_PayloadAtEndOfFile);
+				ClearBulkDataFlagsOn(LocalBulkDataFlags, BULKDATA_PayloadInSeperateFile); // SavePackageUtilities::SaveBulkData will add this back if required
 
 				// with no LinkerSave we have to store the data inline
-				check(LinkerSave != NULL);				
-				
+				check(LinkerSave != NULL);
+
 				// add the bulkdata storage info object to the linkersave
-				int32 Index = LinkerSave->BulkDataToAppend.AddZeroed(1);
-				FLinkerSave::FBulkDataStorageInfo& BulkStore = LinkerSave->BulkDataToAppend[Index];
+				FLinkerSave::FBulkDataStorageInfo& BulkStore = LinkerSave->BulkDataToAppend.AddZeroed_GetRef();
 
 				BulkStore.BulkDataOffsetInFilePos = SavedBulkDataOffsetInFilePos;
 				BulkStore.BulkDataSizeOnDiskPos = SavedBulkDataSizeOnDiskPos;
 				BulkStore.BulkDataFlagsPos = SavedBulkDataFlagsPos;
-				BulkStore.BulkDataFlags = BulkDataFlags;
+				BulkStore.BulkDataFlags = LocalBulkDataFlags;
 				BulkStore.BulkDataFileRegionType = FileRegionType;
 				BulkStore.BulkData = this;
 
 				// If having flag BULKDATA_DuplicateNonOptionalPayload, duplicate bulk data in optional storage (.uptnl)
-				if (BulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
+				if (LocalBulkDataFlags & BULKDATA_DuplicateNonOptionalPayload)
 				{
 					int64 SavedDupeBulkDataFlagsPos = INDEX_NONE;
 					int64 SavedDupeBulkDataSizeOnDiskPos = INDEX_NONE;
 					int64 SavedDupeBulkDataOffsetInFilePos = INDEX_NONE;
 
-					int32 SavedDupeBulkDataFlags = (BulkDataFlags & ~BULKDATA_DuplicateNonOptionalPayload) | BULKDATA_OptionalPayload;
+					EBulkDataFlags SavedDupeBulkDataFlags = static_cast<EBulkDataFlags>(
+						(LocalBulkDataFlags & ~BULKDATA_DuplicateNonOptionalPayload) | BULKDATA_OptionalPayload);
 					{
 						FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
 
+						// Save offset where we are serializing SavedDupeBulkDataFlags and store a placeholder
 						SavedDupeBulkDataFlagsPos = Ar.Tell();
 						Ar << SavedDupeBulkDataFlags;
 
-						// And serialize the placeholder which is going to be overwritten later.
+						// Save offset where we are serializing SavedDupeBulkDataSizeOnDisk and store a placeholder
 						SavedDupeBulkDataSizeOnDiskPos = Ar.Tell();
-						BulkDataSizeOnDisk = INDEX_NONE;
-						if (BulkDataFlags & BULKDATA_Size64Bit)
-						{
-							Ar << BulkDataSizeOnDisk;
-						}
-						else
-						{
-							int32 BulkDataSizeOnDiskAsInt32 = BulkDataSizeOnDisk;
-							Ar << BulkDataSizeOnDiskAsInt32;
-						}
+						int64 DupeBulkDataSizeOnDisk = INDEX_NONE;
+						SerializeBulkDataSizeInt(Ar, DupeBulkDataSizeOnDisk, SavedDupeBulkDataFlags);
 
-						// Keep track of position we are going to serialize placeholder BulkDataOffsetInFile.
+						// Save offset where we are serializing SavedDupeBulkDataOffsetInFile and store a placeholder
 						SavedDupeBulkDataOffsetInFilePos = Ar.Tell();
-						BulkDataOffsetInFile = INDEX_NONE;
-						// And serialize the placeholder which is going to be overwritten later.
-						Ar << BulkDataOffsetInFile;
+						int64 DupeBulkDataOffsetInFile = INDEX_NONE;
+						Ar << DupeBulkDataOffsetInFile;
 					}
 
 					// add duplicate bulkdata with different flag
-					Index = LinkerSave->BulkDataToAppend.AddZeroed(1);
-					FLinkerSave::FBulkDataStorageInfo& DupeBulkStore = LinkerSave->BulkDataToAppend[Index];
+					FLinkerSave::FBulkDataStorageInfo& DupeBulkStore = LinkerSave->BulkDataToAppend.AddZeroed_GetRef();
 
 					DupeBulkStore.BulkDataOffsetInFilePos = SavedDupeBulkDataOffsetInFilePos;
 					DupeBulkStore.BulkDataSizeOnDiskPos = SavedDupeBulkDataSizeOnDiskPos;
@@ -1398,14 +1388,12 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 					DupeBulkStore.BulkDataFileRegionType = FileRegionType;
 					DupeBulkStore.BulkData = this;
 				}
-				
-				// Serialize bulk data into the storage info
-				BulkDataSizeOnDisk = -1;
 			}
 			else
 			{
 				// set the flag indicating where the payload is stored
-				ClearBulkDataFlags(BULKDATA_PayloadAtEndOfFile);
+				ClearBulkDataFlagsOn(LocalBulkDataFlags,
+					static_cast<EBulkDataFlags>(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile));
 
 				int64 SavedBulkDataStartPos = Ar.Tell();
 
@@ -1414,7 +1402,7 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				{
 					Ar.PushFileRegionType(FileRegionType);
 				}
-				SerializeBulkData( Ar, BulkData.Get() );
+				SerializeBulkData(Ar, BulkData.Get(), LocalBulkDataFlags);
 				if (FileRegionType != EFileRegionType::None)
 				{
 					Ar.PopFileRegionType();
@@ -1424,78 +1412,47 @@ void FUntypedBulkData::Serialize( FArchive& Ar, UObject* Owner, int32 Idx, bool 
 				int64 SavedBulkDataEndPos = Ar.Tell();
 
 				checkf(SavedBulkDataStartPos >= 0 && SavedBulkDataEndPos >= 0,
-					   TEXT("Bad archive positions for bulkdata. StartPos=%d EndPos=%d"),
-					   SavedBulkDataStartPos, SavedBulkDataEndPos);
+					TEXT("Bad archive positions for bulkdata. StartPos=%d EndPos=%d"),
+					SavedBulkDataStartPos, SavedBulkDataEndPos);
 
-				BulkDataSizeOnDisk		= SavedBulkDataEndPos - SavedBulkDataStartPos;
-				BulkDataOffsetInFile	= SavedBulkDataStartPos;
+				LocalBulkDataSizeOnDisk = SavedBulkDataEndPos - SavedBulkDataStartPos;
+				LocalBulkDataOffsetInFile = SavedBulkDataStartPos;
+
+				// Since we are storing inline we are not relying on SavePackageUtilities::SaveBulkData to update the placeholder
+				// location data, so we need to do it here.
+
+				// store current file offset before seeking back
+				int64 CurrentFileOffset = Ar.Tell();
+				{
+					FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
+
+					// Seek back and overwrite the flags 
+					Ar.Seek(SavedBulkDataFlagsPos);
+					Ar << LocalBulkDataFlags;
+
+					// Seek back and overwrite placeholder for BulkDataSizeOnDisk
+					Ar.Seek(SavedBulkDataSizeOnDiskPos);
+					SerializeBulkDataSizeInt(Ar, LocalBulkDataSizeOnDisk, LocalBulkDataFlags);
+
+					// Seek back and overwrite placeholder for BulkDataOffsetInFile
+					Ar.Seek(SavedBulkDataOffsetInFilePos);
+					Ar << LocalBulkDataOffsetInFile;
+				}
+				// Seek to the end of written data so we don't clobber any data in subsequent writes
+				Ar.Seek(CurrentFileOffset);
 			}
 
-			// store current file offset before seeking back
-			int64 CurrentFileOffset = Ar.Tell();
-
+			// If we are overwriting the LoadedPath for the current package, set the location variables on *this equal to the new values
+			// that we are writing into the package on disk
+			if (!Ar.IsCooking())
 			{
-				FArchive::FScopeSetDebugSerializationFlags S(Ar, DSF_IgnoreDiff);
-
-				// Seek back and overwrite the flags 
-				Ar.Seek(SavedBulkDataFlagsPos);
-				Ar << BulkDataFlags;
-
-				// Seek back and overwrite placeholder for BulkDataSizeOnDisk
-				Ar.Seek(SavedBulkDataSizeOnDiskPos);
-				if (BulkDataFlags & BULKDATA_Size64Bit)
-				{
-					Ar << BulkDataSizeOnDisk;
-				}
-				else
-				{
-					int32 BulkDataSizeOnDiskAsInt32 = BulkDataSizeOnDisk;
-					Ar << BulkDataSizeOnDiskAsInt32;
-				}
-
-				// Seek back and overwrite placeholder for BulkDataOffsetInFile
-				Ar.Seek(SavedBulkDataOffsetInFilePos);
-				Ar << BulkDataOffsetInFile;
-			}
-
-			// Seek to the end of written data so we don't clobber any data in subsequent write 
-			// operations
-			Ar.Seek(CurrentFileOffset);
-
-			// Restore the mutated values when we are serializing for cooking; saving to a cook target should not mutate the in-memory object
-			if (Ar.IsCooking())
-			{
-				BulkDataFlags = SavedBulkDataFlags;
-				BulkDataOffsetInFile = SavedBulkDataOffsetInFile;
-				BulkDataSizeOnDisk = SavedBulkDataSizeOnDisk;
+				BulkDataFlags = LocalBulkDataFlags;
+				BulkDataOffsetInFile = LocalBulkDataOffsetInFile;
+				BulkDataSizeOnDisk = LocalBulkDataSizeOnDisk;
 			}
 		}
 	}
 }
-
-#if WITH_IOSTORE_IN_EDITOR
-void FUntypedBulkData::SerializeFromIoStore( FArchive& Ar, UObject* Owner, int32 Idx, bool bAttemptFileMapping )
-{
-	BulkData.Reallocate(GetBulkDataSize(), BulkDataAlignment);
-
-	if (IsInlined())
-	{
-		SerializeBulkData(Ar, BulkData.Get());
-	}
-	else
-	{
-		check(!NeedsOffsetFixup());
-
-		TUniquePtr<IBulkDataIORequest> Request = CreateBulkDataIoDispatcherRequest(CreateBulkDataChunkId(PackageId, BulkDataFlags));
-		Request->WaitCompletion();
-
-		FLargeMemoryReader MemoryAr(Request->GetReadResults(), Request->GetSize());
-		MemoryAr.Seek(BulkDataOffsetInFile);
-
-		SerializeBulkData(MemoryAr, BulkData.Get());
-	}
-}
-#endif
 
 /*-----------------------------------------------------------------------------
 	Class specific virtuals.
@@ -1628,20 +1585,21 @@ void FUntypedBulkData::SerializeElements(FArchive& Ar, void* Data)
  *
  * @param	Ar					Archive to serialize with
  * @param	Data				Memory to serialize either to or from
+ * @param	InBulkDataFlags		Flags describing how the data was/shouldbe serialized
  */
-void FUntypedBulkData::SerializeBulkData( FArchive& Ar, void* Data )
+void FUntypedBulkData::SerializeBulkData(FArchive& Ar, void* Data, EBulkDataFlags InBulkDataFlags)
 {
 	SCOPED_LOADTIMER(BulkData_SerializeBulkData);
 
 	// skip serializing of unused data
-	if( BulkDataFlags & BULKDATA_Unused )
+	if (InBulkDataFlags & BULKDATA_Unused)
 	{
 		return;
 	}
 
 	// Skip serialization for bulk data of zero length
 	const int64 BulkDataSize = GetBulkDataSize();
-	if(BulkDataSize == 0)
+	if (BulkDataSize == 0)
 	{
 		return;
 	}
@@ -1649,22 +1607,23 @@ void FUntypedBulkData::SerializeBulkData( FArchive& Ar, void* Data )
 	// Allow backward compatible serialization by forcing bulk serialization off if required. Saving also always uses single
 	// element serialization so errors or oversight when changing serialization code is recoverable.
 	bool bSerializeInBulk = true;
-	if( RequiresSingleElementSerialization( Ar ) 
+	if (RequiresSingleElementSerialization(Ar) 
 	// Set when serialized like a lazy array.
-	|| (BulkDataFlags & BULKDATA_ForceSingleElementSerialization) 
+	|| (InBulkDataFlags & BULKDATA_ForceSingleElementSerialization)
 	// We use bulk serialization even when saving 1 byte types (texture & sound bulk data) as an optimization for those.
-	|| (Ar.IsSaving() && (GetElementSize() > 1) ) )
+	|| (Ar.IsSaving() && (GetElementSize() > 1)))
 	{
 		bSerializeInBulk = false;
 	}
 
-	// Raw serialize the bulk data without any possiblity for potential endian conversion.
-	if( bSerializeInBulk )
+	// Raw serialize the bulk data without any possibility for potential endian conversion.
+	if (bSerializeInBulk)
 	{
 		// Serialize data compressed.
-		if( BulkDataFlags & BULKDATA_SerializeCompressed )
+		if (InBulkDataFlags & BULKDATA_SerializeCompressed)
 		{
-			Ar.SerializeCompressed( Data, GetBulkDataSize(), GetDecompressionFormat(), COMPRESS_NoFlags, false );
+			Ar.SerializeCompressed(Data, GetBulkDataSize(),
+				GetDecompressionFormat(InBulkDataFlags), COMPRESS_NoFlags, false);
 		}
 		// Uncompressed/ regular serialization.
 		else
@@ -1678,35 +1637,37 @@ void FUntypedBulkData::SerializeBulkData( FArchive& Ar, void* Data )
 	else
 	{
 		// Serialize data compressed.
-		if( BulkDataFlags & BULKDATA_SerializeCompressed )
+		if (InBulkDataFlags & BULKDATA_SerializeCompressed)
 		{
 			// Loading, data is compressed in archive and needs to be decompressed.
-			if( Ar.IsLoading() )
+			if (Ar.IsLoading())
 			{
 				TUniquePtr<uint8[]> SerializedData = MakeUnique<uint8[]>( GetBulkDataSize() );
 
 				// Serialize data with passed in archive and compress.
-				Ar.SerializeCompressed( SerializedData.Get(), GetBulkDataSize(), GetDecompressionFormat(), COMPRESS_NoFlags, false );
-				
+				Ar.SerializeCompressed(SerializedData.Get(), GetBulkDataSize(),
+					GetDecompressionFormat(InBulkDataFlags), COMPRESS_NoFlags, false);
+
 				// Initialize memory reader with uncompressed data array and propagate forced byte swapping
-				FLargeMemoryReader MemoryReader( SerializedData.Get(), GetBulkDataSize(), ELargeMemoryReaderFlags::Persistent );
-				MemoryReader.SetByteSwapping( Ar.ForceByteSwapping() );
+				FLargeMemoryReader MemoryReader(SerializedData.Get(), GetBulkDataSize(), ELargeMemoryReaderFlags::Persistent);
+				MemoryReader.SetByteSwapping(Ar.ForceByteSwapping());
 
 				// Serialize each element individually via memory reader.
 				SerializeElements(MemoryReader, Data);
 			}
 			// Saving, data is uncompressed in memory and needs to be compressed.
-			else if( Ar.IsSaving() )
-			{			
+			else if (Ar.IsSaving())
+			{
 				// Initialize memory writer with blank data array and propagate forced byte swapping
-				FLargeMemoryWriter MemoryWriter( GetBulkDataSize(), true );
-				MemoryWriter.SetByteSwapping( Ar.ForceByteSwapping() );
+				FLargeMemoryWriter MemoryWriter(GetBulkDataSize(), true);
+				MemoryWriter.SetByteSwapping(Ar.ForceByteSwapping());
 
-				// Serialize each element individually via memory writer.			
+				// Serialize each element individually via memory writer.
 				SerializeElements(MemoryWriter, Data);
 
 				// Serialize data with passed in archive and compress.
-				Ar.SerializeCompressed( MemoryWriter.GetData(), GetBulkDataSize(), GetDecompressionFormat(), COMPRESS_NoFlags, false );
+				Ar.SerializeCompressed(MemoryWriter.GetData(), GetBulkDataSize(),
+					GetDecompressionFormat(InBulkDataFlags), COMPRESS_NoFlags, false);
 			}
 		}
 		// Uncompressed/ regular serialization.
@@ -1716,6 +1677,11 @@ void FUntypedBulkData::SerializeBulkData( FArchive& Ar, void* Data )
 			SerializeElements(Ar, Data);
 		}
 	}
+}
+
+void FUntypedBulkData::SerializeBulkData(FArchive& Ar, void* Data)
+{
+	SerializeBulkData(Ar, Data, this->BulkDataFlags);
 }
 
 IAsyncReadFileHandle* FUntypedBulkData::OpenAsyncReadHandle() const
@@ -1741,25 +1707,19 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 #endif
 	check(PackagePath.IsEmpty() == false);
 
-	// If we are loading from a .uexp file then we need to adjust the segment and offset stored by BulkData in order to use them
-	// to access the data in the .uexp file. To keep the method const (due to a large number of places calling this, assuming that
-	// it is const) we take a copy of these data values which if needed can be adjusted and use them instead.
-	EPackageSegment AdjustedPackageSegment = PackageSegment;
-	int64 AdjustedBulkDataOffsetInFile = BulkDataOffsetInFile;
-
-	// Fix up the Segment/Offset to work with streaming if EDL is enabled and the segment is still referencing the header
-	if (GEventDrivenLoaderEnabled && AdjustedPackageSegment == EPackageSegment::Header)
+	if (GEventDrivenLoaderEnabled)
 	{
-		AdjustedBulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, AdjustedPackageSegment);
-		AdjustedPackageSegment = EPackageSegment::Exports;
-
-		UE_LOG(LogSerialization, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *PackagePath.GetDebugName(AdjustedPackageSegment));
+		// Verify that the Serialize function converted a Header Segment and Offset to be relative to the Exports segment
+		check(PackageSegment != EPackageSegment::Header);
+		// Even the Exports segment is bad for performance
+		UE_CLOG(PackageSegment == EPackageSegment::Exports,
+			LogSerialization, Error, TEXT("Streaming from the .uexp file '%s' this MUST be in a ubulk instead for best performance."), *PackagePath.GetDebugName(PackageSegment));
 	}
 
-	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *PackagePath.GetDebugName(AdjustedPackageSegment));
-	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *PackagePath.GetDebugName(AdjustedPackageSegment));
+	UE_CLOG(IsStoredCompressedOnDisk(), LogSerialization, Fatal, TEXT("Package level compression is no longer supported (%s)."), *PackagePath.GetDebugName(PackageSegment));
+	UE_CLOG(GetBulkDataSize() <= 0, LogSerialization, Error, TEXT("(%s) has invalid bulk data size."), *PackagePath.GetDebugName(PackageSegment));
 
-	IAsyncReadFileHandle* IORequestHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, AdjustedPackageSegment);
+	IAsyncReadFileHandle* IORequestHandle = IPackageResourceManager::Get().OpenAsyncReadPackage(PackagePath, PackageSegment);
 	check(IORequestHandle); // this generally cannot fail because it is async
 
 	if (IORequestHandle == nullptr)
@@ -1767,7 +1727,7 @@ IBulkDataIORequest* FUntypedBulkData::CreateStreamingRequest(int64 OffsetInBulkD
 		return nullptr;
 	}
 
-	const int64 OffsetInFile = AdjustedBulkDataOffsetInFile + OffsetInBulkData;
+	const int64 OffsetInFile = BulkDataOffsetInFile + OffsetInBulkData;
 
 	FBulkDataIORequest* IORequest = new FBulkDataIORequest(IORequestHandle);
 
@@ -1943,7 +1903,10 @@ void FUntypedBulkData::MakeSureBulkDataIsLoaded()
 			// in which case it starts out with a size of zero.
 			if (BytesNeeded > 0)
 			{
-				LoadDataIntoMemory(BulkData.Get());
+				if (!TryLoadDataIntoMemory(BulkData.Get()))
+				{
+					BulkData.Deallocate();
+				}
 			}
 		}
 	}
@@ -1979,43 +1942,38 @@ bool FUntypedBulkData::FlushAsyncLoading()
  *
  * @param Dest Memory to serialize data into
  */
-void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
+bool FUntypedBulkData::TryLoadDataIntoMemory(void* Dest)
 {
 	// Try flushing async loading before attempting to load
 	if (FlushAsyncLoading())
 	{
 		FMemory::Memcpy(Dest, BulkData.Get(), GetBulkDataSize());
-		return;
+		return true;
 	}
 
 #if WITH_EDITOR
 	checkf( AttachedAr, TEXT( "Attempted to load bulk data without an attached archive. Most likely the bulk data was loaded twice on console, which is not supported" ) );
 
+	TUniquePtr<FArchive> BulkDataLoadedFile;
 	FArchive* BulkDataArchive = nullptr;
 	if (Linker && Linker->GetAsyncLoader() && Linker->GetAsyncLoader()->IsCookedForEDLInEditor() &&
 		(BulkDataFlags & BULKDATA_PayloadInSeperateFile))
 	{
-		// The attached archive is a package cooked for EDL loaded in the editor so the actual bulk data sits in a separate ubulk file.
-		EPackageSegment BulkDataSegment;
+		// The Serialize function set the PackageSegment, and since the payload is in a separate file, we
+		// can assert that the PackageSegment that was set is one of the separate-file segments
+		check(PackageSegment != EPackageSegment::Header && PackageSegment != EPackageSegment::Exports);
 
-		if (BulkDataFlags & BULKDATA_MemoryMappedPayload)
+		FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
+		if (!Result.Archive.IsValid() || Result.Format != EPackageFormat::Binary)
 		{
-			BulkDataSegment = EPackageSegment::BulkDataMemoryMapped;
+			UE_LOG(LogSerialization, Error, TEXT("Attempted to load bulk data from an invalid PackagePath '%s'%s."),
+				*PackagePath.GetDebugName(PackageSegment), (!Result.Archive.IsValid() ? TEXT("") : TEXT("; package is in non-binary format and this is not supported.")));
+			return false;
 		}
-		else if (IsOptional())
-		{
-			BulkDataSegment = EPackageSegment::BulkDataOptional;
-		}
-		else
-		{
-			BulkDataSegment = EPackageSegment::BulkDataDefault;
-		}
-		FOpenPackageResult OpenResult = IPackageResourceManager::Get().OpenReadPackage(PackagePath, BulkDataSegment);
-		BulkDataArchive = OpenResult.Archive.Release();
-		check(BulkDataArchive == nullptr || OpenResult.Format == EPackageFormat::Binary);
+		BulkDataLoadedFile = MoveTemp(Result.Archive);
+		BulkDataArchive = BulkDataLoadedFile.Get();
 	}
-
-	if (!BulkDataArchive)
+	else
 	{
 		BulkDataArchive = AttachedAr;
 	}
@@ -2023,19 +1981,14 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 	// Keep track of current position in file so we can restore it later.
 	int64 PushedPos = BulkDataArchive->Tell();
 	// Seek to the beginning of the bulk data in the file.
-	BulkDataArchive->Seek( BulkDataOffsetInFile );
-		
-	SerializeBulkData( *BulkDataArchive, Dest );
+	BulkDataArchive->Seek(BulkDataOffsetInFile);
+
+	SerializeBulkData(*BulkDataArchive, Dest, BulkDataFlags);
 
 	// Restore file pointer.
-	BulkDataArchive->Seek( PushedPos );
+	BulkDataArchive->Seek(PushedPos);
 	BulkDataArchive->FlushCache();
-
-	if (BulkDataArchive != AttachedAr)
-	{
-		delete BulkDataArchive;
-		BulkDataArchive = nullptr;
-	}
+	return true;
 
 #else
 	bool bWasLoadedSuccessfully = false;
@@ -2056,7 +2009,7 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 					Ar->Seek( BulkDataOffsetInFile );
 
 					// serialize the bulk data
-					SerializeBulkData( *Ar, Dest );
+					SerializeBulkData(*Ar, Dest, BulkDataFlags);
 
 					// seek back to the position the archive was before
 					Ar->Seek(CurPos);
@@ -2070,7 +2023,7 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 	// if we weren't able to load via linker, load directly by PackagePath
 	if (!bWasLoadedSuccessfully)
 	{
-		// load from the specied PackagePath when the linker has been cleared
+		// load from the specified PackagePath when the linker has been cleared
 		checkf(!PackagePath.IsEmpty(), TEXT( "Attempted to load bulk data without a proper PackagePath." ) );
 
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
@@ -2086,21 +2039,22 @@ void FUntypedBulkData::LoadDataIntoMemory( void* Dest )
 		}
 #endif
 
-		if (GEventDrivenLoaderEnabled && PackageSegment == EPackageSegment::Header)
-		{
-			BulkDataOffsetInFile -= IPackageResourceManager::Get().FileSize(PackagePath, PackageSegment);
-			check(BulkDataOffsetInFile >= 0);
-			PackageSegment = EPackageSegment::Exports;
-		}
+		// Verify that the Serialize function converted a Header Segment and Offset to be relative to the Exports segment, if GEventDrivenLoaderEnabled
+		check(!GEventDrivenLoaderEnabled || PackageSegment != EPackageSegment::Header);
 
 		FOpenPackageResult Result = IPackageResourceManager::Get().OpenReadPackage(PackagePath, PackageSegment);
-		checkf( Result.Archive.IsValid() && Result.Format == EPackageFormat::Binary, TEXT( "Attempted to load bulk data from an invalid PackagePath '%s'%s." ),
-			*PackagePath.GetDebugName(PackageSegment), (!Result.Archive.IsValid() ? TEXT("") : TEXT("; package is in non-binary format and this is not supported.")));
+		if (!Result.Archive.IsValid() || Result.Format != EPackageFormat::Binary)
+		{
+			UE_LOG(LogSerialization, Error, TEXT("Attempted to load bulk data from an invalid PackagePath '%s'%s."),
+				*PackagePath.GetDebugName(PackageSegment), (!Result.Archive.IsValid() ? TEXT("") : TEXT("; package is in non-binary format and this is not supported.")));
+			return false;
+		}
 	
 		// Seek to the beginning of the bulk data in the file.
-		Result.Archive->Seek( BulkDataOffsetInFile );
-		SerializeBulkData( *Result.Archive, Dest );
+		Result.Archive->Seek(BulkDataOffsetInFile);
+		SerializeBulkData(*Result.Archive, Dest, BulkDataFlags);
 	}
+	return true;
 #endif // WITH_EDITOR
 }
 
@@ -2260,11 +2214,11 @@ void FFormatContainer::Serialize(FArchive& Ar, UObject* Owner, const TArray<FNam
 				if (bInline)
 				{
 					Bulk->SetBulkDataFlags(BULKDATA_ForceInlinePayload);
-					Bulk->ClearBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
+					Bulk->ClearBulkDataFlags(BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
 				}
 				else
 				{
-					Bulk->SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload);
+					Bulk->SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
 					if (bMapped)
 					{
 						Bulk->SetBulkDataFlags(BULKDATA_MemoryMappedPayload);

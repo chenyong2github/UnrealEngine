@@ -693,7 +693,7 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 	BulkDataOffset = Other.BulkDataOffset;
 	BulkDataFlags = Other.BulkDataFlags;
 
-	if( !Other.IsDataMemoryMapped())
+	if (!Other.IsDataMemoryMapped() || !Other.IsInSeparateFile())
 	{
 		if (Other.GetDataBufferReadOnly())
 		{
@@ -709,7 +709,7 @@ FBulkDataBase& FBulkDataBase::operator=(const FBulkDataBase& Other)
 		{
 			TIoStatusOr<FIoMappedRegion> Status = IoDispatcher->OpenMapped(CreateChunkId(), FIoReadOptions());
 			FIoMappedRegion MappedRegion = Status.ConsumeValueOrDie();
-			DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);		
+			DataAllocation.SetMemoryMappedData(this, MappedRegion.MappedFileHandle, MappedRegion.MappedFileRegion);
 		}
 		else
 		{
@@ -734,6 +734,40 @@ FBulkDataBase::~FBulkDataBase()
 	}
 }
 
+void FBulkDataBase::ConditionalSetInlineAlwaysAllowDiscard()
+{
+	// If PackagePath is null and we do not have BULKDATA_UsesIoDispatcher, we will not be able to reload the bulkdata.
+	// We will not have a PackagePath if the engine is using IoStore, unless the setting ShouldAllowBulkDataInIoStore()
+	// has been set to false.
+	// If IoStore with !ShouldAllowBulkDataInIoStore, we set the PackagePath, but only when BulkData is in a separate
+	// BulkData file. We can load the separate BulkData files, but we we can not load the file containing the
+	// exports (which is where inline BulkData or end-of-file BulkData is stored) because those files are managed
+	// separately by IoStore .
+	// So in IoStore  with BulkData stored either inline or in the end-of-file section, we can not reload the bulkdata.
+	// We do not need to consider the end-of-file bulkdata section because IoStore  guarantees during cooking
+	// (SaveBulkData) that only inlined data is in the package file; there is no end-of-file bulkdata section.
+
+	// In the Inlined IoStore case therefore we need to not discard the bulk data if !BULKDATA_SingleUse;
+	// we have to keep it in case it gets requested twice.
+	// However, some systems (Audio,Animation) have large inline data they for legacy reasons have not marked as
+	// BULKDATA_SingleUse.
+	// In the old loader this data was discarded for them since CanLoadFromDisk was true.
+	// Since CanLoadFromDisk is now false, we are keeping that data around, and this causes memory bloat.
+	// Licensees have asked us to fix this memory bloat.
+	//
+	// To hack-fix the memory bloat in these systems when using IoStore we will mark all inline BulkData
+	// as discardable when using IoStore.
+	// This will cause a bug when using IoStore in any systems that do actually need to reload inline data.
+	// Each project that uses IoStore needs to guarantee that they do not have any systems that need to
+	// reload inline data.
+	//
+	// TODO: We need to make the old loader and new loader consistent on how inline data is treated!
+	if (FIoDispatcher::IsInitialized())
+	{
+		SetBulkDataFlags(BULKDATA_AlwaysAllowDiscard);
+	}
+}
+
 void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, bool bAttemptFileMapping, int32 ElementSize)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkDataBase::Serialize"), STAT_UBD_Serialize, STATGROUP_Memory);
@@ -754,32 +788,25 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 		BulkDataOffset = 0;
 
-		if (BulkDataFlags & BULKDATA_Size64Bit)
-		{
-			Ar << ElementCount;
-			Ar << BulkDataSizeOnDisk;
-		}
-		else
-		{
-			int32 Temp32ByteValue;
-
-			Ar << Temp32ByteValue;
-			ElementCount = Temp32ByteValue;
-
-			Ar << Temp32ByteValue;
-			BulkDataSizeOnDisk = Temp32ByteValue;
-		}
+		SerializeBulkDataSizeInt(Ar, ElementCount, BulkDataFlags);
+		SerializeBulkDataSizeInt(Ar, BulkDataSizeOnDisk, BulkDataFlags);
 
 		BulkDataSize = ElementCount * ElementSize;
 
 		Ar << BulkDataOffset;
 
-		const bool bUseIoDispatcher = IsIoDispatcherEnabled();
-
 		if ((BulkDataFlags & BULKDATA_BadDataVersion) != 0)
 		{
 			uint16 DummyValue;
 			Ar << DummyValue;
+		}
+
+		EBulkDataFlags DuplicateFlags = static_cast<EBulkDataFlags>(0);
+		int64 DuplicateSizeOnDisk = INDEX_NONE;
+		int64 DuplicateOffset = INDEX_NONE;
+		if (IsDuplicateNonOptional())
+		{
+			SerializeDuplicateData(Ar, DuplicateFlags, DuplicateSizeOnDisk, DuplicateOffset);
 		}
 
 		// We assume that Owner/Package/Linker are all valid. The old BulkData system would
@@ -789,42 +816,79 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		const UPackage* Package = Owner->GetOutermost();
 		checkf(Package != nullptr, TEXT("FBulkDataBase::Serialize requires an Owner that returns a valid UPackage"));
 
-		if (!IsInlined() && bUseIoDispatcher)
+		const bool bEngineUsesIoStore = FIoDispatcher::IsInitialized();
+		const bool bSeparateFilesUseIoStore = bEngineUsesIoStore && ShouldAllowBulkDataInIoStore();
+		const FPackagePath* PackagePath = nullptr;
+		const FLinkerLoad* Linker = nullptr;
+		if (bEngineUsesIoStore)
 		{
-			Data.PackageID = Package->GetPackageId().Value();
-			SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a PackagePath
+			checkf(IsInlined() || !NeedsOffsetFixup(), TEXT("IODispatcher does not support offset fixups; 'LegacyBulkDataOffsets=true' will not work with the IoStore!"));
+			checkf(IsInlined() || IsInSeparateFile() || !GEventDrivenLoaderEnabled,
+				TEXT("IODispatcher does not support finding the file size of header segments, which is required if BulkData is at end-of-file and EDL is enabled. ")
+				TEXT("Non-inline BulkData must be stored in a separate file when EDL is enabled!"));
+			if (IsInSeparateFile())
+			{
+				if (bSeparateFilesUseIoStore)
+				{
+					Data.PackageID = Package->GetPackageId().Value();
+					SetRuntimeBulkDataFlags(BULKDATA_UsesIoDispatcher); // Indicates that this BulkData should use the FIoChunkId rather than a PackagePath
+				}
+				else
+				{
+					// When using iostore with !ShouldAllowBulkDataInIoStore, the separate files for BulkData are loadable,
+					// but we still cannot load the package files themselves (iostore handles those in a special manner).
+					PackagePath = &Package->GetLoadedPath();
+					if (PackagePath->IsEmpty())
+					{
+						// Note that this Bulkdata object will end up with an invalid token and will end up resolving to an empty file path!
+						UE_LOG(LogSerialization, Warning, TEXT("Could not get PackagePath from package for package %s!"), *Package->GetName());
+						PackagePath = nullptr;
+					}
+					// Reset the token even though it should already be invalid (it will be set later when registered)
+					Data.Token = InvalidToken;
+				}
+			}
+			else
+			{
+				// this->Data will be unused since we are loading from the current file; initialize it to invalid
+				Data.Token = InvalidToken;
+			}
 		}
 		else
 		{
-			// Reset the token even though it should already be invalid (it will be set later when registered)
-			Data.Token = InvalidToken;
-		}
-
-		const FPackagePath* PackagePath = nullptr;
-		const FLinkerLoad* Linker = nullptr;
-
-		if (bUseIoDispatcher == false)
-		{
 			Linker = FLinkerLoad::FindExistingLinkerForPackage(Package);
-
 			if (Linker != nullptr)
 			{
 				PackagePath = &Linker->GetPackagePath();
 			}
-			else if (!::ShouldAllowBulkDataInIoStore() && !IsInlined())
+			if (!PackagePath || PackagePath->IsEmpty())
 			{
-				PackagePath = &Package->GetLoadedPath();
-				if (PackagePath->IsEmpty())
-				{
-					// Note that this Bulkdata object will end up with an invalid token and will end up resolving to an empty file path!
-					UE_LOG(LogSerialization, Warning, TEXT("Could not get PackagePath from linker or package for package %s!"), *Package->GetName());
-					PackagePath = nullptr;
-				}
+				// Note that this Bulkdata object will end up with an invalid token and will end up resolving to an empty file path!
+				UE_LOG(LogSerialization, Warning, TEXT("Could not get PackagePath from linker for package %s!"), *Package->GetName());
+				PackagePath = nullptr;
 			}
+
+			if (!IsInlined() && NeedsOffsetFixup())
+			{
+				// The offset can be set relative to the start of the BulkData section during cooking. Convert it back to an offset from the start of the package
+				checkf(Linker != nullptr, TEXT("BulkData needs its offset fixed on load but no linker found"));
+				BulkDataOffset += Linker->Summary.BulkDataStartOffset;
+			}
+			if (!IsInSeparateFile() && GEventDrivenLoaderEnabled && PackagePath)
+			{
+				// The BulkDataOffset is written as an offset from the start of the combined PackageHeader+PackageExports+BulkData
+				// When EventDrivenLoader is enabled, the combined file is split into a header with linker tables (EPackageSegment::Header)
+				// and the exports file (EPackageSegment::Exports) with serialized bytes from exports and with the closing bulk data section (if there is one)
+				// We need to modify the BulkDataOffset to be relative to the start of the Exports file
+				BulkDataOffset -= IPackageResourceManager::Get().FileSize(*PackagePath, EPackageSegment::Header);
+			}
+
+			// Reset the token even though it should already be invalid (it will be set later when registered)
+			Data.Token = InvalidToken;
 		}
 
-		// Some failed paths require us to load the data before we return from ::Serialize but it is not
-		// safe to do so until the end of this method. By setting this flag to true we can indicate that 
+		// Some error handling cases in this function require us to load the data before we return from ::Serialize
+		// but it is not safe to do so until the end of this method. By setting this flag to true we can indicate that
 		// the load is required.
 		bool bShouldForceLoad = false;
 
@@ -836,32 +900,28 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 			void* DataBuffer = AllocateData(BulkDataSize);
 			SerializeBulkData(Ar, DataBuffer, BulkDataSize);
 
-			// Inline data must be set to be allowed to always discard it's data if we are using the IoDispatcher
-			// since we will not be able to reload it and existing code might well rely on ::GetCopy being able to discard it.
-			// TODO: We need to make the old loader and new loader consistent on how inline data is treated!
-			if (FIoDispatcher::IsInitialized())
-			{
-				SetBulkDataFlags(BULKDATA_AlwaysAllowDiscard);
-			}
+			// Apply the legacy BULKDATA_AlwaysAllowDiscard fix for inline data in some conditions
+			ConditionalSetInlineAlwaysAllowDiscard();
 		}
 		else
 		{
 			if (IsDuplicateNonOptional())
 			{
-				ProcessDuplicateData(Ar, Package, PackagePath, BulkDataOffset);
+				ProcessDuplicateData(DuplicateFlags, DuplicateSizeOnDisk, DuplicateOffset, Package, PackagePath, Linker);
 			}
 
-			// Set during cook
-			if (NeedsOffsetFixup())
+			if (bAttemptFileMapping && !IsInSeparateFile() && (bEngineUsesIoStore || !Ar.IsAllowingLazyLoading()))
 			{
-				checkf(Linker != nullptr, TEXT("BulkData needs it's offset fixing on load but no linker found, data cooked with 'LegacyBulkDataOffsets=true' will not work with the IoStore!"));
-				BulkDataOffset += Linker->Summary.BulkDataStartOffset;
+				UE_CLOG(bAttemptFileMapping, LogSerialization, Error,
+					TEXT("Attempt to file map BulkData in end-of-package-file section, this is not supported when %s. Package '%s'"),
+					bEngineUsesIoStore ? TEXT("using IoDispatcher") : TEXT("archive does not support lazyload"), *Package->GetFName().ToString());
+				bShouldForceLoad = true; // Signal we want to force the BulkData to load
 			}
-
-			if (bAttemptFileMapping)
+			else if (bAttemptFileMapping)
 			{
-				if (bUseIoDispatcher)
+				if (bEngineUsesIoStore)
 				{
+					check(IsInSeparateFile());
 					TIoStatusOr<FIoMappedRegion> Status = IoDispatcher->OpenMapped(CreateChunkId(), FIoReadOptions());
 					if (Status.IsOk())
 					{
@@ -886,12 +946,27 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 					}
 				}
 			}
-			else if (!Ar.IsAllowingLazyLoading() && !IsInSeparateFile())
+			else if (!IsInSeparateFile() && (bEngineUsesIoStore || !Ar.IsAllowingLazyLoading()))
 			{
+				// If the data is in the end-of-package-file section, and we can't load the package file again later either
+				// because we're using the IoDispatcher or because the archive does not support lazy loading then we have
+				// to load the data immediately.
+				bShouldForceLoad = true;
+			}
+		}
 
-				// If the archive does not support lazy loading and the data is not in a different file then we have to load 
-				// the data from the archive immediately as we won't get another chance.
+		// If we have a PackagePath then we need to make sure we can retrieve it later!
+		if (PackagePath != nullptr)
+		{
+			check(Data.Token == InvalidToken);
+			Data.Token = PackageTokenSystem::RegisterToken(Package->GetFName(), *PackagePath);
+		}
 
+		if (bShouldForceLoad)
+		{
+			if (!IsInSeparateFile())
+			{
+				check(!IsInlined()); // We checked for IsInlined up above and already loaded the data in that case
 				const int64 CurrentArchiveOffset = Ar.Tell();
 				Ar.Seek(BulkDataOffset);
 
@@ -900,17 +975,10 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 
 				Ar.Seek(CurrentArchiveOffset); // Return back to the original point in the archive so future serialization can continue
 			}
-		}
-
-		// If we are not using the FIoDispatcher and we have a PackagePath then we need to make sure we can retrieve it later!
-		if (bUseIoDispatcher == false && PackagePath != nullptr)
-		{
-			Data.Token = PackageTokenSystem::RegisterToken(Package->GetFName(), *PackagePath);
-		}
-
-		if (bShouldForceLoad)
-		{
-			ForceBulkDataResident();
+			else
+			{
+				ForceBulkDataResident();
+			}
 		}
 	}
 #else
@@ -1042,6 +1110,7 @@ void FBulkDataBase::GetCopy(void** DstBuffer, bool bDiscardInternalCopy)
 FIoChunkId FBulkDataBase::CreateChunkId() const 
 { 
 	checkf(IsUsingIODispatcher(), TEXT("Calling ::CreateChunkId on Bulkdata that is not using the IoDispatcher"));
+	checkf(IsInSeparateFile(), TEXT("Calling ::CreateChunkId on BulkData that is stored in the package file rather than in a separately loadable file."));
 
 	const EIoChunkType Type =	IsOptional() ? EIoChunkType::OptionalBulkData :
 								IsFileMemoryMapped() ? EIoChunkType::MemoryMappedBulkData :
@@ -1114,9 +1183,18 @@ bool FBulkDataBase::CanLoadFromDisk() const
 
 bool FBulkDataBase::DoesExist() const
 {
-#if ALLOW_OPTIONAL_DATA
+#if !ALLOW_OPTIONAL_DATA
+	if (IsOptional())
+	{
+		return false;
+	}
+#endif
 	if (!IsUsingIODispatcher())
 	{
+		if (Data.Token == InvalidToken)
+		{
+			return false;
+		}
 		FPackagePath PackagePath = PackageTokenSystem::GetPackagePath(Data.Token);
 		return IPackageResourceManager::Get().DoesPackageExist(PackagePath, GetPackageSegmentFromFlags());
 	}
@@ -1124,9 +1202,6 @@ bool FBulkDataBase::DoesExist() const
 	{
 		return IoDispatcher->DoesChunkExist(CreateChunkId());
 	}
-#else
-	return false;
-#endif
 }
 
 bool FBulkDataBase::IsStoredCompressedOnDisk() const
@@ -1156,12 +1231,12 @@ bool FBulkDataBase::IsOptional() const
 
 bool FBulkDataBase::IsInlined() const
 {
-	return	(GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0;
+	return (GetBulkDataFlags() & BULKDATA_PayloadAtEndOfFile) == 0;
 }
 
 bool FBulkDataBase::IsInSeparateFile() const
 {
-	return	(GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0;
+	return (GetBulkDataFlags() & BULKDATA_PayloadInSeperateFile) != 0;
 }
 
 bool FBulkDataBase::IsSingleUse() const
@@ -1188,6 +1263,9 @@ IAsyncReadFileHandle* FBulkDataBase::OpenAsyncReadHandle() const
 {
 	if (IsUsingIODispatcher())
 	{
+		checkf(IsInSeparateFile(),
+			TEXT("Attempting to OpenAsyncReadHandle on %s when the IoDispatcher is enabled, this operation is not supported!"),
+			IsInlined() ? TEXT("inline BulkData") : TEXT("BulkData in end-of-package-file section"));
 		return new FAsyncReadChunkIdHandle(CreateChunkId());
 	}
 	else
@@ -1208,6 +1286,9 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequest(int64 OffsetInBulkData
 	if (IsUsingIODispatcher())
 	{
 		checkf(OffsetInBulkData + BytesToRead <= BulkDataSize, TEXT("Attempting to read past the end of BulkData"));
+		checkf(IsInSeparateFile(),
+			TEXT("Attempting to CreateStreamingRequest on %s when the IoDispatcher is enabled, this operation is not supported!"),
+			IsInlined() ? TEXT("inline BulkData") : TEXT("BulkData in end-of-package-file section"));
 		FBulkDataIoDispatcherRequest* BulkDataIoDispatcherRequest = new FBulkDataIoDispatcherRequest(CreateChunkId(), BulkDataOffset + OffsetInBulkData, BytesToRead, CompleteCallback, UserSuppliedMemory);
 		BulkDataIoDispatcherRequest->StartAsyncWork();
 
@@ -1258,8 +1339,11 @@ IBulkDataIORequest* FBulkDataBase::CreateStreamingRequestForRange(const BulkData
 	{
 		const FBulkDataBase& End = *RangeArray[RangeArray.Num() - 1];
 
-		checkf(Start.CreateChunkId() == End.CreateChunkId(), TEXT("BulkData range does not come from the same file (%s vs %s)"),
-			*Start.GetPackagePath().GetDebugName(), *End.GetPackagePath().GetDebugName());
+		checkf(Start.IsInSeparateFile(),
+			TEXT("Attempting to CreateStreamingRequestForRange on %s when the IoDispatcher is enabled, this operation is not supported!"),
+			Start.IsInlined() ? TEXT("inline BulkData") : TEXT("BulkData in end-of-package-file section"));
+		checkf(End.IsInSeparateFile() && Start.CreateChunkId() == End.CreateChunkId(), TEXT("BulkData range does not come from the same file (%s vs %s)"),
+			*Start.GetPackagePath().GetDebugName(Start.GetPackageSegment()), *End.GetPackagePath().GetDebugName(End.GetPackageSegment()));
 
 		const int64 ReadOffset = Start.GetBulkDataOffsetInFile();
 		const int64 ReadLength = (End.GetBulkDataOffsetInFile() + End.GetBulkDataSize()) - ReadOffset;
@@ -1385,13 +1469,16 @@ int64 FBulkDataBase::GetBulkDataOffsetInFile() const
 
 FIoFilenameHash FBulkDataBase::GetIoFilenameHash() const
 {
-	if (!IsUsingIODispatcher())
+	if (IsUsingIODispatcher())
 	{
-		return MakeIoFilenameHash(PackageTokenSystem::GetPackagePath(Data.Token));
+		checkf(IsInSeparateFile(),
+			TEXT("Attempting to GetIoFilenameHash on %s when the IoDispatcher is enabled, this operation is not supported!"),
+			IsInlined() ? TEXT("inline BulkData") : TEXT("BulkData in end-of-package-file section"));
+		return MakeIoFilenameHash(CreateChunkId());
 	}
 	else
 	{
-		return MakeIoFilenameHash(CreateChunkId());
+		return MakeIoFilenameHash(PackageTokenSystem::GetPackagePath(Data.Token));
 	}
 }
 
@@ -1457,15 +1544,15 @@ void FBulkDataBase::LoadDataDirectly(void** DstBuffer)
 	{
 		InternalLoadFromPackageResource(DstBuffer);
 	}
-	else if (IsUsingIODispatcher())
+	else if (IsUsingIODispatcher() && IsInSeparateFile())
 	{
-
 		InternalLoadFromIoStore(DstBuffer);
 	}
 	else
 	{
 		// Note that currently this shouldn't be reachable as we should early out due to the ::CanLoadFromDisk check at the start of the method
-		UE_LOG(LogSerialization, Error, TEXT("Attempting to reload inline BulkData when the IoDispatcher is enabled, this operation is not supported! (%d)"), IsInlined());
+		UE_LOG(LogSerialization, Error, TEXT("Attempting to %s when the IoDispatcher is enabled, this operation is not supported!"),
+			IsInlined() ? TEXT("reload inline BulkData") : TEXT("load BulkData from end-of-package-file section"));
 	}
 }
 
@@ -1491,7 +1578,7 @@ void FBulkDataBase::LoadDataAsynchronously(AsyncCallback&& Callback)
 				Callback(Status);
 			});
 	}
-	else if (IsUsingIODispatcher())
+	else if (IsUsingIODispatcher() && IsInSeparateFile())
 	{
 		void* DummyPointer = nullptr;
 		InternalLoadFromIoStoreAsync(&DummyPointer, MoveTemp(Callback));
@@ -1499,29 +1586,17 @@ void FBulkDataBase::LoadDataAsynchronously(AsyncCallback&& Callback)
 	else
 	{
 		// Note that currently this shouldn't be reachable as we should early out due to the ::CanLoadFromDisk check at the start of the method
-		UE_LOG(LogSerialization, Error, TEXT("Attempting to reload inline BulkData when the IoDispatcher is enabled, this operation is not supported!"));
+		UE_LOG(LogSerialization, Error, TEXT("Attempting to %s when the IoDispatcher is enabled, this operation is not supported!"),
+			IsInlined() ? TEXT("reload inline BulkData") : TEXT("load BulkData from end-of-package-file section"));
 	}
 }
 
 void FBulkDataBase::InternalLoadFromPackageResource(void** DstBuffer)
 {
 	FPackagePath PackagePath = PackageTokenSystem::GetPackagePath(Data.Token);
-	int64 Offset = BulkDataOffset;
-
-	// Fix up the PackageSegment/Offset to work with streaming if inlined
-	EPackageSegment PackageSegment;
-	if (IsInlined() && GEventDrivenLoaderEnabled)
-	{
-		Offset -= IPackageResourceManager::Get().FileSize(PackagePath, EPackageSegment::Header);
-		PackageSegment = EPackageSegment::Exports;
-	}
-	else
-	{
-		PackageSegment = GetPackageSegmentFromFlags();
-	}
+	EPackageSegment PackageSegment = GetPackageSegmentFromFlags();
 
 	// If the data is inlined then we already loaded it during ::Serialize, this warning should help track cases where data is being discarded then re-requested.
-	// Disabled at the moment
 	UE_CLOG(IsInlined(), LogSerialization, Warning, TEXT("Reloading inlined bulk data directly from disk, this is detrimental to loading performance. PackagePath: '%s'."),
 		*PackagePath.GetDebugName(PackageSegment));
 
@@ -1530,7 +1605,7 @@ void FBulkDataBase::InternalLoadFromPackageResource(void** DstBuffer)
 		*PackagePath.GetDebugName(PackageSegment), (!Result.Archive.IsValid() ? TEXT("could not find package") : TEXT("package is a TextAsset which is not supported")));
 
 	// Seek to the beginning of the bulk data in the file.
-	Result.Archive->Seek(Offset);
+	Result.Archive->Seek(BulkDataOffset);
 
 	if (*DstBuffer == nullptr)
 	{
@@ -1579,40 +1654,42 @@ void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback
 	Batch.Issue();
 }
 
-void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FPackagePath* PackagePath, int64& InOutOffsetInFile)
+void FBulkDataBase::ProcessDuplicateData(EBulkDataFlags NewFlags, int64 NewSizeOnDisk, int64 NewOffset,
+	const UPackage* Package, const FPackagePath* PackagePath, const FLinkerLoad* Linker)
 {
 	// We need to load the optional bulkdata info as we might need to create a FIoChunkId based on it!
-	EBulkDataFlags NewFlags;
-	int64 NewSizeOnDisk;
-	int64 NewOffset;
-
-	SerializeDuplicateData(Ar, NewFlags, NewSizeOnDisk, NewOffset);
-
 #if ALLOW_OPTIONAL_DATA
-	if (IsUsingIODispatcher())
+	bool bUseOptionalSegment = false;
+	bool bUsingIODispatcher = IsUsingIODispatcher();
+	if (bUsingIODispatcher)
 	{
 		const FIoChunkId OptionalChunkId = CreateIoChunkId(Data.PackageID, 0, EIoChunkType::OptionalBulkData);
-
-		if (IoDispatcher->DoesChunkExist(OptionalChunkId))
-		{
-			BulkDataFlags = EBulkDataFlags(NewFlags | BULKDATA_UsesIoDispatcher);
-
-			checkf(BulkDataSize == NewSizeOnDisk, TEXT("Size mistach between original data size (%lld)and duplicate data size (%lld)"), BulkDataSize, NewSizeOnDisk);
-			InOutOffsetInFile = NewOffset;
-		}
+		bUseOptionalSegment = IoDispatcher->DoesChunkExist(OptionalChunkId);
 	}
 	else
 	{
 		// If we have no valid input packagepath then the package is broken anyway and we will not be able to find the optional data!
-		if (PackagePath != nullptr)
-		{
-			EPackageSegment PackageSegment = EPackageSegment::BulkDataOptional;
+		bUseOptionalSegment = PackagePath != nullptr && 
+			IPackageResourceManager::Get().DoesPackageExist(*PackagePath, EPackageSegment::BulkDataOptional);
+	}
 
-			if (IPackageResourceManager::Get().DoesPackageExist(*PackagePath, PackageSegment))
+	if (bUseOptionalSegment)
+	{
+		checkf(BulkDataSize == NewSizeOnDisk, TEXT("Size mismatch between original data size (%lld)and duplicate data size (%lld)"), BulkDataSize, NewSizeOnDisk);
+		BulkDataOffset = NewOffset;
+		BulkDataFlags = static_cast<EBulkDataFlags>((NewFlags & ~BULKDATA_DuplicateNonOptionalPayload)
+			| BULKDATA_OptionalPayload | BULKDATA_PayloadInSeperateFile | BULKDATA_PayloadAtEndOfFile);
+		if (bUsingIODispatcher)
+		{
+			checkf(!NeedsOffsetFixup(), TEXT("IODispatcher does not support offset fixups; 'LegacyBulkDataOffsets=true' will not work with the IoStore!"));
+			BulkDataFlags = static_cast<EBulkDataFlags>(BulkDataFlags | BULKDATA_UsesIoDispatcher);
+		}
+		else
+		{
+			if (NeedsOffsetFixup())
 			{
-				BulkDataFlags = NewFlags;
-				checkf(BulkDataSize == NewSizeOnDisk, TEXT("Size mistach between original data size (%lld)and duplicate data size (%lld)"), BulkDataSize, NewSizeOnDisk);
-				InOutOffsetInFile = NewOffset;
+				checkf(Linker != nullptr, TEXT("BulkData needs its offset fixed on load but no linker found"));
+				BulkDataOffset += Linker->Summary.BulkDataStartOffset;
 			}
 		}
 	}
@@ -1732,20 +1809,24 @@ void FBulkDataBase::FlushAsyncLoading()
 
 EPackageSegment FBulkDataBase::GetPackageSegmentFromFlags() const
 {
-	if (IsOptional())
+	if (!IsInSeparateFile())
 	{
-		// Optional data should be tested for first as we in theory can have data that would
-		// be marked as inline, also marked as optional and in this case we should treat it as
-		// optional data first.
+		if (GEventDrivenLoaderEnabled)
+		{
+			// With EDL data, packages are split into EPackageSegment::Header (summary and linker tables) and
+			// EPackageSegment::Exports (serialized UObject bytes and the bulk data section)
+			// Inline and end-of-file bulk data is in the Exports section
+			return EPackageSegment::Exports;
+		}
+		else
+		{
+			// Without EDL, there is only a single combined file for Summary,linkertables,exports,and end-of-file bulk data
+			return EPackageSegment::Header;
+		}
+	}
+	else if (IsOptional())
+	{
 		return EPackageSegment::BulkDataOptional;
-	}
-	else if (!IsInSeparateFile())
-	{
-		return EPackageSegment::Header;
-	}
-	else if (IsInlined())
-	{
-		return EPackageSegment::Exports;
 	}
 	else if (IsFileMemoryMapped())
 	{
