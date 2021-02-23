@@ -494,6 +494,13 @@ public:
 
 		if ( bIsValid )
 		{
+			FRHITransitionInfo Transitions[] =
+			{
+				FRHITransitionInfo(DebugDraw->GpuLineBufferArgs.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute),
+				FRHITransitionInfo(DebugDraw->GpuLineVertexBuffer.UAV, ERHIAccess::SRVMask, ERHIAccess::UAVCompute),
+			};
+			RHICmdList.Transition(Transitions);
+
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, DrawArgsParams.GetUAVIndex(), DebugDraw->GpuLineBufferArgs.UAV);
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, DrawLineVertexParam.GetUAVIndex(), DebugDraw->GpuLineVertexBuffer.UAV);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, DrawLineMaxInstancesParam, DebugDraw->GpuLineMaxInstances);
@@ -510,6 +517,33 @@ public:
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		DrawArgsParams.UnsetUAV(RHICmdList, ComputeShaderRHI);
 		DrawLineVertexParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
+
+#if NIAGARA_COMPUTEDEBUG_ENABLED
+		auto* DIProxy = static_cast<FNDIDebugDrawProxy*>(Context.DataInterface);
+		auto* InstanceData = &DIProxy->SystemInstancesToProxyData_RT.FindChecked(Context.SystemInstanceID);
+
+		FNiagaraSimulationDebugDrawData* DebugDraw = nullptr;
+		if (InstanceData->GpuComputeDebug)
+		{
+			DebugDraw = InstanceData->GpuComputeDebug->GetSimulationDebugDrawData(Context.SystemInstanceID, true);
+		}
+
+		const bool bIsValid =
+			NDIDebugDrawLocal::GNiagaraDebugDrawEnabled &&
+			(DebugDraw != nullptr) &&
+			DrawArgsParams.IsUAVBound() &&
+			DrawLineVertexParam.IsUAVBound();
+
+		if (bIsValid)
+		{
+			FRHITransitionInfo Transitions[] =
+			{
+				FRHITransitionInfo(DebugDraw->GpuLineBufferArgs.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs),
+				FRHITransitionInfo(DebugDraw->GpuLineVertexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+			};
+			RHICmdList.Transition(Transitions);
+		}
+#endif //NIAGARA_COMPUTEDEBUG_ENABLED
 	}
 
 private:
@@ -665,6 +699,17 @@ void UNiagaraDataInterfaceDebugDraw::GetVMExternalFunction(const FVMExternalFunc
 	{
 		OutFunc = FVMExternalFunction::CreateStatic(&NDIDebugDrawLocal::DrawDebug<NDIDebugDrawLocal::FDebugPrim_Sphere>);
 	}
+}
+
+bool UNiagaraDataInterfaceDebugDraw::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	if (!Super::AppendCompileHash(InVisitor))
+		return false;
+
+	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceDebugDraw.ush")), EShaderPlatform::SP_PCD3D_SM5);
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceDebugDrawHLSLSource"), Hash.ToString());
+
+	return true;
 }
 
 void UNiagaraDataInterfaceDebugDraw::GetCommonHLSL(FString& OutHLSL)
