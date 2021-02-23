@@ -84,10 +84,10 @@ void FEditorSessionSummaryWriter::Initialize()
 		return;
 	}
 
-	UE_LOG(LogEditorSessionSummary, Verbose, TEXT("Initializing EditorSessionSummaryWriter for editor session tracking"));
-
 	if (FEditorAnalyticsSession::TryLock()) // System wide lock to write the session file/registry. Don't block if already taken, delay initialisation to the next Tick().
 	{
+		UE_LOG(LogEditorSessionSummary, Verbose, TEXT("Initializing EditorSessionSummaryWriter for editor session tracking"));
+
 		// Create a session Session for this session
 		CurrentSession = CreateCurrentSession(SessionStartTimeUtc, OutOfProcessMonitorProcessId);
 
