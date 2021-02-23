@@ -546,10 +546,6 @@ uint32 FHLODBuilderUtilities::BuildHLOD(AWorldPartitionHLOD* InHLODActor)
 		return OldHLODHash;
 	}
 
-	// Hack to resave hashes
-	InHLODActor->MarkPackageDirty();
-	return NewHLODHash;
-
 	TUniquePtr<FHLODBuilder> HLODBuilder = nullptr;
 	
 	const UHLODLayer* HLODLayer = InHLODActor->GetSubActorsHLODLayer();
