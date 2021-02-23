@@ -24,7 +24,7 @@ FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInst
 
 void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives, bool bInMaterialMayModifyPosition)
 {
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	if (ensure(BatchType < PT_Num))
 	{
 		// default to PT_TriangleList & PT_RectList
@@ -59,14 +59,14 @@ void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint
 
 void FInstanceCullingContext::AddPrimitiveToCullingCommand(int32 ScenePrimitiveId)
 {
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	PrimitiveIds.Add(ScenePrimitiveId);
 #endif
 }
 
 void FInstanceCullingContext::AddInstanceRunToCullingCommand(int32 ScenePrimitiveId, const uint32* Runs, uint32 NumRuns)
 {
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	//InstanceRuns.AddDefaulted(NumRuns);
 	for (uint32 Index = 0; Index < NumRuns; ++Index)
 	{
@@ -75,7 +75,7 @@ void FInstanceCullingContext::AddInstanceRunToCullingCommand(int32 ScenePrimitiv
 #endif
 }
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 
 #if ENABLE_DETERMINISTIC_INSTANCE_CULLING
 

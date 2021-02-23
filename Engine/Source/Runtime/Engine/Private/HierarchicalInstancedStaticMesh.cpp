@@ -893,7 +893,7 @@ public:
 		, CaptureTag(0)
 #endif
 	{
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 		if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 		{
 			if (InstancedRenderData.PerInstanceRenderData.IsValid() && InstancedRenderData.PerInstanceRenderData->InstanceBuffer_GameThread.IsValid())
@@ -927,7 +927,7 @@ public:
 				ensure(ClusterTree.Num() == 0);
 			}
 		}
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 		SetupOcclusion(InComponent);
 	}
@@ -1377,7 +1377,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 				}
 
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 				if (bUseGPUScene)
 				{
 					FMeshBatch& MeshBatch = Collector.AllocateMesh();
@@ -1450,7 +1450,7 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 				}
 				else
 				{
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 					int32 NumBatches = 1;
 					int32 CurrentRun = 0;
 					int32 CurrentInstance = 0;
@@ -1565,9 +1565,9 @@ void FHierarchicalStaticMeshSceneProxy::FillDynamicMeshElements(FMeshElementColl
 							Collector.AddMesh(ElementParams.ViewIndex, MeshElement);
 						}
 					}
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 				}
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 			}
 		}
 	}

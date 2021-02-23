@@ -6,7 +6,7 @@
 
 #pragma once
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	#define ENABLE_NON_NANITE_VSM 0
 #else
 	#define ENABLE_NON_NANITE_VSM 0

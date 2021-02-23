@@ -930,7 +930,7 @@ public:
 
 	virtual int32 GetLightMapCoordinateIndex() const override;
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
 	{
 		return &Instances;
@@ -1153,7 +1153,7 @@ protected:
 	uint8 HierarchicalLODIndex;
 #endif
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 protected:
 	TArray<FPrimitiveInstance> Instances;
 #endif

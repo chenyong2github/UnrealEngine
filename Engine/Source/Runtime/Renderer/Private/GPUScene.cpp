@@ -240,13 +240,13 @@ struct FUploadDataSourceAdapterScenePrimitives
 				PrimitiveUploadInfo.InstanceDataOffset = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->GetInstanceDataOffset();
 				PrimitiveUploadInfo.InstanceUploadCount = PrimitiveInstances->Num();
 			}
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 			else
 			{
 				PrimitiveUploadInfo.InstanceDataOffset = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->GetInstanceDataOffset();
 				PrimitiveUploadInfo.InstanceUploadCount = 1;
 			}
-#endif //defined(GPUCULL_TODO)
+#endif //GPUCULL_TODO
 			PrimitiveUploadInfo.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveSceneProxy);
 
 			return true;
@@ -273,7 +273,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 				InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(*PrimitiveInstancesPtr);
 			}
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 			else
 			{
 				// We always create an instance to ensure that we can always use the same code paths in the shader
@@ -296,7 +296,7 @@ struct FUploadDataSourceAdapterScenePrimitives
 
 				InstanceUploadInfo.PrimitiveInstances = TArrayView<FPrimitiveInstance>(&DummyInstance, 1);
 			}
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 			check(InstanceUploadInfo.PrimitiveInstances.Num() == PrimitiveSceneInfo->GetNumInstanceDataEntries());
 			if (InstanceUploadInfo.PrimitiveInstances.Num() == 0)
@@ -984,16 +984,16 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 		{
 			// Needed to ensure the link back to instace list is up to date
 			FPrimitiveUniformShaderParameters Tmp = PrimitiveShaderData[ItemIndex];
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 			Tmp.InstanceDataOffset = InstanceIDStartOffset + ItemIndex;
 			Tmp.NumInstanceDataEntries = 1;
 
 			PrimitiveUploadInfo.InstanceDataOffset = InstanceIDStartOffset + ItemIndex;
 			PrimitiveUploadInfo.InstanceUploadCount = 1;
-#else // !defined(GPUCULL_TODO)
+#else // !GPUCULL_TODO
 			PrimitiveUploadInfo.InstanceDataOffset = INDEX_NONE;
 			PrimitiveUploadInfo.InstanceUploadCount = 0;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 			PrimitiveUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
 			PrimitiveUploadInfo.PrimitiveSceneData = FPrimitiveSceneShaderData(Tmp);
 
@@ -1005,7 +1005,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 	FORCEINLINE bool GetInstanceInfo(int32 ItemIndex, FInstanceUploadInfo& InstanceUploadInfo)
 	{	
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 		if (ItemIndex < PrimitiveShaderData.Num())
 		{
 			InstanceUploadInfo.PrimitiveLocalToWorld = PrimitiveShaderData[ItemIndex].LocalToWorld;
@@ -1032,7 +1032,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 
 			return true;
 		}
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 		return false;
 	}
 
@@ -1078,9 +1078,9 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRHICommandListI
 
 		int32 UploadIdStart = Collector.GetPrimitiveIdRange().GetLowerBoundValue();
 		ensure(UploadIdStart < DynamicPrimitivesOffset);
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 		ensure(Collector.UploadData->InstanceDataOffset != INDEX_NONE);
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 		FUploadDataSourceAdapterDynamicPrimitives UploadAdapter(DynamicPrimitiveShaderData, UploadIdStart, Collector.UploadData->InstanceDataOffset);
 		UploadGeneral<FUploadDataSourceAdapterDynamicPrimitives>(RHICmdList, Scene, UploadAdapter);
@@ -1223,9 +1223,9 @@ TRange<int32> FGPUScene::CommitPrimitiveCollector(FGPUScenePrimitiveCollector& P
 	int32 StartOffset = DynamicPrimitivesOffset;
 	DynamicPrimitivesOffset += PrimitiveCollector.UploadData->PrimitiveShaderData.Num();
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	PrimitiveCollector.UploadData->InstanceDataOffset = AllocateInstanceSlots(PrimitiveCollector.UploadData->PrimitiveShaderData.Num());
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 	return TRange<int32>(StartOffset, DynamicPrimitivesOffset);
 }
@@ -1235,10 +1235,10 @@ FGPUSceneDynamicContext::~FGPUSceneDynamicContext()
 {
 	for (auto UploadData : DymamicPrimitiveUploadData)
 	{
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 		check(UploadData->InstanceDataOffset != INDEX_NONE);
 		GPUScene.FreeInstanceSlots(UploadData->InstanceDataOffset, UploadData->PrimitiveShaderData.Num());
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 		delete UploadData;
 	}
 	DymamicPrimitiveUploadData.Empty();

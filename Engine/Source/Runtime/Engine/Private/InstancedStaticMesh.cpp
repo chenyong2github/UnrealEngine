@@ -643,7 +643,7 @@ void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVert
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
 	}
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	if (UseGPUScene(Parameters.Platform))
 	{
 		// USE_INSTANCE_CULLING - set up additional instancing attributes (basic instancing is the default)
@@ -653,7 +653,7 @@ void FInstancedStaticMeshVertexFactory::ModifyCompilationEnvironment(const FVert
 	{
 #endif
 		OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	}
 #endif
 
@@ -731,7 +731,7 @@ void FInstancedStaticMeshVertexFactory::InitRHI()
 		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	{
 		const uint8 Index = static_cast<uint8>(EVertexInputStreamType::Default);
 		PrimitiveIdStreamIndex[Index] = -1;
@@ -840,7 +840,7 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_Ve
 #if RHI_RAYTRACING
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FInstancedStaticMeshVertexFactory, SF_RayHitGroup, FInstancedStaticMeshVertexFactoryShaderParameters);
 #endif
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,true,false);
 #else
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FInstancedStaticMeshVertexFactory,"/Engine/Private/LocalVertexFactory.ush",true,true,true,true,true,true,false,false);
@@ -1073,7 +1073,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_DeselectedInstances = UserData_AllInstances;
 	UserData_DeselectedInstances.bRenderSelected = false;
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 	{
 		const TArray<int32>& InstanceReorderTable = InComponent->InstanceReorderTable;
@@ -3135,7 +3135,7 @@ void UInstancedStaticMeshComponent::InitPerInstanceRenderData(bool InitializeFro
 	UWorld* World = GetWorld();
 	ERHIFeatureLevel::Type FeatureLevel = World != nullptr ? World->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	bool KeepInstanceBufferCPUAccess = UseGPUScene(GetFeatureLevelShaderPlatform(FeatureLevel), FeatureLevel) || GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);
 #else
 	bool KeepInstanceBufferCPUAccess = GIsEditor || InRequireCPUAccess || ComponentRequestsCPUAccess(this, FeatureLevel);

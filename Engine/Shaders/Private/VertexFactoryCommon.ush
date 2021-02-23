@@ -3,14 +3,14 @@
 #include "Common.ush"
 #include "SceneData.ush"
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 float3 TransformLocalToWorld(float3 LocalPosition, float4x4 LocalToWorld)
 {
 	//expand the matrix multiply to avoid a code-gen bug on PS4.
 	//invariant code!
 	return INVARIANT((LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz) + LocalToWorld[3].xyz);
 }
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 float3 TransformLocalToWorld(float3 LocalPosition, uint PrimitiveId)
 {
@@ -34,7 +34,7 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition, uint PrimitiveId)
 	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz),1);
 }
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 #if INSTANCE_SCENE_DATA_SUPPORTED
 
 float4 TransformLocalToTranslatedWorld(float3 LocalPosition, FInstanceSceneData InstanceSceneData)
@@ -55,9 +55,9 @@ float3 RotateLocalToWorld(float3 LocalDirection, FInstanceSceneData InstanceScen
 }
 
 #endif // INSTANCE_SCENE_DATA_SUPPORTED
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
-#if (!defined(GPUCULL_TODO) || !VF_USE_PRIMITIVE_SCENE_DATA)
+#if (!GPUCULL_TODO || !VF_USE_PRIMITIVE_SCENE_DATA)
 
 float4 TransformLocalToTranslatedWorld(float3 LocalPosition)
 {
@@ -96,7 +96,7 @@ float3 RotateWorldToLocal(float3 WorldDirection)
 	return mul(WorldDirection, InvRot);
 }
 
-#endif // (!defined(GPUCULL_TODO) || !VF_USE_PRIMITIVE_SCENE_DATA)
+#endif // (!GPUCULL_TODO || !VF_USE_PRIMITIVE_SCENE_DATA)
 
 // Octahedron Normal Vectors
 // [Cigolle 2014, "A Survey of Efficient Representations for Independent Unit Vectors"]

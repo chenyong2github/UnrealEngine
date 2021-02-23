@@ -266,12 +266,16 @@ public class Core : ModuleRules
 		PrivateDefinitions.Add("PLATFORM_SUPPORTS_BINARYCONFIG=" + (SupportsBinaryConfig(Target) ? "1" : "0"));
 
 		// temporary thing to enable backing out in case of disaster, remove after initial testing period.
-		if (Target.Platform == UnrealTargetPlatform.Mac)
+		if (   Target.Platform == UnrealTargetPlatform.Mac
+			|| Target.Platform == UnrealTargetPlatform.IOS
+			|| Target.Platform == UnrealTargetPlatform.TVOS
+			|| Target.Platform == UnrealTargetPlatform.Linux
+			|| Target.Platform == UnrealTargetPlatform.LinuxAArch64)
 		{
 			PublicDefinitions.Add("GPUCULL_TODO=0");
-        }
+		}
 		else
-        {
+		{
 			PublicDefinitions.Add("GPUCULL_TODO=1");
 		}
 

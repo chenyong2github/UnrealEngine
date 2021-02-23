@@ -544,7 +544,7 @@ namespace RuntimeVirtualTexture
 		{
 			FRHIBuffer* PrimitiveIdsBuffer;
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 			// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
 			//               we don't support dynamic instancing for this path since we require one primitive per draw command
 			//               This is because the stride on the instance data buffer is set to 0 so only the first will ever be fetched.

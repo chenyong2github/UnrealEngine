@@ -221,14 +221,14 @@ void Main(
 #if WRITES_VELOCITY_TO_GBUFFER
 	{
 		float4 PrevTranslatedWorldPosition = float4(0, 0, 0, 1);
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 		BRANCH
 		if (GetPrimitiveData(VFIntermediates).OutputVelocity > 0 || View.ForceDrawAllVelocities != 0)
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 		// Warning: This here is a non-abstracted use of VFIntermediates.PrimitiveId - Only works because GetPrimitiveData(VFIntermediates.PrimitiveId) is a macro.
 		BRANCH
 		if (GetPrimitiveData(VFIntermediates.PrimitiveId).OutputVelocity > 0 || View.ForceDrawAllVelocities != 0)
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 		{
 			PrevTranslatedWorldPosition = VertexFactoryGetPreviousWorldPosition( Input, VFIntermediates );	
 			VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, PrevTranslatedWorldPosition.xyz, TangentToLocal);

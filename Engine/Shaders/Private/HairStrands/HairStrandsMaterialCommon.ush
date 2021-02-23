@@ -55,14 +55,14 @@ FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrim
 
 	FVertexFactoryInput Input;
 #if VF_USE_PRIMITIVE_SCENE_DATA
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// GPUCULL_TODO: Making use of dynamic draw workaround, assumes no actual instancing used for these draws.
 	//               Will load the first instance data.
 	Input.InstanceIdOffset = PrimitiveId | (1U << 31U);
 	Input.DrawInstanceId = 0;
-#else //!(defined(GPUCULL_TODO)
+#else //!(GPUCULL_TODO
 	Input.PrimitiveId = PrimitiveId;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 #endif // VF_USE_PRIMITIVE_SCENE_DATA 
 	Input.VertexId = HairPrimitiveId * 6; // 6: the vertex factory expect triangles list index. A quad is made of two triangles with indices: 0,1,2,3,4,5.
 

@@ -4023,7 +4023,7 @@ void FRendererModule::RenderPostResolvedSceneColorExtension(FRDGBuilder& GraphBu
 	}
 }
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 
 class FScenePrimitiveRenderingContext : public IScenePrimitiveRenderingContext
 {

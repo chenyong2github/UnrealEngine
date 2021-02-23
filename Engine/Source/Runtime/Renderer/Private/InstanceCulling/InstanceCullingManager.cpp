@@ -52,7 +52,7 @@ int32 FInstanceCullingManager::RegisterView(const Nanite::FPackedViewParams& Par
 	return CullingViews.Num() - 1;
 }
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 
 class FCullInstancesCs : public FGlobalShader
 {
@@ -100,7 +100,7 @@ IMPLEMENT_GLOBAL_SHADER(FCullInstancesCs, "/Engine/Private/InstanceCulling/CullI
 
 void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
 {
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	RDG_EVENT_SCOPE(GraphBuilder, "CullInstances");
 
 	check(!CullingIntermediate.InstanceIdOutOffsetBuffer);
@@ -158,5 +158,5 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 			AddClearUAVPass(GraphBuilder, VisibleInstanceFlagsUAV, 0xFFFFFFFF);
 		}
 	}
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 }

@@ -322,13 +322,13 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 
 	check(Scene);
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// Create GPU-side reprensenation of the view for instance culling.
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		Views[ViewIndex].GPUSceneViewId = InstanceCullingManager.RegisterView(Views[ViewIndex]);
 	}
-#endif //defined(GPUCULL_TODO)
+#endif //GPUCULL_TODO
 
 	if (bUseVirtualTexturing)
 	{

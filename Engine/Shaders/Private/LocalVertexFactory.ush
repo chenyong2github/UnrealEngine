@@ -144,28 +144,28 @@ struct FVertexFactoryInput
 	float4 InstanceLightmapAndShadowMapUVBias : ATTRIBUTE12; 
 #endif //USE_INSTANCING
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	uint InstanceIdOffset : ATTRIBUTE13;
 	uint DrawInstanceId : SV_InstanceID;
 #elif USE_INSTANCING
 	uint InstanceId : SV_InstanceID;
 #endif
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	uint PrimitiveId : ATTRIBUTE13;
 #endif
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 #if NEEDS_LIGHTMAP_COORDINATE && !MANUAL_VERTEX_FETCH
 	float2	LightMapCoordinate : ATTRIBUTE15;
 #endif
 
-#if !defined(GPUCULL_TODO)
+#if !GPUCULL_TODO
 #if USE_INSTANCING
 	uint InstanceId	: SV_InstanceID;
 #endif
-#endif //!defined(GPUCULL_TODO)
+#endif //!GPUCULL_TODO
 
 #if GPUSKIN_PASS_THROUGH || MANUAL_VERTEX_FETCH
 	uint VertexId : SV_VertexID;
@@ -194,14 +194,14 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 	Input.VertexId = Tri.Indices[VertexIndex];
 	Input.Position = float4(Tri.LocalPositions[VertexIndex], 1.0f);
 #if VF_USE_PRIMITIVE_SCENE_DATA
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// Note: GetInstanceUserData() stores the GPU-Scene primitive ID
 	Input.InstanceIdOffset = GetInstanceUserData() | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
 	Input.DrawInstanceId = 0;
-#else // !defined(GPUCULL_TODO)
+#else // !GPUCULL_TODO
 	// GPUCULL_TODO: Need to work out what this is meant to do
 	Input.PrimitiveId = GetInstanceUserData();
-#endif //!defined(GPUCULL_TODO)
+#endif //!GPUCULL_TODO
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
 
 #if USE_INSTANCING
@@ -238,13 +238,13 @@ FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, i
 	#endif
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 		// GPUCULL_TODO: Makes use of DynamicDraw workaround, should instead refactor VF interfaces and provide the instance ID data directly.
 		Input.InstanceIdOffset = PrimitiveId | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;
 		Input.DrawInstanceId = 0;
-#else // !defined(GPUCULL_TODO)
+#else // !GPUCULL_TODO
 		Input.PrimitiveId = PrimitiveId;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
 
 	return Input;
@@ -266,24 +266,24 @@ struct FPositionOnlyVertexFactoryInput
 	half4 InstanceTransform3 : ATTRIBUTE11; // hitproxy.b in .w
 #endif	// USE_INSTANCING
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	uint InstanceIdOffset : ATTRIBUTE1;
 	uint DrawInstanceId : SV_InstanceID;
 #elif USE_INSTANCING
 	uint InstanceId : SV_InstanceID;
 #endif
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	uint PrimitiveId : ATTRIBUTE1;
 #endif
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
-#if !defined(GPUCULL_TODO)
+#if !GPUCULL_TODO
 #if USE_INSTANCING
 	uint InstanceId	: SV_InstanceID;
 #endif
-#endif //!defined(GPUCULL_TODO)
+#endif //!GPUCULL_TODO
 #if MANUAL_VERTEX_FETCH
 	uint VertexId : SV_VertexID;
 #endif
@@ -304,24 +304,24 @@ struct FPositionAndNormalOnlyVertexFactoryInput
 	half4 InstanceTransform3 : ATTRIBUTE11; // hitproxy.b in .w
 #endif	// USE_INSTANCING
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	uint InstanceIdOffset : ATTRIBUTE1;
 	uint DrawInstanceId : SV_InstanceID;
 #elif USE_INSTANCING
 	uint InstanceId : SV_InstanceID;
 #endif
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	uint PrimitiveId : ATTRIBUTE1;
 #endif
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
-#if !defined(GPUCULL_TODO)
+#if !GPUCULL_TODO
 #if USE_INSTANCING
 	uint InstanceId	: SV_InstanceID;
 #endif
-#endif //!defined(GPUCULL_TODO)
+#endif //!GPUCULL_TODO
 
 #if MANUAL_VERTEX_FETCH
 	uint VertexId : SV_VertexID;
@@ -333,12 +333,12 @@ struct FPositionAndNormalOnlyVertexFactoryInput
  */
 struct FVertexFactoryIntermediates
 {
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	FSceneDataIntermediates SceneData;
 	int PrimitiveLocalInstanceIndex;
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 	half3x3 TangentToLocal;
 	half3x3 TangentToWorld;
@@ -378,9 +378,9 @@ struct FVertexFactoryIntermediates
 #endif
 
 	uint PrimitiveId;
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	uint InstanceId;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 	float3 PreSkinPosition;
 };
@@ -557,7 +557,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 half3x3 CalcTangentToWorldNoScale(FVertexFactoryIntermediates Intermediates, half3x3 TangentToLocal)
 {
-#if defined(GPUCULL_TODO) && VF_USE_PRIMITIVE_SCENE_DATA
+#if GPUCULL_TODO && VF_USE_PRIMITIVE_SCENE_DATA
 	half3x3 LocalToWorld = (half3x3)Intermediates.SceneData.InstanceData.LocalToWorld;
 	half3 InvScale = Intermediates.SceneData.InstanceData.InvNonUniformScaleAndDeterminantSign.xyz;
 #else
@@ -588,7 +588,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.InstanceOffset = InstanceOffset;
 	Result.PrevFrameLocalToWorld = mul(GetInstancePrevTransform(Intermediates), GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld);
 #else
-	#if defined(GPUCULL_TODO) && VF_USE_PRIMITIVE_SCENE_DATA
+	#if GPUCULL_TODO && VF_USE_PRIMITIVE_SCENE_DATA
 		Result.PrevFrameLocalToWorld = Intermediates.SceneData.InstanceData.PrevLocalToWorld;
 		#if USE_INSTANCE_CULLING
 			Result.InstanceLocalPosition = Input.Position.xyz;
@@ -837,7 +837,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	Intermediates.SceneData = GetSceneDataIntermediates(Input.InstanceIdOffset, Input.DrawInstanceId);
 	// Just aliases, remove later probably...
 	Intermediates.PrimitiveId = Intermediates.SceneData.PrimitiveId;
@@ -899,9 +899,9 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	#endif
 	}
 #endif // USE_INSTANCE_CULLING
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 	Intermediates.PrimitiveId = Input.PrimitiveId;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 #else // !VF_USE_PRIMITIVE_SCENE_DATA
 	Intermediates.PrimitiveId = 0;
@@ -944,7 +944,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float TangentSign = 1.0;
 	Intermediates.TangentToLocal = CalcTangentToLocal(Input, TangentSign);
 	Intermediates.TangentToWorld = CalcTangentToWorld(Intermediates, Intermediates.TangentToLocal);
-#if defined(GPUCULL_TODO) && VF_USE_PRIMITIVE_SCENE_DATA
+#if GPUCULL_TODO && VF_USE_PRIMITIVE_SCENE_DATA
 	Intermediates.TangentToWorldSign = TangentSign * Intermediates.SceneData.InstanceData.InvNonUniformScaleAndDeterminantSign.w;
 #else
 	Intermediates.TangentToWorldSign = TangentSign * GetPrimitiveData(Intermediates.PrimitiveId).InvNonUniformScaleAndDeterminantSign.w;
@@ -1007,20 +1007,20 @@ half3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFactor
 // @return translated world position
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-#if defined(GPUCULL_TODO) && VF_USE_PRIMITIVE_SCENE_DATA
+#if GPUCULL_TODO && VF_USE_PRIMITIVE_SCENE_DATA
 	#if USE_INSTANCE_CULLING
 		// Scale to zero if not visible, seems a bit wild but whatever
 		return TransformLocalToTranslatedWorld(Input.Position.xyz, Intermediates.SceneData.InstanceData) * Intermediates.IsVisible;
 	#else
 		return TransformLocalToTranslatedWorld(Input.Position.xyz, Intermediates.SceneData.InstanceData);
 	#endif
-#else // !defined(GPUCULL_TODO) && VF_USE_PRIMITIVE_SCENE_DATA
+#else // !GPUCULL_TODO && VF_USE_PRIMITIVE_SCENE_DATA
 	#if USE_INSTANCING
 		return CalcWorldPosition(Input.Position, GetInstanceTransform(Intermediates), Intermediates.PrimitiveId) * Intermediates.PerInstanceParams.z;
 	#else
 		return CalcWorldPosition(Input.Position, Intermediates.PrimitiveId);
 #endif	// USE_INSTANCING
-#endif // defined(GPUCULL_TODO) && VF_USE_PRIMITIVE_SCENE_DATA
+#endif // GPUCULL_TODO && VF_USE_PRIMITIVE_SCENE_DATA
 }
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
@@ -1073,13 +1073,13 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	uint LightmapUVIndex   = 0;
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	LightmapDataIndex = Intermediates.SceneData.Primitive.LightmapDataIndex + LocalVF.LODLightmapDataIndex;
 	LightmapUVIndex = Intermediates.SceneData.Primitive.LightmapUVIndex;
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 	LightmapDataIndex = GetPrimitiveData(Intermediates.PrimitiveId).LightmapDataIndex + LocalVF.LODLightmapDataIndex;
 	LightmapUVIndex = GetPrimitiveData(Intermediates.PrimitiveId).LightmapUVIndex;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 #endif
 
 	float4 LightMapCoordinateScaleBias = GetLightmapData(LightmapDataIndex).LightMapCoordinateScaleBias;
@@ -1119,7 +1119,7 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 }
 
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 
 
 /** X for depth-only pass */
@@ -1173,7 +1173,7 @@ float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Inpu
 #endif
 }
 
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 
 /** for depth-only pass */
 float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
@@ -1229,7 +1229,7 @@ float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Inpu
 #endif	// USE_INSTANCING
 }
 
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
@@ -1244,7 +1244,7 @@ Buffer<float> GPUSkinCachePreviousPositionBuffer;
 // @return previous translated world position
 float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-#if defined(GPUCULL_TODO) && VF_USE_PRIMITIVE_SCENE_DATA
+#if GPUCULL_TODO && VF_USE_PRIMITIVE_SCENE_DATA
 	float4x4 PreviousLocalToWorldTranslated = Intermediates.SceneData.InstanceData.PrevLocalToWorld;
 #else
 	float4x4 PreviousLocalToWorldTranslated = GetPrimitiveData(Intermediates.PrimitiveId).PreviousLocalToWorld;

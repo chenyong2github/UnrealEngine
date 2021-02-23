@@ -5524,14 +5524,14 @@ FSkeletalMeshSceneProxy::FSkeletalMeshSceneProxy(const USkinnedMeshComponent* Co
 
 	// Skip primitive uniform buffer if we will be using local vertex factory which gets it's data from GPUScene.
 	// GPUCULL_TODO: Move to base class - all should follow the same pattern here
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	const bool bUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
 	bVFRequiresPrimitiveUniformBuffer = !bUseGPUScene;
 #else
 	bVFRequiresPrimitiveUniformBuffer = !((bIsCPUSkinned || bRenderStatic) && UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel));
 #endif
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	if (bUseGPUScene)
 	{
 		bSupportsInstanceDataBuffer = true;
@@ -6496,7 +6496,7 @@ void FSkeletalMeshSceneProxy::OnTransformChanged()
 	// OnTransformChanged is called on the following frame after FSkeletalMeshObject::Update(), thus omit '+ 1' to frame number.
 	MeshObject->RefreshClothingTransforms(GetLocalToWorld(), GetScene().GetFrameNumber());
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// Update the default-instance
 	// GPUCULL_TODO: really making more sense to move to the base proxy, or auto-generate default instance on GPU-scene update.
 	if (Instances.Num() == 1)

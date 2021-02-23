@@ -659,7 +659,7 @@ public:
 	virtual void EndFrame() {}
 };
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 
 /**
  */
@@ -827,7 +827,7 @@ public:
 
 	virtual void RegisterPersistentViewUniformBufferExtension(IPersistentViewUniformBufferExtension* Extension) = 0;
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	/**
 	 * Prepare Scene primitive rendering and return context. Ensures all primitives that are created are commited and GPU-Scene is updated and allocates a dynamic primitive context.
 	 * The intended use is for stand-alone rendering that involves Scene proxies (that then may need the machinery to render GPU-Scene aware primitives.

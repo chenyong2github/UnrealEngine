@@ -61,7 +61,7 @@ static FBoneMatricesUniformShaderParameters GBoneUniformStruct;
 
 #define NANITE_VAL_FALSE false,
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 #define PRIMITIVE_ID_SUPPORT true,
 #else
 #define PRIMITIVE_ID_SUPPORT false,
@@ -841,7 +841,7 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_Ver
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_RayHitGroup, FGPUSkinVertexPassthroughFactoryShaderParameters);
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGPUSkinPassthroughVertexFactory, SF_Compute, FGPUSkinVertexPassthroughFactoryShaderParameters);
 #endif // RHI_RAYTRACING
-#if defined(GPUCULL_TODO) // Supports primitive ID stream
+#if GPUCULL_TODO // Supports primitive ID stream
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FGPUSkinPassthroughVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, false, true, false, false, false, true, false);
 #else
 IMPLEMENT_VERTEX_FACTORY_TYPE(FGPUSkinPassthroughVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, false, true, false, false);

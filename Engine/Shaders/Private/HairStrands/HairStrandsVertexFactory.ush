@@ -97,12 +97,12 @@ bool UseScatterSceneLighting()
 struct FVertexFactoryInput
 {
 #if VF_USE_PRIMITIVE_SCENE_DATA
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	uint InstanceIdOffset : ATTRIBUTE13;
 	uint DrawInstanceId : SV_InstanceID;
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 	uint PrimitiveId : ATTRIBUTE13;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 #endif //VF_USE_PRIMITIVE_SCENE_DATA
 	uint VertexId : SV_VertexID;
 };
@@ -166,11 +166,11 @@ FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
  */
 struct FVertexFactoryIntermediates
 {
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 #if VF_USE_PRIMITIVE_SCENE_DATA
 	FSceneDataIntermediates SceneData;
 #endif
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 	half3x3 TangentToLocal;
 	half3x3 TangentToWorld;
 	half TangentToWorldSign;
@@ -350,12 +350,12 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 {
 	FVertexFactoryIntermediates Intermediates;
 #if VF_USE_PRIMITIVE_SCENE_DATA
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	Intermediates.SceneData = GetSceneDataIntermediates(Input.InstanceIdOffset, Input.DrawInstanceId);
 	Intermediates.PrimitiveId = Intermediates.SceneData.InstanceData.PrimitiveId;
-#else //!defined(GPUCULL_TODO)
+#else //!GPUCULL_TODO
 	Intermediates.PrimitiveId = Input.PrimitiveId;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 #else // !VF_USE_PRIMITIVE_SCENE_DATA
 	Intermediates.PrimitiveId = 0U;
 #endif // VF_USE_PRIMITIVE_SCENE_DATA

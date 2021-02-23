@@ -761,11 +761,11 @@ public:
 	// Key is the component size and number of subsections.
 	// Also being reused by GPULightmass currently to save mem
 	static LANDSCAPE_API TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// GPUCULL_TODO: put instances in base proxy and make non-virtual
 	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const	{ return &Instances; }
 	virtual TArray<FPrimitiveInstance>* GetPrimitiveInstances()	{return &Instances;	}
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
 	int8						NumWeightmapLayerAllocations;
@@ -886,10 +886,10 @@ protected:
 	// Cached versions of these
 	FMatrix					WorldToLocal;
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// Instances (going to contain just one).
 	TArray<FPrimitiveInstance> Instances;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 protected:
 	virtual ~FLandscapeComponentSceneProxy();

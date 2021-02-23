@@ -1112,10 +1112,10 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	, LightMapResolution(InComponent->GetStaticLightMapResolution())
 #endif
 {
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// GPUCULL_TODO: Move to base proxy
 	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel());
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
@@ -1335,7 +1335,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 #endif
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// 100% generic default-instance
 	Instances.SetNum(1);
 	FPrimitiveInstance& Instance = Instances[0];
@@ -1346,7 +1346,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	Instance.RenderBounds = GetLocalBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
 	bSupportsInstanceDataBuffer = true;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 }
 
 void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
@@ -1889,12 +1889,12 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	// Recache mesh draw commands for changed uniform buffers
 	GetScene().UpdateCachedRenderStates(this);
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// 
 	FPrimitiveInstance& Instance = Instances[0];
 	Instance.RenderBounds = GetLocalBounds();
 	Instance.LocalBounds = Instance.RenderBounds;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 }
 
 /** Creates a mesh batch for virtual texture rendering. Will render a simple fixed grid with combined subsections. */
@@ -3190,9 +3190,9 @@ void FLandscapeVertexFactory::InitRHI()
 	// position decls
 	Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, 1, Elements);
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 	// create the actual device decls
 	InitDeclaration(Elements);
 }
@@ -3214,9 +3214,9 @@ void FLandscapeVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryS
 {
 	FVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)));
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_Vertex, FLandscapeVertexFactoryVertexShaderParameters);
@@ -3226,11 +3226,11 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_RayHitGroup,
 #endif // RHI_RAYTRACING
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeVertexFactory, SF_Pixel, FLandscapeVertexFactoryPixelShaderParameters);
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, true, false);
-#else // !defined(GPUCULL_TODO)
+#else // !GPUCULL_TODO
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false, false);
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 /**
 * Copy the data from another vertex factory
@@ -3266,11 +3266,11 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeXYOffsetVertexFactory, SF_RayH
 #endif // RHI_RAYTRACING
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeXYOffsetVertexFactory, SF_Pixel, FLandscapeVertexFactoryPixelShaderParameters);
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeXYOffsetVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, true, false);
-#else // !defined(GPUCULL_TODO)
+#else // !GPUCULL_TODO
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeXYOffsetVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false, false);
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 //
 // FLandscapeFixedGridVertexFactory
@@ -3289,11 +3289,11 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeFixedGridVertexFactory, SF_Ray
 #endif
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLandscapeFixedGridVertexFactory, SF_Pixel, FLandscapeVertexFactoryPixelShaderParameters);
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeFixedGridVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, true, false);
-#else // !defined(GPUCULL_TODO)
+#else // !GPUCULL_TODO
 IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FLandscapeFixedGridVertexFactory, "/Engine/Private/LandscapeVertexFactory.ush", true, true, true, false, false, true, false, false);
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 
 /** ULandscapeMaterialInstanceConstant */

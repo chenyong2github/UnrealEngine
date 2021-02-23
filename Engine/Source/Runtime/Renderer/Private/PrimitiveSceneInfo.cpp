@@ -901,14 +901,14 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, FScen
 					}
 				}
 			}
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 			else
 			{
 				// Allocate a single 'dummy/fallback' instance for the primitive that gets automatically populated with the data from the primitive
 				SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(1);
 				SceneInfo->NumInstanceDataEntries = 1;
 			}
-#endif //defined(GPUCULL_TODO)
+#endif //GPUCULL_TODO
 
 			// Force a primitive update in the GPU scene
 			if (!Scene->GPUScene.PrimitivesMarkedToUpdate[SceneInfo->PackedIndex])

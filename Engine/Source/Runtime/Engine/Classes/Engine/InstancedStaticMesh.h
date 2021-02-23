@@ -474,7 +474,7 @@ public:
 		}
 #endif
 
-	#if !defined(GPUCULL_TODO)
+	#if !GPUCULL_TODO
 		bVFRequiresPrimitiveUniformBuffer = true;
 	#endif
 		SetupProxy(InComponent);

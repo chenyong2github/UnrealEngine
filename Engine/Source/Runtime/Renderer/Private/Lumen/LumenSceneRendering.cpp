@@ -1885,7 +1885,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 		{
 			FRHIBuffer* PrimitiveIdVertexBuffer = nullptr;
 			FInstanceCullingResult InstanceCullingResult;
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 			if (Scene->GPUScene.IsEnabled())
 			{
 				int32 MaxInstances = 0;
@@ -1901,7 +1901,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				InstanceCullingContext.BuildRenderingCommands(GraphBuilder, Scene->GPUScene, View.DynamicPrimitiveCollector.GetPrimitiveIdRange(), InstanceCullingResult);
 			}
 			else
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 			{
 				// Prepare primitive Id VB for rendering mesh draw commands.
 				if (LumenCardRenderer.MeshDrawPrimitiveIds.Num() > 0)
@@ -2001,7 +2001,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 								Scene->UniformBuffers.LumenCardCaptureViewUniformBuffer.UpdateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters);
 
 								FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 								if (Scene->GPUScene.IsEnabled())
 								{
 									FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
@@ -2023,7 +2023,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 										RHICmdList);
 								}
 								else
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 								{
 									SubmitMeshDrawCommandsRange(
 										LumenCardRenderer.MeshDrawCommands,

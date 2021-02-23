@@ -253,7 +253,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 
 #endif // VF_USE_PRIMITIVE_SCENE_DATA
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 
 struct FSceneDataIntermediates
 {
@@ -318,4 +318,4 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 	return Intermediates;
 }
 
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO

@@ -4526,9 +4526,11 @@ void GlobalBeginCompileShader(
 		}
 	}
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	Input.Environment.SetDefine(TEXT("GPUCULL_TODO"), 1);
-#endif // defined(GPUCULL_TODO)	
+#else
+	Input.Environment.SetDefine(TEXT("GPUCULL_TODO"), 0);
+#endif // GPUCULL_TODO	
 
 	// Set VR definitions
 	{

@@ -745,9 +745,9 @@ void FMeshDrawCommand::SetDrawParametersAndFinalize(
 	const FMeshBatchElement& BatchElement = MeshBatch.Elements[BatchElementIndex];
 
 	check(!BatchElement.IndexBuffer || (BatchElement.IndexBuffer && BatchElement.IndexBuffer->IsInitialized() && BatchElement.IndexBuffer->IndexBufferRHI));
-#if !defined(GPUCULL_TODO)
+#if !GPUCULL_TODO
 	checkSlow(!BatchElement.bIsInstanceRuns);
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 	IndexBuffer = BatchElement.IndexBuffer ? BatchElement.IndexBuffer->IndexBufferRHI.GetReference() : nullptr;
 	FirstIndex = BatchElement.FirstIndex;
 	NumPrimitives = BatchElement.NumPrimitives;
@@ -995,10 +995,10 @@ void FMeshDrawCommand::SubmitDrawBegin(
 	FMeshDrawCommandStateCache& RESTRICT StateCache)
 {
 	checkSlow(MeshDrawCommand.CachedPipelineId.IsValid());
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// Want to be sure that we supply GPU-scene instance data if required.
 	checkSlow(MeshDrawCommand.PrimitiveIdStreamIndex == -1 || ScenePrimitiveIdsBuffer != nullptr);
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 
 #if WANTS_DRAW_MESH_EVENTS
 	FDrawEvent MeshEvent;
@@ -1166,7 +1166,7 @@ void SubmitMeshDrawCommandsRange(
 	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList)
 {
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
 	//               we don't support dynamic instancing for this path since we require one primitive per draw command
 	//               This is because the stride on the instance data buffer is set to 0 so only the first will ever be fetched.
@@ -1224,7 +1224,7 @@ void ApplyViewOverridesToMeshDrawCommands(const FSceneView& View, FMeshCommandOn
 				VisibleMeshDrawCommand.MeshFillMode,
 				VisibleMeshDrawCommand.MeshCullMode,
 				VisibleMeshDrawCommand.Flags,
-			#if defined(GPUCULL_TODO)
+			#if GPUCULL_TODO
 				VisibleMeshDrawCommand.SortKey,
 				VisibleMeshDrawCommand.RunArray,
 				VisibleMeshDrawCommand.NumRuns);
@@ -1251,7 +1251,7 @@ void DrawDynamicMeshPassPrivate(
 {
 	if (VisibleMeshDrawCommands.Num() > 0)
 	{
-	#if defined(GPUCULL_TODO)
+	#if GPUCULL_TODO
 		// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
 		//               we don't support dynamic instancing for this path since we require one primitive per draw command
 		//               This is because the stride on the instance data buffer is set to 0 so only the first will ever be fetched.
@@ -1266,7 +1266,7 @@ void DrawDynamicMeshPassPrivate(
 
 		check(View.bIsViewInfo);
 		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 #if DO_GUARD_SLOW
 		{
 			bool bNeedsGPUSceneData = false;
@@ -1278,7 +1278,7 @@ void DrawDynamicMeshPassPrivate(
 			ensure(!bNeedsGPUSceneData || ViewInfo->CachedViewUniformShaderParameters->InstanceSceneData != GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV);
 		}
 #endif // DO_GUARD_SLOW
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 		SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange());
 
 		SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
@@ -1459,10 +1459,10 @@ FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, F
 	InstanceCullingContext = FInstanceCullingContext(InstanceCullingManager, TArrayView<const int32>(&ViewInfo->GPUSceneViewId, 1));
 	bDynamicInstancing = IsDynamicInstancingEnabled(ViewInfo->GetFeatureLevel());
 
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 	// GPUCULL_TODO: Instanced stereo?
 	InstanceFactor = InstanceFactorIn;
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 }
 
 void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
@@ -1474,7 +1474,7 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 	VisibleMeshDrawCommands.Sort(FCompareFMeshDrawCommands());
 	if (GPUScene.IsEnabled())
 	{
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 		int32 MaxInstances = 0;
 		int32 VisibleMeshDrawCommandsNum = 0;
 		int32 NewPassVisibleMeshDrawCommandsNum = 0;
@@ -1487,12 +1487,12 @@ void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilde
 		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
 		InstanceCullingContext.BuildRenderingCommands(GraphBuilder, GPUScene, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange(), InstanceCullingResult);
 		
-#else // defined(GPUCULL_TODO)
+#else // GPUCULL_TODO
 		check(View.bIsViewInfo);
 		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
 		SortAndMergeDynamicPassMeshDrawCommands(View.GetFeatureLevel(), VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, PrimitiveIdVertexBuffer, InstanceFactor, ViewInfo->DynamicPrimitiveCollector.GetPrimitiveIdRange());
 
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 		// Signal that scene primitives are supported, used for validation, the existence of a valid InstanceCullingResult is the required signal
 		bSupportsScenePrimitives = true;
 	}
@@ -1509,7 +1509,7 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList
 {
 	if (VisibleMeshDrawCommands.Num() > 0)
 	{
-#if defined(GPUCULL_TODO)
+#if GPUCULL_TODO
 		if (bSupportsScenePrimitives)
 		{
 			FRHIBuffer* DrawIndirectArgsBuffer = nullptr;
@@ -1531,7 +1531,7 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList
 				RHICmdList);
 		}
 		else
-#endif // defined(GPUCULL_TODO)
+#endif // GPUCULL_TODO
 		{
 			SubmitMeshDrawCommandsRange(VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, PrimitiveIdVertexBuffer, 0, bDynamicInstancing, 0, VisibleMeshDrawCommands.Num(), InstanceFactor, RHICmdList);
 		}
