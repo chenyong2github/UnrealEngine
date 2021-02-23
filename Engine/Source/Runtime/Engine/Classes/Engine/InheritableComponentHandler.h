@@ -160,7 +160,7 @@ private:
 	const FComponentOverrideRecord* FindRecord(const FComponentKey& Key) const;
 
 	/** Helper method used to assist with fixing up component template names at load time. */
-	void FixComponentTemplateName(UActorComponent* ComponentTemplate, const FString& NewName);
+	void FixComponentTemplateName(UActorComponent* ComponentTemplate, FName NewName);
 	
 	/** All component records */
 	UPROPERTY()
