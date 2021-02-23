@@ -761,11 +761,17 @@ namespace TextureShareItem
 						switch (ServerTextureData.OperationType)
 						{
 						case ETextureShareSurfaceOp::Write:
-							RHICmdList.TransferTexture(RHITexture, TextureRect, ServerGPUIndex, ClientGPUIndex, true);
+						{
+							FTransferTextureParams Param(RHITexture, TextureRect, ServerGPUIndex, ClientGPUIndex, true, true);
+							RHICmdList.TransferTextures(TArrayView<const FTransferTextureParams>(&Param, 1));
 							break;
+						}
 						case ETextureShareSurfaceOp::Read:
-							RHICmdList.TransferTexture(RHITexture, TextureRect, ClientGPUIndex, ServerGPUIndex, true);
+						{
+							FTransferTextureParams Param(RHITexture, TextureRect, ClientGPUIndex, ServerGPUIndex, true, true);
+							RHICmdList.TransferTextures(TArrayView<const FTransferTextureParams>(&Param, 1));
 							break;
+						}
 						}
 						return true;
 					}

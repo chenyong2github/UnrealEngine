@@ -940,6 +940,26 @@ FD3D12CommandContextRedirector::FD3D12CommandContextRedirector(class FD3D12Adapt
 	FMemory::Memzero(PhysicalContexts, sizeof(PhysicalContexts[0]) * MAX_NUM_GPUS);
 }
 
+void FD3D12CommandContextRedirector::RHIMultiGPULockstep(FRHIGPUMask InGPUMask)
+{
+#if WITH_MGPU
+	FD3D12Fence* GPUFence = GetParentAdapter()->GetStagingFence();
+	GPUFence->Signal(ED3D12CommandQueueType::Default);
+
+	// Then everyone waits for completion of everyone one else.
+	for (uint32 GPUIndex : InGPUMask)
+	{
+		for (uint32 GPUIndex2 : InGPUMask)
+		{
+			if (GPUIndex != GPUIndex2)
+			{
+				GPUFence->GpuWait(GPUIndex2, ED3D12CommandQueueType::Default, GPUFence->GetLastSignaledFence(), GPUIndex);
+			}
+		}
+	}
+#endif // WITH_MGPU
+}
+
 void FD3D12CommandContextRedirector::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
 {
 	ContextRedirect(RHIBeginTransitionsWithoutFencing(Transitions));
@@ -949,6 +969,112 @@ void FD3D12CommandContextRedirector::RHIBeginTransitions(TArrayView<const FRHITr
 void FD3D12CommandContextRedirector::RHIEndTransitions(TArrayView<const FRHITransition*> Transitions)
 {
 	ContextRedirect(RHIEndTransitions(Transitions));
+}
+
+void FD3D12CommandContextRedirector::RHITransferTextures(const TArrayView<const FTransferTextureParams> Params)
+{
+#if WITH_MGPU
+	// Note that by default it is not empty, but GPU0
+	FRHIGPUMask SrcAndDestMask; 
+
+	for (const FTransferTextureParams& Param : Params)
+	{
+		FD3D12CommandContext* SrcContext = PhysicalContexts[Param.SrcGPUIndex];
+		FD3D12CommandContext* DestContext = PhysicalContexts[Param.DestGPUIndex];
+		if (!ensure(SrcContext && DestContext))
+		{
+			continue;
+		}
+
+		if (Param.bLockStepGPUs)
+		{
+			// If it's the first time we set the mask.
+			if (SrcAndDestMask != FRHIGPUMask())
+			{
+				SrcAndDestMask |= FRHIGPUMask::FromIndex(Param.SrcGPUIndex) | FRHIGPUMask::FromIndex(Param.DestGPUIndex);
+			}
+			else
+			{
+				SrcAndDestMask = FRHIGPUMask::FromIndex(Param.SrcGPUIndex) | FRHIGPUMask::FromIndex(Param.DestGPUIndex);
+			}
+		}
+
+		FD3D12TextureBase* SrcTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.SrcGPUIndex);
+		FD3D12TextureBase* DestTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.DestGPUIndex);
+
+		FD3D12DynamicRHI::TransitionResource(SrcContext->CommandListHandle, SrcTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+		FD3D12DynamicRHI::TransitionResource(DestContext->CommandListHandle, DestTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, 0);
+
+	}
+
+	// Make sure to Submit any pending work before signaling the fence.
+	// Note that this redirect to all GPUs from the context redirector.
+	RHISubmitCommandsHint();
+
+	// Submit the fence on all GPUs
+	FD3D12Fence* GPUFence = GetParentAdapter()->GetStagingFence();
+	if (SrcAndDestMask != FRHIGPUMask())
+	{
+		RHIMultiGPULockstep(SrcAndDestMask);
+	}
+	else
+	{
+		GPUFence->Signal(ED3D12CommandQueueType::Default);
+		for (const FTransferTextureParams& Param : Params)
+		{
+			if (Param.bPullData)
+			{
+				// The dest waits for the source to complete before reading the data.
+				GPUFence->GpuWait(Param.DestGPUIndex, ED3D12CommandQueueType::Default,  GPUFence->GetLastSignaledFence(), Param.SrcGPUIndex);
+			}
+		}
+	}
+
+	for (const FTransferTextureParams& Param : Params)
+	{
+		FD3D12CommandContext* SrcContext = PhysicalContexts[Param.SrcGPUIndex];
+		FD3D12CommandContext* DestContext = PhysicalContexts[Param.DestGPUIndex];
+		if (!ensure(SrcContext && DestContext))
+		{
+			continue;
+		}
+
+		FD3D12TextureBase* SrcTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.SrcGPUIndex);
+		FD3D12TextureBase* DestTexture = FD3D12CommandContext::RetrieveTextureBase(Param.Texture, Param.DestGPUIndex);
+
+		ensureMsgf(
+			Param.Min.X >= 0 && Param.Min.Y >= 0 && Param.Min.Z >= 0 &&
+			Param.Max.X >= 0 && Param.Max.Y >= 0 && Param.Max.Z >= 0,
+			TEXT("Invalid rect for texture transfer: %i, %i, %i, %i"), Param.Min.X, Param.Min.Y, Param.Min.Z, Param.Max.X, Param.Max.Y, Param.Max.Z);
+
+		D3D12_BOX Box = { (UINT)Param.Min.X, (UINT)Param.Min.Y, (UINT)Param.Min.Z, (UINT)Param.Max.X, (UINT)Param.Max.Y, (UINT)Param.Max.Z };
+
+		CD3DX12_TEXTURE_COPY_LOCATION SrcLocation(SrcTexture->GetResource()->GetResource(), 0);
+		CD3DX12_TEXTURE_COPY_LOCATION DestLocation(DestTexture->GetResource()->GetResource(), 0);
+
+		FD3D12CommandContext* CopyContext = Param.bPullData ? DestContext : SrcContext;
+		CopyContext->CommandListHandle->CopyTextureRegion(&DestLocation, Box.left, Box.top, Box.front, &SrcLocation, &Box);
+		CopyContext->numCopies++;
+	}
+
+	if (SrcAndDestMask != FRHIGPUMask())
+	{
+		// Complete the lockstep by ensuring the GPUs don't start doing something else before the copy completes.
+		RHIMultiGPULockstep(SrcAndDestMask);
+	}
+	else
+	{
+		GPUFence->Signal(ED3D12CommandQueueType::Default);
+		for (const FTransferTextureParams& Param : Params)
+		{
+			if (!Param.bPullData)
+			{
+				// The source waits for the dest to be at this place in the frame before writing the data.
+				GPUFence->GpuWait(Param.SrcGPUIndex, ED3D12CommandQueueType::Default, GPUFence->GetLastSignaledFence(), Param.DestGPUIndex);
+			}
+		}
+	}
+#endif // WITH_MGPU
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////

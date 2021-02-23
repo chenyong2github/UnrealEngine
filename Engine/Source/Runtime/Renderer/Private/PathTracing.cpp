@@ -603,10 +603,12 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 				if (GPUIndex > 0)
 				{
-					RHICmdList.TransferTexture(RadianceRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true);
-					RHICmdList.TransferTexture(SampleCountRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true);
-					RHICmdList.TransferTexture(PixelPositionRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true);
-					RHICmdList.TransferTexture(RayCountPerPixelRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true);
+					TArray<FTransferTextureParams, TInlineAllocator<4>> Params;
+					Params.Add(FTransferTextureParams(RadianceRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true, true));
+					Params.Add(FTransferTextureParams(SampleCountRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true, true));
+					Params.Add(FTransferTextureParams(PixelPositionRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true, true));
+					Params.Add(FTransferTextureParams(RayCountPerPixelRT->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, 1, 0, true, true));
+					RHICmdList.TransferTextures(Params);
 				}
 			}
 

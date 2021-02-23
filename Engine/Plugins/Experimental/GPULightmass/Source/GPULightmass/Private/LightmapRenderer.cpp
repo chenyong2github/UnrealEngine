@@ -2259,10 +2259,7 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 					FIntRect GPURect;
 					GPURect.Min = LightmapTilePoolGPU.GetPositionFromLinearAddress(Tile.TileAddressInWorkingSet) * LightmapTilePoolGPU.LayerFormatAndTileSize[RenderTargetIndex].TileSize;
 					GPURect.Max = GPURect.Min + LightmapTilePoolGPU.LayerFormatAndTileSize[RenderTargetIndex].TileSize;
-					FIntVector Min(GPURect.Min.X, GPURect.Min.Y, 0);
-					FIntVector Max(GPURect.Max.X, GPURect.Max.Y, 1);
-
-					Params.Add({ LightmapTilePoolGPU.PooledRenderTargets[RenderTargetIndex]->GetRenderTargetItem().TargetableTexture->GetTexture2D(), Min, Max, AssignedGPUIndex, 0, true });
+					Params.Add(FTransferTextureParams(LightmapTilePoolGPU.PooledRenderTargets[RenderTargetIndex]->GetRenderTargetItem().TargetableTexture->GetTexture2D(), GPURect, AssignedGPUIndex, 0, true, true));
 				};
 
 				TransferTexture(0);

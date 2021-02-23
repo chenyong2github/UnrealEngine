@@ -104,6 +104,13 @@ void FRHICommandBroadcastTemporalEffect::Execute(FRHICommandListBase& CmdList)
 	RHISTAT(BroadcastTemporalEffect);
 	INTERNAL_DECORATOR(RHIBroadcastTemporalEffect)(EffectName, { Textures, NumTextures });
 }
+
+void FRHICommandTransferTextures::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(TransferTextures);
+	INTERNAL_DECORATOR_COMPUTE(RHITransferTextures)(Params);
+}
+
 #endif // WITH_MGPU
 
 void FRHICommandSetStencilRef::Execute(FRHICommandListBase& CmdList)

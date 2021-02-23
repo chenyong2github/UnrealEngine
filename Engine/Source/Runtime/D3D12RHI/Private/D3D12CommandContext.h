@@ -492,6 +492,8 @@ public:
 	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) final override;
 
+	virtual void RHITransferTextures(const TArrayView<const FTransferTextureParams> Params) final override;
+
 	FORCEINLINE virtual void RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override
 	{
 		ContextRedirect(RHICopyToStagingBuffer(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes));
@@ -815,6 +817,9 @@ public:
 	}
 
 private:
+
+	// Make every GPU in the provided mask to wait on one another.
+	void RHIMultiGPULockstep(FRHIGPUMask InGPUMask);
 
 	FRHIGPUMask PhysicalGPUMask;
 	FD3D12CommandContext* PhysicalContexts[MAX_NUM_GPUS];

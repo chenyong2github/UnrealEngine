@@ -850,6 +850,19 @@ FRHICOMMAND_MACRO(FRHICommandBroadcastTemporalEffect)
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
+
+FRHICOMMAND_MACRO(FRHICommandTransferTextures)
+{
+	TArray<FTransferTextureParams, TInlineAllocator<4>> Params;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandTransferTextures(TArrayView<const FTransferTextureParams> InParams)
+		: Params(InParams)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
 #endif // WITH_MGPU
 
 FRHICOMMAND_MACRO(FRHICommandSetStencilRef)
@@ -2765,8 +2778,22 @@ public:
 				checkSlow(!Bypass());
 				ALLOC_COMMAND(FRHICommandSetGPUMask)(GPUMask);
 			}
-#endif
+#endif // WITH_MGPU
 		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void TransferTextures(const TArrayView<const FTransferTextureParams> Params)
+	{
+#if WITH_MGPU
+		if (Bypass())
+		{
+			GetComputeContext().RHITransferTextures(Params);
+		}
+		else
+		{
+			ALLOC_COMMAND(FRHICommandTransferTextures)(Params);
+		}
+#endif // WITH_MGPU
 	}
 
 #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
@@ -4202,22 +4229,6 @@ public:
 		});
 	}
 
-	FORCEINLINE void TransferTexture(FRHITexture2D* Texture, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool PullData)
-	{
-		LLM_SCOPE(ELLMTag::Textures);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-
-		return GDynamicRHI->RHITransferTexture(Texture, Rect, SrcGPUIndex, DestGPUIndex, PullData);
-	}
-
-	FORCEINLINE void TransferTextures(const TArrayView<const FTransferTextureParams> Params)
-	{
-		LLM_SCOPE(ELLMTag::Textures);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-
-		return GDynamicRHI->RHITransferTextures(Params);
-	}
-
 	UE_DEPRECATED(4.26, "The RHI resource creation API has been refactored. Use global RHICreate functions with default initial ResourceState")
 	FORCEINLINE FTexture2DArrayRHIRef CreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
@@ -5280,16 +5291,6 @@ FORCEINLINE FTexture2DRHIRef RHIAsyncCreateTexture2D(uint32 SizeX, uint32 SizeY,
 FORCEINLINE void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* SrcTexture2D)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CopySharedMips(DestTexture2D, SrcTexture2D);
-}
-
-FORCEINLINE void RHITransferTexture(FRHITexture2D* Texture, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool PullData)
-{
-	return FRHICommandListExecutor::GetImmediateCommandList().TransferTexture(Texture, Rect, SrcGPUIndex, DestGPUIndex, PullData);
-}
-
-FORCEINLINE void RHITransferTextures(const TArrayView<const FTransferTextureParams> Params)
-{
-	return FRHICommandListExecutor::GetImmediateCommandList().TransferTextures(Params);
 }
 
 FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)

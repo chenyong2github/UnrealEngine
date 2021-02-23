@@ -2659,6 +2659,8 @@ void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask 
 #if WITH_MGPU
 	if (ViewFamily.bMultiGPUForkAndJoin)
 	{
+		// Must be all GPUs because context redirector only supports single or all GPUs
+		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 		RDG_GPU_STAT_SCOPE(GraphBuilder, CrossGPUTransfers);
 
 		// A readback pass is the closest analog to what this is doing. There isn't a way to express cross-GPU transfers via the RHI barrier API.
@@ -2680,7 +2682,8 @@ void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask 
 						{
 							if (!ViewInfo.GPUMask.Contains(RenderTargetGPUIndex))
 							{
-								RHICmdList.TransferTexture(static_cast<FRHITexture2D*>(ViewFamilyTexture->GetRHI()), TransferRect, ViewInfo.GPUMask.GetFirstIndex(), RenderTargetGPUIndex, true);
+								FTransferTextureParams Param(static_cast<FRHITexture2D*>(ViewFamilyTexture->GetRHI()), TransferRect, ViewInfo.GPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, true);
+								RHICmdList.TransferTextures(TArrayView<const FTransferTextureParams>(&Param, 1));
 							}
 						}
 					}

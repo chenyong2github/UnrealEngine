@@ -734,24 +734,6 @@ public:
 		RHI->RHICopySharedMips(DestTexture2D, SrcTexture2D);
 	}
 
-	/**
-	* Synchronizes the content of a texture resource between two GPUs using a copy operation.
-	* @param Texture - the texture to synchronize.
-	* @param Rect - the rectangle area to update.
-	* @param SrcGPUIndex - the index of the gpu which content will be red from
-	* @param DestGPUIndex - the index of the gpu which content will be updated.
-	* @param PullData - whether the source writes the data to the dest, or the dest reads the data from the source.
-	*/
-	// FlushType: Flush RHI Thread
-	virtual void RHITransferTexture(FRHITexture2D* Texture, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool bPullData) override final
-	{
-		RHI->RHITransferTexture(Texture, Rect, SrcGPUIndex, DestGPUIndex, bPullData);
-	}
-	virtual void RHITransferTextures(const TArrayView<const FTransferTextureParams> Params) override final
-	{
-		RHI->RHITransferTextures(Params);
-	}
-
 	void RHITransferIndexBufferUnderlyingResource(FRHIIndexBuffer* DestIndexBuffer, FRHIIndexBuffer* SrcIndexBuffer) override final
 	{
 		RHI->RHITransferIndexBufferUnderlyingResource(DestIndexBuffer, SrcIndexBuffer);
@@ -1487,22 +1469,22 @@ public:
 		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
 			if (Initializer.AsIndexBufferSRV().IndexBuffer)
 			{
-				SRV->ViewIdentity = Initializer.AsIndexBufferSRV().IndexBuffer->GetWholeResourceIdentity();
+			SRV->ViewIdentity = Initializer.AsIndexBufferSRV().IndexBuffer->GetWholeResourceIdentity();
 			}
 			break;
 
 		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
 			if (Initializer.AsStructuredBufferSRV().StructuredBuffer)
 			{
-				SRV->ViewIdentity = Initializer.AsStructuredBufferSRV().StructuredBuffer->GetWholeResourceIdentity();
+			SRV->ViewIdentity = Initializer.AsStructuredBufferSRV().StructuredBuffer->GetWholeResourceIdentity();
 			}
 			break;
 
 		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
 			if (Initializer.AsVertexBufferSRV().VertexBuffer)
 			{
-				SRV->ViewIdentity = Initializer.AsVertexBufferSRV().VertexBuffer->GetWholeResourceIdentity();
-			}
+			SRV->ViewIdentity = Initializer.AsVertexBufferSRV().VertexBuffer->GetWholeResourceIdentity();
+		}
 		}
 
 		return SRV;
