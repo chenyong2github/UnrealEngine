@@ -281,7 +281,12 @@ public:
 		}
 
 		LastSegmentTime = CurrentTime;
-		PendingAcknowledgments.AddUnique(SegmentNumber);
+
+		// Send acknowledgement for unreliable messages
+		if (EnumHasAnyFlags(GetFlags(), EMessageFlags::Reliable))
+		{
+			PendingAcknowledgments.AddUnique(SegmentNumber);
+		}
 	}
 
 	/**
