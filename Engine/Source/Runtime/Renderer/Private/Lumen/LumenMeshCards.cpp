@@ -412,12 +412,20 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 
 void BuildMeshCardsDataForMergedInstances(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMeshCardsBuildData& MeshCardsBuildData)
 {
+	const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
+	if (!PrimitiveInstances)
+	{
+		MeshCardsBuildData.MaxLODLevel = 0;
+		MeshCardsBuildData.Bounds.Init();
+		return;
+	}
+
+
 	FBox MergedBounds;
 	MergedBounds.Init();
 
 	{
-		const TArray<FPrimitiveInstance>* PrimitiveInstances = PrimitiveSceneInfo->Proxy->GetPrimitiveInstances();
-		const int32 NumInstances = PrimitiveInstances ? PrimitiveInstances->Num() : 1;
+		const int32 NumInstances = PrimitiveInstances->Num();
 
 		for (int32 InstanceIndex = 0; InstanceIndex < NumInstances; ++InstanceIndex)
 		{
