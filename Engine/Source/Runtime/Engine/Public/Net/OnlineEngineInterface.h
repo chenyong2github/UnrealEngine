@@ -63,6 +63,8 @@ public:
 	virtual void DestroyOnlineSubsystem(FName OnlineIdentifier) {}
 	/** Returns the name of the default online subsystem, generally the DefaultPlatformService config value. */
 	virtual FName GetDefaultOnlineSubsystemName() const { return NAME_None; }
+	/** Returns whether the unique net id is compatible */
+	virtual bool IsCompatibleUniqueNetId(const FUniqueNetId& InUniqueNetId) const { return (InUniqueNetId.GetType() == GetDefaultOnlineSubsystemName()); }
 
 	/**
 	 * Utils
