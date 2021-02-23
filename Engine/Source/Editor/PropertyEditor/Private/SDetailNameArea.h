@@ -35,15 +35,7 @@ public:
 	 *
 	 * @param SelectedObjects	the new list of selected objects
 	 */
-	void Refresh( const TArray< TWeakObjectPtr<UObject> >& SelectedObjects );
-	
-	/**
-	 * Refreshes the name area when selection changes
-	 *
-	 * @param SelectedActors	the new list of selected actors
-	 */
-	void Refresh( const TArray< TWeakObjectPtr<AActor> >& SelectedActors, const TArray< TWeakObjectPtr<UObject> >& SelectedObjects, FDetailsViewArgs::ENameAreaSettings NameAreaSettings  );
-
+	void Refresh( const TArray< TWeakObjectPtr<UObject> >& SelectedObjects, int32 NameAreaSettings );
 
 	/**
 	 * Inserts Custom Content (typically tool buttons) before the lock

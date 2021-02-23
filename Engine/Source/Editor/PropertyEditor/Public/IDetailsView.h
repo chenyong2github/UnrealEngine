@@ -36,13 +36,13 @@ struct FDetailsViewArgs
 	enum ENameAreaSettings
 	{
 		/** The name area should never be displayed */
-		HideNameArea,
-		/** All object types use name area */
-		ObjectsUseNameArea,
-		/** Only Actors use name area */
-		ActorsUseNameArea,
-		/** Components and actors use the name area. Components will display their actor owner as the name */
-		ComponentsAndActorsUseNameArea,
+		HideNameArea = 0,
+		/** All object types use the name area */
+		ObjectsUseNameArea = 1<<0,
+		/** Actors prioritize using the name area */
+		ActorsUseNameArea = 1<<1,
+		/** Components and actors prioritize using the name area. Components will display their actor owner as the name */
+		ComponentsAndActorsUseNameArea = 1<<2 | ActorsUseNameArea,
 	};
 
 	/** Controls how CPF_DisableEditOnInstance nodes will be treated */
@@ -58,8 +58,8 @@ struct FDetailsViewArgs
 	FName ViewIdentifier;
 	/** Notify hook to call when properties are changed */
 	FNotifyHook* NotifyHook;
-	/** Settings for displaying the name area */
-	ENameAreaSettings NameAreaSettings;
+	/** Settings for displaying the name area (@see ENameAreaSettings) */
+	int32 NameAreaSettings;
 	/** The default column width */
 	float ColumnWidth;
 	/** True if the viewed objects updates from editor selection */

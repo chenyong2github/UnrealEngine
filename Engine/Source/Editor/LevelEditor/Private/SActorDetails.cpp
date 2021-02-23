@@ -34,7 +34,6 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
-#include "Elements/SMInstance/SMInstanceElementId.h" // TODO: Only included to define UE_ENABLE_SMINSTANCE_ELEMENTS
 
 class SActorDetailsUneditableComponentWarning : public SCompoundWidget
 {
@@ -102,12 +101,7 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	DetailsViewArgs.bUpdatesFromSelection = true;
 	DetailsViewArgs.bLockable = true;
 	DetailsViewArgs.bAllowFavoriteSystem = true;
-#if UE_ENABLE_SMINSTANCE_ELEMENTS
-	// TODO: This allows the proxy objects used by SMInstance elements to show their name, but it does also change the behavior for actors/components
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea;
-#else
-	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ComponentsAndActorsUseNameArea;
-#endif
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ObjectsUseNameArea | FDetailsViewArgs::ComponentsAndActorsUseNameArea;
 	DetailsViewArgs.NotifyHook = GUnrealEd;
 	DetailsViewArgs.ViewIdentifier = TabIdentifier;
 	DetailsViewArgs.bCustomNameAreaLocation = true;

@@ -28,49 +28,44 @@ void SDetailNameArea::Construct( const FArguments& InArgs, const TArray< TWeakOb
 	CustomContent = SNullWidget::NullWidget;
 }
 
-void SDetailNameArea::Refresh( const TArray< TWeakObjectPtr<UObject> >& SelectedObjects )
+void SDetailNameArea::Refresh( const TArray< TWeakObjectPtr<UObject> >& SelectedObjects, int32 NameAreaSettings )
 {
-	ChildSlot
-	[
-		BuildObjectNameArea( SelectedObjects )
-	];
-}
-
-void SDetailNameArea::Refresh( const TArray< TWeakObjectPtr<AActor> >& SelectedActors, const TArray< TWeakObjectPtr<UObject> >& SelectedObjects, FDetailsViewArgs::ENameAreaSettings NameAreaSettings  )
-{
-	// Convert the actor array to base object type
-
 	TArray< TWeakObjectPtr<UObject> > FinalSelectedObjects;
-	if(NameAreaSettings == FDetailsViewArgs::ActorsUseNameArea)
+	FinalSelectedObjects.Reserve(SelectedObjects.Num());
+
+	// Apply the name area filter in priority order
+	if ((NameAreaSettings & FDetailsViewArgs::ActorsUseNameArea) && FinalSelectedObjects.Num() == 0)
 	{
-		for(auto Actor : SelectedActors)
+		for (const TWeakObjectPtr<UObject>& Object : SelectedObjects)
 		{
-			const TWeakObjectPtr<UObject> ObjectWeakPtr = Actor.Get();
-			FinalSelectedObjects.Add(ObjectWeakPtr);
+			if (AActor* Actor = Cast<AActor>(Object.Get()))
+			{
+				FinalSelectedObjects.Add(Actor);
+			}
 		}
 	}
-	else if( NameAreaSettings == FDetailsViewArgs::ComponentsAndActorsUseNameArea )
+	if ((NameAreaSettings & FDetailsViewArgs::ComponentsAndActorsUseNameArea) && FinalSelectedObjects.Num() == 0)
 	{
-		for(auto Actor : SelectedActors)
+		for (const TWeakObjectPtr<UObject>& Object : SelectedObjects)
 		{
-			const TWeakObjectPtr<UObject> ObjectWeakPtr = Actor.Get();
-			FinalSelectedObjects.Add(ObjectWeakPtr);
-		}
-
-		// Note: assumes that actors and components are not selected together.
-		if( FinalSelectedObjects.Num() == 0 )
-		{
-			for(auto Object : SelectedObjects)
+			if (UActorComponent* ActorComp = Cast<UActorComponent>(Object.Get()))
 			{
-				UActorComponent* ActorComp = Cast<UActorComponent>(Object.Get());
-				if(ActorComp && ActorComp->GetOwner())
+				if (AActor* Actor = ActorComp->GetOwner())
 				{
-					FinalSelectedObjects.AddUnique(ActorComp->GetOwner());
+					FinalSelectedObjects.AddUnique(Actor);
 				}
 			}
 		}
 	}
-	Refresh( FinalSelectedObjects );
+	if ((NameAreaSettings & FDetailsViewArgs::ObjectsUseNameArea) && FinalSelectedObjects.Num() == 0)
+	{
+		FinalSelectedObjects = SelectedObjects;
+	}
+
+	ChildSlot
+	[
+		BuildObjectNameArea( FinalSelectedObjects )
+	];
 }
 
 const FSlateBrush* SDetailNameArea::OnGetLockButtonImageResource() const

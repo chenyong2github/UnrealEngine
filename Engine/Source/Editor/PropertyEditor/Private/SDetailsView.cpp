@@ -657,18 +657,10 @@ void SDetailsView::SetObjectArrayPrivate(const TArray<UObject*>& InObjects)
 	}
 
 	// Selection changed, refresh the detail area
-	if (DetailsViewArgs.NameAreaSettings != FDetailsViewArgs::ActorsUseNameArea && DetailsViewArgs.NameAreaSettings != FDetailsViewArgs::ComponentsAndActorsUseNameArea)
-	{
-		NameArea->Refresh(SelectedObjects);
-	}
-	else
-	{
-		NameArea->Refresh(SelectedActors, SelectedObjects, DetailsViewArgs.NameAreaSettings);
-	}
+	NameArea->Refresh(SelectedObjects, DetailsViewArgs.NameAreaSettings);
 	
 	// When selection changes rebuild information about the selection
 	SelectedActorInfo = AssetSelectionUtils::BuildSelectedActorInfo(SelectedRawActors);
-
 
 	PostSetObject(Roots);
 
