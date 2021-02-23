@@ -13,6 +13,7 @@
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieSceneEntitySystemGraphs.h"
 #include "EntitySystem/MovieSceneSequenceInstance.h"
+#include "EntitySystem/MovieSceneEntitySystemLinkerExtension.h"
 
 #include "MovieSceneEntitySystemLinker.generated.h"
 
@@ -136,6 +137,86 @@ public:
 
 public:
 
+	/**
+	 * Register a new extension type for use with any instance of a UMovieSceneEntitySystemLinker
+	 */
+	template<typename ExtensionType>
+	static UE::MovieScene::TEntitySystemLinkerExtensionID<ExtensionType> RegisterExtension()
+	{
+		return UE::MovieScene::TEntitySystemLinkerExtensionID<ExtensionType>(RegisterExtension().ID);
+	}
+
+	/**
+	 * Add an extension to this linker.
+	 *
+	 * @param InID        The unique identifier for the type of extension (retrieved from RegisterExtension)
+	 * @param InExtension Pointer to the extension to register - must be kept alive externally - only a raw ptr is kept in this class
+	 */
+	template<typename ExtensionType>
+	void AddExtension(UE::MovieScene::TEntitySystemLinkerExtensionID<ExtensionType> InID, ExtensionType* InExtension)
+	{
+		const int32 Index = InID.ID;
+		if (!ExtensionsByID.IsValidIndex(Index))
+		{
+			ExtensionsByID.Insert(Index, InExtension);
+		}
+		else
+		{
+			check(ExtensionsByID[Index] == InExtension);
+		}
+	}
+
+	/**
+	 * Add an extension to this linker.
+	 *
+	 * @param InID        The unique identifier for the type of extension (retrieved from RegisterExtension)
+	 * @param InExtension Pointer to the extension to register - must be kept alive externally - only a raw ptr is kept in this class
+	 */
+	template<typename ExtensionType>
+	void AddExtension(ExtensionType* InExtension)
+	{
+		AddExtension(ExtensionType::GetExtensionID(), InExtension);
+	}
+
+	/**
+	 * Attempt to find an extension to this linker by its ID
+	 *
+	 * @param InID        The unique identifier for the type of extension (retrieved from RegisterExtension)
+	 * @return A pointer to the extension, or nullptr if it is not active.
+	 */
+	template<typename ExtensionType>
+	ExtensionType* FindExtension(UE::MovieScene::TEntitySystemLinkerExtensionID<ExtensionType> InID)
+	{
+		const int32 Index = InID.ID;
+		if (ExtensionsByID.IsValidIndex(Index))
+		{
+			return static_cast<ExtensionType*>(ExtensionsByID[Index]);
+		}
+
+		return nullptr;
+	}
+
+
+	/**
+	 * Attempt to find an extension to this linker by its ID
+	 *
+	 * @param InID        The unique identifier for the type of extension (retrieved from RegisterExtension)
+	 * @return A pointer to the extension, or nullptr if it is not active.
+	 */
+	template<typename ExtensionType>
+	ExtensionType* FindExtension()
+	{
+		const int32 Index = ExtensionType::GetExtensionID().ID;
+		if (ExtensionsByID.IsValidIndex(Index))
+		{
+			return static_cast<ExtensionType*>(ExtensionsByID[Index]);
+		}
+
+		return nullptr;
+	}
+
+public:
+
 	// Internal API
 	
 	void SystemLinked(UMovieSceneEntitySystem* InSystem);
@@ -164,6 +245,8 @@ private:
 
 	virtual void BeginDestroy() override;
 
+	static UE::MovieScene::FEntitySystemLinkerExtensionID RegisterExtension();
+
 private:
 
 	TUniquePtr<FInstanceRegistry> InstanceRegistry;
@@ -176,6 +259,8 @@ private:
 		bool bIsReentrancyAllowed;
 	};
 	TArray<FActiveRunnerInfo> ActiveRunners;
+
+	TSparseArray<void*> ExtensionsByID;
 
 	friend struct FMovieSceneEntitySystemEvaluationReentrancyWindow;
 

@@ -61,6 +61,12 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 	}
 }
 
+UE::MovieScene::FEntitySystemLinkerExtensionID UMovieSceneEntitySystemLinker::RegisterExtension()
+{
+	static int32 StaticID = 0;
+	return UE::MovieScene::FEntitySystemLinkerExtensionID{ StaticID++ };
+}
+
 void UMovieSceneEntitySystemLinker::Reset()
 {
 	Events.AbandonLinker.Broadcast(this);
