@@ -47,7 +47,7 @@ public abstract class DatasmithRhinoBaseTarget : TargetRules
 		// Define post-build step
 		// Since the Datasmith Rhino Exporter is a C# project, build in batch the release configuration of the Visual Studio C# project file.
 		string ProjectFile = Path.Combine(RhinoExporterPath, ProjectName, ProjectName+".csproj");
-		string CustomAssemblyInfoPath = Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfo.cs");
+		string CustomAssemblyInfoPath = GetCustomAssemblyInfoPath(Target);
 		string CompilerCommand = Target.Platform == UnrealTargetPlatform.Win64 ? @"$(EngineDir)\Build\BatchFiles\MSBuild.bat" : "xbuild";
 		string PlatformOS = Target.Platform == UnrealTargetPlatform.Win64 ? "Win64" : "Mac";
 		string ErrorMsg = string.Format("Cannot build {0}: Environment variable {1} is not defined.", ProjectName, RhinoEnvVarName);
@@ -83,11 +83,23 @@ public abstract class DatasmithRhinoBaseTarget : TargetRules
 		return Path.Combine("$(EngineDir)", "Source", "Programs", "Enterprise", "Datasmith", "DatasmithRhinoExporter", "Properties");
 	}
 
+	private static string GetCustomAssemblyInfoPath(TargetInfo Target)
+	{
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			return Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfoWin64.cs");
+		}
+		else //Mac
+		{
+			return Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfoMac.cs");
+		}
+	}
+
 	private void AddVersionUpdatePostSteps(TargetInfo Target)
 	{
 		ReadOnlyBuildVersion BuildVersion = Target.Version;
 		string VersionString = string.Format("{0}.{1}.{2}.{3}", BuildVersion.MajorVersion, BuildVersion.MinorVersion, BuildVersion.PatchVersion, BuildVersion.Changelist);
-		string CustomAssemblyInfoPath = Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfo.cs");
+		string CustomAssemblyInfoPath = GetCustomAssemblyInfoPath(Target);
 		string CustomAssemblyTemplatePath = Path.Combine(GetPropertiesPath(), "GeneratedAssemblyInfo.cs.Template");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
