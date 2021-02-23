@@ -374,66 +374,62 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Indicates if 1 or more materials contain settings not supported by Nanite.
 	bHasMaterialErrors = false;
 
+	const bool bHasSurfaceStaticLighting = MeshInfo.GetLightMap() != nullptr || MeshInfo.GetShadowMap() != nullptr;
+
 	// Check if the assigned material can be rendered in Nanite. If not, default.
 	const bool IsRenderable = Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance);
-
 	if (!IsRenderable)
 	{
 		bHasMaterialErrors = true;
 	}
 
-	const auto& MeshSections = RenderData->LODResources[0].Sections;
-	const int32 MeshSectionCount = MeshSections.Num();
+	const FStaticMeshLODResources& MeshResources = RenderData->LODResources[0];
+	const FStaticMeshSectionArray& MeshSections = MeshResources.Sections;
+	
+	MaterialSections.SetNumZeroed(MeshSections.Num());
 
-	MaterialSections.SetNumZeroed(MeshSectionCount);
-	int32 MaterialSectionIndex = 0;
-
-	const bool bHasSurfaceStaticLighting = MeshInfo.GetLightMap() != nullptr || MeshInfo.GetShadowMap() != nullptr;
-
-	for (const auto& MeshSection : MeshSections)
+	for (int32 SectionIndex = 0; SectionIndex < MeshSections.Num(); ++SectionIndex)
 	{
-		if (MeshSection.MaterialIndex == INDEX_NONE)
-		{
-			continue;
-		}
+		const FStaticMeshSection& MeshSection = MeshSections[SectionIndex];
+		const bool bValidMeshSection = MeshSection.MaterialIndex != INDEX_NONE;
 
-		FMaterialSection& Section = MaterialSections[MaterialSectionIndex++];
-		UMaterialInterface* Material = Component->GetMaterial(MeshSection.MaterialIndex);
-		Section.Material = Material;
+		UMaterialInterface* MaterialInterface = bValidMeshSection ? Component->GetMaterial(MeshSection.MaterialIndex) : nullptr;
 
-		const bool bInvalidMaterial = !Section.Material || Section.Material->GetBlendMode() != BLEND_Opaque;
+		const bool bInvalidMaterial = !MaterialInterface || MaterialInterface->GetBlendMode() != BLEND_Opaque;
 		if (bInvalidMaterial)
 		{
 			bHasMaterialErrors = true;
-			if (Section.Material)
+			if (MaterialInterface)
 			{
 				UE_LOG
 				(
 					LogStaticMesh, Warning,
 					TEXT("Invalid material [%s] used on Nanite static mesh [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
-					*Section.Material->GetName(),
+					*MaterialInterface->GetName(),
 					*StaticMesh->GetName(),
-					*GetBlendModeString(Section.Material->GetBlendMode())
+					*GetBlendModeString(MaterialInterface->GetBlendMode())
 				);
 			}
 		}
 
-		const bool bForceDefaultMaterial = !!FORCE_NANITE_DEFAULT_MATERIAL || bHasMaterialErrors || (bHasSurfaceStaticLighting && !Section.Material->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting));
+		const bool bForceDefaultMaterial = !!FORCE_NANITE_DEFAULT_MATERIAL || bHasMaterialErrors || (bHasSurfaceStaticLighting && !MaterialInterface->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting));
 		if (bForceDefaultMaterial)
 		{
-			Section.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
 		// Should never be null here
-		check(Section.Material != nullptr);
+		check(MaterialInterface != nullptr);
 
 		// Should always be opaque blend mode here.
-		check(Section.Material->GetBlendMode() == BLEND_Opaque);
+		check(MaterialInterface->GetBlendMode() == BLEND_Opaque);
+
+		MaterialSections[SectionIndex].Material = MaterialInterface;
 	}
 
 	// Copy the pointer to the volume data, async building of the data may modify the one on FStaticMeshLODResources while we are rendering
-	DistanceFieldData = RenderData->LODResources[0].DistanceFieldData;
-	CardRepresentationData = RenderData->LODResources[0].CardRepresentationData;
+	DistanceFieldData = MeshResources.DistanceFieldData;
+	CardRepresentationData = MeshResources.CardRepresentationData;
 
 	Instances.SetNumZeroed(1);
 	FPrimitiveInstance& Instance = Instances[0];
@@ -936,8 +932,13 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 		RayTracingInstanceTemplate.Materials.Reserve(LODModel.Sections.Num() * NumBatches);
 		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 		{
-			for (int SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
+				if (LODModel.Sections[SectionIndex].NumTriangles == 0)
+				{
+					continue;
+				}
+
 				FMaterialSection& Section = MaterialSections[LODModel.Sections[SectionIndex].MaterialIndex];
 
 				FMeshBatch& MeshBatch = RayTracingInstanceTemplate.Materials.AddDefaulted_GetRef();
