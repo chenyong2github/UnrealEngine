@@ -6,6 +6,135 @@
 #include "NiagaraResourceArrayWriter.h"
 #include "NiagaraStats.h"
 
+
+template<bool UseFullPrecisionUv>
+struct FQuadTreeQueryHelper
+{
+	const FNiagaraUvQuadTree& QuadTree;
+	const FSkeletalMeshLODRenderData* LodRenderData;
+	const FRawStaticIndexBuffer16or32Interface& IndexBuffer;
+	const FSkelMeshVertexAccessor<UseFullPrecisionUv> MeshVertexAccessor;
+
+	const int32 UvSetIndex;
+
+	FQuadTreeQueryHelper(const FNiagaraUvQuadTree& InQuadTree, const FSkeletalMeshLODRenderData* InLodRenderData, int32 InUvSetIndex)
+	: QuadTree(InQuadTree)
+	, LodRenderData(InLodRenderData)
+	, IndexBuffer(*LodRenderData->MultiSizeIndexContainer.GetIndexBuffer())
+	, UvSetIndex(InUvSetIndex)
+	{
+	}
+
+	FVector BuildTriangleCoordinate(const FVector2D& InUv, int32 TriangleIndex) const
+	{
+		const FVector VertexUvs[] =
+		{
+			FVector(MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer.Get(TriangleIndex * 3 + 0), UvSetIndex), 0.0f),
+			FVector(MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer.Get(TriangleIndex * 3 + 1), UvSetIndex), 0.0f),
+			FVector(MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer.Get(TriangleIndex * 3 + 2), UvSetIndex), 0.0f),
+		};
+
+		return FMath::GetBaryCentric2D(FVector(InUv, 0.0f), VertexUvs[0], VertexUvs[1], VertexUvs[2]);
+	}
+
+	void FindOverlappingTriangle(const FVector2D& InUv, float Tolerance, TArray<int32>& TriangleIndices) const
+	{
+		FBox2D UvBox(InUv, InUv);
+
+		TArray<int32, TInlineAllocator<32>> Elements;
+		QuadTree.GetElements(UvBox, Elements);
+
+		for (int32 TriangleIndex : Elements)
+		{
+			// generate the barycentric coordinates using the UVs of the triangle, the result may not be in the (0,1) range
+			const FVector BarycentricCoord = BuildTriangleCoordinate(InUv, TriangleIndex);
+
+			if ((BarycentricCoord.GetMin() > -Tolerance) && (BarycentricCoord.GetMax() < (1.0f + Tolerance)))
+			{
+				TriangleIndices.Add(TriangleIndex);
+			}
+		}
+	}
+
+	int32 FindFirstTriangle(const FVector2D& InUv, float Tolerance, FVector& BarycentricCoord) const
+	{
+		int32 FoundTriangleIndex = INDEX_NONE;
+
+		QuadTree.VisitElements(FBox2D(InUv, InUv), [&](int32 TriangleIndex)
+		{
+			// generate the barycentric coordinates using the UVs of the triangle, the result may not be in the (0,1) range
+			FVector ElementCoord = BuildTriangleCoordinate(InUv, TriangleIndex);
+
+			if ((ElementCoord.GetMin() > -Tolerance) && (ElementCoord.GetMax() < (1.0f + Tolerance)))
+			{
+				FoundTriangleIndex = TriangleIndex;
+				BarycentricCoord = ElementCoord;
+				return false;
+			}
+
+			return false;
+		});
+
+		return FoundTriangleIndex;
+	}
+
+	static bool NormalizedAabbTriangleOverlap(const FVector2D& A, const FVector2D& B, const FVector2D& C)
+	{
+		const FVector2D TriAabbMin = FVector2D(FMath::Min3(A.X, B.X, C.X), FMath::Min3(A.Y, B.Y, C.Y));
+		const FVector2D TriAabbMax = FVector2D(FMath::Max3(A.X, B.X, C.X), FMath::Max3(A.Y, B.Y, C.Y));
+
+		if (TriAabbMin.GetMax() > 1.0f || TriAabbMax.GetMin() < 0.0f)
+		{
+			return false;
+		}
+
+		const FVector2D TriangleEdges[] = { C - B, A - C, B - A };
+
+		for (int32 i = 0; i < UE_ARRAY_COUNT(TriangleEdges); ++i)
+		{
+			const FVector2D SeparatingAxis(-TriangleEdges[i].Y, TriangleEdges[i].X);
+			float AabbSegmentMin = FMath::Min(0.0f, FMath::Min3(SeparatingAxis.X, SeparatingAxis.Y, SeparatingAxis.X + SeparatingAxis.Y));
+			float AabbSegmentMax = FMath::Max(0.0f, FMath::Max3(SeparatingAxis.X, SeparatingAxis.Y, SeparatingAxis.X + SeparatingAxis.Y));
+			float TriangleSegmentMin = FMath::Min3(FVector2D::DotProduct(A, SeparatingAxis), FVector2D::DotProduct(B, SeparatingAxis), FVector2D::DotProduct(C, SeparatingAxis));
+			float TriangleSegmentMax = FMath::Max3(FVector2D::DotProduct(A, SeparatingAxis), FVector2D::DotProduct(B, SeparatingAxis), FVector2D::DotProduct(C, SeparatingAxis));
+
+			if (AabbSegmentMin > TriangleSegmentMax || AabbSegmentMax < TriangleSegmentMax)
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	int32 FindFirstTriangle(const FBox2D& InUvBox, FVector& BarycentricCoord) const
+	{
+		int32 FoundTriangleIndex = INDEX_NONE;
+		const FVector2D NormalizeScale = FVector2D(1.0f, 1.0f) / (InUvBox.Max - InUvBox.Min);
+		const FVector2D NormalizeBias = FVector2D(1.0f, 1.0f) - InUvBox.Max * NormalizeScale;
+		const FVector UvRef = FVector(InUvBox.GetCenter(), 0.0f);
+
+		QuadTree.VisitElements(InUvBox, [&](int32 TriangleIndex)
+		{
+			const FVector2D A = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer.Get(TriangleIndex * 3 + 0), UvSetIndex);
+			const FVector2D B = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer.Get(TriangleIndex * 3 + 1), UvSetIndex);
+			const FVector2D C = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer.Get(TriangleIndex * 3 + 2), UvSetIndex);
+
+			// evaluate if the triangle overlaps with the InUvBox
+			if (!NormalizedAabbTriangleOverlap(NormalizeScale * A + NormalizeBias, NormalizeScale * B + NormalizeBias, NormalizeScale * C + NormalizeBias))
+			{
+				return true;
+			}
+
+			BarycentricCoord = FMath::GetBaryCentric2D(UvRef, FVector(A, 0.0f), FVector(B, 0.0f), FVector(C, 0.0f));
+			FoundTriangleIndex = TriangleIndex;
+			return false;
+		});
+
+		return FoundTriangleIndex;
+	}
+};
+
 FSkeletalMeshUvMappingHandle::FSkeletalMeshUvMappingHandle()
 	: UvMappingData(nullptr)
 {
@@ -155,32 +284,43 @@ FSkeletalMeshUvMapping::FSkeletalMeshUvMapping(TWeakObjectPtr<USkeletalMesh> InM
 {
 }
 
+template<bool UseFullPrecisionUv>
+static void BuildQuadTreeHelper(FNiagaraUvQuadTree& QuadTree, const FSkeletalMeshLODRenderData* LodRenderData, int32 UvSetIndex)
+{
+	FSkelMeshVertexAccessor<UseFullPrecisionUv> MeshVertexAccessor;
+	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodRenderData->MultiSizeIndexContainer.GetIndexBuffer();
+	const int32 TriangleCount = IndexBuffer->Num() / 3;
+
+	for (int32 TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
+	{
+		const FVector2D UVs[] =
+		{
+			MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIt * 3 + 0), UvSetIndex),
+			MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIt * 3 + 1), UvSetIndex),
+			MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIt * 3 + 2), UvSetIndex),
+		};
+
+		// we want to skip degenerate triangles
+		if (FMath::Abs((UVs[1] - UVs[0]) ^ (UVs[2] - UVs[0])) < SMALL_NUMBER)
+		{
+			continue;
+		}
+
+		QuadTree.Insert(TriangleIt, FBox2D(UVs, UE_ARRAY_COUNT(UVs)));
+	}
+}
+
 void FSkeletalMeshUvMapping::BuildQuadTree()
 {
 	if (const FSkeletalMeshLODRenderData* LodRenderData = GetLodRenderData())
 	{
-		FString DumpPath = FPaths::ProjectSavedDir() / TEXT("Meshes") / FDateTime::Now().ToString();
-
-		FSkelMeshVertexAccessor<false> MeshVertexAccessor;
-		const FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodRenderData->MultiSizeIndexContainer.GetIndexBuffer();
-		const int32 TriangleCount = IndexBuffer->Num() / 3;
-
-		for (int32 TriangleIt = 0; TriangleIt < TriangleCount; ++TriangleIt)
+		if (LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
 		{
-			const FVector2D UVs[] =
-			{
-				MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIt * 3 + 0), UvSetIndex),
-				MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIt * 3 + 1), UvSetIndex),
-				MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIt * 3 + 2), UvSetIndex),
-			};
-
-			// we want to skip degenerate triangles
-			if (FMath::Abs((UVs[1] - UVs[0]) ^ (UVs[2] - UVs[0])) < SMALL_NUMBER)
-			{
-				continue;
-			}
-
-			TriangleIndexQuadTree.Insert(TriangleIt, FBox2D(UVs, UE_ARRAY_COUNT(UVs)));
+			BuildQuadTreeHelper<true>(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
+		}
+		else
+		{
+			BuildQuadTreeHelper<false>(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
 		}
 	}
 }
@@ -271,41 +411,21 @@ bool FSkeletalMeshUvMapping::Matches(const TWeakObjectPtr<USkeletalMesh>& InMesh
 	return LodIndex == InLodIndex && MeshObject == InMeshObject && UvSetIndex == InUvSetIndex;
 }
 
-static FVector BuildTriangleCoordinate(const FSkeletalMeshLODRenderData& LodRenderData, const FVector2D& InUv, int32 InTriangleIndex, int32 InUvSetIndex)
-{
-	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodRenderData.MultiSizeIndexContainer.GetIndexBuffer();
-	const FSkelMeshVertexAccessor<false> MeshVertexAccessor;
-
-	const FVector VertexUvs[] =
-	{
-		FVector(MeshVertexAccessor.GetVertexUV(&LodRenderData, IndexBuffer->Get(InTriangleIndex * 3 + 0), InUvSetIndex), 0.0f),
-		FVector(MeshVertexAccessor.GetVertexUV(&LodRenderData, IndexBuffer->Get(InTriangleIndex * 3 + 1), InUvSetIndex), 0.0f),
-		FVector(MeshVertexAccessor.GetVertexUV(&LodRenderData, IndexBuffer->Get(InTriangleIndex * 3 + 2), InUvSetIndex), 0.0f),
-	};
-
-	return FMath::GetBaryCentric2D(FVector(InUv, 0.0f), VertexUvs[0], VertexUvs[1], VertexUvs[2]);
-}
-
 void FSkeletalMeshUvMapping::FindOverlappingTriangles(const FVector2D& InUv, float Tolerance, TArray<int32>& TriangleIndices) const
 {
 	TriangleIndices.Empty();
 
 	if (const FSkeletalMeshLODRenderData* LodRenderData = GetLodRenderData())
 	{
-		TArray<int32, TInlineAllocator<32>> Elements;
-
-		FBox2D UvBox(InUv, InUv);
-		TriangleIndexQuadTree.GetElements(UvBox, Elements);
-
-		for (int32 TriangleIndex : Elements)
+		if (LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
 		{
-			// generate the barycentric coordinates using the UVs of the triangle, the result may not be in the (0,1) range
-			const FVector BarycentricCoord = BuildTriangleCoordinate(*LodRenderData, InUv, TriangleIndex, UvSetIndex);
-
-			if ((BarycentricCoord.GetMin() > -Tolerance) && (BarycentricCoord.GetMax() < (1.0f + Tolerance)))
-			{
-				TriangleIndices.Add(TriangleIndex);
-			}
+			FQuadTreeQueryHelper<true> QueryHelper(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
+			QueryHelper.FindOverlappingTriangle(InUv, Tolerance, TriangleIndices);
+		}
+		else
+		{
+			FQuadTreeQueryHelper<false> QueryHelper(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
+			QueryHelper.FindOverlappingTriangle(InUv, Tolerance, TriangleIndices);
 		}
 	}
 }
@@ -314,89 +434,35 @@ int32 FSkeletalMeshUvMapping::FindFirstTriangle(const FVector2D& InUv, float Tol
 {
 	if (const FSkeletalMeshLODRenderData* LodRenderData = GetLodRenderData())
 	{
-		int32 FoundTriangleIndex = INDEX_NONE;
-
-		TriangleIndexQuadTree.VisitElements(FBox2D(InUv, InUv), [&](int32 TriangleIndex)
+		if (LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
 		{
-			// generate the barycentric coordinates using the UVs of the triangle, the result may not be in the (0,1) range
-			FVector ElementCoord = BuildTriangleCoordinate(*LodRenderData, InUv, TriangleIndex, UvSetIndex);
-
-			if ((ElementCoord.GetMin() > -Tolerance) && (ElementCoord.GetMax() < (1.0f + Tolerance)))
-			{
-				FoundTriangleIndex = TriangleIndex;
-				BarycentricCoord = ElementCoord;
-				return false;
-			}
-
-			return false;
-		});
-
-		return FoundTriangleIndex;
-	}
-
-	return INDEX_NONE;
-}
-
-static bool NormalizedAabbTriangleOverlap(const FVector2D& A, const FVector2D& B, const FVector2D& C)
-{
-	const FVector2D TriAabbMin = FVector2D(FMath::Min3(A.X, B.X, C.X), FMath::Min3(A.Y, B.Y, C.Y));
-	const FVector2D TriAabbMax = FVector2D(FMath::Max3(A.X, B.X, C.X), FMath::Max3(A.Y, B.Y, C.Y));
-
-	if (TriAabbMin.GetMax() > 1.0f || TriAabbMax.GetMin() < 0.0f)
-	{
-		return false;
-	}
-
-	const FVector2D TriangleEdges[] = { C - B, A - C, B - A };
-
-	for (int32 i = 0; i < UE_ARRAY_COUNT(TriangleEdges); ++i)
-	{
-		const FVector2D SeparatingAxis(-TriangleEdges[i].Y, TriangleEdges[i].X);
-		float AabbSegmentMin = FMath::Min(0.0f, FMath::Min3(SeparatingAxis.X, SeparatingAxis.Y, SeparatingAxis.X + SeparatingAxis.Y));
-		float AabbSegmentMax = FMath::Max(0.0f, FMath::Max3(SeparatingAxis.X, SeparatingAxis.Y, SeparatingAxis.X + SeparatingAxis.Y));
-		float TriangleSegmentMin = FMath::Min3(FVector2D::DotProduct(A, SeparatingAxis), FVector2D::DotProduct(B, SeparatingAxis), FVector2D::DotProduct(C, SeparatingAxis));
-		float TriangleSegmentMax = FMath::Max3(FVector2D::DotProduct(A, SeparatingAxis), FVector2D::DotProduct(B, SeparatingAxis), FVector2D::DotProduct(C, SeparatingAxis));
-
-		if (AabbSegmentMin > TriangleSegmentMax || AabbSegmentMax < TriangleSegmentMax)
+			FQuadTreeQueryHelper<true> QueryHelper(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
+			return QueryHelper.FindFirstTriangle(InUv, Tolerance, BarycentricCoord);
+		}
+		else
 		{
-			return false;
+			FQuadTreeQueryHelper<false> QueryHelper(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
+			return QueryHelper.FindFirstTriangle(InUv, Tolerance, BarycentricCoord);
 		}
 	}
 
-	return true;
+	return INDEX_NONE;
 }
 
 int32 FSkeletalMeshUvMapping::FindFirstTriangle(const FBox2D& InUvBox, FVector& BarycentricCoord) const
 {
 	if (const FSkeletalMeshLODRenderData* LodRenderData = GetLodRenderData())
 	{
-		const FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodRenderData->MultiSizeIndexContainer.GetIndexBuffer();
-		const FSkelMeshVertexAccessor<false> MeshVertexAccessor;
-
-		int32 FoundTriangleIndex = INDEX_NONE;
-		const FVector2D NormalizeScale = FVector2D(1.0f, 1.0f) / (InUvBox.Max - InUvBox.Min);
-		const FVector2D NormalizeBias = FVector2D(1.0f, 1.0f) - InUvBox.Max * NormalizeScale;
-		const FVector UvRef = FVector(InUvBox.GetCenter(), 0.0f);
-
-		TriangleIndexQuadTree.VisitElements(InUvBox, [&](int32 TriangleIndex)
+		if (LodRenderData->StaticVertexBuffers.StaticMeshVertexBuffer.GetUseFullPrecisionUVs())
 		{
-			const FVector2D A = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIndex * 3 + 0), UvSetIndex);
-			const FVector2D B = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIndex * 3 + 1), UvSetIndex);
-			const FVector2D C = MeshVertexAccessor.GetVertexUV(LodRenderData, IndexBuffer->Get(TriangleIndex * 3 + 2), UvSetIndex);
-
-			// evaluate if the triangle overlaps with the InUvBox
-			if (!NormalizedAabbTriangleOverlap(NormalizeScale * A + NormalizeBias, NormalizeScale * B + NormalizeBias, NormalizeScale * C + NormalizeBias))
-			{
-				return true;
-			}
-
-			BarycentricCoord = FMath::GetBaryCentric2D(UvRef, FVector(A, 0.0f), FVector(B, 0.0f), FVector(C, 0.0f));
-			FoundTriangleIndex = TriangleIndex;
-			return false;
-		});
-
-		return FoundTriangleIndex;
-
+			FQuadTreeQueryHelper<true> QueryHelper(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
+			return QueryHelper.FindFirstTriangle(InUvBox, BarycentricCoord);
+		}
+		else
+		{
+			FQuadTreeQueryHelper<false> QueryHelper(TriangleIndexQuadTree, LodRenderData, UvSetIndex);
+			return QueryHelper.FindFirstTriangle(InUvBox, BarycentricCoord);
+		}
 	}
 
 	return INDEX_NONE;
