@@ -6860,8 +6860,9 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 			}
 		}
 	}
+	//Only test if none are selected if we are not transacting, otherwise it will clear out control rig's incorrectly.
 
-	if (!bAllAlreadySelected || (NodesToSelect.Num() == 0 && Selection.GetSelectedOutlinerNodes().Num()))
+	if (!bAllAlreadySelected || (!GIsTransacting && (NodesToSelect.Num() == 0 && Selection.GetSelectedOutlinerNodes().Num())))
 	{
 		Selection.SuspendBroadcast();
 		Selection.EmptySelectedOutlinerNodes();
