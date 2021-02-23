@@ -87,7 +87,7 @@ public:
 
 	void Reset();
 
-	bool IsReadyToSimulate();
+	bool IsReadyToSimulate() const;
 
 	//
 	// set input / get output at runtime
@@ -106,6 +106,10 @@ public:
 
 	void GetBoneGlobalTransform(const int32 Index, FTransform& OutTransform);
 
+	int32 GetNumBones() const { return Bones.Num(); }
+
+	int32 GetBoneIndex(FName BoneName) const;
+
 	//
 	// pre-init /  setup functions
 	//
@@ -115,8 +119,7 @@ public:
 		const int32 ParentIndex,
 		const FVector& InOrigPosition,
 		const FQuat& InOrigRotation,
-		bool bIsSolverRoot,
-		const int& InElementIndex = INDEX_NONE);
+		bool bIsSolverRoot);
 
 	int32 AddEffector(FName BoneName);
 	
@@ -142,5 +145,4 @@ private:
 	
 	PBIK::FDebugDraw DebugDraw;
 	friend PBIK::FDebugDraw;
-	friend struct FRigUnit_PBIK;
 };

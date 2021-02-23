@@ -11,8 +11,7 @@ FBone::FBone(
 	const int& InParentIndex,		// must pass -1 for root of whole skeleton
 	const FVector& InOrigPosition,
 	const FQuat& InOrigRotation,
-	bool bInIsSolverRoot,
-	const int& InElementIndex)
+	bool bInIsSolverRoot)
 {
 	Name = InName;
 	ParentIndex = InParentIndex;
@@ -20,7 +19,6 @@ FBone::FBone(
 	Rotation = InOrigRotation;
 	bIsSolverRoot = bInIsSolverRoot;
 	bIsSolved = false; // default
-	ElementIndex = InElementIndex;
 }
 
 bool FBone::HasChild(const FBone* Bone)
@@ -89,7 +87,7 @@ int FRigidBody::GetNumBonesToRoot() const
 	return NumBonesToRoot; 
 }
 
-FRigidBody* FRigidBody::GetParentBody()
+FRigidBody* FRigidBody::GetParentBody() const
 {
 	if (Bone && Bone->Parent)
 	{

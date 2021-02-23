@@ -18,8 +18,7 @@ struct FEffector;
 struct FBone
 {
 	FName Name;
-	int ElementIndex = INDEX_NONE; // used to map to the element this bone references
-	int ParentIndex = -2; // -2 is unset, -1 for root, or 0...n otherwise
+	int32 ParentIndex = -2; // -2 is unset, -1 for root, or 0...n otherwise
 	bool bIsSolverRoot = false;
 	bool bIsSolved = false;
 	bool bIsSubRoot = false;
@@ -36,11 +35,10 @@ struct FBone
 
 	FBone(
 		const FName InName,
-		const int& InParentIndex,		// must pass -1 for root of whole skeleton
+		const int32& InParentIndex,		// must pass -1 for root of whole skeleton
 		const FVector& InOrigPosition,
 		const FQuat& InOrigRotation,
-		bool bInIsSolverRoot,
-		const int& InElementIndex = INDEX_NONE);
+		bool bInIsSolverRoot);
 
 	bool HasChild(const FBone* Bone);
 };
@@ -90,7 +88,7 @@ struct FRigidBody
 	
 private:
 
-	int NumBonesToRoot = 0;
+	int32 NumBonesToRoot = 0;
 
 public:
 
@@ -102,7 +100,7 @@ public:
 
 	int GetNumBonesToRoot() const;
 
-	FRigidBody* GetParentBody();
+	FRigidBody* GetParentBody() const;
 
 	void ApplyPushToRotateBody(const FVector& Push, const FVector& Offset);
 	

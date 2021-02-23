@@ -57,9 +57,9 @@ public:
 
 private:
 
-	FVector GetPositionCorrection(FVector& OutBodyToA, FVector& OutBodyToB);
+	FVector GetPositionCorrection(FVector& OutBodyToA, FVector& OutBodyToB) const;
 
-	void ApplyRotationCorrection(FQuat PureRotA, FQuat PureRotB);
+	void ApplyRotationCorrection(FQuat PureRotA, FQuat PureRotB) const;
 
 	void UpdateJointLimits();
 
@@ -69,7 +69,7 @@ private:
 		float CurrentAngle,
 		FVector RotAxis,
 		FVector CurVec,
-		FVector RefVec);
+		FVector RefVec) const;
 
 	void UpdateLocalRotateAxes(bool bX, bool bY, bool bZ);
 

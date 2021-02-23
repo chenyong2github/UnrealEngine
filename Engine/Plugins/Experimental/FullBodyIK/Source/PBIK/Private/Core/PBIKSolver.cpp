@@ -53,19 +53,19 @@ namespace PBIK
 		// if the the parent sub-root is attached to an effector, use the effector's position
 		// otherwise use the current position of the FRigidBody
 		FEffector* ParentEffector = ParentSubRoot->AttachedEffector;
-		FVector ParentSubRootPosition = ParentEffector ? ParentEffector->Position : ParentSubRoot->Position;
-		float DistToNearestSubRoot = (ParentSubRootPosition - Position).Size();
+		const FVector ParentSubRootPosition = ParentEffector ? ParentEffector->Position : ParentSubRoot->Position;
+		const float DistToNearestSubRoot = (ParentSubRootPosition - Position).Size();
 		if (DistToNearestSubRoot >= DistToSubRootOrig)
 		{
 			return; // limb is stretched
 		}
 
 		// shrink distance to reach full blend to preferred angle
-		float ScaledDistOrig = DistToSubRootOrig * 0.3f;
+		const float ScaledDistOrig = DistToSubRootOrig * 0.3f;
 		// amount squashed (clamped to scaled original length)
 		float DeltaSquash = DistToSubRootOrig - DistToNearestSubRoot;
 		DeltaSquash = DeltaSquash > ScaledDistOrig ? ScaledDistOrig : DeltaSquash;
-		float SquashPercent = DeltaSquash / ScaledDistOrig;
+		const float SquashPercent = DeltaSquash / ScaledDistOrig;
 		if (SquashPercent < 0.01f)
 		{
 			return; // limb not squashed enough
@@ -76,7 +76,6 @@ namespace PBIK
 		{
 			if (Parent->Body->J.bUsePreferredAngles)
 			{
-				FRotator Clamped = Parent->Body->J.PreferredAngles;
 				FQuat PartialRotation = FQuat::FastLerp(FQuat::Identity, FQuat(Parent->Body->J.PreferredAngles), SquashPercent);
 				Parent->Body->Rotation = Parent->Body->Rotation * PartialRotation;
 				Parent->Body->Rotation.Normalize();
@@ -150,7 +149,7 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 	// run constraint iterations while allowing stretch, just to get reaching pose
 	for (int32  I = 0; I < Settings.Iterations; ++I)
 	{
-		bool bMoveSubRoots = true;
+		const bool bMoveSubRoots = true;
 		for (auto Constraint : Constraints)
 		{
 			Constraint->Solve(bMoveSubRoots);
@@ -171,7 +170,7 @@ void FPBIKSolver::Solve(const FPBIKSolverSettings& Settings)
 
 		for (int32  I = 0; I < Settings.Iterations; ++I)
 		{
-			bool bMoveSubRoots = false;
+			const bool bMoveSubRoots = false;
 			for (auto Constraint : Constraints)
 			{
 				Constraint->Solve(bMoveSubRoots);
@@ -288,7 +287,7 @@ bool FPBIKSolver::InitBones()
 		}
 
 		// validate parent
-		bool bIndexInRange = Bone.ParentIndex >= 0 && Bone.ParentIndex < Bones.Num();
+		const bool bIndexInRange = Bone.ParentIndex >= 0 && Bone.ParentIndex < Bones.Num();
 		if (!ensureMsgf(bIndexInRange,
 			TEXT("PBIK: bone found with invalid parent index. Cannot initialize.")))
 		{
@@ -450,7 +449,7 @@ void FPBIKSolver::InitConstraints()
 	// this constraint is by default off in solver settings
 	if (!SolverRoot->Body->AttachedEffector) // only add if user hasn't added their own root effector
 	{
-		TSharedPtr<FPinConstraint> RootConstraint = MakeShared<FPinConstraint>(SolverRoot->Body, SolverRoot->Position);
+		const TSharedPtr<FPinConstraint> RootConstraint = MakeShared<FPinConstraint>(SolverRoot->Body, SolverRoot->Position);
 		Constraints.Add(RootConstraint);
 		RootPin = RootConstraint;
 	}
@@ -486,7 +485,7 @@ void FPBIKSolver::Reset()
 	Effectors.Empty();
 }
 
-bool FPBIKSolver::IsReadyToSimulate()
+bool FPBIKSolver::IsReadyToSimulate() const
 {
 	return bReadyToSimulate;
 }
@@ -496,10 +495,9 @@ int32 FPBIKSolver::AddBone(
 	const int32 ParentIndex,
 	const FVector& InOrigPosition,
 	const FQuat& InOrigRotation,
-	bool bIsSolverRoot,
-	const int& InElementIndex)
+	bool bIsSolverRoot)
 {
-	return Bones.Emplace(Name, ParentIndex, InOrigPosition, InOrigRotation, bIsSolverRoot, InElementIndex);
+	return Bones.Emplace(Name, ParentIndex, InOrigPosition, InOrigRotation, bIsSolverRoot);
 }
 
 int32 FPBIKSolver::AddEffector(FName BoneName)
@@ -553,6 +551,19 @@ void FPBIKSolver::GetBoneGlobalTransform(const int32 Index, FTransform& OutTrans
 	PBIK::FBone& Bone = Bones[Index];
 	OutTransform.SetLocation(Bone.Position);
 	OutTransform.SetRotation(Bone.Rotation);
+}
+
+int32 FPBIKSolver::GetBoneIndex(FName BoneName) const
+{
+	for (int32 B=0; B < Bones.Num(); ++B)
+	{
+		if (Bones[B].Name == BoneName)
+		{
+			return B;
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 void FPBIKSolver::SetEffectorGoal(
