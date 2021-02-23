@@ -431,37 +431,38 @@ void FChaosEngineInterface::WakeUp_AssumesLocked(const FPhysicsActorHandle& InAc
 
 void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bIsKinematic)
 {
+	using namespace Chaos;
 	{
-		const Chaos::EObjectStateType NewState
+		const EObjectStateType NewState
 			= bIsKinematic
-			? Chaos::EObjectStateType::Kinematic
-			: Chaos::EObjectStateType::Dynamic;
+			? EObjectStateType::Kinematic
+			: EObjectStateType::Dynamic;
 
 		bool AllowedToChangeToNewState = false;
 
 		switch(InActorReference->GetGameThreadAPI().ObjectState())
 		{
-		case Chaos::EObjectStateType::Kinematic:
+		case EObjectStateType::Kinematic:
 		// from kinematic we can only go dynamic
-		if(NewState == Chaos::EObjectStateType::Dynamic)
+		if(NewState == EObjectStateType::Dynamic)
 		{
 			AllowedToChangeToNewState = true;
 		}
 		break;
 
-		case Chaos::EObjectStateType::Dynamic:
+		case EObjectStateType::Dynamic:
 		// from dynamic we can go to sleeping or to kinematic
-		if(NewState == Chaos::EObjectStateType::Kinematic)
+		if(NewState == EObjectStateType::Kinematic)
 		{
 			AllowedToChangeToNewState = true;
 		}
 		break;
 
-		case Chaos::EObjectStateType::Sleeping:
+		case EObjectStateType::Sleeping:
 		// this case was not allowed from CL 10506092, but it needs to in order for
 		// FBodyInstance::SetInstanceSimulatePhysics to work on dynamic bodies which
 		// have fallen asleep.
-		if (NewState == Chaos::EObjectStateType::Kinematic)
+		if (NewState == EObjectStateType::Kinematic)
 		{
 			AllowedToChangeToNewState = true;
 		}
@@ -471,6 +472,12 @@ void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHand
 		if(AllowedToChangeToNewState)
 		{
 			InActorReference->GetGameThreadAPI().SetObjectState(NewState);
+			//we mark as full resim only if going from kinematic to simulated
+			//going from simulated to kinematic we assume user is doing some optimization so we leave it up to them
+			if(NewState == EObjectStateType::Dynamic)
+			{
+				InActorReference->GetGameThreadAPI().SetResimType(EResimType::FullResim);
+			}
 		}
 	}
 }
@@ -1504,30 +1511,33 @@ int32 FChaosEngineInterface::GetAllShapes_AssumedLocked(const FPhysicsActorHandl
 void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPhysicsActorHandle& Handle)
 {
 	LLM_SCOPE(ELLMTag::Chaos);
+	using namespace Chaos;
 
-	TUniquePtr<Chaos::FGeometryParticle> Particle;
+	TUniquePtr<FGeometryParticle> Particle;
 	// Set object state based on the requested particle type
 	if(InParams.bStatic)
 	{
-		Particle = Chaos::FGeometryParticle::CreateParticle();
+		Particle = FGeometryParticle::CreateParticle();
 	}
 	else
 	{
 		// Create an underlying dynamic particle
-		TUniquePtr<Chaos::TPBDRigidParticle<float,3>> Rigid = Chaos::TPBDRigidParticle<float,3>::CreateParticle();
+		TUniquePtr<TPBDRigidParticle<float,3>> Rigid = TPBDRigidParticle<float,3>::CreateParticle();
 		Rigid->SetGravityEnabled(InParams.bEnableGravity);
 		if(InParams.bSimulatePhysics)
 		{
 			if(InParams.bStartAwake)
 			{
-				Rigid->SetObjectState(Chaos::EObjectStateType::Dynamic);
+				Rigid->SetObjectState(EObjectStateType::Dynamic);
 			} else
 			{
-				Rigid->SetObjectState(Chaos::EObjectStateType::Sleeping);
+				Rigid->SetObjectState(EObjectStateType::Sleeping);
 			}
+			Rigid->SetResimType(EResimType::FullResim);
 		} else
 		{
-			Rigid->SetObjectState(Chaos::EObjectStateType::Kinematic);
+			Rigid->SetObjectState(EObjectStateType::Kinematic);
+			Rigid->SetResimType(EResimType::ResimAsSlave);	//for now kinematics are never changed during resim
 		}
 		//Particle.Reset(Rigid.Release());
 		Particle = MoveTemp(Rigid);
