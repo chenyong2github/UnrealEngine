@@ -508,10 +508,15 @@ void FDefaultGameMoviePlayer::WaitForMovieToFinish(bool bAllowEngineTick)
 					}
 				);
 				
-				SlateApp.Tick();
+				{
+					FSlateRenderer* SlateRenderer = SlateApp.GetRenderer();
+					FScopeLock ScopeLock(SlateRenderer->GetResourceCriticalSection());
 
-				// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
-				SlateApp.GetRenderer()->Sync();
+					SlateApp.Tick();
+
+					// Synchronize the game thread and the render thread so that the render thread doesn't get too far behind.
+					SlateRenderer->Sync();
+				}
 
 				ENQUEUE_RENDER_COMMAND(FinishLoadingMovieFrame)(
 					[](FRHICommandListImmediate& RHICmdList)
