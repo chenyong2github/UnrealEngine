@@ -103,8 +103,17 @@ struct FMovieSceneEvaluationFieldEntityMetaData
 
 	friend bool operator==(const FMovieSceneEvaluationFieldEntityMetaData& A, const FMovieSceneEvaluationFieldEntityMetaData& B)
 	{
-		return A.ForcedTime == B.ForcedTime && A.InterrogationChannel == B.InterrogationChannel && A.Flags == B.Flags && A.bEvaluateInSequencePreRoll == B.bEvaluateInSequencePreRoll && A.bEvaluateInSequencePostRoll == B.bEvaluateInSequencePostRoll;
+		return A.ForcedTime == B.ForcedTime && 
+			A.InterrogationChannel == B.InterrogationChannel && 
+			A.Flags == B.Flags && 
+			A.bEvaluateInSequencePreRoll == B.bEvaluateInSequencePreRoll && 
+			A.bEvaluateInSequencePostRoll == B.bEvaluateInSequencePostRoll &&
+			A.OverrideBoundPropertyPath == B.OverrideBoundPropertyPath;
 	}
+
+	/** Opt-in - when this value is set, the entity should use this property path instead of the one defined on its generating section */
+	UPROPERTY()
+	FString OverrideBoundPropertyPath;
 
 	UPROPERTY()
 	FFrameNumber ForcedTime;
