@@ -103,6 +103,9 @@ struct FRenderAssetStreamingSettings
 	bool bStressTest;
 	static int32 ExtraIOLatency;
 
+	// Cached values of 
+	bool HighPriorityLoad_Texture[TEXTUREGROUP_MAX];
+
 protected:
 
 };

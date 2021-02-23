@@ -131,8 +131,11 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 
 	for ( int32 LODGroup=0; LODGroup < TEXTUREGROUP_MAX; ++LODGroup )
 	{
-		const FTextureLODGroup& TexGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(TextureGroup(LODGroup));
+		const TextureGroup TextureLODGroup = (TextureGroup)LODGroup;
+		const FTextureLODGroup& TexGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(TextureLODGroup);
 		NumStreamedMips_Texture[LODGroup] = TexGroup.NumStreamedMips;
+		// For compatibility reason, Character groups are always loaded with higher priority
+		Settings.HighPriorityLoad_Texture[LODGroup] = TexGroup.HighPriorityLoad || TextureLODGroup == TEXTUREGROUP_Character || TextureLODGroup == TEXTUREGROUP_CharacterSpecular || TextureLODGroup == TEXTUREGROUP_CharacterNormalMap;
 	}
 
 	// TODO: NumStreamedMips_StaticMesh, NumStreamedMips_SkeletalMesh, NumStreamedMips_LandscapeMeshMobile

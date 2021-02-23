@@ -67,10 +67,15 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 		if (IsTexture())
 		{
+			if (!ensureMsgf(FMath::IsWithin<int32>(LODGroup, 0, TEXTUREGROUP_MAX), TEXT("Invalid LODGroup %d for %s"), LODGroup, *RenderAsset->GetName()))
+			{
+				LODGroup = 0;
+			}
+
 			check(ResourceState.MaxNumLODs <= UE_ARRAY_COUNT(CumulativeLODSizes));
 			const TextureGroup TextureLODGroup = static_cast<TextureGroup>(LODGroup);
 			BoostFactor = GetExtraBoost(TextureLODGroup, Settings);
-			bIsCharacterTexture = (TextureLODGroup == TEXTUREGROUP_Character || TextureLODGroup == TEXTUREGROUP_CharacterSpecular || TextureLODGroup == TEXTUREGROUP_CharacterNormalMap);
+			bLoadWithHigherPriority = Settings.HighPriorityLoad_Texture[LODGroup];
 			bIsTerrainTexture = (TextureLODGroup == TEXTUREGROUP_Terrain_Heightmap || TextureLODGroup == TEXTUREGROUP_Terrain_Weightmap);
 		}
 		else
@@ -80,7 +85,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 
 			// Default boost value .71 is too small for meshes
 			BoostFactor = 1.f;
-			bIsCharacterTexture = false;
+			bLoadWithHigherPriority = false;
 			bIsTerrainTexture = false;
 			if (RenderAssetType == EStreamableRenderAssetType::StaticMesh)
 			{
@@ -141,7 +146,7 @@ void FStreamingRenderAsset::UpdateStaticData(const FRenderAssetStreamingSettings
 		OptionalMipsState = EOptionalMipsState::OMS_NoOptionalMips;
 		OptionalFileHash = INVALID_IO_FILENAME_HASH;
 
-		bIsCharacterTexture = false;
+		bLoadWithHigherPriority = false;
 		bIsTerrainTexture = false;
 	}
 }
@@ -375,7 +380,7 @@ int64 FStreamingRenderAsset::UpdateRetentionPriority_Async(bool bPrioritizeMesh)
 		if (bShouldKeep)						RetentionPriority += 2048; // Keep forced fully load as much as possible.
 		if (bIsVisible)							RetentionPriority += 1024; // Keep visible things as much as possible.
 		if (!bIsHuge)							RetentionPriority += 512; // Drop high resolution which usually target ultra close range quality.
-		if (bIsCharacterTexture || bIsSmall)	RetentionPriority += 256; // Try to keep character of small texture as they don't pay off.
+		if (bLoadWithHigherPriority || bIsSmall)	RetentionPriority += 256; // Try to keep character of small texture as they don't pay off.
 		if (!bIsVisible)						RetentionPriority += FMath::Clamp<int32>(255 - (int32)LastRenderTime, 1, 255); // Keep last visible first.
 
 		return GetSize(BudgetedMips);
@@ -483,7 +488,7 @@ bool FStreamingRenderAsset::UpdateLoadOrderPriority_Async(int32 MinMipForSplitRe
 	if (RenderAsset && WantedMips != RequestedMips)
 	{
 		const bool bIsVisible			= ResidentMips < VisibleWantedMips; // Otherwise it means we are loading mips that are only useful for non visible primitives.
-		const bool bMustLoadFirst		= bForceFullyLoadHeuristic || bIsTerrainTexture || bIsCharacterTexture;
+		const bool bMustLoadFirst		= bForceFullyLoadHeuristic || bIsTerrainTexture || bLoadWithHigherPriority;
 		const bool bMipIsImportant		= WantedMips - ResidentMips > (bLooksLowRes ? 1 : 2);
 
 		if (bIsVisible)				LoadOrderPriority += 1024;
@@ -551,7 +556,7 @@ void FStreamingRenderAsset::StreamWantedMips_Internal(FRenderAssetStreamingManag
 			}
 			else // WantedMips > ResidentMips
 			{
-				const bool bShouldPrioritizeAsyncIORequest = (bLocalForceFullyLoadHeuristic || bIsTerrainTexture || bIsCharacterTexture) && LocalWantedMips <= LocalVisibleWantedMips;
+				const bool bShouldPrioritizeAsyncIORequest = (bLocalForceFullyLoadHeuristic || bIsTerrainTexture || bLoadWithHigherPriority) && LocalWantedMips <= LocalVisibleWantedMips;
 				RenderAsset->StreamIn(LocalWantedMips, bShouldPrioritizeAsyncIORequest);
 			}
 			UpdateStreamingStatus(false);

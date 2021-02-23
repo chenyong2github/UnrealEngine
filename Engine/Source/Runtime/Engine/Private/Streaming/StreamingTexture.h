@@ -258,8 +258,8 @@ struct FStreamingRenderAsset
 	/** (2) Cached state on disk of the optional mips for this streaming texture */
 	EOptionalMipsState	OptionalMipsState;
 
-	/** (1) Whether the texture is ready to be streamed in/out (cached from IsReadyForStreaming()). */
-	uint32			bIsCharacterTexture : 1;
+	/** (1) Whether the texture is loaded with higher priority. */
+	uint32			bLoadWithHigherPriority : 1;
 	/** (1) Whether the texture should be forcibly fully loaded. */
 	uint32			bIsTerrainTexture : 1;
 
