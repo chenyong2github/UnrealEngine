@@ -884,6 +884,8 @@ void AActor::SetPackageExternal(bool bExternal, bool bShouldDirty)
 			ActorComponent->SetPackageExternal(bExternal, bShouldDirty);
 		}
 	}
+
+	OnPackagingModeChanged.Broadcast(this, bExternal);
 	
 	// Mark the new actor package dirty
 	MarkPackageDirty();

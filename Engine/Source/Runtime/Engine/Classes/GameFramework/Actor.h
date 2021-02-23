@@ -93,6 +93,10 @@ DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FActorEndPlaySignature, AAct
 
 DECLARE_DELEGATE_SixParams(FMakeNoiseDelegate, AActor*, float /*Loudness*/, class APawn*, const FVector&, float /*MaxRange*/, FName /*Tag*/);
 
+#if WITH_EDITOR
+DECLARE_EVENT_TwoParams(AActor, FActorOnPackagingModeChanged, AActor*, bool /* bExternal */);
+#endif
+
 #if !UE_BUILD_SHIPPING
 DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnProcessEvent, AActor*, UFunction*, void*);
 #endif
@@ -805,6 +809,8 @@ public:
 	 * @param bShouldDirty should dirty or not the level package
 	 */
 	void SetPackageExternal(bool bExternal, bool bShouldDirty = true);
+
+	FActorOnPackagingModeChanged OnPackagingModeChanged;
 
 	/**
 	 * Determine how this actor should be placed in the partition (meant to be called on the default object).
