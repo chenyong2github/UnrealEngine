@@ -55,6 +55,10 @@ public:
 	void ResetOnProcessShaderCompilationQueue(FDelegateHandle DelegateHandle);
 	void ProcessShaderCompilationQueue();
 
+#if WITH_NIAGARA_DEBUGGER
+	FNiagaraDebuggerClient* GetDebuggerClient() { return DebuggerClient.Get(); }
+#endif
+
 #if WITH_EDITOR
 	const INiagaraMergeManager& GetMergeManager() const;
 

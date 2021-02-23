@@ -7,9 +7,117 @@ All common code shared between the editor side debugger and debugger clients run
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NiagaraTypes.h"
+#include "NiagaraCommon.h"
 #include "NiagaraDebuggerCommon.generated.h"
 
 #define WITH_NIAGARA_DEBUGGER !UE_BUILD_SHIPPING
+
+//////////////////////////////////////////////////////////////////////////
+// Niagara Outliner.
+
+USTRUCT()
+struct FNiagaraOutlinerEmitterInstanceData
+{
+	GENERATED_BODY()
+
+	//Name of this emitter.
+	UPROPERTY(VisibleAnywhere, Category = "Emitter")
+	FString EmitterName; //TODO: Move to shared asset representation.
+
+	UPROPERTY(VisibleAnywhere, Category = "Emitter")
+	ENiagaraSimTarget SimTarget = ENiagaraSimTarget::CPUSim; //TODO: Move to shared asset representation.
+
+	UPROPERTY(VisibleAnywhere, Category = "Emitter")
+	ENiagaraExecutionState ExecState = ENiagaraExecutionState::Num;
+	
+	UPROPERTY(VisibleAnywhere, Category = "Emitter")
+	int32 NumParticles = 0;
+
+	//Mem Usage?
+	//Scalability info?
+};
+
+/** Outliner information on a specific system instance. */
+USTRUCT()
+struct FNiagaraOutlinerSystemInstanceData
+{
+	GENERATED_BODY()
+	
+	/** Name of the component object for this instance, if there is one. */
+	UPROPERTY(VisibleAnywhere, Category = "System")
+	FString ComponentName;
+	
+	UPROPERTY(VisibleAnywhere, Category = "System")
+	ENiagaraExecutionState ActualExecutionState = ENiagaraExecutionState::Num;
+
+	UPROPERTY(VisibleAnywhere, Category = "System")
+	ENiagaraExecutionState RequestedExecutionState = ENiagaraExecutionState::Num;
+	
+	UPROPERTY(VisibleAnywhere, Category = "System")
+	TArray<FNiagaraOutlinerEmitterInstanceData> Emitters;
+	
+	UPROPERTY(VisibleAnywhere, Category = "System")
+	FNiagaraScalabilityState ScalabilityState;
+	
+	UPROPERTY(VisibleAnywhere, Category = "System")
+	uint32 bPendingKill : 1;
+
+	//TODO:
+	//Tick info, solo, tick group etc.
+	//Scalability Info
+	//Perf data?
+	//Mem usage?
+};
+
+/** Wrapper for array of system instance outliner data so that it can be placed in a map. */
+USTRUCT()
+struct FNiagaraOutlinerSystemData
+{
+	GENERATED_BODY()
+
+	//TODO: Cache off any shared representation of the system and emitters here for the instances to reference. 
+
+	/** Map of System Instance data indexed by the UNiagaraSystem name. */
+	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	TArray<FNiagaraOutlinerSystemInstanceData> SystemInstances;
+};
+
+/** All information about a specific world for the Niagara Outliner. */
+USTRUCT()
+struct FNiagaraOutlinerWorldData
+{
+	GENERATED_BODY()
+
+	/** Map of System Instance data indexed by the UNiagaraSystem name. */
+	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	TMap<FString, FNiagaraOutlinerSystemData> Systems;
+
+	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	bool bHasBegunPlay = false;
+	
+	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	uint8 WorldType = INDEX_NONE;
+
+	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	uint8 NetMode = INDEX_NONE;
+
+	//Perf info?
+	//Mem Usage?
+};
+
+USTRUCT()
+struct FNiagaraOutlinerData
+{
+	GENERATED_BODY()
+
+	/** Map all world data indexed by the world name. */
+	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	TMap<FString, FNiagaraOutlinerWorldData> WorldData;
+};
+
+// Outliner END
+//////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////
 // Messages passed between the editor side debugger and the client. 
@@ -19,7 +127,7 @@ Messaged broadcast from debugger to request a connection to a particular session
 If any matching client is found and it accepts, it will return a FNiagaraDebuggerAcceptConnection message to the sender. 
 */
 USTRUCT()
-struct NIAGARACORE_API FNiagaraDebuggerRequestConnection
+struct NIAGARA_API FNiagaraDebuggerRequestConnection
 {
 	GENERATED_BODY()
 	
@@ -39,7 +147,7 @@ struct NIAGARACORE_API FNiagaraDebuggerRequestConnection
 
 /** Response message from the a debugger client accepting a connection requested by a FNiagaraDebuggerRequestConnection message. */
 USTRUCT()
-struct NIAGARACORE_API FNiagaraDebuggerAcceptConnection
+struct NIAGARA_API FNiagaraDebuggerAcceptConnection
 {
 	GENERATED_BODY()
 		
@@ -59,7 +167,7 @@ struct NIAGARACORE_API FNiagaraDebuggerAcceptConnection
 
 /** Empty message informing a debugger client that the debugger is closing the connection. */
 USTRUCT()
-struct NIAGARACORE_API FNiagaraDebuggerConnectionClosed
+struct NIAGARA_API FNiagaraDebuggerConnectionClosed
 {
 	GENERATED_BODY()
 	
@@ -79,7 +187,7 @@ struct NIAGARACORE_API FNiagaraDebuggerConnectionClosed
 
 /** Command that will execute a console command on the debugger client. */
 USTRUCT() 
-struct NIAGARACORE_API FNiagaraDebuggerExecuteConsoleCommand
+struct NIAGARA_API FNiagaraDebuggerExecuteConsoleCommand
 {
 	GENERATED_BODY()
 	
@@ -95,6 +203,18 @@ struct NIAGARACORE_API FNiagaraDebuggerExecuteConsoleCommand
 		: Command(InCommand)
 		, bRequiresWorld(bInRequiresWorld)
 	{}
+};
+
+/** Message containing updated outliner information sent from the client to the debugger. */
+USTRUCT()
+struct NIAGARA_API FNiagaraDebuggerOutlinerUpdate
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = "Message")
+	FNiagaraOutlinerData OutlinerData;
+
+	FNiagaraDebuggerOutlinerUpdate() { }
 };
 
 // End of messages.
@@ -130,7 +250,7 @@ enum class ENiagaraDebugHudFont
 };
 
 USTRUCT()
-struct NIAGARACORE_API FNiagaraDebugHUDVariable
+struct NIAGARA_API FNiagaraDebugHUDVariable
 {
 	GENERATED_BODY()
 		
@@ -147,7 +267,7 @@ struct NIAGARACORE_API FNiagaraDebugHUDVariable
 
 /** Settings for Niagara debug HUD. Contained in it's own struct so that we can pass it whole in a message to the debugger client. */
 USTRUCT()
-struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
+struct NIAGARA_API FNiagaraDebugHUDSettingsData
 {
 	GENERATED_BODY()
 
@@ -305,8 +425,15 @@ struct NIAGARACORE_API FNiagaraDebugHUDSettingsData
 	float LoopTime = 1.0f;
 };
 
+/** Message passed from debugger to client when it needs updated simple client info. */
+USTRUCT()
+struct NIAGARA_API FNiagaraRequestSimpleClientInfoMessage
+{
+	GENERATED_BODY()
+};
+
 UCLASS(config = EditorPerProjectUserSettings, defaultconfig)
-class NIAGARACORE_API UNiagaraDebugHUDSettings : public UObject
+class NIAGARA_API UNiagaraDebugHUDSettings : public UObject
 {
 	GENERATED_BODY()
 
@@ -321,4 +448,45 @@ public:
 	void PostEditChangeProperty();
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+};
+
+
+USTRUCT()
+struct NIAGARA_API FNiagaraOutlinerSettings
+{
+	GENERATED_BODY()
+
+	/** Press to trigger a single capture of Niagara data from the connected debugger client. */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bTriggerCapture = false;
+
+	/** Delay between pressing the capture button and the capture being taken. Allows time to influence the scene before a capture is taken. */
+	UPROPERTY(EditAnywhere, Config, Category = "Settings")
+	float CaptureDelay = 1.0f;
+
+	//TODO:
+	//Properties to control the capture? Optionally grab perf info etc.
+};
+
+/** Simple information on the connected client for use in continuous or immediate response UI elements. */
+USTRUCT()
+struct NIAGARA_API FNiagaraSimpleClientInfo
+{
+	GENERATED_BODY()
+
+	/** List of all system names in the scene. */
+	UPROPERTY(EditAnywhere, Category = "Info")
+	TArray<FString> Systems;
+
+	/** List of all actors with Niagara components. */
+	UPROPERTY(EditAnywhere, Category = "Info")
+	TArray<FString> Actors;
+	
+	/** List of all Niagara components. */
+	UPROPERTY(EditAnywhere, Category = "Info")
+	TArray<FString> Components;
+	
+	/** List of all Niagara emitters. */
+	UPROPERTY(EditAnywhere, Category = "Info")
+	TArray<FString> Emitters;
 };

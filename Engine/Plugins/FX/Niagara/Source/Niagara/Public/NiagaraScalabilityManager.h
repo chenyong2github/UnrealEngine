@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraEffectType.h"
+#include "NiagaraCommon.h"
 
 #include "NiagaraScalabilityManager.generated.h"
 
@@ -78,49 +79,6 @@ struct FNiagaraScopedRuntimeCycleCounter : public FNiagaraRuntimeCycleCounter
 	{
 		End();
 	}
-};
-
-struct FNiagaraScalabilityState
-{
-	FNiagaraScalabilityState()
-		: Significance(1.0f)
-		, bCulled(0)
-		, bPreviousCulled(0)
-#if DEBUG_SCALABILITY_STATE
-		, bCulledByDistance(0)
-		, bCulledByInstanceCount(0)
-		, bCulledByVisibility(0)
-#endif
-	{
-	}
-
-	FNiagaraScalabilityState(float InSignificance, bool InCulled, bool InPreviousCulled)
-		: Significance(InSignificance)
-		, bCulled(InCulled)
-		, bPreviousCulled(InPreviousCulled)
-#if DEBUG_SCALABILITY_STATE
-		, bCulledByDistance(0)
-		, bCulledByInstanceCount(0)
-		, bCulledByVisibility(0)
-#endif
-	{
-	}
-
-	bool IsDirty() const { return bCulled != bPreviousCulled; }
-	void Apply() { bPreviousCulled = bCulled; }
-
-	float Significance;
-	uint8 bCulled : 1;
-
-private:
-	uint8 bPreviousCulled : 1;
-
-public:
-#if DEBUG_SCALABILITY_STATE
-	uint8 bCulledByDistance : 1;
-	uint8 bCulledByInstanceCount : 1;
-	uint8 bCulledByVisibility : 1;
-#endif
 };
 
 struct FComponentIterationContext

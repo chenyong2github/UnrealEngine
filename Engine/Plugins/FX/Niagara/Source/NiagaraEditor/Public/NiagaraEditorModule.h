@@ -9,6 +9,7 @@
 #include "INiagaraCompiler.h"
 #include "AssetTypeCategories.h"
 #include "NiagaraPerfBaseline.h"
+#include "NiagaraDebuggerCommon.h"
 
 class IAssetTools;
 class IAssetTypeActions;
@@ -35,6 +36,7 @@ class INiagaraStackObjectIssueGenerator;
 class UNiagaraEffectType;
 class SNiagaraBaselineViewport;
 class FParticlePerfStatsListener_NiagaraBaselineComparisonRender;
+class FNiagaraDebugger;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -146,6 +148,10 @@ public:
 		}
 		return nullptr;
 	}
+
+#if WITH_NIAGARA_DEBUGGER
+	TSharedPtr<FNiagaraDebugger> GetDebugger(){ return Debugger; }
+#endif
 
 private:
 	class FDeferredDestructionContainerBase
@@ -278,5 +284,9 @@ private:
 
 	/** Viewport used when generating the performance baselines for Niagara systems. */
 	TSharedPtr<SNiagaraBaselineViewport> BaselineViewport;
+#endif
+
+#if WITH_NIAGARA_DEBUGGER
+	TSharedPtr<FNiagaraDebugger> Debugger;
 #endif
 };

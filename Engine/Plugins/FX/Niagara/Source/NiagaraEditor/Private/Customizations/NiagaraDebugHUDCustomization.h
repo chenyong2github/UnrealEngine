@@ -13,6 +13,7 @@ class FDetailWidgetRow;
 class IPropertyHandle;
 class IPropertyHandleArray;
 enum class ECheckBoxState : uint8;
+class FNiagaraDebugger;
 
 class FNiagaraDebugHUDVariableCustomization : public IPropertyTypeCustomization
 {
@@ -38,3 +39,25 @@ public:
 	TSharedPtr<IPropertyHandle> EnabledPropertyHandle;
 	TSharedPtr<IPropertyHandle> NamePropertyHandle;
 };
+
+//////////////////////////////////////////////////////////////////////////
+
+class FNiagaraDebugHUDSettingsDetailsCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FNiagaraDebugHUDSettingsDetailsCustomization>();
+	}
+
+	/** IPropertyTypeCustomization interface begin */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	/** IPropertyTypeCustomization interface end */
+private:
+
+	/** State */
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+};
+
+//////////////////////////////////////////////////////////////////////////

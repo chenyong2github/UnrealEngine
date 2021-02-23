@@ -19,20 +19,17 @@
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "UObject/UObjectIterator.h"
 #include "EditorWidgetsModule.h"
 #include "PropertyEditorModule.h"
-#include "PlatformInfo.h"
-#include "MessageEndpoint.h"
-#include "MessageEndpointBuilder.h"
 #include "ISessionServicesModule.h"
 #include "Widgets/Browser/SSessionBrowser.h"
+#include "Modules/ModuleManager.h"
+#include "NiagaraEditorModule.h"
+#include "Customizations/NiagaraDebugHUDCustomization.h"
+#include "Customizations/NiagaraOutlinerCustomization.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraDebugger"
-
-DEFINE_LOG_CATEGORY(LogNiagaraDebugger);
 
 namespace NiagaraDebuggerLocal
 {
@@ -223,8 +220,16 @@ namespace NiagaraOutlinerTab
 {
 	static const FName TabName = FName(TEXT("OutlinerTab"));
 
-	static void RegisterTabSpawner(const TSharedPtr<FTabManager>& TabManager)
+	static void RegisterTabSpawner(const TSharedPtr<FTabManager>& TabManager, TSharedPtr<FNiagaraDebugger>& Debugger)
 	{
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+		FDetailsViewArgs DetailsArgs;
+		DetailsArgs.bHideSelectionTip = true;
+		TSharedPtr<IDetailsView> OutlinerDetails = PropertyModule.CreateDetailView(DetailsArgs);
+
+		OutlinerDetails->SetObject(Debugger->GetOutliner());
+
 		TabManager->RegisterTabSpawner(
 			TabName,
 			FOnSpawnTab::CreateLambda(
@@ -234,16 +239,23 @@ namespace NiagaraOutlinerTab
 						.TabRole(ETabRole::PanelTab)
 						.Label(LOCTEXT("OutlinerTitle", "FX Outliner"))
 						[
-							//TODO: Pull scene data as a struct from the client and view here in a details view (with customization).
 							SNew(SVerticalBox)
-							+ SVerticalBox::Slot()
+							+SVerticalBox::Slot()
 							.AutoHeight()
+							[
+								OutlinerDetails.ToSharedRef()
+							]
+							+SVerticalBox::Slot()
+							.FillHeight(1.0f)
+							[
+								SNew(SNiagaraOutlinerTree, Debugger)
+							]
 						];
 				}
 			)
 		)
-			.SetDisplayName(LOCTEXT("OutlinerTabTitle", "FX Outliner"))
-					.SetTooltipText(LOCTEXT("OutlinerTooltipText", "Open the FX Outliner tab."));
+		.SetDisplayName(LOCTEXT("OutlinerTabTitle", "FX Outliner"))
+		.SetTooltipText(LOCTEXT("OutlinerTooltipText", "Open the FX Outliner tab."));
 	}
 }
 
@@ -284,28 +296,16 @@ void SNiagaraDebugger::Construct(const FArguments& InArgs)
 {
 	using namespace NiagaraDebuggerLocal;
 
-	//Init message handling.
-
-	MessageEndpoint = FMessageEndpoint::Builder("SNiagaraDebugger")
-		.Handling<FNiagaraDebuggerAcceptConnection>(this, &SNiagaraDebugger::HandleConnectionAcceptedMessage)
-		.Handling<FNiagaraDebuggerConnectionClosed>(this, &SNiagaraDebugger::HandleConnectionClosedMessage);
-
-	ISessionServicesModule& SessionServicesModule = FModuleManager::LoadModuleChecked<ISessionServicesModule>("SessionServices");
-	SessionManager = SessionServicesModule.GetSessionManager();
-
-	SessionManager->OnSelectedSessionChanged().AddSP(this, &SNiagaraDebugger::SessionManager_OnSessionSelectionChanged);
-	SessionManager->OnInstanceSelectionChanged().AddSP(this, &SNiagaraDebugger::SessionManager_OnInstanceSelectionChanged);
-
-	//////////////////////////////////////////////////////////////////////////
-
 	TabManager = InArgs._TabManager;
+	Debugger = InArgs._Debugger;
 
 	NiagaraDebugHudTab::RegisterTabSpawner(TabManager);
-	NiagaraPerformanceTab::RegisterTabSpawner(TabManager, FOnExecConsoleCommand::CreateSP(this, &SNiagaraDebugger::ExecConsoleCommand));
-	NiagaraOutlinerTab::RegisterTabSpawner(TabManager);
-	NiagaraSessionBrowserTab::RegisterTabSpawner(TabManager, SessionManager);
+	NiagaraPerformanceTab::RegisterTabSpawner(TabManager, FOnExecConsoleCommand::CreateSP(Debugger.ToSharedRef(), &FNiagaraDebugger::ExecConsoleCommand));
+	NiagaraOutlinerTab::RegisterTabSpawner(TabManager, Debugger);
 
-	GetMutableDefault<UNiagaraDebugHUDSettings>()->OnChangedDelegate.AddSP(this, &SNiagaraDebugger::UpdateDebugHUDSettings);
+	ISessionServicesModule& SessionServicesModule = FModuleManager::LoadModuleChecked<ISessionServicesModule>("SessionServices");
+	TSharedPtr<ISessionManager> SessionManager = SessionServicesModule.GetSessionManager();
+	NiagaraSessionBrowserTab::RegisterTabSpawner(TabManager, SessionManager);
 
 	TSharedPtr<FTabManager::FLayout> DebuggerLayout = FTabManager::NewLayout("NiagaraDebugger_Layout_v1.1")
 		->AddArea
@@ -451,41 +451,14 @@ TSharedRef<SDockTab> SNiagaraDebugger::SpawnNiagaraDebugger(const FSpawnTabArgs&
 		)
 	);
 
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+
 	auto MainWidget = SNew(SNiagaraDebugger)
-		.TabManager(TabManager);
+		.TabManager(TabManager)
+		.Debugger(NiagaraEditorModule.GetDebugger());
 
 	NomadTab->SetContent(MainWidget);
 	return NomadTab;
-}
-
-void SNiagaraDebugger::ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld)
-{
-	auto SendExecCommand = [&](SNiagaraDebugger::FClientInfo& Client)
-	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending console command %s. | Session: %s | Instance: %s |"), Cmd, *Client.SessionId.ToString(), *Client.InstanceId.ToString());
-		MessageEndpoint->Send(new FNiagaraDebuggerExecuteConsoleCommand(Cmd, bRequiresWorld), Client.Address);
-	};
-
-	ForAllConnectedClients(SendExecCommand);
-}
-
-void SNiagaraDebugger::UpdateDebugHUDSettings()
-{
-	//Send the current state as a message to all connected clients.
-	if (const UNiagaraDebugHUDSettings* Settings = GetDefault<UNiagaraDebugHUDSettings>())
-	{
-		auto SendSettingsUpdate = [&](SNiagaraDebugger::FClientInfo& Client)
-		{
-			//Create the message and copy the current state of the settings into it.
-			FNiagaraDebugHUDSettingsData* Message = new FNiagaraDebugHUDSettingsData();
-			FNiagaraDebugHUDSettingsData::StaticStruct()->CopyScriptStruct(Message, &Settings->Data);
-
-			UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending updated debug HUD settings. | Session: %s | Instance: %s |"), *Client.SessionId.ToString(), *Client.InstanceId.ToString());
-			MessageEndpoint->Send(Message, Client.Address);
-		};
-
-		ForAllConnectedClients(SendSettingsUpdate);
-	}
 }
 
 TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
@@ -499,7 +472,7 @@ TSharedRef<SWidget> SNiagaraDebugger::MakeToolbar()
 	// Refresh button
 	{
 		ToolbarBuilder.AddToolBarButton(
-			FUIAction(FExecuteAction::CreateLambda([Owner=this]() { Owner->UpdateDebugHUDSettings(); })),
+			FUIAction(FExecuteAction::CreateLambda([Owner=Debugger]() { Owner->UpdateDebugHUDSettings(); })),
 			NAME_None,
 			LOCTEXT("Refresh", "Refresh"),
 			LOCTEXT("RefreshTooltip", "Refesh the settings on the target device.  Used if we get out of sync."),
@@ -704,172 +677,4 @@ TSharedRef<SWidget> SNiagaraDebugger::MakePlaybackOptionsMenu()
 
 	return MenuBuilder.MakeWidget();
 }
-
-//////////////////////////////////////////////////////////////////////////
-// New Session and Messaging code.
-
-void SNiagaraDebugger::SessionManager_OnSessionSelectionChanged(const TSharedPtr<ISessionInfo>& Session)
-{
-	//Drop all existing and pending connections when the session selection changes.
-	TArray<FClientInfo> ToClose;
-	if (Session.IsValid())
-	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Session selection changed. Dropping connections not from this session. | Session: %s (%s)"), *Session->GetSessionId().ToString(), *Session->GetSessionName());
-		for (FClientInfo& Client : ConnectedClients)
-		{
-			if (Client.SessionId != Session->GetSessionId())
-			{
-				ToClose.Add(Client);
-			}
-		}
-		for (FClientInfo& Client : PendingClients)
-		{
-			if (Client.SessionId != Session->GetSessionId())
-			{
-				ToClose.Add(Client);
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Session selection changed. Dropping all connections."));
-		ToClose.Append(ConnectedClients);
-		ToClose.Append(PendingClients);
-	}
-
-	for (FClientInfo& Client : ToClose)
-	{
-		CloseConnection(Client.SessionId, Client.InstanceId);
-	}
-}
-
-void SNiagaraDebugger::SessionManager_OnInstanceSelectionChanged(const TSharedPtr<ISessionInstanceInfo>& Instance, bool Selected)
-{
-	if (MessageEndpoint.IsValid())
-	{
-		if (Selected)
-		{
-			const FGuid& SessionId = Instance->GetOwnerSession()->GetSessionId();
-			const FGuid& InstanceId = Instance->GetInstanceId();
-
-			int32 FoundActive = FindActiveConnection(SessionId, InstanceId);
-			if (FoundActive != INDEX_NONE)
-			{
-				UE_LOG(LogNiagaraDebugger, Log, TEXT("Session Instance selection callback for existing active connection. Ignored. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *Instance->GetInstanceName());
-				return;
-			}
-
-			int32 FoundPending = FindPendingConnection(SessionId, InstanceId);
-			if (FoundPending != INDEX_NONE)
-			{
-				UE_LOG(LogNiagaraDebugger, Log, TEXT("Session Instance selection callback for existing pending connection. Ignored. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *Instance->GetInstanceName());
-				return;
-			}
-
-			FNiagaraDebuggerRequestConnection* ConnectionRequestMessage = new FNiagaraDebuggerRequestConnection(SessionId, InstanceId);
-			UE_LOG(LogNiagaraDebugger, Log, TEXT("Establishing connection. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *Instance->GetInstanceName());
-			MessageEndpoint->Publish(ConnectionRequestMessage);
-
-			FClientInfo& NewPendingConnection = PendingClients.AddDefaulted_GetRef();
-			NewPendingConnection.SessionId = SessionId;
-			NewPendingConnection.InstanceId = InstanceId;
-			NewPendingConnection.StartTime = FPlatformTime::Seconds();
-		}
-		else
-		{
-			CloseConnection(Instance->GetOwnerSession()->GetSessionId(), Instance->GetInstanceId());
-		}
-	}
-}
-
-int32 SNiagaraDebugger::FindPendingConnection(FGuid SessionId, FGuid InstanceId)const
-{
-	return PendingClients.IndexOfByPredicate([&](const FClientInfo& Pending) { return Pending.SessionId == SessionId && Pending.InstanceId == InstanceId; });
-}
-
-int32 SNiagaraDebugger::FindActiveConnection(FGuid SessionId, FGuid InstanceId)const
-{
-	return ConnectedClients.IndexOfByPredicate([&](const FClientInfo& Active) { return Active.SessionId == SessionId && Active.InstanceId == InstanceId; });
-}
-
-void SNiagaraDebugger::CloseConnection(FGuid SessionId, FGuid InstanceId)
-{
-	int32 FoundPending = FindPendingConnection(SessionId, InstanceId);
-	int32 FoundActive = FindActiveConnection(SessionId, InstanceId);
-
-	checkf(FoundActive == INDEX_NONE || FoundPending == INDEX_NONE, TEXT("Same client info is on both the pending and active connections lists."));
-
-	if (FoundPending != INDEX_NONE)
-	{
-		FClientInfo Pending = PendingClients[FoundPending];
-		PendingClients.RemoveAtSwap(FoundPending);
-		MessageEndpoint->Publish(new FNiagaraDebuggerConnectionClosed(Pending.SessionId, Pending.InstanceId));
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Closing pending connection. | Session: %s | Instance: %s |"), *SessionId.ToString(), *InstanceId.ToString());
-
-		OnConnectionClosedDelegate.Broadcast(Pending);
-	}
-	if (FoundActive != INDEX_NONE)
-	{
-		FClientInfo Active = ConnectedClients[FoundActive];
-		ConnectedClients.RemoveAtSwap(FoundActive);
-		MessageEndpoint->Send(new FNiagaraDebuggerConnectionClosed(Active.SessionId, Active.InstanceId), Active.Address);
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Closing active connection. | Session: %s | Instance: %s |"), *SessionId.ToString(), *InstanceId.ToString());
-
-		OnConnectionClosedDelegate.Broadcast(Active);
-	}
-}
-
-void SNiagaraDebugger::HandleConnectionAcceptedMessage(const FNiagaraDebuggerAcceptConnection& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
-{
-	int32 FoundActive = FindActiveConnection(Message.SessionId, Message.InstanceId);
-	if (FoundActive != INDEX_NONE)
-	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved connection accepted message from an already connected client. Ignored. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
-		return;
-	}
-
-	int32 FoundPending = FindPendingConnection(Message.SessionId, Message.InstanceId);
-	if (FoundPending != INDEX_NONE)
-	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Connection accepted. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
-		PendingClients.RemoveAtSwap(FoundPending);
-
-		FClientInfo& NewConnection = ConnectedClients.AddDefaulted_GetRef();
-		NewConnection.Address = Context->GetSender();
-		NewConnection.SessionId = Message.SessionId;
-		NewConnection.InstanceId = Message.InstanceId;
-		NewConnection.StartTime = FPlatformTime::Seconds();
-
-		UpdateDebugHUDSettings();
-
-		OnConnectionMadeDelegate.Broadcast(NewConnection);
-	}
-	else
-	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved connection accepted message from a client that is not in our pending list. Ignored. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
-	}
-}
-
-void SNiagaraDebugger::HandleConnectionClosedMessage(const FNiagaraDebuggerConnectionClosed& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
-{
-	int32 FoundPending = FindPendingConnection(Message.SessionId, Message.InstanceId);
-	int32 FoundActive = FindActiveConnection(Message.SessionId, Message.InstanceId);
-
-	checkf(FoundActive == INDEX_NONE || FoundPending == INDEX_NONE, TEXT("Same client info is on both the pending and active connections lists."));
-
-	if (FoundPending != INDEX_NONE)
-	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Pending connection closed by the client. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
-		OnConnectionClosedDelegate.Broadcast(PendingClients[FoundPending]);
-		PendingClients.RemoveAtSwap(FoundPending);
-	}
-	if (FoundActive != INDEX_NONE)
-	{
-		UE_LOG(LogNiagaraDebugger, Log, TEXT("Active connection closed by the client. | Session: %s | Instance: %s |"), *Message.SessionId.ToString(), *Message.InstanceId.ToString());
-		OnConnectionClosedDelegate.Broadcast(ConnectedClients[FoundActive]);
-		ConnectedClients.RemoveAtSwap(FoundActive);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////////
 #undef LOCTEXT_NAMESPACE

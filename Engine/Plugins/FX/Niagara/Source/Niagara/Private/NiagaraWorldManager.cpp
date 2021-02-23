@@ -1035,6 +1035,9 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 				FNiagaraScalabilityState State;
 				const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
 				CalculateScalabilityState(System, ScalabilitySettings, EffectType, Location, true, State);
+				
+				//TODO: Tell the debugger about recently PreCulled systems.
+
 				return State.bCulled;
 			}
 		}
@@ -1076,6 +1079,13 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 	}
 
 	//TODO: More progressive scalability options?
+
+#if WITH_NIAGARA_DEBUGGER
+	//Tell the debugger about our scalability state.
+	//Unfortunately cannot have the debugger just read the manager state data as components are removed.
+	//To avoid extra copy in future we can have the manager keep another list of recently removed component states which is cleaned up on component destruction.
+	Component->DebugCachedScalabilityState = OutState;
+#endif
 }
 
 bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)

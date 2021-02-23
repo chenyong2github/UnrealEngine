@@ -642,6 +642,11 @@ public:
 	FORCEINLINE void BeginUpdateContextReset(){ bDuringUpdateContextReset = true; }
 	FORCEINLINE void EndUpdateContextReset(){ bDuringUpdateContextReset = false; }
 
+#if WITH_NIAGARA_DEBUGGER	
+	//Cache our scalability state in the component so we have access to it easily and also after it has been removed from the scalability manager.
+	FNiagaraScalabilityState DebugCachedScalabilityState;
+#endif
+
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
 	uint32 bAwaitingActivationDueToNotReady : 1;

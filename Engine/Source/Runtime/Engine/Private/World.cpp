@@ -7998,4 +7998,32 @@ bool FAsyncPreRegisterDDCRequest::GetAsynchronousResults(TArray<uint8>& OutData)
 }
 #endif
 
+FString ToString(EWorldType::Type Type)
+{
+	switch (Type)
+	{
+	case EWorldType::None: return TEXT("None");
+	case EWorldType::Game: return TEXT("Game");
+	case EWorldType::Editor: return TEXT("Editor");
+	case EWorldType::PIE: return TEXT("PIE");
+	case EWorldType::EditorPreview: return TEXT("EditorPreview");
+	case EWorldType::GamePreview: return TEXT("GamePreview");
+	case EWorldType::GameRPC: return TEXT("GameRPC");
+	case EWorldType::Inactive: return TEXT("Inactive");
+	default: return TEXT("Unknown");
+	}
+}
+
+FString ENGINE_API ToString(ENetMode NetMode)
+{
+	switch (NetMode)
+	{
+	case NM_Standalone: return TEXT("Standalone");
+	case NM_DedicatedServer:  return TEXT("Dedicated Server");
+	case NM_ListenServer: return TEXT("Listen Server");
+	case NM_Client: return TEXT("Client");
+	default: return TEXT("Invlaid");
+	}
+}
+
 #undef LOCTEXT_NAMESPACE 

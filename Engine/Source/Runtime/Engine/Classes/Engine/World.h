@@ -3988,3 +3988,5 @@ FORCEINLINE_DEBUGGABLE bool UWorld::IsNetMode(ENetMode Mode) const
 #endif
 }
 
+FString ENGINE_API ToString(EWorldType::Type Type);
+FString ENGINE_API ToString(ENetMode NetMode);

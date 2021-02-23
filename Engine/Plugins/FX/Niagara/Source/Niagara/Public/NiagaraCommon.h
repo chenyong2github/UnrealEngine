@@ -1229,3 +1229,51 @@ public:
 		return !(*this == Other);
 	}
 };
+
+
+USTRUCT()
+struct FNiagaraScalabilityState
+{
+	GENERATED_BODY()
+
+	FNiagaraScalabilityState()
+		: Significance(1.0f)
+		, bCulled(0)
+		, bPreviousCulled(0)
+		, bCulledByDistance(0)
+		, bCulledByInstanceCount(0)
+		, bCulledByVisibility(0)
+	{
+	}
+
+	FNiagaraScalabilityState(float InSignificance, bool InCulled, bool InPreviousCulled)
+		: Significance(InSignificance)
+		, bCulled(InCulled)
+		, bPreviousCulled(InPreviousCulled)
+		, bCulledByDistance(0)
+		, bCulledByInstanceCount(0)
+		, bCulledByVisibility(0)
+	{
+	}
+
+	bool IsDirty() const { return bCulled != bPreviousCulled; }
+	void Apply() { bPreviousCulled = bCulled; }
+
+	UPROPERTY(VisibleAnywhere, Category="Scalability")
+	float Significance;
+
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bCulled : 1;
+
+	UPROPERTY(VisibleAnywhere, Category="Scalability")
+	uint8 bPreviousCulled : 1;
+
+	UPROPERTY(VisibleAnywhere, Category="Scalability")
+	uint8 bCulledByDistance : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bCulledByInstanceCount : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bCulledByVisibility : 1;
+};
