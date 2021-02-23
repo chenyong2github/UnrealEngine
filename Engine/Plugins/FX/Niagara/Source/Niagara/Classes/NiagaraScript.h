@@ -693,7 +693,7 @@ public:
 	NIAGARA_API FORCEINLINE const FNiagaraVMExecutableData& GetVMExecutableData() const { return CachedScriptVM; }
 	NIAGARA_API FORCEINLINE const FNiagaraVMExecutableDataId& GetVMExecutableDataCompilationId() const { return CachedScriptVMId; }
 
-	TArray<UNiagaraParameterCollection*>& GetCachedParameterCollectionReferences() { return CachedParameterCollectionReferences; }
+	NIAGARA_API TArray<UNiagaraParameterCollection*>& GetCachedParameterCollectionReferences();
 	TArray<FNiagaraScriptDataInterfaceInfo>& GetCachedDefaultDataInterfaces() { return CachedDefaultDataInterfaces; }
 
 #if STATS
@@ -738,6 +738,9 @@ private:
 	bool HasValidParameterBindings() const;
 
 #if WITH_EDITORONLY_DATA
+	/* Safely resolves soft object parameter collection references into hard references. */
+	void ResolveParameterCollectionReferences();
+
 	UPROPERTY(Transient)
 	FNiagaraScriptExecutionParameterStore ScriptExecutionParamStoreCPU;
 
