@@ -698,6 +698,11 @@ inline EShaderPlatform GetFeatureLevelShaderPlatform(const FStaticFeatureLevel I
 	return GShaderPlatformForFeatureLevel[InFeatureLevel];
 }
 
+/** Stringifies EShaderPlatform */
+extern RHI_API FString LexToString(EShaderPlatform Platform);
+
+/** Stringifies ERHIFeatureLevel */
+extern RHI_API FString LexToString(ERHIFeatureLevel::Type Level);
 
 /** Finds a corresponding ERHIShadingPath::Type given an FName, or returns false if one could not be found. */
 extern RHI_API bool GetShadingPathFromName(FName Name, ERHIShadingPath::Type& OutShadingPath);
