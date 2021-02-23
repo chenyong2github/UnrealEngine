@@ -107,6 +107,7 @@ public:
 
 	void AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles,const bool bImmediate=true);
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
+	void RemoveActorFromAccelerationStructure(Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle); // Needed for particles not owned by single particle proxy.
 	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
 

@@ -170,12 +170,25 @@ void FChaosScene::Flush()
 	CopySolverAccelerationStructure();
 }
 
+void FChaosScene::RemoveActorFromAccelerationStructure(Chaos::TGeometryParticle<Chaos::FReal, 3>* Particle)
+{
+#if WITH_CHAOS
+	using namespace Chaos;
+	if(GetSpacialAcceleration())
+	{
+		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
+		Chaos::FAccelerationStructureHandle AccelerationHandle(Particle);
+		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle, Particle->SpatialIdx());
+	}
+#endif
+}
+
 void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
 {
 #if WITH_CHAOS
 	using namespace Chaos;
 	Chaos::FRigidBodyHandle_External& Body_External = Actor->GetGameThreadAPI();
-	if(GetSpacialAcceleration() && Body_External.UniqueIdx().IsValid())
+	if (GetSpacialAcceleration() && Body_External.UniqueIdx().IsValid())
 	{
 		FPhysicsSceneGuardScopedWrite ScopedWrite(SceneSolver->GetExternalDataLock_External());
 		Chaos::FAccelerationStructureHandle AccelerationHandle(Actor->GetParticle_LowLevel());
