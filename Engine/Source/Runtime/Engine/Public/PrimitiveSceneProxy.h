@@ -562,6 +562,7 @@ public:
 	inline bool SupportsMeshCardRepresentation() const { return bSupportsMeshCardRepresentation; }
 	inline bool SupportsHeightfieldRepresentation() const { return bSupportsHeightfieldRepresentation; }
 	inline bool SupportsInstanceDataBuffer() const { return bSupportsInstanceDataBuffer; }
+	inline bool HasPrevInstanceTransforms() const { return bHasPrevInstanceTransforms; }
 	inline bool TreatAsBackgroundForOcclusion() const { return bTreatAsBackgroundForOcclusion; }
 	inline bool NeedsLevelAddedToWorldNotification() const { return bNeedsLevelAddedToWorldNotification; }
 	inline bool IsComponentLevelVisible() const { return bIsComponentLevelVisible; }
@@ -982,6 +983,8 @@ protected:
 
 	uint8 bVerifyUsedMaterials : 1;
 
+	/** TODO: KevinO cleanup. This is used to mark a scene proxy having manually set its own prev transform from construction */
+	uint8 bHasPrevInstanceTransforms : 1;
 private:
 
 	/** If this is True, this primitive will be used to occlusion cull other primitives. */

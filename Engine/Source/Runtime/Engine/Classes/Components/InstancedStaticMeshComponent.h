@@ -134,6 +134,11 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	/** Array of instances, bulk serialized. */
 	UPROPERTY(EditAnywhere, SkipSerialization, DisplayName="Instances", Category=Instances, meta=(MakeEditWidget=true, EditFixedOrder))
 	TArray<FInstancedStaticMeshInstanceData> PerInstanceSMData;
+	
+	// TODO: KevinO cleanup
+	/** Array of prev instance transforms. Must match the length of PerInstanceSMData or have 0 elements */
+	UPROPERTY(Transient)
+	TArray<FMatrix> PerInstancePrevTransform;
 
 	/** Defines the number of floats that will be available per instance for custom data */
 	UPROPERTY(EditAnywhere, Category=Instances, AdvancedDisplay)
@@ -195,6 +200,10 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	/** Get the transform for the instance specified. Instance is returned in local space of this component unless bWorldSpace is set.  Returns True on success. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	bool GetInstanceTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace = false) const;
+	
+	// TODO: KevinO cleanup
+	/** Get the prev transform for the instance specified. Only works if PerInstancePrevTransform has been setup and updated through BatchUpdateInstancesTransforms */
+	bool GetInstancePrevTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace = false) const;
 
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 
@@ -232,6 +241,13 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
+
+	// TODO: KevinO cleanup
+	/**
+	* Update the transform for an array of instances. Overloaded version which takes an array of NewPreviousFrameTransforms.
+	*/
+	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, const TArray<FTransform>& NewInstancesPrevTransforms, bool bWorldSpace = false, bool bMarkRenderStateDirty = false, bool bTeleport = false);
+
 
 	/**
 	* Update the transform for a number of instances.

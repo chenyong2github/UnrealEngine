@@ -1088,10 +1088,22 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			}
 			FTransform InstanceTransform;
 			InComponent->GetInstanceTransform(InInstanceIndex, InstanceTransform);
+			
+			// TODO: KevinO cleanup
+			FTransform InstancePrevTransform;
+			const bool bHasPrevTransform = InComponent->GetInstancePrevTransform(InInstanceIndex, InstancePrevTransform);
 
 			FPrimitiveInstance& Instance = Instances[OutInstanceIndex];
 			Instance.PrimitiveId = ~uint32(0);
 			Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
+			
+			// TODO: KevinO cleanup
+			if (bHasPrevTransform)
+			{
+				bHasPrevInstanceTransforms = true;
+				Instance.PrevInstanceToLocal = InstancePrevTransform.ToMatrixWithScale();
+			}
+
 			// GPUCULL_TODO: not sure this is needed either - might be better to delegate to later anyway since inverse can then be threaded, plus some platforms might not need it at all.
 			Instance.LocalToInstance = Instance.InstanceToLocal.Inverse();
 			// Filled in during GPU Scene update...
@@ -1674,7 +1686,7 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 			ShadowmapUVBias = MeshMapBuildData->PerInstanceLightmapData[Index].ShadowmapUVBias;
 		}
 	
-		OutData.SetInstance(RenderIndex, InstanceData.Transform, RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);
+			OutData.SetInstance(RenderIndex, InstanceData.Transform, RandomStream.GetFraction(), LightmapUVBias, ShadowmapUVBias);
 
 		for (int32 i = 0; i < NumCustomDataFloats; ++i)
 		{
@@ -2553,6 +2565,25 @@ bool UInstancedStaticMeshComponent::GetInstanceTransform(int32 InstanceIndex, FT
 	return true;
 }
 
+bool UInstancedStaticMeshComponent::GetInstancePrevTransform(int32 InstanceIndex, FTransform& OutInstanceTransform, bool bWorldSpace) const
+{
+	if (!PerInstancePrevTransform.IsValidIndex(InstanceIndex))
+	{
+		return false;
+	}
+
+	const FMatrix& InstanceData = PerInstancePrevTransform[InstanceIndex];
+
+	OutInstanceTransform = FTransform(InstanceData);
+	if (bWorldSpace)
+	{
+		OutInstanceTransform = OutInstanceTransform * GetComponentTransform();
+	}
+
+	return true;
+}
+
+
 void UInstancedStaticMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	// We are handling the physics move below, so don't handle it at higher levels
@@ -2644,6 +2675,66 @@ bool UInstancedStaticMeshComponent::UpdateInstanceTransform(int32 InstanceIndex,
 	return true;
 }
 
+bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, const TArray<FTransform>& NewInstancesPrevTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	// Number of current and prev transforms must match 
+	check(NewInstancesTransforms.Num() == NewInstancesPrevTransforms.Num());
+
+	// Early out if trying to update an invalid range
+	if (!PerInstanceSMData.IsValidIndex(StartInstanceIndex) || !PerInstanceSMData.IsValidIndex(StartInstanceIndex + NewInstancesTransforms.Num() - 1))
+	{
+		return false;
+	}
+
+	// If the new transform index range is ok for PerInstanceSMData, it must also be ok for PerInstancePrevTransform
+	check(PerInstancePrevTransform.IsValidIndex(StartInstanceIndex) && PerInstancePrevTransform.IsValidIndex(StartInstanceIndex + NewInstancesPrevTransforms.Num() - 1));
+
+	Modify();
+
+	for (int32 Index = 0; Index < NewInstancesTransforms.Num(); Index++)
+	{
+		const int32 InstanceIndex = StartInstanceIndex + Index;
+
+		const FTransform& NewInstanceTransform = NewInstancesTransforms[Index];
+		const FTransform& NewInstancePrevTransform = NewInstancesPrevTransforms[Index];
+
+		FInstancedStaticMeshInstanceData& InstanceData = PerInstanceSMData[InstanceIndex];
+		FMatrix& PrevInstanceData = PerInstancePrevTransform[InstanceIndex];
+
+		// TODO: Computing LocalTransform is useless when we're updating the world location for the entire mesh.
+		// Should find some way around this for performance.
+
+		// Render data uses local transform of the instance
+		FTransform LocalTransform = bWorldSpace ? NewInstanceTransform.GetRelativeTransform(GetComponentTransform()) : NewInstanceTransform;
+		InstanceData.Transform = LocalTransform.ToMatrixWithScale();
+
+		FTransform LocalPrevTransform = bWorldSpace ? NewInstancePrevTransform.GetRelativeTransform(GetComponentTransform()) : NewInstancePrevTransform;
+		PrevInstanceData = LocalPrevTransform.ToMatrixWithScale();
+
+		if (bPhysicsStateCreated)
+		{
+			// Physics uses world transform of the instance
+			FTransform WorldTransform = bWorldSpace ? NewInstanceTransform : (LocalTransform * GetComponentTransform());
+			UpdateInstanceBodyTransform(InstanceIndex, WorldTransform, bTeleport);
+		}
+
+		
+	}
+
+	// Request navigation update - Execute on a single index as it updates everything anyway
+	PartialNavigationUpdate(StartInstanceIndex);
+
+	// Force recreation of the render data when proxy is created
+	InstanceUpdateCmdBuffer.Edit();
+
+	if (bMarkRenderStateDirty || NewInstancesPrevTransforms.Num() > 0) // Hack: force invalidation since that's the only way to update the prev tansform on the render thread (proxy constructors)
+	{
+		MarkRenderStateDirty();
+	}
+
+	return true;
+}
+
 bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
 {
 	if (!PerInstanceSMData.IsValidIndex(StartInstanceIndex) || !PerInstanceSMData.IsValidIndex(StartInstanceIndex + NewInstancesTransforms.Num() - 1))
@@ -2665,7 +2756,7 @@ bool UInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartIn
 		FTransform LocalTransform = bWorldSpace ? NewInstanceTransform.GetRelativeTransform(GetComponentTransform()) : NewInstanceTransform;
 		InstanceData.Transform = LocalTransform.ToMatrixWithScale();
 
-		if(bPhysicsStateCreated)
+		if (bPhysicsStateCreated)
 		{
 			// Physics uses world transform of the instance
 			FTransform WorldTransform = bWorldSpace ? NewInstanceTransform : (LocalTransform * GetComponentTransform());
@@ -3419,7 +3510,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FInstancedStaticMeshVertexFactoryUniformShaderParameters>(), InstancedVertexFactory->GetUniformBuffer());
 	ShaderBindings.Add(InstanceOffset, InstanceOffsetValue);
-
+	
 	if (InstancedVertexFactory->SupportsManualVertexFetch(FeatureLevel))
 	{
 		ShaderBindings.Add(VertexFetch_InstanceOriginBufferParameter, InstancedVertexFactory->GetInstanceOriginSRV());

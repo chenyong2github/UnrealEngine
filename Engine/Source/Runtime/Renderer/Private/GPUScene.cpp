@@ -183,6 +183,8 @@ struct FInstanceUploadInfo
 
 	// Used for primitives that need to create a dummy instance (they do not have instance data in the proxy)
 	FPrimitiveInstance DummyInstance;
+
+	bool bHasPrevInstanceTransform = false;
 };
 
 /**
@@ -261,6 +263,8 @@ struct FUploadDataSourceAdapterScenePrimitives
 			InstanceUploadInfo.PrimitiveID = PrimitiveID;
 			FPrimitiveSceneProxy* PrimitiveSceneProxy = Scene.PrimitiveSceneProxies[PrimitiveID];
 			const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
+
+			InstanceUploadInfo.bHasPrevInstanceTransform = PrimitiveSceneProxy->HasPrevInstanceTransforms();
 
 			if (PrimitiveSceneProxy->SupportsInstanceDataBuffer())
 			{
@@ -807,7 +811,9 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 										PrimitiveInstance.PrimitiveId = UploadInfo.PrimitiveID;
 										PrimitiveInstance.LocalBounds = PrimitiveInstance.RenderBounds;// .TransformBy(PrimitiveInstance.LocalToWorld);
 										PrimitiveInstance.LocalToWorld = PrimitiveInstance.InstanceToLocal * UploadInfo.PrimitiveLocalToWorld;
-										PrimitiveInstance.PrevLocalToWorld = PrimitiveInstance.InstanceToLocal * UploadInfo.PreviousPrimitiveLocalToWorld;
+										// TODO: KevinO cleanup
+										const FMatrix& PrevInstanceToLocal = UploadInfo.bHasPrevInstanceTransform ? PrimitiveInstance.PrevInstanceToLocal : PrimitiveInstance.InstanceToLocal;
+										PrimitiveInstance.PrevLocalToWorld = PrevInstanceToLocal * UploadInfo.PreviousPrimitiveLocalToWorld;
 										PrimitiveInstance.LastUpdateSceneFrameNumber = SceneFrameNumber;
 
 										{

@@ -165,6 +165,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bNeedsLevelAddedToWorldNotification(false)
 ,	bWantsSelectionOutline(true)
 ,	bVerifyUsedMaterials(true)
+,   bHasPrevInstanceTransforms(false)
 ,	bUseAsOccluder(InComponent->bUseAsOccluder)
 ,	bAllowApproximateOcclusion(InComponent->Mobility != EComponentMobility::Movable)
 ,	bSelectable(InComponent->bSelectable)

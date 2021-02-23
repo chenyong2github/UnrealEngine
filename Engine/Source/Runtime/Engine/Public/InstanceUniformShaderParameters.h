@@ -31,6 +31,7 @@ public:
 struct FPrimitiveInstance
 {
 	FMatrix  InstanceToLocal;
+	FMatrix  PrevInstanceToLocal;
 	FMatrix  LocalToInstance;
 	FMatrix  LocalToWorld;
 	FMatrix  PrevLocalToWorld;

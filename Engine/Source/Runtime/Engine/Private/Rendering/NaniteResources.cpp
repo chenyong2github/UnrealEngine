@@ -466,6 +466,10 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	{
 		FTransform InstanceTransform;
 		Component->GetInstanceTransform(InstanceIndex, InstanceTransform);
+		
+		// TODO: KevinO cleanup		
+		FTransform InstancePrevTransform;
+		const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
 
 		FVector4 InstanceTransformVec[3];
 		FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
@@ -487,6 +491,14 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		FPrimitiveInstance& Instance = Instances[InstanceIndex];
 		Instance.PrimitiveId = ~uint32(0);
 		Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
+		
+		// TODO: KevinO cleanup
+		if (bHasPrevTransform)
+		{
+			bHasPrevInstanceTransforms = true;
+			Instance.PrevInstanceToLocal = InstancePrevTransform.ToMatrixWithScale();
+		}
+
 		Instance.LocalToWorld = Instance.InstanceToLocal;
 		Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
 		Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
