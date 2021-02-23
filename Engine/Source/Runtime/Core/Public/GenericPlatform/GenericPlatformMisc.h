@@ -219,7 +219,13 @@ enum class EDeviceScreenOrientation : uint8
 	FaceUp,
 
 	/** The orientation is as if place on a desk with the screen downward */
-	FaceDown
+	FaceDown,
+
+	/** The orientation is portrait, oriented upright with the sensor */
+	PortraitSensor,
+
+	/** The orientation is landscape, oriented upright with the sensor */
+	LandscapeSensor,
 };
 
 

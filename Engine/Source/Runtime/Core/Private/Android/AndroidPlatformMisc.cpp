@@ -3068,6 +3068,12 @@ int32 FAndroidMisc::GetAndroidScreenOrientation(EDeviceScreenOrientation ScreenO
 	case EDeviceScreenOrientation::FaceDown:
 		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_UNSPECIFIED;
 		break;
+	case EDeviceScreenOrientation::PortraitSensor:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_SENSOR_PORTRAIT;
+		break;
+	case EDeviceScreenOrientation::LandscapeSensor:
+		AndroidScreenOrientation = EAndroidScreenOrientation::SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+		break;
 	}
 
 	return static_cast<int32>(AndroidScreenOrientation);
