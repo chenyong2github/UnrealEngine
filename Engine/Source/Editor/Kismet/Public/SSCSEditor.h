@@ -672,8 +672,8 @@ private:
 	bool bAllowRename;
 	const UClass* CachedFilterType;
 	TArray<FString> CachedFilterTerms;
-	TSharedPtr<class FSCSEditorTreeNodeSeparator> SceneComponentSeparatorNodePtr;
-	TSharedPtr<class FSCSEditorTreeNodeSeparator> NonSceneComponentSeparatorNodePtr;
+	TWeakPtr<class FSCSEditorTreeNodeSeparator> SceneComponentSeparatorNodePtr;
+	TWeakPtr<class FSCSEditorTreeNodeSeparator> NonSceneComponentSeparatorNodePtr;
 };
 
 class KISMET_API FSCSEditorTreeNodeChildActor : public FSCSEditorTreeNodeActorBase

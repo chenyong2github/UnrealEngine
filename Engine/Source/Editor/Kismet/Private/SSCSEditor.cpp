@@ -1667,10 +1667,12 @@ void FSCSEditorTreeNodeRootActor::RemoveChild(FSCSEditorTreeNodePtrType InChildN
 		return NodePtr->IsSceneComponent();
 	});
 
-	if (IndexOfFirstSceneComponent == -1 && SceneComponentSeparatorNodePtr.IsValid())
 	{
-		FSCSEditorTreeNodeActorBase::RemoveChild(SceneComponentSeparatorNodePtr);
-		SceneComponentSeparatorNodePtr.Reset();
+		TSharedPtr<FSCSEditorTreeNodeSeparator> SceneComponentSeparatorNodeSharedPtr = SceneComponentSeparatorNodePtr.Pin();
+		if (IndexOfFirstSceneComponent == -1 && SceneComponentSeparatorNodeSharedPtr.IsValid())
+		{
+			FSCSEditorTreeNodeActorBase::RemoveChild(SceneComponentSeparatorNodeSharedPtr);
+		}
 	}
 
 	const int32 IndexOfFirstNonSceneComponent = ComponentNodePtrs.IndexOfByPredicate([](const FSCSEditorTreeNodePtrType& NodePtr)
@@ -1678,10 +1680,13 @@ void FSCSEditorTreeNodeRootActor::RemoveChild(FSCSEditorTreeNodePtrType InChildN
 		return !NodePtr->IsSceneComponent();
 	});
 
-	if (IndexOfFirstNonSceneComponent == -1 && NonSceneComponentSeparatorNodePtr.IsValid())
 	{
-		FSCSEditorTreeNodeActorBase::RemoveChild(NonSceneComponentSeparatorNodePtr);
-		NonSceneComponentSeparatorNodePtr.Reset();
+		TSharedPtr<FSCSEditorTreeNodeSeparator> NonSceneComponentSeparatorNodeSharedPtr = NonSceneComponentSeparatorNodePtr.Pin();
+
+		if (IndexOfFirstNonSceneComponent == -1 && NonSceneComponentSeparatorNodeSharedPtr.IsValid())
+		{
+			FSCSEditorTreeNodeActorBase::RemoveChild(NonSceneComponentSeparatorNodeSharedPtr);
+		}
 	}
 
 	FSCSEditorTreeNodeActorBase::RemoveChild(InChildNodePtr);
