@@ -91,7 +91,11 @@ public:
 
 	//~ IModuleInterface interface
 
-	virtual void StartupModule() override { }
+	virtual void StartupModule() override
+	{
+		FLauncherPlatformModule::Get();
+	}
+
 	virtual void ShutdownModule() override { }
 
 private:
