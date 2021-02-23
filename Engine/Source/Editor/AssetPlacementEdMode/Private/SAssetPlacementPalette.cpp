@@ -272,7 +272,7 @@ void SAssetPlacementPalette::RefreshPalette()
 
 void SAssetPlacementPalette::RefreshActivePaletteViewWidget()
 {
-	if (ActiveViewMode == EAssetPlacementPaletteViewMode::Thumbnail)
+	if (ActiveViewMode == EViewMode::Thumbnail)
 	{
 		TileViewWidget->RequestListRefresh();
 	}
@@ -284,11 +284,6 @@ void SAssetPlacementPalette::RefreshActivePaletteViewWidget()
 
 void SAssetPlacementPalette::AddPlacementType(const FAssetData& AssetData)
 {
-	if (AddPlacementTypeCombo.IsValid())
-	{
-		AddPlacementTypeCombo->SetIsOpen(false);
-	}
-
 	if (!AssetData.IsValid())
 	{
 		return;
@@ -324,6 +319,22 @@ void SAssetPlacementPalette::AddPlacementType(const FAssetData& AssetData)
 	UAssetManager::GetStreamableManager().RequestAsyncLoad(AssetData.ToSoftObjectPath());
 
 	PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(PlacementInfo, SharedThis(this), ThumbnailPool));
+}
+
+void SAssetPlacementPalette::ClearPalette()
+{
+	if (UPlacementModeSubsystem* ModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
+	{
+		ModeSubsystem->ClearPalette();
+	}
+
+	PaletteItems.Empty();
+	FilteredItems.Empty();
+}
+
+void SAssetPlacementPalette::OnClearPalette()
+{
+	ClearPalette();
 	UpdatePalette(true);
 }
 
@@ -362,7 +373,7 @@ TSharedRef<SWidgetSwitcher> SAssetPlacementPalette::CreatePaletteViews()
 	SAssignNew(WidgetSwitcher, SWidgetSwitcher);
 
 	// Thumbnail View
-	WidgetSwitcher->AddSlot((int32)EAssetPlacementPaletteViewMode::Thumbnail)
+	WidgetSwitcher->AddSlot((uint8)EViewMode::Thumbnail)
 	[
 		SNew(SScrollBorder, TileViewWidget.ToSharedRef())
 		.Content()
@@ -372,7 +383,7 @@ TSharedRef<SWidgetSwitcher> SAssetPlacementPalette::CreatePaletteViews()
 	];
 
 	// Tree View
-	WidgetSwitcher->AddSlot((int32)EAssetPlacementPaletteViewMode::Tree)
+	WidgetSwitcher->AddSlot((uint8)EViewMode::Tree)
 	[
 		SNew(SScrollBorder, TreeViewWidget.ToSharedRef())
 		.Style(&FAssetPlacementEdModeStyle::Get().GetWidgetStyle<FScrollBorderStyle>("FoliageEditMode.TreeView.ScrollBorder"))
@@ -382,7 +393,7 @@ TSharedRef<SWidgetSwitcher> SAssetPlacementPalette::CreatePaletteViews()
 		]
 	];
 
-	WidgetSwitcher->SetActiveWidgetIndex((int32)ActiveViewMode);
+	WidgetSwitcher->SetActiveWidgetIndex((uint8)ActiveViewMode);
 
 	return WidgetSwitcher.ToSharedRef();
 }
@@ -397,17 +408,6 @@ void SAssetPlacementPalette::OnSearchTextChanged(const FText& InFilterText)
 	TypeFilter->SetRawFilterText(InFilterText);
 	SearchBoxPtr->SetError(TypeFilter->GetFilterErrorText());
 	UpdatePalette();
-}
-
-TSharedRef<SWidget> SAssetPlacementPalette::GetAddPlacementTypePicker()
-{
-	return PropertyCustomizationHelpers::MakeAssetPickerWithMenu(FAssetData(),
-		false,
-		TArray<const UClass*>({UObject::StaticClass()}),
-		TArray<UFactory*>(),
-		FOnShouldFilterAsset::CreateSP(this, &SAssetPlacementPalette::ShouldFilterAsset),
-		FOnAssetSelected::CreateSP(this, &SAssetPlacementPalette::AddPlacementType),
-		FSimpleDelegate());
 }
 
 bool SAssetPlacementPalette::ShouldFilterAsset(const FAssetData& InAssetData)
@@ -427,18 +427,18 @@ bool SAssetPlacementPalette::ShouldFilterAsset(const FAssetData& InAssetData)
 	return true;
 }
 
-void SAssetPlacementPalette::SetViewMode(EAssetPlacementPaletteViewMode NewViewMode)
+void SAssetPlacementPalette::SetViewMode(EViewMode NewViewMode)
 {
 	if (ActiveViewMode != NewViewMode)
 	{
 		ActiveViewMode = NewViewMode;
-		WidgetSwitcher->SetActiveWidgetIndex((int32)ActiveViewMode);
+		WidgetSwitcher->SetActiveWidgetIndex((uint8)ActiveViewMode);
 		
 		RefreshActivePaletteViewWidget();
 	}
 }
 
-bool SAssetPlacementPalette::IsActiveViewMode(EAssetPlacementPaletteViewMode ViewMode) const
+bool SAssetPlacementPalette::IsActiveViewMode(EViewMode ViewMode) const
 {
 	return ActiveViewMode == ViewMode;
 }
@@ -469,9 +469,9 @@ TSharedRef<SWidget> SAssetPlacementPalette::GetViewOptionsMenuContent()
 			LOCTEXT("ThumbnailView_ToolTip", "Display thumbnails for each Placement type in the palette."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SAssetPlacementPalette::SetViewMode, EAssetPlacementPaletteViewMode::Thumbnail),
+				FExecuteAction::CreateSP(this, &SAssetPlacementPalette::SetViewMode, EViewMode::Thumbnail),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &SAssetPlacementPalette::IsActiveViewMode, EAssetPlacementPaletteViewMode::Thumbnail)
+				FIsActionChecked::CreateSP(this, &SAssetPlacementPalette::IsActiveViewMode, EViewMode::Thumbnail)
 				),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -482,9 +482,9 @@ TSharedRef<SWidget> SAssetPlacementPalette::GetViewOptionsMenuContent()
 			LOCTEXT("ListView_ToolTip", "Display Placement types in the palette as a list."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SAssetPlacementPalette::SetViewMode, EAssetPlacementPaletteViewMode::Tree),
+				FExecuteAction::CreateSP(this, &SAssetPlacementPalette::SetViewMode, EViewMode::Tree),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &SAssetPlacementPalette::IsActiveViewMode, EAssetPlacementPaletteViewMode::Tree)
+				FIsActionChecked::CreateSP(this, &SAssetPlacementPalette::IsActiveViewMode, EViewMode::Tree)
 				),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -502,7 +502,7 @@ TSharedRef<SWidget> SAssetPlacementPalette::GetViewOptionsMenuContent()
 				FExecuteAction::CreateSP(this, &SAssetPlacementPalette::ToggleShowTooltips),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &SAssetPlacementPalette::ShouldShowTooltips),
-				FIsActionButtonVisible::CreateSP(this, &SAssetPlacementPalette::IsActiveViewMode, EAssetPlacementPaletteViewMode::Tree)
+				FIsActionButtonVisible::CreateSP(this, &SAssetPlacementPalette::IsActiveViewMode, EViewMode::Tree)
 				),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -535,11 +535,11 @@ TSharedRef<SWidget> SAssetPlacementPalette::GetViewOptionsMenuContent()
 
 TSharedPtr<SListView<FPlacementPaletteItemModelPtr>> SAssetPlacementPalette::GetActiveViewWidget() const
 {
-	if (ActiveViewMode == EAssetPlacementPaletteViewMode::Thumbnail)
+	if (ActiveViewMode == EViewMode::Thumbnail)
 	{
 		return TileViewWidget;
 	}
-	else if (ActiveViewMode == EAssetPlacementPaletteViewMode::Tree)
+	else if (ActiveViewMode == EViewMode::Tree)
 	{
 		return TreeViewWidget;
 	}
@@ -579,21 +579,36 @@ FReply SAssetPlacementPalette::HandlePlacementDropped(const FGeometry& DropZoneG
 	TArray<FAssetData> DroppedAssetData = AssetUtil::ExtractAssetDataFromDrag(DragDropEvent);
 	if (DroppedAssetData.Num() > 0)
 	{
-		// Treat the entire drop as a transaction (in case multiples types are being added)
-		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "PlacementMode_DragDropTypesTransaction", "Drag-drop Placement"));
+		if (DragDropEvent.IsShiftDown())
+		{
+			ClearPalette();
+		}
 
 		for (auto& AssetData : DroppedAssetData)
 		{
 			AddPlacementType(AssetData);
 		}
+
+		UpdatePalette(true);
 	}
 
 	return FReply::Handled();
 }
 
+bool SAssetPlacementPalette::HasAnyItemInPalette() const
+{
+	return PaletteItems.Num() > 0;
+}
+
 TSharedPtr<SWidget> SAssetPlacementPalette::ConstructPlacementTypeContextMenu()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("Palette_Clear", "Clear Palette"),
+		LOCTEXT("Palette_ClearDesc", "Removes all items from the palette."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &SAssetPlacementPalette::OnClearPalette), FCanExecuteAction::CreateSP(this, &SAssetPlacementPalette::HasAnyItemInPalette))
+	);
 	return MenuBuilder.MakeWidget();
 }
 
@@ -642,7 +657,7 @@ void SAssetPlacementPalette::SetThumbnailScale(float InScale)
 
 EVisibility SAssetPlacementPalette::GetThumbnailScaleSliderVisibility() const
 {
-	return (ActiveViewMode == EAssetPlacementPaletteViewMode::Thumbnail) ? EVisibility::Visible : EVisibility::Collapsed;
+	return (ActiveViewMode == EViewMode::Thumbnail) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 // TREE VIEW

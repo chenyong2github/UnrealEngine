@@ -31,17 +31,17 @@ typedef TSharedPtr<FAssetPlacementPaletteItemModel> FPlacementPaletteItemModelPt
 typedef STreeView<FPlacementPaletteItemModelPtr> SPlacementTypeTreeView;
 typedef STileView<FPlacementPaletteItemModelPtr> SPlacementTypeTileView;
 
-/** View modes supported by the palette */
-enum class EAssetPlacementPaletteViewMode : int32
-{
-	Thumbnail,
-	Tree
-};
-
 /** The palette of Placement types available for use by the Placement edit mode */
 class SAssetPlacementPalette : public SCompoundWidget
 {
 public:
+	/** View modes supported by the palette */
+	enum class EViewMode : uint8
+	{
+		Thumbnail,
+		Tree
+	};
+
 	SLATE_BEGIN_ARGS(SAssetPlacementPalette) {}
 		SLATE_ARGUMENT(TSharedPtr<IPropertyHandle>, PalettePropertyHandle)
 	SLATE_END_ARGS()
@@ -59,7 +59,7 @@ public:
 	void RefreshPalette();
 
 	/** @return True if the given view mode is the active view mode */
-	bool IsActiveViewMode(EAssetPlacementPaletteViewMode ViewMode) const;
+	bool IsActiveViewMode(EViewMode ViewMode) const;
 
 	/** @return True if tooltips should be shown when hovering over Placement type items in the palette */
 	bool ShouldShowTooltips() const;
@@ -67,10 +67,15 @@ public:
 	/** @return The current search filter text */
 	FText GetSearchText() const;
 
+private:
 	/** Adds the Placement type asset to the instanced Placement actor's list of types. */
 	void AddPlacementType(const FAssetData& AssetData);
 
-private:	// GENERAL
+	/**
+	 * Removes all items from the palette.
+	 */
+	void ClearPalette();
+	void OnClearPalette();
 
 	/** Refreshes the active palette view widget */
 	void RefreshActivePaletteViewWidget();
@@ -84,16 +89,13 @@ private:	// GENERAL
 	/** Handles changes to the search filter text */
 	void OnSearchTextChanged(const FText& InFilterText);
 
-	/** Gets the asset picker for adding a Placement type. */
-	TSharedRef<SWidget> GetAddPlacementTypePicker();
-
 	bool ShouldFilterAsset(const FAssetData& InAssetData);
 
 	/** Gets the visibility of the Add Placement Type text in the header row button */
 	EVisibility GetAddPlacementTypeButtonTextVisibility() const;
 
 	/** Sets the view mode of the palette */
-	void SetViewMode(EAssetPlacementPaletteViewMode NewViewMode);
+	void SetViewMode(EViewMode NewViewMode);
 
 	/** Sets whether to show tooltips when hovering over Placement type items in the palette */
 	void ToggleShowTooltips();
@@ -117,6 +119,9 @@ private:	// GENERAL
 
 	/** Handles dropping of a mesh or Placement type into the palette */
 	FReply HandlePlacementDropped(const FGeometry& DropZoneGeometry, const FDragDropEvent& DragDropEvent);
+
+	/** @returns true if there are any items in the palette. */
+	bool HasAnyItemInPalette() const;
 
 private:	// CONTEXT MENU
 
@@ -180,9 +185,6 @@ private:
 	/** Switches between the thumbnail and tree views */
 	TSharedPtr<class SWidgetSwitcher> WidgetSwitcher;
 
-	/** The Add Placement Type combo button */
-	TSharedPtr<class SComboButton> AddPlacementTypeCombo;
-
 	/** The header row of the Placement mesh tree */
 	TSharedPtr<class SHeaderRow> TreeViewHeaderRow;
 
@@ -210,7 +212,7 @@ private:
 	bool bShowFullTooltips = true;
 	bool bIsRebuildTimerRegistered = true;
 	bool bIsRefreshTimerRegistered = true;
-	EAssetPlacementPaletteViewMode ActiveViewMode;
+	EViewMode ActiveViewMode;
 	EColumnSortMode::Type ActiveSortOrder = EColumnSortMode::Type::Ascending;
 
 	float PaletteThumbnailScale = .3f;

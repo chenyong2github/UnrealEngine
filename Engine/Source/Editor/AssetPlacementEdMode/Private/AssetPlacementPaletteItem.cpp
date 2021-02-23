@@ -189,8 +189,7 @@ EVisibility FAssetPlacementPaletteItemModel::GetTooltipVisibility() const
 
 EVisibility FAssetPlacementPaletteItemModel::GetTooltipThumbnailVisibility() const
 {
-	
-	return (AssetPalette.IsValid() && AssetPalette.Pin()->IsActiveViewMode(EAssetPlacementPaletteViewMode::Tree)) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
+	return (AssetPalette.IsValid() && AssetPalette.Pin()->IsActiveViewMode(SAssetPlacementPalette::EViewMode::Tree)) ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed;
 }
 
 FText FAssetPlacementPaletteItemModel::GetSourceAssetTypeText() const

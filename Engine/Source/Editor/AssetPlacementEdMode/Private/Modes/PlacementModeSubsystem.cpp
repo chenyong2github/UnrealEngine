@@ -68,3 +68,8 @@ bool UPlacementModeSubsystem::AddPaletteItem(const FPaletteItem& InPaletteItem)
 
 	return false;
 }
+
+void UPlacementModeSubsystem::ClearPalette()
+{
+	ModeSettings->PaletteItems.Empty();
+}

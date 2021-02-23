@@ -39,6 +39,11 @@ public:
 	 */
 	bool AddPaletteItem(const FPaletteItem& InPaletteItem);
 
+	/**
+	 * Clears all items from the current palette.
+	 */
+	void ClearPalette();
+
 protected:
 	UPROPERTY()
 	TObjectPtr<UAssetPlacementSettings> ModeSettings;
