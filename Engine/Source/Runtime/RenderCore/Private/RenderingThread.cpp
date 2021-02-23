@@ -77,7 +77,7 @@ static void OnRenderThreadPollPeriodMsChanged(IConsoleVariable* Var)
 
 static FAutoConsoleVariable CVarRenderThreadPollPeriodMs(
 	TEXT("TaskGraph.RenderThreadPollPeriodMs"),
-	-1,
+	1,
 	TEXT("Render thread polling period in milliseconds. If value < 0, task graph tasks explicitly wake up RT, otherwise RT polls for tasks."),
 	FConsoleVariableDelegate::CreateStatic(&OnRenderThreadPollPeriodMsChanged)
 );
