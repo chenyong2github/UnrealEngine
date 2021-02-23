@@ -7,8 +7,6 @@
 #include "InstancedStaticMeshDelegates.h"
 #include "SMInstanceElementId.generated.h"
 
-#define UE_ENABLE_SMINSTANCE_ELEMENTS (0)
-
 class FSMInstanceElementIdMap;
 class UInstancedStaticMeshComponent;
 class USMInstanceElementIdMapTransactor;
