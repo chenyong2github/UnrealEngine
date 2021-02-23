@@ -4,21 +4,15 @@
 
 bool FToolTargetTypeRequirements::AreSatisfiedBy(UClass* Class) const
 {
-	// Required type must either be null (no requirement) or our type, or our parent type.
-	if (!BaseType || BaseType == Class ||
-		Class->IsChildOf(BaseType))
+	// we have to support all the required interfaces
+	for (const UClass* Interface : Interfaces)
 	{
-		// we have to support all the required interfaces
-		for (const UClass* Interface : Interfaces)
+		if (!Class->ImplementsInterface(Interface))
 		{
-			if (!Class->ImplementsInterface(Interface))
-			{
-				return false;
-			}
+			return false;
 		}
-		return true;
 	}
-	return false;
+	return true;
 }
 
 bool FToolTargetTypeRequirements::AreSatisfiedBy(UToolTarget* ToolTarget) const

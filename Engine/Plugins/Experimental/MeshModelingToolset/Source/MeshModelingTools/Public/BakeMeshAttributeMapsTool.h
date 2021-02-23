@@ -20,6 +20,9 @@ class UTexture2D;
 class IAssetGenerationAPI;
 template<typename RealType> class TMeshTangents;
 class FMeshImageBakingCache;
+class IPrimitiveComponentBackedTarget;
+class IMeshDescriptionProvider;
+class IMaterialProvider;
 
 /**
  *
@@ -34,6 +37,9 @@ public:
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+
+protected:
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 

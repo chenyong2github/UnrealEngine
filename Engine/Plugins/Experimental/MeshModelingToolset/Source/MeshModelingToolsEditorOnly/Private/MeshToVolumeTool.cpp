@@ -32,11 +32,11 @@
 
 const FToolTargetTypeRequirements& UMeshToVolumeToolBuilder::GetTargetRequirements() const
 {
-	static FToolTargetTypeRequirements TypeRequirements(nullptr, TArray<const UClass*>({
+	static FToolTargetTypeRequirements TypeRequirements({
 		UMeshDescriptionProvider::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass(),
 		UMaterialProvider::StaticClass()
-		}));
+		});
 	return TypeRequirements;
 }
 

@@ -66,3 +66,19 @@ UToolTarget* UToolTargetManager::BuildFirstSelectedTargetable(const FToolBuilder
 		}),
 		TargetType);
 }
+
+TArray<TObjectPtr<UToolTarget>> UToolTargetManager::BuildAllSelectedTargetable(const FToolBuilderState& SceneState,
+	const FToolTargetTypeRequirements& TargetType)
+{
+	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, [&](UActorComponent* Object)
+	{
+		return CanBuildTarget(Object, TargetType);
+	});
+	TArray<TObjectPtr<UToolTarget>> Targets;
+	Targets.Reserve(Components.Num());
+	for (UActorComponent* Component : Components)
+	{
+		Targets.Add(BuildTarget(Component, TargetType));
+	}
+	return Targets;
+}

@@ -7,9 +7,10 @@
 #include "ToolSetupUtil.h"
 #include "DynamicMesh3.h"
 #include "MeshAdapterTransforms.h"
-#include "MeshDescriptionAdapter.h"
 #include "MeshTransforms.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
 
 #include "Components/PrimitiveComponent.h"
 #include "CollisionQueryParams.h"
@@ -21,30 +22,25 @@
  * ToolBuilder
  */
 
+const FToolTargetTypeRequirements& UAlignObjectsToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
 
 bool UAlignObjectsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 2;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= 2;
 }
 
 UInteractiveTool* UAlignObjectsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UAlignObjectsTool* NewTool = NewObject<UAlignObjectsTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if (MeshComponent)
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
 
 	return NewTool;
@@ -147,8 +143,11 @@ void UAlignObjectsTool::Precompute()
 	CombinedBounds = FAxisAlignedBox3d::Empty();
 	AveragePivot = FVector3d::Zero();
 
-	for (TUniquePtr<FPrimitiveComponentTarget>& Component : ComponentTargets)
+	for (TObjectPtr<UToolTarget>& Target : Targets)
 	{
+		IPrimitiveComponentBackedTarget* Component = Cast<IPrimitiveComponentBackedTarget>(Target);
+		check(Component);
+
 		FAlignInfo AlignInfo;
 		AlignInfo.Component = Component->GetOwnerComponent();
 		AlignInfo.SavedTransform = Component->GetWorldTransform();

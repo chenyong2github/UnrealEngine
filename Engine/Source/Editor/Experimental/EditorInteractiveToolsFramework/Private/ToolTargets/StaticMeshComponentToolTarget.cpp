@@ -159,6 +159,11 @@ void UStaticMeshComponentToolTarget::CommitMeshDescription(const FCommitter& Com
 	Component->RecreatePhysicsState();
 }
 
+UStaticMesh* UStaticMeshComponentToolTarget::GetStaticMesh() const
+{
+	return IsValid() ? Cast<UStaticMeshComponent>(Component)->GetStaticMesh() : nullptr;
+}
+
 
 // Factory
 

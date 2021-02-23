@@ -7,9 +7,12 @@
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargets/PrimitiveComponentToolTarget.h"
 
 #include "StaticMeshComponentToolTarget.generated.h"
+
+class UStaticMesh;
 
 /**
  * A tool target backed by a static mesh component that can provide and take a mesh
@@ -17,7 +20,7 @@
  */
 UCLASS(Transient)
 class EDITORINTERACTIVETOOLSFRAMEWORK_API UStaticMeshComponentToolTarget : public UPrimitiveComponentToolTarget,
-	public IMeshDescriptionCommitter, public IMeshDescriptionProvider, public IMaterialProvider
+	public IMeshDescriptionCommitter, public IMeshDescriptionProvider, public IMaterialProvider, public IStaticMeshBackedTarget
 {
 	GENERATED_BODY()
 
@@ -34,6 +37,9 @@ public:
 	UMaterialInterface* GetMaterial(int32 MaterialIndex) const override;
 	void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const override;
 	virtual bool CommitMaterialSetUpdate(const FComponentMaterialSet& MaterialSet, bool bApplyToAsset) override;	
+
+	// IStaticMeshBackedTarget
+	UStaticMesh* GetStaticMesh() const override;
 
 	// Rest provided by parent class
 

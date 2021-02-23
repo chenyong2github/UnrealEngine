@@ -4,16 +4,29 @@
 
 #include "InteractiveTool.h"
 #include "ComponentSourceInterfaces.h"
+#include "ToolTargets/ToolTarget.h"
+
 #include "MultiSelectionTool.generated.h"
+
+class IPrimitiveComponentBackedTarget;
+class IMeshDescriptionCommitter;
+class IMeshDescriptionProvider;
+class IMaterialProvider;
 
 UCLASS(Transient)
 class INTERACTIVETOOLSFRAMEWORK_API UMultiSelectionTool : public UInteractiveTool
 {
 GENERATED_BODY()
 public:
+	// @deprecated Use SetTarget instead, and don't use FPrimitiveComponentTarget.
 	void SetSelection(TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargetsIn)
     {
 		ComponentTargets = MoveTemp(ComponentTargetsIn);
+	}
+
+	void SetTargets(TArray<TObjectPtr<UToolTarget>> TargetsIn)
+	{
+		Targets = MoveTemp(TargetsIn);
 	}
 
 	/**
@@ -21,6 +34,13 @@ public:
 	 */
 	virtual bool AreAllTargetsValid() const
 	{
+		for (const TObjectPtr<UToolTarget>& Target : Targets)
+		{
+			if (Target->IsValid() == false)
+			{
+				return false;
+			}
+		}
 		for (const TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
 		{
 			if (Target->IsValid() == false)
@@ -40,6 +60,9 @@ public:
 
 protected:
 	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets{};
+
+	UPROPERTY()
+	TArray<TObjectPtr<UToolTarget>> Targets{};
 
 	/**
 	 * Helper to find which component targets share source data
@@ -75,4 +98,31 @@ protected:
 		}
 		return bSharesSources;
 	}
+
+	/**
+	 * Helper to find which targets share source data
+	 *
+	 * @return Array of indices, 1:1 with Targets, indicating the first index where a component target sharing the same source data appeared.
+	 */
+	bool GetMapToSharedSourceData(TArray<int32>& MapToFirstOccurrences);
+
+	/**
+	 * Helper to cast a Target into the IPrimitiveComponentBackedTarget interface.
+	 */
+	IPrimitiveComponentBackedTarget* TargetComponentInterface(int32 ComponentIdx) const;
+
+	/**
+	 * Helper to cast a Target into the IMeshDescriptionCommitter interface.
+	 */
+	IMeshDescriptionCommitter* TargetMeshCommitterInterface(int32 ComponentIdx) const;
+
+	/**
+	 * Helper to cast a Target into the IMeshDescriptionProvider interface.
+	 */
+	IMeshDescriptionProvider* TargetMeshProviderInterface(int32 ComponentIdx) const;
+
+	/**
+	 * Helper to cast a Target into the IMaterialProvider interface.
+	 */
+	IMaterialProvider* TargetMaterialInterface(int32 ComponentIdx) const;
 };

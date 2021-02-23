@@ -21,6 +21,12 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #if WITH_EDITOR
 #include "Misc/ScopedSlowTask.h"
 #endif
@@ -34,31 +40,30 @@
  */
 
 
+const FToolTargetTypeRequirements& UCombineMeshesToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UMaterialProvider::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool UCombineMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	return (bIsDuplicateTool) ?
-		  (AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1)
-		: (AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 1);
+		  (AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1)
+		: (AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 1);
 }
 
 UInteractiveTool* UCombineMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UCombineMeshesTool* NewTool = NewObject<UCombineMeshesTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if (MeshComponent)
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 	NewTool->SetDuplicateMode(bIsDuplicateTool);
@@ -100,15 +105,15 @@ void UCombineMeshesTool::Setup()
 		}
 		else
 		{
-			int32 Index = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : ComponentTargets.Num() - 1;
-			BasicProperties->OutputAsset = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[Index]->GetOwnerComponent(), false);
+			int32 Index = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : Targets.Num() - 1;
+			BasicProperties->OutputAsset = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponentInterface(Index)->GetOwnerComponent(), false);
 		}
 	});
 
 	if (bDuplicateMode)
 	{
 		SetToolDisplayName(LOCTEXT("DuplicateMeshesToolName", "Duplicate"));
-		BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[0]->GetOwnerComponent());
+		BasicProperties->OutputName = AssetGenerationUtil::GetComponentAssetBaseName(TargetComponentInterface(0)->GetOwnerComponent());
 	}
 	else
 	{
@@ -175,21 +180,21 @@ void UCombineMeshesTool::CreateNewAsset()
 
 #if WITH_EDITOR
 	FBox Box(ForceInit);
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Box += ComponentTargets[ComponentIdx]->GetOwnerComponent()->Bounds.GetBox();
+		Box += TargetComponentInterface(ComponentIdx)->GetOwnerComponent()->Bounds.GetBox();
 	}
 
 	bool bMergeSameMaterials = true;
 	TArray<UMaterialInterface*> AllMaterials;
 	TMap<UMaterialInterface*, int> KnownMaterials;
 	TArray<int> CombinedMatToOutMatIdx;
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[ComponentIdx];
-		for (int MaterialIdx = 0, NumMaterials = ComponentTarget->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
+		IMaterialProvider* ComponentMaterial = TargetMaterialInterface(ComponentIdx);
+		for (int MaterialIdx = 0, NumMaterials = ComponentMaterial->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
 		{
-			UMaterialInterface* Mat = ComponentTarget->GetMaterial(MaterialIdx);
+			UMaterialInterface* Mat = ComponentMaterial->GetMaterial(MaterialIdx);
 			int32 OutMatIdx = -1;
 			if (!bMergeSameMaterials || !KnownMaterials.Contains(Mat))
 			{
@@ -216,23 +221,23 @@ void UCombineMeshesTool::CreateNewAsset()
 	FTransform ToAccum(-Box.GetCenter());
 
 	{
-		FScopedSlowTask SlowTask(ComponentTargets.Num()+1, 
+		FScopedSlowTask SlowTask(Targets.Num()+1, 
 			bDuplicateMode ? 
 			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
 			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
 		SlowTask.MakeDialog();
 
 		int MatIndexBase = 0;
-		for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
 			SlowTask.EnterProgressFrame(1);
-			TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[ComponentIdx];
+			IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(ComponentIdx);
 
 			FMeshDescriptionToDynamicMesh Converter;
 			FDynamicMesh3 ComponentDMesh;
-			Converter.Convert(ComponentTarget->GetMesh(), ComponentDMesh);
+			Converter.Convert(TargetMeshProvider->GetMeshDescription(), ComponentDMesh);
 
-			FTransform3d XF = (FTransform3d)(ComponentTarget->GetWorldTransform() * ToAccum);
+			FTransform3d XF = (FTransform3d)(TargetComponentInterface(ComponentIdx)->GetWorldTransform() * ToAccum);
 			if (XF.GetDeterminant() < 0)
 			{
 				ComponentDMesh.ReverseOrientation(false);
@@ -259,7 +264,7 @@ void UCombineMeshesTool::CreateNewAsset()
 			}
 			
 
-			MatIndexBase += ComponentTarget->GetNumMaterials();
+			MatIndexBase += TargetMaterialInterface(ComponentIdx)->GetNumMaterials();
 		}
 
 		SlowTask.EnterProgressFrame(1);
@@ -267,8 +272,8 @@ void UCombineMeshesTool::CreateNewAsset()
 		if (bDuplicateMode)
 		{
 			// TODO: will need to refactor this when we support duplicating multiple
-			check(ComponentTargets.Num() == 1);
-			AccumToWorld = ComponentTargets[0]->GetWorldTransform();
+			check(Targets.Num() == 1);
+			AccumToWorld = TargetComponentInterface(0)->GetWorldTransform();
 		}
 
 		// max len explicitly enforced here, would ideally notify user
@@ -299,9 +304,9 @@ void UCombineMeshesTool::CreateNewAsset()
 
 	
 	TArray<AActor*> Actors;
-	for (auto& ComponentTarget : ComponentTargets)
+	for (int32 Idx = 0; Idx < Targets.Num(); Idx++)
 	{
-		Actors.Add(ComponentTarget->GetOwnerActor());
+		Actors.Add(TargetComponentInterface(Idx)->GetOwnerActor());
 	}
 	HandleSourceProperties->ApplyMethod(Actors, GetToolManager());
 
@@ -334,12 +339,12 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	TArray<UMaterialInterface*> AllMaterials;
 	TMap<UMaterialInterface*, int> KnownMaterials;
 	TArray<int> CombinedMatToOutMatIdx;
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[ComponentIdx];
-		for (int MaterialIdx = 0, NumMaterials = ComponentTarget->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
+		IMaterialProvider* TargetMaterial = TargetMaterialInterface(ComponentIdx);
+		for (int MaterialIdx = 0, NumMaterials = TargetMaterial->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
 		{
-			UMaterialInterface* Mat = ComponentTarget->GetMaterial(MaterialIdx);
+			UMaterialInterface* Mat = TargetMaterial->GetMaterial(MaterialIdx);
 			int32 OutMatIdx = -1;
 			if (!bMergeSameMaterials || !KnownMaterials.Contains(Mat))
 			{
@@ -363,29 +368,30 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	AccumulateDMesh.EnableAttributes();
 	AccumulateDMesh.Attributes()->EnableMaterialID();
 
-	int32 SkipIndex = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : (ComponentTargets.Num() - 1);
-	TUniquePtr<FPrimitiveComponentTarget>& UpdateTarget = ComponentTargets[SkipIndex];
+	int32 SkipIndex = (BasicProperties->WriteOutputTo == ECombineTargetType::FirstInputAsset) ? 0 : (Targets.Num() - 1);
+	IPrimitiveComponentBackedTarget* UpdateTarget = TargetComponentInterface(SkipIndex);
+	IMeshDescriptionCommitter* UpdateTargetCommitter = TargetMeshCommitterInterface(SkipIndex);
+	IMaterialProvider* UpdateTargetMaterial = TargetMaterialInterface(SkipIndex);
 	SkipActor = UpdateTarget->GetOwnerActor();
 
 	FTransform3d TargetToWorld = (FTransform3d)UpdateTarget->GetWorldTransform();
 	FTransform3d WorldToTarget = TargetToWorld.Inverse();
 
 	{
-		FScopedSlowTask SlowTask(ComponentTargets.Num()+1, 
+		FScopedSlowTask SlowTask(Targets.Num()+1, 
 			bDuplicateMode ? 
 			LOCTEXT("DuplicateMeshBuild", "Building duplicate mesh ...") :
 			LOCTEXT("CombineMeshesBuild", "Building combined mesh ..."));
 		SlowTask.MakeDialog();
 
 		int MatIndexBase = 0;
-		for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
 			SlowTask.EnterProgressFrame(1);
-			TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[ComponentIdx];
 
 			FMeshDescriptionToDynamicMesh Converter;
 			FDynamicMesh3 ComponentDMesh;
-			Converter.Convert(ComponentTarget->GetMesh(), ComponentDMesh);
+			Converter.Convert(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription(), ComponentDMesh);
 
 			// update material IDs to account for combined material set
 			FDynamicMeshMaterialAttribute* MatAttrib = ComponentDMesh.Attributes()->GetMaterialID();
@@ -393,12 +399,12 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			{
 				MatAttrib->SetValue(TID, CombinedMatToOutMatIdx[MatIndexBase + MatAttrib->GetValue(TID)]);
 			}
-			MatIndexBase += ComponentTarget->GetNumMaterials();
+			MatIndexBase += TargetMaterialInterface(ComponentIdx)->GetNumMaterials();
 
 
 			if (ComponentIdx != SkipIndex)
 			{
-				FTransform3d ComponentToWorld = (FTransform3d)ComponentTarget->GetWorldTransform();
+				FTransform3d ComponentToWorld = (FTransform3d)TargetComponentInterface(ComponentIdx)->GetWorldTransform();
 				MeshTransforms::ApplyTransform(ComponentDMesh, ComponentToWorld);
 				if (ComponentToWorld.GetDeterminant() < 0)
 				{
@@ -418,15 +424,15 @@ void UCombineMeshesTool::UpdateExistingAsset()
 
 		SlowTask.EnterProgressFrame(1);
 
-		UpdateTarget->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		UpdateTargetCommitter->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(&AccumulateDMesh, *CommitParams.MeshDescription);
+			Converter.Convert(&AccumulateDMesh, *CommitParams.MeshDescriptionOut);
 		});
 
 		FComponentMaterialSet MaterialSet;
 		MaterialSet.Materials = AllMaterials;
-		UpdateTarget->CommitMaterialSetUpdate(MaterialSet, true);
+		UpdateTargetMaterial->CommitMaterialSetUpdate(MaterialSet, true);
 
 		// select the new actor
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), SkipActor);
@@ -435,9 +441,9 @@ void UCombineMeshesTool::UpdateExistingAsset()
 
 	
 	TArray<AActor*> Actors;
-	for (auto& ComponentTarget : ComponentTargets)
+	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
-		AActor* Actor = ComponentTarget->GetOwnerActor();
+		AActor* Actor = TargetComponentInterface(Idx)->GetOwnerActor();
 		if (Actor != SkipActor)
 		{
 			Actors.Add(Actor);

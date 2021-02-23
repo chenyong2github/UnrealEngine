@@ -18,6 +18,10 @@
 
 #include "AssetGenerationUtil.h"
 
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
+
 
 #define LOCTEXT_NAMESPACE "UBakeTransformTool"
 
@@ -27,29 +31,26 @@
  */
 
 
+const FToolTargetTypeRequirements& UBakeTransformToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMeshDescriptionCommitter::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool UBakeTransformToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 0;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
 }
 
 UInteractiveTool* UBakeTransformToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UBakeTransformTool* NewTool = NewObject<UBakeTransformTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if (MeshComponent)
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 
@@ -88,7 +89,7 @@ void UBakeTransformTool::Setup()
 	FText AllTheWarnings = LOCTEXT("BakeTransformWarning", "WARNING: This Tool will Modify the selected StaticMesh Assets! If you do not wish to modify the original Assets, please make copies in the Content Browser first!");
 
 	// detect and warn about any meshes in selection that correspond to same source data
-	bool bSharesSources = GetMapToFirstComponentsSharingSourceData(MapToFirstOccurrences);
+	bool bSharesSources = GetMapToSharedSourceData(MapToFirstOccurrences);
 	if (bSharesSources)
 	{
 		AllTheWarnings = FText::Format(FTextFormat::FromString("{0}\n\n{1}"), AllTheWarnings, LOCTEXT("BakeTransformSharedAssetsWarning", "WARNING: Multiple meshes in your selection use the same source asset!  This is not supported -- each asset can only have one baked transform."));
@@ -97,7 +98,8 @@ void UBakeTransformTool::Setup()
 	bool bHasZeroScales = false;
 	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
 	{
-		if (ComponentTargets[ComponentIdx]->GetWorldTransform().GetScale3D().GetAbsMin() < KINDA_SMALL_NUMBER)
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
+		if (TargetComponent->GetWorldTransform().GetScale3D().GetAbsMin() < KINDA_SMALL_NUMBER)
 		{
 			bHasZeroScales = true;
 		}
@@ -138,10 +140,12 @@ void UBakeTransformTool::UpdateAssets()
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("BakeTransformToolTransactionName", "Bake Transforms"));
 
 	TArray<FTransform3d> BakedTransforms;
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		
-		FTransform3d ComponentToWorld(ComponentTargets[ComponentIdx]->GetWorldTransform());
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
+		IMeshDescriptionCommitter* TargetMeshCommitter = TargetMeshCommitterInterface(ComponentIdx);
+
+		FTransform3d ComponentToWorld(TargetComponent->GetWorldTransform());
 		FTransform3d ToBakePart = FTransform3d::Identity();
 		FTransform3d NewWorldPart = ComponentToWorld;
 
@@ -208,14 +212,14 @@ void UBakeTransformTool::UpdateAssets()
 				check(false); // must explicitly handle all cases
 			}
 
-			ComponentTargets[ComponentIdx]->CommitMesh([this, &ToBakePart, &NewWorldPart](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			TargetMeshCommitter->CommitMeshDescription([this, &ToBakePart, &NewWorldPart](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 			{
-				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(CommitParams.MeshDescription);
+				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(CommitParams.MeshDescriptionOut);
 
 				// do this part within the commit because we have the MeshDescription already computed
 				if (BasicProperties->bRecenterPivot)
 				{
-					FBox BBox = CommitParams.MeshDescription->ComputeBoundingBox();
+					FBox BBox = CommitParams.MeshDescriptionOut->ComputeBoundingBox();
 					FVector3d Center(BBox.GetCenter());
 					FFrame3d LocalFrame(Center);
 					ToBakePart.SetTranslation(ToBakePart.GetTranslation() - Center);
@@ -227,17 +231,17 @@ void UBakeTransformTool::UpdateAssets()
 				FVector3d ScaleVec = ToBakePart.GetScale();
 				if (ScaleVec.X * ScaleVec.Y * ScaleVec.Z < 0)
 				{
-					CommitParams.MeshDescription->ReverseAllPolygonFacing();
+					CommitParams.MeshDescriptionOut->ReverseAllPolygonFacing();
 				}
 			});
 
 			BakedTransforms.Add(ToBakePart);
 		}
 
-		UPrimitiveComponent* Component = ComponentTargets[ComponentIdx]->GetOwnerComponent();
+		UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
 		Component->Modify();
 		Component->SetWorldTransform((FTransform)NewWorldPart);
-		ComponentTargets[ComponentIdx]->GetOwnerActor()->MarkComponentsRenderStateDirty();
+		TargetComponent->GetOwnerActor()->MarkComponentsRenderStateDirty();
 	}
 
 	GetToolManager()->EndUndoTransaction();

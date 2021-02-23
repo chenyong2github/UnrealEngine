@@ -18,6 +18,10 @@ struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class IAssetGenerationAPI;
 
+class IPrimitiveComponentBackedTarget;
+class IMeshDescriptionCommitter;
+class IMeshDescriptionProvider;
+class IMaterialProvider;
 
 
 
@@ -35,6 +39,9 @@ public:
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+
+protected:
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 

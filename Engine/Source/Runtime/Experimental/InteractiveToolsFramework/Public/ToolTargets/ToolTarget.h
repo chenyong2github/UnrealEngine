@@ -33,27 +33,19 @@ class INTERACTIVETOOLSFRAMEWORK_API FToolTargetTypeRequirements
 {
 public:
 
-	const UClass* BaseType = nullptr; //TODO: Do we even need this? Seems like we shouldn't use it.
 	TArray<const UClass*, TInlineAllocator<2>> Interfaces;
 
 	FToolTargetTypeRequirements()
 	{
 	}
 
-	explicit FToolTargetTypeRequirements(const UClass* BaseTypeIn)
+	explicit FToolTargetTypeRequirements(const UClass* Interface0)
 	{
-		BaseType = BaseTypeIn;
-	}
-
-	explicit FToolTargetTypeRequirements(const UClass* BaseTypeIn, const UClass* Interface0)
-	{
-		BaseType = BaseTypeIn;
 		Interfaces.Add(Interface0);
 	}
 
-	explicit FToolTargetTypeRequirements(const UClass* BaseTypeIn, const TArray<const UClass*>& InterfacesIn)
+	explicit FToolTargetTypeRequirements(const TArray<const UClass*>& InterfacesIn)
 	{
-		BaseType = BaseTypeIn;
 		Interfaces = InterfacesIn;
 	}
 

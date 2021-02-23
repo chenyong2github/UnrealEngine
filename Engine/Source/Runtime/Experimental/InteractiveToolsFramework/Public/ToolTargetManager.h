@@ -68,6 +68,13 @@ public:
 	virtual UToolTarget* BuildFirstSelectedTargetable(const FToolBuilderState& SceneState,
 		const FToolTargetTypeRequirements& TargetRequirements);
 
+	/**
+	 * Looks through the current selected components and actors and builds all targets that
+	 * satisfy the requirements.
+	 */
+	virtual TArray<TObjectPtr<UToolTarget>> BuildAllSelectedTargetable(const FToolBuilderState& SceneState,
+		const FToolTargetTypeRequirements& TargetRequirements);
+
 protected:
 	friend class UInteractiveToolsContext;		// to call Initialize/Shutdown
 
