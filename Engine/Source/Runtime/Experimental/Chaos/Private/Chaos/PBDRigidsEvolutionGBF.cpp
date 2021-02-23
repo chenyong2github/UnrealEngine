@@ -165,8 +165,6 @@ void TPBDRigidsEvolutionGBF<Traits>::AdvanceOneTimeStepImpl(const FReal Dt,const
 {
 	SCOPE_CYCLE_COUNTER(STAT_Evolution_AdvanceOneTimeStep);
 
-	Particles.ClearTransientDirty();
-
 	//for now we never allow solver to schedule more than two tasks back to back
 	//this means we only need to keep indices alive for one additional frame
 	//the code that pushes indices to pending happens after this check which ensures we won't delete until next frame

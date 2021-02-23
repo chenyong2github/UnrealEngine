@@ -27,10 +27,12 @@ public:
 		Proxy = &InProxy;
 	}
 
-	TProxy* GetProxy(int32 SolverTimestamp) const
+	TProxy* GetProxy() const
 	{
-		return SolverTimestamp >= *Timestamp ? Proxy : nullptr;
+		return !Timestamp->bDeleted ? Proxy : nullptr;
 	}
+
+	const FProxyTimestamp* GetTimestamp() const { return Timestamp.Get(); }
 
 protected:
 	TBasePullData() : Proxy(nullptr){}
@@ -38,7 +40,7 @@ protected:
 	
 private:
 	TProxy* Proxy;
-	TSharedPtr<int32,ESPMode::ThreadSafe> Timestamp;	//question: is destructor expensive now? might need a better way
+	TSharedPtr<FProxyTimestamp,ESPMode::ThreadSafe> Timestamp;	//question: is destructor expensive now? might need a better way
 };
 
 //Simple struct for when the simulation dirties a particle. Copies all properties regardless of which changed since they tend to change together

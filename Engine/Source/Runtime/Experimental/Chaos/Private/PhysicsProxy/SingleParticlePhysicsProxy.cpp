@@ -112,6 +112,14 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 				Evolution.SetParticleObjectState(RigidHandle,NewData->ObjectState());
 
 				RigidHandle->SetDynamicMisc(*NewData);
+
+				if(NewData->ObjectState() != EObjectStateType::Dynamic)
+				{
+					//this is needed because changing object state on external thread means we want to snap position to where the particle was at that time (on the external thread)
+					//for that to work we need to ensure the snap results (which we just got) are passed properly into the results manager
+					Evolution.GetParticles().MarkTransientDirtyParticle(RigidHandle);
+				}
+				
 			}
 		}
 
@@ -196,32 +204,88 @@ void FSingleParticlePhysicsProxy::BufferPhysicsResults_External(Chaos::FDirtyRig
 
 bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData,int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData, const float* Alpha)
 {
+	using namespace Chaos;
 	// Move buffered data into the TPBDRigidParticle without triggering invalidation of the physics state.
 	auto Rigid = Particle ? Particle->CastToRigidParticle() : nullptr;
 	if(Rigid)
 	{
+		const FProxyTimestamp* ProxyTimestamp = PullData.GetTimestamp();
+		
 		if(NextPullData)
 		{
-			Rigid->SetX(FMath::Lerp(PullData.X, NextPullData->X, *Alpha), false);
-			Rigid->SetR(FMath::Lerp(PullData.R, NextPullData->R, *Alpha), false);
-			Rigid->SetV(FMath::Lerp(PullData.V, NextPullData->V, *Alpha), false);
-			Rigid->SetW(FMath::Lerp(PullData.W, NextPullData->W, *Alpha), false);
+			auto LerpHelper = [SolverSyncTimestamp](const int32 PropertyTimestamp, const auto& Prev, const auto& Overwrite) -> const auto*
+			{
+				//if overwrite is in the future, do nothing
+				//if overwrite is on this step, we want to interpolate from overwrite to the result of the frame that consumed the overwrite
+				//if overwrite is in the past, just do normal interpolation
+
+				//this is nested because otherwise compiler can't figure out the type of nullptr with an auto return type
+				return PropertyTimestamp <= SolverSyncTimestamp ? (PropertyTimestamp < SolverSyncTimestamp ? &Prev : &Overwrite) : nullptr;
+			};
+
+			if(const FVec3* Prev = LerpHelper(ProxyTimestamp->XTimestamp, PullData.X, ProxyTimestamp->OverWriteX))
+			{
+				Rigid->SetX(FMath::Lerp(*Prev, NextPullData->X, *Alpha), false);
+			}
+
+			if (const FQuat* Prev = LerpHelper(ProxyTimestamp->RTimestamp, PullData.R, ProxyTimestamp->OverWriteR))
+			{
+				Rigid->SetR(FMath::Lerp(*Prev, NextPullData->R, *Alpha), false);
+			}
+
+			if (const FVec3* Prev = LerpHelper(ProxyTimestamp->VTimestamp, PullData.V, ProxyTimestamp->OverWriteV))
+			{
+				Rigid->SetV(FMath::Lerp(*Prev, NextPullData->V, *Alpha), false);
+			}
+
+			if (const FVec3* Prev = LerpHelper(ProxyTimestamp->WTimestamp, PullData.W, ProxyTimestamp->OverWriteW))
+			{
+				Rigid->SetW(FMath::Lerp(*Prev, NextPullData->W, *Alpha), false);
+			}
+
+			//we are interpolating from PullData to Next, but the timestamp is associated with Next
+			//since we are interpolating it means we must have not seen Next yet, so the timestamp has to be strictly less than
+			if (ProxyTimestamp->ObjectStateTimestamp < SolverSyncTimestamp)
+			{
+				Rigid->SetObjectState(PullData.ObjectState, true, /*bInvalidate=*/false);
+			}
+			else if(ProxyTimestamp->ObjectStateTimestamp == SolverSyncTimestamp && *Alpha == 1.f)
+			{
+				//if timestamp is the same as next, AND alpha is exactly 1, we are exactly at Next's time
+				//so we can use its sleep state
+				Rigid->SetObjectState(NextPullData->ObjectState, true, /*bInvalidate=*/false);
+			}
 		}
 		else
 		{
-			Rigid->SetX(PullData.X, false);
-			Rigid->SetR(PullData.R, false);
-			Rigid->SetV(PullData.V, false);
-			Rigid->SetW(PullData.W, false);
+			//no interpolation, just ignore if overwrite comes after
+			if(SolverSyncTimestamp >= ProxyTimestamp->XTimestamp)
+			{
+				Rigid->SetX(PullData.X, false);
+			}
+
+			if(SolverSyncTimestamp >= ProxyTimestamp->RTimestamp)
+			{
+				Rigid->SetR(PullData.R, false);
+			}
+
+			if(SolverSyncTimestamp >= ProxyTimestamp->VTimestamp)
+			{
+				Rigid->SetV(PullData.V, false);
+			}
+
+			if(SolverSyncTimestamp >= ProxyTimestamp->WTimestamp)
+			{
+				Rigid->SetW(PullData.W, false);
+			}
+
+			if (SolverSyncTimestamp >= ProxyTimestamp->ObjectStateTimestamp)
+			{
+				Rigid->SetObjectState(PullData.ObjectState, true, /*bInvalidate=*/false);
+			}
 		}
 		
 		Rigid->UpdateShapeBounds();
-		//if (!Particle->IsDirty(Chaos::EParticleFlags::ObjectState))
-		//question: is it ok to call this when it was one of the other properties that changed?
-		if(!Rigid->IsDirty(Chaos::EParticleFlags::DynamicMisc))
-		{
-			Rigid->SetObjectState(PullData.ObjectState,true, /*bInvalidate=*/false);
-		}
 	}
 	return true;
 }
