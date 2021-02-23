@@ -644,7 +644,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 				{
 					NewIssues.Add(FStackIssue(
                         EStackIssueSeverity::Info,
-                        LOCTEXT("DynamicInputScriptNoteShort", "Dynamic input note"),
+                        LOCTEXT("DynamicInputScriptNoteShort", "Input Usage Note"),
                         FunctionScript->NoteMessage,
                         GetStackEditorDataKey(),
                         true));
@@ -879,6 +879,12 @@ void UNiagaraStackFunctionInput::RefreshValues()
 				{
 					UE_LOG(LogNiagaraEditor, Warning, TEXT("Type %s has no data! Cannot refresh values."), *InputType.GetName())
 				}
+			}
+
+			// we check if variable guid is already available in the parameter store and update it if that's not the case
+			if (InputMetaData.IsSet() && !SourceScript->RapidIterationParameters.ParameterGuidMapping.Contains(RapidIterationParameter))
+			{
+				SourceScript->RapidIterationParameters.ParameterGuidMapping.Add(RapidIterationParameter, InputMetaData->GetVariableGuid());
 			}
 		}
 		else
@@ -1415,6 +1421,10 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 			bool bAddParameterIfMissing = true;
 			Script->Modify();
 			Script->RapidIterationParameters.SetParameterData(InLocalValue->GetStructMemory(), RapidIterationParameter, bAddParameterIfMissing);
+			if (InputMetaData.IsSet())
+			{
+				Script->RapidIterationParameters.ParameterGuidMapping.Add(RapidIterationParameter, InputMetaData->GetVariableGuid());
+			}
 		}
 	}
 	else
@@ -1438,6 +1448,15 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 			OverridePin->Modify();
 			OverridePin->DefaultValue = PinDefaultValue;
 			Cast<UNiagaraNode>(OverridePin->GetOwningNode())->MarkNodeRequiresSynchronization(TEXT("OverridePin Default Value Changed"), true);
+		}
+
+		if (InputMetaData.IsSet())
+		{
+			FName VariableName;
+			if (InputMetaData->GetParameterName(VariableName))
+			{
+				OwningFunctionCallNode->UpdateInputNameBinding(InputMetaData->GetVariableGuid(), VariableName);
+			}
 		}
 	}
 	
@@ -2223,6 +2242,18 @@ UEdGraphPin& UNiagaraStackFunctionInput::GetOrCreateOverridePin()
 		TGuardValue<bool> Guard(bUpdatingGraphDirectly, true);
 		OverridePin = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(*OwningFunctionCallNode, AliasedInputParameterHandle, InputType);
 		OverridePinCache = OverridePin;
+
+		// update name binding if we have a guid
+		UNiagaraGraph* CalledGraph = OwningFunctionCallNode->GetCalledGraph();
+		if (CalledGraph)
+		{
+			const FName ModuleInputName = FNiagaraParameterHandle::CreateModuleParameterHandle(AliasedInputParameterHandle.GetName()).GetParameterHandleString();
+			TOptional<FNiagaraVariableMetaData> MetaData = CalledGraph->GetMetaData(FNiagaraVariable(InputType, ModuleInputName));
+			if (MetaData.IsSet())
+			{
+				OwningFunctionCallNode->UpdateInputNameBinding(MetaData->GetVariableGuid(), AliasedInputParameterHandle.GetName());
+			}
+		}
 	}
 	return *OverridePin;
 }

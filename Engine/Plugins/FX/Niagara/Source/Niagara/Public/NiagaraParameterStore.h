@@ -218,6 +218,10 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	FString DebugName;
+
+	/** Guid data to remap rapid iteration parameters after a function input was renamed. */
+	UPROPERTY()
+	TMap<FNiagaraVariable, FGuid> ParameterGuidMapping;
 #endif
 
 	void SetOwner(UObject* InOwner);

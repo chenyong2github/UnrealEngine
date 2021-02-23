@@ -1103,6 +1103,22 @@ void FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(UE
 	}
 }
 
+UEdGraphPin* FNiagaraStackGraphUtilities::GetLinkedValueHandleForFunctionInput(const UEdGraphPin& OverridePin)
+{
+	UNiagaraNodeParameterMapSet* OverrideNode = Cast<UNiagaraNodeParameterMapSet>(OverridePin.GetOwningNode());
+	if (!OverrideNode || OverridePin.LinkedTo.Num() != 1)
+	{
+		return nullptr;
+	}
+	UEdGraphPin* GetOutputPin = OverridePin.LinkedTo[0];
+	FNiagaraParameterHandle PinHandle(GetOutputPin->PinName);
+	if (!GetOutputPin->GetOwningNode()->IsA<UNiagaraNodeParameterMapGet>() || !PinHandle.IsValid() || PinHandle.GetNamespace().IsNone())
+	{
+		return nullptr;
+	}
+	return GetOutputPin;
+}
+
 void FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(UEdGraphPin& OverridePin, FNiagaraParameterHandle LinkedParameterHandle, ENiagaraDefaultMode DesiredDefaultMode, const FGuid& NewNodePersistentId)
 {
 	checkf(OverridePin.LinkedTo.Num() == 0, TEXT("Can't set a linked value handle when the override pin already has a value."));

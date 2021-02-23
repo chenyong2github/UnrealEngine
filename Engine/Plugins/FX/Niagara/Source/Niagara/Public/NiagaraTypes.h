@@ -650,6 +650,7 @@ struct NIAGARA_API FNiagaraVariableMetaData
 		, bInlineEditConditionToggle(false)
 		, ScopeName()
 		, Usage(ENiagaraScriptParameterUsage::None)
+		, VariableGuid(FGuid::NewGuid())
 		, bIsStaticSwitch(false)
 		, StaticSwitchDefaultValue(0)
 		, bAddedToNodeGraphDeepCopy(false)
@@ -726,6 +727,8 @@ struct NIAGARA_API FNiagaraVariableMetaData
 	/** Copies all the properties that are marked as editable for the user (e.g. EditAnywhere). */
 	void CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData);
 
+	FGuid GetVariableGuid() const { return VariableGuid; };
+
 private:
 	/** Defines the scope of a variable that is an input to a script. Used to lookup registered scope infos and resolve the actual ENiagaraParameterScope and Namespace string to use. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
@@ -734,6 +737,10 @@ private:
 	/** Defines the usage of a variable as an argument or output relative to the script. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	ENiagaraScriptParameterUsage Usage;
+
+	/** A unique identifier for the variable that can be used by function call nodes to find renamed variables. */
+	UPROPERTY(VisibleAnywhere, Category = "Variable", meta = (SkipForCompileHash = "true"))
+	FGuid VariableGuid;
 
 	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
 	UPROPERTY()
