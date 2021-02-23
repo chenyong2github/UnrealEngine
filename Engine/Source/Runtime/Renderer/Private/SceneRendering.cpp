@@ -1132,13 +1132,17 @@ void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFl
 		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = FieldResource->FieldInfos.ClipmapExponent;
 		ViewUniformShaderParameters.PhysicsFieldClipmapCount = FieldResource->FieldInfos.ClipmapCount;
 		ViewUniformShaderParameters.PhysicsFieldTargetCount = FieldResource->FieldInfos.TargetCount;
-		ViewUniformShaderParameters.PhysicsFieldVectorTargets = FieldResource->FieldInfos.VectorTargets;
-		ViewUniformShaderParameters.PhysicsFieldScalarTargets = FieldResource->FieldInfos.ScalarTargets;
-		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = FieldResource->FieldInfos.IntegerTargets;
+		for (int32 Index = 0; Index < MAX_PHYSICS_FIELD_TARGETS; ++Index)
+		{
+			ViewUniformShaderParameters.PhysicsFieldTargets[Index].X = FieldResource->FieldInfos.VectorTargets[Index];
+			ViewUniformShaderParameters.PhysicsFieldTargets[Index].Y = FieldResource->FieldInfos.ScalarTargets[Index];
+			ViewUniformShaderParameters.PhysicsFieldTargets[Index].Z = FieldResource->FieldInfos.IntegerTargets[Index];
+			ViewUniformShaderParameters.PhysicsFieldTargets[Index].W = 0; // Padding
+		}
 	}
 	else
 	{
-		TStaticArray<int32, MAX_PHYSICS_FIELD_TARGETS, 16> EmptyTargets;
+		TStaticArray<FIntVector4, MAX_PHYSICS_FIELD_TARGETS, 16> EmptyTargets;
 		ViewUniformShaderParameters.PhysicsFieldClipmapBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 		ViewUniformShaderParameters.PhysicsFieldClipmapCenter = FVector::ZeroVector;
 		ViewUniformShaderParameters.PhysicsFieldClipmapDistance = 1.0;
@@ -1146,9 +1150,7 @@ void SetupPhysicsFieldUniformBufferParameters(const FScene* Scene, FEngineShowFl
 		ViewUniformShaderParameters.PhysicsFieldClipmapExponent = 1;
 		ViewUniformShaderParameters.PhysicsFieldClipmapCount = 1;
 		ViewUniformShaderParameters.PhysicsFieldTargetCount = 0;
-		ViewUniformShaderParameters.PhysicsFieldVectorTargets = EmptyTargets;
-		ViewUniformShaderParameters.PhysicsFieldScalarTargets = EmptyTargets;
-		ViewUniformShaderParameters.PhysicsFieldIntegerTargets = EmptyTargets;
+		ViewUniformShaderParameters.PhysicsFieldTargets = EmptyTargets;
 	}
 }
 

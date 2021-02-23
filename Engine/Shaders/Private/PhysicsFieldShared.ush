@@ -124,7 +124,7 @@ void PhysicsField_GetSamplingInfos(in float3 LocalPosition, in int TargetIndex,
 	SampleFraction = SampleVoxel - SampleIndex;
 }
 
-float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int VectorTarget, in int VectorTargets[MAX_PHYSICS_FIELD_TARGETS], in int TargetCount, in float3 ClipmapCenter,
+float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int VectorTarget, in int4 VectorTargets[MAX_PHYSICS_FIELD_TARGETS], in int TargetCount, in float3 ClipmapCenter,
 			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Buffer<float> ClipmapBuffer)
 {
 	const float3 LocalPosition = WorldPosition - ClipmapCenter;
@@ -132,7 +132,7 @@ float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int Vec
 	float3 FieldValue = float3(0, 0, 0);
 	if (VectorTarget != -1 && VectorTarget < MAX_PHYSICS_FIELD_TARGETS && all(abs(LocalPosition) < float3(ClipmapDistance, ClipmapDistance, ClipmapDistance)))
 	{
-		const int TargetIndex = VectorTargets[VectorTarget];
+		const int TargetIndex = VectorTargets[VectorTarget].x;
 		if (TargetIndex != -1)
 		{
 			int3 SampleIndex = int3(0, 0, 0);
@@ -145,7 +145,7 @@ float3 PhysicsField_SamplePhysicsVectorField(in float3 WorldPosition, in int Vec
 	return FieldValue;
 }
 
-float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int ScalarTarget, in int ScalarTargets[MAX_PHYSICS_FIELD_TARGETS], in int TargetCount, in float3 ClipmapCenter,
+float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int ScalarTarget, in int4 ScalarTargets[MAX_PHYSICS_FIELD_TARGETS], in int TargetCount, in float3 ClipmapCenter,
 			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Buffer<float> ClipmapBuffer)
 {
 	const float3 LocalPosition = WorldPosition - ClipmapCenter;
@@ -153,7 +153,7 @@ float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int Scal
 	float FieldValue = 0.0;
 	if (ScalarTarget != -1 && ScalarTarget < MAX_PHYSICS_FIELD_TARGETS && all(abs(LocalPosition) < float3(ClipmapDistance, ClipmapDistance, ClipmapDistance)))
 	{
-		const int TargetIndex = ScalarTargets[ScalarTarget];
+		const int TargetIndex = ScalarTargets[ScalarTarget].y;
 		if (TargetIndex != -1)
 		{
 			int3 SampleIndex = int3(0, 0, 0);
@@ -166,7 +166,7 @@ float PhysicsField_SamplePhysicsScalarField(in float3 WorldPosition, in int Scal
 	return FieldValue;
 }
 
-int PhysicsField_SamplePhysicsIntegerField(in float3 WorldPosition, in int IntegerTarget, in int IntegerTargets[MAX_PHYSICS_FIELD_TARGETS], in int TargetCount, in float3 ClipmapCenter,
+int PhysicsField_SamplePhysicsIntegerField(in float3 WorldPosition, in int IntegerTarget, in int4 IntegerTargets[MAX_PHYSICS_FIELD_TARGETS], in int TargetCount, in float3 ClipmapCenter,
 			in float ClipmapDistance, in int ClipmapExponent, in int ClipmapCount, in int ClipmapResolution, in Buffer<float> ClipmapBuffer)
 {
 	const float3 LocalPosition = WorldPosition - ClipmapCenter;
@@ -174,7 +174,7 @@ int PhysicsField_SamplePhysicsIntegerField(in float3 WorldPosition, in int Integ
 	int FieldValue = 0.0;
 	if (IntegerTarget != -1 && IntegerTarget < MAX_PHYSICS_FIELD_TARGETS && all(abs(LocalPosition) < float3(ClipmapDistance, ClipmapDistance, ClipmapDistance)))
 	{
-		const int TargetIndex = IntegerTargets[IntegerTarget];
+		const int TargetIndex = IntegerTargets[IntegerTarget].z;
 		if (TargetIndex != -1)
 		{
 			int3 SampleIndex = int3(0, 0, 0);
