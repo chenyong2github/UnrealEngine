@@ -42,11 +42,8 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 	//
 	// We allocate the hierarchical easing channel for their sub-sequence.
 	//
-	auto VisitNewEasingProviders = [this, InstanceRegistry, EvaluatorSystem](const FEntityAllocation* Allocation, TRead<FInstanceHandle> InstanceHandleAccessor, TRead<FMovieSceneSequenceID> HierarchicalEasingProviderAccessor)
+	auto VisitNewEasingProviders = [this, InstanceRegistry, EvaluatorSystem](const FEntityAllocation* Allocation, const FInstanceHandle* InstanceHandles, const FMovieSceneSequenceID* HierarchicalEasingProviders)
 	{
-		TArrayView<const FInstanceHandle> InstanceHandles = InstanceHandleAccessor.ResolveAsArray(Allocation);
-		TArrayView<const FMovieSceneSequenceID> HierarchicalEasingProviders = HierarchicalEasingProviderAccessor.ResolveAsArray(Allocation);
-
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
 			const FSequenceInstance& Instance = InstanceRegistry->GetInstance(InstanceHandles[Index]);
@@ -88,11 +85,8 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 	//
 	// We need to assign them to the appropriate hierarchical easing channel that we created in step 1.
 	//
-	auto VisitNewEasings = [this, InstanceRegistry](const FEntityAllocation* Allocation, TRead<FInstanceHandle> InstanceHandleAccessor, TWrite<uint16> HierarchicalEasingAccessor)
+	auto VisitNewEasings = [this, InstanceRegistry](const FEntityAllocation* Allocation, const FInstanceHandle* InstanceHandles, uint16* HierarchicalEasings)
 	{
-		TArrayView<const FInstanceHandle> InstanceHandles = InstanceHandleAccessor.ResolveAsArray(Allocation);
-		TArrayView<uint16> HierarchicalEasings = HierarchicalEasingAccessor.ResolveAsArray(Allocation);
-
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
 			const FInstanceHandle& InstanceHandle = InstanceHandles[Index];
@@ -112,11 +106,8 @@ void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequis
 
 	// Step 3: Visit removed hierarchical easing providers, so we can free up our channels.
 	//
-	auto VisitRemovedEasingProviders = [this, InstanceRegistry, EvaluatorSystem](const FEntityAllocation* Allocation, TRead<FInstanceHandle> InstanceHandleAccessor, TRead<FMovieSceneSequenceID> HierarchicalEasingProviderAccessor)
+	auto VisitRemovedEasingProviders = [this, InstanceRegistry, EvaluatorSystem](const FEntityAllocation* Allocation, const FInstanceHandle* InstanceHandles, const FMovieSceneSequenceID* HierarchicalEasingProviders)
 	{
-		TArrayView<const FInstanceHandle> InstanceHandles = InstanceHandleAccessor.ResolveAsArray(Allocation);
-		TArrayView<const FMovieSceneSequenceID> HierarchicalEasingProviders = HierarchicalEasingProviderAccessor.ResolveAsArray(Allocation);
-
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
 			const FSequenceInstance& Instance = InstanceRegistry->GetInstance(InstanceHandles[Index]);
@@ -158,52 +149,38 @@ struct FEvaluateEasings
 
 	void ForEachAllocation(
 			const FEntityAllocation* InAllocation, 
-			TRead<FFrameTime> TimeData,
-			TReadOptional<FEasingComponentData> EasingData,
-			TReadOptional<float> WeightData,
-			TReadOptional<FInstanceHandle> InstanceHandleData,
-			TReadOptional<FMovieSceneSequenceID> HierarchicalEasingProviderData,
-			TWrite<float> WeightAndEasingResultData)
+			TRead<FFrameTime> Times,
+			TReadOptional<FEasingComponentData> OptEasing,
+			TReadOptional<float> OptManualWeights,
+			TReadOptional<FInstanceHandle> OptInstanceHandles,
+			TReadOptional<FMovieSceneSequenceID> OptHierarchicalEasingProviders,
+			TWrite<float> Results)
 	{
-		const int32 Num          = InAllocation->Num();
-		const FFrameTime* Times  = TimeData.Resolve(InAllocation);
-		float* Results           = WeightAndEasingResultData.Resolve(InAllocation);
+		const int32 Num = InAllocation->Num();
 
 		// Initialize our result array.
+		for (int32 Idx = 0; Idx < Num; ++Idx)
 		{
-			float* CurResult = Results;
-			for (int32 Idx = 0; Idx < Num; ++Idx)
-			{
-				*(CurResult++) = 1.f;
-			}
+			Results[Idx] = 1.f;
 		}
 
 		// Compute and add easing weight.
-		const bool bHasEasing = InAllocation->HasComponent(EasingData.ComponentType);
-		if (bHasEasing)
+		if (OptEasing)
 		{
-			float* CurResult = Results;
-			const FFrameTime* CurTime = Times;
-			const FEasingComponentData* CurEasing = EasingData.Resolve(InAllocation);
 			for (int32 Idx = 0; Idx < Num; ++Idx)
 			{
-				const float EasingWeight = (CurEasing++)->Section->EvaluateEasing(*(CurTime++));
-				*(CurResult++) *= FMath::Max(EasingWeight, 0.f);
+				const float EasingWeight = OptEasing[Idx].Section->EvaluateEasing(Times[Idx]);
+				Results[Idx] *= FMath::Max(EasingWeight, 0.f);
 			}
 		}
 
 		// Manual weight has already been computed by the float channel evaluator system, so we
 		// just need to pick up the result and combine it.
-		const bool bHasWeight = InAllocation->HasComponent(WeightData.ComponentType);
-		if (bHasWeight)
+		if (OptManualWeights)
 		{
-			float* CurResult = Results;
-			const FFrameTime* CurTime = Times;
-			const float* CurWeight = WeightData.Resolve(InAllocation);
 			for (int32 Idx = 0; Idx < Num; ++Idx)
 			{
-				const float CustomWeight = *(CurWeight++);
-				*(CurResult++) *= FMath::Max(CustomWeight, 0.f);
+				Results[Idx] *= FMath::Max(OptManualWeights[Idx], 0.f);
 			}
 		}
 
@@ -215,20 +192,14 @@ struct FEvaluateEasings
 		// Note that we need to check for instance handles because in interrogation evaluations, there are no
 		// instance handles.
 		//
-		const bool bIsProviders = InAllocation->HasComponent(HierarchicalEasingProviderData.ComponentType);
-		const bool bHasInstances = InAllocation->HasComponent(InstanceHandleData.ComponentType);
-		if (bIsProviders && bHasInstances)
+		if (OptInstanceHandles && OptHierarchicalEasingProviders)
 		{
 			const FInstanceRegistry* InstanceRegistry = EvaluatorSystem->GetLinker()->GetInstanceRegistry();
 
-			float* CurResult = Results;
-			const FInstanceHandle* InstanceHandles = InstanceHandleData.Resolve(InAllocation);
-			const FMovieSceneSequenceID* CurSubSequenceIDs = HierarchicalEasingProviderData.Resolve(InAllocation);
 			for (int32 Idx = 0; Idx < Num; ++Idx)
 			{
-				const FSequenceInstance& Instance = InstanceRegistry->GetInstance(*(InstanceHandles++));
-				const FInstanceHandle CurSubSequenceHandle = Instance.FindSubInstance(*(CurSubSequenceIDs++));
-				EvaluatorSystem->SetSubSequenceEasing(CurSubSequenceHandle, *(CurResult++));
+				const FSequenceInstance& Instance = InstanceRegistry->GetInstance(OptInstanceHandles[Idx]);
+				EvaluatorSystem->SetSubSequenceEasing(OptInstanceHandles[Idx], Results[Idx]);
 			}
 		}
 	}
@@ -266,36 +237,23 @@ struct FAccumulateHierarchicalEasings
 
 struct FPropagateHierarchicalEasings
 {
-	const FInstanceRegistry* InstanceRegistry;
 	TSparseArray<FHierarchicalEasingChannelData>* EasingChannels;
 
-	FPropagateHierarchicalEasings(
-			const FInstanceRegistry* InInstanceRegistry, 
-			TSparseArray<FHierarchicalEasingChannelData>* InEasingChannels)
-		: InstanceRegistry(InInstanceRegistry)
-		, EasingChannels(InEasingChannels)
+	FPropagateHierarchicalEasings(TSparseArray<FHierarchicalEasingChannelData>* InEasingChannels)
+		: EasingChannels(InEasingChannels)
 	{}
 
-	void ForEachAllocation(
-			const FEntityAllocation* Allocation,
-			TRead<FInstanceHandle> InstanceHandleData,
-			TRead<uint16> HierarchicalEasingChannelAccessor,
-			TWrite<float> WeightAndEasingResultData)
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<uint16> HierarchicalEasingChannels, TWrite<float> WeightAndEasingResults)
 	{
-		TArrayView<const FInstanceHandle> InstanceHandles = InstanceHandleData.ResolveAsArray(Allocation);
-		TArrayView<const uint16> HierarchicalEasingChannels = HierarchicalEasingChannelAccessor.ResolveAsArray(Allocation);
-		TArrayView<float> WeightAndEasingResults = WeightAndEasingResultData.ResolveAsArray(Allocation);
-
-		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+		const int32 Num = Allocation->Num();
+		for (int32 Index = 0; Index < Num; ++Index)
 		{
-			const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandles[Index]);
 			const uint16 HierarchicalEasingChannel = HierarchicalEasingChannels[Index];
-			float& WeightAndEasingResult = WeightAndEasingResults[Index];
 
 			if (ensure(EasingChannels->IsValidIndex(HierarchicalEasingChannel)))
 			{
 				const FHierarchicalEasingChannelData& EasingChannel = (*EasingChannels)[HierarchicalEasingChannel];
-				WeightAndEasingResult *= EasingChannel.FinalEasingResult;
+				WeightAndEasingResults[Index] *= EasingChannel.FinalEasingResult;
 			}
 		}
 	}
@@ -422,11 +380,10 @@ void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 		// Step 3: Apply hierarchical easing results to all entities inside affected sub-sequences.
 		//
 		FEntityTaskBuilder()
-			.Read(Components->InstanceHandle)
 			.Read(Components->HierarchicalEasingChannel)
 			.Write(Components->WeightAndEasingResult)
 			.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
-			.Dispatch_PerAllocation<FPropagateHierarchicalEasings>(&Linker->EntityManager, PropagatePrereqs, &Subsequents, InstanceRegistry, &EasingChannels);
+			.Dispatch_PerAllocation<FPropagateHierarchicalEasings>(&Linker->EntityManager, PropagatePrereqs, &Subsequents, &EasingChannels);
 	}
 }
 

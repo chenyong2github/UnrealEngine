@@ -10,7 +10,7 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
-#include "EntitySystem/MovieSceneEntityFactory.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 #include "MovieSceneSection.h"
 
 DECLARE_CYCLE_STAT(TEXT("Generic Track Instances"), MovieSceneEval_GenericTrackInstances, STATGROUP_MovieSceneECS);
@@ -34,12 +34,13 @@ struct FTrackInstanceInputComponentInitializer : TChildEntityInitializer<FMovieS
 	{
 		check(ParentAllocationOffsets.Num() == ChildRange.Num);
 
-		TArrayView<const FMovieSceneTrackInstanceComponent> TrackInstanceComponents = TRead<FMovieSceneTrackInstanceComponent>(GetParentComponent()).ResolveAsArray(ParentAllocation);
+		FEntityAllocationWriteContext FreshWriteContext = FEntityAllocationWriteContext::NewAllocation();
 
-		TArrayView<FTrackInstanceInputComponent> Inputs       = TWrite<FTrackInstanceInputComponent>(GetChildComponent()).ResolveAsArray(ChildRange.Allocation);
-		TArrayView<UObject* const>               BoundObjects = TReadOptional<UObject*>(FBuiltInComponentTypes::Get()->BoundObject).ResolveAsArray(ChildRange.Allocation);
+		TComponentReader<FMovieSceneTrackInstanceComponent> TrackInstances  = ParentAllocation->ReadComponents(GetParentComponent());
+		TComponentWriter<FTrackInstanceInputComponent>      Inputs          = ChildRange.Allocation->WriteComponents(GetChildComponent(), FreshWriteContext);
+		TOptionalComponentReader<UObject*>                  BoundObjects    = ChildRange.Allocation->TryReadComponents(FBuiltInComponentTypes::Get()->BoundObject);
 
-		if (BoundObjects.Num() != 0)
+		if (BoundObjects)
 		{
 			for (int32 Index = 0; Index < ChildRange.Num; ++Index)
 			{
@@ -47,7 +48,7 @@ struct FTrackInstanceInputComponentInitializer : TChildEntityInitializer<FMovieS
 				const int32 ChildIndex  = ChildRange.ComponentStartOffset + Index;
 
 				// Initialize the output index
-				Inputs[ChildIndex].OutputIndex = Instantiator->MakeOutput(BoundObjects[ChildIndex], TrackInstanceComponents[ParentIndex].TrackInstanceClass);
+				Inputs[ChildIndex].OutputIndex = Instantiator->MakeOutput(BoundObjects[ChildIndex], TrackInstances[ParentIndex].TrackInstanceClass);
 			}
 		}
 		else for (int32 Index = 0; Index < ChildRange.Num; ++Index)
@@ -56,7 +57,7 @@ struct FTrackInstanceInputComponentInitializer : TChildEntityInitializer<FMovieS
 			const int32 ChildIndex  = ChildRange.ComponentStartOffset + Index;
 
 			// Initialize the output index
-			Inputs[ChildIndex].OutputIndex = Instantiator->MakeOutput(nullptr, TrackInstanceComponents[ParentIndex].TrackInstanceClass);
+			Inputs[ChildIndex].OutputIndex = Instantiator->MakeOutput(nullptr, TrackInstances[ParentIndex].TrackInstanceClass);
 		}
 	}
 };

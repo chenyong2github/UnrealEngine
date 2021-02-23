@@ -3,18 +3,16 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "UObject/Class.h"
+#include "UObject/Object.h"
 #include "UObject/NameTypes.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UnrealTypeTraits.h"
-#include "Containers/SparseArray.h"
-#include "MovieSceneCommonHelpers.h"
-#include "EntitySystem/MovieSceneEntitySystemTypes.h"
-#include "EntitySystem/MovieSceneComponentRegistry.h"
-#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneComponentAccessors.h"
-#include "EntitySystem/MovieSceneOperationalTypeConversions.h"
 
 class UClass;
+class FTrackInstancePropertyBindings;
+
 
 namespace UE
 {
@@ -130,11 +128,32 @@ struct FCustomAccessorView
 		return ViewNum;
 	}
 
+	int32 FindCustomAccessorIndex(UClass* ClassType, FName PropertyPath) const
+	{
+		UClass* StopIterationAt = UObject::StaticClass();
+
+		while (ClassType != StopIterationAt)
+		{
+			for (int32 Index = 0; Index < ViewNum; ++Index)
+			{
+				const FCustomPropertyAccessor& Accessor = (*this)[Index];
+				if (Accessor.Class == ClassType && Accessor.PropertyPath == PropertyPath)
+				{
+					return Index;
+				}
+			}
+			ClassType = ClassType->GetSuperClass();
+		}
+
+		return INDEX_NONE;
+	}
+
 private:
 	const uint8* Base;
 	int32 ViewNum;
 	int32 Stride;
 };
+
 
 struct ICustomPropertyRegistration
 {
@@ -215,13 +234,7 @@ struct TSetPropertyValues
 	/**
 	 * Run before this task executes any logic over entities and components
 	 */
-	void PreTask()
-	{
-		if (CustomProperties)
-		{
-			CustomAccessors = CustomProperties->GetAccessors();
-		}
-	}
+	void PreTask();
 
 
 	/**
@@ -234,11 +247,8 @@ struct TSetPropertyValues
 	 *     .Read( TComponentTypeID<PropertyType>(...) )
 	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomIndex, ParamType ValueToSet)
-	{
-		const TCustomPropertyAccessor<PropertyType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<PropertyType>&>(CustomAccessors[CustomIndex.Value]);
-		CustomAccessor.Functions.Setter(InObject, ValueToSet);
-	}
+	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomIndex, ParamType ValueToSet);
+	static void ForEachEntity(UObject* InObject, const FCustomPropertyAccessor& CustomAccessor, ParamType ValueToSet);
 
 
 	/**
@@ -251,15 +261,7 @@ struct TSetPropertyValues
 	 *     .Read( TComponentTypeID<PropertyType>(...) )
 	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, ParamType ValueToSet)
-	{
-		// Would really like to avoid branching here, but if we encounter this data the options are either handle it gracefully, stomp a vtable, or report a fatal error.
-		if (ensureAlwaysMsgf(PropertyOffset != 0, TEXT("Invalid property offset specified (ptr+%d bytes) for property on object %s. This would otherwise overwrite the object's vfptr."), PropertyOffset, *InObject->GetName()))
-		{
-			PropertyType* PropertyAddress = reinterpret_cast<PropertyType*>( reinterpret_cast<uint8*>(InObject) + PropertyOffset );
-			*PropertyAddress = ValueToSet;
-		}
-	}
+	static void ForEachEntity(UObject* InObject, uint16 PropertyOffset, ParamType ValueToSet);
 
 
 	/**
@@ -272,15 +274,12 @@ struct TSetPropertyValues
 	 *     .Read( TComponentTypeID<PropertyType>(...) )
 	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, ParamType ValueToSet)
-	{
-		PropertyBindings->CallFunction<PropertyType>(*InObject, ValueToSet);
-	}
+	static void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, ParamType ValueToSet);
 
 public:
 
-	using FThreeWayAccessor  = TReadOneOf< FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings> >;
-	using FTwoWayAccessor    = TReadOneOf< uint16, TSharedPtr<FTrackInstancePropertyBindings> >;
+	using FThreeWayAccessor  = TMultiReadOptional<FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
+	using FTwoWayAccessor    = TMultiReadOptional<uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
 
 	/**
 	 * Task callback that applies properties for a whole allocation of entities with either an FCustomPropertyIndex, uint16 or TSharedPtr<FTrackInstancePropertyBindings> property component
@@ -292,37 +291,7 @@ public:
 	 *     .Read(      TComponentTypeID<PropertyType>(...) )
 	 *     .Dispatch_PerAllocation<TSetPropertyValues<PropertyType>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor PropertyBindingComponents, TRead<PropertyType> PropertyValueComponents)
-	{
-		using FPropertyTuple = TTuple< const FCustomPropertyIndex*, const uint16*, const TSharedPtr<FTrackInstancePropertyBindings>* >;
-
-		UObject* const *    Objects    = BoundObjectComponents.Resolve(Allocation);
-		FPropertyTuple      Properties = PropertyBindingComponents.Resolve(Allocation);
-		const PropertyType* Input      = PropertyValueComponents.Resolve(Allocation);
-
-		const int32 Num = Allocation->Num();
-		if (const FCustomPropertyIndex* Custom = Properties.template Get<0>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(*Objects++, *Custom++, *Input++);
-			}
-		}
-		else if (const uint16* Fast = Properties.template Get<1>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(*Objects++, *Fast++, *Input++);
-			}
-		}
-		else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = Properties.template Get<2>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(*Objects++, *Slow++, *Input++);
-			}
-		}
-	}
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<PropertyType> PropertyValueComponents);
 
 
 	/**
@@ -335,30 +304,7 @@ public:
 	 *     .Read(      TComponentTypeID<PropertyType>(...) )
 	 *     .Dispatch_PerAllocation<TSetPropertyValues<PropertyType>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor PropertyBindingComponents, TRead<PropertyType> PropertyValueComponents)
-	{
-		using FPropertyTuple = TTuple< const uint16*, const TSharedPtr<FTrackInstancePropertyBindings>* >;
-
-		UObject* const *    Objects    = BoundObjectComponents.Resolve(Allocation);
-		FPropertyTuple      Properties = PropertyBindingComponents.Resolve(Allocation);
-		const PropertyType* Input      = PropertyValueComponents.Resolve(Allocation);
-
-		const int32 Num = Allocation->Num();
-		if (const uint16* Fast = Properties.template Get<0>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(*Objects++, *Fast++, *Input++);
-			}
-		}
-		else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = Properties.template Get<1>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(*Objects++, *Slow++, *Input++);
-			}
-		}
-	}
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<PropertyType> PropertyValueComponents);
 
 private:
 
@@ -401,13 +347,7 @@ struct TGetPropertyValues
 		: CustomProperties(InCustomProperties)
 	{}
 
-	void PreTask()
-	{
-		if (CustomProperties)
-		{
-			CustomAccessors = CustomProperties->GetAccessors();
-		}
-	}
+	void PreTask();
 
 	/**
 	 * Task callback that retrieves the object's current value via a custom native setter function, and writes it to the specified output variable
@@ -419,11 +359,7 @@ struct TGetPropertyValues
 	 *     .Write( TComponentTypeID<OperationalType>(...) )
 	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, OperationalType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, OperationalType& OutValue)
-	{
-		const TCustomPropertyAccessor<PropertyType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<PropertyType>&>(CustomAccessors[CustomPropertyIndex.Value]);
-		ConvertOperationalProperty(CustomAccessor.Functions.Getter(InObject), OutValue);
-	}
+	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, OperationalType& OutValue);
 
 	/**
 	 * Task callback that retrieves the object's current value via a fast pointer offset, and writes it to the specified output variable
@@ -435,16 +371,7 @@ struct TGetPropertyValues
 	 *     .Read( TComponentTypeID<OperationalType>(...) )
 	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, OperationalType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, OperationalType& OutValue)
-	{
-		// Would really like to avoid branching here, but if we encounter this data the options are either handle it gracefully, stomp a vtable, or report a fatal error.
-		if (ensureAlwaysMsgf(PropertyOffset != 0, TEXT("Invalid property offset specified (ptr+%d bytes) for property on object %s. This would otherwise overwrite the object's vfptr."), PropertyOffset, *InObject->GetName()))
-		{
-			PropertyType* PropertyAddress = reinterpret_cast<PropertyType*>( reinterpret_cast<uint8*>(InObject) + PropertyOffset );
-
-			ConvertOperationalProperty(*PropertyAddress, OutValue);
-		}
-	}
+	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, OperationalType& OutValue);
 
 	/**
 	 * Task callback that retrieves the object's current value via a slow (legacy) track instance binding, and writes it to the specified output variable
@@ -456,15 +383,12 @@ struct TGetPropertyValues
 	 *     .Read( TComponentTypeID<OperationalType>(...) )
 	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, OperationalType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, OperationalType& OutValue)
-	{
-		ConvertOperationalProperty(PropertyBindings->GetCurrentValue<PropertyType>(*InObject), OutValue);
-	}
+	void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, OperationalType& OutValue);
 
 public:
 
-	using FThreeWayAccessor  = TReadOneOf< FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings> >;
-	using FTwoWayAccessor    = TReadOneOf< uint16, TSharedPtr<FTrackInstancePropertyBindings> >;
+	using FThreeWayAccessor  = TMultiReadOptional<FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
+	using FTwoWayAccessor    = TMultiReadOptional<uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
 
 
 	/**
@@ -477,37 +401,7 @@ public:
 	 *     .Write(     TComponentTypeID<OperationalType>(...) )
 	 *     .Dispatch_PerAllocation<TGetPropertyValues<PropertyType, OperationalType>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor PropertyBindingComponents, TWrite<OperationalType> OutValueComponents)
-	{
-		using FPropertyTuple = TTuple< const FCustomPropertyIndex*, const uint16*, const TSharedPtr<FTrackInstancePropertyBindings>* >;
-
-		UObject* const *    Objects    = BoundObjectComponents.Resolve(Allocation);
-		FPropertyTuple      Properties = PropertyBindingComponents.Resolve(Allocation);
-		OperationalType*   Output     = OutValueComponents.Resolve(Allocation);
-
-		const int32 Num = Allocation->Num();
-		if (const FCustomPropertyIndex* Custom = Properties.template Get<0>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(Objects[Index], Custom[Index], Output[Index]);
-			}
-		}
-		else if (const uint16* Fast = Properties.template Get<1>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(Objects[Index], Fast[Index], Output[Index]);
-			}
-		}
-		else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = Properties.template Get<2>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(Objects[Index], Slow[Index], Output[Index]);
-			}
-		}
-	}
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TWrite<OperationalType> OutValueComponents);
 
 
 	/**
@@ -520,30 +414,7 @@ public:
 	 *     .Read(      TComponentTypeID<OperationalType>(...) )
 	 *     .Dispatch_PerAllocation<TGetPropertyValues<PropertyType ,OperationalType>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor PropertyBindingComponents, TWrite<OperationalType> OutValueComponents)
-	{
-		using FPropertyTuple = TTuple< const uint16*, const TSharedPtr<FTrackInstancePropertyBindings>* >;
-
-		UObject* const *    Objects    = BoundObjectComponents.Resolve(Allocation);
-		FPropertyTuple      Properties = PropertyBindingComponents.Resolve(Allocation);
-		OperationalType*   Output     = OutValueComponents.Resolve(Allocation);
-
-		const int32 Num = Allocation->Num();
-		if (const uint16* Fast = Properties.template Get<0>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(Objects[Index], Fast[Index], Output[Index]);
-			}
-		}
-		else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = Properties.template Get<1>())
-		{
-			for (int32 Index = 0; Index < Num; ++Index)
-			{
-				ForEachEntity(Objects[Index], Slow[Index], Output[Index]);
-			}
-		}
-	}
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TWrite<OperationalType> OutValueComponents);
 
 private:
 
@@ -594,13 +465,7 @@ struct TSetCompositePropertyValuesImpl<TIntegerSequence<int, Indices...>, Proper
 	/**
 	 * Run before this task executes any logic over entities and components
 	 */
-	void PreTask()
-	{
-		if (CustomProperties)
-		{
-			CustomAccessors = CustomProperties->GetAccessors();
-		}
-	}
+	void PreTask();
 
 	/**
 	 * Task callback that applies a value to an object property via a custom native setter function
@@ -614,13 +479,7 @@ struct TSetCompositePropertyValuesImpl<TIntegerSequence<int, Indices...>, Proper
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerEntity<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(..., Projection);
 	 */
-	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults)
-	{
-		const TCustomPropertyAccessor<PropertyType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<PropertyType>&>(CustomAccessors[CustomPropertyIndex.Value]);
-
-		PropertyType Result = Invoke(Projection, CompositeResults...);
-		CustomAccessor.Functions.Setter(InObject, Result);
-	}
+	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
 
 
 	/**
@@ -635,17 +494,7 @@ struct TSetCompositePropertyValuesImpl<TIntegerSequence<int, Indices...>, Proper
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerEntity<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults)
-	{
-		// Would really like to avoid branching here, but if we encounter this data the options are either handle it gracefully, stomp a vtable, or report a fatal error.
-		if (ensureAlwaysMsgf(PropertyOffset != 0, TEXT("Invalid property offset specified (ptr+%d bytes) for property on object %s. This would otherwise overwrite the object's vfptr."), PropertyOffset, *InObject->GetName()))
-		{
-			PropertyType Result = Invoke(Projection, CompositeResults...);
-
-			PropertyType* PropertyAddress = reinterpret_cast<PropertyType*>( reinterpret_cast<uint8*>(InObject) + PropertyOffset );
-			*PropertyAddress = Result;
-		}
-	}
+	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
 
 
 	/**
@@ -660,16 +509,12 @@ struct TSetCompositePropertyValuesImpl<TIntegerSequence<int, Indices...>, Proper
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerEntity<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults)
-	{
-		PropertyType Result = Invoke(Projection, CompositeResults...);
-		PropertyBindings->CallFunction<PropertyType>(*InObject, Result);
-	}
+	void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
 
 public:
 
-	using FThreeWayAccessor  = TReadOneOf< FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings> >;
-	using FTwoWayAccessor    = TReadOneOf< uint16, TSharedPtr<FTrackInstancePropertyBindings> >;
+	using FThreeWayAccessor  = TMultiReadOptional<FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
+	using FTwoWayAccessor    = TMultiReadOptional<uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
 
 
 	/**
@@ -684,41 +529,7 @@ public:
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerAllocation<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor PropertyBindingComponents, TRead<CompositeTypes>... VariadicComponents)
-	{
-		using FPropertyTuple = TTuple< const FCustomPropertyIndex*, const uint16*, const TSharedPtr<FTrackInstancePropertyBindings>* >;
-
-		UObject* const * Objects    = BoundObjectComponents.Resolve(Allocation);
-		FPropertyTuple   Properties = PropertyBindingComponents.Resolve(Allocation);
-
-		auto CompositesState = MakeTuple( VariadicComponents.CreateIterState(Allocation)... );
-
-		const int32 Num = Allocation->Num();
-		if (const FCustomPropertyIndex* Custom = Properties.template Get<0>())
-		{
-			for (int32 ComponentOffset = 0; ComponentOffset < Num; ++ComponentOffset )
-			{
-				ForEachEntity( *Objects++, *Custom++, *CompositesState.template Get<Indices>()... );
-				VisitTupleElements([](auto& It){ ++It; }, CompositesState);
-			}
-		}
-		else if (const uint16* Fast = Properties.template Get<1>())
-		{
-			for (int32 ComponentOffset = 0; ComponentOffset < Num; ++ComponentOffset )
-			{
-				ForEachEntity( *Objects++, *Fast++, *CompositesState.template Get<Indices>()... );
-				VisitTupleElements([](auto& It){ ++It; }, CompositesState);
-			}
-		}
-		else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = Properties.template Get<2>())
-		{
-			for (int32 ComponentOffset = 0; ComponentOffset < Num; ++ComponentOffset )
-			{
-				ForEachEntity( *Objects++, *Slow++, *CompositesState.template Get<Indices>()... );
-				VisitTupleElements([](auto& It){ ++It; }, CompositesState);
-			}
-		}
-	}
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<CompositeTypes>... VariadicComponents);
 
 
 	/**
@@ -733,33 +544,8 @@ public:
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerAllocation<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor PropertyBindingComponents, TRead<CompositeTypes>... VariadicComponents)
-	{
-		using FPropertyTuple = TTuple< const uint16*, const TSharedPtr<FTrackInstancePropertyBindings>* >;
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<CompositeTypes>... VariadicComponents);
 
-		UObject* const * Objects    = BoundObjectComponents.Resolve(Allocation);
-		FPropertyTuple   Properties = PropertyBindingComponents.Resolve(Allocation);
-
-		auto CompositesState = MakeTuple( VariadicComponents.CreateIterState(Allocation)... );
-
-		const int32 Num = Allocation->Num();
-		if (const uint16* Fast = Properties.template Get<0>())
-		{
-			for (int32 ComponentOffset = 0; ComponentOffset < Num; ++ComponentOffset )
-			{
-				ForEachEntity( *Objects++, *Fast++, *CompositesState.template Get<Indices>()... );
-				VisitTupleElements([](auto& It){ ++It; }, CompositesState);
-			}
-		}
-		else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = Properties.template Get<1>())
-		{
-			for (int32 ComponentOffset = 0; ComponentOffset < Num; ++ComponentOffset )
-			{
-				ForEachEntity( *Objects++, *Slow++, *CompositesState.template Get<Indices>()... );
-				VisitTupleElements([](auto& It){ ++It; }, CompositesState);
-			}
-		}
-	}
 private:
 
 	ICustomPropertyRegistration* CustomProperties;

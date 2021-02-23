@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/SortedMap.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
 #include "MovieSceneTracksComponentTypes.h"

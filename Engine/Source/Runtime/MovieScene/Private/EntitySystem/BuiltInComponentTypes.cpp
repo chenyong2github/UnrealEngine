@@ -5,6 +5,8 @@
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneComponentRegistry.h"
+#include "EntitySystem/MovieScenePropertyBinding.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 
 namespace UE
 {
@@ -155,8 +157,8 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 
 			virtual void Run(const FEntityRange& ChildRange, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets) override
 			{
-				TArrayView<const FMovieSceneEntityID> ParentIDs = ParentAllocation->GetEntityIDs();
-				TArrayView<FMovieSceneEntityID>       ChildComponents = GetChildComponents(ChildRange.Allocation);
+				TArrayView<const FMovieSceneEntityID> ParentIDs       = ParentAllocation->GetEntityIDs();
+				TComponentWriter<FMovieSceneEntityID> ChildComponents = GetChildComponents(ChildRange.Allocation);
 
 				for (int32 Index = 0; Index < ChildRange.Num; ++Index)
 				{

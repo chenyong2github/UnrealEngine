@@ -7,6 +7,7 @@
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
 #include "EntitySystem/MovieSceneDecompositionQuery.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieScenePropertyRegistry.h"
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 
@@ -93,14 +94,15 @@ private:
 
 	struct FObjectPropertyInfo
 	{
-		FObjectPropertyInfo()
-			: BoundObject(nullptr)
+		FObjectPropertyInfo(UE::MovieScene::FResolvedProperty&& InProperty)
+			: Property(MoveTemp(InProperty))
+			, BoundObject(nullptr)
 			, BlendChannel(INVALID_BLEND_CHANNEL)
 			, bWantsRestoreState(false)
 		{}
 
 		/** Variant of the property itself as either a pointer offset, a custom property index, or slow track instance bindings object */
-		TOptional< TVariant<uint16, UE::MovieScene::FCustomPropertyIndex, FSlowPropertyPtr> > Property;
+		UE::MovieScene::FResolvedProperty Property;
 
 		/** POinter to the blender system to use for this property, if its blended */
 		TWeakObjectPtr<UMovieSceneBlenderSystem> Blender;
@@ -138,8 +140,6 @@ private:
 	bool PropertySupportsFastPath(const FPropertyParameters& Params) const;
 	void InitializeFastPath(const FPropertyParameters& Params);
 	void InitializeBlendPath(const FPropertyParameters& Params);
-	int32 FindCustomAccessorIndex(UE::MovieScene::FCustomAccessorView Accessors, UClass* ClassType, FName PropertyPath);
-	TOptional<uint16> ComputeFastPropertyPtrOffset(UClass* ObjectClass, const FMovieScenePropertyBinding& PropertyBinding);
 	int32 ResolveProperty(UE::MovieScene::FCustomAccessorView CustomAccessors, UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, int32 PropertyDefinitionIndex);
 
 	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;

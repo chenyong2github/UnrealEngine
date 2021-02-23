@@ -6,6 +6,7 @@
 #include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneSequence.h"
@@ -571,19 +572,14 @@ void FSystemInterrogator::QueryWorldSpaceTransforms(const TBitArray<>& ChannelsT
 
 		if (Linker->EntityManager.Contains(Filter))
 		{
-			auto PopulatePartial = [&VariableTransformsByChannel, &PredicateBits, &BaseValues, Components](const FEntityAllocation* Allocation, TRead<FInterrogationKey> KeysAccessor)
+			auto PopulatePartial = [&VariableTransformsByChannel, &PredicateBits, &BaseValues, Components](const FEntityAllocation* Allocation, const FInterrogationKey* Keys)
 			{
 				const int32 Num = Allocation->Num();
-				const FInterrogationKey* Keys = KeysAccessor.Resolve(Allocation);
 
-				const FComponentHeader* Headers[9];
+				TOptionalComponentReader<float> FloatComponents[9];
 				for (int32 Index = 0; Index < 9; ++Index)
 				{
-					Headers[Index] = Allocation->FindComponentHeader(Components->FloatResult[Index]);
-					if (Headers[Index])
-					{
-						Headers[Index]->ReadWriteLock.ReadLock();
-					}
+					FloatComponents[Index] = Allocation->TryReadComponents(Components->FloatResult[Index]);
 				}
 
 				for (int32 ComponentIndex = 0; ComponentIndex < Num; ++ComponentIndex)
@@ -598,25 +594,17 @@ void FSystemInterrogator::QueryWorldSpaceTransforms(const TBitArray<>& ChannelsT
 						FRotator  Rotation = Transform.GetRotation().Rotator();
 						FVector   Scale    = Transform.GetScale3D();
 
-						if (Headers[0]) { Location.X     = *static_cast<const float*>(Headers[0]->GetValuePtr(ComponentIndex)); }
-						if (Headers[1]) { Location.Y     = *static_cast<const float*>(Headers[1]->GetValuePtr(ComponentIndex)); }
-						if (Headers[2]) { Location.Z     = *static_cast<const float*>(Headers[2]->GetValuePtr(ComponentIndex)); }
-						if (Headers[3]) { Rotation.Roll  = *static_cast<const float*>(Headers[3]->GetValuePtr(ComponentIndex)); }
-						if (Headers[4]) { Rotation.Pitch = *static_cast<const float*>(Headers[4]->GetValuePtr(ComponentIndex)); }
-						if (Headers[5]) { Rotation.Yaw   = *static_cast<const float*>(Headers[5]->GetValuePtr(ComponentIndex)); }
-						if (Headers[6]) { Scale.X        = *static_cast<const float*>(Headers[6]->GetValuePtr(ComponentIndex)); }
-						if (Headers[7]) { Scale.Y        = *static_cast<const float*>(Headers[7]->GetValuePtr(ComponentIndex)); }
-						if (Headers[8]) { Scale.Z        = *static_cast<const float*>(Headers[8]->GetValuePtr(ComponentIndex)); }
+						if (FloatComponents[0]) { Location.X     = FloatComponents[0][ComponentIndex]; }
+						if (FloatComponents[1]) { Location.Y     = FloatComponents[1][ComponentIndex]; }
+						if (FloatComponents[2]) { Location.Z     = FloatComponents[2][ComponentIndex]; }
+						if (FloatComponents[3]) { Rotation.Roll  = FloatComponents[3][ComponentIndex]; }
+						if (FloatComponents[4]) { Rotation.Pitch = FloatComponents[4][ComponentIndex]; }
+						if (FloatComponents[5]) { Rotation.Yaw   = FloatComponents[5][ComponentIndex]; }
+						if (FloatComponents[6]) { Scale.X        = FloatComponents[6][ComponentIndex]; }
+						if (FloatComponents[7]) { Scale.Y        = FloatComponents[7][ComponentIndex]; }
+						if (FloatComponents[8]) { Scale.Z        = FloatComponents[8][ComponentIndex]; }
 
 						VariableTransformsByChannel[ChannelIndex][InterrogationKey.InterrogationIndex] = FTransform(Rotation, Location, Scale);
-					}
-				}
-
-				for (const FComponentHeader* Header : Headers)
-				{
-					if (Header)
-					{
-						Header->ReadWriteLock.ReadUnlock();
 					}
 				}
 			};
@@ -797,19 +785,14 @@ void FSystemInterrogator::QueryLocalSpaceTransforms(const TBitArray<>& ChannelsT
 
 		if (Linker->EntityManager.Contains(Filter))
 		{
-			auto PopulatePartial = [&OnGetOutputForChannel, &PredicateBits, &BaseValues, Components](const FEntityAllocation* Allocation, TRead<FInterrogationKey> KeysAccessor)
+			auto PopulatePartial = [&OnGetOutputForChannel, &PredicateBits, &BaseValues, Components](const FEntityAllocation* Allocation, const FInterrogationKey* Keys)
 			{
 				const int32 Num = Allocation->Num();
-				const FInterrogationKey* Keys = KeysAccessor.Resolve(Allocation);
 
-				const FComponentHeader* Headers[9];
+				TOptionalComponentReader<float> FloatComponents[9];
 				for (int32 Index = 0; Index < 9; ++Index)
 				{
-					Headers[Index] = Allocation->FindComponentHeader(Components->FloatResult[Index]);
-					if (Headers[Index])
-					{
-						Headers[Index]->ReadWriteLock.ReadLock();
-					}
+					FloatComponents[Index] = Allocation->TryReadComponents(Components->FloatResult[Index]);
 				}
 
 				for (int32 ComponentIndex = 0; ComponentIndex < Num; ++ComponentIndex)
@@ -819,25 +802,17 @@ void FSystemInterrogator::QueryLocalSpaceTransforms(const TBitArray<>& ChannelsT
 					{
 						FIntermediate3DTransform Transform = BaseValues[ComponentIndex];
 
-						if (Headers[0]) { Transform.T_X = *static_cast<const float*>(Headers[0]->GetValuePtr(ComponentIndex)); }
-						if (Headers[1]) { Transform.T_Y = *static_cast<const float*>(Headers[1]->GetValuePtr(ComponentIndex)); }
-						if (Headers[2]) { Transform.T_Z = *static_cast<const float*>(Headers[2]->GetValuePtr(ComponentIndex)); }
-						if (Headers[3]) { Transform.R_X = *static_cast<const float*>(Headers[3]->GetValuePtr(ComponentIndex)); }
-						if (Headers[4]) { Transform.R_Y = *static_cast<const float*>(Headers[4]->GetValuePtr(ComponentIndex)); }
-						if (Headers[5]) { Transform.R_Z = *static_cast<const float*>(Headers[5]->GetValuePtr(ComponentIndex)); }
-						if (Headers[6]) { Transform.S_X = *static_cast<const float*>(Headers[6]->GetValuePtr(ComponentIndex)); }
-						if (Headers[7]) { Transform.S_Y = *static_cast<const float*>(Headers[7]->GetValuePtr(ComponentIndex)); }
-						if (Headers[8]) { Transform.S_Z = *static_cast<const float*>(Headers[8]->GetValuePtr(ComponentIndex)); }
+						if (FloatComponents[0]) { Transform.T_X = FloatComponents[0][ComponentIndex]; }
+						if (FloatComponents[1]) { Transform.T_Y = FloatComponents[1][ComponentIndex]; }
+						if (FloatComponents[2]) { Transform.T_Z = FloatComponents[2][ComponentIndex]; }
+						if (FloatComponents[3]) { Transform.R_X = FloatComponents[3][ComponentIndex]; }
+						if (FloatComponents[4]) { Transform.R_Y = FloatComponents[4][ComponentIndex]; }
+						if (FloatComponents[5]) { Transform.R_Z = FloatComponents[5][ComponentIndex]; }
+						if (FloatComponents[6]) { Transform.S_X = FloatComponents[6][ComponentIndex]; }
+						if (FloatComponents[7]) { Transform.S_Y = FloatComponents[7][ComponentIndex]; }
+						if (FloatComponents[8]) { Transform.S_Z = FloatComponents[8][ComponentIndex]; }
 
 						OnGetOutputForChannel(InterrogationKey.Channel)[InterrogationKey.InterrogationIndex] = Transform;
-					}
-				}
-
-				for (const FComponentHeader* Header : Headers)
-				{
-					if (Header)
-					{
-						Header->ReadWriteLock.ReadUnlock();
 					}
 				}
 			};

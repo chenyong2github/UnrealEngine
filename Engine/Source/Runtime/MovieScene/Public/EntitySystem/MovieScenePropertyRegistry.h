@@ -11,11 +11,14 @@
 #include "EntitySystem/IMovieScenePropertyComponentHandler.h"
 
 #include "Misc/InlineValue.h"
+#include "Misc/TVariant.h"
 #include <initializer_list>
 
+struct FMovieScenePropertyBinding;
 
 class UMovieSceneBlenderSystem;
 class UMovieSceneEntitySystemLinker;
+class FTrackInstancePropertyBindings;
 
 namespace UE
 {
@@ -110,6 +113,11 @@ struct FPropertyCompositeDefinition
 	uint16 CompositeOffset;
 };
 
+/** Type aliases for a property that resolved to either a fast pointer offset (type index 0), or a custom property index (specific to the path of the property - type index 1) */
+using FResolvedFastProperty = TVariant<uint16, UE::MovieScene::FCustomPropertyIndex>;
+/** Type aliases for a property that resolved to either a fast pointer offset (type index 0), or a custom property index (specific to the path of the property - type index 1) with a fallback to a slow property binding (type index 2) */
+using FResolvedProperty = TVariant<uint16, UE::MovieScene::FCustomPropertyIndex, TSharedPtr<FTrackInstancePropertyBindings>>;
+
 template<typename PropertyType, typename OperationalType> struct TPropertyDefinitionBuilder;
 template<typename PropertyType, typename OperationalType, typename... Composites> struct TCompositePropertyDefinitionBuilder;
 
@@ -125,6 +133,26 @@ public:
 
 	FPropertyRegistry(FPropertyRegistry&&) = delete;
 	FPropertyRegistry(const FPropertyRegistry&) = delete;
+
+	/**
+	 * Resolve a property to either a fast ptr offset, or a custom property accessor based on the specified array
+	 *
+	 * @param Object          The object to resolve the property for
+	 * @param PropertyBinding The property binding to resolve
+	 * @param CustomAccessors A view to an array of custom accessors (as retrieved from ICustomPropertyRegistration::GetAccessors)
+	 * @return An optional variant specifying the resolved property if it resolved successfully
+	 */
+	static TOptional< FResolvedFastProperty > ResolveFastProperty(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, FCustomAccessorView CustomAccessors);
+
+	/**
+	 * Resolve a property to either a fast ptr offset, or a custom property accessor based on the specified array falling back to a slow instance binding if possible
+	 *
+	 * @param Object          The object to resolve the property for
+	 * @param PropertyBinding The property binding to resolve
+	 * @param CustomAccessors A view to an array of custom accessors (as retrieved from ICustomPropertyRegistration::GetAccessors)
+	 * @return An optional variant specifying the resolved property if it resolved successfully
+	 */
+	static TOptional< FResolvedProperty > ResolveProperty(UObject* Object, const FMovieScenePropertyBinding& PropertyBinding, FCustomAccessorView CustomAccessors);
 
 	/**
 	 * Define a new animatable composite property type from its components.

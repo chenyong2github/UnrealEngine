@@ -4,6 +4,7 @@
 #include "EntitySystem/MovieSceneEvaluationHookSystem.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
 UMovieSceneHookSection::UMovieSceneHookSection(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)

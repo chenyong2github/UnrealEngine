@@ -110,8 +110,8 @@ struct FAttachmentHandler
 
 		for (FMovieSceneEntityID Entity : Inputs)
 		{
-			TComponentPtr<USceneComponent* const>     AttachParentComponent = EntityManager->ReadComponent(Entity, TrackComponents->AttachParent);
-			TComponentPtr<const FAttachmentComponent> AttachmentComponent   = EntityManager->ReadComponent(Entity, TrackComponents->AttachComponent);
+			TOptionalComponentReader<USceneComponent*>     AttachParentComponent = EntityManager->ReadComponent(Entity, TrackComponents->AttachParent);
+			TOptionalComponentReader<FAttachmentComponent> AttachmentComponent   = EntityManager->ReadComponent(Entity, TrackComponents->AttachComponent);
 			if (AttachParentComponent && AttachmentComponent)
 			{
 				if (USceneComponent* AttachParent = *AttachParentComponent)

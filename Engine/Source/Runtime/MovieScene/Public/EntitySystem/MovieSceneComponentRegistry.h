@@ -152,50 +152,5 @@ private:
 };
 
 
-template<typename T>
-TComponentTypeID<T> FComponentRegistry::NewComponentType(const TCHAR* const DebugName, EComponentTypeFlags Flags)
-{
-	static const uint32 ComponentTypeSize = sizeof(T);
-	static_assert(ComponentTypeSize < TNumericLimits<decltype(FComponentTypeInfo::Sizeof)>::Max(), "Type too large to be used as component data");
-
-	static const uint32 Alignment = alignof(T);
-	static_assert(Alignment < TNumericLimits<decltype(FComponentTypeInfo::Alignment)>::Max(), "Type alignment too large to be used as component data");
-
-	FComponentTypeInfo NewTypeInfo;
-
-	NewTypeInfo.Sizeof                     = ComponentTypeSize;
-	NewTypeInfo.Alignment                  = Alignment;
-	NewTypeInfo.bIsZeroConstructType       = TIsZeroConstructType<T>::Value;
-	NewTypeInfo.bIsTriviallyDestructable   = TIsTriviallyDestructible<T>::Value;
-	NewTypeInfo.bIsTriviallyCopyAssignable = TIsTriviallyCopyAssignable<T>::Value;
-	NewTypeInfo.bIsPreserved               = EnumHasAnyFlags(Flags, EComponentTypeFlags::Preserved);
-	NewTypeInfo.bIsCopiedToOutput          = EnumHasAnyFlags(Flags, EComponentTypeFlags::CopyToOutput);
-	NewTypeInfo.bIsMigratedToOutput        = EnumHasAnyFlags(Flags, EComponentTypeFlags::MigrateToOutput);
-	NewTypeInfo.bHasReferencedObjects      = !TIsSame< FNotImplemented*, decltype( AddReferencedObjectForComponent((FReferenceCollector*)0, (T*)0) ) >::Value;
-
-#if UE_MOVIESCENE_ENTITY_DEBUG
-	NewTypeInfo.DebugInfo                = MakeUnique<FComponentTypeDebugInfo>();
-	NewTypeInfo.DebugInfo->DebugName     = DebugName;
-	NewTypeInfo.DebugInfo->DebugTypeName = GetGeneratedTypeName<T>();
-	NewTypeInfo.DebugInfo->Type          = TComponentDebugType<T>::Type;
-#endif
-
-	if (!NewTypeInfo.bIsZeroConstructType || !NewTypeInfo.bIsTriviallyDestructable || !NewTypeInfo.bIsTriviallyCopyAssignable || NewTypeInfo.bHasReferencedObjects)
-	{
-		NewTypeInfo.MakeComplexComponentOps<T>();
-	}
-
-	FComponentTypeID    NewTypeID = NewComponentTypeInternal(MoveTemp(NewTypeInfo));
-	TComponentTypeID<T> TypedTypeID = NewTypeID.ReinterpretCast<T>();
-
-	if (EnumHasAnyFlags(Flags, EComponentTypeFlags::CopyToChildren))
-	{
-		Factories.DefineChildComponent(TDuplicateChildEntityInitializer<T>(TypedTypeID));
-	}
-
-	return TypedTypeID;
-}
-
-
-}
-}
+} // namespace MovieScene
+} // namespace UE

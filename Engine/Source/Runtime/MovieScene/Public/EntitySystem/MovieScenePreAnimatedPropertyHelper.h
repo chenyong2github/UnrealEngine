@@ -18,6 +18,7 @@
 
 #include "IMovieScenePlayer.h"
 #include "MovieSceneExecutionToken.h"
+#include "MovieSceneCommonHelpers.h"
 
 namespace UE
 {

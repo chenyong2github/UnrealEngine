@@ -6,8 +6,12 @@
 #include "TemplateSequence.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "Sections/TemplateSequenceSection.h"
 #include "EntitySystem/MovieSceneSpawnablesSystem.h"
+#include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 
 namespace UE
 {
@@ -76,19 +80,17 @@ void UTemplateSequenceSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, F
 	FInstanceRegistry* InstanceRegistry  = Linker->GetInstanceRegistry();
 
 	auto SetupTeardownBindingOverrides = [BuiltInComponents, InstanceRegistry](
-			const FEntityAllocation* Allocation,
-			TRead<FInstanceHandle> InstanceHandleAccessor,
-			TRead<FGuid> ObjectBindingIDAccessor,
-			TRead<FTemplateSequenceComponentData> TemplateSequenceDataAccessor)
+			FEntityAllocationIteratorItem AllocationItem,
+			TRead<FInstanceHandle> InstanceHandles,
+			TRead<FGuid> ObjectBindingIDs,
+			TRead<FTemplateSequenceComponentData> TemplateSequenceDatas)
 	{
-		const bool bHasNeedsLink = Allocation->HasComponent(BuiltInComponents->Tags.NeedsLink);
-		const bool bHasNeedsUnlink = Allocation->HasComponent(BuiltInComponents->Tags.NeedsUnlink);
+		const FComponentMask& Mask = AllocationItem.GetAllocationType();
+		const bool bHasNeedsLink   = Mask.Contains(BuiltInComponents->Tags.NeedsLink);
+		const bool bHasNeedsUnlink = Mask.Contains(BuiltInComponents->Tags.NeedsUnlink);
 
-		TArrayView<const FInstanceHandle> InstanceHandles = InstanceHandleAccessor.ResolveAsArray(Allocation);
-		TArrayView<const FGuid> ObjectBindingIDs = ObjectBindingIDAccessor.ResolveAsArray(Allocation);
-		TArrayView<const FTemplateSequenceComponentData> TemplateSequenceDatas = TemplateSequenceDataAccessor.ResolveAsArray(Allocation);
-
-		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+		const int32 Num = AllocationItem.GetAllocation()->Num();
+		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandles[Index]);
 			const FGuid& ObjectBindingID = ObjectBindingIDs[Index];

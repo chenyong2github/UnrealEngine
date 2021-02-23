@@ -7,6 +7,7 @@
 #include "EntitySystem/MovieSceneComponentRegistry.h"
 #include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 
 #include "MovieSceneObjectBindingID.h"
 #include "GameFramework/Actor.h"

@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneNameableTrack.h"
 #include "MovieSceneCommonHelpers.h"
-#include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieScenePropertyBinding.h"
 #include "MovieScenePropertyTrack.generated.h"
 
 /**

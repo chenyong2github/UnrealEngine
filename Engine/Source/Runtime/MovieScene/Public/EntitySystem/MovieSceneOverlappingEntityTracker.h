@@ -10,6 +10,7 @@
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "EntitySystem/MovieSceneComponentAccessors.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 
 namespace UE
@@ -236,12 +237,11 @@ struct TOverlappingEntityTracker
 
 protected:
 
-	void VisitLinkedAllocationImpl(const FEntityAllocation* Allocation, TRead<KeyType> ReadKeys)
+	void VisitLinkedAllocationImpl(const FEntityAllocation* Allocation, TRead<KeyType> Keys)
 	{
 		const int32 Num = Allocation->Num();
 
 		const FMovieSceneEntityID* EntityIDs = Allocation->GetRawEntityIDs();
-		const KeyType*             Keys      = ReadKeys.Resolve(Allocation);
 
 		if (Allocation->HasComponent(FBuiltInComponentTypes::Get()->Tags.RestoreState))
 		{

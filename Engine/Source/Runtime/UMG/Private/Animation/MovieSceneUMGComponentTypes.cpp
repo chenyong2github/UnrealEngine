@@ -5,6 +5,7 @@
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "MovieSceneTracksComponentTypes.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 
 #include "Components/Widget.h"
 

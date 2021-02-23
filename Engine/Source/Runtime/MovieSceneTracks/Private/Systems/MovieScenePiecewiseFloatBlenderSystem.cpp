@@ -65,13 +65,10 @@ struct FAccumulationTask
 	{}
 
 	/** Task entry point - iterates the allocation's headers and accumulates float results for any required components */
-	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendID, TReadOptional<float> EasingAndWeightResult)
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendIDs, TReadOptional<float> OptionalEasingAndWeights)
 	{
 		const FEntityAllocation* Allocation = InItem;
 		const FComponentMask& AllocationType = InItem;
-
-		const uint16* BlendIDs         = BlendID.Resolve(Allocation);
-		const float*  EasingAndWeights = EasingAndWeightResult.Resolve(Allocation);
 
 		for (const FComponentHeader& ComponentHeader : Allocation->GetComponentHeaders())
 		{
@@ -80,7 +77,7 @@ struct FAccumulationTask
 				ComponentHeader.ReadWriteLock.ReadLock();
 
 				const float* FloatResults = static_cast<const float*>(ComponentHeader.GetValuePtr(0));
-				AccumulateResults(Allocation, FloatResults, BlendIDs, EasingAndWeights, *AccumulationBuffer);
+				AccumulateResults(Allocation, FloatResults, BlendIDs, OptionalEasingAndWeights, *AccumulationBuffer);
 
 				ComponentHeader.ReadWriteLock.ReadUnlock();
 			}
@@ -127,30 +124,19 @@ struct FAdditiveFromBaseBlendTask
 {
 	TSortedMap<FComponentTypeID, FAdditiveFromBaseBuffer>* AccumulationBuffers;
 
-	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendID, TReadOptional<float> EasingAndWeightResult)
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendIDs, TReadOptional<float> EasingAndWeightResults)
 	{
 		FEntityAllocation* Allocation = InItem;
 		const FComponentMask& AllocationType = InItem;
-
-		const uint16* BlendIDs         = BlendID.Resolve(Allocation);
-		const float*  EasingAndWeights = EasingAndWeightResult.Resolve(Allocation);
 
 		for (const FComponentHeader& ComponentHeader : Allocation->GetComponentHeaders())
 		{
 			if (FAdditiveFromBaseBuffer* Buffer = AccumulationBuffers->Find(ComponentHeader.ComponentType))
 			{
-				const FComponentHeader& BaseValueHeader = Allocation->GetComponentHeaderChecked(Buffer->BaseComponent);
+				TComponentReader<float> BaseValues = Allocation->ReadComponents(Buffer->BaseComponent.ReinterpretCast<float>());
+				TComponentReader<float> FloatResults(&ComponentHeader);
 
-				BaseValueHeader.ReadWriteLock.ReadLock();
-				ComponentHeader.ReadWriteLock.ReadLock();
-
-				const float* BaseValues   = static_cast<const float*>(BaseValueHeader.GetValuePtr(0));
-				const float* FloatResults = static_cast<const float*>(ComponentHeader.GetValuePtr(0));
-
-				AccumulateResults(Allocation, FloatResults, BaseValues, BlendIDs, EasingAndWeights, Buffer->Buffer);
-
-				ComponentHeader.ReadWriteLock.ReadUnlock();
-				BaseValueHeader.ReadWriteLock.ReadUnlock();
+				AccumulateResults(Allocation, FloatResults.AsPtr(), BaseValues.AsPtr(), BlendIDs, EasingAndWeightResults, Buffer->Buffer);
 			}
 		}
 	}
@@ -188,14 +174,14 @@ private:
 /** Task that combines all accumulated blends for any tracked property type that has blend inputs/outputs */
 struct FCombineBlends
 {
-	explicit FCombineBlends(const TBitArray<>& InCachedRelevantProperties, const FAccumulationBuffers* InAccumulationBuffers, uint64 InSystemSerial)
+	explicit FCombineBlends(const TBitArray<>& InCachedRelevantProperties, const FAccumulationBuffers* InAccumulationBuffers, FEntityAllocationWriteContext InWriteContext)
 		: CachedRelevantProperties(InCachedRelevantProperties)
 		, AccumulationBuffers(InAccumulationBuffers)
 		, PropertyRegistry(&FBuiltInComponentTypes::Get()->PropertyRegistry)
-		, SystemSerial(InSystemSerial)
+		, WriteContext(InWriteContext)
 	{}
 
-	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendID)
+	void ForEachAllocation(FEntityAllocationIteratorItem InItem, TRead<uint16> BlendIDs)
 	{
 		FEntityAllocation* Allocation = InItem;
 		const FComponentMask& AllocationType = InItem;
@@ -206,7 +192,7 @@ struct FCombineBlends
 			const FPropertyDefinition& PropertyDefinition = PropertyRegistry->GetDefinition(FCompositePropertyTypeID::FromIndex(PropertyIndex.GetIndex()));
 			if (AllocationType.Contains(PropertyDefinition.PropertyType))
 			{
-				ProcessPropertyType(Allocation, AllocationType, PropertyDefinition, BlendID);
+				ProcessPropertyType(Allocation, AllocationType, PropertyDefinition, BlendIDs);
 				return;
 			}
 		}
@@ -214,17 +200,13 @@ struct FCombineBlends
 
 private:
 
-	void ProcessPropertyType(FEntityAllocation* Allocation, const FComponentMask& AllocationType, const FPropertyDefinition& PropertyDefinition, TRead<uint16> BlendID)
+	void ProcessPropertyType(FEntityAllocation* Allocation, const FComponentMask& AllocationType, const FPropertyDefinition& PropertyDefinition, const uint16* BlendIDs)
 	{
 		TArrayView<const FPropertyCompositeDefinition> Composites = PropertyRegistry->GetComposites(PropertyDefinition);
 
-		const FComponentHeader* InitialValuesHeader = Allocation->FindComponentHeader(PropertyDefinition.InitialValueType);
-		if (InitialValuesHeader)
-		{
-			InitialValuesHeader->ReadWriteLock.ReadLock();
-		}
 
-		const uint16* BlendIDs = BlendID.Resolve(Allocation);
+		FOptionalComponentReader OptInitialValues = Allocation->TryReadComponentsErased(PropertyDefinition.InitialValueType);
+
 		for (int32 CompositeIndex = 0; CompositeIndex < Composites.Num(); ++CompositeIndex)
 		{
 			if ( (PropertyDefinition.FloatCompositeMask & (1 << CompositeIndex)) == 0)
@@ -244,16 +226,13 @@ private:
 				const uint16 InitialValueProjectionOffset = Composites[CompositeIndex].CompositeOffset;
 
 				// Open the float result channel for write
-				FComponentHeader& ResultsHeader = Allocation->GetComponentHeaderChecked(ResultComponent);
-				ResultsHeader.ReadWriteLock.WriteLock();
+				TComponentWriter<float> FloatResults = Allocation->WriteComponents(ResultComponent, WriteContext);
 
-				float* FloatResults = static_cast<float*>(ResultsHeader.GetValuePtr(0));
-
-				if (InitialValuesHeader)
+				if (OptInitialValues)
 				{
 					for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 					{
-						const float InitialValue = *reinterpret_cast<const float*>(reinterpret_cast<const uint8*>(InitialValuesHeader->GetValuePtr(Index)) + InitialValueProjectionOffset);
+						const float InitialValue = *reinterpret_cast<const float*>(static_cast<const uint8*>(OptInitialValues[Index]) + InitialValueProjectionOffset);
 						BlendResultsWithInitial(Results, BlendIDs[Index], InitialValue, FloatResults[Index]);
 					}
 				}
@@ -264,15 +243,7 @@ private:
 						BlendResults(Results, BlendIDs[Index], FloatResults[Index]);
 					}
 				}
-
-				ResultsHeader.PostWriteComponents(SystemSerial);
-				ResultsHeader.ReadWriteLock.WriteUnlock();
 			}
-		}
-
-		if (InitialValuesHeader)
-		{
-			InitialValuesHeader->ReadWriteLock.ReadUnlock();
 		}
 	}
 
@@ -341,7 +312,7 @@ private:
 	TBitArray<> CachedRelevantProperties;
 	const FAccumulationBuffers* AccumulationBuffers;
 	const FPropertyRegistry* PropertyRegistry;
-	uint64 SystemSerial;
+	FEntityAllocationWriteContext WriteContext;
 };
 
 
@@ -504,7 +475,7 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 	.Read(BuiltInComponents->BlendChannelOutput)
 	.FilterAny(BlendedPropertyMask)
 	.SetStat(GET_STATID(MovieSceneEval_BlendCombineFloatValues))
-	.Dispatch_PerAllocation<FCombineBlends>(&Linker->EntityManager, Prereqs, &Subsequents, CachedRelevantProperties, &AccumulationBuffers, Linker->EntityManager.GetSystemSerial());
+	.Dispatch_PerAllocation<FCombineBlends>(&Linker->EntityManager, Prereqs, &Subsequents, CachedRelevantProperties, &AccumulationBuffers, FEntityAllocationWriteContext(Linker->EntityManager));
 }
 
 void UMovieScenePiecewiseFloatBlenderSystem::ReinitializeAccumulationBuffers()
@@ -637,24 +608,12 @@ FGraphEventRef UMovieScenePiecewiseFloatBlenderSystem::DispatchDecomposeTask(con
 			EntitiesToDecompose.Append(Params.Query.Entities.GetData(), Params.Query.Entities.Num());
 		}
 
-		void ForEachAllocation(const FEntityAllocation* Allocation, FReadEntityIDs EntityToDecomposeIDComponent, TRead<uint16> BlendChannelComponent, TRead<float> FloatResultComponent, TReadOptional<float> OptionalWeightComponent)
-		{
-			TArrayView<const FMovieSceneEntityID> EntityToDecomposeIDs = EntityToDecomposeIDComponent.ResolveAsArray(Allocation);
-			ForEachAllocationImpl(Allocation, EntityToDecomposeIDs, BlendChannelComponent, FloatResultComponent, OptionalWeightComponent);
-		}
-
-		void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityToDecomposeIDComponent, TRead<uint16> BlendChannelComponent, TRead<float> FloatResultComponent, TReadOptional<float> OptionalWeightComponent)
-		{
-			TArrayView<const FMovieSceneEntityID> EntityToDecomposeIDs = EntityToDecomposeIDComponent.ResolveAsArray(Allocation);
-			ForEachAllocationImpl(Allocation, EntityToDecomposeIDs, BlendChannelComponent, FloatResultComponent, OptionalWeightComponent);
-		}
-
-		void ForEachAllocationImpl(const FEntityAllocation* Allocation, TArrayView<const FMovieSceneEntityID> EntityToDecomposeIDs, TRead<uint16> BlendChannelComponent, TRead<float> FloatResultComponent, TReadOptional<float> OptionalWeightComponent)
+		void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FMovieSceneEntityID> EntityToDecomposeIDs, TRead<uint16> BlendChannels, TRead<float> FloatResultComponent, TReadOptional<float> OptionalWeightComponent)
 		{
 			const bool bAdditive = Allocation->HasComponent(AdditiveBlendTag);
 
-			TArrayView<const uint16> BlendChannels = BlendChannelComponent.ResolveAsArray(Allocation);
-			for (int32 EntityIndex = 0; EntityIndex < BlendChannels.Num(); ++EntityIndex)
+			const int32 Num = Allocation->Num();
+			for (int32 EntityIndex = 0; EntityIndex < Num; ++EntityIndex)
 			{
 				if (BlendChannels[EntityIndex] != DecomposeBlendChannel)
 				{
@@ -663,9 +622,8 @@ FGraphEventRef UMovieScenePiecewiseFloatBlenderSystem::DispatchDecomposeTask(con
 
 				// We've found a contributor for this blend channel
 				const FMovieSceneEntityID EntityToDecompose = EntityToDecomposeIDs[EntityIndex];
-				TArrayView<const float>   Weights           = OptionalWeightComponent.ResolveAsArray(Allocation);
-				const float               Weight            = (Weights.Num() != 0 ? Weights[EntityIndex] : 1.f);
-				const float               FloatResult       = FloatResultComponent.ResolveAsArray(Allocation)[EntityIndex];
+				const float               Weight            = OptionalWeightComponent ? OptionalWeightComponent[EntityIndex] : 1.f;
+				const float               FloatResult       = FloatResultComponent[EntityIndex];
 
 				if (EntitiesToDecompose.Contains(EntityToDecompose))
 				{

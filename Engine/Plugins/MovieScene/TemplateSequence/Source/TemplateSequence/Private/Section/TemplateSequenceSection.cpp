@@ -3,6 +3,8 @@
 #include "Sections/TemplateSequenceSection.h"
 #include "TemplateSequence.h"
 #include "Systems/TemplateSequenceSystem.h"
+#include "EntitySystem/MovieSceneSequenceInstance.h"
+#include "EntitySystem/MovieSceneEntitySystemLinker.h"
 
 UTemplateSequenceSection::UTemplateSequenceSection(const FObjectInitializer& ObjInitializer)
 	: Super(ObjInitializer)

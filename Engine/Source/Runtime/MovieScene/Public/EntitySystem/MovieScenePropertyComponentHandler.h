@@ -9,6 +9,7 @@
 #include "EntitySystem/MovieSceneDecompositionQuery.h"
 #include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieScenePreAnimatedPropertyHelper.h"
+#include "EntitySystem/MovieScenePropertySystemTypes.inl"
 
 #include "EntitySystem/MovieSceneOperationalTypeConversions.h"
 
@@ -229,7 +230,7 @@ struct TPropertyComponentHandlerImpl<TIntegerSequence<int, Indices...>, Property
 		}
 
 		// Get the initial value in case we have a value without a full-weighted absolute channel.
-		TComponentPtr<const OperationalType> InitialValueComponent;
+		TOptionalComponentReader<OperationalType> InitialValueComponent;
 		if (InParams.PropertyEntityID)
 		{
 			const FEntityManager& EntityManager = Blender->GetLinker()->EntityManager;
@@ -288,7 +289,7 @@ struct TPropertyComponentHandlerImpl<TIntegerSequence<int, Indices...>, Property
 		}
 
 		// Get the initial value in case we have a value without a full-weighted absolute channel.
-		TComponentPtr<const OperationalType> InitialValueComponent;
+		TOptionalComponentReader<OperationalType> InitialValueComponent;
 		if (InParams.PropertyEntityID)
 		{
 			const FEntityManager& EntityManager = Blender->GetLinker()->EntityManager;

@@ -4,7 +4,7 @@
 #include "EntitySystem/MovieSceneEntityInstantiatorSystem.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
-#include "EntitySystem/MovieSceneEntityFactory.h"
+#include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
