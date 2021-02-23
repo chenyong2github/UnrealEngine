@@ -544,7 +544,6 @@ private:
 							}
 						}
 
-
 						if (CurveModelIdToSelect == ActiveCurveModelId)
 						{
 							// There were no other active curves with keys to select from so just wrap around the currently active curve.
@@ -557,7 +556,7 @@ private:
 								KeyHandleToSelect = ActiveSortedKeyHandlePositionPairs[0].Handle;
 							}
 						}
-						else
+						else if(CurveModelToSelect != nullptr)
 						{
 							// We're selecting a key on a different curve so we need to sort the positions and select the first or last based
 							// on the navigation direction.
