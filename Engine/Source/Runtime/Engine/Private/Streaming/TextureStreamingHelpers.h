@@ -10,6 +10,7 @@ TextureStreamingHelpers.h: Definitions of classes used for texture streaming.
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/MemStack.h"
+#include "Engine/TextureDefines.h"
 
 class UStreamableRenderAsset;
 
