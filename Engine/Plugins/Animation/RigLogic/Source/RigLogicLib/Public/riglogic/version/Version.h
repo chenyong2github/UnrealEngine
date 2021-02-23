@@ -4,5 +4,5 @@
 
 #define RL_MAJOR_VERSION 7
 #define RL_MINOR_VERSION 0
-#define RL_PATCH_VERSION 2
-#define RL_VERSION_STRING "7.0.2"
+#define RL_PATCH_VERSION 3
+#define RL_VERSION_STRING "7.0.3"
