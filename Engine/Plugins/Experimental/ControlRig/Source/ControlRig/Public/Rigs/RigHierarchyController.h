@@ -4,6 +4,7 @@
 
 #include "Rigs/RigHierarchy.h"
 #include "ReferenceSkeleton.h"
+#include "Animation/Skeleton.h"
 #include "RigHierarchyController.generated.h"
 
 UCLASS(BlueprintType)
