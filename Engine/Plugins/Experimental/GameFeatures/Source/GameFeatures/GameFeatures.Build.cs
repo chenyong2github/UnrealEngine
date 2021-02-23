@@ -21,11 +21,12 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AssetRegistry",
 					"GameplayTags",
 					"InstallBundleManager",
 					"Json",
 					"PakFile",
-					"Projects"
+					"Projects",
 				}
 			);
 		}

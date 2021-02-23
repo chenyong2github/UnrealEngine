@@ -2,6 +2,7 @@
 
 #include "GameFeaturePluginStateMachine.h"
 
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Components/GameFrameworkComponentManager.h"
 #include "GameFeatureData.h"
 #include "GameplayTagsManager.h"
@@ -563,15 +564,17 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 			TSharedPtr<IPlugin> NewlyMountedPlugin = IPluginManager::Get().FindPlugin(PluginName);
 			if (NewlyMountedPlugin.IsValid() && NewlyMountedPlugin->CanContainContent())
 			{
-				FArrayReader SerializedAssetData;
+				TArray<uint8> SerializedAssetData;
 				const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
 				const FString PluginAssetRegistry = PluginFolder / TEXT("AssetRegistry.bin");
 				if (ensure(IFileManager::Get().FileExists(*PluginAssetRegistry) && FFileHelper::LoadFileToArray(SerializedAssetData, *PluginAssetRegistry)))
 				{
-					IAssetRegistry& AssetRegistry = UAssetManager::Get().GetAssetRegistry();
+					FAssetRegistryState PluginAssetRegistryState;
+					FMemoryReader Ar(SerializedAssetData);
+					PluginAssetRegistryState.Load(Ar);
 
-					SerializedAssetData.Seek(0);
-					AssetRegistry.Serialize(SerializedAssetData);
+					IAssetRegistry& AssetRegistry = UAssetManager::Get().GetAssetRegistry();
+					AssetRegistry.AppendState(PluginAssetRegistryState);
 				}
 				else
 				{
