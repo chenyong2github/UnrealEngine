@@ -1900,7 +1900,12 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 				if (UEdGraph* EdGraph = ControlRigBlueprint->GetEdGraph(CollapseNode->GetContainedGraph()))
 				{
 					CloseDocumentTab(EdGraph);
+					ClearDetailObject();
 				}
+			}
+			else if(URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(InSubject))
+			{
+				ClearDetailObject();
 			}
 			break;
 		}
