@@ -19,10 +19,10 @@ namespace Chaos
 	class FPBDJointConstraints;
 	class FPerShapeData;
 	template<class T> class TArrayCollectionArray;
-	template<typename T, int D> struct TKinematicGeometryParticleParameters;
+	struct FKinematicGeometryParticleParameters;
 	template<typename T, int D> class TKinematicTarget;
 	template<typename T> class TPBDConstraintIslandRule;
-	template<typename T, int D> struct TPBDRigidParticleParameters;
+	struct FPBDRigidParticleParameters;
 	class FPBDRigidsSOAs;
 	template<typename T> class TSimpleConstraintRule;
 

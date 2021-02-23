@@ -19,26 +19,30 @@ namespace Chaos
 {
 	class FConstraintHandle;
 
-template <typename T, int d>
-struct TGeometryParticleParameters
+struct FGeometryParticleParameters
 {
-	TGeometryParticleParameters()
+	FGeometryParticleParameters()
 		: bDisabled(false) {}
 	bool bDisabled;
 };
 
 template <typename T, int d>
-struct TKinematicGeometryParticleParameters : public TGeometryParticleParameters<T, d>
+using TGeometryParticleParameters UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FGeometryParticleParameters instead") = FGeometryParticleParameters;
+
+struct FKinematicGeometryParticleParameters : public FGeometryParticleParameters
 {
-	TKinematicGeometryParticleParameters()
-		: TGeometryParticleParameters<T, d>() {}
+	FKinematicGeometryParticleParameters()
+		: FGeometryParticleParameters() {}
 };
 
 template <typename T, int d>
-struct TPBDRigidParticleParameters : public TKinematicGeometryParticleParameters<T, d>
+using TKinematicGeometryParticleParameters UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FKinematicGeometryParticleParameters instead") = FKinematicGeometryParticleParameters;
+
+
+struct FPBDRigidParticleParameters : public FKinematicGeometryParticleParameters
 {
-	TPBDRigidParticleParameters()
-		: TKinematicGeometryParticleParameters<T, d>()
+	FPBDRigidParticleParameters()
+		: FKinematicGeometryParticleParameters()
 		, bStartSleeping(false)
 		, bGravityEnabled(true)
 		, bCCDEnabled(false)
@@ -48,9 +52,12 @@ struct TPBDRigidParticleParameters : public TKinematicGeometryParticleParameters
 	bool bCCDEnabled;
 };
 
+template <typename T, int d>
+using TPBDRigidParticleParameters UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDRigidParticleParameters instead") = FPBDRigidParticleParameters;
+
 /** Concrete can either be the game thread or physics representation, but API stays the same. Useful for keeping initialization and other logic the same*/
 template <typename T, int d, typename FConcrete>
-void GeometryParticleDefaultConstruct(FConcrete& Concrete, const TGeometryParticleParameters<T,d>& Params)
+void GeometryParticleDefaultConstruct(FConcrete& Concrete, const FGeometryParticleParameters& Params)
 {
 	Concrete.SetX(TVector<T, d>(0));
 	Concrete.SetR(TRotation<T, d>::Identity);
@@ -58,13 +65,13 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const TGeometryPartic
 }
 
 template <typename T, int d, typename FConcrete>
-void KinematicGeometryParticleDefaultConstruct(FConcrete& Concrete, const TKinematicGeometryParticleParameters<T, d>& Params)
+void KinematicGeometryParticleDefaultConstruct(FConcrete& Concrete, const FKinematicGeometryParticleParameters& Params)
 {
 	Concrete.SetV(TVector<T, d>(0));
 	Concrete.SetW(TVector<T, d>(0));
 }
 template <typename T, int d, typename FConcrete>
-void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const TPBDRigidParticleParameters<T, d>& Params)
+void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const FPBDRigidParticleParameters& Params)
 {
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 	Concrete.SetCollisionGroup(0);
@@ -86,7 +93,7 @@ void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const TPBDRigidPartic
 
 
 template <typename T, int d, typename FConcrete>
-void PBDRigidClusteredParticleDefaultConstruct(FConcrete& Concrete, const TPBDRigidParticleParameters<T, d>& Params)
+void PBDRigidClusteredParticleDefaultConstruct(FConcrete& Concrete, const FPBDRigidParticleParameters& Params)
 {
 	//don't bother calling parent since the call gets made by the corresponding hierarchy in FConcrete
 }
@@ -321,7 +328,7 @@ protected:
 	{
 	}
 
-	TGeometryParticleHandleImp(TSerializablePtr<TGeometryParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const TGeometryParticleParameters<T, d>& Params)
+	TGeometryParticleHandleImp(TSerializablePtr<TGeometryParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const FGeometryParticleParameters& Params)
 		: TParticleHandleBase<T, d>(InParticles, InParticleIdx)
 		, HandleIdx(InHandleIdx)
 	{
@@ -342,7 +349,7 @@ protected:
 	}
 public:
 
-	static TUniquePtr<TGeometryParticleHandleImp<T,d, bPersistent>> CreateParticleHandle(TSerializablePtr<TGeometryParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
+	static TUniquePtr<TGeometryParticleHandleImp<T,d, bPersistent>> CreateParticleHandle(TSerializablePtr<TGeometryParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const FGeometryParticleParameters& Params = FGeometryParticleParameters())
 	{
 		return TGeometryParticleHandleImp<T,d,bPersistent>::CreateParticleHandleHelper(InParticles, InParticleIdx, InHandleIdx, Params);
 	}
@@ -584,14 +591,14 @@ protected:
 	{
 	}
 
-	TKinematicGeometryParticleHandleImp(TSerializablePtr<TKinematicGeometryParticles<T, d>> Particles, int32 InIdx, int32 InGlobalIdx, const TKinematicGeometryParticleParameters<T, d>& Params)
+	TKinematicGeometryParticleHandleImp(TSerializablePtr<TKinematicGeometryParticles<T, d>> Particles, int32 InIdx, int32 InGlobalIdx, const FKinematicGeometryParticleParameters& Params)
 		: TGeometryParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TGeometryParticles<T, d>>(Particles), InIdx, InGlobalIdx, Params)
 	{
 		KinematicGeometryParticleDefaultConstruct<T, d>(*this, Params);
 	}
 public:
 
-	static TUniquePtr<TKinematicGeometryParticleHandleImp<T, d, bPersistent>> CreateParticleHandle(TSerializablePtr<TKinematicGeometryParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const TKinematicGeometryParticleParameters<T, d>& Params = TKinematicGeometryParticleParameters<T, d>())
+	static TUniquePtr<TKinematicGeometryParticleHandleImp<T, d, bPersistent>> CreateParticleHandle(TSerializablePtr<TKinematicGeometryParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const FKinematicGeometryParticleParameters& Params = FKinematicGeometryParticleParameters())
 	{
 		return TGeometryParticleHandleImp<T, d, bPersistent>::CreateParticleHandleHelper(InParticles, InParticleIdx, InHandleIdx, Params);
 	}
@@ -655,7 +662,7 @@ protected:
 	{
 	}
 
-	TPBDRigidParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TPBDRigidParticles<T, d>> Particles, int32 InIdx, int32 InGlobalIdx, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	TPBDRigidParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TPBDRigidParticles<T, d>> Particles, int32 InIdx, int32 InGlobalIdx, const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
 		: TKinematicGeometryParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TKinematicGeometryParticles<T, d>>(Particles), InIdx, InGlobalIdx, Params)
 	{
 		PBDRigidParticleDefaultConstruct<T, d>(*this, Params);
@@ -675,7 +682,7 @@ protected:
 	}
 public:
 
-	static TUniquePtr<TPBDRigidParticleHandleImp<T, d, bPersistent>> CreateParticleHandle(TSerializablePtr<TPBDRigidParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	static TUniquePtr<TPBDRigidParticleHandleImp<T, d, bPersistent>> CreateParticleHandle(TSerializablePtr<TPBDRigidParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
 	{
 		return TGeometryParticleHandleImp<T, d, bPersistent>::CreateParticleHandleHelper(InParticles, InParticleIdx, InHandleIdx, Params);
 	}
@@ -910,14 +917,14 @@ protected:
 	{
 	}
 
-	TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TPBDRigidClusteredParticles<T, d>> Particles, int32 InIdx, int32 InGlobalIdx, const TPBDRigidParticleParameters<T, d>& Params)
+	TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TPBDRigidClusteredParticles<T, d>> Particles, int32 InIdx, int32 InGlobalIdx, const FPBDRigidParticleParameters& Params)
 		: TPBDRigidParticleHandleImp<T, d, bPersistent>(TSerializablePtr<TPBDRigidParticles<T, d>>(Particles), InIdx, InGlobalIdx, Params)
 	{
 		PBDRigidClusteredParticleDefaultConstruct<T, d>(*this, Params);
 	}
 public:
 
-	static TUniquePtr<TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>> CreateParticleHandle(TSerializablePtr<TPBDRigidClusteredParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+	static TUniquePtr<TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>> CreateParticleHandle(TSerializablePtr<TPBDRigidClusteredParticles<T, d>> InParticles, int32 InParticleIdx, int32 InHandleIdx, const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
 	{
 		return TGeometryParticleHandleImp<T, d, bPersistent>::CreateParticleHandleHelper(InParticles, InParticleIdx, InHandleIdx, Params);
 	}
@@ -1006,7 +1013,7 @@ protected:
 		TSerializablePtr<TPBDGeometryCollectionParticles<T, d>> Particles, 
 		int32 InIdx, 
 		int32 InGlobalIdx, 
-		const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+		const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
 		: TPBDRigidClusteredParticleHandleImp<T, d, bPersistent>(
 			TSerializablePtr<TPBDRigidClusteredParticles<T, d>>(Particles), InIdx, InGlobalIdx, Params)
 	{}
@@ -1016,7 +1023,7 @@ public:
 		TSerializablePtr<TPBDGeometryCollectionParticles<T, d>> InParticles, 
 		int32 InParticleIdx, 
 		int32 InHandleIdx, 
-		const TPBDRigidParticleParameters<T, d>& Params = TPBDRigidParticleParameters<T, d>())
+		const FPBDRigidParticleParameters& Params = FPBDRigidParticleParameters())
 	{
 		return TGeometryParticleHandleImp<T, d, bPersistent>::CreateParticleHandleHelper(
 			InParticles, InParticleIdx, InHandleIdx, Params);
@@ -1573,7 +1580,7 @@ public:
 
 protected:
 
-	TGeometryParticle(const TGeometryParticleParameters<T, d>& StaticParams = TGeometryParticleParameters<T, d>())
+	TGeometryParticle(const FGeometryParticleParameters& StaticParams = FGeometryParticleParameters())
 	{
 		Type = EParticleType::Static;
 		Proxy = nullptr;
@@ -1582,7 +1589,7 @@ protected:
 	}
 
 public:
-	static TUniquePtr<TGeometryParticle<T, d>> CreateParticle(const TGeometryParticleParameters<T, d>& Params = TGeometryParticleParameters<T, d>())
+	static TUniquePtr<TGeometryParticle<T, d>> CreateParticle(const FGeometryParticleParameters& Params = FGeometryParticleParameters())
 	{
 		return TUniquePtr< TGeometryParticle<T, d>>(new TGeometryParticle<T, d>(Params));
 	}
@@ -1954,14 +1961,14 @@ protected:
 	using Base::Proxy;
 
 	friend TGeometryParticle<T,d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable);
-	TKinematicGeometryParticle(const TKinematicGeometryParticleParameters<T, d>& KinematicParams = TKinematicGeometryParticleParameters<T,d>())
+	TKinematicGeometryParticle(const FKinematicGeometryParticleParameters& KinematicParams = FKinematicGeometryParticleParameters())
 		: TGeometryParticle<T, d>(KinematicParams)
 	{
 		Type = EParticleType::Kinematic;
 		KinematicGeometryParticleDefaultConstruct<T, d>(*this, KinematicParams);
 	}
 public:
-	static TUniquePtr<TKinematicGeometryParticle<T, d>> CreateParticle(const TKinematicGeometryParticleParameters<T, d>& Params = TKinematicGeometryParticleParameters<T, d>())
+	static TUniquePtr<TKinematicGeometryParticle<T, d>> CreateParticle(const FKinematicGeometryParticleParameters& Params = FKinematicGeometryParticleParameters())
 	{
 		return TUniquePtr< TKinematicGeometryParticle<T, d>>(new TKinematicGeometryParticle<T, d>(Params));
 	}
@@ -2033,7 +2040,7 @@ public:
 protected:
 	using Base::Proxy;
 	friend TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable);
-	TPBDRigidParticle<T, d>(const TPBDRigidParticleParameters<T, d>& DynamicParams = TPBDRigidParticleParameters<T, d>())
+	TPBDRigidParticle<T, d>(const FPBDRigidParticleParameters& DynamicParams = FPBDRigidParticleParameters())
 		: TKinematicGeometryParticle<T, d>(DynamicParams), MWakeEvent(EWakeEventEntry::None)
 	{
 		Type = EParticleType::Rigid;
@@ -2048,7 +2055,7 @@ protected:
 	}
 public:
 
-	static TUniquePtr<TPBDRigidParticle<T, d>> CreateParticle(const TPBDRigidParticleParameters<T, d>& DynamicParams = TPBDRigidParticleParameters<T, d>())
+	static TUniquePtr<TPBDRigidParticle<T, d>> CreateParticle(const FPBDRigidParticleParameters& DynamicParams = FPBDRigidParticleParameters())
 	{
 		return TUniquePtr< TPBDRigidParticle<T, d>>(new TPBDRigidParticle<T, d>(DynamicParams));
 	}
@@ -2346,13 +2353,13 @@ public:
 
 	using TGeometryParticle<T, d>::Type;
 public:
-	TPBDGeometryCollectionParticle<T,d>(const TPBDRigidParticleParameters<T,d>& DynamicParams = TPBDRigidParticleParameters<T,d>())
+	TPBDGeometryCollectionParticle<T,d>(const FPBDRigidParticleParameters& DynamicParams = FPBDRigidParticleParameters())
 		: TPBDRigidParticle<T, d>(DynamicParams)
 	{
 		Type = EParticleType::GeometryCollection;
 	}
 
-	static TUniquePtr<TPBDGeometryCollectionParticle<T, d>> CreateParticle(const TPBDRigidParticleParameters<T, d>& DynamicParams = TPBDRigidParticleParameters<T, d>())
+	static TUniquePtr<TPBDGeometryCollectionParticle<T, d>> CreateParticle(const FPBDRigidParticleParameters& DynamicParams = FPBDRigidParticleParameters())
 	{
 		return TUniquePtr<TPBDGeometryCollectionParticle<T, d>>(new TPBDGeometryCollectionParticle<T, d>(DynamicParams));
 	}
