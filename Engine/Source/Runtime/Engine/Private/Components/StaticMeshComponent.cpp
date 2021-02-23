@@ -414,7 +414,7 @@ void UStaticMeshComponent::CheckForErrors()
 			for (int32 SectionIndex = 0; SectionIndex < MeshLODData.Sections.Num(); SectionIndex++)
 			{
 				FStaticMeshSection& Element = MeshLODData.Sections[SectionIndex];
-				if (Element.NumTriangles == 0)
+				if (Element.NumTriangles == 0 && !GetStaticMesh()->NaniteSettings.bEnabled)
 				{
 					ZeroTriangleElements++;
 				}

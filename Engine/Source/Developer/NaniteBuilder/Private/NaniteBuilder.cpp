@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("D60728A5-EA9C-4CB4-8FFA-39CE9EDF297E")
+#define NANITE_DERIVEDDATA_VER TEXT("3AAB0510-8F1C-49F4-A3A9-81FADBE10CB5")
 
 namespace Nanite
 {
@@ -166,17 +166,18 @@ void CalcTangents(
 }
 
 static void BuildCoarseRepresentation(
-	const TArray< FClusterGroup >& Groups,
-	const TArray< FCluster >& Clusters,
-	TArray< FStaticMeshBuildVertex >& Verts,
-	TArray< uint32 >& Indexes,
-	TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
+	const TArray<FClusterGroup>& Groups,
+	const TArray<FCluster>& Clusters,
+	TArray<FStaticMeshBuildVertex>& Verts,
+	TArray<uint32>& Indexes,
+	TArray<FStaticMeshSection, TInlineAllocator<1>>& Sections,
 	uint32& NumTexCoords,
-	uint32 TargetNumTris )
+	uint32 TargetNumTris
+)
 {
-	FCluster CoarseRepresentation = FindDAGCut( Groups, Clusters, TargetNumTris + 4096 );
+	FCluster CoarseRepresentation = FindDAGCut(Groups, Clusters, TargetNumTris + 4096);
 
-	CoarseRepresentation.Simplify( TargetNumTris );
+	CoarseRepresentation.Simplify(TargetNumTris);
 
 	TArray< FStaticMeshSection, TInlineAllocator<1> > OldSections = Sections;
 
@@ -184,24 +185,24 @@ static void BuildCoarseRepresentation(
 	NumTexCoords = CoarseRepresentation.NumTexCoords;
 
 	// Rebuild vertex data
-	Verts.Empty( CoarseRepresentation.NumVerts );
-	for( uint32 i = 0, Num = CoarseRepresentation.NumVerts; i < Num; i++ )
+	Verts.Empty(CoarseRepresentation.NumVerts);
+	for (uint32 Iter = 0, Num = CoarseRepresentation.NumVerts; Iter < Num; ++Iter)
 	{
 		FStaticMeshBuildVertex Vertex = {};
-		Vertex.Position = CoarseRepresentation.GetPosition(i);
+		Vertex.Position = CoarseRepresentation.GetPosition(Iter);
 		Vertex.TangentX = FVector::ZeroVector;
 		Vertex.TangentY = FVector::ZeroVector;
-		Vertex.TangentZ = CoarseRepresentation.GetNormal(i);
+		Vertex.TangentZ = CoarseRepresentation.GetNormal(Iter);
 
-		const FVector2D* UVs = CoarseRepresentation.GetUVs(i);
-		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++)
+		const FVector2D* UVs = CoarseRepresentation.GetUVs(Iter);
+		for (uint32 UVIndex = 0; UVIndex < NumTexCoords; ++UVIndex)
 		{
 			Vertex.UVs[UVIndex] = UVs[UVIndex].ContainsNaN() ? FVector2D::ZeroVector : UVs[UVIndex];
 		}
 
-		if( CoarseRepresentation.bHasColors )
+		if (CoarseRepresentation.bHasColors)
 		{
-			Vertex.Color = CoarseRepresentation.GetColor(i).ToFColor(false /* sRGB */);
+			Vertex.Color = CoarseRepresentation.GetColor(Iter).ToFColor(false /* sRGB */);
 		}
 
 		Verts.Add(Vertex);
@@ -227,7 +228,7 @@ static void BuildCoarseRepresentation(
 		const FMaterialRange* FoundRange = CoarseMaterialRanges.FindByPredicate([&OldSection](const FMaterialRange& Range) { return Range.MaterialIndex == OldSection.MaterialIndex; });
 
 		// Sections can actually be removed from the coarse mesh if their source data doesn't contain enough triangles
-		if(FoundRange)
+		if (FoundRange)
 		{
 			// Copy properties from original mesh sections.
 			FStaticMeshSection Section(OldSection);
@@ -266,7 +267,7 @@ static void BuildCoarseRepresentation(
 		Indexes.Add(Triangle.Index2);
 	}
 
-	CalcTangents( Verts, Indexes );
+	CalcTangents(Verts, Indexes);
 }
 
 static void ClusterTriangles(
@@ -566,7 +567,38 @@ static bool BuildNaniteData(
 		const uint32 CoarseStartTime = FPlatformTime::Cycles();
 		int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
 
-		BuildCoarseRepresentation( Groups, Clusters, Verts, Indexes, Sections, NumTexCoords, CoarseTriCount );
+		TArray<FStaticMeshSection, TInlineAllocator<1>> CoarseSections = Sections;
+		BuildCoarseRepresentation(Groups, Clusters, Verts, Indexes, CoarseSections, NumTexCoords, CoarseTriCount);
+
+		// Fixup mesh section info with new coarse mesh ranges, while respecting original ordering and keeping materials
+		// that do not end up with any assigned triangles (due to decimation process).
+
+		for (FStaticMeshSection& Section : Sections)
+		{
+			// For each section info, try to find a matching entry in the coarse version.
+			const FStaticMeshSection* CoarseSection = CoarseSections.FindByPredicate(
+				[&Section](const FStaticMeshSection& CoarseSectionIter)
+			{
+				return CoarseSectionIter.MaterialIndex == Section.MaterialIndex;
+			});
+
+			if (CoarseSection != nullptr)
+			{
+				// Matching entry found
+				Section.FirstIndex     = CoarseSection->FirstIndex;
+				Section.NumTriangles   = CoarseSection->NumTriangles;
+				Section.MinVertexIndex = CoarseSection->MinVertexIndex;
+				Section.MaxVertexIndex = CoarseSection->MaxVertexIndex;
+			}
+			else
+			{
+				// Section removed due to decimation, set placeholder entry
+				Section.FirstIndex     = 0;
+				Section.NumTriangles   = 0;
+				Section.MinVertexIndex = 0;
+				Section.MaxVertexIndex = 0;
+			}
+		}
 
 		const uint32 CoarseEndTime = FPlatformTime::Cycles();
 		UE_LOG(LogStaticMesh, Log, TEXT("Coarse [%.2fs], original tris: %d, coarse tris: %d"), FPlatformTime::ToMilliseconds(CoarseEndTime - CoarseStartTime) / 1000.0f, OldTriangleCount, CoarseTriCount);
@@ -580,25 +612,25 @@ static bool BuildNaniteData(
 	UE_LOG( LogStaticMesh, Log, TEXT("Encode [%.2fs]"), FPlatformTime::ToMilliseconds( EncodeTime1 - EncodeTime0 ) / 1000.0f );
 
 	const bool bGenerateImposter = (NumMeshes == 1);
-	if(bGenerateImposter)
+	if (bGenerateImposter)
 	{
 		uint32 ImposterStartTime = FPlatformTime::Cycles();
 		auto& RootChildren = Groups.Last().Children;
 	
-	FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
+		FImposterAtlas ImposterAtlas( Resources.ImposterAtlas, MeshBounds );
 
-	ParallelFor( FMath::Square( FImposterAtlas::AtlasSize ),
-		[&]( int32 TileIndex )
+		ParallelFor(FMath::Square(FImposterAtlas::AtlasSize),
+			[&](int32 TileIndex)
 		{
 			FIntPoint TilePos(
 				TileIndex % FImposterAtlas::AtlasSize,
-				TileIndex / FImposterAtlas::AtlasSize );
+				TileIndex / FImposterAtlas::AtlasSize);
 
-			for( int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++ )
+			for (int32 ClusterIndex = 0; ClusterIndex < RootChildren.Num(); ClusterIndex++)
 			{
-				ImposterAtlas.Rasterize( TilePos, Clusters[ RootChildren[ ClusterIndex ] ], ClusterIndex );
+				ImposterAtlas.Rasterize(TilePos, Clusters[RootChildren[ClusterIndex]], ClusterIndex);
 			}
-		} );
+		});
 
 		UE_LOG(LogStaticMesh, Log, TEXT("Imposter [%.2fs]"), FPlatformTime::ToMilliseconds(FPlatformTime::Cycles() - ImposterStartTime ) / 1000.0f);
 	}

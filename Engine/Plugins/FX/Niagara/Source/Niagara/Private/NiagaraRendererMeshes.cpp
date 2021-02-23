@@ -581,6 +581,11 @@ void FNiagaraRendererMeshes::CreateMeshBatchForSection(
 	bool bIsInstancedStereo,
 	bool bDoGPUCulling) const
 {
+	if (Section.NumTriangles == 0)
+	{
+		return;
+	}
+
 	FMeshBatch& Mesh = Collector.AllocateMesh();
 	Mesh.VertexFactory = &VertexFactory;
 	Mesh.LCI = NULL;
@@ -809,6 +814,11 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				for (int32 SectionIndex = 0; SectionIndex < SectionCount; SectionIndex++)
 				{
 					const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+					if (Section.NumTriangles == 0)
+					{
+						continue;
+					}
+
 					const uint32 RemappedMaterialIndex = MeshData.MaterialRemapTable[Section.MaterialIndex];
 					if (!DynamicDataMesh->Materials.IsValidIndex(RemappedMaterialIndex))
 					{
@@ -817,7 +827,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					}
 
 					FMaterialRenderProxy* MaterialProxy = DynamicDataMesh->Materials[RemappedMaterialIndex];
-					if (Section.NumTriangles == 0 || MaterialProxy == NULL)
+					if (MaterialProxy == nullptr)
 					{
 						//@todo. This should never occur, but it does occasionally.
 						continue;
@@ -876,6 +886,11 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 		{
 			const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+			if (Section.NumTriangles == 0)
+			{
+				continue;
+			}
+
 			uint32 RemappedMaterialIndex = MeshData.MaterialRemapTable[Section.MaterialIndex];
 			if (!DynamicDataMesh->Materials.IsValidIndex(RemappedMaterialIndex))
 			{
@@ -884,7 +899,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			}
 
 			FMaterialRenderProxy* MaterialProxy = DynamicDataMesh->Materials[RemappedMaterialIndex];
-			if (Section.NumTriangles == 0 || MaterialProxy == NULL)
+			if (MaterialProxy == nullptr)
 			{
 				continue;
 			}

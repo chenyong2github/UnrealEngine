@@ -130,11 +130,15 @@ TArray<FMeshBatch> FInstanceGroupRenderState::GetMeshBatchesForGBufferRendering(
 {
 	TArray<FMeshBatch> MeshBatches;
 
-	// TODO: potentital race conditions between GT & RT everywhere in the following code
+	// TODO: potential race conditions between GT & RT everywhere in the following code
 	FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 	for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 	{
 		const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+		if (Section.NumTriangles == 0)
+		{
+			continue;
+		}
 
 		FMeshBatch MeshBatch;
 

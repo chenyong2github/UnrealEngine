@@ -586,6 +586,12 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 	const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
 	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
 	const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
+
+	if (Section.NumTriangles == 0)
+	{
+		return false;
+	}
+
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
 
 	UMaterialInterface* MaterialInterface = ProxyLODInfo.Sections[SectionIndex].Material;
@@ -644,7 +650,7 @@ bool FStaticMeshSceneProxy::GetMeshElement(
 
 	const uint32 NumPrimitives = SetMeshElementGeometrySource(LODIndex, SectionIndex, bWireframe, bRequiresAdjacencyInformation, bUseReversedIndices, bAllowPreCulledIndices, VertexFactory, OutMeshBatch);
 
-	if(NumPrimitives > 0)
+	if (NumPrimitives > 0)
 	{
 		OutMeshBatch.SegmentIndex = SectionIndex;
 
@@ -781,6 +787,12 @@ bool FStaticMeshSceneProxy::GetCollisionMeshElement(
 	const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
 	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
 	const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
+
+	if (Section.NumTriangles == 0)
+	{
+		return false;
+	}
+
 	const FVertexFactory* VertexFactory = nullptr;
 
 	const FLODInfo& ProxyLODInfo = LODs[LODIndex];
@@ -939,7 +951,13 @@ uint32 FStaticMeshSceneProxy::SetMeshElementGeometrySource(
 	FMeshBatch& OutMeshBatch) const
 {
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+
 	const FStaticMeshSection& Section = LODModel.Sections[SectionIndex];
+	if (Section.NumTriangles == 0)
+	{
+		return 0;
+	}
+
 	const FLODInfo& LODInfo = LODs[LODIndex];
 	const FLODInfo::FSectionInfo& SectionInfo = LODInfo.Sections[SectionIndex];
 
@@ -1118,19 +1136,20 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 		if (ForcedLodModel > 0) 
 		{
 			int32 LODIndex = FMath::Clamp(ForcedLodModel, ClampedMinLOD + 1, NumLODs) - 1;
+
 			const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
+			
 			// Draw the static mesh elements.
 			for(int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
-#if WITH_EDITOR
-				if( GIsEditor )
+			#if WITH_EDITOR
+				if (GIsEditor)
 				{
 					const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
-
 					bIsMeshElementSelected = Section.bSelected;
 					PDI->SetHitProxy(Section.HitProxy);
 				}
-#endif // WITH_EDITOR
+			#endif
 
 				const int32 NumBatches = GetNumMeshBatches();
 				PDI->ReserveMemoryForMeshes(NumBatches * (1 + NumRuntimeVirtualTextureTypes));
@@ -1161,7 +1180,7 @@ void FStaticMeshSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PD
 		} 
 		else //no LOD is being forced, submit them all with appropriate cull distances
 		{
-			for(int32 LODIndex = ClampedMinLOD; LODIndex < NumLODs; LODIndex++)
+			for (int32 LODIndex = ClampedMinLOD; LODIndex < NumLODs; ++LODIndex)
 			{
 				const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 				float ScreenSize = GetScreenSize(LODIndex);
@@ -1404,8 +1423,8 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 
 							for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 							{
-								//GetWireframeMeshElement will try SetIndexSource at sectionindex 0
-								//and GetMeshElement loops over sections, therefore does not have this issue
+								// GetWireframeMeshElement will try SetIndexSource at section index 0
+								// and GetMeshElement loops over sections, therefore does not have this issue
 								if (LODModel.Sections.Num() > 0)
 								{
 									FMeshBatch& Mesh = Collector.AllocateMesh();
@@ -1434,7 +1453,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 									bool bSectionIsSelected = false;
 									FMeshBatch& MeshElement = Collector.AllocateMesh();
 
-	#if WITH_EDITOR
+								#if WITH_EDITOR
 									if (GIsEditor)
 									{
 										const FLODInfo::FSectionInfo& Section = LODs[LODIndex].Sections[SectionIndex];
@@ -1442,7 +1461,7 @@ void FStaticMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView
 										bSectionIsSelected = Section.bSelected || (bIsWireframeView && bProxyIsSelected);
 										MeshElement.BatchHitProxyId = Section.HitProxy ? Section.HitProxy->Id : FHitProxyId();
 									}
-	#endif // WITH_EDITOR
+								#endif
 								
 									if (GetMeshElement(LODIndex, BatchIndex, SectionIndex, SDPG_World, bSectionIsSelected, true, MeshElement))
 									{
@@ -1748,7 +1767,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 		RayTracingInstance.Materials.Reserve(LODModel.Sections.Num() * NumBatches);
 		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 		{
-			for(int SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
 				FMeshBatch &Mesh = RayTracingInstance.Materials.AddDefaulted_GetRef();
 	
@@ -1759,6 +1778,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					Mesh.MaterialRenderProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 					Mesh.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
 				}
+
 				Mesh.SegmentIndex = SectionIndex;
 			}
 		}
@@ -1804,6 +1824,7 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 	}
 }
 #endif
+
 void FStaticMeshSceneProxy::GetLCIs(FLCIArray& LCIs)
 {
 	for (int32 LODIndex = 0; LODIndex < LODs.Num(); ++LODIndex)
