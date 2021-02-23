@@ -65,6 +65,7 @@ struct FComponentTypeInfo
 		, bIsTriviallyDestructable(0)
 		, bIsTriviallyCopyAssignable(0)
 		, bIsPreserved(0)
+		, bIsCopiedToOutput(0)
 		, bIsMigratedToOutput(0)
 		, bHasReferencedObjects(0)
 	{}
@@ -86,6 +87,7 @@ struct FComponentTypeInfo
 	uint8 bIsTriviallyDestructable : 1;   // Whether TIsTriviallyDestructible<T> is true
 	uint8 bIsTriviallyCopyAssignable : 1; // Whether TIsTriviallyCopyAssignable<T> is true
 	uint8 bIsPreserved : 1;               // Whether this component should be preserved when an entity containing it is replaced or overwritten
+	uint8 bIsCopiedToOutput : 1;          // Whether this component should be copied to an output entity if there are now multiple contributors to the same property/state
 	uint8 bIsMigratedToOutput : 1;        // Whether this component should be migrated to an output entity if there are now multiple contributors to the same property/state
 	uint8 bHasReferencedObjects : 1;      // Whether this component contains any data that should be reference collected
 

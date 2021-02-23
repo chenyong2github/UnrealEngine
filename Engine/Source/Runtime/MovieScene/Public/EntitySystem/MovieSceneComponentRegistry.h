@@ -121,6 +121,14 @@ public:
 		return MigrationMask;
 	}
 
+	/**
+	 * Retrive a mask of all components to be copied or migrated to outputs
+	 */
+	const FComponentMask& GetCopyAndMigrationMask() const
+	{
+		return CopyAndMigrationMask;
+	}
+
 private:
 
 	FComponentTypeID NewComponentTypeInternal(FComponentTypeInfo&& TypeInfo);
@@ -138,6 +146,9 @@ private:
 
 	/** Mask containing all components that have the flag EComponentTypeFlags::MigrateToOutput */
 	FComponentMask MigrationMask;
+
+	/** Mask containing all components that have the EComponentTypeFlags::CopyToOutput and EComponentTypeFlags::MigrateToOutput */
+	FComponentMask CopyAndMigrationMask;
 };
 
 
@@ -158,6 +169,7 @@ TComponentTypeID<T> FComponentRegistry::NewComponentType(const TCHAR* const Debu
 	NewTypeInfo.bIsTriviallyDestructable   = TIsTriviallyDestructible<T>::Value;
 	NewTypeInfo.bIsTriviallyCopyAssignable = TIsTriviallyCopyAssignable<T>::Value;
 	NewTypeInfo.bIsPreserved               = EnumHasAnyFlags(Flags, EComponentTypeFlags::Preserved);
+	NewTypeInfo.bIsCopiedToOutput          = EnumHasAnyFlags(Flags, EComponentTypeFlags::CopyToOutput);
 	NewTypeInfo.bIsMigratedToOutput        = EnumHasAnyFlags(Flags, EComponentTypeFlags::MigrateToOutput);
 	NewTypeInfo.bHasReferencedObjects      = !TIsSame< FNotImplemented*, decltype( AddReferencedObjectForComponent((FReferenceCollector*)0, (T*)0) ) >::Value;
 
