@@ -1523,6 +1523,12 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 	}
 }
 
+FString LexToString(EShaderPlatform Platform)
+{
+	bool bError = true;
+	return LexToString(Platform, bError);
+}
+
 void LexFromString(EShaderPlatform& Value, const TCHAR* String)
 {
 	Value = EShaderPlatform::SP_NumPlatforms;
