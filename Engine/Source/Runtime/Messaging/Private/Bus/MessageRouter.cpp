@@ -306,7 +306,10 @@ void FMessageRouter::HandleAddSubscriber(TSharedRef<IMessageSubscription, ESPMod
 {
 	auto Subscriber = Subscription->GetSubscriber().Pin();
 
-	UE_LOG(LogMessaging, Verbose, TEXT("Adding %s as a subscriber for %s messages"), *Subscriber->GetDebugName().ToString(), *Subscription->GetMessageType().ToString());
+	if (Subscriber.IsValid())
+	{
+		UE_LOG(LogMessaging, Verbose, TEXT("Adding %s as a subscriber for %s messages"), *Subscriber->GetDebugName().ToString(), *Subscription->GetMessageType().ToString());
+	}
 
 	ActiveSubscriptions.FindOrAdd(Subscription->GetMessageType()).AddUnique(Subscription);
 	Tracer->TraceAddedSubscription(Subscription);

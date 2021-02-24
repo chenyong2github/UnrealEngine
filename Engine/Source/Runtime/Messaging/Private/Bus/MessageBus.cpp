@@ -240,32 +240,3 @@ const FString& FMessageBus::GetName() const
 {
 	return Name;
 }
-
-struct FThreadLocalMessageRouterState : TThreadSingleton<FThreadLocalMessageRouterState>
-{
-	bool IsLoggingEnabled() const
-	{
-		return State.Last();
-	}
-
-	void PushLoggingEnabled(const bool bState)
-	{
-		State.Push(bState);
-	}
-
-	void PopLoggingEnabled()
-	{
-		State.Pop();
-		checkf(State.Num(), TEXT("Too many pops!"));
-	}
-
-protected:
-	
-	friend class  TThreadSingleton<FThreadLocalMessageRouterState>;
-	FThreadLocalMessageRouterState()
-	{
-		State.Push(true);
-	}
-
-	TArray<bool> State;
-};

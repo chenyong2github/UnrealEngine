@@ -77,13 +77,8 @@ void FSessionService::SendLog(const TCHAR* Data, ELogVerbosity::Type Verbosity, 
 	// Guard against going recursive from logging in messaging code
 	if (!IsInSendLog)
 	{
-		IsInSendLog = true;
-
-		ON_SCOPE_EXIT
-		{
-			IsInSendLog = false;
-		};
-
+		TGuardValue<bool> Guard(IsInSendLog, true);
+		
 		if (LogSubscribers.Num() > 0)
 		{
 			MessageEndpoint->Send(
