@@ -18,7 +18,7 @@ public:
 	// UWorldPartitionBuilder interface end
 
 protected:
-	bool CreateHLODActors(bool bCreateOnly);
+	bool SetupHLODActors(bool bCreateOnly);
 	bool BuildHLODActors();
 	bool DeleteHLODActors();
 
@@ -26,7 +26,8 @@ private:
 	class UWorldPartition* WorldPartition;
 	class FSourceControlHelper* SourceControlHelper;
 
-	bool bCreateHLODs;
+	bool bSetupHLODs;
 	bool bBuildHLODs;
 	bool bDeleteHLODs;
+	bool bForceGC;
 };
