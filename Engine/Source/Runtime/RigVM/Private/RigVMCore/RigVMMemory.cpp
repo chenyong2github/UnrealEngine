@@ -42,7 +42,7 @@ void FRigVMRegister::Serialize(FArchive& Ar)
 	Ar << Name;
 	Ar << ScriptStructIndex;
 
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
 		Save(Ar);
 	}
@@ -95,7 +95,7 @@ void FRigVMRegisterOffset::Serialize(FArchive& Ar)
 		return;
 	}
 
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
 		Save(Ar);
 	}
@@ -513,7 +513,7 @@ void FRigVMMemoryContainer::Serialize(FArchive& Ar)
  		return;
  	}
 
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
 		Save(Ar);
 	}

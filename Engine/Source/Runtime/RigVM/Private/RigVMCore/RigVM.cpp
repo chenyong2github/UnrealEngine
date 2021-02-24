@@ -14,7 +14,7 @@ void FRigVMParameter::Serialize(FArchive& Ar)
 		return;
 	}
 
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
 		Save(Ar);
 	}
@@ -93,7 +93,7 @@ void URigVM::Serialize(FArchive& Ar)
 
 	ensure(ExecutingThreadId == INDEX_NONE);
 
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
 		Save(Ar);
 	}
