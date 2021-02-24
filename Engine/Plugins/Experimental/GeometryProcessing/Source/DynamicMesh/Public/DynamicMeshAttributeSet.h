@@ -97,21 +97,6 @@ private:
 	void Reparent(FDynamicMesh3* NewParent);
 
 public:
-	/** @return number of UV layers */
-	virtual int NumUVLayers() const
-	{
-		return UVLayers.Num();
-	}
-
-	virtual void SetNumUVLayers(int Num);
-
-	/** @return number of Normals layers */
-	virtual int NumNormalLayers() const
-	{
-		return NormalLayers.Num();
-	}
-
-	virtual void SetNumNormalLayers(int Num);
 
 	/** @return true if the given edge is a seam edge in any overlay */
 	virtual bool IsSeamEdge(int EdgeID) const;
@@ -131,6 +116,15 @@ public:
 	//
 	// UV Layers 
 	//
+
+	/** @return number of UV layers */
+	virtual int NumUVLayers() const
+	{
+		return UVLayers.Num();
+	}
+
+	/** Set number of UV (2-vector float overlay) layers */
+	virtual void SetNumUVLayers(int Num);
 
 	/** @return the UV layer at the given Index  if exists, else nullptr*/
 	FDynamicMeshUVOverlay* GetUVLayer(int Index)
@@ -167,6 +161,21 @@ public:
 	//
 	// Normal Layers 
 	//
+
+	/** @return number of Normals layers */
+	virtual int NumNormalLayers() const
+	{
+		return NormalLayers.Num();
+	}
+
+	/** Set number of Normals (3-vector float overlay) layers */
+	virtual void SetNumNormalLayers(int Num);
+
+	/** Enable Tangents overlays (Tangent = Normal layer 1, Bitangent = Normal layer 2) */
+	void EnableTangents();
+
+	/** Disable Tangents overlays */
+	void DisableTangents();
 
 	/** @return the Normal layer at the given Index if exists, else nullptr */
 	FDynamicMeshNormalOverlay* GetNormalLayer(int Index)

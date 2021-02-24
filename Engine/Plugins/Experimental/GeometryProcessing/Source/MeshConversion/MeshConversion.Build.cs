@@ -11,6 +11,7 @@ public class MeshConversion : ModuleRules
         PublicDependencyModuleNames.AddRange(
 			new string[] {
                 "Core",
+				"Engine",
                 "MeshDescription",
 				"StaticMeshDescription",
 				"GeometricObjects",

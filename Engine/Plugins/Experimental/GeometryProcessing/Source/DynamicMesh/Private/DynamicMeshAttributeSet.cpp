@@ -252,6 +252,17 @@ void FDynamicMeshAttributeSet::SetNumUVLayers(int Num)
 
 
 
+void FDynamicMeshAttributeSet::EnableTangents()
+{
+	SetNumNormalLayers(3);
+}
+
+void FDynamicMeshAttributeSet::DisableTangents()
+{
+	SetNumNormalLayers(1);
+}
+
+
 void FDynamicMeshAttributeSet::SetNumNormalLayers(int Num)
 {
 	if (NormalLayers.Num() == Num)
