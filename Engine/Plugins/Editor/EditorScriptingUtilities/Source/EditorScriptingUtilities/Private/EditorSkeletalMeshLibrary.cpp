@@ -3,6 +3,7 @@
 #include "EditorSkeletalMeshLibrary.h"
 
 #include "Animation/Skeleton.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
@@ -12,6 +13,8 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "FbxMeshUtils.h"
 #include "LODUtilities.h"
+#include "ObjectTools.h"
+#include "PhysicsAssetUtils.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "ScopedTransaction.h"
@@ -396,4 +399,60 @@ bool UEditorSkeletalMeshLibrary::StripLODGeometry(USkeletalMesh* SkeletalMesh, c
 {
 	return FLODUtilities::StripLODGeometry(SkeletalMesh, LODIndex, TextureMask, Threshold);
 }
+
+UPhysicsAsset* UEditorSkeletalMeshLibrary::CreatePhysicsAsset(USkeletalMesh* SkeletalMesh)
+{
+	if (!SkeletalMesh)
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("CreatePhysicsAsset failed: The SkeletalMesh is null."));
+		return nullptr;
+	}
+
+	FString ObjectName = FString::Printf(TEXT("%s_PhysicsAsset"), *SkeletalMesh->GetName());
+	FString PackageName = SkeletalMesh->GetOutermost()->GetName();
+
+	FString ParentPath = FString::Printf(TEXT("%s/%s"), *FPackageName::GetLongPackagePath(*PackageName), *ObjectName);
+	UObject* Package = CreatePackage(*ParentPath);
+
+	// See if an object with this name exists
+	UObject* Object = LoadObject<UObject>(Package, *ObjectName, nullptr, LOAD_NoWarn | LOAD_Quiet, nullptr);
+
+	// If an object with same name but different class exists, fail and warn the user
+	if ((Object != nullptr) && (Object->GetClass() != UPhysicsAsset::StaticClass()))
+	{
+		UE_LOG(LogEditorScripting, Error, TEXT("CreatePhysicsAsset failed: An object that is not a Physics Asset already exists with the name %s."), *ObjectName);
+		return nullptr;
+	}
+
+	if (Object == nullptr)
+	{
+		Object = NewObject<UPhysicsAsset>(Package, *ObjectName, RF_Public | RF_Standalone);
+
+		FAssetRegistryModule::AssetCreated(Object);
+	}
+
+	UPhysicsAsset* NewPhysicsAsset = Cast<UPhysicsAsset>(Object);
+	if (NewPhysicsAsset)
+	{
+		NewPhysicsAsset->MarkPackageDirty();
+
+		FPhysAssetCreateParams NewBodyData;
+		FText CreationErrorMessage;
+
+		bool bSuccess = FPhysicsAssetUtils::CreateFromSkeletalMesh(NewPhysicsAsset, SkeletalMesh, NewBodyData, CreationErrorMessage);
+		if (!bSuccess)
+		{
+			UE_LOG(LogEditorScripting, Error, TEXT("CreatePhysicsAsset failed: Couldn't create PhysicsAsset for the SkeletalMesh."));
+			ObjectTools::DeleteObjects({NewPhysicsAsset}, false);
+			return nullptr;
+		}
+		else
+		{
+			RefreshSkelMeshOnPhysicsAssetChange(SkeletalMesh);
+		}
+	}
+
+	return NewPhysicsAsset;
+}
+
 #undef LOCTEXT_NAMESPACE

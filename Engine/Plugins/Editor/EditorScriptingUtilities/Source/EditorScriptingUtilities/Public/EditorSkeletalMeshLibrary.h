@@ -8,6 +8,7 @@
 
 #include "EditorSkeletalMeshLibrary.generated.h"
 
+class UPhysicsAsset;
 class USkeletalMesh;
 
 /**
@@ -123,5 +124,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh", meta = (ScriptMethod))
 	static bool StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LODIndex, UTexture2D* TextureMask, const float Threshold);
+
+	/**
+	 * This function creates a PhysicsAsset for the given SkeletalMesh with the same settings as if it were created through FBX import
+	 *
+	 * @Param SkeletalMesh: The SkeletalMesh we want to create the PhysicsAsset for
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh")
+	static UPhysicsAsset* CreatePhysicsAsset(USkeletalMesh* SkeletalMesh);
 };
 
