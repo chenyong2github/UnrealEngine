@@ -21,6 +21,7 @@
 #include "WorldTreeItemTypes.h"
 #include "LevelFolders.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"
 
@@ -104,6 +105,7 @@ TSharedRef< SWidget > SWorldHierarchyItem::GenerateWidgetForColumn( const FName&
 				[
 					SNew(SImage)
 					.Image(this, &SWorldHierarchyItem::GetLevelIconBrush)
+					.ColorAndOpacity(FStyleColors::AccentFolder)
 				]
 			]
 
@@ -196,8 +198,7 @@ TSharedRef< SWidget > SWorldHierarchyItem::GenerateWidgetForColumn( const FName&
 				[
 					SNew(SImage)
 					.ColorAndOpacity(this, &SWorldHierarchyItem::GetDrawColor)
-					.Image(this, &SWorldHierarchyItem::GetLevelColorBrush)
-					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FEditorStyle::GetBrush("Level.ColorIcon"))
 				]
 			;
 		}
@@ -230,15 +231,9 @@ TSharedRef< SWidget > SWorldHierarchyItem::GenerateWidgetForColumn( const FName&
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SImage)
-						.Image(this, &SWorldHierarchyItem::GetSCCStateImage)
-						.ToolTipText(this, &SWorldHierarchyItem::GetSCCStateTooltip)
-					]
+					SNew(SImage)
+					.Image(this, &SWorldHierarchyItem::GetSCCStateImage)
+					.ToolTipText(this, &SWorldHierarchyItem::GetSCCStateTooltip)
 				]
 			;
 		}
@@ -760,7 +755,7 @@ const FSlateBrush* SWorldHierarchyItem::GetSCCStateImage() const
 		FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(PackageName, EStateCacheUsage::Use);
 		if(SourceControlState.IsValid())
 		{
-			return FEditorStyle::GetBrush(SourceControlState->GetIcon().GetStyleSetName());
+			return SourceControlState->GetIcon().GetIcon();
 		}
 	}
 
@@ -796,11 +791,6 @@ const FSlateBrush* SWorldHierarchyItem::GetLevelKismetBrush() const
 	{
 		return FStyleDefaults::GetNoBrush();
 	}	
-}
-
-const FSlateBrush* SWorldHierarchyItem::GetLevelColorBrush() const
-{
-	return FEditorStyle::GetBrush("Level.ColorIcon40x");
 }
 
 #undef LOCTEXT_NAMESPACE

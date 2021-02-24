@@ -898,10 +898,10 @@ namespace WorldHierarchy
 	{
 		if (Children.Num() > 0 && Flags.bExpanded)
 		{
-			return FEditorStyle::Get().GetBrush("WorldBrowser.FolderOpen");
+			return FEditorStyle::Get().GetBrush("Icons.FolderOpen");
 		}
 
-		return FEditorStyle::Get().GetBrush("WorldBrowser.FolderClosed");
+		return FEditorStyle::Get().GetBrush("Icons.FolderClosed");
 	}
 
 	void FFolderTreeItem::GenerateContextMenu(UToolMenu* Menu, const SWorldHierarchyImpl& Hierarchy)

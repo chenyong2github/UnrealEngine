@@ -190,14 +190,16 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 	TSharedRef<SWidget> CreateNewFolderButton = SNullWidget::NullWidget;
 	if (!bFoldersOnlyMode)
 	{
-		CreateNewFolderButton = SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		CreateNewFolderButton = 
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.ToolTipText(LOCTEXT("CreateFolderTooltip", "Create a new folder containing the current selection"))
 			.OnClicked(this, &SWorldHierarchyImpl::OnCreateFolderClicked)
 			.Visibility(WorldModel->HasFolderSupport() ? EVisibility::Visible : EVisibility::Collapsed)
 			[
 				SNew(SImage)
 				.Image(FEditorStyle::GetBrush("WorldBrowser.NewFolderIcon"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			];
 	}
 
@@ -223,6 +225,7 @@ void SWorldHierarchyImpl::Construct(const FArguments& InArgs)
 			// Create New Folder icon
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
+			.VAlign(VAlign_Center)
 			.Padding(4.0f, 0.0f, 0.0f, 0.0f)
 			[
 				CreateNewFolderButton
