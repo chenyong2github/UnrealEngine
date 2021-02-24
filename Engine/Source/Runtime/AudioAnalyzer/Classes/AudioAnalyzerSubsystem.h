@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "AudioAnalyzer.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "Tickable.h"
 #include "AudioAnalyzerSubsystem.generated.h"
 
 class UWorld;
@@ -14,7 +13,7 @@ class UWorld;
 * Class manages querying analysis results from various audio analyzers.
 */
 UCLASS(DisplayName = "Audio Analysis")
-class AUDIOANALYZER_API UAudioAnalyzerSubsystem : public UWorldSubsystem, public FTickableGameObject
+class AUDIOANALYZER_API UAudioAnalyzerSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -25,7 +24,7 @@ public:
 	//~ Begin FTickableGameObject Interface
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickable() const override;
-	virtual bool IsTickableInEditor() const { return true; }
+	virtual bool IsTickableInEditor() const override { return true; }
 	virtual TStatId GetStatId() const override;
 	//~ End FTickableGameObject Interface
 

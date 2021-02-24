@@ -79,6 +79,17 @@ public:
 	 */
 	virtual bool IsTickable() const { return true; }
 
+	/**
+	 * Virtual that can be overloaded by the inheriting class. It is
+	 * used to determine whether an object is allowed to tick. This is different than IsTickable
+	 * for keeping existing tickable objects working while providing an extra-safety for classes that decide to 
+	 * implement it (e.g. tickable world subsystems that have been deinitialized are not allowed to tick, regardless 
+	 * of what IsTickable says)
+	 *
+	 * @return	true if object is allowed to be ticked, false otherwise.
+	 */
+	virtual bool IsAllowedToTick() const { return true; }
+
 	/** return the stat id to use for this tickable **/
 	virtual TStatId GetStatId() const = 0;
 };

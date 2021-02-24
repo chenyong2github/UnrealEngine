@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/EngineTypes.h"
-#include "Engine/Public/Tickable.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "WaterBodyManager.h"
 #include "WaterSubsystem.generated.h"
@@ -58,7 +57,7 @@ struct FUnderwaterPostProcessVolume : public IInterface_PostProcessVolume
  * This is the API used to get information about water at runtime
  */
 UCLASS(BlueprintType, Transient)
-class WATER_API UWaterSubsystem : public UWorldSubsystem, public FTickableGameObject
+class WATER_API UWaterSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -66,9 +65,8 @@ public:
 	UWaterSubsystem();
 
 	// FTickableGameObject implementation Begin
-	virtual UWorld* GetTickableGameObjectWorld() const override { return GetWorld(); }
-	virtual bool IsTickable() const override { return bInitialized; }
-	virtual bool IsTickableInEditor() const override { return bInitialized; }
+	virtual bool IsTickable() const override { return true; }
+	virtual bool IsTickableInEditor() const override { return true; }
 	virtual void Tick(float DeltaTime) override;
 	virtual TStatId GetStatId() const override;
 	// FTickableGameObject implementation End
@@ -227,7 +225,6 @@ private:
 	bool bUsingOverrideWorldTimeSeconds;
 	bool bUnderWaterForAudio;
 	bool bPauseWaveTime;
-	bool bInitialized;
 
 	/** The parameter collection asset that holds the global parameters that are updated by this actor */
 	UPROPERTY()

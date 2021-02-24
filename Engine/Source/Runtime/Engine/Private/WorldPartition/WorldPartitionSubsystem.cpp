@@ -89,7 +89,7 @@ void UWorldPartitionSubsystem::Deinitialize()
 		check(!RegisteredWorldPartitions.Contains(WorldPartition));
 	}
 
-	UWorldSubsystem::Deinitialize();
+	Super::Deinitialize();
 }
 
 void UWorldPartitionSubsystem::RegisterWorldPartition(UWorldPartition* WorldPartition)
@@ -111,6 +111,8 @@ void UWorldPartitionSubsystem::UnregisterWorldPartition(UWorldPartition* WorldPa
 
 void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 {
+	Super::Tick(DeltaSeconds);
+
 	for (UWorldPartition* Partition : RegisteredWorldPartitions)
 	{
 		Partition->Tick(DeltaSeconds);
@@ -127,16 +129,6 @@ void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 		}
 #endif
 	}
-}
-
-bool UWorldPartitionSubsystem::IsTickableInEditor() const
-{
-	return true;
-}
-
-UWorld* UWorldPartitionSubsystem::GetTickableGameObjectWorld() const
-{
-	return GetWorld();
 }
 
 ETickableTickType UWorldPartitionSubsystem::GetTickableTickType() const

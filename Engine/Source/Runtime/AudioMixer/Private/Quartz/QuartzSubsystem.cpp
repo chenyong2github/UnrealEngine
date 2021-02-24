@@ -5,6 +5,7 @@
 #include "Quartz/QuartzMetronome.h"
 #include "Quartz/AudioMixerClockManager.h"
 #include "Sound/QuartzQuantizationUtilities.h"
+#include "Stats/Stats.h"
 
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
@@ -66,6 +67,8 @@ UQuartzSubsystem::~UQuartzSubsystem()
 
 void UQuartzSubsystem::Tick(float DeltaTime)
 {
+	Super::Tick(DeltaTime);
+
 	const int32 NumSubscribers = QuartzTickSubscribers.Num();
 
 	if (DisableQuartzCvar)
@@ -137,7 +140,7 @@ bool UQuartzSubsystem::IsTickable() const
 
 TStatId UQuartzSubsystem::GetStatId() const
 {
-	return Super::GetStatID();
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UQuartzSubsystem, STATGROUP_Tickables);
 }
 
 

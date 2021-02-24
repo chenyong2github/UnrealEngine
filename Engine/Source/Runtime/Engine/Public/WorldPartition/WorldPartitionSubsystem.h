@@ -4,7 +4,6 @@
 
 #include "Subsystems/WorldSubsystem.h"
 #include "Templates/SubclassOf.h"
-#include "Tickable.h"
 #include "WorldPartitionSubsystem.generated.h"
 
 class UWorldPartition;
@@ -16,7 +15,7 @@ class FWorldPartitionActorDesc;
  */
 
 UCLASS()
-class ENGINE_API UWorldPartitionSubsystem : public UWorldSubsystem, public FTickableGameObject
+class ENGINE_API UWorldPartitionSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -35,8 +34,7 @@ public:
 
 	//~ Begin FTickableGameObject
 	virtual void Tick(float DeltaSeconds) override;
-	virtual bool IsTickableInEditor() const override;
-	virtual UWorld* GetTickableGameObjectWorld() const override;
+	virtual bool IsTickableInEditor() const override { return true; }
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
 	//~End FTickableGameObject

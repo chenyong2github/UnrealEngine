@@ -28,6 +28,8 @@ TStatId UAudioAnalyzerSubsystem::GetStatId() const
 
 void UAudioAnalyzerSubsystem::Tick(float DeltaTime)
 {
+	Super::Tick(DeltaTime);
+
 	// Loop through all analyzers and if they're ready to analyze, do it
 	for (UAudioAnalyzer* Analyzer : AudioAnalyzers)
 	{
