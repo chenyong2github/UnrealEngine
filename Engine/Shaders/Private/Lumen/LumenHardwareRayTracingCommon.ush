@@ -285,6 +285,7 @@ bool TraceAndCalculateRayTracedLighting(
 			Ray.TMin = Payload.HitT + Epsilon;
 			// Reset payload flag settings for the new trace
 			Payload.SetLumenPayload();
+			Payload.SetIgnoreTranslucentMaterials();
 			if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
 			{
 				Payload.SetMinimalPayloadMode();
@@ -298,7 +299,7 @@ bool TraceAndCalculateRayTracedLighting(
 				InstanceMask,
 				Ray,
 				Context.RayCone,
-				TraceCoord,
+				Context.TraceCoord,
 				bEnableSkyLightContribution);
 			bIsRTHit = Payload.IsHit();
 			DFObjectIndex = Payload.GetDistanceFieldObjectIndex();

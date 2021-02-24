@@ -106,7 +106,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 					float Epsilon = 0.5;
 					Ray.TMin = max(0, DeferredMaterialPayload.HitT - Epsilon);
 					// Note: adjusting TMax will not properly account for masked materials because of restricted any-hit length
-					Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
+					//Ray.TMax = DeferredMaterialPayload.HitT + Epsilon;
 				}
 			}
 
@@ -120,20 +120,15 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			float3 Radiance = 0.0;
 			if (bTraceRay)
 			{
-				float HitDistance;
 				bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 				if (bUseMinimalPayload)
 				{
-					bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, DIM_NORMAL_MODE, HitDistance, Radiance);
+					bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, DIM_NORMAL_MODE, TraceHitDistance, Radiance);
 				}
 				else
 				{
-					bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, DIM_NORMAL_MODE, HitDistance, Radiance);
+					bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, DIM_NORMAL_MODE, TraceHitDistance, Radiance);
 				}
-
-#if !DIM_DEFERRED_MATERIAL_MODE
-				TraceHitDistance = HitDistance;
-#endif
 			}
 			Radiance *= View.PreExposure;
 			RWTraceRadiance[ScreenProbeTracingCoord] = Radiance;
