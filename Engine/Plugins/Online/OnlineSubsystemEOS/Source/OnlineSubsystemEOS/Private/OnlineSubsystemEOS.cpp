@@ -6,6 +6,7 @@
 #include "OnlineStatsEOS.h"
 #include "OnlineLeaderboardsEOS.h"
 #include "OnlineAchievementsEOS.h"
+#include "OnlineTitleFileEOS.h"
 #include "OnlineStoreEOS.h"
 #include "EOSSettings.h"
 
@@ -322,6 +323,12 @@ bool FOnlineSubsystemEOS::Init()
 		}
 		StoreInterfacePtr = MakeShareable(new FOnlineStoreEOS(this));
 	}
+	TitleStorageHandle = EOS_Platform_GetTitleStorageInterface(EOSPlatformHandle);
+	if (TitleStorageHandle == nullptr)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get title storage handle"));
+		return false;
+	}
 
 	SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(this));
 	FString ErrorMessage;
@@ -337,6 +344,7 @@ bool FOnlineSubsystemEOS::Init()
 	StatsInterfacePtr = MakeShareable(new FOnlineStatsEOS(this));
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOS(this));
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOS(this));
+	TitleFileInterfacePtr = MakeShareable(new FOnlineTitleFileEOS(this));
 
 	// We initialized ok so we can tick
 	StartTicker();
@@ -373,6 +381,7 @@ bool FOnlineSubsystemEOS::Shutdown()
 	DESTRUCT_INTERFACE(LeaderboardsInterfacePtr);
 	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
 	DESTRUCT_INTERFACE(StoreInterfacePtr);
+	DESTRUCT_INTERFACE(TitleFileInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
@@ -409,6 +418,10 @@ bool FOnlineSubsystemEOS::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 		if (StoreInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("ECOM")))
 		{
 			bWasHandled = StoreInterfacePtr->HandleEcomExec(InWorld, Cmd, Ar);
+		}
+		else if (TitleFileInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("TITLEFILE")))
+		{
+			bWasHandled = TitleFileInterfacePtr->HandleTitleFileExec(InWorld, Cmd, Ar);
 		}
 	}
 	return bWasHandled;
@@ -474,8 +487,7 @@ IOnlineIdentityPtr FOnlineSubsystemEOS::GetIdentityInterface() const
 
 IOnlineTitleFilePtr FOnlineSubsystemEOS::GetTitleFileInterface() const
 {
-	UE_LOG_ONLINE(Error, TEXT("Title File Interface Requested"));
-	return nullptr;
+	return TitleFileInterfacePtr;
 }
 
 IOnlineStoreV2Ptr FOnlineSubsystemEOS::GetStoreV2Interface() const

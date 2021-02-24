@@ -149,7 +149,9 @@ FEOSSettings UEOSSettings::ManualGetSettings()
 	GConfig->GetBool(INI_SECTION, TEXT("bShouldEnforceBeingLaunchedByEGS"), Native.bShouldEnforceBeingLaunchedByEGS, GEngineIni);
 	GConfig->GetString(INI_SECTION, TEXT("CacheDir"), Native.CacheDir, GEngineIni);
 	GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), Native.DefaultArtifactName, GEngineIni);
+	GConfig->GetArray(INI_SECTION, TEXT("TitleStorageTags"), Native.TitleStorageTags, GEngineIni);
 	GConfig->GetInt(INI_SECTION, TEXT("TickBudgetInMilliseconds"), Native.TickBudgetInMilliseconds, GEngineIni);
+	GConfig->GetInt(INI_SECTION, TEXT("TitleStorageReadChunkLength"), Native.TitleStorageReadChunkLength, GEngineIni);
 
 	GConfig->GetBool(INI_SECTION, TEXT("bUseEAS"), Native.bUseEAS, GEngineIni);
 	GConfig->GetBool(INI_SECTION, TEXT("bUseEOSConnect"), Native.bUseEOSConnect, GEngineIni);
@@ -169,7 +171,9 @@ FEOSSettings UEOSSettings::ToNative() const
 	Native.bEnableSocialOverlay = bEnableSocialOverlay;
 	Native.CacheDir = CacheDir;
 	Native.DefaultArtifactName = DefaultArtifactName;
+	Native.TitleStorageTags = TitleStorageTags;
 	Native.TickBudgetInMilliseconds = TickBudgetInMilliseconds;
+	Native.TitleStorageReadChunkLength = TitleStorageReadChunkLength;
 
 	for (const FArtifactSettings& ArtifactSettings : Artifacts)
 	{
