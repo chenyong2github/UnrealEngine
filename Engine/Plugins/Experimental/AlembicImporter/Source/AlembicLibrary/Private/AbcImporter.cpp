@@ -53,6 +53,9 @@ THIRD_PARTY_INCLUDES_END
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 
+#include "UObject/MetaData.h"
+#include "UObject/Package.h"
+
 #define LOCTEXT_NAMESPACE "AbcImporter"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAbcImporter, Verbose, All);
@@ -327,6 +330,10 @@ const TArray<UStaticMesh*> FAbcImporter::ImportAsStaticMesh(UObject* InParent, E
 	EFrameReadFlags ReadFlags = ( ImportSettings->StaticMeshSettings.bMergeMeshes && ImportSettings->StaticMeshSettings.bPropagateMatrixTransformations ? EFrameReadFlags::ApplyMatrix : EFrameReadFlags::None ) | EFrameReadFlags::ForceSingleThreaded;
 	AbcFile->ProcessFrames(Func, ReadFlags);
 	
+	TArray<UObject*> Assets;
+	Assets.Append(ImportedStaticMeshes);
+	SetMetaData(Assets);
+
 	return ImportedStaticMeshes;
 }
 
@@ -530,6 +537,8 @@ UGeometryCache* FAbcImporter::ImportAsGeometryCache(UObject* InParent, EObjectFl
 		{
 			CacheIt->OnObjectReimported(GeometryCache);
 		}
+
+		SetMetaData({GeometryCache});
 	}
 	
 	return GeometryCache;
@@ -770,6 +779,8 @@ TArray<UObject*> FAbcImporter::ImportAsSkeletalMesh(UObject* InParent, EObjectFl
 		delete RecreateExistingRenderStateContext;
 	}
 
+	SetMetaData(GeneratedObjects);
+
 	return GeneratedObjects;
 }
 
@@ -795,6 +806,21 @@ void FAbcImporter::SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveN
 		NewCurve->FloatCurve.SetKeyInterpMode(NewKeyHandle, NewInterpMode);
 		NewCurve->FloatCurve.SetKeyTangentMode(NewKeyHandle, NewTangentMode);
 		NewCurve->FloatCurve.SetKeyTangentWeightMode(NewKeyHandle, NewTangentWeightMode);
+	}
+}
+
+void FAbcImporter::SetMetaData(const TArray<UObject*>& Objects)
+{
+	const TArray<FAbcFile::FMetaData> ArchiveMetaData = AbcFile->GetArchiveMetaData();
+	for (UObject* Object : Objects)
+	{
+		if (Object)
+		{
+			for (const FAbcFile::FMetaData& MetaData : ArchiveMetaData)
+			{
+				Object->GetOutermost()->GetMetaData()->SetValue(Object, *MetaData.Key, *MetaData.Value);
+			}
+		}
 	}
 }
 

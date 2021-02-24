@@ -204,6 +204,9 @@ private:
 	/** Set up correct morph target weights from the PCA compressed data */
 	void SetupMorphTargetCurves(USkeleton* Skeleton, FName ConstCurveName, UAnimSequence* Sequence, const TArray<float> &CurveValues, const TArray<float>& TimeValues);
 	
+	/** Set the Alembic archive metadata on the given objects */
+	void SetMetaData(const TArray<UObject*>& Objects);
+
 private:
 	/** Cached ptr for the import settings */
 	UAbcImportSettings* ImportSettings;
