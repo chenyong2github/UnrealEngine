@@ -167,11 +167,6 @@ struct FConcertSyncActivity
 {
 	GENERATED_BODY()
 
-	FConcertSyncActivity()
-		: EventSummary(EConcertPayloadSerializationMethod::Cbor)
-	{
-	}
-
 	/** The ID of the activity */
 	UPROPERTY()
 	int64 ActivityId = 0;
@@ -198,7 +193,7 @@ struct FConcertSyncActivity
 
 	/** The minimal summary of the event associated with this activity (@see FConcertSyncActivitySummary) */
 	UPROPERTY()
-	FConcertSessionSerializedPayload EventSummary;
+	FConcertSessionSerializedPayload EventSummary{EConcertPayloadSerializationMethod::Cbor};
 };
 
 /** Data for a connection activity entry in a Concert Sync Session */

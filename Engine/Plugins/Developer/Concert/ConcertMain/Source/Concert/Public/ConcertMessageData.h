@@ -30,7 +30,6 @@ enum class EConcertPayloadCompressionType : uint8
 	// The serialized data will always be compressed.
 	Always
 };
-ENUM_CLASS_FLAGS(EConcertPayloadCompressionType)
 
 UENUM()
 enum class EConcertPayloadSerializationMethod : uint8
