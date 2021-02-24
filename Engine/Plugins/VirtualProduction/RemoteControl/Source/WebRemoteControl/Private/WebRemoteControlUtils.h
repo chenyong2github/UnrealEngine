@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Backends/JsonStructSerializerBackend.h"
-#include "Backends/JsonStructDeserializerBackend.h"
+#include "Serialization/RCJsonStructSerializerBackend.h"
+#include "Serialization/RCJsonStructDeserializerBackend.h"
 #include "HttpServerResponse.h"
 #include "HttpServerRequest.h"
 #include "Serialization/MemoryReader.h"
@@ -50,7 +50,7 @@ namespace RemotePayloadSerializer
 	 *
 	 * @todo Modify struct serializer to allow serializing without the identifier since this method is pretty inefficient.
 	 */
-	bool SerializePartial(TFunctionRef<bool(FJsonStructSerializerBackend&)> SerializeFunction, FMemoryWriter& SerializedPayloadWriter);
+	bool SerializePartial(TFunctionRef<bool(FRCJsonStructSerializerBackend&)> SerializeFunction, FMemoryWriter& SerializedPayloadWriter);
 
 	bool DeserializeCall(const FHttpServerRequest& InRequest, FRCCall& OutCall, const FHttpResultCallback& InCompleteCallback);
 
@@ -282,7 +282,7 @@ namespace WebRemoteControlUtils
 	{
 		TArray<uint8> WorkingBuffer;
 		FMemoryWriter Writer(WorkingBuffer);
-		FJsonStructSerializerBackend SerializeBackend{Writer, EStructSerializerBackendFlags::Default};
+		FRCJsonStructSerializerBackend SerializeBackend{Writer, EStructSerializerBackendFlags::Default};
 		FStructSerializer::Serialize(InResponseObject, SerializeBackend, FStructSerializerPolicies());
 		ConvertToUTF8(WorkingBuffer, OutResponsePayload);
 	}

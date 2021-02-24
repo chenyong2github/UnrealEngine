@@ -3,14 +3,14 @@
 #include "IRemoteControlModule.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "IStructSerializerBackend.h"
 #include "Misc/CoreMisc.h"
-#include "UObject/UnrealType.h"
-#include "UObject/Class.h"
-
+#include "RemoteControlPreset.h"
+#include "RemoteControlFieldPath.h"
 #include "StructSerializer.h"
 #include "StructDeserializer.h"
-#include "IStructSerializerBackend.h"
-#include "RemoteControlPreset.h"
+#include "UObject/UnrealType.h"
+#include "UObject/Class.h"
 
 #if WITH_EDITOR
 	#include "ScopedTransaction.h"
@@ -233,7 +233,7 @@ public:
 		return bSuccess;
 	}
 
-	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, const FString& PropertyName, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) override
+	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, FRCFieldPathInfo PropertyPath, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) override
 	{
 		bool bSuccess = true;
 		FString ErrorText;
@@ -243,51 +243,42 @@ public:
 			{
 				const bool bObjectInGame = !GIsEditor || IsRunningGame();
 
-				if (!PropertyName.IsEmpty())
+				if (PropertyPath.GetSegmentCount() != 0)
 				{
 					//Build a FieldPathInfo using property name to facilitate resolving
-					FRCFieldPathInfo PathInfo(PropertyName);
-					if (PathInfo.Resolve(Object))
+					if (PropertyPath.Resolve(Object))
 					{
-						FProperty* ResolvedProperty = PathInfo.GetResolvedData().Field;
+						FProperty* ResolvedProperty = PropertyPath.GetResolvedData().Field;
 						if (RemoteControlUtil::IsPropertyAllowed(ResolvedProperty, AccessType, bObjectInGame))
 						{
-							OutObjectRef.Object = Object;
-							OutObjectRef.Property = ResolvedProperty;
-							OutObjectRef.Access = AccessType;
-							OutObjectRef.ContainerAdress = PathInfo.GetResolvedData().ContainerAddress;
-							OutObjectRef.ContainerType = PathInfo.GetResolvedData().Struct;
-							OutObjectRef.PropertyPathInfo = MoveTemp(PathInfo);
+							OutObjectRef = FRCObjectReference{ AccessType , Object, MoveTemp(PropertyPath)};
 						}
 						else
 						{
-							ErrorText = FString::Printf(TEXT("Object property: %s is unavailable remotely on object: %s"), *PropertyName, *Object->GetPathName());
+							ErrorText = FString::Printf(TEXT("Object property: %s is unavailable remotely on object: %s"), *PropertyPath.GetFieldName().ToString(), *Object->GetPathName());
 							bSuccess = false;
 						}
 					}
 					else
 					{
-						ErrorText = FString::Printf(TEXT("Object property: %s could not be resolved on object: %s"), *PropertyName, *Object->GetPathName());
+						ErrorText = FString::Printf(TEXT("Object property: %s could not be resolved on object: %s"), *PropertyPath.GetFieldName().ToString(), *Object->GetPathName());
 						bSuccess = false;
 					}
 				}
 				else
 				{
-					OutObjectRef.Object = Object;
-					OutObjectRef.Access = AccessType;
-					OutObjectRef.ContainerAdress = static_cast<void*>(Object);
-					OutObjectRef.ContainerType = Object->GetClass();
+					OutObjectRef = FRCObjectReference{ AccessType , Object };
 				}
 			}
 			else
 			{
-				ErrorText = FString::Printf(TEXT("Invalid object to resolve property '%s'"), *PropertyName);
+				ErrorText = FString::Printf(TEXT("Invalid object to resolve property '%s'"), *PropertyPath.GetFieldName().ToString());
 				bSuccess = false;
 			}
 		}
 		else
 		{
-			ErrorText = FString::Printf(TEXT("Can't resolve object '%s' properties '%s' : %s while saving or garbage collecting."), *Object->GetPathName(), *PropertyName);
+			ErrorText = FString::Printf(TEXT("Can't resolve object '%s' properties '%s' : %s while saving or garbage collecting."), *Object->GetPathName(), *PropertyPath.GetFieldName().ToString());
 			bSuccess = false;
 		}
 
@@ -308,11 +299,11 @@ public:
 			UStruct* ContainerType = ObjectAccess.ContainerType.Get();
 
 			FStructSerializerPolicies Policies;
-			Policies.MapSerialization = EStructSerializerMapPolicies::Array;
 			if (ObjectAccess.Property.IsValid())
 			{
 				if (ObjectAccess.PropertyPathInfo.IsResolved())
 				{
+					Policies.MapSerialization = EStructSerializerMapPolicies::Array;
 					Policies.PropertyFilter = [&ObjectAccess](const FProperty* CurrentProp, const FProperty* ParentProp)
 					{
 						return CurrentProp == ObjectAccess.Property || ParentProp != nullptr;
@@ -337,7 +328,10 @@ public:
 				//Serialize the element if we're looking for a member or serialize the full object if not
 				if (ObjectAccess.PropertyPathInfo.IsResolved())
 				{
-					FStructSerializer::SerializeElement(ObjectAccess.ContainerAdress, ObjectAccess.PropertyPathInfo.GetResolvedData().Field, ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount()-1).ArrayIndex, Backend, Policies);
+					const FRCFieldPathSegment& LastSegment = ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1);
+					int32 Index = LastSegment.ArrayIndex != INDEX_NONE ? LastSegment.ArrayIndex : LastSegment.ResolvedData.MapIndex;
+
+					FStructSerializer::SerializeElement(ObjectAccess.ContainerAdress, LastSegment.ResolvedData.Field, Index, Backend, Policies);
 				}
 				else
 				{
@@ -393,7 +387,10 @@ public:
 			bool bSuccess = false;
 			if (ObjectAccess.PropertyPathInfo.IsResolved())
 			{
-				bSuccess = FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *ObjectAccess.PropertyPathInfo.GetResolvedData().Struct, ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1).ArrayIndex, Backend, Policies);
+				const FRCFieldPathSegment& LastSegment = ObjectAccess.PropertyPathInfo.GetFieldSegment(ObjectAccess.PropertyPathInfo.GetSegmentCount() - 1);
+				int32 Index = LastSegment.ArrayIndex != INDEX_NONE ? LastSegment.ArrayIndex : LastSegment.ResolvedData.MapIndex;
+
+				bSuccess = FStructDeserializer::DeserializeElement(ObjectAccess.ContainerAdress, *LastSegment.ResolvedData.Struct, Index, Backend, Policies);
 			}
 			else
 			{

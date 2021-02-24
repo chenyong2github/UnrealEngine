@@ -13,6 +13,7 @@
 
 class SRemoteControlPanel;
 class URemoteControlPreset;
+class SRCPanelInputBindings;
 
 /**
  * A Remote Control module that allows exposing objects and properties from the editor.
@@ -46,7 +47,13 @@ public:
 	 */
 	TSharedRef<SRemoteControlPanel> CreateRemoteControlPanel(URemoteControlPreset* Preset);
 
-	/** 
+	/**
+	 * Create an input bindings panel for a given preset.
+	 * @param The preset to display the information for.
+	 * @return the input 
+	 */
+	TSharedRef<SRCPanelInputBindings> CreateInputBindingsPanel(URemoteControlPreset* Preset);
+	/**
 	 * Get the toolbar extension generators.
 	 * Usage: Bind a handler that adds a widget to the out array parameter.
 	 */

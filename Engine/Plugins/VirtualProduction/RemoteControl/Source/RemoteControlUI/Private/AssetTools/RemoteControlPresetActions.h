@@ -32,7 +32,7 @@ public:
 	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override;
 	virtual bool CanLocalize() const override { return false; }
 	virtual bool HasActions(const TArray<UObject*>& InObjects) const { return false; }
-	virtual bool ShouldForceWorldCentric() override { return true; }
+	virtual bool ShouldForceWorldCentric() override { return false; }
 	//~ End IAssetTypeActions interface.
 
 private:

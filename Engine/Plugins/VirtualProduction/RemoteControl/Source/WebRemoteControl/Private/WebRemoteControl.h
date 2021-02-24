@@ -5,11 +5,10 @@
 #include "Containers/ContainersFwd.h"
 #include "IWebRemoteControlModule.h"
 #include "IRemoteControlModule.h"
+#include "HAL/IConsoleManager.h"
 #include "HttpRouteHandle.h"
 #include "HttpServerResponse.h"
 #include "HttpServerRequest.h"
-#include "Misc/Guid.h"
-#include "HAL/IConsoleManager.h"
 #include "RemoteControlRequest.h"
 #include "RemoteControlRoute.h"
 #include "RemoteControlWebSocketServer.h"
@@ -112,6 +111,9 @@ private:
 	bool HandlePresetCallFunctionRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandlePresetSetPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandlePresetGetPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandlePresetGetExposedActorPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandlePresetGetExposedActorPropertiesRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
+	bool HandlePresetSetExposedActorPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleGetPresetRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleGetPresetsRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
 	bool HandleDescribeObjectRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete);
@@ -133,7 +135,7 @@ private:
 	bool OnSettingsModified();
 #endif
 
-
+private:
 	/** Console commands handles. */
 	TArray<TUniquePtr<FAutoConsoleCommand>> ConsoleCommands;
 

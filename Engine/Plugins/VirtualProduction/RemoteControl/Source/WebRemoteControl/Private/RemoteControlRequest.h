@@ -504,5 +504,9 @@ struct FRCWebSocketPresetRegisterBody : public FRCRequest
 	 */
 	UPROPERTY()
 	FString PresetName;
+
+	/** Whether changes to properties triggered remotely should fire an event. */
+	UPROPERTY()
+	bool IgnoreRemoteChanges = false;
 };
 

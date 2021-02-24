@@ -53,7 +53,7 @@ struct FDescribeObjectResponse
 	{
 		for (TFieldIterator<FProperty> It(Object->GetClass()); It; ++It)
 		{
-			if (It->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate | CPF_DisableEditOnInstance))
+			if (!It->HasAnyPropertyFlags(CPF_NativeAccessSpecifierProtected | CPF_NativeAccessSpecifierPrivate | CPF_DisableEditOnInstance))
 			{
 				Properties.Emplace(*It);
 			}
@@ -72,7 +72,7 @@ struct FDescribeObjectResponse
 	FString Name;
 
 	UPROPERTY()
-	UClass* Class = nullptr;
+	UClass* Class;
 
 	UPROPERTY()
 	TArray<FRCPropertyDescription> Properties;
@@ -168,6 +168,34 @@ struct FRCPresetFieldsRenamedEvent
 
 	UPROPERTY()
 	TArray<FRCPresetFieldRenamed> RenamedFields;
+};
+
+
+USTRUCT()
+struct FRCPresetMetadataModified
+{
+	GENERATED_BODY()
+
+	FRCPresetMetadataModified() = default;
+
+	FRCPresetMetadataModified(URemoteControlPreset* InPreset)
+		: Type(TEXT("PresetMetadataModified"))
+	{
+		if (InPreset)
+		{
+			PresetName = InPreset->GetFName();
+			Metadata = InPreset->Metadata;
+		}
+	}
+
+	UPROPERTY()
+	FString Type;
+
+	UPROPERTY()
+	FName PresetName;
+
+	UPROPERTY()
+	TMap<FString, FString> Metadata;
 };
 
 USTRUCT()

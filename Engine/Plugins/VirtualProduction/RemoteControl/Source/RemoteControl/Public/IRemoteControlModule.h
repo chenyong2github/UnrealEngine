@@ -5,6 +5,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "RemoteControlField.h"
+#include "RemoteControlFieldPath.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/WeakFieldPtr.h"
 
@@ -14,8 +15,6 @@ class IStructDeserializerBackend;
 class IStructSerializerBackend;
 class URemoteControlPreset;
 struct FExposedProperty;
-
-
 
 /**
  * Reference to a function in a UObject
@@ -77,20 +76,42 @@ enum class ERCAccess : uint8
  */
 struct FRCObjectReference
 {
-	FRCObjectReference()
-		: Access(ERCAccess::NO_ACCESS)
-		, Object(nullptr)
-		, Property(nullptr)
-		, ContainerAdress(nullptr)
-	{}
+	FRCObjectReference() = default;
+
+	FRCObjectReference(ERCAccess InAccessType, UObject* InObject)
+		: Access(InAccessType)
+		, Object(InObject)
+	{
+		check(InObject);
+		ContainerType = InObject->GetClass();
+		ContainerAdress = static_cast<void*>(InObject);
+	}
+
+	FRCObjectReference(ERCAccess InAccessType, UObject* InObject, FRCFieldPathInfo InPathInfo)
+		: Access(InAccessType)
+		, Object(InObject)
+		, PropertyPathInfo(MoveTemp(InPathInfo))
+	{
+		check(InObject);
+		PropertyPathInfo.Resolve(InObject);
+		Property = PropertyPathInfo.GetResolvedData().Field;
+		ContainerAdress = PropertyPathInfo.GetResolvedData().ContainerAddress;
+		ContainerType = PropertyPathInfo.GetResolvedData().Struct;
+		PropertyPathInfo = MoveTemp(PropertyPathInfo);
+	}
 
 	bool IsValid() const
 	{
 		return Object.IsValid() && ContainerType.IsValid() && ContainerAdress != nullptr;
 	}
 
+	friend bool operator==(const FRCObjectReference& LHS, const FRCObjectReference& RHS)
+	{
+		return LHS.Object == RHS.Object && LHS.Property == RHS.Property && LHS.ContainerAdress == RHS.ContainerAdress;
+	}
+
 	/** Type of access on this object (read, write) */
-	ERCAccess Access;
+	ERCAccess Access = ERCAccess::NO_ACCESS;
 
 	/** UObject owning the target property */
 	TWeakObjectPtr<UObject> Object;
@@ -99,7 +120,7 @@ struct FRCObjectReference
 	TWeakFieldPtr<FProperty> Property;
 
 	/** Address of the container of the property for serialization purposes in case of a nested property */
-	void* ContainerAdress;
+	void* ContainerAdress = nullptr;
 
 	/** Type of the container where the property resides */
 	TWeakObjectPtr<UStruct> ContainerType;
@@ -180,12 +201,12 @@ public:
 	 * Resolve a remote object reference to a property
 	 * @param AccessType the requested access to the object, (i.e. read or write)
 	 * @param Object the object to resolve the property on
-	 * @param PropertyName the property to resolve, if any (specifying no property will return back the whole object when getting/setting it)
+	 * @param PropertyPath the path to or the name of the property to resolve. Specifying an empty path will return back the whole object when getting/setting it)
 	 * @param OutObjectRef the object reference to resolve into
 	 * @param OutErrorText an optional error string pointer to write errors into.
 	 * @return true if resolving the object and its property succeeded or just the object if no property was specified.
 	 */
-	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, const FString& PropertyName, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) = 0;
+	virtual bool ResolveObjectProperty(ERCAccess AccessType, UObject* Object, FRCFieldPathInfo PropertyPath, FRCObjectReference& OutObjectRef, FString* OutErrorText = nullptr) = 0;
 
 	/**
 	 * Serialize the Object Reference into the specified backend.

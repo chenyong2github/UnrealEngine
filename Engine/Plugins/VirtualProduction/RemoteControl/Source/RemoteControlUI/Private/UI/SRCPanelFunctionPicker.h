@@ -1,0 +1,42 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "CoreMinimal.h"
+#include "SSearchableTreeView.h"
+
+DECLARE_DELEGATE_TwoParams(FOnSelectFunction, UObject*, UFunction*);
+
+struct FRCFunctionPickerTreeNode;
+
+/**
+ * Widget that displays a picker for blueprint functions.
+ */
+class SRCPanelFunctionPicker : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SRCPanelFunctionPicker)
+		: _AllowDefaultObjects(false)
+	{}
+		SLATE_EVENT(FOnSelectFunction, OnSelectFunction)
+		SLATE_ARGUMENT(UClass*, ObjectClass)
+		SLATE_ARGUMENT(FText, Label)
+		SLATE_ARGUMENT(bool, AllowDefaultObjects)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	void Refresh();
+
+private:
+	/** Delegate that handles selecting a function in the picker. */
+	FOnSelectFunction OnSelectFunction;
+	/** Holds the object nodes. */
+	TArray<TSharedPtr<FRCFunctionPickerTreeNode>> ObjectNodes;
+	/** Holds the object picker tree view. */
+	TSharedPtr<SSearchableTreeView<TSharedPtr<FRCFunctionPickerTreeNode>>> ObjectsTreeView;
+	/** The class used to filter objects available in the dropdown. */
+	TWeakObjectPtr<UClass> ObjectClass;
+	/** The label that is displayed on the button. */
+	FText Label;
+	/** Allow default objects when refreshing. */
+	bool bAllowDefaultObjects = false;
+};

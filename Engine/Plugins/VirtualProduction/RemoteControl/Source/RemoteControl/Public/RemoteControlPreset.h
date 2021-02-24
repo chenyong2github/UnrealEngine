@@ -3,14 +3,42 @@
 
 #include "CoreTypes.h"
 
+#include "Algo/Transform.h"
 #include "RemoteControlField.h"
+#include "RemoteControlEntity.h"
 #include "UObject/SoftObjectPtr.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "RemoteControlPreset.generated.h"
 
 class IStructSerializerBackend;
 class IStructDeserializerBackend;
 class URemoteControlPreset;
 struct FRemoteControlPresetLayout;
+struct FRCFieldPathInfo;
+struct FRemoteControlActor;
+class URemoteControlExposeRegistry;
+class AActor;
+
+/** Arguments used to expose an entity (Actor, property, function, etc.) */
+struct REMOTECONTROL_API FRemoteControlPresetExposeArgs
+{
+	FRemoteControlPresetExposeArgs();
+
+	/** (Optional) The label to use for the new exposed entity. */
+	FString Label;
+	/** (Optional) The group in which to put the field. */
+	FGuid GroupId;
+};
+
+/** Scope used to identify modifications that occur through remote control. */
+struct REMOTECONTROL_API FScopedPresetModification
+{
+	FScopedPresetModification(URemoteControlPreset* InPreset);
+
+	~FScopedPresetModification();
+
+	TWeakObjectPtr<URemoteControlPreset> WeakPreset;
+};
 
 /**
  * Data cached for every exposed field.
@@ -120,20 +148,42 @@ struct REMOTECONTROL_API FRemoteControlPresetLayout
 	/** Get or create the default group. */
 	FRemoteControlPresetGroup& GetDefaultGroup();
 
-	/** Fetch a group using its id. */
+	/**
+	 * Get a group by searching by ID.
+	 * @param GroupId the id to use.
+	 * @return A pointer to the found group or nullptr.
+	 */
 	FRemoteControlPresetGroup* GetGroup(FGuid GroupId); 
 
-	/** Fetch a group using its name. */
+	/**
+	 * Get a group by searching by name.
+	 * @param GroupName the name to use.
+	 * @return A pointer to the found group or nullptr.
+	 */
 	FRemoteControlPresetGroup* GetGroupByName(FName GroupName);
-	
-	/** Create a group in the layout. */
+
+	/** Create a group by giving it a name and ID */
+	UE_DEPRECATED(4.27, "This function was deprecated, use the overload that doesn't accept a group id.")
 	FRemoteControlPresetGroup& CreateGroup(FName GroupName, FGuid GroupId);
 
-	/** Create a group in the layout. */
-	FRemoteControlPresetGroup& CreateGroup();
+	/** Create a group in the layout with a given name. */
+	FRemoteControlPresetGroup& CreateGroup(FName GroupName = NAME_None);
 
 	/** Find the group that holds the specified field. */
+	/**
+	 * Search for a group that contains a certain field.
+	 * @param FieldId the field to search a group for.
+	 * @return A pointer to the found group or nullptr.
+	 */
 	FRemoteControlPresetGroup* FindGroupFromField(FGuid FieldId);
+
+	/**
+	 * Move field to a group.
+	 * @param FieldId the field to move.
+	 * @param TargetGroupId the group to move the field in.
+	 * @return whether the operation was successful.
+	 */
+	bool MoveField(FGuid FieldId, FGuid TargetGroupId);
 
 	/** Swap two groups. */
 	void SwapGroups(FGuid OriginGroupId, FGuid TargetGroupId);
@@ -194,6 +244,9 @@ struct REMOTECONTROL_API FRemoteControlPresetLayout
 	FOnFieldOrderChanged& OnFieldOrderChanged() { return OnFieldOrderChangedDelegate; }
 
 private:
+	/** Create a group by providing a name and ID. */
+	FRemoteControlPresetGroup& CreateGroupInternal(FName GroupName, FGuid GroupId);
+
 	/** The list of groups under this layout. */
 	UPROPERTY()
 	TArray<FRemoteControlPresetGroup> Groups;
@@ -228,18 +281,26 @@ public:
 		{}
 
 	/**
+	* Expose a property in this target.
+	* @param FieldPathInfo the path data from the owner object, including component chain, to this field. (ie. LightComponent0.Intensity)
+	* @param DesiredDisplayName the display name desired for this control. If the name is not unique preset-wise, a number will be appended.
+	*/
+	UE_DEPRECATED(4.27, "A component hierarchy is no longer needed to expose properties, use the overloaded function instead.")
+	TOptional<FRemoteControlProperty> ExposeProperty(FRCFieldPathInfo FieldPathInfo, TArray<FString> ComponentHierarchy, const FString& DesiredDisplayName, FGuid GroupId = FGuid());
+
+	/**
 	 * Expose a property in this target.
 	 * @param FieldPathInfo the path data from the owner object, including component chain, to this field. (ie. LightComponent0.Intensity)
 	 * @param DesiredDisplayName the display name desired for this control. If the name is not unique preset-wise, a number will be appended.
 	 */
-	TOptional<FRemoteControlProperty> ExposeProperty(FRCFieldPathInfo FieldPathInfo, TArray<FString> ComponentHierarchy, const FString& DesiredDisplayName, FGuid GroupId = FGuid());
+	TOptional<FRemoteControlProperty> ExposeProperty(FRCFieldPathInfo FieldPathInfo, const FString& DesiredDisplayName, FGuid GroupId = FGuid(), bool bAppendAliasToLabel = false);
 
 	/**
 	 * Expose a function in this target.
 	 * @param RelativeFieldPath the path from the owner object  to this field. (ie. Subcomponent.GetName)
 	 * @param DesiredDisplayName the display name desired for this control. If the name is not unique target-wide, a number will be appended.
 	 */
-	TOptional<FRemoteControlFunction> ExposeFunction(FString RelativeFieldPath, const FString& DesiredDisplayName, FGuid GroupId = FGuid());
+	TOptional<FRemoteControlFunction> ExposeFunction(FString RelativeFieldPath, const FString& DesiredDisplayName, FGuid GroupId = FGuid(), bool bAppendAliasToLabel = false);
 
 	/**
 	 * Unexpose a field from this target.
@@ -306,14 +367,21 @@ public:
 	 * @param ObjectsToTest The objects to validate.
 	 * @return true if the target has  underlying objects.
 	 */
-	bool HasBoundObjects(const TArray<UObject*>& ObjectsToTest);
+	bool HasBoundObjects(const TArray<UObject*>& ObjectsToTest) const;
+
+	/**
+	 * Verifies if an object is bound under this target's alias.
+	 * @param ObjectToTest The objects to validate.
+	 * @return true if the target has the object bound.
+	 */
+	bool HasBoundObject(const UObject* ObjectToTest) const;
 
 	/**
 	 * Returns whether the provided list of objects can be bound under this target.
 	 * @param ObjectsToTest The object list.
 	 * @return Whether the objects can be bound.
 	 */
-	bool CanBindObjects(const TArray<UObject*>& ObjectsToTest);
+	bool CanBindObjects(const TArray<UObject*>& ObjectsToTest) const;
 
 private:
 
@@ -382,7 +450,20 @@ public:
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+#if WITH_EDITOR
+	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+#endif /*WITH_EDITOR*/
 	//~ End UObject interface
+
+	/**
+	 * Get this preset's unique ID.
+	 */
+	const FGuid& GetPresetId() const { return PresetId; }
+
+	/**
+	 * Create unique preset's ID.
+	 */
+	void CreatePresetId();
 		                                          
 	/**
 	 * Get this preset's targets.
@@ -405,6 +486,94 @@ public:
 	 * @return the field's id, or an invalid GUID if not found.
 	 */
 	FGuid GetFieldId(FName FieldLabel) const;
+
+	/**
+	 * Expose an actor on this preset.
+	 * @param Actor the actor to expose.
+	 * @param Args The arguments used to expose the actor.
+	 * @return The exposed actor.
+	 */
+	TWeakPtr<FRemoteControlActor> Expose(AActor* Actor, FRemoteControlPresetExposeArgs Args = FRemoteControlPresetExposeArgs());
+
+	/**
+	 * Get the exposed entities of a certain type.
+	 */
+	template <typename ExposableEntityType>
+	TArray<TWeakPtr<const ExposableEntityType>> GetExposedEntities() const
+	{
+		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
+		TArray<TWeakPtr<const ExposableEntityType>> ReturnedEntities;
+		TArray<TSharedPtr<const FRemoteControlEntity>> Entities = GetEntities(ExposableEntityType::StaticStruct());
+		Algo::Transform(Entities, ReturnedEntities,
+			[](const TSharedPtr<const FRemoteControlEntity>& Entity)
+			{
+				return StaticCastSharedPtr<const ExposableEntityType>(Entity);
+			});
+		return ReturnedEntities;
+	}
+
+	/**
+	 * Get the exposed entities of a certain type.
+	 */
+	template <typename ExposableEntityType>
+	TArray<TWeakPtr<ExposableEntityType>> GetExposedEntities()
+	{
+		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
+
+		TArray<TWeakPtr<ExposableEntityType>> ReturnedEntities;
+		TArray<TSharedPtr<FRemoteControlEntity>> Entities = GetEntities(ExposableEntityType::StaticStruct());
+		Algo::Transform(Entities, ReturnedEntities,
+			[](const TSharedPtr<FRemoteControlEntity>& Entity)
+			{
+				return StaticCastSharedPtr<ExposableEntityType>(Entity);
+			});
+		return ReturnedEntities;
+	}
+
+	/**
+	 * Get a copy of an exposed entity on the preset.
+	 * @param ExposedEntityId The id of the entity to get.
+	 * @note ExposableEntityType must derive from FRemoteControlEntity.
+	 */
+	template <typename ExposableEntityType>
+	TWeakPtr<const ExposableEntityType> GetExposedEntity(const FGuid& ExposedEntityId) const
+	{
+		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
+		return StaticCastSharedPtr<const ExposableEntityType>(FindEntityById(ExposedEntityId));
+	}
+
+	/**
+	 * Get a pointer to an exposed entity on the preset.
+	 * @param ExposedEntityId The id of the entity to get.
+	 * @note ExposableEntityType must derive from FRemoteControlEntity.
+	 */
+	template <typename ExposableEntityType>
+	TWeakPtr<ExposableEntityType> GetExposedEntity(const FGuid& ExposedEntityId)
+	{
+		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
+		return StaticCastSharedPtr<ExposableEntityType>(FindEntityById(ExposedEntityId));
+	}
+
+	/** Get the type of an exposed entity by querying with its id. (ie. FRemoteControlActor) */
+	const UScriptStruct* GetExposedEntityType(const FGuid& ExposedEntityId) const;
+
+	/** Returns whether an entity is exposed on the preset. */
+	bool IsExposed(const FGuid& ExposedEntityId) const;
+
+	/**
+	 * Change the label of an entity.
+	 * @param ExposedEntityId the id of the entity to rename.
+	 * @param NewLabel the new label to assign to the entity.
+	 * @return The assigned label, which might be suffixed if the label already exists in the registry, 
+	 *         or NAME_None if the entity was not found.
+	 */
+	FName RenameExposedEntity(const FGuid& ExposedEntityId, FName NewLabel);
+
+	/**
+	 * Get the ID of an exposed entity using its label.
+	 * @return an invalid guid if the exposed entity was not found.
+	 */
+	FGuid GetExposedEntityId(FName Label) const;
 
 	/**
 	 * Get a field ptr using it's id.
@@ -455,16 +624,16 @@ public:
 	TOptional<FExposedFunction> ResolveExposedFunction(FName FunctionLabel) const;
 
 	/**
-	 * Unexpose a field from the preset.
-	 * @param FieldLabel the field's display name.
+	 * Unexpose an entity from the preset.
+	 * @param EntityLabel The label of the entity to unexpose.
 	 */
-	void Unexpose(FName FieldLabel);
+	void Unexpose(FName EntityLabel);
 
 	/**
-	 * Unexpose a field from the preset.
-	 * @param  FieldId the field's id.
+	 * Unexpose an entity from the preset.
+	 * @param EntityId the entity's id.
 	 */
-	void Unexpose(const FGuid& FieldId);
+	void Unexpose(const FGuid& EntityId);
 
 	/**
 	 * Create a new target under this preset.
@@ -473,6 +642,14 @@ public:
 	 * @note A target must be created with at least one object and they must have a common base class.
 	 */
 	FName CreateTarget(const TArray<UObject*>& TargetObjects);
+
+	/**
+	 * Create a new target under this preset.
+	 * @param TargetObjects The objects to group under a common alias for the target.
+	 * @return The new target.
+	 * @note A target must be created with at least one object and they must have a common base class.
+	 */
+	FRemoteControlTarget& CreateAndGetTarget(const TArray<UObject*>& TargetObjects);
 
 	/**
 	 * Remove a target from the preset.
@@ -493,6 +670,10 @@ public:
 	/** Resolves exposed property/function bounded objects */
 	TArray<UObject*> ResolvedBoundObjects(FName FieldLabel);
 
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetEntityEvent, URemoteControlPreset* /*Preset*/, const FGuid& /*EntityId*/);
+	FOnPresetEntityEvent& OnEntityExposed() { return OnEntityExposedDelegate; }
+	FOnPresetEntityEvent& OnEntityUnexposed() { return OnEntityUnexposedDelegate; }
+
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetExposedPropertyChanged, URemoteControlPreset* /*Preset*/, const FRemoteControlProperty& /*Property*/);
 	FOnPresetExposedPropertyChanged& OnExposedPropertyChanged() { return OnPropertyChangedDelegate; }
 	
@@ -505,7 +686,16 @@ public:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPresetFieldRenamed, URemoteControlPreset* /*Preset*/, FName /*OldExposedLabel*/, FName /**NewExposedLabel*/);
 	FOnPresetFieldRenamed& OnFieldRenamed() { return OnPresetFieldRenamed; }
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPresetMetadataModified, URemoteControlPreset* /*Preset*/);
+	FOnPresetMetadataModified& OnMetadataModified() { return OnMetadataModifiedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_FourParams(FOnActorPropertyModified, URemoteControlPreset* /*Preset*/, FRemoteControlActor& /*Actor*/, UObject* /*ModifiedObject*/, FProperty* /*MemberProperty*/);
+	FOnActorPropertyModified& OnActorPropertyModified() { return OnActorPropertyModifiedDelegate; }
+
+	UE_DEPRECATED(4.27, "This function is deprecated.")
 	void NotifyExposedPropertyChanged(FName PropertyLabel);
+
+	virtual void Serialize(FArchive& Ar) override;
 
 public:
 	/** The visual layout for this preset. */
@@ -521,7 +711,7 @@ private:
 	FName GenerateAliasForObjects(const TArray<UObject*>& Objects);
 	
 	/** Generate a label for a field that is unique preset-wide. */
-	FName GenerateUniqueFieldLabel(FName Alias, const FString& BaseName);
+	FName GenerateUniqueFieldLabel(FName Alias, const FString& BaseName, bool bAppendAlias);
 
 	/** Holds information about an exposed field. */
 	struct FExposeInfo
@@ -541,6 +731,7 @@ private:
 
 	//~ Keep track of any property change to notify if one of the exposed property has changed
 	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
+
 	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
 	void RegisterDelegates();
 	void UnregisterDelegates();
@@ -548,7 +739,23 @@ private:
 	/** Get a field ptr using it's id. */
 	FRemoteControlField* GetFieldPtr(FGuid FieldId);
 
+	//~ Utility functions to update the asset format.
+	void ConvertFieldsToRemoveComponentChain();
+	void ConvertFieldsToEntities();
+
+	//~ Helper methods that interact with the expose registry.,
+	TSharedPtr<const FRemoteControlEntity> FindEntityById(const FGuid& EntityId) const;
+	TSharedPtr<FRemoteControlEntity> FindEntityById(const FGuid& EntityId);
+	TSharedPtr<const FRemoteControlEntity> FindEntityByLabel(FName EntityLabel) const;
+	TSharedPtr<FRemoteControlEntity> FindEntityByLabel(FName EntityLabel);
+	TArray<TSharedPtr<FRemoteControlEntity>> GetEntities(UScriptStruct* EntityType);
+	TArray<TSharedPtr<const FRemoteControlEntity>> GetEntities(UScriptStruct* EntityType) const;
+
 private:
+	/** Preset unique ID */
+	UPROPERTY()
+	FGuid PresetId;
+
 	/** The mappings of alias to targets. */
 	UPROPERTY()
 	TMap<FName, FRemoteControlTarget> RemoteControlTargets;
@@ -557,17 +764,33 @@ private:
 	UPROPERTY(Transient)
 	TMap<FGuid, FRCCachedFieldData> FieldCache;
 
-	/** Delegate triggered when an exposed property value has changed. */
-	FOnPresetExposedPropertyChanged OnPropertyChangedDelegate;
+	/** Map of Field Name to GUID. */
+	UPROPERTY(Transient)
+	TMap<FName, FGuid> NameToGuidMap;
 
+	UPROPERTY(Instanced)
+	/** Holds exposed entities on the preset. */
+	URemoteControlExposeRegistry* Registry = nullptr;
+
+	/** Delegate triggered when an entity is exposed. */
+	FOnPresetEntityEvent OnEntityExposedDelegate;
+	/** Delegate triggered when an entity is unexposed from the preset. */
+	FOnPresetEntityEvent OnEntityUnexposedDelegate;
+
+	/** 
+	 * Delegate triggered when an exposed property value has changed.
+	 */
+	FOnPresetExposedPropertyChanged OnPropertyChangedDelegate;
 	/** Delegate triggered when a new property has been exposed. */
 	FOnPresetPropertyExposed OnPropertyExposedDelegate;
-
 	/** Delegate triggered when a property has been unexposed. */
 	FOnPresetPropertyUnexposed OnPropertyUnexposedDelegate;
-
 	/** Delegate triggered when a field has been renamed. */
 	FOnPresetFieldRenamed OnPresetFieldRenamed;
+	/** Delegate triggered when the preset's metadata has been modified. */
+	FOnPresetMetadataModified OnMetadataModifiedDelegate;
+	/** Delegate triggered when an exposed actor's property is modified. */
+	FOnActorPropertyModified OnActorPropertyModifiedDelegate;
 
 	struct FPreObjectModifiedCache
 	{
@@ -576,13 +799,15 @@ private:
 		FProperty* MemberProperty;
 	};
 
+	/** Caches object modifications during a frame. */
 	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedCache;
+	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedActorCache;
 
-	/** Map of Field Name to GUID. */
-	UPROPERTY(Transient)
-	TMap<FName, FGuid> NameToGuidMap;
+	/** Whether there is an ongoing remote modification happening. */
+	bool bOngoingRemoteModification = false;
 
 	friend FRemoteControlTarget;
 	friend FRemoteControlPresetLayout;
+	friend FScopedPresetModification;
 };
 
