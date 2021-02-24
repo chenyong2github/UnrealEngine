@@ -163,7 +163,7 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 }
 
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
-	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true), bCurveDisplayTickIsPending(false),bFilterAssetByAnimatableControls(true)
+	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false), bCurveDisplayTickIsPending(false),bFilterAssetBySkeleton(true),bFilterAssetByAnimatableControls(true)
 
 {
 	FMovieSceneToolsModule::Get().RegisterAnimationBakeHelper(this);
