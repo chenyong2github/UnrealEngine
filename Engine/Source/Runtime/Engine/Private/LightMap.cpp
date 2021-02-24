@@ -3467,7 +3467,7 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 	
 #if WITH_EDITOR
 	// Compilation is still pending, this function will be called back once compilation finishes.
-	if (VirtualTexture->IsCompiling())
+	if (VirtualTexture && VirtualTexture->IsCompiling())
 	{
 		return nullptr;
 	}
