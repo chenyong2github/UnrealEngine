@@ -12,6 +12,7 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Cylinder.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/TaperedCapsule.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectTransformed.h"
@@ -489,7 +490,6 @@ namespace ChaosTest {
 		}
 	}
 
-
 	void ImplicitTaperedCylinder()
 	{
 		FString Caller("ImplicitTaperedCylinder()");
@@ -540,6 +540,136 @@ namespace ChaosTest {
 		}
 	}
 	
+	// Expects a cylinder with endcap points (1,1,1) and (-1,-1,-1), radius 1.
+	void TiltedUnitImplicitCapsule(FImplicitObject& Subject, FString Caller)
+	{
+		FString Error = FString("Called by ") + Caller + FString(".");
+
+		// inside normals - within the cylinder
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0.,   0.,  0.5)), FVec3(-0.5, -0.5,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0.,   0., -0.5)), FVec3( 0.5,  0.5, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0.,  0.5, -0.5)), FVec3( 0,  1, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., -0.5,  0.5)), FVec3( 0, -1,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 0.5, 0., -0.5)), FVec3( 1,  0, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-0.5, 0.,  0.5)), FVec3(-1,  0,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+
+		// inside normals - within the spherical ends
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 1.1,  1.1,  1.1)), FVec3( 1,  1,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-1.1, -1.1, -1.1)), FVec3(-1, -1, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 1.,  1.,  1.1)), FVec3(0, 0,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-1., -1., -1.1)), FVec3(0, 0, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+
+		// outside normals - close to the cylinder
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., 0., 2.)), FVec3(-0.5, -0.5, 1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., 0., -2.)), FVec3(0.5, 0.5, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., 2., -2.)), FVec3(0, 1, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., -2., 2.)), FVec3(0, -1, 1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(2., 0., -2.)), FVec3(1, 0, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-2., 0., 2.)), FVec3(-1, 0, 1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+
+		//outside normals - close to spherical ends
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 2.,  2.,  2.)), FVec3( 1,  1,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-2., -2., -2.)), FVec3(-1, -1, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 1.,  1.,  3.)), FVec3( 0,  0,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-1., -1., -3.)), FVec3( 0,  0, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+
+		// inside phi - within the cylinder
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-0.5, -0.5,  1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 0.5,  0.5, -1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0, 1, -1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0, -1, 1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(1, 0, -1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1, 0, 1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+
+		//// inside phi - within the spherical ends
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 1.1,  1.1,  1.1)), -(1. - FVec3(0.1).Size()), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1.1, -1.1, -1.1)), -(1. - FVec3(0.1).Size()), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 1.,  1.,  1.1)), -0.9, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1., -1., -1.1)), -0.9, KINDA_SMALL_NUMBER) << *Error;
+
+		//// outside phi - close to the cylinder
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-0.5, -0.5, 1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0.5, 0.5, -1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0, 1, -1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0, -1, 1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(1, 0, -1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1, 0, 1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+
+		//outside phi - close to spherical ends
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 2.,  2.,  2.)), (FVec3(1).Size() - 1), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-2., -2., -2.)), (FVec3(1).Size() - 1), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 1.,  1.,  3.)), 1., KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1., -1., -3.)), 1., KINDA_SMALL_NUMBER) << *Error;
+	}
+
+	FReal LerpRadius(FReal Height0, FReal Height1, FReal Radius0, FReal Radius1, FReal ZPos)
+	{
+		FReal Alpha = (ZPos - Height0) / (Height1 - Height0);
+		return Radius0 * (1. - Alpha) + Radius1 * Alpha;
+	}
+
+	void ImplicitTaperedCapsule()
+	{
+		FString Caller("ImplicitTaperedCapsule()");
+
+		// unit tapered cylinder tests
+		TTaperedCapsule<FReal> SubjectUnit(FVec3(0, 0, 0), FVec3(0, 0, 0), 1, 1);
+		UnitImplicitObjectNormalsInternal(SubjectUnit, Caller);
+		UnitImplicitObjectNormalsExternal(SubjectUnit, Caller);
+		UnitImplicitObjectIntersections(SubjectUnit, Caller);
+
+		// tilted tapered cylinder tests
+		TTaperedCapsule<FReal> SubjectTilted(FVec3(1), FVec3(-1), 1, 1);
+		TiltedUnitImplicitCapsule(SubjectTilted, Caller);
+
+		const FReal Height0 = 0.5;
+		const FReal Height1 = 2.0;
+		const FReal Radius0 = 0.5;
+		const FReal Radius1 = 1.0;
+		TTaperedCapsule<FReal> SubjectTapered(FVec3(0, 0, Height0), FVec3(0, 0, Height1), Radius0, Radius1);
+
+		// inside normals 
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(0, 0, 0.25)), FVec3(0, 0, -1));
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(0, 0, 2.5)), FVec3(0, 0, 1));
+
+		// tapered section part inside normals - normals are currently perpendicular axis regardless of the slant
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3( 0.25,  0.25, 0.5)), FVec3( 1,  1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3( 0.25, -0.25, 1.0)), FVec3( 1, -1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(-0.25, -0.25, 1.5)), FVec3(-1, -1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(-0.25,  0.25, 2.0)), FVec3(-1,  1, 0).GetSafeNormal());
+
+		// tapered section part ouside normals - normals are currently perpendicular axis regardless of the slant
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3( 1,  1, 0.5)), FVec3( 1,  1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3( 1, -1, 1.0)), FVec3( 1, -1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(-1, -1, 1.5)), FVec3(-1, -1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(-1,  1, 2.0)), FVec3(-1,  1, 0).GetSafeNormal());
+
+		// tapered section part inside phi - slant is accounted for 
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3( 0.25,  0.25, 0.5)), FVec3( 0.25,  0.25, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 0.5), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3( 0.25, -0.25, 1.0)), FVec3( 0.25, -0.25, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 1.0), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3(-0.25, -0.25, 1.5)), FVec3(-0.25, -0.25, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 1.5), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3(-0.25,  0.25, 2.0)), FVec3(-0.25,  0.25, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 2.0), KINDA_SMALL_NUMBER) << *Caller;
+
+		// tapered section part outside phi - slant is accounted for 
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3( 1,  1, 0.5)), FVec3( 1,  1, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 0.5), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3( 1, -1, 1.0)), FVec3( 1, -1, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 1.0), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3(-1, -1, 1.5)), FVec3(-1, -1, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 1.5), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3(-1,  1, 2.0)), FVec3(-1,  1, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 2.0), KINDA_SMALL_NUMBER) << *Caller;
+
+
+		{// closest point off origin (+)
+			TTaperedCapsule<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FVec3 InputPoint(2, 2, 5);
+			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 2, 6), Caller);
+		}
+
+		{// closest point off origin (-)
+			TTaperedCapsule<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FVec3 InputPoint(2, 3, 2);
+			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
+		}
+	}
+
 
 	void ImplicitCapsule()
 	{
@@ -552,6 +682,9 @@ namespace ChaosTest {
 		UnitImplicitObjectNormalsInternal(SubjectUnit, Caller);
 		UnitImplicitObjectNormalsExternal(SubjectUnit, Caller);
 		UnitImplicitObjectSupportPhis<TCapsule<FReal>>(SubjectUnit, Caller);
+
+		TCapsule<FReal> SubjectTilted(FVec3(1), FVec3(-1), 1);
+		TiltedUnitImplicitCapsule(SubjectTilted, Caller);
 
 #if RUN_KNOWN_BROKEN_TESTS
 		// FindClosestIntersection broken with cylinder size 0

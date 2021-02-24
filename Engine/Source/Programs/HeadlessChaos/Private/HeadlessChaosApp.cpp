@@ -75,6 +75,7 @@ TEST(ImplicitTests, Implicit) {
 	ChaosTest::ImplicitSphere();
 	ChaosTest::ImplicitCylinder();
 	ChaosTest::ImplicitTaperedCylinder();
+	ChaosTest::ImplicitTaperedCapsule();
 	ChaosTest::ImplicitCapsule();
 	ChaosTest::ImplicitScaled();
 	ChaosTest::ImplicitScaled2();

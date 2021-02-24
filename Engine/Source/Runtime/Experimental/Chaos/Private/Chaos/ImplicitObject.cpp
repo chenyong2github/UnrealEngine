@@ -12,6 +12,7 @@
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/TaperedCapsule.h"
 #include "Chaos/TrackedGeometryManager.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "HAL/IConsoleManager.h"
@@ -363,6 +364,7 @@ const FName FImplicitObject::GetTypeName(const EImplicitObjectType InType)
 	static const FName CylinderName = TEXT("Cylinder");
 	static const FName TriangleMeshName = TEXT("TriangleMesh");
 	static const FName HeightFieldName = TEXT("HeightField");
+	static const FName TaperedCapsuleName = TEXT("TaperedCapsule");
 
 	switch (GetInnerType(InType))
 	{
@@ -379,6 +381,7 @@ const FName FImplicitObject::GetTypeName(const EImplicitObjectType InType)
 		case ImplicitObjectType::Cylinder: return CylinderName;
 		case ImplicitObjectType::TriangleMesh: return TriangleMeshName;
 		case ImplicitObjectType::HeightField: return HeightFieldName;
+		case ImplicitObjectType::TaperedCapsule: return TaperedCapsuleName;
 	}
 	return NAME_None;
 }
@@ -430,6 +433,7 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new TLevelSet<FReal, 3>(); } break;
 	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new FConvex(); } break;
 	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<FReal>(); } break;
+	case ImplicitObjectType::TaperedCapsule: if (Ar.IsLoading()) { return new TTaperedCapsule<FReal>(); } break;
 	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new FTriangleMeshImplicitObject(); } break;
 	case ImplicitObjectType::DEPRECATED_Scaled:
 	{

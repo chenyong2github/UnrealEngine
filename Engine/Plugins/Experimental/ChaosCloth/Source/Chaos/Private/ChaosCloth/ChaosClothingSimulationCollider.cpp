@@ -7,6 +7,7 @@
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/TaperedCapsule.h"
 #include "Chaos/Convex.h"
 #include "ClothingSimulation.h" // For context
 #include "ClothingAsset.h"
@@ -26,6 +27,11 @@
 #endif
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Update Collider"), STAT_ChaosClothingSimulationColliderUpdate, STATGROUP_ChaosCloth);
+
+namespace ChaosClothingSimulationColliderConsoleVariables
+{
+	TAutoConsoleVariable<bool> CVarUseOptimizedTaperedCapsule(TEXT("p.ChaosCloth.UseOptimizedTaperedCapsule"), true, TEXT("Use the optimized TaperedCapsule code instead of using a tapered cylinder and two spheres"));
+}
 
 using namespace Chaos;
 
@@ -127,17 +133,25 @@ void FClothingSimulationCollider::FLODData::Add(
 			}
 			else
 			{
-				// Tapered capsule
-				TArray<TUniquePtr<FImplicitObject>> Objects;
-				Objects.Reserve(3);
-				Objects.Add(TUniquePtr<FImplicitObject>(
-					new TTaperedCylinder<float>(P0, P1, Radius0, Radius1)));
-				Objects.Add(TUniquePtr<FImplicitObject>(
-					new TSphere<float, 3>(P0, Radius0)));
-				Objects.Add(TUniquePtr<FImplicitObject>(
-					new TSphere<float, 3>(P1, Radius1)));
-				Solver->SetCollisionGeometry(CapsuleOffset, Index,
-					MakeUnique<FImplicitObjectUnion>(MoveTemp(Objects)));  // TODO(Kriss.Gossart): Replace this once a TTaperedCapsule implicit type is implemented (note: this tapered cylinder with spheres is an approximation of a real tapered capsule)
+				if (ChaosClothingSimulationColliderConsoleVariables::CVarUseOptimizedTaperedCapsule.GetValueOnAnyThread())
+				{
+					Solver->SetCollisionGeometry(CapsuleOffset, Index,
+						MakeUnique<TTaperedCapsule<float>>(P0, P1, Radius0, Radius1));
+				}
+				else
+				{
+					// Tapered capsule approximate by a union of tapered cylinder and two spheres
+					TArray<TUniquePtr<FImplicitObject>> Objects;
+					Objects.Reserve(3);
+					Objects.Add(TUniquePtr<FImplicitObject>(
+						new TTaperedCylinder<float>(P0, P1, Radius0, Radius1)));
+					Objects.Add(TUniquePtr<FImplicitObject>(
+						new TSphere<float, 3>(P0, Radius0)));
+					Objects.Add(TUniquePtr<FImplicitObject>(
+						new TSphere<float, 3>(P1, Radius1)));
+					Solver->SetCollisionGeometry(CapsuleOffset, Index,
+						MakeUnique<FImplicitObjectUnion>(MoveTemp(Objects)));
+				}
 			}
 		}
 	}

@@ -52,6 +52,7 @@ namespace ImplicitObjectType
 		DEPRECATED_Scaled,	//needed for serialization of existing data
 		Triangle,
 		UnionClustered,
+		TaperedCapsule,
 
 		//Add entries above this line for serialization
 		IsInstanced = 1 << 6,
