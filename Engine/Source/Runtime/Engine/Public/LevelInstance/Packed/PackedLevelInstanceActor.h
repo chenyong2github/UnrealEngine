@@ -49,6 +49,8 @@ public:
 	void DestroyPackedComponents();
 	void GetPackedComponents(TArray<UActorComponent*>& OutPackedComponents) const;
 
+	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const override { return ELevelInstanceRuntimeBehavior::None; }
+
 	template<class T>
 	T* AddPackedComponent()
 	{

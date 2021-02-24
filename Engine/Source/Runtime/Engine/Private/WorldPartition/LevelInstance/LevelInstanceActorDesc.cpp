@@ -30,8 +30,11 @@ void FLevelInstanceActorDesc::Init(const AActor* InActor)
 
 void FLevelInstanceActorDesc::Init(UActorDescContainer* InContainer, const FWorldPartitionActorDescInitData& DescData)
 {
-	FWorldPartitionActorDesc::Init(InContainer, DescData);
+	ALevelInstance* CDO = DescData.NativeClass->GetDefaultObject<ALevelInstance>();
+	DesiredRuntimeBehavior = CDO->GetDefaultRuntimeBehavior();
 
+	FWorldPartitionActorDesc::Init(InContainer, DescData);
+		
 	RegisterContainer();
 }
 
