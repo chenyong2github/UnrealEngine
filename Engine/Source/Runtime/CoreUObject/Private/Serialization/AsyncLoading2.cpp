@@ -2946,8 +2946,8 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 					TEXT("Failed reading chunk for package: %s"), *Result.Status().ToString());
 				Package->bLoadHasFailed = true;
 			}
-			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
 			Package->AsyncLoadingThread.WaitingForIoBundleCounter.Decrement();
+			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
 		});
 		TRACE_COUNTER_DECREMENT(PendingBundleIoRequests);
 	}
