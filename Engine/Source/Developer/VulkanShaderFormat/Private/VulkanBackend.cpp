@@ -1312,11 +1312,15 @@ class FGenerateVulkanVisitor : public ir_visitor
 			{
 				if (var->type->HlslName && (!strncmp(var->type->HlslName, "RWStructuredBuffer<", 19) || !strncmp(var->type->HlslName, "StructuredBuffer<", 17)))
 				{
+					const char * const readonly_str[] = { "", "readonly " };
+					const int readonly = strncmp(var->type->HlslName, "StructuredBuffer<", 17)==0 ? 1 : 0;
+										
 					ralloc_asprintf_append(
 						buffer,
-						"layout(set=%d,binding=BINDING_%d) buffer ",
+						"layout(set=%d,binding=BINDING_%d) %s buffer ",
 						GetDescriptorSetForStage(ParseState->target),
-						BindingTable.RegisterBinding(var->name, "u", EVulkanBindingType::StorageBuffer)
+						BindingTable.RegisterBinding(var->name, "u", EVulkanBindingType::StorageBuffer),
+						readonly_str[readonly]
 					);
 				}
 				else
@@ -3530,7 +3534,7 @@ public:
 		char* code_buffer = ralloc_asprintf(mem_ctx, "");
 		buffer = &code_buffer;
 
-		if (bEmitPrecision && !(ParseState->target == vertex_shader))
+		if (bEmitPrecision && ParseState->target == fragment_shader)
 		{
 			// TODO: Improve this...
 
@@ -3538,11 +3542,6 @@ public:
 			ralloc_asprintf_append(buffer, "precision %s float;\n", DefaultPrecision);
 			// always use highp for integers as shaders use them as bit storage
 			ralloc_asprintf_append(buffer, "precision %s int;\n", "highp");
-			//ralloc_asprintf_append(buffer, "\n#ifndef DONTEMITSAMPLERDEFAULTPRECISION\n");
-			ralloc_asprintf_append(buffer, "precision %s sampler;\n", DefaultPrecision);
-			ralloc_asprintf_append(buffer, "precision %s sampler2D;\n", DefaultPrecision);
-			ralloc_asprintf_append(buffer, "precision %s samplerCube;\n", DefaultPrecision);
-			//ralloc_asprintf_append(buffer, "#endif\n");
 		}
 
 		foreach_iter(exec_list_iterator, iter, *ir)
@@ -3927,7 +3926,7 @@ char* FVulkanCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* st
 
 	FixIntrinsics(state, ir);
 
-	const bool bDefaultPrecisionIsHalf = ((HlslCompileFlags & HLSLCC_UseFullPrecisionInPS) == 0);
+	const bool bDefaultPrecisionIsHalf = (Frequency == HSF_PixelShader) && (HlslCompileFlags & HLSLCC_UseFullPrecisionInPS) == 0;
 
 	FBreakPrecisionChangesVisitor BreakPrecisionChangesVisitor(state, bDefaultPrecisionIsHalf);
 	BreakPrecisionChangesVisitor.run(ir);
