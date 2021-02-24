@@ -5,6 +5,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
+#define LOCTEXT_NAMESPACE "SlateNotifications"
+
 namespace NotificationManagerConstants
 {
 	// Offsets from the bottom-left corner of the work area
@@ -68,7 +70,10 @@ FSlateNotificationManager& FSlateNotificationManager::Get()
 	return Instance;
 }
 
-FSlateNotificationManager::FSlateNotificationManager()
+FSlateNotificationManager::FSlateNotificationManager() :
+	CVarAllowNotifications(TEXT("Slate.bAllowNotifications"),
+						   bAllowNotifications,
+						   *LOCTEXT("AllowDescription", "If false, then notifications will not be displayed to the user.").ToString())
 {
 	FCoreDelegates::OnPreExit.AddRaw(this, &FSlateNotificationManager::ShutdownOnPreExit);
 }
@@ -247,3 +252,5 @@ void FSlateNotificationManager::ForceNotificationsInFront( const TSharedRef<SWin
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

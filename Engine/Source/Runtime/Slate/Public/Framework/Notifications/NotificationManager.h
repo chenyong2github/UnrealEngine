@@ -8,6 +8,8 @@
 #include "Layout/SlateRect.h"
 #include "Widgets/SWindow.h"
 
+#include "HAL/IConsoleManager.h"
+
 struct FNotificationInfo;
 
 template <class T> class TLockFreePointerListLIFO;
@@ -58,7 +60,9 @@ public:
 	void GetWindows(TArray< TSharedRef<SWindow> >& OutWindows) const;
 
 	/**
-	 * Sets whether notifications should be displayed at all 
+	 * Sets whether notifications should be displayed at all. Note, notifications can be
+	 * disabled via console variable Slate.bAllowNotificationWidget.
+	 *
 	 * @param	bShouldAllow	Whether notifications should be enabled.  It defaults to on.
 	 */
 	void SetAllowNotifications( const bool bShouldAllow )
@@ -66,7 +70,11 @@ public:
 		this->bAllowNotifications = bShouldAllow;
 	}
 
-	/** @return	Checks whether notifications are currently enabled */
+	/**
+	 * Checks whether notifications are currently enabled.
+	 *
+	 *@return	true if allowed, false otherwise.
+	 */
 	bool AreNotificationsAllowed() const
 	{
 		return this->bAllowNotifications;
@@ -114,4 +122,7 @@ private:
 
 	/** Whether notifications should be displayed or not.  This can be used to globally suppress notification pop-ups */
 	bool bAllowNotifications = true;
+
+	/** CVar allowing us to control the display of notifications. */
+	FAutoConsoleVariableRef CVarAllowNotifications;
 };
