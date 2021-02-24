@@ -145,19 +145,19 @@ namespace Metasound
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
 	{
-		const FMetasoundFrontendVertexLiteral* VertexLiteral = FindInputLiteralForInputNode(InNode, InClass, InOwningGraphClassInput);
+		const FMetasoundFrontendLiteral* FrontendLiteral = FindInputLiteralForInputNode(InNode, InClass, InOwningGraphClassInput);
 
-		if (nullptr != VertexLiteral)
+		if (nullptr != FrontendLiteral)
 		{
 			if (ensure(InNode.Interface.Inputs.Num() == 1))
 			{
 				const FMetasoundFrontendVertex& InputVertex = InNode.Interface.Inputs[0];
 
-				const bool IsLiteralParsableByDataType = Frontend::DoesDataTypeSupportLiteralType(InputVertex.TypeName, VertexLiteral->Value.GetType());
+				const bool IsLiteralParsableByDataType = Frontend::DoesDataTypeSupportLiteralType(InputVertex.TypeName, FrontendLiteral->GetType());
 
 				if (IsLiteralParsableByDataType)
 				{
-					FLiteral Literal = VertexLiteral->Value.ToLiteral(InputVertex.TypeName);
+					FLiteral Literal = FrontendLiteral->ToLiteral(InputVertex.TypeName);
 
 					FInputNodeConstructorParams InitParams =
 					{
@@ -288,118 +288,57 @@ namespace Metasound
 		return nullptr;
 	}
 
-		/*
-	const FMetasoundFrontendVertexLiteral* FFrontendGraphBuilder::FindInputLiteralForInput(FGuid InPointID, const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InNodeClass) const
-	{
-		// TODO: Need utility for matching class input to node input. Will need to be cognisant of input type [Point, Array, ....]
 
-		// Default value priority is:
-		// 1. A value set directly on the node
-		// 3. A default value on the node class.
-
-		const FMetasoundFrontendVertexLiteral* VertexLiteral = nullptr;
-
-		// Check for default value directly on node.
-		if (ensure(InNode.Interface.Inputs.Num() == 1))
-		{
-			const FMetasoundFrontendVertex& InputVertex = InNode.Interface.Inputs[0];
-
-			// Currently only support one point on input vertex.
-			if (ensure(InputVertex.PointIDs.Num() == 1))
-			{
-				VertexLiteral = InNode.InputLiterals.FindByPredicate(
-					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
-					{
-						return InVertexLiteral.PointID == InputVertex.PointIDs[0];
-					}
-				);
-			}
-		}
-
-		// Check for default value on input node class
-		if (nullptr == VertexLiteral && ensure(InNodeClass.Interface.Inputs.Num() == 1))
-		{
-			const FMetasoundFrontendClassInput& InputNodeClassInput = InNodeClass.Interface.Inputs[0];
-
-			if (ensure(InputNodeClassInput.PointIDs.Num() == 1))
-			{
-				int32 PointID = InputNodeClassInput.PointIDs[0];
-
-				VertexLiteral = InputNodeClassInput.Defaults.FindByPredicate(
-					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
-					{
-						return InVertexLiteral.PointID == PointID;
-					}
-				);
-			}
-		}
-
-		return VertexLiteral;
-		return nullptr;
-	}
-		*/
-
-	const FMetasoundFrontendVertexLiteral* FFrontendGraphBuilder::FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
+	const FMetasoundFrontendLiteral* FFrontendGraphBuilder::FindInputLiteralForInputNode(const FMetasoundFrontendNode& InInputNode, const FMetasoundFrontendClass& InInputNodeClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput) const
 	{
 		// Default value priority is:
 		// 1. A value set directly on the node
 		// 2. A default value of the owning graph
 		// 3. A default value on the input node class.
 
-		const FMetasoundFrontendVertexLiteral* VertexLiteral = nullptr;
+		const FMetasoundFrontendLiteral* Literal = nullptr;
 
 		// Check for default value directly on node.
 		if (ensure(InInputNode.Interface.Inputs.Num() == 1))
 		{
 			const FMetasoundFrontendVertex& InputVertex = InInputNode.Interface.Inputs[0];
 
-			// Currently only support one point on input vertex.
-			if (ensure(InputVertex.PointIDs.Num() == 1))
+			// Find input literal matching VerteXID
+			const FMetasoundFrontendVertexLiteral* VertexLiteral = InInputNode.InputLiterals.FindByPredicate(
+				[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
+				{
+					return InVertexLiteral.VertexID == InputVertex.VertexID;
+				}
+			);
+
+			if (nullptr != VertexLiteral)
 			{
-				VertexLiteral = InInputNode.InputLiterals.FindByPredicate(
-					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
-					{
-						return InVertexLiteral.PointID == InputVertex.PointIDs[0];
-					}
-				);
+				Literal = &VertexLiteral->Value;
 			}
 		}
 
 		// Check for default value on owning graph.
-		if (nullptr == VertexLiteral)
+		if (nullptr == Literal)
 		{
-			if (ensure(InOwningGraphClassInput.PointIDs.Num() == 1))
+			// Find Class Default that is not invalid
+			if (InOwningGraphClassInput.DefaultLiteral.IsValid())
 			{
-				const FGuid& PointID = InOwningGraphClassInput.PointIDs[0];
-
-				VertexLiteral = InOwningGraphClassInput.Defaults.FindByPredicate(
-					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
-					{
-						return InVertexLiteral.PointID == PointID;
-					}
-				);
+				Literal = &InOwningGraphClassInput.DefaultLiteral;
 			}
 		}
 
 		// Check for default value on input node class
-		if (nullptr == VertexLiteral && ensure(InInputNodeClass.Interface.Inputs.Num() == 1))
+		if (nullptr == Literal && ensure(InInputNodeClass.Interface.Inputs.Num() == 1))
 		{
 			const FMetasoundFrontendClassInput& InputNodeClassInput = InInputNodeClass.Interface.Inputs[0];
 
-			if (ensure(InputNodeClassInput.PointIDs.Num() == 1))
+			if (InputNodeClassInput.DefaultLiteral.IsValid())
 			{
-				const FGuid& PointID = InputNodeClassInput.PointIDs[0];
-
-				VertexLiteral = InputNodeClassInput.Defaults.FindByPredicate(
-					[&](const FMetasoundFrontendVertexLiteral& InVertexLiteral)
-					{
-						return InVertexLiteral.PointID == PointID;
-					}
-				);
+				Literal = &InputNodeClassInput.DefaultLiteral;
 			}
 		}
 
-		return VertexLiteral;
+		return Literal;
 	}
 
 	// TODO: add errors here. Most will be a "PromptIfMissing"...
@@ -466,12 +405,12 @@ namespace Metasound
 		};
 
 		// TODO: add support for array vertices.
-		typedef TTuple<FGuid, FGuid> FNodeIDPointID;
+		typedef TTuple<FGuid, FGuid> FNodeIDVertexID;
 
-		TMap<FNodeIDPointID, FCoreNodeAndFrontendVertex> NodeSourcesByID;
-		TMap<FNodeIDPointID, FCoreNodeAndFrontendVertex> NodeDestinationsByID;
+		TMap<FNodeIDVertexID, FCoreNodeAndFrontendVertex> NodeSourcesByID;
+		TMap<FNodeIDVertexID, FCoreNodeAndFrontendVertex> NodeDestinationsByID;
 
-		// Add nodes to NodeID/PointID map
+		// Add nodes to NodeID/VertexID map
 		for (const FMetasoundFrontendNode& Node : InFrontendGraph.Nodes)
 		{
 			const INode* CoreNode = OutGraph.FindNode(Node.ID);
@@ -483,31 +422,25 @@ namespace Metasound
 
 			for (const FMetasoundFrontendVertex& Vertex : Node.Interface.Inputs)
 			{
-				for (const FGuid& PointID : Vertex.PointIDs)
-				{
-					NodeDestinationsByID.Add(FNodeIDPointID(Node.ID, PointID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
-				}
+				NodeDestinationsByID.Add(FNodeIDVertexID(Node.ID, Vertex.VertexID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 			}
 
 			for (const FMetasoundFrontendVertex& Vertex : Node.Interface.Outputs)
 			{
-				for (const FGuid& PointID : Vertex.PointIDs)
-				{
-					NodeSourcesByID.Add(FNodeIDPointID(Node.ID, PointID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
-				}
+				NodeSourcesByID.Add(FNodeIDVertexID(Node.ID, Vertex.VertexID), FCoreNodeAndFrontendVertex({CoreNode, &Vertex}));
 			}
 		};
 		
 
 		for (const FMetasoundFrontendEdge& Edge : InFrontendGraph.Edges)
 		{
-			const FNodeIDPointID DestinationKey(Edge.ToNodeID, Edge.ToPointID);
+			const FNodeIDVertexID DestinationKey(Edge.ToNodeID, Edge.ToVertexID);
 			const FCoreNodeAndFrontendVertex* DestinationNodeAndVertex = NodeDestinationsByID.Find(DestinationKey);
 
 			if (nullptr == DestinationNodeAndVertex)
 			{
 				// TODO: bubble up error
-				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find destination [NodeID:%s, PointID:%s]"), *Edge.ToNodeID.ToString(), *Edge.ToPointID.ToString());
+				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find destination [NodeID:%s, VertexID:%s]"), *Edge.ToNodeID.ToString(), *Edge.ToVertexID.ToString());
 				continue;
 			}
 
@@ -518,12 +451,12 @@ namespace Metasound
 				continue;
 			}
 
-			const FNodeIDPointID SourceKey(Edge.FromNodeID, Edge.FromPointID);
+			const FNodeIDVertexID SourceKey(Edge.FromNodeID, Edge.FromVertexID);
 			const FCoreNodeAndFrontendVertex* SourceNodeAndVertex = NodeSourcesByID.Find(SourceKey);
 
 			if (nullptr == SourceNodeAndVertex)
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find source [NodeID:%s, PointID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromPointID.ToString());
+				UE_LOG(LogMetasound, Error, TEXT("Failed to add edge. Could not find source [NodeID:%s, VertexID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromVertexID.ToString());
 				continue;
 			}
 
@@ -544,7 +477,7 @@ namespace Metasound
 
 			if (!bSuccess)
 			{
-				UE_LOG(LogMetasound, Error, TEXT("Failed to connect edge from [NodeID:%s, PointID:%s] to [NodeID:%s, PointID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromPointID.ToString(), *Edge.ToNodeID.ToString(), *Edge.ToPointID.ToString());
+				UE_LOG(LogMetasound, Error, TEXT("Failed to connect edge from [NodeID:%s, VertexID:%s] to [NodeID:%s, VertexID:%s]"), *Edge.FromNodeID.ToString(), *Edge.FromVertexID.ToString(), *Edge.ToNodeID.ToString(), *Edge.ToVertexID.ToString());
 			}
 		}
 	}

@@ -16,11 +16,11 @@ namespace Metasound
 			bool bDidEdit = false;
 			FGraphHandle Graph = InDocument->GetRootGraph();
 
-			TArray<FMetasoundFrontendClassInput> RequiredInputs = InDocument->GetRequiredInputs();
-			TArray<FMetasoundFrontendClassOutput> RequiredOutputs = InDocument->GetRequiredOutputs();
+			TArray<FMetasoundFrontendClassVertex> RequiredInputs = InDocument->GetRequiredInputs();
+			TArray<FMetasoundFrontendClassVertex> RequiredOutputs = InDocument->GetRequiredOutputs();
 
 			// Go through each input and add or swap if something is missing.
-			for (const FMetasoundFrontendClassInput& RequiredInput : RequiredInputs)
+			for (const FMetasoundFrontendClassVertex& RequiredInput : RequiredInputs)
 			{
 				const FMetasoundFrontendClassInput* ClassInput = Graph->FindClassInputWithName(RequiredInput.Name).Get();
 
@@ -42,7 +42,7 @@ namespace Metasound
 			}
 
 			// Go through each output and add or swap if something is missing.
-			for (const FMetasoundFrontendClassOutput& RequiredOutput : RequiredOutputs)
+			for (const FMetasoundFrontendClassVertex& RequiredOutput : RequiredOutputs)
 			{
 				const FMetasoundFrontendClassOutput* ClassOutput = Graph->FindClassOutputWithName(RequiredOutput.Name).Get();
 

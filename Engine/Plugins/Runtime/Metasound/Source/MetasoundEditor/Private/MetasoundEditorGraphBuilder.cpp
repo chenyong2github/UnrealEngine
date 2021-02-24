@@ -267,14 +267,10 @@ namespace Metasound
 
 			FOutputHandle OutputHandle = InNodeHandle->GetOutputs()[0];
 			FGraphHandle Graph = InNodeHandle->GetOwningGraph();
-			TArray<FMetasoundFrontendVertexLiteral> DefaultLiterals = Graph->GetDefaultInputFrontendLiterals(OutputHandle->GetName());
+			FGuid VertexID = Graph->GetVertexIDForInputVertex(OutputHandle->GetName());
+			FMetasoundFrontendLiteral DefaultLiteral = Graph->GetDefaultInput(VertexID);
 
-			EMetasoundFrontendLiteralType LiteralType = EMetasoundFrontendLiteralType::None;
-			if (!DefaultLiterals.IsEmpty())
-			{
-				const FMetasoundFrontendVertexLiteral& Literal = DefaultLiterals[0];
-				LiteralType = Literal.Value.GetType();
-			}
+			EMetasoundFrontendLiteralType LiteralType = DefaultLiteral.GetType();
 
 			UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(MetasoundAsset->GetGraph());
 			if (!ensure(MetasoundGraph))
@@ -424,19 +420,17 @@ namespace Metasound
 				NewInputNode->SetNodeStyle(Style);
 
 				Frontend::FGraphHandle GraphHandle = InNodeHandle->GetOwningGraph();
-				const FString Name = InNodeHandle->GetNodeName();
 
-				const TArray<FGuid> PointIDs = GraphHandle->GetDefaultIDsForInputVertex(NewInputNode->GetNodeName());
-				// TODO: Support multiple literal point ids for arrays
-				if (ensure(PointIDs.Num() == 1))
+				const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NewInputNode->GetNodeName());
+
+				const FMetasoundFrontendLiteral* DefaultLiteral = InputHandle->GetDefaultLiteral();
+
+				if (nullptr != DefaultLiteral)
 				{
-					InNodeHandle->GetClassDescription();
-					const TArray<FMetasoundFrontendVertexLiteral>& Defaults = InputHandle->GetDefaults();
-					if (!Defaults.IsEmpty() && Defaults[0].Value.GetType() != EMetasoundFrontendLiteralType::Invalid && Defaults[0].Value.GetType() != EMetasoundFrontendLiteralType::None)
+					if (DefaultLiteral->IsValid())
 					{
-						const FString NewInputNodeName = NewInputNode->GetNodeName();
-						GraphHandle->SetDefaultInputToFrontendLiteral(NewInputNodeName, PointIDs[0], TypeName, Defaults[0].Value);
-						InInputPin.DefaultValue = Defaults[0].Value.ToString();
+						GraphHandle->SetDefaultInput(VertexID, *DefaultLiteral);
+						InInputPin.DefaultValue = DefaultLiteral->ToString();
 					}
 				}
 
@@ -458,13 +452,9 @@ namespace Metasound
 				if (InputNode->IsValid() && Style.Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
 				{
 					Frontend::FGraphHandle GraphHandle = InputNode->GetOwningGraph();
-					const TArray<FGuid> PointIDs = GraphHandle->GetDefaultIDsForInputVertex(InputNode->GetNodeName());
+					const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(InputNode->GetNodeName());
 
-					// TODO: Support multiple literal point ids for arrays
-					if (ensure(PointIDs.Num() == 1))
-					{
-						GraphHandle->SetDefaultInputToFrontendLiteral(InputNode->GetNodeName(), PointIDs[0], TypeName, PinDataTypeDefaultLiteral);
-					}
+					GraphHandle->SetDefaultInput(VertexID, PinDataTypeDefaultLiteral);
 
 					InMetasound.PostEditChange();
 					InMetasound.MarkPackageDirty();
@@ -486,12 +476,9 @@ namespace Metasound
 
 			Description.Metadata.Description = InToolTip;
 
-			const FGuid PointID = GraphHandle->GetNewPointID();
+			const FGuid VertexID = GraphHandle->GetNewVertexID();
 
-			Description.PointIDs.Add(PointID);
-			FMetasoundFrontendVertexLiteral DefaultVertex;
-			DefaultVertex.PointID = PointID;
-			Description.Defaults.Add(DefaultVertex);
+			Description.VertexID = VertexID;
 
 			Frontend::FNodeHandle NodeHandle = GraphHandle->AddInputVertex(Description);
 			NodeHandle->SetNodeStyle(InNodeStyle);
@@ -504,12 +491,12 @@ namespace Metasound
 				{
 					if (InDefaultValue->GetType() != EMetasoundFrontendLiteralType::None && InDefaultValue->GetType() != EMetasoundFrontendLiteralType::Invalid)
 					{
-						GraphHandle->SetDefaultInputToFrontendLiteral(NodeHandle->GetNodeName(), PointID, InTypeName, *InDefaultValue);
+						GraphHandle->SetDefaultInput(VertexID, *InDefaultValue);
 					}
 				}
 				else
 				{
-					GraphHandle->SetDefaultInputToTypeDefaultLiteral(NodeHandle->GetNodeName(), PointID, InTypeName);
+					GraphHandle->SetDefaultInputToDefaultLiteralOfType(VertexID);
 				}
 			}
 
@@ -533,7 +520,7 @@ namespace Metasound
 			Description.Name = InName;
 			Description.TypeName = InTypeName;
 			Description.Metadata.Description = InToolTip;
-			Description.PointIDs.Add(GraphHandle->GetNewPointID());
+			Description.VertexID = GraphHandle->GetNewVertexID();
 
 			Frontend::FNodeHandle NodeHandle = GraphHandle->AddOutputVertex(Description);
 			NodeHandle->SetNodeStyle(InNodeStyle);

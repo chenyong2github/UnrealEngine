@@ -68,21 +68,15 @@ namespace Metasound
 					return;
 				}
 
-				const FNodeHandle NodeHandle = GraphNode->GetNodeHandle();
+				FConstNodeHandle NodeHandle = GraphNode->GetNodeHandle();
 				const FString& NodeName = NodeHandle->GetNodeName();
-				const FGraphHandle GraphHandle = GraphNode->GetRootGraphHandle();
+				FGraphHandle GraphHandle = GraphNode->GetRootGraphHandle();
 
-				const TArray<FGuid> PointIDs = GraphHandle->GetDefaultIDsForInputVertex(NodeName);
-				if (ensure(PointIDs.Num() == 1))
-				{
-					const FMetasoundFrontendLiteral Literal = GraphNode->GetLiteralDefault();
-					const TArray<FOutputHandle> Outputs = NodeHandle->GetOutputs();
-					if (ensure(Outputs.Num() == 1))
-					{
-						const FName TypeName = Outputs[0]->GetDataType();
-						GraphHandle->SetDefaultInputToFrontendLiteral(NodeName, PointIDs[0], TypeName, Literal);
-					}
-				}
+				FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeName);
+
+				const FMetasoundFrontendLiteral Literal = GraphNode->GetLiteralDefault();
+
+				GraphHandle->SetDefaultInput(VertexID, Literal);
 			}
 		}
 

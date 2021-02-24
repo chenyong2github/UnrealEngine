@@ -77,6 +77,9 @@ public:
 	// Returns true if the stored Type is an array type.
 	bool IsArray() const;
 
+	// Returns true if the literal is in a valid state (Type != EMetasoundFrontendLiteralType::Invalid)
+	bool IsValid() const;
+
 	// Sets the literal to the given type and value to default;
 	void SetType(EMetasoundFrontendLiteralType InType);
 

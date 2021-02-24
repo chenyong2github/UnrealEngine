@@ -181,39 +181,39 @@ namespace Metasound
 				};
 			}
 
-			auto FGetNodeInputFromNodeWithPoint(FGuid InPointID)
+			auto FGetNodeInputFromNodeWithVertexID(FGuid InVertexID)
 			{
 				return [=](FMetasoundFrontendNode& InNode) -> FMetasoundFrontendVertex*
 				{
-					auto IsVertexWithPoint = [=](const FMetasoundFrontendVertex& Vertex) { return Vertex.PointIDs.Contains(InPointID); };
-					return InNode.Interface.Inputs.FindByPredicate(IsVertexWithPoint);
+					auto IsVertexWithVertexID = [=](const FMetasoundFrontendVertex& Vertex) { return Vertex.VertexID == InVertexID; };
+					return InNode.Interface.Inputs.FindByPredicate(IsVertexWithVertexID);
 				};
 			}
 
-			auto FGetConstNodeInputFromNodeWithPoint(FGuid InPointID)
+			auto FGetConstNodeInputFromNodeWithVertexID(FGuid InVertexID)
 			{
 				return [=](const FMetasoundFrontendNode& InNode) -> const FMetasoundFrontendVertex*
 				{
-					auto IsVertexWithPoint = [=](const FMetasoundFrontendVertex& Vertex) { return Vertex.PointIDs.Contains(InPointID); };
-					return InNode.Interface.Inputs.FindByPredicate(IsVertexWithPoint);
+					auto IsVertexWithVertexID = [=](const FMetasoundFrontendVertex& Vertex) { return Vertex.VertexID == InVertexID; };
+					return InNode.Interface.Inputs.FindByPredicate(IsVertexWithVertexID);
 				};
 			}
 
-			auto FGetNodeOutputFromNodeWithPoint(FGuid InPointID)
+			auto FGetNodeOutputFromNodeWithVertexID(FGuid InVertexID)
 			{
 				return [=](FMetasoundFrontendNode& InNode) -> FMetasoundFrontendVertex*
 				{
-					auto IsVertexWithPoint = [=](const FMetasoundFrontendVertex& Vertex) { return Vertex.PointIDs.Contains(InPointID); };
-					return InNode.Interface.Outputs.FindByPredicate(IsVertexWithPoint);
+					auto IsVertexWithVertexID = [=](const FMetasoundFrontendVertex& Vertex) { return Vertex.VertexID == InVertexID; };
+					return InNode.Interface.Outputs.FindByPredicate(IsVertexWithVertexID);
 				};
 			}
 
-			auto FGetConstNodeOutputFromNodeWithPoint(FGuid InPointID)
+			auto FGetConstNodeOutputFromNodeWithVertexID(FGuid InVertexID)
 			{
 				return [=](const FMetasoundFrontendNode& InNode) -> const FMetasoundFrontendVertex*
 				{
-					auto IsVertexWithPoint = [=](const FMetasoundFrontendVertex& Vertex) { return Vertex.PointIDs.Contains(InPointID); };
-					return InNode.Interface.Outputs.FindByPredicate(IsVertexWithPoint);
+					auto IsVertexWithVertexID = [=](const FMetasoundFrontendVertex& Vertex) { return Vertex.VertexID == InVertexID; };
+					return InNode.Interface.Outputs.FindByPredicate(IsVertexWithVertexID);
 				};
 			}
 
@@ -408,7 +408,7 @@ namespace Metasound
 			{
 				FNodeHandle InputNode = Graph->GetNodeWithID(Edge.ToNodeID);
 
-				FInputHandle Input = InputNode->GetInputWithID(Edge.ToPointID);
+				FInputHandle Input = InputNode->GetInputWithID(Edge.ToVertexID);
 				if (Input->IsValid())
 				{
 					Inputs.Add(Input);
@@ -429,7 +429,7 @@ namespace Metasound
 			{
 				FConstNodeHandle InputNode = Graph->GetNodeWithID(Edge.ToNodeID);
 
-				FConstInputHandle Input = InputNode->GetInputWithID(Edge.ToPointID);
+				FConstInputHandle Input = InputNode->GetInputWithID(Edge.ToVertexID);
 				if (Input->IsValid())
 				{
 					Inputs.Add(Input);
@@ -477,11 +477,11 @@ namespace Metasound
 			if (GraphPtr.IsValid())
 			{
 				const FGuid NodeID = GetOwningNodeID();
-				FGuid PointID = GetID();
+				FGuid VertexID = GetID();
 
 				auto EdgeHasMatchingSource = [&](const FMetasoundFrontendEdge& Edge)
 				{
-					return (Edge.FromNodeID == NodeID) && (Edge.FromPointID == PointID);
+					return (Edge.FromNodeID == NodeID) && (Edge.FromVertexID == VertexID);
 				};
 
 				return GraphPtr->Edges.FilterByPredicate(EdgeHasMatchingSource);
@@ -684,7 +684,7 @@ namespace Metasound
 				// Create output handle from output node.
 				FGraphHandle Graph = OwningNode->GetOwningGraph();
 				FNodeHandle OutputNode = Graph->GetNodeWithID(Edge->FromNodeID);
-				return OutputNode->GetOutputWithID(Edge->FromPointID);
+				return OutputNode->GetOutputWithID(Edge->FromVertexID);
 			}
 
 			return FInvalidOutputController::GetInvalid();
@@ -697,7 +697,7 @@ namespace Metasound
 				// Create output handle from output node.
 				FConstGraphHandle Graph = OwningNode->GetOwningGraph();
 				FConstNodeHandle OutputNode = Graph->GetNodeWithID(Edge->FromNodeID);
-				return OutputNode->GetOutputWithID(Edge->FromPointID);
+				return OutputNode->GetOutputWithID(Edge->FromVertexID);
 			}
 
 			return FInvalidOutputController::GetInvalid();
@@ -749,11 +749,11 @@ namespace Metasound
 				{
 					Edge = &GraphPtr->Edges.AddDefaulted_GetRef();
 					Edge->ToNodeID = GetOwningNodeID();
-					Edge->ToPointID = GetID();
+					Edge->ToVertexID = GetID();
 				}
 
 				Edge->FromNodeID = InController.GetOwningNodeID();
-				Edge->FromPointID = InController.GetID();
+				Edge->FromVertexID = InController.GetID();
 
 				return true;
 			}
@@ -802,13 +802,13 @@ namespace Metasound
 			if (GraphPtr.IsValid())
 			{
 				FGuid FromNodeID = InController.GetOwningNodeID();
-				FGuid FromPointID = InController.GetID();
+				FGuid FromVertexID = InController.GetID();
 				FGuid ToNodeID = GetOwningNodeID();
-				FGuid ToPointID = GetID();
+				FGuid ToVertexID = GetID();
 
 				auto IsMatchingEdge = [&](const FMetasoundFrontendEdge& Edge)
 				{
-					return (Edge.FromNodeID == FromNodeID) && (Edge.FromPointID == FromPointID) && (Edge.ToNodeID == ToNodeID) && (Edge.ToPointID == ToPointID);
+					return (Edge.FromNodeID == FromNodeID) && (Edge.FromVertexID == FromVertexID) && (Edge.ToNodeID == ToNodeID) && (Edge.ToVertexID == ToVertexID);
 				};
 
 				int32 NumRemoved = GraphPtr->Edges.RemoveAllSwap(IsMatchingEdge);
@@ -823,11 +823,11 @@ namespace Metasound
 			if (GraphPtr.IsValid())
 			{
 				const FGuid NodeID = GetOwningNodeID();
-				FGuid PointID = GetID();
+				FGuid VertexID = GetID();
 
 				auto EdgeHasMatchingDestination = [&](const FMetasoundFrontendEdge& Edge)
 				{
-					return (Edge.ToNodeID == NodeID) && (Edge.ToPointID == PointID);
+					return (Edge.ToNodeID == NodeID) && (Edge.ToVertexID == VertexID);
 				};
 
 				int32 NumRemoved = GraphPtr->Edges.RemoveAllSwap(EdgeHasMatchingDestination);
@@ -843,11 +843,11 @@ namespace Metasound
 			if (GraphPtr.IsValid())
 			{
 				const FGuid NodeID = GetOwningNodeID();
-				FGuid PointID = GetID();
+				FGuid VertexID = GetID();
 
 				auto EdgeHasMatchingDestination = [&](const FMetasoundFrontendEdge& Edge)
 				{
-					return (Edge.ToNodeID == NodeID) && (Edge.ToPointID == PointID);
+					return (Edge.ToNodeID == NodeID) && (Edge.ToVertexID == VertexID);
 				};
 
 				return GraphPtr->Edges.FindByPredicate(EdgeHasMatchingDestination);
@@ -861,11 +861,11 @@ namespace Metasound
 			if (GraphPtr.IsValid())
 			{
 				const FGuid NodeID = GetOwningNodeID();
-				FGuid PointID = GetID();
+				FGuid VertexID = GetID();
 
 				auto EdgeHasMatchingDestination = [&](const FMetasoundFrontendEdge& Edge)
 				{
-					return (Edge.ToNodeID == NodeID) && (Edge.ToPointID == PointID);
+					return (Edge.ToNodeID == NodeID) && (Edge.ToVertexID == VertexID);
 				};
 
 				return GraphPtr->Edges.FindByPredicate(EdgeHasMatchingDestination);
@@ -919,15 +919,13 @@ namespace Metasound
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
 		}
 
-		const TArray<FMetasoundFrontendVertexLiteral>& FNodeInputController::GetDefaults() const
+		const FMetasoundFrontendLiteral* FNodeInputController::GetDefaultLiteral() const 
 		{
-			if (OwningGraphClassInputPtr.IsValid())
+			if (const FMetasoundFrontendClassInput* OwningGraphClassInput = OwningGraphClassInputPtr.Get())
 			{
-				return OwningGraphClassInputPtr->Defaults;
+				return &(OwningGraphClassInput->DefaultLiteral);
 			}
-
-			static const TArray<FMetasoundFrontendVertexLiteral> InvalidDefaults;
-			return InvalidDefaults;
+			return nullptr;
 		}
 
 		const FText& FNodeInputController::GetTooltip() const
@@ -990,6 +988,11 @@ namespace Metasound
 			}
 			
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		const FMetasoundFrontendLiteral* FOutputNodeInputController::GetDefaultLiteral() const 
+		{
+			return nullptr;
 		}
 
 		FDocumentAccess FOutputNodeInputController::ShareAccess() 
@@ -1165,7 +1168,7 @@ namespace Metasound
 			return FInvalidInputController::GetInvalid();
 		}
 
-		bool FBaseNodeController::RemoveInput(FGuid InPointID)
+		bool FBaseNodeController::RemoveInput(FGuid InVertexID)
 		{
 			checkNoEntry();
 			// TODO: not yet supported
@@ -1185,7 +1188,7 @@ namespace Metasound
 			return FInvalidInputController::GetInvalid();
 		}
 
-		bool FBaseNodeController::RemoveOutput(FGuid InPointID)
+		bool FBaseNodeController::RemoveOutput(FGuid InVertexID)
 		{
 			checkNoEntry();
 			// TODO: not yet supported
@@ -1200,7 +1203,7 @@ namespace Metasound
 
 			for (const FInputControllerParams& Params : GetInputControllerParams())
 			{
-				FInputHandle InputHandle = CreateInputController(Params.PointID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
+				FInputHandle InputHandle = CreateInputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
 				if (InputHandle->IsValid())
 				{
 					Inputs.Add(InputHandle);
@@ -1218,7 +1221,7 @@ namespace Metasound
 
 			for (const FOutputControllerParams& Params : GetOutputControllerParams())
 			{
-				FOutputHandle OutputHandle = CreateOutputController(Params.PointID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
+				FOutputHandle OutputHandle = CreateOutputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
 				if (OutputHandle->IsValid())
 				{
 					Outputs.Add(OutputHandle);
@@ -1244,7 +1247,7 @@ namespace Metasound
 
 			for (const FInputControllerParams& Params : GetInputControllerParams())
 			{
-				FConstInputHandle InputHandle = CreateInputController(Params.PointID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
+				FConstInputHandle InputHandle = CreateInputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
 				if (InputHandle->IsValid())
 				{
 					Inputs.Add(InputHandle);
@@ -1263,7 +1266,7 @@ namespace Metasound
 
 			for (const FOutputControllerParams& Params : GetOutputControllerParams())
 			{
-				FConstOutputHandle OutputHandle = CreateOutputController(Params.PointID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
+				FConstOutputHandle OutputHandle = CreateOutputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
 				if (OutputHandle->IsValid())
 				{
 					Outputs.Add(OutputHandle);
@@ -1281,7 +1284,7 @@ namespace Metasound
 
 			for (const FInputControllerParams& Params : GetInputControllerParamsWithVertexName(InName))
 			{
-				FInputHandle InputHandle = CreateInputController(Params.PointID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
+				FInputHandle InputHandle = CreateInputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
 				if (InputHandle->IsValid())
 				{
 					Inputs.Add(InputHandle);
@@ -1300,7 +1303,7 @@ namespace Metasound
 
 			for (const FInputControllerParams& Params : GetInputControllerParamsWithVertexName(InName))
 			{
-				FInputHandle InputHandle = CreateInputController(Params.PointID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
+				FInputHandle InputHandle = CreateInputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
 				if (InputHandle->IsValid())
 				{
 					Inputs.Add(InputHandle);
@@ -1318,7 +1321,7 @@ namespace Metasound
 
 			for (const FOutputControllerParams& Params : GetOutputControllerParamsWithVertexName(InName))
 			{
-				FOutputHandle OutputHandle = CreateOutputController(Params.PointID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
+				FOutputHandle OutputHandle = CreateOutputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
 				if (OutputHandle->IsValid())
 				{
 					Outputs.Add(OutputHandle);
@@ -1337,7 +1340,7 @@ namespace Metasound
 
 			for (const FOutputControllerParams& Params : GetOutputControllerParamsWithVertexName(InName))
 			{
-				FConstOutputHandle OutputHandle = CreateOutputController(Params.PointID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
+				FConstOutputHandle OutputHandle = CreateOutputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
 				if (OutputHandle->IsValid())
 				{
 					Outputs.Add(OutputHandle);
@@ -1347,55 +1350,55 @@ namespace Metasound
 			return Outputs;
 		}
 
-		FInputHandle FBaseNodeController::GetInputWithID(FGuid InPointID)
+		FInputHandle FBaseNodeController::GetInputWithID(FGuid InVertexID)
 		{
 			FInputControllerParams Params;
 
-			if (FindInputControllerParamsWithID(InPointID, Params))
+			if (FindInputControllerParamsWithID(InVertexID, Params))
 			{
 				FNodeHandle ThisNode = this->AsShared();
-				return CreateInputController(Params.PointID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
+				return CreateInputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
 			}
 
 			return FInvalidInputController::GetInvalid();
 		}
 
-		FConstInputHandle FBaseNodeController::GetInputWithID(FGuid InPointID) const
+		FConstInputHandle FBaseNodeController::GetInputWithID(FGuid InVertexID) const
 		{
 			FInputControllerParams Params;
 
-			if (FindInputControllerParamsWithID(InPointID, Params))
+			if (FindInputControllerParamsWithID(InVertexID, Params))
 			{
 				// See early use of ConstCastSharedRef in this class for discussion.
 				FNodeHandle ThisNode = ConstCastSharedRef<INodeController>(this->AsShared());
-				return CreateInputController(Params.PointID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
+				return CreateInputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassInputPtr, ThisNode);
 			}
 
 			return FInvalidInputController::GetInvalid();
 		}
 
-		FOutputHandle FBaseNodeController::GetOutputWithID(FGuid InPointID)
+		FOutputHandle FBaseNodeController::GetOutputWithID(FGuid InVertexID)
 		{
 			FOutputControllerParams Params;
 
-			if (FindOutputControllerParamsWithID(InPointID, Params))
+			if (FindOutputControllerParamsWithID(InVertexID, Params))
 			{
 				FNodeHandle ThisNode = this->AsShared();
-				return CreateOutputController(Params.PointID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
+				return CreateOutputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
 			}
 
 			return FInvalidOutputController::GetInvalid();
 		}
 
-		FConstOutputHandle FBaseNodeController::GetOutputWithID(FGuid InPointID) const
+		FConstOutputHandle FBaseNodeController::GetOutputWithID(FGuid InVertexID) const
 		{
 			FOutputControllerParams Params;
 
-			if (FindOutputControllerParamsWithID(InPointID, Params))
+			if (FindOutputControllerParamsWithID(InVertexID, Params))
 			{
 				// See early use of ConstCastSharedRef in this class for discussion.
 				FNodeHandle ThisNode = ConstCastSharedRef<INodeController>(this->AsShared());
-				return CreateOutputController(Params.PointID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
+				return CreateOutputController(Params.VertexID, Params.NodeVertexPtr, Params.ClassOutputPtr, ThisNode);
 			}
 
 			return FInvalidOutputController::GetInvalid();
@@ -1417,10 +1420,7 @@ namespace Metasound
 
 					FConstClassInputAccessPtr ClassInputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassInput>(FGetClassInputFromClassWithName(NodeInputVertex.Name));
 
-					for (const FGuid& PointID : NodeInputVertex.PointIDs)
-					{
-						Inputs.Add({PointID, NodeVertexPtr, ClassInputPtr});
-					}
+					Inputs.Add({NodeInputVertex.VertexID, NodeVertexPtr, ClassInputPtr});
 				}
 			}
 
@@ -1440,10 +1440,7 @@ namespace Metasound
 				FConstVertexAccessPtr NodeVertexPtr = NodePtr.GetMemberAccessPtr<const FMetasoundFrontendVertex>(FGetConstNodeOutputFromNodeWithName(VertexName));
 				FConstClassOutputAccessPtr ClassOutputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassOutput>(FGetClassOutputFromClassWithName(VertexName));
 
-				for (const FGuid& PointID : NodeOutputVertex.PointIDs)
-				{
-					Outputs.Add({PointID, NodeVertexPtr, ClassOutputPtr});
-				}
+				Outputs.Add({NodeOutputVertex.VertexID, NodeVertexPtr, ClassOutputPtr});
 			}
 
 			return Outputs;
@@ -1461,10 +1458,7 @@ namespace Metasound
 			{
 				FConstClassInputAccessPtr ClassInputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassInput>(FGetClassInputFromClassWithName(InName));
 
-				for (const FGuid& PointID : Vertex->PointIDs)
-				{
-					Inputs.Add({PointID, NodeVertexPtr, ClassInputPtr});
-				}
+				Inputs.Add({Vertex->VertexID, NodeVertexPtr, ClassInputPtr});
 			}
 
 			return Inputs;
@@ -1482,43 +1476,40 @@ namespace Metasound
 			{
 				FConstClassOutputAccessPtr ClassOutputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassOutput>(FGetClassOutputFromClassWithName(InName));
 
-				for (const FGuid& PointID : Vertex->PointIDs)
-				{
-					Outputs.Add({PointID, NodeVertexPtr, ClassOutputPtr});
-				}
+				Outputs.Add({Vertex->VertexID, NodeVertexPtr, ClassOutputPtr});
 			}
 
 			return Outputs;
 		}
 
-		bool FBaseNodeController::FindInputControllerParamsWithID(FGuid InPointID, FInputControllerParams& OutParams) const
+		bool FBaseNodeController::FindInputControllerParamsWithID(FGuid InVertexID, FInputControllerParams& OutParams) const
 		{
 			using namespace FrontendControllerIntrinsics;
 
-			FConstVertexAccessPtr NodeVertexPtr = NodePtr.GetMemberAccessPtr<const FMetasoundFrontendVertex>(FGetConstNodeInputFromNodeWithPoint(InPointID));
+			FConstVertexAccessPtr NodeVertexPtr = NodePtr.GetMemberAccessPtr<const FMetasoundFrontendVertex>(FGetConstNodeInputFromNodeWithVertexID(InVertexID));
 
 			if (const FMetasoundFrontendVertex* Vertex = NodeVertexPtr.Get())
 			{
 				FConstClassInputAccessPtr ClassInputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassInput>(FGetClassInputFromClassWithName(Vertex->Name));
 
-				OutParams = FInputControllerParams{InPointID, NodeVertexPtr, ClassInputPtr};
+				OutParams = FInputControllerParams{InVertexID, NodeVertexPtr, ClassInputPtr};
 				return true;
 			}
 
 			return false;
 		}
 
-		bool FBaseNodeController::FindOutputControllerParamsWithID(FGuid InPointID, FOutputControllerParams& OutParams) const
+		bool FBaseNodeController::FindOutputControllerParamsWithID(FGuid InVertexID, FOutputControllerParams& OutParams) const
 		{
 			using namespace FrontendControllerIntrinsics;
 
-			FConstVertexAccessPtr NodeVertexPtr = NodePtr.GetMemberAccessPtr<const FMetasoundFrontendVertex>(FGetConstNodeOutputFromNodeWithPoint(InPointID));
+			FConstVertexAccessPtr NodeVertexPtr = NodePtr.GetMemberAccessPtr<const FMetasoundFrontendVertex>(FGetConstNodeOutputFromNodeWithVertexID(InVertexID));
 
 			if (const FMetasoundFrontendVertex* Vertex = NodeVertexPtr.Get())
 			{
 				FConstClassOutputAccessPtr ClassOutputPtr = ClassPtr.GetMemberAccessPtr<const FMetasoundFrontendClassOutput>(FGetClassOutputFromClassWithName(Vertex->Name));
 
-				OutParams = FOutputControllerParams{InPointID, NodeVertexPtr, ClassOutputPtr};
+				OutParams = FOutputControllerParams{InVertexID, NodeVertexPtr, ClassOutputPtr};
 				return true;
 			}
 
@@ -1667,14 +1658,14 @@ namespace Metasound
 			return FBaseNodeController::IsValid() && GraphPtr.IsValid();
 		}
 
-		FInputHandle FNodeController::CreateInputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
+		FInputHandle FNodeController::CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FNodeInputController>(FNodeInputController::FInitParams{InPointID, InNodeVertexPtr, InClassInputPtr, GraphPtr, InOwningNode});
+			return MakeShared<FNodeInputController>(FNodeInputController::FInitParams{InVertexID, InNodeVertexPtr, InClassInputPtr, GraphPtr, InOwningNode});
 		}
 
-		FOutputHandle FNodeController::CreateOutputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
+		FOutputHandle FNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FNodeOutputController>(FNodeOutputController::FInitParams{InPointID, InNodeVertexPtr, InClassOutputPtr, GraphPtr, InOwningNode});
+			return MakeShared<FNodeOutputController>(FNodeOutputController::FInitParams{InVertexID, InNodeVertexPtr, InClassOutputPtr, GraphPtr, InOwningNode});
 		}
 
 		FDocumentAccess FNodeController::ShareAccess() 
@@ -1760,12 +1751,12 @@ namespace Metasound
 			return OwningGraph->IsValid() && OwningGraphClassOutputPtr.IsValid() && GraphPtr.IsValid();
 		}
 
-		FInputHandle FOutputNodeController::CreateInputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
+		FInputHandle FOutputNodeController::CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FOutputNodeInputController>(FOutputNodeInputController::FInitParams{InPointID, InNodeVertexPtr, OwningGraphClassOutputPtr, GraphPtr, InOwningNode});
+			return MakeShared<FOutputNodeInputController>(FOutputNodeInputController::FInitParams{InVertexID, InNodeVertexPtr, OwningGraphClassOutputPtr, GraphPtr, InOwningNode});
 		}
 
-		FOutputHandle FOutputNodeController::CreateOutputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
+		FOutputHandle FOutputNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
 			return FInvalidOutputController::GetInvalid();
 		}
@@ -1855,14 +1846,14 @@ namespace Metasound
 			return OwningGraph->IsValid() && OwningGraphClassInputPtr.IsValid() && GraphPtr.IsValid();
 		}
 
-		FInputHandle FInputNodeController::CreateInputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
+		FInputHandle FInputNodeController::CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
 			return FInvalidInputController::GetInvalid();
 		}
 
-		FOutputHandle FInputNodeController::CreateOutputController(FGuid InPointID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
+		FOutputHandle FInputNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FInputNodeOutputController>(FInputNodeOutputController::FInitParams{InPointID, InNodeVertexPtr, OwningGraphClassInputPtr, GraphPtr, InOwningNode});
+			return MakeShared<FInputNodeOutputController>(FInputNodeOutputController::FInitParams{InVertexID, InNodeVertexPtr, OwningGraphClassInputPtr, GraphPtr, InOwningNode});
 		}
 
 		FDocumentAccess FInputNodeController::ShareAccess() 
@@ -1943,7 +1934,7 @@ namespace Metasound
 			return Metasound::FrontendInvalidID;
 		}
 
-		FGuid FGraphController::GetNewPointID() const
+		FGuid FGraphController::GetNewVertexID() const
 		{
 			return FGuid::NewGuid();
 		}
@@ -1990,22 +1981,22 @@ namespace Metasound
 			return GraphClassPtr.GetMemberAccessPtr<FMetasoundFrontendClassOutput>(FGetClassOutputFromClassWithName(InName));
 		}
 
-		TArray<FGuid> FGraphController::GetDefaultIDsForInputVertex(const FString& InInputName) const
+		FGuid FGraphController::GetVertexIDForInputVertex(const FString& InInputName) const
 		{
 			if (const FMetasoundFrontendClassInput* Input = FindClassInputWithName(InInputName).Get())
 			{
-				return Input->PointIDs;
+				return Input->VertexID;
 			}
-			return TArray<FGuid>();
+			return Metasound::FrontendInvalidID;
 		}
 
-		TArray<FGuid> FGraphController::GetDefaultIDsForOutputVertex(const FString& InOutputName) const
+		FGuid FGraphController::GetVertexIDForOutputVertex(const FString& InOutputName) const
 		{
 			if (const FMetasoundFrontendClassOutput* Output = FindClassOutputWithName(InOutputName).Get())
 			{
-				return Output->PointIDs;
+				return Output->VertexID;
 			}
-			return TArray<FGuid>();
+			return Metasound::FrontendInvalidID;
 		}
 
 		TArray<FNodeHandle> FGraphController::GetNodes()
@@ -2310,54 +2301,45 @@ namespace Metasound
 			return nullptr;
 		}
 
-		TArray<FMetasoundFrontendVertexLiteral> FGraphController::GetDefaultInputFrontendLiterals(const FString& InInputName) const
+		FMetasoundFrontendLiteral FGraphController::GetDefaultInput(const FGuid& InVertexID) const
 		{
-			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
+			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithVertexID(InVertexID))
 			{
-				return Desc->Defaults;
+				return Desc->DefaultLiteral;
 			}
 
-			return TArray<FMetasoundFrontendVertexLiteral>();
+			return FMetasoundFrontendLiteral{};
 		}
 
-		bool FGraphController::SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral)
+		bool FGraphController::SetDefaultInput(const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral)
 		{
-			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
+			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithVertexID(InVertexID))
 			{
-				auto IsLiteralWithSamePointID = [&](const FMetasoundFrontendVertexLiteral& InVertexLiteral) 
-				{ 
-					return InVertexLiteral.PointID == InPointID; 
-				};
-
-				FMetasoundFrontendVertexLiteral* VertexLiteral = Desc->Defaults.FindByPredicate(IsLiteralWithSamePointID);
-				if (nullptr == VertexLiteral)
-				{
-					VertexLiteral = &Desc->Defaults.AddDefaulted_GetRef();
-					VertexLiteral->PointID = InPointID;
-				}
-
 				if (ensure(DoesDataTypeSupportLiteralType(Desc->TypeName, InLiteral.GetType())))
 				{
-					VertexLiteral->Value = InLiteral;
+					Desc->DefaultLiteral = InLiteral;
 					return true;
 				}
 				else
 				{
-					VertexLiteral->Value.Clear();
+					SetDefaultInputToDefaultLiteralOfType(InVertexID);
 				}
 			}
 
 			return false;
 		}
 
-		bool FGraphController::SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName)
+		bool FGraphController::SetDefaultInputToDefaultLiteralOfType(const FGuid& InVertexID)
 		{
-			FMetasoundFrontendLiteral FrontendLiteral;
+			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithVertexID(InVertexID))
+			{
+				Metasound::FLiteral Literal = Frontend::GetDefaultParamForDataType(Desc->TypeName);
+				Desc->DefaultLiteral.SetFromLiteral(Literal);
 
-			Metasound::FLiteral Literal = Frontend::GetDefaultParamForDataType(InDataTypeName);
-			FrontendLiteral.SetFromLiteral(Literal);
+				return Desc->DefaultLiteral.IsValid();
+			}
 
-			return SetDefaultInputToFrontendLiteral(InInputName, InPointID, InDataTypeName, FrontendLiteral);
+			return false;
 		}
 
 		const FText& FGraphController::GetInputDescription(const FString& InName) const
@@ -2429,20 +2411,11 @@ namespace Metasound
 
 		// This can be used to clear the current literal for a given input.
 		// @returns false if the input name couldn't be found.
-		bool FGraphController::ClearLiteralForInput(const FString& InInputName, FGuid InPointID)
+		bool FGraphController::ClearLiteralForInput(const FString& InInputName, FGuid InVertexID)
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
 			{
-				auto IsLiteralWithSamePointID = [&](const FMetasoundFrontendVertexLiteral& InVertexLiteral) 
-				{ 
-					return InVertexLiteral.PointID == InPointID; 
-				};
-
-				if (FMetasoundFrontendVertexLiteral* VertexLiteral = Desc->Defaults.FindByPredicate(IsLiteralWithSamePointID))
-				{
-					VertexLiteral->Value.Clear();
-					return true;
-				}
+				Desc->DefaultLiteral.Clear();
 			}
 
 			return false;
@@ -3040,6 +3013,42 @@ namespace Metasound
 			return nullptr;
 		}
 
+		FMetasoundFrontendClassInput* FGraphController::FindInputDescriptionWithVertexID(const FGuid& InVertexID)
+		{
+			if (GraphClassPtr.IsValid())
+			{
+				return GraphClassPtr->Interface.Inputs.FindByPredicate([&](const FMetasoundFrontendClassInput& Desc) { return Desc.VertexID == InVertexID; });
+			}
+			return nullptr;
+		}
+
+		const FMetasoundFrontendClassInput* FGraphController::FindInputDescriptionWithVertexID(const FGuid& InVertexID) const
+		{
+			if (GraphClassPtr.IsValid())
+			{
+				return GraphClassPtr->Interface.Inputs.FindByPredicate([&](const FMetasoundFrontendClassInput& Desc) { return Desc.VertexID == InVertexID; });
+			}
+			return nullptr;
+		}
+
+		FMetasoundFrontendClassOutput* FGraphController::FindOutputDescriptionWithVertexID(const FGuid& InVertexID)
+		{
+			if (GraphClassPtr.IsValid())
+			{
+				return GraphClassPtr->Interface.Outputs.FindByPredicate([&](const FMetasoundFrontendClassOutput& Desc) { return Desc.VertexID == InVertexID; });
+			}
+			return nullptr;
+		}
+
+		const FMetasoundFrontendClassOutput* FGraphController::FindOutputDescriptionWithVertexID(const FGuid& InVertexID) const
+		{
+			if (GraphClassPtr.IsValid())
+			{
+				return GraphClassPtr->Interface.Outputs.FindByPredicate([&](const FMetasoundFrontendClassOutput& Desc) { return Desc.VertexID == InVertexID; });
+			}
+			return nullptr;
+		}
+
 		FClassInputAccessPtr FGraphController::FindInputDescriptionWithNodeID(FGuid InNodeID)
 		{
 			using namespace FrontendControllerIntrinsics;
@@ -3122,25 +3131,25 @@ namespace Metasound
 			return false;
 		}
 
-		const TArray<FMetasoundFrontendClassInput>& FDocumentController::GetRequiredInputs() const
+		const TArray<FMetasoundFrontendClassVertex>& FDocumentController::GetRequiredInputs() const
 		{
 			if (DocumentPtr.IsValid())
 			{
 				return DocumentPtr->Archetype.Interface.Inputs;
 			}
 
-			static const TArray<FMetasoundFrontendClassInput> Empty;
+			static const TArray<FMetasoundFrontendClassVertex> Empty;
 			return Empty;
 		}
 
-		const TArray<FMetasoundFrontendClassOutput>& FDocumentController::GetRequiredOutputs() const
+		const TArray<FMetasoundFrontendClassVertex>& FDocumentController::GetRequiredOutputs() const
 		{
 			if (DocumentPtr.IsValid())
 			{
 				return DocumentPtr->Archetype.Interface.Outputs;
 			}
 
-			static const TArray<FMetasoundFrontendClassOutput> Empty;
+			static const TArray<FMetasoundFrontendClassVertex> Empty;
 			return Empty;
 		}
 

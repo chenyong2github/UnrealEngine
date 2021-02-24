@@ -91,11 +91,7 @@ namespace Metasound
 			const FString& GetName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
 			const FText& GetDisplayName() const override { return FText::GetEmpty(); }
 			const FText& GetTooltip() const override { return FText::GetEmpty(); }
-			const TArray<FMetasoundFrontendVertexLiteral>& GetDefaults() const override
-			{
-				static const TArray<FMetasoundFrontendVertexLiteral> InvalidDefaults;
-				return InvalidDefaults;
-			}
+			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override { return nullptr; }
 			FGuid GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
 			TSharedRef<INodeController> GetOwningNode() override;
 			TSharedRef<const INodeController> GetOwningNode() const override;
@@ -141,21 +137,21 @@ namespace Metasound
 			TArray<FConstInputHandle> GetInputsWithVertexName(const FString& InName) const override { return TArray<FConstInputHandle>(); }
 			TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) override { return TArray<FOutputHandle>(); }
 			TArray<FConstOutputHandle> GetOutputsWithVertexName(const FString& InName) const override { return TArray<FConstOutputHandle>(); }
-			TSharedRef<IInputController> GetInputWithID(FGuid InPointID) override { return FInvalidInputController::GetInvalid(); }
-			TSharedRef<IOutputController> GetOutputWithID(FGuid InPointID) override { return FInvalidOutputController::GetInvalid(); }
-			TSharedRef<const IInputController> GetInputWithID(FGuid InPointID) const override { return FInvalidInputController::GetInvalid(); }
-			TSharedRef<const IOutputController> GetOutputWithID(FGuid InPointID) const override { return FInvalidOutputController::GetInvalid(); }
+			TSharedRef<IInputController> GetInputWithID(FGuid InVertexID) override { return FInvalidInputController::GetInvalid(); }
+			TSharedRef<IOutputController> GetOutputWithID(FGuid InVertexID) override { return FInvalidOutputController::GetInvalid(); }
+			TSharedRef<const IInputController> GetInputWithID(FGuid InVertexID) const override { return FInvalidInputController::GetInvalid(); }
+			TSharedRef<const IOutputController> GetOutputWithID(FGuid InVertexID) const override { return FInvalidOutputController::GetInvalid(); }
 
 			const FMetasoundFrontendNodeStyle& GetNodeStyle() const override { static const FMetasoundFrontendNodeStyle Invalid; return Invalid; }
 			void SetNodeStyle(const FMetasoundFrontendNodeStyle& InNodeStyle) { };
 
 			bool CanAddInput(const FString& InVertexName) const override { return false; }
 			FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return FInvalidInputController::GetInvalid(); }
-			bool RemoveInput(FGuid InPointID) override { return false; }
+			bool RemoveInput(FGuid InVertexID) override { return false; }
 
 			bool CanAddOutput(const FString& InVertexName) const override { return false; }
 			FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) override { return FInvalidInputController::GetInvalid(); }
-			bool RemoveOutput(FGuid InPointID) override { return false; }
+			bool RemoveOutput(FGuid InVertexID) override { return false; }
 
 			EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Invalid; }
 			const FMetasoundFrontendClassName& GetClassName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassName>(); }
@@ -198,7 +194,7 @@ namespace Metasound
 
 			bool IsValid() const override { return false; }
 
-			FGuid GetNewPointID() const override { return Metasound::FrontendInvalidID; }
+			FGuid GetNewVertexID() const override { return Metasound::FrontendInvalidID; }
 			TArray<FString> GetInputVertexNames() const override { return TArray<FString>(); }
 			TArray<FString> GetOutputVertexNames() const override { return TArray<FString>(); }
 
@@ -238,15 +234,14 @@ namespace Metasound
 			// For inputs whose preferred literal type is UObject or UObjectArray, this can be used to determine the UObject corresponding to that input's datatype.
 			UClass* GetSupportedClassForInputVertex(const FString& InInputName) override { return nullptr; }
 
-			TArray<FGuid> GetDefaultIDsForInputVertex(const FString& InInputName) const override { return TArray<FGuid>(); }
-			TArray<FGuid> GetDefaultIDsForOutputVertex(const FString& InInputName) const override { return TArray<FGuid>(); }
-
-			TArray<FMetasoundFrontendVertexLiteral> GetDefaultInputFrontendLiterals(const FString& InInputName) const override { return TArray<FMetasoundFrontendVertexLiteral>(); }
+			FGuid GetVertexIDForInputVertex(const FString& InInputName) const { return Metasound::FrontendInvalidID; }
+			FGuid GetVertexIDForOutputVertex(const FString& InInputName) const { return Metasound::FrontendInvalidID; }
+			FMetasoundFrontendLiteral GetDefaultInput(const FGuid& InVertexID) const override { return FMetasoundFrontendLiteral{}; }
 
 			// These can be used to set the default value for a given input on this graph.
 			// @returns false if the input name couldn't be found, or if the literal type was incompatible with the Data Type of this input.
-			bool SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral) override { return false; }
-			bool SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName) override { return false; }
+			bool SetDefaultInput(const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral) override { return false; }
+			bool SetDefaultInputToDefaultLiteralOfType(const FGuid& InVertexID) override { return false; }
 
 			const FText& GetInputDescription(const FString& InName) const override { return FText::GetEmpty(); }
 			const FText& GetOutputDescription(const FString& InName) const override { return FText::GetEmpty(); }
@@ -258,7 +253,7 @@ namespace Metasound
 
 			// This can be used to clear the current literal for a given input.
 			// @returns false if the input name couldn't be found.
-			bool ClearLiteralForInput(const FString& InInputName, FGuid InPointID) override { return false; }
+			bool ClearLiteralForInput(const FString& InInputName, FGuid InVertexID) override { return false; }
 
 			TSharedRef<INodeController> AddNode(const FNodeClassInfo& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
 			TSharedRef<INodeController> AddNode(const FNodeRegistryKey& InNodeClass) override { return FInvalidNodeController::GetInvalid(); }
@@ -313,8 +308,8 @@ namespace Metasound
 				bool IsRequiredInput(const FString& InInputName) const override { return false; }
 				bool IsRequiredOutput(const FString& InOutputName) const override { return false; }
 
-				const TArray<FMetasoundFrontendClassInput>& GetRequiredInputs() const override { const static TArray<FMetasoundFrontendClassInput> Empty; return Empty; }
-				const TArray<FMetasoundFrontendClassOutput>& GetRequiredOutputs() const override { const static TArray<FMetasoundFrontendClassOutput> Empty; return Empty; }
+				const TArray<FMetasoundFrontendClassVertex>& GetRequiredInputs() const override { const static TArray<FMetasoundFrontendClassVertex> Empty; return Empty; }
+				const TArray<FMetasoundFrontendClassVertex>& GetRequiredOutputs() const override { const static TArray<FMetasoundFrontendClassVertex> Empty; return Empty; }
 
 				TArray<FMetasoundFrontendClass> GetDependencies() const override { return TArray<FMetasoundFrontendClass>(); }
 				TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const override { return TArray<FMetasoundFrontendGraphClass>(); }

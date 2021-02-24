@@ -241,17 +241,13 @@ bool UMetasoundSource::GetReceiveNodeMetadataForDataType(const FName& InTypeName
 Metasound::Frontend::FNodeHandle UMetasoundSource::AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
 {
 	FMetasoundFrontendClassInput Description;
-	FGuid PointID = InGraph->GetNewPointID();
+	FGuid VertexID = InGraph->GetNewVertexID();
 
 	Description.Name = InSendInfo.Address.ChannelName.ToString();
 	Description.TypeName = Metasound::GetMetasoundDataTypeName<Metasound::FSendAddress>();
 	Description.Metadata.Description = FText::GetEmpty();
-	Description.PointIDs.Add(PointID);
-
-	FMetasoundFrontendVertexLiteral DefaultValue;
-	DefaultValue.PointID = PointID;
-	DefaultValue.Value.Set(InSendInfo.Address.ChannelName.ToString());
-	Description.Defaults.Add(DefaultValue);
+	Description.VertexID = VertexID;
+	Description.DefaultLiteral.Set(InSendInfo.Address.ChannelName.ToString());
 	
 	return InGraph->AddInputVertex(Description);
 }
@@ -416,7 +412,7 @@ TArray<UMetasoundSource::FSendInfoAndVertexName> UMetasoundSource::GetSendInfos(
 		{
 			FSendInfoAndVertexName Info;
 
-			// TODO: incorporate PointID into address. But need to ensure that PointID
+			// TODO: incorporate VertexID into address. But need to ensure that VertexID
 			// will be maintained after injecting Receive nodes. 
 			Info.SendInfo.Address = CreateSendAddress(InInstanceID, InputHandle->GetName(), InputHandle->GetDataType());
 			Info.SendInfo.ParameterName = FName(InputHandle->GetDisplayName().ToString()); // TODO: display name hack. Need to have nameing consistent in editor for inputs
@@ -472,7 +468,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 		OnPlayTrigger.Metadata.DisplayName = FText::FromString(OnPlayTrigger.Name);
 		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
 		OnPlayTrigger.Metadata.Description = LOCTEXT("OnPlayTriggerToolTip", "Trigger executed when this source is played.");
-		OnPlayTrigger.PointIDs.Add(FGuid::NewGuid());
+		OnPlayTrigger.VertexID = FGuid::NewGuid();
 
 		Archetype.Interface.Inputs.Add(OnPlayTrigger);
 
@@ -481,7 +477,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 		OnFinished.Metadata.DisplayName = FText::FromString(OnFinished.Name);
 		OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
 		OnFinished.Metadata.Description = LOCTEXT("OnFinishedToolTip", "Trigger executed to initiate stopping the source.");
-		OnFinished.PointIDs.Add(FGuid::NewGuid());
+		OnFinished.VertexID = FGuid::NewGuid();
 
 		Archetype.Interface.Outputs.Add(OnFinished);
 
@@ -512,7 +508,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetMonoSourceArchetype()
 		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FMonoAudioFormat>();
 		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedMono", "Mono");
 		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
-		GeneratedAudio.PointIDs.Add(FGuid::NewGuid());
+		GeneratedAudio.VertexID = FGuid::NewGuid();
 
 		Archetype.Interface.Outputs.Add(GeneratedAudio);
 
@@ -536,7 +532,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetStereoSourceArchetype()
 		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FStereoAudioFormat>();
 		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereo", "Stereo");
 		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
-		GeneratedAudio.PointIDs.Add(FGuid::NewGuid());
+		GeneratedAudio.VertexID = FGuid::NewGuid();
 
 		Archetype.Interface.Outputs.Add(GeneratedAudio);
 

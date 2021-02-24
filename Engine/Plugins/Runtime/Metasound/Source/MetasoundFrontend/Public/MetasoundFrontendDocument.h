@@ -88,9 +88,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVertex
 	UPROPERTY(EditAnywhere, Category = Parameters)
 	FName TypeName;
 
-	// IDs of connection points supported by the vertex.
+	// ID of vertex
 	UPROPERTY()	
-	TArray<FGuid> PointIDs;
+	FGuid VertexID;
 
 	// Returns true if vertices have equal name, type and number of IDs.
 	static bool IsFunctionalEquivalent(const FMetasoundFrontendVertex& InLHS, const FMetasoundFrontendVertex& InRHS);
@@ -104,7 +104,7 @@ struct FMetasoundFrontendVertexLiteral
 
 	// ID of vertex.
 	UPROPERTY(EditAnywhere, Category = Parameters)
-	FGuid PointID = Metasound::FrontendInvalidID;
+	FGuid VertexID = Metasound::FrontendInvalidID;
 
 	// Value to use when constructing input. 
 	UPROPERTY(EditAnywhere, Category = Parameters)
@@ -218,7 +218,7 @@ struct FMetasoundFrontendEdge
 
 	// ID of source point on source node.
 	UPROPERTY()
-	FGuid FromPointID = Metasound::FrontendInvalidID;
+	FGuid FromVertexID = Metasound::FrontendInvalidID;
 
 	// ID of destination node.
 	UPROPERTY()
@@ -226,7 +226,7 @@ struct FMetasoundFrontendEdge
 
 	// ID of destination point on destination node.
 	UPROPERTY()
-	FGuid ToPointID = Metasound::FrontendInvalidID;
+	FGuid ToVertexID = Metasound::FrontendInvalidID;
 };
 
 // Display style for an edge.
@@ -292,36 +292,6 @@ struct FMetasoundFrontendGraph
 	FMetasoundFrontendGraphStyle Style;
 };
 
-// The type of the vertex.
-UENUM()
-enum class EMetasoundFrontendVertexType : uint8
-{
-	Point, //< Vertex represents a single value.
-	//TODO: Array   //< Vertex represents a variable sized array of values.
-};
-
-
-// Defines the behavior of the vertex.
-USTRUCT()
-struct METASOUNDFRONTEND_API FMetasoundFrontendVertexBehavior
-{
-	GENERATED_BODY()
-
-	// TODO: should all these be editable? 
-	UPROPERTY()
-	EMetasoundFrontendVertexType Type = EMetasoundFrontendVertexType::Point;
-
-	// Minimum number of connection points. Only used if the vertex type is EMetasoundFrontendVertexType::Array
-	UPROPERTY()
-	int32 ArrayMin = 1;
-
-	// Maximum number of connection points. Only used if the vertex type is EMetasoundFrontendVertexType::Array
-	UPROPERTY()
-	int32 ArrayMax = 1;
-
-	static bool IsFunctionalEquivalent(const FMetasoundFrontendVertexBehavior& InLHS, const FMetasoundFrontendVertexBehavior& InRHS);
-};
-
 // Metadata associated with a vertex.
 USTRUCT() 
 struct FMetasoundFrontendVertexMetadata
@@ -379,10 +349,6 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFr
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendVertexMetadata Metadata;
 
-	// Behavior of input vertex.
-	UPROPERTY()
-	FMetasoundFrontendVertexBehavior Behavior;
-
 	static bool IsFunctionalEquivalent(const FMetasoundFrontendClassVertex& InLHS, const FMetasoundFrontendClassVertex& InRHS);
 };
 
@@ -427,9 +393,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassInput : public FMetasoundFro
 
 	virtual ~FMetasoundFrontendClassInput() = default;
 
-	// Default values for vertex IDs in this input.
+	// Default value for this input.
 	UPROPERTY(EditAnywhere, Category = Parameters)
-	TArray<FMetasoundFrontendVertexLiteral> Defaults;
+	FMetasoundFrontendLiteral DefaultLiteral;
 };
 
 USTRUCT()
@@ -680,10 +646,10 @@ struct FMetasoundFrontendArchetypeInterface
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<FMetasoundFrontendClassInput> Inputs;
+	TArray<FMetasoundFrontendClassVertex> Inputs;
 
 	UPROPERTY()
-	TArray<FMetasoundFrontendClassOutput> Outputs;
+	TArray<FMetasoundFrontendClassVertex> Outputs;
 
 	UPROPERTY()
 	TArray<FMetasoundFrontendEnvironmentVariable> Environment;

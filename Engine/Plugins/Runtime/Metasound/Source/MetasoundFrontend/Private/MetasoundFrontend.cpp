@@ -76,17 +76,14 @@ namespace Metasound
 
 				ClassInput.Name = InputTuple.Value.GetVertexName();
 				ClassInput.TypeName = InputTuple.Value.GetDataTypeName();
-				ClassInput.PointIDs.Add(FGuid::NewGuid());
+				ClassInput.VertexID = FGuid::NewGuid();
 				ClassInput.Metadata.DisplayName = FText::FromString(InputTuple.Value.GetVertexName());
 				ClassInput.Metadata.Description = InputTuple.Value.GetDescription();
 
 				const FLiteral& DefaultLiteral = InputTuple.Value.GetDefaultValue();
 				if (DefaultLiteral.GetType() != ELiteralType::None)
 				{
-					FMetasoundFrontendVertexLiteral VertexLiteral;
-					VertexLiteral.Value.SetFromLiteral(DefaultLiteral);
-					VertexLiteral.PointID = FGuid::NewGuid();
-					ClassInput.Defaults.Add(VertexLiteral);
+					ClassInput.DefaultLiteral.SetFromLiteral(DefaultLiteral);
 				}
 
 				ClassDescription.Interface.Inputs.Add(ClassInput);
@@ -99,7 +96,7 @@ namespace Metasound
 
 				ClassOutput.Name = OutputTuple.Value.GetVertexName();
 				ClassOutput.TypeName = OutputTuple.Value.GetDataTypeName();
-				ClassOutput.PointIDs.Add(FGuid::NewGuid());
+				ClassOutput.VertexID = FGuid::NewGuid();
 				ClassOutput.Metadata.DisplayName = FText::FromString(OutputTuple.Value.GetVertexName());
 				ClassOutput.Metadata.Description = OutputTuple.Value.GetDescription();
 

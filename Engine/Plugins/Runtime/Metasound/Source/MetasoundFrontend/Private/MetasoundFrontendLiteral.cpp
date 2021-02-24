@@ -103,6 +103,11 @@ bool FMetasoundFrontendLiteral::IsArray() const
 	}
 }
 
+bool FMetasoundFrontendLiteral::IsValid() const
+{
+	return (Type != EMetasoundFrontendLiteralType::Invalid);
+}
+
 void FMetasoundFrontendLiteral::Set(FDefault InValue)
 {
 	Empty();

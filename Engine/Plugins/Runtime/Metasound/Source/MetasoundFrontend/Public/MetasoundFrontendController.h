@@ -244,7 +244,7 @@ namespace Metasound
 			virtual const FText& GetDisplayName() const = 0;
 
 			/** Returns the default value of the given input. */
-			virtual const TArray<FMetasoundFrontendVertexLiteral>& GetDefaults() const = 0;
+			virtual const FMetasoundFrontendLiteral* GetDefaultLiteral() const = 0;
 
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetTooltip() const = 0;
@@ -333,34 +333,34 @@ namespace Metasound
 			 *
 			 * If the input does not exist, an invalid handle is returned. 
 			 */
-			virtual FInputHandle GetInputWithID(FGuid InPointID) = 0;
+			virtual FInputHandle GetInputWithID(FGuid InVertexID) = 0;
 
 			/** Returns an input with the given name. 
 			 *
 			 * If the input does not exist, an invalid handle is returned. 
 			 */
-			virtual FConstInputHandle GetInputWithID(FGuid InPointID) const = 0;
+			virtual FConstInputHandle GetInputWithID(FGuid InVertexID) const = 0;
 
 			/** Returns an output with the given name. 
 			 *
 			 * If the output does not exist, an invalid handle is returned. 
 			 */
-			virtual FOutputHandle GetOutputWithID(FGuid InPointID) = 0;
+			virtual FOutputHandle GetOutputWithID(FGuid InVertexID) = 0;
 
 			/** Returns an output with the given name. 
 			 *
 			 * If the output does not exist, an invalid handle is returned. 
 			 */
-			virtual FConstOutputHandle GetOutputWithID(FGuid InPointID) const = 0;
+			virtual FConstOutputHandle GetOutputWithID(FGuid InVertexID) const = 0;
 
 			virtual bool CanAddInput(const FString& InVertexName) const = 0;
 			virtual FInputHandle AddInput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
-			virtual bool RemoveInput(FGuid InPointID) = 0;
+			virtual bool RemoveInput(FGuid InVertexID) = 0;
 
-			// TODO: PointID -> PinID? PointID? SlotID? RefID? 
+			// TODO: VertexID -> PinID? VertexID? SlotID? RefID? 
 			virtual bool CanAddOutput(const FString& InVertexName) const = 0;
 			virtual FInputHandle AddOutput(const FString& InVertexName, const FMetasoundFrontendLiteral* InDefault) = 0;
-			virtual bool RemoveOutput(FGuid InPointID) = 0;
+			virtual bool RemoveOutput(FGuid InVertexID) = 0;
 
 			/** Returns the class type for this node. */
 			virtual EMetasoundFrontendClassType GetClassType() const = 0;
@@ -416,7 +416,7 @@ namespace Metasound
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
 
-			virtual FGuid GetNewPointID() const = 0;
+			virtual FGuid GetNewVertexID() const = 0;
 
 			virtual TArray<FString> GetInputVertexNames() const = 0;
 			virtual TArray<FString> GetOutputVertexNames() const = 0;
@@ -533,22 +533,21 @@ namespace Metasound
 			 */
 			virtual UClass* GetSupportedClassForInputVertex(const FString& InInputName) = 0;
 
-			virtual TArray<FGuid> GetDefaultIDsForInputVertex(const FString& InInputName) const = 0;
-			virtual TArray<FGuid> GetDefaultIDsForOutputVertex(const FString& InOutputName) const = 0;
+			virtual FGuid GetVertexIDForInputVertex(const FString& InInputName) const = 0;
+			virtual FGuid GetVertexIDForOutputVertex(const FString& InOutputName) const = 0;
 
-			virtual TArray<FMetasoundFrontendVertexLiteral> GetDefaultInputFrontendLiterals(const FString& InInputName) const = 0;
-
-			virtual bool SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral) = 0;
+			virtual FMetasoundFrontendLiteral GetDefaultInput(const FGuid& InVertexID) const = 0;
+			virtual bool SetDefaultInput(const FGuid& InVertexID, const FMetasoundFrontendLiteral& InLiteral) = 0;
 
 			/** Set the default value for the graph input.
 			 *
 			 * @param InInputName - Name of the graph input.
-			 * @param InPointID - Point to set to DataType default.
+			 * @param InVertexID - Vertex to set to DataType default.
 			 * @param InDataTypeName - Name of datatype to set to default.
 			 *
 			 * @return True on success. False if the input does not exist or if the literal type was incompatible with the input.
 			 */
-			virtual bool SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName) = 0;
+			virtual bool SetDefaultInputToDefaultLiteralOfType(const FGuid& InVertexID) = 0;
 
 			/** Set the display name for the input with the given name. */
 			virtual void SetInputDisplayName(const FString& InName, const FText& InDisplayName) = 0;
@@ -572,7 +571,7 @@ namespace Metasound
 			 *
 			 * @return True on success, false on failure.
 			 */
-			virtual bool ClearLiteralForInput(const FString& InInputName, FGuid InPointID) = 0;
+			virtual bool ClearLiteralForInput(const FString& InInputName, FGuid InVertexID) = 0;
 
 			/** Add a new node to this graph.
 			 *
@@ -674,10 +673,10 @@ namespace Metasound
 			virtual bool IsRequiredOutput(const FString& InOutputName) const = 0;
 
 			/** Returns an array of inputs which describe the required inputs needed to satisfy the document archetype. */
-			virtual const TArray<FMetasoundFrontendClassInput>& GetRequiredInputs() const = 0;
+			virtual const TArray<FMetasoundFrontendClassVertex>& GetRequiredInputs() const = 0;
 
 			/** Returns an array of outputs which describe the required outputs needed to satisfy the document archetype. */
-			virtual const TArray<FMetasoundFrontendClassOutput>& GetRequiredOutputs() const = 0;
+			virtual const TArray<FMetasoundFrontendClassVertex>& GetRequiredOutputs() const = 0;
 
 			// TODO: add info on environment variables. 
 			// TODO: consider find/add subgraph
