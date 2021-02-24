@@ -477,6 +477,7 @@ void FConcertClientPackageManager::SavePackageFile(const FConcertPackageInfo& Pa
 		return;
 	}
 
+	SCOPED_CONCERT_TRACE(FConcertClientPackageManager_SavePackageFile);
 	FString PackageName = PackageInfo.PackageName.ToString();
 	ConcertSyncClientUtil::FlushPackageLoading(PackageName);
 

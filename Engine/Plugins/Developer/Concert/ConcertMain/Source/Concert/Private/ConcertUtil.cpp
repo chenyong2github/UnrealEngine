@@ -3,9 +3,11 @@
 #include "ConcertUtil.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
+#include "ConcertLogGlobal.h"
 
 bool ConcertUtil::DeleteDirectoryTree(const TCHAR* InDirectoryToDelete, const TCHAR* InMoveToDirBeforeDelete)
 {
+	SCOPED_CONCERT_TRACE(ConcertUtil_DeleteDirectoryTree);
 	IFileManager& FileManager = IFileManager::Get();
 
 	if (FileManager.DirectoryExists(InDirectoryToDelete))
@@ -26,6 +28,7 @@ bool ConcertUtil::DeleteDirectoryTree(const TCHAR* InDirectoryToDelete, const TC
 
 bool ConcertUtil::Copy(FArchive& DstAr, FArchive& SrcAr, int64 Size)
 {
+	SCOPED_CONCERT_TRACE(ConcertUtil_Copy);
 	check(DstAr.IsSaving() && SrcAr.IsLoading());
 
 	constexpr int64 DataChunkSize = 4 * 1024; // 4K is a typical low level block size.

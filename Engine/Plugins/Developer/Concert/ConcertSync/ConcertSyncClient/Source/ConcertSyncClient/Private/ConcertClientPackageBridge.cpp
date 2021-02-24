@@ -221,6 +221,7 @@ void FConcertClientPackageBridge::HandleAssetAdded(UObject *Object)
 
 	// Save this package to disk so that we can send its contents immediately
 	{
+		SCOPED_CONCERT_TRACE(FConcertClientPackageBridge_SavePackage);
 		FScopedIgnoreLocalSave IgnorePackageSaveScope(*this);
 		UObject* Asset = Package->FindAssetInPackage();
 		// @todo FH: Pass the Asset instead of the World to save package when the incidental IsFullyLoaded is fixed

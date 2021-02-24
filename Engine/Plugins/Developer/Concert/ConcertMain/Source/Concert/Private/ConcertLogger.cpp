@@ -590,6 +590,7 @@ void FConcertLogger::LogHeader()
 
 void FConcertLogger::LogEntry(FConcertLog& Log)
 {
+	SCOPED_CONCERT_TRACE(FConcertLogger_LogEntry);
 	static const FName MessageOrderIndexPropertyName = TEXT("MessageOrderIndex");
 	const bool bIsReliable = Log.ChannelId != FConcertMessageData::UnreliableChannelId;
 
