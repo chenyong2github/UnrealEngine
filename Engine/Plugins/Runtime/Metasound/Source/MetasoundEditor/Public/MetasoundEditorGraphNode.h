@@ -7,15 +7,17 @@
 #include "UObject/ObjectMacros.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendLiteral.h"
 #include "MetasoundFrontendRegistries.h"
 #include "Misc/Guid.h"
+#include "Sound/SoundWave.h"
 
 #include "MetasoundEditorGraphNode.generated.h"
 
 // Forward Declarations
 class UEdGraphPin;
 class UMetasound;
-class USoundNode;
 
 
 UCLASS(MinimalAPI)
@@ -75,4 +77,16 @@ public:
 protected:
 	UPROPERTY()
 	FGuid NodeID;
+};
+
+UCLASS(MinimalAPI)
+class UMetasoundEditorGraphOutputNode : public UMetasoundEditorGraphNode
+{
+	GENERATED_BODY()
+};
+
+UCLASS(MinimalAPI)
+class UMetasoundEditorGraphExternalNode : public UMetasoundEditorGraphNode
+{
+	GENERATED_BODY()
 };

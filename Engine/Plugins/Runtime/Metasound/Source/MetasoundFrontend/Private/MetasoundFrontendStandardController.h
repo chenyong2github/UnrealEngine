@@ -680,16 +680,30 @@ namespace Metasound
 			// For inputs whose preferred literal type is UObject or UObjectArray, this can be used to determine the UObject corresponding to that input's datatype.
 			UClass* GetSupportedClassForInputVertex(const FString& InInputName) override;
 
+			TArray<FMetasoundFrontendVertexLiteral> GetDefaultInputFrontendLiterals (const FString& InInputName) const override;
+
 			// These can be used to set the default value for a given input on this graph.
 			// @returns false if the input name couldn't be found, or if the literal type was incompatible with the Data Type of this input.
 			bool SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral) override;
 			bool SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName) override;
 
+			// Get the description for the input with the given name.
+			const FText& GetInputDescription(const FString& InName) const override;
+
+			// Get the description for the output with the given name.
+			const FText& GetOutputDescription(const FString& InName) const override;
+
+			// Set the description for the input with the given name
+			void SetInputDescription(const FString& InName, const FText& InDescription) override;
+
+			// Set the description for the input with the given name
+			void SetOutputDescription(const FString& InName, const FText& InDescription) override;
+
 			// Set the display name for the input with the given name
-			void SetInputDisplayName(FString InName, const FText& InDisplayName) override;
+			void SetInputDisplayName(const FString& InName, const FText& InDisplayName) override;
 
 			// Set the display name for the output with the given name
-			void SetOutputDisplayName(FString InName, const FText& InDisplayName) override;
+			void SetOutputDisplayName(const FString& InName, const FText& InDisplayName) override;
 
 			// This can be used to clear the current literal for a given input.
 			// @returns false if the input name couldn't be found.
@@ -818,8 +832,8 @@ namespace Metasound
 			bool IsRequiredInput(const FString& InInputName) const override;
 			bool IsRequiredOutput(const FString& InOutputName) const override;
 
-			TArray<FMetasoundFrontendClassVertex> GetRequiredInputs() const override;
-			TArray<FMetasoundFrontendClassVertex> GetRequiredOutputs() const override;
+			const TArray<FMetasoundFrontendClassInput>& GetRequiredInputs() const override;
+			const TArray<FMetasoundFrontendClassOutput>& GetRequiredOutputs() const override;
 
 			TArray<FMetasoundFrontendClass> GetDependencies() const override;
 			TArray<FMetasoundFrontendGraphClass> GetSubgraphs() const override;

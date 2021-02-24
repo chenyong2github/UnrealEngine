@@ -50,30 +50,35 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendLiteral
 	struct FDefault {};
 	struct FDefaultArray { int32 Num = 0; };
 
+private:
 	// The set type of this literal.
-	UPROPERTY(EditAnywhere, Category = Customized)
+	UPROPERTY()
 	EMetasoundFrontendLiteralType Type = EMetasoundFrontendLiteralType::None;
 
-	UPROPERTY(EditAnywhere, Category = Customized)
-	int32 AsNumDefault;
+	UPROPERTY()
+	int32 AsNumDefault = 0;
 
-	UPROPERTY(EditAnywhere, Category = Customized)
+	UPROPERTY()
 	TArray<bool> AsBoolean;
 
-	UPROPERTY(EditAnywhere, Category = Customized)
+	UPROPERTY()
 	TArray<int32> AsInteger;
 
-	UPROPERTY(EditAnywhere, Category = Customized)
+	UPROPERTY()
 	TArray<float> AsFloat;
 
-	UPROPERTY(EditAnywhere, Category = Customized)
+	UPROPERTY()
 	TArray<FString> AsString;
 
-	UPROPERTY(EditAnywhere, Category = Customized)
+	UPROPERTY()
 	TArray<UObject*> AsUObject;
 
+public:
 	// Returns true if the stored Type is an array type.
 	bool IsArray() const;
+
+	// Sets the literal to the given type and value to default;
+	void SetType(EMetasoundFrontendLiteralType InType);
 
 	void Set(FDefault InValue);
 	void Set(const FDefaultArray& InValue);
@@ -89,6 +94,8 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendLiteral
 	void Set(const TArray<UObject*>& InValue);
 
 	void SetFromLiteral(const Metasound::FLiteral& InLiteral);
+
+	EMetasoundFrontendLiteralType GetType() const;
 
 	// Return the literal description parsed into a init param. 
 	// @Returns an invalid init param if the data type couldn't be found, or if the literal type was incompatible with the data type.

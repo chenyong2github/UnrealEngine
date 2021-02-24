@@ -189,8 +189,11 @@ namespace Metasound
 			/** New Graph Editor */
 			TSharedPtr<SGraphEditor> MetasoundGraphEditor;
 
-			/** Properties tab */
-			TSharedPtr<IDetailsView> MetasoundProperties;
+			/** Details tab */
+			TSharedPtr<IDetailsView> MetasoundDetails;
+
+			/** General tab */
+			TSharedPtr<IDetailsView> MetasoundGeneral;
 
 			/** Metasound Output Meter widget */
 			TSharedPtr<SAudioMeter> MetasoundMeter;

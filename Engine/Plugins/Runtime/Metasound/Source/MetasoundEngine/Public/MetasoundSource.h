@@ -40,7 +40,7 @@ protected:
 	FMetasoundFrontendDocument RootMetasoundDocument;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category = CustomView)
 	UEdGraph* Graph;
 #endif // WITH_EDITORONLY_DATA
 

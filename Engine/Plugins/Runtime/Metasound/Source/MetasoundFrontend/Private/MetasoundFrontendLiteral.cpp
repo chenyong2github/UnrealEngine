@@ -304,6 +304,98 @@ void FMetasoundFrontendLiteral::SetFromLiteral(const Metasound::FLiteral& InLite
 	}
 }
 
+void FMetasoundFrontendLiteral::SetType(EMetasoundFrontendLiteralType InType)
+{
+	switch (Type)
+	{
+		case EMetasoundFrontendLiteralType::NoneArray:
+		{
+			Set(FDefaultArray());
+		}
+		break;
+
+		case EMetasoundFrontendLiteralType::BooleanArray:
+		{
+			Set(TArray<bool>());
+		}
+		break;
+
+		case EMetasoundFrontendLiteralType::IntegerArray:
+		{
+			Set(TArray<int32>());
+		}
+		break;
+
+		case EMetasoundFrontendLiteralType::FloatArray:
+		{
+			Set(TArray<float>());
+		}
+		break;
+
+		case EMetasoundFrontendLiteralType::StringArray:
+		{
+			Set(TArray<FString>());
+		}
+		break;
+
+		case EMetasoundFrontendLiteralType::UObjectArray:
+		{
+			Set(TArray<UObject*>());
+		}
+		break;
+		
+		case EMetasoundFrontendLiteralType::None:
+		{
+			Set(FDefault());
+		}
+		break;
+
+		case EMetasoundFrontendLiteralType::Boolean:
+		{
+			Set(false);
+		}
+		break;
+
+		case EMetasoundFrontendLiteralType::Integer:
+		{
+			Set(0);
+		}
+		break;
+
+		case EMetasoundFrontendLiteralType::Float:
+		{
+			Set(0.f);
+		}
+		break;
+
+	
+		case EMetasoundFrontendLiteralType::String:
+		{
+			Set(FString());
+		}
+		break;
+		
+		case EMetasoundFrontendLiteralType::UObject:
+		{
+			Set(static_cast<UObject*>(nullptr));
+		}
+		break;
+		
+		case EMetasoundFrontendLiteralType::Invalid:
+		{
+			Set(FDefault());
+		}
+		break;
+		
+		default:
+		static_assert(static_cast<int32>(EMetasoundFrontendLiteralType::Invalid) == 12, "Possible missing EMetasoundFrontendLiteralType case coverage");
+		{
+			checkNoEntry();
+		}
+		break;
+	}
+}
+
 Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoundDataTypeName) const
 {
 	using namespace Metasound;
@@ -464,6 +556,11 @@ FString FMetasoundFrontendLiteral::ToString() const
 			static_assert(static_cast<int32>(EMetasoundFrontendLiteralType::Invalid) == 12, "Possible missing literal type switch coverage");
 			return FString();
 	}
+}
+
+EMetasoundFrontendLiteralType FMetasoundFrontendLiteral::GetType() const
+{
+	return Type;
 }
 
 void FMetasoundFrontendLiteral::Clear()

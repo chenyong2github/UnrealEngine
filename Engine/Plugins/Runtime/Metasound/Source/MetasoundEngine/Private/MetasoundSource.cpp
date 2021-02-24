@@ -467,7 +467,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 	{
 		FMetasoundFrontendArchetype Archetype;
 		
-		FMetasoundFrontendClassVertex OnPlayTrigger;
+		FMetasoundFrontendClassInput OnPlayTrigger;
 		OnPlayTrigger.Name = UMetasoundSource::GetOnPlayInputName();
 		OnPlayTrigger.Metadata.DisplayName = FText::FromString(OnPlayTrigger.Name);
 		OnPlayTrigger.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
@@ -476,7 +476,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 
 		Archetype.Interface.Inputs.Add(OnPlayTrigger);
 
-		FMetasoundFrontendClassVertex OnFinished;
+		FMetasoundFrontendClassOutput OnFinished;
 		OnFinished.Name = UMetasoundSource::GetIsFinishedOutputName();
 		OnFinished.Metadata.DisplayName = FText::FromString(OnFinished.Name);
 		OnFinished.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FTrigger>();
@@ -505,7 +505,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetMonoSourceArchetype()
 	auto CreateMonoArchetype = []() -> FMetasoundFrontendArchetype
 	{
 		FMetasoundFrontendArchetype Archetype = GetBaseArchetype();
-		Archetype.Name = FName(TEXT("MonoSource"));
+		Archetype.Name = "MonoSource";
 
 		FMetasoundFrontendClassVertex GeneratedAudio;
 		GeneratedAudio.Name = UMetasoundSource::GetAudioOutputName();

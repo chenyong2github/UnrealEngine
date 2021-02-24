@@ -14,7 +14,7 @@
 #include "MetasoundSource.h"
 #include "MetasoundAssetTypeActions.h"
 #include "MetasoundDetailCustomization.h"
-#include "MetasoundLiteralDescriptionDetailCustomization.h"
+#include "MetasoundInputNodeDetailCustomization.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNodeFactory.h"
 #include "MetasoundEditorGraphSchema.h"
@@ -100,6 +100,39 @@ namespace Metasound
 
 		class FModule : public IMetasoundEditorModule
 		{
+			void RegisterNodeInputClasses()
+			{
+				TSubclassOf<UMetasoundEditorGraphInputNode> NodeClass;
+				for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+				{
+					UClass* Class = *ClassIt;
+					if (!Class->IsNative())
+					{
+						continue;
+					}
+
+					if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+					{
+						continue;
+					}
+
+					if (!ClassIt->IsChildOf(UMetasoundEditorGraphInputNode::StaticClass()))
+					{
+						continue;
+					}
+
+					if (const UMetasoundEditorGraphInputNode* InputNode = Class->GetDefaultObject<UMetasoundEditorGraphInputNode>())
+					{
+						NodeInputClassRegistry.Add(InputNode->GetLiteralType(), InputNode->GetClass());
+					}
+				}
+			}
+
+			const TSubclassOf<UMetasoundEditorGraphInputNode> FindNodeInputClass(EMetasoundFrontendLiteralType InLiteralType) const override
+			{
+				return NodeInputClassRegistry.FindRef(InLiteralType);
+			}
+
 			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const override
 			{
 				return DataTypeInfo.FindChecked(InDataTypeName);
@@ -250,13 +283,18 @@ namespace Metasound
 					UMetasoundSource::StaticClass()->GetFName(),
 					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(UMetasoundSource::GetDocumentPropertyName()); }));
 
+				PropertyModule.RegisterCustomClassLayout(
+					UMetasoundEditorGraphInputNode::StaticClass()->GetFName(),
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputNodeDetailCustomization>(); }));
+
 				PropertyModule.RegisterCustomPropertyTypeLayout(
-					"MetasoundFrontendLiteral",
-					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundFrontendLiteralDetailCustomization>(); }));
+					"MetasoundEditorGraphInputObject",
+					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputNodeObjectDetailCustomization>(); }));
 
 				StyleSet = MakeShared<FSlateStyle>();
 
 				RegisterCoreDataTypes();
+				RegisterNodeInputClasses();
 
 				GraphConnectionFactory = MakeShared<FGraphConnectionDrawingPolicyFactory>();
 				FEdGraphUtilities::RegisterVisualPinConnectionFactory(GraphConnectionFactory);
@@ -315,6 +353,7 @@ namespace Metasound
 
 			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 			TMap<FName, FEditorDataType> DataTypeInfo;
+			TMap<EMetasoundFrontendLiteralType, const TSubclassOf<UMetasoundEditorGraphInputNode>> NodeInputClassRegistry;
 
 			TSharedPtr<FMetasoundGraphNodeFactory> GraphNodeFactory;
 			TSharedPtr<FGraphPanelPinConnectionFactory> GraphConnectionFactory;

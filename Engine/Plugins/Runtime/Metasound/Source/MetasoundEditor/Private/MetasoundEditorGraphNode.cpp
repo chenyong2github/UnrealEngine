@@ -122,7 +122,7 @@ void UMetasoundEditorGraphNode::AllocateDefaultPins()
 {
 	using namespace Metasound;
 
-	ensureAlways(Pins.Num() == 0);
+	ensureAlways(Pins.IsEmpty());
 	Editor::FGraphBuilder::RebuildNodePins(*this, GetNodeHandle());
 }
 

@@ -153,7 +153,7 @@ namespace Metasound
 			{
 				const FMetasoundFrontendVertex& InputVertex = InNode.Interface.Inputs[0];
 
-				const bool IsLiteralParsableByDataType = Frontend::DoesDataTypeSupportLiteralType(InputVertex.TypeName, VertexLiteral->Value.Type);
+				const bool IsLiteralParsableByDataType = Frontend::DoesDataTypeSupportLiteralType(InputVertex.TypeName, VertexLiteral->Value.GetType());
 
 				if (IsLiteralParsableByDataType)
 				{

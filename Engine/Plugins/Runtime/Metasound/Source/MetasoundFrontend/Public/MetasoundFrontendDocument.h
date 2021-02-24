@@ -164,6 +164,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNodeStyle
 	// Display style of a node
 	UPROPERTY()
 	FMetasoundFrontendNodeStyleDisplay Display;
+
+	UPROPERTY()
+	bool bIsPrivate = false;
 };
 
 // An FMetasoundFrontendNode represents a single instance of a FMetasoundFrontendClass
@@ -677,10 +680,10 @@ struct FMetasoundFrontendArchetypeInterface
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<FMetasoundFrontendClassVertex> Inputs;
+	TArray<FMetasoundFrontendClassInput> Inputs;
 
 	UPROPERTY()
-	TArray<FMetasoundFrontendClassVertex> Outputs;
+	TArray<FMetasoundFrontendClassOutput> Outputs;
 
 	UPROPERTY()
 	TArray<FMetasoundFrontendEnvironmentVariable> Environment;

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "IDetailCustomization.h"
+#include "SGraphActionMenu.h"
 #include "UObject/NameTypes.h"
 
 // Forward Declarations
@@ -25,7 +26,11 @@ namespace Metasound
 			FName GetMetadataRootClassPath() const;
 			FName GetMetadataPropertyPath() const;
 
+			FText OnGetSectionTitle(int32 InSectionID);
+
 			FName DocumentPropertyName;
+
+// 			TSharedPtr<SGraphActionMenu> GraphActionMenu;
 		};
 	} // namespace Editor
 } // namespace Metasound

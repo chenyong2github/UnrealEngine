@@ -536,6 +536,8 @@ namespace Metasound
 			virtual TArray<FGuid> GetDefaultIDsForInputVertex(const FString& InInputName) const = 0;
 			virtual TArray<FGuid> GetDefaultIDsForOutputVertex(const FString& InOutputName) const = 0;
 
+			virtual TArray<FMetasoundFrontendVertexLiteral> GetDefaultInputFrontendLiterals(const FString& InInputName) const = 0;
+
 			virtual bool SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral) = 0;
 
 			/** Set the default value for the graph input.
@@ -549,10 +551,22 @@ namespace Metasound
 			virtual bool SetDefaultInputToTypeDefaultLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName) = 0;
 
 			/** Set the display name for the input with the given name. */
-			virtual void SetInputDisplayName(FString InName, const FText& InDisplayName) = 0;
+			virtual void SetInputDisplayName(const FString& InName, const FText& InDisplayName) = 0;
 
 			/** Set the display name for the output with the given name. */
-			virtual void SetOutputDisplayName(FString InName, const FText& InDisplayName) = 0;
+			virtual void SetOutputDisplayName(const FString& InName, const FText& InDisplayName) = 0;
+
+			/** Get the description for the input with the given name. */
+			virtual const FText& GetInputDescription(const FString& InName) const = 0;
+
+			/** Get the description for the output with the given name. */
+			virtual const FText& GetOutputDescription(const FString& InName) const = 0;
+
+			/** Set the description for the input with the given name. */
+			virtual void SetInputDescription(const FString& InName, const FText& InDescription) = 0;
+
+			/** Set the description for the output with the given name. */
+			virtual void SetOutputDescription(const FString& InName, const FText& InDescription) = 0;
 
 			/** Clear the current literal for a given input.
 			 *
@@ -660,10 +674,10 @@ namespace Metasound
 			virtual bool IsRequiredOutput(const FString& InOutputName) const = 0;
 
 			/** Returns an array of inputs which describe the required inputs needed to satisfy the document archetype. */
-			virtual TArray<FMetasoundFrontendClassVertex> GetRequiredInputs() const = 0;
+			virtual const TArray<FMetasoundFrontendClassInput>& GetRequiredInputs() const = 0;
 
 			/** Returns an array of outputs which describe the required outputs needed to satisfy the document archetype. */
-			virtual TArray<FMetasoundFrontendClassVertex> GetRequiredOutputs() const = 0;
+			virtual const TArray<FMetasoundFrontendClassOutput>& GetRequiredOutputs() const = 0;
 
 			// TODO: add info on environment variables. 
 			// TODO: consider find/add subgraph

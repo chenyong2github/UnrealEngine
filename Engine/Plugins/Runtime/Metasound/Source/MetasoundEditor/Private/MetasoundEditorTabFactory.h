@@ -20,9 +20,10 @@ namespace Metasound
 			namespace Names
 			{
 				const FName Analyzers = "MetasoundEditor_Analyzers";
+				const FName Inspector = "MetasoundEditor_Inspector";
 				const FName GraphCanvas = "MetasoundEditor_GraphCanvas";
+				const FName Metasound = "MetasoundEditor_Metasound";
 				const FName Palette = "MetasoundEditor_Palette";
-				const FName Properties = "MetasoundEditor_Properties";
 			}
 
 			TSharedRef<SDockTab> CreateAnalyzersTab(TSharedPtr<SAudioMeter> InAudioMeter, const FSpawnTabArgs& Args)
@@ -52,6 +53,30 @@ namespace Metasound
 				return SpawnedTab;
 			}
 
+			TSharedRef<SDockTab> CreateInspectorTab(TSharedPtr<IDetailsView> DetailsView, const FSpawnTabArgs& Args)
+			{
+				check(Args.GetTabId() == Names::Inspector);
+
+				return SNew(SDockTab)
+					.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
+					.Label(LOCTEXT("MetasoundInspectorTitle", "Inspector"))
+					[
+						DetailsView.ToSharedRef()
+					];
+			}
+
+			TSharedRef<SDockTab> CreateMetasoundTab(TSharedPtr<IDetailsView> DetailsView, const FSpawnTabArgs& Args)
+			{
+				check(Args.GetTabId() == Names::Metasound);
+
+				return SNew(SDockTab)
+					.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
+					.Label(LOCTEXT("MetasoundGeneralTitle", "Metasound"))
+					[
+						DetailsView.ToSharedRef()
+					];
+			}
+
 			TSharedRef<SDockTab> CreatePaletteTab(TSharedPtr<SMetasoundPalette> Palette, const FSpawnTabArgs& Args)
 			{
 				check(Args.GetTabId() == Names::Palette);
@@ -61,18 +86,6 @@ namespace Metasound
 					.Label(LOCTEXT("MetasoundPaletteTitle", "Palette"))
 					[
 						Palette.ToSharedRef()
-					];
-			}
-
-			TSharedRef<SDockTab> CreatePropertiesTab(TSharedPtr<IDetailsView> PropertiesView, const FSpawnTabArgs& Args)
-			{
-				check(Args.GetTabId() == Names::Properties);
-
-				return SNew(SDockTab)
-					.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
-					.Label(LOCTEXT("MetasoundDetailsTitle", "Details"))
-					[
-						PropertiesView.ToSharedRef()
 					];
 			}
 		}

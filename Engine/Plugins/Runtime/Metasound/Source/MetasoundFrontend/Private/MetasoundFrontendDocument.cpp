@@ -110,7 +110,7 @@ FMetasoundFrontendClassInput::FMetasoundFrontendClassInput(const FMetasoundFront
 	{
 		FMetasoundFrontendVertexLiteral Default;
 		Default.PointID = PointID;
-		Default.Value.Type = DefaultType;
+		Default.Value.SetType(DefaultType);
 		Defaults.Add(Default);
 	}
 }

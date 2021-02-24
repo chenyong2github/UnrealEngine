@@ -56,13 +56,22 @@ namespace Metasound
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
 
-			InTabManager->RegisterTabSpawner(TabFactory::Names::Properties, FOnSpawnTab::CreateLambda([InMetasoundProperties = MetasoundProperties](const FSpawnTabArgs& Args)
+			InTabManager->RegisterTabSpawner(TabFactory::Names::Inspector, FOnSpawnTab::CreateLambda([InMetasoundDetails = MetasoundDetails](const FSpawnTabArgs& Args)
 			{
-				return TabFactory::CreatePropertiesTab(InMetasoundProperties, Args);
+				return TabFactory::CreateInspectorTab(InMetasoundDetails, Args);
 			}))
-			.SetDisplayName(LOCTEXT("DetailsTab", "Details"))
+			.SetDisplayName(LOCTEXT("InspectorTab", "Inspector"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
+			InTabManager->RegisterTabSpawner(TabFactory::Names::Metasound, FOnSpawnTab::CreateLambda([InMetasoundGeneral = MetasoundGeneral](const FSpawnTabArgs& Args)
+			{
+				return TabFactory::CreateMetasoundTab(InMetasoundGeneral, Args);
+			}))
+			.SetDisplayName(LOCTEXT("MetasoundTab", "Metasound"))
+			.SetGroup(WorkspaceMenuCategoryRef)
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Settings"));
+
 
 			InTabManager->RegisterTabSpawner(TabFactory::Names::Analyzers, FOnSpawnTab::CreateLambda([InMetasoundMeter = MetasoundMeter](const FSpawnTabArgs& Args)
 			{
@@ -81,7 +90,8 @@ namespace Metasound
 
 			InTabManager->UnregisterTabSpawner(TabFactory::Names::Analyzers);
 			InTabManager->UnregisterTabSpawner(TabFactory::Names::GraphCanvas);
-			InTabManager->UnregisterTabSpawner(TabFactory::Names::Properties);
+			InTabManager->UnregisterTabSpawner(TabFactory::Names::Inspector);
+			InTabManager->UnregisterTabSpawner(TabFactory::Names::Metasound);
 		}
 
 		FEditor::~FEditor()
@@ -141,7 +151,7 @@ namespace Metasound
 
 			CreateAnalyzers();
 
-			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v4")
+			const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_MetasoundEditor_Layout_v6")
 				->AddArea
 				(
 					FTabManager::NewPrimaryArea()
@@ -151,10 +161,22 @@ namespace Metasound
 						->SetSizeCoefficient(0.9f)
 						->Split
 						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.225f)
-							->SetHideTabWell(true)
-							->AddTab(TabFactory::Names::Properties, ETabState::OpenedTab)
+							FTabManager::NewSplitter()
+							->SetOrientation(Orient_Vertical)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.5f)
+								->SetHideTabWell(false)
+								->AddTab(TabFactory::Names::Metasound, ETabState::OpenedTab)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.5f)
+								->SetHideTabWell(false)
+								->AddTab(TabFactory::Names::Inspector, ETabState::OpenedTab)
+							)
 						)
 						->Split
 						(
@@ -193,9 +215,10 @@ namespace Metasound
 
 		void FEditor::SetSelection(const TArray<UObject*>& SelectedObjects)
 		{
-			if (MetasoundProperties.IsValid())
+			if (MetasoundDetails.IsValid())
 			{
-				MetasoundProperties->SetObjects(SelectedObjects);
+				MetasoundDetails->SetObjects(SelectedObjects);
+				MetasoundDetails->HideFilterArea(SelectedObjects.IsEmpty() || SelectedObjects.Num() > 1);
 			}
 		}
 
@@ -268,8 +291,11 @@ namespace Metasound
 			Args.NotifyHook = this;
 
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-			MetasoundProperties = PropertyModule.CreateDetailView(Args);
-			MetasoundProperties->SetObject(Metasound);
+
+			MetasoundGeneral = PropertyModule.CreateDetailView(Args);
+			MetasoundGeneral->SetObject(Metasound);
+
+			MetasoundDetails = PropertyModule.CreateDetailView(Args);
 
 			Palette = SNew(SMetasoundPalette);
 		}
@@ -311,7 +337,7 @@ namespace Metasound
 			MetasoundMeterAnalyzer->StartAnalyzing(EditorWorld, MetasoundAudioBus.Get());
 
 			// Create the audio meter
-			MetasoundMeter = SNew(SAudioMeter);			
+			MetasoundMeter = SNew(SAudioMeter);
 
 			// TODO: THIS IS TEMP, WIP
 			MetasoundMeter->SetOrientation(EOrientation::Orient_Vertical);
@@ -703,23 +729,12 @@ namespace Metasound
 		{
 			TArray<UObject*> Selection;
 
-			if (NewSelection.Num())
+			if (!NewSelection.IsEmpty())
 			{
 				for (TSet<UObject*>::TConstIterator SetIt(NewSelection); SetIt; ++SetIt)
 				{
-					if (Cast<UMetasoundEditorGraphNode>(*SetIt))
-					{
-						Selection.Add(GetMetasoundObject());
-					}
-					else
-					{
-						Selection.Add(*SetIt);
-					}
+					Selection.Add(*SetIt);
 				}
-			}
-			else
-			{
-				Selection.Add(GetMetasoundObject());
 			}
 
 			SetSelection(Selection);

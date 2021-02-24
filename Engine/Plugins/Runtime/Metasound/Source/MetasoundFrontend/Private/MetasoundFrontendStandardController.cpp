@@ -2310,6 +2310,16 @@ namespace Metasound
 			return nullptr;
 		}
 
+		TArray<FMetasoundFrontendVertexLiteral> FGraphController::GetDefaultInputFrontendLiterals(const FString& InInputName) const
+		{
+			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
+			{
+				return Desc->Defaults;
+			}
+
+			return TArray<FMetasoundFrontendVertexLiteral>();
+		}
+
 		bool FGraphController::SetDefaultInputToFrontendLiteral(const FString& InInputName, FGuid InPointID, FName InDataTypeName, const FMetasoundFrontendLiteral& InLiteral)
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
@@ -2326,7 +2336,7 @@ namespace Metasound
 					VertexLiteral->PointID = InPointID;
 				}
 
-				if (ensure(DoesDataTypeSupportLiteralType(Desc->TypeName, InLiteral.Type)))
+				if (ensure(DoesDataTypeSupportLiteralType(Desc->TypeName, InLiteral.GetType())))
 				{
 					VertexLiteral->Value = InLiteral;
 					return true;
@@ -2350,8 +2360,27 @@ namespace Metasound
 			return SetDefaultInputToFrontendLiteral(InInputName, InPointID, InDataTypeName, FrontendLiteral);
 		}
 
-		// Set the display name for the input with the given name
-		void FGraphController::SetInputDisplayName(FString InName, const FText& InDisplayName)
+		const FText& FGraphController::GetInputDescription(const FString& InName) const
+		{
+			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
+			{
+				return Desc->Metadata.Description;
+			}
+
+			return FText::GetEmpty();
+		}
+
+		const FText& FGraphController::GetOutputDescription(const FString& InName) const
+		{
+			if (const FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
+			{
+				return Desc->Metadata.Description;
+			}
+
+			return FText::GetEmpty();
+		}
+
+		void FGraphController::SetInputDisplayName(const FString& InName, const FText& InDisplayName)
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
 			{
@@ -2359,12 +2388,27 @@ namespace Metasound
 			}
 		}
 
-		// Set the display name for the output with the given name
-		void FGraphController::SetOutputDisplayName(FString InName, const FText& InDisplayName)
+		void FGraphController::SetOutputDisplayName(const FString& InName, const FText& InDisplayName)
 		{
 			if (FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
 			{
 				Desc->Metadata.DisplayName = InDisplayName;
+			}
+		}
+
+		void FGraphController::SetInputDescription(const FString& InName, const FText& InDescription)
+		{
+			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InName))
+			{
+				Desc->Metadata.Description = InDescription;
+			}
+		}
+
+		void FGraphController::SetOutputDescription(const FString& InName, const FText& InDescription)
+		{
+			if (FMetasoundFrontendClassOutput* Desc = FindOutputDescriptionWithName(InName))
+			{
+				Desc->Metadata.Description = InDescription;
 			}
 		}
 
@@ -3078,24 +3122,26 @@ namespace Metasound
 			return false;
 		}
 
-		TArray<FMetasoundFrontendClassVertex> FDocumentController::GetRequiredInputs() const
+		const TArray<FMetasoundFrontendClassInput>& FDocumentController::GetRequiredInputs() const
 		{
 			if (DocumentPtr.IsValid())
 			{
 				return DocumentPtr->Archetype.Interface.Inputs;
 			}
 
-			return TArray<FMetasoundFrontendClassVertex>();
+			static const TArray<FMetasoundFrontendClassInput> Empty;
+			return Empty;
 		}
 
-		TArray<FMetasoundFrontendClassVertex> FDocumentController::GetRequiredOutputs() const
+		const TArray<FMetasoundFrontendClassOutput>& FDocumentController::GetRequiredOutputs() const
 		{
 			if (DocumentPtr.IsValid())
 			{
 				return DocumentPtr->Archetype.Interface.Outputs;
 			}
 
-			return TArray<FMetasoundFrontendClassVertex>();
+			static const TArray<FMetasoundFrontendClassOutput> Empty;
+			return Empty;
 		}
 
 		TArray<FMetasoundFrontendClass> FDocumentController::GetDependencies() const
