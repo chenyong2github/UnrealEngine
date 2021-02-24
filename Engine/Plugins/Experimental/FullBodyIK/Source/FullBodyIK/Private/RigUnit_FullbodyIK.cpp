@@ -533,7 +533,7 @@ FRigUnit_FullbodyIK_Execute()
 			// this means, only the last joint in the test
 			const FRigElementKey& CurrentItem = *LinkDataToHierarchyIndices.Find(LinkIndex);
 			const FTransform& LinkTransform = LinkData[LinkIndex].GetTransform();
-			Hierarchy->SetGlobalTransform(CurrentItem, LinkTransform, bPropagateToChildren);
+			Hierarchy->SetGlobalTransform(CurrentItem, LinkTransform, false, bPropagateToChildren);
 		}
 	}
 }

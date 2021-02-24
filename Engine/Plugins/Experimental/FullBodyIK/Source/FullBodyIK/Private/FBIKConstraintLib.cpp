@@ -86,7 +86,7 @@ namespace FBIKConstraintLib
 								NewLimitConstraint.bYLimitSet = GetLimit(Constraints[Index].AngularLimit.LimitType_Y, FMath::DegreesToRadians(Constraints[Index].AngularLimit.Limit.Y), NewLimitConstraint.Limit.Y);
 								NewLimitConstraint.bZLimitSet = GetLimit(Constraints[Index].AngularLimit.LimitType_Z, FMath::DegreesToRadians(Constraints[Index].AngularLimit.Limit.Z), NewLimitConstraint.Limit.Z);
 
-								FTransform LocalTransform = Hierarchy->GetGlobalTransform(Item, true).GetRelativeTransform(Hierarchy->GetGlobalTransform(ParentItem, true));
+								FTransform LocalTransform = Hierarchy->GetInitialGlobalTransform(Item).GetRelativeTransform(Hierarchy->GetInitialGlobalTransform(ParentItem));
 								// @todo: think about 
 								// set rotation frame
 								NewLimitConstraint.BaseFrameOffset = FQuat(Constraints[Index].OffsetRotation);
