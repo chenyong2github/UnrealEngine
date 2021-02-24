@@ -717,9 +717,48 @@ void FKConvexElem::DrawElemWire(FPrimitiveDrawInterface* PDI, const FTransform& 
 	}
 	else
 	{
-		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::AddCachedSolidConvexGeom : No ConvexMesh, so unable to draw."));
+		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::DrawElemWire : No ConvexMesh, so unable to draw."));
 	}
 #endif // WITH_PHYSX
+}
+
+void FKConvexElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const
+{
+#if WITH_CHAOS
+	const int32 NumIndices = IndexData.Num();
+	if (NumIndices > 0 && ensure(NumIndices % 3 == 0))
+	{
+		FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+
+		const FVector2D DummyUV(0);
+		const FVector DummyTangentX(1, 0, 0);
+		const FVector DummyTangentY(0, 1, 0);
+		const FVector DummyTangentZ(0, 0, 1);
+
+		// NOTE: With chaos, instead of using a mesh with transformed verts, we use the 
+		// VertexData directly, so we don't need to remove the body->elem transform like
+		// we did with physx.
+		const int32 NumVerts = VertexData.Num();
+		for (const FVector& Vert : VertexData)
+		{
+			MeshBuilder.AddVertex(ElemTM.TransformPosition(Vert), DummyUV, DummyTangentX, DummyTangentY, DummyTangentZ, FColor::White);
+		}
+
+		for (int32 Base = 0; Base < NumIndices; Base += 3)
+		{
+			if (IndexData[Base] >= NumVerts || IndexData[Base + 1] >= NumVerts || IndexData[Base + 2] >= NumVerts)
+			{
+				continue;
+			}
+			MeshBuilder.AddTriangle(IndexData[Base], IndexData[Base + 1], IndexData[Base + 2]);
+		}
+		MeshBuilder.Draw(PDI, FMatrix::Identity, MaterialRenderProxy, SDPG_World, 0.f);
+	}
+	else
+	{
+		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::DrawElemSolid : No ConvexMesh, so unable to draw."));
+	}
+#endif
 }
 
 void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBuffer, TArray<uint32>& IndexBuffer, const FColor VertexColor) const

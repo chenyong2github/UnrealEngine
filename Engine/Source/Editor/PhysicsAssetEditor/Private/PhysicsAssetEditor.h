@@ -88,6 +88,7 @@ public:
 	TSharedRef<ISkeletonTree> BuildMenuWidgetNewConstraintForBody(FMenuBuilder& InMenuBuilder, int32 InSourceBodyIndex, SGraphEditor::FActionMenuClosed InOnActionMenuClosed = SGraphEditor::FActionMenuClosed());
 	void BuildMenuWidgetBone(FMenuBuilder& InMenuBuilder);
 	TSharedRef<SWidget> BuildStaticMeshAssetPicker();
+	void AddAdvancedMenuWidget(FMenuBuilder& InMenuBuilder);
 
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;

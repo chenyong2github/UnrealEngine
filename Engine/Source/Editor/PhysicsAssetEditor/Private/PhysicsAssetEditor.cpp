@@ -1194,6 +1194,20 @@ void FPhysicsAssetEditor::Mirror()
 	RefreshPreviewViewport();
 }
 
+void FPhysicsAssetEditor::AddAdvancedMenuWidget(FMenuBuilder& InMenuBuilder)
+{
+	InMenuBuilder.BeginSection("Advanced", LOCTEXT("AdvancedHeading", "Advanced"));
+	InMenuBuilder.AddSubMenu(
+		LOCTEXT("AddCollisionfromStaticMesh", "Copy Collision From StaticMesh"),
+		LOCTEXT("AddCollisionfromStaticMesh_Tooltip", "Copy convex collision from a specified static mesh"),
+		FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
+			{
+				InSubMenuBuilder.AddWidget(BuildStaticMeshAssetPicker(), FText(), true);
+			})
+	);
+	InMenuBuilder.EndSection();
+}
+
 void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 {
 	InMenuBuilder.PushCommandList(GetToolkitCommands());
@@ -1284,16 +1298,7 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 		InMenuBuilder.AddMenuEntry( Commands.RemoveBodyFromPhysicalAnimationProfile );
 		InMenuBuilder.EndSection();
 
-		InMenuBuilder.BeginSection( "Advanced", LOCTEXT( "AdvancedHeading", "Advanced" ) );
-		InMenuBuilder.AddSubMenu(
-			LOCTEXT("AddCollisionfromStaticMesh", "Copy Collision From StaticMesh"), 
-			LOCTEXT("AddCollisionfromStaticMesh_Tooltip", "Copy convex collision from a specified static mesh"), 
-			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InSubMenuBuilder)
-			{
-				InSubMenuBuilder.AddWidget(BuildStaticMeshAssetPicker(), FText(), true);
-			})
-		);
-		InMenuBuilder.EndSection();
+		AddAdvancedMenuWidget(InMenuBuilder);
 	}
 	InMenuBuilder.PopCommandList();
 }
@@ -1475,6 +1480,7 @@ void FPhysicsAssetEditor::BuildMenuWidgetBone(FMenuBuilder& InMenuBuilder)
 			FNewMenuDelegate::CreateStatic( &FillAddShapeMenu ) );
 	}
 	InMenuBuilder.EndSection();
+	AddAdvancedMenuWidget(InMenuBuilder);
 	InMenuBuilder.PopCommandList();
 }
 
@@ -2600,7 +2606,36 @@ void FPhysicsAssetEditor::OnAssetSelectedFromStaticMeshAssetPicker( const FAsset
 	// Make sure rendering is done - so we are not changing data being used by collision drawing.
 	FlushRenderingCommands();
 
-	if (SharedData->GetSelectedBody())
+	// get select bones
+	TArray<TSharedPtr<ISkeletonTreeItem>> Items = SkeletonTree->GetSelectedItems();
+	FSkeletonTreeSelection Selection(Items);
+	TArray<TSharedPtr<ISkeletonTreeItem>> BoneItems = Selection.GetSelectedItemsByTypeId("FSkeletonTreeBoneItem");
+
+	// gather all the body indices from both the body and bone selection 
+	// make sure to create a body setup if we encounter a bone with no associated body
+	TSet<int32> BodyIndicesToUpdate;
+	if (SharedData->GetSelectedBody() || BoneItems.Num() > 0)
+	{
+		for (int32 SelectedBodyIndex = 0; SelectedBodyIndex < SharedData->SelectedBodies.Num(); ++SelectedBodyIndex)
+		{
+			BodyIndicesToUpdate.Add(SharedData->SelectedBodies[SelectedBodyIndex].Index);
+		}
+
+		for (TSharedPtr<ISkeletonTreeItem> BoneItem : BoneItems)
+		{
+			UBoneProxy* BoneProxy = CastChecked<UBoneProxy>(BoneItem->GetObject());
+			int32 BodyIndex = SharedData->PhysicsAsset->FindBodyIndex(BoneProxy->BoneName);
+			if (BodyIndex == INDEX_NONE)
+			{
+				// no associated body found, let's create one
+				const FPhysAssetCreateParams& NewBodyData = GetDefault<UPhysicsAssetGenerationSettings>()->CreateParams;
+				BodyIndex = FPhysicsAssetUtils::CreateNewBody(SharedData->PhysicsAsset, BoneProxy->BoneName, NewBodyData);
+			}
+			BodyIndicesToUpdate.Add(BodyIndex);
+		}
+	}
+
+	if (BodyIndicesToUpdate.Num() > 0)
 	{
 		UStaticMesh* SM = Cast<UStaticMesh>(AssetData.GetAsset());
 
@@ -2608,9 +2643,9 @@ void FPhysicsAssetEditor::OnAssetSelectedFromStaticMeshAssetPicker( const FAsset
 		{
 			SharedData->PhysicsAsset->Modify();
 
-			for (int32 SelectedBodyIndex = 0; SelectedBodyIndex < SharedData->SelectedBodies.Num(); ++SelectedBodyIndex)
+			for (int32 BodyIndex: BodyIndicesToUpdate)
 			{
-				UBodySetup* BaseSetup = SharedData->PhysicsAsset->SkeletalBodySetups[SharedData->SelectedBodies[SelectedBodyIndex].Index];
+				UBodySetup* BaseSetup = SharedData->PhysicsAsset->SkeletalBodySetups[BodyIndex];
 				BaseSetup->Modify();
 				BaseSetup->AddCollisionFrom(SM->GetBodySetup());
 				BaseSetup->InvalidatePhysicsData();

@@ -213,7 +213,12 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 
 				FTransform ElemTM = GetPrimitiveTransform(BoneTM, i, EAggCollisionShape::Convex, j, Scale);
 
-				//convex doesn't have solid draw so render lines if we're in hitTestAndBodyMode
+				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid)
+				{
+					UMaterialInterface* PrimMaterial = GetPrimitiveMaterial(i, EAggCollisionShape::Sphyl, j);
+					AggGeom->ConvexElems[j].DrawElemSolid(PDI, ElemTM, Scale, PrimMaterial->GetRenderProxy());
+				}
+
 				if (CollisionViewMode == EPhysicsAssetEditorRenderMode::Solid || CollisionViewMode == EPhysicsAssetEditorRenderMode::Wireframe)
 				{
 					AggGeom->ConvexElems[j].DrawElemWire(PDI, ElemTM, Scale, GetPrimitiveColor(i, EAggCollisionShape::Convex, j));
