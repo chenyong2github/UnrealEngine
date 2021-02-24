@@ -842,7 +842,7 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 					{
 						FilteredEvents.AddDefaulted(NumTasks);
 						FilterContexts.AddDefaulted(NumTasks);
-						for(FFilterContext& Context : FilterContexts)
+						for (FFilterContext& Context : FilterContexts)
 						{
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::StartTime), 0.0f);
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::EndTime), 0.0f);
@@ -1039,7 +1039,7 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 				const TCHAR* QueueStr = ENamedThreads::GetQueueIndex(ThreadInfo) == ENamedThreads::MainQueue ? TEXT("Main") : TEXT("Local");
 				InOutTooltip.AddTextLine(FString::Printf(TEXT("%s (%s queue)"), NamedThreadsStr[ThreadIndex], QueueStr), FLinearColor::Green);
 			}
-			
+
 			InOutTooltip.AddNameValueTextLine(TEXT("Created:"), FString::Printf(TEXT("%f on %s"), Task.CreatedTimestamp, *SharedState.GetCpuTrack(Task.CreatedThreadId)->GetName()));
 			InOutTooltip.AddNameValueTextLine(TEXT("Launched:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.LaunchedTimestamp, *TimeUtils::FormatTimeAuto(Task.LaunchedTimestamp - Task.CreatedTimestamp), *SharedState.GetCpuTrack(Task.LaunchedThreadId)->GetName()));
 			InOutTooltip.AddNameValueTextLine(TEXT("Scheduled:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.ScheduledTimestamp, *TimeUtils::FormatTimeAuto(Task.ScheduledTimestamp - Task.LaunchedTimestamp), *SharedState.GetCpuTrack(Task.ScheduledThreadId)->GetName()));

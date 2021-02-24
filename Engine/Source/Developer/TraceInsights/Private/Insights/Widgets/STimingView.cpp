@@ -3650,7 +3650,7 @@ void STimingView::SetEventFilter(const TSharedPtr<ITimingEventFilter> InEventFil
 
 void STimingView::ToggleEventFilterByEventType(const uint64 EventType)
 {
-	if(IsFilterByEventType(EventType))
+	if (IsFilterByEventType(EventType))
 	{
 		SetEventFilter(nullptr); // reset filter
 	}

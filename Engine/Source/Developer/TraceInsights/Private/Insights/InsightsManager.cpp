@@ -579,7 +579,7 @@ void FInsightsManager::LoadTraceFile(const FString& InTraceFilename, bool InAuto
 		CurrentTraceFilename = InTraceFilename;
 		OnSessionChanged();
 	}
-	else if(InAutoQuit)
+	else if (InAutoQuit)
 	{
 		RequestEngineExit(AutoQuitMsgOnFail);
 	}

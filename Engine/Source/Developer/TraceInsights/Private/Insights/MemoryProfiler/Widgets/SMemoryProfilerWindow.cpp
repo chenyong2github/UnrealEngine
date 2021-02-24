@@ -433,7 +433,7 @@ void SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab
 void SMemoryProfilerWindow::CloseMemAllocTableTreeTabs()
 {
 	const TArray<TSharedPtr<Insights::FQueryTargetWindowSpec>>& Targets = this->GetSharedState().GetQueryTargets();
-	while(Targets.Num() > 0)
+	while (Targets.Num() > 0)
 	{
 		FName Name = Targets[0]->GetName();
 		this->GetSharedState().RemoveQueryTarget(Targets[0]);
