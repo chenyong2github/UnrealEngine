@@ -920,31 +920,46 @@ void FWindowsPlatformMisc::RequestExit( bool Force )
 {
 	UE_LOG(LogWindows, Log,  TEXT("FPlatformMisc::RequestExit(%i)"), Force );
 
+	// Legacy behavior that now calls through to RequestExitWithStatus
+	if( Force )
+	{
+		RequestExitWithStatus(Force, GIsCriticalError ? 3 : 0);
+	}
+	else
+	{
+		RequestExitWithStatus(false, 0);
+	}
+}
+
+void FWindowsPlatformMisc::RequestExitWithStatus(bool Force, uint8 ReturnCode)
+{
+	UE_LOG(LogWindows, Log, TEXT("FPlatformMisc::RequestExitWithStatus(%i, %i)"), Force, ReturnCode);
+
 	RequestEngineExit(TEXT("Win RequestExit"));
 	FCoreDelegates::ApplicationWillTerminateDelegate.Broadcast();
 
-	if( Force )
+	if (Force)
 	{
 		// Force immediate exit. In case of an error set the exit code to 3.
 		// Dangerous because config code isn't flushed, global destructors aren't called, etc.
 		// Suppress abort message and MS reports.
 		//_set_abort_behavior( 0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT );
 		//abort();
-	
+
 		// Make sure the log is flushed.
-		if( GLog )
+		if (GLog)
 		{
 			// This may be called from other thread, so set this thread as the master.
 			GLog->SetCurrentThreadAsMasterThread();
 			GLog->TearDown();
 		}
 
-		TerminateProcess(GetCurrentProcess(), GIsCriticalError ? 3 : 0); 
+		TerminateProcess(GetCurrentProcess(), ReturnCode);
 	}
 	else
 	{
 		// Tell the platform specific code we want to exit cleanly from the main loop.
-		PostQuitMessage( 0 );
+		PostQuitMessage(ReturnCode);
 	}
 }
 
