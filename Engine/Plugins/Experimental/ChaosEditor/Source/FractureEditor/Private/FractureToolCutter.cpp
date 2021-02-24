@@ -37,8 +37,6 @@ TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() 
 {
 	TArray<FFractureToolContext> Contexts;
 
-	FRandomStream RandomStream(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed : FMath::Rand());
-
 	// A context is gathered for each selected GeometryCollection component, or for each individual bone if Group Fracture is not used.
 	TSet<UGeometryCollectionComponent*> GeomCompSelection;
 	GetSelectedGeometryCollectionComponents(GeomCompSelection);
@@ -73,7 +71,7 @@ TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() 
 
 			if (CutterSettings->bGroupFracture)
 			{
-				FullSelection.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed : FMath::Rand());
+				FullSelection.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed : DefaultRandomSeed);
 
 				FBox Bounds(ForceInit);
 				for (int32 BoneIndex : FullSelection.GetSelection())
@@ -95,7 +93,7 @@ TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() 
 					Contexts.Emplace(GeometryCollectionComponent);
 					FFractureToolContext& FractureContext = Contexts.Last();
 
-					FractureContext.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed + Index : FMath::Rand());
+					FractureContext.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed + Index : DefaultRandomSeed + Index);
 					FractureContext.SetBounds(BoundsToBone[Index]);
 				}
 			}
@@ -104,6 +102,14 @@ TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() 
 
 	return Contexts;
 }
+
+
+void UFractureToolCutterBase::UpdateDefaultRandomSeed()
+{
+	DefaultRandomSeed = FMath::Rand();
+}
+
+
 
 UFractureToolVoronoiCutterBase::UFractureToolVoronoiCutterBase(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -136,11 +142,12 @@ void UFractureToolVoronoiCutterBase::Render(const FSceneView* View, FViewport* V
 
 void UFractureToolVoronoiCutterBase::FractureContextChanged()
 {
+	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
 	VoronoiSites.Empty();
 	CellMember.Empty();
-	VoronoiEdges.Empty();;
+	VoronoiEdges.Empty();
 
 	for (FFractureToolContext& FractureContext : FractureContexts)
 	{

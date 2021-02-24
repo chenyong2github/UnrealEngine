@@ -57,6 +57,7 @@ TArray<UObject*> UFractureToolResample::GetSettingsObjects() const
 
 void UFractureToolResample::FractureContextChanged()
 {
+	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
 	GeneratedPoints.Reset();
@@ -78,8 +79,16 @@ void UFractureToolResample::FractureContextChanged()
 			FTransform CombinedTransform = InnerTransform * OuterTransform;
 			int32 GeometryIdx = Collection.TransformToGeometryIndex[TransformIdx];
 			int32 VertStart = Collection.VertexStart[GeometryIdx];
-			int32 VertCount = Collection.VertexCount[GeometryIdx];
-			for (int32 VIdx = VertStart; VIdx < VertStart + VertCount; VIdx++)
+			int32 VertEnd = VertStart + Collection.VertexCount[GeometryIdx];
+			int32 FaceStart = Collection.FaceStart[GeometryIdx];
+			int32 FaceEnd = FaceStart + Collection.FaceCount[GeometryIdx];
+			// only show off-vertex samples; skip over the samples that are on faces
+			for (int32 FIdx = FaceStart; FIdx < FaceEnd; FIdx++)
+			{
+				FIntVector Face = Collection.Indices[FIdx];
+				VertStart = FMath::Max(VertStart, Face.GetMax() + 1);
+			}
+			for (int32 VIdx = VertStart; VIdx < VertEnd; VIdx++)
 			{
 				GeneratedPoints.Add(CombinedTransform.TransformPosition(Collection.Vertex[VIdx]));
 			}

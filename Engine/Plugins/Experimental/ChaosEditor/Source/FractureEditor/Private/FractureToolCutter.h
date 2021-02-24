@@ -102,12 +102,22 @@ public:
 
 	virtual TArray<FFractureToolContext> GetFractureToolContexts() const override;
 
+	virtual void FractureContextChanged() override
+	{
+		UpdateDefaultRandomSeed();
+	}
+
 protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureCutterSettings> CutterSettings;
 
 	UPROPERTY(EditAnywhere, Category = Collision)
 	TObjectPtr<UFractureCollisionSettings> CollisionSettings;
+
+	/// Manage which seed to use when no specific random seed is specified, to control when the seed changes
+	/// (primarily to avoid the seed changing between creating the preview and doing the actual cut)
+	void UpdateDefaultRandomSeed();
+	int32 DefaultRandomSeed = 0;
 
 };
 

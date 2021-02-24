@@ -245,6 +245,7 @@ void UFractureToolBrick::PostEditChangeChainProperty(struct FPropertyChangedChai
 
 void UFractureToolBrick::FractureContextChanged()
 {
+	UpdateDefaultRandomSeed();
 	UpdateBrickTransforms();
 }
 

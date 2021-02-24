@@ -126,6 +126,7 @@ void UFractureToolSlice::Render(const FSceneView* View, FViewport* Viewport, FPr
 
 void UFractureToolSlice::FractureContextChanged()
 {
+	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
 	RenderCuttingPlanesTransforms.Empty();
