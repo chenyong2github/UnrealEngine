@@ -18,6 +18,18 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSyncServer, Log, All);
 
+
+void ConcertLogCommandLineArguments( int ArgC, TCHAR** ArgV )
+{
+	FString CmdLine;
+	for ( int i = 0 ; i < ArgC; i ++ )
+	{
+		CmdLine += " ";
+		CmdLine += ArgV[i];
+	}
+	UE_LOG( LogSyncServer, Display, TEXT( "Launch : %s" ), *CmdLine );
+}
+
 int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLoopInitArgs& InitArgs)
 {
 	// Validate the init settings
@@ -34,6 +46,7 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 	if (InitArgs.bShowConsole)
 	{
 		GLogConsole->Show(true);
+		ConcertLogCommandLineArguments( ArgC, ArgV );
 	}
 
 	FModuleManager::Get().StartProcessingNewlyLoadedObjects();

@@ -1,37 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ConcertSettings.h"
-#include "ConcertSyncServerLoop.h"
 
+#include "UnrealMultiUserServerRun.h"
 #include "RequiredProgramMainCPPInclude.h"
 
 IMPLEMENT_APPLICATION(UnrealMultiUserServer, "UnrealMultiUserServer");
-
-int32 RunUnrealMultiUserServer(int ArgC, TCHAR* ArgV[])
-{
-	FString Role(TEXT("MultiUser"));
-	FConcertSyncServerLoopInitArgs ServerLoopInitArgs;
-	ServerLoopInitArgs.SessionFlags = EConcertSyncSessionFlags::Default_MultiUserSession;
-	ServerLoopInitArgs.ServiceRole = Role;
-	ServerLoopInitArgs.ServiceFriendlyName = TEXT("Multi-User Editing Server");
-
-	ServerLoopInitArgs.GetServerConfigFunc = [Role]() -> const UConcertServerConfig*
-	{
-		UConcertServerConfig* ServerConfig = IConcertSyncServerModule::Get().ParseServerSettings(FCommandLine::Get());
-		if (ServerConfig->WorkingDir.IsEmpty())
-		{
-			ServerConfig->WorkingDir = FPaths::ProjectIntermediateDir() / Role;
-		}
-		if (ServerConfig->ArchiveDir.IsEmpty())
-		{
-			ServerConfig->ArchiveDir = FPaths::ProjectSavedDir() / Role;
-		}
-		return ServerConfig;
-	};
-
-	return ConcertSyncServerLoop(ArgC, ArgV, ServerLoopInitArgs);
-}
-
 
 #if PLATFORM_MAC // On Mac, to get a properly logging console that play nice, we need to build a mac application (.app) rather than a console application.
 
