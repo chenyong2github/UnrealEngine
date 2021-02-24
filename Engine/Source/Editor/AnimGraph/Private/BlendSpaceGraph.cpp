@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlendSpaceGraph.h"
+#include "EdGraph/EdGraphSchema.h"
 
 void UBlendSpaceGraph::PostLoad()
 {
