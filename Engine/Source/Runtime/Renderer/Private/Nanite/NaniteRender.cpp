@@ -1760,7 +1760,7 @@ void FNaniteMeshProcessor::AddMeshBatch(
 	while (FallbackMaterialRenderProxyPtr)
 	{
 		const FMaterial* Material = FallbackMaterialRenderProxyPtr->GetMaterialNoFallback(FeatureLevel);
-		if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *FallbackMaterialRenderProxyPtr, *Material))
+		if (Material && TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, StaticMeshId, *FallbackMaterialRenderProxyPtr, *Material))
 		{
 			break;
 		}
