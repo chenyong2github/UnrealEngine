@@ -67,8 +67,6 @@ protected:
 		PreDrag,
 		/** The user is dragging the selected sample. */
 		DragSample,
-		/** The user is dragging the preview pin */
-		DragPreview,
 		/** The user is setting the preview value */
 		Preview,
 		/** The user is dropping a new sample onto the grid */
@@ -318,8 +316,11 @@ private:
 
 	/** Sample drawing data */
 	FVector2D KeySize;
+	FVector2D PreviewSize;
 	const FSlateBrush* KeyBrush;
+	const FSlateBrush* PreviewBrush;
 	const FSlateBrush* BackgroundImage;
+	const FSlateBrush* LabelBrush;
 	enum class EArrowDirection : uint8 
 	{
 		Left, 
@@ -345,6 +346,7 @@ private:
 	FMargin GridMargin;
 	FLinearColor GridLinesColor;
 	FLinearColor GridOutlineColor;
+	FSlateColor TriangulationColor;
 	FSlateFontInfo FontInfo;
 	float TextMargin;
 	bool bShowTriangulation;
