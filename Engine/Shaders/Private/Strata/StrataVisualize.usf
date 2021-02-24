@@ -58,7 +58,12 @@ float3 DrawPlot(
 			LocalV = normalize(LocalV);
 		}
 
-		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(Header, BSDF, StrataAddressing, LocalV, L, true);
+		float3x3 TangentBasis;
+		TangentBasis[0] = float3(1, 0, 0);
+		TangentBasis[1] = float3(0, 1, 0);
+		TangentBasis[2] = float3(0, 0, 1);
+
+		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, LocalV, L, true);
 		FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext);
 		Out = (BSDFEvaluate.DiffusePathValue + BSDFEvaluate.SpecularPathValue + BSDFEvaluate.TransmissionPathValue) * BSDFContext.SatNoL; // * BSDF.Weight
 	}

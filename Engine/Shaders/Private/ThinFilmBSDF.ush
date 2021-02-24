@@ -99,7 +99,7 @@ void ComputeComplexIORFromF0AndEdgeTint(in float3 Reflectivity, in float3 EdgeTi
 
 // Fresnel term for iridescent microfacet BRDF model 
 // This is a reference implementation adapted from the original paper's source code
-float3 F_ThinFilmRef(float NoL, float NoV, float VoH, float3 F0, float3 F90, float ThinFilmIOR, float ThinFilmTickness)
+float3 F_ThinFilmRef(float NoV, float NoL, float VoH, float3 F0, float3 F90, float ThinFilmIOR, float ThinFilmTickness)
 {
 	// Translate F0/F90 to eta/kappa form
 	float3 n3 = 1;
@@ -132,7 +132,7 @@ float3 F_ThinFilmRef(float NoL, float NoV, float VoH, float3 F0, float3 F90, flo
 	const float eta_2 = lerp(1.0, eta2, smoothstep(0.0, 0.03, Dinc));
 
 	// Compute dot products
-	const bool bIsValid = !(NoL < 0 || NoV < 0);
+	const bool bIsValid = NoL > 0 && NoV > 0;
 
 	float3 I = 0;
 	if (bIsValid)
@@ -186,7 +186,7 @@ float3 F_ThinFilmRef(float NoL, float NoV, float VoH, float3 F0, float3 F90, flo
 // Fresnel term for iridescent microfacet BRDF model 
 // Simplified version which relies on Schlick's Fresnel and de facto does not take into 
 // account Fresnel phase shift & polarization.
-float3 F_ThinFilm(float NoL, float NoV, float VoH, float3 F0, float3 F90, float ThinFilmIOR, float ThinFilmTickness)
+float3 F_ThinFilm(float NoV, float NoL, float VoH, float3 F0, float3 F90, float ThinFilmIOR, float ThinFilmTickness)
 {
 	// Thin film is limited (for now) to the top most layer (i.e., the upper layer need to be air)
 	//					|
@@ -203,7 +203,7 @@ float3 F_ThinFilm(float NoL, float NoV, float VoH, float3 F0, float3 F90, float 
 	const float eta2 = lerp(1.0, ThinFilmIOR, smoothstep(0.0, 0.03, Dinc));
 
 	// Compute dot products
-	const bool bIsValid = !(NoL < 0 || NoV < 0);
+	const bool bIsValid = NoL > 0 && NoV > 0;
 
 	float3 I = 0;
 	if (bIsValid)

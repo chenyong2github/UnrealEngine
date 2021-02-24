@@ -179,7 +179,7 @@ void MainPS(
 
 				const float SatNoL = saturate(dot(L, N));
 
-				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L);
+				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L, true);
 				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
 
 				const float3 DiffusePathWeight  = BSDF.Weight * BSDFEvaluate.DiffusePathValue;
@@ -196,8 +196,8 @@ void MainPS(
 			{
 				const float2 U = Hammersley(SampleIt, NumSamples, 0);
 
-				const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
-				FStrataBSDFContext BSDFContextIS = StrataCreateBSDFContext(TangentBasis, BSDF, V, UnusedL);
+				const float3 UnusedL = float3(0, 0, 1);
+				FStrataBSDFContext BSDFContextIS = StrataCreateBSDFContext(TangentBasis, BSDF, V, UnusedL, false);
 				FStrataImportanceSampleResult S = StrataImportanceSampleBSDF(BSDFContextIS, BSDF, U);
 
 				// Evaluate specular part for now. 
@@ -208,7 +208,7 @@ void MainPS(
 				//const float PDF = S.DiffusePDF;
 
 				const float SatNoL = saturate(dot(L, N));
-				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L);
+				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, L, true);
 				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, ShadowTerms);
 
 				const float3 DiffusePathWeight  = BSDF.Weight * BSDFEvaluate.DiffusePathValue;
@@ -223,9 +223,9 @@ void MainPS(
 		{
 			const float3 BSDFThroughput = BSDF.Weight;
 
-			const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
+			const float3 UnusedL = float3(0, 0, 1);
 			const float3x3 TangentBasis = GetTangentBasis(N);
-			FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, UnusedL);
+			FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, UnusedL, false);
 
 			const bool bEnableSpecular = true;
 			FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(BSDFContext, bEnableSpecular);

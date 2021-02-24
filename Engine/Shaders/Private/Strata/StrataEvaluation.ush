@@ -95,26 +95,18 @@ void StrataGetBSDFRoughness(in FStrataBSDF BSDF, inout float R)
 	}
 }
 
-FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BSDF, float3 V, float3 L, bool bOverrideWithLocalFrame = false)
+FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BSDF, float3 V, float3 L, bool bHasValidL=true)
 {
 	FStrataBSDFContext BSDFContext = (FStrataBSDFContext)0;
 
 	BSDFContext.BSDF = BSDF;
 
-	BSDFContext.V = V;
-	BSDFContext.L = L;
-
 	BSDFContext.X = TangentBasis[0]; 
 	BSDFContext.Y = TangentBasis[1];
 	BSDFContext.N = TangentBasis[2]; 
-	if (bOverrideWithLocalFrame)
-	{
-		BSDFContext.X = float3(1,0,0);
-		BSDFContext.Y = float3(0,1,0);
-		BSDFContext.N = float3(0,0,1);
-	}
-
+	BSDFContext.V = V;
 	BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
+	BSDFContext.L = bHasValidL ? L : BSDFContext.R;
 	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.L);
 
 	BSDFContext.Context = (BxDFContext)0;
@@ -137,18 +129,29 @@ FStrataBSDFContext StrataCreateBSDFContext(float3x3 TangentBasis, FStrataBSDF BS
 	return BSDFContext;
 }
 
-FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, const FStrataAddressing StrataAddressing, float3 V, float3 L, bool bOverrideWithLocalFrame = false)
+FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, const FStrataAddressing StrataAddressing, float3 V)
+{
+	float3 UnusedL = float3(0, 0, 1);
+	float3x3 TangentBasis = StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF, StrataAddressing);
+	return StrataCreateBSDFContext(TangentBasis, BSDF, V, UnusedL, false);
+}
+
+FStrataBSDFContext StrataCreateBSDFContext(FStrataPixelHeader StrataPixelHeader, FStrataBSDF BSDF, const FStrataAddressing StrataAddressing, float3 V, float3 L)
 {
 	float3x3 TangentBasis = StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF, StrataAddressing);
-	return StrataCreateBSDFContext(TangentBasis, BSDF, V, L, bOverrideWithLocalFrame);
+	return StrataCreateBSDFContext(TangentBasis, BSDF, V, L, true);
 }
 
 void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
 {
 	// Update all the data related to L
-	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, NewL);
+	BSDFContext.L = NewL;
+	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, BSDFContext.L);
 	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.L);
+	BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
 	BSDFContext.TangentH = mul(BSDFContext.H, BSDFContext.TangentBasis);
+	BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
+	BSDFContext.SatNoV = saturate(BSDFContext.Context.NoV);
 }
 
 struct FStrataEvaluateResult
@@ -532,9 +535,8 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataPixelHeader Stra
 	FStrataImportanceSampleResult Sample = (FStrataImportanceSampleResult)0;
 
 	// Create a context from the information we have
-	const float3 UnusedL = float3(0.0f, 0.0f, 1.0f);
 	const float3 V = -CameraVector;
-	FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V, UnusedL);
+	FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
 	return StrataImportanceSampleBSDF(BSDFContext, BSDF, E);
 }
 
