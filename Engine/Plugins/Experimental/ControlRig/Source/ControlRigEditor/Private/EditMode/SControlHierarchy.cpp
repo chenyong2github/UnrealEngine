@@ -362,7 +362,7 @@ void SControlHierarchy::AddElement(FRigBaseElement* InElement)
 	FRigElementKey ParentKey = Hierarchy->GetFirstParent(InElement->GetKey());
 	while(ParentKey.IsValid() && ParentKey.Type != ERigElementType::Control)
 	{
-		ParentKey = Hierarchy->GetFirstParent(InElement->GetKey());
+		ParentKey = Hierarchy->GetFirstParent(ParentKey);
 	}
 	AddElement(InElement->GetKey(), ParentKey);
 }
