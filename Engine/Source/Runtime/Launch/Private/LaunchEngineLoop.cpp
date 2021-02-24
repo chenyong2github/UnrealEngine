@@ -3520,7 +3520,15 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			CycleCount_AfterStats.StopAndResetStatId();
 #endif // STATS
 			FStats::TickCommandletStats();
+
+#if WITH_ENGINE
+			PRIVATE_GRunningCommandletClass = CommandletClass;
+#endif
 			int32 ErrorLevel = Commandlet->Main( CommandletCommandLine );
+#if WITH_ENGINE
+			PRIVATE_GRunningCommandletClass = nullptr;
+#endif
+
 			FStats::TickCommandletStats();
 
 			RequestEngineExit(FString::Printf(TEXT("Commandlet %s finished execution (result %d)"), *Commandlet->GetName(), ErrorLevel));

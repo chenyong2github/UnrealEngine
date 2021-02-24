@@ -152,6 +152,7 @@ extern CORE_API bool GIsRunningUnattendedScript;
 
 #if WITH_ENGINE
 extern CORE_API bool PRIVATE_GIsRunningCommandlet;
+extern CORE_API UClass* PRIVATE_GRunningCommandletClass;
 
 /** If true, initialize RHI and set up scene for rendering even when running a commandlet. */
 extern CORE_API bool PRIVATE_GAllowCommandletRendering;
@@ -220,6 +221,18 @@ FORCEINLINE bool IsRunningCookCommandlet()
 	return PRIVATE_GIsRunningCookCommandlet;
 #else
 	return false;
+#endif
+}
+
+/** Returns running commandlet name 
+ * 
+ */
+FORCEINLINE UClass* GetRunningCommandletClass()
+{
+#if WITH_ENGINE
+	return PRIVATE_GRunningCommandletClass;
+#else
+	return nullptr;
 #endif
 }
 
