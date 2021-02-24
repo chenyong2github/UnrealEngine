@@ -101,13 +101,14 @@ void GetPrecomputedLightingParameters(
 			const FLightmapResourceCluster* ResourceCluster = LCI->GetResourceCluster();
 			check(ResourceCluster);
 			IAllocatedVirtualTexture* AllocatedVT = ResourceCluster->AcquireAllocatedVT();
-			check(AllocatedVT);
-
-			AllocatedVT->GetPackedPageTableUniform(&Parameters.LightmapVTPackedPageTableUniform[0]);
-			NumLightmapVTLayers = AllocatedVT->GetNumTextureLayers();
-			for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
+			if (AllocatedVT)
 			{
-				AllocatedVT->GetPackedUniform(&Parameters.LightmapVTPackedUniform[LayerIndex], LayerIndex);
+				AllocatedVT->GetPackedPageTableUniform(&Parameters.LightmapVTPackedPageTableUniform[0]);
+				NumLightmapVTLayers = AllocatedVT->GetNumTextureLayers();
+				for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
+				{
+					AllocatedVT->GetPackedUniform(&Parameters.LightmapVTPackedUniform[LayerIndex], LayerIndex);
+				}
 			}
 		}
 		else

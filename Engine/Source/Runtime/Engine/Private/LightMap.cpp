@@ -3464,6 +3464,15 @@ IAllocatedVirtualTexture* FLightmapResourceCluster::AcquireAllocatedVT() const
 	int32 LightmapIndex = bHighQuality ? 0 : 1;
 
 	const ULightMapVirtualTexture2D* VirtualTexture = Input.LightMapVirtualTextures[LightmapIndex];
+	
+#if WITH_EDITOR
+	// Compilation is still pending, this function will be called back once compilation finishes.
+	if (VirtualTexture->IsCompiling())
+	{
+		return nullptr;
+	}
+#endif
+
 	if (!AllocatedVT && VirtualTexture && VirtualTexture->Resource)
 	{
 		check(VirtualTexture->VirtualTextureStreaming);

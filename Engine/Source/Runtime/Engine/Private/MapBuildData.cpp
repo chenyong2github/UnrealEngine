@@ -25,6 +25,10 @@ MapBuildData.cpp
 #include "Components/ReflectionCaptureComponent.h"
 #include "Interfaces/ITargetPlatform.h"
 #if WITH_EDITOR
+#include "LandscapeComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "VT/LightmapVirtualTexture.h"
+#include "AssetCompilingManager.h"
 #include "Factories/TextureFactory.h"
 #endif
 #include "Engine/TextureCube.h"
@@ -361,7 +365,81 @@ UMapBuildDataRegistry::UMapBuildDataRegistry(const FObjectInitializer& ObjectIni
 {
 	LevelLightingQuality = Quality_MAX;
 	bSetupResourceClusters = false;
+
+#if WITH_EDITOR
+	FAssetCompilingManager::Get().OnAssetPostCompileEvent().AddUObject(this, &ThisClass::HandleAssetPostCompileEvent);
+#endif
 }
+
+#if WITH_EDITOR
+void UMapBuildDataRegistry::HandleAssetPostCompileEvent(const TArray<FAssetCompileData>& CompiledAssets)
+{
+	TSet<FLightmapResourceCluster*> ClustersToUpdate;
+	for (const FAssetCompileData& CompileData : CompiledAssets)
+	{
+		if (ULightMapVirtualTexture2D* LightMapVirtualTexture2D = Cast<ULightMapVirtualTexture2D>(CompileData.Asset.Get()))
+		{
+			// If our lightmap clusters are affected by the virtual textures that just finished compiling, 
+			// we need to update their uniform buffer.
+			for (FLightmapResourceCluster& Cluster : LightmapResourceClusters)
+			{
+				if (Cluster.Input.LightMapVirtualTextures[0] == LightMapVirtualTexture2D ||
+					Cluster.Input.LightMapVirtualTextures[1] == LightMapVirtualTexture2D)
+				{
+					ClustersToUpdate.Add(&Cluster);
+				}
+			}
+		}
+	}
+
+	if (ClustersToUpdate.Num())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UMapBuildDataRegistry::HandleAssetPostCompileEvent);
+
+		for (FLightmapResourceCluster* Cluster : ClustersToUpdate)
+		{
+			ENQUEUE_RENDER_COMMAND(UpdateClusterUniformBuffer)(
+				[Cluster](FRHICommandList& RHICmdList)
+				{
+					Cluster->UpdateUniformBuffer_RenderThread();
+				});
+		}
+
+		for (TObjectIterator<ULandscapeComponent> It; It; ++It)
+		{
+			if (It->IsRenderStateCreated() && It->SceneProxy != nullptr)
+			{
+				if (FMeshMapBuildData* BuildData = MeshBuildData.Find(It->MapBuildDataId))
+				{
+					if (ClustersToUpdate.Contains(BuildData->ResourceCluster))
+					{
+						It->MarkRenderStateDirty();
+					}
+				}
+			}
+		}
+
+		for (TObjectIterator<UStaticMeshComponent> It; It; ++It)
+		{
+			if (It->IsRenderStateCreated() && It->SceneProxy != nullptr)
+			{
+				for (const FStaticMeshComponentLODInfo& LODInfo : It->LODData)
+				{
+					if (FMeshMapBuildData* BuildData = MeshBuildData.Find(LODInfo.MapBuildDataId))
+					{
+						if (ClustersToUpdate.Contains(BuildData->ResourceCluster))
+						{
+							It->MarkRenderStateDirty();
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
+#endif // #if WITH_EDITOR
 
 void UMapBuildDataRegistry::Serialize(FArchive& Ar)
 {

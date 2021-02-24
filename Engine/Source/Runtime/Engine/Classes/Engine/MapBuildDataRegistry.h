@@ -20,6 +20,7 @@
 
 class FPrecomputedLightVolumeData;
 class FPrecomputedVolumetricLightmapData;
+struct FAssetCompileData;
 
 struct ENGINE_API FPerInstanceLightmapData
 {
@@ -376,6 +377,9 @@ public:
 	*/
 	ENGINE_API void HandleLegacyEncodedCubemapData();
 private:
+#if WITH_EDITOR
+	void HandleAssetPostCompileEvent(const TArray<FAssetCompileData>& CompiledAssets);
+#endif
 
 	ENGINE_API void ReleaseResources(const TSet<FGuid>* ResourcesToKeep = nullptr);
 	ENGINE_API void EmptyLevelData(const TSet<FGuid>* ResourcesToKeep = nullptr);
