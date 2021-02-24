@@ -116,8 +116,8 @@ namespace LowLevelTasks
 		FORCENOINLINE void TrySleeping(FSleepEvent* WorkerEvent, FQueueRegistry::FOutOfWork& OutOfWork, bool& Drowsing, bool bBackgroundWorker);
 		inline bool WakeUpWorker(bool bBackgroundWorker);
 
-		template<FTask* (FLocalQueueType::*DequeueFunction)(bool)>
-		static bool TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork);
+		template<FTask* (FLocalQueueType::*DequeueFunction)(bool), bool bIsBusyWaiting>
+		bool TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork);
 
 	private:
 		FEventQueueType 			SleepEventQueue[2];

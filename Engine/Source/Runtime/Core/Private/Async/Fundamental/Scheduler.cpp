@@ -185,21 +185,30 @@ namespace LowLevelTasks
 		return WorkerType != EWorkerType::None && ActiveScheduler == this;
 	}
 
-	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)(bool)>
+	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)(bool), bool bIsBusyWaiting>
 	bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork)
 	{
-		FTask* Task = (Queue->*DequeueFunction)(bPermitBackgroundWork);
-		if (Task)
-		{	
-			OutOfWork.Stop();		
-			FTask* OldTask = ActiveTask;
-			ActiveTask = Task;
-			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
-				Task->ExecuteTask();
+		for(int i = 0; i < 2; i++) // one retry if we pick up a task that cannot used during busy waiting.
+		{
+			FTask* Task = (Queue->*DequeueFunction)(bPermitBackgroundWork);
+			if (Task)
+			{	
+				if (bIsBusyWaiting && !Task->AllowBusyWaiting())
+				{
+					QueueRegistry.Enqueue(Task, uint32(Task->GetPriority()));
+					continue;
+				}
+				OutOfWork.Stop();		
+				FTask* OldTask = ActiveTask;
+				ActiveTask = Task;
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(ExecuteTask);
+					Task->ExecuteTask();
+				}
+				ActiveTask = OldTask;
+				return true;
 			}
-			ActiveTask = OldTask;
-			return true;
+			return false;
 		}
 		return false;
 	}
@@ -228,15 +237,15 @@ namespace LowLevelTasks
 		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope(bPermitBackgroundWork);
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
 			{		
 				Drowsing = false;
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal, false>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
 			{
 				Drowsing = false;
 				WaitCount = 0;
@@ -286,8 +295,8 @@ namespace LowLevelTasks
 		FQueueRegistry::FOutOfWork OutOfWork = QueueRegistry.GetOutOfWorkScope(bIsBackgroundWorker);
 		while (true)
 		{
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueGlobal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
 			{
 				if (Conditional())
 				{
@@ -296,8 +305,8 @@ namespace LowLevelTasks
 				WaitCount = 0;
 			}
 
-			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
-			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
+			while(TryExecuteTaskFrom<&FLocalQueueType::DequeueLocal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork)
+			   || TryExecuteTaskFrom<&FLocalQueueType::DequeueSteal, true>(WorkerLocalQueue, OutOfWork, bPermitBackgroundWork))
 			{
 				if (Conditional())
 				{
