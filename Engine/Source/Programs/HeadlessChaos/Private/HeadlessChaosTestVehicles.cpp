@@ -700,16 +700,17 @@ namespace ChaosTest
 
 	// Wheel
 	void SimulateBraking(FSimpleWheelSim& Wheel
-		, float VehicleSpeedMPH
+		, const float Gravity
+		, float VehicleSpeed
 		, float DeltaTime
 		, float& StoppingDistanceOut
 		, float& SimulationTimeOut
+		, bool bLoggingEnabled = false
 		)
 	{
 		StoppingDistanceOut = 0.f;
 		SimulationTimeOut = 0.f;
 		
-		const float Gravity = 9.8f;
 		float MaxSimTime = 15.0f;
 		float VehicleMass = 1300.f;
 		float VehicleMassPerWheel = 1300.f / 4.f;
@@ -718,10 +719,15 @@ namespace ChaosTest
 		Wheel.SetMassPerWheel(VehicleMassPerWheel);
 
 		// Road speed
-		FVector Velocity = FVector(MPHToMS(VehicleSpeedMPH), 0.f, 0.f);
+		FVector Velocity = FVector(VehicleSpeed, 0.f, 0.f);
 
 		// wheel rolling speed matches road speed
 		Wheel.SetMatchingSpeed(Velocity.X);
+
+		if (bLoggingEnabled)
+		{
+			UE_LOG(LogChaos, Warning, TEXT("--------------------START---------------------"));
+		}
 
 		while (SimulationTimeOut < MaxSimTime)
 		{
@@ -733,7 +739,11 @@ namespace ChaosTest
 			Velocity += DeltaTime * Wheel.GetForceFromFriction() / VehicleMassPerWheel;
 			StoppingDistanceOut += Velocity.X * DeltaTime;
 
-			// #todo: make this better remove the 2.0f
+			if (bLoggingEnabled)
+			{
+				UE_LOG(LogChaos, Warning, TEXT("Wheel.GetForceFromFriction() %s"), *Wheel.GetForceFromFriction().ToString());
+			}
+
 			if (FMath::Abs(Velocity.X) < 0.05f)
 			{
 				Velocity.X = 0.f;
@@ -742,11 +752,18 @@ namespace ChaosTest
 
 			SimulationTimeOut += DeltaTime;
 		}
+
+		if (bLoggingEnabled)
+		{
+			UE_LOG(LogChaos, Warning, TEXT("---------------------END----------------------"));
+		}
+
+
 	}
 
 	void SimulateAccelerating(FSimpleWheelSim& Wheel
 		, const float Gravity
-		, float FinalVehicleSpeedMPH
+		, float FinalVehicleSpeed
 		, float DeltaTime
 		, float& DistanceTravelledOut
 		, float& SimulationTimeOut
@@ -778,7 +795,7 @@ namespace ChaosTest
 
 			SimulationTimeOut += DeltaTime;
 
-			if (FMath::Abs(Velocity.X) >= MPHToMS(FinalVehicleSpeedMPH))
+			if (FMath::Abs(Velocity.X) >= FinalVehicleSpeed)
 			{
 				break; // time is up
 			}
@@ -793,7 +810,7 @@ namespace ChaosTest
 		Setup.TractionControlEnabled = false;
 		Setup.BrakeEnabled = true;
 		Setup.EngineEnabled = true;
-		Setup.WheelRadius = 30.0f;
+		Setup.WheelRadius = 0.3f;
 		Setup.LongitudinalFrictionMultiplier = 1.0f;
 		Setup.LateralFrictionMultiplier = 1.0f;
 		Setup.SideSlipModifier = 0.7f;
@@ -804,7 +821,9 @@ namespace ChaosTest
 		// So using a range 10-20 to ensure we are in the correct ballpark.
 		// If specified more accurately in the test, then modifying the code would break the test all the time.
 
-		float StoppingDistanceTolerance = 0.5f; // meters
+		// units meters
+		float Gravity = 9.8f;
+		float StoppingDistanceTolerance = 0.5f;
 		float DeltaTime = 1.f / 30.f;
 		float StoppingDistanceA = 0.f;
 		float SimulationTime = 0.0f;
@@ -812,71 +831,70 @@ namespace ChaosTest
 
 		// reasonably ideal stopping distance - traveling forwards
 		Wheel.SetBrakeTorque(650);
-		float VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceA, SimulationTime);
-		//UE_LOG(LogChaos, Warning, TEXT("Braking Distance %3.2fm"), StoppingDistanceB);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceA, SimulationTime);
 		EXPECT_GT(StoppingDistanceA, 10.f);
 		EXPECT_LT(StoppingDistanceA, 20.f);
 
+		// Changing to units of Cm should yield the same results
+		float MToCm = 100.0f;
+		float StoppingDistanceCm = 0.f;
+		Wheel.SetBrakeTorque(650 * MToCm * MToCm);
+		Wheel.SetWheelRadius(0.3f * MToCm);
+		SimulateBraking(Wheel, Gravity * MToCm, MPHToCmS(30.f), DeltaTime, StoppingDistanceCm, SimulationTime);
+		EXPECT_NEAR(StoppingDistanceCm, StoppingDistanceA * MToCm, StoppingDistanceTolerance * MToCm);
+
 		// traveling backwards stops just the same
 		float StoppingDistanceReverseDir = 0.f;
+		Wheel.SetWheelRadius(0.3f);
 		Wheel.SetBrakeTorque(650);
-		VehicleSpeedMPH = -30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceReverseDir, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(-30.f), DeltaTime, StoppingDistanceReverseDir, SimulationTime);
 		EXPECT_GT(StoppingDistanceReverseDir, -20.f);
 		EXPECT_LT(StoppingDistanceReverseDir, -10.f);
 		EXPECT_LT(StoppingDistanceA - FMath::Abs(StoppingDistanceReverseDir), StoppingDistanceTolerance);
 
 		// Similar results with different delta time
 		float StoppingDistanceDiffDT = 0.f;
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime * 0.25f, StoppingDistanceDiffDT, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime * 0.25f, StoppingDistanceDiffDT, SimulationTime);
 		EXPECT_LT(StoppingDistanceA - StoppingDistanceDiffDT, StoppingDistanceTolerance);
 
 		// barely touching the brake - going to take longer to stop
 		float StoppingDistanceLightBraking = 0.f;
 		Wheel.SetBrakeTorque(150);
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLightBraking, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceLightBraking, SimulationTime);
 		EXPECT_GT(StoppingDistanceLightBraking, StoppingDistanceA);
 
 		// locking the wheels / too much brake torque -> dynamic friction rather than static friction -> going to take longer to stop
 		float StoppingDistanceTooHeavyBreaking = 0.f;
 		Wheel.SetBrakeTorque(5000);
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceTooHeavyBreaking, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceTooHeavyBreaking, SimulationTime);
 		EXPECT_GT(StoppingDistanceTooHeavyBreaking, StoppingDistanceA);
 
 		// Would have locked the wheels but ABS prevents skidding
 		Wheel.AccessSetup().ABSEnabled = true;
 		float StoppingDistanceTooHeavyBreakingABS = 0.f;
 		Wheel.SetBrakeTorque(5000);
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceTooHeavyBreakingABS, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceTooHeavyBreakingABS, SimulationTime);
 		EXPECT_LT(StoppingDistanceTooHeavyBreakingABS, StoppingDistanceTooHeavyBreaking);
 		Wheel.AccessSetup().ABSEnabled = false;
 
 		// lower initial speed - stops more quickly
 		float StoppingDistanceLowerSpeed = 0.f;
 		Wheel.SetBrakeTorque(650);
-		VehicleSpeedMPH = 20.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLowerSpeed, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(20.f), DeltaTime, StoppingDistanceLowerSpeed, SimulationTime);
 		EXPECT_LT(StoppingDistanceLowerSpeed, StoppingDistanceA);
 
 		// higher initial speed - stops more slowly
 		float StoppingDistanceHigherSpeed = 0.f;
 		Wheel.SetBrakeTorque(650);
-		VehicleSpeedMPH = 60.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceHigherSpeed, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(60.f), DeltaTime, StoppingDistanceHigherSpeed, SimulationTime);
 		EXPECT_GT(StoppingDistanceHigherSpeed, StoppingDistanceA);
 
 		// slippy surface - stops more slowly
 		float StoppingDistanceLowFriction = 0.f;
 		Wheel.SetSurfaceFriction(0.3f);
 		Wheel.SetBrakeTorque(650);
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLowFriction, SimulationTime);
-		EXPECT_GT(StoppingDistanceLowFriction, StoppingDistanceA);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceLowFriction, SimulationTime);
+		EXPECT_GT(StoppingDistanceLowFriction, StoppingDistanceA);		
 	}
 
 	TYPED_TEST(AllTraits, VehicleTest_WheelAcceleratingLongitudinalSlip)
@@ -886,7 +904,7 @@ namespace ChaosTest
 		Setup.TractionControlEnabled = false;
 		Setup.BrakeEnabled = true;
 		Setup.EngineEnabled = true;
-		Setup.WheelRadius = 30.0f;
+		Setup.WheelRadius = 0.3f;
 		Setup.LongitudinalFrictionMultiplier = 1.0f;
 		Setup.LateralFrictionMultiplier = 1.0f;
 		Setup.SideSlipModifier = 0.7f;
@@ -908,13 +926,13 @@ namespace ChaosTest
 
 		// How far & what time does it take to stop from 30MPH to rest
 		Wheel.SetBrakeTorque(650);
-		SimulateBraking(Wheel, 30.0f, DeltaTime, StoppingDistanceA, SimulationTimeBrake);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.0f), DeltaTime, StoppingDistanceA, SimulationTimeBrake);
 
 		// How far and what time does it take to accelerate from rest to 30MPH
 		float SimulationTimeAccel = 0.0f;
 		float DrivingDistanceA = 0.f;
 		Wheel.SetDriveTorque(650);
-		SimulateAccelerating(Wheel, Gravity, 30.0f, DeltaTime, DrivingDistanceA, SimulationTimeAccel);
+		SimulateAccelerating(Wheel, Gravity, MPHToMS(30.0f), DeltaTime, DrivingDistanceA, SimulationTimeAccel);
 
 		// 0-30 MPH and 30-0 MPH should be the same if there's no slipping and accel torque was same as the brake torque run
 		EXPECT_LT(DrivingDistanceA - StoppingDistanceA, AccelerationResultsTolerance);
@@ -928,23 +946,25 @@ namespace ChaosTest
 		float SimulationTimeAccelCM = 0.0f;
 		float MtoCm = 100.0f;
 		float DrivingDistanceCM = 0.f;
-		Wheel.SetDriveTorque(650 * MtoCm);
-		SimulateAccelerating(Wheel, Gravity * MtoCm, 30.0f * MtoCm, DeltaTime, DrivingDistanceCM, SimulationTimeAccelCM);
+		Wheel.SetDriveTorque(650 * MtoCm * MtoCm);
+		Wheel.SetWheelRadius(0.3f * MtoCm);
+		SimulateAccelerating(Wheel, Gravity * MtoCm, MPHToCmS(30.0f), DeltaTime, DrivingDistanceCM, SimulationTimeAccelCM);
 		EXPECT_GT(DrivingDistanceCM, 10.f * MtoCm);
 		EXPECT_LT(DrivingDistanceCM, 20.f * MtoCm);
-		EXPECT_LT(SimulationTimeAccel - SimulationTimeAccelCM, AccelerationResultsTolerance);
+		EXPECT_NEAR(SimulationTimeAccel, SimulationTimeAccelCM, AccelerationResultsTolerance);
 
 		float SimulationTimeAccelSpin = 0.0f;
 		float DrivingDistanceWheelspin = 0.f;
+		Wheel.SetWheelRadius(0.3f);
 		Wheel.SetDriveTorque(5000); // definitely cause wheel spin
-		SimulateAccelerating(Wheel, Gravity, 30.0f, DeltaTime, DrivingDistanceWheelspin, SimulationTimeAccelSpin);
+		SimulateAccelerating(Wheel, Gravity, MPHToMS(30.0f), DeltaTime, DrivingDistanceWheelspin, SimulationTimeAccelSpin);
 
 		// Enable traction control should be better than both of the above
 		float SimulationTimeAccelTC = 0.0f;
 		float DrivingDistanceTC = 0.f;
 		Wheel.AccessSetup().TractionControlEnabled = true;
 		Wheel.SetDriveTorque(5000); // definitely cause wheel spin
-		SimulateAccelerating(Wheel, Gravity, 30.0f, DeltaTime, DrivingDistanceTC, SimulationTimeAccelTC);
+		SimulateAccelerating(Wheel, Gravity, MPHToMS(30.0f), DeltaTime, DrivingDistanceTC, SimulationTimeAccelTC);
 
 		// reaches target speed in a shorter distance
 		EXPECT_LT(DrivingDistanceTC, DrivingDistanceWheelspin);
@@ -960,7 +980,7 @@ namespace ChaosTest
 		Setup.TractionControlEnabled = false;
 		Setup.BrakeEnabled = true;
 		Setup.EngineEnabled = true;
-		Setup.WheelRadius = 30.0f;
+		Setup.WheelRadius = 0.3f;
 		Setup.NewSimulationPath = true;
 		Setup.FrictionMultiplier = 1.0f;
 		Setup.CorneringStiffness = 2.0f;
@@ -972,7 +992,9 @@ namespace ChaosTest
 		// So using a range 10-20 to ensure we are in the correct ballpark.
 		// If specified more accurately in the test, then modifying the code would break the test all the time.
 
-		float StoppingDistanceTolerance = 0.5f; // meters
+		// units meters
+		float Gravity = 9.8f;
+		float StoppingDistanceTolerance = 0.5f;
 		float DeltaTime = 1.f / 30.f;
 		float StoppingDistanceA = 0.f;
 		float SimulationTime = 0.0f;
@@ -980,70 +1002,69 @@ namespace ChaosTest
 
 		// reasonably ideal stopping distance - traveling forwards
 		Wheel.SetBrakeTorque(650);
-		float VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceA, SimulationTime);
-		//UE_LOG(LogChaos, Warning, TEXT("Braking Distance %3.2fm"), StoppingDistanceB);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceA, SimulationTime);
 		EXPECT_GT(StoppingDistanceA, 10.f);
 		EXPECT_LT(StoppingDistanceA, 20.f);
 
 		// traveling backwards stops just the same
 		float StoppingDistanceReverseDir = 0.f;
 		Wheel.SetBrakeTorque(650);
-		VehicleSpeedMPH = -30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceReverseDir, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(-30.f), DeltaTime, StoppingDistanceReverseDir, SimulationTime);
 		EXPECT_GT(StoppingDistanceReverseDir, -20.f);
 		EXPECT_LT(StoppingDistanceReverseDir, -10.f);
 		EXPECT_LT(StoppingDistanceA - FMath::Abs(StoppingDistanceReverseDir), StoppingDistanceTolerance);
 
+		// Changing to units of Cm should yield the same results
+		float MToCm = 100.0f;
+		float StoppingDistanceCm = 0.f;
+		Wheel.SetBrakeTorque(650 * MToCm * MToCm);
+		Wheel.SetWheelRadius(0.3f * MToCm);
+		SimulateBraking(Wheel, Gravity * MToCm, MPHToCmS(30.f), DeltaTime, StoppingDistanceCm, SimulationTime);
+		EXPECT_NEAR(StoppingDistanceCm, StoppingDistanceA * MToCm, 1.0f);
+
 		// Similar results with different delta time
 		float StoppingDistanceDiffDT = 0.f;
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime * 0.25f, StoppingDistanceDiffDT, SimulationTime);
+		Wheel.SetWheelRadius(0.3f);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime * 0.25f, StoppingDistanceDiffDT, SimulationTime);
 		EXPECT_LT(StoppingDistanceA - StoppingDistanceDiffDT, StoppingDistanceTolerance);
 
 		// barely touching the brake - going to take longer to stop
 		float StoppingDistanceLightBraking = 0.f;
 		Wheel.SetBrakeTorque(150);
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLightBraking, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceLightBraking, SimulationTime);
 		EXPECT_GT(StoppingDistanceLightBraking, StoppingDistanceA);
 
 		// locking the wheels / too much brake torque -> dynamic friction rather than static friction -> going to take longer to stop
 		float StoppingDistanceTooHeavyBreaking = 0.f;
 		Wheel.SetBrakeTorque(5000);
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceTooHeavyBreaking, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceTooHeavyBreaking, SimulationTime);
 		EXPECT_GT(StoppingDistanceTooHeavyBreaking, StoppingDistanceA);
 
 		// Would have locked the wheels but ABS prevents skidding
 		Wheel.AccessSetup().ABSEnabled = true;
 		float StoppingDistanceTooHeavyBreakingABS = 0.f;
 		Wheel.SetBrakeTorque(5000);
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceTooHeavyBreakingABS, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceTooHeavyBreakingABS, SimulationTime);
 		EXPECT_LT(StoppingDistanceTooHeavyBreakingABS, StoppingDistanceTooHeavyBreaking);
 		Wheel.AccessSetup().ABSEnabled = false;
 
 		// lower initial speed - stops more quickly
 		float StoppingDistanceLowerSpeed = 0.f;
 		Wheel.SetBrakeTorque(650);
-		VehicleSpeedMPH = 20.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLowerSpeed, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(20.f), DeltaTime, StoppingDistanceLowerSpeed, SimulationTime);
 		EXPECT_LT(StoppingDistanceLowerSpeed, StoppingDistanceA);
 
 		// higher initial speed - stops more slowly
 		float StoppingDistanceHigherSpeed = 0.f;
 		Wheel.SetBrakeTorque(650);
-		VehicleSpeedMPH = 60.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceHigherSpeed, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(60.f), DeltaTime, StoppingDistanceHigherSpeed, SimulationTime);
 		EXPECT_GT(StoppingDistanceHigherSpeed, StoppingDistanceA);
 
 		// slippy surface - stops more slowly
 		float StoppingDistanceLowFriction = 0.f;
 		Wheel.SetSurfaceFriction(0.3f);
 		Wheel.SetBrakeTorque(650);
-		VehicleSpeedMPH = 30.f;
-		SimulateBraking(Wheel, VehicleSpeedMPH, DeltaTime, StoppingDistanceLowFriction, SimulationTime);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.f), DeltaTime, StoppingDistanceLowFriction, SimulationTime);
 		EXPECT_GT(StoppingDistanceLowFriction, StoppingDistanceA);
 	}
 
@@ -1054,7 +1075,7 @@ namespace ChaosTest
 		Setup.TractionControlEnabled = false;
 		Setup.BrakeEnabled = true;
 		Setup.EngineEnabled = true;
-		Setup.WheelRadius = 30.0f;
+		Setup.WheelRadius = 0.3f;
 		Setup.NewSimulationPath = true;
 		Setup.FrictionMultiplier = 1.0f;
 		Setup.CorneringStiffness = 2.0f;
@@ -1077,13 +1098,13 @@ namespace ChaosTest
 
 		// How far & what time does it take to stop from 30MPH to rest
 		Wheel.SetBrakeTorque(650);
-		SimulateBraking(Wheel, 30.0f, DeltaTime, StoppingDistanceA, SimulationTimeBrake);
+		SimulateBraking(Wheel, Gravity, MPHToMS(30.0f), DeltaTime, StoppingDistanceA, SimulationTimeBrake);
 
 		// How far and what time does it take to accelerate from rest to 30MPH
 		float SimulationTimeAccel = 0.0f;
 		float DrivingDistanceA = 0.f;
 		Wheel.SetDriveTorque(650);
-		SimulateAccelerating(Wheel, Gravity, 30.0f, DeltaTime, DrivingDistanceA, SimulationTimeAccel);
+		SimulateAccelerating(Wheel, Gravity, MPHToMS(30.0f), DeltaTime, DrivingDistanceA, SimulationTimeAccel);
 
 		// 0-30 MPH and 30-0 MPH should be the same if there's no slipping and accel torque was same as the brake torque run
 		EXPECT_LT(DrivingDistanceA - StoppingDistanceA, AccelerationResultsTolerance);
@@ -1095,16 +1116,18 @@ namespace ChaosTest
 
 		// Unreal units cm - Note for the same results the radius needs to remain at 0.3m and not also be scaled to 30(cm)
 		float SimulationTimeAccelCM = 0.0f;
-		float MtoCm = 100.0f;
+		float MToCm = 100.0f;
 		float DrivingDistanceCM = 0.f;
-		Wheel.SetDriveTorque(650 * MtoCm);
-		SimulateAccelerating(Wheel, Gravity * MtoCm, 30.0f * MtoCm, DeltaTime, DrivingDistanceCM, SimulationTimeAccelCM);
-		EXPECT_GT(DrivingDistanceCM, 10.f * MtoCm);
-		EXPECT_LT(DrivingDistanceCM, 20.f * MtoCm);
-		EXPECT_LT(SimulationTimeAccel - SimulationTimeAccelCM, AccelerationResultsTolerance);
+		Wheel.SetDriveTorque(650.0f * MToCm * MToCm);
+		Wheel.SetWheelRadius(0.3f * MToCm);
+		SimulateAccelerating(Wheel, Gravity * MToCm, MPHToCmS(30.0f), DeltaTime, DrivingDistanceCM, SimulationTimeAccelCM);
+		EXPECT_GT(DrivingDistanceCM, 10.f * MToCm);
+		EXPECT_LT(DrivingDistanceCM, 20.f * MToCm);
+		EXPECT_NEAR(DrivingDistanceCM, DrivingDistanceA * MToCm, AccelerationResultsTolerance);
 
 		float SimulationTimeAccelSpin = 0.0f;
 		float DrivingDistanceWheelspin = 0.f;
+		Wheel.SetWheelRadius(0.3f);
 		Wheel.SetDriveTorque(5000); // definitely cause wheel spin
 		SimulateAccelerating(Wheel, Gravity, 30.0f, DeltaTime, DrivingDistanceWheelspin, SimulationTimeAccelSpin);
 
@@ -1119,7 +1142,7 @@ namespace ChaosTest
 		float DrivingDistanceTC = 0.f;
 		Wheel.AccessSetup().TractionControlEnabled = true;
 		Wheel.SetDriveTorque(5000); // definitely cause wheel spin
-		SimulateAccelerating(Wheel, Gravity, 30.0f, DeltaTime, DrivingDistanceTC, SimulationTimeAccelTC);
+		SimulateAccelerating(Wheel, Gravity, MPHToMS(30.0f), DeltaTime, DrivingDistanceTC, SimulationTimeAccelTC);
 
 		// reaches target speed in a shorter distance
 		EXPECT_LT(DrivingDistanceTC, DrivingDistanceWheelspin);
@@ -1128,7 +1151,6 @@ namespace ChaosTest
 		EXPECT_LT(SimulationTimeAccelTC, SimulationTimeAccelSpin);
 
 	}
-
 
 	TYPED_TEST(AllTraits, DISABLED_VehicleTest_WheelLateralSlip)
 	{

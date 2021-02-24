@@ -254,6 +254,11 @@ namespace Chaos
 		return Val * Val;
 	}
 
+	FORCEINLINE float TorqueMToCm(float TorqueIn)
+	{
+		return TorqueIn * 10000.0f;
+	}
+
 	class CHAOSVEHICLESCORE_API FTimeAndDistanceMeasure
 	{
 	public:

@@ -966,61 +966,73 @@ float UChaosVehicleMovementComponent::CalcSteeringInput()
 	return RawSteeringInput;
 }
 
-float UChaosVehicleMovementComponent::CalcBrakeInput()
+void UChaosVehicleMovementComponent::CalcThrottleBrakeInput(float& ThrottleOut, float& BrakeOut)
 {
 	if (bReverseAsBrake)
 	{
-		float NewBrakeInput = 0.0f;
+		BrakeOut = RawBrakeInput;
+		ThrottleOut = RawThrottleInput;
 
-		// if player wants to move forwards...
 		if (RawThrottleInput > 0.f)
 		{
+			// car moving backwards but player wants to move forwards...
 			// if vehicle is moving backwards, then press brake
 			if (VehicleState.ForwardSpeed < -WrongDirectionThreshold)
 			{
-				NewBrakeInput = 1.0f;
+				BrakeOut = 1.0f; // = RawThrottleInput ?
+				ThrottleOut = 0.0f;
 			}
 
 		}
-
-		// if player wants to move backwards...
 		else if (RawBrakeInput > 0.f)
 		{
+			// car moving forwards but player wants to move backwards...
 			// if vehicle is moving forwards, then press brake
 			if (VehicleState.ForwardSpeed > WrongDirectionThreshold)
 			{
-				NewBrakeInput = 1.0f;
+				BrakeOut = 1.0f;
+				ThrottleOut = 0.0f;
+			}
+			else if (GetTargetGear() < 0)
+			{
+				ThrottleOut = RawBrakeInput;
+				BrakeOut = 0.0f;
 			}
 		}
-		// if player isn't pressing forward or backwards...
+		// straight reversing
+		else if (RawBrakeInput > 0.f && GetTargetGear() < 0)
+		{
+			ThrottleOut = RawBrakeInput;
+		}
 		else
 		{
+			// if player isn't pressing forward or backwards...
 			if (VehicleState.ForwardSpeed < StopThreshold && VehicleState.ForwardSpeed > -StopThreshold)	//auto brake 
 			{
-				NewBrakeInput = 1.f;
+				BrakeOut = 1.f;
 			}
 			else
 			{
-				NewBrakeInput = IdleBrakeInput;
+				BrakeOut = IdleBrakeInput;
 			}
 		}
 
-		return FMath::Clamp<float>(NewBrakeInput, 0.0, 1.0);
+		ThrottleOut = FMath::Clamp<float>(ThrottleOut, 0.0, 1.0);
+		BrakeOut = FMath::Clamp<float>(BrakeOut, 0.0, 1.0);
 	}
 	else
 	{
-		float NewBrakeInput = FMath::Abs(RawBrakeInput);
+		BrakeOut = FMath::Abs(RawBrakeInput);
 
 		// if player isn't pressing forward or backwards...
 		if (RawBrakeInput < SMALL_NUMBER && RawThrottleInput < SMALL_NUMBER)
 		{
 			if (VehicleState.ForwardSpeed < StopThreshold && VehicleState.ForwardSpeed > -StopThreshold)	//auto brake 
 			{
-				NewBrakeInput = 1.f;
+				BrakeOut = 1.f;
 			}
 		}
 
-		return NewBrakeInput;
 	}
 
 }
@@ -1043,26 +1055,6 @@ float UChaosVehicleMovementComponent::CalcRollInput()
 float UChaosVehicleMovementComponent::CalcYawInput()
 {
 	return RawYawInput;
-}
-
-float UChaosVehicleMovementComponent::CalcThrottleInput()
-{
-	float NewThrottleInput = RawThrottleInput;
-	if (bReverseAsBrake)
-	{
-		if (RawBrakeInput > 0.f && GetTargetGear() < 0)
-		{
-			NewThrottleInput = RawBrakeInput;
-		}
-		else
-			//If the user is changing direction we should really be braking first and not applying any gas, so wait until they've changed gears
-			if ((RawThrottleInput > 0.f && GetTargetGear() < 0) || (RawBrakeInput > 0.f && GetTargetGear() > 0))
-			{
-				NewThrottleInput = 0.f;
-			}
-	}
-
-	return FMath::Abs(NewThrottleInput);
 }
 
 void UChaosVehicleMovementComponent::ClearInput()
@@ -1123,11 +1115,11 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 			{
 				if (RawBrakeInput > KINDA_SMALL_NUMBER && GetCurrentGear() >= 0 && GetTargetGear() >= 0)
 				{
-					SetTargetGear(-1, false);
+					SetTargetGear(-1, true);
 				}
 				else if (RawThrottleInput > KINDA_SMALL_NUMBER && GetCurrentGear() <= 0 && GetTargetGear() <= 0)
 				{
-					SetTargetGear(1, false);
+					SetTargetGear(1, true);
 				}
 			}
 		}
@@ -1142,9 +1134,12 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 			}
 		}
 
+		float ModifiedThrottle = 0.f;
+		float ModifiedBrake = 0.f;
+		CalcThrottleBrakeInput(ModifiedThrottle, ModifiedBrake);
 		SteeringInput = SteeringInputRate.InterpInputValue(DeltaTime, SteeringInput, CalcSteeringInput());
-		ThrottleInput = ThrottleInputRate.InterpInputValue(DeltaTime, ThrottleInput, CalcThrottleInput());
-		BrakeInput = BrakeInputRate.InterpInputValue(DeltaTime, BrakeInput, CalcBrakeInput());
+		ThrottleInput = ThrottleInputRate.InterpInputValue(DeltaTime, ThrottleInput, ModifiedThrottle);
+		BrakeInput = BrakeInputRate.InterpInputValue(DeltaTime, BrakeInput, ModifiedBrake);
 		PitchInput = PitchInputRate.InterpInputValue(DeltaTime, PitchInput, CalcPitchInput());
 		RollInput = RollInputRate.InterpInputValue(DeltaTime, RollInput, CalcRollInput());
 		YawInput = YawInputRate.InterpInputValue(DeltaTime, YawInput, CalcYawInput());
@@ -1697,15 +1692,6 @@ void UChaosVehicleMovementComponent::Update(float DeltaTime)
 
 				AsyncInput->GravityZ = GetGravityZ();
 
-				// #TODO: don't create every frame, setup never changes dynamically
-				TArray<AActor*> ActorsToIgnore;
-				ActorsToIgnore.Add(GetPawnOwner()); // ignore self in scene query
-
-				FCollisionQueryParams TraceParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(), false, nullptr);
-				TraceParams.bReturnPhysicalMaterial = true;	// we need this to get the surface friction coefficient
-				TraceParams.AddIgnoredActors(ActorsToIgnore);
-				TraceParams.bTraceComplex = true;  // (Wheels[WheelIdx]->SweepType == ESweepType::ComplexSweep); FIX this again
-				AsyncInput->TraceParams = TraceParams;
 			}
 		}
 	}

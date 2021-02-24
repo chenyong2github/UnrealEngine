@@ -565,7 +565,7 @@ public:
 	virtual void ApplyInput(const FControlInputs& ControlInputs, float DeltaTime) override;
 
 	/** Perform suspension ray/shape traces */
-	virtual void PerformSuspensionTraces(const TArray<Chaos::FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams);
+	virtual void PerformSuspensionTraces(const TArray<Chaos::FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams, FCollisionResponseContainer& CollisionResponse);
 
 
 	/** Update the engine/transmission simulation */
@@ -611,6 +611,9 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	/** Wheels to create */
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
 	TArray<FChaosWheelSetup> WheelSetups;
+
+	UPROPERTY(EditAnywhere, Category = Custom)
+	struct FCollisionResponseContainer WheelTraceCollisionResponses;
 
 	UPROPERTY(EditAnywhere, Category = MechanicalSetup)
 	bool bMechanicalSimEnabled;
@@ -679,6 +682,22 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 	{
 		return WheelStatus[WheelIndex];
 	}
+
+
+	/** Set all channels to the specified response - for wheel raycasts */
+	void SetWheelTraceAllChannels(ECollisionResponse NewResponse)
+	{
+		WheelTraceCollisionResponses.SetAllChannels(NewResponse);
+	}
+
+	/** Set the response of this body to the supplied settings - for wheel raycasts */
+	void SetWheelTraceResponseToChannel(ECollisionChannel Channel, ECollisionResponse NewResponse)
+	{
+		WheelTraceCollisionResponses.SetResponse(Channel, NewResponse);
+	}
+
+	/** Get Collision ResponseToChannels container for this component **/
+//	FORCEINLINE_DEBUGGABLE const FCollisionResponseContainer& GetTraceResponseToChannels() const { return WheelTraceCollisionResponses.GetResponseContainer(); }
 
 	//////////////////////////////////////////////////////////////////////////
 	// Public
@@ -786,6 +805,9 @@ protected:
 	//////////////////////////////////////////////////////////////////////////
 	// Update
 	void FillWheelOutputState();
+
+	/* Fill Async input state */
+	virtual void Update(float DeltaTime) override;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Debug

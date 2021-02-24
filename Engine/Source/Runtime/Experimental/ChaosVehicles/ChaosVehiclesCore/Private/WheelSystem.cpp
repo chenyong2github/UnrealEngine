@@ -9,7 +9,7 @@ PRAGMA_DISABLE_OPTIMIZATION
 namespace Chaos
 {
 	FSimpleWheelSim::FSimpleWheelSim(const FSimpleWheelConfig* SetupIn) : TVehicleSystem<FSimpleWheelConfig>(SetupIn)
-		, Re(30.f)
+		, Re(SetupIn->WheelRadius)
 		, Omega(0.f)
 		, Sx(0.f)
 		, DriveTorque(0.f)
@@ -45,8 +45,8 @@ namespace Chaos
 		// The physics system is mostly unit-less i.e. can work in meters or cm, however there are 
 		// a couple of places where the results are wrong if Cm is used. This is one of them, the simulated radius
 		// for torque must be real size to obtain the correct output values.
-		AppliedLinearDriveForce = DriveTorque / CmToM(Re);
-		AppliedLinearBrakeForce = BrakeTorque / CmToM(Re);
+		AppliedLinearDriveForce = DriveTorque / Re;
+		AppliedLinearBrakeForce = BrakeTorque / Re;
 
 		// currently just letting the brake override the throttle
 		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
@@ -69,10 +69,7 @@ namespace Chaos
 
 				// check we are not applying more force than required so we end up overshooting 
 				// and accelerating in the opposite direction
-				if (FinalLongitudinalForce > FMath::Abs(ForceRequiredToBringToStop))
-				{
-					FinalLongitudinalForce = FMath::Abs(ForceRequiredToBringToStop);
-				}
+				FinalLongitudinalForce = FMath::Clamp(FinalLongitudinalForce, -FMath::Abs(ForceRequiredToBringToStop), FMath::Abs(ForceRequiredToBringToStop));
 
 				// ensure the brake opposes current direction of travel
 				if (GroundVelocityVector.X > 0.0f)
@@ -109,7 +106,9 @@ namespace Chaos
 				if ((Braking && Setup().ABSEnabled) || (!Braking && Setup().TractionControlEnabled))
 				{
 					Spin = 0.0f;
-					ForceFromFriction.X = LongitudinalAdhesiveLimit * TractionControlAndABSScaling;
+
+					float Sign = (FinalLongitudinalForce > 0.0f) ? 1.0f : -1.0f;
+					ForceFromFriction.X = LongitudinalAdhesiveLimit * TractionControlAndABSScaling * Sign;
 				}
 				else
 				{
@@ -123,17 +122,14 @@ namespace Chaos
 					{
 						Locked = true;
 					}
-					ForceFromFriction.X = LongitudinalAdhesiveLimit * DynamicFrictionLongitudialScaling;
+
+					float Sign = (ForceFromFriction.X >= 0.0f) ? 1.0 : -1.0f;
+					ForceFromFriction.X = LongitudinalAdhesiveLimit * DynamicFrictionLongitudialScaling * Sign;
 				}
 			}
 			else
 			{
 				Spin = 0.0f;
-			}
-
-			if (FinalLongitudinalForce < -LongitudinalAdhesiveLimit)
-			{
-				ForceFromFriction.X = -ForceFromFriction.X;
 			}
 
 			static float DynamicFrictionLateralScaling = 0.75f;
@@ -203,8 +199,8 @@ namespace Chaos
 		// The physics system is mostly unit-less i.e. can work in meters or cm, however there are 
 		// a couple of places where the results are wrong if Cm is used. This is one of them, the simulated radius
 		// for torque must be real size to obtain the correct output values.
-		AppliedLinearDriveForce = DriveTorque / CmToM(Re);
-		AppliedLinearBrakeForce = BrakeTorque / CmToM(Re);
+		AppliedLinearDriveForce = DriveTorque / Re;
+		AppliedLinearBrakeForce = BrakeTorque / Re;
 
 		// Longitudinal multiplier now affecting both brake and steering equally
 		float AvailableGrip = ForceIntoSurface * SurfaceFriction * Setup().FrictionMultiplier;
@@ -214,6 +210,7 @@ namespace Chaos
 
 		// currently just letting the brake override the throttle
 		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
+		bool WheelLocked = false;
 
 		// are we actually touching the ground
 		if (ForceIntoSurface > SMALL_NUMBER)
@@ -223,15 +220,16 @@ namespace Chaos
 			{
 				if ((Braking && Setup().ABSEnabled) || (!Braking && Setup().TractionControlEnabled))
 				{
-					//	Spin = 0.0f;
-					AppliedLinearBrakeForce = AvailableGrip * TractionControlAndABSScaling;
+					float Sign = (AppliedLinearBrakeForce > 0.0f) ? 1.0f : -1.0f;
+					AppliedLinearBrakeForce = AvailableGrip * TractionControlAndABSScaling * Sign;
 				}
 			}
 
 			// Traction control limiting drive force to match force from grip available
 			if (Setup().TractionControlEnabled && !Braking && FMath::Abs(AppliedLinearDriveForce) > AvailableGrip)
 			{
-				AppliedLinearDriveForce = AvailableGrip * TractionControlAndABSScaling;
+				float Sign = (AppliedLinearDriveForce > 0.0f) ? 1.0f : -1.0f;
+				AppliedLinearDriveForce = AvailableGrip * TractionControlAndABSScaling * Sign;
 			}
 
 			if (Braking)
@@ -243,10 +241,7 @@ namespace Chaos
 
 				// check we are not applying more force than required so we end up overshooting 
 				// and accelerating in the opposite direction
-				if (FinalLongitudinalForce > FMath::Abs(ForceRequiredToBringToStop))
-				{
-					FinalLongitudinalForce = FMath::Abs(ForceRequiredToBringToStop);
-				}
+				FinalLongitudinalForce = FMath::Clamp(FinalLongitudinalForce, -FMath::Abs(ForceRequiredToBringToStop), FMath::Abs(ForceRequiredToBringToStop));
 
 				// ensure the brake opposes current direction of travel
 				if (GroundVelocityVector.X > 0.0f)
@@ -300,12 +295,24 @@ namespace Chaos
 					FinalLongitudinalForce *= Setup().SideSlipModifier;
 					FinalLateralForce *= Setup().SideSlipModifier;
 
+					if (Braking)
+					{
+						WheelLocked = true;
+					}
+
 				}
 			}
 		}
 
-		float GroundOmega = GroundVelocityVector.X / Re;
-		Omega += (GroundOmega - Omega);
+		if (WheelLocked)
+		{
+			Omega = 0.0f;
+		}
+		else
+		{ 
+			float GroundOmega = GroundVelocityVector.X / Re;
+			Omega += (GroundOmega - Omega);
+		}
 
 		// Wheel angular position
 		AngularPosition += Omega * DeltaTime;

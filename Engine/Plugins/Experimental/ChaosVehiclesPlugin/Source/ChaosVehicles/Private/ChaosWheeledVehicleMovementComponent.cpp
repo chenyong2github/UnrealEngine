@@ -205,7 +205,7 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 
 		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && PVehicle->bSuspensionEnabled)
 		{
-			PerformSuspensionTraces(WheelState.Trace, InputData.TraceParams);
+			PerformSuspensionTraces(WheelState.Trace, InputData.TraceParams, InputData.TraceCollisionResponse);
 		}
 
 		//////////////////////////////////////////////////////////////////////////
@@ -269,11 +269,11 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 
 }
 
-void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams)
+void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams, FCollisionResponseContainer& CollisionResponse)
 {
-	//#todo: SpringCollisionChannel should be a parameter setup
 	ECollisionChannel SpringCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
 	FCollisionResponseParams ResponseParams;
+	ResponseParams.CollisionResponse = CollisionResponse;
 
 	// batching is about 0.5ms (25%) faster when there's 100 vehicles on a flat terrain
 	if (GVehicleDebugParams.BatchQueries)
@@ -400,7 +400,7 @@ void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspe
 					, TraceEnd + VehicleUpAxis * Radius
 					, FQuat::Identity, SpringCollisionChannel
 					, FCollisionShape::MakeSphere(Radius), TraceParams
-					, FCollisionResponseParams::DefaultResponseParam);
+					, ResponseParams);
 			}
 			break;
 
@@ -409,7 +409,7 @@ void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspe
 			case ESweepShape::Raycast:
 			default:
 			{
-				World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, SpringCollisionChannel, TraceParams, FCollisionResponseParams::DefaultResponseParam);
+				World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, SpringCollisionChannel, TraceParams, ResponseParams);
 			}
 			break;
 			}
@@ -505,7 +505,7 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 		if (PWheel.Setup().NewSimulationPath)
 		{
 #if WITH_CHAOS
-			if (ConstraintHandles.Num() > 0)
+			if (WheelIdx < ConstraintHandles.Num())
 			{
 				FPhysicsConstraintHandle& ConstraintHandle = ConstraintHandles[WheelIdx];
 				if (ConstraintHandle.IsValid())
@@ -694,17 +694,17 @@ void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInp
 		if (PWheel.Setup().BrakeEnabled)
 		{
 			float BrakeForce = PWheel.Setup().MaxBrakeTorque * ModifiedInputs.BrakeInput;
-			PWheel.SetBrakeTorque(MToCm(BrakeForce + EngineBrakingForce));
+			PWheel.SetBrakeTorque(TorqueMToCm(BrakeForce + EngineBrakingForce));
 		}
 		else
 		{
-			PWheel.SetBrakeTorque(MToCm(EngineBraking));
+			PWheel.SetBrakeTorque(TorqueMToCm(EngineBraking));
 		}
 
 		if ((ModifiedInputs.HandbrakeInput && PWheel.Setup().HandbrakeEnabled) || ModifiedInputs.ParkingEnabled)
 		{
 			float HandbrakeForce = ModifiedInputs.ParkingEnabled ? PWheel.Setup().HandbrakeTorque : (ModifiedInputs.HandbrakeInput * PWheel.Setup().HandbrakeTorque);
-			PWheel.SetBrakeTorque(MToCm(HandbrakeForce));
+			PWheel.SetBrakeTorque(TorqueMToCm(HandbrakeForce));
 		}
 	}
 
@@ -773,11 +773,11 @@ void UChaosWheeledVehicleSimulation::ProcessMechanicalSimulation(float DeltaTime
 						SplitTorque = PDifferential.Setup().FrontRearSplit;
 					}
 
-					PWheel.SetDriveTorque(MToCm(TransmissionTorque * SplitTorque) / (float)PVehicle->NumDrivenWheels);
+					PWheel.SetDriveTorque(TorqueMToCm(TransmissionTorque * SplitTorque) / (float)PVehicle->NumDrivenWheels);
 				}
 				else
 				{
-					PWheel.SetDriveTorque(MToCm(TransmissionTorque) / (float)PVehicle->NumDrivenWheels);
+					PWheel.SetDriveTorque(TorqueMToCm(TransmissionTorque) / (float)PVehicle->NumDrivenWheels);
 				}
 			}
 		}
@@ -930,6 +930,9 @@ UChaosWheeledVehicleMovementComponent::UChaosWheeledVehicleMovementComponent(con
 	bMechanicalSimEnabled = true;
 	bSuspensionEnabled = true;
 	bWheelFrictionEnabled = true;
+
+	WheelTraceCollisionResponses = FCollisionResponseContainer::GetDefaultResponseContainer();
+	WheelTraceCollisionResponses.Vehicle = ECR_Ignore;
 }
 
 // Public
@@ -1448,6 +1451,33 @@ FVector2D UChaosWheeledVehicleMovementComponent::CalculateWheelLayoutDimensions(
 
 	return MaxSize;
 }
+
+void UChaosWheeledVehicleMovementComponent::Update(float DeltaTime)
+{
+	UChaosVehicleMovementComponent::Update(DeltaTime);
+
+	if (CurAsyncInput)
+	{
+		if (const FBodyInstance* BodyInstance = GetBodyInstance())
+		{
+			if (auto Handle = BodyInstance->ActorHandle)
+			{
+				FChaosVehicleDefaultAsyncInput* AsyncInput = static_cast<FChaosVehicleDefaultAsyncInput*>(CurAsyncInput);
+
+				TArray<AActor*> ActorsToIgnore;
+				ActorsToIgnore.Add(GetPawnOwner()); // ignore self in scene query
+
+				FCollisionQueryParams TraceParams(NAME_None, FCollisionQueryParams::GetUnknownStatId(), false, nullptr);
+				TraceParams.bReturnPhysicalMaterial = true;	// we need this to get the surface friction coefficient
+				TraceParams.AddIgnoredActors(ActorsToIgnore);
+				TraceParams.bTraceComplex = true;
+				AsyncInput->TraceParams = TraceParams;
+				AsyncInput->TraceCollisionResponse = WheelTraceCollisionResponses;
+			}
+		}
+	}
+}
+
 
 // Debug
 void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, float& YPos)

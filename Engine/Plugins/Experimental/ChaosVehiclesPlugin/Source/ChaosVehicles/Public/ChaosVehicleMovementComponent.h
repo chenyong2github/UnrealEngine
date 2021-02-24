@@ -151,6 +151,7 @@ struct FChaosVehicleDefaultAsyncInput : public FChaosVehicleAsyncInput
 	float GravityZ;
 	FControlInputs ControlInputs;
 	mutable FCollisionQueryParams TraceParams;
+	mutable FCollisionResponseContainer TraceCollisionResponse;
 
 	FChaosVehicleDefaultAsyncInput();
 
@@ -1003,7 +1004,7 @@ public:
 	void SetCurrentAsyncInputOutputInternal(FChaosVehicleAsyncInput* CurInput, int32 InputIdx, FChaosVehicleManagerAsyncOutput* CurOutput, int32 VehicleManagerTimestamp);
 	void SetCurrentAsyncInputOutputInternal(FChaosVehicleAsyncInput* CurInput, int32 InputIdx, FChaosVehicleManagerAsyncOutput* CurOutput, FChaosVehicleManagerAsyncOutput* NextOutput, float Alpha, int32 VehicleManagerTimestamp);
 
-	void Update(float DeltaTime);
+	virtual void Update(float DeltaTime);
 
 	// Get output data from Physics Thread
 	virtual void ParallelUpdate(float DeltaSeconds);
@@ -1140,8 +1141,8 @@ protected:
 	/** Compute steering input */
 	float CalcSteeringInput();
 
-	/** Compute brake input */
-	float CalcBrakeInput();
+	/** Compute throttle & brake input */
+	void CalcThrottleBrakeInput(float& ThrottleOut, float& BrakeOut);
 
 	/** Compute handbrake input */
 	float CalcHandbrakeInput();
@@ -1156,7 +1157,6 @@ protected:
 	float CalcYawInput();
 
 	/** Compute throttle inputs */
-	virtual float CalcThrottleInput();
 	float CalcThrottleUpInput();
 	float CalcThrottleDownInput();
 
