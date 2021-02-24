@@ -77,12 +77,13 @@ FConcertClientPackageManager::FConcertClientPackageManager(TSharedRef<FConcertSy
 		SandboxPlatformFile->Initialize(&FPlatformFileManager::Get().GetPlatformFile(), TEXT(""));
 	}
 
-	if (GIsEditor)
-	{
-		// Register Package Events
-		UPackage::PackageDirtyStateChangedEvent.AddRaw(this, &FConcertClientPackageManager::HandlePackageDirtyStateChanged);
-		PackageBridge->OnLocalPackageEvent().AddRaw(this, &FConcertClientPackageManager::HandleLocalPackageEvent);
-	}
+	// Previously these event handlers were wrapped in the GIsEditor below.  We moved them out to support take recording
+	// on nodes running in -game mode. This is a very focused use case and it is not safe to rely on these working
+	// correctly outside of take recorder.  There is a lot of code in MultiUser that assumes that in -game mode is
+	// "receive" only.
+	//
+	UPackage::PackageDirtyStateChangedEvent.AddRaw(this, &FConcertClientPackageManager::HandlePackageDirtyStateChanged);
+	PackageBridge->OnLocalPackageEvent().AddRaw(this, &FConcertClientPackageManager::HandleLocalPackageEvent);
 #endif	// WITH_EDITOR
 
 	LiveSession->GetSession().RegisterCustomEventHandler<FConcertPackageRejectedEvent>(this, &FConcertClientPackageManager::HandlePackageRejectedEvent);
@@ -91,12 +92,9 @@ FConcertClientPackageManager::FConcertClientPackageManager(TSharedRef<FConcertSy
 FConcertClientPackageManager::~FConcertClientPackageManager()
 {
 #if WITH_EDITOR
-	if (GIsEditor)
-	{
-		// Unregister Package Events
-		UPackage::PackageDirtyStateChangedEvent.RemoveAll(this);
-		PackageBridge->OnLocalPackageEvent().RemoveAll(this);
-	}
+	// Unregister Package Events
+	UPackage::PackageDirtyStateChangedEvent.RemoveAll(this);
+	PackageBridge->OnLocalPackageEvent().RemoveAll(this);
 
 	if (SandboxPlatformFile)
 	{

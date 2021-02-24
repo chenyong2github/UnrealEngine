@@ -51,13 +51,17 @@ FConcertClientPackageBridge::FConcertClientPackageBridge()
 	, bIgnoreLocalDiscard(false)
 {
 #if WITH_EDITOR
+	// Previously these event handlers were wrapped in the GIsEditor below.  We moved them out to support take recording
+	// on nodes running in -game mode. This is a very focused use case and it is not safe to rely on these working
+	// correctly outside of take recorder.  There is a lot of code in MultiUser that assumes that in -game mode is
+	// "receive" only.
+	//
+	UPackage::PreSavePackageEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackagePreSave);
+	UPackage::PackageSavedEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackageSaved);
+	FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FConcertClientPackageBridge::HandleAssetReload);
+
 	if (GIsEditor)
 	{
-		// Register Package Events
-		UPackage::PreSavePackageEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackagePreSave);
-		UPackage::PackageSavedEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackageSaved);
-		FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FConcertClientPackageBridge::HandleAssetReload);
-
 		// Register Asset Registry Events
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		AssetRegistryModule.Get().OnInMemoryAssetCreated().AddRaw(this, &FConcertClientPackageBridge::HandleAssetAdded);
@@ -74,13 +78,13 @@ FConcertClientPackageBridge::FConcertClientPackageBridge()
 FConcertClientPackageBridge::~FConcertClientPackageBridge()
 {
 #if WITH_EDITOR
+	// Unregister Package Events
+	UPackage::PreSavePackageEvent.RemoveAll(this);
+	UPackage::PackageSavedEvent.RemoveAll(this);
+	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+
 	if (GIsEditor)
 	{
-		// Unregister Package Events
-		UPackage::PreSavePackageEvent.RemoveAll(this);
-		UPackage::PackageSavedEvent.RemoveAll(this);
-		FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
-
 		// Unregister Asset Registry Events
 		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
 		{
