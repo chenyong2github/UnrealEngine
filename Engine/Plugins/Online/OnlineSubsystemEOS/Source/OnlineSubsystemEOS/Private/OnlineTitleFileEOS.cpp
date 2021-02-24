@@ -97,7 +97,7 @@ void FOnlineTitleFileEOS::DeleteCachedFiles(bool bSkipEnumerated)
 
 	EOS_TitleStorage_DeleteCacheOptions DeleteCacheOptions = { };
 	DeleteCacheOptions.ApiVersion = EOS_TITLESTORAGE_DELETECACHEOPTIONS_API_LATEST;
-	DeleteCacheOptions.LocalUserId = nullptr;
+	DeleteCacheOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId();	// Get a local user if one is available, but this is not required
 
 	FDeleteCacheCompleteCallback* CallbackObj = new FDeleteCacheCompleteCallback();
 	CallbackObj->CallbackLambda = [this](const EOS_TitleStorage_DeleteCacheCallbackInfo* Data)
@@ -163,7 +163,7 @@ bool FOnlineTitleFileEOS::EnumerateFiles(const FPagedQuery& Page)
 
 	EOS_TitleStorage_QueryFileListOptions QueryFileListOptions = { };
 	QueryFileListOptions.ApiVersion = EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST;
-	QueryFileListOptions.LocalUserId = nullptr;
+	QueryFileListOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId();	// Get a local user if one is available, but this is not required
 	QueryFileListOptions.ListOfTags = const_cast<const char**>(AnsiTags.GetData());
 	QueryFileListOptions.ListOfTagsCount = AnsiTags.Num();
 
@@ -335,7 +335,7 @@ bool FOnlineTitleFileEOS::ReadFile(const FString& FileName)
 
 	EOS_TitleStorage_ReadFileOptions ReadFileOptions = { };
 	ReadFileOptions.ApiVersion = EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST;
-	ReadFileOptions.LocalUserId = nullptr;
+	ReadFileOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId();	// Get a local user if one is available, but this is not required
 	ReadFileOptions.Filename = AnsiFileName;
 	ReadFileOptions.ReadChunkLengthBytes = (uint32)ReadChunkSize;
 	ReadFileOptions.ReadFileDataCallback = CallbackObj->GetNested1CallbackPtr();
