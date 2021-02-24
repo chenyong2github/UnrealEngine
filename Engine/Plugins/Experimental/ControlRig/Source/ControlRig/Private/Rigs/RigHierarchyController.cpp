@@ -246,6 +246,8 @@ FRigElementKey URigHierarchyController::AddControl(
 	Hierarchy->SetControlValue(NewElement, InValue, ERigControlValueType::Initial, false);
 
 	NewElement->Parent.MarkDirty(ERigTransformType::InitialGlobal);
+	NewElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
+	NewElement->Gizmo.MarkDirty(ERigTransformType::InitialGlobal);
 	NewElement->Parent.Current = NewElement->Parent.Initial;
 	NewElement->Offset.Current = NewElement->Offset.Initial;
 	NewElement->Pose.Current = NewElement->Pose.Initial;

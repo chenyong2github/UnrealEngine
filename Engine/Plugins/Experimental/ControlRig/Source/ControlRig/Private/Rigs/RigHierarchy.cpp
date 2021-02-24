@@ -1805,6 +1805,10 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 
 #endif
 
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
+			{
+				GetControlOffsetTransform(ControlElement, LocalType);
+			}
 			GetTransform(ElementToDirty.Element, TypeToCompute); // make sure the local / global transform is up 2 date
 
 #if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
