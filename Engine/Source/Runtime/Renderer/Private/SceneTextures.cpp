@@ -49,17 +49,6 @@ static TAutoConsoleVariable<int32> CVarMSAACount(
 	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
-static TAutoConsoleVariable<int32> CVarMobileMSAA(
-	TEXT("r.MobileMSAA"),
-	1,
-	TEXT("Use MSAA instead of Temporal AA on mobile:\n")
-	TEXT("1: Use Temporal AA (MSAA disabled)\n")
-	TEXT("2: Use 2x MSAA (Temporal AA disabled)\n")
-	TEXT("4: Use 4x MSAA (Temporal AA disabled)\n")
-	TEXT("8: Use 8x MSAA (Temporal AA disabled)"),
-	ECVF_RenderThreadSafe | ECVF_Scalability
-	);
-
 static TAutoConsoleVariable<int32> CVarGBufferFormat(
 	TEXT("r.GBufferFormat"),
 	1,
@@ -189,71 +178,6 @@ static EPixelFormat GetSceneColorFormat(const FSceneViewFamily& ViewFamily)
 	}
 
 	return Format;
-}
-
-static uint32 GetSceneTextureNumSamples(ERHIFeatureLevel::Type InFeatureLevel)
-{
-	uint32 NumSamples = 1;
-
-	if (InFeatureLevel >= ERHIFeatureLevel::SM5)
-	{
-		static IConsoleVariable* CVarDefaultAntiAliasing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DefaultFeature.AntiAliasing"));
-		EAntiAliasingMethod Method = (EAntiAliasingMethod)CVarDefaultAntiAliasing->GetInt();
-
-		if (IsForwardShadingEnabled(GetFeatureLevelShaderPlatform(InFeatureLevel)) && Method == AAM_MSAA)
-		{
-			NumSamples = FMath::Max(1, CVarMSAACount.GetValueOnRenderThread());
-
-			if (NumSamples != 1 && NumSamples != 2 && NumSamples != 4 && NumSamples != 8)
-			{
-				UE_LOG(LogRenderer, Warning, TEXT("Requested %d samples for MSAA, but this is not supported; falling back to 1 sample"), NumSamples);
-				NumSamples = 1;
-			}
-		}
-	}
-	else
-	{
-		NumSamples = CVarMobileMSAA.GetValueOnRenderThread();
-
-		static uint32 PlatformMaxSampleCount = GDynamicRHI->RHIGetPlatformTextureMaxSampleCount();
-		NumSamples = FMath::Min(NumSamples, PlatformMaxSampleCount);
-
-		if (NumSamples != 1 && NumSamples != 2 && NumSamples != 4 && NumSamples != 8)
-		{
-			UE_LOG(LogRenderer, Warning, TEXT("Requested %d samples for MSAA, but this is not supported; falling back to 1 sample"), NumSamples);
-			NumSamples = 1;
-		}
-
-		// Disable MSAA if we are using mobile pixel projected reflection, since we have to resolve the SceneColor and SceneDepth after opaque base pass
-		// Disable MSAA if we are using mobile ambient occlusion, since we have to resolve the SceneColor and SceneDepth after opaque base pass
-		if (NumSamples > 1 && (IsUsingMobilePixelProjectedReflection(GetFeatureLevelShaderPlatform(InFeatureLevel)) || IsUsingMobileAmbientOcclusion(GetFeatureLevelShaderPlatform(InFeatureLevel))))
-		{
-			NumSamples = 1;
-
-			static bool bWarned = false;
-
-			if (!bWarned)
-			{
-				bWarned = true;
-				UE_LOG(LogRenderer, Log, TEXT("Requested %d samples for MSAA, but using pixel projected reflection should disable MSAA"), NumSamples);
-			}
-		}
-	}
-
-	if (NumSamples > 1 && !RHISupportsMSAA(GShaderPlatformForFeatureLevel[InFeatureLevel]))
-	{
-		NumSamples = 1;
-
-		static bool bWarned = false;
-
-		if (!bWarned)
-		{
-			bWarned = true;
-			UE_LOG(LogRenderer, Log, TEXT("MSAA requested but the platform doesn't support MSAA, falling back to Temporal AA"));
-		}
-	}
-
-	return NumSamples;
 }
 
 static uint32 GetEditorPrimitiveNumSamples(ERHIFeatureLevel::Type FeatureLevel)
@@ -582,7 +506,7 @@ FSceneTexturesConfig FSceneTexturesConfig::Create(const FSceneViewFamily& ViewFa
 	Config.ShadingPath = FSceneInterface::GetShadingPath(Config.FeatureLevel);
 	Config.ShaderPlatform = GetFeatureLevelShaderPlatform(Config.FeatureLevel);
 	Config.Extent = FSceneTextureExtentState::Get().Compute(ViewFamily);
-	Config.NumSamples = GetSceneTextureNumSamples(Config.FeatureLevel);
+	Config.NumSamples = GetDefaultMSAACount(Config.FeatureLevel, GDynamicRHI->RHIGetPlatformTextureMaxSampleCount());
 	Config.EditorPrimitiveNumSamples = GetEditorPrimitiveNumSamples(Config.FeatureLevel);
 	Config.ColorFormat = PF_Unknown;
 	Config.ColorClearValue = FClearValueBinding::Black;

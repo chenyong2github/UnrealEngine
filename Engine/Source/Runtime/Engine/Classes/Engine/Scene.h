@@ -30,18 +30,6 @@ enum EDepthOfFieldMethod
 	DOFM_MAX,
 };
 
-/** Used by rendering project settings. */
-UENUM()
-enum EAntiAliasingMethod
-{
-	AAM_None UMETA(DisplayName="None"),
-	AAM_FXAA UMETA(DisplayName="FXAA"),
-	AAM_TemporalAA UMETA(DisplayName="TemporalAA"),
-	/** Only supported with forward shading.  MSAA sample count is controlled by r.MSAACount. */
-	AAM_MSAA UMETA(DisplayName="MSAA"),
-	AAM_MAX,
-};
-
 /** Used by FPostProcessSettings Auto Exposure */
 UENUM()
 enum EAutoExposureMethod

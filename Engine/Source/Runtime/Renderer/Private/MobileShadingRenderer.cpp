@@ -215,8 +215,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 		}
 	}
 
-	static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-	NumMSAASamples = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() : 1);
+	NumMSAASamples = GetDefaultMSAACount(ERHIFeatureLevel::ES3_1);
 }
 
 class FMobileDirLightShaderParamsRenderResource : public FRenderResource
@@ -416,11 +415,6 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 
 	// Finalize and set the scene textures config.
 	SceneTexturesConfig.bKeepDepthContent = bKeepDepthContent;
-
-	if (!SupportsMSAA())
-	{
-		SceneTexturesConfig.NumSamples = 1;
-	}
 	
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
@@ -1718,9 +1712,4 @@ void FMobileSceneRenderer::UpdateMovablePointLightUniformBufferAndShadowInfo()
 			}
 		}
 	}
-}
-
-bool FMobileSceneRenderer::SupportsMSAA() const
-{
-	return !(IsUsingMobilePixelProjectedReflection(ShaderPlatform) || IsUsingMobileAmbientOcclusion(ShaderPlatform) || ShouldRenderVelocities() || bDeferredShading);
 }

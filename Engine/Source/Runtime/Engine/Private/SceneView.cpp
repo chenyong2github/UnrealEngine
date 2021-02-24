@@ -879,54 +879,25 @@ bool FSceneView::VerifyMembersChecks() const
 void FSceneView::SetupAntiAliasingMethod()
 {
 	{
-		int32 Value = CVarDefaultAntiAliasing.GetValueOnAnyThread();
+		int32 Value = GetDefaultAntiAliasingMethod(FeatureLevel);
 		if (Value >= 0 && Value < AAM_MAX)
 		{
 			AntiAliasingMethod = (EAntiAliasingMethod)Value;
 		}
 	}
 
-	static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-	if (FeatureLevel <= ERHIFeatureLevel::ES3_1 && CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() > 1 : false)
-	{
-		// Using mobile MSAA, disable other AA methods.
-		AntiAliasingMethod = AAM_None;
-
-		// Turn off various features which won't work with mobile MSAA.
-		//FinalPostProcessSettings.DepthOfFieldScale = 0.0f;
-	}
-
 	if (Family)
 	{
-		static IConsoleVariable* CVarMSAACount = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MSAACount"));
-
-		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
-
-		if (AntiAliasingMethod == AAM_MSAA && IsForwardShadingEnabled(ShaderPlatform) && CVarMSAACount->GetInt() <= 0)
-		{
-			// Fallback to temporal AA so we can easily toggle methods with r.MSAACount
-			AntiAliasingMethod = AAM_TemporalAA;
-		}
-
-		static const auto PostProcessAAQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessAAQuality"));
-		static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
-		static auto* MobileMSAACvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-		uint32 MobileMSAAValue = MobileMSAACvar->GetValueOnAnyThread();
-
-		int32 Quality = FMath::Clamp(PostProcessAAQualityCVar->GetValueOnAnyThread(), 0, 6);
 		const bool bWillApplyTemporalAA = Family->EngineShowFlags.PostProcessing || bIsPlanarReflection;
 
-		if (!bWillApplyTemporalAA || !Family->EngineShowFlags.AntiAliasing || Quality <= 0
-			// Disable antialiasing in GammaLDR mode to avoid jittering.
-			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && MobileHDRCvar->GetValueOnAnyThread() == 0)
-			|| (FeatureLevel <= ERHIFeatureLevel::ES3_1 && (MobileMSAAValue > 1)))
+		if (!bWillApplyTemporalAA || !Family->EngineShowFlags.AntiAliasing)
 		{
 			AntiAliasingMethod = AAM_None;
 		}
 
 		if (AntiAliasingMethod == AAM_TemporalAA)
 		{
-			if (!Family->EngineShowFlags.TemporalAA || !Family->bRealtimeUpdate || Quality < 3)
+			if (!Family->EngineShowFlags.TemporalAA || !Family->bRealtimeUpdate)
 			{
 				AntiAliasingMethod = AAM_FXAA;
 			}
@@ -2616,6 +2587,20 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 		bRequireMultiView = (GSupportsMobileMultiView || GRHISupportsArrayIndexFromAnyShader) && bUsingMobileRenderer && bSkipPostprocessing && (MobileMultiViewCVar && MobileMultiViewCVar->GetValueOnAnyThread() != 0);
 	}
 #endif
+
+	// Check if the translucency are allowed to be rendered after DOF, if not, translucency after DOF will be rendered in standard translucency.
+	{
+		bAllowTranslucencyAfterDOF = CVarAllowTranslucencyAfterDOF.GetValueOnRenderThread() != 0
+			&& EngineShowFlags.PostProcessing // Used for reflection captures.
+			&& !UseDebugViewPS()
+			&& EngineShowFlags.SeparateTranslucency;
+
+		if (GetFeatureLevel() == ERHIFeatureLevel::ES3_1)
+		{
+			const bool bMobileMSAA = GetDefaultMSAACount(ERHIFeatureLevel::ES3_1) > 1;
+			bAllowTranslucencyAfterDOF &= (IsMobileHDR() && !bMobileMSAA); // on <= ES3_1 separate translucency requires HDR on and MSAA off
+		}
+	}
 }
 
 FSceneViewFamily::~FSceneViewFamily()
@@ -2675,20 +2660,6 @@ bool FSceneViewFamily::SupportsScreenPercentage() const
 	}
 	return true;
 }
-
-bool FSceneViewFamily::AllowTranslucencyAfterDOF() const
-{
-	static IConsoleVariable* CVarMobileMSAA = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileMSAA"));
-	const bool bMobileMSAA = CVarMobileMSAA ? (CVarMobileMSAA->GetInt() > 1) : false;
-
-	return CVarAllowTranslucencyAfterDOF.GetValueOnRenderThread() != 0
-		&& (GetFeatureLevel() > ERHIFeatureLevel::ES3_1 || (IsMobileHDR() && !bMobileMSAA)) // on <= ES3_1 separate translucency requires HDR on and MSAA off
-	&& EngineShowFlags.PostProcessing // Used for reflection captures.
-	&& !UseDebugViewPS()
-	&& EngineShowFlags.SeparateTranslucency;
-	// If not, translucency after DOF will be rendered in standard translucency.
-}
-
 
 FSceneViewFamilyContext::~FSceneViewFamilyContext()
 {

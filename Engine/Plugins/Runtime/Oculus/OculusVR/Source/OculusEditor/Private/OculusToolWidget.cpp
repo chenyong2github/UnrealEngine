@@ -705,15 +705,17 @@ EVisibility SOculusToolWidget::MobileMultiViewVisibility(FName tag) const
 FReply SOculusToolWidget::MobileMSAAEnable(bool text)
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	Settings->MobileMSAASampleCount = EMobileMSAASampleCount::Four;
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MobileMSAASampleCount)), Settings->GetDefaultConfigFilename());
+	Settings->MobileAntiAliasing = EAntiAliasingMethod::AAM_MSAA;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MobileAntiAliasing)), Settings->GetDefaultConfigFilename());
+	Settings->MSAASampleCount = ECompositingSampleCount::Four;
+	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MSAASampleCount)), Settings->GetDefaultConfigFilename());
 	return FReply::Handled();
 }
 
 EVisibility SOculusToolWidget::MobileMSAAVisibility(FName tag) const
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	const bool bMobileMSAAValid = Settings->MobileMSAASampleCount == EMobileMSAASampleCount::Four;
+	const bool bMobileMSAAValid = Settings->MobileAntiAliasing == EAntiAliasingMethod::AAM_MSAA && Settings->MSAASampleCount == ECompositingSampleCount::Four;
 
 	return bMobileMSAAValid ? EVisibility::Collapsed : EVisibility::Visible;
 }

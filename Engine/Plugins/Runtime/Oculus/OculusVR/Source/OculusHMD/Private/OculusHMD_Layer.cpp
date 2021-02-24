@@ -549,8 +549,7 @@ void FLayer::Initialize_RenderThread(const FSettings* Settings, FCustomPresent* 
 			uint32 NumSamplesTileMem = 1;
 			if (OvrpLayerDesc.Shape == ovrpShape_EyeFov)
 			{
-				static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-				NumSamplesTileMem = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() : 1);
+				NumSamplesTileMem = GetDefaultMSAACount(ERHIFeatureLevel::ES3_1, GDynamicRHI->RHIGetPlatformTextureMaxSampleCount());
 			}
 
 			ERHIResourceType ResourceType;			

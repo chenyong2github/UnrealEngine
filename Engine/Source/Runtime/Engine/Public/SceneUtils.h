@@ -11,6 +11,9 @@
 #pragma once
 
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
+#include "RHIDefinitions.h"
+
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogSceneUtils, Log, All);
 
 enum class EShadingPath
 {
@@ -26,12 +29,28 @@ enum class EMobileHDRMode
 	EnabledFloat16,
 };
 
+/** Used by rendering project settings. */
+UENUM()
+enum EAntiAliasingMethod
+{
+	AAM_None UMETA(DisplayName = "None"),
+	AAM_FXAA UMETA(DisplayName = "FXAA"),
+	AAM_TemporalAA UMETA(DisplayName = "TemporalAA"),
+	/** Only supported with forward shading.  MSAA sample count is controlled by r.MSAACount. */
+	AAM_MSAA UMETA(DisplayName = "MSAA"),
+	AAM_MAX,
+};
+
 /** True if HDR is enabled for the mobile renderer. */
 ENGINE_API bool IsMobileHDR();
 
 ENGINE_API EMobileHDRMode GetMobileHDRMode();
 
 ENGINE_API bool IsMobileColorsRGB();
+
+ENGINE_API EAntiAliasingMethod GetDefaultAntiAliasingMethod(const FStaticFeatureLevel InFeatureLevel);
+
+ENGINE_API uint32 GetDefaultMSAACount(const FStaticFeatureLevel InFeatureLevel, uint32 PlatformMaxSampleCount = 8);
 
 // Callback for calling one action (typical use case: delay a clear until it's actually needed)
 class FDelayedRendererAction

@@ -1213,9 +1213,9 @@ void* FMetalDynamicRHI::RHIGetNativeInstance()
 
 uint16 FMetalDynamicRHI::RHIGetPlatformTextureMaxSampleCount()
 {
-	TArray<EMobileMSAASampleCount::Type> SamplesArray{ EMobileMSAASampleCount::Type::One, EMobileMSAASampleCount::Type::Two, EMobileMSAASampleCount::Type::Four, EMobileMSAASampleCount::Type::Eight };
+	TArray<ECompositingSampleCount::Type> SamplesArray{ ECompositingSampleCount::Type::One, ECompositingSampleCount::Type::Two, ECompositingSampleCount::Type::Four, ECompositingSampleCount::Type::Eight };
 
-	uint16 PlatformMaxSampleCount = EMobileMSAASampleCount::Type::One;
+	uint16 PlatformMaxSampleCount = ECompositingSampleCount::Type::One;
 	for (auto sampleIt = SamplesArray.CreateConstIterator(); sampleIt; ++sampleIt)
 	{
 		int sample = *sampleIt;

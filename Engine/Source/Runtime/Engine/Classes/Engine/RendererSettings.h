@@ -48,22 +48,6 @@ namespace ECompositingSampleCount
 
 
 /**
-* Enumerates available mobile MSAA sample counts.
-*/
-UENUM()
-namespace EMobileMSAASampleCount
-{
-	enum Type
-	{
-		One = 1 UMETA(DisplayName = "No MSAA"),
-		Two = 2 UMETA(DisplayName = "2x MSAA"),
-		Four = 4 UMETA(DisplayName = "4x MSAA"),
-		Eight = 8 UMETA(DisplayName = "8x MSAA"),
-	};
-}
-
-
-/**
  * Enumerates available options for custom depth.
  */
 UENUM()
@@ -184,9 +168,9 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		int32 MaxMobileCascades;
 
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
-		ConsoleVariable = "r.MobileMSAA", DisplayName = "Mobile MSAA",
-		ToolTip = "Multi-sample anti-aliasing setting to use on mobile. MSAA is currently supported using Metal on iOS, and on Android devices with the required support using ES 2 or ES 3.1.\nIf MSAA is not available, the current default AA method will be used."))
-	TEnumAsByte<EMobileMSAASampleCount::Type> MobileMSAASampleCount;
+		ConsoleVariable = "r.Mobile.AntiAliasing", DisplayName = "Mobile Anti-Aliasing Method",
+		ToolTip = "The mobile default anti-aliasing method."))
+	TEnumAsByte<EAntiAliasingMethod> MobileAntiAliasing;
 
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta=(
 		ConsoleVariable="r.Mobile.AllowDitheredLODTransition", DisplayName="Allow Dithered LOD Transition",
@@ -519,6 +503,11 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable = "r.DefaultFeature.AntiAliasing", DisplayName = "Anti-Aliasing Method",
 		ToolTip = "Which anti-aliasing mode is used by default"))
 	TEnumAsByte<EAntiAliasingMethod> DefaultFeatureAntiAliasing;
+
+	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
+		ConsoleVariable = "r.MSAACount", DisplayName = "MSAA Sample Count",
+		ToolTip = "Default number of samples for MSAA."))
+	TEnumAsByte<ECompositingSampleCount::Type> MSAASampleCount;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
 		ConsoleVariable = "r.DefaultFeature.LightUnits", DisplayName = "Light Units",

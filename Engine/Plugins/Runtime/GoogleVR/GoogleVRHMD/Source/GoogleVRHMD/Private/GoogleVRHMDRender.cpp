@@ -433,12 +433,11 @@ namespace {
 	int32 GetMobileMSAASampleSetting()
 	{
 		static const int32 MaxMSAASamplesSupported = FOpenGL::GetMaxMSAASamplesTileMem();
-		static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-		static const int32 CVarMobileMSAAValue = CVarMobileMSAA->GetValueOnRenderThread();
+		static const int32 CVarMobileMSAAValue = GetDefaultMSAACount(ERHIFeatureLevel::ES3_1, GDynamicRHI->RHIGetPlatformTextureMaxSampleCount());
 		static const int32 MobileMSAAValue = FMath::Min(CVarMobileMSAAValue, MaxMSAASamplesSupported);
 		if (MobileMSAAValue != CVarMobileMSAAValue)
 		{
-			UE_LOG(LogHMD, Warning, TEXT("r.MobileMSAA is set to %i but we are using %i due to hardware support limitations."), CVarMobileMSAAValue, MobileMSAAValue);
+			UE_LOG(LogHMD, Warning, TEXT("MobileMSAA is set to %i but we are using %i due to hardware support limitations."), CVarMobileMSAAValue, MobileMSAAValue);
 		}
 		return MobileMSAAValue;
 	}

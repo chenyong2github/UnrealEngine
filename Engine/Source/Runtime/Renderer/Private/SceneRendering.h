@@ -1792,7 +1792,6 @@ public:
 	virtual void Render(FRDGBuilder& GraphBuilder) = 0;
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) {}
 	virtual bool ShouldRenderVelocities() const { return false; }
-	virtual bool SupportsMSAA() const { return true; }
 
 	/** Creates a scene renderer based on the current feature level. */
 	static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
@@ -2144,8 +2143,6 @@ public:
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) override;
 
 	virtual bool ShouldRenderVelocities() const override;
-
-	virtual bool SupportsMSAA() const override;
 
 	void RenderInverseOpacity(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 

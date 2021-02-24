@@ -1738,7 +1738,7 @@ public:
 	/** Returns whether the screen percentage show flag is supported or not for this view family. */
 	bool SupportsScreenPercentage() const;
 
-	bool AllowTranslucencyAfterDOF() const;
+	FORCEINLINE bool AllowTranslucencyAfterDOF() const { return bAllowTranslucencyAfterDOF; }
 
 	/* Returns the maximum FSceneViewScreenPercentageConfig::PrimaryResolutionFraction. */
 	FORCEINLINE float GetPrimaryResolutionFractionUpperBound() const
@@ -1810,6 +1810,9 @@ private:
 	ISceneViewFamilyScreenPercentage* ScreenPercentageInterface;
 
 	const ITemporalUpscaler* TemporalUpscalerInterface;
+
+	/** whether the translucency are allowed to render after DOF, if not they will be rendered in standard translucency. */
+	bool bAllowTranslucencyAfterDOF;
 
 	// Only FSceneRenderer can copy a view family.
 	FSceneViewFamily(const FSceneViewFamily&) = default;

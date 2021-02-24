@@ -2811,3 +2811,13 @@ static TAutoConsoleVariable<int32> CVarSkyLightingQuality(
 	TEXT("  1: on\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
+
+static TAutoConsoleVariable<int32> CVarDefaultAntiAliasing(
+	TEXT("r.Mobile.AntiAliasing"),
+	2,
+	TEXT("Mobile default AntiAliasingMethod\n")
+	TEXT(" 0: off (no anti-aliasing)\n")
+	TEXT(" 1: FXAA (default, faster than TemporalAA but much more shimmering for non static cases)\n")
+	TEXT(" 2: TemporalAA\n")
+	TEXT(" 3: MSAA"),
+	ECVF_RenderThreadSafe);
