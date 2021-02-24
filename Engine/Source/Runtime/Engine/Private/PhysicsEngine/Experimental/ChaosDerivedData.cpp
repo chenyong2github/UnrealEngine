@@ -70,7 +70,7 @@ FString FChaosDerivedDataCooker::GetDebugContextString() const
 		}
 	}
 
-	return TEXT("Unknown Context");
+	return FDerivedDataPluginInterface::GetDebugContextString();
 }
 
 FString FChaosDerivedDataCooker::GetPluginSpecificCacheKeySuffix() const

@@ -115,6 +115,7 @@ public:
 	}
 
 	virtual bool Build( TArray<uint8>& OutData ) override;
+	virtual FString GetDebugContextString() const override;
 
 	/** Return true if we can build **/
 	bool CanBuild()
@@ -159,6 +160,20 @@ bool FDerivedDataNavCollisionCooker::Build( TArray<uint8>& OutData )
 
 	// Whatever got cached return true. We want to cache 'failure' too.
 	return true;
+}
+
+FString FDerivedDataNavCollisionCooker::GetDebugContextString() const
+{
+	if (NavCollisionInstance)
+	{
+		UObject* Outer = NavCollisionInstance->GetOuter();
+		if (Outer)
+		{
+			return Outer->GetFullName();
+		}
+	}
+
+	return FDerivedDataPluginInterface::GetDebugContextString();
 }
 
 namespace
