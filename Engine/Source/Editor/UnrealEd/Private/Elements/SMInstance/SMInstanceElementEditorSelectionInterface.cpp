@@ -19,7 +19,7 @@ private:
 	virtual FTypedElementHandle GetElementImpl() const override
 	{
 		FSMInstanceElementId SMInstanceElementId{ ISMComponentPtr.Get(/*bEvenIfPendingKill*/true), InstanceId };
-		return SMInstanceElementId
+		return FSMInstanceElementIdMap::Get().GetSMInstanceIdFromSMInstanceElementId(SMInstanceElementId)
 			? UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(SMInstanceElementId)
 			: FTypedElementHandle();
 	}
