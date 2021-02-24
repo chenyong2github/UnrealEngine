@@ -23,7 +23,7 @@ struct FNetAnalyticsDataConfig
 
 	/** Whether or not the specified analytics data type, is enabled */
 	UPROPERTY(config)
-	bool bEnabled;
+	bool bEnabled = false;
 };
 
 /**
