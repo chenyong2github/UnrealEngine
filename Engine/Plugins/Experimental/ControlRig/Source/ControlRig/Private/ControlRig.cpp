@@ -67,6 +67,7 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, InterRigSyncBracket(0)
 {
 	VM = ObjectInitializer.CreateDefaultSubobject<URigVM>(this, TEXT("VM"));
+	DynamicHierarchy = ObjectInitializer.CreateDefaultSubobject<URigHierarchy>(this, TEXT("DynamicHierarchy"));
 
 	EventQueue.Add(FRigUnit_BeginExecution::EventName);
 }
