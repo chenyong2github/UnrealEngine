@@ -41,6 +41,8 @@ private:
 
 	void RefreshTree();
 
+	void RefreshTreeWidgetSelection();
+
 private:
 
 	bool bFilterWasActive;
@@ -53,4 +55,7 @@ private:
 	TSharedPtr<FCurveEditor> CurveEditor;
 
 	TSharedPtr<SHeaderRow> HeaderRow;
+
+	bool bUpdatingTreeWidgetSelection;
+	bool bUpdatingCurveEditorTreeSelection;
 };

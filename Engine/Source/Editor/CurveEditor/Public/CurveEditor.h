@@ -325,6 +325,11 @@ public:
 	void SetTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems);
 
 	/**
+	 * Removes items from the current tree selection.
+	 */
+	void RemoveFromTreeSelection(TArrayView<const FCurveEditorTreeItemID> TreeItems);
+
+	/**
 	 * Check whether this tree item is selected
 	 */
 	ECurveEditorTreeSelectionState GetTreeSelectionState(FCurveEditorTreeItemID TreeItemID) const;

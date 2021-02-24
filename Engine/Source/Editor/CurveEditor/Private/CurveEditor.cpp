@@ -300,6 +300,11 @@ void FCurveEditor::SetTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems)
 	Tree.SetDirectSelection(MoveTemp(TreeItems), this);
 }
 
+void FCurveEditor::RemoveFromTreeSelection(TArrayView<const FCurveEditorTreeItemID> TreeItems)
+{
+	Tree.RemoveFromSelection(TreeItems, this);
+}
+
 ECurveEditorTreeSelectionState FCurveEditor::GetTreeSelectionState(FCurveEditorTreeItemID InTreeItemID) const
 {
 	return Tree.GetSelectionState(InTreeItemID);

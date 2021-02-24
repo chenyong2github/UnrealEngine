@@ -439,6 +439,11 @@ public:
 	void SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeItems, FCurveEditor* InCurveEditor);
 
 	/**
+	 * Removes tree items from the current selection.
+	 */
+	void RemoveFromSelection(TArrayView<const FCurveEditorTreeItemID> TreeItems, FCurveEditor* InCurveEditor);
+
+	/**
 	 * Access the selection state for this tree. Items that are neither implicitly or explicitly selected are not present in the map.
 	 */
 	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& GetSelection() const;
