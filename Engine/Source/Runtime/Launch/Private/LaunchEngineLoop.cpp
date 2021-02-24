@@ -4271,6 +4271,10 @@ void FEngineLoop::Exit()
 	FVisualLogger::Get().Shutdown();
 #endif
 
+#if WITH_EDITOR
+	FAssetCompilingManager::Get().Shutdown();
+#endif
+
 #if WITH_ENGINE
 	// shut down messaging
 	delete EngineService;
@@ -4328,10 +4332,6 @@ void FEngineLoop::Exit()
 			CancelAsyncLoading();
 		}
 	}
-
-#if WITH_EDITOR
-	FAssetCompilingManager::Get().Shutdown();
-#endif
 
 	// Block till all outstanding resource streaming requests are fulfilled.
 	if (!IStreamingManager::HasShutdown())
