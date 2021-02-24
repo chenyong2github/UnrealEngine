@@ -656,6 +656,7 @@ void SRigHierarchy::RefreshTreeView()
 	if (ControlRigBlueprint.IsValid())
 	{
 		URigHierarchy* Hierarchy = GetHierarchy();
+		check(Hierarchy);
 
 		Hierarchy->Traverse([&](FRigBaseElement* Element, bool& bContinue)
 		{
@@ -898,6 +899,8 @@ void SRigHierarchy::AddElement(FRigBaseElement* InElement, const bool bIgnoreTex
 	}
 
 	const URigHierarchy* Hierarchy = GetHierarchy();
+	check(Hierarchy);
+
 	AddElement(InElement->GetKey(), FRigElementKey(), bIgnoreTextFilter);
 
 	if (ElementMap.Contains(InElement->GetKey()))
@@ -1104,6 +1107,8 @@ TSharedPtr< SWidget > SRigHierarchy::CreateContextMenu()
 void SRigHierarchy::OnItemClicked(TSharedPtr<FRigTreeElement> InItem)
 {
 	URigHierarchy* Hierarchy = GetHierarchy();
+	check(Hierarchy);
+
 	if (Hierarchy->IsSelected(InItem->Key))
 	{
 		if (ControlRigEditor.IsValid())
@@ -1957,7 +1962,9 @@ FReply SRigHierarchy::OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDro
 	if (RigDragDropOp.IsValid())
 	{
 		URigHierarchy* Hierarchy = GetHierarchy();
+		check(Hierarchy);
 		URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy();
+		check(DebuggedHierarchy);
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 

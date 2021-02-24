@@ -279,6 +279,7 @@ void SControlHierarchy::OnSelectionChanged(TSharedPtr<FControlTreeElement> Selec
 	{
 		TGuardValue<bool> Guard(bSelecting, true);
 		URigHierarchy* Hierarchy = GetHierarchy();
+		check(Hierarchy);
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 
@@ -359,6 +360,7 @@ void SControlHierarchy::OnRigElementSelected(UControlRig* Subject, FRigControlEl
 void SControlHierarchy::AddElement(FRigBaseElement* InElement)
 {
 	const URigHierarchy* Hierarchy = GetHierarchy();
+	check(Hierarchy);
 	FRigElementKey ParentKey = Hierarchy->GetFirstParent(InElement->GetKey());
 	while(ParentKey.IsValid() && ParentKey.Type != ERigElementType::Control)
 	{
