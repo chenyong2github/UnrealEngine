@@ -139,7 +139,11 @@ bool UE::AssetUtils::ReadTexture(
 	if (ensure(TextureMap) == false) return false;
 
 #if WITH_EDITOR
-	if (TextureMap->Source.IsValid() && bPreferPlatformData == false)
+	bool bHasVTData = TextureMap->GetPlatformData()->VTData != nullptr;
+	bool bHasMips = TextureMap->GetPlatformData()->Mips.Num() != 0;
+	ensure(bHasVTData != bHasMips);		// should be one or the other
+
+	if (TextureMap->Source.IsValid() && (bPreferPlatformData == false || bHasMips == false))
 	{
 		return ReadTexture_SourceData(TextureMap, Dimensions, DestImage);
 	}

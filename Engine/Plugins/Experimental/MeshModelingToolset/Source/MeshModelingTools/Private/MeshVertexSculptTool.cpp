@@ -888,7 +888,8 @@ void UMeshVertexSculptTool::UpdateBrushAlpha(UTexture2D* NewAlpha)
 			TImageBuilder<FVector4f> AlphaValues;
 			FImageDimensions AlphaDimensions;
 
-			bool bReadOK = UE::AssetUtils::ReadTexture(this->BrushAlpha, AlphaDimensions, AlphaValues, true);
+			constexpr bool bPreferPlatformData = false;
+			bool bReadOK = UE::AssetUtils::ReadTexture(this->BrushAlpha, AlphaDimensions, AlphaValues, bPreferPlatformData);
 			if (bReadOK)
 			{
 				BrushAlphaValues = MoveTemp(AlphaValues);
