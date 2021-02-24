@@ -10,11 +10,15 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(LumenHardwareRayTracingMaterialCHS,
 	FLumenMinimalPayload, Payload,
 	FDefaultAttributes, Attributes)
 {
+	Payload.HitT = RayTCurrent();
+
 	const int Primitive = GetInstanceUserData();
 	const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
+	int DistanceFieldObjectIndex = GetLumenDistanceFieldObjectIndex(Primitive, PrimitiveInstanceIndex);
+	Payload.SetDistanceFieldObjectIndex(DistanceFieldObjectIndex);
 
-	Payload.HitT = RayTCurrent();
-	Payload.SetDistanceFieldObjectIndex(GetLumenDistanceFieldObjectIndex(Primitive, PrimitiveInstanceIndex));
+	uint bIsTranslucent = GetHitGroupUserData() & 0x1;
+	Payload.SetIsTranslucent(bIsTranslucent);
 
 	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
 #if 0
@@ -40,7 +44,6 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(LumenHardwareRayTracingMaterialCHS,
 	float3x3 InverseTranspose3x3 = transpose(WorldToObject4x3());
 	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
 #endif
-
 	Payload.SetWorldNormal(WorldNormal);
 }
 

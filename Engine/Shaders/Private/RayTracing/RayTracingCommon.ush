@@ -141,10 +141,21 @@ struct FLumenMinimalPayload : FMinimalPayload
 		return asint(PackedData[0]);
 	}
 
+	void SetIsTranslucent(uint bIsTranslucent)
+	{
+		PackedData[2] = (PackedData[2] & 0x7FFFFFFF) | ((bIsTranslucent & 0x01) << 31);
+	}
+
+	uint IsTranslucent()
+	{
+		uint bIsTranslucent = (PackedData[2] >> 31) & 0x1;
+		return bIsTranslucent;
+	}
+
 	void SetWorldNormal(float3 WorldNormal)
 	{
 		PackedData[1] = (f32tof16(WorldNormal.x) << 16) | f32tof16(WorldNormal.y);
-		PackedData[2] = f32tof16(WorldNormal.z);
+		PackedData[2] = (PackedData[2] & 0xFFFF0000) | f32tof16(WorldNormal.z);
 	}
 
 	float3 GetWorldNormal()

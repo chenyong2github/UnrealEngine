@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #define SUPPORT_CONTACT_SHADOWS 0
 #define USE_HAIR_LIGHTING 0
 
@@ -15,6 +17,7 @@
 #include "../RayTracing/RayTracingDeferredMaterials.ush"
 #include "../RayTracing/RayTracingDeferredShadingCommon.ush"
 #include "../RayTracing/RayTracingLightingCommon.ush"
+#include "LumenHardwareRayTracingPayloadCommon.ush"
 
 #define DEBUG_EVALUATE_LIGHTING 1
 #define HIDE_INVALID_SDF 0
@@ -27,8 +30,6 @@
 // Normal modes
 #define SDF_NORMAL_TYPE 0
 #define GEOMETRIC_NORMAL_TYPE 1
-
-#define INVALID_DF_OBJECT_INDEX -1
 
 uint GetAtlasId(int Mode)
 {
@@ -255,6 +256,7 @@ bool TraceAndCalculateRayTracedLighting(
 
 	FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
 	Payload.SetLumenPayload();
+	Payload.SetIgnoreTranslucentMaterials();
 	if (LightingMode == LIGHTING_FROM_SURFACE_CACHE)
 	{
 		Payload.SetMinimalPayloadMode();
@@ -277,7 +279,7 @@ bool TraceAndCalculateRayTracedLighting(
 		int DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
 
 #if HIDE_INVALID_SDF
-		while (bIsRTHit && DFObjectIndex != INVALID_DF_OBJECT_INDEX)
+		while (bIsRTHit && DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
 		{
 			float Epsilon = 0.01;
 			Ray.TMin = Payload.HitT + Epsilon;
@@ -306,7 +308,7 @@ bool TraceAndCalculateRayTracedLighting(
 		bHit = true;
 #endif
 
-		if (DFObjectIndex != INVALID_DF_OBJECT_INDEX)
+		if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
 		{
 			Radiance = CalculateRayTracedLighting(Ray, Context, Payload, HitDistance, DFObjectIndex, NormalMode, LightingMode);
 		}
@@ -327,11 +329,19 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 
 	FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
 	bool bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+	// TODO: Limit continuation trace count (one?)
+	while (bHit && Payload.IsTranslucent())
+	{
+		float Epsilon = 0.01;
+		Ray.TMin = Payload.HitT + Epsilon;
+		bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+	}
+
 	if (bHit)
 	{
 		TraceHitDistance = Payload.HitT;
 		int DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
-		if (DFObjectIndex != INVALID_DF_OBJECT_INDEX)
+		if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
 		{
 			Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, TraceHitDistance, DFObjectIndex, NormalMode);
 		}

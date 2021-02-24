@@ -97,7 +97,8 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindLumenHardwareRayTra
 		FRayTracingLocalShaderBindings Binding = {};
 		Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
 		Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
-		Binding.UserData = MeshCommand.MaterialShaderIndex;
+		uint32 PackedUserData = (MeshCommand.bIsTranslucent != 0) & 0x1;
+		Binding.UserData = PackedUserData;
 		Binding.UniformBuffers = UniformBufferArray;
 		Binding.NumUniformBuffers = NumUniformBuffers;
 

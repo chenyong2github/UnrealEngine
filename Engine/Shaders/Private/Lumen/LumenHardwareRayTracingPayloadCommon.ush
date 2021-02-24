@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #define INVALID_LUMEN_INSTANCE_OFFSET 0xFFFFFFFFu
 #define LUMEN_SINGLE_INSTANCE_BIT 0x80000000u
 
+#define INVALID_DISTANCE_FIELD_OBJECT_INDEX -1
+
 int GetLumenDistanceFieldObjectIndex(int PrimitiveIndex, int PrimitiveInstanceIndex)
 {
-	int DFObjectIndex = -1;
+	int DFObjectIndex = INVALID_DISTANCE_FIELD_OBJECT_INDEX;
 
 	if (PrimitiveIndex < View.PrimitiveToLumenInstanceOffsetBufferSize)
 	{
