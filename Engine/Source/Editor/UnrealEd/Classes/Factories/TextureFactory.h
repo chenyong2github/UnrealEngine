@@ -196,6 +196,10 @@ public:
 	// @todo document
 	bool InitializeFromT3DTextureCubeDataText(UTextureCube* InTextureCube, const TCHAR*& Buffer, FFeedbackContext* Warn);
 
+protected:
+	/** Keep track of if we are doing a reimport */
+	bool bIsDoingAReimport = false;
+
 private:
 	/** This variable is static because in StaticImportObject() the type of the factory is not known. */
 	static bool bSuppressImportOverwriteDialog;
