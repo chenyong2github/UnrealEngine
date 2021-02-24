@@ -10,6 +10,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/PackageSegment.h"
 #include "Misc/ScopeLock.h"
+#include "Serialization/CompactBinary.h"
 
 FEditorDomainReadArchive::FEditorDomainReadArchive(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
@@ -26,7 +27,7 @@ FEditorDomainReadArchive::~FEditorDomainReadArchive()
 	Close();
 }
 
-void FEditorDomainReadArchive::SetRequest(const UE::DerivedData::FCacheRequest& InRequest)
+void FEditorDomainReadArchive::SetRequest(const UE::DerivedData::FRequest& InRequest)
 {
 	Request = InRequest;
 }
@@ -351,7 +352,7 @@ FEditorDomainAsyncReadFileHandle::~FEditorDomainAsyncReadFileHandle()
 	Source = ESource::Closed;
 }
 
-void FEditorDomainAsyncReadFileHandle::SetRequest(const UE::DerivedData::FCacheRequest& InRequest)
+void FEditorDomainAsyncReadFileHandle::SetRequest(const UE::DerivedData::FRequest& InRequest)
 {
 	Request = InRequest;
 }

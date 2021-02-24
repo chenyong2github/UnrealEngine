@@ -5,9 +5,8 @@
 #include "CoreTypes.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
-#include "Memory/MemoryFwd.h"
+#include "DerivedDataRequest.h"
 #include "Misc/EnumClassFlags.h"
-#include "Templates/RefCounting.h"
 
 namespace UE
 {
@@ -82,45 +81,6 @@ ENUM_CLASS_FLAGS(ECachePolicy);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Priority for scheduling cache requests. */
-enum class ECachePriority : uint8
-{
-	/**
-	 * Blocking is to be used only when the thread making the request will wait on completion of the
-	 * request before doing any other work. Requests at this priority level will be processed before
-	 * any request at a lower priority level. The cache may choose to process part of the request on
-	 * the thread making the request. Waiting on a request may increase its priority to this level.
-	 */
-	Blocking,
-	/**
-	 * Highest is the maximum priority for asynchronous cache requests, and is intended for requests
-	 * that are required to maintain interactivity of the program.
-	 */
-	Highest,
-	/**
-	 * High is intended for requests that are on the critical path, but are not required to maintain
-	 * interactivity of the program.
-	 */
-	High,
-	/**
-	 * Normal is intended as the default request priority.
-	 */
-	Normal,
-	/**
-	 * Low is intended for requests that are below the default priority, but are used for operations
-	 * that the program will execute now rather than at an unknown time in the future.
-	 */
-	Low,
-	/**
-	 * Lowest is the minimum priority for asynchronous cache requests, and is primarily intended for
-	 * requests that prefetch from the cache to optimize a future operation, while minimizing impact
-	 * on other cache requests that are in flight.
-	 */
-	Lowest,
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /** Status of a cache operation. */
 enum class ECacheStatus : uint8
 {
@@ -130,105 +90,6 @@ enum class ECacheStatus : uint8
 	Cached,
 	/** The operation was canceled before it completed. */
 	Canceled,
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** Interface for a cache request. Provides functionality common to every type of request. */
-class ICacheRequest : public IRefCountedObject
-{
-public:
-	virtual ~ICacheRequest() = default;
-
-	/** Set the priority of the request. */
-	virtual void SetPriority(ECachePriority Priority) = 0;
-
-	/** Cancel the request and invoke its callback. */
-	virtual void Cancel() = 0;
-
-	/** Block the calling thread until the request and its callback complete. */
-	virtual void Wait() = 0;
-
-	/** Poll the request and return true if complete and false otherwise. */
-	virtual bool Poll() = 0;
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** A wrapper for the cache request interface that manages lifetime with reference counting. */
-class FCacheRequest
-{
-public:
-	/** Construct a null cache request. */
-	FCacheRequest() = default;
-
-	/** Construct a cache request from . */
-	inline explicit FCacheRequest(ICacheRequest* InRequest)
-		: Request(InRequest)
-	{
-	}
-
-	/** Reset this to null. */
-	inline void Reset() { Request.SafeRelease(); }
-
-	/** Whether the cache request is null. */
-	inline bool IsNull() const { return !Request; }
-	/** Whether the cache request is not null. */
-	inline explicit operator bool() const { return !IsNull(); }
-
-	/**
-	 * Set the priority of the request.
-	 *
-	 * @param Priority The new priority for the request. May be higher or lower than the original.
-	 */
-	inline void SetPriority(ECachePriority Priority)
-	{
-		if (Request)
-		{
-			Request->SetPriority(Priority);
-		}
-	}
-
-	/**
-	 * Cancel the request and invoke its callback.
-	 *
-	 * Does not return until the callback for the request has finished executing.
-	 */
-	inline void Cancel() const
-	{
-		if (Request)
-		{
-			Request->Cancel();
-		}
-	}
-
-	/**
-	 * Block the calling thread until the request is complete.
-	 *
-	 * Avoid waiting if possible and use callbacks to manage control flow instead.
-	 * Does not return until the callback for the request has finished executing.
-	 */
-	inline void Wait() const
-	{
-		if (Request)
-		{
-			Request->Wait();
-		}
-	}
-
-	/**
-	 * Poll the request and return true if complete and false otherwise.
-	 *
-	 * Avoid polling if possible and use callbacks to manage control flow instead.
-	 * A request is not considered to be complete until its callback has finished executing.
-	 */
-	inline bool Poll() const
-	{
-		return !Request || Request->Poll();
-	}
-
-private:
-	TRefCountPtr<ICacheRequest> Request;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -269,9 +130,9 @@ struct FCacheGetPayloadCompleteParams
 	/**
 	 * Payload for the part of the payload request that completed or was canceled.
 	 *
-	 * The ID is always populated. The remainder of the payload is populated when Status is Cached.
+	 * The ID is always populated. The hash and buffer are populated when Status is Cached.
 	 */
-	FCachePayload Payload;
+	FPayload Payload;
 
 	/** Status of the cache request. */
 	ECacheStatus Status = ECacheStatus::NotCached;
@@ -309,14 +170,14 @@ public:
 	 * @param Records The cache records to store. Must have a key. Records are reset to null.
 	 * @param Context A description of the request. An object path is typically sufficient.
 	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority A priority to consider when scheduling the request. See ECachePriority.
+	 * @param Priority A priority to consider when scheduling the request. See EPriority.
 	 * @param Callback A callback invoked for every key in the batch as it completes or is canceled.
 	 */
-	virtual FCacheRequest Put(
+	virtual FRequest Put(
 		TArrayView<FCacheRecord> Records,
 		FStringView Context,
 		ECachePolicy Policy = ECachePolicy::Default,
-		ECachePriority Priority = ECachePriority::Normal,
+		EPriority Priority = EPriority::Normal,
 		FOnCachePutComplete&& Callback = FOnCachePutComplete()) = 0;
 
 	/**
@@ -328,14 +189,14 @@ public:
 	 * @param Keys The keys identifying the cache records to query.
 	 * @param Context A description of the request. An object path is typically sufficient.
 	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority A priority to consider when scheduling the request. See ECachePriority.
+	 * @param Priority A priority to consider when scheduling the request. See EPriority.
 	 * @param Callback A callback invoked for every key in the batch as it completes or is canceled.
 	 */
-	virtual FCacheRequest Get(
+	virtual FRequest Get(
 		TConstArrayView<FCacheKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		ECachePriority Priority,
+		EPriority Priority,
 		FOnCacheGetComplete&& Callback) = 0;
 
 	/**
@@ -347,14 +208,14 @@ public:
 	 * @param Keys The keys identifying the cache record payloads to query.
 	 * @param Context A description of the request. An object path is typically sufficient.
 	 * @param Policy Flags to control the behavior of the request. See ECachePolicy.
-	 * @param Priority A priority to consider when scheduling the request. See ECachePriority.
+	 * @param Priority A priority to consider when scheduling the request. See EPriority.
 	 * @param Callback A callback invoked for every key in the batch as it completes or is canceled.
 	 */
-	virtual FCacheRequest GetPayloads(
+	virtual FRequest GetPayloads(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
-		ECachePriority Priority,
+		EPriority Priority,
 		FOnCacheGetPayloadComplete&& Callback) = 0;
 
 	/**

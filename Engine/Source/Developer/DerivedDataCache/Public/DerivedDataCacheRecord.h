@@ -4,12 +4,13 @@
 
 #include "CoreTypes.h"
 #include "DerivedDataCacheKey.h"
-#include "Memory/SharedBuffer.h"
-#include "Serialization/CompactBinary.h"
+#include "DerivedDataPayload.h"
+#include "Memory/MemoryFwd.h"
 #include "Templates/PimplPtr.h"
 
 #define UE_API DERIVEDDATACACHE_API
 
+class FCbObject;
 template <typename ResultType> class TFuture;
 
 namespace UE
@@ -20,69 +21,6 @@ namespace DerivedData
 class FCacheRecordBuilder;
 struct FCacheRecordData;
 struct FCacheRecordBuilderData;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * A cache payload is a compressed value or attachment for a cache record.
- */
-class FCachePayload
-{
-public:
-	/** Construct a null cache payload. */
-	FCachePayload() = default;
-
-	/** Construct a cache payload from the compressed data hash. */
-	UE_API FCachePayload(const FCachePayloadId& Id, const FIoHash& CompressedDataHash);
-	/** Construct a cache payload from the compressed data. See FCachePayload::Compress. */
-	UE_API FCachePayload(const FCachePayloadId& Id, FSharedBuffer CompressedData);
-	/** Construct a cache payload from the compressed data its hash. See FCachePayload::Compress. */
-	UE_API FCachePayload(const FCachePayloadId& Id, FSharedBuffer CompressedData, const FIoHash& CompressedDataHash);
-
-	/** Returns a payload ID that uniquely identifies it within the scope of its cache record. */
-	inline const FCachePayloadId& GetId() const { return Id; }
-
-	/**
-	 * Returns the compressed data for the payload.
-	 *
-	 * This will be null when the originating cache request skips the payload.
-	 */
-	inline const FSharedBuffer& GetCompressedData() const { return CompressedData; }
-
-	/** Returns the hash of the compressed data for the payload. */
-	inline const FIoHash& GetCompressedDataHash() const { return CompressedDataHash; }
-
-	inline FSharedBuffer Decompress() const { return Decompress(CompressedData); }
-
-	/** Whether this is null. */
-	inline bool IsNull() const { return Id.IsNull(); }
-	/** Whether this is not null. */
-	inline bool IsValid() const { return !IsNull(); }
-	/** Whether this is not null. */
-	inline explicit operator bool() const { return IsValid(); }
-
-	/** Reset this to null. */
-	inline void Reset() { *this = FCachePayload(); }
-
-	/**
-	 * Compress the input buffer with the default settings for a cache payload.
-	 *
-	 * FIoCompression::Compress and its variants may be used instead to access more options.
-	 */
-	UE_API static FSharedBuffer Compress(FSharedBuffer Data);
-
-	/**
-	 * Decompress the input buffer.
-	 *
-	 * FIoCompression::Decompress and its variants may be used instead to access more options.
-	 */
-	UE_API static FSharedBuffer Decompress(FSharedBuffer CompressedData);
-
-private:
-	FCachePayloadId Id;
-	FSharedBuffer CompressedData;
-	FIoHash CompressedDataHash;
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -120,16 +58,16 @@ public:
 	UE_API FSharedBuffer GetValue() const;
 
 	/** Returns the value payload. Always available in a non-null cache record. */
-	UE_API const FCachePayload& GetValuePayload() const;
+	UE_API const FPayload& GetValuePayload() const;
 
 	/** Returns the attachment that matches the ID. Null if no match or attachments were skipped in the request. */
-	UE_API FSharedBuffer GetAttachment(const FCachePayloadId& Id) const;
+	UE_API FSharedBuffer GetAttachment(const FPayloadId& Id) const;
 
 	/** Returns the attachment payload that matches the ID. Null if no match or the cache record is null. */
-	UE_API const FCachePayload& GetAttachmentPayload(const FCachePayloadId& Id) const;
+	UE_API const FPayload& GetAttachmentPayload(const FPayloadId& Id) const;
 
-	/** Returns a view of the attachments. Always available in a non-null cache record, but data may be skipped. */
-	UE_API TConstArrayView<FCachePayload> GetAttachmentPayloads() const;
+	/** Returns a view of the attachments. Always available in a non-null cache record, but buffer may be skipped. */
+	UE_API TConstArrayView<FPayload> GetAttachmentPayloads() const;
 
 	/** Whether this is null. */
 	inline bool IsNull() const { return !Data; }
@@ -191,17 +129,17 @@ public:
 	 * @param Buffer The value, which is cloned if not owned, and is compressed by the builder.
 	 * @param Id An ID for the value that is unique within the scope of the cache record. If omitted
 	 *           the builder will create an ID by hashing the buffer.
-	 * @return The payload ID that was provided or created.
+	 * @return The ID that was provided or created.
 	 */
-	UE_API FCachePayloadId SetValue(FSharedBuffer Buffer, FCachePayloadId Id = FCachePayloadId());
+	UE_API FPayloadId SetValue(const FSharedBuffer& Buffer, FPayloadId Id = FPayloadId());
 
 	/**
 	 * Set the value for the cache record.
 	 *
 	 * @param Payload The value payload, which is reset to null.
-	 * @return The payload ID that was provided. Unique within the scope of the cache record.
+	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	UE_API FCachePayloadId SetValue(FCachePayload&& Payload);
+	UE_API FPayloadId SetValue(FPayload&& Payload);
 
 	/**
 	 * Add an attachment to the cache record.
@@ -209,17 +147,17 @@ public:
 	 * @param Buffer The attachment, which is cloned if not owned, and is compressed by the builder.
 	 * @param Id An ID for the attachment that is unique within the scope of the cache record. If it
 	 *           is omitted the builder will create an ID by hashing the buffer.
-	 * @return The payload ID that was provided or created.
+	 * @return The ID that was provided or created.
 	 */
-	UE_API FCachePayloadId AddAttachment(FSharedBuffer Buffer, FCachePayloadId Id = FCachePayloadId());
+	UE_API FPayloadId AddAttachment(const FSharedBuffer& Buffer, FPayloadId Id = FPayloadId());
 
 	/**
 	 * Add an attachment to the cache record.
 	 *
 	 * @param Payload The attachment payload, which is reset to null.
-	 * @return The payload ID that was provided. Unique within the scope of the cache record.
+	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	UE_API FCachePayloadId AddAttachment(FCachePayload&& Payload);
+	UE_API FPayloadId AddAttachment(FPayload&& Payload);
 
 	/**
 	 * Build a cache record, resetting this builder.
@@ -249,46 +187,6 @@ public:
 
 private:
 	TPimplPtr<FCacheRecordBuilderData> Data;
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** Compare cache payloads by their ID. */
-struct FCachePayloadEqualById
-{
-	inline bool operator()(const FCachePayload& Payload1, const FCachePayload& Payload2) const
-	{
-		return Payload1.GetId() == Payload2.GetId();
-	}
-
-	inline bool operator()(const FCachePayload& Payload1, const FCachePayloadId& PayloadId2) const
-	{
-		return Payload1.GetId() == PayloadId2;
-	}
-
-	inline bool operator()(const FCachePayloadId& PayloadId1, const FCachePayload& Payload2) const
-	{
-		return PayloadId1 == Payload2.GetId();
-	}
-};
-
-/** Compare cache payloads by their ID. */
-struct FCachePayloadLessById
-{
-	inline bool operator()(const FCachePayload& Payload1, const FCachePayload& Payload2) const
-	{
-		return Payload1.GetId() < Payload2.GetId();
-	}
-
-	inline bool operator()(const FCachePayload& Payload1, const FCachePayloadId& PayloadId2) const
-	{
-		return Payload1.GetId() < PayloadId2;
-	}
-
-	inline bool operator()(const FCachePayloadId& PayloadId1, const FCachePayload& Payload2) const
-	{
-		return PayloadId1 < Payload2.GetId();
-	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

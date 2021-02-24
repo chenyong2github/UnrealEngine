@@ -3,9 +3,7 @@
 #include "DerivedDataCacheKey.h"
 
 #include "Algo/AllOf.h"
-#include "Containers/StringConv.h"
 #include "Misc/StringBuilder.h"
-#include "Serialization/CompactBinary.h"
 #include "UObject/NameTypes.h"
 
 namespace UE
@@ -66,53 +64,6 @@ void FCacheKey::ToString(FWideStringBuilderBase& Builder) const
 FString FCacheKey::ToString() const
 {
 	TStringBuilder<72> Out;
-	ToString(Out);
-	return FString(Out);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FCachePayloadId FCachePayloadId::FromName(FAnsiStringView Name)
-{
-	checkf(!Name.IsEmpty(), TEXT("Payload ID requires a non-empty name."));
-	return FCachePayloadId::FromHash(FIoHash::HashBuffer(Name.GetData(), Name.Len()));
-}
-
-FCachePayloadId FCachePayloadId::FromName(FWideStringView Name)
-{
-	checkf(!Name.IsEmpty(), TEXT("Payload ID requires a non-empty name."));
-	TAnsiStringBuilder<128> Name8;
-	const int32 Len = int32(FTCHARToUTF8_Convert::ConvertedLength(Name.GetData(), Name.Len()));
-	const int32 Offset = Name8.AddUninitialized(Len);
-	const int32 WrittenLen = FTCHARToUTF8_Convert::Convert(Name8.GetData() + Offset, Len, Name.GetData(), Name.Len());
-	checkf(Len == WrittenLen, TEXT("Name '%.*s' failed to convert to a payload ID."), Name.Len(), Name.GetData());
-	return FCachePayloadId::FromName(Name8);
-}
-
-FCachePayloadId FCachePayloadId::FromObjectId(const FCbObjectId& ObjectId)
-{
-	checkf(ObjectId != FCbObjectId(), TEXT("Payload ID requires a non-zero ObjectId."));
-	return FCachePayloadId(ObjectId.GetView());
-}
-
-FCbObjectId FCachePayloadId::ToObjectId() const
-{
-	return FCbObjectId(GetView());
-}
-
-void FCachePayloadId::ToString(FAnsiStringBuilderBase& Builder) const
-{
-	UE::String::BytesToHexLower(Bytes, Builder);
-}
-
-void FCachePayloadId::ToString(FWideStringBuilderBase& Builder) const
-{
-	UE::String::BytesToHexLower(Bytes, Builder);
-}
-
-FString FCachePayloadId::ToString() const
-{
-	TStringBuilder<16> Out;
 	ToString(Out);
 	return FString(Out);
 }

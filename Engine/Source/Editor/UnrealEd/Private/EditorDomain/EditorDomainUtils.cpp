@@ -74,8 +74,8 @@ UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& Packa
 	return UE::DerivedData::FCacheKey(EditorDomainPackageCacheBucket, PackageDigest);
 }
 
-UE::DerivedData::FCacheRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
-	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePriority CachePriority,
+UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
+	const FPackageDigest& PackageDigest, UE::DerivedData::EPriority CachePriority,
 	UE::DerivedData::FOnCacheGetComplete&& Callback)
 {
 	UE::DerivedData::ICache& Cache = GetDerivedDataCacheRef().GetCache();

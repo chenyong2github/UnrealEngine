@@ -30,7 +30,7 @@ public:
 	~FEditorDomainReadArchive();
 
 	/** Set the CacheRequest handle that will feed this archive. */
-	void SetRequest(const UE::DerivedData::FCacheRequest& InRequest);
+	void SetRequest(const UE::DerivedData::FRequest& InRequest);
 	/** Callback from the CacheRequest; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
 	void OnCacheRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
 	/** Get the PackageFormat, which depends on the domain the data is read from. */
@@ -64,7 +64,7 @@ private:
 
 	// Data in this section is either read-only, or is read and written only on the public interface thread.
 	TRefCountPtr<FEditorDomain::FLocks> EditorDomainLocks; // Pointer is read-only, *pointer has internal lock
-	UE::DerivedData::FCacheRequest Request; // Read-only
+	UE::DerivedData::FRequest Request; // Read-only
 	FPackagePath PackagePath; // Read-only
 	int64 Pos = 0; // Interface-thread-only
 	mutable ESource Source = ESource::Uninitialized; // Interface-thread-only
@@ -91,7 +91,7 @@ public:
 	~FEditorDomainAsyncReadFileHandle();
 
 	/** Set the CacheRequest handle that will feed this archive. */
-	void SetRequest(const UE::DerivedData::FCacheRequest& InRequest);
+	void SetRequest(const UE::DerivedData::FRequest& InRequest);
 	/** Callback from the CacheRequest; set whether we're reading from EditorDomain bytes or WorkspaceDomain archive. */
 	void OnCacheRequestComplete(UE::DerivedData::FCacheGetCompleteParams&& Params);
 
@@ -119,7 +119,7 @@ private:
 
 	// Data in this section is either read-only, or is read and written only on the public interface thread.
 	TRefCountPtr<FEditorDomain::FLocks> EditorDomainLocks; // Pointer is read-only, *pointer has internal lock
-	UE::DerivedData::FCacheRequest Request; // Read-only
+	UE::DerivedData::FRequest Request; // Read-only
 	FPackagePath PackagePath; // Read-only
 	mutable ESource Source = ESource::Uninitialized; // Interface-thread-only
 	TRefCountPtr<FEditorDomain::FPackageSource> PackageSource; // Read-only, *pointer requires EditorDomainLocks.Lock

@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
+#include "DerivedDataPayload.h"
 #include "IO/IoHash.h"
 #include "Templates/TypeHash.h"
 
@@ -170,97 +171,6 @@ struct FCacheKeyLexicalLess
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A 12-byte value that uniquely identifies a cache payload in the scope of a cache record. */
-struct FCachePayloadId
-{
-public:
-	using ByteArray = uint8[12];
-
-	/** Construct a null ID. */
-	FCachePayloadId() = default;
-
-	/** Construct an ID from a view of 12 bytes. */
-	inline explicit FCachePayloadId(FMemoryView Id);
-
-	/** Construct an ID from a non-zero hash. The hash must be unique in the outer cache record. */
-	static inline FCachePayloadId FromHash(const FIoHash& Hash);
-
-	/** Construct an ID from a non-empty name. The name must be unique in the outer cache record. */
-	UE_API static FCachePayloadId FromName(FAnsiStringView Name);
-	UE_API static FCachePayloadId FromName(FWideStringView Name);
-
-	/** Construct an ID from an ObjectId. The ObjectId must be unique in the outer cache record. */
-	UE_API static FCachePayloadId FromObjectId(const FCbObjectId& ObjectId);
-
-	/** Convert the ID to an ObjectId. */
-	UE_API FCbObjectId ToObjectId() const;
-
-	/** Convert the ID to a 24-character hex string. */
-	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
-	UE_API void ToString(FWideStringBuilderBase& Builder) const;
-	UE_API FString ToString() const;
-
-	/** Returns a view of the raw byte array for the ID. */
-	constexpr inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
-
-	/** Whether this is null. */
-	inline bool IsNull() const;
-	/** Whether this is not null. */
-	inline bool IsValid() const { return !IsNull(); }
-
-	/** Reset this to null. */
-	inline void Reset() { *this = FCachePayloadId(); }
-
-private:
-	alignas(uint32) ByteArray Bytes{};
-};
-
-inline bool operator==(const FCachePayloadId& A, const FCachePayloadId& B)
-{
-	return A.GetView().EqualBytes(B.GetView());
-}
-
-inline bool operator!=(const FCachePayloadId& A, const FCachePayloadId& B)
-{
-	return !A.GetView().EqualBytes(B.GetView());
-}
-
-inline bool operator<(const FCachePayloadId& A, const FCachePayloadId& B)
-{
-	return A.GetView().CompareBytes(B.GetView()) < 0;
-}
-
-inline uint32 GetTypeHash(const FCachePayloadId& Id)
-{
-	return *reinterpret_cast<const uint32*>(Id.GetView().GetData());
-}
-
-inline FCachePayloadId::FCachePayloadId(const FMemoryView InId)
-{
-	checkf(InId.GetSize() == sizeof(ByteArray),
-		TEXT("FCachePayloadId cannot be constructed from a view of %" UINT64_FMT " bytes."), InId.GetSize());
-	FMemory::Memcpy(Bytes, InId.GetData(), sizeof(ByteArray));
-}
-
-inline FCachePayloadId FCachePayloadId::FromHash(const FIoHash& Hash)
-{
-	return FCachePayloadId(MakeMemoryView(Hash.GetBytes()).Left(sizeof(ByteArray)));
-}
-
-inline bool FCachePayloadId::IsNull() const
-{
-	return *this == FCachePayloadId();
-}
-
-template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCachePayloadId& Id)
-{
-	Id.ToString(Builder);
-	return Builder;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /** A key that uniquely identifies a payload within a cache record. */
 class FCachePayloadKey
 {
@@ -269,7 +179,7 @@ public:
 	FCachePayloadKey() = default;
 
 	/** Construct a cache payload key from the non-null key and non-null ID. */
-	inline FCachePayloadKey(const FCacheKey& InKey, const FCachePayloadId& InId)
+	inline FCachePayloadKey(const FCacheKey& InKey, const FPayloadId& InId)
 		: Key(InKey)
 		, Id(InId)
 	{
@@ -279,7 +189,7 @@ public:
 	inline const FCacheKey& GetKey() const { return Key; }
 
 	/** Returns the ID of the payload. */
-	inline const FCachePayloadId& GetId() const { return Id; }
+	inline const FPayloadId& GetId() const { return Id; }
 
 	/** Convert the cache payload key to a string. */
 	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
@@ -296,7 +206,7 @@ public:
 
 private:
 	FCacheKey Key;
-	FCachePayloadId Id;
+	FPayloadId Id;
 };
 
 inline bool operator==(const FCachePayloadKey& A, const FCachePayloadKey& B)

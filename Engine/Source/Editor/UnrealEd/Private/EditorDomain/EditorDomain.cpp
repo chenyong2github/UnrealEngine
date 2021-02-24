@@ -18,6 +18,7 @@
 #include "Misc/PackageSegment.h"
 #include "Misc/ScopeLock.h"
 #include "Serialization/Archive.h"
+#include "Serialization/CompactBinary.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/PackageResourceManagerFile.h"
@@ -166,7 +167,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		return Workspace->FileSize(PackagePath, PackageSegment, OutUpdatedPath);
 	}
 
-	UE::DerivedData::FCacheRequest Request;
+	UE::DerivedData::FRequest Request;
 	int64 FileSize = -1;
 	{
 		FScopeLock ScopeLock(&Locks->Lock);
@@ -186,8 +187,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 				Params.Status == UE::DerivedData::ECacheStatus::Cached)
 			{
 				const FCbObject& MetaData = Params.Record.GetMeta();
-				FCbFieldView FileSizeField = MetaData["FileSize"];
-				FileSize = FileSizeField.AsInt64();
+				FileSize = MetaData["FileSize"].AsInt64();
 				PackageSource->Source = EPackageSource::Editor;
 			}
 			else
@@ -211,7 +211,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 			}
 		};
 		Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
-			UE::DerivedData::ECachePriority::Highest, MoveTemp(MetaDataGetComplete));
+			UE::DerivedData::EPriority::Highest, MoveTemp(MetaDataGetComplete));
 	}
 	Request.Wait();
 	return FileSize;
@@ -234,8 +234,8 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 	}
 
 	FEditorDomainReadArchive* Result = new FEditorDomainReadArchive(Locks, PackagePath, PackageSource);
-	UE::DerivedData::FCacheRequest Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
-		UE::DerivedData::ECachePriority::Normal,
+	UE::DerivedData::FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
+		UE::DerivedData::EPriority::Normal,
 		[Result](UE::DerivedData::FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainReadArchive waits for this callback to be called, so Result cannot dangle
@@ -279,8 +279,8 @@ IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadPackage(const FPackagePath& Pa
 	}
 
 	FEditorDomainAsyncReadFileHandle* Result = new FEditorDomainAsyncReadFileHandle(Locks, PackagePath, PackageSource);
-	UE::DerivedData::FCacheRequest Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
-		UE::DerivedData::ECachePriority::Normal,
+	UE::DerivedData::FRequest Request = RequestEditorDomainPackage(PackagePath, PackageSource->Digest,
+		UE::DerivedData::EPriority::Normal,
 		[Result](UE::DerivedData::FCacheGetCompleteParams&& Params)
 		{
 			// Note that ~FEditorDomainAsyncReadFileHandle waits for this callback to be called, so Result cannot dangle

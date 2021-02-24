@@ -4,6 +4,7 @@
 
 #include "Async/Future.h"
 #include "Misc/StringBuilder.h"
+#include "Serialization/CompactBinary.h"
 
 namespace UE
 {
@@ -12,71 +13,12 @@ namespace DerivedData
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCachePayload::FCachePayload(const FCachePayloadId& InId, const FIoHash& InCompressedDataHash)
-	: Id(InId)
-	, CompressedDataHash(InCompressedDataHash)
-{
-	checkf(Id.IsValid(), TEXT("A valid ID is required to construct a cache payload."));
-}
-
-FCachePayload::FCachePayload(const FCachePayloadId& InId, FSharedBuffer InCompressedData)
-	: Id(InId)
-	, CompressedData(MoveTemp(InCompressedData))
-{
-	checkf(Id.IsValid(), TEXT("A valid ID is required to construct a cache payload."));
-	if (CompressedData.GetSize())
-	{
-		CompressedDataHash = FIoHash::HashBuffer(CompressedData);
-	}
-}
-
-FCachePayload::FCachePayload(const FCachePayloadId& InId, FSharedBuffer InCompressedData, const FIoHash& InCompressedDataHash)
-	: Id(InId)
-	, CompressedData(MoveTemp(InCompressedData))
-	, CompressedDataHash(InCompressedDataHash)
-{
-	checkf(Id.IsValid(), TEXT("A valid ID is required to construct a cache payload."));
-	if (CompressedData.GetSize())
-	{
-		checkfSlow(CompressedDataHash == FIoHash::HashBuffer(CompressedData),
-			TEXT("Provided compressed data hash %s does not match calculated hash %s"),
-			*CompressedDataHash.ToString(), *FIoHash::HashBuffer(CompressedData).ToString());
-		checkf(!CompressedDataHash.IsZero(), TEXT("A non-empty compressed data buffer must have a non-zero hash."));
-	}
-	else
-	{
-		checkf(CompressedDataHash.IsZero(), TEXT("A null or empty compressed data buffer must use a hash of zero."));
-	}
-}
-
-FSharedBuffer FCachePayload::Compress(FSharedBuffer Buffer)
-{
-	// DDC-TODO: Switch to the new compression interface when it is ready. For now, match the "no compression" method.
-	FUniqueBuffer CompressedBuffer = FUniqueBuffer::Alloc(Buffer.GetSize() + 1);
-	FMemory::Memset(CompressedBuffer.GetData(), 0, 1);
-	FMemory::Memcpy(CompressedBuffer.GetView().RightChop(1).GetData(), Buffer.GetData(), Buffer.GetSize());
-	return FSharedBuffer(MoveTemp(CompressedBuffer));
-}
-
-FSharedBuffer FCachePayload::Decompress(FSharedBuffer Buffer)
-{
-	// DDC-TODO: Switch to the new compression interface when it is ready. For now, match the "no compression" method.
-	if (Buffer)
-	{
-		const FMemoryView View = Buffer.GetView() + 1;
-		return FSharedBuffer::MakeView(View, MoveTemp(Buffer));
-	}
-	return FSharedBuffer();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 struct FCacheRecordBuilderData
 {
 	FCacheKey Key;
 	FCbObject Meta;
-	FCachePayload Value;
-	TArray<FCachePayload> Attachments;
+	FPayload Value;
+	TArray<FPayload> Attachments;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,9 +30,9 @@ struct FCacheRecordData
 
 	FCacheKey Key;
 	FCbObject Meta;
-	FCachePayload Value;
+	FPayload Value;
 	FSharedBuffer ValueCache;
-	TArray<FCachePayload> Attachments;
+	TArray<FPayload> Attachments;
 	TArray<FSharedBuffer> AttachmentsCache;
 };
 
@@ -104,9 +46,9 @@ FCacheRecordData::FCacheRecordData(FCacheRecordBuilderData&& Builder)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static const FCachePayload& GetEmptyCachePayload()
+static const FPayload& GetEmptyCachePayload()
 {
-	static const FCachePayload Empty;
+	static const FPayload Empty;
 	return Empty;
 }
 
@@ -116,9 +58,9 @@ static const FCacheRecordData& GetEmptyCacheRecord()
 	return Empty;
 }
 
-static FCachePayloadId GetOrCreatePayloadId(const FCachePayloadId& Id, const FSharedBuffer& Buffer)
+static FPayloadId GetOrCreatePayloadId(const FPayloadId& Id, const FSharedBuffer& Buffer)
 {
-	return Id.IsValid() ? Id : FCachePayloadId::FromHash(FIoHash::HashBuffer(Buffer));
+	return Id.IsValid() ? Id : FPayloadId::FromHash(FIoHash::HashBuffer(Buffer));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -154,23 +96,23 @@ FSharedBuffer FCacheRecord::GetValue() const
 	{
 		if (Data->ValueCache.IsNull() && Data->Value.IsValid())
 		{
-			Data->ValueCache = Data->Value.Decompress();
+			Data->ValueCache = Data->Value.GetBuffer().Decompress();
 		}
 		return Data->ValueCache;
 	}
 	return FSharedBuffer();
 }
 
-const FCachePayload& FCacheRecord::GetValuePayload() const
+const FPayload& FCacheRecord::GetValuePayload() const
 {
 	return (Data ? *Data : GetEmptyCacheRecord()).Value;
 }
 
-FSharedBuffer FCacheRecord::GetAttachment(const FCachePayloadId& Id) const
+FSharedBuffer FCacheRecord::GetAttachment(const FPayloadId& Id) const
 {
-	TArray<FCachePayload>& Attachments = Data->Attachments;
-	const int32 Index = Algo::LowerBound(Attachments, Id, FCachePayloadLessById());
-	if (Attachments.IsValidIndex(Index) && FCachePayloadEqualById()(Attachments[Index], Id))
+	TArray<FPayload>& Attachments = Data->Attachments;
+	const int32 Index = Algo::LowerBound(Attachments, Id, FPayloadLessById());
+	if (Attachments.IsValidIndex(Index) && FPayloadEqualById()(Attachments[Index], Id))
 	{
 		TArray<FSharedBuffer>& AttachmentsCache = Data->AttachmentsCache;
 		if (AttachmentsCache.IsEmpty())
@@ -180,25 +122,25 @@ FSharedBuffer FCacheRecord::GetAttachment(const FCachePayloadId& Id) const
 		FSharedBuffer& DataCache = AttachmentsCache[Index];
 		if (!DataCache)
 		{
-			DataCache = Attachments[Index].Decompress();
+			DataCache = Attachments[Index].GetBuffer().Decompress();
 		}
 		return DataCache;
 	}
 	return FSharedBuffer();
 }
 
-const FCachePayload& FCacheRecord::GetAttachmentPayload(const FCachePayloadId& Id) const
+const FPayload& FCacheRecord::GetAttachmentPayload(const FPayloadId& Id) const
 {
-	TArray<FCachePayload>& Attachments = Data->Attachments;
-	const int32 Index = Algo::LowerBound(Attachments, Id, FCachePayloadLessById());
-	if (Attachments.IsValidIndex(Index) && FCachePayloadEqualById()(Attachments[Index], Id))
+	TArray<FPayload>& Attachments = Data->Attachments;
+	const int32 Index = Algo::LowerBound(Attachments, Id, FPayloadLessById());
+	if (Attachments.IsValidIndex(Index) && FPayloadEqualById()(Attachments[Index], Id))
 	{
 		return Attachments[Index];
 	}
 	return GetEmptyCachePayload();
 }
 
-TConstArrayView<FCachePayload> FCacheRecord::GetAttachmentPayloads() const
+TConstArrayView<FPayload> FCacheRecord::GetAttachmentPayloads() const
 {
 	return (Data ? *Data : GetEmptyCacheRecord()).Attachments;
 }
@@ -221,32 +163,32 @@ void FCacheRecordBuilder::SetMeta(FCbObject Meta)
 	Data->Meta = MoveTemp(Meta);
 }
 
-FCachePayloadId FCacheRecordBuilder::SetValue(FSharedBuffer Buffer, FCachePayloadId Id)
+FPayloadId FCacheRecordBuilder::SetValue(const FSharedBuffer& Buffer, FPayloadId Id)
 {
 	Id = GetOrCreatePayloadId(Id, Buffer);
-	return SetValue(FCachePayload(Id, FCachePayload::Compress(MoveTemp(Buffer))));
+	return SetValue(FPayload(Id, FCompressedBuffer::Compress(Buffer)));
 }
 
-FCachePayloadId FCacheRecordBuilder::SetValue(FCachePayload&& Payload)
+FPayloadId FCacheRecordBuilder::SetValue(FPayload&& Payload)
 {
-	FCachePayload& Value = Data->Value;
+	FPayload& Value = Data->Value;
 	checkf(Value.IsNull(), TEXT("Failed to set value with ID %s because an there is an existing value with ID %s"),
 		*Payload.GetId().ToString(), *Value.GetId().ToString());
 	Value = MoveTemp(Payload);
 	return Value.GetId();
 }
 
-FCachePayloadId FCacheRecordBuilder::AddAttachment(FSharedBuffer Buffer, FCachePayloadId Id)
+FPayloadId FCacheRecordBuilder::AddAttachment(const FSharedBuffer& Buffer, FPayloadId Id)
 {
 	Id = GetOrCreatePayloadId(Id, Buffer);
-	return AddAttachment(FCachePayload(Id, MoveTemp(Buffer)));
+	return AddAttachment(FPayload(Id, FCompressedBuffer::Compress(Buffer)));
 }
 
-FCachePayloadId FCacheRecordBuilder::AddAttachment(FCachePayload&& Payload)
+FPayloadId FCacheRecordBuilder::AddAttachment(FPayload&& Payload)
 {
-	TArray<FCachePayload>& Attachments = Data->Attachments;
-	const int32 Index = Algo::LowerBound(Attachments, Payload, FCachePayloadLessById());
-	checkf(!Attachments.IsValidIndex(Index) || !FCachePayloadEqualById()(Attachments[Index], Payload),
+	TArray<FPayload>& Attachments = Data->Attachments;
+	const int32 Index = Algo::LowerBound(Attachments, Payload, FPayloadLessById());
+	checkf(!Attachments.IsValidIndex(Index) || !FPayloadEqualById()(Attachments[Index], Payload),
 		TEXT("Failed to add attachment with ID %s because an existing attachment is using that ID"),
 		*Payload.GetId().ToString());
 	Attachments.Insert(MoveTemp(Payload), Index);

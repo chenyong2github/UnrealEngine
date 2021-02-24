@@ -41,8 +41,8 @@ EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName Packa
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest);
 
 /** Get the CacheRequest for the given package from the EditorDomain cache bucket. */
-UE::DerivedData::FCacheRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
-	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePriority CachePriority,
+UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,
+	const FPackageDigest& PackageDigest, UE::DerivedData::EPriority CachePriority,
 	UE::DerivedData::FOnCacheGetComplete&& Callback);
 
 }
