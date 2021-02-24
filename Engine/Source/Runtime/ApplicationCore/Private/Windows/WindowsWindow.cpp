@@ -430,6 +430,7 @@ void FWindowsWindow::DisableTouchFeedback()
 												_In_ UINT32 size,
 												_In_reads_bytes_opt_(size) CONST VOID* configuration);
 
+		//Manually fetching SetWindowFeedbackSetting since it is only available in WINVER 0x0602 (Windows 8) and we are currently using WINVER 0x0601 (Windows 7)
 		SetWindowFeedbackSettingProc SetWindowFeedbackSetting = (SetWindowFeedbackSettingProc)FPlatformProcess::GetDllExport(User32Dll, TEXT("SetWindowFeedbackSetting"));
 		if (SetWindowFeedbackSetting)
 		{
