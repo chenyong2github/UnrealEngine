@@ -3349,10 +3349,21 @@ FString UK2Node_CallFunction::GetPinMetaData(FName InPinName, FName InKey)
 	{
 		if (UFunction* Function = GetTargetFunction())
 		{
-			// Find the corresponding property for the pin
+			// Find the corresponding property for the pin and search that first
 			if (FProperty* Property = Function->FindPropertyByName(InPinName))
 			{
 				MetaData = Property->GetMetaData(InKey);
+			}
+
+			// Also look for metadata like DefaultToSelf on the function itself
+			if (MetaData.IsEmpty())
+			{
+				MetaData = Function->GetMetaData(InKey);
+				if (MetaData != InPinName.ToString())
+				{
+					// Only return if the value matches the pin name as we don't want general function metadata
+					MetaData.Empty();
+				}
 			}
 		}
 	}

@@ -47,6 +47,8 @@ protected:
 	virtual FText GetDefaultComboText() const;
 	/** Allow self pin widget */
 	virtual bool AllowSelfPinWidget() const { return true; }
+	/** True if this specific pin should be treated as a self pin */
+	virtual bool ShouldDisplayAsSelfPin() const;
 	/** Generate asset picker window */
 	virtual TSharedRef<SWidget> GenerateAssetPicker();
 	/** Called to validate selection from picker window */
