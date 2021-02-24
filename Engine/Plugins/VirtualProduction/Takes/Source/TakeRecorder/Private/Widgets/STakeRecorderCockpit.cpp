@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/STakeRecorderCockpit.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/TakeRecorderWidgetConstants.h"
 #include "Widgets/STakeRecorderTabContent.h"
 #include "TakesCoreBlueprintLibrary.h"
@@ -156,6 +157,8 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 	int32 Column[] = { 0, 1, 2 };
 	int32 Row[]    = { 0, 1, 2 };
 
+	TSharedPtr<SOverlay> OverlayHolder;
+
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -270,7 +273,7 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				.AutoWidth()
 				[
-					SNew(SOverlay)
+					SAssignNew(OverlayHolder,SOverlay)
 
 					+ SOverlay::Slot()
 					[
@@ -441,6 +444,19 @@ void STakeRecorderCockpit::Construct(const FArguments& InArgs)
 		]
 		]
 	];
+
+	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	TArray<TSharedRef<SWidget>> OutExtensions;
+	TakeRecorderModule.GetRecordButtonExtensionGenerators().Broadcast(OutExtensions);
+	for (const TSharedRef<SWidget>& Widget : OutExtensions)
+	{
+		OverlayHolder->AddSlot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				Widget
+			];
+	}
 }
 
 bool STakeRecorderCockpit::CanStartRecording(FText* OutErrorText) const
@@ -528,6 +544,8 @@ void STakeRecorderCockpit::UpdateRecordError()
 		RecordErrorText = FText::Format(LOCTEXT("ErrorWidget_TooLong", "The path to the asset is too long ({0} characters), the maximum is {1}.\nPlease choose a shorter name for the slate or create it in a shallower folder structure with shorter folder names."), FText::AsNumber(PackageName.Len()), FText::AsNumber(MaxLength));
 		return;
 	}
+	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	TakeRecorderModule.GetRecordErrorCheckGenerator().Broadcast(RecordErrorText);
 }
 
 void STakeRecorderCockpit::UpdateTakeError()
@@ -1100,7 +1118,7 @@ TSharedRef<SWidget> STakeRecorderCockpit::OnCreateMenu()
 		}
 	}
 	MenuBuilder.EndSection();
-	
+
 	MenuBuilder.AddMenuSeparator();
 	FFrameRate TimecodeFrameRate = FApp::GetTimecodeFrameRate();
 	FText DisplayName = FText::Format(LOCTEXT("TimecodeFrameRate", "Timecode ({0})"), TimecodeFrameRate.ToPrettyText());

@@ -126,4 +126,11 @@ struct FTakeRecorderParameters
 	/** Number of seconds to countdown before initiating the recording */
 	UPROPERTY(BlueprintReadWrite, Category="Take Recorder")
 	FTakeRecorderProjectParameters Project;
+
+	/**
+	 * Option to disable recording and saving of data. This can be used in a scenario where multiple clients are running
+	 * take recorder, but only certain ones are set to process and save the data.
+	 */
+	UPROPERTY(Transient)
+	bool bDisableRecordingAndSave = false;
 };

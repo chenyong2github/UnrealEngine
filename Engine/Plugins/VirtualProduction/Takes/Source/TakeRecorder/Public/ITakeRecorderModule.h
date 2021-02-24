@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Delegates/DelegateCombinations.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FExtender;
 class UTakeRecorderSources;
@@ -17,7 +19,21 @@ DECLARE_DELEGATE_TwoParams(FOnExtendSourcesMenu, TSharedRef<FExtender>, UTakeRec
  * Delegate called to add extensions to the take recorder toolbar.
  * Usage: Bind a handler that adds a widget to the out array parameter.
  */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenerateToolbarExtensions, TArray<TSharedRef<class SWidget>>& /*OutExtensions*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenerateWidgetExtensions, TArray<TSharedRef<class SWidget>>& /*OutExtensions*/);
+
+/**
+ * Delegate called to to validate if recording can take place.
+ *
+ * Usage: Bind a handler that will supply a FText string when Take Recorder is in an invalid condition. The text will
+ * be displayed the user. If there is no error condition then the FText string must be empty.
+ */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRecordErrorCheck, FText &);
+
+/**
+ * Delegate to request preset save.  Note this is only a temporary workaround until Concert plugin supports
+ * instanced properties.
+ */
+DECLARE_DELEGATE(FOnForceSaveAsPreset);
 
 /**
  * Public module interface for the Take Recorder module
@@ -25,6 +41,11 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenerateToolbarExtensions, TArray<TShared
 class ITakeRecorderModule : public IModuleInterface
 {
 public:
+	/**
+	 * Delegate called when an external object is registered for the take recorder panel. The boolean
+	 * parameter indicates if the object was added. It is true if added and false if removed.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExternalObjectAddRemoveEvent, UObject *, bool);
 
 	/** The name under which the take recorder tab is registered and invoked */
 	static FName TakeRecorderTabName;
@@ -49,6 +70,10 @@ public:
 	 */
 	virtual FDelegateHandle RegisterSourcesMenuExtension(const FOnExtendSourcesMenu& InExtension) = 0;
 
+	/**
+	 * Get the delegate for handling saving of preset data.
+	 */
+	virtual FOnForceSaveAsPreset& OnForceSaveAsPreset() = 0;
 
 	/**
 	 * Unregister a previously registered extension callback for the 'Add Source' menu
@@ -61,9 +86,42 @@ public:
 	 */
 	virtual void RegisterSettingsObject(UObject* InSettingsObject) = 0;
 
-	/** 
+
+	/**
+	 * Register a new class default object that should appear on the take recorder panel.
+	 */
+	virtual void RegisterExternalObject(UObject* InExternalObject) = 0;
+
+	/**
+	 * Unregister a new class default object that should appear on the take recorder panel.
+	 */
+	virtual void UnregisterExternalObject(UObject* InExternalObject) = 0;
+
+	/**
 	 * Get the toolbar extension generators.
 	 * Usage: Bind a handler that adds a widget to the out array parameter.
 	 */
-	virtual FOnGenerateToolbarExtensions& GetToolbarExtensionGenerators() = 0;
+	virtual FOnGenerateWidgetExtensions& GetToolbarExtensionGenerators() = 0;
+
+	/**
+	 * Get the toolbar extension generators.
+	 * Usage: Bind a handler that adds a widget to the out array parameter.
+	 */
+	virtual FOnGenerateWidgetExtensions& GetRecordButtonExtensionGenerators() = 0;
+
+	/**
+	 * Get the delegate for reporting any error conditions in recording state.
+	 */
+	virtual FOnRecordErrorCheck& GetRecordErrorCheckGenerator() = 0;
+
+	/**
+	 * Get the event notifier when an external object has been added or removed.
+	 */
+	virtual FOnExternalObjectAddRemoveEvent& GetExternalObjectAddRemoveEventDelegate() = 0;
+
+	/**
+	 * Get the take external objects registered to the take recorder.
+	 */
+	virtual TArray<TWeakObjectPtr<>>& GetExternalObjects() = 0;
 };
+

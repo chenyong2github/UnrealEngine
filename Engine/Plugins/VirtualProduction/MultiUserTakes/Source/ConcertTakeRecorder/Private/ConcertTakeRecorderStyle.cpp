@@ -36,6 +36,7 @@ void FConcertTakeRecorderStyle::Initialize()
 	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
 	// Const icon sizes
+	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon24x24(24.0f, 24.0f);
 	const FVector2D Icon48x48(48.0f, 48.0f);
 
@@ -45,7 +46,7 @@ void FConcertTakeRecorderStyle::Initialize()
 	// 24x24/48x48 -> For take recorder toolbar.
 	StyleSet->Set("Concert.TakeRecorder.SyncTakes",       new IMAGE_PLUGIN_BRUSH("icon_TakeRecorderSync_48x", Icon48x48, IconColorAndOpacity)); // Enable/disable take syncing on a remote client.
 	StyleSet->Set("Concert.TakeRecorder.SyncTakes.Small", new IMAGE_PLUGIN_BRUSH("icon_TakeRecorderSync_48x", Icon24x24, IconColorAndOpacity));
-
+	StyleSet->Set("Concert.TakeRecorder.SyncTakes.Tiny", new IMAGE_PLUGIN_BRUSH("icon_TakeRecorderSync_48x", Icon16x16, IconColorAndOpacity));
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 };
 

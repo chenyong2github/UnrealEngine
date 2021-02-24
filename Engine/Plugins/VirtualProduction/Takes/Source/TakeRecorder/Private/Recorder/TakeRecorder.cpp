@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Recorder/TakeRecorder.h"
+#include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
 #include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "TakePreset.h"
@@ -388,6 +389,11 @@ UTakeRecorder::UTakeRecorder(const FObjectInitializer& ObjInit)
 	OverlayWidget = nullptr;
 }
 
+void UTakeRecorder::SetDisableSaveTick(bool InValue)
+{
+	Parameters.bDisableRecordingAndSave = InValue;
+}
+
 bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, const FTakeRecorderParameters& InParameters, FText* OutError )
 {
 	FGCObjectScopeGuard GCGuard(this);
@@ -681,7 +687,15 @@ void UTakeRecorder::Tick(float DeltaTime)
 void UTakeRecorder::InternalTick(const FTimecode& InTimecodeSource, float DeltaTime)
 {
 	UTakeRecorderSources* Sources = SequenceAsset->FindOrAddMetaData<UTakeRecorderSources>();
-	CurrentFrameTime = Sources->TickRecording(SequenceAsset, InTimecodeSource, DeltaTime);
+	if (!Parameters.bDisableRecordingAndSave)
+	{
+		CurrentFrameTime = Sources->TickRecording(SequenceAsset, InTimecodeSource, DeltaTime);
+	}
+	else
+	{
+		CurrentFrameTime = Sources->AdvanceTime(DeltaTime);
+	}
+
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	if (Sequencer.IsValid())
 	{
@@ -736,8 +750,14 @@ void UTakeRecorder::PreRecord()
 
 	Sources->SetStartAtCurrentTimecode(Parameters.Project.bStartAtCurrentTimecode);
 	Sources->SetRecordToSubSequence(Parameters.Project.bRecordSourcesIntoSubSequences);
-
-	Sources->PreRecording(SequenceAsset, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
+	if (!Parameters.bDisableRecordingAndSave)
+	{
+		Sources->PreRecording(SequenceAsset, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
+	}
+	else
+	{
+		Sources->SetCachedAssets(SequenceAsset, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
+	}
 
 	// Refresh sequencer in case the movie scene data has mutated (ie. existing object bindings removed because they will be recorded again)
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
@@ -800,7 +820,10 @@ void UTakeRecorder::Start(const FTimecode& InTimecodeSource)
 	AssetMetaData->SetTimestamp(UtcNow);
 	AssetMetaData->SetTimecodeIn(InTimecodeSource);
 
-	Sources->StartRecording(SequenceAsset, InTimecodeSource, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
+	if (!Parameters.bDisableRecordingAndSave)
+	{
+		Sources->StartRecording(SequenceAsset, InTimecodeSource, Parameters.User.bAutoSerialize ? &ManifestSerializer : nullptr);
+	}
 
 	OnRecordingStartedEvent.Broadcast(this);
 
@@ -840,7 +863,7 @@ void UTakeRecorder::Stop()
 	{
 		Sequencer->SetPlaybackStatus(EMovieScenePlayerStatus::Stopped);
 	}
-		
+
 	UMovieScene* MovieScene = SequenceAsset->GetMovieScene();
 	if (MovieScene)
 	{
@@ -857,7 +880,7 @@ void UTakeRecorder::Stop()
 		UTakeRecorderBlueprintLibrary::OnTakeRecorderStopped();
 
 		FTakeRecorderSourcesSettings TakeRecorderSourcesSettings;
-		TakeRecorderSourcesSettings.bSaveRecordedAssets = Parameters.User.bSaveRecordedAssets || GEditor == nullptr;
+		TakeRecorderSourcesSettings.bSaveRecordedAssets = (!Parameters.bDisableRecordingAndSave && Parameters.User.bSaveRecordedAssets) || GEditor == nullptr;
 		TakeRecorderSourcesSettings.bRemoveRedundantTracks = Parameters.User.bRemoveRedundantTracks;
 
 		if (MovieScene)
@@ -877,9 +900,12 @@ void UTakeRecorder::Stop()
 			}
 		}
 
-		UTakeRecorderSources* Sources = SequenceAsset->FindMetaData<UTakeRecorderSources>();
-		check(Sources);
-		Sources->StopRecording(SequenceAsset, TakeRecorderSourcesSettings);
+		if (!Parameters.bDisableRecordingAndSave)
+		{
+			UTakeRecorderSources* Sources = SequenceAsset->FindMetaData<UTakeRecorderSources>();
+			check(Sources);
+			Sources->StopRecording(SequenceAsset, TakeRecorderSourcesSettings);
+		}
 
 		const bool bUpperBoundOnly = true; // Only expand the upper bound because the lower bound should have been set at the start of recording and should not change if there's existing data before the start
 		TakesUtils::ClampPlaybackRangeToEncompassAllSections(SequenceAsset->GetMovieScene(), bUpperBoundOnly);

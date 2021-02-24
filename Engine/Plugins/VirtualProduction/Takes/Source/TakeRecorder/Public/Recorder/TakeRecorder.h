@@ -90,6 +90,11 @@ public:
 		return State;
 	}
 
+	/**
+	 * Disable saving data on tick event. This make the TakeRecord a no-op.
+	 */
+	void SetDisableSaveTick( bool );
+
 public:
 
 	/**
