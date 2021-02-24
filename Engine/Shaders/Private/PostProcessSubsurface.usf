@@ -742,7 +742,9 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 	}
 	else if (ProfileId == SSS_PROFILE_ID_PERPIXEL)
 	{
-		SubsurfaceColor = SSSData.DMFP;
+		// This color is used to lerping 'incident light' into 'diffused light', i.e, controlling the sharpness of the lighting.
+		// In case of direct DMPF control, this is not needed.
+		SubsurfaceColor = float3(1, 1, 1);
 	}
 #else
 	const uint ProfileId = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
