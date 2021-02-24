@@ -147,7 +147,7 @@ public:
 
 	/**Whether to store all filter settings on exit*/
 	UPROPERTY(EditAnywhere, config, Category = "VisualLogger")
-	bool bPresistentFilters;
+	bool bPersistentFilters;
 
 	/** Whether to extreme values on graph (data has to be provided for extreme values) */
 	UPROPERTY(EditAnywhere, config, Category = "VisualLogger")
@@ -177,17 +177,17 @@ public:
 
 	class UMaterial* GetDebugMeshMaterial();
 
-	void SavePresistentData();
+	void SavePersistentData();
 
-	void ClearPresistentData();
+	void ClearPersistentData();
 
-	void LoadPresistentData();
+	void LoadPersistentData();
 
 	void ConfigureVisLog();
 
 protected:
 	UPROPERTY(config)
-	FVisualLoggerFiltersData PresistentFilters;
+	FVisualLoggerFiltersData PersistentFilters;
 
 	/** A material used to render debug meshes with kind of flat shading, mostly used by Visual Logger tool. */
 	UPROPERTY()

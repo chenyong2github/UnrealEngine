@@ -33,45 +33,45 @@ class UMaterial* ULogVisualizerSettings::GetDebugMeshMaterial()
 	return DebugMeshMaterialFakeLight;
 }
 
-void ULogVisualizerSettings::SavePresistentData()
+void ULogVisualizerSettings::SavePersistentData()
 {
-	if (bPresistentFilters)
+	if (bPersistentFilters)
 	{
-		PresistentFilters = FVisualLoggerFilters::Get();
-		for (int32 Index = PresistentFilters.Categories.Num() - 1; Index >= 0; --Index)
+		PersistentFilters = FVisualLoggerFilters::Get();
+		for (int32 Index = PersistentFilters.Categories.Num() - 1; Index >= 0; --Index)
 		{
-			FCategoryFilter& Category = PresistentFilters.Categories[Index];
+			FCategoryFilter& Category = PersistentFilters.Categories[Index];
 			if (Category.bIsInUse == false)
 			{
-				PresistentFilters.Categories.RemoveAt(Index);
+				PersistentFilters.Categories.RemoveAt(Index);
 			}
 		}
 	}
 	else
 	{
-		PresistentFilters = FVisualLoggerFilters();
+		PersistentFilters = FVisualLoggerFilters();
 	}
 	SaveConfig();
 }
 
-void ULogVisualizerSettings::ClearPresistentData()
+void ULogVisualizerSettings::ClearPersistentData()
 {
-	if (bPresistentFilters)
+	if (bPersistentFilters)
 	{
-		PresistentFilters = FVisualLoggerFilters();
+		PersistentFilters = FVisualLoggerFilters();
 	}
 }
 
-void ULogVisualizerSettings::LoadPresistentData()
+void ULogVisualizerSettings::LoadPersistentData()
 {
-	if (bPresistentFilters)
+	if (bPersistentFilters)
 	{
-		for (int32 Index = PresistentFilters.Categories.Num() - 1; Index >= 0; --Index)
+		for (int32 Index = PersistentFilters.Categories.Num() - 1; Index >= 0; --Index)
 		{
-			FCategoryFilter& Category = PresistentFilters.Categories[Index];
+			FCategoryFilter& Category = PersistentFilters.Categories[Index];
 			Category.bIsInUse = false;
 		}
-		FVisualLoggerFilters::Get().InitWith(PresistentFilters);
+		FVisualLoggerFilters::Get().InitWith(PersistentFilters);
 	}
 	else
 	{
