@@ -67,6 +67,7 @@
 #include "SBakeToControlRigDialog.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintGeneratedClass.h"
+#include "TimerManager.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
@@ -162,7 +163,7 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 }
 
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
-	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true), bFilterAssetByAnimatableControls(true)
+	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bIsDoingSelection(false),  bFilterAssetBySkeleton(true), bCurveDisplayTickIsPending(false),bFilterAssetByAnimatableControls(true)
 
 {
 	FMovieSceneToolsModule::Get().RegisterAnimationBakeHelper(this);
@@ -1247,7 +1248,7 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 	TArray<FString> StringArray;
 	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
 	UControlRig* ControlRig = nullptr;
-	TArray<FMovieSceneChannelHandle> Channels;
+
 	if (CurveModel)
 	{
 		UMovieSceneControlRigParameterSection* MovieSection = Cast<UMovieSceneControlRigParameterSection>(CurveModel->GetOwningObject());
@@ -1285,26 +1286,55 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 				//Not great but it should always be the third name
 				FName ControlName(*StringArray[2]);
 				ControlRig->SelectControl(ControlName, bDisplayed);
+				if (bDisplayed)
+				{
+					DisplayedChannels.Add(FCurveModel->GetChannelHandle());
+				}
+				else
+				{
+					UnDisplayedChannels.Add(FCurveModel->GetChannelHandle());
+				}
 
-				Channels.Add(FCurveModel->GetChannelHandle());
 			}
 			else
 			{
 				UE_LOG(LogControlRigEditor, Display, TEXT("Could not find Rig Control From FCurveModel::LongName"));
 			}
 		}
-		if (Channels.Num() > 0)
+		if(bCurveDisplayTickIsPending == false)
 		{
-			bool bSync = GetSequencer()->GetSequencerSettings()->ShouldSyncCurveEditorSelection();
-			GetSequencer()->SuspendSelectionBroadcast();
-			GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(false);
-			GetSequencer()->SelectByChannels(MovieSection, Channels, false, bDisplayed);
-			GetSequencer()->RefreshTree();
-			GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
-			GetSequencer()->ResumeSelectionBroadcast();
+			bCurveDisplayTickIsPending = true;
+			GEditor->GetTimerManager()->SetTimerForNextTick([MovieSection, this]()
+			{
+				if (DisplayedChannels.Num() > 0 || UnDisplayedChannels.Num() > 0)
+				{
+					TGuardValue<bool> Guard(bIsDoingSelection, true);
+
+					bool bSync = GetSequencer()->GetSequencerSettings()->ShouldSyncCurveEditorSelection();
+					GetSequencer()->SuspendSelectionBroadcast();
+					GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(false);
+					if (UnDisplayedChannels.Num() > 0)
+					{
+						GetSequencer()->SelectByChannels(MovieSection, UnDisplayedChannels, false, false);
+					}
+					if (DisplayedChannels.Num() > 0)
+					{
+						GetSequencer()->SelectByChannels(MovieSection, DisplayedChannels, false, true);
+					}
+					GetSequencer()->RefreshTree();
+					GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
+					GetSequencer()->ResumeSelectionBroadcast();
+				}
+				UnDisplayedChannels.SetNum(0);
+				DisplayedChannels.SetNum(0);
+				bCurveDisplayTickIsPending = false;
+			});
+			
 		}
+		
 	}
 }
+
 void FControlRigParameterTrackEditor::OnTreeViewChanged()
 {
 	if (!bIsDoingSelection)
@@ -1321,7 +1351,7 @@ void FControlRigParameterTrackEditor::OnTreeViewChanged()
 					if (Index != INDEX_NONE)
 					{
 						const FRigControl& RigControl = ControlRig->GetControlHierarchy().GetControls()[Index];
-						HandleControlSelected(ControlRig, RigControl, true);
+					    HandleControlSelected(ControlRig, RigControl, true);
 					}
 				}
 			}

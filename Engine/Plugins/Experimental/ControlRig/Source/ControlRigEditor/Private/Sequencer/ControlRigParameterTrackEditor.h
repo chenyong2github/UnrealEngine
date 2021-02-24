@@ -177,6 +177,12 @@ private:
 	void UnbindAllControlRigs();
 	TArray<TWeakObjectPtr<UControlRig>> BoundControlRigs;
 
+
+	//used to sync curve editor selections/displays on next tick for performance reasons
+	TArray<FMovieSceneChannelHandle> DisplayedChannels;
+	TArray<FMovieSceneChannelHandle> UnDisplayedChannels;
+	bool bCurveDisplayTickIsPending;
+
 private:
 
 	/** Guard to stop infinite loops when handling control selections*/
