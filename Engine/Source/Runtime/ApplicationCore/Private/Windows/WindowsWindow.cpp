@@ -11,6 +11,7 @@
 #include "Windows/WindowsApplication.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Misc/ConfigCacheIni.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #if WINVER > 0x502	// Windows Vista or better required for DWM
