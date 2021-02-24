@@ -265,7 +265,7 @@ void FUdpMessageTransport::HandleProcessorMessageReassembled(const FUdpReassembl
 	}
 	else
 	{
-		UE_LOG(LogUdpMessaging, Display, TEXT("Failed to deserialize message from %s"), *NodeId.ToString());
+		UE_LOG(LogUdpMessaging, Verbose, TEXT("Failed to deserialize message from %s"), *NodeId.ToString());
 	}
 }
 
