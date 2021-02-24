@@ -63,8 +63,10 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 {
 	Time = Component->GetAnimationTime();
 	bLooping = Component->IsLooping();
+	bExtrapolateFrames = Component->IsExtrapolatingFrames();
 	bAlwaysHasVelocity = true;
 	PlaybackSpeed = (Component->IsPlaying()) ? Component->GetPlaybackSpeed() : 0.0f;
+	MotionVectorScale = Component->GetMotionVectorScale();
 	UpdatedFrameNum = 0;
 
 	// Copy each section
@@ -77,84 +79,57 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 
 		const FGeometryCacheTrackSampleInfo& SampleInfo = CurrentTrack->GetSampleInfo(Time, bLooping);
 
-		// Add track only if it has (visible) geometry
+		FGeomCacheTrackProxy* NewSection = CreateTrackProxy();
+
+		NewSection->Track = CurrentTrack;
+		NewSection->WorldMatrix = SrcSection.Matrix;
+		NewSection->FrameIndex = -1;
+		NewSection->UploadedSampleIndex = -1;
+		NewSection->NextFrameIndex = -1;
+		NewSection->PreviousFrameIndex = -1;
+		NewSection->InterpolationFactor = 0.f;
+		NewSection->PreviousInterpolationFactor = 0.f;
+		NewSection->SubframeInterpolationFactor = 1.f;
+		NewSection->NextFrameMeshData = nullptr;
+		NewSection->bResourcesInitialized = false;
+
 		if (SampleInfo.NumVertices > 0)
 		{
-			FGeomCacheTrackProxy* NewSection = CreateTrackProxy();
-
-			NewSection->Track = CurrentTrack;
-			NewSection->WorldMatrix = SrcSection.Matrix;
-			NewSection->FrameIndex = -1;
-			NewSection->UploadedSampleIndex = -1;
-			NewSection->NextFrameIndex = -1;
-			NewSection->InterpolationFactor = 0.f;
-			NewSection->NextFrameMeshData = nullptr;
-
-			// Allocate verts
-
-
-			NewSection->TangentXBuffer.Init(SampleInfo.NumVertices * sizeof(FPackedNormal));
-			NewSection->TangentZBuffer.Init(SampleInfo.NumVertices * sizeof(FPackedNormal));
-			NewSection->TextureCoordinatesBuffer.Init(SampleInfo.NumVertices * sizeof(FVector2D));
-			NewSection->ColorBuffer.Init(SampleInfo.NumVertices * sizeof(FColor));
-
-
-			//NewSection->VertexBuffer.Init(SampleInfo.NumVertices * sizeof(FNoPositionVertex));
-			NewSection->PositionBuffers[0].Init(SampleInfo.NumVertices * sizeof(FVector));
-			NewSection->PositionBuffers[1].Init(SampleInfo.NumVertices * sizeof(FVector));
-			NewSection->CurrentPositionBufferIndex = -1;
-			NewSection->PositionBufferFrameIndices[0] = NewSection->PositionBufferFrameIndices[1] = -1;
-			NewSection->PositionBufferFrameTimes[0] = NewSection->PositionBufferFrameTimes[1] = -1.0f;
-
-			// Allocate index buffer
-			NewSection->IndexBuffer.NumIndices = SampleInfo.NumIndices;
-
-			// Init vertex factory
-			NewSection->VertexFactory.Init(&NewSection->PositionBuffers[0], &NewSection->PositionBuffers[1], &NewSection->TangentXBuffer, &NewSection->TangentZBuffer, &NewSection->TextureCoordinatesBuffer, &NewSection->ColorBuffer);
-
-			// Enqueue initialization of render resource
-			BeginInitResource(&NewSection->PositionBuffers[0]);
-			BeginInitResource(&NewSection->PositionBuffers[1]);
-			BeginInitResource(&NewSection->TangentXBuffer);
-			BeginInitResource(&NewSection->TangentZBuffer);
-			BeginInitResource(&NewSection->TextureCoordinatesBuffer);
-			BeginInitResource(&NewSection->ColorBuffer);			
-			BeginInitResource(&NewSection->IndexBuffer);
-			BeginInitResource(&NewSection->VertexFactory);
-
-			// Grab materials
-			int32 Dummy = -1;
-			NewSection->MeshData = new FGeometryCacheMeshData();
-			NewSection->UpdateMeshData(Time, bLooping, Dummy, *NewSection->MeshData);
-			NewSection->NextFrameMeshData = new FGeometryCacheMeshData();
-			NewSection->bNextFrameMeshDataSelected = false;
-
-			// Some basic sanity checks
-			for (FGeometryCacheMeshBatchInfo& BatchInfo : NewSection->MeshData->BatchesInfo)
-			{
-				UMaterialInterface* Material = Component->GetMaterial(BatchInfo.MaterialIndex);
-				if (Material == nullptr || !Material->CheckMaterialUsage_Concurrent(EMaterialUsage::MATUSAGE_GeometryCache))
-				{
-					Material = UMaterial::GetDefaultMaterial(MD_Surface);
-				}
-
-				NewSection->Materials.Add(Material);
-			}
-
-			if (NumTracks == 1)
-			{
-				// When there's only one track, it means there's one mesh (that might have been merged from other meshes and made up of multiple sections)
-				if (NewSection->Materials.Num() != Component->GetMaterials().Num())
-				{
-					// This means that the first frame does not contain all the materials used during the animation
-					// (eg. non-constant topology with increasing number of sections)
-					NewSection->Materials = Component->GetMaterials();
-				}
-			}
-
-			// Save ref to new section
-			Tracks.Add(NewSection);
+			NewSection->InitRenderResources(SampleInfo.NumVertices, SampleInfo.NumIndices);
 		}
+
+		// Grab materials
+		int32 Dummy = -1;
+		NewSection->MeshData = new FGeometryCacheMeshData();
+		NewSection->UpdateMeshData(Time, bLooping, Dummy, *NewSection->MeshData);
+		NewSection->NextFrameMeshData = new FGeometryCacheMeshData();
+		NewSection->bNextFrameMeshDataSelected = false;
+
+		// Some basic sanity checks
+		for (FGeometryCacheMeshBatchInfo& BatchInfo : NewSection->MeshData->BatchesInfo)
+		{
+			UMaterialInterface* Material = Component->GetMaterial(BatchInfo.MaterialIndex);
+			if (Material == nullptr || !Material->CheckMaterialUsage_Concurrent(EMaterialUsage::MATUSAGE_GeometryCache))
+			{
+				Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+
+			NewSection->Materials.Add(Material);
+		}
+
+		if (NumTracks == 1)
+		{
+			// When there's only one track, it means there's one mesh (that might have been merged from other meshes and made up of multiple sections)
+			if (NewSection->Materials.Num() != Component->GetMaterials().Num())
+			{
+				// This means that the first frame does not contain all the materials used during the animation
+				// (eg. non-constant topology with increasing number of sections)
+				NewSection->Materials = Component->GetMaterials();
+			}
+		}
+
+		// Save ref to new section
+		Tracks.Add(NewSection);
 	}
 
 	if (IsRayTracingEnabled())
@@ -366,7 +341,7 @@ void FGeometryCacheSceneProxy::CreateMeshBatch(
 	}
 	else
 	{
-		UserData.MotionBlurDataExtension = FVector::OneVector * PlaybackSpeed;
+		UserData.MotionBlurDataExtension = FVector::OneVector * PlaybackSpeed * TrackProxy->SubframeInterpolationFactor;
 		UserData.MotionBlurDataOrigin = FVector::ZeroVector;
 		UserData.MotionBlurPositionScale = 1.0f;
 	}
@@ -595,12 +570,13 @@ uint32 FGeometryCacheSceneProxy::GetAllocatedSize(void) const
 	return(FPrimitiveSceneProxy::GetAllocatedSize());
 }
 
-void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, bool bNewIsPlayingBackwards, float NewPlaybackSpeed)
+void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, bool bNewIsPlayingBackwards, float NewPlaybackSpeed, float NewMotionVectorScale)
 {
 	Time = NewTime;
 	bLooping = bNewLooping;
 	bIsPlayingBackwards = bNewIsPlayingBackwards;
 	PlaybackSpeed = NewPlaybackSpeed;
+	MotionVectorScale = NewMotionVectorScale;
 	UpdatedFrameNum = GFrameNumber + 1;
 
 	if (IsRayTracingEnabled())
@@ -660,6 +636,9 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 			int32 FrameIndex;
 			int32 NextFrameIndex;
 			float InterpolationFactor;
+			TrackProxy->SubframeInterpolationFactor = 1.0f;
+			TrackProxy->PreviousFrameIndex = TrackProxy->FrameIndex;
+			TrackProxy->PreviousInterpolationFactor = TrackProxy->InterpolationFactor;
 			TrackProxy->FindSampleIndexesFromTime(Time, bLooping, bIsPlayingBackwards, FrameIndex, NextFrameIndex, InterpolationFactor);
 			bool bDecodedAnything = false; // Did anything new get decoded this frame
 			bool bSeeked = false; // Is this frame a seek and thus the previous rendered frame's data invalid
@@ -725,6 +704,7 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 					else
 					{
 						TrackProxy->FrameIndex = -1;
+						TrackProxy->PreviousFrameIndex = -1;
 						bDecoderError = true;
 					}
 				}
@@ -758,6 +738,16 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 				// data for current and previous during rendering.
 
 				const int32 NumVerts = TrackProxy->MeshData->Positions.Num();
+
+				if (NumVerts == 0)
+				{
+					return;
+				}
+				else if (!TrackProxy->bResourcesInitialized)
+				{
+					TrackProxy->InitRenderResources(NumVerts, TrackProxy->MeshData->Indices.Num());
+				}
+
 				Scratch.Prepare(NumVerts, bHasMotionVectors);
 
 				const float OneMinusInterp = 1.0 - InterpolationFactor;
@@ -950,6 +940,14 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 					const FVector* MotionVectorsBPtr = TrackProxy->NextFrameMeshData->MotionVectors.GetData();
 					FVector* InterpolatedMotionVectorsPtr = Scratch.InterpolatedMotionVectors.GetData();
 
+					// The subframe interpolation factor is the multiplier that should be applied to the motion vectors to account for subframe sampling
+					// It represents the delta interpolation factor between each sub-frame (due to temporal subsampling)
+					// but we don't want to affect the motion vectors when sampling at multiples of frame so it's clamped to 1
+					float DeltaInterpolationFactor = InterpolationFactor - TrackProxy->PreviousInterpolationFactor;
+					DeltaInterpolationFactor += (TrackProxy->FrameIndex - TrackProxy->PreviousFrameIndex);
+					DeltaInterpolationFactor = FMath::Clamp(FMath::Abs(DeltaInterpolationFactor), 0.0f, 1.0f); // the Abs accounts for playing backwards
+					TrackProxy->SubframeInterpolationFactor = FMath::IsNearlyEqual(DeltaInterpolationFactor, 1.0f, KINDA_SMALL_NUMBER) ? 1.0f : DeltaInterpolationFactor;
+
 					// Unroll 4 times so we can do 4 wide SIMD
 					{
 						const FVector4* MotionVectorsAPtr4 = (const FVector4*)MotionVectorsAPtr;
@@ -972,13 +970,13 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 
 						for (; Index < NumVerts; Index++)
 						{
-							InterpolatedMotionVectorsPtr[Index] = MotionVectorsAPtr[Index] * OneMinusInterp + MotionVectorsBPtr[Index] * InterpolationFactor;
+							InterpolatedMotionVectorsPtr[Index] = (MotionVectorsAPtr[Index] * OneMinusInterp + MotionVectorsBPtr[Index] * InterpolationFactor) * MotionVectorScale;
 						}
 					}
 #if VALIDATE
 					for (int32 Index = 0; Index < NumVerts; ++Index)
 					{
-						FVector Result = MotionVectorsAPtr[Index] * OneMinusInterp + MotionVectorsBPtr[Index] * InterpolationFactor;
+						FVector Result = (MotionVectorsAPtr[Index] * OneMinusInterp + MotionVectorsBPtr[Index] * InterpolationFactor) * MotionVectorScale;
 						check(FMath::Abs(InterpolatedMotionVectorsPtr[Index].X - Result.X) < 0.01f);
 						check(FMath::Abs(InterpolatedMotionVectorsPtr[Index].Y - Result.Y) < 0.01f);
 						check(FMath::Abs(InterpolatedMotionVectorsPtr[Index].Z - Result.Z) < 0.01f);
@@ -1048,11 +1046,20 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 				// We just don't interpolate between frames if we got GPU to burn we could someday render twice and stipple fade between it :-D like with lods
 
 				// Only bother uploading if anything changed or when the we failed to decode anything make sure update the gpu buffers regardless
-				if (bFrameIndicesChanged || bDifferentRoundedInterpolationFactor || bDecodedAnything || bDecoderError)
+				if (bFrameIndicesChanged || bDifferentRoundedInterpolationFactor || (bDifferentInterpolationFactor && bExtrapolateFrames) || bDecodedAnything || bDecoderError)
 				{
 					const bool bNextFrame = !!FMath::RoundToInt(InterpolationFactor) && TrackProxy->NextFrameMeshData->Positions.Num() > 0; // use next frame only if it's valid
 					const uint32 FrameIndexToUse = bNextFrame ? TrackProxy->NextFrameIndex : TrackProxy->FrameIndex;
 					FGeometryCacheMeshData* MeshDataToUse = bNextFrame ? TrackProxy->NextFrameMeshData : TrackProxy->MeshData;
+
+					if (MeshDataToUse->Positions.Num() == 0)
+					{
+						return;
+					}
+					else if (!TrackProxy->bResourcesInitialized)
+					{
+						TrackProxy->InitRenderResources(MeshDataToUse->Positions.Num(), MeshDataToUse->Indices.Num());
+					}
 
 					TrackProxy->bNextFrameMeshDataSelected = bNextFrame;
 
@@ -1101,9 +1108,40 @@ void FGeometryCacheSceneProxy::FrameUpdate() const
 					}
 					else
 					{
+						TArray<FVector> ScaledMotionVectors;
+						const bool bScaleMotionVectors = !FMath::IsNearlyEqual(MotionVectorScale, 1.0f);
+						if (bScaleMotionVectors)
+						{
+							float InMotionVectorScale = MotionVectorScale;
+							ScaledMotionVectors.SetNum(MeshDataToUse->Positions.Num());
+							ParallelFor(MeshDataToUse->Positions.Num(), [InMotionVectorScale, &ScaledMotionVectors, &MeshDataToUse](int32 Index)
+								{
+									ScaledMotionVectors[Index] = MeshDataToUse->MotionVectors[Index] * InMotionVectorScale;
+								});
+						}
+
+						const TArray<FVector>& MotionVectors = bScaleMotionVectors ? ScaledMotionVectors : MeshDataToUse->MotionVectors;
+
+						TArray<FVector> ExtrapolatedPositions;
+						if (bExtrapolateFrames)
+						{
+							ExtrapolatedPositions.SetNum(MeshDataToUse->Positions.Num());
+							// Shift the interpolation factor so that it varies between -0.5 and 0.5 around the frame
+							const float ShiftedInterpolationFactor = bNextFrame ? InterpolationFactor - 1.0f : InterpolationFactor;
+							ParallelFor(MeshDataToUse->Positions.Num(), [ShiftedInterpolationFactor, &MeshDataToUse, &ExtrapolatedPositions, &MotionVectors](int32 Index)
+								{
+									ExtrapolatedPositions[Index] = MeshDataToUse->Positions[Index] - ShiftedInterpolationFactor * MotionVectors[Index];
+								});
+						}
+
+						float DeltaInterpolationFactor = InterpolationFactor - TrackProxy->PreviousInterpolationFactor;
+						DeltaInterpolationFactor += (TrackProxy->FrameIndex - TrackProxy->PreviousFrameIndex);
+						DeltaInterpolationFactor = FMath::Clamp(FMath::Abs(DeltaInterpolationFactor), 0.0f, 1.0f);
+						TrackProxy->SubframeInterpolationFactor = FMath::IsNearlyEqual(DeltaInterpolationFactor, 1.0f, KINDA_SMALL_NUMBER) ? 1.0f : DeltaInterpolationFactor;
+
 						TrackProxy->CurrentPositionBufferIndex = 0;
-						TrackProxy->PositionBuffers[0].Update(MeshDataToUse->Positions);
-						TrackProxy->PositionBuffers[1].Update(MeshDataToUse->MotionVectors);
+						TrackProxy->PositionBuffers[0].Update(bExtrapolateFrames ? ExtrapolatedPositions : MeshDataToUse->Positions);
+						TrackProxy->PositionBuffers[1].Update(MotionVectors);
 						TrackProxy->PositionBufferFrameIndices[0] = FrameIndexToUse;
 						TrackProxy->PositionBufferFrameIndices[1] = -1;
 						TrackProxy->PositionBufferFrameTimes[0] = Time;
@@ -1187,6 +1225,42 @@ void FGeometryCacheSceneProxy::ClearSections()
 {
 	Tracks.Empty();
 	Scratch.Empty();
+}
+
+void FGeomCacheTrackProxy::InitRenderResources(int32 NumVertices, int32 NumIndices)
+{
+	check(NumVertices);
+	check(NumIndices);
+
+	// Allocate verts
+	TangentXBuffer.Init(NumVertices * sizeof(FPackedNormal));
+	TangentZBuffer.Init(NumVertices * sizeof(FPackedNormal));
+	TextureCoordinatesBuffer.Init(NumVertices * sizeof(FVector2D));
+	ColorBuffer.Init(NumVertices * sizeof(FColor));
+
+	PositionBuffers[0].Init(NumVertices * sizeof(FVector));
+	PositionBuffers[1].Init(NumVertices * sizeof(FVector));
+	CurrentPositionBufferIndex = -1;
+	PositionBufferFrameIndices[0] = PositionBufferFrameIndices[1] = -1;
+	PositionBufferFrameTimes[0] = PositionBufferFrameTimes[1] = -1.0f;
+
+	// Allocate index buffer
+	IndexBuffer.NumIndices = NumIndices;
+
+	// Init vertex factory
+	VertexFactory.Init(&PositionBuffers[0], &PositionBuffers[1], &TangentXBuffer, &TangentZBuffer, &TextureCoordinatesBuffer, &ColorBuffer);
+
+	// Enqueue initialization of render resource
+	BeginInitResource(&PositionBuffers[0]);
+	BeginInitResource(&PositionBuffers[1]);
+	BeginInitResource(&TangentXBuffer);
+	BeginInitResource(&TangentZBuffer);
+	BeginInitResource(&TextureCoordinatesBuffer);
+	BeginInitResource(&ColorBuffer);
+	BeginInitResource(&IndexBuffer);
+	BeginInitResource(&VertexFactory);
+
+	bResourcesInitialized = true;
 }
 
 bool FGeomCacheTrackProxy::UpdateMeshData(float Time, bool bLooping, int32& InOutMeshSampleIndex, FGeometryCacheMeshData& OutMeshData)
