@@ -1062,6 +1062,39 @@ RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platfo
 	return (IsMobilePlatform(Platform) && !!(GMobileAmbientOcclusionPlatformMask & (1ull << Platform)));
 }
 
+template<typename Type>
+RENDERCORE_API Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
+{
+	Type* ExistingEntry = CachedValues.Find(ShaderPlatform);
+	if (ExistingEntry != nullptr)
+	{
+		return *ExistingEntry;
+	}
+	else
+	{
+		Type Value = {};
+		FConfigFile PlatformEngineIni;
+		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *ShaderPlatformToPlatformName(ShaderPlatform).ToString());
+		if (PlatformEngineIni.GetValue(Section, Key, Value))
+		{
+			CachedValues.Add(ShaderPlatform, Value);
+		}
+		else
+		{
+			// If it's not in the ini file don't cache, always return the CVar's current value
+			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Key);
+			if (CVar)
+			{
+				CVar->GetValue(Value);
+			}
+		}
+		return Value;
+	}
+}
+template struct FShaderPlatformCachedIniValue<FString>;
+template struct FShaderPlatformCachedIniValue<int32>;
+template struct FShaderPlatformCachedIniValue<float>;
+
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
 	TEXT("r.ForwardShading"),

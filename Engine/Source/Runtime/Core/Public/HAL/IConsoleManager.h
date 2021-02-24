@@ -417,6 +417,20 @@ public:
 	/** Get the internal value as string (works on all types). */
 	virtual FString GetString() const = 0;
 
+	/** Generic versions for templated code */
+	void GetValue(int32& OutIntValue)
+	{
+		OutIntValue = GetInt();
+	}
+	void GetValue(float& OutFloatValue)
+	{
+		OutFloatValue = GetFloat();
+	}
+	void GetValue(FString& OutStringValue)
+	{
+		OutStringValue = GetString();
+	}
+
 	/**
 	 * Allows to specify a callback function that is called when the console variable value changes.
  	 * Is even called if the value is the same as the value before. Will always be on the game thread.

@@ -494,6 +494,24 @@ RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platfo
 
 RENDERCORE_API bool SupportsDesktopTemporalAA(const FStaticShaderPlatform Platform);
 
+
+/* Simple cache for RendererSettings ini lookup per shader platform. */
+template<typename Type>
+struct RENDERCORE_API FShaderPlatformCachedIniValue
+{
+	FShaderPlatformCachedIniValue(const TCHAR* InSection, const TCHAR* InKey)
+		: Section(InSection)
+		, Key(InKey)
+	{}
+
+	Type Get(EShaderPlatform ShaderPlatform);
+
+private:
+	const TCHAR* Section;
+	const TCHAR* Key;
+	TMap<EShaderPlatform, Type> CachedValues;
+};
+
 /** Returns if ForwardShading is enabled. Only valid for the current platform (otherwise call ITargetPlatform::UsesForwardShading()). */
 inline bool IsForwardShadingEnabled(const FStaticShaderPlatform Platform)
 {
