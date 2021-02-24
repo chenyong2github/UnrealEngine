@@ -9,6 +9,17 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePaths.Add("Runtime/SkeletalMeshDescription/Private");
             PublicIncludePaths.Add("Runtime/SkeletalMeshDescription/Public");
 
+            // For GPUSkinPublicDefs.h
+            PublicIncludePaths.Add("Runtime/Engine/Public");
+            
+            // For BoneWeights
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"AnimationCore"
+				}
+			);
+
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

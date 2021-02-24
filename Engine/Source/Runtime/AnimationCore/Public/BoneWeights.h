@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AnimationCore.h"
 #include "Algo/IsSorted.h"
 #include "BoneIndices.h"
 #include "Containers/UnrealString.h"
@@ -107,7 +108,7 @@ public:
 	void SetWeight(float InWeight)
 	{
 		InWeight = FMath::Clamp(InWeight, 0.0f, 1.0f);
-		RawWeight = uint16(InWeight * float(GetMaxRawWeight()) + 0.5f);
+		RawWeight = static_cast<uint16>(InWeight * static_cast<float>(GetMaxRawWeight()) + 0.5f);
 	}
 
 	/**
@@ -115,13 +116,13 @@ public:
 	*/
 	float GetWeight() const
 	{
-		return RawWeight / float(GetMaxRawWeight());
+		return RawWeight / static_cast<float>(GetMaxRawWeight());
 	}
 
 	/**
 	* Set the stored weight in the raw format. This avoids any floating point conversion.
 	*/
-	void SetRawWeight(uint16 InRawWeight)
+	void SetRawWeight(const uint16 InRawWeight)
 	{
 		RawWeight = InRawWeight;
 	}
@@ -144,7 +145,7 @@ public:
 	/** Returns a hash value from the bone weight values */
 	uint32 GetTypeHash() const
 	{
-		return HashCombine(::GetTypeHash(uint16(BoneIndex)), ::GetTypeHash(RawWeight));
+		return HashCombine(::GetTypeHash(static_cast<uint16>(BoneIndex)), ::GetTypeHash(RawWeight));
 	}
 
 	/**
@@ -153,6 +154,26 @@ public:
 	FString ToString() const
 	{
 		return FString::Printf(TEXT("<%d, %g>"), BoneIndex, GetWeight());
+	}
+
+
+	/**
+	* Returns the contents of this object as an int32.
+	*/
+	int32 ToInt32() const
+	{
+		return static_cast<int32>(static_cast<uint16>(BoneIndex) << 16 | RawWeight);
+	}
+
+	/**
+	* Converts an int32 to an FBoneWeight object and returns it.
+	*/
+	static FBoneWeight FromInt32(int32 InBoneWeight)
+	{
+		FBoneWeight BW;
+		BW.RawWeight = static_cast<uint16>(static_cast<uint32>(InBoneWeight) & 0xFFFFU);
+		BW.BoneIndex = static_cast<FBoneIndexType>(static_cast<uint32>(InBoneWeight) >> 16);
+		return BW;
 	}
 
 private:
@@ -212,15 +233,15 @@ public:
 	FBoneWeightsSettings& SetWeightThreshold(float InWeightThreshold)
 	{
 		InWeightThreshold = FMath::Clamp(InWeightThreshold, 0.0f, 1.0f);
-		WeightThreshold = uint16(InWeightThreshold * FBoneWeight::GetMaxRawWeight() + 0.5f);
-		WeightThreshold = FMath::Max(WeightThreshold, uint16(1));
+		WeightThreshold = static_cast<uint16>(InWeightThreshold * FBoneWeight::GetMaxRawWeight() + 0.5f);
+		WeightThreshold = FMath::Max(WeightThreshold, static_cast<uint16>(1));
 		return *this;
 	}
 
 	/** Returns the weight threshold as a float value between (0, 1]. */
 	float GetWeightThreshold() const
 	{
-		return WeightThreshold / float(TNumericLimits<uint16>::Max());
+		return WeightThreshold / static_cast<float>(TNumericLimits<uint16>::Max());
 	}
 
 	/** Returns the raw weight threshold. This is the value used internally for weight
@@ -265,7 +286,7 @@ private:
 	EBoneWeightNormalizeType NormalizeType = EBoneWeightNormalizeType::Always;
 	int32 MaxWeightCount = MaxInlineBoneWeightCount;
 	uint16 WeightThreshold = 257; // == uint8(1) converted to 16 bit using 'v | v << 8'.
-	FBoneIndexType DefaultBoneIndex = FBoneIndexType(0);
+	FBoneIndexType DefaultBoneIndex = static_cast<FBoneIndexType>(0);
 	bool bHasDefaultBoneIndex = false;
 };
 
@@ -330,33 +351,51 @@ public:
 		Container(InContainer)
 	{ }
 
-	inline void SetBoneWeights(
+	template<typename OtherContainerAdapter, typename CT = ContainerType>
+	inline typename std::enable_if<!std::is_const<CT>::value, void>::type
+	SetBoneWeights(
+		const TBoneWeights<OtherContainerAdapter> &InBoneWeights,
+		const FBoneWeightsSettings& InSettings = {});
+
+	template<typename CT = ContainerType>
+    inline typename std::enable_if<!std::is_const<CT>::value, void>::type
+	SetBoneWeights(
 		TArrayView<const FBoneWeight> BoneWeights,
 		const FBoneWeightsSettings& InSettings = {});
 
-	inline void SetBoneWeights(
+	template<typename CT = ContainerType>
+	inline typename std::enable_if<!std::is_const<CT>::value, void>::type
+	SetBoneWeights(
 		const FBoneIndexType* InBones,
 		const float* InInfluences,
 		int32 NumEntries,
 		const FBoneWeightsSettings& InSettings = {}
 		);
 
-	inline void SetBoneWeights(
+	template<typename CT = ContainerType>
+	inline typename std::enable_if<!std::is_const<CT>::value, void>::type
+	SetBoneWeights(
 		const FBoneIndexType InBones[MaxInlineBoneWeightCount],
 		const uint8 InInfluences[MaxInlineBoneWeightCount],
 		const FBoneWeightsSettings& InSettings = {});
 
-	inline bool AddBoneWeight(
+	template<typename CT = ContainerType>
+    inline typename std::enable_if<!std::is_const<CT>::value, bool>::type
+	AddBoneWeight(
 		FBoneWeight InBoneWeight,
 		const FBoneWeightsSettings& InSettings = {}
 		);
 
-	inline bool RemoveBoneWeight(
+	template<typename CT = ContainerType>
+    inline typename std::enable_if<!std::is_const<CT>::value, bool>::type
+    RemoveBoneWeight(
 		FBoneIndexType InBoneIndex,
 		const FBoneWeightsSettings& InSettings = {}
 		);
 
-	inline void Renormalize(
+	template<typename CT = ContainerType>
+    inline typename std::enable_if<!std::is_const<CT>::value, void>::type
+    Renormalize(
 		const FBoneWeightsSettings& InSettings = {}
 		);
 
@@ -365,10 +404,11 @@ public:
 	  * that range may give unwanted results. 
 	  * NOTE: The current container can also be used as an input.
 	  */
-	template<typename ContainerTypeA, typename ContainerTypeB>
-	inline void Blend(
-		const TBoneWeights<ContainerTypeA>& InA,
-		const TBoneWeights<ContainerTypeB>& InB,
+	template<typename ContainerTypeA, typename ContainerTypeB, typename CT = ContainerType>
+    inline typename std::enable_if<!std::is_const<CT>::value, void>::type
+    Blend(
+		const TBoneWeights<ContainerTypeA>& InBoneWeightsA,
+		const TBoneWeights<ContainerTypeB>& InBoneWeightsB,
 		float InBias,
 		const FBoneWeightsSettings& InSettings = {});
 
@@ -420,7 +460,6 @@ public:
 		Result.Append(TEXT("]"));
 		return Result;
 	}
-
 
 private:
 	inline void SetBoneWeightsInternal(
@@ -523,7 +562,7 @@ public:
       * for not passing the threshold value. If the weight was successfully incorporated, then
 	  * this function returns true. Otherwise it returns false.
 	  */
-	ANIMATIONCORE_API bool SetBoneWeight(
+	inline bool SetBoneWeight(
 	    FBoneWeight InBoneWeight,
 	    const FBoneWeightsSettings& InSettings = {});
 
@@ -538,17 +577,17 @@ public:
 	/** Removes a specific bone from the list of weights, re-normalizing and pruning bones,
 	  * if needed.
 	  */
-	ANIMATIONCORE_API bool RemoveBoneWeight(
+	inline bool RemoveBoneWeight(
 	    FBoneIndexType InBone,
 	    const FBoneWeightsSettings& InSettings = {});
 
 	/** Force normalization of weights. This is useful if a set of operations were performed
 	  * with no normalization, for efficiency, and normalization is needed post-operation.
 	  */
-	ANIMATIONCORE_API void Renormalize(const FBoneWeightsSettings& InSettings = {});
+	inline void Renormalize(const FBoneWeightsSettings& InSettings = {});
 
 	/** A helper to create a FBoneWeights container from FSoftSkinVertex data structure. */
-	ANIMATIONCORE_API static FBoneWeights Create(
+	static inline FBoneWeights Create(
 	    const FBoneIndexType InBones[MaxInlineBoneWeightCount],
 	    const uint8 InWeights[MaxInlineBoneWeightCount],
 	    const FBoneWeightsSettings& InSettings = {});
@@ -556,27 +595,39 @@ public:
 	/** A helper to create a FBoneWeights container from separated bone index and weight arrays.
 	  * The size of the two arrays *must* be the same -- otherwise the behavior is undefined.
 	  */
-	ANIMATIONCORE_API static FBoneWeights Create(
+	static inline FBoneWeights Create(
 	    const FBoneIndexType* InBones,
 	    const float* InWeights,
 	    int32 NumEntries,
 	    const FBoneWeightsSettings& InSettings = {});
 
 	/** A helper to create FBoneWeights container from a TArray of FBoneWeight objects. */
-	ANIMATIONCORE_API static FBoneWeights Create(
+	static inline FBoneWeights Create(
 	    TArrayView<const FBoneWeight> BoneWeights,
 	    const FBoneWeightsSettings& InSettings = {});
 
+	/** A helper to create FBoneWeights container from a TBoneWeights derivative object */
+	template<typename OtherContainerAdapter>
+	static FBoneWeights Create(
+		TBoneWeights<OtherContainerAdapter> InBoneWeights,
+		const FBoneWeightsSettings& InSettings = {})
+	{
+		FBoneWeights Result;
+		FArrayWrapper W(Result.BoneWeights);
+		W.SetBoneWeights(InBoneWeights, InSettings);
+		return Result;
+	}
+	
 	/** Blend two bone weights together, making sure to add in every influence from both,
 	  * using the given settings. The bias value should lie on the [0,1] interval. Values outside
 	  * that range may give unwanted results. 
 	  */
-	ANIMATIONCORE_API static FBoneWeights Blend(
+	static inline FBoneWeights Blend(
 	    const FBoneWeights& InA,
 	    const FBoneWeights& InB,
 	    float InBias,
 	    const FBoneWeightsSettings& InSettings = {});
-
+	
 	// Ranged-based for loop compatibility -- but only the const version.
 	using RangedForConstIteratorType = BoneWeightArrayT::RangedForConstIteratorType;
 
@@ -593,13 +644,18 @@ public:
 	  * @param Index The index of the desired bone weight value.
 	  * @return The bone weight value for that index, or undefined if outside the valid range.
 	  */
-	const FBoneWeight& operator[](int32 Index) { return BoneWeights.operator[](Index); }
+	const FBoneWeight& operator[](int32 Index) const { return BoneWeights.operator[](Index); }
 
-
+	/** Returns the FBoneWeight list as an array view */
+	TArrayView<const FBoneWeight> ToArrayView() const
+	{
+		return BoneWeights;
+	}
+	
 	// -- Helper functions
 
 	/** Find the bone weight corresponding to the given bone index. If a bone weight with this
-	  * index doesn't exist
+	  * bone index does not exist it, a value of INDEX_NONE is returned.
 	  */
 	int32 FindWeightIndexByBone(FBoneIndexType InBoneIndex) const
 	{
@@ -631,13 +687,9 @@ public:
 	}
 
 private:
-	static FBoneWeights CreateFromArrayView(
-	    TArrayView<FBoneWeight> BoneWeights,
-	    const FBoneWeightsSettings& InSettings = {});
-
-	void SortWeights();
-	bool CullWeights(const FBoneWeightsSettings& InSettings);
-	void NormalizeWeights(EBoneWeightNormalizeType InNormalizeType);
+	inline void SortWeights();
+	inline bool CullWeights(const FBoneWeightsSettings& InSettings);
+	inline void NormalizeWeights(EBoneWeightNormalizeType InNormalizeType);
 
 	friend uint32 GetTypeHash(const FBoneWeights& InBoneWeights);
 
@@ -648,14 +700,37 @@ private:
 
 /// TBoneWeights implementation
 template<typename ContainerAdapter>
-void TBoneWeights<ContainerAdapter>::SetBoneWeights(
-	TArrayView<const FBoneWeight> BoneWeights,
+template<typename OtherContainerAdapter, typename CT>
+typename std::enable_if<!std::is_const<CT>::value, void>::type
+TBoneWeights<ContainerAdapter>::SetBoneWeights(
+	const TBoneWeights<OtherContainerAdapter>& InBoneWeights,
+	const FBoneWeightsSettings& InSettings /*= {}*/)
+{
+	TArray<FBoneWeight, TInlineAllocator<MaxInlineBoneWeightCount>> StackBoneWeights;
+	StackBoneWeights.Reserve(InBoneWeights.Num());
+	for (int32 Index = 0; Index < InBoneWeights.Num(); Index++)
+	{
+		FBoneWeight BW = InBoneWeights.Get(Index);
+		if (BW.GetRawWeight() >= InSettings.GetRawWeightThreshold())
+		{
+			StackBoneWeights.Add(BW);
+		}
+	}	
+
+	SetBoneWeightsInternal(StackBoneWeights, InSettings);
+}
+
+template<typename ContainerAdapter>
+template<typename CT>
+typename std::enable_if<!std::is_const<CT>::value, void>::type
+TBoneWeights<ContainerAdapter>::SetBoneWeights(
+	TArrayView<const FBoneWeight> InBoneWeights,
 	const FBoneWeightsSettings& InSettings /*= {}*/)
 {
 	TArray<FBoneWeight, TInlineAllocator<MaxInlineBoneWeightCount>> StackBoneWeights;
 
-	StackBoneWeights.Reserve(BoneWeights.Num());
-	for (const FBoneWeight& BW : BoneWeights)
+	StackBoneWeights.Reserve(InBoneWeights.Num());
+	for (const FBoneWeight& BW : InBoneWeights)
 	{
 		if (BW.GetRawWeight() >= InSettings.GetRawWeightThreshold())
 		{
@@ -668,7 +743,9 @@ void TBoneWeights<ContainerAdapter>::SetBoneWeights(
 
 
 template<typename ContainerAdapter>
-void TBoneWeights<ContainerAdapter>::SetBoneWeights(
+template<typename CT>
+typename std::enable_if<!std::is_const<CT>::value, void>::type
+TBoneWeights<ContainerAdapter>::SetBoneWeights(
 	const FBoneIndexType* InBones,
 	const float* InInfluences,
 	int32 NumEntries,
@@ -691,7 +768,9 @@ void TBoneWeights<ContainerAdapter>::SetBoneWeights(
 
 
 template<typename ContainerAdapter>
-void TBoneWeights<ContainerAdapter>::SetBoneWeights(
+template<typename CT>
+typename std::enable_if<!std::is_const<CT>::value, void>::type
+TBoneWeights<ContainerAdapter>::SetBoneWeights(
 	const FBoneIndexType InBones[MaxInlineBoneWeightCount],
 	const uint8 InInfluences[MaxInlineBoneWeightCount],
 	const FBoneWeightsSettings& InSettings /*= {}*/)
@@ -757,7 +836,9 @@ void TBoneWeights<ContainerAdapter>::SetBoneWeightsInternal(
 }
 
 template<typename ContainerAdapter>
-bool TBoneWeights<ContainerAdapter>::AddBoneWeight(
+template<typename CT>
+typename std::enable_if<!std::is_const<CT>::value, bool>::type
+TBoneWeights<ContainerAdapter>::AddBoneWeight(
 	FBoneWeight InBoneWeight,
 	const FBoneWeightsSettings& InSettings /*= {}*/)
 {
@@ -766,7 +847,7 @@ bool TBoneWeights<ContainerAdapter>::AddBoneWeight(
 
 	// If the sum of weights could possibly exceed 1.0, we may need normalization based on
 	// the weight settings.
-	bool bMayNeedNormalization = false;
+	bool bMayNeedNormalization;
 
 	if (WeightIndex != INDEX_NONE)
 	{
@@ -806,7 +887,7 @@ bool TBoneWeights<ContainerAdapter>::AddBoneWeight(
 		}
 
 		// Are we already at the limit of weights for this container?
-		int32 NumWeights = ContainerAdapter::Num(Container);
+		const int32 NumWeights = ContainerAdapter::Num(Container);
 		if (NumWeights == InSettings.GetMaxWeightCount())
 		{
 			// If the weight is smaller than the smallest weight currently, then we reject.
@@ -841,7 +922,9 @@ bool TBoneWeights<ContainerAdapter>::AddBoneWeight(
 
 
 template<typename ContainerAdapter>
-bool TBoneWeights<ContainerAdapter>::RemoveBoneWeight(
+template<typename CT>
+typename std::enable_if<!std::is_const<CT>::value, bool>::type
+TBoneWeights<ContainerAdapter>::RemoveBoneWeight(
     FBoneIndexType InBoneIndex,
 	const FBoneWeightsSettings& InSettings /*= {}*/
 	)
@@ -869,7 +952,9 @@ bool TBoneWeights<ContainerAdapter>::RemoveBoneWeight(
 
 
 template<typename ContainerAdapter>
-void TBoneWeights<ContainerAdapter>::Renormalize(
+template<typename CT>
+typename std::enable_if<!std::is_const<CT>::value, void>::type
+TBoneWeights<ContainerAdapter>::Renormalize(
 	const FBoneWeightsSettings& InSettings /*= {}*/
 	)
 {
@@ -884,11 +969,12 @@ void TBoneWeights<ContainerAdapter>::Renormalize(
 
 
 template<typename ContainerAdapter>
-template<typename ContainerAdapterA, typename ContainerAdapterB>
-void TBoneWeights<ContainerAdapter>::Blend(
+template<typename ContainerAdapterA, typename ContainerAdapterB, typename CT>
+typename std::enable_if<!std::is_const<CT>::value, void>::type
+TBoneWeights<ContainerAdapter>::Blend(
 	const TBoneWeights<ContainerAdapterA>& InBoneWeightsA,
 	const TBoneWeights<ContainerAdapterB>& InBoneWeightsB,
-	float InBias,
+	const float InBias,
 	const FBoneWeightsSettings& InSettings /*= {}*/
 	)
 {
@@ -937,11 +1023,11 @@ void TBoneWeights<ContainerAdapter>::Blend(
 	TArray<FBoneWeight, TInlineAllocator<MaxInlineBoneWeightCount * 2>> BoneWeights;
 	BoneWeights.Reserve(InBoneWeightsA.Num() + InBoneWeightsB.Num());
 
-	int32 RawBiasB = int32(InBias * float(FBoneWeight::GetMaxRawWeight()));
-	int32 RawBiasA = FBoneWeight::GetMaxRawWeight() - RawBiasB;
+	const int32 RawBiasB = static_cast<int32>(InBias * static_cast<float>(FBoneWeight::GetMaxRawWeight()));
+	const int32 RawBiasA = FBoneWeight::GetMaxRawWeight() - RawBiasB;
 
 	int32 IndexA = 0, IndexB = 0;
-	for (; IndexA < InBoneWeightsA.Num() && IndexB < InBoneWeightsB.Num(); /**/)
+	for (; IndexA < InBoneWeightsA.Num() && IndexB < InBoneWeightsB.Num(); /* */ )
 	{
 		const FBoneWeight& BWA = InBoneWeightsA[IndirectIndexA[IndexA]];
 		const FBoneWeight& BWB = InBoneWeightsB[IndirectIndexB[IndexB]];
@@ -1023,7 +1109,7 @@ void TBoneWeights<ContainerAdapter>::NormalizeWeights(
 	EBoneWeightNormalizeType InNormalizeType
 	)
 {
-	int32 NumWeights = ContainerAdapter::Num(Container);
+	const int32 NumWeights = ContainerAdapter::Num(Container);
 
 	// Early checks
 	if (InNormalizeType == EBoneWeightNormalizeType::None || NumWeights == 0)
@@ -1065,8 +1151,8 @@ void TBoneWeights<ContainerAdapter>::NormalizeWeights(
 		for (int32 Index = 0; Index < NumWeights; Index++)
 		{
 			FBoneWeight BW = ContainerAdapter::Get(Container, Index);
-			int64 ScaledWeight = int64(BW.GetRawWeight()) * FBoneWeight::GetMaxRawWeight() + Correction;
-			BW.SetRawWeight(uint16(FMath::Min(ScaledWeight / WeightSum, int64(FBoneWeight::GetMaxRawWeight()))));
+			const int64 ScaledWeight = static_cast<int64>(BW.GetRawWeight()) * FBoneWeight::GetMaxRawWeight() + Correction;
+			BW.SetRawWeight(static_cast<uint16>(FMath::Min(ScaledWeight / WeightSum, static_cast<int64>(FBoneWeight::GetMaxRawWeight()))));
 			Correction = ScaledWeight - BW.GetRawWeight() * WeightSum;
 			ContainerAdapter::Set(Container, Index, BW);
 		}
@@ -1077,10 +1163,203 @@ void TBoneWeights<ContainerAdapter>::NormalizeWeights(
 template<typename ContainerAdapter>
 bool UE::AnimationCore::TBoneWeights<ContainerAdapter>::Verify() const
 {
-	// FIXME: TBD.
+	const int32 NumEntries = Num(); 
+	if (NumEntries == 0)
+	{
+		return true;
+	}
+	
+	// Check that bone indexes are unique
+	TSet<FBoneIndexType> BoneIndexes;
+	BoneIndexes.Reserve(NumEntries);
+	for (int32 Index = 0; Index < NumEntries; Index++)
+	{
+		FBoneWeight BW = Get(Index);
+		if (BoneIndexes.Find(BW.GetBoneIndex()) != nullptr)
+		{
+			// Commented out for now, to avoid linker errors, since this is a header-only file.
+			// UE_LOG(LogAnimationCore, Error, TEXT("Bone Index %d is duplicated"), static_cast<int>(BW.GetBoneIndex()));
+			return false;
+		}
+		BoneIndexes.Add(BW.GetBoneIndex());
+	}
+	
+	// Check that all weights are ordered.
+	float LastWeight = Get(0).GetWeight();
+	for (int32 Index = 1; Index < NumEntries; Index++)
+	{
+		if (Get(Index).GetWeight() > LastWeight)
+		{
+			//UE_LOG(LogAnimationCore, Error, TEXT("Bone Weight at %d is greater than previous (%g > %g)"),
+			//	Index, Get(Index).GetWeight(), LastWeight);
+			return false;
+		}
+		LastWeight = Get(Index).GetWeight();
+	}		
+	
 	return true;
 }
 
+
+// FBoneWeights implementations
+static auto WeightSortPredicate = [](const FBoneWeight& A, const FBoneWeight& B) {
+	return A.GetRawWeight() > B.GetRawWeight();
+};
+
+
+bool FBoneWeights::SetBoneWeight(
+    FBoneWeight InBoneWeight,
+    const FBoneWeightsSettings& InSettings /*= {} */
+)
+{
+	FArrayWrapper W(BoneWeights);
+	return W.AddBoneWeight(InBoneWeight, InSettings);
+}
+
+
+bool FBoneWeights::RemoveBoneWeight(
+    FBoneIndexType InBoneIndex,
+    const FBoneWeightsSettings& InSettings /*= {} */
+)
+{
+	FArrayWrapper W(BoneWeights);
+	return W.RemoveBoneWeight(InBoneIndex, InSettings);
+}
+
+
+void FBoneWeights::Renormalize(const FBoneWeightsSettings& InSettings /*= {}*/)
+{
+	FArrayWrapper W(BoneWeights);
+	return W.Renormalize(InSettings);
+}
+
+
+FBoneWeights FBoneWeights::Create(
+    const FBoneIndexType InBones[MaxInlineBoneWeightCount],
+    const uint8 InInfluences[MaxInlineBoneWeightCount],
+    const FBoneWeightsSettings& InSettings /*= {} */
+)
+{
+	FBoneWeights Result;
+	FArrayWrapper W(Result.BoneWeights);
+	W.SetBoneWeights(InBones, InInfluences, InSettings);
+	return Result;
+}
+
+
+FBoneWeights FBoneWeights::Create(
+    const FBoneIndexType* InBones,
+    const float* InInfluences,
+    int32 NumEntries,
+    const FBoneWeightsSettings& InSettings /*= {} */
+)
+{
+	FBoneWeights Result;
+	FArrayWrapper W(Result.BoneWeights);
+	W.SetBoneWeights(InBones, InInfluences, NumEntries, InSettings);
+	return Result;
+}
+
+
+FBoneWeights FBoneWeights::Create(
+	TArrayView<const FBoneWeight> InBoneWeights, 
+	const FBoneWeightsSettings& InSettings /*= {} */
+)
+{
+	FBoneWeights Result;
+	FArrayWrapper(Result.BoneWeights).SetBoneWeights(InBoneWeights, InSettings);
+	return Result;
+}
+
+
+FBoneWeights FBoneWeights::Blend(
+    const FBoneWeights& InA,
+    const FBoneWeights& InB,
+    float InBias,
+    const FBoneWeightsSettings& InSettings /*= {} */
+)
+{
+	FBoneWeights Result;
+	FArrayWrapper W(Result.BoneWeights);
+	FArrayWrapper A(const_cast<FBoneWeights&>(InA).BoneWeights);
+	FArrayWrapper B(const_cast<FBoneWeights&>(InB).BoneWeights);
+	W.Blend(A, B, InBias, InSettings);
+	return Result;
+}
+
+
+void FBoneWeights::SortWeights()
+{
+	BoneWeights.Sort(WeightSortPredicate);
+}
+
+
+bool FBoneWeights::CullWeights(const FBoneWeightsSettings& InSettings)
+{
+	bool bCulled = false;
+	if (BoneWeights.Num() > InSettings.GetMaxWeightCount())
+	{
+		BoneWeights.SetNum(InSettings.GetMaxWeightCount(), false);
+		bCulled = true;
+	}
+
+	// If entries are now below the threshold, remove them.
+	while (BoneWeights.Num() > 0 && BoneWeights.Last().GetRawWeight() < InSettings.GetRawWeightThreshold())
+	{
+		BoneWeights.SetNum(BoneWeights.Num() - 1, false);
+		bCulled = true;
+	}
+
+	return bCulled;
+}
+
+
+void FBoneWeights::NormalizeWeights(
+    EBoneWeightNormalizeType InNormalizeType)
+{
+	// Early checks
+	if (InNormalizeType == EBoneWeightNormalizeType::None || BoneWeights.Num() == 0)
+	{
+		return;
+	}
+
+	// Common case.
+	if (BoneWeights.Num() == 1)
+	{
+		if (InNormalizeType == EBoneWeightNormalizeType::Always)
+		{
+			BoneWeights[0].SetRawWeight(FBoneWeight::GetMaxRawWeight());
+		}
+		return;
+	}
+
+	// We operate on int64, since we can easily end up with wraparound issues during one of the
+	// multiplications below when using int32. This would tank the division by WeightSum.
+	int64 WeightSum = 0;
+	for (const FBoneWeight& BW : BoneWeights)
+	{
+		WeightSum += BW.GetRawWeight();
+	}
+
+	if ((InNormalizeType == EBoneWeightNormalizeType::Always && ensure(WeightSum != 0)) ||
+	    WeightSum > FBoneWeight::GetMaxRawWeight())
+	{
+		int64 Correction = 0;
+
+		// Here we treat the raw weight as a 16.16 fixed point value and ensure that the
+		// fraction, which would otherwise be lost through rounding, is carried over to the 
+		// subsequent values to maintain a constant sum to the max weight value.
+		// We do this in descending weight order in an attempt to ensure that weight values 
+		// aren't needlessly lost after scaling.
+		for (FBoneWeight& BW : BoneWeights)
+		{
+			int64 ScaledWeight = int64(BW.GetRawWeight()) * FBoneWeight::GetMaxRawWeight() + Correction;
+			BW.SetRawWeight(uint16(FMath::Min(ScaledWeight / WeightSum, int64(FBoneWeight::GetMaxRawWeight()))));
+			Correction = ScaledWeight - BW.GetRawWeight() * WeightSum;
+		}
+	}
+}
+	
 
 } // namespace AnimationCore
 } // namespace UE

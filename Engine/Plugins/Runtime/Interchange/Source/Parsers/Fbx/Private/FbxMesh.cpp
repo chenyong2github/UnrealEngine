@@ -1009,38 +1009,13 @@ namespace UE
 						}
 
 						FSkeletalMeshAttributes SkeletalMeshAttributes(*MeshDescription);
+						SkeletalMeshAttributes.Register();
 
+						using namespace UE::AnimationCore;
+						TMap<FVertexID, TArray<FBoneWeight>> RawBoneWeights;
+						
 						//Add the influence data in the skeletalmesh description
-						TVertexAttributesRef<TArrayAttribute<int32>> VertexInfluenceBones = SkeletalMeshAttributes.GetVertexInfluenceBones();
-						TVertexAttributesRef<TArrayAttribute<float>> VertexInfluenceWeights = SkeletalMeshAttributes.GetVertexInfluenceWeights();
-
-
-						auto AddOneInfluence = [&VertexInfluenceBones, &VertexInfluenceWeights](FVertexID VertexID, int32 BoneIndex, float Weight)
-						{
-							//Add one influence to the vertex if its not already set
-							int32 InfluenceCount = VertexInfluenceBones[VertexID].Num();
-							bool bCreateNewInfluenceEntry = true;
-							for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
-							{
-								int32 InfluenceBoneIndex = VertexInfluenceBones[VertexID][InfluenceIndex];
-								if (InfluenceBoneIndex == BoneIndex)
-								{
-									//Use the most heavy weight
-									float InfluenceWeight = VertexInfluenceWeights[VertexID][InfluenceIndex];
-									if (Weight > InfluenceWeight)
-									{
-										VertexInfluenceWeights[VertexID][InfluenceIndex] = Weight;
-									}
-									bCreateNewInfluenceEntry = false;
-									break;
-								}
-							}
-							if (bCreateNewInfluenceEntry)
-							{
-								ensure(InfluenceCount == VertexInfluenceBones[VertexID].Add(BoneIndex));
-								ensure(InfluenceCount == VertexInfluenceWeights[VertexID].Add(Weight));
-							}
-						};
+						FSkinWeightsVertexAttributesRef VertexSkinWeights = SkeletalMeshAttributes.GetVertexSkinWeights();
 
 						if (MeshType == EMeshType::Skinned)
 						{
@@ -1083,9 +1058,41 @@ namespace UE
 									}
 									float Weight = static_cast<float>(Weights[ControlPointIndex]);
 
-									AddOneInfluence(VertexID, BoneIndex, Weight);
+									TArray<FBoneWeight> *BoneWeights = RawBoneWeights.Find(VertexID);
+									if (BoneWeights)
+									{
+										// Do we already have a weight for this bone? Keep the greater weight.
+										bool bShouldAdd = true;
+										for (int32 WeightIndex = 0; WeightIndex < BoneWeights->Num(); WeightIndex++)
+										{
+											FBoneWeight &BoneWeight = (*BoneWeights)[WeightIndex];
+											if (BoneWeight.GetBoneIndex() == BoneIndex)
+											{
+												if (BoneWeight.GetWeight() < Weight)
+												{
+													BoneWeight.SetWeight(Weight);
+												}
+												bShouldAdd = false;
+												break;
+											}
+										}
+										if (bShouldAdd)
+										{
+											BoneWeights->Add(FBoneWeight(BoneIndex, Weight));
+										}
+									}
+									else
+									{
+										RawBoneWeights.Add(VertexID).Add(FBoneWeight(BoneIndex, Weight));
+									}
 								}
 							}
+
+							// Add all the raw bone weights. This will cause the weights to be sorted and re-normalized after culling to max influences.
+							for (const TTuple<FVertexID, TArray<FBoneWeight>> &Item: RawBoneWeights)
+							{
+								VertexSkinWeights.Set(Item.Key, Item.Value);
+							}	
 						}
 						else // for rigid mesh
 						{
@@ -1093,6 +1100,8 @@ namespace UE
 							int32 BoneIndex = -1;
 							SortedJoints->Find(MeshNode, BoneIndex);
 
+							const float Weight = 1.0f;
+							const FBoneWeights DefaultBinding = FBoneWeights::Create({FBoneWeight(BoneIndex, Weight)});
 							if (BoneIndex == -1 && SortedJoints->Num() > 0)
 							{
 								//When we import geometry only, we want to hook all the influence to a particular bone
@@ -1107,73 +1116,11 @@ namespace UE
 									//Invalid Influence
 									continue;
 								}
-								const float Weight = 1.0f;
-								AddOneInfluence(VertexID, BoneIndex, Weight);
+
+								VertexSkinWeights.Set(VertexID, DefaultBinding);
 							}
 						}
 
-						//Reorder by weight
-						{
-							TArray<int32> BoneIndexes;
-							TArray<float> BoneWeights;
-							TArray<int32> RemapIndexes;
-							TArray<float> RemapWeights;
-							for (const FVertexID VertexID : MeshDescription->Vertices().GetElementIDs())
-							{
-								//Add one influence to the vertex if its not already set
-								int32 InfluenceCount = VertexInfluenceBones[VertexID].Num();
-								BoneIndexes.Reset(InfluenceCount);
-								BoneIndexes.AddZeroed(InfluenceCount);
-								BoneWeights.Reset(InfluenceCount);
-								BoneWeights.AddZeroed(InfluenceCount);
-								RemapIndexes.Reset(InfluenceCount);
-								RemapIndexes.AddZeroed(InfluenceCount);
-								RemapWeights.Reset(InfluenceCount);
-								RemapWeights.AddZeroed(InfluenceCount);
-								for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
-								{
-									int32 InfluenceBoneIndex = VertexInfluenceBones[VertexID][InfluenceIndex];
-									BoneIndexes[InfluenceIndex] = InfluenceBoneIndex;
-									//Use the most heavy weight
-									float InfluenceWeight = VertexInfluenceWeights[VertexID][InfluenceIndex];
-									BoneWeights[InfluenceIndex] = InfluenceWeight;
-									RemapIndexes[InfluenceIndex] = InfluenceIndex;
-									RemapWeights[InfluenceIndex] = InfluenceWeight;
-								}
-
-								for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
-								{
-									if (InfluenceIndex == 0)
-									{
-										continue;
-									}
-									float CurrentWeight = BoneWeights[InfluenceIndex];
-									for (int32 RemapIndex = InfluenceIndex - 1; RemapIndex >= 0; RemapIndex--)
-									{
-										if (CurrentWeight > BoneWeights[RemapIndexes[RemapIndex]])
-										{
-											//Swap
-											int32 SwapIndex = RemapIndexes[RemapIndex + 1];
-											float SwapValue = RemapWeights[RemapIndex + 1];
-											RemapIndexes[RemapIndex + 1] = RemapIndexes[RemapIndex];
-											RemapWeights[RemapIndex + 1] = RemapWeights[RemapIndex];
-											RemapIndexes[RemapIndex] = SwapIndex;
-											RemapWeights[RemapIndex] = SwapValue;
-										}
-										else
-										{
-											break;
-										}
-									}
-								}
-								//Push the value into the mesh description
-								for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
-								{
-									BoneIndexes[InfluenceIndex] = RemapIndexes[InfluenceIndex];
-									BoneWeights[InfluenceIndex] = RemapWeights[InfluenceIndex];
-								}
-							}
-						}
 					}
 				}
 				// needed?

@@ -600,8 +600,7 @@ namespace UE
 
 				FSkeletalMeshConstAttributes Attributes(SourceMeshDescription);
 				TVertexAttributesConstRef<FVector> VertexPositions = Attributes.GetVertexPositions();
-				TVertexAttributesConstRef<TArrayAttribute<int32>> VertexInfluenceBones = Attributes.GetVertexInfluenceBones();
-				TVertexAttributesConstRef<TArrayAttribute<float>> VertexInfluenceWeights = Attributes.GetVertexInfluenceWeights();
+				FSkinWeightsVertexAttributesConstRef VertexSkinWeights = Attributes.GetVertexSkinWeights();
 
 				TVertexInstanceAttributesConstRef<FVertexID> VertexInstanceVertexIndices = Attributes.GetVertexInstanceVertexIndices();
 				TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
@@ -639,15 +638,18 @@ namespace UE
 				{
 					//We can use GetValue because the Meshdescription was compacted before the copy
 					DestinationSkeletalMeshImportData.Points[VertexID.GetValue()] = VertexPositions[VertexID];
-					int32 InfluenceCount = VertexInfluenceBones[VertexID].Num();
-					int32 InfluenceOffsetIndex = DestinationSkeletalMeshImportData.Influences.Num();
+
+					FVertexBoneWeightsConst BoneWeights = VertexSkinWeights.Get(VertexID); 
+					const int32 InfluenceCount = BoneWeights.Num();
+					
+					const int32 InfluenceOffsetIndex = DestinationSkeletalMeshImportData.Influences.Num();
 					DestinationSkeletalMeshImportData.Influences.AddDefaulted(InfluenceCount);
 					for (int32 InfluenceIndex = 0; InfluenceIndex < InfluenceCount; ++InfluenceIndex)
 					{
 						SkeletalMeshImportData::FRawBoneInfluence& BoneInfluence = DestinationSkeletalMeshImportData.Influences[InfluenceOffsetIndex + InfluenceIndex];
 						BoneInfluence.VertexIndex = VertexID.GetValue();
-						BoneInfluence.BoneIndex = VertexInfluenceBones[VertexID][InfluenceIndex];
-						BoneInfluence.Weight = VertexInfluenceWeights[VertexID][InfluenceIndex];
+						BoneInfluence.BoneIndex = BoneWeights[InfluenceIndex].GetBoneIndex();
+						BoneInfluence.Weight = BoneWeights[InfluenceIndex].GetWeight();
 					}
 				}
 
