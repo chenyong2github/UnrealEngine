@@ -36,6 +36,7 @@
 //Slate dependencies
 #include "Misc/FeedbackContext.h"
 #include "IAssetViewport.h"
+#include "SLevelViewport.h"
 #include "SLandscapeEditor.h"
 #include "Framework/Application/SlateApplication.h"
 
@@ -2837,8 +2838,8 @@ void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable)
 	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
 	if (LevelEditor.IsValid())
 	{
-		TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
-		for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
+		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
 		{
 			if (ViewportWindow.IsValid())
 			{

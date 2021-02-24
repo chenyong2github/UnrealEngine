@@ -1246,8 +1246,8 @@ void UEdModeInteractiveToolsContext::SetEditorStateForTool()
 	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
 	if (LevelEditor.IsValid())
 	{
-		TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
-		for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
+		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
 		{
 			if (ViewportWindow.IsValid())
 			{
@@ -1270,8 +1270,8 @@ void UEdModeInteractiveToolsContext::RestoreEditorState()
 	TSharedPtr<ILevelEditor> LevelEditor  = LevelEditorModule.GetFirstLevelEditor();
 	if (LevelEditor.IsValid())
 	{
-		TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
-		for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
+		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
 		{
 			if (ViewportWindow.IsValid())
 			{

@@ -16,6 +16,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "IAssetViewport.h"
+#include "SLevelViewport.h"
 #include "EditorViewportClient.h"
 #include "LevelEditorMenuContext.h"
 
@@ -199,7 +200,7 @@ TSharedRef<FExtender> FCameraShakePreviewerModule::OnExtendLevelViewportOptionMe
 	// Find the viewport for which we're opening this options menu.
 	FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(LevelEditorModuleName);
 	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetLevelEditorInstance().Pin();
-	TSharedPtr<IAssetViewport> ViewportInterface = LevelEditor->GetActiveViewportInterface();
+	TSharedPtr<SLevelViewport> ViewportInterface = LevelEditor->GetActiveViewportInterface();
 	FLevelEditorViewportClient* ViewportClient = (FLevelEditorViewportClient*)&ViewportInterface->GetAssetViewportClient();
 	if (ViewportClient->ViewportType != ELevelViewportType::LVT_Perspective)
 	{

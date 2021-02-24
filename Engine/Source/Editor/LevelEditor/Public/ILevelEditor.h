@@ -41,10 +41,10 @@ public:
 	virtual const TArray< TSharedPtr< IToolkit > >& GetHostedToolkits() const = 0;
 
 	/** Gets an array of all viewports in this level editor */
-	virtual TArray< TSharedPtr< IAssetViewport > > GetViewports() const = 0;
+	virtual TArray< TSharedPtr< SLevelViewport > > GetViewports() const = 0;
 	
 	/** Gets the active level viewport for this level editor */
-	virtual TSharedPtr<IAssetViewport> GetActiveViewportInterface() = 0;
+	virtual TSharedPtr<SLevelViewport> GetActiveViewportInterface() = 0;
 
 	/** Get the thumbnail pool used by this level editor */
 	UE_DEPRECATED(5.0, "GetThumbnailPool has been replaced by UThumbnailManager::Get().GetSharedThumbnailPool().")

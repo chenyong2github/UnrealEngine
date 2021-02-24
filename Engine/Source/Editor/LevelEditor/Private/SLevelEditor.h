@@ -70,8 +70,8 @@ public:
 	virtual void SummonLevelViewportContextMenu(AActor* HitProxyActor = nullptr) override;
 	virtual void SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption) override;
 	virtual const TArray< TSharedPtr< class IToolkit > >& GetHostedToolkits() const override;
-	virtual TArray< TSharedPtr< IAssetViewport > > GetViewports() const override;
-	virtual TSharedPtr<IAssetViewport> GetActiveViewportInterface() override;
+	virtual TArray< TSharedPtr< SLevelViewport > > GetViewports() const override;
+	virtual TSharedPtr<SLevelViewport> GetActiveViewportInterface() override;
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	virtual TSharedPtr< class FAssetThumbnailPool > GetThumbnailPool() const override;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS

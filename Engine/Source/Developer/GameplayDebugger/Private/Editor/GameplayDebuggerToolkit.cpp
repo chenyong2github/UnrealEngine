@@ -6,6 +6,7 @@
 #if WITH_EDITOR
 #include "LevelEditor.h"
 #include "IAssetViewport.h"
+#include "SLevelViewport.h"
 #include "LevelEditorViewport.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SButton.h"
@@ -89,8 +90,8 @@ FReply FGameplayDebuggerToolkit::OnClickedDisableTool()
 	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
 	if (LevelEditor.IsValid())
 	{
-		TArray<TSharedPtr<IAssetViewport>> Viewports = LevelEditor->GetViewports();
-		for (const TSharedPtr<IAssetViewport>& ViewportWindow : Viewports)
+		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
 		{
 			if (ViewportWindow.IsValid())
 			{

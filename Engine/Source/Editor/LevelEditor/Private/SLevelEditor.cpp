@@ -1769,9 +1769,9 @@ const TArray< TSharedPtr< IToolkit > >& SLevelEditor::GetHostedToolkits() const
 	return HostedToolkits;
 }
 
-TArray< TSharedPtr< IAssetViewport > > SLevelEditor::GetViewports() const
+TArray< TSharedPtr< SLevelViewport > > SLevelEditor::GetViewports() const
 {
-	TArray< TSharedPtr<IAssetViewport> > OutViewports;
+	TArray< TSharedPtr<SLevelViewport> > OutViewports;
 
 	for( int32 TabIndex = 0; TabIndex < ViewportTabs.Num(); ++TabIndex )
 	{
@@ -1810,7 +1810,7 @@ TArray< TSharedPtr< IAssetViewport > > SLevelEditor::GetViewports() const
 	return OutViewports;
 }
  
-TSharedPtr<IAssetViewport> SLevelEditor::GetActiveViewportInterface()
+TSharedPtr<SLevelViewport> SLevelEditor::GetActiveViewportInterface()
 {
 	return GetActiveViewport();
 }
