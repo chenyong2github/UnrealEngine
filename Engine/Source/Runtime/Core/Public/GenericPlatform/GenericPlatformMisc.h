@@ -6,6 +6,7 @@
 #include "CoreFwd.h"
 #include "HAL/PlatformCrt.h"
 #include "Misc/CompressionFlags.h"
+#include "Misc/EnumClassFlags.h"
 #include "Math/NumericLimits.h"
 
 class Error;
@@ -325,6 +326,16 @@ enum class ENetworkConnectionType : uint8
 	Ethernet,
 };
 
+enum class EProcessDiagnosticFlags : uint32
+{
+	None            = 0,
+	MemorySanitizer = 1 << 0,
+	AnsiMalloc      = 1 << 1,
+	StompMalloc     = 1 << 2,
+};
+
+ENUM_CLASS_FLAGS(EProcessDiagnosticFlags);
+
 /**
  * Returns the string representation of the specified ENetworkConnection value.
  *
@@ -474,11 +485,14 @@ struct CORE_API FGenericPlatformMisc
 	FORCEINLINE static bool IsDebuggerPresent()
 	{
 #if UE_BUILD_SHIPPING
-		return 0;
+		return false;
 #else
-		return 1; // unknown platforms return true so that they can crash into a debugger
+		return true; // unknown platforms return true so that they can crash into a debugger
 #endif
 	}
+
+	/** Returns non-zero if a performance-sensitive diagnostic, like a memory sanitizer, is detected for this process */
+	static EProcessDiagnosticFlags GetProcessDiagnostics();
 
 	/** Break into the debugger, if IsDebuggerPresent returns true, otherwise do nothing  */
 	UE_DEPRECATED(4.19, "FPlatformMisc::DebugBreak is deprecated. Use the UE_DEBUG_BREAK() macro instead.")

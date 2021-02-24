@@ -262,6 +262,7 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalyticR
 	AnalyticsAttributes.Emplace(TEXT("SentFrom"), Sender);
 	AnalyticsAttributes.Emplace(TEXT("MonitorPid"), Session.MonitorProcessID); // For out-of-process monitoring, if this is 0, this will mean CRC failed to launch or crashed very early.
 	AnalyticsAttributes.Emplace(TEXT("DelayedCrashCount"), ReportData.DelayedCrashCount); // Piggybacked information from 'minimal crash sessions', previous Editor instances crashes recorded before analytics was initialized.
+	AnalyticsAttributes.Emplace(TEXT("ProcessDiagnostics"), Session.ProcessDiagnostics);
 
 	bool bShouldAttachMonitorLog = (ShutdownTypeString != EditorSessionSenderDefs::ShutdownSessionToken && ShutdownTypeString != EditorSessionSenderDefs::TerminatedSessionToken);
 

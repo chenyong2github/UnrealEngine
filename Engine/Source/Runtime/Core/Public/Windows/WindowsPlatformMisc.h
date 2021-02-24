@@ -51,6 +51,7 @@ struct CORE_API FWindowsPlatformMisc
 
 #if !UE_BUILD_SHIPPING
 	static bool IsDebuggerPresent();
+	static EProcessDiagnosticFlags GetProcessDiagnostics();
 #endif
 
 #if STATS || ENABLE_STATNAMEDEVENTS

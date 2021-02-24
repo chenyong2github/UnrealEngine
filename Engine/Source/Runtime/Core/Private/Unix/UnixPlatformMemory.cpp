@@ -158,6 +158,7 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 #endif // PLATFORM_SUPPORTS_JEMALLOC
 				if (FCStringAnsi::Stricmp(Arg, "-ansimalloc") == 0)
 				{
+					// see FPlatformMisc::GetProcessDiagnostics()
 					AllocatorToUse = EMemoryAllocatorToUse::Ansi;
 					break;
 				}
@@ -224,6 +225,7 @@ class FMalloc* FUnixPlatformMemory::BaseAllocator()
 #if WITH_MALLOC_STOMP
 				if (FCStringAnsi::Stricmp(Arg, "-stompmalloc") == 0)
 				{
+					// see FPlatformMisc::GetProcessDiagnostics()
 					AllocatorToUse = EMemoryAllocatorToUse::Stomp;
 					break;
 				}

@@ -369,6 +369,28 @@ void FGenericPlatformMisc::SubmitErrorReport( const TCHAR* InErrorHist, EErrorRe
 	}
 }
 
+EProcessDiagnosticFlags FGenericPlatformMisc::GetProcessDiagnostics()
+{
+	static EProcessDiagnosticFlags FoundDiagnostics = []() -> EProcessDiagnosticFlags
+	{
+		EProcessDiagnosticFlags Result = EProcessDiagnosticFlags::None;
+		const TCHAR* CommandLine = FCommandLine::Get();
+
+		if (FCString::Stristr(CommandLine, TEXT("-ansimalloc")))
+		{
+			Result |= EProcessDiagnosticFlags::AnsiMalloc;
+		}
+
+		if (FCString::Stristr(CommandLine, TEXT("-stompmalloc")))
+		{
+			Result |= EProcessDiagnosticFlags::StompMalloc;
+		}
+
+		return Result;
+	}();
+
+	return FoundDiagnostics;
+}
 
 FString FGenericPlatformMisc::GetCPUVendor()
 {

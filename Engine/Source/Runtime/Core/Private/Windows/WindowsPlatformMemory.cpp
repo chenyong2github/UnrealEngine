@@ -125,6 +125,7 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 
 	if (FCString::Stristr(CommandLine, TEXT("-ansimalloc")))
 	{
+		// see FPlatformMisc::GetProcessDiagnostics()
 		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
 	}
 #if TBB_ALLOCATOR_ALLOWED
@@ -156,6 +157,7 @@ FMalloc* FWindowsPlatformMemory::BaseAllocator()
 #if WITH_MALLOC_STOMP
 	else if (FCString::Stristr(CommandLine, TEXT("-stompmalloc")))
 	{
+		// see FPlatformMisc::GetProcessDiagnostics()
 		AllocatorToUse = EMemoryAllocatorToUse::Stomp;
 	}
 #endif // WITH_MALLOC_STOMP

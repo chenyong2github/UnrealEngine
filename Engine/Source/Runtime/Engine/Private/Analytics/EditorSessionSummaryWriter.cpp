@@ -339,6 +339,7 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 			}
 			bSaveSession = true;
 		}
+
 		NextDebuggerCheckSecs = CurrentTimeSecs + EditorSessionWriterDefs::DebuggerCheckPeriodSeconds;
 	}
 
@@ -466,6 +467,7 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	Session->Timestamp = FDateTime::UtcNow();
 	Session->bIsDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->bWasEverDebugger = FPlatformMisc::IsDebuggerPresent();
+	Session->ProcessDiagnostics = static_cast<uint32>(FPlatformMisc::GetProcessDiagnostics());
 	Session->CurrentUserActivity = GetUserActivityString();
 	Session->bIsVanilla = GEngine && GEngine->IsVanillaProduct();
 	Session->CommandLine = FCommandLine::GetForLogging();

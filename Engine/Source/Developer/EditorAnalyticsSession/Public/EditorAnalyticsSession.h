@@ -98,6 +98,8 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool bIsCrcExeMissing: 1; // CrashReportClient executable is missing? To explain with MonitorProcessID would be zero.
 	bool bIsDebuggerIgnored: 1; // True if GIgnoreDebugger is true.
 
+	uint32 ProcessDiagnostics;
+
 	FEditorAnalyticsSession();
 
 	/** 

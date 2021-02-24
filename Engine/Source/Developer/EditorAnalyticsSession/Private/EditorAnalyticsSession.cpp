@@ -122,6 +122,8 @@ namespace EditorAnalyticsDefs
 	static const FString IsInVRModeStoreKey(TEXT("IsInVRMode"));
 	static const FString IsCrcExeMissingStoreKey(TEXT("IsCrcExeMissing"));
 	static const FString IsLowDriveSpaceStoreKey(TEXT("IsLowDriveSpace"));
+
+	static const FString ProcessDiagnosticsStoreKey(TEXT("ProcessDiagnostics"));
 }
 
 // Utilities for writing to stored values
@@ -477,6 +479,8 @@ namespace EditorAnalyticsUtils
 		Session.bIsLowDriveSpace = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 		Session.bIsCrcExeMissing = EditorAnalyticsUtils::GetStoredBool(SectionName, EditorAnalyticsDefs::IsCrcExeMissingStoreKey);
 
+		GET_STORED_INT(ProcessDiagnostics);
+
 		// Analyze the logged events and update corresponding fields in the session.
 		UpdateSessionFromLogAnalysis(Session);
 	}
@@ -526,6 +530,8 @@ FEditorAnalyticsSession::FEditorAnalyticsSession()
 	bIsLowDriveSpace = false;
 	bIsCrcExeMissing = false;
 	bIsDebuggerIgnored = false;
+
+	ProcessDiagnostics = 0x0;
 }
 
 bool FEditorAnalyticsSession::Lock(FTimespan Timeout)
@@ -653,6 +659,7 @@ bool FEditorAnalyticsSession::Save()
 			{EditorAnalyticsDefs::IsInEnterpriseStoreKey,   EditorAnalyticsUtils::BoolToStoredString(bIsInEnterprise)},
 			{EditorAnalyticsDefs::IsInVRModeStoreKey,       EditorAnalyticsUtils::BoolToStoredString(bIsInVRMode)},
 			{EditorAnalyticsDefs::IsLowDriveSpaceStoreKey,  EditorAnalyticsUtils::BoolToStoredString(bIsLowDriveSpace)},
+			{EditorAnalyticsDefs::ProcessDiagnosticsStoreKey, FString::FromInt(ProcessDiagnostics)},
 		};
 
 		if (ExitCode.IsSet())
@@ -776,6 +783,7 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsInVRModeStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsLowDriveSpaceStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::IsCrcExeMissingStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ProcessDiagnosticsStoreKey);
 
 	// Delete the log files.
 	EditorAnalyticsUtils::DeleteLogEvents(*this);

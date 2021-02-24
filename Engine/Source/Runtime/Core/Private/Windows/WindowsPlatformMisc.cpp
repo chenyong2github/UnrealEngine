@@ -52,6 +52,7 @@ THIRD_PARTY_INCLUDES_START
 	#include <ShlObj.h>
 	#include <IntShCut.h>
 	#include <shellapi.h>
+	#include <shlwapi.h>
 	#include <IPHlpApi.h>
 	#include <VersionHelpers.h>
 THIRD_PARTY_INCLUDES_END
@@ -839,6 +840,41 @@ void FWindowsPlatformMisc::SubmitErrorReport( const TCHAR* InErrorHist, EErrorRe
 bool FWindowsPlatformMisc::IsDebuggerPresent()
 {
 	return !GIgnoreDebugger && !!::IsDebuggerPresent();
+}
+
+EProcessDiagnosticFlags FWindowsPlatformMisc::GetProcessDiagnostics()
+{
+	static EProcessDiagnosticFlags FoundDiagnostics = []() -> EProcessDiagnosticFlags
+	{
+		EProcessDiagnosticFlags Result = FGenericPlatformMisc::GetProcessDiagnostics();
+
+		TCHAR* ImageFileName = PathFindFileName(FPlatformProcess::ExecutablePath());
+		FString ImageFileSubkey = FString::Printf(TEXT("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\%s"), ImageFileName);
+
+		// via https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/gflags-flag-table
+		constexpr uint32 MemorySanitizerMask =
+			0x00000010| // FLG_HEAP_ENABLE_TAIL_CHECK
+			0x00000020| // FLG_HEAP_ENABLE_FREE_CHECK
+			0x00000080| // FLG_HEAP_VALIDATE_ALL
+			0x00000100| // FLG_APPLICATION_VERIFIER
+			0x00000800| // FLG_HEAP_ENABLE_TAGGING
+			0x00008000| // FLG_HEAP_ENABLE_TAG_BY_DLL
+			0x00200000| // FLG_HEAP_DISABLE_COALESCING
+			0x02000000; // FLG_HEAP_PAGE_ALLOCS
+
+		DWORD Data, DataCount = sizeof(Data);
+		if (ERROR_SUCCESS == RegGetValue(HKEY_LOCAL_MACHINE, *ImageFileSubkey, TEXT("GlobalFlag"), RRF_RT_REG_DWORD, nullptr, &Data, &DataCount))
+		{
+			if (MemorySanitizerMask & Data)
+			{
+				Result |= EProcessDiagnosticFlags::MemorySanitizer;
+			}
+		}
+
+		return Result;
+	}();
+
+	return FoundDiagnostics;
 }
 #endif //!UE_BUILD_SHIPPING
 
