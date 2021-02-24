@@ -1,6 +1,7 @@
 const {
   override,
   addBabelPlugin,
+  addLessLoader,
   addWebpackAlias,
   useEslintRc,
   enableEslintTypescript,
@@ -19,6 +20,7 @@ module.exports = {
     addBabelPlugin('@babel/plugin-proposal-nullish-coalescing-operator'),
     addBabelPlugin('@babel/plugin-proposal-optional-chaining'),
     addBabelPlugin('@babel/plugin-proposal-class-properties'),
+    addLessLoader({ lessOptions: { javascriptEnabled: true } }),
     (config) => {
       const toRemove = ['GenerateSW'];
       for (let plugin of toRemove)

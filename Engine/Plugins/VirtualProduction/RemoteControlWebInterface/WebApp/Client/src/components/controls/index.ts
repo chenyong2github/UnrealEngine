@@ -1,5 +1,6 @@
 export * from './Button';
 export * from './ColorPicker';
+export * from './ColorPickerExtended';
 export * from './Gauge';
 export * from './GaugesWrapper';
 export * from './Invalid';
@@ -8,5 +9,8 @@ export * from './Level';
 export * from './MultiSlider';
 export * from './Sequence';
 export * from './Slider';
+export * from './SlidersWrapper';
 export * from './Text';
 export * from './Toggle';
+export * from './ValueInput';
+export * from './VectorDrawer';

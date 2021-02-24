@@ -14,6 +14,7 @@ export namespace Notify {
       socket
         .on('view', onViewChange)
         .on('value', UnrealEngine.setPayloadValue)
+        .on('actor', UnrealEngine.setActorValue)
         .on('reset', UnrealEngine.resetPayloadValue)
         .on('execute', UnrealEngine.executeFunction)
         .on('asset', UnrealEngine.executeAssetAction);
@@ -32,7 +33,7 @@ export namespace Notify {
     io.emit('view', preset, view);
   }
 
-  export function emitValueChange(preset: string, group: string, property: string, value: PropertyValue) {
-    io.emit('value', preset, group, property, value);
+  export function emitValueChange(preset: string, property: string, value: PropertyValue) {
+    io.emit('value', preset, property, value);
   }
 }

@@ -15,14 +15,20 @@ export class Api {
   }
 
   @Get('connected')
-  private async connected(req: Request, res: Response): Promise<void> {
+  private connected(req: Request, res: Response) {
     this.send(res, Promise.resolve({ connected: UnrealEngine.isConnected() }));
   }
 
   @Get('presets')
-  private async presets(req: Request, res: Response): Promise<void> {
+  private presets(req: Request, res: Response) {
     this.send(res, UnrealEngine.getPresets());
   }
+
+  @Get('payloads')
+  private payloads(req: Request, res: Response) {
+    this.send(res, UnrealEngine.getPayloads());
+  }
+
 
   @Get('presets/payload')
   private async payload(req: Request, res: Response): Promise<void> {
@@ -30,13 +36,27 @@ export class Api {
   }
 
   @Get('presets/view')
-  private async view(req: Request, res: Response): Promise<void> {
+  private view(req: Request, res: Response) {
     this.send(res, UnrealEngine.getView(req.query.preset?.toString()));
   }
 
   @Get('assets/search')
-  private async search(req: Request, res: Response): Promise<void> {
-    this.send(res, UnrealEngine.search(req.query.q?.toString()));
+  private search(req: Request, res: Response) {
+    const prefix = req.query.prefix?.toString() || '/Game';
+    const query = req.query.q?.toString() ?? '';
+    const count = parseInt(req.query.count?.toString()) || 50;
+    const types = req.query.types?.toString().split(',') ?? [];
+    this.send(res, UnrealEngine.search(query, types, prefix, count));
+  }
+
+  @Put('proxy')
+  private proxy(req: Request, res: Response) {
+    this.send(res, UnrealEngine.proxy(req.body?.method, req.body?.url, req.body?.body));
+  }
+
+  @Get('thumbnail')
+  private thumbnail(req: Request, res: Response) {
+    this.send(res, UnrealEngine.thumbnail(req.query.asset.toString()));
   }
 
   protected async send(res: Response, promise: Promise<any>, options?: ISendOptions): Promise<any> {

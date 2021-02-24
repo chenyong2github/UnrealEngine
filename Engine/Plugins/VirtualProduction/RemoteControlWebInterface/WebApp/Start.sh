@@ -3,7 +3,7 @@
 set -e
 
 # First we check if nodejs is installed
-if ! command -v node &> /dev/null ; then
+if ! command -v node > /dev/null ; then
   echo "ERROR: Couldn't find node.js installed..., Please install latest nodejs from https://nodejs.org/en/download/"
   exit 1
 fi
@@ -17,4 +17,11 @@ if [ ${VERSION} -lt 8 ] ; then
   exit 1
 fi
 
-node Scripts/start.js "$@"
+if [ ${VERSION} -gt 14 ] ; then
+  echo "ERROR: installed node.js version is not supported (${VERSION}), please install v14 of nodejs from https://nodejs.org/en/download/"
+  exit 1
+fi
+
+FOLDER=$(dirname "$0")
+node ${FOLDER}/Scripts/start.js "$@"
+

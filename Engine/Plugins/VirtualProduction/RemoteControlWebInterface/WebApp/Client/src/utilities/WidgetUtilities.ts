@@ -1,4 +1,4 @@
-import { IExposedFunction, IExposedProperty, IPreset, IWidget, PropertyType, WidgetType } from "src/shared";
+import { IExposedFunction, IExposedProperty, IPreset, IWidget, PropertyType, WidgetType, WidgetTypes } from "src/shared";
 import _ from 'lodash';
 
 type Range = {
@@ -6,13 +6,29 @@ type Range = {
   max?: number;
 }
 
+export type WidgetProperties<TPropertyValue = any> = {
+  widget?: IWidget;
+  stack?: boolean;
+  type?: PropertyType;
+  value?: TPropertyValue;
+  onChange?: (value: TPropertyValue) => void;
+};
+
+type CustomWidget = {
+  type: string;
+  render: (props: any) => React.ReactNode;
+};
+
 export class WidgetUtilities {
 
+  static propertyWidgets: Record<string, CustomWidget[]> = {};
+  static customWidgets: Record<string, CustomWidget> = {};
+  
   static getDefaultRange(property: PropertyType, widget: WidgetType): Range {
     switch (property) {
       case PropertyType.Rotator:
         return { min: 0, max: 360	};
-  
+
       case PropertyType.LinearColor:
       case PropertyType.Vector4:
         return { min: 0, max: 1 };
@@ -21,7 +37,7 @@ export class WidgetUtilities {
         return { min: 0, max: 255 };
 
       case PropertyType.Vector:
-        if (widget === WidgetType.Joystick)
+        if (widget === WidgetTypes.Joystick)
           return { min: -100000, max: 100000 };
         break;
     }
@@ -45,7 +61,7 @@ export class WidgetUtilities {
 
       case PropertyType.Uint32:
         return { min: 0, max: 4294967295 };
-        
+
       case PropertyType.Float:
       case PropertyType.Vector:
       case PropertyType.Vector2D:
@@ -54,7 +70,7 @@ export class WidgetUtilities {
 
       case PropertyType.Rotator:
         return { min: 0, max: 360	};
-  
+
       case PropertyType.Double:
         return { min: Number.MIN_VALUE, max: Number.MAX_VALUE };
 
@@ -98,28 +114,24 @@ export class WidgetUtilities {
   static verifyInRange(range: Range, limits: Range): Range {
     const ret: Range = {};
 
-    if (!isNaN(range.min))
-      ret.min = isNaN(limits.min) ? range.min : Math.max(range.min, limits.min);
+    if (!isNaN(range?.min))
+      ret.min = isNaN(limits?.min) ? range.min : Math.max(range.min, limits.min);
 
-    if (!isNaN(range.max))
-      ret.max = isNaN(limits.max) ? range.max : Math.min(range.max, limits.max);
+    if (!isNaN(range?.max))
+      ret.max = isNaN(limits?.max) ? range.max : Math.min(range.max, limits.max);
 
     return ret;
   }
 
   static getProperty(preset: IPreset, widget: IWidget): IExposedProperty|IExposedFunction {
-    if (!preset || !widget?.group || !widget.property)
+    if (!preset || !widget?.property)
       return;
 
-    const group = _.find(preset.Groups, g => g.Name === widget.group);
-    if (!group)
-      return;
-
-    const property = _.find(group.ExposedProperties, p => p.DisplayName === widget.property);
+    const property = _.find(preset.ExposedProperties, p => p.DisplayName === widget.property);
     if (property)
       return property;
 
-    return _.find(group.ExposedFunctions, f => f.DisplayName === widget.property);
+    return _.find(preset.ExposedFunctions, f => f.DisplayName === widget.property);
   }
 
   static getPropertyType(preset: IPreset, widget: IWidget): PropertyType {
@@ -175,12 +187,147 @@ export class WidgetUtilities {
 
   static isAsset(type: WidgetType): boolean {
     switch (type) {
-      case WidgetType.Level:
-      case WidgetType.Sequence:
+      case WidgetTypes.Level:
+      case WidgetTypes.Sequence:
         return true;
     }
 
     return false;
   }
 
+  static compatibleWidgets(type: PropertyType | string): WidgetType[] {
+    const widgets = [];
+
+    switch (type) {
+      case PropertyType.Boolean:
+      case PropertyType.Uint8:
+        widgets.push(WidgetTypes.Toggle);
+        break;
+
+      case PropertyType.Int8:
+      case PropertyType.Int16:
+      case PropertyType.Int32:
+      case PropertyType.Int64:
+      case PropertyType.Uint16:
+      case PropertyType.Uint32:
+      case PropertyType.Uint64:
+      case PropertyType.Float:
+      case PropertyType.Double:
+        widgets.push(WidgetTypes.Gauge, WidgetTypes.Slider);
+        break;
+
+      case PropertyType.Color:
+      case PropertyType.LinearColor:
+        widgets.push(WidgetTypes.ColorPicker, WidgetTypes.Sliders);
+        break;
+
+      case PropertyType.Vector:
+        widgets.push(WidgetTypes.Joystick, WidgetTypes.Sliders, WidgetTypes.ScaleSlider);
+        break;
+
+      case PropertyType.Vector2D:
+        widgets.push(WidgetTypes.Sliders, WidgetTypes.ScaleSlider);
+        break;
+
+      case PropertyType.Vector4:
+        widgets.push(WidgetTypes.ColorPicker, WidgetTypes.Sliders);
+        break;
+
+      case PropertyType.Rotator:
+        widgets.push(WidgetTypes.Gauge, WidgetTypes.Joystick, WidgetTypes.Sliders);
+        break;
+
+      case PropertyType.Function:
+        widgets.push(WidgetTypes.Button);
+        break;
+
+      case PropertyType.String:
+      case PropertyType.Text:
+        widgets.push(WidgetTypes.Text);
+        break;
+
+      case 'World':
+        widgets.push(WidgetTypes.Level);
+        break;
+
+      case 'LevelSequence':
+        widgets.push(WidgetTypes.Sequence);
+        break;
+    }
+
+    const custom = WidgetUtilities.propertyWidgets[type];
+    if (custom)
+      widgets.push(...custom.map(custom => custom.type));
+
+    return widgets;
+  }
+
+  static registerWidget(type: string, properties: PropertyType[], render: (props: WidgetProperties) => React.ReactNode): void {
+    const custom: CustomWidget = { type, render };
+    WidgetUtilities.customWidgets[type] = custom;
+    
+    for (const property of properties) {
+      if (!WidgetUtilities.propertyWidgets[property])
+        WidgetUtilities.propertyWidgets[property] = [];
+
+      WidgetUtilities.propertyWidgets[property].push(custom);
+    }
+  }
+
+  static getPropertyTypeData(propertyType: PropertyType) {
+    let keys = [];
+    let min = 0;
+    let max = 100;
+    let percision = 2;
+
+    switch (propertyType) {
+      case PropertyType.Int8:
+      case PropertyType.Int16:
+      case PropertyType.Int32:
+        min = -100;
+        max = 100;
+        percision = 0;
+        break;
+
+      case PropertyType.Float:
+      case PropertyType.Double:
+        min = -100;
+        max = 100;
+        break;
+
+      case PropertyType.Uint16:
+      case PropertyType.Uint32:
+        min = 0;
+        max = 100;
+        percision = 0;
+        break;
+
+      case PropertyType.Rotator:
+        keys = ['Roll', 'Pitch', 'Yaw'];
+        break;
+
+      case PropertyType.Vector:
+        keys = ['X', 'Y', 'Z'];
+        break;
+
+      case PropertyType.Vector2D:
+        keys = ['X', 'Y'];
+        break;
+
+      case PropertyType.Vector4:
+        keys = ['X', 'Y', 'Z', 'W'];
+        break;
+
+      case PropertyType.LinearColor:
+        keys = ['R', 'G', 'B'];
+        break;
+
+      case PropertyType.Color:
+        max = 255;
+        keys = ['R', 'G', 'B'];
+        break;
+    }
+
+    return { keys, min, max, percision };
+  };
 }

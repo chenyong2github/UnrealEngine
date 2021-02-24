@@ -16,5 +16,10 @@ if %errorlevel% LSS 8 (
   exit 1
 )
 
+if %errorlevel% GTR 14 (
+  echo ERROR: installed node.js version is not supported, please install v14 of nodejs from https://nodejs.org/en/download/
+  exit 1
+)
+
 rem redirecting all command line arguments to node script
 node Scripts/start.js %*

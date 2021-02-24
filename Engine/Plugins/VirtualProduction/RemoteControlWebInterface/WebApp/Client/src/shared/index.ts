@@ -47,8 +47,11 @@ export interface RotatorProperty {
   Roll: number;
 }
 
-export type PropertyValue = boolean | number | string | VectorProperty | RotatorProperty | ColorProperty;
+export type PropertyValue = boolean | number | string | VectorProperty | RotatorProperty | ColorProperty | IPayload;
 
+export type JoystickValue = { [key: string]: number };
+
+export type AxisInfo = [string, number];
 
 export interface IFunctionParameter {
   Name: string;
@@ -82,31 +85,46 @@ export interface IExposedProperty {
   UnderlyingProperty: IProperty;
 }
 
+export interface IActor {
+  Name: string;
+  Path: string;
+  Class: string;
+}
+
+export interface IExposedActor {
+  DisplayName: string;
+  UnderlyingActor: IActor;
+}
+
 export interface IGroup {
   Name: string;
   ExposedProperties: IExposedProperty[];
   ExposedFunctions: IExposedFunction[];
+  ExposedActors: IExposedActor[];
 }
 
 export interface IPreset {
   Path: string;
   Name: string;
   Groups: IGroup[];
+  
+  ExposedProperties?: IExposedProperty[];
+  ExposedFunctions?: IExposedFunction[];
+  ExposedActors?: IExposedActor[];
 }
 
 export interface IAsset {
   Name: string;
   Class: string;
   Path: string;
+  Metadata: Record<string, string>;
 }
 
-export type IGroupPayload = { [property: string]: PropertyValue };
-
-export type IPayload = { [object: string]: IGroupPayload };
+export type IPayload = { [property: string]: PropertyValue | IPayload };
 
 export type IPayloads = { [preset: string]: IPayload };
 
-export enum WidgetType {
+export enum WidgetTypes {
   Gauge =           'Gauge',
   Slider =          'Slider',
   Sliders =         'Sliders',
@@ -116,10 +134,17 @@ export enum WidgetType {
   Joystick =        'Joystick',
   Button =          'Button',
   Text =            'Text',
+  Label =           'Label',
+  Dropdown =        'Dropdown',
+  ImageSelector =   'Image Selector',
+  Vector =          'Vector',
 
   Level =           'Level',
   Sequence =        'Sequence',
 }
+
+export type WidgetType = keyof typeof WidgetTypes | string;
+
 
 export type IWidgetMeta = { [key: string]: any } & {
   default?: PropertyValue;
@@ -130,7 +155,6 @@ export type IWidgetMeta = { [key: string]: any } & {
 export interface IWidget {
   title?: string;
   type?: WidgetType;
-  group?: string;
   property?: string;
   meta?: IWidgetMeta;
   order?: number;
@@ -140,20 +164,88 @@ export interface IPanel {
   name: string;
   stack?: boolean;
   widgets: IWidget[];
+
 }
 
-export enum PanelsLayout {
-  OneByOne =     '1x1',
-  OneByTwo =     '1x2',
-  TwoByOne =     '2x1',
-  TwoByTwo =     '2x2',
+export enum TabLayout {
+  Panel1X1 =      '1x1',
+  Panel1x2 =      '1x2',
+  Panel2x1 =      '2x1',
+  Panel2x2 =      '2x2',
+  Stack =         'Stack',
+
+  CustomActor =   'CustomActor',
 }
+
+export interface IActorWidget {
+  type: 'Walls' | 'Cards' | 'Location' | 'Camera' | 'Save' | 'Another' | 'GreenScreen' | 'Snapshot';
+  actors: string[];
+}
+
+export interface IDropdownOption {
+  value: string;
+  label?: string;
+}
+
+export interface ICustomStackProperty {
+  actor?: string;
+  property: string;
+  propertyType: PropertyType;
+  widget: WidgetType;
+  label?: string;
+  reset?: PropertyValue;
+
+  min?: number;
+  max?: number;
+
+  // Sliders & Vector only
+  lock?: boolean;
+
+  // Vector only
+  widgets?: (WidgetTypes.Joystick | WidgetTypes.Sliders | WidgetTypes.Gauge)[];
+  speedMin?: number;
+  speedMax?: number;
+
+  // Dropdown only
+  options?: IDropdownOption[];
+}
+
+export interface ICustomStackFunction {
+  actor: string;
+  function: string;
+}
+
+export interface ICustomStackItem {
+  label: string;
+  widgets: ICustomStackWidget[];
+}
+
+export interface ICustomStackTabs {
+  widget: 'Tabs';
+  tabs: ICustomStackItem[];
+}
+
+export interface ICustomStackListItem extends ICustomStackItem {
+  check?: { actor: string;  property: string; };
+}
+
+export interface ICustomStackList {
+  widget: 'List';
+  items: ICustomStackListItem[];
+  addFunction?: ICustomStackFunction;
+  removeFunction?: ICustomStackFunction;
+}
+
+export type ICustomStackWidget = ICustomStackProperty | ICustomStackTabs | ICustomStackList;
 
 export interface ITab {
   name: string;
   icon: string;
-  layout: PanelsLayout;
-  panels: IPanel[];
+  layout: TabLayout;
+  panels?: IPanel[];
+  stack?: ICustomStackWidget[];
+
+  actor?: IActorWidget;
 }
 
 export interface IView {

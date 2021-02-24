@@ -10,6 +10,7 @@ export type ApiState = {
   presets: { [id: string]: IPreset };
   preset?: string;
   payload: IPayload;
+  payloads: IPayloads;
   view: IView;
   status: {
     connected: boolean;
@@ -32,17 +33,18 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
     .on('disconnect', () => dispatch(API.STATUS({ connected: false })))
     .on('presets', (presets: IPreset[]) => dispatch(API.PRESETS(presets)))
     .on('payloads', (payloads: IPayloads) => {
+      dispatch(API.PAYLOADS(payloads));
       const preset = _internal.getPreset();
       if (!preset || !payloads[preset])
         return;
 
       dispatch(API.PAYLOAD(payloads[preset]));
     })
-    .on('value', (preset: string, object: string, property: string, value: PropertyValue) => {
-      if (_internal.getPreset() !== preset)
-        return;
-
-      dispatch(API.PAYLOAD({ [object]: { [property]: value } }));
+    .on('value', (preset: string, property: string, value: PropertyValue) => {
+      dispatch(API.PAYLOADS_VALUE({ [preset]: { [property]: value }}));
+      
+      if (_internal.getPreset() === preset)
+        dispatch(API.PAYLOAD({ [property]: value }));
     })
     .on('view', (preset: string, view: IView) => {
       if (_internal.getPreset() !== preset)
@@ -53,8 +55,12 @@ function _initialize(dispatch: Dispatch, getState: () => { api: ApiState }) {
     .on('connected', async (connected: boolean) => {
       dispatch(API.STATUS({ connected }));
 
-      if (connected)
-        await _api.presets.get();
+      if (connected) {
+        await Promise.all([
+          _api.presets.get(),
+          _api.payload.all(),
+        ]);
+      }
     });
 }
 
@@ -64,7 +70,7 @@ interface IRequestOptions {
   blob?: boolean;
 }
 
-async function _request(method: string, url: string, body: string | object | undefined, callback: IRequestCallback, options?: IRequestOptions): Promise<any> {
+async function _request(method: string, url: string, body: string | object | undefined, callback: IRequestCallback): Promise<any> {
   const request: RequestInit = { method, mode: 'cors', redirect: 'follow', headers: {} };
   if (body instanceof FormData || typeof(body) === 'string') {
     request.body = body;
@@ -74,8 +80,6 @@ async function _request(method: string, url: string, body: string | object | und
   }
 
   const res = await fetch(_host + url, request);
-  if (res.ok && options?.blob)
-    return await res.blob();
 
   let answer: any = await res.text();
   if (answer.length > 0)
@@ -90,7 +94,8 @@ async function _request(method: string, url: string, body: string | object | und
   return answer;
 }
 
-function _get(url: string, callback?: IRequestCallback, options?: IRequestOptions)                { return _request('GET', url, undefined, callback, options) }
+function _get(url: string, callback?: IRequestCallback)        { return _request('GET', url, undefined, callback) }
+function _put(url: string, body: any)                          { return _request('PUT', url, body, undefined) }
 
 const API = {
   STATUS: createAction<any>('API_STATUS'),
@@ -98,6 +103,8 @@ const API = {
   PRESET_SELECT: createAction<string>('API_PRESET_SELECT'),
   VIEW: createAction<IView>('API_VIEW'),
   PAYLOAD: createAction<IPayload>('API_PAYLOAD'),
+  PAYLOADS: createAction<IPayloads>('API_PAYLOADS'),
+  PAYLOADS_VALUE: createAction<IPayloads>('API_PAYLOADS_VALUE'),
 };
 
 const _internal = {
@@ -122,30 +129,64 @@ export const _api = {
   },
   payload: {
     get: (preset: string): Promise<IPayload> => _get(`/api/presets/payload?preset=${preset}`, API.PAYLOAD),
-    set: (group: string, property: string, value: PropertyValue) => {
+    all: (): Promise<IPayloads> => _get('/api/payloads', API.PAYLOADS),
+    set: (property: string, value: PropertyValue) => {
       const preset = _internal.getPreset();
-      _socket.emit('value', preset, group, property, value);
+      _socket.emit('value', preset, property, value);
     },
     reset: (property: string) => {
       const preset = _internal.getPreset();
       _socket.emit('reset', preset, property);
     },
-    execute: (group: string, func: string) => {
+    execute: (func: string) => {
       const preset = _internal.getPreset();
-      _socket.emit('execute', preset, group, func);
+      _socket.emit('execute', null, preset, func);
     },
     asset: (asset: string, action: AssetAction, meta?: any) => {
       _socket.emit('asset', asset, action, meta);
     }
   },
+  actor: {
+    set: (actor: string, property: string, value: PropertyValue) => {
+      const preset = _internal.getPreset();
+      _socket.emit('actor', preset, actor, property, value);
+    },
+    execute: (actor: string, func: string) => {
+      const preset = _internal.getPreset();
+      _socket.emit('execute', preset, actor, func);
+    },
+  },
   assets: {
-    search: (query: string): Promise<IAsset[]> => _get(`/api/assets/search?q=${query}`),
+    search: (q: string, types: string[], prefix: string, count: number = 50): Promise<IAsset[]> => {
+      const args = {
+        q,
+        prefix,
+        count,
+        types: types.join(','),
+      };
+      
+      let url = '/api/assets/search?';
+      for (const arg in args)
+        url += `${arg}=${encodeURIComponent(args[arg])}&`;
+      
+      return _get(url);
+    },
+    thumbnailUrl: (asset: string) => `${_host}/api/thumbnail?asset=${asset}`,
+  },
+  proxy: {
+    get: (url: string) => _put('/api/proxy', { method: 'GET', url }),
+    put: (url: string, body: any) => _put('/api/proxy', { method: 'PUT', url, body }),
+    function: (objectPath: string, functionName: string, parameters: Record<string, any> = {}): Promise<any> => {
+      const body = { objectPath, functionName, parameters };
+      return _api.proxy.put('/remote/object/call', body);
+    }
   }
 };
 
 const initialState: ApiState = {
   presets: {},
   payload: {},
+  payloads: {},
   view: { tabs: null },
   status: {
     connected: false,
@@ -171,12 +212,20 @@ reducer
     return state;
   })
   .on(API.VIEW, (state, view) => dotProp.merge(state, 'view', view))
-  .on(API.PAYLOAD, (state, payload) => {
-    for (const object in payload) {
-      const values = payload[object];
-      for (const property in values)
-        state = dotProp.set(state, `payload.${object}.${property}`, values[property]);
+  .on(API.PAYLOADS, (state, payloads) => ({ ...state, payloads }))
+  .on(API.PAYLOADS_VALUE, (state, payloads) => {
+    for (const preset in payloads) {
+      const payload = payloads[preset];
+      for (const property in payload) {
+        state = dotProp.set(state, ['payloads', preset, property], payload[property]);
+      }
     }
+    
+    return state;
+  })
+  .on(API.PAYLOAD, (state, payload) => {
+    for (const property in payload)
+      state = dotProp.set(state, ['payload', property], payload[property]);
     
     return state;
   })

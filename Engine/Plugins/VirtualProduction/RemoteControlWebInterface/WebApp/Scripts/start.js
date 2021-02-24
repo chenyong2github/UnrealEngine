@@ -68,7 +68,7 @@ async function start() {
     console.log('Starting WebApp...');
     const args = process.argv.slice(2).map(arg => `"${arg}"`).join(' ');
     const compiled = path.join(server, 'build/Server');
-    await execute(`node ${compiled} ${args}`, server, true);
+    await execute(`node "${compiled}" ${args}`, server, true);
   
   } catch (err) {
     printError(err);

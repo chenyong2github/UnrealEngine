@@ -43,7 +43,7 @@ void FRemoteControlWebInterfaceProcess::Start()
 	FAsyncTaskNotificationConfig NotificationConfig;
 	NotificationConfig.bKeepOpenOnFailure = true;
 	NotificationConfig.TitleText = LOCTEXT("RemoteControlWebInterface_Launch", "Launching Remote Control Web Interface");
-#if !NO_LOGGING
+#if !NO_LOGGING	
 	NotificationConfig.LogCategory = &LogRemoteControlWebInterface;
 #endif
 	NotificationConfig.bIsHeadless = FParse::Param(FCommandLine::Get(), TEXT("RemoteControlIsHeadless"));
@@ -99,10 +99,12 @@ uint32 FRemoteControlWebInterfaceProcess::Run()
 	}
 
 	const URemoteControlWebInterfaceSettings* RCWebSettings = GetDefault<URemoteControlWebInterfaceSettings>();
+	const UWebRemoteControlSettings* RCSettings = GetDefault<UWebRemoteControlSettings>();
 
-	FString Args = FString::Printf(TEXT("--port %d --ue %d --monitor "),
+	FString Args = FString::Printf(TEXT("--port %d --uews %d --uehttp %d --monitor "),
 									RCWebSettings->RemoteControlWebInterfacePort,
-									GetDefault<UWebRemoteControlSettings>()->RemoteControlWebSocketServerPort);
+									RCSettings->RemoteControlWebSocketServerPort,
+									RCSettings->RemoteControlHttpServerPort);
 
 	if (RCWebSettings->bForceWebAppBuildAtStartup)
 	{

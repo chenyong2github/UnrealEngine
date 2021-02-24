@@ -2,9 +2,19 @@ import { IPayload, IPayloads, IPreset, IView, PropertyType, PropertyValue, IAsse
 import _ from 'lodash';
 import WebSocket from 'ws';
 import { Notify, Program } from './';
+import request from 'superagent';
 
 
 namespace UnrealApi {
+  export enum PresetEvent {
+    FieldsRenamed     = 'PresetFieldsRenamed',
+    FieldsChanged     = 'PresetFieldsChanged',
+    FieldsAdded       = 'PresetFieldsAdded',
+    FieldsRemoved     = 'PresetFieldsRemoved',
+    MetadataModified  = 'PresetMetadataModified',
+    ActorModified     = 'PresetActorModified',
+  }
+
   export type Presets = { 
     Presets: Partial<IPreset>[];
   };
@@ -33,13 +43,17 @@ namespace UnrealApi {
     Responses: Response[];
   };
 
-  export type PropertyValue = {
+  export type GetPropertyValue = {
+    PropertyValue: PropertyValue;
+  };
+
+  export type PropertyValueSet = {
     ObjectPath: string;
     PropertyValue: PropertyValue;
   };
 
   export type PropertyValues = {
-    PropertyValues: PropertyValue[];
+    PropertyValues: PropertyValueSet[];
   };
 
   export type Assets = {
@@ -49,7 +63,6 @@ namespace UnrealApi {
 
 export namespace UnrealEngine {
   let connection: WebSocket;
-  let notification: WebSocket;
   let quitTimout: NodeJS.Timeout;
 
   let pendings: { [id: string]: (reply: any) => void } = {};
@@ -73,7 +86,7 @@ export namespace UnrealEngine {
     if (connection?.readyState === WebSocket.OPEN || connection?.readyState === WebSocket.CONNECTING)
       return;
 
-    const address = `ws://localhost:${Program.ue}`;
+    const address = `ws://localhost:${Program.ueWebSocketPort}`;
 
     connection = new WebSocket(address);
     connection
@@ -81,16 +94,10 @@ export namespace UnrealEngine {
       .on('message', onMessage)
       .on('error', onError)
       .on('close', onClose);
-
-    notification = new WebSocket(address);
-    notification
-      .on('open', onConnected)
-      .on('message', onMessage)
-      .on('error', () => {});
   }
 
   function onConnected() {
-    if (connection.readyState !== WebSocket.OPEN || notification.readyState !== WebSocket.OPEN)
+    if (connection.readyState !== WebSocket.OPEN)
       return;
 
     if (quitTimout) {
@@ -127,45 +134,70 @@ export namespace UnrealEngine {
       }
 
       switch (message.Type) {
-        case 'PresetFieldsRenamed': {
+        case UnrealApi.PresetEvent.FieldsRenamed: {
           const view = views[message.PresetName];
           if (!view)
             return;
 
-          const panels = _.flatMap(view.tabs, tab => tab.panels);
-          const allWidgets = _.flatMap(panels, panel => panel.widgets);
-          for (const Rename of message.RenamedFields) {
-            const widgets = _.filter(allWidgets, w => w.property === Rename.OldFieldLabel);
-            for (const widget of widgets)
-              widget.property = Rename.NewFieldLabel;
+          const panels = _.compact(_.flatMap(view.tabs, tab => tab.panels));
+          if (panels?.length) {
+            const allWidgets = _.flatMap(panels, panel => panel.widgets);
+            for (const Rename of message.RenamedFields) {
+              const widgets = _.filter(allWidgets, w => w.property === Rename.OldFieldLabel);
+              for (const widget of widgets)
+                widget.property = Rename.NewFieldLabel;
+            }
+            
+            Notify.onViewChange(message.PresetName, view);
           }
-          
-          Notify.onViewChange(message.PresetName, view);
+
           refresh();
           break;
         }
 
-        case 'PresetFieldsChanged': {
+        case UnrealApi.PresetEvent.FieldsChanged: {
           const preset = _.find(presets, p => p.Name === message.PresetName);
           if (!preset)
-            return;
+            break;
 
           for (const field of message.ChangedFields) {
-            const group = _.find(preset.Groups, g => !!g.ExposedProperties.find(p => p.DisplayName === field.PropertyLabel));
-            if (group)
-              Notify.emitValueChange(message.PresetName, group.Name, field.PropertyLabel, field.PropertyValue);
+            setPayloadValueInternal(payloads, [message.PresetName, field.PropertyLabel], field.PropertyValue);
+              Notify.emitValueChange(message.PresetName, field.PropertyLabel, field.PropertyValue);
           }
           break;
         }
 
-        case 'PresetFieldsAdded':
-        case 'PresetFieldsRemoved':
+        case UnrealApi.PresetEvent.ActorModified: {
+          const preset = _.find(presets, p => p.Name === message.PresetName);
+          if (!preset)
+            break;
+
+          for (const actor of message.ModifiedActors) {
+            for (const property of actor.ModifiedProperties)
+              setPayloadValueInternal(payloads, [message.PresetName, actor.DisplayName, property.PropertyName], property.PropertyValue);
+
+            Notify.emitValueChange(message.PresetName, actor.DisplayName, payloads[message.PresetName]?.[actor.DisplayName]);
+          }
+          break;
+        }
+ 
+        case UnrealApi.PresetEvent.FieldsAdded:
+        case UnrealApi.PresetEvent.FieldsRemoved:
           refresh();
+          break;
+
+        case UnrealApi.PresetEvent.MetadataModified:
+          if (!message.Metadata.view)
+            break;
+
+          _.remove(presets, p => p.Name == message.PresetName);
+          refresh()
+            .then(() => refreshView(message.PresetName, message.Metadata.view));
           break;
       }
 
     } catch (error) {
-      console.log('Failed to parse answer', error?.message, JSON.stringify(json));
+      console.log('Failed to parse answer', error?.message, json);
     }
   }
 
@@ -190,15 +222,14 @@ export namespace UnrealEngine {
   }
 
   function verifyConnection() {
-    if (connection?.readyState !== WebSocket.OPEN || notification.readyState != WebSocket.OPEN)
+    if (connection?.readyState !== WebSocket.OPEN)
       throw new Error('Websocket is not connected');
   }
 
-  function send(message: string, parameters: any, socket?: WebSocket) {
+  function send(message: string, parameters: any) {
     verifyConnection();
     const Id = wsRequest++;
-    socket = socket ?? connection;
-    socket.send(JSON.stringify({ MessageName: message, Id, Parameters: parameters }));
+    connection.send(JSON.stringify({ MessageName: message, Id, Parameters: parameters }));
   }
 
   function http<T>(Verb: string, URL: string, Body?: object, wantAnswer?: boolean): Promise<T> {
@@ -221,11 +252,11 @@ export namespace UnrealEngine {
   }
 
   function registerToPreset(PresetName: string): void {
-    send('preset.register', { PresetName }, notification);
+    send('preset.register', { PresetName, IgnoreRemoteChanges: true });
   }
 
   function unregisterPreset(PresetName: string) {
-    send('preset.unregister', { PresetName }, notification);
+    send('preset.unregister', { PresetName });
   }    
 
   export async function getPresets(): Promise<IPreset[]> {
@@ -240,16 +271,24 @@ export namespace UnrealEngine {
       for (const p of Presets ?? []) {
         if (!_.find(presets, preset => preset.Name === p.Name)) {
           registerToPreset(p.Name);
-
-          try {
-            const view = await get<UnrealApi.View>(`/remote/preset/${p.Name}/metadata/view`);
-            const presetView = JSON.parse(view?.Value);
-            views[p.Name] = presetView;
-          } catch {
-          }
+          
+          const res = await get<UnrealApi.View>(`/remote/preset/${p.Name}/metadata/view`);
+          refreshView(p.Name, res?.Value);
         }
 
         const { Preset } = await get<UnrealApi.Preset>(`/remote/preset/${p.Name}`);
+        if (!Preset)
+          continue;
+
+        Preset.ExposedProperties = [];
+        Preset.ExposedFunctions = [];
+        Preset.ExposedActors = [];
+        for (const Group of Preset.Groups) {
+          Preset.ExposedProperties.push(...Group.ExposedProperties);
+          Preset.ExposedFunctions.push(...Group.ExposedFunctions);
+          Preset.ExposedActors.push(...Group.ExposedActors);
+        }
+        
         all.push(Preset);
       }
 
@@ -258,8 +297,25 @@ export namespace UnrealEngine {
         presets = compact;
         Notify.emit('presets', presets);
       }
-    } catch {
+    } catch (error) {
+      console.log('Failed to pull presets data');
     }
+  }
+
+  async function refreshView(preset: string, viewJson: string) {
+    try {
+      if (!viewJson)
+        return;
+
+      const view = JSON.parse(viewJson) as IView;
+      if (equal(view, views[preset]))
+        return;
+
+      views[preset] = view;
+      Notify.onViewChange(preset, view);
+    } catch (error) {
+      console.log('Failed to parse View of Preset', preset);
+    }    
   }
 
   function equal(a: any, b: any): boolean {
@@ -297,25 +353,25 @@ export namespace UnrealEngine {
   }
 
   async function pullValues(): Promise<void> {
-    const promises = [], paths = [];
+    const updatedPayloads = {};
+    
     for (const Preset of presets) {
       for (const group of Preset.Groups) {
         for (const property of group.ExposedProperties) {
-          promises.push(get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.DisplayName}`));
-          paths.push(`${Preset.Name}.${group.Name}.${property.DisplayName}`);
+           const value = await get<UnrealApi.PropertyValues>(`/remote/preset/${Preset.Name}/property/${property.DisplayName}`);
+           setPayloadValueInternal(updatedPayloads, [Preset.Name, property.DisplayName], value?.PropertyValues?.[0]?.PropertyValue);
+        }
+
+        for (const actor of group.ExposedActors) {
+          const value = await get<any>(`/remote/preset/${Preset.Name}/actor/${actor.DisplayName}`);
+          setPayloadValueInternal(updatedPayloads, [Preset.Name, actor.DisplayName], value);
         }
       }
     }
 
-    const updatedPayloads = {};
-
-    const values = await Promise.all(promises);
-    for (let i = 0; i < paths.length; i++)
-      _.set(updatedPayloads, paths[i], values[i].PropertyValues?.[0]?.PropertyValue);
-
     if (!equal(payloads, updatedPayloads)) {
       payloads = updatedPayloads;
-      Notify.emit('payloads', payloads);
+      Notify.emit('payloads', payloads );
     }
   }
 
@@ -323,18 +379,84 @@ export namespace UnrealEngine {
     return payloads[preset];
   }
 
-  export async function setPayload(preset: string, view: IPayload): Promise<void> {
-    payloads[preset] = view;
+  export async function getPayloads(): Promise<IPayloads> {
+    return { ...payloads };
   }
 
-  export async function setPayloadValue(preset: string, group: string, property: string, value: PropertyValue): Promise<void> {
-    _.set(payloads, `${preset}.${group}.${property}`, value);
+  export async function setPayload(preset: string, payload: IPayload): Promise<void> {
+      payloads[preset] = payload;
+  }
 
+  export async function setPayloadValue(preset: string, property: string, value: PropertyValue): Promise<void> {
     try {
-      await put(`/remote/preset/${preset}/property/${property}`, { PropertyValue: value, GenerateTransaction: true });
+      const body: any = { GenerateTransaction: true };
+      if (value !== null) {
+    setPayloadValueInternal(payloads, [preset, property], value);
+    Notify.emitValueChange(preset, property, value);
+        body.PropertyValue = value;
+      } else {
+        body.ResetToDefault = true; 
+      }
+
+      await put(`/remote/preset/${preset}/property/${property}`, body);
+
+      if (value === null) {
+        const ret = await get<UnrealApi.GetPropertyValue>(`/remote/preset/${preset}/property/${property}`);
+        if (ret) {
+          setPayloadValueInternal(payloads, [preset, property], ret.PropertyValue);
+          Notify.emitValueChange(preset, property, ret.PropertyValue);
+        }
+      }
     } catch (err) {
       console.log('Failed to set preset data:', err.message);
     }
+  }
+
+  export async function setActorValue(preset: string, actor: string, property: string, value: PropertyValue): Promise<void> {
+    const payload = payloads[preset];
+    if (!payload)
+      return;
+
+    try {
+      const body: any = { GenerateTransaction: true };
+
+      if (value !== null) {
+        _.set(payload[actor] as IPayload, property, value);
+        Notify.emitValueChange(preset, actor, payload[actor]);
+
+        body.PropertyValue = value;
+      } else {
+        body.ResetToDefault = true;
+      }
+
+      await put(`/remote/preset/${preset}/actor/${actor}/property/${property}`, body);
+
+      if (value === null) {
+        const ret = await get<UnrealApi.GetPropertyValue>(`/remote/preset/${preset}/actor/${actor}/property/${property}`);
+        if (ret) {
+          _.set(payload[actor] as IPayload, property, ret.PropertyValue);
+          Notify.emitValueChange(preset, actor, payload[actor]);
+        }
+      }
+    } catch (err) {
+      console.log('Failed to set actor property value:', err.message);
+    }
+  }
+
+  function setPayloadValueInternal(data: IPayloads, path: string[], value: PropertyValue): void {
+    if (!data || !path.length)
+      return;
+
+    let element: any = data;
+    for (let i = 0; i < path.length - 1; i++) {
+      const property = path[i];
+      if (!element[property])
+        element[property] = {};
+      
+      element = element[property];
+    }
+
+    element[ _.last(path) ] = value;
   }
 
   export async function resetPayloadValue(preset: string, property: string): Promise<void> {
@@ -345,9 +467,15 @@ export namespace UnrealEngine {
     }
   }
 
-  export async function executeFunction(preset: string, group: string, func: string): Promise<void> {
+  export async function executeFunction(preset: string, actor: string, func: string): Promise<void> {
     try {
-      await put(`/remote/preset/${preset}/function/${func}`, { Parameters: {}, GenerateTransaction: true });
+      let url = `/remote/preset/${preset}`;
+      if (actor)
+        url += `/actor/${actor}`;
+      
+      url += `/function/${func}`;
+
+      await put(url, { Parameters: {}, GenerateTransaction: true });
     } catch (err) {
       console.log('Failed to set execute function call:', err.message);
     }
@@ -365,12 +493,14 @@ export namespace UnrealEngine {
   }
 
   async function playSequence(asset: string) {
+    const sequencer = '/Script/LevelSequenceEditor.Default__LevelSequenceEditorBlueprintLibrary';
+    const editor = '/Script/EditorScriptingUtilities.Default__EditorAssetLibrary';
     try {
-      const objectPath = '/Script/LevelSequenceEditor.Default__LevelSequenceEditorBlueprintLibrary';
-      await put('/remote/object/call', { objectPath, functionName: 'OpenLevelSequence', parameters: { 'LevelSequence': asset }  });
-      await put('/remote/object/call', { objectPath, functionName: 'Pause' });
-      await put('/remote/object/call', { objectPath, functionName: 'SetCurrentTime', parameters: { NewFrame: 0 } });
-      await put('/remote/object/call', { objectPath, functionName: 'Play' });
+      await put('/remote/object/call', { objectPath: editor, functionName: 'LoadAsset', parameters: { 'AssetPath': asset }  });
+      await put('/remote/object/call', { objectPath: sequencer, functionName: 'OpenLevelSequence', parameters: { 'LevelSequence': asset }  });
+      await put('/remote/object/call', { objectPath: sequencer, functionName: 'Pause' });
+      await put('/remote/object/call', { objectPath: sequencer, functionName: 'SetCurrentTime', parameters: { NewFrame: 0 } });
+      await put('/remote/object/call', { objectPath: sequencer, functionName: 'Play' });
     } catch (err) {
       console.log('Failed to play sequence');
     }
@@ -386,17 +516,39 @@ export namespace UnrealEngine {
     await put(`/remote/preset/${preset}/metadata/view`, { Value });
   }
 
-  export async function search(query: string): Promise<IAsset[]> {
+  export async function search(query: string, types: string[], prefix: string, count: number): Promise<IAsset[]> {
     const ret = await put<UnrealApi.Assets>('/remote/search/assets', { 
       Query: query,
-      Limit: 50,
+      Limit: count,
       Filter: {
-        ClassNames: ['LevelSequence'],
-        PackagePaths: ['/Game'],
+        ClassNames: types,
+        PackagePaths: [prefix],
         RecursivePaths: true
       }
     });
 
     return ret.Assets;
+  }
+
+  export function proxy(method: 'GET' | 'PUT', url: string, body?: any): Promise<any> {
+    if (!method || !url)
+      return Promise.resolve({});
+
+    switch (method) {
+      case 'GET':
+        return get(url);
+
+      case 'PUT':
+        if (body)
+          return put(url, body);
+    }
+
+    return Promise.resolve({});
+  }
+
+  export function thumbnail(asset: string): Promise<any> {
+    return request.put(`http://localhost:${Program.ueHttpPort}/remote/object/thumbnail`)
+                  .send({ ObjectPath: asset })
+                  .then(res => res.body);
   }
 }
