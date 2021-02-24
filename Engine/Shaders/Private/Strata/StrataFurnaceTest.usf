@@ -232,7 +232,7 @@ void MainPS(
 
 			const float3 InIrradiance = InRadiance; //It should have a Pi factor though
 			const float3 SpecularSkyLighting = BSDF.Weight * StrataEnvLight.SpecularWeight * InRadiance;
-			const float3 DiffuseSkyLighting  = BSDF.Weight * StrataEnvLight.DiffuseColor * InIrradiance;
+			const float3 DiffuseSkyLighting  = BSDF.Weight * StrataEnvLight.DiffuseWeight * InIrradiance;
 
 			OutColor = 
 				SpecularSkyLighting + 
