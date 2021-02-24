@@ -12,6 +12,7 @@
 // for compression
 #include "HAL/FileManagerGeneric.h"
 #include "Logging/LogMacros.h"
+#include "Misc/AccessDetection.h"
 #include "Misc/Parse.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
@@ -1032,6 +1033,7 @@ void FArchiveFileWriterGeneric::LogWriteError(const TCHAR* Message)
 
 IFileManager& IFileManager::Get()
 {
+	UE::AccessDetection::ReportAccess(UE::AccessDetection::EType::File);
 	static FFileManagerGeneric Singleton;
 	return Singleton;
 }

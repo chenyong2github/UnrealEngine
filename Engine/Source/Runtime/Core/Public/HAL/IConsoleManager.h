@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/AccessDetection.h"
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTemplate.h"
 #include "Containers/UnrealString.h"
@@ -1302,6 +1303,7 @@ public:
 	// faster than GetValueOnAnyThread()
 	T GetValueOnGameThread() const
 	{
+		UE::AccessDetection::ReportAccess(UE::AccessDetection::EType::CVar);
 		// compiled out in shipping for performance (we can change in development later), if this get triggered you need to call GetValueOnRenderThread() or GetValueOnAnyThread(), the last one is a bit slower
 		cvarCheckCode(ensure(GetShadowIndex() == 0));	// ensure to not block content creators, #if to optimize in shipping
 		return ShadowedValue[0];
@@ -1310,6 +1312,7 @@ public:
 	// faster than GetValueOnAnyThread()
 	T GetValueOnRenderThread() const
 	{
+		UE::AccessDetection::ReportAccess(UE::AccessDetection::EType::CVar);
 #if !defined(__clang__) // @todo Mac: figure out how to make this compile
 		// compiled out in shipping for performance (we can change in development later), if this get triggered you need to call GetValueOnGameThread() or GetValueOnAnyThread(), the last one is a bit slower
 		cvarCheckCode(ensure(IsInParallelRenderingThread()));	// ensure to not block content creators, #if to optimize in shipping
@@ -1320,6 +1323,7 @@ public:
 	// convenient, for better performance consider using GetValueOnGameThread() or GetValueOnRenderThread()
 	T GetValueOnAnyThread(bool bForceGameThread = false) const
 	{
+		UE::AccessDetection::ReportAccess(UE::AccessDetection::EType::CVar);
 		return ShadowedValue[GetShadowIndex(bForceGameThread)];
 	}
 
@@ -1342,6 +1346,7 @@ private: // ----------------------------------------------------
 	// needed for FConsoleVariable and FConsoleVariableRef2, intentionally not public
 	T& GetReferenceOnAnyThread(bool bForceGameThread = false)
 	{
+		UE::AccessDetection::ReportAccess(UE::AccessDetection::EType::CVar);
 		return ShadowedValue[GetShadowIndex(bForceGameThread)];
 	}
 

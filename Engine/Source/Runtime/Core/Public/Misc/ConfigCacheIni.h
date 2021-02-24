@@ -18,6 +18,7 @@
 #include "Delegates/Delegate.h"
 #include "Math/Vector.h"
 #include "Math/Rotator.h"
+#include "Misc/AccessDetection.h"
 #include "Misc/Paths.h"
 #include "Serialization/StructuredArchive.h"
 
@@ -150,7 +151,8 @@ public:
 
 	// Returns the ini setting with any macros expanded out
 	const FString& GetValue() const 
-	{ 
+	{
+		UE::AccessDetection::ReportAccess(UE::AccessDetection::EType::Ini);
 #if CONFIG_REMEMBER_ACCESS_PATTERN 
 		bRead = true; 
 #endif
@@ -159,7 +161,8 @@ public:
 
 	// Returns the original ini setting without macro expansion
 	const FString& GetSavedValue() const 
-	{ 
+	{
+		UE::AccessDetection::ReportAccess(UE::AccessDetection::EType::Ini);
 #if CONFIG_REMEMBER_ACCESS_PATTERN 
 		bRead = true; 
 #endif
