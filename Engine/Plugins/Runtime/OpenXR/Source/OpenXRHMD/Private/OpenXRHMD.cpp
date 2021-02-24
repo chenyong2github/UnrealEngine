@@ -1287,6 +1287,11 @@ void FOpenXRHMD::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 void FOpenXRHMD::PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
 {
 	check(IsInRenderingThread());
+
+	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
+	{
+		OnBeginRendering_RHIThread();
+	});
 }
 
 void FOpenXRHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
@@ -1297,11 +1302,6 @@ void FOpenXRHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHIC
 	{
 		SpectatorScreenController->UpdateSpectatorScreenMode_RenderThread();
 	}
-
-	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
-	{
-		OnBeginRendering_RHIThread();
-	});
 }
 
 bool FOpenXRHMD::IsActiveThisFrame(class FViewport* InViewport) const
