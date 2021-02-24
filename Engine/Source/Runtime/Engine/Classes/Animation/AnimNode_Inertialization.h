@@ -64,6 +64,53 @@ enum class EInertializationSpace : uint8
 	WorldRotation	// Inertialize rotation only in world space (to conceal discontinuities in actor orientation)
 };
 
+struct ENGINE_API FInertializationCurve
+{
+	FBlendedHeapCurve BlendedCurve;
+	TArray<uint16> CurveUIDToArrayIndexLUT;
+
+	FInertializationCurve() = default;
+
+	FInertializationCurve(const FInertializationCurve& Other)
+	{
+		*this = Other;
+	}
+
+	FInertializationCurve(FInertializationCurve&& Other)
+	{
+		*this = MoveTemp(Other);
+	}
+
+	FInertializationCurve& operator=(const FInertializationCurve& Other)
+	{
+		BlendedCurve.CopyFrom(Other.BlendedCurve);
+		BlendedCurve.UIDToArrayIndexLUT = &CurveUIDToArrayIndexLUT;
+		CurveUIDToArrayIndexLUT = Other.CurveUIDToArrayIndexLUT;
+		return *this;
+	}
+
+	FInertializationCurve& operator=(FInertializationCurve&& Other)
+	{
+		BlendedCurve.MoveFrom(Other.BlendedCurve);
+		BlendedCurve.UIDToArrayIndexLUT = &CurveUIDToArrayIndexLUT;
+		CurveUIDToArrayIndexLUT = MoveTemp(Other.CurveUIDToArrayIndexLUT);
+		return *this;
+	}
+
+	template <typename OtherAllocator>
+	void InitFrom(const FBaseBlendedCurve<OtherAllocator>& Other)
+	{
+		CurveUIDToArrayIndexLUT.Reset();
+
+		BlendedCurve.CopyFrom(Other);
+		BlendedCurve.UIDToArrayIndexLUT = &CurveUIDToArrayIndexLUT;
+
+		if (Other.UIDToArrayIndexLUT)
+		{
+			CurveUIDToArrayIndexLUT = *Other.UIDToArrayIndexLUT;
+		}
+	}
+};
 
 USTRUCT()
 struct FInertializationPose
@@ -84,8 +131,8 @@ struct FInertializationPose
 
 	// Snapshot of active curves
 	// 
-	FBlendedHeapCurve Curves;
-	TArray<uint16> CurveUIDToArrayIndexLUT;
+	FInertializationCurve Curves;
+
 
 	FName AttachParentName;
 	float DeltaTime;
@@ -96,10 +143,20 @@ struct FInertializationPose
 		, DeltaTime(0.0f)
 	{
 	}
+	
+	FInertializationPose(const FInertializationPose&) = default;
+	FInertializationPose(FInertializationPose&&) = default;
+	FInertializationPose& operator=(const FInertializationPose&) = default;
+	FInertializationPose& operator=(FInertializationPose&&) = default;
 
 	void InitFrom(const FCompactPose& Pose, const FBlendedCurve& InCurves, const FTransform& InComponentTransform, const FName& InAttachParentName, float InDeltaTime);
 };
 
+template <>
+struct TUseBitwiseSwap<FInertializationPose>
+{
+	enum { Value = false };
+};
 
 USTRUCT()
 struct FInertializationBoneDiff

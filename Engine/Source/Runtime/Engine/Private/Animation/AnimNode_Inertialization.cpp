@@ -307,7 +307,11 @@ void FAnimNode_Inertialization::Evaluate_AnyThread(FPoseContext& Output)
 		// Bubble the old poses forward in the buffer (using swaps to avoid allocations and copies)
 		for (int32 i = 0; i < INERTIALIZATION_MAX_POSE_SNAPSHOTS - 1; ++i)
 		{
-			PoseSnapshots.Swap(i, i + 1);
+			Swap(PoseSnapshots[i], PoseSnapshots[i+1]);
+
+			// Verify the swap operation used move assignment to properly fix up curve LUT pointers
+			checkSlow(PoseSnapshots[i].Curves.BlendedCurve.UIDToArrayIndexLUT == &PoseSnapshots[i].Curves.CurveUIDToArrayIndexLUT);
+			checkSlow(PoseSnapshots[i+1].Curves.BlendedCurve.UIDToArrayIndexLUT == &PoseSnapshots[i+1].Curves.CurveUIDToArrayIndexLUT);
 		}
 
 		// Overwrite the (now irrelevant) pose in the last slot with the new post snapshot
@@ -428,15 +432,7 @@ void FInertializationPose::InitFrom(const FCompactPose& Pose, const FBlendedCurv
 		}
 	}
 
-	// Copy curves and make a new copy of the curve lookup table as it may change from frame to frame
-	Curves.CopyFrom(InCurves);
-	CurveUIDToArrayIndexLUT.Reset();
-	if (InCurves.UIDToArrayIndexLUT)
-	{
-		CurveUIDToArrayIndexLUT = *InCurves.UIDToArrayIndexLUT;
-		Curves.UIDToArrayIndexLUT = &CurveUIDToArrayIndexLUT;
-	}
-
+	Curves.InitFrom(InCurves);
 	ComponentTransform = InComponentTransform;
 	AttachParentName = InAttachParentName;
 	DeltaTime = InDeltaTime;
@@ -627,7 +623,7 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 	for (int32 CurveUID = 0; CurveUID != CurveNum; ++CurveUID)
 	{
 		const int32 CurrIdx = Curves.GetArrayIndexByUID(CurveUID);
-		const int32 Prev1Idx = Prev1.Curves.GetArrayIndexByUID(CurveUID);
+		const int32 Prev1Idx = Prev1.Curves.BlendedCurve.GetArrayIndexByUID(CurveUID);
 		if (CurrIdx == INDEX_NONE || Prev1Idx == INDEX_NONE)
 		{
 			// CurveDiff is zeroed
@@ -641,17 +637,17 @@ void FInertializationPoseDiff::InitFrom(const FCompactPose& Pose, const FBlended
 		}
 
 		const float CurrWeight = Curves.CurveWeights[CurrIdx];
-		const float Prev1Weight = Prev1.Curves.CurveWeights[Prev1Idx];
+		const float Prev1Weight = Prev1.Curves.BlendedCurve.CurveWeights[Prev1Idx];
 		FInertializationCurveDiff& CurveDiff = CurveDiffs[CurveUID];
 
 		// Note we intentionally ignore FBlendedCurve::ValidCurveWeights. We want to ease in/out when only one
 		// curve is valid, and we'll compute a zero delta and derivative when both are invalid.
 		CurveDiff.Delta = Prev1Weight - CurrWeight;
 
-		const int32 Prev2Idx = Prev2.Curves.GetArrayIndexByUID(CurveUID);
+		const int32 Prev2Idx = Prev2.Curves.BlendedCurve.GetArrayIndexByUID(CurveUID);
 		if (Prev2Idx != INDEX_NONE && Prev1.DeltaTime > KINDA_SMALL_NUMBER)
 		{
-			const float Prev2Weight = Prev2.Curves.CurveWeights[Prev2Idx];
+			const float Prev2Weight = Prev2.Curves.BlendedCurve.CurveWeights[Prev2Idx];
 			CurveDiff.Derivative = (Prev1Weight - Prev2Weight) / Prev1.DeltaTime;
 		}
 	}
