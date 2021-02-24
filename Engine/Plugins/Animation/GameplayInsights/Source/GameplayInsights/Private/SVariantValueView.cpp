@@ -18,6 +18,7 @@
 #include "VariantTreeNode.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/StringBuilder.h"
 
