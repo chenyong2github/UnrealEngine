@@ -76,7 +76,7 @@ void UAddPatchTool::Setup()
 	MaterialProperties->RestoreProperties(this);
 
 	// create preview mesh object
-	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("PreviewMesh"));
+	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
 	PreviewMesh->SetVisible(false);
 	PreviewMesh->SetMaterial(MaterialProperties->Material.Get());
