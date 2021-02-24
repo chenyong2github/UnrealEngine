@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Recorder/TakeRecorder.h"
+#include "Engine/EngineTypes.h"
 #include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "TakePreset.h"
 #include "TakeMetaData.h"
@@ -387,7 +388,7 @@ UTakeRecorder::UTakeRecorder(const FObjectInitializer& ObjInit)
 	OverlayWidget = nullptr;
 }
 
-bool UTakeRecorder::Initialize(ULevelSequence* LevelSequenceBase, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, const FTakeRecorderParameters& InParameters, FText* OutError)
+bool UTakeRecorder::Initialize ( ULevelSequence* LevelSequenceBase, UTakeRecorderSources* Sources, UTakeMetaData* MetaData, const FTakeRecorderParameters& InParameters, FText* OutError )
 {
 	FGCObjectScopeGuard GCGuard(this);
 
@@ -485,9 +486,10 @@ bool UTakeRecorder::Initialize(ULevelSequence* LevelSequenceBase, UTakeRecorderS
 void UTakeRecorder::DiscoverSourceWorld()
 {
 	UWorld* WorldToRecordIn = nullptr;
+
 	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
 	{
-		if (WorldContext.WorldType == EWorldType::PIE)
+		if (WorldContext.WorldType == EWorldType::PIE || WorldContext.WorldType == EWorldType::Game )
 		{
 			WorldToRecordIn = WorldContext.World();
 			break;
@@ -510,14 +512,14 @@ void UTakeRecorder::DiscoverSourceWorld()
 		OverlayWidget->AddToViewport();
 	}
 
-	
+	bool bPlayInGame = WorldToRecordIn->WorldType == EWorldType::PIE || WorldToRecordIn->WorldType == EWorldType::Game;
 	// If recording via PIE, be sure to stop recording cleanly when PIE ends
-	if (WorldToRecordIn->WorldType == EWorldType::PIE)
+	if ( bPlayInGame )
 	{
 		FEditorDelegates::EndPIE.AddUObject(this, &UTakeRecorder::HandlePIE);
 	}
 	// If not recording via PIE, be sure to stop recording if PIE Starts
-	if (WorldToRecordIn->WorldType != EWorldType::PIE)
+	if ( !bPlayInGame )
 	{
 		FEditorDelegates::BeginPIE.AddUObject(this, &UTakeRecorder::HandlePIE);//reuse same function
 	}
@@ -529,7 +531,7 @@ bool UTakeRecorder::CreateDestinationAsset(const TCHAR* AssetPathFormat, ULevelS
 	check(LevelSequenceBase && Sources && MetaData);
 
 	FString   PackageName = MetaData->GenerateAssetPath(AssetPathFormat);
-	 
+
 	// Initialize a new package, ensuring that it has a unique name
 	if (!TakesUtils::CreateNewAssetPackage<ULevelSequence>(PackageName, SequenceAsset, OutError, LevelSequenceBase))
 	{
@@ -565,21 +567,24 @@ bool UTakeRecorder::CreateDestinationAsset(const TCHAR* AssetPathFormat, ULevelS
 
 bool UTakeRecorder::InitializeSequencer(FText* OutError)
 {
-	// Open the sequence and set the sequencer ptr
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceAsset);
-
-	IAssetEditorInstance*        AssetEditor         = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(SequenceAsset, false);
-	ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
-
-	WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
-
-	if (!WeakSequencer.Pin().IsValid())
+	if ( GEditor != nullptr )
 	{
-		if (OutError)
+		// Open the sequence and set the sequencer ptr
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SequenceAsset);
+
+		IAssetEditorInstance*        AssetEditor         = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(SequenceAsset, false);
+		ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
+
+		WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
+
+		if (!WeakSequencer.Pin().IsValid())
 		{
-			*OutError = FText::Format(LOCTEXT("FailedToOpenSequencerError", "Failed to open Sequencer for asset '{0}."), FText::FromString(SequenceAsset->GetPathName()));
+			if (OutError)
+			{
+				*OutError = FText::Format(LOCTEXT("FailedToOpenSequencerError", "Failed to open Sequencer for asset '{0}."), FText::FromString(SequenceAsset->GetPathName()));
+			}
+			return false;
 		}
-		return false;
 	}
 
 	return true;

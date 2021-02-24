@@ -1733,7 +1733,6 @@ void UAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
 
 void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 {
-	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
 	if (ensure(NewAsset) && NewAsset->IsAsset())
 	{
 		// Add the newly created object to the package file cache because its filename can already be
