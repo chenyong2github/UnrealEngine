@@ -61,6 +61,56 @@ protected:
 		return JsonWriter;
 	}
 
+	// Writes a property value to the serialization output.
+	template<typename ValueType>
+	void WritePropertyValue(const FStructSerializerState& State, const ValueType& Value)
+	{
+		//Write only value in case of no property or container elements
+		if ((State.ValueProperty == nullptr) ||
+			((State.ValueProperty->ArrayDim > 1
+				|| State.ValueProperty->GetOwner<FArrayProperty>()
+				|| State.ValueProperty->GetOwner<FSetProperty>()
+				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
+		{
+			JsonWriter->WriteValue(Value);
+		}
+		//Write Key:Value in case of a map entry
+		else if (State.KeyProperty != nullptr)
+		{
+			FString KeyString;
+			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+			JsonWriter->WriteValue(KeyString, Value);
+		}
+		//Write PropertyName:Value for any other cases (single array element, single property, etc...)
+		else
+		{
+			JsonWriter->WriteValue(State.ValueProperty->GetName(), Value);
+		}
+	}
+
+	// Writes a null value to the serialization output.
+	void WriteNull(const FStructSerializerState& State)
+	{
+		if ((State.ValueProperty == nullptr) ||
+			((State.ValueProperty->ArrayDim > 1
+				|| State.ValueProperty->GetOwner<FArrayProperty>()
+				|| State.ValueProperty->GetOwner<FSetProperty>()
+				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
+		{
+			JsonWriter->WriteNull();
+		}
+		else if (State.KeyProperty != nullptr)
+		{
+			FString KeyString;
+			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
+			JsonWriter->WriteNull(KeyString);
+		}
+		else
+		{
+			JsonWriter->WriteNull(State.ValueProperty->GetName());
+		}
+	}
+
 private:
 
 	/** Holds the Json writer used for the actual serialization. */

@@ -44,7 +44,7 @@ void FHttpConnection::Tick(float DeltaTime)
 	case EHttpConnectionState::AwaitingRead:
 		if (ReadContext.GetElapsedIdleTime() > AwaitReadTimeout)
 		{
-			Destroy();
+			Destroy(EConnectionDestroyReason::AwaitReadTimeout);
 			return;
 		}
 		BeginRead(DeltaTime);
@@ -53,7 +53,7 @@ void FHttpConnection::Tick(float DeltaTime)
 	case EHttpConnectionState::Reading:
 		if (ReadContext.GetElapsedIdleTime() > ConnectionTimeout)
 		{
-			Destroy();
+			Destroy(EConnectionDestroyReason::ReadTimeout);
 			return;
 		}
 		ContinueRead(DeltaTime);
@@ -65,7 +65,7 @@ void FHttpConnection::Tick(float DeltaTime)
 	case EHttpConnectionState::Writing:
 		if (WriteContext.GetElapsedIdleTime() > ConnectionTimeout)
 		{
-			Destroy();
+			Destroy(EConnectionDestroyReason::WriteTimeout);
 			return;
 		}
 		ContinueWrite(DeltaTime);
@@ -99,7 +99,7 @@ void FHttpConnection::BeginRead(float DeltaTime)
 	// Wait should always return true if the connection is valid
 	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, SelectWaitTime))
 	{
-		Destroy();
+		Destroy(EConnectionDestroyReason::BeginReadTimeout);
 		return;
 	}
 
@@ -253,7 +253,7 @@ void FHttpConnection::CompleteWrite()
 	}
 	else
 	{
-		Destroy();
+		Destroy(EConnectionDestroyReason::WriteComplete);
 	}
 }
 
@@ -270,11 +270,11 @@ void FHttpConnection::RequestDestroy(bool bGraceful)
 	// awaiting a read operation (not started yet), destroy() immediately.
 	if (!bGracefulDestroyRequested || State == EHttpConnectionState::AwaitingRead)
 	{
-		Destroy();
+		Destroy(EConnectionDestroyReason::DestroyRequest);
 	}
 }
 
-void FHttpConnection::Destroy()
+void FHttpConnection::Destroy(EConnectionDestroyReason Reason)
 {
 	check(State != EHttpConnectionState::Destroyed);
 	ChangeState(EHttpConnectionState::Destroyed);
@@ -287,6 +287,8 @@ void FHttpConnection::Destroy()
 			SocketSubsystem->DestroySocket(Socket);
 		}
 		Socket = nullptr;
+
+		UE_LOG(LogHttpConnection, Verbose, TEXT("ConnectionDestroyed, Reason: %s"), LexToString(Reason));
 	}
 }
 
@@ -306,7 +308,7 @@ void FHttpConnection::HandleWriteError(const TCHAR* ErrorCodeStr)
 
 	// Forcibly Close
 	bKeepAlive = false;
-	Destroy();
+	Destroy(EConnectionDestroyReason::WriteError);
 }
 
 bool FHttpConnection::ResolveKeepAlive(HttpVersion::EHttpServerHttpVersion HttpVersion, const TArray<FString>& ConnectionHeaders)

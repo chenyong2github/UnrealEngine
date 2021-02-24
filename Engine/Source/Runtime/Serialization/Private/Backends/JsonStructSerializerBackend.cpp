@@ -7,63 +7,6 @@
 #include "UObject/PropertyPortFlags.h"
 
 
-/* Internal helpers
- *****************************************************************************/
-
-namespace JsonStructSerializerBackend
-{
-	// Writes a property value to the serialization output.
-	template<typename ValueType>
-	void WritePropertyValue(const TSharedRef<TJsonWriter<UCS2CHAR>> JsonWriter, const FStructSerializerState& State, const ValueType& Value)
-	{
-		//Write only value in case of no property or container elements
-		if ((State.ValueProperty == nullptr) ||
-			((State.ValueProperty->ArrayDim > 1 
-				|| State.ValueProperty->GetOwner<FArrayProperty>() 
-				|| State.ValueProperty->GetOwner<FSetProperty>()
-				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
-		{
-			JsonWriter->WriteValue(Value);
-		}
-		//Write Key:Value in case of a map entry
-		else if (State.KeyProperty != nullptr)
-		{
-			FString KeyString;
-			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
-			JsonWriter->WriteValue(KeyString, Value);
-		}
-		//Write PropertyName:Value for any other cases (single array element, single property, etc...)
-		else
-		{
-			JsonWriter->WriteValue(State.ValueProperty->GetName(), Value);
-		}
-	}
-
-	// Writes a null value to the serialization output.
-	void WriteNull(const TSharedRef<TJsonWriter<UCS2CHAR>> JsonWriter, const FStructSerializerState& State)
-	{
-		if ((State.ValueProperty == nullptr) ||
-			((State.ValueProperty->ArrayDim > 1 
-				|| State.ValueProperty->GetOwner<FArrayProperty>() 
-				|| State.ValueProperty->GetOwner<FSetProperty>()
-				|| (State.ValueProperty->GetOwner<FMapProperty>() && State.KeyProperty == nullptr)) && !EnumHasAnyFlags(State.StateFlags, EStructSerializerStateFlags::WritingContainerElement)))
-		{
-			JsonWriter->WriteNull();
-		}
-		else if (State.KeyProperty != nullptr)
-		{
-			FString KeyString;
-			State.KeyProperty->ExportTextItem(KeyString, State.KeyData, nullptr, nullptr, PPF_None);
-			JsonWriter->WriteNull(KeyString);
-		}
-		else
-		{
-			JsonWriter->WriteNull(State.ValueProperty->GetName());
-		}
-	}
-}
-
-
 /* IStructSerializerBackend interface
  *****************************************************************************/
 
@@ -136,12 +79,10 @@ void FJsonStructSerializerBackend::WriteComment(const FString& Comment)
 
 void FJsonStructSerializerBackend::WriteProperty(const FStructSerializerState& State, int32 ArrayIndex)
 {
-	using namespace JsonStructSerializerBackend;
-
 	// booleans
 	if (State.FieldType == FBoolProperty::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, CastFieldChecked<FBoolProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, CastFieldChecked<FBoolProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// unsigned bytes & enumerations
@@ -149,7 +90,7 @@ void FJsonStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	{
 		FEnumProperty* EnumProperty = CastFieldChecked<FEnumProperty>(State.ValueProperty);
 
-		WritePropertyValue(JsonWriter, State, EnumProperty->GetEnum()->GetNameStringByValue(EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(EnumProperty->ContainerPtrToValuePtr<void>(State.ValueData, ArrayIndex))));
+		WritePropertyValue(State, EnumProperty->GetEnum()->GetNameStringByValue(EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(EnumProperty->ContainerPtrToValuePtr<void>(State.ValueData, ArrayIndex))));
 	}
 	else if (State.FieldType == FByteProperty::StaticClass())
 	{
@@ -157,64 +98,64 @@ void FJsonStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 
 		if (ByteProperty->IsEnum())
 		{
-			WritePropertyValue(JsonWriter, State, ByteProperty->Enum->GetNameStringByValue(ByteProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex)));
+			WritePropertyValue(State, ByteProperty->Enum->GetNameStringByValue(ByteProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex)));
 		}
 		else
 		{
-			WritePropertyValue(JsonWriter, State, (double)ByteProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+			WritePropertyValue(State, (double)ByteProperty->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 		}
 	}
 
 	// floating point numbers
 	else if (State.FieldType == FDoubleProperty::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, CastFieldChecked<FDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, CastFieldChecked<FDoubleProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 	else if (State.FieldType == FFloatProperty::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, CastFieldChecked<FFloatProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, CastFieldChecked<FFloatProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// signed integers
 	else if (State.FieldType == FIntProperty::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, (double)CastFieldChecked<FIntProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, (double)CastFieldChecked<FIntProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 	else if (State.FieldType == FInt8Property::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, (double)CastFieldChecked<FInt8Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, (double)CastFieldChecked<FInt8Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 	else if (State.FieldType == FInt16Property::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, (double)CastFieldChecked<FInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, (double)CastFieldChecked<FInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 	else if (State.FieldType == FInt64Property::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, (double)CastFieldChecked<FInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, (double)CastFieldChecked<FInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// unsigned integers
 	else if (State.FieldType == FUInt16Property::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, (double)CastFieldChecked<FUInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, (double)CastFieldChecked<FUInt16Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 	else if (State.FieldType == FUInt32Property::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, (double)CastFieldChecked<FUInt32Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, (double)CastFieldChecked<FUInt32Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 	else if (State.FieldType == FUInt64Property::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, (double)CastFieldChecked<FUInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, (double)CastFieldChecked<FUInt64Property>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 
 	// names, strings & text
 	else if (State.FieldType == FNameProperty::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, CastFieldChecked<FNameProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex).ToString());
+		WritePropertyValue(State, CastFieldChecked<FNameProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex).ToString());
 	}
 	else if (State.FieldType == FStrProperty::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, CastFieldChecked<FStrProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
+		WritePropertyValue(State, CastFieldChecked<FStrProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex));
 	}
 	else if (State.FieldType == FTextProperty::StaticClass())
 	{
@@ -223,11 +164,11 @@ void FJsonStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 		{
 			FString TextValueString;
 			FTextStringHelper::WriteToBuffer(TextValueString, TextValue);
-			WritePropertyValue(JsonWriter, State, TextValueString);
+			WritePropertyValue(State, TextValueString);
 		}
 		else
 		{
-			WritePropertyValue(JsonWriter, State, TextValue.ToString());
+			WritePropertyValue(State, TextValue.ToString());
 		}
 	}
 
@@ -235,27 +176,27 @@ void FJsonStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	else if (State.FieldType == FClassProperty::StaticClass())
 	{
 		UObject* const& Value = CastFieldChecked<FClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
-		WritePropertyValue(JsonWriter, State, Value ? Value->GetPathName() : FString());
+		WritePropertyValue(State, Value ? Value->GetPathName() : FString());
 	}
 	else if (State.FieldType == FSoftClassProperty::StaticClass())
 	{
 		FSoftObjectPtr const& Value = CastFieldChecked<FSoftClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
-		WritePropertyValue(JsonWriter, State, Value.IsValid() ? Value->GetPathName() : FString());
+		WritePropertyValue(State, Value.IsValid() ? Value->GetPathName() : FString());
 	}
 	else if (State.FieldType == FObjectProperty::StaticClass())
 	{
 		UObject* const& Value = CastFieldChecked<FObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
-		WritePropertyValue(JsonWriter, State, Value ? Value->GetPathName() : FString());
+		WritePropertyValue(State, Value ? Value->GetPathName() : FString());
 	}
 	else if (State.FieldType == FWeakObjectProperty::StaticClass())
 	{
 		FWeakObjectPtr const& Value = CastFieldChecked<FWeakObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
-		WritePropertyValue(JsonWriter, State, Value.IsValid() ? Value.Get()->GetPathName() : FString());
+		WritePropertyValue(State, Value.IsValid() ? Value.Get()->GetPathName() : FString());
 	}
 	else if (State.FieldType == FSoftObjectProperty::StaticClass())
 	{
 		FSoftObjectPtr const& Value = CastFieldChecked<FSoftObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
-		WritePropertyValue(JsonWriter, State, Value.ToString());
+		WritePropertyValue(State, Value.ToString());
 	}
 
 	// unsupported property type

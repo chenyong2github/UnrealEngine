@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/EnumClassFlags.h"
 #include "UObject/Field.h"
+#include "UObject/UnrealType.h"
 
 /**
  * Flags controlling the behavior of struct serializer backends.
@@ -68,6 +69,16 @@ ENUM_CLASS_FLAGS(EStructSerializerStateFlags);
  */
 struct FStructSerializerState
 {
+	FStructSerializerState() = default;
+
+	FStructSerializerState(void* InValuePtr, FProperty* InProperty, EStructSerializerStateFlags InFlags)
+		: ValueData(InValuePtr)
+		, ValueProperty(InProperty)
+		, FieldType(InProperty->GetClass())
+		, StateFlags(InFlags)
+	{
+	}
+
 	/** Holds a flag indicating whether the property has been processed. */
 	bool HasBeenProcessed = false;
 
