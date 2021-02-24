@@ -935,30 +935,33 @@ FText FFractureEditorModeToolkit::GetActiveToolMessage() const
 
 void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCollectionComponent*>& InNewComponents)
 {
+	TArray<UGeometryCollectionComponent*> ComponentsToEdit;
+	ComponentsToEdit.Reserve(InNewComponents.Num());
 	for (UGeometryCollectionComponent* Component : InNewComponents)
 	{
 		FGeometryCollectionEdit RestCollection = Component->EditRestCollection(GeometryCollection::EEditUpdate::None);
 		UGeometryCollection* FracturedGeometryCollection = RestCollection.GetRestCollection();
 
-		if (FracturedGeometryCollection) // Prevents crash when GC is deleted from content browser and actor is selected.
+		if (FracturedGeometryCollection && !FracturedGeometryCollection->IsPendingKill()) // Prevents crash when GC is deleted from content browser and actor is selected.
 		{
 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
 
 			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollectionPtr.Get(), -1);
 			UpdateExplodedVectors(Component);
-		}
 
-		UpdateGeometryComponentAttributes(Component);
+			UpdateGeometryComponentAttributes(Component);
+			ComponentsToEdit.Add(Component);
+		}	
 	}
 
 	if (OutlinerView)
 	{
-		OutlinerView->SetComponents(InNewComponents);
+		OutlinerView->SetComponents(ComponentsToEdit);
 	}
 
 	if (HistogramView)
 	{
-		HistogramView->SetComponents(InNewComponents, GetLevelViewValue());
+		HistogramView->SetComponents(ComponentsToEdit, GetLevelViewValue());
 	}
 
 	if (ActiveTool != nullptr)
@@ -1094,7 +1097,7 @@ void FFractureEditorModeToolkit::UpdateGeometryComponentAttributes(UGeometryColl
 	if (Component)
 	{
 		const UGeometryCollection* RestCollection = Component->GetRestCollection();
-		if (RestCollection)
+		if (RestCollection && !RestCollection->IsPendingKill())
 		{
 			FGeometryCollectionPtr GeometryCollection = RestCollection->GetGeometryCollection();
 
@@ -1337,26 +1340,30 @@ void FFractureEditorModeToolkit::RegenerateHistogram()
 
 void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones)
 {
-	FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), RootComponent);
-
-	if(SelectedBones.Num())
+	const UGeometryCollection* RestCollection = RootComponent->GetRestCollection();
+	if (RestCollection && !RestCollection->IsPendingKill())
 	{
-			
-		FFractureSelectionTools::ToggleSelectedBones(RootComponent, SelectedBones, true);
-		OutlinerView->SetBoneSelection(RootComponent, SelectedBones, true);
-	}
-	else
-	{
-		FFractureSelectionTools::ClearSelectedBones(RootComponent);
-	}
+		FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), RootComponent);
 
-	if (ActiveTool != nullptr)
-	{
-		ActiveTool->FractureContextChanged();
-	}
+		if (SelectedBones.Num())
+		{
 
-	RootComponent->MarkRenderStateDirty();
-	RootComponent->MarkRenderDynamicDataDirty();
+			FFractureSelectionTools::ToggleSelectedBones(RootComponent, SelectedBones, true);
+			OutlinerView->SetBoneSelection(RootComponent, SelectedBones, true);
+		}
+		else
+		{
+			FFractureSelectionTools::ClearSelectedBones(RootComponent);
+		}
+
+		if (ActiveTool != nullptr)
+		{
+			ActiveTool->FractureContextChanged();
+		}
+
+		RootComponent->MarkRenderStateDirty();
+		RootComponent->MarkRenderDynamicDataDirty();
+	}
 }
 
 void FFractureEditorModeToolkit::OnHistogramBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones)

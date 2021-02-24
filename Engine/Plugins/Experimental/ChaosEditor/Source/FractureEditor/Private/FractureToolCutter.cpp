@@ -45,54 +45,59 @@ TArray<FFractureToolContext> UFractureToolCutterBase::GetFractureToolContexts() 
 
 	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
 	{
-		// Generate a context for each selected node
-		FFractureToolContext FullSelection(GeometryCollectionComponent);
-		FullSelection.ConvertSelectionToRigidNodes();
-		
-		// Update global transforms and bounds		
-		const TManagedArray<FTransform>& Transform = FullSelection.GetGeometryCollection()->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
-		const TManagedArray<int32>& TransformToGeometryIndex = FullSelection.GetGeometryCollection()->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
-		const TManagedArray<FBox>& BoundingBoxes = FullSelection.GetGeometryCollection()->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
-
-		TArray<FTransform> Transforms;
-		GeometryCollectionAlgo::GlobalMatrices(Transform, FullSelection.GetGeometryCollection()->Parent, Transforms);
-
-		TMap<int32, FBox> BoundsToBone;
-		int32 TransformCount = Transform.Num();
-		for (int32 Index = 0; Index < TransformCount; ++Index)
+		const UGeometryCollection* RestCollection = GeometryCollectionComponent->GetRestCollection();
+		if (RestCollection && !RestCollection->IsPendingKill())
 		{
-			if (TransformToGeometryIndex[Index] > INDEX_NONE)
-			{
-				BoundsToBone.Add(Index, BoundingBoxes[TransformToGeometryIndex[Index]].TransformBy(Transforms[Index]));
-			}
-		}
 
-		if (CutterSettings->bGroupFracture)
-		{
-			FullSelection.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed : FMath::Rand());
+			// Generate a context for each selected node
+			FFractureToolContext FullSelection(GeometryCollectionComponent);
+			FullSelection.ConvertSelectionToRigidNodes();
 
-			FBox Bounds(ForceInit);
-			for (int32 BoneIndex : FullSelection.GetSelection())
+			// Update global transforms and bounds		
+			const TManagedArray<FTransform>& Transform = FullSelection.GetGeometryCollection()->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
+			const TManagedArray<int32>& TransformToGeometryIndex = FullSelection.GetGeometryCollection()->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
+			const TManagedArray<FBox>& BoundingBoxes = FullSelection.GetGeometryCollection()->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
+
+			TArray<FTransform> Transforms;
+			GeometryCollectionAlgo::GlobalMatrices(Transform, FullSelection.GetGeometryCollection()->Parent, Transforms);
+
+			TMap<int32, FBox> BoundsToBone;
+			int32 TransformCount = Transform.Num();
+			for (int32 Index = 0; Index < TransformCount; ++Index)
 			{
-				if (TransformToGeometryIndex[BoneIndex] > INDEX_NONE)
+				if (TransformToGeometryIndex[Index] > INDEX_NONE)
 				{
-					Bounds += BoundsToBone[BoneIndex];
+					BoundsToBone.Add(Index, BoundingBoxes[TransformToGeometryIndex[Index]].TransformBy(Transforms[Index]));
 				}
 			}
-			FullSelection.SetBounds(Bounds);
 
-			Contexts.Add(FullSelection);
-		}
-		else
-		{
-			// Generate a context for each selected node
-			for (int32 Index : FullSelection.GetSelection())
+			if (CutterSettings->bGroupFracture)
 			{
-				Contexts.Emplace(GeometryCollectionComponent);
-				FFractureToolContext& FractureContext = Contexts.Last();
+				FullSelection.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed : FMath::Rand());
 
-				FractureContext.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed + Index : FMath::Rand());
-				FractureContext.SetBounds(BoundsToBone[Index]);
+				FBox Bounds(ForceInit);
+				for (int32 BoneIndex : FullSelection.GetSelection())
+				{
+					if (TransformToGeometryIndex[BoneIndex] > INDEX_NONE)
+					{
+						Bounds += BoundsToBone[BoneIndex];
+					}
+				}
+				FullSelection.SetBounds(Bounds);
+
+				Contexts.Add(FullSelection);
+			}
+			else
+			{
+				// Generate a context for each selected node
+				for (int32 Index : FullSelection.GetSelection())
+				{
+					Contexts.Emplace(GeometryCollectionComponent);
+					FFractureToolContext& FractureContext = Contexts.Last();
+
+					FractureContext.SetSeed(CutterSettings->RandomSeed > -1 ? CutterSettings->RandomSeed + Index : FMath::Rand());
+					FractureContext.SetBounds(BoundsToBone[Index]);
+				}
 			}
 		}
 	}
