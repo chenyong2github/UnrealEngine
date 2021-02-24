@@ -40,13 +40,15 @@ struct FPageSections
 	uint32 Position			= 0;
 	uint32 Attribute		= 0;
 
+	uint32 GetMaterialTableSize() const		{ return Align(MaterialTable, 16); }
+
 	uint32 GetClusterOffset() const			{ return 0; }
 	uint32 GetMaterialTableOffset() const	{ return Cluster; }
-	uint32 GetDecodeInfoOffset() const		{ return Cluster + MaterialTable; }
-	uint32 GetIndexOffset() const			{ return Cluster + MaterialTable + DecodeInfo; }
-	uint32 GetPositionOffset() const		{ return Cluster + MaterialTable + DecodeInfo + Index; }
-	uint32 GetAttributeOffset() const		{ return Cluster + MaterialTable + DecodeInfo + Index + Position; }
-	uint32 GetTotal() const					{ return Cluster + MaterialTable + DecodeInfo + Index + Position + Attribute; }
+	uint32 GetDecodeInfoOffset() const		{ return Cluster + GetMaterialTableSize(); }
+	uint32 GetIndexOffset() const			{ return Cluster + GetMaterialTableSize() + DecodeInfo; }
+	uint32 GetPositionOffset() const		{ return Cluster + GetMaterialTableSize() + DecodeInfo + Index; }
+	uint32 GetAttributeOffset() const		{ return Cluster + GetMaterialTableSize() + DecodeInfo + Index + Position; }
+	uint32 GetTotal() const					{ return Cluster + GetMaterialTableSize() + DecodeInfo + Index + Position + Attribute; }
 
 	FPageSections GetOffsets() const
 	{
@@ -1702,12 +1704,12 @@ static void WritePages(	FResources& Resources,
 				CodedVerticesPerCluster[LocalClusterIndex] = NumCodedVertices;
 			}
 		}
-		check(GpuSectionOffsets.Cluster			== Page.GpuSizes.GetMaterialTableOffset());
-		check(GpuSectionOffsets.MaterialTable	== Page.GpuSizes.GetDecodeInfoOffset());
-		check(GpuSectionOffsets.DecodeInfo		== Page.GpuSizes.GetIndexOffset());
-		check(GpuSectionOffsets.Index			== Page.GpuSizes.GetPositionOffset());
-		check(GpuSectionOffsets.Position		== Page.GpuSizes.GetAttributeOffset());
-		check(GpuSectionOffsets.Attribute		== Page.GpuSizes.GetTotal());
+		check(GpuSectionOffsets.Cluster						== Page.GpuSizes.GetMaterialTableOffset());
+		check(Align(GpuSectionOffsets.MaterialTable, 16)	== Page.GpuSizes.GetDecodeInfoOffset());
+		check(GpuSectionOffsets.DecodeInfo					== Page.GpuSizes.GetIndexOffset());
+		check(GpuSectionOffsets.Index						== Page.GpuSizes.GetPositionOffset());
+		check(GpuSectionOffsets.Position					== Page.GpuSizes.GetAttributeOffset());
+		check(GpuSectionOffsets.Attribute					== Page.GpuSizes.GetTotal());
 
 		// Dword align index data
 		CombinedIndexData.SetNumZeroed((CombinedIndexData.Num() + 3) & -4);
@@ -1745,6 +1747,7 @@ static void WritePages(	FResources& Resources,
 		// Disk header
 		FPageDiskHeader* PageDiskHeader = PagePointer.Advance<FPageDiskHeader>(1);
 
+		// 16-byte align material range data to make it easy to copy during GPU transcoding
 		MaterialRangeData.SetNum(Align(MaterialRangeData.Num(), 4));
 
 		static_assert(sizeof(FUVRange) % 16 == 0, "sizeof(FUVRange) must be a multiple of 16");
@@ -1774,6 +1777,7 @@ static void WritePages(	FResources& Resources,
 		uint32 MaterialTableSize = MaterialRangeData.Num() * MaterialRangeData.GetTypeSize();
 		uint8* MaterialTable = PagePointer.Advance<uint8>(MaterialTableSize);
 		FMemory::Memcpy(MaterialTable, MaterialRangeData.GetData(), MaterialTableSize);
+		check(MaterialTableSize == Page.GpuSizes.GetMaterialTableSize());
 
 		// Decode information
 		PageDiskHeader->DecodeInfoOffset = PagePointer.Offset();
