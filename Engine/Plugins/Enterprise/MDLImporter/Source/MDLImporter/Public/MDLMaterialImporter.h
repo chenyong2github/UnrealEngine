@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 
 class UMaterialInterface;
 class UMDLImporterOptions;
+class UPackage;
 
 class MDLIMPORTER_API FMdlMaterialImporter
 {
