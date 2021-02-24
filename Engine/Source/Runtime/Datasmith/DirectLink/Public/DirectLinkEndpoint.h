@@ -22,8 +22,8 @@ enum ECommunicationStatus{
 	ECS_ModuleNotLoaded_UdpMessaging = 1<<1,
 	ECS_ModuleNotLoaded_Networking   = 1<<2,
 };
-ECommunicationStatus ValidateCommunicationStatus();
 
+DIRECTLINK_API ECommunicationStatus ValidateCommunicationStatus();
 
 struct FRawInfo
 {
