@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/StaticMesh.h"
 #include "UObject/Interface.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
 
