@@ -17,7 +17,7 @@ struct CONTROLRIG_API FRigUnit_OffsetTransformForItem : public FRigUnitMutable
 		: Item(NAME_None, ERigElementType::Bone)
 		, OffsetTransform(FTransform::Identity)
 		, Weight(1.f)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedIndex()
 	{}
 

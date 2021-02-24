@@ -37,7 +37,7 @@ struct CONTROLRIG_API FRigUnit_TwistBones : public FRigUnit_HighlevelBaseMutable
 		PoleAxis = FVector(0.f, 1.f, 0.f);
 		TwistEaseType = EControlRigAnimEasingType::Linear;
 		Weight = 1.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 	}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
@@ -110,7 +110,7 @@ struct CONTROLRIG_API FRigUnit_TwistBonesPerItem : public FRigUnit_HighlevelBase
 		PoleAxis = FVector(0.f, 1.f, 0.f);
 		TwistEaseType = EControlRigAnimEasingType::Linear;
 		Weight = 1.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 	}
 
 	RIGVM_METHOD()

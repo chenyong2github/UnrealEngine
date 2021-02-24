@@ -59,7 +59,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimple : public FRigUnit_HighlevelBaseMu
 		StretchMaximumRatio = 1.25f;
 		Weight = 1.f;
 		BoneALength = BoneBLength = 0.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_TwoBoneIKSimple_DebugSettings();
 
 		CachedBoneAIndex = FCachedRigElement();
@@ -226,7 +226,7 @@ struct CONTROLRIG_API FRigUnit_TwoBoneIKSimplePerItem : public FRigUnit_Highleve
 		StretchMaximumRatio = 1.25f;
 		Weight = 1.f;
 		ItemALength = ItemBLength = 0.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_TwoBoneIKSimple_DebugSettings();
 
 		CachedItemAIndex = FCachedRigElement();

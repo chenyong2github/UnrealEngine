@@ -18,7 +18,7 @@ struct CONTROLRIG_API FRigUnit_SetBoneRotation : public FRigUnitMutable
 		: Rotation(FQuat::Identity)
 		, Space(EBoneGetterSetterMode::LocalSpace)
 		, Weight(1.f)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedBone(FCachedRigElement())
 	{}
 

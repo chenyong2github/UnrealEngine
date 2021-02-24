@@ -16,7 +16,7 @@ struct CONTROLRIG_API FRigUnit_SetBoneInitialTransform : public FRigUnitMutable
 
 	FRigUnit_SetBoneInitialTransform()
 		: Space(EBoneGetterSetterMode::GlobalSpace)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedBone(FCachedRigElement())
 	{}
 

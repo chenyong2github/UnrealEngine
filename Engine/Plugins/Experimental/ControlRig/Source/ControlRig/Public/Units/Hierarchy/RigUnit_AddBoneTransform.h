@@ -17,7 +17,7 @@ struct FRigUnit_AddBoneTransform : public FRigUnitMutable
 	FRigUnit_AddBoneTransform()
 		: Weight(1.f)
 		, bPostMultiply(false)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedBone()
 	{}
 

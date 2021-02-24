@@ -66,7 +66,7 @@ struct CONTROLRIG_API FRigUnit_DistributeRotation : public FRigUnit_HighlevelBas
 		StartBone = EndBone = NAME_None;
 		RotationEaseType = EControlRigAnimEasingType::Linear;
 		Weight = 1.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 	}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override

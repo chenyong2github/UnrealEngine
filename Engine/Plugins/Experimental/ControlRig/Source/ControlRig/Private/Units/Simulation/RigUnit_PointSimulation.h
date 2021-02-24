@@ -128,7 +128,7 @@ struct CONTROLRIG_API FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 		IntegratorType = ECRSimPointIntegrateType::Verlet;
 		VerletBlend = 4.f;
 		bLimitLocalPosition = true;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		PrimaryAimAxis = FVector(1.f, 0.f, 0.f);
 		SecondaryAimAxis = FVector(0.f, 1.f, 0.f);
 		DebugSettings = FRigUnit_PointSimulation_DebugSettings();

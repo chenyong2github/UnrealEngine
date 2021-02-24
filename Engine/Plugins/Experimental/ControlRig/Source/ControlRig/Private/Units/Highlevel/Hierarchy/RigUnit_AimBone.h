@@ -209,7 +209,7 @@ struct CONTROLRIG_API FRigUnit_AimBone : public FRigUnit_HighlevelBaseMutable
 		Primary.Axis = FVector(1.f, 0.f, 0.f);
 		Secondary.Axis = FVector(0.f, 0.f, 1.f);
 		Weight = 1.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_AimBone_DebugSettings();
 		CachedBoneIndex = FCachedRigElement();
 		PrimaryCachedSpace = FCachedRigElement();

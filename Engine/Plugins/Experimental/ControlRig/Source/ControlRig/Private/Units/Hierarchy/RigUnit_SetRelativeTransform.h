@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_SetRelativeTransformForItem : public FRigUnitMuta
 		, bParentInitial(false)
 		, RelativeTransform(FTransform::Identity)
 		, Weight(1.f)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedChild()
 		, CachedParent()
 	{}

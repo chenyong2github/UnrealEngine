@@ -44,7 +44,7 @@ struct CONTROLRIG_API FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 	{
 		StartBone = EndBone = NAME_None;
 		SlideAmount = 0.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 	}
 
 	RIGVM_METHOD()
@@ -91,7 +91,7 @@ struct CONTROLRIG_API FRigUnit_SlideChainPerItem: public FRigUnit_HighlevelBaseM
 	FRigUnit_SlideChainPerItem()
 	{
 		SlideAmount = 0.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 	}
 
 	RIGVM_METHOD()

@@ -92,7 +92,7 @@ struct CONTROLRIG_API FRigUnit_SpringIK : public FRigUnit_HighlevelBaseMutable
 		bLiveSimulation = false;
 		Iterations = 10;
 		bLimitLocalPosition = true;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_SpringIK_DebugSettings();
 	}
 

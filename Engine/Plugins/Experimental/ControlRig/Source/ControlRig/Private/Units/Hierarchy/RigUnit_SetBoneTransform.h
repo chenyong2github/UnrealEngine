@@ -17,7 +17,7 @@ struct CONTROLRIG_API FRigUnit_SetBoneTransform : public FRigUnitMutable
 	FRigUnit_SetBoneTransform()
 		: Space(EBoneGetterSetterMode::LocalSpace)
 		, Weight(1.f)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedBone(FCachedRigElement())
 	{}
 

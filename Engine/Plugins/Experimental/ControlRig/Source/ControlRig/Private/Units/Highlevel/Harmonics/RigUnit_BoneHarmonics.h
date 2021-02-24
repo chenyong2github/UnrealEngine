@@ -92,7 +92,7 @@ struct CONTROLRIG_API FRigUnit_BoneHarmonics : public FRigUnit_HighlevelBaseMuta
 		WaveMinimum = 0.5f;
 		WaveMaximum = 1.f;
 		RotationOrder = EControlRigRotationOrder::YZX;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 	}
 
 	RIGVM_METHOD()

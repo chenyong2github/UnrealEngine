@@ -45,7 +45,7 @@ struct CONTROLRIG_API FRigUnit_FABRIK : public FRigUnit_HighlevelBaseMutable
 		Weight = 1.f;
 		MaxIterations = 10;
 		EffectorTransform = FTransform::Identity;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 	}
 
 	/**
@@ -113,7 +113,7 @@ struct CONTROLRIG_API FRigUnit_FABRIKPerItem : public FRigUnit_HighlevelBaseMuta
 	{
 		Precision = 1.f;
 		Weight = 1.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		MaxIterations = 10;
 		EffectorTransform = FTransform::Identity;
 	}

@@ -145,7 +145,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurve : public FRigUnit_HighlevelBaseMu
 		PoleVectorPosition = FVector::ZeroVector;
 		RotationEaseType = EControlRigAnimEasingType::Linear;
 		Weight = 1.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_FitChainToCurve_DebugSettings();
 	}
 
@@ -268,7 +268,7 @@ struct CONTROLRIG_API FRigUnit_FitChainToCurvePerItem : public FRigUnit_Highleve
 		PoleVectorPosition = FVector::ZeroVector;
 		RotationEaseType = EControlRigAnimEasingType::Linear;
 		Weight = 1.f;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		DebugSettings = FRigUnit_FitChainToCurve_DebugSettings();
 	}
 

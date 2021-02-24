@@ -100,7 +100,7 @@ struct CONTROLRIG_API FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
 		Weight = 1.f;
 		MaxIterations = 10;
 		bStartFromTail = true;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		BaseRotationLimit = 30.f;
 	}
 
@@ -190,7 +190,7 @@ struct CONTROLRIG_API FRigUnit_CCDIKPerItem : public FRigUnit_HighlevelBaseMutab
 		Weight = 1.f;
 		MaxIterations = 10;
 		bStartFromTail = true;
-		bPropagateToChildren = false;
+		bPropagateToChildren = true;
 		BaseRotationLimit = 30.f;
 	}
 

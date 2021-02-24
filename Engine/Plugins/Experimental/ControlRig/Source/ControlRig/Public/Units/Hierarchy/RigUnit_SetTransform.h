@@ -19,7 +19,7 @@ struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 		, bInitial(false)
 		, Transform(FTransform::Identity)
 		, Weight(1.f)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedIndex()
 	{}
 
@@ -91,7 +91,7 @@ struct CONTROLRIG_API FRigUnit_SetTranslation : public FRigUnitMutable
 		, Space(EBoneGetterSetterMode::GlobalSpace)
 		, Translation(FVector::ZeroVector)
 		, Weight(1.f)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedIndex()
 	{}
 
@@ -155,7 +155,7 @@ struct CONTROLRIG_API FRigUnit_SetRotation : public FRigUnitMutable
 		, Space(EBoneGetterSetterMode::GlobalSpace)
 		, Rotation(FQuat::Identity)
 		, Weight(1.f)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedIndex()
 	{}
 
@@ -219,7 +219,7 @@ struct FRigUnit_SetScale : public FRigUnitMutable
 		, Space(EBoneGetterSetterMode::GlobalSpace)
 		, Scale(FVector::OneVector)
 		, Weight(1.f)
-		, bPropagateToChildren(false)
+		, bPropagateToChildren(true)
 		, CachedIndex()
 	{}
 
