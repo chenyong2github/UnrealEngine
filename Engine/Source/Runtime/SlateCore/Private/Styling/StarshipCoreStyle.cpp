@@ -996,9 +996,10 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 		.SetBackgroundImageReadOnly(FSlateRoundedBoxBrush(FStyleColors::Header, InputFocusRadius, FStyleColors::InputOutline, InputFocusThickness))
 		.SetFont(StyleFonts.Normal)
 		.SetPadding(FMargin(12.f, 4.0f, 12.f, 5.0f)) // The padding should be 4 top, 5 bottom
-		.SetForegroundColor(FStyleColors::White)
+		.SetForegroundColor(FStyleColors::Foreground)
 		.SetBackgroundColor(FStyleColors::White)
 		.SetReadOnlyForegroundColor(FSlateColor::UseForeground())
+		.SetFocusedForegroundColor(FStyleColors::White)
 		.SetScrollBarStyle(ScrollBar);
 	{
 		Style->Set("NormalEditableTextBox", NormalEditableTextBoxStyle);
@@ -1248,13 +1249,13 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 	const FCheckBoxStyle BasicCheckBoxStyle = FCheckBoxStyle()
 		.SetCheckBoxType(ESlateCheckBoxType::CheckBox)
 
-		.SetForegroundColor(FLinearColor::White)
-		.SetHoveredForegroundColor(FLinearColor::White)
-		.SetPressedForegroundColor(FLinearColor::White)
-		.SetCheckedForegroundColor(FLinearColor::White)
-		.SetCheckedHoveredForegroundColor(FLinearColor::White)
-		.SetCheckedPressedForegroundColor(FLinearColor::White)
-		.SetUndeterminedForegroundColor(FLinearColor::White)
+		.SetForegroundColor(FStyleColors::Foreground)
+		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedForegroundColor(FStyleColors::Foreground)
+		.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetUndeterminedForegroundColor(FStyleColors::Foreground)
 
 		.SetUncheckedImage(FSlateNoResource())
 		.SetUncheckedHoveredImage(FSlateNoResource())

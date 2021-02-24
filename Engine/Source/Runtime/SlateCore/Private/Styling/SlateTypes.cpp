@@ -252,6 +252,7 @@ FEditableTextBoxStyle::FEditableTextBoxStyle()
 	, ForegroundColor(FSlateColor::UseForeground())
 	, BackgroundColor(FLinearColor::White)
 	, ReadOnlyForegroundColor(FSlateColor::UseForeground())
+	, FocusedForegroundColor(FSlateColor::UseForeground())
 {
 }
 

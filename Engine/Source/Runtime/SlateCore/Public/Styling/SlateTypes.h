@@ -934,7 +934,12 @@ struct SLATECORE_API FEditableTextBoxStyle : public FSlateWidgetStyle
 	/** The read-only foreground color of text in read-only mode. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateColor ReadOnlyForegroundColor;
-	FEditableTextBoxStyle& SetReadOnlyForegroundColor(const FSlateColor& InReadOnlyForegroundColor) { ReadOnlyForegroundColor = InReadOnlyForegroundColor; return *this; }
+	FEditableTextBoxStyle& SetReadOnlyForegroundColor(const FSlateColor& InReadOnlyForegroundColor) {ReadOnlyForegroundColor = InReadOnlyForegroundColor; return *this; }
+
+	/** The foreground color of text when the edit box has keyboard focus. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateColor FocusedForegroundColor;
+	FEditableTextBoxStyle& SetFocusedForegroundColor(const FSlateColor& InFocusedForegroundColor) {FocusedForegroundColor = InFocusedForegroundColor; return *this; }
 
 	/** Padding around the horizontal scrollbar */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)

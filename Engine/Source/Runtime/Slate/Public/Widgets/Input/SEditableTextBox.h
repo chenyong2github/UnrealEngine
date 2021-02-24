@@ -38,6 +38,7 @@ public:
 		, _Font()
 		, _ForegroundColor()
 		, _ReadOnlyForegroundColor()
+		, _FocusedForegroundColor()
 		, _IsReadOnly( false )
 		, _IsPassword( false )
 		, _IsCaretMovedWhenGainFocus ( true )
@@ -78,6 +79,9 @@ public:
 		
 		/** Text color and opacity when read-only (overrides Style) */
 		SLATE_ATTRIBUTE( FSlateColor, ReadOnlyForegroundColor )
+
+		/** Text color and opacity when this box has keyboard focus (overrides Style) */
+		SLATE_ATTRIBUTE(FSlateColor, FocusedForegroundColor)
 
 		/** Sets whether this text box can actually be modified interactively by the user */
 		SLATE_ATTRIBUTE( bool, IsReadOnly )
@@ -245,6 +249,13 @@ public:
 	void SetReadOnlyForegroundColor(const TAttribute<FSlateColor>& InReadOnlyForegroundColor);
 
 	/**
+	 * Sets the text color and opacity when this box has keyboard focus(overrides Style)
+	 *
+	 * @param  InFocusedForegroundColor 	The focused color and opacity
+	 */
+	void SetFocusedForegroundColor(const TAttribute<FSlateColor>& InFocusedForegroundColor);
+
+	/**
 	 * Sets the minimum width that a text box should be.
 	 *
 	 * @param  InMinimumDesiredWidth	The minimum width
@@ -400,6 +411,9 @@ protected:
 
 	/** Read-only foreground color (overrides style) */
 	TAttribute<FSlateColor> ReadOnlyForegroundColorOverride;
+
+	/** Focused foreground color (overrides style) */
+	TAttribute<FSlateColor> FocusedForegroundColorOverride;
 
 	/** Allows for inserting additional widgets that extend the functionality of the text box */
 	TSharedPtr<SHorizontalBox> Box;

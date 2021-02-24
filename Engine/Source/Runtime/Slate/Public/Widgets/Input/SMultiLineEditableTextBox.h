@@ -44,6 +44,7 @@ public:
 		, _Font()
 		, _ForegroundColor()
 		, _ReadOnlyForegroundColor()
+		, _FocusedForegroundColor()
 		, _Justification(ETextJustify::Left)
 		, _LineHeightPercentage(1.0f)
 		, _IsReadOnly( false )
@@ -100,6 +101,9 @@ public:
 		
 		/** Text color and opacity when read-only (overrides Style) */
 		SLATE_ATTRIBUTE( FSlateColor, ReadOnlyForegroundColor )
+
+		/** Text color and opacity when this box has keyboard focus (overrides Style) */
+		SLATE_ATTRIBUTE(FSlateColor, FocusedForegroundColor)
 
 		/** How the text should be aligned with the margin. */
 		SLATE_ATTRIBUTE(ETextJustify::Type, Justification)
@@ -485,6 +489,9 @@ protected:
 
 	/** Read-only foreground color (overrides style) */
 	TAttribute<FSlateColor> ReadOnlyForegroundColorOverride;
+
+	/** Focused foreground color (overrides style) */
+	TAttribute<FSlateColor> FocusedForegroundColorOverride;
 
 	/** Whether to disable the context menu */
 	TAttribute< bool > AllowContextMenu;

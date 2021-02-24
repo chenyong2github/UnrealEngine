@@ -32,6 +32,7 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 	ForegroundColorOverride = InArgs._ForegroundColor;
 	BackgroundColorOverride = InArgs._BackgroundColor;
 	ReadOnlyForegroundColorOverride = InArgs._ReadOnlyForegroundColor;
+	FocusedForegroundColorOverride = InArgs._FocusedForegroundColor;
 	OnTextChanged = InArgs._OnTextChanged;
 	OnVerifyTextChanged = InArgs._OnVerifyTextChanged;
 	OnTextCommitted = InArgs._OnTextCommitted;
@@ -303,6 +304,10 @@ FSlateColor SEditableTextBox::DetermineForegroundColor() const
 
 		return Style->ReadOnlyForegroundColor;
 	}
+	else if(HasKeyboardFocus())
+	{
+		return FocusedForegroundColorOverride.IsSet() ? FocusedForegroundColorOverride.Get() : Style->FocusedForegroundColor;
+	}
 	else
 	{
 		return ForegroundColorOverride.IsSet() ? ForegroundColorOverride.Get() : Style->ForegroundColor;
@@ -354,12 +359,15 @@ void SEditableTextBox::SetTextBoxBackgroundColor(const TAttribute<FSlateColor>& 
 	BackgroundColorOverride = InBackgroundColor;
 }
 
-
 void SEditableTextBox::SetReadOnlyForegroundColor(const TAttribute<FSlateColor>& InReadOnlyForegroundColor)
 {
 	ReadOnlyForegroundColorOverride = InReadOnlyForegroundColor;
 }
 
+void SEditableTextBox::SetFocusedForegroundColor(const TAttribute<FSlateColor>& InFocusedForegroundColor)
+{
+	FocusedForegroundColorOverride = InFocusedForegroundColor;
+}
 
 void SEditableTextBox::SetMinimumDesiredWidth(const TAttribute<float>& InMinimumDesiredWidth)
 {

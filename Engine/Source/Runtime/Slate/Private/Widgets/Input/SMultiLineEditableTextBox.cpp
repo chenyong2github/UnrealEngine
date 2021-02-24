@@ -47,6 +47,7 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 	ForegroundColorOverride = InArgs._ForegroundColor;
 	BackgroundColorOverride = InArgs._BackgroundColor;
 	ReadOnlyForegroundColorOverride = InArgs._ReadOnlyForegroundColor;
+	FocusedForegroundColorOverride = InArgs._FocusedForegroundColor;
 	bSelectWordOnMouseDoubleClick = InArgs._SelectWordOnMouseDoubleClick;
 
 	bHasExternalHScrollBar = InArgs._HScrollBar.IsValid();
@@ -216,7 +217,7 @@ FSlateColor SMultiLineEditableTextBox::DetermineForegroundColor() const
 
 	FSlateColor Result = FSlateColor::UseStyle();
 
-	if ( EditableText->IsTextReadOnly() )
+	if (EditableText->IsTextReadOnly())
 	{
 		if (ReadOnlyForegroundColorOverride.IsSet())
 		{
@@ -230,6 +231,26 @@ FSlateColor SMultiLineEditableTextBox::DetermineForegroundColor() const
 		if (Result == FSlateColor::UseStyle())
 		{
 			return Style->ReadOnlyForegroundColor;
+		}
+		else
+		{
+			return Result;
+		}
+	}
+	else if (HasKeyboardFocus())
+	{
+		if (FocusedForegroundColorOverride.IsSet())
+		{
+			Result = FocusedForegroundColorOverride.Get();
+		}
+		else if (ForegroundColorOverride.IsSet())
+		{
+			Result = ForegroundColorOverride.Get();
+		}
+
+		if (Result == FSlateColor::UseStyle())
+		{
+			return Style->FocusedForegroundColor;
 		}
 		else
 		{
