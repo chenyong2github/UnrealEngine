@@ -27,45 +27,48 @@ public:
 	/** Construct a null cache bucket. */
 	FCacheBucket() = default;
 
-	/** Construct a cache bucket from the alphanumeric name. Names are case-insensitive. */
-	UE_API explicit FCacheBucket(FStringView Name);
+	/**
+	 * Construct a cache bucket from the name.
+	 *
+	 * A cache bucket name must be alphanumeric, non-empty, and contain fewer than 256 characters.
+	 */
+	inline explicit FCacheBucket(FStringView Bucket)
+		: Name(FindOrAddCacheBucket(Bucket))
+	{
+	}
 
 	/** Convert the name of the cache bucket to a string. */
 	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
 	UE_API void ToString(FWideStringBuilderBase& Builder) const;
-	UE_API FString ToString() const;
+	inline FStringView ToString() const;
 
 	/** Whether this is null. */
-	inline bool IsNull() const { return !Index; }
+	inline bool IsNull() const { return !Name; }
 	/** Whether this is not null. */
 	inline bool IsValid() const { return !IsNull(); }
-
-	/** Returns the index that is only stable within this process. */
-	inline uint32 ToIndex() const { return Index; }
-
-	/** Returns the bucket for the index produced within this process. */
-	static inline FCacheBucket FromIndex(uint32 InIndex)
-	{
-		FCacheBucket Bucket;
-		Bucket.Index = InIndex;
-		return Bucket;
-	}
 
 	/** Reset this to null. */
 	inline void Reset() { *this = FCacheBucket(); }
 
+	inline bool operator==(FCacheBucket Other) const { return Name == Other.Name; }
+	inline bool operator!=(FCacheBucket Other) const { return Name != Other.Name; }
+
+	inline bool operator<(FCacheBucket Other) const
+	{
+		return Name != Other.Name && ToString().Compare(Other.ToString(), ESearchCase::IgnoreCase) < 0;
+	}
+
+	friend inline uint32 GetTypeHash(FCacheBucket Bucket) { return ::GetTypeHash(reinterpret_cast<UPTRINT>(Bucket.Name)); }
+
 private:
-	uint32 Index = 0;
+	UE_API static const TCHAR* FindOrAddCacheBucket(FStringView Bucket);
+
+	const TCHAR* Name = nullptr;
 };
 
-inline bool operator==(FCacheBucket A, FCacheBucket B)
+inline FStringView FCacheBucket::ToString() const
 {
-	return A.ToIndex() == B.ToIndex();
-}
-
-inline uint32 GetTypeHash(FCacheBucket Bucket)
-{
-	return ::GetTypeHash(Bucket.ToIndex());
+	return Name ? FStringView(Name, *reinterpret_cast<const uint8*>(Name - 1)) : FStringView();
 }
 
 template <typename CharType>
@@ -74,21 +77,6 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 	Bucket.ToString(Builder);
 	return Builder;
 }
-
-/** Fast less with an order that is only stable within the lifetime of this process. */
-struct FCacheBucketFastLess
-{
-	inline bool operator()(FCacheBucket A, FCacheBucket B) const
-	{
-		return A.ToIndex() < B.ToIndex();
-	}
-};
-
-/** Slow less with lexical order that is stable between processes. */
-struct FCacheBucketLexicalLess
-{
-	UE_API bool operator()(FCacheBucket A, FCacheBucket B) const;
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -135,6 +123,18 @@ inline bool operator==(const FCacheKey& A, const FCacheKey& B)
 	return A.GetBucket() == B.GetBucket() && A.GetHash() == B.GetHash();
 }
 
+inline bool operator!=(const FCacheKey& A, const FCacheKey& B)
+{
+	return A.GetBucket() != B.GetBucket() || A.GetHash() != B.GetHash();
+}
+
+inline bool operator<(const FCacheKey& A, const FCacheKey& B)
+{
+	const FCacheBucket& BucketA = A.GetBucket();
+	const FCacheBucket& BucketB = B.GetBucket();
+	return BucketA == BucketB ? A.GetHash() < B.GetHash() : BucketA < BucketB;
+}
+
 inline uint32 GetTypeHash(const FCacheKey& Key)
 {
 	return HashCombine(GetTypeHash(Key.GetBucket()), GetTypeHash(Key.GetHash()));
@@ -146,28 +146,6 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 	Key.ToString(Builder);
 	return Builder;
 }
-
-/** Fast less with an order that is only stable within the lifetime of this process. */
-struct FCacheKeyFastLess
-{
-	inline bool operator()(const FCacheKey& A, const FCacheKey& B) const
-	{
-		const FCacheBucket BucketA = A.GetBucket();
-		const FCacheBucket BucketB = B.GetBucket();
-		return BucketA == BucketB ? A.GetHash() < B.GetHash() : FCacheBucketFastLess()(BucketA, BucketB);
-	}
-};
-
-/** Slow less with lexical order that is stable between processes. */
-struct FCacheKeyLexicalLess
-{
-	inline bool operator()(const FCacheKey& A, const FCacheKey& B) const
-	{
-		const FCacheBucket BucketA = A.GetBucket();
-		const FCacheBucket BucketB = B.GetBucket();
-		return BucketA == BucketB ? A.GetHash() < B.GetHash() : FCacheBucketLexicalLess()(BucketA, BucketB);
-	}
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -214,6 +192,18 @@ inline bool operator==(const FCachePayloadKey& A, const FCachePayloadKey& B)
 	return A.GetKey() == B.GetKey() && A.GetId() == B.GetId();
 }
 
+inline bool operator!=(const FCachePayloadKey& A, const FCachePayloadKey& B)
+{
+	return A.GetKey() != B.GetKey() || A.GetId() != B.GetId();
+}
+
+inline bool operator<(const FCachePayloadKey& A, const FCachePayloadKey& B)
+{
+	const FCacheKey& KeyA = A.GetKey();
+	const FCacheKey& KeyB = B.GetKey();
+	return KeyA == KeyB ? A.GetId() < B.GetId() : KeyA < KeyB;
+}
+
 inline uint32 GetTypeHash(const FCachePayloadKey& Key)
 {
 	return HashCombine(GetTypeHash(Key.GetKey()), GetTypeHash(Key.GetId()));
@@ -225,28 +215,6 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 	Key.ToString(Builder);
 	return Builder;
 }
-
-/** Fast less with an order that is only stable within the lifetime of this process. */
-struct FCachePayloadKeyFastLess
-{
-	inline bool operator()(const FCachePayloadKey& A, const FCachePayloadKey& B) const
-	{
-		const FCacheKey& KeyA = A.GetKey();
-		const FCacheKey& KeyB = B.GetKey();
-		return KeyA == KeyB ? A.GetId() < B.GetId() : FCacheKeyFastLess()(KeyA, KeyB);
-	}
-};
-
-/** Slow less with lexical order that is stable between processes. */
-struct FCachePayloadKeyLexicalLess
-{
-	inline bool operator()(const FCachePayloadKey& A, const FCachePayloadKey& B) const
-	{
-		const FCacheKey& KeyA = A.GetKey();
-		const FCacheKey& KeyB = B.GetKey();
-		return KeyA == KeyB ? A.GetId() < B.GetId() : FCacheKeyLexicalLess()(KeyA, KeyB);
-	}
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
