@@ -79,6 +79,7 @@ bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper)
 		OCULUS_BIND_ENTRY_POINT(SetColorScaleAndOffset),
 		OCULUS_BIND_ENTRY_POINT(SetupLayer),
 		OCULUS_BIND_ENTRY_POINT(SetupLayerDepth),
+		OCULUS_BIND_ENTRY_POINT(SetEyeFovPremultipliedAlphaMode),
 		OCULUS_BIND_ENTRY_POINT(GetEyeFovLayerId),
 		OCULUS_BIND_ENTRY_POINT(GetLayerTextureStageCount),
 		OCULUS_BIND_ENTRY_POINT(GetLayerTexture2),

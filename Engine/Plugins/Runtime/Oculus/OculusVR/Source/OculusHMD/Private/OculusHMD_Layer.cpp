@@ -795,12 +795,6 @@ const ovrpLayerSubmit* FLayer::UpdateLayer_RHIThread(const FSettings* Settings, 
 		OvrpLayerSubmit.EyeFov.Fov[0] = Frame->Fov[0];
 		OvrpLayerSubmit.EyeFov.Fov[1] = Frame->Fov[1];
 
-#if PLATFORM_ANDROID
-		if (LayerIndex != 0)
-		{
-			OvrpLayerSubmit.LayerSubmitFlags |= ovrpLayerSubmitFlag_InverseAlpha;
-		}
-#endif
 #if PLATFORM_WINDOWS
 		OvrpLayerSubmit.LayerSubmitFlags |= ovrpLayerSubmitFlag_IgnoreSourceAlpha;
 #endif
