@@ -49,6 +49,7 @@ public class DatasmithRuntime : ModuleRules
 				new string[] {
 					"DesktopPlatform",
 					"MessageLog",
+					"UnrealEd",
 				}
 			);
 		}

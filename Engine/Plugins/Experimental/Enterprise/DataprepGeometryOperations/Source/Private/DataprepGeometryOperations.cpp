@@ -466,8 +466,6 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 	TArray<TUniquePtr<FDynamicMesh3>> Results;
 	
 	// For each mesh in MeshesToCut, the index of the attached generic triangle attribute tracking the object index
-	TArray<int> MeshSubObjectAttribIndices;
-
 	for (UStaticMeshComponent* StaticMeshComponent : StaticMeshComponents)
 	{
 		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
@@ -481,19 +479,18 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 		OriginalMesh->EnableAttributes();
 		TDynamicMeshScalarTriangleAttribute<int>* SubObjectIDs = new TDynamicMeshScalarTriangleAttribute<int>(OriginalMesh.Get());
 		SubObjectIDs->Initialize(0);
-		const int AttribIndex = OriginalMesh->Attributes()->AttachAttribute(SubObjectIDs);
+		OriginalMesh->Attributes()->AttachAttribute(FPlaneCutOp::ObjectIndexAttribute, SubObjectIDs);
 
-		MeshSubObjectAttribIndices.Add(AttribIndex);
+		// TODO: Revisit code based on changes from CL 15519366
+		//// store a UV scale based on the original mesh bounds (we don't want to recompute this between cuts b/c we want consistent UV scale)
+		//const float MeshUVScaleFactor = 1.0 / OriginalMesh->GetBounds().MaxDim();
 
-		// store a UV scale based on the original mesh bounds (we don't want to recompute this between cuts b/c we want consistent UV scale)
-		const float MeshUVScaleFactor = 1.0 / OriginalMesh->GetBounds().MaxDim();
+		//TUniquePtr<FDynamicMeshOperator> CutOp = MakeNewOperator(StaticMeshComponent, OriginalMesh, MeshUVScaleFactor, AttribIndex);
 
-		TUniquePtr<FDynamicMeshOperator> CutOp = MakeNewOperator(StaticMeshComponent, OriginalMesh, MeshUVScaleFactor, AttribIndex);
+		//FProgressCancel Progress;
+		//CutOp->CalculateResult(&Progress);
 
-		FProgressCancel Progress;
-		CutOp->CalculateResult(&Progress);
-
-		Results.Add(CutOp->ExtractResult());
+		//Results.Add(CutOp->ExtractResult());
 	}
 
 	// Currently in-place replaces the first half, and adds a new actor for the second half (if it was generated)
@@ -521,7 +518,7 @@ void UDataprepPlaneCutOperation::OnExecution_Implementation(const FDataprepConte
 		{
 			TDynamicMeshScalarTriangleAttribute<int>* SubMeshIDs =
 				static_cast<TDynamicMeshScalarTriangleAttribute<int>*>(UseMesh->Attributes()->GetAttachedAttribute(
-					MeshSubObjectAttribIndices[OrigMeshIdx]));
+					FPlaneCutOp::ObjectIndexAttribute));
 			TArray<FDynamicMesh3>& SplitMeshes = AllSplitMeshes[OrigMeshIdx];
 			bool bWasSplit = FDynamicMeshEditor::SplitMesh(UseMesh, SplitMeshes, [SubMeshIDs](int TID)
 			{
@@ -657,7 +654,6 @@ TUniquePtr<FDynamicMeshOperator> UDataprepPlaneCutOperation::MakeNewOperator(
 	CutOp->bKeepBothHalves = (CutPlaneKeepSide == EPlaneCutKeepSide::Both);
 	CutOp->CutPlaneLocalThickness = SpacingBetweenHalves * NormalScaleFactor;
 	CutOp->UVScaleFactor = InMeshUVScaleFactor;
-	CutOp->SubObjectsAttribIndex = InAttribIndex;
 
 	return CutOp;
 }
