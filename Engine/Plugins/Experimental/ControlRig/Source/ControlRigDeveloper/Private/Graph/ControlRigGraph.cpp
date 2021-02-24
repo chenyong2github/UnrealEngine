@@ -100,6 +100,12 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElem
 	{
 		return OuterGraph->GetElementNameList(InElementType);
 	}
+	
+	if(InElementType == ERigElementType::None)
+	{
+		return EmptyElementNameList;
+	}
+	
 	if(!ElementNameLists.Contains(InElementType))
 	{
 		UControlRigBlueprint* Blueprint = GetBlueprint();
