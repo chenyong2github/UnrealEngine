@@ -195,6 +195,10 @@ public:
 		if(DynamicHierarchy == nullptr)
 		{
 			DynamicHierarchy = NewObject<URigHierarchy>(this);
+			if (!HasAnyFlags(RF_ClassDefaultObject))
+			{
+				DynamicHierarchy->SetFlags(RF_Transient);
+			}
 		}
 		return DynamicHierarchy;
 	}
