@@ -291,8 +291,10 @@ SPlacementModeTools::~SPlacementModeTools()
 {
 	if ( IPlacementModeModule::IsAvailable() )
 	{
-		IPlacementModeModule::Get().OnRecentlyPlacedChanged().RemoveAll( this );
-		IPlacementModeModule::Get().OnAllPlaceableAssetsChanged().RemoveAll( this );
+		IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
+		PlacementModeModule.OnRecentlyPlacedChanged().RemoveAll(this);
+		PlacementModeModule.OnAllPlaceableAssetsChanged().RemoveAll(this);
+		PlacementModeModule.OnPlacementModeCategoryListChanged().RemoveAll(this);
 	}
 }
 
@@ -301,6 +303,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 	bPlaceablesFullRefreshRequested = false;
 	bRecentlyPlacedRefreshRequested = false;
 	bNeedsUpdate = true;
+	ActiveTabName = FBuiltInPlacementCategories::Basic();
 
 	FPlacementMode* PlacementEditMode = (FPlacementMode*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Placement );
 	if (PlacementEditMode)
@@ -312,21 +315,9 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 		FPlacementAssetEntryTextFilter::FItemToStringArray::CreateStatic(&PlacementViewFilter::GetBasicStrings)
 		));
 
-	TSharedRef<SVerticalBox> Tabs = SNew(SVerticalBox).Visibility(this, &SPlacementModeTools::GetTabsVisibility);
+	Tabs = SNew(SVerticalBox).Visibility(this, &SPlacementModeTools::GetTabsVisibility);
 
-	// Populate the tabs and body from the defined placeable items
-	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
-
-	TArray<FPlacementCategoryInfo> Categories;
-	PlacementModeModule.GetSortedCategories(Categories);
-	for (const FPlacementCategoryInfo& Category : Categories)
-	{
-		Tabs->AddSlot()
-		.AutoHeight()
-		[
-			CreatePlacementGroupTab(Category)
-		];
-	}
+	UpdatePlacementCategories();
 
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar)
 		.Thickness(FVector2D(9.0f, 9.0f));
@@ -353,7 +344,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				Tabs
+				Tabs.ToSharedRef()
 			]
 
 			+ SHorizontalBox::Slot()
@@ -404,11 +395,10 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 		]
 	];
 
-	ActiveTabName = FBuiltInPlacementCategories::Basic();
-	bNeedsUpdate = true;
-
-	PlacementModeModule.OnRecentlyPlacedChanged().AddSP( this, &SPlacementModeTools::UpdateRecentlyPlacedAssets );
-	PlacementModeModule.OnAllPlaceableAssetsChanged().AddSP( this, &SPlacementModeTools::UpdatePlaceableAssets );
+	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
+	PlacementModeModule.OnRecentlyPlacedChanged().AddSP(this, &SPlacementModeTools::UpdateRecentlyPlacedAssets);
+	PlacementModeModule.OnAllPlaceableAssetsChanged().AddSP(this, &SPlacementModeTools::UpdatePlaceableAssets);
+	PlacementModeModule.OnPlacementModeCategoryListChanged().AddSP(this, &SPlacementModeTools::UpdatePlacementCategories);
 }
 
 TSharedRef< SWidget > SPlacementModeTools::CreatePlacementGroupTab( const FPlacementCategoryInfo& Info )
@@ -451,20 +441,30 @@ FName SPlacementModeTools::GetActiveTab() const
 	return IsSearchActive() ? FBuiltInPlacementCategories::AllClasses() : ActiveTabName;
 }
 
+void SPlacementModeTools::SetActiveTab(FName TabName)
+{
+	if (TabName != ActiveTabName)
+	{
+		ActiveTabName = TabName;
+		IPlacementModeModule::Get().RegenerateItemsForCategory(ActiveTabName);
+		bNeedsUpdate = true;
+	}
+}
+
 void SPlacementModeTools::UpdateFilteredItems()
 {
 	bNeedsUpdate = false;
 
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 
-	const FPlacementCategoryInfo* Category = PlacementModeModule.GetRegisteredPlacementCategory(GetActiveTab());
-	if (!Category)
+	const FPlacementCategoryInfo* CategoryInfo = PlacementModeModule.GetRegisteredPlacementCategory(GetActiveTab());
+	if (!CategoryInfo)
 	{
 		return;
 	}
-	else if (Category->CustomGenerator)
+	else if (CategoryInfo->CustomGenerator)
 	{
-		CustomContent->SetContent(Category->CustomGenerator());
+		CustomContent->SetContent(CategoryInfo->CustomGenerator());
 
 		CustomContent->SetVisibility(EVisibility::Visible);
 		DataDrivenContent->SetVisibility(EVisibility::Collapsed);
@@ -472,12 +472,6 @@ void SPlacementModeTools::UpdateFilteredItems()
 	else
 	{
 		FilteredItems.Reset();
-
-		const FPlacementCategoryInfo* CategoryInfo = PlacementModeModule.GetRegisteredPlacementCategory(GetActiveTab());
-		if (!ensure(CategoryInfo))
-		{
-			return;
-		}
 		
 		if (IsSearchActive())
 		{
@@ -542,10 +536,7 @@ void SPlacementModeTools::OnPlacementTabChanged( ECheckBoxState NewState, FName 
 {
 	if ( NewState == ECheckBoxState::Checked )
 	{
-		ActiveTabName = CategoryName;
-		IPlacementModeModule::Get().RegenerateItemsForCategory(ActiveTabName);
-
-		bNeedsUpdate = true;
+		SetActiveTab(CategoryName);
 	}
 }
 
@@ -576,6 +567,49 @@ void SPlacementModeTools::UpdatePlaceableAssets()
 	{
 		bPlaceablesFullRefreshRequested = true;
 	}
+}
+
+void SPlacementModeTools::UpdatePlacementCategories()
+{
+	bool BasicTabExists = false;
+	FName TabToActivate;
+
+	Tabs->ClearChildren();
+
+	TArray<FPlacementCategoryInfo> Categories;
+	IPlacementModeModule::Get().GetUserFacingCategories(Categories);
+	for (const FPlacementCategoryInfo& Category : Categories)
+	{
+		if (Category.UniqueHandle == FBuiltInPlacementCategories::Basic())
+		{
+			BasicTabExists = true;
+		}
+
+		if (Category.UniqueHandle == ActiveTabName)
+		{
+			TabToActivate = ActiveTabName;
+		}
+
+		Tabs->AddSlot()
+			.AutoHeight()
+			[
+				CreatePlacementGroupTab(Category)
+			];
+	}
+
+	if (TabToActivate.IsNone())
+	{
+		if (BasicTabExists)
+		{
+			TabToActivate = FBuiltInPlacementCategories::Basic();
+		}
+		else if (Categories.Num() > 0)
+		{
+			TabToActivate = Categories[0].UniqueHandle;
+		}
+	}
+
+	SetActiveTab(TabToActivate);
 }
 
 void SPlacementModeTools::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )

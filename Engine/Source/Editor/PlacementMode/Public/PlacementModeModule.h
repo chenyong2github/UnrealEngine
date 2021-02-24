@@ -36,6 +36,8 @@ class FPlacementModeModule : public IPlacementModeModule
 {
 public:
 
+	FPlacementModeModule();
+
 	/**
 	 * Called right after the module's DLL has been loaded and the module object has been created
 	 */
@@ -45,6 +47,9 @@ public:
 	 * Called before the module is unloaded, right before the module object is destroyed.
 	 */
 	virtual void PreUnloadCallback() override;
+
+	DECLARE_DERIVED_EVENT(FPlacementModeModule, IPlacementModeModule::FOnPlacementModeCategoryListChanged, FOnPlacementModeCategoryListChanged);
+	virtual FOnPlacementModeCategoryListChanged& OnPlacementModeCategoryListChanged() override { return PlacementModeCategoryListChanged; }
 
 	DECLARE_DERIVED_EVENT(FPlacementModeModule, IPlacementModeModule::FOnPlacementModeCategoryRefreshed, FOnPlacementModeCategoryRefreshed);
 	virtual FOnPlacementModeCategoryRefreshed& OnPlacementModeCategoryRefreshed() override { return PlacementModeCategoryRefreshed; }
@@ -59,12 +64,6 @@ public:
 	 * Add the specified assets to the recently placed items list
 	 */
 	virtual void AddToRecentlyPlaced(const TArray< UObject* >& PlacedObjects, UActorFactory* FactoryUsed = NULL) override;
-
-	void OnAssetRemoved(const FAssetData& /*InRemovedAssetData*/);
-
-	void OnAssetRenamed(const FAssetData& AssetData, const FString& OldObjectPath);
-
-	void OnAssetAdded(const FAssetData& AssetData);
 
 	/**
 	 * Add the specified asset to the recently placed items list
@@ -112,7 +111,9 @@ public:
 
 	virtual void UnregisterPlacementCategory(FName Handle);
 
-	virtual void GetSortedCategories(TArray<FPlacementCategoryInfo>& OutCategories) const;
+	virtual TSharedRef<FBlacklistNames>& GetCategoryBlacklist() override { return CategoryBlacklist; }
+
+	virtual void GetUserFacingCategories(TArray<FPlacementCategoryInfo>& OutCategories) const;
 
 	virtual TOptional<FPlacementModeID> RegisterPlaceableItem(FName CategoryName, const TSharedRef<FPlaceableItem>& InItem);
 
@@ -126,6 +127,14 @@ public:
 
 private:
 
+	void OnAssetRemoved(const FAssetData& /*InRemovedAssetData*/);
+
+	void OnAssetRenamed(const FAssetData& AssetData, const FString& OldObjectPath);
+
+	void OnAssetAdded(const FAssetData& AssetData);
+
+	void OnInitialAssetsScanComplete();
+
 	void RefreshRecentlyPlaced();
 
 	void RefreshVolumes();
@@ -136,18 +145,23 @@ private:
 
 	FPlacementModeID CreateID(FName InCategory);
 
+	void OnCategoryBlacklistChanged();
+
 private:
 
 	TMap<FName, FPlacementCategory> Categories;
 
-	TArray< FActorPlacementInfo >	RecentlyPlaced;
-	FOnRecentlyPlacedChanged		RecentlyPlacedChanged;
+	TSharedRef<FBlacklistNames> CategoryBlacklist;
 
-	FOnAllPlaceableAssetsChanged	AllPlaceableAssetsChanged;
+	TArray< FActorPlacementInfo > RecentlyPlaced;
+	FOnRecentlyPlacedChanged RecentlyPlacedChanged;
+
+	FOnAllPlaceableAssetsChanged AllPlaceableAssetsChanged;
 	FOnPlacementModeCategoryRefreshed PlacementModeCategoryRefreshed;
+	FOnPlacementModeCategoryListChanged PlacementModeCategoryListChanged;
 
-	FOnStartedPlacingEvent			StartedPlacingEvent;
-	FOnStoppedPlacingEvent			StoppedPlacingEvent;
+	FOnStartedPlacingEvent StartedPlacingEvent;
+	FOnStoppedPlacingEvent StoppedPlacingEvent;
 
 	TArray< TSharedPtr<FExtender> > ContentPaletteFiltersExtenders;
 	TArray< TSharedPtr<FExtender> > PaletteExtenders;

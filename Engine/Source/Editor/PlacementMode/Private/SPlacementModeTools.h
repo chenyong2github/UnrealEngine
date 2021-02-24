@@ -78,6 +78,9 @@ private:
 	/** Get the identifier of the currently active tab */
 	FName GetActiveTab() const;
 
+	/** Changes the active tab */
+	void SetActiveTab(FName TabName);
+
 	/** Check if a search is active */
 	bool IsSearchActive() const;
 
@@ -89,6 +92,9 @@ private:
 
 	/** Called when the list of placeable assets changes. */
 	void UpdatePlaceableAssets();
+
+	/** Called when the list of placement categories changes. */
+	void UpdatePlacementCategories();
 
 private:
 
@@ -144,6 +150,9 @@ private:
 
 	/** Array of filtered items to show in the list view */
 	TArray<TSharedPtr<FPlaceableItem>> FilteredItems;
+
+	/** Tabs vertical box */
+	TSharedPtr<SVerticalBox> Tabs;
 
 	/** The name of the currently active tab (where no search is active) */
 	FName ActiveTabName;

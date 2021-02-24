@@ -5,6 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
+#include "Misc/BlacklistNames.h"
 #include "UObject/Class.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -71,13 +72,16 @@ TOptional<FLinearColor> GetBasicShapeColorOverride()
 	return BasicShapeColorOverride;
 }
 
+FPlacementModeModule::FPlacementModeModule()
+	: CategoryBlacklist(MakeShareable(new FBlacklistNames()))
+{
+	CategoryBlacklist->OnFilterChanged().AddRaw(this, &FPlacementModeModule::OnCategoryBlacklistChanged);
+}
+
 void FPlacementModeModule::StartupModule()
 {
 	TArray< FString > RecentlyPlacedAsStrings;
 	GConfig->GetArray(TEXT("PlacementMode"), TEXT("RecentlyPlaced"), RecentlyPlacedAsStrings, GEditorPerProjectIni);
-
-	//FString ActivePaletteName;
-	//GConfig->GetString( TEXT( "PlacementMode" ), TEXT( "ActivePalette" ), ActivePaletteName, GEditorPerProjectIni );
 
 	for (int Index = 0; Index < RecentlyPlacedAsStrings.Num(); Index++)
 	{
@@ -90,10 +94,17 @@ void FPlacementModeModule::StartupModule()
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.PlacementMode", "LevelEditor.PlacementMode.Small"),
 		GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI, 0);
 
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FPlacementModeModule::OnAssetRemoved);
-	AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FPlacementModeModule::OnAssetRenamed);
-	AssetRegistryModule.Get().OnAssetAdded().AddRaw(this, &FPlacementModeModule::OnAssetAdded);
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	AssetRegistry.OnAssetRemoved().AddRaw(this, &FPlacementModeModule::OnAssetRemoved);
+	AssetRegistry.OnAssetRenamed().AddRaw(this, &FPlacementModeModule::OnAssetRenamed);
+	if (AssetRegistry.IsLoadingAssets())
+	{
+		AssetRegistry.OnFilesLoaded().AddRaw(this, &FPlacementModeModule::OnInitialAssetsScanComplete);
+	}
+	else
+	{
+		AssetRegistry.OnAssetAdded().AddRaw(this, &FPlacementModeModule::OnAssetAdded);
+	}
 
 	TOptional<FLinearColor> BasicShapeColorOverride = GetBasicShapeColorOverride();
 
@@ -223,6 +234,7 @@ void FPlacementModeModule::PreUnloadCallback()
 		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
 		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
 		AssetRegistryModule->Get().OnAssetAdded().RemoveAll(this);
+		AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(this);
 	}
 }
 
@@ -318,6 +330,15 @@ void FPlacementModeModule::OnAssetAdded(const FAssetData& AssetData)
 	AllPlaceableAssetsChanged.Broadcast();
 }
 
+void FPlacementModeModule::OnInitialAssetsScanComplete()
+{
+	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+	AssetRegistry.OnAssetAdded().AddRaw(this, &FPlacementModeModule::OnAssetAdded);
+	AssetRegistry.OnFilesLoaded().RemoveAll(this);
+
+	AllPlaceableAssetsChanged.Broadcast();
+}
+
 void FPlacementModeModule::AddToRecentlyPlaced(UObject* Asset, UActorFactory* FactoryUsed /* = NULL */)
 {
 	TArray< UObject* > Assets;
@@ -338,15 +359,19 @@ bool FPlacementModeModule::RegisterPlacementCategory(const FPlacementCategoryInf
 	}
 
 	Categories.Add(Info.UniqueHandle, Info);
+	PlacementModeCategoryListChanged.Broadcast();
 	return true;
 }
 
 void FPlacementModeModule::UnregisterPlacementCategory(FName Handle)
 {
-	Categories.Remove(Handle);
+	if (Categories.Remove(Handle))
+	{
+		PlacementModeCategoryListChanged.Broadcast();
+	}
 }
 
-void FPlacementModeModule::GetSortedCategories(TArray<FPlacementCategoryInfo>& OutCategories) const
+void FPlacementModeModule::GetUserFacingCategories(TArray<FPlacementCategoryInfo>& OutCategories) const
 {
 	TArray<FName> SortedNames;
 	Categories.GenerateKeyArray(SortedNames);
@@ -358,7 +383,10 @@ void FPlacementModeModule::GetSortedCategories(TArray<FPlacementCategoryInfo>& O
 	OutCategories.Reset(Categories.Num());
 	for (const FName& Name : SortedNames)
 	{
-		OutCategories.Add(Categories[Name]);
+		if (CategoryBlacklist->PassesFilter(Name))
+		{
+			OutCategories.Add(Categories[Name]);
+		}
 	}
 }
 
@@ -576,4 +604,9 @@ FPlacementModeID FPlacementModeModule::CreateID(FName InCategory)
 	NewID.UniqueID = CreateID();
 	NewID.Category = InCategory;
 	return NewID;
+}
+
+void FPlacementModeModule::OnCategoryBlacklistChanged()
+{
+	PlacementModeCategoryListChanged.Broadcast();
 }
