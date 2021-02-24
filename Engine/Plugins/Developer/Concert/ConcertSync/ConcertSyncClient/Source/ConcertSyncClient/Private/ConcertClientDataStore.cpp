@@ -90,16 +90,17 @@ TFuture<FConcertDataStoreResult> FConcertClientDataStore::InternalCompareExchang
 	CompareExchangeRequest.Expected.SetPayload(Type, Expected);
 
 	// If the expected value matches the cached value.
-	if (Result.Value->SerializedValue.CompressedPayload.Bytes == CompareExchangeRequest.Expected.CompressedPayload.Bytes)
+	if (Result.Value->SerializedValue.PayloadBytes.Bytes == CompareExchangeRequest.Expected.PayloadBytes.Bytes)
 	{
 		// If the 'expected' payload is rather large.
-		if (CompareExchangeRequest.Expected.UncompressedPayloadSize > ConcertDataStoreUtils::CompareExchangePayloadSizeOptimizationThreshold)
+		if (CompareExchangeRequest.Expected.PayloadSize > ConcertDataStoreUtils::CompareExchangePayloadSizeOptimizationThreshold)
 		{
 			// Send the 'version' rather than 'expected' to save bandwidth.
 			CompareExchangeRequest.ExpectedVersion = Result.Value->Version;
 			CompareExchangeRequest.Expected.PayloadTypeName = TEXT("");
-			CompareExchangeRequest.Expected.UncompressedPayloadSize = 0;
-			CompareExchangeRequest.Expected.CompressedPayload.Bytes.Reset();
+			CompareExchangeRequest.Expected.bPayloadIsCompressed = false;
+			CompareExchangeRequest.Expected.PayloadSize = 0;
+			CompareExchangeRequest.Expected.PayloadBytes.Bytes.Reset();
 		}
 	}
 	else
@@ -183,13 +184,14 @@ FConcertDataStoreResult FConcertClientDataStore::HandleResponse(const FName& Sen
 		// Ensure the server doesn't send data when the client initiated the operation (The client knows the value he sent).
 		check(Response.Value.TypeName.IsNone());
 		check(Response.Value.SerializedValue.PayloadTypeName.IsNone());
-		check(Response.Value.SerializedValue.CompressedPayload.Bytes.Num() == 0);
+		check(Response.Value.SerializedValue.bPayloadIsCompressed == false);
+		check(Response.Value.SerializedValue.PayloadBytes.Bytes.Num() == 0);
 
 		// Ensure the server sent back a valid version in case it has exchanged the value. (Successfully added value is always version 1)
 		check(Response.ResultCode == EConcertDataStoreResultCode::Added || (Response.ResultCode == EConcertDataStoreResultCode::Exchanged && Response.Value.Version > 0));
 
 		// Ensure FetchOrAdd()/CompareExchange() called the FConcertDataStoreResponseHandler constructor that recorded the value sent.
-		check(SentValue.CompressedPayload.Bytes.Num() > 0);
+		check(SentValue.PayloadBytes.Bytes.Num() > 0);
 
 		// Add the value or update it in the cache, using the value we previously sent.
 		FScopeLock ScopeLock(&CritSection);
@@ -210,7 +212,7 @@ FConcertDataStoreResult FConcertClientDataStore::HandleResponse(const FName& Sen
 		// UnexpectedError -> This is Response.ResultCode default value. It is expected when a request time out because the Concert framework sends a default-constructed response.
 		check(Response.ResultCode == EConcertDataStoreResultCode::UnexpectedError || Response.ResultCode == EConcertDataStoreResultCode::TypeMismatch || Response.ResultCode == EConcertDataStoreResultCode::NotFound);
 		check(Response.Value.SerializedValue.PayloadTypeName.IsNone());
-		check(Response.Value.SerializedValue.CompressedPayload.Bytes.Num() == 0);
+		check(Response.Value.SerializedValue.PayloadBytes.Bytes.Num() == 0);
 		Result.Code = Response.ResultCode;
 	}
 

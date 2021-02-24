@@ -20,6 +20,26 @@ enum class EConcertServerFlags : uint8
 };
 ENUM_CLASS_FLAGS(EConcertServerFlags)
 
+UENUM()
+enum class EConcertPayloadCompressionType : uint8
+{
+	// The serialized data will not be compressed.
+	None = 0,
+	// The serialized data will be compressed based on struct size.
+	Heuristic,
+	// The serialized data will always be compressed.
+	Always
+};
+ENUM_CLASS_FLAGS(EConcertPayloadCompressionType)
+
+UENUM()
+enum class EConcertPayloadSerializationMethod : uint8
+{
+	// The data will be serialized using standard platform method.
+	Standard = 0,
+	// The data will be serialized using Cbor method.
+	Cbor,
+};
 
 /** Holds info on an instance communicating through concert */
 USTRUCT()
@@ -268,14 +288,21 @@ struct FConcertSessionSerializedPayload
 {
 	GENERATED_BODY()
 
+	FConcertSessionSerializedPayload() = default;
+
+	FConcertSessionSerializedPayload( EConcertPayloadSerializationMethod SerializeMethod )
+		: SerializationMethod(SerializeMethod)
+	{
+	}
+
 	/** Initialize this payload from the given data */
-	CONCERT_API bool SetPayload(const FStructOnScope& InPayload);
-	CONCERT_API bool SetPayload(const UScriptStruct* InPayloadType, const void* InPayloadData);
+	CONCERT_API bool SetPayload(const FStructOnScope& InPayload, EConcertPayloadCompressionType CompressionType = EConcertPayloadCompressionType::Heuristic);
+	CONCERT_API bool SetPayload(const UScriptStruct* InPayloadType, const void* InPayloadData, EConcertPayloadCompressionType CompressionType = EConcertPayloadCompressionType::Heuristic);
 
 	template <typename T>
-	bool SetTypedPayload(const T& InPayloadData)
+	bool SetTypedPayload(const T& InPayloadData, EConcertPayloadCompressionType CompressType = EConcertPayloadCompressionType::Heuristic)
 	{
-		return SetPayload(TBaseStructure<T>::Get(), &InPayloadData);
+		return SetPayload(TBaseStructure<T>::Get(), &InPayloadData, CompressType);
 	}
 
 	/** Extract the payload into an in-memory instance */
@@ -292,49 +319,19 @@ struct FConcertSessionSerializedPayload
 	UPROPERTY(VisibleAnywhere, Category="Payload")
 	FName PayloadTypeName;
 
-	/** The uncompressed size of the user-defined payload data. */
+	/** Specifies the serialization method used to pack the data */
+	UPROPERTY(VisibleAnywhere, Category = "Payload")
+	EConcertPayloadSerializationMethod SerializationMethod = EConcertPayloadSerializationMethod::Standard;
+
+	/** Indicates if the serialized payload has been compressed. */
 	UPROPERTY(VisibleAnywhere, Category="Payload")
-	int32 UncompressedPayloadSize = 0;
-
-	/** The data of the user-defined payload (stored as compressed binary for compact transfer). */
-	UPROPERTY()
-	FConcertByteArray CompressedPayload;
-};
-
-USTRUCT()
-struct FConcertSessionSerializedCborPayload
-{
-	GENERATED_BODY()
-
-	/** Initialize this payload from the given data */
-	CONCERT_API bool SetPayload(const FStructOnScope& InPayload);
-	CONCERT_API bool SetPayload(const UScriptStruct* InPayloadType, const void* InPayloadData);
-
-	template <typename T>
-	bool SetTypedPayload(const T& InPayloadData)
-	{
-		return SetPayload(TBaseStructure<T>::Get(), &InPayloadData);
-	}
-
-	/** Extract the payload into an in-memory instance */
-	CONCERT_API bool GetPayload(FStructOnScope& OutPayload) const;
-	CONCERT_API bool GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const;
-
-	template <typename T>
-	bool GetTypedPayload(T& OutPayloadData) const
-	{
-		return GetPayload(TBaseStructure<T>::Get(), &OutPayloadData);
-	}
-
-	/** The typename of the user-defined payload. */
-	UPROPERTY(VisibleAnywhere, Category="Payload")
-	FName PayloadTypeName;
+	bool bPayloadIsCompressed = false;
 
 	/** The uncompressed size of the user-defined payload data. */
 	UPROPERTY(VisibleAnywhere, Category="Payload")
-	int32 UncompressedPayloadSize = 0;
+	int32 PayloadSize = 0;
 
-	/** The data of the user-defined payload (stored as compressed Cbor for compact transfer). */
+	/** The data of the user-defined payload (potentially stored as compressed binary for compact transfer). */
 	UPROPERTY()
-	FConcertByteArray CompressedPayload;
+	FConcertByteArray PayloadBytes;
 };

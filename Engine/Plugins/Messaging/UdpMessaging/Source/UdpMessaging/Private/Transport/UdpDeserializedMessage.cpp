@@ -12,7 +12,7 @@
 #include "UObject/Package.h"
 #include "UdpMessagingPrivate.h"
 #include "UdpMessagingSettings.h"
-
+#include "UdpMessagingTracing.h"
 
 /* FUdpDeserializedMessage structors
 *****************************************************************************/
@@ -52,6 +52,7 @@ public:
 
 bool FUdpDeserializedMessage::Deserialize(const FUdpReassembledMessage& ReassembledMessage)
 {
+	SCOPED_MESSAGING_TRACE(FUdpDeserializedMessage_Deserialize);
 	return FUdpDeserializedMessageDetails::Deserialize(*this, ReassembledMessage);
 }
 

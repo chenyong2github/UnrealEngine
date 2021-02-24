@@ -135,7 +135,7 @@ public:
 			ExpectedValueSerialized.SetPayload(TConcertDataStoreType<T>::StructType::StaticStruct(), &StructWrappedExpected);
 
 			// If the stored value equals the expected value.
-			if (Result.Value->SerializedValue.CompressedPayload.Bytes == ExpectedValueSerialized.CompressedPayload.Bytes)
+			if (Result.Value->SerializedValue.PayloadBytes.Bytes == ExpectedValueSerialized.PayloadBytes.Bytes )
 			{
 				return Store<T>(Key, Desired);
 			}

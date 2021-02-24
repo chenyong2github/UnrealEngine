@@ -250,7 +250,7 @@ TFuture<TOptional<FConcertSyncTransactionEvent>> FConcertClientWorkspace::FindOr
 			TWeakPtr<FConcertSyncClientLiveSession> WeakLiveSession = LiveSession;
 			return LiveSession->GetSession().SendCustomRequest<FConcertSyncEventRequest, FConcertSyncEventResponse>(SyncEventRequest, LiveSession->GetSession().GetSessionServerEndpointId()).Next([WeakLiveSession, TransactionEventId](const FConcertSyncEventResponse& Response)
 			{
-				if (Response.Event.UncompressedPayloadSize > 0) // Some data was sent back?
+				if (Response.Event.PayloadSize > 0) // Some data was sent back?
 				{
 					// Extract the payload as FConcertSyncTransactionEvent.
 					FStructOnScope EventPayload;

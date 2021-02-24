@@ -2,6 +2,7 @@
 
 #include "ConcertServerWorkspace.h"
 
+#include "ConcertMessageData.h"
 #include "IConcertSession.h"
 #include "IConcertFileSharingService.h"
 #include "ConcertSyncServerLiveSession.h"
@@ -96,6 +97,7 @@ void FConcertServerWorkspace::UnbindSession()
 
 void FConcertServerWorkspace::HandleTick(IConcertServerSession& InSession, float InDeltaTime)
 {
+	SCOPED_CONCERT_TRACE(FConcertServerWorkspace_HandleTick);
 	check(&LiveSession->GetSession() == &InSession);
 
 	static const double SyncFrameLimitSeconds = 1.0 / 60;
@@ -949,6 +951,7 @@ void FConcertServerWorkspace::AddPackageActivity(const FConcertSyncActivity& InP
 
 void FConcertServerWorkspace::SendSyncPackageActivityEvent(const FGuid& InTargetEndpointId, const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents, const bool InHeadOnly) const
 {
+	SCOPED_CONCERT_TRACE(FConcertServerWorkspace_SendSyncPackageActivityEvent);
 	FConcertSyncPackageActivity SyncActivity;
 	if (LiveSession->GetSessionDatabase().GetActivity(InSyncActivityId, SyncActivity))
 	{
@@ -981,7 +984,8 @@ void FConcertServerWorkspace::SendSyncPackageActivityEvent(const FGuid& InTarget
 
 		FConcertWorkspaceSyncActivityEvent SyncEvent;
 		SyncEvent.NumRemainingSyncEvents = InNumRemainingSyncEvents;
-		SyncEvent.Activity.SetTypedPayload(SyncActivity);
+		// If SyncActivity was already compressed then there is no need to compress it again.
+		SyncEvent.Activity.SetTypedPayload(SyncActivity,EConcertPayloadCompressionType::None);
 		LiveSession->GetSession().SendCustomEvent(SyncEvent, InTargetEndpointId, EConcertMessageFlags::ReliableOrdered);
 	}
 	else
@@ -1021,6 +1025,7 @@ bool FConcertServerWorkspace::CanExchangePackageDataAsByteArray(int64 PackageDat
 
 EConcertSessionResponseCode FConcertServerWorkspace::FillPackageEvent(FConcertSyncPackageEventData& InPackageEvent, FConcertSyncPackageEvent& OutPackageEvent) const
 {
+	SCOPED_CONCERT_TRACE(FConcertSaveWorkspace_FillPackageEvent);
 	EConcertSessionResponseCode FillPackageEventResponseCode = EConcertSessionResponseCode::Success;
 
 	// Fill the meta data.

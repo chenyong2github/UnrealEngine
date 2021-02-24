@@ -13,6 +13,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "UObject/Class.h"
 
+#include "UdpMessagingTracing.h"
 #include "Shared/UdpMessagingSettings.h"
 #include "Transport/UdpMessageBeacon.h"
 #include "Transport/UdpMessageSegmenter.h"
@@ -308,6 +309,7 @@ FTimespan FUdpMessageProcessor::CalculateWaitTime() const
 
 void FUdpMessageProcessor::ConsumeInboundSegments()
 {
+	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_ConsumeInboundSegments);
 	FInboundSegment Segment;
 
 	while (InboundSegments.Dequeue(Segment))
@@ -388,6 +390,7 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 
 void FUdpMessageProcessor::ConsumeOutboundMessages()
 {
+	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_ConsumeOutputMessages);
 	FOutboundMessage OutboundMessage;
 
 	while (OutboundMessages.Dequeue(OutboundMessage))
@@ -731,6 +734,7 @@ int32 GetMaxSendRate()
 
 void FUdpMessageProcessor::UpdateKnownNodes()
 {
+	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_UpdateKnownNodes);
 	const uint32 MaxSendRate = GetMaxSendRate();
 
 	// Remove dead nodes

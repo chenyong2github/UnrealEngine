@@ -5,6 +5,7 @@
 #include "IConcertSession.h"
 #include "IConcertSessionHandler.h"
 #include "ConcertSyncServerLiveSession.h"
+#include "ConcertLogGlobal.h"
 
 FConcertServerDataStore::FConcertServerDataStore(TSharedRef<FConcertSyncServerLiveSession> InLiveSession, bool bIsContentReplicationEnabled)
 	: DataStore(FConcertDataStore::EUpdatePolicy::Overwrite)
@@ -53,8 +54,9 @@ EConcertSessionResponseCode FConcertServerDataStore::OnFetchOrAdd(const FConcert
 
 EConcertSessionResponseCode FConcertServerDataStore::OnCompareExchange(const FConcertSessionContext& Context, const FConcertDataStore_CompareExchangeRequest& Request, FConcertDataStore_Response& Response)
 {
+	SCOPED_CONCERT_TRACE(FConcertServerDataStore_OnCompareExchange);
 	// Ensure we have a version or an expected value, but not both.
-	check((Request.ExpectedVersion != 0 && Request.Expected.UncompressedPayloadSize == 0) || (Request.ExpectedVersion == 0 && Request.Expected.UncompressedPayloadSize != 0));
+	check((Request.ExpectedVersion != 0 && Request.Expected.PayloadSize == 0) || (Request.ExpectedVersion == 0 && Request.Expected.PayloadSize != 0));
 
 	// Try to fetch the value.
 	FConcertDataStoreResult Result = DataStore.Fetch(Request.Key, Request.TypeName);
@@ -64,7 +66,10 @@ EConcertSessionResponseCode FConcertServerDataStore::OnCompareExchange(const FCo
 	{
 		// If the version or value matches.
 		if ((Request.ExpectedVersion != 0 && Request.ExpectedVersion == Result.Value->Version) ||
-		    (Request.ExpectedVersion == 0 && Result.Value->SerializedValue.UncompressedPayloadSize == Request.Expected.UncompressedPayloadSize && Result.Value->SerializedValue.CompressedPayload.Bytes == Request.Expected.CompressedPayload.Bytes))
+		    (Request.ExpectedVersion == 0
+			 && Result.Value->SerializedValue.bPayloadIsCompressed == Request.Expected.bPayloadIsCompressed
+			 && Result.Value->SerializedValue.PayloadSize == Request.Expected.PayloadSize
+			 && Result.Value->SerializedValue.PayloadBytes.Bytes == Request.Expected.PayloadBytes.Bytes))
 		{
 			// Replace the current value with the desired one.
 			Result = DataStore.Store(Request.Key, Result.Value->TypeName, Request.Desired);

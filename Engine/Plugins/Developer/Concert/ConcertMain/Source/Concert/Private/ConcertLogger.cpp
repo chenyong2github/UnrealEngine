@@ -42,7 +42,7 @@ FString SerializedPayloadToString(const FConcertSessionSerializedPayload& InPayl
 void PopulateLogMessagePayload(const FConcertSessionSerializedPayload& InPayload, FConcertLog& InOutLogMessage)
 {
 	InOutLogMessage.CustomPayloadTypename = InPayload.PayloadTypeName;
-	InOutLogMessage.CustomPayloadUncompressedByteSize = InPayload.UncompressedPayloadSize;
+	InOutLogMessage.CustomPayloadUncompressedByteSize = InPayload.PayloadSize;
 	InOutLogMessage.StringPayload = SerializedPayloadToString(InPayload);
 }
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConcertServerSyncCommandQueue.h"
+#include "ConcertLogGlobal.h"
 #include "HAL/PlatformTime.h"
 
 void FConcertServerSyncCommandQueue::RegisterEndpoint(const FGuid& InEndpointId)
@@ -35,6 +36,7 @@ void FConcertServerSyncCommandQueue::QueueCommand(TArrayView<const FGuid> InEndp
 
 void FConcertServerSyncCommandQueue::ProcessQueue(const double InTimeLimitSeconds)
 {
+	SCOPED_CONCERT_TRACE(FConcertServerSyncCommandQueue_ProcessQueue);
 	TArray<FGuid> TimeSlicedEndpointIds;
 
 	double ProcessStartTimeSeconds = FPlatformTime::Seconds();

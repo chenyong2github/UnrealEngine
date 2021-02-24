@@ -11,6 +11,7 @@
 #include "UdpMessagingPrivate.h"
 #include "Transport/UdpSerializedMessage.h"
 #include "UdpMessagingSettings.h"
+#include "UdpMessagingTracing.h"
 
 namespace UdpSerializeMessageTaskDetails
 {
@@ -101,6 +102,7 @@ void SerializeMessageV11_14(FArchive& Archive, const TSharedRef<IMessageContext,
 
 void FUdpSerializeMessageTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
+	SCOPED_MESSAGING_TRACE(FUdpSerializeMessageTask_DoTask);
 	if (MessageContext->IsValid())
 	{
 		// Note that some complex values are serialized manually here, so that we can ensure
