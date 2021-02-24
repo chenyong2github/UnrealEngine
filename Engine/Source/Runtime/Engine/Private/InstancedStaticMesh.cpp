@@ -3023,6 +3023,11 @@ int32 UInstancedStaticMeshComponent::GetInstanceCount() const
 	return PerInstanceSMData.Num();
 }
 
+bool UInstancedStaticMeshComponent::IsValidInstance(int32 InstanceIndex) const
+{
+	return PerInstanceSMData.IsValidIndex(InstanceIndex);
+}
+
 void UInstancedStaticMeshComponent::SetCullDistances(int32 StartCullDistance, int32 EndCullDistance)
 {
 	if (InstanceStartCullDistance != StartCullDistance || InstanceEndCullDistance != EndCullDistance)

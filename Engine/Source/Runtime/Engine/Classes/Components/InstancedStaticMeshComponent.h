@@ -277,6 +277,10 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	int32 GetInstanceCount() const;
 
+	/** Does the given index map to a valid instance in this component? */
+	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
+	bool IsValidInstance(int32 InstanceIndex) const;
+
 	/** Sets the fading start and culling end distances for this component. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	void SetCullDistances(int32 StartCullDistance, int32 EndCullDistance);

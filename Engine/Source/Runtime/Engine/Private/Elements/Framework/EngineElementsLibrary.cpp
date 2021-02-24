@@ -74,28 +74,41 @@ FTypedElementHandle AcquireEditorTypedElementHandle(const ObjectClass* Object, T
 	return FTypedElementHandle();
 }
 
-template <typename ObjectClass, typename ElementDataType>
-void ReplaceEditorTypedElementHandles(TArray<FTypedElementHandle>& OutUpdatedElements, const TMap<UObject*, UObject*>& ReplacementObjects, TTypedElementOwnerStore<ElementDataType, const ObjectClass*>& ElementOwnerStore, TFunctionRef<void(const ObjectClass*, TTypedElementOwner<ElementDataType>&)> UpdateElement, TFunctionRef<void(const ObjectClass*, TTypedElementOwner<ElementDataType>&)> DestroyElement)
+template <typename ObjectClass>
+TArray<TTuple<const ObjectClass*, const ObjectClass*>> CalculatePotentialObjectReplacements(const TMap<UObject*, UObject*>& ReplacementObjects)
 {
+	TArray<TTuple<const ObjectClass*, const ObjectClass*>> PotentialObjectReplacements;
+
 	for (const TTuple<UObject*, UObject*>& ReplacementObjectPair : ReplacementObjects)
 	{
-		const ObjectClass* OldObject = Cast<ObjectClass>(ReplacementObjectPair.Key);
-		if (!OldObject)
+		if (const ObjectClass* OldObject = Cast<ObjectClass>(ReplacementObjectPair.Key))
 		{
-			// We can't do anything for objects of the incorrect type...
-			continue;
+			const ObjectClass* NewObject = Cast<ObjectClass>(ReplacementObjectPair.Value);
+			PotentialObjectReplacements.Add(MakeTuple(OldObject, NewObject));
 		}
+	}
+
+	return PotentialObjectReplacements;
+}
+
+template <typename ElementDataType, typename KeyDataType>
+void ReplaceEditorTypedElementHandles(TArray<FTypedElementHandle>& OutUpdatedElements, const TArray<TTuple<KeyDataType, KeyDataType>>& ReplacementKeys, TTypedElementOwnerStore<ElementDataType, KeyDataType>& ElementOwnerStore, TFunctionRef<void(KeyDataType, TTypedElementOwner<ElementDataType>&)> UpdateElement, TFunctionRef<void(KeyDataType, TTypedElementOwner<ElementDataType>&)> DestroyElement)
+{
+	for (const TTuple<KeyDataType, KeyDataType>& ReplacementKeyPair : ReplacementKeys)
+	{
+		const KeyDataType& OldKey = ReplacementKeyPair.Key;
+		const KeyDataType& NewKey = ReplacementKeyPair.Value;
 
 		// We only need to attempt replacement if we actually have an element for the old object...
-		if (TTypedElementOwner<ElementDataType> OldEditorElement = ElementOwnerStore.UnregisterElementOwner(OldObject))
+		if (TTypedElementOwner<ElementDataType> OldEditorElement = ElementOwnerStore.UnregisterElementOwner(OldKey))
 		{
 			if (OldEditorElement.Private_GetInternalData()->GetRefCount() > 1)
 			{
-				if (const ObjectClass* NewObject = Cast<ObjectClass>(ReplacementObjectPair.Value))
+				if (NewKey)
 				{
 					// The old element has external references, so we're going to destroy the new element (if any) and re-point the old element to the new object...
 					// Note: This requires that the new element has no external references - if both old and new elements have external references then we'll need to support redirection at the element level!
-					if (TTypedElementOwner<ElementDataType> NewEditorElement = ElementOwnerStore.UnregisterElementOwner(NewObject))
+					if (TTypedElementOwner<ElementDataType> NewEditorElement = ElementOwnerStore.UnregisterElementOwner(NewKey))
 					{
 						if (NewEditorElement.Private_GetInternalData()->GetRefCount() > 1)
 						{
@@ -106,25 +119,25 @@ void ReplaceEditorTypedElementHandles(TArray<FTypedElementHandle>& OutUpdatedEle
 						}
 
 						checkf(NewEditorElement.Private_GetInternalData()->GetRefCount() <= 1, TEXT("The old and new element both have external references! Replacing these will require support for redirection at the element level!"));
-						DestroyElement(NewObject, NewEditorElement);
+						DestroyElement(NewKey, NewEditorElement);
 					}
 
-					UpdateElement(NewObject, OldEditorElement);
+					UpdateElement(NewKey, OldEditorElement);
 					OutUpdatedElements.Emplace(OldEditorElement.AcquireHandle());
-					ElementOwnerStore.RegisterElementOwner(NewObject, MoveTemp(OldEditorElement));
+					ElementOwnerStore.RegisterElementOwner(NewKey, MoveTemp(OldEditorElement));
 				}
 				else
 				{
 					// The object has been redirected to null, so try and clear any external references to the old element...
 					TTuple<FTypedElementHandle, FTypedElementHandle> ElementRedirect = MakeTuple(OldEditorElement.AcquireHandle(), FTypedElementHandle());
 					UTypedElementRegistry::GetInstance()->OnElementReplaced().Broadcast(MakeArrayView(&ElementRedirect, 1));
-					DestroyElement(OldObject, OldEditorElement);
+					DestroyElement(OldKey, OldEditorElement);
 				}
 			}
 			else
 			{
 				// The old element has no external references, so we can just destroy it...
-				DestroyElement(OldObject, OldEditorElement);
+				DestroyElement(OldKey, OldEditorElement);
 			}
 		}
 	}
@@ -162,20 +175,67 @@ void UEngineElementsLibrary::OnObjectsReplaced(const TMap<UObject*, UObject*>& I
 {
 	TArray<FTypedElementHandle> UpdatedElements;
 
-	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<UObject, FObjectElementData>(UpdatedElements, InReplacementObjects, GObjectElementOwnerStore, [](const UObject* InObject, TTypedElementOwner<FObjectElementData>& InOutObjectElement)
 	{
-		InOutObjectElement.GetDataChecked().Object = const_cast<UObject*>(InObject);
-	}, &UEngineElementsLibrary::DestroyObjectElement);
+		const TArray<TTuple<const UObject*, const UObject*>> PotentialObjectReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<UObject>(InReplacementObjects);
+		EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FObjectElementData, const UObject*>(UpdatedElements, PotentialObjectReplacements, GObjectElementOwnerStore, [](const UObject* InObject, TTypedElementOwner<FObjectElementData>& InOutObjectElement)
+		{
+			InOutObjectElement.GetDataChecked().Object = const_cast<UObject*>(InObject);
+		}, &UEngineElementsLibrary::DestroyObjectElement);
+	}
 
-	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<AActor, FActorElementData>(UpdatedElements, InReplacementObjects, GActorElementOwnerStore, [](const AActor* InActor, TTypedElementOwner<FActorElementData>& InOutActorElement)
 	{
-		InOutActorElement.GetDataChecked().Actor = const_cast<AActor*>(InActor);
-	}, &UEngineElementsLibrary::DestroyActorElement);
+		const TArray<TTuple<const AActor*, const AActor*>> PotentialActorReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<AActor>(InReplacementObjects);
+		EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FActorElementData, const AActor*>(UpdatedElements, PotentialActorReplacements, GActorElementOwnerStore, [](const AActor* InActor, TTypedElementOwner<FActorElementData>& InOutActorElement)
+		{
+			InOutActorElement.GetDataChecked().Actor = const_cast<AActor*>(InActor);
+		}, &UEngineElementsLibrary::DestroyActorElement);
+	}
 
-	EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<UActorComponent, FComponentElementData>(UpdatedElements, InReplacementObjects, GComponentElementOwnerStore, [](const UActorComponent* InComponent, TTypedElementOwner<FComponentElementData>& InOutComponentElement)
 	{
-		InOutComponentElement.GetDataChecked().Component = const_cast<UActorComponent*>(InComponent);
-	}, &UEngineElementsLibrary::DestroyComponentElement);
+		const TArray<TTuple<const UActorComponent*, const UActorComponent*>> PotentialComponentReplacements = EngineElementsLibraryUtil::CalculatePotentialObjectReplacements<UActorComponent>(InReplacementObjects);
+		EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FComponentElementData, const UActorComponent*>(UpdatedElements, PotentialComponentReplacements, GComponentElementOwnerStore, [](const UActorComponent* InComponent, TTypedElementOwner<FComponentElementData>& InOutComponentElement)
+		{
+			InOutComponentElement.GetDataChecked().Component = const_cast<UActorComponent*>(InComponent);
+		}, &UEngineElementsLibrary::DestroyComponentElement);
+	}
+
+	{
+		TArray<TTuple<FSMInstanceElementId, FSMInstanceElementId>> PotentialSMInstanceReplacements;
+
+		FSMInstanceElementIdMap& SMInstanceElementIdMap = FSMInstanceElementIdMap::Get();
+		for (const TTuple<UObject*, UObject*>& ReplacementObjectPair : InReplacementObjects)
+		{
+			if (UInstancedStaticMeshComponent* OldISMComponent = Cast<UInstancedStaticMeshComponent>(ReplacementObjectPair.Key))
+			{
+				const TArray<FSMInstanceElementId> OldSMInstanceElementIds = SMInstanceElementIdMap.GetSMInstanceElementIdsForComponent(OldISMComponent);
+				PotentialSMInstanceReplacements.Reserve(PotentialSMInstanceReplacements.Num() + OldSMInstanceElementIds.Num());
+
+				if (UInstancedStaticMeshComponent* NewISMComponent = Cast<UInstancedStaticMeshComponent>(ReplacementObjectPair.Value))
+				{
+					// Attempt to ensure that the old IDs are re-used on the new component
+					// This is required so that in-memory stored references (eg, undo/redo) map correctly when using the new component instance
+					SMInstanceElementIdMap.OnComponentReplaced(OldISMComponent, NewISMComponent);
+
+					for (const FSMInstanceElementId& OldSMInstanceElementId : OldSMInstanceElementIds)
+					{
+						PotentialSMInstanceReplacements.Add(MakeTuple(OldSMInstanceElementId, FSMInstanceElementId{ NewISMComponent, OldSMInstanceElementId.InstanceId }));
+					}
+				}
+				else
+				{
+					for (const FSMInstanceElementId& OldSMInstanceElementId : OldSMInstanceElementIds)
+					{
+						PotentialSMInstanceReplacements.Add(MakeTuple(OldSMInstanceElementId, FSMInstanceElementId()));
+					}
+				}
+			}
+		}
+
+		EngineElementsLibraryUtil::ReplaceEditorTypedElementHandles<FSMInstanceElementData, FSMInstanceElementId>(UpdatedElements, PotentialSMInstanceReplacements, GSMInstanceElementOwnerStore, [](FSMInstanceElementId InSMInstanceElementId, TTypedElementOwner<FSMInstanceElementData>& InOutSMInstanceElement)
+		{
+			InOutSMInstanceElement.GetDataChecked().InstanceElementId = InSMInstanceElementId;
+		}, &UEngineElementsLibrary::DestroySMInstanceElement);
+	}
 
 	if (UpdatedElements.Num() > 0)
 	{

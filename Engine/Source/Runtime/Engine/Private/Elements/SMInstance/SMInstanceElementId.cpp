@@ -92,6 +92,57 @@ FSMInstanceElementId FSMInstanceElementIdMap::GetSMInstanceElementIdFromSMInstan
 	return FSMInstanceElementId();
 }
 
+TArray<FSMInstanceElementId> FSMInstanceElementIdMap::GetSMInstanceElementIdsForComponent(UInstancedStaticMeshComponent* InComponent) const
+{
+	TArray<FSMInstanceElementId> SMInstanceElementIds;
+
+	{
+		FScopeLock Lock(&ISMComponentsCS);
+
+		if (TSharedPtr<const FSMInstanceElementIdMapEntry> ISMEntry = ISMComponents.FindRef(InComponent))
+		{
+			SMInstanceElementIds.Reserve(ISMEntry->InstanceIdToIndexMap.Num());
+			for (const TTuple<uint64, int32>& InstanceIdToIndexPair : ISMEntry->InstanceIdToIndexMap)
+			{
+				SMInstanceElementIds.Add(FSMInstanceElementId{ InComponent, InstanceIdToIndexPair.Key });
+			}
+		}
+	}
+
+	return SMInstanceElementIds;
+}
+
+void FSMInstanceElementIdMap::OnComponentReplaced(UInstancedStaticMeshComponent* InOldComponent, UInstancedStaticMeshComponent* InNewComponent)
+{
+	FScopeLock Lock(&ISMComponentsCS);
+
+	if (TSharedPtr<const FSMInstanceElementIdMapEntry> OldISMEntry = ISMComponents.FindRef(InOldComponent))
+	{
+		TSharedPtr<FSMInstanceElementIdMapEntry> NewISMEntry = ISMComponents.FindRef(InNewComponent);
+		if (NewISMEntry)
+		{
+			ClearInstanceData_NoLock(InNewComponent, *NewISMEntry);
+		}
+		else
+		{
+			NewISMEntry = ISMComponents.Add(InNewComponent, MakeShared<FSMInstanceElementIdMapEntry>(this, InNewComponent));
+		}
+
+		NewISMEntry->InstanceIndexToIdMap.Reserve(OldISMEntry->InstanceIndexToIdMap.Num());
+		NewISMEntry->InstanceIdToIndexMap.Reserve(OldISMEntry->InstanceIdToIndexMap.Num());
+		NewISMEntry->NextInstanceId = OldISMEntry->NextInstanceId;
+
+		for (const TTuple<uint64, int32>& OldInstanceIdToIndexPair : OldISMEntry->InstanceIdToIndexMap)
+		{
+			if (InNewComponent->IsValidInstance(OldInstanceIdToIndexPair.Value))
+			{
+				NewISMEntry->InstanceIndexToIdMap.Add(OldInstanceIdToIndexPair.Value, OldInstanceIdToIndexPair.Key);
+				NewISMEntry->InstanceIdToIndexMap.Add(OldInstanceIdToIndexPair.Key, OldInstanceIdToIndexPair.Value);
+			}
+		}
+	}
+}
+
 void FSMInstanceElementIdMap::SerializeIdMappings(FSMInstanceElementIdMapEntry* InEntry, FArchive& Ar)
 {
 	FScopeLock Lock(&ISMComponentsCS);
@@ -196,21 +247,7 @@ void FSMInstanceElementIdMap::OnInstanceIndexUpdated(UInstancedStaticMeshCompone
 
 		case FInstancedStaticMeshDelegates::EInstanceIndexUpdateType::Cleared:
 			{
-				// Take the current instance IDs, so that we can find notify the elements have been unmapped
-				TMap<uint64, int32> PreviousInstanceIdToIndexMap = MoveTemp(ISMEntry->InstanceIdToIndexMap);
-
-				// Note: We can't remove things from the ISMComponents map until we get a 'Destroyed' notification for the owner ISM component, as the 
-				// per-component transactors may be referenced by the undo buffer, so the transactor needs to persist in order for redo to work correctly
-				ISMEntry->InstanceIndexToIdMap.Reset();
-				ISMEntry->InstanceIdToIndexMap.Reset();
-				
-				if (OnInstanceRemovedDelegate.IsBound())
-				{
-					for (const TTuple<uint64, int32>& PreviousInstanceIdToIndexPair : PreviousInstanceIdToIndexMap)
-					{
-						OnInstanceRemovedDelegate.Broadcast(FSMInstanceElementId{ InComponent, PreviousInstanceIdToIndexPair.Key }, PreviousInstanceIdToIndexPair.Value);
-					}
-				}
+				ClearInstanceData_NoLock(InComponent, *ISMEntry);
 			}
 			break;
 
@@ -236,6 +273,25 @@ void FSMInstanceElementIdMap::OnInstanceIndexUpdated(UInstancedStaticMeshCompone
 	if (ISMComponents.Num() == 0)
 	{
 		UnregisterCallbacks();
+	}
+}
+
+void FSMInstanceElementIdMap::ClearInstanceData_NoLock(UInstancedStaticMeshComponent* InComponent, FSMInstanceElementIdMapEntry& InEntry)
+{
+	// Take the current instance IDs, so that we can find notify the elements have been unmapped
+	TMap<uint64, int32> PreviousInstanceIdToIndexMap = MoveTemp(InEntry.InstanceIdToIndexMap);
+
+	// Note: We can't remove things from the ISMComponents map until we get a 'Destroyed' notification for the owner ISM component, as the 
+	// per-component transactors may be referenced by the undo buffer, so the transactor needs to persist in order for redo to work correctly
+	InEntry.InstanceIndexToIdMap.Reset();
+	InEntry.InstanceIdToIndexMap.Reset();
+
+	if (OnInstanceRemovedDelegate.IsBound())
+	{
+		for (const TTuple<uint64, int32>& PreviousInstanceIdToIndexPair : PreviousInstanceIdToIndexMap)
+		{
+			OnInstanceRemovedDelegate.Broadcast(FSMInstanceElementId{ InComponent, PreviousInstanceIdToIndexPair.Key }, PreviousInstanceIdToIndexPair.Value);
+		}
 	}
 }
 

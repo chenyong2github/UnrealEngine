@@ -138,6 +138,16 @@ public:
 	 */
 	FSMInstanceElementId GetSMInstanceElementIdFromSMInstanceId(const FSMInstanceId& InSMInstanceId, const bool bAllowCreate = true);
 
+	/**
+	 * Given an ISM component, get all FSMInstanceElementId values that are currently mapped for it.
+	 */
+	TArray<FSMInstanceElementId> GetSMInstanceElementIdsForComponent(UInstancedStaticMeshComponent* InComponent) const;
+
+	/**
+	 * Called when one ISM component is replaced with another, and attempts to copy the ID mapping of the old component to the new.
+	 */
+	void OnComponentReplaced(UInstancedStaticMeshComponent* InOldComponent, UInstancedStaticMeshComponent* InNewComponent);
+
 public:
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -151,6 +161,8 @@ public:
 
 private:
 	void OnInstanceIndexUpdated(UInstancedStaticMeshComponent* InComponent, TArrayView<const FInstancedStaticMeshDelegates::FInstanceIndexUpdateData> InIndexUpdates);
+
+	void ClearInstanceData_NoLock(UInstancedStaticMeshComponent* InComponent, FSMInstanceElementIdMapEntry& InEntry);
 
 #if WITH_EDITOR
 	void OnObjectModified(UObject* InObject);
