@@ -298,7 +298,7 @@ static bool SortHLODGrids(const TMap<FName, TSet<FName>>& InHLODGridsGraph, TArr
 	TSet<FName>		ProcessedGridsSet;	// Processed grids
 	TSet<FName>		VisitedGridsSet;	// Visited grids
 
-	TFunctionRef<bool(const FName, uint32)> VisitGraph = [&](const FName GridName, uint32 CurrentDepth) -> bool
+	TFunction<bool(const FName, uint32)> VisitGraph = [&](const FName GridName, uint32 CurrentDepth) -> bool
 	{
 		uint32& GridDepth = OutGridsDepth.FindOrAdd(GridName);
 		GridDepth = FMath::Max(GridDepth, CurrentDepth);

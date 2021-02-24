@@ -1309,7 +1309,7 @@ void SSceneOutliner::PasteFoldersEnd()
 
 void SSceneOutliner::DuplicateFoldersHierarchy()
 {
-	TFunctionRef<void(const FSceneOutlinerTreeItemPtr&)> RecursiveFolderSelect = [&](const FSceneOutlinerTreeItemPtr& Item)
+	TFunction<void(const FSceneOutlinerTreeItemPtr&)> RecursiveFolderSelect = [&](const FSceneOutlinerTreeItemPtr& Item)
 	{
 		if (Item->IsA<FFolderTreeItem>())
 		{
