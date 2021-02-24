@@ -2,6 +2,8 @@
 
 #include "Internationalization/FastDecimalFormat.h"
 #include "Misc/EnumClassFlags.h"
+#include "Misc/StringBuilder.h"
+#include "Containers/StringFwd.h"
 
 namespace FastDecimalFormat
 {
@@ -12,6 +14,12 @@ namespace Internal
 static const int32 MaxIntegralPrintLength = 20;
 static const int32 MaxFractionalPrintPrecision = 18;
 static const int32 MinRequiredIntegralBufferSize = (MaxIntegralPrintLength * 2) + 1; // *2 for an absolute worst case group separator scenario, +1 for null terminator
+
+static int32 bFastDecimalFormatLargeFloatSupport = 1;
+static FAutoConsoleVariableRef CVarFastDecimalFormatLargeFloatSupport(
+	TEXT("Core.bFastDecimalFormatLargeFloatSupport"),
+	bFastDecimalFormatLargeFloatSupport,
+	TEXT("True implies we perform additional processing for floating point types over 9223372036854775807 to prevent clipping to this value."));
 
 static const uint64 Pow10Table[] = {
 	1,						// 10^0
@@ -395,6 +403,103 @@ void IntegralToString(const bool bIsNegative, const uint64 InVal, const FDecimal
 	BuildFinalString(bIsNegative, InFormattingOptions.AlwaysSign, InFormattingRules, IntegralPartBuffer, IntegralPartLen, FractionalPartBuffer, FractionalPartLen, OutString);
 }
 
+FString CultureInvariantDecimalToString(const double InVal, const TCHAR*& InBuffer, const int32 InBufferLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberFormattingOptions& InFormattingOptions)
+{
+	if (!ensure(InBuffer && InBufferLen > 0))
+	{
+		return FString();
+	}
+
+	// Note: Does not consider max digits, this is by design as this method was created to support large floats greater than e18.
+	TStringBuilder<128> OutStr;
+
+	bool bUseGrouping = InFormattingOptions.UseGrouping && InFormattingRules.PrimaryGroupingSize > 0;
+	uint8 NumIntegralDigits = static_cast<uint8>(FMath::Abs((FMath::LogX(10.0, InVal)))) + 1;
+	uint8 NumUntilNextGroup = NumIntegralDigits % InFormattingRules.PrimaryGroupingSize;
+	const TCHAR* InBufferEnd = InBuffer + InBufferLen;
+
+	// Apply front padding
+	const int32 PaddingToApply = FMath::Max(InFormattingOptions.MinimumIntegralDigits - InBufferLen, 0);
+	for (int32 PaddingIndex = 0; PaddingIndex < PaddingToApply; ++PaddingIndex)
+	{
+		if (bUseGrouping && NumUntilNextGroup-- == 0)
+		{
+			OutStr += InFormattingRules.GroupingSeparatorCharacter;
+			NumUntilNextGroup = InFormattingRules.SecondaryGroupingSize;
+		}
+
+		OutStr += InFormattingRules.DigitCharacters[0];
+	}
+
+	// Scrape negative, apply at end
+	bool bIsNegative = false;
+	static const TCHAR EuropeanNegativePrefix = '-';
+	if (*InBuffer == EuropeanNegativePrefix)
+	{
+		bIsNegative = true;
+		++InBuffer;
+	}
+
+	// Parse digits & decimal, no grouping on fractional
+	bool bParsedFractional = false;
+	uint8 FractionalDigitsPrinted = 0;
+	while (InBuffer < InBufferEnd)
+	{
+		static const TCHAR EuropeanDecimal = '.';
+		if (*InBuffer == EuropeanDecimal && InFormattingOptions.MaximumFractionalDigits > 0)
+		{
+			bParsedFractional = true;
+			OutStr += InFormattingRules.DecimalSeparatorCharacter;
+			++InBuffer;
+			continue;
+		}
+
+		if (!bParsedFractional && bUseGrouping && NumUntilNextGroup-- == 0)
+		{
+			OutStr += InFormattingRules.GroupingSeparatorCharacter;
+			NumUntilNextGroup = InFormattingRules.SecondaryGroupingSize - 1; // -1 to account for the digit we're about to print
+		}
+
+		// 48 for raw ascii -> int
+		OutStr += InFormattingRules.DigitCharacters[(int32)InBuffer[0] - 48];
+		FractionalDigitsPrinted += bParsedFractional ? 1 : 0;
+		++InBuffer;
+	}
+
+	// Apply back padding, if back isn't just zero
+	double IntegralVal = 0.0;
+	double FractionalVal = FMath::Modf(InVal, &IntegralVal);
+	if (InFormattingOptions.MaximumFractionalDigits > FractionalDigitsPrinted)
+	{
+		if (!bParsedFractional)
+		{
+			OutStr += InFormattingRules.DecimalSeparatorCharacter;
+		}
+
+		if (FMath::Abs(FractionalVal) > 0.0)
+		{
+			const int32 BackPaddingToApply = InFormattingOptions.MaximumFractionalDigits - FractionalDigitsPrinted;
+			for (int32 PaddingIndex = 0; PaddingIndex < BackPaddingToApply; ++PaddingIndex)
+			{
+				OutStr += InFormattingRules.DigitCharacters[0];
+			}
+		}
+	}
+
+	const FDecimalNumberSigningStrings SigningStrings(InFormattingRules, InFormattingOptions.AlwaysSign ? EDecimalNumberSigningStringsFlags::AlwaysSign : EDecimalNumberSigningStringsFlags::None);
+
+	const FString& FinalPrefixStr = (bIsNegative) ? SigningStrings.GetNegativePrefixString() : SigningStrings.GetPositivePrefixString();
+	const FString& FinalSuffixStr = (bIsNegative) ? SigningStrings.GetNegativeSuffixString() : SigningStrings.GetPositiveSuffixString();
+
+	OutStr += FinalSuffixStr.IsEmpty() ? "" : FinalSuffixStr;
+	if (OutStr.LastChar() != '\0')
+	{
+		OutStr += '\0';
+	}
+
+	return FinalPrefixStr.IsEmpty() ? OutStr.GetData() : FinalPrefixStr + OutStr.GetData();
+}
+
 void FractionalToString(const double InVal, const FDecimalNumberFormattingRules& InFormattingRules, FNumberFormattingOptions InFormattingOptions, FString& OutString)
 {
 	SanitizeNumberFormattingOptions(InFormattingOptions);
@@ -417,9 +522,21 @@ void FractionalToString(const double InVal, const FDecimalNumberFormattingRules&
 		FractionalPart = -FractionalPart;
 	}
 
+	// Check for float-> int overflow, fallback on regular lex if occurs
+	// if fractional part overflows then we are losing precession but the number is still valid
+	uint64 IntIntegralPart = static_cast<uint64>(IntegralPart);
+	if (IntegralPart - static_cast<double>(IntIntegralPart) > SMALL_NUMBER && bFastDecimalFormatLargeFloatSupport)
+	{
+		OutString = LexToSanitizedString(InVal);
+
+		const TCHAR* CultureInvariantDecimalBuffer = *OutString;
+		OutString = CultureInvariantDecimalToString(InVal, CultureInvariantDecimalBuffer, OutString.Len(), InFormattingRules, InFormattingOptions);
+		return;
+	}
+
 	// Deal with the integral part (produces a string of the integral part, inserting group separators if requested and required, and padding as needed)
 	TCHAR IntegralPartBuffer[MinRequiredIntegralBufferSize];
-	const int32 IntegralPartLen = IntegralToString_Common(static_cast<uint64>(IntegralPart), InFormattingRules, InFormattingOptions, IntegralPartBuffer, UE_ARRAY_COUNT(IntegralPartBuffer));
+	const int32 IntegralPartLen = IntegralToString_Common(IntIntegralPart, InFormattingRules, InFormattingOptions, IntegralPartBuffer, UE_ARRAY_COUNT(IntegralPartBuffer));
 
 	// Deal with the fractional part (produces a string of the fractional part, potentially padding with zeros up to InFormattingOptions.MaximumFractionalDigits)
 	TCHAR FractionalPartBuffer[MinRequiredIntegralBufferSize];
@@ -704,6 +821,95 @@ bool StringToIntegral(const TCHAR* InStr, const int32 InStrLen, const FDecimalNu
 	return bResult;
 }
 
+bool StringToCultureInvariantDecimal(const TCHAR*& InBuffer, const TCHAR* InBufferEnd, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, const FDecimalNumberSignParser& InSignParser, TStringBuilder<128>& OutInvariantDecimal)
+{
+	// Empty string?
+	if (*InBuffer == 0)
+	{
+		return true;
+	}
+
+	EDecimalNumberParseFlags InParseFlags = EDecimalNumberParseFlags::AllowLeadingSign | EDecimalNumberParseFlags::AllowTrailingSign | EDecimalNumberParseFlags::AllowDecimalSeparators
+		| (InParsingOptions.UseGrouping ? EDecimalNumberParseFlags::AllowGroupSeparators : EDecimalNumberParseFlags::None)
+		| (InParsingOptions.InsideLimits ? EDecimalNumberParseFlags::TestLimits : EDecimalNumberParseFlags::None)
+		| (InParsingOptions.UseClamping ? EDecimalNumberParseFlags::ClampValue : EDecimalNumberParseFlags::None);
+
+	// Parse the leading sign (if present)
+	bool bIsNegative = false;
+	InSignParser.ParseLeadingSign(InBuffer, bIsNegative);
+
+	static const TCHAR InvariantNegativePrefix = '-';
+	if (bIsNegative)
+	{
+		OutInvariantDecimal += InvariantNegativePrefix;
+	}
+
+	// Parse the number, stopping once we find the end of the string or a decimal separator
+	static const TCHAR EuropeanNumerals[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+	bool bFoundUnexpectedNonNumericCharacter = false;
+	while (InBuffer < InBufferEnd)
+	{
+		// Skip group separators
+		if (*InBuffer == InFormattingRules.GroupingSeparatorCharacter)
+		{
+			if (!EnumHasAnyFlags(InParseFlags, EDecimalNumberParseFlags::AllowGroupSeparators))
+			{
+				return false;
+			}
+			++InBuffer;
+			continue;
+		}
+
+		// Walk over the decimal separator
+		static const TCHAR InvariantDecimal = '.';
+		if (*InBuffer == InFormattingRules.DecimalSeparatorCharacter)
+		{
+			if (!EnumHasAnyFlags(InParseFlags, EDecimalNumberParseFlags::AllowDecimalSeparators))
+			{
+				return false;
+			}
+			++InBuffer;
+			OutInvariantDecimal += InvariantDecimal;
+			continue;
+		}
+
+		// Process numeric characters (also test European numerals in case they were used by a language that doesn't normally use them)
+		bool bValidChar = false;
+		for (int32 CharIndex = 0; CharIndex < UE_ARRAY_COUNT(InFormattingRules.DigitCharacters); ++CharIndex)
+		{
+			if ((*InBuffer == InFormattingRules.DigitCharacters[CharIndex]) || (*InBuffer == EuropeanNumerals[CharIndex]))
+			{
+				// We don't consider MaxIntegralPrintLength, since this method is used to deal with large string to string values
+				++InBuffer;
+				OutInvariantDecimal += EuropeanNumerals[CharIndex];
+				bValidChar = true;
+				break;
+			}
+		}
+
+		// Found an non-numeric character?
+		if (!bValidChar)
+		{
+			bFoundUnexpectedNonNumericCharacter = true;
+			break;
+		}
+	}
+
+	// Parse the trailing sign (if present)
+	if (InSignParser.ParseTrailingSign(InBuffer, bIsNegative))
+	{
+		// The unexpected character was the trailing sign - clear that flag
+		bFoundUnexpectedNonNumericCharacter = false;
+	}
+
+	if (OutInvariantDecimal.LastChar() != '\0')
+	{
+		OutInvariantDecimal += '\0';
+	}
+
+	return !bFoundUnexpectedNonNumericCharacter;
+}
+
 bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, const FDecimalNumberFractionalLimits& InLimits, double& OutVal, int32* OutParsedLen)
 {
 	const TCHAR* Buffer = InStr;
@@ -717,6 +923,20 @@ bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimal
 	uint8 IntegralPartDigitCount = 0;
 	bool bResult = StringToIntegral_Common(Buffer, BufferEnd, InFormattingRules, InParsingOptions, SignParser, bIntegralPartIsNegative, bIntegralPartIsOverflow, IntegralPart, IntegralPartDigitCount);
 	bResult &= !bIntegralPartIsOverflow;
+
+	if (bIntegralPartIsOverflow && bFastDecimalFormatLargeFloatSupport)
+	{
+		const TCHAR* InvariantBuffer = InStr;
+		TStringBuilder<128> InvariantDecimal;
+		if (StringToCultureInvariantDecimal(InvariantBuffer, BufferEnd, InFormattingRules, InParsingOptions, SignParser, InvariantDecimal))
+		{
+			LexFromString(OutVal, InvariantDecimal.GetData());
+
+			// We overflowed, so have callers act as if string length hasn't changed
+			*OutParsedLen = InStrLen;
+			return true;
+		}
+	}
 
 	// Parse the fractional part of the number
 	bool bFractionPartIsNegative = false;

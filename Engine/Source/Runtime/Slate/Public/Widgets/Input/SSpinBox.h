@@ -199,6 +199,8 @@ public:
 		bPreventThrottling = InArgs._PreventThrottling;
 
 		CachedExternalValue = ValueAttribute.Get();
+		CachedValueString = Interface->ToString(CachedExternalValue);
+
 		InternalValue = (double)CachedExternalValue;
 
 		if (SupportDynamicSliderMaxValue.Get() && CachedExternalValue > GetMaxSliderValue())
@@ -718,7 +720,7 @@ public:
 	TAttribute<NumericType> GetValueAttribute() const { return ValueAttribute; }
 
 	/** See the Value attribute */
-	float GetValue() const { return ValueAttribute.Get(); }
+	NumericType GetValue() const { return ValueAttribute.Get(); }
 	void SetValue(const TAttribute<NumericType>& InValueAttribute) 
 	{
 		ValueAttribute = InValueAttribute; 
@@ -810,7 +812,13 @@ protected:
 	/** @return the value being observed by the spinbox as a string */
 	FString GetValueAsString() const
 	{
-		return Interface->ToString(ValueAttribute.Get());
+		NumericType CurrentValue = ValueAttribute.Get();
+		if (CurrentValue == CachedExternalValue)
+		{
+			return CachedValueString;
+		}
+
+		return Interface->ToString(CurrentValue);
 	}
 
 	/** @return the value being observed by the spinbox as FText - todo: spinbox FText support (reimplement me) */
@@ -959,7 +967,12 @@ protected:
 		}
 
 		// Update the cache of the external value to what the user believes the value is now.
-		CachedExternalValue = ValueAttribute.Get();
+		const NumericType CurrentValue = ValueAttribute.Get();
+		if (CachedExternalValue != CurrentValue)
+		{
+			CachedExternalValue = ValueAttribute.Get();
+			CachedValueString = Interface->ToString(CachedExternalValue);
+		}
 
 		// This ensures that dragging is cleared if focus has been removed from this widget in one of the delegate calls, such as when spawning a modal dialog.
 		if (!this->HasMouseCapture())
@@ -1104,6 +1117,9 @@ private:
 	 * external forces on the spinbox and syncing the internal value to them. Synced when a value is committed to the spinbox.
 	 */
 	NumericType CachedExternalValue;
+
+	/** Used to prevent per-frame re-conversion of the cached numeric value to a string. */
+	FString CachedValueString;
 
 	/** Re-entrant guard for the text changed handler */
 	bool bIsTextChanging;

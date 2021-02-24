@@ -182,6 +182,12 @@ public:
 		BorderImageFocused = &InArgs._EditableTextBoxStyle->BackgroundImageFocused;
 		Interface = InArgs._TypeInterface.IsValid() ? InArgs._TypeInterface : MakeShareable( new TDefaultNumericTypeInterface<NumericType> );
 
+		CachedExternalValue = ValueAttribute.Get();
+		if (CachedExternalValue.IsSet())
+		{
+			CachedValueString = Interface->ToString(CachedExternalValue.GetValue());
+		}
+
 		TAttribute<FMargin> TextMargin = InArgs._OverrideTextMargin.IsSet() ? InArgs._OverrideTextMargin : InArgs._EditableTextBoxStyle->Padding;
 		const bool bAllowSpin = InArgs._AllowSpin;
 		TSharedPtr<SWidget> FinalWidget;
@@ -407,12 +413,27 @@ private:
 		return 0;
 	}
 
+	void SetCachedString(const NumericType CurrentValue)
+	{
+		if (!CachedExternalValue.IsSet() || CachedExternalValue.GetValue() != CurrentValue)
+		{
+			CachedExternalValue = CurrentValue;
+			CachedValueString = Interface->ToString(CurrentValue);
+		}
+	}
+
+	FString GetCachedString(const NumericType CurrentValue) const
+	{
+		bool bUseCachedString = CachedExternalValue.IsSet() && CurrentValue == CachedExternalValue.GetValue();
+		return bUseCachedString ? CachedValueString : Interface->ToString(CurrentValue);
+	}
+
 	FText GetValueAsText() const
 	{
 		const TOptional<NumericType>& Value = ValueAttribute.Get();
 		if (Value.IsSet() == true)
 		{
-			return FText::FromString(Interface->ToString(Value.GetValue()));
+			return FText::FromString(GetCachedString(Value.GetValue()));
 		}
 		
 		return FText::GetEmpty();
@@ -432,7 +453,7 @@ private:
 			// If the value was set convert it to a string, otherwise the value cannot be determined
 			if( Value.IsSet() == true )
 			{
-				NewText = FText::FromString(Interface->ToString(Value.GetValue()));
+				NewText = FText::FromString(GetCachedString(Value.GetValue()));
 			}
 			else
 			{
@@ -526,6 +547,8 @@ private:
 
 		if (NumericValue.IsSet())
 		{
+			SetCachedString(NumericValue.GetValue());
+
 			if (bCommit)
 			{
 				OnValueCommitted.ExecuteIfBound(NumericValue.GetValue(), CommitInfo);
@@ -552,6 +575,8 @@ private:
 
 		if (Value.IsSet() == true)
 		{
+			SetCachedString(Value.GetValue());
+
 			if (SpinBox->GetVisibility() != EVisibility::Visible)
 			{
 				// Set the visibility of the spinbox to visible if we have a valid value
@@ -598,6 +623,10 @@ private:
 	TAttribute<float> MinDesiredValueWidth;
 	/** Type interface that defines how we should deal with the templated numeric type. Always valid after construction. */
 	TSharedPtr< INumericTypeInterface<NumericType> > Interface;
+	/** Cached value of entry box, updated on set & per tick */
+	TOptional<NumericType> CachedExternalValue;
+	/** Used to prevent per-frame re-conversion of the cached numeric value to a string. */
+	FString CachedValueString;
 };
 
 
