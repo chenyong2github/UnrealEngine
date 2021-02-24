@@ -18,6 +18,7 @@
 
 class FMD5;
 class FSavePackageContext;
+class FSaveContext;
 template<typename StateType> class TAsyncWorkSequence;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSavePackage, Log, All);
@@ -347,7 +348,7 @@ namespace SavePackageUtilities
 	bool HasUnsaveableOuter(UObject* InObj, UPackage* InSavingPackage);
 	void CheckObjectPriorToSave(FArchiveUObject& Ar, UObject* InObj, UPackage* InSavingPackage);
 	void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark ExcludedObjectMarks, const ITargetPlatform* TargetPlatform);
-	void FindMostLikelyCulprit(TArray<UObject*> BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer);
+	void FindMostLikelyCulprit(const TArray<UObject*>& BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer, FSaveContext* InOptionalSaveContext = nullptr);
 	void AddFileToHash(FString const& Filename, FMD5& Hash);
 
 	void WriteToFile(const FString& Filename, const uint8* InDataPtr, int64 InDataSize);

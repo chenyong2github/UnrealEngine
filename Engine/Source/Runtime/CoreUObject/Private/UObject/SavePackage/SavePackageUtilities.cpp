@@ -13,6 +13,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
+#include "SaveContext.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/BulkDataManifest.h"
 #include "Serialization/LargeMemoryWriter.h"
@@ -455,11 +456,21 @@ void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark ExcludedObjec
  * @param	BadObjects	array of objects that are considered "bad" (e.g. non- RF_Public, in different map package, ...)
  * @return	UObject that is considered the most likely culprit causing them to be referenced or NULL
  */
-void FindMostLikelyCulprit(TArray<UObject*> BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer)
+void FindMostLikelyCulprit(const TArray<UObject*>& BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer, FSaveContext* InOptionalSaveContext)
 {
 	UObject* ArchetypeCulprit = nullptr;
 	UObject* ReferencedCulprit = nullptr;
 	const FProperty* ReferencedCulpritReferencer = nullptr;
+
+	auto IsObjectIncluded = [InOptionalSaveContext](UObject* InObject)
+	{
+		// if we passed in a SaveContext use that to validate if the object is an import or an export instead of marks
+		if (InOptionalSaveContext)
+		{
+			return InOptionalSaveContext->IsIncluded(InObject);
+		}
+		return InObject->HasAnyMarks(EObjectMark(OBJECTMARK_TagExp | OBJECTMARK_TagImp));
+	};
 
 	// Iterate over all objects that are marked as unserializable/ bad and print out their referencers.
 	for (int32 BadObjIndex = 0; BadObjIndex < BadObjects.Num(); BadObjIndex++)
@@ -501,7 +512,7 @@ void FindMostLikelyCulprit(TArray<UObject*> BadObjects, UObject*& MostLikelyCulp
 			for (int32 i = 0; i < Refs.ExternalReferences.Num(); i++)
 			{
 				UObject* RefObj = Refs.ExternalReferences[i].Referencer;
-				if (RefObj->HasAnyMarks(EObjectMark(OBJECTMARK_TagExp | OBJECTMARK_TagImp)))
+				if (IsObjectIncluded(RefObj))
 				{
 					if (RefObj->GetFName() == NAME_PersistentLevel || RefObj->GetClass()->GetFName() == NAME_World)
 					{
