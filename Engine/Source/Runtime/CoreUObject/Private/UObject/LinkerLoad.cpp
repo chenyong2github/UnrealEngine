@@ -30,6 +30,7 @@
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Serialization/AsyncLoading.h"
+#include "Serialization/ArchiveSerializedPropertyChain.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
@@ -5516,18 +5517,34 @@ FArchive& FLinkerLoad::operator<<( FObjectPtr& ObjectPtr )
 	Ar << Index;
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	if (Index.IsImport())
+	static bool bLazyResolveAllImports = FParse::Param(FCommandLine::Get(), TEXT("LazyResolveAllImports"));
+	if (bLazyResolveAllImports && Index.IsImport())
 	{
 		const FObjectImport& Import = Imp(Index);
 		if (!Import.bImportSearchedFor)
 		{
-			FObjectPathId ObjectPath;
-			FName PackageName = FObjectPathId::MakeImportPathIdAndPackageName(Import, *this, ObjectPath);
-			FObjectRef ImportRef{PackageName, Import.ClassPackage, Import.ClassName, ObjectPath};
+			bool bIsInHashSensitiveContainer = false;
+			if (const FArchiveSerializedPropertyChain* PropChain = GetSerializedPropertyChain())
+			{
+				const int32 NumPropsInChain = PropChain->GetNumProperties();
+				const FProperty* CurrentProperty = NumPropsInChain > 0 ? PropChain->GetPropertyFromStack(0) : nullptr;
+				if (const FProperty* ParentProperty = NumPropsInChain > 1 ? PropChain->GetPropertyFromStack(1) : nullptr)
+				{
+					// @TODO: OBJPTR: Forcing resolve for ObjectPtr hashing.  See GetTypeHash in ObjectHandle.h.
+					bIsInHashSensitiveContainer = ParentProperty->IsA<FSetProperty>() || (ParentProperty->IsA<FMapProperty>() && (CurrentProperty == static_cast<const FMapProperty*>(ParentProperty)->GetKeyProperty()));
+				}
+			}
 
-			ObjectPtr = FObjectPtr(ImportRef);
+			if (!bIsInHashSensitiveContainer)
+			{
+				FObjectPathId ObjectPath;
+				FName PackageName = FObjectPathId::MakeImportPathIdAndPackageName(Import, *this, ObjectPath);
+				FObjectRef ImportRef{PackageName, Import.ClassPackage, Import.ClassName, ObjectPath};
 
-			return *this;
+				ObjectPtr = FObjectPtr(ImportRef);
+
+				return *this;
+			}
 		}
 	}
 #endif

@@ -5,10 +5,13 @@
 #include "HAL/PlatformAtomics.h"
 #include "Misc/PackageName.h"
 #include "Misc/ScopeRWLock.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "UObject/Class.h"
 #include "UObject/Linker.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
+#include "UObject/UObjectHash.h"
 
 bool operator==(const FObjectHandleDataClassDescriptor& Lhs, const FObjectHandleDataClassDescriptor& Rhs)
 {
@@ -90,7 +93,7 @@ namespace ObjectHandle_Private
 	struct FObjectHandleIndex
 	{
 		FRWLock Lock; // @TODO: OBJPTR: Want to change this to a striped lock per object bucket to allow more concurrency when adding and looking up objects in a package
-		TMap<uint32, FPackageId> NameHashToPackageId;
+		TMap<FMinimalName, FPackageId> NameToPackageId;
 		TArray<FObjectHandlePackageData> PackageData;
 	} GObjectHandleIndex;
 
@@ -124,20 +127,21 @@ namespace ObjectHandle_Private
 
 	static void MakeReferenceIds(FName PackageName, FName ClassPackageName, FName ClassName, FObjectPathId ObjectPath, FPackageId& OutPackageId, FObjectId& OutObjectId)
 	{
-		uint32 NameHash = GetTypeHash(PackageName);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ObjectHandle_Private::MakeReferenceIds);
+		FMinimalName MinimalName = NameToMinimalName(PackageName);
 
 		//Biases for read-only locking by default at the expense of having to do a second map search if a write is necessary
 		//Doing one search with either a read or locked write seems impossible with the TMap interface at the moment.
 		FRWScopeLock GlobalLockScope(GObjectHandleIndex.Lock, SLT_ReadOnly);
-		FPackageId* FoundPackageId = GObjectHandleIndex.NameHashToPackageId.Find(NameHash);
+		FPackageId* FoundPackageId = GObjectHandleIndex.NameToPackageId.Find(MinimalName);
 		FObjectHandlePackageData* PackageData = nullptr;
 		if (!FoundPackageId)
 		{
 			GlobalLockScope.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
-			//Has to be FindOrAdd, as the NameHashToPackageId may have changed between relinquishing the read lock
+			//Has to be FindOrAdd, as the NameToPackageId may have changed between relinquishing the read lock
 			//and acquiring the write lock.
 			FPackageId NextId = FPackageId::FromIndex(GObjectHandleIndex.PackageData.Num());
-			FoundPackageId = &GObjectHandleIndex.NameHashToPackageId.FindOrAdd(NameHash, NextId);
+			FoundPackageId = &GObjectHandleIndex.NameToPackageId.FindOrAdd(MinimalName, NextId);
 			if (*FoundPackageId == NextId)
 			{
 				PackageData = &GObjectHandleIndex.PackageData.AddDefaulted_GetRef();
@@ -155,8 +159,6 @@ namespace ObjectHandle_Private
 		{
 			PackageData = &GObjectHandleIndex.PackageData[FoundPackageId->ToIndex()];
 		}
-		checkf(NameToMinimalName(PackageName) == PackageData->PackageName,
-			TEXT("Package name collision detected in ObjectHandle system.  '%s' and '%s' both produce a hash of %d"), *PackageName.ToString(), *MinimalNameToName(PackageData->PackageName).ToString(), NameHash);
 
 		OutPackageId = *FoundPackageId;
 
@@ -230,6 +232,7 @@ namespace ObjectHandle_Private
 
 	static inline FObjectRef MakeObjectRef(FPackedObjectRef PackedObjectRef)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ObjectHandle_Private::MakeObjectRef);
 		FObjectId ObjectId;
 		FPackageId PackageId;
 		Unpack(PackedObjectRef, PackageId, ObjectId);
@@ -298,7 +301,11 @@ static inline UPackage* FindOrLoadPackage(FName PackageName, int32 LoadFlags)
 	// @TODO: OBJPTR: Want to replicate the functional path of an import here.  See things like FindImportFast in BlueprintSupport.cpp
 	// 		 for additional behavior that we're not handling here yet.
 	FName* ScriptPackageName = FPackageName::FindScriptPackageName(PackageName);
-	UPackage* TargetPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), nullptr, PackageName);
+	UPackage* TargetPackage = (UPackage*)StaticFindObjectFastInternal(UPackage::StaticClass(), nullptr, PackageName);
+	if (UObjectRedirector* Redirector = dynamic_cast<UObjectRedirector*>(TargetPackage))
+	{
+		TargetPackage = (UPackage*)Redirector->DestinationObject;
+	}
 	if (!ScriptPackageName && !TargetPackage)
 	{
 		// @TODO: OBJPTR: When using the "external package" feature, we will have objects that have a differing package path vs "outer hierarchy" path
@@ -317,6 +324,7 @@ static inline UPackage* FindOrLoadPackage(FName PackageName, int32 LoadFlags)
 
 UClass* ResolveObjectRefClass(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD_None*/)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ResolveObjectRef);
 	UClass* ClassObject = nullptr;
 	UPackage* ClassPackage = nullptr;
 	if (!ObjectRef.ClassPackageName.IsNone())
@@ -325,9 +333,13 @@ UClass* ResolveObjectRefClass(const FObjectRef& ObjectRef, uint32 LoadFlags /*= 
 
 		if (!ObjectRef.ClassName.IsNone())
 		{
-			ClassObject = (UClass*)StaticFindObjectFast(UClass::StaticClass(), ClassPackage, ObjectRef.ClassName);
+			ClassObject = (UClass*)StaticFindObjectFastInternal(UClass::StaticClass(), ClassPackage, ObjectRef.ClassName);
 			if (ClassObject)
 			{
+				if (UObjectRedirector* Redirector = dynamic_cast<UObjectRedirector*>(ClassObject))
+				{
+					ClassObject = (UClass*)Redirector->DestinationObject;
+				}
 				if (ClassObject->HasAnyFlags(RF_NeedLoad) && ClassPackage->LinkerLoad)
 				{
 					ClassPackage->LinkerLoad->Preload(ClassObject);
@@ -343,10 +355,7 @@ UClass* ResolveObjectRefClass(const FObjectRef& ObjectRef, uint32 LoadFlags /*= 
 
 UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD_None*/)
 {
-	//NOTE: Written with the assumption that there's no partial loading of packages.
-	//		A package when loaded is fully loaded, so there's no possibility of needing
-	//		to do additional loading work up the outer chain for a target object.
-
+	TRACE_CPUPROFILER_EVENT_SCOPE(ResolveObjectRef);
 	if (IsObjectRefNull(ObjectRef))
 	{
 		ObjectHandle_Private::OnReferenceResolved(ObjectRef, nullptr, nullptr);
@@ -378,7 +387,24 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 	UObject* CurrentObject = TargetPackage;
 	for (int32 ObjectPathIndex = 0; ObjectPathIndex < ResolvedNames.Num(); ++ObjectPathIndex)
 	{
-		CurrentObject = StaticFindObjectFast(nullptr, CurrentObject, ResolvedNames[ObjectPathIndex]);
+		UObject* PreviousOuter = CurrentObject;
+		CurrentObject = StaticFindObjectFastInternal(nullptr, CurrentObject, ResolvedNames[ObjectPathIndex]);
+		if (UObjectRedirector* Redirector = dynamic_cast<UObjectRedirector*>(CurrentObject))
+		{
+			CurrentObject = Redirector->DestinationObject;
+		}
+
+		if (!CurrentObject && IsInGameThread() && !TargetPackage->IsFullyLoaded() && TargetPackage->LinkerLoad && TargetPackage->LinkerLoad->IsLoading())
+		{
+			TargetPackage->LinkerLoad->LoadAllObjects(true);
+
+			CurrentObject = StaticFindObjectFastInternal(nullptr, PreviousOuter, ResolvedNames[ObjectPathIndex]);
+			if (UObjectRedirector* Redirector = dynamic_cast<UObjectRedirector*>(CurrentObject))
+			{
+				CurrentObject = Redirector->DestinationObject;
+			}
+		}
+
 		if (!CurrentObject)
 		{
 			ObjectHandle_Private::OnReferenceResolved(ObjectRef, TargetPackage, nullptr);
@@ -388,6 +414,7 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 
 	if (CurrentObject->HasAnyFlags(RF_NeedLoad) && TargetPackage->LinkerLoad)
 	{
+		check(IsInGameThread());
 		TargetPackage->LinkerLoad->Preload(CurrentObject);
 	}
 	ObjectHandle_Private::OnReferenceResolved(ObjectRef, TargetPackage, CurrentObject);

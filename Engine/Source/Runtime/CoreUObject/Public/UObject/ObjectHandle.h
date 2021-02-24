@@ -9,7 +9,7 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectPathId.h"
 
-#define UE_WITH_OBJECT_HANDLE_LATE_RESOLVE 0 // @TODO: OBJPTR: Should be WITH_EDITORONLY_DATA when ready to tackle lazy load/resolve issues
+#define UE_WITH_OBJECT_HANDLE_LATE_RESOLVE WITH_EDITORONLY_DATA // @TODO: OBJPTR: Should be WITH_EDITORONLY_DATA when ready to tackle lazy load/resolve issues
 #define UE_WITH_OBJECT_HANDLE_TRACKING WITH_EDITORONLY_DATA
 
 /**
@@ -273,10 +273,41 @@ inline bool operator!=(FObjectHandle LHS, FObjectHandle RHS)
 
 inline uint32 GetTypeHash(FObjectHandle Handle)
 {
-	// Hash happens on the packed object ref to avoid having to resolve for the sake of hashing
-	return IsObjectHandleResolved(Handle)?
-		GetTypeHash(MakePackedObjectRef(ReadObjectHandlePointerNoCheck(Handle)).EncodedRef):
-		GetTypeHash(Handle.PointerOrRef);
+	// @TODO: OBJPTR: Forcing resolve for ObjectPtr hashing.
+	// This is inefficient, and is most impactful to TSet<handle or ObjectPtr> or TMap<handle or ObjectPtr,*>
+	// These cases are often using local/private object references, not cross-package/public object references
+	// so this limits the negative impact of this hashing choice.
+	//
+	// An alternative implementation could use the hashes of the name path of the referenced object, however it 
+	// would have to address the following:
+	// 1) hash of unresolved handle would have to match hash of resolved handle
+	//   1a) even if the resolved handle points to a different object due to UObjectRedirector
+	//   1b) even if the resolved handle poitns to a different object due to an entry in FCoreRedirects
+	// 2) renaming an object with a resolved handle to it should not change the hash of the handle
+	// 3) reparenting an object with a resolved handle to it should not change the hash of the handle
+	// 4) two unresolved handles that resolve to the same destination object (through redirectors) should have the same hash
+
+	checkf(IsObjectHandleResolved(Handle), TEXT("Cannot hash an unresolved handle."));
+	return GetTypeHash(ReadObjectHandlePointerNoCheck(Handle));
+
+	// // Hash happens on the packed object ref to avoid having to resolve for the sake of hashing
+	// if (IsObjectHandleResolved(Handle))
+	// {
+	// 	UObject* Obj = ReadObjectHandlePointerNoCheck(Handle);
+	// 	if (!Obj || !Obj->HasAnyFlags(RF_Public))
+	// 	{
+	// 		// Null or non-public objects can be hashed on their address in memory as they can't
+	// 		// ever be referenced by an unresolved handle and:
+	// 		// 1) We can't rely on the object redirect mechanism to provide us with consistency if they are renamed
+	// 		// 2) It is faster to hash them this way
+	// 		return GetTypeHash(Obj);
+	// 	}
+	// 	return GetTypeHash(MakePackedObjectRef(Obj).EncodedRef);
+	// }
+	// else
+	// {
+	// 	return GetTypeHash(Handle.PointerOrRef);
+	// }
 }
 
 #else

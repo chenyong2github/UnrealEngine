@@ -6,6 +6,7 @@
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
 #include "HAL/CriticalSection.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "UObject/Linker.h"
 #include "UObject/Object.h"
 #include "UObject/Package.h"
@@ -128,6 +129,7 @@ FObjectPathId::FObjectPathId(const FObjectImport& Import, const FLinkerTables& L
 
 FName FObjectPathId::MakeImportPathIdAndPackageName(const FObjectImport& Import, const FLinkerTables& LinkerTables, FObjectPathId& OutPathId)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FObjectPathId::MakeImportPathIdAndPackageName);
 	// @TODO: OBJPTR: Need to handle redirects.  FCoreRedirectObjectName could be used, but it doesn't fit
 	//		conveniently with the FName walk approach that is currently here. 
 	struct FImportObjectNamePathProducer
