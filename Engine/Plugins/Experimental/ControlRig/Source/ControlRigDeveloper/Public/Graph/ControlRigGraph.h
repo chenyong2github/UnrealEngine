@@ -39,10 +39,6 @@ public:
 #endif
 #if WITH_EDITOR
 
-
-	void CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer);
-	const TArray<TSharedPtr<FString>>& GetElementNameList(ERigElementType InElementType = ERigElementType::Bone) const;
-
 	FORCEINLINE const TArray<TSharedPtr<FString>>& GetBoneNameList(URigVMPin* InPin = nullptr) const
 	{
 		return GetElementNameList(ERigElementType::Bone);
@@ -59,6 +55,9 @@ public:
 	{
 		return GetElementNameList(ERigElementType::Curve);
 	}
+
+	void CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer);
+	const TArray<TSharedPtr<FString>>& GetElementNameList(ERigElementType InElementType = ERigElementType::Bone) const;
 	const TArray<TSharedPtr<FString>>& GetElementNameList(URigVMPin* InPin = nullptr) const;
 	const TArray<TSharedPtr<FString>>& GetDrawingNameList(URigVMPin* InPin = nullptr) const;
 
@@ -143,6 +142,8 @@ private:
 	URigVMController* GetTemplateController();
 	void HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM);
 
+	static TArray<TSharedPtr<FString>> EmptyElementNameList;
+	
 	friend class UControlRigUnitNodeSpawner;
 	friend class UControlRigVariableNodeSpawner;
 	friend class UControlRigParameterNodeSpawner;

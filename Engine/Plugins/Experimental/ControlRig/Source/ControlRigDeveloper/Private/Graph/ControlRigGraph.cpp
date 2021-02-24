@@ -64,6 +64,8 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 
 #if WITH_EDITOR
 
+TArray<TSharedPtr<FString>> UControlRigGraph::EmptyElementNameList;
+
 void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer)
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
@@ -95,6 +97,17 @@ const TArray<TSharedPtr<FString>>& UControlRigGraph::GetElementNameList(ERigElem
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
 	{
 		return OuterGraph->GetElementNameList(InElementType);
+	}
+	if(!ElementNameLists.Contains(InElementType))
+	{
+		UControlRigBlueprint* Blueprint = GetBlueprint();
+		if(Blueprint == nullptr)
+		{
+			return EmptyElementNameList;
+		}
+
+		UControlRigGraph* MutableThis = (UControlRigGraph*)this;
+		MutableThis->CacheNameLists(Blueprint->Hierarchy, &Blueprint->DrawContainer);
 	}
 	return ElementNameLists.FindChecked(InElementType);
 }
