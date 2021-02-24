@@ -2152,8 +2152,8 @@ void SRigHierarchy::HandleResetTransform(bool bSelectionOnly)
 				for (FRigElementKey Key : KeysToReset)
 				{
 					const FTransform InitialTransform = GetHierarchy()->GetInitialLocalTransform(Key);
-					GetHierarchy()->SetLocalTransform(Key, InitialTransform, true, true, true);
-					DebuggedHierarchy->SetLocalTransform(Key, InitialTransform, true, true, true);
+					GetHierarchy()->SetLocalTransform(Key, InitialTransform, false, true, true);
+					DebuggedHierarchy->SetLocalTransform(Key, InitialTransform, false, true, true);
 				}
 			}
 		}
