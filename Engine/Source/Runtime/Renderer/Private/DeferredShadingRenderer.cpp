@@ -1808,7 +1808,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// Capture the SkyLight using the SkyAtmosphere and VolumetricCloud component if available.
-	const bool bRealTimeSkyCaptureEnabled = Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0;
+	const bool bRealTimeSkyCaptureEnabled = Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0 && ViewFamily.EngineShowFlags.SkyLighting;
 	if (bRealTimeSkyCaptureEnabled)
 	{
 		FViewInfo& MainView = Views[0];
