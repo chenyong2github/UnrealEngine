@@ -78,6 +78,54 @@ FTransform UMotionWarpingUtilities::ExtractRootMotionFromAnimation(const UAnimSe
 	return FTransform::Identity;
 }
 
+void UMotionWarpingUtilities::GetMotionWarpingWindowsFromAnimation(const UAnimSequenceBase* Animation, TArray<FMotionWarpingWindowData>& OutWindows)
+{
+	if(Animation)
+	{
+		OutWindows.Reset();
+
+		for (int32 Idx = 0; Idx < Animation->Notifies.Num(); Idx++)
+		{
+			const FAnimNotifyEvent& NotifyEvent = Animation->Notifies[Idx];
+			if (UAnimNotifyState_MotionWarping* Notify = Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass))
+			{
+				FMotionWarpingWindowData Data;
+				Data.AnimNotify = Notify;
+				Data.StartTime = NotifyEvent.GetTriggerTime();
+				Data.EndTime = NotifyEvent.GetEndTriggerTime();
+				OutWindows.Add(Data);
+			}
+		}
+	}
+}
+
+void UMotionWarpingUtilities::GetMotionWarpingWindowsForSyncPointFromAnimation(const UAnimSequenceBase* Animation, FName SyncPointName, TArray<FMotionWarpingWindowData>& OutWindows)
+{
+	if (Animation && SyncPointName != NAME_None)
+	{
+		OutWindows.Reset();
+
+		for (int32 Idx = 0; Idx < Animation->Notifies.Num(); Idx++)
+		{
+			const FAnimNotifyEvent& NotifyEvent = Animation->Notifies[Idx];
+			if (UAnimNotifyState_MotionWarping* Notify = Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass))
+			{
+				if (const URootMotionModifierConfig_Warp* Config = Cast<const URootMotionModifierConfig_Warp>(Notify->RootMotionModifierConfig))
+				{
+					if(Config->SyncPointName == SyncPointName)
+					{
+						FMotionWarpingWindowData Data;
+						Data.AnimNotify = Notify;
+						Data.StartTime = NotifyEvent.GetTriggerTime();
+						Data.EndTime = NotifyEvent.GetEndTriggerTime();
+						OutWindows.Add(Data);
+					}
+				}
+			}
+		}
+	}
+}
+
 // UMotionWarpingComponent
 ///////////////////////////////////////////////////////////////////////
 
@@ -269,6 +317,37 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FT
 			FinalRootMotion = RootMotionModifier->ProcessRootMotion(*this, FinalRootMotion, DeltaSeconds);
 		}
 	}
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	const int32 DebugLevel = FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread();
+	if (DebugLevel >= 2)
+	{
+		const float DrawDebugDuration = FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration.GetValueOnGameThread();
+		const float PointSize = 7.f;
+		const FVector ActorFeetLocation = CharacterMovementComponent->GetActorFeetLocation();
+		if (RootMotionModifiers.Num() > 0)
+		{
+			if (!OriginalRootMotionAccum.IsSet())
+			{
+				OriginalRootMotionAccum = ActorFeetLocation;
+				WarpedRootMotionAccum = ActorFeetLocation;
+			}
+			
+			OriginalRootMotionAccum = OriginalRootMotionAccum.GetValue() + InRootMotion.GetLocation();
+			WarpedRootMotionAccum = WarpedRootMotionAccum.GetValue() + FinalRootMotion.GetLocation();
+
+			DrawDebugPoint(GetWorld(), OriginalRootMotionAccum.GetValue(), PointSize, FColor::Red, false, DrawDebugDuration, 0);
+			DrawDebugPoint(GetWorld(), WarpedRootMotionAccum.GetValue(), PointSize, FColor::Green, false, DrawDebugDuration, 0);
+		}
+		else
+		{
+			OriginalRootMotionAccum.Reset();
+			WarpedRootMotionAccum.Reset();
+		}
+
+		DrawDebugPoint(GetWorld(), ActorFeetLocation, PointSize, FColor::Blue, false, DrawDebugDuration, 0);
+	}
+#endif
 
 	return FinalRootMotion;
 }

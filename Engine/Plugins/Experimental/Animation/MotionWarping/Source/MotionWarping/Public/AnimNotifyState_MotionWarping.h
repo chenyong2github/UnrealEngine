@@ -14,7 +14,7 @@ class MOTIONWARPING_API UAnimNotifyState_MotionWarping : public UAnimNotifyState
 
 public:
 
-	UPROPERTY(EditAnywhere, Instanced, Category = "Config")
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Config")
 	class URootMotionModifierConfig* RootMotionModifierConfig;
 
 	UAnimNotifyState_MotionWarping(const FObjectInitializer& ObjectInitializer);
