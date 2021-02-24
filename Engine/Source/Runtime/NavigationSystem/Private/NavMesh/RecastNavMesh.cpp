@@ -1347,6 +1347,43 @@ bool ARecastNavMesh::GetPolysInBox(const FBox& Box, TArray<FNavPoly>& Polys, FSh
 	return bSuccess;
 }
 
+bool ARecastNavMesh::FindEdges(const NavNodeRef CenterNodeRef, const FVector Center, const float Radius, const FSharedConstNavQueryFilter Filter, TArray<FNavigationWallEdge>& OutEdges) const
+{
+	const FNavigationQueryFilter& FilterToUse = GetRightFilterRef(Filter);
+	INITIALIZE_NAVQUERY(NavQuery, FilterToUse.GetMaxSearchNodes());
+	const dtQueryFilter* QueryFilter = static_cast<const FRecastQueryFilter*>(FilterToUse.GetImplementation())->GetAsDetourQueryFilter();
+
+	const int32 MaxWalls = 64;
+	int32 NumWalls = 0;
+	float WallSegments[MaxWalls * 3 * 2] = { 0 };
+	dtPolyRef WallPolys[MaxWalls * 2] = { 0 };
+
+	const int32 MaxNeis = 64;
+	int32 NumNeis = 0;
+	dtPolyRef NeiPolys[MaxNeis] = { 0 };
+
+	const FVector RcCenter = Unreal2RecastPoint(Center);
+
+	dtStatus Status = NavQuery.findWallsInNeighbourhood(CenterNodeRef, &RcCenter.X, Radius, QueryFilter,
+		NeiPolys, &NumNeis, MaxNeis, WallSegments, WallPolys, &NumWalls, MaxWalls);
+
+	if (dtStatusSucceed(Status))
+	{
+		OutEdges.Reset(NumWalls);
+		FNavigationWallEdge NewEdge;
+		for (int32 Idx = 0; Idx < NumWalls; Idx++)
+		{
+			NewEdge.Start = Recast2UnrealPoint(&WallSegments[Idx * 6]);
+			NewEdge.End = Recast2UnrealPoint(&WallSegments[Idx * 6 + 3]);
+			OutEdges.Add(NewEdge);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 bool ARecastNavMesh::ProjectPointMulti(const FVector& Point, TArray<FNavLocation>& OutLocations, const FVector& Extent,
 	float MinZ, float MaxZ, FSharedConstNavQueryFilter Filter, const UObject* QueryOwner) const
 {

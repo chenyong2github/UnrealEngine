@@ -218,6 +218,12 @@ namespace ERecastNamedFilter
 		NamedFiltersCount,
 	};
 }
+
+struct FNavigationWallEdge
+{
+	FVector Start = FVector::ZeroVector;
+	FVector End = FVector::ZeroVector;
+};
 #endif //WITH_RECAST
 
 
@@ -1013,8 +1019,11 @@ public:
 	/** Get all polys from tile */
 	bool GetPolysInTile(int32 TileIndex, TArray<FNavPoly>& Polys) const;
 
-	/** Get all polys that overlap the specified box */
+	/** Get up to 256 polys that overlap the specified box */
 	bool GetPolysInBox(const FBox& Box, TArray<FNavPoly>& Polys, FSharedConstNavQueryFilter Filter = nullptr, const UObject* Owner = nullptr) const;
+
+	/** Find up to 64 navmesh eges in up to 64 polys around the center */
+	bool FindEdges(const NavNodeRef CenterNodeRef, const FVector Center, const float Radius, const FSharedConstNavQueryFilter Filter, TArray<FNavigationWallEdge>& OutEdges) const;
 
 	/** Get all polys from tile */
 	bool GetNavLinksInTile(const int32 TileIndex, TArray<FNavPoly>& Polys, const bool bIncludeLinksFromNeighborTiles) const;
