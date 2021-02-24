@@ -19,9 +19,12 @@
 const FString UNiagaraDataInterfaceRenderTarget2DArray::SizeName(TEXT("RWSize_"));
 const FString UNiagaraDataInterfaceRenderTarget2DArray::RWOutputName(TEXT("RWOutput_"));
 const FString UNiagaraDataInterfaceRenderTarget2DArray::OutputName(TEXT("Output_"));
+const FString UNiagaraDataInterfaceRenderTarget2DArray::InputName(TEXT("Input_"));
 
 // Global VM function names, also used by the shaders code generation methods.
 const FName UNiagaraDataInterfaceRenderTarget2DArray::SetValueFunctionName("SetRenderTargetValue");
+const FName UNiagaraDataInterfaceRenderTarget2DArray::GetValueFunctionName("GetRenderTargetValue");
+const FName UNiagaraDataInterfaceRenderTarget2DArray::SampleValueFunctionName("SampleRenderTargetValue");
 const FName UNiagaraDataInterfaceRenderTarget2DArray::SetSizeFunctionName("SetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTarget2DArray::GetSizeFunctionName("GetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTarget2DArray::LinearToIndexName("LinearToIndex");
@@ -51,6 +54,9 @@ public:
 	{			
 		SizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2DArray::SizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 		OutputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2DArray::OutputName + ParameterInfo.DataInterfaceHLSLSymbol));
+
+		InputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2DArray::InputName + ParameterInfo.DataInterfaceHLSLSymbol));
+		InputSamplerStateParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2DArray::InputName + TEXT("SamplerState") + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -91,6 +97,29 @@ public:
 
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputParam.GetUAVIndex(), OutputUAV);
 		}
+
+		if (InputParam.IsBound())
+		{
+			FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture();
+			if (TextureRHI == nullptr)
+			{
+				TextureRHI = GBlackTexture->TextureRHI;
+			}
+			FRHISamplerState* SamplerStateRHI = ProxyData->SamplerStateRHI;
+			if (SamplerStateRHI == nullptr)
+			{
+				SamplerStateRHI = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			}
+
+			SetTextureParameter(
+				RHICmdList,
+				ComputeShaderRHI,
+				InputParam,
+				InputSamplerStateParam,
+				SamplerStateRHI,
+				TextureRHI
+			);
+		}
 	}
 
 	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const 
@@ -113,6 +142,9 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, SizeParam);
 	LAYOUT_FIELD(FRWShaderParameter, OutputParam);
+
+	LAYOUT_FIELD(FShaderResourceParameter, InputParam);
+	LAYOUT_FIELD(FShaderResourceParameter, InputSamplerStateParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_RenderTarget2DArray);
@@ -206,6 +238,48 @@ void UNiagaraDataInterfaceRenderTarget2DArray::GetFunctions(TArray<FNiagaraFunct
 	#if WITH_EDITORONLY_DATA
 		Sig.FunctionVersion = FNDIRenderTarget2DArrayFunctionVersion::LatestVersion;
 	#endif
+	}
+
+	extern int GNiagaraRenderTargetAllowReads;
+	if (GNiagaraRenderTargetAllowReads)
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = GetValueFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
+
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DArrayFunctionVersion::LatestVersion;
+#endif
+	}
+
+	if (GNiagaraRenderTargetAllowReads)
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = SampleValueFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UV")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Slice")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
+
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DArrayFunctionVersion::LatestVersion;
+#endif
 	}
 
 	{
@@ -318,11 +392,14 @@ void UNiagaraDataInterfaceRenderTarget2DArray::GetParameterDefinitionHLSL(const 
 
 	static const TCHAR *FormatDeclarations = TEXT(R"(
 		RWTexture2DArray<float4> {OutputName};
+		Texture2DArray<float4> {InputName};
+		SamplerState {InputName}SamplerState;
 		int3 {SizeName};
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations =
 	{
 		{ TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("InputName"),	InputName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
@@ -340,6 +417,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::GetFunctionHLSL(const FNiagaraDat
 	{
 		{TEXT("FunctionName"),	FunctionInfo.InstanceName},
 		{TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol},
+		{TEXT("InputName"),		InputName + ParamInfo.DataInterfaceHLSLSymbol },
 		{TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 
@@ -352,6 +430,28 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::GetFunctionHLSL(const FNiagaraDat
 				{
 					{OutputName}[int3(IndexX, IndexY, IndexZ)] = Value;
 				}
+			}
+		)");
+		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetValueFunctionName)
+	{
+		static const TCHAR* FormatBounds = TEXT(R"(
+			void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, out float4 Out_Value)
+			{			
+				Out_Value = {InputName}.Load(int4(In_IndexX, In_IndexY, In_IndexZ, 0));
+			}
+		)");
+		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == SampleValueFunctionName)
+	{
+		static const TCHAR* FormatBounds = TEXT(R"(
+			void {FunctionName}(float2 UV, int Slice, out float4 Out_Value)
+			{			
+				Out_Value = {InputName}.SampleLevel({InputName}SamplerState, float3(UV.x, UV.y, Slice), 0.0f);
 			}
 		)");
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
@@ -437,6 +537,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::InitPerInstanceData(void* PerInst
 #if WITH_EDITORONLY_DATA
 			TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 #endif
+			TargetData->SamplerStateRHI = RT_TargetTexture->Resource && RT_TargetTexture->Resource->SamplerStateRHI ? RT_TargetTexture->Resource->SamplerStateRHI : nullptr;
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
 		}
@@ -613,6 +714,7 @@ bool UNiagaraDataInterfaceRenderTarget2DArray::PerInstanceTickPostSimulate(void*
 #if WITH_EDITORONLY_DATA
 					TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 #endif
+					TargetData->SamplerStateRHI = RT_TargetTexture->Resource && RT_TargetTexture->Resource->SamplerStateRHI ? RT_TargetTexture->Resource->SamplerStateRHI : nullptr;
 					TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 					TargetData->UAV.SafeRelease();
 				}

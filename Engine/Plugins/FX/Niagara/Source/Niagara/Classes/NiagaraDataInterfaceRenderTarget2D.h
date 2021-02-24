@@ -48,6 +48,7 @@ struct FRenderTarget2DRWInstanceData_RenderThread
 	ENiagaraMipMapGeneration MipMapGeneration = ENiagaraMipMapGeneration::Disabled;
 	bool bWasWrittenTo = false;
 
+	FSamplerStateRHIRef SamplerStateRHI;
 	FTextureReferenceRHIRef TextureReferenceRHI;
 	FUnorderedAccessViewRHIRef UAV;
 #if WITH_EDITORONLY_DATA
@@ -122,6 +123,8 @@ public:
 	void SetSize(FVectorVMContext& Context);
 
 	static const FName SetValueFunctionName;
+	static const FName GetValueFunctionName;
+	static const FName SampleValueFunctionName;
 	static const FName SetSizeFunctionName;
 	static const FName GetSizeFunctionName;
 	static const FName LinearToIndexName;
@@ -129,6 +132,7 @@ public:
 	static const FString SizeName;
 	static const FString RWOutputName;
 	static const FString OutputName;
+	static const FString InputName;
 
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntPoint Size;

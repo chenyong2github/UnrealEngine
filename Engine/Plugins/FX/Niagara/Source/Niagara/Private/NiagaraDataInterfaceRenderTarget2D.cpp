@@ -22,9 +22,12 @@
 const FString UNiagaraDataInterfaceRenderTarget2D::SizeName(TEXT("RWSize_"));
 const FString UNiagaraDataInterfaceRenderTarget2D::RWOutputName(TEXT("RWOutput_"));
 const FString UNiagaraDataInterfaceRenderTarget2D::OutputName(TEXT("Output_"));
+const FString UNiagaraDataInterfaceRenderTarget2D::InputName(TEXT("Input_"));
 
 // Global VM function names, also used by the shaders code generation methods.
 const FName UNiagaraDataInterfaceRenderTarget2D::SetValueFunctionName("SetRenderTargetValue");
+const FName UNiagaraDataInterfaceRenderTarget2D::GetValueFunctionName("GetRenderTargetValue");
+const FName UNiagaraDataInterfaceRenderTarget2D::SampleValueFunctionName("SampleRenderTargetValue");
 const FName UNiagaraDataInterfaceRenderTarget2D::SetSizeFunctionName("SetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTarget2D::GetSizeFunctionName("GetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTarget2D::LinearToIndexName("LinearToIndex");
@@ -44,6 +47,14 @@ static FAutoConsoleVariableRef CVarNiagaraRenderTargetResolutionMultiplier(
 	TEXT("fx.Niagara.RenderTarget.ResolutionMultiplier"),
 	GNiagaraRenderTargetResolutionMultiplier,
 	TEXT("Optional global modifier to Niagara render target resolution."),
+	ECVF_Default
+);
+
+int GNiagaraRenderTargetAllowReads = 0;
+static FAutoConsoleVariableRef CVarNiagaraRenderTargetAllowReads(
+	TEXT("fx.Niagara.RenderTarget.AllowReads"),
+	GNiagaraRenderTargetAllowReads,
+	TEXT("Enables read operations to be visible in the UI, very experimental."),
 	ECVF_Default
 );
 
@@ -70,6 +81,9 @@ public:
 	{			
 		SizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::SizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 		OutputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::OutputName + ParameterInfo.DataInterfaceHLSLSymbol));
+
+		InputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::InputName + ParameterInfo.DataInterfaceHLSLSymbol));
+		InputSamplerStateParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::InputName + TEXT("SamplerState") + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -111,6 +125,29 @@ public:
 
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputParam.GetUAVIndex(), OutputUAV);
 		}
+
+		if ( InputParam.IsBound() )
+		{
+			FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture();
+			if (TextureRHI == nullptr)
+			{
+				TextureRHI = GBlackTexture->TextureRHI;
+			}
+			FRHISamplerState* SamplerStateRHI = ProxyData->SamplerStateRHI;
+			if (SamplerStateRHI == nullptr)
+			{
+				SamplerStateRHI = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			}
+
+			SetTextureParameter(
+				RHICmdList,
+				ComputeShaderRHI,
+				InputParam,
+				InputSamplerStateParam,
+				SamplerStateRHI,
+				TextureRHI
+			);
+		}
 	}
 
 	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const 
@@ -134,6 +171,9 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, SizeParam);
 	LAYOUT_FIELD(FRWShaderParameter, OutputParam);
+
+	LAYOUT_FIELD(FShaderResourceParameter, InputParam);
+	LAYOUT_FIELD(FShaderResourceParameter, InputSamplerStateParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_RenderTarget2D);
@@ -250,6 +290,45 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 	#endif
 	}
 
+	if (GNiagaraRenderTargetAllowReads)
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = GetValueFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
+
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
+#endif
+	}
+
+	if (GNiagaraRenderTargetAllowReads)
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = SampleValueFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("UV")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
+
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
+#endif
+	}
+
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = LinearToIndexName;
@@ -361,11 +440,14 @@ void UNiagaraDataInterfaceRenderTarget2D::GetParameterDefinitionHLSL(const FNiag
 
 	static const TCHAR *FormatDeclarations = TEXT(R"(
 		RWTexture2D<float4> {OutputName};
+		Texture2D<float4> {InputName};
+		SamplerState {InputName}SamplerState;
 		int2 {SizeName};
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations =
 	{
 		{ TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol },
+		{ TEXT("InputName"),	InputName + ParamInfo.DataInterfaceHLSLSymbol },
 		{ TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
@@ -383,6 +465,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInte
 	{
 		{TEXT("FunctionName"),	FunctionInfo.InstanceName},
 		{TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol},
+		{TEXT("InputName"),		InputName + ParamInfo.DataInterfaceHLSLSymbol },
 		{TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol },
 	};
 
@@ -395,6 +478,28 @@ bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInte
 				{
 					{OutputName}[int2(In_IndexX, In_IndexY)] = In_Value;
 				}
+			}
+		)");
+		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetValueFunctionName)
+	{
+		static const TCHAR* FormatBounds = TEXT(R"(
+			void {FunctionName}(int In_IndexX, int In_IndexY, out float4 Out_Value)
+			{			
+				Out_Value = {InputName}.Load(int3(In_IndexX, In_IndexY, 0));
+			}
+		)");
+		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == SampleValueFunctionName)
+	{
+		static const TCHAR* FormatBounds = TEXT(R"(
+			void {FunctionName}(float2 UV, out float4 Out_Value)
+			{			
+				Out_Value = {InputName}.SampleLevel({InputName}SamplerState, UV, 0.0f);
 			}
 		)");
 		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
@@ -482,6 +587,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceD
 #if WITH_EDITORONLY_DATA
 			TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 #endif
+			TargetData->SamplerStateRHI = RT_TargetTexture->Resource && RT_TargetTexture->Resource->SamplerStateRHI ? RT_TargetTexture->Resource->SamplerStateRHI : nullptr;
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
 
@@ -510,6 +616,7 @@ void UNiagaraDataInterfaceRenderTarget2D::DestroyPerInstanceData(void* PerInstan
 			FRenderTarget2DRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
 			if ( ensure(TargetData != nullptr) )
 			{
+				TargetData->SamplerStateRHI = nullptr;
 				TargetData->TextureReferenceRHI = nullptr;
 				TargetData->UpdateMemoryStats();
 			}
@@ -708,6 +815,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::PerInstanceTickPostSimulate(void* PerI
 	#if WITH_EDITORONLY_DATA
 						TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 	#endif
+						TargetData->SamplerStateRHI = RT_TargetTexture->Resource && RT_TargetTexture->Resource->SamplerStateRHI ? RT_TargetTexture->Resource->SamplerStateRHI : nullptr;
 						TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 						TargetData->UAV.SafeRelease();
 #if STATS

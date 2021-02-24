@@ -40,6 +40,7 @@ struct FRenderTargetVolumeRWInstanceData_RenderThread
 
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	
+	FSamplerStateRHIRef SamplerStateRHI;
 	FTextureReferenceRHIRef TextureReferenceRHI;
 	FUnorderedAccessViewRHIRef UAV;
 #if WITH_EDITORONLY_DATA
@@ -103,12 +104,15 @@ public:
 	void SetSize(FVectorVMContext& Context);
 
 	static const FName SetValueFunctionName;
+	static const FName GetValueFunctionName;
+	static const FName SampleValueFunctionName;
 	static const FName SetSizeFunctionName;
 	static const FName GetSizeFunctionName;
 	static const FName LinearToIndexName;
 
 	static const FString RWOutputName;
 	static const FString OutputName;
+	static const FString InputName;
 	static const FString SizeName;
 
 	UPROPERTY(EditAnywhere, Category = "Render Target")
