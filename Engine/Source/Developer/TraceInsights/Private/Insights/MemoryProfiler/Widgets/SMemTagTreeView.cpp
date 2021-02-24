@@ -295,14 +295,6 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsGroupingWidgetArea()
 		]
 	];
 
-	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
-	if (ProfilerWindow.IsValid())
-	{
-		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
-		TrackerComboBox->SetSelectedItem(SharedState.GetCurrentTracker());
-		TrackerComboBox->RefreshOptions();
-	}
-
 	return Widget;
 }
 
