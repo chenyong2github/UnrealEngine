@@ -1073,8 +1073,14 @@ RENDERCORE_API Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform Sha
 	else
 	{
 		Type Value = {};
-		FConfigFile PlatformEngineIni;
-		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *ShaderPlatformToPlatformName(ShaderPlatform).ToString());
+		static FConfigFile PlatformEngineIni;
+		static bool bRead = false;
+		if (!bRead)
+		{
+			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *ShaderPlatformToPlatformName(ShaderPlatform).ToString());
+			bRead = true;
+		}
+
 		if (PlatformEngineIni.GetValue(Section, Key, Value))
 		{
 			CachedValues.Add(ShaderPlatform, Value);
