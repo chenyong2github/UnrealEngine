@@ -157,6 +157,8 @@ private:
 	   ::DeleteObject, unless you're passing it to SetWindowRgn(), which will absorb the reference itself. */
 	HRGN MakeWindowRegionObject(bool bIncludeBorderWhenMaximized) const;
 
+	void DisableTouchFeedback();
+
 private:
 
 	/** The application that owns this window. */
