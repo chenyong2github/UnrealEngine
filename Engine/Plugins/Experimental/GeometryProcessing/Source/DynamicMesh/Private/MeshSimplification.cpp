@@ -269,7 +269,11 @@ FVector3d TMeshSimplification<QuadricErrorType>::OptimalPoint(int eid, const FQu
 	{
 		if (Mesh->IsBoundaryEdge(eid))
 		{
-			return (Mesh->GetVertex(ea) + Mesh->GetVertex(eb)) * 0.5;
+			const bool bModeAllowsVertMovement = (CollapseMode != ESimplificationCollapseModes::MinimalExistingVertexError);
+			if (bModeAllowsVertMovement)
+			{ 
+				return (Mesh->GetVertex(ea) + Mesh->GetVertex(eb)) * 0.5;
+			} // else MinimalExistingVertexError case below will choose one of the vertex locations
 		}
 		else
 		{
@@ -715,7 +719,7 @@ void TMeshSimplification<QuadricErrorType>::DoSimplify()
 	{
 		return;
 	}
-
+	// [TODO] - consider, skip this when CollapseMode == ESimplificationCollapseModes::MinimalExistingVertexError ? 
 	Reproject();
 
 	ProfileEndPass();
@@ -1117,11 +1121,96 @@ void TMeshSimplification<QuadricErrorType>::FastCollapsePass(double fMinEdgeLeng
 
 
 
+template <typename QuadricErrorType>
+bool TMeshSimplification<QuadricErrorType>::CanCollapseEdge(int edgeID, int a, int b, int c, int d, int t0, int t1, int& collapse_to) const
+{
+	const bool bPreserveSeamTopology = (CollapseMode == ESimplificationCollapseModes::MinimalExistingVertexError);
 
+	if (bAllowSeamCollapse && !bPreserveSeamTopology)
+	{
+		return CanCollapseVertex(edgeID, a, b, collapse_to);
+	}
 
+	// make sure that the retained edges from the collapsed triangles don't merge seams
+	bool bCanCollapse = FMeshRefinerBase::CanCollapseEdge(edgeID, a, b, c, d, t0, t1, collapse_to);
 
+	// make sure more general seam topology is preserved
+	if (bCanCollapse && bAllowSeamCollapse && bPreserveSeamTopology)
+	{
+		if (!Constraints)
+		{
+			return bCanCollapse;
+		}
 
+		// NB: We have to be more restrictive with the MinimalQuadricPositionError mode
+		// in order to preclude the possibility of a seam moving during collapse.
 
+		// check if this edge is a seam
+		if (Constraints->HasEdgeConstraint(edgeID))
+		{
+			// examine local topology
+			bool bCanCollapseSeam = true;
+			if (const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes())
+			{
+
+				for (int i = 0; bCanCollapseSeam && i < Attributes->NumUVLayers(); ++i)
+				{
+					auto* Overlay = Attributes->GetUVLayer(i);
+					bool bIsNonIntersecting;
+					if (Overlay->IsSeamEdge(edgeID, &bIsNonIntersecting))
+					{
+						bCanCollapseSeam = bCanCollapseSeam && bIsNonIntersecting;
+					}
+				}
+				for (int i = 0; bCanCollapseSeam && i < Attributes->NumNormalLayers(); ++i)
+				{
+					auto* Overlay = Attributes->GetNormalLayer(i);
+					bool bIsNonIntersecting;
+					if (Overlay->IsSeamEdge(edgeID, &bIsNonIntersecting))
+					{
+						bCanCollapseSeam = bCanCollapseSeam && bIsNonIntersecting;
+					}
+				}
+			}
+			bCanCollapse = bCanCollapseSeam;
+		}
+		else
+		{
+			// this edge was not a seam, but need to check if one or both ends are part of other seams 
+			// - this is done by checking for vertex constraint
+			bool bVertexAOnSeam = Constraints->HasVertexConstraint(a);
+			bool bVertexBOnSeam = Constraints->HasVertexConstraint(b);
+			if (bVertexAOnSeam && bVertexBOnSeam)
+			{
+				bCanCollapse = false;
+			}
+			else if (bVertexAOnSeam)
+			{
+				if (collapse_to == -1)
+				{
+					collapse_to = a;
+				}
+				else if (collapse_to != a)
+				{
+					bCanCollapse = false;
+				}
+			}
+			else if (bVertexBOnSeam)
+			{
+				if (collapse_to == -1)
+				{
+					collapse_to = b;
+				}
+				else if (collapse_to != b)
+				{
+					bCanCollapse = false;
+				}
+			}
+		}
+	}
+
+	return bCanCollapse;
+}
 
 
 
@@ -1171,21 +1260,14 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	// check if we should collapse, and also find which vertex we should retain
 	// in cases where we have constraints/etc
 	int collapse_to = -1;
-	bool bCanCollapse = false;
-	if (!bAllowSeamCollapse)
-	{
-		bCanCollapse = CanCollapseEdge(edgeID, a, b, c, d, t0, t1, collapse_to);
-	}
-	else
-	{
-		bCanCollapse = CanCollapseVertex(edgeID, a, b, collapse_to);
-	}
+	bool bCanCollapse = CanCollapseEdge(edgeID, a, b, c, d, t0, t1, collapse_to);
 
 	if (bCanCollapse == false)
 	{
 		return ESimplificationResult::Ignored_Constrained;
 	}
 
+	const bool bMinimalVertexMode = (CollapseMode == ESimplificationCollapseModes::MinimalExistingVertexError);
 	// if we have a boundary, we want to collapse to boundary
 	if (bPreserveBoundaryShape && bHaveBoundary)
 	{
@@ -1197,19 +1279,23 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 				return ESimplificationResult::Ignored_Constrained;
 			}
 		}
-		if (IsBoundaryVertex(b))
+
+		if (!bMinimalVertexMode) // the minimal existing vertex error has already resolved this with more complicated logic
 		{
-			collapse_to = b;
-		}
-		else if (IsBoundaryVertex(a))
-		{
-			collapse_to = a;
+			if (IsBoundaryVertex(b))
+			{
+				collapse_to = b;
+			}
+			else if (IsBoundaryVertex(a))
+			{
+				collapse_to = a;
+			}
 		}
 	}
 
 	if (RequireKeepVert == a || RequireKeepVert == b)
 	{
-		if (collapse_to >= 0 && collapse_to != RequireKeepVert)
+		if (collapse_to != -1 && collapse_to != RequireKeepVert)
 		{
 			return ESimplificationResult::Ignored_Constrained;
 		}
@@ -1222,26 +1308,35 @@ ESimplificationResult TMeshSimplification<QuadricErrorType>::CollapseEdge(int ed
 	ESimplificationResult retVal = ESimplificationResult::Failed_OpNotSuccessful;
 
 	int iKeep = b, iCollapse = a;
-	bool bCanMove = true;
-	
+	bool bConstraintsSpecifyPosition = false;
 	if (collapse_to != -1)
 	{
 		iKeep = collapse_to;
 		iCollapse = (iKeep == a) ? b : a;
 
-		// if constraints require a fixed position
+		// if constraints or collapse mode require a fixed position
 		if (Constraints)
 		{
-			bCanMove = Constraints->GetVertexConstraint(collapse_to).bCanMove;
+			bConstraintsSpecifyPosition = bMinimalVertexMode || (!Constraints->GetVertexConstraint(collapse_to).bCanMove );
 		}
 	}
 	double collapse_t = 0;
-	if (bCanMove)
+	if (!bConstraintsSpecifyPosition)
 	{
+		checkSlow(!bMinimalVertexMode || (vNewPos == vA || vNewPos == vB));
+		
+		// [TODO] maybe skip Projection call when !bModeAllowsVertMovment.
 		vNewPos = GetProjectedCollapsePosition(iKeep, vNewPos);
 		double div = vA.Distance(vB);
 		collapse_t = (div < FMathd::ZeroTolerance) ? 0.5 : (vNewPos.Distance(Mesh->GetVertex(iKeep))) / div;
 		collapse_t = VectorUtil::Clamp(collapse_t, 0.0, 1.0);
+
+		if (bMinimalVertexMode)
+		{
+			// this _should_ already be 0 or 1 with perfect precision. 
+			// round here to make sure later attribute lerps don't change values
+			collapse_t = FMath::RoundToDouble(collapse_t);
+		}
 	}
 	else
 	{

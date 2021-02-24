@@ -62,7 +62,9 @@ public:
 	/** if false, face and vertex quadrics are recomputed in the neighborhood of each collapse, definitely slower but maybe higher quality*/
 	bool bRetainQuadricMemory = false;
 
-	/** if true, we try to keep boundary vertices on boundary. You probably want this. */
+	/** if true, we try to keep boundary vertices on boundary. 
+	* You probably want this if you aren't using seam quadrics.
+	*/
 	bool bPreserveBoundaryShape = true;
 
 	/** if true, we allow UV and Normal seams to collapse during simplification.*/
@@ -272,7 +274,13 @@ protected:
 		return IsBoundaryVtxCache[vid];
 	}
 
-
+	/**
+	* Figure out if we can collapse edge eid=[a,b] under current constraint set
+	* This depends on the base class function FMeshRefinerBase::CanCollapseEdge, 
+	* but includes additional restrictions specified by the CollapseMode of this simplifier.
+	* See the base class for description of parameters.
+	*/
+	bool CanCollapseEdge(int edgeID, int a, int b, int c, int d, int t0, int t1, int& collapse_to) const;
 
 
 	/**

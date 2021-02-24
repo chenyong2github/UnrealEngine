@@ -385,8 +385,11 @@ public:
 	}
 
 
-	/** Returns true if the parent-mesh edge is a "Seam" in this overlay */
-	bool IsSeamEdge(int EdgeID) const;
+	/** Returns true if the parent-mesh edge is a "Seam" in this overlay.  
+	*   If present, bIsNonIntersectingOut will be true only if this is a seam edge 
+	*   that does not intersect with another seam or the end of the seam. 
+	*/
+	bool IsSeamEdge(int EdgeID, bool* bIsNonIntersectingOut = nullptr) const;
 	/** Returns true if the parent-mesh edge is a "Seam End" in this overlay, meaning the adjacent element triangles share one element, not two */
 	bool IsSeamEndEdge(int EdgeID) const;
 	/** Returns true if the parent-mesh vertex is connected to any seam edges */

@@ -443,11 +443,26 @@ void TDynamicMeshOverlay<RealType, ElementSize>::InitializeNewTriangle(int tid)
 
 
 template<typename RealType, int ElementSize>
-bool TDynamicMeshOverlay<RealType,ElementSize>::IsSeamEdge(int eid) const
+bool TDynamicMeshOverlay<RealType,ElementSize>::IsSeamEdge(int eid, bool* bIsNonIntersecting) const
 {
+	if (bIsNonIntersecting != nullptr)
+	{
+		*bIsNonIntersecting = false;
+	}
+
 	FIndex2i et = ParentMesh->GetEdgeT(eid);
 	if (et.B == FDynamicMesh3::InvalidID)
 	{
+		if (bIsNonIntersecting != nullptr)
+		{
+			FIndex2i ev = ParentMesh->GetEdgeV(eid);
+			int CountA = CountVertexElements(ev.A);
+			int CountB = CountVertexElements(ev.B);
+			
+			// will be false if another seam intersects is adjacent to either end of the seam edge
+			*bIsNonIntersecting = (CountA == 1) && (CountB == 1);
+		}
+
 		return true;
 	}
 
@@ -462,15 +477,41 @@ bool TDynamicMeshOverlay<RealType,ElementSize>::IsSeamEdge(int eid) const
 
 	FIndex3i Triangle0 = GetTriangle(et.A);
 	FIndex3i BaseTriangle0(ParentVertices[Triangle0.A], ParentVertices[Triangle0.B], ParentVertices[Triangle0.C]);
-	int idx_base_a1 = BaseTriangle0.IndexOf(base_a);
-	int idx_base_b1 = BaseTriangle0.IndexOf(base_b);
+	int idx_base_a0 = BaseTriangle0.IndexOf(base_a);
+	int idx_base_b0 = BaseTriangle0.IndexOf(base_b);
 
 	FIndex3i Triangle1 = GetTriangle(et.B);
 	FIndex3i BaseTriangle1(ParentVertices[Triangle1.A], ParentVertices[Triangle1.B], ParentVertices[Triangle1.C]);
-	int idx_base_a2 = BaseTriangle1.IndexOf(base_a);
-	int idx_base_b2 = BaseTriangle1.IndexOf(base_b);
+	int idx_base_a1 = BaseTriangle1.IndexOf(base_a);
+	int idx_base_b1 = BaseTriangle1.IndexOf(base_b);
 
-	return !IndexUtil::SamePairUnordered(Triangle0[idx_base_a1], Triangle0[idx_base_b1], Triangle1[idx_base_a2], Triangle1[idx_base_b2]);
+	int el_a_tri0 = Triangle0[idx_base_a0];
+	int el_b_tri0 = Triangle0[idx_base_b0];
+	int el_a_tri1 = Triangle1[idx_base_a1];
+	int el_b_tri1 = Triangle1[idx_base_b1];
+
+	bool bIsSeam = !IndexUtil::SamePairUnordered(el_a_tri0, el_b_tri0, el_a_tri1, el_b_tri1);
+
+	if (bIsNonIntersecting != nullptr)
+	{
+		if ((el_a_tri0 == el_a_tri1 || el_a_tri0 == el_b_tri1) || (el_b_tri0 == el_b_tri1 || el_b_tri0 == el_a_tri1))
+		{
+			// seam edge "intersects" with end of the seam
+			*bIsNonIntersecting = false;
+		}
+		else
+		{
+			// check that exactly two elements are associated with the vertices at each end of the edge
+			int CountA = CountVertexElements(base_a);
+			int CountB = CountVertexElements(base_b);
+
+			// will be false if another seam intersects is adjacent to either end of the seam edge
+			*bIsNonIntersecting = (CountA == 2) && (CountB == 2);
+		}
+	}
+	
+	return bIsSeam;
+	
 
 
 	// TODO: this doesn't seem to work but it should, and would be more efficient:
