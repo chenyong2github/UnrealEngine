@@ -2535,6 +2535,16 @@ bool SLevelViewport::IsLockedCameraViewEnabled() const
 	return LevelViewportClient->bLockedCameraView;
 }
 
+void SLevelViewport::SetAllowsCinematicControl(bool bAllow)
+{
+	LevelViewportClient->SetAllowCinematicControl(bAllow);
+}
+
+bool SLevelViewport::GetAllowsCinematicControl() const
+{
+	return LevelViewportClient->AllowsCinematicControl();
+}
+
 void SLevelViewport::FindSelectedInLevelScript()
 {
 	GUnrealEd->FindSelectedActorsInLevelScript();

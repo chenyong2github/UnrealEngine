@@ -25,10 +25,10 @@ public:
 	void ExtendQuickActionMenu();
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta=(DevelopmentOnly))
-	void PilotLevelActor(AActor* ActorToPilot);
+	void PilotLevelActor(AActor* ActorToPilot, FName ViewportConfigKey = NAME_None);
 	void PilotLevelActor(const FToolMenuContext& InContext);
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
-	void EjectPilotLevelActor();
+	void EjectPilotLevelActor(FName ViewportConfigKey = NAME_None);
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
 	void EditorPlaySimulate();
@@ -37,13 +37,28 @@ public:
 	void EditorInvalidateViewports();
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
-	void EditorSetGameView(bool bGameView);
+	void EditorSetGameView(bool bGameView, FName ViewportConfigKey = NAME_None);
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	bool EditorGetGameView(FName ViewportConfigKey = NAME_None);
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
 	void EditorRequestEndPlay();
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
 	bool IsInPlayInEditor() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	TArray<FName> GetViewportConfigKeys();
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	FName GetActiveViewportConfigKey();
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	void SetAllowsCinematicControl(bool bAllow, FName ViewportConfigKey = NAME_None);
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	bool GetAllowsCinematicControl(FName ViewportConfigKey = NAME_None);
 
 	/**
 	 * Close the current Persistent Level (without saving it). Create a new blank Level and save it. Load the new created level.

@@ -273,6 +273,18 @@ public:
 	bool IsLockedCameraViewEnabled() const;
 
 	/**
+	 * Sets whether the viewport should allow cinematic control
+	 * 
+	 * @param Whether the viewport should allow cinematic control.
+     */
+	void SetAllowsCinematicControl(bool bAllow);
+
+	/**
+	 * @return Whether the viewport allows cinematic control.
+     */
+	bool GetAllowsCinematicControl() const;
+
+	/**
 	 * @return the fixed width that a column returned by CreateActorLockSceneOutlinerColumn expects to be
 	 */
 	static float GetActorLockSceneOutlinerColumnWidth();

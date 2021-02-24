@@ -21,6 +21,33 @@ DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
 
 #define LOCTEXT_NAMESPACE "LevelEditorSubsystem"
 
+namespace InternalEditorLevelLibrary
+{
+
+TSharedPtr<SLevelViewport> GetLevelViewport(const FName& ViewportConfigKey)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
+	{
+		for (TSharedPtr<SLevelViewport> LevelViewport : LevelEditor->GetViewports())
+		{
+			if (LevelViewport.IsValid() && LevelViewport->GetConfigKey() == ViewportConfigKey)
+			{
+				return LevelViewport;
+			}
+		}
+
+		TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
+		return ActiveLevelViewport;
+	}
+
+	return nullptr;
+}
+
+}
+
 void ULevelEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &ULevelEditorSubsystem::ExtendQuickActionMenu));
@@ -67,14 +94,12 @@ void ULevelEditorSubsystem::PilotLevelActor(const FToolMenuContext& InContext)
 	PilotLevelActor(SelectedActor);
 }
 
-void ULevelEditorSubsystem::PilotLevelActor(AActor* ActorToPilot) 
+void ULevelEditorSubsystem::PilotLevelActor(AActor* ActorToPilot, FName ViewportConfigKey) 
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-
-	TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
-	if (ActiveLevelViewport.IsValid())
+	TSharedPtr<SLevelViewport> LevelViewport = InternalEditorLevelLibrary::GetLevelViewport(ViewportConfigKey);
+	if (LevelViewport.IsValid())
 	{
-		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+		FLevelEditorViewportClient& LevelViewportClient = LevelViewport->GetLevelViewportClient();
 
 		LevelViewportClient.SetActorLock(ActorToPilot);
 		if (LevelViewportClient.IsPerspective() && LevelViewportClient.GetActiveActorLock().IsValid())
@@ -84,14 +109,12 @@ void ULevelEditorSubsystem::PilotLevelActor(AActor* ActorToPilot)
 	}
 }
 
-void ULevelEditorSubsystem::EjectPilotLevelActor()
+void ULevelEditorSubsystem::EjectPilotLevelActor(FName ViewportConfigKey)
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-
-	TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveLevelViewport();
-	if (ActiveLevelViewport.IsValid())
+	TSharedPtr<SLevelViewport> LevelViewport = InternalEditorLevelLibrary::GetLevelViewport(ViewportConfigKey);
+	if (LevelViewport.IsValid())
 	{
-		FLevelEditorViewportClient& LevelViewportClient = ActiveLevelViewport->GetLevelViewportClient();
+		FLevelEditorViewportClient& LevelViewportClient = LevelViewport->GetLevelViewportClient();
 
 		if (AActor* LockedActor = LevelViewportClient.GetActiveActorLock().Get())
 		{
@@ -137,19 +160,28 @@ void ULevelEditorSubsystem::EditorInvalidateViewports()
 	}
 }
 
-void ULevelEditorSubsystem::EditorSetGameView(bool bGameView)
+void ULevelEditorSubsystem::EditorSetGameView(bool bGameView, FName ViewportConfigKey)
 {
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-
-	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
-	if (ActiveLevelViewport.IsValid())
+	TSharedPtr<SLevelViewport> LevelViewport = InternalEditorLevelLibrary::GetLevelViewport(ViewportConfigKey);
+	if (LevelViewport.IsValid())
 	{
-		if (ActiveLevelViewport->IsInGameView() != bGameView)
+		if (LevelViewport->IsInGameView() != bGameView)
 		{
-			ActiveLevelViewport->ToggleGameView();
+			LevelViewport->ToggleGameView();
 		}
 	}
 }
+
+bool ULevelEditorSubsystem::EditorGetGameView(FName ViewportConfigKey)
+{
+	TSharedPtr<SLevelViewport> LevelViewport = InternalEditorLevelLibrary::GetLevelViewport(ViewportConfigKey);
+	if (LevelViewport.IsValid())
+	{
+		return LevelViewport->IsInGameView();
+	}
+	return false;
+}
+
 
 void ULevelEditorSubsystem::EditorRequestEndPlay()
 {
@@ -159,6 +191,61 @@ void ULevelEditorSubsystem::EditorRequestEndPlay()
 bool ULevelEditorSubsystem::IsInPlayInEditor() const
 {
 	return GUnrealEd->IsPlayingSessionInEditor();
+}
+
+TArray<FName> ULevelEditorSubsystem::GetViewportConfigKeys()
+{
+	TArray<FName> ViewportConfigKeys;
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
+	{
+		for (TSharedPtr<SLevelViewport> LevelViewport : LevelEditor->GetViewports())
+		{
+			if (LevelViewport.IsValid())
+			{
+				ViewportConfigKeys.Add(LevelViewport->GetConfigKey());
+			}
+		}
+	}
+
+	return ViewportConfigKeys;
+}
+
+FName ULevelEditorSubsystem::GetActiveViewportConfigKey()
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
+	{
+		TSharedPtr<SLevelViewport> ActiveLevelViewport = LevelEditor->GetActiveViewportInterface();
+		if (ActiveLevelViewport.IsValid())
+		{
+			return ActiveLevelViewport->GetConfigKey();
+		}
+	}
+	return NAME_None;
+}
+
+void ULevelEditorSubsystem::SetAllowsCinematicControl(bool bAllow, FName ViewportConfigKey)
+{
+	TSharedPtr<SLevelViewport> LevelViewport = InternalEditorLevelLibrary::GetLevelViewport(ViewportConfigKey);
+	if (LevelViewport.IsValid())
+	{
+		return LevelViewport->SetAllowsCinematicControl(bAllow);
+	}
+}
+
+bool ULevelEditorSubsystem::GetAllowsCinematicControl(FName ViewportConfigKey)
+{
+	TSharedPtr<SLevelViewport> LevelViewport = InternalEditorLevelLibrary::GetLevelViewport(ViewportConfigKey);
+	if (LevelViewport.IsValid())
+	{
+		return LevelViewport->GetAllowsCinematicControl();
+	}
+	return false;
 }
 
 /**
