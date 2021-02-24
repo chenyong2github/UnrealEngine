@@ -1066,6 +1066,16 @@ bool UCookOnTheFlyServer::HasRemainingWork() const
 
 bool UCookOnTheFlyServer::RequestPackage(const FName& StandardFileName, const TArrayView<const ITargetPlatform* const>& TargetPlatforms, const bool bForceFrontOfQueue)
 {
+	if (!IsCookByTheBookMode())
+	{
+		bCookOnTheFlyExternalRequests = true;
+		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+		{
+			AddCookOnTheFlyPlatformFromGameThread(const_cast<ITargetPlatform*>(TargetPlatform));
+			PlatformManager->AddRefCookOnTheFlyPlatform(FName(*TargetPlatform->PlatformName()), *this);
+		}
+	}
+
 	ExternalRequests->EnqueueUnique(UE::Cook::FFilePlatformRequest(StandardFileName, TargetPlatforms), bForceFrontOfQueue);
 	return true;
 }
@@ -1804,7 +1814,7 @@ void UCookOnTheFlyServer::TickNetwork()
 	// It is not safe to call PruneUnreferencedSessionPlatforms in CookByTheBook because StartCookByTheBook does not AddRef its session platforms
 	if (IsCookOnTheFlyMode())
 	{
-		if (IsInSession())
+		if (IsInSession() && !bCookOnTheFlyExternalRequests)
 		{
 			PlatformManager->PruneUnreferencedSessionPlatforms(*this);
 		}
