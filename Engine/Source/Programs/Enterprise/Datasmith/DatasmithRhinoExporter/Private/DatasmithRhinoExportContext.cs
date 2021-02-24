@@ -750,6 +750,24 @@ namespace DatasmithRhino
 						UpdateChildActorsMaterialIndex(ActorInfo);
 					}
 
+					// if the visibility changed, update the status of the descendants.
+					bool bIsVisible = ActorInfo.bIsVisible;
+					if (!bIsVisible || ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Deleted)
+					{
+						const bool bIncludeHidden = true;
+						foreach (DatasmithActorInfo DescendantActor in ActorInfo.GetEnumerator(bIncludeHidden))
+						{
+							if (!bIsVisible)
+							{
+								DescendantActor.DirectLinkStatus = DirectLinkSynchronizationStatus.Deleted;
+							}
+							else
+							{
+								DescendantActor.RestorePreviousDirectLinkStatus();
+							}
+						}
+					}
+
 					ActorInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Modified;
 				}
 				else
@@ -889,7 +907,7 @@ namespace DatasmithRhino
 			{
 				ParentNode.AddChild(ActorNodeInfo);
 				ObjectIdToHierarchyActorNodeDictionary.Add(CurrentLayer.Id, ActorNodeInfo);
-				LayerIndexToLayerString.Add(CurrentLayer.Index, BuildLayerString(CurrentLayer, ParentNode));
+				LayerIndexToLayerString[CurrentLayer.Index] = BuildLayerString(CurrentLayer, ParentNode);
 				AddMaterialIndexMapping(CurrentLayer.RenderMaterialIndex);
 
 				RhinoObject[] ObjectsInLayer = RhinoDocument.Objects.FindByLayer(CurrentLayer);
