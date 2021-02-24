@@ -8,6 +8,7 @@
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
 #include "ConcertTransportSettings.h"
+#include "ConcertVersion.h"
 #include "ConcertSettings.generated.h"
 
 namespace ConcertSettingsUtils
@@ -154,6 +155,13 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category="Session Settings")
 	FString DefaultSessionToRestore;
+
+	/** 
+	 * The version string for the default server created.
+	 * Can be specified on the server cmd with `-CONCERTVERSION=`
+	 */
+	UPROPERTY()
+	FConcertSessionVersionInfo DefaultVersionInfo;
 
 	/** Default server session settings */
 	UPROPERTY(config, EditAnywhere, Category="Session Settings")

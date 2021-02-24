@@ -111,6 +111,7 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 				FConcertSessionInfo SessionInfo = ConcertServer->CreateSessionInfo();
 				SessionInfo.SessionName = ServerConfig->DefaultSessionName;
 				SessionInfo.Settings = ServerConfig->DefaultSessionSettings;
+				SessionInfo.VersionInfos.Add(ServerConfig->DefaultVersionInfo);
 
 				bool bSuccess = false;
 				if (!ServerConfig->DefaultSessionToRestore.IsEmpty())

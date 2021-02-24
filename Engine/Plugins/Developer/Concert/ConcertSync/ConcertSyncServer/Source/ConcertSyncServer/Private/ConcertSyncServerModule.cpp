@@ -3,7 +3,9 @@
 #include "IConcertSyncServerModule.h"
 #include "ConcertSyncServer.h"
 #include "ConcertSettings.h"
-
+#include "Logging/LogVerbosity.h"
+#include "Misc/EngineVersion.h"
+#include "ConcertLogGlobal.h"
 /**
  * 
  */
@@ -33,7 +35,22 @@ public:
 			FParse::Value(CommandLine, TEXT("-CONCERTREVISION="), ServerConfig->DefaultSessionSettings.BaseRevision);
 			FParse::Value(CommandLine, TEXT("-CONCERTWORKINGDIR="), ServerConfig->WorkingDir);
 			FParse::Value(CommandLine, TEXT("-CONCERTSAVEDDIR="), ServerConfig->ArchiveDir);
-			FParse::Value(CommandLine, TEXT("-CONCERTENDPOINTTIMEOUT="), ServerConfig->EndpointSettings.RemoteEndpointTimeoutSeconds );
+			FParse::Value(CommandLine, TEXT("-CONCERTENDPOINTTIMEOUT="), ServerConfig->EndpointSettings.RemoteEndpointTimeoutSeconds);
+
+			FString VersionString;
+			if (FParse::Value(CommandLine, TEXT("-CONCERTVERSION="), VersionString))
+			{
+				FEngineVersion EngineVersion;
+				if (FEngineVersion::Parse(VersionString, EngineVersion))
+				{
+					ServerConfig->DefaultVersionInfo.EngineVersion.Initialize(EngineVersion);
+					UE_LOG(LogConcert, Display, TEXT("Override for engine version set to '%s'."), *VersionString);
+				}
+				else
+				{
+					UE_LOG(LogConcert, Warning, TEXT("Failed to parse version string '%s'."),*VersionString);
+				}
+			}
 
 			ServerConfig->ServerSettings.bIgnoreSessionSettingsRestriction |= FParse::Param(CommandLine, TEXT("CONCERTIGNORE"));
 			FParse::Bool(CommandLine, TEXT("-CONCERTIGNORE="), ServerConfig->ServerSettings.bIgnoreSessionSettingsRestriction);
