@@ -76,6 +76,7 @@ private:
 
 public:
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 #endif

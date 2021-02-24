@@ -1036,6 +1036,21 @@ void UControlRig::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
 }
 
+void UControlRig::PostLoad()
+{
+	Super::PostLoad();
+
+	if(HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if(DynamicHierarchy)
+		{
+			// Some dynamic hierarchy objects have been created using NewObject<> instead of CreateDefaultSubObjects.
+			// Assets from that version require the dynamic hierarchy to be flagged as below.
+			DynamicHierarchy->SetFlags(DynamicHierarchy->GetFlags() | RF_Public | RF_DefaultSubObject);
+		}
+	}
+}
+
 TArray<FRigControlElement*> UControlRig::AvailableControls() const
 {
 	if(DynamicHierarchy)
