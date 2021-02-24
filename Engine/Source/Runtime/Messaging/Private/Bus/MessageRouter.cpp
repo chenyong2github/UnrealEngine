@@ -125,7 +125,7 @@ void FMessageRouter::DispatchMessage(const TSharedRef<IMessageContext, ESPMode::
 		// get recipients, either from the context...
 		if (RecipientCount > 0)
 		{
-			if (LogMessaging.GetVerbosity() >= ELogVerbosity::Verbose)
+			if (UE_GET_LOG_VERBOSITY(LogMessaging) >= ELogVerbosity::Verbose)
 			{
 				FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
 				UE_LOG(LogMessaging, Verbose, TEXT("Dispatching %s from %s to %s"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString(), *RecipientStr);
@@ -144,7 +144,7 @@ void FMessageRouter::DispatchMessage(const TSharedRef<IMessageContext, ESPMode::
 			FilterSubscriptions(ActiveSubscriptions.FindOrAdd(Context->GetMessageType()), Context, Recipients);
 			FilterSubscriptions(ActiveSubscriptions.FindOrAdd(NAME_All), Context, Recipients);
 
-			if (LogMessaging.GetVerbosity() >= ELogVerbosity::Verbose)
+			if (UE_GET_LOG_VERBOSITY(LogMessaging) >= ELogVerbosity::Verbose)
 			{
 				FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
 				UE_LOG(LogMessaging, Verbose, TEXT("Dispatching %s from %s to %s subscribers"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString(), *RecipientStr);

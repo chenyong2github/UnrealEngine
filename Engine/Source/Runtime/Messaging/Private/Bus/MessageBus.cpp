@@ -46,7 +46,7 @@ void FMessageBus::Forward(
 	const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Forwarder
 )
 {
-	if (LogMessaging.GetVerbosity() >= ELogVerbosity::Verbose)
+	if (UE_GET_LOG_VERBOSITY(LogMessaging) >= ELogVerbosity::Verbose)
 	{
 		FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
 

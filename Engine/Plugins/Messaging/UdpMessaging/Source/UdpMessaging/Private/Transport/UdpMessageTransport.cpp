@@ -241,7 +241,7 @@ bool FUdpMessageTransport::TransportMessage(const TSharedRef<IMessageContext, ES
 		return false;
 	}
 
-	if (LogUdpMessaging.GetVerbosity() >= ELogVerbosity::Verbose)
+	if (UE_GET_LOG_VERBOSITY(LogUdpMessaging) >= ELogVerbosity::Verbose)
 	{
 		FString RecipientStr = FString::JoinBy(Recipients, TEXT("+"), [](const FGuid& Guid) { return Guid.ToString(); });
 		UE_LOG(LogUdpMessaging, Verbose, TEXT("TransportMessage %s from %s to %s"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString(), *RecipientStr);

@@ -202,7 +202,7 @@ void FMessageBridge::ForgetTransportNode(const FGuid& NodeId)
 
 void FMessageBridge::ReceiveTransportMessage(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context, const FGuid& NodeId)
 {
-	if (LogMessaging.GetVerbosity() >= ELogVerbosity::Verbose)
+	if (UE_GET_LOG_VERBOSITY(LogMessaging) >= ELogVerbosity::Verbose)
 	{
 		FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
 		UE_LOG(LogMessaging, Verbose, TEXT("FMessageBridge::ReceiveTransportMessage: Received %s from %s for %s"),
