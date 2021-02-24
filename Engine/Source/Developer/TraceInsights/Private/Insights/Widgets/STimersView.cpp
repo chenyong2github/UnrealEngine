@@ -122,113 +122,109 @@ void STimersView::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoHeight()
+		.Padding(2.0f, 2.0f, 2.0f, 2.0f)
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(2.0f)
-			[
-				SNew(SVerticalBox)
+			SNew(SVerticalBox)
 
-				+ SVerticalBox::Slot()
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				// Search box
+				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
-				.AutoHeight()
+				.FillWidth(1.0f)
 				[
-					SNew(SHorizontalBox)
-
-					// Search box
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.FillWidth(1.0f)
-					[
-						SAssignNew(SearchBox, SSearchBox)
-						.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
-						.OnTextChanged(this, &STimersView::SearchBox_OnTextChanged)
-						.IsEnabled(this, &STimersView::SearchBox_IsEnabled)
-						.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
-					]
-
-					// Filter out timers with zero instance count
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
-						.HAlign(HAlign_Center)
-						.Padding(2.0f)
-						.OnCheckStateChanged(this, &STimersView::FilterOutZeroCountTimers_OnCheckStateChanged)
-						.IsChecked(this, &STimersView::FilterOutZeroCountTimers_IsChecked)
-						.ToolTipText(LOCTEXT("FilterOutZeroCountTimers_Tooltip", "Filter out the timers having zero total instance count (aggregated stats)."))
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("FilterOutZeroCountTimers_Button", " !0 "))
-						]
-					]
+					SAssignNew(SearchBox, SSearchBox)
+					.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
+					.OnTextChanged(this, &STimersView::SearchBox_OnTextChanged)
+					.IsEnabled(this, &STimersView::SearchBox_IsEnabled)
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
 				]
 
-				// Group by
-				+ SVerticalBox::Slot()
+				// Filter out timers with zero instance count
+				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
-				.AutoHeight()
+				.AutoWidth()
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
+					SNew(SCheckBox)
+					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+					.HAlign(HAlign_Center)
+					.Padding(2.0f)
+					.OnCheckStateChanged(this, &STimersView::FilterOutZeroCountTimers_OnCheckStateChanged)
+					.IsChecked(this, &STimersView::FilterOutZeroCountTimers_IsChecked)
+					.ToolTipText(LOCTEXT("FilterOutZeroCountTimers_Tooltip", "Filter out the timers having zero total instance count (aggregated stats)."))
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("GroupByText", "Group by"))
-					]
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(2.0f)
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<ETimerGroupingMode>>)
-						.ToolTipText(this, &STimersView::GroupBy_GetSelectedTooltipText)
-						.OptionsSource(&GroupByOptionsSource)
-						.OnSelectionChanged(this, &STimersView::GroupBy_OnSelectionChanged)
-						.OnGenerateWidget(this, &STimersView::GroupBy_OnGenerateWidget)
-						[
-							SNew(STextBlock)
-							.Text(this, &STimersView::GroupBy_GetSelectedText)
-						]
+						.Text(LOCTEXT("FilterOutZeroCountTimers_Button", " !0 "))
 					]
 				]
+			]
 
-				// Check boxes for: GpuScope, ComputeScope, CpuScope
-				+ SVerticalBox::Slot()
+			// Group by
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
 				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
+					SNew(STextBlock)
+					.Text(LOCTEXT("GroupByText", "Group by"))
+				]
 
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
-					.FillWidth(1.0f)
+				+ SHorizontalBox::Slot()
+				.FillWidth(2.0f)
+				.VAlign(VAlign_Center)
+				[
+					SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<ETimerGroupingMode>>)
+					.ToolTipText(this, &STimersView::GroupBy_GetSelectedTooltipText)
+					.OptionsSource(&GroupByOptionsSource)
+					.OnSelectionChanged(this, &STimersView::GroupBy_OnSelectionChanged)
+					.OnGenerateWidget(this, &STimersView::GroupBy_OnGenerateWidget)
 					[
-						GetToggleButtonForTimerType(ETimerNodeType::GpuScope)
+						SNew(STextBlock)
+						.Text(this, &STimersView::GroupBy_GetSelectedText)
 					]
+				]
+			]
 
-					//+ SHorizontalBox::Slot()
-					//.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-					//.FillWidth(1.0f)
-					//[
-					//	GetToggleButtonForTimerType(ETimerNodeType::ComputeScope)
-					//]
+			// Check boxes for: GpuScope, ComputeScope, CpuScope
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
 
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-					.FillWidth(1.0f)
-					[
-						GetToggleButtonForTimerType(ETimerNodeType::CpuScope)
-					]
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
+				.FillWidth(1.0f)
+				[
+					GetToggleButtonForTimerType(ETimerNodeType::GpuScope)
+				]
+
+				//+ SHorizontalBox::Slot()
+				//.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
+				//.FillWidth(1.0f)
+				//[
+				//	GetToggleButtonForTimerType(ETimerNodeType::ComputeScope)
+				//]
+
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
+				.FillWidth(1.0f)
+				[
+					GetToggleButtonForTimerType(ETimerNodeType::CpuScope)
 				]
 			]
 		]
@@ -255,10 +251,6 @@ void STimersView::Construct(const FArguments& InArgs)
 					.HAlign(HAlign_Fill)
 					.VAlign(VAlign_Fill)
 					[
-					//SNew(SBorder)
-					//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					//.Padding(0.0f)
-					//[
 						SAssignNew(TreeView, STreeView<FTimerNodePtr>)
 						.ExternalScrollbar(ExternalScrollbar)
 						.SelectionMode(ESelectionMode::Multi)
@@ -274,7 +266,6 @@ void STimersView::Construct(const FArguments& InArgs)
 							SAssignNew(TreeViewHeaderRow, SHeaderRow)
 							.Visibility(EVisibility::Visible)
 						)
-					//]
 					]
 
 					+ SOverlay::Slot()

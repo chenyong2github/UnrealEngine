@@ -250,6 +250,8 @@ private:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	const TArray<TSharedPtr<Insights::FMemoryTracker>>* GetAvailableTrackers();
+	bool Tracker_IsEnabled() const;
+	void Tracker_OnComboBoxOpening();
 	void Tracker_OnSelectionChanged(TSharedPtr<Insights::FMemoryTracker> InTracker, ESelectInfo::Type SelectInfo);
 	TSharedRef<SWidget> Tracker_OnGenerateWidget(TSharedPtr<Insights::FMemoryTracker> InTracker);
 	void Tracker_OnCheckStateChanged(ECheckBoxState CheckType, TSharedPtr<Insights::FMemoryTracker> InTracker);

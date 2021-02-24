@@ -80,39 +80,35 @@ void SMemTagTreeView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProf
 		+ SVerticalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoHeight()
+		.Padding(2.0f, 2.0f, 2.0f, 2.0f)
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			SNew(SVerticalBox)
+
+			// Search and Filtering
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
 			.Padding(2.0f)
+			.AutoHeight()
 			[
-				SNew(SVerticalBox)
+				ConstructTagsFilteringWidgetArea()
+			]
 
-				// Search / Filtering
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
-				[
-					ConstructTagsFilteringWidgetArea()
-				]
+			// Tracker and Grouping
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				ConstructTagsGroupingWidgetArea()
+			]
 
-				// Grouping
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
-				[
-					ConstructTagsGroupingWidgetArea()
-				]
-
-				// Tracks
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
-				[
-					ConstructTracksMiniToolbar()
-				]
+			// Tracks Mini Toolbar
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				ConstructTracksMiniToolbar()
 			]
 		]
 
@@ -132,26 +128,21 @@ void SMemTagTreeView::Construct(const FArguments& InArgs, TSharedPtr<SMemoryProf
 
 				+ SScrollBox::Slot()
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(0.0f)
-					[
-						SAssignNew(TreeView, STreeView<FMemTagNodePtr>)
-						.ExternalScrollbar(ExternalScrollbar)
-						.SelectionMode(ESelectionMode::Multi)
-						.TreeItemsSource(&FilteredGroupNodes)
-						.OnGetChildren(this, &SMemTagTreeView::TreeView_OnGetChildren)
-						.OnGenerateRow(this, &SMemTagTreeView::TreeView_OnGenerateRow)
-						.OnSelectionChanged(this, &SMemTagTreeView::TreeView_OnSelectionChanged)
-						.OnMouseButtonDoubleClick(this, &SMemTagTreeView::TreeView_OnMouseButtonDoubleClick)
-						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SMemTagTreeView::TreeView_GetMenuContent))
-						.ItemHeight(12.0f)
-						.HeaderRow
-						(
-							SAssignNew(TreeViewHeaderRow, SHeaderRow)
-							.Visibility(EVisibility::Visible)
-						)
-					]
+					SAssignNew(TreeView, STreeView<FMemTagNodePtr>)
+					.ExternalScrollbar(ExternalScrollbar)
+					.SelectionMode(ESelectionMode::Multi)
+					.TreeItemsSource(&FilteredGroupNodes)
+					.OnGetChildren(this, &SMemTagTreeView::TreeView_OnGetChildren)
+					.OnGenerateRow(this, &SMemTagTreeView::TreeView_OnGenerateRow)
+					.OnSelectionChanged(this, &SMemTagTreeView::TreeView_OnSelectionChanged)
+					.OnMouseButtonDoubleClick(this, &SMemTagTreeView::TreeView_OnMouseButtonDoubleClick)
+					.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SMemTagTreeView::TreeView_GetMenuContent))
+					.ItemHeight(12.0f)
+					.HeaderRow
+					(
+						SAssignNew(TreeViewHeaderRow, SHeaderRow)
+						.Visibility(EVisibility::Visible)
+					)
 				]
 			]
 
@@ -268,6 +259,8 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsGroupingWidgetArea()
 		SAssignNew(TrackerComboBox, SComboBox<TSharedPtr<Insights::FMemoryTracker>>)
 		.ToolTipText(this, &SMemTagTreeView::Tracker_GetTooltipText)
 		.OptionsSource(GetAvailableTrackers())
+		.IsEnabled(this, &SMemTagTreeView::Tracker_IsEnabled)
+		.OnComboBoxOpening(this, &SMemTagTreeView::Tracker_OnComboBoxOpening)
 		.OnSelectionChanged(this, &SMemTagTreeView::Tracker_OnSelectionChanged)
 		.OnGenerateWidget(this, &SMemTagTreeView::Tracker_OnGenerateWidget)
 		[
@@ -301,6 +294,14 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTagsGroupingWidgetArea()
 			.Text(this, &SMemTagTreeView::GroupBy_GetSelectedText)
 		]
 	];
+
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		TrackerComboBox->SetSelectedItem(SharedState.GetCurrentTracker());
+		TrackerComboBox->RefreshOptions();
+	}
 
 	return Widget;
 }
@@ -2088,6 +2089,36 @@ const TArray<TSharedPtr<Insights::FMemoryTracker>>* SMemTagTreeView::GetAvailabl
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool SMemTagTreeView::Tracker_IsEnabled() const
+{
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		return SharedState.GetTrackers().Num() > 0;
+	}
+	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemTagTreeView::Tracker_OnComboBoxOpening()
+{
+	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow = ProfilerWindowWeakPtr.Pin();
+
+	if (ProfilerWindow.IsValid())
+	{
+		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
+		if (SharedState.GetCurrentTracker() != TrackerComboBox->GetSelectedItem())
+		{
+			TrackerComboBox->SetSelectedItem(SharedState.GetCurrentTracker());
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SMemTagTreeView::Tracker_OnSelectionChanged(TSharedPtr<Insights::FMemoryTracker> InTracker, ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo != ESelectInfo::Direct)
@@ -2111,16 +2142,8 @@ void SMemTagTreeView::Tracker_OnSelectionChanged(TSharedPtr<Insights::FMemoryTra
 TSharedRef<SWidget> SMemTagTreeView::Tracker_OnGenerateWidget(TSharedPtr<Insights::FMemoryTracker> InTracker)
 {
 	const FText TrackerText = FText::Format(LOCTEXT("TrackerComboBox_TextFmt", "{0} Tracker (id {1})"), FText::FromString(InTracker->GetName()), FText::AsNumber(InTracker->GetId()));
-	return SNew(SCheckBox)
-		.Style(FEditorStyle::Get(), "Toolbar.RadioButton")
-		.OnCheckStateChanged(this, &SMemTagTreeView::Tracker_OnCheckStateChanged, InTracker)
-		.IsChecked(this, &SMemTagTreeView::Tracker_IsChecked, InTracker)
-		.Content()
-		[
-			SNew(STextBlock)
-			.Text(TrackerText)
-			.Margin(2.0f)
-		];
+	return SNew(STextBlock)
+		.Text(TrackerText);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

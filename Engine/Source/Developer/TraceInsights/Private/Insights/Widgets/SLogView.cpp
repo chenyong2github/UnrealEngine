@@ -626,53 +626,48 @@ void SLogView::Construct(const FArguments& InArgs)
 					+ SScrollBox::Slot()
 					.VAlign(VAlign_Fill)
 					[
-						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-						.Padding(0.0f)
-						[
-							SAssignNew(ListView, SListView<TSharedPtr<FLogMessage>>)
-							.ExternalScrollbar(ExternalScrollbar)
-							.ItemHeight(20.0f)
-							.SelectionMode(ESelectionMode::Single)
-							.OnMouseButtonClick(this, &SLogView::OnMouseButtonClick)
-							.OnSelectionChanged(this, &SLogView::OnSelectionChanged)
-							.ListItemsSource(&Messages)
-							.OnGenerateRow(this, &SLogView::OnGenerateRow)
-							.ConsumeMouseWheel(EConsumeMouseWheel::Always)
-							.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SLogView::ListView_GetContextMenu))
-							.HeaderRow
-							(
-								SNew(SHeaderRow)
+						SAssignNew(ListView, SListView<TSharedPtr<FLogMessage>>)
+						.ExternalScrollbar(ExternalScrollbar)
+						.ItemHeight(20.0f)
+						.SelectionMode(ESelectionMode::Single)
+						.OnMouseButtonClick(this, &SLogView::OnMouseButtonClick)
+						.OnSelectionChanged(this, &SLogView::OnSelectionChanged)
+						.ListItemsSource(&Messages)
+						.OnGenerateRow(this, &SLogView::OnGenerateRow)
+						.ConsumeMouseWheel(EConsumeMouseWheel::Always)
+						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SLogView::ListView_GetContextMenu))
+						.HeaderRow
+						(
+							SNew(SHeaderRow)
 
-								+ SHeaderRow::Column(LogViewColumns::IdColumnName)
-								.ManualWidth(60.0f)
-								.DefaultLabel(LOCTEXT("IdColumn", "Index"))
+							+ SHeaderRow::Column(LogViewColumns::IdColumnName)
+							.ManualWidth(60.0f)
+							.DefaultLabel(LOCTEXT("IdColumn", "Index"))
 
-								+ SHeaderRow::Column(LogViewColumns::TimeColumnName)
-								.ManualWidth(94.0f)
-								.DefaultLabel(LOCTEXT("TimeColumn", "Time"))
+							+ SHeaderRow::Column(LogViewColumns::TimeColumnName)
+							.ManualWidth(94.0f)
+							.DefaultLabel(LOCTEXT("TimeColumn", "Time"))
 
-								+ SHeaderRow::Column(LogViewColumns::VerbosityColumnName)
-								.ManualWidth(80.0f)
-								.DefaultLabel(LOCTEXT("VerbosityColumn", "Verbosity"))
+							+ SHeaderRow::Column(LogViewColumns::VerbosityColumnName)
+							.ManualWidth(80.0f)
+							.DefaultLabel(LOCTEXT("VerbosityColumn", "Verbosity"))
 
-								+ SHeaderRow::Column(LogViewColumns::CategoryColumnName)
-								.ManualWidth(120.0f)
-								.DefaultLabel(LOCTEXT("CategoryColumn", "Category"))
+							+ SHeaderRow::Column(LogViewColumns::CategoryColumnName)
+							.ManualWidth(120.0f)
+							.DefaultLabel(LOCTEXT("CategoryColumn", "Category"))
 
-								+ SHeaderRow::Column(LogViewColumns::MessageColumnName)
-								.ManualWidth(880.0f)
-								.DefaultLabel(LOCTEXT("MessageColumn", "Message"))
+							+ SHeaderRow::Column(LogViewColumns::MessageColumnName)
+							.ManualWidth(880.0f)
+							.DefaultLabel(LOCTEXT("MessageColumn", "Message"))
 
-								+ SHeaderRow::Column(LogViewColumns::FileColumnName)
-								.ManualWidth(600.0f)
-								.DefaultLabel(LOCTEXT("FileColumn", "File"))
+							+ SHeaderRow::Column(LogViewColumns::FileColumnName)
+							.ManualWidth(600.0f)
+							.DefaultLabel(LOCTEXT("FileColumn", "File"))
 
-								+ SHeaderRow::Column(LogViewColumns::LineColumnName)
-								.ManualWidth(60.0f)
-								.DefaultLabel(LOCTEXT("LineColumn", "Line"))
-							)
-						]
+							+ SHeaderRow::Column(LogViewColumns::LineColumnName)
+							.ManualWidth(60.0f)
+							.DefaultLabel(LOCTEXT("LineColumn", "Line"))
+						)
 					]
 				]
 

@@ -82,117 +82,113 @@ void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingPr
 		+ SVerticalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoHeight()
+		.Padding(2.0f, 2.0f, 2.0f, 2.0f)
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(2.0f)
-			[
-				SNew(SVerticalBox)
+			SNew(SVerticalBox)
 
-				+ SVerticalBox::Slot()
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				// Search box
+				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
-				.AutoHeight()
+				.FillWidth(1.0f)
 				[
-					SNew(SHorizontalBox)
-
-					// Search box
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.FillWidth(1.0f)
-					[
-						SAssignNew(SearchBox, SSearchBox)
-						.HintText(LOCTEXT("SearchBoxHint", "Search net events or groups"))
-						.OnTextChanged(this, &SNetStatsView::SearchBox_OnTextChanged)
-						.IsEnabled(this, &SNetStatsView::SearchBox_IsEnabled)
-						.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search net events or groups"))
-					]
-
-					// Filter out net event types with zero instance count
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
-						.HAlign(HAlign_Center)
-						.Padding(2.0f)
-						.OnCheckStateChanged(this, &SNetStatsView::FilterOutZeroCountEvents_OnCheckStateChanged)
-						.IsChecked(this, &SNetStatsView::FilterOutZeroCountEvents_IsChecked)
-						.ToolTipText(LOCTEXT("FilterOutZeroCountEvents_Tooltip", "Filter out the net event types having zero total instance count (aggregated stats)."))
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("FilterOutZeroCountEvents_Button", " !0 "))
-						]
-					]
+					SAssignNew(SearchBox, SSearchBox)
+					.HintText(LOCTEXT("SearchBoxHint", "Search net events or groups"))
+					.OnTextChanged(this, &SNetStatsView::SearchBox_OnTextChanged)
+					.IsEnabled(this, &SNetStatsView::SearchBox_IsEnabled)
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search net events or groups"))
 				]
 
-				// Group by
-				+ SVerticalBox::Slot()
+				// Filter out net event types with zero instance count
+				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
-				.AutoHeight()
+				.AutoWidth()
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
+					SNew(SCheckBox)
+					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+					.HAlign(HAlign_Center)
+					.Padding(2.0f)
+					.OnCheckStateChanged(this, &SNetStatsView::FilterOutZeroCountEvents_OnCheckStateChanged)
+					.IsChecked(this, &SNetStatsView::FilterOutZeroCountEvents_IsChecked)
+					.ToolTipText(LOCTEXT("FilterOutZeroCountEvents_Tooltip", "Filter out the net event types having zero total instance count (aggregated stats)."))
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("GroupByText", "Group by"))
-					]
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(2.0f)
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<ENetEventGroupingMode>>)
-						.ToolTipText(this, &SNetStatsView::GroupBy_GetSelectedTooltipText)
-						.OptionsSource(&GroupByOptionsSource)
-						.OnSelectionChanged(this, &SNetStatsView::GroupBy_OnSelectionChanged)
-						.OnGenerateWidget(this, &SNetStatsView::GroupBy_OnGenerateWidget)
-						[
-							SNew(STextBlock)
-							.Text(this, &SNetStatsView::GroupBy_GetSelectedText)
-						]
+						.Text(LOCTEXT("FilterOutZeroCountEvents_Button", " !0 "))
 					]
 				]
-
-				// TODO: Check boxes for: NetEvent, ...
-				/*
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
-					.FillWidth(1.0f)
-					[
-						GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent)
-					]
-
-					//+ SHorizontalBox::Slot()
-					//.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-					//.FillWidth(1.0f)
-					//[
-					//	GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent1)
-					//]
-
-					//+ SHorizontalBox::Slot()
-					.//Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-					//.FillWidth(1.0f)
-					//[
-					//	GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent2)
-					//]
-				]
-				*/
 			]
+
+			// Group by
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("GroupByText", "Group by"))
+				]
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(2.0f)
+				.VAlign(VAlign_Center)
+				[
+					SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<ENetEventGroupingMode>>)
+					.ToolTipText(this, &SNetStatsView::GroupBy_GetSelectedTooltipText)
+					.OptionsSource(&GroupByOptionsSource)
+					.OnSelectionChanged(this, &SNetStatsView::GroupBy_OnSelectionChanged)
+					.OnGenerateWidget(this, &SNetStatsView::GroupBy_OnGenerateWidget)
+					[
+						SNew(STextBlock)
+						.Text(this, &SNetStatsView::GroupBy_GetSelectedText)
+					]
+				]
+			]
+
+			// TODO: Check boxes for: NetEvent, ...
+			/*
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
+				.FillWidth(1.0f)
+				[
+					GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent)
+				]
+
+				//+ SHorizontalBox::Slot()
+				//.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
+				//.FillWidth(1.0f)
+				//[
+				//	GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent1)
+				//]
+
+				//+ SHorizontalBox::Slot()
+				.//Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
+				//.FillWidth(1.0f)
+				//[
+				//	GetToggleButtonForNetEventType(ENetEventNodeType::NetEvent2)
+				//]
+			]
+			*/
 		]
 
 		// Tree view
@@ -211,26 +207,21 @@ void SNetStatsView::Construct(const FArguments& InArgs, TSharedPtr<SNetworkingPr
 
 				+ SScrollBox::Slot()
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(0.0f)
-					[
-						SAssignNew(TreeView, STreeView<FNetEventNodePtr>)
-						.ExternalScrollbar(ExternalScrollbar)
-						.SelectionMode(ESelectionMode::Multi)
-						.TreeItemsSource(&FilteredGroupNodes)
-						.OnGetChildren(this, &SNetStatsView::TreeView_OnGetChildren)
-						.OnGenerateRow(this, &SNetStatsView::TreeView_OnGenerateRow)
-						.OnSelectionChanged(this, &SNetStatsView::TreeView_OnSelectionChanged)
-						.OnMouseButtonDoubleClick(this, &SNetStatsView::TreeView_OnMouseButtonDoubleClick)
-						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SNetStatsView::TreeView_GetMenuContent))
-						.ItemHeight(12.0f)
-						.HeaderRow
-						(
-							SAssignNew(TreeViewHeaderRow, SHeaderRow)
-							.Visibility(EVisibility::Visible)
-						)
-					]
+					SAssignNew(TreeView, STreeView<FNetEventNodePtr>)
+					.ExternalScrollbar(ExternalScrollbar)
+					.SelectionMode(ESelectionMode::Multi)
+					.TreeItemsSource(&FilteredGroupNodes)
+					.OnGetChildren(this, &SNetStatsView::TreeView_OnGetChildren)
+					.OnGenerateRow(this, &SNetStatsView::TreeView_OnGenerateRow)
+					.OnSelectionChanged(this, &SNetStatsView::TreeView_OnSelectionChanged)
+					.OnMouseButtonDoubleClick(this, &SNetStatsView::TreeView_OnMouseButtonDoubleClick)
+					.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SNetStatsView::TreeView_GetMenuContent))
+					.ItemHeight(12.0f)
+					.HeaderRow
+					(
+						SAssignNew(TreeViewHeaderRow, SHeaderRow)
+						.Visibility(EVisibility::Visible)
+					)
 				]
 			]
 

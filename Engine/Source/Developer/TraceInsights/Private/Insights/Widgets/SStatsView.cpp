@@ -120,106 +120,102 @@ void SStatsView::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoHeight()
+		.Padding(2.0f, 2.0f, 2.0f, 2.0f)
 		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-			.Padding(2.0f)
-			[
-				SNew(SVerticalBox)
+			SNew(SVerticalBox)
 
-				+ SVerticalBox::Slot()
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				// Search box
+				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
-				.AutoHeight()
+				.FillWidth(1.0f)
 				[
-					SNew(SHorizontalBox)
-
-					// Search box
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.FillWidth(1.0f)
-					[
-						SAssignNew(SearchBox, SSearchBox)
-						.HintText(LOCTEXT("SearchBoxHint", "Search stats counters or groups"))
-						.OnTextChanged(this, &SStatsView::SearchBox_OnTextChanged)
-						.IsEnabled(this, &SStatsView::SearchBox_IsEnabled)
-						.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search stats counter or group"))
-					]
-
-					// Filter out timers with zero instance count
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
-						.HAlign(HAlign_Center)
-						.Padding(2.0f)
-						.OnCheckStateChanged(this, &SStatsView::FilterOutZeroCountStats_OnCheckStateChanged)
-						.IsChecked(this, &SStatsView::FilterOutZeroCountStats_IsChecked)
-						.ToolTipText(LOCTEXT("FilterOutZeroCountStats_Tooltip", "Filter out the stats counters having zero total instance count (aggregated stats)."))
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("FilterOutZeroCountStats_Button", " !0 "))
-						]
-					]
+					SAssignNew(SearchBox, SSearchBox)
+					.HintText(LOCTEXT("SearchBoxHint", "Search stats counters or groups"))
+					.OnTextChanged(this, &SStatsView::SearchBox_OnTextChanged)
+					.IsEnabled(this, &SStatsView::SearchBox_IsEnabled)
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search stats counter or group"))
 				]
 
-				// Group by
-				+ SVerticalBox::Slot()
+				// Filter out timers with zero instance count
+				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
-				.AutoHeight()
+				.AutoWidth()
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
+					SNew(SCheckBox)
+					.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
+					.HAlign(HAlign_Center)
+					.Padding(2.0f)
+					.OnCheckStateChanged(this, &SStatsView::FilterOutZeroCountStats_OnCheckStateChanged)
+					.IsChecked(this, &SStatsView::FilterOutZeroCountStats_IsChecked)
+					.ToolTipText(LOCTEXT("FilterOutZeroCountStats_Tooltip", "Filter out the stats counters having zero total instance count (aggregated stats)."))
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("GroupByText", "Group by"))
-					]
-
-					+ SHorizontalBox::Slot()
-					.FillWidth(2.0f)
-					.VAlign(VAlign_Center)
-					[
-						SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<EStatsGroupingMode>>)
-						.ToolTipText(this, &SStatsView::GroupBy_GetSelectedTooltipText)
-						.OptionsSource(&GroupByOptionsSource)
-						.OnSelectionChanged(this, &SStatsView::GroupBy_OnSelectionChanged)
-						.OnGenerateWidget(this, &SStatsView::GroupBy_OnGenerateWidget)
-						[
-							SNew(STextBlock)
-							.Text(this, &SStatsView::GroupBy_GetSelectedText)
-						]
+						.Text(LOCTEXT("FilterOutZeroCountStats_Button", " !0 "))
 					]
 				]
+			]
 
-				// Check boxes for: Int64, Float
-				+ SVerticalBox::Slot()
+			// Group by
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1.0f)
 				.VAlign(VAlign_Center)
-				.Padding(2.0f)
-				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
+					SNew(STextBlock)
+					.Text(LOCTEXT("GroupByText", "Group by"))
+				]
 
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
-					.FillWidth(1.0f)
+				+ SHorizontalBox::Slot()
+				.FillWidth(2.0f)
+				.VAlign(VAlign_Center)
+				[
+					SAssignNew(GroupByComboBox, SComboBox<TSharedPtr<EStatsGroupingMode>>)
+					.ToolTipText(this, &SStatsView::GroupBy_GetSelectedTooltipText)
+					.OptionsSource(&GroupByOptionsSource)
+					.OnSelectionChanged(this, &SStatsView::GroupBy_OnSelectionChanged)
+					.OnGenerateWidget(this, &SStatsView::GroupBy_OnGenerateWidget)
 					[
-						GetToggleButtonForDataType(EStatsNodeDataType::Int64)
+						SNew(STextBlock)
+						.Text(this, &SStatsView::GroupBy_GetSelectedText)
 					]
+				]
+			]
 
-					+ SHorizontalBox::Slot()
-					.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
-					.FillWidth(1.0f)
-					[
-						GetToggleButtonForDataType(EStatsNodeDataType::Double)
-					]
+			// Check boxes for: Int64, Float
+			+ SVerticalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(2.0f)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(0.0f,0.0f,1.0f,0.0f))
+				.FillWidth(1.0f)
+				[
+					GetToggleButtonForDataType(EStatsNodeDataType::Int64)
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(FMargin(1.0f,0.0f,1.0f,0.0f))
+				.FillWidth(1.0f)
+				[
+					GetToggleButtonForDataType(EStatsNodeDataType::Double)
 				]
 			]
 		]
@@ -246,10 +242,6 @@ void SStatsView::Construct(const FArguments& InArgs)
 					.HAlign(HAlign_Fill)
 					.VAlign(VAlign_Fill)
 					[
-					//SNew(SBorder)
-					//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					//.Padding(0.0f)
-					//[
 						SAssignNew(TreeView, STreeView<FStatsNodePtr>)
 						.ExternalScrollbar(ExternalScrollbar)
 						.SelectionMode(ESelectionMode::Multi)
@@ -265,7 +257,6 @@ void SStatsView::Construct(const FArguments& InArgs)
 							SAssignNew(TreeViewHeaderRow, SHeaderRow)
 							.Visibility(EVisibility::Visible)
 						)
-					//]
 					]
 
 					+ SOverlay::Slot()
