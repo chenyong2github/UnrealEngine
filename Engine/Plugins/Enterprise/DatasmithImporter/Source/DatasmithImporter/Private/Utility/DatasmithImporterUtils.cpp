@@ -1036,7 +1036,7 @@ TArray<FDatasmithImporterUtils::FFunctionAndMaterialsThatUseIt> FDatasmithImport
 		{
 			if (UEPbrMaterialElement->GetExpression(MaterialExpressionIndex)->IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 			{
-				const FString FunctionPathName(StaticCast<IDatasmithMaterialExpressionFunctionCall*>(UEPbrMaterialElement->GetExpression(MaterialExpressionIndex).Get())->GetFunctionPathName());
+				const FString FunctionPathName(StaticCast<IDatasmithMaterialExpressionFunctionCall*>(UEPbrMaterialElement->GetExpression(MaterialExpressionIndex))->GetFunctionPathName());
 				if (FPaths::IsRelative(FunctionPathName))
 				{
 					uint32 FunctionPathNameHash = GetTypeHash(FunctionPathName);

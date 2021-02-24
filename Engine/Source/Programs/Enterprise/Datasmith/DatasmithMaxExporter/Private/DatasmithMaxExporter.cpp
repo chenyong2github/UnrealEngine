@@ -232,16 +232,16 @@ namespace DatasmithMaxExporterUtils
 		// Remap UV channels of all composite textures of each shaders in the material
 		for (int32 i = 0; i < MaterialElement->GetExpressionsCount(); ++i)
 		{
-			TSharedPtr<IDatasmithMaterialExpression> MaterialExpression = MaterialElement->GetExpression(i);
+			IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression(i);
 
 			if ( MaterialExpression && MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 			{
-				TSharedPtr<IDatasmithMaterialExpressionTextureCoordinate> TextureCoordinate = StaticCastSharedPtr< IDatasmithMaterialExpressionTextureCoordinate >( MaterialExpression );
+				IDatasmithMaterialExpressionTextureCoordinate& TextureCoordinate = static_cast< IDatasmithMaterialExpressionTextureCoordinate& >( *MaterialExpression );
 
-				const int32* UVChannel = UVChannels.Find( TextureCoordinate->GetCoordinateIndex() );
+				const int32* UVChannel = UVChannels.Find( TextureCoordinate.GetCoordinateIndex() );
 				if ( UVChannel != nullptr )
 				{
-					TextureCoordinate->SetCoordinateIndex( *UVChannel );
+					TextureCoordinate.SetCoordinateIndex( *UVChannel );
 				}
 			}
 		}

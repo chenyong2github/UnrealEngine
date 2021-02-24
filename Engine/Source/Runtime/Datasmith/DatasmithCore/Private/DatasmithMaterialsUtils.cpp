@@ -6,9 +6,9 @@
 
 namespace DatasmithMaterialsUtilsInternal
 {
-	void SetupUVEdit( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TSharedPtr< IDatasmithExpressionInput >& UVCoordinatesInput, const DatasmithMaterialsUtils::FUVEditParameters& UVParameters )
+	void SetupUVEdit( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, IDatasmithExpressionInput& UVCoordinatesInput, const DatasmithMaterialsUtils::FUVEditParameters& UVParameters )
 	{
-		TSharedPtr< IDatasmithMaterialExpressionTextureCoordinate > TextureCoordinateExpression = nullptr;
+		IDatasmithMaterialExpressionTextureCoordinate* TextureCoordinateExpression = nullptr;
 		if ( UVParameters.ChannelIndex != 0)
 		{
 			TextureCoordinateExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionTextureCoordinate >();
@@ -18,7 +18,7 @@ namespace DatasmithMaterialsUtilsInternal
 		// Convert degrees to "normalized" value where 1 is full rotation
 		float WRotation = UVParameters.RotationAngle / 360.f;
 
-		TSharedPtr< IDatasmithMaterialExpressionFunctionCall > UVEditExpression = nullptr;
+		IDatasmithMaterialExpressionFunctionCall* UVEditExpression = nullptr;
 		if ( !UVParameters.UVTiling.Equals( FVector2D::UnitVector ) || !UVParameters.UVOffset.IsNearlyZero() || !FMath::IsNearlyZero( WRotation ) || UVParameters.bMirrorU || UVParameters.bMirrorV )
 		{
 			UVEditExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
@@ -27,51 +27,51 @@ namespace DatasmithMaterialsUtilsInternal
 			UVEditExpression->ConnectExpression( UVCoordinatesInput );
 
 			// Mirror
-			TSharedPtr< IDatasmithMaterialExpressionBool > MirrorUFlag = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionBool >();
+			IDatasmithMaterialExpressionBool* MirrorUFlag = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionBool >();
 			MirrorUFlag->SetName( TEXT("Mirror U") );
 			MirrorUFlag->GetBool() = ( UVParameters.bMirrorU );
 
-			MirrorUFlag->ConnectExpression( UVEditExpression->GetInput(3).ToSharedRef() );
+			MirrorUFlag->ConnectExpression( *UVEditExpression->GetInput(3) );
 
-			TSharedPtr< IDatasmithMaterialExpressionBool > MirrorVFlag = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionBool >();
+			IDatasmithMaterialExpressionBool* MirrorVFlag = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionBool >();
 			MirrorVFlag->SetName( TEXT("Mirror V") );
 			MirrorVFlag->GetBool() = ( UVParameters.bMirrorV );
 
-			MirrorVFlag->ConnectExpression( UVEditExpression->GetInput(4).ToSharedRef() );
+			MirrorVFlag->ConnectExpression( *UVEditExpression->GetInput(4) );
 
 			// Tiling
-			TSharedPtr< IDatasmithMaterialExpressionColor > TilingValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+			IDatasmithMaterialExpressionColor* TilingValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 			TilingValue->SetName( TEXT("UV Tiling") );
 			TilingValue->GetColor() = FLinearColor( UVParameters.UVTiling.X, UVParameters.UVTiling.Y, 0.f );
 
-			TilingValue->ConnectExpression( UVEditExpression->GetInput(2).ToSharedRef() );
+			TilingValue->ConnectExpression( *UVEditExpression->GetInput(2) );
 
-			TSharedPtr< IDatasmithMaterialExpressionColor > OffsetValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+			IDatasmithMaterialExpressionColor* OffsetValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 			OffsetValue->SetName( TEXT("UV Offset") );
 			OffsetValue->GetColor() = FLinearColor( UVParameters.UVOffset.X, UVParameters.UVOffset.Y, 0.f );
 
-			OffsetValue->ConnectExpression( UVEditExpression->GetInput(7).ToSharedRef() );
+			OffsetValue->ConnectExpression( *UVEditExpression->GetInput(7) );
 
-			TSharedPtr< IDatasmithMaterialExpressionColor > TilingPivot = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+			IDatasmithMaterialExpressionColor* TilingPivot = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 			TilingPivot->SetName( TEXT("Tiling Pivot") );
 			TilingPivot->GetColor() = UVParameters.bIsUsingRealWorldScale && !MirrorUFlag->GetBool() ? FLinearColor( 0.5f, 0.5f, 0.f ) : FLinearColor( 0.f, 0.5f, 0.f );
 
-			TilingPivot->ConnectExpression( UVEditExpression->GetInput(1).ToSharedRef() );
+			TilingPivot->ConnectExpression( *UVEditExpression->GetInput(1) );
 
 			// Rotation
 			if ( !FMath::IsNearlyZero( WRotation ) )
 			{
-				TSharedPtr< IDatasmithMaterialExpressionScalar > RotationValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+				IDatasmithMaterialExpressionScalar* RotationValue = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 				RotationValue->SetName( TEXT("W Rotation") );
 				RotationValue->GetScalar() = WRotation;
 
-				RotationValue->ConnectExpression( UVEditExpression->GetInput(6).ToSharedRef() );
+				RotationValue->ConnectExpression( *UVEditExpression->GetInput(6) );
 
-				TSharedPtr< IDatasmithMaterialExpressionColor > RotationPivot = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+				IDatasmithMaterialExpressionColor* RotationPivot = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 				RotationPivot->SetName( TEXT("Rotation Pivot") );
 				RotationPivot->GetColor() = UVParameters.bIsUsingRealWorldScale ? FLinearColor( 0.5f, 0.5f, 0.f ) : FLinearColor( UVParameters.RotationPivot );
 
-				RotationPivot->ConnectExpression( UVEditExpression->GetInput(5).ToSharedRef() );
+				RotationPivot->ConnectExpression( *UVEditExpression->GetInput(5) );
 			}
 
 			// A texture coordinate is mandatory for the UV Edit function
@@ -86,7 +86,7 @@ namespace DatasmithMaterialsUtilsInternal
 		{
 			if ( UVEditExpression )
 			{
-				TextureCoordinateExpression->ConnectExpression( UVEditExpression->GetInput( 0 ).ToSharedRef() );
+				TextureCoordinateExpression->ConnectExpression( *UVEditExpression->GetInput( 0 ) );
 			}
 			else
 			{
@@ -96,51 +96,50 @@ namespace DatasmithMaterialsUtilsInternal
 	}
 }
 
-TSharedPtr< IDatasmithMaterialExpressionTexture > DatasmithMaterialsUtils::CreateTextureExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TCHAR* ParameterName, const TCHAR* TextureMapPath, const FUVEditParameters& UVParameters )
+IDatasmithMaterialExpressionTexture* DatasmithMaterialsUtils::CreateTextureExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TCHAR* ParameterName, const TCHAR* TextureMapPath, const FUVEditParameters& UVParameters )
 {
-	TSharedPtr< IDatasmithMaterialExpressionTexture > Expression;
+	IDatasmithMaterialExpressionTexture* Expression = nullptr;
 	if ( TextureMapPath )
 	{
 		Expression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionTexture >();
 		Expression->SetName( ParameterName );
 
-		Expression->SetTexturePathName( TextureMapPath );
+		IDatasmithMaterialExpressionTexture* Texture = static_cast< IDatasmithMaterialExpressionTexture* >( Expression );
+		Texture->SetTexturePathName( TextureMapPath );
 
-		DatasmithMaterialsUtilsInternal::SetupUVEdit( MaterialElement, Expression->GetInputCoordinate(), UVParameters );
+		DatasmithMaterialsUtilsInternal::SetupUVEdit( MaterialElement, Texture->GetInputCoordinate(), UVParameters );
 	}
 	return Expression;
 }
 
-TSharedPtr< IDatasmithMaterialExpression > DatasmithMaterialsUtils::CreateWeightedMaterialExpression(const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TCHAR* ParameterName, TOptional< FLinearColor > Color, TOptional< float > Scalar, const TSharedPtr< IDatasmithMaterialExpression >& Expression, float Weight, EDatasmithTextureMode TextureMode )
+IDatasmithMaterialExpression* DatasmithMaterialsUtils::CreateWeightedMaterialExpression(const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TCHAR* ParameterName, TOptional< FLinearColor > Color, TOptional< float > Scalar, IDatasmithMaterialExpression* Expression, float Weight, EDatasmithTextureMode TextureMode )
 {
-	TSharedPtr< IDatasmithMaterialExpression > ResultExpression( Expression );
-
 	if ( !Expression || !FMath::IsNearlyEqual( Weight, 1.f ) )
 	{
 		if ( Expression )
 		{
 			if ( TextureMode == EDatasmithTextureMode::Bump || TextureMode == EDatasmithTextureMode::Normal )
 			{
-				TSharedPtr< IDatasmithMaterialExpressionFunctionCall > FlattenNormal = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+				IDatasmithMaterialExpressionFunctionCall* FlattenNormal = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
 				FlattenNormal->SetFunctionPathName( TEXT("/Engine/Functions/Engine_MaterialFunctions01/Texturing/FlattenNormal") );
 
-				Expression->ConnectExpression( FlattenNormal->GetInput(0).ToSharedRef() );
+				Expression->ConnectExpression( *FlattenNormal->GetInput(0) );
 
-				TSharedPtr< IDatasmithMaterialExpressionScalar > Flatness = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+				IDatasmithMaterialExpressionScalar* Flatness = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 				Flatness->SetName( TEXT("Normal Flatness") );
 				Flatness->GetScalar() = 1.f - Weight;
 
-				Flatness->ConnectExpression( FlattenNormal->GetInput(1).ToSharedRef() );
+				Flatness->ConnectExpression( *FlattenNormal->GetInput(1) );
 
-				ResultExpression = FlattenNormal;
+				Expression = FlattenNormal;
 			}
 			else
 			{
-				TSharedPtr< IDatasmithMaterialExpression > ValueExpression = nullptr;
+				IDatasmithMaterialExpression* ValueExpression = nullptr;
 
 				if ( Color )
 				{
-					TSharedPtr< IDatasmithMaterialExpressionColor > ColorExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+					IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 					ColorExpression->SetName( ParameterName );
 					ColorExpression->GetColor() = Color.GetValue();
 
@@ -148,38 +147,38 @@ TSharedPtr< IDatasmithMaterialExpression > DatasmithMaterialsUtils::CreateWeight
 				}
 				else if ( Scalar )
 				{
-					TSharedPtr< IDatasmithMaterialExpressionScalar > ScalarExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+					IDatasmithMaterialExpressionScalar* ScalarExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 					ScalarExpression->SetName( ParameterName );
 					ScalarExpression->GetScalar() = Scalar.GetValue();
 
 					ValueExpression = ScalarExpression;
 				}
 
-				TSharedPtr< IDatasmithMaterialExpressionGeneric > MapWeightLerp = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				IDatasmithMaterialExpressionGeneric* MapWeightLerp = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 				MapWeightLerp->SetExpressionName( TEXT("LinearInterpolate") );
 
-				TSharedPtr< IDatasmithMaterialExpressionScalar > MapWeight = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+				IDatasmithMaterialExpressionScalar* MapWeight = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 				MapWeight->SetName( TEXT("Map Weight") );
 				MapWeight->GetScalar() = Weight;
 
 				if ( ValueExpression )
 				{
-					ValueExpression->ConnectExpression( MapWeightLerp->GetInput(0).ToSharedRef() );
+					ValueExpression->ConnectExpression( *MapWeightLerp->GetInput(0) );
 				}
 
-				Expression->ConnectExpression( MapWeightLerp->GetInput(1).ToSharedRef() );
-				MapWeight->ConnectExpression( MapWeightLerp->GetInput(2).ToSharedRef() );
+				Expression->ConnectExpression( *MapWeightLerp->GetInput(1) );
+				MapWeight->ConnectExpression( *MapWeightLerp->GetInput(2) );
 
-				ResultExpression = MapWeightLerp;
+				Expression = MapWeightLerp;
 			}
 		}
 		else
 		{
-			TSharedPtr< IDatasmithMaterialExpression > ValueExpression = nullptr;
+			IDatasmithMaterialExpression* ValueExpression = nullptr;
 
 			if ( Color )
 			{
-				TSharedPtr< IDatasmithMaterialExpressionColor > ColorExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+				IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 				ColorExpression->SetName( ParameterName );
 				ColorExpression->GetColor() = Color.GetValue();
 
@@ -187,16 +186,16 @@ TSharedPtr< IDatasmithMaterialExpression > DatasmithMaterialsUtils::CreateWeight
 			}
 			else if ( Scalar )
 			{
-				TSharedPtr< IDatasmithMaterialExpressionScalar > ScalarExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+				IDatasmithMaterialExpressionScalar* ScalarExpression = MaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 				ScalarExpression->SetName( ParameterName );
 				ScalarExpression->GetScalar() = Scalar.GetValue();
 
 				ValueExpression = ScalarExpression;
 			}
 
-			ResultExpression = ValueExpression;
+			Expression = ValueExpression;
 		}
 	}
 
-	return ResultExpression;
+	return Expression;
 }

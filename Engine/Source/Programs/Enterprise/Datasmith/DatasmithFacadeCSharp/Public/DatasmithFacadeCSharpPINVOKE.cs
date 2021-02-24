@@ -392,8 +392,11 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMaterialID_GetId")]
   public static extern int FDatasmithFacadeMaterialID_GetId(global::System.Runtime.InteropServices.HandleRef jarg1);
 
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeExpressionInput")]
-  public static extern void delete_FDatasmithFacadeExpressionInput(global::System.Runtime.InteropServices.HandleRef jarg1);
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeExpressionInput_GetName")]
+  public static extern global::System.IntPtr FDatasmithFacadeExpressionInput_GetName(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeExpressionInput_SetName")]
+  public static extern void FDatasmithFacadeExpressionInput_SetName(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeExpressionInput_GetExpression")]
   public static extern global::System.IntPtr FDatasmithFacadeExpressionInput_GetExpression(global::System.Runtime.InteropServices.HandleRef jarg1);
@@ -407,8 +410,14 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeExpressionInput_SetOutputIndex")]
   public static extern void FDatasmithFacadeExpressionInput_SetOutputIndex(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
 
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeMaterialExpression")]
-  public static extern void delete_FDatasmithFacadeMaterialExpression(global::System.Runtime.InteropServices.HandleRef jarg1);
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeExpressionInput")]
+  public static extern void delete_FDatasmithFacadeExpressionInput(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMaterialExpression_GetName")]
+  public static extern global::System.IntPtr FDatasmithFacadeMaterialExpression_GetName(global::System.Runtime.InteropServices.HandleRef jarg1);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMaterialExpression_SetName")]
+  public static extern void FDatasmithFacadeMaterialExpression_SetName(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMaterialExpression_GetExpressionType")]
   public static extern int FDatasmithFacadeMaterialExpression_GetExpressionType(global::System.Runtime.InteropServices.HandleRef jarg1);
@@ -430,6 +439,9 @@ class DatasmithFacadeCSharpPINVOKE {
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMaterialExpression_SetDefaultOutputIndex")]
   public static extern void FDatasmithFacadeMaterialExpression_SetDefaultOutputIndex(global::System.Runtime.InteropServices.HandleRef jarg1, int jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeMaterialExpression")]
+  public static extern void delete_FDatasmithFacadeMaterialExpression(global::System.Runtime.InteropServices.HandleRef jarg1);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeExpressionParameterSwigImpl")]
   public static extern void delete_FDatasmithFacadeExpressionParameterSwigImpl(global::System.Runtime.InteropServices.HandleRef jarg1);
@@ -1549,12 +1561,6 @@ class DatasmithFacadeCSharpPINVOKE {
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMaterialID_SWIGUpcast")]
   public static extern global::System.IntPtr FDatasmithFacadeMaterialID_SWIGUpcast(global::System.IntPtr jarg1);
-
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeExpressionInput_SWIGUpcast")]
-  public static extern global::System.IntPtr FDatasmithFacadeExpressionInput_SWIGUpcast(global::System.IntPtr jarg1);
-
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMaterialExpression_SWIGUpcast")]
-  public static extern global::System.IntPtr FDatasmithFacadeMaterialExpression_SWIGUpcast(global::System.IntPtr jarg1);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeExpressionParameterSwigImpl_FDatasmithFacadeExpressionParameter_GetInterfaceCPtr")]
   public static extern global::System.IntPtr FDatasmithFacadeExpressionParameterSwigImpl_FDatasmithFacadeExpressionParameter_GetInterfaceCPtr(global::System.IntPtr jarg1);

@@ -968,14 +968,14 @@ namespace DatasmithSceneUtilsImpl
 
 		void ScanPbrMaterialElement(IDatasmithUEPbrMaterialElement* MaterialElement)
 		{
-			TFunction<void(const TSharedPtr<IDatasmithMaterialExpression>)> ParseExpressionElement;
-			ParseExpressionElement = [this, &ParseExpressionElement](const TSharedPtr<IDatasmithMaterialExpression>& ExpressionElement) -> void
+			TFunction<void(IDatasmithMaterialExpression*)> ParseExpressionElement;
+			ParseExpressionElement = [this, &ParseExpressionElement](IDatasmithMaterialExpression* ExpressionElement) -> void
 			{
 				if (ExpressionElement)
 				{
 					if (ExpressionElement->IsSubType(EDatasmithMaterialExpressionType::Texture))
 					{
-						const IDatasmithMaterialExpressionTexture* TextureExpression = static_cast<IDatasmithMaterialExpressionTexture*>(ExpressionElement.Get());
+						const IDatasmithMaterialExpressionTexture* TextureExpression = static_cast<IDatasmithMaterialExpressionTexture*>(ExpressionElement);
 						if (FCString::Strlen(TextureExpression->GetTexturePathName()) > 0)
 						{
 							FString TexturePathName(TextureExpression->GetTexturePathName());
@@ -987,11 +987,11 @@ namespace DatasmithSceneUtilsImpl
 					}
 					else if (ExpressionElement->IsSubType(EDatasmithMaterialExpressionType::Generic))
 					{
-						const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast<IDatasmithMaterialExpressionGeneric*>(ExpressionElement.Get());
+						const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast<IDatasmithMaterialExpressionGeneric*>(ExpressionElement);
 
 						for ( int32 PropertyIndex = 0; PropertyIndex < GenericExpression->GetPropertiesCount(); ++PropertyIndex )
 						{
-							if ( const TSharedPtr< const IDatasmithKeyValueProperty >& Property = GenericExpression->GetProperty( PropertyIndex ) )
+							if ( const TSharedPtr< IDatasmithKeyValueProperty >& Property = GenericExpression->GetProperty( PropertyIndex ) )
 							{
 								if ( Property->GetPropertyType() == EDatasmithKeyValuePropertyType::Texture )
 								{
@@ -1002,7 +1002,7 @@ namespace DatasmithSceneUtilsImpl
 					}
 					else if (ExpressionElement->IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 					{
-						const IDatasmithMaterialExpressionFunctionCall* FunctionExpression = static_cast<IDatasmithMaterialExpressionFunctionCall*>(ExpressionElement.Get());
+						const IDatasmithMaterialExpressionFunctionCall* FunctionExpression = static_cast<IDatasmithMaterialExpressionFunctionCall*>(ExpressionElement);
 						if (FCString::Strlen(FunctionExpression->GetFunctionPathName()) > 0)
 						{
 							FString FunctionPathName(FunctionExpression->GetFunctionPathName());
@@ -1026,20 +1026,20 @@ namespace DatasmithSceneUtilsImpl
 				}
 			};
 
-			ParseExpressionElement(MaterialElement->GetBaseColor()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetSpecular()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetNormal()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetMetallic()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetRoughness()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetEmissiveColor()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetRefraction()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetAmbientOcclusion()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetOpacity()->GetExpression());
-			ParseExpressionElement(MaterialElement->GetWorldDisplacement()->GetExpression());
+			ParseExpressionElement(MaterialElement->GetBaseColor().GetExpression());
+			ParseExpressionElement(MaterialElement->GetSpecular().GetExpression());
+			ParseExpressionElement(MaterialElement->GetNormal().GetExpression());
+			ParseExpressionElement(MaterialElement->GetMetallic().GetExpression());
+			ParseExpressionElement(MaterialElement->GetRoughness().GetExpression());
+			ParseExpressionElement(MaterialElement->GetEmissiveColor().GetExpression());
+			ParseExpressionElement(MaterialElement->GetRefraction().GetExpression());
+			ParseExpressionElement(MaterialElement->GetAmbientOcclusion().GetExpression());
+			ParseExpressionElement(MaterialElement->GetOpacity().GetExpression());
+			ParseExpressionElement(MaterialElement->GetWorldDisplacement().GetExpression());
 
 			if ( MaterialElement->GetUseMaterialAttributes() )
 			{
-				ParseExpressionElement(MaterialElement->GetMaterialAttributes()->GetExpression());
+				ParseExpressionElement(MaterialElement->GetMaterialAttributes().GetExpression());
 			}			
 		}
 

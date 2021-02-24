@@ -26,9 +26,9 @@
 
 namespace DatasmithMaterialImporterUtils
 {
-	int32 ComputeMaterialExpressionHash( const TSharedPtr< IDatasmithMaterialExpression >& MaterialExpression );
+	int32 ComputeMaterialExpressionHash( IDatasmithMaterialExpression* MaterialExpression );
 
-	int32 ComputeExpressionInputHash( const TSharedPtr<IDatasmithExpressionInput>& ExpressionInput )
+	int32 ComputeExpressionInputHash( IDatasmithExpressionInput* ExpressionInput )
 	{
 		if ( !ExpressionInput )
 		{
@@ -48,14 +48,14 @@ namespace DatasmithMaterialImporterUtils
 		return Hash;
 	}
 
-	int32 ComputeMaterialExpressionHash( const TSharedPtr < IDatasmithMaterialExpression >& MaterialExpression )
+	int32 ComputeMaterialExpressionHash( IDatasmithMaterialExpression* MaterialExpression )
 	{
 		uint32 Hash = GetTypeHash( MaterialExpression->GetExpressionType() );
 		Hash = HashCombine( Hash, GetTypeHash( FString( MaterialExpression->GetName() ) ) );
 
 		if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 		{
-			IDatasmithMaterialExpressionTextureCoordinate* TextureCoordinate = static_cast< IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression.Get() );
+			IDatasmithMaterialExpressionTextureCoordinate* TextureCoordinate = static_cast< IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression );
 			Hash = HashCombine( Hash, GetTypeHash( TextureCoordinate->GetCoordinateIndex() ) );
 			Hash = HashCombine( Hash, GetTypeHash( TextureCoordinate->GetUTiling() ) );
 			Hash = HashCombine( Hash, GetTypeHash( TextureCoordinate->GetVTiling() ) );
@@ -64,7 +64,7 @@ namespace DatasmithMaterialImporterUtils
 		{
 			if ( FCString::Strlen( MaterialExpression->GetName() ) == 0 )
 			{
-				IDatasmithMaterialExpressionColor* ColorExpression = static_cast< IDatasmithMaterialExpressionColor* >( MaterialExpression.Get());
+				IDatasmithMaterialExpressionColor* ColorExpression = static_cast< IDatasmithMaterialExpressionColor* >( MaterialExpression );
 
 				Hash = HashCombine( Hash, GetTypeHash( ColorExpression->GetColor() ) );
 			}
@@ -73,14 +73,14 @@ namespace DatasmithMaterialImporterUtils
 		{
 			if ( FCString::Strlen( MaterialExpression->GetName() ) == 0 )
 			{
-				IDatasmithMaterialExpressionScalar* ScalarExpression = static_cast< IDatasmithMaterialExpressionScalar* >( MaterialExpression.Get());
+				IDatasmithMaterialExpressionScalar* ScalarExpression = static_cast< IDatasmithMaterialExpressionScalar* >( MaterialExpression );
 
 				Hash = HashCombine( Hash, GetTypeHash( ScalarExpression->GetScalar() ) );
 			}
 		}
 		else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 		{
-			IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( MaterialExpression.Get());
+			IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( MaterialExpression );
 
 			UClass* ExpressionClass = FindObject< UClass >( ANY_PACKAGE, *( FString( TEXT("MaterialExpression") ) + GenericExpression->GetExpressionName() ) );
 
@@ -112,7 +112,7 @@ namespace DatasmithMaterialImporterUtils
 		else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
 		{
 			// Hash the path to the function as calling different functions should result in different hash values
-			IDatasmithMaterialExpressionFunctionCall* FunctionCallExpression = static_cast< IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression.Get());
+			IDatasmithMaterialExpressionFunctionCall* FunctionCallExpression = static_cast< IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression );
 
 			Hash = HashCombine( Hash, GetTypeHash( FunctionCallExpression->GetFunctionPathName() ) );
 		}
@@ -133,17 +133,17 @@ namespace DatasmithMaterialImporterUtils
 		Hash = HashCombine( Hash, GetTypeHash( MaterialElement->GetBlendMode() ) );
 		Hash = HashCombine( Hash, GetTypeHash( MaterialElement->GetShadingModel() ) );
 
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetBaseColor() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetMetallic() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetSpecular() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetRoughness() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetEmissiveColor() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetOpacity() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetNormal() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetWorldDisplacement() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetRefraction() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetAmbientOcclusion() ) );
-		Hash = HashCombine( Hash, ComputeExpressionInputHash( MaterialElement->GetMaterialAttributes() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetBaseColor() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetMetallic() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetSpecular() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetRoughness() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetEmissiveColor() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetOpacity() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetNormal() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetWorldDisplacement() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetRefraction() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetAmbientOcclusion() ) );
+		Hash = HashCombine( Hash, ComputeExpressionInputHash( &MaterialElement->GetMaterialAttributes() ) );
 
 		return Hash;
 	}

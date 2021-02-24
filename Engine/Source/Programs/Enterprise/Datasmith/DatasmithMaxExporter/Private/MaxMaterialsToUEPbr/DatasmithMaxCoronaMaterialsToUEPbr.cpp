@@ -335,7 +335,7 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 	ConvertState.DefaultTextureMode = EDatasmithTextureMode::Diffuse; // Both Diffuse and Reflection are considered diffuse maps
 
 	// Diffuse
-	TSharedPtr< IDatasmithMaterialExpression > DiffuseExpression;
+	IDatasmithMaterialExpression* DiffuseExpression = nullptr;
 	{
 		DiffuseExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, CoronaMaterialProperties.DiffuseMap, TEXT("Diffuse Color"),
 			CoronaMaterialProperties.Diffuse.Value, TOptional< float >() );
@@ -345,46 +345,46 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 	{
 		DiffuseExpression->SetName( TEXT("Diffuse") );
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > MultiplyDiffuseLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* MultiplyDiffuseLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		MultiplyDiffuseLevelExpression->SetExpressionName( TEXT("Multiply") );
 
-		TSharedPtr< IDatasmithMaterialExpressionScalar > DiffuseLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		IDatasmithMaterialExpressionScalar* DiffuseLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		DiffuseLevelExpression->SetName( TEXT("Diffuse Level") );
 		DiffuseLevelExpression->GetScalar() = CoronaMaterialProperties.DiffuseLevel;
 
-		DiffuseExpression->ConnectExpression( MultiplyDiffuseLevelExpression->GetInput(0) );
-		DiffuseLevelExpression->ConnectExpression( MultiplyDiffuseLevelExpression->GetInput(1) );
+		DiffuseExpression->ConnectExpression( *MultiplyDiffuseLevelExpression->GetInput(0) );
+		DiffuseLevelExpression->ConnectExpression( *MultiplyDiffuseLevelExpression->GetInput(1) );
 
 		DiffuseExpression = MultiplyDiffuseLevelExpression;
 	}
 
 	// Reflection
-	TSharedPtr< IDatasmithMaterialExpression > ReflectionExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, CoronaMaterialProperties.ReflectionMap, TEXT("Reflection Color"), CoronaMaterialProperties.Reflection.Value, TOptional< float >() );
+	IDatasmithMaterialExpression* ReflectionExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, CoronaMaterialProperties.ReflectionMap, TEXT("Reflection Color"), CoronaMaterialProperties.Reflection.Value, TOptional< float >() );
 
 	if ( ReflectionExpression )
 	{
 		ReflectionExpression->SetName( TEXT("Reflection") );
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > MultiplyReflectionLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* MultiplyReflectionLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		MultiplyReflectionLevelExpression->SetExpressionName( TEXT("Multiply") );
 
-		TSharedPtr< IDatasmithMaterialExpressionScalar > ReflectionLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		IDatasmithMaterialExpressionScalar* ReflectionLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		ReflectionLevelExpression->SetName( TEXT("Reflection Level") );
 		ReflectionLevelExpression->GetScalar() = CoronaMaterialProperties.ReflectionLevel;
 
-		ReflectionExpression->ConnectExpression( MultiplyReflectionLevelExpression->GetInput(0) );
-		ReflectionLevelExpression->ConnectExpression( MultiplyReflectionLevelExpression->GetInput(1) );
+		ReflectionExpression->ConnectExpression( *MultiplyReflectionLevelExpression->GetInput(0) );
+		ReflectionLevelExpression->ConnectExpression( *MultiplyReflectionLevelExpression->GetInput(1) );
 
 		ReflectionExpression = MultiplyReflectionLevelExpression;
 	}
 
-	TSharedPtr< IDatasmithMaterialExpressionGeneric > ReflectionIntensityExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+	IDatasmithMaterialExpressionGeneric* ReflectionIntensityExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 	ReflectionIntensityExpression->SetExpressionName( TEXT("Desaturation") );
 
-	ReflectionExpression->ConnectExpression( ReflectionIntensityExpression->GetInput(0) );
+	ReflectionExpression->ConnectExpression( *ReflectionIntensityExpression->GetInput(0) );
 
 	// Glossiness
-	TSharedPtr< IDatasmithMaterialExpression > GlossinessExpression;
+	IDatasmithMaterialExpression* GlossinessExpression = nullptr;
 	{
 		TGuardValue< bool > SetIsMonoChannel( ConvertState.bIsMonoChannel, true );
 
@@ -403,7 +403,7 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 		ConvertState.DefaultTextureMode = EDatasmithTextureMode::Bump; // Will change to normal if we pass through a normal map texmap
 		ConvertState.bCanBake = false; // Current baking fails to produce proper normal maps
 
-		TSharedPtr< IDatasmithMaterialExpression > BumpExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, CoronaMaterialProperties.BumpMap, TEXT("Bump Map"), TOptional< FLinearColor >(), TOptional< float >() );
+		IDatasmithMaterialExpression* BumpExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, CoronaMaterialProperties.BumpMap, TEXT("Bump Map"), TOptional< FLinearColor >(), TOptional< float >() );
 
 		if ( BumpExpression )
 		{
@@ -422,7 +422,7 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 	{
 		ConvertState.DefaultTextureMode = EDatasmithTextureMode::Displace;
 
-		TSharedPtr< IDatasmithMaterialExpression > DisplacementExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, CoronaMaterialProperties.DisplacementMap, TEXT("Displacement Map"), TOptional< FLinearColor >(), TOptional< float >() );
+		IDatasmithMaterialExpression* DisplacementExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, CoronaMaterialProperties.DisplacementMap, TEXT("Displacement Map"), TOptional< FLinearColor >(), TOptional< float >() );
 
 		if ( DisplacementExpression )
 		{
@@ -438,7 +438,7 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 	ConvertState.DefaultTextureMode = EDatasmithTextureMode::Specular; // At this point, all maps are considered specular maps
 
 	// Opacity
-	TSharedPtr< IDatasmithMaterialExpression > OpacityExpression = nullptr;
+	IDatasmithMaterialExpression* OpacityExpression = nullptr;
 	{
 		TGuardValue< bool > SetIsMonoChannel( ConvertState.bIsMonoChannel, true );
 		OpacityExpression = ConvertTexmap( CoronaMaterialProperties.OpacityMap );
@@ -449,7 +449,7 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 	CoronaMaterialProperties.Refraction.Value *= CoronaMaterialProperties.Refraction.Weight;
 	CoronaMaterialProperties.RefractionMap.Weight *= CoronaMaterialProperties.RefractionLevel;
 
-	TSharedPtr< IDatasmithMaterialExpression > RefractionExpression = nullptr;
+	IDatasmithMaterialExpression* RefractionExpression = nullptr;
 	{
 		TOptional< FLinearColor > OptionalRefractionColor;
 
@@ -463,22 +463,22 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 
 	// UE Roughness
 	{
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > MultiplyGlossiness = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* MultiplyGlossiness = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		MultiplyGlossiness->SetExpressionName( TEXT("Multiply") );
 
-		GlossinessExpression->ConnectExpression( MultiplyGlossiness->GetInput(0) );
-		GlossinessExpression->ConnectExpression( MultiplyGlossiness->GetInput(1) );
+		GlossinessExpression->ConnectExpression( *MultiplyGlossiness->GetInput(0) );
+		GlossinessExpression->ConnectExpression( *MultiplyGlossiness->GetInput(1) );
 
-		TSharedPtr< IDatasmithMaterialExpression > RoughnessOutput = MultiplyGlossiness;
+		IDatasmithMaterialExpression* RoughnessOutput = MultiplyGlossiness;
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > OneMinusRougnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* OneMinusRougnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		OneMinusRougnessExpression->SetExpressionName( TEXT("OneMinus") );
 
-		MultiplyGlossiness->ConnectExpression( OneMinusRougnessExpression->GetInput(0) );
+		MultiplyGlossiness->ConnectExpression( *OneMinusRougnessExpression->GetInput(0) );
 
 		RoughnessOutput = OneMinusRougnessExpression;
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > PowRoughnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* PowRoughnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		PowRoughnessExpression->SetExpressionName( TEXT("Power") );
 
 		TSharedRef< IDatasmithKeyValueProperty > PowRoughnessValue = FDatasmithSceneFactory::CreateKeyValueProperty( TEXT("ConstExponent") );
@@ -487,23 +487,23 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 
 		PowRoughnessExpression->AddProperty( PowRoughnessValue );
 
-		RoughnessOutput->ConnectExpression( PowRoughnessExpression->GetInput(0) );
+		RoughnessOutput->ConnectExpression( *PowRoughnessExpression->GetInput(0) );
 		PowRoughnessExpression->ConnectExpression( PbrMaterialElement->GetRoughness() );
 	}
 
-	TSharedPtr< IDatasmithMaterialExpressionGeneric > ReflectionFresnelExpression = nullptr;
+	IDatasmithMaterialExpressionGeneric* ReflectionFresnelExpression = nullptr;
 
-	TSharedPtr< IDatasmithMaterialExpressionGeneric > IORFactor = nullptr;
+	IDatasmithMaterialExpressionGeneric* IORFactor = nullptr;
 
 	{
 		DiffuseExpression->ConnectExpression( PbrMaterialElement->GetBaseColor() );
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > DiffuseLerpExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* DiffuseLerpExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		DiffuseLerpExpression->SetExpressionName( TEXT("LinearInterpolate") );
 
 		DiffuseLerpExpression->ConnectExpression( PbrMaterialElement->GetBaseColor() );
 
-		TSharedPtr< IDatasmithMaterialExpression > ReflectionIOR = nullptr;
+		IDatasmithMaterialExpression* ReflectionIOR = nullptr;
 		
 		{
 			TGuardValue< bool > SetIsMonoChannel( ConvertState.bIsMonoChannel, true );
@@ -512,62 +512,62 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 
 		ReflectionIOR->SetName( TEXT("Fresnel IOR") );
 
-		TSharedPtr< IDatasmithMaterialExpressionScalar > MinusOneFresnelIOR = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		IDatasmithMaterialExpressionScalar* MinusOneFresnelIOR = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		MinusOneFresnelIOR->GetScalar() = -1.f;
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > AddAdjustFresnelIOR = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* AddAdjustFresnelIOR = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		AddAdjustFresnelIOR->SetExpressionName( TEXT("Add") );
 
-		ReflectionIOR->ConnectExpression( AddAdjustFresnelIOR->GetInput(0) );
-		MinusOneFresnelIOR->ConnectExpression( AddAdjustFresnelIOR->GetInput(1) );
+		ReflectionIOR->ConnectExpression( *AddAdjustFresnelIOR->GetInput(0) );
+		MinusOneFresnelIOR->ConnectExpression( *AddAdjustFresnelIOR->GetInput(1) );
 
 		IORFactor = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		IORFactor->SetExpressionName( TEXT("Multiply") );
 
-		TSharedPtr< IDatasmithMaterialExpressionScalar > ScaleIORScalar = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		IDatasmithMaterialExpressionScalar* ScaleIORScalar = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		ScaleIORScalar->GetScalar() = 0.02f;
 
-		AddAdjustFresnelIOR->ConnectExpression( IORFactor->GetInput(0) );
-		ScaleIORScalar->ConnectExpression( IORFactor->GetInput(1) );
+		AddAdjustFresnelIOR->ConnectExpression( *IORFactor->GetInput(0) );
+		ScaleIORScalar->ConnectExpression( *IORFactor->GetInput(1) );
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > BaseColorIORPow = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* BaseColorIORPow = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		BaseColorIORPow->SetExpressionName( TEXT("Power") );
 
-		TSharedPtr< IDatasmithMaterialExpressionScalar > BaseColorIORPowScalar = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		IDatasmithMaterialExpressionScalar* BaseColorIORPowScalar = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		BaseColorIORPowScalar->GetScalar() = 0.5f;
 
-		IORFactor->ConnectExpression( BaseColorIORPow->GetInput(0) );
-		BaseColorIORPowScalar->ConnectExpression( BaseColorIORPow->GetInput(1) );
+		IORFactor->ConnectExpression( *BaseColorIORPow->GetInput(0) );
+		BaseColorIORPowScalar->ConnectExpression( *BaseColorIORPow->GetInput(1) );
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > DiffuseIORLerpExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* DiffuseIORLerpExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		DiffuseIORLerpExpression->SetExpressionName( TEXT("LinearInterpolate") );
 
-		DiffuseExpression->ConnectExpression( DiffuseIORLerpExpression->GetInput(0) );
-		ReflectionExpression->ConnectExpression( DiffuseIORLerpExpression->GetInput(1) );
-		BaseColorIORPow->ConnectExpression( DiffuseIORLerpExpression->GetInput(2) );
+		DiffuseExpression->ConnectExpression( *DiffuseIORLerpExpression->GetInput(0) );
+		ReflectionExpression->ConnectExpression( *DiffuseIORLerpExpression->GetInput(1) );
+		BaseColorIORPow->ConnectExpression( *DiffuseIORLerpExpression->GetInput(2) );
 
-		DiffuseExpression->ConnectExpression( DiffuseLerpExpression->GetInput(0) );
-		DiffuseIORLerpExpression->ConnectExpression( DiffuseLerpExpression->GetInput(1) );
-		ReflectionIntensityExpression->ConnectExpression( DiffuseLerpExpression->GetInput(2) );
+		DiffuseExpression->ConnectExpression( *DiffuseLerpExpression->GetInput(0) );
+		DiffuseIORLerpExpression->ConnectExpression( *DiffuseLerpExpression->GetInput(1) );
+		ReflectionIntensityExpression->ConnectExpression( *DiffuseLerpExpression->GetInput(2) );
 	}
 
 	// UE Metallic
-	TSharedPtr< IDatasmithMaterialExpression > MetallicExpression = nullptr;
+	IDatasmithMaterialExpression* MetallicExpression = nullptr;
 	{
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > MetallicIORPow = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* MetallicIORPow = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		MetallicIORPow->SetExpressionName( TEXT("Power") );
 
-		TSharedPtr< IDatasmithMaterialExpressionScalar > MetallicIORPowScalar = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		IDatasmithMaterialExpressionScalar* MetallicIORPowScalar = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		MetallicIORPowScalar->GetScalar() = 0.2f;
 
-		IORFactor->ConnectExpression( MetallicIORPow->GetInput(0) );
-		MetallicIORPowScalar->ConnectExpression( MetallicIORPow->GetInput(1) );
+		IORFactor->ConnectExpression( *MetallicIORPow->GetInput(0) );
+		MetallicIORPowScalar->ConnectExpression( *MetallicIORPow->GetInput(1) );
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > MultiplyIORExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* MultiplyIORExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		MultiplyIORExpression->SetExpressionName( TEXT("Multiply") );
 
-		ReflectionIntensityExpression->ConnectExpression( MultiplyIORExpression->GetInput(0) );
-		MetallicIORPow->ConnectExpression( MultiplyIORExpression->GetInput(1) );
+		ReflectionIntensityExpression->ConnectExpression( *MultiplyIORExpression->GetInput(0) );
+		MetallicIORPow->ConnectExpression( *MultiplyIORExpression->GetInput(1) );
 
 		MetallicExpression = MultiplyIORExpression;
 	}
@@ -586,28 +586,28 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 	// UE Opacity & Refraction
 	if ( !FMath::IsNearlyZero( CoronaMaterialProperties.RefractionLevel ) && ( OpacityExpression || RefractionExpression ) )
 	{
-		TSharedPtr< IDatasmithMaterialExpression > UEOpacityExpression = nullptr;
+		IDatasmithMaterialExpression* UEOpacityExpression = nullptr;
 
 		if ( RefractionExpression )
 		{
-			TSharedPtr< IDatasmithMaterialExpressionGeneric > RefractionIntensity = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+			IDatasmithMaterialExpressionGeneric* RefractionIntensity = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 			RefractionIntensity->SetExpressionName( TEXT("Desaturation") );
 
-			RefractionExpression->ConnectExpression( RefractionIntensity->GetInput(0) );
+			RefractionExpression->ConnectExpression( *RefractionIntensity->GetInput(0) );
 
-			TSharedPtr< IDatasmithMaterialExpressionGeneric > OneMinusRefraction = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+			IDatasmithMaterialExpressionGeneric* OneMinusRefraction = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 			OneMinusRefraction->SetExpressionName( TEXT("OneMinus") );
 
-			RefractionIntensity->ConnectExpression( OneMinusRefraction->GetInput(0) );
+			RefractionIntensity->ConnectExpression( *OneMinusRefraction->GetInput(0) );
 
 			if ( OpacityExpression )
 			{
-				TSharedPtr< IDatasmithMaterialExpressionGeneric > LerpOpacityRefraction = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+				IDatasmithMaterialExpressionGeneric* LerpOpacityRefraction = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 				LerpOpacityRefraction->SetExpressionName( TEXT("LinearInterpolate") );
 
-				OpacityExpression->ConnectExpression( LerpOpacityRefraction->GetInput(0) );
-				OneMinusRefraction->ConnectExpression( LerpOpacityRefraction->GetInput(1) );
-				OpacityExpression->ConnectExpression( LerpOpacityRefraction->GetInput(2) );
+				OpacityExpression->ConnectExpression( *LerpOpacityRefraction->GetInput(0) );
+				OneMinusRefraction->ConnectExpression( *LerpOpacityRefraction->GetInput(1) );
+				OpacityExpression->ConnectExpression( *LerpOpacityRefraction->GetInput(2) );
 
 				UEOpacityExpression = LerpOpacityRefraction;
 			}
@@ -626,13 +626,13 @@ void FDatasmithMaxCoronaMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene >
 			UEOpacityExpression->ConnectExpression( PbrMaterialElement->GetOpacity() );
 			PbrMaterialElement->SetShadingModel( EDatasmithShadingModel::ThinTranslucent );
 
-			TSharedPtr< IDatasmithMaterialExpressionGeneric > ThinTranslucencyMaterialOutput = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+			IDatasmithMaterialExpressionGeneric* ThinTranslucencyMaterialOutput = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 			ThinTranslucencyMaterialOutput->SetExpressionName( TEXT("ThinTranslucentMaterialOutput") );
 
 			// Transmittance color
-			TSharedPtr< IDatasmithMaterialExpressionColor > TransmittanceExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
+			IDatasmithMaterialExpressionColor* TransmittanceExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionColor >();
 			TransmittanceExpression->GetColor() = FLinearColor::White;
-			TransmittanceExpression->ConnectExpression( ThinTranslucencyMaterialOutput->GetInput(0) );
+			TransmittanceExpression->ConnectExpression( *ThinTranslucencyMaterialOutput->GetInput(0) );
 		}
 	}
 
@@ -689,26 +689,26 @@ void FDatasmithMaxCoronaBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScen
 	FMaxCoronaBlendMaterial CoronaBlendMaterialProperties = ParseCoronaBlendMaterialProperties( *Material );
 
 	//Exporting the base material.
-	TSharedPtr< IDatasmithMaterialExpressionFunctionCall > BaseMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+	IDatasmithMaterialExpressionFunctionCall* BaseMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
 	if (TSharedPtr<IDatasmithBaseMaterialElement> ExportedMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, CoronaBlendMaterialProperties.BaseMaterial, AssetsPath))
 	{
 		BaseMaterialFunctionCall->SetFunctionPathName(ExportedMaterial->GetName());
 	}
 
 	//Exporting the blended materials.
-	TSharedPtr< IDatasmithMaterialExpression > PreviousExpression = BaseMaterialFunctionCall;
+	IDatasmithMaterialExpression* PreviousExpression = BaseMaterialFunctionCall;
 	for (int CoatIndex = 0; CoatIndex < FMaxCoronaBlendMaterial::MaximumNumberOfCoat; ++CoatIndex)
 	{
 		const FMaxCoronaBlendMaterial::FCoronaCoatMaterialProperties& CoatedMaterial = CoronaBlendMaterialProperties.CoatedMaterials[CoatIndex];
 
 		if (CoatedMaterial.Material != nullptr)
 		{
-			TSharedPtr< IDatasmithMaterialExpressionFunctionCall > BlendFunctionCall = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+			IDatasmithMaterialExpressionFunctionCall* BlendFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
 			BlendFunctionCall->SetFunctionPathName(TEXT("/Engine/Functions/MaterialLayerFunctions/MatLayerBlend_Standard.MatLayerBlend_Standard"));
-			PreviousExpression->ConnectExpression(BlendFunctionCall->GetInput(0));
+			PreviousExpression->ConnectExpression(*BlendFunctionCall->GetInput(0));
 			PreviousExpression = BlendFunctionCall;
 
-			TSharedPtr< IDatasmithMaterialExpressionFunctionCall > LayerMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+			IDatasmithMaterialExpressionFunctionCall* LayerMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
 			TSharedPtr<IDatasmithBaseMaterialElement> LayerMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial(DatasmithScene, CoatedMaterial.Material, AssetsPath);
 
 			if ( !LayerMaterial )
@@ -717,30 +717,30 @@ void FDatasmithMaxCoronaBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScen
 			}
 
 			LayerMaterialFunctionCall->SetFunctionPathName(LayerMaterial->GetName());
-			LayerMaterialFunctionCall->ConnectExpression(BlendFunctionCall->GetInput(1));
+			LayerMaterialFunctionCall->ConnectExpression(*BlendFunctionCall->GetInput(1));
 
-			TSharedPtr< IDatasmithMaterialExpressionScalar > AmountExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+			IDatasmithMaterialExpressionScalar* AmountExpression = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 			AmountExpression->SetName( TEXT("Layer Amount") );
 			AmountExpression->GetScalar() = CoatedMaterial.Amount;
 
-			TSharedPtr< IDatasmithMaterialExpression > MaskExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, CoatedMaterial.Mask, TEXT("MixAmount"),
+			IDatasmithMaterialExpression* MaskExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, CoatedMaterial.Mask, TEXT("MixAmount"),
 				FLinearColor::White, TOptional< float >());
 			
-			TSharedPtr< IDatasmithMaterialExpressionGeneric > AlphaExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+			IDatasmithMaterialExpressionGeneric* AlphaExpression = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 			AlphaExpression->SetExpressionName(TEXT("Multiply"));
 
 			//AlphaExpression is nullptr only when there is no mask and the mask weight is ~100% so we add scalar 0 instead.
 			if (!MaskExpression) 
 			{
-				TSharedPtr< IDatasmithMaterialExpressionScalar > WeightExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+				IDatasmithMaterialExpressionScalar* WeightExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 				WeightExpression->GetScalar() = 0.f;
 				MaskExpression = WeightExpression;
 			}
 
-			AmountExpression->ConnectExpression(AlphaExpression->GetInput(0));
-			MaskExpression->ConnectExpression(AlphaExpression->GetInput(1));
+			AmountExpression->ConnectExpression(*AlphaExpression->GetInput(0));
+			MaskExpression->ConnectExpression(*AlphaExpression->GetInput(1));
 
-			AlphaExpression->ConnectExpression(BlendFunctionCall->GetInput(2));
+			AlphaExpression->ConnectExpression(*BlendFunctionCall->GetInput(2));
 		}
 	}
 

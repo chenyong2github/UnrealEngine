@@ -75,7 +75,7 @@ public:
 	static void WriteUEPbrMaterialElement( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, FArchive& Archive, int32 Indent );
 	static void WriteUEPbrMaterialExpressions( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, FArchive& Archive, int32 Indent );
 
-	static void WriteUEPbrMaterialExpressionInput( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TSharedPtr< const IDatasmithExpressionInput >& ExpressionInput, FArchive& Archive, int32 Indent );
+	static void WriteUEPbrMaterialExpressionInput( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const IDatasmithExpressionInput& ExpressionInput, FArchive& Archive, int32 Indent );
 
 	static void AppendMaterialExpressionAttributes( const IDatasmithMaterialExpression& Expression, FString& XmlString );
 	static void WriteMaterialExpressionFlattenNormal( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const IDatasmithMaterialExpressionFlattenNormal& FlattenNormal, FArchive& Archive, int32 Indent );
@@ -1461,56 +1461,56 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressions( const TSharedR
 
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
 	{
-		const TSharedPtr< IDatasmithMaterialExpression > MaterialExpression = MaterialElement->GetExpression( ExpressionIndex );
+		const IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression( ExpressionIndex );
 
 		if ( MaterialExpression )
 		{
 			if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 			{
-				const TSharedPtr< IDatasmithMaterialExpressionTexture > ExpressionTexture = StaticCastSharedPtr< IDatasmithMaterialExpressionTexture >( MaterialExpression );
+				const IDatasmithMaterialExpressionTexture* ExpressionTexture = static_cast< const IDatasmithMaterialExpressionTexture* >( MaterialExpression );
 
 				WriteMaterialExpressionTexture( MaterialElement, *ExpressionTexture, Archive, Indent + 1 );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
 			{
-				const TSharedPtr< IDatasmithMaterialExpressionTextureCoordinate > ExpressionTextureCoordinate = StaticCastSharedPtr< IDatasmithMaterialExpressionTextureCoordinate >( MaterialExpression );
+				const IDatasmithMaterialExpressionTextureCoordinate* ExpressionTextureCoordinate = static_cast< const IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression );
 
 				WriteMaterialExpressionTextureCoordinate( MaterialElement, *ExpressionTextureCoordinate, Archive, Indent + 1 );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FlattenNormal ) )
 			{
-				const TSharedPtr < IDatasmithMaterialExpressionFlattenNormal > FlattenNormal = StaticCastSharedPtr< IDatasmithMaterialExpressionFlattenNormal >( MaterialExpression );
+				const IDatasmithMaterialExpressionFlattenNormal* FlattenNormal = static_cast< const IDatasmithMaterialExpressionFlattenNormal* >( MaterialExpression );
 
 				WriteMaterialExpressionFlattenNormal( MaterialElement, *FlattenNormal, Archive, Indent + 1 );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
 			{
-				const TSharedPtr< IDatasmithMaterialExpressionBool > ConstantBool = StaticCastSharedPtr< IDatasmithMaterialExpressionBool >( MaterialExpression );
+				const IDatasmithMaterialExpressionBool* ConstantBool = static_cast< const IDatasmithMaterialExpressionBool* >( MaterialExpression );
 				WriteMaterialExpressionBool( MaterialElement, *ConstantBool, Archive, Indent + 1 );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 			{
-				const TSharedPtr< IDatasmithMaterialExpressionColor > ConstantColor = StaticCastSharedPtr< IDatasmithMaterialExpressionColor >( MaterialExpression );
+				const IDatasmithMaterialExpressionColor* ConstantColor = static_cast< const IDatasmithMaterialExpressionColor* >( MaterialExpression );
 				WriteMaterialExpressionColor( MaterialElement, *ConstantColor, Archive, Indent + 1 );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 			{
-				const TSharedPtr< IDatasmithMaterialExpressionScalar > ConstantScalar = StaticCastSharedPtr< IDatasmithMaterialExpressionScalar >( MaterialExpression );
+				const IDatasmithMaterialExpressionScalar* ConstantScalar = static_cast< const IDatasmithMaterialExpressionScalar* >( MaterialExpression );
 				WriteMaterialExpressionScalar( MaterialElement, *ConstantScalar, Archive, Indent + 1 );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 			{
-				const TSharedPtr< IDatasmithMaterialExpressionGeneric > GenericExpression = StaticCastSharedPtr< IDatasmithMaterialExpressionGeneric >( MaterialExpression );
+				const IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< const IDatasmithMaterialExpressionGeneric* >( MaterialExpression );
 				WriteMaterialExpressionGeneric( MaterialElement, *GenericExpression, Archive, Indent + 1 );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
 			{
-				const TSharedPtr< IDatasmithMaterialExpressionFunctionCall > FunctionCall = StaticCastSharedPtr< IDatasmithMaterialExpressionFunctionCall >( MaterialExpression );
+				const IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast< const IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression );
 				WriteMaterialExpressionFunctionCall( MaterialElement, *FunctionCall, Archive, Indent + 1 );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Custom ) )
 			{
-				const TSharedPtr < IDatasmithMaterialExpressionCustom > Expression = StaticCastSharedPtr< IDatasmithMaterialExpressionCustom >( MaterialExpression );
+				const IDatasmithMaterialExpressionCustom* Expression = static_cast< const IDatasmithMaterialExpressionCustom* >( MaterialExpression );
 				WriteMaterialExpressionCustom( MaterialElement, *Expression, Archive, Indent + 1 );
 			}
 		}
@@ -1521,16 +1521,16 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressions( const TSharedR
 	SerializeToArchive( Archive, XmlString );
 }
 
-void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressionInput( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const TSharedPtr< const IDatasmithExpressionInput >& ExpressionInput,
+void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialExpressionInput( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, const IDatasmithExpressionInput& ExpressionInput,
 	FArchive& Archive, int32 Indent )
 {
-	if ( const TSharedPtr<const IDatasmithMaterialExpression>& Expression = ExpressionInput->GetExpression() )
+	if ( const IDatasmithMaterialExpression* Expression = ExpressionInput.GetExpression() )
 	{
 		WriteIndent( Archive, Indent );
 
-		FString XmlString = TEXT("<Input Name=\"") + FString( ExpressionInput->GetName() ) + TEXT("\" ");
+		FString XmlString = TEXT("<Input Name=\"") + FString( ExpressionInput.GetName() ) + TEXT("\" ");
 		XmlString += TEXT("expression=\"") + FString::FromInt( MaterialElement->GetExpressionIndex( Expression ) ) + TEXT("\" OutputIndex=\"") +
-			FString::FromInt( ExpressionInput->GetOutputIndex() ) + TEXT("\"/>") + LINE_TERMINATOR;
+			FString::FromInt( ExpressionInput.GetOutputIndex() ) + TEXT("\"/>") + LINE_TERMINATOR;
 
 		SerializeToArchive( Archive, XmlString );
 	}
@@ -1636,7 +1636,7 @@ void FDatasmithSceneXmlWriterImpl::WriteMaterialExpressionGeneric( const TShared
 
 	for ( int32 InputIndex = 0 ; InputIndex < GenericExpression.GetInputCount(); ++InputIndex )
 	{
-		WriteUEPbrMaterialExpressionInput( MaterialElement, GenericExpression.GetInput( InputIndex ).ToSharedRef(), Archive, Indent + 1 );
+		WriteUEPbrMaterialExpressionInput( MaterialElement, *GenericExpression.GetInput( InputIndex ), Archive, Indent + 1 );
 	}
 
 	WriteIndent( Archive, Indent );
@@ -1655,7 +1655,7 @@ void FDatasmithSceneXmlWriterImpl::WriteMaterialExpressionFunctionCall( const TS
 
 	for ( int32 InputIndex = 0 ; InputIndex < FunctionCall.GetInputCount(); ++InputIndex )
 	{
-		WriteUEPbrMaterialExpressionInput( MaterialElement, FunctionCall.GetInput( InputIndex ).ToSharedRef(), Archive, Indent + 1 );
+		WriteUEPbrMaterialExpressionInput( MaterialElement, *FunctionCall.GetInput( InputIndex ), Archive, Indent + 1 );
 	}
 
 	WriteIndent( Archive, Indent );
@@ -1704,7 +1704,7 @@ void FDatasmithSceneXmlWriterImpl::WriteMaterialExpressionCustom( const TSharedR
 
 	for ( int32 InputIndex = 0 ; InputIndex < CustomExpression.GetInputCount(); ++InputIndex )
 	{
-		WriteUEPbrMaterialExpressionInput( MaterialElement, CustomExpression.GetInput( InputIndex ).ToSharedRef(), Archive, Indent + 1 );
+		WriteUEPbrMaterialExpressionInput( MaterialElement, *CustomExpression.GetInput( InputIndex ), Archive, Indent + 1 );
 	}
 
 	WriteIndent( Archive, Indent );
@@ -1796,7 +1796,7 @@ void FDatasmithSceneXmlWriterImpl::WriteKeyValueProperties(const ElementType& El
 {
 	for ( int32 i = 0; i < Element.GetPropertiesCount(); ++i )
 	{
-		const TSharedPtr< const IDatasmithKeyValueProperty >& Property = Element.GetProperty(i);
+		const TSharedPtr< IDatasmithKeyValueProperty >& Property = Element.GetProperty(i);
 
 		WriteIndent(Archive, Indent + 1);
 		FString XmlString = TEXT("<") + FString(DATASMITH_KEYVALUEPROPERTYNAME) + TEXT(" name=\"") + SanitizeXMLText((Property->GetName())) + TEXT("\"")

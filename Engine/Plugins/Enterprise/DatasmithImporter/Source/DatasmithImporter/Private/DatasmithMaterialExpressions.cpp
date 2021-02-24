@@ -131,16 +131,16 @@ namespace
 		return 0;
 	}
 
-	UClass* GetGenericExpressionClass( const TSharedPtr< IDatasmithMaterialExpressionGeneric >& GenericExpression)
+	UClass* GetGenericExpressionClass(IDatasmithMaterialExpressionGeneric& GenericExpression)
 	{
 		const TCHAR* MaterialExpressionCharPtr = TEXT("MaterialExpression");
 		const int32 MaterialExpressionLength = FCString::Strlen( MaterialExpressionCharPtr );
-		const int32 ExpressionNameLength = FCString::Strlen( GenericExpression->GetExpressionName() );
+		const int32 ExpressionNameLength = FCString::Strlen( GenericExpression.GetExpressionName() );
 
 		FString ClassName;
 		ClassName.Reserve( MaterialExpressionLength + ExpressionNameLength );
 		ClassName.AppendChars( TEXT("MaterialExpression"), MaterialExpressionLength );
-		ClassName.AppendChars(  GenericExpression->GetExpressionName(), ExpressionNameLength );
+		ClassName.AppendChars(  GenericExpression.GetExpressionName(), ExpressionNameLength );
 		return FindClass( *ClassName );
 	}
 
@@ -177,13 +177,13 @@ namespace
 	}
 
 	template<EDatasmithMaterialExpressionType ExpressionType>
-	FName GenerateParamName( const TSharedPtr<IDatasmithMaterialExpression>& DatasmithExpression, int32 Index )
+	FName GenerateParamName( IDatasmithMaterialExpression& DatasmithExpression, int32 Index )
 	{
 		FString ParameterNameString;
 
-		if ( FCString::Strlen( DatasmithExpression->GetName() ) > 0 )
+		if ( FCString::Strlen( DatasmithExpression.GetName() ) > 0 )
 		{
-			ParameterNameString = DatasmithExpression->GetName();
+			ParameterNameString = DatasmithExpression.GetName();
 		}
 		else
 		{
@@ -203,22 +203,22 @@ namespace
 	}
 
 	template<class IDatasmithMaterialExpression>
-	bool ShouldExpressionBeAParameter(const TSharedPtr< IDatasmithMaterialExpression >& Expression);
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpression& Expression);
 
 	template<>
-	bool ShouldExpressionBeAParameter(const TSharedPtr< IDatasmithMaterialExpressionColor >& ExpressionColor)
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpressionColor& ExpressionColor)
 	{
-		return FCString::Strlen( ExpressionColor->GetName() ) != 0;
+		return FCString::Strlen( ExpressionColor.GetName() ) != 0;
 	}
 
 	template<>
-	bool ShouldExpressionBeAParameter(const TSharedPtr< IDatasmithMaterialExpressionScalar >& ExpressionScalar)
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpressionScalar& ExpressionScalar)
 	{
-		return FCString::Strlen( ExpressionScalar->GetName() ) != 0;
+		return FCString::Strlen( ExpressionScalar.GetName() ) != 0;
 	}
 
 	template<>
-	bool ShouldExpressionBeAParameter(const TSharedPtr < IDatasmithMaterialExpressionGeneric >& ExpressionGeneric)
+	bool ShouldExpressionBeAParameter(IDatasmithMaterialExpressionGeneric& ExpressionGeneric)
 	{
 		if ( UClass* ExpressionClass = GetGenericExpressionClass( ExpressionGeneric ) )
 		{
@@ -1801,7 +1801,7 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 	{
 		for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
 		{
-			TSharedPtr<IDatasmithMaterialExpression> MaterialExpression = MaterialElement->GetExpression( ExpressionIndex );
+			IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression( ExpressionIndex );
 			if ( !MaterialExpression )
 			{
 				check( false );
@@ -1810,35 +1810,35 @@ void FDatasmithMaterialExpressions::ForEachParamsNameInMaterial(const TSharedPtr
 			// Should be keep in sync with the Create...Expression functions
 			if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 			{
-				FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( MaterialExpression, ExpressionIndex + 1 );
+				FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( *MaterialExpression, ExpressionIndex + 1 );
 				CallbackForEach( MoveTemp( ParamName ), EDatasmithMaterialExpressionType::Texture, ExpressionIndex );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
 			{
-				FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( MaterialExpression, ExpressionIndex + 1 );
+				FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( *MaterialExpression, ExpressionIndex + 1 );
 				CallbackForEach( MoveTemp( ParamName ), EDatasmithMaterialExpressionType::ConstantBool, ExpressionIndex );
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 			{
-				if ( ShouldExpressionBeAParameter( StaticCastSharedPtr<IDatasmithMaterialExpressionColor>( MaterialExpression ) ) )
+				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionColor&>( *MaterialExpression ) ) )
 				{
-					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( MaterialExpression, ExpressionIndex + 1 );
+					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( *MaterialExpression, ExpressionIndex + 1 );
 					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::ConstantColor, ExpressionIndex );
 				}
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 			{
-				if ( ShouldExpressionBeAParameter( StaticCastSharedPtr<IDatasmithMaterialExpressionScalar>( MaterialExpression ) ) )
+				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionScalar&>( *MaterialExpression ) ) )
 				{
-					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( MaterialExpression, ExpressionIndex + 1 );
+					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( *MaterialExpression, ExpressionIndex + 1 );
 					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::ConstantScalar, ExpressionIndex );
 				}
 			}
 			else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 			{
-				if ( ShouldExpressionBeAParameter( StaticCastSharedPtr<IDatasmithMaterialExpressionGeneric>( MaterialExpression ) ) )
+				if ( ShouldExpressionBeAParameter( static_cast<IDatasmithMaterialExpressionGeneric&>( *MaterialExpression ) ) )
 				{
-					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::Generic>( MaterialExpression, ExpressionIndex + 1 );
+					FName ParamName = GenerateParamName<EDatasmithMaterialExpressionType::Generic>( *MaterialExpression, ExpressionIndex + 1 );
 					CallbackForEach( ParamName, EDatasmithMaterialExpressionType::Generic, ExpressionIndex );
 				}
 			}
@@ -2853,7 +2853,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithEnvironmentMat
 	return UnrealMaterial;
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateExpression( const TSharedPtr< IDatasmithMaterialExpression >& MaterialExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateExpression( IDatasmithMaterialExpression* MaterialExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
 	if ( !MaterialExpression )
 	{
@@ -2861,53 +2861,70 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateExpression( const TSha
 		return nullptr;
 	}
 
-	switch( MaterialExpression->GetExpressionType() )
+	if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 	{
-	case  EDatasmithMaterialExpressionType::Texture:
-		return CreateTextureExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionTexture >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
-	case EDatasmithMaterialExpressionType::TextureCoordinate:
-		return CreateTextureCoordinateExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionTextureCoordinate >( MaterialExpression), AssetsContext, UnrealMaterialOrFunction );
-	case EDatasmithMaterialExpressionType::FlattenNormal:
-		return CreateFlattenNormalExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionFlattenNormal >( MaterialExpression), AssetsContext, UnrealMaterialOrFunction );
-	case EDatasmithMaterialExpressionType::ConstantBool:
-		return CreateBoolExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionBool >( MaterialExpression), AssetsContext, UnrealMaterialOrFunction );
-	case EDatasmithMaterialExpressionType::ConstantColor:
-		return CreateColorExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionColor >( MaterialExpression), AssetsContext, UnrealMaterialOrFunction );
-	case EDatasmithMaterialExpressionType::ConstantScalar:
-		return CreateScalarExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionScalar >( MaterialExpression), AssetsContext, UnrealMaterialOrFunction );
-	case EDatasmithMaterialExpressionType::Generic:
-		return CreateGenericExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionGeneric >( MaterialExpression), AssetsContext, UnrealMaterialOrFunction );
-	case EDatasmithMaterialExpressionType::FunctionCall:
-		return CreateFunctionCallExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionFunctionCall >( MaterialExpression), AssetsContext, UnrealMaterialOrFunction );
-	case EDatasmithMaterialExpressionType::Custom:
-		return CreateCustomExpression( StaticCastSharedPtr< IDatasmithMaterialExpressionCustom >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
-	default:
+		return CreateTextureExpression( *static_cast< IDatasmithMaterialExpressionTexture* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
+	{
+		return CreateTextureCoordinateExpression( *static_cast< IDatasmithMaterialExpressionTextureCoordinate* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FlattenNormal ) )
+	{
+		return CreateFlattenNormalExpression( *static_cast< IDatasmithMaterialExpressionFlattenNormal* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
+	{
+		return CreateBoolExpression( *static_cast< IDatasmithMaterialExpressionBool* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
+	{
+		return CreateColorExpression( *static_cast< IDatasmithMaterialExpressionColor* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
+	{
+		return CreateScalarExpression( *static_cast< IDatasmithMaterialExpressionScalar* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
+	{
+		return CreateGenericExpression( *static_cast< IDatasmithMaterialExpressionGeneric* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::FunctionCall ) )
+	{
+		return CreateFunctionCallExpression( *static_cast< IDatasmithMaterialExpressionFunctionCall* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else if ( MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::Custom ) )
+	{
+		return CreateCustomExpression( *static_cast< IDatasmithMaterialExpressionCustom* >( MaterialExpression ), AssetsContext, UnrealMaterialOrFunction );
+	}
+	else
+	{
 		ensure( false );
 		return nullptr;
 	}
 }
 
 void FDatasmithMaterialExpressions::ConnectExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions,
-	const TSharedPtr<IDatasmithMaterialExpression>& MaterialExpression, FExpressionInput* MaterialInput, int32 OutputIndex )
+	IDatasmithMaterialExpression* MaterialExpression, FExpressionInput* MaterialInput, int32 OutputIndex )
 {
 	if ( !MaterialExpression || !MaterialInput )
 	{
 		return;
 	}
 
-	ConnectAnyExpression( MaterialElement, MaterialExpressions, MaterialExpression, MaterialInput, OutputIndex );
+	ConnectAnyExpression( MaterialElement, MaterialExpressions, *MaterialExpression, MaterialInput, OutputIndex );
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateTextureExpression( const TSharedPtr< IDatasmithMaterialExpressionTexture >& DatasmithTextureExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateTextureExpression( IDatasmithMaterialExpressionTexture& DatasmithTextureExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
-	UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, DatasmithTextureExpression->GetTexturePathName() );
+	UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, DatasmithTextureExpression.GetTexturePathName() );
 
 	UMaterialExpressionTextureSampleParameter2D* TextureExpression = CreateMaterialExpression< UMaterialExpressionTextureSampleParameter2D >( UnrealMaterialOrFunction );
 	TextureExpression->ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( DatasmithTextureExpression, GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
 
 	if ( Texture )
 	{
-		TextureExpression->Group = DatasmithTextureExpression->GetGroupName();
+		TextureExpression->Group = DatasmithTextureExpression.GetGroupName();
 		TextureExpression->Texture = Texture;
 		TextureExpression->SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture );
 	}
@@ -2915,17 +2932,17 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateTextureExpression( con
 	return TextureExpression;
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateTextureCoordinateExpression( const TSharedPtr< IDatasmithMaterialExpressionTextureCoordinate >& DatasmithTextureCoordinateExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateTextureCoordinateExpression( IDatasmithMaterialExpressionTextureCoordinate& DatasmithTextureCoordinateExpression, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
 	UMaterialExpressionTextureCoordinate* TextureCoordinate = CreateMaterialExpression< UMaterialExpressionTextureCoordinate >( UnrealMaterialOrFunction );
-	TextureCoordinate->CoordinateIndex = DatasmithTextureCoordinateExpression->GetCoordinateIndex();
-	TextureCoordinate->UTiling = DatasmithTextureCoordinateExpression->GetUTiling();
-	TextureCoordinate->VTiling = DatasmithTextureCoordinateExpression->GetVTiling();
+	TextureCoordinate->CoordinateIndex = DatasmithTextureCoordinateExpression.GetCoordinateIndex();
+	TextureCoordinate->UTiling = DatasmithTextureCoordinateExpression.GetUTiling();
+	TextureCoordinate->VTiling = DatasmithTextureCoordinateExpression.GetVTiling();
 
 	return TextureCoordinate;
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateFlattenNormalExpression( const TSharedPtr < IDatasmithMaterialExpressionFlattenNormal >& DatasmithFlattenNormal, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateFlattenNormalExpression( IDatasmithMaterialExpressionFlattenNormal& DatasmithFlattenNormal, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
 	UMaterialFunction* FlattenFunction = LoadObject< UMaterialFunction >(nullptr, TEXT("/Engine/Functions/Engine_MaterialFunctions01/Texturing/FlattenNormal.FlattenNormal"), nullptr, LOAD_None, nullptr);
 
@@ -2936,17 +2953,17 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateFlattenNormalExpressio
 	return ExpressionFunctionCall;
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateBoolExpression( const TSharedPtr < IDatasmithMaterialExpressionBool >& DatasmithBool, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateBoolExpression( IDatasmithMaterialExpressionBool& DatasmithBool, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
 	UMaterialExpressionStaticBoolParameter* ConstantBool = CreateMaterialExpression< UMaterialExpressionStaticBoolParameter >( UnrealMaterialOrFunction );
 	ConstantBool->ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( DatasmithBool, GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
-	ConstantBool->DefaultValue = DatasmithBool->GetBool();
-	ConstantBool->Group = DatasmithBool->GetGroupName();
+	ConstantBool->DefaultValue = DatasmithBool.GetBool();
+	ConstantBool->Group = DatasmithBool.GetGroupName();
 
 	return ConstantBool;
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateColorExpression( const TSharedPtr < IDatasmithMaterialExpressionColor >& DatasmithColor, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateColorExpression( IDatasmithMaterialExpressionColor& DatasmithColor, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
 	UMaterialExpression* Result = nullptr;
 
@@ -2954,15 +2971,15 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateColorExpression( const
 	{
 		UMaterialExpressionVectorParameter* ConstantColor = CreateMaterialExpression< UMaterialExpressionVectorParameter >( UnrealMaterialOrFunction );
 		ConstantColor->ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( DatasmithColor, GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
-		ConstantColor->DefaultValue = DatasmithColor->GetColor();
-		ConstantColor->Group = DatasmithColor->GetGroupName();
+		ConstantColor->DefaultValue = DatasmithColor.GetColor();
+		ConstantColor->Group = DatasmithColor.GetGroupName();
 
 		Result = ConstantColor;
 	}
 	else
 	{
 		UMaterialExpressionConstant3Vector* ConstantColor = CreateMaterialExpression< UMaterialExpressionConstant3Vector >( UnrealMaterialOrFunction );
-		ConstantColor->Constant = DatasmithColor->GetColor();
+		ConstantColor->Constant = DatasmithColor.GetColor();
 
 		Result = ConstantColor;
 	}
@@ -2970,7 +2987,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateColorExpression( const
 	return Result;
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateScalarExpression( const TSharedPtr < IDatasmithMaterialExpressionScalar >& DatasmithScalar, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateScalarExpression( IDatasmithMaterialExpressionScalar& DatasmithScalar, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
 	UMaterialExpression* Result = nullptr;
 
@@ -2978,15 +2995,15 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateScalarExpression( cons
 	{
 		UMaterialExpressionScalarParameter* ScalarExpression = CreateMaterialExpression< UMaterialExpressionScalarParameter >( UnrealMaterialOrFunction );
 		ScalarExpression->ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( DatasmithScalar, GetNumberOfExpressionInMaterialOrFunction( UnrealMaterialOrFunction ) );
-		ScalarExpression->DefaultValue = DatasmithScalar->GetScalar();
-		ScalarExpression->Group = DatasmithScalar->GetGroupName();
+		ScalarExpression->DefaultValue = DatasmithScalar.GetScalar();
+		ScalarExpression->Group = DatasmithScalar.GetGroupName();
 
 		Result = ScalarExpression;
 	}
 	else
 	{
 		UMaterialExpressionConstant* ScalarExpression = CreateMaterialExpression< UMaterialExpressionConstant >( UnrealMaterialOrFunction );
-		ScalarExpression->R = DatasmithScalar->GetScalar();
+		ScalarExpression->R = DatasmithScalar.GetScalar();
 
 		Result = ScalarExpression;
 	}
@@ -2994,10 +3011,10 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateScalarExpression( cons
 	return Result;
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateCustomExpression( const TSharedPtr < IDatasmithMaterialExpressionCustom >& DatasmithCustom, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction)
+UMaterialExpression* FDatasmithMaterialExpressions::CreateCustomExpression(IDatasmithMaterialExpressionCustom& DatasmithCustom, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction)
 {
 	UMaterialExpressionCustom* CustomExpression = CreateMaterialExpression< UMaterialExpressionCustom >( UnrealMaterialOrFunction );
-	CustomExpression->Code = DatasmithCustom->GetCode();
+	CustomExpression->Code = DatasmithCustom.GetCode();
 
 	auto DatasmithTypeToNative = [](EDatasmithShaderDataType DatasmithValue) -> ECustomMaterialOutputType
 	{
@@ -3012,27 +3029,27 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateCustomExpression( cons
 		}
 	};
 
-	CustomExpression->OutputType = DatasmithTypeToNative(DatasmithCustom->GetOutputType());
-	CustomExpression->Description = DatasmithCustom->GetDescription();
+	CustomExpression->OutputType = DatasmithTypeToNative(DatasmithCustom.GetOutputType());
+	CustomExpression->Description = DatasmithCustom.GetDescription();
 
-	if (DatasmithCustom->GetArgumentNameCount() > CustomExpression->Inputs.Num())
+	if (DatasmithCustom.GetArgumentNameCount() > CustomExpression->Inputs.Num())
 	{
-		CustomExpression->Inputs.AddDefaulted(DatasmithCustom->GetArgumentNameCount() - CustomExpression->Inputs.Num());
+		CustomExpression->Inputs.AddDefaulted(DatasmithCustom.GetArgumentNameCount() - CustomExpression->Inputs.Num());
 	}
-	for (int32 Index = 0; Index < DatasmithCustom->GetArgumentNameCount(); ++Index)
+	for (int32 Index = 0; Index < DatasmithCustom.GetArgumentNameCount(); ++Index)
 	{
-		CustomExpression->Inputs[Index].InputName = DatasmithCustom->GetArgumentName(Index);
-	}
-
-	for (int32 IncludeFilePathIndex = 0; IncludeFilePathIndex < DatasmithCustom->GetIncludeFilePathCount(); ++IncludeFilePathIndex)
-	{
-		CustomExpression->IncludeFilePaths.Add(DatasmithCustom->GetIncludeFilePath(IncludeFilePathIndex));
+		CustomExpression->Inputs[Index].InputName = DatasmithCustom.GetArgumentName(Index);
 	}
 
-	for (int32 AdditionalDefineIndex = 0; AdditionalDefineIndex < DatasmithCustom->GetAdditionalDefineCount(); ++AdditionalDefineIndex)
+	for (int32 IncludeFilePathIndex = 0; IncludeFilePathIndex < DatasmithCustom.GetIncludeFilePathCount(); ++IncludeFilePathIndex)
+	{
+		CustomExpression->IncludeFilePaths.Add(DatasmithCustom.GetIncludeFilePath(IncludeFilePathIndex));
+	}
+
+	for (int32 AdditionalDefineIndex = 0; AdditionalDefineIndex < DatasmithCustom.GetAdditionalDefineCount(); ++AdditionalDefineIndex)
 	{
 		FCustomDefine& Define = CustomExpression->AdditionalDefines.AddDefaulted_GetRef();
-		FString DefineStr = DatasmithCustom->GetAdditionalDefine(AdditionalDefineIndex);
+		FString DefineStr = DatasmithCustom.GetAdditionalDefine(AdditionalDefineIndex);
 
 		int32 Index = -1;
 		if (DefineStr.FindChar(TEXT('='), Index))
@@ -3050,7 +3067,7 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateCustomExpression( cons
 }
 
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( const TSharedPtr < IDatasmithMaterialExpressionGeneric >& DatasmithGeneric, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( IDatasmithMaterialExpressionGeneric& DatasmithGeneric, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
 	UClass* ExpressionClass = GetGenericExpressionClass( DatasmithGeneric );
 
@@ -3077,9 +3094,9 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( con
 		MaterialExpression->SetParameterName( GenerateParamName<EDatasmithMaterialExpressionType::Generic>( DatasmithGeneric, GetNumberOfExpressionInMaterialOrFunction(UnrealMaterialOrFunction) ) );
 	}
 
-	for ( int32 PropertyIndex = 0; PropertyIndex < DatasmithGeneric->GetPropertiesCount(); ++PropertyIndex )
+	for ( int32 PropertyIndex = 0; PropertyIndex < DatasmithGeneric.GetPropertiesCount(); ++PropertyIndex )
 	{
-		const TSharedPtr< IDatasmithKeyValueProperty >& KeyValueProperty = DatasmithGeneric->GetProperty( PropertyIndex );
+		const TSharedPtr< IDatasmithKeyValueProperty >& KeyValueProperty = DatasmithGeneric.GetProperty( PropertyIndex );
 
 		if ( !KeyValueProperty )
 		{
@@ -3138,9 +3155,9 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateGenericExpression( con
 	return MaterialExpression;
 }
 
-UMaterialExpression* FDatasmithMaterialExpressions::CreateFunctionCallExpression( const TSharedPtr< IDatasmithMaterialExpressionFunctionCall >& DatasmithFunctionCall, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
+UMaterialExpression* FDatasmithMaterialExpressions::CreateFunctionCallExpression( class IDatasmithMaterialExpressionFunctionCall& DatasmithFunctionCall, const FDatasmithAssetsImportContext& AssetsContext, UObject* UnrealMaterialOrFunction )
 {
-	FString FunctionPath = FPackageName::ExportTextPathToObjectPath(DatasmithFunctionCall->GetFunctionPathName());
+	FString FunctionPath = FPackageName::ExportTextPathToObjectPath(DatasmithFunctionCall.GetFunctionPathName());
 	UMaterialFunction* MaterialFunction = FDatasmithImporterUtils::FindAsset< UMaterialFunction >( AssetsContext, *FunctionPath );
 
 	UMaterialExpressionMaterialFunctionCall* FunctionCall = CreateMaterialExpression< UMaterialExpressionMaterialFunctionCall >( UnrealMaterialOrFunction );
@@ -3151,9 +3168,9 @@ UMaterialExpression* FDatasmithMaterialExpressions::CreateFunctionCallExpression
 }
 
 void FDatasmithMaterialExpressions::ConnectAnyExpression( const TSharedRef< IDatasmithUEPbrMaterialElement >& MaterialElement, TArray< TStrongObjectPtr< UMaterialExpression > >& MaterialExpressions,
-	const TSharedPtr<IDatasmithMaterialExpression>& DatasmithExpression, FExpressionInput* ExpressionInput, int32 OutputIndex )
+	IDatasmithMaterialExpression& DatasmithExpression, FExpressionInput* ExpressionInput, int32 OutputIndex )
 {
-	int32 ExpressionIndex = MaterialElement->GetExpressionIndex( DatasmithExpression );
+	int32 ExpressionIndex = MaterialElement->GetExpressionIndex( &DatasmithExpression );
 
 	if ( !MaterialExpressions.IsValidIndex( ExpressionIndex ) )
 	{
@@ -3165,9 +3182,9 @@ void FDatasmithMaterialExpressions::ConnectAnyExpression( const TSharedRef< IDat
 
 	MaterialExpression->ConnectExpression( ExpressionInput, OutputIndex );
 
-	for ( int32 InputIndex = 0; InputIndex < DatasmithExpression->GetInputCount(); ++InputIndex )
+	for ( int32 InputIndex = 0; InputIndex < DatasmithExpression.GetInputCount(); ++InputIndex )
 	{
-		ConnectExpression( MaterialElement, MaterialExpressions, DatasmithExpression->GetInput( InputIndex )->GetExpression(), MaterialExpression->GetInput( InputIndex ), DatasmithExpression->GetInput( InputIndex )->GetOutputIndex() );
+		ConnectExpression( MaterialElement, MaterialExpressions, DatasmithExpression.GetInput( InputIndex )->GetExpression(), MaterialExpression->GetInput( InputIndex ), DatasmithExpression.GetInput( InputIndex )->GetOutputIndex() );
 	}
 }
 
@@ -3180,7 +3197,7 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 	{
 		UMaterialExpression* MaterialExpression = nullptr;
 
-		if ( TSharedPtr< IDatasmithMaterialExpression > DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex ) )
+		if ( IDatasmithMaterialExpression* DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex ) )
 		{
 			MaterialExpression = CreateExpression( DatasmithExpression, AssetsContext, UnrealMaterialOrFunction );
 			check(MaterialExpression);
@@ -3192,43 +3209,43 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 	if ( MaterialElement->GetUseMaterialAttributes() )
 	{
 		//We ignore all the other inputs if we are using MaterialAttributes.
-		ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetMaterialAttributes()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::MATERIALATTRIBUTES ), MaterialElement->GetMaterialAttributes()->GetOutputIndex() );
+		ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetMaterialAttributes().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::MATERIALATTRIBUTES ), MaterialElement->GetMaterialAttributes().GetOutputIndex() );
 		return;
 	}
 
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetBaseColor()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DIFFUSE ), MaterialElement->GetBaseColor()->GetOutputIndex() );
+	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetBaseColor().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DIFFUSE ), MaterialElement->GetBaseColor().GetOutputIndex() );
 
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetMetallic()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::METALLIC ), MaterialElement->GetMetallic()->GetOutputIndex() );
+	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetMetallic().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::METALLIC ), MaterialElement->GetMetallic().GetOutputIndex() );
 
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetSpecular()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::SPECULAR ), MaterialElement->GetSpecular()->GetOutputIndex() );
+	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetSpecular().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::SPECULAR ), MaterialElement->GetSpecular().GetOutputIndex() );
 
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetRoughness()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::ROUGHNESS ), MaterialElement->GetRoughness()->GetOutputIndex() );
+	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetRoughness().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::ROUGHNESS ), MaterialElement->GetRoughness().GetOutputIndex() );
 
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetEmissiveColor()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::EMISSIVECOLOR ), MaterialElement->GetEmissiveColor()->GetOutputIndex() );
+	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetEmissiveColor().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::EMISSIVECOLOR ), MaterialElement->GetEmissiveColor().GetOutputIndex() );
 
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetAmbientOcclusion()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::AMBIANTOCCLUSION ), MaterialElement->GetAmbientOcclusion()->GetOutputIndex() );
+	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetAmbientOcclusion().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::AMBIANTOCCLUSION ), MaterialElement->GetAmbientOcclusion().GetOutputIndex() );
 
-	if ( MaterialElement->GetOpacity()->GetExpression() )
+	if ( MaterialElement->GetOpacity().GetExpression() )
 	{
 		if ( GetUEPbrImportBlendMode(MaterialElement, AssetsContext) == BLEND_Translucent )
 		{
-			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetOpacity()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::OPACITY ), MaterialElement->GetOpacity()->GetOutputIndex() );
+			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetOpacity().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::OPACITY ), MaterialElement->GetOpacity().GetOutputIndex() );
 
-			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetRefraction()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::REFRACTION ), MaterialElement->GetRefraction()->GetOutputIndex() );
+			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetRefraction().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::REFRACTION ), MaterialElement->GetRefraction().GetOutputIndex() );
 		}
 		else
 		{
-			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetOpacity()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::OPACITYMASK ), MaterialElement->GetOpacity()->GetOutputIndex() );
+			ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetOpacity().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::OPACITYMASK ), MaterialElement->GetOpacity().GetOutputIndex() );
 		}
 	}
 
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetNormal()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::NORMAL ), MaterialElement->GetNormal()->GetOutputIndex() );
-	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetWorldDisplacement()->GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DISPLACE ), MaterialElement->GetWorldDisplacement()->GetOutputIndex() );
+	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetNormal().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::NORMAL ), MaterialElement->GetNormal().GetOutputIndex() );
+	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetWorldDisplacement().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DISPLACE ), MaterialElement->GetWorldDisplacement().GetOutputIndex() );
 
 	// Connect expressions to any UMaterialExpressionCustomOutput since these aren't part of the predefined material outputs
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
 	{
-		if ( TSharedPtr< IDatasmithMaterialExpression > DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex ) )
+		if ( IDatasmithMaterialExpression* DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex ) )
 		{
 			if ( UMaterialExpressionCustomOutput* MaterialOutputExpression = Cast< UMaterialExpressionCustomOutput >( MaterialExpressions[ ExpressionIndex ].Get() ) )
 			{
@@ -3271,7 +3288,7 @@ EBlendMode FDatasmithMaterialExpressions::GetUEPbrImportBlendMode(const TSharedP
 {
 	EBlendMode BlendMode = static_cast<EBlendMode>(MaterialElement->GetBlendMode());
 
-	if ( MaterialElement->GetOpacity()->GetExpression() &&
+	if ( MaterialElement->GetOpacity().GetExpression() &&
 		BlendMode != BLEND_Translucent && BlendMode != BLEND_Masked )
 	{
 		return EBlendMode::BLEND_Translucent; // force translucent
@@ -3281,10 +3298,10 @@ EBlendMode FDatasmithMaterialExpressions::GetUEPbrImportBlendMode(const TSharedP
 	// translucency attribute to this material too.
 	for (int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ExpressionIndex++)
 	{
-		TSharedPtr < IDatasmithMaterialExpression > MaterialExpression = MaterialElement->GetExpression(ExpressionIndex);
+		IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression(ExpressionIndex);
 		if (MaterialExpression && MaterialExpression->IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 		{
-			TSharedPtr<IDatasmithMaterialExpressionFunctionCall> MaterialExpressionFunctionCall = StaticCastSharedPtr< IDatasmithMaterialExpressionFunctionCall >(MaterialExpression);
+			IDatasmithMaterialExpressionFunctionCall* MaterialExpressionFunctionCall = static_cast< IDatasmithMaterialExpressionFunctionCall* >(MaterialExpression);
 
 			const TSharedRef<IDatasmithBaseMaterialElement>* MaterialFunction = FDatasmithFindAssetTypeHelper<UMaterialFunction>::GetImportedElementByName(AssetsContext, MaterialExpressionFunctionCall->GetFunctionPathName());
 			if (MaterialFunction && (*MaterialFunction)->IsA(EDatasmithElementType::UEPbrMaterial))
@@ -3332,7 +3349,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 
 	CreateUEPbrMaterialGraph(MaterialElement, AssetsContext, UnrealMaterial);
 
-	if ( MaterialElement->GetOpacity()->GetExpression() )
+	if ( MaterialElement->GetOpacity().GetExpression() )
 	{
 		if ( MaterialElement->GetShadingModel() == EDatasmithShadingModel::ThinTranslucent )
 		{
@@ -3345,7 +3362,7 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterial(UPackage*
 		}
 	}
 
-	if ( MaterialElement->GetWorldDisplacement()->GetExpression() )
+	if ( MaterialElement->GetWorldDisplacement().GetExpression() )
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		UnrealMaterial->bEnableCrackFreeDisplacement = 1;
@@ -3405,13 +3422,13 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )
 	{
-		TSharedPtr<IDatasmithMaterialExpression> DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex );
+		IDatasmithMaterialExpression* DatasmithExpression = MaterialElement->GetExpression( ExpressionIndex );
 
 		if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::Texture ) )
 		{
-			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( DatasmithExpression, ExpressionIndex + 1 );
+			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Texture>( *DatasmithExpression, ExpressionIndex + 1 );
 
-			TSharedPtr<IDatasmithMaterialExpressionTexture> TextureExpression = StaticCastSharedPtr< IDatasmithMaterialExpressionTexture >( DatasmithExpression );
+			IDatasmithMaterialExpressionTexture* TextureExpression = static_cast< IDatasmithMaterialExpressionTexture* >( DatasmithExpression );
 			UTexture* Texture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, TextureExpression->GetTexturePathName() );
 			MaterialInstanceTemplate->TextureParameterValues.Add( ParameterName, Texture );
 
@@ -3434,36 +3451,36 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateUEPbrMaterialInstance(U
 		}
 		else if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantBool ) )
 		{
-			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( DatasmithExpression, ExpressionIndex + 1 );
+			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantBool>( *DatasmithExpression, ExpressionIndex + 1 );
 
-			TSharedPtr<IDatasmithMaterialExpressionBool> BoolExpression = StaticCastSharedPtr< IDatasmithMaterialExpressionBool >( DatasmithExpression );
+			IDatasmithMaterialExpressionBool* BoolExpression = static_cast< IDatasmithMaterialExpressionBool* >( DatasmithExpression );
 
 			MaterialInstanceTemplate->StaticParameters.StaticSwitchParameters.Add( ParameterName ) = BoolExpression->GetBool();
 		}
 		else if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantColor ) )
 		{
-			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( DatasmithExpression, ExpressionIndex + 1 );
+			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantColor>( *DatasmithExpression, ExpressionIndex + 1 );
 
-			TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = StaticCastSharedPtr< IDatasmithMaterialExpressionColor >( DatasmithExpression );
+			IDatasmithMaterialExpressionColor* ColorExpression = static_cast< IDatasmithMaterialExpressionColor* >( DatasmithExpression );
 
 			MaterialInstanceTemplate->VectorParameterValues.Add( ParameterName ) = ColorExpression->GetColor();
 		}
 		else if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::ConstantScalar ) )
 		{
-			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( DatasmithExpression, ExpressionIndex + 1 );
+			FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::ConstantScalar>( *DatasmithExpression, ExpressionIndex + 1 );
 
-			TSharedPtr<IDatasmithMaterialExpressionScalar> ScalarExpression = StaticCastSharedPtr< IDatasmithMaterialExpressionScalar >( DatasmithExpression );
+			IDatasmithMaterialExpressionScalar* ScalarExpression = static_cast< IDatasmithMaterialExpressionScalar* >( DatasmithExpression );
 
 			MaterialInstanceTemplate->ScalarParameterValues.Add( ParameterName ) = ScalarExpression->GetScalar();
 		}
 		else if ( DatasmithExpression->IsSubType( EDatasmithMaterialExpressionType::Generic ) )
 		{
-			TSharedPtr<IDatasmithMaterialExpressionGeneric> GenericExpression = StaticCastSharedPtr< IDatasmithMaterialExpressionGeneric >( DatasmithExpression );
+			IDatasmithMaterialExpressionGeneric* GenericExpression = static_cast< IDatasmithMaterialExpressionGeneric* >( DatasmithExpression );
 
 			// Instancing is only supported for generic expressions with a single value so that there's no ambiguity on which is the parameter
 			if ( GenericExpression->GetPropertiesCount() == 1 )
 			{
-				FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Generic>( DatasmithExpression, ExpressionIndex + 1 );
+				FName ParameterName = GenerateParamName<EDatasmithMaterialExpressionType::Generic>( *DatasmithExpression, ExpressionIndex + 1 );
 
 				const TSharedPtr< IDatasmithKeyValueProperty >& KeyValueProperty = GenericExpression->GetProperty( 0 );
 

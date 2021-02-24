@@ -166,14 +166,14 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 	ConvertState.DefaultTextureMode = EDatasmithTextureMode::Diffuse;
 
 	// Diffuse
-	TSharedPtr< IDatasmithMaterialExpression > DiffuseExpression = nullptr;
+	IDatasmithMaterialExpression* DiffuseExpression = nullptr;
 	{
 		DiffuseExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.DiffuseMap, TEXT("Diffuse Color"),
 			ScanlineMaterialProperties.DiffuseColor, TOptional< float >() );
 	}
 
 	// Glossiness
-	TSharedPtr< IDatasmithMaterialExpression > GlossinessExpression = nullptr;
+	IDatasmithMaterialExpression* GlossinessExpression = nullptr;
 	{
 		TGuardValue< bool > SetIsMonoChannel( ConvertState.bIsMonoChannel, true );
 
@@ -183,10 +183,10 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 
 		if ( GlossinessExpression )
 		{
-			TSharedPtr< IDatasmithMaterialExpressionGeneric > OneMinusRougnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+			IDatasmithMaterialExpressionGeneric* OneMinusRougnessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 			OneMinusRougnessExpression->SetExpressionName( TEXT("OneMinus") );
 
-			GlossinessExpression->ConnectExpression( OneMinusRougnessExpression->GetInput(0) );
+			GlossinessExpression->ConnectExpression( *OneMinusRougnessExpression->GetInput(0) );
 
 			OneMinusRougnessExpression->ConnectExpression( PbrMaterialElement->GetRoughness() );
 		}
@@ -195,34 +195,34 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 	// Specular
 	ConvertState.DefaultTextureMode = EDatasmithTextureMode::Specular;
 
-	TSharedPtr< IDatasmithMaterialExpression > SpecularColorExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.SpecularColorMap, TEXT("Specular Color"), ScanlineMaterialProperties.SpecularColor, TOptional< float >() );
-	TSharedPtr< IDatasmithMaterialExpression > SpecularExpression = SpecularColorExpression;
+	IDatasmithMaterialExpression* SpecularColorExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.SpecularColorMap, TEXT("Specular Color"), ScanlineMaterialProperties.SpecularColor, TOptional< float >() );
+	IDatasmithMaterialExpression* SpecularExpression = SpecularColorExpression;
 
 	if ( SpecularColorExpression )
 	{
 		SpecularColorExpression->SetName( TEXT("Specular") );
 		
-		TSharedPtr< IDatasmithMaterialExpressionScalar > SpecularLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+		IDatasmithMaterialExpressionScalar* SpecularLevelExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 		SpecularLevelExpression->SetName( TEXT("Specular Level") );
 		SpecularLevelExpression->GetScalar() = ScanlineMaterialProperties.SpecularLevel;
 
-		TSharedPtr <IDatasmithMaterialExpressionGeneric > SpecularGlossinessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* SpecularGlossinessExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		SpecularGlossinessExpression->SetExpressionName( TEXT("Multiply") );
 
-		SpecularLevelExpression->ConnectExpression( SpecularGlossinessExpression->GetInput(0), 0 );
-		GlossinessExpression->ConnectExpression( SpecularGlossinessExpression->GetInput(1), 0 );
+		SpecularLevelExpression->ConnectExpression( *SpecularGlossinessExpression->GetInput(0), 0 );
+		GlossinessExpression->ConnectExpression( *SpecularGlossinessExpression->GetInput(1), 0 );
 
-		TSharedPtr< IDatasmithMaterialExpressionGeneric > WeightedSpecularExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
+		IDatasmithMaterialExpressionGeneric* WeightedSpecularExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
 		WeightedSpecularExpression->SetExpressionName( TEXT("Multiply") );
 
-		SpecularColorExpression->ConnectExpression( WeightedSpecularExpression->GetInput(0), 0 );
-		SpecularGlossinessExpression->ConnectExpression( WeightedSpecularExpression->GetInput(1), 0 );
+		SpecularColorExpression->ConnectExpression( *WeightedSpecularExpression->GetInput(0), 0 );
+		SpecularGlossinessExpression->ConnectExpression( *WeightedSpecularExpression->GetInput(1), 0 );
 
 		SpecularExpression = WeightedSpecularExpression;
 	}
 
 	// Opacity
-	TSharedPtr< IDatasmithMaterialExpression > OpacityExpression = nullptr;
+	IDatasmithMaterialExpression* OpacityExpression = nullptr;
 	{
 		TGuardValue< bool > SetIsMonoChannel( ConvertState.bIsMonoChannel, true );
 
@@ -245,7 +245,7 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 		ConvertState.DefaultTextureMode = EDatasmithTextureMode::Bump; // Will change to normal if we pass through a normal map texmap
 		ConvertState.bCanBake = false; // Current baking fails to produce proper normal maps
 
-		TSharedPtr< IDatasmithMaterialExpression > BumpExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.BumpMap, TEXT("Bump Map"), TOptional< FLinearColor >(), TOptional< float >() );
+		IDatasmithMaterialExpression* BumpExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.BumpMap, TEXT("Bump Map"), TOptional< FLinearColor >(), TOptional< float >() );
 
 		if ( BumpExpression )
 		{
@@ -259,7 +259,7 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 	{
 		ConvertState.DefaultTextureMode = EDatasmithTextureMode::Displace;
 
-		TSharedPtr< IDatasmithMaterialExpression > DisplacementExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.DisplacementMap, TEXT("Displacement Map"), TOptional< FLinearColor >(), TOptional< float >() );
+		IDatasmithMaterialExpression* DisplacementExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.DisplacementMap, TEXT("Displacement Map"), TOptional< FLinearColor >(), TOptional< float >() );
 
 		if ( DisplacementExpression )
 		{
@@ -269,11 +269,11 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 
 	// ConvertFromDiffSpec
 	{
-		TSharedPtr< IDatasmithMaterialExpressionFunctionCall > ConvertFromDiffSpecExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+		IDatasmithMaterialExpressionFunctionCall* ConvertFromDiffSpecExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
 		ConvertFromDiffSpecExpression->SetFunctionPathName( TEXT("/Engine/Functions/Engine_MaterialFunctions01/Shading/ConvertFromDiffSpec.ConvertFromDiffSpec") );
 
-		DiffuseExpression->ConnectExpression( ConvertFromDiffSpecExpression->GetInput(0), 0 );
-		SpecularExpression->ConnectExpression( ConvertFromDiffSpecExpression->GetInput(1), 0 );
+		DiffuseExpression->ConnectExpression( *ConvertFromDiffSpecExpression->GetInput(0), 0 );
+		SpecularExpression->ConnectExpression( *ConvertFromDiffSpecExpression->GetInput(1), 0 );
 
 		ConvertFromDiffSpecExpression->ConnectExpression( PbrMaterialElement->GetBaseColor(), 0 );
 		ConvertFromDiffSpecExpression->ConnectExpression( PbrMaterialElement->GetMetallic(), 1 );
@@ -289,7 +289,7 @@ void FDatasmithMaxScanlineMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene
 			SelfIllumColor = ScanlineMaterialProperties.SelfIllumColor;
 		}
 
-		TSharedPtr< IDatasmithMaterialExpression > EmissiveExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.SelfIllumMap, TEXT("Self illumination"), SelfIllumColor, TOptional< float >() );
+		IDatasmithMaterialExpression* EmissiveExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, ScanlineMaterialProperties.SelfIllumMap, TEXT("Self illumination"), SelfIllumColor, TOptional< float >() );
 
 		if ( EmissiveExpression )
 		{
@@ -370,38 +370,38 @@ void FDatasmithMaxBlendMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > 
 	ConvertState.AssetsPath = AssetsPath;
 
 	//Exporting the base material.
-	TSharedPtr< IDatasmithMaterialExpressionFunctionCall > BaseMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
+	IDatasmithMaterialExpressionFunctionCall* BaseMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionFunctionCall >();
 	if ( TSharedPtr<IDatasmithBaseMaterialElement> ExportedMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial( DatasmithScene, BaseMaterial, AssetsPath ) )
 	{
 		BaseMaterialFunctionCall->SetFunctionPathName(ExportedMaterial->GetName());
 	}
 
-	TSharedPtr< IDatasmithMaterialExpression > PreviousExpression = BaseMaterialFunctionCall;
+	IDatasmithMaterialExpression* PreviousExpression = BaseMaterialFunctionCall;
 
 	//Exporting the coat material.
 	if ( CoatMaterial != nullptr )
 	{
-		TSharedPtr< IDatasmithMaterialExpressionFunctionCall > BlendFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+		IDatasmithMaterialExpressionFunctionCall* BlendFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
 		BlendFunctionCall->SetFunctionPathName( TEXT("/Engine/Functions/MaterialLayerFunctions/MatLayerBlend_Standard.MatLayerBlend_Standard") );
-		PreviousExpression->ConnectExpression( BlendFunctionCall->GetInput(0) );
+		PreviousExpression->ConnectExpression( *BlendFunctionCall->GetInput(0) );
 		PreviousExpression = BlendFunctionCall;
 
-		TSharedPtr< IDatasmithMaterialExpressionFunctionCall > LayerMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+		IDatasmithMaterialExpressionFunctionCall* LayerMaterialFunctionCall = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
 		if (TSharedPtr<IDatasmithBaseMaterialElement> LayerMaterial = FDatasmithMaxMatExport::ExportUniqueMaterial( DatasmithScene, CoatMaterial, AssetsPath ))
 		{
 			LayerMaterialFunctionCall->SetFunctionPathName( LayerMaterial->GetName() );
 		}
-		LayerMaterialFunctionCall->ConnectExpression( BlendFunctionCall->GetInput(1) );
+		LayerMaterialFunctionCall->ConnectExpression( *BlendFunctionCall->GetInput(1) );
 
-		TSharedPtr< IDatasmithMaterialExpression > AlphaExpression = nullptr;
+		IDatasmithMaterialExpression* AlphaExpression = nullptr;
 
-		TSharedPtr< IDatasmithMaterialExpression > MaskExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, Mask, TEXT("MixAmount"),
+		IDatasmithMaterialExpression* MaskExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, Mask, TEXT("MixAmount"),
 			FLinearColor::White, TOptional< float >());
 		AlphaExpression = MaskExpression;
 
 		if ( !AlphaExpression )
 		{
-			TSharedPtr< IDatasmithMaterialExpressionScalar > MixAmountExpression = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+			IDatasmithMaterialExpressionScalar* MixAmountExpression = PbrMaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 			MixAmountExpression->SetName( TEXT("Mix Amount") );
 			MixAmountExpression->GetScalar() = MixAmount;
 
@@ -411,12 +411,12 @@ void FDatasmithMaxBlendMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > 
 		//AlphaExpression is nullptr only when there is no mask and the mask weight is ~100% so we add scalar 0 instead.
 		if ( !AlphaExpression ) 
 		{
-			TSharedPtr< IDatasmithMaterialExpressionScalar > WeightExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
+			IDatasmithMaterialExpressionScalar* WeightExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 			WeightExpression->GetScalar() = 0.f;
 			AlphaExpression = WeightExpression;
 		}
 
-		AlphaExpression->ConnectExpression( BlendFunctionCall->GetInput(2) );
+		AlphaExpression->ConnectExpression( *BlendFunctionCall->GetInput(2) );
 	}
 
 	PbrMaterialElement->SetUseMaterialAttributes( true );

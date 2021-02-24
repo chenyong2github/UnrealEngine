@@ -221,6 +221,7 @@ public class FDatasmithFacadeMaterialsUtils : global::System.IDisposable {
   
     public void SetExpression(FDatasmithFacadeMaterialExpression InExpression) {
       DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialsUtils_FWeightedMaterialExpressionParameters_SetExpression(swigCPtr, FDatasmithFacadeMaterialExpression.getCPtr(InExpression));
+      if (DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Pending) throw DatasmithFacadeCSharpPINVOKE.SWIGPendingException.Retrieve();
     }
   
   }

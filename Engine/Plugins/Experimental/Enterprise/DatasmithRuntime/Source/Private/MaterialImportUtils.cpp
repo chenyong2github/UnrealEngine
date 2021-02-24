@@ -263,10 +263,10 @@ namespace DatasmithRuntime
 		{
 			for (int32 Index = 0; Index < PbrMaterialElement->GetExpressionsCount(); ++Index)
 			{
-				TSharedPtr< IDatasmithMaterialExpression > Expression = PbrMaterialElement->GetExpression(Index);
+				IDatasmithMaterialExpression* Expression = PbrMaterialElement->GetExpression(Index);
 				if (Expression && Expression->IsSubType(EDatasmithMaterialExpressionType::FunctionCall))
 				{
-					TSharedPtr< IDatasmithMaterialExpressionFunctionCall > FunctionCall = StaticCastSharedPtr< IDatasmithMaterialExpressionFunctionCall >(Expression);
+					IDatasmithMaterialExpressionFunctionCall* FunctionCall = static_cast<IDatasmithMaterialExpressionFunctionCall*>(Expression);
 					TSharedPtr< IDatasmithElement > ElementPtr = SceneImporter.GetElementFromName(MaterialPrefix + FunctionCall->GetFunctionPathName());
 					ensure(ElementPtr.IsValid() && ElementPtr->IsA( EDatasmithElementType::UEPbrMaterial ));
 
@@ -317,13 +317,13 @@ namespace DatasmithRuntime
 		FDatasmithInputValue() {}
 
 		// Constructor with an expression
-		FDatasmithInputValue(const TSharedPtr<const IDatasmithExpressionInput>& InInput)
+		FDatasmithInputValue(const IDatasmithExpressionInput& InInput)
 		{
 			EvaluateInput(InInput);
 		}
 
 		// Evaluate this expression
-		void EvaluateInput(const TSharedPtr<const IDatasmithExpressionInput>& InInput); // TODO: #todo_tm [CodingStyle] RichardY EvaluateExpression
+		void EvaluateInput(const IDatasmithExpressionInput& InInput); // TODO: #todo_tm [CodingStyle] RichardY EvaluateExpression
 
 																	  // Set scalar value (value is set for all components)
 		void Set(float InScalar) { Numeric.R = Numeric.G = Numeric.B = Numeric.A = InScalar; bNumericValid = true; }
@@ -353,11 +353,11 @@ namespace DatasmithRuntime
 		TFunction<void(const IDatasmithExpressionInput&)> ParseExpression;
 		ParseExpression = [&TextureCallback, &ParseExpression](const IDatasmithExpressionInput& Input) -> void
 		{
-			if (TSharedPtr<const IDatasmithMaterialExpression> MaterialExpression = Input.GetExpression())
+			if (const IDatasmithMaterialExpression* MaterialExpression = Input.GetExpression())
 			{
 				if (MaterialExpression->IsSubType(EDatasmithMaterialExpressionType::Texture))
 				{
-					const TSharedPtr<const IDatasmithMaterialExpressionTexture> TextureExpression = StaticCastSharedPtr<const IDatasmithMaterialExpressionTexture>(MaterialExpression);
+					const IDatasmithMaterialExpressionTexture* TextureExpression = static_cast<const IDatasmithMaterialExpressionTexture*>(MaterialExpression);
 					TextureCallback(TexturePrefix + TextureExpression->GetTexturePathName(), -1);
 				}
 
@@ -371,8 +371,8 @@ namespace DatasmithRuntime
 			}
 		};
 
-		TFunction<void( const TSharedPtr< IDatasmithExpressionInput >&, int32)> FindTexture;
-		FindTexture = [TextureCallback](const TSharedPtr< IDatasmithExpressionInput >& Input, int32 SlotIndex) -> void
+		TFunction<void(IDatasmithExpressionInput&, int32)> FindTexture;
+		FindTexture = [TextureCallback](IDatasmithExpressionInput& Input, int32 SlotIndex) -> void
 		{
 			FDatasmithInputValue InputValue(Input);
 
@@ -533,7 +533,7 @@ namespace DatasmithRuntime
 
 	protected:
 		// Evaluate this expression input (input can be nullptr)
-		static void EvaluateInput(const TSharedPtr<const IDatasmithExpressionInput>& InExpressionInput, FDatasmithInputValue& OutValue);
+		static void EvaluateInput(const IDatasmithExpressionInput* InExpressionInput, FDatasmithInputValue& OutValue);
 
 		// Evaluate this expression
 		static void EvaluateExpression(const IDatasmithMaterialExpression& InExpression, FDatasmithInputValue& OutValue);
@@ -550,10 +550,10 @@ namespace DatasmithRuntime
 
 
 	// Evaluate this expression input (input can be nullptr)
-	void FDatasmithExpressionEvaluator::EvaluateInput(const TSharedPtr<const IDatasmithExpressionInput>& InExpressionInput, FDatasmithInputValue& OutValue)
+	void FDatasmithExpressionEvaluator::EvaluateInput(const IDatasmithExpressionInput* InExpressionInput, FDatasmithInputValue& OutValue)
 	{
 		// Do we have an input ?
-		if (!InExpressionInput.IsValid())
+		if (InExpressionInput == nullptr)
 		{
 			return;
 		}
@@ -565,7 +565,7 @@ namespace DatasmithRuntime
 	void FDatasmithExpressionEvaluator::EvaluateInput(const IDatasmithExpressionInput& InExpressionInput, FDatasmithInputValue& OutValue)
 	{
 		// Do we have an expression ?
-		TSharedPtr<const IDatasmithMaterialExpression> ExpressionPtr = InExpressionInput.GetExpression();
+		const IDatasmithMaterialExpression* ExpressionPtr = InExpressionInput.GetExpression();
 		if (ExpressionPtr == nullptr)
 		{
 			return;
@@ -710,7 +710,7 @@ namespace DatasmithRuntime
 		}
 		if (FCString::Stricmp(Expression, TEXT("TextureObjectParameter")) == 0)
 		{
-			TSharedPtr< const IDatasmithKeyValueProperty > TextureProperty = InGenericExpression.GetPropertyByName(TEXT("Texture"));
+			const TSharedPtr< IDatasmithKeyValueProperty >& TextureProperty = InGenericExpression.GetPropertyByName(TEXT("Texture"));
 			if (TextureProperty.IsValid())
 			{
 				OutValue.Set(TextureProperty->GetValue());
@@ -747,7 +747,7 @@ namespace DatasmithRuntime
 			else if (InGenericExpression.GetInputCount() == 1 && FCString::Stricmp(Expression, TEXT("Power")) == 0)
 			{
 				// Power with a scalar component
-				TSharedPtr< const IDatasmithKeyValueProperty > ExponentProperty = InGenericExpression.GetPropertyByName(TEXT("ConstExponent"));
+				const TSharedPtr< IDatasmithKeyValueProperty >& ExponentProperty = InGenericExpression.GetPropertyByName(TEXT("ConstExponent"));
 				if (!ExponentProperty.IsValid())
 				{
 					OutValue.bNumericValid = false;
@@ -970,8 +970,8 @@ namespace DatasmithRuntime
 
 
 	// Evaluate this expression
-	void FDatasmithInputValue::EvaluateInput(const TSharedPtr<const IDatasmithExpressionInput>& InInput)
+	void FDatasmithInputValue::EvaluateInput(const IDatasmithExpressionInput& InInput)
 	{
-		FDatasmithExpressionEvaluator::EvaluateInput(*InInput, *this);
+		FDatasmithExpressionEvaluator::EvaluateInput(InInput, *this);
 	}
 }

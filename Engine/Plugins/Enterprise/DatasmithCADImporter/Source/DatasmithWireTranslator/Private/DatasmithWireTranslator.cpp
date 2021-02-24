@@ -424,125 +424,125 @@ void FWireTranslatorImpl::AddAlBlinnParameters(AlShader *Shader, TSharedRef<IDat
 	bool bIsTransparent = IsTransparent(TransparencyColor);
 
 	// Construct parameter expressions
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseExpression->GetScalar() = Diffuse;
 	DiffuseExpression->SetName(TEXT("Diffuse"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> GlossExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* GlossExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	GlossExpression->GetScalar() = Gloss;
 	GlossExpression->SetName(TEXT("Gloss"));
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> SpecularColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* SpecularColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	SpecularColorExpression->SetName(TEXT("SpecularColor"));
 	SpecularColorExpression->GetColor() = FLinearColor::FromSRGBColor(SpecularColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> SpecularityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* SpecularityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	SpecularityExpression->GetScalar() = Specularity * 0.3;
 	SpecularityExpression->SetName(TEXT("Specularity"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> SpecularRolloffExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* SpecularRolloffExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	SpecularRolloffExpression->GetScalar() = SpecularRolloff;
 	SpecularRolloffExpression->SetName(TEXT("SpecularRolloff"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> EccentricityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* EccentricityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	EccentricityExpression->GetScalar() = Eccentricity;
 	EccentricityExpression->SetName(TEXT("Eccentricity"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> ReflectivityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* ReflectivityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	ReflectivityExpression->GetScalar() = Reflectivity;
 	ReflectivityExpression->SetName(TEXT("Reflectivity"));
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	ColorExpression->SetName(TEXT("Color"));
 	ColorExpression->GetColor() = FLinearColor::FromSRGBColor(Color);
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> IncandescenceColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* IncandescenceColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	IncandescenceColorExpression->SetName(TEXT("IncandescenceColor"));
 	IncandescenceColorExpression->GetColor() = FLinearColor::FromSRGBColor(IncandescenceColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> TransparencyColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* TransparencyColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	TransparencyColorExpression->SetName(TEXT("TransparencyColor"));
 	TransparencyColorExpression->GetColor() = FLinearColor::FromSRGBColor(TransparencyColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> GlowIntensityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* GlowIntensityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	GlowIntensityExpression->GetScalar() = GlowIntensity;
 	GlowIntensityExpression->SetName(TEXT("GlowIntensity"));
 
 	// Create aux expressions
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> ColorSpecLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* ColorSpecLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	ColorSpecLerp->SetExpressionName(TEXT("LinearInterpolate"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> ColorSpecLerpValue = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* ColorSpecLerpValue = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	ColorSpecLerpValue->GetScalar() = 0.96f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> ColorMetallicLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* ColorMetallicLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	ColorMetallicLerp->SetExpressionName(TEXT("LinearInterpolate"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> DiffuseLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* DiffuseLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	DiffuseLerp->SetExpressionName(TEXT("LinearInterpolate"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseLerpA = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseLerpA = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseLerpA->GetScalar() = 0.04f;
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseLerpB = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseLerpB = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseLerpB->GetScalar() = 1.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorAdd = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorAdd = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorAdd->SetExpressionName(TEXT("Add"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorTransparencyMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorTransparencyMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorTransparencyMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> IncandescenceMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* IncandescenceMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	IncandescenceMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> IncandescenceScaleMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* IncandescenceScaleMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	IncandescenceScaleMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> IncandescenceScale = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* IncandescenceScale = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	IncandescenceScale->GetScalar() = 100.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> EccentricityMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* EccentricityMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	EccentricityMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> EccentricityOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* EccentricityOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	EccentricityOneMinus->SetExpressionName(TEXT("OneMinus"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> RoughnessOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* RoughnessOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	RoughnessOneMinus->SetExpressionName(TEXT("OneMinus"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> FresnelExponent = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* FresnelExponent = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	FresnelExponent->GetScalar() = 4.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionFunctionCall> FresnelFunc = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
+	IDatasmithMaterialExpressionFunctionCall* FresnelFunc = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
 	FresnelFunc->SetFunctionPathName(TEXT("/Engine/Functions/Engine_MaterialFunctions02/Fresnel_Function.Fresnel_Function"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> FresnelLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* FresnelLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	FresnelLerp->SetExpressionName(TEXT("LinearInterpolate"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> FresnelLerpA = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* FresnelLerpA = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	FresnelLerpA->GetScalar() = 1.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> SpecularPowerExp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* SpecularPowerExp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	SpecularPowerExp->GetScalar() = 0.5f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> Power = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* Power = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	Power->SetExpressionName(TEXT("Power"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> FresnelMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* FresnelMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	FresnelMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> TransparencyOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* TransparencyOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	TransparencyOneMinus->SetExpressionName(TEXT("OneMinus"));
 
-	TSharedPtr<IDatasmithMaterialExpressionFunctionCall> BreakFloat3;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> AddRG;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> AddRGB;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> Divide;
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DivideConstant;
+	IDatasmithMaterialExpressionFunctionCall* BreakFloat3 = nullptr;
+	IDatasmithMaterialExpressionGeneric* AddRG = nullptr;
+	IDatasmithMaterialExpressionGeneric* AddRGB = nullptr;
+	IDatasmithMaterialExpressionGeneric* Divide = nullptr;
+	IDatasmithMaterialExpressionScalar* DivideConstant = nullptr;
 	if (bIsTransparent)
 	{
 		BreakFloat3 = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
@@ -562,78 +562,78 @@ void FWireTranslatorImpl::AddAlBlinnParameters(AlShader *Shader, TSharedRef<IDat
 	}
 
 	// Connect expressions
-	SpecularColorExpression->ConnectExpression(ColorSpecLerp->GetInput(0));
-	ColorExpression->ConnectExpression(ColorSpecLerp->GetInput(1));
-	ColorSpecLerpValue->ConnectExpression(ColorSpecLerp->GetInput(2));
+	SpecularColorExpression->ConnectExpression(*ColorSpecLerp->GetInput(0));
+	ColorExpression->ConnectExpression(*ColorSpecLerp->GetInput(1));
+	ColorSpecLerpValue->ConnectExpression(*ColorSpecLerp->GetInput(2));
 
-	ColorExpression->ConnectExpression(ColorMetallicLerp->GetInput(0));
-	ColorSpecLerp->ConnectExpression(ColorMetallicLerp->GetInput(1));
-	GlossExpression->ConnectExpression(ColorMetallicLerp->GetInput(2));
+	ColorExpression->ConnectExpression(*ColorMetallicLerp->GetInput(0));
+	ColorSpecLerp->ConnectExpression(*ColorMetallicLerp->GetInput(1));
+	GlossExpression->ConnectExpression(*ColorMetallicLerp->GetInput(2));
 
-	DiffuseLerpA->ConnectExpression(DiffuseLerp->GetInput(0));
-	DiffuseLerpB->ConnectExpression(DiffuseLerp->GetInput(1));
-	DiffuseExpression->ConnectExpression(DiffuseLerp->GetInput(2));
+	DiffuseLerpA->ConnectExpression(*DiffuseLerp->GetInput(0));
+	DiffuseLerpB->ConnectExpression(*DiffuseLerp->GetInput(1));
+	DiffuseExpression->ConnectExpression(*DiffuseLerp->GetInput(2));
 
-	ColorMetallicLerp->ConnectExpression(BaseColorMultiply->GetInput(0));
-	DiffuseLerp->ConnectExpression(BaseColorMultiply->GetInput(1));
+	ColorMetallicLerp->ConnectExpression(*BaseColorMultiply->GetInput(0));
+	DiffuseLerp->ConnectExpression(*BaseColorMultiply->GetInput(1));
 
-	BaseColorMultiply->ConnectExpression(BaseColorAdd->GetInput(0));
-	IncandescenceColorExpression->ConnectExpression(BaseColorAdd->GetInput(1));
+	BaseColorMultiply->ConnectExpression(*BaseColorAdd->GetInput(0));
+	IncandescenceColorExpression->ConnectExpression(*BaseColorAdd->GetInput(1));
 
-	BaseColorAdd->ConnectExpression(BaseColorTransparencyMultiply->GetInput(0));
-	TransparencyOneMinus->ConnectExpression(BaseColorTransparencyMultiply->GetInput(1));
+	BaseColorAdd->ConnectExpression(*BaseColorTransparencyMultiply->GetInput(0));
+	TransparencyOneMinus->ConnectExpression(*BaseColorTransparencyMultiply->GetInput(1));
 
-	GlowIntensityExpression->ConnectExpression(IncandescenceScaleMultiply->GetInput(0));
-	IncandescenceScale->ConnectExpression(IncandescenceScaleMultiply->GetInput(1));
+	GlowIntensityExpression->ConnectExpression(*IncandescenceScaleMultiply->GetInput(0));
+	IncandescenceScale->ConnectExpression(*IncandescenceScaleMultiply->GetInput(1));
 
-	BaseColorTransparencyMultiply->ConnectExpression(IncandescenceMultiply->GetInput(0));
-	IncandescenceScaleMultiply->ConnectExpression(IncandescenceMultiply->GetInput(1));
+	BaseColorTransparencyMultiply->ConnectExpression(*IncandescenceMultiply->GetInput(0));
+	IncandescenceScaleMultiply->ConnectExpression(*IncandescenceMultiply->GetInput(1));
 
-	EccentricityExpression->ConnectExpression(EccentricityOneMinus->GetInput(0));
+	EccentricityExpression->ConnectExpression(*EccentricityOneMinus->GetInput(0));
 
-	EccentricityOneMinus->ConnectExpression(EccentricityMultiply->GetInput(0));
-	SpecularityExpression->ConnectExpression(EccentricityMultiply->GetInput(1));
+	EccentricityOneMinus->ConnectExpression(*EccentricityMultiply->GetInput(0));
+	SpecularityExpression->ConnectExpression(*EccentricityMultiply->GetInput(1));
 
-	EccentricityMultiply->ConnectExpression(RoughnessOneMinus->GetInput(0));
+	EccentricityMultiply->ConnectExpression(*RoughnessOneMinus->GetInput(0));
 
-	FresnelExponent->ConnectExpression(FresnelFunc->GetInput(3));
+	FresnelExponent->ConnectExpression(*FresnelFunc->GetInput(3));
 
-	SpecularRolloffExpression->ConnectExpression(Power->GetInput(0));
-	SpecularPowerExp->ConnectExpression(Power->GetInput(1));
+	SpecularRolloffExpression->ConnectExpression(*Power->GetInput(0));
+	SpecularPowerExp->ConnectExpression(*Power->GetInput(1));
 
-	FresnelLerpA->ConnectExpression(FresnelLerp->GetInput(0));
-	FresnelFunc->ConnectExpression(FresnelLerp->GetInput(1));
-	Power->ConnectExpression(FresnelLerp->GetInput(2));
+	FresnelLerpA->ConnectExpression(*FresnelLerp->GetInput(0));
+	FresnelFunc->ConnectExpression(*FresnelLerp->GetInput(1));
+	Power->ConnectExpression(*FresnelLerp->GetInput(2));
 
-	FresnelLerp->ConnectExpression(FresnelMultiply->GetInput(0));
-	ReflectivityExpression->ConnectExpression(FresnelMultiply->GetInput(1));
+	FresnelLerp->ConnectExpression(*FresnelMultiply->GetInput(0));
+	ReflectivityExpression->ConnectExpression(*FresnelMultiply->GetInput(1));
 
-	TransparencyColorExpression->ConnectExpression(TransparencyOneMinus->GetInput(0));
+	TransparencyColorExpression->ConnectExpression(*TransparencyOneMinus->GetInput(0));
 
 	if (bIsTransparent)
 	{
-		TransparencyOneMinus->ConnectExpression(BreakFloat3->GetInput(0));
+		TransparencyOneMinus->ConnectExpression(*BreakFloat3->GetInput(0));
 
-		BreakFloat3->ConnectExpression(AddRG->GetInput(0), 0);
-		BreakFloat3->ConnectExpression(AddRG->GetInput(1), 1);
+		BreakFloat3->ConnectExpression(*AddRG->GetInput(0), 0);
+		BreakFloat3->ConnectExpression(*AddRG->GetInput(1), 1);
 
-		AddRG->ConnectExpression(AddRGB->GetInput(0));
-		BreakFloat3->ConnectExpression(AddRGB->GetInput(1), 2);
+		AddRG->ConnectExpression(*AddRGB->GetInput(0));
+		BreakFloat3->ConnectExpression(*AddRGB->GetInput(1), 2);
 
-		AddRGB->ConnectExpression(Divide->GetInput(0));
-		DivideConstant->ConnectExpression(Divide->GetInput(1));
+		AddRGB->ConnectExpression(*Divide->GetInput(0));
+		DivideConstant->ConnectExpression(*Divide->GetInput(1));
 	}
 
 	// Connect material outputs
-	MaterialElement->GetBaseColor()->SetExpression(BaseColorTransparencyMultiply);
-	MaterialElement->GetMetallic()->SetExpression(GlossExpression);
-	MaterialElement->GetSpecular()->SetExpression(FresnelMultiply);
-	MaterialElement->GetRoughness()->SetExpression(RoughnessOneMinus);
-	MaterialElement->GetEmissiveColor()->SetExpression(IncandescenceMultiply);
+	MaterialElement->GetBaseColor().SetExpression(BaseColorTransparencyMultiply);
+	MaterialElement->GetMetallic().SetExpression(GlossExpression);
+	MaterialElement->GetSpecular().SetExpression(FresnelMultiply);
+	MaterialElement->GetRoughness().SetExpression(RoughnessOneMinus);
+	MaterialElement->GetEmissiveColor().SetExpression(IncandescenceMultiply);
 
 	if (bIsTransparent)
 	{
-		MaterialElement->GetOpacity()->SetExpression(Divide);
+		MaterialElement->GetOpacity().SetExpression(Divide);
 		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasBlinnTransparent"));
 	}
 	else 
@@ -678,62 +678,62 @@ void FWireTranslatorImpl::AddAlLambertParameters(AlShader *Shader, TSharedRef<ID
 	bool bIsTransparent = IsTransparent(TransparencyColor);
 
 	// Construct parameter expressions
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseExpression->GetScalar() = Diffuse;
 	DiffuseExpression->SetName(TEXT("Diffuse"));
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	ColorExpression->SetName(TEXT("Color"));
 	ColorExpression->GetColor() = FLinearColor::FromSRGBColor(Color);
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> IncandescenceColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* IncandescenceColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	IncandescenceColorExpression->SetName(TEXT("IncandescenceColor"));
 	IncandescenceColorExpression->GetColor() = FLinearColor::FromSRGBColor(IncandescenceColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> TransparencyColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* TransparencyColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	TransparencyColorExpression->SetName(TEXT("TransparencyColor"));
 	TransparencyColorExpression->GetColor() = FLinearColor::FromSRGBColor(TransparencyColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> GlowIntensityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* GlowIntensityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	GlowIntensityExpression->GetScalar() = GlowIntensity;
 	GlowIntensityExpression->SetName(TEXT("GlowIntensity"));
 
 	// Create aux expressions
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> DiffuseLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* DiffuseLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	DiffuseLerp->SetExpressionName(TEXT("LinearInterpolate"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseLerpA = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseLerpA = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseLerpA->GetScalar() = 0.04f;
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseLerpB = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseLerpB = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseLerpB->GetScalar() = 1.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorAdd = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorAdd = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorAdd->SetExpressionName(TEXT("Add"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorTransparencyMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorTransparencyMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorTransparencyMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> IncandescenceMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* IncandescenceMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	IncandescenceMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> IncandescenceScaleMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* IncandescenceScaleMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	IncandescenceScaleMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> IncandescenceScale = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* IncandescenceScale = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	IncandescenceScale->GetScalar() = 100.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> TransparencyOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* TransparencyOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	TransparencyOneMinus->SetExpressionName(TEXT("OneMinus"));
 
-	TSharedPtr<IDatasmithMaterialExpressionFunctionCall> BreakFloat3;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> AddRG;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> AddRGB;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> Divide;
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DivideConstant;
+	IDatasmithMaterialExpressionFunctionCall* BreakFloat3 = nullptr;
+	IDatasmithMaterialExpressionGeneric* AddRG = nullptr;
+	IDatasmithMaterialExpressionGeneric* AddRGB = nullptr;
+	IDatasmithMaterialExpressionGeneric* Divide = nullptr;
+	IDatasmithMaterialExpressionScalar* DivideConstant = nullptr;
 	if (bIsTransparent)
 	{
 		BreakFloat3 = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
@@ -753,47 +753,47 @@ void FWireTranslatorImpl::AddAlLambertParameters(AlShader *Shader, TSharedRef<ID
 	}
 
 	// Connect expressions
-	DiffuseLerpA->ConnectExpression(DiffuseLerp->GetInput(0));
-	DiffuseLerpB->ConnectExpression(DiffuseLerp->GetInput(1));
-	DiffuseExpression->ConnectExpression(DiffuseLerp->GetInput(2));
+	DiffuseLerpA->ConnectExpression(*DiffuseLerp->GetInput(0));
+	DiffuseLerpB->ConnectExpression(*DiffuseLerp->GetInput(1));
+	DiffuseExpression->ConnectExpression(*DiffuseLerp->GetInput(2));
 
-	ColorExpression->ConnectExpression(BaseColorMultiply->GetInput(0));
-	DiffuseLerp->ConnectExpression(BaseColorMultiply->GetInput(1));
+	ColorExpression->ConnectExpression(*BaseColorMultiply->GetInput(0));
+	DiffuseLerp->ConnectExpression(*BaseColorMultiply->GetInput(1));
 
-	BaseColorMultiply->ConnectExpression(BaseColorAdd->GetInput(0));
-	IncandescenceColorExpression->ConnectExpression(BaseColorAdd->GetInput(1));
+	BaseColorMultiply->ConnectExpression(*BaseColorAdd->GetInput(0));
+	IncandescenceColorExpression->ConnectExpression(*BaseColorAdd->GetInput(1));
 
-	BaseColorAdd->ConnectExpression(BaseColorTransparencyMultiply->GetInput(0));
-	TransparencyOneMinus->ConnectExpression(BaseColorTransparencyMultiply->GetInput(1));
+	BaseColorAdd->ConnectExpression(*BaseColorTransparencyMultiply->GetInput(0));
+	TransparencyOneMinus->ConnectExpression(*BaseColorTransparencyMultiply->GetInput(1));
 
-	GlowIntensityExpression->ConnectExpression(IncandescenceScaleMultiply->GetInput(0));
-	IncandescenceScale->ConnectExpression(IncandescenceScaleMultiply->GetInput(1));
+	GlowIntensityExpression->ConnectExpression(*IncandescenceScaleMultiply->GetInput(0));
+	IncandescenceScale->ConnectExpression(*IncandescenceScaleMultiply->GetInput(1));
 
-	BaseColorTransparencyMultiply->ConnectExpression(IncandescenceMultiply->GetInput(0));
-	IncandescenceScaleMultiply->ConnectExpression(IncandescenceMultiply->GetInput(1));
+	BaseColorTransparencyMultiply->ConnectExpression(*IncandescenceMultiply->GetInput(0));
+	IncandescenceScaleMultiply->ConnectExpression(*IncandescenceMultiply->GetInput(1));
 
-	TransparencyColorExpression->ConnectExpression(TransparencyOneMinus->GetInput(0));
+	TransparencyColorExpression->ConnectExpression(*TransparencyOneMinus->GetInput(0));
 
 	if (bIsTransparent)
 	{
-		TransparencyOneMinus->ConnectExpression(BreakFloat3->GetInput(0));
+		TransparencyOneMinus->ConnectExpression(*BreakFloat3->GetInput(0));
 
-		BreakFloat3->ConnectExpression(AddRG->GetInput(0), 0);
-		BreakFloat3->ConnectExpression(AddRG->GetInput(1), 1);
+		BreakFloat3->ConnectExpression(*AddRG->GetInput(0), 0);
+		BreakFloat3->ConnectExpression(*AddRG->GetInput(1), 1);
 
-		AddRG->ConnectExpression(AddRGB->GetInput(0));
-		BreakFloat3->ConnectExpression(AddRGB->GetInput(1), 2);
+		AddRG->ConnectExpression(*AddRGB->GetInput(0));
+		BreakFloat3->ConnectExpression(*AddRGB->GetInput(1), 2);
 
-		AddRGB->ConnectExpression(Divide->GetInput(0));
-		DivideConstant->ConnectExpression(Divide->GetInput(1));
+		AddRGB->ConnectExpression(*Divide->GetInput(0));
+		DivideConstant->ConnectExpression(*Divide->GetInput(1));
 	}
 
 	// Connect material outputs
-	MaterialElement->GetBaseColor()->SetExpression(BaseColorTransparencyMultiply);
-	MaterialElement->GetEmissiveColor()->SetExpression(IncandescenceMultiply);
+	MaterialElement->GetBaseColor().SetExpression(BaseColorTransparencyMultiply);
+	MaterialElement->GetEmissiveColor().SetExpression(IncandescenceMultiply);
 	if (bIsTransparent)
 	{
-		MaterialElement->GetOpacity()->SetExpression(Divide);
+		MaterialElement->GetOpacity().SetExpression(Divide);
 		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasLambertTransparent"));
 	}
 	else {
@@ -826,46 +826,46 @@ void FWireTranslatorImpl::AddAlLightSourceParameters(AlShader *Shader, TSharedRe
 	bool bIsTransparent = IsTransparent(TransparencyColor);
 
 	// Construct parameter expressions
-	TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	ColorExpression->SetName(TEXT("Color"));
 	ColorExpression->GetColor() = FLinearColor::FromSRGBColor(Color);
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> IncandescenceColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* IncandescenceColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	IncandescenceColorExpression->SetName(TEXT("IncandescenceColor"));
 	IncandescenceColorExpression->GetColor() = FLinearColor::FromSRGBColor(IncandescenceColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> TransparencyColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* TransparencyColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	TransparencyColorExpression->SetName(TEXT("TransparencyColor"));
 	TransparencyColorExpression->GetColor() = FLinearColor::FromSRGBColor(TransparencyColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> GlowIntensityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* GlowIntensityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	GlowIntensityExpression->GetScalar() = GlowIntensity;
 	GlowIntensityExpression->SetName(TEXT("GlowIntensity"));
 
 	// Create aux expressions
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorAdd = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorAdd = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorAdd->SetExpressionName(TEXT("Add"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorTransparencyMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorTransparencyMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorTransparencyMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> IncandescenceMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* IncandescenceMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	IncandescenceMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> IncandescenceScaleMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* IncandescenceScaleMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	IncandescenceScaleMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> IncandescenceScale = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* IncandescenceScale = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	IncandescenceScale->GetScalar() = 100.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> TransparencyOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* TransparencyOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	TransparencyOneMinus->SetExpressionName(TEXT("OneMinus"));
 
-	TSharedPtr<IDatasmithMaterialExpressionFunctionCall> BreakFloat3;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> AddRG;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> AddRGB;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> Divide;
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DivideConstant;
+	IDatasmithMaterialExpressionFunctionCall* BreakFloat3 = nullptr;
+	IDatasmithMaterialExpressionGeneric* AddRG = nullptr;
+	IDatasmithMaterialExpressionGeneric* AddRGB = nullptr;
+	IDatasmithMaterialExpressionGeneric* Divide = nullptr;
+	IDatasmithMaterialExpressionScalar* DivideConstant = nullptr;
 	if (bIsTransparent)
 	{
 		BreakFloat3 = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
@@ -885,41 +885,41 @@ void FWireTranslatorImpl::AddAlLightSourceParameters(AlShader *Shader, TSharedRe
 	}
 
 	// Connect expressions
-	ColorExpression->ConnectExpression(BaseColorAdd->GetInput(0));
-	IncandescenceColorExpression->ConnectExpression(BaseColorAdd->GetInput(1));
+	ColorExpression->ConnectExpression(*BaseColorAdd->GetInput(0));
+	IncandescenceColorExpression->ConnectExpression(*BaseColorAdd->GetInput(1));
 
-	BaseColorAdd->ConnectExpression(BaseColorTransparencyMultiply->GetInput(0));
-	TransparencyOneMinus->ConnectExpression(BaseColorTransparencyMultiply->GetInput(1));
+	BaseColorAdd->ConnectExpression(*BaseColorTransparencyMultiply->GetInput(0));
+	TransparencyOneMinus->ConnectExpression(*BaseColorTransparencyMultiply->GetInput(1));
 
-	GlowIntensityExpression->ConnectExpression(IncandescenceScaleMultiply->GetInput(0));
-	IncandescenceScale->ConnectExpression(IncandescenceScaleMultiply->GetInput(1));
+	GlowIntensityExpression->ConnectExpression(*IncandescenceScaleMultiply->GetInput(0));
+	IncandescenceScale->ConnectExpression(*IncandescenceScaleMultiply->GetInput(1));
 
-	BaseColorTransparencyMultiply->ConnectExpression(IncandescenceMultiply->GetInput(0));
-	IncandescenceScaleMultiply->ConnectExpression(IncandescenceMultiply->GetInput(1));
+	BaseColorTransparencyMultiply->ConnectExpression(*IncandescenceMultiply->GetInput(0));
+	IncandescenceScaleMultiply->ConnectExpression(*IncandescenceMultiply->GetInput(1));
 
-	TransparencyColorExpression->ConnectExpression(TransparencyOneMinus->GetInput(0));
+	TransparencyColorExpression->ConnectExpression(*TransparencyOneMinus->GetInput(0));
 
 	if (bIsTransparent)
 	{
-		TransparencyOneMinus->ConnectExpression(BreakFloat3->GetInput(0));
+		TransparencyOneMinus->ConnectExpression(*BreakFloat3->GetInput(0));
 
-		BreakFloat3->ConnectExpression(AddRG->GetInput(0), 0);
-		BreakFloat3->ConnectExpression(AddRG->GetInput(1), 1);
+		BreakFloat3->ConnectExpression(*AddRG->GetInput(0), 0);
+		BreakFloat3->ConnectExpression(*AddRG->GetInput(1), 1);
 
-		AddRG->ConnectExpression(AddRGB->GetInput(0));
-		BreakFloat3->ConnectExpression(AddRGB->GetInput(1), 2);
+		AddRG->ConnectExpression(*AddRGB->GetInput(0));
+		BreakFloat3->ConnectExpression(*AddRGB->GetInput(1), 2);
 
-		AddRGB->ConnectExpression(Divide->GetInput(0));
-		DivideConstant->ConnectExpression(Divide->GetInput(1));
+		AddRGB->ConnectExpression(*Divide->GetInput(0));
+		DivideConstant->ConnectExpression(*Divide->GetInput(1));
 	}
 
 	// Connect material outputs
-	MaterialElement->GetBaseColor()->SetExpression(BaseColorTransparencyMultiply);
-	MaterialElement->GetEmissiveColor()->SetExpression(IncandescenceMultiply);
+	MaterialElement->GetBaseColor().SetExpression(BaseColorTransparencyMultiply);
+	MaterialElement->GetEmissiveColor().SetExpression(IncandescenceMultiply);
 
 	if (bIsTransparent)
 	{
-		MaterialElement->GetOpacity()->SetExpression(Divide);
+		MaterialElement->GetOpacity().SetExpression(Divide);
 		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasLightSourceTransparent"));
 	}
 	else {
@@ -989,109 +989,109 @@ void FWireTranslatorImpl::AddAlPhongParameters(AlShader *Shader, TSharedRef<IDat
 	bool bIsTransparent = IsTransparent(TransparencyColor);
 
 	// Construct parameter expressions
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseExpression->GetScalar() = Diffuse;
 	DiffuseExpression->SetName(TEXT("Diffuse"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> GlossExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* GlossExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	GlossExpression->GetScalar() = Gloss;
 	GlossExpression->SetName(TEXT("Gloss"));
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> SpecularColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* SpecularColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	SpecularColorExpression->SetName(TEXT("SpecularColor"));
 	SpecularColorExpression->GetColor() = FLinearColor::FromSRGBColor(SpecularColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> SpecularityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* SpecularityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	SpecularityExpression->GetScalar() = Specularity * 0.3;
 	SpecularityExpression->SetName(TEXT("Specularity"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> ShinynessExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* ShinynessExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	ShinynessExpression->GetScalar() = Shinyness;
 	ShinynessExpression->SetName(TEXT("Shinyness"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> ReflectivityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* ReflectivityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	ReflectivityExpression->GetScalar() = Reflectivity;
 	ReflectivityExpression->SetName(TEXT("Reflectivity"));
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	ColorExpression->SetName(TEXT("Color"));
 	ColorExpression->GetColor() = FLinearColor::FromSRGBColor(Color);
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> IncandescenceColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* IncandescenceColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	IncandescenceColorExpression->SetName(TEXT("IncandescenceColor"));
 	IncandescenceColorExpression->GetColor() = FLinearColor::FromSRGBColor(IncandescenceColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionColor> TransparencyColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+	IDatasmithMaterialExpressionColor* TransparencyColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	TransparencyColorExpression->SetName(TEXT("TransparencyColor"));
 	TransparencyColorExpression->GetColor() = FLinearColor::FromSRGBColor(TransparencyColor);
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> GlowIntensityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* GlowIntensityExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	GlowIntensityExpression->GetScalar() = GlowIntensity;
 	GlowIntensityExpression->SetName(TEXT("GlowIntensity"));
 
 	// Create aux expressions
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> ColorSpecLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* ColorSpecLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	ColorSpecLerp->SetExpressionName(TEXT("LinearInterpolate"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> ColorSpecLerpValue = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* ColorSpecLerpValue = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	ColorSpecLerpValue->GetScalar() = 0.96f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> ColorMetallicLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* ColorMetallicLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	ColorMetallicLerp->SetExpressionName(TEXT("LinearInterpolate"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> DiffuseLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* DiffuseLerp = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	DiffuseLerp->SetExpressionName(TEXT("LinearInterpolate"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseLerpA = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseLerpA = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseLerpA->GetScalar() = 0.04f;
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DiffuseLerpB = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* DiffuseLerpB = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	DiffuseLerpB->GetScalar() = 1.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorAdd = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorAdd = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorAdd->SetExpressionName(TEXT("Add"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> BaseColorTransparencyMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* BaseColorTransparencyMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	BaseColorTransparencyMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> IncandescenceMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* IncandescenceMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	IncandescenceMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> IncandescenceScaleMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* IncandescenceScaleMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	IncandescenceScaleMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> IncandescenceScale = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* IncandescenceScale = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	IncandescenceScale->GetScalar() = 100.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> ShinynessSubtract = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* ShinynessSubtract = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	ShinynessSubtract->SetExpressionName(TEXT("Subtract"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> ShinynessSubtract2 = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* ShinynessSubtract2 = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	ShinynessSubtract2->GetScalar() = 2.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> ShinynessDivide = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* ShinynessDivide = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	ShinynessDivide->SetExpressionName(TEXT("Divide"));
 
-	TSharedPtr<IDatasmithMaterialExpressionScalar> ShinynessDivide98 = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+	IDatasmithMaterialExpressionScalar* ShinynessDivide98 = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 	ShinynessDivide98->GetScalar() = 98.0f;
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> SpecularityMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* SpecularityMultiply = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	SpecularityMultiply->SetExpressionName(TEXT("Multiply"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> RoughnessOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* RoughnessOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	RoughnessOneMinus->SetExpressionName(TEXT("OneMinus"));
 
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> TransparencyOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+	IDatasmithMaterialExpressionGeneric* TransparencyOneMinus = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 	TransparencyOneMinus->SetExpressionName(TEXT("OneMinus"));
 
-	TSharedPtr<IDatasmithMaterialExpressionFunctionCall> BreakFloat3;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> AddRG;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> AddRGB;
-	TSharedPtr<IDatasmithMaterialExpressionGeneric> Divide;
-	TSharedPtr<IDatasmithMaterialExpressionScalar> DivideConstant;
+	IDatasmithMaterialExpressionFunctionCall* BreakFloat3 = nullptr;
+	IDatasmithMaterialExpressionGeneric* AddRG = nullptr;
+	IDatasmithMaterialExpressionGeneric* AddRGB = nullptr;
+	IDatasmithMaterialExpressionGeneric* Divide = nullptr;
+	IDatasmithMaterialExpressionScalar* DivideConstant = nullptr;
 	if (bIsTransparent)
 	{
 		BreakFloat3 = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
@@ -1111,69 +1111,69 @@ void FWireTranslatorImpl::AddAlPhongParameters(AlShader *Shader, TSharedRef<IDat
 	}
 
 	// Connect expressions
-	SpecularColorExpression->ConnectExpression(ColorSpecLerp->GetInput(0));
-	ColorExpression->ConnectExpression(ColorSpecLerp->GetInput(1));
-	ColorSpecLerpValue->ConnectExpression(ColorSpecLerp->GetInput(2));
+	SpecularColorExpression->ConnectExpression(*ColorSpecLerp->GetInput(0));
+	ColorExpression->ConnectExpression(*ColorSpecLerp->GetInput(1));
+	ColorSpecLerpValue->ConnectExpression(*ColorSpecLerp->GetInput(2));
 
-	ColorExpression->ConnectExpression(ColorMetallicLerp->GetInput(0));
-	ColorSpecLerp->ConnectExpression(ColorMetallicLerp->GetInput(1));
-	GlossExpression->ConnectExpression(ColorMetallicLerp->GetInput(2));
+	ColorExpression->ConnectExpression(*ColorMetallicLerp->GetInput(0));
+	ColorSpecLerp->ConnectExpression(*ColorMetallicLerp->GetInput(1));
+	GlossExpression->ConnectExpression(*ColorMetallicLerp->GetInput(2));
 
-	DiffuseLerpA->ConnectExpression(DiffuseLerp->GetInput(0));
-	DiffuseLerpB->ConnectExpression(DiffuseLerp->GetInput(1));
-	DiffuseExpression->ConnectExpression(DiffuseLerp->GetInput(2));
+	DiffuseLerpA->ConnectExpression(*DiffuseLerp->GetInput(0));
+	DiffuseLerpB->ConnectExpression(*DiffuseLerp->GetInput(1));
+	DiffuseExpression->ConnectExpression(*DiffuseLerp->GetInput(2));
 
-	ColorMetallicLerp->ConnectExpression(BaseColorMultiply->GetInput(0));
-	DiffuseLerp->ConnectExpression(BaseColorMultiply->GetInput(1));
+	ColorMetallicLerp->ConnectExpression(*BaseColorMultiply->GetInput(0));
+	DiffuseLerp->ConnectExpression(*BaseColorMultiply->GetInput(1));
 
-	BaseColorMultiply->ConnectExpression(BaseColorAdd->GetInput(0));
-	IncandescenceColorExpression->ConnectExpression(BaseColorAdd->GetInput(1));
+	BaseColorMultiply->ConnectExpression(*BaseColorAdd->GetInput(0));
+	IncandescenceColorExpression->ConnectExpression(*BaseColorAdd->GetInput(1));
 
-	BaseColorAdd->ConnectExpression(BaseColorTransparencyMultiply->GetInput(0));
-	TransparencyOneMinus->ConnectExpression(BaseColorTransparencyMultiply->GetInput(1));
+	BaseColorAdd->ConnectExpression(*BaseColorTransparencyMultiply->GetInput(0));
+	TransparencyOneMinus->ConnectExpression(*BaseColorTransparencyMultiply->GetInput(1));
 
-	GlowIntensityExpression->ConnectExpression(IncandescenceScaleMultiply->GetInput(0));
-	IncandescenceScale->ConnectExpression(IncandescenceScaleMultiply->GetInput(1));
+	GlowIntensityExpression->ConnectExpression(*IncandescenceScaleMultiply->GetInput(0));
+	IncandescenceScale->ConnectExpression(*IncandescenceScaleMultiply->GetInput(1));
 
-	BaseColorTransparencyMultiply->ConnectExpression(IncandescenceMultiply->GetInput(0));
-	IncandescenceScaleMultiply->ConnectExpression(IncandescenceMultiply->GetInput(1));
+	BaseColorTransparencyMultiply->ConnectExpression(*IncandescenceMultiply->GetInput(0));
+	IncandescenceScaleMultiply->ConnectExpression(*IncandescenceMultiply->GetInput(1));
 
-	ShinynessExpression->ConnectExpression(ShinynessSubtract->GetInput(0));
-	ShinynessSubtract2->ConnectExpression(ShinynessSubtract->GetInput(1));
+	ShinynessExpression->ConnectExpression(*ShinynessSubtract->GetInput(0));
+	ShinynessSubtract2->ConnectExpression(*ShinynessSubtract->GetInput(1));
 
-	ShinynessSubtract->ConnectExpression(ShinynessDivide->GetInput(0));
-	ShinynessDivide98->ConnectExpression(ShinynessDivide->GetInput(1));
+	ShinynessSubtract->ConnectExpression(*ShinynessDivide->GetInput(0));
+	ShinynessDivide98->ConnectExpression(*ShinynessDivide->GetInput(1));
 
-	ShinynessDivide->ConnectExpression(SpecularityMultiply->GetInput(0));
-	SpecularityExpression->ConnectExpression(SpecularityMultiply->GetInput(1));
+	ShinynessDivide->ConnectExpression(*SpecularityMultiply->GetInput(0));
+	SpecularityExpression->ConnectExpression(*SpecularityMultiply->GetInput(1));
 
-	SpecularityMultiply->ConnectExpression(RoughnessOneMinus->GetInput(0));
+	SpecularityMultiply->ConnectExpression(*RoughnessOneMinus->GetInput(0));
 
-	TransparencyColorExpression->ConnectExpression(TransparencyOneMinus->GetInput(0));
+	TransparencyColorExpression->ConnectExpression(*TransparencyOneMinus->GetInput(0));
 
 	if (bIsTransparent)
 	{
-		TransparencyOneMinus->ConnectExpression(BreakFloat3->GetInput(0));
+		TransparencyOneMinus->ConnectExpression(*BreakFloat3->GetInput(0));
 
-		BreakFloat3->ConnectExpression(AddRG->GetInput(0), 0);
-		BreakFloat3->ConnectExpression(AddRG->GetInput(1), 1);
+		BreakFloat3->ConnectExpression(*AddRG->GetInput(0), 0);
+		BreakFloat3->ConnectExpression(*AddRG->GetInput(1), 1);
 
-		AddRG->ConnectExpression(AddRGB->GetInput(0));
-		BreakFloat3->ConnectExpression(AddRGB->GetInput(1), 2);
+		AddRG->ConnectExpression(*AddRGB->GetInput(0));
+		BreakFloat3->ConnectExpression(*AddRGB->GetInput(1), 2);
 
-		AddRGB->ConnectExpression(Divide->GetInput(0));
-		DivideConstant->ConnectExpression(Divide->GetInput(1));
+		AddRGB->ConnectExpression(*Divide->GetInput(0));
+		DivideConstant->ConnectExpression(*Divide->GetInput(1));
 	}
 
 	// Connect material outputs
-	MaterialElement->GetBaseColor()->SetExpression(BaseColorTransparencyMultiply);
-	MaterialElement->GetMetallic()->SetExpression(GlossExpression);
-	MaterialElement->GetSpecular()->SetExpression(ReflectivityExpression);
-	MaterialElement->GetRoughness()->SetExpression(RoughnessOneMinus);
-	MaterialElement->GetEmissiveColor()->SetExpression(IncandescenceMultiply);
+	MaterialElement->GetBaseColor().SetExpression(BaseColorTransparencyMultiply);
+	MaterialElement->GetMetallic().SetExpression(GlossExpression);
+	MaterialElement->GetSpecular().SetExpression(ReflectivityExpression);
+	MaterialElement->GetRoughness().SetExpression(RoughnessOneMinus);
+	MaterialElement->GetEmissiveColor().SetExpression(IncandescenceMultiply);
 	if (bIsTransparent)
 	{
-		MaterialElement->GetOpacity()->SetExpression(Divide);
+		MaterialElement->GetOpacity().SetExpression(Divide);
 		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasPhongTransparent"));
 	}
 	else {

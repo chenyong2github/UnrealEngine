@@ -46,7 +46,7 @@ void FDatasmithGLTFMaterialElement::Finalize()
 {
 	check(!bIsFinal);
 
-	TArray<TSharedPtr<IDatasmithMaterialExpression>> MaterialExpressions;
+	TArray<IDatasmithMaterialExpression*> MaterialExpressions;
 	CreateExpressions(MaterialExpressions);
 	ConnectInput(BaseColor, MaterialExpressions, MaterialElement->GetBaseColor());
 	ConnectInput(Metallic, MaterialExpressions, MaterialElement->GetMetallic());
@@ -62,7 +62,7 @@ void FDatasmithGLTFMaterialElement::Finalize()
 	bIsFinal = true;
 }
 
-void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<TSharedPtr<IDatasmithMaterialExpression>>& MaterialExpressions) const
+void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<IDatasmithMaterialExpression*>& MaterialExpressions) const
 {
 	MaterialExpressions.Empty(Expressions.Num());
 
@@ -79,7 +79,7 @@ void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<TSharedPtr<IDatasmi
 				const IDatasmithTextureElement*         TextureElement =
 				    static_cast<const FDatasmithGLTFTextureElement*>(TextureExpression.GetTexture())->GetTexture();
 
-				TSharedPtr<IDatasmithMaterialExpressionTexture> NewExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionTexture>();
+				IDatasmithMaterialExpressionTexture* NewExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionTexture>();
 				NewExpression->SetTexturePathName(TextureElement->GetName());
 				SetParameter(TextureExpression, *NewExpression);
 				MaterialExpressions.Add(NewExpression);
@@ -89,7 +89,7 @@ void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<TSharedPtr<IDatasmi
 			{
 				const GLTF::FMaterialExpressionTextureCoordinate& TextureExpression =
 				    *static_cast<const GLTF::FMaterialExpressionTextureCoordinate*>(Expression);
-				TSharedPtr<IDatasmithMaterialExpressionTextureCoordinate> NewExpression =
+				IDatasmithMaterialExpressionTextureCoordinate* NewExpression =
 				    MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionTextureCoordinate>();
 				NewExpression->SetCoordinateIndex(TextureExpression.GetCoordinateIndex());
 
@@ -99,7 +99,7 @@ void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<TSharedPtr<IDatasmi
 			case GLTF::EMaterialExpressionType::Generic:
 			{
 				const GLTF::FMaterialExpressionGeneric& GenericExpression = *static_cast<const GLTF::FMaterialExpressionGeneric*>(Expression);
-				TSharedPtr<IDatasmithMaterialExpressionGeneric> NewExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
+				IDatasmithMaterialExpressionGeneric*    NewExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionGeneric>();
 				NewExpression->SetExpressionName(GenericExpression.GetExpressionName());
 
 				for (const TPair<FString, bool>& NameValue : GenericExpression.GetBoolProperties())
@@ -125,7 +125,7 @@ void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<TSharedPtr<IDatasmi
 			{
 				const GLTF::FMaterialExpressionFunctionCall& GenericExpression =
 				    *static_cast<const GLTF::FMaterialExpressionFunctionCall*>(Expression);
-				TSharedPtr<IDatasmithMaterialExpressionFunctionCall> NewExpression =
+				IDatasmithMaterialExpressionFunctionCall* NewExpression =
 				    MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionFunctionCall>();
 				NewExpression->SetFunctionPathName(GenericExpression.GetFunctionPathName());
 				MaterialExpressions.Add(NewExpression);
@@ -134,7 +134,7 @@ void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<TSharedPtr<IDatasmi
 			case GLTF::EMaterialExpressionType::ConstantScalar:
 			{
 				const GLTF::FMaterialExpressionScalar& ScalarExpression = *static_cast<const GLTF::FMaterialExpressionScalar*>(Expression);
-				TSharedPtr<IDatasmithMaterialExpressionScalar>    NewExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+				IDatasmithMaterialExpressionScalar*    NewExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 				NewExpression->GetScalar()                           = ScalarExpression.GetScalar();
 				SetParameter(ScalarExpression, *NewExpression);
 
@@ -144,7 +144,7 @@ void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<TSharedPtr<IDatasmi
 			case GLTF::EMaterialExpressionType::ConstantColor:
 			{
 				const GLTF::FMaterialExpressionColor& ColorExpression = *static_cast<const GLTF::FMaterialExpressionColor*>(Expression);
-				TSharedPtr<IDatasmithMaterialExpressionColor>    NewExpression   = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+				IDatasmithMaterialExpressionColor*    NewExpression   = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 				NewExpression->GetColor()                             = ColorExpression.GetColor();
 				SetParameter(ColorExpression, *NewExpression);
 
@@ -158,18 +158,18 @@ void FDatasmithGLTFMaterialElement::CreateExpressions(TArray<TSharedPtr<IDatasmi
 	}
 }
 
-void FDatasmithGLTFMaterialElement::ConnectInput(const GLTF::FMaterialExpressionInput&                   ExpressionInput,
-                                                 const TArray<TSharedPtr<IDatasmithMaterialExpression>>& MaterialExpressions,
-                                                 const TSharedPtr<IDatasmithExpressionInput>&            MaterialInput) const
+void FDatasmithGLTFMaterialElement::ConnectInput(const GLTF::FMaterialExpressionInput&        ExpressionInput,
+                                                 const TArray<IDatasmithMaterialExpression*>& MaterialExpressions,
+                                                 IDatasmithExpressionInput&                   MaterialInput) const
 {
 	ConnectExpression(ExpressionInput.GetExpression(), Expressions, MaterialExpressions, MaterialInput, ExpressionInput.GetOutputIndex());
 }
 
-void FDatasmithGLTFMaterialElement::ConnectExpression(const GLTF::FMaterialExpression*                        ExpressionPtr,        //
-                                                      const TArray<GLTF::FMaterialExpression*>&               Expressions,          //
-                                                      const TArray<TSharedPtr<IDatasmithMaterialExpression>>& MaterialExpressions,  //
-                                                      const TSharedPtr<IDatasmithExpressionInput>&            ExpressionInput,      //
-                                                      int32                                                   OutputIndex)
+void FDatasmithGLTFMaterialElement::ConnectExpression(const GLTF::FMaterialExpression*             ExpressionPtr,        //
+                                                      const TArray<GLTF::FMaterialExpression*>&    Expressions,          //
+                                                      const TArray<IDatasmithMaterialExpression*>& MaterialExpressions,  //
+                                                      IDatasmithExpressionInput&                   ExpressionInput,      //
+                                                      int32                                        OutputIndex)
 {
 	check(Expressions.Num() == MaterialExpressions.Num());
 
@@ -185,12 +185,12 @@ void FDatasmithGLTFMaterialElement::ConnectExpression(const GLTF::FMaterialExpre
 		return;
 	}
 
-	const TSharedPtr<IDatasmithMaterialExpression>& MaterialExpression = MaterialExpressions[ExpressionIndex];
+	IDatasmithMaterialExpression* MaterialExpression = MaterialExpressions[ExpressionIndex];
 	MaterialExpression->ConnectExpression(ExpressionInput, OutputIndex);
 
 	for (int32 InputIndex = 0; InputIndex < Expression.GetInputCount(); ++InputIndex)
 	{
 		ConnectExpression(Expression.GetInput(InputIndex)->GetExpression(), Expressions, MaterialExpressions,
-		                  MaterialExpression->GetInput(InputIndex), Expression.GetInput(InputIndex)->GetOutputIndex());
+		                  *MaterialExpression->GetInput(InputIndex), Expression.GetInput(InputIndex)->GetOutputIndex());
 	}
 }

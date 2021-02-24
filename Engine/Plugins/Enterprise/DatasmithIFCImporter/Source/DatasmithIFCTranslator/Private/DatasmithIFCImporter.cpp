@@ -140,21 +140,23 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithIFCImporter::CreateMaterial(
 	TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(*MaterialName);
 
 	{
-		if (TSharedPtr<IDatasmithMaterialExpressionColor> ConstantColor = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>())
+		if (IDatasmithMaterialExpression* Expression = MaterialElement->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantColor))
 		{
 			// using Diffuse Color for Base Color
-			ConstantColor->SetName(TEXT("Color"));
+			Expression->SetName(TEXT("Color"));
+			IDatasmithMaterialExpressionColor* ConstantColor = static_cast<IDatasmithMaterialExpressionColor*>(Expression);
 			ConstantColor->GetColor() = InMaterial.DiffuseColour;
-			MaterialElement->GetBaseColor()->SetExpression(ConstantColor);
+			MaterialElement->GetBaseColor().SetExpression(ConstantColor);
 		}
 
 		if (InMaterial.Transparency > 0)
 		{
-			if (TSharedPtr<IDatasmithMaterialExpressionScalar> ConstantScalar = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>())
+			if (IDatasmithMaterialExpression* Expression = MaterialElement->AddMaterialExpression(EDatasmithMaterialExpressionType::ConstantScalar))
 			{
-				ConstantScalar->SetName(TEXT("Opacity"));
+				Expression->SetName(TEXT("Opacity"));
+				IDatasmithMaterialExpressionScalar* ConstantScalar = static_cast<IDatasmithMaterialExpressionScalar*>(Expression);
 				ConstantScalar->GetScalar() = 1.f - InMaterial.Transparency;
-				MaterialElement->GetOpacity()->SetExpression(ConstantScalar);
+				MaterialElement->GetOpacity().SetExpression(ConstantScalar);
 				MaterialElement->SetBlendMode(EBlendMode::BLEND_Translucent);
 			}
 		}

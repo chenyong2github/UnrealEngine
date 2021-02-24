@@ -547,10 +547,10 @@ namespace CADLibrary
 		MaterialElement->SetLabel(TEXT("DefaultCADImportMaterial"));
 
 		FLinearColor LinearColor = FLinearColor::FromPow22Color(FColor(200, 200, 200, 255));
-		TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+		IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 		ColorExpression->SetName(TEXT("Base Color"));
 		ColorExpression->GetColor() = LinearColor;
-		MaterialElement->GetBaseColor()->SetExpression(ColorExpression);
+		MaterialElement->GetBaseColor().SetExpression(ColorExpression);
 		MaterialElement->SetParentLabel(TEXT("M_DatasmithCAD"));
 
 		return MaterialElement;
@@ -567,21 +567,21 @@ namespace CADLibrary
 
 		FLinearColor LinearColor = FLinearColor::FromSRGBColor(InColor);
 
-		TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+		IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 		ColorExpression->SetName(TEXT("Base Color"));
 		ColorExpression->GetColor() = LinearColor;
 
-		MaterialElement->GetBaseColor()->SetExpression(ColorExpression);
+		MaterialElement->GetBaseColor().SetExpression(ColorExpression);
 
 		if (LinearColor.A < 1.0f)
 		{
 			MaterialElement->SetBlendMode(/*EBlendMode::BLEND_Translucent*/2);
 
-			TSharedPtr<IDatasmithMaterialExpressionScalar> Scalar = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+			IDatasmithMaterialExpressionScalar* Scalar = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 			Scalar->GetScalar() = LinearColor.A;
 			Scalar->SetName(TEXT("Opacity Level"));
 
-			MaterialElement->GetOpacity()->SetExpression(Scalar);
+			MaterialElement->GetOpacity().SetExpression(Scalar);
 			MaterialElement->SetParentLabel(TEXT("M_DatasmithCADTransparent"));
 		}
 		else
@@ -606,24 +606,24 @@ namespace CADLibrary
 		MaterialElement->SetLabel(*MaterialLabel);
 
 		// Set a diffuse color if there's nothing in the BaseColor
-		if (MaterialElement->GetBaseColor()->GetExpression() == nullptr)
+		if (MaterialElement->GetBaseColor().GetExpression() == nullptr)
 		{
 			FLinearColor LinearColor = FLinearColor::FromPow22Color(InMaterial.Diffuse);
 
-			TSharedPtr<IDatasmithMaterialExpressionColor> ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
+			IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 			ColorExpression->SetName(TEXT("Base Color"));
 			ColorExpression->GetColor() = LinearColor;
 
-			MaterialElement->GetBaseColor()->SetExpression(ColorExpression);
+			MaterialElement->GetBaseColor().SetExpression(ColorExpression);
 		}
 
 		if (InMaterial.Transparency > 0.0f)
 		{
 			MaterialElement->SetBlendMode(/*EBlendMode::BLEND_Translucent*/2);
-			TSharedPtr<IDatasmithMaterialExpressionScalar> Scalar = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
+			IDatasmithMaterialExpressionScalar* Scalar = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionScalar>();
 			Scalar->GetScalar() = InMaterial.Transparency;
 			Scalar->SetName(TEXT("Opacity Level"));
-			MaterialElement->GetOpacity()->SetExpression(Scalar);
+			MaterialElement->GetOpacity().SetExpression(Scalar);
 			MaterialElement->SetParentLabel(TEXT("M_DatasmithCADTransparent"));
 		}
 		else
