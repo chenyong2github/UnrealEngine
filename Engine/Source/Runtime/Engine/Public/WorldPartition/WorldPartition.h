@@ -95,6 +95,9 @@ private:
 	virtual void OnActorDescUpdating(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) override;
 	virtual void OnActorDescUpdated(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) override;
 
+	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) override;
+	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) override;
+
 	bool ShouldHandleAssetEvent(const FAssetData& InAssetData);
 #endif
 
@@ -224,6 +227,8 @@ private:
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	bool ShouldActorBeLoaded(const FWorldPartitionActorDesc* ActorDesc) const;
 	bool UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded);
+
+	void ApplyActorTransform(AActor* Actor, const FTransform& InTransform);
 #endif
 
 	UWorldPartitionStreamingPolicy* GetStreamingPolicy() const;

@@ -15,6 +15,7 @@ class ENGINE_API UActorDescContainer : public UObject
 	GENERATED_UCLASS_BODY()
 
 	friend struct FWorldPartitionHandleUtils;
+	friend class FWorldPartitionActorDesc;
 
 public:
 	void Initialize(UWorld* World, FName InPackageName, bool bRegisterDelegates);
@@ -55,6 +56,9 @@ protected:
 	virtual void OnActorDescRemoved(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) {}
 	virtual void OnActorDescUpdating(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) {}
 	virtual void OnActorDescUpdated(const TUniquePtr<FWorldPartitionActorDesc>& ActorDesc) {}
+
+	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) {}
+	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) {}
 
 	bool ShouldHandleAssetEvent(const FAssetData& InAssetData);
 

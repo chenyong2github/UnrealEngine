@@ -18,6 +18,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 
 #if WITH_EDITOR
+#include "LevelUtils.h"
 #include "Editor.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"
@@ -765,6 +766,35 @@ void UWorldPartition::OnActorDescUpdated(const TUniquePtr<FWorldPartitionActorDe
 	if (WorldPartitionEditor)
 	{
 		WorldPartitionEditor->Refresh();
+	}
+}
+
+void UWorldPartition::ApplyActorTransform(AActor* Actor, const FTransform& InTransform)
+{
+	if (!InTransform.Equals(FTransform::Identity))
+	{
+		FLevelUtils::FApplyLevelTransformParams TransformParams(Actor->GetLevel(), InTransform);
+		TransformParams.Actor = Actor;
+		TransformParams.bDoPostEditMove = true;
+		FLevelUtils::ApplyLevelTransform(TransformParams);
+	}
+}
+
+void UWorldPartition::OnActorDescRegistered(const FWorldPartitionActorDesc& ActorDesc) 
+{
+	AActor* Actor = ActorDesc.GetActor();
+	check(Actor);
+	ApplyActorTransform(Actor, InstanceTransform);
+	Actor->GetLevel()->AddLoadedActor(Actor);
+}
+
+void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& ActorDesc) 
+{
+	AActor* Actor = ActorDesc.GetActor();
+	if (!Actor->IsPendingKill())
+	{
+		Actor->GetLevel()->RemoveLoadedActor(Actor);
+		ApplyActorTransform(Actor, InstanceTransform.Inverse());
 	}
 }
 

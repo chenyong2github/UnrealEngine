@@ -3,7 +3,6 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 
 #if WITH_EDITOR
-#include "LevelUtils.h"
 #include "Misc/HashBuilder.h"
 #include "UObject/LinkerInstancingContext.h"
 #include "UObject/UObjectHash.h"
@@ -152,21 +151,6 @@ void FWorldPartitionActorDesc::TransformInstance(const FString& From, const FStr
 	}
 }
 
-void FWorldPartitionActorDesc::ApplyActorTransform(const FTransform& InTransform)
-{
-	AActor* Actor = GetActor();
-	check(Actor);
-
-	if (!InTransform.Equals(FTransform::Identity))
-	{
-		FLevelUtils::FApplyLevelTransformParams TransformParams(Actor->GetLevel(), InTransform);
-		TransformParams.Actor = Actor;
-		TransformParams.bDoPostEditMove = true;
-		FLevelUtils::ApplyLevelTransform(TransformParams);
-	}
-}
-
-
 FString FWorldPartitionActorDesc::ToString() const
 {
 	return FString::Printf(TEXT("Guid:%s Class:%s Name:%s"), *Guid.ToString(), *Class.ToString(), *FPaths::GetExtension(ActorPath.ToString()));
@@ -310,8 +294,7 @@ void FWorldPartitionActorDesc::RegisterActor()
 {
 	if (AActor* Actor = GetActor())
 	{
-		ApplyActorTransform(CastChecked<UWorldPartition>(Container)->InstanceTransform);
-		Actor->GetLevel()->AddLoadedActor(Actor);
+		Container->OnActorDescRegistered(*this);
 	}
 }
 
@@ -319,11 +302,7 @@ void FWorldPartitionActorDesc::UnregisterActor()
 {
 	if (AActor* Actor = GetActor())
 	{
-		if (!Actor->IsPendingKill())
-		{
-			Actor->GetLevel()->RemoveLoadedActor(Actor);
-			ApplyActorTransform(CastChecked<UWorldPartition>(Container)->InstanceTransform.Inverse());
-		}
+		Container->OnActorDescUnregistered(*this);
 	}
 }
 #endif
