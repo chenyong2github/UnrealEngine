@@ -6,6 +6,7 @@
 #include "DatasmithRuntimeUtils.h"
 #include "LogCategory.h"
 
+#include "DatasmithNativeTranslator.h"
 #include "IDatasmithSceneElements.h"
 
 #include "Camera/PlayerCameraManager.h"
@@ -93,6 +94,11 @@ namespace DatasmithRuntime
 
 		SceneElement = InSceneElement;
 
+		if (SceneElement.IsValid() && !Translator.IsValid())
+		{
+			Translator = MakeShared<FDatasmithNativeTranslator>();
+		}
+
 		TasksToComplete |= SceneElement.IsValid() ? EWorkerTask::CollectSceneData : EWorkerTask::NoTask;
 
 #ifdef LIVEUPDATE_TIME_LOGGING
@@ -173,16 +179,7 @@ namespace DatasmithRuntime
 			// Only add a mesh if its associated resource is available
 			if (IDatasmithMeshElement* MeshElement = static_cast<IDatasmithMeshElement*>(SceneElement->GetMesh(Index).Get()))
 			{
-				// If resource file does not exist, add scene's resource path if valid
-				if (!FPaths::FileExists(MeshElement->GetFile()) && FPaths::DirectoryExists(SceneElement->GetResourcePath()))
-				{
-					MeshElement->SetFile( *FPaths::Combine(SceneElement->GetResourcePath(), MeshElement->GetFile()) );
-				}
-
-				if (FPaths::FileExists(MeshElement->GetFile()))
-				{
-					AddAsset(SceneElement->GetMesh(Index), MeshPrefix, EDataType::Mesh);
-				}
+				AddAsset(SceneElement->GetMesh(Index), MeshPrefix, EDataType::Mesh);
 			}
 			// #ueent_datasmithruntime: Inform user resource file does not exist
 		}
@@ -551,6 +548,8 @@ namespace DatasmithRuntime
 
 			LastSceneGuid = SceneElement->GetSharedState()->GetGuid();
 
+			// Free up the translator since it is not needed anymore
+			Translator.Reset();
 			Cast<ADatasmithRuntimeActor>(RootComponent->GetOwner())->OnImportEnd();
 #ifdef LIVEUPDATE_TIME_LOGGING
 			double ElapsedSeconds = FPlatformTime::Seconds() - GlobalStartTime;
@@ -608,6 +607,7 @@ namespace DatasmithRuntime
 		UE_LOG(LogDatasmithRuntime, Log, TEXT("Incremental update..."));
 
 		SceneElement = InSceneElement;
+		Translator = MakeShared<FDatasmithNativeTranslator>();
 
 		PrepareIncrementalUpdate(UpdateContext);
 

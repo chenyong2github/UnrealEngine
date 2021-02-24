@@ -5,10 +5,8 @@
 
 #ifdef USE_OPENNURBS // The whole translation unit is skipped without OpenNurbs TPS library
 
-#ifdef CAD_LIBRARY
 #include "CoreTechParametricSurfaceExtension.h"
 #include "RhinoCoretechWrapper.h"
-#endif // CAD_LIBRARY
 
 #include "CADInterfacesModule.h"
 #include "DatasmithImportOptions.h"
@@ -649,16 +647,12 @@ public:
 			TranslationCache = MakeShared<FTranslationCache>();
 		}
 
-#ifdef CAD_LIBRARY
 		LocalSession = FRhinoCoretechWrapper::GetSharedSession(MetricUnit, ScalingFactor);
-#endif // CAD_LIBRARY
 	}
 
 	~FOpenNurbsTranslatorImpl()
 	{
-#ifdef CAD_LIBRARY
 		LocalSession.Reset();
-#endif // CAD_LIBRARY
 
 		for (FOpenNurbsTranslatorImpl* ChildTranslator : ChildTranslators)
 		{
@@ -745,9 +739,7 @@ private:
 	uint32 OpenNurbsOptionsHash;
 	FDatasmithImportBaseOptions BaseOptions;
 	
-#ifdef CAD_LIBRARY
 	TSharedPtr<FRhinoCoretechWrapper> LocalSession;
-#endif // CAD_LIBRARY
 
 private:
 	// For OpenNurbs archive parsing
@@ -2334,9 +2326,7 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 
 	// 	ScalingFactor is defined according to input Rhino file unit. CT don't modify CAD input according to the set file unit.
 	ScalingFactor = 100 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
-#ifdef CAD_LIBRARY
 	LocalSession->SetScaleFactor(ScalingFactor);
-#endif // CAD_LIBRARY
 
 	// Step 4: REQUIRED - Read bitmap table (it can be empty)
 	int Count = 0;
@@ -3185,7 +3175,6 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 	ON_3dVector Offset = GetGeometryOffset(MeshElement);
 
 	// No tessellation if CAD library is not present...
-#ifdef CAD_LIBRARY
 	if (OpenNurbsOptions.Geometry == EDatasmithOpenNurbsBrepTessellatedSource::UseUnrealNurbsTessellation)
 	{
 		// Ref. visitBRep
@@ -3193,29 +3182,23 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
 		LocalSession->GetImportParameters().ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
 
-		CADLibrary::CheckedCTError Result;
-
 		LocalSession->ClearData();
 
-		Result = LocalSession->AddBRep(*Brep, Offset);
+		LocalSession->AddBRep(*Brep, Offset);
 
 		FString Filename = FString::Printf(TEXT("%s.ct"), *Name);
 		FString FilePath = FPaths::Combine(OutputPath, Filename);
-		Result = LocalSession->SaveBrep(FilePath);
-		if (Result)
+		if (LocalSession->SaveBrep(FilePath))
 		{
 			MeshElement->SetFile(*FilePath);
 		}
 
-		Result = LocalSession->TopoFixes();
+		LocalSession->TopoFixes();
 
 		CADLibrary::FMeshParameters MeshParameters;
-		Result = LocalSession->Tessellate(OutMesh, MeshParameters);
-
-		return bool(Result);
+		return LocalSession->Tessellate(OutMesh, MeshParameters);
 	}
 	else
-#endif // CAD_LIBRARY
 	{
 		// .. Trying to load the mesh tessellated by Rhino
 		ON_Mesh BRepMesh;
@@ -3506,7 +3489,6 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
-#ifdef CAD_LIBRARY
 		CADLibrary::FImportParameters ImportParameters;
 		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
 		ImportParameters.MetricUnit = Translator->GetMetricUnit();
@@ -3515,8 +3497,6 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 		CADLibrary::FMeshParameters MeshParameters;
 
 		DatasmithCoreTechParametricSurfaceData::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, OpenNurbsOptions, OutMeshPayload);
-#endif // CAD_LIBRARY
-
 	}
 
 	return OutMeshPayload.LodMeshes.Num() > 0;
@@ -3546,10 +3526,15 @@ void FDatasmithOpenNurbsTranslator::SetSceneImportOptions(TArray<TStrongObjectPt
 void FDatasmithOpenNurbsTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	TStrongObjectPtr<UDatasmithOpenNurbsImportOptions> OpenNurbsOptionsPtr = Datasmith::MakeOptions<UDatasmithOpenNurbsImportOptions>();
-	if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
+	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Available)
 	{
-		OpenNurbsOptionsPtr->Options.Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes;
+		OpenNurbsOptionsPtr->Options.Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseUnrealNurbsTessellation;
 	}
+	else
+	{
+		// #ue_opennurbs: Disable Geometry property in UI
+	}
+
 	Options.Add(OpenNurbsOptionsPtr);
 }
 

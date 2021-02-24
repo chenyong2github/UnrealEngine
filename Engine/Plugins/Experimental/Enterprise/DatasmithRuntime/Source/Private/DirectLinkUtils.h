@@ -88,6 +88,8 @@ namespace DatasmithRuntime
 			return *EndpointProxy;
 		}
 
+		static const TArray<FDatasmithRuntimeSourceInfo>& GetListOfSources();
+
 		/** Helper method to reset the members associated with a connection which no longer exists */
 		void ResetConnection()
 		{

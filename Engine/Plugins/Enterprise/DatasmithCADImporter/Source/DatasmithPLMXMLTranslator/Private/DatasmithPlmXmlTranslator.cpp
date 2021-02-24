@@ -4,9 +4,7 @@
 #include "DatasmithPlmXmlImporter.h"
 #include "DatasmithPlmXmlTranslatorModule.h"
 
-#ifdef CAD_LIBRARY
 #include "CADInterfacesModule.h"
-#endif
 
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
@@ -18,15 +16,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogDatasmithXMLPLMTranslator, Log, All);
 
 void FDatasmithPlmXmlTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
-#ifdef CAD_LIBRARY
-	if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
+	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
 	{
 		UE_LOG(LogDatasmithXMLPLMTranslator, Warning, TEXT("CAD Interface module is unavailable. Most of CAD formats (except to Rhino and Alias formats) cannot be imported."));
 	}
-#else
-	OutCapabilities.bIsEnabled = false;
-	return;
-#endif // CAD_INTERFACE
 
 	OutCapabilities.bIsEnabled = true;
 	OutCapabilities.bParallelLoadStaticMeshSupported = true;

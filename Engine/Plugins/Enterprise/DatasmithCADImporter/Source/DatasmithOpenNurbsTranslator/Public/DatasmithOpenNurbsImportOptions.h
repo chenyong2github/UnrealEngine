@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "CADInterfacesModule.h"
 #include "DatasmithImportOptions.h"
 #include "DatasmithAssetImportData.h"
 
 #include "CoreMinimal.h"
+#include "Engine/Engine.h"
 #include "UObject/ObjectMacros.h"
 
 #include "DatasmithOpenNurbsImportOptions.generated.h"
@@ -27,17 +29,8 @@ struct FDatasmithOpenNurbsOptions : public FDatasmithTessellationOptions
 {
 	GENERATED_BODY()
 
-	FDatasmithOpenNurbsOptions()
-    {
-#ifdef CAD_LIBRARY
-		Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseUnrealNurbsTessellation;
-#else
-		Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes;
-#endif
-    }
-
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Geometry & Tessellation Options")
-	EDatasmithOpenNurbsBrepTessellatedSource Geometry;
+	EDatasmithOpenNurbsBrepTessellatedSource Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes;
 
 	uint32 GetHash() const
 	{
@@ -47,7 +40,7 @@ struct FDatasmithOpenNurbsOptions : public FDatasmithTessellationOptions
 
 
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings)
-class UDatasmithOpenNurbsImportOptions: public UDatasmithOptionsBase
+class DATASMITHOPENNURBSTRANSLATOR_API UDatasmithOpenNurbsImportOptions : public UDatasmithOptionsBase
 {
 	GENERATED_BODY()
 

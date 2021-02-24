@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithMeshBuilder.h"
 
-#ifdef CAD_INTERFACE
 #include "CoreTechHelper.h"
-#endif // CAD_INTERFACE
 
 #include "IDatasmithSceneElements.h"
 #include "Utility/DatasmithMeshHelper.h"
@@ -14,15 +12,14 @@
 
 using namespace CADLibrary;
 
-FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<uint32, FString>& InCADFileToUE4GeomMap, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters)
+FDatasmithMeshBuilder::FDatasmithMeshBuilder(TMap<uint32, FString>& CADFileToMeshFile, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters)
 	: CachePath(InCachePath)
-	, CADFileToMeshFile(InCADFileToUE4GeomMap)
 	, ImportParameters(InImportParameters)
 {
-	LoadMeshFiles();
+	LoadMeshFiles(CADFileToMeshFile);
 }
 
-void FDatasmithMeshBuilder::LoadMeshFiles()
+void FDatasmithMeshBuilder::LoadMeshFiles(TMap<uint32, FString>& CADFileToMeshFile)
 {
 	BodyMeshes.Reserve(CADFileToMeshFile.Num());
 
@@ -44,7 +41,6 @@ void FDatasmithMeshBuilder::LoadMeshFiles()
 
 TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef<IDatasmithMeshElement> OutMeshElement, CADLibrary::FMeshParameters& OutMeshParameters)
 {
-#ifdef CAD_INTERFACE
 	const TCHAR* NameLabel = OutMeshElement->GetName();
 	CADUUID BodyUuid = (CADUUID) FCString::Atoi64(OutMeshElement->GetName()+2);  // +2 to remove 2 first char (Ox)
 	if (BodyUuid == 0)
@@ -60,6 +56,22 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 
 	FBodyMesh& Body = **PPBody;
 
+	// FDatasmithSceneBaseGraphBuilder::BuildBody is performing a special treatment for
+	// FBodyMesh without color. Replicate the treatment here too.
+	int32 Num = Body.ColorSet.Num();
+	if (!Body.ColorSet.Num())
+	{
+		ensure(OutMeshElement->GetMaterialSlotCount() == 1);
+		int32 MaterialSlotId = OutMeshElement->GetMaterialSlotAt(0)->GetId();
+
+		Body.ColorSet.Add(MaterialSlotId);
+
+		for (FTessellationData& Face : Body.Faces)
+		{
+			Face.ColorName = MaterialSlotId;
+		}
+	}
+
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
@@ -67,7 +79,6 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 	{
 		return MoveTemp(MeshDescription);
 	}
-#endif // CAD_INTERFACE
 
 	return TOptional<FMeshDescription>();
 }

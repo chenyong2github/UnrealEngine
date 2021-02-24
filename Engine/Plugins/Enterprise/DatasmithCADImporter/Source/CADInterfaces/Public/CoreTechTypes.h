@@ -2,41 +2,171 @@
 #pragma once
 
 
-#ifdef CAD_INTERFACE
-
 #include "CADOptions.h"
 #include "Containers/Array.h"
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 
-#pragma warning(push)
-#pragma warning(disable:4996) // unsafe sprintf
-#pragma warning(disable:4828) // illegal character
-#include "kernel_io/kernel_io.h"
-#include "kernel_io/kernel_io_error.h"
-#include "kernel_io/kernel_io_type.h"
-#include "kernel_io/list_io/list_io.h"
-#include "kernel_io/material_io/material_io.h"
-#include "kernel_io/object_io/asm_io/component_io/component_io.h"
-#include "kernel_io/object_io/asm_io/instance_io/instance_io.h"
-#include "kernel_io/object_io/geom_io/curve_io/cnurbs_io/cnurbs_io.h"
-#include "kernel_io/object_io/geom_io/surface_io/snurbs_io/snurbs_io.h"
-#include "kernel_io/object_io/geom_io/surface_io/surface_io.h"
-#include "kernel_io/object_io/history_io/hnode_io/hbranch_io/hbranch_io.h"
-#include "kernel_io/object_io/history_io/hnode_io/hleaf_io/hleaf_io.h"
-#include "kernel_io/object_io/history_io/solid_io/solid_io.h"
-#include "kernel_io/object_io/topo_io/body_io/body_io.h"
-#include "kernel_io/object_io/topo_io/coedge_io/coedge_io.h"
-#include "kernel_io/object_io/topo_io/face_io/face_io.h"
-#include "kernel_io/object_io/topo_io/loop_io/loop_io.h"
-#include "kernel_io/repair_io/repair_io.h"
-#pragma warning(pop)
-
-
 namespace CADLibrary
 {
+	enum class ECoreTechParsingResult : uint8
+	{
+		Unknown,
+		Running,
+		UnTreated,
+		ProcessOk,
+		ProcessFailed,
+		FileNotFound,
+	};
 
-	struct CTMesh
+	class FBodyMesh;
+	struct FFileDescription;
+	class FArchiveSceneGraph;
+	class ICoreTechInterface;
+
+	// Helper struct used to pass Nurbs surface definition to CoreTech
+	struct FNurbsSurface
+	{
+		uint32 ControlPointDimension = 0;
+
+		uint32 ControlPointSizeU = 0;
+		uint32 ControlPointSizeV = 0;
+
+		uint32 OrderU = 0;
+		uint32 OrderV = 0;
+
+		uint32 KnotSizeU = 0;
+		uint32 KnotSizeV = 0;
+
+		TArray<double> KnotValuesU;
+		TArray<double> KnotValuesV;
+		TArray<uint32> KnotMultiplicityU;
+		TArray<uint32> KnotMultiplicityV;
+
+		TArray<double> ControlPoints;
+	};
+
+	// Helper struct used to pass Nurbs curve definition to CoreTech
+	struct FNurbsCurve
+	{
+		uint32 ControlPointDimension = 0;
+		uint32 ControlPointSize = 0;
+		uint32 Order = 0;
+		uint32 KnotSize = 0;
+		TArray<double> KnotValues;
+		TArray<uint32> KnotMultiplicity;
+		TArray<double> ControlPoints;
+	};
+
+	// Helper struct used to pass the result of ICoreTechInterface::LoadFile across dll boundaries
+	// when the ICoreTechInterface object has been created through the DatasmithCADRuntime dll 
+	struct FLoadingContext
+	{
+		FLoadingContext(const FImportParameters& InImportParameters, const FString& InCachePath)
+			: ImportParameters(InImportParameters)
+			, CachePath(InCachePath)
+		{
+		}
+
+		FLoadingContext(const FLoadingContext& Other)
+			: ImportParameters(Other.ImportParameters)
+			, CachePath(Other.CachePath)
+		{
+		}
+
+		const FImportParameters& ImportParameters;
+		const FString& CachePath;
+		TSharedPtr<FArchiveSceneGraph> SceneGraphArchive;
+		TSharedPtr<TArray<FString>> WarningMessages;
+		TSharedPtr<TArray<FBodyMesh>> BodyMeshes;
+	};
+
+	class ICoreTechInterface
+	{
+	public:
+		/* 
+		* Returns true if the object has been created outside of the memory pool of the running process
+		* This is the case when the object has been created by the DatasmithRuntime plugin
+		*/
+		virtual bool IsExternal() = 0;
+		virtual void SetExternal(bool Value) = 0;
+
+		/*
+		*
+		*/
+		virtual bool InitializeKernel(double MetricUnit, const TCHAR* = TEXT("")) = 0;
+
+		virtual bool ShutdownKernel() = 0;
+
+		virtual bool UnloadModel() = 0;
+
+		virtual bool CreateModel(uint64& OutMainObjectId) = 0;
+
+		virtual bool ChangeTesselationParameters(double MaxSag, double MaxLength, double MaxAngle) = 0;
+
+		virtual bool LoadModel
+		(
+			const TCHAR* file_name,
+			uint64& main_object,
+			int32      load_flags = 0 /*CT_LOAD_FLAGS_USE_DEFAULT*/,
+			int32        lod = 0,
+			const TCHAR* string_option = TEXT("")
+		) = 0;
+
+		virtual bool SaveFile
+		(
+			const TArray<uint64>& objects_list_to_save,
+			const TCHAR* file_name,
+			const TCHAR* format,
+			const uint64 coordsystem = 0
+		) = 0;
+
+		/**
+		* This function calls, according to the chosen EStitchingTechnique, Kernel_io CT_REPAIR_IO::Sew or CT_REPAIR_IO::Heal. In case of sew, the used tolerance is 100x the geometric tolerance (SewingToleranceFactor = 100).
+		* With the case of UE-83379, Alias file, this value is too big (biggest than the geometric features. So Kernel_io hangs during the sew process... In the wait of more test, 100x is still the value used for CAD import except for Alias where the value of the SewingToleranceFactor is set to 1x
+		* @param SewingToleranceFactor Factor apply to the tolerance 3D to define the sewing tolerance.
+		*/
+		virtual bool Repair(uint64 MainObjectID, EStitchingTechnique StitchingTechnique, double SewingToleranceFactor = 100.) = 0;
+		virtual bool SetCoreTechTessellationState(const FImportParameters& ImportParams) = 0;
+
+		virtual void GetTessellation(uint64 BodyId, FBodyMesh& OutBodyMesh, bool bIsBody) = 0;
+
+		virtual void GetTessellation(uint64 BodyId, TSharedPtr<FBodyMesh>& OutBodyMesh, bool bIsBody) = 0;
+
+		virtual ECoreTechParsingResult LoadFile(
+			const FFileDescription& InFileDescription,
+			const FImportParameters& InImportParameters,
+			const FString& InCachePath,
+			FArchiveSceneGraph& OutSceneGraphArchive,
+			TArray<FString>& OutWarningMessages,
+			TArray<FBodyMesh>& OutBodyMeshes) = 0;
+
+		virtual ECoreTechParsingResult LoadFile(const FFileDescription& InFileDescription, FLoadingContext& LoadingContext) = 0;
+
+		virtual bool CreateNurbsSurface(const FNurbsSurface& Surface, uint64& ObjectID) = 0;
+
+		virtual bool CreateNurbsCurve(const FNurbsCurve& Curve, uint64& ObjectID) = 0;
+
+		virtual void MatchCoedges(uint64 FirstCoedgeID, uint64 SecondCoedgeID) = 0;
+
+		virtual bool CreateCoedge(bool bReversed, uint64& CoedgeID) = 0;
+
+		virtual bool SetUVCurve(const FNurbsCurve& SurfacicCurve, double Start, double End, uint64 CoedgeID) = 0;
+
+		virtual bool CreateLoop(const TArray<uint64>& Coedges, uint64& LoopID) = 0;
+
+		virtual bool CreateFace(uint64 SurfaceID, bool bIsForward, const TArray<uint64>& Loops, uint64& FaceID) = 0;
+
+		virtual bool CreateBody(const TArray<uint64>& Faces, uint64& BodyID) = 0;
+
+		virtual bool AddBodies(const TArray<uint64>& Bodies, uint64 ComponentID) = 0;
+	};
+
+	CADINTERFACES_API void InitializeCoreTechInterface();
+	CADINTERFACES_API void SetCoreTechInterface(TSharedPtr<ICoreTechInterface> CoreTechInterfacePtr);
+	CADINTERFACES_API TSharedPtr<ICoreTechInterface>& GetCoreTechInterface();
+
+	struct FCTMesh
 	{
 		TArray<uint32> Materials; //GPure Material Id
 		TArray<uint32> MaterialUUIDs; //Material Hash from color value
@@ -52,88 +182,67 @@ namespace CADLibrary
 	 * This method set Tolerance to 0.00001 m whether 0.01 mm
 	 * @param MetricUnit: Length unit express in meter
 	 */
-	CADINTERFACES_API CT_IO_ERROR CTKIO_InitializeKernel(double MetricUnit, const TCHAR* = TEXT(""));
-	CADINTERFACES_API CT_IO_ERROR CTKIO_ShutdownKernel();
+	CADINTERFACES_API bool CTKIO_InitializeKernel(double MetricUnit, const TCHAR* = TEXT(""));
+	CADINTERFACES_API bool CTKIO_ShutdownKernel();
+	CADINTERFACES_API bool CTKIO_UnloadModel();
+	CADINTERFACES_API bool CTKIO_CreateModel(uint64& OutMainObjectId);
 
-	CADINTERFACES_API CT_IO_ERROR CTKIO_UnloadModel();
-	CADINTERFACES_API CT_IO_ERROR CTKIO_CreateModel(CT_OBJECT_ID& OutMainObjectId);
-	CADINTERFACES_API CT_IO_ERROR CTKIO_AskMainObject(CT_OBJECT_ID& OutMainObjectId);
-	CADINTERFACES_API CT_IO_ERROR CTKIO_ChangeTolerance(double Precision);
-	CADINTERFACES_API CT_IO_ERROR CTKIO_AskUnit(double Unit);
-	CADINTERFACES_API CT_IO_ERROR CTKIO_AskTolerance(double tolerance);
-	CADINTERFACES_API CT_IO_ERROR CTKIO_AskModelSize(double model_size);
-	CADINTERFACES_API CT_IO_ERROR CTKIO_AskTesselationParameters(
-		double      max_face_sag,      
-		double      max_face_length,   
-		double      max_face_angle,    
-		double      max_curve_sag,     
-		double      max_curve_length,  
-		double      max_curve_angle,   
-		CT_LOGICAL&        high_quality,
-		CT_TESS_DATA_TYPE& vertex_type, 
-		CT_TESS_DATA_TYPE& normal_type, 
-		CT_TESS_DATA_TYPE& texture_type 
-	);
+	CADINTERFACES_API bool CTKIO_ChangeTesselationParameters(double MaxSag, double MaxLength, double MaxAngle);
 
-	CADINTERFACES_API CT_IO_ERROR CTKIO_AskNbObjectsType
-	(
-		CT_UINT32&     object_count,            /*!< [out] Number of objects found. Type \c CT_UINT. */
-		CT_OBJECT_TYPE type = CT_OBJECT_ALL_TYPE /*!< [in] [optional] Searched type. Type \c CT_OBJECT_TYPE. */
-	);
-
-	CADINTERFACES_API CT_IO_ERROR CTKIO_ChangeTesselationParameters(
-		double     max_sag,                           
-		double     max_length,                        
-		double     max_angle,                         
-		CT_LOGICAL        high_quality = CT_FALSE,     
-		CT_TESS_DATA_TYPE vertex_type = CT_TESS_USE_DEFAULT, 
-		CT_TESS_DATA_TYPE normal_type = CT_TESS_USE_DEFAULT, 
-		CT_TESS_DATA_TYPE texture_type = CT_TESS_USE_DEFAULT 
-	);
-
-	CADINTERFACES_API CT_IO_ERROR CTKIO_LoadFile
+	CADINTERFACES_API bool CTKIO_LoadModel
 	(
 		const TCHAR*  file_name,                             
-		CT_OBJECT_ID& main_object,                           
-		CT_FLAGS      load_flags = CT_LOAD_FLAGS_USE_DEFAULT,
-		uint32        lod = 0,                               
+		uint64& main_object,                           
+		int32      load_flags = 0 /*CT_LOAD_FLAGS_USE_DEFAULT*/,
+		int32        lod = 0,                               
 		const TCHAR*  string_option = TEXT("")               
 	);
 
-	CADINTERFACES_API CT_IO_ERROR CTKIO_SaveFile
+	CADINTERFACES_API bool CTKIO_SaveFile
 	(
-		CT_LIST_IO&        objects_list_to_save,
-		const TCHAR*       file_name,           
-		const TCHAR*       format,              
-		const CT_OBJECT_ID coordsystem = 0      
+		const TArray<uint64>&   ObjectsListToSave,
+		const TCHAR*            FileName,           
+		const TCHAR*            Format,              
+		const uint64            CoordSystem = 0      
 	);
+
+	CADINTERFACES_API void CTKIO_GetTessellation(uint64 ObjectId, FBodyMesh& OutBodyMesh, bool bIsBody = true);
+
+	CADINTERFACES_API ECoreTechParsingResult CTKIO_LoadFile(const FFileDescription& InFileDescription, const FImportParameters& InImportParameters, const FString& InCachePath, FArchiveSceneGraph& OutSceneGraphArchive, TArray<FString>& OutWarningMessages, TArray<FBodyMesh>& OutBodyMeshes);
+
+	CADINTERFACES_API bool CTKIO_CreateNurbsSurface(const FNurbsSurface& NurbsDefinition, uint64& ObjectID);
+
+	CADINTERFACES_API bool CTKIO_CreateNurbsCurve(const FNurbsCurve& Curve, uint64& ObjectID);
+
+	CADINTERFACES_API void CTKIO_MatchCoedges(uint64 FirstCoedgeID, uint64 SecondCoedgeID);
+
+	CADINTERFACES_API bool CTKIO_CreateLoop(const TArray<uint64>& Coedges, uint64& LoopID);
+
+	CADINTERFACES_API bool CTKIO_CreateFace(uint64 SurfaceID, bool bIsForward, const TArray<uint64>& Loops, uint64& FaceID);
+
+	CADINTERFACES_API bool CTKIO_CreateBody(const TArray<uint64>& Faces, uint64& BodyID);
+
+	CADINTERFACES_API bool CTKIO_AddBodies(const TArray<uint64>& Bodies, uint64 ComponentID);
+
+	CADINTERFACES_API bool CTKIO_CreateCoedge(bool bIsReversed, uint64& CoedgeID);
+
+	CADINTERFACES_API bool CTKIO_SetUVCurve(const FNurbsCurve& SurfacicCurve, double Start, double End, uint64 CoedgeID);
+
+	CADINTERFACES_API bool CTKIO_SetUVCurve(const FNurbsCurve& SurfacicCurve, uint64 CoedgeID);
+
+	CADINTERFACES_API bool CTKIO_CreateCoedge(const FNurbsCurve& CurveOnSurface, double Start, double End, bool bIsReversed, uint64& CoedgeID);
+
+	CADINTERFACES_API bool CTKIO_CreateCoedge(const FNurbsCurve& CurveOnSurface, bool bIsReversed, uint64& CoedgeID);
 
 	/**
 	 * This function calls, according to the chosen EStitchingTechnique, Kernel_io CT_REPAIR_IO::Sew or CT_REPAIR_IO::Heal. In case of sew, the used tolerance is 100x the geometric tolerance (SewingToleranceFactor = 100).
 	 * With the case of UE-83379, Alias file, this value is too big (biggest than the geometric features. So Kernel_io hangs during the sew process... In the wait of more test, 100x is still the value used for CAD import except for Alias where the value of the SewingToleranceFactor is set to 1x
 	 * @param SewingToleranceFactor Factor apply to the tolerance 3D to define the sewing tolerance.
 	 */
-	CADINTERFACES_API CT_IO_ERROR Repair(CT_OBJECT_ID MainObjectID, EStitchingTechnique StitchingTechnique, CT_DOUBLE SewingToleranceFactor = 100.);
-	CADINTERFACES_API CT_IO_ERROR SetCoreTechTessellationState(const FImportParameters& ImportParams);
+	CADINTERFACES_API bool CTKIO_Repair(uint64 MainObjectID, EStitchingTechnique StitchingTechnique, double SewingToleranceFactor = 100.);
+	CADINTERFACES_API bool CTKIO_SetCoreTechTessellationState(const FImportParameters& ImportParams);
 
-
-	struct CADINTERFACES_API CheckedCTError
-	{
-		CheckedCTError(CT_IO_ERROR in_e = CT_IO_ERROR::IO_OK, bool in_otherError = false) : e(in_e), OtherError(in_otherError) { Validate(); }
-		CheckedCTError& operator=(CT_IO_ERROR in_e) { e = in_e; Validate(); return *this; }
-		CheckedCTError& operator=(const CheckedCTError& in_e) { new (this) CheckedCTError(in_e.e, in_e.OtherError); return *this; }
-		operator bool() const { return e == CT_IO_ERROR::IO_OK && OtherError == false; }
-		operator CT_IO_ERROR() const { return e; }
-		void RaiseOtherError(const char* msg) { OtherErrorMsg = msg; OtherError = true; Validate(); }
-		CT_IO_ERROR e;
-
-	private:
-		void Validate();
-		bool OtherError;
-		const char* OtherErrorMsg = nullptr;
-	};
-
-	class CADINTERFACES_API CoreTechSessionBase
+	class CADINTERFACES_API FCoreTechSessionBase
 	{
 	public:
 		/**
@@ -142,17 +251,15 @@ namespace CADLibrary
 		 * @param FileMetricUnit number of meters per file unit.
 		 * eg. For a file in inches, arg should be 0.0254
 		 */
-		CoreTechSessionBase(const TCHAR* Owner, double Unit);
+		FCoreTechSessionBase(const TCHAR* Owner, double Unit);
 		bool IsSessionValid() { return Owner != nullptr && MainObjectId != 0; }
-		virtual ~CoreTechSessionBase();
+		virtual ~FCoreTechSessionBase();
 
 	protected:
-		CT_OBJECT_ID MainObjectId;
+		uint64 MainObjectId;
 
 	private:
 		static const TCHAR* Owner;
 	};
 }
-
-#endif // CAD_INTERFACE
 

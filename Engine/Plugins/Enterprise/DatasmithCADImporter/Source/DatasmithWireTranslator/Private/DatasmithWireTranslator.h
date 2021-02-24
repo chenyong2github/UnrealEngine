@@ -4,15 +4,10 @@
 
 #include "CoreMinimal.h"
 
-#ifndef CAD_LIBRARY
-#undef USE_OPENMODEL
-#endif
-
 #include "DatasmithCoreTechTranslator.h"
 #include "UObject/ObjectMacros.h"
 
 class FWireTranslatorImpl;
-class AlDagNode;
 
 
 class FDatasmithWireTranslator : public FDatasmithCoreTechTranslator

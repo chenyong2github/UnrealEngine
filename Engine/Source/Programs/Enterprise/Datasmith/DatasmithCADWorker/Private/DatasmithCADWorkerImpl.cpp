@@ -123,9 +123,9 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("Process %s %s"), *FileToProcess.Name, *FileToProcess.Configuration);
 
 	FCompletedTaskCommand CompletedTask;
-#ifdef CAD_INTERFACE
+
 	CADLibrary::FCoreTechFileParser FileParser(ImportParameters, EnginePluginsPath, CachePath);
-	CADLibrary::FCoreTechFileParser::EProcessResult ProcessResult = FileParser.ProcessFile(FileToProcess);
+	CADLibrary::ECoreTechParsingResult ProcessResult = FileParser.ProcessFile(FileToProcess);
 
 	CompletedTask.ProcessResult = ProcessResult;
 
@@ -136,7 +136,7 @@ void FDatasmithCADWorkerImpl::ProcessCommand(const FRunTaskCommand& RunTaskComma
 		CompletedTask.GeomFileName = FileParser.GetMeshFileName();
 		CompletedTask.WarningMessages = FileParser.GetWarningMessages();
 	}
-#endif // CAD_INTERFACE
+
 	CommandIO.SendCommand(CompletedTask, Config::SendCommandTimeout_s);
 
 	UE_LOG(LogDatasmithCADWorker, Verbose, TEXT("End of Process %s %s saved in %s"), *FileToProcess.Name, *FileToProcess.Configuration, *CompletedTask.GeomFileName);

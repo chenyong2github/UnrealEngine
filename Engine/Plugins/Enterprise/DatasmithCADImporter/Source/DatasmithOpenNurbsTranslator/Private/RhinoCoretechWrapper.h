@@ -2,7 +2,7 @@
 
 #pragma once
 
-#if defined(CAD_LIBRARY) && defined(USE_OPENNURBS)
+#ifdef USE_OPENNURBS
 #include "CoreMinimal.h"
 
 #include "CTSession.h"
@@ -20,22 +20,22 @@ public:
 		: BRep(InBRep)
 	{}
 
-	CT_OBJECT_ID CreateBody(const ON_3dVector& ON_Offset);
+	uint64 CreateBody(const ON_3dVector& ON_Offset);
 private:
-	CT_OBJECT_ID CreateCTSurface(ON_NurbsSurface& Surface);
-	void CreateCTFace(const ON_BrepFace& Face, CT_LIST_IO& dest);
-	void CreateCTFace_internal(const ON_BrepFace& Face, CT_LIST_IO& dest, ON_BoundingBox& outerBBox, ON_NurbsSurface& Surface, bool ignoreInner);
+	uint64 CreateCTSurface(ON_NurbsSurface& Surface);
+	void CreateCTFace(const ON_BrepFace& Face, TArray<uint64>& dest);
+	void CreateCTFace_internal(const ON_BrepFace& Face, TArray<uint64>& dest, ON_BoundingBox& outerBBox, ON_NurbsSurface& Surface, bool ignoreInner);
 
 private:
 	ON_Brep& BRep;
 
 	// BRep.m_T is an array that store all Trims, so we can also use an array to make the map between Trim index to Coedge Id
-	TArray<CT_OBJECT_ID> BrepTrimToCoedge;
+	TArray<uint64> BrepTrimToCoedge;
 };
 
 
 
-class FRhinoCoretechWrapper : public CADLibrary::CTSession
+class FRhinoCoretechWrapper : public CADLibrary::FCTSession
 {
 public:
 	/**
@@ -47,7 +47,7 @@ public:
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FRhinoCoretechWrapper(const TCHAR* InOwner, double FileMetricUnit, double ScaleFactor)
-		: CTSession(InOwner, FileMetricUnit, ScaleFactor)
+		: FCTSession(InOwner, FileMetricUnit, ScaleFactor)
 	{
 	}
 
@@ -57,14 +57,14 @@ public:
 	 * @param  Brep	a brep to tessellate
 	 * @param  Offset translate brep by this value before tessellating 
 	 */
-	CADLibrary::CheckedCTError AddBRep(ON_Brep& Brep, const ON_3dVector& Offset);
+	bool AddBRep(ON_Brep& Brep, const ON_3dVector& Offset);
 	
 	static TSharedPtr<FRhinoCoretechWrapper> GetSharedSession(double SceneUnit, double ScaleFactor);
 
-	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);
+	bool Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);
 
 protected:
 	static TWeakPtr<FRhinoCoretechWrapper> SharedSession;
 };
 
-#endif // defined(CAD_LIBRARY) && defined(USE_OPENNURBS)
+#endif // USE_OPENNURBS

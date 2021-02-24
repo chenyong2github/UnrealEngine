@@ -51,20 +51,6 @@ namespace DatasmithRuntime
 
 		TSharedPtr< IDatasmithMeshElement > MeshElement = StaticCastSharedPtr< IDatasmithMeshElement >(Elements[MeshData.ElementId]);
 
-		// If mesh file does not exist, add scene's resource path if valid
-		if (!FPaths::FileExists(MeshElement->GetFile()) && FPaths::DirectoryExists(SceneElement->GetResourcePath()))
-		{
-			MeshElement->SetFile( *FPaths::Combine(SceneElement->GetResourcePath(), MeshElement->GetFile()) );
-		}
-
-		// File not found, nothing to do
-		if (!FPaths::FileExists(MeshElement->GetFile()))
-		{
-			MeshData.Object.Reset();
-			MeshData.SetState(EAssetState::Processed | EAssetState::Completed);
-			return false;
-		}
-
 		const int32 MaterialSlotCount = MeshElement->GetMaterialSlotCount();
 
 		UStaticMesh* StaticMesh = MeshData.GetObject<UStaticMesh>();
@@ -110,8 +96,6 @@ namespace DatasmithRuntime
 #endif
 				check(StaticMesh);
 
-				StaticMesh->GetStaticMaterials().SetNum(MaterialSlotCount);
-
 				MeshData.Object = TWeakObjectPtr< UObject >(StaticMesh);
 
 				// Add the creation of the mesh to the queue
@@ -149,6 +133,7 @@ namespace DatasmithRuntime
 		};
 
 		TArray< FStaticMaterial >& StaticMaterials = StaticMesh->GetStaticMaterials();
+		StaticMaterials.SetNum(MaterialSlotCount);
 
 		for (int32 Index = 0; Index < MaterialSlotCount; Index++)
 		{
@@ -369,22 +354,32 @@ namespace DatasmithRuntime
 
 		FDatasmithMeshElementPayload MeshPayload;
 		{
-			FDatasmithNativeTranslator NativeTranslator;
-
 			// Prevent GC from running while loading meshes.
 			// FDatasmithNativeTranslator::LoadStaticMesh is creating UDatasmithMesh objects
 			FGCScopeGuard GCGuard;
 
-			if (!NativeTranslator.LoadStaticMesh(MeshElement, MeshPayload))
+			if (!Translator->LoadStaticMesh(MeshElement, MeshPayload))
 			{
-				// #ueent_datasmithruntime: TODO : Update FAssetFactory
-				ActionCounter.Add(MeshData.Referencers.Num());
-				MeshData.Object.Reset();
-				MeshData.AddState(EAssetState::Completed);
+				// If mesh cannot be loaded, add scene's resource path if valid and retry
+				bool bSecondTrySucceeded = false;
 
-				UE_LOG(LogDatasmithRuntime, Warning, TEXT("CreateStaticMesh: Loading file %s failed. Mesh element %s has not been imported"), MeshElement->GetFile(), MeshElement->GetLabel());
-				
-				return true;
+				if (FPaths::DirectoryExists(SceneElement->GetResourcePath()) && FPaths::IsRelative(MeshElement->GetFile()))
+				{
+					MeshElement->SetFile( *FPaths::Combine(SceneElement->GetResourcePath(), MeshElement->GetFile()) );
+					bSecondTrySucceeded = Translator->LoadStaticMesh(MeshElement, MeshPayload);
+				}
+
+				if (!bSecondTrySucceeded)
+				{
+					// #ueent_datasmithruntime: TODO : Update FAssetFactory
+					ActionCounter.Add(MeshData.Referencers.Num());
+					MeshData.Object.Reset();
+					MeshData.AddState(EAssetState::Completed);
+
+					UE_LOG(LogDatasmithRuntime, Warning, TEXT("CreateStaticMesh: Loading file %s failed. Mesh element %s has not been imported"), MeshElement->GetFile(), MeshElement->GetLabel());
+
+					return true;
+				}
 			}
 		}
 
@@ -421,6 +416,36 @@ namespace DatasmithRuntime
 		for (int32 LodIndex = 0; LodIndex < MeshDescriptions.Num(); ++LodIndex)
 		{
 			FMeshDescription& MeshDescription = MeshDescriptions[LodIndex];
+
+			// If the number of polygon groups in the MeshDescription is greater than the number of static materials in the static mesh
+			// Add the missing polygon groups.
+			FStaticMeshAttributes Attributes(MeshDescription);
+			TPolygonGroupAttributesConstRef<FName> MaterialSlotNameAttribute = Attributes.GetPolygonGroupMaterialSlotNames();
+			if (MeshDescription.PolygonGroups().Num() > StaticMesh->GetStaticMaterials().Num())
+			{
+				TArray<FStaticMaterial>& StaticMaterials = StaticMesh->GetStaticMaterials();
+				int32 LastIndex = StaticMaterials.Num();
+
+				StaticMaterials.SetNum(MeshDescription.PolygonGroups().Num());
+
+				TSet<FName> ExistingSlotNames;
+				ExistingSlotNames.Reserve(LastIndex);
+				for (int32 Index = 0; Index < LastIndex; ++Index)
+				{
+					ExistingSlotNames.Add(StaticMaterials[Index].MaterialSlotName);
+				}
+
+				for (FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
+				{
+					const FName& MaterialSlotName = MaterialSlotNameAttribute[PolygonGroupID];
+					if (!ExistingSlotNames.Contains(MaterialSlotName))
+					{
+						StaticMaterials[LastIndex].MaterialSlotName = MaterialSlotName;
+						StaticMaterials[LastIndex].MaterialInterface = nullptr;
+						++LastIndex;
+					}
+				}
+			}
 
 			// UV Channels
 			int32 SourceIndex = 0;

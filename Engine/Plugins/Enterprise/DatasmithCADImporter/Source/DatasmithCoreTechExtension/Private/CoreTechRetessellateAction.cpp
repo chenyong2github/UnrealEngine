@@ -2,11 +2,8 @@
 
 #include "CoreTechRetessellateAction.h"
 
-#ifdef CAD_LIBRARY
 #include "CoreTechHelper.h"
-#include "CoreTechMeshLoader.h"
 #include "CoreTechTypes.h"
-#endif
 
 #include "DatasmithAdditionalData.h"
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
@@ -38,16 +35,11 @@ const FText FCoreTechRetessellate_Impl::Tooltip = LOCTEXT("RetessellateActionToo
 
 bool FCoreTechRetessellate_Impl::CanApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
 {
-#ifdef CAD_LIBRARY
 	return Algo::AnyOf(SelectedAssets, [](const FAssetData& Asset){ return Datasmith::GetAdditionalData<UCoreTechParametricSurfaceData>(Asset) != nullptr; });
-#else
-	return false;
-#endif
 }
 
 void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& SelectedAssets)
 {
-#ifdef CAD_LIBRARY
 	TFunction<void(UStaticMesh*)> FinalizeChanges = [](UStaticMesh* StaticMesh) -> void
 	{
 		StaticMesh->PostEditChange();
@@ -169,23 +161,19 @@ void FCoreTechRetessellate_Impl::ApplyOnAssets(const TArray<FAssetData>& Selecte
 	{
 		FinalizeChanges(StaticMesh);
 	}
-
-#endif // CAD_LIBRARY
 }
 
 bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreTechParametricSurfaceData& CoreTechData, const FDatasmithRetessellationOptions& RetessellateOptions)
 {
 	bool bSuccessfulTessellation = false;
 
-#ifdef CAD_LIBRARY
 	// make a temporary file as CoreTech can only deal with files.
 	int32 Hash = GetTypeHash(StaticMesh.GetPathName());
 	FString ResourceFile = FPaths::ConvertRelativePathToFull(FPaths::ProjectIntermediateDir() / FString::Printf(TEXT("0x%08x.ct"), Hash));
 
 	FFileHelper::SaveArrayToFile(CoreTechData.RawData, *ResourceFile);
 
-	CADLibrary::CoreTechMeshLoader Loader;
-	CADLibrary::CTMesh Mesh;
+	CADLibrary::FCTMesh Mesh;
 
 	CADLibrary::FImportParameters ImportParameters;
 	ImportParameters.MetricUnit = CoreTechData.SceneParameters.MetricUnit;
@@ -214,7 +202,7 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
 		}
 
-		if ( Loader.LoadFile(ResourceFile, MeshDescription, ImportParameters, MeshParameters))
+		if ( CADLibrary::LoadFile(ResourceFile, MeshDescription, ImportParameters, MeshParameters))
 		{
 			// To update the SectionInfoMap 
 			{
@@ -240,18 +228,14 @@ bool FCoreTechRetessellate_Impl::ApplyOnOneAsset(UStaticMesh& StaticMesh, UCoreT
 
 	// Remove temporary file
 	FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*ResourceFile);
-#endif // CAD_LIBRARY
 
 	return bSuccessfulTessellation;
 }
-
-#undef LOCTEXT_NAMESPACE
 
 TSet<UStaticMesh*> GetReferencedStaticMeshes(const TArray<AActor*>& SelectedActors)
 {
 	TSet<UStaticMesh*> ReferencedStaticMeshes;
 
-#ifdef CAD_LIBRARY
 	for (const AActor* Actor : SelectedActors)
 	{
 		if (Actor)
@@ -265,7 +249,6 @@ TSet<UStaticMesh*> GetReferencedStaticMeshes(const TArray<AActor*>& SelectedActo
 			}
 		}
 	}
-#endif // CAD_LIBRARY
 
 	return ReferencedStaticMeshes;
 }
@@ -282,3 +265,5 @@ void UCoreTechRetessellateAction::ApplyOnActors(const TArray<AActor*>& SelectedA
 	Algo::Transform(GetReferencedStaticMeshes(SelectedActors), AssetData, [](UStaticMesh* Mesh){ return FAssetData(Mesh);});
 	return ApplyOnAssets(AssetData);
 }
+
+#undef LOCTEXT_NAMESPACE

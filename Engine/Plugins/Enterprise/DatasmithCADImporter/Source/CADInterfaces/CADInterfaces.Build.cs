@@ -27,7 +27,6 @@ namespace UnrealBuildTool.Rules
 
 			if (bIsPlateformSupported && bHasCoretech)
 			{
-				PublicDefinitions.Add("CAD_INTERFACE");
 				PublicDependencyModuleNames.Add("CoreTech");
 			}
 		}

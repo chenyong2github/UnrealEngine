@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 					"DatasmithTranslator",
 					"Engine",
 					"StaticMeshDescription",
+					"CADInterfaces",
 					"CADLibrary",
 				}
 			);

@@ -2,7 +2,6 @@
 #include "CoreTechHelper.h"
 
 
-#ifdef CAD_LIBRARY
 #include "CoreTechTypes.h"
 
 #include "CADData.h"
@@ -514,7 +513,7 @@ namespace CADLibrary
 
 	bool ConvertCTBodySetToMeshDescription(const FImportParameters& ImportParams, const FMeshParameters& MeshParameters, FBodyMesh& Body, FMeshDescription& MeshDescription)
 	{
-		// Ref. CreateMesh(UDatasmithCADImportOptions* CADOptions, CTMesh& Mesh)
+		// Ref. CreateMesh(UDatasmithCADImportOptions* CADOptions, FCTMesh& Mesh)
 		MeshDescription.EdgeAttributes().RegisterAttribute<bool>(MeshAttribute::Edge::IsUVSeam, 1, false);
 
 		// in a closed big mesh VertexCount ~ TriangleCount / 2, EdgeCount ~ 1.5* TriangleCount
@@ -634,38 +633,50 @@ namespace CADLibrary
 		return MaterialElement;
 	}
 
-	CT_IO_ERROR Tessellate(CT_OBJECT_ID MainObjectId, const FImportParameters& ImportParams, FMeshDescription& MeshDesc, FMeshParameters& MeshParameters)
+	bool Tessellate(uint64 MainObjectId, const FImportParameters& ImportParams, FMeshDescription& MeshDesc, FMeshParameters& MeshParameters)
 	{
-		CheckedCTError Result;
-
-		CT_LIST_IO Objects;
-		Result = CT_COMPONENT_IO::AskChildren(MainObjectId, Objects);
-		if (!Result)
-			return Result;
-
-		SetCoreTechTessellationState(ImportParams);
-
-		FCoreTechFileParser Parser = FCoreTechFileParser(ImportParams);
+		CTKIO_SetCoreTechTessellationState(ImportParams);
 
 		FBodyMesh BodyMesh;
 		BodyMesh.BodyID = 1;
 
-		while (CT_OBJECT_ID BodyId = Objects.IteratorIter())
+		CTKIO_GetTessellation(MainObjectId, BodyMesh, false);
+
+		if (BodyMesh.Faces.Num() == 0)
 		{
-			Parser.GetBodyTessellation(BodyId, MainObjectId, BodyMesh, 0, /*bNeedRepair*/ true);
+			return false;
 		}
 
-		bool bTessellated = ConvertCTBodySetToMeshDescription(ImportParams, MeshParameters, BodyMesh, MeshDesc);
-
-		CheckedCTError ConversionResult;
-		if (!bTessellated)
+		if (!ConvertCTBodySetToMeshDescription(ImportParams, MeshParameters, BodyMesh, MeshDesc))
 		{
-			ConversionResult.RaiseOtherError("Error during mesh conversion");
+			ensureMsgf(false, TEXT("Error during mesh conversion"));
+			return false;
 		}
 
-		return ConversionResult;
+		return true;
+	}
+
+	bool LoadFile(const FString& FileName, FMeshDescription& MeshDescription, const FImportParameters& ImportParameters, FMeshParameters& MeshParameters)
+	{
+		FCoreTechSessionBase Session(TEXT("CoreTechMeshLoader::LoadFile"), ImportParameters.MetricUnit);
+		if (!Session.IsSessionValid())
+		{
+			return false;
+		}
+
+		uint64 MainObjectID;
+		if(!CTKIO_LoadModel(*FileName, MainObjectID, 0x00020000 /* CT_LOAD_FLAGS_READ_META_DATA */))
+		{
+			// Something wrong happened during the load, abort
+			return false;
+		}
+
+		if (ImportParameters.StitchingTechnique != StitchingNone)
+		{
+			CTKIO_Repair(MainObjectID, StitchingHeal);
+		}
+
+		return Tessellate(MainObjectID, ImportParameters, MeshDescription, MeshParameters);
 	}
 
 }
-
-#endif // CAD_LIBRARY

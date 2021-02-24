@@ -12,11 +12,13 @@
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"
 
+#ifndef DATASMITH_CAD_IGNORE_CACHE
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableCADCache(
 	TEXT("r.CADTranslator.EnableCADCache"),
 	1,
 	TEXT("Activate to save temporary CAD processing file. These file will be use in a next import to avoid CAD file processing\n"),
 	ECVF_Default);
+#endif
 
 namespace DatasmithDispatcher
 {
@@ -31,13 +33,18 @@ FDatasmithDispatcher::FDatasmithDispatcher(const CADLibrary::FImportParameters& 
 	, NumberOfWorkers(InNumberOfWorkers)
 	, NextWorkerId(0)
 {
-	// init cache folders
-	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("scene")), true);
-	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("cad")), true);
-	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("mesh")), true);
-	IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("body")), true);
-
+#ifndef DATASMITH_CAD_IGNORE_CACHE
 	ImportParameters.bEnableCacheUsage = (CVarStaticCADTranslatorEnableCADCache.GetValueOnAnyThread() != 0);
+
+	if (ImportParameters.bEnableCacheUsage)
+	{
+		// init cache folders
+		IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("scene")), true);
+		IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("cad")), true);
+		IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("mesh")), true);
+		IFileManager::Get().MakeDirectory(*FPaths::Combine(ProcessCacheFolder, TEXT("body")), true);
+	}
+#endif
 }
 
 void FDatasmithDispatcher::AddTask(const CADLibrary::FFileDescription & InFileDescription)
@@ -112,7 +119,7 @@ void FDatasmithDispatcher::SetTaskState(int32 TaskIndex, ETaskState TaskState)
 	UE_CLOG(TaskState == ETaskState::ProcessOk, LogDatasmithDispatcher, Verbose, TEXT("File processed: %s"), *FileDescription.Name);
 	UE_CLOG(TaskState == ETaskState::UnTreated, LogDatasmithDispatcher, Warning, TEXT("File resubmitted: %s"), *FileDescription.Name);
 	UE_CLOG(TaskState == ETaskState::ProcessFailed, LogDatasmithDispatcher, Error, TEXT("File processing failure: %s"), *FileDescription.Name);
-	UE_CLOG(TaskState == ETaskState::FileNotFound, LogDatasmithDispatcher, Warning, TEXT("file not found: %s"), *FileDescription.Name);
+	UE_CLOG(TaskState == ETaskState::FileNotFound, LogDatasmithDispatcher, Warning, TEXT("file not found: %s"), *FileDescription.Path);
 }
 
 void FDatasmithDispatcher::Process(bool bWithProcessor)
@@ -242,7 +249,6 @@ void FDatasmithDispatcher::CloseHandlers()
 
 void FDatasmithDispatcher::ProcessLocal()
 {
-#ifdef CAD_INTERFACE
 	while (TOptional<FTask> Task = GetNextTask())
 	{
 		CADLibrary::FFileDescription& FileDescription = Task->FileDescription;
@@ -267,7 +273,6 @@ void FDatasmithDispatcher::ProcessLocal()
 			LinkCTFileToUnrealCacheFile(FileParser.GetCADFileDescription(), FileParser.GetSceneGraphFile(), FileParser.GetMeshFileName());
 		}
 	}
-#endif // CAD_INTERFACE
 }
 
 } // ns DatasmithDispatcher

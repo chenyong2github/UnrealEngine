@@ -23,21 +23,19 @@ struct DATASMITHRUNTIME_API FDatasmithRuntimeSourceInfo
 	GENERATED_USTRUCT_BODY()
 
 	FDatasmithRuntimeSourceInfo()
-		: Hash(0xffffffff)
 	{
 	}
 
-	FDatasmithRuntimeSourceInfo(const FString& InName, uint32 InHash)
+	FDatasmithRuntimeSourceInfo( const FString& InName, const FGuid& InHandle)
 		: Name(InName)
-		, Hash(InHash)
+		, SourceHandle(InHandle)
 	{
 	}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DatasmithRuntime")
 	FString Name;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DatasmithRuntime")
-	int32 Hash;
+	FGuid SourceHandle;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FDatasmithRuntimeChangeEvent);
@@ -58,18 +56,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DirectLink")
 	TArray<FDatasmithRuntimeSourceInfo> GetListOfSources();
 
-	UFUNCTION(BlueprintCallable, Category = "DirectLink")
-	FString GetDestinationName(ADatasmithRuntimeActor* DatasmithRuntimeActor);
-
-	UFUNCTION(BlueprintCallable, Category = "DirectLink")
-	bool IsConnected(ADatasmithRuntimeActor* DatasmithRuntimeActor);
-
-	UFUNCTION(BlueprintCallable, Category = "DirectLink")
-	FString GetSourcename(ADatasmithRuntimeActor* DatasmithRuntimeActor);
-
-	UFUNCTION(BlueprintCallable, Category = "DirectLink")
-	void ConnectToSource(ADatasmithRuntimeActor* DatasmithRuntimeActor, int32 SourceIndex);
-
 	// Dynamic delegate used to trigger an event in the Game when there is
 	// a change in the DirectLink network
 	UPROPERTY(BlueprintAssignable)
@@ -85,22 +71,13 @@ class DATASMITHRUNTIME_API UDatasmithRuntimeLibrary : public UBlueprintFunctionL
 
 public:
 	/**
-	 * Create a DatasmithRuntime actor
-	 * @param TargetWorld	The world in which to create the DatasmithRuntime actor.
-	 * @param RootTM		The transform to apply to the DatasmithRuntime actor on creation.
-	 * @return	A pointer to the DatasmithRuntime actor if the createion is successful; nullptr, otherwise
+	 * Load a file using the Datasmith translator associated with it
+	 * @param DatasmithRuntimeActor	The actor to load the file into
+	 * @param FilePath The path to the file to load.
+	 * @return	true if an associated translator has been 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
-	static bool LoadDatasmithScene(ADatasmithRuntimeActor* DatasmithRuntimeActor, const FString& FilePath);
-
-	/*
-	 * Opens a file dialog for the specified data. Leave FileTypes empty to be able to select any files.
-	 * Filetypes must be in the format of: <File type Description>|*.<actual extension>
-	 * You can combine multiple extensions by placing ";" between them
-	 * For example: Text Files|*.txt|Excel files|*.csv|Image Files|*.png;*.jpg;*.bmp will display 3 lines for 3 different type of files.
-	*/
-	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
-	static void LoadDatasmithSceneFromExplorer(ADatasmithRuntimeActor* DatasmithRuntimeActor, const FString& DefaultPath, const FString& FileTypes);
+	static bool LoadFile(ADatasmithRuntimeActor* DatasmithRuntimeActor, const FString& FilePath);
 
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
 	static void ResetActor(ADatasmithRuntimeActor* DatasmithRuntimeActor);
@@ -108,4 +85,13 @@ public:
 	/** Returns an interface to the DirectLink end point */
 	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntime")
 	static UDirectLinkProxy* GetDirectLinkProxy();
+
+	/**
+	 * Open a file browser to select a file and call LoadFile with the selected file
+	 * @param DatasmithRuntimeActor	The actor to load the file into
+	 * @param DefaultPath Path to open the file browser in.
+	 * @return	true if an associated translator has been 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "DatasmithRuntimeHelper")
+	static bool LoadFileFromExplorer(ADatasmithRuntimeActor* DatasmithRuntimeActor, const FString& DefaultPath);
 };

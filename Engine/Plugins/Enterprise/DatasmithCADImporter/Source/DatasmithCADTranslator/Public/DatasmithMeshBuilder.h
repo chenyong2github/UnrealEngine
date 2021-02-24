@@ -17,14 +17,24 @@ class DATASMITHCADTRANSLATOR_API FDatasmithMeshBuilder
 public:
 	FDatasmithMeshBuilder(TMap<uint32, FString>& InCADFileToMeshFileMap, const FString& InCachePath, const CADLibrary::FImportParameters& InImportParameters);
 
+	FDatasmithMeshBuilder(TArray<CADLibrary::FBodyMesh>& InBodyMeshSet, const CADLibrary::FImportParameters& InImportParameters)
+		: ImportParameters(InImportParameters)
+	{
+		TArray<CADLibrary::FBodyMesh>& BodyMeshSet = BodyMeshes.Add_GetRef(MoveTemp(InBodyMeshSet));
+
+		for (CADLibrary::FBodyMesh& Body : BodyMeshSet)
+		{
+			MeshActorNameToBodyMesh.Emplace(Body.MeshActorName, &Body);
+		}
+	}
+
 	TOptional<FMeshDescription> GetMeshDescription(TSharedRef<IDatasmithMeshElement> OutMeshElement, CADLibrary::FMeshParameters& OutMeshParameters);
 
 protected:
 	FString CachePath;
 
-	void LoadMeshFiles();
+	void LoadMeshFiles(TMap<uint32, FString>& CADFileToMeshFile);
 
-	TMap<uint32, FString>& CADFileToMeshFile;
 	TArray<TArray<CADLibrary::FBodyMesh>> BodyMeshes;
 	TMap<CADUUID, CADLibrary::FBodyMesh*> MeshActorNameToBodyMesh;
 

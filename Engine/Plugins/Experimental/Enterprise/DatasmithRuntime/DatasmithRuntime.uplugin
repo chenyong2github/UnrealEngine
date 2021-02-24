@@ -22,19 +22,11 @@
 	],
 	"Plugins": [
 		{
-			"Name": "DatasmithContent",
-			"Enabled": true
-		},
-		{
 			"Name": "DatasmithImporter",
 			"Enabled": true
 		},
 		{
-			"Name": "RemoteImport",
-			"Enabled": true
-		},
-		{
-			"Name": "EditorScriptingUtilities",
+			"Name": "DatasmithCADImporter",
 			"Enabled": true
 		},
 		{
