@@ -11,6 +11,18 @@
 
 #if ENABLE_RHI_VALIDATION
 
+bool GRHIValidationEnabled = false;
+
+// When set to 1, callstack for each uniform buffer allocation will be tracked 
+// (slow and leaks memory, but can be handy to find the location where an invalid
+// allocation has been made)
+#define CAPTURE_UNIFORMBUFFER_ALLOCATION_BACKTRACES 0
+
+// When set to 1, logs resource transitions on all unnamed resources, useful for
+// tracking down missing barriers when "-RHIValidationLog" cannot be used.
+// Don't leave this enabled. Log backtraces are leaked.
+#define LOG_UNNAMED_RESOURCES 0
+
 namespace RHIValidation
 {
 	int32 GBreakOnTransitionError = 1;
@@ -21,32 +33,38 @@ namespace RHIValidation
 		TEXT(" 0: disabled;\n")
 		TEXT(" 1: break in the debugger if a validation error is encountered."),
 		ECVF_RenderThreadSafe);
+
+	// Returns an array of resource names parsed from the "-RHIValidationLog" command line switch.
+	// RHI validation logging is automatically enabled for resources whose debug names match those in this list.
+	// Multiple values are comma separated, e.g. -RHIValidationLog="SceneDepthZ,GBufferA"
+	static TArray<FString> const& GetAutoLogResourceNames()
+	{
+		struct FInit
+		{
+			TArray<FString> Strings;
+
+			FInit()
+			{
+				FString ResourceNames;
+				if (FParse::Value(FCommandLine::Get(), TEXT("-RHIValidationLog="), ResourceNames, false))
+				{
+					FString Left, Right;
+					while (ResourceNames.Split(TEXT(","), &Left, &Right))
+					{
+						Left.TrimStartAndEndInline();
+						Strings.Add(Left);
+						ResourceNames = Right;
+					}
+
+					ResourceNames.TrimStartAndEndInline();
+					Strings.Add(ResourceNames);
+				}
+			}
+		} static Init;
+
+		return Init.Strings;
+	}
 }
-
-bool GRHIValidationEnabled = false;
-
-// When set to 1, callstack for each uniform buffer allocation will be tracked 
-// (slow and leaks memory, but can be handy to find the location where an invalid
-// allocation has been made)
-#define CAPTURE_UNIFORMBUFFER_ALLOCATION_BACKTRACES 0
-
-// When set to 1, logs resource transitions on all unnamed resources, useful for
-// tracking down missing barriers when GAutoLogResourceNames cannot be used.
-// Don't leave this enabled. Log backtraces are leaked.
-#define LOG_UNNAMED_RESOURCES 0
-
-static const TCHAR* GAutoLogResourceNames[] =
-{
-	//
-	// Add resource names here to automatically enable barrier logging for those resources.
-	// e.g.
-	//  TEXT("SceneDepthZ"),
-	//
-
-	// ----------------------
-	// Add names above this line
-	nullptr
-};
 
 TSet<uint32> FValidationRHI::SeenFailureHashes;
 FCriticalSection FValidationRHI::SeenFailureHashesMutex;
@@ -677,13 +695,9 @@ namespace RHIValidation
 			// does/doesn't match one in the AutoLogResourceNames array.
 			if (Name)
 			{
-				for (int32 NameIndex = 0; NameIndex < UE_ARRAY_COUNT(GAutoLogResourceNames); ++NameIndex)
+				for (FString const& Str : GetAutoLogResourceNames())
 				{
-					const TCHAR* Str = GAutoLogResourceNames[NameIndex];
-					if (!Str)
-						break;
-
-					if (FCString::Strcmp(Name, Str) == 0)
+					if (FCString::Stricmp(Name, *Str) == 0)
 					{
 						LoggingMode = ELoggingMode::Automatic;
 						return;
@@ -848,7 +862,7 @@ namespace RHIValidation
 		State.Current.Access = DecayResourceAccess(State.Current.Access, RequiredState.Access, bAllowAllUAVsOverlap || State.bExplicitAllowUAVOverlap);
 	}
 
-	void FSubresourceState::SpecificUAVOverlap(FResource* Resource, ERHIPipeline Pipeline, FSubresourceIndex const& SubresourceIndex, bool bAllow)
+	void FSubresourceState::SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, ERHIPipeline Pipeline, bool bAllow)
 	{
 		if (Resource->LoggingMode != ELoggingMode::None
 #if LOG_UNNAMED_RESOURCES
@@ -999,8 +1013,8 @@ namespace RHIValidation
 			{
 				State.SpecificUAVOverlap(
 					Data_SpecificUAVOverlap.Identity.Resource,
-					Pipeline,
 					SubresourceIndex,
+					Pipeline,
 					Data_SpecificUAVOverlap.bAllow);
 			});
 			Data_SpecificUAVOverlap.Identity.Resource->ReleaseOpRef();

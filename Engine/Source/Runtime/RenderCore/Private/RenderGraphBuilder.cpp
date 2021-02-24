@@ -8,42 +8,64 @@
 #include "VisualizeTexture.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-template <typename FunctionType>
-inline void EnumeratePassUAVs(const FRDGPass* Pass, FunctionType Function)
+#if ENABLE_RHI_VALIDATION
+
+inline void GatherPassUAVsForOverlapValidation(const FRDGPass* Pass, TArray<FRHIUnorderedAccessView*, TInlineAllocator<MaxSimultaneousUAVs, FRDGArrayAllocator>>& OutUAVs)
 {
+	// RHI validation tracking of Begin/EndUAVOverlaps happens on the underlying resource, so we need to be careful about not
+	// passing multiple UAVs that refer to the same resource, otherwise we get double-Begin and double-End validation errors.
+	// Filter UAVs to only those with unique parent resources.
+	TArray<FRDGParentResource*, TInlineAllocator<MaxSimultaneousUAVs, FRDGArrayAllocator>> UniqueParents;
 	Pass->GetParameters().Enumerate([&](FRDGParameter Parameter)
 	{
 		if (Parameter.IsUAV())
 		{
 			if (FRDGUnorderedAccessViewRef UAV = Parameter.GetAsUAV())
 			{
-				Function(UAV->GetRHI());
+				FRDGParentResource* Parent = UAV->GetParent();
+
+				// Check if we've already seen this parent.
+				bool bFound = false;
+				for (int32 Index = 0; !bFound && Index < UniqueParents.Num(); ++Index)
+				{
+					bFound = UniqueParents[Index] == Parent;
+				}
+
+				if (!bFound)
+				{
+					UniqueParents.Add(Parent);
+					OutUAVs.Add(UAV->GetRHI());
+				}
 			}
 		}
 	});
 }
 
+#endif
+
 inline void BeginUAVOverlap(const FRDGPass* Pass, FRHIComputeCommandList& RHICmdList)
 {
 #if ENABLE_RHI_VALIDATION
-	TArray<FRHIUnorderedAccessView*, TInlineAllocator<8, FRDGArrayAllocator>> UAVs;
-	EnumeratePassUAVs(Pass, [&](FRHIUnorderedAccessView* UAV)
+	TArray<FRHIUnorderedAccessView*, TInlineAllocator<MaxSimultaneousUAVs, FRDGArrayAllocator>> UAVs;
+	GatherPassUAVsForOverlapValidation(Pass, UAVs);
+
+	if (UAVs.Num())
 	{
-		UAVs.Add(UAV);
-	});
-	RHICmdList.BeginUAVOverlap(UAVs);
+		RHICmdList.BeginUAVOverlap(UAVs);
+	}
 #endif
 }
 
 inline void EndUAVOverlap(const FRDGPass* Pass, FRHIComputeCommandList& RHICmdList)
 {
 #if ENABLE_RHI_VALIDATION
-	TArray<FRHIUnorderedAccessView*, TInlineAllocator<8, FRDGArrayAllocator>> UAVs;
-	EnumeratePassUAVs(Pass, [&](FRHIUnorderedAccessView* UAV)
+	TArray<FRHIUnorderedAccessView*, TInlineAllocator<MaxSimultaneousUAVs, FRDGArrayAllocator>> UAVs;
+	GatherPassUAVsForOverlapValidation(Pass, UAVs);
+
+	if (UAVs.Num())
 	{
-		UAVs.Add(UAV);
-	});
-	RHICmdList.EndUAVOverlap(UAVs);
+		RHICmdList.EndUAVOverlap(UAVs);
+	}
 #endif
 }
 
