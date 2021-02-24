@@ -55,7 +55,7 @@ TSharedPtr<IDNAReader> ReadDNAFromBuffer(TArray<uint8>* DNABuffer, EDNADataLayer
 void WriteDNAToFile(const IDNAReader* Reader, EDNADataLayer Layer, const FString& Path)
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
-	auto DNAFileStream = rl4::makeScoped<rl4::MemoryMappedFileStream>(TCHAR_TO_ANSI(*Path), rl4::MemoryMappedFileStream::AccessMode::Write, FMemoryResource::Instance());
+	auto DNAFileStream = rl4::makeScoped<rl4::FileStream>(TCHAR_TO_ANSI(*Path), rl4::FileStream::AccessMode::Write, rl4::FileStream::OpenMode::Binary, FMemoryResource::Instance());
 	auto DNAStreamWriter = rl4::makeScoped<dna::StreamWriter>(DNAFileStream.get(), FMemoryResource::Instance());
 	DNAStreamWriter->setFrom(Reader->Unwrap(), static_cast<dna::DataLayer>(Layer), FMemoryResource::Instance());
 	DNAStreamWriter->write();
