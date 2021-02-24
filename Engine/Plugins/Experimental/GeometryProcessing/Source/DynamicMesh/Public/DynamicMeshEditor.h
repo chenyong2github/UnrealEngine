@@ -8,80 +8,9 @@
 #include "DynamicMeshAttributeSet.h"
 #include "EdgeLoop.h"
 #include "Util/SparseIndexCollectionTypes.h"
+#include "MeshIndexMappings.h"
 
 struct FDynamicSubmesh3;
-
-/**
- * FMeshIndexMappings stores a set of integer IndexMaps for a mesh
- * This is a convenient object to have, to avoid passing around large numbers of separate maps.
- * The individual maps are not necessarily all filled by every operation.
- */
-struct DYNAMICMESH_API FMeshIndexMappings
-{
-protected:
-	FIndexMapi VertexMap;
-	FIndexMapi TriangleMap;
-	FIndexMapi GroupMap;
-
-	TArray<FIndexMapi> UVMaps;
-	TArray<FIndexMapi> NormalMaps;
-
-public:
-	/** Size internal arrays-of-maps to be suitable for this Mesh */
-	void Initialize(FDynamicMesh3* Mesh);
-
-	/** @return the value used to indicate "invalid" in the mapping */
-	constexpr int InvalidID() const { return VertexMap.UnmappedID(); }
-
-	void Reset()
-	{
-		VertexMap.Reset();
-		TriangleMap.Reset();
-		GroupMap.Reset();
-		for (FIndexMapi& UVMap : UVMaps)
-		{
-			UVMap.Reset();
-		}
-		for (FIndexMapi& NormalMap : NormalMaps)
-		{
-			NormalMap.Reset();
-		}
-	}
-
-	void ResetTriangleMap()
-	{
-		TriangleMap.Reset();
-	}
-
-	FIndexMapi& GetVertexMap() { return VertexMap; }
-	const FIndexMapi& GetVertexMap() const { return VertexMap; }
-	inline void SetVertex(int FromID, int ToID) { VertexMap.Add(FromID, ToID); }
-	inline int GetNewVertex(int FromID) const { return VertexMap.GetTo(FromID); }
-	inline bool ContainsVertex(int FromID) const { return VertexMap.ContainsFrom(FromID); }
-
-	FIndexMapi& GetTriangleMap() { return TriangleMap; }
-	const FIndexMapi& GetTriangleMap() const { return TriangleMap; }
-	void SetTriangle(int FromID, int ToID) { TriangleMap.Add(FromID, ToID); }
-	int GetNewTriangle(int FromID) const { return TriangleMap.GetTo(FromID); }
-	inline bool ContainsTriangle(int FromID) const { return TriangleMap.ContainsFrom(FromID); }
-
-	FIndexMapi& GetGroupMap() { return GroupMap; }
-	void SetGroup(int FromID, int ToID) { GroupMap.Add(FromID, ToID); }
-	int GetNewGroup(int FromID) const { return GroupMap.GetTo(FromID); }
-	inline bool ContainsGroup(int FromID) const { return GroupMap.ContainsFrom(FromID); }
-
-	FIndexMapi& GetUVMap(int UVLayer) { return UVMaps[UVLayer]; }
-	void SetUV(int UVLayer, int FromID, int ToID) { UVMaps[UVLayer].Add(FromID, ToID); }
-	int GetNewUV(int UVLayer, int FromID) const { return UVMaps[UVLayer].GetTo(FromID); }
-	inline bool ContainsUV(int UVLayer, int FromID) const { return UVMaps[UVLayer].ContainsFrom(FromID); }
-
-	FIndexMapi& GetNormalMap(int NormalLayer) { return NormalMaps[NormalLayer]; }
-	void SetNormal(int NormalLayer, int FromID, int ToID) { NormalMaps[NormalLayer].Add(FromID, ToID); }
-	int GetNewNormal(int NormalLayer, int FromID) const { return NormalMaps[NormalLayer].GetTo(FromID); }
-	inline bool ContainsNormal(int NormalLayer, int FromID) const { return NormalMaps[NormalLayer].ContainsFrom(FromID); }
-
-};
-
 
 /**
  * FDynamicMeshEditResult is used to return information about new mesh elements
@@ -139,6 +68,10 @@ public:
 		Mesh = MeshIn;
 	}
 
+	/**
+	 * Remove any vertices that are not used by any triangles
+	 */
+	bool RemoveIsolatedVertices();
 
 	//////////////////////////////////////////////////////////////////////////
 	// Create and Remove Triangle Functions
@@ -165,7 +98,7 @@ public:
 	 * @param ResultOut lists of newly created triangles/vertices/etc
 	 * @return true if operation succeeded.  If a failure occurs, any added triangles are removed via RemoveTriangles
 	 */
-	bool StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut);
+	bool StitchSparselyCorrespondedVertexLoops(const TArray<int>& VertexIDs1, const TArray<int>& MatchedIndices1, const TArray<int>& VertexIDs2, const TArray<int>& MatchedIndices2, FDynamicMeshEditResult& ResultOut, bool bReverseOrientation = false);
 
 
 	/**

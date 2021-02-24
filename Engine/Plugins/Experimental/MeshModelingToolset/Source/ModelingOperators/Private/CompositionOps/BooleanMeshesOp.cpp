@@ -36,7 +36,7 @@ void FBooleanMeshesOp::CalculateResult(FProgressCancel* Progress)
 		break;
 	case ECSGOperation::TrimA:
 	case ECSGOperation::TrimB:
-		Op = FMeshBoolean::EBooleanOp::Trim;
+		Op = FMeshBoolean::EBooleanOp::TrimInside;
 		break;
 	case ECSGOperation::Union:
 		Op = FMeshBoolean::EBooleanOp::Union;

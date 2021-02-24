@@ -61,10 +61,9 @@ public:
 
 		GenericAttributes.Reset();
 		ResetRegisteredAttributes();
-		for (int Idx = 0; Idx < Copy.GenericAttributes.Num(); Idx++)
+		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : Copy.GenericAttributes)
 		{
-			const FDynamicMeshAttributeBase* SourceAttrib = Copy.GenericAttributes[Idx].Get();
-			AttachAttribute(SourceAttrib->MakeCopy(ParentMesh));
+			AttachAttribute(AttribPair.Key, AttribPair.Value->MakeCopy(ParentMesh));
 		}
 
 		// parent mesh is *not* copied!
@@ -116,10 +115,9 @@ public:
 
 		GenericAttributes.Reset();
 		ResetRegisteredAttributes();
-		for (int Idx = 0; Idx < Copy.GenericAttributes.Num(); Idx++)
+		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : Copy.GenericAttributes)
 		{
-			const FDynamicMeshAttributeBase* SourceAttrib = Copy.GenericAttributes[Idx].Get();
-			AttachAttribute(SourceAttrib->MakeCompactCopy(CompactMaps, ParentMesh));
+			AttachAttribute(AttribPair.Key, AttribPair.Value->MakeCompactCopy(CompactMaps, ParentMesh));
 		}
 
 		// parent mesh is *not* copied!
@@ -144,9 +142,9 @@ public:
 			MaterialIDAttrib->CompactInPlace(CompactMaps);
 		}
 
-		for (int Idx = 0; Idx < GenericAttributes.Num(); Idx++)
+		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : GenericAttributes)
 		{
-			GenericAttributes[Idx]->CompactInPlace(CompactMaps);
+			AttribPair.Value->CompactInPlace(CompactMaps);
 		}
 	}
 
@@ -174,10 +172,9 @@ public:
 
 		GenericAttributes.Reset();
 		ResetRegisteredAttributes();
-		for (int Idx = 0; Idx < ToMatch.GenericAttributes.Num(); Idx++)
+		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : ToMatch.GenericAttributes)
 		{
-			const FDynamicMeshAttributeBase* SourceAttrib = ToMatch.GenericAttributes[Idx].Get();
-			AttachAttribute(SourceAttrib->MakeNew(ParentMesh));
+			AttachAttribute(AttribPair.Key, AttribPair.Value->MakeNew(ParentMesh));
 		}
 	}
 
@@ -203,9 +200,9 @@ private:
 			MaterialIDAttrib->Reparent( NewParent );
 		}
 
-		for (int Idx = 0; Idx < GenericAttributes.Num(); Idx++)
+		for (const TPair<FName, TUniquePtr<FDynamicMeshAttributeBase>>& AttribPair : GenericAttributes)
 		{
-			GenericAttributes[Idx]->Reparent( NewParent );
+			AttribPair.Value->Reparent( NewParent );
 		}
 	}
 
@@ -340,21 +337,43 @@ public:
 	}
 
 	// Attach a new attribute (and transfer ownership of it to the attribute set)
-	int AttachAttribute(FDynamicMeshAttributeBase* Attribute)
+	void AttachAttribute(FName AttribName, FDynamicMeshAttributeBase* Attribute)
 	{
-		int AttributeID = GenericAttributes.Add(TUniquePtr<FDynamicMeshAttributeBase>(Attribute));
+		if (GenericAttributes.Contains(AttribName))
+		{
+			UnregisterExternalAttribute(GenericAttributes[AttribName].Get());
+		}
+		GenericAttributes.Add(AttribName, TUniquePtr<FDynamicMeshAttributeBase>(Attribute));
 		RegisterExternalAttribute(Attribute);
-		return AttributeID;
 	}
 
-	FDynamicMeshAttributeBase* GetAttachedAttribute(int AttributeID)
+	void RemoveAttribute(FName AttribName)
 	{
-		return GenericAttributes[AttributeID].Get();
+		if (GenericAttributes.Contains(AttribName))
+		{
+			UnregisterExternalAttribute(GenericAttributes[AttribName].Get());
+			GenericAttributes.Remove(AttribName);
+		}
 	}
 
-	int NumAttachedAttributes()
+	FDynamicMeshAttributeBase* GetAttachedAttribute(FName AttribName) const
+	{
+		return GenericAttributes[AttribName].Get();
+	}
+
+	int NumAttachedAttributes() const
 	{
 		return GenericAttributes.Num();
+	}
+
+	bool HasAttachedAttribute(FName AttribName) const
+	{
+		return GenericAttributes.Contains(AttribName);
+	}
+
+	const TMap<FName, TUniquePtr<FDynamicMeshAttributeBase>>& GetAttachedAttributes() const
+	{
+		return GenericAttributes;
 	}
 
 protected:
@@ -369,7 +388,7 @@ protected:
 
 	TUniquePtr<FDynamicMeshMaterialAttribute> MaterialIDAttrib;
 
-	TArray<TUniquePtr<FDynamicMeshAttributeBase>> GenericAttributes;
+	TMap<FName, TUniquePtr<FDynamicMeshAttributeBase>> GenericAttributes;
 
 protected:
 	friend class FDynamicMesh3;

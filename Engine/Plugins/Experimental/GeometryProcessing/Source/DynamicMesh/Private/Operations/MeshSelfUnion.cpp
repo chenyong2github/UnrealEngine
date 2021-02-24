@@ -11,6 +11,7 @@
 
 #include "Async/ParallelFor.h"
 #include "MeshTransforms.h"
+#include "Spatial/SparseDynamicOctree3.h"
 
 #include "Algo/RemoveIf.h"
 
@@ -18,6 +19,16 @@
 
 bool FMeshSelfUnion::Compute()
 {
+	// transform the mesh to a shared space (centered at the origin, and scaled to a unit cube)
+	FAxisAlignedBox3d AABB = Mesh->GetCachedBounds();
+	double ScaleFactor = 1.0 / FMath::Clamp(AABB.MaxDim(), 0.01, 1000000.0);
+	FTransform3d TransformToCenteredBox = FTransform3d::Identity();
+	TransformToCenteredBox.SetTranslation(ScaleFactor * (TransformToCenteredBox.GetTranslation() - AABB.Center()));
+	TransformToCenteredBox.SetScale(ScaleFactor * FVector3d::One());
+	MeshTransforms::ApplyTransform(*Mesh, TransformToCenteredBox);
+	FTransform3d ResultTransform(AABB.Center());
+	ResultTransform.SetScale((1.0 / ScaleFactor) * FVector3d::One());
+
 	// build spatial data and use it to find intersections
 	FDynamicMeshAABBTree3 Spatial(Mesh);
 	Spatial.SetTolerance(SnapTolerance);
@@ -173,9 +184,15 @@ bool FMeshSelfUnion::Compute()
 			}
 			FVector3d Centroid = Mesh->GetTriCentroid(TID);
 
+			double WindingNum = Winding.FastWindingNumber(Centroid + Normals[TID] * NormalOffset);
+			bool bKeep = WindingNum < WindingThreshold; // keep if the outside of the tri is outside the shape
+			if (bTrimFlaps && bKeep) // trimming flaps == also check that the inside of the tri is inside the shape
+			{
+				bKeep = Winding.FastWindingNumber(Centroid - Normals[TID] * NormalOffset) > WindingThreshold;
+			}
 			
-			
-			// first check for the coplanar case
+			// if triangle is a candidate for keeping, check for the coplanar case
+			if (bKeep)
 			{
 				double DSq;
 				int MyComponentID = TriToComponentID[TID];
@@ -191,19 +208,19 @@ bool FMeshSelfUnion::Compute()
 					double DotNormals = Normals[OtherTID].Dot(Normals[TID]);
 					//if (FMath::Abs(DotNormals) > .9) // TODO: do we actually want to check for a normal match? coplanar vertex check below is more robust?
 					{
-						// To be extra sure it's a coplanar match, check the vertices are *also* on the other mesh (w/in SnapTolerance)
+						// To be extra sure it's a coplanar match, check the vertices are *also* on the other connected component (w/in SnapTolerance)
 						FTriangle3d Tri;
 						Mesh->GetTriVertices(TID, Tri.V[0], Tri.V[1], Tri.V[2]);
-						bool bAllTrisOnOtherMesh = true;
+						bool bAllTrisOnOtherComponent = true;
 						for (int Idx = 0; Idx < 3; Idx++)
 						{
 							if (Spatial.FindNearestTriangle(Tri.V[Idx], DSq, QueryOptions) == FDynamicMesh3::InvalidID)
 							{
-								bAllTrisOnOtherMesh = false;
+								bAllTrisOnOtherComponent = false;
 								break;
 							}
 						}
-						if (bAllTrisOnOtherMesh)
+						if (bAllTrisOnOtherComponent)
 						{
 							if (DotNormals < 0)
 							{
@@ -211,23 +228,18 @@ bool FMeshSelfUnion::Compute()
 							}
 							else
 							{
+								// for two coplanar components with matching normals,
+								// just keep tris from the component with lower ID
 								int OtherComponentID = TriToComponentID[OtherTID];
-								bool bKeep = MyComponentID < OtherComponentID;
-								KeepTri[TID] = bKeep;
+								bool bHasPriority = MyComponentID < OtherComponentID;
+								KeepTri[TID] = bHasPriority;
 							}
 							return;
 						}
 					}
 				}
 			}
-
-			// didn't already return a coplanar result; use the winding number
-			double WindingNum = Winding.FastWindingNumber(Centroid + Normals[TID] * NormalOffset);
-			bool bKeep = WindingNum < WindingThreshold;
-			if (bTrimFlaps && bKeep)
-			{
-				bKeep = Winding.FastWindingNumber(Centroid - Normals[TID] * NormalOffset) > WindingThreshold;
-			}
+			// didn't already return a coplanar result; use the winding-number-based decision
 			KeepTri[TID] = bKeep;
 		});
 
@@ -267,6 +279,42 @@ bool FMeshSelfUnion::Compute()
 	{
 		PointHash.InsertPointUnsafe(BoundaryVID, Mesh->GetVertex(BoundaryVID));
 	}
+
+	FSparseDynamicOctree3 EdgeOctree;
+	EdgeOctree.RootDimension = .25;
+	EdgeOctree.SetMaxTreeDepth(7);
+	auto EdgeBounds = [this](int EID)
+	{
+		FDynamicMesh3::FEdge Edge = Mesh->GetEdge(EID);
+		FVector3d A = Mesh->GetVertex(Edge.Vert.A);
+		FVector3d B = Mesh->GetVertex(Edge.Vert.B);
+		if (A.X > B.X)
+		{
+			Swap(A.X, B.X);
+		}
+		if (A.Y > B.Y)
+		{
+			Swap(A.Y, B.Y);
+		}
+		if (A.Z > B.Z)
+		{
+			Swap(A.Z, B.Z);
+		}
+		return FAxisAlignedBox3d(A, B);
+	};
+	auto AddEdge = [&EdgeOctree, EdgeBounds](int EID)
+	{
+		EdgeOctree.InsertObject(EID, EdgeBounds(EID));
+	};
+	auto UpdateEdge = [&EdgeOctree, EdgeBounds](int EID)
+	{
+		EdgeOctree.ReinsertObject(EID, EdgeBounds(EID));
+	};
+	for (int EID : CutBoundaryEdges)
+	{
+		AddEdge(EID);
+	}
+	TArray<int> EdgesInRange;
 	
 	// mapping of all accepted correspondences of boundary vertices (both ways -- so if A is connected to B we add both A->B and B->A) 
 	TMap<int, int> FoundMatches;
@@ -346,7 +394,11 @@ bool FMeshSelfUnion::Compute()
 			if (NearestVID == FDynamicMesh3::InvalidID)
 			{
 				// vertex had no match -- try to split edge to match it
-				int OtherEID = FindNearestEdge(CutBoundaryEdges, BoundaryNbrEdges, Pos);
+				FAxisAlignedBox3d QueryBox(Pos, SnapTolerance);
+				EdgesInRange.Reset();
+				EdgeOctree.RangeQuery(QueryBox, EdgesInRange);
+
+				int OtherEID = FindNearestEdge(EdgesInRange, BoundaryNbrEdges, Pos);
 				if (OtherEID != FDynamicMesh3::InvalidID)
 				{
 					FVector3d EdgePts[2];
@@ -363,6 +415,8 @@ bool FMeshSelfUnion::Compute()
 							FoundMatches.Add(BoundaryVID, SplitInfo.NewVertex);
 							Mesh->SetVertex(SplitInfo.NewVertex, Pos);
 							CutBoundaryEdges.Add(SplitInfo.NewEdges.A);
+							UpdateEdge(OtherEID);
+							AddEdge(SplitInfo.NewEdges.A);
 							// Note: Do not update PossUnmatchedBdryVerts with the new vertex, because it is already matched by construction
 							// Likewise do not update the pointhash -- we don't want it to find vertices that were already perfectly matched
 						}
@@ -383,14 +437,203 @@ bool FMeshSelfUnion::Compute()
 		Mesh->SetVertex(Match.Value, Mesh->GetVertex(Match.Key));
 	}
 
+
+	if (bSimplifyAlongNewEdges)
+	{
+		SimplifyAlongNewEdges(CutBoundaryEdges, FoundMatches);
+	}
+
 	if (Cancelled())
 	{
 		return false;
 	}
 
-	bool bWeldSuccess = MergeEdges(CutBoundaryEdges, FoundMatches);
+	bool bWeldSuccess = true;
+	if (bWeldSharedEdges)
+	{
+		bWeldSuccess = MergeEdges(CutBoundaryEdges, FoundMatches);
+	}
+
+	if (bTrackAllNewEdges)
+	{
+		for (int32 eid : CreatedBoundaryEdges)
+		{
+			AllNewEdges.Add(eid);
+		}
+	}
+
+	MeshTransforms::ApplyTransform(*Mesh, ResultTransform);
 
 	return bWeldSuccess;
+}
+
+
+void FMeshSelfUnion::SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<int, int>& FoundMatches)
+{
+	double DotTolerance = FMathd::Cos(SimplificationAngleTolerance * FMathd::DegToRad);
+
+	TSet<int> CutBoundaryEdgeSet; // set version of CutBoundaryEdges, for faster membership tests
+	CutBoundaryEdgeSet.Append(CutBoundaryEdges);
+
+	int NumCollapses = 0, CollapseIters = 0;
+	int MaxCollapseIters = 1; // TODO: is there a case where we need more iterations?  Perhaps if we add some triangle quality criteria?
+	while (CollapseIters < MaxCollapseIters)
+	{
+		int LastNumCollapses = NumCollapses;
+		for (int EID : CutBoundaryEdges)
+		{
+			// this can happen if a collapse removes another cut boundary edge
+			// (which can happen e.g. if you have a degenerate (colinear) tri flat on the cut boundary)
+			if (!Mesh->IsEdge(EID))
+			{
+				continue;
+			}
+
+			FDynamicMesh3::FEdge Edge = Mesh->GetEdge(EID);
+
+			int Matches[2]{ -1, -1 };
+			bool bHasMatches = true;
+			for (int MatchIdx = 0; MatchIdx < 2; MatchIdx++)
+			{
+				int* Match = FoundMatches.Find(Edge.Vert[MatchIdx]);
+				if (Match)
+				{
+					Matches[MatchIdx] = *Match;
+				}
+				else
+				{
+					bHasMatches = false;
+					// TODO: if we switch to allow collapse on unmatched edges, we shouldn't break here
+					//        b/c we may be partially matched, and need to track which is matched.
+					break;
+				}
+			}
+			if (!bHasMatches)
+			{
+				continue; // edge wasn't matched up; can't collapse it?
+				// TODO: consider supporting collapses in this case?
+			}
+
+			// if we have matched vertices, we also need a matched edge to collapse
+			int MatchEID = Mesh->FindEdge(Matches[0], Matches[1]);
+			if (MatchEID == -1)
+			{
+				continue;
+			}
+
+			// track whether the neighborhood of the vertex is flat (and likewise its matched pair's neighborhood, if present)
+			bool Flat[2]{ false, false };
+			// normals for each flat vertex, and each "side" (EID side and MatchEID side)
+			FVector3d FlatNormals[2][2]{ {FVector3d::Zero(), FVector3d::Zero()}, {FVector3d::Zero(), FVector3d::Zero()} };
+			int NumFlat = 0;
+			for (int VIdx = 0; VIdx < 2; VIdx++)
+			{
+				Flat[VIdx] = FMeshBoolean::IsFlat(*Mesh, Edge.Vert[VIdx], DotTolerance, FlatNormals[VIdx][0]) 
+						  && FMeshBoolean::IsFlat(*Mesh, Matches[VIdx], DotTolerance, FlatNormals[VIdx][1]);
+
+				if (Flat[VIdx])
+				{
+					NumFlat++;
+				}
+			}
+
+			if (NumFlat == 0)
+			{
+				continue;
+			}
+
+			// see if we can collapse to remove either vertex
+			for (int RemoveVIdx = 0; RemoveVIdx < 2; RemoveVIdx++)
+			{
+				if (!Flat[RemoveVIdx])
+				{
+					continue;
+				}
+				int KeepVIdx = 1 - RemoveVIdx;
+				// Note: positions are exactly the same on matched edges because snapping has already happened
+				FVector3d RemoveVPos = Mesh->GetVertex(Edge.Vert[RemoveVIdx]);
+				FVector3d KeepVPos = Mesh->GetVertex(Edge.Vert[KeepVIdx]);
+				FVector3d EdgeDir = KeepVPos - RemoveVPos;
+				if (EdgeDir.Normalize() == 0) // 0 is returned as a special case when the edge was too short to normalize
+				{
+					// collapsing degenerate edges above should prevent this
+					ensure(!bCollapseDegenerateEdgesOnCut);
+					// Just skip these edges, because in practice we generally have bCollapseDegenerateEdgesOnCut enabled
+					break; // break instead of continue to skip the whole edge
+				}
+
+				bool bHasBadEdge = false; // will be set if either mesh can't collapse the edge
+				for (int WhichEdge = 0; !bHasBadEdge && WhichEdge < 2; WhichEdge++) // same processing on EID and on MatchEID
+				{
+					int RemoveV = WhichEdge == 0 ? Edge.Vert[RemoveVIdx] : Matches[RemoveVIdx];
+					int KeepV = WhichEdge == 0 ? Edge.Vert[KeepVIdx] : Matches[KeepVIdx];
+					int SourceEID = WhichEdge == 0 ? EID : MatchEID;
+
+					bHasBadEdge = bHasBadEdge || FMeshBoolean::CollapseWouldHurtTriangleQuality(
+						*Mesh, FlatNormals[RemoveVIdx][WhichEdge], RemoveV, RemoveVPos, KeepV, KeepVPos, TryToImproveTriQualityThreshold);
+
+					bHasBadEdge = bHasBadEdge || FMeshBoolean::CollapseWouldChangeShapeOrUVs(
+						*Mesh, CutBoundaryEdgeSet, DotTolerance,
+						SourceEID, RemoveV, RemoveVPos, KeepV, KeepVPos, EdgeDir,
+						true, bPreserveVertexUVs, bPreserveOverlayUVs, UVDistortTolerance * UVDistortTolerance);
+				}
+
+				if (bHasBadEdge)
+				{
+					continue;
+				}
+
+				FDynamicMesh3::FEdgeCollapseInfo CollapseInfo;
+				int RemoveV = Edge.Vert[RemoveVIdx];
+				int KeepV = Edge.Vert[KeepVIdx];
+				EMeshResult CollapseResult = Mesh->CollapseEdge(KeepV, RemoveV, 0, CollapseInfo);
+				if (CollapseResult == EMeshResult::Ok)
+				{
+					int OtherRemoveV = Matches[RemoveVIdx];
+					int OtherKeepV = Matches[KeepVIdx];
+					FDynamicMesh3::FEdgeCollapseInfo OtherCollapseInfo;
+					EMeshResult OtherCollapseResult = Mesh->CollapseEdge(OtherKeepV, OtherRemoveV, 0, OtherCollapseInfo);
+					if (OtherCollapseResult != EMeshResult::Ok)
+					{
+						// if we get here, we've somehow managed to collapse the first edge but failed on the second (matched) edge
+						// which will leave a crack in the result unless we can somehow undo the first collapse, which would require a bunch of extra work
+						// but the only case where I could see this happen is if the second edge is on an isolated triangle, which means there is a hole anyway
+						// or if the mesh topology is somehow invalid
+						ensure(OtherCollapseResult == EMeshResult::Failed_CollapseTriangle);
+					}
+					else
+					{
+						FoundMatches.Remove(OtherRemoveV);
+						CutBoundaryEdgeSet.Remove(OtherCollapseInfo.CollapsedEdge);
+						CutBoundaryEdgeSet.Remove(OtherCollapseInfo.RemovedEdges[0]);
+						if (OtherCollapseInfo.RemovedEdges[1] != -1)
+						{
+							CutBoundaryEdgeSet.Remove(OtherCollapseInfo.RemovedEdges[1]);
+						}
+					}
+
+					NumCollapses++;
+					FoundMatches.Remove(RemoveV);
+					CutBoundaryEdgeSet.Remove(CollapseInfo.CollapsedEdge);
+					CutBoundaryEdgeSet.Remove(CollapseInfo.RemovedEdges[0]);
+					if (CollapseInfo.RemovedEdges[1] != -1)
+					{
+						CutBoundaryEdgeSet.Remove(CollapseInfo.RemovedEdges[1]);
+					}
+				}
+				break; // if we got through to trying to collapse the edge, don't try to collapse from the other vertex.
+			}
+		}
+
+		CutBoundaryEdges = CutBoundaryEdgeSet.Array();
+
+		if (NumCollapses == LastNumCollapses)
+		{
+			break;
+		}
+
+		CollapseIters++;
+	}
 }
 
 
@@ -430,6 +673,14 @@ bool FMeshSelfUnion::MergeEdges(const TArray<int>& CutBoundaryEdges, const TMap<
 
 		FDynamicMesh3::FMergeEdgesInfo MergeInfo;
 		EMeshResult EdgeMergeResult = Mesh->MergeEdges(Candidate.A, Candidate.B, MergeInfo);
+
+		if (EdgeMergeResult == EMeshResult::Ok)
+		{
+			if (bTrackAllNewEdges)
+			{
+				AllNewEdges.Add(Candidate.A);
+			}
+		}
 	}
 
 	// collect remaining unmatched edges
@@ -472,6 +723,10 @@ bool FMeshSelfUnion::MergeEdges(const TArray<int>& CutBoundaryEdges, const TMap<
 				if (EdgeMergeResult == EMeshResult::Ok)
 				{
 					UnmatchedEdges.RemoveAtSwap(OtherIdx, 1, false);
+					if (bTrackAllNewEdges)
+					{
+						AllNewEdges.Add(EID);
+					}
 					break;
 				}
 			}

@@ -6,6 +6,7 @@
 
 #include "Voronoi/Voronoi.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "MeshDescription.h"
 
 struct PLANARCUT_API FNoiseSettings
 {
@@ -33,7 +34,7 @@ struct PLANARCUT_API FInternalSurfaceMaterials
 	void SetUVScaleFromCollection(const FGeometryCollection& Collection, int32 GeometryIdx = -1);
 
 	
-	int32 GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx = -1);
+	int32 GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx = -1) const;
 };
 
 // Stores planar facets that divide space into cells
@@ -56,10 +57,15 @@ struct PLANARCUT_API FPlanarCells
 	TArray<TArray<int32>> PlaneBoundaries;
 	TArray<FVector> PlaneBoundaryVertices;
 
-	// most cellular complexes we're interested in lend themselves to reasonably-fast ways to go directly from a point in space to a cell classification, so we don't try to compute it directly from this generic representation
-	TFunction<int32(FVector)> CellFromPosition;
-
 	FInternalSurfaceMaterials InternalSurfaceMaterials;
+
+	/**
+	 * @return true if this is a single, unbounded cutting plane
+	 */
+	bool IsInfinitePlane() const
+	{
+		return NumCells == 2 && Planes.Num() == 1 && PlaneBoundaries[0].Num() == 0;
+	}
 	
 	/**
 	 * Debugging function to check that the plane boundary vertices are wound to match the orientation of the plane normal vectors
@@ -108,14 +114,6 @@ struct PLANARCUT_API FPlanarCells
 		return true;
 	}
 
-	void EmptyGeometricData()
-	{
-		PlaneCells.Empty();
-		PlaneBoundaries.Empty();
-		PlaneBoundaryVertices.Empty();
-		Planes.Empty();
-	}
-
 	inline void AddPlane(const FPlane &P, int32 CellIdxBehind, int32 CellIdxInFront)
 	{
 		Planes.Add(P);
@@ -136,11 +134,6 @@ struct PLANARCUT_API FPlanarCells
 	}
 };
 
-// helper function that interpolates the standard vertex attributes in a reasonable way
-void PLANARCUT_API DefaultVertexInterpolation(const FGeometryCollection& V0Collection, int32 V0, const FGeometryCollection& V1Collection, int32 V1, float T, int32 VOut, FGeometryCollection& Dest);
-
-// TODO: this functionality shouldn't live in this api probably; get it from geometry processing modules or something else?
-void PLANARCUT_API ComputeTriangleNormals(const TArrayView<const FVector> Vertices, const TArrayView<const FIntVector> Triangles, TArray<FVector>& TriangleNormals);
 
 /**
  * Cut a Geometry inside a GeometryCollection with PlanarCells, and add each cut cell back to the GeometryCollection as a new child of the input Geometry.  For geometries that would not be cut, nothing is added.
@@ -148,21 +141,23 @@ void PLANARCUT_API ComputeTriangleNormals(const TArrayView<const FVector> Vertic
  * @param Cells				Defines the cutting planes and division of space
  * @param Collection		The collection to be cut
  * @param TransformIdx		Which transform inside the collection to cut
- * @param TransformCells	Optional transform of the planar cut; if unset, defaults to Identity
+ * @param Grout				Separation to leave between cutting cells
+ * @param CollisionSampleSpacing	Target spacing between collision sample vertices	
+ * @param TransformCollection		Optional transform of the whole geometry collection; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param CheckDistanceAcrossOutsideCellForProximity	If > 0, when a plane is neighboring the "outside" cell, instead of setting proximity to the outside cell, the algo will sample a point this far outside the cell in the normal direction of the plane to see if there is actually a non-outside cell there.  (Useful for bricks w/out mortar)
- * @param VertexInterpolate	Function that interpolates vertex properties (UVs, normals, etc); a default that handles all the normal vertex properties is provided, should only need to replace this if you have custom attributes
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
 int32 PLANARCUT_API CutWithPlanarCells(
 	FPlanarCells &Cells,
 	FGeometryCollection& Collection,
 	int32 TransformIdx,
-	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
+	double Grout,
+	double CollisionSampleSpacing,
+	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
 	float CheckDistanceAcrossOutsideCellForProximity = 0,
-	bool bSetDefaultInternalMaterialsFromCollection = true,
-	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
+	bool bSetDefaultInternalMaterialsFromCollection = true
 );
 
 /**
@@ -171,21 +166,23 @@ int32 PLANARCUT_API CutWithPlanarCells(
  * @param Cells				Defines the cutting planes and division of space
  * @param Collection		The collection to be cut
  * @param TransformIndices	Which transform groups inside the collection to cut
- * @param TransformCells	Optional transform of the planar cut; if unset, defaults to Identity
+ * @param Grout				Separation to leave between cutting cells
+ * @param CollisionSampleSpacing	Target spacing between collision sample vertices
+ * @param TransformCollection		Optional transform of the whole geometry collection; if unset, defaults to Identity
  * @param bIncludeOutsideCellInOutput	If true, geometry that was not inside any of the cells (e.g. was outside of the bounds of all cutting geometry) will still be included in the output; if false, it will be discarded.
  * @param CheckDistanceAcrossOutsideCellForProximity	If > 0, when a plane is neighboring the "outside" cell, instead of setting proximity to the outside cell, the algo will sample a point this far outside the cell in the normal direction of the plane to see if there is actually a non-outside cell there.  (Useful for bricks w/out mortar)
- * @param VertexInterpolate	Function that interpolates vertex properties (UVs, normals, etc); a default that handles all the normal vertex properties is provided, should only need to replace this if you have custom attributes
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
 int32 PLANARCUT_API CutMultipleWithPlanarCells(
 	FPlanarCells &Cells,
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
-	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
+	double Grout,
+	double CollisionSampleSpacing,
+	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
 	bool bIncludeOutsideCellInOutput = true,
-	float CheckDistanceAcrossOutsideCellForProximity = 0,
-	bool bSetDefaultInternalMaterialsFromCollection = true,
-	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
+	float CheckDistanceAcrossOutsideCellForProximity = 0,  // TODO: < this param does nothing in the new mode; is only needed in special cases that aren't possible in the UI currently
+	bool bSetDefaultInternalMaterialsFromCollection = true
 );
 
 /**
@@ -195,9 +192,9 @@ int32 PLANARCUT_API CutMultipleWithPlanarCells(
  * @param InternalSurfaceMaterials	Defines material properties for any added internal surfaces
  * @param Collection			The collection to be cut
  * @param TransformIndices	Which transform groups inside the collection to cut
- * @param TransformCells	Optional transform of the planar cut; if unset, defaults to Identity
- * @param bFlattenToSingleLayer If true, only add one layer overall to the hierarchy even if some geometry is cut multiple times.
- * @param VertexInterpolate	Function that interpolates vertex properties (UVs, normals, etc); a default that handles all the normal vertex properties is provided, should only need to replace this if you have custom attributes
+ * @param Grout				Separation to leave between cutting cells
+ * @param CollisionSampleSpacing	Target spacing between collision sample vertices
+ * @param TransformCollection		Optional transform of the whole geometry collection; if unset, defaults to Identity
  * @return	index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
  */
 int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
@@ -205,8 +202,44 @@ int32 PLANARCUT_API CutMultipleWithMultiplePlanes(
 	FInternalSurfaceMaterials& InternalSurfaceMaterials,
 	FGeometryCollection& Collection,
 	const TArrayView<const int32>& TransformIndices,
-	const TOptional<FTransform>& TransformCells = TOptional<FTransform>(),
-	bool bFlattenToSingleLayer = true,
-	bool bSetDefaultInternalMaterialsFromCollection = true,
-	TFunction<void(const FGeometryCollection&, int32, const FGeometryCollection&, int32, float, int32, FGeometryCollection&)> VertexInterpolate = DefaultVertexInterpolation
+	double Grout,
+	double CollisionSampleSpacing,
+	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
+	bool bSetDefaultInternalMaterialsFromCollection = true
 );
+
+
+/**
+ * Scatter additional vertices (w/ no associated triangle) as needed to satisfy minimum point spacing
+ * 
+ * @param TargetSpacing		The desired spacing between collision sample vertices
+ * @param Collection		The Geometry Collection to be updated
+ * @param TransformIndices	Which transform groups on the Geometry Collection to be updated.  If empty, all groups are updated.
+ * @return Index of first transform group w/ updated geometry.  (To update geometry we delete and re-add, because geometry collection isn't designed for in-place updates)
+ */
+int32 PLANARCUT_API AddCollisionSampleVertices(double TargetSpacing, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices = TArrayView<const int32>());
+
+/**
+ * Cut multiple Geometry groups inside a GeometryCollection with Planes, and add each cut cell back to the GeometryCollection as a new child of their source Geometry.  For geometries that would not be cut, nothing is added.
+ * 
+ * @param CuttingMesh				Mesh to be used to cut the geometry collection
+ * @param CuttingMeshTransform		Position of cutting mesh
+ * @param InternalSurfaceMaterials	Defines material properties for any added internal surfaces
+ * @param Collection				The collection to be cut
+ * @param TransformIndices			Which transform groups inside the collection to cut
+ * @param CollisionSampleSpacing	Target spacing between collision sample vertices
+ * @param TransformCollection		Optional transform of the collection; if unset, defaults to Identity
+ * @return index of first new geometry in the Output GeometryCollection, or -1 if no geometry was added
+ */
+int32 PLANARCUT_API CutWithMesh(
+	FMeshDescription* CuttingMesh,
+	FTransform CuttingMeshTransform,
+	FInternalSurfaceMaterials& InternalSurfaceMaterials,
+	FGeometryCollection& Collection,
+	const TArrayView<const int32>& TransformIndices,
+	double CollisionSampleSpacing,
+	const TOptional<FTransform>& TransformCollection = TOptional<FTransform>(),
+	bool bSetDefaultInternalMaterialsFromCollection = true
+);
+
+

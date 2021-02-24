@@ -358,24 +358,43 @@ public:
 	}
 
 	/** @return enumerable object for one-ring vertex neighbours of a vertex, suitable for use with range-based for, ie for ( int i : VtxVerticesItr(VertexID) ) */
-	FSmallListSet::ValueEnumerable VtxVerticesItr(int VertexID) const
+	FSmallListSet::MappedValueEnumerable VtxVerticesItr(int VertexID) const
 	{
-		check(VertexRefCounts.IsValid(VertexID));
-		return VertexEdgeLists.Values(VertexID,
-		                              [VertexID, this](int eid) { return GetOtherEdgeVertex(eid, VertexID); });
+		checkSlow(VertexRefCounts.IsValid(VertexID));
+		return VertexEdgeLists.MappedValues(VertexID,
+			[VertexID, this](int eid) { return GetOtherEdgeVertex(eid, VertexID); });
 	}
+
+	/** Call VertexFunc for each one-ring vertex neighbour of a vertex. Currently this is more efficient than VtxVerticesItr() due to overhead in the Values() enumerable */
+	void EnumerateVertexVertices(int32 VertexID, TFunctionRef<void(int32)> VertexFunc) const
+	{
+		checkSlow(VertexRefCounts.IsValid(VertexID));
+		VertexEdgeLists.Enumerate(VertexID, [this, &VertexFunc, VertexID](int32 eid)
+		{
+			VertexFunc(GetOtherEdgeVertex(eid, VertexID));
+		});
+	}
+
 
 	/** @return enumerable object for one-ring edges of a vertex, suitable for use with range-based for, ie for ( int i : VtxEdgesItr(VertexID) ) */
 	FSmallListSet::ValueEnumerable VtxEdgesItr(int VertexID) const
 	{
-		check(VertexRefCounts.IsValid(VertexID));
+		checkSlow(VertexRefCounts.IsValid(VertexID));
 		return VertexEdgeLists.Values(VertexID);
 	}
+
+	/** Call EdgeFunc for each one-ring edge of a vertex. Currently this is more efficient than VtxEdgesItr() due to overhead in the Values() enumerable */
+	void EnumerateVertexEdges(int32 VertexID, TFunctionRef<void(int32)> EdgeFunc) const
+	{
+		checkSlow(VertexRefCounts.IsValid(VertexID));
+		VertexEdgeLists.Enumerate(VertexID, EdgeFunc);
+	}
+
 
 	/** @return enumerable object for one-ring triangles of a vertex, suitable for use with range-based for, ie for ( int i : VtxTrianglesItr(VertexID) ) */
 	vtx_triangles_enumerable VtxTrianglesItr(int VertexID) const
 	{
-		check(VertexRefCounts.IsValid(VertexID));
+		checkSlow(VertexRefCounts.IsValid(VertexID));
 		return vtx_triangles_enumerable(VertexEdgeLists.Values(VertexID), [this, VertexID](int EdgeID) {
 			return GetOrderedOneRingEdgeTris(VertexID, EdgeID);
 		});
@@ -460,7 +479,7 @@ public:
 	/** @return the vertex position */
 	inline FVector3d GetVertex(int VertexID) const
 	{
-		check(IsVertex(VertexID));
+		checkSlow(IsVertex(VertexID));
 		return Vertices[VertexID];
 	}
 
@@ -468,7 +487,7 @@ public:
 	inline void SetVertex(int VertexID, const FVector3d& vNewPos)
 	{
 		checkSlow(VectorUtil::IsFinite(vNewPos));
-		check(IsVertex(VertexID));
+		checkSlow(IsVertex(VertexID));
 		if (VectorUtil::IsFinite(vNewPos))
 		{
 			Vertices[VertexID] = vNewPos;
@@ -484,7 +503,7 @@ public:
 	void SetVertex_NoTimeStampUpdate(int VertexID, const FVector3d& vNewPos)
 	{
 		checkSlow(VectorUtil::IsFinite(vNewPos));
-		check(IsVertex(VertexID));
+		checkSlow(IsVertex(VertexID));
 
 		if (VectorUtil::IsFinite(vNewPos))
 		{
@@ -531,21 +550,21 @@ public:
 	/** Get triangle vertices */
 	inline FIndex3i GetTriangle(int TriangleID) const
 	{
-		check(IsTriangle(TriangleID));
+		checkSlow(IsTriangle(TriangleID));
 		return Triangles[TriangleID];
 	}
 
 	/** Get triangle edges */
 	inline FIndex3i GetTriEdges(int TriangleID) const
 	{
-		check(IsTriangle(TriangleID));
+		checkSlow(IsTriangle(TriangleID));
 		return TriangleEdges[TriangleID];
 	}
 
 	/** Get one of the edges of a triangle */
 	inline int GetTriEdge(int TriangleID, int j) const
 	{
-		check(IsTriangle(TriangleID));
+		checkSlow(IsTriangle(TriangleID));
 		return TriangleEdges[TriangleID][j];
 	}
 
@@ -570,21 +589,21 @@ public:
 	/** Get the vertices and triangles of an edge, returned as [v0,v1,t0,t1], where t1 may be InvalidID */
 	inline FEdge GetEdge(int EdgeID) const
 	{
-		check(IsEdge(EdgeID));
+		checkSlow(IsEdge(EdgeID));
 		return Edges[EdgeID];
 	}
 
 	/** Get the vertex pair for an edge */
 	inline FIndex2i GetEdgeV(int EdgeID) const
 	{
-		check(IsEdge(EdgeID));
+		checkSlow(IsEdge(EdgeID));
 		return Edges[EdgeID].Vert;
 	}
 
 	/** Get the vertex positions of an edge */
 	inline bool GetEdgeV(int EdgeID, FVector3d& a, FVector3d& b) const
 	{
-		check(IsEdge(EdgeID));
+		checkSlow(IsEdge(EdgeID));
 
 		const FIndex2i Verts = Edges[EdgeID].Vert;
 
@@ -597,7 +616,7 @@ public:
 	/** Get the triangle pair for an edge. The second triangle may be InvalidID */
 	inline FIndex2i GetEdgeT(int EdgeID) const
 	{
-		check(IsEdge(EdgeID));
+		checkSlow(IsEdge(EdgeID));
 		return Edges[EdgeID].Tri;
 	}
 
@@ -730,7 +749,7 @@ public:
 	/** Returns true if edge is on the mesh boundary, ie only connected to one triangle */
 	inline bool IsBoundaryEdge(int EdgeID) const
 	{
-		check(IsEdge(EdgeID));
+		checkSlow(IsEdge(EdgeID));
 		return Edges[EdgeID].Tri[1] == InvalidID;
 	}
 

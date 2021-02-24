@@ -53,35 +53,17 @@ void MeshIndexUtil::TriangleToVertexIDs(const FDynamicMesh3* Mesh, const TArray<
 
 void MeshIndexUtil::VertexToTriangleOneRing(const FDynamicMesh3* Mesh, const TArray<int>& VertexIDs, TSet<int>& TriangleIDsOut)
 {
-	int NumVerts = VertexIDs.Num();
+	// for a TSet it is more efficient to just try to add each triangle twice, than it is to
+	// try to avoid duplicate adds with more complex mesh queries
+	int32 NumVerts = VertexIDs.Num();
 	TriangleIDsOut.Reserve( (NumVerts < 5) ? NumVerts*6 : NumVerts*4);
-	TArray<int32> OneRingT;  // temp storage
-	OneRingT.Reserve(16);
-
-	//auto AddFunc = [&](int32 TriID)
-	//{
-	//	TriangleIDsOut.Add(TriID);
-	//};
-
-	for (int k = 0; k < NumVerts; ++k)
+	for (int32 vid : VertexIDs)
 	{
-		if (Mesh->IsVertex(VertexIDs[k]))
+		Mesh->EnumerateVertexEdges(vid, [&](int32 eid) 
 		{
-			// slowest
-			//for (int TriID : Mesh->VtxTrianglesItr(VertexIDs[k]))
-			//{
-			//	TriangleIDsOut.Add(TriID);
-			//}
-
-			OneRingT.SetNum(0, false);
-			Mesh->GetVertexOneRingTriangles(VertexIDs[k], OneRingT);
-			for (int TriID : OneRingT)
-			{
-				TriangleIDsOut.Add(TriID);
-			}
-
-			// slightly slower?
-			//Mesh->EnumerateVertexTriangles(VertexIDs[k], AddFunc);
-		}
+			FIndex2i EdgeT = Mesh->GetEdgeT(eid);
+			TriangleIDsOut.Add(EdgeT.A);
+			if (EdgeT.B != IndexConstants::InvalidID) TriangleIDsOut.Add(EdgeT.B);
+		});
 	}
 }

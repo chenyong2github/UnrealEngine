@@ -101,6 +101,35 @@ public:
 
 
 	/**
+	 * Test if the cell containing Position is empty. This function is thread-safe.
+	 * Can be used to skip a more expensive range search, in some cases.
+	 * 
+	 * @return true if the cell containing Position is empty
+	 */
+	bool IsCellEmpty(const FVector3<RealType>& Position)
+	{
+		FVector3i Idx = Indexer.ToGrid(Position);
+		{
+			FScopeLock Lock(&CriticalSection);
+			return !Hash.Contains(Idx);
+		}
+	}
+
+
+	/**
+	 * Test if the whole cell containing Position is empty, without locking / thread-safety
+	 * Can be used to skip a more expensive range search, in some cases.
+	 * 
+	 * @return true if the cell containing Position is empty
+	 */
+	bool IsCellEmptyUnsafe(const FVector3<RealType>& Position)
+	{
+		FVector3i Idx = Indexer.ToGrid(Position);
+		return !Hash.Contains(Idx);
+	}
+
+
+	/**
 	 * Move value from old to new position. This function is thread-safe.
 	 * @param Value the point/value to update
 	 * @param OldPosition the current position associated with this value
@@ -117,7 +146,7 @@ public:
 		bool bWasAtOldPos;
 		{
 			FScopeLock Lock(&CriticalSection);
-			bWasAtOldPos = Hash.RemoveSingle(old_idx, Value);
+			bWasAtOldPos = Hash.RemoveSingle(old_idx, Value) == 1;
 		}
 		check(bWasAtOldPos);
 		{
@@ -203,6 +232,63 @@ public:
 
 		return TPair<PointDataType, RealType>(nearest, min_distsq);
 	}
+
+
+	/**
+	 * Find all points in grid within a given sphere, without locking / thread-safety.
+	 * @param QueryPoint the center of the query sphere
+	 * @param Radius the radius of the query sphere
+	 * @param DistanceSqFunc Function you provide which measures the squared distance between QueryPoint and a Value
+	 * @param ResultsOut Array of output points in sphere
+	 * @param IgnoreFunc optional Function you may provide which will result in a Value being ignored if IgnoreFunc(Value) returns true
+	 * @return the number of found points
+	 */
+	int FindPointsInBall(
+		const FVector3<RealType>& QueryPoint, RealType Radius,
+		TFunctionRef<RealType(const PointDataType&)> DistanceSqFunc,
+		TArray<PointDataType>& ResultsOut,
+		TFunctionRef<bool(const PointDataType&)> IgnoreFunc = [](const PointDataType& data) { return false; }) const
+	{
+		if (!Hash.Num())
+		{
+			return 0;
+		}
+
+		FVector3i min_idx = Indexer.ToGrid(QueryPoint - Radius * FVector3<RealType>::One());
+		FVector3i max_idx = Indexer.ToGrid(QueryPoint + Radius * FVector3<RealType>::One());
+
+		RealType RadiusSquared = Radius * Radius;
+
+		TArray<PointDataType> Values;
+		for (int zi = min_idx.Z; zi <= max_idx.Z; zi++)
+		{
+			for (int yi = min_idx.Y; yi <= max_idx.Y; yi++)
+			{
+				for (int xi = min_idx.X; xi <= max_idx.X; xi++)
+				{
+					FVector3i idx(xi, yi, zi);
+					Values.Reset();
+					Hash.MultiFind(idx, Values);
+					for (PointDataType Value : Values)
+					{
+						if (IgnoreFunc(Value))
+						{
+							continue;
+						}
+						RealType distsq = DistanceSqFunc(Value);
+						if (distsq < RadiusSquared)
+						{
+							ResultsOut.Add(Value);
+						}
+					}
+				}
+			}
+		}
+
+		return ResultsOut.Num();
+	}
+
+
 };
 
 template <typename PointDataType> using TPointHashGrid3d = TPointHashGrid3<PointDataType, double>;

@@ -10,6 +10,7 @@
 #include "Operations/MeshPlaneCut.h"
 #include "ConstrainedDelaunay2.h"
 
+const FName FPlaneCutOp::ObjectIndexAttribute = "ObjectIndexAttribute";
 
 void FPlaneCutOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;
@@ -41,7 +42,7 @@ void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)
 	if (bKeepBothHalves)
 	{
 		int MaxSubObjectID = -1;
-		TDynamicMeshScalarTriangleAttribute<int>* SubObjectAttrib = static_cast<TDynamicMeshScalarTriangleAttribute<int>*>(ResultMesh->Attributes()->GetAttachedAttribute(SubObjectsAttribIndex));
+		TDynamicMeshScalarTriangleAttribute<int>* SubObjectAttrib = static_cast<TDynamicMeshScalarTriangleAttribute<int>*>(ResultMesh->Attributes()->GetAttachedAttribute(ObjectIndexAttribute));
 		for (int TID : ResultMesh->TriangleIndicesItr())
 		{
 			MaxSubObjectID = FMath::Max(MaxSubObjectID, SubObjectAttrib->GetValue(TID));
@@ -96,7 +97,7 @@ void FPlaneCutOp::CalculateResult(FProgressCancel* Progress)
 	}
 	if (bFillCutHole && bKeepBothHalves)
 	{
-		TDynamicMeshScalarTriangleAttribute<int>* SubObjectAttrib = static_cast<TDynamicMeshScalarTriangleAttribute<int>*>(ResultMesh->Attributes()->GetAttachedAttribute(SubObjectsAttribIndex));
+		TDynamicMeshScalarTriangleAttribute<int>* SubObjectAttrib = static_cast<TDynamicMeshScalarTriangleAttribute<int>*>(ResultMesh->Attributes()->GetAttachedAttribute(ObjectIndexAttribute));
 		Cut.TransferTriangleLabelsToHoleFillTriangles(SubObjectAttrib);
 	}
 }

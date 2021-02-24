@@ -3,6 +3,7 @@
 #pragma once
 
 #include "DynamicMesh3.h"
+#include "MeshIndexMappings.h"
 
 template<typename ParentType>
 class TDynamicAttributeBase;
@@ -79,6 +80,20 @@ public:
 	
 	/** Update any held pointer to the parent */
 	virtual void Reparent(ParentType* NewParent) = 0;
+
+	/**
+	  * Copy data from a different attribute to this one, using the mesh index mapping to determine the correspondence 
+	  * @param Source copy attribute data from this source
+	  * @param Mapping the correspondence from Source's parent to this attribute's parent 
+	  * @return true if the copy succeeded, false otherwise (e.g. false if the data from the source attribute was not compatible and the CopyOut failed to copy across)
+	  */
+	virtual bool CopyThroughMapping(const TDynamicAttributeBase* Source, const FMeshIndexMappings& Mapping) = 0;
+
+	/** Generic function to copy data out of an attribute; it's up to the derived class to map RawID to chunks of attribute data */
+	virtual bool CopyOut(int RawID, void* Buffer, int BufferSize) const = 0;
+
+	/** Generic function to copy data in to an attribute; it's up to the derived class to map RawID to chunks of attribute data */
+	virtual bool CopyIn(int RawID, void* Buffer, int BufferSize) = 0;
 
 	virtual void OnNewVertex(int VertexID, bool bInserted)
 	{
@@ -169,6 +184,11 @@ protected:
 	void RegisterExternalAttribute(TDynamicAttributeBase<ParentType>* Attribute)
 	{
 		RegisteredAttributes.Add(Attribute);
+	}
+
+	void UnregisterExternalAttribute(TDynamicAttributeBase<ParentType>* Attribute)
+	{
+		RegisteredAttributes.Remove(Attribute);
 	}
 
 	void ResetRegisteredAttributes()
