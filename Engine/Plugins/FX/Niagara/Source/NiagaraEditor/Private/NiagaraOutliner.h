@@ -44,9 +44,8 @@ class UNiagaraOutliner : public UObject
 
 public:
 	DECLARE_MULTICAST_DELEGATE(FOnChanged);
+	
 	FOnChanged OnSettingsChangedDelegate;
-
-	DECLARE_MULTICAST_DELEGATE(FOnChanged);
 	FOnChanged OnDataChangedDelegate;
 
 	//UObject Interface
