@@ -800,12 +800,14 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 
 			if (!FunctionCallNode->FunctionScript->NoteMessage.IsEmptyOrWhitespace())
 			{
-				NewIssues.Add(FStackIssue(
-                    EStackIssueSeverity::Info,
-                    LOCTEXT("ModuleScriptNoteShort", "Module Usage Note"),
-                    FunctionCallNode->FunctionScript->NoteMessage,
-                    GetStackEditorDataKey(),
-                    true));
+				FStackIssue NoteIssue = FStackIssue(
+					EStackIssueSeverity::Info,
+					LOCTEXT("ModuleScriptNoteShort", "Module Usage Note"),
+					FunctionCallNode->FunctionScript->NoteMessage,
+					GetStackEditorDataKey(),
+					true);
+				NoteIssue.SetIsExpandedByDefault(false);
+				NewIssues.Add(NoteIssue);
 			}
 		}
 

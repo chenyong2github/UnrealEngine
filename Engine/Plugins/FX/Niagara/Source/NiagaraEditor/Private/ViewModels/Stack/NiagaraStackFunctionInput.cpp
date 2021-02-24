@@ -642,12 +642,14 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 				if (!FunctionScript->NoteMessage.IsEmptyOrWhitespace())
 				{
-					NewIssues.Add(FStackIssue(
-                        EStackIssueSeverity::Info,
-                        LOCTEXT("DynamicInputScriptNoteShort", "Input Usage Note"),
-                        FunctionScript->NoteMessage,
-                        GetStackEditorDataKey(),
-                        true));
+					FStackIssue NoteIssue = FStackIssue(
+						EStackIssueSeverity::Info,
+						LOCTEXT("DynamicInputScriptNoteShort", "Input Usage Note"),
+						FunctionScript->NoteMessage,
+						GetStackEditorDataKey(),
+						true);
+					NoteIssue.SetIsExpandedByDefault(false);
+					NewIssues.Add(NoteIssue);
 				}
 			}
 			NewChildren.Add(DynamicInputEntry);
