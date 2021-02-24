@@ -8,6 +8,7 @@
 
 #include "Modules/ModuleManager.h"
 #include "LevelEditor.h"
+#include "LevelEditorViewport.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "MovieSceneCommonHelpers.h"
@@ -325,6 +326,47 @@ void ULevelSequenceEditorBlueprintLibrary::SetLockLevelSequence(bool bLock)
 
 			Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::Unknown);
 		}
+	}
+}
+
+bool ULevelSequenceEditorBlueprintLibrary::IsCameraCutLockedToViewport()
+{
+	if (CurrentSequencer.IsValid())
+	{
+		TSharedPtr<ISequencer> Sequencer = CurrentSequencer.Pin();
+		return Sequencer->IsPerspectiveViewportCameraCutEnabled();
+	}
+
+	return false;
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SetLockCameraCutToViewport(bool bLock)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		TSharedPtr<ISequencer> Sequencer = CurrentSequencer.Pin();
+
+		if (bLock)
+		{
+			for(FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+			{
+				if (LevelVC && LevelVC->AllowsCinematicControl() && LevelVC->GetViewMode() != VMI_Unknown)
+				{
+					LevelVC->SetActorLock(nullptr);
+					LevelVC->bLockedCameraView = false;
+					LevelVC->UpdateViewForLockedActor();
+					LevelVC->Invalidate();
+				}
+			}
+			Sequencer->SetPerspectiveViewportCameraCutEnabled(true);
+		}
+		else
+		{
+			Sequencer->UpdateCameraCut(nullptr, EMovieSceneCameraCutParams());
+			Sequencer->SetPerspectiveViewportCameraCutEnabled(false);
+		}
+
+		Sequencer->ForceEvaluate();
 	}
 }
 

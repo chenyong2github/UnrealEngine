@@ -165,6 +165,16 @@ public:
 
 public:
 
+	/** Check whether the lock for the viewport to the camera cuts is enabled. */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static bool IsCameraCutLockedToViewport();
+
+	/** Sets the lock for the viewport to the camera cuts. */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SetLockCameraCutToViewport(bool bLock);
+
+public:
+
 	/*
 	 * Callbacks
 	 */
