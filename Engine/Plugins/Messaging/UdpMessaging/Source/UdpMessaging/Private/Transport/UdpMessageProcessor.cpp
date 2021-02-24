@@ -723,11 +723,15 @@ void FUdpMessageProcessor::RemoveKnownNode(const FGuid& NodeId)
 	KnownNodes.Remove(NodeId);
 }
 
+int32 GetMaxSendRate()
+{
+	const uint32 OneGbitPerSecondInBytes = 125000000;
+	return static_cast< uint32 > ( GetDefault<UUdpMessagingSettings>()->MaxSendRate * OneGbitPerSecondInBytes );
+}
 
 void FUdpMessageProcessor::UpdateKnownNodes()
 {
-	// Estimated max send bytes per seconds
-	const uint32 MaxSendRate = 125000000;
+	const uint32 MaxSendRate = GetMaxSendRate();
 
 	// Remove dead nodes
 	FTimespan DeadHelloTimespan = DeadHelloIntervals * Beacon->GetBeaconInterval();

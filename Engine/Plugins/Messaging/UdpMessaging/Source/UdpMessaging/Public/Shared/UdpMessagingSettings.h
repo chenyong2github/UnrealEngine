@@ -65,6 +65,21 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
 	bool bAutoRepair = true;
 
+	/** 
+	 * Maximum sustained transmission rate in Gbit / s. 
+	 *
+	 * The default value is 1 Gbit/s.
+	 *
+	 * This is to control transmission of larger packages over the network. Without a limit, it is
+	 * possible for packet data loss to occur because more data may be sent then may be supported
+	 * by your network card.
+	 *
+	 * Adjust this value higher or lower depending on your network capacity.
+	 *
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
+	float MaxSendRate = 1.0f;
+
 	/** The number of consecutive attempt the auto repair routine will try to repair. */
 	UPROPERTY(config, EditAnywhere, Category = Transport, AdvancedDisplay)
 	uint32 AutoRepairAttemptLimit = 10;
