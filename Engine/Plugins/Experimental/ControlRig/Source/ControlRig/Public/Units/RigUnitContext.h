@@ -50,7 +50,7 @@ struct FRigUnitContext
 	/** The draw interface for the units to use */
 	FControlRigDrawInterface* DrawInterface;
 
-	/** The auxiliary draw container for the units to use */
+	/** The draw container for the units to use */
 	FControlRigDrawContainer* DrawContainer;
 
 	/** The registry to access data source */

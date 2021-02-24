@@ -102,8 +102,11 @@ public:
 	/* Show rigidbodies */
 	TSharedPtr< FUICommandInfo > ShowRigidBodies;
 
-	/* Show auxiliary elements */
-	TSharedPtr< FUICommandInfo > ShowAuxiliaryElements;
+	/* Show sockets */
+	TSharedPtr< FUICommandInfo > ShowSockets;
+
+	/* Show dynamic hierarchy */
+	TSharedPtr< FUICommandInfo > ShowDynamicHierarchy;
 
 	/**
 	 * Initialize commands

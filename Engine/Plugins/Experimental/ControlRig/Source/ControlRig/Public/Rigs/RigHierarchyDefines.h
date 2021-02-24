@@ -22,8 +22,8 @@ enum class ERigElementType : uint8
 	Control = 0x004,
 	Curve = 0x008,
 	RigidBody = 0x010,
-	Auxiliary = 0x020,
-	All = Bone | Space | Control | Curve | RigidBody | Auxiliary UMETA(Hidden),
+	Socket = 0x020,
+	All = Bone | Space | Control | Curve | RigidBody | Socket UMETA(Hidden),
 };
 
 UENUM(BlueprintType)
@@ -889,9 +889,9 @@ public:
 			{
 				return FString::Printf(TEXT("RigidBody(%s)"), *Name.ToString());
 			}
-			case ERigElementType::Auxiliary:
+			case ERigElementType::Socket:
 			{
-				return FString::Printf(TEXT("Auxiliary(%s)"), *Name.ToString());
+				return FString::Printf(TEXT("Socket(%s)"), *Name.ToString());
 			}
 		}
 		return FString();

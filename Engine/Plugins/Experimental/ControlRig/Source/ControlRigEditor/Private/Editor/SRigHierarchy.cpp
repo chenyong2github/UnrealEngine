@@ -45,7 +45,20 @@
 FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchy> InHierarchyHandler)
 {
 	Key = InKey;
+	bIsTransient = false;
+
+	if(InHierarchyHandler.IsValid())
+	{
+		if(URigHierarchy* Hierarchy = InHierarchyHandler.Pin()->GetDebuggedHierarchy())
+		{
+			if(FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Key))
+			{
+				bIsTransient = ControlElement->Settings.bIsTransientControl;
+			}
+		}
+	}
 }
+
 
 TSharedRef<ITableRow> FRigTreeElement::MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy)
 {
@@ -175,9 +188,9 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, TSharedPtr<FControlR
 			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.RigidBody");
 			break;
 		}
-		case ERigElementType::Auxiliary:
+		case ERigElementType::Socket:
 		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Auxiliary");
+			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Socket");
 			break;
 		}
 		default:
@@ -220,6 +233,11 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, TSharedPtr<FControlR
 
 FText SRigHierarchyItem::GetName() const
 {
+	if(WeakRigTreeElement.Pin()->bIsTransient)
+	{
+		static const FText TemporaryControl = FText::FromString(TEXT("Temporary Control"));
+		return TemporaryControl;
+	}
 	return (FText::FromName(WeakRigTreeElement.Pin()->Key.Name));
 }
 
@@ -287,6 +305,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 
 	ControlRigBlueprint->Hierarchy->OnModified().AddRaw(this, &SRigHierarchy::OnHierarchyModified);
 	ControlRigBlueprint->OnRefreshEditor().AddRaw(this, &SRigHierarchy::HandleRefreshEditorFromBlueprint);
+	ControlRigBlueprint->OnSetObjectBeingDebugged().AddRaw(this, &SRigHierarchy::HandleSetObjectBeingDebugged);
 
 	// for deleting, renaming, dragging
 	CommandList = MakeShared<FUICommandList>();
@@ -429,8 +448,9 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 	bShowControls = true;
 	bShowSpaces = true;
 	bShowRigidBodies = true;
-	bShowAuxiliaryElements = true;
+	bShowSockets = true;
 	bIsChangingRigHierarchy = false;
+	bShowDynamicHierarchy = false;
 	RefreshTreeView();
 
 	if (ControlRigEditor.IsValid())
@@ -572,10 +592,16 @@ void SRigHierarchy::BindCommands()
 		FIsActionChecked::CreateLambda([this]() { return bShowRigidBodies; }));
 
 	CommandList->MapAction(
-		Commands.ShowAuxiliaryElements,
-		FExecuteAction::CreateLambda([this]() { bShowAuxiliaryElements = !bShowAuxiliaryElements; RefreshTreeView(); }),
+		Commands.ShowSockets,
+		FExecuteAction::CreateLambda([this]() { bShowSockets = !bShowSockets; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowAuxiliaryElements; }));
+		FIsActionChecked::CreateLambda([this]() { return bShowSockets; }));
+
+	CommandList->MapAction(
+		Commands.ShowDynamicHierarchy,
+		FExecuteAction::CreateLambda([this]() { bShowDynamicHierarchy = !bShowDynamicHierarchy; RefreshTreeView(); }),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]() { return bShowDynamicHierarchy; }));
 }
 
 FReply SRigHierarchy::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -656,6 +682,12 @@ void SRigHierarchy::RefreshTreeView()
 	if (ControlRigBlueprint.IsValid())
 	{
 		URigHierarchy* Hierarchy = GetHierarchy();
+
+		if(bShowDynamicHierarchy && ControlRigBeingDebuggedPtr.IsValid())
+		{
+			Hierarchy = ControlRigBeingDebuggedPtr->GetHierarchy();
+        }
+
 		check(Hierarchy);
 
 		Hierarchy->Traverse([&](FRigBaseElement* Element, bool& bContinue)
@@ -701,12 +733,12 @@ void SRigHierarchy::RefreshTreeView()
                     }
                     break;
                 }
-				case ERigElementType::Auxiliary:
+				case ERigElementType::Socket:
 				{
-                    if(bShowAuxiliaryElements)
+                    if(bShowSockets)
                     {
-                        FRigAuxiliaryElement* AuxiliaryElement = CastChecked<FRigAuxiliaryElement>(Element);
-                        AddElement(AuxiliaryElement);
+                        FRigSocketElement* Socket = CastChecked<FRigSocketElement>(Element);
+                        AddElement(Socket);
                     }
                     break;
                 }
@@ -997,6 +1029,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 			return;
 		}
 
+		/*
 		if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
 		{
 			if(ControlElement->Settings.bIsTransientControl)
@@ -1004,7 +1037,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 				return;
 			}
 		}
-
+		*/
 	}
 
 	switch(InNotif)
@@ -1060,6 +1093,33 @@ void SRigHierarchy::HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlu
 	RefreshTreeView();
 }
 
+void SRigHierarchy::HandleSetObjectBeingDebugged(UObject* InObject)
+{
+	if(ControlRigBeingDebuggedPtr.Get() == InObject)
+	{
+		return;
+	}
+
+	if(ControlRigBeingDebuggedPtr.IsValid())
+	{
+		if(UControlRig* ControlRigBeingDebugged = ControlRigBeingDebuggedPtr.Get())
+		{
+			if(!ControlRigBeingDebugged->HasAnyFlags(RF_BeginDestroyed))
+			{
+				ControlRigBeingDebugged->GetHierarchy()->OnModified().RemoveAll(this);
+			}
+		}
+	}
+
+	ControlRigBeingDebuggedPtr.Reset();
+	
+	if(UControlRig* ControlRig = Cast<UControlRig>(InObject))
+	{
+		ControlRigBeingDebuggedPtr = ControlRig;
+		ControlRig->GetHierarchy()->OnModified().AddSP(this, &SRigHierarchy::OnHierarchyModified);
+	}
+}
+
 void SRigHierarchy::ClearDetailPanel() const
 {
 	ControlRigEditor.Pin()->ClearDetailObject();
@@ -1075,6 +1135,7 @@ TSharedRef< SWidget > SRigHierarchy::CreateFilterMenu()
 	MenuBuilder.BeginSection("FilterOptions", LOCTEXT("OptionsMenuHeading", "Options"));
 	{
 		MenuBuilder.AddMenuEntry(Actions.FilteringFlattensHierarchy);
+		MenuBuilder.AddMenuEntry(Actions.ShowDynamicHierarchy);
 		//MenuBuilder.AddMenuEntry(Actions.HideParentsWhenFiltering);
 	}
 	MenuBuilder.EndSection();
@@ -1664,10 +1725,24 @@ bool SRigHierarchy::CanRenameItem() const
 {
 	if(IsSingleSelected())
 	{
-		if(GetSelectedKeys()[0].Type == ERigElementType::RigidBody ||
-			GetSelectedKeys()[0].Type == ERigElementType::Auxiliary)
+		const FRigElementKey Key = GetSelectedKeys()[0];
+		if(Key.Type == ERigElementType::RigidBody ||
+			Key.Type == ERigElementType::Socket)
 		{
 			return false;
+		}
+		if(Key.Type == ERigElementType::Control)
+		{
+			if(URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
+			{
+				if(FRigControlElement* ControlElement = DebuggedHierarchy->Find<FRigControlElement>(Key))
+				{
+					if(ControlElement->Settings.bIsTransientControl)
+					{
+						return false;
+					}
+				}
+			}
 		}
 		return true;
 	}
@@ -1833,7 +1908,7 @@ URigHierarchy* SRigHierarchy::GetDebuggedHierarchy() const
 {
 	if (ControlRigBlueprint.IsValid())
 	{
-		if (UControlRig* DebuggedRig = Cast<UControlRig>(ControlRigBlueprint->GetObjectBeingDebugged()))
+		if (UControlRig* DebuggedRig = ControlRigBeingDebuggedPtr.Get())
 		{
 			return DebuggedRig->GetHierarchy();
 		}
@@ -1920,7 +1995,7 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 			case ERigElementType::Control:
 			case ERigElementType::Space:
 			case ERigElementType::RigidBody:
-			case ERigElementType::Auxiliary:
+			case ERigElementType::Socket:
 			{
 				for (const FRigElementKey& DraggedKey : RigDragDropOp->GetElements())
 				{
@@ -1929,7 +2004,7 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 						case ERigElementType::Control:
 						case ERigElementType::Space:
 						case ERigElementType::RigidBody:
-						case ERigElementType::Auxiliary:
+						case ERigElementType::Socket:
 						{
 							break;
 						}

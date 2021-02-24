@@ -30,6 +30,7 @@ public:
 public:
 	/** Element Data to display */
 	FRigElementKey Key;
+	bool bIsTransient;
 	TArray<TSharedPtr<FRigTreeElement>> Children;
 
 	TSharedRef<ITableRow> MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
@@ -80,7 +81,7 @@ private:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
-	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
+ 	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
 	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
 
 private:
@@ -259,8 +260,11 @@ private:
 	/** Whether or not to show rigidbodies in the hierarchy */
 	bool bShowRigidBodies;
 
-	/** Whether or not to show auxiliary elements in the hierarchy */
-	bool bShowAuxiliaryElements;
+	/** Whether or not to show sockets in the hierarchy */
+	bool bShowSockets;
+
+	/** Whether or not to show the static or dynamic hierarchy */
+	bool bShowDynamicHierarchy;
 
 	/** Search box widget */
 	TSharedPtr<SSearchBox> FilterBox;
@@ -284,6 +288,7 @@ private:
 	TMap<FRigElementKey, FRigElementKey> ParentMap;
 
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprint;
+	TWeakObjectPtr<UControlRig> ControlRigBeingDebuggedPtr;
 	
 	/** Command list we bind to */
 	TSharedPtr<FUICommandList> CommandList;
@@ -323,6 +328,7 @@ private:
 	bool bIsChangingRigHierarchy;
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
+	void HandleSetObjectBeingDebugged(UObject* InObject);
 
 	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
 	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey(), const bool bIgnoreTextFilter = false);
@@ -334,5 +340,6 @@ public:
 	FName RenameElement(const FRigElementKey& OldKey, const FString& NewName);
 	bool OnVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage);
 
+	friend class FRigTreeElement;
 	friend class SRigHierarchyItem;
 };

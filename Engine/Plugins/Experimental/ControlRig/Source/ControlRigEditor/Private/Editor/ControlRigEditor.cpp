@@ -1192,9 +1192,9 @@ void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement)
 			StructToDisplay = MakeShareable(new FStructOnScope(FRigRigidBodyElement::StaticStruct(), (uint8*)Element));
 			break;
 		}
-		case ERigElementType::Auxiliary:
+		case ERigElementType::Socket:
 		{
-			StructToDisplay = MakeShareable(new FStructOnScope(FRigAuxiliaryElement::StaticStruct(), (uint8*)Element));
+			StructToDisplay = MakeShareable(new FStructOnScope(FRigSocketElement::StaticStruct(), (uint8*)Element));
 			break;
 		}
 		default:

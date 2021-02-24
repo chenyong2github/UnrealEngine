@@ -506,20 +506,20 @@ void FRigRigidBodyElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESeriali
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// FRigAuxiliaryElement
+// FRigSocketElement
 ////////////////////////////////////////////////////////////////////////////////
 
-void FRigAuxiliaryElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
+void FRigSocketElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
 	Super::Save(Ar, Hierarchy, SerializationPhase);
 }
 
-void FRigAuxiliaryElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
+void FRigSocketElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializationPhase SerializationPhase)
 {
 	Super::Load(Ar, Hierarchy, SerializationPhase);
 }
 
-FTransform FRigAuxiliaryElement::GetAuxiliaryWorldTransform(const FRigUnitContext* InContext, bool bInitial) const
+FTransform FRigSocketElement::GetSocketWorldTransform(const FRigUnitContext* InContext, bool bInitial) const
 {
 	if(GetWorldTransformDelegate.IsBound())
 	{
@@ -528,11 +528,11 @@ FTransform FRigAuxiliaryElement::GetAuxiliaryWorldTransform(const FRigUnitContex
 	return FTransform::Identity;
 }
 
-void FRigAuxiliaryElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
+void FRigSocketElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial)
 {
 	Super::CopyPose(InOther, bCurrent, bInitial);
 	
-	if(FRigAuxiliaryElement* Other = Cast<FRigAuxiliaryElement>(InOther))
+	if(FRigSocketElement* Other = Cast<FRigSocketElement>(InOther))
 	{
 		if(Other->GetWorldTransformDelegate.IsBound())
 		{

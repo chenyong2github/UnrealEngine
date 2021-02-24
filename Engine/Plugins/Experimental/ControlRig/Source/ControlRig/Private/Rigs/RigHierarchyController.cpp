@@ -323,8 +323,8 @@ FRigElementKey URigHierarchyController::AddRigidBody(FName InName, FRigElementKe
 	return NewElement->Key;
 }
 
-FRigElementKey URigHierarchyController::AddAuxiliaryElement(FName InName, FRigElementKey InParent,
-	FRigAuxiliaryElementGetWorldTransformDelegate InDelegate, bool bSetupUndo)
+FRigElementKey URigHierarchyController::AddSocket(FName InName, FRigElementKey InParent,
+	FRigSocketGetWorldTransformDelegate InDelegate, bool bSetupUndo)
 {
 	if(!IsValid())
 	{
@@ -335,13 +335,13 @@ FRigElementKey URigHierarchyController::AddAuxiliaryElement(FName InName, FRigEl
 	TSharedPtr<FScopedTransaction> TransactionPtr;
 	if(bSetupUndo)
 	{
-		TransactionPtr = MakeShared<FScopedTransaction>(NSLOCTEXT("RigHierarchyController", "Add Auxiliary Element", "Add Auxiliary Element"));
+		TransactionPtr = MakeShared<FScopedTransaction>(NSLOCTEXT("RigHierarchyController", "Add Socket", "Add Socket"));
 		Hierarchy->Modify();
 	}
 #endif
 
-	FRigAuxiliaryElement* NewElement = new FRigAuxiliaryElement();
-	NewElement->Key.Type = ERigElementType::Auxiliary;
+	FRigSocketElement* NewElement = new FRigSocketElement();
+	NewElement->Key.Type = ERigElementType::Socket;
 	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
 	NewElement->GetWorldTransformDelegate = InDelegate;
 	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), true);
@@ -754,10 +754,10 @@ FString URigHierarchyController::ExportToText(TArray<FRigElementKey> InKeys) con
 				FRigRigidBodyElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
 				break;
 			}
-			case ERigElementType::Auxiliary:
+			case ERigElementType::Socket:
 			{
-				FRigAuxiliaryElement DefaultElement;
-				FRigAuxiliaryElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
+				FRigSocketElement DefaultElement;
+				FRigSocketElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
 				break;
 			}
 			default:
@@ -869,10 +869,10 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 				FRigRigidBodyElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigRigidBodyElement::StaticStruct()->GetName(), true);
 				break;
 			}
-			case ERigElementType::Auxiliary:
+			case ERigElementType::Socket:
 			{
-				NewElement = new FRigAuxiliaryElement();
-				FRigAuxiliaryElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigAuxiliaryElement::StaticStruct()->GetName(), true);
+				NewElement = new FRigSocketElement();
+				FRigSocketElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigSocketElement::StaticStruct()->GetName(), true);
 				break;
 			}
 			default:

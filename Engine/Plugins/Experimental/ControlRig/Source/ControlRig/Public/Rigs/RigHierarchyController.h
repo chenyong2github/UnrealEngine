@@ -166,17 +166,17 @@ public:
     	bool bSetupUndo = false);
 
 	/**
-	* Adds an auxiliary element to the hierarchy
-	* @param InName The suggested name of the new auxiliary element - will eventually be corrected by the namespace
-	* @param InParent The (optional) parent of the new auxiliary element. If you don't need a parent, pass FRigElementKey()
+	* Adds an socket to the hierarchy
+	* @param InName The suggested name of the new socket - will eventually be corrected by the namespace
+	* @param InParent The (optional) parent of the new socket. If you don't need a parent, pass FRigElementKey()
 	* @param InDelegate The delegate to use to pull the local transform
 	* @param bSetupUndo If set to true the stack will record the change for undo / redo
-	* @return The key for the newly created auxiliary element.
+	* @return The key for the newly created socket.
 	*/
-    FRigElementKey AddAuxiliaryElement(
+    FRigElementKey AddSocket(
         FName InName,
         FRigElementKey InParent,
-        FRigAuxiliaryElementGetWorldTransformDelegate InDelegate,
+        FRigSocketGetWorldTransformDelegate InDelegate,
         bool bSetupUndo = false);
 
 	/**

@@ -60,9 +60,9 @@ public:
 	void CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial);
 
 	/**
-	 * Update all elements that depend on auxiliary data
+	 * Update all elements that depend on external sockets
 	 */
-	void UpdateAuxiliaryElements(const FRigUnitContext* InContext);
+	void UpdateSockets(const FRigUnitContext* InContext);
 
 	/**
 	 * Resets the current pose of a filtered lost if elements to the initial / ref pose.
@@ -597,22 +597,22 @@ public:
 	}
 
 	/**
-	 * Returns all Auxiliary elements
+	 * Returns all sockets
 	 * @param bTraverse Returns the elements in order of a depth first traversal
 	 */
-	FORCEINLINE TArray<FRigAuxiliaryElement*> GetAuxiliaryElements(bool bTraverse = false) const
+	FORCEINLINE TArray<FRigSocketElement*> GetSockets(bool bTraverse = false) const
 	{
-		return GetElementsOfType<FRigAuxiliaryElement>(bTraverse);
+		return GetElementsOfType<FRigSocketElement>(bTraverse);
 	}
 
 	/**
-	 * Returns all Auxiliary elements
+	 * Returns all sockets
 	 * @param bTraverse Returns the elements in order of a depth first traversal
 	 */
-	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Auxiliarys", ScriptName = "GetAuxiliaryElements"))
-    FORCEINLINE TArray<FRigElementKey> GetAuxiliaryKeys(bool bTraverse = true) const
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Sockets", ScriptName = "GetSockets"))
+    FORCEINLINE TArray<FRigElementKey> GetSocketKeys(bool bTraverse = true) const
 	{
-		return GetKeysOfType<FRigAuxiliaryElement>(bTraverse);
+		return GetKeysOfType<FRigSocketElement>(bTraverse);
 	}
 
 	/**

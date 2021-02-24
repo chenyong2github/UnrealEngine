@@ -561,7 +561,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	if(DynamicHierarchy)
 	{
 		// if we have any aux elements dirty them
-		DynamicHierarchy->UpdateAuxiliaryElements(&Context);
+		DynamicHierarchy->UpdateSockets(&Context);
 	}
 
 #if WITH_EDITOR
@@ -1325,6 +1325,7 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey
 		}
 	}
 	Settings.bIsTransientControl = true;
+	Settings.DisplayName = TEXT("Temporary Control");
 
 	FRigElementKey Parent;
 	if(SpaceKey.IsValid() && SpaceKey.Type == ERigElementType::Bone)
@@ -1445,6 +1446,7 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 
 	FRigControlSettings Settings;
 	Settings.bIsTransientControl = true;
+	Settings.DisplayName = TEXT("Temporary Control");
 
 	FRigElementKey Parent;
 	switch (InElement.Type)

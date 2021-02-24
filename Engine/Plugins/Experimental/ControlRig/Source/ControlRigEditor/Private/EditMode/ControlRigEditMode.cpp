@@ -1837,7 +1837,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
             	case ERigElementType::Curve:
             	case ERigElementType::Control:
             	case ERigElementType::RigidBody:
-            	case ERigElementType::Auxiliary:
+            	case ERigElementType::Socket:
 				{
 					const bool bSelected = InNotif == ERigHierarchyNotification::ElementSelected;
 					if (bSelected)
