@@ -199,6 +199,7 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 		FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(*ActorPackageName);
 		if (bLoadForPIE)
 		{
+			check(DestPackage);
 			::LoadPackageAsync(PackagePath, FName(*ActorPackageInstanceNames[ChildIndex]), CompletionCallback, nullptr, PKG_PlayInEditor, DestPackage->PIEInstanceID, 0, InOutInstancingContext);
 		}
 		else
