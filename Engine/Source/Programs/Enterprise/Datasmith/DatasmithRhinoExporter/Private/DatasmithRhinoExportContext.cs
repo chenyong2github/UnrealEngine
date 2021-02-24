@@ -455,6 +455,7 @@ namespace DatasmithRhino
 					&& RhinoDocument.Worksession.ModelCount > 1;
 			}
 		}
+		private string[] WorksessionDocumentPaths = null;
 
 		public DatasmithActorInfo SceneRoot = null;
 		public Dictionary<InstanceDefinition, DatasmithActorInfo> InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, DatasmithActorInfo>();
@@ -487,6 +488,12 @@ namespace DatasmithRhino
 			if (!bIsParsed || bForceParse)
 			{
 				RhinoViewport ActiveViewport = RhinoDocument.Views.ActiveView?.ActiveViewport;
+
+				if (bIsInWorksession)
+				{
+					WorksessionDocumentPaths = RhinoDocument.Worksession.ModelPaths;
+				}
+
 				//Update current active viewport.
 				ActiveViewportInfo = ActiveViewport == null ? null : new ViewportInfo(ActiveViewport);
 
@@ -1273,11 +1280,9 @@ namespace DatasmithRhino
 
 		private string GetRhinoDocumentPathFromLayerName(string LayerName)
 		{
-			string[] DocumentPaths = RhinoDocument.Worksession.ModelPaths;
-
-			if (DocumentPaths != null)
+			if (WorksessionDocumentPaths != null)
 			{
-				foreach (string CurrentPath in DocumentPaths)
+				foreach (string CurrentPath in WorksessionDocumentPaths)
 				{
 					if (CurrentPath.Contains(LayerName))
 					{
