@@ -54,7 +54,7 @@ class USkyAtmosphereComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (HideAlphaChannel))
 	ESkyAtmosphereTransformMode TransformMode;
 
-	/** The planet radius. (kilometers from the center to the ground level). */
+	/** The radius in kilometers from the center of the planet to the ground level. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Planet", meta = (DisplayName = "Ground Radius", UIMin = 1.0, UIMax = 7000.0, ClampMin = 0.1, ClampMax = 10000.0, SliderExponent = 5.0))
 	float BottomRadius;
 
@@ -64,7 +64,7 @@ class USkyAtmosphereComponent : public USceneComponent
 
 
 
-	/** The planet radius. (kilometers from the center to the ground level). */
+	/** The height of the atmosphere layer above the ground in kilometers. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Atmosphere", meta = (UIMin = 1.0, UIMax = 200.0, ClampMin = 0.1, SliderExponent = 2.0))
 	float AtmosphereHeight;
 
