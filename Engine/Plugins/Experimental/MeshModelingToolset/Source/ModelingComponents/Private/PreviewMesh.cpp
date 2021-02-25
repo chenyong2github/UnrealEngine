@@ -373,6 +373,11 @@ void UPreviewMesh::InitializeMesh(FMeshDescription* MeshDescription)
 }
 
 
+void UPreviewMesh::ReplaceMesh(const FDynamicMesh3& NewMesh)
+{
+	ReplaceMesh(FDynamicMesh3(NewMesh));
+}
+
 void UPreviewMesh::ReplaceMesh(FDynamicMesh3&& NewMesh)
 {
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();

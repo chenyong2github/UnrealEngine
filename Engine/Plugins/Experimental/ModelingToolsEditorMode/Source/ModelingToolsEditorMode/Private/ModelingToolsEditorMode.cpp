@@ -88,6 +88,7 @@
 
 // asset tools
 #include "Tools/GenerateStaticMeshLODAssetTool.h"
+#include "Tools/LODManagerTool.h"
 
 #include "EditorModeManager.h"
 
@@ -415,6 +416,11 @@ void UModelingToolsEditorMode::Enter()
 	DuplicateMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	DuplicateMeshesToolBuilder->bIsDuplicateTool = true;
 	RegisterTool(ToolManagerCommands.BeginDuplicateMeshesTool, TEXT("DuplicateMeshesTool"), DuplicateMeshesToolBuilder);
+
+
+	ULODManagerToolBuilder* LODManagerToolBuilder = NewObject<ULODManagerToolBuilder>();
+	LODManagerToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
+	RegisterTool(ToolManagerCommands.BeginLODManagerTool, TEXT("LODManagerTool"), LODManagerToolBuilder);
 
 	UGenerateStaticMeshLODAssetToolBuilder* GenerateSMLODToolBuilder = NewObject<UGenerateStaticMeshLODAssetToolBuilder>();
 	GenerateSMLODToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();

@@ -58,6 +58,24 @@ public:
 
 
 
+	/**
+	 * Get the current transform on the preview 
+	 */
+	FTransform GetTransform() const;
+
+	/**
+	 * Set the transform on the preview mesh
+	 */
+	void SetTransform(const FTransform& UseTransform);
+
+
+	/**
+	 * Set visibility state of the preview mesh
+	 */
+	void SetAllVisible(bool bVisible);
+
+
+
 	//
 	// Line Sets
 	//
@@ -169,5 +187,4 @@ protected:
 
 	// called at the beginning of Disconnect() to allow subclasses to perform additional cleanup
 	virtual void OnDisconnected() {}
-
 };

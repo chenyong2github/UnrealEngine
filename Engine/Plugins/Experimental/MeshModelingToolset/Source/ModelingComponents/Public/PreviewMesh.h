@@ -335,6 +335,11 @@ public:
 	/**
 	 * Replace mesh with new mesh
 	 */
+	void ReplaceMesh(const FDynamicMesh3& NewMesh);
+
+	/**
+	 * Replace mesh with new mesh
+	 */
 	void ReplaceMesh(FDynamicMesh3&& NewMesh);
 
 	/**
