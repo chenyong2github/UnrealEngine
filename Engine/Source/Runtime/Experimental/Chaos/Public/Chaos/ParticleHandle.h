@@ -80,6 +80,7 @@ void PBDRigidParticleDefaultConstruct(FConcrete& Concrete, const TPBDRigidPartic
 	Concrete.SetAngularEtherDrag(0.f);
 	Concrete.SetGravityEnabled(Params.bGravityEnabled);
 	Concrete.SetCCDEnabled(Params.bCCDEnabled);
+	Concrete.SetDisabled(Params.bDisabled);
 	Concrete.SetResimType(EResimType::FullResim);
 }
 
@@ -805,8 +806,7 @@ public:
 		SetCollisionGroup(DynamicMisc.CollisionGroup());
 		SetGravityEnabled(DynamicMisc.GravityEnabled());
 		SetCCDEnabled(DynamicMisc.CCDEnabled());
-		// @todo(chaos) re-enable this below when the GT/PT two way sync for this flag is fixed - see similar comment in SingleParticlePhysicsProxy.h
-		//SetDisabled(DynamicMisc.Disabled()); 
+		SetDisabled(DynamicMisc.Disabled()); 
 		SetResimType(DynamicMisc.ResimType());
 		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
 		AddCollisionConstraintFlag( (Chaos::ECollisionConstraintFlags)DynamicMisc.CollisionConstraintFlag() );
