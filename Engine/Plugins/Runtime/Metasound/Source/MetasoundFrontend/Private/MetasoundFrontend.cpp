@@ -69,7 +69,8 @@ namespace Metasound
 
 			// External metasounds aren't dependent on any other nodes by definition, so all we need to do
 			// is populate the Input and Output sets.
-			for (auto& InputTuple : InNodeMetadata.DefaultInterface.GetInputInterface())
+			const FInputVertexInterface& InputInterface = InNodeMetadata.DefaultInterface.GetInputInterface();
+			for (auto& InputTuple : InputInterface)
 			{
 				// TODO: lots to be added here. 
 				FMetasoundFrontendClassInput ClassInput;
@@ -79,7 +80,7 @@ namespace Metasound
 				ClassInput.VertexID = FGuid::NewGuid();
 				ClassInput.Metadata.DisplayName = FText::FromString(InputTuple.Value.GetVertexName());
 				ClassInput.Metadata.Description = InputTuple.Value.GetDescription();
-
+				ClassInput.Metadata.DisplayIndex = InputInterface.GetOrderIndex(InputTuple.Key);
 				const FLiteral& DefaultLiteral = InputTuple.Value.GetDefaultValue();
 				if (DefaultLiteral.GetType() != ELiteralType::None)
 				{
@@ -89,7 +90,8 @@ namespace Metasound
 				ClassDescription.Interface.Inputs.Add(ClassInput);
 			}
 
-			for (auto& OutputTuple : InNodeMetadata.DefaultInterface.GetOutputInterface())
+			const FOutputVertexInterface& OutputInterface = InNodeMetadata.DefaultInterface.GetOutputInterface();
+			for (auto& OutputTuple : OutputInterface)
 			{
 				// TODO: lots to be added here. 
 				FMetasoundFrontendClassOutput ClassOutput;
@@ -99,6 +101,7 @@ namespace Metasound
 				ClassOutput.VertexID = FGuid::NewGuid();
 				ClassOutput.Metadata.DisplayName = FText::FromString(OutputTuple.Value.GetVertexName());
 				ClassOutput.Metadata.Description = OutputTuple.Value.GetDescription();
+				ClassOutput.Metadata.DisplayIndex = OutputInterface.GetOrderIndex(OutputTuple.Key);
 
 				ClassDescription.Interface.Outputs.Add(ClassOutput);
 			}

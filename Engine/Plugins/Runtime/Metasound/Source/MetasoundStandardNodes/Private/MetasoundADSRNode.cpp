@@ -233,18 +233,18 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
+				TInputDataVertexModel<FTrigger>(TEXT("Trigger Attack"), LOCTEXT("TriggerAttackTooltip", "Trigger the envelope's attack.")),
+				TInputDataVertexModel<FTrigger>(TEXT("Trigger Release"), LOCTEXT("TriggerReleaseTooltip", "Trigger the envelope's release.")),
 				TInputDataVertexModel<FTime>(TEXT("Attack"), LOCTEXT("AttackDurationTooltip", "Attack duration."), 0.01f),
 				TInputDataVertexModel<FTime>(TEXT("Decay"), LOCTEXT("DecayDurationTooltip", "Decay duration."), 0.02f),
-				TInputDataVertexModel<FTime>(TEXT("Release"), LOCTEXT("ReleaseDurationTooltip", "Release duration."), 1.0f),
 				TInputDataVertexModel<float>(TEXT("Sustain Level"), LOCTEXT("SustainLevelTooltip", "Sustain level [0.0f, 1.0f]."), 0.7f),
-				TInputDataVertexModel<FTrigger>(TEXT("Trigger Attack"), LOCTEXT("TriggerAttackTooltip", "Trigger the envelope's attack.")),
-				TInputDataVertexModel<FTrigger>(TEXT("Trigger Release"), LOCTEXT("TriggerReleaseTooltip", "Trigger the envelope's release."))
+				TInputDataVertexModel<FTime>(TEXT("Release"), LOCTEXT("ReleaseDurationTooltip", "Release duration."), 1.0f)
 			),
 			FOutputVertexInterface(
-				TOutputDataVertexModel<FAudioBuffer>(TEXT("Envelope"), LOCTEXT("EnvelopeTooltip", "The output envelope")),
 				TOutputDataVertexModel<FTrigger>(TEXT("Attack Complete"), LOCTEXT("AttackCompleteTooltip", "Triggered when the envelope attack is complete")),
 				TOutputDataVertexModel<FTrigger>(TEXT("Decay Complete"), LOCTEXT("DecayCompleteTooltip", "Triggered when the envelope decay is complete")),
-				TOutputDataVertexModel<FTrigger>(TEXT("Release Complete"), LOCTEXT("ReleaseCompleteTooltip", "Triggered when the envelope is released"))
+				TOutputDataVertexModel<FTrigger>(TEXT("Release Complete"), LOCTEXT("ReleaseCompleteTooltip", "Triggered when the envelope is released")),
+				TOutputDataVertexModel<FAudioBuffer>(TEXT("Envelope"), LOCTEXT("EnvelopeTooltip", "The output envelope"))
 			)
 		);
 

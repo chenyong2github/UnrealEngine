@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEditorGraphBuilder.h"
 
+#include "Algo/Sort.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
@@ -789,6 +790,7 @@ namespace Metasound
 
 		void FGraphBuilder::RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode, Frontend::FNodeHandle InNodeHandle)
 		{
+			using namespace Frontend;
 			const FScopedTransaction Transaction(LOCTEXT("RebuildMetasoundGraphNodePins", "Rebuild Metasound Pins"));
 
 			for (int32 i = InGraphNode.Pins.Num() - 1; i >= 0; i--)
@@ -797,23 +799,25 @@ namespace Metasound
 				InGraphNode.RemovePin(InGraphNode.Pins[i]);
 			}
 
-			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
-
-			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InGraphNode.GetMetasoundChecked());
-			check(MetasoundAsset);
-
-			Frontend::FGraphHandle GraphHandle = MetasoundAsset->GetRootGraphHandle();
-
-			TArray<Frontend::FInputHandle> InputHandles = InNodeHandle->GetInputs();
-			for (int32 i = 0; i < InputHandles.Num(); ++i)
+			TArray<FInputHandle> InputHandles = InNodeHandle->GetInputs();
+			Algo::SortBy(InputHandles, [](FInputHandle InputHandle)
 			{
-				AddPinToNode(InGraphNode, InputHandles[i]);
+				return InputHandle->GetDisplayIndex();
+			});
+
+			for (const FInputHandle& InputHandle : InputHandles)
+			{
+				AddPinToNode(InGraphNode, InputHandle);
 			}
 
-			TArray<Frontend::FOutputHandle> OutputHandles = InNodeHandle->GetOutputs();
-			for (int32 i = 0; i < OutputHandles.Num(); ++i)
+			TArray<FOutputHandle> OutputHandles = InNodeHandle->GetOutputs();
+			Algo::SortBy(OutputHandles, [](FOutputHandle OutputHandle)
 			{
-				AddPinToNode(InGraphNode, OutputHandles[i]);
+				return OutputHandle->GetDisplayIndex();
+			});
+			for (const FOutputHandle& OutputHandle : OutputHandles)
+			{
+				AddPinToNode(InGraphNode, OutputHandle);
 			}
 
 			InGraphNode.MarkPackageDirty();
@@ -998,6 +1002,7 @@ namespace Metasound
 			}
 
 			// Add missing editor nodes marked as visible.
+			// TODO: Synchronize Input/Output nodes which are own types now.
 			bIsEditorGraphDirty |= (FrontendNodes.Num() > 0);
 			for (FNodeHandle Node : FrontendNodes)
 			{

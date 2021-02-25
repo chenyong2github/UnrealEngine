@@ -172,6 +172,9 @@ namespace Metasound
 			/** Returns the name associated with this output. */
 			virtual const FString& GetName() const = 0;
 			
+			/** Returns index to display this input in parent structure. */
+			virtual int32 GetDisplayIndex() const = 0;
+
 			/** Returns the human readable name associated with this output. */
 			virtual const FText& GetDisplayName() const = 0;
 			
@@ -239,6 +242,9 @@ namespace Metasound
 
 			/** Returns the data type name associated with this input. */
 			virtual const FString& GetName() const = 0;
+
+			/** Returns index to display this input in parent structure. */
+			virtual int32 GetDisplayIndex() const = 0;
 
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetDisplayName() const = 0;

@@ -168,11 +168,11 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
+				TInputDataVertexModel<FTrigger>(InParamNameNextTrigger, LOCTEXT("NextTooltip", "Trigger to generate the next random integer.")),
+				TInputDataVertexModel<FTrigger>(InParamNameResetTrigger, LOCTEXT("ResetTooltip", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition.")),
 				TInputDataVertexModel<int32>(InParamNameSeed, LOCTEXT("SeedTooltip", "The seed value to use for the random node. Set to 0 to use a random seed."), 0),
 				TInputDataVertexModel<int32>(InParamNameMin, LOCTEXT("MinTooltip", "Min random integer."), 0),
-				TInputDataVertexModel<int32>(InParamNameMax, LOCTEXT("MaxTooltip", "Max random integer."), 100),
-				TInputDataVertexModel<FTrigger>(InParamNameNextTrigger, LOCTEXT("NextTooltip", "Trigger to generate the next random integer.")),
-				TInputDataVertexModel<FTrigger>(InParamNameResetTrigger, LOCTEXT("ResetTooltip", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition."))
+				TInputDataVertexModel<int32>(InParamNameMax, LOCTEXT("MaxTooltip", "Max random integer."), 100)
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<int32>(OutParamNameValue, LOCTEXT("ValueTooltip", "The current randomly generated random integer value."))
@@ -344,11 +344,11 @@ namespace Metasound
 	{
 		static const FVertexInterface Interface(
 			FInputVertexInterface(
+				TInputDataVertexModel<FTrigger>(InParamNameNextTrigger, LOCTEXT("NextTooltip", "Trigger to generate the next random float.")),
+				TInputDataVertexModel<FTrigger>(InParamNameResetTrigger, LOCTEXT("ResetTooltip", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition.")),
 				TInputDataVertexModel<int32>(InParamNameSeed, LOCTEXT("SeedTooltip", "The seed value to use for the random node. Set to 0 to use a random seed."), 0),
 				TInputDataVertexModel<float>(InParamNameMin, LOCTEXT("MinTooltip", "Min random float."), 0.0f),
-				TInputDataVertexModel<float>(InParamNameMax, LOCTEXT("MaxTooltip", "Max random float."), 1.0f),
-				TInputDataVertexModel<FTrigger>(InParamNameNextTrigger, LOCTEXT("NextTooltip", "Trigger to generate the next random float.")),
-				TInputDataVertexModel<FTrigger>(InParamNameResetTrigger, LOCTEXT("ResetTooltip", "Trigger to reset the random sequence with the supplied seed. Useful to get randomized repetition."))
+				TInputDataVertexModel<float>(InParamNameMax, LOCTEXT("MaxTooltip", "Max random float."), 1.0f)
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<float>(OutParamNameValue, LOCTEXT("ValueTooltip", "The current randomly generated float value."))

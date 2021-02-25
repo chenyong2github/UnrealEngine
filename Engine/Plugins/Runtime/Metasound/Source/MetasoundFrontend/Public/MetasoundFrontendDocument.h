@@ -297,7 +297,11 @@ USTRUCT()
 struct FMetasoundFrontendVertexMetadata
 {
 	GENERATED_BODY()
-		
+
+	// Index to inform where the vertex should be displayed in parent collection.
+	UPROPERTY()
+	int32 DisplayIndex = 0;
+
 	// Display name for a vertex
 	UPROPERTY(EditAnywhere, Category = Parameters, meta = (DisplayName = "Name"))
 	FText DisplayName;

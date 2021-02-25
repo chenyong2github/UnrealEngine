@@ -553,19 +553,19 @@ namespace Metasound
 	};
 
 
-	/** Create an FVertexKey from a FDataVertex. */
+	/** Create an FVertexKey from an FOutDataVertex. */
 	FORCEINLINE FVertexKey MakeDataVertexKey(const FInputDataVertex& InVertex)
 	{
 		return InVertex.GetVertexName();
 	}
 
-	/** Create an FVertexKey from a FDataVertex. */
+	/** Create an FVertexKey from an FOutputDataVertex. */
 	FORCEINLINE FVertexKey MakeDataVertexKey(const FOutputDataVertex& InVertex)
 	{
 		return InVertex.GetVertexName();
 	}
 
-	/** Create an FVertexKey from a FEnvironmentVariableVertex. */
+	/** Create an FVertexKey from an FEnvironmentVertex. */
 	FORCEINLINE FVertexKey MakeEnvironmentVertexKey(const FEnvironmentVertex& InVertex)
 	{
 		return InVertex.GetVertexName();
@@ -585,9 +585,10 @@ namespace Metasound
 			static_assert(bIsSupportedVertexType, "VertexType must be derived from FInputDataVertex, FOutputDataVertex, or FEnvironmentVertex");
 
 			using FContainerType = TSortedMap<FVertexKey, VertexType>;
+			using FOrderContainerType = TArray<FVertexKey>;
 
 			// Required for end of recursion.
-			static void CopyInputs(FContainerType& InStorage)
+			static void CopyInputs(FContainerType& InStorage, FOrderContainerType& InOrder)
 			{
 			}
 
@@ -598,18 +599,20 @@ namespace Metasound
 			// Assume that InputType is either a sublcass of FDataVertexModel
 			// and that VertexType is either FInputDataVertex or FOutputDataVertex
 			template<typename VertexModelType, typename... RemainingVertexModelTypes>
-			static void CopyInputs(FContainerType& InStorage, const VertexModelType& InInput, const RemainingVertexModelTypes&... InRemainingInputs)
+			static void CopyInputs(FContainerType& InStorage, FOrderContainerType& InKeyOrder, const VertexModelType& InInput, const RemainingVertexModelTypes&... InRemainingInputs)
 			{
 				// Create vertex out of vertex model
 				VertexType Vertex(InInput);
 
-				InStorage.Add(MakeDataVertexKey(Vertex), Vertex);
-				CopyInputs(InStorage, InRemainingInputs...);
+				const FVertexKey VertexKey = MakeDataVertexKey(Vertex);
+				InStorage.Add(VertexKey, Vertex);
+				InKeyOrder.Add(VertexKey);
+				CopyInputs(InStorage, InKeyOrder, InRemainingInputs...);
 			}
 
 		public:
 
-			using RangedForConstIteratorType = typename TSortedMap<FVertexKey, VertexType>::RangedForConstIteratorType;
+			using RangedForConstIteratorType = typename FContainerType::RangedForConstIteratorType;
 
 			/** TVertexInterfaceGroup constructor with variadic list of vertex
 			 * models.
@@ -617,7 +620,7 @@ namespace Metasound
 			template<typename... VertexModelTypes>
 			TVertexInterfaceGroup(VertexModelTypes&&... InVertexModels)
 			{
-				CopyInputs(Vertices, Forward<VertexModelTypes>(InVertexModels)...);
+				CopyInputs(Vertices, OrderedKeys, Forward<VertexModelTypes>(InVertexModels)...);
 			}
 
 			/** Add a vertex model to the group. */
@@ -631,13 +634,16 @@ namespace Metasound
 			/** Add a vertex to the group. */
 			void Add(const VertexType& InVertex)
 			{
-				Vertices.Add(MakeDataVertexKey(InVertex), InVertex);
+				const FVertexKey VertexKey = MakeDataVertexKey(InVertex);
+				Vertices.Add(VertexKey, InVertex);
+				OrderedKeys.Add(VertexKey);
 			}
 
 			/** Remove a vertex by key. */
 			bool Remove(const FVertexKey& InKey)
 			{
-				int32 NumRemoved = Vertices.Remove();
+				int32 NumRemoved = Vertices.Remove(InKey);
+				OrderedKeys.Remove(InKey);
 				return (NumRemoved > 0);
 			}
 
@@ -645,6 +651,13 @@ namespace Metasound
 			bool Contains(const FVertexKey& InKey) const
 			{
 				return Vertices.Contains(InKey);
+			}
+
+			int32 GetOrderIndex(const FVertexKey& InKey) const
+			{
+				int32 OutIndex = INDEX_NONE;
+				OrderedKeys.Find(InKey, OutIndex);
+				return OutIndex;
 			}
 
 			/** Return the vertex for a given vertex key. */
@@ -686,6 +699,7 @@ namespace Metasound
 		private:
 
 			FContainerType Vertices;
+			FOrderContainerType OrderedKeys;
 	};
 
 	
