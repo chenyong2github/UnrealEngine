@@ -2967,7 +2967,7 @@ TOptional<float> ULandscapeHeightfieldCollisionComponent::GetHeight(float X, flo
 #elif WITH_CHAOS
 	if (IsValidRef(HeightfieldRef) && HeightfieldRef->Heightfield.Get())
 	{
-		Height = HeightfieldRef->Heightfield->GetHeightAt({ X, Y }) * ZScale;
+		Height = HeightfieldRef->Heightfield->GetHeightAt({ X, Y });
 	}
 #endif
 	return Height;
