@@ -103,8 +103,7 @@ namespace Metasound
 	{
 	public:
 		using InnerType = EnumType;
-		static constexpr EnumType Default = DefaultValue;
-
+	
 		static_assert(TIsEnum<EnumType>::Value, "Expecting an Enum type");
 		
 		// Allow Non-enum class Enum or Enum class that's are derived from int32

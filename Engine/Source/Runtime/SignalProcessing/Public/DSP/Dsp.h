@@ -270,6 +270,26 @@ namespace Audio
 		return 0.5f * X + 0.5f;
 	}
 
+	// Converts in place a buffer into Unipolar (0..1)
+	// This is a Vector op version of the GetUnipolar function. (0.5f * X + 0.5f).
+	static void ConvertBipolarBufferToUnipolar(float* InAlignedBuffer, int32 NumSamples)
+	{
+		// Make sure buffers are aligned and we can do a whole number of loops.
+		check(IsAligned(InAlignedBuffer, sizeof(VectorRegister)));
+		check(NumSamples % 4 == 0);
+
+		const VectorRegister Half = VectorSetFloat1(0.5f);
+
+		// Process buffer 1 vector (4 floats) at a time.
+		for(int32 i = NumSamples / 4; i; --i, InAlignedBuffer += 4)
+		{
+			VectorRegister V = VectorLoadAligned(InAlignedBuffer);
+			V = VectorMultiply(V, Half);
+			V = VectorAdd(V, Half);
+			VectorStoreAligned(V, InAlignedBuffer);
+		}
+	}
+
 	// Using midi tuning standard, compute frequency in hz from midi value
 	static FORCEINLINE float GetFrequencyFromMidi(const float InMidiNote)
 	{
