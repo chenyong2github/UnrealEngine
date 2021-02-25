@@ -10,6 +10,7 @@
 // Each event type will be displayed using the defined color
 #pragma once
 
+#include "UObject/ObjectMacros.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "RHIDefinitions.h"
 
