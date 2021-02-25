@@ -227,6 +227,8 @@ class FAsyncTask
 	FQueuedThreadPool*	QueuedPool;
 	/** Current priority */
 	EQueuedWorkPriority Priority;
+	/** Current flags */
+	EQueuedWorkFlags Flags;
 	/** optional LLM tag */
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 	/** Memory trace tag */
@@ -242,10 +244,15 @@ class FAsyncTask
 		DoneEvent = nullptr;
 	}
 
+	EQueuedWorkFlags GetQueuedWorkFlags() const override
+	{
+		return Flags;
+	}
+
 	/* Generic start function, not called directly
 		* @param bForceSynchronous if true, this job will be started synchronously, now, on this thread
 	**/
-	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InQueuedWorkPriority)
+	void Start(bool bForceSynchronous, FQueuedThreadPool* InQueuedPool, EQueuedWorkPriority InQueuedWorkPriority, EQueuedWorkFlags InQueuedWorkFlags)
 	{
 		FScopeCycleCounter Scope( Task.GetStatId(), true );
 		DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "FAsyncTask::Start" ), STAT_FAsyncTask_Start, STATGROUP_ThreadPoolAsyncTasks );
@@ -259,6 +266,7 @@ class FAsyncTask
 		WorkNotFinishedCounter.Increment();
 		QueuedPool = InQueuedPool;
 		Priority = InQueuedWorkPriority;
+		Flags = InQueuedWorkFlags;
 		if (bForceSynchronous)
 		{
 			QueuedPool = 0;
@@ -350,6 +358,8 @@ class FAsyncTask
 	**/
 	void SyncCompletion()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncTask::SyncCompletion);
+
 		FPlatformMisc::MemoryBarrier();
 		if (QueuedPool)
 		{
@@ -425,17 +435,17 @@ public:
 	* Run this task on this thread
 	* @param bDoNow if true then do the job now instead of at EnsureCompletion
 	**/
-	void StartSynchronousTask(EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal)
+	void StartSynchronousTask(EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal, EQueuedWorkFlags InQueuedWorkFlags = EQueuedWorkFlags::None)
 	{
-		Start(true, GThreadPool, InQueuedWorkPriority);
+		Start(true, GThreadPool, InQueuedWorkPriority, InQueuedWorkFlags);
 	}
 
 	/** 
 	* Queue this task for processing by the background thread pool
 	**/
-	void StartBackgroundTask(FQueuedThreadPool* InQueuedPool = GThreadPool, EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal)
+	void StartBackgroundTask(FQueuedThreadPool* InQueuedPool = GThreadPool, EQueuedWorkPriority InQueuedWorkPriority = EQueuedWorkPriority::Normal, EQueuedWorkFlags InQueuedWorkFlags = EQueuedWorkFlags::None)
 	{
-		Start(false, InQueuedPool, InQueuedWorkPriority);
+		Start(false, InQueuedPool, InQueuedWorkPriority, InQueuedWorkFlags);
 	}
 
 	/** 

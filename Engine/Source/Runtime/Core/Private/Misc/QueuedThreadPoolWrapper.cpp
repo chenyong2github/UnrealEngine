@@ -24,6 +24,11 @@ struct FQueuedThreadPoolWrapper::FScheduledWork : public IQueuedWork
 		ParentPool->Schedule(this);
 	}
 
+	EQueuedWorkFlags GetQueuedWorkFlags() const override 
+	{
+		return InnerWork->GetQueuedWorkFlags();
+	}
+
 	IQueuedWork* InnerWork = nullptr;
 	EQueuedWorkPriority Priority = EQueuedWorkPriority::Normal;
 private:

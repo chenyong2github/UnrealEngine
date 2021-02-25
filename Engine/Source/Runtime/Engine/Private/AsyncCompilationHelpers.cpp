@@ -129,6 +129,17 @@ namespace AsyncCompilationHelpers
 			}
 
 			void Abandon() override { }
+
+			// Since we're specifically waiting on other tasks here, we can't be run inside a busywait
+			// without risking a deadlock.
+			//
+			// (i.e. T1 -> busywait -> picks T2 that then waits on T1 -> deadlock
+			//
+			// Imagine we're T2 and we're going to wait on T1 here... 
+			// if we get picked up on the same thread inside T1's busy wait, we'll deadlock.
+			//
+			// See FAsyncWorkEnsureCompletionBusyWaitDeadLockTest for a 100% repro case
+			EQueuedWorkFlags GetQueuedWorkFlags() const override { return EQueuedWorkFlags::DoNotRunInsideBusyWait; }
 		};
 
 		// Perform forced compilation on as many thread as possible in high priority since the game-thread is waiting

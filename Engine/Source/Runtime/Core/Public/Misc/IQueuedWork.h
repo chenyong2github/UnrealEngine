@@ -5,6 +5,26 @@
 #include "CoreTypes.h"
 #include "Templates/RefCounting.h"
 
+/** Special flags that can be associated with queued work. */
+enum class EQueuedWorkFlags : uint8
+{
+	None,
+
+	/**
+	 * Tells the scheduler if this task is allowed to run during another task's
+	 * busy wait. The default should be true for most case but it
+	 * is sometime useful to avoid it if this task is going to wait on another one,
+	 * and that other task busy waits, this could cause a cycle that could deadlock.
+	 * (i.e. T1 -> busywait -> picks T2 that then waits on T1 -> deadlock
+	 * In this case, we can decide that T2 should never be picked up by busy waits.
+	 */
+	 DoNotRunInsideBusyWait = (1 << 0),
+
+	 Count
+};
+
+ENUM_CLASS_FLAGS(EQueuedWorkFlags);
+
 /**
 * Interface for internal data of queued work objects.
 *
@@ -41,7 +61,6 @@ public:
 class IQueuedWork
 {
 public:
-
 	/**
 	 * This is where the real thread work is done. All work that is done for
 	 * this queued object should be done from within the call to this function.
@@ -56,6 +75,10 @@ public:
 	 */
 	virtual void Abandon() = 0;
 
+	/**
+	 * Returns any special work flags.
+	 */
+	virtual EQueuedWorkFlags GetQueuedWorkFlags() const { return EQueuedWorkFlags::None; }
 public:
 
 	/**
