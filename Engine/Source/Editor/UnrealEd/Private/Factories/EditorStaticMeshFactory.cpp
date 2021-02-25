@@ -20,7 +20,7 @@
 TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPlacementInfo& InPlacementInfo, const FPlacementOptions& InPlacementOptions)
 {
 	// If we're disallowing instanced placement, or creating preview elements, don't use the ISM placement.
-	if (!InPlacementOptions.bPreferInstancedPlacement || InPlacementOptions.bIsCreatingPreviewElements)
+	if (!ShouldPlaceInstancedStaticMeshes(InPlacementOptions))
 	{
 		return Super::PlaceAsset(InPlacementInfo, InPlacementOptions);
 	}
@@ -61,10 +61,13 @@ TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPla
 			FoliagePlacementInfo.Rotation = InPlacementInfo.FinalizedTransform.Rotator();
 			FoliagePlacementInfo.DrawScale3D = InPlacementInfo.FinalizedTransform.GetScale3D();
 			FoliageInfo->AddInstance(FoundOrCreatedType, FoliagePlacementInfo);
+			CurrentPlacementScopedFoliageInfos.Add(FoliageInfo);
 
-			// Todo: deal with returning instanced handles
-			// In the meantime, we return the handle of the the HISM component added.
+#if UE_ENABLE_SMINSTANCE_ELEMENTS
+			return TArray<FTypedElementHandle>({ UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FoliageInfo->GetComponent(), FoliageInfo->GetPlacedInstanceCount() - 1) });
+#else
 			return TArray<FTypedElementHandle>({ UEngineElementsLibrary::AcquireEditorComponentElementHandle(FoliageInfo->GetComponent()) });
+#endif
 		}
 	}
 
@@ -106,4 +109,22 @@ FAssetData UEditorStaticMeshFactory::GetAssetDataFromElementHandle(const FTypedE
 	// Todo: deal with instanced handles
 
 	return Super::GetAssetDataFromElementHandle(InHandle);
+}
+
+void UEditorStaticMeshFactory::EndPlacement(TArrayView<const FTypedElementHandle> InPlacedElements, const FPlacementOptions& InPlacementOptions)
+{
+	if (ShouldPlaceInstancedStaticMeshes(InPlacementOptions))
+	{
+		for (FFoliageInfo* FoliageInfo : CurrentPlacementScopedFoliageInfos)
+		{
+			FoliageInfo->Refresh(true, false);
+		}
+	}
+
+	CurrentPlacementScopedFoliageInfos.Empty();
+}
+
+bool UEditorStaticMeshFactory::ShouldPlaceInstancedStaticMeshes(const FPlacementOptions& InPlacementOptions) const
+{
+	return !InPlacementOptions.bIsCreatingPreviewElements && InPlacementOptions.bPreferInstancedPlacement;
 }

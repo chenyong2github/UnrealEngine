@@ -280,6 +280,7 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() 
 		}
 	}
 
+#if !UE_ENABLE_SMINSTANCE_ELEMENTS
 	// Handle the IFA for the brush stroke level
 	if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(GEditor->GetEditorWorldContext().World()))
 	{
@@ -305,6 +306,7 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() 
 			}
 		}
 	}
+#endif
 
 	return ElementHandles;
 }

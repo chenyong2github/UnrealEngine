@@ -62,8 +62,12 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 	// Place the Preview data if we managed to get to a valid handled click.
 	FPlacementOptions PlacementOptions;
 	PlacementOptions.bPreferBatchPlacement = true;
-	PlacementOptions.bPreferInstancedPlacement = false;	// Off until ISM single selection support added.
-
+#if UE_ENABLE_SMINSTANCE_ELEMENTS
+	PlacementOptions.bPreferInstancedPlacement = true;
+#else
+	PlacementOptions.bPreferInstancedPlacement = false;
+#endif
+	
 	UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
 	if (PlacementSubsystem)
 	{

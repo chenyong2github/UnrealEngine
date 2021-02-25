@@ -374,6 +374,14 @@ FAssetData UActorFactory::GetAssetDataFromElementHandle(const FTypedElementHandl
 	return FAssetData();
 }
 
+void UActorFactory::BeginPlacement(const FPlacementOptions& InPlacementOptions)
+{
+}
+
+void UActorFactory::EndPlacement(TArrayView<const FTypedElementHandle> InPlacedElements, const FPlacementOptions& InPlacementOptions)
+{
+}
+
 AActor* UActorFactory::CreateActor( UObject* Asset, ULevel* InLevel, FTransform SpawnTransform, EObjectFlags InObjectFlags, const FName Name )
 {
 	AActor* NewActor = nullptr;

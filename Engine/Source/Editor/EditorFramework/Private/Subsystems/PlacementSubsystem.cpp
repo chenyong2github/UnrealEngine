@@ -31,8 +31,8 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAsset(const FAssetPlacemen
 TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FAssetPlacementInfo> InPlacementInfos, const FPlacementOptions& InPlacementOptions)
 {
 	TGuardValue<bool> bShouldCreatePreviewElements(bIsCreatingPreviewElements, InPlacementOptions.bIsCreatingPreviewElements);
+	TMap<IAssetFactoryInterface*, TArray<FTypedElementHandle>> PlacedElementsByFactory;
 
-	TArray<FTypedElementHandle> PlacedElements;
 	for (const FAssetPlacementInfo& PlacementInfo : InPlacementInfos)
 	{
 		const FAssetData& AssetData = PlacementInfo.AssetToPlace;
@@ -47,6 +47,12 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FA
 			continue;
 		}
 
+		if (!PlacedElementsByFactory.Contains(&*FactoryInterface))
+		{
+			FactoryInterface->BeginPlacement(InPlacementOptions);
+			PlacedElementsByFactory.Add(&*FactoryInterface);
+		}
+
 		FAssetPlacementInfo AdjustedPlacementInfo = PlacementInfo;
 		if (!FactoryInterface->PrePlaceAsset(AdjustedPlacementInfo, InPlacementOptions))
 		{
@@ -57,8 +63,15 @@ TArray<FTypedElementHandle> UPlacementSubsystem::PlaceAssets(TArrayView<const FA
 		if (PlacedHandles.Num())
 		{
 			FactoryInterface->PostPlaceAsset(PlacedHandles, PlacementInfo, InPlacementOptions);
-			PlacedElements.Append(PlacedHandles);
+			PlacedElementsByFactory[&*FactoryInterface].Append(MoveTemp(PlacedHandles));
 		}
+	}
+
+	TArray<FTypedElementHandle> PlacedElements;
+	for (TMap<IAssetFactoryInterface*, TArray<FTypedElementHandle>>::ElementType& FactoryAndPlacedElementsPair : PlacedElementsByFactory)
+	{
+		FactoryAndPlacedElementsPair.Key->EndPlacement(FactoryAndPlacedElementsPair.Value, InPlacementOptions);
+		PlacedElements.Append(MoveTemp(FactoryAndPlacedElementsPair.Value));
 	}
 
 	return PlacedElements;

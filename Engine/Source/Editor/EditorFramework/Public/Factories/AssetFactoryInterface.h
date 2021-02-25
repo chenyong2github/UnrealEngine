@@ -58,4 +58,20 @@ public:
 	 * @returns the FAssetData which corresponds to the placed FTypedElementHandle. The returned FAssetData may be invalid.
 	 */
 	virtual FAssetData GetAssetDataFromElementHandle(const FTypedElementHandle& InHandle) = 0;
+
+	/**
+	 * Sets up any states that the factory needs to track across a placement call.
+	 * Called once per factory during a PlaceAssets call from the placement subsystem.
+	 * 
+	 * For example, for instanced static mesh placement, we may want to disable rebuilding the parent component's tree until EndPlacement is called.
+	 */
+	virtual void BeginPlacement(const FPlacementOptions& InPlacementOptions) = 0;
+
+	/**
+	 * Tears down any state, or kicks off any rebuilds of data that this asset type may need.
+	 * Called once per factory during a PlaceAssets call from the placement subsystem.
+	 *
+	 * For example, for instanced static mesh placement, we'd rebuild the parent component's tree here.
+	 */
+	 virtual void EndPlacement(TArrayView<const FTypedElementHandle> InPlacedElements, const FPlacementOptions& InPlacementOptions) = 0;
 };
