@@ -69,6 +69,7 @@ protect /Binaries/TVOS/
 
 # Build
 + /Build/
+- /Build/InstalledBuild.txt
 + /Build/*
 + /Build/BatchFiles/
 + /Build/BatchFiles/**
