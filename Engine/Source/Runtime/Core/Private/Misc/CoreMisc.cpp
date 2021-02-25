@@ -105,7 +105,7 @@ FDerivedDataCacheInterface* GetDerivedDataCache()
 			}
 		}
 	}
-	return *DDC;
+	return DDC ? *DDC : nullptr;
 }
 
 FDerivedDataCacheInterface& GetDerivedDataCacheRef()
