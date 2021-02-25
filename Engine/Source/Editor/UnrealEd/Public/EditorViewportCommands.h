@@ -159,6 +159,9 @@ public:
 	/** Captures the viewport and updates the project thumbnail png file */
 	TSharedPtr< FUICommandInfo > ScreenCaptureForProjectThumbnail;
 
+	/** Select Mode */
+	TSharedPtr< FUICommandInfo > SelectMode;
+
 	/** Translate Mode */
 	TSharedPtr< FUICommandInfo > TranslateMode;
 

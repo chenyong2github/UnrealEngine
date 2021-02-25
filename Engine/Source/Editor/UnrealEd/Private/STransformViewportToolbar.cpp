@@ -179,7 +179,12 @@ TSharedRef< SWidget > STransformViewportToolBar::MakeTransformToolBar( const TSh
 	ToolbarBuilder.BeginSection("Transform");
 	{
 		ToolbarBuilder.BeginBlockGroup();
-		// Move Mode
+
+		// Select Mode
+		static FName SelectModeName = FName(TEXT("SelectMode"));
+		ToolbarBuilder.AddToolBarButton(FEditorViewportCommands::Get().SelectMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), SelectModeName);
+
+		// Translate Mode
 		static FName TranslateModeName = FName(TEXT("TranslateMode"));
 		ToolbarBuilder.AddToolBarButton( FEditorViewportCommands::Get().TranslateMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), TranslateModeName );
 		
