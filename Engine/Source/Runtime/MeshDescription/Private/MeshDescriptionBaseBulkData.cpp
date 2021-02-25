@@ -25,7 +25,7 @@ void UMeshDescriptionBaseBulkData::Serialize(FArchive& Ar)
 		BulkData->Serialize(Ar, GetOuter());
 	}
 
-	if (MeshDescription != nullptr)
+	if (Ar.IsLoading() && MeshDescription != nullptr)
 	{
 		// If there was a cached mesh description, it could be out of sync with the bulk data we just serialized so re-cache it.
 		CacheMeshDescription();
@@ -79,7 +79,7 @@ UMeshDescriptionBase* UMeshDescriptionBaseBulkData::CreateMeshDescription()
 		// Assign the new UObject directly to a UPROPERTY.
 		// If we were run from a different thread, we can immediately clear the Async internal flag, now that GC refs are set up correctly.
 		UClass* MeshDescriptionType = GetMeshDescriptionType();
-		MeshDescription = NewObject<UMeshDescriptionBase>(this, MeshDescriptionType, NAME_None, RF_Transient | RF_Transactional);
+		MeshDescription = NewObject<UMeshDescriptionBase>(this, MeshDescriptionType, NAME_None, RF_Transient);
 		MeshDescription->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
 	}
 
