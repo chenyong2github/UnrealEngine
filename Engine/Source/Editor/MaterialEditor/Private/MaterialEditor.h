@@ -746,9 +746,9 @@ private:
 	bool OnApplyEnabled() const;
 	/** Command for the camera home button */
 	void OnCameraHome();
-	/** Command for the show unused connectors button */
-	void OnShowConnectors();
-	bool IsOnShowConnectorsChecked() const;
+	/** Command for the hide unused connectors button */
+	void OnHideConnectors();
+	bool IsOnHideConnectorsChecked() const;
 	/** Command for the Toggle Live Preview button */
 	void ToggleLivePreview();
 	bool IsToggleLivePreviewChecked() const;
@@ -769,15 +769,8 @@ private:
 
 	/** Make a drop down menu to control the opacity of unrelated nodes */
 	void MakeHideUnrelatedNodesOptionsMenu(class UToolMenu* Menu);
-	TOptional<float> HandleUnrelatedNodesOpacityBoxValue() const;
-	void HandleUnrelatedNodesOpacityBoxChanged(float NewOpacity);
 	void OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState);
 	void OnFocusWholeChainCheckStateChanged(ECheckBoxState NewCheckedState);
-
-	void ToggleReleaseStats();
-	bool IsToggleReleaseStatsChecked() const;
-	void ToggleBuiltinStats();
-	bool IsToggleBuiltinStatsChecked() const;
 
 	/** Command for using currently selected texture */
 	void OnUseCurrentTexture();

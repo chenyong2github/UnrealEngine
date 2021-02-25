@@ -375,25 +375,25 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 
 	if (Context->Node)
 	{
+		FToolMenuInsert MenuPosition = FToolMenuInsert(NAME_None, EToolMenuInsertType::First);
+		FToolMenuSection& NodeSection = Menu->AddSection("MaterialSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"), MenuPosition);
 		if (MaterialExpression)
 		{
 			if (MaterialExpression->IsA(UMaterialExpressionTextureBase::StaticClass()))
 			{
 				{
-					FToolMenuSection& Section = Menu->AddSection("MaterialGraphNode");
-					Section.AddMenuEntry(FMaterialEditorCommands::Get().UseCurrentTexture);
+					NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().UseCurrentTexture);
 				}
 
 				// Add a 'Convert To Texture' option for convertible types
 				{
-					FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu0");
 					if ( MaterialExpression->IsA(UMaterialExpressionTextureSample::StaticClass()) && !MaterialExpression->HasAParameterName())
 					{
-						Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureObjects);
+						NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureObjects);
 					}
 					else if ( MaterialExpression->IsA(UMaterialExpressionTextureObject::StaticClass()))
 					{
-						Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureSamples);
+						NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureSamples);
 					}
 				}
 			}
@@ -401,23 +401,21 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 			// Add a 'Convert to Local Variables' option to reroute nodes
 			if (MaterialExpression->IsA(UMaterialExpressionReroute::StaticClass()))
 			{
-				FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");
-				Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertRerouteToNamedReroute);
+				NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().ConvertRerouteToNamedReroute);
 			}
 
 			// Add local variables selection & conversion to reroute nodes
 			if (MaterialExpression->IsA(UMaterialExpressionNamedRerouteBase::StaticClass()))
 			{
-				FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");
 				if (MaterialExpression->IsA(UMaterialExpressionNamedRerouteDeclaration::StaticClass()))
 				{
-					Section.AddMenuEntry(FMaterialEditorCommands::Get().SelectNamedRerouteUsages);
+					NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().SelectNamedRerouteUsages);
 				}
 				if (MaterialExpression->IsA(UMaterialExpressionNamedRerouteUsage::StaticClass()))
 				{
-					Section.AddMenuEntry(FMaterialEditorCommands::Get().SelectNamedRerouteDeclaration);
+					NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().SelectNamedRerouteDeclaration);
 				}
-				Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertNamedRerouteToReroute);
+				NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().ConvertNamedRerouteToReroute);
 			}
 
 			// Add a 'Convert To Parameter' option for convertible types
@@ -431,8 +429,7 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 				|| MaterialExpression->IsA(UMaterialExpressionComponentMask::StaticClass()))
 			{
 				{
-					FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");
-					Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertObjects);
+					NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().ConvertObjects);
 				}
 			}
 
@@ -446,13 +443,11 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 				|| MaterialExpression->IsA(UMaterialExpressionTextureObjectParameter::StaticClass()))
 			{
 				{
-					FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");
-					Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToConstant);
+					NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToConstant);
 				}
 			}
 
 			{
-				FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu2");
 				// Don't show preview option for bools
 				if (!MaterialExpression->IsA(UMaterialExpressionStaticBool::StaticClass())
 					&& !MaterialExpression->IsA(UMaterialExpressionStaticBoolParameter::StaticClass()))
@@ -461,36 +456,35 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 					if (bIsPreviewExpression)
 					{
 						// If we are already previewing the selected node, the menu option should tell the user that this will stop previewing
-						Section.AddMenuEntry(FMaterialEditorCommands::Get().StopPreviewNode);
+						NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().StopPreviewNode);
 					}
 					else
 					{
 						// The menu option should tell the user this node will be previewed.
-						Section.AddMenuEntry(FMaterialEditorCommands::Get().StartPreviewNode);
+						NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().StartPreviewNode);
 					}
 				}
 
 				if (MaterialExpression->bRealtimePreview)
 				{
-					Section.AddMenuEntry(FMaterialEditorCommands::Get().DisableRealtimePreviewNode);
+					NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().DisableRealtimePreviewNode);
 				}
 				else
 				{
-					Section.AddMenuEntry(FMaterialEditorCommands::Get().EnableRealtimePreviewNode);
+					NodeSection.AddMenuEntry(FMaterialEditorCommands::Get().EnableRealtimePreviewNode);
 				}
 			}
 		}
 
 		// Break all links
 		{
-			FToolMenuSection& Section = Menu->AddSection("BreakAllLinks");
-			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+			NodeSection.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 		}
 
 		// Separate the above frequently used options from the below less frequently used common options
 		
 		{
-			FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu3");
+			FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu3", LOCTEXT("GeneralNodeActionsMenuHeader", "General"));
 			Section.AddMenuEntry( FGenericCommands::Get().Delete );
 			Section.AddMenuEntry( FGenericCommands::Get().Cut );
 			Section.AddMenuEntry( FGenericCommands::Get().Copy );

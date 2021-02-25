@@ -912,7 +912,7 @@ TSharedRef<SDockTab> FMaterialStats::SpawnTab_Stats(const FSpawnTabArgs& Args)
 	FString TabName = FString::Printf(TEXT(""), *GetMaterialName().ToString());
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("Kismet.Tabs.CompilerResults"))
+		.Icon(FAppStyle::Get().GetBrush("MaterialEditor.TogglePlatformStats.Tab"))
 		.Label(LOCTEXT("Platform Stats", "Platform Stats"))
 		.OnTabClosed_Lambda([&bShowStats = bShowStats](TSharedRef<SDockTab>) { bShowStats = false; })
 		[
@@ -936,7 +936,7 @@ TSharedRef<SDockTab> FMaterialStats::SpawnTab_OldStats(const FSpawnTabArgs& Args
 	check(Args.GetTabId() == OldStatsTabId);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("Kismet.Tabs.CompilerResults"))
+		.Icon(FAppStyle::Get().GetBrush("MaterialEditor.ToggleMaterialStats.Tab"))
 		.Label(LOCTEXT("Stats", "Stats"))
 		.OnTabClosed_Lambda([&bShowStats = bShowOldStats](TSharedRef<SDockTab>) { bShowStats = false; })
 		[
@@ -963,7 +963,7 @@ void FMaterialStats::BuildStatsTab()
 	TabManager->RegisterTabSpawner(StatsTabId, FOnSpawnTab::CreateSP(this, &FMaterialStats::SpawnTab_Stats))
 		.SetDisplayName(LOCTEXT("StatsTab", "Platform Stats"))
 		.SetGroup(ParentCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.StatsViewer"));
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(),"MaterialEditor.TogglePlatformStats.Tab"));
 }
 
 void FMaterialStats::BuildOldStatsTab()
@@ -974,7 +974,7 @@ void FMaterialStats::BuildOldStatsTab()
 	TabManager->RegisterTabSpawner(OldStatsTabId, FOnSpawnTab::CreateSP(this, &FMaterialStats::SpawnTab_OldStats))
 		.SetDisplayName(LOCTEXT("OldStatsTab", "Stats"))
 		.SetGroup(ParentCategoryRef)
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.StatsViewer"));
+		.SetIcon(FSlateIcon(FAppStyle::Get().GetStyleSetName(), "MaterialEditor.ToggleMaterialStats.Tab"));
 }
 
 void FMaterialStats::RegisterTabs()

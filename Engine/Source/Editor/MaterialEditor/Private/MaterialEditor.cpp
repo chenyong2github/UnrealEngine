@@ -1647,58 +1647,69 @@ void FMaterialEditor::RegisterToolBar()
 		UToolMenu* ToolBar = UToolMenus::Get()->RegisterMenu(MenuName, "AssetEditor.DefaultToolBar", EMultiBoxType::ToolBar);
 
 		FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
-
+		FToolMenuSection& MaterialSection = ToolBar->AddSection("MaterialTools", TAttribute<FText>(), InsertAfterAssetSection);
+		MaterialSection.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().Apply));
+		MaterialSection.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().FindInMaterial));
+		MaterialSection.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().CameraHome));
+		UMaterialEditorMenuContext* Context = ToolBar->FindContext<UMaterialEditorMenuContext>();
+		if (!MaterialFunction)
 		{
-			FToolMenuSection& Section = ToolBar->AddSection("Apply", TAttribute<FText>(), InsertAfterAssetSection);
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().Apply));
-		}
-
-		{
-			FToolMenuSection& Section = ToolBar->AddSection("Search", TAttribute<FText>(), InsertAfterAssetSection);
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().FindInMaterial));
-		}
-
-		{
-			FToolMenuSection& Section = ToolBar->AddSection("Graph", TAttribute<FText>(), InsertAfterAssetSection);
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().CameraHome));
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().CleanUnusedExpressions));
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ShowHideConnectors));
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ToggleLivePreview));
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ToggleRealtimeExpressions));
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().AlwaysRefreshAllPreviews));
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(
-				FMaterialEditorCommands::Get().ToggleHideUnrelatedNodes,
-				TAttribute<FText>(),
-				TAttribute<FText>(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
-			));
-			Section.AddEntry(FToolMenuEntry::InitComboButton(
-				"HideUnrelatedNodesOptions",
-				FUIAction(),
+			MaterialSection.AddEntry(FToolMenuEntry::InitComboButton(
+				"Hierarchy",
+				FToolUIActionChoice(),
 				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
-				{
-					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
-					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
 					{
-						TSharedPtr<FMaterialEditor> MaterialEditor = StaticCastSharedPtr<FMaterialEditor>(SubMenuContext->MaterialEditor.Pin());
-						MaterialEditor->MakeHideUnrelatedNodesOptionsMenu(InSubMenu);
-					}
-				}),
-				LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"),
-				LOCTEXT("HideUnrelatedNodesOptionsMenu", "Hide Unrelated Nodes options menu"),
-				TAttribute<FSlateIcon>(),
-				true
-			));
+						UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+						if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+						{
+							SubMenuContext->MaterialEditor.Pin()->GenerateInheritanceMenu(InSubMenu);
+						}
+					}),
+				LOCTEXT("Hierarchy", "Hierarchy"),
+				FText::GetEmpty(),
+				FSlateIcon(FAppStyle::Get().GetStyleSetName(), "MaterialEditor.Hierarchy"),
+				false
+				));
 		}
+		FToolMenuEntry LiveUpdateMenu = FToolMenuEntry::InitComboButton(
+			"LiveUpdate",
+			FUIAction(),
+			FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+				{
+					FToolMenuSection& Section = InSubMenu->FindOrAddSection("LiveUpdateOptions");
+					Section.AddEntry(FToolMenuEntry::InitMenuEntry(FMaterialEditorCommands::Get().ToggleLivePreview));
+					Section.AddEntry(FToolMenuEntry::InitMenuEntry(FMaterialEditorCommands::Get().ToggleRealtimeExpressions));
+					Section.AddEntry(FToolMenuEntry::InitMenuEntry(FMaterialEditorCommands::Get().AlwaysRefreshAllPreviews));
+				}),
+			LOCTEXT("LiveUpdate_Label", "Live Update"),
+					LOCTEXT("LiveUpdate_Tooltip", "Set the elements of the Material Editor UI to update in realtime"),
+					FSlateIcon(FAppStyle::Get().GetStyleSetName(), "MaterialEditor.LiveUpdate")
+					);
+		LiveUpdateMenu.StyleNameOverride = "CalloutToolbar";
+		MaterialSection.AddEntry(LiveUpdateMenu);
 
-		{
-			FToolMenuSection& Section = ToolBar->AddSection("Stats", TAttribute<FText>(), InsertAfterAssetSection);
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ToggleMaterialStats));
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().TogglePlatformStats));
-			Section.AddEntry(FToolMenuEntry::InitComboButton(
-				"NodePreview",
-				FUIAction(),
-				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+		
+		FToolMenuSection& GraphSection = ToolBar->AddSection("Graph", TAttribute<FText>(), InsertAfterAssetSection);
+
+		FToolMenuEntry CleaningMenu = FToolMenuEntry::InitComboButton(
+			"CleanGraph",
+			FUIAction(),
+			FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+				{
+					FToolMenuSection& Section = InSubMenu->FindOrAddSection("General");
+					Section.AddEntry(FToolMenuEntry::InitMenuEntry(FMaterialEditorCommands::Get().CleanUnusedExpressions));
+					Section.AddEntry(FToolMenuEntry::InitMenuEntry(FMaterialEditorCommands::Get().ShowHideConnectors));
+				}),
+			LOCTEXT("GraphCleanup_Label", "Clean Graph"),
+			LOCTEXT("GraphCleanup_Tooltip", "Tools to help clean up graph nodes and connections"),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "GraphEditor.Clean")
+		);
+		CleaningMenu.StyleNameOverride = "CalloutToolbar";
+		GraphSection.AddEntry(CleaningMenu);
+		GraphSection.AddEntry(FToolMenuEntry::InitComboButton(
+			"NodePreview",
+			FUIAction(),
+			FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
 				{
 					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
 					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
@@ -1707,40 +1718,43 @@ void FMaterialEditor::RegisterToolBar()
 						MaterialEditor->GeneratePreviewMenuContent(InSubMenu);
 					}
 				}),
-				LOCTEXT("NodePreview_Label", "Preview Nodes"),
-				LOCTEXT("NodePreviewToolTip", "Preview the nodes for a given feature level and/or material quality."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "FullBlueprintEditor.SwitchToScriptingMode"),
-				false
-			));
+			LOCTEXT("NodePreview_Label", "Preview State"),
+					LOCTEXT("NodePreviewToolTip", "Preview the graph state for a given feature level, material quality, or static switch value."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "FullBlueprintEditor.SwitchToScriptingMode"),
+					false
+					));
+		GraphSection.AddEntry(FToolMenuEntry::InitToolBarButton(
+			FMaterialEditorCommands::Get().ToggleHideUnrelatedNodes,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
+		));
+		GraphSection.AddEntry(FToolMenuEntry::InitComboButton(
+			"HideUnrelatedNodesOptions",
+			FUIAction(),
+			FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+				{
+					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+					{
+						TSharedPtr<FMaterialEditor> MaterialEditor = StaticCastSharedPtr<FMaterialEditor>(SubMenuContext->MaterialEditor.Pin());
+						MaterialEditor->MakeHideUnrelatedNodesOptionsMenu(InSubMenu);
+					}
+				}),
+			LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"),
+					LOCTEXT("HideUnrelatedNodesOptionsMenu", "Hide Unrelated Nodes options menu"),
+					TAttribute<FSlateIcon>(),
+					true
+					));
+
+		{
+			FToolMenuSection& Section = ToolBar->AddSection("Stats", TAttribute<FText>(), InsertAfterAssetSection);
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ToggleMaterialStats));
+			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().TogglePlatformStats));
+			
 		}
 
-		ToolBar->AddDynamicSection("Hierarchy", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
-		{
-			UMaterialEditorMenuContext* Context = InMenu->FindContext<UMaterialEditorMenuContext>();
-			TSharedPtr<FMaterialEditor> MaterialEditor = StaticCastSharedPtr<FMaterialEditor>(Context->MaterialEditor.Pin());
-			if (!MaterialEditor->MaterialFunction)
-			{
-				{
-					FToolMenuSection& Section = InMenu->AddSection("Hierarchy");
-					Section.AddEntry(FToolMenuEntry::InitComboButton(
-						"Hierarchy",
-						FToolUIActionChoice(),
-						FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
-						{
-							UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
-							if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
-							{
-								SubMenuContext->MaterialEditor.Pin()->GenerateInheritanceMenu(InSubMenu);
-							}
-						}),
-						LOCTEXT("Hierarchy", "Hierarchy"),
-						FText::GetEmpty(),
-						FSlateIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.SwitchToBehaviorTreeMode")),
-						false
-					));
-				}
-			}
-		})).InsertPosition = InsertAfterAssetSection;
+		
 	}
 };
 
@@ -2217,7 +2231,7 @@ void FMaterialEditor::LoadEditorSettings()
 {
 	EditorOptions = NewObject<UMaterialEditorOptions>();
 	
-	if (EditorOptions->bHideUnusedConnectors) {OnShowConnectors();}
+	if (EditorOptions->bHideUnusedConnectors) {OnHideConnectors();}
 	if (bLivePreview != EditorOptions->bLivePreviewUpdate)
 	{
 		ToggleLivePreview();
@@ -2260,7 +2274,7 @@ void FMaterialEditor::SaveEditorSettings()
 	{
 		EditorOptions->bShowGrid					= PreviewViewport->IsTogglePreviewGridChecked();
 		EditorOptions->bRealtimeMaterialViewport	= PreviewViewport->IsRealtime();
-		EditorOptions->bHideUnusedConnectors		= !IsOnShowConnectorsChecked();
+		EditorOptions->bHideUnusedConnectors		= !IsOnHideConnectorsChecked();
 		EditorOptions->bAlwaysRefreshAllPreviews	= IsOnAlwaysRefreshAllPreviews();
 		EditorOptions->bRealtimeExpressionViewport	= IsToggleRealTimeExpressionsChecked();
 		EditorOptions->bLivePreviewUpdate           = IsToggleLivePreviewChecked();
@@ -3044,9 +3058,9 @@ void FMaterialEditor::BindCommands()
 
 	ToolkitCommands->MapAction(
 		Commands.ShowHideConnectors,
-		FExecuteAction::CreateSP(this, &FMaterialEditor::OnShowConnectors),
+		FExecuteAction::CreateSP(this, &FMaterialEditor::OnHideConnectors),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsOnShowConnectorsChecked));
+		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsOnHideConnectorsChecked));
 
 	ToolkitCommands->MapAction(
 		Commands.ToggleLivePreview,
@@ -3210,7 +3224,7 @@ void FMaterialEditor::OnCameraHome()
 	RecenterEditor();
 }
 
-void FMaterialEditor::OnShowConnectors()
+void FMaterialEditor::OnHideConnectors()
 {
 	bHideUnusedConnectors = !bHideUnusedConnectors;
 
@@ -3220,9 +3234,9 @@ void FMaterialEditor::OnShowConnectors()
 	}
 }
 
-bool FMaterialEditor::IsOnShowConnectorsChecked() const
+bool FMaterialEditor::IsOnHideConnectorsChecked() const
 {
-	return bHideUnusedConnectors == false;
+	return bHideUnusedConnectors == true;
 }
 
 void FMaterialEditor::ToggleLivePreview()
@@ -4582,7 +4596,7 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_Preview(const FSpawnTabArgs& Args
 TSharedRef<SDockTab> FMaterialEditor::SpawnTab_MaterialProperties(const FSpawnTabArgs& Args)
 {
 	TSharedPtr<SDockTab> DetailsTab = SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("LevelEditor.Tabs.Details") )
+		.Icon( FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details") )
 		.Label( LOCTEXT("MaterialDetailsTitle", "Details") )
 		[
 			MaterialDetailsView.ToSharedRef()
@@ -4690,7 +4704,7 @@ TSharedRef<SDockTab> FMaterialEditor::SpawnTab_CustomPrimitiveData(const FSpawnT
 TSharedRef<SDockTab> FMaterialEditor::SpawnTab_LayerProperties(const FSpawnTabArgs& Args)
 {
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("MaterialInstanceEditor.Tabs.Properties"))
+		.Icon(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("MaterialLayerPropertiesTitle", "Layer Parameter Preview"))
 		[
 			SNew(SBorder)

@@ -3976,7 +3976,7 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 		Set("ClassIcon.K2Node_DynamicCast",		new IMAGE_BRUSH("Icons/icon_Blueprint_Cast_16x", Icon16x16));
 		Set("ClassIcon.EdGraphNode_Comment",	new IMAGE_BRUSH("Icons/icon_Blueprint_Comment_16x", Icon16x16));
 
-
+		Set("GraphEditor.Clean",				new IMAGE_BRUSH_SVG("Starship/GraphEditors/CleanUp", Icon20x20));
 		Set("GraphEditor.OverrideFunction_16x", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_OverrideFunction", Icon16x16));
 		Set("GraphEditor.OverrideFunction_24x", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_OverrideFunction", Icon24x24));
 		Set("GraphEditor.EventGraph_16x", new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_BlueprintEditor_EventGraph", Icon16x16));
@@ -6601,49 +6601,22 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 		Set( "MaterialEditor.NormalFont", DEFAULT_FONT( "Regular", 9 ) );
 		Set( "MaterialEditor.BoldFont", DEFAULT_FONT( "Bold", 9 ) );
 
-		Set( "MaterialEditor.Apply", new IMAGE_BRUSH( "Icons/icon_MatEd_Apply_40x", Icon40x40 ) );
-		Set( "MaterialEditor.Apply.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Apply_40x", Icon20x20 ) );
+		Set( "MaterialEditor.Apply", new IMAGE_BRUSH_SVG( "Starship/Common/Apply", Icon20x20 ) );
+		Set( "MaterialEditor.LiveUpdate", new IMAGE_BRUSH_SVG("Starship/MaterialEditor/LiveUpdate", Icon20x20));
+		Set( "MaterialEditor.Hierarchy", new IMAGE_BRUSH_SVG("Starship/MaterialEditor/Hierarchy", Icon20x20));
 
-		Set( "MaterialEditor.ShowAllMaterialParameters", new IMAGE_BRUSH( "Icons/icon_MatInsEd_Params_40x", Icon40x40 ) );
-		Set( "MaterialEditor.ShowAllMaterialParameters.Small", new IMAGE_BRUSH( "Icons/icon_MatInsEd_Params_40x", Icon20x20 ) );
-
-		Set( "MaterialEditor.SetCylinderPreview", new IMAGE_BRUSH( "Icons/icon_MatEd_Cylinder_40x", Icon40x40 ) );
-		Set( "MaterialEditor.SetCylinderPreview.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Cylinder_40x", Icon20x20 ) );
-		Set( "MaterialEditor.SetSpherePreview", new IMAGE_BRUSH( "Icons/icon_MatEd_Sphere_40x", Icon40x40 ) );
-		Set( "MaterialEditor.SetSpherePreview.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Sphere_40x", Icon20x20 ) );
-		Set( "MaterialEditor.SetPlanePreview", new IMAGE_BRUSH( "Icons/icon_MatEd_Plane_40x", Icon40x40 ) );
-		Set( "MaterialEditor.SetPlanePreview.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Plane_40x", Icon20x20 ) );
-		Set( "MaterialEditor.SetCubePreview", new IMAGE_BRUSH( "Icons/icon_MatEd_Cube_40x", Icon40x40 ) );
-		Set( "MaterialEditor.SetCubePreview.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Cube_40x", Icon20x20 ) );
-		Set( "MaterialEditor.SetPreviewMeshFromSelection", new IMAGE_BRUSH( "Icons/icon_MatEd_Mesh_40x", Icon40x40 ) );
-		Set( "MaterialEditor.SetPreviewMeshFromSelection.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Mesh_40x", Icon20x20 ) );
-		Set( "MaterialEditor.TogglePreviewGrid", new IMAGE_BRUSH( "Icons/icon_MatEd_Grid_40x", Icon40x40 ) );
-		Set( "MaterialEditor.TogglePreviewGrid.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Grid_40x", Icon20x20 ) );
-
-		Set( "MaterialEditor.ToggleMaterialStats", new IMAGE_BRUSH( "Icons/icon_MatEd_Stats_40x", Icon40x40 ) );
-		Set( "MaterialEditor.ToggleMaterialStats.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Stats_40x", Icon20x20 ) );
-		Set("MaterialEditor.ToggleMaterialStats.Tab", new IMAGE_BRUSH("Icons/icon_MatEd_Stats_40x", Icon16x16));
-		Set( "MaterialEditor.ToggleBuiltinStats", new IMAGE_BRUSH( "Icons/icon_MatEd_BuiltInStats_40x", Icon40x40 ) );
-		Set( "MaterialEditor.ToggleBuiltinStats.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_BuiltInStats_40x", Icon20x20 ) );
-		Set( "MaterialEditor.TogglePlatformStats", new IMAGE_BRUSH( "Icons/icon_MobileStats_40x", Icon40x40 ) );
-		Set( "MaterialEditor.TogglePlatformStats.Small", new IMAGE_BRUSH( "Icons/icon_MobileStats_40x", Icon20x20 ) );
-		Set( "MaterialEditor.CleanUnusedExpressions", new IMAGE_BRUSH( "Icons/icon_MatEd_CleanUp_40x", Icon40x40 ) );
-		Set( "MaterialEditor.CleanUnusedExpressions.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_CleanUp_40x", Icon20x20 ) );
-		Set( "MaterialEditor.ToggleRealtimeExpressions", new IMAGE_BRUSH( "Icons/icon_MatEd_LiveNodes_40x", Icon40x40 ) );
-		Set( "MaterialEditor.ToggleRealtimeExpressions.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_LiveNodes_40x", Icon20x20 ) );
-		Set( "MaterialEditor.AlwaysRefreshAllPreviews", new IMAGE_BRUSH( "Icons/icon_MatEd_Refresh_40x", Icon40x40 ) );
-		Set( "MaterialEditor.AlwaysRefreshAllPreviews.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Refresh_40x", Icon20x20 ) );
-		Set( "MaterialEditor.ToggleLivePreview", new IMAGE_BRUSH( "Icons/icon_MatEd_LivePreview_40x", Icon40x40 ) );
-		Set( "MaterialEditor.ToggleLivePreview.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_LivePreview_40x", Icon20x20 ) );
-		Set( "MaterialEditor.ShowHideConnectors", new IMAGE_BRUSH( "Icons/icon_MatEd_Connectors_40x", Icon40x40 ) );
-		Set( "MaterialEditor.ShowHideConnectors.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Connectors_40x", Icon20x20 ) );
-		Set( "MaterialEditor.CameraHome", new IMAGE_BRUSH( "Icons/icon_MatEd_Home_40x", Icon40x40 ) );
-		Set( "MaterialEditor.CameraHome.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Home_40x", Icon20x20 ) );
-		Set( "MaterialEditor.FindInMaterial", new IMAGE_BRUSH( "Icons/icon_Blueprint_Find_40px", Icon40x40 ) );
-		Set( "MaterialEditor.FindInMaterial.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_Find_40px", Icon20x20 ) );
-
-		Set("MaterialEditor.AddSubstanceSpecialToolBar", new IMAGE_BRUSH("Icons/icon_SubstanceFactory_White_40x", Icon40x40));
-		Set("MaterialEditor.AddSubstanceSpecialMenu", new IMAGE_BRUSH("Icons/icon_SubstanceFactory_White_40x", Icon32x32));
+		Set( "MaterialEditor.SetCylinderPreview", new IMAGE_BRUSH("Icons/AssetIcons/Cylinder_16x", Icon16x16));
+		Set( "MaterialEditor.SetSpherePreview", new IMAGE_BRUSH("Icons/AssetIcons/Sphere_16x", Icon16x16));
+		Set( "MaterialEditor.SetPlanePreview", new IMAGE_BRUSH( "Icons/AssetIcons/Plane_16x", Icon16x16) );
+		Set( "MaterialEditor.SetCubePreview", new IMAGE_BRUSH( "Icons/AssetIcons/Cube_16x", Icon16x16) );
+		Set( "MaterialEditor.SetPreviewMeshFromSelection", new IMAGE_BRUSH_SVG( "Starship/AssetIcons/StaticMesh_64", Icon16x16 ) );
+		Set( "MaterialEditor.TogglePreviewGrid", new IMAGE_BRUSH_SVG( "Starship/Common/Grid", Icon16x16 ) );
+		Set( "MaterialEditor.ToggleMaterialStats", new IMAGE_BRUSH_SVG( "Starship/Common/Statistics", Icon20x20 ) );
+		Set( "MaterialEditor.ToggleMaterialStats.Tab", new IMAGE_BRUSH_SVG("Starship/Common/Statistics", Icon16x16));
+		Set( "MaterialEditor.TogglePlatformStats", new IMAGE_BRUSH_SVG( "Starship/MaterialEditor/PlatformStats", Icon20x20 ) );
+		Set("MaterialEditor.TogglePlatformStats.Tab", new IMAGE_BRUSH_SVG("Starship/MaterialEditor/PlatformStats", Icon16x16));
+		Set( "MaterialEditor.CameraHome", new IMAGE_BRUSH_SVG( "Starship/Common/Home", Icon20x20 ) );
+		Set( "MaterialEditor.FindInMaterial", new IMAGE_BRUSH_SVG( "Starship/Common/Search", Icon20x20 ) );
 
 
 		Set("MaterialEditor.CellListViewRow", FTableRowStyle(NormalTableRowStyle)
@@ -6663,7 +6636,7 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 	// Material Instance Editor
 	{
 		Set( "MaterialInstanceEditor.Tabs.Properties", new IMAGE_BRUSH( "/Icons/icon_tab_SelectionDetails_16x", Icon16x16 ) );
-		Set( "MaterialInstanceEditor.Tabs.Parents", new IMAGE_BRUSH( "/Icons/layers_16x", Icon16x16 ) );
+		Set("MaterialEditor.ShowAllMaterialParameters", new IMAGE_BRUSH_SVG("Starship/GraphEditors/HideUnrelated", Icon20x20));
 	}
 	
 	// Sound Class Editor

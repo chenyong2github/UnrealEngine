@@ -799,34 +799,30 @@ void FMaterialInstanceEditor::RegisterToolBar()
 
 		FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
 		{
-			FToolMenuSection& Section = ToolBar->AddSection("Command", TAttribute<FText>(), InsertAfterAssetSection);
+			FToolMenuSection& MaterialInstanceSection = ToolBar->AddSection("MaterialInstanceTools", TAttribute<FText>(), InsertAfterAssetSection);
 
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().Apply));
-
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ShowAllMaterialParameters));
-			// TODO: support in material instance editor.
-			Section.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().TogglePlatformStats));
-		}
-
-		{
-			FToolMenuSection& Section = ToolBar->AddSection("Parent", TAttribute<FText>(), InsertAfterAssetSection);
-			Section.AddEntry(FToolMenuEntry::InitComboButton(
+			MaterialInstanceSection.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().Apply));
+			MaterialInstanceSection.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().ShowAllMaterialParameters));
+			MaterialInstanceSection.AddEntry(FToolMenuEntry::InitComboButton(
 				"Hierarchy",
 				FToolUIActionChoice(),
 				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
-				{
-					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
-					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
 					{
-						SubMenuContext->MaterialEditor.Pin()->GenerateInheritanceMenu(InSubMenu);
-					}
-				}),
+						UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+						if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+						{
+							SubMenuContext->MaterialEditor.Pin()->GenerateInheritanceMenu(InSubMenu);
+						}
+					}),
 				LOCTEXT("Hierarchy", "Hierarchy"),
-				FText::GetEmpty(),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.SwitchToBehaviorTreeMode"),
-				false
-			));
+						FText::GetEmpty(),
+						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "MaterialEditor.Hierarchy"),
+						false
+						));
 		}
+
+		FToolMenuSection& UISection = ToolBar->AddSection("Stats", TAttribute<FText>(), InsertAfterAssetSection);
+		UISection.AddEntry(FToolMenuEntry::InitToolBarButton(FMaterialEditorCommands::Get().TogglePlatformStats));
 	}
 }
 
@@ -927,7 +923,7 @@ TSharedRef<SDockTab> FMaterialInstanceEditor::SpawnTab_Properties( const FSpawnT
 	check( Args.GetTabId().TabType == PropertiesTabId );
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon( FEditorStyle::GetBrush("MaterialInstanceEditor.Tabs.Properties") )
+		.Icon(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("MaterialPropertiesTitle", "Details"))
 		[
 			SNew(SBorder)
@@ -948,7 +944,7 @@ TSharedRef<SDockTab> FMaterialInstanceEditor::SpawnTab_LayerProperties(const FSp
 	check(Args.GetTabId().TabType == LayerPropertiesTabId);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Icon(FEditorStyle::GetBrush("MaterialInstanceEditor.Tabs.Properties"))
+		.Icon(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
 		.Label(LOCTEXT("MaterialLayerPropertiesTitle", "Layer Parameters"))
 		[
 			SNew(SBorder)
