@@ -15,6 +15,7 @@ class FControlRigEditor;
 class SSearchBox;
 class FUICommandList;
 class UControlRigBlueprint;
+class UControlRig;
 struct FAssetData;
 class FMenuBuilder;
 class SRigHierarchyItem;
