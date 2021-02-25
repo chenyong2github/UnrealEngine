@@ -320,6 +320,11 @@ void FPersonaToolkit::SetPreviewMesh(class USkeletalMesh* InSkeletalMesh, bool b
 			{
 				AssetToReopen = PhysicsAsset;
 			}
+			else if (InitialAssetClass == USkeleton::StaticClass())
+			{
+				AssetToReopen = Skeleton.Get();
+			}
+
 			check(AssetToReopen);
 
 			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllEditorsForAsset(AssetToReopen);
