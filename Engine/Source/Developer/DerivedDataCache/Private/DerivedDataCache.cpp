@@ -583,6 +583,8 @@ private:
 
 static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
  * Module for the DDC
  */
@@ -616,5 +618,7 @@ public:
 private:
 	FCriticalSection CreateLock;
 };
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 IMPLEMENT_MODULE(FDerivedDataCacheModule, DerivedDataCache);
