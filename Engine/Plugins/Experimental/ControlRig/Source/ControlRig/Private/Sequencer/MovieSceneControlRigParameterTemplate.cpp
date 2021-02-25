@@ -170,13 +170,13 @@ using FControlRigAnimTypeIDsPtr = TSharedPtr<FControlRigAnimTypeIDs, ESPMode::Th
 
 /**
  * Control rig anim type IDs are a little complex - they require a unique type ID for every bone
- * and they must be unique per-animating section. To efficiently support finding these each frame,
- * We store a cache of the type IDs in a container on an object annotation for each section.
+ * and they must be unique per-animating control rig. To efficiently support finding these each frame,
+ * We store a cache of the type IDs in a container on an object annotation for each control rig.
  */
 struct FControlRigAnimTypeIDs
 {
 	/** Get the anim type IDs for the specified section */
-	static FControlRigAnimTypeIDsPtr Get(const UMovieSceneControlRigParameterSection* Section)
+	static FControlRigAnimTypeIDsPtr Get(const UControlRig* ControlRig)
 	{
 		struct FControlRigAnimTypeIDsAnnotation
 		{
@@ -191,14 +191,14 @@ struct FControlRigAnimTypeIDs
 		// Function-local static so that this only gets created once it's actually required
 		static FUObjectAnnotationSparse<FControlRigAnimTypeIDsAnnotation, true> AnimTypeIDAnnotation;
 
-		FControlRigAnimTypeIDsAnnotation TypeIDs = AnimTypeIDAnnotation.GetAnnotation(Section);
+		FControlRigAnimTypeIDsAnnotation TypeIDs = AnimTypeIDAnnotation.GetAnnotation(ControlRig);
 		if (TypeIDs.Ptr != nullptr)
 		{
 			return TypeIDs.Ptr;
 		}
 
 		FControlRigAnimTypeIDsPtr NewPtr = MakeShared<FControlRigAnimTypeIDs, ESPMode::ThreadSafe>();
-		AnimTypeIDAnnotation.AddAnnotation(Section, FControlRigAnimTypeIDsAnnotation{NewPtr});
+		AnimTypeIDAnnotation.AddAnnotation(ControlRig, FControlRigAnimTypeIDsAnnotation{NewPtr});
 		return NewPtr;
 	}
 
@@ -1316,7 +1316,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		FControlRigParameterExecutionToken ExecutionToken(Section,Values);
 		ExecutionTokens.Add(MoveTemp(ExecutionToken));
 
-		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section);
+		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section->ControlRig);
 
 		for (const FScalarParameterStringAndValue& ScalarNameAndValue : Values.ScalarValues)
 		{
@@ -1585,8 +1585,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 		EvaluateCurvesWithMasks(Context, Values);
 		HACK_ChannelMasks = nullptr;
 
-
-		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section);
+		FControlRigAnimTypeIDsPtr TypeIDs = FControlRigAnimTypeIDs::Get(Section->ControlRig);
 
 		float Weight = 1.f;
 
