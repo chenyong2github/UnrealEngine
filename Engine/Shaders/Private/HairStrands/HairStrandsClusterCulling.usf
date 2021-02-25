@@ -509,7 +509,6 @@ uint NumConvexHullPlanes;
 float LODForcedIndex;
 float LODBias;
 int bIsHairGroupVisible;
-int ShadowViewMode;
 float4 ViewFrustumConvexHull[6];
 
 Buffer<int> ClusterAABBBuffer;
@@ -648,9 +647,6 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		// This ensures that clusters position are updated which is used for two things:
 		// * Update the cluster AABB, which are used for voxelization allocation purpose
 		// * Update vertex positions used for voxelization 
-		//
-		// Note: bForceVisible was previously used for the ShadowViewMode mode, which was a pass throught to be able to cast shadow 
-		// even for hiddent parts
 		bool bForceVisible = bIsHairGroupVisible == 1;
 
 		if (bVisible || bForceVisible) 

@@ -1683,7 +1683,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 				FHairCullingParams CullingParams;
 				CullingParams.bCullingProcessSkipped = false;
-				CullingParams.bShadowViewMode = false;
 				ComputeHairStrandsClustersCulling(GraphBuilder, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
 			}
 
