@@ -308,7 +308,7 @@ void LumenCardDirectLightingPS(
 
 				float NoL = saturate(dot(WorldNormal, L));
 				Irradiance = LightColor * (CombinedAttenuation * NoL * ShadowFactor);
-				//Irradiance = bShadowFactorValid ? float3(0, 1, 0) : float3(.2f, 0, 0);
+				//Irradiance = bShadowFactorValid ? float3(0, 1, 0) : float3(0.2f, 0, 0);
 			}
 		}
 	}
