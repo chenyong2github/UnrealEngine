@@ -157,7 +157,7 @@ struct FStreamingTextureBuildInfo
 // The tile size when outputting the material texture scales.
 #define TEXSTREAM_TILE_RESOLUTION 32
 // The max number of textures processed in the material texture scales build.
-#define TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL 32
+#define TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL 256
 
 struct FPrimitiveMaterialInfo
 {
