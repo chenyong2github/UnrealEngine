@@ -18,6 +18,7 @@
 #include "Misc/AssertionMacros.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SBoxPanel.h"
@@ -57,6 +58,16 @@ void SDataprepStringFilter<FilterType>::Construct(const FArguments& InArgs, Filt
 			UserStringParameterizationActionData = MakeShared<FDataprepParametrizationActionData>( *DataprepAsset, InFilter, PropertyChain);
 		}
 
+		{
+			FName PropertyName = FName( TEXT("bMatchInArray") );
+			FProperty* Property = FilterClass->FindPropertyByName( PropertyName );
+			check( Property );
+			TArray<FDataprepPropertyLink> PropertyChain;
+			PropertyChain.Emplace( Property, PropertyName, INDEX_NONE );
+
+			MatchInArrayParameterizationActionData = MakeShared<FDataprepParametrizationActionData>( *DataprepAsset, InFilter, PropertyChain);
+		}
+
 		OnParameterizationStatusForObjectsChangedHandle = DataprepAsset->OnParameterizedObjectsStatusChanged.AddSP( this, &SDataprepStringFilter<FilterType>::OnParameterizationStatusForObjectsChanged );
 	}
 
@@ -77,53 +88,115 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 {
 	TSharedPtr<SHorizontalBox> MatchingCriteriaHorizontalBox;
 	TSharedPtr<SHorizontalBox> UserStringHorizontalBox;
+	TSharedPtr<SHorizontalBox> MatchInArrayHorizontalBox;
+	TSharedPtr<SHorizontalBox> MatchingArrayHorizontalBox;
 
 	ChildSlot
 	[
 		SNew( SBox )
 		.MinDesiredWidth( 400.f )
 		[
-			SNew( SHorizontalBox )
-			+ SHorizontalBox::Slot()
+			SNew( SVerticalBox )
+			+ SVerticalBox::Slot()
 			.Padding( 5.f )
+			.AutoHeight()
 			[
-				SNew( SDataprepContextMenuOverride )
-				.OnContextMenuOpening( this, &SDataprepStringFilter<FilterType>::OnGetContextMenuForMatchingCriteria )
+				SNew( SHorizontalBox )
+				+ SHorizontalBox::Slot()
+				.Padding( 0, 0, 6, 0 )
 				[
-					SAssignNew( MatchingCriteriaHorizontalBox, SHorizontalBox )
-					+ SHorizontalBox::Slot()
+					SNew( SDataprepContextMenuOverride )
+					.OnContextMenuOpening( this, &SDataprepStringFilter<FilterType>::OnGetContextMenuForMatchingCriteria )
 					[
-						SAssignNew( StringMatchingCriteriaWidget, SComboBox< TSharedPtr< FListEntry > > )
-						.OptionsSource( &StringMatchingOptions )
-						.OnGenerateWidget( this, &SDataprepStringFilter::OnGenerateWidgetForMatchingCriteria )
-						.OnSelectionChanged( this, &SDataprepStringFilter::OnSelectedCriteriaChanged )
-						.OnComboBoxOpening( this, &SDataprepStringFilter::OnCriteriaComboBoxOpenning )
+						SAssignNew( MatchingCriteriaHorizontalBox, SHorizontalBox )
+						+ SHorizontalBox::Slot()
 						[
-							SNew( STextBlock )
-							.Text( this, &SDataprepStringFilter::GetSelectedCriteriaText )
-							.ToolTipText( this, &SDataprepStringFilter::GetSelectedCriteriaTooltipText )
-							.Justification( ETextJustify::Center )
+							SAssignNew( StringMatchingCriteriaWidget, SComboBox< TSharedPtr< FListEntry > > )
+							.OptionsSource( &StringMatchingOptions )
+							.OnGenerateWidget( this, &SDataprepStringFilter::OnGenerateWidgetForMatchingCriteria )
+							.OnSelectionChanged( this, &SDataprepStringFilter::OnSelectedCriteriaChanged )
+							.OnComboBoxOpening( this, &SDataprepStringFilter::OnCriteriaComboBoxOpenning )
+							[
+								SNew( STextBlock )
+								.Text( this, &SDataprepStringFilter::GetSelectedCriteriaText )
+								.ToolTipText( this, &SDataprepStringFilter::GetSelectedCriteriaTooltipText )
+								.Justification( ETextJustify::Center )
+							]
 						]
 					]
 				]
-			
+				+ SHorizontalBox::Slot()
+				[
+					SNew( SDataprepContextMenuOverride )
+					.OnContextMenuOpening( this, &SDataprepStringFilter<FilterType>::OnGetContextMenuForUserString )
+					[
+						SAssignNew( UserStringHorizontalBox, SHorizontalBox )
+						+ SHorizontalBox::Slot()
+						[
+							SNew( SEditableTextBox )
+							.Text( this, &SDataprepStringFilter::GetUserString )
+							.ContextMenuExtender( this, &SDataprepStringFilter::ExtendContextMenuForUserStringBox )
+							.OnTextChanged( this, &SDataprepStringFilter::OnUserStringChanged )
+							.OnTextCommitted( this, &SDataprepStringFilter::OnUserStringComitted )
+							.Justification( ETextJustify::Center )
+							.Visibility_Lambda([this]() -> EVisibility
+							{
+								if ( Filter )
+								{
+									return Filter->GetMatchInArray() ? EVisibility::Collapsed : EVisibility::Visible;
+								}
+								return EVisibility::Visible;
+							})
+						]
+					]
+				]
 			]
-			+ SHorizontalBox::Slot()
+			+ SVerticalBox::Slot()
 			.Padding( 5.f )
 			[
 				SNew( SDataprepContextMenuOverride )
-				.OnContextMenuOpening( this, &SDataprepStringFilter<FilterType>::OnGetContextMenuForUserString )
+				.OnContextMenuOpening( this, &SDataprepStringFilter<FilterType>::OnGetContextMenuForMatchInArray )
 				[
-					SAssignNew( UserStringHorizontalBox, SHorizontalBox )
+					SAssignNew( MatchInArrayHorizontalBox, SHorizontalBox )
 					+ SHorizontalBox::Slot()
+					.AutoWidth()
 					[
-						SNew( SEditableTextBox )
-						.Text( this, &SDataprepStringFilter::GetUserString )
-						.ContextMenuExtender( this, &SDataprepStringFilter::ExtendContextMenuForUserStringBox )
-						.OnTextChanged( this, &SDataprepStringFilter::OnUserStringChanged )
-						.OnTextCommitted( this, &SDataprepStringFilter::OnUserStringComitted )
-						.Justification( ETextJustify::Center )
+						SNew( SCheckBox )
+						.ToolTipText(LOCTEXT( "MatchInArrayToolTip", "Match string in array." ))
+						.IsChecked_Lambda([this]() -> ECheckBoxState
+						{
+							if ( Filter )
+							{
+								return Filter->GetMatchInArray() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+							}
+							return ECheckBoxState::Unchecked;
+						})
+						.OnCheckStateChanged( this, &SDataprepStringFilter::OnCheckStateMatchInArrayChanged )
+						.Content()
+						[
+							SNew( STextBlock )
+							.Text( LOCTEXT("MatchInArray", "Match in array") )
+						]
 					]
+				]
+			]
+			+ SVerticalBox::Slot()
+			.Padding( 5.f )
+			.AutoHeight()
+			[
+				SAssignNew( MatchInArrayHorizontalBox, SHorizontalBox )
+				+ SHorizontalBox::Slot()
+				[
+					SNew( SDataprepDetailsView )
+					.Object( Filter ? Filter->GetStringArray() : nullptr )
+					.Visibility_Lambda([this]() -> EVisibility
+					{
+						if ( Filter )
+						{
+							return Filter->GetMatchInArray() ? EVisibility::Visible : EVisibility::Collapsed;
+						}
+						return EVisibility::Collapsed;
+					})
 				]
 			]
 		]
@@ -155,6 +228,29 @@ void SDataprepStringFilter<FilterType>::UpdateVisualDisplay()
 				.AutoWidth()
 				[
 					SNew( SDataprepParameterizationLinkIcon, UserStringParameterizationActionData->DataprepAsset, Filter, UserStringParameterizationActionData->PropertyChain )
+					.Visibility_Lambda([this]() -> EVisibility
+					{
+						if ( Filter )
+						{
+							return Filter->GetMatchInArray() ? EVisibility::Collapsed : EVisibility::Visible;
+						}
+						return EVisibility::Collapsed;
+					})
+				];
+		}
+	}
+
+	if ( MatchInArrayParameterizationActionData && MatchInArrayParameterizationActionData->IsValid() )
+	{
+		if ( MatchInArrayParameterizationActionData->DataprepAsset->IsObjectPropertyBinded( Filter, MatchInArrayParameterizationActionData->PropertyChain ) )
+		{
+			MatchInArrayHorizontalBox->AddSlot()
+				.HAlign( HAlign_Right )
+				.VAlign( VAlign_Center )
+				.Padding( FMargin(5.f, 0.f, 0.f, 0.f) )
+				.AutoWidth()
+				[
+					SNew( SDataprepParameterizationLinkIcon, MatchInArrayParameterizationActionData->DataprepAsset, Filter, MatchInArrayParameterizationActionData->PropertyChain )
 				];
 		}
 	}
@@ -211,6 +307,31 @@ TSharedPtr<SWidget> SDataprepStringFilter<FilterType>::OnGetContextMenuForMatchi
 	return FDataprepEditorUtils::MakeContextMenu( MatchingCriteriaParameterizationActionData );
 }
 
+template <class FilterType>
+TSharedPtr<SWidget> SDataprepStringFilter<FilterType>::OnGetContextMenuForMatchInArray()
+{
+	return FDataprepEditorUtils::MakeContextMenu( MatchInArrayParameterizationActionData );
+}
+
+template <class FilterType>
+void SDataprepStringFilter<FilterType>::OnCheckStateMatchInArrayChanged(ECheckBoxState CheckState) 
+{
+	check( Filter );
+
+	FScopedTransaction Transaction( LOCTEXT("MatchInArrayChangedTransaction","Changed match in array") );
+
+	Filter->SetMatchInArray( CheckState == ECheckBoxState::Checked );
+
+	FProperty* Property = Filter->GetClass()->FindPropertyByName( TEXT("bMatchInArray") );
+	check( Property );
+
+	FEditPropertyChain EditChain;
+	EditChain.AddHead( Property );
+	EditChain.SetActivePropertyNode( Property );
+	FPropertyChangedEvent EditPropertyChangeEvent( Property, EPropertyChangeType::ValueSet );
+	FPropertyChangedChainEvent EditChangeChainEvent( EditChain, EditPropertyChangeEvent );
+	Filter->PostEditChangeChainProperty( EditChangeChainEvent );
+}
 
 template <class FilterType>
 void SDataprepStringFilter<FilterType>::OnSelectedCriteriaChanged(TSharedPtr<FListEntry> ListEntry, ESelectInfo::Type SelectionType)

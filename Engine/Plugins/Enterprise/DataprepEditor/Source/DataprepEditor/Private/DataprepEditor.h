@@ -140,6 +140,9 @@ public:
 	/** Select all actors and assets that have status Pass from the preview system */
 	void SyncSelectionToPreviewSystem();
 
+	/** Return a weak pointer to asset preview view */
+	TWeakPtr<AssetPreviewWidget::SAssetsPreviewWidget> GetAssetPreviewView() { return AssetPreviewView; }
+
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override;

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Types/SlateEnums.h"
+#include "Styling/SlateTypes.h"
 #include "UObject/GCObject.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -39,8 +40,10 @@ private:
 	FText GetSelectedCriteriaText() const;
 	FText GetSelectedCriteriaTooltipText() const;
 	void OnSelectedCriteriaChanged(TSharedPtr<FListEntry> ListEntry, ESelectInfo::Type SelectionType);
+	void OnCheckStateMatchInArrayChanged(ECheckBoxState CheckState);
 	void OnCriteriaComboBoxOpenning();
 	TSharedPtr<SWidget> OnGetContextMenuForMatchingCriteria();
+	TSharedPtr<SWidget> OnGetContextMenuForMatchInArray();
 
 	// This function is for the string that will be compare against the fetched string
 	FText GetUserString() const;
@@ -65,6 +68,7 @@ private:
 
 	TSharedPtr<FDataprepParametrizationActionData> MatchingCriteriaParameterizationActionData;
 	TSharedPtr<FDataprepParametrizationActionData> UserStringParameterizationActionData;
+	TSharedPtr<FDataprepParametrizationActionData> MatchInArrayParameterizationActionData;
 
 	FDelegateHandle OnParameterizationStatusForObjectsChangedHandle;
 };

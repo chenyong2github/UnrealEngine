@@ -8,20 +8,41 @@
 
 bool UDataprepStringFilter::Filter(const FString& String) const
 {
-	switch ( StringMatchingCriteria )
+	TFunction<bool( const FString& )> MatchString = [this, &String]( const FString& InStringToMatch ) -> bool
 	{
-		case EDataprepStringMatchType::Contains:
-			return String.Contains( UserString );
-			break;
-		case EDataprepStringMatchType::ExactMatch:
-			return String.Equals( UserString );
-			break;
-		case EDataprepStringMatchType::MatchesWildcard:
-			return String.MatchesWildcard( UserString );
-			break;
-		default:
-			check( false );
-			break;
+		switch ( StringMatchingCriteria )
+		{
+			case EDataprepStringMatchType::Contains:
+				return String.Contains( InStringToMatch );
+				break;
+			case EDataprepStringMatchType::ExactMatch:
+				return String.Equals( InStringToMatch );
+				break;
+			case EDataprepStringMatchType::MatchesWildcard:
+				return String.MatchesWildcard( InStringToMatch );
+				break;
+			default:
+				check( false );
+				break;
+		}
+
+		return false;
+	};
+
+	if ( bMatchInArray )
+	{
+		check( UserStringArray );
+		for ( const FString& Str : UserStringArray->Strings )
+		{
+			if ( MatchString( Str ) )
+			{
+				return true;
+			}
+		}
+	}
+	else
+	{
+		return MatchString( UserString );
 	}
 
 	return false;
@@ -103,6 +124,20 @@ FString UDataprepStringFilter::GetUserString() const
 	return UserString;
 }
 
+bool UDataprepStringFilter::GetMatchInArray() const
+{
+	return bMatchInArray;
+}
+
+UDataprepStringFilterMatchingArray* UDataprepStringFilter::GetStringArray()
+{
+	if ( !UserStringArray )
+	{
+		UserStringArray = NewObject< UDataprepStringFilterMatchingArray >( this, NAME_None, RF_Transient );
+	}
+	return UserStringArray;
+}
+
 void UDataprepStringFilter::SetStringMatchingCriteria(EDataprepStringMatchType InStringMatchingCriteria)
 {
 	if ( StringMatchingCriteria != InStringMatchingCriteria )
@@ -119,4 +154,9 @@ void UDataprepStringFilter::SetUserString(FString InUserString)
 		Modify();
 		UserString = InUserString;
 	}
+}
+
+void UDataprepStringFilter::SetMatchInArray(bool bInSet)
+{
+	bMatchInArray = bInSet;
 }

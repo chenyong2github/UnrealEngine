@@ -110,6 +110,20 @@ FString UDataprepStringsArrayFilter::GetUserString() const
 	return UserString;
 }
 
+bool UDataprepStringsArrayFilter::GetMatchInArray() const
+{
+	return bMatchInArray;
+}
+
+UDataprepStringFilterMatchingArray* UDataprepStringsArrayFilter::GetStringArray()
+{
+	if ( !UserStringArray )
+	{
+		UserStringArray = NewObject< UDataprepStringFilterMatchingArray >( this, NAME_None, RF_Transient );
+	}
+	return UserStringArray;
+}
+
 void UDataprepStringsArrayFilter::SetStringMatchingCriteria(EDataprepStringMatchType InStringMatchingCriteria)
 {
 	if (StringMatchingCriteria != InStringMatchingCriteria)
@@ -126,4 +140,9 @@ void UDataprepStringsArrayFilter::SetUserString(FString InUserString)
 		Modify();
 		UserString = InUserString;
 	}
+}
+
+void UDataprepStringsArrayFilter::SetMatchInArray(bool bInSet)
+{
+	bMatchInArray = bInSet;
 }
