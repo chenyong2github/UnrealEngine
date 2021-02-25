@@ -66,7 +66,10 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 
 		for (AActor* Actor : LevelScriptExternalActorReferences)
 		{
-			ChangeActorDescViewGridPlacement(OutActorDescViewMap.FindChecked(Actor->GetActorGuid()), EActorGridPlacement::AlwaysLoaded);
+			if (FWorldPartitionActorDescView* ActorDescView = OutActorDescViewMap.Find(Actor->GetActorGuid()))
+			{
+				ChangeActorDescViewGridPlacement(*ActorDescView, EActorGridPlacement::AlwaysLoaded);
+			}
 		}
 	}
 }
