@@ -4,6 +4,7 @@
 #include "Misc/EnumClassFlags.h"
 #include "Misc/StringBuilder.h"
 #include "Containers/StringFwd.h"
+#include "HAL/IConsoleManager.h"
 
 namespace FastDecimalFormat
 {
@@ -414,7 +415,8 @@ FString CultureInvariantDecimalToString(const double InVal, const TCHAR*& InBuff
 	TStringBuilder<128> OutStr;
 
 	bool bUseGrouping = InFormattingOptions.UseGrouping && InFormattingRules.PrimaryGroupingSize > 0;
-	uint8 NumIntegralDigits = static_cast<uint8>(FMath::Abs((FMath::LogX(10.0, InVal)))) + 1;
+	auto LogXd = [](double Base, double Value) { return log(Value) / log(Base); };
+	uint8 NumIntegralDigits = static_cast<uint8>(FMath::Abs(LogXd(10.0, InVal))) + 1;
 	uint8 NumUntilNextGroup = NumIntegralDigits % InFormattingRules.PrimaryGroupingSize;
 	const TCHAR* InBufferEnd = InBuffer + InBufferLen;
 
