@@ -89,35 +89,34 @@ bool FStaticSelfRegisteringExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutpu
 	Module singletons.
 -----------------------------------------------------------------------------*/
 
-class FDerivedDataCacheInterface* GetDerivedDataCache()
+FDerivedDataCacheInterface* GetDerivedDataCache()
 {
-	static class FDerivedDataCacheInterface* SingletonInterface = NULL;
-	if (!FPlatformProperties::RequiresCookedData())
+	static FDerivedDataCacheInterface* const* DDC;
+	static bool bInitialized = false;
+	if (!bInitialized)
 	{
-		static bool bInitialized = false;
-		if (!bInitialized)
+		if (!FPlatformProperties::RequiresCookedData())
 		{
 			check(IsInGameThread());
 			bInitialized = true;
-			class IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache");
-			if (Module)
+			if (IDerivedDataCacheModule* Module = FModuleManager::LoadModulePtr<IDerivedDataCacheModule>("DerivedDataCache"))
 			{
-				SingletonInterface = &Module->GetDDC();
+				DDC = Module->CreateOrGetDDC();
 			}
 		}
 	}
-	return SingletonInterface;
+	return *DDC;
 }
 
-class FDerivedDataCacheInterface& GetDerivedDataCacheRef()
+FDerivedDataCacheInterface& GetDerivedDataCacheRef()
 {
-	class FDerivedDataCacheInterface* SingletonInterface = GetDerivedDataCache();
-	if (!SingletonInterface)
+	FDerivedDataCacheInterface* DDC = GetDerivedDataCache();
+	if (!DDC)
 	{
 		UE_LOG(LogInit, Fatal, TEXT("Derived Data Cache was requested, but not available."));
-		CA_ASSUME( SingletonInterface != NULL );	// Suppress static analysis warning in unreachable code (fatal error)
+		CA_ASSUME(DDC); // Suppress static analysis warning in unreachable code (fatal error)
 	}
-	return *SingletonInterface;
+	return *DDC;
 }
 
 class ITargetPlatformManagerModule* GetTargetPlatformManager(bool bFailOnInitErrors)

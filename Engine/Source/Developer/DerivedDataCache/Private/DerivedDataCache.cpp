@@ -581,27 +581,40 @@ private:
 	FOnDDCNotification DDCNotificationEvent;
 };
 
+static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
+
 /**
  * Module for the DDC
  */
-class FDerivedDataCacheModule : public IDerivedDataCacheModule
+class FDerivedDataCacheModule final : public IDerivedDataCacheModule
 {
 public:
-	virtual FDerivedDataCacheInterface& GetDDC() override
+	virtual FDerivedDataCacheInterface& GetDDC() final
 	{
-		static FDerivedDataCache SingletonInstance;
-		return SingletonInstance;
+		return **CreateOrGetDDC();
 	}
 
-	virtual void StartupModule() override
+	virtual FDerivedDataCacheInterface* const* CreateOrGetDDC() final
 	{
-		GetDDC();
+		FScopeLock Lock(&CreateLock);
+		if (!GDerivedDataCacheInstance)
+		{
+			GDerivedDataCacheInstance = new FDerivedDataCache();
+			check(GDerivedDataCacheInstance);
+		}
+		return &GDerivedDataCacheInstance;
 	}
 
-	virtual void ShutdownModule() override
+	virtual void ShutdownModule() final
 	{
 		FDDCCleanup::Shutdown();
+
+		delete GDerivedDataCacheInstance;
+		GDerivedDataCacheInstance = nullptr;
 	}
+
+private:
+	FCriticalSection CreateLock;
 };
 
-IMPLEMENT_MODULE( FDerivedDataCacheModule, DerivedDataCache);
+IMPLEMENT_MODULE(FDerivedDataCacheModule, DerivedDataCache);
