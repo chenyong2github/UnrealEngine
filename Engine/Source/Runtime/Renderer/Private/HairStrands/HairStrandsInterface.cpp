@@ -19,26 +19,40 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogHairRendering, Log, All);
 
-static int32 GHairStrandsRaytracingEnable = 1;
-static FAutoConsoleVariableRef CVarHairStrandsRaytracingEnable(TEXT("r.HairStrands.Raytracing"), GHairStrandsRaytracingEnable, TEXT("Enable/Disable hair strands raytracing geometry. This is anopt-in option per groom asset/groom instance."));
+static TAutoConsoleVariable<int32> CVarHairStrandsRaytracingEnable(
+	TEXT("r.HairStrands.Raytracing"), 1,
+	TEXT("Enable/Disable hair strands raytracing geometry. This is anopt-in option per groom asset/groom instance."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static int32 GHairStrandsGlobalEnable = 1;
-static FAutoConsoleVariableRef CVarHairStrandsGlobalEnable(TEXT("r.HairStrands.Enable"), GHairStrandsGlobalEnable, TEXT("Enable/Disable the entire hair strands system. This affects all geometric representations (i.e., strands, cards, and meshes)."));
+static TAutoConsoleVariable<int32> CVarHairStrandsGlobalEnable(
+	TEXT("r.HairStrands.Enable"), 1,
+	TEXT("Enable/Disable the entire hair strands system. This affects all geometric representations (i.e., strands, cards, and meshes)."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static int32 GHairStrandsEnable = 1;
-static FAutoConsoleVariableRef CVarHairStrandsEnable(TEXT("r.HairStrands.Strands"), GHairStrandsEnable, TEXT("Enable/Disable hair strands rendering"));
+static TAutoConsoleVariable<int32> CVarHairStrandsEnable(
+	TEXT("r.HairStrands.Strands"), 1,
+	TEXT("Enable/Disable hair strands rendering"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static int32 GHairCardsEnable = 1;
-static FAutoConsoleVariableRef CVarHairCardsEnable(TEXT("r.HairStrands.Cards"), GHairCardsEnable, TEXT("Enable/Disable hair cards rendering. This variable needs to be turned on when the engine starts."));
+static TAutoConsoleVariable<int32> CVarHairCardsEnable(
+	TEXT("r.HairStrands.Cards"), 1,
+	TEXT("Enable/Disable hair cards rendering. This variable needs to be turned on when the engine starts."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static int32 GHairMeshesEnable = 1;
-static FAutoConsoleVariableRef CVarHairMeshesEnable(TEXT("r.HairStrands.Meshes"), GHairMeshesEnable, TEXT("Enable/Disable hair meshes rendering. This variable needs to be turned on when the engine starts."));
+static TAutoConsoleVariable<int32> CVarHairMeshesEnable(
+	TEXT("r.HairStrands.Meshes"), 1,
+	TEXT("Enable/Disable hair meshes rendering. This variable needs to be turned on when the engine starts."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static int32 GHairStrandsBinding = 1;
-static FAutoConsoleVariableRef CVarHairStrandsBinding(TEXT("r.HairStrands.Binding"), GHairStrandsBinding, TEXT("Enable/Disable hair binding, i.e., hair attached to skeletal meshes."));
+static TAutoConsoleVariable<int32> CVarHairStrandsBinding(
+	TEXT("r.HairStrands.Binding"), 1,
+	TEXT("Enable/Disable hair binding, i.e., hair attached to skeletal meshes."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static int32 GHairStrandsSimulation = 1;
-static FAutoConsoleVariableRef CVarHairStrandsSimulation(TEXT("r.HairStrands.Simulation"), GHairStrandsSimulation, TEXT("Enable/disable hair simulation"));
+static TAutoConsoleVariable<int32> CVarHairStrandsSimulation(
+	TEXT("r.HairStrands.Simulation"), 1,
+	TEXT("Enable/disable hair simulation"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Import/export utils function for hair resources
@@ -118,7 +132,7 @@ bool IsHairRayTracingEnabled()
 
 	if (GIsRHIInitialized && !bIsCookCommandlet)
 	{
-		return IsRayTracingEnabled() && GHairStrandsRaytracingEnable;
+		return IsRayTracingEnabled() && CVarHairStrandsRaytracingEnable.GetValueOnAnyThread();
 	}
 	else
 	{
@@ -147,35 +161,39 @@ bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platfor
 
 bool IsHairStrandsEnabled(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
-	if (GHairStrandsGlobalEnable <= 0) return false;
+	const int32 HairStrandsGlobalEnable = CVarHairStrandsGlobalEnable.GetValueOnAnyThread();
+	if (HairStrandsGlobalEnable <= 0) return false;
 
 	// Important:
 	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
 	//                              The runtime setting in these case are r.HairStrands.Binding=0 & r.HairStrands.Simulation=0
 	const bool bIsMobile = Platform != EShaderPlatform::SP_NumPlatforms ? IsMobilePlatform(Platform) || Platform == SP_PCD3D_ES3_1 : false;
+	const int32 HairStrandsEnable = CVarHairStrandsEnable.GetValueOnAnyThread();
+	const int32 HairCardsEnable   = CVarHairCardsEnable.GetValueOnAnyThread();
+	const int32 HairMeshesEnable  = CVarHairMeshesEnable.GetValueOnAnyThread();
 	switch (Type)
 	{
-	case EHairStrandsShaderType::Strands:	return GHairStrandsEnable > 0 && (Platform != EShaderPlatform::SP_NumPlatforms ? IsHairStrandsGeometrySupported(Platform) : true);
-	case EHairStrandsShaderType::Cards:		return GHairCardsEnable > 0;
-	case EHairStrandsShaderType::Meshes:	return GHairMeshesEnable > 0;
+	case EHairStrandsShaderType::Strands:	return HairStrandsEnable > 0 && (Platform != EShaderPlatform::SP_NumPlatforms ? IsHairStrandsGeometrySupported(Platform) : true);
+	case EHairStrandsShaderType::Cards:		return HairCardsEnable > 0;
+	case EHairStrandsShaderType::Meshes:	return HairMeshesEnable > 0;
 #if PLATFORM_DESKTOP && PLATFORM_WINDOWS
-	case EHairStrandsShaderType::Tool:		return (GHairCardsEnable > 0 || GHairMeshesEnable > 0 || GHairStrandsEnable > 0);
+	case EHairStrandsShaderType::Tool:		return (HairCardsEnable > 0 || HairMeshesEnable > 0 || HairStrandsEnable > 0);
 #else
 	case EHairStrandsShaderType::Tool:		return false;
 #endif
-	case EHairStrandsShaderType::All :		return GHairStrandsGlobalEnable > 0 && (GHairCardsEnable > 0 || GHairMeshesEnable > 0 || GHairStrandsEnable > 0) && !bIsMobile;
+	case EHairStrandsShaderType::All :		return HairStrandsGlobalEnable > 0 && (HairCardsEnable > 0 || HairMeshesEnable > 0 || HairStrandsEnable > 0) && !bIsMobile;
 	}
 	return false;
 }
 
 bool IsHairStrandsBindingEnable()
 {
-	return GHairStrandsBinding > 0;
+	return CVarHairStrandsBinding.GetValueOnAnyThread() > 0;
 }
 
 bool IsHairStrandsSimulationEnable()
 {
-	return GHairStrandsSimulation > 0;
+	return CVarHairStrandsSimulation.GetValueOnAnyThread() > 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
