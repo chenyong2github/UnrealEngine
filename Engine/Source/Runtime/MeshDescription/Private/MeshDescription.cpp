@@ -1965,7 +1965,7 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 #endif //UE_USE_VIRTUALBULKDATA
 
 	// Make sure to serialize only actual data
-	if (Ar.ShouldSkipBulkData() || Ar.IsObjectReferenceCollector() || !Ar.IsPersistent())
+	if (Ar.ShouldSkipBulkData() || Ar.IsObjectReferenceCollector())
 	{
 		return;
 	}
