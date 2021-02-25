@@ -489,9 +489,9 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	}
 
 	// Create actor clusters - ignore HLOD actors
-	FActorClusterContext ClusterContext(WorldPartition, TOptional<FActorClusterContext::FFilterPredicate>([](const FWorldPartitionActorDesc& ActorDesc)
+	FActorClusterContext ClusterContext(WorldPartition, this, TOptional<FActorClusterContext::FFilterPredicate>([](const FWorldPartitionActorDescView& ActorDescView)
 		{
-			return !ActorDesc.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
+			return !ActorDescView.GetActorClass()->IsChildOf<AWorldPartitionHLOD>();
 		}), /* bInIncludeChildContainers=*/ false);
 		
 	TArray<TArray<const FActorClusterInstance*>> GridsClusters;
@@ -536,7 +536,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 	}
 
 	// Now, go on and create HLOD actors from HLOD grids (HLOD 1-N)
-	FActorContainerInstance MainContainerInstance(WorldPartition);
+	FActorContainerInstance& MainContainerInstance = *ClusterContext.GetClusterInstance(WorldPartition);
 	for (const FName HLODGridName : SortedGrids)
 	{
 		// No need to process empty grids
@@ -556,10 +556,8 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateHLOD(ISourceControlHelper* Sourc
 
 		for (const FGuid& HLODActorGuid : GridsHLODActors[HLODGridName])
 		{
-			FWorldPartitionActorDesc* HLODActorDesc = WorldPartition->GetActorDesc(HLODActorGuid);
-			check(HLODActorDesc);
-						
-			FActorCluster& NewHLODActorCluster = HLODActorClusters.Emplace_GetRef(HLODActorDesc, HLODActorDesc->GetGridPlacement(), WorldPartition);
+			const FWorldPartitionActorDescView& HLODActorDescView = MainContainerInstance.GetActorDescView(HLODActorGuid);
+			FActorCluster& NewHLODActorCluster = HLODActorClusters.Emplace_GetRef(WorldPartition->GetWorld(), HLODActorDescView, HLODActorDescView.GetGridPlacement());
 			FActorClusterInstance& NewHLODActorClusterInstance = HLODActorClusterInstances.Emplace_GetRef(&NewHLODActorCluster, &MainContainerInstance);
 			HLODActorClusterInstancePtrs.Add(&NewHLODActorClusterInstance);
 		};

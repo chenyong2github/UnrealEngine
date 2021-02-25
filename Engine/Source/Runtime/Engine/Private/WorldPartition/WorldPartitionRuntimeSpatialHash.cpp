@@ -6,6 +6,7 @@
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 
@@ -18,6 +19,7 @@
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 
+#include "GameFramework/Actor.h"
 #include "GameFramework/WorldSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Engine/World.h"
@@ -443,9 +445,6 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 
 	check(!StreamingGrids.Num());
 
-	// Build a map of Actor GUID -> HLODActor GUID once instead of having to recompute for every streaming grid we create
-	CacheHLODParents();
-
 	TMap<FName, int32> GridsMapping;
 	GridsMapping.Add(NAME_None, 0);
 	for (int32 i = 0; i < AllGrids.Num(); i++)
@@ -456,7 +455,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 	}
 
 	// Create actor clusters
-	FActorClusterContext Context(WorldPartition);
+	FActorClusterContext Context(WorldPartition, this);
 
 	TArray<TArray<const FActorClusterInstance*>> GridActors;
 	GridActors.InsertDefaulted(0, AllGrids.Num());
@@ -474,7 +473,7 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 		GridActors[GridIndex].Add(&ClusterInstance);
 	}
 	
-	const FBox WorldBounds = WorldPartition->GetWorldBounds();
+	const FBox WorldBounds = Context.GetClusterInstance(WorldPartition)->Bounds;
 	for (int32 GridIndex=0; GridIndex < AllGrids.Num(); GridIndex++)
 	{
 		const FSpatialHashRuntimeGrid& Grid = AllGrids[GridIndex];
@@ -502,17 +501,74 @@ FName UWorldPartitionRuntimeSpatialHash::GetCellName(FName InGridName, int32 InL
 	return UWorldPartitionRuntimeSpatialHash::GetCellName(WorldPartition, InGridName, InLevel, InCellX, InCellY, InDataLayerID);
 }
 
-void UWorldPartitionRuntimeSpatialHash::CacheHLODParents()
+void UWorldPartitionRuntimeSpatialHash::CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const
 {
-	CachedHLODParents.Reset();
+	Super::CreateActorDescViewMap(Container, OutActorDescViewMap);
 
-	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-
-	for (UActorDescContainer::TIterator<AWorldPartitionHLOD> HLODIterator(WorldPartition); HLODIterator; ++HLODIterator)
+	// Compute the initial world bounds.
+	// This bound will change after we update actor descriptor views grid placement.
+	auto GetWorldBounds = [](const TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap)
 	{
-		for (const auto& SubActor : HLODIterator->GetSubActors())
+		FBox WorldBounds(ForceInit);
+		for (auto& ActorDescViewPair : ActorDescViewMap)
 		{
-			CachedHLODParents.Emplace(SubActor, HLODIterator->GetGuid());
+			const FWorldPartitionActorDescView& ActorDescView = ActorDescViewPair.Value;
+			switch (ActorDescView.GetGridPlacement())
+			{
+				case EActorGridPlacement::Location:
+				{
+					FVector Location = ActorDescView.GetOrigin();
+					WorldBounds += FBox(Location, Location);
+				}
+				break;
+				case EActorGridPlacement::Bounds:
+				{
+					WorldBounds += ActorDescView.GetBounds();
+				}
+				break;
+			}
+		}
+		return WorldBounds;
+	};
+
+ 	const FBox WorldBounds = GetWorldBounds(OutActorDescViewMap);
+
+	TMap<FName, int32> GridsMapping;
+	GridsMapping.Add(NAME_None, 0);
+	for (int32 i = 0; i < Grids.Num(); i++)
+	{
+		const FSpatialHashRuntimeGrid& Grid = Grids[i];
+		check(!GridsMapping.Contains(Grid.GridName));
+		GridsMapping.Add(Grid.GridName, i);
+	}
+
+	const FBox2D WorldBounds2D = FBox2D(FVector2D(WorldBounds.Min), FVector2D(WorldBounds.Max));
+	const float WorldBoundsArea = WorldBounds2D.GetArea();
+
+	for (auto& ActorDescViewPair : OutActorDescViewMap)
+	{
+		FWorldPartitionActorDescView& ActorDescView = ActorDescViewPair.Value;
+
+		if (!ActorDescView.GetActorIsEditorOnly())
+		{
+			if (ActorDescView.GetGridPlacement() == EActorGridPlacement::Bounds)
+			{
+				const int32* GridIndexPtr = GridsMapping.Find(ActorDescView.GetRuntimeGrid());
+				const int32 GridIndex = GridIndexPtr ? *GridIndexPtr : 0;
+				const FSpatialHashRuntimeGrid& RuntimeGrid = Grids[GridIndex];
+				const float CellArea = RuntimeGrid.CellSize * RuntimeGrid.CellSize;
+				const FBox2D ActorBounds2D = FBox2D(FVector2D(ActorDescView.GetBounds().Min), FVector2D(ActorDescView.GetBounds().Max));
+				const float ActorBoundsArea = ActorBounds2D.GetArea();
+
+				if (ActorBoundsArea < CellArea / 16.0f)
+				{
+					ChangeActorDescViewGridPlacement(ActorDescView, EActorGridPlacement::Location);
+				}
+				else if (ActorBoundsArea > WorldBoundsArea / 2.0f)
+				{
+					ChangeActorDescViewGridPlacement(ActorDescView, EActorGridPlacement::AlwaysLoaded);
+				}
+			}
 		}
 	}
 }
@@ -523,7 +579,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 	const bool bIsMainWorldPartition = (WorldPartition->GetWorld() == WorldPartition->GetTypedOuter<UWorld>());
-	check(PartionedActors.WorldBounds == WorldPartition->GetWorldBounds());
 
 	FSpatialHashStreamingGrid& CurrentStreamingGrid = StreamingGrids.AddDefaulted_GetRef();
 	CurrentStreamingGrid.GridName = RuntimeGrid.GridName;
@@ -565,11 +620,11 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				{
 					for (const FActorInstance& ActorInstance : GridCellDataChunk.GetActors())
 					{
-						const FWorldPartitionActorDesc* ActorDesc = ActorInstance.GetActorDesc();
 						if (ActorInstance.ShouldStripFromStreaming())
 						{
+							const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
 							UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Stripping Actor %s (%s) from streaming grid (Container %08x)"),
-								*(ActorDesc->GetActorPath().ToString()), *ActorInstance.Actor.ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID);
+								*(ActorDescView.GetActorPath().ToString()), *ActorInstance.Actor.ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID);
 							continue;
 						}
 
@@ -614,14 +669,13 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 				for (const FActorInstance& ActorInstance : FilteredActors)
 				{
-					const FWorldPartitionActorDesc* ActorDesc = ActorInstance.GetActorDesc();
-					FGuid ParentHLOD = CachedHLODParents.FindRef(ActorInstance.Actor);
-					if (ParentHLOD.IsValid())
+					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
+					if (ActorDescView.GetHLODParent().IsValid())
 					{
-						ReferencedHLODActors.Add(ParentHLOD);
+						ReferencedHLODActors.Add(ActorDescView.GetHLODParent());
 					}
 					StreamingCell->AddActorToCell(ActorInstance.Actor, ActorInstance.ContainerInstance->ID, ActorInstance.ContainerInstance->Transform, ActorInstance.ContainerInstance->Container);
-					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("  Actor : %s (%s) (Container %08x) Origin(%s)"), *(ActorDesc->GetActorPath().ToString()), *ActorDesc->GetGuid().ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID, *FVector2D(ActorInstance.GetOrigin()).ToString());
+					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("  Actor : %s (%s) (Container %08x) Origin(%s)"), *(ActorDescView.GetActorPath().ToString()), *ActorDescView.GetGuid().ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID, *FVector2D(ActorInstance.GetOrigin()).ToString());
 				}
 
 				if (ReferencedHLODActors.Num() > 0)

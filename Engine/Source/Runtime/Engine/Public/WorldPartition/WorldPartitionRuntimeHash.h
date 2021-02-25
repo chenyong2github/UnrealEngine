@@ -6,6 +6,7 @@
 #include "UObject/Object.h"
 #include "WorldPartition.h"
 #include "WorldPartitionStreamingPolicy.h"
+#include "WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartitionRuntimeHash.generated.h"
 
@@ -15,6 +16,8 @@ UCLASS(Abstract, Config=Engine, AutoExpandCategories=(WorldPartition), Within = 
 class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 {
 	GENERATED_UCLASS_BODY()
+
+	friend class FActorClusterContext;
 
 #if WITH_EDITOR
 	virtual void SetDefaultValues() {}
@@ -47,6 +50,12 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 
 	virtual void Draw2D(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize) const {}
 	virtual void Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const {}
+
+protected:
+#if WITH_EDITOR
+	virtual void CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const;
+	void ChangeActorDescViewGridPlacement(FWorldPartitionActorDescView& ActorDescView, EActorGridPlacement GridPlacement) const;
+#endif
 
 private:
 #if WITH_EDITOR

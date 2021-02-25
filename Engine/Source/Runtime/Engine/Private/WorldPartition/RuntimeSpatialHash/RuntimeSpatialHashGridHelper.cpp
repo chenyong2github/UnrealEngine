@@ -163,7 +163,7 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 			check(ActorCluster->Actors.Num() == 1);
 			const FGuid& ActorGuid = *ActorCluster->Actors.CreateConstIterator();
 			FActorInstance ActorInstance(ActorGuid, ClusterInstance->ContainerInstance);
-			if (ensure(PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorInstance.GetActorDesc()->GetOrigin()), CellCoords)))
+			if (ensure(PartitionedActors.GetLowestLevel().GetCellCoords(FVector2D(ActorInstance.GetActorDescView().GetOrigin()), CellCoords)))
 			{
 				PartitionedActors.GetLowestLevel().GetCell(CellCoords).AddActor(MoveTemp(ActorInstance), ClusterInstance->DataLayers);
 			}
@@ -226,9 +226,9 @@ FSquare2DGridHelper GetPartitionedActors(const UWorldPartition* WorldPartition, 
 
 				for (const FGuid& ActorGuid : ActorCluster->Actors)
 				{
-					const FWorldPartitionActorDesc& Desc = *ClusterInstance->ContainerInstance->Container->GetActorDesc(ActorGuid);
-					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("   - Actor: %s (%s)"), *Desc.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
-					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("         Package: %s"), *Desc.GetActorPackage().ToString());
+					const FWorldPartitionActorDescView& ActorDescView = ClusterInstance->ContainerInstance->GetActorDescView(ActorGuid);
+					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("   - Actor: %s (%s)"), *ActorDescView.GetActorPath().ToString(), *ActorGuid.ToString(EGuidFormats::UniqueObjectGuid));
+					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("         Package: %s"), *ActorDescView.GetActorPackage().ToString());
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("         Container (%08x): %s"), ClusterInstance->ContainerInstance->ID, *ClusterInstance->ContainerInstance->Container->GetContainerPackage().ToString())
 				}
 			}

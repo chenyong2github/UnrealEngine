@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
+#include "WorldPartition/HLOD/HLODActor.h"
+#include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "Engine/LevelScriptBlueprint.h"
+#include "ActorReferencesUtils.h"
 
 UWorldPartitionRuntimeHash::UWorldPartitionRuntimeHash(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
@@ -34,4 +38,45 @@ void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExt
 	}
 }
 
+void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const
+{
+	// Build the actor desc view map
+	OutActorDescViewMap.Empty();
+	for (UActorDescContainer::TConstIterator<> ActorDescIt(Container); ActorDescIt; ++ActorDescIt)
+	{
+		OutActorDescViewMap.Emplace(ActorDescIt->GetGuid(), *ActorDescIt);
+	}
+
+	// Set HLOD parents into actor desc views
+	for (UActorDescContainer::TConstIterator<AWorldPartitionHLOD> HLODIterator(Container); HLODIterator; ++HLODIterator)
+	{
+		for (const FGuid& SubActor : HLODIterator->GetSubActors())
+		{
+			if (FWorldPartitionActorDescView* SubActorDescView = OutActorDescViewMap.Find(SubActor))
+			{
+				SubActorDescView->SetHLODParent(HLODIterator->GetGuid());
+			}
+		}
+	}
+
+	// Gather all references to external actors from the level script and make them always loaded
+	if (ULevelScriptBlueprint* LevelScriptBlueprint = Container->GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
+	{
+		TArray<AActor*> LevelScriptExternalActorReferences = ActorsReferencesUtils::GetExternalActorReferences(LevelScriptBlueprint);
+
+		for (AActor* Actor : LevelScriptExternalActorReferences)
+		{
+			ChangeActorDescViewGridPlacement(OutActorDescViewMap.FindChecked(Actor->GetActorGuid()), EActorGridPlacement::AlwaysLoaded);
+		}
+	}
+}
+
+void UWorldPartitionRuntimeHash::ChangeActorDescViewGridPlacement(FWorldPartitionActorDescView& ActorDescView, EActorGridPlacement GridPlacement) const
+{
+	if (ActorDescView.EffectiveGridPlacement != GridPlacement)
+	{
+		ActorDescView.EffectiveGridPlacement = GridPlacement;
+		UE_LOG(LogWorldPartition, Warning, TEXT("Actor '%s' grid placement changed to %d"), *ActorDescView.GetActorLabel().ToString(), (int32)GridPlacement);
+	}
+}
 #endif

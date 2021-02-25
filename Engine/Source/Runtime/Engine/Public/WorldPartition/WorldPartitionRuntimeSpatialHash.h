@@ -202,6 +202,8 @@ public:
 
 	FName GetCellName(FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID) const;
 	static FName GetCellName(UWorldPartition* WorldPartition, FName InGridName, int32 InLevel, int32 InCellX, int32 InCellY, const FDataLayersID& InDataLayerID);
+
+	virtual void CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const override;
 #endif
 
 	// streaming interface
@@ -228,7 +230,6 @@ private:
 	mutable FWorldPartitionRuntimeSpatialHashGridPreviewer GridPreviewer;
 
 	TMap<FString, UWorldPartitionRuntimeCell*> PackagesToGenerateForCook;
-	TMap<FGuid, FGuid> CachedHLODParents;
 #endif
 
 	/** 
@@ -246,7 +247,6 @@ private:
 	void GetStreamingCells(const FVector& Position, const FSpatialHashStreamingGrid& StreamingGrid, TSet<const UWorldPartitionRuntimeCell*>& Cells) const;
 #if WITH_EDITOR
 	bool CreateStreamingGrid(const FSpatialHashRuntimeGrid& RuntimeGrid, const FSquare2DGridHelper& PartionedActors, EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy, TArray<FString>* OutPackagesToGenerate = nullptr);
-	void CacheHLODParents();
 #endif
 
 	friend class UWorldPartitionSubsystem;

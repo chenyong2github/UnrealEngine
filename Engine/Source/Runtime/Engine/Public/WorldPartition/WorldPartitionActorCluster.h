@@ -4,11 +4,13 @@
 #if WITH_EDITOR
 
 #include "WorldPartition/DataLayer/DataLayersID.h"
+#include "WorldPartition/WorldPartitionActorDescView.h"
 #include "Misc/HashBuilder.h"
 
 class UActorDescContainer;
 class UWorldPartition;
 class FWorldPartitionActorDesc;
+class UWorldPartitionRuntimeHash;
 enum class EContainerClusterMode : uint8;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionActorCluster, Log, All);
@@ -25,7 +27,7 @@ struct FActorCluster
 	TSet<const UDataLayer*>		DataLayers;
 	FDataLayersID				DataLayersID;
 
-	FActorCluster(const FWorldPartitionActorDesc* InActorDesc, EActorGridPlacement InGridPlacement, const UActorDescContainer* InContainer);
+	FActorCluster(UWorld* InWorld, const FWorldPartitionActorDescView& InActorDescView, EActorGridPlacement InGridPlacement);
 	void Add(const FActorCluster& InActorCluster);
 
 };
@@ -37,8 +39,8 @@ struct FActorClusterInstance;
  */
 struct FActorContainerInstance
 {
-	FActorContainerInstance(const UActorDescContainer* InContainer);
-	FActorContainerInstance(uint32 InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TSet<FGuid> InChildContainers);
+	FActorContainerInstance(const UActorDescContainer* InContainer, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap);
+	FActorContainerInstance(uint32 InID, const FTransform& InTransform, const FBox& InBounds, const TSet<FName>& InDataLayers, EContainerClusterMode InClusterMode, const UActorDescContainer* InContainer, TSet<FGuid> InChildContainers, TMap<FGuid, FWorldPartitionActorDescView> InActorDescViewMap);
 	
 	uint32						ID;
 	FTransform					Transform;
@@ -46,7 +48,10 @@ struct FActorContainerInstance
 	EContainerClusterMode		ClusterMode;
 	const UActorDescContainer*	Container;
 	TSet<FGuid>					ChildContainers;
+	TMap<FGuid, FWorldPartitionActorDescView> ActorDescViewMap;
 	TSet<const UDataLayer*>		DataLayers;
+
+	const FWorldPartitionActorDescView& GetActorDescView(const FGuid& InGuid) const;
 };
 
 /**
@@ -90,7 +95,7 @@ struct FActorInstance
 
 	bool ShouldStripFromStreaming() const;
 
-	const FWorldPartitionActorDesc* GetActorDesc() const;
+	const FWorldPartitionActorDescView& GetActorDescView() const;
 };
 
 /**
@@ -99,17 +104,20 @@ struct FActorInstance
 class FActorClusterContext
 {
 public:
-	typedef TFunctionRef<bool(const FWorldPartitionActorDesc&)> FFilterPredicate;
+	typedef TFunctionRef<bool(const FWorldPartitionActorDescView&)> FFilterPredicate;
 
 	/**
 	 * Create the actor clusters from the root World Partition. Optionally filtering some actors and including child Containers. 
 	 */
-	FActorClusterContext(const UWorldPartition* InWorldPartition, TOptional<FFilterPredicate> InFilterPredicate = TOptional<FFilterPredicate>(), bool bInIncludeChildContainers = true);
+	FActorClusterContext(const UWorldPartition* InWorldPartition, const UWorldPartitionRuntimeHash* InRuntimeHash, TOptional<FFilterPredicate> InFilterPredicate = TOptional<FFilterPredicate>(), bool bInIncludeChildContainers = true);
 				
 	/**
 	 * Returns the list of cluster instances of this context. 
 	 */
 	const TArray<FActorClusterInstance>& GetClusterInstances() const { return ClusterInstances; }
+	
+	FActorContainerInstance* GetClusterInstance(const UActorDescContainer* InContainer);
+
 private:
 	void CreateActorClusters();
 	void CreateContainerInstanceRecursive(uint32 ID, const FTransform& Transform, EContainerClusterMode ClusterMode, const UActorDescContainer* ActorDescContainer, const TSet<FName>& DataLayers, FBox* ParentBounds = nullptr);
@@ -117,6 +125,7 @@ private:
 	
 	// Init data
 	const UWorldPartition* WorldPartition;
+	const UWorldPartitionRuntimeHash* RuntimeHash;
 	TOptional<FFilterPredicate> FilterPredicate;
 	bool bIncludeChildContainers;
 
