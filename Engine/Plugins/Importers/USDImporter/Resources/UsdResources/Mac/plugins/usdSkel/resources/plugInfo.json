@@ -75,7 +75,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdSkel.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdSkel.dylib", 
             "Name": "usdSkel", 
             "ResourcePath": "resources", 
             "Root": "..", 

@@ -47,7 +47,7 @@
                     }
                 }
             }, 
-            "LibraryPath": "../../../../../../../../Binaries/Mac/libusdVol.dylib", 
+            "LibraryPath": "../../../../../Source/ThirdParty/Mac/bin/libusdVol.dylib", 
             "Name": "usdVol", 
             "ResourcePath": "resources", 
             "Root": "..", 
