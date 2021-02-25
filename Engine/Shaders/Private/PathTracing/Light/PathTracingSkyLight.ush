@@ -6,8 +6,16 @@ SkyLight.usf: Light sampling functions for SkyLight implementation
 
 #pragma once
 
+#ifdef USE_NEW_SKYDOME
+Texture2D SkylightTexture;
+Texture2D<float> SkylightPdf;
+SamplerState SkylightTextureSampler;
+float SkylightInvResolution;
+int SkylightMipCount;
+#else
 #include "../../RayTracing/SkyLightMipTreeCommon.ush"
 #include "../../ReflectionEnvironmentShared.ush"
+#endif
 
 #define USE_HIERARCHICAL_IMPORTANCE_SAMPLING
 
@@ -18,27 +26,39 @@ float SkyLight_EstimateLight(
 	bool IsTransmissiveMaterial
 )
 {
+#ifdef USE_NEW_SKYDOME
+	// cancels out constant factor in pdf below
+	return 4 * PI * SkylightPdf.Load(int3(0, 0, SkylightMipCount - 1));
+#else
 	// Modifying diffuse contribution to prevent false negatives with PDF estimation
 	float3 SkySHDiffuse = max(GetSkySHDiffuse(WorldNormal), 0.01);
 	float3 SkyLightIrradiance = GetColor(LightId) * SkySHDiffuse;
 	float SkyLightIlluminance = Luminance(SkyLightIrradiance);
 
 	return SkyLightIlluminance * 2.0f * PI;
+#endif
 }
 
 FLightHit SkyLight_TraceLight(RayDesc Ray, int LightId) {
 	if (Ray.TMax == POSITIVE_INFINITY)
 	{
-		// LightUV convention in the code below is just the world space ray direction
-		// so its safe to call into the method below for now ...
+#ifdef USE_NEW_SKYDOME
+		// NOTE: assumes direction is normalized
 
-		// #dxr_todo: write optimized form that combines radiance and pdf lookup in a single step
+		float3 Dir = Ray.Direction;
+		float2 UV = InverseEquiAreaSphericalMapping(Dir.yzx);
+		float4 Result = SkylightTexture.SampleLevel(SkylightTextureSampler, UV, 0);
+		float3 Radiance = Result.xyz;
+#ifndef USE_HIERARCHICAL_IMPORTANCE_SAMPLING
+		float Pdf = 1.0 / (2.0 * PI);
+#else
+		float Pdf = Result.w / (4 * PI * SkylightPdf.Load(int3(0, 0, SkylightMipCount - 1)));
+#endif
 
-		float3 Radiance = 0.0;
-		float Pdf = 0.0;
-
+#else
 		float3 LightUV = normalize(Ray.Direction);
-		Radiance = SkyLight.Color * SkyLight.Texture.SampleLevel(SkyLight.TextureSampler, LightUV, 0).rgb;
+		float3 Radiance = SkyLight.Color * SkyLight.Texture.SampleLevel(SkyLight.TextureSampler, LightUV, 0).rgb;
+		float Pdf = 0;
 		if (any(Radiance > 0))
 		{
 #ifndef USE_HIERARCHICAL_IMPORTANCE_SAMPLING
@@ -63,7 +83,7 @@ FLightHit SkyLight_TraceLight(RayDesc Ray, int LightId) {
 			Pdf = FacePdf * MipPdf * AreaPdf;
 #endif
 		}
-		
+#endif
 		return CreateLightHit(Radiance, Pdf, POSITIVE_INFINITY);
 	}
 	return NullLightHit();
@@ -84,10 +104,78 @@ FLightSample SkyLight_SampleLight(
 	Payload.WorldNormal = WorldNormal;
 
 
+#ifdef USE_NEW_SKYDOME
+
 #ifndef USE_HIERARCHICAL_IMPORTANCE_SAMPLING
 	float4 Direction_Tangent = UniformSampleHemisphere(RandSample.yz);
-	OutDirection = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
-	OutPdf = Direction_Tangent.w;
+	float3 OutDirection = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
+	float OutPdf = Direction_Tangent.w;
+	float2 UV = InverseEquiAreaSphericalMapping(OutDirection.yzx);
+	float3 Radiance = SkylightTexture.SampleLevel(SkylightTextureSampler, UV, 0).xyz;
+	return CreateLightSample(Radiance / OutPdf, OutPdf, OutDirection, POSITIVE_INFINITY);
+#else
+	float2 UV = RandSample.yz;
+
+	int3 Pixel = int3(0, 0, SkylightMipCount - 2);
+	for (; Pixel.z >= 0; Pixel.z--)
+	{
+		Pixel.xy *= 2;
+		float P00 = SkylightPdf.Load(Pixel + int3(0, 0, 0));
+		float P10 = SkylightPdf.Load(Pixel + int3(1, 0, 0));
+		float P01 = SkylightPdf.Load(Pixel + int3(0, 1, 0));
+		float P11 = SkylightPdf.Load(Pixel + int3(1, 1, 0));
+
+		float L = P00 + P01;
+		float R = P10 + P11;
+
+		float ProbX = L / (L + R);
+		if (UV.x < ProbX)
+		{
+			UV.x /= ProbX;
+			float ProbY = P00 / L;
+			if (UV.y < ProbY)
+			{
+				UV.y /= ProbY;
+			}
+			else
+			{
+				Pixel.y++;
+				UV.y = (UV.y - ProbY) / (1 - ProbY);
+			}
+		}
+		else
+		{
+			Pixel.x++;
+			UV.x = (UV.x - ProbX) / (1 - ProbX);
+			float ProbY = P10 / R;
+			if (UV.y < ProbY)
+			{
+				UV.y /= ProbY;
+			}
+			else
+			{
+				Pixel.y++;
+				UV.y = (UV.y - ProbY) / (1 - ProbY);
+			}
+		}
+	}
+
+	Pixel.z = 0;
+	float4 Result = SkylightTexture.Load(Pixel);
+	float3 Radiance = Result.xyz;
+	float OutPdf = Result.w / (4 * PI * SkylightPdf.Load(int3(0, 0, SkylightMipCount - 1)));
+
+	UV = (float2(Pixel.xy) + UV) * SkylightInvResolution;
+
+	return CreateLightSample(Radiance / OutPdf, OutPdf, EquiAreaSphericalMapping(UV).zxy, POSITIVE_INFINITY);
+#endif
+
+#else
+
+#ifndef USE_HIERARCHICAL_IMPORTANCE_SAMPLING
+	float4 Direction_Tangent = UniformSampleHemisphere(RandSample.yz);
+	float3 OutDirection = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
+	float OutPdf = Direction_Tangent.w;
 #else
 	// Determine the appropriate face to use
 	//uint MipCount = Log2(SkyLight.MipDimensions.x);
@@ -162,4 +250,6 @@ FLightSample SkyLight_SampleLight(
 	float3 Radiance = SkyLight.Color * SkyLight.Texture.SampleLevel(SkyLight.TextureSampler, OutDirection, 0).rgb;
 
 	return CreateLightSample(Radiance / OutPdf, OutPdf, OutDirection, POSITIVE_INFINITY);
+#endif
+
 }
