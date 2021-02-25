@@ -369,8 +369,8 @@ static void TraceAuxiliaryStart(const TArray<FString>& Args)
 ////////////////////////////////////////////////////////////////////////////////
 static void TraceAuxiliaryStop()
 {
-	GTraceAuxiliary.Stop();
 	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing stopped."));
+	GTraceAuxiliary.Stop();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
