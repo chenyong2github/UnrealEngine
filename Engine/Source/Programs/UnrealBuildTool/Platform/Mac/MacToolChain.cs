@@ -681,6 +681,24 @@ namespace UnrealBuildTool
 			return String.Format("{0}.{1}.{2}", CL / (100 * 100), (CL / 100) % 100, CL % 100);
 		}
 
+		private string GetGameNameFromExecutablePath(string ExePath)
+		{
+			string ExeName = Path.GetFileName(ExePath);
+			string[] ExeNameParts = ExeName.Split('-');
+			string GameName = ExeNameParts[0];
+
+			if (GameName == "EpicGamesBootstrapLauncher")
+			{
+				GameName = "EpicGamesLauncher";
+			}
+			else if (GameName == "UE4" && ProjectFile != null)
+			{
+				GameName = ProjectFile.GetFileNameWithoutAnyExtensions();
+			}
+
+			return GameName;
+		}
+
 		private void AddLibraryPathToRPaths(string Library, string ExeAbsolutePath, ref List<string> RPaths, ref string LinkCommand, bool bIsBuildingAppBundle)
 		{
 			string LibraryFullPath = Path.GetFullPath(Library);
@@ -706,12 +724,30 @@ namespace UnrealBuildTool
 				if (bIsBuildingAppBundle)
 				{
 					string EngineDir = UnrealBuildTool.RootDirectory.ToString();
+					string ProjectDir = (ProjectFile != null ? ProjectFile.Directory.FullName : null);
 
 					// In packaged games dylibs are stored in Contents/UE4 subfolders, for example in GameName.app/Contents/UE4/Engine/Binaries/ThirdParty/PhysX/Mac
 					string BundleUE4Dir = Path.GetFullPath(ExeDir + "/../../Contents/UE4");
-					string BundleLibraryDir = LibraryDir.Replace(EngineDir, BundleUE4Dir);
-					string BundleRelativeDir = Utils.MakePathRelativeTo(BundleLibraryDir, ExeDir).Replace("\\", "/");
-					LinkCommand += " -rpath \"@loader_path/" + BundleRelativeDir + "\"";
+					string BundleLibraryDir = null;
+					if (LibraryDir.StartsWith(EngineDir + "/"))
+					{
+						BundleLibraryDir = LibraryDir.Replace(EngineDir, BundleUE4Dir);
+					}
+					else if (ProjectDir != null && LibraryDir.StartsWith(ProjectDir + "/"))
+					{
+						string GameName = GetGameNameFromExecutablePath(ExeAbsolutePath);
+						BundleLibraryDir = LibraryDir.Replace(ProjectDir, BundleUE4Dir + "/" + GameName);
+					}
+
+					if (BundleLibraryDir != null)
+					{
+						string BundleRelativeDir = Utils.MakePathRelativeTo(BundleLibraryDir, ExeDir).Replace("\\", "/");
+						LinkCommand += " -rpath \"@loader_path/" + BundleRelativeDir + "\"";
+					}
+					else
+					{
+						Log.TraceWarning("Unexpected third party dylib location when generating RPATH entries: {1}. Skipping.", LibraryFullPath);
+					}
 
 					// For staged code-based games we need additional entry if the game is not stored directly in the engine's root directory
 					if (bCanUseMultipleRPATHs)
@@ -1012,7 +1048,7 @@ namespace UnrealBuildTool
 					string ExeName = Path.GetFileName(OutputFile.AbsolutePath);
 					bool bIsLauncherProduct = ExeName.StartsWith("EpicGamesLauncher") || ExeName.StartsWith("EpicGamesBootstrapLauncher");
 					string[] ExeNameParts = ExeName.Split('-');
-					string GameName = ExeNameParts[0];
+					string GameName = GetGameNameFromExecutablePath(OutputFile.AbsolutePath);
 
                     // bundle identifier
                     // plist replacements
@@ -1028,15 +1064,6 @@ namespace UnrealBuildTool
 					if (UProjectFilePath != null)
 					{
 						ProjectName = UProjectFilePath.GetFileNameWithoutAnyExtensions();
-					}
-
-					if (GameName == "EpicGamesBootstrapLauncher")
-					{
-						GameName = "EpicGamesLauncher";
-					}
-					else if (GameName == "UE4" && UProjectFilePath != null)
-					{
-						GameName = UProjectFilePath.GetFileNameWithoutAnyExtensions();
 					}
 
 					AppendMacLine(FinalizeAppBundleScript, "mkdir -p \"{0}.app/Contents/MacOS\"", ExeName);
