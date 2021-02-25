@@ -11,6 +11,8 @@
 #include "MeshPaintAdapterFactory.h"
 #include "EngineUtils.h"
 #include "Editor.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 #if WITH_EDITOR
 #include "HitProxies.h"
 #endif
@@ -69,28 +71,33 @@ bool UMeshPaintSelectionMechanic::FindClickedComponentsAndCacheAdapters(const FI
 		return bFoundValidComponents;
 	}
 
-	if (HHitProxy* HitProxy = GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetHitProxy(ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y))
+	FViewport* FocusedViewport = GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetFocusedViewport();
+	if (FocusedViewport)
 	{
-		if (HitProxy->IsA(HActor::StaticGetType()))
+		if (HHitProxy* HitProxy = FocusedViewport->GetHitProxy(ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y))
 		{
-			HActor* ActorProxy = (HActor*)HitProxy;
-			AActor* Actor = ActorProxy->Actor;
-			TArray<UActorComponent*> CandidateComponents = Actor->K2_GetComponentsByClass(UMeshComponent::StaticClass());
-			for (UActorComponent* CandidateComponent : CandidateComponents)
+			if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(HitProxy->GetElementHandle()))
 			{
-				UMeshComponent* MeshComponent = Cast<UMeshComponent>(CandidateComponent);
-				TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshPaintingSubsystem->GetAdapterForComponent(MeshComponent);
-				if (!MeshAdapter.IsValid())
+				if (AActor* Actor = ObjectInterface.GetObjectAs<AActor>())
 				{
-					MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
-					MeshPaintingSubsystem->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
-				}
-				IMeshPaintSelectionInterface* Interface = Cast<IMeshPaintSelectionInterface>(GetParentTool());
-				if (MeshAdapter.IsValid() && Interface->IsMeshAdapterSupported(MeshAdapter))
-				{
-					CachedClickedComponents.AddUnique(MeshComponent);
-					CachedClickedActors.AddUnique(Cast<AActor>(MeshComponent->GetOuter()));
-					bFoundValidComponents = true;
+					TArray<UActorComponent*> CandidateComponents = Actor->K2_GetComponentsByClass(UMeshComponent::StaticClass());
+					for (UActorComponent* CandidateComponent : CandidateComponents)
+					{
+						UMeshComponent* MeshComponent = Cast<UMeshComponent>(CandidateComponent);
+						TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshPaintingSubsystem->GetAdapterForComponent(MeshComponent);
+						if (!MeshAdapter.IsValid())
+						{
+							MeshAdapter = FMeshPaintComponentAdapterFactory::CreateAdapterForMesh(MeshComponent, 0);
+							MeshPaintingSubsystem->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
+						}
+						IMeshPaintSelectionInterface* Interface = Cast<IMeshPaintSelectionInterface>(GetParentTool());
+						if (MeshAdapter.IsValid() && Interface->IsMeshAdapterSupported(MeshAdapter))
+						{
+							CachedClickedComponents.AddUnique(MeshComponent);
+							CachedClickedActors.AddUnique(Cast<AActor>(MeshComponent->GetOuter()));
+							bFoundValidComponents = true;
+						}
+					}
 				}
 			}
 		}

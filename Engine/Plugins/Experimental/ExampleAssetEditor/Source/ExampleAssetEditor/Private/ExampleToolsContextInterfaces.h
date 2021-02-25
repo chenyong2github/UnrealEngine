@@ -21,7 +21,8 @@ public:
 	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const override;
 	virtual bool ExecuteSceneSnapQuery(const FSceneSnapQueryRequest& Request, TArray<FSceneSnapQueryResult>& Results) const override;
 	virtual UMaterialInterface* GetStandardMaterial(EStandardToolContextMaterials MaterialType) const override;
-	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const override;
+	virtual FViewport* GetHoveredViewport() const override;
+	virtual FViewport* GetFocusedViewport() const override;
 
 protected:
 	UInteractiveToolsContext* ToolsContext;

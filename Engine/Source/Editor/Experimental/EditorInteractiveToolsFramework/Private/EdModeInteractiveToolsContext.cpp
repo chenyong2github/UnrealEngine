@@ -406,12 +406,23 @@ public:
 		return nullptr;
 	}
 
-	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const
+	virtual FViewport* GetHoveredViewport() const override
 	{
-		if (CachedViewportClient && CachedViewportClient->Viewport)
+		if (FEditorViewportClient* HoveredClient = EditorModeManager->GetHoveredViewportClient())
 		{
-			return CachedViewportClient->Viewport->GetHitProxy(X, Y);
+			return HoveredClient->Viewport;
 		}
+
+		return nullptr;
+	}
+
+	virtual FViewport* GetFocusedViewport() const override
+	{
+		if (FEditorViewportClient* FocusedClient = EditorModeManager->GetFocusedViewportClient())
+		{
+			return FocusedClient->Viewport;
+		}
+
 		return nullptr;
 	}
 };

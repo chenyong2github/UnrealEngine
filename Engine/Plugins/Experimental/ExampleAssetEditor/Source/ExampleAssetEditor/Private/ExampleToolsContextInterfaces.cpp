@@ -46,7 +46,12 @@ UMaterialInterface* FToolsContextQueriesImpl::GetStandardMaterial(EStandardToolC
 	return nullptr;
 }
 
-HHitProxy* FToolsContextQueriesImpl::GetHitProxy(int32 X, int32 Y) const
+FViewport* FToolsContextQueriesImpl::GetHoveredViewport() const
+{
+	return nullptr;
+}
+
+FViewport* FToolsContextQueriesImpl::GetFocusedViewport() const
 {
 	return nullptr;
 }

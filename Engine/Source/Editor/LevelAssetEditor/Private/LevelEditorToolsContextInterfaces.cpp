@@ -46,13 +46,18 @@ UMaterialInterface* FLevelEditorToolsContextQueriesImpl::GetStandardMaterial(ESt
 	return nullptr;
 }
 
-HHitProxy* FLevelEditorToolsContextQueriesImpl::GetHitProxy(int32 X, int32 Y) const
+void FLevelEditorContextTransactionImpl::DisplayMessage(const FText& Message, EToolMessageLevel Level)
+{
+}
+
+FViewport* FLevelEditorToolsContextQueriesImpl::GetHoveredViewport() const
 {
 	return nullptr;
 }
 
-void FLevelEditorContextTransactionImpl::DisplayMessage(const FText& Message, EToolMessageLevel Level)
+FViewport* FLevelEditorToolsContextQueriesImpl::GetFocusedViewport() const
 {
+	return nullptr;
 }
 
 void FLevelEditorContextTransactionImpl::PostInvalidation()

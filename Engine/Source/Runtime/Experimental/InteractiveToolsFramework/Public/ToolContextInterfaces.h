@@ -16,6 +16,7 @@ class FToolCommandChange;
 class UPackage;
 class FPrimitiveDrawInterface;
 class FSceneView;
+class FViewport;
 class UInteractiveToolManager;
 class UInteractiveGizmoManager;
 class UToolTargetManager;
@@ -253,12 +254,15 @@ public:
 	 */
 	virtual UMaterialInterface* GetStandardMaterial(EStandardToolContextMaterials MaterialType) const = 0;
 
-#if WITH_EDITOR
 	/**
-	* When selecting, sometimes we need a hit proxy rather than a physics trace or other raycast.                                                                   
-	*/
-	virtual HHitProxy* GetHitProxy(int32 X, int32 Y) const = 0;
-#endif
+	 * @returns the last valid viewport that was hovered, or nullptr.
+	 */
+	virtual FViewport* GetHoveredViewport() const = 0;
+
+	/**
+	 * @returns the last valid viewport that received some input, or nullptr.
+	 */
+	virtual FViewport* GetFocusedViewport() const = 0;
 };
 
 
