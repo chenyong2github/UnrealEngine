@@ -1773,8 +1773,7 @@ void FLinkerLoad::FinalizeBlueprint(UClass* LoadClass)
 	// we need it ran for any super-classes before we regen
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	static bool bLazyLoadAllImports = FParse::Param(FCommandLine::Get(), TEXT("LazyLoadAllImports"));
-	if (!bLazyLoadAllImports)
+	if (!FParse::Param(FCommandLine::Get(), TEXT("DisableLoadingAllImports")))
 #endif
 	{
 		// @TODO: OBJPTR: Need to find other options for solving this issue of placeholder classes during blueprint compile without forcing all imports to resolve always

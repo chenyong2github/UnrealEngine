@@ -133,8 +133,7 @@ public:
 	FORCEINLINE UObject* operator->() const { return Get(); }
 	FORCEINLINE UObject& operator*() const { return *Get(); }
 
-	// Forcing resolve for null check.  Non null unresolved pointers can become null resolved pointers.
-	FORCEINLINE bool IsNull() const { return ResolveObjectHandle(Handle) == nullptr; }
+	FORCEINLINE bool IsNull() const { return IsObjectHandleNull(Handle); }
 	FORCEINLINE bool operator!() const { return IsNull(); }
 	explicit FORCEINLINE operator bool() const { return !IsNull(); }
 	FORCEINLINE FObjectHandle GetHandle() const { return Handle; }
@@ -157,10 +156,8 @@ public:
 	}
 
 private:
-	friend FORCEINLINE uint32 GetTypeHash(const FObjectPtr& Object)
+	friend FORCEINLINE uint32 GetTypeHash(FObjectPtr Object)
 	{
-		// @TODO: OBJPTR: Forcing resolve for ObjectPtr hashing.  See GetTypeHash in ObjectHandle.h.
-		Object.Get();
 		return GetTypeHash(Object.Handle);
 	}
 
@@ -210,6 +207,10 @@ public:
 	FORCEINLINE TObjectPtr(U&& Object)
 		: FObjectPtr(const_cast<std::remove_const_t<T>*>(ImplicitConv<T*>(Object)))
 	{
+		// It would be desirable for this constructor to be implicit to allow:
+		// 1) Uniform initialization syntax of a TObjectPtr field from a raw object pointer value
+		// 2) Allowing the implicit construction of a TObjectPtr<Derived> from a raw object pointer to Base (or something implicitly convertible to that)
+		// However making this implicit introduces a compile-time ambiguity in ternary operators of the form "condition ? TObjectPtr : raw pointer"
 	}
 
 	explicit FORCEINLINE TObjectPtr(TPrivateObjectPtr<T>&& PrivatePtr)
