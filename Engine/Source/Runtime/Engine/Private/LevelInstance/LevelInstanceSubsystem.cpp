@@ -435,9 +435,10 @@ void ULevelInstanceSubsystem::PackLevelInstances()
 	}
 
 	TSharedPtr<FPackedLevelInstanceBuilder> Builder = FPackedLevelInstanceBuilder::CreateDefaultBuilder();
+	const bool bSilentUpdate = true;
 	for (UBlueprint* Blueprint : BlueprintsToUpdate)
 	{
-		Builder->UpdateBlueprint(Blueprint);
+		Builder->UpdateBlueprint(Blueprint, bSilentUpdate);
 		UpdateProgress();
 	}
 }
