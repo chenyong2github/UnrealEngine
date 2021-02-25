@@ -35,6 +35,7 @@ FAnimNode_LookAt::FAnimNode_LookAt()
 	, PreviousTargetLocation(ForceInitToZero)
 	, AccumulatedInterpoolationTime(0.f)
 	, CachedCurrentTargetLocation(ForceInitToZero)
+	, CachedDeltaRotation(FQuat::Identity)
 {
 }
 
@@ -139,6 +140,8 @@ void FAnimNode_LookAt::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCont
 	ComponentBoneTransform.SetRotation(DeltaRotation * ComponentBoneTransform.GetRotation());
 	// Set New Transform 
 	OutBoneTransforms.Add(FBoneTransform(ModifyBoneIndex, ComponentBoneTransform));
+
+	CachedDeltaRotation = DeltaRotation;
 
 #if !UE_BUILD_SHIPPING
 	CachedLookAtTransform = ComponentBoneTransform;
