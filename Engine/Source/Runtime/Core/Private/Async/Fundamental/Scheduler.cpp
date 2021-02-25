@@ -185,6 +185,19 @@ namespace LowLevelTasks
 		return WorkerType != EWorkerType::None && ActiveScheduler == this;
 	}
 
+	void FTask::PropagateUserData()
+	{
+		const FTask* ActiveTask = FScheduler::GetActiveTask();
+		if (ActiveTask != nullptr)
+		{
+			UserData = ActiveTask->GetUserData();
+		}
+		else
+		{
+			UserData = nullptr;
+		}
+	}
+
 	template<FTask* (FScheduler::FLocalQueueType::*DequeueFunction)(bool), bool bIsBusyWaiting>
 	bool FScheduler::TryExecuteTaskFrom(FLocalQueueType* Queue, FQueueRegistry::FOutOfWork& OutOfWork, bool bPermitBackgroundWork)
 	{
