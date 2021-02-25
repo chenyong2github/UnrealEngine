@@ -469,7 +469,7 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddRoundedRectanglePrimitiveTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddDiscPrimitiveTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddPuncturedDiscPrimitiveTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginAddLinearStairsPrimitiveTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAddStairsPrimitiveTool);
 	}
 	else if (PaletteIndex == CreateTabName)
 	{

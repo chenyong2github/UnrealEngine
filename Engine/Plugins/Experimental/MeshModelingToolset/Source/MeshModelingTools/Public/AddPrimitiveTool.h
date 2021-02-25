@@ -38,7 +38,7 @@ public:
 		Torus,
 		SphericalBox,
 		Sphere,
-		LinearStairs
+		Stairs
 	};
 
 	IAssetGenerationAPI* AssetAPI;
@@ -340,27 +340,49 @@ public:
 	int Subdivisions = 16;
 };
 
+UENUM()
+enum class EProceduralStairsType
+{
+	/** Create a linear staircase */
+	Linear UMETA(DisplayName = "Linear Stairs"),
+	/** Create a curved staircase */
+	Curved UMETA(DisplayName = "Curved Stairs")
+};
+
 UCLASS()
-class MESHMODELINGTOOLS_API UProceduralLinearStairsToolProperties : public UProceduralShapeToolProperties
+class MESHMODELINGTOOLS_API UProceduralStairsToolProperties : public UProceduralShapeToolProperties
 {
 	GENERATED_BODY()
 public:
-	/** Width of Shape */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Width", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
-	float StepWidth = 150.f;
-
-	/** Depth of Shape */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Depth", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
-	float StepDepth = 30.f;
-
-	/** Height of Shape*/
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Height", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
-	float StepHeight = 20.f;
+	/** Type of staircase to create */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings")
+		EProceduralStairsType StairsType = EProceduralStairsType::Linear;
 
 	/** Number of Steps of Shape */
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Number of Steps", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "1000", ProceduralShapeSetting))
-	int NumSteps = 5;
+	int NumSteps = 8;
+
+	/** Width of each step */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Width", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	float StepWidth = 150.0f;
+
+	/** Height of each step */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Height", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	float StepHeight = 20.0f;
+
+	/** Depth of each step for linear stair shapes */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Step Depth", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Linear", EditConditionHides))
+	float StepDepth = 30.0f;
+
+	/** Curve angle for curved/spiral stair shapes */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Curve Angle", UIMin = "-360.0", UIMax = "360.0", ClampMin = "-360.0", ClampMax = "360.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Curved", EditConditionHides))
+	float CurveAngle = 90.0f;
+
+	/** Inner radius for curved/spiral stair shapes */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Inner Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Curved", EditConditionHides))
+	float InnerRadius = 150.0f;
 };
+
 
 UCLASS(Transient)
 class MESHMODELINGTOOLS_API ULastActorInfo : public UObject
@@ -580,12 +602,13 @@ protected:
 };
 
 UCLASS()
-class UAddLinearStairsPrimitiveTool : public UAddPrimitiveTool
+class UAddStairsPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
-	UAddLinearStairsPrimitiveTool(const FObjectInitializer& ObjectInitializer);
+	UAddStairsPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
+
 

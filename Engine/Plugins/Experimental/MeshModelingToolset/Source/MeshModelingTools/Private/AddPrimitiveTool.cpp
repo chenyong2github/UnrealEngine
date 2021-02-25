@@ -77,8 +77,8 @@ UInteractiveTool* UAddPrimitiveToolBuilder::BuildTool(const FToolBuilderState& S
 	case EMakeMeshShapeType::Sphere:
 		NewTool = NewObject<UAddSpherePrimitiveTool>(SceneState.ToolManager);
 		break;
-	case EMakeMeshShapeType::LinearStairs:
-		NewTool = NewObject<UAddLinearStairsPrimitiveTool>(SceneState.ToolManager);
+	case EMakeMeshShapeType::Stairs:
+		NewTool = NewObject<UAddStairsPrimitiveTool>(SceneState.ToolManager);
 		break;
 	default:
 		break;
@@ -659,24 +659,45 @@ void UAddSphericalBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	OutMesh->Copy(&SphereGen);
 }
 
-UAddLinearStairsPrimitiveTool::UAddLinearStairsPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralLinearStairsToolProperties>(TEXT("ShapeSettings")))
+UAddStairsPrimitiveTool::UAddStairsPrimitiveTool(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralStairsToolProperties>(TEXT("ShapeSettings")))
 {
-	AssetName = TEXT("LinearStairs");
-	SetToolDisplayName(LOCTEXT("LinearStairsToolName", "Create LinearStairs"));
+	AssetName = TEXT("Stairs");
+	SetToolDisplayName(LOCTEXT("StairsToolName", "Create Stairs"));
 }
 
-void UAddLinearStairsPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
+void UAddStairsPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
-	FLinearStairGenerator StairGen;
-	auto* StairSettings = Cast<UProceduralLinearStairsToolProperties>(ShapeSettings);
-	StairGen.StepWidth = StairSettings->StepWidth;
-	StairGen.StepHeight = StairSettings->StepHeight;
-	StairGen.StepDepth = StairSettings->StepDepth;
-	StairGen.NumSteps = StairSettings->NumSteps;
-	StairGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
-	StairGen.Generate();
-	OutMesh->Copy(&StairGen);
+	auto* StairSettings = Cast<UProceduralStairsToolProperties>(ShapeSettings);
+	switch (StairSettings->StairsType)
+	{
+	case EProceduralStairsType::Linear:
+	{
+		FLinearStairGenerator StairGen;
+		StairGen.StepWidth = StairSettings->StepWidth;
+		StairGen.StepHeight = StairSettings->StepHeight;
+		StairGen.StepDepth = StairSettings->StepDepth;
+		StairGen.NumSteps = StairSettings->NumSteps;
+		StairGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
+		StairGen.Generate();
+		OutMesh->Copy(&StairGen);
+		break;
+	}
+	case EProceduralStairsType::Curved:
+	{
+		FCurvedStairGenerator StairGen;
+		StairGen.StepWidth = StairSettings->StepWidth;
+		StairGen.StepHeight = StairSettings->StepHeight;
+		StairGen.NumSteps = StairSettings->NumSteps;
+		StairGen.InnerRadius = StairSettings->InnerRadius;
+		StairGen.CurveAngle = StairSettings->CurveAngle;
+		StairGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
+		StairGen.Generate();
+		OutMesh->Copy(&StairGen);
+		break;
+	}
+	}
 }
+
 
 #undef LOCTEXT_NAMESPACE

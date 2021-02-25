@@ -347,9 +347,9 @@ void UModelingToolsEditorMode::Enter()
 	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddSphericalBoxPrimitiveTool,
 							  TEXT("BeginAddSphericalBoxPrimitiveTool"),
 							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::SphericalBox);
-	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddLinearStairsPrimitiveTool,
-							  TEXT("BeginAddLinearStairsPrimitiveTool"),
-							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::LinearStairs);
+	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddStairsPrimitiveTool,
+							  TEXT("BeginAddStairsPrimitiveTool"),
+							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Stairs);
 
 	//
 	// make shape tools
