@@ -3,7 +3,7 @@
 #include "Internationalization/FastDecimalFormat.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/StringBuilder.h"
-#include "Containers/StringFwd.h"
+#include "HAL/IConsoleManager.h"
 
 namespace FastDecimalFormat
 {
