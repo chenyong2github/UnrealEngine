@@ -2054,6 +2054,20 @@ int32 UGameplayTagsManager::GameplayTagsMatchDepth(const FGameplayTag& GameplayT
 	return Tags1.Intersect(Tags2).Num();
 }
 
+int32 UGameplayTagsManager::GetNumberOfTagNodes(const FGameplayTag& GameplayTag) const
+{
+	int32 Count = 0;
+
+	TSharedPtr<FGameplayTagNode> TagNode = FindTagNode(GameplayTag);
+	while (TagNode.IsValid())
+	{
+		++Count;								// Increment the count of valid tag nodes.
+		TagNode = TagNode->GetParentTagNode();	// Continue up the chain of parents.
+	}
+
+	return Count;
+}
+
 DECLARE_CYCLE_STAT(TEXT("UGameplayTagsManager::GetAllParentNodeNames"), STAT_UGameplayTagsManager_GetAllParentNodeNames, STATGROUP_GameplayTags);
 
 void UGameplayTagsManager::GetAllParentNodeNames(TSet<FName>& NamesList, TSharedPtr<FGameplayTagNode> GameplayTag) const

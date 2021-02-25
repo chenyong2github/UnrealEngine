@@ -464,6 +464,12 @@ public:
 	 */
 	int32 GameplayTagsMatchDepth(const FGameplayTag& GameplayTagOne, const FGameplayTag& GameplayTagTwo) const;
 
+	/** Returns the number of parents a particular gameplay tag has.  Useful as a quick way to determine which tags may
+	 * be more "specific" than other tags without comparing whether they are in the same hierarchy or anything else.
+	 * Example: "TagA.SubTagA" has 2 Tag Nodes.  "TagA.SubTagA.LeafTagA" has 3 Tag Nodes.
+	 */ 
+	int32 GetNumberOfTagNodes(const FGameplayTag& GameplayTag) const;
+
 	/** Returns true if we should import tags from UGameplayTagsSettings objects (configured by INI files) */
 	bool ShouldImportTagsFromINI() const;
 
