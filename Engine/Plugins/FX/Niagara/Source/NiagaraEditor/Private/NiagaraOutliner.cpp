@@ -55,7 +55,7 @@ const FNiagaraOutlinerSystemInstanceData* UNiagaraOutliner::FindComponentData(co
 {
 	if (const FNiagaraOutlinerSystemData* SystemData = FindSystemData(WorldName, SystemName))
 	{
-		return SystemData->SystemInstances.FindByPredicate([&](const FNiagaraOutlinerSystemInstanceData& Data){ return ComponentName == Data.ComponentName;});
+		return SystemData->SystemInstances.FindByPredicate([&](const FNiagaraOutlinerSystemInstanceData& InData){ return ComponentName == InData.ComponentName;});
 	}
 	return nullptr;
 }
