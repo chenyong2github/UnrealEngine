@@ -199,13 +199,6 @@ void UEditorEngine::LaunchNewProcess(const FRequestPlaySessionParams& InParams, 
 		CommandLine += FString::Printf(TEXT(" %s"), *InParams.AdditionalStandaloneCommandLineParameters.GetValue());
 	}
 
-	// Mobile uses its own set of command line arguments that can be passed. Mobile can be previewed both in-process and
-	// standalone, so we need two separate sets of arguments right now.
-	if (InParams.EditorPlaySettings->AdditionalLaunchParametersForMobile.Len() > 0)
-	{
-		CommandLine += FString::Printf(TEXT(" %s"), *InParams.EditorPlaySettings->AdditionalLaunchParametersForMobile);
-	}
-
 	// Allow servers to override which port they are launched on.
 	if (NetMode == EPlayNetMode::PIE_ListenServer)
 	{

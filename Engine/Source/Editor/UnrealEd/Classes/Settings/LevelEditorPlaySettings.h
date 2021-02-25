@@ -293,10 +293,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=PlayInStandaloneGame)
 	FString AdditionalLaunchParameters;
 
-	/** Extra parameters to be included as part of the command line for a mobile-on-PC standalone game. */
-	UPROPERTY(config, EditAnywhere, Category=PlayInStandaloneGame)
-	FString AdditionalLaunchParametersForMobile;
-
 public:
 
 	/** Whether to build the game before launching on device. */

@@ -179,6 +179,10 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	ILauncherProfileRef LauncherProfile = LauncherServicesModule.CreateProfile(TEXT("Launch On Device"));
 	LauncherProfile->SetBuildMode(BuildMode);
 	LauncherProfile->SetBuildConfiguration(BuildConfiguration);
+	if (InRequestParams.EditorPlaySettings && !InRequestParams.EditorPlaySettings->AdditionalLaunchParameters.IsEmpty())
+	{
+		LauncherProfile->SetAdditionalCommandLineParameters(InRequestParams.EditorPlaySettings->AdditionalLaunchParameters);
+	}
 
 	// select the quickest cook mode based on which in editor cook mode is enabled
 	bool bIncrimentalCooking = true;
