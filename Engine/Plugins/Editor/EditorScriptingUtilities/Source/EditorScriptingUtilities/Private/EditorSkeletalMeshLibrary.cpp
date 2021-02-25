@@ -15,6 +15,7 @@
 #include "LODUtilities.h"
 #include "ObjectTools.h"
 #include "PhysicsAssetUtils.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "ScopedTransaction.h"
