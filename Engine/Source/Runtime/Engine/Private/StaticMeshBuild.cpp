@@ -446,14 +446,6 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 	// we're not going to modify it anymore
 	ReleaseAsyncProperty(EStaticMeshAsyncProperties::RenderData);
 
-	// Note: meshes can be built during automated importing.  We should not create resources in that case
-	// as they will never be released when this object is deleted
-	if(FApp::CanEverRender())
-	{
-		// Reinitialize the static mesh's resources.
-		InitResources();
-	}
-
 	if( GetNumSourceModels() )
 	{
 		// Rescale simple collision if the user changed the mesh build scale
@@ -579,6 +571,14 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 void UStaticMesh::FinishBuildInternal(const TArray<UStaticMeshComponent*> & InAffectedComponents, bool bHasRenderDataChanged, bool bShouldComputeExtendedBounds)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostBuildInternal);
+
+	// Note: meshes can be built during automated importing.  We should not create resources in that case
+	// as they will never be released when this object is deleted
+	if (FApp::CanEverRender())
+	{
+		// Reinitialize the static mesh's resources.
+		InitResources();
+	}
 
 	if (bHasRenderDataChanged)
 	{
