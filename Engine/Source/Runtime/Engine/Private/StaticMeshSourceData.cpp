@@ -14,8 +14,10 @@
 
 UStaticMeshDescriptionBulkData::UStaticMeshDescriptionBulkData()
 {
+#if WITH_EDITORONLY_DATA
 	const bool bTransient = true;
 	PreallocatedMeshDescription = CreateDefaultSubobject<UStaticMeshDescription>(TEXT("MeshDescription"), bTransient);
+#endif
 }
 
 
