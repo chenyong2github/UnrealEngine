@@ -1124,6 +1124,20 @@ float4 SvPositionToResolvedScreenPosition(float4 SvPosition)
 	return float4(NDCPos.xyz, 1) * SvPosition.w;
 }
 
+void SvPositionToResolvedScreenPositionDeriv(float4 SvPosition, float2 PPZ_DDX_DDY, float2 W_DDX_DDY, inout float4 ScreenPosition, inout float4 ScreenPositionDDX, inout float4 ScreenPositionDDY)
+{
+	float2 PixelPos = SvPosition.xy - ResolvedView.ViewRectMin.xy;
+
+	// NDC (NormalizedDeviceCoordinates, after the perspective divide)
+	float4 NDCPos = float4((PixelPos * ResolvedView.ViewSizeAndInvSize.zw - 0.5f) * float2(2, -2), SvPosition.z, 1.0f);
+	float4 NDCPosDDX = float4(ResolvedView.ViewSizeAndInvSize.z * 2.0f, 0.0f, PPZ_DDX_DDY.x, 0.0f);
+	float4 NDCPosDDY = float4(ResolvedView.ViewSizeAndInvSize.w * 2.0f, 0.0f, PPZ_DDX_DDY.y, 0.0f);
+
+	ScreenPosition = NDCPos * SvPosition.w;
+	ScreenPositionDDX = NDCPos * W_DDX_DDY.x + NDCPosDDX * SvPosition.w;
+	ScreenPositionDDY = NDCPos * W_DDX_DDY.y + NDCPosDDY * SvPosition.w;
+}
+
 float2 SvPositionToViewportUV(float4 SvPosition)
 {
 	// can be optimized from 2SUB+2MUL to 2MAD

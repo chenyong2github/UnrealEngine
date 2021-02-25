@@ -875,11 +875,14 @@ void FPixelShaderInOut_MainPS(
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(In.SvPosition);
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
 	}
+#elif VF_NANITE
+	{
+		float3 TranslatedWorldPosition = MaterialParameters.WorldPosition_CamRelative;
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, MaterialParameters.ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+	}
 #else
 	{
-		float4 ScreenPosition = SvPositionToResolvedScreenPosition(In.SvPosition);
-		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(In.SvPosition);
-		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.SvPosition, In.bIsFrontFace);
 	}
 #endif
 

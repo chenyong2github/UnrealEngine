@@ -70,18 +70,25 @@ public:
 
 /**
 * For a node, the known information of the partial derivatives.
-* MEADS_NotAware - This node is made by a function that has no knowledge of analytic partial derivatives.
-* MEADS_Zero - This node is aware of partial derivatives, and knows that it's value is zero, as is the case for uniform parameters.
-* MEADS_Valid - This node is aware of partial derivatives, and knows that it has a calculated value.
-* MEADS_NotValid - This node is aware of partial derivatives, and knows that one of its source inputs is not partial derivative aware, and therefore its value is not to be used.
+* DS_NotAware	- This node is made by a function that has no knowledge of analytic partial derivatives.
+* DS_NotValid	- This node is aware of partial derivatives, and knows that one of its source inputs is not partial derivative aware, and therefore its value is not to be used.
+* DS_Zero		- This node is aware of partial derivatives, and knows that it's value is zero, as is the case for uniform parameters.
+* DS_Valid		- This node is aware of partial derivatives, and knows that it has a calculated value.
 **/
-enum EMaterialExpressionAnalyticDerivativeStatus
+enum EDerivativeStatus
 {
-	MEADS_NotAware,
-	MEADS_Zero,
-	MEADS_Valid,
-	MEADS_NotValid,
-	MEADS_MAX,
+	DS_NotAware,
+	DS_NotValid,
+	DS_Zero,
+	DS_Valid,
+	DS_MAX,
+};
+
+struct FDerivInfo
+{
+	EMaterialValueType	Type;
+	int32				TypeIndex;
+	EDerivativeStatus	DerivativeStatus;
 };
 
 struct FShaderCodeChunk
@@ -128,7 +135,7 @@ struct FShaderCodeChunk
 	/** Whether the code chunk should be inlined or not.  If true, SymbolName is empty and Definition contains the code to inline. */
 	bool bInline;
 	/** The status of partial derivatives at this expression. **/
-	EMaterialExpressionAnalyticDerivativeStatus DerivativeStatus;
+	EDerivativeStatus DerivativeStatus;
 
 	FString& AtDefinition(ECompiledPartialDerivativeVariation Variation)
 	{
@@ -143,8 +150,7 @@ struct FShaderCodeChunk
 	}
 
 	/** Ctor for creating a new code chunk with no associated uniform expression. */
-	FShaderCodeChunk(uint64 InHash, const TCHAR* InDefinitionFinite,const TCHAR* InDefinitionAnalytic,const FString& InSymbolName,EMaterialValueType InType,bool bInInline,
-					 EMaterialExpressionAnalyticDerivativeStatus InDerivativeStatus = MEADS_NotAware):
+	FShaderCodeChunk(uint64 InHash, const TCHAR* InDefinitionFinite, const TCHAR* InDefinitionAnalytic, const FString& InSymbolName, EMaterialValueType InType, EDerivativeStatus InDerivativeStatus, bool bInInline):
 		Hash(InHash),
 		MaterialAttributeMask(0u),
 		DefinitionFinite(InDefinitionFinite),
@@ -160,8 +166,7 @@ struct FShaderCodeChunk
 	{}
 
 	/** Ctor for creating a new code chunk with a uniform expression. */
-	FShaderCodeChunk(uint64 InHash, FMaterialUniformExpression* InUniformExpression,const TCHAR* InDefinitionFinite,const TCHAR* InDefinitionAnalytic,EMaterialValueType InType,
-					 EMaterialExpressionAnalyticDerivativeStatus InDerivativeStatus = MEADS_NotAware):
+	FShaderCodeChunk(uint64 InHash, FMaterialUniformExpression* InUniformExpression, const TCHAR* InDefinitionFinite, const TCHAR* InDefinitionAnalytic, EMaterialValueType InType, EDerivativeStatus InDerivativeStatus):
 		Hash(InHash),
 		MaterialAttributeMask(0u),
 		DefinitionFinite(InDefinitionFinite),
@@ -205,55 +210,102 @@ struct FMaterialCustomExpressionEntry
 	TArray<int32> OutputCodeIndex;
 };
 
-struct FMaterialDerivativeAutogen
+class FMaterialDerivativeAutogen
 {
-	// functions with one parameter
+public:
+	// Unary functions
 	enum EFunc1
 	{
+		EF1_Abs,
+		EF1_Log2,
+		EF1_Log10,
+		EF1_Exp,
 		EF1_Sin,
 		EF1_Cos,
+		EF1_Tan,
+		EF1_Asin,
+		EF1_AsinFast,
+		EF1_Acos,
+		EF1_AcosFast,
+		EF1_Atan,
+		EF1_AtanFast,
+		EF1_Sqrt,
+		EF1_Rcp,
+		EF1_Rsqrt,
+		EF1_Saturate,
+		EF1_Frac,
+		EF1_Length,
+		EF1_InvLength,
+		EF1_Normalize,
 		EF1_Num
 	};
 
+	// Binary functions
 	enum EFunc2
 	{
 		EF2_Add,
 		EF2_Sub,
 		EF2_Mul,
 		EF2_Div,
+		EF2_Fmod,
+		EF2_Max,
+		EF2_Min,
+		EF2_Dot,	// Depends on Add/Mul, so it must come after them
+		EF2_Pow,
+		EF2_PowPositiveClamped,
+		EF2_Cross,
+		EF2_Atan2,
+		EF2_Atan2Fast,
 		EF2_Num
 	};
 
-	FMaterialDerivativeAutogen();
+	// Note that the type index is from [0,3] for float1 to float4. I.e. A float3 would be index 2.
+	static int32 GetFunc1ReturnNumComponents(int32 SrcTypeIndex, EFunc1 Op);
+	static int32 GetFunc2ReturnNumComponents(int32 LhsTypeIndex, int32 RhsTypeIndex, EFunc2 Op);
 
-	void Reset();
+	void EnableGeneratedDepencencies();
 
+	int32 GenerateExpressionFunc1(FHLSLMaterialTranslator& Translator, EFunc1 Op, int32 SrcCode);
 	int32 GenerateExpressionFunc2(FHLSLMaterialTranslator& Translator, EFunc2 Op, int32 LhsCode, int32 RhsCode);
+
+	int32 GenerateLerpFunc(FHLSLMaterialTranslator& Translator, int32 A, int32 B, int32 S);
+	int32 GenerateRotateScaleOffsetTexCoordsFunc(FHLSLMaterialTranslator& Translator, int32 TexCoord, int32 RotationScale, int32 Offset);
+	int32 GenerateIfFunc(FHLSLMaterialTranslator& Translator, int32 A, int32 B, int32 Greater, int32 Equal, int32 Less, int32 Threshold);
+	
 	FString GenerateUsedFunctions(FHLSLMaterialTranslator& Translator);
 
-	FString CoerceValueRaw(const FString& Token, int32 SrcType, EMaterialExpressionAnalyticDerivativeStatus SrcStatus, int32 DstType);
-	FString CoerceValueDeriv(const FString& Token, int32 SrcType, EMaterialExpressionAnalyticDerivativeStatus SrcStatus, int32 DstType);
+	FString ApplyUnMirror(FString Value, bool bUnMirrorU, bool bUnMirrorV);
 
-	FString MakeDerivConstructor(const FString& Value, const FString& Ddx, const FString& Ddy, int32 DstType);
+	FString CoerceValueRaw(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
+	FString CoerceValueDeriv(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
 
-	FString MakeDerivConstructorFromFinite(const FString& Value, int32 DstType);
+	FString ConstructDeriv(const FString& Value, const FString& Ddx, const FString& Ddy, int32 DstType);
+	FString ConstructDerivFinite(const FString& Value, int32 DstType);
 
-	// this could be packed easily into a bitmask, but keeping it as bools for clarity, and it's pipeline so the cost is irrelevant
-	bool bFunc2OpIsEnabled[EF2_Num][4];
+	FString ConvertDeriv(const FString& Value, int32 DstType, int32 SrcType);
 
-	// For example, used when we cast from a float4 to FloatDeriv4
-	bool bCastDerivFromRawIsEnabled[4];
+	FString ExtractElement(const FString& Value, int32 SrcType, int32 ElementIndex);
 
-	// Used when we explicitly create a derivative with values. I.e. MakeFloatDeriv2(float2 Value, float2 Ddx, float2 Ddy)
-	bool bFullConstructorEnabled[4];
+private:
+	// State to keep track of which derivative functions have been used and need to be generated.
+	bool bFunc1OpIsEnabled[EF1_Num][4] = {};
+	bool bFunc2OpIsEnabled[EF2_Num][4] = {};
+	bool bLerpEnabled[4] = {};
+	bool bIfEnabled[4] = {};
+	bool bIf2Enabled[4] = {};
+	bool bUnMirrorEnabled[2][2] = {};
 
-	// Used when we explicitly create a derivative from ddx/ddy. I.e. MakeFloatDeriv2(float2 Value) // derivs from ddx(Value) and ddy(Value)
-	bool bCompactConstructorEnabled[4];
+	bool bRotateScaleOffsetTexCoords = false;
 
-	// For example, used when we cast from a FloatDeriv to FloatDeriv4. Note that bCastDerivFromDerivIsEnabled[0] will always be false,
-	// as we don't needto cast from a FloatDeriv to FloatDeriv, but leaving it to avoid have +1/-1s everywhere.
-	bool bCastDerivFromDerivIsEnabled[4];
+	bool bConstructDerivEnabled[4] = {};
+	bool bConstructConstantDerivEnabled[4] = {};
+	bool bConstructFiniteDerivEnabled[4] = {};
 
+	bool bConvertDerivEnabled[4][4] = {};
+
+	bool bExtractIndexEnabled[4] = {};
+
+	bool bSelectElemHelperEnabled[4] = {};
 };
 
 struct FMaterialDerivativeVariation
@@ -266,7 +318,6 @@ struct FMaterialDerivativeVariation
 
 	/** Any custom output function implementations */
 	TArray<FString> CustomOutputImplementations;
-
 };
 
 struct FMaterialLocalVariableEntry
@@ -277,6 +328,7 @@ struct FMaterialLocalVariableEntry
 
 class FHLSLMaterialTranslator : public FMaterialCompiler
 {
+	friend class FMaterialDerivativeAutogen;
 protected:
 	/** Data that is different for the finite and anlytical partial derivative options. **/
 	FMaterialDerivativeVariation DerivativeVariations[CompiledPDV_MAX];
@@ -519,6 +571,8 @@ public:
 	FString GetMaterialShaderCode();
 
 	const FShaderCodeChunk& AtParameterCodeChunk(int32 Index) const;
+	EDerivativeStatus GetDerivativeStatus(int32 Index) const;
+	FDerivInfo GetDerivInfo(int32 Index) const;
 
 protected:
 
@@ -563,7 +617,7 @@ protected:
 	const TCHAR* HLSLTypeString(EMaterialValueType Type) const;
 
 	/** Used to get an HLSL type from EMaterialValueType */
-	const TCHAR* HLSLTypeStringDeriv(EMaterialValueType Type, EMaterialExpressionAnalyticDerivativeStatus DerivativeStatus) const;
+	const TCHAR* HLSLTypeStringDeriv(EMaterialValueType Type, EDerivativeStatus DerivativeStatus) const;
 
 	int32 NonPixelShaderExpressionError();
 
@@ -581,11 +635,17 @@ protected:
 	void AddCodeChunkToScope(int32 ChunkIndex, int32 ScopeIndex);
 
 	/** Adds an already formatted inline or referenced code chunk */
-	int32 AddCodeChunkInner(uint64 Hash, const TCHAR* FormattedCode, EMaterialValueType Type, bool bInlined);
+	int32 AddCodeChunkInner(uint64 Hash, const TCHAR* FormattedCode, EMaterialValueType Type, EDerivativeStatus DerivativeStatus, bool bInlined);
 
 public:
 	/** Adds an already formatted inline or referenced code chunk, and notes the derivative status. */
-	int32 AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* FormattedCodeFinite, const TCHAR* FormattedCodeAnalytic, EMaterialValueType Type, bool bInlined, EMaterialExpressionAnalyticDerivativeStatus DerivativeStatus);
+	int32 AddCodeChunkInnerDeriv(const TCHAR* FormattedCodeFinite, const TCHAR* FormattedCodeAnalytic, EMaterialValueType Type, bool bInlined, EDerivativeStatus DerivativeStatus);
+	int32 AddCodeChunkInnerDeriv(const TCHAR* FormattedCode, EMaterialValueType Type, bool bInlined, EDerivativeStatus DerivativeStatus);
+
+	// CoerceParameter
+	FString CoerceParameter(int32 Index, EMaterialValueType DestType);
+
+	EMaterialValueType GetArithmeticResultType(int32 A, int32 B);
 
 protected:
 
@@ -595,14 +655,56 @@ protected:
 	 * Creating local variables instead of inlining simplifies the generated code and reduces redundant expression chains,
 	 * Making compiles faster and enabling the shader optimizer to do a better job.
 	 */
-	int32 AddCodeChunk(EMaterialValueType Type, const TCHAR* Format, ...);
+	
+	int32 AddCodeChunkInner(EMaterialValueType Type, EDerivativeStatus DerivativeStatus, bool bInlined, const TCHAR* Format, ...);
 	int32 AddCodeChunkWithHash(uint64 BaseHash, EMaterialValueType Type, const TCHAR* Format, ...);
+
+	template <typename... Types>
+	int32 AddCodeChunk(EMaterialValueType Type, const TCHAR* Format, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddCodeChunk");
+		return AddCodeChunkInner(Type, DS_NotAware, false, Format, Args...);
+	}
+
+	template <typename... Types>
+	int32 AddCodeChunkZeroDeriv(EMaterialValueType Type, const TCHAR* Format, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddCodeChunkZeroDeriv");
+		return AddCodeChunkInner(Type, DS_Zero, false, Format, Args...);
+	}
+
+	template <typename... Types>
+	int32 AddCodeChunkFiniteDeriv(EMaterialValueType Type, const TCHAR* Format, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddCodeChunkFiniteDeriv");
+		return AddCodeChunkInner(Type, DS_NotValid, false, Format, Args...);
+	}
+	
 
 	/** 
 	 * Constructs the formatted code chunk and creates an inlined code chunk from it. 
 	 * This should be used instead of AddCodeChunk when the code chunk does not add any actual shader instructions, for example a component mask.
 	 */
-	int32 AddInlinedCodeChunk(EMaterialValueType Type, const TCHAR* Format, ...);
+	template <typename... Types>
+	int32 AddInlinedCodeChunk(EMaterialValueType Type, const TCHAR* Format, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddInlinedCodeChunk");
+		return AddCodeChunkInner(Type, DS_NotAware, true, Format, Args...);
+	}
+
+	template <typename... Types>
+	int32 AddInlinedCodeChunkZeroDeriv(EMaterialValueType Type, const TCHAR* Format, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddInlinedCodeChunkZeroDeriv");
+		return AddCodeChunkInner(Type, DS_Zero, true, Format, Args...);
+	}
+
+	template <typename... Types>
+	int32 AddInlinedCodeChunkFiniteDeriv(EMaterialValueType Type, const TCHAR* Format, Types... Args)
+	{
+		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddInlinedCodeChunkFiniteDeriv");
+		return AddCodeChunkInner(Type, DS_NotValid, true, Format, Args...);
+	}
 
 	int32 AddUniformExpressionInner(uint64 Hash, FMaterialUniformExpression* UniformExpression, EMaterialValueType Type, const TCHAR* FormattedCode);
 
@@ -614,9 +716,6 @@ protected:
 
 	int32 AccessMaterialAttribute(int32 CodeIndex, const FGuid& AttributeID);
 
-	// CoerceParameter
-	FString CoerceParameter(int32 Index, EMaterialValueType DestType);
-
 	// GetParameterType
 	virtual EMaterialValueType GetParameterType(int32 Index) const override;
 
@@ -627,8 +726,6 @@ protected:
 
 	// GetArithmeticResultType
 	EMaterialValueType GetArithmeticResultType(EMaterialValueType TypeA, EMaterialValueType TypeB);
-
-	EMaterialValueType GetArithmeticResultType(int32 A, int32 B);
 
 	// FMaterialCompiler interface.
 
@@ -676,7 +773,6 @@ protected:
 	 * This will truncate a type (float4 -> float3) but not add components (float2 -> float3), however a float1 can be cast to any float type by replication. 
 	 */
 	virtual int32 ValidCast(int32 Code, EMaterialValueType DestType) override;
-
 	virtual int32 ForceCast(int32 Code, EMaterialValueType DestType, uint32 ForceCastFlags = 0) override;
 
 	/** Pushes a function onto the compiler's function stack, which indicates that compilation is entering a function. */
@@ -782,8 +878,6 @@ protected:
 
 	virtual int32 TextureCoordinate(uint32 CoordinateIndex, bool UnMirrorU, bool UnMirrorV) override;
 
-	//static const TCHAR* GetVTAddressMode(TextureAddress Address);
-
 	uint32 AcquireVTStackIndex(
 		ETextureMipValueMode MipValueMode, 
 		TextureAddress AddressU, TextureAddress AddressV, 
@@ -791,6 +885,9 @@ protected:
 		int32 CoordinateIndex, 
 		int32 MipValue0Index, int32 MipValue1Index, 
 		int32 PreallocatedStackTextureIndex, 
+		const FString& UV_Value,
+		const FString& UV_Ddx,
+		const FString& UV_Ddy,
 		bool bAdaptive, bool bGenerateFeedback);
 
 	virtual int32 TextureSample(
@@ -882,7 +979,7 @@ protected:
 	virtual int32 Step(int32 Y, int32 X) override;
 	virtual int32 SmoothStep(int32 X, int32 Y, int32 A) override;
 	virtual int32 InvLerp(int32 X, int32 Y, int32 A) override;
-	virtual int32 Lerp(int32 X, int32 Y, int32 A) override;
+	virtual int32 Lerp(int32 A, int32 B, int32 S) override;
 	virtual int32 Min(int32 A, int32 B) override;
 	virtual int32 Max(int32 A, int32 B) override;
 	virtual int32 Clamp(int32 X, int32 A, int32 B) override;
@@ -914,8 +1011,8 @@ protected:
 	virtual int32 VertexNormal() override;
 	virtual int32 VertexTangent() override;
 	virtual int32 PixelNormalWS() override;
-	virtual int32 DDX(int32 X) override;
-	virtual int32 DDY(int32 X) override;
+	virtual int32 DDX(int32 A) override;
+	virtual int32 DDY(int32 A) override;
 
 	virtual int32 AntialiasedTextureMask(int32 Tex, int32 UV, float Threshold, uint8 Channel) override;
 	virtual int32 DepthOfFieldFunction(int32 Depth, int32 FunctionValueIndex) override;

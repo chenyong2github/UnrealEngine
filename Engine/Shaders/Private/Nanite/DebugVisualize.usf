@@ -100,7 +100,7 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 		const float2 PixelClip = (PixelPos.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
 		// Calculate perspective correct barycentric coordinates with screen derivatives
-		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2);
+		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, View.ViewSizeAndInvSize.zw);
 
 		const FNaniteAttributeData AttributeData = GetAttributeData(
 			Cluster,

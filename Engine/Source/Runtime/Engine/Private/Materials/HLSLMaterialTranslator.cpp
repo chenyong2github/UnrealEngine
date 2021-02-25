@@ -2,24 +2,53 @@
 /*=============================================================================
 	HLSLMaterialTranslator.cpp: Translates material expressions into HLSL code.
 =============================================================================*/
-
 #include "HLSLMaterialTranslator.h"
 
-class Error;
+#if WITH_EDITORONLY_DATA
 
-static TAutoConsoleVariable<int32> CVarIsAnalyticDerivEnabled(
-	TEXT("r.MaterialEditor.IsAnalyticDerivEnabled"),
-	0,
-	TEXT("True when analytic derivative code generation is enabled.\n"),
-	ECVF_Default);
+static int32 GAnalyticDerivEnabled = 0;
+static FAutoConsoleVariableRef CVarAnalyticDerivEnabled(
+	TEXT("r.MaterialEditor.AnalyticDeriv"),
+	GAnalyticDerivEnabled,
+	TEXT("Enable analytic derivative code generation.")
+	);
 
-static bool IsAnalyticDerivEnabled()
+// Debugging options
+static int32 GDebugTextureSampleEnabled = 0;
+static FAutoConsoleVariableRef CVarAnalyticDerivDebugTextureSample(
+	TEXT("r.MaterialEditor.AnalyticDeriv.DebugTextureSample"),
+	GDebugTextureSampleEnabled,
+	TEXT("Debug: Instrument texture sampling with modes that can be controlled with r.GeneralPurposeTweak/r.GeneralPurposeTweak2.")
+);
+
+static int32 GDebugEmitInvalidDerivTokensEnabled = 0;
+static FAutoConsoleVariableRef CVarAnalyticDerivDebugEmitInvalidDerivTokens(
+	TEXT("r.MaterialEditor.AnalyticDeriv.DebugEmitInvalidDerivTokens"),
+	GDebugEmitInvalidDerivTokensEnabled,
+	TEXT("Debug: Emit '$' tokens to mark expressions with invalid derivatives.\n")
+);
+
+static int32 GDebugGenerateAllFunctionsEnabled = 0;
+static FAutoConsoleVariableRef CVarAnalyticDerivDebugGenerateAllFunctions(
+	TEXT("r.MaterialEditor.AnalyticDeriv.DebugGenerateAllFunctions"),
+	GDebugGenerateAllFunctionsEnabled,
+	TEXT("Debug: Generate all derivative functions.")
+);
+
+static inline bool IsAnalyticDerivEnabled()
 {
-	int32 Enabled = CVarIsAnalyticDerivEnabled.GetValueOnAnyThread();
-	return Enabled != 0;
+	return GAnalyticDerivEnabled != 0;
 }
 
-#if WITH_EDITORONLY_DATA
+static inline bool IsDebugTextureSampleEnabled()
+{
+	return IsAnalyticDerivEnabled() && (GDebugTextureSampleEnabled != 0);
+}
+
+static inline bool IsDebugGenerateAllFunctionsEnabled()
+{
+	return IsAnalyticDerivEnabled() && (GDebugGenerateAllFunctionsEnabled != 0);
+}
 
 /** @return the number of components in a vector type. */
 static inline uint32 GetNumComponents(EMaterialValueType Type)
@@ -61,70 +90,151 @@ static inline int32 SwizzleComponentToIndex(TCHAR Component)
 	}
 }
 
-static const TCHAR * GetDerivBaseType(int Index)
+
+static inline const TCHAR * GetBoolVectorName(int32 TypeIndex)
 {
-	const TCHAR* Ret = TEXT("");
-	switch(Index)
+	switch(TypeIndex)
 	{
 	case 0:
-		Ret = TEXT("FloatDeriv");
-		break;
+		return TEXT("bool");
 	case 1:
-		Ret = TEXT("FloatDeriv2");
-		break;
+		return TEXT("bool2");
 	case 2:
-		Ret = TEXT("FloatDeriv3");
-		break;
+		return TEXT("bool3");
 	case 3:
-		Ret = TEXT("FloatDeriv4");
-		break;
+		return TEXT("bool4");
+	default:
+		check(0);
+		return TEXT("");
 	}
-	return Ret;
 }
 
-static const TCHAR * GetDerivRawType(int Index)
+static inline const TCHAR * GetFloatVectorName(int32 TypeIndex)
 {
-	const TCHAR* Ret = TEXT("");
-	switch(Index)
+	switch(TypeIndex)
 	{
 	case 0:
-		Ret = TEXT("float");
-		break;
+		return TEXT("float");
 	case 1:
-		Ret = TEXT("float2");
-		break;
+		return TEXT("float2");
 	case 2:
-		Ret = TEXT("float3");
-		break;
+		return TEXT("float3");
 	case 3:
-		Ret = TEXT("float4");
-		break;
+		return TEXT("float4");
+	default:
+		check(0);
+		return TEXT("");
 	}
-	return Ret;
 }
 
-
-FMaterialDerivativeAutogen::FMaterialDerivativeAutogen()
+static inline const TCHAR * GetDerivVectorName(int32 TypeIndex)
 {
-	Reset();
+	switch(TypeIndex)
+	{
+	case 0:
+		return TEXT("FloatDeriv");
+	case 1:
+		return TEXT("FloatDeriv2");
+	case 2:
+		return TEXT("FloatDeriv3");
+	case 3:
+		return TEXT("FloatDeriv4");
+	default:
+		check(0);
+		return TEXT("");
+	}
 }
 
-void FMaterialDerivativeAutogen::Reset()
+static inline const TCHAR * GetFloatZeroVector(uint32 NumComponents)
 {
+	switch (NumComponents)
+	{
+	case 1:
+		return TEXT("0.0f");
+	case 2:
+		return TEXT("float2(0.0f, 0.0f)");
+	case 3:
+		return TEXT("float3(0.0f, 0.0f, 0.0f)");
+	case 4:
+		return TEXT("float4(0.0f, 0.0f, 0.0f, 0.0f)");
+	default:
+		check(0);
+		return TEXT("");
+	}
+}
+
+static inline bool IsDerivativeValid(EDerivativeStatus Status)
+{
+	return Status == DS_Valid || Status == DS_Zero;
+}
+
+void FMaterialDerivativeAutogen::EnableGeneratedDepencencies()
+{
+
 	for (int32 Index = 0; Index < 4; Index++)
 	{
-		bCastDerivFromRawIsEnabled[Index] = false;
-		bCastDerivFromDerivIsEnabled[Index] = false;
-		bFullConstructorEnabled[Index] = false;
-		bCompactConstructorEnabled[Index] = false;
+		// PowPositiveClamped requires Pow
+		if (bFunc2OpIsEnabled[EF2_PowPositiveClamped][Index])
+		{
+			bFunc2OpIsEnabled[EF2_Pow][Index] = true;
+		}
 	}
 
-	for (int32 Op = 0; Op < EF2_Num; Op++)
+	for (int32 Index = 0; Index < 4; Index++)
 	{
-		for (int32 Index = 0; Index < 4; Index++)
+		// normalize requires rsqrt1, dot, expand, and mul
+		if (bFunc1OpIsEnabled[EF1_Normalize][Index])
 		{
-			bFunc2OpIsEnabled[Op][Index] = false;
+			bConvertDerivEnabled[Index][0] = true;
+			bFunc2OpIsEnabled[EF2_Dot][Index] = true;
+			bFunc1OpIsEnabled[EF1_Rsqrt][0] = true;
+			bFunc2OpIsEnabled[EF2_Mul][Index] = true;
 		}
+
+		// length requires sqrt1 and dot, dot requires a few other things, but those are handled below
+		if (bFunc1OpIsEnabled[EF1_Length][Index])
+		{
+			bFunc2OpIsEnabled[EF2_Dot][Index] = true;
+			bFunc1OpIsEnabled[EF1_Sqrt][0] = true;
+		}
+
+		// inv length requires rsqrt1 (instead of sqrt1) and dot
+		if (bFunc1OpIsEnabled[EF1_InvLength][Index])
+		{
+			bFunc2OpIsEnabled[EF2_Dot][Index] = true;
+			bFunc1OpIsEnabled[EF1_Rsqrt][0] = true;
+		}
+	}
+
+	// min, max, saturate, and PosClampedPow require the select helper
+	for (int32 Index = 0; Index < 4; Index++)
+	{
+		if (bFunc2OpIsEnabled[EF2_Max][Index] ||
+			bFunc2OpIsEnabled[EF2_Min][Index] ||
+			bFunc1OpIsEnabled[EF1_Saturate][Index] ||
+			bFunc2OpIsEnabled[EF2_PowPositiveClamped][Index])
+		{
+			bSelectElemHelperEnabled[Index] = true;
+		}
+	}
+
+	// Dot requires extract, mul1, add1 and FloatDeriv constructor
+	for (int32 Index = 0; Index < 4; Index++)
+	{
+		if (bFunc2OpIsEnabled[EF2_Dot][Index])
+		{
+			bExtractIndexEnabled[Index] = true;
+			bConstructConstantDerivEnabled[0] = true;
+			bFunc2OpIsEnabled[EF2_Add][0] = true;
+			bFunc2OpIsEnabled[EF2_Mul][0] = true;
+		}
+	}
+
+	if (bRotateScaleOffsetTexCoords)
+	{
+		bFunc2OpIsEnabled[EF2_Add][1] = true;
+		bFunc2OpIsEnabled[EF2_Mul][1] = true;
+		bConstructDerivEnabled[1] = true;
 	}
 }
 
@@ -155,6 +265,7 @@ static int32 GetDerivTypeIndex(EMaterialValueType ValueType)
 	else
 	{
 		Ret = -1; // redundant, but leaving it here so we can set breakpoints
+		check(false);
 	}
 	return Ret;
 }
@@ -181,12 +292,12 @@ static EMaterialValueType GetMaterialTypFromDerivTypeIndex(int32 Index)
 }
 
 // given a string, convert it from type to type
-FString FMaterialDerivativeAutogen::CoerceValueRaw(const FString& Token, int32 SrcType, EMaterialExpressionAnalyticDerivativeStatus SrcStatus, int32 DstType)
+FString FMaterialDerivativeAutogen::CoerceValueRaw(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType)
 {
 	FString Ret = Token;
 
 	// If the original value is a derivative, grab the raw value
-	if (SrcStatus == MEADS_Valid)
+	if (SrcStatus == DS_Valid)
 	{
 		Ret = Ret + TEXT(".Value");
 	}
@@ -223,76 +334,350 @@ FString FMaterialDerivativeAutogen::CoerceValueRaw(const FString& Token, int32 S
 }
 
 // given a string, convert it from type to type
-FString FMaterialDerivativeAutogen::CoerceValueDeriv(const FString& Token, int32 SrcType, EMaterialExpressionAnalyticDerivativeStatus SrcStatus, int32 DstType)
+FString FMaterialDerivativeAutogen::CoerceValueDeriv(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType)
 {
+	check(SrcType < 4);
+	check(DstType < 4);
+
 	FString Ret = Token;
 
+	check(IsDerivativeValid(SrcStatus));
+
 	// If it's valid, then it's already a type. Otherwise, we need to convert it from raw to deriv
-	if (SrcStatus != MEADS_Valid)
+	if (SrcStatus == DS_Zero)
 	{
-		FString SrcDerivType = GetDerivBaseType(SrcType);
-		bCastDerivFromRawIsEnabled[SrcType] = true;
-		Ret = TEXT("Make") + SrcDerivType + TEXT("(") + Ret + TEXT(")");
+		FString SrcDerivType = GetDerivVectorName(SrcType);
+		bConstructConstantDerivEnabled[SrcType] = true;
+		Ret = TEXT("ConstructConstant") + SrcDerivType + TEXT("(") + Ret + TEXT(")");
 	}
 
-	if (SrcType == DstType)
-	{
-		// no op
-	}
-	else
-	{
-		check(SrcType == 0); // can only coerce a float/float1
-		if (DstType == 0)
-		{
-			// should never happen
-			check(0);
-		}
-		else if (DstType == 1)
-		{
-			bCastDerivFromDerivIsEnabled[1] = true;
-			Ret = FString::Printf( TEXT("ExpandFloatDeriv2(%s)"), *Ret);
-		}
-		else if (DstType == 2)
-		{
-			bCastDerivFromDerivIsEnabled[2] = true;
-			Ret = FString::Printf( TEXT("ExpandFloatDeriv3(%s)"), *Ret);
-		}
-		else if (DstType == 3)
-		{
-			bCastDerivFromDerivIsEnabled[3] = true;
-			Ret = FString::Printf( TEXT("ExpandFloatDeriv4(%s)"), *Ret);
-		}
-		else
-		{
-			check(0);
-		}
-	}
-	return Ret;
+	return ConvertDeriv(Ret, DstType, SrcType);
 }
 
-FString FMaterialDerivativeAutogen::MakeDerivConstructor(const FString& Value, const FString& Ddx, const FString& Ddy, int32 DstType)
+FString FMaterialDerivativeAutogen::ConstructDeriv(const FString& Value, const FString& Ddx, const FString& Ddy, int32 DstType)
 {
 	check(DstType >= 0);
 	check(DstType < 4);
 
-	bFullConstructorEnabled[DstType] = true;
-	FString TypeName = GetDerivBaseType(DstType);
+	bConstructDerivEnabled[DstType] = true;
+	FString TypeName = GetDerivVectorName(DstType);
 	FString Ret = TEXT("Construct") + TypeName + TEXT("(") + Value + TEXT(",") + Ddx + TEXT(",") + Ddy + TEXT(")");
 	return Ret;
 }
 
-FString FMaterialDerivativeAutogen::MakeDerivConstructorFromFinite(const FString& Value, int32 DstType)
+FString FMaterialDerivativeAutogen::ConstructDerivFinite(const FString& Value, int32 DstType)
 {
 	check(DstType >= 0);
 	check(DstType < 4);
 
-	bCompactConstructorEnabled[DstType] = true;
+	bConstructFiniteDerivEnabled[DstType] = true;
 
-	FString TypeName = GetDerivBaseType(DstType);
-	FString Ret = TEXT("ConstructCompact") + TypeName + TEXT("(") + Value + TEXT(")");
+	FString TypeName = GetDerivVectorName(DstType);
+	FString Ret = TEXT("ConstructFinite") + TypeName + TEXT("(") + Value + TEXT(")");
 	return Ret;
 }
 
+FString FMaterialDerivativeAutogen::ExtractElement(const FString& Value, int32 SrcType, int32 ElementIndex)
+{
+	check(SrcType < 4);
+	check(ElementIndex <= SrcType);
+	bExtractIndexEnabled[SrcType] = true;
+
+	FString TypeName = GetDerivVectorName(SrcType);
+
+	FString Ret = FString::Printf(TEXT("Extract%s_%d(%s %s)"), *TypeName, ElementIndex + 1, *TypeName, *Value);
+
+	return Ret;
+}
+
+FString FMaterialDerivativeAutogen::ConvertDeriv(const FString& Value, int32 DstType, int32 SrcType)
+{
+	check(DstType < 4);
+	check(SrcType < 4);
+	if (DstType == SrcType)
+		return Value;
+	
+	bConvertDerivEnabled[DstType][SrcType] = true;
+
+	FString DstTypeName = GetDerivVectorName(DstType);
+	return FString::Printf(TEXT("Convert%s(%s)"), *DstTypeName, *Value);
+}
+
+int32 FMaterialDerivativeAutogen::GetFunc1ReturnNumComponents(int32 SrcTypeIndex, EFunc1 Op)
+{
+	int32 DstTypeIndex = INDEX_NONE;
+
+	switch(Op)
+	{
+	case EF1_Abs:
+	case EF1_Log2:
+	case EF1_Log10:
+	case EF1_Exp:
+	case EF1_Sin:
+	case EF1_Cos:
+	case EF1_Tan:
+	case EF1_Asin:
+	case EF1_AsinFast:
+	case EF1_Acos:
+	case EF1_AcosFast:
+	case EF1_Atan:
+	case EF1_AtanFast:
+	case EF1_Sqrt:
+	case EF1_Rcp:
+	case EF1_Rsqrt:
+	case EF1_Saturate:
+	case EF1_Frac:
+	case EF1_Normalize:
+		DstTypeIndex = SrcTypeIndex;
+		break;
+
+	case EF1_Length:
+	case EF1_InvLength:
+		DstTypeIndex = 0;
+		break;
+	default:
+		break;
+	}
+
+	return DstTypeIndex;
+}
+
+int32 FMaterialDerivativeAutogen::GetFunc2ReturnNumComponents(int32 LhsTypeIndex, int32 RhsTypeIndex, EFunc2 Op)
+{
+	int32 DstTypeIndex = INDEX_NONE;
+	
+	switch(Op)
+	{
+	case EF2_Add:
+	case EF2_Sub:
+	case EF2_Mul:
+	case EF2_Div:
+	case EF2_Fmod:
+	case EF2_Max:
+	case EF2_Min:
+	case EF2_Pow:
+	case EF2_PowPositiveClamped:
+	case EF2_Atan2:
+	case EF2_Atan2Fast:
+		// if the initial type is different from the output type, then it's only valid if type is 0 (float). We can convert
+		// a float to a type with more components, but for example, we can't implicitly convert a float2 to a float3/float4.
+		if (LhsTypeIndex == RhsTypeIndex || RhsTypeIndex == 0 || LhsTypeIndex == 0)
+		{
+			DstTypeIndex = FMath::Max<int32>(LhsTypeIndex, RhsTypeIndex);
+		}
+		break;
+	case EF2_Dot:
+		DstTypeIndex = 0;
+		break;
+	case EF2_Cross:
+		check(LhsTypeIndex == 2);
+		check(RhsTypeIndex == 2);
+		DstTypeIndex = 2;
+		break;
+	default:
+		break;
+	}
+
+	return DstTypeIndex;
+}
+
+
+int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslator& Translator, EFunc1 Op, int32 SrcCode)
+{
+	if (SrcCode == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	const FDerivInfo SrcDerivInfo = Translator.GetDerivInfo(SrcCode);
+	int32 OutputTypeIndex	= GetFunc1ReturnNumComponents(SrcDerivInfo.TypeIndex, Op);
+
+	if (OutputTypeIndex < 0)
+	{
+		return INDEX_NONE;
+	}
+
+	EDerivativeStatus DstStatus = IsDerivativeValid(SrcDerivInfo.DerivativeStatus) ? DS_Valid : DS_NotValid;
+	bool bUseScalarVersion = (DstStatus != DS_Valid);
+
+	// make initial tokens
+	FString DstTokens[CompiledPDV_MAX];
+
+	for (int32 Index = 0; Index < CompiledPDV_MAX; Index++)
+	{
+		ECompiledPartialDerivativeVariation Variation = (ECompiledPartialDerivativeVariation)Index;
+
+		FString SrcToken = Translator.GetParameterCodeDeriv(SrcCode,Variation);
+
+		// The token is the symbol name. If we are in finite mode, that's all we have to do. But if
+		// we are in analytic mode, we may need to get the value.
+		if (Index == CompiledPDV_Analytic)
+		{
+			SrcToken = CoerceValueRaw(SrcToken, SrcDerivInfo.TypeIndex, SrcDerivInfo.DerivativeStatus, SrcDerivInfo.TypeIndex);
+		}
+
+		FString DstToken;
+		// just generate a type
+		switch(Op)
+		{
+		case EF1_Abs:
+			DstToken = TEXT("abs(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Log2:
+			DstToken = TEXT("log2(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Log10:
+			DstToken = TEXT("log10(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Exp:
+			DstToken = TEXT("exp(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Sin:
+			DstToken = TEXT("sin(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Cos:
+			DstToken = TEXT("cos(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Tan:
+			DstToken = TEXT("tan(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Asin:
+			DstToken = TEXT("asin(") + SrcToken + TEXT(")");
+			break;
+		case EF1_AsinFast:
+			DstToken = TEXT("asinFast(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Acos:
+			DstToken = TEXT("acos(") + SrcToken + TEXT(")");
+			break;
+		case EF1_AcosFast:
+			DstToken = TEXT("acosFast(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Atan:
+			DstToken = TEXT("atan(") + SrcToken + TEXT(")");
+			break;
+		case EF1_AtanFast:
+			DstToken = TEXT("atanFast(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Sqrt:
+			DstToken = TEXT("sqrt(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Rcp:
+			DstToken = TEXT("rcp(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Rsqrt:
+			DstToken = TEXT("rsqrt(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Saturate:
+			DstToken = TEXT("saturate(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Frac:
+			DstToken = TEXT("frac(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Length:
+			DstToken = TEXT("length(") + SrcToken + TEXT(")");
+			break;
+		case EF1_InvLength:
+			DstToken = TEXT("rcp(length(") + SrcToken + TEXT("))");
+			break;
+		case EF1_Normalize:
+			DstToken = TEXT("normalize(") + SrcToken + TEXT(")");
+			break;
+		default:
+			check(0);
+			break;
+		}
+
+		DstTokens[Index] = DstToken;
+	}
+
+	if (!bUseScalarVersion)
+	{
+		FString SrcToken = Translator.GetParameterCodeDeriv(SrcCode, CompiledPDV_Analytic);
+
+		SrcToken = CoerceValueDeriv(SrcToken, SrcDerivInfo.TypeIndex, SrcDerivInfo.DerivativeStatus, SrcDerivInfo.TypeIndex);
+
+		check(Op < EF1_Num);
+		bFunc1OpIsEnabled[Op][SrcDerivInfo.TypeIndex] = true;
+		
+		FString DstToken;
+		switch(Op)
+		{
+		case EF1_Abs:
+			DstToken = TEXT("AbsDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Log2:
+			DstToken = TEXT("Log2Deriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Log10:
+			DstToken = TEXT("Log10Deriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Exp:
+			DstToken = TEXT("ExpDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Sin:
+			DstToken = TEXT("SinDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Cos:
+			DstToken = TEXT("CosDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Tan:
+			DstToken = TEXT("TanDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Asin:
+			DstToken = TEXT("ASinDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_AsinFast:
+			DstToken = TEXT("ASinFastDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Acos:
+			DstToken = TEXT("ACosDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_AcosFast:
+			DstToken = TEXT("ACosFastDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Atan:
+			DstToken = TEXT("ATanDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_AtanFast:
+			DstToken = TEXT("ATanFastDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Sqrt:
+			DstToken = TEXT("SqrtDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Rcp:
+			DstToken = TEXT("RcpDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Rsqrt:
+			DstToken = TEXT("RsqrtDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Saturate:
+			DstToken = TEXT("SaturateDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Frac:
+			DstToken = TEXT("FracDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Length:
+			DstToken = TEXT("LengthDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_InvLength:
+			DstToken = TEXT("InvLengthDeriv(") + SrcToken + TEXT(")");
+			break;
+		case EF1_Normalize:
+			DstToken = TEXT("NormalizeDeriv(") + SrcToken + TEXT(")");
+			break;
+		default:
+			check(0);
+			break;
+		}
+
+		DstTokens[CompiledPDV_Analytic] = DstToken;
+	}
+
+	EMaterialValueType DstMatType = GetMaterialTypFromDerivTypeIndex(OutputTypeIndex);
+	int32 Ret = Translator.AddCodeChunkInnerDeriv(*DstTokens[CompiledPDV_FiniteDifferences],*DstTokens[CompiledPDV_Analytic],DstMatType,false /*?*/, DstStatus);
+	return Ret;
+}
 
 int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslator& Translator, EFunc2 Op, int32 LhsCode, int32 RhsCode)
 {
@@ -301,27 +686,30 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		return INDEX_NONE;
 	}
 
-	const FShaderCodeChunk& LhsChunk = Translator.AtParameterCodeChunk(LhsCode);
-	const FShaderCodeChunk& RhsChunk = Translator.AtParameterCodeChunk(RhsCode);
 
-	int32 LhsTypeIndex = GetDerivTypeIndex(LhsChunk.Type);
-	int32 RhsTypeIndex = GetDerivTypeIndex(RhsChunk.Type);
+	const FDerivInfo LhsDerivInfo = Translator.GetDerivInfo(LhsCode);
+	const FDerivInfo RhsDerivInfo = Translator.GetDerivInfo(RhsCode);
 
-	int32 DstTypeIndex = FMath::Max<int32>(LhsTypeIndex,RhsTypeIndex);
+	int32 IntermediaryTypeIndex = FMath::Max<int32>(LhsDerivInfo.TypeIndex, RhsDerivInfo.TypeIndex);
 
-	EMaterialExpressionAnalyticDerivativeStatus DstStatus = MEADS_NotValid;
+	if (Op == EF2_Cross)
+	{
+		IntermediaryTypeIndex = 2;
+	}
 
-	// if the initial type is different from the output type, then it's only valid if type is 0 (float). We can convert
-	// a float to a type with more components, but for example, we can't implicitly convert a float2 to a float3/float4.
-	if (LhsTypeIndex != DstTypeIndex && LhsTypeIndex != 0)
+	if (Op == EF2_Fmod)
+	{
+		check(RhsDerivInfo.DerivativeStatus == DS_Zero);
+	}
+
+	int32 OutputTypeIndex = GetFunc2ReturnNumComponents(LhsDerivInfo.TypeIndex, RhsDerivInfo.TypeIndex, Op);
+
+	if (OutputTypeIndex < 0)
 	{
 		return INDEX_NONE;
 	}
 
-	if (RhsTypeIndex != DstTypeIndex && RhsTypeIndex != 0)
-	{
-		return INDEX_NONE;
-	}
+	EDerivativeStatus DstStatus = DS_NotValid;
 
 	// Rules for derivatives:
 	// 1. If either the LHS or RHS is Not Valid or Not Aware, then the derivative is not valid. Run scalar route.
@@ -333,8 +721,7 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 	bool bIsDerivValidZero = true;
 	bool bMakeDerivLhs = false;
 	bool bMakeDerivRhs = false;
-	if (LhsChunk.DerivativeStatus == MEADS_NotAware || LhsChunk.DerivativeStatus == MEADS_NotValid ||
-		RhsChunk.DerivativeStatus == MEADS_NotAware || RhsChunk.DerivativeStatus == MEADS_NotValid)
+	if (!IsDerivativeValid(LhsDerivInfo.DerivativeStatus) || !IsDerivativeValid(RhsDerivInfo.DerivativeStatus))
 	{
 		// use scalar version as a fallback
 		bUseScalarVersion = true;
@@ -342,22 +729,22 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		bIsDerivValidZero = false;
 
 		// We output status as invalid, since one of the parameters is either not aware or not valid
-		DstStatus = MEADS_NotValid;
+		DstStatus = DS_NotValid;
 
 	}
-	else if (LhsChunk.DerivativeStatus == MEADS_Zero && RhsChunk.DerivativeStatus == MEADS_Zero)
+	else if (LhsDerivInfo.DerivativeStatus == DS_Zero && RhsDerivInfo.DerivativeStatus == DS_Zero)
 	{
 		// use scalar version
 		bUseScalarVersion = true;
 		// since we know both incoming values have derivatives of zero, we know the output is zero
 		bIsDerivValidZero = true;
 		// we know that the value is zero
-		DstStatus = MEADS_Zero;
+		DstStatus = DS_Zero;
 	}
 	else
 	{
-		check(LhsChunk.DerivativeStatus == MEADS_Zero || LhsChunk.DerivativeStatus == MEADS_Valid);
-		check(RhsChunk.DerivativeStatus == MEADS_Zero || RhsChunk.DerivativeStatus == MEADS_Valid);
+		check(IsDerivativeValid(LhsDerivInfo.DerivativeStatus));
+		check(IsDerivativeValid(RhsDerivInfo.DerivativeStatus));
 
 		// use deriv version
 		bUseScalarVersion = false;
@@ -365,19 +752,19 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		bIsDerivValidZero = false;
 
 		// if the lhs has a derivitive of zero, and rhs is non-zero, convert lhs from a scalar type to deriv type
-		if (LhsChunk.DerivativeStatus == MEADS_Zero)
+		if (LhsDerivInfo.DerivativeStatus == DS_Zero)
 		{
 			bMakeDerivLhs = true;
 		}
 
 		// if the rhs has a derivative of zero, and lhs is non-zero, convert rhs from a scalar type to deriv type
-		if (RhsChunk.DerivativeStatus == MEADS_Zero)
+		if (RhsDerivInfo.DerivativeStatus == DS_Zero)
 		{
 			bMakeDerivRhs = true;
 		}
 
 		// derivative results will be valid
-		DstStatus = MEADS_Valid;
+		DstStatus = DS_Valid;
 	}
 
 	FString DstTokens[CompiledPDV_MAX];
@@ -393,8 +780,8 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		// we are in analytic mode, we may need to get the value.
 		if (Index == CompiledPDV_Analytic)
 		{
-			LhsToken = CoerceValueRaw(LhsToken,LhsTypeIndex,LhsChunk.DerivativeStatus,DstTypeIndex);
-			RhsToken = CoerceValueRaw(RhsToken,RhsTypeIndex,RhsChunk.DerivativeStatus,DstTypeIndex);
+			LhsToken = CoerceValueRaw(LhsToken, LhsDerivInfo.TypeIndex, LhsDerivInfo.DerivativeStatus, IntermediaryTypeIndex);
+			RhsToken = CoerceValueRaw(RhsToken, RhsDerivInfo.TypeIndex, RhsDerivInfo.DerivativeStatus, IntermediaryTypeIndex);
 		}
 
 		FString DstToken;
@@ -413,6 +800,36 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		case EF2_Div:
 			DstToken = TEXT("(") + LhsToken + TEXT(" / ") + RhsToken + TEXT(")");
 			break;
+		case EF2_Fmod:
+			DstToken = TEXT("fmod(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Min:
+			DstToken = TEXT("min(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Max:
+			DstToken = TEXT("max(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Dot:
+			DstToken = TEXT("dot(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Pow:
+			DstToken = TEXT("pow(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_PowPositiveClamped:
+			DstToken = TEXT("PositiveClampedPow(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Atan2:
+			DstToken = TEXT("atan2(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Atan2Fast:
+			DstToken = TEXT("atan2Fast(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Cross:
+			DstToken = TEXT("cross(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		default:
+			check(0);
+			break;
 		}
 
 		DstTokens[Index] = DstToken;
@@ -423,11 +840,11 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		FString LhsToken = Translator.GetParameterCodeDeriv(LhsCode,CompiledPDV_Analytic);
 		FString RhsToken = Translator.GetParameterCodeDeriv(RhsCode,CompiledPDV_Analytic);
 
-		LhsToken = CoerceValueDeriv(LhsToken,LhsTypeIndex,LhsChunk.DerivativeStatus,DstTypeIndex);
-		RhsToken = CoerceValueDeriv(RhsToken,RhsTypeIndex,RhsChunk.DerivativeStatus,DstTypeIndex);
+		LhsToken = CoerceValueDeriv(LhsToken, LhsDerivInfo.TypeIndex, LhsDerivInfo.DerivativeStatus, IntermediaryTypeIndex);
+		RhsToken = CoerceValueDeriv(RhsToken, RhsDerivInfo.TypeIndex, RhsDerivInfo.DerivativeStatus, IntermediaryTypeIndex);
 
 		check(Op < EF2_Num);
-		bFunc2OpIsEnabled[Op][DstTypeIndex] = true;
+		bFunc2OpIsEnabled[Op][IntermediaryTypeIndex] = true;
 
 		FString DstToken;
 		switch(Op)
@@ -444,28 +861,271 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc2(FHLSLMaterialTranslato
 		case EF2_Div:
 			DstToken = TEXT("DivDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
 			break;
+		case EF2_Fmod:
+			DstToken = TEXT("FmodDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Dot:
+			DstToken = TEXT("DotDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Min:
+			DstToken = TEXT("MinDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Max:
+			DstToken = TEXT("MaxDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Pow:
+			DstToken = TEXT("PowDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_PowPositiveClamped:
+			DstToken = TEXT("PowPositiveClampedDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Cross:
+			DstToken = TEXT("CrossDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Atan2:
+			DstToken = TEXT("Atan2Deriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		case EF2_Atan2Fast:
+			DstToken = TEXT("Atan2FastDeriv(") + LhsToken + TEXT(",") + RhsToken + TEXT(")");
+			break;
+		default:
+			check(0);
+			break;
 		}
 
 		DstTokens[CompiledPDV_Analytic] = DstToken;
+		DstStatus = DS_Valid;
 	}
 
-	const uint64 Hash = CityHash64((char*)*DstTokens[CompiledPDV_FiniteDifferences], DstTokens[CompiledPDV_FiniteDifferences].Len() * sizeof(TCHAR));
-	EMaterialValueType DstMatType = GetMaterialTypFromDerivTypeIndex(DstTypeIndex);
+	EMaterialValueType DstMatType = GetMaterialTypFromDerivTypeIndex(OutputTypeIndex);
 
-	int32 Ret = Translator.AddCodeChunkInnerDeriv(Hash,*DstTokens[CompiledPDV_FiniteDifferences],*DstTokens[CompiledPDV_Analytic],DstMatType,false /*?*/, DstStatus);
+	int32 Ret = Translator.AddCodeChunkInnerDeriv(*DstTokens[CompiledPDV_FiniteDifferences],*DstTokens[CompiledPDV_Analytic],DstMatType,false /*?*/, DstStatus);
 	return Ret;
+}
+
+int32 FMaterialDerivativeAutogen::GenerateLerpFunc(FHLSLMaterialTranslator& Translator, int32 A, int32 B, int32 S)
+{
+	// TODO: generalize to Func3?
+	if (A == INDEX_NONE || B == INDEX_NONE || S == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	const FDerivInfo ADerivInfo = Translator.GetDerivInfo(A);
+	const FDerivInfo BDerivInfo = Translator.GetDerivInfo(B);
+	const FDerivInfo SDerivInfo = Translator.GetDerivInfo(S);
+	
+	const EMaterialValueType ResultType = Translator.GetArithmeticResultType(A, B);
+	const EMaterialValueType AlphaType = (ResultType == SDerivInfo.Type) ? ResultType : MCT_Float1;
+	const uint32 NumResultComponents = GetNumComponents(ResultType);
+
+	const bool bAllZeroDeriv = (ADerivInfo.DerivativeStatus == DS_Zero && BDerivInfo.DerivativeStatus == DS_Zero && SDerivInfo.DerivativeStatus == DS_Zero);
+	FString FiniteString = FString::Printf(TEXT("lerp(%s,%s,%s)"), *Translator.CoerceParameter(A, ResultType), *Translator.CoerceParameter(B, ResultType), *Translator.CoerceParameter(S, AlphaType));
+	
+	if (!bAllZeroDeriv && IsDerivativeValid(ADerivInfo.DerivativeStatus) && IsDerivativeValid(BDerivInfo.DerivativeStatus) && IsDerivativeValid(SDerivInfo.DerivativeStatus))
+	{
+		const uint32 ResultTypeIndex = GetDerivTypeIndex(ResultType);
+		//const uint32 AlphaTypeIndex = GetDerivTypeIndex(AlphaType);
+		FString ADeriv = Translator.GetParameterCodeDeriv(A, CompiledPDV_Analytic);
+		FString BDeriv = Translator.GetParameterCodeDeriv(B, CompiledPDV_Analytic);
+		FString SDeriv = Translator.GetParameterCodeDeriv(S, CompiledPDV_Analytic);
+
+		ADeriv = CoerceValueDeriv(ADeriv, ADerivInfo.TypeIndex, ADerivInfo.DerivativeStatus, ResultTypeIndex);
+		BDeriv = CoerceValueDeriv(BDeriv, BDerivInfo.TypeIndex, BDerivInfo.DerivativeStatus, ResultTypeIndex);
+		SDeriv = CoerceValueDeriv(SDeriv, SDerivInfo.TypeIndex, SDerivInfo.DerivativeStatus, ResultTypeIndex);
+
+		FString AnalyticString = FString::Printf(TEXT("LerpDeriv(%s, %s, %s)"), *ADeriv, *BDeriv, *SDeriv);
+
+		check(NumResultComponents <= 4);
+		bLerpEnabled[ResultTypeIndex] = true;
+
+		return Translator.AddCodeChunkInnerDeriv(*FiniteString, *AnalyticString, ResultType, false, DS_Valid);
+	}
+	else
+	{
+		return Translator.AddCodeChunkInnerDeriv(*FiniteString, *FiniteString, ResultType, false, bAllZeroDeriv ? DS_Zero : DS_NotValid);
+	}
+}
+
+int32 FMaterialDerivativeAutogen::GenerateRotateScaleOffsetTexCoordsFunc(FHLSLMaterialTranslator& Translator, int32 TexCoord, int32 RotationScale, int32 Offset)
+{
+	// TODO: generalize to Func3?
+	if (TexCoord == INDEX_NONE || RotationScale == INDEX_NONE || Offset == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	const FDerivInfo TexCoordDerivInfo		= Translator.GetDerivInfo(TexCoord);
+	const FDerivInfo RotationScaleDerivInfo	= Translator.GetDerivInfo(RotationScale);
+	const FDerivInfo OffsetDerivInfo		= Translator.GetDerivInfo(Offset);
+
+	const EMaterialValueType ResultType = MCT_Float2;
+	const uint32 NumResultComponents = 2;
+
+	const bool bAllZeroDeriv = (TexCoordDerivInfo.DerivativeStatus == DS_Zero && RotationScaleDerivInfo.DerivativeStatus == DS_Zero && OffsetDerivInfo.DerivativeStatus == DS_Zero);
+	FString FiniteString = FString::Printf(TEXT("RotateScaleOffsetTexCoords(%s, %s, %s.xy)"),	*Translator.CoerceParameter(TexCoord,		ResultType), 
+																								*Translator.CoerceParameter(RotationScale,	ResultType),
+																								*Translator.CoerceParameter(Offset,			ResultType));
+
+	if (!bAllZeroDeriv && IsDerivativeValid(TexCoordDerivInfo.DerivativeStatus) && IsDerivativeValid(RotationScaleDerivInfo.DerivativeStatus) && IsDerivativeValid(OffsetDerivInfo.DerivativeStatus))
+	{
+		const uint32 ResultTypeIndex = GetDerivTypeIndex(ResultType);
+		FString TexCoordDeriv		= Translator.GetParameterCodeDeriv(TexCoord, CompiledPDV_Analytic);
+		FString RotationScaleDeriv	= Translator.GetParameterCodeDeriv(RotationScale, CompiledPDV_Analytic);
+		FString OffsetDeriv			= Translator.GetParameterCodeDeriv(Offset, CompiledPDV_Analytic);
+
+		TexCoordDeriv		= CoerceValueDeriv(TexCoordDeriv,		TexCoordDerivInfo.TypeIndex,		TexCoordDerivInfo.DerivativeStatus,			ResultTypeIndex);
+		RotationScaleDeriv	= CoerceValueDeriv(RotationScaleDeriv,	RotationScaleDerivInfo.TypeIndex,	RotationScaleDerivInfo.DerivativeStatus,	ResultTypeIndex);
+		OffsetDeriv			= CoerceValueDeriv(OffsetDeriv,			OffsetDerivInfo.TypeIndex,			OffsetDerivInfo.DerivativeStatus,			ResultTypeIndex);
+
+		FString AnalyticString = FString::Printf(TEXT("RotateScaleOffsetTexCoordsDeriv(%s, %s, %s)"), *TexCoordDeriv, *RotationScaleDeriv, *OffsetDeriv);
+
+		check(NumResultComponents <= 4);
+		bRotateScaleOffsetTexCoords = true;
+
+		return Translator.AddCodeChunkInnerDeriv(*FiniteString, *AnalyticString, ResultType, false, DS_Valid);
+	}
+	else
+	{
+		return Translator.AddCodeChunkInnerDeriv(*FiniteString, *FiniteString, ResultType, false, bAllZeroDeriv ? DS_Zero : DS_NotValid);
+	}
+}
+
+int32 FMaterialDerivativeAutogen::GenerateIfFunc(FHLSLMaterialTranslator& Translator, int32 A, int32 B, int32 Greater, int32 Equal, int32 Less, int32 Threshold)
+{
+	if (A == INDEX_NONE || B == INDEX_NONE || Greater == INDEX_NONE || Less == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	const FString AFinite = Translator.GetParameterCode(A);
+	const FString BFinite = Translator.GetParameterCode(B);
+
+	const bool bEqual = (Equal != INDEX_NONE);
+
+	if (bEqual && Threshold == INDEX_NONE)
+		return INDEX_NONE;
+
+	EMaterialValueType ResultType = Translator.GetArithmeticResultType(Greater, Less);
+
+	if (bEqual)
+		ResultType = Translator.GetArithmeticResultType(ResultType, Translator.GetParameterType(Greater));
+	
+	Greater = Translator.ForceCast(Greater,		ResultType);
+	Less	= Translator.ForceCast(Less,		ResultType);
+	if (Greater == INDEX_NONE || Less == INDEX_NONE)
+		return INDEX_NONE;
+
+	const FString GreaterFinite = Translator.GetParameterCode(Greater);
+	const FString LessFinite	= Translator.GetParameterCode(Less);
+
+	if (bEqual)
+	{
+		Equal = Translator.ForceCast(Equal, ResultType);
+		if (Equal == INDEX_NONE)
+			return INDEX_NONE;
+	}
+	
+	const FDerivInfo GreaterDerivInfo	= Translator.GetDerivInfo(Greater);
+	const FDerivInfo LessDerivInfo		= Translator.GetDerivInfo(Less);
+
+	FString CodeFinite;
+	FString ThresholdFinite;
+	if (bEqual)
+	{
+		ThresholdFinite = *Translator.GetParameterCode(Threshold);
+
+		CodeFinite = FString::Printf(
+			TEXT("((abs(%s - %s) > %s) ? (%s >= %s ? %s : %s) : %s)"),
+			*AFinite, *BFinite, *ThresholdFinite,
+			*AFinite, *BFinite,
+			*GreaterFinite, *LessFinite, *Translator.GetParameterCode(Equal));
+	}
+	else
+	{
+		CodeFinite = FString::Printf(
+			TEXT("((%s >= %s) ? %s : %s)"),
+			*AFinite, *BFinite,
+			*GreaterFinite, *LessFinite
+		);
+	}
+
+	const bool bAllDerivValid = IsDerivativeValid(GreaterDerivInfo.DerivativeStatus) && IsDerivativeValid(LessDerivInfo.DerivativeStatus) && (!bEqual || IsDerivativeValid(Translator.GetDerivativeStatus(Equal)));
+	const bool bAllDerivZero = GreaterDerivInfo.DerivativeStatus == DS_Zero && LessDerivInfo.DerivativeStatus == DS_Zero && (!bEqual || Translator.GetDerivativeStatus(Equal) == DS_Zero);
+	if (bAllDerivValid && !bAllDerivZero)
+	{
+		const uint32 ResultTypeIndex = GetDerivTypeIndex(ResultType);
+
+		FString GreaterDeriv	= Translator.GetParameterCodeDeriv(Greater, CompiledPDV_Analytic);
+		FString LessDeriv		= Translator.GetParameterCodeDeriv(Less,	CompiledPDV_Analytic);
+
+		GreaterDeriv	= CoerceValueDeriv(GreaterDeriv,	ResultTypeIndex, GreaterDerivInfo.DerivativeStatus, ResultTypeIndex);
+		LessDeriv		= CoerceValueDeriv(LessDeriv,		ResultTypeIndex, LessDerivInfo.DerivativeStatus,	ResultTypeIndex);
+
+		FString CodeAnalytic;
+		if (bEqual)
+		{
+			const FDerivInfo EqualDerivInfo = Translator.GetDerivInfo(Equal);
+			FString EqualDeriv = Translator.GetParameterCodeDeriv(Equal, CompiledPDV_Analytic);
+			EqualDeriv = CoerceValueDeriv(EqualDeriv, ResultTypeIndex, EqualDerivInfo.DerivativeStatus, ResultTypeIndex);
+
+			CodeAnalytic = FString::Printf(TEXT("IfDeriv(%s, %s, %s, %s, %s, %s)"), *AFinite, *BFinite, *GreaterDeriv, *LessDeriv, *EqualDeriv, *ThresholdFinite);
+			bIf2Enabled[ResultTypeIndex] = true;
+		}
+		else
+		{
+			CodeAnalytic = FString::Printf(TEXT("IfDeriv(%s, %s, %s, %s)"), *AFinite, *BFinite, *GreaterDeriv, *LessDeriv);
+			bIfEnabled[ResultTypeIndex] = true;
+		}
+
+		return Translator.AddCodeChunkInnerDeriv(*CodeFinite, *CodeAnalytic, ResultType, false, DS_Valid);
+
+	}
+	else
+	{
+		return Translator.AddCodeChunkInnerDeriv(*CodeFinite, *CodeFinite, ResultType, false, bAllDerivZero ? DS_Zero : DS_NotValid);
+	}
+}
+
+static FString CoerceFloat(const TCHAR* Value, int32 DstType, int32 SrcType)
+{
+	if (DstType == SrcType)
+	{
+		return Value;
+	}
+
+	if (SrcType == 0)
+	{
+		const TCHAR* Mask[4] = { TEXT("x"), TEXT("xx"), TEXT("xxx"), TEXT("xxxx") };
+		return FString::Printf(TEXT("%s.%s"), Value, Mask[DstType]);
+	}
+
+	
+	if (DstType < SrcType)
+	{
+		const TCHAR* Mask[4] = { TEXT("x"), TEXT("xy"), TEXT("xyz"), TEXT("xyzw") };
+		return FString::Printf(TEXT("%s.%s"), Value, Mask[DstType]);
+	}
+	else
+	{
+		check(DstType > SrcType);
+		const TCHAR* Zeros[4] = { TEXT("0.0f"), TEXT("0.0f, 0.0f"), TEXT("0.0f, 0.0f, 0.0f"), TEXT("0.0f, 0.0f, 0.0f, 0.0f") };
+		return FString::Printf(TEXT("%s(%s, %s)"), GetFloatVectorName(DstType), Value, Zeros[DstType - SrcType - 1]);
+	}
 }
 
 FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslator& Translator)
 {
+	// Certain derivative functions rely on other derivative functions. For example, Dot() requires Mul() and Add(). So if (for example) dot is enabled, then enable mul1 and add1.
+	EnableGeneratedDepencencies();
+
 	FString Ret;
 
-	// the basic structs (FloatDeriv, FloatDeriv2, FloatDeriv3, FloatDeriv4)
-	// it's not worth keeping track of all the times these are used, just make them.
+	// The basic structs (FloatDeriv, FloatDeriv2, FloatDeriv3, FloatDeriv4)
+	// It's not worth keeping track of all the times these are used, just make them.
 	for (int32 Index = 0; Index < 4; Index++)
 	{
-		FString BaseName = GetDerivBaseType(Index);
-		FString FieldName = GetDerivRawType(Index);
+		FString BaseName = GetDerivVectorName(Index);
+		FString FieldName = GetFloatVectorName(Index);
 
 		Ret += TEXT("struct ") + BaseName + LINE_TERMINATOR;
 		Ret += TEXT("{") LINE_TERMINATOR;
@@ -476,56 +1136,13 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 		Ret += TEXT("") LINE_TERMINATOR;
 	}
 
-	// For building from scalars. Used when then previous value is known to have a derivative of zero for uniforms. I.e.
-	// float3 Local0 = .... 
-	// FloatDeriv3 Local1 = MakeFloatDeriv3(Local0);
+	// Full FloatDerivX constructors with explicit derivatives.
 	for (int32 Index = 0; Index < 4; Index++)
 	{
-		if (bCastDerivFromRawIsEnabled[Index])
+		if (bConstructDerivEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
-			FString BaseName = GetDerivBaseType(Index);
-			FString FieldName = GetDerivRawType(Index);
-
-			Ret += BaseName + TEXT(" Make") + BaseName + TEXT("(") + FieldName + TEXT(" Value)") LINE_TERMINATOR;
-			Ret += TEXT("{") LINE_TERMINATOR;
-			Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Value = Value;") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Ddx = 0;") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Ddy = 0;") LINE_TERMINATOR;
-			Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
-			Ret += TEXT("}") LINE_TERMINATOR;
-			Ret += TEXT("") LINE_TERMINATOR;
-		}
-	}
-
-	// Conversion from FloatDeriv to FloatDeriv2/3/4
-	for (int32 Index = 0; Index < 4; Index++)
-	{
-		if (bCastDerivFromDerivIsEnabled[Index])
-		{
-			check(Index >= 1);
-
-			FString BaseName = GetDerivBaseType(Index);
-			FString ScalarName = GetDerivBaseType(0);
-
-			Ret += BaseName + TEXT(" Expand") + BaseName + TEXT("(") + ScalarName + TEXT(" Src)") LINE_TERMINATOR;
-			Ret += TEXT("{") LINE_TERMINATOR;
-			Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Value = Src.Value;") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Ddx = Src.Ddx;") LINE_TERMINATOR;
-			Ret += TEXT("\tRet.Ddy = Src.Ddy;") LINE_TERMINATOR;
-			Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
-			Ret += TEXT("}") LINE_TERMINATOR;
-			Ret += TEXT("") LINE_TERMINATOR;
-		}
-	}
-
-	for (int32 Index = 0; Index < 4; Index++)
-	{
-		if (bFullConstructorEnabled[Index])
-		{
-			FString BaseName = GetDerivBaseType(Index);
-			FString FieldName = GetDerivRawType(Index);
+			FString BaseName = GetDerivVectorName(Index);
+			FString FieldName = GetFloatVectorName(Index);
 
 			Ret += BaseName + TEXT(" Construct") + BaseName + TEXT("(") + FieldName + TEXT(" InValue,") + FieldName + TEXT(" InDdx,") + FieldName + TEXT(" InDdy)") LINE_TERMINATOR;
 			Ret += TEXT("{") LINE_TERMINATOR;
@@ -539,14 +1156,35 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 		}
 	}
 
+	// FloatDerivX constructors from constant floatX.
 	for (int32 Index = 0; Index < 4; Index++)
 	{
-		if (bCompactConstructorEnabled[Index])
+		if (bConstructConstantDerivEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
 		{
-			FString BaseName = GetDerivBaseType(Index);
-			FString FieldName = GetDerivRawType(Index);
+			FString BaseName = GetDerivVectorName(Index);
+			FString FieldName = GetFloatVectorName(Index);
 
-			Ret += BaseName + TEXT(" ConstructCompact") + BaseName + TEXT("(") + FieldName + TEXT(" InValue)") LINE_TERMINATOR;
+			Ret += BaseName + TEXT(" ConstructConstant") + BaseName + TEXT("(") + FieldName + TEXT(" Value)") LINE_TERMINATOR;
+			Ret += TEXT("{") LINE_TERMINATOR;
+			Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+			Ret += TEXT("\tRet.Value = Value;") LINE_TERMINATOR;
+			Ret += TEXT("\tRet.Ddx = 0;") LINE_TERMINATOR;
+			Ret += TEXT("\tRet.Ddy = 0;") LINE_TERMINATOR;
+			Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+			Ret += TEXT("}") LINE_TERMINATOR;
+			Ret += TEXT("") LINE_TERMINATOR;
+		}
+	}
+
+	// FloatDerivX constructor from floatX with implicit derivatives.
+	for (int32 Index = 0; Index < 4; Index++)
+	{
+		if (bConstructFiniteDerivEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
+		{
+			FString BaseName = GetDerivVectorName(Index);
+			FString FieldName = GetFloatVectorName(Index);
+
+			Ret += BaseName + TEXT(" ConstructFinite") + BaseName + TEXT("(") + FieldName + TEXT(" InValue)") LINE_TERMINATOR;
 			Ret += TEXT("{") LINE_TERMINATOR;
 			Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
 			Ret += TEXT("\tRet.Value = InValue;") LINE_TERMINATOR;
@@ -558,58 +1196,534 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 		}
 	}
 
+	// Convert between FloatDeriv types
+	for (int32 DstIndex = 0; DstIndex < 4; DstIndex++)
+	{
+		for (int32 SrcIndex = 0; SrcIndex < 4; SrcIndex++)
+		{
+			if (SrcIndex == DstIndex)
+				continue;
+
+			if (bConvertDerivEnabled[DstIndex][SrcIndex] || IsDebugGenerateAllFunctionsEnabled())
+			{
+				FString DstBaseName = GetDerivVectorName(DstIndex);
+				FString SrcBaseName = GetDerivVectorName(SrcIndex);
+				FString ScalarName = GetDerivVectorName(0);
+
+				Ret += DstBaseName + TEXT(" Convert") + DstBaseName + TEXT("(") + SrcBaseName + TEXT(" Src)") LINE_TERMINATOR;
+				Ret += TEXT("{") LINE_TERMINATOR;
+				Ret += TEXT("\t") + DstBaseName + TEXT(" Ret;") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Value = ") + CoerceFloat(TEXT("Src.Value"), DstIndex, SrcIndex) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddx = ") + CoerceFloat(TEXT("Src.Ddx"), DstIndex, SrcIndex) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddy = ") + CoerceFloat(TEXT("Src.Ddy"), DstIndex, SrcIndex) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+				Ret += TEXT("}") LINE_TERMINATOR;
+				Ret += TEXT("") LINE_TERMINATOR;
+			}
+		}
+	}
+
+	const TCHAR* SwizzleList[4] =
+	{
+		TEXT("x"),
+		TEXT("y"),
+		TEXT("z"),
+		TEXT("w")
+	};
+
+	// Extract single FloatDeriv element from FloatDerivX
+	for (int32 StructIndex = 0; StructIndex < 4; StructIndex++)
+	{
+		for (int32 ElemIndex = 0; ElemIndex <= StructIndex; ElemIndex++)
+		{
+			if (bExtractIndexEnabled[StructIndex] || IsDebugGenerateAllFunctionsEnabled())
+			{
+				// i.e. can't grab the 4th component of a float3
+				check(ElemIndex <= StructIndex);
+
+				FString BaseName = GetDerivVectorName(StructIndex);
+
+				FString ElemStr = FString::Printf(TEXT("%d"), ElemIndex + 1);
+
+				Ret += TEXT("FloatDeriv Extract") + BaseName + TEXT("_") + ElemStr + TEXT("(") + BaseName + TEXT(" InValue)") LINE_TERMINATOR;
+				Ret += TEXT("{") LINE_TERMINATOR;
+				Ret += TEXT("\tFloatDeriv Ret;") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Value = InValue.Value.") + FString(SwizzleList[ElemIndex]) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddx = InValue.Ddx.") + FString(SwizzleList[ElemIndex]) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\tRet.Ddy = InValue.Ddy.") + FString(SwizzleList[ElemIndex]) + TEXT(";") LINE_TERMINATOR;
+				Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+				Ret += TEXT("}") LINE_TERMINATOR;
+				Ret += TEXT("") LINE_TERMINATOR;
+			}
+		}
+	}
+
+
+	// SelectElemHelper
+	for (int32 Index = 0; Index < 4; Index++)
+	{
+		if (bSelectElemHelperEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
+		{
+			FString FieldName = GetFloatVectorName(Index);
+			FString BoolName = GetBoolVectorName(Index);
+
+			Ret += FieldName + TEXT(" SelectElemHelper(") + BoolName + TEXT(" Cmp, ") + FieldName + TEXT(" Lhs, ") + FieldName + TEXT(" Rhs)") LINE_TERMINATOR;
+			Ret += TEXT("{") LINE_TERMINATOR;
+			Ret += TEXT("\t") + FieldName + TEXT(" Ret = 0.0f;") LINE_TERMINATOR;
+			for (int32 Component = 0; Component <= Index; Component++)
+			{
+				const TCHAR* ChanName = SwizzleList[Component];
+				Ret += FString::Printf(TEXT("\tRet.%s = Cmp.%s ? Lhs.%s : Rhs.%s;"),ChanName,ChanName,ChanName,ChanName) + LINE_TERMINATOR;
+			}
+
+			Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+			Ret += TEXT("}") LINE_TERMINATOR;
+			Ret += TEXT("") LINE_TERMINATOR;
+		}
+	}
+
 	// Func2s
 	for (int32 Op = 0; Op < EF2_Num; Op++)
 	{
 		for (int32 Index = 0; Index < 4; Index++)
 		{
-			if (bFunc2OpIsEnabled[Op][Index])
+			if (bFunc2OpIsEnabled[Op][Index] || IsDebugGenerateAllFunctionsEnabled())
 			{
-				FString BaseName = GetDerivBaseType(Index);
-				FString FieldName = GetDerivRawType(Index);
+				FString BaseName = GetDerivVectorName(Index);
+				FString FieldName = GetFloatVectorName(Index);
+				FString BoolName = GetBoolVectorName(Index);
 
 				switch(Op)
 				{
 				case EF2_Add:
-					Ret += BaseName + TEXT(" AddDeriv(") + BaseName + TEXT(" Lhs, ") + BaseName + TEXT(" Rhs)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" AddDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = Lhs.Value + Rhs.Value;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddx = Lhs.Ddx + Rhs.Ddx;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = Lhs.Ddy + Rhs.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = A.Value + B.Value;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = A.Ddx + B.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = A.Ddy + B.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EF2_Sub:
-					Ret += BaseName + TEXT(" SubDeriv(") + BaseName + TEXT(" Lhs, ") + BaseName + TEXT(" Rhs)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" SubDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = Lhs.Value - Rhs.Value;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddx = Lhs.Ddx - Rhs.Ddx;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = Lhs.Ddy - Rhs.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = A.Value - B.Value;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = A.Ddx - B.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = A.Ddy - B.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EF2_Mul:
-					Ret += BaseName + TEXT(" MulDeriv(") + BaseName + TEXT(" Lhs, ") + BaseName + TEXT(" Rhs)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" MulDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = Lhs.Value * Rhs.Value;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddx = Lhs.Ddx * Rhs.Value + Lhs.Value * Rhs.Ddx;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = Lhs.Ddy * Rhs.Value + Lhs.Value * Rhs.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = A.Value * B.Value;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = A.Ddx * B.Value + A.Value * B.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = A.Ddy * B.Value + A.Value * B.Ddy;") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
 					break;
 				case EF2_Div:
-					Ret += BaseName + TEXT(" DivDeriv(") + BaseName + TEXT(" Lhs, ") + BaseName + TEXT(" Rhs)") LINE_TERMINATOR;
+					Ret += BaseName + TEXT(" DivDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
 					Ret += TEXT("{") LINE_TERMINATOR;
 					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Value = Lhs.Value * Rhs.Value;") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddx = (Lhs.Ddx * Rhs.Value - Lhs.Value * Rhs.Ddx) / (Rhs.Value * Rhs.Value);") LINE_TERMINATOR;
-					Ret += TEXT("\tRet.Ddy = (Lhs.Ddy * Rhs.Value - Lhs.Value * Rhs.Ddy) / (Rhs.Value * Rhs.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = A.Value / B.Value;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" Denom = rcp(B.Value * B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA =  B.Value * Denom;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdB = -A.Value * Denom;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx + dFdB * B.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy + dFdB * B.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_Fmod:
+					// Only valid when B derivatives are zero.
+					// We can't really do anything meaningful in the non-zero case.
+					Ret += BaseName + TEXT(" FmodDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = fmod(A.Value, B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_Min:
+					Ret += BaseName + TEXT(" MinDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BoolName + TEXT(" Cmp = A.Value < B.Value;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = SelectElemHelper(Cmp, A.Value, B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = SelectElemHelper(Cmp, A.Ddx, B.Ddx);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = SelectElemHelper(Cmp, A.Ddy, B.Ddy);") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_Max:
+					Ret += BaseName + TEXT(" MaxDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BoolName + TEXT(" Cmp = A.Value > B.Value;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = SelectElemHelper(Cmp, A.Value, B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = SelectElemHelper(Cmp, A.Ddx, B.Ddx);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = SelectElemHelper(Cmp, A.Ddy, B.Ddy);") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_Dot:
+					Ret += TEXT("FloatDeriv DotDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\tFloatDeriv Ret = ConstructConstantFloatDeriv(0);") LINE_TERMINATOR;
+					for (int32 Component = 0; Component <= Index; Component++)
+					{
+						Ret += FString::Printf(TEXT("\tRet = AddDeriv(Ret,MulDeriv(Extract%s_%d(A),Extract%s_%d(B)));"), *BaseName, Component + 1, *BaseName, Component + 1) + LINE_TERMINATOR;
+					}
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_Pow:
+					// pow(A,B) = exp(B*log(A))
+					//     pow'(A,B) = exp(B*log(A)) * (B'*log(A) + (B/A)*A')
+					//     pow'(A,B) = pow(A,B) * (B'*log(A) + (B/A)*A')
+					// sanity check when B is constant and A is a linear function (B'=0,A'=1)
+					//     pow'(A,B) = pow(A,B) * (0*log(A) + (B/A)*1)
+					//     pow'(A,B) = B * pow(A,B-1)
+					Ret += BaseName + TEXT(" PowDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = pow(A.Value, B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = Ret.Value * (B.Ddx * log(A.Value) + (B.Value/A.Value)*A.Ddx);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = Ret.Value * (B.Ddy * log(A.Value) + (B.Value/A.Value)*A.Ddy);") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_PowPositiveClamped:
+					Ret += BaseName + TEXT(" PowPositiveClampedDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BoolName + TEXT(" InRange = (0.0 < B.Value);") LINE_TERMINATOR; // should we check for A as well?
+					Ret += TEXT("\t") + FieldName + TEXT(" Zero = 0.0;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = PositiveClampedPow(A.Value, B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = Ret.Value * (B.Ddx * log(A.Value) + (B.Value/A.Value)*A.Ddx);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = Ret.Value * (B.Ddy * log(A.Value) + (B.Value/A.Value)*A.Ddy);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = SelectElemHelper(InRange,Ret.Ddx,Zero);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = SelectElemHelper(InRange,Ret.Ddy,Zero);") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_Atan2:
+					Ret += BaseName + TEXT(" Atan2Deriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = atan2(A.Value, B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" Denom = rcp(A.Value * A.Value + B.Value * B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA =  B.Value * Denom;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdB = -A.Value * Denom;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx + dFdB * B.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy + dFdB * B.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_Atan2Fast:
+					Ret += BaseName + TEXT(" Atan2FastDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = atan2Fast(A.Value, B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" Denom = rcp(A.Value * A.Value + B.Value * B.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA =  B.Value * Denom;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdB = -A.Value * Denom;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx + dFdB * B.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy + dFdB * B.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF2_Cross:
+					if (Index == 2)
+					{
+						// (A*B)' = A' * B + A * B'
+						// Cross(A, B) = A.yzx * B.zxy - A.zxy * B.yzx;
+						// Cross(A, B)' = A.yzx' * B.zxy + A.yzx * B.zxy' - A.zxy' * B.yzx - A.zxy * B.yzx';
+						Ret += BaseName + TEXT(" CrossDeriv(") + BaseName + TEXT(" A, ") + BaseName + TEXT(" B)") LINE_TERMINATOR;
+						Ret += TEXT("{") LINE_TERMINATOR;
+						Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Value = cross(A.Value, B.Value);") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddx = A.Ddx.yzx * B.Value.zxy + A.Value.yzx * B.Ddx.zxy - A.Ddx.zxy * B.Value.yzx - A.Value.zxy * B.Ddx.yzx;") LINE_TERMINATOR;
+						Ret += TEXT("\tRet.Ddy = A.Ddy.yzx * B.Value.zxy + A.Value.yzx * B.Ddy.zxy - A.Ddy.zxy * B.Value.yzx - A.Value.zxy * B.Ddy.yzx;") LINE_TERMINATOR;
+						Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+						Ret += TEXT("}") LINE_TERMINATOR;
+						Ret += TEXT("") LINE_TERMINATOR;
+					}
+					break;
+				default:
+					check(0);
+					break;
+				}
+			}
+		}
+	}
+
+	for (int32 Op = 0; Op < EF1_Num; Op++)
+	{
+		for (int32 Index = 0; Index < 4; Index++)
+		{
+			if (bFunc1OpIsEnabled[Op][Index] || IsDebugGenerateAllFunctionsEnabled())
+			{
+				FString BaseName	= GetDerivVectorName(Index);
+				FString FieldName	= GetFloatVectorName(Index);
+				FString BoolName	= GetBoolVectorName(Index);
+
+				switch(Op)
+				{
+				case EF1_Abs:
+					Ret += BaseName + TEXT(" AbsDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = abs(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = (A.Value >= 0.0f ? 1.0f : -1.0f);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Sin:
+					Ret += BaseName + TEXT(" SinDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = sin(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = cos(A.Value);");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Cos:
+					Ret += BaseName + TEXT(" CosDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = cos(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -sin(A.Value);");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Tan:
+					Ret += BaseName + TEXT(" TanDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = tan(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(cos(A.Value) * cos(A.Value));");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Asin:
+					Ret += BaseName + TEXT(" AsinDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = asin(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rsqrt(max(1.0f - A.Value * A.Value, 0.00001f));");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_AsinFast:
+					Ret += BaseName + TEXT(" AsinFastDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = asinFast(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rsqrt(max(1.0f - A.Value * A.Value, 0.00001f));");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Acos:
+					Ret += BaseName + TEXT(" AcosDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = acos(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -rsqrt(max(1.0f - A.Value * A.Value, 0.00001f));");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_AcosFast:
+					Ret += BaseName + TEXT(" AcosFastDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = acosFast(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -rsqrt(max(1.0f - A.Value * A.Value, 0.00001f));");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Atan:
+					Ret += BaseName + TEXT(" AtanDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = atan(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(A.Value * A.Value + 1.0f);");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_AtanFast:
+					Ret += BaseName + TEXT(" AtanFastDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = atanFast(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(A.Value * A.Value + 1.0f);");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Sqrt:
+					Ret += BaseName + TEXT(" SqrtDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = sqrt(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = 0.5f * rsqrt(max(A.Value, 0.00001f));");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Rcp:
+					Ret += BaseName + TEXT(" RcpDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = rcp(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -Ret.Value * Ret.Value;");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Rsqrt:
+					Ret += BaseName + TEXT(" RsqrtDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = rsqrt(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = -0.5f * rsqrt(A.Value) * rcp(A.Value);");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Saturate:
+					Ret += BaseName + TEXT(" SaturateDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BoolName + TEXT(" InRange = (0.0 < A.Value && A.Value < 1.0);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" Zero = 0.0f;") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = saturate(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = SelectElemHelper(InRange, A.Ddx, Zero);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = SelectElemHelper(InRange, A.Ddy, Zero);") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Frac:
+					Ret += BaseName + TEXT(" FracDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = frac(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Log2:
+					Ret += BaseName + TEXT(" Log2Deriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = log2(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(A.Value) * 1.442695f;");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx ;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Log10:
+					Ret += BaseName + TEXT(" Log10Deriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = log10(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\t") + FieldName + TEXT(" dFdA = rcp(A.Value) * 0.4342945f;");
+					Ret += TEXT("\tRet.Ddx = dFdA * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = dFdA * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Exp:
+					Ret += BaseName + TEXT(" ExpDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Value = exp(A.Value);") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddx = exp(A.Value) * A.Ddx;") LINE_TERMINATOR;
+					Ret += TEXT("\tRet.Ddy = exp(A.Value) * A.Ddy;") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Length:
+					Ret += TEXT("FloatDeriv LengthDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\tFloatDeriv Ret = SqrtDeriv(DotDeriv(A,A));") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_InvLength:
+					Ret += TEXT("FloatDeriv InvLengthDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\tFloatDeriv Ret = RsqrtDeriv(DotDeriv(A,A));") LINE_TERMINATOR;
+					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+					Ret += TEXT("}") LINE_TERMINATOR;
+					Ret += TEXT("") LINE_TERMINATOR;
+					break;
+				case EF1_Normalize:
+					Ret += BaseName + TEXT(" NormalizeDeriv(") + BaseName + TEXT(" A)") LINE_TERMINATOR;
+					Ret += TEXT("{") LINE_TERMINATOR;
+					Ret += TEXT("\tFloatDeriv InvLen = RsqrtDeriv(DotDeriv(A,A));") LINE_TERMINATOR;
+					Ret += TEXT("\t") + BaseName + TEXT(" Ret = MulDeriv(") + ConvertDeriv(TEXT("InvLen"), Index, 0) + TEXT(", A);") LINE_TERMINATOR;
 					Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
 					Ret += TEXT("}") LINE_TERMINATOR;
 					Ret += TEXT("") LINE_TERMINATOR;
@@ -622,10 +1736,134 @@ FString FMaterialDerivativeAutogen::GenerateUsedFunctions(FHLSLMaterialTranslato
 		}
 	}
 
+	for (int32 Index = 0; Index < 4; Index++)
+	{
+		const FString BaseName = GetDerivVectorName(Index);
+		const FString FieldName = GetFloatVectorName(Index);
+		const FString BoolName = GetBoolVectorName(Index);
+
+		if (bLerpEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
+		{
+			
+			// lerp(a,b,s) = a*(1-s) + b*s
+			// lerp(a,b,s)' = a' * (1 - s') + b' * s + s' * (b - a)
+			Ret += FString::Printf(TEXT("%s LerpDeriv(%s A, %s B, %s S)"), *BaseName, *BaseName, *BaseName, *BaseName) + LINE_TERMINATOR;
+			Ret += TEXT("{") LINE_TERMINATOR;
+			Ret += TEXT("\t") + BaseName + TEXT(" Ret;") LINE_TERMINATOR;
+			Ret += TEXT("\tRet.Value = lerp(A.Value, B.Value, S.Value);") LINE_TERMINATOR;
+			Ret += TEXT("\tRet.Ddx = lerp(A.Ddx, B.Ddx, S.Value) + S.Ddx * (B.Value - A.Value);") LINE_TERMINATOR;
+			Ret += TEXT("\tRet.Ddy = lerp(A.Ddy, B.Ddy, S.Value) + S.Ddy * (B.Value - A.Value);") LINE_TERMINATOR;
+			Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+			Ret += TEXT("}") LINE_TERMINATOR;
+			Ret += TEXT("") LINE_TERMINATOR;
+		}
+
+		if (bIfEnabled[Index] || IsDebugGenerateAllFunctionsEnabled())
+		{
+			Ret += FString::Printf(TEXT("%s IfDeriv(float A, float B, %s Greater, %s Less)"), *BaseName, *BaseName, *BaseName) + LINE_TERMINATOR;
+			Ret += TEXT("{") LINE_TERMINATOR;
+			Ret += TEXT("\tif(A >= B)") LINE_TERMINATOR;
+			Ret += TEXT("\t\treturn Greater;") LINE_TERMINATOR;
+			Ret += TEXT("\telse") LINE_TERMINATOR;
+			Ret += TEXT("\t\treturn Less;") LINE_TERMINATOR;
+			Ret += TEXT("}") LINE_TERMINATOR;
+			Ret += TEXT("") LINE_TERMINATOR;
+		}
+
+		if (bIf2Enabled[Index] || IsDebugGenerateAllFunctionsEnabled())
+		{
+			Ret += FString::Printf(TEXT("%s IfDeriv(float A, float B, %s Greater, %s Less, %s Equal, float Threshold)"), *BaseName, *BaseName, *BaseName, *BaseName) + LINE_TERMINATOR;
+			Ret += TEXT("{") LINE_TERMINATOR;
+			Ret += TEXT("\tif(!(abs(A - B) > Threshold))") LINE_TERMINATOR;	// Written like this to preserve NaN behavior of original code.
+			Ret += TEXT("\t\treturn Equal;") LINE_TERMINATOR;
+			Ret += TEXT("\tif(A >= B)") LINE_TERMINATOR;
+			Ret += TEXT("\t\treturn Greater;") LINE_TERMINATOR;
+			Ret += TEXT("\telse") LINE_TERMINATOR;
+			Ret += TEXT("\t\treturn Less;") LINE_TERMINATOR;
+			Ret += TEXT("}") LINE_TERMINATOR;
+			Ret += TEXT("") LINE_TERMINATOR;
+		}
+	}
+
+	if (bRotateScaleOffsetTexCoords || IsDebugGenerateAllFunctionsEnabled())
+	{
+		// float2(dot(InTexCoords, InRotationScale.xy), dot(InTexCoords, InRotationScale.zw)) + InOffset;
+		// InTexCoords.xy * InRotationScale.xw + InTexCoords.yx * InRotationScale.yz + InOffset;
+		Ret += TEXT("FloatDeriv2 RotateScaleOffsetTexCoordsDeriv(FloatDeriv2 TexCoord, FloatDeriv2 RotationScale, FloatDeriv2 Offset)") LINE_TERMINATOR;
+		Ret += TEXT("{") LINE_TERMINATOR;
+		Ret += TEXT("\tFloatDeriv2 Ret = Offset;") LINE_TERMINATOR;
+		Ret += TEXT("\tRet = AddDeriv(Ret, MulDeriv(TexCoord, SwizzleDeriv2(RotationScale, xw));") LINE_TERMINATOR;
+		Ret += TEXT("\tRet = AddDeriv(Ret, MulDeriv(SwizzleDeriv2(TexCoord, yx), SwizzleDeriv2(RotationScale, yz));") LINE_TERMINATOR;
+		Ret += TEXT("\treturn Ret;") LINE_TERMINATOR;
+		Ret += TEXT("}") LINE_TERMINATOR;
+		Ret += TEXT("") LINE_TERMINATOR;
+	}
+	
+	if (bUnMirrorEnabled[1][1] || IsDebugGenerateAllFunctionsEnabled())
+	{
+		// UnMirrorUV
+		Ret += TEXT("FloatDeriv2 UnMirrorU(FloatDeriv2 UV, FMaterialPixelParameters Parameters)") LINE_TERMINATOR;
+		Ret += TEXT("{") LINE_TERMINATOR;
+		Ret += TEXT("\tconst MaterialFloat Scale = (Parameters.UnMirrored * 0.5f);") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Value = UV.Value * Scale + 0.5f;") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Ddx *= Scale;") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Ddy *= Scale;") LINE_TERMINATOR;
+		Ret += TEXT("\treturn UV;") LINE_TERMINATOR;
+		Ret += TEXT("}") LINE_TERMINATOR;
+		Ret += TEXT("") LINE_TERMINATOR;
+	}
+	
+	if(bUnMirrorEnabled[1][0] || IsDebugGenerateAllFunctionsEnabled())
+	{
+		// UnMirrorU
+		Ret += TEXT("FloatDeriv2 UnMirrorU(FloatDeriv2 UV, FMaterialPixelParameters Parameters)") LINE_TERMINATOR;
+		Ret += TEXT("{") LINE_TERMINATOR;
+		Ret += TEXT("\tconst MaterialFloat Scale = (Parameters.UnMirrored * 0.5f);") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Value.x = UV.Value.x * Scale + 0.5f;") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Ddx.x *= Scale;") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Ddy.x *= Scale;") LINE_TERMINATOR;
+		Ret += TEXT("\treturn UV;") LINE_TERMINATOR;
+		Ret += TEXT("}") LINE_TERMINATOR;
+		Ret += TEXT("") LINE_TERMINATOR;
+	}
+	
+	if (bUnMirrorEnabled[0][1] || IsDebugGenerateAllFunctionsEnabled())
+	{
+		// UnMirrorV
+		Ret += TEXT("FloatDeriv2 UnMirrorV(FloatDeriv2 UV, FMaterialPixelParameters Parameters)") LINE_TERMINATOR;
+		Ret += TEXT("{") LINE_TERMINATOR;
+		Ret += TEXT("\tconst MaterialFloat Scale = (Parameters.UnMirrored * 0.5f);") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Value.y = UV.Value.y * Scale + 0.5f;") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Ddx.y *= Scale;") LINE_TERMINATOR;
+		Ret += TEXT("\tUV.Ddy.y *= Scale;") LINE_TERMINATOR;
+		Ret += TEXT("\treturn UV;") LINE_TERMINATOR;
+		Ret += TEXT("}") LINE_TERMINATOR;
+		Ret += TEXT("") LINE_TERMINATOR;
+	}
+
 	return Ret;
 }
 
 
+FString FMaterialDerivativeAutogen::ApplyUnMirror(FString Value, bool bUnMirrorU, bool bUnMirrorV)
+{
+	if (bUnMirrorU && bUnMirrorV)
+	{
+		Value = FString::Printf(TEXT("UnMirrorUV(%s, Parameters)"), *Value);
+	}
+	else if (bUnMirrorU)
+	{
+		Value = FString::Printf(TEXT("UnMirrorU(%s, Parameters)"), *Value);
+	}
+	else if (bUnMirrorV)
+	{
+		Value = FString::Printf(TEXT("UnMirrorV(%s, Parameters)"), *Value);
+	}
+
+	bUnMirrorEnabled[bUnMirrorU][bUnMirrorV] = true;
+	
+	return Value;	
+}
 
 
 FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
@@ -2221,6 +3459,8 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 	{
 		OutEnvironment.SetDefine(TEXT("STRATA_CLAMPED_LAYER_COUNT"), StrataMaterialAnalysis.ClampedLayerCount);
 	}
+
+	OutEnvironment.SetDefine(TEXT("TEXTURE_SAMPLE_DEBUG"), IsDebugTextureSampleEnabled() ? TEXT("1") : TEXT("0"));
 }
 
 // Assign custom interpolators to slots, packing them as much as possible in unused slots.
@@ -2712,18 +3952,30 @@ const FShaderCodeChunk& FHLSLMaterialTranslator::AtParameterCodeChunk(int32 Inde
 	return CodeChunk;
 }
 
+EDerivativeStatus FHLSLMaterialTranslator::GetDerivativeStatus(int32 Index) const
+{
+	return AtParameterCodeChunk(Index).DerivativeStatus;
+}
+
+FDerivInfo FHLSLMaterialTranslator::GetDerivInfo(int32 Index) const
+{
+	const FShaderCodeChunk& CodeChunk = AtParameterCodeChunk(Index);
+	return FDerivInfo { CodeChunk.Type, GetDerivTypeIndex(CodeChunk.Type), CodeChunk.DerivativeStatus };
+}
+
 // Similar to GetParameterCode, but has no default, and is derivative aware. Making it a separate function in case it needs to diverge,
 // but after looking at it, it has the same logic as GetParameterCode() for now.
 FString FHLSLMaterialTranslator::GetParameterCodeDeriv(int32 Index, ECompiledPartialDerivativeVariation Variation)
 {
 	// In the case of a uniform expression, both finite and deriv versions are the same (raw floats, known zero)
-
 	checkf(Index >= 0 && Index < CurrentScopeChunks->Num(), TEXT("Index %d/%d, Platform=%d"), Index, CurrentScopeChunks->Num(), (int)Platform);
 	const FShaderCodeChunk& CodeChunk = (*CurrentScopeChunks)[Index];
+
+	FString Result;
 	if((CodeChunk.UniformExpression && CodeChunk.UniformExpression->IsConstant()) || CodeChunk.bInline)
 	{
 		// Constant uniform expressions and code chunks which are marked to be inlined are accessed via Definition
-		return CodeChunk.AtDefinition(Variation);
+		Result = CodeChunk.AtDefinition(Variation);
 	}
 	else
 	{
@@ -2735,30 +3987,33 @@ FString FHLSLMaterialTranslator::GetParameterCodeDeriv(int32 Index, ECompiledPar
 			if(AccessedCodeChunk.bInline)
 			{
 				// Handle the accessed code chunk being inlined
-				return AccessedCodeChunk.AtDefinition(Variation);
+				Result = AccessedCodeChunk.AtDefinition(Variation);
 			}
-			// Return the symbol used to reference this code chunk
-			check(AccessedCodeChunk.SymbolName.Len() > 0);
-			return AccessedCodeChunk.SymbolName;
+			else
+			{
+				// Return the symbol used to reference this code chunk
+				check(AccessedCodeChunk.SymbolName.Len() > 0);
+				Result = AccessedCodeChunk.SymbolName;
+			}
 		}
-
-		// Return the symbol used to reference this code chunk
-		check(CodeChunk.SymbolName.Len() > 0);
-		return CodeChunk.SymbolName;
+		else
+		{
+			// Return the symbol used to reference this code chunk
+			check(CodeChunk.SymbolName.Len() > 0);
+			Result = CodeChunk.SymbolName;
+		}
 	}
+
+	return Result;
 }
 
 FString FHLSLMaterialTranslator::GetParameterCode(int32 Index, const TCHAR* Default)
 {
 	FString Ret = GetParameterCodeRaw(Index,Default);
 
-	check(Index >= 0 && Index < CurrentScopeChunks->Num());
-	const FShaderCodeChunk&	CodeChunk = (*CurrentScopeChunks)[Index];
-
-	// inline types are forbidden from having an analytical derivative
-	if (CodeChunk.DerivativeStatus == MEADS_Valid) // && !CodeChunk.bInline)
+	if (GetDerivativeStatus(Index) == DS_Valid)
 	{
-		Ret = Ret + TEXT(" DERIV_BASE_VALUE");
+		Ret = TEXT("DERIV_BASE_VALUE(") + Ret + TEXT(")");
 	}
 
 	return Ret;
@@ -2890,6 +4145,10 @@ void FHLSLMaterialTranslator::GetFixedParameterCode(int32 StartChunk, int32 EndC
 			check(ResultChunk.bInline || ResultChunk.SymbolName.Len() > 0);
 			OutDefinitions = GetDefinitions(CodeChunks, StartChunk, EndChunk, Variation);
 			OutValue = ResultChunk.bInline ? ResultChunk.AtDefinition(Variation) : ResultChunk.SymbolName;
+			if (Variation == CompiledPDV_Analytic && ResultChunk.DerivativeStatus == DS_Valid)
+			{
+				OutValue = FString(TEXT("(")) + OutValue + TEXT(").Value");
+			}
 		}
 	}
 	else
@@ -3026,15 +4285,15 @@ const TCHAR* FHLSLMaterialTranslator::HLSLTypeString(EMaterialValueType Type) co
 }
 
 /** Used to get an HLSL type from EMaterialValueType */
-const TCHAR* FHLSLMaterialTranslator::HLSLTypeStringDeriv(EMaterialValueType Type, EMaterialExpressionAnalyticDerivativeStatus DerivativeStatus) const
+const TCHAR* FHLSLMaterialTranslator::HLSLTypeStringDeriv(EMaterialValueType Type, EDerivativeStatus DerivativeStatus) const
 {
 	switch(Type)
 	{
-	case MCT_Float1:				return (DerivativeStatus == MEADS_Valid) ? TEXT("FloatDeriv") : TEXT("MaterialFloat");
-	case MCT_Float2:				return (DerivativeStatus == MEADS_Valid) ? TEXT("FloatDeriv2") : TEXT("MaterialFloat2");
-	case MCT_Float3:				return (DerivativeStatus == MEADS_Valid) ? TEXT("FloatDeriv3") : TEXT("MaterialFloat3");
-	case MCT_Float4:				return (DerivativeStatus == MEADS_Valid) ? TEXT("FloatDeriv4") : TEXT("MaterialFloat4");
-	case MCT_Float:					return (DerivativeStatus == MEADS_Valid) ? TEXT("FloatDeriv") : TEXT("MaterialFloat");
+	case MCT_Float1:				return (DerivativeStatus == DS_Valid) ? TEXT("FloatDeriv") : TEXT("MaterialFloat");
+	case MCT_Float2:				return (DerivativeStatus == DS_Valid) ? TEXT("FloatDeriv2") : TEXT("MaterialFloat2");
+	case MCT_Float3:				return (DerivativeStatus == DS_Valid) ? TEXT("FloatDeriv3") : TEXT("MaterialFloat3");
+	case MCT_Float4:				return (DerivativeStatus == DS_Valid) ? TEXT("FloatDeriv4") : TEXT("MaterialFloat4");
+	case MCT_Float:					return (DerivativeStatus == DS_Valid) ? TEXT("FloatDeriv") : TEXT("MaterialFloat");
 	case MCT_Texture2D:				return TEXT("texture2D");
 	case MCT_TextureCube:			return TEXT("textureCube");
 	case MCT_Texture2DArray:		return TEXT("texture2DArray");
@@ -3104,7 +4363,7 @@ FString FHLSLMaterialTranslator::CreateSymbolName(const TCHAR* SymbolNameHint)
 }
 
 /** Adds an already formatted inline or referenced code chunk */
-int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* FormattedCode, EMaterialValueType Type, bool bInlined)
+int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* FormattedCode, EMaterialValueType Type, EDerivativeStatus DerivativeStatus, bool bInlined)
 {
 	check(bAllowCodeChunkGeneration);
 
@@ -3118,13 +4377,13 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* Forma
 	{
 		CodeIndex = CurrentScopeChunks->Num();
 		const FString Statement = FString("") + FormattedCode + LINE_TERMINATOR;
-		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *Statement, *Statement, TEXT(""), Type, true);
+		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *Statement, *Statement, TEXT(""), Type, DerivativeStatus, true);
 	}
 	else if (bInlined)
 	{
 		CodeIndex = CurrentScopeChunks->Num();
 		// Adding an inline code chunk, the definition will be the code to inline
-		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, FormattedCode,FormattedCode,TEXT(""),Type,true);
+		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, FormattedCode, FormattedCode, TEXT(""), Type, DerivativeStatus, true);
 	}
 	// Can only create temporaries for certain types
 	else if ((Type & (MCT_Float | MCT_VTPageTableResult)) || Type == MCT_ShadingModel || Type == MCT_MaterialAttributes || Type == MCT_Strata)
@@ -3149,7 +4408,7 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* Forma
 			// Construct the definition string which stores the result in a temporary and adds a newline for readability
 			const FString LocalVariableDefinitionAnalytic = FString("	") + HLSLTypeString(Type) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCode + TEXT(";") + LINE_TERMINATOR;
 			// Adding a code chunk that creates a local variable
-			new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *LocalVariableDefinitionFinite, *LocalVariableDefinitionAnalytic,SymbolName,Type,false);
+			new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *LocalVariableDefinitionFinite, *LocalVariableDefinitionAnalytic, SymbolName, Type, DerivativeStatus, false);
 		}
 	}
 	else
@@ -3169,18 +4428,24 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInner(uint64 Hash, const TCHAR* Forma
 	return CodeIndex;
 }
 
-/** Adds an already formatted inline or referenced code chunk, and notes the derivative status. */
-int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* FormattedCodeFinite, const TCHAR* FormattedCodeAnalytic, EMaterialValueType Type, bool bLegacyInlined, EMaterialExpressionAnalyticDerivativeStatus DerivativeStatus)
+static inline uint32 GetTCharStringBytes(const TCHAR* String)
 {
-	// If we have partial derivatives, we can't inline the code. Nearly all nodes use GetParameterCode() to grab the value, and then
-	// sprintf that string into the new expression. Unfortunately, that means that nodes have to temporarily use the exact same string for both
-	// the analytic and the finite differences path. The solution there is to #define DERIV_BASE_VALUE to ".Value" or "", so that both strings
-	// can be the same, and the .Value is optionally added to the right path.
-	//
-	// However, that only works on symbols, but does not work on inline expressions. So we have to disable inlining in all analytic derivative options
-	// until all nodes are converted over, and can output a separate Finite and Analytic version, even if that node treats the output derivative
-	// as invalid.
-	bool bInlined = false;
+	uint32 Length = 0u;
+	while (String[Length])
+	{
+		++Length;
+	}
+	return Length * sizeof(TCHAR);
+}
+
+/** Adds an already formatted inline or referenced code chunk, and notes the derivative status. */
+int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(const TCHAR* FormattedCodeFinite, const TCHAR* FormattedCodeAnalytic, EMaterialValueType Type, bool bInlined, EDerivativeStatus DerivativeStatus)
+{
+	const bool bEmitInvalidDerivToken = GDebugEmitInvalidDerivTokensEnabled && !IsDerivativeValid(DerivativeStatus);
+	
+	const uint64 Hash =	CityHash64WithSeed(	(const char*)FormattedCodeFinite, GetTCharStringBytes(FormattedCodeFinite),
+											CityHash64((const char*)FormattedCodeAnalytic, GetTCharStringBytes(FormattedCodeAnalytic)));
+
 	check(bAllowCodeChunkGeneration);
 
 	if (Type == MCT_Unknown)
@@ -3195,7 +4460,7 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* 
 	{
 		CodeIndex = CurrentScopeChunks->Num();
 		// Adding an inline code chunk, the definition will be the code to inline
-		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, FormattedCodeFinite,FormattedCodeAnalytic,TEXT(""),Type,true,DerivativeStatus);
+		new(*CurrentScopeChunks) FShaderCodeChunk(Hash, FormattedCodeFinite, FormattedCodeAnalytic, TEXT(""), Type, DerivativeStatus, true);
 	}
 	// Can only create temporaries for certain types
 	else if ((Type & (MCT_Float | MCT_VTPageTableResult)) || Type == MCT_ShadingModel || Type == MCT_MaterialAttributes || Type == MCT_Strata)
@@ -3218,9 +4483,9 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* 
 			// Construct the definition string which stores the result in a temporary and adds a newline for readability
 			const FString LocalVariableDefinitionFinite = FString("	") + HLSLTypeString(Type) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCodeFinite + TEXT(";") + LINE_TERMINATOR;
 			// Analytic version too
-			const FString LocalVariableDefinitionAnalytic = FString("	") + HLSLTypeStringDeriv(Type,DerivativeStatus) + TEXT(" ") + SymbolName + TEXT(" = (") + FormattedCodeAnalytic + TEXT("); // deriv") + LINE_TERMINATOR;
+			const FString LocalVariableDefinitionAnalytic = FString("	") + (bEmitInvalidDerivToken ? "$" : "") + HLSLTypeStringDeriv(Type,DerivativeStatus) + TEXT(" ") + SymbolName + TEXT(" = ") + FormattedCodeAnalytic + TEXT(";") + LINE_TERMINATOR;
 			// Adding a code chunk that creates a local variable
-			new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *LocalVariableDefinitionFinite, *LocalVariableDefinitionAnalytic,SymbolName,Type,false,DerivativeStatus);
+			new(*CurrentScopeChunks) FShaderCodeChunk(Hash, *LocalVariableDefinitionFinite, *LocalVariableDefinitionAnalytic, SymbolName, Type, DerivativeStatus, false);
 		}
 	}
 	else
@@ -3241,13 +4506,18 @@ int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(uint64 Hash, const TCHAR* 
 	return CodeIndex;
 }
 
+int32 FHLSLMaterialTranslator::AddCodeChunkInnerDeriv(const TCHAR* FormattedCode, EMaterialValueType Type, bool bInlined, EDerivativeStatus DerivativeStatus)
+{
+	return AddCodeChunkInnerDeriv(FormattedCode, FormattedCode, Type, bInlined, DerivativeStatus);
+}
+
 /** 
 	* Constructs the formatted code chunk and creates a new local variable definition from it. 
 	* This should be used over AddInlinedCodeChunk when the code chunk adds actual instructions, and especially when calling a function.
 	* Creating local variables instead of inlining simplifies the generated code and reduces redundant expression chains,
 	* Making compiles faster and enabling the shader optimizer to do a better job.
 	*/
-int32 FHLSLMaterialTranslator::AddCodeChunk(EMaterialValueType Type,const TCHAR* Format,...)
+int32 FHLSLMaterialTranslator::AddCodeChunkInner(EMaterialValueType Type, EDerivativeStatus DerivativeStatus, bool bInlined, const TCHAR* Format, ...)
 {
 	int32	BufferSize		= 256;
 	TCHAR*	FormattedCode	= NULL;
@@ -3262,7 +4532,7 @@ int32 FHLSLMaterialTranslator::AddCodeChunk(EMaterialValueType Type,const TCHAR*
 	FormattedCode[Result] = 0;
 
 	const uint64 Hash = CityHash64((char*)FormattedCode, Result * sizeof(TCHAR));
-	const int32 CodeIndex = AddCodeChunkInner(Hash, FormattedCode,Type,false);
+	const int32 CodeIndex = AddCodeChunkInner(Hash, FormattedCode, Type, DerivativeStatus, bInlined);
 	FMemory::Free(FormattedCode);
 
 	return CodeIndex;
@@ -3284,32 +4554,7 @@ int32 FHLSLMaterialTranslator::AddCodeChunkWithHash(uint64 BaseHash, EMaterialVa
 
 	uint64 Hash = CityHash64((char*)FormattedCode, Result * sizeof(TCHAR));
 	Hash = CityHash128to64({ BaseHash, Hash });
-	const int32 CodeIndex = AddCodeChunkInner(Hash, FormattedCode, Type, false);
-	FMemory::Free(FormattedCode);
-
-	return CodeIndex;
-}
-
-/** 
-	* Constructs the formatted code chunk and creates an inlined code chunk from it. 
-	* This should be used instead of AddCodeChunk when the code chunk does not add any actual shader instructions, for example a component mask.
-	*/
-int32 FHLSLMaterialTranslator::AddInlinedCodeChunk(EMaterialValueType Type, const TCHAR* Format,...)
-{
-	int32	BufferSize		= 256;
-	TCHAR*	FormattedCode	= NULL;
-	int32	Result			= -1;
-
-	while(Result == -1)
-	{
-		FormattedCode = (TCHAR*) FMemory::Realloc( FormattedCode, BufferSize * sizeof(TCHAR) );
-		GET_VARARGS_RESULT( FormattedCode, BufferSize, BufferSize-1, Format, Format, Result );
-		BufferSize *= 2;
-	};
-	FormattedCode[Result] = 0;
-
-	const uint64 Hash = CityHash64((char*)FormattedCode, Result * sizeof(TCHAR));
-	const int32 CodeIndex = AddCodeChunkInner(Hash, FormattedCode,Type,true);
+	const int32 CodeIndex = AddCodeChunkInner(Hash, FormattedCode, Type, DS_NotAware, false);
 	FMemory::Free(FormattedCode);
 
 	return CodeIndex;
@@ -3417,12 +4662,12 @@ int32 FHLSLMaterialTranslator::AddUniformExpressionInner(uint64 Hash, FMaterialU
 	const int32 ReturnIndex = CurrentScopeChunks->Num();
 	// Create a new code chunk for the uniform expression
 	// Note that uniforms have a known-zero derivative
-	new(*CurrentScopeChunks) FShaderCodeChunk(Hash, UniformExpression, FormattedCode, FormattedCode, Type, MEADS_Zero);
+	new(*CurrentScopeChunks) FShaderCodeChunk(Hash, UniformExpression, FormattedCode, FormattedCode, Type, DS_Zero);
 
 	if (!bFoundExistingExpression)
 	{
 		// Add an entry to the material-wide list of uniform expressions
-		new(UniformExpressions) FShaderCodeChunk(Hash, UniformExpression, FormattedCode, FormattedCode, Type, MEADS_Zero);
+		new(UniformExpressions) FShaderCodeChunk(Hash, UniformExpression, FormattedCode, FormattedCode, Type, DS_Zero);
 	}
 
 	AddCodeChunkToCurrentScope(ReturnIndex);
@@ -3478,7 +4723,7 @@ int32 FHLSLMaterialTranslator::AccessUniformExpression(int32 Index)
 	}
 	else if(CodeChunk.Type & MCT_Float)
 	{
-		check(CodeChunk.DerivativeStatus != MEADS_Valid);
+		check(CodeChunk.DerivativeStatus != DS_Valid);
 
 		const TCHAR* Mask;
 		switch(CodeChunk.Type)
@@ -3536,7 +4781,8 @@ int32 FHLSLMaterialTranslator::AccessUniformExpression(int32 Index)
 		UE_LOG(LogMaterial, Fatal,TEXT("User input of unknown type: %s"),DescribeType(CodeChunk.Type));
 	}
 
-	return AddInlinedCodeChunk((*CurrentScopeChunks)[Index].Type,FormattedCode);
+
+	return AddInlinedCodeChunkZeroDeriv((*CurrentScopeChunks)[Index].Type,FormattedCode);
 }
 
 // CoerceParameter
@@ -4073,47 +5319,95 @@ int32 FHLSLMaterialTranslator::ValidCast(int32 Code, EMaterialValueType DestType
 	}
 	else if((SourceType & MCT_Float) && (DestType & MCT_Float))
 	{
-		check(Code >= 0 && Code < CurrentScopeChunks->Num());
-		const FShaderCodeChunk& CodeChunk = (*CurrentScopeChunks)[Code];
-		check(CodeChunk.DerivativeStatus != MEADS_Valid);
-
+		const FDerivInfo CodeDerivInfo = GetDerivInfo(Code);
+		
 		const uint32 NumSourceComponents = GetNumComponents(SourceType);
 		const uint32 NumDestComponents = GetNumComponents(DestType);
 
 		if(NumSourceComponents > NumDestComponents) // Use a mask to select the first NumDestComponents components from the source.
 		{
-			const TCHAR*	Mask;
-			switch(NumDestComponents)
+			const TCHAR* Mask;
+			switch (NumDestComponents)
 			{
 			case 1: Mask = TEXT(".r"); break;
 			case 2: Mask = TEXT(".rg"); break;
 			case 3: Mask = TEXT(".rgb"); break;
-			default: UE_LOG(LogMaterial, Fatal,TEXT("Should never get here!")); return INDEX_NONE;
+			default: UE_LOG(LogMaterial, Fatal, TEXT("Should never get here!")); return INDEX_NONE;
 			};
 
-			return AddInlinedCodeChunk(DestType,TEXT("%s%s"),*GetParameterCode(Code),Mask);
+			FString FiniteCode = FString::Printf(TEXT("%s%s"), *GetParameterCode(Code), Mask);
+			if (IsAnalyticDerivEnabled() && IsDerivativeValid(CodeDerivInfo.DerivativeStatus))
+			{
+				if (CodeDerivInfo.DerivativeStatus == DS_Valid)
+				{
+					FString DerivString = *GetParameterCodeDeriv(Code, CompiledPDV_Analytic);
+
+					FString DDXCode = TEXT("0.0f");
+					FString DDYCode = TEXT("0.0f");
+					if (CodeDerivInfo.DerivativeStatus == DS_Valid)
+					{
+						DDXCode = DerivString + TEXT(".Ddx") + Mask;
+						DDYCode = DerivString + TEXT(".Ddy") + Mask;
+					}
+
+					FString AnalyticCode = DerivativeAutogen.ConstructDeriv(FiniteCode, *DDXCode, *DDYCode, GetDerivTypeIndex(DestType));
+					return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, DestType, false, DS_Valid);
+				}
+				else
+				{
+					return AddInlinedCodeChunkZeroDeriv(DestType, *FiniteCode);
+				}
+			}
+			else
+			{
+				return AddInlinedCodeChunk(DestType, *FiniteCode);
+			}
 		}
 		else if(NumSourceComponents < NumDestComponents) // Pad the source vector up to NumDestComponents.
 		{
 			// Only allow replication when the Source is a Float1
-			if (NumSourceComponents == 1)
-			{
-				const uint32 NumPadComponents = NumDestComponents - NumSourceComponents;
-				FString CommaParameterCodeString = FString::Printf(TEXT(",%s"), *GetParameterCode(Code));
+			if (NumSourceComponents != 1)
+				return Errorf(TEXT("Cannot cast from %s to %s."), DescribeType(SourceType), DescribeType(DestType));
 
-				CompiledResult = AddInlinedCodeChunk(
-					DestType,
-					TEXT("%s(%s%s%s%s)"),
-					HLSLTypeString(DestType),
-					*GetParameterCode(Code),
-					NumPadComponents >= 1 ? *CommaParameterCodeString : TEXT(""),
-					NumPadComponents >= 2 ? *CommaParameterCodeString : TEXT(""),
-					NumPadComponents >= 3 ? *CommaParameterCodeString : TEXT("")
-					);
+			const uint32 NumPadComponents = NumDestComponents - NumSourceComponents;
+			FString ValueString = *GetParameterCode(Code);
+
+			FString FiniteCode = FString(HLSLTypeString(DestType)) + TEXT("(") + ValueString;
+			for (uint32 i = 0; i < NumPadComponents; i++)
+			{
+				FiniteCode += TEXT(", ") + ValueString;
+			}
+			FiniteCode += TEXT(")");
+
+			if (IsAnalyticDerivEnabled() && IsDerivativeValid(CodeDerivInfo.DerivativeStatus))
+			{
+				if (CodeDerivInfo.DerivativeStatus == DS_Valid)
+				{
+					FString DerivString = *GetParameterCodeDeriv(Code, CompiledPDV_Analytic);
+					FString DerivStringDDX = DerivString + TEXT(".Ddx");
+					FString DerivStringDDY = DerivString + TEXT(".Ddy");
+					FString DDXCode = FString(HLSLTypeString(DestType)) + TEXT("(") + DerivStringDDX;
+					FString DDYCode = FString(HLSLTypeString(DestType)) + TEXT("(") + DerivStringDDY;
+
+					for (uint32 i = 0; i < NumPadComponents; i++)
+					{
+						DDXCode += TEXT(", ") + DerivStringDDX;
+						DDYCode += TEXT(", ") + DerivStringDDY;
+					}
+					DDXCode += TEXT(")");
+					DDYCode += TEXT(")");
+
+					FString AnalyticCode = DerivativeAutogen.ConstructDeriv(FiniteCode, *DDXCode, *DDYCode, GetDerivTypeIndex(DestType));
+					return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, DestType, false, DS_Valid);
+				}
+				else
+				{
+					return AddInlinedCodeChunkZeroDeriv(DestType, *FiniteCode);
+				}
 			}
 			else
 			{
-				CompiledResult = Errorf(TEXT("Cannot cast from %s to %s."), DescribeType(SourceType), DescribeType(DestType));
+				return AddInlinedCodeChunk(DestType, *FiniteCode);
 			}
 		}
 		else
@@ -4160,17 +5454,14 @@ int32 FHLSLMaterialTranslator::ForceCast(int32 Code, EMaterialValueType DestType
 	}
 	else if((SourceType & MCT_Float) && (DestType & MCT_Float))
 	{
-		check(Code >= 0 && Code < CurrentScopeChunks->Num());
-		const FShaderCodeChunk& CodeChunk = (*CurrentScopeChunks)[Code];
-		check(CodeChunk.DerivativeStatus != MEADS_Valid);
-		// this code is not legal with partial derivatives because we can't just add .rgb to the end
-
+		const FDerivInfo CodeDerivInfo = GetDerivInfo(Code);
+		
 		const uint32 NumSourceComponents = GetNumComponents(SourceType);
 		const uint32 NumDestComponents = GetNumComponents(DestType);
 
 		if(NumSourceComponents > NumDestComponents) // Use a mask to select the first NumDestComponents components from the source.
 		{
-			const TCHAR*	Mask;
+			const TCHAR* Mask;
 			switch(NumDestComponents)
 			{
 			case 1: Mask = TEXT(".r"); break;
@@ -4179,7 +5470,33 @@ int32 FHLSLMaterialTranslator::ForceCast(int32 Code, EMaterialValueType DestType
 			default: UE_LOG(LogMaterial, Fatal,TEXT("Should never get here!")); return INDEX_NONE;
 			};
 
-			return AddInlinedCodeChunk(DestType,TEXT("%s%s"),*GetParameterCode(Code),Mask);
+			FString FiniteCode = FString::Printf(TEXT("%s%s"), *GetParameterCode(Code), Mask);
+			if (IsAnalyticDerivEnabled() && IsDerivativeValid(CodeDerivInfo.DerivativeStatus))
+			{
+				if (CodeDerivInfo.DerivativeStatus == DS_Valid)
+				{
+					FString DerivString = *GetParameterCodeDeriv(Code, CompiledPDV_Analytic);
+
+					FString DDXCode = TEXT("0.0f");
+					FString DDYCode = TEXT("0.0f");
+					if (CodeDerivInfo.DerivativeStatus == DS_Valid)
+					{
+						DDXCode = DerivString + TEXT(".Ddx") + Mask;
+						DDYCode = DerivString + TEXT(".Ddy") + Mask;
+					}
+
+					FString AnalyticCode = DerivativeAutogen.ConstructDeriv(FiniteCode, *DDXCode, *DDYCode, GetDerivTypeIndex(DestType));
+					return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, DestType, false, DS_Valid);
+				}
+				else
+				{
+					return AddInlinedCodeChunkZeroDeriv(DestType, *FiniteCode);
+				}
+			}
+			else
+			{
+				return AddInlinedCodeChunk(DestType, *FiniteCode);
+			}
 		}
 		else if(NumSourceComponents < NumDestComponents) // Pad the source vector up to NumDestComponents.
 		{
@@ -4190,17 +5507,44 @@ int32 FHLSLMaterialTranslator::ForceCast(int32 Code, EMaterialValueType DestType
 			}
 
 			const uint32 NumPadComponents = NumDestComponents - NumSourceComponents;
-			FString CommaParameterCodeString = FString::Printf(TEXT(",%s"), *GetParameterCode(Code));
+			FString ValueString = *GetParameterCode(Code);
 
-			return AddInlinedCodeChunk(
-				DestType,
-				TEXT("%s(%s%s%s%s)"),
-				HLSLTypeString(DestType),
-				*GetParameterCode(Code),
-				NumPadComponents >= 1 ? (bReplicateValue ? *CommaParameterCodeString : TEXT(",0")) : TEXT(""),
-				NumPadComponents >= 2 ? (bReplicateValue ? *CommaParameterCodeString : TEXT(",0")) : TEXT(""),
-				NumPadComponents >= 3 ? (bReplicateValue ? *CommaParameterCodeString : TEXT(",0")) : TEXT("")
-				);
+			FString FiniteCode = FString(HLSLTypeString(DestType)) + TEXT("(") + ValueString;
+			for (uint32 i = 0; i < NumPadComponents; i++)
+			{
+				FiniteCode += bReplicateValue ? (TEXT(", ") + ValueString) : TEXT(", 0.0f");
+			}
+			FiniteCode += TEXT(")");
+
+			if (IsAnalyticDerivEnabled() && IsDerivativeValid(CodeDerivInfo.DerivativeStatus))
+			{
+				if (CodeDerivInfo.DerivativeStatus == DS_Valid)
+				{
+					FString DerivString = *GetParameterCodeDeriv(Code, CompiledPDV_Analytic);
+					FString DerivStringDDX = DerivString + TEXT(".Ddx");
+					FString DerivStringDDY = DerivString + TEXT(".Ddy");
+					FString DDXCode = FString(HLSLTypeString(DestType)) + TEXT("(") + DerivStringDDX;
+					FString DDYCode = FString(HLSLTypeString(DestType)) + TEXT("(") + DerivStringDDY;
+					for (uint32 i = 0; i < NumPadComponents; i++)
+					{
+						DDXCode += TEXT(", ") + (bReplicateValue ? DerivStringDDX : TEXT("0.0f"));
+						DDYCode += TEXT(", ") + (bReplicateValue ? DerivStringDDY : TEXT("0.0f"));;
+					}
+					DDXCode += TEXT(")");
+					DDYCode += TEXT(")");
+
+					FString AnalyticCode = DerivativeAutogen.ConstructDeriv(FiniteCode, *DDXCode, *DDYCode, GetDerivTypeIndex(DestType));
+					return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, DestType, false, DS_Valid);
+				}
+				else
+				{
+					return AddInlinedCodeChunkZeroDeriv(DestType, *FiniteCode);
+				}
+			}
+			else
+			{
+				return AddInlinedCodeChunk(DestType, *FiniteCode);
+			}
 		}
 		else
 		{
@@ -4260,7 +5604,7 @@ int32 FHLSLMaterialTranslator::AccessCollectionParameter(UMaterialParameterColle
 		CollectionIndex = ParameterCollections.Num() - 1;
 	}
 
-	int32 VectorChunk = AddCodeChunk(MCT_Float4,TEXT("MaterialCollection%u.Vectors[%u]"),CollectionIndex,ParameterIndex);
+	int32 VectorChunk = AddCodeChunkZeroDeriv(MCT_Float4,TEXT("MaterialCollection%u.Vectors[%u]"),CollectionIndex,ParameterIndex);
 
 	return ComponentMask(VectorChunk, 
 		ComponentIndex == -1 ? true : ComponentIndex % 4 == 0,
@@ -4383,26 +5727,21 @@ int32 FHLSLMaterialTranslator::ViewProperty(EMaterialExposedViewProperty Propert
 
 	// Resolved templated code
 	Code.ReplaceInline(TEXT("<PREV>"), bCompilingPreviousFrame ? TEXT("Prev") : TEXT(""));
-		
+
 	if (InvProperty && !PropertyMeta.InvPropertyCode)
 	{
 		// fall back to compute the property's inverse from PropertyCode
-		return Div(Constant(1.f), AddInlinedCodeChunk(PropertyMeta.Type, *Code));
+		return Div(Constant(1.f), AddCodeChunkZeroDeriv(PropertyMeta.Type, *Code));
 	}
 
-	return AddCodeChunk(PropertyMeta.Type, *Code);
+	return AddCodeChunkZeroDeriv(PropertyMeta.Type, *Code);
 }
 
 int32 FHLSLMaterialTranslator::GameTime(bool bPeriodic, float Period)
 {
 	if (!bPeriodic)
 	{
-		if (bCompilingPreviousFrame)
-		{
-			return AddInlinedCodeChunk(MCT_Float, TEXT("View.PrevFrameGameTime"));
-		}
-
-		return AddInlinedCodeChunk(MCT_Float, TEXT("View.GameTime"));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float, bCompilingPreviousFrame ? TEXT("View.PrevFrameGameTime") : TEXT("View.GameTime"));
 	}
 	else if (Period == 0.0f)
 	{
@@ -4413,12 +5752,12 @@ int32 FHLSLMaterialTranslator::GameTime(bool bPeriodic, float Period)
 
 	if (bCompilingPreviousFrame)
 	{
-		return AddInlinedCodeChunk(MCT_Float, TEXT("fmod(View.PrevFrameGameTime,%s)"), *GetParameterCode(PeriodChunk));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("fmod(View.PrevFrameGameTime,%s)"), *GetParameterCode(PeriodChunk));
 	}
 
 	// Note: not using FHLSLMaterialTranslator::Fmod(), which will emit MaterialFloat types which will be converted to fp16 on mobile.
 	// We want full 32 bit float precision until the fmod when using a period.
-	return AddInlinedCodeChunk(MCT_Float, TEXT("fmod(View.GameTime,%s)"), *GetParameterCode(PeriodChunk));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("fmod(View.GameTime,%s)"), *GetParameterCode(PeriodChunk));
 }
 
 int32 FHLSLMaterialTranslator::RealTime(bool bPeriodic, float Period)
@@ -4427,10 +5766,10 @@ int32 FHLSLMaterialTranslator::RealTime(bool bPeriodic, float Period)
 	{
 		if (bCompilingPreviousFrame)
 		{
-			return AddInlinedCodeChunk(MCT_Float, TEXT("View.PrevFrameRealTime"));
+			return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("View.PrevFrameRealTime"));
 		}
 
-		return AddInlinedCodeChunk(MCT_Float, TEXT("View.RealTime"));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("View.RealTime"));
 	}
 	else if (Period == 0.0f)
 	{
@@ -4441,10 +5780,10 @@ int32 FHLSLMaterialTranslator::RealTime(bool bPeriodic, float Period)
 
 	if (bCompilingPreviousFrame)
 	{
-		return AddInlinedCodeChunk(MCT_Float, TEXT("fmod(View.PrevFrameRealTime,%s)"), *GetParameterCode(PeriodChunk));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("fmod(View.PrevFrameRealTime,%s)"), *GetParameterCode(PeriodChunk));
 	}
 
-	return AddInlinedCodeChunk(MCT_Float, TEXT("fmod(View.RealTime,%s)"), *GetParameterCode(PeriodChunk));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("fmod(View.RealTime,%s)"), *GetParameterCode(PeriodChunk));
 }
 
 int32 FHLSLMaterialTranslator::DeltaTime()
@@ -4452,7 +5791,7 @@ int32 FHLSLMaterialTranslator::DeltaTime()
 	// explicitly avoid trying to return previous frame's delta time for bCompilingPreviousFrame here
 	// DeltaTime expression is designed to be used when generating custom motion vectors, by using world position offset along with previous frame switch
 	// in this context, we will technically be evaluating the previous frame, but we want to use the current frame's delta tick in order to offset the vector used to create previous position
-	return AddInlinedCodeChunk(MCT_Float, TEXT("View.DeltaTime"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("View.DeltaTime"));
 }
 
 int32 FHLSLMaterialTranslator::PeriodicHint(int32 PeriodicCode)
@@ -4485,7 +5824,14 @@ int32 FHLSLMaterialTranslator::Sine(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("sin(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this,FMaterialDerivativeAutogen::EF1_Sin,X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X),TEXT("sin(%s)"),*GetParameterCode(X));
+		}
 	}
 }
 
@@ -4502,7 +5848,14 @@ int32 FHLSLMaterialTranslator::Cosine(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("cos(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this,FMaterialDerivativeAutogen::EF1_Cos,X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X),TEXT("cos(%s)"),*GetParameterCode(X));
+		}
 	}
 }
 
@@ -4519,7 +5872,14 @@ int32 FHLSLMaterialTranslator::Tangent(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("tan(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_Tan, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X),TEXT("tan(%s)"),*GetParameterCode(X));
+		}
 	}
 }
 
@@ -4536,7 +5896,14 @@ int32 FHLSLMaterialTranslator::Arcsine(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("asin(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_Asin, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X),TEXT("asin(%s)"),*GetParameterCode(X));
+		}
 	}
 }
 
@@ -4553,7 +5920,14 @@ int32 FHLSLMaterialTranslator::ArcsineFast(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("asinFast(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_AsinFast, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X), TEXT("asinFast(%s)"), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4570,7 +5944,14 @@ int32 FHLSLMaterialTranslator::Arccosine(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("acos(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_Acos, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X), TEXT("acos(%s)"), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4587,7 +5968,14 @@ int32 FHLSLMaterialTranslator::ArccosineFast(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("acosFast(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_AcosFast, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X), TEXT("acosFast(%s)"), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4604,7 +5992,14 @@ int32 FHLSLMaterialTranslator::Arctangent(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("atan(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_Atan, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X), TEXT("atan(%s)"), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4621,7 +6016,14 @@ int32 FHLSLMaterialTranslator::ArctangentFast(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("atanFast(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_AtanFast, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X), TEXT("atanFast(%s)"), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4638,7 +6040,14 @@ int32 FHLSLMaterialTranslator::Arctangent2(int32 Y, int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(Y),TEXT("atan2(%s, %s)"),*GetParameterCode(Y),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc2(*this, FMaterialDerivativeAutogen::EF2_Atan2, Y, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(Y), TEXT("atan2(%s, %s)"), *GetParameterCode(Y), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4655,7 +6064,14 @@ int32 FHLSLMaterialTranslator::Arctangent2Fast(int32 Y, int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(Y),TEXT("atan2Fast(%s, %s)"),*GetParameterCode(Y),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc2(*this, FMaterialDerivativeAutogen::EF2_Atan2Fast, Y, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(Y), TEXT("atan2Fast(%s, %s)"), *GetParameterCode(Y), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4672,7 +6088,7 @@ int32 FHLSLMaterialTranslator::Floor(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("floor(%s)"),*GetParameterCode(X));
+		return AddCodeChunkZeroDeriv(GetParameterType(X),TEXT("floor(%s)"),*GetParameterCode(X));
 	}
 }
 
@@ -4689,7 +6105,7 @@ int32 FHLSLMaterialTranslator::Ceil(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("ceil(%s)"),*GetParameterCode(X));
+		return AddCodeChunkZeroDeriv(GetParameterType(X),TEXT("ceil(%s)"),*GetParameterCode(X));
 	}
 }
 
@@ -4706,7 +6122,7 @@ int32 FHLSLMaterialTranslator::Round(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("round(%s)"),*GetParameterCode(X));
+		return AddCodeChunkZeroDeriv(GetParameterType(X),TEXT("round(%s)"),*GetParameterCode(X));
 	}
 }
 
@@ -4723,7 +6139,7 @@ int32 FHLSLMaterialTranslator::Truncate(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("trunc(%s)"),*GetParameterCode(X));
+		return AddCodeChunkZeroDeriv(GetParameterType(X),TEXT("trunc(%s)"),*GetParameterCode(X));
 	}
 }
 
@@ -4740,7 +6156,7 @@ int32 FHLSLMaterialTranslator::Sign(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("sign(%s)"),*GetParameterCode(X));
+		return AddCodeChunkZeroDeriv(GetParameterType(X),TEXT("sign(%s)"),*GetParameterCode(X));
 	}
 }	
 
@@ -4757,7 +6173,14 @@ int32 FHLSLMaterialTranslator::Frac(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("frac(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_Frac, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X), TEXT("frac(%s)"), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4775,8 +6198,17 @@ int32 FHLSLMaterialTranslator::Fmod(int32 A, int32 B)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(A),
-			TEXT("fmod(%s,%s)"),*GetParameterCode(A),*CoerceParameter(B,GetParameterType(A)));
+		const FDerivInfo& BDerivInfo = GetDerivInfo(B);
+		if (IsAnalyticDerivEnabled() && BDerivInfo.DerivativeStatus == DS_Zero)
+		{
+			// Analytic derivatives only make sense when RHS derivatives are zero.
+			return DerivativeAutogen.GenerateExpressionFunc2(*this, FMaterialDerivativeAutogen::EF2_Fmod, A, B);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(A), TEXT("fmod(%s,%s)"), *GetParameterCode(A), *CoerceParameter(B, GetParameterType(A)));
+		}
+		
 	}
 }
 
@@ -4786,23 +6218,27 @@ int32 FHLSLMaterialTranslator::Fmod(int32 A, int32 B)
 * @param	X - Index to the FMaterialCompiler::CodeChunk entry for the input expression
 * @return	Index to the new FMaterialCompiler::CodeChunk entry for this expression
 */	
-int32 FHLSLMaterialTranslator::Abs( int32 X )
+int32 FHLSLMaterialTranslator::Abs(int32 X)
 {
-	if(X == INDEX_NONE)
+	if (X == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
 
-	// get the user input struct for the input expression
-	FMaterialUniformExpression* pInputParam = GetParameterUniformExpression(X);
-	if( pInputParam )
+	if (GetParameterUniformExpression(X))
 	{
-		FMaterialUniformExpressionAbs* pUniformExpression = new FMaterialUniformExpressionAbs( pInputParam );
-		return AddUniformExpression( pUniformExpression, GetParameterType(X), TEXT("abs(%s)"), *GetParameterCode(X) );
+		return AddUniformExpression(new FMaterialUniformExpressionAbs(GetParameterUniformExpression(X)), GetParameterType(X), TEXT("abs(%s)"), *GetParameterCode(X));
 	}
 	else
 	{
-		return AddCodeChunk( GetParameterType(X), TEXT("abs(%s)"), *GetParameterCode(X) );
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_Abs, X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X), TEXT("abs(%s)"), *GetParameterCode(X));
+		}
 	}
 }
 
@@ -4875,7 +6311,17 @@ int32 FHLSLMaterialTranslator::GetViewportUV()
 	{
 		return Errorf(TEXT("GetViewportUV() node is only available in vertex or pixel shader input."));
 	}
-	return AddCodeChunk(MCT_Float2, TEXT("GetViewportUV(Parameters)"));	
+
+	FString FiniteCode = TEXT("GetViewportUV(Parameters)");
+	if (IsAnalyticDerivEnabled())
+	{
+		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(FiniteCode, TEXT("float2(View.ViewSizeAndInvSize.z, 0.0f)"), TEXT("float2(0.0f, View.ViewSizeAndInvSize.w)"), 1);
+		return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, MCT_Float2, false, DS_Valid);
+	}
+	else
+	{
+		return AddCodeChunk(MCT_Float2, *FiniteCode);
+	}
 }
 
 int32 FHLSLMaterialTranslator::GetPixelPosition()
@@ -4966,7 +6412,7 @@ int32 FHLSLMaterialTranslator::ParticleColor()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bUsesParticleColor |= (ShaderFrequency != SF_Vertex);
-	return AddInlinedCodeChunk(MCT_Float4,TEXT("Parameters.Particle.Color"));	
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float4,TEXT("Parameters.Particle.Color"));
 }
 
 int32 FHLSLMaterialTranslator::ParticlePosition()
@@ -4976,7 +6422,7 @@ int32 FHLSLMaterialTranslator::ParticlePosition()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bNeedsParticlePosition = true;
-	return AddInlinedCodeChunk(MCT_Float3,TEXT("(Parameters.Particle.TranslatedWorldPositionAndSize.xyz - ResolvedView.PreViewTranslation.xyz)"));	
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float3,TEXT("(Parameters.Particle.TranslatedWorldPositionAndSize.xyz - ResolvedView.PreViewTranslation.xyz)"));
 }
 
 int32 FHLSLMaterialTranslator::ParticleRadius()
@@ -4986,7 +6432,7 @@ int32 FHLSLMaterialTranslator::ParticleRadius()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bNeedsParticlePosition = true;
-	return AddInlinedCodeChunk(MCT_Float,TEXT("max(Parameters.Particle.TranslatedWorldPositionAndSize.w, .001f)"));	
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float,TEXT("max(Parameters.Particle.TranslatedWorldPositionAndSize.w, .001f)"));
 }
 
 int32 FHLSLMaterialTranslator::SphericalParticleOpacity(int32 Density)
@@ -5015,7 +6461,7 @@ int32 FHLSLMaterialTranslator::ParticleRelativeTime()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bNeedsParticleTime = true;
-	return AddInlinedCodeChunk(MCT_Float,TEXT("Parameters.Particle.RelativeTime"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float,TEXT("Parameters.Particle.RelativeTime"));
 }
 
 int32 FHLSLMaterialTranslator::ParticleMotionBlurFade()
@@ -5025,7 +6471,7 @@ int32 FHLSLMaterialTranslator::ParticleMotionBlurFade()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bUsesParticleMotionBlur = true;
-	return AddInlinedCodeChunk(MCT_Float,TEXT("Parameters.Particle.MotionBlurFade"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float,TEXT("Parameters.Particle.MotionBlurFade"));
 }
 
 int32 FHLSLMaterialTranslator::ParticleRandom()
@@ -5035,7 +6481,7 @@ int32 FHLSLMaterialTranslator::ParticleRandom()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bNeedsParticleRandom = true;
-	return AddInlinedCodeChunk(MCT_Float,TEXT("Parameters.Particle.Random"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float,TEXT("Parameters.Particle.Random"));
 }
 
 
@@ -5046,7 +6492,7 @@ int32 FHLSLMaterialTranslator::ParticleDirection()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bNeedsParticleVelocity = true;
-	return AddInlinedCodeChunk(MCT_Float3,TEXT("Parameters.Particle.Velocity.xyz"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float3,TEXT("Parameters.Particle.Velocity.xyz"));
 }
 
 int32 FHLSLMaterialTranslator::ParticleSpeed()
@@ -5056,7 +6502,7 @@ int32 FHLSLMaterialTranslator::ParticleSpeed()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bNeedsParticleVelocity = true;
-	return AddInlinedCodeChunk(MCT_Float,TEXT("Parameters.Particle.Velocity.w"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float,TEXT("Parameters.Particle.Velocity.w"));
 }
 
 int32 FHLSLMaterialTranslator::ParticleSize()
@@ -5066,7 +6512,7 @@ int32 FHLSLMaterialTranslator::ParticleSize()
 		return NonVertexOrPixelShaderExpressionError();
 	}
 	bNeedsParticleSize = true;
-	return AddInlinedCodeChunk(MCT_Float2,TEXT("Parameters.Particle.Size"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float2,TEXT("Parameters.Particle.Size"));
 }
 
 int32 FHLSLMaterialTranslator::WorldPosition(EWorldPositionIncludedOffsets WorldPositionIncludedOffsets)
@@ -5128,12 +6574,21 @@ int32 FHLSLMaterialTranslator::WorldPosition(EWorldPositionIncludedOffsets World
 
 	bUsesVertexPosition = true;
 
-	return AddInlinedCodeChunk(MCT_Float3, TEXT("%s(Parameters)"), *FunctionNamePattern);
+	FString FiniteCode = FString::Printf(TEXT("%s(Parameters)"), *FunctionNamePattern);
+	if (IsAnalyticDerivEnabled())
+	{
+		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(FiniteCode, TEXT("Parameters.WorldPosition_DDX"), TEXT("Parameters.WorldPosition_DDY"), 2);
+		return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, MCT_Float3, false, DS_Valid);
+	}
+	else
+	{
+		return AddInlinedCodeChunk(MCT_Float3, *FiniteCode);
+	}
 }
 
 int32 FHLSLMaterialTranslator::ObjectWorldPosition()
 {
-	return AddInlinedCodeChunk(MCT_Float3,TEXT("GetObjectWorldPosition(Parameters)"));		
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float3,TEXT("GetObjectWorldPosition(Parameters)"));		
 }
 
 int32 FHLSLMaterialTranslator::ObjectRadius()
@@ -5179,18 +6634,23 @@ int32 FHLSLMaterialTranslator::ActorWorldPosition()
 		// Decal VS doesn't have material code so FMaterialVertexParameters
 		// and primitve uniform buffer are guaranteed to exist if ActorPosition
 		// material node is used in VS
-		return AddInlinedCodeChunk(
+		return AddInlinedCodeChunkZeroDeriv(
 			MCT_Float3,
 			TEXT("mul(mul(float4(GetActorWorldPosition(Parameters.PrimitiveId), 1), GetPrimitiveData(Parameters.PrimitiveId).WorldToLocal), Parameters.PrevFrameLocalToWorld)"));
 	}
 	else
 	{
-		return AddInlinedCodeChunk(MCT_Float3, TEXT("GetActorWorldPosition(Parameters.PrimitiveId)"));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float3, TEXT("GetActorWorldPosition(Parameters.PrimitiveId)"));
 	}
 }
 
 int32 FHLSLMaterialTranslator::If(int32 A,int32 B,int32 AGreaterThanB,int32 AEqualsB,int32 ALessThanB,int32 ThresholdArg)
 {
+	if (IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateIfFunc(*this, A, B, AGreaterThanB, AEqualsB, ALessThanB, ThresholdArg);
+	}
+	
 	if(A == INDEX_NONE || B == INDEX_NONE || AGreaterThanB == INDEX_NONE || ALessThanB == INDEX_NONE)
 	{
 		return INDEX_NONE;
@@ -5304,42 +6764,28 @@ int32 FHLSLMaterialTranslator::TextureCoordinate(uint32 CoordinateIndex, bool Un
 		AllocateSlot(AllocatedUserTexCoords, CoordinateIndex);
 	}
 
-	FString	SampleCode;
-	if ( UnMirrorU && UnMirrorV )
+	FString TexCoordCode = FString::Printf(TEXT("Parameters.TexCoords[%u].xy"), CoordinateIndex);
+	FString	SampleCodeFinite = TexCoordCode;
+	
+	if (UnMirrorU || UnMirrorV)
 	{
-		SampleCode = TEXT("UnMirrorUV(Parameters.TexCoords[%u].xy, Parameters)");
-	}
-	else if ( UnMirrorU )
-	{
-		SampleCode = TEXT("UnMirrorU(Parameters.TexCoords[%u].xy, Parameters)");
-	}
-	else if ( UnMirrorV )
-	{
-		SampleCode = TEXT("UnMirrorV(Parameters.TexCoords[%u].xy, Parameters)");
-	}
-	else
-	{
-		SampleCode = TEXT("Parameters.TexCoords[%u].xy");
+		SampleCodeFinite = FString::Printf(TEXT("%s(%s, Parameters)"), (UnMirrorU && UnMirrorV) ? TEXT("UnMirrorUV") : (UnMirrorU ? TEXT("UnMirrorU") : TEXT("UnMirrorV")), *SampleCodeFinite);
 	}
 
-	if (IsAnalyticDerivEnabled() && !UnMirrorU && !UnMirrorV)
+	if (IsAnalyticDerivEnabled())
 	{
-		FString SampleCodeFinite = FString::Printf(TEXT("Parameters.TexCoords[%u].xy"),CoordinateIndex);
-		FString SampleCodeAnalytic = DerivativeAutogen.MakeDerivConstructorFromFinite(SampleCodeFinite,1); // 1 = float2
+		FString TexCoordCodeDDX = FString::Printf(TEXT("Parameters.TexCoords_DDX[%u].xy"), CoordinateIndex);
+		FString TexCoordCodeDDY = FString::Printf(TEXT("Parameters.TexCoords_DDY[%u].xy"), CoordinateIndex);
+		FString TexCoordCodeAnalytic = DerivativeAutogen.ConstructDeriv(TexCoordCode, TexCoordCodeDDX, TexCoordCodeDDY, 1);	// 1 = float2
+		FString SampleCodeAnalytic = DerivativeAutogen.ApplyUnMirror(TexCoordCodeAnalytic, UnMirrorU, UnMirrorV);
 
-		const uint64 Hash = CityHash64((char*)*SampleCodeAnalytic, SampleCodeAnalytic.Len() * sizeof(TCHAR));
-		const int32 CodeIndex = AddCodeChunkInnerDeriv(Hash,*SampleCodeFinite,*SampleCodeAnalytic,MCT_Float2,false,MEADS_Valid);
-		return CodeIndex;
+		return AddCodeChunkInnerDeriv(*SampleCodeFinite, *SampleCodeAnalytic, MCT_Float2, false, DS_Valid);
 	}
 	else
 	{
 		// Note: inlining is important so that on GLES devices, where half precision is used in the pixel shader, 
 		// The UV does not get assigned to a half temporary in cases where the texture sample is done directly from interpolated UVs
-		return AddInlinedCodeChunk(
-				MCT_Float2,
-				*SampleCode,
-				CoordinateIndex
-				);
+		return AddInlinedCodeChunk(MCT_Float2, *SampleCodeFinite, CoordinateIndex);
 	}
 }
 
@@ -5361,6 +6807,9 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 	int32 CoordinateIndex, 
 	int32 MipValue0Index, int32 MipValue1Index, 
 	int32 PreallocatedStackTextureIndex, 
+	const FString& UV_Value,
+	const FString& UV_Ddx,
+	const FString& UV_Ddy,
 	bool bAdaptive, bool bGenerateFeedback)
 {
 	const uint64 CoordinatHash = GetParameterHash(CoordinateIndex);
@@ -5431,12 +6880,16 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 	check(bGenerateFeedback || MipValueMode == TMVM_MipLevel)
 	FString FeedbackParameter = bGenerateFeedback ? FString::Printf(TEXT(", %dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback"), StackIndex) : TEXT("");
 
+	EDerivativeStatus UVDerivativeStatus = GetDerivativeStatus(CoordinateIndex);
+	const bool bHasValidDerivative = IsAnalyticDerivEnabled() && IsDerivativeValid(UVDerivativeStatus);
+
 	// Code to load the VT page table...this will execute the first time a given VT stack is accessed
 	// Additional stack layers will simply reuse these results
 	switch (MipValueMode)
 	{
 	case TMVM_None:
-		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
+	{
+		FString SampleCodeFinite = FString::Printf(TEXT(
 			"%s("
 			"VIRTUALTEXTURE_PAGETABLE_%d, "
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
@@ -5447,9 +6900,33 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 			StackIndex, StackIndex, StackIndex,
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
 			StackIndex);
+
+		if (bHasValidDerivative)
+		{
+			FString SampleCodeAnalytic = FString::Printf(TEXT(
+				"%sGrad("
+				"VIRTUALTEXTURE_PAGETABLE_%d, "
+				"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
+				"%s, %s, %s, "
+				"%s, %s, Parameters.SvPosition.xy, "
+				"%dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+				*BaseFunctionName,
+				StackIndex, StackIndex, StackIndex,
+				*UV_Value, GetVTAddressMode(AddressU), GetVTAddressMode(AddressV), 
+				*UV_Ddx, *UV_Ddy,
+				StackIndex);
+			Entry.CodeIndex = AddCodeChunkInnerDeriv(*SampleCodeFinite, *SampleCodeAnalytic, MCT_VTPageTableResult, false, DS_NotValid);
+		}
+		else
+		{
+			Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, *SampleCodeFinite);
+		}
 		break;
+	}
+		
 	case TMVM_MipBias:
-		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
+	{
+		FString SampleCodeFinite = FString::Printf(TEXT(
 			"%s("
 			"VIRTUALTEXTURE_PAGETABLE_%d, "
 			"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
@@ -5461,7 +6938,28 @@ uint32 FHLSLMaterialTranslator::AcquireVTStackIndex(
 			*CoerceParameter(CoordinateIndex, MCT_Float2), GetVTAddressMode(AddressU), GetVTAddressMode(AddressV), 
 			*CoerceParameter(MipValue0Index, MCT_Float1),
 			StackIndex);
+		if (bHasValidDerivative)
+		{
+			FString SampleCodeAnalytic = FString::Printf(TEXT(
+				"%sGrad("
+				"VIRTUALTEXTURE_PAGETABLE_%d, "
+				"VTPageTableUniform_Unpack(Material.VTPackedPageTableUniform[%d*2], Material.VTPackedPageTableUniform[%d*2+1]), "
+				"%s, %s, %s, "
+				"%s, %s, Parameters.SvPosition.xy, "
+				"%dU + LIGHTMAP_VT_ENABLED, Parameters.VirtualTextureFeedback)"),
+				*BaseFunctionName,
+				StackIndex, StackIndex, StackIndex,
+				*UV_Value, GetVTAddressMode(AddressU), GetVTAddressMode(AddressV),
+				*UV_Ddx, *UV_Ddy,
+				StackIndex);
+			Entry.CodeIndex = AddCodeChunkInnerDeriv(*SampleCodeFinite, *SampleCodeAnalytic, MCT_VTPageTableResult, false, DS_NotValid);
+		}
+		else
+		{
+			Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, *SampleCodeFinite);
+		}
 		break;
+	}
 	case TMVM_MipLevel:
 		Entry.CodeIndex = AddCodeChunk(MCT_VTPageTableResult, TEXT(
 			"%sLevel("
@@ -5570,6 +7068,11 @@ static FString ApplySamplerType(const FString& InSampleCode, EMaterialSamplerTyp
 	return DstSampleCode;
 }
 
+static bool SamplerDebugSupported(EMaterialValueType TextureType, bool bVirtualTexture, bool bDecal)
+{
+	return IsDebugTextureSampleEnabled() && (TextureType == MCT_Texture2D || bVirtualTexture) && !bDecal;
+}
+
 int32 FHLSLMaterialTranslator::TextureSample(
 	int32 TextureIndex,
 	int32 CoordinateIndex,
@@ -5671,303 +7174,9 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	{
 		AutomaticViewMipBias = false;
 	}
-
-	FString DstLines[CompiledPDV_MAX];
-
-	// We're going to have to completely restructure this function in order to work with analytical partial derivatives. To make the
-	// transition easier, we are going to explicitly only support a subset of functionality, and if we are outside of that subset,
-	// fallback to the existing code.
-	if (Material->GetMaterialDomain() == MD_Surface &&
-		ShaderFrequency == SF_Pixel &&
-		!bVirtualTexture &&
-		TextureType == MCT_Texture2D &&
-		//TextureReferenceIndex == INDEX_NONE &&
-		MipValueMode == TMVM_None &&
-		SamplerSource == SSM_FromTextureAsset)
-	{
-		FString TextureName = CoerceParameter(TextureIndex, MCT_Texture2D);
-
-		EMaterialValueType UVsType = (TextureType == MCT_TextureCube || TextureType == MCT_Texture2DArray || TextureType == MCT_VolumeTexture) ? MCT_Float3 : MCT_Float2;
-		EMaterialExpressionAnalyticDerivativeStatus UvChunkDerivativeStatus = AtParameterCodeChunk(CoordinateIndex).DerivativeStatus;
-
-		const FString TokenUVsFinite = GetParameterCodeDeriv(CoordinateIndex,CompiledPDV_FiniteDifferences);
-		const FString TokenUVsAnalytic = GetParameterCodeDeriv(CoordinateIndex,CompiledPDV_Analytic);
-		check(TokenUVsFinite.Len() > 0);
-		check(TokenUVsAnalytic.Len() > 0);
-
-		FString SamplerStateCode;
-		bool RequiresManualViewMipBias = AutomaticViewMipBias;
-
-		// Instead of concatenating %s printf data, just build the full string one piece at a time
-		if (SamplerSource == SSM_FromTextureAsset)
-		{
-			SamplerStateCode = TextureName + TEXT("Sampler");
-		}
-		else
-		{
-			// add more options later, but just do this one for now
-			check(0);
-		}
-
-		FString SampleInstruction;
-		if (TextureType == MCT_TextureCube)
-		{
-			SampleInstruction += TEXT("TextureCubeSample");
-		}
-		else if (TextureType == MCT_Texture2DArray)
-		{
-			SampleInstruction += TEXT("Texture2DArraySample");
-		}
-		else if (TextureType == MCT_VolumeTexture)
-		{
-			SampleInstruction += TEXT("Texture3DSample");
-		}
-		else if (TextureType == MCT_TextureExternal)
-		{
-			SampleInstruction += TEXT("TextureExternalSample");
-		}
-		else if (bVirtualTexture)
-		{
-			SampleInstruction += TEXT("TextureVirtualSample");
-		}
-		else if (TextureType == MCT_Texture2D)
-		{
-			SampleInstruction += TEXT("Texture2DSample");
-		}
-		else
-		{
-			check(0);
-		}
-
-		//DstLines[CompiledPDV_FiniteDifferences] = SampleInstruction;
-		//DstLines[CompiledPDV_Analytic] = SampleInstruction + TEXT("Grad");
-
-		// FiniteDifferences
-		{
-			// In the case of finite differences, just use the raw token
-			FString CurrLine;
-			if (MipValueMode == TMVM_None)
-			{
-				CurrLine = SampleInstruction + TEXT("(") + TextureName + TEXT(",") + SamplerStateCode + TEXT(",") + TokenUVsFinite + TEXT(")");
-			}
-			else
-			{
-				check(0);
-			}
-			DstLines[CompiledPDV_FiniteDifferences] = CurrLine;
-		}
-
-		// Analytic
-		{
-			FString DdxUVs;
-			FString DdyUVs;
-			FString ValueUVs;
-
-			FString ZeroFloat = (UVsType == MCT_Float2) ? TEXT("float2(0,0)") : TEXT("float3(0,0,0)");
-
-			switch(UvChunkDerivativeStatus)
-			{
-			case MEADS_NotAware:
-			case MEADS_NotValid:
-				// not aware or not valid, use ddx/ddy to get our best estimate.
-				DdxUVs = TEXT("ddx(") + TokenUVsAnalytic + TEXT(")");
-				DdyUVs = TEXT("ddy(") + TokenUVsAnalytic + TEXT(")");
-				ValueUVs = TokenUVsAnalytic;
-				break;
-			case MEADS_Zero:
-				// if we get here we have something like a constant being used as a UV.
-				DdxUVs = ZeroFloat;
-				DdyUVs = ZeroFloat;
-				ValueUVs = TokenUVsAnalytic;
-				break;
-			case MEADS_Valid:
-				DdxUVs = TokenUVsAnalytic + TEXT(".Ddx");
-				DdyUVs = TokenUVsAnalytic + TEXT(".Ddy");
-				ValueUVs = TokenUVsAnalytic + TEXT(".Value");
-				break;
-			default:
-				check(0);
-				break;
-			}
-
-			FString CurrLine;
-			if (MipValueMode == TMVM_None)
-			{
-				CurrLine = FString::Printf(TEXT("%sGrad(%s,%s,%s,%s,%s)"),
-					*SampleInstruction,
-					*TextureName,
-					*SamplerStateCode,
-					*ValueUVs,
-					*DdxUVs,
-					*DdyUVs);
-			}
-			else
-			{
-				check(0);
-			}
-			DstLines[CompiledPDV_Analytic] = CurrLine;
-		}
-
-		// This code is copy and pasted from below, but it's the same code for both Finite and Analytic, since it happens after the texture sample
-		for (int32 Index = 0; Index < CompiledPDV_MAX; Index++)
-		{
-			FString SampleCode = DstLines[Index];
-
-			SampleCode = ApplySamplerType(SampleCode, SamplerType);
-			DstLines[Index] = SampleCode;
-		}
-
-		const uint64 Hash = CityHash64((char*)*DstLines[CompiledPDV_FiniteDifferences], DstLines[CompiledPDV_FiniteDifferences].Len() * sizeof(TCHAR));
-
-		if (IsAnalyticDerivEnabled())
-		{
-			// always set status to not valid, although we could add an option to do 3 samples if it was important
-			int32 Ret = AddCodeChunkInnerDeriv(Hash,*DstLines[CompiledPDV_FiniteDifferences],*DstLines[CompiledPDV_Analytic],MCT_Float4,false, MEADS_NotValid);
-			return Ret;
-		}
-	}
-
-	FString SamplerStateCode;
-	bool RequiresManualViewMipBias = AutomaticViewMipBias;
-
-	if (!bVirtualTexture) //VT does not have explict samplers (and always requires manual view mip bias)
-	{
-		if (SamplerSource == SSM_FromTextureAsset)
-		{
-			SamplerStateCode = TEXT("%sSampler");
-		}
-		else if (SamplerSource == SSM_Wrap_WorldGroupSettings)
-		{
-			// Use the shared sampler to save sampler slots
-			SamplerStateCode = AutomaticViewMipBias
-				? TEXT("GetMaterialSharedSampler(%sSampler,View.MaterialTextureBilinearWrapedSampler)")
-				: TEXT("GetMaterialSharedSampler(%sSampler,Material.Wrap_WorldGroupSettings)");
-			RequiresManualViewMipBias = false;
-		}
-		else if (SamplerSource == SSM_Clamp_WorldGroupSettings)
-		{
-			// Use the shared sampler to save sampler slots
-			SamplerStateCode = AutomaticViewMipBias
-				? TEXT("GetMaterialSharedSampler(%sSampler,View.MaterialTextureBilinearClampedSampler)")
-				: TEXT("GetMaterialSharedSampler(%sSampler,Material.Clamp_WorldGroupSettings)");
-			RequiresManualViewMipBias = false;
-		}
-	}
-
-	FString SampleCode;
-	if (TextureType == MCT_TextureCube)
-	{
-		SampleCode += TEXT("TextureCubeSample");
-	}
-	else if (TextureType == MCT_Texture2DArray)
-	{
-		SampleCode += TEXT("Texture2DArraySample");
-	}
-	else if (TextureType == MCT_VolumeTexture)
-	{
-		SampleCode += TEXT("Texture3DSample");
-	}
-	else if (TextureType == MCT_TextureExternal)
-	{
-		SampleCode += TEXT("TextureExternalSample");
-	}
-	else if (bVirtualTexture)
-	{
-		SampleCode += TEXT("TextureVirtualSample");
-	}
-	else // MCT_Texture2D
-	{
-		SampleCode += TEXT("Texture2DSample");
-	}
-		
-	EMaterialValueType UVsType = (TextureType == MCT_TextureCube || TextureType == MCT_Texture2DArray || TextureType == MCT_VolumeTexture) ? MCT_Float3 : MCT_Float2;
 	
-	if (RequiresManualViewMipBias)
-	{
-		if (MipValueMode == TMVM_Derivative)
-		{
-			// When doing derivative based sampling, multiply.
-			int32 Multiplier = AddInlinedCodeChunk(MCT_Float, TEXT("View.MaterialTextureDerivativeMultiply"));
-			MipValue0Index = Mul(MipValue0Index, Multiplier);
-			MipValue1Index = Mul(MipValue1Index, Multiplier);
-		}
-		else if (MipValue0Index != INDEX_NONE && MipValueMode != TMVM_None)
-		{
-			// Adds bias to existing input level bias.
-			MipValue0Index = Add(MipValue0Index, AddInlinedCodeChunk(MCT_Float, TEXT("View.MaterialTextureMipBias")));
-		}
-		else
-		{
-			// Sets bias.
-			MipValue0Index = AddInlinedCodeChunk(MCT_Float1, TEXT("View.MaterialTextureMipBias"));
-		}
-
-		// If no Mip mode, then use MipBias.
-		MipValueMode = MipValueMode == TMVM_None ? TMVM_MipBias : MipValueMode;
-	}
-
-	FString MipValue0Code = TEXT("0.0f");
-	FString MipValue1Code = TEXT("0.0f");
-	if (MipValue0Index != INDEX_NONE && (MipValueMode == TMVM_MipBias || MipValueMode == TMVM_MipLevel))
-	{
-		MipValue0Code = CoerceParameter(MipValue0Index, MCT_Float1);
-	}
-	else if (MipValueMode == TMVM_Derivative)
-	{
-		MipValue0Code = CoerceParameter(MipValue0Index, UVsType);
-		MipValue1Code = CoerceParameter(MipValue1Index, UVsType);
-	}
-
-	if (bVirtualTexture)
-	{
-		// VT MipValueMode logic (most of work for VT case is in page table lookup)
-		if (MipValueMode == TMVM_MipLevel)
-		{
-			SampleCode += TEXT("Level");
-		}
-
-		// 'Texture name/sampler', 'PageTableResult', 'LayerIndex', 'PackedUniform'
-		SampleCode += TEXT("(%s, %s, %d, VTUniform_Unpack(Material.VTPackedUniform[%d]))");
-	}
-	else
-	{
-		// Non-VT MipValueMode logic			
-
-		// Re-route decal texture sampling so platforms may add specific workarounds there
-		if (ShaderFrequency == SF_Pixel && Material->GetMaterialDomain() == MD_DeferredDecal && MipValueMode == TMVM_None)
-		{
-			SampleCode += TEXT("_Decal");
-		}
-
-		SamplerStateCode = ", " + SamplerStateCode;
-
-		if (MipValueMode == TMVM_None)
-		{
-			SampleCode += TEXT("(%s") + SamplerStateCode + TEXT(",%s)");
-		}
-		else if (MipValueMode == TMVM_MipLevel)
-		{
-			SampleCode += TEXT("Level(%s") + SamplerStateCode + TEXT(",%s,%s)");
-		}
-		else if (MipValueMode == TMVM_MipBias)
-		{
-			SampleCode += TEXT("Bias(%s") + SamplerStateCode + TEXT(",%s,%s)");
-		}
-		else if (MipValueMode == TMVM_Derivative)
-		{
-			SampleCode += TEXT("Grad(%s") + SamplerStateCode + TEXT(",%s,%s,%s)");
-		}
-		else
-		{
-			check(0);
-		}
-	}
-
-	SampleCode = ApplySamplerType(SampleCode, SamplerType);
-
 	FString TextureName;
 	int32 VirtualTextureIndex = INDEX_NONE;
-
 	if (TextureType == MCT_TextureCube)
 	{
 		TextureName = CoerceParameter(TextureIndex, MCT_TextureCube);
@@ -6022,20 +7231,142 @@ int32 FHLSLMaterialTranslator::TextureSample(
 		TextureName = CoerceParameter(TextureIndex, MCT_Texture2D);
 	}
 
+	FString SamplerStateCode;
+	bool RequiresManualViewMipBias = AutomaticViewMipBias;
+
+	if (!bVirtualTexture) //VT does not have explict samplers (and always requires manual view mip bias)
+	{
+		if (SamplerSource == SSM_FromTextureAsset)
+		{
+			SamplerStateCode = FString::Printf(TEXT("%sSampler"), *TextureName);
+		}
+		else if (SamplerSource == SSM_Wrap_WorldGroupSettings)
+		{
+			// Use the shared sampler to save sampler slots
+			SamplerStateCode = FString::Printf(	TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
+												*TextureName, AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearWrapedSampler") : TEXT("Material.Wrap_WorldGroupSettings"));
+			RequiresManualViewMipBias = false;
+		}
+		else if (SamplerSource == SSM_Clamp_WorldGroupSettings)
+		{
+			// Use the shared sampler to save sampler slots
+			SamplerStateCode = FString::Printf(	TEXT("GetMaterialSharedSampler(%sSampler,%s)"),
+												*TextureName, AutomaticViewMipBias ? TEXT("View.MaterialTextureBilinearClampedSampler") : TEXT("Material.Clamp_WorldGroupSettings"));
+			RequiresManualViewMipBias = false;
+		}
+	}
+
+	const EMaterialValueType UVsType = (TextureType == MCT_TextureCube || TextureType == MCT_Texture2DArray || TextureType == MCT_VolumeTexture) ? MCT_Float3 : MCT_Float2;
+	const EDerivativeStatus UvDerivativeStatus = GetDerivativeStatus(CoordinateIndex);
+
+	if (RequiresManualViewMipBias)
+	{
+		if (MipValueMode == TMVM_Derivative)
+		{
+			// When doing derivative based sampling, multiply.
+			int32 Multiplier = AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("View.MaterialTextureDerivativeMultiply"));
+			MipValue0Index = Mul(MipValue0Index, Multiplier);
+			MipValue1Index = Mul(MipValue1Index, Multiplier);
+		}
+		else if (MipValue0Index != INDEX_NONE && (MipValueMode == TMVM_MipLevel || MipValueMode == TMVM_MipBias))
+		{
+			// Adds bias to existing input level bias.
+			MipValue0Index = Add(MipValue0Index, AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("View.MaterialTextureMipBias")));
+		}
+		else
+		{
+			// Sets bias.
+			MipValue0Index = AddInlinedCodeChunkZeroDeriv(MCT_Float1, TEXT("View.MaterialTextureMipBias"));
+		}
+
+		// If no Mip mode, then use MipBias.
+		MipValueMode = MipValueMode == TMVM_None ? TMVM_MipBias : MipValueMode;
+	}
+
+	FString MipValue0Code = TEXT("0.0f");
+	FString MipValue1Code = TEXT("0.0f");
+	if (MipValue0Index != INDEX_NONE && (MipValueMode == TMVM_MipBias || MipValueMode == TMVM_MipLevel))
+	{
+		MipValue0Code = CoerceParameter(MipValue0Index, MCT_Float1);
+	}
+	else if (MipValueMode == TMVM_Derivative)
+	{
+		MipValue0Code = CoerceParameter(MipValue0Index, UVsType);
+		MipValue1Code = CoerceParameter(MipValue1Index, UVsType);
+	}
+
+	FString TextureTypeName;
+	if (TextureType == MCT_TextureCube)
+	{
+		TextureTypeName = TEXT("TextureCubeSample");
+	}
+	else if (TextureType == MCT_Texture2DArray)
+	{
+		TextureTypeName = TEXT("Texture2DArraySample");
+	}
+	else if (TextureType == MCT_VolumeTexture)
+	{
+		TextureTypeName = TEXT("Texture3DSample");
+	}
+	else if (TextureType == MCT_TextureExternal)
+	{
+		TextureTypeName = TEXT("TextureExternalSample");
+	}
+	else if (bVirtualTexture)
+	{
+		TextureTypeName = TEXT("TextureVirtualSample");
+	}
+	else // MCT_Texture2D
+	{
+		TextureTypeName = TEXT("Texture2DSample");
+	}
+	
 	const FString UVs = CoerceParameter(CoordinateIndex, UVsType);
 	const bool bStoreTexCoordScales = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
-	const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
+	const bool bDecal = ShaderFrequency == SF_Pixel && Material->GetMaterialDomain() == MD_DeferredDecal && MipValueMode == TMVM_None;
+
+	if (IsDebugTextureSampleEnabled() && !IsDerivativeValid(UvDerivativeStatus))
+	{
+		UE_LOG(LogMaterial, Warning, TEXT("Unknown derivatives: '%s'[%s]: %s"), *Material->GetDebugName(), *Material->GetAssetPath().ToString(), *AtParameterCodeChunk(CoordinateIndex).DefinitionAnalytic);
+	}
 
 	if (bStoreTexCoordScales)
 	{
 		AddCodeChunk(MCT_Float, TEXT("MaterialStoreTexCoordScale(Parameters, %s, %d)"), *UVs, (int)TextureReferenceIndex);
 	}
 
-	int32 VTStackIndex = INDEX_NONE;
-	int32 VTLayerIndex = INDEX_NONE;
-	int32 VTPageTableIndex = INDEX_NONE;
+	FString UV_Value = TEXT("0.0f");
+	FString UV_Ddx = TEXT("0.0f");
+	FString UV_Ddy = TEXT("0.0f");
+	FString UV_Scale = TEXT("1.0f");
+	if (IsAnalyticDerivEnabled() && IsDerivativeValid(UvDerivativeStatus))
+	{
+		if (UvDerivativeStatus == DS_Valid)
+		{
+			const FString UVAnalytic = GetParameterCodeDeriv(CoordinateIndex, CompiledPDV_Analytic);
+			UV_Value = UVAnalytic + TEXT(".Value");
+			UV_Ddx = UVAnalytic + TEXT(".Ddx");
+			UV_Ddy = UVAnalytic + TEXT(".Ddy");
+			if (MipValueMode == TMVM_MipBias)
+			{
+				UV_Scale = FString::Printf(TEXT("exp2(%s)"), *MipValue0Code);
+				UV_Ddx = FString::Printf(TEXT("(%s)*exp2(%s)"), *UV_Ddx, *MipValue0Code);
+				UV_Ddy = FString::Printf(TEXT("(%s)*exp2(%s)"), *UV_Ddy, *MipValue0Code);
+			}
+		}
+		else
+		{
+			UV_Value = GetParameterCode(CoordinateIndex);
+		}
+	}
+
+	int32 SamplingCodeIndex = INDEX_NONE;
 	if (bVirtualTexture)
 	{
+		int32 VTStackIndex = INDEX_NONE;
+		int32 VTLayerIndex = INDEX_NONE;
+		int32 VTPageTableIndex = INDEX_NONE;
+
 		check(VirtualTextureIndex >= 0);
 
 		const FShaderCodeChunk&	TextureChunk = (*CurrentScopeChunks)[TextureIndex];
@@ -6085,7 +7416,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 		{
 			// The layer index in the virtual texture stack is already known
 			// Create a page table sample for each new combination of virtual texture and sample parameters
-			VTStackIndex = AcquireVTStackIndex(MipValueMode, AddressU, AddressV, 1.0f, CoordinateIndex, MipValue0Index, MipValue1Index, TextureReferenceIndex, AdaptiveVirtualTexture, bGenerateFeedback);
+			VTStackIndex = AcquireVTStackIndex(MipValueMode, AddressU, AddressV, 1.0f, CoordinateIndex, MipValue0Index, MipValue1Index, TextureReferenceIndex, UV_Value, UV_Ddx, UV_Ddy, AdaptiveVirtualTexture, bGenerateFeedback);
 			VTPageTableIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::Virtual][VirtualTextureIndex]->GetPageTableLayerIndex();
 		}
 		else
@@ -6101,31 +7432,49 @@ int32 FHLSLMaterialTranslator::TextureSample(
 			const float TextureAspectRatio = (float)Tex2D->Source.GetSizeX() / (float)Tex2D->Source.GetSizeY();
 
 			// Create a page table sample for each new set of sample parameters
-			VTStackIndex = AcquireVTStackIndex(MipValueMode, AddressU, AddressV, TextureAspectRatio, CoordinateIndex, MipValue0Index, MipValue1Index, INDEX_NONE, AdaptiveVirtualTexture, bGenerateFeedback);
+			VTStackIndex = AcquireVTStackIndex(MipValueMode, AddressU, AddressV, TextureAspectRatio, CoordinateIndex, MipValue0Index, MipValue1Index, INDEX_NONE, UV_Value, UV_Ddx, UV_Ddy, AdaptiveVirtualTexture, bGenerateFeedback);
 			// Allocate a layer in the virtual texture stack for this physical sample
 			VTLayerIndex = MaterialCompilationOutput.UniformExpressionSet.VTStacks[VTStackIndex].AddLayer();
 			VTPageTableIndex = VTLayerIndex;
 		}
 
 		MaterialCompilationOutput.UniformExpressionSet.VTStacks[VTStackIndex].SetLayer(VTLayerIndex, VirtualTextureIndex);
-	}
 
-	int32 SamplingCodeIndex = INDEX_NONE;
-	if (bVirtualTexture)
-	{
+		// VT MipValueMode logic (most of work for VT case is in page table lookup)
+		if (MipValueMode == TMVM_MipLevel)
+		{
+			TextureTypeName += TEXT("Level");
+		}
+
 		const FMaterialVTStackEntry& VTStackEntry = VTStacks[VTStackIndex];
-		const FString VTPageTableResult = GetParameterCode(VTStackEntry.CodeIndex);
+		const FString VTPageTableResult_Finite = GetParameterCode(VTStackEntry.CodeIndex);
+		
+		// 'Texture name/sampler', 'PageTableResult', 'LayerIndex', 'PackedUniform'
+		FString SampleCodeFinite = FString::Printf(TEXT("%s(%s, %s, %d, VTUniform_Unpack(Material.VTPackedUniform[%d]))"), *TextureTypeName, *TextureName, *VTPageTableResult_Finite, VTPageTableIndex, VirtualTextureIndex);
+		SampleCodeFinite = ApplySamplerType(SampleCodeFinite, SamplerType);
 
-		SamplingCodeIndex = AddCodeChunk(
-			MCT_Float4,
-			*SampleCode,
-			*TextureName,
-			*VTPageTableResult,
-			VTPageTableIndex,
-			VirtualTextureIndex);
+		if (IsAnalyticDerivEnabled() && IsDerivativeValid(UvDerivativeStatus))
+		{
+			const FString VTPageTableResult_Analytic = GetParameterCodeDeriv(VTStackEntry.CodeIndex, CompiledPDV_Analytic);
+			// 'Texture name/sampler', 'PageTableResult', 'LayerIndex', 'PackedUniform'
+			FString SampleCodeAnalytic;
+			
+			if(SamplerDebugSupported(TextureType, bVirtualTexture, bDecal))
+				SampleCodeAnalytic = FString::Printf(TEXT("Debug%s(%s, %s, %d, VTUniform_Unpack(Material.VTPackedUniform[%d]), %s)"), *TextureTypeName, *TextureName, *VTPageTableResult_Analytic, VTPageTableIndex, VirtualTextureIndex, *UV_Scale);
+			else
+				SampleCodeAnalytic = FString::Printf(TEXT("%s(%s, %s, %d, VTUniform_Unpack(Material.VTPackedUniform[%d]))"), *TextureTypeName, *TextureName, *VTPageTableResult_Analytic, VTPageTableIndex, VirtualTextureIndex);
 
+			SampleCodeAnalytic = ApplySamplerType(SampleCodeAnalytic, SamplerType);
+			SamplingCodeIndex = AddCodeChunkInnerDeriv(*SampleCodeFinite, *SampleCodeAnalytic, MCT_Float4, false, DS_NotValid);
+		}
+		else
+		{
+			SamplingCodeIndex = AddCodeChunk(MCT_Float4, *SampleCodeFinite, *TextureName, *VTPageTableResult_Finite, VTPageTableIndex, VirtualTextureIndex);
+		}
 		// TODO
-		/*if (bStoreAvailableVTLevel)
+		/*
+		const bool bStoreAvailableVTLevel = ShaderFrequency == SF_Pixel && TextureReferenceIndex != INDEX_NONE;
+		if (bStoreAvailableVTLevel)
 		{
 			check(VirtualTextureUniformExpressionIndex >= 0);
 			check(VirtualTextureIndex >= 0);
@@ -6139,15 +7488,59 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	}
 	else
 	{
-		SamplingCodeIndex = AddCodeChunk(
-			MCT_Float4,
-			*SampleCode,
-			*TextureName,
-			*TextureName,
-			*UVs,
-			*MipValue0Code,
-			*MipValue1Code
-		);
+		// Non-VT MipValueMode logic			
+
+		// Re-route decal texture sampling so platforms may add specific workarounds there
+		if (bDecal)
+		{
+			TextureTypeName += TEXT("_Decal");
+		}
+
+		FString SampleCodeFinite;
+		if (MipValueMode == TMVM_None)
+		{
+			SampleCodeFinite = FString::Printf(TEXT("%s(%s,%s,%s)"), *TextureTypeName, *TextureName, *SamplerStateCode, *UVs);
+		}
+		else if (MipValueMode == TMVM_MipLevel)
+		{
+			SampleCodeFinite = FString::Printf(TEXT("%sLevel(%s,%s,%s,%s)"), *TextureTypeName, *TextureName, *SamplerStateCode, *UVs, *MipValue0Code);
+		}
+		else if (MipValueMode == TMVM_MipBias)
+		{
+			SampleCodeFinite = FString::Printf(TEXT("%sBias(%s,%s,%s,%s)"), *TextureTypeName, *TextureName, *SamplerStateCode, *UVs, *MipValue0Code);
+		}
+		else if (MipValueMode == TMVM_Derivative)
+		{
+			SampleCodeFinite = FString::Printf(TEXT("%sGrad(%s,%s,%s,%s,%s)"), *TextureTypeName, *TextureName, *SamplerStateCode, *UVs, *MipValue0Code, *MipValue1Code);
+		}
+		else
+		{
+			check(0);
+		}
+
+		SampleCodeFinite = ApplySamplerType(SampleCodeFinite, SamplerType);
+
+		if (IsAnalyticDerivEnabled() && IsDerivativeValid(UvDerivativeStatus) && !bDecal)
+		{
+			FString SampleCodeAnalytic = SampleCodeFinite;
+			if (MipValueMode == TMVM_None || MipValueMode == TMVM_MipBias)
+			{
+				const FString UVFinite = GetParameterCode(CoordinateIndex);
+				
+				if(SamplerDebugSupported(TextureType, bVirtualTexture, bDecal))
+					SampleCodeAnalytic = FString::Printf(TEXT("Debug%sGrad(%s,%s,%s,%s,%s,%s)"), *TextureTypeName, *TextureName, *SamplerStateCode, *UVFinite, *UV_Ddx, *UV_Ddy, *UV_Scale);
+				else
+					SampleCodeAnalytic = FString::Printf(TEXT("%sGrad(%s,%s,%s,%s,%s)"), *TextureTypeName, *TextureName, *SamplerStateCode, *UVFinite, *UV_Ddx, *UV_Ddy);
+
+				SampleCodeAnalytic = ApplySamplerType(SampleCodeAnalytic, SamplerType);
+			}
+
+			SamplingCodeIndex = AddCodeChunkInnerDeriv(*SampleCodeFinite, *SampleCodeAnalytic, MCT_Float4, false /*?*/, DS_NotValid);
+		}
+		else
+		{
+			SamplingCodeIndex = AddCodeChunk(MCT_Float4,*SampleCodeFinite);
+		}
 	}
 
 	AddEstimatedTextureSample();
@@ -6223,7 +7616,7 @@ int32 FHLSLMaterialTranslator::DecalLifetimeOpacity()
 		return Errorf(TEXT("Decal lifetime fade is only available in the pixel shader."));
 	}
 
-	return AddCodeChunk(
+	return AddCodeChunkZeroDeriv(
 		MCT_Float,
 		TEXT("DecalLifetimeOpacity()")
 		);
@@ -6235,7 +7628,17 @@ int32 FHLSLMaterialTranslator::PixelDepth()
 	{
 		return Errorf(TEXT("Invalid node used in hull/domain shader input!"));
 	}
-	return AddInlinedCodeChunk(MCT_Float, TEXT("GetScreenPosition(Parameters).w"));		
+
+	FString FiniteCode = TEXT("GetScreenPosition(Parameters).w");
+	if (IsAnalyticDerivEnabled())
+	{
+		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(TEXT("Parameters.ScreenPosition.w"), TEXT("Parameters.ScreenPosition_DDX.w"), TEXT("Parameters.ScreenPosition_DDY.w"), 0);
+		return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, MCT_Float, false, DS_Valid);
+	}
+	else
+	{
+		return AddInlinedCodeChunk(MCT_Float, TEXT("GetScreenPosition(Parameters).w"));
+	}
 }
 
 /** Calculate screen aligned UV coordinates from an offset fraction or texture coordinate */
@@ -6250,8 +7653,8 @@ int32 FHLSLMaterialTranslator::GetScreenAlignedUV(int32 Offset, int32 ViewportUV
 		int32 BufferUV = AddCodeChunk(MCT_Float2, TEXT("MaterialFloat2(ViewportUVToBufferUV(%s))"), *CoerceParameter(ViewportUV, MCT_Float2));
 
 		EMaterialDomain MaterialDomain = Material->GetMaterialDomain();
-		int32 Min = AddInlinedCodeChunk(MCT_Float2, MaterialDomain == MD_Surface ? TEXT("ResolvedView.BufferBilinearUVMinMax.xy") : TEXT("View.BufferBilinearUVMinMax.xy"));
-		int32 Max = AddInlinedCodeChunk(MCT_Float2, MaterialDomain == MD_Surface ? TEXT("ResolvedView.BufferBilinearUVMinMax.zw") : TEXT("View.BufferBilinearUVMinMax.zw"));
+		int32 Min = AddInlinedCodeChunkZeroDeriv(MCT_Float2, MaterialDomain == MD_Surface ? TEXT("ResolvedView.BufferBilinearUVMinMax.xy") : TEXT("View.BufferBilinearUVMinMax.xy"));
+		int32 Max = AddInlinedCodeChunkZeroDeriv(MCT_Float2, MaterialDomain == MD_Surface ? TEXT("ResolvedView.BufferBilinearUVMinMax.zw") : TEXT("View.BufferBilinearUVMinMax.zw"));
 		return Clamp(BufferUV, Min, Max);
 	}
 	else
@@ -6344,7 +7747,7 @@ int32 FHLSLMaterialTranslator::SceneTextureLookup(int32 ViewportUV, uint32 InSce
 		}
 	}
 
-	if (!bSupportedOnMobile	&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
+	if (!bSupportedOnMobile && ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
@@ -6405,9 +7808,9 @@ int32 FHLSLMaterialTranslator::GetSceneTextureViewSize(int32 SceneTextureId, boo
 {
 	if (InvProperty)
 	{
-		return AddCodeChunk(MCT_Float2, TEXT("GetSceneTextureViewSize(%d).zw"), SceneTextureId);
+		return AddCodeChunkZeroDeriv(MCT_Float2, TEXT("GetSceneTextureViewSize(%d).zw"), SceneTextureId);
 	}
-	return AddCodeChunk(MCT_Float2, TEXT("GetSceneTextureViewSize(%d).xy"), SceneTextureId);
+	return AddCodeChunkZeroDeriv(MCT_Float2, TEXT("GetSceneTextureViewSize(%d).xy"), SceneTextureId);
 }
 
 // @param bTextureLookup true: texture, false:no texture lookup, usually to get the size
@@ -6883,7 +8286,17 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName ParameterName,int3
 int32 FHLSLMaterialTranslator::VertexColor()
 {
 	bUsesVertexColor |= (ShaderFrequency != SF_Vertex);
-	return AddInlinedCodeChunk(MCT_Float4,TEXT("Parameters.VertexColor"));
+
+	FString FiniteCode = TEXT("Parameters.VertexColor");
+	if (IsAnalyticDerivEnabled())
+	{
+		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(FiniteCode, TEXT("Parameters.VertexColor_DDX"), TEXT("Parameters.VertexColor_DDY"), 3);
+		return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, MCT_Float4, false, DS_Valid);
+	}
+	else
+	{
+		return AddInlinedCodeChunk(MCT_Float4, *FiniteCode);
+	}
 }
 
 int32 FHLSLMaterialTranslator::PreSkinVertexOffset()
@@ -6966,27 +8379,45 @@ int32 FHLSLMaterialTranslator::VertexInterpolator(uint32 InterpolatorIndex)
 	const int32 Offset = Interpolator->InterpolatorOffset;
 	
 	// Note: We reference the UV define directly to avoid having to pre-accumulate UV counts before property translation
-	FString GetValueCode = FString::Printf(TEXT("%s(Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_X].%s"), TypeName, InterpolatorIndex, Swizzle[Offset%2]);
+	FString ValueCode	= FString::Printf(TEXT("%s(Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_X].%s"),		TypeName, InterpolatorIndex, Swizzle[Offset%2]);
+	FString DDXCode		= FString::Printf(TEXT("%s(Parameters.TexCoords_DDX[VERTEX_INTERPOLATOR_%i_TEXCOORDS_X].%s"),	TypeName, InterpolatorIndex, Swizzle[Offset%2]);
+	FString DDYCode		= FString::Printf(TEXT("%s(Parameters.TexCoords_DDY[VERTEX_INTERPOLATOR_%i_TEXCOORDS_X].%s"),	TypeName, InterpolatorIndex, Swizzle[Offset%2]);
 	if (InterpolatorSize >= 2)
 	{
-		GetValueCode += FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Y].%s"), InterpolatorIndex, Swizzle[(Offset+1)%2]);
+		ValueCode	+= FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Y].%s"),		InterpolatorIndex, Swizzle[(Offset+1)%2]);
+		DDXCode		+= FString::Printf(TEXT(", Parameters.TexCoords_DDX[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Y].%s"),	InterpolatorIndex, Swizzle[(Offset+1)%2]);
+		DDYCode		+= FString::Printf(TEXT(", Parameters.TexCoords_DDY[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Y].%s"),	InterpolatorIndex, Swizzle[(Offset+1)%2]);
 
 		if (InterpolatorSize >= 3)
 		{
-			GetValueCode += FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Z].%s"), InterpolatorIndex, Swizzle[(Offset+2)%2]);
+			ValueCode	+= FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Z].%s"),		InterpolatorIndex, Swizzle[(Offset+2)%2]);
+			DDXCode		+= FString::Printf(TEXT(", Parameters.TexCoords_DDX[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Z].%s"),	InterpolatorIndex, Swizzle[(Offset+2)%2]);
+			DDYCode		+= FString::Printf(TEXT(", Parameters.TexCoords_DDY[VERTEX_INTERPOLATOR_%i_TEXCOORDS_Z].%s"),	InterpolatorIndex, Swizzle[(Offset+2)%2]);
 
 			if (InterpolatorSize >= 4)
 			{
 				check(InterpolatorSize == 4);
-				GetValueCode += FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_W].%s"), InterpolatorIndex, Swizzle[(Offset+3)%2]);
+				ValueCode	+= FString::Printf(TEXT(", Parameters.TexCoords[VERTEX_INTERPOLATOR_%i_TEXCOORDS_W].%s"),		InterpolatorIndex, Swizzle[(Offset+3)%2]);
+				DDXCode		+= FString::Printf(TEXT(", Parameters.TexCoords_DDX[VERTEX_INTERPOLATOR_%i_TEXCOORDS_W].%s"),	InterpolatorIndex, Swizzle[(Offset+3)%2]);
+				DDYCode		+= FString::Printf(TEXT(", Parameters.TexCoords_DDY[VERTEX_INTERPOLATOR_%i_TEXCOORDS_W].%s"),	InterpolatorIndex, Swizzle[(Offset+3)%2]);
 			}
 		}
 	}
 
-	GetValueCode.Append(TEXT(")"));
+	ValueCode.Append(TEXT(")"));
+	DDXCode.Append(TEXT(")"));
+	DDYCode.Append(TEXT(")"));
 
-	int32 RetCode = AddCodeChunk(Interpolator->InterpolatedType, *GetValueCode);
-	return RetCode;
+	if (IsAnalyticDerivEnabled())
+	{
+		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(*ValueCode, *DDXCode, *DDYCode, GetDerivTypeIndex(Interpolator->InterpolatedType));
+		return AddCodeChunkInnerDeriv(*ValueCode, *AnalyticCode, Interpolator->InterpolatedType, false, DS_Valid);
+	}
+	else
+	{
+		return AddCodeChunk(Interpolator->InterpolatedType, *ValueCode);
+	}
+	
 }
 
 int32 FHLSLMaterialTranslator::Add(int32 A,int32 B)
@@ -7126,13 +8557,20 @@ int32 FHLSLMaterialTranslator::Dot(int32 A,int32 B)
 	else
 	{
 		// Promote scalar (or truncate the bigger type)
-		if (TypeA == MCT_Float || (TypeB != MCT_Float && GetNumComponents(TypeA) > GetNumComponents(TypeB)))
+		if (IsAnalyticDerivEnabled())
 		{
-			return AddCodeChunk(MCT_Float,TEXT("dot(%s, %s)"), *CoerceParameter(A, TypeB), *GetParameterCode(B));
+			return DerivativeAutogen.GenerateExpressionFunc2(*this, FMaterialDerivativeAutogen::EF2_Dot, A, B);
 		}
 		else
 		{
-			return AddCodeChunk(MCT_Float,TEXT("dot(%s, %s)"), *GetParameterCode(A), *CoerceParameter(B, TypeA));
+			if (TypeA == MCT_Float || (TypeB != MCT_Float && GetNumComponents(TypeA) > GetNumComponents(TypeB)))
+			{
+				return AddCodeChunk(MCT_Float,TEXT("dot(%s, %s)"), *CoerceParameter(A, TypeB), *GetParameterCode(B));
+			}
+			else
+			{
+				return AddCodeChunk(MCT_Float,TEXT("dot(%s, %s)"), *GetParameterCode(A), *CoerceParameter(B, TypeA));
+			}
 		}
 	}
 }
@@ -7155,7 +8593,10 @@ int32 FHLSLMaterialTranslator::Cross(int32 A,int32 B)
 	}
 	else
 	{
-		return AddCodeChunk(MCT_Float3,TEXT("cross(%s,%s)"),*CoerceParameter(A,MCT_Float3),*CoerceParameter(B,MCT_Float3));
+		if(IsAnalyticDerivEnabled())
+			return DerivativeAutogen.GenerateExpressionFunc2(*this, FMaterialDerivativeAutogen::EF2_Cross, A, B);
+		else
+			return AddCodeChunk(MCT_Float3,TEXT("cross(%s,%s)"),*CoerceParameter(A,MCT_Float3),*CoerceParameter(B,MCT_Float3));
 	}
 }
 
@@ -7166,8 +8607,15 @@ int32 FHLSLMaterialTranslator::Power(int32 Base,int32 Exponent)
 		return INDEX_NONE;
 	}
 
-	// Clamp Pow input to >= 0 to help avoid common NaN cases
-	return AddCodeChunk(GetParameterType(Base),TEXT("PositiveClampedPow(%s,%s)"),*GetParameterCode(Base),*CoerceParameter(Exponent,MCT_Float));
+	if (IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateExpressionFunc2(*this,FMaterialDerivativeAutogen::EF2_PowPositiveClamped,Base,Exponent);
+	}
+	else
+	{
+		// Clamp Pow input to >= 0 to help avoid common NaN cases
+		return AddCodeChunk(GetParameterType(Base),TEXT("PositiveClampedPow(%s,%s)"),*GetParameterCode(Base),*CoerceParameter(Exponent,MCT_Float));
+	}
 }
 	
 int32 FHLSLMaterialTranslator::Logarithm2(int32 X)
@@ -7181,8 +8629,14 @@ int32 FHLSLMaterialTranslator::Logarithm2(int32 X)
 	{
 		return AddUniformExpression(new FMaterialUniformExpressionLogarithm2(GetParameterUniformExpression(X)),GetParameterType(X),TEXT("log2(%s)"),*GetParameterCode(X));
 	}
-
-	return AddCodeChunk(GetParameterType(X),TEXT("log2(%s)"),*GetParameterCode(X));
+	else if (IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_Log2, X);
+	}
+	else
+	{
+		return AddCodeChunk(GetParameterType(X), TEXT("log2(%s)"), *GetParameterCode(X));
+	}
 }
 
 int32 FHLSLMaterialTranslator::Logarithm10(int32 X)
@@ -7196,8 +8650,14 @@ int32 FHLSLMaterialTranslator::Logarithm10(int32 X)
 	{
 		return AddUniformExpression(new FMaterialUniformExpressionLogarithm10(GetParameterUniformExpression(X)),GetParameterType(X),TEXT("log10(%s)"),*GetParameterCode(X));
 	}
-
-	return AddCodeChunk(GetParameterType(X),TEXT("log10(%s)"),*GetParameterCode(X));
+	else if (IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateExpressionFunc1(*this, FMaterialDerivativeAutogen::EF1_Log10, X);
+	}
+	else
+	{
+		return AddCodeChunk(GetParameterType(X), TEXT("log10(%s)"), *GetParameterCode(X));
+	}
 }
 
 int32 FHLSLMaterialTranslator::SquareRoot(int32 X)
@@ -7213,7 +8673,14 @@ int32 FHLSLMaterialTranslator::SquareRoot(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("sqrt(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this,FMaterialDerivativeAutogen::EF1_Sqrt,X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X),TEXT("sqrt(%s)"),*GetParameterCode(X));
+		}
 	}
 }
 
@@ -7230,7 +8697,14 @@ int32 FHLSLMaterialTranslator::Length(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(MCT_Float,TEXT("length(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this,FMaterialDerivativeAutogen::EF1_Length,X);
+		}
+		else
+		{
+			return AddCodeChunk(MCT_Float,TEXT("length(%s)"),*GetParameterCode(X));
+		}
 	}
 }
 
@@ -7304,8 +8778,7 @@ int32 FHLSLMaterialTranslator::Step(int32 Y, int32 X)
 		}
 	}
 
-	return AddCodeChunk(ResultType, TEXT("step(%s,%s)"), *CoerceParameter(Y, ResultType), *CoerceParameter(X, ResultType));
-	// return;
+	return AddCodeChunkZeroDeriv(ResultType, TEXT("step(%s,%s)"), *CoerceParameter(Y, ResultType), *CoerceParameter(X, ResultType));
 }
 
 int32 FHLSLMaterialTranslator::SmoothStep(int32 X, int32 Y, int32 A)
@@ -7611,8 +9084,15 @@ int32 FHLSLMaterialTranslator::Lerp(int32 X,int32 Y,int32 A)
 			return Y;
 		}
 	}
-
-	return AddCodeChunk(ResultType,TEXT("lerp(%s,%s,%s)"),*CoerceParameter(X,ResultType),*CoerceParameter(Y,ResultType),*CoerceParameter(A,AlphaType));
+	
+	if (IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateLerpFunc(*this, X, Y, A);
+	}
+	else
+	{
+		return AddCodeChunk(ResultType,TEXT("lerp(%s, %s, %s)"),*CoerceParameter(X,ResultType),*CoerceParameter(Y,ResultType),*CoerceParameter(A,AlphaType));
+	}
 }
 
 int32 FHLSLMaterialTranslator::Min(int32 A,int32 B)
@@ -7628,7 +9108,14 @@ int32 FHLSLMaterialTranslator::Min(int32 A,int32 B)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(A),TEXT("min(%s,%s)"),*GetParameterCode(A),*CoerceParameter(B,GetParameterType(A)));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc2(*this,FMaterialDerivativeAutogen::EF2_Min,A,B);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(A),TEXT("min(%s,%s)"),*GetParameterCode(A),*CoerceParameter(B,GetParameterType(A)));
+		}
 	}
 }
 
@@ -7645,7 +9132,14 @@ int32 FHLSLMaterialTranslator::Max(int32 A,int32 B)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(A),TEXT("max(%s,%s)"),*GetParameterCode(A),*CoerceParameter(B,GetParameterType(A)));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc2(*this,FMaterialDerivativeAutogen::EF2_Max,A,B);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(A),TEXT("max(%s,%s)"),*GetParameterCode(A),*CoerceParameter(B,GetParameterType(A)));
+		}
 	}
 }
 
@@ -7662,7 +9156,16 @@ int32 FHLSLMaterialTranslator::Clamp(int32 X,int32 A,int32 B)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("min(max(%s,%s),%s)"),*GetParameterCode(X),*CoerceParameter(A,GetParameterType(X)),*CoerceParameter(B,GetParameterType(X)));
+		if (IsAnalyticDerivEnabled())
+		{
+			int32 MaxAX = DerivativeAutogen.GenerateExpressionFunc2(*this,FMaterialDerivativeAutogen::EF2_Max,A,X);
+			int32 Result = DerivativeAutogen.GenerateExpressionFunc2(*this,FMaterialDerivativeAutogen::EF2_Min,MaxAX,B);
+			return Result;
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X),TEXT("min(max(%s,%s),%s)"),*GetParameterCode(X),*CoerceParameter(A,GetParameterType(X)),*CoerceParameter(B,GetParameterType(X)));
+		}
 	}
 }
 
@@ -7679,7 +9182,14 @@ int32 FHLSLMaterialTranslator::Saturate(int32 X)
 	}
 	else
 	{
-		return AddCodeChunk(GetParameterType(X),TEXT("saturate(%s)"),*GetParameterCode(X));
+		if (IsAnalyticDerivEnabled())
+		{
+			return DerivativeAutogen.GenerateExpressionFunc1(*this,FMaterialDerivativeAutogen::EF1_Saturate,X);
+		}
+		else
+		{
+			return AddCodeChunk(GetParameterType(X),TEXT("saturate(%s)"),*GetParameterCode(X));
+		}
 	}
 }
 
@@ -7736,12 +9246,33 @@ int32 FHLSLMaterialTranslator::ComponentMask(int32 Vector,bool R,bool G,bool B,b
 			);
 	}
 
-	return AddInlinedCodeChunk(
-		ResultType,
-		TEXT("%s.%s"),
-		*GetParameterCode(Vector),
-		*MaskString
-		);
+	const EDerivativeStatus VectorDerivStatus = GetDerivativeStatus(Vector);
+	FString CodeFinite = FString::Printf(TEXT("%s.%s"), *GetParameterCode(Vector), *MaskString);
+
+	if (IsAnalyticDerivEnabled() && IsDerivativeValid(VectorDerivStatus))
+	{
+		const FString VectorDeriv = GetParameterCodeDeriv(Vector, CompiledPDV_Analytic);
+
+		FString CodeAnalytic;
+		if (VectorDerivStatus == DS_Valid)
+		{
+			CodeAnalytic = DerivativeAutogen.ConstructDeriv(
+				FString::Printf(TEXT("%s.Value.%s"), *VectorDeriv, *MaskString),
+				FString::Printf(TEXT("%s.Ddx.%s"), *VectorDeriv, *MaskString),
+				FString::Printf(TEXT("%s.Ddy.%s"), *VectorDeriv, *MaskString),
+				GetDerivTypeIndex(ResultType)
+			);
+			return AddCodeChunkInnerDeriv(*CodeFinite, *CodeAnalytic, ResultType, false, DS_Valid);
+		}
+		else
+		{
+			return AddInlinedCodeChunkZeroDeriv(ResultType, TEXT("%s.%s"), *GetParameterCode(Vector), *MaskString);
+		}
+	}
+	else
+	{
+		return AddInlinedCodeChunk(ResultType, *CodeFinite);
+	}
 }
 
 int32 FHLSLMaterialTranslator::AppendVector(int32 A,int32 B)
@@ -7751,7 +9282,9 @@ int32 FHLSLMaterialTranslator::AppendVector(int32 A,int32 B)
 		return INDEX_NONE;
 	}
 
-	int32 NumResultComponents = GetNumComponents(GetParameterType(A)) + GetNumComponents(GetParameterType(B));
+	const int32 NumComponentsA = GetNumComponents(GetParameterType(A));
+	const int32 NumComponentsB = GetNumComponents(GetParameterType(B));
+	const int32 NumResultComponents = NumComponentsA + NumComponentsB;
 	EMaterialValueType	ResultType = GetVectorType(NumResultComponents);
 
 	if(GetParameterUniformExpression(A) && GetParameterUniformExpression(B))
@@ -7760,7 +9293,47 @@ int32 FHLSLMaterialTranslator::AppendVector(int32 A,int32 B)
 	}
 	else
 	{
-		return AddInlinedCodeChunk(ResultType,TEXT("MaterialFloat%u(%s,%s)"),NumResultComponents,*GetParameterCode(A),*GetParameterCode(B));
+		FString FiniteCode = FString::Printf(TEXT("MaterialFloat%u(%s,%s)"), NumResultComponents, *GetParameterCode(A), *GetParameterCode(B));
+		
+		const EDerivativeStatus ADerivativeStatus = GetDerivativeStatus(A);
+		const EDerivativeStatus BDerivativeStatus = GetDerivativeStatus(B);
+		if (IsAnalyticDerivEnabled() && IsDerivativeValid(ADerivativeStatus) && IsDerivativeValid(BDerivativeStatus))
+		{
+			if (ADerivativeStatus == DS_Zero && BDerivativeStatus == DS_Zero)
+			{
+				return AddInlinedCodeChunkZeroDeriv(ResultType, TEXT("MaterialFloat%u(%s,%s)"), NumResultComponents, *GetParameterCode(A), *GetParameterCode(B));
+			}
+			else
+			{
+				FString A_DDX = GetFloatZeroVector(NumComponentsA);
+				FString A_DDY = GetFloatZeroVector(NumComponentsA);
+				FString B_DDX = GetFloatZeroVector(NumComponentsB);
+				FString B_DDY = GetFloatZeroVector(NumComponentsB);
+
+				if (ADerivativeStatus == DS_Valid)
+				{
+					FString Deriv = *GetParameterCodeDeriv(A, CompiledPDV_Analytic);
+					A_DDX = Deriv + TEXT(".Ddx");
+					A_DDY = Deriv + TEXT(".Ddy");
+				}
+
+				if (BDerivativeStatus == DS_Valid)
+				{
+					FString Deriv = *GetParameterCodeDeriv(B, CompiledPDV_Analytic);
+					B_DDX = Deriv + TEXT(".Ddx");
+					B_DDY = Deriv + TEXT(".Ddy");
+				}
+
+				FString DDXCode = FString::Printf(TEXT("MaterialFloat%u(%s, %s)"), NumResultComponents, *A_DDX, *B_DDX);
+				FString DDYCode = FString::Printf(TEXT("MaterialFloat%u(%s, %s)"), NumResultComponents, *A_DDY, *B_DDY);
+				FString AnalyticCode = DerivativeAutogen.ConstructDeriv(FiniteCode, *DDXCode, *DDYCode, GetDerivTypeIndex(ResultType));
+				return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, ResultType, false, DS_Valid);
+			}
+		}
+		else
+		{
+			return AddInlinedCodeChunk(ResultType, TEXT("MaterialFloat%u(%s,%s)"), NumResultComponents, *GetParameterCode(A), *GetParameterCode(B));
+		}
 	}
 }
 
@@ -8024,7 +9597,7 @@ int32 FHLSLMaterialTranslator::DynamicParameter(FLinearColor& DefaultValue, uint
 	DynamicParticleParameterMask |= (1 << ParameterIndex);
 
 	int32 Default = Constant4(DefaultValue.R, DefaultValue.G, DefaultValue.B, DefaultValue.A);
-	return AddInlinedCodeChunk(
+	return AddInlinedCodeChunkZeroDeriv(
 		MCT_Float4,
 		TEXT("GetDynamicParameter(Parameters.Particle, %s, %u)"),
 		*GetParameterCode(Default),
@@ -8046,13 +9619,19 @@ int32 FHLSLMaterialTranslator::LightmapUVs()
 
 	bUsesLightmapUVs = true;
 
-	int32 ResultIdx = INDEX_NONE;
-	FString CodeChunk = FString::Printf(TEXT("GetLightmapUVs(Parameters)"));
-	ResultIdx = AddCodeChunk(
-		MCT_Float2,
-		*CodeChunk
-		);
-	return ResultIdx;
+	const TCHAR* FiniteCode = TEXT("GetLightmapUVs(Parameters)");
+	if (IsAnalyticDerivEnabled())
+	{
+		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(
+			FiniteCode,
+			TEXT("GetLightmapUVs_DDX(Parameters)"),
+			TEXT("GetLightmapUVs_DDY(Parameters)"), 1);
+		return AddCodeChunkInnerDeriv(FiniteCode, *AnalyticCode, MCT_Float2, false, DS_Valid);
+	}
+	else
+	{
+		return AddCodeChunk(MCT_Float2, FiniteCode);
+	}
 }
 
 int32 FHLSLMaterialTranslator::PrecomputedAOMask()
@@ -8157,7 +9736,7 @@ int32 FHLSLMaterialTranslator::VirtualTextureOutputReplace(int32 Default, int32 
 
 int32 FHLSLMaterialTranslator::ObjectOrientation()
 { 
-	return AddInlinedCodeChunk(MCT_Float3,TEXT("GetObjectOrientation(Parameters.PrimitiveId)"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float3,TEXT("GetObjectOrientation(Parameters.PrimitiveId)"));
 }
 
 int32 FHLSLMaterialTranslator::RotateAboutAxis(int32 NormalizedRotationAxisAndAngleIndex, int32 PositionOnAxisIndex, int32 PositionIndex)
@@ -8186,7 +9765,7 @@ int32 FHLSLMaterialTranslator::TwoSidedSign()
 	{
 		return NonPixelShaderExpressionError();
 	}
-	return AddInlinedCodeChunk(MCT_Float,TEXT("Parameters.TwoSidedSign"));	
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("Parameters.TwoSidedSign"));
 }
 
 int32 FHLSLMaterialTranslator::VertexNormal()
@@ -8224,9 +9803,9 @@ int32 FHLSLMaterialTranslator::PixelNormalWS()
 	return AddInlinedCodeChunk(MCT_Float3,TEXT("Parameters.WorldNormal"));	
 }
 
-int32 FHLSLMaterialTranslator::DDX( int32 X )
+int32 FHLSLMaterialTranslator::DDX( int32 A )
 {
-	if (X == INDEX_NONE)
+	if (A == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
@@ -8242,12 +9821,31 @@ int32 FHLSLMaterialTranslator::DDX( int32 X )
 		return NonPixelShaderExpressionError();
 	}
 
-	return AddCodeChunk(GetParameterType(X),TEXT("DDX(%s)"),*GetParameterCode(X));
+	const FDerivInfo ADerivInfo = GetDerivInfo(A);
+	const FString FiniteCode = FString::Printf(TEXT("ddx(%s)"), *GetParameterCode(A));
+
+	if (IsAnalyticDerivEnabled() && ADerivInfo.DerivativeStatus == DS_Valid)
+	{
+		FString ADeriv = GetParameterCodeDeriv(A, CompiledPDV_Analytic);
+
+		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(
+			FString::Printf(TEXT("%s.Ddx"), *ADeriv),
+			FString::Printf(TEXT("ddx(%s.Ddx)"), *ADeriv),
+			FString::Printf(TEXT("ddx(%s.Ddy)"), *ADeriv),
+			ADerivInfo.TypeIndex
+		);
+
+		return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, ADerivInfo.Type, false, DS_Valid);
+	}
+	else
+	{
+		return AddCodeChunkInnerDeriv(*FiniteCode, ADerivInfo.Type, false, (ADerivInfo.DerivativeStatus == DS_Zero) ? DS_Zero : DS_NotValid);
+	}
 }
 
-int32 FHLSLMaterialTranslator::DDY( int32 X )
+int32 FHLSLMaterialTranslator::DDY( int32 A )
 {
-	if(X == INDEX_NONE)
+	if(A == INDEX_NONE)
 	{
 		return INDEX_NONE;
 	}
@@ -8262,7 +9860,26 @@ int32 FHLSLMaterialTranslator::DDY( int32 X )
 		return NonPixelShaderExpressionError();
 	}
 
-	return AddCodeChunk(GetParameterType(X),TEXT("DDY(%s)"),*GetParameterCode(X));
+	const FDerivInfo ADerivInfo = GetDerivInfo(A);
+	const FString FiniteCode = FString::Printf(TEXT("ddy(%s)"), *GetParameterCode(A));
+
+	if (IsAnalyticDerivEnabled() && ADerivInfo.DerivativeStatus == DS_Valid)
+	{
+		FString ADeriv = GetParameterCodeDeriv(A, CompiledPDV_Analytic);
+
+		FString AnalyticCode = DerivativeAutogen.ConstructDeriv(
+			FString::Printf(TEXT("%s.Ddy"), *ADeriv),
+			FString::Printf(TEXT("ddy(%s.Ddx)"), *ADeriv),
+			FString::Printf(TEXT("ddy(%s.Ddy)"), *ADeriv),
+			GetDerivTypeIndex(ADerivInfo.Type)
+			);
+
+		return AddCodeChunkInnerDeriv(*FiniteCode, *AnalyticCode, ADerivInfo.Type, false, DS_Valid);
+	}
+	else
+	{
+		return AddCodeChunkInnerDeriv(*FiniteCode, ADerivInfo.Type, false, (ADerivInfo.DerivativeStatus == DS_Zero) ? DS_Zero : DS_NotValid);
+	}
 }
 
 int32 FHLSLMaterialTranslator::AntialiasedTextureMask(int32 Tex, int32 UV, float Threshold, uint8 Channel)
@@ -9203,8 +10820,8 @@ int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)
 		return INDEX_NONE;
 	}
 
-	int32 UVPair0 = AddInlinedCodeChunk(MCT_Float4, TEXT("ResolvedView.XRPassthroughCameraUVs[0]"));
-	int32 UVPair1 = AddInlinedCodeChunk(MCT_Float4, TEXT("ResolvedView.XRPassthroughCameraUVs[1]"));
+	int32 UVPair0 = AddInlinedCodeChunkZeroDeriv(MCT_Float4, TEXT("ResolvedView.XRPassthroughCameraUVs[0]"));
+	int32 UVPair1 = AddInlinedCodeChunkZeroDeriv(MCT_Float4, TEXT("ResolvedView.XRPassthroughCameraUVs[1]"));
 
 	int32 ULerp = Lerp(UVPair0, UVPair1, ComponentMask(UV, 1, 0, 0, 0));
 	return Lerp(ComponentMask(ULerp, 1, 1, 0, 0), ComponentMask(ULerp, 0, 0, 1, 1), ComponentMask(UV, 0, 1, 0, 0));
@@ -9631,7 +11248,7 @@ int32 FHLSLMaterialTranslator::PerInstanceRandom()
 	}
 	else
 	{
-		return AddInlinedCodeChunk(MCT_Float, TEXT("GetPerInstanceRandom(Parameters)"));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceRandom(Parameters)"));
 	}
 }
 
@@ -9648,7 +11265,7 @@ int32 FHLSLMaterialTranslator::PerInstanceFadeAmount()
 	}
 	else
 	{
-		return AddInlinedCodeChunk(MCT_Float, TEXT("GetPerInstanceFadeAmount(Parameters)"));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceFadeAmount(Parameters)"));
 	}
 }
 
@@ -9667,7 +11284,7 @@ int32 FHLSLMaterialTranslator::PerInstanceCustomData(int32 DataIndex, int32 Defa
 	else
 	{
 		bUsesPerInstanceCustomData = true;
-		return AddInlinedCodeChunk(MCT_Float, TEXT("GetPerInstanceCustomData(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("GetPerInstanceCustomData(Parameters, %d, %s)"), DataIndex, *GetParameterCode(DefaultValueIndex));
 	}
 }
 
@@ -9678,11 +11295,18 @@ int32 FHLSLMaterialTranslator::PerInstanceCustomData(int32 DataIndex, int32 Defa
 	*/
 int32 FHLSLMaterialTranslator::RotateScaleOffsetTexCoords(int32 TexCoordCodeIndex, int32 RotationScale, int32 Offset)
 {
-	return AddCodeChunk(MCT_Float2,
-		TEXT("RotateScaleOffsetTexCoords(%s, %s, %s.xy)"),
-		*GetParameterCode(TexCoordCodeIndex),
-		*GetParameterCode(RotationScale),
-		*GetParameterCode(Offset));
+	if (IsAnalyticDerivEnabled())
+	{
+		return DerivativeAutogen.GenerateRotateScaleOffsetTexCoordsFunc(*this, TexCoordCodeIndex, RotationScale, Offset);
+	}
+	else
+	{
+		return AddCodeChunk(MCT_Float2,
+			TEXT("RotateScaleOffsetTexCoords(%s, %s, %s.xy)"),
+			*GetParameterCode(TexCoordCodeIndex),
+			*GetParameterCode(RotationScale),
+			*GetParameterCode(Offset));
+	}
 }
 
 /**
@@ -9722,7 +11346,7 @@ int32 FHLSLMaterialTranslator::TextureCoordinateOffset()
 {
 	if (FeatureLevel < ERHIFeatureLevel::SM5 && ShaderFrequency == SF_Vertex)
 	{
-		return AddInlinedCodeChunk(MCT_Float2, TEXT("Parameters.TexCoordOffset"));
+		return AddInlinedCodeChunkZeroDeriv(MCT_Float2, TEXT("Parameters.TexCoordOffset"));
 	}
 	else
 	{
@@ -9740,7 +11364,7 @@ int32 FHLSLMaterialTranslator::EyeAdaptation()
 
 	MaterialCompilationOutput.bUsesEyeAdaptation = true;
 
-	return AddInlinedCodeChunk(MCT_Float, TEXT("EyeAdaptationLookup()"));
+	return AddInlinedCodeChunkZeroDeriv(MCT_Float, TEXT("EyeAdaptationLookup()"));
 }
 
 /**Experimental access to the EyeAdaptation RT for applying an inverse. */
@@ -9787,7 +11411,7 @@ int32 FHLSLMaterialTranslator::GetPrimitiveProperty(EMaterialValueType Type, con
 		return INDEX_NONE;
 	}
 
-	return AddInlinedCodeChunk(Type, TEXT("GetPrimitiveData(Parameters.PrimitiveId).%s"), HLSLName);
+	return AddInlinedCodeChunkZeroDeriv(Type, TEXT("GetPrimitiveData(Parameters.PrimitiveId).%s"), HLSLName);
 }
 
 // The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values

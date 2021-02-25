@@ -95,7 +95,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		const float2 PixelClip = (SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw * float2(2, -2) + float2(-1, 1);
 
 		// Calculate perspective correct barycentric coordinates with screen derivatives
-		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2);
+		const FBarycentrics Barycentrics = CalculateTriangleBarycentrics(PixelClip, PointClip0, PointClip1, PointClip2, View.ViewSizeAndInvSize.zw);
 
 	#if NEEDS_LIGHTMAP_COORDINATE
 		// Materials without any texture coordinates referenced will
@@ -122,9 +122,13 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 
 	#if INTERPOLATE_VERTEX_COLOR
 		Result.VertexColor = AttributeData.VertexColor;
+		Result.VertexColor_DDX = AttributeData.VertexColor_DDX;
+		Result.VertexColor_DDY = AttributeData.VertexColor_DDY;
 	#else
 		// Coerce compiler into DCE as much code as possible.
 		Result.VertexColor = float4(1, 1, 1, 1);
+		Result.VertexColor_DDX = 0.0f;
+		Result.VertexColor_DDY = 0.0f;
 	#endif
 
 		Result.TangentToWorld = AttributeData.TangentToWorld;
@@ -136,6 +140,8 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		{
 			// Protect against case where Nanite max UV count is lower than what the material may define.
 			Result.TexCoords[TexCoordIndex] = (TexCoordIndex < MAX_NANITE_UVS) ? AttributeData.TexCoords[TexCoordIndex] : float2(0.0f, 0.0f);
+			Result.TexCoords_DDX[TexCoordIndex] = (TexCoordIndex < MAX_NANITE_UVS) ? AttributeData.TexCoords_DDX[TexCoordIndex] : float2(0.0f, 0.0f);
+			Result.TexCoords_DDY[TexCoordIndex] = (TexCoordIndex < MAX_NANITE_UVS) ? AttributeData.TexCoords_DDY[TexCoordIndex] : float2(0.0f, 0.0f);
 		}
 	#endif
 
@@ -144,9 +150,38 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		Result.PrevScreenPosition = mul( float4(PointLocal, 1), InstanceDynamicData.PrevLocalToClip );
 		//Result.PrevScreenPosition = float4( Result.PrevScreenPosition.xyz / Result.PrevScreenPosition.w, 1 );
 
+		const float3 PointWorld0 = mul(float4(PointLocal0, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+		const float3 PointWorld1 = mul(float4(PointLocal1, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+		const float3 PointWorld2 = mul(float4(PointLocal2, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz;
+		const float3 PointWorld = Barycentrics.UVW.x * PointWorld0 + Barycentrics.UVW.y * PointWorld1 + Barycentrics.UVW.z * PointWorld2;
+		
+		Result.WorldPosition_CamRelative = PointWorld;
+		Result.WorldPosition_DDX = Barycentrics.UVW_dx.x * PointWorld0 + Barycentrics.UVW_dx.y * PointWorld1 + Barycentrics.UVW_dx.z * PointWorld2;
+		Result.WorldPosition_DDY = Barycentrics.UVW_dy.x * PointWorld0 + Barycentrics.UVW_dy.y * PointWorld1 + Barycentrics.UVW_dy.z * PointWorld2;
+
 		// Update to real depth from VisBuffer
 		SvPosition.z = asfloat(DepthInt);
 
+		// Update screen W and all screen derivatives. This is rarely used and will be dead code eliminated most of the time.
+		{
+			const float2 PointClip0ZW = mul(float4(PointWorld0, 1.0f), NaniteView.TranslatedWorldToClip).zw;
+			const float2 PointClip1ZW = mul(float4(PointWorld1, 1.0f), NaniteView.TranslatedWorldToClip).zw;
+			const float2 PointClip2ZW = mul(float4(PointWorld2, 1.0f), NaniteView.TranslatedWorldToClip).zw;
+
+			const float2 PointClipZW = Barycentrics.UVW.x * PointClip0ZW + Barycentrics.UVW.y * PointClip1ZW + Barycentrics.UVW.z * PointClip2ZW;
+			SvPosition.w = PointClipZW.y;
+
+			float2 Z_DDX_DDY = float2(	Barycentrics.UVW_dx.x * PointClip0ZW.x + Barycentrics.UVW_dx.y * PointClip1ZW.x + Barycentrics.UVW_dx.z * PointClip2ZW.x,
+										Barycentrics.UVW_dy.x * PointClip0ZW.x + Barycentrics.UVW_dy.y * PointClip1ZW.x + Barycentrics.UVW_dy.z * PointClip2ZW.x);
+			float2 W_DDX_DDY = float2(	Barycentrics.UVW_dx.x * PointClip0ZW.y + Barycentrics.UVW_dx.y * PointClip1ZW.y + Barycentrics.UVW_dx.z * PointClip2ZW.y,
+										Barycentrics.UVW_dy.x * PointClip0ZW.y + Barycentrics.UVW_dy.y * PointClip1ZW.y + Barycentrics.UVW_dy.z * PointClip2ZW.y);
+
+			// PPZ = Z / W
+			// PPZ' = (Z'W - ZW')/W^2
+			float2 PPZ_DDX_DDY = (Z_DDX_DDY * PointClipZW.y - PointClipZW.x * W_DDX_DDY) / (PointClipZW.y * PointClipZW.y);
+			SvPositionToResolvedScreenPositionDeriv(SvPosition, PPZ_DDX_DDY, W_DDX_DDY, Result.ScreenPosition, Result.ScreenPosition_DDX, Result.ScreenPosition_DDY);
+		}
+		
 	#if USE_PARTICLE_SUBUVS && NUM_TEX_COORD_INTERPOLATORS > 0
 		// Output TexCoord0 for when previewing materials that use ParticleSubUV.
 		Result.Particle.SubUVCoords[0] = Result.TexCoords[0];
@@ -192,15 +227,15 @@ FMaterialPixelParameters GetMaterialPixelParameters(inout FVertexFactoryInterpol
 		}
 	#endif
 
-		SetLightMapCoordinate(Interpolants, LightMapCoordinate, ShadowMapCoordinate);
-		SetLightMapDataIndex(Interpolants, LightMapDataIndex);
-	#else
-		const float2 LightMapUVs = float2(0.0f, 0.0f);
-	#endif
-
 	#if LIGHTMAP_UV_ACCESS
 		// Store unscaled/unbiased lightmap UVs
-		Result.LightmapUVs = LightMapUVs;
+		Result.LightmapUVs = AttributeData.TexCoords[LightMapUVIndex];
+		Result.LightmapUVs_DDX = AttributeData.TexCoords_DDX[LightMapUVIndex];
+		Result.LightmapUVs_DDY = AttributeData.TexCoords_DDY[LightMapUVIndex];
+	#endif
+
+		SetLightMapCoordinate(Interpolants, LightMapCoordinate, ShadowMapCoordinate);
+		SetLightMapDataIndex(Interpolants, LightMapDataIndex);
 	#endif
 
 		Result.TwoSidedSign = 1;

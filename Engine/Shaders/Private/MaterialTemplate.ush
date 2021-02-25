@@ -19,6 +19,8 @@
 #include "/Engine/Private/HairStrands/HairCardsAttributeCommon.ush"
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
 
+#define USE_ANALYTIC_DERIVATIVES	(VF_NANITE)
+
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"
 #endif
@@ -318,10 +320,26 @@ struct FMaterialPixelParameters
 	/** Offset applied to the lighting position for translucency, used to break up aliasing artifacts. */
 	half3 LightingPositionOffset;
 
+	/** Derivatives */
+	float3 WorldPosition_DDX;
+	float3 WorldPosition_DDY;
+	float4 VertexColor_DDX;
+	float4 VertexColor_DDY;
+	float4 ScreenPosition_DDX;
+	float4 ScreenPosition_DDY;
+	
+#if NUM_TEX_COORD_INTERPOLATORS
+	float2 TexCoords_DDX[NUM_TEX_COORD_INTERPOLATORS];
+	float2 TexCoords_DDY[NUM_TEX_COORD_INTERPOLATORS];
+#endif
+
+
 	float AOMaterialMask;
 
 #if LIGHTMAP_UV_ACCESS
 	float2	LightmapUVs;
+	float2	LightmapUVs_DDX;
+	float2	LightmapUVs_DDY;
 #endif
 
 #if USE_INSTANCING || USE_INSTANCE_CULLING || VF_NANITE
@@ -1810,6 +1828,24 @@ MaterialFloat2 GetLightmapUVs(FMaterialPixelParameters Parameters)
 #endif
 }
 
+MaterialFloat2 GetLightmapUVs_DDX(FMaterialPixelParameters Parameters)
+{
+#if LIGHTMAP_UV_ACCESS
+	return Parameters.LightmapUVs_DDX;
+#else
+	return MaterialFloat2(0, 0);
+#endif
+}
+
+MaterialFloat2 GetLightmapUVs_DDY(FMaterialPixelParameters Parameters)
+{
+#if LIGHTMAP_UV_ACCESS
+	return Parameters.LightmapUVs_DDY;
+#else
+	return MaterialFloat2(0, 0);
+#endif
+}
+
 //The post-process material needs to decode the scene color since it's encoded at PreTonemapMSAA if MSAA enabled on MetalMobilePlatorm 
 //The POST_PROCESS_MATERIAL_BEFORE_TONEMAP is 1 for both BL_BeforeTranslucency and BL_BeforeTonemapping post-process materials
 #if FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1 && POST_PROCESS_MATERIAL && POST_PROCESS_MATERIAL_BEFORE_TONEMAP && METAL_PROFILE
@@ -2009,7 +2045,7 @@ float3 DecodeSceneColorForMaterialNode(float2 ScreenUV)
 #endif // SHADING_PATH_DEFERRED
 
 
-// DERIV_BASE_VALUE is a disgusting macro to manage backwards compatibility while changing the generated materials. The existing nodes are not "aware"
+// DERIV_BASE_VALUE() is a disgusting macro to manage backwards compatibility while changing the generated materials. The existing nodes are not "aware"
 // of partial derivatives, and will use sprintf() to put the same line in both CalcPixelMaterialInputs() and CalcPixelMaterialInputsAnalyticDerivatives().
 // If we have a line like this in CalcPixelMaterialInputs():
 //     float Local0 = ...;
@@ -2025,10 +2061,77 @@ float3 DecodeSceneColorForMaterialNode(float2 ScreenUV)
 // DERIV_BASE_VALUE, and in one version #define it to ".Value" and in the other to "". That way, we can emit the same code to both functions. Ideally, once every
 // single node is at least aware of derivatives (and can output two different versions) then we can remove this #define and #undef for DERIV_BASE_VALUE
 
-#define DERIV_BASE_VALUE 
+#define DERIV_BASE_VALUE(_X) _X
 
 // Uniform material expressions.
 %s
+
+#if USE_ANALYTIC_DERIVATIVES && TEXTURE_SAMPLE_DEBUG
+MaterialFloat4 DebugTextureCommon(const int Mode, float2 UV, MaterialFloat2 DDX, MaterialFloat2 DDY, MaterialFloat Scale)
+{
+	const float DerivScale = View.GeneralPurposeTweak2 * 100.0f;
+	if (Mode == 2)
+	{
+		return MaterialFloat4(UV, 0.0f, 0.0f);
+	}
+	else if (Mode == 3)
+	{
+		return MaterialFloat4(DDX * DerivScale + 0.5f, 0.0f, 0.0f);
+	}
+	else if (Mode == 4)
+	{
+		const float2 FiniteDDX = ddx(UV) * Scale;
+		return MaterialFloat4(FiniteDDX * DerivScale + 0.5f, 0.0f, 0.0f);
+	}
+	else if (Mode == 5)
+	{
+		return MaterialFloat4(DDY * DerivScale + 0.5f, 0.0f, 0.0f);
+	}
+	else if(Mode == 6)
+	{
+		const float2 FiniteDDY = ddy(UV) * Scale;
+		return MaterialFloat4(FiniteDDY * DerivScale + 0.5f, 0.0f, 0.0f);
+	}
+	else
+	{
+		return MaterialFloat4(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+}
+
+MaterialFloat4 DebugTexture2DSampleGrad(Texture2D Tex, SamplerState Sampler, float2 UV, MaterialFloat2 DDX, MaterialFloat2 DDY, MaterialFloat Scale)
+{
+	const int Mode = round(View.GeneralPurposeTweak);
+	if (Mode > 1)
+		return DebugTextureCommon(Mode, UV, DDX, DDY, Scale);
+	else
+		return Tex.SampleGrad(Sampler, UV, DDX, DDY);
+}
+
+#if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
+MaterialFloat4 DebugTextureVirtualSample(
+	Texture2D Physical, SamplerState PhysicalSampler,
+	VTPageTableResult PageTableResult, uint LayerIndex,
+	VTUniform Uniform, MaterialFloat Scale)
+{
+	const int Mode = round(View.GeneralPurposeTweak);
+	if(Mode > 1)
+		return DebugTextureCommon(Mode, PageTableResult.UV, PageTableResult.dUVdx, PageTableResult.dUVdy, Scale);
+	else
+		return TextureVirtualSample(Physical, PhysicalSampler, PageTableResult, LayerIndex, Uniform);
+}
+MaterialFloat4 DebugTextureVirtualSampleLevel(
+	Texture2D Physical, SamplerState PhysicalSampler,
+	VTPageTableResult PageTableResult, uint LayerIndex,
+	VTUniform Uniform, MaterialFloat Scale)
+{
+	const int Mode = round(View.GeneralPurposeTweak);
+	if (Mode > 1)
+		return MaterialFloat4(0.0f, 0.0f, 0.0f, 0.0f);
+	else
+		return TextureVirtualSampleLevel(Physical, PhysicalSampler, PageTableResult, LayerIndex, Uniform);
+}
+#endif
+#endif
 
 // can return in tangent space or world space (use MATERIAL_TANGENTSPACENORMAL)
 half3 GetMaterialNormalRaw(FPixelMaterialInputs PixelMaterialInputs)
@@ -2464,10 +2567,15 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 	Parameters.WorldTangent = 0;
 #endif
 }
-
 #undef DERIV_BASE_VALUE
-#define DERIV_BASE_VALUE .Value
 
+#if USE_ANALYTIC_DERIVATIVES
+#define SwizzleDeriv1(_V, _MASK) ConstructFloatDeriv( _V.Value._MASK, _V.Ddx._MASK, _V.Ddy._MASK)
+#define SwizzleDeriv2(_V, _MASK) ConstructFloatDeriv2(_V.Value._MASK, _V.Ddx._MASK, _V.Ddy._MASK)
+#define SwizzleDeriv3(_V, _MASK) ConstructFloatDeriv3(_V.Value._MASK, _V.Ddx._MASK, _V.Ddy._MASK)
+#define SwizzleDeriv4(_V, _MASK) ConstructFloatDeriv4(_V.Value._MASK, _V.Ddx._MASK, _V.Ddy._MASK)
+
+#define DERIV_BASE_VALUE(_X) _X.Value
 void CalcPixelMaterialInputsAnalyticDerivatives(in out FMaterialPixelParameters Parameters, in out FPixelMaterialInputs PixelMaterialInputs)
 {
 	// Initial calculations (required for Normal)
@@ -2522,8 +2630,8 @@ void CalcPixelMaterialInputsAnalyticDerivatives(in out FMaterialPixelParameters 
 	Parameters.WorldTangent = 0;
 #endif
 }
-
 #undef DERIV_BASE_VALUE
+#endif
 
 // Programmatically set the line number after all the material inputs which have a variable number of line endings
 // This allows shader error line numbers after this point to be the same regardless of which material is being compiled
@@ -2745,13 +2853,14 @@ void CalcMaterialParametersEx(
 	InitializeVirtualTextureFeedback(Parameters.VirtualTextureFeedback, (uint2)SvPosition.xy, View.FrameNumber);
 #endif
 
-	// Now that we have all the pixel-related parameters setup, calculate the Material Input/Attributes and Normal
-	// need to change this #if 1 to be some kind of nanite-related flag.
-#if 1
-	CalcPixelMaterialInputs(Parameters, PixelMaterialInputs);
-#else
-	CalcPixelMaterialInputsAnalyticDerivatives(Parameters, PixelMaterialInputs);
+#if USE_ANALYTIC_DERIVATIVES
+	if(!TEXTURE_SAMPLE_DEBUG || View.GeneralPurposeTweak >= 1.0f)
+		CalcPixelMaterialInputsAnalyticDerivatives(Parameters, PixelMaterialInputs);
+	else
 #endif
+	{
+		CalcPixelMaterialInputs(Parameters, PixelMaterialInputs);
+	}
 }
 
 // convenience function to setup CalcMaterialParameters assuming we don't support TranslatedWorldPositionExcludingShaderOffsets

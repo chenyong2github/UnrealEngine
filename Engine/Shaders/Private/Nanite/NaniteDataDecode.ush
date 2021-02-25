@@ -219,6 +219,7 @@ struct FHierarchyNodeSlice
 
 struct FInstanceDynamicData
 {
+	float4x4	LocalToTranslatedWorld;
 	float4x4	LocalToClip;
 	float4x4	ClipToLocal;
 	float4x4 	PrevLocalToClip;
@@ -391,6 +392,7 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 	PrevLocalToTranslatedWorld[3].xyz += NaniteView.PrevPreViewTranslation.xyz;
 
 	FInstanceDynamicData DynamicData;
+	DynamicData.LocalToTranslatedWorld = LocalToTranslatedWorld;
 	DynamicData.LocalToClip = mul( LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip );
 	DynamicData.ClipToLocal = mul( NaniteView.ClipToWorld, WorldToLocal );
 

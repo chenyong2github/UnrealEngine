@@ -18,11 +18,15 @@ struct FNaniteAttributeData
 {
 	/** Interpolated vertex color, in linear color space. */
 	half4 VertexColor;
+	half4 VertexColor_DDX;
+	half4 VertexColor_DDY;
 
 	/** Orthonormal rotation-only transform from tangent space to world space. */
 	half3x3 TangentToWorld;
 
 	float2 TexCoords[16];
+	float2 TexCoords_DDX[16];
+	float2 TexCoords_DDY[16];
 
 	half UnMirrored;
 };
@@ -75,7 +79,7 @@ struct FBarycentrics
 };
 
 /** Calculates perspective correct barycentric coordinates and partial derivatives using screen derivatives. */
-FBarycentrics CalculateTriangleBarycentrics(float2 PixelClip, float4 PointClip0, float4 PointClip1, float4 PointClip2)
+FBarycentrics CalculateTriangleBarycentrics(float2 PixelClip, float4 PointClip0, float4 PointClip1, float4 PointClip2, float2 ViewInvSize)
 {
 	FBarycentrics Result;
 
@@ -113,8 +117,8 @@ FBarycentrics CalculateTriangleBarycentrics(float2 PixelClip, float4 PointClip0,
 	float H_dx = dot(C_dx, RcpW);
 	float H_dy = dot(C_dy, RcpW);
 
-	Result.UVW_dx = (G_dx * H - G * H_dx) * (RcpH * RcpH);
-	Result.UVW_dy = (G_dy * H - G * H_dy) * (RcpH * RcpH);
+	Result.UVW_dx = (G_dx * H - G * H_dx) * (RcpH * RcpH) * ( 2.0f * ViewInvSize.x);
+	Result.UVW_dy = (G_dy * H - G * H_dy) * (RcpH * RcpH) * (-2.0f * ViewInvSize.y);
 
 	return Result;
 }
@@ -270,12 +274,16 @@ FNaniteAttributeData GetAttributeData(
 	uint4 ColorDelta2 = BitStreamReader_Read4(AttributeStream2, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
 
 	AttributeData.VertexColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+	AttributeData.VertexColor_DDX = 0.0f;
+	AttributeData.VertexColor_DDY = 0.0f;
 	if (Cluster.ColorMode != VERTEX_COLOR_MODE_WHITE)
 	{
 		float4 ColorMin = float4(UnpackByte0(Cluster.ColorMin), UnpackByte1(Cluster.ColorMin), UnpackByte2(Cluster.ColorMin), UnpackByte3(Cluster.ColorMin));
 		if (Cluster.ColorMode == VERTEX_COLOR_MODE_VARIABLE)
 		{
 			AttributeData.VertexColor = (ColorMin + Barycentrics.UVW.x * float4(ColorDelta0) + Barycentrics.UVW.y * float4(ColorDelta1) + Barycentrics.UVW.z * float4(ColorDelta2)) * (1.0f / 255.0f);
+			AttributeData.VertexColor_DDX = (Barycentrics.UVW_dx.x * float4(ColorDelta0) + Barycentrics.UVW_dx.y * float4(ColorDelta1) + Barycentrics.UVW_dx.z * float4(ColorDelta2)) * (1.0f / 255.0f);
+			AttributeData.VertexColor_DDY = (Barycentrics.UVW_dy.x * float4(ColorDelta0) + Barycentrics.UVW_dy.y * float4(ColorDelta1) + Barycentrics.UVW_dy.z * float4(ColorDelta2)) * (1.0f / 255.0f);
 		}
 		else // (Cluster.ColorMode == VERTEX_COLOR_MODE_CONSTANT)
 		{
@@ -315,6 +323,8 @@ FNaniteAttributeData GetAttributeData(
 
 				float2 TexCoord = TexCoord0 + Barycentrics.UVW.y * TexCoord10 + Barycentrics.UVW.z * TexCoord20;
 				AttributeData.TexCoords[TexCoordIndex] = TexCoord;
+				AttributeData.TexCoords_DDX[TexCoordIndex] = Barycentrics.UVW_dx.y * TexCoord10 + Barycentrics.UVW_dx.z * TexCoord20;
+				AttributeData.TexCoords_DDY[TexCoordIndex] = Barycentrics.UVW_dy.y * TexCoord10 + Barycentrics.UVW_dy.z * TexCoord20;
 
 				// Generate tangent frame for UV0
 				if (TexCoordIndex == 0)
