@@ -502,6 +502,8 @@ struct RENDERCORE_API FShaderPlatformCachedIniValue
 	FShaderPlatformCachedIniValue(const TCHAR* InSection, const TCHAR* InKey)
 		: Section(InSection)
 		, Key(InKey)
+		, bTestedIni(false)
+		, CVar(nullptr)
 	{}
 
 	Type Get(EShaderPlatform ShaderPlatform);
@@ -509,6 +511,8 @@ struct RENDERCORE_API FShaderPlatformCachedIniValue
 private:
 	const TCHAR* Section;
 	const TCHAR* Key;
+	bool bTestedIni;
+	IConsoleVariable* CVar;
 	TMap<EShaderPlatform, Type> CachedValues;
 };
 

@@ -1063,39 +1063,40 @@ RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platfo
 }
 
 template<typename Type>
-RENDERCORE_API Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
+Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
 {
+	Type Value = {};
+
+#if WITH_EDITOR
 	Type* ExistingEntry = CachedValues.Find(ShaderPlatform);
 	if (ExistingEntry != nullptr)
 	{
 		return *ExistingEntry;
 	}
-	else
-	{
-		Type Value = {};
-		static FConfigFile PlatformEngineIni;
-		static bool bRead = false;
-		if (!bRead)
-		{
-			FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *ShaderPlatformToPlatformName(ShaderPlatform).ToString());
-			bRead = true;
-		}
 
+	if (!bTestedIni)
+	{
+		bTestedIni = true;
+		FConfigFile PlatformEngineIni;
+		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *ShaderPlatformToPlatformName(ShaderPlatform).ToString());
 		if (PlatformEngineIni.GetValue(Section, Key, Value))
 		{
 			CachedValues.Add(ShaderPlatform, Value);
+			return Value;
 		}
-		else
-		{
-			// If it's not in the ini file don't cache, always return the CVar's current value
-			static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(Key);
-			if (CVar)
-			{
-				CVar->GetValue(Value);
-			}
-		}
-		return Value;
 	}
+#endif
+	// If it's not in the ini file, don't cache, always return the CVar's current value
+	if (CVar==nullptr)
+	{
+		CVar = IConsoleManager::Get().FindConsoleVariable(Key);
+	}
+
+	if (CVar!=nullptr)
+	{
+		CVar->GetValue(Value);
+	}
+	return Value;
 }
 template struct FShaderPlatformCachedIniValue<FString>;
 template struct FShaderPlatformCachedIniValue<int32>;
