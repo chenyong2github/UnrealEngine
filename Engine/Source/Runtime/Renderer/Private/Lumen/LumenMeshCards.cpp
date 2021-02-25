@@ -250,7 +250,7 @@ void FLumenSceneData::UpdatePrimitiveToDistanceFieldInstanceMapping(FScene& Scen
 			if (DistanceFieldObjectIndex < DistanceFieldSceneData.PrimitiveInstanceMapping.Num())
 			{
 				const FPrimitiveAndInstance& Mapping = DistanceFieldSceneData.PrimitiveInstanceMapping[DistanceFieldObjectIndex];
-				if (Mapping.Primitive->LumenPrimitiveIndex > 0)
+				if (Mapping.Primitive->LumenPrimitiveIndex >= 0)
 				{
 					const FLumenPrimitive& LumenPrimitive = LumenPrimitives[Mapping.Primitive->LumenPrimitiveIndex];
 					if (LumenPrimitive.LumenNumDFInstances > 0)
