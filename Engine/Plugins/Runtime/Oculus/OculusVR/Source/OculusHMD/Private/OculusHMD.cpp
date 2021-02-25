@@ -2199,6 +2199,7 @@ namespace OculusHMD
 		OCFlags.NeedSetTrackingOrigin = true;
 		bNeedReAllocateViewportRenderTarget = true;
 		bNeedReAllocateDepthTexture_RenderThread = false;
+		bNeedReAllocateFoveationTexture_RenderThread = false;
 
 		NextFrameNumber = 0;
 		WaitFrameNumber = (uint32)-1;
