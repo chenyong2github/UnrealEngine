@@ -1206,7 +1206,7 @@ namespace GroomDerivedDataCacheUtils
 			return FString();
 		}
 
-		if (Desc.GroupIndex >= GroomAsset->HairGroupsData.Num() || Desc.LODIndex >= GroomAsset[Desc.GroupIndex].HairGroupsData[Desc.GroupIndex].Cards.LODs.Num())
+		if (Desc.GroupIndex >= GroomAsset->HairGroupsData.Num() || Desc.LODIndex >= GroomAsset->HairGroupsData[Desc.GroupIndex].Cards.LODs.Num())
 		{
 			return FString();
 		}
