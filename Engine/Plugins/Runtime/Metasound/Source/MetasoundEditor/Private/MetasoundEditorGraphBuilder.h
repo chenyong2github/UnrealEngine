@@ -99,6 +99,7 @@ namespace Metasound
 			// Constructs graph with default inputs & outputs.
 			static void ConstructGraph(UObject& InMetasound);
 
+			// Rebuilds all editor node pins based on the provided node handle's class definition.
 			static void RebuildNodePins(UMetasoundEditorGraphNode& InGraphNode, Frontend::FNodeHandle InNodeHandle);
 
 			// Removes all literal inputs connected to the given node

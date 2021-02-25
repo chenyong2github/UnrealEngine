@@ -288,6 +288,10 @@ namespace Metasound
 					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputNodeDetailCustomization>(); }));
 
 				PropertyModule.RegisterCustomPropertyTypeLayout(
+					"MetasoundEditorGraphInputInt",
+					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputNodeIntDetailCustomization>(); }));
+
+				PropertyModule.RegisterCustomPropertyTypeLayout(
 					"MetasoundEditorGraphInputObject",
 					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputNodeObjectDetailCustomization>(); }));
 

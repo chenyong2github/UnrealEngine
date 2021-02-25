@@ -93,6 +93,16 @@ public:
 	}
 };
 
+// Broken out to be able to customize and swap enum behavior for basic integer literal behavior
+USTRUCT()
+struct FMetasoundEditorGraphInputInt
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = DefaultValue)
+	int32 Value = 0;
+};
+
 UCLASS(MinimalAPI)
 class UMetasoundEditorGraphInputIntNode : public UMetasoundEditorGraphInputNode
 {
@@ -102,12 +112,12 @@ public:
 	virtual ~UMetasoundEditorGraphInputIntNode() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	int32 Default = 0;
+	FMetasoundEditorGraphInputInt Default;
 
 	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
-		Literal.Set(Default);
+		Literal.Set(Default.Value);
 		return Literal;
 	}
 
@@ -126,12 +136,18 @@ public:
 	virtual ~UMetasoundEditorGraphInputIntArrayNode() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	TArray<int32> Default;
+	TArray<FMetasoundEditorGraphInputInt> Default;
 
 	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
 	{
+		TArray<int32> Values;
+		for (const FMetasoundEditorGraphInputInt& Value : Default)
+		{
+			Values.Add(Value.Value);
+		}
+
 		FMetasoundFrontendLiteral Literal;
-		Literal.Set(Default);
+		Literal.Set(Values);
 		return Literal;
 	}
 

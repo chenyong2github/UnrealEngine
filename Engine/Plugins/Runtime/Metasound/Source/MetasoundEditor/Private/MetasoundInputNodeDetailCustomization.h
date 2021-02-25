@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailCustomization.h"
+#include "IPropertyTypeCustomization.h"
 #include "Layout/Visibility.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundEditorGraphNode.h"
@@ -19,13 +20,12 @@ class FDetailWidgetRow;
 class FPropertyRestriction;
 class IDetailLayoutBuilder;
 class IPropertyHandle;
-class IPropertyTypeCustomizationUtils;
 
 namespace Metasound
 {
 	namespace Editor
 	{
-		class FMetasoundInputNodeObjectDetailCustomization : public IPropertyTypeCustomization
+		class FMetasoundInputNodeArrayDetailCustomizationBase : public IPropertyTypeCustomization
 		{
 		public:
 			//~ Begin IPropertyTypeCustomization
@@ -33,12 +33,31 @@ namespace Metasound
 			virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
 			//~ End IPropertyTypeCustomization
 
+		protected:
+			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& PropertyHandle) const = 0;
+			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) { }
+
 		private:
-			void CacheProxyClass(TSharedPtr<IPropertyHandle> PropertyHandle);
-
-			TSharedRef<SWidget> CreateObjectPickerWidget(TSharedPtr<IPropertyHandle>& PropertyHandle) const;
 			TSharedRef<SWidget> CreateValueWidget(TSharedPtr<IPropertyHandleArray> ParentArrayProperty, TSharedPtr<IPropertyHandle> StructPropertyHandle, bool bIsInArray) const;
+		};
 
+		class FMetasoundInputNodeIntDetailCustomization : public FMetasoundInputNodeArrayDetailCustomizationBase
+		{
+		protected:
+			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const override;
+			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) override;
+
+		private:
+			FName DataTypeName;
+		};
+
+		class FMetasoundInputNodeObjectDetailCustomization : public FMetasoundInputNodeArrayDetailCustomizationBase
+		{
+		protected:
+			virtual TSharedRef<SWidget> CreateStructureWidget(TSharedPtr<IPropertyHandle>& StructPropertyHandle) const override;
+			virtual void CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle) override;
+
+		private:
 			TWeakObjectPtr<UClass> ProxyGenClass;
 		};
 
