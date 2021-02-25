@@ -45,7 +45,7 @@ public:
 
 public:
 	/** Max number of mip map levels supported. */
-	static const int32 MAX_MIPMAP_LEVELS = 32;
+	static constexpr int32 MAX_MIPMAP_LEVELS = 32;
 
 	/**
 	 * Get the data bit rate of the video frames.
