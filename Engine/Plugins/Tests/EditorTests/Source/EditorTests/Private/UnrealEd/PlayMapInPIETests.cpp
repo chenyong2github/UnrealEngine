@@ -35,6 +35,26 @@ static UWorld* GetAnyGameWorld()
 	return TestWorld;
 }
 
+DEFINE_LATENT_AUTOMATION_COMMAND(FLoadAllTextureLatentCommand);
+
+bool FLoadAllTextureLatentCommand::Update()
+{
+	FlushAsyncLoading();
+
+	// Make sure we finish all level streaming
+	if (UWorld* GameWorld = GetAnyGameWorld())
+	{
+		GameWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
+	}
+
+	// Force all mip maps to load.
+	UTexture::ForceUpdateTextureStreaming();
+
+	IStreamingManager::Get().StreamAllResources(0.0f);
+
+	return true;
+}
+
 class FPlayMapInPIEBase : public FAutomationTestBase
 {
 public:
@@ -115,22 +135,6 @@ public:
 		return MapObjectPath;
 	}
 
-	static void LoadAllTexture()
-	{
-		FlushAsyncLoading();
-
-		// Make sure we finish all level streaming
-		if (UWorld* GameWorld = GetAnyGameWorld())
-		{
-			GameWorld->FlushLevelStreaming(EFlushLevelStreamingType::Full);
-		}
-
-		// Force all mip maps to load.
-		UTexture::ForceUpdateTextureStreaming();
-
-		IStreamingManager::Get().StreamAllResources(0.0f);
-	}
-
 	/**
 	 * Execute the loading of each map and performance captures
 	 *
@@ -157,7 +161,7 @@ public:
 
 		if (bCanProceed)
 		{
-			LoadAllTexture();
+			ADD_LATENT_AUTOMATION_COMMAND(FLoadAllTextureLatentCommand());
 			ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(0.25));
 			ADD_LATENT_AUTOMATION_COMMAND(FWaitForShadersToFinishCompiling());
 			ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(4.0));
@@ -167,6 +171,14 @@ public:
 
 		UE_LOG(LogPlayMapInPIE, Error, TEXT("Failed to start the %s map (possibly due to BP compilation issues)"), *MapPackageName);
 		return false;
+	}
+
+protected:
+	virtual void SetTestContext(FString Context) override
+	{
+		FString MapObjectPath, MapPackageName;
+		ParseTestMapInfo(Context, MapObjectPath, MapPackageName);
+		TestParameterContext = MapPackageName.RightChop(6);
 	}
 
 };
