@@ -148,8 +148,7 @@ private:
 	FVector CachedCurrentLookAtLocation;
 #endif // UE_BUILD_SHIPPING
 	FVector CachedCurrentTargetLocation;
-	FQuat CachedDeltaRotation;
 
 protected:
-	const FQuat& GetCachedDeltaRotation() { return CachedDeltaRotation; }
+	virtual void ModifyPoseFromDeltaRotation(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms,	FTransform& InOutBoneToModifyTransform,	const FQuat& DeltaRotation);
 };
