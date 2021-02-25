@@ -645,6 +645,18 @@ extern RHI_API bool GRHISupportsStencilRefFromPixelShader;
 /** Whether current RHI supports overestimated conservative rasterization. */
 extern RHI_API bool GRHISupportsConservativeRasterization;
 
+/** Tables of all MSAA sample offset for all MSAA supported. Use GetMSAASampleOffsets() to read it. */
+extern RHI_API FVector2D GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];
+
+// Calculate the index of the sample in GRHIDefaultMSAASampleOffsets
+extern RHI_API int32 CalculateMSAASampleArrayIndex(int32 NumSamples, int32 SampleIndex);
+
+// Gets the MSAA sample's offset from the center of the pixel coordinate.
+inline FVector2D GetMSAASampleOffsets(int32 NumSamples, int32 SampleIndex)
+{
+	return GRHIDefaultMSAASampleOffsets[CalculateMSAASampleArrayIndex(NumSamples, SampleIndex)];
+}
+
 /** Information about a pixel format. */
 struct FPixelFormatInfo
 {
