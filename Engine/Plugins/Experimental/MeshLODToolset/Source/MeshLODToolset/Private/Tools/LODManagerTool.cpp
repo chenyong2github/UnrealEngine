@@ -133,6 +133,7 @@ void ULODManagerTool::Shutdown(EToolShutdownType ShutdownType)
 	if (LODPreview)
 	{
 		LODPreview->Disconnect();
+		LODPreviewLines->Disconnect();
 	}
 	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
 	{
