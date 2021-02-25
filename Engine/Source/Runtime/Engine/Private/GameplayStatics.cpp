@@ -1177,7 +1177,7 @@ UParticleSystemComponent* UGameplayStatics::SpawnEmitterAttached(UParticleSystem
 }
 
 // FRED_TODO: propagate hit object handles further instead of converting to an actor here
-void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, UPhysicalMaterial*& PhysMat, AActor*& HitActor, UPrimitiveComponent*& HitComponent, FName& HitBoneName, int32& HitItem, int32& ElementIndex, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd)
+void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, UPhysicalMaterial*& PhysMat, AActor*& HitActor, UPrimitiveComponent*& HitComponent, FName& HitBoneName, FName& BoneName, int32& HitItem, int32& ElementIndex, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BreakHitResult);
 	bBlockingHit = Hit.bBlockingHit;
@@ -1192,6 +1192,7 @@ void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit,
 	HitActor = Hit.GetHitObjectHandle().FetchActor();
 	HitComponent = Hit.GetComponent();
 	HitBoneName = Hit.BoneName;
+	BoneName = Hit.MyBoneName;
 	HitItem = Hit.Item;
 	ElementIndex = Hit.ElementIndex;
 	TraceStart = Hit.TraceStart;
@@ -1199,7 +1200,7 @@ void UGameplayStatics::BreakHitResult(const FHitResult& Hit, bool& bBlockingHit,
 	FaceIndex = Hit.FaceIndex;
 }
 
-FHitResult UGameplayStatics::MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, int32 HitItem, int32 ElementIndex, int32 FaceIndex, FVector TraceStart, FVector TraceEnd)
+FHitResult UGameplayStatics::MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, FName BoneName, int32 HitItem, int32 ElementIndex, int32 FaceIndex, FVector TraceStart, FVector TraceEnd)
 {
 	SCOPE_CYCLE_COUNTER(STAT_MakeHitResult);
 	FHitResult Hit;
@@ -1215,6 +1216,7 @@ FHitResult UGameplayStatics::MakeHitResult(bool bBlockingHit, bool bInitialOverl
 	Hit.HitObjectHandle = FActorInstanceHandle(HitActor);
 	Hit.Component = HitComponent;
 	Hit.BoneName = HitBoneName;
+	Hit.MyBoneName = BoneName;
 	Hit.Item = HitItem;
 	Hit.ElementIndex = ElementIndex;
 	Hit.TraceStart = TraceStart;

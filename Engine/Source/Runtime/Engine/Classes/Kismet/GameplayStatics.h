@@ -920,12 +920,13 @@ public:
 	 * @param HitActor		Actor hit by the trace.
 	 * @param HitComponent	PrimitiveComponent hit by the trace.
 	 * @param HitBoneName	Name of the bone hit (valid only if we hit a skeletal mesh).
+	 * @param BoneName		Name of the trace bone hit (valid only if we hit a skeletal mesh).
 	 * @param HitItem		Primitive-specific data recording which item in the primitive was hit
 	 * @param ElementIndex	If colliding with a primitive with multiple parts, index of the part that was hit.
 	 * @param FaceIndex		If colliding with trimesh or landscape, index of face that was hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Collision", meta=(NativeBreakFunc, AdvancedDisplay="3"))
-	static void BreakHitResult(const struct FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, class UPhysicalMaterial*& PhysMat, class AActor*& HitActor, class UPrimitiveComponent*& HitComponent, FName& HitBoneName, int32& HitItem, int32& ElementIndex, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd);
+	static void BreakHitResult(const struct FHitResult& Hit, bool& bBlockingHit, bool& bInitialOverlap, float& Time, float& Distance, FVector& Location, FVector& ImpactPoint, FVector& Normal, FVector& ImpactNormal, class UPhysicalMaterial*& PhysMat, class AActor*& HitActor, class UPrimitiveComponent*& HitComponent, FName& HitBoneName, FName& BoneName, int32& HitItem, int32& ElementIndex, int32& FaceIndex, FVector& TraceStart, FVector& TraceEnd);
 
 	/** 
 	 *	Create a HitResult struct
@@ -942,12 +943,13 @@ public:
 	 * @param HitActor		Actor hit by the trace.
 	 * @param HitComponent	PrimitiveComponent hit by the trace.
 	 * @param HitBoneName	Name of the bone hit (valid only if we hit a skeletal mesh).
+	 * @param BoneName		Name of the trace bone hit (valid only if we hit a skeletal mesh).
 	 * @param HitItem		Primitive-specific data recording which item in the primitive was hit
 	 * @param ElementIndex	If colliding with a primitive with multiple parts, index of the part that was hit.
 	 * @param FaceIndex		If colliding with trimesh or landscape, index of face that was hit.
 	 */
 	UFUNCTION(BlueprintPure, Category = "Collision", meta = (NativeMakeFunc, AdvancedDisplay="2", Normal="0,0,1", ImpactNormal="0,0,1"))
-	static FHitResult MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, int32 HitItem, int32 ElementIndex, int32 FaceIndex, FVector TraceStart, FVector TraceEnd);
+	static FHitResult MakeHitResult(bool bBlockingHit, bool bInitialOverlap, float Time, float Distance, FVector Location, FVector ImpactPoint, FVector Normal, FVector ImpactNormal, class UPhysicalMaterial* PhysMat, class AActor* HitActor, class UPrimitiveComponent* HitComponent, FName HitBoneName, FName BoneName, int32 HitItem, int32 ElementIndex, int32 FaceIndex, FVector TraceStart, FVector TraceEnd);
 
 
 	/** Returns the EPhysicalSurface type of the given Hit. 
