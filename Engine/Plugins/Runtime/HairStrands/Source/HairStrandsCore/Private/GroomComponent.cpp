@@ -2220,8 +2220,12 @@ void UGroomComponent::PostLoad()
 #if WITH_EDITOR
 	if (GroomAsset && !bIsGroomAssetCallbackRegistered)
 	{
+		// Delegate used for notifying groom data invalidation
 		GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
+
+		// Delegate used for notifying groom data & groom resoures invalidation
 		GroomAsset->GetOnGroomAssetResourcesChanged().AddUObject(this, &UGroomComponent::InvalidateAndRecreate);
+
 		bIsGroomAssetCallbackRegistered = true;
 	}
 
