@@ -82,7 +82,7 @@ public:
 	/**
 	 * @return a type of this timer node or ETimerNodeType::Group for group nodes.
 	 */
-	const ETimerNodeType& GetType() const { return Type; }
+	ETimerNodeType GetType() const { return Type; }
 
 	/**
 	 * @return color of the node. Used when showing a graph series for a stats counter.

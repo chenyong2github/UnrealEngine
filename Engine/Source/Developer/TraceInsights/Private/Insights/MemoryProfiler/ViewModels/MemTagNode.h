@@ -86,7 +86,7 @@ public:
 	/**
 	 * @return a type of this MemTag node or EMemTagNodeType::Group for group nodes.
 	 */
-	const EMemTagNodeType& GetType() const { return Type; }
+	EMemTagNodeType GetType() const { return Type; }
 
 	bool IsValidStat() const { return MemTag != nullptr; }
 	Insights::FMemoryTag* GetMemTag() const { return MemTag; }

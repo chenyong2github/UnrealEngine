@@ -73,7 +73,7 @@ public:
 	/**
 	 * @return a type of this MemAlloc node or EMemAllocNodeType::Group for group nodes.
 	 */
-	const EMemAllocNodeType& GetType() const { return Type; }
+	EMemAllocNodeType GetType() const { return Type; }
 
 	FMemAllocTable& GetMemTableChecked() const
 	{

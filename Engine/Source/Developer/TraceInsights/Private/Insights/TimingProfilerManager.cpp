@@ -242,11 +242,14 @@ FTimingProfilerActionManager& FTimingProfilerManager::GetActionManager()
 
 bool FTimingProfilerManager::Tick(float DeltaTime)
 {
-	// Check if session has Timing events (to spawn the tab), but not too often.
-	if (!bIsAvailable && AvailabilityCheck.Tick())
+	TSharedPtr<FInsightsManager> InsightsManager = FInsightsManager::Get();
+	check(InsightsManager.IsValid());
+
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = InsightsManager->GetSession();
+	if (Session.IsValid())
 	{
-		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid())
+		// Check if session has Timing events (to spawn the tab), but not too often.
+		if (!bIsAvailable && AvailabilityCheck.Tick())
 		{
 			bIsAvailable = true;
 
@@ -268,9 +271,9 @@ bool FTimingProfilerManager::Tick(float DeltaTime)
 			// Do not check again until the next session changed event (see OnSessionChanged).
 			AvailabilityCheck.Disable();
 		}
-	}
 
-	TimerButterflyAggregator->Tick(FInsightsManager::Get()->GetSession(), 0.0f, DeltaTime, [this]() { FinishTimerButterflyAggregation(); });
+		TimerButterflyAggregator->Tick(Session, 0.0f, DeltaTime, [this]() { FinishTimerButterflyAggregation(); });
+	}
 
 	return true;
 }

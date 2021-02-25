@@ -79,7 +79,7 @@ public:
 	/**
 	 * @return a type of this NetEvent node or ENetEventNodeType::Group for group nodes.
 	 */
-	const ENetEventNodeType& GetType() const { return Type; }
+	ENetEventNodeType GetType() const { return Type; }
 
 	void SetLevel(uint32 InLevel) const { return ; }
 	uint32 GetLevel() const { return Level; }
