@@ -92,7 +92,7 @@ TAutoConsoleVariable<int32> CVarTAAFilterShadingRejection(
 	ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarTAAEnableAntiInterference(
-	TEXT("r.TemporalAA.AntiInterference"), 1,
+	TEXT("r.TemporalAA.AntiInterference"), 0,
 	TEXT("Enable heuristic to detect geometric interference between input pixel grid alignement and structured geometry."),
 	ECVF_RenderThreadSafe);
 
