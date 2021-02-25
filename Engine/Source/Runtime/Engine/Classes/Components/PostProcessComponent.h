@@ -54,7 +54,7 @@ class UPostProcessComponent : public USceneComponent, public IInterface_PostProc
 	ENGINE_API virtual FPostProcessVolumeProperties GetProperties() const override
 	{
 		FPostProcessVolumeProperties Ret;
-		Ret.bIsEnabled = bEnabled != 0;
+		Ret.bIsEnabled = bEnabled != 0 && ShouldRender();
 		Ret.bIsUnbound = bUnbound != 0 || Cast<UShapeComponent>(GetAttachParent()) == nullptr;
 		Ret.BlendRadius = BlendRadius;
 		Ret.BlendWeight = BlendWeight;
