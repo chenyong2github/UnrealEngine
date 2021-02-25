@@ -14,6 +14,7 @@ UFKControlRig::UFKControlRig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ApplyMode(EControlRigFKRigExecuteMode::Replace)
 {
+	bCopyHierarchyBeforeSetup = false;
 	bResetInitialTransformsBeforeSetup = false;
 }
 

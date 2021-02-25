@@ -213,3 +213,11 @@ FRigUnit_CollectionLoop_Execute()
 		Item = FRigElementKey();
 	}
 }
+
+FRigUnit_CollectionAddItem_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT();
+
+	Result = Collection;
+	Result.AddUnique(Item);
+}

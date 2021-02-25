@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Rigs/RigHierarchy.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "ControlRigSkeletalMeshComponent.generated.h"
 
@@ -39,12 +40,23 @@ class UControlRigSkeletalMeshComponent : public UDebugSkelMeshComponent
 	// END UDebugSkeletalMeshComponent interface
 
 public:
+
+	/*
+	 * React to a control rig being debugged
+	 */
+	void SetControlRigBeingDebugged(UControlRig* InControlRig);
+	
 	/*
 	 *	Rebuild debug draw skeleton 
 	 */
 	void RebuildDebugDrawSkeleton();
+
+	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
+	void OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
+
 private:
 	FReferenceSkeleton DebugDrawSkeleton;
 	TArray<FBoneIndexType> DebugDrawBones;
 	TArray<int32> DebugDrawBoneIndexInHierarchy;
+	TWeakObjectPtr<UControlRig> ControlRigBeingDebuggedPtr;
 };

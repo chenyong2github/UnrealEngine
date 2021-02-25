@@ -13,6 +13,7 @@
 UAdditiveControlRig::UAdditiveControlRig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bCopyHierarchyBeforeSetup = false;
 	bResetInitialTransformsBeforeSetup = false;
 }
 

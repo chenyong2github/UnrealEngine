@@ -57,6 +57,7 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, bRequiresInitExecution(false)
 	, bRequiresSetupEvent(false)
 	, bSetupModeEnabled(false)
+	, bCopyHierarchyBeforeSetup(true)
 	, bResetInitialTransformsBeforeSetup(true)
 	, bManipulationEnabled(false)
 	, InitBracket(0)
@@ -493,7 +494,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.FramesPerSecond = GetCurrentFramesPerSecond();
 	Context.bDuringInteraction = IsInteracting();
 	Context.State = InState;
-	Context.Hierarchy = DynamicHierarchy;
+	Context.Hierarchy = GetHierarchy();
 
 	Context.ToWorldSpaceTransform = FTransform::Identity;
 	Context.OwningComponent = nullptr;
@@ -579,11 +580,19 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		{
 			bRequiresSetupEvent = bSetupModeEnabled;
 
-			if (bResetInitialTransformsBeforeSetup && !bSetupModeEnabled)
+			if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 			{
-				if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
+				if(bCopyHierarchyBeforeSetup)
 				{
-					DynamicHierarchy->CopyPose(CDO->DynamicHierarchy, false, true);
+					if(CDO->GetHierarchy()->GetTopologyVersion()!= GetHierarchy()->GetTopologyVersion())
+					{
+						GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
+					}
+				}
+				
+				if (bResetInitialTransformsBeforeSetup && !bSetupModeEnabled)
+				{
+					GetHierarchy()->CopyPose(CDO->GetHierarchy(), false, true);
 				}
 			}
 

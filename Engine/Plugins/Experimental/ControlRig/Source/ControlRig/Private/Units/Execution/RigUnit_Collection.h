@@ -398,3 +398,30 @@ struct CONTROLRIG_API FRigUnit_CollectionLoop : public FRigUnit_CollectionBaseMu
 	UPROPERTY(meta = (Output))
 	FControlRigExecuteContext Completed;
 };
+
+/**
+* Adds an element to an existing collection
+*/
+USTRUCT(meta = (DisplayName = "Add Item", Keywords = "Item,Add,Push,Insert"))
+struct CONTROLRIG_API FRigUnit_CollectionAddItem : public FRigUnit_CollectionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_CollectionAddItem()
+	{
+		Collection = Result = FRigElementKeyCollection();
+		Item = FRigElementKey();
+	}
+
+	RIGVM_METHOD()
+    virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection Collection;
+
+	UPROPERTY(meta = (Input))
+	FRigElementKey Item;
+
+	UPROPERTY(meta = (Output))
+	FRigElementKeyCollection Result;
+};

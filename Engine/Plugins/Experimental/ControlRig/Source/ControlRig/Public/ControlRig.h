@@ -523,7 +523,8 @@ public:
 	virtual UAssetUserData* GetAssetUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataClass) override;
 	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
-protected:
+protected
+	:
 	/** Array of user data stored with the asset */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Instanced, Category = "Default")
 	TArray<UAssetUserData*> AssetUserData;
@@ -550,6 +551,7 @@ protected:
 	bool bRequiresInitExecution;
 	bool bRequiresSetupEvent;
 	bool bSetupModeEnabled;
+	bool bCopyHierarchyBeforeSetup;
 	bool bResetInitialTransformsBeforeSetup;
 	bool bManipulationEnabled;
 

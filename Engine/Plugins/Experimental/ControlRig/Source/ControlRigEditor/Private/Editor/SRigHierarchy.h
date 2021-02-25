@@ -163,6 +163,15 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FControlRigEditor> InControlRigEditor);
 
+	FORCEINLINE FControlRigEditor* GetControlRigEditor() const
+	{
+		if(ControlRigEditor.IsValid())
+		{
+			return ControlRigEditor.Pin().Get();
+		}
+		return nullptr;
+	}
+
 private:
 	/** Bind commands that this widget handles */
 	void BindCommands();
@@ -171,7 +180,7 @@ private:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
 
 	/** Rebuild the tree view */
-	void RefreshTreeView();
+	void RefreshTreeView(bool bRebuildContent = true);
 
 	/** Return all selected keys */
 	TArray<FRigElementKey> GetSelectedKeys() const;
@@ -231,8 +240,6 @@ private:
 	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
 	FReply OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FRigTreeElement> TargetItem);
-
-private:
 
 	void FillContextMenu(class FMenuBuilder& MenuBuilder);
 	TSharedPtr<FUICommandList> GetContextMenuCommands();
@@ -303,6 +310,7 @@ private:
 
 	URigHierarchy* GetHierarchy() const;
 	URigHierarchy* GetDebuggedHierarchy() const;
+	URigHierarchy* GetHierarchyForTopology() const;
 
 	void ImportHierarchy(const FAssetData& InAssetData);
 	void CreateImportMenu(FMenuBuilder& MenuBuilder);
@@ -328,14 +336,16 @@ private:
 
 	bool bIsChangingRigHierarchy;
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
+	void OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 	void HandleSetObjectBeingDebugged(UObject* InObject);
 
 	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
-	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey(), const bool bIgnoreTextFilter = false);
-	void AddElement(FRigBaseElement* InElement, const bool bIgnoreTextFilter = false);
+	bool AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey(), const bool bIgnoreTextFilter = false);
+	bool AddElement(const FRigBaseElement* InElement, const bool bIgnoreTextFilter = false);
 	void AddSpacerElement();
-	void ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
+	bool ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
+	bool RemoveElement(FRigElementKey InKey);
 
 public:
 	FName RenameElement(const FRigElementKey& OldKey, const FString& NewName);

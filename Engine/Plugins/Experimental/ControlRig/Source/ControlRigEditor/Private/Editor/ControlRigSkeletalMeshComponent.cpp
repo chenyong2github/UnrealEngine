@@ -61,7 +61,29 @@ void UControlRigSkeletalMeshComponent::RebuildDebugDrawSkeleton()
 			for(FRigBoneElement* BoneElement : BoneElements)
 			{
 				const int32 Index = BoneElement->GetIndex();
-				const FName ParentName = Hierarchy->GetFirstParent(BoneElement->GetKey()).Name;
+
+				FName ParentName = NAME_None;
+
+				// find the first parent that is a bone
+				Hierarchy->Traverse(BoneElement, false, [&ParentName, BoneElement](FRigBaseElement* InElement, bool& bContinue)
+				{
+					bContinue = true;
+					
+					if(InElement == BoneElement)
+					{
+						return;
+					}
+
+					if(FRigBoneElement* InBoneElement = Cast<FRigBoneElement>(InElement))
+					{
+						if(ParentName.IsNone())
+						{
+							ParentName = InBoneElement->GetName();
+						}
+						bContinue = false;
+					}
+				});
+
 				int32 ParentIndex = INDEX_NONE; 
 				if(!ParentName.IsNone())
 				{
@@ -107,4 +129,71 @@ void UControlRigSkeletalMeshComponent::EnablePreview(bool bEnable, UAnimationAss
 	{
 		PreviewInstance->SetAnimationAsset(PreviewAsset);
 	}
+}
+
+void UControlRigSkeletalMeshComponent::SetControlRigBeingDebugged(UControlRig* InControlRig)
+{
+	if(ControlRigBeingDebuggedPtr.Get() == InControlRig)
+	{
+		return;
+	}
+
+	if(ControlRigBeingDebuggedPtr.IsValid())
+	{
+		if(UControlRig* ControlRigBeingDebugged = ControlRigBeingDebuggedPtr.Get())
+		{
+			if(!ControlRigBeingDebugged->HasAnyFlags(RF_BeginDestroyed))
+			{
+				ControlRigBeingDebugged->GetHierarchy()->OnModified().RemoveAll(this);
+			}
+		}
+	}
+
+	ControlRigBeingDebuggedPtr.Reset();
+	
+	if(InControlRig)
+	{
+		ControlRigBeingDebuggedPtr = InControlRig;
+ 		InControlRig->GetHierarchy()->OnModified().AddUObject(this, &UControlRigSkeletalMeshComponent::OnHierarchyModifiedAsync);
+	}
+
+	RebuildDebugDrawSkeleton();
+}
+
+void UControlRigSkeletalMeshComponent::OnHierarchyModified(ERigHierarchyNotification InNotif,
+    URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+{
+	switch(InNotif)
+	{
+		case ERigHierarchyNotification::ElementAdded:
+		case ERigHierarchyNotification::ElementRemoved:
+		case ERigHierarchyNotification::ElementRenamed:
+		case ERigHierarchyNotification::ParentChanged:
+		case ERigHierarchyNotification::HierarchyReset:
+		{
+			RebuildDebugDrawSkeleton();
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+}
+
+void UControlRigSkeletalMeshComponent::OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif,
+    URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+{
+	FRigElementKey Key;
+	if(InElement)
+	{
+		Key = InElement->GetKey();
+	}
+	
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, InHierarchy, Key]()
+    {
+        const FRigBaseElement* Element = InHierarchy->Find(Key);
+        OnHierarchyModified(InNotif, InHierarchy, Element);
+		
+    }, TStatId(), NULL, ENamedThreads::GameThread);
 }

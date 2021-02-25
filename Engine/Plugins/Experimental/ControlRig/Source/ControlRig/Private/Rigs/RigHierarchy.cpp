@@ -237,6 +237,8 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 
 	FMemoryReader ArchiveReader(ArchiveBytes);
 	Load(ArchiveReader);
+
+	TopologyVersion = InHierarchy->GetTopologyVersion();
 }
 
 void URigHierarchy::CopyPose(URigHierarchy* InHierarchy, bool bCurrent, bool bInitial)

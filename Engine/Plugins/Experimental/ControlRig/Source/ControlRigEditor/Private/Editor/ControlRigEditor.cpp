@@ -105,6 +105,7 @@ FControlRigEditor::FControlRigEditor()
 	, bAnyErrorsLeft(false)
 	, LastEventQueue(EControlRigEditorEventQueue::Setup)
 	, LastDebuggedRig()
+	, RigHierarchyTabCount(0)
 {
 }
 
@@ -943,7 +944,8 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 				AnimInstance->RecalcRequiredBones();
 
 				// since rig has changed, rebuild draw skeleton
-				EditorSkelComp->RebuildDebugDrawSkeleton();
+				EditorSkelComp->SetControlRigBeingDebugged(DebuggedControlRig);
+
 				if (FControlRigEditMode* EditMode = GetEditMode())
 				{
 					EditMode->SetObjects(DebuggedControlRig, EditorSkelComp,nullptr);

@@ -86,6 +86,8 @@ public:
 	// FBlueprintEditor interface
 	virtual UBlueprint* GetBlueprintObj() const override;
 
+	int32 GetRigHierarchyTabCount() const { return RigHierarchyTabCount; }
+
 public:
 	// IToolkit Interface
 	virtual FName GetToolkitFName() const override;
@@ -396,8 +398,10 @@ protected:
 
 	EControlRigEditorEventQueue LastEventQueue;
 	FString LastDebuggedRig;
+	int32 RigHierarchyTabCount;
 
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;
 	friend class SRigHierarchy;
+	friend struct FRigHierarchyTabSummoner;
 };

@@ -599,7 +599,12 @@ void SRigHierarchy::BindCommands()
 
 	CommandList->MapAction(
 		Commands.ShowDynamicHierarchy,
-		FExecuteAction::CreateLambda([this]() { bShowDynamicHierarchy = !bShowDynamicHierarchy; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]()
+		{
+			bShowDynamicHierarchy = !bShowDynamicHierarchy;
+			HandleSetObjectBeingDebugged(GetControlRigEditor()->GetControlRigBlueprint()->GetObjectBeingDebugged());
+			RefreshTreeView();
+		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([this]() { return bShowDynamicHierarchy; }));
 }
@@ -664,110 +669,58 @@ void SRigHierarchy::OnFilterTextChanged(const FText& SearchText)
 	RefreshTreeView();
 }
 
-void SRigHierarchy::RefreshTreeView()
+void SRigHierarchy::RefreshTreeView(bool bRebuildContent)
 {
 	TMap<FRigElementKey, bool> ExpansionState;
-	for (TPair<FRigElementKey, TSharedPtr<FRigTreeElement>> Pair : ElementMap)
+
+	if(bRebuildContent)
 	{
-		ExpansionState.FindOrAdd(Pair.Key) = TreeView->IsItemExpanded(Pair.Value);
+		for (TPair<FRigElementKey, TSharedPtr<FRigTreeElement>> Pair : ElementMap)
+		{
+			ExpansionState.FindOrAdd(Pair.Key) = TreeView->IsItemExpanded(Pair.Value);
+		}
+
+		// internally save expansion states before rebuilding the tree, so the states can be restored later
+		TreeView->SaveAndClearSparseItemInfos();
+
+		RootElements.Reset();
+		ElementMap.Reset();
+		ParentMap.Reset();
 	}
-
-	// internally save expansion states before rebuilding the tree, so the states can be restored later
-	TreeView->SaveAndClearSparseItemInfos();
-
-	RootElements.Reset();
-	ElementMap.Reset();
-	ParentMap.Reset();
 
 	if (ControlRigBlueprint.IsValid())
 	{
-		URigHierarchy* Hierarchy = GetHierarchy();
-
-		if(bShowDynamicHierarchy && ControlRigBeingDebuggedPtr.IsValid())
-		{
-			Hierarchy = ControlRigBeingDebuggedPtr->GetHierarchy();
-        }
-
+		URigHierarchy* Hierarchy = GetHierarchyForTopology();
 		check(Hierarchy);
 
-		Hierarchy->Traverse([&](FRigBaseElement* Element, bool& bContinue)
+		if(bRebuildContent)
 		{
-			switch(Element->GetType())
-			{
-				case ERigElementType::Bone:
-				{
-					if(bShowBones)
-					{
-						FRigBoneElement* BoneElement = CastChecked<FRigBoneElement>(Element);
-						if (bShowImportedBones || BoneElement->BoneType != ERigBoneType::Imported)
-						{
-                            AddElement(BoneElement);
-                        }
-                    }
-					break;
-				}
-				case ERigElementType::Space:
-				{
-                    if(bShowSpaces)
-                    {
-                        FRigSpaceElement* SpaceElement = CastChecked<FRigSpaceElement>(Element);
-                        AddElement(SpaceElement);
-                    }
-                    break;
-                }
-				case ERigElementType::Control:
-				{
-                    if(bShowControls)
-                    {
-                        FRigControlElement* ControlElement = CastChecked<FRigControlElement>(Element);
-                        AddElement(ControlElement);
-                    }
-                    break;
-                }
-				case ERigElementType::RigidBody:
-				{
-                    if(bShowRigidBodies)
-                    {
-                        FRigRigidBodyElement* RigidBodyElement = CastChecked<FRigRigidBodyElement>(Element);
-                        AddElement(RigidBodyElement);
-                    }
-                    break;
-                }
-				case ERigElementType::Socket:
-				{
-                    if(bShowSockets)
-                    {
-                        FRigSocketElement* Socket = CastChecked<FRigSocketElement>(Element);
-                        AddElement(Socket);
-                    }
-                    break;
-                }
-				default:
-				{
-					break;
-				}
-            }
-		});
+			Hierarchy->Traverse([&](FRigBaseElement* Element, bool& bContinue)
+            {
+                AddElement(Element);
+                bContinue = true;
+            });
 
-		for (const auto& Pair : ElementMap)
-		{
-			TreeView->RestoreSparseItemInfos(Pair.Value);
-		}
-
-		// expand all elements upon the initial construction of the tree
-		if (ExpansionState.Num() == 0)
-		{
-			for (TSharedPtr<FRigTreeElement> RootElement : RootElements)
+			for (const auto& Pair : ElementMap)
 			{
-				SetExpansionRecursive(RootElement, false, true);
+				TreeView->RestoreSparseItemInfos(Pair.Value);
+			}
+
+			// expand all elements upon the initial construction of the tree
+			if (ExpansionState.Num() == 0)
+			{
+				for (TSharedPtr<FRigTreeElement> RootElement : RootElements)
+				{
+					SetExpansionRecursive(RootElement, false, true);
+				}
+			}
+
+			if (RootElements.Num() > 0)
+			{
+				AddSpacerElement();
 			}
 		}
-
-		if (RootElements.Num() > 0)
-		{
-			AddSpacerElement();
-		}
-
+		
 		TreeView->RequestTreeRefresh();
 
 		TArray<FRigElementKey> Selection = Hierarchy->GetSelectedKeys();
@@ -873,11 +826,11 @@ TSharedPtr<FRigTreeElement> SRigHierarchy::FindElement(const FRigElementKey& InE
 	return TSharedPtr<FRigTreeElement>();
 }
 
-void SRigHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParentKey, const bool bIgnoreTextFilter)
+bool SRigHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParentKey, const bool bIgnoreTextFilter)
 {
 	if(ElementMap.Contains(InKey))
 	{
-		return;
+		return false;
 	}
 
 	FString FilteredString = FilterText.ToString();
@@ -919,21 +872,80 @@ void SRigHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParentKey,
 			RootElements.Add(NewItem);
 		}
 	}
+
+	return true;
 }
 
-void SRigHierarchy::AddElement(FRigBaseElement* InElement, const bool bIgnoreTextFilter)
+bool SRigHierarchy::AddElement(const FRigBaseElement* InElement, const bool bIgnoreTextFilter)
 {
 	check(InElement);
 	
 	if (ElementMap.Contains(InElement->GetKey()))
 	{
-		return;
+		return false;
 	}
 
-	const URigHierarchy* Hierarchy = GetHierarchy();
+	switch(InElement->GetType())
+	{
+		case ERigElementType::Bone:
+		{
+			if(!bShowBones)
+			{
+				return false;
+			}
+
+			const FRigBoneElement* BoneElement = CastChecked<FRigBoneElement>(InElement);
+			if (!bShowImportedBones && BoneElement->BoneType == ERigBoneType::Imported)
+			{
+				return false;
+			}
+			break;
+		}
+		case ERigElementType::Space:
+		{
+			if(!bShowSpaces)
+			{
+				return false;
+			}
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			if(!bShowControls)
+			{
+				return false;
+			}
+			break;
+		}
+		case ERigElementType::RigidBody:
+		{
+			if(!bShowRigidBodies)
+			{
+				return false;
+			}
+			break;
+		}
+		case ERigElementType::Socket:
+		{
+			if(!bShowSockets)
+			{
+				return false;
+			}
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	const URigHierarchy* Hierarchy = GetHierarchyForTopology();
 	check(Hierarchy);
 
-	AddElement(InElement->GetKey(), FRigElementKey(), bIgnoreTextFilter);
+	if(!AddElement(InElement->GetKey(), FRigElementKey(), bIgnoreTextFilter))
+	{
+		return false;
+	}
 
 	if (ElementMap.Contains(InElement->GetKey()))
 	{
@@ -946,6 +958,8 @@ void SRigHierarchy::AddElement(FRigBaseElement* InElement, const bool bIgnoreTex
 			}
 		}
 	}
+
+	return true;
 }
 
 void SRigHierarchy::AddSpacerElement()
@@ -953,29 +967,29 @@ void SRigHierarchy::AddSpacerElement()
 	AddElement(FRigElementKey(), FRigElementKey());
 }
 
-void SRigHierarchy::ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey)
+bool SRigHierarchy::ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey)
 {
 	if (!InKey.IsValid() || InKey == InParentKey)
 	{
-		return;
+		return false;
 	}
 
 	TSharedPtr<FRigTreeElement>* FoundItem = ElementMap.Find(InKey);
 	if (FoundItem == nullptr)
 	{
-		return;
+		return false;
 	}
 
 	if (!FilterText.IsEmpty() && bFlattenHierarchyOnFilter)
 	{
-		return;
+		return false;
 	}
 
 	if (const FRigElementKey* ExistingParentKey = ParentMap.Find(InKey))
 	{
 		if (*ExistingParentKey == InParentKey)
 		{
-			return;
+			return false;
 		}
 
 		if (TSharedPtr<FRigTreeElement>* ExistingParent = ElementMap.Find(*ExistingParentKey))
@@ -989,7 +1003,7 @@ void SRigHierarchy::ReparentElement(FRigElementKey InKey, FRigElementKey InParen
 	{
 		if (!InParentKey.IsValid())
 		{
-			return;
+			return false;
 		}
 
 		RootElements.Remove(*FoundItem);
@@ -1008,6 +1022,21 @@ void SRigHierarchy::ReparentElement(FRigElementKey InKey, FRigElementKey InParen
 		RootElements.Add(*FoundItem);
 	}
 
+	return true;
+}
+
+bool SRigHierarchy::RemoveElement(FRigElementKey InKey)
+{
+	TSharedPtr<FRigTreeElement>* FoundItem = ElementMap.Find(InKey);
+	if (FoundItem == nullptr)
+	{
+		return false;
+	}
+
+	ReparentElement(InKey, FRigElementKey());
+
+	RootElements.Remove(*FoundItem);
+	return ElementMap.Remove(InKey) > 0;
 }
 
 void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
@@ -1028,24 +1057,41 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 		{
 			return;
 		}
-
-		/*
-		if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(InElement))
-		{
-			if(ControlElement->Settings.bIsTransientControl)
-			{
-				return;
-			}
-		}
-		*/
 	}
 
 	switch(InNotif)
 	{
 		case ERigHierarchyNotification::ElementAdded:
+		{
+			check(InElement);
+			if(AddElement(InElement))
+			{
+				RefreshTreeView(false);
+			}
+			break;
+		}
 		case ERigHierarchyNotification::ElementRemoved:
-		case ERigHierarchyNotification::ElementRenamed:
+		{
+			check(InElement);
+			if(RemoveElement(InElement->GetKey()))
+			{
+				RefreshTreeView(false);
+			}
+			break;
+		}
 		case ERigHierarchyNotification::ParentChanged:
+		{
+			check(InHierarchy);
+			check(InElement);
+
+			const FRigElementKey ParentKey = InHierarchy->GetFirstParent(InElement->GetKey());
+			if(ReparentElement(InElement->GetKey(), ParentKey))
+			{
+				RefreshTreeView(false);
+			}
+			break;
+		}
+		case ERigHierarchyNotification::ElementRenamed:
 		case ERigHierarchyNotification::HierarchyReset:
 		{
 			RefreshTreeView();
@@ -1084,6 +1130,37 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 	}
 }
 
+void SRigHierarchy::OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+{
+	if(!bShowDynamicHierarchy)
+	{
+		return;
+	}
+	
+	if(!ControlRigBeingDebuggedPtr.IsValid())
+	{
+		return;
+	}
+
+	if(InHierarchy != ControlRigBeingDebuggedPtr->GetHierarchy())
+	{
+		return;
+	}
+
+	FRigElementKey Key;
+	if(InElement)
+	{
+		Key = InElement->GetKey();
+	}
+
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, InHierarchy, Key]()
+    {
+		const FRigBaseElement* Element = InHierarchy->Find(Key);
+		OnHierarchyModified(InNotif, InHierarchy, Element);
+		
+    }, TStatId(), NULL, ENamedThreads::GameThread);
+}
+
 void SRigHierarchy::HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint)
 {
 	if (bIsChangingRigHierarchy)
@@ -1116,8 +1193,10 @@ void SRigHierarchy::HandleSetObjectBeingDebugged(UObject* InObject)
 	if(UControlRig* ControlRig = Cast<UControlRig>(InObject))
 	{
 		ControlRigBeingDebuggedPtr = ControlRig;
-		ControlRig->GetHierarchy()->OnModified().AddSP(this, &SRigHierarchy::OnHierarchyModified);
+		ControlRig->GetHierarchy()->OnModified().AddSP(this, &SRigHierarchy::OnHierarchyModifiedAsync);
 	}
+
+	RefreshTreeView();
 }
 
 void SRigHierarchy::ClearDetailPanel() const
@@ -1922,6 +2001,17 @@ URigHierarchy* SRigHierarchy::GetDebuggedHierarchy() const
 	}
 	return GetHierarchy();
 }
+
+URigHierarchy* SRigHierarchy::GetHierarchyForTopology() const
+{
+	URigHierarchy* Hierarchy = GetHierarchy();
+	if(bShowDynamicHierarchy && ControlRigBeingDebuggedPtr.IsValid())
+	{
+		Hierarchy = ControlRigBeingDebuggedPtr->GetHierarchy();
+	}
+	return Hierarchy;
+}
+
 
 FName SRigHierarchy::CreateUniqueName(const FName& InBaseName, ERigElementType InElementType) const
 {
