@@ -13,6 +13,7 @@
 #include "MeshTransforms.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "ToolSceneQueriesUtil.h"
+#include "Physics/ComponentCollisionUtil.h"
 
 #include "BaseGizmos/GizmoComponents.h"
 #include "BaseGizmos/TransformGizmo.h"
@@ -445,14 +446,18 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 		{
 			FTransform3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
 
+			UPrimitiveComponent* Component = ComponentTargets[ComponentIdx]->GetOwnerComponent();
+			Component->Modify();
+
+			// transform simple collision geometry
+			UE::Geometry::TransformSimpleCollision(Component, ToBake);
+
 			ComponentTargets[ComponentIdx]->CommitMesh([&ToBake](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 			{
 				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(CommitParams.MeshDescription);
 				MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBake);
 			});
 
-			UPrimitiveComponent* Component = ComponentTargets[ComponentIdx]->GetOwnerComponent();
-			Component->Modify();
 			Component->SetWorldTransform(NewWorldTransform);
 		}
 		else

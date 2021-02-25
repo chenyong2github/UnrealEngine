@@ -3,42 +3,50 @@
 #include "Physics/PhysicsDataCollection.h"
 #include "Physics/CollisionGeometryConversion.h"
 
-#include "Engine/Classes/Engine/StaticMesh.h"
-#include "Engine/Classes/Components/StaticMeshComponent.h"
-#include "Engine/Classes/PhysicsEngine/BodySetup.h"
+#include "Engine/StaticMesh.h"
+#include "Components/StaticMeshComponent.h"
+#include "PhysicsEngine/BodySetup.h"
 
 
 
 void FPhysicsDataCollection::InitializeFromComponent(const UActorComponent* Component, bool bInitializeAggGeom)
 {
 	const UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(Component);
-	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-	
-	SourceComponent = StaticMeshComponent;
-	SourceStaticMesh = StaticMesh;
-	BodySetup = StaticMesh->GetBodySetup();
-
-	ExternalScale3D = FVector(1.f, 1.f, 1.f);
-
-	if (bInitializeAggGeom)
+	if (ensure(StaticMeshComponent))
 	{
-		AggGeom = BodySetup->AggGeom;
-		// transfer AggGeom to FSimpleShapeSet3d...
+		const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
+		if (ensure(StaticMesh))
+		{
+			SourceComponent = StaticMeshComponent;
+			SourceStaticMesh = StaticMesh;
+			BodySetup = StaticMesh->GetBodySetup();
+
+			ExternalScale3D = FVector(1.f, 1.f, 1.f);
+
+			if (bInitializeAggGeom)
+			{
+				AggGeom = BodySetup->AggGeom;
+				UE::Geometry::GetShapeSet(AggGeom, Geometry);
+			}
+		}
 	}
 }
 
 
 void FPhysicsDataCollection::InitializeFromStaticMesh(const UStaticMesh* StaticMesh, bool bInitializeAggGeom)
 {
-	SourceStaticMesh = StaticMesh;
-	BodySetup = StaticMesh->GetBodySetup();
-
-	ExternalScale3D = FVector(1.f, 1.f, 1.f);
-
-	if (bInitializeAggGeom)
+	if (ensure(StaticMesh))
 	{
-		AggGeom = BodySetup->AggGeom;
-		// transfer AggGeom to FSimpleShapeSet3d...
+		SourceStaticMesh = StaticMesh;
+		BodySetup = StaticMesh->GetBodySetup();
+
+		ExternalScale3D = FVector(1.f, 1.f, 1.f);
+
+		if (bInitializeAggGeom)
+		{
+			AggGeom = BodySetup->AggGeom;
+			UE::Geometry::GetShapeSet(AggGeom, Geometry);
+		}
 	}
 }
 

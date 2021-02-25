@@ -9,6 +9,7 @@
 #include "CapsuleTypes.h"
 #include "SphereTypes.h"
 #include "DynamicMesh3.h"
+#include "TransformTypes.h"
 
 
 /**
@@ -117,6 +118,24 @@ struct DYNAMICMESH_API FSimpleShapeSet3d
 	int32 TotalElementsNum() const { return Spheres.Num() + Boxes.Num() + Capsules.Num() + Convexes.Num(); }
 
 	/**
+	 * Append elements of another shape set
+	 */
+	void Append(const FSimpleShapeSet3d& OtherShapeSet);
+
+
+	/**
+	 * Append elements of another shape set with given transform applied
+	 */
+	void Append(const FSimpleShapeSet3d& OtherShapeSet, const FTransform3d& Transform);
+
+
+	/**
+	 * Append elements of another shape set with given transforms applied
+	 */
+	void Append(const FSimpleShapeSet3d& OtherShapeSet, const TArray<FTransform3d>& TransformSequence);
+
+
+	/**
 	 * Remove any of the elements that are fully contained in larger elements
 	 */
 	void RemoveContainedGeometry();
@@ -125,5 +144,11 @@ struct DYNAMICMESH_API FSimpleShapeSet3d
 	 * Sort the elements by volume and then discard all but the largest MaximumCount elements
 	 */
 	void FilterByVolume(int32 MaximumCount);
+
+
+	/**
+	 * Transform shape elements. This will be a best-effort as if there is non-uniform scaling only Convexes can be transformed correctly
+	 */
+	void ApplyTransform(const FTransform3d& Transform);
 };
 

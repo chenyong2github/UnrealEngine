@@ -3,6 +3,7 @@
 #include "ShapeApproximation/SimpleShapeSet3.h"
 
 #include "MeshQueries.h"
+#include "MeshTransforms.h"
 #include "Intersection/ContainmentQueries3.h"
 
 
@@ -304,6 +305,174 @@ void FSimpleShapeSet3d::RemoveContainedGeometry()
 }
 
 
+static void TransformSphereShape(FSphereShape3d& SphereShape, const FTransform3d& Transform)
+{
+	double RadiusScale = Transform.GetScale().Length() / FVector3d::One().Length();
+	SphereShape.Sphere.Center = Transform.TransformPosition(SphereShape.Sphere.Center);
+	SphereShape.Sphere.Radius *= RadiusScale;
+}
+static void TransformBoxShape(FBoxShape3d& BoxShape, const FTransform3d& Transform)
+{
+	FVector3d CornerVec = BoxShape.Box.Frame.PointAt(BoxShape.Box.Extents) - BoxShape.Box.Frame.Origin;
+	BoxShape.Box.Frame.Transform(Transform);
+	CornerVec = Transform.TransformVector(CornerVec);
+	BoxShape.Box.Extents.X = CornerVec.Dot(BoxShape.Box.AxisX());
+	BoxShape.Box.Extents.Y = CornerVec.Dot(BoxShape.Box.AxisY());
+	BoxShape.Box.Extents.Z = CornerVec.Dot(BoxShape.Box.AxisZ());
+}
+static void TransformCapsuleShape(FCapsuleShape3d& CapsuleShape, const FTransform3d& Transform)
+{
+	FVector3d P0 = Transform.TransformPosition(CapsuleShape.Capsule.Segment.StartPoint());
+	FVector3d P1 = Transform.TransformPosition(CapsuleShape.Capsule.Segment.EndPoint());
+
+	CapsuleShape.Capsule.Segment.Center = 0.5 * (P0 + P1);
+	CapsuleShape.Capsule.Segment.Direction = (P1 - P0);
+	CapsuleShape.Capsule.Segment.Extent = CapsuleShape.Capsule.Segment.Direction.Normalize() * 0.5;
+
+	double CurRadius = CapsuleShape.Capsule.Radius;
+	FFrame3d CapsuleFrame(CapsuleShape.Capsule.Segment.Center, CapsuleShape.Capsule.Segment.Direction);
+	FVector3d SideVec = CapsuleFrame.PointAt(FVector3d(CurRadius, CurRadius, 0)) - CapsuleFrame.Origin;
+	FVector3d NewSideVec = Transform.TransformVector(SideVec);
+	double RadiusScale = NewSideVec.Length() / SideVec.Length();
+	CapsuleShape.Capsule.Radius *= RadiusScale;
+}
+
+
+
+
+static void TransformSphereShape(FSphereShape3d& SphereShape, const TArray<FTransform3d>& TransformSequence)
+{
+	for (const FTransform3d& XForm : TransformSequence)
+	{
+		SphereShape.Sphere.Center = XForm.TransformPosition(SphereShape.Sphere.Center);
+		double RadiusScale = XForm.GetScale().Length() / FVector3d::One().Length();
+		SphereShape.Sphere.Radius *= RadiusScale;
+	}
+}
+static void TransformBoxShape(FBoxShape3d& BoxShape, const TArray<FTransform3d>& TransformSequence)
+{
+	FVector3d CornerVec = BoxShape.Box.Frame.PointAt(BoxShape.Box.Extents) - BoxShape.Box.Frame.Origin;
+	for (const FTransform3d& XForm : TransformSequence)
+	{
+		BoxShape.Box.Frame.Transform(XForm);
+		CornerVec = XForm.TransformVector(CornerVec);
+	}
+	BoxShape.Box.Extents.X = CornerVec.Dot(BoxShape.Box.AxisX());
+	BoxShape.Box.Extents.Y = CornerVec.Dot(BoxShape.Box.AxisY());
+	BoxShape.Box.Extents.Z = CornerVec.Dot(BoxShape.Box.AxisZ());
+}
+static void TransformCapsuleShape(FCapsuleShape3d& CapsuleShape, const TArray<FTransform3d>& TransformSequence)
+{
+	FVector3d P0 = CapsuleShape.Capsule.Segment.StartPoint();
+	FVector3d P1 = CapsuleShape.Capsule.Segment.EndPoint();
+
+	double CurRadius = CapsuleShape.Capsule.Radius;
+	FFrame3d CapsuleFrame(CapsuleShape.Capsule.Segment.Center, CapsuleShape.Capsule.Segment.Direction);
+	FVector3d InitialSideVec = CapsuleFrame.PointAt(FVector3d(CurRadius, CurRadius, 0)) - CapsuleFrame.Origin;
+	FVector3d NewSideVec = InitialSideVec;
+
+	for (const FTransform3d& XForm : TransformSequence)
+	{
+		P0 = XForm.TransformPosition(P0);
+		P1 = XForm.TransformPosition(P1);
+		NewSideVec = XForm.TransformVector(NewSideVec);
+	}
+
+	CapsuleShape.Capsule.Segment.Center = 0.5 * (P0 + P1);
+	CapsuleShape.Capsule.Segment.Direction = (P1 - P0);
+	CapsuleShape.Capsule.Segment.Extent = CapsuleShape.Capsule.Segment.Direction.Normalize() * 0.5;
+	double RadiusScale = NewSideVec.Length() / InitialSideVec.Length();
+	CapsuleShape.Capsule.Radius *= RadiusScale;
+}
+
+
+
+
+void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet)
+{
+	for (FSphereShape3d SphereShape : OtherShapeSet.Spheres)
+	{
+		Spheres.Add(SphereShape);
+	}
+
+	for (FBoxShape3d BoxShape : OtherShapeSet.Boxes)
+	{
+		Boxes.Add(BoxShape);
+	}
+
+	for (FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
+	{
+		Capsules.Add(CapsuleShape);
+	}
+
+	Convexes.Reserve(Convexes.Num() + OtherShapeSet.Convexes.Num());
+	for (const FConvexShape3d& ConvexShape : OtherShapeSet.Convexes)
+	{
+		Convexes.Add(ConvexShape);
+	}
+}
+
+
+void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const FTransform3d& Transform)
+{
+	for (FSphereShape3d SphereShape : OtherShapeSet.Spheres)
+	{
+		TransformSphereShape(SphereShape, Transform);
+		Spheres.Add(SphereShape);
+	}
+
+	for (FBoxShape3d BoxShape : OtherShapeSet.Boxes)
+	{
+		TransformBoxShape(BoxShape, Transform);
+		Boxes.Add(BoxShape);
+	}
+
+	for (FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
+	{
+		TransformCapsuleShape(CapsuleShape, Transform);
+		Capsules.Add(CapsuleShape);
+	}
+
+	Convexes.Reserve(Convexes.Num() + OtherShapeSet.Convexes.Num());
+	for (const FConvexShape3d& ConvexShape : OtherShapeSet.Convexes)
+	{
+		Convexes.Add(ConvexShape);
+		MeshTransforms::ApplyTransform(Convexes.Last().Mesh, Transform);
+	}
+}
+
+
+
+void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const TArray<FTransform3d>& TransformSequence)
+{
+	for (FSphereShape3d SphereShape : OtherShapeSet.Spheres)
+	{
+		TransformSphereShape(SphereShape, TransformSequence);
+		Spheres.Add(SphereShape);
+	}
+
+	for (FBoxShape3d BoxShape : OtherShapeSet.Boxes)
+	{
+		TransformBoxShape(BoxShape, TransformSequence);
+		Boxes.Add(BoxShape);
+	}
+
+	for (FCapsuleShape3d CapsuleShape : OtherShapeSet.Capsules)
+	{
+		TransformCapsuleShape(CapsuleShape, TransformSequence);
+		Capsules.Add(CapsuleShape);
+	}
+
+	Convexes.Reserve(Convexes.Num() + OtherShapeSet.Convexes.Num());
+	for (const FConvexShape3d& ConvexShape : OtherShapeSet.Convexes)
+	{
+		Convexes.Add(ConvexShape);
+		for (const FTransform3d& XForm : TransformSequence)
+		{
+			MeshTransforms::ApplyTransform(Convexes.Last().Mesh, XForm);
+		}
+	}
+}
 
 
 
@@ -343,4 +512,29 @@ void FSimpleShapeSet3d::FilterByVolume(int32 MaximumCount)
 	Boxes = MoveTemp(NewSet.Boxes);
 	Capsules = MoveTemp(NewSet.Capsules);
 	Convexes = MoveTemp(NewSet.Convexes);
+}
+
+
+
+void FSimpleShapeSet3d::ApplyTransform(const FTransform3d& Transform)
+{
+	for (FSphereShape3d& SphereShape : Spheres)
+	{
+		TransformSphereShape(SphereShape, Transform);
+	}
+
+	for (FBoxShape3d& BoxShape : Boxes)
+	{
+		TransformBoxShape(BoxShape, Transform);
+	}
+
+	for (FCapsuleShape3d& CapsuleShape : Capsules)
+	{
+		TransformCapsuleShape(CapsuleShape, Transform);
+	}
+
+	for (FConvexShape3d& ConvexShape : Convexes)
+	{
+		MeshTransforms::ApplyTransform(ConvexShape.Mesh, Transform);
+	}
 }

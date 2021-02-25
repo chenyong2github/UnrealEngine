@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "ShapeApproximation/SimpleShapeSet3.h"
-#include "Engine/Classes/Engine/StaticMesh.h"
-#include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
+#include "Engine/StaticMesh.h"
+#include "PhysicsEngine/AggregateGeom.h"
 
 class UActorComponent;
 class UBodySetup;
