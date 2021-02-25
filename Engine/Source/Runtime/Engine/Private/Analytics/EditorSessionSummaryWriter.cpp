@@ -330,9 +330,9 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 
 		// Check if the debugger is present.
 		bool bIsDebuggerPresent = FPlatformMisc::IsDebuggerPresent();
-		if (CurrentSession->bIsDebugger != bIsDebuggerPresent)
+		if (CurrentSession->bIsDebuggerPresent != bIsDebuggerPresent)
 		{
-			CurrentSession->bIsDebugger = bIsDebuggerPresent;
+			CurrentSession->bIsDebuggerPresent = bIsDebuggerPresent;
 			if (bIsDebuggerPresent && !CurrentSession->bWasEverDebugger)
 			{
 				CurrentSession->bWasEverDebugger = true;
@@ -465,7 +465,7 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	Session->StartupTimestamp = StartupTimeUtc;
 	Session->LastTickTimestamp = FDateTime::UtcNow();
 	Session->Timestamp = FDateTime::UtcNow();
-	Session->bIsDebugger = FPlatformMisc::IsDebuggerPresent();
+	Session->bIsDebuggerPresent = FPlatformMisc::IsDebuggerPresent();
 	Session->bWasEverDebugger = FPlatformMisc::IsDebuggerPresent();
 	Session->ProcessDiagnostics = static_cast<uint32>(FPlatformMisc::GetProcessDiagnostics());
 	Session->CurrentUserActivity = GetUserActivityString();

@@ -85,7 +85,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool bIs64BitOS : 1;
 	bool bCrashed : 1;
 	bool bGPUCrashed : 1;
-	bool bIsDebugger : 1;
+	bool bIsDebuggerPresent : 1;
 	bool bWasEverDebugger : 1;
 	bool bIsVanilla : 1;
 	bool bIsTerminating : 1;
