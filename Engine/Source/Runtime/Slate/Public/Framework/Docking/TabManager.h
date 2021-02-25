@@ -40,20 +40,38 @@ enum class ESidebarLocation : uint8
 	None,
 };
 
+
+enum class ETabIdFlags : uint8
+{
+	None            = 0x0,  // No flags
+	SaveLayout      = 0x1,  // This tab should be included when saving the Slate layout
+};
+
+ENUM_CLASS_FLAGS(ETabIdFlags);
+
 struct FTabId
 {
 	FTabId()
 		: InstanceId(INDEX_NONE)
+		, Flags(ETabIdFlags::SaveLayout)
 	{ }
 
 	FTabId(const FName InTabType, const int32 InInstanceId)
 		: TabType(InTabType)
 		, InstanceId(InInstanceId)
+		, Flags(ETabIdFlags::SaveLayout)
 	{ }
 
 	FTabId(const FName InTabType)
 		: TabType(InTabType)
 		, InstanceId(INDEX_NONE)
+		, Flags(ETabIdFlags::SaveLayout)
+	{ }
+
+	FTabId(const FName InTabType, const ETabIdFlags InFlags)
+		: TabType(InTabType)
+		, InstanceId(INDEX_NONE)
+		, Flags(InFlags)
 	{ }
 
 	/** Document tabs allow multiple instances of the same tab type. The placement rules for these tabs are left up for the specific use-cases. These tabs are not persisted. */
@@ -66,6 +84,8 @@ struct FTabId
 	{
 		return TabType == Other.TabType && (InstanceId == INDEX_NONE || Other.InstanceId == INDEX_NONE || InstanceId == Other.InstanceId) ;
 	}
+
+	bool ShouldSaveLayout() const { return EnumHasAnyFlags(Flags, ETabIdFlags::SaveLayout); }
 
 	FString ToString() const
 	{
@@ -99,6 +119,9 @@ struct FTabId
 
 	FName TabType;
 	int32 InstanceId;
+
+	private:
+	ETabIdFlags Flags;
 };
 
 

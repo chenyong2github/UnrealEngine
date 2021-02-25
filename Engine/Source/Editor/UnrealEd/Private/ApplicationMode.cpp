@@ -5,6 +5,8 @@
 #include "Framework/Docking/LayoutService.h"
 #include "UnrealEdMisc.h"
 
+DEFINE_LOG_CATEGORY_STATIC(LogApplicationMode, Log, All);
+
 #define LOCTEXT_NAMESPACE "ApplicationMode"
 
 /////////////////////////////////////////////////////
@@ -26,6 +28,8 @@ FApplicationMode::FApplicationMode(FName InModeName, FText(*GetLocalizedMode)(co
 
 void FApplicationMode::DeactivateMode(TSharedPtr<FTabManager> InTabManager)
 {
+	UE_LOG(LogApplicationMode, Log, TEXT("Deactivating ApplicationMode '%s'"), *ModeName.ToString());
+
 	// Save the layout to INI
 	check(InTabManager.IsValid());
 	if (FUnrealEdMisc::Get().IsSavingLayoutOnClosedAllowed())
@@ -45,6 +49,8 @@ void FApplicationMode::DeactivateMode(TSharedPtr<FTabManager> InTabManager)
 
 TSharedRef<FTabManager::FLayout> FApplicationMode::ActivateMode(TSharedPtr<FTabManager> InTabManager)
 {
+	UE_LOG(LogApplicationMode, Log, TEXT("Activating ApplicationMode '%s'"), *ModeName.ToString());
+
 	check(InTabManager.IsValid());
 	RegisterTabFactories(InTabManager);
 
