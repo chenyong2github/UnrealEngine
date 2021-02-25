@@ -7,6 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "WorldDataLayers.h"
+#include "ActorDataLayer.h"
 
 #include "DataLayer.generated.h"
 
@@ -31,6 +32,9 @@ public:
 
 	bool IsLocked() const { return bIsLocked; }
 #endif
+
+	UFUNCTION(Category = DataLayer, BlueprintCallable)
+	bool Equals(const FActorDataLayer& ActorDataLayer) const { return ActorDataLayer.Name == GetFName(); }
 	
 	UFUNCTION(Category = DataLayer, BlueprintCallable)
 	FName GetDataLayerLabel() const  { return DataLayerLabel; }
