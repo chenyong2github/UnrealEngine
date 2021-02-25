@@ -235,6 +235,12 @@ void USkeletalMeshComponent::PerformBlendPhysicsBones(const TArray<FBoneIndexTyp
 
 					float UsePhysWeight = (bBlendPhysics)? 1.f : PhysicsAssetBodyInstance->PhysicsBlendWeight;
 
+					// if the body instance is disabled, then we want to use the animation transform and ignore the physics one
+					if (PhysicsAssetBodyInstance->IsPhysicsDisabled())
+					{
+						UsePhysWeight = 0.0f;
+					}
+
 					// Find this bones parent matrix.
 					FTransform ParentWorldTM;
 

@@ -3568,6 +3568,26 @@ void FBodyInstance::SetUseCCD(bool bInUseCCD)
 	}
 }
 
+void FBodyInstance::SetPhysicsDisabled(bool bSetDisabled)
+{
+	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	{
+		if (FPhysicsInterface::IsValid(Actor) && FPhysicsInterface::IsRigidBody(Actor))
+		{
+			FPhysicsInterface::SetDisabled(Actor, bSetDisabled);
+		}
+	});
+}
+
+bool FBodyInstance::IsPhysicsDisabled() const
+{
+	bool bIsDisabled = false;
+	FPhysicsCommand::ExecuteRead(ActorHandle, [&](const FPhysicsActorHandle& Actor)
+	{
+		bIsDisabled = FPhysicsInterface::IsDisabled(Actor);
+	});
+	return bIsDisabled;
+}
 
 void FBodyInstance::AddRadialImpulseToBody(const FVector& Origin, float Radius, float Strength, uint8 Falloff, bool bVelChange)
 {

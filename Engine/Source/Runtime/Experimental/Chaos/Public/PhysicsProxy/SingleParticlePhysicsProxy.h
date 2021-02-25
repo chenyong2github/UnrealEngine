@@ -896,6 +896,26 @@ public:
 		return false;
 	}
 
+	void SetDisabled(bool bDisable)
+	{
+		VerifyContext();
+		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			Rigid->SetDisabled(bDisable);
+		}
+	}
+
+	bool Disabled() const
+	{
+		VerifyContext();
+		if (auto Rigid = GetParticle_LowLevel()->CastToRigidParticle())
+		{
+			return Rigid->Disabled();
+		}
+
+		return false;
+	}
+
 };
 
 static_assert(sizeof(FRigidBodyHandle_External) == sizeof(FSingleParticlePhysicsProxy), "Derived types only used to constrain API, all data lives in base class ");

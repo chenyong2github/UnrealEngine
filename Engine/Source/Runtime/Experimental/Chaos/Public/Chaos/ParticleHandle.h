@@ -805,6 +805,7 @@ public:
 		SetCollisionGroup(DynamicMisc.CollisionGroup());
 		SetGravityEnabled(DynamicMisc.GravityEnabled());
 		SetCCDEnabled(DynamicMisc.CCDEnabled());
+		SetDisabled(DynamicMisc.Disabled());
 		SetResimType(DynamicMisc.ResimType());
 		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
 		AddCollisionConstraintFlag( (Chaos::ECollisionConstraintFlags)DynamicMisc.CollisionConstraintFlag() );
@@ -2111,6 +2112,13 @@ public:
 	void SetCCDEnabled(bool bInCCDEnabled)
 	{
 		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInCCDEnabled](auto& Data) {Data.SetCCDEnabled(bInCCDEnabled); });
+	}
+
+	bool Disabled() const { return MMiscData.Read().Disabled(); }
+
+	void SetDisabled(bool bInDisabled)
+	{
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInDisabled](auto& Data) {Data.SetDisabled(bInDisabled); });
 	}
 
 	//todo: remove this

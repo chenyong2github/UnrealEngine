@@ -94,6 +94,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Serialize HLOD info in WorldPartitionActorDesc
 		WorldPartitionActorDescSerializeHLODInfo,
 
+		// Expose particle Disabled flag to the game thread
+		AddDisabledFlag,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -327,8 +327,9 @@ public:
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
-		ConstraintGraph.DisableParticle(Particle);
+		// disable constraint before particles has particles need to be in the constraint graph for constraints to be removed
 		DisableConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
+		ConstraintGraph.DisableParticle(Particle);
 	}
 
 	CHAOS_API void FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration,FPendingSpatialDataQueue& ExternalQueue);

@@ -341,6 +341,16 @@ void FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(TArray< FP
 	}
 }
 
+void FChaosEngineInterface::SetDisabled(const FPhysicsActorHandle& InPhysicsActor, bool bSetDisabled)
+{
+	InPhysicsActor->GetGameThreadAPI().SetDisabled(bSetDisabled);
+}
+
+bool FChaosEngineInterface::IsDisabled(const FPhysicsActorHandle& InPhysicsActor)
+{
+	return InPhysicsActor->GetGameThreadAPI().Disabled();
+}
+
 void FChaosEngineInterface::SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference,FPhysicsUserData* InUserData)
 {
 	InActorReference->GetGameThreadAPI().SetUserData(InUserData);

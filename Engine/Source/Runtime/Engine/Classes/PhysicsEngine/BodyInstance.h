@@ -777,6 +777,13 @@ public:
 	/** Enable/disable Continuous Collidion Detection feature */
 	void SetUseCCD(bool bInUseCCD);
 
+	/** Disable/Re-Enable this body in the solver,  when disable, the body won't be part of the simulation ( regardless if it's dynamic or kinematic ) and no collision will occur 
+	* this can be used for performance control situation for example
+	*/
+	void SetPhysicsDisabled(bool bSetDisabled);
+
+	bool IsPhysicsDisabled() const;
+
 private:
 
 	/** Struct of body instance delegates that are rarely bound so that we can only allocate memory if one is actually being used. */

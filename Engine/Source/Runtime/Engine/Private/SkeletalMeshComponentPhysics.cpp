@@ -1093,6 +1093,13 @@ void USkeletalMeshComponent::SetAllBodiesNotifyRigidBodyCollision(bool bNewNotif
 	}
 }
 
+void USkeletalMeshComponent::SetAllBodiesBelowPhysicsDisabled(const FName& InBoneName, bool bDisabled, bool bIncludeSelf)
+{
+	int32 NumBodiesFound = ForEachBodyBelow(InBoneName, bIncludeSelf, /*bSkipCustomPhysicsType=*/ false, [bDisabled](FBodyInstance* BI)
+	{
+		BI->SetPhysicsDisabled(bDisabled);
+	});
+}
 
 void USkeletalMeshComponent::SetAllBodiesBelowSimulatePhysics( const FName& InBoneName, bool bNewSimulate, bool bIncludeSelf )
 {

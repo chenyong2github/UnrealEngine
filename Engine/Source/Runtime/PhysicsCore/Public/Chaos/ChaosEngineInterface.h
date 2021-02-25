@@ -370,6 +370,9 @@ public:
 	static void AddDisabledCollisionsFor_AssumesLocked(const TMap<FPhysicsActorHandle, TArray< FPhysicsActorHandle > >& InMap);
 	static void RemoveDisabledCollisionsFor_AssumesLocked(TArray< FPhysicsActorHandle > & InPhysicsActors);
 
+	static void SetDisabled(const FPhysicsActorHandle& InPhysicsActor, bool bSetDisabled);
+	static bool IsDisabled(const FPhysicsActorHandle& InPhysicsActor);
+
 	static void SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference,FPhysicsUserData* InUserData);
 
 	static bool IsRigidBody(const FPhysicsActorHandle& InActorReference);

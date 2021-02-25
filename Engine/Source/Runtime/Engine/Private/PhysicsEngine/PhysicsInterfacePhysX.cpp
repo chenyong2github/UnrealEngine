@@ -1170,6 +1170,19 @@ bool FPhysicsInterface_PhysX::IsCcdEnabled(const FPhysicsActorHandle_PhysX& InAc
 	return GetRigidBodyFlag(InActorHandle, PxRigidBodyFlag::eENABLE_CCD);
 }
 
+bool FPhysicsInterface_PhysX::IsDisabled(const FPhysicsActorHandle_PhysX& InHandle)
+{
+	// @todo(chaos) todo - see SetDisabled() bewlow
+	return false;
+}
+
+void FPhysicsInterface_PhysX::SetDisabled(const FPhysicsActorHandle_PhysX& InHandle, bool bSetDisabled)
+{
+	// @todo(chaos) todo - the closest way may be to set the PxRigidBodyFlag::eDISABLE_SIMULATION, but this may have implication on what you can or not call on the body after that 
+	ensureMsgf(false, TEXT("SetDisabled is unsupported by the PhysX interface"));
+}
+
+
 bool FPhysicsInterface_PhysX::IsInScene(const FPhysicsActorHandle_PhysX& InActorHandle)
 {
 	if(PxRigidActor* Actor = GetPxRigidActor_AssumesLocked(InActorHandle))

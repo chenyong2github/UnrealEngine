@@ -1957,7 +1957,6 @@ public:
 	/** Find the root body index*/
 	int32 FindRootBodyIndex() const;
 
-
 	/** Terminate physics on all bodies below the named bone, effectively disabling collision forever. If you terminate, you won't be able to re-init later. */
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
 	void TermBodiesBelow(FName ParentBoneName);
@@ -1996,6 +1995,14 @@ public:
 	/** Disable physics blending of bones **/
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")
 	void SetEnablePhysicsBlending(bool bNewBlendPhysics);
+
+	/** [WARNING: Chaos Only] 
+	* Set all of the bones below passed in bone to be disabled or not for the associated physics solver 
+	* Bodies will not be colliding or be part of the physics simulation. 
+	* This is different from SetAllBodiesBelowSimulatePhysics that changes bodies to Kinematic/simulated 	
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh")
+	void SetAllBodiesBelowPhysicsDisabled(const FName& InBoneName, bool bDisabled, bool bIncludeSelf = true);
 
 	/** Set all of the bones below passed in bone to be simulated */
 	UFUNCTION(BlueprintCallable, Category="Components|SkeletalMesh")

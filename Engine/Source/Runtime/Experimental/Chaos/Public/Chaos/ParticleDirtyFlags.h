@@ -274,6 +274,11 @@ public:
 		{
 			Ar << MCollisionConstraintFlag;
 		}
+
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::AddDisabledFlag)
+		{
+			Ar << bDisabled;
+		}
 	}
 
 	template <typename TOther>
@@ -288,6 +293,7 @@ public:
 		SetOneWayInteraction(Other.OneWayInteraction());
 		SetCollisionConstraintFlag(Other.CollisionConstraintFlag());
 		SetCCDEnabled(Other.CCDEnabled());
+		SetDisabled(Other.Disabled());
 	}
 
 	template <typename TOther>
@@ -301,7 +307,8 @@ public:
 			&& ResimType() == Other.ResimType()
 			&& OneWayInteraction() == Other.OneWayInteraction() 
 			&& CollisionConstraintFlag() == Other.CollisionConstraintFlag()
-			&& CCDEnabled() == Other.CCDEnabled();
+			&& CCDEnabled() == Other.CCDEnabled()
+			&& Disabled() == Other.Disabled();
 	}
 
 	bool operator==(const FParticleDynamicMisc& Other) const
@@ -323,6 +330,9 @@ public:
 
 	bool CCDEnabled() const { return bCCDEnabled; }
 	void SetCCDEnabled(bool bInCCDEnabled) { bCCDEnabled = bInCCDEnabled; }
+
+	bool Disabled() const { return bDisabled; }
+	void SetDisabled(bool bInDisabled) { bDisabled = bInDisabled; }
 
 	int32 CollisionGroup() const { return MCollisionGroup; }
 	void SetCollisionGroup(int32 InGroup){ MCollisionGroup = InGroup; }
@@ -348,6 +358,7 @@ private:
 	uint32 MCollisionConstraintFlag = 0;
 
 	bool bCCDEnabled;
+	bool bDisabled;
 };
 
 inline FChaosArchive& operator<<(FChaosArchive& Ar,FParticleDynamicMisc& Data)

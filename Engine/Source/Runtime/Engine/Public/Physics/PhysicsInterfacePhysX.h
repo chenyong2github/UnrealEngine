@@ -255,7 +255,9 @@ struct ENGINE_API FPhysicsInterface_PhysX : public FGenericPhysicsInterface, pub
 	static bool IsKinematic_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle);
 	static bool IsSleeping(const FPhysicsActorHandle_PhysX& InHandle);
 	static bool IsCcdEnabled(const FPhysicsActorHandle_PhysX& InHandle);
-	static bool IsInScene(const FPhysicsActorHandle_PhysX& InHandle);
+	static bool IsCcdEnabled(const FPhysicsActorHandle_PhysX& InHandle);
+	static bool IsDisabled(const FPhysicsActorHandle_PhysX& InHandle);
+	static void SetDisabled(const FPhysicsActorHandle_PhysX& InHandle, bool bSetDisabled);
 	static FPhysScene* GetCurrentScene(const FPhysicsActorHandle_PhysX& InHandle);
 	static bool CanSimulate_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle);
 	static float GetMass_AssumesLocked(const FPhysicsActorHandle_PhysX& InHandle);
