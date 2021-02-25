@@ -1041,6 +1041,11 @@ bool SRigHierarchy::RemoveElement(FRigElementKey InKey)
 
 void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
+	if(!ControlRigBlueprint.IsValid())
+	{
+		return;
+	}
+	
 	if (ControlRigBlueprint->bSuspendAllNotifications)
 	{
 		return;
