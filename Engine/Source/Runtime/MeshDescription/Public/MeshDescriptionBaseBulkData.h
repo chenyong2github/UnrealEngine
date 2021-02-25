@@ -29,7 +29,6 @@ public:
 	virtual bool NeedsLoadForClient() const override;
 	virtual bool NeedsLoadForServer() const override;
 	virtual bool NeedsLoadForEditorGame() const override;
-	virtual UClass* GetMeshDescriptionType() const;
 
 #if WITH_EDITORONLY_DATA
 
@@ -47,6 +46,9 @@ public:
 
 protected:
 	TPimplPtr<FMeshDescriptionBulkData> BulkData;
+
+	UPROPERTY(Transient)
+	UMeshDescriptionBase* PreallocatedMeshDescription;
 
 	UPROPERTY(Transient)
 	UMeshDescriptionBase* MeshDescription;

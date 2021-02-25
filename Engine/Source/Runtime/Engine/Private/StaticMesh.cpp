@@ -6258,7 +6258,11 @@ void UStaticMesh::CreateBodySetup()
 {
 	if (GetBodySetup() == nullptr)
 	{
-		UBodySetup* NewBodySetup = NewObject<UBodySetup>(this);
+		UBodySetup* NewBodySetup = nullptr;
+		{
+			FGCScopeGuard Scope;
+			NewBodySetup = NewObject<UBodySetup>(this);
+		}
 		NewBodySetup->DefaultInstance.SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 		NewBodySetup->bSupportUVsAndFaceRemap = bSupportPhysicalMaterialMasks;
 		SetBodySetup(NewBodySetup);
@@ -6271,7 +6275,12 @@ void UStaticMesh::CreateNavCollision(const bool bIsUpdate)
 	{
 		if (GetNavCollision() == nullptr)
 		{
-			SetNavCollision(UNavCollisionBase::ConstructNew(*this));
+			UNavCollisionBase* NewNavCollisionBase = nullptr;
+			{
+				FGCScopeGuard Scope;
+				NewNavCollisionBase = UNavCollisionBase::ConstructNew(*this);
+			}
+			SetNavCollision(NewNavCollisionBase);
 		}
 
 		if (GetNavCollision())

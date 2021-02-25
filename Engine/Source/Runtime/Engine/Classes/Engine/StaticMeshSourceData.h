@@ -24,8 +24,7 @@ class ENGINE_API UStaticMeshDescriptionBulkData : public UMeshDescriptionBaseBul
 	GENERATED_BODY()
 
 public:
-	virtual UClass* GetMeshDescriptionType() const override;
-
+	UStaticMeshDescriptionBulkData();
 };
 
 

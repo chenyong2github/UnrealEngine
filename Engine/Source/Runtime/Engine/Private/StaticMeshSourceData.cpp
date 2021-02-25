@@ -12,9 +12,10 @@
 #endif
 
 
-UClass* UStaticMeshDescriptionBulkData::GetMeshDescriptionType() const
+UStaticMeshDescriptionBulkData::UStaticMeshDescriptionBulkData()
 {
-	return UStaticMeshDescription::StaticClass();
+	const bool bTransient = true;
+	PreallocatedMeshDescription = CreateDefaultSubobject<UStaticMeshDescription>(TEXT("MeshDescription"), bTransient);
 }
 
 
@@ -76,10 +77,14 @@ FStaticMeshSourceModel& FStaticMeshSourceModel::operator=(FStaticMeshSourceModel
 void FStaticMeshSourceModel::CreateSubObjects(UStaticMesh* InOwner)
 {
 #if WITH_EDITORONLY_DATA
-	ensure(IsInGameThread());
 	if (StaticMeshDescriptionBulkData == nullptr)
 	{
+		// Currently there is a restriction on creating UObjects on a thread while garbage collection is taking place,
+		// so use a GCScopeGuard to prevent it happening at the same time.
+		FGCScopeGuard Guard;
 		StaticMeshDescriptionBulkData = NewObject<UStaticMeshDescriptionBulkData>(InOwner, NAME_None, RF_Transactional);
+
+		// OK to clear the async flag immediately here, because the UObject* has already been assigned directly to a UPROPERTY.
 		StaticMeshDescriptionBulkData->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
 	}
 
@@ -294,6 +299,8 @@ void FStaticMeshSourceModel::SerializeBulkData(FArchive& Ar, UObject* Owner)
 		// If this was a legacy asset, or is being created for the first time, create a bulkdata UObject wrapper
 		if (StaticMeshDescriptionBulkData == nullptr)
 		{
+			// For now, we assume that serialization will only occur on the game thread
+			ensure(IsInGameThread());
 			StaticMeshDescriptionBulkData = NewObject<UStaticMeshDescriptionBulkData>(Owner, NAME_None, RF_Transactional);
 		}
 	}

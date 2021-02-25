@@ -58,12 +58,6 @@ bool UMeshDescriptionBaseBulkData::NeedsLoadForEditorGame() const
 }
 
 
-UClass* UMeshDescriptionBaseBulkData::GetMeshDescriptionType() const
-{
-	return UMeshDescriptionBase::StaticClass();
-}
-
-
 #if WITH_EDITORONLY_DATA
 
 void UMeshDescriptionBaseBulkData::Empty()
@@ -76,11 +70,8 @@ UMeshDescriptionBase* UMeshDescriptionBaseBulkData::CreateMeshDescription()
 {
 	if (MeshDescription == nullptr)
 	{
-		// Assign the new UObject directly to a UPROPERTY.
-		// If we were run from a different thread, we can immediately clear the Async internal flag, now that GC refs are set up correctly.
-		UClass* MeshDescriptionType = GetMeshDescriptionType();
-		MeshDescription = NewObject<UMeshDescriptionBase>(this, MeshDescriptionType, NAME_None, RF_Transient);
-		MeshDescription->AtomicallyClearInternalFlags(EInternalObjectFlags::Async);
+		check(PreallocatedMeshDescription);
+		MeshDescription = PreallocatedMeshDescription;
 	}
 
 	// Reset the mesh description and register its attributes
