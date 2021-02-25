@@ -8957,20 +8957,6 @@ void FBlueprintEditor::OnFinishedChangingProperties(const FPropertyChangedEvent&
 	FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : PropertyName;
 
-	if (MemberPropertyName.IsValid())
-	{
-		UBlueprint* Blueprint = GetBlueprintObj();
-		if (Blueprint)
-		{
-			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, MemberPropertyName);
-			if (VarIndex != INDEX_NONE)
-			{
-				Blueprint->Modify();
-				Blueprint->NewVariables[VarIndex].DefaultValue.Empty();
-			}
-		}
-	}
-
 	//@TODO: This code does not belong here (might not even be necessary anymore as they seem to have PostEditChangeProperty impls now)!
 	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_Switch, bHasDefaultPin)) ||
 		(PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_SwitchInteger, StartIndex)) ||
