@@ -1435,7 +1435,7 @@ public:
 	*/
 	RENDERER_API ~FViewInfo();
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 	/** Verifies all the assertions made on members. */
 	bool VerifyMembersChecks() const;
 #endif

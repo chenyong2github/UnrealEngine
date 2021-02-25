@@ -1982,7 +1982,7 @@ private:
 	// Private constructor. Memory for transitions is allocated manually with extra space at the tail of the structure for RHI use.
 	FRHITransition(ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines)
 		: State(int8(SrcPipelines) | (int8(DstPipelines) << int32(ERHIPipeline::Num)))
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 		, AllowedSrc(SrcPipelines)
 		, AllowedDst(DstPipelines)
 #endif
@@ -2042,7 +2042,7 @@ private:
 	mutable int8 State;
 	static_assert((int32(ERHIPipeline::Num) * 2) < (sizeof(State) * 8), "Not enough bits to hold pipeline state.");
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 	mutable ERHIPipeline AllowedSrc;
 	mutable ERHIPipeline AllowedDst;
 #endif

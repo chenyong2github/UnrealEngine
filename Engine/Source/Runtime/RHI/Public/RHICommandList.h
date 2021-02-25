@@ -1654,14 +1654,14 @@ struct FLocalUniformBufferWorkArea
 	void* Contents;
 	const FRHIUniformBufferLayout* Layout;
 	FComputedUniformBuffer* ComputedUniformBuffer;
-#if DO_CHECK // the below variables are used in check(), which can be enabled in Shipping builds (see Build.h)
+#if DO_CHECK || USING_CODE_ANALYSIS // the below variables are used in check(), which can be enabled in Shipping builds (see Build.h)
 	FRHICommandListBase* CheckCmdList;
 	int32 UID;
 #endif
 
 	FLocalUniformBufferWorkArea(FRHICommandListBase* InCheckCmdList, const void* InContents, uint32 ContentsSize, const FRHIUniformBufferLayout* InLayout)
 		: Layout(InLayout)
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 		, CheckCmdList(InCheckCmdList)
 		, UID(InCheckCmdList->GetUID())
 #endif

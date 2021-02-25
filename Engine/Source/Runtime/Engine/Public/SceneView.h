@@ -1208,7 +1208,7 @@ public:
 	/** Initialization constructor. */
 	FSceneView(const FSceneViewInitOptions& InitOptions);
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 	/** Verifies all the assertions made on members. */
 	bool VerifyMembersChecks() const;
 #endif
@@ -1446,7 +1446,7 @@ struct FSceneViewScreenPercentageConfig
 	static constexpr float kMaxTAAUpsampleResolutionFraction = 2.0f;
 
 
-	#if DO_CHECK
+	#if DO_CHECK || USING_CODE_ANALYSIS
 		static bool IsValidResolutionFraction(float ResolutionFraction)
 		{
 			return ResolutionFraction >= kMinResolutionFraction && ResolutionFraction <= kMaxResolutionFraction;

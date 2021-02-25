@@ -569,7 +569,7 @@ public:
 			, ZeroMask(Header.ZeroMask)
 			, FragmentIt(Header.Fragments.GetData())
 			, bDone(!Header.HasValues())
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 			, SchemaEnd(Schema.End)
 #endif
 		{
@@ -622,7 +622,7 @@ public:
 		bool bDone = false;
 		uint32 ZeroMaskIndex = 0;
 		uint32 RemainingFragmentValues = 0;
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 		FUnversionedSchemaIterator SchemaEnd;
 #endif
 

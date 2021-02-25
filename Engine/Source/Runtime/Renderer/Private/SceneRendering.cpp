@@ -978,7 +978,7 @@ FViewInfo::~FViewInfo()
 	TranslucentSelfShadowUniformBufferMap.Empty();
 }
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 bool FViewInfo::VerifyMembersChecks() const
 {
 	FSceneView::VerifyMembersChecks();

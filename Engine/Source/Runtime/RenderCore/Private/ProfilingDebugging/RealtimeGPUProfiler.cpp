@@ -113,7 +113,7 @@ public:
 		, StartQuery(RenderQueryPool.AllocateQuery())
 		, EndQuery(RenderQueryPool.AllocateQuery())
 		, FrameNumber(-1)
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 		, bInsideQuery(false)
 #endif
 	{
@@ -124,7 +124,7 @@ public:
 	{
 		check(IsInRenderingThread());
 		check(!bInsideQuery && StartQuery.IsValid());
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 		bInsideQuery = true;
 #endif
 		GPUMask = RHICmdList.GetGPUMask();
@@ -141,7 +141,7 @@ public:
 	{
 		check(IsInRenderingThread());
 		check(bInsideQuery && EndQuery.IsValid());
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 		bInsideQuery = false;
 #endif
 		SCOPED_GPU_MASK(RHICmdList, GPUMask);
@@ -258,7 +258,7 @@ private:
 
 	uint32 FrameNumber;
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 	bool bInsideQuery;
 #endif
 };

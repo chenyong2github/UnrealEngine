@@ -3352,7 +3352,7 @@ public:
 	 */
 	void RemoveOwnedComponent(UActorComponent* Component);
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 	/** Utility function for validating that a component is correctly in its Owner's OwnedComponents array */
 	bool OwnsComponent(UActorComponent* Component) const;
 #endif

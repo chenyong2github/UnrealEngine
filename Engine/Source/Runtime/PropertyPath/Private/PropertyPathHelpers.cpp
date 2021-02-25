@@ -815,7 +815,7 @@ bool FCachedPropertyPath::Equals(const FString& Other) const
 	return ToString() == Other;
 }
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 void* FCachedPropertyPath::GetCachedContainer() const
 {
 	return CachedContainer;

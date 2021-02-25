@@ -2936,7 +2936,7 @@ void AActor::RemoveOwnedComponent(UActorComponent* Component)
 	}
 }
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 bool AActor::OwnsComponent(UActorComponent* Component) const
 {
 	return OwnedComponents.Contains(Component);

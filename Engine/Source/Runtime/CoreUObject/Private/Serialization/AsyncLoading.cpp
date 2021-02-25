@@ -3912,7 +3912,7 @@ void FAsyncLoadingThread::InsertPackage(FAsyncPackage* Package, bool bReinsert, 
 	checkSlow(IsInAsyncLoadThread());
 	check(!IsInGameThread() || !IsMultithreaded());
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 	FWeakAsyncPackagePtr WeakPtr;
 	if (GEventDrivenLoaderEnabled)
 	{

@@ -170,7 +170,7 @@ struct PROPERTYPATH_API FCachedPropertyPath
 	/** Compares this property path to a string */
 	bool Equals(const FString& Other) const;
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 	/** Get the cached container for this property path, for checking purposes */
 	void* GetCachedContainer() const;
 
@@ -198,7 +198,7 @@ private:
 	UPROPERTY()
 	mutable TObjectPtr<UFunction> CachedFunction;
 
-#if DO_CHECK
+#if DO_CHECK || USING_CODE_ANALYSIS
 	/** Cached container, used for checking purposes only */
 	mutable void* CachedContainer;
 #endif
