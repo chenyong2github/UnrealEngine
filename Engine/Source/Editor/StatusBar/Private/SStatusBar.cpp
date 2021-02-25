@@ -21,31 +21,33 @@
 #include "OutputLogModule.h"
 #include "SourceControlMenuHelpers.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "InputCoreTypes.h"
 #include "Misc/ConfigCacheIni.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 
-class SContentBrowserOverlay : public SCompoundWidget
+
+class SDrawerOverlay : public SCompoundWidget
 {
-	SLATE_BEGIN_ARGS(SContentBrowserOverlay)
+	SLATE_BEGIN_ARGS(SDrawerOverlay)
 	{
 		_Clipping = EWidgetClipping::ClipToBounds;
 		_ShadowOffset = FVector2D(10.0f, 20.0f);
 	}
 	SLATE_DEFAULT_SLOT(FArguments, Content)
-		SLATE_ARGUMENT(float, MinContentBrowserHeight)
-		SLATE_ARGUMENT(float, MaxContentBrowserHeight)
-		SLATE_ARGUMENT(float, TargetContentBrowserHeight)
-		SLATE_EVENT(FOnContentBrowserTargetHeightChanged, OnTargetHeightChanged)
+		SLATE_ARGUMENT(float, MinDrawerHeight)
+		SLATE_ARGUMENT(float, MaxDrawerHeight)
+		SLATE_ARGUMENT(float, TargetDrawerHeight)
+		SLATE_EVENT(FOnStatusBarDrawerTargetHeightChanged, OnTargetHeightChanged)
 		SLATE_ARGUMENT(FVector2D, ShadowOffset)
 	SLATE_END_ARGS()
 
-	void SetHeight(float InHeight)
+	void UpdateHeightInterp(float InAlpha)
 	{
-		CurrentHeight = FMath::Clamp(InHeight, MinContentBrowserHeight, TargetContentBrowserHeight);
+		float NewHeight = FMath::Lerp(0.0f, TargetHeight, InAlpha);
+
+		SetHeight(NewHeight);
 	}
 
 	void Construct(const FArguments& InArgs)
@@ -57,11 +59,11 @@ class SContentBrowserOverlay : public SCompoundWidget
 
 		SplitterStyle = &FAppStyle::Get().GetWidgetStyle<FSplitterStyle>("Splitter");
 
-		MinContentBrowserHeight = InArgs._MinContentBrowserHeight;
+		MinHeight = InArgs._MinDrawerHeight;
 
-		MaxContentBrowserHeight = InArgs._MaxContentBrowserHeight;
+		MaxHeight = InArgs._MaxDrawerHeight;
 
-		TargetContentBrowserHeight = FMath::Clamp(InArgs._TargetContentBrowserHeight, MinContentBrowserHeight, MaxContentBrowserHeight);
+		TargetHeight = FMath::Clamp(InArgs._TargetDrawerHeight, MinHeight, MaxHeight);
 
 		OnTargetHeightChanged = InArgs._OnTargetHeightChanged;
 
@@ -84,7 +86,7 @@ class SContentBrowserOverlay : public SCompoundWidget
 
 	virtual FVector2D ComputeDesiredSize(float) const
 	{
-		return FVector2D(1.0f, TargetContentBrowserHeight + ShadowOffset.Y);
+		return FVector2D(1.0f, TargetHeight + ShadowOffset.Y);
 	}
 
 	virtual void OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const override
@@ -96,7 +98,7 @@ class SContentBrowserOverlay : public SCompoundWidget
 				AllottedGeometry.MakeChild(
 					ChildSlot.GetWidget(),
 					ShadowOffset,
-					FVector2D(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetContentBrowserHeight)
+					FVector2D(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetHeight)
 				)
 			);
 		}
@@ -114,7 +116,7 @@ class SContentBrowserOverlay : public SCompoundWidget
 			{
 				bIsResizing = true;
 				InitialResizeGeometry = ResizeHandleGeometry;
-				InitialContentBrowserHeightAtResize = CurrentHeight;
+				InitialHeightAtResize = CurrentHeight;
 				ResizeThrottleHandle = FSlateThrottleManager::Get().EnterResponsiveMode();
 
 				Reply = FReply::Handled().CaptureMouse(SharedThis(this));
@@ -132,7 +134,7 @@ class SContentBrowserOverlay : public SCompoundWidget
 			bIsResizing = false;
 			FSlateThrottleManager::Get().LeaveResponsiveMode(ResizeThrottleHandle);
 
-			OnTargetHeightChanged.ExecuteIfBound(TargetContentBrowserHeight);
+			OnTargetHeightChanged.ExecuteIfBound(TargetHeight);
 			return FReply::Handled().ReleaseMouseCapture();
 		}
 		return FReply::Unhandled();
@@ -149,8 +151,8 @@ class SContentBrowserOverlay : public SCompoundWidget
 			const FVector2D LocalMousePos = InitialResizeGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 			const float DeltaHeight = (InitialResizeGeometry.GetLocalPositionAtCoordinates(FVector2D::ZeroVector) - LocalMousePos).Y;
 
-			TargetContentBrowserHeight = FMath::Clamp(InitialContentBrowserHeightAtResize + DeltaHeight, MinContentBrowserHeight, MaxContentBrowserHeight);
-			SetHeight(InitialContentBrowserHeightAtResize + DeltaHeight);
+			TargetHeight = FMath::Clamp(InitialHeightAtResize + DeltaHeight, MinHeight, MaxHeight);
+			SetHeight(InitialHeightAtResize + DeltaHeight);
 
 
 			return FReply::Handled();
@@ -206,7 +208,7 @@ class SContentBrowserOverlay : public SCompoundWidget
 		FSlateDrawElement::MakeBox(
 			OutDrawElements,
 			LayerId,
-			RenderTransformedChildGeometry.ToPaintGeometry(ShadowOffset, FVector2D(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetContentBrowserHeight)),
+			RenderTransformedChildGeometry.ToPaintGeometry(ShadowOffset, FVector2D(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetHeight)),
 			BackgroundBrush,
 			ESlateDrawEffect::None,
 			BackgroundBrush->GetTint(InWidgetStyle));
@@ -229,16 +231,21 @@ class SContentBrowserOverlay : public SCompoundWidget
 private:
 	FGeometry GetRenderTransformedGeometry(const FGeometry& AllottedGeometry) const
 	{
-		return AllottedGeometry.MakeChild(FSlateRenderTransform(FVector2D(0.0f, TargetContentBrowserHeight - CurrentHeight)));
+		return AllottedGeometry.MakeChild(FSlateRenderTransform(FVector2D(0.0f, TargetHeight - CurrentHeight)));
 	}
 
 	FGeometry GetResizeHandleGeometry(const FGeometry& AllottedGeometry) const
 	{
 		return GetRenderTransformedGeometry(AllottedGeometry).MakeChild(ShadowOffset - FVector2D(0.0f, ExpanderSize), FVector2D(AllottedGeometry.GetLocalSize().X-ShadowOffset.X*2, ExpanderSize));
 	}
+
+	void SetHeight(float NewHeight)
+	{
+		CurrentHeight = FMath::Clamp(NewHeight, MinHeight, TargetHeight);
+	}
 private:
 	FGeometry InitialResizeGeometry;
-	FOnContentBrowserTargetHeightChanged OnTargetHeightChanged;
+	FOnStatusBarDrawerTargetHeightChanged OnTargetHeightChanged;
 	const FSlateBrush* BackgroundBrush;
 	const FSlateBrush* ShadowBrush;
 	const FSplitterStyle* SplitterStyle;
@@ -246,10 +253,10 @@ private:
 	FThrottleRequest ResizeThrottleHandle;
 	float ExpanderSize;
 	float CurrentHeight;
-	float MinContentBrowserHeight;
-	float MaxContentBrowserHeight;
-	float TargetContentBrowserHeight;
-	float InitialContentBrowserHeightAtResize;
+	float MinHeight;
+	float MaxHeight;
+	float TargetHeight;
+	float InitialHeightAtResize;
 	bool bIsResizing;
 	bool bIsResizeHandleHovered;
 };
@@ -258,7 +265,7 @@ private:
 SStatusBar::~SStatusBar()
 {
 	// Ensure the content browser is removed if we're being destroyed
-	RemoveContentBrowser();
+	CloseDrawerImmediately();
 }
 
 void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, const TSharedRef<SDockTab> InParentTab)
@@ -273,71 +280,64 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 
 	const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("StatusBar.Background");
 
-	GetContentBrowserDelegate = InArgs._OnGetContentBrowser;
-	OnContentBrowserOpenedDelegate = InArgs._OnContentBrowserOpened;
-	OnContentBrowserDismissedDelegate = InArgs._OnContentBrowserDismissed;
-
-	ContentBrowserEasingCurve = FCurveSequence(0.0f, 0.15f, ECurveEaseFunction::QuadOut);
+	DrawerEasingCurve = FCurveSequence(0.0f, 0.15f, ECurveEaseFunction::QuadOut);
 
 	FSlateApplication::Get().OnFocusChanging().AddSP(this, &SStatusBar::OnGlobalFocusChanging);
 	FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SStatusBar::OnActiveTabChanged));
 	FGlobalTabmanager::Get()->OnTabForegrounded_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SStatusBar::OnActiveTabChanged));
-
+	
 	ChildSlot
 	[
 		SNew(SBox)
 		.HeightOverride(FAppStyle::Get().GetFloat("StatusBar.Height"))
-		[				
+		[	
 			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.Padding(1.0f, 0.0f)
+			+SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SNew(SBorder)
-				.Padding(FMargin(2.0f, 0.0f))
-				.BorderImage(StatusBarBackground)
-				.VAlign(VAlign_Center)
-				[			
-					MakeContentBrowserWidget()
-				]
-			] 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(1.0f, 0.0f)
-			[
-				SNew(SBorder)
-				.Padding(0.0f)
-				.BorderImage(StatusBarBackground)
-				.VAlign(VAlign_Center)
-				.Padding(FMargin(6.0f, 0.0f))
-				[
-					MakeDebugConsoleWidget(InArgs._OnConsoleClosed)
-				]
+				SAssignNew(DrawerBox, SHorizontalBox)
 			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			.Padding(1.0f, 0.0f)
+			+SHorizontalBox::Slot()
 			[
-				SNew(SBorder)
-				.Padding(0.0f)
-				.BorderImage(StatusBarBackground)
-				.VAlign(VAlign_Center)
-				.Padding(FMargin(6.0f, 0.0f))
+				SNew(SHorizontalBox)
+				 +SHorizontalBox::Slot()
+			    .AutoWidth()
+			    .Padding(1.0f, 0.0f)
+			    [
+				    SNew(SBorder)
+				    .Padding(0.0f)
+				    .BorderImage(StatusBarBackground)
+				    .VAlign(VAlign_Center)
+				    .Padding(FMargin(6.0f, 0.0f))
+				    [
+					    MakeDebugConsoleWidget(InArgs._OnConsoleClosed)
+				    ]
+			    ]
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				.Padding(1.0f, 0.0f)
 				[
-					MakeStatusMessageWidget()
+					SNew(SBorder)
+					.Padding(0.0f)
+					.BorderImage(StatusBarBackground)
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(6.0f, 0.0f))
+					[
+						MakeStatusMessageWidget()
+					]
 				]
-			]
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Right)
-			.AutoWidth()
-			.Padding(1.0f, 0.0f)
-			[
-				SNew(SBorder)
-				.Padding(0.0f)
-				.BorderImage(StatusBarBackground)
-				.VAlign(VAlign_Center)
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				.Padding(1.0f, 0.0f)
 				[
-					MakeStatusBarToolBarWidget()
+					SNew(SBorder)
+					.Padding(0.0f)
+					.BorderImage(StatusBarBackground)
+					.VAlign(VAlign_Center)
+					[
+						MakeStatusBarToolBarWidget()
+					]
 				]
 			]
 		]
@@ -407,10 +407,15 @@ void SStatusBar::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 
 		TSharedRef<SWidget> ThisWidget = AsShared();
 
-		
+		TSharedPtr<SWidget> ActiveDrawerOverlayContent;
+		if (!OpenedDrawerData.Key.IsNone())
+		{
+			ActiveDrawerOverlayContent = OpenedDrawerData.Value;
+		}
+
 		bool bShouldDismiss = false;
 		// Do not close due to slow tasks as those opening send window activation events
-		if (!GIsSlowTask && !FSlateApplication::Get().GetActiveModalWindow().IsValid() && ContentBrowserOverlayContent.IsValid() && (!NewFocusedWidgetPath.ContainsWidget(ContentBrowserOverlayContent.ToSharedRef()) && !NewFocusedWidgetPath.ContainsWidget(ThisWidget)))
+		if (!GIsSlowTask && !FSlateApplication::Get().GetActiveModalWindow().IsValid() && ActiveDrawerOverlayContent.IsValid() && (!NewFocusedWidgetPath.ContainsWidget(ActiveDrawerOverlayContent.ToSharedRef()) && !NewFocusedWidgetPath.ContainsWidget(ThisWidget)))
 		{
 			if (TSharedPtr<SWidget> MenuHost = FSlateApplication::Get().GetMenuHostWidget())
 			{
@@ -418,7 +423,7 @@ void SStatusBar::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 
 				// See if the menu being opened is part of the content browser path and if so the menu should not be dismissed
 				FSlateApplication::Get().GeneratePathToWidgetUnchecked(MenuHost.ToSharedRef(), MenuHostPath, EVisibility::All);
-				if (!MenuHostPath.ContainsWidget(ContentBrowserOverlayContent.ToSharedRef()))
+				if (!MenuHostPath.ContainsWidget(ActiveDrawerOverlayContent.ToSharedRef()))
 				{
 					bShouldDismiss = true;
 				}
@@ -431,139 +436,34 @@ void SStatusBar::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 
 		if (bShouldDismiss)
 		{
-			DismissContentBrowser(NewFocusedWidget);
+			DismissDrawer(NewFocusedWidget);
 		}
 	}
 }
 
 void SStatusBar::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
 {
-	bool bShouldRemoveContentBrowser = false;
+	bool bShouldRemoveDrawer = false;
 	if (!PreviouslyActive || !NewlyActivated)
 	{
 		// Remove the content browser if there is some invalid state with the tabs
-		bShouldRemoveContentBrowser = true;
+		bShouldRemoveDrawer = true;
 	}
 	else if(NewlyActivated->GetTabRole() == ETabRole::MajorTab)
 	{
 		// Remove the content browser if a newly activated tab is a major tab
-		bShouldRemoveContentBrowser = true;
+		bShouldRemoveDrawer = true;
 	}
 	else if (PreviouslyActive->GetTabManager() != NewlyActivated->GetTabManager())
 	{
 		// Remove the content browser if we're switching tab managers (indicates a new status bar is becoming active)
-		bShouldRemoveContentBrowser = true;
+		bShouldRemoveDrawer = true;
 	}
 
-	if (bShouldRemoveContentBrowser)
+	if (bShouldRemoveDrawer)
 	{
-		RemoveContentBrowser();
+		CloseDrawerImmediately();
 	}
-}
-
-bool SStatusBar::IsContentBrowserOpened() const
-{
-	return ContentBrowserOverlayContent.IsValid();
-}
-
-void SStatusBar::OpenContentBrowser()
-{
-	if (!IsContentBrowserOpened())
-	{
-		TSharedRef<SStatusBar> ThisStatusBar = SharedThis(this);
-
-		TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
-
-		const float MaxContentBrowserHeight = MyWindow->GetSizeInScreen().Y * 0.90f;
-
-		float TargetContentBrowserHeightPct = .33f;
-		GConfig->GetFloat(TEXT("ContentBrowserDrawerSizes"), *StatusBarName.ToString(), TargetContentBrowserHeightPct, GEditorSettingsIni);
-
-		TargetContentBrowserHeight = (MyWindow->GetSizeInScreen().Y * TargetContentBrowserHeightPct) / MyWindow->GetDPIScaleFactor();
-
-
-		const float MinContentBrowserHeight = GetTickSpaceGeometry().GetLocalSize().Y + MyWindow->GetWindowBorderSize().Bottom;
-		ContentBrowserEasingCurve.Play(ThisStatusBar, false, ContentBrowserEasingCurve.IsPlaying() ? ContentBrowserEasingCurve.GetSequenceTime() : 0.0f, false);
-
-		MyWindow->AddOverlaySlot()
-			.VAlign(VAlign_Bottom)
-			.Padding(FMargin(10.0f, 20.0f, 10.0f, MinContentBrowserHeight))
-			[
-				SAssignNew(ContentBrowserOverlayContent, SContentBrowserOverlay)
-				.MinContentBrowserHeight(MinContentBrowserHeight)
-				.TargetContentBrowserHeight(TargetContentBrowserHeight)
-				.MaxContentBrowserHeight(MaxContentBrowserHeight)
-				.OnTargetHeightChanged(this, &SStatusBar::OnContentBrowserTargetHeightChanged)
-				[
-					GetContentBrowserDelegate.Execute()
-				]
-			];
-
-		WindowWithOverlayContent = MyWindow;
-
-		if (!ContentBrowserOpenCloseTimer.IsValid())
-		{
-			AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
-			ContentBrowserOpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(ThisStatusBar, &SStatusBar::UpdateContentBrowserAnimation));
-		}
-
-		OnContentBrowserOpenedDelegate.ExecuteIfBound(ThisStatusBar);
-	}
-}
-
-/**
- * Dismisses an open content browser with an animation.  The content browser is removed once the animation is complete
- */
-void SStatusBar::DismissContentBrowser(const TSharedPtr<SWidget>& NewlyFocusedWidget)
-{
-	if (ContentBrowserOverlayContent.IsValid())
-	{
-		if (ContentBrowserEasingCurve.IsForward())
-		{
-			ContentBrowserEasingCurve.Reverse();
-		}
-
-		if (!ContentBrowserOpenCloseTimer.IsValid())
-		{
-			AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
-			ContentBrowserOpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SStatusBar::UpdateContentBrowserAnimation));
-		}
-
-		OnContentBrowserDismissedDelegate.ExecuteIfBound(NewlyFocusedWidget);
-	}
-}
-
-/**
- * Removes a content browser from the layout immediately
- */
-void SStatusBar::RemoveContentBrowser()
-{
-	if(ContentBrowserOverlayContent.IsValid())
-	{
-		// Remove the content browser from the window
-		if (TSharedPtr<SWindow> Window = WindowWithOverlayContent.Pin())
-		{
-			Window->RemoveOverlaySlot(ContentBrowserOverlayContent.ToSharedRef());
-		}
-
-		ContentBrowserOverlayContent.Reset();
-		WindowWithOverlayContent.Reset();
-
-		if (ContentBrowserOpenCloseTimer.IsValid())
-		{
-			FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
-			UnRegisterActiveTimer(ContentBrowserOpenCloseTimer.ToSharedRef());
-		}
-
-		ContentBrowserOpenCloseTimer.Reset();
-		ContentBrowserEasingCurve.JumpToStart();
-		ContentBrowserEasingCurve.Pause();
-	}
-}
-
-const FSlateBrush* SStatusBar::GetContentBrowserExpandArrowImage() const
-{
-	return ContentBrowserOverlayContent.IsValid() ? DownArrow : UpArrow;
 }
 
 FText SStatusBar::GetStatusBarMessage() const
@@ -582,14 +482,16 @@ FText SStatusBar::GetStatusBarMessage() const
 	return FullMessage;
 }
 
-TSharedRef<SWidget> SStatusBar::MakeContentBrowserWidget()
+TSharedRef<SWidget> SStatusBar::MakeStatusBarDrawerButton(const FStatusBarDrawer& Drawer)
 {
+	const FName DrawerId = Drawer.UniqueId;
+
 	return
 		SNew(SButton)
 		.IsFocusable(false)
 		.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
-		.OnClicked(this, &SStatusBar::OnContentBrowserButtonClicked)
-		.ToolTipText(FText::Format(LOCTEXT("StatusBar_ContentBrowserDrawerToolTip","Opens a temporary content browser above this status which will dismiss when it loses focus ({0})"), FGlobalEditorCommonCommands::Get().OpenContentBrowserDrawer->GetInputText()))
+		.OnClicked(this, &SStatusBar::OnDrawerButtonClicked, DrawerId)
+		.ToolTipText(Drawer.ToolTipText)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -600,7 +502,7 @@ TSharedRef<SWidget> SStatusBar::MakeContentBrowserWidget()
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(this, &SStatusBar::GetContentBrowserExpandArrowImage)
+				.Image_Lambda([this, DrawerId](){ return IsDrawerOpened(DrawerId) ? DownArrow : UpArrow; })
 			]
 			+ SHorizontalBox::Slot()
 			.Padding(2.0f)
@@ -610,7 +512,7 @@ TSharedRef<SWidget> SStatusBar::MakeContentBrowserWidget()
 			[
 				SNew(SImage)
 				.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(FAppStyle::Get().GetBrush("ContentBrowser.TabIcon"))
+				.Image(Drawer.Icon)
 			]
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
@@ -618,7 +520,7 @@ TSharedRef<SWidget> SStatusBar::MakeContentBrowserWidget()
 			[
 				SNew(STextBlock)
 				.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
-				.Text(LOCTEXT("StatusBar_ContentBrowserButton", "Content Browser"))
+				.Text(Drawer.ButtonText)
 			]
 		];	
 }
@@ -670,52 +572,56 @@ TSharedRef<SWidget> SStatusBar::MakeStatusMessageWidget()
 		];
 }
 
-FReply SStatusBar::OnContentBrowserButtonClicked()
+
+bool SStatusBar::IsDrawerOpened(const FName DrawerId) const
 {
-	if(!ContentBrowserOverlayContent.IsValid())
+	return OpenedDrawerData.Key == DrawerId ? true : false;
+}
+
+FReply SStatusBar::OnDrawerButtonClicked(const FName DrawerId)
+{
+	if (!IsDrawerOpened(DrawerId))
 	{
-		OpenContentBrowser();
+		OpenDrawer(DrawerId);
 	}
 	else
 	{
-		DismissContentBrowser(nullptr);
+		DismissDrawer(nullptr);
 	}
 
 	return FReply::Handled();
 }
 
-EActiveTimerReturnType SStatusBar::UpdateContentBrowserAnimation(double CurrentTime, float DeltaTime)
+
+EActiveTimerReturnType SStatusBar::UpdateDrawerAnimation(double CurrentTime, float DeltaTime)
 {
-	check(ContentBrowserOverlayContent.IsValid());
+	check(OpenedDrawerData.Value.IsValid());
 
-	ContentBrowserOverlayContent->SetHeight(FMath::Lerp(0.0f, TargetContentBrowserHeight, ContentBrowserEasingCurve.GetLerp()));
+	OpenedDrawerData.Value->UpdateHeightInterp(DrawerEasingCurve.GetLerp());
 
-	if (!ContentBrowserEasingCurve.IsPlaying())
+	if (!DrawerEasingCurve.IsPlaying())
 	{
-		if(ContentBrowserEasingCurve.IsAtStart())
+		if(DrawerEasingCurve.IsAtStart())
 		{
-			RemoveContentBrowser();
+			CloseDrawerImmediately();
 		}
 
 		FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
-		ContentBrowserOpenCloseTimer.Reset();
+		DrawerOpenCloseTimer.Reset();
 		return EActiveTimerReturnType::Stop;
 	}
 
 	return EActiveTimerReturnType::Continue;
 }
 
-void SStatusBar::OnContentBrowserTargetHeightChanged(float TargetHeight)
+void SStatusBar::OnDrawerHeightChanged(float TargetHeight)
 {
-	TargetContentBrowserHeight = TargetHeight;
-
 	TSharedPtr<SWindow> MyWindow = WindowWithOverlayContent.Pin();
 
 	// Save the height has a percentage of the screen
-	const float TargetContentBrowserHeightPct = TargetHeight / (MyWindow->GetSizeInScreen().Y / MyWindow->GetDPIScaleFactor());
+	const float TargetDrawerHeightPct = TargetHeight / (MyWindow->GetSizeInScreen().Y / MyWindow->GetDPIScaleFactor());
 
-	// Write to config
-	GConfig->SetFloat(TEXT("ContentBrowserDrawerSizes"), *StatusBarName.ToString(), TargetContentBrowserHeightPct, GEditorSettingsIni);
+	GConfig->SetFloat(TEXT("DrawerSizes"), *(StatusBarName.ToString() + TEXT(".") + OpenedDrawerData.Key.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
 }
 
 void SStatusBar::RegisterStatusBarMenu()
@@ -746,6 +652,161 @@ void SStatusBar::RegisterSourceControlStatus()
 				true,
 				false
 			));
+	}
+}
+
+void SStatusBar::RegisterDrawer(FStatusBarDrawer&& Drawer)
+{
+	const int32 NumDrawers = RegisteredDrawers.Num();
+	RegisteredDrawers.AddUnique(Drawer);
+
+	if (RegisteredDrawers.Num() > NumDrawers)
+	{
+		const FSlateBrush* StatusBarBackground = FAppStyle::Get().GetBrush("StatusBar.Background");
+
+		DrawerBox->AddSlot()
+		.Padding(1.0f, 0.0f)
+		.AutoWidth()
+		[
+			SNew(SBorder)
+			.Padding(FMargin(2.0f, 0.0f))
+			.BorderImage(StatusBarBackground)
+			.VAlign(VAlign_Center)
+			[
+				MakeStatusBarDrawerButton(Drawer)
+			]
+		];
+/*
+			/ *+ SHorizontalBox::Slot()
+				.Padding(1.0f, 0.0f)
+				.AutoWidth()
+				[
+					SNew(SBorder)
+					.Padding(FMargin(2.0f, 0.0f))
+					.BorderImage(StatusBarBackground)
+					.VAlign(VAlign_Center)
+					[
+						MakeStatusBarDrawerButton(ContentBrowserDrawerButton)
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(1.0f, 0.0f)
+				[
+					SNew(SBorder)
+					.Padding(0.0f)
+					.BorderImage(StatusBarBackground)
+					.VAlign(VAlign_Center)
+					.Padding(FMargin(6.0f, 0.0f))
+					[
+						MakeDebugConsoleWidget(InArgs._OnConsoleClosed)
+					]
+				]* /
+		}
+*/
+
+	}
+}
+
+void SStatusBar::OpenDrawer(const FName DrawerId)
+{
+	// Close any other open drawer
+	if (DrawerId != OpenedDrawerData.Key)
+	{
+		DismissDrawer(nullptr);
+
+		FStatusBarDrawer* DrawerData = RegisteredDrawers.FindByKey(DrawerId);
+
+		if(DrawerData)
+		{
+			TSharedRef<SStatusBar> ThisStatusBar = SharedThis(this);
+
+			TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+
+			const float MaxDrawerHeight = MyWindow->GetSizeInScreen().Y * 0.90f;
+
+			float TargetDrawerHeightPct = .33f;
+			GConfig->GetFloat(TEXT("DrawerSizes"), *(StatusBarName.ToString()+TEXT(".")+DrawerData->UniqueId.ToString()), TargetDrawerHeightPct, GEditorSettingsIni);
+
+			float TargetDrawerHeight = (MyWindow->GetSizeInScreen().Y * TargetDrawerHeightPct) / MyWindow->GetDPIScaleFactor();
+
+			const float MinDrawerHeight = GetTickSpaceGeometry().GetLocalSize().Y + MyWindow->GetWindowBorderSize().Bottom;
+			DrawerEasingCurve.Play(ThisStatusBar, false, DrawerEasingCurve.IsPlaying() ? DrawerEasingCurve.GetSequenceTime() : 0.0f, false);
+
+			MyWindow->AddOverlaySlot()
+				.VAlign(VAlign_Bottom)
+				.Padding(FMargin(10.0f, 20.0f, 10.0f, MinDrawerHeight))
+				[
+					SAssignNew(OpenedDrawerData.Value, SDrawerOverlay)
+					.MinDrawerHeight(MinDrawerHeight)
+					.TargetDrawerHeight(TargetDrawerHeight)
+					.MaxDrawerHeight(MaxDrawerHeight)
+					.OnTargetHeightChanged(this, &SStatusBar::OnDrawerHeightChanged)
+					[
+						DrawerData->GetDrawerContentDelegate.Execute()
+					]
+				];
+
+			WindowWithOverlayContent = MyWindow;
+
+			if (!DrawerOpenCloseTimer.IsValid())
+			{
+				AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
+				DrawerOpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(ThisStatusBar, &SStatusBar::UpdateDrawerAnimation));
+			}
+
+			OpenedDrawerData.Key = DrawerId;
+			DrawerData->OnDrawerOpenedDelegate.ExecuteIfBound(ThisStatusBar);
+		}
+	}
+}
+
+void SStatusBar::DismissDrawer(const TSharedPtr<SWidget>& NewlyFocusedWidget)
+{
+	if (!OpenedDrawerData.Key.IsNone())
+	{
+		FStatusBarDrawer* Drawer = RegisteredDrawers.FindByKey(OpenedDrawerData.Key);
+
+		if (DrawerEasingCurve.IsForward())
+		{
+			DrawerEasingCurve.Reverse();
+		}
+
+		if (!DrawerOpenCloseTimer.IsValid())
+		{
+			AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
+			DrawerOpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SStatusBar::UpdateDrawerAnimation));
+		}
+
+		Drawer->OnDrawerDismissedDelegate.ExecuteIfBound(NewlyFocusedWidget);
+	}
+}
+
+void SStatusBar::CloseDrawerImmediately()
+{
+	if (!OpenedDrawerData.Key.IsNone())
+	{
+		TSharedRef<SWidget> DrawerOverlayContent = OpenedDrawerData.Value.ToSharedRef();
+
+		// Remove the content browser from the window
+		if (TSharedPtr<SWindow> Window = WindowWithOverlayContent.Pin())
+		{
+			Window->RemoveOverlaySlot(DrawerOverlayContent);
+		}
+
+		OpenedDrawerData = TPair<FName, TSharedPtr<SDrawerOverlay>>();
+
+		WindowWithOverlayContent.Reset();
+
+		if (DrawerOpenCloseTimer.IsValid())
+		{
+			FSlateThrottleManager::Get().LeaveResponsiveMode(AnimationThrottle);
+			UnRegisterActiveTimer(DrawerOpenCloseTimer.ToSharedRef());
+		}
+
+		DrawerOpenCloseTimer.Reset();
+		DrawerEasingCurve.JumpToStart();
+		DrawerEasingCurve.Pause();
 	}
 }
 

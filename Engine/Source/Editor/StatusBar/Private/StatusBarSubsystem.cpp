@@ -11,6 +11,7 @@
 #include "SStatusBar.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Editor.h"
+#include "Toolkits/GlobalEditorCommonCommands.h"
 
 
 #define LOCTEXT_NAMESPACE "StatusBar"
@@ -81,12 +82,12 @@ bool UStatusBarSubsystem::ToggleContentBrowser(TSharedRef<SWindow> ParentWindow)
 	{
 		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
 		{
-			if(StatusBarPinned->IsContentBrowserOpened())
+			if(StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::ContentBrowser))
 			{
 				TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
 				if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
 				{
-					StatusBarPinned->DismissContentBrowser(nullptr);
+					StatusBarPinned->DismissDrawer(nullptr);
 					bWasDismissed = true;
 				}
 			}
@@ -108,10 +109,17 @@ TSharedRef<SWidget> UStatusBarSubsystem::MakeStatusBarWidget(FName StatusBarName
 
 	TSharedRef<SStatusBar> StatusBar =
 		SNew(SStatusBar, StatusBarName, InParentTab)
-		.OnConsoleClosed_UObject(this, &UStatusBarSubsystem::OnDebugConsoleClosed)
-		.OnGetContentBrowser_UObject(this, &UStatusBarSubsystem::OnGetContentBrowser)
-		.OnContentBrowserOpened_UObject(this, &UStatusBarSubsystem::OnContentBrowserOpened)
-		.OnContentBrowserDismissed_UObject(this, &UStatusBarSubsystem::OnContentBrowserDismissed);
+		.OnConsoleClosed_UObject(this, &UStatusBarSubsystem::OnDebugConsoleClosed);
+
+	FStatusBarDrawer ContentBrowserDrawer(StatusBarDrawerIds::ContentBrowser);
+	ContentBrowserDrawer.GetDrawerContentDelegate.BindUObject(this, &UStatusBarSubsystem::OnGetContentBrowser);
+	ContentBrowserDrawer.OnDrawerOpenedDelegate.BindUObject(this, &UStatusBarSubsystem::OnContentBrowserOpened);
+	ContentBrowserDrawer.OnDrawerDismissedDelegate.BindUObject(this, &UStatusBarSubsystem::OnContentBrowserDismissed);
+	ContentBrowserDrawer.ButtonText = LOCTEXT("StatusBar_ContentBrowserButton", "Content Browser");
+	ContentBrowserDrawer.ToolTipText = FText::Format(LOCTEXT("StatusBar_ContentBrowserDrawerToolTip", "Opens a temporary content browser above this status which will dismiss when it loses focus ({0})"), FGlobalEditorCommonCommands::Get().OpenContentBrowserDrawer->GetInputText());
+	ContentBrowserDrawer.Icon = FAppStyle::Get().GetBrush("ContentBrowser.TabIcon");
+
+	StatusBar->RegisterDrawer(MoveTemp(ContentBrowserDrawer));
 
 	// Clean up stale status bars
 	for (auto It = StatusBars.CreateIterator(); It; ++It)
@@ -203,9 +211,9 @@ void UStatusBarSubsystem::OnContentBrowserOpened(TSharedRef<SStatusBar>& StatusB
 	{
 		if (TSharedPtr<SStatusBar> StatusBarPinned = StatusBar.Value.Pin())
 		{
-			if (StatusBarWithContentBrowser != StatusBarPinned && StatusBarPinned->IsContentBrowserOpened())
+			if (StatusBarWithContentBrowser != StatusBarPinned && StatusBarPinned->IsDrawerOpened(StatusBarDrawerIds::ContentBrowser))
 			{
-				StatusBarPinned->RemoveContentBrowser();
+				StatusBarPinned->CloseDrawerImmediately();
 			}
 		}
 	}
@@ -240,7 +248,7 @@ void UStatusBarSubsystem::HandleDeferredOpenContentBrowser(TSharedPtr<SWindow> P
 			TSharedPtr<SDockTab> ParentTab = StatusBarPinned->GetParentTab();
 			if (ParentTab && ParentTab->IsForeground() && ParentTab->GetParentWindow() == ParentWindow)
 			{
-				StatusBarPinned->OpenContentBrowser();
+				StatusBarPinned->OpenDrawer(StatusBarDrawerIds::ContentBrowser);
 				IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::Get().GetModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
 				break;
 			}
