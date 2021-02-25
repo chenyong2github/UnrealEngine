@@ -962,6 +962,9 @@ struct FPreviousViewInfo
 	FTemporalAAHistory SSRHistory;
 	FTemporalAAHistory WaterSSRHistory;
 
+	// Temporal AA history for the editor primitive depth upsampling
+	FTemporalAAHistory EditorPrimtiveDepthHistory;
+
 	// Scene color input for SSR, that can be different from TemporalAAHistory.RT[0] if there is a SSR
 	// input post process material.
 	TRefCountPtr<IPooledRenderTarget> CustomSSRInput;

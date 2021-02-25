@@ -83,6 +83,12 @@ static TAutoConsoleVariable<int32> CVarEditorViewportTest(
 	TEXT("1..7: Various Configuations"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarEditorViewportScreenPercentage(
+	TEXT("r.Editor.ViewportScreenPercentage"),
+	100.0f,
+	TEXT("Default screen percentage of the editor's viewports"),
+	ECVF_RenderThreadSafe);
+
 static bool GetDefaultLowDPIPreviewValue()
 {
 	static auto CVarEnableEditorScreenPercentageOverride = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.OverrideDPIBasedEditorViewportScaling"));
@@ -443,7 +449,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, MovingPreviewLightSavedScreenPos(ForceInitToZero)
 	, MovingPreviewLightTimer(0.0f)
 	, bLockFlightCamera(false)
-	, PreviewResolutionFraction(1.0f)
+	, PreviewResolutionFraction(CVarEditorViewportScreenPercentage.GetValueOnGameThread() / 100.0f)
 	, SceneDPIMode(ESceneDPIMode::EditorDefault)
 	, PerspViewModeIndex(DefaultPerspectiveViewMode)
 	, OrthoViewModeIndex(DefaultOrthoViewMode)
@@ -1230,6 +1236,63 @@ FSceneView* FEditorViewportClient::CalcSceneView(FSceneViewFamily* ViewFamily, c
 
 	ViewInitOptions.OverrideFarClippingPlaneDistance = FarPlane;
 	ViewInitOptions.CursorPos = CurrentMousePos;
+
+	{
+		static const auto CVarVSync = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Test.ConstrainedView"));
+		int32 Value = CVarVSync->GetValueOnGameThread();
+
+		if (Value)
+		{
+			const FIntRect& ViewRect = ViewInitOptions.GetViewRect();
+			FIntRect ConstrainedViewRect = ViewInitOptions.GetConstrainedViewRect();
+
+			int InsetX = ConstrainedViewRect.Width() / 4;
+			int InsetY = ConstrainedViewRect.Height() / 4;
+
+			// this allows to test various typical view port situations
+			switch (Value)
+			{
+			case 1:
+				ConstrainedViewRect.Min.X += InsetX;
+				ConstrainedViewRect.Min.Y += InsetY;
+				ConstrainedViewRect.Max.X -= InsetX;
+				ConstrainedViewRect.Max.Y -= InsetY;
+				break;
+
+			case 2:
+				ConstrainedViewRect.Min.Y += InsetY;
+				ConstrainedViewRect.Max.Y -= InsetY;
+				break;
+
+			case 3:
+				ConstrainedViewRect.Min.X += InsetX;
+				ConstrainedViewRect.Max.X -= InsetX;
+				break;
+
+			case 4:
+				ConstrainedViewRect.Max.X -= 2 * InsetX;
+				ConstrainedViewRect.Max.Y -= 2 * InsetY;
+				break;
+
+			case 5:
+				ConstrainedViewRect.Min.X += 2 * InsetX;
+				ConstrainedViewRect.Max.Y -= 2 * InsetY;
+				break;
+
+			case 6:
+				ConstrainedViewRect.Max.X -= 2 * InsetX;
+				ConstrainedViewRect.Min.Y += 2 * InsetY;
+				break;
+
+			case 7:
+				ConstrainedViewRect.Min.X += 2 * InsetX;
+				ConstrainedViewRect.Min.Y += 2 * InsetY;
+				break;
+			}
+
+			ViewInitOptions.SetConstrainedViewRectangle(ConstrainedViewRect);
+		}
+	}
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 

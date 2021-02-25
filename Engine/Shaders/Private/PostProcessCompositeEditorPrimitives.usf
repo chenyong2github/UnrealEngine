@@ -8,6 +8,66 @@
 #define MSAA_SAMPLE_COUNT 1
 #endif
 
+#define CONFIG_SAMPLES 6
+
+// K = Center of the nearest input pixel.
+// O = Center of the output pixel.
+//
+//          |           |
+//    0     |     1     |     2
+//          |           |
+//          |           |
+//  --------+-----------+--------
+//          |           |
+//          | O         |
+//    3     |     K     |     5
+//          |           |
+//          |           |
+//  --------+-----------+--------
+//          |           |
+//          |           |
+//    6     |     7     |     8
+//          |           |
+//
+static const int2 kOffsets3x3[9] =
+{
+	int2(-1, -1),
+	int2(0, -1),
+	int2(1, -1),
+	int2(-1,  0),
+	int2(0,  0), // K
+	int2(1,  0),
+	int2(-1,  1),
+	int2(0,  1),
+	int2(1,  1),
+};
+
+// T = Center of the nearest top left pixel input pixel.
+// O = Center of the output pixel.
+//
+//          | 
+//    T     |     .
+//          | 
+//       O  | 
+//  --------+--------
+//          | 
+//          | 
+//    .     |     .
+//          | 
+static const int2 Offsets2x2[4] =
+{
+	int2( 0,  0), // T
+	int2( 1,  0),
+	int2( 0,  1),
+	int2( 1,  1),
+};
+
+// Indexes of the 3x3 square.
+static const uint kSquareIndexes3x3[9] = { 4, 0, 1, 2, 3, 5, 6, 7, 8 };
+
+// Indexes of the offsets to have plus + shape.
+static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 5, 7 };
+
 #if MSAA_SAMPLE_COUNT > 1
 Texture2DMS<float4, MSAA_SAMPLE_COUNT> EditorPrimitivesColor;
 Texture2DMS<float, MSAA_SAMPLE_COUNT> EditorPrimitivesDepth;
@@ -22,28 +82,185 @@ SamplerState ColorSampler;
 Texture2D DepthTexture;
 SamplerState DepthSampler;
 
+Texture2D VelocityTexture;
+SamplerState VelocitySampler;
+
+Texture2D PrevHistoryTexture;
+SamplerState PrevHistorySampler;
+
 SCREEN_PASS_TEXTURE_VIEWPORT(Color)
 SCREEN_PASS_TEXTURE_VIEWPORT(Depth)
+SCREEN_PASS_TEXTURE_VIEWPORT(PrevHistory)
+SCREEN_PASS_TEXTURE_VIEWPORT(History)
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 SCREEN_PASS_TEXTURE_VIEWPORT_TRANSFORM(ColorToDepth)
+
+float2 DepthTextureJitter;
+uint bCameraCut;
+
+float4 SampleOffsetArray[MSAA_SAMPLE_COUNT];
 
 uint bOpaqueEditorGizmo;
 uint bCompositeAnyNonNullDepth;
 
+void MainTemporalUpsampleEditorDepthPS(
+	float4 SvPosition : SV_POSITION,
+	out float OutDeviceZ : SV_Target0)
+{
+	float2 ViewportUV = (SvPosition.xy - History_ViewportMin) * History_ViewportSizeInverse;
+	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
+	
+	// Pixel coordinate of the center of output pixel O in the input viewport.
+	float2 PPCo = ViewportUV * Depth_ViewportSize + DepthTextureJitter;
+
+	// Pixel coordinate of the center of the nearest input pixel K.
+	float2 PPCk = floor(PPCo) + 0.5;
+	
+	// Sample nearest depth
+	float InputDeviceZ;
+	{
+		float2 SampleInputBufferUV = (Depth_ViewportMin + PPCk) * Depth_ExtentInverse;
+		SampleInputBufferUV = clamp(SampleInputBufferUV, Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
+			
+		InputDeviceZ = Texture2DSampleLevel(DepthTexture, DepthSampler, SampleInputBufferUV, 0).r;
+	}
+
+	// Compute the screen position to sample in history
+	float2 PrevScreenPos = ScreenPos;
+	#if 1
+	{
+		float4 ThisClip = float4(ScreenPos, InputDeviceZ, 1);
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+
+		PrevScreenPos = PrevClip.xy / PrevClip.w;
+
+		#if 0
+		{
+			float2 SampleInputBufferUV = (Depth_ViewportMin + PPCk) * Depth_ExtentInverse;
+			SampleInputBufferUV = clamp(SampleInputBufferUV, Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
+			
+			float4 EncodedVelocity = VelocityTexture.SampleLevel(VelocitySampler, SampleInputBufferUV, 0);
+			bool DynamicN = EncodedVelocity.x > 0.0;
+			if(DynamicN)
+			{
+				PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(EncodedVelocity).xy;
+			}
+		}
+		#endif
+	}
+	#endif
+
+	// Sample the history.
+	float PrevHistoryDeviceZ;
+	{
+		float2 PrevHistoryBufferUV = (PrevHistory_ScreenPosToViewportScale * PrevScreenPos + PrevHistory_ScreenPosToViewportBias) * PrevHistory_ExtentInverse;
+		PrevHistoryBufferUV = clamp(PrevHistoryBufferUV, PrevHistory_UVViewportBilinearMin, PrevHistory_UVViewportBilinearMax);
+
+		PrevHistoryDeviceZ = Texture2DSampleLevel(PrevHistoryTexture, PrevHistorySampler, PrevHistoryBufferUV, 0).r;
+	}
+
+	// Correct the DeviceZ from the previous depth to the current depth.
+	float CorrectedPrevHistoryDeviceZ;
+	#if 1
+	{
+		float PrevHistoryDepth = ConvertFromDeviceZ(PrevHistoryDeviceZ);
+
+		const float3 PrevHistoryTranslatedWorldPosition = mul(float4(PrevScreenPos * PrevHistoryDepth, PrevHistoryDepth, 1), View.PrevScreenToTranslatedWorld).xyz + (View.PreViewTranslation.xyz - View.PrevPreViewTranslation.xyz);
+
+		float CorrectedPrevHistoryDepth = mul(float4(PrevHistoryTranslatedWorldPosition, 1.0), View.TranslatedWorldToView).z;
+		
+		CorrectedPrevHistoryDeviceZ = ConvertToDeviceZ(CorrectedPrevHistoryDepth);
+	}
+	#else
+	{
+		CorrectedPrevHistoryDeviceZ = PrevHistoryDeviceZ;
+	}
+	#endif
+
+	// Replaces NaN from history with 0.0
+	CorrectedPrevHistoryDeviceZ = -min(-CorrectedPrevHistoryDeviceZ, 0.0);
+
+	// Sample current frame
+	bool bUpdateHistory;
+	float InputMinDeviceZ;
+	float InputMaxDeviceZ;
+	{
+		// Vector in pixel between pixel K -> O.
+		float2 dKO = float2(PPCo - PPCk);
+		
+		bUpdateHistory = all(abs(dKO) < 0.5 * (Depth_ViewportSize.x * History_ViewportSizeInverse.x)) || bCameraCut != 0;
+
+		InputMinDeviceZ = InputDeviceZ;
+		InputMaxDeviceZ = InputDeviceZ;
+
+		UNROLL_N(CONFIG_SAMPLES - 1)
+		for (uint SampleId = 1; SampleId < CONFIG_SAMPLES; SampleId++)
+		{
+			float2 PixelOffset;
+			
+			#if CONFIG_SAMPLES == 9
+			{
+				PixelOffset = kOffsets3x3[kSquareIndexes3x3[SampleId]];
+			}
+			#elif CONFIG_SAMPLES == 5 || CONFIG_SAMPLES == 6
+			{
+				if (SampleId == 5)
+				{
+					PixelOffset = SignFastInt(float2(dKO));
+				}
+				else
+				{
+					PixelOffset = kOffsets3x3[kPlusIndexes3x3[SampleId]];
+				}
+			}
+			#else
+				#error Unknown sample count
+			#endif
+			
+			float2 SampleInputBufferUV = (Depth_ViewportMin + PPCk + PixelOffset) * Depth_ExtentInverse;
+			SampleInputBufferUV = clamp(SampleInputBufferUV, Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
+
+			float SampleDeviceZ = Texture2DSampleLevel(DepthTexture, DepthSampler, SampleInputBufferUV, 0).r;
+			
+			InputMinDeviceZ = min(InputMinDeviceZ, SampleDeviceZ);
+			InputMaxDeviceZ = max(InputMaxDeviceZ, SampleDeviceZ);
+		}
+	}
+
+	// Reject history based on neighborhood
+	float ClampedHistoryDeviceZ = clamp(CorrectedPrevHistoryDeviceZ, InputMinDeviceZ, InputMaxDeviceZ);
+
+	// Output history
+	float FinalHistoryDeviceZ = bUpdateHistory ? InputDeviceZ : ClampedHistoryDeviceZ;
+	
+	OutDeviceZ = -min(-FinalHistoryDeviceZ, 0.0);
+}
+
 void MainPopulateSceneDepthPS(
 	#if USE_MSAA && !COMPILER_HLSLCC
-		sample noperspective float4 UVAndScreenPos : TEXCOORD0,
+		sample noperspective float4 SvPosition : SV_POSITION,
 	#else
-		noperspective float4 UVAndScreenPos : TEXCOORD0,
+		noperspective float4 SvPosition : SV_POSITION,
 	#endif
 	out float4 OutColor : SV_Target0,
 	out float OutDepth : SV_DEPTH)
 {
+	float2 ViewportUV = (SvPosition.xy - Color_ViewportMin) * Color_ViewportSizeInverse;
+	
 	float2 DepthUV = clamp(
-		UVAndScreenPos.xy - View.TemporalAAParams.zw * Depth_ExtentInverse,
+		(Depth_ViewportMin + ViewportUV * Depth_ViewportSize - DepthTextureJitter) * Depth_ExtentInverse,
 		Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
 
 	OutDepth = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV, 0).r;
-	OutColor = 0;
+	OutColor = 0.0;
+}
+
+float ComputeDepthMask(float SceneDeviceZ, float EditorDeviceZ)
+{
+	// Soft Bias with SceneDeviceZ for best quality
+	const float DeviceDepthFade = 0.00005f;
+
+	return saturate(1.0f - (SceneDeviceZ - EditorDeviceZ) / DeviceDepthFade);
 }
 
 void ResolveEditorPrimitiveColor(int2 PixelPos, out float4 OutColor, out float OutDeviceZ)
@@ -51,48 +268,7 @@ void ResolveEditorPrimitiveColor(int2 PixelPos, out float4 OutColor, out float O
 	// Furthest device Z or 0 if there is none.
 	OutDeviceZ = 0;
 	OutColor = 0;
-
-	#if MSAA_SAMPLE_COUNT > 1
-	{
-		float SumWeight = 0.00001f;
-
-		for (uint SampleIndex = 0; SampleIndex < MSAA_SAMPLE_COUNT; ++SampleIndex)
-		{
-			float4 Sample = EditorPrimitivesColor.Load(PixelPos, SampleIndex);
-			float SampleDeviceZ = EditorPrimitivesDepth.Load(PixelPos, SampleIndex).r;
-
-			// Check if any color was applied to this pixel. Note: This prevents actual black pixels from being visible.
-			float Weight = Sample.a;
-
-			if (SampleDeviceZ > 0.0 && bCompositeAnyNonNullDepth)
-			{
-				Weight = 1;
-			}
-
-			FLATTEN if(Weight)
-			{
-				OutDeviceZ = max(OutDeviceZ, SampleDeviceZ);
-
-				OutColor += float4(Sample.rgb, Weight);
-
-				SumWeight += Weight;
-			}
-		}
-
-		OutColor.rgb /= MSAA_SAMPLE_COUNT;
-		OutColor.a /= MSAA_SAMPLE_COUNT;
-	}
-	#else
-	{
-		OutColor = EditorPrimitivesColor.Load(int3(PixelPos, 0));
-		OutDeviceZ = EditorPrimitivesDepth.Load(int3(PixelPos, 0)).r;
-
-		if (OutDeviceZ > 0.0 && bCompositeAnyNonNullDepth)
-		{
-			OutColor.a = 1;
-		}
-	}
-	#endif
+	
 
 	// Bring out of premultiplied.
 	OutColor.rgb /= max(OutColor.a, 0.0001f);
@@ -103,35 +279,97 @@ void ResolveEditorPrimitiveColor(int2 PixelPos, out float4 OutColor, out float O
 }
 
 void MainCompositeEditorPrimitivesPS(
-	noperspective float4 UVAndScreenPos : TEXCOORD0,
 	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	const float2 ColorUV = UVAndScreenPos.xy;
+	float2 ViewportUV = (SvPosition.xy - Output_ViewportMin) * Output_ViewportSizeInverse;
+	
+	const float2 ColorUV = (ViewportUV * Color_ViewportSize + Color_ViewportMin) * Color_ExtentInverse;
 	const int2 ColorPixelPos = int2(ColorUV * Color_Extent);
-
-	float4 Color = Texture2DSample(ColorTexture, ColorSampler, ColorUV);
+	
+	float4 SceneColor = Texture2DSample(ColorTexture, ColorSampler, ColorUV);
 
 #if OUTPUT_SRGB_BUFFER
-	Color.rgb = pow(Color.rgb, 1.0f / 2.2f);
+	SceneColor.rgb = pow(SceneColor.rgb, 1.0f / 2.2f);
 #endif
 
 	// Resolve editor primitive scene color and depth.
 	float4 EditorPrimitiveColor;
-	float EditorMaxDeviceZ;
-	ResolveEditorPrimitiveColor(ColorPixelPos, /* out = */ EditorPrimitiveColor, /* out = */ EditorMaxDeviceZ);
+	float DepthMask;
+
+	#if MSAA_SAMPLE_COUNT > 1
+	{
+		EditorPrimitiveColor = 0.0;
+		DepthMask = 0.0;
+		float DepthMaskWeight = 0.0;
+
+		UNROLL_N(MSAA_SAMPLE_COUNT)
+		for (uint SampleIndex = 0; SampleIndex < MSAA_SAMPLE_COUNT; ++SampleIndex)
+		{
+			const float2 SampleOffset = SampleOffsetArray[SampleIndex].xy;
+
+			float2 SampleDepthUV = (ViewportUV * Depth_ViewportSize + Depth_ViewportMin + SampleOffset - DepthTextureJitter) * Depth_ExtentInverse;
+			SampleDepthUV = clamp(SampleDepthUV, Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
+			float SampleSceneDeviceZ = Texture2DSampleLevel(DepthTexture, DepthSampler, SampleDepthUV, 0).r;
+
+			float4 Sample = EditorPrimitivesColor.Load(ColorPixelPos, SampleIndex);
+			float SampleEditorDeviceZ = EditorPrimitivesDepth.Load(ColorPixelPos, SampleIndex).r;
+
+			// Check if any color was applied to this pixel. Note: This prevents actual black pixels from being visible.
+			float Weight = Sample.a;
+
+			float SampleDepthMask = ComputeDepthMask(SampleSceneDeviceZ, SampleEditorDeviceZ);
+
+			if (SampleEditorDeviceZ > 0.0 && bCompositeAnyNonNullDepth)
+			{
+				Weight = 1;
+			}
+
+			FLATTEN
+			if (Weight)
+			{
+				EditorPrimitiveColor += float4(Sample.rgb, Weight);
+
+				DepthMask += SampleDepthMask * Weight;
+				DepthMaskWeight += Weight;
+			}
+		}
+
+		EditorPrimitiveColor.rgb /= MSAA_SAMPLE_COUNT;
+		EditorPrimitiveColor.a /= MSAA_SAMPLE_COUNT;
+		
+		DepthMask *= DepthMaskWeight > 0 ? rcp(DepthMaskWeight) : 0.0;
+	}
+	#else
+	{
+		// De-jitter the sample position and make a filtered lookup - for planes this allows to reconstruct a much less jittery depth comparison function. It doesn't fix silhouettes, however.
+		float2 SampleDepthUV = (ViewportUV * Depth_ViewportSize + Depth_ViewportMin - DepthTextureJitter) * Depth_ExtentInverse;
+		SampleDepthUV = clamp(SampleDepthUV, Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
+
+		float SceneDeviceZ = Texture2DSampleLevel(DepthTexture, DepthSampler, SampleDepthUV, 0).r;
+		float EditorDeviceZ = EditorPrimitivesDepth.Load(int3(ColorPixelPos, 0)).r;
+		
+		EditorPrimitiveColor = EditorPrimitivesColor.Load(int3(ColorPixelPos, 0));
+		DepthMask = ComputeDepthMask(SceneDeviceZ, EditorDeviceZ);
+
+		if (EditorDeviceZ > 0.0 && bCompositeAnyNonNullDepth)
+		{
+			EditorPrimitiveColor.a = 1;
+		}
+	}
+	#endif
+	
+	// Fixes the gama of editor primitives
+	{
+		// Bring out of premultiplied.
+		EditorPrimitiveColor.rgb /= max(EditorPrimitiveColor.a, 0.0001f);
+		// Fix gamma.
+		EditorPrimitiveColor.rgb = pow(EditorPrimitiveColor.rgb, 1.0f / 2.2f);
+		// Bring back to premultiplied
+		EditorPrimitiveColor.rgb *= EditorPrimitiveColor.a;
+	}
 
 	float2 DepthUV = ColorUV * ColorToDepth_Scale + ColorToDepth_Bias;
-
-	// De-jitter the sample position and make a filtered lookup - for planes this allows to reconstruct a much less jittery depth comparison function. It doesn't fix silhouettes, however.
-	DepthUV -= View.TemporalAAParams.zw * Depth_ExtentInverse;
-	DepthUV = clamp(DepthUV, Depth_UVViewportBilinearMin, Depth_UVViewportBilinearMax);
-
-	float SceneDeviceZ = Texture2DSampleLevel(DepthTexture, DepthSampler, DepthUV, 0).r;
-
-	// Soft Bias with SceneDeviceZ for best quality
-	const float DeviceDepthFade = 0.00005f;
-	float DepthMask = saturate(1.0f - (SceneDeviceZ - EditorMaxDeviceZ) / DeviceDepthFade);
 
 	// Generate 2x2 square tiling pattern for foreground primitive that end up behind scene opaque primitives.
 	float PatternMask = ((ColorPixelPos.x/2 + ColorPixelPos.y/2) % 2) * 0.7f;
@@ -145,10 +383,10 @@ void MainCompositeEditorPrimitivesPS(
 	float DarkenMask = lerp(LowContrastPatternMask, 1.0f, DepthMask);
 
 	// Blend editor ptimitives with scene color.
-	OutColor.rgb = Color.rgb * (1 - EditorPrimitiveColor.a) + EditorPrimitiveColor.rgb * (DarkenMask * HiddenMask);
+	OutColor.rgb = SceneColor.rgb * (1 - EditorPrimitiveColor.a) + EditorPrimitiveColor.rgb * (DarkenMask * HiddenMask);
 
 	#if POST_PROCESS_ALPHA
-		OutColor.a = lerp(Color.a, 1, EditorPrimitiveColor.a * DarkenMask * HiddenMask);
+		OutColor.a = lerp(SceneColor.a, 1, EditorPrimitiveColor.a * DarkenMask * HiddenMask);
 	#else
 		OutColor.a = 0;
 	#endif
