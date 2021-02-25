@@ -260,20 +260,23 @@ TSharedRef<SWidget> SSceneOutlinerTreeRow::GenerateWidgetForColumn( const FName&
 	if( ColumnName == FSceneOutlinerBuiltInColumnTypes::Label() )
 	{
 		// The first column gets the tree expansion arrow for this row
-		return
-			SNew( SHorizontalBox )
-
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(6, 0, 0, 0)
+		return SNew(SBox)
+			.MinDesiredHeight(FSceneOutlinerDefaultTreeItemMetrics::RowHeight())
 			[
-				SNew( SExpanderArrow, SharedThis(this) ).IndentAmount(12)
-			]
+				SNew( SHorizontalBox )
 
-		+SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			[
-				NewItemWidget
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(6, 0, 0, 0)
+				[
+					SNew( SExpanderArrow, SharedThis(this) ).IndentAmount(12)
+				]
+
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0f)
+				[
+					NewItemWidget
+				]
 			];
 	}
 	else

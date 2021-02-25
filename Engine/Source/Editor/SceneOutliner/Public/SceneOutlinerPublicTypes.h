@@ -151,6 +151,7 @@ public:
 /** Default metrics for outliner tree items */
 struct FSceneOutlinerDefaultTreeItemMetrics
 {
+	static int32	RowHeight() { return 20; };
 	static int32	IconSize() { return 16; };
 	static FMargin	IconPadding() { return FMargin(0.f, 1.f, 6.f, 1.f); };
 };

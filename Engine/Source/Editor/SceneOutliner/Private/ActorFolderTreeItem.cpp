@@ -53,6 +53,7 @@ struct SActorFolderTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWi
 			[
 				SNew(SBox)
 				.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
+				.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
 			[
 				SNew(SImage)
 				.Image(this, &SActorFolderTreeLabel::GetIcon)
