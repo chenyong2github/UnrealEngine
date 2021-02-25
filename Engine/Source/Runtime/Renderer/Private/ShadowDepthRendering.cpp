@@ -120,6 +120,7 @@ static FAutoConsoleVariableRef CVarShadowShadowUseGS(
 extern int32 GVirtualShadowMapAtomicWrites;
 extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
+extern int32 GEnableNonNaniteVSM;
 
 namespace Nanite
 {
@@ -161,7 +162,7 @@ void SetupShadowDepthPassUniformBuffer(
 			ShadowDepthPassParameters.ShadowViewMatrices[FaceIndex] = Translation * ShadowInfo->OnePassShadowViewMatrices[FaceIndex];
 		}
 	}
-#if ENABLE_NON_NANITE_VSM
+
 	ShadowDepthPassParameters.bRenderToVirtualShadowMap = false;
 	ShadowDepthPassParameters.bInstancePerPage = false;
 	ShadowDepthPassParameters.bAtomicWrites = false;
@@ -172,7 +173,6 @@ void SetupShadowDepthPassUniformBuffer(
 	FRDGTextureRef DepthBuffer = GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D( FIntPoint(4,4), PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV ), TEXT("Dummy-OutDepthBuffer") );
 
 	ShadowDepthPassParameters.OutDepthBuffer = GraphBuilder.CreateUAV( DepthBuffer );
-#endif // ENABLE_NON_NANITE_VSM
 }
 
 void SetupShadowDepthPassUniformBuffer(
@@ -332,14 +332,13 @@ public:
 		OutEnvironment.SetDefine(TEXT("ENABLE_FALLBACK_POINTLIGHT_SHADOW_GS"), UseGPUScene(Parameters.Platform) ? 1 : 0);
 #endif // GPUCULL_TODO
 
-		uint32 bEnableNonNaniteVSM = (uint32)(ENABLE_NON_NANITE_VSM != 0 && UseGPUScene(Parameters.Platform));
+		uint32 bEnableNonNaniteVSM = (uint32)(GEnableNonNaniteVSM != 0 && UseGPUScene(Parameters.Platform));
 		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), bEnableNonNaniteVSM);
-#if ENABLE_NON_NANITE_VSM
 		if (bEnableNonNaniteVSM != 0)
 		{
 			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		}
-#endif // ENABLE_NON_NANITE_VSM
+
 		if (bIsForGeometryShader)
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexToGeometryShader);
@@ -506,7 +505,7 @@ public:
 			return false;
 		}
 
-		if (ShaderMode == PixelShadowDepth_VirtualShadowMap && !IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
+		if (ShaderMode == PixelShadowDepth_VirtualShadowMap && (!IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) || GEnableNonNaniteVSM == 0))
 		{
 			return false;
 		}
@@ -531,14 +530,12 @@ public:
 		OutEnvironment.SetDefine(TEXT("ONEPASS_POINTLIGHT_SHADOW"), (uint32)(ShaderMode == PixelShadowDepth_OnePassPointLight));
 		OutEnvironment.SetDefine(TEXT("VIRTUAL_TEXTURE_TARGET"), (uint32)(ShaderMode == PixelShadowDepth_VirtualShadowMap));
 
-		uint32 bEnableNonNaniteVSM = (uint32)(ENABLE_NON_NANITE_VSM != 0 && UseGPUScene(Parameters.Platform));
+		uint32 bEnableNonNaniteVSM = (uint32)(GEnableNonNaniteVSM != 0 && UseGPUScene(Parameters.Platform));
 		OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), bEnableNonNaniteVSM);
-#if ENABLE_NON_NANITE_VSM
 		if (bEnableNonNaniteVSM != 0)
 		{
 			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		}
-#endif
 	}
 
 	TShadowDepthPS()
@@ -559,9 +556,7 @@ public:
 IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_NonPerspectiveCorrect);
 IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_PerspectiveCorrect);
 IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_OnePassPointLight);
-#if ENABLE_NON_NANITE_VSM
 IMPLEMENT_SHADOWDEPTHPASS_PIXELSHADER_TYPE(PixelShadowDepth_VirtualShadowMap);
-#endif
 
 /**
 * Overrides a material used for shadow depth rendering with the default material when appropriate.
@@ -664,14 +659,11 @@ bool GetShadowDepthPassShaders(
 	const bool bNullPixelShader = Material.WritesEveryPixel(true) && !bUsePerspectiveCorrectShadowDepths && !bAtomicWrites && VertexFactory->SupportsNullPixelShader();
 	if (!bNullPixelShader)
 	{
-#if ENABLE_NON_NANITE_VSM
-		if( bAtomicWrites )
+		if(UseNonNaniteVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) && bAtomicWrites )
 		{
 			ShaderTypes.AddShaderType<TShadowDepthPS<PixelShadowDepth_VirtualShadowMap>>();
 		}
-		else
-#endif
-		if (bUsePerspectiveCorrectShadowDepths)
+		else if (bUsePerspectiveCorrectShadowDepths)
 		{
 			ShaderTypes.AddShaderType<TShadowDepthPS<PixelShadowDepth_PerspectiveCorrect>>();
 		}
@@ -760,15 +752,11 @@ void SetStateForShadowDepth(bool bOnePassPointLightShadow, bool bDirectionalLigh
 	// Disable color writes
 	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
 
-#if ENABLE_NON_NANITE_VSM
 	if( InMeshPassTargetType == EMeshPass::VSMShadowDepth && GVirtualShadowMapAtomicWrites )
 	{
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 	}
 	else if (bOnePassPointLightShadow || InMeshPassTargetType == EMeshPass::VSMShadowDepth)
-#else //!ENABLE_NON_NANITE_VSM
-	if (bOnePassPointLightShadow)
-#endif // ENABLE_NON_NANITE_VSM
 	{
 		// Point lights use reverse Z depth maps
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
@@ -1041,9 +1029,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FShadowDepthPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileShadowDepthPassUniformParameters, MobilePassUniformBuffer)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FShadowDepthPassUniformParameters, DeferredPassUniformBuffer)
-#if ENABLE_NON_NANITE_VSM
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
-#endif
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -1089,10 +1075,8 @@ void FProjectedShadowInfo::RenderDepth(
 		SetStateForShadowDepth(bOnePassPointLightShadow, bDirectionalLight, DrawRenderState, MeshPassTargetType);
 		CopyCachedShadowMap(GraphBuilder, *ShadowDepthView, SceneRenderer, PassParameters->RenderTargets, DrawRenderState);
 	}
-#if ENABLE_NON_NANITE_VSM
 	FVirtualShadowMapCommonParameters DummyVsmParameters = FVirtualShadowMapCommonParameters();
 	PassParameters->VirtualSmCommon = GraphBuilder.CreateUniformBuffer(&DummyVsmParameters);
-#endif // ENABLE_NON_NANITE_VSM
 
 	switch (FSceneInterface::GetShadingPath(FeatureLevel))
 	{
@@ -1947,9 +1931,10 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageTableRDG, &Scene->VirtualShadowMapArrayCacheManager->HZBPageTable);
 	}
 
-#if ENABLE_NON_NANITE_VSM
-	VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
-#endif
+	if (UseNonNaniteVirtualShadowMaps(ShaderPlatform, FeatureLevel))
+	{
+		VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
+	}
 
 	// Render non-VSM shadows
 	FSceneRenderer::RenderShadowDepthMapAtlases(GraphBuilder);
@@ -2184,14 +2169,12 @@ bool FShadowDepthPassMeshProcessor::Process(
 	bool bOnePassPointLightShadow = ShadowDepthType.bOnePassPointLightShadow;
 	bool bAtomicWrites = false;
 
-#if ENABLE_NON_NANITE_VSM
 	if( MeshPassTargetType == EMeshPass::VSMShadowDepth )
 	{
 		bUsePerspectiveCorrectShadowDepths = false;
 		bOnePassPointLightShadow = false;
 		bAtomicWrites = GVirtualShadowMapAtomicWrites != 0;
 	}
-#endif
 
 	if (!GetShadowDepthPassShaders(
 		MaterialResource,
@@ -2275,11 +2258,7 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 		const bool bPlatformReversesCulling = (RHINeedsToSwitchVerticalAxis(ShaderPlatform) && MobileHDRCvar->GetValueOnAnyThread() == 0);
 
 		const bool bRenderSceneTwoSided = bTwoSided;
-#if ENABLE_NON_NANITE_VSM
 		const bool bShadowReversesCulling = MeshPassTargetType == EMeshPass::VSMShadowDepth ? false : ShadowDepthType.bOnePassPointLightShadow;
-#else
-		const bool bShadowReversesCulling = ShadowDepthType.bOnePassPointLightShadow;
-#endif
 		const bool bReverseCullMode = XOR(bPlatformReversesCulling, bShadowReversesCulling);
 
 		FinalCullMode = bRenderSceneTwoSided ? CM_None : bReverseCullMode ? InverseCullMode(MeshCullMode) : MeshCullMode;
@@ -2295,28 +2274,31 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 
 		OverrideWithDefaultMaterialForShadowDepth(EffectiveMaterialRenderProxy, EffectiveMaterial, FeatureLevel);
 
-#if ENABLE_NON_NANITE_VSM
-		// TODO: This uses a lot of indirections and complex logic, optimize by precomputing as far as possible
-		//       E.g., maybe store  bSupportsGpuSceneInstancing as a flag in the MeshBatch?
-		const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-		const bool bUsePositionOnlyVS =
-			VertexFactory->SupportsPositionAndNormalOnlyStream()
-			&& EffectiveMaterial->WritesEveryPixel(true)
-			&& !EffectiveMaterial->MaterialModifiesMeshPosition_RenderThread();
+		bool bDraw = true;
+#if GPUCULL_TODO
+		if (UseNonNaniteVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel))
+		{
+			// TODO: This uses a lot of indirections and complex logic, optimize by precomputing as far as possible
+			//       E.g., maybe store  bSupportsGpuSceneInstancing as a flag in the MeshBatch?
+			const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
+			const bool bUsePositionOnlyVS =
+				VertexFactory->SupportsPositionAndNormalOnlyStream()
+				&& EffectiveMaterial->WritesEveryPixel(true)
+				&& !EffectiveMaterial->MaterialModifiesMeshPosition_RenderThread();
 
-		// TODO: Store in MeshBatch?
-		const bool bSupportsGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel)
-			&& VertexFactory->GetPrimitiveIdStreamIndex(bUsePositionOnlyVS ? EVertexInputStreamType::PositionAndNormalOnly : EVertexInputStreamType::Default) != INDEX_NONE;
+			// TODO: Store in MeshBatch?
+			const bool bSupportsGpuSceneInstancing = UseGPUScene(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel)
+				&& VertexFactory->GetPrimitiveIdStreamIndex(bUsePositionOnlyVS ? EVertexInputStreamType::PositionAndNormalOnly : EVertexInputStreamType::Default) != INDEX_NONE;
 
-		// EMeshPass::CSMShadowDepth: If no VSM: include everything, else only !bSupportsGpuSceneInstancing
-		// EMeshPass::VSMShadowDepth: If VSM: only bSupportsGpuSceneInstancing, else nothing needs to go in.
-		// TODO: I'm sure I can reduce this logic
-		const bool bDraw = MeshPassTargetType == EMeshPass::CSMShadowDepth ?
-			(!UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) || !bSupportsGpuSceneInstancing) :
-			(UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel)  && bSupportsGpuSceneInstancing);
-		
+			// EMeshPass::CSMShadowDepth: If no VSM: include everything, else only !bSupportsGpuSceneInstancing
+			// EMeshPass::VSMShadowDepth: If VSM: only bSupportsGpuSceneInstancing, else nothing needs to go in.
+			// TODO: I'm sure I can reduce this logic
+			bDraw = MeshPassTargetType == EMeshPass::CSMShadowDepth ?
+				(!UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) || !bSupportsGpuSceneInstancing) :
+				(UseVirtualShadowMaps(GShaderPlatformForFeatureLevel[FeatureLevel], FeatureLevel) && bSupportsGpuSceneInstancing);
+		}
+#endif // GPUCULL_TODO
 		if (bDraw)
-#endif
 		{
 			bResult = Process(MeshBatch, BatchElementMask, StaticMeshId, PrimitiveSceneProxy, *EffectiveMaterialRenderProxy, *EffectiveMaterial, MeshFillMode, FinalCullMode);
 		}
@@ -2374,9 +2356,9 @@ FRegisterPassProcessorCreateFunction RegisterCSMShadowDepthPass(&CreateCSMShadow
 
 FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-#if ENABLE_NON_NANITE_VSM
+#if GPUCULL_TODO
 	// Only create the mesh pass processor if VSMs are not enabled as this prevents wasting time caching the SM draw commands
-	if (UseVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
+	if (UseNonNaniteVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
 	{
 		return new(FMemStack::Get()) FShadowDepthPassMeshProcessor(
 			Scene,
@@ -2385,7 +2367,7 @@ FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(const FScene* Scene, const
 			InDrawListContext,
 			EMeshPass::VSMShadowDepth);
 	}
-#endif // ENABLE_NON_NANITE_VSM
+#endif // GPUCULL_TODO
 	return nullptr;
 }
 FRegisterPassProcessorCreateFunction RegisterVSMShadowDepthPass(&CreateVSMShadowDepthPassProcessor, EShadingPath::Deferred, EMeshPass::VSMShadowDepth, EMeshPassFlags::CachedMeshCommands);

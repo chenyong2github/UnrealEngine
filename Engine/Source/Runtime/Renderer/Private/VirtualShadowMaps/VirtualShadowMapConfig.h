@@ -3,11 +3,21 @@
 /*=============================================================================
 	VirtualShadowMapConfig.h
 =============================================================================*/
-
 #pragma once
 
+#include "RenderUtils.h"
+
+extern int32 GEnableNonNaniteVSM;
+
+/**
+ * Returns true if non-nanite virtual shadow maps are enbled by CVar r.Shadow.Virtual.NonNaniteVSM 
+ * and UseVirtualShadowMaps is true for the given platform and feature level.
+ */
+inline bool UseNonNaniteVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFeatureLevel FeatureLevel)
+{
 #if GPUCULL_TODO
-	#define ENABLE_NON_NANITE_VSM 0
-#else
-	#define ENABLE_NON_NANITE_VSM 0
-#endif
+	return GEnableNonNaniteVSM != 0 && UseVirtualShadowMaps(ShaderPlatform, FeatureLevel);
+#else // !GPUCULL_TODO
+	return false;
+#endif // GPUCULL_TODO
+}

@@ -139,7 +139,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.HPageFlagsRDG, &PrevHPageFlags);
 		
 		GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolRDG, &PrevPhysicalPagePool);
-#if ENABLE_NON_NANITE_VSM
+
 		if( VirtualShadowMapArray.PhysicalPagePoolHw )
 		{
 			GraphBuilder.QueueTextureExtraction(VirtualShadowMapArray.PhysicalPagePoolHw, &PrevPhysicalPagePoolHw);
@@ -148,7 +148,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 		{
 			PrevPhysicalPagePoolHw = TRefCountPtr<IPooledRenderTarget>();
 		}
-#endif
+
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PhysicalPageMetaDataRDG, &PrevPhysicalPageMetaData);
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.DynamicCasterPageFlagsRDG, &PrevDynamicCasterPageFlags);
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.ShadowMapProjectionDataRDG, &PrevShadowMapProjectionDataBuffer);
@@ -165,9 +165,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 		PrevHPageFlags = TRefCountPtr<FRDGPooledBuffer>();
 
 		PrevPhysicalPagePool = TRefCountPtr<IPooledRenderTarget>();
-#if ENABLE_NON_NANITE_VSM
 		PrevPhysicalPagePoolHw = TRefCountPtr<IPooledRenderTarget>();
-#endif //ENABLE_NON_NANITE_VSM
 		PrevPhysicalPageMetaData = TRefCountPtr<FRDGPooledBuffer>();
 		PrevDynamicCasterPageFlags = TRefCountPtr<FRDGPooledBuffer>();
 		PrevShadowMapProjectionDataBuffer = TRefCountPtr<FRDGPooledBuffer>();
@@ -300,11 +298,7 @@ bool FVirtualShadowMapArrayCacheManager::IsValid()
 	return CVarCacheVirtualSMs.GetValueOnRenderThread() != 0
 		&& PrevPageTable
 		&& PrevPageFlags
-#if ENABLE_NON_NANITE_VSM
 		&& (PrevPhysicalPagePool || PrevPhysicalPagePoolHw)
-#else // !ENABLE_NON_NANITE_VSM
-		&& PrevPhysicalPagePool
-#endif //ENABLE_NON_NANITE_VSM
 		&& PrevPhysicalPageMetaData
 		&& PrevDynamicCasterPageFlags;
 }

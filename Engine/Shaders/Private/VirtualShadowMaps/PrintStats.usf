@@ -6,10 +6,7 @@
 
 // Just the page count for now
 StructuredBuffer< uint >	InStatsBuffer;
-
-#if ENABLE_NON_NANITE_VSM
 StructuredBuffer<uint4> AllocatedPageRectBounds;
-#endif // ENABLE_NON_NANITE_VSM
 
 float2 ShaderPrintLeftAlign(float2 ScreenPos, uint Value)
 {
@@ -132,8 +129,6 @@ void PrintStats()
 	}
 }
 
-#if ENABLE_NON_NANITE_VSM
-
 
 uint ShadowMapIdRangeStart;
 uint ShadowMapIdRangeEnd;
@@ -241,4 +236,3 @@ void PrintClipmapStats()
 	}
 
 }
-#endif // ENABLE_NON_NANITE_VSM

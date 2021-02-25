@@ -131,9 +131,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapSamplingParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ShadowPageTable)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData)
-#if ENABLE_NON_NANITE_VSM
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, PhysicalPagePoolHw)
-#endif // ENABLE_NON_NANITE_VSM
 END_SHADER_PARAMETER_STRUCT()
 
 /**
@@ -203,14 +201,12 @@ public:
 
 	void CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const;
 
-#if ENABLE_NON_NANITE_VSM
 	/**
 	 * Draw old-school hardware based shadow map tiles into virtual SM.
 	 */
 	void RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, FScene& Scene);
 
 	void AddInitializePhysicalPagesHwPass(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager);
-#endif
 
 	// Draw debug info into render target 'VSMDebug' of screen-size, the mode is controlled by 'r.Shadow.Virtual.DebugVisualize'.
 	void RenderDebugInfo(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager);
@@ -225,11 +221,7 @@ public:
 		return GraphBuilder.CreateUniformBuffer(&CommonParameters);
 	}
 
-#if ENABLE_NON_NANITE_VSM
 	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr || PhysicalPagePoolHw != nullptr;  }
-#else
-	bool HasAnyShadowData() const { return PhysicalPagePoolRDG != nullptr;  }
-#endif
 
 	void GetPageTableParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapPageTableParameters& OutParameters);
 
@@ -267,9 +259,7 @@ public:
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
 	FRDGBufferRef PageRectBoundsRDG = nullptr;
-#if ENABLE_NON_NANITE_VSM
 	FRDGBufferRef AllocatedPageRectBoundsRDG = nullptr;
-#endif // ENABLE_NON_NANITE_VSM
 	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
 	TArray< FRDGBufferRef, SceneRenderingAllocator > VirtualShadowMapIdRemapRDG;
 
@@ -287,9 +277,7 @@ public:
 	//FRDGBufferRef RDG = nullptr;
 	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationProjectionOutput;
 	//FRDGBufferRef RDG = nullptr;
-#if ENABLE_NON_NANITE_VSM
 	// page pool for HW rasterized shadow data. 
 	// Mirrors the regular one, but uses a shadow depth target format
 	FRDGTextureRef PhysicalPagePoolHw = nullptr;
-#endif // ENABLE_NON_NANITE_VSM
 };

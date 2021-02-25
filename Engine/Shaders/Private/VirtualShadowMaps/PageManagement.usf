@@ -851,8 +851,6 @@ void UpdatePhysicalPageMetaDataClearState(uint PageIndex : SV_DispatchThreadID)
 
 
 
-
-#if ENABLE_NON_NANITE_VSM
 Texture2D< float > PrevPhysicalPagePoolHw;
 
 
@@ -911,8 +909,6 @@ void InitializePhysicalPagesPS(uint PageIndex : TEXCOORD0, float4 SVPos : SV_POS
 
 	OutDepth = ClearValue;
 }
-#endif // ENABLE_NON_NANITE_VSM
-
 
 RWStructuredBuffer<FPhysicalPageMetaData> InOutPhysicalPageMetaData;
 StructuredBuffer<uint> VirtualShadowMapFlags;
@@ -970,8 +966,6 @@ void InitPhysicalPageMetaData(uint3 Index : SV_DispatchThreadID)
 		PhysicalPageMetaDataOut[Index.x] = MetaData;
 	}
 }
-
-#if ENABLE_NON_NANITE_VSM
 
 
 StructuredBuffer<uint> InputCountBuffer;
@@ -1195,5 +1189,3 @@ void AllocatePagesUsingRects(uint GroupThreadId : SV_GroupThreadID, uint2 Dispat
 		GroupMemoryBarrierWithGroupSync();
 	}
 }
-
-#endif // ENABLE_NON_NANITE_VSM

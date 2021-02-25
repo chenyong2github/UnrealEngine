@@ -43,10 +43,8 @@ struct FCachedPageInfo
 
 static void RecreateGlobalRenderState(IConsoleVariable* Var)
 {
-#if ENABLE_NON_NANITE_VSM
 	// Needed because the depth state changes with method (so cached draw commands must be re-created) see SetStateForShadowDepth
 	FGlobalComponentRecreateRenderStateContext Context;
-#endif
 }
 
 int32 GEnableVirtualShadowMaps = 0;
@@ -126,8 +124,6 @@ FAutoConsoleVariableRef CVarAtomicWrites(
 	ECVF_RenderThreadSafe
 );
 
-#if ENABLE_NON_NANITE_VSM
-
 static TAutoConsoleVariable<int32> CVarShowClipmapStats(
 	TEXT("r.Shadow.Virtual.ShowClipmapStats"),
 	-1,
@@ -135,7 +131,17 @@ static TAutoConsoleVariable<int32> CVarShowClipmapStats(
 	ECVF_RenderThreadSafe
 );
 
-#endif // ENABLE_NON_NANITE_VSM
+int32 GEnableNonNaniteVSM = 0;
+
+#if GPUCULL_TODO
+FAutoConsoleVariableRef CVarEnableNonNaniteVSM(
+	TEXT("r.Shadow.Virtual.NonNaniteVSM"),
+	GEnableNonNaniteVSM,
+	TEXT("EXPERIMENTAL: Enable support for non-nanite Virtual Shadow Maps, this has some performance impact on regular shadow maps.")
+	TEXT("Read-only and to be set in a config file (requires restart)."),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+#endif // GPUCULL_TODO
 
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
@@ -237,10 +243,8 @@ void FVirtualShadowMapArray::Initialize(bool bInEnabled)
 
 void FVirtualShadowMapArray::SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment)
 {
-#if ENABLE_NON_NANITE_VSM
 	static_assert(FVirtualShadowMap::Log2Level0DimPagesXY * 2U + MAX_VIEWS_PER_CULL_RASTERIZE_PASS_BITS <= 32U, "Page indirection plus view index must fit into 32-bits for page-routing storage!");
-#endif // ENABLE_NON_NANITE_VSM
-	OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), int32(ENABLE_NON_NANITE_VSM));
+	OutEnvironment.SetDefine(TEXT("ENABLE_NON_NANITE_VSM"), GEnableNonNaniteVSM);
 
 	OutEnvironment.SetDefine(TEXT("VSM_PAGE_SIZE"), FVirtualShadowMap::PageSize);
 	OutEnvironment.SetDefine(TEXT("VSM_PAGE_SIZE_MASK"), FVirtualShadowMap::PageSizeMask);
@@ -275,11 +279,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-#if ENABLE_NON_NANITE_VSM
-		return FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Parameters.Platform);
-#else //!ENABLE_NON_NANITE_VSM
 		return DoesPlatformSupportNanite(Parameters.Platform);
-#endif // ENABLE_NON_NANITE_VSM
 	}
 
 	/**
@@ -442,8 +442,6 @@ class FClearPhysicalPagesCS : public FVirtualPageManagementShader
 IMPLEMENT_GLOBAL_SHADER(FClearPhysicalPagesCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "ClearPhysicalPages", SF_Compute);
 
 
-#if ENABLE_NON_NANITE_VSM
-
 class FInitIndirectArgs1DCS : public FVirtualPageManagementShader
 {
 	DECLARE_GLOBAL_SHADER(FInitIndirectArgs1DCS);
@@ -486,7 +484,6 @@ FRDGBufferRef AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, FRDGBuffer
 	return IndirectArgsBuffer;
 }
 
-#endif // ENABLE_NON_NANITE_VSM
 
 void FVirtualShadowMapArray::ClearPhysicalMemory(FRDGBuilder& GraphBuilder, FRDGTextureRef& PhysicalTexture, FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager)
 {
@@ -625,8 +622,6 @@ class FInitPageRectBoundsCS : public FVirtualPageManagementShader
 IMPLEMENT_GLOBAL_SHADER(FInitPageRectBoundsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "InitPageRectBounds", SF_Compute);
 
 
-#if ENABLE_NON_NANITE_VSM
-
 
 
 
@@ -679,7 +674,6 @@ class FAllocatePagesUsingRectsCS : public FVirtualPageManagementShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FAllocatePagesUsingRectsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "AllocatePagesUsingRects", SF_Compute);
-#endif // ENABLE_NON_NANITE_VSM
 
 void FVirtualShadowMapArray::BuildPageAllocations(
 	FRDGBuilder& GraphBuilder,
@@ -922,9 +916,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		CachedPageInfosRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FCachedPageInfo), CommonParameters.MaxPhysicalPages), TEXT("Shadow.Virtual.CachedPageInfos"));
 		PhysicalPageMetaDataRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPhysicalPageMetaData), CommonParameters.MaxPhysicalPages), TEXT("Shadow.Virtual.PhysicalPageMetaData"));
 
-#if ENABLE_NON_NANITE_VSM
 		AllocatedPageRectBoundsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FIntVector4), NumPageRects), TEXT("Shadow.Virtual.AllocatedPageRectBounds"));
-#endif // ENABLE_NON_NANITE_VSM
 
 		{
 			FInitPhysicalPageMetaData::FParameters* PassParameters = GraphBuilder.AllocParameters< FInitPhysicalPageMetaData::FParameters >();
@@ -941,8 +933,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			);
 		}
 		
-#if ENABLE_NON_NANITE_VSM
-
 		const bool bAllocatePageRectAtlas = CVarAllocatePagesUsingRects.GetValueOnRenderThread() != 0;
 		if (bAllocatePageRectAtlas)
 		{
@@ -988,8 +978,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			}
 		}
 		else
-#endif // ENABLE_NON_NANITE_VSM
-
 		{
 			// Note: does not actually need mip0 so can be trimmed down a bit
 			FRDGBufferRef CoverageSummary = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 4, NumPageFlags ), TEXT("Shadow.Virtual.CoverageSummary") );
@@ -1074,13 +1062,9 @@ void FVirtualShadowMapArray::SetProjectionParameters(FRDGBuilder& GraphBuilder, 
 {
 	OutParameters.VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 	OutParameters.ShadowPageTable = GraphBuilder.CreateSRV(PageTableRDG);
-#if ENABLE_NON_NANITE_VSM
 	// GPUCULL_TODO: Add flags to avoid sampling if not present?
 	OutParameters.PhysicalPagePool = PhysicalPagePoolRDG != nullptr ? PhysicalPagePoolRDG : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	OutParameters.PhysicalPagePoolHw = PhysicalPagePoolHw != nullptr ? PhysicalPagePoolHw : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-#else //!ENABLE_NON_NANITE_VSM
-	OutParameters.PhysicalPagePool = PhysicalPagePoolRDG != nullptr ? PhysicalPagePoolRDG : GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-#endif // ENABLE_NON_NANITE_VSM
 	OutParameters.VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
 }
 
@@ -1193,9 +1177,7 @@ class FVirtualSmPrintStatsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_STRUCT_INCLUDE( ShaderPrint::FShaderParameters, ShaderPrintStruct )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, InStatsBuffer)
-#if ENABLE_NON_NANITE_VSM
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FIntVector4>, AllocatedPageRectBounds)
-#endif // ENABLE_NON_NANITE_VSM
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualSmPrintStatsCS, "/Engine/Private/VirtualShadowMaps/PrintStats.usf", "PrintStats", SF_Compute);
@@ -1301,9 +1283,6 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 	check(MaxMips > 0);
 	Views.SetNum(MaxMips * NumPrimaryViews, false);
 }
-
-
-#if ENABLE_NON_NANITE_VSM
 
 
 class FVirtualSmPrintClipmapStatsCS : public FVirtualPageManagementShader
@@ -1998,6 +1977,3 @@ void FVirtualShadowMapArray::AddInitializePhysicalPagesHwPass(FRDGBuilder& Graph
 	}
 
 }
-
-
-#endif // ENABLE_NON_NANITE_VSM

@@ -218,7 +218,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER(float, bClampToNearPlane)
 	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewProjectionMatrices, [6])
 	SHADER_PARAMETER_ARRAY(FMatrix, ShadowViewMatrices, [6])
-#if ENABLE_NON_NANITE_VSM
 	// GPUCULL_TODO: ?
 	SHADER_PARAMETER(int, bRenderToVirtualShadowMap)
 	SHADER_PARAMETER(int, bInstancePerPage)
@@ -228,9 +227,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShadowDepthPassUniformParameters,)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPackedNaniteView >, PackedNaniteViews)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, PageRectBounds)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >, OutDepthBuffer )
-
-	//SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer< uint >, PackedPageInfoBuffer)
-#endif // ENABLE_NON_NANITE_VSM
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileShadowDepthPassUniformParameters,)
@@ -424,9 +420,7 @@ public:
 	int32 SubjectPrimitiveComponentIndex = -1;
 
 	TArray<int32> ViewIds;
-#if ENABLE_NON_NANITE_VSM
 	TSharedPtr<FVirtualShadowMapClipmap> VirtualShadowMapClipmap;
-#endif // ENABLE_NON_NANITE_VSM
 public:
 
 	// default constructor
@@ -462,7 +456,7 @@ public:
 		uint32 InSnapResolutionY,
 		uint32 InBorderSize
 		);
-#if ENABLE_NON_NANITE_VSM
+
 	/** for a clipmap shadow. */
 	void SetupClipmapProjection(
 		FLightSceneInfo* InLightSceneInfo,
@@ -470,7 +464,6 @@ public:
 		const TSharedPtr<FVirtualShadowMapClipmap> &VirtualShadowMapClipmap,
 		float InMaxNonFarCascadeDistance
 		);
-#endif // ENABLE_NON_NANITE_VSM
 
 	/**
 	 * Get `FViewMatrices` instance set up for drawing geometry to the SM, using the outer projection,
@@ -701,9 +694,7 @@ public:
 
 	FParallelMeshDrawCommandPass& GetShadowDepthPass() { return ShadowDepthPass; }
 
-#if ENABLE_NON_NANITE_VSM
 	float GetMaxNonFarCascadeDistance() const { return MaxNonFarCascadeDistance; }
-#endif // ENABLE_NON_NANITE_VSM
 private:
 	// 0 if Setup...() wasn't called yet
 	FLightSceneInfo* LightSceneInfo;
@@ -743,10 +734,8 @@ private:
 	FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 	bool NeedsShaderInitialisation;
-#if ENABLE_NON_NANITE_VSM
 	// If >= 0.0f then this records the cascade distance to the farthest non-'far' shadow cascade. Only used for clipmaps at the moment.
 	float MaxNonFarCascadeDistance = -1.0f;
-#endif // ENABLE_NON_NANITE_VSM
 
 	/**
 	 * Bias during in shadowmap rendering, stored redundantly for better performance 

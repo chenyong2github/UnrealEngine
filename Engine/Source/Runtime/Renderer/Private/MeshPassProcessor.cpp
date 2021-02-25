@@ -996,8 +996,9 @@ void FMeshDrawCommand::SubmitDrawBegin(
 {
 	checkSlow(MeshDrawCommand.CachedPipelineId.IsValid());
 #if GPUCULL_TODO
+	// GPUCULL_TODO: Can't do this check as the VFs are created with GMaxRHIFeatureLevel (so may support PrimitiveIdStreamIndex even for preview platforms)
 	// Want to be sure that we supply GPU-scene instance data if required.
-	checkSlow(MeshDrawCommand.PrimitiveIdStreamIndex == -1 || ScenePrimitiveIdsBuffer != nullptr);
+	// checkSlow(MeshDrawCommand.PrimitiveIdStreamIndex == -1 || ScenePrimitiveIdsBuffer != nullptr);
 #endif // GPUCULL_TODO
 
 #if WANTS_DRAW_MESH_EVENTS
@@ -1268,6 +1269,7 @@ void DrawDynamicMeshPassPrivate(
 		const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
 #if GPUCULL_TODO
 #if DO_GUARD_SLOW
+		if (UseGPUScene(View.GetShaderPlatform(), View.GetFeatureLevel()))
 		{
 			bool bNeedsGPUSceneData = false;
 			for (const auto& VisibleMeshDrawCommand : VisibleMeshDrawCommands)
