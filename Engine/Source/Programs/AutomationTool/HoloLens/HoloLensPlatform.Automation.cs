@@ -616,7 +616,8 @@ namespace HoloLens.Automation
 
 		public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
 		{
-			return PlatformType.ToString();
+		    string Return = PlatformType.ToString();
+            return bIsClientOnly ? Return + "Client" : Return;
 		}
 
 		static void FillMapfile(DirectoryReference DirectoryName, string SearchPath, string Mask, StringBuilder AppXRecipeBuiltFiles)

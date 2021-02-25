@@ -54,7 +54,7 @@ public class TVOSPlatform : IOSPlatform
 
     public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
 	{
-		return "TVOS";
+		return bIsClientOnly ? "TVOSClient" : "TVOS";
 	}
 
     public override void GetFilesToDeployOrStage(ProjectParams Params, DeploymentContext SC)
