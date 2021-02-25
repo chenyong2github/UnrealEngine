@@ -667,40 +667,47 @@ private:
 	TUniquePtr<UE::DerivedData::ICache> Cache;
 };
 
+static FDerivedDataCacheInterface* GDerivedDataCacheInstance;
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
  * Module for the DDC
  */
-class FDerivedDataCacheModule : public IDerivedDataCacheModule
+class FDerivedDataCacheModule final : public IDerivedDataCacheModule
 {
 public:
-	virtual FDerivedDataCacheInterface& GetDDC() override
+	virtual FDerivedDataCacheInterface& GetDDC() final
 	{
-		check(Instance);
-		return *Instance;
+		return **CreateOrGetDDC();
 	}
 
-	virtual void StartupModule() override
+	virtual FDerivedDataCacheInterface* const* CreateOrGetDDC() final
 	{
-		if (!Instance)
+		FScopeLock Lock(&CreateLock);
+		if (!GDerivedDataCacheInstance)
 		{
-			Instance = MakeUnique<FDerivedDataCache>();
+			GDerivedDataCacheInstance = new FDerivedDataCache();
+			check(GDerivedDataCacheInstance);
 		}
-		check(Instance);
+		return &GDerivedDataCacheInstance;
 	}
 
-	virtual void ShutdownModule() override
+	virtual void ShutdownModule() final
 	{
 		FDDCCleanup::Shutdown();
 
-		check(Instance);
-		Instance.Release();
+		delete GDerivedDataCacheInstance;
+		GDerivedDataCacheInstance = nullptr;
 	}
 
 private:
-	TUniquePtr<FDerivedDataCache> Instance;
+	FCriticalSection CreateLock;
 };
 
-IMPLEMENT_MODULE( FDerivedDataCacheModule, DerivedDataCache);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+IMPLEMENT_MODULE(FDerivedDataCacheModule, DerivedDataCache);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

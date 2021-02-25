@@ -295,6 +295,15 @@ class IDerivedDataCacheModule : public IModuleInterface
 {
 public:
 	/** Return the DDC interface **/
+	UE_DEPRECATED(4.27, "GetDDC has been replaced by CreateOrGetDDC.")
 	virtual FDerivedDataCacheInterface& GetDDC() = 0;
-};
 
+	/**
+	 * Returns the DDC interface, and creates it on the first call.
+	 *
+	 * This will never return a null interface, but an extra level of indirection is used to support
+	 * callers that store the return value. The returned interface pointer will become null when the
+	 * module shuts down, which destroys DDC.
+	 */
+	virtual FDerivedDataCacheInterface* const* CreateOrGetDDC() = 0;
+};
