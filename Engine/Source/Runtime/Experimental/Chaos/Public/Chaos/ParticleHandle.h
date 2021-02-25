@@ -805,7 +805,8 @@ public:
 		SetCollisionGroup(DynamicMisc.CollisionGroup());
 		SetGravityEnabled(DynamicMisc.GravityEnabled());
 		SetCCDEnabled(DynamicMisc.CCDEnabled());
-		SetDisabled(DynamicMisc.Disabled());
+		// @todo(chaos) re-enable this below when the GT/PT two way sync for this flag is fixed - see similar comment in SingleParticlePhysicsProxy.h
+		//SetDisabled(DynamicMisc.Disabled()); 
 		SetResimType(DynamicMisc.ResimType());
 		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
 		AddCollisionConstraintFlag( (Chaos::ECollisionConstraintFlags)DynamicMisc.CollisionConstraintFlag() );
