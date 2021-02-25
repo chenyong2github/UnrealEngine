@@ -665,11 +665,12 @@ void FMagicLeapMediaPlayer::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 						
 						if (TextureDataPtr->VideoTexture == nullptr)
 						{
-							FRHIResourceCreateInfo CreateInfo;
-							TextureDataPtr->VideoTexture = RHICreateTextureExternal2D(1, 1, PF_R8G8B8A8, 1, 1, TexCreate_None, CreateInfo);
+							TextureDataPtr->VideoTexture = GDynamicRHI->RHICreateAliasedTexture(NewMediaTexture);
 						}
-
-						FMagicLeapHelperVulkan::AliasMediaTexture(TextureDataPtr->VideoTexture, NewMediaTexture);
+						else
+						{
+							FMagicLeapHelperVulkan::AliasMediaTexture(TextureDataPtr->VideoTexture, NewMediaTexture);
+						}
 					}
 					else
 					{
