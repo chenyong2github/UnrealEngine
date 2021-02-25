@@ -18,6 +18,19 @@ class UTexture;
 struct FPropertyChangedEvent;
 struct FMaterialShadingModelField;
 
+class FMaterialHLSLGenerator;
+
+namespace UE
+{
+namespace HLSLTree
+{
+class FScope;
+class FStatement;
+class FExpression;
+class FTextureParameterDeclaration;
+}
+}
+
 //@warning: FExpressionInput is mirrored in MaterialShared.h and manually "subclassed" in Material.h (FMaterialInput)
 #if !CPP      //noexport struct
 USTRUCT(noexport)
@@ -105,7 +118,14 @@ struct FExpressionExecOutput
 	GENERATED_BODY()
 
 #if WITH_EDITOR
-	ENGINE_API int32 Compile(class FMaterialCompiler* Compiler);
+	ENGINE_API int32 Compile(class FMaterialCompiler* Compiler) const;
+
+	/** Returns the statement for the expression connected to this input */ 
+	ENGINE_API UE::HLSLTree::FStatement* AcquireHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
+
+	/** Creates a new scope, and populates it with the expression connected to this input */
+	ENGINE_API UE::HLSLTree::FScope* NewScopeWithStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
+	ENGINE_API UE::HLSLTree::FScope* NewLinkedScopeWithStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
 #endif // WITH_EDITOR
 
 	UPROPERTY()
@@ -116,6 +136,12 @@ struct FExpressionExecOutputEntry
 {
 	FName Name;
 	FExpressionExecOutput* Output = nullptr;
+};
+
+enum class EMaterialGenerateHLSLStatus : uint8
+{
+	Success,
+	Error,
 };
 
 UCLASS(abstract, BlueprintType, hidecategories=Object)
@@ -253,7 +279,18 @@ class ENGINE_API UMaterialExpression : public UObject
 	 */	
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) { return INDEX_NONE; }
 	virtual int32 CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex) { return Compile(Compiler, OutputIndex); }
-#endif
+
+	/**
+	 * A given UMaterial implementation should implement at least one of these methods in order to generate HLSL code
+	 * It's valid to implement more than one, if the expression can be used in multiple ways.
+	 * For example, a for-loop expression might generate a statement for the execution input, but also generate an expression to access the loop index
+	 * These methods replace the Compile() method; once we switch over to the new system, Compile() will be removed
+	 */
+	virtual EMaterialGenerateHLSLStatus GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement);
+	virtual EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression* &OutExpression);
+	virtual EMaterialGenerateHLSLStatus GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture);
+
+#endif // WITH_EDITOR
 
 	/**
 	* Fill the array with all textures dependence that should trig a recompile of the material.

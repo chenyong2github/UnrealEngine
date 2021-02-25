@@ -1517,27 +1517,42 @@ MaterialFloat4 ProcessMaterialLinearColorTextureLookup(MaterialFloat4 TextureVal
 	return TextureValue;
 }
 
-MaterialFloat ProcessMaterialGreyscaleTextureLookup(MaterialFloat TextureValue)
+MaterialFloat4 ProcessMaterialGreyscaleTextureLookup(MaterialFloat4 TextureValue)
 {
+	// Sampling a greyscale texture in D3D9 gives: (G,G,G)
+	// Sampling a greyscale texture in D3D11 gives: (G,0,0)
+	// This replication reproduces the D3D9 behavior in all cases.
+	MaterialFloat GrayValue = TextureValue.r;
 #if (COMPILER_GLSL_ES3_1 || VULKAN_PROFILE) // OpenGLES3.1, Vulkan3.1 do not support sRGB sampling from R8
 	#if MOBILE_EMULATION
 	if( ResolvedView.MobilePreviewMode > 0.5f )
 	{
 		// undo HW srgb->lin
-		TextureValue = pow(TextureValue, 1.0f/2.2f); // TODO: replace with a more accurate lin -> sRGB conversion.
+		GrayValue = pow(GrayValue, 1.0f/2.2f); // TODO: replace with a more accurate lin -> sRGB conversion.
 	}
 	#endif
 	// sRGB read approximation (in highp if possible)
-	float LinValue = TextureValue;
+	float LinValue = GrayValue;
 	LinValue *= LinValue;
-	return MaterialFloat(LinValue);
+	return MaterialFloat4(LinValue.rrrr);
 #endif 
-	return TextureValue;
+	return GrayValue.rrrr;
 }
 
-MaterialFloat ProcessMaterialLinearGreyscaleTextureLookup(MaterialFloat TextureValue)
+MaterialFloat4 ProcessMaterialLinearGreyscaleTextureLookup(MaterialFloat4 TextureValue)
 {
-	return TextureValue;
+	// Sampling a greyscale texture in D3D9 gives: (G,G,G)
+	// Sampling a greyscale texture in D3D11 gives: (G,0,0)
+	// This replication reproduces the D3D9 behavior in all cases.
+	return TextureValue.rrrr;
+}
+
+MaterialFloat4 ProcessMaterialAlphaTextureLookup(MaterialFloat4 TextureValue)
+{
+	// Sampling a single channel texture in D3D9 gives: (G,G,G)
+	// Sampling a single channel texture in D3D11 gives: (G,0,0)
+	// This replication reproduces the D3D9 behavior in all cases.
+	return TextureValue.rrrr;
 }
 
 /** Accesses a shared material sampler or falls back if independent samplers are not supported. */

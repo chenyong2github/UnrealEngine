@@ -1788,28 +1788,18 @@ FName UMaterialExpressionTextureSample::GetInputName(int32 InputIndex) const
 }
 #undef IF_INPUT_RETURN
 
-/**
- * Verify that the texture and sampler type. Generates a compiler waring if 
- * they do not.
- * @param Compiler - The material compiler to which errors will be reported.
- * @param ExpressionDesc - Description of the expression verifying the sampler type.
- * @param Texture - The texture to verify. A nullptr texture is considered valid!
- * @param SamplerType - The sampler type to verify.
- */
-static bool VerifySamplerType(
-	FMaterialCompiler* Compiler,
-	const TCHAR* ExpressionDesc,
+bool UMaterialExpressionTextureBase::VerifySamplerType(
+	ERHIFeatureLevel::Type FeatureLevel,
+	const ITargetPlatform* TargetPlatform,
 	const UTexture* Texture,
-	EMaterialSamplerType SamplerType )
+	EMaterialSamplerType SamplerType,
+	FString& OutErrorMessage)
 {
-	check( Compiler );
-	check( ExpressionDesc );
-
 	if ( Texture )
 	{
 		EMaterialSamplerType CorrectSamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture );
 		bool bIsVirtualTextured = IsVirtualSamplerType(SamplerType);
-		if (bIsVirtualTextured && UseVirtualTexturing(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform()) == false)
+		if (bIsVirtualTextured && !UseVirtualTexturing(FeatureLevel, TargetPlatform))
 		{
 			SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture(Texture, !bIsVirtualTextured);
 		}
@@ -1821,8 +1811,7 @@ static bool VerifySamplerType(
 			FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(SamplerType).ToString();
 			FString TextureTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(CorrectSamplerType).ToString();
 
-			Compiler->Errorf( TEXT("%s> Sampler type is %s, should be %s for %s"),
-				ExpressionDesc,
+			OutErrorMessage = FString::Printf(TEXT("Sampler type is %s, should be %s for %s"),
 				*SamplerTypeDisplayName,
 				*TextureTypeDisplayName,
 				*Texture->GetPathName() );
@@ -1835,8 +1824,7 @@ static bool VerifySamplerType(
 
 			FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(SamplerType).ToString();
 
-			Compiler->Errorf( TEXT("%s> To use '%s' as sampler type, SRGB must be disabled for %s"),
-				ExpressionDesc,
+			OutErrorMessage = FString::Printf(TEXT("%s> To use '%s' as sampler type, SRGB must be disabled for %s"),
 				*SamplerTypeDisplayName,
 				*Texture->GetPathName() );
 			return false;
@@ -1900,7 +1888,8 @@ int32 UMaterialExpressionTextureSample::Compile(class FMaterialCompiler* Compile
 			}
 		}
 
-		if (EffectiveTexture && VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("TextureSample")), EffectiveTexture, EffectiveSamplerType))
+		FString SamplerTypeError;
+		if (EffectiveTexture && VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), EffectiveTexture, EffectiveSamplerType, SamplerTypeError))
 		{
 			if (TextureCodeIndex != INDEX_NONE)
 			{
@@ -1942,7 +1931,7 @@ int32 UMaterialExpressionTextureSample::Compile(class FMaterialCompiler* Compile
 		else
 		{
 			// TextureObject.Expression is responsible for generating the error message, since it had a nullptr texture value
-			return INDEX_NONE;
+			return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 		}
 	}
 	else
@@ -2823,9 +2812,10 @@ int32 UMaterialExpressionTextureSampleParameter::Compile(class FMaterialCompiler
 		return CompilerError(Compiler, *ErrorMessage);
 	}
 
-	if (!VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("TextureSampleParameter")), Texture, SamplerType))
+	FString SamplerTypeError;
+	if (!VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), Texture, SamplerType, SamplerTypeError))
 	{
-		return INDEX_NONE;
+		return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 	}
 
 	if (!ParameterName.IsValid() || ParameterName.IsNone())
@@ -3593,9 +3583,10 @@ int32 UMaterialExpressionTextureSampleParameterSubUV::Compile(class FMaterialCom
 		return CompilerError(Compiler, *ErrorMessage);
 	}
 
-	if (!VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("TextureSampleParameterSubUV")), Texture, SamplerType))
+	FString SamplerTypeError;
+	if (!VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), Texture, SamplerType, SamplerTypeError))
 	{
-		return INDEX_NONE;
+		return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 	}
 
 	int32 TextureCodeIndex = Compiler->TextureParameter(ParameterName, Texture, SamplerType);
@@ -9204,9 +9195,10 @@ int32 UMaterialExpressionParticleSubUV::Compile(class FMaterialCompiler* Compile
 {
 	if (Texture)
 	{
-		if (!VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("ParticleSubUV")), Texture, SamplerType))
+		FString SamplerTypeError;
+		if (!VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), Texture, SamplerType, SamplerTypeError))
 		{
-			return INDEX_NONE;
+			return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 		}
 		int32 TextureCodeIndex = Compiler->Texture(Texture, SamplerType);
 		return ParticleSubUV(Compiler, TextureCodeIndex, Texture, SamplerType, Coordinates, bBlend);
@@ -11039,9 +11031,10 @@ int32 UMaterialExpressionFontSample::Compile(class FMaterialCompiler* Compiler, 
 			ExpectedSamplerType = Texture->SRGB ? SAMPLERTYPE_Color : SAMPLERTYPE_LinearColor;
 		}
 
-		if (!VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("FontSample")), Texture, ExpectedSamplerType))
+		FString SamplerTypeError;
+		if (!UMaterialExpressionTextureBase::VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), Texture, ExpectedSamplerType, SamplerTypeError))
 		{
-			return INDEX_NONE;
+			return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 		}
 
 		int32 TextureCodeIndex = Compiler->Texture(Texture, ExpectedSamplerType);
@@ -11144,10 +11137,12 @@ int32 UMaterialExpressionFontSampleParameter::Compile(class FMaterialCompiler* C
 			ExpectedSamplerType = Texture->SRGB ? SAMPLERTYPE_Color : SAMPLERTYPE_LinearColor;
 		}
 
-		if (!VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("FontSampleParameter")), Texture, ExpectedSamplerType))
+		FString SamplerTypeError;
+		if (!UMaterialExpressionTextureBase::VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), Texture, ExpectedSamplerType, SamplerTypeError))
 		{
-			return INDEX_NONE;
+			return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 		}
+
 		int32 TextureCodeIndex = Compiler->TextureParameter(ParameterName,Texture, ExpectedSamplerType);
 		Result = Compiler->TextureSample(
 			TextureCodeIndex,
@@ -17194,9 +17189,10 @@ int32 UMaterialExpressionAntialiasedTextureMask::Compile(class FMaterialCompiler
 		TextureCodeIndex = Compiler->TextureParameter(ParameterName, Texture, SamplerType);
 	}
 
-	if (!VerifySamplerType(Compiler, (Desc.Len() > 0 ? *Desc : TEXT("AntialiasedTextureMask")), Texture, SamplerType))
+	FString SamplerTypeError;
+	if (!VerifySamplerType(Compiler->GetFeatureLevel(), Compiler->GetTargetPlatform(), Texture, SamplerType, SamplerTypeError))
 	{
-		return INDEX_NONE;
+		return Compiler->Errorf(TEXT("%s"), *SamplerTypeError);
 	}
 
 	return Compiler->AntialiasedTextureMask(TextureCodeIndex,ArgCoord,Threshold,Channel);

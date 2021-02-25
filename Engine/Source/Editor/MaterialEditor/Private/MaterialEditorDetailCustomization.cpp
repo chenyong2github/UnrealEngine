@@ -737,6 +737,7 @@ TSharedRef<class IDetailCustomization> FMaterialDetailCustomization::MakeInstanc
 void FMaterialDetailCustomization::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 {
 	static const auto CVarMaterialEnableControlFlow = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableControlFlow"));
+	static const auto CVarMaterialEnableNewHLSLGenerator = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialEnableNewHLSLGenerator"));
 
 	TArray<TWeakObjectPtr<UObject> > Objects;
 	DetailLayout.GetObjectsBeingCustomized( Objects );
@@ -784,6 +785,11 @@ void FMaterialDetailCustomization::CustomizeDetails( IDetailLayoutBuilder& Detai
 			}
 
 			if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterial, bEnableExecWire) && !CVarMaterialEnableControlFlow->GetValueOnAnyThread())
+			{
+				DetailLayout.HideProperty(PropertyHandle);
+			}
+
+			if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterial, bEnableNewHLSLGenerator) && !CVarMaterialEnableNewHLSLGenerator->GetValueOnAnyThread())
 			{
 				DetailLayout.HideProperty(PropertyHandle);
 			}

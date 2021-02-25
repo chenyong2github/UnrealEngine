@@ -11,25 +11,6 @@
 
 struct FPropertyChangedEvent;
 
-/** defines how MipValue is used */
-UENUM()
-enum ETextureMipValueMode
-{
-	/* Use hardware computed sample's mip level with automatic anisotropic filtering support. */
-	TMVM_None UMETA(DisplayName="None (use computed mip level)"),
-
-	/* Explicitly compute the sample's mip level. Disables anisotropic filtering. */
-	TMVM_MipLevel UMETA(DisplayName="MipLevel (absolute, 0 is full resolution)"),
-	
-	/* Bias the hardware computed sample's mip level. Disables anisotropic filtering. */
-	TMVM_MipBias UMETA(DisplayName="MipBias (relative to the computed mip level)"),
-	
-	/* Explicitly compute the sample's DDX and DDY for anisotropic filtering. */
-	TMVM_Derivative UMETA(DisplayName="Derivative (explicit derivative to compute mip level)"),
-
-	TMVM_MAX,
-};
-
 UCLASS(collapsecategories, hidecategories=Object)
 class ENGINE_API UMaterialExpressionTextureSample : public UMaterialExpressionTextureBase
 {
@@ -82,6 +63,10 @@ protected:
 	// Inherited parameter expressions can hide unused input pin
 	uint8 bShowTextureInputPin : 1;
 
+#if WITH_EDITOR
+	EMaterialGenerateHLSLStatus GenerateHLSLExpressionBase(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FTextureParameterDeclaration* TextureDeclaration, UE::HLSLTree::FExpression*& OutExpression);
+#endif
+
 public:
 
 	/** only used if Coordinates is not hooked up */
@@ -114,6 +99,7 @@ public:
 	virtual bool MatchesSearchQuery( const TCHAR* SearchQuery ) override;
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual bool CanIgnoreOutputIndex() { return true; }
+	virtual EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
 

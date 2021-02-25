@@ -48,6 +48,8 @@
 #include "Misc/ConfigCacheIni.h"
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
+#include "MaterialHLSLGenerator.h"
+#include "HLSLTree/HLSLTreeCommon.h"
 #endif
 #if WITH_ODSC
 #include "ODSC/ODSCManager.h"
@@ -258,6 +260,41 @@ int32 FExpressionInput::Compile(class FMaterialCompiler* Compiler)
 		return INDEX_NONE;
 }
 
+UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	UE::HLSLTree::FExpression* Result = nullptr;
+	if (Expression)
+	{
+		Expression->ValidateState();
+		Result = Generator.AcquireExpression(Scope, Expression, OutputIndex);
+		if (Mask && Result)
+		{
+			const UE::HLSLTree::FSwizzleParameters SwizzleParams = UE::HLSLTree::MakeSwizzleMask(!!MaskR, !!MaskG, !!MaskB, !!MaskA);
+			Result = Generator.NewSwizzle(Scope, SwizzleParams, Result);
+		}
+	}
+	
+	return Result;
+}
+
+UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionWithCast(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::EExpressionType Type) const
+{
+	UE::HLSLTree::FExpression* Result = AcquireHLSLExpression(Generator, Scope);
+	return Generator.NewCast(Scope, Type, Result);
+}
+
+UE::HLSLTree::FTextureParameterDeclaration* FExpressionInput::AcquireHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	UE::HLSLTree::FTextureParameterDeclaration* Result = nullptr;
+	if (Expression)
+	{
+		Expression->ValidateState();
+		Result = Generator.AcquireTextureDeclaration(Scope, Expression, OutputIndex);
+	}
+
+	return Result;
+}
+
 void FExpressionInput::Connect( int32 InOutputIndex, class UMaterialExpression* InExpression )
 {
 	InExpression->ConnectExpression(this, InOutputIndex);
@@ -277,7 +314,7 @@ FExpressionInput FExpressionInput::GetTracedInput() const
 }
 
 #if WITH_EDITOR
-int32 FExpressionExecOutput::Compile(class FMaterialCompiler* Compiler)
+int32 FExpressionExecOutput::Compile(class FMaterialCompiler* Compiler) const
 {
 	if (Expression)
 	{
@@ -285,6 +322,45 @@ int32 FExpressionExecOutput::Compile(class FMaterialCompiler* Compiler)
 	}
 	return INDEX_NONE;
 }
+
+UE::HLSLTree::FStatement* FExpressionExecOutput::AcquireHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	UE::HLSLTree::FStatement* Result = nullptr;
+	if (Expression)
+	{
+		Expression->ValidateState();
+		Result = Generator.AcquireStatement(Scope, Expression);
+	}
+
+	return Result;
+}
+
+UE::HLSLTree::FScope* FExpressionExecOutput::NewScopeWithStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	UE::HLSLTree::FScope* Result = nullptr;
+	if (Expression)
+	{
+		Expression->ValidateState();
+		Result = Generator.GetTree().NewScope(Scope); // Create a new scope for the statement
+		Generator.AcquireStatement(*Result, Expression);
+	}
+
+	return Result;
+}
+
+UE::HLSLTree::FScope* FExpressionExecOutput::NewLinkedScopeWithStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const
+{
+	UE::HLSLTree::FScope* Result = nullptr;
+	if (Expression)
+	{
+		Expression->ValidateState();
+		Result = Generator.GetTree().NewLinkedScope(Scope); // Create a new scope for the statement
+		Generator.AcquireStatement(*Result, Expression);
+	}
+
+	return Result;
+}
+
 #endif // WITH_EDITOR
 
 /** Native serialize for FMaterialExpression struct */
@@ -561,6 +637,7 @@ void FMaterial::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* 
 		GetDependentShaderAndVFTypes(Platform, ShaderTypes, ShaderPipelineTypes, VFTypes);
 
 		OutId.Usage = GetShaderMapUsage();
+		OutId.bUsingNewHLSLGenerator = IsUsingNewHLSLGenerator();
 		OutId.BaseMaterialId = GetMaterialId();
 		OutId.QualityLevel = GetQualityLevel();
 		OutId.FeatureLevel = GetFeatureLevel();
@@ -1681,6 +1758,15 @@ bool FMaterialResource::IsCompiledWithExecutionFlow() const
 	}
 	return false;
 }
+
+bool FMaterialResource::IsUsingNewHLSLGenerator() const
+{
+	if (Material)
+	{
+		return Material->IsUsingNewHLSLGenerator();
+	}
+	return false;
+}
 #endif
 
 FString FMaterialResource::GetFullPath() const
@@ -2189,6 +2275,51 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 	return bShaderMapValid;
 }
 
+bool FMaterial::Translate_Legacy(const FMaterialShaderMapId& ShaderMapId,
+	const FStaticParameterSet& InStaticParameters,
+	EShaderPlatform InPlatform,
+	const ITargetPlatform* InTargetPlatform,
+	FMaterialCompilationOutput& OutCompilationOutput,
+	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment)
+{
+#if WITH_EDITORONLY_DATA
+	FHLSLMaterialTranslator MaterialTranslator(this, OutCompilationOutput, InStaticParameters, InPlatform, GetQualityLevel(), ShaderMapId.FeatureLevel, InTargetPlatform);
+	const bool bSuccess = MaterialTranslator.Translate();
+	if (bSuccess)
+	{
+		// Create a shader compiler environment for the material that will be shared by all jobs from this material
+		OutMaterialEnvironment = new FSharedShaderCompilerEnvironment();
+		OutMaterialEnvironment->TargetPlatform = InTargetPlatform;
+		MaterialTranslator.GetMaterialEnvironment(InPlatform, *OutMaterialEnvironment);
+		const FString MaterialShaderCode = MaterialTranslator.GetMaterialShaderCode();
+
+		OutMaterialEnvironment->IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/Material.ush"), MaterialShaderCode);
+	}
+	return bSuccess;
+#else
+	checkNoEntry();
+	return false;
+#endif
+}
+
+bool FMaterial::Translate_New(const FMaterialShaderMapId& ShaderMapId,
+	const FStaticParameterSet& InStaticParameters,
+	EShaderPlatform InPlatform,
+	const ITargetPlatform* InTargetPlatform,
+	FMaterialCompilationOutput& OutCompilationOutput,
+	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment)
+{
+#if WITH_EDITOR
+	FMaterialHLSLGenerator Generator(InPlatform, ShaderMapId.FeatureLevel, InTargetPlatform);
+	return Generator.GenerateHLSL(*this,
+		OutCompilationOutput,
+		OutMaterialEnvironment);
+#else
+	checkNoEntry();
+	return false;
+#endif
+}
+
 /**
 * Compiles this material for Platform
 *
@@ -2216,21 +2347,21 @@ bool FMaterial::BeginCompileShaderMap(
 #if WITH_EDITOR
 	NewShaderMap->AssociateWithAsset(GetAssetPath());
 #endif
+
 	// Generate the material shader code.
 	FMaterialCompilationOutput NewCompilationOutput;
-	FHLSLMaterialTranslator MaterialTranslator(this, NewCompilationOutput, StaticParameterSet, Platform,GetQualityLevel(), ShaderMapId.FeatureLevel, TargetPlatform);
-	bSuccess = MaterialTranslator.Translate();
+	TRefCountPtr<FSharedShaderCompilerEnvironment> MaterialEnvironment;
+	if (ShaderMapId.bUsingNewHLSLGenerator)
+	{
+		bSuccess = Translate_New(ShaderMapId, StaticParameterSet, Platform, TargetPlatform, NewCompilationOutput, MaterialEnvironment);
+	}
+	else
+	{
+		bSuccess = Translate_Legacy(ShaderMapId, StaticParameterSet, Platform, TargetPlatform, NewCompilationOutput, MaterialEnvironment);
+	}
 
 	if(bSuccess)
 	{
-		// Create a shader compiler environment for the material that will be shared by all jobs from this material
-		TRefCountPtr<FSharedShaderCompilerEnvironment> MaterialEnvironment = new FSharedShaderCompilerEnvironment();
-		MaterialEnvironment->TargetPlatform = TargetPlatform;
-		MaterialTranslator.GetMaterialEnvironment(Platform, *MaterialEnvironment);
-		const FString MaterialShaderCode = MaterialTranslator.GetMaterialShaderCode();
-
-		MaterialEnvironment->IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/Material.ush"), MaterialShaderCode);
-
 		FShaderCompileUtilities::GenerateBrdfHeaders((EShaderPlatform)Platform);
 		FShaderCompileUtilities::ApplyDerivedDefines(*MaterialEnvironment, nullptr, (EShaderPlatform)Platform);
 

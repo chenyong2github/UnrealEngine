@@ -22,6 +22,8 @@ class UMaterialExpressionExecBegin : public UMaterialExpression
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual bool CanUserDeleteExpression() const override { return false; }
+
+	virtual EMaterialGenerateHLSLStatus GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

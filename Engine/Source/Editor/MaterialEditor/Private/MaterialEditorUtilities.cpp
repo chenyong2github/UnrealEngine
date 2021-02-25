@@ -27,6 +27,7 @@
 #include "Materials/MaterialExpressionCustomOutput.h"
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
 #include "Materials/MaterialExpressionRerouteBase.h"
+#include "Materials/MaterialExpressionExecBegin.h"
 
 #include "Toolkits/ToolkitManager.h"
 #include "MaterialEditor.h"
@@ -239,13 +240,20 @@ void FMaterialEditorUtilities::GetVisibleMaterialParameters(const UMaterial* Mat
 	TArray<FGetVisibleMaterialParametersFunctionState*> FunctionStack;
 	FunctionStack.Push(FunctionState.Get());
 
-	for(uint32 i = 0; i < MP_MAX; ++i)
+	if (Material->IsCompiledWithExecutionFlow())
 	{
-		FExpressionInput* ExpressionInput = ((UMaterial *)Material)->GetExpressionInputForProperty((EMaterialProperty)i);
-
-		if(ExpressionInput)
+		GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Material->ExpressionExecBegin, INDEX_NONE), MaterialInstance, VisibleExpressions, FunctionStack);
+	}
+	else
+	{
+		for (uint32 i = 0; i < MP_MAX; ++i)
 		{
-			GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(ExpressionInput->Expression, ExpressionInput->OutputIndex), MaterialInstance, VisibleExpressions, FunctionStack);
+			FExpressionInput* ExpressionInput = ((UMaterial*)Material)->GetExpressionInputForProperty((EMaterialProperty)i);
+
+			if (ExpressionInput)
+			{
+				GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(ExpressionInput->Expression, ExpressionInput->OutputIndex), MaterialInstance, VisibleExpressions, FunctionStack);
+			}
 		}
 	}
 
@@ -583,6 +591,13 @@ void FMaterialEditorUtilities::GetVisibleMaterialParametersFromExpression(
 				//retrieve the expression input and then start parsing its children
 				FExpressionInput* Input = ExpressionInputs[ExpressionInputIndex];
 				GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Input->Expression, Input->OutputIndex), MaterialInstance, VisibleExpressions, FunctionStack);
+			}
+
+			TArray<FExpressionExecOutputEntry> ExpressionExecOutputs;
+			MaterialExpressionKey.Expression->GetExecOutputs(ExpressionExecOutputs);
+			for (const FExpressionExecOutputEntry& Entry : ExpressionExecOutputs)
+			{
+				GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Entry.Output->Expression, INDEX_NONE), MaterialInstance, VisibleExpressions, FunctionStack);
 			}
 		}
 	}

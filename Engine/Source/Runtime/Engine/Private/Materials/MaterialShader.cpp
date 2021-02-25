@@ -292,6 +292,8 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
+	const bool bIsLegacyPackage = Ar.UE4Ver() < VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS;
+
 	// Ensure saved content is correct
 	check(!Ar.IsSaving() || IsContentValid());
 
@@ -314,7 +316,7 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 	}
 #endif
 
-	if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
+	if (!bIsLegacyPackage)
 	{
 		Ar << (int32&)QualityLevel;
 		Ar << (int32&)FeatureLevel;
@@ -360,13 +362,13 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 		}
 
 		Ar << ShaderTypeDependencies;
-		if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
+		if (!bIsLegacyPackage)
 		{
 			Ar << ShaderPipelineTypeDependencies;
 		}
 		Ar << VertexFactoryTypeDependencies;
 
-		if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
+		if (!bIsLegacyPackage)
 		{
 			Ar << TextureReferencesHash;
 		}
@@ -379,6 +381,15 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 		if (Ar.UE4Ver() >= VER_UE4_MATERIAL_INSTANCE_BASE_PROPERTY_OVERRIDES)
 		{
 			Ar << BasePropertyOverridesHash;
+		}
+
+		if (!bIsLegacyPackage)
+		{
+			Ar << bUsingNewHLSLGenerator;
+		}
+		else
+		{
+			bUsingNewHLSLGenerator = false;
 		}
 	}
 	else
@@ -398,10 +409,7 @@ void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 	checkf(CookedShaderMapIdHash != FSHAHash(), TEXT("Loaded an invalid cooked shadermap id hash"));
 #endif // WITH_EDITOR
 
-	// Based on the comment above, ShaderMapId would only be embedded into packages for archives < VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS (~2013 era).
-	// Since backward compatibility only works for the packages, we can assume that any archive with a version newer than that will have
-	// the LayoutParams serialized. The other option (old DDC) should be prevented by us having mutated MATERIALSHADERMAP_DERIVEDDATA_VER
-	if (Ar.UE4Ver() >= VER_UE4_PURGED_FMATERIAL_COMPILE_OUTPUTS)
+	if (!bIsLegacyPackage)
 	{
 		Ar << LayoutParams;
 	}
@@ -473,6 +481,8 @@ void FMaterialShaderMapId::GetMaterialHash(FSHAHash& OutHash) const
 
 	HashState.Update((const uint8*)&BasePropertyOverridesHash, sizeof(BasePropertyOverridesHash));
 
+	HashState.Update((const uint8*)&bUsingNewHLSLGenerator, sizeof(bUsingNewHLSLGenerator));
+
 	HashState.Final();
 	HashState.GetHash(&OutHash.Hash[0]);
 }
@@ -491,6 +501,11 @@ bool FMaterialShaderMapId::operator==(const FMaterialShaderMapId& ReferenceSet) 
 
 #if WITH_EDITOR
 	if (IsCookedId() != ReferenceSet.IsCookedId())
+	{
+		return false;
+	}
+
+	if (bUsingNewHLSLGenerator != ReferenceSet.bUsingNewHLSLGenerator)
 	{
 		return false;
 	}
@@ -857,6 +872,11 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 	KeyString += BytesToHex(&TextureReferencesHash.Hash[0], sizeof(TextureReferencesHash.Hash));
 
 	KeyString += BytesToHex(&BasePropertyOverridesHash.Hash[0], sizeof(BasePropertyOverridesHash.Hash));
+
+	if (bUsingNewHLSLGenerator)
+	{
+		KeyString += TEXT("_NewHLSL");
+	}
 }
 #endif // WITH_EDITOR
 

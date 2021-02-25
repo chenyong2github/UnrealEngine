@@ -66,5 +66,19 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	 * @returns the default sampler type for the specified texture.
 	 */
 	static EMaterialSamplerType GetSamplerTypeForTexture( const UTexture* Texture, bool ForceNoVT = false );
+
+	/**
+	 * Verify that the texture and sampler type. Generates a compiler waring if
+	 * they do not.
+	 * @param Texture - The texture to verify. A nullptr texture is considered valid!
+	 * @param SamplerType - The sampler type to verify.
+	 * @param OutErrorMessage - If 'false' is returned, will contain a message describing the error
+	 */
+	static bool VerifySamplerType(
+		ERHIFeatureLevel::Type FeatureLevel,
+		const ITargetPlatform* TargetPlatform,
+		const UTexture* Texture,
+		EMaterialSamplerType SamplerType,
+		FString& OutErrorMessage);
 #endif // WITH_EDITOR
 };

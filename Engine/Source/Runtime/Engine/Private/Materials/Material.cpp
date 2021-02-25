@@ -136,6 +136,12 @@ static TAutoConsoleVariable<int32> CVarMaterialEnableControlFlow(
 	TEXT("Allows experemental control flow to be used in the material editor.\n"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarMaterialEnableNewHLSLGenerator(
+	TEXT("r.MaterialEnableNewHLSLGenerator"),
+	0,
+	TEXT("Enables the new (WIP) material HLSL generator.\n"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
+
 #if WITH_EDITOR
 const FMaterialsWithDirtyUsageFlags FMaterialsWithDirtyUsageFlags::DefaultAnnotation;
 
@@ -4324,6 +4330,15 @@ bool UMaterial::IsCompiledWithExecutionFlow() const
 	if (bEnableExecWire)
 	{
 		return CVarMaterialEnableControlFlow.GetValueOnAnyThread() != 0;
+	}
+	return false;
+}
+
+bool UMaterial::IsUsingNewHLSLGenerator() const
+{
+	if (bEnableNewHLSLGenerator)
+	{
+		return CVarMaterialEnableNewHLSLGenerator.GetValueOnAnyThread() != 0;
 	}
 	return false;
 }

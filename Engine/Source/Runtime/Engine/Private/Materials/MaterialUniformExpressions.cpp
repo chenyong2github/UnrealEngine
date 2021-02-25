@@ -1024,14 +1024,18 @@ static void EvaluatePreshader(const FUniformExpressionSet* UniformExpressionSet,
 	}
 }
 
+void FMaterialPreshaderData::Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FLinearColor& OutValue)
+{
+	FPreshaderStack Stack;
+	FPreshaderDataContext PreshaderContext(*this);
+	EvaluatePreshader(UniformExpressionSet, Context, Stack, PreshaderContext, OutValue);
+}
+
 void FMaterialUniformExpression::GetNumberValue(const struct FMaterialRenderContext& Context, FLinearColor& OutValue) const
 {
 	FMaterialPreshaderData PreshaderData;
 	WriteNumberOpcodes(PreshaderData);
-
-	FPreshaderStack Stack;
-	FPreshaderDataContext PreshaderContext(PreshaderData);
-	EvaluatePreshader(nullptr, Context, Stack, PreshaderContext, OutValue);
+	PreshaderData.Evaluate(nullptr, Context, OutValue);
 }
 
 const FMaterialVectorParameterInfo* FUniformExpressionSet::FindVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo) const
@@ -1056,6 +1060,53 @@ const FMaterialScalarParameterInfo* FUniformExpressionSet::FindScalarParameter(c
 		}
 	}
 	return nullptr;
+}
+
+int32 FUniformExpressionSet::FindOrAddScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo, float DefaultValue)
+{
+	for (int32 i = 0; i < UniformScalarParameters.Num(); ++i)
+	{
+		if (UniformScalarParameters[i].ParameterInfo == ParameterInfo)
+		{
+			return i;
+		}
+	}
+
+	const int32 Index = UniformScalarParameters.Num();
+	FMaterialScalarParameterInfo& Parameter = UniformScalarParameters.AddDefaulted_GetRef();
+	Parameter.ParameterInfo = ParameterInfo;
+	Parameter.DefaultValue = DefaultValue;
+	return Index;
+}
+
+int32 FUniformExpressionSet::FindOrAddVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& DefaultValue)
+{
+	for (int32 i = 0; i < UniformVectorParameters.Num(); ++i)
+	{
+		if (UniformVectorParameters[i].ParameterInfo == ParameterInfo)
+		{
+			return i;
+		}
+	}
+
+	const int32 Index = UniformVectorParameters.Num();
+	FMaterialVectorParameterInfo& Parameter = UniformVectorParameters.AddDefaulted_GetRef();
+	Parameter.ParameterInfo = ParameterInfo;
+	Parameter.DefaultValue = DefaultValue;
+	return Index;
+}
+
+int32 FUniformExpressionSet::FindOrAddTextureParameter(EMaterialTextureParameterType Type, const FMaterialTextureParameterInfo& Info)
+{
+	for (int32 i = 0; i < UniformTextureParameters[(int32)Type].Num(); ++i)
+	{
+		if (UniformTextureParameters[(int32)Type][i] == Info)
+		{
+			return i;
+		}
+	}
+
+	return UniformTextureParameters[(int32)Type].Add(Info);
 }
 
 void FUniformExpressionSet::GetGameThreadTextureValue(EMaterialTextureParameterType Type, int32 Index, const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride) const

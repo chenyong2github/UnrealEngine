@@ -36,6 +36,8 @@ class UMaterialExpressionForLoop : public UMaterialExpression
 	virtual uint32 GetInputType(int32 InputIndex) override;
 	virtual uint32 GetOutputType(int32 InputIndex) override;
 	virtual bool HasExecInput() override { return true; }
+
+	virtual EMaterialGenerateHLSLStatus GenerateHLSLStatement(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::FStatement*& OutStatement) override;
 #endif
 	//~ End UMaterialExpression Interface
 };

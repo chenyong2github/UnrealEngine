@@ -7023,26 +7023,17 @@ static FString ApplySamplerType(const FString& InSampleCode, EMaterialSamplerTyp
 	case SAMPLERTYPE_Alpha:
 	case SAMPLERTYPE_VirtualAlpha:
 	case SAMPLERTYPE_DistanceFieldFont:
-		// Sampling a single channel texture in D3D9 gives: (G,G,G)
-		// Sampling a single channel texture in D3D11 gives: (G,0,0)
-		// This replication reproduces the D3D9 behavior in all cases.
-		DstSampleCode = FString::Printf( TEXT("(%s).rrrr"), *InSampleCode );
+		DstSampleCode = FString::Printf( TEXT("ProcessMaterialAlphaTextureLookup(%s)"), *InSampleCode );
 		break;
 
 	case SAMPLERTYPE_Grayscale:
 	case SAMPLERTYPE_VirtualGrayscale:
-		// Sampling a greyscale texture in D3D9 gives: (G,G,G)
-		// Sampling a greyscale texture in D3D11 gives: (G,0,0)
-		// This replication reproduces the D3D9 behavior in all cases.
-		DstSampleCode = FString::Printf( TEXT("ProcessMaterialGreyscaleTextureLookup((%s).r).rrrr"), *InSampleCode );
+		DstSampleCode = FString::Printf( TEXT("ProcessMaterialGreyscaleTextureLookup(%s)"), *InSampleCode );
 		break;
 
 	case SAMPLERTYPE_LinearGrayscale:
 	case SAMPLERTYPE_VirtualLinearGrayscale:
-		// Sampling a greyscale texture in D3D9 gives: (G,G,G)
-		// Sampling a greyscale texture in D3D11 gives: (G,0,0)
-		// This replication reproduces the D3D9 behavior in all cases.
-		DstSampleCode = FString::Printf(TEXT("ProcessMaterialLinearGreyscaleTextureLookup((%s).r).rrrr"), *InSampleCode);
+		DstSampleCode = FString::Printf(TEXT("ProcessMaterialLinearGreyscaleTextureLookup(%s)"), *InSampleCode);
 		break;
 
 	case SAMPLERTYPE_Normal:

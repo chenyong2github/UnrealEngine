@@ -61,6 +61,14 @@ class FMeshMaterialShaderMapLayout;
 struct FMaterialShaderTypes;
 struct FMaterialShaders;
 
+namespace UE
+{
+namespace HLSLTree
+{
+class FEmitContext;
+}
+}
+
 template <class ElementType> class TLinkedList;
 
 #define ME_CAPTION_HEIGHT		18
@@ -282,6 +290,8 @@ public:
 	{
 		return !operator==(Lhs, Rhs);
 	}
+
+	void Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FLinearColor& OutValue);
 
 	const int32 Num() const { return Data.Num(); }
 
@@ -550,6 +560,11 @@ public:
 	ENGINE_API void GetTextureValue(EMaterialTextureParameterType Type, int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const;
 	ENGINE_API void GetTextureValue(int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const URuntimeVirtualTexture*& OutValue) const;
 
+	int32 FindOrAddScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo, float DefaultValue);
+	int32 FindOrAddVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& DefaultValue);
+
+	int32 FindOrAddTextureParameter(EMaterialTextureParameterType Type, const FMaterialTextureParameterInfo& Info);
+
 protected:
 	union FVTPackedStackAndLayerIndex
 	{
@@ -572,6 +587,7 @@ protected:
 	friend class FMaterialRenderProxy;
 	friend class FMaterialVirtualTextureStack;
 	friend class FDebugUniformExpressionSet;
+	friend class UE::HLSLTree::FEmitContext;
 
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialUniformPreshaderHeader>, UniformVectorPreshaders);
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialUniformPreshaderHeader>, UniformScalarPreshaders);
@@ -811,6 +827,9 @@ public:
 	
 	/** A hash of the base property overrides for this material instance. */
 	FSHAHash BasePropertyOverridesHash;
+
+	/** Is the material using the new HLSL generator? */
+	bool bUsingNewHLSLGenerator;
 #endif // WITH_EDITOR
 
 	/*
@@ -824,6 +843,7 @@ public:
 #if WITH_EDITOR
 		, Usage(EMaterialShaderMapUsage::Default)
 		, bIsCookedId(false)
+		, bUsingNewHLSLGenerator(false)
 #endif
 	{ }
 
@@ -1811,6 +1831,9 @@ public:
 
 	/** Should the material be compiled using exec pin? */
 	virtual bool IsCompiledWithExecutionFlow() const { return false; }
+
+	/** Is the material using the new (WIP) HLSL generator? */
+	virtual bool IsUsingNewHLSLGenerator() const { return false; }
 #endif // WITH_EDITOR
 
 	/**
@@ -2176,6 +2199,20 @@ private:
 		EMaterialShaderPrecompileMode PrecompileMode,
 		const ITargetPlatform* TargetPlatform = nullptr);
 
+	bool Translate_Legacy(const FMaterialShaderMapId& InShaderMapId,
+		const FStaticParameterSet& InStaticParameters,
+		EShaderPlatform InPlatform,
+		const ITargetPlatform* InTargetPlatform,
+		FMaterialCompilationOutput& OutCompilationOutput,
+		TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
+
+	bool Translate_New(const FMaterialShaderMapId& InShaderMapId,
+		const FStaticParameterSet& InStaticParameters,
+		EShaderPlatform InPlatform,
+		const ITargetPlatform* InTargetPlatform,
+		FMaterialCompilationOutput& OutCompilationOutput,
+		TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
+
 	/** Populates OutEnvironment with defines needed to compile shaders for this material. */
 	void SetupMaterialEnvironment(
 		EShaderPlatform Platform,
@@ -2194,6 +2231,7 @@ private:
 	friend class FMaterialShaderMap;
 	friend class FShaderCompilingManager;
 	friend class FHLSLMaterialTranslator;
+	friend class FMaterialHLSLGenerator;
 };
 
 /**
@@ -2648,6 +2686,7 @@ public:
 	ENGINE_API virtual FName GetAssetPath() const override;
 	ENGINE_API virtual bool ShouldInlineShaderCode() const override;
 	ENGINE_API virtual bool IsCompiledWithExecutionFlow() const override;
+	ENGINE_API virtual bool IsUsingNewHLSLGenerator() const override;
 #endif // WITH_EDITOR
 
 	ENGINE_API virtual FString GetFullPath() const override;

@@ -850,6 +850,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Material)
 	uint8 bEnableExecWire : 1;
 
+	UPROPERTY(EditAnywhere, Category = Material)
+	uint8 bEnableNewHLSLGenerator : 1;
+
 	/** when true, the material casts ray tracing shadows. */
 	UPROPERTY(EditAnywhere, Category = Material)
 	uint8 bCastRayTracedShadows : 1;
@@ -1072,6 +1075,8 @@ public:
 	ENGINE_API bool IsPropertyActiveInDerived(EMaterialProperty InProperty, const UMaterialInterface* DerivedMaterial) const;
 
 	ENGINE_API bool IsCompiledWithExecutionFlow() const;
+
+	ENGINE_API bool IsUsingNewHLSLGenerator() const;
 
 #if WITH_EDITOR
 	/** Allows material properties to be compiled with the option of being overridden by the material attributes input. */

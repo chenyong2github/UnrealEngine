@@ -262,6 +262,25 @@ enum ESamplerSourceMode
 	SSM_Clamp_WorldGroupSettings UMETA(DisplayName="Shared: Clamp")
 };
 
+/** defines how MipValue is used */
+UENUM()
+enum ETextureMipValueMode
+{
+	/* Use hardware computed sample's mip level with automatic anisotropic filtering support. */
+	TMVM_None UMETA(DisplayName="None (use computed mip level)"),
+
+	/* Explicitly compute the sample's mip level. Disables anisotropic filtering. */
+	TMVM_MipLevel UMETA(DisplayName="MipLevel (absolute, 0 is full resolution)"),
+	
+	/* Bias the hardware computed sample's mip level. Disables anisotropic filtering. */
+	TMVM_MipBias UMETA(DisplayName="MipBias (relative to the computed mip level)"),
+	
+	/* Explicitly compute the sample's DDX and DDY for anisotropic filtering. */
+	TMVM_Derivative UMETA(DisplayName="Derivative (explicit derivative to compute mip level)"),
+
+	TMVM_MAX,
+};
+
 /** Describes how to handle lighting of translucent objets */
 UENUM()
 enum ETranslucencyLightingMode
