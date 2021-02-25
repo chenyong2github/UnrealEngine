@@ -40,7 +40,8 @@ enum class EGeometryFlowResult
 	ConnectionDoesNotExist = 5,
 	NoMatchesFound = 6,
 	MultipleMatchingAmbiguityFound = 7,
-	OperationCancelled = 8
+	OperationCancelled = 8,
+	InputAlreadyConnected = 9
 };
 
 

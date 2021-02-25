@@ -3,6 +3,7 @@
 #include "GeometryFlowGraph.h"
 #include "Util/ProgressCancel.h"
 #include "Async/Async.h"
+#include "Algo/Find.h"
 
 using namespace UE::GeometryFlow;
 
@@ -89,7 +90,14 @@ EGeometryFlowResult FGraph::AddConnection(FHandle FromNode, FString FromOutput, 
 		return EGeometryFlowResult::UnmatchedTypes;
 	}
 
-	// TODO: check for unique inputs
+	FConnection* Found = Algo::FindByPredicate(Connections, [&](const FConnection& Conn)
+	{
+		return ((Conn.ToNode == ToNode) && (Conn.ToInput == ToInput));
+	});
+	if (Found != nullptr)
+	{
+		return EGeometryFlowResult::InputAlreadyConnected;
+	}
 
 	Connections.Add({ FromNode, FromOutput, ToNode, ToInput });
 
