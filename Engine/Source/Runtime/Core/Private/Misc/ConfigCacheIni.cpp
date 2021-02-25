@@ -4124,11 +4124,11 @@ void FConfigCacheIni::InitializeConfigSystem()
 		}
 		else
 		{
-			UE_LOG(LogInit, Display, TEXT("Unable to bootstrap from archive %s, will fallback on normal initialization"), *IniBootstrapFilename);
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Unable to bootstrap from archive %s, will fallback on normal initialization\n"), *IniBootstrapFilename);
 		}
 	}
 
-	UE_LOG(LogInit, Display, TEXT("Loading text-based GConfig..."));
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Loading text-based GConfig...\n"));
 
 	// Perform any upgrade we need before we load any configuration files
 	FConfigManifest::UpgradeFromPreviousVersions();
