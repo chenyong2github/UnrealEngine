@@ -1004,7 +1004,7 @@ namespace Chaos
 
 		if(MRewindCallback && !IsShuttingDown())
 		{
-			MRewindCallback->RecordInputs(MRewindData->CurrentFrame(), PushData.SimCallbackInputs);
+			MRewindCallback->ProcessInputs_Internal(MRewindData->CurrentFrame(), PushData.SimCallbackInputs);
 		}
 	}
 
@@ -1014,7 +1014,7 @@ namespace Chaos
 		if(!IsShuttingDown() && MRewindCallback && !MRewindData->IsResim())
 		{
 			const int32 LastStep = MRewindData->CurrentFrame() - 1;
-			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded(LastStep);
+			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded_Internal(LastStep);
 			if(ResimStep != INDEX_NONE)
 			{
 				if(ensure(MRewindData->RewindToFrame(ResimStep)))
@@ -1032,10 +1032,10 @@ namespace Chaos
 							MTime = PushData->StartTime;	//not sure if sub-steps have proper StartTime so just do this once and let solver evolve remaining time
 						}
 
-						MRewindCallback->PreResimStep(Step, bFirst);
+						MRewindCallback->PreResimStep_Internal(Step, bFirst);
 						FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
 						ImmediateTask.AdvanceSolver();
-						MRewindCallback->PostResimStep(Step);
+						MRewindCallback->PostResimStep_Internal(Step);
 
 						bFirst = false;
 					}
