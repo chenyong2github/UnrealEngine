@@ -145,7 +145,6 @@ UWaterSubsystem::UWaterSubsystem()
 	PrevWorldTimeSeconds = 0.f;
 	bUnderWaterForAudio = false;
 	bPauseWaveTime = false;
-	bInitialized = false;
 
 	struct FConstructorStatics
 	{
@@ -186,7 +185,8 @@ FWaterBodyManager* UWaterSubsystem::GetWaterBodyManager(UWorld* InWorld)
 
 void UWaterSubsystem::Tick(float DeltaTime)
 {
-	check(bInitialized); // Ticking should have been disabled for an uninitialized subsystem
+	Super::Tick(DeltaTime);
+
 	check(GetWorld() != nullptr);
 	if (FreezeWaves == 0 && bPauseWaveTime == false)
 	{
@@ -236,6 +236,8 @@ bool UWaterSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
 
 void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	Super::Initialize(Collection);
+
 	UWorld* World = GetWorld();
 	check(World != nullptr);
 
@@ -271,8 +273,6 @@ void UWaterSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	}
 	UCollisionProfile::Get()->OnLoadProfileConfig.AddUObject(this, &UWaterSubsystem::OnLoadProfileConfig);
 	AddWaterCollisionProfile();
-
-	bInitialized = true;
 }
 
 void UWaterSubsystem::Deinitialize()
@@ -296,7 +296,7 @@ void UWaterSubsystem::Deinitialize()
 	GetDefault<UWaterRuntimeSettings>()->OnSettingsChange.RemoveAll(this);
 #endif //WITH_EDITOR
 
-	bInitialized = false;
+	Super::Deinitialize();
 }
 
 void UWaterSubsystem::ApplyRuntimeSettings(const UWaterRuntimeSettings* Settings, EPropertyChangeType::Type ChangeType)

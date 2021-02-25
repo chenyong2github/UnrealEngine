@@ -8,7 +8,6 @@
 #include "UObject/Class.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Sound/QuartzQuantizationUtilities.h"
-#include "Tickable.h"
 
 #include "QuartzSubsystem.generated.h"
 
@@ -24,7 +23,7 @@ using MetronomeCommandQueuePtr = TSharedPtr<Audio::FShareableQuartzCommandQueue,
 
 
 UCLASS(DisplayName = "Quartz")
-class AUDIOMIXER_API UQuartzSubsystem : public UWorldSubsystem, public FQuartLatencyTracker, public FTickableGameObject
+class AUDIOMIXER_API UQuartzSubsystem : public UTickableWorldSubsystem, public FQuartLatencyTracker
 {
 	GENERATED_BODY()
 

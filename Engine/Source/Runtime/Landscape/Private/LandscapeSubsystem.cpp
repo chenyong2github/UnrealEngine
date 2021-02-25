@@ -74,6 +74,8 @@ void ULandscapeSubsystem::Tick(float DeltaTime)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Landscape);
 	LLM_SCOPE(ELLMTag::Landscape);
 
+	Super::Tick(DeltaTime);
+
 	UWorld* World = GetWorld();
 
 	static TArray<FVector> OldCameras;
