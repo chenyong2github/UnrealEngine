@@ -2,7 +2,9 @@
 
 #include "RemoteControlBinding.h"
 
+#include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "UObject/SoftObjectPtr.h"
 
