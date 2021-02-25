@@ -40,7 +40,7 @@ static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureShadowFromOpaque
 
 static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureDepthBuffer(
 	TEXT("r.SkyLight.RealTimeReflectionCapture.DepthBuffer"), 1,
-	TEXT("When enabled, the real-time sky light capture will have a depth buffer, this is for multiple meshes to be cover each other correctly. The height fog wil lalso be applied according to the depth buffer."),
+	TEXT("When enabled, the real-time sky light capture will have a depth buffer, this is for multiple meshes to be cover each other correctly. The height fog will also be applied according to the depth buffer."),
 	ECVF_RenderThreadSafe);
 
 
