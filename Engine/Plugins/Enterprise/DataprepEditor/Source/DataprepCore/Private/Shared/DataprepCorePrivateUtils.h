@@ -54,7 +54,7 @@ namespace DataprepCorePrivateUtils
 	void DeleteRegisteredAsset(UObject* Asset);
 
 	/** Returns directory where to store temporary files when running Dataprep asset */
-	const FString& GetRootTemporaryDir();
+	DATAPREPCORE_API const FString& GetRootTemporaryDir();
 
 	/** Returns content folder where to create temporary assets when running Dataprep asset */
 	DATAPREPCORE_API const FString& GetRootPackagePath();

@@ -105,12 +105,6 @@ public:
 	/** Gets or sets the flag for context sensitivity in the graph action menu */
 	bool& GetIsContextSensitive() { return bIsActionMenuContextSensitive; }
 
-	/** Returns root package which all transient packages are created under */
-	static const FString& GetRootPackagePath();
-
-	/** Returns root directory which all transient directories and data are created under */
-	static const FString& GetRootTemporaryDir();
-
 	/** Return the selected object from the scene outliner / world preview */
 	const TSet<TWeakObjectPtr<UObject>>& GetWorldItemsSelection() const { return WorldItemsSelection; };
 
