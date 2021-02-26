@@ -95,38 +95,37 @@ TSharedRef<SWidget> STransformViewportToolBar::GenerateSurfaceSnappingMenu()
 				NAME_None,
 			EUserInterfaceActionType::RadioButton);
 
-		MenuBuilder.AddWidget(
-			SNew(SHorizontalBox)
-			.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(IsSnappingEnabled)))
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
+		MenuBuilder.AddWidget(
+
+			SNew( SBox )
+			.Padding( FMargin(8.0f, 0.0f, 0.0f, 0.0f) )
+			.MinDesiredWidth( 100.0f )
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SnapToSurfaceSettings_Offset", "Surface Offset"))
-			]
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Bottom)
-			.FillWidth(1.f)
-			[
-				SNew(SNumericEntryBox<float>)
-				.Value(
-					TAttribute<TOptional<float>>::Create(TAttribute<TOptional<float>>::FGetter::CreateStatic([] {
-						const auto& Settings = GetDefault<ULevelEditorViewportSettings>()->SnapToSurface;
-						return TOptional<float>(Settings.SnapOffsetExtent);
+				SNew ( SBorder )
+				.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+				.Padding(FMargin(1.0f))
+				[
+					SNew(SNumericEntryBox<float>)
+					.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(IsSnappingEnabled)))
+					.Value(
+						TAttribute<TOptional<float>>::Create(TAttribute<TOptional<float>>::FGetter::CreateStatic([] 
+						{
+							const auto& Settings = GetDefault<ULevelEditorViewportSettings>()->SnapToSurface;
+							return TOptional<float>(Settings.SnapOffsetExtent);
 						}))
-				)
-				.OnValueChanged(
-				SNumericEntryBox<float>::FOnValueChanged::CreateStatic([](float Val) {
-					GetMutableDefault<ULevelEditorViewportSettings>()->SnapToSurface.SnapOffsetExtent = Val;
+					)
+					.OnValueChanged(SNumericEntryBox<float>::FOnValueChanged::CreateStatic([](float Val) 
+					{
+						GetMutableDefault<ULevelEditorViewportSettings>()->SnapToSurface.SnapOffsetExtent = Val;
 					}))
 					.MinValue(0.f)
 					.MaxValue(HALF_WORLD_MAX)
 					.MaxSliderValue(1000.f) // 'Sensible' range for the slider (10m)
 					.AllowSpin(true)
+				]
 			],
-			FText::GetEmpty()
+			LOCTEXT("SnapToSurfaceSettings_Offset", "Surface Offset")
 		);
 
 	}

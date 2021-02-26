@@ -877,7 +877,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 			Section.AddEntry(FToolMenuEntry::InitWidget(
 				"PlayIn",
 				SNew(SBox)
-				.Padding(FMargin(10.0f, 0.0f))
+				.Padding(FMargin(16.0f, 3.0f))
 				[
 					SNew(STextBlock)
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground())

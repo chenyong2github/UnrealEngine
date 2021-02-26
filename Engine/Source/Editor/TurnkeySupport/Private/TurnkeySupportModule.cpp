@@ -1013,9 +1013,13 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 	}
 
 	MenuBuilder.AddWidget(
-		SNew(STextBlock)
-		.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-		.Text(FormatSdkInfo(SdkInfo, true)),
+		SNew(SBox)
+		.Padding(FMargin(16.0f, 3.0f))
+		[
+			SNew(STextBlock)
+			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+			.Text(FormatSdkInfo(SdkInfo, true))
+		],
 		FText::GetEmpty()
 	);
 
