@@ -447,6 +447,13 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIPixelShader* ComputeShaderRHI, uin
 	if (UAV)
 	{
 		ConditionalClearShaderResource(UAV->Resource, true);
+		for (uint32 i = 0; i < D3D11_PS_CS_UAV_REGISTER_COUNT; i++)
+		{
+			if (i != UAVIndex && CurrentUAVs[i] == UAV)
+			{
+				CurrentUAVs[i] = nullptr;
+			}
+		}
 	}
 
 	if (CurrentUAVs[UAVIndex] != UAV)
@@ -852,9 +859,15 @@ void FD3D11DynamicRHI::InternalSetUAVPS(uint32 BindIndex, FD3D11UnorderedAccessV
 	{
 		CurrentUAVs[BindIndex] = UnorderedAccessViewRHI;
 		UAVSChanged = 1;
-
 	}
 	ConditionalClearShaderResource(UnorderedAccessViewRHI->Resource, true);
+	for (uint32 i = 0; i < D3D11_PS_CS_UAV_REGISTER_COUNT; i++)
+	{
+		if (i != BindIndex && CurrentUAVs[i] == UnorderedAccessViewRHI)
+		{
+			CurrentUAVs[i] = nullptr;
+		}
+	}
 }
 
 void FD3D11DynamicRHI::CommitUAVs()
