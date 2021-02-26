@@ -31,12 +31,18 @@ UPrimitiveComponent* AWorldPartitionHLOD::GetHLODComponent()
 
 void AWorldPartitionHLOD::OnCellShown(FName InCellName)
 {
-	GetRootComponent()->SetVisibility(false, true);
+	if (GetRootComponent())
+	{
+		GetRootComponent()->SetVisibility(false, true);
+	}
 }
 
 void AWorldPartitionHLOD::OnCellHidden(FName InCellName)
 {
-	GetRootComponent()->SetVisibility(true, true);
+	if (GetRootComponent())
+	{
+		GetRootComponent()->SetVisibility(true, true);
+	}
 }
 
 void AWorldPartitionHLOD::BeginPlay()
