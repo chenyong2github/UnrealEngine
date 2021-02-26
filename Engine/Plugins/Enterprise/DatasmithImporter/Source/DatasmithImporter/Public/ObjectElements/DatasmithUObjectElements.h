@@ -529,6 +529,7 @@ public:
 
 protected:
 	virtual TWeakPtr<IDatasmithElement> GetIDatasmithElement() const override { return CustomActorElement; }
+	virtual TWeakPtr<IDatasmithActorElement> GetIDatasmithActorElement() const override { return CustomActorElement; }
 
 	TMap< TWeakPtr< IDatasmithKeyValueProperty >, UDatasmithKeyValueProperty* > Properties;
 
