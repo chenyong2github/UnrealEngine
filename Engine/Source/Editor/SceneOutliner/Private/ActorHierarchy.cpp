@@ -391,44 +391,44 @@ void FActorHierarchy::FullRefreshEvent()
 
 void FActorHierarchy::OnLevelActorAdded(AActor* InActor)
 {
-	if (InActor && RepresentingWorld.Get() == InActor->GetWorld())
+	if (InActor != nullptr && RepresentingWorld.Get() == InActor->GetWorld())
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
-		EventData.Item = Mode->CreateItemFor<FActorTreeItem>(InActor);
+		EventData.Items.Add(Mode->CreateItemFor<FActorTreeItem>(InActor));
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 
 void FActorHierarchy::OnLevelActorDeleted(AActor* InActor)
 {
-	if (RepresentingWorld.Get() == InActor->GetWorld())
+	if (InActor != nullptr && RepresentingWorld.Get() == InActor->GetWorld())
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
-		EventData.ItemID = InActor;
+		EventData.ItemIDs.Add(InActor);
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 
 void FActorHierarchy::OnLevelActorAttached(AActor* InActor, const AActor* InParent)
 {
-	if (RepresentingWorld.Get() == InActor->GetWorld())
+	if (InActor != nullptr && RepresentingWorld.Get() == InActor->GetWorld())
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Moved;
-		EventData.ItemID = InActor;
+		EventData.ItemIDs.Add(InActor);
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 
 void FActorHierarchy::OnLevelActorDetached(AActor* InActor, const AActor* InParent)
 {
-	if (RepresentingWorld.Get() == InActor->GetWorld())
+	if (InActor != nullptr && RepresentingWorld.Get() == InActor->GetWorld())
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Moved;
-		EventData.ItemID = InActor;
+		EventData.ItemIDs.Add(InActor);
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
@@ -445,17 +445,38 @@ void FActorHierarchy::OnLevelActorListChanged()
 
 void FActorHierarchy::OnLevelAdded(ULevel* InLevel, UWorld* InWorld)
 {
-	if (RepresentingWorld.Get() == InWorld)
+	if (InLevel != nullptr && RepresentingWorld.Get() == InWorld)
 	{
-		FullRefreshEvent();
+		FSceneOutlinerHierarchyChangedData EventData;
+		EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
+
+		EventData.Items.Reserve(InLevel->Actors.Num());
+		for (AActor* Actor : InLevel->Actors)
+		{
+			if (Actor != nullptr)
+			{
+				EventData.Items.Add(Mode->CreateItemFor<FActorTreeItem>(Actor));
+			}
+		}
+		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 
 void FActorHierarchy::OnLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 {
-	if (RepresentingWorld.Get() == InWorld)
+	if (InLevel != nullptr && RepresentingWorld.Get() == InWorld)
 	{
-		FullRefreshEvent();
+		FSceneOutlinerHierarchyChangedData EventData;
+		EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
+
+		EventData.ItemIDs.Reserve(InLevel->Actors.Num());
+		for (AActor* Actor : InLevel->Actors)
+		{
+			if (Actor != nullptr)
+			{
+				EventData.ItemIDs.Add(Actor);		    
+			}
+		}
 	}
 }
 
@@ -466,7 +487,7 @@ void FActorHierarchy::OnBroadcastFolderCreate(UWorld& InWorld, FName NewPath)
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
-		EventData.Item = Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(NewPath, &InWorld));
+		EventData.Items.Add(Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(NewPath, &InWorld)));
 		EventData.ItemActions = SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename;
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
@@ -479,8 +500,8 @@ void FActorHierarchy::OnBroadcastFolderMove(UWorld& InWorld, FName OldPath, FNam
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::FolderMoved;
-		EventData.ItemID = OldPath;
-		EventData.NewPath = NewPath;
+		EventData.ItemIDs.Add(OldPath);
+		EventData.NewPaths.Add(NewPath);
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
@@ -492,7 +513,7 @@ void FActorHierarchy::OnBroadcastFolderDelete(UWorld& InWorld, FName Path)
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
-		EventData.ItemID = Path;
+		EventData.ItemIDs.Add(Path);
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
@@ -503,7 +524,7 @@ void FActorHierarchy::OnLevelActorFolderChanged(const AActor* InActor, FName Old
 	{
 		FSceneOutlinerHierarchyChangedData EventData;
 		EventData.Type = FSceneOutlinerHierarchyChangedData::Moved;
-		EventData.ItemID = FSceneOutlinerTreeItemID(InActor);
+		EventData.ItemIDs.Add(FSceneOutlinerTreeItemID(InActor));
 		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }

@@ -140,11 +140,13 @@ void FDataLayerHierarchy::OnLevelActorAdded(AActor* InActor)
 			FSceneOutlinerHierarchyChangedData EventData;
 			EventData.Type = FSceneOutlinerHierarchyChangedData::Added;
 
-			for (const UDataLayer* DataLayer : InActor->GetDataLayerObjects())
+			TArray<const UDataLayer*> DataLayers = InActor->GetDataLayerObjects();
+			EventData.Items.Reserve(DataLayers.Num());
+			for (const UDataLayer* DataLayer : DataLayers)
 			{
-				EventData.Item = Mode->CreateItemFor<FDataLayerActorTreeItem>(FDataLayerActorTreeItemData(InActor, const_cast<UDataLayer*>(DataLayer)));
-				HierarchyChangedEvent.Broadcast(EventData);
+				EventData.Items.Add(Mode->CreateItemFor<FDataLayerActorTreeItem>(FDataLayerActorTreeItemData(InActor, const_cast<UDataLayer*>(DataLayer))));
 			}
+			HierarchyChangedEvent.Broadcast(EventData);
 		}
 	}
 }
@@ -181,11 +183,13 @@ void FDataLayerHierarchy::OnLevelActorDeleted(AActor* InActor)
 			FSceneOutlinerHierarchyChangedData EventData;
 			EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;
 
-			for (const UDataLayer* DataLayer : InActor->GetDataLayerObjects())
+			TArray<const UDataLayer*> DataLayers = InActor->GetDataLayerObjects();
+			EventData.ItemIDs.Reserve(DataLayers.Num());
+			for (const UDataLayer* DataLayer : DataLayers)
 			{
-				EventData.ItemID = FDataLayerActorTreeItem::ComputeTreeItemID(InActor, DataLayer);
-				HierarchyChangedEvent.Broadcast(EventData);
+				EventData.ItemIDs.Add(FDataLayerActorTreeItem::ComputeTreeItemID(InActor, DataLayer));
 			}
+			HierarchyChangedEvent.Broadcast(EventData);
 		}
 	}
 }

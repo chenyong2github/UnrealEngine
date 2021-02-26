@@ -1559,58 +1559,79 @@ void SSceneOutliner::OnHierarchyChangedEvent(FSceneOutlinerHierarchyChangedData 
 {
 	if (Event.Type == FSceneOutlinerHierarchyChangedData::Added)
 	{
-		if (Event.Item.IsValid() && !TreeItemMap.Find(Event.Item->GetID()))
+		for (const auto& TreeItemPtr : Event.Items)
 		{
-			AddPendingItemAndChildren(Event.Item);
-			if (Event.ItemActions)
+			if (TreeItemPtr.IsValid() && !TreeItemMap.Find(TreeItemPtr->GetID()))
 			{
-				NewItemActions.Add(Event.Item->GetID(), Event.ItemActions);
+				AddPendingItemAndChildren(TreeItemPtr);
+				if (Event.ItemActions)
+				{
+					NewItemActions.Add(TreeItemPtr->GetID(), Event.ItemActions);
+				}
 			}
 		}
 	}
 	else if (Event.Type == FSceneOutlinerHierarchyChangedData::Removed)
 	{
-		FSceneOutlinerTreeItemPtr* Item = TreeItemMap.Find(Event.ItemID);
-		if (!Item)
+		for (const auto& TreeItemID : Event.ItemIDs)
 		{
-			Item = PendingTreeItemMap.Find(Event.ItemID);
-		}
+			FSceneOutlinerTreeItemPtr* Item = TreeItemMap.Find(TreeItemID);
+			if (!Item)
+			{
+				Item = PendingTreeItemMap.Find(TreeItemID);
+			}
 
-		if (Item)
-		{
-			PendingOperations.Emplace(SceneOutliner::FPendingTreeOperation::Removed, Item->ToSharedRef());
-			Refresh();
+			if (Item)
+			{
+				PendingOperations.Emplace(SceneOutliner::FPendingTreeOperation::Removed, Item->ToSharedRef());
+			}
 		}
+		Refresh();
 	}
 	else if (Event.Type == FSceneOutlinerHierarchyChangedData::Moved)
 	{
-		FSceneOutlinerTreeItemPtr* Item = Event.Item ? &Event.Item : TreeItemMap.Find(Event.ItemID);
-
-		if (Item)
+		for (const auto& TreeItemID : Event.ItemIDs)
 		{
-			PendingOperations.Emplace(SceneOutliner::FPendingTreeOperation::Moved, Item->ToSharedRef());
-			Refresh();
+			FSceneOutlinerTreeItemPtr* Item = TreeItemMap.Find(TreeItemID);
+
+			if (Item)
+			{
+				PendingOperations.Emplace(SceneOutliner::FPendingTreeOperation::Moved, Item->ToSharedRef());
+			}
 		}
+
+		for (const auto& TreeItemPtr : Event.Items)
+		{
+			if (TreeItemPtr.IsValid())
+			{
+				PendingOperations.Emplace(SceneOutliner::FPendingTreeOperation::Moved, TreeItemPtr.ToSharedRef());
+			}
+		}
+		Refresh();
 	}
 	else if (Event.Type == FSceneOutlinerHierarchyChangedData::FolderMoved)
 	{
-		FSceneOutlinerTreeItemPtr Item = TreeItemMap.FindRef(Event.ItemID);
-		if (Item.IsValid())
+		check (Event.ItemIDs.Num() == Event.NewPaths.Num());
+		for (int32 i = 0; i < Event.ItemIDs.Num(); ++i)
 		{
-			// Remove it from the map under the old ID (which is derived from the folder path)
-			TreeItemMap.Remove(Item->GetID());
+			FSceneOutlinerTreeItemPtr Item = TreeItemMap.FindRef(Event.ItemIDs[i]);
+			if (Item.IsValid())
+			{
+				// Remove it from the map under the old ID (which is derived from the folder path)
+				TreeItemMap.Remove(Item->GetID());
 
-			// Now change the path and put it back in the map with its new ID
-			auto Folder = StaticCastSharedPtr<FFolderTreeItem>(Item);
-			Folder->Path = Event.NewPath;
-			Folder->LeafName = FEditorFolderUtils::GetLeafName(Event.NewPath);
+				// Now change the path and put it back in the map with its new ID
+				auto Folder = StaticCastSharedPtr<FFolderTreeItem>(Item);
+				Folder->Path = Event.NewPaths[i];
+				Folder->LeafName = FEditorFolderUtils::GetLeafName(Event.NewPaths[i]);
 
-			TreeItemMap.Add(Item->GetID(), Item);
+				TreeItemMap.Add(Item->GetID(), Item);
 
-			// Add an operation to move the item in the hierarchy
-			PendingOperations.Emplace(SceneOutliner::FPendingTreeOperation::Moved, Item.ToSharedRef());
-			Refresh();
+				// Add an operation to move the item in the hierarchy
+				PendingOperations.Emplace(SceneOutliner::FPendingTreeOperation::Moved, Item.ToSharedRef());
+			}
 		}
+		Refresh();
 	}
 	else if (Event.Type == FSceneOutlinerHierarchyChangedData::FullRefresh)
 	{
@@ -1623,7 +1644,7 @@ void SSceneOutliner::PostUndo(bool bSuccess)
 	// Refresh our tree in case any changes have been made to the scene that might effect our list
 	if( !bIsReentrant )
 	{
-        bDisableIntermediateSorting = true;
+		bDisableIntermediateSorting = true;
 		FullRefresh();
 	}
 }
