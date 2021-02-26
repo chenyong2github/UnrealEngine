@@ -40,6 +40,9 @@ static int32 GHairEnableAdaptiveSubsteps = 0;
 static FAutoConsoleVariableRef CVarHairEnableAdaptiveSubsteps(TEXT("r.HairStrands.EnableAdaptiveSubsteps"), GHairEnableAdaptiveSubsteps, TEXT("Enable adaptive solver substeps"));
 bool IsHairAdaptiveSubstepsEnabled() { return (GHairEnableAdaptiveSubsteps == 1); }
 
+static int32 GHairBindingValidationEnable = 0;
+static FAutoConsoleVariableRef CVarHairBindingValidationEnable(TEXT("r.HairStrands.BindingValidation"), GHairBindingValidationEnable, TEXT("Enable groom binding validation, which report error/warnings with details about the cause."));
+
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -952,6 +955,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	NiagaraComponents.Empty();
 	PhysicsAsset = nullptr;
 	bCanEverAffectNavigation = false;
+	bValidationEnable = GHairBindingValidationEnable > 0;
 
 	SetCollisionProfileName(UCollisionProfile::PhysicsActor_ProfileName);
 
