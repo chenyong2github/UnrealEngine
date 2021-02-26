@@ -47,7 +47,7 @@ void URepositionableTransformGizmo::SetActiveTarget(UTransformProxy* Target, ITo
 
 	// Create the alternate transform source.
 	UGizmoTransformProxyTransformSource* ProxyTransformSource = UGizmoTransformProxyTransformSource::Construct(ActiveTarget, this);
-	ProxyTransformSource->bSetPivotMode = true;
+	ProxyTransformSource->bOverrideSetPivotMode = true;
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
 	UGizmoScaledAndUnscaledTransformSources* TransformSource = UGizmoScaledAndUnscaledTransformSources::Construct(
 		ProxyTransformSource, GizmoComponent, this);
@@ -58,7 +58,7 @@ void URepositionableTransformGizmo::SetActiveTarget(UTransformProxy* Target, ITo
 		Cast<IToolContextTransactionProvider>(StateTarget->TransactionManager.GetObject()), 
 		this);
 	TUniquePtr<FTransformProxyChangeSource> ProxyChangeSource = MakeUnique<FTransformProxyChangeSource>(Target);
-	ProxyChangeSource->bSetPivotMode = true;
+	ProxyChangeSource->bOverrideSetPivotMode = true;
 	RepositionStateTarget->DependentChangeSources.Add(MoveTemp(ProxyChangeSource));
 
 	// Add on the extra gizmos to existing components. We use the base class addition functions and

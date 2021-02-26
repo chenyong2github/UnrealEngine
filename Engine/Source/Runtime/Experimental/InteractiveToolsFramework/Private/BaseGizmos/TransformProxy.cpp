@@ -188,9 +188,9 @@ void FTransformProxyChangeSource::BeginChange()
 	{
 		ActiveChange = MakeUnique<FTransformProxyChange>();
 		ActiveChange->From = Proxy->GetTransform();
-		ActiveChange->bSetPivotMode = bSetPivotMode;
+		ActiveChange->bSetPivotMode = bOverrideSetPivotMode ? true : Proxy->bSetPivotMode;
 
-		if (bSetPivotMode)
+		if (ActiveChange->bSetPivotMode)
 		{
 			Proxy->BeginPivotEditSequence();
 		}
@@ -205,7 +205,7 @@ TUniquePtr<FToolCommandChange> FTransformProxyChangeSource::EndChange()
 {
 	if (Proxy.IsValid())
 	{
-		if (bSetPivotMode)
+		if (ActiveChange->bSetPivotMode)
 		{
 			Proxy->EndPivotEditSequence();
 		}

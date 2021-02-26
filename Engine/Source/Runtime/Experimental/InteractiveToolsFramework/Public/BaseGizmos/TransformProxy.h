@@ -189,5 +189,11 @@ public:
 	virtual UObject* GetChangeTarget() override;
 	virtual FText GetChangeDescription() override;
 
-	bool bSetPivotMode = false;
+	/**
+	 * If true, the emitted changes will always have bSetPivotMode set to true, regardless of
+	 * the current proxy settings. This is meant to accompany a UGizmoTransformProxyTransformSource 
+	 * that has bOverrideSetPivotMode set to true, used for gizmos that reposition a proxy that
+	 * otherwise behaves normally.
+	 */
+	bool bOverrideSetPivotMode = false;
 };

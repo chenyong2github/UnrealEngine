@@ -57,7 +57,7 @@ FTransform UGizmoTransformProxyTransformSource::GetTransform() const
 
 void UGizmoTransformProxyTransformSource::SetTransform(const FTransform& NewTransform)
 {
-	if (bSetPivotMode)
+	if (bOverrideSetPivotMode)
 	{
 		bool bProxySetPivotOriginal = Proxy->bSetPivotMode;
 		Proxy->bSetPivotMode = true;
@@ -69,7 +69,14 @@ void UGizmoTransformProxyTransformSource::SetTransform(const FTransform& NewTran
 	else
 	{
 		Proxy->SetTransform(NewTransform);
-		OnTransformChanged.Broadcast(this);
+		if (Proxy->bSetPivotMode)
+		{
+			OnPivotChanged.Broadcast(this);
+		}
+		else
+		{
+			OnTransformChanged.Broadcast(this);
+		}
 	}
 }
 

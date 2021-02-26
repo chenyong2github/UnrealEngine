@@ -172,10 +172,11 @@ public:
 	TObjectPtr<UTransformProxy> Proxy;
 
 	/**
-	 * The underlying proxy is modified with its SetPivotMode flag set to this. Thus, the transform source
-	 * can be used for either proxy repositioning or actual use.
+	 * If true, the underlying proxy is modified with its SetPivotMode flag temporarily set to true.
+	 * This allows the transform source to be used for proxy repositioning on a proxy that otherwise
+	 * operates normally.
 	 */
-	bool bSetPivotMode = false;
+	bool bOverrideSetPivotMode = false;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGizmoTransformSourcePivotChanged, IGizmoTransformSource*);
 	FOnGizmoTransformSourcePivotChanged OnPivotChanged;

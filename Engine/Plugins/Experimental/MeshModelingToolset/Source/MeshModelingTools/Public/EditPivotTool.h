@@ -11,6 +11,7 @@
 #include "BoxTypes.h"
 #include "EditPivotTool.generated.h"
 
+class UDragAlignmentMechanic;
 class UBaseAxisTranslationGizmo;
 class UAxisAngleGizmo;
 class UTransformGizmo;
@@ -65,7 +66,7 @@ public:
 
 	/** When Snap-Dragging, align source and target normals */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bEnableSnapDragging == true"))
-	EEditPivotSnapDragRotationMode RotationMode = EEditPivotSnapDragRotationMode::AlignFlipped;
+	EEditPivotSnapDragRotationMode RotationMode = EEditPivotSnapDragRotationMode::Align;
 };
 
 
@@ -197,13 +198,14 @@ protected:
 	UPROPERTY()
 	TArray<FEditPivotTarget> ActiveGizmos;
 
+	UPROPERTY()
+	UDragAlignmentMechanic* DragAlignmentMechanic = nullptr;
+
 	void UpdateSetPivotModes(bool bEnableSetPivot);
 	void SetActiveGizmos_Single(bool bLocalRotations);
 	void ResetActiveGizmos();
 
-	FFrame3d StartDragFrameWorld;
 	FTransform StartDragTransform;
-	int ActiveSnapDragIndex = -1;
 
 	EEditPivotToolActions PendingAction;
 	virtual void ApplyAction(EEditPivotToolActions ActionType);

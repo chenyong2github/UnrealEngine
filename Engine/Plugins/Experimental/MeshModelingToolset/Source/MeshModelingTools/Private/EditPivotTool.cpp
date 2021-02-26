@@ -7,6 +7,7 @@
 #include "ToolSetupUtil.h"
 #include "DynamicMesh3.h"
 #include "DynamicMeshToMeshDescription.h"
+#include "Mechanics/DragAlignmentMechanic.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "MeshAdapterTransforms.h"
 #include "MeshDescriptionAdapter.h"
@@ -104,6 +105,10 @@ void UEditPivotTool::Setup()
 	SetActiveGizmos_Single(false);
 	UpdateSetPivotModes(true);
 
+	DragAlignmentMechanic = NewObject<UDragAlignmentMechanic>(this);
+	DragAlignmentMechanic->Setup(this);
+	DragAlignmentMechanic->AddToGizmo(ActiveGizmos[0].TransformGizmo);
+
 	Precompute();
 
 	FText AllTheWarnings = LOCTEXT("EditPivotWarning", "WARNING: This Tool will Modify the selected StaticMesh Assets! If you do not wish to modify the original Assets, please make copies in the Content Browser first!");
@@ -119,7 +124,7 @@ void UEditPivotTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Edit Pivot"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "This Tool edits the Pivot (Origin) of the input objects. Use the Gizmo or enable Snap Dragging and click-drag on the surface to reposition."),
+		LOCTEXT("OnStartTool", "This tool edits the Pivot (Origin) of the input assets. Hold Ctrl while using the gizmo to align to scene. Enable Snap Dragging and click+drag to place gizmo directly into clicked position."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -127,6 +132,8 @@ void UEditPivotTool::Setup()
 
 void UEditPivotTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	DragAlignmentMechanic->Shutdown();
+
 	FFrame3d CurPivotFrame(ActiveGizmos[0].TransformProxy->GetTransform());
 
 	GizmoManager->DestroyAllGizmosByOwner(this);
@@ -204,6 +211,7 @@ void UEditPivotTool::OnTick(float DeltaTime)
 
 void UEditPivotTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	DragAlignmentMechanic->Render(RenderAPI);
 }
 
 void UEditPivotTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
@@ -318,24 +326,14 @@ FInputRayHit UEditPivotTool::CanBeginClickDragSequence(const FInputDeviceRay& Pr
 		return FInputRayHit();
 	}
 
-	ActiveSnapDragIndex = -1;
+	FHitResult Result;
+	bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, PressPos.WorldRay);
 
-	float MinHitDistance = TNumericLimits<float>::Max();
-	FVector HitNormal;
-
-	for ( int k = 0; k < ComponentTargets.Num(); ++k )
+	if (!bWorldHit)
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& Target = ComponentTargets[k];
-
-		FHitResult WorldHit;
-		if (Target->HitTest(PressPos.WorldRay, WorldHit))
-		{
-			MinHitDistance = FMath::Min(MinHitDistance, WorldHit.Distance);
-			HitNormal = WorldHit.Normal;
-			ActiveSnapDragIndex = k;
-		}
+		return FInputRayHit();
 	}
-	return (MinHitDistance < TNumericLimits<float>::Max()) ? FInputRayHit(MinHitDistance, HitNormal) : FInputRayHit();
+	return FInputRayHit(Result.Distance, Result.ImpactNormal);
 }
 
 void UEditPivotTool::OnClickPress(const FInputDeviceRay& PressPos)
@@ -348,35 +346,11 @@ void UEditPivotTool::OnClickPress(const FInputDeviceRay& PressPos)
 	FEditPivotTarget& ActiveTarget = ActiveGizmos[0];
 	USceneComponent* GizmoComponent = ActiveTarget.TransformGizmo->GetGizmoActor()->GetRootComponent();
 	StartDragTransform = GizmoComponent->GetComponentToWorld();
-
-	//if (TransformProps->SnapDragSource == EEditPivotSnapDragSource::ClickPoint)
-	//{
-		StartDragFrameWorld = FFrame3d(PressPos.WorldRay.PointAt(HitPos.HitDepth), HitPos.HitNormal);
-	//}
-	//else
-	//{
-	//	StartDragFrameWorld = FFrame3d(StartDragTransform);
-	//}
-
 }
 
 
 void UEditPivotTool::OnClickDrag(const FInputDeviceRay& DragPos)
 {
-	//bool bApplyToPivot = true;
-	//if (bApplyToPivot == false)
-	//{
-	//	int IgnoreIndex = -1;
-	//	for (int k = 0; k < ComponentTargets.Num(); ++k)
-	//	{
-	//		if (IgnoreIndex == -1 || k == IgnoreIndex)
-	//		{
-	//			CollisionParams.AddIgnoredComponent(ComponentTargets[k]->GetOwnerComponent());
-	//		}
-	//	}
-	//}
-
-
 	bool bRotate = (TransformProps->RotationMode != EEditPivotSnapDragRotationMode::Ignore);
 	float NormalSign = (TransformProps->RotationMode == EEditPivotSnapDragRotationMode::AlignFlipped) ? -1.0f : 1.0f;
 
@@ -399,10 +373,7 @@ void UEditPivotTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	NewTransform.SetTranslation(HitPos);
 
 	FEditPivotTarget& ActiveTarget = ActiveGizmos[0];
-	USceneComponent* GizmoComponent = ActiveTarget.TransformGizmo->GetGizmoActor()->GetRootComponent();
-	GizmoComponent->SetWorldTransform(NewTransform);
-
-
+	ActiveTarget.TransformGizmo->SetNewGizmoTransform(NewTransform);
 }
 
 
@@ -422,8 +393,6 @@ void UEditPivotTool::OnTerminateDragSequence()
 		LOCTEXT("TransformToolTransformTxnName", "SnapDrag"));
 
 	GetToolManager()->EndUndoTransaction();
-
-	ActiveSnapDragIndex = -1;
 }
 
 
