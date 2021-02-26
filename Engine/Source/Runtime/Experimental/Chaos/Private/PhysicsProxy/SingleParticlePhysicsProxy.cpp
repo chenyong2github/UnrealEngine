@@ -185,7 +185,7 @@ void FSingleParticlePhysicsProxy::BufferPhysicsResults(Chaos::FDirtyRigidParticl
 {
 	using namespace Chaos;
 	// Move simulation results into the double buffer.
-	TPBDRigidParticleHandle<float, 3>* RigidHandle = Handle ? Handle->CastToRigidParticle() : nullptr;	//TODO: can handle be null?
+	FPBDRigidParticleHandle* RigidHandle = Handle ? Handle->CastToRigidParticle() : nullptr;	//TODO: can handle be null?
 	if(RigidHandle)
 	{
 		PullData.SetProxy(*this);

@@ -305,12 +305,12 @@ void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FP
 			TArray< Chaos::FUniqueIdx > DisabledCollisions;
 			DisabledCollisions.Reserve(Elem.Value.Num());
 
-			if (Chaos::TPBDRigidParticle<float, 3>* Rigid0 = ActorReference->GetParticle_LowLevel()->CastToRigidParticle())
+			if (Chaos::FPBDRigidParticle* Rigid0 = ActorReference->GetParticle_LowLevel()->CastToRigidParticle())
 			{
 				Rigid0->SetCollisionConstraintFlag((uint32)Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
 				for (auto Handle1 : Elem.Value)
 				{
-					if (Chaos::TPBDRigidParticle<float, 3>* Rigid1 = Handle1->GetParticle_LowLevel()->CastToRigidParticle())
+					if (Chaos::FPBDRigidParticle* Rigid1 = Handle1->GetParticle_LowLevel()->CastToRigidParticle())
 					{
 						Rigid1->SetCollisionConstraintFlag((uint32)Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
 						DisabledCollisions.Add(Handle1->GetGameThreadAPI().UniqueIdx());
@@ -494,7 +494,7 @@ void FChaosEngineInterface::SetIgnoreAnalyticCollisions_AssumesLocked(const FPhy
 
 FTransform FChaosEngineInterface::GetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	return Chaos::TRigidTransform<float,3>(InActorReference->GetGameThreadAPI().X(),InActorReference->GetGameThreadAPI().R());
+	return Chaos::FRigidTransform3(InActorReference->GetGameThreadAPI().X(),InActorReference->GetGameThreadAPI().R());
 }
 
 FTransform FChaosEngineInterface::GetTransform_AssumesLocked(const FPhysicsActorHandle& InRef,bool bForceGlobalPose /*= false*/)
@@ -638,7 +638,7 @@ FTransform FChaosEngineInterface::GetComTransformLocal_AssumesLocked(const FPhys
 
 FVector FChaosEngineInterface::GetLocalInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	const Chaos::PMatrix<float,3,3> Tensor = InActorReference->GetGameThreadAPI().I();
+	const Chaos::FMatrix33 Tensor = InActorReference->GetGameThreadAPI().I();
 	return FVector(Tensor.M[0][0],Tensor.M[1][1],Tensor.M[2][2]);
 }
 
@@ -805,8 +805,8 @@ void FChaosEngineInterface::SetMassSpaceInertiaTensor_AssumesLocked(FPhysicsActo
 	if(CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.X)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Y)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Z)))
 	{
 		Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
-		Body_External.SetI(Chaos::PMatrix<float,3,3>(InTensor.X,InTensor.Y,InTensor.Z));
-		Body_External.SetInvI(Chaos::PMatrix<float,3,3>(1./InTensor.X,1./InTensor.Y,1./InTensor.Z));
+		Body_External.SetI(Chaos::FMatrix33(InTensor.X,InTensor.Y,InTensor.Z));
+		Body_External.SetInvI(Chaos::FMatrix33(1./InTensor.X,1./InTensor.Y,1./InTensor.Z));
 	}
 }
 
@@ -875,7 +875,7 @@ void FChaosEngineInterface::SetWakeCounter_AssumesLocked(const FPhysicsActorHand
 void FChaosEngineInterface::SetInitialized_AssumesLocked(const FPhysicsActorHandle& InHandle,bool InInitialized)
 {
 	//why is this needed?
-	Chaos::TPBDRigidParticle<float,3>* Rigid = InHandle->GetParticle_LowLevel()->CastToRigidParticle();
+	Chaos::FPBDRigidParticle* Rigid = InHandle->GetParticle_LowLevel()->CastToRigidParticle();
 	if(Rigid)
 	{
 		Rigid->SetInitialized(InInitialized);
@@ -1522,7 +1522,7 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 	else
 	{
 		// Create an underlying dynamic particle
-		TUniquePtr<TPBDRigidParticle<float,3>> Rigid = TPBDRigidParticle<float,3>::CreateParticle();
+		TUniquePtr<FPBDRigidParticle> Rigid = FPBDRigidParticle::CreateParticle();
 		Rigid->SetGravityEnabled(InParams.bEnableGravity);
 		if(InParams.bSimulatePhysics)
 		{
@@ -1607,7 +1607,7 @@ void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActor
 {
 	{
 		Chaos::TKinematicTarget<float, 3> newKinematicTarget;
-		Chaos::TRigidTransform<Chaos::FReal, 3> PreviousTM(InActorReference->GetGameThreadAPI().X(), InActorReference->GetGameThreadAPI().R());
+		Chaos::FRigidTransform3 PreviousTM(InActorReference->GetGameThreadAPI().X(), InActorReference->GetGameThreadAPI().R());
 		newKinematicTarget.SetTargetMode(InNewTarget, PreviousTM);
 		InActorReference->GetGameThreadAPI().SetKinematicTarget(newKinematicTarget);
 

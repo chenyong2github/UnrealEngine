@@ -55,9 +55,9 @@ class CHAOS_API FSingleParticlePhysicsProxy : public IPhysicsProxyBase
 {
 public:
 	using PARTICLE_TYPE = Chaos::FGeometryParticle;
-	using FParticleHandle = Chaos::TGeometryParticleHandle<Chaos::FReal,3>;
+	using FParticleHandle = Chaos::FGeometryParticleHandle;
 
-	static FSingleParticlePhysicsProxy* Create(TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>&& Particle);
+	static FSingleParticlePhysicsProxy* Create(TUniquePtr<Chaos::FGeometryParticle>&& Particle);
 
 	FSingleParticlePhysicsProxy() = delete;
 	FSingleParticlePhysicsProxy(const FSingleParticlePhysicsProxy&) = delete;
@@ -159,14 +159,14 @@ public:
 		return Particle.Get();
 	}
 
-	Chaos::TPBDRigidParticle<Chaos::FReal, 3>* GetRigidParticleUnsafe()
+	Chaos::FPBDRigidParticle* GetRigidParticleUnsafe()
 	{
-		return static_cast<Chaos::TPBDRigidParticle<Chaos::FReal, 3>*>(GetParticle_LowLevel());
+		return static_cast<Chaos::FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
 
-	const Chaos::TPBDRigidParticle<Chaos::FReal, 3>* GetRigidParticleUnsafe() const
+	const Chaos::FPBDRigidParticle* GetRigidParticleUnsafe() const
 	{
-		return static_cast<const Chaos::TPBDRigidParticle<Chaos::FReal, 3>*>(GetParticle_LowLevel());
+		return static_cast<const Chaos::FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
 
 	/** Gets the owning external object for this solver object, never used internally */
@@ -536,7 +536,7 @@ public:
 		});
 	}
 
-	const PMatrix<FReal,3,3> I() const
+	const FMatrix33 I() const
 	{
 		return Read([](auto* Particle)
 		{
@@ -545,11 +545,11 @@ public:
 				return Rigid->I();
 			}
 
-			return PMatrix<FReal,3,3>(0, 0, 0);
+			return FMatrix33(0, 0, 0);
 		});
 	}
 
-	void SetI(const PMatrix<FReal,3,3>& InI)
+	void SetI(const FMatrix33& InI)
 	{
 		Write([&InI](auto* Particle)
 		{
@@ -560,7 +560,7 @@ public:
 		});
 	}
 
-	const PMatrix<FReal, 3, 3> InvI() const
+	const FMatrix33 InvI() const
 	{
 		return Read([](auto* Particle)
 		{
@@ -569,11 +569,11 @@ public:
 				return Rigid->InvI();
 			}
 
-			return PMatrix<FReal, 3, 3>(0, 0, 0);
+			return FMatrix33(0, 0, 0);
 		});
 	}
 
-	void SetInvI(const PMatrix<FReal, 3, 3>& InInvI)
+	void SetInvI(const FMatrix33& InInvI)
 	{
 		Write([&InInvI](auto* Particle)
 		{
@@ -999,7 +999,7 @@ static_assert(sizeof(FRigidBodyHandle_Internal) == sizeof(FSingleParticlePhysics
 
 }
 
-inline FSingleParticlePhysicsProxy* FSingleParticlePhysicsProxy::Create(TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>&& Particle)
+inline FSingleParticlePhysicsProxy* FSingleParticlePhysicsProxy::Create(TUniquePtr<Chaos::FGeometryParticle>&& Particle)
 {
 	ensure(Particle->GetProxy() == nullptr);	//not already owned by another proxy. TODO: use TUniquePtr
 	auto Proxy = new FSingleParticlePhysicsProxy(MoveTemp(Particle), nullptr);

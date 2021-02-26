@@ -30,6 +30,7 @@ namespace Chaos
 
 	template <typename T, int d>
 	class TGeometryParticle;
+	using FGeometryParticle = TGeometryParticle<FReal, 3>;
 
 	struct FMassProperties;
 
@@ -78,7 +79,7 @@ using FPhysicsGeometry = Chaos::FImplicitObject;
 using FPhysicsCapsuleGeometry = Chaos::TCapsule<float>;
 using FPhysicsMaterial = Chaos::FChaosPhysicsMaterial;
 using FPhysicsMaterialMask = Chaos::FChaosPhysicsMaterialMask; 
-using FPhysicsActor = Chaos::TGeometryParticle<float,3>;
+using FPhysicsActor = Chaos::FGeometryParticle;
 
 template <typename T>
 using FPhysicsHitCallback = ChaosInterface::FSQHitBuffer<T>;

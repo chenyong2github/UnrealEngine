@@ -198,7 +198,7 @@ private:
 
 		//todo: add a check to ensure hitbuffer matches SQ type
 		using namespace Chaos;
-		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
+		FGeometryParticle* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
 
 		if(!GeometryParticle)
 		{
@@ -471,7 +471,7 @@ private:
 		TPayload Payload = Instance.Payload;
 		//todo: add a check to ensure hitbuffer matches SQ type
 		using namespace Chaos;
-		TGeometryParticle<float, 3>* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
+		FGeometryParticle* GeometryParticle = Payload.GetExternalGeometryParticle_ExternalThread();
 		if (!GeometryParticle)
 		{
 			// This case handles particles created by the physics simulation without the main thread

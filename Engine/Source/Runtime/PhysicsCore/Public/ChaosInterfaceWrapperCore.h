@@ -122,7 +122,7 @@ inline const Chaos::FPerShapeData* GetShape(const FActorShape& Hit)
 	return Hit.Shape;
 }
 
-inline Chaos::TGeometryParticle<float,3>* GetActor(const FActorShape& Hit)
+inline Chaos::FGeometryParticle* GetActor(const FActorShape& Hit)
 {
 	return Hit.Actor;
 }
