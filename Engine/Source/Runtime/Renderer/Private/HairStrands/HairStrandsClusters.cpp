@@ -15,22 +15,17 @@
 static int32 GHairStrandsClusterCullingUsesHzb = 1;
 static FAutoConsoleVariableRef CVarHairCullingUseHzb(TEXT("r.HairStrands.Cluster.CullingUsesHzb"), GHairStrandsClusterCullingUsesHzb, TEXT("Enable/disable the use of HZB to help cull more hair clusters."));
 
-static int32 GHairStrandsClusterCulling = 1;
-static int32 GStrandHairClusterCullingShadow = 1;
-static FAutoConsoleVariableRef CVarHairClusterCulling(TEXT("r.HairStrands.Cluster.Culling"), GHairStrandsClusterCulling, TEXT("Enable/Disable hair cluster culling"));
-static FAutoConsoleVariableRef CVarHairClusterCullingShadow(TEXT("r.HairStrands.Cluster.CullingShadow"), GStrandHairClusterCullingShadow, TEXT("Enable/Disable hair cluster culling for shadow views"));
-
 static int32 GHairStrandsClusterForceLOD = -1;
-static int32 GHairStrandsClusterForceShadowLOD = -1;
 static FAutoConsoleVariableRef CVarHairClusterCullingLodMode(TEXT("r.HairStrands.Cluster.ForceLOD"), GHairStrandsClusterForceLOD, TEXT("Force a specific hair LOD."));
-static FAutoConsoleVariableRef CVarHairClusterCullingShadowLodMode(TEXT("r.HairStrands.Cluster.ShadowLOD"), GHairStrandsClusterForceShadowLOD, TEXT("Force a specific LOD for shadow rendering. Otherwise use -1 for automatic selection of Lod. Used for voxelisation and DOM."));
 
 static int32 GHairStrandsClusterCullingFreezeCamera = 0;
 static FAutoConsoleVariableRef CVarHairStrandsClusterCullingFreezeCamera(TEXT("r.HairStrands.Cluster.CullingFreezeCamera"), GHairStrandsClusterCullingFreezeCamera, TEXT("Freeze camera when enabled. It will disable HZB culling because hzb buffer is not frozen."));
 
 bool IsHairStrandsClusterCullingEnable()
 {
-	return GHairStrandsClusterCulling > 0;
+	// At the moment it is not possible to disable cluster culling, as this pass is in charge of LOD selection, 
+	// and preparing the buffer which will be need for the cluster AABB pass (used later on by the voxelization pass)
+	return true;
 }
 
 bool IsHairStrandsClusterCullingUseHzb()
@@ -83,7 +78,6 @@ class FHairClusterCullingCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, ClusterCount)
 		SHADER_PARAMETER(float, LODForcedIndex)
 		SHADER_PARAMETER(int32, bIsHairGroupVisible)
-		SHADER_PARAMETER(int32, ShadowViewMode)
 		SHADER_PARAMETER(uint32, NumConvexHullPlanes)
 		SHADER_PARAMETER(float, LODBias)
 		SHADER_PARAMETER_ARRAY(FVector4, ViewFrustumConvexHull, [6])
@@ -347,10 +341,6 @@ static void AddClusterCullingPass(
 			ForceLOD = ClusterData.LODIndex;
 			bIsVisible = ClusterData.bVisible;
 		}
-		else if (CullingParameters.bShadowViewMode)
-		{
-			ForceLOD = GHairStrandsClusterForceShadowLOD;
-		}
 
 		FHairClusterCullingCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairClusterCullingCS::FParameters>();
 		Parameters->ProjectionMatrix = CapturedProjMatrix;
@@ -360,7 +350,6 @@ static void AddClusterCullingPass(
 		Parameters->LODForcedIndex = ForceLOD;
 		Parameters->LODBias = ClusterData.LODBias;
 		Parameters->bIsHairGroupVisible = bIsVisible ? 1 : 0;
-		Parameters->ShadowViewMode = CullingParameters.bShadowViewMode ? 1 : 0;
 
 		Parameters->NumConvexHullPlanes = View.ViewFrustum.Planes.Num();
 		check(Parameters->NumConvexHullPlanes <= 6);
@@ -532,6 +521,8 @@ static void AddClusterCullingPass(
 
 	GraphBuilder.SetBufferAccessFinal(DrawIndirectParametersBuffer.Buffer, ERHIAccess::IndirectArgs | ERHIAccess::SRVMask);
 	GraphBuilder.SetBufferAccessFinal(DrawIndirectParametersRasterComputeBuffer.Buffer, ERHIAccess::IndirectArgs | ERHIAccess::SRVMask);
+
+	ClusterData.SetCullingResultAvailable(true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -608,17 +599,16 @@ void ComputeHairStrandsClustersCulling(
 		HZBParameters.HZBSizeValue = HZBSizeValue;
 	}
 
-	const bool bCullingProcessSkipped = GHairStrandsClusterCulling <= 0 || (CullingParameters.bShadowViewMode && GStrandHairClusterCullingShadow <= 0);
+	const bool bClusterCulling = IsHairStrandsClusterCullingEnable();
 	for (const FViewInfo& View : Views)
 	{
 		// TODO use compute overlap (will need to split AddClusterCullingPass)
-		FBufferTransitionQueue TransitionQueue;
 		for (FHairStrandClusterData::FHairGroup& ClusterData : ClusterDatas.HairGroups)
 		{
 			AddClusterResetLod0(GraphBuilder, &ShaderMap, ClusterData);
 		}
 
-		if (!bCullingProcessSkipped)
+		if (bClusterCulling)
 		{
 			for (FHairStrandClusterData::FHairGroup& ClusterData : ClusterDatas.HairGroups)		
 			{
@@ -629,8 +619,6 @@ void ComputeHairStrandsClustersCulling(
 					CullingParameters,
 					HZBParameters,
 					ClusterData);
-			
-				ClusterData.SetCullingResultAvailable(true);
 			}
 		}
 	}
