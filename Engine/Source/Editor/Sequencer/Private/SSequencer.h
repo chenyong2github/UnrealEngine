@@ -158,6 +158,9 @@ public:
 		/** The current sub sequence range */
 		SLATE_ATTRIBUTE( TOptional<TRange<FFrameNumber>>, SubSequenceRange)
 
+		/** Called to populate the playback speeds menu. */
+		SLATE_EVENT(ISequencer::FOnGetPlaybackSpeeds, OnGetPlaybackSpeeds)
+
 		/** The playback status */
 		SLATE_ATTRIBUTE( EMovieScenePlayerStatus::Type, PlaybackStatus )
 
@@ -265,6 +268,7 @@ public:
 
 		/** Extender to use for the toolbar. */
 		SLATE_ARGUMENT(TSharedPtr<FExtender>, ToolbarExtender)
+
 	SLATE_END_ARGS()
 
 
@@ -338,7 +342,6 @@ public:
 
 	/** Set's the specified filter to be on or off*/
 	void SetFilterOn(const FText& InName, bool bOn);
-
 public:
 
 	// FNotifyHook overrides
@@ -667,6 +670,9 @@ private:
 	/** Whether the user is selecting. Ignore selection changes from the level when the user is selecting. */
 	bool bUserIsSelecting;
 
+	/** Default initialized in the view params to a lambda that gives us the standard speeds */
+	ISequencer::FOnGetPlaybackSpeeds OnGetPlaybackSpeeds;
+	
 	/** Extender to use for the 'add' menu */
 	TArray<TSharedPtr<FExtender>> AddMenuExtenders;
 
@@ -689,7 +695,7 @@ private:
 
 	/** Called when the user has finished dragging the selection selection range */
 	FSimpleDelegate OnSelectionRangeEndDrag;
-
+	
 	/** Called when the user has begun dragging the playback range */
 	FSimpleDelegate OnPlaybackRangeBeginDrag;
 

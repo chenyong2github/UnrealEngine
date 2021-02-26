@@ -265,6 +265,12 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	SilentModeCount = 0;
 	bReadOnly = InitParams.ViewParams.bReadOnly;
 
+	GetPlaybackSpeeds = InitParams.ViewParams.OnGetPlaybackSpeeds;
+	
+	const int32 IndexOfOne = GetPlaybackSpeeds.Execute().Find(1.f);
+	check(IndexOfOne != INDEX_NONE);
+	CurrentSpeedIndex = IndexOfOne;
+
 	PreAnimatedState.EnableGlobalCapture();
 
 	if (InitParams.SpawnRegister.IsValid())
@@ -469,6 +475,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		.OnGetNearestKey( this, &FSequencer::OnGetNearestKey )
 		.OnGetAddMenuContent(InitParams.ViewParams.OnGetAddMenuContent)
 		.OnBuildCustomContextMenuForGuid(InitParams.ViewParams.OnBuildCustomContextMenuForGuid)
+		.OnGetPlaybackSpeeds(InitParams.ViewParams.OnGetPlaybackSpeeds)
 		.OnReceivedFocus(InitParams.ViewParams.OnReceivedFocus)
 		.AddMenuExtender(InitParams.ViewParams.AddMenuExtender)
 		.ToolbarExtender(InitParams.ViewParams.ToolbarExtender);
@@ -10722,7 +10729,7 @@ void FSequencer::CalculateSelectedFolderAndPath(TArray<UMovieSceneFolder*>& OutS
 
 void FSequencer::TogglePlay()
 {
-	OnPlayForward(true);
+	OnPlay(true);
 }
 
 void FSequencer::JumpToStart()
@@ -10735,20 +10742,50 @@ void FSequencer::JumpToEnd()
 	OnJumpToEnd();
 }
 
+void FSequencer::RestorePlaybackSpeed()
+{
+	TArray<float> PlaybackSpeeds = GetPlaybackSpeeds.Execute();
+
+	CurrentSpeedIndex = PlaybackSpeeds.Find(1.f);
+	check(CurrentSpeedIndex != INDEX_NONE);
+	
+	PlaybackSpeed = PlaybackSpeeds[CurrentSpeedIndex];
+	if (PlaybackState != EMovieScenePlayerStatus::Playing)
+	{
+		OnPlayForward(false);
+	}
+}
+
 void FSequencer::ShuttleForward()
 {
-	float NewPlaybackSpeed = PlaybackSpeed;
-	if (ShuttleMultiplier == 0 || PlaybackSpeed < 0) 
+	TArray<float> PlaybackSpeeds = GetPlaybackSpeeds.Execute();
+
+	float CurrentSpeed = GetPlaybackSpeed();
+
+	int32 Sign = 0;
+	// if we are at positive speed, increase the positive speed
+	if (CurrentSpeed > 0)
 	{
-		ShuttleMultiplier = 2.f;
-		NewPlaybackSpeed = 1.f;
+		CurrentSpeedIndex = FMath::Min(PlaybackSpeeds.Num() - 1, ++CurrentSpeedIndex);
+		Sign = 1;
 	}
-	else
+	else if (CurrentSpeed < 0)
 	{
-		NewPlaybackSpeed *= ShuttleMultiplier;
+		// if we are at the negative slowest speed, turn to positive slowest speed
+		if (CurrentSpeedIndex == 0)
+		{
+			Sign = 1;
+		}
+		// otherwise, just reduce negative speed
+		else
+		{
+			CurrentSpeedIndex = FMath::Max(0, --CurrentSpeedIndex);
+			Sign = -1;
+		}
 	}
 
-	PlaybackSpeed = NewPlaybackSpeed;
+	PlaybackSpeed = PlaybackSpeeds[CurrentSpeedIndex] * Sign;
+
 	if (PlaybackState != EMovieScenePlayerStatus::Playing)
 	{
 		OnPlayForward(false);
@@ -10757,22 +10794,63 @@ void FSequencer::ShuttleForward()
 
 void FSequencer::ShuttleBackward()
 {
-	float NewPlaybackSpeed = PlaybackSpeed;
-	if (ShuttleMultiplier == 0 || PlaybackSpeed > 0)
+	TArray<float> PlaybackSpeeds = GetPlaybackSpeeds.Execute();
+
+	float CurrentSpeed = GetPlaybackSpeed();
+
+	int32 Sign = 0;
+	if (CurrentSpeed > 0)
 	{
-		ShuttleMultiplier = 2.f;
-		NewPlaybackSpeed = -1.f;
+		// if we are at the positive slowest speed, turn to negative slowest speed
+		if (CurrentSpeedIndex == 0)
+		{
+			Sign = -1;
+		}
+		// otherwise, just reduce positive speed
+		else
+		{
+			CurrentSpeedIndex = FMath::Max(0, --CurrentSpeedIndex);
+			Sign = 1;
+		}
 	}
-	else
+	// if we are at negative speed, increase the negative speed
+	else if (CurrentSpeed < 0)
 	{
-		NewPlaybackSpeed *= ShuttleMultiplier;
+		CurrentSpeedIndex = FMath::Min(PlaybackSpeeds.Num() - 1, ++CurrentSpeedIndex);
+		Sign = -1;
 	}
 
-	PlaybackSpeed = NewPlaybackSpeed;
+	PlaybackSpeed = PlaybackSpeeds[CurrentSpeedIndex] * Sign;
+
 	if (PlaybackState != EMovieScenePlayerStatus::Playing)
 	{
 		OnPlayBackward(false);
 	}
+}
+
+void FSequencer::SnapToClosestPlaybackSpeed()
+{
+	TArray<float> PlaybackSpeeds = GetPlaybackSpeeds.Execute();
+
+	float CurrentSpeed = GetPlaybackSpeed();
+
+	float Delta = TNumericLimits<float>::Max();
+
+	int32 NewSpeedIndex = INDEX_NONE;
+	for (int32 Idx = 0; Idx < PlaybackSpeeds.Num(); Idx++)
+	{
+		float NewDelta = FMath::Abs(CurrentSpeed - PlaybackSpeeds[Idx]);
+		if (NewDelta < Delta)
+		{
+			Delta = NewDelta;
+			NewSpeedIndex = Idx;
+		}
+	}
+
+	if (NewSpeedIndex != INDEX_NONE)
+	{
+		PlaybackSpeed = PlaybackSpeeds[NewSpeedIndex];
+	}	
 }
 
 void FSequencer::Pause()
@@ -12989,6 +13067,10 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ShuttleForward,
 		FExecuteAction::CreateSP( this, &FSequencer::ShuttleForward ));
+
+	SequencerCommandBindings->MapAction(
+		Commands.RestorePlaybackSpeed,
+		FExecuteAction::CreateSP(this, &FSequencer::RestorePlaybackSpeed));
 
 	SequencerCommandBindings->MapAction(
 		Commands.ShuttleBackward,

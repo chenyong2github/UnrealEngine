@@ -30,7 +30,7 @@ public:
 
 	/** Jump to end of playback */
 	TSharedPtr< FUICommandInfo > JumpToEnd;
-
+	
 	/** Shuttle forward */
 	TSharedPtr< FUICommandInfo > ShuttleForward;
 
@@ -39,6 +39,9 @@ public:
 
 	/** Pause */
 	TSharedPtr< FUICommandInfo > Pause;
+	
+	/** Restores real time speed */
+	TSharedPtr< FUICommandInfo > RestorePlaybackSpeed;
 
 	/** Step forward */
 	TSharedPtr< FUICommandInfo > StepForward;

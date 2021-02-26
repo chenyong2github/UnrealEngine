@@ -320,7 +320,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	bUserIsSelecting = false;
 	CachedClampRange = TRange<double>::Empty();
 	CachedViewRange = TRange<double>::Empty();
-
+	
 	InitializeTrackFilters();
 
 	ISequencerWidgetsModule& SequencerWidgets = FModuleManager::Get().LoadModuleChecked<ISequencerWidgetsModule>( "SequencerWidgets" );
@@ -436,6 +436,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	OnGetAddMenuContent = InArgs._OnGetAddMenuContent;
 	OnBuildCustomContextMenuForGuid = InArgs._OnBuildCustomContextMenuForGuid;
+	OnGetPlaybackSpeeds = InArgs._OnGetPlaybackSpeeds;
 
 	RootCustomization.AddMenuExtender = InArgs._AddMenuExtender;
 	RootCustomization.ToolbarExtender = InArgs._ToolbarExtender;
@@ -2346,17 +2347,19 @@ void SSequencer::OpenNodeGroupsManager()
 
 void SSequencer::FillPlaybackSpeedMenu(FMenuBuilder& InMenuBarBuilder)
 {
-	const int32 NumPlaybackSpeeds = 7;
-	float PlaybackSpeeds[NumPlaybackSpeeds] = { 0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
+	TArray<float> PlaybackSpeeds = OnGetPlaybackSpeeds.Execute();
 
 	InMenuBarBuilder.BeginSection("PlaybackSpeed");
-	for( uint32 PlaybackSpeedIndex = 1; PlaybackSpeedIndex < NumPlaybackSpeeds; ++PlaybackSpeedIndex )
+	for( int32 PlaybackSpeedIndex = 0; PlaybackSpeedIndex < PlaybackSpeeds.Num(); ++PlaybackSpeedIndex )
 	{
 		float PlaybackSpeed = PlaybackSpeeds[PlaybackSpeedIndex];
-		const FText MenuStr = FText::Format( LOCTEXT("PlaybackSpeedStr", "x{0}"), FText::AsNumber( PlaybackSpeed ) );
+		const FText MenuStr = FText::Format( LOCTEXT("PlaybackSpeedStr", "{0}"), FText::AsNumber( PlaybackSpeed ) );
 		InMenuBarBuilder.AddMenuEntry(MenuStr, FText(), FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda( [this, PlaybackSpeed]{ SequencerPtr.Pin()->SetPlaybackSpeed(PlaybackSpeed); }),
+				FExecuteAction::CreateLambda( [this, PlaybackSpeed]
+				{
+					SequencerPtr.Pin()->SetPlaybackSpeed(PlaybackSpeed);
+				}),
 				FCanExecuteAction::CreateLambda([] { return true; }),
 				FIsActionChecked::CreateLambda( [this, PlaybackSpeed]{ return SequencerPtr.Pin()->GetPlaybackSpeed() == PlaybackSpeed; })
 				),
