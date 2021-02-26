@@ -8,7 +8,6 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/MetaData.h"
 #include "Algo/Transform.h"
-#include "Algo/RemoveIf.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "Editor/GroupActor.h"

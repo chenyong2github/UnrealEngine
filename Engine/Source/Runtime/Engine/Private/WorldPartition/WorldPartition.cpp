@@ -12,6 +12,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "Algo/Accumulate.h"
+#include "Algo/Transform.h"
 #include "Engine/World.h"
 #include "Engine/LevelStreaming.h"
 #include "GameFramework/WorldSettings.h"
@@ -256,9 +257,12 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		if (bEditorOnly)
 		{
 			// Make sure to preload any AInfo actors first (mainly for ShouldActorBeLoaded as it needs to have access to the WorldDataLayers actor)
-			TArray<FWorldPartitionHandle> AlwaysLoadedActors = EditorHash->GetAlwaysLoadedCell()->Actors.Array();			
-			AlwaysLoadedActors.Sort([](const FWorldPartitionHandle& A, const FWorldPartitionHandle& B) { return A->GetActorClass()->IsChildOf<AInfo>(); });
-			TArray<FWorldPartitionReference> LoadedActors(AlwaysLoadedActors);
+			TArray<UWorldPartitionEditorCell::FActorHandle> AlwaysLoadedActors = EditorHash->GetAlwaysLoadedCell()->Actors.Array();
+			AlwaysLoadedActors.Sort([](const UWorldPartitionEditorCell::FActorHandle& A, const UWorldPartitionEditorCell::FActorHandle& B) { return A->GetActorClass()->IsChildOf<AInfo>(); });
+			
+			TArray<FWorldPartitionReference> LoadedActors;
+			LoadedActors.Reserve(AlwaysLoadedActors.Num());
+			Algo::Transform(AlwaysLoadedActors, LoadedActors, [](const UWorldPartitionEditorCell::FActorHandle& ActorHandle) { return ActorHandle.Handle; });
 
 			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
 			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
@@ -559,7 +563,7 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 
 	for (UWorldPartitionEditorCell* Cell : CellsToProcess)
 	{
-		for (const FWorldPartitionReference& ActorDesc : Cell->LoadedActors)
+		for (const UWorldPartitionEditorCell::FActorReference& ActorDesc : Cell->LoadedActors)
 		{
 			if (!bIsCellShouldBeLoaded || !ShouldActorBeLoaded(*ActorDesc))
 			{
@@ -681,7 +685,7 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	}
 	else
 	{
-		for (FWorldPartitionHandle& ActorHandle: Cell->Actors)
+		for (UWorldPartitionEditorCell::FActorHandle& ActorHandle: Cell->Actors)
 		{
 			AActor* Actor = ActorHandle->GetActor();
 
@@ -692,16 +696,16 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 			// Filter actor against DataLayers
 			if (ShouldActorBeLoaded(*ActorHandle))
 			{
-				Cell->LoadedActors.Add(ActorHandle);
+				Cell->LoadedActors.Add(UWorldPartitionEditorCell::FActorReference(ActorHandle.Source, ActorHandle.Handle));
 			}
 			else
 			{
 				// Don't call LoadedActors.Remove(ActorHandle) right away, as this will create a temporary reference and might try to load.
-				for (const FWorldPartitionReference& ActorReference: Cell->LoadedActors)
+				for (const UWorldPartitionEditorCell::FActorReference& ActorReference: Cell->LoadedActors)
 				{
-					if (ActorReference == ActorHandle)
+					if ((ActorReference.Source == ActorHandle.Source) && (ActorReference.Handle == ActorHandle.Handle))
 					{
-						Cell->LoadedActors.Remove(ActorHandle);
+						Cell->LoadedActors.Remove(UWorldPartitionEditorCell::FActorReference(ActorHandle.Source, ActorHandle.Handle));
 						bPotentiallyUnloadedActors = true;
 						break;
 					}

@@ -20,7 +20,6 @@ void UWorldPartitionEditorCell::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITOR
-
 void UWorldPartitionEditorCell::BeginDestroy()
 {
 	// Release WorldPartition Actor Handles/References
@@ -31,33 +30,60 @@ void UWorldPartitionEditorCell::BeginDestroy()
 
 void UWorldPartitionEditorCell::AddActor(const FWorldPartitionHandle& ActorHandle)
 {
+	AddActor(ActorHandle->GetGuid(), ActorHandle);
+}
+
+void UWorldPartitionEditorCell::AddActor(const FGuid& Source, const FWorldPartitionHandle& ActorHandle)
+{
 	check(ActorHandle.IsValid());
 	
 	bool bIsAlreadyInSet = false;
-	Actors.Add(ActorHandle, &bIsAlreadyInSet);
-	check(!bIsAlreadyInSet);
+	Actors.Add(FActorHandle(Source, ActorHandle), &bIsAlreadyInSet);
 
-	if (ActorHandle.IsLoaded())
-	{
-		bIsAlreadyInSet = false;
-		LoadedActors.Add(ActorHandle, &bIsAlreadyInSet);
-		check(!bIsAlreadyInSet);
+	if (!bIsAlreadyInSet)
+	{	
+		if (ActorHandle.IsLoaded())
+		{
+			LoadedActors.Add(FActorReference(Source, ActorHandle), &bIsAlreadyInSet);
+			check(!bIsAlreadyInSet);
+		}
+
+		UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>();
+		for (const FGuid& ReferenceGuid : ActorHandle->GetReferences())
+		{
+			FWorldPartitionHandle ReferenceHandle(WorldPartition, ReferenceGuid);
+			AddActor(ActorHandle->GetGuid(), ReferenceHandle);
+		}
 	}
 }
 
 void UWorldPartitionEditorCell::RemoveActor(const FWorldPartitionHandle& ActorHandle)
 {
-	check(ActorHandle.IsValid());
-	verify(Actors.Remove(ActorHandle));
+	RemoveActor(ActorHandle->GetGuid(), ActorHandle);
+}
 
-	// Don't call LoadedActors.Remove(ActorHandle) right away, as this will create a temporary reference and might try to load
-	// a deleted actor. This is a temporary workaround.
-	for (const FWorldPartitionReference& ActorReference: LoadedActors)
+void UWorldPartitionEditorCell::RemoveActor(const FGuid& Source, const FWorldPartitionHandle& ActorHandle)
+{
+	check(ActorHandle.IsValid());
+	
+	if (Actors.Remove(FActorHandle(Source, ActorHandle)))
 	{
-		if (ActorReference == ActorHandle)
+		// Don't call LoadedActors.Remove(ActorHandle) right away, as this will create a temporary reference and might try to load
+		// a deleted actor. This is a temporary workaround.
+		for (const FActorReference& ActorReference: LoadedActors)
 		{
-			LoadedActors.Remove(ActorHandle);
-			break;
+			if ((ActorReference.Source == Source) && (ActorReference.Handle == ActorHandle))
+			{
+				LoadedActors.Remove(FActorReference(Source, ActorHandle));
+				break;
+			}
+		}
+
+		UWorldPartition* WorldPartition = GetTypedOuter<UWorldPartition>();
+		for (const FGuid& ReferenceGuid : ActorHandle->GetReferences())
+		{
+			FWorldPartitionHandle ReferenceHandle(WorldPartition, ReferenceGuid);
+			RemoveActor(ActorHandle->GetGuid(), ReferenceHandle);
 		}
 	}
 }

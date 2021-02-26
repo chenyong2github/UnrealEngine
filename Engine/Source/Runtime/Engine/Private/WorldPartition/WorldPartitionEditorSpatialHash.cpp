@@ -392,7 +392,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box
 
 	ForEachIntersectingCell(Box, [&](UWorldPartitionEditorCell* EditorCell)
 	{
-		for(FWorldPartitionHandle& ActorDesc: EditorCell->Actors)
+		for(UWorldPartitionEditorCell::FActorHandle& ActorDesc: EditorCell->Actors)
 		{
 			if (ActorDesc->Tag != FWorldPartitionActorDesc::GlobalTag)
 			{
@@ -407,17 +407,18 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingActor(const FBox& Box
 		}
 	});
 
-	for(FWorldPartitionHandle& ActorDesc: AlwaysLoadedCell->Actors)
+	for(UWorldPartitionEditorCell::FActorHandle& ActorDesc: AlwaysLoadedCell->Actors)
 	{
-		check(ActorDesc->Tag != FWorldPartitionActorDesc::GlobalTag);
-
-		if (Box.Intersect(ActorDesc->GetBounds()))
+		if (ActorDesc->Tag != FWorldPartitionActorDesc::GlobalTag)
 		{
-			InOperation(*ActorDesc);
-			NumIntersecting++;
-		}
+			if (Box.Intersect(ActorDesc->GetBounds()))
+			{
+				InOperation(*ActorDesc);
+				NumIntersecting++;
+			}
 
-		ActorDesc->Tag = FWorldPartitionActorDesc::GlobalTag;		
+			ActorDesc->Tag = FWorldPartitionActorDesc::GlobalTag;
+		}
 	}
 
 	return NumIntersecting;
