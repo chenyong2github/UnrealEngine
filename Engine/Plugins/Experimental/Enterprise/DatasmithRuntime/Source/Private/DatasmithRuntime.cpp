@@ -17,10 +17,6 @@
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 #include "MaterialSelectors/DatasmithRuntimeRevitMaterialSelector.h"
 
-#if PLATFORM_WINDOWS && PLATFORM_64BITS
-#include "DatasmithOpenNurbsImportOptions.h"
-#endif
-
 #include "Async/Async.h"
 #include "Math/BoxSphereBounds.h"
 #include "Misc/Paths.h"
@@ -55,10 +51,6 @@ void ADatasmithRuntimeActor::OnStartupModule(bool bCADRuntimeSupported)
 	if (bCADRuntimeSupported)
 	{
 		FTranslationThread::AllOptions.Add(Datasmith::MakeOptions<UDatasmithImportOptions>());
-
-		TStrongObjectPtr<UDatasmithOpenNurbsImportOptions> OpenNurbsImportOptions = Datasmith::MakeOptions<UDatasmithOpenNurbsImportOptions>();
-		OpenNurbsImportOptions->Options.Geometry = EDatasmithOpenNurbsBrepTessellatedSource::UseUnrealNurbsTessellation;
-		FTranslationThread::AllOptions.Add(OpenNurbsImportOptions);
 
 		TStrongObjectPtr<UDatasmithCommonTessellationOptions> CommonTessellationOptions = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
 		FTranslationThread::AllOptions.Add(CommonTessellationOptions);
