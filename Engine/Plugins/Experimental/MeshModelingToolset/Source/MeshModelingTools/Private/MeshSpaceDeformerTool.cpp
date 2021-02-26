@@ -321,7 +321,7 @@ void UMeshSpaceDeformerTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Space Warp"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("MeshSpaceDeformerToolDescription", "Deform the vertices of the selected Mesh using various spatial deformations. Use the in-viewport Gizmo to control the extents/strength of the deformation."),
+		LOCTEXT("MeshSpaceDeformerToolDescription", "Deform the vertices of the selected Mesh using various spatial deformations. Use the in-viewport Gizmo to control the extents/strength of the deformation. Hold Ctrl while translating/rotating gizmo to align to world."),
 		EToolMessageLevel::UserNotification);
 }
 

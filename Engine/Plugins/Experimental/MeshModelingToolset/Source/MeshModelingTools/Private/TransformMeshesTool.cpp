@@ -88,7 +88,7 @@ void UTransformMeshesTool::Setup()
 
 	SetToolDisplayName(LOCTEXT("ToolName", "Transform"));
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTransformMeshesTool", "Translate/Rotate/Scale the selected objects. [A] cycles through Transform modes. Reposition the Gizmo using Set Pivot Mode [S]. Toggle Snap Drag Mode [D] to move the object by click-draging. [W] and [E] cycle through SnapDrag Source and Rotation types."),
+		LOCTEXT("OnStartTransformMeshesTool", "Translate/Rotate/Scale the selected objects. Use middle mouse button on gizmo to reposition it. Hold Ctrl while translating or (in local mode) rotating to align. [A] cycles through Transform modes. [S] toggles Set Pivot Mode. [D] Toggles Snap Drag Mode. [W] and [E] cycle through Snap Drag Source and Rotation types."),
 		EToolMessageLevel::UserNotification);
 }
 
@@ -100,6 +100,8 @@ void UTransformMeshesTool::Setup()
 
 void UTransformMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	DragAlignmentMechanic->Shutdown();
+
 	GizmoManager->DestroyAllGizmosByOwner(this);
 }
 
@@ -370,8 +372,7 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		FTransformMeshesTarget& ActiveTarget =
 			(TransformProps->TransformMode == ETransformMeshesTransformMode::PerObjectGizmo) ?
 			ActiveGizmos[ActiveSnapDragIndex] : ActiveGizmos[0];
-		USceneComponent* GizmoComponent = ActiveTarget.TransformGizmo->GetGizmoActor()->GetRootComponent();
-		GizmoComponent->SetWorldTransform(NewTransform);
+		ActiveTarget.TransformGizmo->SetNewGizmoTransform(NewTransform);
 	}
 	else
 	{
@@ -400,8 +401,7 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 		FTransformMeshesTarget& ActiveTarget =
 			(TransformProps->TransformMode == ETransformMeshesTransformMode::PerObjectGizmo) ?
 			ActiveGizmos[ActiveSnapDragIndex] : ActiveGizmos[0];
-		USceneComponent* GizmoComponent = ActiveTarget.TransformGizmo->GetGizmoActor()->GetRootComponent();
-		GizmoComponent->SetWorldTransform(NewTransform);
+		ActiveTarget.TransformGizmo->SetNewGizmoTransform(NewTransform);
 	}
 
 }
