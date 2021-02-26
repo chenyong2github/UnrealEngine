@@ -346,10 +346,7 @@ namespace LowLevelTasks
 			}
 			else
 			{
-				if (!bIsBackgroundWorker)
-				{
-					WakeUpWorker(true);
-				}
+				WakeUpWorker(true);
 				WaitCount = 0;
 			}			
 		}
