@@ -390,6 +390,7 @@ namespace Gauntlet
 			UnrealAppConfig Config = new UnrealAppConfig();
 
 			Config.Name = this.BuildName;
+			Config.ProjectFile = this.ProjectPath;
 			Config.ProjectName = ProjectName;
 			Config.ProcessType = Role.RoleType;
 			Config.Platform = Role.Platform;
