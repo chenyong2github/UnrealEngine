@@ -20,7 +20,6 @@ namespace UnrealBuildTool.Rules
 					"Messaging",
 					"Networking",
 					"Serialization",
-					"TraceInsights",
 					"TraceLog",
 					"Sockets",
 				});
