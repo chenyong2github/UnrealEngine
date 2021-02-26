@@ -23,7 +23,7 @@ static const int FLUID_DENSITY_OFFSET = 15;
  * -----------------------------------------------------------------
  */
 
-void DIVelocityGrid_ScaleCellDistance(in FDIVelocityGridContext DIContext, in int3 GridIndex, in float GridLength )
+void DIVelocityGrid_ScaleCellDistance(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in float GridLength )
 {
 	float FluidDistance = DIVelocityGrid_ConvertGridScalar(DIContext,GridIndex,FLUID_DISTANCE_OFFSET);
 
@@ -42,40 +42,40 @@ void DIVelocityGrid_ScaleCellDistance(in FDIVelocityGridContext DIContext, in in
 		if(SolidDistance < 0.0) FluidDistance = -0.5 * GridLength;
 	}
 
-	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,FLUID_DISTANCE_OFFSET,FluidDistance);
+	DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_DISTANCE_OFFSET,FluidDistance);
 }
 
-void DIVelocityGrid_ScaleFaceVelocity(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int ComponentIndex)
+void DIVelocityGrid_ScaleFaceVelocity(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int ComponentIndex)
 {
 	const float GridMomentum = DIVelocityGrid_ConvertGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+ComponentIndex);
 	const float GridMass = DIVelocityGrid_ConvertGridScalar(DIContext,GridIndex,FLUID_MASS_OFFSET+ComponentIndex);
 
 	float GridVelocity = (GridMass != 0.0) ? GridMomentum / GridMass : 0.0;
 
-	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,GridVelocity);
-	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,FLUID_MASS_OFFSET+ComponentIndex,GridMass);
+	DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,GridVelocity);
+	DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_MASS_OFFSET+ComponentIndex,GridMass);
 }
 
-void DIVelocityGrid_ScaleCellFields(in FDIVelocityGridContext DIContext, in int GridHash, in float GridLength, in float DeltaTime, out bool OutTransferStatus)
+void DIVelocityGrid_ScaleCellFields(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int GridHash, in float GridLength, in float DeltaTime, out bool OutTransferStatus)
 {
 	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
 
 	OutTransferStatus = false;
 	if(DIVelocityGrid_IsFaceValid(DIContext,GridIndex,0))
 	{
-		DIVelocityGrid_ScaleFaceVelocity(DIContext,GridIndex,0);
+		DIVelocityGrid_ScaleFaceVelocity(DIContext,DIContext_GridDestinationBuffer,GridIndex,0);
 	}
 	if(DIVelocityGrid_IsFaceValid(DIContext,GridIndex,1))
 	{
-		DIVelocityGrid_ScaleFaceVelocity(DIContext,GridIndex,1);
+		DIVelocityGrid_ScaleFaceVelocity(DIContext,DIContext_GridDestinationBuffer,GridIndex,1);
 	}
 	if(DIVelocityGrid_IsFaceValid(DIContext,GridIndex,2))
 	{
-		DIVelocityGrid_ScaleFaceVelocity(DIContext,GridIndex,2);
+		DIVelocityGrid_ScaleFaceVelocity(DIContext,DIContext_GridDestinationBuffer,GridIndex,2);
 	}
 	if(DIVelocityGrid_IsCellValid(DIContext,GridIndex))
 	{
-		DIVelocityGrid_ScaleCellDistance(DIContext,GridIndex,GridLength);
+		DIVelocityGrid_ScaleCellDistance(DIContext,DIContext_GridDestinationBuffer,GridIndex,GridLength);
 	}
 	if(DIVelocityGrid_IsCellValid(DIContext,GridIndex))
 	{
@@ -85,7 +85,7 @@ void DIVelocityGrid_ScaleCellFields(in FDIVelocityGridContext DIContext, in int 
 		//const float DensityRatio = GridLength * (1.0-CurrentDensity) / DeltaTime;
 		const float DensityRatio = (CurrentDensity != 0.0) ? GridLength * log(1.0/CurrentDensity) / DeltaTime : 0.0;
 
-		DIVelocityGrid_SetGridScalar(DIContext,GridIndex,FLUID_DENSITY_OFFSET,DensityRatio);
+		DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_DENSITY_OFFSET,DensityRatio);
 	}
 }
 
@@ -95,7 +95,7 @@ void DIVelocityGrid_ScaleCellFields(in FDIVelocityGridContext DIContext, in int 
  */
  
 // Compute the distance from the particle to the grid
-void DIVelocityGrid_BuildDistanceField(in FDIVelocityGridContext DIContext, in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, out bool OutFunctionStatus )
+void DIVelocityGrid_BuildDistanceField(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, out bool OutFunctionStatus )
 {
 	OutFunctionStatus = true;
 	const float3 GridPosition = DIVelocityGrid_GetGridPosition(DIContext,ParticlePosition,GridOrigin);
@@ -116,13 +116,13 @@ void DIVelocityGrid_BuildDistanceField(in FDIVelocityGridContext DIContext, in f
 			const float3 CellPosition = (GridLocation+float3(0.5,0.5,0.5))*GridLength+GridOrigin;
 			const float CellDistance = length(CellPosition-ParticlePosition) - NodeRadius; 
 
-			DIVelocityGrid_InterlockedMinScalar(DIContext,GridLocation,FLUID_DISTANCE_OFFSET,CellDistance);
+			DIVelocityGrid_InterlockedMinScalar(DIContext,DIContext_GridDestinationBuffer,GridLocation,FLUID_DISTANCE_OFFSET,CellDistance);
 		}
 	}
 }
 
 // Transfer the density from the particle to the grid
-void DIVelocityGrid_BuildDensityField(in FDIVelocityGridContext DIContext, in float3 GridOrigin, in float GridLength,
+void DIVelocityGrid_BuildDensityField(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in float3 GridOrigin, in float GridLength,
 				in float3 ParticlePosition, in float ParticleMass, in float ParticleDensity, out bool OutFunctionStatus )
 {
 	OutFunctionStatus = true;
@@ -148,7 +148,7 @@ void DIVelocityGrid_BuildDensityField(in FDIVelocityGridContext DIContext, in fl
 
 				if( DIVelocityGrid_IsCellValid(DIContext,GridLocation) )
 				{
-					DIVelocityGrid_InterlockedAddScalar(DIContext,GridLocation,FLUID_DENSITY_OFFSET,GridWeightXYZ*ParticleMass*GridScale);
+					DIVelocityGrid_InterlockedAddScalar(DIContext,DIContext_GridDestinationBuffer,GridLocation,FLUID_DENSITY_OFFSET,GridWeightXYZ*ParticleMass*GridScale);
 				}
 			}
 		}
@@ -377,8 +377,9 @@ void DIVelocityGrid_UpdateDeformationGradient(in FDIVelocityGridContext DIContex
  }
 
 // Update the solid weights and velocities
-void DIVelocityGrid_SetSolidBoundary(in FDIVelocityGridContext DIContext, in int GridHash, in float SolidDistance,
-																in float3 SolidVelocity, out bool OutBoundaryStatus)
+void DIVelocityGrid_SetSolidBoundary(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer,
+									in int GridHash, in float SolidDistance,
+									in float3 SolidVelocity, out bool OutBoundaryStatus)
 {
 	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
 	OutBoundaryStatus = false;
@@ -387,18 +388,18 @@ void DIVelocityGrid_SetSolidBoundary(in FDIVelocityGridContext DIContext, in int
 	if( DIVelocityGrid_IsNodeValid(DIContext,GridIndex))
 	{
 		OutBoundaryStatus = true;
-		DIVelocityGrid_SetGridScalar(DIContext,GridIndex,SOLID_DISTANCE_OFFSET,SolidDistance);
-		DIVelocityGrid_SetGridVector(DIContext,GridIndex,SOLID_VELOCITY_OFFSET,SolidVelocity);
+		DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,SOLID_DISTANCE_OFFSET,SolidDistance);
+		DIVelocityGrid_SetGridVector(DIContext,DIContext_GridDestinationBuffer,GridIndex,SOLID_VELOCITY_OFFSET,SolidVelocity);
 	}
 }
 
-void DIVelocityGrid_ComputeFaceWeights(in FDIVelocityGridContext DIContext, in int3 GridLocation, in int ComponentIndex, out float SignedDistance, inout float ParticleVelocity )
+void DIVelocityGrid_ComputeFaceWeights(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridLocation, in int ComponentIndex, out float SignedDistance, inout float ParticleVelocity )
 {
 	SignedDistance = DIVelocityGrid_GetGridScalar(DIContext,GridLocation,SOLID_DISTANCE_OFFSET);
 	ParticleVelocity += DIVelocityGrid_GetGridScalar(DIContext,GridLocation,SOLID_VELOCITY_OFFSET+ComponentIndex);
 }
 
-void DIVelocityGrid_ComputeComponentWeights(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int ComponentIndex)
+void DIVelocityGrid_ComputeComponentWeights(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int ComponentIndex)
 {
 	[branch]
 	if( DIVelocityGrid_IsFaceInside(DIContext,GridIndex,ComponentIndex))
@@ -409,43 +410,43 @@ void DIVelocityGrid_ComputeComponentWeights(in FDIVelocityGridContext DIContext,
 		[branch]
 		if(ComponentIndex == 0)
 		{
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x,GridIndex.y+0,GridIndex.z+0),ComponentIndex,SignedDistance[0],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x,GridIndex.y+0,GridIndex.z+1),ComponentIndex,SignedDistance[1],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x,GridIndex.y+1,GridIndex.z+0),ComponentIndex,SignedDistance[2],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x,GridIndex.y+1,GridIndex.z+1),ComponentIndex,SignedDistance[3],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x,GridIndex.y+0,GridIndex.z+0),ComponentIndex,SignedDistance[0],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x,GridIndex.y+0,GridIndex.z+1),ComponentIndex,SignedDistance[1],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x,GridIndex.y+1,GridIndex.z+0),ComponentIndex,SignedDistance[2],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x,GridIndex.y+1,GridIndex.z+1),ComponentIndex,SignedDistance[3],ParticleVelocity);
 		}
 		else if(ComponentIndex == 1)
 		{
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x+0,GridIndex.y,GridIndex.z+0),ComponentIndex,SignedDistance[0],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x+0,GridIndex.y,GridIndex.z+1),ComponentIndex,SignedDistance[1],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x+1,GridIndex.y,GridIndex.z+0),ComponentIndex,SignedDistance[2],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x+1,GridIndex.y,GridIndex.z+1),ComponentIndex,SignedDistance[3],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x+0,GridIndex.y,GridIndex.z+0),ComponentIndex,SignedDistance[0],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x+0,GridIndex.y,GridIndex.z+1),ComponentIndex,SignedDistance[1],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x+1,GridIndex.y,GridIndex.z+0),ComponentIndex,SignedDistance[2],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x+1,GridIndex.y,GridIndex.z+1),ComponentIndex,SignedDistance[3],ParticleVelocity);
 		}
 		else
 		{
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x+0,GridIndex.y+0,GridIndex.z),ComponentIndex,SignedDistance[0],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x+0,GridIndex.y+1,GridIndex.z),ComponentIndex,SignedDistance[1],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x+1,GridIndex.y+0,GridIndex.z),ComponentIndex,SignedDistance[2],ParticleVelocity);
-			DIVelocityGrid_ComputeFaceWeights(DIContext,int3(GridIndex.x+1,GridIndex.y+1,GridIndex.z),ComponentIndex,SignedDistance[3],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x+0,GridIndex.y+0,GridIndex.z),ComponentIndex,SignedDistance[0],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x+0,GridIndex.y+1,GridIndex.z),ComponentIndex,SignedDistance[1],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x+1,GridIndex.y+0,GridIndex.z),ComponentIndex,SignedDistance[2],ParticleVelocity);
+			DIVelocityGrid_ComputeFaceWeights(DIContext,DIContext_GridDestinationBuffer,int3(GridIndex.x+1,GridIndex.y+1,GridIndex.z),ComponentIndex,SignedDistance[3],ParticleVelocity);
 		}
 
 		const float SolidWeight = max(0.0,min(1.0 - DIVelocityGrid_GetFractionInsideFace(SignedDistance[0],SignedDistance[1],SignedDistance[3],SignedDistance[2]),1.0));
 		const float SolidVelocity = 0.25 * ParticleVelocity;
 
-		DIVelocityGrid_SetGridScalar(DIContext,GridIndex,SOLID_WEIGHT_OFFSET+ComponentIndex,SolidWeight);
-		DIVelocityGrid_SetGridScalar(DIContext,GridIndex,SOLID_VELOCITY_OFFSET+ComponentIndex,SolidVelocity);
+		DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,SOLID_WEIGHT_OFFSET+ComponentIndex,SolidWeight);
+		DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,SOLID_VELOCITY_OFFSET+ComponentIndex,SolidVelocity);
 	}
 }
 
  // Update the solid weights and velocities
-void DIVelocityGrid_ComputeBoundaryWeights(in FDIVelocityGridContext DIContext, in int GridHash, out bool OutWeightsStatus)
+void DIVelocityGrid_ComputeBoundaryWeights(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int GridHash, out bool OutWeightsStatus)
 {
 	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
 	OutWeightsStatus = false;
 
-	DIVelocityGrid_ComputeComponentWeights(DIContext,GridIndex,0);
-	DIVelocityGrid_ComputeComponentWeights(DIContext,GridIndex,1);
-	DIVelocityGrid_ComputeComponentWeights(DIContext,GridIndex,2);
+	DIVelocityGrid_ComputeComponentWeights(DIContext,DIContext_GridDestinationBuffer,GridIndex,0);
+	DIVelocityGrid_ComputeComponentWeights(DIContext,DIContext_GridDestinationBuffer,GridIndex,1);
+	DIVelocityGrid_ComputeComponentWeights(DIContext,DIContext_GridDestinationBuffer,GridIndex,2);
 }
 
 /* -----------------------------------------------------------------
@@ -499,7 +500,7 @@ float DIVelocityGrid_ComputeGridPressure(in FDIVelocityGridContext DIContext, in
 }
 
 // Project the pressure grid to be divergence free
-void DIVelocityGrid_SolveGridPressure(in FDIVelocityGridContext DIContext, in int GridHash, in int InitStage, out bool OutProjectStatus)
+void DIVelocityGrid_SolveGridPressure(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int GridHash, in int InitStage, out bool OutProjectStatus)
 {	
 	OutProjectStatus = false;
 
@@ -520,7 +521,7 @@ void DIVelocityGrid_SolveGridPressure(in FDIVelocityGridContext DIContext, in in
 				float GridPressure = DIVelocityGrid_ComputeGridPressure(DIContext,PrevIndex,CentreDistance,PrevFraction,NextFraction);
 				if(!IsInitStage)
 				{
-					DIVelocityGrid_AddGridScalar(DIContext,PrevIndex,FLUID_PRESSURE_OFFSET,GridPressure);
+					DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,PrevIndex,FLUID_PRESSURE_OFFSET,GridPressure);
 				}
 				else 
 				{
@@ -534,29 +535,29 @@ void DIVelocityGrid_SolveGridPressure(in FDIVelocityGridContext DIContext, in in
 					const float PrevWeight = DIVelocityGrid_GetGridScalar(DIContext,PrevIndex,SOLID_WEIGHT_OFFSET+ComponentIndex);
 					if( PrevWeight > 0.0 && PrevFraction[ComponentIndex] > 0.0)
 					{
-						DIVelocityGrid_AddGridScalar(DIContext,PrevIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,-GridPressure/PrevFraction[ComponentIndex]);
+						DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,PrevIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,-GridPressure/PrevFraction[ComponentIndex]);
 					}
 					else
 					{
 						const float SolidVelocity = DIVelocityGrid_GetGridScalar(DIContext,PrevIndex,SOLID_VELOCITY_OFFSET+ComponentIndex);
-						DIVelocityGrid_SetGridScalar(DIContext,PrevIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,SolidVelocity);
+						DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,PrevIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,SolidVelocity);
 					}
 
 					const float NextWeight = DIVelocityGrid_GetGridScalar(DIContext,NextIndex,SOLID_WEIGHT_OFFSET+ComponentIndex);
 					if( NextWeight > 0.0 && NextFraction[ComponentIndex] > 0.0)
 					{
-						DIVelocityGrid_AddGridScalar(DIContext,NextIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,GridPressure/NextFraction[ComponentIndex]);
+						DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,NextIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,GridPressure/NextFraction[ComponentIndex]);
 					}
 					else
 					{
 						const float SolidVelocity = DIVelocityGrid_GetGridScalar(DIContext,NextIndex,SOLID_VELOCITY_OFFSET+ComponentIndex);
-						DIVelocityGrid_SetGridScalar(DIContext,NextIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,SolidVelocity);
+						DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,NextIndex,FLUID_VELOCITY_OFFSET+ComponentIndex,SolidVelocity);
 					}
 				}
 			}
 			else
 			{
-				DIVelocityGrid_SetGridScalar(DIContext,PrevIndex,FLUID_PRESSURE_OFFSET,0.0);
+				DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,PrevIndex,FLUID_PRESSURE_OFFSET,0.0);
 			}
 		}
 	}
