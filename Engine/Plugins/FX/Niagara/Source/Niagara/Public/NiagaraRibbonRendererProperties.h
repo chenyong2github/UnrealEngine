@@ -49,9 +49,9 @@ enum class ENiagaraRibbonDrawDirection : uint8
 UENUM()
 enum class ENiagaraRibbonShapeMode : uint8
 {
-	/** Default shape, flat plane facing camera. */
+	/** Default shape, flat plane facing the camera. */
 	Plane,
-	/** Multiple Planes between direct facing camera, and 90 degree offset. */
+	/** Multiple Planes evenly rotated around the axis to 180 degrees. */
 	MultiPlane,
 	/** 3D Tube shape, from triangular to cylindrical depending on vertex count. */
 	Tube,
@@ -108,10 +108,10 @@ enum class ENiagaraRibbonUVDistributionMode
 	ScaledUniformly UMETA(DisplayName = "Uniform Scale (By Segment)"),
 	/** Ribbon UVs will stretch the length of the ribbon, without repeating, but account for segment length to make an even distribution the entire length of the ribbon. */
 	ScaledUsingRibbonSegmentLength UMETA(DisplayName = "Non-Uniform Scale (By Total Length)"),
-	/** Ribbon UVs will be tiled along the length of the ribbon evenly, based on TileOverLength setting. */
+	/** Ribbon UVs will be tiled along the length of the ribbon evenly, based on TilingLength setting. */
 	TiledOverRibbonLength UMETA(DisplayName = "Tiled (By Segment Length)"),
-	/** Ribbon UVs will be tiled along the length of the ribbon evenly, based on DistanceFromStart parameter and the TileOverLength scale value, to create 'traintrack' style UVs. NOTE: Dependent on Particle Attribute RibbonDistance */
-	TiledFromStartOverRibbonLength UMETA(DisplayName = "Tiled By Distance (By Particles.RibbonDistance)")
+	/** Ribbon UVs will be tiled along the length of the ribbon evenly, based on RibbonUVDistance parameter and the TilingLength scale value, to create 'traintrack' style UVs. NOTE: Dependent on Particle Attribute RibbonUVDistance */
+	TiledFromStartOverRibbonLength UMETA(DisplayName = "Tiled By Distance (By Particles.RibbonUVDistance)")
 };
 
 /** Defines settings for UV behavior for a UV channel on ribbons. */
@@ -135,19 +135,19 @@ struct FNiagaraRibbonUVSettings
 	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="Trailing Edge Transition", EditCondition = "!bEnablePerParticleUOverride && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength"))
 	ENiagaraRibbonUVEdgeMode TrailingEdgeMode;
 
-	/** Specifies the length in world units to use when tiling UVs across the ribbon when using on of the tiled distribution modes. */
+	/** Specifies the length in world units to use when tiling UVs across the ribbon when using one of the tiled distribution modes. */
 	UPROPERTY(EditAnywhere, Category = UVs, meta = (EditCondition="!bEnablePerParticleUOverride && DistributionMode == ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength || DistributionMode == ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength"))
 	float TilingLength;
 
-	/** Specifies and additional offsets which are applied to the UV range */
+	/** Specifies an additional offset which is applied to the UV range */
 	UPROPERTY(EditAnywhere, Category = UVs)
 	FVector2D Offset;
 
-	/** Specifies and additional scalers which are applied to the UV range. */
+	/** Specifies an additional scaler which is applied to the UV range. */
 	UPROPERTY(EditAnywhere, Category = UVs)
 	FVector2D Scale;
 
-	/** Enables overriding overriding the U component with values read from the particles.  When enabled edge behavior and distribution are ignored. */
+	/** Enables overriding the U component with values read from the particles. When enabled, edge behavior and distribution are ignored. */
 	UPROPERTY(EditAnywhere, Category = UVs)
 	bool bEnablePerParticleUOverride;
 
@@ -226,10 +226,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	ENiagaraRibbonFacingMode FacingMode;
 
-	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
+	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering", meta=(DisplayName="UV0 Settings"))
 	FNiagaraRibbonUVSettings UV0Settings;
 
-	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
+	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering", meta=(DisplayName="UV1 Settings"))
 	FNiagaraRibbonUVSettings UV1Settings;
 
 #if WITH_EDITORONLY_DATA
