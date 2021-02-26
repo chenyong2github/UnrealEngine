@@ -57,6 +57,28 @@ void ULiveLinkBlueprintLibrary::GetBasicData(UPARAM(ref) FSubjectFrameHandle& Su
 	}
 };
 
+bool ULiveLinkBlueprintLibrary::GetAnimationStaticData(FSubjectFrameHandle& SubjectFrameHandle, FLiveLinkSkeletonStaticData& AnimationStaticData)
+{
+	if (const FLiveLinkSkeletonStaticData* StaticData = SubjectFrameHandle.GetSourceSkeletonStaticData())
+	{
+		AnimationStaticData = *StaticData;
+		return true;
+	}
+
+	return false;
+}
+
+bool ULiveLinkBlueprintLibrary::GetAnimationFrameData(FSubjectFrameHandle& SubjectFrameHandle, FLiveLinkAnimationFrameData& AnimationFrameData)
+{
+	if (const FLiveLinkAnimationFrameData* FrameData = SubjectFrameHandle.GetSourceAnimationFrameData())
+	{
+		AnimationFrameData = *FrameData;
+		return true;
+	}
+
+	return false;
+}
+
 void ULiveLinkBlueprintLibrary::TransformName(UPARAM(ref) FLiveLinkTransform& LiveLinkTransform, FName& Name)
 {
 	return LiveLinkTransform.GetName(Name);
