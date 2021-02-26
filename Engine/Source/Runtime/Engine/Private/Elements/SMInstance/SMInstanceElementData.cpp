@@ -2,11 +2,24 @@
 
 #include "Elements/SMInstance/SMInstanceElementData.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "HAL/IConsoleManager.h"
 
 UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(FSMInstanceElementData);
 
 namespace SMInstanceElementDataUtil
 {
+
+static int32 GEnableSMInstanceElements = 0;
+static FAutoConsoleVariableRef CVarEnableSMInstanceElements(
+	TEXT("TypedElements.EnableSMInstanceElements"),
+	GEnableSMInstanceElements,
+	TEXT("Is support for static mesh instance elements enabled?")
+	);
+
+bool SMInstanceElementsEnabled()
+{
+	return GEnableSMInstanceElements != 0;
+}
 
 FSMInstanceId GetSMInstanceFromHandle(const FTypedElementHandle& InHandle, const bool bSilent)
 {

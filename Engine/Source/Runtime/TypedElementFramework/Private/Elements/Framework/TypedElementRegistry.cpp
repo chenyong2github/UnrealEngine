@@ -3,9 +3,27 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeLock.h"
+#include "HAL/IConsoleManager.h"
 #include "UObject/StrongObjectPtr.h"
 
 const FTypedElementId FTypedElementId::Unset;
+
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+namespace TypedElementReferences
+{
+static int32 GEnableReferenceTracking = 0;
+static FAutoConsoleVariableRef CVarEnableReferenceTracking(
+	TEXT("TypedElements.EnableReferenceTracking"),
+	GEnableReferenceTracking,
+	TEXT("Is support for element reference tracking enabled?")
+	);
+} // namespace TypedElementReference
+
+bool FTypedElementReferences::ReferenceTrackingEnabled()
+{
+	return TypedElementReferences::GEnableReferenceTracking != 0;
+}
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 
 TStrongObjectPtr<UTypedElementRegistry>& GetTypedElementRegistryInstance()
 {

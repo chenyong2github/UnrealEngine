@@ -21,6 +21,12 @@ namespace SMInstanceElementDataUtil
 {
 
 /**
+ * Test whether static mesh instance elements are currently enabled?
+ * @note Controlled by the CVar: "TypedElements.EnableSMInstanceElements".
+ */
+ENGINE_API bool SMInstanceElementsEnabled();
+
+/**
  * Attempt to get the static mesh instance ID from the given element handle.
  * @note This is not typically something you'd want to use outside of data access within an interface implementation.
  * @return The static mesh instance ID if the element handle contains FSMInstanceElementData, otherwise an invalid ID.

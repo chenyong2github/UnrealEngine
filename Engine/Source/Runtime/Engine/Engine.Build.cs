@@ -273,8 +273,6 @@ public class Engine : ModuleRules
 			}
 		}
 
-		PublicDefinitions.Add("UE_ENABLE_SMINSTANCE_ELEMENTS=0");
-
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"NullNetworkReplayStreaming",

@@ -12,6 +12,7 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 #include "Modes/PlacementModeSubsystem.h"
 #include "Subsystems/PlacementSubsystem.h"
 #include "UObject/Object.h"
@@ -62,11 +63,7 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 	// Place the Preview data if we managed to get to a valid handled click.
 	FPlacementOptions PlacementOptions;
 	PlacementOptions.bPreferBatchPlacement = true;
-#if UE_ENABLE_SMINSTANCE_ELEMENTS
-	PlacementOptions.bPreferInstancedPlacement = true;
-#else
-	PlacementOptions.bPreferInstancedPlacement = false;
-#endif
+	PlacementOptions.bPreferInstancedPlacement = SMInstanceElementDataUtil::SMInstanceElementsEnabled();
 	
 	UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
 	if (PlacementSubsystem)

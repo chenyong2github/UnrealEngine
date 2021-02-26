@@ -63,11 +63,13 @@ TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPla
 			FoliageInfo->AddInstance(FoundOrCreatedType, FoliagePlacementInfo);
 			CurrentPlacementScopedFoliageInfos.Add(FoliageInfo);
 
-#if UE_ENABLE_SMINSTANCE_ELEMENTS
-			return TArray<FTypedElementHandle>({ UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FoliageInfo->GetComponent(), FoliageInfo->GetPlacedInstanceCount() - 1) });
-#else
-			return TArray<FTypedElementHandle>({ UEngineElementsLibrary::AcquireEditorComponentElementHandle(FoliageInfo->GetComponent()) });
-#endif
+			FTypedElementHandle PlacedElement = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FoliageInfo->GetComponent(), FoliageInfo->GetPlacedInstanceCount() - 1);
+			if (!PlacedElement)
+			{
+				PlacedElement = UEngineElementsLibrary::AcquireEditorComponentElementHandle(FoliageInfo->GetComponent());
+			}
+			check(PlacedElement);
+			return TArray<FTypedElementHandle>({ MoveTemp(PlacedElement) });
 		}
 	}
 

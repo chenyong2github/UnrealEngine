@@ -59,6 +59,84 @@ private:
 	uint64 Callstack[TypedHandleRefTrackingDepth + TypedHandleRefTrackingSkipCount];
 	uint32 CallstackDepth = 0;
 };
+
+/**
+ * Debugging information used to locate reference leaks.
+ */
+class FTypedElementReferences
+{
+public:
+	static TUniquePtr<FTypedElementReferences> Create()
+	{
+		return ReferenceTrackingEnabled()
+			? MakeUnique<FTypedElementReferences>()
+			: nullptr;
+	}
+
+	void Reset()
+	{
+		FScopeLock ReferencesLock(&ReferencesCS);
+		References.Reset();
+		DestructionRequestCallstack.Reset();
+	}
+
+	FTypedElementReferenceId AddRef()
+	{
+		FScopeLock ReferencesLock(&ReferencesCS);
+		return References.Add(FTypedElementReference());
+	}
+
+	void ReleaseRef(const FTypedElementReferenceId InReferenceId)
+	{
+		if (InReferenceId != INDEX_NONE)
+		{
+			FScopeLock ReferencesLock(&ReferencesCS);
+			References.RemoveAt(InReferenceId);
+		}
+	}
+
+	void LogReferences() const
+	{
+		FScopeLock ReferencesLock(&ReferencesCS);
+		UE_LOG(LogCore, Error, TEXT("==============================================="));
+		UE_LOG(LogCore, Error, TEXT("External Element References:"));
+		for (const FTypedElementReference& Reference : References)
+		{
+			UE_LOG(LogCore, Error, TEXT("-----------------------------------------------"));
+			Reference.LogReference();
+		}
+		UE_LOG(LogCore, Error, TEXT("==============================================="));
+		if (DestructionRequestCallstack)
+		{
+			UE_LOG(LogCore, Error, TEXT("Destruction requested by:"));
+			DestructionRequestCallstack->LogReference();
+			UE_LOG(LogCore, Error, TEXT("==============================================="));
+		}
+	}
+
+	void StoreDestructionRequestCallstack()
+	{
+		FScopeLock ReferencesLock(&ReferencesCS);
+#if DO_CHECK
+		if (DestructionRequestCallstack)
+		{
+			UE_LOG(LogCore, Error, TEXT("==============================================="));
+			UE_LOG(LogCore, Error, TEXT("Destruction requested by:"));
+			DestructionRequestCallstack->LogReference();
+			UE_LOG(LogCore, Error, TEXT("==============================================="));
+			UE_LOG(LogCore, Fatal, TEXT("Element has already had its destruction callstack set! (see above)"));
+		}
+#endif	// DO_CHECK
+		DestructionRequestCallstack = MakeUnique<FTypedElementReference>();
+	}
+
+private:
+	TYPEDELEMENTFRAMEWORK_API static bool ReferenceTrackingEnabled();
+
+	mutable FCriticalSection ReferencesCS;
+	TSparseArray<FTypedElementReference> References;
+	TUniquePtr<FTypedElementReference> DestructionRequestCallstack;
+};
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 
 /**
@@ -84,6 +162,14 @@ public:
 	{
 		checkSlow(!Id.IsSet());
 		Id.Private_InitializeNoRef(InTypeId, InElementId);
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		if (!References)
+		{
+			// Do this in Initialize rather than the constructor, as the CVar value 
+			// may change while the already constructed instances are re-used
+			References = FTypedElementReferences::Create();
+		}
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
 
 	virtual void Reset()
@@ -93,10 +179,9 @@ public:
 		FPlatformAtomics::InterlockedExchange(&RefCount, 0);
 #endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		if (References)
 		{
-			FScopeLock ReferencesLock(&ReferencesCS);
-			References.Reset();
-			DestructionRequestCallstack.Reset();
+			References->Reset();
 		}
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
@@ -114,10 +199,9 @@ public:
 		FPlatformAtomics::InterlockedIncrement(&RefCount);
 #endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
-		if (bCanTrackReference)
+		if (bCanTrackReference && References)
 		{
-			FScopeLock ReferencesLock(&ReferencesCS);
-			ReferenceId = References.Add(FTypedElementReference());
+			ReferenceId = References->AddRef();
 		}
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 		return ReferenceId;
@@ -130,10 +214,9 @@ public:
 		FPlatformAtomics::InterlockedDecrement(&RefCount);
 #endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
-		if (InReferenceId != INDEX_NONE)
+		if (References)
 		{
-			FScopeLock ReferencesLock(&ReferencesCS);
-			References.RemoveAt(InReferenceId);
+			References->ReleaseRef(InReferenceId);
 		}
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
@@ -150,22 +233,13 @@ public:
 	void LogReferences() const
 	{
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		if (References)
 		{
-			FScopeLock ReferencesLock(&ReferencesCS);
-			UE_LOG(LogCore, Error, TEXT("==============================================="));
-			UE_LOG(LogCore, Error, TEXT("External Element References:"));
-			for (const FTypedElementReference& Reference : References)
-			{
-				UE_LOG(LogCore, Error, TEXT("-----------------------------------------------"));
-				Reference.LogReference();
-			}
-			UE_LOG(LogCore, Error, TEXT("==============================================="));
-			if (DestructionRequestCallstack)
-			{
-				UE_LOG(LogCore, Error, TEXT("Destruction requested by:"));
-				DestructionRequestCallstack->LogReference();
-				UE_LOG(LogCore, Error, TEXT("==============================================="));
-			}
+			References->LogReferences();
+		}
+		else
+		{
+			UE_LOG(LogCore, Error, TEXT("CVar 'TypedElements.EnableReferenceTracking' is disabled. Enable it to see reference tracking."));
 		}
 #else	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 		UE_LOG(LogCore, Error, TEXT("UE_TYPED_ELEMENT_HAS_REFTRACKING is disabled. Enable it and recompile to see reference tracking."));
@@ -175,18 +249,10 @@ public:
 	void StoreDestructionRequestCallstack() const
 	{
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
-		FScopeLock ReferencesLock(&ReferencesCS);
-#if DO_CHECK
-		if (DestructionRequestCallstack)
+		if (References)
 		{
-			UE_LOG(LogCore, Error, TEXT("==============================================="));
-			UE_LOG(LogCore, Error, TEXT("Destruction requested by:"));
-			DestructionRequestCallstack->LogReference();
-			UE_LOG(LogCore, Error, TEXT("==============================================="));
-			UE_LOG(LogCore, Fatal, TEXT("Element has already had its destruction callstack set! (see above)"));
+			References->StoreDestructionRequestCallstack();
 		}
-#endif	// DO_CHECK
-		DestructionRequestCallstack = MakeUnique<FTypedElementReference>();
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
 
@@ -213,9 +279,7 @@ private:
 	mutable FTypedElementRefCount RefCount = 0;
 #endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
 #if UE_TYPED_ELEMENT_HAS_REFTRACKING
-	mutable FCriticalSection ReferencesCS;
-	mutable TSparseArray<FTypedElementReference> References;
-	mutable TUniquePtr<FTypedElementReference> DestructionRequestCallstack;
+	TUniquePtr<FTypedElementReferences> References;
 #endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 };
 

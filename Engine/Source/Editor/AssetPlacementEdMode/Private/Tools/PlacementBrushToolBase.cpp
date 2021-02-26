@@ -19,6 +19,7 @@
 #include "Editor.h"
 #include "Modes/PlacementModeSubsystem.h"
 #include "ActorFactories/ActorFactory.h"
+#include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
 {	
@@ -280,33 +281,34 @@ TArray<FTypedElementHandle> UPlacementBrushToolBase::GetElementsInBrushRadius() 
 		}
 	}
 
-#if !UE_ENABLE_SMINSTANCE_ELEMENTS
-	// Handle the IFA for the brush stroke level
-	if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(GEditor->GetEditorWorldContext().World()))
+	if (!SMInstanceElementDataUtil::SMInstanceElementsEnabled())
 	{
-		constexpr bool bCreatePartitionActorIfMissing = false;
-		FActorPartitionGetParams PartitionActorFindParams(AInstancedFoliageActor::StaticClass(), bCreatePartitionActorIfMissing, GEditor->GetEditorWorldContext().World()->GetCurrentLevel(), LastBrushStamp.WorldPosition);
-		if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(PartitionSubsystem->GetActor(PartitionActorFindParams)))
+		// Handle the IFA for the brush stroke level
+		if (UActorPartitionSubsystem* PartitionSubsystem = UWorld::GetSubsystem<UActorPartitionSubsystem>(GEditor->GetEditorWorldContext().World()))
 		{
-			for (const auto& FoliageInfo : FoliageActor->GetFoliageInfos())
+			constexpr bool bCreatePartitionActorIfMissing = false;
+			FActorPartitionGetParams PartitionActorFindParams(AInstancedFoliageActor::StaticClass(), bCreatePartitionActorIfMissing, GEditor->GetEditorWorldContext().World()->GetCurrentLevel(), LastBrushStamp.WorldPosition);
+			if (AInstancedFoliageActor* FoliageActor = Cast<AInstancedFoliageActor>(PartitionSubsystem->GetActor(PartitionActorFindParams)))
 			{
-				FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageInfo.Key->GetSource());
-				if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
+				for (const auto& FoliageInfo : FoliageActor->GetFoliageInfos())
 				{
-					TArray<int32> Instances;
-					FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
-					FoliageInfo.Value->GetInstancesInsideSphere(SphereToCheck, Instances);
-					if (Instances.Num())
+					FTypedElementHandle SourceObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(FoliageInfo.Key->GetSource());
+					if (GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(SourceObjectHandle))
 					{
-						// For now, return the whole foliage actor, and allow the calling code to drill down, since we do not have element handles at the instance level just yet
-						ElementHandles.Emplace(UEngineElementsLibrary::AcquireEditorActorElementHandle(FoliageActor));
-						break;
+						TArray<int32> Instances;
+						FSphere SphereToCheck(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
+						FoliageInfo.Value->GetInstancesInsideSphere(SphereToCheck, Instances);
+						if (Instances.Num())
+						{
+							// For now, return the whole foliage actor, and allow the calling code to drill down, since we do not have element handles at the instance level just yet
+							ElementHandles.Emplace(UEngineElementsLibrary::AcquireEditorActorElementHandle(FoliageActor));
+							break;
+						}
 					}
 				}
 			}
 		}
 	}
-#endif
 
 	return ElementHandles;
 }

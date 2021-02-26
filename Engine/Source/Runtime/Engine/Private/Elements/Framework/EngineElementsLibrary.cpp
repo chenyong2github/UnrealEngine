@@ -386,15 +386,13 @@ TTypedElementOwner<FSMInstanceElementData> UEngineElementsLibrary::CreateSMInsta
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	TTypedElementOwner<FSMInstanceElementData> SMInstanceElement;
-	if (ensureAlways(Registry))
+	if (ensureAlways(Registry) && SMInstanceElementDataUtil::SMInstanceElementsEnabled())
 	{
-#if UE_ENABLE_SMINSTANCE_ELEMENTS
 		SMInstanceElement = Registry->CreateElement<FSMInstanceElementData>(NAME_SMInstance);
 		if (SMInstanceElement)
 		{
 			SMInstanceElement.GetDataChecked().InstanceElementId = InSMInstanceElementId;
 		}
-#endif	// UE_ENABLE_SMINSTANCE_ELEMENTS
 	}
 
 	return SMInstanceElement;
