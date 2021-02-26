@@ -43,7 +43,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportFactoryCreateFileResult
 
 
 UCLASS()
-class UDatasmithSceneElement : public UDatasmithSceneElementBase
+class DATASMITHIMPORTER_API UDatasmithSceneElement : public UDatasmithSceneElementBase
 {
 	GENERATED_BODY()
 
