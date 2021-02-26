@@ -177,8 +177,6 @@ void MainPS(
 
 			A_R += R_WeightPdf;
 			B_R += R_WeightPdf * Fc;
-
-			E_D /= NumSamples;
 		}
 	}
 
@@ -187,6 +185,7 @@ void MainPS(
 
 	E_R /= NumSamples;
 	E_T /= NumSamples;
+	E_D /= NumSamples;
 
 	const float2 Out3D = float2(E_R, E_T);
 	const float4 Out2D = float4(A_R, B_R, E_D, 0.0f);
