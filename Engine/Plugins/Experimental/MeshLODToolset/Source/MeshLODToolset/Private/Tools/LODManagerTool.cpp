@@ -377,6 +377,7 @@ void ULODManagerTool::UpdatePreviewLOD()
 		// badness
 		LODPreview->SetVisible(false);
 		ComponentTargets[0]->SetOwnerVisibility(true);
+		return;
 	}
 
 	TUniquePtr<FLODMeshInfo>* Found = LODMeshCache.Find(SelectedLOD);
