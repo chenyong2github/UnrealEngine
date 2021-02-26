@@ -692,6 +692,14 @@ private:
 
 	float ForceUpdateTransformTime;
 	FBox CurrLocalBounds;
+
+
+public:
+#if WITH_PARTICLE_PERF_STATS
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(GetWorld(), Asset); }
+#else	
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
+#endif
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
@@ -790,7 +798,7 @@ private:
 #endif
 #if WITH_PARTICLE_PERF_STATS
 public:
-	class UNiagaraSystem* PerfAsset;
+	FParticlePerfStatsContext PerfStatsContext;
 #endif
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA

@@ -12,81 +12,13 @@ class UNiagaraSystem;
 class UNiagaraComponent;
 class FReferenceCollector;
 
-//Disabled for now until we can spend more time on a good method of applying the data that is gathered.
-#define ENABLE_NIAGARA_RUNTIME_CYCLE_COUNTERS (0)
-
-#if ENABLE_NIAGARA_RUNTIME_CYCLE_COUNTERS
-struct FNiagaraRuntimeCycleCounter
-{
-	FORCEINLINE FNiagaraRuntimeCycleCounter(int32* InCycleDest)
-		: StartCycles(0)
-		, CycleDest(InCycleDest)
-	{
-	}
-
-	FORCEINLINE FNiagaraRuntimeCycleCounter(UNiagaraSystem* System, bool bGameThread, bool bConcurrent)
-		: StartCycles(0)
-		, CycleDest(nullptr)
-	{
-		CycleDest = System->GetCycleCounter(bGameThread, bConcurrent);
-	}
-
-	FORCEINLINE void Begin()
-	{
-		if (CycleDest)
-		{
-			StartCycles = FPlatformTime::Cycles();
-		}
-	}
-
-	FORCEINLINE void End()
-	{
-		if (CycleDest)
-		{
-			FPlatformAtomics::InterlockedAdd(CycleDest, FPlatformTime::Cycles() - StartCycles);
-		}
-	}
-
-private:
-	uint32 StartCycles;
-	int32* CycleDest;
-};
-#else
-struct FNiagaraRuntimeCycleCounter
-{
-	FORCEINLINE FNiagaraRuntimeCycleCounter(int32* InCycleDest) {}
-	FORCEINLINE FNiagaraRuntimeCycleCounter(UNiagaraSystem* System, bool bGameThread, bool bConcurrent) {}
-	FORCEINLINE void Begin() {}
-	FORCEINLINE void End() {}
-};
-#endif
-
-struct FNiagaraScopedRuntimeCycleCounter : public FNiagaraRuntimeCycleCounter
-{
-	FORCEINLINE FNiagaraScopedRuntimeCycleCounter(int32* InCycleDest)
-		: FNiagaraRuntimeCycleCounter(InCycleDest)
-	{
-		Begin();
-	}
-
-	FORCEINLINE FNiagaraScopedRuntimeCycleCounter(UNiagaraSystem* System, bool bGameThread, bool bConcurrent)
-		: FNiagaraRuntimeCycleCounter(System, bGameThread, bConcurrent)
-	{
-		Begin();
-	}
-
-	FORCEINLINE ~FNiagaraScopedRuntimeCycleCounter()
-	{
-		End();
-	}
-};
-
 struct FComponentIterationContext
 {
 	TArray<int32> SignificanceIndices;
 	TBitArray<> ComponentRequiresUpdate;
 
 	int32 MaxUpdateCount = 0;
+	float WorstGlobalBudgetUse = 0.0f;
 
 	bool bNewOnly = false;
 	bool bProcessAllComponents = false;

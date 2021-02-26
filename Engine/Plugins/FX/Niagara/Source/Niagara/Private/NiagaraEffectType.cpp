@@ -19,14 +19,6 @@ UNiagaraEffectType::UNiagaraEffectType(const FObjectInitializer& ObjectInitializ
 	, SignificanceHandler(nullptr)
 	, NumInstances(0)
 	, bNewSystemsSinceLastScalabilityUpdate(false)
-	, AvgTimeMS_GT(0.0f)
-	, AvgTimeMS_GT_CNC(0.0f)
-	, AvgTimeMS_RT(0.0f)
-	, CycleHistory_GT(GNiagaraRuntimeCycleHistorySize)
-	, CycleHistory_GT_CNC(GNiagaraRuntimeCycleHistorySize)
-	, CycleHistory_RT(GNiagaraRuntimeCycleHistorySize)
-	, FramesSincePerfSampled(0)
-	, bSampleRunTimePerfThisFrame(false)
 	, PerformanceBaselineController(nullptr)
 {
 }
@@ -34,13 +26,11 @@ UNiagaraEffectType::UNiagaraEffectType(const FObjectInitializer& ObjectInitializ
 void UNiagaraEffectType::BeginDestroy()
 {
 	Super::BeginDestroy();
-
-	ReleaseFence.BeginFence();
 }
 
 bool UNiagaraEffectType::IsReadyForFinishDestroy()
 {
-	return ReleaseFence.IsFenceComplete() && Super::IsReadyForFinishDestroy();
+	return Super::IsReadyForFinishDestroy();
 }
 
 void UNiagaraEffectType::Serialize(FArchive& Ar)
@@ -131,44 +121,6 @@ void UNiagaraEffectType::PostEditChangeProperty(struct FPropertyChangedEvent& Pr
 }
 #endif
 
-void UNiagaraEffectType::ProcessLastFrameCycleCounts()
-{
-	if (FramesSincePerfSampled > GNumFramesBetweenRuntimePerfSamples)
-	{ 
-		FramesSincePerfSampled = 0;
-		bSampleRunTimePerfThisFrame = true;
-	}
-	else
-	{
-		++FramesSincePerfSampled;
-		bSampleRunTimePerfThisFrame = false;
-	}
-
-	CycleHistory_GT.NextFrame();
-	CycleHistory_GT_CNC.NextFrame();
-	CycleHistory_RT.NextFrame();
-
-	AvgTimeMS_GT = FPlatformTime::ToMilliseconds(CycleHistory_GT.GetAverageCycles());
-	AvgTimeMS_GT_CNC = FPlatformTime::ToMilliseconds(CycleHistory_GT_CNC.GetAverageCycles());
-	AvgTimeMS_RT = FPlatformTime::ToMilliseconds(CycleHistory_RT.GetAverageCycles());
-}
-
-// void UNiagaraEffectType::ApplyDynamicBudget(float InDynamicBudget_GT, float InDynamicBudget_GT_CNC, float InDynamicBudget_RT)
-// {
-// 	if (bApplyDynamicBudgetsToSignificance)
-// 	{
-// 		float MinSigificance_GTPerf = (InDynamicBudget_GT > SMALL_NUMBER) ? (AvgTimeMS_GT / InDynamicBudget_GT) : 1.0f;
-// 		float MinSigificance_GTTotalPerf = (InDynamicBudget_GT_CNC > SMALL_NUMBER) ? (AvgTimeMS_GT + AvgTimeMS_GT_CNC) / InDynamicBudget_GT_CNC : 1.0f;
-// 		float MinSignificance_RTPerf = (InDynamicBudget_RT > SMALL_NUMBER) ? AvgTimeMS_GT_CNC / InDynamicBudget_RT : 1.0f;
-// 
-// 		MinSignificanceFromPerf = FMath::Max3(MinSigificance_GTPerf, MinSigificance_GTTotalPerf, MinSignificance_RTPerf);
-// 	}
-// 	else
-// 	{
-// 		MinSignificanceFromPerf = 0.0f;
-// 	}
-// }
-
 #if NIAGARA_PERF_BASELINES
 void UNiagaraEffectType::UpdatePerfBaselineStats(FNiagaraPerfBaselineStats& NewBaselineStats)
 {
@@ -198,6 +150,7 @@ FNiagaraSystemScalabilityOverride::FNiagaraSystemScalabilityOverride()
 	, bOverrideInstanceCountSettings(false)
 	, bOverridePerSystemInstanceCountSettings(false)
 	, bOverrideTimeSinceRendererSettings(false)
+	, bOverrideGlobalBudgetCullingSettings(false)
 {
 }
 
@@ -213,10 +166,12 @@ void FNiagaraSystemScalabilitySettings::Clear()
 	bCullByMaxTimeWithoutRender = false;
 	bCullMaxInstanceCount = false;
 	bCullPerSystemMaxInstanceCount = false;
+	bCullByGlobalBudget = false;
 	MaxDistance = 0.0f;
 	MaxInstances = 0;
 	MaxSystemInstances = 0;
 	MaxTimeWithoutRender = 0.0f;
+	MaxGlobalBudgetUsage = 1.0f;
 }
 
 FNiagaraEmitterScalabilitySettings::FNiagaraEmitterScalabilitySettings()

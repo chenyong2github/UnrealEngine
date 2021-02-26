@@ -94,6 +94,9 @@ public:
 	int32 RenderStatPerfBaselines(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif
 
+	FORCEINLINE static bool UseGlobalFXBudget() { return bUseGlobalFXBudget; }
+	static void OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable);
+
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
 	FORCEINLINE static float GetGlobalSystemCountScale() { return EngineGlobalSystemCountScale; }
 
@@ -211,6 +214,8 @@ public:
 #endif
 
 	static int32 EngineEffectsQuality;
+
+	static bool bUseGlobalFXBudget;
 
 
 private:

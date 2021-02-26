@@ -2761,7 +2761,7 @@ protected:
 
 #if WITH_PARTICLE_PERF_STATS
 public:
-	UParticleSystem* PerfAsset;
+	FParticlePerfStatsContext PerfStatContext;
 #endif
 };
 

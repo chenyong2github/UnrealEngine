@@ -4,19 +4,41 @@
 
 #include "Templates/Atomic.h"
 
+
+#define WITH_GLOBAL_RUNTIME_FX_BUDGET (!UE_SERVER)
 #ifndef WITH_PARTICLE_PERF_STATS
-	#define WITH_PARTICLE_PERF_STATS (!UE_BUILD_SHIPPING)
+	#define WITH_PARTICLE_PERF_STATS ((!UE_BUILD_SHIPPING) || WITH_GLOBAL_RUNTIME_FX_BUDGET)
+#else
+	#if !WITH_PARTICLE_PERF_STATS
+		//If perf stats are explicitly disabled then we must also disable the runtime budget tracking.
+		#undef WITH_GLOBAL_RUNTIME_FX_BUDGET
+		#define WITH_GLOBAL_RUNTIME_FX_BUDGET 0
+	#endif
 #endif
+
 
 #if WITH_PARTICLE_PERF_STATS
 
 #include "Containers/Array.h"
 #include "Templates/Atomic.h"
 
+struct FParticlePerfStats;
+
+struct ENGINE_API FParticlePerfStatsContext
+{
+	FORCEINLINE bool IsValid()const { return WorldStats != nullptr && SystemStats != nullptr; }
+
+	FParticlePerfStats* WorldStats = nullptr;
+	FParticlePerfStats* SystemStats = nullptr;
+
+	//TODO: Per component stat tracking.
+	//FParticlePerfStats* ComponentStats;
+};
+
 /** Stats gathered on the game thread or game thread spawned tasks. */
 struct ENGINE_API FParticlePerfStats_GT
 {
-	uint32 NumInstances;
+	uint64 NumInstances;
 	uint64 TickGameThreadCycles;
 	TAtomic<uint64> TickConcurrentCycles;
 	uint64 FinalizeCycles;
@@ -64,6 +86,7 @@ struct ENGINE_API FParticlePerfStats_GT
 		FinalizeCycles = 0;
 		EndOfFrameCycles = 0;
 	}
+	FORCEINLINE uint64 GetTotalCycles_GTOnly()const { return TickGameThreadCycles + FinalizeCycles; }
 	FORCEINLINE uint64 GetTotalCycles()const { return TickGameThreadCycles + TickConcurrentCycles + FinalizeCycles + EndOfFrameCycles; }
 	FORCEINLINE uint64 GetPerInstanceAvgCycles()const { return NumInstances > 0 ? (TickGameThreadCycles + TickConcurrentCycles + FinalizeCycles + EndOfFrameCycles) / NumInstances : 0; }
 };
@@ -71,7 +94,7 @@ struct ENGINE_API FParticlePerfStats_GT
 /** Stats gathered on the render thread. */
 struct ENGINE_API FParticlePerfStats_RT
 {
-	uint32 NumInstances = 0;
+	uint64 NumInstances = 0;
 	uint64 RenderUpdateCycles = 0;
 	uint64 GetDynamicMeshElementsCycles = 0;
 	
@@ -96,16 +119,21 @@ struct ENGINE_API FParticlePerfStats
 	void Tick();
 	void TickRT();
 
-	static FParticlePerfStats* GetPerfStats(class UFXSystemAsset* Asset);
-	FORCEINLINE static bool GetStatsEnabled() { return bStatsEnabled.Load(); }
-	FORCEINLINE static bool GetGatherStats() { return bGatherStats.Load(); }
-	FORCEINLINE static bool ShouldGatherStats() { return GetStatsEnabled() && GetGatherStats(); }
+	static FParticlePerfStatsContext GetPerfStats(class UWorld* World, class UFXSystemAsset* FXAsset);
+	FORCEINLINE static bool GetStatsEnabled() { return bStatsEnabled.Load(EMemoryOrder::Relaxed); }
+	FORCEINLINE static bool GetGatherWorldStats() { return WorldStatsReaders.Load(EMemoryOrder::Relaxed) > 0; }
+	FORCEINLINE static bool GetGatherSystemStats() { return SystemStatsReaders.Load(EMemoryOrder::Relaxed) > 0; }
+	FORCEINLINE static bool ShouldGatherStats() { return GetStatsEnabled() && (GetGatherWorldStats() || GetGatherSystemStats()); }
 
 	FORCEINLINE static void SetStatsEnabled(bool bEnabled) { bStatsEnabled.Store(bEnabled); }
-	FORCEINLINE static void SetGatherStats(bool bEnabled) { bGatherStats.Store(bEnabled); }
+	FORCEINLINE static void AddWorldStatReader() { ++WorldStatsReaders; }
+	FORCEINLINE static void RemoveWorldStatReader() { --WorldStatsReaders; }
+	FORCEINLINE static void AddSystemStatReader() { ++SystemStatsReaders; }
+	FORCEINLINE static void RemoveSystemStatReader() { --SystemStatsReaders; }
 
 	static TAtomic<bool>	bStatsEnabled;
-	static TAtomic<bool>	bGatherStats;
+	static TAtomic<int32>	WorldStatsReaders;
+	static TAtomic<int32>	SystemStatsReaders;
 
 	/** Stats on GT and GT spawned concurrent work. */
 	FParticlePerfStats_GT GameThreadStats;
@@ -128,44 +156,54 @@ struct ENGINE_API FParticlePerfStats
 
 //-TODO: Need to remove the task graph WakeUp cost otherwise it skews results!
 
-#define PARTICLE_PERF_STAT_INSTANCE_COMMON(STATS, COUNT, THREAD) \
-	FParticlePerfStats::GetPerfStats(STATS)->Get##THREAD##Stats().NumInstances += COUNT
+#define PARTICLE_PERF_STAT_INSTANCE_COMMON(CONTEXT, COUNT, THREAD) \
+	{\
+		if(CONTEXT.IsValid())\
+		{\
+			CONTEXT.WorldStats->Get##THREAD##Stats().NumInstances += COUNT;\
+			CONTEXT.SystemStats->Get##THREAD##Stats().NumInstances += COUNT;\
+		}\
+	}
+	
 
-#define PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(STATS, COUNT) PARTICLE_PERF_STAT_INSTANCE_COMMON(STATS, COUNT, GameThread)
-#define PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(STATS, COUNT) PARTICLE_PERF_STAT_INSTANCE_COMMON(STATS, COUNT, RenderThread)
+#define PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(CONTEXT, COUNT) PARTICLE_PERF_STAT_INSTANCE_COMMON(CONTEXT, COUNT, GameThread)
+#define PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(CONTEXT, COUNT) PARTICLE_PERF_STAT_INSTANCE_COMMON(CONTEXT, COUNT, RenderThread)
 
-#define PARTICLE_PERF_STAT_CYCLES_COMMON(STATS, NAME, THREAD) \
+#define PARTICLE_PERF_STAT_CYCLES_COMMON(CONTEXT, NAME, THREAD) \
 	struct FScopedParticleStat_##NAME \
 	{ \
-		FORCEINLINE FScopedParticleStat_##NAME(class UFXSystemAsset* InSystemAsset) \
-			: SystemAsset(nullptr) \
-			, StartCycles(0) \
+		FORCEINLINE FScopedParticleStat_##NAME(struct FParticlePerfStatsContext InContext) \
+		: StartCycles(0) \
+		, Context(InContext) \
 		{ \
-			if(FParticlePerfStats::ShouldGatherStats()) \
+			if(Context.IsValid())\
 			{ \
-				SystemAsset = InSystemAsset; \
 				StartCycles = FPlatformTime::Cycles64(); \
 			} \
 		} \
 		FORCEINLINE ~FScopedParticleStat_##NAME() \
 		{ \
-			if(SystemAsset)\
-			{\
-				FParticlePerfStats::GetPerfStats(SystemAsset)->Get##THREAD##Stats().NAME##Cycles += FPlatformTime::Cycles64() - StartCycles; \
-			}\
+			if(StartCycles != 0) \
+			{ \
+				uint64 Cycles = FPlatformTime::Cycles64() - StartCycles; \
+				Context.WorldStats->Get##THREAD##Stats().NAME##Cycles += Cycles; \
+				Context.SystemStats->Get##THREAD##Stats().NAME##Cycles += Cycles; \
+			} \
 		} \
-		class UFXSystemAsset* SystemAsset; \
-		uint64 StartCycles; \
-	} NAME##Stat(STATS);
+		uint64 StartCycles = 0; \
+		FParticlePerfStatsContext Context; \
+	} NAME##Stat(CONTEXT);
 
-#define PARTICLE_PERF_STAT_CYCLES_GT(STATS, NAME) PARTICLE_PERF_STAT_CYCLES_COMMON(STATS, NAME, GameThread)
-#define PARTICLE_PERF_STAT_CYCLES_RT(STATS, NAME) PARTICLE_PERF_STAT_CYCLES_COMMON(STATS, NAME, RenderThread)
+#define PARTICLE_PERF_STAT_CYCLES_GT(CONTEXT, NAME) PARTICLE_PERF_STAT_CYCLES_COMMON(CONTEXT, NAME, GameThread)
+#define PARTICLE_PERF_STAT_CYCLES_RT(CONTEXT, NAME) PARTICLE_PERF_STAT_CYCLES_COMMON(CONTEXT, NAME, RenderThread)
 
 #else //WITH_PARTICLE_PERF_STATS
 
-#define PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(STATS, COUNT)
-#define PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(STATS, COUNT)
-#define PARTICLE_PERF_STAT_CYCLES_GT(STATS, NAME)
-#define PARTICLE_PERF_STAT_CYCLES_RT(STATS, NAME) 
+#define PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(CONTEXT, COUNT)
+#define PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(CONTEXT, COUNT)
+#define PARTICLE_PERF_STAT_CYCLES_GT(CONTEXT, NAME)
+#define PARTICLE_PERF_STAT_CYCLES_RT(CONTEXT, NAME) 
+
+struct ENGINE_API FParticlePerfStatsContext{};
 
 #endif //WITH_PARTICLE_PERF_STATS

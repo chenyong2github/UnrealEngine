@@ -1640,6 +1640,9 @@ public:
 	//Experimental: In game performance tracking.
 	FWorldInGamePerformanceTrackers* PerfTrackers;
 
+	//Tracking for VFX cost for this world.
+	struct FParticlePerfStats* FXPerfStats = nullptr;
+
 	/**
 	 * UWorld default constructor
 	 */

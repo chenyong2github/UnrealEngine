@@ -423,6 +423,9 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 
 	UPROPERTY(Config)
 	float LoopTime = 1.0f;
+
+	UPROPERTY(Config, EditAnywhere, Category = "Performance")
+	bool bShowGlobalBudgetInfo = false;
 };
 
 /** Message passed from debugger to client when it needs updated simple client info. */

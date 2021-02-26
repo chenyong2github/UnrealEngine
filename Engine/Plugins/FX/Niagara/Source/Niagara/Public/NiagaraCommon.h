@@ -1243,6 +1243,7 @@ struct FNiagaraScalabilityState
 		, bCulledByDistance(0)
 		, bCulledByInstanceCount(0)
 		, bCulledByVisibility(0)
+		, bCulledByGlobalBudget(0)
 	{
 	}
 
@@ -1253,6 +1254,7 @@ struct FNiagaraScalabilityState
 		, bCulledByDistance(0)
 		, bCulledByInstanceCount(0)
 		, bCulledByVisibility(0)
+		, bCulledByGlobalBudget(0)
 	{
 	}
 
@@ -1276,4 +1278,7 @@ struct FNiagaraScalabilityState
 
 	UPROPERTY(VisibleAnywhere, Category = "Scalability")
 	uint8 bCulledByVisibility : 1;
+	
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bCulledByGlobalBudget : 1;
 };

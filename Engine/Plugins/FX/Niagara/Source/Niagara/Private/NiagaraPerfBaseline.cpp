@@ -11,6 +11,7 @@
 #include "Slate/SceneViewport.h"
 #include "HighResScreenshot.h"
 #include "CanvasTypes.h"
+#include "HAL/FileManager.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraPerformanceBaselines"
 
@@ -346,7 +347,7 @@ bool FNiagaraPerfBaselineStatsListener::Tick()
 {
 	if (UNiagaraBaselineController* BaselinePtr = Baseline.Get())
 	{
-		if (FParticlePerfStats* Stats = FParticlePerfStatsManager::GetPerfStats(BaselinePtr->GetSystem()))
+		if (FParticlePerfStats* Stats = FParticlePerfStatsManager::GetSystemPerfStats(BaselinePtr->GetSystem()))
 		{
 			AccumulatedStats.Tick(*Stats);
 		}
@@ -360,7 +361,7 @@ void FNiagaraPerfBaselineStatsListener::TickRT()
 {
 	if (UNiagaraBaselineController* BaselinePtr = Baseline.Get())
 	{
-		if (FParticlePerfStats* Stats = FParticlePerfStatsManager::GetPerfStats(BaselinePtr->GetSystem()))
+		if (FParticlePerfStats* Stats = FParticlePerfStatsManager::GetSystemPerfStats(BaselinePtr->GetSystem()))
 		{
 			AccumulatedStats.TickRT(*Stats);
 		}
@@ -368,6 +369,7 @@ void FNiagaraPerfBaselineStatsListener::TickRT()
 }
 
 //////////////////////////////////////////////////////////////////////////
+const int32 FParticlePerfStatsListener_NiagaraPerformanceReporter::TestDebugMessageID = GetTypeHash(TEXT("NiagaraPerfReporterMessageID"));
 
 void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToLog()
 {
@@ -580,16 +582,15 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToScreen()
 			}
 		}
 
-		static const int32 OKDebugMessageID = GetTypeHash("NiagaraPerfBaseline_NoBadPerf");
 		if (bHasBadPerfReports)
 		{
-			GEngine->RemoveOnScreenDebugMessage(OKDebugMessageID);
+			GEngine->RemoveOnScreenDebugMessage(TestDebugMessageID);
 		}
 		else
 		{
 			//if we have no bad perf then add an everything is OK message just so we know we're gathering perf data.
 			FString Message = FString::Printf(TEXT("| Gathering Niagara Perf Test %u |"), TotalTests + 1);
-			GEngine->AddOnScreenDebugMessage(OKDebugMessageID, 5.0f, FColor::White, *Message);
+			GEngine->AddOnScreenDebugMessage(TestDebugMessageID, 5.0f, FColor::White, *Message);
 		}
 	}
 }
@@ -679,6 +680,10 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::HandleTestResults()
 		
 		const FString Filename = FString::Printf(TEXT("Test %u [%u-%u].txt"), TotalTests, TestStartFrame, CurrentFrameNumber);
 		const FString FilePath = PathName / Filename;
+
+		//Write the output location to the screen and logs.
+		FString Message = FString::Printf(TEXT("Writing Report for Perf Test %u to %s..."), TotalTests, *FilePath);
+		GEngine->AddOnScreenDebugMessage(TestDebugMessageID, 2.0f, FColor::White, Message);
 
 		if (FArchive* FileAr = IFileManager::Get().CreateDebugFileWriter(*FilePath))
 		{
@@ -1019,9 +1024,9 @@ int32 FParticlePerfStatsListener_NiagaraBaselineComparisonRender::RenderStats(cl
 		// Baseline
 		if (FXType)
 		{
-			// System Name
-			FString SystemName = System->GetFName().ToString();
-			Canvas->DrawShadowedString(BaseX, Y, *SystemName, Font, OverallColor);
+		// System Name
+		FString SystemName = System->GetFName().ToString();
+		Canvas->DrawShadowedString(BaseX, Y, *SystemName, Font, OverallColor);
 
 			if(FXType->IsPerfBaselineValid())			
 			{

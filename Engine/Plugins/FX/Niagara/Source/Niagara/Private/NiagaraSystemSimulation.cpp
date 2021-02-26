@@ -205,6 +205,7 @@ FNiagaraSystemSimulationTickContext FNiagaraSystemSimulationTickContext::MakeCon
 	FNiagaraSystemSimulationTickContext Context(Instances, DataSet);
 	Context.Owner = Owner;
 	Context.System = Owner->GetSystem();
+	Context.World = Owner->GetWorld();
 	Context.DeltaSeconds = DeltaSeconds;
 	Context.SpawnNum = SpawnNum;
 	Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
@@ -223,6 +224,7 @@ FNiagaraSystemSimulationTickContext FNiagaraSystemSimulationTickContext::MakeCon
 	FNiagaraSystemSimulationTickContext Context(Instances, DataSet);
 	Context.Owner = Owner;
 	Context.System = Owner->GetSystem();
+	Context.World = Owner->GetWorld();
 	Context.DeltaSeconds = DeltaSeconds;
 	Context.SpawnNum = SpawnNum;
 	Context.MyCompletionGraphEvent = nullptr;
@@ -275,10 +277,16 @@ public:
 	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemSimulationTaskPri); }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
+#if WITH_PARTICLE_PERF_STATS
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(Context.World, Context.System); }
+#else	
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
+#endif
+
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		{
-			PARTICLE_PERF_STAT_CYCLES_GT(Context.System, TickConcurrent);
+			PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickConcurrent);
 			Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
 			Context.Owner->Tick_Concurrent(Context);
 			Context.FinalizeEvents = nullptr;
@@ -303,10 +311,16 @@ public:
 	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemSimulationSpawnPendingTaskPri); }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
+#if WITH_PARTICLE_PERF_STATS
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(Context.World, Context.System); }
+#else	
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
+#endif
+
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		{
-			PARTICLE_PERF_STAT_CYCLES_GT(Context.System, TickConcurrent);
+			PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickConcurrent);
 			Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
 			Context.Owner->Spawn_Concurrent(Context);
 			Context.FinalizeEvents = nullptr;
@@ -337,12 +351,17 @@ public:
 	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
+#if WITH_PARTICLE_PERF_STATS
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(SystemSim->GetWorld(), SystemSim->GetSystem()); }
+#else	
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
+#endif
+
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		check(CurrentThread == ENamedThreads::GameThread);
-		FNiagaraScopedRuntimeCycleCounter RuntimeScope(SystemSim->GetSystem(), true, false);
 
-		PARTICLE_PERF_STAT_CYCLES_GT(SystemSim->GetSystem(), Finalize);
+		PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), Finalize);
 
 		ENiagaraGPUTickHandlingMode Mode = SystemSim->GetGPUTickHandlingMode();
 		if(Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched)
@@ -405,9 +424,16 @@ public:
 	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemInstanceTaskPri); }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
+#if WITH_PARTICLE_PERF_STATS
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(Batch[0]->GetWorld(), Batch[0]->GetSystem()); }
+#else	
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
+#endif
+
+
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		PARTICLE_PERF_STAT_CYCLES_GT(Batch[0]->GetSystem(), TickConcurrent);
+		PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickConcurrent);
 
 		ENiagaraGPUTickHandlingMode Mode = SystemSim->GetGPUTickHandlingMode();
 		if (Mode == ENiagaraGPUTickHandlingMode::ConcurrentBatched)
@@ -844,14 +870,13 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 
 	UNiagaraSystem* System = WeakSystem.Get();
 	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
-	PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(System, SystemInstances.Num());
-	PARTICLE_PERF_STAT_CYCLES_GT(System, TickGameThread);
+	PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(GetPerfStatsContext(), SystemInstances.Num());
+	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickGameThread);
 
 	SystemTickGraphEvent = nullptr;
 
 	check(SystemInstances.Num() == MainDataSet.GetCurrentDataChecked().GetNumInstances());
 	check(PausedSystemInstances.Num() == PausedInstanceData.GetCurrentDataChecked().GetNumInstances());
-	FNiagaraScopedRuntimeCycleCounter RuntimeScope(System, true, false);
 
 	if (MaxDeltaTime.IsSet())
 	{
@@ -1059,8 +1084,6 @@ void FNiagaraSystemSimulation::UpdateTickGroups_GameThread()
 	UNiagaraSystem* System = WeakSystem.Get();
 	check(System != nullptr);
 
-	FNiagaraScopedRuntimeCycleCounter RuntimeScope(System, true, false);
-
 	// Transfer promoted instances to the new tick group
 	//-OPT: This can be done async
 	while (PendingTickGroupPromotions.Num() > 0)
@@ -1148,8 +1171,6 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 #endif
 
 	SetupParameters_GameThread(DeltaSeconds);
-
-	FNiagaraScopedRuntimeCycleCounter RuntimeScope(System, true, false);
 
 	// Spawn instances
 	FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
@@ -1309,7 +1330,6 @@ void FNiagaraSystemSimulation::Tick_Concurrent(FNiagaraSystemSimulationTickConte
 
 	FScopeCycleCounterUObject AdditionalScope(Context.System, GET_STATID(STAT_NiagaraOverview_GT_CNC));
 
-	FNiagaraScopedRuntimeCycleCounter RuntimeScope(Context.System, true, true);
 	FNiagaraSystemInstance* SoloSystemInstance = bIsSolo && Context.Instances.Num() == 1 ? Context.Instances[0] : nullptr;
 
 	FNiagaraCrashReporterScope CRScope(this);

@@ -219,6 +219,7 @@ public:
 
 	class FNiagaraSystemSimulation*		Owner;
 	UNiagaraSystem*						System;
+	UWorld*								World;
 
 	TArray<FNiagaraSystemInstance*>&	Instances;
 	FNiagaraDataSet&					DataSet;
@@ -312,6 +313,7 @@ public:
 	static bool UseLegacySystemSimulationContexts();
 	static void OnChanged_UseLegacySystemSimulationContexts(class IConsoleVariable* CVar);
 
+	FORCEINLINE UWorld* GetWorld()const{return World;}
 protected:
 	/** Sets constant parameter values */
 	void SetupParameters_GameThread(float DeltaSeconds);
@@ -426,4 +428,10 @@ protected:
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 
 	static bool bUseLegacyExecContexts;
+
+#if WITH_PARTICLE_PERF_STATS
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(GetWorld(), GetSystem()); }
+#else	
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
+#endif
 };

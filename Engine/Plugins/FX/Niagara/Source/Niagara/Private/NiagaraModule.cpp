@@ -24,6 +24,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "Misc/CoreDelegates.h"
 #include "NiagaraDebuggerClient.h"
+#include "Particles/FXBudget.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -55,6 +56,24 @@ static FAutoConsoleVariableRef CVarNiaraGlobalSystemCountScale(
 	TEXT("A global scale on system count thresholds for culling in Niagara. \n"),
 	ECVF_Scalability
 );
+
+bool INiagaraModule::bUseGlobalFXBudget = true;
+static FAutoConsoleVariableRef CVarUseGlobalFXBudget(
+	TEXT("fx.Niagara.UseGlobalFXBudget"),
+	INiagaraModule::bUseGlobalFXBudget,
+	TEXT("If true, Niagara will track performace data into the global FX budget and feed the global budget values into scalability. \n"),
+	FConsoleVariableDelegate::CreateStatic(&INiagaraModule::OnUseGlobalFXBudgetChanged),
+	ECVF_Default
+);
+
+void INiagaraModule::OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable)
+{
+	//Enable the global budget tracking if needed.
+	if (UseGlobalFXBudget() && FFXBudget::Enabled() == false)
+	{
+		FFXBudget::SetEnabled(true);
+	}
+}
 
 FNiagaraVariable INiagaraModule::Engine_DeltaTime;
 FNiagaraVariable INiagaraModule::Engine_InvDeltaTime;

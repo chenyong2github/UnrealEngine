@@ -66,6 +66,9 @@ struct FNiagaraSystemScalabilitySettings
 	/** Controls whether visibility culling is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
 	uint32 bCullByMaxTimeWithoutRender : 1;
+	/** Controls whether global budget based culling is enabled. */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (InlineEditConditionToggle))
+	uint32 bCullByGlobalBudget : 1;
 
 	/** Effects of this type are culled beyond this distance. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByDistance"))
@@ -94,6 +97,10 @@ struct FNiagaraSystemScalabilitySettings
 	/** Effects will be culled if they go more than this length of time without being rendered. */
 	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByMaxTimeWithoutRender"))
 	float MaxTimeWithoutRender;
+
+	/** Effects will be culled if the global budget usage exceeds this fraction. A global budget usage of 1.0 means current global FX workload has reached it's max budget. Budgets are set by CVars under FX.Budget... */
+	UPROPERTY(EditAnywhere, Category = "Scalability", meta = (EditCondition = "bCullByGlobalBudget"))
+	float MaxGlobalBudgetUsage;
 	
 	FNiagaraSystemScalabilitySettings();
 
@@ -129,6 +136,9 @@ struct FNiagaraSystemScalabilityOverride : public FNiagaraSystemScalabilitySetti
 	/** Controls whether we override the visibility culling settings. */
 	UPROPERTY(EditAnywhere, Category = "Override")
 	uint32 bOverrideTimeSinceRendererSettings : 1;
+	/** Controls whether we override the global budget culling settings. */
+	UPROPERTY(EditAnywhere, Category = "Override")
+	uint32 bOverrideGlobalBudgetCullingSettings : 1;
 };
 
 /** Container struct for an array of system scalability overrides. Enables details customization and data validation. */
@@ -275,9 +285,6 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraEmitterScalabilitySettingsArray EmitterScalabilitySettings;
 
-	FORCEINLINE int32* GetCycleCounter(bool bGameThread, bool bConcurrent);
-	void ProcessLastFrameCycleCounts();
-
 	//TODO: Dynamic budgetting from perf data.
 	//void ApplyDynamicBudget(float InDynamicBudget_GT, float InDynamicBudget_GT_CNC, float InDynamicBudget_RT);
 
@@ -288,10 +295,6 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	const FNiagaraEmitterScalabilitySettings& GetActiveEmitterScalabilitySettings()const;
 
 	UNiagaraSignificanceHandler* GetSignificanceHandler()const { return SignificanceHandler; }
-
-	float GetAverageFrameTime_GT() { return AvgTimeMS_GT; }
-	float GetAverageFrameTime_GT_CNC() { return AvgTimeMS_GT_CNC; }
-	float GetAverageFrameTime_RT() { return AvgTimeMS_RT; }
 
 	/** Total number of instances across all systems for this effect type. */
 	int32 NumInstances;
@@ -311,25 +314,6 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 #endif
 
 private:
-
-	float AvgTimeMS_GT;
-	float AvgTimeMS_GT_CNC;
-	float AvgTimeMS_RT;
-
-	//TODO: Budgets from runtime perf.
-	//The result of runtime perf calcs and dynamic budget is a bias to the minimum significance required for FX of ths type.
-	//float MinSignificanceFromPerf;
-
-	FInGameCycleHistory CycleHistory_GT;
-	FInGameCycleHistory CycleHistory_GT_CNC;
-	FInGameCycleHistory CycleHistory_RT;
-
-	//Number of frames since we last sampled perf. We need not sample runtime perf every frame to get usable data.
-	int32 FramesSincePerfSampled;
-	bool bSampleRunTimePerfThisFrame;
-
-	/** Fence used to guarantee that the RT is finished using our cycle counters in the case we're gathering RT cycle counts. */
-	FRenderCommandFence ReleaseFence;
 
 	/** Controls generation of performance baseline data for this effect type. */
 	UPROPERTY(EditAnywhere, Category="Performance", Instanced)
@@ -360,20 +344,3 @@ public:
 	static void GeneratePerfBaselines();
 #endif
 };
-
-FORCEINLINE int32* UNiagaraEffectType::GetCycleCounter(bool bGameThread, bool bConcurrent)
-{
-	if (bSampleRunTimePerfThisFrame)
-	{
-		if (bGameThread)
-		{
-			return bConcurrent ? &CycleHistory_GT_CNC.CurrFrameCycles : &CycleHistory_GT.CurrFrameCycles;
-		}
-		else
-		{
-			//Just use the one for RT. Can split later if we'd like. We currently don't have any RT task work anyway.s
-			return &CycleHistory_RT.CurrFrameCycles;
-		}
-	}
-	return nullptr;
-}

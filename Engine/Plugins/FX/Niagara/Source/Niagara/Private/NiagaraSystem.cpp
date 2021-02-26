@@ -2731,6 +2731,13 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 					CurrentScalabilitySettings.bCullByMaxTimeWithoutRender = Override.bCullByMaxTimeWithoutRender;
 					CurrentScalabilitySettings.MaxTimeWithoutRender = Override.MaxTimeWithoutRender;
 				}
+
+ 				if (Override.bOverrideGlobalBudgetCullingSettings)
+				{
+ 					CurrentScalabilitySettings.bCullByGlobalBudget = Override.bCullByGlobalBudget;
+ 					CurrentScalabilitySettings.MaxGlobalBudgetUsage = Override.MaxGlobalBudgetUsage;
+ 				}
+
 				break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 			}
 		}

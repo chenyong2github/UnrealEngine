@@ -13,7 +13,7 @@
 
 class UWorld;
 class FParticlePerfStatsListener_DebugRender;
-
+class UFXSystemAsset;
 
 #define ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES 10
 
@@ -146,7 +146,12 @@ public:
 	/** Called every frame from the render thread gather any RT stats. */
 	virtual void TickRT() {}
 	/** Called when a new system is seen for the first time. */
-	virtual void OnAddSystem(UFXSystemAsset* NewSystem){}
+	virtual void OnAddSystem(const TWeakObjectPtr<UFXSystemAsset>& NewSystem){}
+	/** Called when a system has been freed and is no longer tracked by the stats. */
+	virtual void OnRemoveSystem(const TWeakObjectPtr<UFXSystemAsset>& System) {}
+
+	virtual bool NeedsWorldStats()const = 0;
+	virtual bool NeedsSystemStats()const = 0;
 };
 
 typedef TSharedPtr<FParticlePerfStatsListener, ESPMode::ThreadSafe> FParticlePerfStatsListenerPtr;
@@ -159,13 +164,20 @@ public:
 	static FDelegateHandle CSVEndHandle;
 #endif
 	static int32 StatsEnabled;
+	static FCriticalSection WorldToPerfStatsGuard;
+	static TMap<TWeakObjectPtr<UWorld>, TUniquePtr<FParticlePerfStats>> WorldToPerfStats;
+	static TArray<TUniquePtr<FParticlePerfStats>> FreeWorldStatsPool;
 	static FCriticalSection SystemToPerfStatsGuard;
 	static TMap<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>> SystemToPerfStats;
+	static TArray<TUniquePtr<FParticlePerfStats>> FreeSystemStatsPool;
+
 
 	static TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>> Listeners;
 
 	static const TMap<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>>& GetCurrentFrameStats() { return SystemToPerfStats; }
-	static FParticlePerfStats* GetPerfStats(class UFXSystemAsset* Asset);
+	static FParticlePerfStatsContext GetPerfStats(class UWorld* World, class UFXSystemAsset* FXAsset);
+	static FParticlePerfStats* GetSystemPerfStats(class UFXSystemAsset* FXAsset);
+	static FParticlePerfStats* GetWorldPerfStats(class UWorld* World);
 
 	static void OnStartup();
 	static void OnShutdown();
@@ -184,17 +196,44 @@ public:
 	/** Track active worlds needing to render stats. Though we only create one listener. TODO: Maybe better to track by viewport than world? */
 	static TMap<TWeakObjectPtr<UWorld>, TSharedPtr<FParticlePerfStatsListener_DebugRender ,ESPMode::ThreadSafe>> DebugRenderListenerUsers;
 #endif
+
+	/** Calls the supplied function for all tracked UNiagaraSystem stats. */
+	template<typename TAction>
+	static void ForAllSystemStats(TAction Func)
+	{
+		FScopeLock Lock(&SystemToPerfStatsGuard);
+		for (TPair<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>>& Pair : SystemToPerfStats)
+		{
+			Func(Pair.Key, Pair.Value);
+		}
+	}
+
+	/** Calls the supplied function for all tracked UWorld stats. */
+	template<typename TAction>
+	static void ForAllWorldStats(TAction Func)
+	{
+		FScopeLock Lock(&WorldToPerfStatsGuard);
+		for (TPair<TWeakObjectPtr<UWorld>, TUniquePtr<FParticlePerfStats>>& Pair : WorldToPerfStats)
+		{
+			Func(Pair.Key, Pair.Value);
+		}
+	}
 };
 
 /** Base class for listeners that gather stats on all systems in the scene. */
 class ENGINE_API FParticlePerfStatsListener_GatherAll: public FParticlePerfStatsListener
 {
 public:
+	virtual ~FParticlePerfStatsListener_GatherAll() {}
+
 	virtual void Begin();
 	virtual void End();
 	virtual bool Tick();
 	virtual void TickRT();
-	virtual void OnAddSystem(UFXSystemAsset* NewSystem);
+	virtual void OnAddSystem(const TWeakObjectPtr<UFXSystemAsset>& NewSystem);
+	virtual void OnRemoveSystem(const TWeakObjectPtr<UFXSystemAsset>& System);
+	virtual bool NeedsWorldStats()const { return false; }
+	virtual bool NeedsSystemStats()const { return true; }
 
 	void DumpStatsToDevice(FOutputDevice& Ar);
 	void DumpStatsToFile();
