@@ -51,7 +51,7 @@ namespace Chaos
 	}
 
 	template<class T_CONSTRAINTS>
-	void TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>::DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+	void TPBDConstraintGraphRuleImpl<T_CONSTRAINTS>::DisableConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
 	{
 		Constraints.DisableConstraints(RemovedParticles);
 	}
@@ -71,13 +71,13 @@ namespace Chaos
 	template class TPBDConstraintGraphRuleImpl<FPBDJointConstraints>;
 	template class TPBDConstraintGraphRuleImpl<TPBDPositionConstraints<float, 3>>;
 	template class TPBDConstraintGraphRuleImpl<FPBDSuspensionConstraints>;
-	template class TPBDConstraintGraphRuleImpl<TPBDRigidDynamicSpringConstraints<float, 3>>;
+	template class TPBDConstraintGraphRuleImpl<FPBDRigidDynamicSpringConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDRigidSpringConstraints>;
 
 	template class TPBDConstraintColorRule<FPBDCollisionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDJointConstraints>;
 	template class TPBDConstraintIslandRule<TPBDPositionConstraints<float, 3>>;
 	template class TPBDConstraintIslandRule<FPBDSuspensionConstraints>;
-	template class TPBDConstraintIslandRule<TPBDRigidDynamicSpringConstraints<float, 3>>;
+	template class TPBDConstraintIslandRule<FPBDRigidDynamicSpringConstraints>;
 	template class TPBDConstraintIslandRule<FPBDRigidSpringConstraints>;
 }

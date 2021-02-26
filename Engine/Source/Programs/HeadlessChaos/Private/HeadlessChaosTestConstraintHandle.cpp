@@ -176,8 +176,8 @@ namespace ChaosTest {
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		TArray<FPBDRigidParticleHandle*> ParticleHandles = Evolution.CreateDynamicParticles(5);
 
-		TPBDRigidDynamicSpringConstraints<FReal, 3> Constraints;
-		TArray<TPBDRigidDynamicSpringConstraintHandle<FReal, 3>*> ConstraintsHandles =
+		FPBDRigidDynamicSpringConstraints Constraints;
+		TArray<FPBDRigidDynamicSpringConstraintHandle*> ConstraintsHandles =
 		{
 			Constraints.AddConstraint({ ParticleHandles[0], ParticleHandles[1] }),
 			Constraints.AddConstraint({ ParticleHandles[1], ParticleHandles[2] }),

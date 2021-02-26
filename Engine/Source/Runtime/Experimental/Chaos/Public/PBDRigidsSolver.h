@@ -114,7 +114,7 @@ namespace Chaos
 		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
 		typedef Chaos::TPBDRigidsEvolutionGBF<Traits> FPBDRigidsEvolution;
 
-		typedef TPBDRigidDynamicSpringConstraints<float, 3> FRigidDynamicSpringConstraints;
+		typedef FPBDRigidDynamicSpringConstraints FRigidDynamicSpringConstraints;
 		typedef TPBDPositionConstraints<float, 3> FPositionConstraints;
 
 		typedef TPBDConstraintIslandRule<FPBDJointConstraints> FJointConstraintsRule;
