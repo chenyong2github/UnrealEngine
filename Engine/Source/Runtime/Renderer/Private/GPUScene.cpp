@@ -17,6 +17,7 @@
 #include "Rendering/NaniteResources.h"
 #include "Async/ParallelFor.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
+#include "NaniteSceneProxy.h"
 
 int32 GGPUSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarGPUSceneUploadEveryFrame(

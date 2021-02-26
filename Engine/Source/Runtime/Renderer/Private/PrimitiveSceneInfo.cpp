@@ -22,6 +22,7 @@
 #include "Nanite/NaniteRender.h"
 #include "Rendering/NaniteResources.h"
 #include "Lumen/LumenSceneRendering.h"
+#include "NaniteSceneProxy.h"
 
 extern int32 GGPUSceneInstanceClearList;
 extern int32 GGPUSceneInstanceBVH;

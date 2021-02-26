@@ -32,6 +32,7 @@
 #endif // WITH_EDITOR
 #include "MeshMaterialShader.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "NaniteSceneProxy.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/SMInstance/SMInstanceElementData.h"
@@ -40,7 +41,6 @@
 #include "RayTracingInstance.h"
 #endif
 
-#include "Interfaces/ITargetPlatform.h"
 #if WITH_EDITOR
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"

@@ -11,6 +11,7 @@
 #include "GeometryCollection/GeometryCollectionEditorSelection.h"
 #include "HitProxies.h"
 #include "EngineUtils.h"
+#include "NaniteSceneProxy.h"
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 #include "GeometryCollection/GeometryCollectionHitProxy.h"

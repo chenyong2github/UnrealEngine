@@ -41,10 +41,10 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/LODActor.h"
 #include "WorldPartition/HLOD/HLODActor.h"
-
 #include "UnrealEngine.h"
 #include "RayTracingInstance.h"
 #include "PrimitiveSceneInfo.h"
+#include "NaniteSceneProxy.h"
 
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"

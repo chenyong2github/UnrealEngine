@@ -23,6 +23,7 @@
 #include "Misc/Compression.h"
 #include "HAL/LowLevelMemStats.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "NaniteSceneProxy.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
