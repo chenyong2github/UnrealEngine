@@ -1049,6 +1049,10 @@ static void AddVirtualVoxelizationComputeRasterPass(
 			if (HairGroupPublicData->DoesSupportVoxelization())
 			{
 				const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
+				if (HairGroupPublicData->VFInput.Strands.PositionBuffer == nullptr)
+				{
+					continue;
+				}
 
 				FVoxelRasterComputeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelRasterComputeCS::FParameters>();
 				PassParameters->MaxRasterCount = FMath::Clamp(GHairStrandsVoxelComputeRasterMaxVoxelCount, 1, 256);
