@@ -319,6 +319,10 @@ struct FMeshProxySettings
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ProxySettings)
 	uint8 bGenerateLightmapUVs:1;
 
+	/** Whether to generate a nanite-enabled mesh */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ProxySettings)
+	uint8 bGenerateNaniteEnabledMesh : 1;
+
 	/** Default settings. */
 	FMeshProxySettings()
 		: ScreenSize(300)
@@ -351,6 +355,7 @@ struct FMeshProxySettings
 		, bCreateCollision(true)
 		, bAllowVertexColors(false)
 		, bGenerateLightmapUVs(false)
+		, bGenerateNaniteEnabledMesh(false)
 	{
 		MaterialSettings.MaterialMergeType = EMaterialMergeType::MaterialMergeType_Simplygon;
 	}
@@ -359,17 +364,28 @@ struct FMeshProxySettings
 	bool operator==(const FMeshProxySettings& Other) const
 	{
 		return ScreenSize == Other.ScreenSize
+			&& VoxelSize == Other.VoxelSize
 			&& MaterialSettings == Other.MaterialSettings
-			&& bRecalculateNormals == Other.bRecalculateNormals
-			&& bOverrideTransferDistance == Other.bOverrideTransferDistance
-			&& MaxRayCastDist == Other.MaxRayCastDist
-			&& bUseHardAngleThreshold == Other.bUseHardAngleThreshold
-			&& HardAngleThreshold == Other.HardAngleThreshold
-			&& NormalCalculationMethod == Other.NormalCalculationMethod
 			&& MergeDistance == Other.MergeDistance
 			&& UnresolvedGeometryColor == Other.UnresolvedGeometryColor
+			&& MaxRayCastDist == Other.MaxRayCastDist
+			&& HardAngleThreshold == Other.HardAngleThreshold
+			&& LightMapResolution == Other.LightMapResolution
+			&& NormalCalculationMethod == Other.NormalCalculationMethod
+			&& LandscapeCullingPrecision == Other.LandscapeCullingPrecision
+			&& bCalculateCorrectLODModel == Other.bCalculateCorrectLODModel
 			&& bOverrideVoxelSize == Other.bOverrideVoxelSize
-			&& VoxelSize == Other.VoxelSize;
+			&& bOverrideTransferDistance == Other.bOverrideTransferDistance
+			&& bUseHardAngleThreshold == Other.bUseHardAngleThreshold
+			&& bComputeLightMapResolution == Other.bComputeLightMapResolution
+			&& bRecalculateNormals == Other.bRecalculateNormals
+			&& bUseLandscapeCulling == Other.bUseLandscapeCulling
+			&& bAllowDistanceField == Other.bAllowDistanceField
+			&& bReuseMeshLightmapUVs == Other.bReuseMeshLightmapUVs
+			&& bCreateCollision == Other.bCreateCollision
+			&& bAllowVertexColors == Other.bAllowVertexColors
+			&& bGenerateLightmapUVs == Other.bGenerateLightmapUVs
+			&& bGenerateNaniteEnabledMesh == Other.bGenerateNaniteEnabledMesh;
 	}
 
 	/** Inequality. */
@@ -501,6 +517,10 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, Category = MeshSettings)
 	uint8 bAllowDistanceField:1;
 
+	/** Whether to generate a nanite-enabled mesh */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings)
+	uint8 bGenerateNaniteEnabledMesh : 1;
+
 #if WITH_EDITORONLY_DATA
 	/** Whether we should import vertex colors into merged mesh */
 	UPROPERTY()
@@ -548,6 +568,7 @@ struct FMeshMergingSettings
 		, bUseLandscapeCulling(false)
 		, bIncludeImposters(true)
 		, bAllowDistanceField(false)
+		, bGenerateNaniteEnabledMesh(false)
 #if WITH_EDITORONLY_DATA
 		, bImportVertexColors_DEPRECATED(false)
 		, bCalculateCorrectLODModel_DEPRECATED(false)

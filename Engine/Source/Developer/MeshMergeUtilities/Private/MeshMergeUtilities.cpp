@@ -2847,6 +2847,10 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 		StaticMesh->SetLightMapResolution(InSettings.bComputedLightMapResolution ? DataTracker.GetLightMapDimension() : InSettings.TargetLightMapResolution);
 
+		// Nanite settings
+		StaticMesh->NaniteSettings.bEnabled = InSettings.bGenerateNaniteEnabledMesh;
+		StaticMesh->NaniteSettings.PercentTriangles = 1.0f;	// For now, assume meshes generated here are low poly enough to be used directly as the nanite proxy.
+
 #if WITH_EDITOR
 		//If we are running the automation test
 		if (GIsAutomationTesting)
