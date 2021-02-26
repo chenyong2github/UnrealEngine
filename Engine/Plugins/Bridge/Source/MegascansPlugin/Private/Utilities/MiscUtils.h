@@ -1,0 +1,47 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+#include "CoreMinimal.h"
+#include "MSSettings.h"
+#include  "MSAssetImportData.h"
+
+
+#include "Dom/JsonObject.h"
+#include "MSAssetImportData.h"
+#include "UObject/Object.h"
+#include "Materials/MaterialInstanceConstant.h"
+
+
+TSharedPtr<FJsonObject>  DeserializeJson(const FString& JsonStringData);
+
+FString GetPluginPath();
+FString GetSourceMSPresetsPath();
+
+bool CopyMaterialPreset(const FString & MaterialName);
+FString GetMSPresetsName();
+void CopyMSPresets();
+bool CopyPresetTextures();
+void CopyUassetFiles(TArray<FString> FilesToCopy, const FString& Destination);
+
+
+
+namespace AssetUtils {	//template<typename T>
+
+	void FocusOnSelected(const FString& Path);
+	void SavePackage(UObject* SourceObject);
+	void DeleteDirectory(FString TargetDirectory);
+	bool DeleteAsset(const FString& AssetPath);
+	FUAssetMeta GetAssetMetaData(const FString& JsonPath);
+	TArray<UMaterialInstanceConstant*> GetSelectedAssets(const FString& AssetClass);
+	void AddFoliageTypesToLevel(TArray<FString> FoliageTypePaths);
+
+	//To manage import settings like Auto-Populate Foliage types etc.
+	void ManageImportSettings(FUAssetMeta AssetMetaData);
+}
+
+namespace JsonUtils
+{
+	EAssetImportType GetImportType(TSharedPtr<FJsonObject> ImportJsonObject);
+	void ParseImportJson(const FString& InputImportData);
+	TSharedPtr<FUAssetData> ParseUassetJson(TSharedPtr<FJsonObject> ImportJsonObject);
+}
+

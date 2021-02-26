@@ -1,0 +1,297 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "AssetImporters/ProgressiveImport3D.h"
+#include "Utilities/MiscUtils.h"
+#include "Utilities/MaterialUtils.h"
+
+#include "Misc/FileHelper.h"
+#include "Misc/ScopedSlowTask.h"
+#include "JsonObjectConverter.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "Misc/Paths.h"
+
+#include "UObject/SoftObjectPath.h"
+#include "Engine/StreamableManager.h"
+#include "Engine/AssetManager.h"
+
+#include "EditorViewportClient.h"
+#include "UnrealClient.h"
+#include "Engine/StaticMesh.h"
+
+#include "MaterialEditingLibrary.h"
+
+#include "Async/AsyncWork.h"
+#include "Async/Async.h"
+
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/Actor.h"
+#include "Components/StaticMeshComponent.h"
+#include "Misc/Paths.h"
+
+
+
+TSharedPtr<FImportProgressive3D> FImportProgressive3D::ImportProgressive3DInst;
+
+TSharedPtr<FImportProgressive3D> FImportProgressive3D::Get()
+{
+	if (!ImportProgressive3DInst.IsValid())
+	{
+		
+		ImportProgressive3DInst = MakeShareable(new FImportProgressive3D);
+	}
+	return ImportProgressive3DInst;
+}
+
+
+void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAssetData> ImportData)
+{
+	FViewport* ActiveViewport = GEditor->GetActiveViewport();
+	FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
+
+	FVector ViewPosition = EditorViewClient->GetViewLocation();
+	FVector ViewDirection = EditorViewClient->GetViewRotation().Vector();
+	FRotator InitialRotation(0.0f, 0.0f, 0.0f);
+
+	FVector SpawnLocation = ViewPosition + (ViewDirection * 300.0f) ;
+	SpawnLocation.Y += LocationOffset;
+
+
+	FVector Location(0.0f, 0.0f, 0.0f);
+	FRotator Rotation(0.0f, 0.0f, 0.0f);
+	UWorld* CurrentWorld = GEngine->GetWorldContexts()[0].World();
+	UStaticMesh* SourceMesh = Cast<UStaticMesh>(AssetData.GetAsset());
+	FTransform InitialTransform(SpawnLocation);	
+	
+
+	AStaticMeshActor* SMActor = Cast<AStaticMeshActor>(CurrentWorld->SpawnActor(AStaticMeshActor::StaticClass(), &InitialTransform));
+	SMActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
+
+	//SMActor->Rename(TEXT("MyStaticMeshInTheWorld"));
+	SMActor->SetActorLabel("StaticMeshActor");
+
+	GEditor->EditorUpdateComponents();
+	CurrentWorld->UpdateWorldComponents(true, false);
+	SMActor->RerunConstructionScripts();
+
+	if (!ProgressiveData.Contains(ImportData->AssetId))
+	{
+		ProgressiveData.Add(ImportData->AssetId, SMActor);
+	}
+
+	SetLocationOffset(0.0f);
+
+
+}
+
+void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
+{
+
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	FStreamableManager& Streamable = UAssetManager::GetStreamableManager();
+
+	TSharedPtr<FUAssetData> ImportData = JsonUtils::ParseUassetJson(AssetImportJson);
+
+	//FString UassetMetaString;
+	//FFileHelper::LoadFileToString(UassetMetaString, *ImportData->ImportJsonPath);
+
+	FUAssetMeta AssetMetaData = AssetUtils::GetAssetMetaData(ImportData->ImportJsonPath);
+	//FJsonObjectConverter::JsonObjectStringToUStruct(UassetMetaString, &AssetMetaData);
+	
+	FString DestinationPath = AssetMetaData.assetRootPath;
+	FString DestinationFolder = FPaths::Combine(FPaths::ProjectContentDir(), DestinationPath.Replace(TEXT("/Game/"), TEXT("")));
+	
+
+	CopyUassetFiles(ImportData->FilePaths, DestinationFolder);
+	
+
+	if (!PreviewDetails.Contains(ImportData->AssetId))
+	{
+		TSharedPtr< FProgressiveData> ProgressiveDetails = MakeShareable(new FProgressiveData);
+		PreviewDetails.Add(ImportData->AssetId, ProgressiveDetails);
+	}
+
+
+	if (ImportData->ProgressiveStage == 1)
+	{
+		
+
+		FString MeshPath = AssetMetaData.meshList[0].path;
+		
+
+		PreviewDetails[ImportData->AssetId]->PreviewMeshPath = MeshPath;	
+
+
+		FAssetData PreviewMeshData = AssetRegistry.GetAssetByObjectPath(FName(*MeshPath));
+		
+
+		FString MInstancePath = AssetMetaData.materialInstances[0].instancePath ;
+		
+		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
+
+		FSoftObjectPath ItemToStream = PreviewMeshData.ToSoftObjectPath();
+		
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId));
+		SpawnAtCenter(PreviewMeshData, ImportData);
+
+	}
+	else if (ImportData->ProgressiveStage == 2)
+	{
+		FString AlbedoPath = TEXT("");
+		FString TextureType = TEXT("albedo");
+
+		for (FTexturesList TextureMeta : AssetMetaData.textureSets)
+		{
+			if (TextureMeta.type == TEXT("albedo"))
+			{
+				AlbedoPath = TextureMeta.path ;
+			}
+		}
+
+		
+
+		FAssetData AlbedoData = AssetRegistry.GetAssetByObjectPath(FName(*AlbedoPath));
+		FSoftObjectPath ItemToStream = AlbedoData.ToSoftObjectPath();
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewTextureLoad, AlbedoData, ImportData->AssetId, TextureType));
+
+
+	}
+
+	else if (ImportData->ProgressiveStage == 3)
+	{
+
+		FString NormalPath = TEXT("");
+		FString TextureType = TEXT("normal");
+
+		for (FTexturesList TextureMeta : AssetMetaData.textureSets)
+		{
+			if (TextureMeta.type == TEXT("normal"))
+			{
+				NormalPath = TextureMeta.path;
+			}
+		}
+		
+		
+		FAssetData NormalData = AssetRegistry.GetAssetByObjectPath(FName(*NormalPath));
+		FSoftObjectPath ItemToStream = NormalData.ToSoftObjectPath();
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewTextureLoad, NormalData, ImportData->AssetId, TextureType));
+
+	}
+
+	else if (ImportData->ProgressiveStage == 4)
+	{
+		bool bWaitNaniteConversion = false;
+		FString MeshPath = AssetMetaData.meshList[0].path;
+
+		FAssetData HighMeshData = AssetRegistry.GetAssetByObjectPath(FName(*MeshPath));
+		if (ImportData->AssetType == TEXT("3d") && ImportData->AssetTier==0 && AssetMetaData.assetSubType == TEXT("singleMesh"))
+		{
+			bWaitNaniteConversion = true;
+		}
+		
+		FSoftObjectPath ItemToStream = HighMeshData.ToSoftObjectPath();
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandleHighAssetLoad, HighMeshData, ImportData->AssetId, AssetMetaData, bWaitNaniteConversion));
+
+	}
+
+
+}
+
+void FImportProgressive3D::HandlePreviewTextureLoad(FAssetData TextureData, FString AssetID,  FString Type)
+{
+	UTexture* PreviewTexture = Cast<UTexture>(TextureData.GetAsset());
+	UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(PreviewDetails[AssetID]->PreviewInstance, FName(*Type), PreviewTexture);
+	AssetUtils::SavePackage(PreviewDetails[AssetID]->PreviewInstance);
+}
+
+void FImportProgressive3D::HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID)
+{
+	PreviewDetails[AssetID]->PreviewInstance = Cast<UMaterialInstanceConstant>(PreviewInstanceData.GetAsset());
+}
+
+
+
+void FImportProgressive3D::HandleHighAssetLoad(FAssetData HighAssetData, FString AssetID, FUAssetMeta AssetMetaData, bool bWaitNaniteConversion)
+{
+
+	if (!ProgressiveData.Contains(AssetID)) return;
+	if (ProgressiveData[AssetID] == nullptr) return;
+	AStaticMeshActor* PreviewActor = ProgressiveData[AssetID];
+	UStaticMesh* SourceMesh = Cast<UStaticMesh>(HighAssetData.GetAsset());
+
+	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
+	{
+		AssetUtils::DeleteAsset(AssetMetaData.materialInstances[0].instancePath);
+		UMaterialInstanceConstant* OverridenInstance = FMaterialUtils::CreateMaterialOverride(AssetMetaData);
+		FMaterialUtils::ApplyMaterialInstance(AssetMetaData, OverridenInstance);
+		
+	}
+
+	AssetUtils::ManageImportSettings(AssetMetaData);
+
+	AsyncTask(ENamedThreads::AnyThread, [this, HighAssetData, AssetID, AssetMetaData, bWaitNaniteConversion]() {
+		AsyncCacheData(HighAssetData, AssetID, AssetMetaData, bWaitNaniteConversion);
+	});
+}
+
+void FImportProgressive3D::AsyncCacheData(FAssetData HighAssetData, FString AssetID, FUAssetMeta AssetMetaData, bool bWaitNaniteConversion)
+{
+
+	UStaticMesh* SourceMesh = Cast<UStaticMesh>(HighAssetData.GetAsset());
+
+	if (bWaitNaniteConversion)
+	{
+		FPlatformProcess::Sleep(45.0f);
+	}
+
+	
+
+
+	AsyncTask(ENamedThreads::GameThread, [this, HighAssetData, AssetID]() {
+		SwitchHigh(HighAssetData, AssetID);
+	});	
+
+}
+
+void FImportProgressive3D::SwitchHigh(FAssetData HighAssetData, FString AssetID)
+{
+	TArray<AActor*> FoundActors;
+	UGameplayStatics::GetAllActorsOfClass(GEngine->GetWorldContexts()[0].World(), AStaticMeshActor::StaticClass(), FoundActors);
+	
+	UStaticMesh* SourceMesh = Cast<UStaticMesh>(HighAssetData.GetAsset());
+	/*AStaticMeshActor* PreviewActor = ProgressiveData[AssetID];
+	if (PreviewActor != nullptr) {
+		PreviewActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
+	}*/
+
+	for (AActor* StaticMeshActor : FoundActors)
+	{
+		TArray<UStaticMeshComponent*> MeshComponents;
+		StaticMeshActor->GetComponents<UStaticMeshComponent>(MeshComponents);
+		UStaticMesh* InstanceMesh = MeshComponents[0]->GetStaticMesh();
+
+		if (InstanceMesh->GetPathName() == PreviewDetails[AssetID]->PreviewMeshPath)
+		{
+			MeshComponents[0]->SetStaticMesh(Cast<UStaticMesh>(SourceMesh));
+		}
+	}
+
+	FString AssetPathHigh = FPaths::GetPath(SourceMesh->GetPathName());
+	FString PreviwPath = FPaths::Combine(AssetPathHigh, TEXT("Preview"));
+	//AssetUtils::DeleteDirectory(PreviwPath);
+
+	
+	ProgressiveData.Remove(AssetID);
+	PreviewDetails.Remove(AssetID);
+}
+
+void FImportProgressive3D::SetLocationOffset(float ActorLocationOffset)
+{
+	LocationOffset = ActorLocationOffset;
+}
+
+
+
+
