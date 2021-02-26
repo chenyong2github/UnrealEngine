@@ -246,6 +246,20 @@ FWorldPartitionActorDesc& UActorDescContainer::GetActorDescChecked(const FGuid& 
 	return *ActorDesc->Get();
 }
 
+const FWorldPartitionActorDesc* UActorDescContainer::GetActorDesc(const FString& PackageName) const
+{
+	const FName PackageFName(*PackageName);
+	for (const TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
+	{
+		if (ActorDescPtr->ActorPackage == PackageFName)
+		{
+			return ActorDescPtr.Get();
+		}
+	}
+
+	return nullptr;
+}
+
 void UActorDescContainer::RegisterDelegates()
 {
 	if (GEditor && !IsTemplate())

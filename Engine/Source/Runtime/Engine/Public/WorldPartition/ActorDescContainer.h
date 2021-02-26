@@ -35,6 +35,8 @@ public:
 	FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid);
 	const FWorldPartitionActorDesc& GetActorDescChecked(const FGuid& Guid) const;
 
+	const FWorldPartitionActorDesc* GetActorDesc(const FString& PackageName) const;
+
 	int32 GetActorDescCount() const { return Actors.Num(); }
 	FName GetContainerPackage() const { return ContainerPackageName; }
 #endif
