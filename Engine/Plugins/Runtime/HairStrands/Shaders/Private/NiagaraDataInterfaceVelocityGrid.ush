@@ -24,7 +24,6 @@ struct FDIVelocityGridContext
 	float4x4			WorldInverse;
 	int3				GridSize;
 	Texture3D<int>		GridCurrentBuffer;
-	RWTexture3D<int>	GridDestinationBuffer;
 }; 
 
 #define DIVelocityGrid_DECLARE_CONSTANTS(NAME)\
@@ -34,13 +33,14 @@ int3 GridSize_##NAME;\
 Texture3D<int> GridCurrentBuffer_##NAME;\
 RWTexture3D<int> GridDestinationBuffer_##NAME;\
 
+//@todo-lh: GridDestinationBuffer is passed around separately as SPIRV-Cross cannot translate texture atomics properly atm.
 #define DIVelocityGrid_MAKE_CONTEXT(NAME)\
 FDIVelocityGridContext DIContext; \
 DIContext.WorldTransform = WorldTransform_##NAME;\
 DIContext.WorldInverse = WorldInverse_##NAME;\
 DIContext.GridSize = GridSize_##NAME;\
 DIContext.GridCurrentBuffer = GridCurrentBuffer_##NAME;\
-DIContext.GridDestinationBuffer = GridDestinationBuffer_##NAME;\
+RWTexture3D<int> DIContext_GridDestinationBuffer = GridDestinationBuffer_##NAME;\
 
 /* -----------------------------------------------------------------
  * Grid topology conversion
@@ -238,19 +238,19 @@ int3 DIVelocityGrid_GetDataIndex( in FDIVelocityGridContext DIContext, in int3 G
 
 #if FAST_MODE == 1
 
-void DIVelocityGrid_InterlockedAddInt(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in int IntValue)
+void DIVelocityGrid_InterlockedAddInt(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in int IntValue)
 {
-	InterlockedAdd(DIContext.GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)], IntValue);
+	InterlockedAdd(DIContext_GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)], IntValue);
 }
 
-void DIVelocityGrid_InterlockedMinInt(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in int IntValue)
+void DIVelocityGrid_InterlockedMinInt(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in int IntValue)
 {
-	InterlockedMin(DIContext.GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)], IntValue);
+	InterlockedMin(DIContext_GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)], IntValue);
 }
 
 #else
 
-void DIVelocityGrid_InterlockedAddFloat(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+void DIVelocityGrid_InterlockedAddFloat(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in float FloatValue)
 {
 	int IntValue = asint(FloatValue);
 	int CompareValue = 0;
@@ -258,7 +258,7 @@ void DIVelocityGrid_InterlockedAddFloat(in FDIVelocityGridContext DIContext, in 
 
 	[allow_uav_condition] while(true)
 	{
-		InterlockedCompareExchange(DIContext.GridDestinationBuffer[
+		InterlockedCompareExchange(DIContext_GridDestinationBuffer[
 				DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)],CompareValue,IntValue,StoredValue);
 		if(StoredValue == CompareValue)
 		{
@@ -269,7 +269,7 @@ void DIVelocityGrid_InterlockedAddFloat(in FDIVelocityGridContext DIContext, in 
 	}
 }
 
-void DIVelocityGrid_InterlockedMinFloat(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+void DIVelocityGrid_InterlockedMinFloat(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in float FloatValue)
 {
 	int IntValue = asint(FloatValue);
 	int CompareValue = 0;
@@ -277,7 +277,7 @@ void DIVelocityGrid_InterlockedMinFloat(in FDIVelocityGridContext DIContext, in 
 
 	[allow_uav_condition] while(true)
 	{
-		InterlockedCompareExchange(DIContext.GridDestinationBuffer[
+		InterlockedCompareExchange(DIContext_GridDestinationBuffer[
 				DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)],CompareValue,IntValue,StoredValue);
 		if(StoredValue == CompareValue)
 		{
@@ -295,23 +295,23 @@ void DIVelocityGrid_InterlockedMinFloat(in FDIVelocityGridContext DIContext, in 
  * -----------------------------------------------------------------
  */
 
- void DIVelocityGrid_InterlockedMinScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+ void DIVelocityGrid_InterlockedMinScalar(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in float FloatValue)
 {
 #if FAST_MODE == 1
 	const int IntValue = FloatValue * FLOAT_PRECISION;
-	DIVelocityGrid_InterlockedMinInt(DIContext,GridIndex,DataOffset,IntValue);
+	DIVelocityGrid_InterlockedMinInt(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset,IntValue);
 #else
-	DIVelocityGrid_InterlockedMinFloat(DIContext,GridIndex,DataOffset,FloatValue);
+	DIVelocityGrid_InterlockedMinFloat(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset,FloatValue);
 #endif
 }
 
-void DIVelocityGrid_InterlockedAddScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+void DIVelocityGrid_InterlockedAddScalar(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in float FloatValue)
 {
 #if FAST_MODE == 1
 	const int IntValue = FloatValue * FLOAT_PRECISION;
-	DIVelocityGrid_InterlockedAddInt(DIContext,GridIndex,DataOffset,IntValue);
+	DIVelocityGrid_InterlockedAddInt(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset,IntValue);
 #else
-	DIVelocityGrid_InterlockedAddFloat(DIContext,GridIndex,DataOffset,FloatValue);
+	DIVelocityGrid_InterlockedAddFloat(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset,FloatValue);
 #endif
 }
 
@@ -326,10 +326,10 @@ float DIVelocityGrid_ConvertGridScalar(in FDIVelocityGridContext DIContext, in i
 #endif
 }
 
-void DIVelocityGrid_AddGridScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+void DIVelocityGrid_AddGridScalar(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in float FloatValue)
 {
 	const float SumValue = asfloat(DIContext.GridCurrentBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)])+FloatValue;
-	DIContext.GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)] = asint(SumValue);
+	DIContext_GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)] = asint(SumValue);
 }
 
 float DIVelocityGrid_GetGridScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset)
@@ -337,23 +337,23 @@ float DIVelocityGrid_GetGridScalar(in FDIVelocityGridContext DIContext, in int3 
 	return asfloat(DIContext.GridCurrentBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)]);
 }
 
-void DIVelocityGrid_SetGridScalar(in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float FloatValue)
+void DIVelocityGrid_SetGridScalar(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in float FloatValue)
 {
-	DIContext.GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)] = asint(FloatValue);
+	DIContext_GridDestinationBuffer[DIVelocityGrid_GetDataIndex(DIContext,GridIndex,DataOffset)] = asint(FloatValue);
 }
 
-void DIVelocityGrid_SetGridVector( in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float3 NodeVector)
+void DIVelocityGrid_SetGridVector( in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in float3 NodeVector)
 {
-	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,DataOffset,NodeVector.x);
-	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,DataOffset+1,NodeVector.y);
-	DIVelocityGrid_SetGridScalar(DIContext,GridIndex,DataOffset+2,NodeVector.z);
+	DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset,NodeVector.x);
+	DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset+1,NodeVector.y);
+	DIVelocityGrid_SetGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset+2,NodeVector.z);
 }
 
-void DIVelocityGrid_AddGridVector( in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset, in float3 NodeVector)
+void DIVelocityGrid_AddGridVector( in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in int DataOffset, in float3 NodeVector)
 {
-	DIVelocityGrid_AddGridScalar(DIContext,GridIndex,DataOffset,NodeVector.x);
-	DIVelocityGrid_AddGridScalar(DIContext,GridIndex,DataOffset+1,NodeVector.y);
-	DIVelocityGrid_AddGridScalar(DIContext,GridIndex,DataOffset+2,NodeVector.z);
+	DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset,NodeVector.x);
+	DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset+1,NodeVector.y);
+	DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,DataOffset+2,NodeVector.z);
 }
 
 float3 DIVelocityGrid_GetGridVector( in FDIVelocityGridContext DIContext, in int3 GridIndex, in int DataOffset)
@@ -398,7 +398,7 @@ float3 DIVelocityGrid_GetGridVector( in FDIVelocityGridContext DIContext, in int
  */
  
 // Transfer the velocity field component on a face from the particle to the grid
-void DIVelocityGrid_BuildVelocityFace(in FDIVelocityGridContext DIContext, in int3 GridIndex, in float ShapeFunction, in int3 ijk, in float3 GridPosition, in float SampleMass, in float SampleMomentum,
+void DIVelocityGrid_BuildVelocityFace(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int3 GridIndex, in float ShapeFunction, in int3 ijk, in float3 GridPosition, in float SampleMass, in float SampleMomentum,
 			in float3 MomentumGradient, in float3 ComponentOffset, in int ComponentIndex, in float GridLength )
 {
 	const int3 GridLocation = int3(GridIndex.x+ijk.x,GridIndex.y+ijk.y,GridIndex.z+ijk.z);
@@ -408,13 +408,13 @@ void DIVelocityGrid_BuildVelocityFace(in FDIVelocityGridContext DIContext, in in
 		const float3 DeltaPosition = (GridLocation+ComponentOffset)*GridLength - GridPosition;
 		const float GridMomentum = SampleMomentum + dot(MomentumGradient, DeltaPosition);
 
-		DIVelocityGrid_InterlockedAddScalar(DIContext,GridLocation,FLUID_MASS_OFFSET+ComponentIndex,SampleMass*ShapeFunction);
-		DIVelocityGrid_InterlockedAddScalar(DIContext,GridLocation,FLUID_VELOCITY_OFFSET+ComponentIndex,GridMomentum*ShapeFunction);
+		DIVelocityGrid_InterlockedAddScalar(DIContext,DIContext_GridDestinationBuffer,GridLocation,FLUID_MASS_OFFSET+ComponentIndex,SampleMass*ShapeFunction);
+		DIVelocityGrid_InterlockedAddScalar(DIContext,DIContext_GridDestinationBuffer,GridLocation,FLUID_VELOCITY_OFFSET+ComponentIndex,GridMomentum*ShapeFunction);
 	}
 }
 
 // Transfer the velocity field component from the particle to the grid
-void DIVelocityGrid_BuildVelocityComponent(in FDIVelocityGridContext DIContext, in float3 GridPosition, in float SampleMass, in float SampleMomentum,
+void DIVelocityGrid_BuildVelocityComponent(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in float3 GridPosition, in float SampleMass, in float SampleMomentum,
 			in float3 MomentumGradient, in float3 ComponentOffset, in int ComponentIndex, in float GridLength )
 {
 	float3 GridFraction = float3(0,0,0);
@@ -431,7 +431,7 @@ void DIVelocityGrid_BuildVelocityComponent(in FDIVelocityGridContext DIContext, 
 				const float GridWeightZ = (k == 0) ? 1.0 - GridFraction.z : GridFraction.z;
 				const float GridWeightXYZ = GridWeightX*GridWeightY*GridWeightZ;
 
-				DIVelocityGrid_BuildVelocityFace(DIContext,GridIndex,GridWeightXYZ,int3(i,j,k),GridPosition,SampleMass,
+				DIVelocityGrid_BuildVelocityFace(DIContext,DIContext_GridDestinationBuffer,GridIndex,GridWeightXYZ,int3(i,j,k),GridPosition,SampleMass,
 								SampleMomentum,MomentumGradient,ComponentOffset,ComponentIndex,GridLength);
 			}
 		}
@@ -439,7 +439,7 @@ void DIVelocityGrid_BuildVelocityComponent(in FDIVelocityGridContext DIContext, 
 }
 
 // Transfer the velocity field from the particle to the grid
-void DIVelocityGrid_BuildVelocityField(in FDIVelocityGridContext DIContext, in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, in float ParticleMass, in float3 ParticleVelocity, 
+void DIVelocityGrid_BuildVelocityField(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, in float ParticleMass, in float3 ParticleVelocity, 
 			in float4x4 VelocityGradient, out bool OutFunctionStatus )
 {
 	const float3 ParticleMomentum = ParticleVelocity * ParticleMass;
@@ -450,9 +450,9 @@ void DIVelocityGrid_BuildVelocityField(in FDIVelocityGridContext DIContext, in f
 
 	const float3 GridPosition = DIVelocityGrid_GetGridPosition(DIContext,ParticlePosition,GridOrigin);
 
-	DIVelocityGrid_BuildVelocityComponent(DIContext,GridPosition,ParticleMass,ParticleMomentum.x,MomentumGradientX,float3(0.0,0.5,0.5),0,GridLength);
-	DIVelocityGrid_BuildVelocityComponent(DIContext,GridPosition,ParticleMass,ParticleMomentum.y,MomentumGradientY,float3(0.5,0.0,0.5),1,GridLength);
-	DIVelocityGrid_BuildVelocityComponent(DIContext,GridPosition,ParticleMass,ParticleMomentum.z,MomentumGradientZ,float3(0.5,0.5,0.0),2,GridLength);
+	DIVelocityGrid_BuildVelocityComponent(DIContext,DIContext_GridDestinationBuffer,GridPosition,ParticleMass,ParticleMomentum.x,MomentumGradientX,float3(0.0,0.5,0.5),0,GridLength);
+	DIVelocityGrid_BuildVelocityComponent(DIContext,DIContext_GridDestinationBuffer,GridPosition,ParticleMass,ParticleMomentum.y,MomentumGradientY,float3(0.5,0.0,0.5),1,GridLength);
+	DIVelocityGrid_BuildVelocityComponent(DIContext,DIContext_GridDestinationBuffer,GridPosition,ParticleMass,ParticleMomentum.z,MomentumGradientZ,float3(0.5,0.5,0.0),2,GridLength);
 	
 	OutFunctionStatus = true;
 }
@@ -553,7 +553,7 @@ void DIVelocityGrid_SampleVelocityField(in FDIVelocityGridContext DIContext, in 
  * -----------------------------------------------------------------
  */
 
-void DIVelocityGrid_AddGridVelocity(in FDIVelocityGridContext DIContext, in int GridHash, in float3 GridVelocity, out bool OutAddStatus)
+void DIVelocityGrid_AddGridVelocity(in FDIVelocityGridContext DIContext, in RWTexture3D<int> DIContext_GridDestinationBuffer, in int GridHash, in float3 GridVelocity, out bool OutAddStatus)
 {
 	const int3 GridIndex = DIVelocityGrid_GetGridIndex(DIContext,GridHash);
 	OutAddStatus = true;
@@ -561,17 +561,17 @@ void DIVelocityGrid_AddGridVelocity(in FDIVelocityGridContext DIContext, in int 
 	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,0) )
 	{
 		OutAddStatus = true;
-		DIVelocityGrid_AddGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET,GridVelocity.x);
+		DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_VELOCITY_OFFSET,GridVelocity.x);
 	}
 	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,1) )
 	{
 		OutAddStatus = true;
-		DIVelocityGrid_AddGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+1,GridVelocity.y);
+		DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_VELOCITY_OFFSET+1,GridVelocity.y);
 	}
 	if( DIVelocityGrid_IsFaceValid(DIContext,GridIndex,2) )
 	{
 		OutAddStatus = true;
-		DIVelocityGrid_AddGridScalar(DIContext,GridIndex,FLUID_VELOCITY_OFFSET+2,GridVelocity.z);
+		DIVelocityGrid_AddGridScalar(DIContext,DIContext_GridDestinationBuffer,GridIndex,FLUID_VELOCITY_OFFSET+2,GridVelocity.z);
 	}
 }
 

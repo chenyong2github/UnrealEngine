@@ -284,6 +284,16 @@ bool UNiagaraDataInterfaceVelocityGrid::Equals(const UNiagaraDataInterface* Othe
 	return (OtherTyped->GridSize == GridSize);
 }
 
+bool UNiagaraDataInterfaceVelocityGrid::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	if (!Super::AppendCompileHash(InVisitor))
+		return false;
+
+	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfaceVelocityGrid.ush")), EShaderPlatform::SP_PCD3D_SM5);
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceVelocityGridHLSLSource"), Hash.ToString());
+	return true;
+}
+
 void UNiagaraDataInterfaceVelocityGrid::PostInitProperties()
 {
 	Super::PostInitProperties();
@@ -521,7 +531,7 @@ bool UNiagaraDataInterfaceVelocityGrid::GetFunctionHLSL(const FNiagaraDataInterf
 		static const TCHAR *FormatSample = TEXT(R"(
 				void {InstanceFunctionName} (in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, in float ParticleMass, in float3 ParticleVelocity, in float4x4 VelocityGradient, out bool OutFunctionStatus)
 				{
-					{VelocityGridContextName} DIVelocityGrid_BuildVelocityField(DIContext,GridOrigin,GridLength,ParticlePosition,ParticleMass,ParticleVelocity,VelocityGradient,OutFunctionStatus);
+					{VelocityGridContextName} DIVelocityGrid_BuildVelocityField(DIContext,DIContext_GridDestinationBuffer,GridOrigin,GridLength,ParticlePosition,ParticleMass,ParticleVelocity,VelocityGradient,OutFunctionStatus);
 				}
 				)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);

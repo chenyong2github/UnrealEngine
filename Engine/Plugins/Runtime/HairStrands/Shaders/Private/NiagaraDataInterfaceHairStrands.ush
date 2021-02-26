@@ -37,7 +37,6 @@ struct FDIHairStrandsContext
 	float3				RestPositionOffset;
 	float3				DeformedPositionOffset;
 	bool				ResetSimulation;
-	RWBuffer<uint>		BoundingBoxBuffer;
 	int					SampleCount;
 	int4				BoundingBoxOffsets;
 	Buffer<float4>		RestSamplePositionsBuffer;
@@ -74,6 +73,7 @@ Buffer<float4>		RestSamplePositionsBuffer_##NAME;\
 Buffer<float4>		MeshSampleWeightsBuffer_##NAME;\
 Buffer<float>		ParamsScaleBuffer_##NAME;\
 
+//@todo-lh: BoundingBoxBuffer is passed around separately as SPIRV-Cross cannot translate texture atomics properly atm.
 #define DIHAIRSTRANDS_MAKE_CONTEXT(NAME)\
 FDIHairStrandsContext DIContext;\
 DIContext.DeformedPositionBuffer = DeformedPositionBuffer_##NAME;\
@@ -97,7 +97,7 @@ DIContext.DeformedRootOffset = DeformedRootOffset_##NAME;\
 DIContext.RestPositionOffset =	RestPositionOffset_##NAME;\
 DIContext.DeformedPositionOffset = DeformedPositionOffset_##NAME;\
 DIContext.ResetSimulation = ResetSimulation_##NAME;\
-DIContext.BoundingBoxBuffer = BoundingBoxBuffer_##NAME;\
+RWBuffer<uint> DIContext_BoundingBoxBuffer = BoundingBoxBuffer_##NAME;\
 DIContext.SampleCount = SampleCount_##NAME;\
 DIContext.BoundingBoxOffsets = BoundingBoxOffsets_##NAME;\
 DIContext.RestSamplePositionsBuffer = RestSamplePositionsBuffer_##NAME;\
@@ -143,24 +143,24 @@ DIContext.ParamsScaleBuffer = ParamsScaleBuffer_##NAME;\
  */
 
 // Get the boundingh box
-void DIHairStrands_GetBoundingBox(in FDIHairStrandsContext DIContext, in int BoxIndex, out float3 OutBoxCenter, out float3 OutBoxExtent)
+void DIHairStrands_GetBoundingBox(in FDIHairStrandsContext DIContext, in RWBuffer<uint> DIContext_BoundingBoxBuffer, in int BoxIndex, out float3 OutBoxCenter, out float3 OutBoxExtent)
 {
 	const int BufferOffset = DIContext.BoundingBoxOffsets[BoxIndex] * 6;
 
-	const float3 BoxMin = Uint3ToFloat3(uint3(DIContext.BoundingBoxBuffer[0+BufferOffset],
-											  DIContext.BoundingBoxBuffer[1+BufferOffset],
-											  DIContext.BoundingBoxBuffer[2+BufferOffset]));
+	const float3 BoxMin = Uint3ToFloat3(uint3(DIContext_BoundingBoxBuffer[0+BufferOffset],
+											  DIContext_BoundingBoxBuffer[1+BufferOffset],
+											  DIContext_BoundingBoxBuffer[2+BufferOffset]));
 
-	const float3 BoxMax = Uint3ToFloat3(uint3(DIContext.BoundingBoxBuffer[3+BufferOffset],
-											  DIContext.BoundingBoxBuffer[4+BufferOffset],
-											  DIContext.BoundingBoxBuffer[5+BufferOffset]));
+	const float3 BoxMax = Uint3ToFloat3(uint3(DIContext_BoundingBoxBuffer[3+BufferOffset],
+											  DIContext_BoundingBoxBuffer[4+BufferOffset],
+											  DIContext_BoundingBoxBuffer[5+BufferOffset]));
 
 	OutBoxExtent = (BoxMax-BoxMin);
 	OutBoxCenter = 0.5 * (BoxMin+BoxMax);
 }
 
 // Reset the bounding box
-void DIHairStrands_ResetBoundingBox(in FDIHairStrandsContext DIContext, out bool FunctionStatus)
+void DIHairStrands_ResetBoundingBox(in FDIHairStrandsContext DIContext, in RWBuffer<uint> DIContext_BoundingBoxBuffer, out bool FunctionStatus)
 {
 	FunctionStatus = false;
 
@@ -173,18 +173,18 @@ void DIHairStrands_ResetBoundingBox(in FDIHairStrandsContext DIContext, out bool
 		const uint UINT_MAX = FloatToUint(1e+8);
 		const uint UINT_MIN = FloatToUint(-1e+8);
 
-		DIContext.BoundingBoxBuffer[0+BufferOffset] = UINT_MAX;
-		DIContext.BoundingBoxBuffer[1+BufferOffset] = UINT_MAX;
-		DIContext.BoundingBoxBuffer[2+BufferOffset] = UINT_MAX;
+		DIContext_BoundingBoxBuffer[0+BufferOffset] = UINT_MAX;
+		DIContext_BoundingBoxBuffer[1+BufferOffset] = UINT_MAX;
+		DIContext_BoundingBoxBuffer[2+BufferOffset] = UINT_MAX;
 
-		DIContext.BoundingBoxBuffer[3+BufferOffset] = UINT_MIN;
-		DIContext.BoundingBoxBuffer[4+BufferOffset] = UINT_MIN;
-		DIContext.BoundingBoxBuffer[5+BufferOffset] = UINT_MIN;
+		DIContext_BoundingBoxBuffer[3+BufferOffset] = UINT_MIN;
+		DIContext_BoundingBoxBuffer[4+BufferOffset] = UINT_MIN;
+		DIContext_BoundingBoxBuffer[5+BufferOffset] = UINT_MIN;
 	}
 	DeviceMemoryBarrier();
 }
 
-void DIHairStrands_BuildBoundingBox(in FDIHairStrandsContext DIContext, in float3 NodePosition, out bool FunctionStatus)
+void DIHairStrands_BuildBoundingBox(in FDIHairStrandsContext DIContext, in RWBuffer<uint> DIContext_BoundingBoxBuffer, in float3 NodePosition, out bool FunctionStatus)
 {
 	FunctionStatus = false;
 
@@ -196,13 +196,13 @@ void DIHairStrands_BuildBoundingBox(in FDIHairStrandsContext DIContext, in float
 
 		const int BufferOffset = DIContext.BoundingBoxOffsets[2] * 6;
 
-		InterlockedMin(DIContext.BoundingBoxBuffer[0+BufferOffset],LocalPosition.x);
-		InterlockedMin(DIContext.BoundingBoxBuffer[1+BufferOffset],LocalPosition.y);
-		InterlockedMin(DIContext.BoundingBoxBuffer[2+BufferOffset],LocalPosition.z);
+		InterlockedMin(DIContext_BoundingBoxBuffer[0+BufferOffset],LocalPosition.x);
+		InterlockedMin(DIContext_BoundingBoxBuffer[1+BufferOffset],LocalPosition.y);
+		InterlockedMin(DIContext_BoundingBoxBuffer[2+BufferOffset],LocalPosition.z);
 
-		InterlockedMax(DIContext.BoundingBoxBuffer[3+BufferOffset],LocalPosition.x);
-		InterlockedMax(DIContext.BoundingBoxBuffer[4+BufferOffset],LocalPosition.y);
-		InterlockedMax(DIContext.BoundingBoxBuffer[5+BufferOffset],LocalPosition.z);
+		InterlockedMax(DIContext_BoundingBoxBuffer[3+BufferOffset],LocalPosition.x);
+		InterlockedMax(DIContext_BoundingBoxBuffer[4+BufferOffset],LocalPosition.y);
+		InterlockedMax(DIContext_BoundingBoxBuffer[5+BufferOffset],LocalPosition.z);
 	}
 	DeviceMemoryBarrier();
 }
