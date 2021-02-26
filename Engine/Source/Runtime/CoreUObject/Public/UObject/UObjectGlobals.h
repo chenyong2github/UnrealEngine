@@ -690,6 +690,21 @@ COREUOBJECT_API bool SaveToTransactionBuffer(UObject* Object, bool bMarkDirty);
 COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object);
 COREUOBJECT_API void SnapshotTransactionBuffer(UObject* Object, TArrayView<const FProperty*> Properties);
 
+
+/**
+ * Utility struct that allows abstract classes to be allocated for non-CDOs while in scope.
+ * Abstract objects are generally unsafe and should only be allocated in very unusual circumstances.
+ */
+struct FScopedAllowAbstractClassAllocation : public FNoncopyable
+{
+	COREUOBJECT_API FScopedAllowAbstractClassAllocation();
+	COREUOBJECT_API ~FScopedAllowAbstractClassAllocation();
+	static bool IsDisallowedAbstractClass(const UClass* InClass, EObjectFlags InFlags);
+
+private:
+	static int32 AllowAbstractCount;
+};
+
 /**
  * Check for StaticAllocateObject error; only for use with the editor, make or other commandlets.
  * 

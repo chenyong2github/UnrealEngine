@@ -2240,6 +2240,31 @@ void SnapshotTransactionBuffer(UObject* Object, TArrayView<const FProperty*> Pro
 	}
 }
 
+// Utility function to evaluate whether we allow an abstract object to be allocated
+int32 FScopedAllowAbstractClassAllocation::AllowAbstractCount = 0;
+FScopedAllowAbstractClassAllocation::FScopedAllowAbstractClassAllocation()
+{
+	++AllowAbstractCount;
+}
+
+FScopedAllowAbstractClassAllocation::~FScopedAllowAbstractClassAllocation()
+{
+	--AllowAbstractCount;
+}
+
+bool FScopedAllowAbstractClassAllocation::IsDisallowedAbstractClass(const UClass* InClass, EObjectFlags InFlags)
+{
+	if (((InFlags& RF_ClassDefaultObject) == 0) && InClass->HasAnyClassFlags(CLASS_Abstract))
+	{
+		if (AllowAbstractCount == 0)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool StaticAllocateObjectErrorTests( const UClass* InClass, UObject* InOuter, FName InName, EObjectFlags InFlags)
 {
 	// Validation checks.
@@ -2250,7 +2275,7 @@ bool StaticAllocateObjectErrorTests( const UClass* InClass, UObject* InOuter, FN
 	}
 
 	// for abstract classes that are being loaded NOT in the editor we want to error.  If they are in the editor we do not want to have an error
-	if ( InClass->HasAnyClassFlags(CLASS_Abstract) && (InFlags&RF_ClassDefaultObject) == 0 )
+	if (FScopedAllowAbstractClassAllocation::IsDisallowedAbstractClass(InClass, InFlags))
 	{
 		if ( GIsEditor )
 		{
@@ -2335,7 +2360,7 @@ UObject* StaticAllocateObject
 	bool bCreatingCDO = (InFlags & RF_ClassDefaultObject) != 0;
 
 	check(InClass);
-	check(GIsEditor || bCreatingCDO || !InClass->HasAnyClassFlags(CLASS_Abstract)); // this is a warning in the editor, otherwise it is illegal to create an abstract class, except the CDO
+	check(GIsEditor || !FScopedAllowAbstractClassAllocation::IsDisallowedAbstractClass(InClass, InFlags)); // this is a warning in the editor, otherwise it is illegal to create an abstract class, except the CDO
 	check(InOuter || (InClass == UPackage::StaticClass() && InName != NAME_None)); // only packages can not have an outer, and they must be named explicitly
 	//checkf(InClass != UPackage::StaticClass() || !InOuter || bCreatingCDO, TEXT("Creating nested packages is not allowed: Outer=%s, Package=%s"), *GetNameSafe(InOuter), *InName.ToString());
 	check(bCreatingCDO || !InOuter || InOuter->IsA(InClass->ClassWithin));
