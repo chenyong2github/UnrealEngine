@@ -1446,22 +1446,27 @@ namespace Audio
 		return nullptr;
 	}
 
-	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(const FSoundWaveProxy& InSoundWave)
+	ICompressedAudioInfo* FMixerPlatformXAudio2::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
-#if WITH_ENGINE
-		// Decoding with FSoundWaveProxy is only supported ot streaming audio at the moment
-		if (false == InSoundWave.IsStreaming())
+		if (!InSoundWave.IsValid())
 		{
 			return nullptr;
 		}
 
-		if (InSoundWave.IsSeekableStreaming())
+#if WITH_ENGINE
+		// Decoding with FSoundWaveProxy is only supported ot streaming audio at the moment
+		if (false == InSoundWave->IsStreaming())
+		{
+			return nullptr;
+		}
+
+		if (InSoundWave->IsSeekableStreaming())
 		{
 			return new FADPCMAudioInfo();
 		}
 
 #if WITH_XMA2 && USE_XMA2_FOR_STREAMING
-		if (InSoundWave.GetNumChannels() <= 2)
+		if (InSoundWave->GetNumChannels() <= 2)
 		{
 			return XMA2_INFO_NEW();
 		}

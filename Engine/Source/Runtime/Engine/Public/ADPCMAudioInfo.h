@@ -106,7 +106,7 @@ public:
 
 	// Additional overrides for streaming
 	virtual bool SupportsStreaming() const override {return true;}
-	virtual bool StreamCompressedInfoInternal(const FSoundWaveProxy& InWaveProxy, struct FSoundQualityInfo* QualityInfo) override;
+	virtual bool StreamCompressedInfoInternal(const FSoundWaveProxyPtr& InWaveProxy, struct FSoundQualityInfo* QualityInfo) override;
 	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize) override;
 	virtual int32 GetCurrentChunkIndex() const override
 	{
@@ -138,7 +138,7 @@ private:
 	// Wrapper function that returns a pointer to the currently used compressed data.
 	// If a non-zero chunk is requested, this function also aquires a reference to that chunk
 	// until we move on to a different chunk.
-	const uint8* GetLoadedChunk(const FSoundWaveProxy& InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
+	const uint8* GetLoadedChunk(const FSoundWaveProxyPtr& InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
 
 	int32 NumConsecutiveReadFailiures;
 

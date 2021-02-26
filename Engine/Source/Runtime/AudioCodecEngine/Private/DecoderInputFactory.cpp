@@ -9,8 +9,13 @@ namespace Audio
 {		
 	TUniquePtr<Audio::IDecoderInput> CreateBackCompatDecoderInput(
 		FName InOldFormatName,
-		const FSoundWaveProxy& InSoundWave)
+		const FSoundWaveProxyPtr& InSoundWave)
 	{
-		return MakeUnique<FBackCompatInput>(InOldFormatName, InSoundWave);
+		if (ensure(InSoundWave.IsValid()))
+		{
+			return MakeUnique<FBackCompatInput>(InOldFormatName, InSoundWave);
+		}
+
+		return nullptr;
 	}
 }

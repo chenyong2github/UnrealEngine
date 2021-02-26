@@ -1042,7 +1042,7 @@ public:
 
 	/** Creates a Compressed audio info class suitable for decompressing this SoundWave */
 	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* SoundWave) { return nullptr; }
-	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxy& SoundWave) { return nullptr; }
+	virtual ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) { return nullptr; }
 
 	/**
 	 * Check for errors and output a human readable string

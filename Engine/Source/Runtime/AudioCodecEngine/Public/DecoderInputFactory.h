@@ -16,5 +16,5 @@ namespace Audio
 	// Just loose for now.
 	AUDIOCODECENGINE_API TUniquePtr<IDecoderInput> CreateBackCompatDecoderInput(
 		FName InOldFormatName,
-		const FSoundWaveProxy& InSoundWave );
+		const FSoundWaveProxyPtr& InSoundWave );
 }

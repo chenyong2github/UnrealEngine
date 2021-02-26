@@ -151,7 +151,7 @@ namespace Metasound
 				return false;
 			}
 
-			return Decoder.Initialize(Params, *Wave->SoundWaveProxy);
+			return Decoder.Initialize(Params, Wave->SoundWaveProxy);
 		}
 
 

@@ -23,7 +23,7 @@ namespace Metasound
 	public:
 		// TODO: Implement using TSharedPtr<> to enable cheaper assignment when 
 		// choosing between multiple instances of FWaveAsset.
-		TUniquePtr<FSoundWaveProxy> SoundWaveProxy;
+		FSoundWaveProxyPtr SoundWaveProxy;
 
 		FWaveAsset() = default;
 		FWaveAsset(const FWaveAsset&) = delete;
@@ -35,7 +35,7 @@ namespace Metasound
 
 		FWaveAsset& operator=(const FWaveAsset& Other)
 		{
-			SoundWaveProxy = MakeUnique<FSoundWaveProxy>(*Other.SoundWaveProxy);
+			SoundWaveProxy = Other.SoundWaveProxy;
 			return *this;
 		}
 
@@ -45,7 +45,8 @@ namespace Metasound
 
 			if (InInitData.IsValid())
 			{
-				SoundWaveProxy = MakeUnique<FSoundWaveProxy>(InInitData->GetAs<FSoundWaveProxy>());
+				// should we be getting handed a SharedPtr here?
+				SoundWaveProxy = MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(InInitData->GetAs<FSoundWaveProxy>());
 			}
 		}
 
@@ -82,7 +83,7 @@ namespace Audio
 			return !bDecoderIsDone && Input.IsValid() && Output.IsValid() && Decoder.IsValid();
 		}
 
-		bool Initialize(const InitParams& InInitParams, const FSoundWaveProxy& InWave);
+		bool Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave);
 
 		// returns number of samples written.   
 		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents = 0.f);
@@ -94,7 +95,7 @@ namespace Audio
 		TSharedPtr<Audio::IDecoderInput, ESPMode::ThreadSafe> Input;
 
 		// init helper for decoders
-		bool InitializeDecodersInternal(const FSoundWaveProxy& Wave);
+		bool InitializeDecodersInternal(const FSoundWaveProxyPtr& Wave);
 
 		// SRC object
 		Audio::FResampler Resampler;

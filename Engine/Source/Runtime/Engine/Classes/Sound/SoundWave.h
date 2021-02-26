@@ -58,6 +58,11 @@ constexpr uint64 InvalidAudioStreamCacheLookupID = TNumericLimits<uint64>::Max()
  */
 struct FStreamedAudioChunk
 {
+	/** Serialization. */
+	void Serialize(FArchive& Ar, UObject* Owner, int32 ChunkIndex);
+
+	void GetCopy(void** OutChunkData);
+
 	/** Size of the chunk of data in bytes including zero padding */
 	int32 DataSize = 0;
 
@@ -67,9 +72,10 @@ struct FStreamedAudioChunk
 	/** Bulk data if stored in the package. */
 	FByteBulkData BulkData;
 
+private:
+	uint8* CachedDataPtr{ nullptr };
 
-	/** Serialization. */
-	void Serialize(FArchive& Ar, UObject* Owner, int32 ChunkIndex);
+public:
 
 #if WITH_EDITORONLY_DATA
 	/** Key if stored in the derived data cache. */
@@ -282,14 +288,14 @@ struct ISoundWaveClient
 	virtual void OnFinishDestroy(class USoundWave* Wave) = 0;
 };
 
-
+using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
 class ENGINE_API FSoundWaveProxy : public Audio::TProxyData<FSoundWaveProxy>
 {
 public:
 	IMPL_AUDIOPROXY_CLASS(FSoundWaveProxy);
 
 	explicit FSoundWaveProxy(USoundWave* InWave);
-	FSoundWaveProxy(const FSoundWaveProxy& Other);
+	FSoundWaveProxy(const FSoundWaveProxy& Other) = default;
 
 	Audio::IProxyDataPtr Clone() const override
 	{
@@ -316,7 +322,7 @@ public:
 	bool WasLoadingBehaviorOverridden() const { return bLoadingBehaviorOverridden; }
 	ESoundWaveLoadingBehavior GetLoadingBehavior() const { return LoadingBehavior; }
 
-	TArrayView<const uint8> GetZerothChunk(bool bForImmediatePlayback = false) const;
+	static TArrayView<const uint8> GetZerothChunk(const FSoundWaveProxyPtr& SoundWaveProxy, bool bForImmediatePlayback = false);
 	bool GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded = false);
 
 	bool IsZerothChunkDataLoaded() const;
@@ -332,10 +338,10 @@ public:
 	FString GetDerivedDataKey() const;
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
-	FBulkDataBuffer<uint8> ZerothChunkData;
+	TSharedPtr<FBulkDataBuffer<uint8>> ZerothChunkData;
 
 	/** The streaming derived data for this sound on this platform. */
-	TUniquePtr<FStreamedAudioPlatformData> RunningPlatformData{ nullptr };
+	TSharedPtr<FStreamedAudioPlatformData> RunningPlatformData{ nullptr };
 
 private:
 	FName NameCached;
@@ -468,6 +474,9 @@ private:
 	// Whether this asset is loaded from cooked data.
 	uint8 bLoadedFromCookedData : 1;
 #endif // !WITH_EDITOR
+
+	// cached proxy
+	FSoundWaveProxyPtr InternalProxy{ nullptr };
 
 	enum class ESoundWaveResourceState : uint8
 	{
@@ -725,10 +734,10 @@ public:
 	FFormatContainer CompressedFormatData;
 
 	/** Zeroth Chunk of audio for sources that use Load On Demand. */
-	FBulkDataBuffer<uint8> ZerothChunkData;
+	TSharedPtr<FBulkDataBuffer<uint8>> ZerothChunkData{ MakeShared<FBulkDataBuffer<uint8>>() };
 
 	/** The streaming derived data for this sound on this platform. */
-	FStreamedAudioPlatformData* RunningPlatformData{ nullptr };
+	TSharedPtr<FStreamedAudioPlatformData> RunningPlatformData{ nullptr };
 
 #if WITH_EDITORONLY_DATA
 	TMap<FName, uint32> AsyncLoadingDataFormats;
@@ -777,7 +786,8 @@ public:
 	virtual bool HasCookedAmplitudeEnvelopeData() const override;
 	//~ End USoundBase Interface.
 
-	TUniquePtr<FSoundWaveProxy> CreateSoundWaveProxy();
+	FSoundWaveProxyPtr CreateSoundWaveProxy();
+
 	//~Begin IAudioProxyDataFactory Interface.
 	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 	//~ End IAudioProxyDataFactory Interface.
@@ -1080,10 +1090,7 @@ public:
 		return (ESoundWavePrecacheState)PrecacheState.GetValue();
 	}
 
-	const FSoundWaveProxy& GetThisAsProxy();
-
 private:
-	TUniquePtr<FSoundWaveProxy> InternalProxy{ nullptr };
 	friend class FSoundWaveProxy;
 };
 

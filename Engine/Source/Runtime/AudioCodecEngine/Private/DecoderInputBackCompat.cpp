@@ -17,13 +17,13 @@ namespace Audio
 
 		if (!OldInfoObject.IsValid())
 		{
-			OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(*Wave));
+			OldInfoObject.Reset(Handle->CreateCompressedAudioInfo(Wave));
 			audio_ensure(OldInfoObject.IsValid());
 
 			FSoundQualityInfo Info;
 			if (Wave->IsStreaming())
 			{
-				if (!OldInfoObject->StreamCompressedInfo(*Wave, &Info))
+				if (!OldInfoObject->StreamCompressedInfo(Wave, &Info))
 				{
 					return nullptr;
 				}

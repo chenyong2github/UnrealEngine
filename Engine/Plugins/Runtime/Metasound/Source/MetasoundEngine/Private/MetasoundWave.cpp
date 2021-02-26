@@ -11,12 +11,12 @@
 
 namespace Audio
 {
-	bool FSimpleDecoderWrapper::Initialize(const InitParams& InInitParams, const FSoundWaveProxy& InWave)
+	bool FSimpleDecoderWrapper::Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave)
 	{
 		// validate data
-		if (false == InWave.IsStreaming())
+		if (!ensure(InWave.IsValid()) || !InWave->IsStreaming())
 		{
-			ensureAlwaysMsgf(InWave.IsStreaming(), TEXT("Metasounds does not support Force Inline (sound must be streaming)"));
+			ensureAlwaysMsgf(InWave->IsStreaming(), TEXT("Metasounds does not support Force Inline (sound must be streaming)"));
 
 			Input.Reset();
 			Output.Reset();
@@ -27,13 +27,13 @@ namespace Audio
 		}
 
 		// initialize input/output data
-		InputSampleRate = InWave.GetSampleRate();
+		InputSampleRate = InWave->GetSampleRate();
 		OutputSampleRate = InInitParams.OutputSampleRate;
 		FsInToFsOutRatio = (InputSampleRate / OutputSampleRate);
 		MaxPitchShiftRatio = FMath::Pow(2.f, InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves);
 		MaxPitchShiftCents = InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves * 1200.f;
 
-		NumChannels = InWave.GetNumChannels();
+		NumChannels = InWave->GetNumChannels();
 		DecodeBlockSizeInFrames = InInitParams.OutputBlockSizeInFrames;
 		DecodeBlockSizeInSamples = DecodeBlockSizeInFrames * NumChannels;
 
@@ -128,10 +128,15 @@ namespace Audio
 		return NumFramesConverted;
 	}
 
-	bool FSimpleDecoderWrapper::InitializeDecodersInternal(const FSoundWaveProxy& Wave)
+	bool FSimpleDecoderWrapper::InitializeDecodersInternal(const FSoundWaveProxyPtr& Wave)
 	{
+		if (!ensure(Wave.IsValid()))
+		{
+			return false;
+		}
+
 		// Input:
-		FName OldFormat = Wave.GetRuntimeFormat();
+		FName OldFormat = Wave->GetRuntimeFormat();
 		Input = MakeShareable(Audio::CreateBackCompatDecoderInput(OldFormat, Wave).Release());
 
 		if (!Input)

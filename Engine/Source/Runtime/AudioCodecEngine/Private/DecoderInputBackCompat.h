@@ -13,15 +13,15 @@ namespace Audio
 	struct FBackCompatInput : public IDecoderInput
 	{
 		FName OldFormatName;
-		TUniquePtr<FSoundWaveProxy> Wave;
+		FSoundWaveProxyPtr Wave;
 		mutable FFormatDescriptorSection Desc;
 		mutable TUniquePtr<ICompressedAudioInfo> OldInfoObject;
 
 		FBackCompatInput(
 			FName InOldFormatName,
-			const FSoundWaveProxy& InWave)
+			const FSoundWaveProxyPtr& InWave)
 			: OldFormatName(InOldFormatName)
-			, Wave(MakeUnique<FSoundWaveProxy>(InWave))
+			, Wave(InWave)
 		{
 		}
 

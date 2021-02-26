@@ -532,7 +532,7 @@ void UAudioMixerBlueprintLibrary::PrimeSoundForPlayback(USoundWave* SoundWave, c
 	}
 	else
 	{
-		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(SoundWave->GetThisAsProxy(), 1, [OnLoadCompletion, SoundWave](EAudioChunkLoadResult InResult)
+		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(SoundWave->CreateSoundWaveProxy(), 1, [OnLoadCompletion, SoundWave](EAudioChunkLoadResult InResult)
 		{
 			AsyncTask(ENamedThreads::GameThread, [OnLoadCompletion, SoundWave, InResult]() {
 				if (InResult == EAudioChunkLoadResult::Completed || InResult == EAudioChunkLoadResult::AlreadyLoaded)

@@ -40,7 +40,7 @@ public:
 		FChunkKey(FName InSoundWaveName, uint32 InChunkIndex);
 
 		FChunkKey(
-			  const FSoundWaveProxy& InSoundWave
+			  const FSoundWaveProxyPtr& InSoundWave
 			, uint32 InChunkIndex
 #if WITH_EDITOR
 			, uint32 InChunkRevision = 0
@@ -51,7 +51,7 @@ public:
 
 
 	private:
-		mutable TUniquePtr<FSoundWaveProxy> SoundWaveProxyPtr{ nullptr };
+		mutable FSoundWaveProxyPtr SoundWaveProxyPtr{ nullptr };
 
 	public:
 		mutable FName SoundWaveName = FName(); // mutable for GetTypeHash()
@@ -467,12 +467,12 @@ public:
 	// End IStreamingManager interface
 
 	// IAudioStreamingManager interface (unused functions)
-	virtual void AddStreamingSoundWave(const FSoundWaveProxy& SoundWave) override;
-	virtual void RemoveStreamingSoundWave(const FSoundWaveProxy& SoundWave) override;
+	virtual void AddStreamingSoundWave(const FSoundWaveProxyPtr& SoundWave) override;
+	virtual void RemoveStreamingSoundWave(const FSoundWaveProxyPtr& SoundWave) override;
 	virtual void AddDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
 	virtual void RemoveDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
-	virtual bool IsManagedStreamingSoundWave(const FSoundWaveProxy&  SoundWave) const override;
-	virtual bool IsStreamingInProgress(const FSoundWaveProxy&  SoundWave) override;
+	virtual bool IsManagedStreamingSoundWave(const FSoundWaveProxyPtr&  SoundWave) const override;
+	virtual bool IsStreamingInProgress(const FSoundWaveProxyPtr&  SoundWave) override;
 	virtual bool CanCreateSoundSource(const FWaveInstance* WaveInstance) const override;
 	virtual void AddStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual void RemoveStreamingSoundSource(FSoundSource* SoundSource) override;
@@ -480,8 +480,8 @@ public:
 	// End IAudioStreamingManager interface (unused)
 
 	// IAudioStreamingManager interface (used functions)
-	virtual bool RequestChunk(const FSoundWaveProxy& SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
-	virtual FAudioChunkHandle GetLoadedChunk(const FSoundWaveProxy&  SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
+	virtual bool RequestChunk(const FSoundWaveProxyPtr& SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
+	virtual FAudioChunkHandle GetLoadedChunk(const FSoundWaveProxyPtr&  SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) override;
 	virtual FString GenerateMemoryReport() override;
@@ -500,13 +500,13 @@ protected:
 	 * based on the size of this sound wave's chunk,
 	 * or nullptr if MemoryLoadOnDemand is disabled.
 	 */
-	FAudioChunkCache* GetCacheForWave(const FSoundWaveProxy&  InSoundWave) const;
+	FAudioChunkCache* GetCacheForWave(const FSoundWaveProxyPtr&  InSoundWave) const;
 	FAudioChunkCache* GetCacheForChunkSize(uint32 InChunkSize) const;
 
 	/**
 	 * Returns the next chunk to kick off a load for, or INDEX_NONE if there is only one chunk to cache.
 	 */
-	int32 GetNextChunkIndex(const FSoundWaveProxy&  InSoundWave, uint32 CurrentChunkIndex) const;
+	int32 GetNextChunkIndex(const FSoundWaveProxyPtr&  InSoundWave, uint32 CurrentChunkIndex) const;
 
 	/** Audio chunk caches. These are set up on initialization. */
 	TArray<FAudioChunkCache> CacheArray;

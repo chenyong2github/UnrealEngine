@@ -142,14 +142,18 @@ void IStreamedCompressedInfo::ExpandFile(uint8* DstBuffer, struct FSoundQualityI
 	}
 }
 
-bool IStreamedCompressedInfo::StreamCompressedInfoInternal(const FSoundWaveProxy& InWaveProxy, struct FSoundQualityInfo* QualityInfo)
+bool IStreamedCompressedInfo::StreamCompressedInfoInternal(const FSoundWaveProxyPtr& InWaveProxy, struct FSoundQualityInfo* QualityInfo)
 {
-	check(StreamingSoundWave.Get() == &InWaveProxy);
+	// we have already cached the wave, confirm it is valid and the same
+	if (!(ensureAlways(StreamingSoundWave.IsValid() && (StreamingSoundWave == InWaveProxy))))
+	{
+		return false;
+	}
 
 	// Get the first chunk of audio data (should always be loaded)
 	CurrentChunkIndex = 0;
 	uint32 ChunkSize = 0;
-	const uint8* FirstChunk = GetLoadedChunk(*StreamingSoundWave, CurrentChunkIndex, ChunkSize);
+	const uint8* FirstChunk = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, ChunkSize);
 
 	bIsStreaming = true;
 	if (FirstChunk)
@@ -189,7 +193,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 	if (SrcBufferData == NULL)
 	{
 		uint32 ChunkSize = 0;
-		SrcBufferData = GetLoadedChunk(*StreamingSoundWave, CurrentChunkIndex, ChunkSize);
+		SrcBufferData = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, ChunkSize);
 		if (SrcBufferData)
 		{
 			bPrintChunkFailMessage = true;
@@ -274,7 +278,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 					SrcBufferOffset = 0;
 				}
 
-				SrcBufferData = GetLoadedChunk(*StreamingSoundWave, CurrentChunkIndex, SrcBufferDataSize);
+				SrcBufferData = GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex, SrcBufferDataSize);
 				if (SrcBufferData)
 				{
 					UE_LOG(LogAudio, Log, TEXT("Incremented current chunk from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetFName().ToString(), CurrentChunkIndex, SrcBufferOffset);
@@ -362,16 +366,21 @@ uint32 IStreamedCompressedInfo::ZeroBuffer(uint8* Destination, uint32 BufferSize
 }
 
 
-const uint8* IStreamedCompressedInfo::GetLoadedChunk(const FSoundWaveProxy& InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)
+const uint8* IStreamedCompressedInfo::GetLoadedChunk(const FSoundWaveProxyPtr& InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)
 {
-	if (ChunkIndex >= InSoundWave.GetNumChunks())
+	if (!ensure(InSoundWave.IsValid()))
+	{
+		OutChunkSize = 0;
+		return nullptr;
+	}
+	else if (ChunkIndex >= InSoundWave->GetNumChunks())
 	{
 		OutChunkSize = 0;
 		return nullptr;
 	}
 	else if (ChunkIndex == 0)
 	{
-		TArrayView<const uint8> ZerothChunk = InSoundWave.GetZerothChunk(true);
+		TArrayView<const uint8> ZerothChunk = FSoundWaveProxy::GetZerothChunk(InSoundWave, true);
 		OutChunkSize = ZerothChunk.Num();
 		return ZerothChunk.GetData();
 	}
@@ -651,7 +660,8 @@ FAsyncAudioDecompressWorker::FAsyncAudioDecompressWorker(USoundWave* InWave, int
 	}
 	else if (GEngine && GEngine->GetMainAudioDevice())
 	{
-		AudioInfo = GEngine->GetMainAudioDevice()->CreateCompressedAudioInfo(Wave->GetThisAsProxy());
+		// alternatively, we could expose InWave::InternalProxy via public getter to avoid the proxy creation
+		AudioInfo = GEngine->GetMainAudioDevice()->CreateCompressedAudioInfo(InWave->CreateSoundWaveProxy());
 	}
 }
 
@@ -770,12 +780,12 @@ bool ICompressedAudioInfo::StreamCompressedInfo(USoundWave* Wave, FSoundQualityI
 		return false;
 	}
 
-	return StreamCompressedInfoInternal(*StreamingSoundWave, QualityInfo);
+	return StreamCompressedInfoInternal(StreamingSoundWave, QualityInfo);
 }
 
-bool ICompressedAudioInfo::StreamCompressedInfo(const FSoundWaveProxy& Wave, FSoundQualityInfo* QualityInfo)
+bool ICompressedAudioInfo::StreamCompressedInfo(const FSoundWaveProxyPtr& Wave, FSoundQualityInfo* QualityInfo)
 {
 	// Create our own copy of the proxy object
-	StreamingSoundWave = MakeUnique<FSoundWaveProxy>(Wave);
-	return StreamCompressedInfoInternal(*StreamingSoundWave, QualityInfo);
+	StreamingSoundWave = Wave;
+	return StreamCompressedInfoInternal(StreamingSoundWave, QualityInfo);
 }

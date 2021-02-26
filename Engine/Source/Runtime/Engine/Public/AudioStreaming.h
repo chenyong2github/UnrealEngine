@@ -23,6 +23,8 @@ class ICompressedAudioInfo;
 struct FLegacyAudioStreamingManager;
 struct FWaveInstance;
 
+using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
+
 /** Lists possible states used by Thread-safe counter. */
 enum EAudioStreamingState
 {
@@ -140,7 +142,7 @@ struct FStreamingWaveData final
 	 *
 	 * @param SoundWave	The SoundWave we are managing
 	 */
-	bool Initialize(const FSoundWaveProxy& SoundWave, FLegacyAudioStreamingManager* InStreamingManager);
+	bool Initialize(const FSoundWaveProxyPtr& SoundWave, FLegacyAudioStreamingManager* InStreamingManager);
 
 	/**
 	 * Updates the streaming status of the sound wave and performs finalization when appropriate. The function returns
@@ -200,7 +202,7 @@ private:
 
 public:
 	/** SoundWave this streaming data is for */
-	TUniquePtr<FSoundWaveProxy> SoundWave;
+	FSoundWaveProxyPtr SoundWave;
 
 	/** Thread-safe counter indicating the audio streaming state. */
 	mutable FThreadSafeCounter	PendingChunkChangeRequestStatus;
@@ -264,18 +266,18 @@ struct FLegacyAudioStreamingManager : public IAudioStreamingManager
 	// End IStreamingManager interface
 
 	// IAudioStreamingManager interface
-	virtual void AddStreamingSoundWave(const FSoundWaveProxy& SoundWave) override;
-	virtual void RemoveStreamingSoundWave(const FSoundWaveProxy& SoundWave) override;
+	virtual void AddStreamingSoundWave(const FSoundWaveProxyPtr& SoundWave) override;
+	virtual void RemoveStreamingSoundWave(const FSoundWaveProxyPtr& SoundWave) override;
 	virtual void AddDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
 	virtual void RemoveDecoder(ICompressedAudioInfo* CompressedAudioInfo) override;
-	virtual bool IsManagedStreamingSoundWave(const FSoundWaveProxy&  SoundWave) const override;
-	virtual bool IsStreamingInProgress(const FSoundWaveProxy&  SoundWave) override;
+	virtual bool IsManagedStreamingSoundWave(const FSoundWaveProxyPtr&  SoundWave) const override;
+	virtual bool IsStreamingInProgress(const FSoundWaveProxyPtr&  SoundWave) override;
 	virtual bool CanCreateSoundSource(const FWaveInstance* WaveInstance) const override;
 	virtual void AddStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual void RemoveStreamingSoundSource(FSoundSource* SoundSource) override;
 	virtual bool IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const override;
-	virtual bool RequestChunk(const FSoundWaveProxy& SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
-	virtual FAudioChunkHandle GetLoadedChunk(const FSoundWaveProxy&  SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
+	virtual bool RequestChunk(const FSoundWaveProxyPtr& SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted, ENamedThreads::Type ThreadToCallOnLoadCompletedOn, bool bForImmediatePlayback = false) override;
+	virtual FAudioChunkHandle GetLoadedChunk(const FSoundWaveProxyPtr&  SoundWave, uint32 ChunkIndex, bool bBlockForLoad = false, bool bForImmediatePlayback = false) const override;
 	virtual uint64 TrimMemory(uint64 NumBytesToFree) override;
 	virtual int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation) override;
 	virtual FString GenerateMemoryReport() override;

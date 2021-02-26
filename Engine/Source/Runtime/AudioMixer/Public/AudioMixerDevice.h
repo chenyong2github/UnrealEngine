@@ -87,7 +87,7 @@ namespace Audio
 		virtual bool SupportsRealtimeDecompression() const override;
 		virtual bool DisablePCMAudioCaching() const override;
 		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* SoundWave) override;
-		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxy& SoundWave) override;
+		virtual class ICompressedAudioInfo* CreateCompressedAudioInfo(const FSoundWaveProxyPtr& SoundWave) override;
 		virtual bool ValidateAPICall(const TCHAR* Function, uint32 ErrorCode) override;
 		virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 		virtual void CountBytes(class FArchive& Ar) override;

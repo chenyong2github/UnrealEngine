@@ -1405,14 +1405,14 @@ FAudioChunkHandle::FAudioChunkHandle()
 {
 }
 
-FAudioChunkHandle::FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxy&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
+FAudioChunkHandle::FAudioChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxyPtr&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
 	: CachedData(InData)
 	, CachedDataNumBytes(NumBytes)
-	, CorrespondingWave(MakeUnique<FSoundWaveProxy>(InSoundWave))
+	, CorrespondingWave(InSoundWave)
 	, CorrespondingWaveName(SoundWaveName)
 	, ChunkIndex(InChunkIndex)
 #if WITH_EDITOR
-	, ChunkGeneration(InSoundWave.GetCurrentChunkRevision())
+	, ChunkGeneration(InSoundWave.IsValid()? InSoundWave->GetCurrentChunkRevision() : 0)
 #endif
 {
 }
@@ -1474,7 +1474,7 @@ FAudioChunkHandle& FAudioChunkHandle::operator=(const FAudioChunkHandle& Other)
 
 	if (Other.CorrespondingWave.IsValid())
 	{
-		CorrespondingWave = MakeUnique<FSoundWaveProxy>(*Other.CorrespondingWave);
+		CorrespondingWave = Other.CorrespondingWave;
 	}
 
 	CorrespondingWaveName = Other.CorrespondingWaveName;
@@ -1518,10 +1518,12 @@ bool FAudioChunkHandle::IsValid() const
 #if WITH_EDITOR
 bool FAudioChunkHandle::IsStale() const
 {
-	if (CorrespondingWave.IsValid())
+	FSoundWaveProxyPtr ProxyPtr = CorrespondingWave.Pin();
+
+	if (ProxyPtr.IsValid())
 	{
 		// NOTE: While this is currently safe in editor, there's no guarantee the USoundWave will be kept alive during the lifecycle of this chunk handle.
-		return ChunkGeneration != CorrespondingWave->GetCurrentChunkRevision();
+		return ChunkGeneration != ProxyPtr->GetCurrentChunkRevision();
 	}
 	else
 	{
@@ -1530,7 +1532,12 @@ bool FAudioChunkHandle::IsStale() const
 }
 #endif
 
-FAudioChunkHandle IAudioStreamingManager::BuildChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxy&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
+FAudioChunkHandle IAudioStreamingManager::BuildChunkHandle(const uint8* InData, uint32 NumBytes, const FSoundWaveProxyPtr&  InSoundWave, const FName& SoundWaveName, uint32 InChunkIndex, uint64 InCacheLookupID)
 {
-	return FAudioChunkHandle(InData, NumBytes, InSoundWave, SoundWaveName, InChunkIndex, InCacheLookupID);
+	if (ensure(InSoundWave.IsValid()))
+	{
+		return FAudioChunkHandle(InData, NumBytes, InSoundWave, SoundWaveName, InChunkIndex, InCacheLookupID);
+	}
+
+	return {};
 }

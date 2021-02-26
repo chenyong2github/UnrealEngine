@@ -845,7 +845,7 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 			if (OutChunkData)
 			{
 				ChunkDataSize = Chunk.BulkData.GetBulkDataSize();
-				Chunk.BulkData.GetCopy((void**)OutChunkData, true);
+				Chunk.GetCopy((void**)OutChunkData);
 			}
 		}
 	}
@@ -868,7 +868,7 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 		if (OutChunkData)
 		{
 			ChunkDataSize = Chunk.BulkData.GetBulkDataSize();
-			Chunk.BulkData.GetCopy((void**)OutChunkData, true);
+			Chunk.GetCopy((void**)OutChunkData);
 		}
 	}
 #endif // #if WITH_EDITORONLY_DATA
@@ -1451,11 +1451,7 @@ bool FDerivedAudioDataCompressor::Build(TArray<uint8>& OutData)
 
 void USoundWave::CleanupCachedRunningPlatformData()
 {
-	if (RunningPlatformData != NULL)
-	{
-		delete RunningPlatformData;
-		RunningPlatformData = NULL;
-	}
+	RunningPlatformData.Reset();
 }
 
 
@@ -1501,7 +1497,7 @@ void USoundWave::SerializeCookedPlatformData(FArchive& Ar)
 		check(RunningPlatformData == NULL);
 
 		// Don't serialize streaming data on servers, even if this platform supports streaming in theory
-		RunningPlatformData = new FStreamedAudioPlatformData();
+		RunningPlatformData = MakeShared<FStreamedAudioPlatformData>();
 		RunningPlatformData->Serialize(Ar, this);
 	}
 }
@@ -1518,7 +1514,7 @@ void USoundWave::CachePlatformData(bool bAsyncCache)
 	{
 		if (RunningPlatformData == NULL)
 		{
-			RunningPlatformData = new FStreamedAudioPlatformData();
+			RunningPlatformData = MakeShared<FStreamedAudioPlatformData>();
 		}
 
 		RunningPlatformData->Cache(*this, CompressionOverrides, AudioFormat, bAsyncCache ? EStreamedAudioCacheFlags::Async : EStreamedAudioCacheFlags::None);
