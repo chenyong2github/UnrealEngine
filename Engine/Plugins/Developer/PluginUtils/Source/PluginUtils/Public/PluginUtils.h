@@ -92,6 +92,24 @@ public:
 	};
 
 	/**
+	 * Parameters for creating a new plugin.
+	 */
+	struct FNewPluginParamsWithDescriptor
+	{
+		/** The description of the plugin */
+		FPluginDescriptor Descriptor;
+
+		/** Path to plugin icon to copy in the plugin resources folder */
+		FString PluginIconPath;
+
+		/**
+		 * Folders containing template files to copy into the plugin folder (Required if Descriptor.Modules is not empty).
+		 * Occurrences of the string PLUGIN_NAME in the filename or file content will be replaced by the plugin name.
+		 */
+		TArray<FString> TemplateFolders;
+	};
+
+	/**
 	 * Parameters for mounting a plugin.
 	 */
 	struct FMountPluginParams
@@ -121,6 +139,18 @@ public:
 	 * @note Will fail if the plugin already exists
 	 */
 	static TSharedPtr<IPlugin> CreateAndMountNewPlugin(const FString& PluginName, const FString& PluginLocation, const FNewPluginParams& CreationParams, const FMountPluginParams& MountParams, FText& FailReason);
+
+	/**
+	 * Helper to create and mount a new plugin.
+	 * @param PluginName Plugin name
+	 * @param PluginLocation Directory that contains the plugin folder
+	 * @param CreationParams Plugin creation parameters
+	 * @param MountParams Plugin mounting parameters
+	 * @param FailReason Reason the plugin creation/mount failed
+	 * @return The newly created plugin. If something goes wrong during the creation process, the plugin folder gets deleted and null is returned.
+	 * @note Will fail if the plugin already exists
+	 */
+	static TSharedPtr<IPlugin> CreateAndMountNewPlugin(const FString& PluginName, const FString& PluginLocation, const FNewPluginParamsWithDescriptor& CreationParams, const FMountPluginParams& MountParams, FText& FailReason);
 
 	/**
 	 * Load/mount the specified plugin.

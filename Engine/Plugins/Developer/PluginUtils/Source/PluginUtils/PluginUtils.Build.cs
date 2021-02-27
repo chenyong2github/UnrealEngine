@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 					"AssetRegistry",
 					"AssetTools",
 					"CoreUObject",
+					"SourceControl"
 				}
 			);
 		}
