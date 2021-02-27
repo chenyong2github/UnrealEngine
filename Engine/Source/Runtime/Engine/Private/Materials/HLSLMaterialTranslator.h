@@ -47,13 +47,12 @@
 #include "Containers/HashTable.h"
 #include "Engine/Texture2D.h"
 #include "StrataMaterial.h"
+#include "HLSLMaterialDerivativeAutogen.h"
 #endif
 
 class Error;
 
 #if WITH_EDITORONLY_DATA
-
-class FHLSLMaterialTranslator;
 
 enum EMaterialExpressionVisitResult
 {
@@ -68,28 +67,7 @@ public:
 	virtual EMaterialExpressionVisitResult Visit(UMaterialExpression* InExpression) = 0;
 };
 
-/**
-* For a node, the known information of the partial derivatives.
-* DS_NotAware	- This node is made by a function that has no knowledge of analytic partial derivatives.
-* DS_NotValid	- This node is aware of partial derivatives, and knows that one of its source inputs is not partial derivative aware, and therefore its value is not to be used.
-* DS_Zero		- This node is aware of partial derivatives, and knows that it's value is zero, as is the case for uniform parameters.
-* DS_Valid		- This node is aware of partial derivatives, and knows that it has a calculated value.
-**/
-enum EDerivativeStatus
-{
-	DS_NotAware,
-	DS_NotValid,
-	DS_Zero,
-	DS_Valid,
-	DS_MAX,
-};
-
-struct FDerivInfo
-{
-	EMaterialValueType	Type;
-	int32				TypeIndex;
-	EDerivativeStatus	DerivativeStatus;
-};
+uint32 GetNumComponents(EMaterialValueType Type);
 
 struct FShaderCodeChunk
 {
@@ -210,103 +188,6 @@ struct FMaterialCustomExpressionEntry
 	TArray<int32> OutputCodeIndex;
 };
 
-class FMaterialDerivativeAutogen
-{
-public:
-	// Unary functions
-	enum EFunc1
-	{
-		EF1_Abs,
-		EF1_Log2,
-		EF1_Log10,
-		EF1_Exp,
-		EF1_Sin,
-		EF1_Cos,
-		EF1_Tan,
-		EF1_Asin,
-		EF1_AsinFast,
-		EF1_Acos,
-		EF1_AcosFast,
-		EF1_Atan,
-		EF1_AtanFast,
-		EF1_Sqrt,
-		EF1_Rcp,
-		EF1_Rsqrt,
-		EF1_Saturate,
-		EF1_Frac,
-		EF1_Length,
-		EF1_InvLength,
-		EF1_Normalize,
-		EF1_Num
-	};
-
-	// Binary functions
-	enum EFunc2
-	{
-		EF2_Add,
-		EF2_Sub,
-		EF2_Mul,
-		EF2_Div,
-		EF2_Fmod,
-		EF2_Max,
-		EF2_Min,
-		EF2_Dot,	// Depends on Add/Mul, so it must come after them
-		EF2_Pow,
-		EF2_PowPositiveClamped,
-		EF2_Cross,
-		EF2_Atan2,
-		EF2_Atan2Fast,
-		EF2_Num
-	};
-
-	// Note that the type index is from [0,3] for float1 to float4. I.e. A float3 would be index 2.
-	static int32 GetFunc1ReturnNumComponents(int32 SrcTypeIndex, EFunc1 Op);
-	static int32 GetFunc2ReturnNumComponents(int32 LhsTypeIndex, int32 RhsTypeIndex, EFunc2 Op);
-
-	void EnableGeneratedDepencencies();
-
-	int32 GenerateExpressionFunc1(FHLSLMaterialTranslator& Translator, EFunc1 Op, int32 SrcCode);
-	int32 GenerateExpressionFunc2(FHLSLMaterialTranslator& Translator, EFunc2 Op, int32 LhsCode, int32 RhsCode);
-
-	int32 GenerateLerpFunc(FHLSLMaterialTranslator& Translator, int32 A, int32 B, int32 S);
-	int32 GenerateRotateScaleOffsetTexCoordsFunc(FHLSLMaterialTranslator& Translator, int32 TexCoord, int32 RotationScale, int32 Offset);
-	int32 GenerateIfFunc(FHLSLMaterialTranslator& Translator, int32 A, int32 B, int32 Greater, int32 Equal, int32 Less, int32 Threshold);
-	
-	FString GenerateUsedFunctions(FHLSLMaterialTranslator& Translator);
-
-	FString ApplyUnMirror(FString Value, bool bUnMirrorU, bool bUnMirrorV);
-
-	FString CoerceValueRaw(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
-	FString CoerceValueDeriv(const FString& Token, int32 SrcType, EDerivativeStatus SrcStatus, int32 DstType);
-
-	FString ConstructDeriv(const FString& Value, const FString& Ddx, const FString& Ddy, int32 DstType);
-	FString ConstructDerivFinite(const FString& Value, int32 DstType);
-
-	FString ConvertDeriv(const FString& Value, int32 DstType, int32 SrcType);
-
-	FString ExtractElement(const FString& Value, int32 SrcType, int32 ElementIndex);
-
-private:
-	// State to keep track of which derivative functions have been used and need to be generated.
-	bool bFunc1OpIsEnabled[EF1_Num][4] = {};
-	bool bFunc2OpIsEnabled[EF2_Num][4] = {};
-	bool bLerpEnabled[4] = {};
-	bool bIfEnabled[4] = {};
-	bool bIf2Enabled[4] = {};
-	bool bUnMirrorEnabled[2][2] = {};
-
-	bool bRotateScaleOffsetTexCoords = false;
-
-	bool bConstructDerivEnabled[4] = {};
-	bool bConstructConstantDerivEnabled[4] = {};
-	bool bConstructFiniteDerivEnabled[4] = {};
-
-	bool bConvertDerivEnabled[4][4] = {};
-
-	bool bExtractIndexEnabled[4] = {};
-
-	bool bSelectElemHelperEnabled[4] = {};
-};
 
 struct FMaterialDerivativeVariation
 {
@@ -663,21 +544,21 @@ protected:
 	int32 AddCodeChunk(EMaterialValueType Type, const TCHAR* Format, Types... Args)
 	{
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddCodeChunk");
-		return AddCodeChunkInner(Type, DS_NotAware, false, Format, Args...);
+		return AddCodeChunkInner(Type, EDerivativeStatus::NotAware, false, Format, Args...);
 	}
 
 	template <typename... Types>
 	int32 AddCodeChunkZeroDeriv(EMaterialValueType Type, const TCHAR* Format, Types... Args)
 	{
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddCodeChunkZeroDeriv");
-		return AddCodeChunkInner(Type, DS_Zero, false, Format, Args...);
+		return AddCodeChunkInner(Type, EDerivativeStatus::Zero, false, Format, Args...);
 	}
 
 	template <typename... Types>
 	int32 AddCodeChunkFiniteDeriv(EMaterialValueType Type, const TCHAR* Format, Types... Args)
 	{
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddCodeChunkFiniteDeriv");
-		return AddCodeChunkInner(Type, DS_NotValid, false, Format, Args...);
+		return AddCodeChunkInner(Type, EDerivativeStatus::NotValid, false, Format, Args...);
 	}
 	
 
@@ -689,21 +570,21 @@ protected:
 	int32 AddInlinedCodeChunk(EMaterialValueType Type, const TCHAR* Format, Types... Args)
 	{
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddInlinedCodeChunk");
-		return AddCodeChunkInner(Type, DS_NotAware, true, Format, Args...);
+		return AddCodeChunkInner(Type, EDerivativeStatus::NotAware, true, Format, Args...);
 	}
 
 	template <typename... Types>
 	int32 AddInlinedCodeChunkZeroDeriv(EMaterialValueType Type, const TCHAR* Format, Types... Args)
 	{
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddInlinedCodeChunkZeroDeriv");
-		return AddCodeChunkInner(Type, DS_Zero, true, Format, Args...);
+		return AddCodeChunkInner(Type, EDerivativeStatus::Zero, true, Format, Args...);
 	}
 
 	template <typename... Types>
 	int32 AddInlinedCodeChunkFiniteDeriv(EMaterialValueType Type, const TCHAR* Format, Types... Args)
 	{
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to AddInlinedCodeChunkFiniteDeriv");
-		return AddCodeChunkInner(Type, DS_NotValid, true, Format, Args...);
+		return AddCodeChunkInner(Type, EDerivativeStatus::NotValid, true, Format, Args...);
 	}
 
 	int32 AddUniformExpressionInner(uint64 Hash, FMaterialUniformExpression* UniformExpression, EMaterialValueType Type, const TCHAR* FormattedCode);
