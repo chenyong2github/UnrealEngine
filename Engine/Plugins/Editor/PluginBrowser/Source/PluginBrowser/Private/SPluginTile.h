@@ -11,7 +11,6 @@
 #include "Brushes/SlateDynamicImageBrush.h"
 
 class IPlugin;
-class SWindow;
 class UPluginMetadataObject;
 
 /**
@@ -49,8 +48,8 @@ private:
 	/** Called when the 'edit' hyperlink is clicked */
 	void OnEditPlugin();
 
-	/** Called when the 'edit' hyperlink is clicked */
-	FReply OnEditPluginFinished(UPluginMetadataObject* MetadataObject);
+	/** Called when the edit window is committed */
+	void OnEditPluginFinished();
 
 	/** Called when the 'package' hyperlink is clicked */
 	void OnPackagePlugin();
@@ -62,9 +61,6 @@ private:
 
 	/** Weak pointer back to its owner */
 	TWeakPtr< class SPluginTileList > OwnerWeak;
-
-	/** Dialog for editing plugin properties */
-	TSharedPtr< SWindow > PropertiesWindow;
 
 	/** Brush resource for the image that is dynamically loaded */
 	TSharedPtr< FSlateDynamicImageBrush > PluginIconDynamicImageBrush;

@@ -4,11 +4,16 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SSegmentedControl.h"
+#include "SGameFeatureStateWidget.h"
 #include "Widgets/Notifications/SErrorText.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
+
+#include "Interfaces/IPluginManager.h"
+#include "Features/IPluginsEditorFeature.h"
+#include "Features/EditorFeatures.h"
+
 #include "GameFeatureData.h"
 #include "../../GameFeatures/Private/GameFeaturePluginStateMachine.h"
 
@@ -28,7 +33,7 @@ void FGameFeatureDataDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder
 		.ToolTipText(LOCTEXT("ErrorTooltip", "The error raised while attempting to change the state of this feature"));
 
 	// Create a category so this is displayed early in the properties
-	IDetailCategoryBuilder& TopCategory = DetailBuilder.EditCategory("Plugin Settings", FText::GetEmpty(), ECategoryPriority::Important);
+	IDetailCategoryBuilder& TopCategory = DetailBuilder.EditCategory("Feature State", FText::GetEmpty(), ECategoryPriority::Important);
 
 	PluginURL.Reset();
 	ObjectsBeingCustomized.Empty();
@@ -43,28 +48,65 @@ void FGameFeatureDataDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder
 
 		UGameFeaturesSubsystem& Subsystem = UGameFeaturesSubsystem::Get();
 		Subsystem.GetPluginURLForBuiltInPluginByName(PathParts[0], /*out*/ PluginURL);
-
-		TSharedRef<SWidget> CurrentStateSwitcher = SNew(SSegmentedControl<EGameFeaturePluginState>)
-			.Value(this, &FGameFeatureDataDetailsCustomization::GetCurrentState)
-			.OnValueChanged(this, &FGameFeatureDataDetailsCustomization::ChangeDesiredState)
-			.ToolTipText(LOCTEXT("StateSwitcherTooltip", "Attempt to change the current state of this game feature"))
-			+SSegmentedControl<EGameFeaturePluginState>::Slot(EGameFeaturePluginState::Installed)
-				.Text(GetDisplayNameOfState(EGameFeaturePluginState::Installed))
-			+ SSegmentedControl<EGameFeaturePluginState>::Slot(EGameFeaturePluginState::Registered)
-				.Text(GetDisplayNameOfState(EGameFeaturePluginState::Registered))
-			+ SSegmentedControl<EGameFeaturePluginState>::Slot(EGameFeaturePluginState::Loaded)
-				.Text(GetDisplayNameOfState(EGameFeaturePluginState::Loaded))
-			+ SSegmentedControl<EGameFeaturePluginState>::Slot(EGameFeaturePluginState::Active)
-				.Text(GetDisplayNameOfState(EGameFeaturePluginState::Active))
-			;
+		PluginPtr = IPluginManager::Get().FindPlugin(PathParts[0]);
 
 		const float Padding = 8.0f;
+
+		if (PluginPtr.IsValid())
+		{
+			const FString ShortFilename = FPaths::GetCleanFilename(PluginPtr->GetDescriptorFileName());
+			FDetailWidgetRow& EditPluginRow = TopCategory.AddCustomRow(LOCTEXT("InitialStateSearchText", "Initial State Edit Plugin"))
+				.NameContent()
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("InitialState", "Initial State"))
+					.ToolTipText(LOCTEXT("InitialStateTooltip", "The initial or default state of this game feature (determines the state that it will be in at game/editor startup)"))
+					.Font(DetailBuilder.GetDetailFont())
+				]
+
+				.ValueContent()
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(0.0f, 0.0f, Padding, 0.0f)
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(this, &FGameFeatureDataDetailsCustomization::GetInitialStateText)
+						.Font(DetailBuilder.GetDetailFont())
+					]
+
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(SButton)
+						.Text(LOCTEXT("EditPluginButton", "Edit Plugin"))
+						.OnClicked_Lambda([this]()
+							{
+								IModularFeatures& ModularFeatures = IModularFeatures::Get();
+								if (ModularFeatures.IsModularFeatureAvailable(EditorFeatures::PluginsEditor))
+								{
+									ModularFeatures.GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor).OpenPluginEditor(PluginPtr.ToSharedRef(), nullptr, FSimpleDelegate());
+								}
+								else
+								{
+									FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("CannotEditPlugin_PluginBrowserDisabled", "Cannot open plugin editor because the PluginBrowser plugin is disabled)"));
+								}
+								return FReply::Handled();
+							})
+					]
+
+				];
+		}
 
 		FDetailWidgetRow& ControlRow = TopCategory.AddCustomRow(LOCTEXT("ControlSearchText", "Plugin State Control"))
 			.NameContent()
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CurrentState", "Current State"))
+				.ToolTipText(LOCTEXT("CurrentStateTooltip", "The current state of this game feature"))
 				.Font(DetailBuilder.GetDetailFont())
 			]
 
@@ -75,23 +117,10 @@ void FGameFeatureDataDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder
 				+SVerticalBox::Slot()
 				.AutoHeight()
 				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						CurrentStateSwitcher
-					]
-					+SHorizontalBox::Slot()
-					.Padding(8.0f, 0.0f, 0.0f, 0.0f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(this, &FGameFeatureDataDetailsCustomization::GetStateStatusDisplay)
-						.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("ButtonText"))
-						.ToolTipText(LOCTEXT("OtherStateToolTip", "The current state of this game feature plugin"))
-						.ColorAndOpacity(FAppStyle::Get().GetSlateColor(TEXT("Colors.AccentYellow")))
-					]
+					SNew(SGameFeatureStateWidget)
+					.ToolTipText(LOCTEXT("StateSwitcherTooltip", "Attempt to change the current state of this game feature"))
+					.CurrentState(this, &FGameFeatureDataDetailsCustomization::GetCurrentState)
+					.OnStateChanged(this, &FGameFeatureDataDetailsCustomization::ChangeDesiredState)
 				]
 				+SVerticalBox::Slot()
 				.HAlign(HAlign_Left)
@@ -178,54 +207,17 @@ void FGameFeatureDataDetailsCustomization::ChangeDesiredState(EGameFeaturePlugin
 	}
 }
 
-FText FGameFeatureDataDetailsCustomization::GetDisplayNameOfState(EGameFeaturePluginState State)
-{
-	switch (State)
-	{
-	case EGameFeaturePluginState::Uninitialized: return LOCTEXT("UninitializedStateDisplayName", "Uninitialized");
-	case EGameFeaturePluginState::UnknownStatus: return LOCTEXT("UnknownStatusStateDisplayName", "UnknownStatus");
-	case EGameFeaturePluginState::CheckingStatus: return LOCTEXT("CheckingStatusStateDisplayName", "CheckingStatus");
-	case EGameFeaturePluginState::StatusKnown: return LOCTEXT("StatusKnownStateDisplayName", "StatusKnown");
-	case EGameFeaturePluginState::Uninstalling: return LOCTEXT("UninstallingStateDisplayName", "Uninstalling");
-	case EGameFeaturePluginState::Downloading: return LOCTEXT("DownloadingStateDisplayName", "Downloading");
-	case EGameFeaturePluginState::Installed: return LOCTEXT("InstalledStateDisplayName", "Installed");
-	case EGameFeaturePluginState::Unmounting: return LOCTEXT("UnmountingStateDisplayName", "Unmounting");
-	case EGameFeaturePluginState::Mounting: return LOCTEXT("MountingStateDisplayName", "Mounting");
-	case EGameFeaturePluginState::WaitingForDependencies: return LOCTEXT("WaitingForDependenciesStateDisplayName", "WaitingForDependencies");
-	case EGameFeaturePluginState::Unregistering: return LOCTEXT("UnregisteringStateDisplayName", "Unregistering");
-	case EGameFeaturePluginState::Registering: return LOCTEXT("RegisteringStateDisplayName", "Registering");
-	case EGameFeaturePluginState::Registered: return LOCTEXT("RegisteredStateDisplayName", "Registered");
-	case EGameFeaturePluginState::Unloading: return LOCTEXT("UnloadingStateDisplayName", "Unloading");
-	case EGameFeaturePluginState::Loading: return LOCTEXT("LoadingStateDisplayName", "Loading");
-	case EGameFeaturePluginState::Loaded: return LOCTEXT("LoadedStateDisplayName", "Loaded");
-	case EGameFeaturePluginState::Deactivating: return LOCTEXT("DeactivatingStateDisplayName", "Deactivating");
-	case EGameFeaturePluginState::Activating: return LOCTEXT("ActivatingStateDisplayName", "Activating");
-	case EGameFeaturePluginState::Active: return LOCTEXT("ActiveStateDisplayName", "Active");
-	default:
-		check(0);
-		return FText::GetEmpty();
-	}
-}
 
 EGameFeaturePluginState FGameFeatureDataDetailsCustomization::GetCurrentState() const
 {
 	return UGameFeaturesSubsystem::Get().GetPluginState(PluginURL);
 }
 
-FText FGameFeatureDataDetailsCustomization::GetStateStatusDisplay() const
+FText FGameFeatureDataDetailsCustomization::GetInitialStateText() const
 {
-	// Display the current state/transition for anything but the four acceptable destination states (which are already covered by the switcher)
-	const EGameFeaturePluginState State = GetCurrentState();
-	switch (State)
-	{
-		case EGameFeaturePluginState::Active:
-		case EGameFeaturePluginState::Installed:
-		case EGameFeaturePluginState::Loaded:
-		case EGameFeaturePluginState::Registered:
-			return FText::GetEmpty();
-		default:
-			return GetDisplayNameOfState(State);
-	}
+	const EBuiltInAutoState AutoState = UGameFeaturesSubsystem::DetermineBuiltInInitialFeatureState(PluginPtr->GetDescriptor().CachedJson, FString());
+	const EGameFeaturePluginState InitialState = UGameFeaturesSubsystem::ConvertInitialFeatureStateToTargetState(AutoState);
+	return SGameFeatureStateWidget::GetDisplayNameOfState(InitialState);
 }
 
 void FGameFeatureDataDetailsCustomization::OnOperationCompletedOrFailed(const UE::GameFeatures::FResult& Result, const TWeakPtr<FGameFeatureDataDetailsCustomization> WeakThisPtr)

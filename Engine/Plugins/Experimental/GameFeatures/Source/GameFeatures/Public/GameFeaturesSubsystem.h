@@ -16,6 +16,7 @@ class UGameFeatureData;
 class UGameFeaturesProjectPolicies;
 enum class EGameFeaturePluginState : uint8;
 class IPlugin;
+class FJsonObject;
 
 struct FGameFeatureDeactivatingContext
 {
@@ -192,6 +193,11 @@ public:
 
 	/** Returns the current state of the state machine for the specified plugin URL */
 	EGameFeaturePluginState GetPluginState(const FString& PluginURL);
+
+	/** Determine the initial feature state for a built-in plugin */
+	static EBuiltInAutoState DetermineBuiltInInitialFeatureState(TSharedPtr<FJsonObject> Descriptor, const FString& ErrorContext);
+
+	static EGameFeaturePluginState ConvertInitialFeatureStateToTargetState(EBuiltInAutoState InitialState);
 
 private:
 	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName);

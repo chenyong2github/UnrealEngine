@@ -9,6 +9,7 @@
 
 class IDetailLayoutBuilder;
 class SErrorText;
+class IPlugin;
 
 //////////////////////////////////////////////////////////////////////////
 // FGameFeatureDataDetailsCustomization
@@ -28,16 +29,15 @@ public:
 protected:
 	void ChangeDesiredState(EGameFeaturePluginState State);
 
-	static FText GetDisplayNameOfState(EGameFeaturePluginState State);
-
 	EGameFeaturePluginState GetCurrentState() const;
 
-	FText GetStateStatusDisplay() const;
+	FText GetInitialStateText() const;
 
 	static void OnOperationCompletedOrFailed(const UE::GameFeatures::FResult& Result, const TWeakPtr<FGameFeatureDataDetailsCustomization> WeakThisPtr);
 protected:
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	FString PluginURL;
+	TSharedPtr<IPlugin> PluginPtr;
 
 	TSharedPtr<SErrorText> ErrorTextWidget;
 };

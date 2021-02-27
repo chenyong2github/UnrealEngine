@@ -29,7 +29,8 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"EditorStyle",
 					"PropertyEditor",
-					"SharedSettingsWidgets"
+					"SharedSettingsWidgets",
+					"Json"
 				}
 			);
 		}

@@ -80,6 +80,7 @@ bool FPluginDescriptor::Load(const FString& FileName, FText& OutFailReason)
 {
 #if WITH_EDITOR
 	CachedJson.Reset();
+	AdditionalFieldsToWrite.Reset();
 #endif // WITH_EDITOR
 
 	FString Text;
@@ -95,6 +96,7 @@ bool FPluginDescriptor::Read(const FString& Text, FText& OutFailReason)
 {
 #if WITH_EDITOR
 	CachedJson.Reset();
+	AdditionalFieldsToWrite.Reset();
 #endif // WITH_EDITOR
 
 	// Deserialize a JSON object from the string
@@ -106,6 +108,7 @@ bool FPluginDescriptor::Read(const FString& Text, FText& OutFailReason)
 		{
 #if WITH_EDITOR
 			CachedJson = JsonObject;
+			AdditionalFieldsToWrite.Reset();
 #endif // WITH_EDITOR
 			return true;
 		}
@@ -229,10 +232,18 @@ void FPluginDescriptor::Write(FString& Text) const
 
 void FPluginDescriptor::Write(TJsonWriter<>& Writer) const
 {
-	TSharedRef<FJsonObject> PluginJsonObject = MakeShared<FJsonObject>();
+	TSharedPtr<FJsonObject> PluginJsonObject = MakeShared<FJsonObject>();
+
+#if WITH_EDITOR
+	if (CachedJson.IsValid())
+	{
+		FJsonObject::Duplicate(/*Source=*/ CachedJson, /*Dest=*/ PluginJsonObject);
+	}
+#endif
+
 	UpdateJson(*PluginJsonObject);
 
-	FJsonSerializer::Serialize(PluginJsonObject, Writer);
+	FJsonSerializer::Serialize(PluginJsonObject.ToSharedRef(), Writer);
 }
 
 void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
@@ -353,6 +364,13 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	PostBuildSteps.UpdateJson(JsonObject, TEXT("PostBuildSteps"));
 
 	FPluginReferenceDescriptor::UpdateArray(JsonObject, TEXT("Plugins"), Plugins);
+
+#if WITH_EDITOR
+	for (const auto& KVP : AdditionalFieldsToWrite)
+	{
+		JsonObject.SetField(KVP.Key, FJsonValue::Duplicate(KVP.Value));
+	}
+#endif
 }
 
 bool FPluginDescriptor::UpdatePluginFile(const FString& FileName, FText& OutFailReason) const
@@ -384,6 +402,9 @@ bool FPluginDescriptor::UpdatePluginFile(const FString& FileName, FText& OutFail
 			}
 		}
 
+#if WITH_EDITOR
+		CachedJson = JsonObject;
+#endif
 		return PluginDescriptor::WriteFile(FileName, JsonText, OutFailReason);
 	}
 	else

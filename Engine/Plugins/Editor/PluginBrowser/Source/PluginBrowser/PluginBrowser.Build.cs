@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"MainFrame",
                     "UATHelper",
                     "AssetTools",
+					"Json"
 				}
 			);
 

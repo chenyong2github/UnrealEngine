@@ -12,6 +12,9 @@
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
 #include "SExternalImageReference.h"
+#include "Dom/JsonObject.h"
+#include "Features/IPluginsEditorFeature.h"
+#include "PluginBrowserModule.h"
 
 void FPluginReferenceMetadata::PopulateFromDescriptor(const FPluginReferenceDescriptor& InDescriptor)
 {
@@ -31,8 +34,11 @@ UPluginMetadataObject::UPluginMetadataObject(const FObjectInitializer& ObjectIni
 {
 }
 
-void UPluginMetadataObject::PopulateFromDescriptor(const FPluginDescriptor& InDescriptor)
+void UPluginMetadataObject::PopulateFromPlugin(TSharedPtr<IPlugin> InPlugin)
 {
+	SourcePlugin = InPlugin;
+
+	const FPluginDescriptor& InDescriptor = InPlugin->GetDescriptor();
 	Version = InDescriptor.Version;
 	VersionName = InDescriptor.VersionName;
 	FriendlyName = InDescriptor.FriendlyName;
@@ -91,6 +97,12 @@ void UPluginMetadataObject::CopyIntoDescriptor(FPluginDescriptor& OutDescriptor)
 	}
 
 	OutDescriptor.Plugins = MoveTemp(NewPlugins);
+	
+	// Apply any edits done by an extension
+	for (const TSharedPtr<FPluginEditorExtension>& Extension : Extensions)
+	{
+		Extension->CommitEdits(OutDescriptor);
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,7 +120,22 @@ void FPluginMetadataCustomization::CustomizeDetails(IDetailLayoutBuilder& Detail
 	if(Objects.Num() == 1 && Objects[0].IsValid())
 	{
 		UPluginMetadataObject* PluginMetadata = Cast<UPluginMetadataObject>(Objects[0].Get());
-		if(PluginMetadata != nullptr && PluginMetadata->TargetIconPath.Len() > 0)
+		check(PluginMetadata);
+
+		// Run any external customizations
+		PluginMetadata->Extensions.Reset();
+		FPluginEditingContext PluginEditingContext;
+		PluginEditingContext.PluginBeingEdited = PluginMetadata->SourcePlugin.Pin();
+		for (const auto& KVP : FPluginBrowserModule::Get().GetCustomizePluginEditingDelegates())
+		{
+			TSharedPtr<FPluginEditorExtension> Extension = KVP.Key.Execute(PluginEditingContext, DetailBuilder);
+			if (Extension.IsValid())
+			{
+				PluginMetadata->Extensions.Add(Extension);
+			}
+		}
+		
+		if(PluginMetadata->TargetIconPath.Len() > 0)
 		{
 			// Get the current icon path
 			FString CurrentIconPath = PluginMetadata->TargetIconPath;

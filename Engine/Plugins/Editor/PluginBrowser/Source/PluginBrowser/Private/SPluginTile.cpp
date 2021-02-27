@@ -582,117 +582,19 @@ EVisibility SPluginTile::GetAuthoringButtonsVisibility() const
 
 void SPluginTile::OnEditPlugin()
 {
-	// Construct the plugin metadata object using the descriptor for this plugin
-	UPluginMetadataObject* MetadataObject = NewObject<UPluginMetadataObject>();
-	MetadataObject->TargetIconPath = Plugin->GetBaseDir() / TEXT("Resources/Icon128.png");
-	MetadataObject->PopulateFromDescriptor(Plugin->GetDescriptor());
-	MetadataObject->AddToRoot();
-
-	// Create a property view
-	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-	
-	FDetailsViewArgs DetailsViewArgs;
-	DetailsViewArgs.bAllowSearch = false;
-	DetailsViewArgs.bHideSelectionTip = true;
-
-	TSharedRef<IDetailsView> PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
-	PropertyView->SetObject(MetadataObject, true);
-
-	// Create the window
-	PropertiesWindow = SNew(SWindow)
-		.SupportsMaximize(false)
-		.SupportsMinimize(false)
-		.SizingRule(ESizingRule::UserSized)
-		.ClientSize(FVector2D(700.0f, 700.0f))
-		.Title(LOCTEXT("PluginMetadata", "Plugin Properties"))
-		.Content()
-		[
-			SNew(SBorder)
-			.Padding(FMargin(8.0f, 8.0f))
-			[
-				SNew(SVerticalBox)
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(FMargin(5.0f, 10.0f, 5.0f, 5.0f))
-				[
-					SNew(STextBlock)
-					.Font(FPluginStyle::Get()->GetFontStyle(TEXT("PluginMetadataNameFont")))
-					.Text(FText::FromString(Plugin->GetName()))
-				]
-
-				+ SVerticalBox::Slot()
-				.Padding(5)
-				[
-					PropertyView
-				]
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(5)
-				.HAlign(HAlign_Right)
-				[
-					SNew(SButton)
-					.ContentPadding(FMargin(20.0f, 2.0f))
-					.Text(LOCTEXT("OkButtonLabel", "Ok"))
-					.OnClicked(this, &SPluginTile::OnEditPluginFinished, MetadataObject)
-				]
-			]
-		];
-
-	FSlateApplication::Get().AddModalWindow(PropertiesWindow.ToSharedRef(), OwnerWeak.Pin());//Args.ParentWidget);
+	FPluginBrowserModule::Get().OpenPluginEditor(Plugin.ToSharedRef(), OwnerWeak.Pin(), FSimpleDelegate::CreateRaw(this, &SPluginTile::OnEditPluginFinished));
 }
 
-FReply SPluginTile::OnEditPluginFinished(UPluginMetadataObject* MetadataObject)
+void SPluginTile::OnEditPluginFinished()
 {
-	FPluginDescriptor OldDescriptor = Plugin->GetDescriptor();
+	// Recreate the widgets on this tile
+	RecreateWidgets();
 
-	// Update the descriptor with the new metadata
-	FPluginDescriptor NewDescriptor = OldDescriptor;
-	MetadataObject->CopyIntoDescriptor(NewDescriptor);
-	MetadataObject->RemoveFromRoot();
-
-	// Close the properties window
-	PropertiesWindow->RequestDestroyWindow();
-
-	// Write both to strings
-	FString OldText;
-	OldDescriptor.Write(OldText);
-	FString NewText;
-	NewDescriptor.Write(NewText);
-	if(OldText.Compare(NewText, ESearchCase::CaseSensitive) != 0)
+	// Refresh the parent too
+	if(OwnerWeak.IsValid())
 	{
-		FString DescriptorFileName = Plugin->GetDescriptorFileName();
-
-		// First attempt to check out the file if SCC is enabled
-		ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-		if(SourceControlModule.IsEnabled())
-		{
-			ISourceControlProvider& SourceControlProvider = SourceControlModule.GetProvider();
-			TSharedPtr<ISourceControlState, ESPMode::ThreadSafe> SourceControlState = SourceControlProvider.GetState(DescriptorFileName, EStateCacheUsage::ForceUpdate);
-			if(SourceControlState.IsValid() && SourceControlState->CanCheckout())
-			{
-				SourceControlProvider.Execute(ISourceControlOperation::Create<FCheckOut>(), DescriptorFileName);
-			}
-		}
-
-		// Write to the file and update the in-memory metadata
-		FText FailReason;
-		if(!Plugin->UpdateDescriptor(NewDescriptor, FailReason))
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, FailReason);
-		}
-
-		// Recreate the widgets on this tile
-		RecreateWidgets();
-
-		// Refresh the parent too
-		if(OwnerWeak.IsValid())
-		{
-			OwnerWeak.Pin()->GetOwner().SetNeedsRefresh();
-		}
+		OwnerWeak.Pin()->GetOwner().SetNeedsRefresh();
 	}
-	return FReply::Handled();
 }
 
 void SPluginTile::OnPackagePlugin()

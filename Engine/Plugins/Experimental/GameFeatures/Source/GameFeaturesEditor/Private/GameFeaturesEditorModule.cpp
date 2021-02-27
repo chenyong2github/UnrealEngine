@@ -13,6 +13,7 @@
 #include "ContentBrowserModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "GameFeatureDataDetailsCustomization.h"
+#include "GameFeaturePluginMetadataCustomization.h"
 #include "Logging/MessageLog.h"
 #include "SSettingsEditorCheckoutNotice.h"
 #include "Engine/AssetManagerSettings.h"
@@ -21,6 +22,7 @@
 #include "Engine/AssetManager.h"
 #include "HAL/FileManager.h"
 #include "Editor.h"
+#include "Dom/JsonValue.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 
@@ -59,6 +61,13 @@ struct FGameFeaturePluginTemplateDescription : public FPluginTemplateDescription
 	{
 		InOutPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*FPaths::ProjectPluginsDir());
 		FPaths::MakePlatformFilename(InOutPath);
+	}
+
+	virtual void CustomizeDescriptorBeforeCreation(FPluginDescriptor& Descriptor) override
+	{
+		Descriptor.bExplicitlyLoaded = true;
+		Descriptor.AdditionalFieldsToWrite.FindOrAdd(TEXT("BuiltInInitialFeatureState")) = MakeShared<FJsonValueString>(TEXT("Active"));
+		Descriptor.Category = TEXT("Game Features");
 	}
 
 	virtual void OnPluginCreated(TSharedPtr<IPlugin> NewPlugin) override
@@ -137,25 +146,8 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 
 			if (ModularFeatures.IsModularFeatureAvailable(EditorFeatures::PluginsEditor))
 			{
-				IPluginsEditorFeature& PluginsEditor = ModularFeatures.GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor);
-				PluginsEditor.RegisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
+				OnModularFeatureRegistered(EditorFeatures::PluginsEditor, &ModularFeatures.GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor));
 			}
-		}
-	}
-
-	void OnModularFeatureRegistered(const FName& Type, class IModularFeature* ModularFeature)
-	{
-		if (Type == EditorFeatures::PluginsEditor)
-		{
-			static_cast<IPluginsEditorFeature*>(ModularFeature)->RegisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
-		}
-	}
-
-	void OnModularFeatureUnregistered(const FName& Type, class IModularFeature* ModularFeature)
-	{
-		if (Type == EditorFeatures::PluginsEditor)
-		{
-			static_cast<IPluginsEditorFeature*>(ModularFeature)->UnregisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
 		}
 	}
 
@@ -178,10 +170,30 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 
 			if (ModularFeatures.IsModularFeatureAvailable(EditorFeatures::PluginsEditor))
 			{
-				IPluginsEditorFeature& PluginsEditor = ModularFeatures.GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor);
-				PluginsEditor.UnregisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
+				OnModularFeatureUnregistered(EditorFeatures::PluginsEditor, &ModularFeatures.GetModularFeature<IPluginsEditorFeature>(EditorFeatures::PluginsEditor));
 			}
 			ContentOnlyTemplate.Reset();
+		}
+	}
+
+
+	void OnModularFeatureRegistered(const FName& Type, class IModularFeature* ModularFeature)
+	{
+		if (Type == EditorFeatures::PluginsEditor)
+		{
+			IPluginsEditorFeature& PluginEditor = *static_cast<IPluginsEditorFeature*>(ModularFeature);
+			PluginEditor.RegisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
+			PluginEditorExtensionDelegate = PluginEditor.RegisterPluginEditorExtension(FOnPluginBeingEdited::CreateRaw(this, &FGameFeaturesEditorModule::CustomizePluginEditing));
+		}
+	}
+
+	void OnModularFeatureUnregistered(const FName& Type, class IModularFeature* ModularFeature)
+	{
+		if (Type == EditorFeatures::PluginsEditor)
+		{
+			IPluginsEditorFeature& PluginEditor = *static_cast<IPluginsEditorFeature*>(ModularFeature);
+			PluginEditor.UnregisterPluginTemplate(ContentOnlyTemplate.ToSharedRef());
+			PluginEditor.UnregisterPluginEditorExtension(PluginEditorExtensionDelegate);
 		}
 	}
 
@@ -269,8 +281,21 @@ class FGameFeaturesEditorModule : public FDefaultModuleImpl
 		}
 	}
 
+	TSharedPtr<FPluginEditorExtension> CustomizePluginEditing(FPluginEditingContext& InPluginContext, IDetailLayoutBuilder& DetailBuilder)
+	{
+		const bool bIsGameFeaturePlugin = InPluginContext.PluginBeingEdited->GetDescriptorFileName().Contains(TEXT("/GameFeatures/"));
+		if (bIsGameFeaturePlugin)
+		{
+			TSharedPtr<FGameFeaturePluginMetadataCustomization> Result = MakeShareable(new FGameFeaturePluginMetadataCustomization);
+			Result->CustomizeDetails(InPluginContext, DetailBuilder);
+			return Result;
+		}
+
+		return nullptr;
+	}
 private:
 	TSharedPtr<FPluginTemplateDescription> ContentOnlyTemplate;
+	FPluginEditorExtensionHandle PluginEditorExtensionDelegate;
 };
 
 IMPLEMENT_MODULE(FGameFeaturesEditorModule, GameFeaturesEditor)

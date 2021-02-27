@@ -16,6 +16,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Interfaces/IPluginManager.h"
+#include "PluginDescriptorEditor.h"
 
 #define LOCTEXT_NAMESPACE "PluginsEditor"
 
@@ -106,6 +107,24 @@ void FPluginBrowserModule::RegisterPluginTemplate(TSharedRef<FPluginTemplateDesc
 void FPluginBrowserModule::UnregisterPluginTemplate(TSharedRef<FPluginTemplateDescription> Template)
 {
 	AddedPluginTemplates.RemoveSingle(Template);
+}
+
+FPluginEditorExtensionHandle FPluginBrowserModule::RegisterPluginEditorExtension(FOnPluginBeingEdited Extension)
+{
+	++EditorExtensionCounter;
+	FPluginEditorExtensionHandle Result = EditorExtensionCounter;
+	CustomizePluginEditingDelegates.Add(MakeTuple(Extension, Result));
+	return Result;
+}
+
+void FPluginBrowserModule::UnregisterPluginEditorExtension(FPluginEditorExtensionHandle ExtensionHandle)
+{
+	CustomizePluginEditingDelegates.RemoveAll([=](TPair<FOnPluginBeingEdited, FPluginEditorExtensionHandle>& Value) { return Value.Value == ExtensionHandle; });
+}
+
+void FPluginBrowserModule::OpenPluginEditor(TSharedRef<IPlugin> PluginToEdit, TSharedPtr<SWidget> ParentWidget, FSimpleDelegate OnEditCommitted)
+{
+	FPluginDescriptorEditor::OpenEditorWindow(PluginToEdit, ParentWidget, OnEditCommitted);
 }
 
 void FPluginBrowserModule::SetPluginPendingEnableState(const FString& PluginName, bool bCurrentlyEnabled, bool bPendingEnabled)

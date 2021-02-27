@@ -640,25 +640,35 @@ FReply SNewPluginWizard::OnCreatePluginClicked()
 	const FString PluginName = PluginNameText.ToString();
 	const bool bHasModules = PluginWizardDefinition->HasModules();
 	
-	FPluginUtils::FNewPluginParams CreationParams;
+	FPluginUtils::FNewPluginParamsWithDescriptor CreationParams;
 	CreationParams.TemplateFolders = PluginWizardDefinition->GetFoldersForSelection();
-	CreationParams.bCanContainContent = Template->bCanContainContent;
-	CreationParams.bHasModules = bHasModules;
-	CreationParams.ModuleDescriptorType = PluginWizardDefinition->GetPluginModuleDescriptor();
-	CreationParams.LoadingPhase = PluginWizardDefinition->GetPluginLoadingPhase();
-	PluginWizardDefinition->GetPluginIconPath(CreationParams.PluginIconPath);
+	CreationParams.Descriptor.bCanContainContent = Template->bCanContainContent;
+
+	if (bHasModules)
+	{
+		CreationParams.Descriptor.Modules.Add(FModuleDescriptor(*PluginName, PluginWizardDefinition->GetPluginModuleDescriptor(), PluginWizardDefinition->GetPluginLoadingPhase()));
+	}
+
+	CreationParams.Descriptor.FriendlyName = PluginName;
+	CreationParams.Descriptor.Version = 1;
+	CreationParams.Descriptor.VersionName = TEXT("1.0");
+	CreationParams.Descriptor.Category = TEXT("Other");
+
+	PluginWizardDefinition->GetPluginIconPath(/*out*/ CreationParams.PluginIconPath);
 	if (DescriptorData.IsValid())
 	{
-		CreationParams.CreatedBy = DescriptorData->CreatedBy;
-		CreationParams.CreatedByURL = DescriptorData->CreatedByURL;
-		CreationParams.Description = DescriptorData->Description;
-		CreationParams.bIsBetaVersion = DescriptorData->bIsBetaVersion;
+		CreationParams.Descriptor.CreatedBy = DescriptorData->CreatedBy;
+		CreationParams.Descriptor.CreatedByURL = DescriptorData->CreatedByURL;
+		CreationParams.Descriptor.Description = DescriptorData->Description;
+		CreationParams.Descriptor.bIsBetaVersion = DescriptorData->bIsBetaVersion;
 	}
 
 	FPluginUtils::FMountPluginParams MountParams;
 	MountParams.bEnablePluginInProject = true;
 	MountParams.bUpdateProjectPluginSearchPath = true;
 	MountParams.bSelectInContentBrowser = ShowPluginContentDirectoryCheckBox->IsChecked();
+
+	Template->CustomizeDescriptorBeforeCreation(CreationParams.Descriptor);
 	
 	FText FailReason;
 	TSharedPtr<IPlugin> NewPlugin = FPluginUtils::CreateAndMountNewPlugin(PluginName, PluginFolderPath, CreationParams, MountParams, FailReason);
@@ -669,8 +679,6 @@ FReply SNewPluginWizard::OnCreatePluginClicked()
 
 	if (bSucceeded)
 	{
-		//@TODO: Add the plugin files to source control if the project is configured for it!
-
 		// Let the template create additional assets / modify state after creation
 		Template->OnPluginCreated(NewPlugin);
 

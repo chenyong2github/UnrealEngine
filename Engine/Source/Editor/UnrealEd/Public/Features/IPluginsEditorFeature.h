@@ -8,6 +8,9 @@
 
 struct FSlateDynamicImageBrush;
 class IPlugin;
+class IDetailLayoutBuilder;
+struct FPluginDescriptor;
+class SWidget;
 
 /**
  * Description of a plugin template
@@ -41,6 +44,9 @@ struct FPluginTemplateDescription
 	/** What is the expected Loading Phase for this plugin? */
 	ELoadingPhase::Type LoadingPhase;
 
+	/** Called just before the plugin is created */
+	virtual void CustomizeDescriptorBeforeCreation(FPluginDescriptor& Descriptor) {}
+
 	/** Called after the plugin has been created */
 	virtual void OnPluginCreated(TSharedPtr<IPlugin> NewPlugin) {}
 
@@ -71,6 +77,26 @@ struct FPluginTemplateDescription
 	virtual ~FPluginTemplateDescription() {}
 };
 
+struct FPluginEditingContext
+{
+	TSharedPtr<IPlugin> PluginBeingEdited;
+
+};
+
+/**
+ * Description of a plugin editor extension
+ */
+struct FPluginEditorExtension : public TSharedFromThis<FPluginEditorExtension>
+{
+	virtual ~FPluginEditorExtension() {}
+	virtual void CommitEdits(FPluginDescriptor& Descriptor) = 0;
+};
+
+/** Notification when editing a plugin to allow further customization */
+DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FPluginEditorExtension>, FOnPluginBeingEdited, FPluginEditingContext& /*InPluginContext*/, IDetailLayoutBuilder& /*DetailBuilder*/);
+
+using FPluginEditorExtensionHandle = int32;
+
 /**
  * Feature interface for a Plugins management UI
  */
@@ -87,5 +113,20 @@ public:
 	  * Unregisters the specified plugin template from the New Plugin wizard
 	  */
 	virtual void UnregisterPluginTemplate(TSharedRef<FPluginTemplateDescription> Template) = 0;
+
+	/**
+	  * Further customize the detail panel experience when editing a specific plugin
+	  */
+	virtual FPluginEditorExtensionHandle RegisterPluginEditorExtension(FOnPluginBeingEdited Extension) = 0;
+
+	/**
+	  * Remove a customization
+	  */
+	virtual void UnregisterPluginEditorExtension(FPluginEditorExtensionHandle ExtensionHandle) = 0;
+
+	/**
+	 * Open the plugin editor for a plugin
+	 */
+	virtual void OpenPluginEditor(TSharedRef<IPlugin> PluginToEdit, TSharedPtr<SWidget> ParentWidget, FSimpleDelegate OnEditCommitted) = 0;
 };
 

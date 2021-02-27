@@ -9,6 +9,7 @@
 #include "PluginReferenceDescriptor.h"
 
 class FJsonObject;
+class FJsonValue;
 
 /**
  * Setting for whether a plugin is enabled by default
@@ -118,7 +119,10 @@ struct PROJECTS_API FPluginDescriptor
 
 #if WITH_EDITOR
 	/** Cached json for custom data */
-	TSharedPtr<FJsonObject> CachedJson;
+	mutable TSharedPtr<FJsonObject> CachedJson;
+
+	/** Additional fields to write */
+	TMap<FString, TSharedPtr<FJsonValue>> AdditionalFieldsToWrite;
 #endif
 
 	/** Constructor. */
