@@ -3238,7 +3238,7 @@ void UAssetRegistryImpl::OnContentPathMounted(const FString& InAssetPath, const 
 			// If the path doesn't exist on disk, make it so the watcher will work.
 			IFileManager::Get().MakeDirectory(*FileSystemPath);
 
-			if (ensure(!OnDirectoryChangedDelegateHandles.Contains(AssetPathWithTrailingSlash)))
+			if (!OnDirectoryChangedDelegateHandles.Contains(AssetPathWithTrailingSlash))
 			{
 				FDelegateHandle NewHandle;
 				DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(
