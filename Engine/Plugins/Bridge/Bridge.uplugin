@@ -25,7 +25,17 @@
 			"WhitelistPlatforms": [
 				"Win64",
 				"Mac"
-				
+
+			]
+		},
+		{
+			"Name": "MegascansPlugin",
+			"Type": "Editor",
+			"LoadingPhase": "PostDefault",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Mac",
+				"Linux"
 			]
 		}
 	],
