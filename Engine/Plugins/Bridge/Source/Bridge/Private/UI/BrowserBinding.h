@@ -70,5 +70,8 @@ public:
 	UFUNCTION()
 	void Logout();
 
+	UFUNCTION()
+	void OpenMegascansPluginSettings();
+
 	TSharedRef<FBridgeMessageHandler> BridgeMessageHandler = MakeShared<FBridgeMessageHandler>();
 };

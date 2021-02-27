@@ -39,6 +39,7 @@ namespace UnrealBuildTool.Rules
 					"Networking",
 					"Sockets",
 					"ToolMenus",
+					"MegascansPlugin",
 					});
 
 			PrivateIncludePaths.AddRange(

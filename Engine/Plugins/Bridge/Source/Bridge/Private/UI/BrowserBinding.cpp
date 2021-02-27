@@ -6,6 +6,7 @@
 #include "WebBrowserModule.h"
 #include "IWebBrowserSingleton.h"
 #include "IWebBrowserCookieManager.h"
+#include "SMSWindow.h"
 
 
 UBrowserBinding::UBrowserBinding(const FObjectInitializer& ObjectInitializer)
@@ -204,5 +205,10 @@ void UBrowserBinding::Logout()
 	}
 
 	
+}
+
+void UBrowserBinding::OpenMegascansPluginSettings()
+{
+	MegascansSettingsWindow::OpenSettingsWindow();
 }
 
