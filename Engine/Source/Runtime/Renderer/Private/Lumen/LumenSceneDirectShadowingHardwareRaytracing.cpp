@@ -4,6 +4,7 @@
 	LumenSceneDirectShadowingHardwareRayTracing.cpp
 =============================================================================*/
 
+#include "RHIDefinitions.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"

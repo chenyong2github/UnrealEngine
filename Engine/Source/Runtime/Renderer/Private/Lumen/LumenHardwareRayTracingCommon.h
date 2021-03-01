@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "RHIDefinitions.h"
+
 #if RHI_RAYTRACING
 
 #include "RendererPrivate.h"
