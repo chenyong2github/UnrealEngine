@@ -497,9 +497,8 @@ public:
 	UPROPERTY()
 	FGeomComponentCacheParameters CacheParameters;
 
-	/** Set the dynamic state to kinematic within a radial distance from the field position */
 	/**
-	*  ApplyKinematicField
+	*  SetDynamicState
 	*    This function will dispatch a command to the physics thread to apply
 	*    a kinematic to dynamic state change for the geo collection particles within the field.
 	*
@@ -512,7 +511,7 @@ public:
 							 UPARAM(DisplayName = "Center Position") FVector Position);
 
 	/**
-	*  ApplyPhysicsField
+	*  AddPhysicsField
 	*    This function will dispatch a command to the physics thread to apply
 	*    a generic evaluation of a user defined transient field network. See documentation,
 	*    for examples of how to recreate variations of the above generic
@@ -524,7 +523,7 @@ public:
 	*    @param Field Base evaluation node for the field network.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Transient Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Physics Field")
 	void ApplyPhysicsField(UPARAM(DisplayName = "Enable Field") bool Enabled, 
 						   UPARAM(DisplayName = "Physics Type") EGeometryCollectionPhysicsTypeEnum Target, 
 						   UPARAM(DisplayName = "Meta Data") UFieldSystemMetaData* MetaData, 

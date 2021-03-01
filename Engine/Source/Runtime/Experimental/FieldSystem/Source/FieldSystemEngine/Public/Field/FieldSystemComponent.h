@@ -67,7 +67,7 @@ public:
 	//
 
 	/**
-	*  ApplyLinearForce
+	*  ApplyUniformForce
 	*    This function will dispatch a command to the physics thread to apply
 	*    a uniform linear force on each particle within the simulation.
 	*
@@ -76,13 +76,13 @@ public:
 	*    @param Magnitude The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Uniform Force")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Uniform Force", meta = (UnsafeDuringActorConstruction = "true"))
 	void ApplyLinearForce(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Uniform Direction") FVector Direction,
 			UPARAM(DisplayName = "Field Magnitude") float Magnitude);
 
 	/**
-	*  ApplyStayDynamicField
+	*  SetDynamicState
 	*    This function will dispatch a command to the physics thread to apply
 	*    a kinematic to dynamic state change for the particles within the field.
 	*
@@ -91,7 +91,7 @@ public:
 	*    @param Radius Radial influence from the position
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Set Dynamic State")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Set Dynamic State", meta = (UnsafeDuringActorConstruction = "true"))
 	void ApplyStayDynamicField(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Center Position") FVector Position,
 			UPARAM(DisplayName = "Field Radius") float Radius);
@@ -106,13 +106,13 @@ public:
 	*    @param Magnitude The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Radial Force")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply Radial Force", meta = (UnsafeDuringActorConstruction = "true"))
 	void ApplyRadialForce(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Center Position") FVector Position,
 			UPARAM(DisplayName = "Field Magnitude") float Magnitude);
 
 	/**
-	*  ApplyRadialVectorFalloffForce
+	*  FalloffRadialForce
 	*    This function will dispatch a command to the physics thread to apply
 	*    a linear force from a position in space. The force vector is weaker as
 	*    it moves away from the center.
@@ -123,14 +123,14 @@ public:
 	*    @param Magnitude The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Falloff Radial Force")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Falloff Radial Force", meta = (UnsafeDuringActorConstruction = "true"))
 	void ApplyRadialVectorFalloffForce(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Center Position") FVector Position,
 			UPARAM(DisplayName = "Falloff Radius") float Radius,
 			UPARAM(DisplayName = "Field Magnitude") float Magnitude);
 
 	/**
-	*  ApplyUniformVectorFalloffForce
+	*  FalloffUniformForce
 	*    This function will dispatch a command to the physics thread to apply
 	*    a linear force in a uniform direction. The force vector is weaker as
 	*    it moves away from the center.
@@ -142,7 +142,7 @@ public:
 	*    @param Magnitude The size of the linear force.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Falloff Uniform Force")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Falloff Uniform Force", meta = (UnsafeDuringActorConstruction = "true"))
 	void ApplyUniformVectorFalloffForce(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Center Position") FVector Position,
 			UPARAM(DisplayName = "Uniform Direction") FVector Direction,
@@ -150,7 +150,7 @@ public:
 			UPARAM(DisplayName = "Field Magnitude") float Magnitude);
 
 	/**
-	*  ApplyStrainField
+	*  ApplyExternalStran
 	*    This function will dispatch a command to the physics thread to apply
 	*    a strain field on a clustered set of geometry. This is used to trigger a
 	*    breaking event within the solver.
@@ -162,7 +162,7 @@ public:
 	*    @param Iterations Levels of evaluation into the cluster hierarchy.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply External Strain")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Apply External Strain", meta = (UnsafeDuringActorConstruction = "true"))
 	void ApplyStrainField(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Center Position") FVector Position,
 			UPARAM(DisplayName = "Falloff Radius") float Radius,
@@ -184,7 +184,7 @@ public:
 	*    @param Field Base evaluation node for the field network.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Transient Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Transient Field", meta = (UnsafeDuringActorConstruction = "true"))
 	void ApplyPhysicsField(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Physics Type") EFieldPhysicsType Target,
 			UPARAM(DisplayName = "Meta Data") UFieldSystemMetaData* MetaData,
@@ -210,7 +210,7 @@ public:
 	*    @param Field Base evaluation node for the field network.
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Persistent Field")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Add Persistent Field", meta = (UnsafeDuringActorConstruction = "true"))
 	void AddPersistentField(UPARAM(DisplayName = "Enable Field") bool Enabled,
 			UPARAM(DisplayName = "Physics Type") EFieldPhysicsType Target,
 			UPARAM(DisplayName = "Meta Data")  UFieldSystemMetaData* MetaData,
@@ -221,7 +221,7 @@ public:
 	*    This function will remove all the field component persistent fields from chaos and from the world
 	*
 	*/
-	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Remove Persistent Fields")
+	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Remove Persistent Fields", meta = (UnsafeDuringActorConstruction = "true"))
 	void RemovePersistentFields();
 
 	//
@@ -258,7 +258,7 @@ public:
 	*/
 
 	UFUNCTION(BlueprintCallable, Category = "Field", DisplayName = "Remove Construction Fields")
-		void ResetFieldSystem();
+	void ResetFieldSystem();
 
 	/** Get all the construction fields*/
 	const TArray< FFieldSystemCommand >& GetConstructionFields() const { return SetupConstructionFields; }
