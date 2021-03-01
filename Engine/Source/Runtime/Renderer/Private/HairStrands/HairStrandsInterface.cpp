@@ -144,7 +144,7 @@ bool IsHairRayTracingEnabled()
 
 bool IsHairStrandsSupported(EHairStrandsShaderType Type, EShaderPlatform Platform)
 {
-	if (GHairStrandsPluginEnable <= 0 || GHairStrandsGlobalEnable <= 0) return false;
+	if (GHairStrandsPluginEnable <= 0 || CVarHairStrandsGlobalEnable.GetValueOnAnyThread() <= 0) return false;
 
 	// Important:
 	// EHairStrandsShaderType::All: Mobile is excluded as we don't need any interpolation/simulation code for this. It only do rigid transformation. 
