@@ -122,7 +122,7 @@ void FTurnkeyEditorSupport::LaunchRunningMap(const FString& DeviceId, const FStr
 				FString CommandLine = FString::Printf(TEXT("Turnkey -command=VerifySdk -UpdateIfNeeded -platform=%s -EditorIO -noturnkeyvariables -device=%s -utf8output -WaitForUATMutex"), *UBTPlatformName, *TargetDeviceId.GetDeviceName());
 				if (!ProjectPath.IsEmpty())
 				{
-					CommandLine += FString::Printf(TEXT(" -project=\"%s\""), *ProjectPath);
+					CommandLine = FString::Printf(TEXT(" -ScriptsForProject=\"%s\" %s -project=\"%s\""), *ProjectPath, *CommandLine, *ProjectPath);
 				}
 				FText TaskName = LOCTEXT("VerifyingSDK", "Verifying SDK and Device");
 
