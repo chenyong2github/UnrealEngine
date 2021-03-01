@@ -52,7 +52,7 @@ FLightHit SkyLight_TraceLight(RayDesc Ray, int LightId) {
 #ifndef USE_HIERARCHICAL_IMPORTANCE_SAMPLING
 		float Pdf = 1.0 / (2.0 * PI);
 #else
-		float Pdf = Result.w / (4 * PI * SkylightPdf.Load(int3(0, 0, SkylightMipCount - 1)));
+		float Pdf = Result.w > 0 ? Result.w / (4 * PI * SkylightPdf.Load(int3(0, 0, SkylightMipCount - 1))) : 0.0;
 #endif
 
 #else

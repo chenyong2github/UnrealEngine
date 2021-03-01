@@ -1768,5 +1768,14 @@ void FScene::UpdateSkyCaptureContents(
 				GRenderTargetPool.FreeUnusedResources();
 			});
 		}
+
+		// These textures should only be manipulated by the render thread,
+		// so enqueue a render command for them to be processed there
+		ENQUEUE_RENDER_COMMAND(ReleasePathTracerSkylightData)(
+			[this](FRHICommandListImmediate& RHICmdList)
+		{
+			PathTracingSkylightTexture.SafeRelease();
+			PathTracingSkylightPdf.SafeRelease();
+		});
 	}
 }

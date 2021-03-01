@@ -889,6 +889,10 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 		// Reset Scene time slicing state so that it starts from the beginning if/when we get out of non-time-sliced.
 		RealTimeSlicedReflectionCaptureState = -1; // Value of -1 indicates this is the first time-sliced iteration.
+
+		// The sky just changed, so invalidate these textures, so that the path tracer can rebuild them
+		PathTracingSkylightTexture.SafeRelease();
+		PathTracingSkylightPdf.SafeRelease();
 	}
 	else
 	{
@@ -1015,6 +1019,10 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 			// Now use the new cubemap
 			ConvolvedSkyRenderTargetReadyIndex = ConvolvedSkyRenderTargetWorkIndex;
+
+			// The sky just changed, so invalidate these textures, so that the path tracer can rebuild them
+			PathTracingSkylightTexture.SafeRelease();
+			PathTracingSkylightPdf.SafeRelease();
 		}
 
 #if DEBUG_TIME_SLICE
