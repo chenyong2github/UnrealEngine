@@ -1563,9 +1563,12 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							StructOnScope = UnitNode->ConstructStructInstance(false /* default */);
 							StructMemory = (FRigUnit*)StructOnScope->GetStructMemory();
 
+							FRigNameCache NameCache;
 							FRigUnitContext RigUnitContext;
 							RigUnitContext.Hierarchy = TemporaryHierarchy;
 							RigUnitContext.State = EControlRigState::Update;
+							RigUnitContext.NameCache = &NameCache;
+							
 							StructMemory->Execute(RigUnitContext);
 						}
 
