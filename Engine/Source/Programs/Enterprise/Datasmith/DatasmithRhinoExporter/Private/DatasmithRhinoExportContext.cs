@@ -134,7 +134,6 @@ namespace DatasmithRhino
 
 		public void SetExportedElement(FDatasmithFacadeElement InExportedElement)
 		{
-			System.Diagnostics.Debug.Assert(ExportedElement == null, "Exported element cannot override existing exported element. A new DatasmithInfoBase must be created and the current one must be deleted");
 			ExportedElement = InExportedElement;
 		}
 
@@ -530,28 +529,62 @@ namespace DatasmithRhino
 		{
 			if (!bIsParsed || bForceParse)
 			{
-				RhinoViewport ActiveViewport = RhinoDocument.Views.ActiveView?.ActiveViewport;
-
-				if (bIsInWorksession)
+				try
 				{
-					WorksessionDocumentPaths = RhinoDocument.Worksession.ModelPaths;
+					RhinoViewport ActiveViewport = RhinoDocument.Views.ActiveView?.ActiveViewport;
+
+					if (bIsInWorksession)
+					{
+						WorksessionDocumentPaths = RhinoDocument.Worksession.ModelPaths;
+					}
+
+					//Update current active viewport.
+					ActiveViewportInfo = ActiveViewport == null ? null : new ViewportInfo(ActiveViewport);
+
+					DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.1f);
+					ParseGroupNames();
+					DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.66f);
+					ParseRhinoHierarchy();
+					DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(1f);
+					ParseAllRhinoMeshes();
+
+					bIsParsed = true;
 				}
-
-				//Update current active viewport.
-				ActiveViewportInfo = ActiveViewport == null ? null : new ViewportInfo(ActiveViewport);
-
-				DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.33f);
-				ParseGroupNames();
-				DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(0.66f);
-				ParseRhinoHierarchy();
-				DatasmithRhinoProgressManager.Instance.UpdateCurrentTaskProgress(1f);
-				ParseAllRhinoMeshes();
-
-				bIsParsed = true;
+				catch (DatasmithExportCancelledException CancelException)
+				{
+					// We can't resume halfway through the scene parsing, just reset the context and start over next time.
+					ResetContext();
+					// throw forward the cancel exception.
+					throw CancelException;
+				}
 			}
 		}
 
-		public DatasmithMaterialInfo GetMaterialInfoFromMaterialIndex(int MaterialIndex)
+		private void ResetContext()
+		{
+			const string RootName = "SceneRoot";
+			SceneRoot = new DatasmithActorInfo(ExportOptions.Xform, RootName, RootName, RootName);
+			SceneRoot.ApplySyncedStatus();
+			
+			bIsParsed = false;
+			InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, DatasmithActorInfo>();
+			ObjectIdToHierarchyActorNodeDictionary = new Dictionary<Guid, DatasmithActorInfo>();
+			ObjectIdToMeshInfoDictionary = new Dictionary<Guid, DatasmithMeshInfo>();
+			MaterialHashToMaterialInfo = new Dictionary<string, DatasmithMaterialInfo>();
+			TextureHashToTextureInfo = new Dictionary<string, DatasmithTextureInfo>();
+			GroupIndexToName = new Dictionary<int, string>();
+
+			MaterialIndexToMaterialHashDictionary = new Dictionary<int, string>();
+			TextureIdToTextureHash = new Dictionary<Guid, string>();
+			LayerIndexToLayerString = new Dictionary<int, string>();
+			LayerIndexToLayerIndexHierarchy = new Dictionary<int, HashSet<int>>();
+			ActorLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
+			MaterialLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
+			TextureLabelGenerator = new DatasmithRhinoUniqueNameGenerator();
+			DummyLayerIndex = -1;
+		}
+
+	public DatasmithMaterialInfo GetMaterialInfoFromMaterialIndex(int MaterialIndex)
 		{
 			if(MaterialIndexToMaterialHashDictionary.TryGetValue(MaterialIndex, out string MaterialHash))
 			{
