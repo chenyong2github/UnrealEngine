@@ -96,6 +96,8 @@ namespace UnrealBuildTool
 			get { throw new BuildException("Unrecognized type of project file for Visual Studio solution"); }
 		}
 
+		static Guid PathNamespaceGuid { get; } = new Guid("2D8570D5-7FFC-4E6D-A9D7-E860E117D717");
+
 		/// <summary>
 		/// Constructs a new project file object
 		/// </summary>
@@ -116,14 +118,14 @@ namespace UnrealBuildTool
 				catch (Exception)
 				{
 					// Failed to find GUID, so just create a new one
-					ProjectGUID = Guid.NewGuid();
+					ProjectGUID = VCProjectFileGenerator.MakeMd5Guid(PathNamespaceGuid, ProjectFilePath.FullName);
 				}
 			}
 
 			if (ProjectGUID == Guid.Empty)
 			{
 				// Generate a brand new GUID
-				ProjectGUID = Guid.NewGuid();
+				ProjectGUID = VCProjectFileGenerator.MakeMd5Guid(PathNamespaceGuid, ProjectFilePath.FullName);
 			}
 		}
 

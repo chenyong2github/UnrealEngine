@@ -464,6 +464,19 @@ namespace UnrealBuildTool
 			return new Guid(Hash);
 		}
 
+		public static Guid MakeMd5Guid(Guid Namespace, string Text)
+		{
+			byte[] Input = new byte[16 + Encoding.UTF8.GetByteCount(Text)];
+
+			Namespace.TryWriteBytes(Input.AsSpan(0, 16));
+			Array.Reverse(Input, 0, 4);
+			Array.Reverse(Input, 4, 2);
+			Array.Reverse(Input, 6, 2);
+
+			Encoding.UTF8.GetBytes(Text, 0, Text.Length, Input, 16);
+			return MakeMd5Guid(Input);
+		}
+
 		/// <summary>
 		/// Writes the project files to disk
 		/// </summary>
