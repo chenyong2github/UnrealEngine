@@ -195,7 +195,7 @@ public:
 /**
 * URadialIntMask
 */
-UCLASS(ClassGroup = "Field", meta = (BlueprintSpawnableComponent, ToolTip = "If the sample distance from the field position is less/greater than  the radius you will set the interior/exterior value to an intermediate result. The final output value will be affected by the intermediate one based on the MaskCondition."), ShowCategories = ("Field"))
+UCLASS(ClassGroup = "Field", meta = (BlueprintSpawnableComponent, ToolTip = "This function first defines a radial integer field equal to Interior-value inside a sphere / Exterior-value outside. This field will be used alongside the particle input value and the mask condition to compute the particle output value."), ShowCategories = ("Field"))
 class FIELDSYSTEMENGINE_API URadialIntMask : public UFieldNodeInt
 {
 	GENERATED_BODY()
@@ -214,7 +214,10 @@ public:
 	virtual FFieldNodeBase* NewEvaluationGraph(TArray<const UFieldNodeBase*>& Nodes) const override;
 
 	/**
-	 * If the sample distance from the field position is less/greater than the radius you will set the interior/exterior value to an intermediate result. The final output value will be affected by the intermediate one based on the MaskCondition
+	* This function first defines a radial integer field equal to Interior-value inside a sphere / Exterior-value outside. This field will be used alongside the particle input value and the mask condition to compute the particle output value.
+	 * - If Mask-condition = set-always : the particle output value will be equal to Interior-value if the particle position is inside a sphere / Exterior-value otherwise. 
+	 * - If Mask-condition = merge-interior : the particle output value will be equal to Interior-value if the particle position is inside the sphere or if the particle input value is already Interior-Value / Exterior-value otherwise.
+	 * - If Mask-condition = merge-exterior : the particle output value will be equal to Exterior-value if the particle position is outside the sphere or if the particle input value is already Exterior-Value / Interior-value otherwise.
 	 * @param    Radius Radius of the radial field
 	 * @param    Position Center position of the radial field"
 	 * @param    InteriorValue If the sample distance from the center is less than radius, the intermediate value will be set the interior value

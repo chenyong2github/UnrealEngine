@@ -8,9 +8,9 @@
 UENUM(BlueprintType)
 enum ESetMaskConditionType
 {
-	Field_Set_Always	        UMETA(DisplayName = "Always", ToolTip = "Always set the field node output."),
-	Field_Set_IFF_NOT_Interior  UMETA(DisplayName = "Not Interior", ToolTip = "Only set the field node output if the input is different from the interior value."),
-	Field_Set_IFF_NOT_Exterior  UMETA(DisplayName = "Not Exterior", ToolTip = "Only set the field node output if the input is different from the exterior value."),
+	Field_Set_Always	        UMETA(DisplayName = "Set Always", ToolTip = "The particle output value will be equal to Interior-value if the particle position is inside a sphere / Exterior-value otherwise."),
+	Field_Set_IFF_NOT_Interior  UMETA(DisplayName = "Merge Interior", ToolTip = "The particle output value will be equal to Interior-value if the particle position is inside the sphere or if the particle input value is already Interior-Value / Exterior-value otherwise."),
+	Field_Set_IFF_NOT_Exterior  UMETA(DisplayName = "Merge Exterior", ToolTip = "The particle output value will be equal to Exterior-value if the particle position is outside the sphere or if the particle input value is already Exterior-Value / Interior-value otherwise."),
 	//~~~
 	//256th entry
 	Field_MaskCondition_Max                 UMETA(Hidden)
