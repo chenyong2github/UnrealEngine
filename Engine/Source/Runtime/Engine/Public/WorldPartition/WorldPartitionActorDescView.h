@@ -6,7 +6,9 @@
 #if WITH_EDITOR
 class UHLODLayer;
 class FWorldPartitionActorDesc;
+class UActorDescContainer;
 enum class EContainerClusterMode : uint8;
+enum class EActorGridPlacement : uint8;
 
 /**
  * A view on top of an actor desc, used to cache information that can be (potentially) different than the actor desc
