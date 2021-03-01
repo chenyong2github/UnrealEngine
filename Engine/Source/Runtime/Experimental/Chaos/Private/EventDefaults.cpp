@@ -13,10 +13,10 @@
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "ChaosSolversModule.h"
+#include "Chaos/CollisionFilterData.h"
 
 namespace Chaos
 {
-
 	template <typename Traits>
 	void TEventDefaults<Traits>::RegisterSystemEvents(TEventManager<Traits>& EventManager)
 	{
@@ -97,6 +97,21 @@ namespace Chaos
 
 										// presently when a rigidbody or kinematic hits static geometry then Body1 is null
 										TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
+
+										const FImplicitObject* Implicit0 = Constraint.Manifold.Implicit[0];
+										const FImplicitObject* Implicit1 = Constraint.Manifold.Implicit[1];
+
+										const FPerShapeData* Shape0 = Particle0->GetImplicitShape(Implicit0);
+										const FPerShapeData* Shape1 = Particle0->GetImplicitShape(Implicit0);
+
+										const FCollisionFilterData& Filter0 = Shape0->GetSimData();
+										const FCollisionFilterData& Filter1 = Shape1->GetSimData();
+
+										if(!Filter0.HasFlag(EFilterFlags::ContactNotify) && !Filter1.HasFlag(EFilterFlags::ContactNotify))
+										{
+											// No need to notify - engine didn't request notifications for either shape.
+											continue;
+										}
 
 										if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
 										{
