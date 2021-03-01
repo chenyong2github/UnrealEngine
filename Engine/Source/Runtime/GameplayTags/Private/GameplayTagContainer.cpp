@@ -882,12 +882,12 @@ FString FGameplayTagContainer::ToString() const
 	return ExportString;
 }
 
-void FGameplayTagContainer::FromExportString(const FString& ExportString)
+void FGameplayTagContainer::FromExportString(const FString& ExportString, int32 PortFlags)
 {
 	Reset();
 
 	FOutputDeviceNull NullOut;
-	FGameplayTagContainer::StaticStruct()->ImportText(*ExportString, this, nullptr, 0, &NullOut, TEXT("FGameplayTagContainer"), true);
+	FGameplayTagContainer::StaticStruct()->ImportText(*ExportString, this, nullptr, PortFlags, &NullOut, TEXT("FGameplayTagContainer"), true);
 }
 
 bool FGameplayTagContainer::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText)
@@ -897,6 +897,9 @@ bool FGameplayTagContainer::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags
 
 	if (Buffer)
 	{
+		// Clear out any invalid tags that got stripped
+		GameplayTags.Remove(FGameplayTag());
+
 		// Compute parent tags
 		FillParentTags();	
 	}
@@ -1332,22 +1335,22 @@ bool FGameplayTag::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject
 
 	if (ImportedTag[0] == '(')
 	{
-		// Let normal ImportText handle this. It appears to be prepared for it.
+		// Let normal ImportText handle this before handling fixups
 		UScriptStruct* ScriptStruct = FGameplayTag::StaticStruct();
 		Buffer = ScriptStruct->ImportText(Buffer, this, Parent, PortFlags, ErrorText, ScriptStruct->GetName(), false);
-		UGameplayTagsManager::Get().ImportSingleGameplayTag(*this, TagName);
+		UGameplayTagsManager::Get().ImportSingleGameplayTag(*this, TagName, !!(PortFlags & PPF_SerializedAsImportText));
 		return true;
 	}
 
-	return UGameplayTagsManager::Get().ImportSingleGameplayTag(*this, FName(*ImportedTag));
+	return UGameplayTagsManager::Get().ImportSingleGameplayTag(*this, FName(*ImportedTag), !!(PortFlags & PPF_SerializedAsImportText));
 }
 
-void FGameplayTag::FromExportString(const FString& ExportString)
+void FGameplayTag::FromExportString(const FString& ExportString, int32 PortFlags)
 {
 	TagName = NAME_None;
 
 	FOutputDeviceNull NullOut;
-	FGameplayTag::StaticStruct()->ImportText(*ExportString, this, nullptr, 0, &NullOut, TEXT("FGameplayTag"), true);
+	FGameplayTag::StaticStruct()->ImportText(*ExportString, this, nullptr, PortFlags, &NullOut, TEXT("FGameplayTag"), true);
 }
 
 FGameplayTagNativeAdder::FGameplayTagNativeAdder()

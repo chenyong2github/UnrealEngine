@@ -191,7 +191,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 
 	/** Sets from a ImportText string, used in asset registry */
-	void FromExportString(const FString& ExportString);
+	void FromExportString(const FString& ExportString, int32 PortFlags = 0);
 
 	/** Handles importing tag strings without (TagName=) in it */
 	bool ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObject* Parent, FOutputDevice* ErrorText);
@@ -533,7 +533,7 @@ struct GAMEPLAYTAGS_API FGameplayTagContainer
 	FString ToString() const;
 
 	/** Sets from a ImportText string, used in asset registry */
-	void FromExportString(const FString& ExportString);
+	void FromExportString(const FString& ExportString, int32 PortFlags = 0);
 
 	/** Returns abbreviated human readable Tag list without parens or property names. If bQuoted is true it will quote each tag */
 	FString ToStringSimple(bool bQuoted = false) const;

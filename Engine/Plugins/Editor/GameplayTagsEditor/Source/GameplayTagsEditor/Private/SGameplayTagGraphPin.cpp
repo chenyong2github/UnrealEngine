@@ -13,25 +13,15 @@ void SGameplayTagGraphPin::Construct( const FArguments& InArgs, UEdGraphPin* InG
 
 void SGameplayTagGraphPin::ParseDefaultValueData()
 {
-	FString TagString = GraphPinObj->GetDefaultAsString();
-
 	FilterString = GameplayTagPinUtilities::ExtractTagFilterStringFromGraphPin(GraphPinObj);
 
-	if (TagString.StartsWith(TEXT("("), ESearchCase::CaseSensitive) && TagString.EndsWith(TEXT(")"), ESearchCase::CaseSensitive))
-	{
-		TagString.LeftChopInline(1, false);
-		TagString.RightChopInline(1, false);
-		TagString.Split(TEXT("="), nullptr, &TagString, ESearchCase::CaseSensitive);
-		if (TagString.StartsWith(TEXT("\""), ESearchCase::CaseSensitive) && TagString.EndsWith(TEXT("\""), ESearchCase::CaseSensitive))
-		{
-			TagString.LeftChopInline(1, false);
-			TagString.RightChopInline(1, false);
-		}
-	}
+	FGameplayTag GameplayTag;
+	
+	// Read using import text, but with serialize flag set so it doesn't always throw away invalid ones
+	GameplayTag.FromExportString(GraphPinObj->GetDefaultAsString(), PPF_SerializedAsImportText);
 
-	if (!TagString.IsEmpty())
+	if (GameplayTag.IsValid())
 	{
-		FGameplayTag GameplayTag = FGameplayTag::RequestGameplayTag(FName(*TagString));
 		TagContainer->AddTag(GameplayTag);
 	}
 }

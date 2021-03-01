@@ -489,6 +489,12 @@ public:
 		return bShouldWarnOnInvalidTags;
 	}
 
+	/** Should we clear references to invalid tags loaded/saved in the editor */
+	bool ShouldClearInvalidTags() const
+	{
+		return bShouldClearInvalidTags;
+	}
+
 	/** Should use fast replication */
 	bool ShouldUseFastReplication() const
 	{
@@ -520,7 +526,7 @@ public:
 	void RedirectSingleGameplayTag(FGameplayTag& Tag, FProperty* SerializingProperty) const;
 
 	/** Handles establishing a single tag from an imported tag name (accounts for redirects too). Called when tags are imported via text. */
-	bool ImportSingleGameplayTag(FGameplayTag& Tag, FName ImportedTagName) const;
+	bool ImportSingleGameplayTag(FGameplayTag& Tag, FName ImportedTagName, bool bImportFromSerialize = false) const;
 
 	/** Gets a tag name from net index and vice versa, used for replication efficiency */
 	FName GetTagNameFromNetIndex(FGameplayTagNetIndex Index) const;
@@ -762,6 +768,9 @@ private:
 
 	/** Cached runtime value for whether we should warn when loading invalid tags */
 	bool bShouldWarnOnInvalidTags;
+
+	/** Cached runtime value for whether we should warn when loading invalid tags */
+	bool bShouldClearInvalidTags;
 
 	/** True if native tags have all been added and flushed */
 	bool bDoneAddingNativeTags;
