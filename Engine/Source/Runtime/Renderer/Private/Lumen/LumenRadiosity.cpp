@@ -269,9 +269,9 @@ class FPlaceProbeIndirectArgsCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
-		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
@@ -357,8 +357,8 @@ class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_TEXTURE(Texture2D, DepthAtlas)
-		SHADER_PARAMETER_TEXTURE(Texture2D, CurrentOpacityAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
@@ -387,8 +387,8 @@ const static uint32 MaxRadiosityConeDirections = 32;
 BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
-	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
-	SHADER_PARAMETER_TEXTURE(Texture2D, CurrentOpacityAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CurrentOpacityAtlas)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 	SHADER_PARAMETER_ARRAY(FVector4, RadiosityConeDirections, [MaxRadiosityConeDirections])
 	SHADER_PARAMETER(uint32, NumCones)
@@ -397,6 +397,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRadiosityTraceFromTexelParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 void SetupTraceFromTexelParameters(
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	const FLumenCardTracingInputs& TracingInputs, 
 	const FLumenSceneData& LumenSceneData, 
@@ -414,8 +415,8 @@ void SetupTraceFromTexelParameters(
 	TraceFromTexelParameters.IndirectTracingParameters.VoxelStepFactor = FMath::Clamp(GLumenRadiosityVoxelStepFactor, .1f, 10.0f);
 
 	// Trace from this frame's cards
-	TraceFromTexelParameters.NormalAtlas = LumenSceneData.NormalAtlas->GetRenderTargetItem().ShaderResourceTexture;
-	TraceFromTexelParameters.CurrentOpacityAtlas = LumenSceneData.OpacityAtlas->GetRenderTargetItem().ShaderResourceTexture;
+	TraceFromTexelParameters.NormalAtlas         = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
+	TraceFromTexelParameters.CurrentOpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 
 	TraceFromTexelParameters.CardBuffer = LumenSceneData.CardBuffer.SRV;
 	
@@ -596,8 +597,8 @@ void RenderRadiosityComputeScatter(
 
 		FRadiosityMarkUsedProbesData MarkUsedProbesData;
 		MarkUsedProbesData.Parameters.View = View.ViewUniformBuffer;
-		MarkUsedProbesData.Parameters.DepthAtlas = LumenSceneData.DepthAtlas->GetRenderTargetItem().ShaderResourceTexture;
-		MarkUsedProbesData.Parameters.CurrentOpacityAtlas = LumenSceneData.OpacityAtlas->GetRenderTargetItem().ShaderResourceTexture;
+		MarkUsedProbesData.Parameters.DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
+		MarkUsedProbesData.Parameters.CurrentOpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 		MarkUsedProbesData.Parameters.CardTraceBlockAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockAllocator, PF_R32_UINT));
 		MarkUsedProbesData.Parameters.CardTraceBlockData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CardTraceBlockData, PF_R32G32B32A32_UINT));
 		MarkUsedProbesData.Parameters.CardBuffer = LumenSceneData.CardBuffer.SRV;
@@ -627,7 +628,7 @@ void RenderRadiosityComputeScatter(
 		PassParameters->ProbeOcclusionNormalBias = GLumenRadiosityIrradianceCacheProbeOcclusionNormalBias;
 		PassParameters->IndirectArgs = TraceBlocksIndirectArgsBuffer;
 
-		SetupTraceFromTexelParameters(View, TracingInputs, LumenSceneData, PassParameters->TraceFromTexelParameters);
+		SetupTraceFromTexelParameters(GraphBuilder, View, TracingInputs, LumenSceneData, PassParameters->TraceFromTexelParameters);
 
 		FLumenCardRadiosityTraceBlocksCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenCardRadiosityTraceBlocksCS::FDynamicSkyLight>(bRenderSkylight);
@@ -750,7 +751,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			PassParameters->VS.ScatterInstanceIndex = 0;
 			PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 
-			SetupTraceFromTexelParameters(Views[0], TracingInputs, LumenSceneData, PassParameters->PS.TraceFromTexelParameters);
+			SetupTraceFromTexelParameters(GraphBuilder, Views[0], TracingInputs, LumenSceneData, PassParameters->PS.TraceFromTexelParameters);
 
 			FLumenCardRadiosityPS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenCardRadiosityPS::FDynamicSkyLight>(bRenderSkylight);
