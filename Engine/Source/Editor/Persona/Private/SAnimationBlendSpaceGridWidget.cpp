@@ -27,6 +27,7 @@
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "Classes/EditorStyleSettings.h"
 
+#include "Widgets/Input/SButton.h"
 #include "Fonts/FontMeasure.h"
 #include "Modules/ModuleManager.h"
 
