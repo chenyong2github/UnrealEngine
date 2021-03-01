@@ -525,13 +525,16 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.VAlign(VAlign_Center)
+			.AutoHeight()
 			[
 				AssetComboButton.ToSharedRef()
 			]
 			+ SVerticalBox::Slot()
 			.VAlign(VAlign_Center)
+			.AutoHeight()
 			[
 				SAssignNew(CustomContentBox, SHorizontalBox)
+
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				[
