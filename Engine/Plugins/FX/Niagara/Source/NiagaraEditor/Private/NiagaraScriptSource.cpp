@@ -200,7 +200,7 @@ bool UNiagaraScriptSource::AddModuleIfMissing(FString ModulePath, ENiagaraScript
 void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNode* Node, FNiagaraParameterStore& RapidIterationParameters, TArray<FNiagaraVariable> OldRapidIterationVariables, TSet<FName> ValidRapidIterationParameterNames, const UNiagaraEmitter* Emitter, ENiagaraScriptUsage ScriptUsage) const
 {
 	UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(Node);
-	if (FunctionCallNode == nullptr)
+	if (FunctionCallNode == nullptr || FunctionCallNode->FunctionScript == nullptr)
 	{
 		return;
 	}
@@ -211,6 +211,12 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNode* Node, FNiagaraPa
 	FCompileConstantResolver ConstantResolver;
 	GetStackFunctionInputPins(*FunctionCallNode, ModuleInputPins, HiddenModulePins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 
+	// the rapid iteration parameters and the function input pins use different variable naming schemes, so most of this is just used to convert one name to the other 
+	UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionCallNode->FunctionScript->GetSource());
+	UNiagaraGraph* Graph = Source->NodeGraph;
+	const UEdGraphSchema_Niagara* NiagaraSchema = Graph->GetNiagaraSchema();
+	const FString UniqueEmitterName = Emitter ? Emitter->GetUniqueEmitterName() : FString();
+
 	// go through the existing rapid iteration params to see if they are either still valid or were renamed
 	for (FNiagaraVariable OldRapidIterationVar : OldRapidIterationVariables)
 	{
@@ -219,13 +225,7 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNode* Node, FNiagaraPa
 			continue;
 		}
 
-		// the rapid iteration parameters and the function input pins use different variable naming schemes, so most of this is just used to convert one name to the other 
-		UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionCallNode->FunctionScript->GetSource());
-		UNiagaraGraph* Graph = Source->NodeGraph;
-		const UEdGraphSchema_Niagara* NiagaraSchema = Graph->GetNiagaraSchema();
-		const FString UniqueEmitterName = Emitter ? Emitter->GetUniqueEmitterName() : FString();
 		FGuid BoundGuid = RapidIterationParameters.ParameterGuidMapping[OldRapidIterationVar];
-	
 		for (const UEdGraphPin* ModulePin : ModuleInputPins)
 		{
 			FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FNiagaraParameterHandle(ModulePin->PinName), FunctionCallNode);
