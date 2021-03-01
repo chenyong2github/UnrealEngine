@@ -1566,12 +1566,14 @@ void SSkeletonTree::SetTreeItemExpansionRecursive(TSharedPtr< ISkeletonTreeItem 
 void SSkeletonTree::PostUndo(bool bSuccess)
 {
 	// Rebuild the tree view whenever we undo a change to the skeleton
+	CreateFromSkeleton();
 	HandleTreeRefresh();
 }
 
 void SSkeletonTree::PostRedo(bool bSuccess)
 {
 	// Rebuild the tree view whenever we redo a change to the skeleton
+	CreateFromSkeleton();
 	HandleTreeRefresh();
 }
 
