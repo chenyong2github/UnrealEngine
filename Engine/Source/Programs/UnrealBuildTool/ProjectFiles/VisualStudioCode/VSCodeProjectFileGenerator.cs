@@ -1186,7 +1186,7 @@ namespace UnrealBuildTool
 
 				if (bForeignProject)
 				{
-					Args.Add("-project=\\\"" + MakeUnquotedPathString(OnlyGameProject, EPathType.Absolute) + "\\\"");
+					Args.Add("-project=" + MakeUnquotedPathString(OnlyGameProject, EPathType.Absolute));
 					Args.Add("-game");
 					Args.Add("-engine");
 				}
