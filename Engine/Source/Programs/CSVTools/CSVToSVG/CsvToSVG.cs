@@ -25,7 +25,7 @@ namespace CSVTools
 {
     class Version
     {
-        private static string VersionString = "2.40";
+        private static string VersionString = "2.41";
         
         public static string Get() { return VersionString; }
     };
@@ -259,6 +259,8 @@ namespace CSVTools
 
 		void Run(string[] args)
 		{
+			System.Globalization.CultureInfo.DefaultThreadCurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+
 			if (args.Length < 2)
 			{
 				WriteLine("CsvToSVG " + Version.Get());
