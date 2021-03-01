@@ -81,6 +81,8 @@ bool GGPUCrashDebuggingEnabled = false;
 
 extern TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar;
 
+// All shader stages supported by VK device - VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, FRAGMENT etc
+uint32 GVulkanDeviceShaderStageBits = 0;
 
 #if VULKAN_HAS_VALIDATION_FEATURES
 static inline TArray<VkValidationFeatureEnableEXT> GetValidationFeaturesEnabled()
@@ -761,6 +763,22 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHIRequiresRenderTargetForPixelShaderUAVs = true;
 
 		GUseTexture3DBulkDataRHI = false;
+
+		// these are supported by all devices
+		GVulkanDeviceShaderStageBits = 	VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | 
+										VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+										VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		// optional shader stages
+		if (Device->GetPhysicalFeatures().geometryShader) 
+		{
+			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+		}
+		
+		if (Device->GetPhysicalFeatures().tessellationShader)
+		{
+			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+		}
 
 		FHardwareInfo::RegisterHardwareInfo(NAME_RHI, TEXT("Vulkan"));
 
