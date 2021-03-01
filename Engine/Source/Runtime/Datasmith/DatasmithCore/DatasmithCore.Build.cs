@@ -11,13 +11,10 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"Cbor",
 					"Core",
 					"CoreUObject",
 					"DirectLink",
 					"MeshDescription",
-					"Messaging",
-					"MessagingCommon",
 					"RawMesh",
 					"StaticMeshDescription",
 				}
