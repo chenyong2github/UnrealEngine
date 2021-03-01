@@ -2463,6 +2463,16 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 			Class->RemoveMetaData(NAME_DisplayName);
 		}
 
+		// Add the namespace (if set) to class metadata
+		if (!Blueprint->BlueprintNamespace.IsEmpty())
+		{
+			Class->SetMetaData(FBlueprintMetadata::MD_Namespace, *Blueprint->BlueprintNamespace);
+		}
+		else
+		{
+			Class->RemoveMetaData(FBlueprintMetadata::MD_Namespace);
+		}
+
 		// Copy the category info from the parent class
 #if WITH_EDITORONLY_DATA
 		

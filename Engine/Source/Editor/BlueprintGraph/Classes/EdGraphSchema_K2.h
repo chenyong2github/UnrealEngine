@@ -246,6 +246,9 @@ public:
 	/** Metadata that should be used with UPARAM to specify whether a TSubclassOf argument allows abstract classes */
 	static const FName MD_AllowAbstractClasses;
 
+	/** Namespace into which a type can be optionally defined; if empty or not set, the type will belong to the global namespace (default). */
+	static const FName MD_Namespace;
+
 private:
 	// This class should never be instantiated
 	FBlueprintMetadata() {}

@@ -51,6 +51,7 @@ struct FToolMenuContext;
 class UK2Node_FunctionEntry;
 class UK2Node_Event;
 class UToolMenu;
+class FBlueprintNamespaceHelper;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
@@ -649,6 +650,9 @@ public:
 
 	/** Imports the given namespace into the editor. This may trigger a load event for additional macro and/or function library assets if not already loaded. */
 	void ImportNamespace(const FString& InNamespace);
+
+	/** Returns an instanced namespace helper utility object that corresponds to the given Blueprint. */
+	TSharedRef<FBlueprintNamespaceHelper> GetOrCreateNamespaceHelperForBlueprint(const UBlueprint* InBlueprint);
 
 protected:
 	UE_DEPRECATED(4.26, "Please do any validation inside the UBlueprint class during compilation, extra errors during compiling only supplied by the designer can lead to design time only errors being reported and being missed during cooks/content validation.")
@@ -1274,6 +1278,9 @@ protected:
 
 	/** The toolbar builder class */
 	TSharedPtr<class FBlueprintEditorToolbar> Toolbar;
+
+	/** Cached set of instanced namespace helper objects */
+	TMap<TWeakObjectPtr<const UBlueprint>, TSharedRef<FBlueprintNamespaceHelper>> CachedNamespaceHelpers;
 
 	FOnSetPinVisibility OnSetPinVisibility;
 

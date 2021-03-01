@@ -33,6 +33,10 @@ public:
 
 	bool IsIncludedInNamespaceList(const FString& TestNamespace) const;
 
+	bool IsImportedType(const UField* InType) const;
+	bool IsImportedObject(const UObject* InObject) const;
+	bool IsImportedObject(const FSoftObjectPath& InObjectPath) const;
+
 private:
 	// Complete list of all fully-qualified namespace path identifiers for the associated Blueprint.
 	TSet<FString> FullyQualifiedListOfNamespaces;

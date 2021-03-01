@@ -198,6 +198,8 @@ const FName FBlueprintMetadata::MD_AnimBlueprintFunction(TEXT("AnimBlueprintFunc
 
 const FName FBlueprintMetadata::MD_AllowAbstractClasses(TEXT("AllowAbstract"));
 
+const FName FBlueprintMetadata::MD_Namespace(TEXT("Namespace"));
+
 //////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "KismetSchema"

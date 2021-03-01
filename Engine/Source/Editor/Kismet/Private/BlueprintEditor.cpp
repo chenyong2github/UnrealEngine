@@ -1735,7 +1735,7 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 		const FString UserDeveloperPath = FPackageName::FilenameToLongPackageName( FPaths::GameUserDeveloperDir());
 		const FString DeveloperPath = FPackageName::FilenameToLongPackageName( FPaths::GameDevelopersDir() );
 
-		FBlueprintNamespaceHelper NamespaceHelper(BP);
+		TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = GetOrCreateNamespaceHelperForBlueprint(BP);
 
 		// Interface blueprints don't show a node context menu anywhere so we can skip library loading
 		if (BP->BlueprintType != BPTYPE_Interface)
@@ -1782,7 +1782,7 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 
 					// See if this passes the namespace check
 					const FString AssetBPNamespace = AssetEntry.GetTagValueRef<FString>(BPNamespaceName);
-					bAllowLoadBP = bAllowLoadBP && NamespaceHelper.IsIncludedInNamespaceList(AssetBPNamespace);
+					bAllowLoadBP = bAllowLoadBP && NamespaceHelper->IsIncludedInNamespaceList(AssetBPNamespace);
 
 					// For blueprints inside developers folder, only allow the ones inside current user's developers folder.
 					if (bAllowLoadBP)
@@ -1843,8 +1843,43 @@ void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 
 void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
 {
-	// @todo - Make this more targeted - i.e. get/load only those assets tagged w/ the given namespace
-	LoadLibrariesFromAssetRegistry();
+	bool bShouldReloadLibraries = false;
+	TTuple<TWeakObjectPtr<const UBlueprint, FWeakObjectPtr>, TUniquePtr<FBlueprintNamespaceHelper, TDefaultDelete<FBlueprintNamespaceHelper>>> TestTuple;
+
+	// Add the namespace to any cached helper objects.
+	const TArray<UObject*>& EditingObjs = GetEditingObjects();
+	for (const UObject* EditingObj : EditingObjs)
+	{
+		if (const UBlueprint* BlueprintObj = Cast<const UBlueprint>(EditingObj))
+		{
+			TSharedRef<FBlueprintNamespaceHelper> NamespaceHelper = GetOrCreateNamespaceHelperForBlueprint(BlueprintObj);
+			if (!NamespaceHelper->IsIncludedInNamespaceList(InNamespace))
+			{
+				NamespaceHelper->AddNamespace(InNamespace);
+
+				// Load additional libraries that may now be in scope.
+				bShouldReloadLibraries = true;
+			}
+		}
+	}
+
+	if (bShouldReloadLibraries)
+	{
+		// @todo_namespaces - Make this more targeted - i.e. get/load only those assets tagged w/ the given namespace
+		LoadLibrariesFromAssetRegistry();
+	}
+}
+
+TSharedRef<FBlueprintNamespaceHelper> FBlueprintEditor::GetOrCreateNamespaceHelperForBlueprint(const UBlueprint* InBlueprint)
+{
+	TWeakObjectPtr<const UBlueprint> Key = TWeakObjectPtr<const UBlueprint>(InBlueprint);
+	if (TSharedRef<FBlueprintNamespaceHelper>* ValuePtr = CachedNamespaceHelpers.Find(Key))
+	{
+		return *ValuePtr;
+	}
+
+	TSharedPtr<FBlueprintNamespaceHelper> NewValue = MakeShared<FBlueprintNamespaceHelper>(InBlueprint);
+	return CachedNamespaceHelpers.Add(Key, NewValue.ToSharedRef());
 }
 
 void FBlueprintEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

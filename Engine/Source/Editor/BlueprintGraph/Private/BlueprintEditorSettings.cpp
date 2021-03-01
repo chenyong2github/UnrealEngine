@@ -33,6 +33,7 @@ UBlueprintEditorSettings::UBlueprintEditorSettings(const FObjectInitializer& Obj
 	, bDoubleClickNavigatesToParent(false)
 	, bEnableTypePromotion(true)
 	// Experimental
+	, bEnableNamespaceFilteringFeatures(false)
 	, bEnableNamespaceImportingFeatures(false)
 	, bFavorPureCastNodes(false)
 	// Compiler Settings
