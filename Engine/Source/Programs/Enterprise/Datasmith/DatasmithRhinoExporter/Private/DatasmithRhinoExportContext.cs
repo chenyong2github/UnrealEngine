@@ -10,6 +10,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace DatasmithRhino
@@ -21,6 +22,10 @@ namespace DatasmithRhino
 		Modified = 1 << 1,
 		Deleted = 1 << 2,
 		Synced = 1 << 3,
+		PendingDeletion = 1 << 4, 
+		PendingHidding = 1 << 5, 
+		//Same as Deleted, except we do not clean up the object afterward.
+		Hidden = 1 << 6, 
 	}
 
 	public abstract class DatasmithInfoBase<T> where T : DatasmithInfoBase<T>
@@ -47,20 +52,6 @@ namespace DatasmithRhino
 		public virtual DirectLinkSynchronizationStatus DirectLinkStatus 
 		{
 			get => InternalDirectLinkStatus;
-			set 
-			{
-				// We ignore the "modified" status if the current status is "created" or "deleted".
-				// To "undelete" an element use RestorePreviousDirectLinkStatus().
-				const DirectLinkSynchronizationStatus UnmodifiableStates = DirectLinkSynchronizationStatus.Created | DirectLinkSynchronizationStatus.Deleted;
-
-				if (InternalDirectLinkStatus != value
-					&& (value != DirectLinkSynchronizationStatus.Modified
-					|| (InternalDirectLinkStatus & UnmodifiableStates) == DirectLinkSynchronizationStatus.None))
-				{
-					PreviousDirectLinkStatus = InternalDirectLinkStatus;
-					InternalDirectLinkStatus = value;
-				}
-			}
 		}
 		public FDatasmithFacadeElement ExportedElement { get; private set; } = null;
 
@@ -70,6 +61,59 @@ namespace DatasmithRhino
 			Name = InName;
 			UniqueLabel = InUniqueLabel;
 			BaseLabel = InBaseLabel;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void ApplyModifiedStatus()
+		{
+			SetDirectLinkStatus(DirectLinkSynchronizationStatus.Modified);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void ApplyHiddenStatus()
+		{
+			SetDirectLinkStatus(DirectLinkSynchronizationStatus.PendingHidding);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public void ApplyDeletedStatus()
+		{
+			SetDirectLinkStatus(DirectLinkSynchronizationStatus.PendingDeletion);
+		}
+		
+		private void SetDirectLinkStatus(DirectLinkSynchronizationStatus Status)
+		{
+			// We ignore the "modified" status if the current status is "created", "deleted" or "hidden".
+			// To "undelete" or unhide an element use RestorePreviousDirectLinkStatus().
+			const DirectLinkSynchronizationStatus UnmodifiableStates = DirectLinkSynchronizationStatus.Created | DirectLinkSynchronizationStatus.Deleted
+				| DirectLinkSynchronizationStatus.PendingDeletion | DirectLinkSynchronizationStatus.PendingHidding | DirectLinkSynchronizationStatus.Hidden;
+
+			if (InternalDirectLinkStatus != Status
+				&& (Status != DirectLinkSynchronizationStatus.Modified
+				|| (InternalDirectLinkStatus & UnmodifiableStates) == DirectLinkSynchronizationStatus.None))
+			{
+				PreviousDirectLinkStatus = InternalDirectLinkStatus;
+				InternalDirectLinkStatus = Status;
+			}
+		}
+
+		public void ApplySyncedStatus()
+		{
+			// Since the Delete and Hide status have a pending phase, we should not override the PreviousDirectLinkStatus in those cases.
+			if (InternalDirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion)
+			{
+				InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Deleted;
+			}
+			else if (InternalDirectLinkStatus == DirectLinkSynchronizationStatus.PendingHidding)
+			{
+				InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Hidden;
+			}
+			//If we are not hidden or deleted
+			else if ((InternalDirectLinkStatus & ~(DirectLinkSynchronizationStatus.Deleted | DirectLinkSynchronizationStatus.Hidden)) != DirectLinkSynchronizationStatus.None)
+			{
+				PreviousDirectLinkStatus = InternalDirectLinkStatus;
+				InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
+			}
 		}
 
 		/// <summary>
@@ -96,7 +140,7 @@ namespace DatasmithRhino
 
 		public virtual void ApplyDiffs(T OtherInfo)
 		{
-			DirectLinkStatus = DirectLinkSynchronizationStatus.Modified;
+			SetDirectLinkStatus(DirectLinkSynchronizationStatus.Modified);
 
 			if (BaseLabel != OtherInfo.BaseLabel)
 			{
@@ -305,8 +349,6 @@ namespace DatasmithRhino
 		/// </summary>
 		public void PurgeDeleted()
 		{
-			DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
-
 			LinkedListNode<DatasmithActorInfo> CurrentNode = ChildrenInternal.First;
 			while (CurrentNode != null)
 			{
@@ -481,6 +523,7 @@ namespace DatasmithRhino
 			
 			const string RootName = "SceneRoot";
 			SceneRoot = new DatasmithActorInfo(ExportOptions.Xform, RootName, RootName, RootName);
+			SceneRoot.ApplySyncedStatus();
 		}
 
 		public void ParseDocument(bool bForceParse = false)
@@ -560,23 +603,21 @@ namespace DatasmithRhino
 		/// </summary>
 		public void OnPostExport()
 		{
+			// Block definitions must be set to synced state after exporting, since their status is not updated during export.
+			foreach (DatasmithActorInfo InstanceDefinitionInfo in InstanceDefinitionHierarchyNodeDictionary.Values)
+			{
+				const bool bIncludeHidden = true;
+				foreach (DatasmithActorInfo DefinitionNode in InstanceDefinitionInfo.GetEnumerator(bIncludeHidden))
+				{
+					DefinitionNode.ApplySyncedStatus();
+				}
+			}
+
 			if (bExportedOnce)
 			{
 				Cleanup();
 			}
-			else
-			{
-				// Block definitions must be set to synced state after the first sync.
-				foreach (DatasmithActorInfo InstanceDefinitionInfo in InstanceDefinitionHierarchyNodeDictionary.Values)
-				{
-					const bool bIncludeHidden = true;
-					foreach(DatasmithActorInfo DefinitionNode in InstanceDefinitionInfo.GetEnumerator(bIncludeHidden))
-					{
-						DefinitionNode.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
-					}
-				}
-			}
-
+			
 			bExportedOnce = true;
 		}
 
@@ -697,7 +738,7 @@ namespace DatasmithRhino
 			if ((bHasMesh || bIsInstance)
 				&& ObjectIdToHierarchyActorNodeDictionary.TryGetValue(InRhinoObject.Id, out DatasmithActorInfo ActorInfo))
 			{
-				ActorInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Modified;
+				ActorInfo.ApplyModifiedStatus();
 
 				if (bIsInstance)
 				{
@@ -759,14 +800,15 @@ namespace DatasmithRhino
 
 					// if the visibility changed, update the status of the descendants.
 					bool bIsVisible = ActorInfo.bIsVisible;
-					if (!bIsVisible || ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Deleted)
+					bool bWasHidden = (ActorInfo.DirectLinkStatus & (DirectLinkSynchronizationStatus.PendingHidding | DirectLinkSynchronizationStatus.Hidden)) != DirectLinkSynchronizationStatus.None;
+					if (!bIsVisible || bWasHidden)
 					{
 						const bool bIncludeHidden = true;
 						foreach (DatasmithActorInfo DescendantActor in ActorInfo.GetEnumerator(bIncludeHidden))
 						{
 							if (!bIsVisible)
 							{
-								DescendantActor.DirectLinkStatus = DirectLinkSynchronizationStatus.Deleted;
+								DescendantActor.ApplyHiddenStatus();
 							}
 							else
 							{
@@ -774,8 +816,10 @@ namespace DatasmithRhino
 							}
 						}
 					}
-
-					ActorInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Modified;
+					else
+					{
+						ActorInfo.ApplyModifiedStatus();
+					}
 				}
 				else
 				{
@@ -803,7 +847,7 @@ namespace DatasmithRhino
 				if (TryGenerateMeshInfoFromRhinoObjects(InRhinoObject) is DatasmithMeshInfo DiffMeshInfo)
 				{
 					MeshInfo.ApplyDiffs(DiffMeshInfo);
-					MeshInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Modified;
+					MeshInfo.ApplyModifiedStatus();
 				}
 			}
 		}
@@ -843,12 +887,12 @@ namespace DatasmithRhino
 			{
 				foreach (DatasmithActorInfo ActorInfoValue in ActorInfo.GetEnumerator(/*bIncludeHidden=*/true))
 				{
-					ActorInfoValue.DirectLinkStatus = DirectLinkSynchronizationStatus.Deleted;
+					ActorInfoValue.ApplyDeletedStatus();
 
 					// If this actor is not a block instance, we can delete its associated mesh.
 					if (ActorInfoValue.DefinitionNode == null && ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfoValue.RhinoModelComponent.Id, out DatasmithMeshInfo MeshInfo))
 					{
-						MeshInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Deleted;
+						MeshInfo.ApplyDeletedStatus();
 					}
 				}
 			}
@@ -858,7 +902,7 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo ChildActorInfo in ActorInfo.Children)
 			{
-				ChildActorInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Modified;
+				ChildActorInfo.ApplyModifiedStatus();
 				bool bMaterialAffectedByParent = ChildActorInfo.RhinoCommonObject is RhinoObject ChildRhinoObject && ChildRhinoObject.Attributes.MaterialSource != ObjectMaterialSource.MaterialFromObject;
 
 				if (bMaterialAffectedByParent)
@@ -987,7 +1031,7 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo CurrentInfo in ActorInfos)
 			{
-				if (CurrentInfo.DirectLinkStatus != DirectLinkSynchronizationStatus.Deleted)
+				if (CurrentInfo.DirectLinkStatus != DirectLinkSynchronizationStatus.PendingDeletion)
 				{
 					ObjectIdToHierarchyActorNodeDictionary[CurrentInfo.RhinoModelComponent.Id] = CurrentInfo;
 
@@ -1148,7 +1192,7 @@ namespace DatasmithRhino
 
 						foreach (DatasmithActorInfo DeletedChild in DeletedChildren)
 						{
-							DeletedChild.DirectLinkStatus = DirectLinkSynchronizationStatus.Deleted;
+							DeletedChild.ApplyDeletedStatus();
 						}
 
 						RegisterActorsToContext(DefinitionRootNode.GetEnumerator(true));
@@ -1172,11 +1216,11 @@ namespace DatasmithRhino
 									ObjectNeedingMeshParsing.Add(CreatedRhinoObject);
 								}
 							}
-							else if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Deleted)
+							else if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion)
 							{
 								if (ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfo.RhinoModelComponent.Id, out DatasmithMeshInfo MeshInfo))
 								{
-									MeshInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Deleted;
+									MeshInfo.ApplyDeletedStatus();
 								}
 							}
 						}
@@ -1193,7 +1237,7 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo ActorInstance in DefinitionParent.InstanceNodes)
 			{
-				if (ActorInstance.DirectLinkStatus != DirectLinkSynchronizationStatus.Deleted)
+				if (ActorInstance.DirectLinkStatus != DirectLinkSynchronizationStatus.PendingDeletion)
 				{
 					DatasmithActorInfo ChildInstance = AddChildInstance(ActorInstance, ChildDefinition);
 					RecursivelyAddChildInstance(ActorInstance, ChildInstance);

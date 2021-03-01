@@ -88,7 +88,7 @@ namespace DatasmithRhino.ElementExporters
 						{
 							CurrentElementInfo.SetExportedElement(CreatedElement);
 							AddElement(CurrentElementInfo);
-							CurrentElementInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
+							CurrentElementInfo.ApplySyncedStatus();
 						}
 						else
 						{
@@ -97,15 +97,18 @@ namespace DatasmithRhino.ElementExporters
 						break;
 					case DirectLinkSynchronizationStatus.Modified:
 						ModifyElement(CurrentElementInfo);
-						CurrentElementInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
+						CurrentElementInfo.ApplySyncedStatus();
 						break;
-					case DirectLinkSynchronizationStatus.Deleted:
+					case DirectLinkSynchronizationStatus.PendingDeletion:
+					case DirectLinkSynchronizationStatus.PendingHidding:
 						if (CurrentElementInfo.ExportedElement != null)
 						{
 							DeleteElement(CurrentElementInfo);
 						}
+						CurrentElementInfo.ApplySyncedStatus();
 						break;
 					case DirectLinkSynchronizationStatus.Synced:
+					case DirectLinkSynchronizationStatus.Hidden:
 						//Element is synced, nothing to do.
 						break;
 					case DirectLinkSynchronizationStatus.None:
@@ -137,14 +140,17 @@ namespace DatasmithRhino.ElementExporters
 					case DirectLinkSynchronizationStatus.Modified:
 						ElementInfosToProcess.Add(new Tuple<T, int>(CurrentElementInfo, InvalidIndex));
 						break;
-					case DirectLinkSynchronizationStatus.Deleted:
+					case DirectLinkSynchronizationStatus.PendingDeletion:
+					case DirectLinkSynchronizationStatus.PendingHidding:
 						// Element deletion cannot be done asynchronously.
 						if (CurrentElementInfo.ExportedElement != null)
 						{
 							DeleteElement(CurrentElementInfo);
 						}
+						CurrentElementInfo.ApplySyncedStatus();
 						break;
 					case DirectLinkSynchronizationStatus.Synced:
+					case DirectLinkSynchronizationStatus.Hidden:
 						//Element is synced, nothing to do.
 						break;
 					case DirectLinkSynchronizationStatus.None:
@@ -175,7 +181,7 @@ namespace DatasmithRhino.ElementExporters
 				else
 				{
 					ModifyElement(CurrentElementInfo);
-					CurrentElementInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
+					CurrentElementInfo.ApplySyncedStatus();
 				}
 
 				// Update the progress, only on rhino's main thread.
@@ -206,7 +212,7 @@ namespace DatasmithRhino.ElementExporters
 				if (CreatedElementInfo.ExportedElement != null)
 				{
 					AddElement(CreatedElementInfo);
-					CreatedElementInfo.DirectLinkStatus = DirectLinkSynchronizationStatus.Synced;
+					CreatedElementInfo.ApplySyncedStatus();
 				}
 				else
 				{

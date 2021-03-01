@@ -15,13 +15,14 @@ namespace DatasmithRhino.ElementExporters
 
 		protected override int GetElementsToSynchronizeCount()
 		{
-			return ExportContext.SceneRoot.GetDescendantsCount() + 1;
+			return ExportContext.SceneRoot.GetDescendantsCount();
 		}
 
 		protected override IEnumerable<DatasmithActorInfo> GetElementsToSynchronize()
 		{
+			// We don't export the root, only its descendants.
 			const bool bIncludeHidden = true;
-			return ExportContext.SceneRoot.GetEnumerator(bIncludeHidden);
+			return ExportContext.SceneRoot.GetDescendantEnumerator(bIncludeHidden);
 		}
 
 		protected override FDatasmithFacadeElement CreateElement(DatasmithActorInfo ElementInfo)
