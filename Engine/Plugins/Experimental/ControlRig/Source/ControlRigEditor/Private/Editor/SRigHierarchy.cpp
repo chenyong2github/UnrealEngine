@@ -947,6 +947,10 @@ bool SRigHierarchy::AddElement(const FRigBaseElement* InElement, const bool bIgn
 			}
 			break;
 		}
+		case ERigElementType::Curve:
+		{
+			return false;
+		}
 		default:
 		{
 			break;
