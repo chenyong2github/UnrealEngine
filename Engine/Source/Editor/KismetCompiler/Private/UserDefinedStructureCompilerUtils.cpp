@@ -294,10 +294,10 @@ struct FUserDefinedStructureCompilerInner
 			{
 				const UClass* ClassObject = Cast<UClass>(VarType.PinSubCategoryObject.Get());
 
-				if (ClassObject && ClassObject->IsChildOf(AActor::StaticClass()) && (VarType.PinCategory == UEdGraphSchema_K2::PC_Object || VarType.PinCategory == UEdGraphSchema_K2::PC_Interface || VarType.PinCategory == UEdGraphSchema_K2::PC_SoftObject))
+				if (ClassObject && ClassObject->IsChildOf(AActor::StaticClass()) && (VarType.PinCategory == UEdGraphSchema_K2::PC_Object || VarType.PinCategory == UEdGraphSchema_K2::PC_Interface))
 				{
-					// prevent Actor reference variables from having default values (because Blueprint templates are library elements that can 
-					// bridge multiple levels and different levels might not have the actor that the default is referencing).
+					// NOTE: Right now the code that stops hard AActor references from being set in unsafe places is tied to this flag,
+					// which is not generally respected in other places for struct properties
 					VarProperty->PropertyFlags |= CPF_DisableEditOnTemplate;
 				}
 				else
