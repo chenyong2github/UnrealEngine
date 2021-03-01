@@ -22,6 +22,8 @@
 #define PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL 1
 
 
+#if SHADER_TRANSMITTANCE
+
 #if PERMUTATION_TRANSMITTANCE_TYPE == PERMUTATION_TRANSMITTANCE_VIRTUAL_VOXEL
 	#if PERMUTATION_TRAVERSAL == 1
 		#define VOXEL_TRAVERSAL_TYPE VOXEL_TRAVERSAL_LINEAR_MIPMAP
@@ -500,3 +502,26 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 #endif
+
+#endif // SHADER_TRANSMITTANCE
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_CLEAR
+
+uint ElementCount;
+RWStructuredBuffer<FPackedHairTransmittanceMask> OutputMask;
+
+[numthreads(64, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint Index = DispatchThreadId.x;
+	if (Index >= ElementCount)
+	{
+		return;
+	}
+
+	OutputMask[Index] = PackTransmittanceMask(InitHairTransmittanceMask());
+}
+
+#endif // SHADER_CLEAR
