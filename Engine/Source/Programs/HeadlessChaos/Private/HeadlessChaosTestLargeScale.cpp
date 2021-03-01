@@ -17,7 +17,9 @@ namespace ChaosTest {
 	using namespace Chaos;
 
 	// Test GJKPenetration for a normal sized Capsule against a large scaled Box.
-	GTEST_TEST(LargeScaleTests, DISABLED_TestSmallCapsuleLargeBoxGJKPenetration)
+	// We used to have a large error in GJK when testing against large shapes. This was fixed
+	// in Simplex.h in the same CL that this line was added.
+	GTEST_TEST(LargeScaleTests, TestSmallCapsuleLargeBoxGJKPenetration)
 	{
 		// Shape settings
 		const FVec3 BoxSize = FVec3(100, 100, 100);
@@ -49,12 +51,14 @@ namespace ChaosTest {
 		EXPECT_TRUE(bResult);
 		EXPECT_NEAR(-Penetration, Separation, MaxPositionError);
 		EXPECT_NEAR(ClosestA.Z, 0.5f * (BoxSize * BoxScale).Z, MaxPositionError);			// Box space
-		EXPECT_NEAR(ClosestBInA.Z, (BoxSize * BoxScale).Z + Separation, MaxPositionError);
+		EXPECT_NEAR(ClosestBInA.Z, 0.5f * (BoxSize * BoxScale).Z + Separation, MaxPositionError);
 	}
 
 	// A large box centered on X,Y and positioned so that the top surface is at Z = 0.
 	// A small capsule positioned according to the parameter CapsulePos.
 	// Verify that a downward sweep with the specified initial direction returns an accurate result.
+	// We used to have a large error in GJK when testing against large shapes. This was fixed
+	// in Simplex.h in the same CL that this line was added.
 	void SmallCapsuleLargeBoxGJKRaycast(const FVec3 &CapsuleBottomPos, const FVec3& InitialDir)
 	{
 		// Shape settings
@@ -95,9 +99,9 @@ namespace ChaosTest {
 		EXPECT_NEAR(Normal.Z, 1.0f, MaxNormalError);
 	}
 
-	GTEST_TEST(LargeScaleTests, DISABLED_TestSmallCapsuleLargeBoxGJKRaycast_Vertical)
+	GTEST_TEST(LargeScaleTests, TestSmallCapsuleLargeBoxGJKRaycast_Vertical)
 	{
-		// Place capsule abovt the plane and shited laterally
+		// Place capsule above the plane and shited laterally
 		SmallCapsuleLargeBoxGJKRaycast(FVec3(3, 5, 20), FVec3(0, 0, 1));
 		SmallCapsuleLargeBoxGJKRaycast(FVec3(100, 50, 20), FVec3(0, 0, 1));
 		SmallCapsuleLargeBoxGJKRaycast(FVec3(300, 50, 20), FVec3(0, 0, 1));
@@ -108,7 +112,9 @@ namespace ChaosTest {
 
 
 	// Test GJKRaycast for a normal sized Capsule against a large scaled Box.
-	GTEST_TEST(LargeScaleTests, DISABLED_TestSmallCapsuleLargeConvexGJKRaycast)
+	// We used to have a large error in GJK when testing against large shapes. This was fixed
+	// in Simplex.h in the same CL that this line was added.
+	GTEST_TEST(LargeScaleTests, TestSmallCapsuleLargeConvexGJKRaycast)
 	{
 		// Shape settings
 		const FVec3 BoxSize = FVec3(100, 100, 100);
@@ -143,8 +149,8 @@ namespace ChaosTest {
 		const FReal MaxPositionError = 1.e-3f;
 		const FReal MaxNormalError = 1.e-4f;
 		EXPECT_TRUE(bResult);
-		EXPECT_NEAR(Time, 0.5f, MaxTimeError);
-		EXPECT_NEAR(Position.Z, (BoxSize * BoxScale).Z, MaxPositionError);
+		EXPECT_NEAR(Time, Separation, MaxTimeError);
+		EXPECT_NEAR(Position.Z, 0.5f * (BoxSize * BoxScale).Z, MaxPositionError);
 		EXPECT_NEAR(Normal.Z, 1.0f, MaxNormalError);
 	}
 

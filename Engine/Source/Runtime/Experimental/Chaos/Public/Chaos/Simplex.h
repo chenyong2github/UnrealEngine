@@ -13,8 +13,8 @@ namespace Chaos
 
 		//Closest Point = (-X0 dot X1-X0) / ||(X1-X0)||^2 * (X1-X0)
 
-		const TVector<T, d> OriginToX0 = -X0;
-		const T Dot = TVector<T, d>::DotProduct(OriginToX0, X0ToX1);
+		const TVector<T, d> X0ToOrigin = -X0;
+		const T Dot = TVector<T, d>::DotProduct(X0ToOrigin, X0ToX1);
 
 		if (Dot <= 0)
 		{
@@ -33,7 +33,7 @@ namespace Chaos
 			return X1;
 		}
 
-		const T Ratio = Dot / X0ToX1Squared;
+		const T Ratio = FMath::Clamp(Dot / X0ToX1Squared, T(0), T(1));
 		const TVector<T, d> Closest = Ratio * (X0ToX1)+X0;	//note: this could pass X1 by machine epsilon, but doesn't seem worth it for now
 		OutBarycentric[Idxs[0]] = 1 - Ratio;
 		OutBarycentric[Idxs[1]] = Ratio;
@@ -206,11 +206,16 @@ namespace Chaos
 			T Lambda1 = Cofactors[1] * InvDetM;
 			//T Lambda2 = 1 - Lambda1 - Lambda0;
 			T Lambda2 = Cofactors[2] * InvDetM;
-			const TVec3<T> ClosestPoint = X0 * Lambda0 + X1 * Lambda1 + X2 * Lambda2;	//could be slightly outside if |lambda1| < 1e-7 or |lambda2| < 1e-7. Should we clamp?
 			OutBarycentric[Idx0] = Lambda0;
 			OutBarycentric[Idx1] = Lambda1;
 			OutBarycentric[Idx2] = Lambda2;
-			return ClosestPoint;
+
+			// We know that we are inside the triangle so we can use the projected point we calculated above. 
+			// The closest point can also be derived from the barycentric coordinates, but it will contain 
+			// numerical error from the determinant calculation  and can cause GJK to terminate with a poor solution.
+			// (E.g., this caused jittering when walking on box with dimensions of 100000cm or more).
+			// return X0 * Lambda0 + X1 * Lambda1 + X2 * Lambda2;
+			return ProjectedOrigin;
 		}
 		else
 		{
