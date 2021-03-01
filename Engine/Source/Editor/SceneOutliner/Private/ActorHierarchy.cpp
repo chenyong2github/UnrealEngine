@@ -474,9 +474,10 @@ void FActorHierarchy::OnLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 		{
 			if (Actor != nullptr)
 			{
-				EventData.ItemIDs.Add(Actor);		    
+				EventData.ItemIDs.Add(Actor);
 			}
 		}
+		HierarchyChangedEvent.Broadcast(EventData);
 	}
 }
 
