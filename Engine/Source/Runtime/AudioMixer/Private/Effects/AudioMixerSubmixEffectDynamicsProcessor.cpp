@@ -261,6 +261,7 @@ void FSubmixEffectDynamicsProcessor::OnProcessAudio(const FSoundEffectSubmixInpu
 	if (KeySource.GetType() == ESubmixEffectDynamicsKeySource::Default)
 	{
 		if (InData.NumChannels != NumKeyChannels)
+		{
 			NumKeyChannels = InData.NumChannels;
 			NumKeySamples = InData.NumFrames * NumKeyChannels;
 			DynamicsProcessor.SetKeyNumChannels(NumKeyChannels);
