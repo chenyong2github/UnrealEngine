@@ -313,9 +313,6 @@ private:
 
 	TArray<TSharedRef<ERightTreeRowType>> RightTreeRootItems;
 
-	// TODO: Make separate VariantManagerStyle
-	TSharedPtr<FSlateImageBrush> RecordButtonBrush;
-
 	struct FCachedPropertyPath
 	{
 		UObject* Object;

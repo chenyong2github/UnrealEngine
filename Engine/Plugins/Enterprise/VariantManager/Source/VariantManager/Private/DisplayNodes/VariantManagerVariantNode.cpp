@@ -83,7 +83,7 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TShared
 		.HAlign(HAlign_Fill)
 		.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
 		.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
-		.Padding(FMargin(20.0f, 0.0f, 2.0f, 0.0f))
+		.Padding(FMargin(26.0f, 0.0f, 2.0f, 0.0f))
 		[
 			SNew(SHorizontalBox)
 

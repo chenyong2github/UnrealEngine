@@ -64,6 +64,17 @@ void FVariantManagerStyle::Initialize()
 
 		/** The amount to indent child nodes of the layout tree */
 		StyleSet->Set( "VariantManager.Spacings.IndentAmount", 10.0f );
+
+		/** Style used for the auto-capture button */
+		const FCheckBoxStyle Style = FCheckBoxStyle()
+			.SetCheckBoxType( ESlateCheckBoxType::ToggleButton )
+			.SetUncheckedImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Record_24x_OFF", 0.0f, FSlateColor( FLinearColor::Gray ) ) )
+			.SetUncheckedHoveredImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Record_24x_OFF", 0.0f, FSlateColor( FLinearColor::White ) ) )
+			.SetUncheckedPressedImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Record_24x_OFF", 0.0f, FSlateColor( FLinearColor(0.75f, 0.75f, 0.75f) ) ) )
+			.SetCheckedImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Recording_24x", 0.0f, FSlateColor( FLinearColor::Gray ) ) )
+			.SetCheckedHoveredImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Recording_24x", 0.0f, FSlateColor( FLinearColor::White ) ) )
+			.SetCheckedPressedImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Recording_24x", 0.0f, FSlateColor( FLinearColor( 0.75f, 0.75f, 0.75f ) ) ) );
+		StyleSet->Set( "AutoCaptureCheckbox", Style );
 	}
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());

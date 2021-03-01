@@ -31,26 +31,22 @@ TSharedRef<SWidget> GetLabel(const FNumericProperty* InProp)
 	static FString BName = FString(TEXT("B"));
 	static FString ZName = FString(TEXT("Z"));
 
-	const FLinearColor* Foreground = &FLinearColor::Black;
 	const FLinearColor* Background = &FLinearColor::Transparent;
 
 	if (PropName == RName || PropName == XName)
 	{
-		Foreground = &FLinearColor::White;
 		Background = &SNumericEntryBox<uint8>::RedLabelBackgroundColor;
 	}
 	else if (PropName == GName || PropName == YName)
 	{
-		Foreground = &FLinearColor::White;
 		Background = &SNumericEntryBox<uint8>::GreenLabelBackgroundColor;
 	}
 	else if (PropName == BName || PropName == ZName)
 	{
-		Foreground = &FLinearColor::White;
 		Background = &SNumericEntryBox<uint8>::BlueLabelBackgroundColor;
 	}
 
-	return SNumericEntryBox<int32>::BuildLabel(FText::FromString(InProp->GetName()), *Foreground, *Background);
+	return SNumericEntryBox<int32>::BuildNarrowColorLabel( *Background );
 }
 
 template<typename NumericType>
@@ -141,7 +137,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(FNu
 
 	return SNew(SNumericEntryBox<double>)
 	.AllowSpin(true)
-	.LabelPadding(0)
+	.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 	.OnBeginSliderMovement(this, &FVariantManagerStructPropertyNode::OnBeginSliderMovement, Prop)
 	.OnEndSliderMovement(this, &FVariantManagerStructPropertyNode::OnFloatEndSliderMovement, Prop, Offset)
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnFloatValueChanged, Prop)
@@ -157,6 +153,8 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateFloatEntryBox(FNu
 	.MaxSliderValue(GET_OR_EMPTY(SliderMaxValue, double))
 	.SliderExponent(SliderExponent)
 	.Delta(Delta)
+	.LabelPadding( FMargin( 3 ) )
+	.LabelLocation( SNumericEntryBox<double>::ELabelLocation::Inside )
 	.Label()
 	[
 		GetLabel(Prop)
@@ -176,7 +174,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateSignedEntryBox(FN
 
 	return SNew(SNumericEntryBox<int64>)
 	.AllowSpin(true)
-	.LabelPadding(0)
+	.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 	.OnBeginSliderMovement(this, &FVariantManagerStructPropertyNode::OnBeginSliderMovement, Prop)
 	.OnEndSliderMovement(this, &FVariantManagerStructPropertyNode::OnSignedEndSliderMovement, Prop, Offset)
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnSignedValueChanged, Prop)
@@ -192,6 +190,8 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateSignedEntryBox(FN
 	.MaxSliderValue(GET_OR_EMPTY(SliderMaxValue, int64))
 	.SliderExponent(SliderExponent)
 	.Delta(Delta)
+	.LabelPadding( FMargin( 3 ) )
+	.LabelLocation( SNumericEntryBox<int64>::ELabelLocation::Inside )
 	.Label()
 	[
 		GetLabel(Prop)
@@ -211,7 +211,7 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateUnsignedEntryBox(
 
 	return SNew(SNumericEntryBox<uint64>)
 	.AllowSpin(true)
-	.LabelPadding(0)
+	.Font( FEditorStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )
 	.OnBeginSliderMovement(this, &FVariantManagerStructPropertyNode::OnBeginSliderMovement, Prop)
 	.OnEndSliderMovement(this, &FVariantManagerStructPropertyNode::OnUnsignedEndSliderMovement, Prop, Offset)
 	.OnValueChanged(this, &FVariantManagerStructPropertyNode::OnUnsignedValueChanged, Prop)
@@ -227,6 +227,8 @@ TSharedRef<SWidget> FVariantManagerStructPropertyNode::GenerateUnsignedEntryBox(
 	.MaxSliderValue(GET_OR_EMPTY(SliderMaxValue, uint64))
 	.SliderExponent(SliderExponent)
 	.Delta(Delta)
+	.LabelPadding( FMargin( 3 ) )
+	.LabelLocation( SNumericEntryBox<uint64>::ELabelLocation::Inside )
 	.Label()
 	[
 		GetLabel(Prop)
@@ -300,10 +302,10 @@ TSharedPtr<SWidget> FVariantManagerStructPropertyNode::GetPropertyValueWidget()
 	}
 
 	TSharedPtr<SHorizontalBox> HorizBox = SNew(SHorizontalBox);
-	FMargin CommonMargin = FMargin(0.0f, 5.0f, 3.0f, 4.0f);
+	FMargin CommonMargin = FMargin(0.0f, 0.0f, 3.0f, 0.0f);
 
 	FMargin LastMargin = CommonMargin;
-	LastMargin.Right = 0.0f;
+	LastMargin.Right = 4.0f;
 
 	FNumericProperty* LastProp = nullptr;
 	for (TFieldIterator<FNumericProperty> NumPropIter(StructClassToEdit); NumPropIter; ++NumPropIter)
@@ -442,7 +444,7 @@ TSharedPtr<SWidget> FVariantManagerStructPropertyNode::GetPropertyValueWidget()
 	}
 
 	return	SNew(SBox)
-			.Padding(FMargin(4.0f, 0.0f, 4.0f, 0.0f)) // Extra padding to match the internal padding of single property nodes
+			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f)) // Extra padding to match the internal padding of single property nodes
 			[
 				HorizBox.ToSharedRef()
 			];

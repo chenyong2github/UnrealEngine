@@ -89,10 +89,12 @@ public:
 			UnregisterTabSpawner( TabManager );
 		}
 
+		const FSlateIcon LayersIcon( FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Layers" );
+
 		TabManager->RegisterTabSpawner( FLevelVariantSetsEditorToolkit::GetVariantManagerTabID(), FOnSpawnTab::CreateStatic( &FVariantManagerModule::HandleTabManagerSpawnTab ) )
 			.SetDisplayName( LOCTEXT("VariantManagerMainTab", "Variant Manager") )
 			.SetGroup( WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory() )
-			.SetIcon( FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small") );
+			.SetIcon( LayersIcon );
 	}
 
 	static void UnregisterTabSpawner( const TSharedPtr< FTabManager >& TabManager )

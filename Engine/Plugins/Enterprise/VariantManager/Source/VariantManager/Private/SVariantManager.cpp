@@ -243,8 +243,6 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 		OnMapChangedHandle = LevelEditorModule.OnMapChanged().AddSP(this, &SVariantManager::OnMapChanged);
 	}
 
-	RecordButtonBrush = MakeShared<FSlateImageBrush>(FPaths::EngineContentDir() / TEXT("Editor/Slate/Icons/CA_Record.png"), FVector2D(24.0f, 24.0f));
-
 	RightTreeRootItems.Empty();
 	RightTreeRootItems.Reserve(2);
 	RightTreeRootItems.Add(MakeShared<ERightTreeRowType>(ERightTreeRowType::PropertiesHeader));
@@ -318,30 +316,18 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 				.AutoWidth()
 				.MaxWidth(VM_COMMON_HEADER_MAX_HEIGHT) // square aspect ratio
 				[
-					SNew(SBox)
-					.HeightOverride(VM_COMMON_HEADER_MAX_HEIGHT - 8.0f) // These so that it matches the height of the search box
-					.WidthOverride(VM_COMMON_HEADER_MAX_HEIGHT - 8.0f)
-					[
-						SNew(SCheckBox)
-						.Style(FCoreStyle::Get(), "ToggleButtonCheckbox")
-						.ToolTipText(LOCTEXT("AutoCaptureTooltip", "Enable or disable auto-capturing properties"))
-						.IsChecked_Lambda([&bAutoCaptureProperties = bAutoCaptureProperties]()
-						{
-							return bAutoCaptureProperties? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-						})
-						.OnCheckStateChanged_Lambda([&bAutoCaptureProperties = bAutoCaptureProperties](const ECheckBoxState NewState)
-						{
-							bAutoCaptureProperties = NewState == ECheckBoxState::Checked;
-						})
-						[
-							SNew(SBox)
-							.Padding(FMargin(0.0f, 2.0, 2.0f, 2.0)) // Extra padding on the right because ToggleButtonCheckboxes always nudges the image to the right
-							[
-								SNew(SImage)
-								.Image(RecordButtonBrush.Get())
-							]
-						]
-					]
+					SNew(SCheckBox)
+					.Style( FVariantManagerStyle::Get(), "AutoCaptureCheckbox" )
+					.Padding( FMargin( 10.f, 10.f, 10.0f, 10.f ) ) // Give some space to show up the style image or else it will collapse to nothing since it has no content
+					.ToolTipText(LOCTEXT("AutoCaptureTooltip", "Enable or disable auto-capturing properties"))
+					.IsChecked_Lambda([&bAutoCaptureProperties = bAutoCaptureProperties]()
+					{
+						return bAutoCaptureProperties? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					})
+					.OnCheckStateChanged_Lambda([&bAutoCaptureProperties = bAutoCaptureProperties](const ECheckBoxState NewState)
+					{
+						bAutoCaptureProperties = NewState == ECheckBoxState::Checked;
+					})
 				]
 
 				+SHorizontalBox::Slot()
