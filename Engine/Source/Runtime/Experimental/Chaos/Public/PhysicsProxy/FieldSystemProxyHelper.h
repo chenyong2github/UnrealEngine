@@ -28,7 +28,7 @@ namespace Chaos
 		PhysicsProxy* LocalProxy,
 		Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		const FFieldSystemCommand& FieldCommand, 
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles,
+		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles,
 		TArray<FVector>& SamplePositions,
 		TArray<ContextIndex>& SampleIndices,
 		EFieldResolutionType& PrevResolutionType, EFieldFilterType& PrevFilterType)
@@ -77,7 +77,7 @@ namespace Chaos
 	 * @param    FieldContext Field context to retrieve the evaluated samples
 	 * @param    LocalResults Array to store the dynamic state
 	 */
-	FORCEINLINE void InitDynamicStateResults(const TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& LocalResults)
+	FORCEINLINE void InitDynamicStateResults(const TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& LocalResults)
 	{
 		for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 		{
@@ -93,11 +93,11 @@ namespace Chaos
 	 * @param    FieldContext Field context to retrieve the evaluated samples
 	 * @param    LocalResults Array to store the enable/disable boolean
 	 */
-	FORCEINLINE void InitActivateDisabledResults(const TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& LocalResults)
+	FORCEINLINE void InitActivateDisabledResults(const TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& LocalResults)
 	{
 		for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 		{
-			Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+			Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 			if (RigidHandle)
 			{
 				LocalResults[Index.Result] = RigidHandle->Disabled();
@@ -113,7 +113,7 @@ namespace Chaos
 	 */
 	template <typename Traits>
 	FORCEINLINE void SetParticleDynamicState(Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
-		const Chaos::EObjectStateType FieldState, Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle)
+		const Chaos::EObjectStateType FieldState, Chaos::FPBDRigidParticleHandle* RigidHandle)
 	{
 		const bool bIsGC = (RigidHandle->GetParticleType() == Chaos::EParticleType::GeometryCollection) ||
 			(RigidHandle->GetParticleType() == Chaos::EParticleType::Clustered && !RigidHandle->CastToClustered()->InternalCluster());
@@ -140,9 +140,9 @@ namespace Chaos
 	 */
 	template <typename Traits>
 	FORCEINLINE bool ReportDynamicStateResult(Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
-		const Chaos::EObjectStateType FieldState, Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle,
-		const bool HasInitialLinearVelocity, const Chaos::TVector<float, 3>& InitialLinearVelocity,
-		const bool HasInitialAngularVelocity, const Chaos::TVector<float, 3>& InitialAngularVelocity)
+		const Chaos::EObjectStateType FieldState, Chaos::FPBDRigidParticleHandle* RigidHandle,
+		const bool HasInitialLinearVelocity, const Chaos::FVec3& InitialLinearVelocity,
+		const bool HasInitialAngularVelocity, const Chaos::FVec3& InitialAngularVelocity)
 	{
 		const Chaos::EObjectStateType HandleState = RigidHandle->ObjectState();
 
@@ -156,8 +156,8 @@ namespace Chaos
 
 			if (FieldState == Chaos::EObjectStateType::Kinematic || FieldState == Chaos::EObjectStateType::Static)
 			{
-				RigidHandle->SetV(Chaos::TVector<float, 3>(0));
-				RigidHandle->SetW(Chaos::TVector<float, 3>(0));
+				RigidHandle->SetV(Chaos::FVec3(0));
+				RigidHandle->SetW(Chaos::FVec3(0));
 			}
 			else if (FieldState == Chaos::EObjectStateType::Dynamic)
 			{
@@ -212,19 +212,19 @@ namespace Chaos
 	 * @param    ExternalStrain Strain to be used to update the breaking model
 	 */
 	template <typename Traits>
-	FORCEINLINE void UpdateSolverBreakingModel(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, TMap<Chaos::TGeometryParticleHandle<float, 3>*, float>& ExternalStrain)
+	FORCEINLINE void UpdateSolverBreakingModel(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, TMap<Chaos::FGeometryParticleHandle*, float>& ExternalStrain)
 	{
 		// Capture the results from the breaking model to post-process
-		TMap<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*, TSet<Chaos::TPBDRigidParticleHandle<float, 3>*>> BreakResults =
+		TMap<Chaos::FPBDRigidClusteredParticleHandle*, TSet<Chaos::FPBDRigidParticleHandle*>> BreakResults =
 			RigidSolver->GetEvolution()->GetRigidClustering().BreakingModel(&ExternalStrain);
 
 		// If clusters broke apart then we'll have activated new particles that have no relationship to the proxy that now owns them
 		// Here we attach each new particle to the proxy of the parent particle that owns it.
-		for (const TPair<Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>*, TSet<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*>> & Iter : BreakResults)
+		for (const TPair<Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>*, TSet<Chaos::FPBDRigidParticleHandle*>> & Iter : BreakResults)
 		{
-			const TSet<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*>& Activated = Iter.Value;
+			const TSet<Chaos::FPBDRigidParticleHandle*>& Activated = Iter.Value;
 
-			for (Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>* Handle : Activated)
+			for (Chaos::FPBDRigidParticleHandle* Handle : Activated)
 			{
 				if (!RigidSolver->GetProxies(Handle))
 				{
@@ -246,7 +246,7 @@ namespace Chaos
 	 * @param    ResultThreshold Threshoild to be set onto the handle
 	 */
 	template <typename Traits>
-	FORCEINLINE void UpdateMaterialSleepingThreshold(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle, const float ResultThreshold)
+	FORCEINLINE void UpdateMaterialSleepingThreshold(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, Chaos::FPBDRigidParticleHandle* RigidHandle, const float ResultThreshold)
 	{
 		// if no per particle physics material is set, make one
 		if (!RigidSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle).IsValid())
@@ -277,7 +277,7 @@ namespace Chaos
 	 * @param    ResultThreshold Threshoild to be set onto the handle
 	 */
 	template <typename Traits>
-	FORCEINLINE void UpdateMaterialDisableThreshold(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle, const float ResultThreshold)
+	FORCEINLINE void UpdateMaterialDisableThreshold(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, Chaos::FPBDRigidParticleHandle* RigidHandle, const float ResultThreshold)
 	{
 		// if no per particle physics material is set, make one
 		if (!RigidSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle).IsValid())
@@ -314,8 +314,8 @@ namespace Chaos
 	 */
 	template <typename Traits>
 	FORCEINLINE void FieldIntegerParameterUpdate(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const FFieldSystemCommand& FieldCommand,
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
+		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
 	{
 		TArray<int32> LocalResults;
@@ -332,12 +332,12 @@ namespace Chaos
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle)
 					{
 						const int8 ResultState = ResultsView[Index.Result];
 						bHasStateChanged |= ReportDynamicStateResult(RigidSolver, static_cast<Chaos::EObjectStateType>(ResultState), RigidHandle,
-							false, Chaos::TVector<float, 3>(0), false, Chaos::TVector<float, 3>(0));
+							false, Chaos::FVec3(0), false, Chaos::FVec3(0));
 					}
 				}
 				UpdateSolverParticlesState(RigidSolver, bHasStateChanged);
@@ -353,7 +353,7 @@ namespace Chaos
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && RigidHandle->Disabled() && ResultsView[Index.Result] == 0)
 					{
 						RigidSolver->GetEvolution()->EnableParticle(RigidHandle, nullptr);
@@ -370,7 +370,7 @@ namespace Chaos
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidClusteredParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
+					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle)
 					{
 						RigidHandle->SetCollisionGroup(ResultsView[Index.Result]);
@@ -386,7 +386,7 @@ namespace Chaos
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidClusteredParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
+					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle && ResultsView[Index.Result])
 					{
 						if (TargetedParticles.Contains(Index.Sample))
@@ -428,8 +428,8 @@ namespace Chaos
 	 */
 	template <typename Traits>
 	FORCEINLINE void FieldScalarParameterUpdate(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const FFieldSystemCommand& FieldCommand,
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
+		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
 	{
 		TArray<float> LocalResults;
@@ -440,7 +440,7 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_ExternalClusterStrain);
 			{
-				TMap<Chaos::TGeometryParticleHandle<float, 3>*, float> ExternalStrain;
+				TMap<Chaos::FGeometryParticleHandle*, float> ExternalStrain;
 
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
@@ -461,7 +461,7 @@ namespace Chaos
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && ResultsView[Index.Result] > 0.0)
 					{
 						RigidSolver->GetEvolution()->DisableParticle(RigidHandle);
@@ -477,7 +477,7 @@ namespace Chaos
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && ResultsView.Num() > 0)
 					{
 						UpdateMaterialSleepingThreshold(RigidSolver, RigidHandle, ResultsView[Index.Result]);
@@ -493,7 +493,7 @@ namespace Chaos
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 
 					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic && ResultsView.Num() > 0)
 					{
@@ -510,7 +510,7 @@ namespace Chaos
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidClusteredParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
+					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 					{
 						RigidHandle->Strain() += ResultsView[Index.Result];
@@ -534,8 +534,8 @@ namespace Chaos
 	 */
 	template <typename Traits>
 	FORCEINLINE void FieldVectorParameterUpdate(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const FFieldSystemCommand& FieldCommand,
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
+		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
 	{
 		TArray<FVector> LocalResults;
@@ -549,7 +549,7 @@ namespace Chaos
 				static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 					{
 						RigidHandle->V() += ResultsView[Index.Result];
@@ -566,7 +566,7 @@ namespace Chaos
 
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 					{
 						RigidHandle->W() += ResultsView[Index.Result];
@@ -582,7 +582,7 @@ namespace Chaos
 				static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidClusteredParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
+					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle && ResultsView[Index.Result] != FVector(FLT_MAX))
 					{
 						if (TargetedParticles.Contains(Index.Sample))
@@ -614,7 +614,7 @@ namespace Chaos
 
 	template <typename Traits>
 	FORCEINLINE void FieldVectorForceUpdate(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const FFieldSystemCommand& FieldCommand,
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
+		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
 		const int32 CommandIndex)
 	{
 		TArray<FVector> LocalResults;
@@ -629,7 +629,7 @@ namespace Chaos
 			{
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && !RigidHandle->Disabled() && (RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic || RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping))
 					{
 						if (RigidHandle->Sleeping())
@@ -648,7 +648,7 @@ namespace Chaos
 			{
 				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
-					Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && (RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic || RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping))
 					{
 						if (RigidHandle->Sleeping())

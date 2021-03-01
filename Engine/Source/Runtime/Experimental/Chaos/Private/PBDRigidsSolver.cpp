@@ -161,7 +161,7 @@ namespace Chaos
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
-				Chaos::TPBDPositionConstraints<float, 3> PositionTarget; // Dummy for now
+				Chaos::FPBDPositionConstraints PositionTarget; // Dummy for now
 				TMap<int32, int32> TargetedParticles;
 				{
 					MSolver->FieldParameterUpdateCallback(PositionTarget, TargetedParticles);
@@ -331,7 +331,7 @@ namespace Chaos
 		MEvolution->AddConstraintRule(&SuspensionConstraintRule);
 
 		MEvolution->SetInternalParticleInitilizationFunction(
-			[this](const Chaos::TGeometryParticleHandle<float, 3>* OldParticle, const Chaos::TGeometryParticleHandle<float, 3>* NewParticle) {
+			[this](const Chaos::FGeometryParticleHandle* OldParticle, const Chaos::FGeometryParticleHandle* NewParticle) {
 				if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(OldParticle))
 				{
 					for (IPhysicsProxyBase* Proxy : *Proxies)
@@ -460,7 +460,7 @@ namespace Chaos
 			// base destructor is protected. This makes everything just a bit uglier,
 			// maybe that extra safety is not needed if we continue to contain all
 			// references to proxy instances entirely in Chaos?
-			TGeometryParticleHandle<float, 3>* Handle = Proxy->GetHandle_LowLevel();
+			FGeometryParticleHandle* Handle = Proxy->GetHandle_LowLevel();
 			Proxy->SetHandle(nullptr);
 			PendingDestroyPhysicsProxy.Add(Proxy);
 			
@@ -521,8 +521,8 @@ namespace Chaos
 		
 		EnqueueCommandImmediate([InProxy, this]()
 			{
-				const TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = InProxy->GetSolverParticleHandles();
-				for (const Chaos::TPBDRigidClusteredParticleHandle<float, 3> * ParticleHandle : ParticleHandles)
+				const TArray<Chaos::FPBDRigidClusteredParticleHandle*>& ParticleHandles = InProxy->GetSolverParticleHandles();
+				for (const Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle : ParticleHandles)
 				{
 					RemoveParticleToProxy(ParticleHandle);
 				}
@@ -1064,7 +1064,7 @@ namespace Chaos
 
 		FPullPhysicsData* PullData = MarshallingManager.GetCurrentPullData_Internal();
 
-		TParticleView<TPBDRigidParticles<float, 3>>& DirtyParticles = GetParticles().GetDirtyParticlesView();
+		TParticleView<FPBDRigidParticles>& DirtyParticles = GetParticles().GetDirtyParticlesView();
 
 		//todo: should be able to go wide just add defaulted etc...
 		{
@@ -1195,7 +1195,7 @@ namespace Chaos
 			const TGeometryParticleHandles<FReal, 3>&  AllParticleHandles = GetEvolution()->GetParticleHandles();
 			for (uint32 ParticelIndex = 0; ParticelIndex < AllParticleHandles.Size(); ParticelIndex++)
 			{
-				const TUniquePtr<TGeometryParticleHandle<float, 3>>& ParticleHandle = AllParticleHandles.Handle(ParticelIndex);
+				const TUniquePtr<FGeometryParticleHandle>& ParticleHandle = AllParticleHandles.Handle(ParticelIndex);
 				ChaosVisualDebugger::ParticlePositionLog(ParticleHandle->X());				
 			}
 		}
@@ -1341,7 +1341,7 @@ namespace Chaos
 
 	template <typename Traits>
 	void Chaos::TPBDRigidsSolver<Traits>::FieldParameterUpdateCallback(
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles)
 	{
 		GetPerSolverField().FieldParameterUpdateCallback(this, PositionTarget, TargetedParticles);

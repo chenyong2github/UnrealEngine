@@ -28,7 +28,7 @@ void ResetIndicesArray(TArray<int32>& IndicesArray, int32 Size)
 template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 	Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
-	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+	Chaos::FPBDPositionConstraints& PositionTarget,
 	TMap<int32, int32>& TargetedParticles,
 	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
 {
@@ -40,7 +40,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 		TArray<int32> CommandsToRemove;
 		CommandsToRemove.Reserve(NumCommands);
 
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*> ParticleHandles;
+		TArray<Chaos::FGeometryParticleHandle*> ParticleHandles;
 		TArray<FVector> SamplePoints;
 		TArray<ContextIndex> SampleIndices;
 
@@ -97,7 +97,7 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 	Chaos::TPBDRigidsSolver<Traits>* InSolver,
-	Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+	Chaos::FPBDPositionConstraints& PositionTarget,
 	TMap<int32, int32>& TargetedParticles)
 {
 	FieldParameterUpdateInternal(InSolver, PositionTarget, TargetedParticles, TransientCommands, true);
@@ -117,7 +117,7 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 		TArray<int32> CommandsToRemove;
 		CommandsToRemove.Reserve(NumCommands);
 
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*> ParticleHandles;
+		TArray<Chaos::FGeometryParticleHandle*> ParticleHandles;
 		TArray<FVector> SamplePoints;
 		TArray<ContextIndex> SampleIndices;
 
@@ -187,7 +187,7 @@ void FPerSolverFieldSystem::RemovePersistentCommand(const FFieldSystemCommand& F
 
 template <typename Traits>
 void FPerSolverFieldSystem::GetRelevantParticleHandles(
-	TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
+	TArray<Chaos::FGeometryParticleHandle*>& Handles,
 	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 	const EFieldResolutionType ResolutionType)
 {
@@ -199,22 +199,22 @@ void FPerSolverFieldSystem::GetRelevantParticleHandles(
 		const auto& Clustering = RigidSolver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 
-		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>>& ParticleView =
+		const Chaos::TParticleView<Chaos::FGeometryParticles>& ParticleView =
 			SolverParticles.GetNonDisabledView();
 		Handles.Reserve(ParticleView.Num()); // ?? what about additional number of children added
-		for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+		for (Chaos::TParticleIterator<Chaos::FGeometryParticles> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)
 		{
-			const Chaos::TTransientGeometryParticleHandle<float, 3>* Handle = &(*It);
-			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<float, 3>*>(Handle)));
+			const Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>* Handle = &(*It);
+			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>*>(Handle)));
 
 			const auto* Clustered = Handle->CastToClustered();
 			if (Clustered && Clustered->ClusterIds().NumChildren)
 			{
-				Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = (*It).Handle()->CastToRigidParticle();
+				Chaos::FPBDRigidParticleHandle* RigidHandle = (*It).Handle()->CastToRigidParticle();
 				if (ClusterMap.Contains(RigidHandle))
 				{
-					for (Chaos::TPBDRigidParticleHandle<float, 3> * Child : ClusterMap[RigidHandle])
+					for (Chaos::FPBDRigidParticleHandle * Child : ClusterMap[RigidHandle])
 					{
 						Handles.Add(Child);
 					}
@@ -235,22 +235,22 @@ void FPerSolverFieldSystem::GetRelevantParticleHandles(
 	}
 	else if (ResolutionType == EFieldResolutionType::Field_Resolution_Maximum)
 	{
-		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>>& ParticleView =
+		const Chaos::TParticleView<Chaos::FGeometryParticles>& ParticleView =
 			SolverParticles.GetAllParticlesView();
 		Handles.Reserve(ParticleView.Num());
 
-		for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+		for (Chaos::TParticleIterator<Chaos::FGeometryParticles> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)
 		{
-			const Chaos::TTransientGeometryParticleHandle<float, 3>* Handle = &(*It);
-			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<float, 3>*>(Handle)));
+			const Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>* Handle = &(*It);
+			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>*>(Handle)));
 		}
 	}
 }
 
 template <typename Traits>
 void FPerSolverFieldSystem::GetFilteredParticleHandles(
-	TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
+	TArray<Chaos::FGeometryParticleHandle*>& Handles,
 	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 	const EFieldFilterType FilterType)
 {
@@ -266,47 +266,47 @@ void FPerSolverFieldSystem::GetFilteredParticleHandles(
 		for (Chaos::TParticleIterator<Chaos::TPBDRigidParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)
 		{
-			const Chaos::TTransientGeometryParticleHandle<float, 3>* Handle = &(*It);
-			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<float, 3>*>(Handle)));
+			const Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>* Handle = &(*It);
+			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>*>(Handle)));
 		}
 	}
 	else if (FilterType == EFieldFilterType::Field_Filter_Static)
 	{
-		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>>& ParticleView =
+		const Chaos::TParticleView<Chaos::FGeometryParticles>& ParticleView =
 			SolverParticles.GetActiveStaticParticlesView();
 		Handles.Reserve(ParticleView.Num());
 
-		for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+		for (Chaos::TParticleIterator<Chaos::FGeometryParticles> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)
 		{
-			const Chaos::TTransientGeometryParticleHandle<float, 3>* Handle = &(*It);
-			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<float, 3>*>(Handle)));
+			const Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>* Handle = &(*It);
+			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>*>(Handle)));
 		}
 	}
 	else if (FilterType == EFieldFilterType::Field_Filter_Kinematic)
 	{
-		const Chaos::TParticleView<Chaos::TKinematicGeometryParticles<float, 3>>& ParticleView =
+		const Chaos::TParticleView<Chaos::FKinematicGeometryParticles>& ParticleView =
 			SolverParticles.GetActiveKinematicParticlesView();
 		Handles.Reserve(ParticleView.Num());
 
-		for (Chaos::TParticleIterator<Chaos::TKinematicGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+		for (Chaos::TParticleIterator<Chaos::FKinematicGeometryParticles> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)
 		{
-			const Chaos::TTransientGeometryParticleHandle<float, 3>* Handle = &(*It);
-			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<float, 3>*>(Handle)));
+			const Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>* Handle = &(*It);
+			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>*>(Handle)));
 		}
 	}
 	else if (FilterType == EFieldFilterType::Field_Filter_All)
 	{
-		const Chaos::TParticleView<Chaos::TGeometryParticles<float, 3>>& ParticleView =
+		const Chaos::TParticleView<Chaos::FGeometryParticles>& ParticleView =
 			SolverParticles.GetAllParticlesView();
 		Handles.Reserve(ParticleView.Num());
 
-		for (Chaos::TParticleIterator<Chaos::TGeometryParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+		for (Chaos::TParticleIterator<Chaos::FGeometryParticles> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)
 		{
-			const Chaos::TTransientGeometryParticleHandle<float, 3>* Handle = &(*It);
-			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<float, 3>*>(Handle)));
+			const Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>* Handle = &(*It);
+			Handles.Add(GetHandleHelper(const_cast<Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>*>(Handle)));
 		}
 	}
 }
@@ -314,19 +314,19 @@ void FPerSolverFieldSystem::GetFilteredParticleHandles(
 #define EVOLUTION_TRAIT(Traits)\
 template void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, \
+		Chaos::FPBDPositionConstraints& PositionTarget, \
 		TMap<int32, int32>& TargetedParticles);\
 \
 template void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 \
 template void FPerSolverFieldSystem::GetRelevantParticleHandles(\
-		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
+		TArray<Chaos::FGeometryParticleHandle*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
 		const EFieldResolutionType ResolutionType);\
 \
 template void FPerSolverFieldSystem::GetFilteredParticleHandles(\
-		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
+		TArray<Chaos::FGeometryParticleHandle*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
 		const EFieldFilterType FilterType);\
 

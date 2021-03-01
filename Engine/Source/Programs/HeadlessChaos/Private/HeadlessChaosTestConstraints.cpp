@@ -35,8 +35,8 @@ namespace ChaosTest {
 			TEvolution Evolution(Particles, PhysicalMaterials);
 			TArray<FPBDRigidParticleHandle*> Dynamics = Evolution.CreateDynamicParticles(1);
 			TArray<FVec3> Positions = { FVec3(0) };
-			TPBDPositionConstraints<FReal, 3> PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 1.f);
-			auto ConstraintRule = TPBDConstraintIslandRule<TPBDPositionConstraints<FReal, 3>>(PositionConstraints);
+			FPBDPositionConstraints PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 1.f);
+			auto ConstraintRule = TPBDConstraintIslandRule<FPBDPositionConstraints>(PositionConstraints);
 			InitEvolutionSettings(Evolution);
 
 			Evolution.AddConstraintRule(&ConstraintRule);
@@ -53,8 +53,8 @@ namespace ChaosTest {
 			Dynamics[0]->SetGravityEnabled(false);
 
 			TArray<FVec3> Positions = { FVec3(1) };
-			TPBDPositionConstraints<FReal, 3> PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 0.5f);
-			auto ConstraintRule = TPBDConstraintIslandRule<TPBDPositionConstraints<FReal, 3>>(PositionConstraints);
+			FPBDPositionConstraints PositionConstraints(MoveTemp(Positions), MoveTemp(Dynamics), 0.5f);
+			auto ConstraintRule = TPBDConstraintIslandRule<FPBDPositionConstraints>(PositionConstraints);
 			Evolution.AddConstraintRule(&ConstraintRule);
 
 			// The effect of stiffness parameter (which is set to 0.5 above) is iteration depeendent
@@ -99,8 +99,8 @@ namespace ChaosTest {
 		FVec3 JointConstraintPosition = FVec3(0, 0, 0);
 
 		TArray<FPBDRigidParticleHandle*> PositionParticles = { Dynamics[0] };
-		TPBDPositionConstraints<FReal, 3> PositionConstraints(MoveTemp(PositionConstraintPositions), MoveTemp(PositionParticles), 1.f);
-		auto PositionConstraintRule = TPBDConstraintIslandRule<TPBDPositionConstraints<FReal, 3>>(PositionConstraints);
+		FPBDPositionConstraints PositionConstraints(MoveTemp(PositionConstraintPositions), MoveTemp(PositionParticles), 1.f);
+		auto PositionConstraintRule = TPBDConstraintIslandRule<FPBDPositionConstraints>(PositionConstraints);
 		Evolution.AddConstraintRule(&PositionConstraintRule);
 
 		TVec2<TGeometryParticleHandle<FReal, 3>*> JointParticles = { Dynamics[0], Dynamics[1] };

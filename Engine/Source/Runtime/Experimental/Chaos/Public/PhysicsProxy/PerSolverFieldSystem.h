@@ -34,7 +34,7 @@ public:
 	template <typename Traits>
 	void FieldParameterUpdateCallback(
 		Chaos::TPBDRigidsSolver<Traits>* InSolver, 
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles);
 
 	/**
@@ -71,7 +71,7 @@ public:
 
 	template <typename Traits>
 	static void GetRelevantParticleHandles(
-		TArray<Chaos::TGeometryParticleHandle<float,3>*>& ParticleHandles,
+		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles,
 		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		const EFieldResolutionType ResolutionType);
 
@@ -84,7 +84,7 @@ public:
 
 	template <typename Traits>
 	static void GetFilteredParticleHandles(
-		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& ParticleHandles,
+		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles,
 		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		const EFieldFilterType FilterType);
 
@@ -101,7 +101,7 @@ private:
 	template <typename Traits>
 	void FieldParameterUpdateInternal(
 		Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& PositionTargetedParticles,
 		TArray<FFieldSystemCommand>& Commands, 
 		const bool IsTransient);
@@ -116,19 +116,19 @@ private:
 #define EVOLUTION_TRAIT(Traits)\
 extern template CHAOS_API void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget, \
+		Chaos::FPBDPositionConstraints& PositionTarget, \
 		TMap<int32, int32>& TargetedParticles);\
 \
 extern template CHAOS_API void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 \
 extern template CHAOS_API void FPerSolverFieldSystem::GetRelevantParticleHandles(\
-		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
+		TArray<Chaos::FGeometryParticleHandle*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
 		const EFieldResolutionType ResolutionType);\
 \
 extern template CHAOS_API void FPerSolverFieldSystem::GetFilteredParticleHandles(\
-		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
+		TArray<Chaos::FGeometryParticleHandle*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
 		const EFieldFilterType FilterType);\
 

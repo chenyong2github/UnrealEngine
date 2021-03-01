@@ -69,14 +69,14 @@ namespace Chaos
 
 	template class TPBDConstraintGraphRuleImpl<FPBDCollisionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDJointConstraints>;
-	template class TPBDConstraintGraphRuleImpl<TPBDPositionConstraints<float, 3>>;
+	template class TPBDConstraintGraphRuleImpl<FPBDPositionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDSuspensionConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDRigidDynamicSpringConstraints>;
 	template class TPBDConstraintGraphRuleImpl<FPBDRigidSpringConstraints>;
 
 	template class TPBDConstraintColorRule<FPBDCollisionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDJointConstraints>;
-	template class TPBDConstraintIslandRule<TPBDPositionConstraints<float, 3>>;
+	template class TPBDConstraintIslandRule<FPBDPositionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDSuspensionConstraints>;
 	template class TPBDConstraintIslandRule<FPBDRigidDynamicSpringConstraints>;
 	template class TPBDConstraintIslandRule<FPBDRigidSpringConstraints>;

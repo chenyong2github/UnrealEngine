@@ -2561,7 +2561,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 	SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Object);
 
 	FGeometryDynamicCollection& Collection = GameThreadCollection;
-	Chaos::TPBDPositionConstraints<float, 3> PositionTarget;
+	Chaos::FPBDPositionConstraints PositionTarget;
 	TMap<int32, int32> TargetedParticles;
 
 	// Process Particle-Collection commands
