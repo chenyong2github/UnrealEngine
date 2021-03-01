@@ -38,6 +38,8 @@ enum class ETickStage
 
 class NiagaraEmitterInstanceBatcher : public FFXSystemInterface
 {
+	friend class FNiagaraGPUInstanceCountManager; // for access to the EmptyUAV pool
+
 public:
 	using FNiagaraTransitionList = TArray<FRHITransitionInfo, TMemStackAllocator<>>;
 	using FOverlappableTicks = TArray<FNiagaraGPUSystemTick*, TMemStackAllocator<>>;
@@ -101,8 +103,8 @@ public:
 	/** Processes all pending readbacks */
 	void ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion);
 
-	/** 
-	 * Register work for GPU sorting (using the GPUSortManager). 
+	/**
+	 * Register work for GPU sorting (using the GPUSortManager).
 	 * The constraints of the sort request are defined in SortInfo.SortFlags.
 	 * The sort task bindings are set in SortInfo.AllocationInfo.
 	 * The initial keys and values are generated in the GenerateSortKeys() callback.
@@ -117,12 +119,12 @@ public:
 	void UnsetDataInterfaceParameters(const TArray<FNiagaraDataInterfaceProxy*>& DataInterfaceProxies, const FNiagaraShaderRef& Shader, FRHICommandList& RHICmdList, const FNiagaraComputeInstanceData* Instance, const FNiagaraGPUSystemTick& Tick, uint32 SimulationStageIndex) const;
 
 	void Run(	const FNiagaraGPUSystemTick& Tick,
-				const FNiagaraComputeInstanceData* Instance, 
-				uint32 UpdateStartInstance, 
-				const uint32 TotalNumInstances, 
+				const FNiagaraComputeInstanceData* Instance,
+				uint32 UpdateStartInstance,
+				const uint32 TotalNumInstances,
 				const FNiagaraShaderRef& Shader,
-				FRHICommandList &RHICmdList, 
-				FRHIUniformBuffer* ViewUniformBuffer, 
+				FRHICommandList &RHICmdList,
+				FRHIUniformBuffer* ViewUniformBuffer,
 				const FNiagaraGpuSpawnInfo& SpawnInfo,
 				bool bCopyBeforeStart = false,
 				uint32 DefaultSimulationStageIndex = 0,
@@ -207,7 +209,7 @@ private:
 	 * Currently, for Niagara, all the sort tasks have the EGPUSortFlags::KeyGenAfterPreRender flag
 	 * and so the callback registered in GPUSortManager->Register() only has the EGPUSortFlags::KeyGenAfterPreRender usage.
 	 * This garanties that GenerateSortKeys() only gets called after PreRender(), which is a constraint required because
-	 * Niagara renders the current state of the GPU emitters, before the are ticked 
+	 * Niagara renders the current state of the GPU emitters, before the are ticked
 	 * (Niagara GPU emitters are ticked at InitView and in PostRenderOpaque).
 	 * Note that this callback must only initialize the content for the elements that relates to the tasks it has registered in this batch.
 	 *
@@ -215,7 +217,7 @@ private:
 	 * @param BatchId - The GPUSortManager batch id (regrouping several similar sort tasks).
 	 * @param NumElementsInBatch - The number of elements grouped in the batch (each element maps to a sort task)
 	 * @param Flags - Details about the key precision (see EGPUSortFlags::AnyKeyPrecision) and the keygen location (see EGPUSortFlags::AnyKeyGenLocation).
-	 * @param KeysUAV - The UAV that holds all the initial keys used to sort the values (being the particle indices here). 
+	 * @param KeysUAV - The UAV that holds all the initial keys used to sort the values (being the particle indices here).
 	 * @param ValuesUAV - The UAV that holds the initial values (particle indices) to be sorted accordingly to the keys.
 	 */
 	void GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV);
@@ -264,7 +266,7 @@ private:
 	TRefCountPtr<FNiagaraRHIUniformBufferLayout> EmitterCBufferLayout;
 
 	uint32 FramesBeforeTickFlush = 0;
-	
+
 	TArray<FNiagaraGPUSystemTick> Ticks_RT;
 	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
 

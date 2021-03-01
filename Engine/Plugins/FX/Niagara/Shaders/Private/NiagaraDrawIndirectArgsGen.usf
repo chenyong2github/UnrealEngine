@@ -15,7 +15,7 @@ Buffer<uint> CulledInstanceCounts;
 RWBuffer<uint> RWInstanceCounts;
 RWBuffer<uint> RWDrawIndirectArgs;
 
-uint4 TaskCount; // (NumArgGenTasks, NumInstanceCountClearTasks, NumArgGenTasks + NumInstanceCountClearTasks, 0)
+uint4 TaskCount; // (ArgGenTaskOffset, NumArgGenTasks, NumInstanceCountClearTasks, NumArgGenTasks + NumInstanceCountClearTasks)
 
 #define FLAG_USE_CULLED_COUNTS	(1u << 0u)
 #define FLAG_INSTANCED_STEREO	(1u << 1u)
@@ -23,10 +23,15 @@ uint4 TaskCount; // (NumArgGenTasks, NumInstanceCountClearTasks, NumArgGenTasks 
 [numthreads(THREAD_COUNT,1,1)]
 void MainCS(uint TaskIndex : SV_DispatchThreadID)
 {
-	if (TaskIndex < TaskCount.x)
+	const uint ArgGenTaskOffset = TaskCount.x;
+	const uint NumArgGenTasks = TaskCount.y;
+	const uint NumInstanceCountClearTasks = TaskCount.z;
+	const uint NumTotalTasks = TaskCount.w;
+
+	if (TaskIndex < NumArgGenTasks)
 	{
 		const uint ArgOffset = NIAGARA_DRAW_INDIRECT_ARGS_SIZE * TaskIndex;
-		const uint InfoOffset = TaskIndex * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE;
+		const uint InfoOffset = (ArgGenTaskOffset + TaskIndex) * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE;
 		const uint Flags = TaskInfos[InfoOffset + 3];
 		const bool bUseCulledCounts = (Flags & FLAG_USE_CULLED_COUNTS) != 0;
 		const bool bInstancedStereo = (Flags & FLAG_INSTANCED_STEREO) != 0;
@@ -41,10 +46,10 @@ void MainCS(uint TaskIndex : SV_DispatchThreadID)
 		{
 			InstanceCount = RWInstanceCounts[TaskInfos[InfoOffset + 0]];
 		}
-		
+
 		if (bInstancedStereo)
 		{
-			InstanceCount *= 2;	
+			InstanceCount *= 2;
 		}
 
 		RWDrawIndirectArgs[ArgOffset + 0] = TaskInfos[InfoOffset + 1]; // NumIndicesPerInstance
@@ -53,10 +58,10 @@ void MainCS(uint TaskIndex : SV_DispatchThreadID)
 		RWDrawIndirectArgs[ArgOffset + 3] = 0; // BaseVertexLocation
 		RWDrawIndirectArgs[ArgOffset + 4] = 0; // StartInstanceLocation
 	}
-	
+
 	#if SUPPORTS_TEXTURE_RW == 1
 		/*
-		Explanation of why we are using two ifs here instead of if/else: 
+		Explanation of why we are using two ifs here instead of if/else:
 		Mali requires texture indexes to be warp invariant, which means that the if / if code translates to
 			if id.x < uniform :
 			[to 5 stores]
@@ -77,21 +82,24 @@ void MainCS(uint TaskIndex : SV_DispatchThreadID)
 		Notice how it completely ignores the fact that there are two different texture buffers, which leads the compiler to do an "optimization" and separate the last store.This means that the else condition does indeed evaluate correctly, but we are writing in the wrong texture!
 		Note: This is imagestore specific and not compute specific and is a known issue for Arm. This is fixed in driver version R21
 		*/
-	
-		if (TaskIndex < TaskCount.z && TaskIndex >= TaskCount.x)
+
+		if (TaskIndex < NumTotalTasks && TaskIndex >= NumArgGenTasks)
 		{
-			const uint InfoOffset = TaskCount.x * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex - TaskCount.x);
+			const uint InfoOffset = (ArgGenTaskOffset + NumArgGenTasks) * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex - NumArgGenTasks);
 			RWInstanceCounts[TaskInfos[InfoOffset + 0]] = 0;
 		}
-	#endif
+#endif
 }
 
 [numthreads(THREAD_COUNT,1,1)]
 void ResetCountsCS(uint TaskIndex : SV_DispatchThreadID)
 {
-	if (TaskIndex < TaskCount.y)
+	const uint ArgGenTaskOffset = TaskCount.x;
+	const uint NumArgGenTasks = TaskCount.y;
+	const uint NumInstanceCountClearTasks = TaskCount.z;
+	if (TaskIndex < NumInstanceCountClearTasks)
 	{
-		const uint InfoOffset = TaskCount.x * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex);
+		const uint InfoOffset = (ArgGenTaskOffset + NumArgGenTasks) * NIAGARA_DRAW_INDIRECT_TASK_INFO_SIZE + (TaskIndex);
 		RWInstanceCounts[TaskInfos[InfoOffset + 0]] = 0;
 	}
 }

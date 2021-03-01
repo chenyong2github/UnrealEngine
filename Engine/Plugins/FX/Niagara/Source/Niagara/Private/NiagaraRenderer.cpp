@@ -58,7 +58,7 @@ public:
 		// Zero the buffer memory.
 		void* Data = RHILockVertexBuffer(Buffer, 0, NumBytes, RLM_WriteOnly);
 		FMemory::Memset(Data, 0, NumBytes);
-		
+
 		if (PixelFormat == PF_R8G8B8A8)
 		{
 			*reinterpret_cast<uint32*>(Data) = DefaultValue;
@@ -305,7 +305,7 @@ void FNiagaraRenderer::Initialize(const UNiagaraRendererProperties *InProps, con
 					{
 						Mat = Override.Material;
 						continue;
-					}					
+					}
 				}
 			}
 		}
@@ -320,27 +320,6 @@ FNiagaraRenderer::~FNiagaraRenderer()
 {
 	ReleaseRenderThreadResources();
 	SetDynamicData_RenderThread(nullptr);
-}
-
-void FNiagaraRenderer::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) 
-{
-	if (Batcher)
-	{
-		NumRegisteredGPURenderers = Batcher->GetGPUInstanceCounterManager().GetGPURendererCount();
-		if (NumRegisteredGPURenderers)
-		{
-			NumRegisteredGPURenderers->Value += GetMaxIndirectArgs();
-		}
-	}
-}
-
-void FNiagaraRenderer::ReleaseRenderThreadResources()
-{
-	if (NumRegisteredGPURenderers)
-	{
-		NumRegisteredGPURenderers->Value -= GetMaxIndirectArgs();
-		NumRegisteredGPURenderers.SafeRelease();
-	}
 }
 
 FPrimitiveViewRelevance FNiagaraRenderer::GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const
@@ -378,7 +357,7 @@ struct FParticleOrderAsUint
 	int32 Index;
 
 	template <bool bStrictlyPositive, bool bAscending>
-	FORCEINLINE void SetAsUint(int32 InIndex, float InOrder) 
+	FORCEINLINE void SetAsUint(int32 InIndex, float InOrder)
 	{
 		const uint32 SortKeySignBit = 0x80000000;
 		uint32 InOrderAsUint = reinterpret_cast<uint32&>(InOrder);
@@ -389,7 +368,7 @@ struct FParticleOrderAsUint
 	}
 
 	template <bool bStrictlyPositive, bool bAscending>
-	FORCEINLINE_DEBUGGABLE void SetAsUint(int32 InIndex, FFloat16 InOrder) 
+	FORCEINLINE_DEBUGGABLE void SetAsUint(int32 InIndex, FFloat16 InOrder)
 	{
 		const uint32 SortKeySignBit = 0x8000;
 		uint32 InOrderAsUint = InOrder.Encoded;
@@ -398,7 +377,7 @@ struct FParticleOrderAsUint
 		OrderAsUint &= 0xFFFF;
 		Index = InIndex;
 	}
-		
+
 	FORCEINLINE operator uint32() const { return OrderAsUint; }
 };
 

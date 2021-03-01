@@ -19,7 +19,7 @@ class NIAGARA_API FNiagaraRendererMeshes : public FNiagaraRenderer
 public:
 	FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
 	~FNiagaraRendererMeshes();
-	
+
 	//FNiagaraRenderer Interface
 	virtual void Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent) override;
 	virtual void ReleaseRenderThreadResources() override;
@@ -58,7 +58,6 @@ protected:
 		TArray<uint32, TInlineAllocator<4>> MaterialRemapTable;
 	};
 
-	virtual int32 GetMaxIndirectArgs() const override;
 	int32 GetLODIndex(int32 MeshIndex) const;
 
 	void PrepareParticleBuffers(
@@ -74,11 +73,11 @@ protected:
 		const FMeshData& MeshData,
 		const FNiagaraSceneProxy& SceneProxy,
 		const FNiagaraRendererLayout& RendererLayout,
-		const FSceneView& View,		
+		const FSceneView& View,
 		const FParticleGPUBufferData& BufferData,
 		FVector& OutWorldSpacePivotOffset,
 		FSphere& OutCullingSphere) const;
-		
+
 	void InitializeSortInfo(
 		const FNiagaraDataBuffer& SourceParticleData,
 		const FNiagaraSceneProxy& SceneProxy,
@@ -109,7 +108,7 @@ protected:
 		bool bIsInstancedStereo,
 		bool bDoGPUCulling) const;
 
-private:	
+private:
 
 	TArray<FMeshData, TInlineAllocator<1>> Meshes;
 
@@ -122,7 +121,7 @@ private:
 	uint32 bEnableFrustumCulling : 1;
 
 	uint32 bSubImageBlend : 1;
-	FVector2D SubImageSize;	
+	FVector2D SubImageSize;
 
 	FVector LockedAxis;
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;

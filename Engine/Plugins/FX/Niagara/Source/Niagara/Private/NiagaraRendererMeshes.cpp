@@ -86,7 +86,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	bEnableFrustumCulling = Properties->bEnableFrustumCulling;
 	bEnableCulling = bEnableFrustumCulling;
 	DistanceCullRange = FVector2D(0, FLT_MAX);
-	RendererVisibility = Properties->RendererVisibility;	
+	RendererVisibility = Properties->RendererVisibility;
 	MaxSectionCount = 0;
 
 	if (Properties->bEnableCameraDistanceCulling)
@@ -108,7 +108,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	int32 HalfOffset;
 	if (Data.GetVariableComponentOffsets(Properties->RendererVisibilityTagBinding.GetDataSetBindableVariable(), FloatOffset, RendererVisTagOffset, HalfOffset))
 	{
-		// If the renderer visibility tag is bound, we have to do it in the culling pass		
+		// If the renderer visibility tag is bound, we have to do it in the culling pass
 		bEnableCulling = true;
 	}
 
@@ -126,7 +126,7 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 }
 
 FNiagaraRendererMeshes::~FNiagaraRendererMeshes()
-{	
+{
 }
 
 void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
@@ -180,24 +180,12 @@ void FNiagaraRendererMeshes::Initialize(const UNiagaraRendererProperties* InProp
 			MaxSectionCount += MaxSectionCountThisMesh;
 		}
 	}
-	
-	checkf(Meshes.Num() > 0, TEXT("At least one valid mesh is required to instantiate a mesh renderer"));	
+
+	checkf(Meshes.Num() > 0, TEXT("At least one valid mesh is required to instantiate a mesh renderer"));
 }
 
 void FNiagaraRendererMeshes::ReleaseRenderThreadResources()
 {
-}
-
-int32 FNiagaraRendererMeshes::GetMaxIndirectArgs() const
-{
-	// If we're CPU, we only need indirect args if we're culling
-	if (SimTarget == ENiagaraSimTarget::CPUSim && !bEnableCulling)
-	{
-		return 0;
-	}
-
-	//TODO: This needs to be multiplied by the number of active views
-	return MaxSectionCount;
 }
 
 void FNiagaraRendererMeshes::SetupVertexFactory(FNiagaraMeshVertexFactory* InVertexFactory, const FStaticMeshLODResources& LODResources) const
@@ -331,12 +319,12 @@ void FNiagaraRendererMeshes::PrepareParticleBuffers(
 
 			OutData.IntSRV = ParticleIntData.SRV;
 			OutData.IntDataStride = NumInstances;
-		}	
+		}
 		else
 		{
 			OutData.IntSRV = FNiagaraRenderer::GetDummyIntBuffer();
 			OutData.IntDataStride = 0;
-		}		
+		}
 	}
 	else
 	{
@@ -443,10 +431,16 @@ void FNiagaraRendererMeshes::InitializeSortInfo(
 
 	TConstArrayView<FNiagaraRendererVariableInfo> VFVariables = RendererLayout.GetVFVariables_RenderThread();
 
+	FShaderResourceViewRHIRef GPUCountBufferSRV = Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer().SRV;
+	if (!GPUCountBufferSRV.IsValid())
+	{
+		GPUCountBufferSRV = FNiagaraRenderer::GetDummyUIntBuffer();
+	}
+
 	OutSortInfo.ParticleCount = SourceParticleData.GetNumInstances();
 	OutSortInfo.SortMode = SortMode;
 	OutSortInfo.SetSortFlags(GNiagaraGPUSortingUseMaxPrecision != 0, bHasTranslucentMaterials);
-	OutSortInfo.bEnableCulling = bDoGPUCulling;	
+	OutSortInfo.bEnableCulling = bDoGPUCulling;
 	OutSortInfo.RendererVisTagAttributeOffset = RendererVisTagOffset;
 	OutSortInfo.RendererVisibility = RendererVisibility;
 	OutSortInfo.DistanceCullRange = DistanceCullRange;
@@ -456,7 +450,7 @@ void FNiagaraRendererMeshes::InitializeSortInfo(
 	OutSortInfo.FloatDataStride = BufferData.FloatDataStride;
 	OutSortInfo.HalfDataStride = BufferData.HalfDataStride;
 	OutSortInfo.IntDataStride = BufferData.IntDataStride;
-	OutSortInfo.GPUParticleCountSRV = Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer().SRV;
+	OutSortInfo.GPUParticleCountSRV = GPUCountBufferSRV;
 	OutSortInfo.GPUParticleCountOffset = SourceParticleData.GetGPUInstanceCountBufferOffset();
 	OutSortInfo.RendererVisTagAttributeOffset = VisTagOffset;
 	OutSortInfo.MeshIndexAttributeOffset = MeshIdxOffset;
@@ -637,15 +631,16 @@ void FNiagaraRendererMeshes::CreateMeshBatchForSection(
 		check(Batcher);
 
 		auto& CountManager = Batcher->GetGPUInstanceCounterManager();
-
-		BatchElement.NumPrimitives = 0;
-		BatchElement.IndirectArgsBuffer = CountManager.GetDrawIndirectBuffer().Buffer;
-		BatchElement.IndirectArgsOffset = CountManager.AddDrawIndirect(
+		auto IndirectDraw = CountManager.AddDrawIndirect(
 			GPUCountBufferOffset,
 			Section.NumTriangles * 3,
 			Section.FirstIndex,
 			bIsInstancedStereo,
-			bDoGPUCulling);		
+			bDoGPUCulling);
+
+		BatchElement.NumPrimitives = 0;
+		BatchElement.IndirectArgsBuffer = IndirectDraw.Buffer;
+		BatchElement.IndirectArgsOffset = IndirectDraw.Offset;
 	}
 	else
 	{
@@ -706,7 +701,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	const bool bShouldSort = SortMode != ENiagaraSortMode::None && (bHasTranslucentMaterials || !bSortOnlyWhenTranslucent);
 	const bool bCustomSorting = SortMode == ENiagaraSortMode::CustomAscending || SortMode == ENiagaraSortMode::CustomDecending;
 
-	FGlobalDynamicReadBuffer& DynamicReadBuffer = Collector.GetDynamicReadBuffer();	
+	FGlobalDynamicReadBuffer& DynamicReadBuffer = Collector.GetDynamicReadBuffer();
 	const FNiagaraRendererLayout* RendererLayout = bCustomSorting ? RendererLayoutWithCustomSorting : RendererLayoutWithoutCustomSorting;
 	FParticleGPUBufferData BufferData;
 	uint32 ActualRendererVisTagOffset;
@@ -727,7 +722,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				// One eye renders everything, so we can skip non-primaries
 				continue;
 			}
-	
+
 			// Initialize sort parameters that are mesh/section invariant
 			FNiagaraGPUSortInfo SortInfo;
 			int32 SortVarIdx = INDEX_NONE;
@@ -753,7 +748,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				FNiagaraMeshUniformBufferRef PerViewUniformBuffer = CreatePerViewUniformBuffer(MeshData, *SceneProxy, *RendererLayout, *View, BufferData,
 					WorldSpacePivotOffset, CullingSphere);
 
-				// @TODO : support multiple LOD			
+				// @TODO : support multiple LOD
 				const int32 LODIndex = GetLODIndex(MeshIndex);
 				const FStaticMeshLODResources& LODModel = MeshData.RenderData->LODResources[LODIndex];
 				const int32 SectionCount = LODModel.Sections.Num();
@@ -792,7 +787,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 						{
 							VertexFactory->SetSortedIndices(SortInfo.AllocationInfo.BufferSRV, SortInfo.AllocationInfo.BufferOffset);
 						}
-					}						
+					}
 					else
 					{
 						// We want to sort on CPU
@@ -912,7 +907,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			MeshBatchElement.VertexFactoryUserData = VFs.VertexFactory.GetUniformBuffer();
 			MeshBatchElement.MinVertexIndex = Section.MinVertexIndex;
 			MeshBatchElement.MaxVertexIndex = Section.MaxVertexIndex;
-		
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			MeshBatchElement.VisualizeElementIndex = SectionIndex;
 #endif
@@ -934,11 +929,11 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		const FNiagaraRendererVariableInfo& VarPositionInfo = VFVariables[ENiagaraMeshVFLayout::Position];
 		const FNiagaraRendererVariableInfo& VarScaleInfo = VFVariables[ENiagaraMeshVFLayout::Scale];
 		const FNiagaraRendererVariableInfo& VarTransformInfo = VFVariables[ENiagaraMeshVFLayout::Transform];
-	
+
 		int32 PositionBaseCompOffset = VarPositionInfo.DatasetOffset;
 		int32 ScaleBaseCompOffset = VarScaleInfo.DatasetOffset;
 		int32 TransformBaseCompOffset = VarTransformInfo.DatasetOffset;
-	
+
 		float* RESTRICT PositionX = (float*)SourceParticleData->GetComponentPtrFloat(PositionBaseCompOffset);
 		float* RESTRICT PositionY = (float*)SourceParticleData->GetComponentPtrFloat(PositionBaseCompOffset + 1);
 		float* RESTRICT PositionZ = (float*)SourceParticleData->GetComponentPtrFloat(PositionBaseCompOffset + 2);
@@ -946,7 +941,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		float* RESTRICT ScaleX = (float*)SourceParticleData->GetComponentPtrFloat(ScaleBaseCompOffset);
 		float* RESTRICT ScaleY = (float*)SourceParticleData->GetComponentPtrFloat(ScaleBaseCompOffset + 1);
 		float* RESTRICT ScaleZ = (float*)SourceParticleData->GetComponentPtrFloat(ScaleBaseCompOffset + 2);
-	
+
 		float* RESTRICT QuatArrayX = (float*)SourceParticleData->GetComponentPtrFloat(TransformBaseCompOffset);
 		float* RESTRICT QuatArrayY = (float*)SourceParticleData->GetComponentPtrFloat(TransformBaseCompOffset + 1);
 		float* RESTRICT QuatArrayZ = (float*)SourceParticleData->GetComponentPtrFloat(TransformBaseCompOffset + 2);
@@ -981,7 +976,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			if (SimTarget == ENiagaraSimTarget::CPUSim)
 			{
 				FVector4 InstancePos = bHasPosition ? GetInstancePosition(InstanceIndex) : FVector4(0, 0, 0, 0);
-			
+
 				FVector4 Transform1 = FVector4(1.0f, 0.0f, 0.0f, InstancePos.X);
 				FVector4 Transform2 = FVector4(0.0f, 1.0f, 0.0f, InstancePos.Y);
 				FVector4 Transform3 = FVector4(0.0f, 0.0f, 1.0f, InstancePos.Z);
@@ -1047,9 +1042,9 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 			FRHICommandListImmediate& RHICmdList = Context.RHICmdList;
 
 			uint32 CPUInstancesCount = SourceParticleData->GetNumInstances();
-		
+
 			RayTracingInstance.NumTransforms = CPUInstancesCount;
-	
+
 			FRWBufferStructured InstanceGPUTransformsBuffer;
 			//InstanceGPUTransformsBuffer.Initialize(sizeof(FMatrix), CPUInstancesCount, BUF_Static);
 			InstanceGPUTransformsBuffer.Initialize(3 * 4 * sizeof(float), CPUInstancesCount, BUF_Static);
