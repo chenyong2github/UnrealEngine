@@ -159,6 +159,8 @@ protected:
 
 #if RHI_RAYTRACING
 	TArray<FRayTracingGeometry*> RayTracingGeometries;
+	TArray<FMatrix> CachedRayTracingInstanceTransforms;
+	FMatrix CachedRayTracingInstanceLocalToWorld = {};
 #endif
 
 #if NANITE_ENABLE_DEBUG_RENDERING

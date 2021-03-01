@@ -10,6 +10,7 @@ DynamicRHI.h: Dynamically bound Render Hardware Interface definitions.
 #include "RHIContext.h"
 #include "MultiGPU.h"
 #include "Serialization/MemoryLayout.h"
+#include "Containers/ArrayView.h"
 
 class FBlendStateInitializerRHI;
 class FGraphicsPipelineStateInitializer;
@@ -84,6 +85,23 @@ struct FRayTracingGeometryInstance
 	// A physical FRayTracingGeometryInstance may be duplicated many times in the scene with different transforms and user data.
 	// All copies share the same shader binding table entries and therefore will have the same material and shader resources.
 	TArray<FMatrix, TInlineAllocator<1>> Transforms;
+
+	// Similar to Transforms (but mutually exclusive with it). Allows passing transforms by pointer.
+	TArrayView<const FMatrix> TransformsView;
+
+	TArrayView<const FMatrix> GetTransforms() const
+	{
+		if (TransformsView.Num())
+		{
+			check(Transforms.Num() == 0);
+			return TransformsView;
+		}
+		else
+		{
+			check(TransformsView.Num() == 0);
+			return TArrayView<const FMatrix>(Transforms);
+		}
+	}
 
 	// Transforms count. When GPU transforms are used it is a conservative count 
 	uint32 NumTransforms = 0;

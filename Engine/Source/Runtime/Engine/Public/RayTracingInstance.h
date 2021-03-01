@@ -35,6 +35,9 @@ struct FRayTracingInstance
 	/** Instance transforms. */
 	TArray<FMatrix> InstanceTransforms;
 
+	/** Similar to InstanceTransforms, but memory is owned by someone else (i.g. FPrimitiveSceneProxy). */
+	TArrayView<FMatrix> InstanceTransformsView;
+
 	/** When instance transforms are only available in GPU, this SRV holds them. */
 	FShaderResourceViewRHIRef InstanceGPUTransformsSRV;
 

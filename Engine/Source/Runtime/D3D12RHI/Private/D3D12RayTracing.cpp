@@ -14,6 +14,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/ScopeLock.h"
 #include "RayTracingInstanceCopyShader.h"
+#include "Async/ParallelFor.h"
 
 static int32 GRayTracingDebugForceOpaque = 0;
 static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
@@ -3078,6 +3079,8 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 		const bool bGpuInstance = Instance.GPUTransformsSRV.IsValid();
 		const bool bCpuInstance = !bGpuInstance;
 
+		TArrayView<const FMatrix> InstanceTransforms = Instance.GetTransforms();
+
 		uint32 DescIndex = BaseInstancePrefixSum[InstanceIndex];
 		for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 		{
@@ -3087,7 +3090,7 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 			{
 				// DXR uses a 3x4 transform matrix in row major layout
 
-				const FMatrix& Transform = Instance.Transforms[TransformIndex];
+				const FMatrix& Transform = InstanceTransforms[TransformIndex];
 
 				InstanceDesc.Transform[0][0] = Transform.M[0][0];
 				InstanceDesc.Transform[0][1] = Transform.M[1][0];

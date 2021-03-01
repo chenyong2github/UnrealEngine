@@ -109,7 +109,7 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	const uint32 NumTransforms = 1;
 
 	FRayTracingGeometryInstance Instances[] = {
-		FRayTracingGeometryInstance { Geometry, {FMatrix::Identity}, NumTransforms, GPUTransforms, {0}, 0xFF }
+		FRayTracingGeometryInstance { Geometry, {FMatrix::Identity}, {}, NumTransforms, GPUTransforms, {0}, 0xFF }
 	};
 
 	FRayTracingSceneInitializer Initializer;

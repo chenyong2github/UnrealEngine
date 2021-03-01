@@ -915,6 +915,13 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 		return;
 	}
 
+	const int32 InstanceCount = Instances.Num();
+
+	if (InstanceCount == 0)
+	{
+		return;
+	}
+
 	const uint32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
 	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
 
@@ -923,57 +930,59 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 		return;
 	}
 
-	const int32 InstanceCount = Instances.Num();
-
-	FRayTracingInstance RayTracingInstanceTemplate;
+	FRayTracingInstance& RayTracingInstanceTemplate = OutRayTracingInstances.Emplace_GetRef();
 	RayTracingInstanceTemplate.Geometry = RayTracingGeometries[LODIndex];
-	RayTracingInstanceTemplate.InstanceTransforms.Reserve(InstanceCount);
 
-	for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+	if (CachedRayTracingInstanceTransforms.Num() == 0 || GetLocalToWorld() != CachedRayTracingInstanceLocalToWorld)
 	{
-		FPrimitiveInstance& Instance = Instances[InstanceIndex];
-		FMatrix InstanceTransform = Instance.InstanceToLocal * GetLocalToWorld();
-		RayTracingInstanceTemplate.InstanceTransforms.Emplace(InstanceTransform);
-	}
-
-	if (RayTracingInstanceTemplate.InstanceTransforms.Num() > 0)
-	{
-		const int32 NumBatches = 1; //GetNumMeshBatches(); // Assume one batch for now for Nanite proxies
-		const auto& MeshSections = RenderData->LODResources[0].Sections;
-		const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
-
-		RayTracingInstanceTemplate.Materials.Reserve(LODModel.Sections.Num() * NumBatches);
-		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+		CachedRayTracingInstanceTransforms.SetNumUninitialized(InstanceCount);
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
 		{
-			for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
-			{
-				if (LODModel.Sections[SectionIndex].NumTriangles == 0)
-				{
-					continue;
-				}
-
-				int32 MaterialIndex = LODModel.Sections[SectionIndex].MaterialIndex;
-				if (!ensureMsgf(MaterialIndex < MaterialSections.Num(), TEXT("Material index %d is out of bounds for MaterialSections (%d elements)."),
-					MaterialIndex, MaterialSections.Num()))
-				{
-					continue;
-				}
-
-				FMaterialSection& Section = MaterialSections[MaterialIndex];
-
-				FMeshBatch& MeshBatch = RayTracingInstanceTemplate.Materials.AddDefaulted_GetRef();
-				MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
-				MeshBatch.MaterialRenderProxy = Section.Material->GetRenderProxy();
-				MeshBatch.bWireframe = false;
-				MeshBatch.SegmentIndex = SectionIndex;
-				MeshBatch.LODIndex = LODIndex;
-				//MeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
-			}
+			const FPrimitiveInstance& Instance = Instances[InstanceIndex];
+			CachedRayTracingInstanceTransforms[InstanceIndex] = Instance.InstanceToLocal * GetLocalToWorld();
 		}
-
-		RayTracingInstanceTemplate.BuildInstanceMaskAndFlags();
-		OutRayTracingInstances.Emplace(RayTracingInstanceTemplate);
+		CachedRayTracingInstanceLocalToWorld = GetLocalToWorld();
 	}
+
+	// Transforms are persistently allocated, so we can just return them by pointer.
+	RayTracingInstanceTemplate.InstanceTransformsView = CachedRayTracingInstanceTransforms;
+	RayTracingInstanceTemplate.NumTransforms = CachedRayTracingInstanceTransforms.Num();
+	
+	const int32 NumBatches = 1; //GetNumMeshBatches(); // Assume one batch for now for Nanite proxies
+	const auto& MeshSections = RenderData->LODResources[0].Sections;
+	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
+
+	RayTracingInstanceTemplate.Materials.Reserve(LODModel.Sections.Num() * NumBatches);
+	for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
+	{
+		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
+		{
+			if (LODModel.Sections[SectionIndex].NumTriangles == 0)
+			{
+				continue;
+			}
+
+			int32 MaterialIndex = LODModel.Sections[SectionIndex].MaterialIndex;
+			if (!ensureMsgf(MaterialIndex < MaterialSections.Num(), TEXT("Material index %d is out of bounds for MaterialSections (%d elements)."),
+				MaterialIndex, MaterialSections.Num()))
+			{
+				continue;
+			}
+
+			FMaterialSection& Section = MaterialSections[MaterialIndex];
+
+			// #yuriy_todo: cache mesh batches and avoid copying them per frame
+			FMeshBatch& MeshBatch = RayTracingInstanceTemplate.Materials.AddDefaulted_GetRef();
+			MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
+			MeshBatch.MaterialRenderProxy = Section.Material->GetRenderProxy();
+			MeshBatch.bWireframe = false;
+			MeshBatch.SegmentIndex = SectionIndex;
+			MeshBatch.LODIndex = LODIndex;
+			//MeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
+		}
+	}
+
+	RayTracingInstanceTemplate.BuildInstanceMaskAndFlags();
 }
 #endif
 
