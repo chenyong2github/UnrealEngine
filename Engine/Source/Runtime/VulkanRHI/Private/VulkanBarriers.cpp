@@ -60,7 +60,7 @@ static VkAccessFlags GetVkAccessMaskForLayout(VkImageLayout Layout)
 			break;
 
 		case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-			Flags = VK_ACCESS_MEMORY_READ_BIT;
+			Flags = 0;
 			break;
 
 		case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
@@ -82,7 +82,7 @@ static VkAccessFlags GetVkAccessMaskForLayout(VkImageLayout Layout)
 
 static VkPipelineStageFlags GetVkStageFlagsForLayout(VkImageLayout Layout)
 {
-	VkAccessFlags Flags = 0;
+	VkPipelineStageFlags Flags = 0;
 
 	switch (Layout)
 	{
@@ -123,7 +123,7 @@ static VkPipelineStageFlags GetVkStageFlagsForLayout(VkImageLayout Layout)
 			break;
 
 		case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
-			Flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			Flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 			break;
 
 		case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
@@ -717,6 +717,12 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 		{
 			GetVkStageAndAccessFlags(Info.AccessBefore, UnderlyingType, bIsDepthStencil, SrcStageMask, SrcAccessFlags, SrcLayout, true);
 			GetVkStageAndAccessFlags(Info.AccessAfter, UnderlyingType, bIsDepthStencil, DstStageMask, DstAccessFlags, DstLayout, false);
+
+			// If not compute, remove vertex pipeline bits as only compute updates vertex buffers
+			if (!(SrcStageMask & VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT))
+			{
+				DstStageMask &= ~(VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT);
+			}
 		}
 
 		// In case of async compute, override the stage and access flags computed above, since only the compute shader stage is relevant.
@@ -1254,6 +1260,12 @@ void FVulkanPipelineBarrier::AddImageAccessTransition(const FVulkanSurface& Surf
 	VkImageLayout SrcLayout, DstLayout;
 	GetVkStageAndAccessFlags(SrcAccess, FRHITransitionInfo::EType::Texture, bIsDepthStencil, ImgSrcStage, SrcAccessFlags, SrcLayout, true);
 	GetVkStageAndAccessFlags(DstAccess, FRHITransitionInfo::EType::Texture, bIsDepthStencil, ImgDstStage, DstAccessFlags, DstLayout, false);
+
+	// If not compute, remove vertex pipeline bits as only compute updates vertex buffers
+	if (!(ImgSrcStage & VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT))
+	{
+		ImgDstStage &= ~(VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT | VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT);
+	}
 
 	SrcStageMask |= ImgSrcStage;
 	DstStageMask |= ImgDstStage;
