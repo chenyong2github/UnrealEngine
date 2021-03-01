@@ -1129,7 +1129,7 @@ namespace Gauntlet
 								Log.Verbose("Copying to {0}", DestInfo.FullName);
 							}
 
-							SrcInfo.CopyTo(DestInfo.FullName, true);
+							DestInfo = SrcInfo.CopyTo(DestInfo.FullName, true);
 
 							// Clear attributes and set last write time
 							DestInfo.Attributes = FileAttributes.Normal;
