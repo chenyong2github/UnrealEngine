@@ -12,6 +12,7 @@
 
 
 
+
 /**
  * Encoder mapping
  */
@@ -158,4 +159,27 @@ public:
 	/** Encoder mapping from normalized value to values in physical units */
 	UPROPERTY(EditAnywhere, Category = "Encoder", AdvancedDisplay)
 	FEncoderMapping EncoderMapping;
+};
+
+
+/**
+ * Wrapper to facilitate default lensfile vs picker
+ */
+USTRUCT(BlueprintType)
+struct LENSDISTORTION_API FLensFilePicker
+{
+	GENERATED_BODY()
+
+public:
+
+	/** Get the proper lens whether it's the default one or the picked one */
+	ULensFile* GetLensFile() const;
+
+public:
+	/** You can override lens file to use if the default one is not desired */
+	UPROPERTY(BlueprintReadWrite, Category = "Lens File")
+	bool bOverrideDefaultLensFile = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens File", Meta = (EditCondition = "bOverrideDefaultLensFile"))
+	ULensFile* LensFile;
 };

@@ -86,11 +86,13 @@ struct LENSDISTORTION_API FIntrinsicParameters
 
 public:
 
+	// Value expected to be in mm
 	UPROPERTY(EditAnywhere, Category = "Camera")
 	FVector2D FocalLength = FVector2D::ZeroVector;
 
+	// Value expected to be normalized [0,1]
 	UPROPERTY(EditAnywhere, Category = "Camera")
-	FVector2D CenterShift = FVector2D::ZeroVector;
+	FVector2D CenterShift = FVector2D(0.5f, 0.5f);
 };
 
 /**

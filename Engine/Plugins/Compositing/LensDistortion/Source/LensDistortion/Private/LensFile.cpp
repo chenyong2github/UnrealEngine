@@ -3,7 +3,9 @@
 
 #include "LensFile.h"
 
+#include "Engine/Engine.h"
 #include "LensInterpolationUtils.h"
+#include "LensDistortionSubsystem.h"
 
 
 ULensFile::ULensFile()
@@ -126,4 +128,21 @@ float ULensFile::EvaluateNormalizedZoom(float InNormalizedValue, float& OutEvalu
 	/************************/
 
 	return LensInterpolationUtils::InterpolateEncoderValue(InNormalizedValue, CopiedSorted, OutEvaluatedValue);
+}
+
+ULensFile* FLensFilePicker::GetLensFile() const
+{
+	ULensFile* ReturnedLens = nullptr;
+
+	if (bOverrideDefaultLensFile)
+	{
+		ReturnedLens = LensFile;
+	}
+	else if(GEngine)
+	{
+		ULensDistortionSubsystem* SubSystem = GEngine->GetEngineSubsystem<ULensDistortionSubsystem>();
+		ReturnedLens = SubSystem->GetDefaultLensFile();
+	}
+
+	return ReturnedLens;
 }

@@ -24,7 +24,12 @@
 
 void FLiveLinkCameraControllerCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+	//Disabling customization for now. Might add one for the lens picker to show the default lens file asset ini the 
+	//lens file picker instead and do customization at that level instead of camera controller
+
+#if 0
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects = DetailBuilder.GetSelectedObjects();
+
 	
 	//If more than one don't add up warning icon logic
 	if (SelectedObjects.Num() != 1)
@@ -39,7 +44,8 @@ void FLiveLinkCameraControllerCustomization::CustomizeDetails(IDetailLayoutBuild
 		IDetailCategoryBuilder& LensCategory = DetailBuilder.EditCategory("Lens");
 		{
 			//Customize LensFile property to show a warning if it's needed
-			TSharedPtr<IPropertyHandle> LensFileProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULiveLinkCameraController, LensFile));
+
+			TSharedPtr<IPropertyHandle> LensFileProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ULiveLinkCameraController, LensFilePicker));
 			{
 				IDetailPropertyRow& LensFileRow = LensCategory.AddProperty(LensFileProperty);
 				LensFileRow
@@ -74,7 +80,7 @@ void FLiveLinkCameraControllerCustomization::CustomizeDetails(IDetailLayoutBuild
 				}
 		}
 	}
-
+#endif
 
 }
 
@@ -93,7 +99,7 @@ EVisibility FLiveLinkCameraControllerCustomization::HandleEncoderMappingWarningI
 			{
 				if (CameraController->IsEncoderMappingNeeded())
 				{
-					if (CameraController->LensFile == nullptr)
+					if (CameraController->LensFilePicker.GetLensFile() == nullptr)
 					{
 						NewVisibility = EVisibility::Visible;
 					}
