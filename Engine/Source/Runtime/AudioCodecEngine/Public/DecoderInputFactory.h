@@ -14,6 +14,7 @@ namespace Audio
 {
 	// Forward declares.
 	struct IDecoderInput;
+	using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
 
 	// Just loose for now.
 	AUDIOCODECENGINE_API TUniquePtr<IDecoderInput> CreateBackCompatDecoderInput(
