@@ -600,7 +600,7 @@ void FSlateUser::DrawCursor(const TSharedRef<SWindow>& WindowToDraw, FSlateWindo
 
 			FVector2D CursorInScreen = GetCursorPosition();
 			FVector2D CursorPosInWindowSpace = WindowToDraw->GetWindowGeometryInScreen().AbsoluteToLocal(CursorInScreen) * WindowRootScale;
-			CursorPosInWindowSpace += (CursorWidget->GetDesiredSize() * -0.5) * WindowRootScale;
+			CursorPosInWindowSpace += (CursorWidget->GetDesiredSize() * -0.5);
 			const FGeometry CursorGeometry = FGeometry::MakeRoot(CursorWidget->GetDesiredSize(), FSlateLayoutTransform(CursorPosInWindowSpace));
 
 			CursorWidget->Paint(
