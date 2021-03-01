@@ -15,6 +15,10 @@ namespace Gauntlet
 		public string Project;
 		public string GameMap;
 		private Dictionary<string, object> Params;
+
+		// Give external people read-only access
+		public IReadOnlyDictionary<string, object> Arguments {  get { return Params;  } }
+
 		/// <summary>
 		/// String containing extra commandline args that do not conform to UE commandline arg specs.
 		/// Please do not use this for for standard flags.
@@ -27,6 +31,15 @@ namespace Gauntlet
 			GameMap = string.Empty;
 			AdditionalExplicitCommandLineArgs = string.Empty;
 			Params = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+		}
+
+		// copy constructor
+		public GauntletCommandLine(GauntletCommandLine InCopy)
+		{
+			Project = InCopy.Project;
+			GameMap = InCopy.GameMap;
+			AdditionalExplicitCommandLineArgs = InCopy.AdditionalExplicitCommandLineArgs;
+			Params = new Dictionary<string, object>(InCopy.Params);
 		}
 
 		/// <summary>

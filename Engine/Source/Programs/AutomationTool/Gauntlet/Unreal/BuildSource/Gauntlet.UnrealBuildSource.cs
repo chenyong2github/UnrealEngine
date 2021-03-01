@@ -123,6 +123,8 @@ namespace Gauntlet
 		virtual protected bool ResolveBuildReference(string InBuildReference, Func<string, string> ResolutionDelegate, out IEnumerable<string> OutBuildPaths, out string OutBuildName)
 		{
 			OutBuildName = null;
+			// start as null. It's valid for some references to return empty paths so we use null to verify
+			// that a resolution did happen
 			OutBuildPaths = null;
 
 			if (string.IsNullOrEmpty(InBuildReference))
@@ -186,6 +188,12 @@ namespace Gauntlet
 				OutBuildName = BuildDir.Name;
 				OutBuildPaths = new string[] { BuildDir.FullName };
 			}
+			else if (BuildDir.Name.Equals("editor", StringComparison.OrdinalIgnoreCase))
+			{
+				// Second special case - "Editor" means run using the editor, no path needed
+				OutBuildName = "Editor";
+				OutBuildPaths = Enumerable.Empty<string>();
+			}
 			else if (BuildDir.Name.Equals("local", StringComparison.OrdinalIgnoreCase) || BuildDir.Name.Equals("staged", StringComparison.OrdinalIgnoreCase))
 			{
 				// First special case - "Staged" means use whats locally staged
@@ -197,16 +205,10 @@ namespace Gauntlet
 					Log.Error("BuildReference was Staged but staged directory {0} not found", StagedPath);
 					return false;
 				}
-				
+
 				// include binaries path for packaged builds if it exists
 				string BinariesPath = Path.Combine(ProjectPath.Directory.FullName, "Binaries");
 				OutBuildPaths = Directory.Exists(BinariesPath) ? new string[] { StagedPath, BinariesPath } : new string[] { StagedPath };
-			}
-			else if (BuildDir.Name.Equals("editor", StringComparison.OrdinalIgnoreCase))
-			{
-				// Second special case - "Editor" means run using the editor, no path needed
-				OutBuildName = "Editor";
-				OutBuildPaths = new string[] { Environment.CurrentDirectory };
 			}
 			else
 			{
@@ -240,7 +242,7 @@ namespace Gauntlet
 				}
 			}
 
-			if (string.IsNullOrEmpty(OutBuildName) || (OutBuildPaths == null || OutBuildPaths.Count() == 0))
+			if (string.IsNullOrEmpty(OutBuildName) || OutBuildPaths == null)
 			{
 				Log.Error("Unable to resolve build argument '{0}'", InBuildReference);
 				return false;
@@ -395,8 +397,7 @@ namespace Gauntlet
 			Config.ProcessType = Role.RoleType;
 			Config.Platform = Role.Platform;
 			Config.Configuration = Role.Configuration;
-			Config.CommandLine = "";
-			Config.CommandLineParams = Role.CommandLineParams;
+			Config.CommandLineParams = new GauntletCommandLine(Role.CommandLineParams);
             Config.FilesToCopy = new List<UnrealFileToCopy>();
 
 			// new system of retrieving and encapsulating the info needed to install/launch. Android & Mac
@@ -414,11 +415,6 @@ namespace Gauntlet
 			{
 				UnrealTestConfiguration ConfigOptions = Role.Options as UnrealTestConfiguration;
 				ConfigOptions.ApplyToConfig(Config, Role, OtherRoles);
-			}
-
-			if (string.IsNullOrEmpty(Role.CommandLine) == false)
-			{
-				Config.CommandLine += Role.CommandLine;
 			}
 
 			// Cleanup the commandline
