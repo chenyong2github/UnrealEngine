@@ -250,6 +250,12 @@ public:
 	/** Constructor **/
 	FConstraintInstance();
 
+	/** Get the child bone name */
+	const FName& GetChildBoneName() const { return ConstraintBone1; }
+
+	/** Get the parent bone name */
+	const FName& GetParentBoneName() const { return ConstraintBone2; }
+
 	/** Gets the linear limit size */
 	float GetLinearLimit() const
 	{

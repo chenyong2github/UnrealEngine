@@ -542,7 +542,7 @@ void FPhysicsAssetEditorSharedData::ToggleSelectionType()
 		for (int32 BodyIdx = 0; BodyIdx < PhysicsAsset->SkeletalBodySetups.Num(); ++BodyIdx)
 		{
 			UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIdx];
-			if (DefaultInstance.JointName == BodySetup->BoneName && BodySetup->AggGeom.GetElementCount() > 0)
+			if (DefaultInstance.GetChildBoneName() == BodySetup->BoneName && BodySetup->AggGeom.GetElementCount() > 0)
 			{
 				SetSelectedBodyAnyPrim(BodyIdx, true);
 			}
@@ -556,7 +556,7 @@ void FPhysicsAssetEditorSharedData::ToggleSelectionType()
 		for(int32 ConstraintIdx = 0; ConstraintIdx < PhysicsAsset->ConstraintSetup.Num(); ++ConstraintIdx)
 		{
 			const UPhysicsConstraintTemplate* ConstraintTemplate = PhysicsAsset->ConstraintSetup[ConstraintIdx]; 
-			if(ConstraintTemplate->DefaultInstance.JointName == BodySetup->BoneName && !TmpSelectedConstraints.Contains(ConstraintIdx))
+			if(ConstraintTemplate->DefaultInstance.GetChildBoneName() == BodySetup->BoneName && !TmpSelectedConstraints.Contains(ConstraintIdx))
 			{
 				TmpSelectedConstraints.Add(ConstraintIdx);
 				SetSelectedConstraint(ConstraintIdx, true);

@@ -499,7 +499,7 @@ FName UPhysicsAsset::FindConstraintBoneName(int32 ConstraintIndex)
 		return NAME_None;
 	}
 
-	return ConstraintSetup[ConstraintIndex]->DefaultInstance.JointName;
+	return ConstraintSetup[ConstraintIndex]->DefaultInstance.GetChildBoneName();
 }
 
 int32 UPhysicsAsset::FindMirroredBone(class USkeletalMesh* skelMesh, int32 BoneIndex)

@@ -742,8 +742,8 @@ void USkeletalMeshComponent::UpdateRBJointMotors()
 			UPhysicsConstraintTemplate* CS = PhysicsAsset->ConstraintSetup[i];
 			FConstraintInstance* CI = Constraints[i];
 
-			FName JointName = CS->DefaultInstance.JointName;
-			int32 BoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(JointName);
+			FName JointChildBoneName = CS->DefaultInstance.GetChildBoneName();
+			int32 BoneIndex = SkeletalMesh->GetRefSkeleton().FindBoneIndex(JointChildBoneName);
 
 			// If we found this bone, and a visible bone that is not the root, and its joint is motorised in some way..
 			if( (BoneIndex != INDEX_NONE) && (BoneIndex != 0) &&

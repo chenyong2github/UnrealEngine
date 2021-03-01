@@ -1014,11 +1014,11 @@ void USkeletalMeshComponent::TermBodiesBelow(FName ParentBoneName)
 		for(int32 i=0; i<Constraints.Num(); i++)
 		{
 			// Get bone index of constraint
-			FName JointName = Constraints[i]->JointName;
-			int32 JointBoneIndex = GetBoneIndex(JointName);
+			FName JointChildBoneName = Constraints[i]->GetChildBoneName();
+			int32 JointBoneIndex = GetBoneIndex(JointChildBoneName);
 
 			// If constraint has bone in mesh, and is either the parent or child of it, term it
-			if(	JointBoneIndex != INDEX_NONE && (JointName == ParentBoneName ||	SkeletalMesh->GetRefSkeleton().BoneIsChildOf(JointBoneIndex, ParentBoneIndex)) )
+			if(	JointBoneIndex != INDEX_NONE && (JointChildBoneName == ParentBoneName ||	SkeletalMesh->GetRefSkeleton().BoneIsChildOf(JointBoneIndex, ParentBoneIndex)) )
 			{
 				Constraints[i]->TermConstraint();
 			}
@@ -1133,7 +1133,7 @@ void USkeletalMeshComponent::SetAllMotorsAngularPositionDrive(bool bEnableSwingD
 	{
 		if( bSkipCustomPhysicsType )
 		{
-			int32 BodyIndex = PhysicsAsset->FindBodyIndex(Constraints[i]->JointName);
+			int32 BodyIndex = PhysicsAsset->FindBodyIndex(Constraints[i]->GetChildBoneName());
 			if( BodyIndex != INDEX_NONE && PhysicsAsset->SkeletalBodySetups[BodyIndex]->PhysicsType != PhysType_Default)
 			{
 				continue;
@@ -1155,7 +1155,7 @@ void USkeletalMeshComponent::SetNamedMotorsAngularPositionDrive(bool bEnableSwin
 	for(int32 i=0; i<Constraints.Num(); i++)
 	{
 		FConstraintInstance* Instance = Constraints[i];
-		if( BoneNames.Contains(Instance->JointName) )
+		if( BoneNames.Contains(Instance->GetChildBoneName()) )
 		{
 			Constraints[i]->SetOrientationDriveTwistAndSwing(bEnableTwistDrive, bEnableSwingDrive);
 		}
@@ -1177,7 +1177,7 @@ void USkeletalMeshComponent::SetNamedMotorsAngularVelocityDrive(bool bEnableSwin
 	for(int32 i=0; i<Constraints.Num(); i++)
 	{
 		FConstraintInstance* Instance = Constraints[i];
-		if( BoneNames.Contains(Instance->JointName) )
+		if( BoneNames.Contains(Instance->GetChildBoneName()) )
 		{
 			Constraints[i]->SetAngularVelocityDriveTwistAndSwing(bEnableTwistDrive, bEnableSwingDrive);
 		}
@@ -1200,7 +1200,7 @@ void USkeletalMeshComponent::SetAllMotorsAngularVelocityDrive(bool bEnableSwingD
 	{
 		if( bSkipCustomPhysicsType )
 		{
-			int32 BodyIndex = PhysicsAsset->FindBodyIndex(Constraints[i]->JointName);
+			int32 BodyIndex = PhysicsAsset->FindBodyIndex(Constraints[i]->GetChildBoneName());
 			if( BodyIndex != INDEX_NONE && PhysicsAsset->SkeletalBodySetups[BodyIndex]->PhysicsType != PhysType_Default )
 			{
 				continue;
@@ -1255,7 +1255,7 @@ void USkeletalMeshComponent::SetAllMotorsAngularDriveParams(float InSpring, floa
 	{
 		if( bSkipCustomPhysicsType )
 		{
-			int32 BodyIndex = PhysicsAsset->FindBodyIndex(Constraints[i]->JointName);
+			int32 BodyIndex = PhysicsAsset->FindBodyIndex(Constraints[i]->GetChildBoneName());
 			if( BodyIndex != INDEX_NONE && PhysicsAsset->SkeletalBodySetups[BodyIndex]->PhysicsType != PhysType_Default )
 			{
 				continue;
@@ -1609,7 +1609,7 @@ void USkeletalMeshComponent::UpdateMeshForBrokenConstraints()
 		if( ConstraintInst && ConstraintInst->IsTerminated() )
 		{
 			// Get the associated joint bone index.
-			int32 JointBoneIndex = GetBoneIndex(ConstraintInst->JointName);
+			int32 JointBoneIndex = GetBoneIndex(ConstraintInst->GetChildBoneName());
 			if( JointBoneIndex == INDEX_NONE )
 			{
 				continue;
@@ -1895,7 +1895,7 @@ void USkeletalMeshComponent::BreakConstraint(FVector Impulse, FVector HitLocatio
 	UPhysicsAsset * const PhysicsAsset = GetPhysicsAsset();
 
 	// Figure out if Body is fixed or not
-	FBodyInstance* Body = GetBodyInstance(Constraint->JointName);
+	FBodyInstance* Body = GetBodyInstance(Constraint->GetChildBoneName());
 
 	if( Body != NULL && !Body->IsInstanceSimulatingPhysics() )
 	{
@@ -1930,7 +1930,7 @@ void USkeletalMeshComponent::SetAngularLimits(FName InBoneName, float Swing1Limi
 	UPhysicsAsset * const PhysicsAsset = GetPhysicsAsset();
 
 	// Figure out if Body is fixed or not
-	FBodyInstance* Body = GetBodyInstance(Constraint->JointName);
+	FBodyInstance* Body = GetBodyInstance(Constraint->GetChildBoneName());
 
 	if (Body != NULL && Body->IsInstanceSimulatingPhysics())
 	{
