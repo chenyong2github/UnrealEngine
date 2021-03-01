@@ -51,6 +51,9 @@ FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVecto
 		CurrentCellSize <<= 1;
 		CurrentGridSize >>= 1;
 	}
+
+	// Make sure the always loaded cell exists
+	GetAlwaysLoadedCell();
 }
 
 void FSquare2DGridHelper::ForEachCells(TFunctionRef<void(const FIntVector&)> InOperation) const
@@ -93,20 +96,15 @@ void FSquare2DGridHelper::ValidateSingleActorReferer()
 	TSet<FActorInstance> ActorUsage;
 	for (int32 Level = 0; Level < Levels.Num() - 1; Level++)
 	{
-		const int32 CurrentGridSize = Levels[Level].GridSize;
-		for (int32 y = 0; y < CurrentGridSize; y++)
+		for (const FSquare2DGridHelper::FGridLevel::FGridCell& ThisCell : Levels[Level].Cells)
 		{
-			for (int32 x = 0; x < CurrentGridSize; x++)
+			for (const FGridLevel::FGridCellDataChunk& DataChunk : ThisCell.GetDataChunks())
 			{
-				FGridLevel::FGridCell& ThisCell = Levels[Level].Cells[y * CurrentGridSize + x];
-				for (const FGridLevel::FGridCellDataChunk& DataChunk : ThisCell.GetDataChunks())
+				for (const FActorInstance& ActorInstance : DataChunk.GetActors())
 				{
-					for (const FActorInstance& ActorInstance : DataChunk.GetActors())
-					{
-						bool bWasAlreadyInSet;
-						ActorUsage.Add(ActorInstance, &bWasAlreadyInSet);
-						check(!bWasAlreadyInSet);
-					}
+					bool bWasAlreadyInSet;
+					ActorUsage.Add(ActorInstance, &bWasAlreadyInSet);
+					check(!bWasAlreadyInSet);
 				}
 			}
 		}

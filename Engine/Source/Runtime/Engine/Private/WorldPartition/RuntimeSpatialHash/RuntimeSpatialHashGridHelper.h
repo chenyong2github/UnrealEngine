@@ -307,11 +307,7 @@ struct FSquare2DGridHelper
 
 		inline FGridLevel(const FVector2D& InOrigin, int32 InCellSize, int32 InGridSize)
 			: FGrid2D(InOrigin, InCellSize, InGridSize)
-		{
-#if WITH_EDITOR
-			Cells.InsertDefaulted(0, GridSize * GridSize);
-#endif
-		}
+		{}
 
 #if WITH_EDITOR
 		/**
@@ -322,9 +318,23 @@ struct FSquare2DGridHelper
 		inline FGridCell& GetCell(const FIntVector2& InCoords)
 		{
 			check(IsValidCoords(InCoords));
+
 			uint32 CellIndex;
 			GetCellIndex(InCoords, CellIndex);
-			return Cells[CellIndex];
+
+			int32 CellIndexMapping;
+			int32* CellIndexMappingPtr = CellsMapping.Find(CellIndex);
+			if (CellIndexMappingPtr)
+			{
+				CellIndexMapping = *CellIndexMappingPtr;
+			}
+			else
+			{
+				CellIndexMapping = Cells.AddDefaulted();
+				CellsMapping.Add(CellIndex, CellIndexMapping);
+			}
+
+			return Cells[CellIndexMapping];
 		}
 
 		/**
@@ -335,12 +345,16 @@ struct FSquare2DGridHelper
 		inline const FGridCell& GetCell(const FIntVector2& InCoords) const
 		{
 			check(IsValidCoords(InCoords));
+
 			uint32 CellIndex;
 			GetCellIndex(InCoords, CellIndex);
-			return Cells[CellIndex];
+
+			int32 CellIndexMapping = CellsMapping.FindChecked(CellIndex);
+			return Cells[CellIndexMapping];
 		}
 
 		TArray<FGridCell> Cells;
+		TMap<int32, int32> CellsMapping;
 #endif
 	};
 
@@ -351,10 +365,10 @@ struct FSquare2DGridHelper
 	inline FGridLevel& GetLowestLevel() { return Levels[0]; }
 
 	// Returns the always loaded (top level) cell
-	inline FGridLevel::FGridCell& GetAlwaysLoadedCell() { return Levels.Last().Cells[0]; }
+	inline FGridLevel::FGridCell& GetAlwaysLoadedCell() { return Levels.Last().GetCell(FIntVector2(0,0)); }
 
 	// Returns the always loaded (top level) cell
-	inline const FGridLevel::FGridCell& GetAlwaysLoadedCell() const { return Levels.Last().Cells[0]; }
+	inline const FGridLevel::FGridCell& GetAlwaysLoadedCell() const { return Levels.Last().GetCell(FIntVector2(0,0)); }
 
 	// Returns the cell at the given coord
 	inline const FGridLevel::FGridCell& GetCell(const FIntVector& InCoords) const { return Levels[InCoords.Z].GetCell(FIntVector2(InCoords.X, InCoords.Y)); }
@@ -391,8 +405,8 @@ struct FSquare2DGridHelper
 	 */
 	int32 ForEachIntersectingCells(const FSphere& InSphere, TFunctionRef<void(const FIntVector&)> InOperation) const;
 
-	// Validates that actor is not referenced by multiple cells
 #if WITH_EDITOR
+	// Validates that actor is not referenced by multiple cells
 	void ValidateSingleActorReferer();
 #endif
 
