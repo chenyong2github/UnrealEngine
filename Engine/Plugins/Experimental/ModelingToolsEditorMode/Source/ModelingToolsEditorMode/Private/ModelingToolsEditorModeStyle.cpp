@@ -113,18 +113,12 @@ void FModelingToolsEditorModeStyle::Initialize()
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddArrowPrimitiveTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/ModelingArrow_x40",		Icon40x40));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddRectanglePrimitiveTool", 			new IMAGE_PLUGIN_BRUSH("Icons/ModelingRectangle_x20", 		Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddRectanglePrimitiveTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/ModelingRectangle_x40",		Icon40x40));
-		StyleSet->Set("ModelingToolsManagerCommands.BeginAddRoundedRectanglePrimitiveTool", 			new IMAGE_PLUGIN_BRUSH("Icons/ModelingRoundedRectangle_x20", 		Icon20x20));
-		StyleSet->Set("ModelingToolsManagerCommands.BeginAddRoundedRectanglePrimitiveTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/ModelingRoundedRectangle_x40",		Icon40x40));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddDiscPrimitiveTool", 			new IMAGE_PLUGIN_BRUSH("Icons/ModelingDisc_x20", 		Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddDiscPrimitiveTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/ModelingDisc_x40",		Icon40x40));
-		StyleSet->Set("ModelingToolsManagerCommands.BeginAddPuncturedDiscPrimitiveTool", 			new IMAGE_PLUGIN_BRUSH("Icons/ModelingPuncturedDisc_x20", 		Icon20x20));
-		StyleSet->Set("ModelingToolsManagerCommands.BeginAddPuncturedDiscPrimitiveTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/ModelingPuncturedDisc_x40",		Icon40x40));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddTorusPrimitiveTool", 			new IMAGE_PLUGIN_BRUSH("Icons/ModelingTorus_x20", 		Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddTorusPrimitiveTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/ModelingTorus_x40",		Icon40x40));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddSpherePrimitiveTool", 			new IMAGE_PLUGIN_BRUSH("Icons/ModelingSphere_x20", 		Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginAddSpherePrimitiveTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/ModelingSphere_x40",		Icon40x40));
-		StyleSet->Set("ModelingToolsManagerCommands.BeginAddSphericalBoxPrimitiveTool", 			new IMAGE_PLUGIN_BRUSH("Icons/ModelingSphericalBox_x20", 		Icon20x20));
-		StyleSet->Set("ModelingToolsManagerCommands.BeginAddSphericalBoxPrimitiveTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/ModelingSphericalBox_x40",		Icon40x40));
 
 		StyleSet->Set("ModelingToolsManagerCommands.BeginDrawPolygonTool", 				new IMAGE_PLUGIN_BRUSH("Icons/DrawPolygon_40x",		Icon20x20));
 		StyleSet->Set("ModelingToolsManagerCommands.BeginDrawPolygonTool.Small", 		new IMAGE_PLUGIN_BRUSH("Icons/DrawPolygon_40x", 	Icon20x20));

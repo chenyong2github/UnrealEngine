@@ -32,11 +32,8 @@ public:
 		Cone,
 		Arrow,
 		Rectangle,
-		RoundedRectangle,
 		Disc,
-		PuncturedDisc,
 		Torus,
-		SphericalBox,
 		Sphere,
 		Stairs
 	};
@@ -130,11 +127,56 @@ public:
 };
 
 UCLASS()
+class MESHMODELINGTOOLS_API UProceduralBoxToolProperties : public UProceduralShapeToolProperties
+{
+	GENERATED_BODY()
+public:
+	UProceduralBoxToolProperties() = default;
+
+	/** Width of Shape */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Width", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	float Width = 100.f;
+
+	/** Depth of Shape */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Depth", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	float Depth = 100.f;
+
+	/** Height of Shape */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Height", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	float Height = 100.f;
+
+	/** Number of Subdivisions Along the Width */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Width", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	int WidthSubdivisions = 1;
+
+	/** Number of Subdivisions Along the Depth */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Depth", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	int DepthSubdivisions = 1;
+
+	/** Number of Subdivisions Along the Height */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Height", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "500", ProceduralShapeSetting))
+	int HeightSubdivisions = 1;
+};
+
+UENUM()
+enum class EProceduralRectType
+{
+	/** Create a Rectangle */
+	Rectangle UMETA(DisplayName = "Rectangle"),
+	/** Create a Rounded Rectangle */
+	RoundedRectangle UMETA(DisplayName = "Rounded Rectangle")
+};
+
+UCLASS()
 class MESHMODELINGTOOLS_API UProceduralRectangleToolProperties : public UProceduralShapeToolProperties
 {
 	GENERATED_BODY()
 public:
 	UProceduralRectangleToolProperties() = default;
+
+	/** Type of rectangle to create */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings")
+	EProceduralRectType RectType = EProceduralRectType::Rectangle;
 
 	/** Width of Shape */
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Width", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
@@ -148,39 +190,26 @@ public:
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Width", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int WidthSubdivisions = 1;
 
-	/** Number of Subdivisions Along the Depth*/
+	/** Number of Subdivisions Along the Depth */
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Depth", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int DepthSubdivisions = 1;
-};
 
-UCLASS()
-class MESHMODELINGTOOLS_API UProceduralBoxToolProperties : public UProceduralRectangleToolProperties
-{
-	GENERATED_BODY()
-public:
-	UProceduralBoxToolProperties() = default;
-
-	/** Height of Shape */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Height", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
-	float Height = 100.f;
-
-	/** Number of Subdivisions Along the Height */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Height", UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "500", ProceduralShapeSetting))
-	int HeightSubdivisions = 1;
-};
-
-UCLASS()
-class MESHMODELINGTOOLS_API UProceduralRoundedRectangleToolProperties : public UProceduralRectangleToolProperties
-{
-	GENERATED_BODY()
-public:
 	/** Radius of Rounded Corners */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Corner Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Corner Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting, EditCondition = "RectType == EProceduralRectType::RoundedRectangle", EditConditionHides))
 	float CornerRadius = 25.f;
 
-	/** Number of Angular Slices in Each Corner*/
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Slices", meta = (DisplayName = "Corner", UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
+	/** Number of Angular Slices in Each Rounded Corner */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Corner", UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting, EditCondition = "RectType == EProceduralRectType::RoundedRectangle", EditConditionHides))
 	int CornerSlices = 16;
+};
+
+UENUM()
+enum class EProceduralDiscType
+{
+	/** Create a solid Disc */
+	Disc UMETA(DisplayName = "Disc"),
+	/** Create a Disc with a hole */
+	PuncturedDisc UMETA(DisplayName = "Punctured Disc")
 };
 
 UCLASS()
@@ -188,6 +217,10 @@ class MESHMODELINGTOOLS_API UProceduralDiscToolProperties : public UProceduralSh
 {
 	GENERATED_BODY()
 public:
+	/** Type of disc to create */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings")
+	EProceduralDiscType DiscType = EProceduralDiscType::Disc;
+
 	/** Radius of Disc */
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Radius = 50.f;
@@ -199,15 +232,9 @@ public:
 	/** Number of Radial Subdivisions in the Disc */
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Radial", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int RadialSubdivisions = 1;
-};
 
-UCLASS()
-class MESHMODELINGTOOLS_API UProceduralPuncturedDiscToolProperties : public UProceduralDiscToolProperties
-{
-	GENERATED_BODY()
-public:
 	/** Radius of the Disc's Hole */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Hole Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Hole Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting, EditCondition = "DiscType == EProceduralDiscType::PuncturedDisc", EditConditionHides))
 	float HoleRadius = 25.f;
 };
 
@@ -251,7 +278,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Slices", meta = (DisplayName = "Radial", UIMin = "3", UIMax = "128", ClampMin = "3", ClampMax = "500", ProceduralShapeSetting))
 	int RadialSlices = 16;
 
-	/** Number of Vertical Subdivisions Along the Height of the Cylidner */
+	/** Number of Vertical Subdivisions Along the Height of the Cylinder */
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Height", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
 	int HeightSubdivisions = 1;
 };
@@ -308,35 +335,38 @@ public:
 	int TotalSubdivisions = 1;
 };
 
+UENUM()
+enum class EProceduralSphereType
+{
+	/** Create a Sphere with Lat Long parameterization */
+	LatLong UMETA(DisplayName = "Lat Long"),
+	/** Create a Sphere with Box parameterization */
+	Box UMETA(DisplayName = "Box")
+};
+
 UCLASS()
 class MESHMODELINGTOOLS_API UProceduralSphereToolProperties : public UProceduralShapeToolProperties
 {
 	GENERATED_BODY()
 public:
+	/** Type of Sphere to create */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings")
+	EProceduralSphereType SphereType = EProceduralSphereType::LatLong;
+
 	/** Radius of the Sphere */
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
 	float Radius = 50.f;
 
 	/** Number of Latitudinal Slices of the Sphere */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Slices", meta = (DisplayName = "Latitude Slices", UIMin = "3", UIMax = "100", ClampMin = "4", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Latitude Slices", UIMin = "3", UIMax = "100", ClampMin = "4", ClampMax = "500", ProceduralShapeSetting, EditCondition = "SphereType == EProceduralSphereType::LatLong", EditConditionHides))
 	int LatitudeSlices = 16;
 
 	/** Number of Longitudinal Slices around the Sphere */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Slices", meta = (DisplayName = "Longitude Slices", UIMin = "3", UIMax = "100", ClampMin = "4", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Longitude Slices", UIMin = "3", UIMax = "100", ClampMin = "4", ClampMax = "500", ProceduralShapeSetting, EditCondition = "SphereType == EProceduralSphereType::LatLong", EditConditionHides))
 	int LongitudeSlices = 16;
-};
-
-UCLASS()
-class MESHMODELINGTOOLS_API UProceduralSphericalBoxToolProperties : public UProceduralShapeToolProperties
-{
-	GENERATED_BODY()
-public:
-	/** Radius of the Sphere */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Dimensions", meta = (DisplayName = "Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting))
-	float Radius = 50.f;
 
 	/** Number of Subdivisions of each Side of the Sphere */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Side", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting))
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings|Subdivisions", meta = (DisplayName = "Side", UIMin = "1", UIMax = "100", ClampMin = "1", ClampMax = "500", ProceduralShapeSetting, EditCondition = "SphereType == EProceduralSphereType::Box", EditConditionHides))
 	int Subdivisions = 16;
 };
 
@@ -532,31 +562,11 @@ protected:
 };
 
 UCLASS()
-class UAddRoundedRectanglePrimitiveTool : public UAddPrimitiveTool
-{
-	GENERATED_BODY()
-public:
-	UAddRoundedRectanglePrimitiveTool(const FObjectInitializer& ObjectInitializer);
-protected:
-	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
-};
-
-UCLASS()
 class UAddDiscPrimitiveTool : public UAddPrimitiveTool
 {
 	GENERATED_BODY()
 public:
 	UAddDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer);
-protected:
-	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
-};
-
-UCLASS()
-class UAddPuncturedDiscPrimitiveTool : public UAddPrimitiveTool
-{
-	GENERATED_BODY()
-public:
-	UAddPuncturedDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };
@@ -587,16 +597,6 @@ class UAddSpherePrimitiveTool : public UAddPrimitiveTool
 	GENERATED_BODY()
 public:
 	UAddSpherePrimitiveTool(const FObjectInitializer& ObjectInitializer);
-protected:
-	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
-};
-
-UCLASS()
-class UAddSphericalBoxPrimitiveTool : public UAddPrimitiveTool
-{
-	GENERATED_BODY()
-public:
-	UAddSphericalBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer);
 protected:
 	void GenerateMesh(FDynamicMesh3* OutMesh) const override;
 };

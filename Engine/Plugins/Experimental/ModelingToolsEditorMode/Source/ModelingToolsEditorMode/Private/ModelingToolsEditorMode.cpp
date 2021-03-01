@@ -329,24 +329,15 @@ void UModelingToolsEditorMode::Enter()
 	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddRectanglePrimitiveTool,
 							  TEXT("BeginAddRectanglePrimitiveTool"),
 							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Rectangle);
-	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddRoundedRectanglePrimitiveTool,
-							  TEXT("BeginAddRoundedRectanglePrimitiveTool"),
-							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::RoundedRectangle);
 	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddDiscPrimitiveTool,
 							  TEXT("BeginAddDiscPrimitiveTool"),
 							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Disc);
-	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddPuncturedDiscPrimitiveTool,
-							  TEXT("BeginAddPuncturedDiscPrimitiveTool"),
-							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::PuncturedDisc);
 	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddTorusPrimitiveTool,
 							  TEXT("BeginAddTorusPrimitiveTool"),
 							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Torus);
 	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddSpherePrimitiveTool,
 							  TEXT("BeginAddSpherePrimitiveTool"),
 							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Sphere);
-	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddSphericalBoxPrimitiveTool,
-							  TEXT("BeginAddSphericalBoxPrimitiveTool"),
-							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::SphericalBox);
 	RegisterPrimitiveToolFunc(ToolManagerCommands.BeginAddStairsPrimitiveTool,
 							  TEXT("BeginAddStairsPrimitiveTool"),
 							  UAddPrimitiveToolBuilder::EMakeMeshShapeType::Stairs);

@@ -59,20 +59,11 @@ UInteractiveTool* UAddPrimitiveToolBuilder::BuildTool(const FToolBuilderState& S
 	case EMakeMeshShapeType::Rectangle:
 		NewTool = NewObject<UAddRectanglePrimitiveTool>(SceneState.ToolManager);
 		break;
-	case EMakeMeshShapeType::RoundedRectangle:
-		NewTool = NewObject<UAddRoundedRectanglePrimitiveTool>(SceneState.ToolManager);
-		break;
 	case EMakeMeshShapeType::Disc:
 		NewTool = NewObject<UAddDiscPrimitiveTool>(SceneState.ToolManager);
 		break;
-	case EMakeMeshShapeType::PuncturedDisc:
-		NewTool = NewObject<UAddPuncturedDiscPrimitiveTool>(SceneState.ToolManager);
-		break;
 	case EMakeMeshShapeType::Torus:
 		NewTool = NewObject<UAddTorusPrimitiveTool>(SceneState.ToolManager);
-		break;
-	case EMakeMeshShapeType::SphericalBox:
-		NewTool = NewObject<UAddSphericalBoxPrimitiveTool>(SceneState.ToolManager);
 		break;
 	case EMakeMeshShapeType::Sphere:
 		NewTool = NewObject<UAddSpherePrimitiveTool>(SceneState.ToolManager);
@@ -407,46 +398,37 @@ UAddRectanglePrimitiveTool::UAddRectanglePrimitiveTool(const FObjectInitializer&
 
 void UAddRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
-	FRectangleMeshGenerator RectGen;
 	auto* RectangleSettings = Cast<UProceduralRectangleToolProperties>(ShapeSettings);
-	RectGen.Width = RectangleSettings->Depth;
-	RectGen.Height = RectangleSettings->Width;
-	RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
-	RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
-	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
+	switch (RectangleSettings->RectType)
 	{
-		RectGen.bSinglePolygroup = true;
-	}
-	RectGen.Generate();
-	OutMesh->Copy(&RectGen);
-}
-
-
-UAddRoundedRectanglePrimitiveTool::UAddRoundedRectanglePrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralRoundedRectangleToolProperties>(TEXT("ShapeSettings")))
-{
-	AssetName = TEXT("RoundedRectangle");
-	SetToolDisplayName(LOCTEXT("RoudRectToolName", "Create RoundRects"));
-}
-
-void UAddRoundedRectanglePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
-{
-	FRoundedRectangleMeshGenerator RectGen;
-	auto* RectangleSettings = Cast<UProceduralRoundedRectangleToolProperties>(ShapeSettings);
-	RectGen.Width = RectangleSettings->Depth;
-	RectGen.Height = RectangleSettings->Width;
-	RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
-	RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
-	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
+	case EProceduralRectType::Rectangle:
 	{
-		RectGen.bSinglePolygroup = true;
+		FRectangleMeshGenerator RectGen;
+		RectGen.Width = RectangleSettings->Depth;
+		RectGen.Height = RectangleSettings->Width;
+		RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
+		RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
+		RectGen.bSinglePolygroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
+		RectGen.Generate();
+		OutMesh->Copy(&RectGen);
+		break;
 	}
-	RectGen.Radius = RectangleSettings->CornerRadius;
-	RectGen.AngleSamples = RectangleSettings->CornerSlices - 1;
-	RectGen.Generate();
-	OutMesh->Copy(&RectGen);
+	case EProceduralRectType::RoundedRectangle:
+	{
+		FRoundedRectangleMeshGenerator RectGen;
+		RectGen.Width = RectangleSettings->Depth;
+		RectGen.Height = RectangleSettings->Width;
+		RectGen.WidthVertexCount = RectangleSettings->DepthSubdivisions + 1;
+		RectGen.HeightVertexCount = RectangleSettings->WidthSubdivisions + 1;
+		RectGen.bSinglePolygroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
+		RectGen.Radius = RectangleSettings->CornerRadius;
+		RectGen.AngleSamples = RectangleSettings->CornerSlices - 1;
+		RectGen.Generate();
+		OutMesh->Copy(&RectGen);
+		break;
+	}
+	}
 }
-
 
 
 UAddDiscPrimitiveTool::UAddDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer)
@@ -458,42 +440,33 @@ UAddDiscPrimitiveTool::UAddDiscPrimitiveTool(const FObjectInitializer& ObjectIni
 
 void UAddDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
-	FDiscMeshGenerator Gen;
 	auto* DiscSettings = Cast<UProceduralDiscToolProperties>(ShapeSettings);
-	Gen.Radius = DiscSettings->Radius;
-	Gen.AngleSamples = DiscSettings->RadialSlices;
-	Gen.RadialSamples = DiscSettings->RadialSubdivisions;
-	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
+	switch (DiscSettings->DiscType)
 	{
-		Gen.bSinglePolygroup = true;
-	}
-	Gen.Generate();
-	OutMesh->Copy(&Gen);
-}
-
-
-
-UAddPuncturedDiscPrimitiveTool::UAddPuncturedDiscPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralPuncturedDiscToolProperties>(TEXT("ShapeSettings")))
-{
-	AssetName = TEXT("PuncturedDisc");
-	SetToolDisplayName(LOCTEXT("CircleToolName", "Create Circles"));
-}
-
-void UAddPuncturedDiscPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
-{
-	FPuncturedDiscMeshGenerator Gen;
-	auto* DiscSettings = Cast<UProceduralPuncturedDiscToolProperties>(ShapeSettings);
-	Gen.Radius = DiscSettings->Radius;
-	Gen.HoleRadius = FMath::Min(DiscSettings->HoleRadius, Gen.Radius * .999f); // hole cannot be bigger than outer radius
-	Gen.AngleSamples = DiscSettings->RadialSlices;
-	Gen.RadialSamples = DiscSettings->RadialSubdivisions;
-	if (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad)
+	case EProceduralDiscType::Disc:
 	{
-		Gen.bSinglePolygroup = true;
+		FDiscMeshGenerator Gen;
+		Gen.Radius = DiscSettings->Radius;
+		Gen.AngleSamples = DiscSettings->RadialSlices;
+		Gen.RadialSamples = DiscSettings->RadialSubdivisions;
+		Gen.bSinglePolygroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
+		Gen.Generate();
+		OutMesh->Copy(&Gen);
+		break;
 	}
-	Gen.Generate();
-	OutMesh->Copy(&Gen);
+	case EProceduralDiscType::PuncturedDisc:
+	{
+		FPuncturedDiscMeshGenerator Gen;
+		Gen.Radius = DiscSettings->Radius;
+		Gen.HoleRadius = FMath::Min(DiscSettings->HoleRadius, Gen.Radius * .999f); // hole cannot be bigger than outer radius
+		Gen.AngleSamples = DiscSettings->RadialSlices;
+		Gen.RadialSamples = DiscSettings->RadialSubdivisions;
+		Gen.bSinglePolygroup = (ShapeSettings->PolygroupMode != EMakeMeshPolygroupMode::PerQuad);
+		Gen.Generate();
+		OutMesh->Copy(&Gen);
+		break;
+	}
+	}
 }
 
 
@@ -618,46 +591,39 @@ UAddSpherePrimitiveTool::UAddSpherePrimitiveTool(const FObjectInitializer& Objec
 
 void UAddSpherePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
-	FSphereGenerator SphereGen;
 	auto* SphereSettings = Cast<UProceduralSphereToolProperties>(ShapeSettings);
-	SphereGen.Radius = SphereSettings->Radius;
-	SphereGen.NumTheta = SphereSettings->LongitudeSlices + 1;
-	SphereGen.NumPhi = SphereSettings->LatitudeSlices + 1;
-	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	switch (SphereSettings->SphereType)
 	{
-		SphereGen.bPolygroupPerQuad = true;
-	}
-	SphereGen.Generate();
-	OutMesh->Copy(&SphereGen);
-}
-
-
-
-UAddSphericalBoxPrimitiveTool::UAddSphericalBoxPrimitiveTool(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralSphericalBoxToolProperties>(TEXT("ShapeSettings")))
-{
-	AssetName = TEXT("BSphere");
-	SetToolDisplayName(LOCTEXT("BoxSphereToolName", "Create BoxSpheres"));
-}
-
-void UAddSphericalBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
-{
-	FBoxSphereGenerator SphereGen;
-	auto* SphereSettings = Cast<UProceduralSphericalBoxToolProperties>(ShapeSettings);
-	SphereGen.Radius = SphereSettings->Radius;
-	SphereGen.Box = FOrientedBox3d(FVector3d::Zero(),
-								   0.5*FVector3d(SphereSettings->Subdivisions + 1,
-												 SphereSettings->Subdivisions + 1,
-												 SphereSettings->Subdivisions + 1));
-	int EdgeNum = SphereSettings->Subdivisions + 1;
-	SphereGen.EdgeVertices = FIndex3i(EdgeNum, EdgeNum, EdgeNum);
-	if (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad)
+	case EProceduralSphereType::LatLong:
 	{
-		SphereGen.bPolygroupPerQuad = true;
+		FSphereGenerator SphereGen;
+		SphereGen.Radius = SphereSettings->Radius;
+		SphereGen.NumTheta = SphereSettings->LongitudeSlices + 1;
+		SphereGen.NumPhi = SphereSettings->LatitudeSlices + 1;
+		SphereGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
+		SphereGen.Generate();
+		OutMesh->Copy(&SphereGen);
+		break;
 	}
-	SphereGen.Generate();
-	OutMesh->Copy(&SphereGen);
+	case EProceduralSphereType::Box:
+	{
+		FBoxSphereGenerator SphereGen;
+		SphereGen.Radius = SphereSettings->Radius;
+		SphereGen.Box = FOrientedBox3d(FVector3d::Zero(),
+			0.5 * FVector3d(SphereSettings->Subdivisions + 1,
+				SphereSettings->Subdivisions + 1,
+				SphereSettings->Subdivisions + 1));
+		int EdgeNum = SphereSettings->Subdivisions + 1;
+		SphereGen.EdgeVertices = FIndex3i(EdgeNum, EdgeNum, EdgeNum);
+		SphereGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
+		SphereGen.Generate();
+		OutMesh->Copy(&SphereGen);
+		break;
+	}
+	}
 }
+
+
 
 UAddStairsPrimitiveTool::UAddStairsPrimitiveTool(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralStairsToolProperties>(TEXT("ShapeSettings")))

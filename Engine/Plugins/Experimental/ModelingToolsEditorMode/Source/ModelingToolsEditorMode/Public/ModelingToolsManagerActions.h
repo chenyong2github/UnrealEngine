@@ -20,11 +20,8 @@ public:
 	TSharedPtr<FUICommandInfo> BeginAddConePrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddArrowPrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddRectanglePrimitiveTool;
-	TSharedPtr<FUICommandInfo> BeginAddRoundedRectanglePrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddDiscPrimitiveTool;
-	TSharedPtr<FUICommandInfo> BeginAddPuncturedDiscPrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddTorusPrimitiveTool;
-	TSharedPtr<FUICommandInfo> BeginAddSphericalBoxPrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddSpherePrimitiveTool;
 	TSharedPtr<FUICommandInfo> BeginAddStairsPrimitiveTool;
 
