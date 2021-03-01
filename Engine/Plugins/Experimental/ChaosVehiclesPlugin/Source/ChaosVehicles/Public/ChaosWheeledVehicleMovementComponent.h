@@ -508,6 +508,7 @@ struct CHAOSVEHICLES_API FWheelState
 {
 	void Init(int NumWheels)
 	{
+		WheelLocalLocation.Init(FVector::ZeroVector, NumWheels);
 		WheelWorldLocation.Init(FVector::ZeroVector, NumWheels);
 		WorldWheelVelocity.Init(FVector::ZeroVector, NumWheels);
 		LocalWheelVelocity.Init(FVector::ZeroVector, NumWheels);
@@ -520,6 +521,7 @@ struct CHAOSVEHICLES_API FWheelState
 	void CaptureState(int WheelIdx, const FVector& WheelOffset, const Chaos::FRigidBodyHandle_Internal* VehicleHandle, const FVector& ContactPoint, const Chaos::FRigidBodyHandle_Internal* SurfaceHandle);
 	static FVector GetVelocityAtPoint(const Chaos::FRigidBodyHandle_Internal* Rigid, const FVector& InPoint);
 
+	TArray<FVector> WheelLocalLocation;	/** Current Location Of Wheels In Local Coordinates */
 	TArray<FVector> WheelWorldLocation;	/** Current Location Of Wheels In World Coordinates */
 	TArray<FVector> WorldWheelVelocity; /** Current velocity at wheel location In World Coordinates - combined linear and angular */
 	TArray<FVector> LocalWheelVelocity; /** Local velocity of Wheel */

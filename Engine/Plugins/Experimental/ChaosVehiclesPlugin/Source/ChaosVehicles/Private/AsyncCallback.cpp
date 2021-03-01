@@ -69,7 +69,7 @@ void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 	};
 
 	bool ForceSingleThread = !GVehicleDebugParams.EnableMultithreading;
-	ParallelFor(OutputVehiclesBatch.Num(), LambdaParallelUpdate, ForceSingleThread);
+	PhysicsParallelFor(OutputVehiclesBatch.Num(), LambdaParallelUpdate, ForceSingleThread);
 
 
 }

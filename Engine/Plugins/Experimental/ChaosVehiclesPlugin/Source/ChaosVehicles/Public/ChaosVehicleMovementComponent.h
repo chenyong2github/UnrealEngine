@@ -487,8 +487,8 @@ struct CHAOSVEHICLES_API FVehicleInputRateConfig
 		{
 			if (UserCurve.GetRichCurveConst() && !UserCurve.GetRichCurveConst()->IsEmpty())
 			{
-				float Output = UserCurve.GetRichCurveConst()->Eval(InputValue);
-				return FMath::Clamp(Output, 0.0f, 1.0f); // Ensure output is normalized
+				float Output = FMath::Clamp(UserCurve.GetRichCurveConst()->Eval(FMath::Abs(InputValue)), 0.0f, 1.0f);
+				return (InputValue < 0.f)? -Output : Output;
 			}
 			else
 			{
