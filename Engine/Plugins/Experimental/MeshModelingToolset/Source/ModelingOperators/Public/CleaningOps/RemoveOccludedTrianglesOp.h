@@ -6,31 +6,10 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 
+#include "DynamicMeshAABBTree3.h"
 #include "MeshAdapter.h"
 #include "Operations/RemoveOccludedTriangles.h"
 
-// simple struct to help construct big trees of all the occluders
-struct MODELINGOPERATORS_API IndexMeshWithAcceleration
-{
-	TArray<int> Triangles;
-	TArray<FVector3d> Vertices;
-	TIndexMeshArrayAdapter<int, double, FVector3d> Mesh;
-	TMeshAABBTree3<TIndexMeshArrayAdapter<int, double, FVector3d>> AABB;
-	TFastWindingTree<TIndexMeshArrayAdapter<int, double, FVector3d>> FastWinding;
-
-	IndexMeshWithAcceleration() : AABB(&Mesh, false), FastWinding(&AABB, false)
-	{
-		Mesh.SetSources(&Vertices, &Triangles);
-	}
-
-	void AddMesh(const FDynamicMesh3& MeshIn, FTransform3d Transform);
-
-	void BuildAcceleration()
-	{
-		AABB.Build();
-		FastWinding.Build();
-	}
-};
 
 
 class MODELINGOPERATORS_API FRemoveOccludedTrianglesOp : public FDynamicMeshOperator
@@ -40,7 +19,10 @@ public:
 
 	// inputs
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
-	TSharedPtr<IndexMeshWithAcceleration, ESPMode::ThreadSafe> CombinedMeshTrees;
+	
+	TArray<TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>> OccluderTrees;
+	TArray<TSharedPtr<TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>> OccluderWindings;
+	TArray<FTransform3d> OccluderTransforms;
 
 	TArray<FTransform3d> MeshTransforms;
 
@@ -58,9 +40,6 @@ public:
 
 	// add triangle samples per triangle (in addition to TriangleSamplingMethod)
 	int AddTriangleSamples = 0;
-
-	// if true, *ignore* the combined selected occluder data in CombinedMeshTrees, and only consider self-occlusion of this mesh
-	bool bOnlySelfOcclude = false;
 
 	int ShrinkRemoval = 0;
 

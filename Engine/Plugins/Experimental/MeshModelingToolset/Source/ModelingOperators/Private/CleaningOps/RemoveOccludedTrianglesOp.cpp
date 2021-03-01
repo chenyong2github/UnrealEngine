@@ -15,31 +15,6 @@
 #include "Async/ParallelFor.h"
 
 
-void IndexMeshWithAcceleration::AddMesh(const FDynamicMesh3& MeshIn, FTransform3d Transform)
-{
-	int VertexIndexStart = Vertices.Num();
-	Vertices.SetNum(VertexIndexStart + MeshIn.MaxVertexID());
-	ParallelFor(MeshIn.MaxVertexID(), [this, &MeshIn, &Transform, &VertexIndexStart](int VID)
-	{
-		if (MeshIn.IsVertex(VID))
-		{
-			Vertices[VID + VertexIndexStart] = Transform.TransformPosition(MeshIn.GetVertex(VID));
-		}
-	}
-	, false);
-
-	// don't parallelize triangles b/c we want need them compact
-	for (int TID = 0; TID < MeshIn.MaxTriangleID(); TID++)
-	{
-		if (MeshIn.IsTriangle(TID))
-		{
-			FIndex3i Triangle = MeshIn.GetTriangle(TID);
-			Triangles.Add(Triangle.A + VertexIndexStart);
-			Triangles.Add(Triangle.B + VertexIndexStart);
-			Triangles.Add(Triangle.C + VertexIndexStart);
-		}
-	}
-}
 
 
 void FRemoveOccludedTrianglesOp::SetTransform(const FTransform& Transform)
@@ -97,69 +72,42 @@ void FRemoveOccludedTrianglesOp::CalculateResult(FProgressCancel* Progress)
 		}
 	};
 
-	if (bOnlySelfOcclude)
-	{
-		TRemoveOccludedTriangles<FDynamicMesh3> SelfJacket(ResultMesh.Get());
-		FDynamicMeshAABBTree3 SelfAABB(ResultMesh.Get());
-		TFastWindingTree<FDynamicMesh3> SelfFWTree(&SelfAABB);
-		if (Progress && Progress->Cancelled())
-		{
-			return;
-		}
-		SelfJacket.InsideMode = InsideMode;
-		SelfJacket.TriangleSamplingMethod = TriangleSamplingMethod;
-		SelfJacket.WindingIsoValue = WindingIsoValue;
-		SelfJacket.NormalOffset = NormalOffset;
-		SelfJacket.AddRandomRays = AddRandomRays;
-		SelfJacket.AddTriangleSamples = AddTriangleSamples;
-		SelfJacket.Select(FTransform3d::Identity(), &SelfAABB, &SelfFWTree);
-		if (ShrinkRemoval > 0)
-		{
-			ShrinkSelection(*ResultMesh.Get(), SelfJacket.RemovedT, ShrinkRemoval);
-		}
+	TRemoveOccludedTriangles<FDynamicMesh3> Jacket(ResultMesh.Get());
 
-		if (bSetTriangleGroupInsteadOfRemoving)
-		{
-			FIndex2i GroupIDAndLayerIndex = SetNewGroupSelection(*ResultMesh.Get(), SelfJacket.RemovedT, ActiveGroupLayer, bActiveGroupLayerIsDefault);
-			CreatedGroupID = GroupIDAndLayerIndex.A;
-			CreatedGroupLayerIndex = GroupIDAndLayerIndex.B;
-		}
-		else
-		{
-			SelfJacket.RemoveSelected();
-		}
+	if (Progress && Progress->Cancelled())
+	{
+		return;
+	}
+
+	Jacket.InsideMode = InsideMode;
+	Jacket.TriangleSamplingMethod = TriangleSamplingMethod;
+	Jacket.WindingIsoValue = WindingIsoValue;
+	Jacket.NormalOffset = NormalOffset;
+	Jacket.AddRandomRays = AddRandomRays;
+	Jacket.AddTriangleSamples = AddTriangleSamples;
+	// copy shared pointers to ray pointers for the jacketing algorithm (they w/ shorter lifespan so it's ok)
+	TArray<FDynamicMeshAABBTree3*> RawOccluderTrees; RawOccluderTrees.SetNum(OccluderTrees.Num());
+	TArray<TFastWindingTree<FDynamicMesh3>*> RawOccluderWindings; RawOccluderWindings.SetNum(OccluderWindings.Num());
+	for (int32 TreeIdx = 0; TreeIdx < OccluderTrees.Num(); TreeIdx++)
+	{
+		RawOccluderTrees[TreeIdx] = OccluderTrees[TreeIdx].Get();
+		RawOccluderWindings[TreeIdx] = OccluderWindings[TreeIdx].Get();
+	}
+	Jacket.Select(MeshTransforms, RawOccluderTrees, RawOccluderWindings, OccluderTransforms);
+	if (ShrinkRemoval > 0)
+	{
+		ShrinkSelection(*ResultMesh.Get(), Jacket.RemovedT, ShrinkRemoval);
+	}
+
+	if (bSetTriangleGroupInsteadOfRemoving)
+	{
+		FIndex2i GroupIDAndLayerIndex = SetNewGroupSelection(*ResultMesh.Get(), Jacket.RemovedT, ActiveGroupLayer, bActiveGroupLayerIsDefault);
+		CreatedGroupID = GroupIDAndLayerIndex.A;
+		CreatedGroupLayerIndex = GroupIDAndLayerIndex.B;
 	}
 	else
 	{
-		TRemoveOccludedTriangles<TIndexMeshArrayAdapter<int, double, FVector3d>> Jacket(ResultMesh.Get());
-
-		if (Progress && Progress->Cancelled())
-		{
-			return;
-		}
-
-		Jacket.InsideMode = InsideMode;
-		Jacket.TriangleSamplingMethod = TriangleSamplingMethod;
-		Jacket.WindingIsoValue = WindingIsoValue;
-		Jacket.NormalOffset = NormalOffset;
-		Jacket.AddRandomRays = AddRandomRays;
-		Jacket.AddTriangleSamples = AddTriangleSamples;
-		Jacket.Select(MeshTransforms, &CombinedMeshTrees->AABB, &CombinedMeshTrees->FastWinding);
-		if (ShrinkRemoval > 0)
-		{
-			ShrinkSelection(*ResultMesh.Get(), Jacket.RemovedT, ShrinkRemoval);
-		}
-
-		if (bSetTriangleGroupInsteadOfRemoving)
-		{
-			FIndex2i GroupIDAndLayerIndex = SetNewGroupSelection(*ResultMesh.Get(), Jacket.RemovedT, ActiveGroupLayer, bActiveGroupLayerIsDefault);
-			CreatedGroupID = GroupIDAndLayerIndex.A;
-			CreatedGroupLayerIndex = GroupIDAndLayerIndex.B;
-		}
-		else
-		{
-			Jacket.RemoveSelected();
-		}
+		Jacket.RemoveSelected();
 	}
 
 	if (MinTriCountConnectedComponent > 0 || MinAreaConnectedComponent > 0)

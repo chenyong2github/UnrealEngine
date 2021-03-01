@@ -199,8 +199,6 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 	int32 NumTargets = ComponentTargets.Num();
 	int32 NumPreviews = PreviewToTargetIdx.Num();
 
-	CombinedMeshTrees = MakeShared<IndexMeshWithAcceleration, ESPMode::ThreadSafe>();
-
 #if WITH_EDITOR
 	static const FText SlowTaskText = LOCTEXT("RemoveOccludedTrianglesInit", "Building mesh occlusion data...");
 
@@ -221,6 +219,10 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 
 	OccludedGroupIDs.Init(-1, NumPreviews);
 	OccludedGroupLayers.Init(-1, NumPreviews);
+
+	OccluderTrees.SetNum(NumTargets);
+	OccluderWindings.SetNum(NumTargets);
+	OccluderTransforms.SetNum(NumTargets);
 
 	OriginalDynamicMeshes.SetNum(NumPreviews);
 	PreviewToCopyIdx.Reset(); PreviewToCopyIdx.SetNum(NumPreviews);
@@ -275,6 +277,10 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
 			Preview->SetVisibility(true);
 
+			OccluderTrees[TargetIdx] = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalDynamicMeshes[PreviewIdx].Get());
+			OccluderWindings[TargetIdx] = MakeShared<TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>(OccluderTrees[TargetIdx].Get());
+			OccluderTransforms[TargetIdx] = (FTransform3d)ComponentTargets[TargetIdx]->GetWorldTransform();
+
 			// configure secondary render material
 			Preview->SecondaryMaterial = OccludedMaterial;
 
@@ -305,6 +311,10 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			
 			PreviewMesh->SetVisible(true);
 
+			OccluderTrees[TargetIdx] = OccluderTrees[PreviewToTargetIdx[PreviewIdx]];
+			OccluderWindings[TargetIdx] = OccluderWindings[PreviewToTargetIdx[PreviewIdx]];
+			OccluderTransforms[TargetIdx] = (FTransform3d)ComponentTargets[TargetIdx]->GetWorldTransform();
+
 			PreviewMesh->SetSecondaryRenderMaterial(OccludedMaterial);
 			PreviewMesh->EnableSecondaryTriangleBuffers(MoveTemp(IsOccludedGroupFn));
 
@@ -312,11 +322,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 				PreviewCopies[CopyIdx]->UpdatePreview(Compute->PreviewMesh->GetPreviewDynamicMesh());
 			});
 		}
-
-		CombinedMeshTrees->AddMesh(*OriginalDynamicMeshes[PreviewIdx], FTransform3d(ComponentTargets[TargetIdx]->GetWorldTransform()));
 	}
-
-	CombinedMeshTrees->BuildAcceleration();
 }
 
 
@@ -400,9 +406,19 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	FTransform LocalToWorld = Tool->ComponentTargets[ComponentIndex]->GetWorldTransform();
 	Op->OriginalMesh = Tool->OriginalDynamicMeshes[PreviewIdx];
 
-	Op->CombinedMeshTrees = Tool->CombinedMeshTrees;
-
-	Op->bOnlySelfOcclude = Tool->BasicProperties->bOnlySelfOcclude;
+	if (Tool->BasicProperties->bOnlySelfOcclude)
+	{
+		int32 TargetIdx = Tool->PreviewToTargetIdx[PreviewIdx];
+		Op->OccluderTrees.Add(Tool->OccluderTrees[TargetIdx]);
+		Op->OccluderWindings.Add(Tool->OccluderWindings[TargetIdx]);
+		Op->OccluderTransforms.Add(FTransform3d::Identity());
+	}
+	else
+	{
+		Op->OccluderTrees = Tool->OccluderTrees;
+		Op->OccluderWindings = Tool->OccluderWindings;
+		Op->OccluderTransforms = Tool->OccluderTransforms;
+	}
 
 	Op->AddRandomRays = Tool->BasicProperties->AddRandomRays;
 

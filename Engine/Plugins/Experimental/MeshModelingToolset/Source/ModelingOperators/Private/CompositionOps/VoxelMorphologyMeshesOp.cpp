@@ -111,7 +111,7 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 
 		if (bRemoveInternalsAfterVoxWrap)
 		{
-			UE::MeshAutoRepair::RemoveInternalTriangles(CombinedMesh, true, EOcclusionTriangleSampling::Centroids, EOcclusionCalculationMode::FastWindingNumber);
+			UE::MeshAutoRepair::RemoveInternalTriangles(CombinedMesh, true, EOcclusionTriangleSampling::Centroids, EOcclusionCalculationMode::FastWindingNumber, 0, .5, true);
 		}
 
 		Spatial.Build(); // rebuild w/ updated mesh

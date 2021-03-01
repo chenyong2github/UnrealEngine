@@ -203,8 +203,10 @@ protected:
 protected:
 	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 
-	// pre-transformed combined all-mesh data (with mesh geometry data in just raw index buffers as that's all we need)
-	TSharedPtr<IndexMeshWithAcceleration, ESPMode::ThreadSafe> CombinedMeshTrees;
+	// AABB trees and winding trees for every mesh target, with repeated instances as pointers to the same data
+	TArray<TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>> OccluderTrees;
+	TArray<TSharedPtr<TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>> OccluderWindings;
+	TArray<FTransform3d> OccluderTransforms;
 
 	TArray<TArray<int32>> PreviewToCopyIdx;
 	TArray<int32> PreviewToTargetIdx;
