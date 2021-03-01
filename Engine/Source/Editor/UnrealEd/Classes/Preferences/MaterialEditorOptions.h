@@ -24,7 +24,7 @@ class UNREALED_API UMaterialEditorOptions : public UObject
 
 	/** If true, don't render connectors that are not connected to anything. */
 	UPROPERTY(EditAnywhere, config, Category=Options)
-	uint32 bHideUnusedConnectors:1;
+	uint32 bShouldHideUnusedConnectors:1;
 
 	/** If true, the 3D material preview viewport updates in realtime. */
 	UPROPERTY(EditAnywhere, config, Category=Options)
