@@ -768,8 +768,8 @@ void SEditToolMenuDialog::OnMenuNamesSelectionChanged(TSharedPtr<FName> InEntry,
 	}
 	
 	FToolMenuContext NewMenuContext = SourceMenu->Context;
-	NewMenuContext.bIsEditing = true;
-		
+	NewMenuContext.SetIsEditing(true);
+	
 	TArray<const UToolMenu*> SubMenuChain = SourceMenu->GetSubMenuChain();
 	if (!SourceMenu->SubMenuParent)
 	{

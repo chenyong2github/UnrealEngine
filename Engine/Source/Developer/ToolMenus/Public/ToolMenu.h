@@ -75,6 +75,7 @@ public:
 	virtual FCustomizedToolMenu* AddMenuCustomization() const override;
 	virtual FCustomizedToolMenuHierarchy GetMenuCustomizationHierarchy() const override;
 	virtual void UpdateMenuCustomizationFromMultibox(const TSharedRef<const FMultiBox>& InMultiBox) override;
+	virtual void OnMenuDestroyed() override;
 	//~ End UToolMenuBase Interface
 
 	TArray<FName> GetMenuHierarchyNames(bool bIncludeSubMenuRoot) const;
@@ -128,6 +129,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	EMultiBoxType MenuType;
+
+	UPROPERTY(Transient)
+	bool bShouldCleanupContextOnDestroy;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Tool Menus")
 	bool bShouldCloseWindowAfterMenuSelection;

@@ -120,5 +120,6 @@ public:
 	virtual FCustomizedToolMenu* AddMenuCustomization() const { return nullptr; }
 	virtual FCustomizedToolMenuHierarchy GetMenuCustomizationHierarchy() const { return FCustomizedToolMenuHierarchy(); }
 	virtual void UpdateMenuCustomizationFromMultibox(const TSharedRef<const FMultiBox>& InMultiBox) {}
+	virtual void OnMenuDestroyed() {}
 };
 

@@ -12,6 +12,7 @@
 
 UToolMenu::UToolMenu() :
 	MenuType(EMultiBoxType::Menu)
+	, bShouldCleanupContextOnDestroy(true)
 	, bShouldCloseWindowAfterMenuSelection(true)
 	, bCloseSelfOnly(false)
 	, bSearchable(false)
@@ -498,6 +499,14 @@ void UToolMenu::UpdateMenuCustomizationFromMultibox(const TSharedRef<const FMult
 			FCustomizedToolMenuNameArray& EntryOrderForSection = Customization->EntryOrder.FindOrAdd(CurrentSectionName);
 			EntryOrderForSection.Names.Add(Block->GetExtensionHook());
 		}
+	}
+}
+
+void UToolMenu::OnMenuDestroyed()
+{
+	if (bShouldCleanupContextOnDestroy && !SubMenuParent)
+	{
+		Context.CleanupObjects();
 	}
 }
 

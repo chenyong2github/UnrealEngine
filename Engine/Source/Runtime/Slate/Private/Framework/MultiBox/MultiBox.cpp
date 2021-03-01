@@ -206,6 +206,10 @@ FMultiBox::FMultiBox(const EMultiBoxType InType, FMultiBoxCustomization InCustom
 
 FMultiBox::~FMultiBox()
 {
+	if (UToolMenuBase* ToolMenu = GetToolMenu())
+	{
+		ToolMenu->OnMenuDestroyed();
+	}
 }
 
 TSharedRef<FMultiBox> FMultiBox::Create( const EMultiBoxType InType, FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection )

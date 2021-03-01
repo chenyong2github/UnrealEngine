@@ -11,12 +11,7 @@
 #include "Internationalization/Internationalization.h"
 
 
-FToolMenuContext::FToolMenuContext() : bIsEditing(false)
-{
-
-}
-
-FToolMenuContext::FToolMenuContext(UObject* InContext) : bIsEditing(false)
+FToolMenuContext::FToolMenuContext(UObject* InContext)
 {
 	if (InContext)
 	{
@@ -24,7 +19,19 @@ FToolMenuContext::FToolMenuContext(UObject* InContext) : bIsEditing(false)
 	}
 }
 
-FToolMenuContext::FToolMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender, UObject* InContext) : bIsEditing(false)
+FToolMenuContext::FToolMenuContext(UObject* InContext, FContextObjectCleanup&& InCleanup)
+{
+	if (InContext)
+	{
+		ContextObjects.Add(InContext);
+		if (InCleanup)
+		{
+			ContextObjectCleanupFuncs.Add(InContext, MoveTemp(InCleanup));
+		}
+	}
+}
+
+FToolMenuContext::FToolMenuContext(TSharedPtr<FUICommandList> InCommandList, TSharedPtr<FExtender> InExtender, UObject* InContext)
 {
 	if (InContext)
 	{
@@ -142,9 +149,27 @@ void FToolMenuContext::AddObject(UObject* InObject)
 	ContextObjects.AddUnique(InObject);
 }
 
+void FToolMenuContext::AddObject(UObject* InObject, FContextObjectCleanup&& InCleanup)
+{
+	ContextObjects.AddUnique(InObject);
+	if (InCleanup)
+	{
+		ContextObjectCleanupFuncs.Add(InObject, MoveTemp(InCleanup));
+	}
+}
+
+void FToolMenuContext::CleanupObjects()
+{
+	for (const TTuple<TObjectPtr<UObject>, FContextObjectCleanup>& CleanupPair : ContextObjectCleanupFuncs)
+	{
+		CleanupPair.Value(CleanupPair.Key);
+	}
+}
+
 void FToolMenuContext::Empty()
 {
 	ContextObjects.Empty();
+	ContextObjectCleanupFuncs.Empty();
 	CommandLists.Empty();
 	CommandList.Reset();
 	Extenders.Empty();
