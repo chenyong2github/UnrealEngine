@@ -474,8 +474,8 @@ public:
 	FReply OnRecord();
 	FReply OnPlayForward(bool bTogglePlay);
 	FReply OnPlayBackward(bool bTogglePlay);
-	FReply OnStepForward();
-	FReply OnStepBackward();
+	FReply OnStepForward(FFrameNumber Increment = FFrameNumber(1));
+	FReply OnStepBackward(FFrameNumber Increment = FFrameNumber(1));
 	FReply OnJumpToStart();
 	FReply OnJumpToEnd();
 	FReply OnCycleLoopMode();
@@ -1009,6 +1009,8 @@ protected:
 	void ShuttleBackward();
 	void StepForward();
 	void StepBackward();
+	void JumpForward();
+	void JumpBackward();
 	void StepToNextKey();
 	void StepToPreviousKey();
 	void StepToNextCameraKey();

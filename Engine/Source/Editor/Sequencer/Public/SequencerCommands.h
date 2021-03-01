@@ -55,6 +55,12 @@ public:
 	/** Step backward */
 	TSharedPtr< FUICommandInfo > StepBackward2;
 
+	/** Jump forward */
+	TSharedPtr< FUICommandInfo > JumpForward;
+
+	/** Jump backward */
+	TSharedPtr< FUICommandInfo > JumpBackward;
+
 	/** Step to next key */
 	TSharedPtr< FUICommandInfo > StepToNextKey;
 

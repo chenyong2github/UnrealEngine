@@ -4341,10 +4341,10 @@ TSharedRef<SWidget> FSequencer::MakeTransportControls(bool bExtended)
 	FTransportControlArgs TransportControlArgs;
 	{
 		TransportControlArgs.OnBackwardEnd.BindSP( this, &FSequencer::OnJumpToStart );
-		TransportControlArgs.OnBackwardStep.BindSP( this, &FSequencer::OnStepBackward );
+		TransportControlArgs.OnBackwardStep.BindSP( this, &FSequencer::OnStepBackward, FFrameNumber(1) );
 		TransportControlArgs.OnForwardPlay.BindSP( this, &FSequencer::OnPlayForward, true );
 		TransportControlArgs.OnBackwardPlay.BindSP( this, &FSequencer::OnPlayBackward, true );
-		TransportControlArgs.OnForwardStep.BindSP( this, &FSequencer::OnStepForward );
+		TransportControlArgs.OnForwardStep.BindSP( this, &FSequencer::OnStepForward, FFrameNumber(1) );
 		TransportControlArgs.OnForwardEnd.BindSP( this, &FSequencer::OnJumpToEnd );
 		TransportControlArgs.OnGetPlaybackMode.BindSP( this, &FSequencer::GetPlaybackMode );
 
@@ -4767,27 +4767,27 @@ FReply FSequencer::OnPlayBackward(bool bTogglePlay)
 	return FReply::Handled();
 }
 
-FReply FSequencer::OnStepForward()
+FReply FSequencer::OnStepForward(FFrameNumber Increment)
 {
 	SetPlaybackStatus(EMovieScenePlayerStatus::Stepping);
 
 	FFrameRate          DisplayRate = GetFocusedDisplayRate();
 	FQualifiedFrameTime CurrentTime = GetLocalTime();
 
-	FFrameTime NewPosition = FFrameRate::TransformTime(CurrentTime.ConvertTo(DisplayRate).FloorToFrame() + 1, DisplayRate, CurrentTime.Rate);
+	FFrameTime NewPosition = FFrameRate::TransformTime(CurrentTime.ConvertTo(DisplayRate).FloorToFrame() + Increment, DisplayRate, CurrentTime.Rate);
 	SetLocalTime(NewPosition, ESnapTimeMode::STM_Interval);
 	return FReply::Handled();
 }
 
 
-FReply FSequencer::OnStepBackward()
+FReply FSequencer::OnStepBackward(FFrameNumber Increment)
 {
 	SetPlaybackStatus(EMovieScenePlayerStatus::Stepping);
 
 	FFrameRate          DisplayRate = GetFocusedDisplayRate();
 	FQualifiedFrameTime CurrentTime = GetLocalTime();
 
-	FFrameTime NewPosition = FFrameRate::TransformTime(CurrentTime.ConvertTo(DisplayRate).FloorToFrame() - 1, DisplayRate, CurrentTime.Rate);
+	FFrameTime NewPosition = FFrameRate::TransformTime(CurrentTime.ConvertTo(DisplayRate).FloorToFrame() - Increment, DisplayRate, CurrentTime.Rate);
 
 	SetLocalTime(NewPosition, ESnapTimeMode::STM_Interval);
 	return FReply::Handled();
@@ -10891,6 +10891,16 @@ void FSequencer::StepBackward()
 	OnStepBackward();
 }
 
+void FSequencer::JumpForward()
+{
+	OnStepForward(Settings->GetJumpFrameIncrement());
+}
+
+void FSequencer::JumpBackward()
+{
+	OnStepBackward(Settings->GetJumpFrameIncrement());
+}
+
 
 void FSequencer::StepToNextKey()
 {
@@ -13041,6 +13051,16 @@ void FSequencer::BindCommands()
 		EUIActionRepeatMode::RepeatEnabled);
 
 	SequencerCommandBindings->MapAction(
+		Commands.JumpForward,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpForward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
+		Commands.JumpBackward,
+		FExecuteAction::CreateSP(this, &FSequencer::JumpBackward),
+		EUIActionRepeatMode::RepeatEnabled);
+
+	SequencerCommandBindings->MapAction(
 		Commands.SetInterpolationCubicAuto,
 		FExecuteAction::CreateSP(this, &FSequencer::SetInterpTangentMode, ERichCurveInterpMode::RCIM_Cubic, ERichCurveTangentMode::RCTM_Auto));
 
@@ -13194,6 +13214,8 @@ void FSequencer::BindCommands()
 	CurveEditorSharedBindings->MapAction(Commands.StepBackward,			*SequencerCommandBindings->GetActionForCommand(Commands.StepBackward));
 	CurveEditorSharedBindings->MapAction(Commands.StepForward2,         *SequencerCommandBindings->GetActionForCommand(Commands.StepForward2));
 	CurveEditorSharedBindings->MapAction(Commands.StepBackward2,        *SequencerCommandBindings->GetActionForCommand(Commands.StepBackward2));
+	CurveEditorSharedBindings->MapAction(Commands.JumpForward,          *SequencerCommandBindings->GetActionForCommand(Commands.JumpForward));
+	CurveEditorSharedBindings->MapAction(Commands.JumpBackward,         *SequencerCommandBindings->GetActionForCommand(Commands.JumpBackward));
 	CurveEditorSharedBindings->MapAction(Commands.StepToNextKey,		*SequencerCommandBindings->GetActionForCommand(Commands.StepToNextKey));
 	CurveEditorSharedBindings->MapAction(Commands.StepToPreviousKey, 	*SequencerCommandBindings->GetActionForCommand(Commands.StepToPreviousKey));
 

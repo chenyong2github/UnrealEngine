@@ -2578,6 +2578,42 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 	}
 	MenuBuilder.EndSection();
 
+	// Menu entry for the jump frame increment
+	auto OnJumpFrameIncrementChanged = [=](double NewValue) {
+		FFrameRate TickResolution = SequencerPtr.Pin()->GetFocusedTickResolution();
+		FFrameRate DisplayRate = SequencerPtr.Pin()->GetFocusedDisplayRate();
+		FFrameNumber JumpFrameIncrement = FFrameRate::TransformTime(FFrameTime::FromDecimal(NewValue), TickResolution, DisplayRate).CeilToFrame();						
+		SequencerPtr.Pin()->GetSequencerSettings()->SetJumpFrameIncrement(JumpFrameIncrement);
+	};
+
+	MenuBuilder.AddWidget(
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			[
+				SNew(SSpacer)
+			]
+		+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SSpinBox<double>)
+					.TypeInterface(NumericTypeInterface)
+					.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+					.OnValueCommitted_Lambda([=](double Value, ETextCommit::Type){ OnJumpFrameIncrementChanged(Value); })
+					.OnValueChanged_Lambda([=](double Value) { OnJumpFrameIncrementChanged(Value); })
+					.MinValue(TOptional<double>())
+					.MaxValue(TOptional<double>())
+					.Value_Lambda([=]() -> double {
+						FFrameNumber JumpFrameIncrement = SequencerPtr.Pin()->GetSequencerSettings()->GetJumpFrameIncrement();
+						FFrameRate TickResolution = SequencerPtr.Pin()->GetFocusedTickResolution();
+						FFrameRate DisplayRate = SequencerPtr.Pin()->GetFocusedDisplayRate();
+						int32 ConvertedValue = FFrameRate::TransformTime(JumpFrameIncrement, DisplayRate, TickResolution).CeilToFrame().Value;						
+					 	return ConvertedValue;
+					})
+					.Delta(this, &SSequencer::GetSpinboxDelta)
+					.LinearDeltaSensitivity(25)
+			],
+		LOCTEXT("JumpFrameIncrement", "Jump Frame Increment"));
+
 	return MenuBuilder.MakeWidget();
 }
 
