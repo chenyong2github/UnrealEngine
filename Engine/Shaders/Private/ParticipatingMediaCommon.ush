@@ -6,30 +6,74 @@
 
 #include "Common.ush"
 
+#define PARTICIPATING_MEDIA_MIN_MFP_METER		0.000001f
+#define PARTICIPATING_MEDIA_MIN_EXTINCTION		0.000001f
+#define PARTICIPATING_MEDIA_MIN_TRANSMITTANCE	0.000000000001f
+
+
+
+//---------------------------------------------
+// Participating media representation
+//---------------------------------------------
+
 struct FParticipatingMedia
 {
 	float3 ScatteringCoef;	// sigma_s (1/meter)
 	float3 AbsorptionCoef;	// sigma_a (1/meter)
 	float3 ExtinctionCoef;	// sigma_t (1/meter)
 	float3 MeanFreePath;	// (meter)
-	float3 Albedo;			// (unitless)
+	float3 Albedo;			// Represent sigma_s / sigma_t (unitless)
+	float3 BaseColor;		// Represent the reflectance albedo resulting from single+multiple scattering assuming an isotropic phase function (unitless)
 };
 
-#define PARTICIPATING_MEDIA_MIN_MFP_METER		0.000001f
-#define PARTICIPATING_MEDIA_MIN_EXTINCTION		0.000001f
-#define PARTICIPATING_MEDIA_MIN_TRANSMITTANCE	0.000000000001f
+// GetBaseColorFromAlbedo: returns the color of the participating media resulting from the single+multiple subsurface scattering. 
+// GetAlbedoFromBaseColor is the inverse transform.
+// [Kulla and Conty 2017, "Revisiting Physically Based Shading at Imageworks"] https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf, slide 62 
+// [d'Eon, "A Hitchhiker's guide to multiple scattering"] or http://www.eugenedeon.com/wp-content/uploads/2016/09/hitchhikers_v0.1.3.pdf
+float3 GetBaseColorFromAlbedo(const float3 Albedo, const float g = 0.0f)
+{
+	const float3 s = sqrt((1 - Albedo) / (1.0f - Albedo * g));
+	const float3 BaseColor = ((1.0f - s) * (1 - 0.139 * s)) / (1.0f + 1.17 * s);
+	return BaseColor;
+}
+float3 GetAlbedoFromBaseColor(const float3 BaseColor, const float g = 0.0f)
+{
+	const float3 s = 4.09712 + 4.20863 * BaseColor - sqrt(9.59217 + 41.6808 * BaseColor + 17.7126 * BaseColor * BaseColor);
+	const float3 Albedo = (1.0f - s * s) / (1.0f - g * s * s);
+	return Albedo;
+}
 
 // The mean free path must be in meters
 FParticipatingMedia CreateMediumFromAlbedoMFP(float3 Albedo, float3 MeanFreePathMeters)
 {
 	FParticipatingMedia PM = (FParticipatingMedia)0;
 	PM.Albedo = Albedo;
+	PM.BaseColor = GetBaseColorFromAlbedo(Albedo);
 	PM.MeanFreePath = MeanFreePathMeters;
 	PM.ExtinctionCoef = 1.0f / max(PARTICIPATING_MEDIA_MIN_MFP_METER, PM.MeanFreePath);
-	PM.ScatteringCoef = Albedo * PM.ExtinctionCoef;
+	PM.ScatteringCoef = PM.Albedo * PM.ExtinctionCoef;
 	PM.AbsorptionCoef = max(0.0f, PM.ExtinctionCoef - PM.ScatteringCoef);
 	return PM;
 }
+
+// The mean free path must be in meters
+FParticipatingMedia CreateMediumFromBaseColorMFP(float3 BaseColor, float3 MeanFreePathMeters)
+{
+	FParticipatingMedia PM = (FParticipatingMedia)0;
+	PM.Albedo = GetAlbedoFromBaseColor(BaseColor);
+	PM.BaseColor = BaseColor;
+	PM.MeanFreePath = MeanFreePathMeters;
+	PM.ExtinctionCoef = 1.0f / max(PARTICIPATING_MEDIA_MIN_MFP_METER, PM.MeanFreePath);
+	PM.ScatteringCoef = PM.Albedo * PM.ExtinctionCoef;
+	PM.AbsorptionCoef = max(0.0f, PM.ExtinctionCoef - PM.ScatteringCoef);
+	return PM;
+}
+
+
+
+//---------------------------------------------
+// Phase functions
+//---------------------------------------------
 
 float IsotropicPhase()
 {
@@ -89,6 +133,12 @@ float4 ImportanceSampleHenyeyGreensteinPhase(float2 E, float G)
 
 	return float4(H, HenyeyGreensteinPhase(G, CosTheta));
 }
+
+
+
+//---------------------------------------------
+// Utilities
+//---------------------------------------------
 
 float3 TransmittanceToExtinction(in float3 TransmittanceColor, in float ThicknessMeters)
 {

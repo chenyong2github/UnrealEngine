@@ -35,9 +35,9 @@
 
 #define STRATA_INLINE_SINGLELAYERWATER (PROJECT_STRATA && MATERIAL_IS_STRATA && STRATA_INLINE_SHADING && MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
-// We do all the simple volumetric math considering a slab of 1 centimeter = 0.01 meter.
+// Behind the scene, we do all the simple volumetric lighting & transmitance computations considering a slab of 100 centimeters = 1 meter.
 // If the user specifies a different thickness to simulate varying appearance, we rescale the mean free path in order to not have to store thickness as part of the BSDF description.
-#define STRATA_SIMPLEVOLUME_THICKNESS_CM	1.0f
+#define STRATA_SIMPLEVOLUME_THICKNESS_CM	100.0f
 #define STRATA_CENTIMETER_TO_METER			0.01f
 #define STRATA_METER_TO_CENTIMETER			100.0f
 #define STRATA_SIMPLEVOLUME_THICKNESS_M		(STRATA_SIMPLEVOLUME_THICKNESS_CM * STRATA_CENTIMETER_TO_METER)
@@ -957,7 +957,7 @@ void StrataSanitizeBSDF(inout FStrataBSDF BSDF)
 FParticipatingMedia StrataSlabCreateParticipatingMedia(float3 DiffuseColor, float3 MeanFreePathCentimeters)
 {
 	const float3 MeanFreePathMeters = MeanFreePathCentimeters * STRATA_CENTIMETER_TO_METER;
-	return CreateMediumFromAlbedoMFP(DiffuseColor, MeanFreePathMeters);
+	return CreateMediumFromBaseColorMFP(DiffuseColor, MeanFreePathMeters);
 }
 
 float StrataSlabDiffuseToVolumeBlend(FParticipatingMedia PM)
