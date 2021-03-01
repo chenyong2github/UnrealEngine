@@ -109,6 +109,7 @@ namespace DatasmithRhino.ElementExporters
 						break;
 					case DirectLinkSynchronizationStatus.Synced:
 					case DirectLinkSynchronizationStatus.Hidden:
+					case DirectLinkSynchronizationStatus.Deleted:
 						//Element is synced, nothing to do.
 						break;
 					case DirectLinkSynchronizationStatus.None:
@@ -151,6 +152,7 @@ namespace DatasmithRhino.ElementExporters
 						break;
 					case DirectLinkSynchronizationStatus.Synced:
 					case DirectLinkSynchronizationStatus.Hidden:
+					case DirectLinkSynchronizationStatus.Deleted:
 						//Element is synced, nothing to do.
 						break;
 					case DirectLinkSynchronizationStatus.None:

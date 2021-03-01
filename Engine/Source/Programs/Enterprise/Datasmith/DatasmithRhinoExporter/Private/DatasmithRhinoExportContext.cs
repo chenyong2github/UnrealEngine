@@ -122,7 +122,14 @@ namespace DatasmithRhino
 		/// <returns></returns>
 		public bool RestorePreviousDirectLinkStatus()
 		{
-			if (PreviousDirectLinkStatus != DirectLinkSynchronizationStatus.None)
+			if (InternalDirectLinkStatus == DirectLinkSynchronizationStatus.Hidden)
+			{
+				// We are in hidden state, that means if we want to restore the DatasmithElement it must be flagged as "created".
+				InternalDirectLinkStatus = DirectLinkSynchronizationStatus.Created;
+				PreviousDirectLinkStatus = DirectLinkSynchronizationStatus.None;
+				return true;
+			}
+			else if (PreviousDirectLinkStatus != DirectLinkSynchronizationStatus.None)
 			{
 				InternalDirectLinkStatus = PreviousDirectLinkStatus;
 				PreviousDirectLinkStatus = DirectLinkSynchronizationStatus.None;
