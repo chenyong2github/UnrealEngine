@@ -401,8 +401,10 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 		HandleSelectionChanged();
 		bSelectionChanged = false;
 	}
-	ViewportClient->Invalidate();
-
+	if (IsInLevelEditor() == false)
+	{
+		ViewportClient->Invalidate();
+	}
 	RecalcPivotTransform();
 
 	if (bRecreateGizmosRequired)
