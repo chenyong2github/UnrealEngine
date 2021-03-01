@@ -53,6 +53,7 @@ public:
 	void Initialize(IPlayerSessionServices* PlayerSessionServices);
 
 	virtual ~FPlaylistReaderHLS();
+	virtual void Close() override;
 
 	/**
 	 * Returns the type of playlist format.
@@ -227,7 +228,6 @@ private:
 	using FPlaylistRequestPtr = TSharedPtr<FPlaylistRequest, ESPMode::ThreadSafe>;
 	//using FPlaylistRequestRef = TSharedRef<FPlaylistRequest, ESPMode::ThreadSafe>;
 
-	void Close();
 	void StartWorkerThread();
 	void StopWorkerThread();
 	void WorkerThread(void);
@@ -278,9 +278,9 @@ private:
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-IPlaylistReader* IPlaylistReaderHLS::Create(IPlayerSessionServices* PlayerSessionServices)
+TSharedPtrTS<IPlaylistReader> IPlaylistReaderHLS::Create(IPlayerSessionServices* PlayerSessionServices)
 {
-	FPlaylistReaderHLS* PlaylistReader = new FPlaylistReaderHLS;
+	TSharedPtrTS<FPlaylistReaderHLS> PlaylistReader = MakeSharedTS<FPlaylistReaderHLS>();
 	if (PlaylistReader)
 	{
 		PlaylistReader->Initialize(PlayerSessionServices);

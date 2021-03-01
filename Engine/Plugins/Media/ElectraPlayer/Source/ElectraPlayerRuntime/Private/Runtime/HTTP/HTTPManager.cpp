@@ -6,6 +6,9 @@
 #include "Player/PlayerSessionServices.h"
 #include "HAL/LowLevelMemTracker.h"
 
+// For base64 encoding/decoding
+#include "Misc/Base64.h"
+
 // For file:// scheme archive deserialization
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -52,15 +55,33 @@ namespace Electra
 	private:
 		struct FLocalByteStream
 		{
-			void SetConnected(TSharedPtrTS<FRequest> Request);
-			int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request);
+			virtual ~FLocalByteStream() = default;
+			virtual void SetConnected(TSharedPtrTS<FRequest> Request) = 0;
+			virtual int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request) = 0;
 
-			TSharedPtr<FArchive, ESPMode::ThreadSafe>	Archive;
-			FString										Filename;
 			bool										bIsConnected = false;
 			int64										FileStartOffset = 0;		//!< The base offset into the file data is requested at.
 			int64										FileSize = 0;				//!< The size of the file requested
 			int64										FileSizeToGo = 0;			//!< Number of bytes still to read from the file.
+		};
+
+		struct FFileStream : public FLocalByteStream
+		{
+			virtual ~FFileStream() = default;
+			virtual void SetConnected(TSharedPtrTS<FRequest> Request) override;
+			virtual int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request) override;
+			TSharedPtr<FArchive, ESPMode::ThreadSafe>	Archive;
+			FString										Filename;
+		};
+
+		struct FDataUrl : public FLocalByteStream
+		{
+			virtual ~FDataUrl() = default;
+			bool SetData(const FString& InUrl);
+			virtual void SetConnected(TSharedPtrTS<FRequest> Request) override;
+			virtual int32 Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request) override;
+			TArray<uint8>								Data;
+			FString										MimeType;
 		};
 
 
@@ -119,7 +140,7 @@ namespace Electra
 
 			void Cleanup()
 			{
-				if (HandleType == EHandleType::FileHandle)
+				if (HandleType == EHandleType::LocalHandle)
 				{
 					delete LocalByteStream;
 					LocalByteStream = nullptr;
@@ -185,7 +206,7 @@ namespace Electra
 			enum class EHandleType
 			{
 				Undefined,
-				FileHandle,
+				LocalHandle,
 				HTTPHandle
 			};
 
@@ -193,7 +214,7 @@ namespace Electra
 
 			EHandleType				HandleType = EHandleType::Undefined;
 
-			// Local file handle (for file://)
+			// Local file handle (for file:// and data:)
 			FLocalByteStream*		LocalByteStream = nullptr;
 
 			// HTTP module handle (for http:// and https://)
@@ -398,14 +419,28 @@ namespace Electra
 	{
 		TUniquePtr<FHandle> Handle(new FHandle);
 		Handle->Owner = this;
-		Handle->HandleType = FHandle::EHandleType::FileHandle;
-		Handle->LocalByteStream = new FLocalByteStream;
-		Handle->LocalByteStream->Filename = Request->Parameters.URL.Mid(7); /* file:// */
-		Handle->LocalByteStream->Archive = MakeShareable(IFileManager::Get().CreateFileReader(*Handle->LocalByteStream->Filename));
-		if (!Handle->LocalByteStream->Archive.IsValid())
+		Handle->HandleType = FHandle::EHandleType::LocalHandle;
+		if (Request->Parameters.URL.Left(5).Equals(TEXT("data:")))
 		{
-			OutError.Set(ERRCODE_HTTP_FILE_COULDNT_READ_FILE, FString::Printf(TEXT("Failed to open media file \"%s\""), *Request->Parameters.URL));
-			return nullptr;
+			FDataUrl* DataUrl = new FDataUrl;
+			Handle->LocalByteStream = DataUrl;
+			if (!DataUrl->SetData(Request->Parameters.URL))
+			{
+				OutError.Set(ERRCODE_HTTP_FILE_COULDNT_READ_FILE, FString::Printf(TEXT("Failed to use data URL \"%s\""), *Request->Parameters.URL));
+				return nullptr;
+			}
+		}
+		else
+		{
+			FFileStream* FileStream = new FFileStream;
+			Handle->LocalByteStream = FileStream;
+			FileStream->Filename = Request->Parameters.URL.Mid(7); /* file:// */
+			FileStream->Archive = MakeShareable(IFileManager::Get().CreateFileReader(*FileStream->Filename));
+			if (!FileStream->Archive.IsValid())
+			{
+				OutError.Set(ERRCODE_HTTP_FILE_COULDNT_READ_FILE, FString::Printf(TEXT("Failed to open media file \"%s\""), *Request->Parameters.URL));
+				return nullptr;
+			}
 		}
 		return Handle.Release();
 	}
@@ -436,6 +471,11 @@ namespace Electra
 		Handle->HttpRequest->SetURL(Request->Parameters.URL);
 		Handle->HttpRequest->SetVerb(TEXT("GET"));
 		Handle->HttpRequest->SetHeader(TEXT("User-Agent"), "X-UnrealEngine-Agent");
+		// Set accepted encoding first. If this is also present in custom headers let those overwrite it.
+		if (Request->Parameters.AcceptEncoding.IsSet())
+		{
+			Handle->HttpRequest->SetHeader(TEXT("Accept-Encoding"), Request->Parameters.AcceptEncoding.Value());
+		}
 		for(int32 i=0; i<Request->Parameters.RequestHeaders.Num(); ++i)
 		{
 			Handle->HttpRequest->SetHeader(Request->Parameters.RequestHeaders[i].Header, Request->Parameters.RequestHeaders[i].Value);
@@ -537,7 +577,8 @@ namespace Electra
 			Request->ConnectionInfo.EffectiveURL = Request->Parameters.URL;
 
 			// Is this a local file?
-			if (Request->Parameters.URL.Len() > 7 && Request->Parameters.URL.Left(7) == TEXT("file://"))
+			if ((Request->Parameters.URL.Len() > 7 && Request->Parameters.URL.Left(7) == TEXT("file://")) ||
+				(Request->Parameters.URL.Len() > 5 && Request->Parameters.URL.Left(5) == TEXT("data:")))
 			{
 				FHandle* Handle = CreateLocalFileHandle(Now, HttpError, Request);
 				if (Handle)
@@ -627,24 +668,24 @@ namespace Electra
 					FHandle* Handle = It.Key();
 					It.RemoveCurrent();
 					delete Handle;
-
-					Request->ConnectionInfo.bHasFinished = true;
-					TSharedPtrTS<FReceiveBuffer>	ReceiveBuffer = Request->ReceiveBuffer.Pin();
-					if (ReceiveBuffer.IsValid())
-					{
-						ReceiveBuffer->Buffer.SetEOD();
-					}
-
-					// Call completion delegate.
-					TSharedPtrTS<FProgressListener> ProgressListener = Request->ProgressListener.Pin();
-					if (ProgressListener.IsValid())
-					{
-						if (!ProgressListener->CompletionDelegate.empty())
-						{
-							ProgressListener->CallCompletionDelegate(Request.Get());
-						}
-					}
 					break;
+				}
+			}
+
+			Request->ConnectionInfo.bHasFinished = true;
+			TSharedPtrTS<FReceiveBuffer>	ReceiveBuffer = Request->ReceiveBuffer.Pin();
+			if (ReceiveBuffer.IsValid())
+			{
+				ReceiveBuffer->Buffer.SetEOD();
+			}
+
+			// Call completion delegate.
+			TSharedPtrTS<FProgressListener> ProgressListener = Request->ProgressListener.Pin();
+			if (ProgressListener.IsValid())
+			{
+				if (!ProgressListener->CompletionDelegate.empty())
+				{
+					ProgressListener->CallCompletionDelegate(Request.Get());
 				}
 			}
 		}
@@ -716,7 +757,7 @@ namespace Electra
 			FHandle* Handle = It.Key();
 
 			// Timeout handling for file handles is not desired. Skip to the next handle.
-			if (Handle->HandleType == FHandle::EHandleType::FileHandle)
+			if (Handle->HandleType == FHandle::EHandleType::LocalHandle)
 			{
 				continue;
 			}
@@ -854,7 +895,7 @@ namespace Electra
 		for(TMap<FHandle*, TSharedPtrTS<FRequest>>::TIterator It = ActiveRequests.CreateIterator(); It; ++It)
 		{
 			FHandle* Handle = It.Key();
-			if (Handle->HandleType == FHandle::EHandleType::FileHandle && Handle->LocalByteStream)
+			if (Handle->HandleType == FHandle::EHandleType::LocalHandle && Handle->LocalByteStream)
 			{
 				TSharedPtrTS<FRequest> Request = It.Value();
 				// Establish the file handle as "connected"
@@ -1059,8 +1100,16 @@ namespace Electra
 							// Result needs to be "206 - partial content" and a content range header must be present.
 							if (ci.StatusInfo.HTTPStatus != 206 || ci.ContentRangeHeader.IsEmpty())
 							{
-								// Note that we did not receive what we thought to get. This gets checked for below.
-								ci.bResponseNotRanged = true;
+								// We allow a 200 response as long as the content size matches the number of bytes we have requested.
+								if (ci.StatusInfo.HTTPStatus == 200 && ci.ContentLength == Request->Parameters.Range.GetNumberOfBytes())
+								{
+									// This primarily supports ISO/IEC-23009-1 Annex E
+								}
+								else
+								{
+									// Note that we did not receive what we thought to get. This gets checked for below.
+									ci.bResponseNotRanged = true;
+								}
 							}
 						}
 					}
@@ -1280,7 +1329,7 @@ namespace Electra
 
 
 
-	void FElectraHttpManager::FLocalByteStream::SetConnected(TSharedPtrTS<FRequest> Request)
+	void FElectraHttpManager::FFileStream::SetConnected(TSharedPtrTS<FRequest> Request)
 	{
 		if (!bIsConnected)
 		{
@@ -1341,7 +1390,7 @@ namespace Electra
 		}
 	}
 
-	int32 FElectraHttpManager::FLocalByteStream::Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request)
+	int32 FElectraHttpManager::FFileStream::Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request)
 	{
 		// How much room do we have in the buffer?
 		int32 blkAv1, blkAv2;
@@ -1367,6 +1416,126 @@ namespace Electra
 		FileSizeToGo -= NumToRead;
 		return NumToRead;
 	}
+
+
+	bool FElectraHttpManager::FDataUrl::SetData(const FString& InUrl)
+	{
+		// See https://en.wikipedia.org/wiki/Data_URI_scheme
+		int32 CommaPos = INDEX_NONE;
+		if (InUrl.FindChar(TCHAR(','), CommaPos))
+		{
+			FString MediaType = InUrl.Mid(5, CommaPos-5);
+			// Base64 encoded?
+			bool bIsBase64Encoded = MediaType.EndsWith(TEXT(";base64"), ESearchCase::CaseSensitive);
+			MimeType = bIsBase64Encoded ? MediaType.LeftChop(7) : MediaType;
+			if (MimeType.IsEmpty())
+			{
+				MimeType = TEXT("text/plain;charset=US-ASCII");
+			}
+			if (bIsBase64Encoded)
+			{
+				if (FBase64::Decode(InUrl.Mid(CommaPos + 1), Data))
+				{
+					return true;
+				}
+			}
+			else
+			{
+				// The data is 8 bit plain text. We need to convert it back.
+				FTCHARToUTF8 cnv(*InUrl + CommaPos + 1);
+				Data.AddUninitialized(cnv.Length());
+				FMemory::Memcpy(Data.GetData(), cnv.Get(), cnv.Length());
+				return true;
+			}
+		}
+		return false;
+	}
+
+	void FElectraHttpManager::FDataUrl::SetConnected(TSharedPtrTS<FRequest> Request)
+	{
+		if (!bIsConnected)
+		{
+			bIsConnected = true;
+			// Go through the notions of this being a network request.
+			Request->ConnectionInfo.bIsConnected = true;
+			Request->ConnectionInfo.bHaveResponseHeaders = true;
+			Request->ConnectionInfo.ContentType = MimeType;
+			Request->ConnectionInfo.EffectiveURL.Empty();	// There is no actual URL with a data url.
+			Request->ConnectionInfo.HTTPVersionReceived = 11;
+			Request->ConnectionInfo.bIsChunked = false;
+
+			// Range request?
+			if (!Request->Parameters.Range.IsSet())
+			{
+				Request->ConnectionInfo.ContentLength = Data.Num();
+				Request->ConnectionInfo.StatusInfo.HTTPStatus = 200;
+				FileStartOffset = 0;
+				FileSize = Data.Num();
+				FileSizeToGo = FileSize;
+				Request->ConnectionInfo.ContentLengthHeader = FString::Printf(TEXT("Content-Length: %lld"), (long long int)FileSize);
+			}
+			else
+			{
+				int64 fs = Data.Num();
+				int64 off = 0;
+				int64 end = fs - 1;
+				// For now we support partial data only from the beginning of the file, not the end (aka, seek_set and not seek_end)
+				check(Request->Parameters.Range.Start >= 0);
+				if (Request->Parameters.Range.Start >= 0)
+				{
+					off = Request->Parameters.Range.Start;
+					if (off < fs)
+					{
+						end = Request->Parameters.Range.EndIncluding;
+						if (end < 0 || end >= fs)
+						{
+							end = fs - 1;
+						}
+						int64 numBytes = end - off + 1;
+
+						Request->ConnectionInfo.ContentLength = numBytes;
+						Request->ConnectionInfo.StatusInfo.HTTPStatus = 206;
+						FileStartOffset = off;
+						FileSize = Data.Num();
+						FileSizeToGo = numBytes;
+						Request->ConnectionInfo.ContentLengthHeader = FString::Printf(TEXT("Content-Length: %lld"), (long long int)numBytes);
+						Request->ConnectionInfo.ContentRangeHeader = FString::Printf(TEXT("Content-Range: bytes %lld-%lld/%lld"), (long long int)off, (long long int)end, (long long int)fs);
+					}
+					else
+					{
+						Request->ConnectionInfo.StatusInfo.HTTPStatus = 416;		// Range not satisfiable
+						Request->ConnectionInfo.ContentRangeHeader = FString::Printf(TEXT("Content-Range: bytes */%lld"), (long long int)fs);
+					}
+				}
+			}
+		}
+	}
+
+	int32 FElectraHttpManager::FDataUrl::Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request)
+	{
+		// Not to be used with ring buffers yet.
+		check(!RcvBuffer->bEnableRingbuffer);
+		if (!RcvBuffer->bEnableRingbuffer)
+		{
+			if (RcvBuffer->Buffer.EnlargeTo(FileSizeToGo))
+			{
+				if (RcvBuffer->Buffer.PushData(Data.GetData() + FileStartOffset, FileSizeToGo))
+				{
+					Request->ConnectionInfo.BytesReadSoFar += FileSizeToGo;
+				}
+			}
+			int32 NumRead = (int32) FileSizeToGo;
+			FileSizeToGo = 0;
+			return NumRead;
+		}
+		else
+		{
+			// Pretend we read everything so this transfer will end.
+			return FileSizeToGo;
+		}
+	}
+
+
 
 
 

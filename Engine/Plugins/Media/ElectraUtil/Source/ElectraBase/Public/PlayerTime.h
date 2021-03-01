@@ -33,6 +33,21 @@ public:
 		return kPosInf;
 	}
 
+	static int64 MillisecondsToHNS(int64 InMilliseconds)
+	{
+		return InMilliseconds * 10000;
+	}
+
+	static int64 MicrosecondsToHNS(int64 InMicroseconds)
+	{
+		return InMicroseconds * 10;
+	}
+
+	static int64 NinetykHzToHNS(int64 In90kHz)
+	{
+		return In90kHz * 1000 / 9;
+	}
+
 	FTimeValue()
 		: HNS(0)
 		, bIsValid(false)
@@ -55,6 +70,18 @@ public:
 		return *this;
 	}
 
+	explicit FTimeValue(int64 InHNS) : HNS(InHNS), bIsValid(true), bIsInfinity(false)
+	{
+	}
+	explicit FTimeValue(double Seconds)
+	{
+		SetFromSeconds(Seconds);
+	}
+	explicit FTimeValue(int64 Numerator, uint32 Denominator)
+	{
+		SetFromND(Numerator, Denominator);
+	}
+
 	bool IsValid() const
 	{
 		return bIsValid;
@@ -64,6 +91,17 @@ public:
 	{
 		return bIsInfinity;
 	}
+
+	bool IsPositiveInfinity() const
+	{
+		return bIsInfinity && HNS >= 0;
+	}
+
+	bool IsNegativeInfinity() const
+	{
+		return bIsInfinity && HNS < 0;
+	}
+
 
 	double GetAsSeconds(double DefaultIfInvalid=0.0) const
 	{
@@ -223,13 +261,14 @@ public:
 
 	FTimeValue& SetFromTimeFraction(const FTimeFraction& TimeFraction);
 
-
+	#if 0
 	FTimeValue& AdvanceBySeconds(double Seconds)
 	{
 		FTimeValue tv;
 		tv.SetFromSeconds(Seconds);
 		return operator += (tv);
 	}
+	#endif
 
 
 	bool operator == (const FTimeValue& rhs) const
@@ -414,13 +453,6 @@ public:
 	}
 
 private:
-	explicit FTimeValue(int64 InHNS) : HNS(InHNS), bIsValid(true), bIsInfinity(false)
-	{
-	}
-	explicit FTimeValue(double Seconds)
-	{
-		SetFromSeconds(Seconds);
-	}
 
 	int64	HNS;
 	bool	bIsValid;
@@ -476,6 +508,12 @@ public:
 	{
 	}
 
+	FTimeFraction(const FTimeValue& tv)
+	{
+		SetFromTimeValue(tv);
+	}
+
+
 	FTimeFraction& operator=(const FTimeFraction& rhs)
 	{
 		Numerator   = rhs.Numerator;
@@ -517,6 +555,23 @@ public:
 		Numerator   = InNumerator;
 		Denominator = InDenominator;
 		bIsValid	= true;
+		return *this;
+	}
+
+	FTimeFraction& SetFromTimeValue(const FTimeValue& tv)
+	{
+		if (tv.IsValid())
+		{
+			Numerator = tv.GetAsHNS();
+			Denominator = tv.IsInfinity() ? 0 : 10000000;
+			bIsValid = true;
+		}
+		else
+		{
+			Numerator = 0;
+			Denominator = 0;
+			bIsValid = false;
+		}
 		return *this;
 	}
 

@@ -47,43 +47,6 @@ FStreamSegmentRequestHLSfmp4::~FStreamSegmentRequestHLSfmp4()
 }
 
 
-void FStreamSegmentRequestHLSfmp4::CopyFrom(const FStreamSegmentRequestHLSfmp4& rhs)
-{
-	URL 						 = rhs.URL;
-	Range		  				 = rhs.Range;
-	StreamType  				 = rhs.StreamType;
-	StreamUniqueID  			 = rhs.StreamUniqueID;
-	Bitrate 					 = rhs.Bitrate;
-	QualityLevel				 = rhs.QualityLevel;
-	Representation  			 = rhs.Representation;
-	AdaptationSet   			 = rhs.AdaptationSet;
-	MediaAsset  				 = rhs.MediaAsset;
-	CDN 						 = rhs.CDN;
-	//PlaylistRelativeStartTime  = rhs.PlaylistRelativeStartTime;
-	AbsoluteDateTime			 = rhs.AbsoluteDateTime;
-	SegmentDuration 			 = rhs.SegmentDuration;
-	MediaSequence   			 = rhs.MediaSequence;
-	DiscontinuitySequence   	 = rhs.DiscontinuitySequence;
-	LocalIndex  				 = rhs.LocalIndex;
-	FirstAUTimeOffset   		 = rhs.FirstAUTimeOffset;
-	bIsPrefetch 				 = rhs.bIsPrefetch;
-	bIsEOSSegment   			 = rhs.bIsEOSSegment;
-	bHasEncryptedSegments   	 = rhs.bHasEncryptedSegments;
-	NumOverallRetries   		 = rhs.NumOverallRetries;
-	bInsertFillerData   		 = rhs.bInsertFillerData;
-	InitSegmentCache			 = rhs.InitSegmentCache;
-	InitSegmentInfo 			 = rhs.InitSegmentInfo;
-	DependentStreams			 = rhs.DependentStreams;
-	bIsInitialStartRequest  	 = rhs.bIsInitialStartRequest;
-	PlayerLoopState 			 = rhs.PlayerLoopState;
-	CurrentPlaybackSequenceID    = rhs.CurrentPlaybackSequenceID;
-	DownloadStats   			 = rhs.DownloadStats;
-	ConnectionInfo  			 = rhs.ConnectionInfo;
-	NextLargestExpectedTimestamp = rhs.NextLargestExpectedTimestamp;
-}
-
-
-
 void FStreamSegmentRequestHLSfmp4::SetPlaybackSequenceID(uint32 PlaybackSequenceID)
 {
 	CurrentPlaybackSequenceID = PlaybackSequenceID;
@@ -167,9 +130,7 @@ UEMediaError FStreamReaderHLSfmp4::Create(IPlayerSessionServices* InPlayerSessio
 {
 	PlayerSessionService = InPlayerSessionService;
 
-	if (!InCreateParam.MemoryProvider ||
-		!InCreateParam.EventListener ||
-		!InCreateParam.PlayerSessionService)
+	if (!InCreateParam.MemoryProvider || !InCreateParam.EventListener)
 	{
 		return UEMEDIA_ERROR_BAD_ARGUMENTS;
 	}
@@ -183,9 +144,6 @@ UEMediaError FStreamReaderHLSfmp4::Create(IPlayerSessionServices* InPlayerSessio
 		StreamHandlers[i].bRequestCanceled     = false;
 		StreamHandlers[i].bHasErrored   	   = false;
 
-		StreamHandlers[i].ThreadSetPriority(StreamHandlers[i].Parameters.ReaderConfig.ThreadParam.Priority);
-		StreamHandlers[i].ThreadSetCoreAffinity(StreamHandlers[i].Parameters.ReaderConfig.ThreadParam.CoreAffinity);
-		StreamHandlers[i].ThreadSetStackSize(StreamHandlers[i].Parameters.ReaderConfig.ThreadParam.StackSize);
 		StreamHandlers[i].ThreadSetName(i==0?"ElectraPlayer::fmp4 Video":"ElectraPlayer::fmp4 Audio");
 		StreamHandlers[i].ThreadStart(Electra::MakeDelegate(&StreamHandlers[i], &FStreamHandler::WorkerThread));
 	}
@@ -313,16 +271,6 @@ IStreamReader::EAddResult FStreamReaderHLSfmp4::AddRequest(uint32 CurrentPlaybac
 		Handler->SignalWork();
 	}
 	return IStreamReader::EAddResult::Added;
-}
-
-void FStreamReaderHLSfmp4::PauseDownload()
-{
-	// Download will not be paused. The pending segment will complete downloading.
-}
-
-void FStreamReaderHLSfmp4::ResumeDownload()
-{
-	// Since we do not pause we also do not resume.
 }
 
 void FStreamReaderHLSfmp4::CancelRequests()
@@ -661,8 +609,7 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 //		 Presently the assumption is that the init segment is not encrypted.
 
 				TSharedPtrTS<IParserISO14496_12> InitSegmentParser = IParserISO14496_12::CreateParser();
-				FParamDict parseOptions;
-				UEMediaError parseError = InitSegmentParser->ParseHeader(this, this, parseOptions, Parameters.PlayerSessionService);
+				UEMediaError parseError = InitSegmentParser->ParseHeader(this, this, PlayerSessionService);
 				if (parseError == UEMEDIA_ERROR_OK || parseError == UEMEDIA_ERROR_END_OF_STREAM)
 				{
 					// Parse the tracks of the init segment. We do this mainly to get to the CSD we might need should we have to insert filler data later.
@@ -743,6 +690,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	ds.URL  			= Request->URL;
 	ds.CDN  			= Request->CDN;
 	ds.RetryNumber  	= Request->NumOverallRetries;
+	ds.ABRState.Reset();
 
 	bIsEmptyFillerSegment = Request->bInsertFillerData;
 
@@ -755,6 +703,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	bAbortedByABR   	   = false;
 	bAllowEarlyEmitting    = false;
 	bFillRemainingDuration = false;
+	DurationSuccessfullyRead.SetToZero();
 	DurationSuccessfullyDelivered.SetToZero();
 	AccessUnitFIFO.Clear();
 
@@ -797,7 +746,6 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 
 	FTimeValue NextExpectedDTS;
 	FTimeValue DiscardBefore(FTimeValue::GetZero());
-	FTimeValue DurationSuccessfullyRead(FTimeValue::GetZero());
 	FTimeValue LastKnownAUDuration;
 	if (!bIsEmptyFillerSegment)
 	{
@@ -927,7 +875,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				bool bIsFirstAU = true;
 				while(!bDone && !HasErrored() && !HasReadBeenAborted())
 				{
-					UEMediaError parseError = MP4Parser->ParseHeader(this, this, Parameters.Options, Parameters.PlayerSessionService);
+					UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionService);
 					if (parseError == UEMEDIA_ERROR_OK)
 					{
 						parseError = MP4Parser->PrepareTracks(MP4InitSegment);
@@ -942,8 +890,8 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 								if (Track)
 								{
 									CSD->CodecSpecificData = Track->GetCodecSpecificData();
-									CSD->RawCSD			= Track->GetCodecSpecificDataRAW();
-									CSD->ParsedInfo 		= Track->GetCodecInformation();
+									CSD->RawCSD = Track->GetCodecSpecificDataRAW();
+									CSD->ParsedInfo = Track->GetCodecInformation();
 
 									// TODO: Check that the track format matches the one we're expecting (video, audio, etc)
 									IParserISO14496_12::ITrackIterator* TrackIterator = Track->CreateIterator();
@@ -964,17 +912,6 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 										// Get the DTS and PTS. Those are 0-based in a fragment and offset by the base media decode time of the fragment.
 										DTS.SetFromND(TrackIterator->GetDTS(), TrackIterator->GetTimescale());
 										PTS.SetFromND(TrackIterator->GetPTS(), TrackIterator->GetTimescale());
-
-										#if 0
-										MEDIAdbg::Printf("[%s] %lld/%d/%u: DTS=%lld, PTS=%lld, dur=%lld, scale=%u, sync:%d, size=%lld, off=%lld\n", GetStreamTypeName(Request->GetType()), (long long int)Request->MediaSequence, NumMOOFBoxesFound, TrackIterator->GetSampleNumber(),
-											(long long int)TrackIterator->GetDTS(),
-											(long long int)TrackIterator->GetPTS(),
-											(long long int)TrackIterator->GetDuration(),
-											TrackIterator->GetTimescale(),
-											TrackIterator->IsSyncSample()?1:0,
-											(long long int)TrackIterator->GetSampleSize(),
-											(long long int)TrackIterator->GetSampleFileOffset());
-										#endif
 
 										// Create access unit
 										FAccessUnit *AccessUnit = FAccessUnit::Create(Parameters.MemoryProvider);
@@ -1010,10 +947,6 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 
 										//AccessUnit->StreamSourceInfo = ....;
 										AccessUnit->PlayerLoopState = PlayerLoopState;
-
-										// Update the current download stats which we report periodically to the ABR.
-										ds.DurationDownloaded = DurationSuccessfullyRead.GetAsSeconds();
-										ds.DurationDelivered  = DurationSuccessfullyDelivered.GetAsSeconds();
 
 										// There should not be any gaps!
 								// TODO: what if there are?
@@ -1179,7 +1112,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 					{
 						int64 n = 1024;
 						uint32 d = 48000;
-						if (CSD->ParsedInfo.GetSamplingRate())
+						if (CSD.IsValid() && CSD->ParsedInfo.GetSamplingRate())
 						{
 							d = (uint32) CSD->ParsedInfo.GetSamplingRate();
 							switch(CSD->ParsedInfo.GetCodec())
@@ -1206,14 +1139,22 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 			while(SegmentDurationToGo > FTimeValue::GetZero())
 			{
 				FAccessUnit *AccessUnit = FAccessUnit::Create(Parameters.MemoryProvider);
-				check(AccessUnit);
+				if (!AccessUnit)
+				{
+					break;
+				}
+				if (DefaultDuration > SegmentDurationToGo)
+				{
+					DefaultDuration = SegmentDurationToGo;
+				}
 
-				AccessUnit->ESType	   = Request->GetType();
-				AccessUnit->Duration     = DefaultDuration;
-				AccessUnit->AUSize	   = 0;
-				AccessUnit->AUData      = nullptr;
+				AccessUnit->ESType = Request->GetType();
+				AccessUnit->Duration = DefaultDuration;
+				AccessUnit->AUSize = 0;
+				AccessUnit->AUData = nullptr;
 				AccessUnit->bIsDummyData = true;
-				if (CSD->CodecSpecificData.Num())
+				AccessUnit->PlayerLoopState = PlayerLoopState;
+				if (CSD.IsValid() && CSD->CodecSpecificData.Num())
 				{
 					AccessUnit->AUCodecData = CSD;
 				}
@@ -1230,8 +1171,6 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				AccessUnit->PTS = NextExpectedDTS;
 
 				NextExpectedDTS += DefaultDuration;
-				// It is possible for the default duration to not be a whole integer multiple of the segment duration
-				// in which case we leave a short gap unfilled.
 				SegmentDurationToGo -= DefaultDuration;
 
 				// Add to the FIFO. We do not need to check for early emitting here as we are not waiting for any
@@ -1342,6 +1281,8 @@ int64 FStreamReaderHLSfmp4::FStreamHandler::ReadData(void* IntoBuffer, int64 Num
 			{
 				MetricUpdateLock.Lock();
 				Metrics::FSegmentDownloadStats currentDownloadStats = CurrentRequest->DownloadStats;
+				currentDownloadStats.DurationDownloaded = DurationSuccessfullyRead.GetAsSeconds();
+				currentDownloadStats.DurationDelivered  = DurationSuccessfullyDelivered.GetAsSeconds();
 				MetricUpdateLock.Unlock();
 
 				Metrics::FSegmentDownloadStats& ds = CurrentRequest->DownloadStats;

@@ -15,6 +15,7 @@
 #include "Player/PlayerStreamReader.h"
 #include "Player/PlaylistReader.h"
 #include "Player/PlayerStreamFilter.h"
+#include "Player/PlayerEntityCache.h"
 
 #include "InfoLog.h"
 
@@ -689,6 +690,9 @@ private:
 	virtual TSharedPtrTS<IAdaptiveStreamSelector> GetStreamSelector() override;
 	virtual void GetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream) override;
 	virtual IPlayerStreamFilter* GetStreamFilter() override;
+	virtual	TSharedPtrTS<IPlaylistReader> GetManifestReader() override;
+	virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() override;
+	virtual FParamDict& GetOptions() override;
 
 	// Methods from IPlayerStreamFilter
 	virtual bool CanDecodeStream(const FStreamCodecInformation& InStreamCodecInfo) const override;
@@ -1184,9 +1188,6 @@ private:
 
 	void FeedDecoder(EStreamType Type, FMultiTrackAccessUnitBuffer& FromMultistreamBuffer, IAccessUnitBufferInterface* Decoder);
 
-	void PauseStreamReaders();
-	void ResumeStreamReaders();
-
 	bool InternalStartAt(const FSeekParam& NewPosition);
 	void InternalPause();
 	void InternalResume();
@@ -1281,12 +1282,14 @@ private:
 	TSharedPtrTS<FMediaRenderClock>										RenderClock;
 
 	TSharedPtrTS<IElectraHttpManager>									HttpManager;
+	TSharedPtrTS<IPlayerEntityCache>									EntityCache;
+
 
 	TMediaQueueDynamic<TSharedPtrTS<FErrorDetail>>						ErrorQueue;
 
 	TSharedPtrTS<IPlaybackAssetTimeline>								CurrentTimeline;
 	TSharedPtrTS<IManifest>												Manifest;
-	IPlaylistReader*													ManifestReader;
+	TSharedPtrTS<IPlaylistReader>										ManifestReader;
 
 	IStreamReader*														StreamReaderHandler;
 	TMediaOptionalValue<bool> 											bHaveVideoReader;

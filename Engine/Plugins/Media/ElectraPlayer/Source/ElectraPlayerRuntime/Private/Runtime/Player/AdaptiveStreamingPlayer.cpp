@@ -52,7 +52,6 @@ FAdaptiveStreamingPlayer::FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlaye
 	StreamReaderHandler     = nullptr;
 	bRebufferPending   	    = false;
 	Manifest  				= nullptr;
-	ManifestReader			= nullptr;
 	LastBufferingState 		= EPlayerState::eState_Buffering;
 	bIsPlayStart   			= true;
 	bIsClosing 				= false;
@@ -176,6 +175,9 @@ bool FAdaptiveStreamingPlayer::Initialize(const FParamDict& Options)
 
 	// Get the HTTP manager. This is a shared instance for all players.
 	HttpManager = IElectraHttpManager::Create();
+
+	// Create an entity cache.
+	EntityCache = IPlayerEntityCache::Create(this, Options);
 
 	// Create the ABR stream selector.
 	StreamSelector = IAdaptiveStreamSelector::Create(this, PlayerConfig.StreamSelectorConfig);
@@ -795,6 +797,21 @@ TSharedPtrTS<IAdaptiveStreamSelector> FAdaptiveStreamingPlayer::GetStreamSelecto
 	return StreamSelector;
 }
 
+TSharedPtrTS<IPlaylistReader> FAdaptiveStreamingPlayer::GetManifestReader()
+{
+	return ManifestReader;
+}
+
+TSharedPtrTS<IPlayerEntityCache> FAdaptiveStreamingPlayer::GetEntityCache()
+{
+	return EntityCache;
+}
+
+FParamDict& FAdaptiveStreamingPlayer::GetOptions()
+{
+	return PlayerOptions;
+}
+
 void FAdaptiveStreamingPlayer::GetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream)
 {
 	FMediaCriticalSection::ScopedLock lock(DiagnosticsCriticalSection);
@@ -1024,36 +1041,6 @@ void FAdaptiveStreamingPlayer::OnFragmentClose(TSharedPtrTS<IStreamSegment> pReq
 
 //-----------------------------------------------------------------------------
 /**
- * Pauses the stream readers.
- */
-void FAdaptiveStreamingPlayer::PauseStreamReaders()
-{
-	if (StreamReaderHandler)
-	{
-		StreamReaderHandler->PauseDownload();
-	}
-}
-
-//-----------------------------------------------------------------------------
-/**
- * Resumes the stream readers
- */
-void FAdaptiveStreamingPlayer::ResumeStreamReaders()
-{
-	if (StreamReaderHandler)
-	{
-		StreamReaderHandler->ResumeDownload();
-	}
-}
-
-
-
-
-
-
-
-//-----------------------------------------------------------------------------
-/**
  * Worker thread.
  */
 void FAdaptiveStreamingPlayer::WorkerThreadFN()
@@ -1127,6 +1114,10 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 					{
 						// Stop everything.
 						InternalStop(PlayerConfig.bHoldLastFrameDuringSeek);
+						if (Manifest.IsValid())
+						{
+							Manifest->UpdateDynamicRefetchCounter();
+						}
 						CurrentState = EPlayerState::eState_Seeking;
 						bool bOk = InternalStartAt(StartAtTime);
 					}
@@ -1186,7 +1177,7 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 						case EStreamType::Audio:
 							InitialStreamSelectionAud = MakeShared<FStreamMetadata, ESPMode::ThreadSafe>(msg.Data.TrackSelection.StreamMetadata);
 							// For media with multiplexed tracks we can switch to a different track pretty much immediately.
-							if (ManifestReader && ManifestReader->GetPlaylistType() == "mp4")
+							if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
 							{
 								// Only select audio for now.
 								if (InitialStreamSelectionAud.IsValid())
@@ -1212,7 +1203,7 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 						case EStreamType::Audio:
 							InitialStreamSelectionAud.Reset();
 							// For media with multiplexed tracks we can switch to a different track pretty much immediately.
-							if (ManifestReader && ManifestReader->GetPlaylistType() == "mp4")
+							if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
 							{
 								MultiStreamBufferAud.Deselect();
 							}
@@ -1341,6 +1332,8 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 			HandleDeselectedBuffers();
 			// Handle decoder changes
 			HandleDecoderChanges();
+			// Handle entity cache expirations.
+			EntityCache->HandleEntityExpiration();
 		}
 	}
 
@@ -1412,7 +1405,7 @@ void FAdaptiveStreamingPlayer::HandleSessionMessage(TSharedPtrTS<IPlayerMessage>
 	// Playlist fetched & parsed?
 	else if (SessionMessage->GetType() == IPlaylistReader::PlaylistLoadedMessage::Type())
 	{
-		if (ManifestReader)
+		if (ManifestReader.IsValid())
 		{
 			IPlaylistReader::PlaylistLoadedMessage* pMsg = static_cast<IPlaylistReader::PlaylistLoadedMessage *>(SessionMessage.Get());
 			const FErrorDetail& Result = pMsg->GetResult();
@@ -1551,7 +1544,7 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 			// When we are dealing with a single multiplexed stream and one buffer is blocked then essentially all buffers
 			// must be considered blocked since demuxing cannot continue.
 			// FIXME: do this more elegant somehow
-			if (ManifestReader && ManifestReader->GetPlaylistType() == "mp4")
+			if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
 			{
 				if (VideoBufferStats.StreamBuffer.bLastPushWasBlocked ||
 					AudioBufferStats.StreamBuffer.bLastPushWasBlocked)
@@ -1857,7 +1850,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 						StreamSelector->SetCurrentPlaybackPeriod(CurrentPlayPeriod);
 
 						// Single stream mp4 files cannot switch streams. Failures need to retry the same file.
-						if (ManifestReader && ManifestReader->GetPlaylistType() == "mp4")
+						if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
 						{
 							StreamSelector->SetCanSwitchToAlternateStreams(false);
 						}
@@ -1970,7 +1963,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 			}
 
 			// Get the expected stream types from the starting segment request.
-		// FIXME: get rid of the "mbHave...XYZ...Reader" states to become more flexible with dynamic stream selection (enabling/disabling) during playback.
+		// FIXME: get rid of the "bHave...XYZ...Reader" states to become more flexible with dynamic stream selection (enabling/disabling) during playback.
 			bHaveVideoReader.Set(false);
 			bHaveAudioReader.Set(false);
 			bHaveTextReader.Set(false);
@@ -2061,20 +2054,15 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 				break;
 			}
 
-			FParamDict Options;
 			TSharedPtrTS<IStreamSegment> pNext;
 			IManifest::FResult Result;
 			if (Action == IAdaptiveStreamSelector::ESegmentAction::FetchNext)
 			{
-				Result = CurrentPlayPeriod->GetNextSegment(pNext, FinishedReq.Request, Options);
+				Result = CurrentPlayPeriod->GetNextSegment(pNext, FinishedReq.Request);
 			}
 			else if (Action == IAdaptiveStreamSelector::ESegmentAction::Retry || Action == IAdaptiveStreamSelector::ESegmentAction::Fill)
 			{
-				if (Action == IAdaptiveStreamSelector::ESegmentAction::Fill)
-				{
-					Options.Set("insertFiller", FVariantValue(true));
-				}
-				Result = CurrentPlayPeriod->GetRetrySegment(pNext, FinishedReq.Request, Options);
+				Result = CurrentPlayPeriod->GetRetrySegment(pNext, FinishedReq.Request, Action == IAdaptiveStreamSelector::ESegmentAction::Fill);
 			}
 			switch(Result.GetType())
 			{
@@ -2092,6 +2080,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 				}
 				case IManifest::FResult::EType::PastEOS:
 				{
+// TODO: move to next period, if any.
 					// Get the dependent stream types, if any.
 					// This is mainly for multiplexed streams like an .mp4 at this point.
 					// All stream types have reached EOS now.
@@ -2230,10 +2219,10 @@ void FAdaptiveStreamingPlayer::CheckForErrors()
 				DispatchEvent(FMetricEvent::ReportError(LastErrorDetail));
 			}
 			// In error state we do not need any periodic manifest refetches any more.
-			if (ManifestReader)
+			if (ManifestReader.IsValid())
 			{
-				delete ManifestReader;
-				ManifestReader = nullptr;
+				ManifestReader->Close();
+				ManifestReader.Reset();
 			}
 		}
 	}
@@ -2666,7 +2655,7 @@ bool FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	UpdateDataAvailabilityState(DataAvailabilityStateTxt, Metrics::FDataAvailabilityChange::EAvailability::DataNotAvailable);
 
 	// For an mp4 file we expect several audio tracks to be available and select the one matching the selected index, if there is one.
-	if (ManifestReader && ManifestReader->GetPlaylistType() == "mp4")
+	if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
 	{
 		// Only select audio for now.
 		if (InitialStreamSelectionAud.IsValid())
@@ -2700,11 +2689,8 @@ bool FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	StreamReaderHandler = Manifest->CreateStreamReaderHandler();
 	check(StreamReaderHandler);
 	IStreamReader::CreateParam srhParam;
-//	srhParam.mParam.ReaderConfig    = mConfig.mReader;
-	srhParam.Options = PlayerOptions;
 	srhParam.EventListener  = this;
 	srhParam.MemoryProvider = this;
-	srhParam.PlayerSessionService = this;
 	if (StreamReaderHandler->Create(this, srhParam) != UEMEDIA_ERROR_OK)
 	{
 		FErrorDetail err;
@@ -2760,8 +2746,6 @@ void FAdaptiveStreamingPlayer::InternalPause()
 	// Stop rendering.
 	StopRendering();
 	PipelineState = EPipelineState::ePipeline_Stopped;
-	// Pause the stream reader
-	PauseStreamReaders();
 
 	// Pause playing.
 	if (CurrentState != EPlayerState::eState_Error)
@@ -2783,9 +2767,6 @@ void FAdaptiveStreamingPlayer::InternalResume()
 	// Cannot resume when in error state or when stream has reached the end.
 	if (CurrentState != EPlayerState::eState_Error && StreamState != EStreamState::eStream_ReachedEnd)
 	{
-		// Resume the stream reader
-		ResumeStreamReaders();
-
 		// Start rendering.
 		check(PipelineState == EPipelineState::ePipeline_Stopped);
 		StartRendering();
@@ -2874,8 +2855,11 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 void FAdaptiveStreamingPlayer::InternalClose()
 {
 	// No longer need the manifest reader/updater
-	delete ManifestReader;
-	ManifestReader = nullptr;
+	if (ManifestReader.IsValid())
+	{
+		ManifestReader->Close();
+		ManifestReader.Reset();
+	}
 
 	DestroyDecoders();
 	DestroyRenderers();
@@ -2887,6 +2871,7 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	Manifest.Reset();
 
 	HttpManager.Reset();
+	EntityCache.Reset();
 	RemoveMetricsReceiver(StreamSelector.Get());
 	StreamSelector.Reset();
 
@@ -3107,9 +3092,6 @@ FAdaptiveStreamingPlayerEventHandler::~FAdaptiveStreamingPlayerEventHandler()
 
 void FAdaptiveStreamingPlayerEventHandler::StartWorkerThread()
 {
-	//WorkerThread.ThreadSetPriority(mConfig.WorkerThread.Priority);
-	//WorkerThread.ThreadSetCoreAffinity(mConfig.WorkerThread.CoreAffinity);
-	//WorkerThread.ThreadSetStackSize(mConfig.WorkerThread.StackSize);
 	WorkerThread.ThreadSetName("ElectraPlayer::EventDispatch");
 	WorkerThread.ThreadStart(Electra::MakeDelegate(this, &FAdaptiveStreamingPlayerEventHandler::WorkerThreadFN));
 }

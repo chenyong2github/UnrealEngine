@@ -11,6 +11,7 @@ namespace Electra
 	namespace ISO8601
 	{
 		UEMediaError ParseDateTime(FTimeValue& OutTimeValue, const FString& DateTime);
+		UEMediaError ParseDuration(FTimeValue& OutTimeValue, const TCHAR* InDuration);
 	}
 
 

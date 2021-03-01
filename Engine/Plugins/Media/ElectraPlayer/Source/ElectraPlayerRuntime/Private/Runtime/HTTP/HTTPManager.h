@@ -24,23 +24,25 @@ namespace Electra
 
 		struct FStatusInfo
 		{
-			FStatusInfo()
-				: HTTPStatus(0)
-				, ErrorCode(0)
-				, ConnectionTimeoutAfterMilliseconds(0)
-				, NoDataTimeoutAfterMilliseconds(0)
-				, bRedirectionError(false)
-				, bReadError(false)
+			void Empty()
 			{
+				ErrorDetail.Clear();
+				OccurredAtUTC.SetToInvalid();
+				HTTPStatus = 0;
+				ErrorCode = 0;
+				ConnectionTimeoutAfterMilliseconds = 0;
+				NoDataTimeoutAfterMilliseconds = 0;
+				bRedirectionError = false;
+				bReadError = false;
 			}
 			FErrorDetail	ErrorDetail;
 			FTimeValue		OccurredAtUTC;
-			int32			HTTPStatus;
-			int32			ErrorCode;
-			int32			ConnectionTimeoutAfterMilliseconds;
-			int32			NoDataTimeoutAfterMilliseconds;
-			bool			bRedirectionError;
-			bool			bReadError;
+			int32			HTTPStatus = 0;
+			int32			ErrorCode = 0;
+			int32			ConnectionTimeoutAfterMilliseconds = 0;
+			int32			NoDataTimeoutAfterMilliseconds = 0;
+			bool			bRedirectionError = false;
+			bool			bReadError = false;
 		};
 
 		struct FRetryInfo
@@ -291,6 +293,31 @@ namespace Electra
 				bool IsOpenEnded() const
 				{
 					return GetEndIncluding() < 0;
+				}
+				void Set(const FString& InString)
+				{
+					int32 DashPos = INDEX_NONE;
+					if (InString.FindChar(TCHAR('-'), DashPos))
+					{
+						// -end
+						if (DashPos == 0)
+						{
+							Start = 0;
+							LexFromString(EndIncluding, *InString + 1);
+						}
+						// start-
+						else if (DashPos == InString.Len()-1)
+						{
+							LexFromString(Start, *InString.Mid(0, DashPos));
+							EndIncluding = -1;
+						}
+						// start-end
+						else
+						{
+							LexFromString(Start, *InString.Mid(0, DashPos));
+							LexFromString(EndIncluding, *InString + DashPos + 1);
+						}
+					}
 				}
 				void SetStart(int64 InStart)
 				{

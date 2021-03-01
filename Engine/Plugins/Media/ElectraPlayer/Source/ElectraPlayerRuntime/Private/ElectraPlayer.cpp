@@ -1153,7 +1153,6 @@ void FElectraPlayer::ReportReceivedPlaylists()
 	NumTracksVideo = VideoStreamMetaData.Num();
 	for(int32 i=0; i<NumTracksVideo; ++i)
 	{
-		Statistics.VideoSegmentBitratesStreamed.Add(VideoStreamMetaData[i].Bandwidth, 0);
 		UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] Found %d * %d video stream at bitrate %d"), this, CurrentPlayer.Get(), VideoStreamMetaData[i].CodecInformation.GetResolution().Width, VideoStreamMetaData[i].CodecInformation.GetResolution().Height, VideoStreamMetaData[i].Bandwidth);
 	}
 	StatisticsLock.Unlock();
@@ -1399,6 +1398,10 @@ void FElectraPlayer::ReportSegmentDownload(const Electra::Metrics::FSegmentDownl
 	if (SegmentDownloadStats.StreamType == Electra::EStreamType::Video)
 	{
 		Statistics.NumVideoDatabytesStreamed += SegmentDownloadStats.NumBytesDownloaded;
+		if (!Statistics.VideoSegmentBitratesStreamed.Contains(SegmentDownloadStats.Bitrate))
+		{
+			Statistics.VideoSegmentBitratesStreamed.Add(SegmentDownloadStats.Bitrate, 0);
+		}
 		++Statistics.VideoSegmentBitratesStreamed[SegmentDownloadStats.Bitrate];
 
 		if (Statistics.bIsInitiallyDownloading)
@@ -1409,20 +1412,22 @@ void FElectraPlayer::ReportSegmentDownload(const Electra::Metrics::FSegmentDownl
 				Statistics.bIsInitiallyDownloading = false;
 			}
 		}
-		UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] Downloaded video segment at bitrate %d: Playback time = %.3fs, duration = %.3fs, download time = %.3fs, URL=\"%s\""), this, CurrentPlayer.Get(), SegmentDownloadStats.Bitrate, SegmentDownloadStats.PresentationTime, SegmentDownloadStats.Duration, SegmentDownloadStats.TimeToDownload, *SanitizeMessage(SegmentDownloadStats.URL));
 	}
 	else if (SegmentDownloadStats.StreamType == Electra::EStreamType::Audio)
 	{
 		Statistics.NumAudioDatabytesStreamed += SegmentDownloadStats.NumBytesDownloaded;
-		UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] Downloaded audio segment at bitrate %d: Playback time = %.3fs, duration = %.3fs, download time = %.3fs, URL=\"%s\""), this, CurrentPlayer.Get(), SegmentDownloadStats.Bitrate, SegmentDownloadStats.PresentationTime, SegmentDownloadStats.Duration, SegmentDownloadStats.TimeToDownload, *SanitizeMessage(SegmentDownloadStats.URL));
 	}
-	if (!SegmentDownloadStats.bWasSuccessful && SegmentDownloadStats.bWasAborted)
+	if (SegmentDownloadStats.bWasSuccessful)
+	{
+		UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] Downloaded %s segment at bitrate %d: Playback time = %.3fs, duration = %.3fs, download time = %.3fs, URL=%s \"%s\""), this, CurrentPlayer.Get(), Electra::GetStreamTypeName(SegmentDownloadStats.StreamType), SegmentDownloadStats.Bitrate, SegmentDownloadStats.PresentationTime, SegmentDownloadStats.Duration, SegmentDownloadStats.TimeToDownload, *SegmentDownloadStats.Range, *SanitizeMessage(SegmentDownloadStats.URL));
+	}
+	else if (SegmentDownloadStats.bWasAborted)
 	{
 		++Statistics.NumSegmentDownloadsAborted;
 	}
 	if (!SegmentDownloadStats.bWasSuccessful || SegmentDownloadStats.RetryNumber)
 	{
-		UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] %s segment download issue: retry:%d, success:%d, aborted:%d, filler:%d"), this, CurrentPlayer.Get(), Electra::Metrics::GetSegmentTypeString(SegmentDownloadStats.SegmentType), SegmentDownloadStats.RetryNumber, SegmentDownloadStats.bWasSuccessful, SegmentDownloadStats.bWasAborted, SegmentDownloadStats.bInsertedFillerData);
+		UE_LOG(LogElectraPlayer, Log, TEXT("[%p][%p] %s segment download issue (%s): retry:%d, success:%d, aborted:%d, filler:%d"), this, CurrentPlayer.Get(), Electra::Metrics::GetSegmentTypeString(SegmentDownloadStats.SegmentType), *SegmentDownloadStats.FailureReason, SegmentDownloadStats.RetryNumber, SegmentDownloadStats.bWasSuccessful, SegmentDownloadStats.bWasAborted, SegmentDownloadStats.bInsertedFillerData);
 
 		static const FString kEventNameElectraSegmentIssue(TEXT("Electra.SegmentIssue"));
 		if (Electra::IsAnalyticsEventEnabled(kEventNameElectraSegmentIssue))

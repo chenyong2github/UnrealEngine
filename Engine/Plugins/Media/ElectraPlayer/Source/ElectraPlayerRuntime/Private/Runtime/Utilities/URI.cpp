@@ -344,7 +344,7 @@ namespace Electra
                                                      (Position + 2 == Size || InPath[Position + 2] == TCHAR('/')) &&
                                                      (Position == 0 || InPath[Position - 1] == TCHAR('/'))))
                 {
-                    if (PathParts.Num() != 0)
+                    if (PathParts.Num())
                     {
                         PathParts.Pop(false);
                     }

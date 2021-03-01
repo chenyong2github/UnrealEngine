@@ -111,6 +111,15 @@ namespace Electra
 		}
 
 
+		bool StringEquals(const TCHAR * const s1, const TCHAR * const s2)
+		{ 
+			return FPlatformString::Strcmp(s1, s2) == 0; 
+		}
+
+		bool StringStartsWith(const TCHAR * const s1, const TCHAR * const s2, SIZE_T n)
+		{ 
+			return FPlatformString::Strncmp(s1, s2, n) == 0; 
+		}
 
 	} // namespace StringHelpers
 } // namespace Electra

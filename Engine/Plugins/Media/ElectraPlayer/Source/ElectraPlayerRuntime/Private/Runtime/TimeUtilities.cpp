@@ -98,12 +98,12 @@ namespace Electra
 		};
 
 
-		static int32 ParseSubStringToInt(TCHAR* InFrom, int32 NumChars)
+		static int64 ParseSubStringToInt(TCHAR* InFrom, int32 NumChars)
 		{
 			TCHAR* last = InFrom + NumChars;
 			TCHAR c = *last;
 			*last = TCHAR('\0');
-			int32 v;
+			int64 v;
 			LexFromString(v, InFrom);
 			*last = c;
 			return v;
@@ -230,6 +230,201 @@ namespace Electra
 				if (TimeComponents.IsValidUTC())
 				{
 					OutTimeValue = TimeComponents.ToUTC();
+					return UEMEDIA_ERROR_OK;
+				}
+			}
+			return UEMEDIA_ERROR_FORMAT_ERROR;
+		}
+
+
+		UEMediaError ParseDuration(FTimeValue& OutTimeValue, const TCHAR* InDuration)
+		{
+			// Parse an xs:duration element.
+			// We interpret 'years'/'months'/'days' as per the DASH-IF specification where
+			//    1 year = 12 months / 1 month = 30 days / 1 day = 24 hours / 1 hour = 60 minutes / 1 minute = 60 seconds.
+			// So 1 year is worth only 360 days !!!
+			FString tempString(InDuration);
+			// See https://www.w3schools.com/xml/schema_dtypes_date.asp
+			if ((tempString.Len() && InDuration[0] == TCHAR('P')) || (tempString.Len() > 1 && InDuration[0] == TCHAR('-') && InDuration[1] == TCHAR('P')))
+			{
+				// Make a mutable copy of the string we can alter.
+				TCHAR* tempBuf = GetData(tempString);
+
+				bool bHaveT = false;
+				bool bHaveY = false;
+				bool bHaveM = false;
+				bool bHaveD = false;
+				bool bHaveH = false;
+				bool bHaveS = false;
+				bool bIsNegative = InDuration[0] == TCHAR('-');
+				TCHAR* Start = bIsNegative ? tempBuf+2 : tempBuf+1;
+				TCHAR* Anchor = nullptr;
+				TCHAR* Decimal = nullptr;
+				int64 TotalSeconds = 0;
+				int64 HNSFraction = 0;
+				while(*Start)
+				{
+					// Skip over consecutive digits until we hit another char
+					if (FTimeComponents::IsDigit(*Start))
+					{
+						if (!Anchor)
+						{
+							Anchor = Start;
+						}
+						++Start;
+					}
+					// Found a 'T' separating year/month/day from hour/minute/second?
+					else if (*Start == TCHAR('T'))
+					{
+						if (!Anchor && !bHaveT)
+						{
+							bHaveT = true;
+							bHaveM = false;
+							++Start;
+						}
+						else
+						{
+							return UEMEDIA_ERROR_FORMAT_ERROR;
+						}
+					}
+					// Years
+					else if (*Start == TCHAR('Y'))
+					{
+						if (Anchor && !bHaveT && !bHaveY)
+						{
+							int32 Years = ParseSubStringToInt(Anchor, Start-Anchor);
+							TotalSeconds += Years * (12 * 30 * 24 * 60 * 60);
+							Anchor = nullptr;
+							++Start;
+							bHaveY = true;
+						}
+						else
+						{
+							return UEMEDIA_ERROR_FORMAT_ERROR;
+						}
+					}
+					// Months / Minutes
+					else if (*Start == TCHAR('M'))
+					{
+						if (Anchor && !bHaveM)
+						{
+							int32 Value = ParseSubStringToInt(Anchor, Start-Anchor);
+							if (!bHaveT)
+							{
+								TotalSeconds += Value * (30 * 24 * 60 * 60);
+							}
+							else
+							{
+								TotalSeconds += Value * 60;
+							}
+							Anchor = nullptr;
+							++Start;
+							bHaveM = true;
+						}
+						else
+						{
+							return UEMEDIA_ERROR_FORMAT_ERROR;
+						}
+					}
+					// Days
+					else if (*Start == TCHAR('D'))
+					{
+						if (Anchor && !bHaveT && !bHaveD)
+						{
+							int32 Days = ParseSubStringToInt(Anchor, Start-Anchor);
+							TotalSeconds += Days * (24 * 60 * 60);
+							Anchor = nullptr;
+							++Start;
+							bHaveD = true;
+						}
+						else
+						{
+							return UEMEDIA_ERROR_FORMAT_ERROR;
+						}
+					}
+					// Hours
+					else if (*Start == TCHAR('H'))
+					{
+						if (Anchor && bHaveT && !bHaveH)
+						{
+							int32 Hours = ParseSubStringToInt(Anchor, Start-Anchor);
+							TotalSeconds += Hours * (60 * 60);
+							Anchor = nullptr;
+							++Start;
+							bHaveH = true;
+						}
+						else
+						{
+							return UEMEDIA_ERROR_FORMAT_ERROR;
+						}
+					}
+					// Seconds
+					else if (*Start == TCHAR('S'))
+					{
+						if (Anchor && bHaveT && !bHaveS)
+						{
+							// Is this a decimal with fractions?
+							if (!Decimal)
+							{
+								int64 Seconds = ParseSubStringToInt(Anchor, Start-Anchor);
+								TotalSeconds += Seconds;
+							}
+							else
+							{
+								// First get the full seconds
+								int32 nd = Anchor-Decimal-1;
+								if (nd > 0)
+								{
+									int64 Seconds = ParseSubStringToInt(Decimal, nd);
+									TotalSeconds += Seconds;
+								}
+								// Now get the fractional part. We limit it to 7 digits as this is the resolution of an FTimeValue.
+								nd = Start - Anchor;
+								check(nd > 0);		// This would fire if there are no digits following the decimal point, but then Anchor would be nullptr and we wouldn't even get here.
+								if (nd > 7)
+								{
+									nd = 7;
+								}
+								HNSFraction = ParseSubStringToInt(Anchor, nd);
+								while(++nd <= 7)
+								{
+									HNSFraction *= 10;
+								}
+							}
+							Anchor = nullptr;
+							Decimal = nullptr;
+							++Start;
+							bHaveS = true;
+						}
+						else
+						{
+							return UEMEDIA_ERROR_FORMAT_ERROR;
+						}
+					}
+					// Decimal point? We allow both period and comma here.
+					else if (*Start == TCHAR('.') || *Start == TCHAR(','))
+					{
+						// Only allowed for seconds. We don't know what we are parsing yet.
+						if (bHaveT && !bHaveS && !Decimal)
+						{
+							// If there is no digit in front of the decimal point we allow this by setting the decimal to the delimiter.
+							Decimal = Anchor ? Anchor : Start;
+							Anchor = nullptr;
+							++Start;
+						}
+						else
+						{
+							return UEMEDIA_ERROR_FORMAT_ERROR;
+						}
+					}
+					else
+					{
+						return UEMEDIA_ERROR_FORMAT_ERROR;
+					}
+				}
+				if (Anchor == nullptr && Decimal == nullptr)
+				{
+					OutTimeValue.SetFromHNS(TotalSeconds * 10000000L + HNSFraction);
 					return UEMEDIA_ERROR_OK;
 				}
 			}

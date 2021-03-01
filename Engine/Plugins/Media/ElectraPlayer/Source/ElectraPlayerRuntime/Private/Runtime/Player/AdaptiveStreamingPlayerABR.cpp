@@ -191,7 +191,6 @@ namespace Electra
 
 			FString											AdaptationSetUniqueID;
 			FString											RepresentationUniqueID;
-			FString											CDN;
 
 			FStreamHealth									Health;
 			// Set for convenience.
@@ -387,7 +386,6 @@ namespace Electra
 							si->Representation = Adapt->GetRepresentationByIndex(i);
 							si->AdaptationSetUniqueID = si->AdaptationSet->GetUniqueIdentifier();
 							si->RepresentationUniqueID = si->Representation->GetUniqueIdentifier();
-							si->CDN = si->Representation->GetCDN();
 							si->Bitrate = si->Representation->GetBitrate();
 							if (si->Representation->GetCodecInformation().IsVideoCodec())
 							{
@@ -417,7 +415,6 @@ namespace Electra
 							si->Representation = Adapt->GetRepresentationByIndex(i);
 							si->AdaptationSetUniqueID = si->AdaptationSet->GetUniqueIdentifier();
 							si->RepresentationUniqueID = si->Representation->GetUniqueIdentifier();
-							si->CDN = si->Representation->GetCDN();
 							si->Bitrate = si->Representation->GetBitrate();
 							/*
 							if (si->Representation->GetCodecInformation().IsAudioCodec())
@@ -847,38 +844,6 @@ namespace Electra
 				if (!Stats.bWasSuccessful)
 				{
 					// Was not successful. Figure out what to do now.
-
-					/*
-							EStreamType		StreamType;						//!< Type of stream
-							ESegmentType	SegmentType;					//!< Type of segment (init or media)
-							FString	URL;							//!< Effective URL used to download from
-							FString	CDN;							//!< CDN
-							FString	MediaAssetID;
-							FString	AdaptationSetID;
-							FString	RepresentationID;
-							double			PresentationTime;				//!< Presentation time on media timeline
-							double			Duration;						//!< Duration of segment as specified in manifest
-							int32			Bitrate;						//!< Stream bitrate as specified in manifest
-							int32			RetryNumber;
-							bool			bIsMissingSegment;				//!< true if the segment was not actually downloaded because it is missing on the timeline.
-
-							// Outputs from stream reader
-							FString	FailureReason;					//!< Human readable failure reason. Only for display purposes.
-							double			DurationDownloaded;				//!< Duration of content successfully downloaded. May be less than Duration in case of errors.
-							double			DurationDelivered;				//!< Duration of content delivered to buffer. If larger than DurationDownloaded indicates dummy data was inserted into buffer.
-							double			TimeToFirstByte;				//!< Time in seconds until first data byte was received
-							double			TimeToDownload;					//!< Total time in seconds for entire download
-							int64			ByteSize;						//!< Content-Length, may be -1 if unknown (either on error or chunked transfer)
-							int64			NumBytesDownloaded;				//!< Number of bytes successfully downloaded.
-							int64			ThroughputBps;					//!< Estimated throughput in bits per second
-							int32			HTTPStatusCode;					//!< HTTP status code (0 if not connected to server yet)
-							bool			bWasSuccessful;					//!< true if download was successful, false if not
-							bool			bWasAborted;					//!< true if download was aborted by ABR (not by playback!)
-							bool			bDidTimeout;					//!< true if a timeout occurred. Only set if timeouts are enabled. Usually the ABR will monitor and abort.
-							bool			bParseFailure;					//!< true if the segment could not be parsed
-							bool			bInsertedFillerData;
-					*/
-
 					// Too many failures already? It's unlikely that there is a way that would magically fix itself now.
 					if (Stats.RetryNumber >= 3)
 					{
@@ -1129,7 +1094,7 @@ namespace Electra
 			if (PossibleRepresentations.Num())
 			{
 				const TSharedPtrTS<FStreamInformation>& Candidate = PossibleRepresentations.Top();
-				CurrentPlayPeriod->SelectStream(Candidate->AdaptationSet, Candidate->Representation, Candidate->Representation->GetCDN());
+				CurrentPlayPeriod->SelectStream(Candidate->AdaptationSet, Candidate->Representation);
 
 				if (bRetryIfPossible)
 				{

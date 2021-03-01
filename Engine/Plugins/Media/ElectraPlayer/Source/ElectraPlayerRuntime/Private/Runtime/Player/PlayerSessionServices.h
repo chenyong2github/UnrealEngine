@@ -16,6 +16,8 @@ namespace Electra
 	class IPlayerStreamFilter;
 	struct FAccessUnitBufferInfo;
 	class IAdaptiveStreamingPlayerResourceProvider;
+	class IPlayerEntityCache;
+	class IPlaylistReader;
 
 
 	class IPlayerMessage
@@ -99,6 +101,25 @@ namespace Electra
 		 * can be used on the platform.
 		 */
 		virtual IPlayerStreamFilter* GetStreamFilter() = 0;
+
+		/**
+		 * Returns the entity cache of this player.
+		 */
+		virtual TSharedPtrTS<IPlayerEntityCache> GetEntityCache() = 0;
+
+
+		/**
+		 * Returns the manifest reader instance. The reader is responsible for reading additionally required
+		 * resources when needed. Requests can be enqueued through this.
+		 */
+		virtual	TSharedPtrTS<IPlaylistReader> GetManifestReader() = 0;
+
+
+		/**
+		 * Returns the mutable player option dictionary. Other than initial options this serves as an interface to
+		 * pass values between internal sub systems.
+		 */
+		 virtual FParamDict& GetOptions() = 0;
 	};
 
 

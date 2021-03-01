@@ -64,6 +64,7 @@ namespace Electra
 		FTimeValue					PTS;							//!< PTS
 		FTimeValue					DTS;							//!< DTS
 		FTimeValue					Duration;						//!< Duration
+		FTimeValue					OverlapAdjust;					//!< If set this indicates by how much the AU overlaps the desired time. Negative values indicate the AU is too early. Only set when DropState is zero.
 		uint32						AUSize;							//!< Size of this access unit
 		void*						AUData;							//!< Access unit data
 		TSharedPtrTS<CodecData>		AUCodecData;					//!< If set, points to sideband data for this access unit.

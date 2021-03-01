@@ -5,6 +5,7 @@
 #include "Player/AdaptiveStreamingPlayerInternal.h"
 #include "Player/HLS/PlaylistReaderHLS.h"
 #include "Player/mp4/PlaylistReaderMP4.h"
+#include "Player/DASH/PlaylistReaderDASH.h"
 #include "Utilities/Utilities.h"
 #include "Utilities/StringHelpers.h"
 #include "Utilities/URLParser.h"
@@ -18,6 +19,7 @@ namespace Electra
 namespace Playlist
 {
 static const FString MIMETypeMP4(TEXT("video/mp4"));
+static const FString MIMETypeMP4A(TEXT("audio/mp4"));
 static const FString MIMETypeHLS(TEXT("application/vnd.apple.mpegURL"));
 static const FString MIMETypeDASH(TEXT("application/dash+xml"));
 
@@ -52,14 +54,19 @@ FString GetMIMETypeForURL(const FString &URL)
 	{
 		FString LowerCaseExtension = FPaths::GetExtension(PathComponents.Last().ToLower());
 
-		// Check for an ".mp4" extension.
-
+		// Check for known extensions.
 		static const FString kTextMP4(TEXT("mp4"));
+		static const FString kTextMP4V(TEXT("m4v"));
+		static const FString kTextMP4A(TEXT("m4a"));
 		static const FString kTextMPD(TEXT("mpd"));
 		static const FString kTextM3U8(TEXT("m3u8"));
-		if (LowerCaseExtension == kTextMP4)
+		if (LowerCaseExtension == kTextMP4 || LowerCaseExtension == kTextMP4V)
 		{
 			MimeType = MIMETypeMP4;
+		}
+		else if (LowerCaseExtension == kTextMP4A)
+		{
+			MimeType = MIMETypeMP4A;
 		}
 		else if (LowerCaseExtension == kTextMPD)
 		{
@@ -69,7 +76,6 @@ FString GetMIMETypeForURL(const FString &URL)
 		{
 			MimeType = MIMETypeHLS;
 		}
-
 	}
 
 	return MimeType;
@@ -102,18 +108,21 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 		{
 			CurrentState = EPlayerState::eState_ParsingManifest;
 
-			check(ManifestReader == nullptr);
 			if (mimeType == Playlist::MIMETypeHLS)
 			{
-				check(ManifestReader == nullptr);
 				ManifestReader = IPlaylistReaderHLS::Create(this);
 				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
 				ManifestReader->LoadAndParse(URL, StreamPreferences, PlayerOptions);
 			}
 			else if (mimeType == Playlist::MIMETypeMP4)
 			{
-				check(ManifestReader == nullptr);
 				ManifestReader = IPlaylistReaderMP4::Create(this);
+				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
+				ManifestReader->LoadAndParse(URL, StreamPreferences, PlayerOptions);
+			}
+			else if (mimeType == Playlist::MIMETypeDASH)
+			{
+				ManifestReader = IPlaylistReaderDASH::Create(this);
 				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
 				ManifestReader->LoadAndParse(URL, StreamPreferences, PlayerOptions);
 			}
@@ -121,7 +130,7 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 			{
 				FErrorDetail err;
 				err.SetFacility(Facility::EFacility::Player);
-				err.SetMessage("Unsupported stream MIME type");
+				err.SetMessage(TEXT("Unsupported stream MIME type"));
 				err.SetCode(INTERR_UNSUPPORTED_FORMAT);
 				PostError(err);
 			}
@@ -130,7 +139,7 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 		{
 			FErrorDetail err;
 			err.SetFacility(Facility::EFacility::Player);
-			err.SetMessage("Could not determine stream MIME type");
+			err.SetMessage(TEXT("Could not determine stream MIME type"));
 			err.SetCode(INTERR_UNSUPPORTED_FORMAT);
 			PostError(err);
 		}
@@ -153,7 +162,7 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 	if (ManifestReader)
 	{
 		check(Manifest == nullptr);
-		if (ManifestReader->GetPlaylistType() == "hls")
+		if (ManifestReader->GetPlaylistType() == TEXT("hls"))
 		{
 			TArray<FTimespan> SeekablePositions;
 			TSharedPtrTS<IManifest> pPresentation = ManifestReader->GetManifest();
@@ -184,7 +193,7 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 
 			return true;
 		}
-		else if (ManifestReader->GetPlaylistType() == "mp4")
+		else if (ManifestReader->GetPlaylistType() == TEXT("mp4"))
 		{
 			TArray<FTimespan> SeekablePositions;
 			TSharedPtrTS<IManifest> pPresentation = ManifestReader->GetManifest();
@@ -215,8 +224,46 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 
 			return true;
 		}
-		// Handle other types of playlist here.
-		check(!"TODO");
+		else if (ManifestReader->GetPlaylistType() == TEXT("dash"))
+		{
+			TArray<FTimespan> SeekablePositions;
+			TSharedPtrTS<IManifest> pPresentation = ManifestReader->GetManifest();
+			check(pPresentation.IsValid());
+
+			CurrentTimeline = pPresentation->GetTimeline();
+			PlaybackState.SetSeekableRange(CurrentTimeline->GetSeekableTimeRange());
+			CurrentTimeline->GetSeekablePositions(SeekablePositions);
+			PlaybackState.SetSeekablePositions(SeekablePositions);
+			PlaybackState.SetTimelineRange(CurrentTimeline->GetTotalTimeRange());
+			PlaybackState.SetDuration(CurrentTimeline->GetDuration());
+
+			TArray<FStreamMetadata> VideoStreamMetadata;
+			TArray<FStreamMetadata> AudioStreamMetadata;
+			pPresentation->GetStreamMetadata(VideoStreamMetadata, EStreamType::Video);
+			pPresentation->GetStreamMetadata(AudioStreamMetadata, EStreamType::Audio);
+			PlaybackState.SetStreamMetadata(VideoStreamMetadata, AudioStreamMetadata);
+			PlaybackState.SetHaveMetadata(true);
+
+			Manifest = pPresentation;
+
+			CurrentState = EPlayerState::eState_Ready;
+
+			double minBufTimeMPD = Manifest->GetMinBufferTime().GetAsSeconds();
+			PlayerConfig.InitialBufferMinTimeAvailBeforePlayback = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDInitialBufferMinTimeBeforePlayback,   PlayerConfig.InitialBufferMinTimeAvailBeforePlayback);
+			PlayerConfig.SeekBufferMinTimeAvailBeforePlayback    = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDSeekBufferMinTimeAvailBeforePlayback, PlayerConfig.SeekBufferMinTimeAvailBeforePlayback);
+			PlayerConfig.RebufferMinTimeAvailBeforePlayback 	 = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDRebufferMinTimeAvailBeforePlayback,   PlayerConfig.RebufferMinTimeAvailBeforePlayback);
+
+			return true;
+		}
+		else
+		{
+			// Handle other types of playlist here.
+			FErrorDetail err;
+			err.SetFacility(Facility::EFacility::Player);
+			err.SetMessage(TEXT("Unsupported playlist/manifest type"));
+			err.SetCode(INTERR_UNSUPPORTED_FORMAT);
+			PostError(err);
+		}
 	}
 
 	return false;

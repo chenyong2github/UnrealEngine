@@ -32,8 +32,8 @@ public:
 	// TODO: need to provide metadata (duration, streams, languages, etc.)
 
 	virtual IManifest::FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
-	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& Options) override;
-	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& Options) override;
+	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
+	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) override;
 	virtual IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 
 	// Obtains information on the stream segmentation of a particular stream starting at a given current reference segment (optional, if not given returns suitable default values).
@@ -41,7 +41,7 @@ public:
 
 	virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
 
-	virtual void SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation, const FString& PreferredCDN) override;
+	virtual void SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation) override;
 
 private:
 	struct FSegSearchParam
@@ -150,6 +150,12 @@ void FManifestHLS::GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStre
 			OutMetadata.Empty();
 			break;
 	}
+}
+
+
+void FManifestHLS::UpdateDynamicRefetchCounter()
+{
+	// No-op.
 }
 
 
@@ -989,26 +995,23 @@ IManifest::FResult FPlayPeriodHLS::GetNextOrRetrySegment(TSharedPtrTS<IStreamSeg
  *
  * @param OutSegment
  * @param InCurrentSegment
- * @param Options
  *
  * @return
  */
-IManifest::FResult FPlayPeriodHLS::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FParamDict& Options)
+IManifest::FResult FPlayPeriodHLS::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment)
 {
 	return GetNextOrRetrySegment(OutSegment, InCurrentSegment, false);
 }
 
 
-IManifest::FResult FPlayPeriodHLS::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FParamDict& Options)
+IManifest::FResult FPlayPeriodHLS::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> InCurrentSegment, bool bReplaceWithFillerData)
 {
-	bool bInsertFiller = Options.GetValue("insertFiller").SafeGetBool(false);
-
 	// To insert filler data we can use the current request over again.
-	if (bInsertFiller)
+	if (bReplaceWithFillerData)
 	{
 		const FStreamSegmentRequestHLSfmp4* CurrentRequest = static_cast<const FStreamSegmentRequestHLSfmp4*>(InCurrentSegment.Get());
 		TSharedPtrTS<FStreamSegmentRequestHLSfmp4> NewRequest(new FStreamSegmentRequestHLSfmp4);
-		NewRequest->CopyFrom(*CurrentRequest);
+		*NewRequest = *CurrentRequest;
 		NewRequest->bInsertFillerData = true;
 		// We treat replacing the segment with filler data as a retry.
 		++NewRequest->NumOverallRetries;
@@ -1208,7 +1211,7 @@ TSharedPtrTS<ITimelineMediaAsset> FPlayPeriodHLS::GetMediaAsset() const
 
 
 
-void FPlayPeriodHLS::SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation, const FString& PreferredCDN)
+void FPlayPeriodHLS::SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation)
 {
 	if (AdaptationSet.IsValid() && Representation.IsValid())
 	{

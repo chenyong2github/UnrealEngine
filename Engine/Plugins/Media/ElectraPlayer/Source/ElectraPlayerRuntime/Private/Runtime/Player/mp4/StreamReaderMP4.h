@@ -87,8 +87,6 @@ public:
 	virtual void Close() override;
 	virtual EAddResult AddRequest(uint32 CurrentPlaybackSequenceID, TSharedPtrTS<IStreamSegment> Request) override;
 	virtual void CancelRequests() override;
-	virtual void PauseDownload() override;
-	virtual void ResumeDownload() override;
 
 private:
 	void WorkerThread();
