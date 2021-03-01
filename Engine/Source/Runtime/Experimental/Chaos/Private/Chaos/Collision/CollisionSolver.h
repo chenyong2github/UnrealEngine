@@ -12,14 +12,14 @@ namespace Chaos
 	{
 		void ApplyContactManifold(
 			FRigidBodyPointContactConstraint& Constraint,
-			TGenericParticleHandle<FReal, 3> Particle0,
-			TGenericParticleHandle<FReal, 3> Particle1,
+			FGenericParticleHandle Particle0,
+			FGenericParticleHandle Particle1,
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters);
 
 		void ApplyPushOutManifold(
 			FRigidBodyPointContactConstraint& Constraint,
-			const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
+			const TSet<const FGeometryParticleHandle*>& IsTemporarilyStatic,
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters,
 			const FVec3& GravityDir);

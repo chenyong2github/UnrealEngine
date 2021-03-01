@@ -201,8 +201,8 @@ namespace Chaos
 			return;
 		}
 
-		TConstGenericParticleHandle<FReal, 3> Particle0 = Particle[0];
-		TConstGenericParticleHandle<FReal, 3> Particle1 = Particle[1];
+		FConstGenericParticleHandle Particle0 = Particle[0];
+		FConstGenericParticleHandle Particle1 = Particle[1];
 
 		// @todo(chaos): determine potentially resting contact case based on contact velocity
 		// @todo(chaos): support static friction position correction for non-manifold contacts (spheres, point clouds, etc)
@@ -229,7 +229,7 @@ namespace Chaos
 
 		// Recalculate the previous local-space contact position on the plane owner. This is used by static friction where
 		// we try to move the contact points back to their previous relative positions.
-		auto CalculatePrevCoMTransform = [Dt](const TConstGenericParticleHandle<FReal, 3>& ParticleHandle) -> FRigidTransform3
+		auto CalculatePrevCoMTransform = [Dt](const FConstGenericParticleHandle& ParticleHandle) -> FRigidTransform3
 		{
 			FRigidTransform3 PrevCoMTransform = FParticleUtilitiesXR::GetCoMWorldTransform(ParticleHandle);
 			if (ParticleHandle->ObjectState() == EObjectStateType::Kinematic && (ParticleHandle->V().SizeSquared() > 0.0f || ParticleHandle->W().SizeSquared() > 0.0f))

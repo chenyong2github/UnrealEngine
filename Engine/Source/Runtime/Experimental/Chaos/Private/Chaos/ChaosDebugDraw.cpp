@@ -335,7 +335,7 @@ namespace Chaos
 
 		void DrawParticleBoundsImpl(const FRigidTransform3& SpaceTransform, const FGeometryParticleHandle* InParticle, const FReal Dt, const FReal BoundsThickness, const FReal BoundsThicknessVelocityInflation, const FChaosDebugDrawSettings& Settings)
 		{
-			TConstGenericParticleHandle<FReal, 3> Particle = InParticle;
+			FConstGenericParticleHandle Particle = InParticle;
 
 			// This matches the calculation in SpatialAccelerationBroadPhase.h
 			const FReal Box1Thickness = ComputeBoundsThickness(*InParticle, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
@@ -367,7 +367,7 @@ namespace Chaos
 			FColor Green = (ColorScale * FColor::Green).ToFColor(false);
 			FColor Blue = (ColorScale * FColor::Blue).ToFColor(false);
 
-			TConstGenericParticleHandle<FReal, 3> Particle(InParticle);
+			FConstGenericParticleHandle Particle(InParticle);
 			FVec3 PCOM = SpaceTransform.TransformPosition(FParticleUtilities::GetCoMWorldPosition(Particle));
 			FRotation3 QCOM = SpaceTransform.GetRotation() * FParticleUtilities::GetCoMWorldRotation(Particle);
 			FMatrix33 QCOMm = QCOM.ToMatrix();
@@ -429,8 +429,8 @@ namespace Chaos
 				const FRigidBodyPointContactConstraint* PointConstraint = Contact.template As<FRigidBodyPointContactConstraint>();
 				if (PointConstraint->GetManifoldPoints().Num() > 0)
 				{
-					TConstGenericParticleHandle<FReal, 3> Particle0 = Contact.Particle[0];
-					TConstGenericParticleHandle<FReal, 3> Particle1 = Contact.Particle[1];
+					FConstGenericParticleHandle Particle0 = Contact.Particle[0];
+					FConstGenericParticleHandle Particle1 = Contact.Particle[1];
 					const FRigidTransform3 WorldCoMTransform0 = FParticleUtilities::GetCoMWorldTransform(Particle0);
 					const FRigidTransform3 WorldCoMTransform1 = FParticleUtilities::GetCoMWorldTransform(Particle1);
 
@@ -446,7 +446,7 @@ namespace Chaos
 						const int32 ContactPointOwner = 1 - ContactPlaneOwner;
 						const FRigidTransform3& PlaneTransform = (ContactPlaneOwner == 0) ? WorldCoMTransform0 : WorldCoMTransform1;
 						const FRigidTransform3& PointTransform = (ContactPlaneOwner == 0) ? WorldCoMTransform1 : WorldCoMTransform0;
-						TConstGenericParticleHandle<FReal, 3> PlaneParticle = (ContactPlaneOwner == 0) ? Particle0 : Particle1;
+						FConstGenericParticleHandle PlaneParticle = (ContactPlaneOwner == 0) ? Particle0 : Particle1;
 						const FVec3 PlaneNormal = PlaneTransform.TransformVector((ContactPlaneOwner == 1) ? ManifoldPoint.CoMContactNormal : -ManifoldPoint.CoMContactNormal);	// Normal is always points body 2->1 internally, but shows better if it points from plane owner to point owner
 						const FVec3 PointLocation = PointTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPointOwner]) - ManifoldPoint.ContactPoint.ShapeMargins[ContactPointOwner] * PlaneNormal;
 						const FVec3 PlaneLocation = PlaneTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPlaneOwner]) + ManifoldPoint.ContactPoint.ShapeMargins[ContactPlaneOwner] * PlaneNormal;
@@ -646,10 +646,10 @@ namespace Chaos
 			auto RigidParticle1 = ConstrainedParticles[1]->CastToRigidParticle();
 			if ((RigidParticle0 && RigidParticle0->ObjectState() == EObjectStateType::Dynamic) || (RigidParticle1 && RigidParticle1->ObjectState() == EObjectStateType::Dynamic))
 			{
-				FVec3 Pa = FParticleUtilities::GetActorWorldTransform(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[1])).GetTranslation();
-				FVec3 Pb = FParticleUtilities::GetActorWorldTransform(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[0])).GetTranslation();
-				FVec3 Ca = FParticleUtilities::GetCoMWorldPosition(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[1]));
-				FVec3 Cb = FParticleUtilities::GetCoMWorldPosition(TConstGenericParticleHandle<FReal, 3>(ConstraintHandle->GetConstrainedParticles()[0]));
+				FVec3 Pa = FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(ConstraintHandle->GetConstrainedParticles()[1])).GetTranslation();
+				FVec3 Pb = FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(ConstraintHandle->GetConstrainedParticles()[0])).GetTranslation();
+				FVec3 Ca = FParticleUtilities::GetCoMWorldPosition(FConstGenericParticleHandle(ConstraintHandle->GetConstrainedParticles()[1]));
+				FVec3 Cb = FParticleUtilities::GetCoMWorldPosition(FConstGenericParticleHandle(ConstraintHandle->GetConstrainedParticles()[0]));
 				FVec3 Xa, Xb;
 				FMatrix33 Ra, Rb;
 				ConstraintHandle->CalculateConstraintSpace(Xa, Ra, Xb, Rb);
@@ -691,8 +691,8 @@ namespace Chaos
 			{
 				FColor IslandColor = IslandColors[IslandIndex % NumIslandColors];
 
-				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(TConstGenericParticleHandle<FReal, 3>(CollisionConstraint.GetConstrainedParticles()[0])) * SpaceTransform;
-				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(TConstGenericParticleHandle<FReal, 3>(CollisionConstraint.GetConstrainedParticles()[1])) * SpaceTransform;
+				const FRigidTransform3 Transform0 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(CollisionConstraint.GetConstrainedParticles()[0])) * SpaceTransform;
+				const FRigidTransform3 Transform1 = FParticleUtilities::GetCoMWorldTransform(FConstGenericParticleHandle(CollisionConstraint.GetConstrainedParticles()[1])) * SpaceTransform;
 				const FVec3 TextPos = 0.5f * (Transform0.GetLocation() + Transform1.GetLocation());
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform0.GetLocation(), TextPos, FColor::Black, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 				FDebugDrawQueue::GetInstance().DrawDebugLine(Transform1.GetLocation(), TextPos, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);

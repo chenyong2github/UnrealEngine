@@ -174,7 +174,7 @@ namespace Chaos
 					[&](auto& Particle1,int32 ActiveIdxIdx)
 				{
 					//TODO: use transient handle
-					TGenericParticleHandleHandleImp<FReal,3> GenericHandle(Particle1.Handle());
+					FGenericParticleHandleHandleImp GenericHandle(Particle1.Handle());
 					ProduceParticleOverlaps</*bResimming=*/true>(Dt,GenericHandle,InSpatialAcceleration,NarrowPhase,Receiver,StatData, ActiveIdxIdx);
 				},bDisableParallelFor);
 			}
@@ -235,7 +235,7 @@ namespace Chaos
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
 					auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
-					const TGenericParticleHandle<FReal, 3> Particle2Generic(&Particle2);
+					const FGenericParticleHandle Particle2Generic(&Particle2);
 
 					// Broad Phase Culling
 					// CollisionGroup == 0 : Collide_With_Everything

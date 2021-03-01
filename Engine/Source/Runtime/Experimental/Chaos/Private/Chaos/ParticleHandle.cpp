@@ -226,6 +226,11 @@ namespace Chaos
 		}
 	}
 
+	const FVec3 FGenericParticleHandleHandleImp::ZeroVector = FVec3(0);
+	const FRotation3 FGenericParticleHandleHandleImp::IdentityRotation = FRotation3(FQuat::Identity);
+	const FMatrix33 FGenericParticleHandleHandleImp::ZeroMatrix = FMatrix33(0);
+	const TUniquePtr<FBVHParticles> FGenericParticleHandleHandleImp::NullBVHParticles = TUniquePtr<FBVHParticles>();
+
 	template <>
 	template <>
 	int32 TGeometryParticleHandleImp<FReal, 3, true>::GetPayload<int32>(int32 Idx)

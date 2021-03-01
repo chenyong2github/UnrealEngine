@@ -655,8 +655,8 @@ namespace ImmediatePhysics_Chaos
 		{
 			if ((ParticlePair[0] != nullptr) && (ParticlePair[1] != nullptr))
 			{
-				bool bAnyDisabled = TGenericParticleHandle<FReal, 3>(ParticlePair[0])->Disabled() || TGenericParticleHandle<FReal, 3>(ParticlePair[1])->Disabled();
-				bool bAnyDynamic = TGenericParticleHandle<FReal, 3>(ParticlePair[0])->IsDynamic() || TGenericParticleHandle<FReal, 3>(ParticlePair[1])->IsDynamic();
+				bool bAnyDisabled = FGenericParticleHandle(ParticlePair[0])->Disabled() || FGenericParticleHandle(ParticlePair[1])->Disabled();
+				bool bAnyDynamic = FGenericParticleHandle(ParticlePair[0])->IsDynamic() || FGenericParticleHandle(ParticlePair[1])->IsDynamic();
 				if (bAnyDynamic && !bAnyDisabled)
 				{
 					Implementation->ActivePotentiallyCollidingPairs.Add(ParticlePair);

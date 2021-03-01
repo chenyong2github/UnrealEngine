@@ -2027,7 +2027,7 @@ namespace Chaos
 				return;
 			}
 
-			TGenericParticleHandle<FReal, 3> Particle0 = Constraint.Particle[0];
+			FGenericParticleHandle Particle0 = Constraint.Particle[0];
 			const FBVHParticles* SampleParticles = Constraint.Manifold.Simplicial[0];
 			if (!SampleParticles)
 			{

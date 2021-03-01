@@ -118,8 +118,8 @@ FVec3 FPBDRigidDynamicSpringConstraints::GetDelta(const FVec3& WorldSpaceX1, con
 
 void FPBDRigidDynamicSpringConstraints::ApplySingle(const FReal Dt, int32 ConstraintIndex) const
 {
-	TGenericParticleHandle<FReal, 3> Particle0 = Constraints[ConstraintIndex][0];
-	TGenericParticleHandle<FReal, 3> Particle1 = Constraints[ConstraintIndex][1];
+	FGenericParticleHandle Particle0 = Constraints[ConstraintIndex][0];
+	FGenericParticleHandle Particle1 = Constraints[ConstraintIndex][1];
 	const bool bIsRigidDynamic0 = Particle0->IsDynamic();
 	const bool bIsRigidDynamic1 = Particle1->IsDynamic();
 	check(bIsRigidDynamic0 || bIsRigidDynamic1);

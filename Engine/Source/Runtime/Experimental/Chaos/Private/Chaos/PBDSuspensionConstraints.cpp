@@ -79,7 +79,7 @@ namespace Chaos
 
 	void FPBDSuspensionConstraints::ApplySingle(const FReal Dt, int32 ConstraintIndex) const
 	{
-		TGenericParticleHandle<FReal, 3> Particle = ConstrainedParticles[ConstraintIndex];
+		FGenericParticleHandle Particle = ConstrainedParticles[ConstraintIndex];
 		const FPBDSuspensionSettings& Setting = ConstraintSettings[ConstraintIndex];
 
 		if (Particle->IsDynamic() && Setting.Enabled)

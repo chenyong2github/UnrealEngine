@@ -25,7 +25,7 @@ namespace Chaos
 
 		FRigidTransform3 GetTransform(const TGeometryParticleHandle<FReal, 3>* Particle)
 		{
-			TGenericParticleHandle<FReal, 3> Generic = const_cast<TGeometryParticleHandle<FReal, 3>*>(Particle);
+			FGenericParticleHandle Generic = const_cast<FGeometryParticleHandle*>(Particle);
 			return FRigidTransform3(Generic->P(), Generic->Q());
 		}
 

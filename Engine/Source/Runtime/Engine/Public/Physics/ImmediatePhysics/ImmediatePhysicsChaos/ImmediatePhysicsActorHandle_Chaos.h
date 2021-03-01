@@ -121,8 +121,8 @@ namespace ImmediatePhysics_Chaos
 		/** Get the actor-space centre of mass offset */
 		FTransform GetLocalCoMTransform() const;
 
-		Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle();
-		const Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle() const;
+		Chaos::FGeometryParticleHandle* GetParticle();
+		const Chaos::FGeometryParticleHandle* GetParticle() const;
 
 		int32 GetLevel() const;
 		void SetLevel(int32 InLevel);
@@ -142,11 +142,11 @@ namespace ImmediatePhysics_Chaos
 			const FTransform& Transform);
 
 
-		Chaos::TGenericParticleHandle<FReal, Dimensions> Handle() const;
+		Chaos::FGenericParticleHandle Handle() const;
 
 		FName Name;
 		Chaos::FPBDRigidsSOAs& Particles;
-		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
+		Chaos::FGeometryParticleHandle* ParticleHandle;
 		Chaos::TArrayCollectionArray<Chaos::FVec3>& ParticlePrevXs;
 		Chaos::TArrayCollectionArray<Chaos::FRotation3>& ParticlePrevRs;
 		TUniquePtr<Chaos::FImplicitObject> Geometry;

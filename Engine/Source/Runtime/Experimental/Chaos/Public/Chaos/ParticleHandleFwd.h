@@ -91,10 +91,7 @@ namespace Chaos
 	template <typename T, int d>
 	using TTransientPBDGeometryCollectionParticleHandle = TPBDGeometryCollectionParticleHandleImp<T, d, false>;
 	
-	// TGenericParticleHandle
-
-	template <typename T, int d>
-	class TGenericParticleHandle;
+	class FGenericParticleHandle;
 
 	// TParticleIterator
 
