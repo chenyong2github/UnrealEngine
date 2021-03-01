@@ -26,7 +26,7 @@
 #include "Exporters/AnimSeqExportOption.h"
 
 #include "TemplateSequenceActor.h"
-#include "TemplateSequenceplayer.h"
+#include "TemplateSequencePlayer.h"
 #include "TemplateSequence.h"
 
 #include "K2Node_CustomEvent.h"
