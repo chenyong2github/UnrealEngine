@@ -152,7 +152,9 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bIsShelved
 	}
 	else
 	{
+		TempAssetName = FPaths::GetCleanFilename(Filename);
 		TempPackageName = Filename; // put back original package name if the try failed
+		TempAssetType = FText::Format(LOCTEXT("SourceControl_FileTypeDefault", "{0} File"), FText::FromString(FPaths::GetExtension(Filename).ToUpper())).ToString();
 	}
 
 	// Finally, assign the temp variables to the member variables
