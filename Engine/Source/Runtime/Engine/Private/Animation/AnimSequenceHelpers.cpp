@@ -395,7 +395,7 @@ void Retargeting::RetargetPose(FCompactPose& InOutPose, const FName& RetargetSou
 
 
 #if WITH_EDITOR
-bool CopyNotifies(const UAnimSequence* SourceAnimSeq, UAnimSequence* DestAnimSeq, bool bShowDialogs)
+bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* DestAnimSeq, bool bShowDialogs)
 {
 	// Abort if source == destination.
 	if (SourceAnimSeq == DestAnimSeq)

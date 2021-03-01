@@ -94,7 +94,7 @@ namespace Anim {
 	*
 	* @return Whether or not the copy was succesful
 	*/
-	ENGINE_API bool CopyNotifies(const UAnimSequence* SourceAnimSeq, UAnimSequence* DestAnimSeq, bool bShowDialogs = true);
+	ENGINE_API bool CopyNotifies(const UAnimSequenceBase* SourceAnimSeq, UAnimSequenceBase* DestAnimSeq, bool bShowDialogs = true);
 
 	namespace AnimationData
 	{
