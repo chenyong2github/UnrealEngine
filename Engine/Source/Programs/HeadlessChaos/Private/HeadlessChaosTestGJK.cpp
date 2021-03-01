@@ -1374,7 +1374,14 @@ namespace ChaosTest
 		}
 	}
 
-	void GJKCapsuleConvexInitialOverlapSweep()
+	// When we have a capsule and box that are reported as initially-overlapping because they are within
+	// the GJK epsilon opf each other (but actually positively separated), verify that we get a zero time of impact.
+	// Previously the slihjtly-positive separation would result in a negative penetration and a positiove TOI.
+	// Bug fix: CL 10942094.
+	// NOTE: this issue no longer manifests with this example because GJK no longer reports this case as
+	// overlapping> The GJK epsilon no longer takes part in the distance calculation when the near point
+	// is on the face of the convex.
+	GTEST_TEST(GJKTests, DISABLED_TestGJKCapsuleConvexInitialOverlapSweep_Fixed)
 	{
 		{
 			TArray<Chaos::FVec3> ConvexParticles;
@@ -1409,7 +1416,10 @@ namespace ChaosTest
 			EXPECT_TRUE(GJKRaycast2<FReal>(A,B,BToATM,LocalDir,Length,Time,Position,Normal,0,true,SearchDir,0));
 			EXPECT_FLOAT_EQ(Time,0.0);
 		}
+	}
 
+	void GJKCapsuleConvexInitialOverlapSweep()
+	{
 		{
 			TArray<FVec3> ConvexParticles;
 			ConvexParticles.SetNum(16);
