@@ -3,10 +3,12 @@
 #pragma once
 
 #include "Templates/UniquePtr.h"
+#include "AudioMixer.h"
 
 // Forward declares.
 class USoundWave;
 class FSoundWaveProxy;
+
 
 namespace Audio
 {

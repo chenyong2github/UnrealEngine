@@ -2,7 +2,7 @@
 
 #include "Misc/MediaTextureResource.h"
 #include "MediaAssetsPrivate.h"
-
+#include "Modules/ModuleManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "ExternalTexture.h"
