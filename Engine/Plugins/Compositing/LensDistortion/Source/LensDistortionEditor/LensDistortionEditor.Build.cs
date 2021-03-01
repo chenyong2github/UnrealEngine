@@ -15,6 +15,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"EditorStyle",
 					"Engine",
+					"InputCore",
 					"LensDistortion",
 					"PropertyEditor",
 					"Slate",
