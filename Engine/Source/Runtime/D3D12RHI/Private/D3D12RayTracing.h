@@ -74,7 +74,7 @@ public:
 	FName DebugName;
 };
 
-class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterChild
+class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterChild, public FNoncopyable
 {
 public:
 
@@ -86,16 +86,29 @@ public:
 	FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayTracingSceneInitializer& Initializer);
 	~FD3D12RayTracingScene();
 
-	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS BuildFlags);
+	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext);
 
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
 	bool bAccelerationStructureViewInitialized[MAX_NUM_GPUS] = {};
 
-	TArray<FRayTracingGeometryInstance> Instances;
+	TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances;
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
+	
+	struct FInstanceCopyCommand
+	{
+		FShaderResourceViewRHIRef Source;
+		int32 BaseIndex = -1;
+		int32 Num = 0;
+	};
+	TArray<FInstanceCopyCommand> CopyCommands;
+	
+	// One entry per instance in the Initializer
+	TArray<FD3D12RayTracingGeometry*> PerInstanceGeometries;
+	TArray<uint32> PerInstanceNumTransforms;
 
 	// Unique list of geometries referenced by all instances in this scene.
 	// Any referenced geometry is kept alive while the scene is alive.
-	TArray<TRefCountPtr<FD3D12RayTracingGeometry>> Geometries;
+	TArray<TRefCountPtr<FD3D12RayTracingGeometry>> ReferencedGeometries;
 
 	// Scene keeps track of child acceleration structure buffers to ensure
 	// they are resident when any ray tracing work is dispatched.
@@ -118,6 +131,9 @@ public:
 	uint32 NumCallableShaderSlots = 0;
 	uint32 NumMissShaderSlots = 1; // always at least the default
 
+	// Array of hit group parameters per geometry segment across all scene instance geometries.
+	// Accessed as HitGroupSystemParametersCache[SegmentPrefixSum[InstanceIndex] + SegmentIndex].
+	// Only used for GPU 0 (secondary GPUs take the slow path).
 	TArray<FHitGroupSystemParameters> HitGroupSystemParametersCache;
 
 	// #dxr_todo UE-68230: shader tables should be explicitly registered and unregistered with the scene
