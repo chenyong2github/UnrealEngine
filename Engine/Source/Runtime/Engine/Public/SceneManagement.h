@@ -3189,6 +3189,7 @@ struct FReadOnlyCVARCache
 	bool bEnableLowQualityLightmaps;
 	bool bAllowStaticLighting;
 	bool bSupportSkyAtmosphere;
+	bool bEnableStrata;
 
 	// Mobile specific
 	bool bMobileAllowMovableDirectionalLights;

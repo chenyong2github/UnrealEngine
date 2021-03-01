@@ -3633,10 +3633,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		return;
 	}
 
-	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-	const bool bStrataEnabled = RendererSettings && RendererSettings->bEnableStrata;
-
-	if (bStrataEnabled && !FrontMaterial.IsConnected())
+	if (FReadOnlyCVARCache::Get().bEnableStrata && !FrontMaterial.IsConnected())
 	{
 		auto MoveConnectionTo = [](auto& OldNodeInput, UMaterialExpression* NewNode, uint32 NewInputIndex)
 		{
@@ -4922,9 +4919,7 @@ void UMaterial::RebuildShadingModelField()
 {
 	ShadingModels.ClearShadingModels();
 
-	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-	const bool bStrataEnabled = RendererSettings && RendererSettings->bEnableStrata;
-	if (bStrataEnabled && FrontMaterial.IsConnected())
+	if (FReadOnlyCVARCache::Get().bEnableStrata && FrontMaterial.IsConnected())
 	{
 		FStrataMaterialInfo StrataMaterialInfo;
 		check(this->FrontMaterial.Expression);
@@ -6719,8 +6714,7 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		break;
 	case MP_FrontMaterial:
 		{
-			const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-			Active = RendererSettings && RendererSettings->bEnableStrata;
+			Active = FReadOnlyCVARCache::Get().bEnableStrata;
 			break;
 		}
 	case MP_MaterialAttributes:

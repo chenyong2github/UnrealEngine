@@ -1611,8 +1611,7 @@ bool FMaterialResource::HasAmbientOcclusionConnected() const
 bool FMaterialResource::IsStrataMaterial() const
 {
 	// STRATA_TODO IsStrataMaterial should go away once Strata implementation is finished
-	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-	if (RendererSettings && RendererSettings->bEnableStrata)
+	if (FReadOnlyCVARCache::Get().bEnableStrata)
 	{
 		return Material->bUseMaterialAttributes ?
 			Material->MaterialAttributes.IsConnected(MP_FrontMaterial) :
