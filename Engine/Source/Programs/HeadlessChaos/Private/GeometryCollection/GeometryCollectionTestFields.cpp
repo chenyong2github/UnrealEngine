@@ -25,9 +25,9 @@ namespace GeometryCollectionTest
 	void Fields_NoiseSample()
 	{
 		int Bounds = 100;
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, Bounds*Bounds);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, Bounds*Bounds);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), Bounds*Bounds);
@@ -75,9 +75,9 @@ namespace GeometryCollectionTest
 
 	void Fields_RadialIntMask()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
@@ -121,9 +121,9 @@ namespace GeometryCollectionTest
 
 	void Fields_RadialFalloff()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), 10);
@@ -172,9 +172,9 @@ namespace GeometryCollectionTest
 
 	void Fields_PlaneFalloff()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
 		TArray<FVector> SamplesArray;
@@ -220,9 +220,9 @@ namespace GeometryCollectionTest
 
 	void Fields_UniformVector()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
 		TArray<FVector> SamplesArray;
@@ -263,9 +263,9 @@ namespace GeometryCollectionTest
 
 	void Fields_RaidalVector()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
 		TArray<FVector> SamplesArray;
@@ -306,9 +306,9 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorFullMult()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 		Chaos::FReal AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
@@ -377,9 +377,9 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorFullDiv()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
 		Chaos::FReal AverageSampleLength = 0.0;
@@ -449,9 +449,9 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorFullAdd()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
 		Chaos::FReal AverageSampleLength = 0.0;
@@ -522,9 +522,9 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorFullSub()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
 		Chaos::FReal AverageSampleLength = 0.0;
@@ -595,9 +595,9 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorLeftSide()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
 		Chaos::FReal AverageSampleLength = 0.0;
@@ -668,9 +668,9 @@ namespace GeometryCollectionTest
 
 	void Fields_SumVectorRightSide()
 	{
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, 10);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, 10);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 		Chaos::FReal AverageSampleLength = 0.0;
 		TArray<FVector> SamplesArray;
@@ -742,9 +742,9 @@ namespace GeometryCollectionTest
 	void Fields_SumScalar()
 	{
 		int32 NumPoints = 20;
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, NumPoints);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, NumPoints);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 
 		TArray<FVector> SamplesArray;
@@ -816,9 +816,9 @@ namespace GeometryCollectionTest
 	void Fields_SumScalarRightSide()
 	{
 		int32 NumPoints = 20;
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, NumPoints);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, NumPoints);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), NumPoints);
@@ -875,9 +875,9 @@ namespace GeometryCollectionTest
 	void Fields_SumScalarLeftSide()
 	{
 		int32 NumPoints = 20;
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, NumPoints);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, NumPoints);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), NumPoints);
@@ -935,9 +935,9 @@ namespace GeometryCollectionTest
 	void Fields_Culling()
 	{
 		int32 NumPoints = 20;
-		TArray<ContextIndex> IndicesArray;
-		ContextIndex::ContiguousIndices(IndicesArray, NumPoints);
-		TArrayView<ContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
+		TArray<FFieldContextIndex> IndicesArray;
+		FFieldContextIndex::ContiguousIndices(IndicesArray, NumPoints);
+		TArrayView<FFieldContextIndex> IndexView(&(IndicesArray[0]), IndicesArray.Num());
 
 		TArray<FVector> SamplesArray;
 		SamplesArray.Init(FVector(0.f), NumPoints);

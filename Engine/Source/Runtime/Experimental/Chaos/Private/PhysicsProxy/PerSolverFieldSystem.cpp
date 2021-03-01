@@ -41,8 +41,6 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 		CommandsToRemove.Reserve(NumCommands);
 
 		TArray<Chaos::FGeometryParticleHandle*> ParticleHandles;
-		TArray<FVector> SamplePoints;
-		TArray<ContextIndex> SampleIndices;
 
 		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
 		EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
@@ -50,12 +48,12 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 		for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
 		{
 			const FFieldSystemCommand& FieldCommand = Commands[CommandIndex];
-			if( Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ParticleHandles, SamplePoints, SampleIndices, PrevResolutionType, PrevFilterType) )
+			if( Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ParticleHandles, SamplePositions, SampleIndices, PrevResolutionType, PrevFilterType) )
 			{
 				const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
-				TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-				TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+				TArrayView<FVector> SamplePointsView(&(SamplePositions[0]), SamplePositions.Num());
+				TArrayView<FFieldContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 				FFieldContext FieldContext(
 					SampleIndicesView,
@@ -118,8 +116,6 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 		CommandsToRemove.Reserve(NumCommands);
 
 		TArray<Chaos::FGeometryParticleHandle*> ParticleHandles;
-		TArray<FVector> SamplePoints;
-		TArray<ContextIndex> SampleIndices;
 
 		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
 		EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
@@ -128,12 +124,12 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 		{
 			const FFieldSystemCommand& FieldCommand = Commands[CommandIndex];
 
-			if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ParticleHandles, SamplePoints, SampleIndices, PrevResolutionType, PrevFilterType))
+			if (Chaos::BuildFieldSamplePoints(this, RigidSolver, FieldCommand, ParticleHandles, SamplePositions, SampleIndices, PrevResolutionType, PrevFilterType))
 			{
 				const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
-				TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-				TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+				TArrayView<FVector> SamplePointsView(&(SamplePositions[0]), SamplePositions.Num());
+				TArrayView<FFieldContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 				FFieldContext FieldContext(
 					SampleIndicesView,
@@ -163,6 +159,226 @@ void FPerSolverFieldSystem::FieldForcesUpdateCallback(
 {
 	FieldForcesUpdateInternal(InSolver, TransientCommands, true);
 	FieldForcesUpdateInternal(InSolver, PersistentCommands, false);
+}
+
+template<typename FieldType, int32 ArraySize>
+FORCEINLINE void ResetInternalArrays(const int32 FieldSize, const TArray<int32>& FieldTargets, TArray<FieldType> FieldArray[ArraySize])
+{
+	for (const int32& FieldTarget : FieldTargets)
+	{
+		if (FieldTarget < ArraySize)
+		{
+			FieldArray[FieldTarget].Reset();
+			FieldArray[FieldTarget].AddZeroed(FieldSize);
+		}
+	}
+}
+template<typename FieldType, int32 ArraySize>
+FORCEINLINE void EmptyInternalArrays(const TArray<int32>& FieldTargets, TArray<FieldType> FieldArray[ArraySize])
+{
+	for (const int32& FieldTarget : FieldTargets)
+	{
+		if (FieldTarget < ArraySize)
+		{
+			FieldArray[FieldTarget].Reset();
+		}
+	}
+}
+
+FORCEINLINE void EvaluateImpulseField(
+	const FFieldSystemCommand& FieldCommand,
+	FFieldContext& FieldContext,
+	TArrayView<FVector>& ResultsView,
+	TArray<FVector>& OutputImpulse)
+{
+	static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
+	if (OutputImpulse.Num() == 0)
+	{
+		OutputImpulse.Reset();
+		OutputImpulse.AddZeroed(ResultsView.Num());
+		for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
+		{
+			if (Index.Sample < OutputImpulse.Num() && Index.Result < ResultsView.Num())
+			{
+				OutputImpulse[Index.Sample] = ResultsView[Index.Result];
+			}
+		}
+	}
+	else
+	{
+		for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
+		{
+			if (Index.Sample < OutputImpulse.Num() && Index.Result < ResultsView.Num())
+			{
+				OutputImpulse[Index.Sample] += ResultsView[Index.Result];
+			}
+		}
+	}
+}
+
+void ComputeFieldRigidImpulseInternal(
+	TArray<FVector>& SamplePositions,
+	TArray<FFieldContextIndex>& SampleIndices,
+	const float SolverTime,
+	TArray<FVector>& FinalResults,
+	TArray<FVector>& LinearVelocities,
+	TArray<FVector>& LinearForces,
+	TArray<FVector>& AngularVelocities,
+	TArray<FVector>& AngularTorques,
+	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
+{
+	const int32 NumCommands = Commands.Num();
+	if (NumCommands)
+	{
+		TArray<int32> CommandsToRemove;
+		CommandsToRemove.Reserve(NumCommands);
+
+		for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
+		{
+			const FFieldSystemCommand& FieldCommand = Commands[CommandIndex];
+			const float TimeSeconds = SolverTime - FieldCommand.TimeCreation;
+
+			const TArrayView<FVector> SamplePointsView(&(SamplePositions[0]), SamplePositions.Num());
+			const TArrayView<FFieldContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+
+			FFieldContext FieldContext(
+				SampleIndicesView,
+				SamplePointsView,
+				FieldCommand.MetaData,
+				TimeSeconds);
+
+			if (FieldCommand.RootNode->Type() == FFieldNode<FVector>::StaticType())
+			{
+				TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
+
+				if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity))
+				{
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
+					
+					EvaluateImpulseField(FieldCommand, FieldContext, ResultsView, LinearVelocities);
+				}
+				else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearForce))
+				{
+					SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_LinearForce);
+
+					EvaluateImpulseField(FieldCommand, FieldContext, ResultsView, LinearForces);
+				}
+				if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_AngularVelociy))
+				{
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_AngularVelocity);
+
+					EvaluateImpulseField(FieldCommand, FieldContext, ResultsView, AngularVelocities);
+				}
+				else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_AngularTorque))
+				{
+					SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_AngularTorque);
+
+					EvaluateImpulseField(FieldCommand, FieldContext, ResultsView, AngularTorques);
+				}
+			}
+			CommandsToRemove.Add(CommandIndex);
+		}
+		if (IsTransient)
+		{
+			for (int32 Index = CommandsToRemove.Num() - 1; Index >= 0; --Index)
+			{
+				Commands.RemoveAt(CommandsToRemove[Index]);
+			}
+		}
+	}
+}
+
+void FPerSolverFieldSystem::ComputeFieldRigidImpulse(
+	const float SolverTime)
+{
+	static const TArray<int32> EmptyTargets = { EFieldVectorType::Vector_LinearVelocity,
+												EFieldVectorType::Vector_LinearForce,
+												EFieldVectorType::Vector_AngularVelocity,
+												EFieldVectorType::Vector_AngularTorque };
+	static const TArray<int32> ResetTargets = { EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult };
+
+	EmptyInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (EmptyTargets, VectorResults);
+	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults);
+
+	ComputeFieldRigidImpulseInternal(SamplePositions, SampleIndices, SolverTime, VectorResults[EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult],
+		VectorResults[EFieldVectorType::Vector_LinearVelocity], VectorResults[EFieldVectorType::Vector_LinearForce], 
+		VectorResults[EFieldVectorType::Vector_AngularVelocity], VectorResults[EFieldVectorType::Vector_AngularTorque], TransientCommands, true);
+	ComputeFieldRigidImpulseInternal(SamplePositions, SampleIndices, SolverTime, VectorResults[EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult],
+		VectorResults[EFieldVectorType::Vector_LinearVelocity], VectorResults[EFieldVectorType::Vector_LinearForce],
+		VectorResults[EFieldVectorType::Vector_AngularVelocity], VectorResults[EFieldVectorType::Vector_AngularTorque], PersistentCommands, false);
+}
+
+void ComputeFieldLinearImpulseInternal(
+	TArray<FVector>& SamplePositions,
+	TArray<FFieldContextIndex>& SampleIndices,
+	const float SolverTime,
+	TArray<FVector>& FinalResults,
+	TArray<FVector>& LinearVelocities,
+	TArray<FVector>& LinearForces,
+	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
+{
+	const int32 NumCommands = Commands.Num();
+	if (NumCommands)
+	{
+		TArray<int32> CommandsToRemove;
+		CommandsToRemove.Reserve(NumCommands);
+
+		for (int32 CommandIndex = 0; CommandIndex < NumCommands; CommandIndex++)
+		{
+			const FFieldSystemCommand& FieldCommand = Commands[CommandIndex];
+			const float TimeSeconds = SolverTime - FieldCommand.TimeCreation;
+
+			const TArrayView<FVector> SamplePointsView(&(SamplePositions[0]), SamplePositions.Num());
+			const TArrayView<FFieldContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+
+			FFieldContext FieldContext(
+				SampleIndicesView,
+				SamplePointsView,
+				FieldCommand.MetaData,
+				TimeSeconds);
+
+			TArrayView<FVector> ResultsView(&(FinalResults[0]), FinalResults.Num());
+
+			if (FieldCommand.RootNode->Type() == FFieldNode<FVector>::StaticType())
+			{
+				if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearVelocity))
+				{
+					SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
+
+					EvaluateImpulseField(FieldCommand, FieldContext, ResultsView, LinearVelocities);
+				}
+				else if (FieldCommand.TargetAttribute == GetFieldPhysicsName(EFieldPhysicsType::Field_LinearForce))
+				{
+					SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_LinearForce);
+
+					EvaluateImpulseField(FieldCommand, FieldContext, ResultsView, LinearForces);
+				}
+			}
+			CommandsToRemove.Add(CommandIndex);
+		}
+		if (IsTransient)
+		{
+			for (int32 Index = CommandsToRemove.Num() - 1; Index >= 0; --Index)
+			{
+				Commands.RemoveAt(CommandsToRemove[Index]);
+			}
+		}
+	}
+}
+
+void FPerSolverFieldSystem::ComputeFieldLinearImpulse(const float SolverTime)
+{
+	static const TArray<int32> EmptyTargets = { EFieldVectorType::Vector_LinearVelocity,
+												EFieldVectorType::Vector_LinearForce };
+	static const TArray<int32> ResetTargets = { EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult };
+
+	EmptyInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (EmptyTargets, VectorResults);
+	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults);
+
+	ComputeFieldLinearImpulseInternal(SamplePositions, SampleIndices, SolverTime, VectorResults[EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult], 
+		VectorResults[EFieldVectorType::Vector_LinearVelocity], VectorResults[EFieldVectorType::Vector_LinearForce], TransientCommands, true);
+	ComputeFieldLinearImpulseInternal(SamplePositions, SampleIndices, SolverTime, VectorResults[EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult], 
+		VectorResults[EFieldVectorType::Vector_LinearVelocity], VectorResults[EFieldVectorType::Vector_LinearForce], PersistentCommands, false);
 }
 
 void FPerSolverFieldSystem::AddTransientCommand(const FFieldSystemCommand& FieldCommand)
@@ -228,7 +444,7 @@ void FPerSolverFieldSystem::GetRelevantParticleHandles(
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		Handles.Reserve(Clustering.GetTopLevelClusterParents().Num());
 
-		for (Chaos::TPBDRigidClusteredParticleHandle<float, 3> * TopLevelParent : Clustering.GetTopLevelClusterParents())
+		for (Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3> * TopLevelParent : Clustering.GetTopLevelClusterParents())
 		{
 			Handles.Add(TopLevelParent);
 		}
@@ -259,11 +475,11 @@ void FPerSolverFieldSystem::GetFilteredParticleHandles(
 
 	if (FilterType == EFieldFilterType::Field_Filter_Dynamic)
 	{
-		const Chaos::TParticleView<Chaos::TPBDRigidParticles<float, 3>>& ParticleView =
+		const Chaos::TParticleView<Chaos::TPBDRigidParticles<Chaos::FReal, 3>>& ParticleView =
 			SolverParticles.GetNonDisabledDynamicView();
 		Handles.Reserve(ParticleView.Num());
 
-		for (Chaos::TParticleIterator<Chaos::TPBDRigidParticles<float, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
+		for (Chaos::TParticleIterator<Chaos::TPBDRigidParticles<Chaos::FReal, 3>> It = ParticleView.Begin(), ItEnd = ParticleView.End();
 			It != ItEnd; ++It)
 		{
 			const Chaos::TTransientGeometryParticleHandle<Chaos::FReal,3>* Handle = &(*It);

@@ -172,4 +172,7 @@ public:
 	virtual float GetSimulationTime() const { return 0.f; }
 	/** Return whether the simulation is teleported. Implementation must be thread safe. */
 	virtual bool IsTeleported() const { return false; }
+
+	/** Update the forces coming from the world. */
+	virtual void UpdateWorldForces(const USkeletalMeshComponent* OwnerComponent) {};
 };

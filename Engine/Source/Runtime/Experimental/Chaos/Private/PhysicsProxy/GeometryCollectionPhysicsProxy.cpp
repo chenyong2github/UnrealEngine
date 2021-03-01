@@ -2573,7 +2573,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 
 		TArray<Chaos::TGeometryParticleHandle<float, 3>*> ParticleHandles;
 		TArray<FVector> SamplePoints;
-		TArray<ContextIndex> SampleIndices;
+		TArray<FFieldContextIndex> SampleIndices;
 
 		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
 		EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
@@ -2586,7 +2586,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 				const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
 				TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-				TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+				TArrayView<FFieldContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 				FFieldContext FieldContext(
 					SampleIndicesView,
@@ -2608,7 +2608,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 							InitDynamicStateResults(ParticleHandles, FieldContext, LocalResults);
 
 							static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-							for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+							for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 							{
 								Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 								if (RigidHandle)
@@ -2638,7 +2638,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 							SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
 							{
 								static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-								for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+								for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 								{
 									Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 									if (RigidHandle)
@@ -2665,7 +2665,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 							SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_AngularVelocity);
 							{
 								static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-								for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+								for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 								{
 									Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 									if (RigidHandle)
@@ -2709,7 +2709,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 
 		TArray<Chaos::TGeometryParticleHandle<float, 3>*> ParticleHandles;
 		TArray<FVector> SamplePoints;
-		TArray<ContextIndex> SampleIndices;
+		TArray<FFieldContextIndex> SampleIndices;
 
 		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
 		EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
@@ -2723,7 +2723,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 				const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
 				TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-				TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+				TArrayView<FFieldContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 				FFieldContext FieldContext(
 					SampleIndicesView,

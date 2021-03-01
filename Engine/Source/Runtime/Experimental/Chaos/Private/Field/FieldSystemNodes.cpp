@@ -129,7 +129,7 @@ void FRadialIntMask::Evaluate(FFieldContext& Context, TArrayView<int32>& Results
 	int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+		const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 		{
 			float Result;
 			float Delta2 = (Position - Context.Samples[Index.Sample]).SizeSquared();
@@ -231,7 +231,7 @@ void FWaveScalar::Evaluate(FFieldContext& Context, TArrayView<float>& Results) c
 	int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+		const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 
 		const float Distance = (Context.Samples[Index.Sample] - Position).Size();
 		const float Phase = Wavenumber * (Distance - Radius);
@@ -365,7 +365,7 @@ void FRadialFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& 
 		const int32 NumSamples = Context.SampleIndices.Num();
 		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 		{
-			const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+			const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 			{
 				Results[Index.Result] = Default;
 				const float Delta = (Context.Samples[Index.Sample] - Position).Size();
@@ -443,7 +443,7 @@ void FPlaneFalloff::Evaluator(const FFieldContext& Context, const FPlane& Plane,
 		const int32 NumSamples = Context.SampleIndices.Num();
 		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 		{
-			const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+			const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 			{
 				Results[Index.Result] = Default;
 				const float Delta = Plane.PlaneDot(Context.Samples[Index.Sample]);
@@ -527,7 +527,7 @@ void FBoxFalloff::Evaluator(const FFieldContext& Context, TArrayView<float>& Res
 	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+		const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 		{
 			Results[Index.Result] = Default;
 			const FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
@@ -604,7 +604,7 @@ FNoiseField::Evaluate(FFieldContext& Context, TArrayView<float>& Results) const
 
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+		const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 
 		float Dummy = 0.0f;
 		FVector LocalPoint = Transform.InverseTransformPosition(Context.Samples[Index.Sample]);
@@ -682,7 +682,7 @@ void FRadialVector::Evaluate(FFieldContext& Context, TArrayView<FVector>& Result
 	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+		const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 		{
 			Results[Index.Result] = Magnitude * (Context.Samples[Index.Sample] - Position).GetSafeNormal();
 		}
@@ -715,7 +715,7 @@ void FRandomVector::Evaluate(FFieldContext& Context, TArrayView<FVector>& Result
 	const int32 NumSamples = Context.SampleIndices.Num();
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+		const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 		{
 			Results[Index.Result].X = FMath::RandRange(-1.f, 1.f);
 			Results[Index.Result].Y = FMath::RandRange(-1.f, 1.f);
@@ -781,7 +781,7 @@ void FSumScalar::Evaluate(FFieldContext& ContextIn, TArrayView<float>& Results) 
 		case EFieldOperationType::Field_Multiply:
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-				const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+				const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 				{
 					Results[Index.Result] = Buffers[1][Index.Result] * Buffers[0][Index.Result];
 				}
@@ -790,7 +790,7 @@ void FSumScalar::Evaluate(FFieldContext& ContextIn, TArrayView<float>& Results) 
 		case EFieldOperationType::Field_Divide:
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-				const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+				const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 				{
 					Results[Index.Result] = Buffers[0][Index.Result] / Buffers[1][Index.Result];
 				}
@@ -799,7 +799,7 @@ void FSumScalar::Evaluate(FFieldContext& ContextIn, TArrayView<float>& Results) 
 		case EFieldOperationType::Field_Add:
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-				const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+				const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 				{
 					Results[Index.Result] = Buffers[1][Index.Result] + Buffers[0][Index.Result];
 				}
@@ -808,7 +808,7 @@ void FSumScalar::Evaluate(FFieldContext& ContextIn, TArrayView<float>& Results) 
 		case EFieldOperationType::Field_Substract:
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-				const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+				const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 				{
 					Results[Index.Result] = Buffers[0][Index.Result] - Buffers[1][Index.Result];
 				}
@@ -832,7 +832,7 @@ void FSumScalar::Evaluate(FFieldContext& ContextIn, TArrayView<float>& Results) 
 	{
 		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 		{
-			const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+			const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 			{
 				Results[Index.Result] *= MagnitudeVal;
 			}
@@ -895,7 +895,7 @@ void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results
 		case EFieldOperationType::Field_Multiply:
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-				const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+				const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 				{
 					Results[Index.Result] = Buffers[1][Index.Result] * Buffers[0][Index.Result];
 				}
@@ -904,7 +904,7 @@ void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results
 		case EFieldOperationType::Field_Divide:
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-		  const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+		  const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 				{
 					Results[Index.Result] = Buffers[0][Index.Result] / Buffers[1][Index.Result];
 				}
@@ -913,7 +913,7 @@ void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results
 		case EFieldOperationType::Field_Add:
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-		  const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+		  const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 				{
 					Results[Index.Result] = Buffers[1][Index.Result] + Buffers[0][Index.Result];
 				}
@@ -922,7 +922,7 @@ void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results
 		case EFieldOperationType::Field_Substract:
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-		  const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+		  const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 				{
 					Results[Index.Result] = Buffers[0][Index.Result] - Buffers[1][Index.Result];
 				}
@@ -949,7 +949,7 @@ void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results
 
 		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 		{
-			 const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+			 const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 			{
 				Results[Index.Result] *= Buffer[Index.Result];
 			}
@@ -960,7 +960,7 @@ void FSumVector::Evaluate(FFieldContext& ContextIn, TArrayView<FVector>& Results
 	{
 		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 		{
-			const ContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
+			const FFieldContextIndex& Index = ContextIn.SampleIndices[SampleIndex];
 			{
 				Results[Index.Result] *= MagnitudeVal;
 			}
@@ -1008,7 +1008,7 @@ void FConversionField<InT,OutT>::Evaluate(FFieldContext& Context, TArrayView<Out
 
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+		const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 		Results[Index.Result] = (OutT)Array[Index.Result];
 	}
 }
@@ -1045,7 +1045,7 @@ void FCullingField<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) 
 	const FFieldNode<float> * CullingField = Culling.Get();
 	const FFieldNode<T> * InputField = Input.Get();
 
-	TArray<ContextIndex> IndexBuffer;
+	TArray<FFieldContextIndex> IndexBuffer;
 	if (CullingField != nullptr)
 	{
 		if (ensureMsgf(CullingField->Type() == FFieldNode<float>::StaticType(),
@@ -1066,7 +1066,7 @@ void FCullingField<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) 
 			int NewEvaluationSize = 0;
 			for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 			{
-				const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+				const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 				{
 					if (Operation == EFieldCullingOperationType::Field_Culling_Outside)
 					{
@@ -1087,7 +1087,7 @@ void FCullingField<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) 
 			IndexBuffer.SetNumUninitialized(NewEvaluationSize);
 			for (int32 SampleIndex = 0, j=0; SampleIndex < NumSamples; SampleIndex++)
 			{
-				const ContextIndex& Index = Context.SampleIndices[SampleIndex];
+				const FFieldContextIndex& Index = Context.SampleIndices[SampleIndex];
 				{
 					if (Operation == EFieldCullingOperationType::Field_Culling_Outside)
 					{
@@ -1121,7 +1121,7 @@ void FCullingField<T>::Evaluate(FFieldContext& Context, TArrayView<T>& Results) 
 
 		if (InputField != nullptr && IndexBuffer.Num())
 		{
-			TArrayView<ContextIndex> IndexBufferView(&(IndexBuffer[0]), IndexBuffer.Num());
+			TArrayView<FFieldContextIndex> IndexBufferView(&(IndexBuffer[0]), IndexBuffer.Num());
 			FFieldContext LocalContext(IndexBufferView, Context.Samples, Context.MetaData, Context.TimeSeconds);
 			InputField->Evaluate(LocalContext, Results);
 		}

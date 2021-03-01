@@ -299,6 +299,9 @@ protected:
 	/** List of all the chaos peristent fields */
 	TArray< FFieldSystemCommand > ChaosPersistentFields;
 
-	/** List of all the global peristent fields */
-	TArray< FFieldSystemCommand > WorldPersistentFields;
+	/** List of the world GPU peristent fields created by this field component */
+	TArray< FFieldSystemCommand > WorldGPUPersistentFields;
+
+	/** List of the world CPU peristent fields created by this field component */
+	TArray< FFieldSystemCommand > WorldCPUPersistentFields;
 };

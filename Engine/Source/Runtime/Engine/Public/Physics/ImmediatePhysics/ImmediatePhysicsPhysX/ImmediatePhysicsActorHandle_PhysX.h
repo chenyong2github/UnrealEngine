@@ -100,6 +100,11 @@ namespace ImmediatePhysics_PhysX
 			OwningSimulation.AddForce(ActorDataIndex, Force);
 		}
 
+		void AddTorque(const FVector& Torque)
+		{
+			// Not supported right now
+		}
+
 		void AddRadialForce(const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType)
 		{
 			OwningSimulation.AddRadialForce(ActorDataIndex, Origin, Strength, Radius, Falloff, ForceType);

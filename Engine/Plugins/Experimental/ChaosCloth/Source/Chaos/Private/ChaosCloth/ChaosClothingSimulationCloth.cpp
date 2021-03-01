@@ -727,8 +727,8 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		// In all cases apart from when the cloth override is used, the gravity scale must be combined to the solver gravity value.
 		Solver->SetGravity(GroupId, GetGravity(Solver));
 
-		// Update wind
-		Solver->SetLegacyWind(GroupId, bUseLegacyWind);
+		// External forces (legacy wind+field)
+		Solver->AddExternalForces(GroupId, bUseLegacyWind);
 
 		if (bUseLegacyWind && ChaosClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
 		{

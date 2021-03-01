@@ -1356,6 +1356,11 @@ void USkeletalMeshComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Animation);
 
+	if (ClothingSimulation)
+	{
+		ClothingSimulation->UpdateWorldForces(this);
+	}
+
 	UpdateEndPhysicsTickRegisteredState();
 	UpdateClothTickRegisteredState();
 

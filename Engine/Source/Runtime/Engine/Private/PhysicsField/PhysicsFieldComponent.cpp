@@ -1221,9 +1221,9 @@ void UPhysicsFieldComponent::SendRenderDynamicData_Concurrent()
 		const bool bPreviousUpdate = FieldInstance->FieldCommands.Num() > 0;
 
 		FieldInstance->FieldCommands.Empty();
-		FieldInstance->FieldCommands.Append(PersistentCommands);
-		FieldInstance->FieldCommands.Append(TransientCommands);
-		TransientCommands.Empty();
+		FieldInstance->FieldCommands.Append(PersistentCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)]);
+		FieldInstance->FieldCommands.Append(TransientCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)]);
+		TransientCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)].Empty();
 
 		const bool bCurrentUpdate = FieldInstance->FieldCommands.Num() > 0;
 
@@ -1289,27 +1289,113 @@ void UPhysicsFieldComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
+	// Swap the read and write chaos fields list. That way we have a consistent result independently of the ticking group of the component using it
+	PersistentCommands[(uint8)(EFieldCommandBuffer::CPUReadBuffer)] = PersistentCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)];
+	TransientCommands[(uint8)(EFieldCommandBuffer::CPUReadBuffer)] = TransientCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)];
+
+	// Transient commands have a tick life time to be able to be fetched from the chaos components
+	// Persistent ones will be destrtoyed on request by the field component itslef through the RemovePersistentCommand method
+	TransientCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Reset();
+
 	MarkRenderDynamicDataDirty();
 }
 
-void UPhysicsFieldComponent::AddTransientCommand(const FFieldSystemCommand& FieldCommand)
+void UPhysicsFieldComponent::BuildCommandBounds(FFieldSystemCommand& FieldCommand)
 {
-	TransientCommands.Add(FieldCommand);
+	FieldCommand.BoundingBox.Min = FVector(-FLT_MAX);
+	FieldCommand.BoundingBox.Max = FVector(FLT_MAX);
+
+	FPhysicsFieldInstance::BuildNodeBounds(FieldCommand.RootNode.Get(), FieldCommand.BoundingBox.Min, FieldCommand.BoundingBox.Max);
 }
 
-void UPhysicsFieldComponent::AddPersistentCommand(const FFieldSystemCommand& FieldCommand)
+void UPhysicsFieldComponent::AddTransientCommand(const FFieldSystemCommand& FieldCommand, const bool bIsWorldField)
 {
-	PersistentCommands.Add(FieldCommand);
+	if (bIsWorldField)
+	{
+		TransientCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)].Add(FieldCommand);
+	}
+	else
+	{
+		TransientCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Add(FieldCommand);
+	}
 }
 
-void UPhysicsFieldComponent::RemoveTransientCommand(const FFieldSystemCommand& FieldCommand)
+void UPhysicsFieldComponent::AddPersistentCommand(const FFieldSystemCommand& FieldCommand, const bool bIsWorldField)
 {
-	TransientCommands.Remove(FieldCommand);
+	if (bIsWorldField)
+	{
+		PersistentCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)].Add(FieldCommand);
+	}
+	else
+	{
+		PersistentCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Add(FieldCommand);
+	}
 }
 
-void UPhysicsFieldComponent::RemovePersistentCommand(const FFieldSystemCommand& FieldCommand)
+void UPhysicsFieldComponent::RemoveTransientCommand(const FFieldSystemCommand& FieldCommand, const bool bIsWorldField)
 {
-	PersistentCommands.Remove(FieldCommand);
+	if (bIsWorldField)
+	{
+		TransientCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)].Remove(FieldCommand);
+	}
+	else
+	{
+		TransientCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Remove(FieldCommand);
+	}
+}
+
+void UPhysicsFieldComponent::RemovePersistentCommand(const FFieldSystemCommand& FieldCommand, const bool bIsWorldField)
+{
+	if (bIsWorldField)
+	{
+		PersistentCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)].Remove(FieldCommand);
+	}
+	else
+	{
+		PersistentCommands[(uint8)(EFieldCommandBuffer::CPUWriteBuffer)].Remove(FieldCommand);
+	}
+}
+
+FORCEINLINE void FillFieldCommands(const TArray<FFieldSystemCommand>& InputCommands, const FBox& BoundingBox, const float TimeSeconds, TArray<FFieldSystemCommand>& OutputCommands) 
+{
+	TArray<float> FieldTimes;
+	FieldTimes.Init(TimeSeconds, InputCommands.Num());
+
+	// Store the previous creation time if the command was already in the output commands list. If not set it from the input time.
+	uint32 CommandIndex = 0;
+	for (const FFieldSystemCommand& InputCommand : InputCommands)
+	{
+		const int32 OutputIndex = OutputCommands.Find(InputCommand);
+		FieldTimes[CommandIndex++] = (OutputIndex != INDEX_NONE) ? OutputCommands[OutputIndex].TimeCreation : TimeSeconds;
+	}
+
+	OutputCommands.Empty();
+	CommandIndex = 0;
+
+	for (const FFieldSystemCommand& InputCommand : InputCommands)
+	{
+		if (InputCommand.BoundingBox.Intersect(BoundingBox))
+		{
+			OutputCommands.Add_GetRef(InputCommand).TimeCreation = FieldTimes[CommandIndex];
+		}
+		++CommandIndex;
+	}
+}
+
+void UPhysicsFieldComponent::FillTransientCommands(const bool bIsWorldField, const FBox& BoundingBox, const float TimeSeconds, TArray<FFieldSystemCommand>& OutputCommands) const
+{
+	const TArray<FFieldSystemCommand>& InputCommands = bIsWorldField ? 
+		TransientCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)] : TransientCommands[(uint8)(EFieldCommandBuffer::CPUReadBuffer)];
+
+	FillFieldCommands(InputCommands, BoundingBox, TimeSeconds, OutputCommands);
+}
+
+void UPhysicsFieldComponent::FillPersistentCommands(const bool bIsWorldField, const FBox& BoundingBox, const float TimeSeconds, TArray<FFieldSystemCommand>& OutputCommands) const
+{
+	const TArray<FFieldSystemCommand>& InputCommands = bIsWorldField ?
+		PersistentCommands[(uint8)(EFieldCommandBuffer::GPUFieldBuffer)] : PersistentCommands[(uint8)(EFieldCommandBuffer::CPUReadBuffer)];
+
+	FillFieldCommands(InputCommands, BoundingBox, TimeSeconds, OutputCommands);
 }
 
 /**

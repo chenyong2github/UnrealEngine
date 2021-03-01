@@ -30,7 +30,7 @@ namespace Chaos
 		const FFieldSystemCommand& FieldCommand, 
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles,
 		TArray<FVector>& SamplePositions,
-		TArray<ContextIndex>& SampleIndices,
+		TArray<FFieldContextIndex>& SampleIndices,
 		EFieldResolutionType& PrevResolutionType, EFieldFilterType& PrevFilterType)
 	{
 		const EFieldResolutionType ResolutionType =
@@ -65,7 +65,7 @@ namespace Chaos
 			for (int32 Idx = 0; Idx < ParticleHandles.Num(); ++Idx)
 			{
 				SamplePositions[Idx] = ParticleHandles[Idx]->X();
-				SampleIndices[Idx] = ContextIndex(Idx, Idx);
+				SampleIndices[Idx] = FFieldContextIndex(Idx, Idx);
 			}
 		}
 		return ParticleHandles.Num() > 0;
@@ -79,7 +79,7 @@ namespace Chaos
 	 */
 	FORCEINLINE void InitDynamicStateResults(const TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& LocalResults)
 	{
-		for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+		for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 		{
 			const Chaos::EObjectStateType InitState = (ParticleHandles[Index.Sample]->ObjectState() != Chaos::EObjectStateType::Uninitialized) ?
 				ParticleHandles[Index.Sample]->ObjectState() : Chaos::EObjectStateType::Dynamic;
@@ -95,7 +95,7 @@ namespace Chaos
 	 */
 	FORCEINLINE void InitActivateDisabledResults(const TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& LocalResults)
 	{
-		for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+		for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 		{
 			Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 			if (RigidHandle)
@@ -330,7 +330,7 @@ namespace Chaos
 				InitDynamicStateResults(ParticleHandles, FieldContext, LocalResults);
 
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle)
@@ -351,7 +351,7 @@ namespace Chaos
 				InitActivateDisabledResults(ParticleHandles, FieldContext, LocalResults);
 
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && RigidHandle->Disabled() && ResultsView[Index.Result] == 0)
@@ -368,7 +368,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_CollisionGroup);
 			{
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle)
@@ -384,7 +384,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionStatic);
 			{
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle && ResultsView[Index.Result])
@@ -443,7 +443,7 @@ namespace Chaos
 				TMap<Chaos::FGeometryParticleHandle*, float> ExternalStrain;
 
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					if (ResultsView[Index.Result] > 0)
 					{
@@ -459,7 +459,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Kill);
 			{
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && ResultsView[Index.Result] > 0.0)
@@ -475,7 +475,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_SleepingThreshold);
 			{
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && ResultsView.Num() > 0)
@@ -491,7 +491,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DisableThreshold);
 			{
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 
@@ -508,7 +508,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_InternalClusterStrain);
 			{
 				static_cast<const FFieldNode<float>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
@@ -547,7 +547,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
 			{
 				static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
@@ -564,7 +564,7 @@ namespace Chaos
 			{
 				static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
@@ -580,7 +580,7 @@ namespace Chaos
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_PositionTarget);
 			{
 				static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidClusteredParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToClustered();
 					if (RigidHandle && ResultsView[Index.Result] != FVector(FLT_MAX))
@@ -627,7 +627,7 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_LinearForce);
 			{
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && !RigidHandle->Disabled() && (RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic || RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping))
@@ -646,7 +646,7 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_AngularTorque);
 			{
-				for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle && (RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic || RigidHandle->ObjectState() == Chaos::EObjectStateType::Sleeping))

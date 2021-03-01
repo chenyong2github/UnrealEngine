@@ -29,10 +29,9 @@ void FFieldSystemCommand::Serialize(FArchive& Ar)
 	// @todo: Add MetaData serialization support. 
 }
 
-bool FFieldSystemCommand::operator==(const FFieldSystemCommand& CommandIn)
+bool FFieldSystemCommand::operator==(const FFieldSystemCommand& CommandIn) const
 {
-	if (TargetAttribute.IsEqual(CommandIn.TargetAttribute) && 
-		(CommandName.IsEqual(CommandIn.CommandName)) )
+	if (TargetAttribute.IsEqual(CommandIn.TargetAttribute) && CommandName.IsEqual(CommandIn.CommandName) && (BoundingBox == CommandIn.BoundingBox))
 	{
 		if (RootNode.IsValid() == CommandIn.RootNode.IsValid())
 		{

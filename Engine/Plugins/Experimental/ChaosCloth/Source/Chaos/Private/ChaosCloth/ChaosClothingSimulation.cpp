@@ -12,6 +12,9 @@
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
 
+#include "PhysicsField/PhysicsFieldComponent.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
+
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
@@ -391,6 +394,21 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 	UpdateStats(Cloths[ClothIndex].Get());
 
 	UE_LOG(LogChaosCloth, Verbose, TEXT("Added Cloth asset to %s in sim slot %d"), InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"), InSimDataIndex);
+}
+
+void FClothingSimulation::UpdateWorldForces(const USkeletalMeshComponent* OwnerComponent)
+{
+	if (OwnerComponent)
+	{
+		UWorld* OwnerWorld = OwnerComponent->GetWorld();
+		if (OwnerWorld && OwnerWorld->PhysicsField && Solver)
+		{
+			const FBox BoundingBox = OwnerComponent->CalcBounds(OwnerComponent->GetComponentTransform()).GetBox();
+
+			OwnerWorld->PhysicsField->FillTransientCommands(false, BoundingBox, Solver->GetTime(), Solver->GetPerSolverField().GetTransientCommands());
+			OwnerWorld->PhysicsField->FillPersistentCommands(false, BoundingBox, Solver->GetTime(), Solver->GetPerSolverField().GetPersistentCommands());
+		}
+	}
 }
 
 void FClothingSimulation::ResetStats()

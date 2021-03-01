@@ -26,7 +26,8 @@ UFieldSystemComponent::UFieldSystemComponent(const FObjectInitializer& ObjectIni
 	, bHasPhysicsState(false)
 	, SetupConstructionFields()
 	, ChaosPersistentFields()
-	, WorldPersistentFields()
+	, WorldGPUPersistentFields()
+	, WorldCPUPersistentFields()
 {
 	UE_LOG(FSC_Log, Log, TEXT("FieldSystemComponent[%p]::UFieldSystemComponent()"),this);
 
@@ -140,6 +141,7 @@ void UFieldSystemComponent::DispatchFieldCommand(const FFieldSystemCommand& InCo
 	{
 		const FName Name = GetOwner() ? *GetOwner()->GetName() : TEXT("");
 		
+		// TODO : special case for chaos physics objects because of the supported solvers. should be moved in the general case below
 		if (bIsChaosField)
 		{
 			checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
@@ -169,22 +171,39 @@ void UFieldSystemComponent::DispatchFieldCommand(const FFieldSystemCommand& InCo
 				});
 			}
 		}
-		if (bIsWorldField)
+
+		if (bIsWorldField || bIsChaosField)
 		{
 			UWorld* World = GetWorld();
 			if (World && World->PhysicsField)
 			{
 				FFieldSystemCommand LocalCommand = InCommand;
 				LocalCommand.InitFieldNodes(World->GetTimeSeconds(), Name);
-				if (!IsTransient) WorldPersistentFields.Add(LocalCommand);
+				UPhysicsFieldComponent::BuildCommandBounds(LocalCommand);
 
-				if (IsTransient)
+				if (!IsTransient)
 				{
-					World->PhysicsField->AddTransientCommand(LocalCommand);
+					if (bIsWorldField)
+					{
+						WorldGPUPersistentFields.Add(LocalCommand);
+						World->PhysicsField->AddPersistentCommand(LocalCommand, true);
+					}
+					if (bIsChaosField)
+					{
+						WorldCPUPersistentFields.Add(LocalCommand);
+						World->PhysicsField->AddPersistentCommand(LocalCommand, false);
+					}
 				}
 				else
 				{
-					World->PhysicsField->AddPersistentCommand(LocalCommand);
+					if (bIsWorldField)
+					{
+						World->PhysicsField->AddTransientCommand(LocalCommand, true);
+					}
+					if (bIsChaosField)
+					{
+						World->PhysicsField->AddTransientCommand(LocalCommand, false);
+					}
 				}
 			}
 		}
@@ -196,6 +215,7 @@ void UFieldSystemComponent::ClearFieldCommands()
 	using namespace Chaos;
 	if (HasValidPhysicsState())
 	{
+		// TODO : special case for chaos physics objects because of the supported solvers. should be moved in the general case below
 		if (bIsChaosField)
 		{
 			checkSlow(ChaosModule); // Should already be checked from OnCreatePhysicsState
@@ -218,18 +238,29 @@ void UFieldSystemComponent::ClearFieldCommands()
 		}
 		ChaosPersistentFields.Reset();
 
-		if (bIsWorldField)
+		if (bIsWorldField || bIsChaosField)
 		{
 			UWorld* World = GetWorld();
 			if (World && World->PhysicsField)
 			{
-				for (auto& FieldCommand : WorldPersistentFields)
+				if (bIsWorldField)
 				{
-					World->PhysicsField->RemovePersistentCommand(FieldCommand);
+					for (auto& FieldCommand : WorldGPUPersistentFields)
+					{
+						World->PhysicsField->RemovePersistentCommand(FieldCommand, true);
+					}
+				}
+				if (bIsChaosField)
+				{
+					for (auto& FieldCommand : WorldCPUPersistentFields)
+					{
+						World->PhysicsField->RemovePersistentCommand(FieldCommand, false);
+					}
 				}
 			}
 		}
-		WorldPersistentFields.Reset();
+		WorldGPUPersistentFields.Reset();
+		WorldCPUPersistentFields.Reset();
 	}
 }
 

@@ -625,16 +625,54 @@ const FVelocityField& FClothingSimulationSolver::GetWindVelocityField(uint32 Gro
 	return Evolution->GetVelocityField(GroupId);
 }
 
-void FClothingSimulationSolver::SetLegacyWind(uint32 GroupId, bool bUseLegacyWind)
+void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegacyWind)
 {
-	const FVec3& AngularDisplacement = FictitiousAngularDisplacement[GroupId];
-
-	if (!bUseLegacyWind)
+	if (Evolution)
 	{
-		// Add fictitious forces
+		const TPBDActiveView<FPBDParticles>& ParticlesActiveView = Evolution->ParticlesActiveView();
+
+		TArray<FVector>& SamplePositions = PerSolverField.GetSamplePositions();
+		TArray<FFieldContextIndex>& SampleIndices = PerSolverField.GetSampleIndices();
+
+		SamplePositions.Reset();
+		SamplePositions.AddZeroed(Evolution->Particles().Size());
+
+		SampleIndices.Reset();
+		SampleIndices.AddZeroed(Evolution->Particles().Size());
+
+		ParticlesActiveView.RangeFor(
+			[this, &SamplePositions, &SampleIndices](FPBDParticles& Particles, int32 Offset, int32 Range)
+			{
+				const int32 RangeSize = Range - Offset;
+
+				PhysicsParallelFor(RangeSize,
+					[this, &SamplePositions, &SampleIndices, &Particles, Offset](int32 i)
+					{
+						const int32 Index = Offset + i;
+						SamplePositions[Index] = Particles.X(Index) + LocalSpaceLocation;
+						SampleIndices[Index] = FFieldContextIndex(Index, Index);
+					}, RangeSize < ChaosClothSolverMinParallelBatchSize);
+			}, ChaosClothSolverParallelClothPreUpdate);
+
+		PerSolverField.ComputeFieldLinearImpulse(GetTime());
+
+		const FVec3& AngularDisplacement = FictitiousAngularDisplacement[GroupId];
+
 		Evolution->GetForceFunction(GroupId) =
-			[this, AngularDisplacement](FPBDParticles& Particles, const float Dt, const int32 Index)
+			[this, bUseLegacyWind, AngularDisplacement](FPBDParticles& Particles, const float Dt, const int32 Index)
 		{
+			const TArray<FVector>& LinearVelocities = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearVelocity);
+			const TArray<FVector>& LinearForces = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearForce);
+
+			if (LinearVelocities.Num() != 0)
+			{
+				Particles.F(Index) += LinearVelocities[Index] * Particles.M(Index) / DeltaTime;
+			}
+			if (LinearForces.Num() != 0)
+			{
+				Particles.F(Index) += LinearForces[Index];
+			}
+
 			// Apply Fictitious forces
 			const FVec3& X = Particles.X(Index);
 			const FVec3& V = Particles.V(Index);
@@ -642,13 +680,8 @@ void FClothingSimulationSolver::SetLegacyWind(uint32 GroupId, bool bUseLegacyWin
 			const FReal& M = Particles.M(Index);
 			//Particles.F(Index) -= (FVec3::CrossProduct(W, V) * 2.f + FVec3::CrossProduct(W, FVec3::CrossProduct(W, X))) * M;  // Coriolis + Centrifugal seems a bit overkilled, but let's keep the code around in case it's needed
 			Particles.F(Index) -= FVec3::CrossProduct(W, FVec3::CrossProduct(W, X)) * M;  // Centrifugal force
-		};
-	}
-	else
-	{
-		// Add legacy wind function and fictitious forces
-		Evolution->GetForceFunction(GroupId) = 
-			[this, AngularDisplacement](FPBDParticles& Particles, const float Dt, const int32 Index)
+				
+			if (bUseLegacyWind)
 			{
 				// Calculate wind velocity delta
 				static const float LegacyWindMultiplier = 25.f;
@@ -662,15 +695,8 @@ void FClothingSimulationSolver::SetLegacyWind(uint32 GroupId, bool bUseLegacyWin
 					const float ScaleFactor = FMath::Min(1.f, FMath::Abs(DirectionDot) * LegacyWindAdaption);
 					Particles.F(Index) += VelocityDelta * ScaleFactor * Particles.M(Index);
 				}
-
-				// Apply Fictitious forces
-				const FVec3& X = Particles.X(Index);
-				const FVec3& V = Particles.V(Index);
-				const FVec3 W = AngularDisplacement / Dt;
-				const FReal& M = Particles.M(Index);
-				//Particles.F(Index) -= (FVec3::CrossProduct(W, V) * 2.f + FVec3::CrossProduct(W, FVec3::CrossProduct(W, X))) * M;  // Coriolis + Centrifugal seems a bit overkilled, but let's keep the code around in case it's needed
-				Particles.F(Index) -= FVec3::CrossProduct(W, FVec3::CrossProduct(W, X)) * M;  // Centrifugal force
-			};
+			}
+		};
 	}
 }
 

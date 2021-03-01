@@ -5,6 +5,7 @@
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Transform.h"
 #include "Chaos/ImplicitObject.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;
@@ -66,9 +67,12 @@ namespace Chaos
 		int32 AddParticles(int32 NumParticles, uint32 GroupId);
 		void EnableParticles(int32 Offset, bool bEnable);
 
+		// Get the currrent solver time
+		float GetTime() const { return Time; }
 		void SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 		void SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 		void SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+
 
 		// Set the amount of velocity allowed to filter from the given change in reference space transform, including local simulation space.
 		void SetReferenceVelocityScale(uint32 GroupId,
@@ -91,8 +95,8 @@ namespace Chaos
 		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const FTriangleMesh* TriangleMesh = nullptr);
 		const FVelocityField&  GetWindVelocityField(uint32 GroupId);
 
-		// Set legacy noise wind.
-		void SetLegacyWind(uint32 GroupId, bool bUseLegacyWind);
+		// Add external forces to the particles
+		void AddExternalForces(uint32 GroupId, bool bUseLegacyWind);
 
 		const FVec3* GetOldAnimationPositions(int32 Offset) const { return OldAnimationPositions.GetData() + Offset; }
 		FVec3* GetOldAnimationPositions(int32 Offset) { return OldAnimationPositions.GetData() + Offset; }
@@ -135,6 +139,11 @@ namespace Chaos
 		const TArray<FVec3>& GetCollisionContacts() const;
 		const TArray<FVec3>& GetCollisionNormals() const;
 		// ---- End of the Collider interface ----
+
+		// ---- Field interface ----
+		FPerSolverFieldSystem& GetPerSolverField() { return PerSolverField; }
+		const FPerSolverFieldSystem& GetPerSolverField() const { return PerSolverField; }
+		// ---- End of the Field interface ----
 
 	private:
 		void ResetParticles();
@@ -189,6 +198,9 @@ namespace Chaos
 		float LegacyWindAdaption;
 		float WindFluidDensity;
 		bool bIsClothGravityOverrideEnabled;
+
+		// Field system unique to the cloth solver
+		FPerSolverFieldSystem PerSolverField;
 	};
 
 } // namespace Chaos

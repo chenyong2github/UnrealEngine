@@ -64,6 +64,8 @@ namespace ImmediatePhysics_Chaos
 
 		void AddForce(const FVector& Force);
 
+		void AddTorque(const FVector& Torque);
+
 		void AddRadialForce(const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
 
 		void AddImpulseAtLocation(FVector Impulse, FVector Location);

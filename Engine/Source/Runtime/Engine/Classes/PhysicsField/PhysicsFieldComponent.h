@@ -11,6 +11,14 @@
 
 #include "PhysicsFieldComponent.generated.h"
 
+enum class EFieldCommandBuffer : uint8
+{
+	GPUFieldBuffer = 0,
+	CPUReadBuffer = 1,
+	CPUWriteBuffer = 2,
+	NumFieldBuffers = 3
+};
+
 struct FPhysicsFieldInfos
 {
 	/** Type of targets offsets */
@@ -156,7 +164,7 @@ public:
 	void BuildNodeParams(FFieldNodeBase* FieldNode, const TMap<FFieldNodeBase*, float> CommandTimes, const float PreviousTime);
 
 	/** Update the bounds given a node */
-	void BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds);
+	static void BuildNodeBounds(FFieldNodeBase* FieldNode, FVector& MinBounds, FVector& MaxBounds);
 
 	/** The field system resource. */
 	FPhysicsFieldResource* FieldResource = nullptr;
@@ -203,24 +211,33 @@ public:
 	//~ End UActorComponent Interface.
 
 	/** Add the transient field command */
-	void AddTransientCommand(const FFieldSystemCommand& InCommand);
+	void AddTransientCommand(const FFieldSystemCommand& FieldCommand, const bool bIsGPUField);
 
 	/** Add the persitent field command */
-	void AddPersistentCommand(const FFieldSystemCommand& FieldCommand);
+	void AddPersistentCommand(const FFieldSystemCommand& FieldCommand, const bool bIsGPUField);
 
 	/** Remove the transient field command */
-	void RemoveTransientCommand(const FFieldSystemCommand& InCommand);
+	void RemoveTransientCommand(const FFieldSystemCommand& FieldCommand, const bool bIsGPUField);
 
 	/** Remove the persitent field command */
-	void RemovePersistentCommand(const FFieldSystemCommand& FieldCommand);
+	void RemovePersistentCommand(const FFieldSystemCommand& FieldCommand, const bool bIsGPUField);
+
+	/** Fill the transient commands intersecting the bounding box from the physics field */
+	void FillTransientCommands(const bool bIsWorldField, const FBox& BoundingBox, const float TimeSeconds, TArray<FFieldSystemCommand>& OutputCommands) const;
+
+	/** Fill the persistent commands intersecting the bounding box from the physics field */
+	void FillPersistentCommands(const bool bIsWorldField, const FBox& BoundingBox, const float TimeSeconds, TArray<FFieldSystemCommand>& OutputCommands) const;
+
+	/** Build the command bounds */
+	static void BuildCommandBounds(FFieldSystemCommand& FieldCommand);
 
 	// These types are not static since we probably want in the future to be able to pick the vector/scalar/integer fields we are interested in
 
 	/** List of all the field transient commands in the world */
-	TArray<FFieldSystemCommand> TransientCommands;
+	TArray<FFieldSystemCommand> TransientCommands[(uint8)(EFieldCommandBuffer::NumFieldBuffers)];
 
 	/** List of all the field persitent commands in the world */
-	TArray<FFieldSystemCommand> PersistentCommands;
+	TArray<FFieldSystemCommand> PersistentCommands[(uint8)(EFieldCommandBuffer::NumFieldBuffers)];
 
 	/** The instance of the field system. */
 	FPhysicsFieldInstance* FieldInstance = nullptr;

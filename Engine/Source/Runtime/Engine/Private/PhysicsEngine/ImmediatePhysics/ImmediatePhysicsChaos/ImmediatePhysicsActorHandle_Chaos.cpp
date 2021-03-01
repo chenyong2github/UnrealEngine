@@ -456,6 +456,16 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
+	void FActorHandle::AddTorque(const FVector& Torque)
+	{
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3> * Rigid = Handle()->CastToRigidParticle())
+		{
+			Rigid->Torque() += Torque;
+		}
+	}
+
 	void FActorHandle::AddRadialForce(const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType)
 	{
 		using namespace Chaos;
