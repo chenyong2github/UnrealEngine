@@ -189,13 +189,13 @@ struct TRead : TComponentPtr<const T>
 		return (*this)[Index];
 	}
 
-	UE_DEPRECATED(5.00, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
+	UE_DEPRECATED(4.27, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
 	const T* Resolve(const FEntityAllocation* Allocation) const
 	{
 		return this->AsPtr();
 	}
 
-	UE_DEPRECATED(5.00, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
+	UE_DEPRECATED(4.27, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
 	TArrayView<const T> ResolveAsArray(const FEntityAllocation* Allocation) const
 	{
 		return MakeArrayView(this->AsPtr(), Allocation->Num());
@@ -215,13 +215,13 @@ struct TReadOptional : TComponentPtr<const T>
 		}
 	}
 
-	UE_DEPRECATED(5.00, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
+	UE_DEPRECATED(4.27, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
 	const T* Resolve(const FEntityAllocation* Allocation) const
 	{
 		return this->AsPtr();
 	}
 
-	UE_DEPRECATED(5.00, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
+	UE_DEPRECATED(4.27, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
 	TArrayView<const T> ResolveAsArray(const FEntityAllocation* Allocation) const
 	{
 		const T* Ptr = this->AsPtr();
@@ -279,13 +279,13 @@ struct TWrite : TComponentPtr<T>
 		: TComponentPtr<T>(reinterpret_cast<T*>(InHeader->Components) + ComponentOffset)
 	{}
 
-	UE_DEPRECATED(5.00, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
+	UE_DEPRECATED(4.27, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
 	T* Resolve(const FEntityAllocation* Allocation) const
 	{
 		return this->AsPtr();
 	}
 
-	UE_DEPRECATED(5.00, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
+	UE_DEPRECATED(4.27, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
 	TArrayView<T> ResolveAsArray(const FEntityAllocation* Allocation) const
 	{
 		return MakeArrayView(this->AsPtr(), Allocation->Num());
@@ -304,13 +304,13 @@ struct TWriteOptional : TComponentPtr<T>
 		}
 	}
 
-	UE_DEPRECATED(5.00, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
+	UE_DEPRECATED(4.27, "It is no longer necessary to call Resolve - please change to using the TComponentPtr API.")
 	T* Resolve(const FEntityAllocation* Allocation) const
 	{
 		return this->AsPtr();
 	}
 
-	UE_DEPRECATED(5.00, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
+	UE_DEPRECATED(4.27, "It is no longer necessary to call ResolveAsArray - please change to TComponentPtr::AsArray.")
 	TArrayView<T> ResolveAsArray(const FEntityAllocation* Allocation) const
 	{
 		T* Ptr = this->AsPtr();
