@@ -255,14 +255,5 @@ def reconsider(node_or_edge, cl):
 	if result.status_code != 200:
 		raise Exception(result.text)
 
-if sys.argv[1:] == ['repl']:
+if __name__ == '__main__':
 	code.interact('RoboMerge REPL v0.1' + ENDC, None, context)
-else:
-	login('james.hopkin', 'monroe-quincy-jackson')
-	print(find_edge('fortnite', 'main', '16.10'))
-	print(find_edge('fortnite', '16.10', 'main'))
-	print(find_node('fortnite', '15.50'))
-	print()
-	list_blockages('tools')
-
-	retry(find_edge('tools', 'Main', 'staging'))
