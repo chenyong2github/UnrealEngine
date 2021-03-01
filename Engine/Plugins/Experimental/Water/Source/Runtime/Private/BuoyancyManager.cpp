@@ -249,7 +249,7 @@ void ABuoyancyManager::BeginPlay()
 		if (FPhysScene* PhysScene = World->GetPhysicsScene())
 		{
 #if WITH_CHAOS
-			PhysScene->OnPhysScenePreTick.AddUObject(this, &ABuoyancyManager::Update);
+			OnPhysScenePreTickHandle = PhysScene->OnPhysScenePreTick.AddUObject(this, &ABuoyancyManager::Update);
 			AsyncCallback = PhysScene->GetSolver()->CreateAndRegisterSimCallbackObject_External<FBuoyancyManagerAsyncCallback>();
 #endif
 		}
@@ -276,7 +276,7 @@ void ABuoyancyManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 			{
 #if WITH_CHAOS
 				PhysScene->GetSolver()->UnregisterAndFreeSimCallbackObject_External(AsyncCallback);
-				PhysScene->OnPhysScenePreTick.RemoveUObject(this, &ABuoyancyManager::Update);
+				PhysScene->OnPhysScenePreTick.Remove(OnPhysScenePreTickHandle);
 				AsyncCallback = nullptr;
 #endif
 			}

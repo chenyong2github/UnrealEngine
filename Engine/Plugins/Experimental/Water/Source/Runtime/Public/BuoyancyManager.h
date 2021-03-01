@@ -67,4 +67,5 @@ private:
 
 	FDelegateHandle OnCreateDelegateHandle;
 	FDelegateHandle OnDestroyDelegateHandle;
+	FDelegateHandle OnPhysScenePreTickHandle;
 };
