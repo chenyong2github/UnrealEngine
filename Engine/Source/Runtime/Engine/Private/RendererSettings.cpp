@@ -209,6 +209,13 @@ void URendererSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 			}
 		}
 
+		if ((PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, StrataBytePerPixel)))
+		{
+			// We enforce at least 20 bytes per pixel because this is the minimal Strata GBuffer footprint of the simplest material.
+			StrataBytePerPixel = FMath::Clamp(StrataBytePerPixel, 20u, 128u);
+
+		}
+
 		ExportValuesToConsoleVariables(PropertyChangedEvent.Property);
 
 		if ((PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(URendererSettings, ReflectionCaptureResolution) ||
