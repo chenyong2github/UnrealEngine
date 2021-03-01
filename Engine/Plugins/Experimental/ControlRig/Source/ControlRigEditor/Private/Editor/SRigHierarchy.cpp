@@ -720,8 +720,12 @@ void SRigHierarchy::RefreshTreeView(bool bRebuildContent)
 				AddSpacerElement();
 			}
 		}
-		
+
 		TreeView->RequestTreeRefresh();
+		{
+			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+			TreeView->ClearSelection();
+		}
 
 		TArray<FRigElementKey> Selection = Hierarchy->GetSelectedKeys();
 		for (const FRigElementKey& Key : Selection)
@@ -1165,10 +1169,16 @@ void SRigHierarchy::OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif, 
 		Key = InElement->GetKey();
 	}
 
-	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, InHierarchy, Key]()
+	TWeakObjectPtr<URigHierarchy> WeakHierarchy = InHierarchy;
+
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, WeakHierarchy, Key]()
     {
-		const FRigBaseElement* Element = InHierarchy->Find(Key);
-		OnHierarchyModified(InNotif, InHierarchy, Element);
+    	if(!WeakHierarchy.IsValid())
+    	{
+    		return;
+    	}
+		const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
+		OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
 		
     }, TStatId(), NULL, ENamedThreads::GameThread);
 }
@@ -1761,8 +1771,9 @@ void SRigHierarchy::HandleDuplicateItem()
 			check(Controller);
 
 			const TArray<FRigElementKey> KeysToDuplicate = GetSelectedKeys();
-			Controller->DuplicateElements(KeysToDuplicate);
+			Controller->DuplicateElements(KeysToDuplicate, true, true);
 		}
+
 		ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
 	}
 
@@ -1801,7 +1812,7 @@ void SRigHierarchy::HandleMirrorItem()
 
 			const TArray<FRigElementKey> KeysToMirror = GetSelectedKeys();
 			const TArray<FRigElementKey> KeysToDuplicate = GetSelectedKeys();
-			Controller->MirrorElements(KeysToDuplicate, Settings, true);
+			Controller->MirrorElements(KeysToDuplicate, Settings, true, true);
 		}
 		ControlRigBlueprint->PropagateHierarchyFromBPToInstances();
 	}

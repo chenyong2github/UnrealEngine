@@ -3488,9 +3488,15 @@ void FControlRigEditor::OnHierarchyModifiedAsync(ERigHierarchyNotification InNot
 		Key = InElement->GetKey();
 	}
 
-	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, InHierarchy, Key]()
+	TWeakObjectPtr<URigHierarchy> WeakHierarchy = InHierarchy;
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, WeakHierarchy, Key]()
     {
-        const FRigBaseElement* Element = InHierarchy->Find(Key);
+    	if(!WeakHierarchy.IsValid())
+    	{
+    		return;
+    	}
+
+        const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
 
 		switch(InNotif)
 		{

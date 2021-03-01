@@ -969,6 +969,11 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 	TransactionPtr.Reset();
 #endif
 
+	if(bSelectNewElements)
+	{
+		SetSelection(PastedKeys);
+	}
+
 	return PastedKeys;
 }
 

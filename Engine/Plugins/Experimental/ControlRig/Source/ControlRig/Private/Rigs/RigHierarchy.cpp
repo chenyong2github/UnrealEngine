@@ -998,19 +998,19 @@ void URigHierarchy::SendEvent(const FRigEventContext& InEvent, bool bAsynchronou
 {
 	if(EventDelegate.IsBound())
 	{
-		URigHierarchy* LocalHierarchy = this;
+		TWeakObjectPtr<URigHierarchy> WeakThis = this;
 		FRigEventDelegate& Delegate = EventDelegate;
 
 		if (bAsynchronous)
 		{
-			FFunctionGraphTask::CreateAndDispatchWhenReady([LocalHierarchy, Delegate, InEvent]()
+			FFunctionGraphTask::CreateAndDispatchWhenReady([WeakThis, Delegate, InEvent]()
             {
-                Delegate.Broadcast(LocalHierarchy, InEvent);
+                Delegate.Broadcast(WeakThis.Get(), InEvent);
             }, TStatId(), NULL, ENamedThreads::GameThread);
 		}
 		else
 		{
-			Delegate.Broadcast(LocalHierarchy, InEvent);
+			Delegate.Broadcast(this, InEvent);
 		}
 	}
 

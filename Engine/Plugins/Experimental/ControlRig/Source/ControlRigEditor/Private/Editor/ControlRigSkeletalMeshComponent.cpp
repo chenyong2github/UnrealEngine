@@ -189,11 +189,17 @@ void UControlRigSkeletalMeshComponent::OnHierarchyModifiedAsync(ERigHierarchyNot
 	{
 		Key = InElement->GetKey();
 	}
+
+	TWeakObjectPtr<URigHierarchy> WeakHierarchy = InHierarchy;
 	
-	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, InHierarchy, Key]()
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, WeakHierarchy, Key]()
     {
-        const FRigBaseElement* Element = InHierarchy->Find(Key);
-        OnHierarchyModified(InNotif, InHierarchy, Element);
+    	if(!WeakHierarchy.IsValid())
+    	{
+    		return;
+    	}
+        const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
+        OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
 		
     }, TStatId(), NULL, ENamedThreads::GameThread);
 }
