@@ -274,6 +274,11 @@ void FPaletteViewModel::BuildClassWidgetList()
 			continue;
 		}
 
+		if (WidgetClass->HasAnyClassFlags(CLASS_HideDropDown))
+		{
+			continue;
+		}
+
 		// Initialize AssetData for checking PackagePath
 		FAssetData WidgetAssetData = FAssetData(WidgetClass);
 
@@ -411,7 +416,7 @@ void FPaletteViewModel::BuildClassWidgetList()
 			}
 
 			uint32 BPFlags = WidgetBPAssetData.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags);
-			if (!(BPFlags & (CLASS_Abstract | CLASS_Deprecated)))
+			if ((BPFlags & (CLASS_Abstract | CLASS_Deprecated | CLASS_HideDropDown)) != 0)
 			{
 				auto Template = MakeShareable(new FWidgetTemplateBlueprintClass(WidgetBPAssetData, WidgetBPClass));
 
