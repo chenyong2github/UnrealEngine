@@ -15,6 +15,8 @@
 
 #include "DatasmithDirectLink.h"
 
+#include "IDatasmithExporterUIModule.h"
+#include "IDirectLinkUI.h"
 
 #include "DatasmithSketchUpSDKBegins.h"
 #include <SketchUpAPI/sketchup.h>
@@ -120,8 +122,8 @@ public:
 		FDatasmithExporterManager::FInitOptions Options;
 		Options.bEnableMessaging = true; // DirectLink requires the Messaging service.
 		Options.bSuppressLogs = false;   // Log are useful, don't suppress them
-		Options.bUseDatasmithExporterUI = false;
-		Options.RemoteEngineDirPath = nullptr;
+		Options.bUseDatasmithExporterUI = true;
+		Options.RemoteEngineDirPath = TEXT(DATASMITH_SKETCHUP_REMOTE_ENGINE_PATH);
 
 		if (!FDatasmithExporterManager::Initialize(Options))
 		{
@@ -435,6 +437,18 @@ VALUE on_unload() {
 	return Qtrue;
 }
 
+VALUE open_directlink_ui() {
+	if (IDatasmithExporterUIModule * Module = IDatasmithExporterUIModule::Get())
+	{
+		if (IDirectLinkUI* UI = Module->GetDirectLinkExporterUI())
+		{
+			UI->OpenDirectLinkStreamWindow();
+			return Qtrue;
+		}
+	}
+	return Qfalse;
+}
+
 // todo: hardcoded init module function name
 extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby2020()
 {
@@ -443,6 +457,8 @@ extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby2020()
 
 	rb_define_module_function(Datasmith, "on_load", ToRuby(on_load), 0);
 	rb_define_module_function(Datasmith, "on_unload", ToRuby(on_unload), 0);
+
+	rb_define_module_function(Datasmith, "open_directlink_ui", ToRuby(open_directlink_ui), 0);
 
 	DatasmithSketchUpDirectLinkExporterCRubyClass = rb_define_class_under(Datasmith, "DatasmithSketchUpDirectLinkExporter", rb_cObject);
 

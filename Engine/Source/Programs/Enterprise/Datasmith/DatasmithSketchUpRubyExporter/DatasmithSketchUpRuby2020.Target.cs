@@ -27,27 +27,32 @@ public abstract class DatasmithSketchUpRubyBaseTarget : TargetRules
 
 		bHasExports = true;
 		bForceEnableExceptions = true;
+
+		GlobalDefinitions.Add("UE_EXTERNAL_PROFILING_ENABLED=0"); // For DirectLinkUI (see FDatasmithExporterManager::FInitOptions)
 	}
 
 	protected void AddCopyPostBuildStep(TargetInfo Target)
 	{
 		string OutputName = "$(TargetName)";
 
-		string SrcOutputFileName = string.Format(@"$(EngineDir)/Binaries/Win64/{0}/{1}.dll", ExeBinariesSubFolder, OutputName);
-		string DstOutputFileName = string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp2020/{1}.so", ExeBinariesSubFolder, OutputName);
-
 		PostBuildSteps.Add("echo on");
-		PostBuildSteps.Add(string.Format("echo F|xcopy /Y /R /F \"{0}\" \"{1}\"", SrcOutputFileName, DstOutputFileName));
 
-		PostBuildSteps.Add(string.Format("xcopy /Y /R /F \"{0}\" \"{1}\"",
-			string.Format(@"$(EngineDir)/Source/Programs/Enterprise/Datasmith/DatasmithSketchUpRubyExporter/Plugin/plugin_main.rb"),
-			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp2020", ExeBinariesSubFolder)
+		// Copy Ruby scripts
+		PostBuildSteps.Add(string.Format("echo D|xcopy /Y /R /F /S \"{0}\" \"{1}\"",
+			string.Format(@"$(EngineDir)/Source/Programs/Enterprise/Datasmith/DatasmithSketchUpRubyExporter/Plugin/*.rb"),
+			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/", ExeBinariesSubFolder)
 			));
 
-		// UnrealDatasmithSketchUp2020.rb copied above plugin_main and .so(it will be placed as the root of Plugins folder of SketchUp
-		PostBuildSteps.Add(string.Format("xcopy /Y /R /F \"{0}\" \"{1}\"",
-			string.Format(@"$(EngineDir)/Source/Programs/Enterprise/Datasmith/DatasmithSketchUpRubyExporter/Plugin/UnrealDatasmithSketchUp2020.rb"),
-			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin", ExeBinariesSubFolder)
+		// Copy plugin dll
+		PostBuildSteps.Add(string.Format("echo F|xcopy /Y /R /F \"{0}\" \"{1}\"",
+			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/{1}.dll", ExeBinariesSubFolder, OutputName),
+			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp2020/{1}.so", ExeBinariesSubFolder, OutputName)
+			));
+
+		// Copy resources
+		PostBuildSteps.Add(string.Format("echo D|xcopy /Y /R /F /S \"{0}\" \"{1}\"",
+			string.Format(@"$(EngineDir)/Source/Programs/Enterprise/Datasmith/DatasmithSketchUpRubyExporter/Resources/Windows"),
+			string.Format(@"$(EngineDir)/Binaries/Win64/{0}/Plugin/UnrealDatasmithSketchUp2020/Resources", ExeBinariesSubFolder)
 			));
 	}
 
