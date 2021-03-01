@@ -1508,7 +1508,12 @@ void FRigControlElementDetails::SetDisplayName(const FText& InNewText, ETextComm
 	{
 		if(FRigControlElement* ControlElement = HierarchyBeingCustomized->Find<FRigControlElement>(ElementKeyBeingCustomized))
 		{
-			FString NewDisplayName = InNewText.ToString().TrimStartAndEnd();
+			if(BlueprintBeingCustomized)
+			{
+				BlueprintBeingCustomized->Hierarchy->Modify();
+			}
+
+			const FString NewDisplayName = InNewText.ToString().TrimStartAndEnd();
 			if (NewDisplayName.IsEmpty())
 			{
 				ControlElement->Settings.DisplayName = FName(NAME_None);
@@ -1520,7 +1525,14 @@ void FRigControlElementDetails::SetDisplayName(const FText& InNewText, ETextComm
 
 			HierarchyBeingCustomized->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 
-			OnStructContentsChanged(FRigControl::StaticStruct()->FindPropertyByName(TEXT("DisplayName")), PropertyUtilities);
+			if (BlueprintBeingCustomized && BlueprintBeingCustomized->Hierarchy != HierarchyBeingCustomized)
+			{
+				if(FRigControlElement* OtherControlElement = BlueprintBeingCustomized->Hierarchy->Find<FRigControlElement>(ElementKeyBeingCustomized))
+				{
+					OtherControlElement->Settings.DisplayName = ControlElement->Settings.DisplayName;
+					BlueprintBeingCustomized->Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, OtherControlElement);
+				}
+			}
 		}
 	}
 }

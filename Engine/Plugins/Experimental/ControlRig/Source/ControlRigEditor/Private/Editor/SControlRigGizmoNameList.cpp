@@ -90,18 +90,21 @@ void SControlRigGizmoNameList::SetNameListText(const FText& NewTypeInValue, ETex
 		if ((ControlElement != nullptr) && (ControlElement->Settings.GizmoName != NewName))
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("ControlRigEditor", "ChangeGizmoName", "Change Gizmo Name"));
-			Blueprint->Modify();
-			
+			Blueprint->Hierarchy->Modify();
+
 			ControlElement->Settings.GizmoName = NewName;
 
 			if (bIsOnInstance && DebuggedControlRig)
 			{
-				Blueprint->PropagatePropertyFromInstanceToBP(ControlKey, FRigControl::StaticStruct()->FindPropertyByName(TEXT("GizmoName")), DebuggedControlRig);
+				FRigControlElement* OtherControlElement = Blueprint->Hierarchy->Get<FRigControlElement>(ControlIndex);
+				if(OtherControlElement)
+				{
+					OtherControlElement->Settings.GizmoName = NewName;
+					Blueprint->Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, OtherControlElement);
+				}
 			}
 
-			Blueprint->PropagatePropertyFromBPToInstances(ControlKey, FRigControl::StaticStruct()->FindPropertyByName(TEXT("GizmoName")));
-
-			Blueprint->Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, Blueprint->Hierarchy->Find(ControlElement->GetKey()));
+			Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 		}
 	}
 }
