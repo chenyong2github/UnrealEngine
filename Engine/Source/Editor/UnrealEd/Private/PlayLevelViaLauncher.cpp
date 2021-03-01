@@ -231,6 +231,22 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 		LauncherProfile->SetDeploymentMode(ELauncherProfileDeploymentModes::FileServer);
 	}
 
+	switch(EditorPlaySettings->PackFilesForLaunch)
+	{
+	default:
+	case EPlayOnPakFileMode::NoPak:
+		break;
+	case EPlayOnPakFileMode::PakNoCompress:
+		LauncherProfile->SetCompressed( false );
+		LauncherProfile->SetDeployWithUnrealPak( true );
+		break;
+	case EPlayOnPakFileMode::PakCompress:
+		LauncherProfile->SetCompressed( true );
+		LauncherProfile->SetDeployWithUnrealPak( true );
+		break;
+	}
+
+
 	TArray<UBlueprint*> ErroredBlueprints;
 	FInternalPlayLevelUtils::ResolveDirtyBlueprints(!EditorPlaySettings->bAutoCompileBlueprintsOnLaunch, ErroredBlueprints, false);
 
