@@ -22,6 +22,7 @@ const FSlateColor FStyleColors::Background = EStyleColor::Background;
 const FSlateColor FStyleColors::Panel = EStyleColor::Panel;
 const FSlateColor FStyleColors::Header = EStyleColor::Header;
 const FSlateColor FStyleColors::Dropdown = EStyleColor::Dropdown;
+const FSlateColor FStyleColors::DropdownOutline = EStyleColor::DropdownOutline;
 const FSlateColor FStyleColors::Hover = EStyleColor::Hover;
 const FSlateColor FStyleColors::Hover2 = EStyleColor::Hover2;
 
@@ -81,6 +82,7 @@ void USlateThemeManager::InitalizeDefaults()
 	SetDefaultColor(EStyleColor::Panel, COLOR("#242424FF"));
 	SetDefaultColor(EStyleColor::Header, COLOR("#2F2F2FFF"));
 	SetDefaultColor(EStyleColor::Dropdown, COLOR("#383838FF"));
+	SetDefaultColor(EStyleColor::DropdownOutline, COLOR("#4C4C4CFF"));
 	SetDefaultColor(EStyleColor::Hover, COLOR("#575757FF"));
 	SetDefaultColor(EStyleColor::Hover2, COLOR("#808080FF"));
 

@@ -802,6 +802,7 @@ void FStarshipCoreStyle::SetupColors(TSharedRef<FStyle>& Style)
 	Style->Set("Colors.Panel", FStyleColors::Panel);
 	Style->Set("Colors.Header", FStyleColors::Header);
 	Style->Set("Colors.Dropdown", FStyleColors::Dropdown);
+	Style->Set("Colors.DropdownOutline", FStyleColors::DropdownOutline);
 	Style->Set("Colors.Hover", FStyleColors::Hover);
 	Style->Set("Colors.Hover2", FStyleColors::Hover2);
 	Style->Set("Colors.White", FStyleColors::White);
@@ -849,6 +850,7 @@ void FStarshipCoreStyle::SetupColors(TSharedRef<FStyle>& Style)
 	Style->Set("Brushes.Panel", new FSlateColorBrush(FStyleColors::Panel));
 	Style->Set("Brushes.Header", new FSlateColorBrush(FStyleColors::Header));
 	Style->Set("Brushes.Dropdown", new FSlateColorBrush(FStyleColors::Dropdown));
+	Style->Set("Brushes.DropdownOutline", new FSlateColorBrush(FStyleColors::DropdownOutline));
 	Style->Set("Brushes.Hover", new FSlateColorBrush(FStyleColors::Hover));
 	Style->Set("Brushes.Hover2", new FSlateColorBrush(FStyleColors::Hover2));
 	Style->Set("Brushes.White", new FSlateColorBrush(FStyleColors::White));
@@ -1167,7 +1169,7 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 		.SetButtonStyle(ComboButtonButton)
 		.SetContentPadding(0.f)
 		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/wide-chevron-down", FVector2D(20.f, 16.f)))
-		.SetMenuBorderBrush(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 0.0f, WindowHighlight, 1.0f))
+		.SetMenuBorderBrush(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 0.0, FStyleColors::DropdownOutline, 1.0))
 		.SetMenuBorderPadding(0.f);
 	Style->Set("ComboButton", ComboButton);
 
@@ -1188,7 +1190,7 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/corner-dropdown", FVector2D(7.0f, 7.0f)))
 		.SetDownArrowPadding(FMargin(0.0f))
 		.SetDownArrowAlignment(EVerticalAlignment::VAlign_Bottom)
-		.SetMenuBorderBrush(FSlateColorBrush(FStyleColors::Dropdown))
+		.SetMenuBorderBrush(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 0.0, FStyleColors::DropdownOutline, 1.0))
 		.SetMenuBorderPadding(0.0f);
 	Style->Set("SimpleComboButton", SimpleComboButton);
 
@@ -1920,7 +1922,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 
 
 		Style->Set("Menu.Background", new FSlateColorBrush(FStyleColors::Dropdown));
-		Style->Set("Menu.Outline", new BORDER_BRUSH("Common/Window/WindowOutline", FMargin(1.0f / 32.0f), WindowHighlight));
+		Style->Set("Menu.Outline", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 0.0, FStyleColors::DropdownOutline, 1.f));
 		Style->Set("Menu.Icon", new IMAGE_BRUSH("Icons/icon_tab_toolbar_16px", Icon16x16));
 		Style->Set("Menu.Expand", new IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16));
 		Style->Set("Menu.SubMenuIndicator", new IMAGE_BRUSH_SVG("Starship/Common/chevron-right", Icon16x16, FStyleColors::Foreground));

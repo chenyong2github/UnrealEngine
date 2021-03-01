@@ -42,7 +42,6 @@ namespace CoreStyleConstants
 	const float InputFocusRadius = 4.f;
 	const float InputFocusThickness = 1.0f;
 
-	const FLinearColor WindowHighlight(FColor::FromHex("#4C4C4CFF"));
 }
 
 /**

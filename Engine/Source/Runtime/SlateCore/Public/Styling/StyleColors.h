@@ -29,6 +29,7 @@ enum class EStyleColor : uint8
 	Panel,
 	Header,
 	Dropdown,
+	DropdownOutline,
 	Hover,
 	Hover2,
 	White,
@@ -292,6 +293,7 @@ struct SLATECORE_API FStyleColors
 	static const FSlateColor Panel;
 	static const FSlateColor Header;
 	static const FSlateColor Dropdown;
+	static const FSlateColor DropdownOutline;
 	static const FSlateColor Hover;
 	static const FSlateColor Hover2;
 	static const FSlateColor White;
