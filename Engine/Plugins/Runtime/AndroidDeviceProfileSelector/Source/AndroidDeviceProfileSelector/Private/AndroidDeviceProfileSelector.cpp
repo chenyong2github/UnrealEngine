@@ -9,6 +9,10 @@
 #include "Misc/SecureHash.h"
 #include "Containers/StringConv.h"
 
+#if PLATFORM_ANDROID
+#include "Android/AndroidPlatformMisc.h"
+#endif
+
 UAndroidDeviceProfileMatchingRules::UAndroidDeviceProfileMatchingRules(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -98,11 +102,13 @@ FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& GPUFam
 					if (MatchString.Split(TEXT("|"), &ConfigRuleVarName, &VariableValueMatchString))
 					{
 						MatchString = VariableValueMatchString;
-
+#if PLATFORM_ANDROID
+						// TODO: Do this when running device selection with editor builds.
 						if (FString* ConfigRuleVar = FAndroidMisc::GetConfigRulesVariable(ConfigRuleVarName))
 						{
 							ConfigRuleString = *ConfigRuleVar;
 						}
+#endif
 					}					
 					break;
 				}
