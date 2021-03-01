@@ -83,6 +83,73 @@ FVector4 ComputeDeepShadowLayerDepths(float LayerDistribution)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Clear transmittance Mask
+
+class FHairStrandsClearTransmittanceMaskCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairStrandsClearTransmittanceMaskCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairStrandsClearTransmittanceMaskCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, ElementCount)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(StructuredBuffer, OutputMask)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_CLEAR"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairStrandsClearTransmittanceMaskCS, "/Engine/Private/HairStrands/HairStrandsDeepTransmittanceMask.usf", "MainCS", SF_Compute);
+
+static void AddHairStrandsClearTransmittanceMaskPass(
+	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
+	FRDGBufferRef OutTransmittanceMask)
+{
+	FHairStrandsClearTransmittanceMaskCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsClearTransmittanceMaskCS::FParameters>();
+	Parameters->ElementCount = OutTransmittanceMask->Desc.NumElements;
+	Parameters->OutputMask = GraphBuilder.CreateUAV(OutTransmittanceMask);
+
+	FHairStrandsClearTransmittanceMaskCS::FPermutationDomain PermutationVector;
+	TShaderMapRef<FHairStrandsClearTransmittanceMaskCS> ComputeShader(ShaderMap, PermutationVector);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrandsClearTransmittanceMask"),
+		ComputeShader,
+		Parameters,
+		FComputeShaderUtils::GetGroupCount(Parameters->ElementCount, 64));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Transmittance buffer
+
+static FRDGBufferRef CreateHairStrandsTransmittanceMaskBuffer(FRDGBuilder& GraphBuilder, uint32 NumElements)
+{
+	return GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(
+		4 * sizeof(float),
+		NumElements),
+		TEXT("HairTransmittanceNodeData"));
+}
+
+FHairStrandsTransmittanceMaskData CreateDummyHairStrandsTransmittanceMaskData(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap)
+{
+	FHairStrandsTransmittanceMaskData Out;
+	Out.TransmittanceMask = CreateHairStrandsTransmittanceMaskBuffer(GraphBuilder, 1);
+	Out.TransmittanceMaskSRV = GraphBuilder.CreateSRV(Out.TransmittanceMask);
+	AddHairStrandsClearTransmittanceMaskPass(GraphBuilder, ShaderMap, Out.TransmittanceMask);
+	return Out;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Transmittance Mask from deep shadow
 
 enum FHairTransmittanceType
@@ -165,6 +232,12 @@ public:
 		}
 		return PermutationVector;
 	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_TRANSMITTANCE"), 1);
+	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FDeepTransmittanceMaskCS, "/Engine/Private/HairStrands/HairStrandsDeepTransmittanceMask.usf", "MainCS", SF_Compute);
@@ -206,10 +279,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	FRDGBufferRef IndirectArgsBuffer,
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture)
 {
-	FRDGBufferRef OutBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(
-		4 * sizeof(float),
-		Params.HairVisibilityNodeData->Desc.NumElements),
-		TEXT("HairTransmittanceNodeData"));
+	FRDGBufferRef OutBuffer = CreateHairStrandsTransmittanceMaskBuffer(GraphBuilder, Params.HairVisibilityNodeData->Desc.NumElements);
 
 	FDeepTransmittanceMaskCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDeepTransmittanceMaskCS::FParameters>();
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
