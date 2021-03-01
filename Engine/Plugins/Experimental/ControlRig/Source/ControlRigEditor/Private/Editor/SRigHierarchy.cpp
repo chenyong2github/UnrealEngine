@@ -160,7 +160,7 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, TSharedPtr<FControlR
 		{
 			ERigBoneType BoneType = ERigBoneType::User;
 
-			FRigBoneElement* BoneElement = InHierarchy->ControlRigBlueprint->Hierarchy->Find<FRigBoneElement>(InRigTreeElement->Key);
+			FRigBoneElement* BoneElement = InHierarchy->GetHierarchyForTopology()->Find<FRigBoneElement>(InRigTreeElement->Key);
 			if(BoneElement)
 			{
 				BoneType = BoneElement->BoneType;
@@ -620,7 +620,7 @@ FReply SRigHierarchy::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& In
 
 EVisibility SRigHierarchy::IsToolbarVisible() const
 {
-	if (URigHierarchy* Hierarchy = GetHierarchy())
+	if (URigHierarchy* Hierarchy = GetDebuggedHierarchy())
 	{
 		if (Hierarchy->Num(ERigElementType::Bone) > 0)
 		{
@@ -632,7 +632,7 @@ EVisibility SRigHierarchy::IsToolbarVisible() const
 
 EVisibility SRigHierarchy::IsSearchbarVisible() const
 {
-	if (URigHierarchy* Hierarchy = GetHierarchy())
+	if (URigHierarchy* Hierarchy = GetDebuggedHierarchy())
 	{
 		if ((Hierarchy->Num(ERigElementType::Bone) +
 			Hierarchy->Num(ERigElementType::Space) +
@@ -1068,31 +1068,36 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 	{
 		case ERigHierarchyNotification::ElementAdded:
 		{
-			check(InElement);
-			if(AddElement(InElement))
+			if(InElement)
 			{
-				RefreshTreeView(false);
+				if(AddElement(InElement))
+				{
+					RefreshTreeView(false);
+				}
 			}
 			break;
 		}
 		case ERigHierarchyNotification::ElementRemoved:
 		{
-			check(InElement);
-			if(RemoveElement(InElement->GetKey()))
+			if(InElement)
 			{
-				RefreshTreeView(false);
+				if(RemoveElement(InElement->GetKey()))
+				{
+					RefreshTreeView(false);
+				}
 			}
 			break;
 		}
 		case ERigHierarchyNotification::ParentChanged:
 		{
 			check(InHierarchy);
-			check(InElement);
-
-			const FRigElementKey ParentKey = InHierarchy->GetFirstParent(InElement->GetKey());
-			if(ReparentElement(InElement->GetKey(), ParentKey))
+			if(InElement)
 			{
-				RefreshTreeView(false);
+				const FRigElementKey ParentKey = InHierarchy->GetFirstParent(InElement->GetKey());
+				if(ReparentElement(InElement->GetKey(), ParentKey))
+				{
+					RefreshTreeView(false);
+				}
 			}
 			break;
 		}
@@ -1105,28 +1110,30 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 		case ERigHierarchyNotification::ElementSelected:
 		case ERigHierarchyNotification::ElementDeselected:
 		{
-			check(InElement);
-
-			const bool bSelected = (InNotif == ERigHierarchyNotification::ElementSelected); 
-				
-			for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
+			if(InElement)
 			{
-				TSharedPtr<FRigTreeElement> Found = FindElement(InElement->GetKey(), RootElements[RootIndex]);
-				if (Found.IsValid())
+				const bool bSelected = (InNotif == ERigHierarchyNotification::ElementSelected); 
+					
+				for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
 				{
-					TreeView->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
-					HandleFrameSelection();
-
-					if (ControlRigEditor.IsValid())
+					TSharedPtr<FRigTreeElement> Found = FindElement(InElement->GetKey(), RootElements[RootIndex]);
+					if (Found.IsValid())
 					{
-						if (ControlRigEditor.Pin()->GetEventQueue() == EControlRigEditorEventQueue::Setup)
+						TreeView->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
+						HandleFrameSelection();
+
+						if (ControlRigEditor.IsValid())
 						{
-							TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
-							HandleControlBoneOrSpaceTransform();
+							if (ControlRigEditor.Pin()->GetEventQueue() == EControlRigEditorEventQueue::Setup)
+							{
+								TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+								HandleControlBoneOrSpaceTransform();
+							}
 						}
 					}
 				}
 			}
+			break;
 		}
 		default:
 		{

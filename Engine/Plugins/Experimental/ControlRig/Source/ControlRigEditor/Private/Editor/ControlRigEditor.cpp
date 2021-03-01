@@ -903,6 +903,14 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 		}
 	}
 
+	if(UControlRig* PreviouslyDebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+	{
+		if(!PreviouslyDebuggedControlRig->HasAnyFlags(RF_BeginDestroyed))
+		{
+			PreviouslyDebuggedControlRig->GetHierarchy()->OnModified().RemoveAll(this);
+		}
+	}
+
 	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 	{
 		UpdateStaleWatchedPins();
@@ -952,6 +960,8 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 				}
 			}
 		}
+
+		DebuggedControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditor::OnHierarchyModifiedAsync);
 	}
 	else
 	{
@@ -2724,6 +2734,12 @@ void FControlRigEditor::CacheNameLists()
 		TArray<UEdGraph*> EdGraphs;
 		ControlRigBP->GetAllGraphs(EdGraphs);
 
+		URigHierarchy* Hierarchy = ControlRigBP->Hierarchy;
+		if(UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+		{
+			Hierarchy = DebuggedControlRig->GetHierarchy();
+		}
+
 		for (UEdGraph* Graph : EdGraphs)
 		{
 			UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
@@ -2731,7 +2747,7 @@ void FControlRigEditor::CacheNameLists()
 			{
 				continue;
 			}
-			RigGraph->CacheNameLists(ControlRigBP->Hierarchy, &ControlRigBP->DrawContainer);
+			RigGraph->CacheNameLists(Hierarchy, &ControlRigBP->DrawContainer);
 		}
 	}
 }
@@ -2752,6 +2768,12 @@ void FControlRigEditor::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMes
 		if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 		{
 			ControlRigBP->SetPreviewMesh(InNewSkeletalMesh);
+
+			if(UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+			{
+				DebuggedControlRig->GetHierarchy()->Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
+				DebuggedControlRig->RequestSetup();
+			}
 		}
 	}
 }
@@ -3456,6 +3478,38 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 			break;
 		}
 	}
+}
+
+void FControlRigEditor::OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+{
+	FRigElementKey Key;
+	if(InElement)
+	{
+		Key = InElement->GetKey();
+	}
+
+	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, InHierarchy, Key]()
+    {
+        const FRigBaseElement* Element = InHierarchy->Find(Key);
+
+		switch(InNotif)
+		{
+			case ERigHierarchyNotification::ElementAdded:
+			case ERigHierarchyNotification::ElementRemoved:
+			case ERigHierarchyNotification::ElementRenamed:
+			case ERigHierarchyNotification::ParentChanged:
+			case ERigHierarchyNotification::HierarchyReset:
+			{
+				CacheNameLists();
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+		
+    }, TStatId(), NULL, ENamedThreads::GameThread);
 }
 
 void FControlRigEditor::SynchronizeViewportBoneSelection()
