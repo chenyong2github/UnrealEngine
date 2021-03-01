@@ -296,19 +296,7 @@ void SControlHierarchy::OnSelectionChanged(TSharedPtr<FControlTreeElement> Selec
 				NewSelection.Add(SelectedItem->Key);
 			}
 
-			for (const FRigElementKey& PreviouslySelected : OldSelection)
-			{
-				if (NewSelection.Contains(PreviouslySelected))
-				{
-					continue;
-				}
-				Controller->SelectElement(PreviouslySelected, false);
-			}
-
-			for (const FRigElementKey& NewlySelected : NewSelection)
-			{
-				Controller->SelectElement(NewlySelected, true);
-			}
+			Controller->SetSelection(NewSelection);
 		}
 	}
 }

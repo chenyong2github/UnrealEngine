@@ -154,7 +154,7 @@ void UControlRigSkeletalMeshComponent::SetControlRigBeingDebugged(UControlRig* I
 	if(InControlRig)
 	{
 		ControlRigBeingDebuggedPtr = InControlRig;
- 		InControlRig->GetHierarchy()->OnModified().AddUObject(this, &UControlRigSkeletalMeshComponent::OnHierarchyModifiedAsync);
+ 		InControlRig->GetHierarchy()->OnModified().AddUObject(this, &UControlRigSkeletalMeshComponent::OnHierarchyModified_AnyThread);
 	}
 
 	RebuildDebugDrawSkeleton();
@@ -181,7 +181,7 @@ void UControlRigSkeletalMeshComponent::OnHierarchyModified(ERigHierarchyNotifica
 	}
 }
 
-void UControlRigSkeletalMeshComponent::OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif,
+void UControlRigSkeletalMeshComponent::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif,
     URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
 	FRigElementKey Key;

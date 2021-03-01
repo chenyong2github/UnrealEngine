@@ -190,6 +190,9 @@ public:
 	{
 		if(DynamicHierarchy != nullptr && DynamicHierarchy->GetOuter() != this)
 		{
+#if WITH_EDITOR
+			DynamicHierarchy->OnUndoRedo().RemoveAll(this);
+#endif
 			DynamicHierarchy = nullptr;
 		}
 		
@@ -198,8 +201,11 @@ public:
 			DynamicHierarchy = NewObject<URigHierarchy>(this);
 			if (!HasAnyFlags(RF_ClassDefaultObject))
 			{
-				DynamicHierarchy->SetFlags(RF_Transient);
+				DynamicHierarchy->SetFlags(RF_Transient | RF_Transactional);
 			}
+#if WITH_EDITOR
+			DynamicHierarchy->OnUndoRedo().AddUObject(this, &UControlRig::OnHierarchyTransformUndoRedo);
+#endif
 		}
 		return DynamicHierarchy;
 	}
@@ -275,14 +281,18 @@ public:
 		const FRigControlModifiedContext& Context = FRigControlModifiedContext())
 	{
 		const FRigElementKey Key(InControlName, ERigElementType::Control);
-		DynamicHierarchy->SetControlValue(Key, InValue);
+
+		FRigControlElement* ControlElement = DynamicHierarchy->Find<FRigControlElement>(Key);
+		if(ControlElement == nullptr)
+		{
+			return;
+		}
+
+		DynamicHierarchy->SetControlValue(ControlElement, InValue, ERigControlValueType::Current, true);
 
 		if (bNotify && OnControlModified.IsBound())
 		{
-			if(FRigControlElement* ControlElement = FindControl(InControlName))
-			{
-				OnControlModified.Broadcast(this, ControlElement, Context);
-			}
+			OnControlModified.Broadcast(this, ControlElement, Context);
 		}
 	}
 
@@ -594,6 +604,7 @@ protected:
 		return InterRigSyncBracket > 0;
 	}
 
+	void OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const FRigElementKey& InKey, ERigTransformType::Type InTransformType, const FTransform& InTransform, bool bIsUndo);
 
 	FFilterControlEvent OnFilterControl;
 	FControlModifiedEvent OnControlModified;
@@ -640,17 +651,24 @@ class CONTROLRIG_API FControlRigInteractionScope
 public:
 
 	FORCEINLINE FControlRigInteractionScope(UControlRig* InControlRig)
-		: InteractionBracketScope(InControlRig->InteractionBracket)
+		: ControlRig(InControlRig)
+		, InteractionBracketScope(InControlRig->InteractionBracket)
 		, SyncBracketScope(InControlRig->InterRigSyncBracket)
 	{
+		InControlRig->GetHierarchy()->StartInteraction();
 	}
 
 	FORCEINLINE ~FControlRigInteractionScope()
 	{
+		if(ControlRig.IsValid())
+		{
+			ControlRig->GetHierarchy()->EndInteraction();
+		}
 	}
 
 private:
 
+	TWeakObjectPtr<UControlRig> ControlRig;
 	FControlRigBracketScope InteractionBracketScope;
 	FControlRigBracketScope SyncBracketScope;
 };

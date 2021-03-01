@@ -28,7 +28,7 @@ void URigHierarchy::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
-	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector())
+	if (Ar.IsSaving() || Ar.IsObjectReferenceCollector() || Ar.IsCountingMemory())
 	{
 		Save(Ar);
 	}
@@ -47,6 +47,8 @@ void URigHierarchy::Save(FArchive& Ar)
 	if(Ar.IsTransacting())
 	{
 		Ar << TransformStackIndex;
+		Ar << bTransactingForTransformChange;
+		
 		if(bTransactingForTransformChange)
 		{
 			return;
@@ -79,8 +81,11 @@ void URigHierarchy::Load(FArchive& Ar)
 {
 	if(Ar.IsTransacting())
 	{
+		bool bOnlySerializedTransformStackIndex = false;
 		Ar << TransformStackIndex;
-		if(TransformStackIndex != TransformUndoStack.Num())
+		Ar << bOnlySerializedTransformStackIndex;
+		
+		if(bOnlySerializedTransformStackIndex)
 		{
 			return;
 		}
@@ -904,6 +909,7 @@ bool URigHierarchy::Undo()
 
 	const FTransformStackEntry Entry = TransformUndoStack.Pop();
 	ApplyTransformFromStack(Entry, true);
+	UndoRedoEvent.Broadcast(this, Entry.Key, Entry.TransformType, Entry.OldTransform, true);
 	TransformRedoStack.Push(Entry);
 	TransformStackIndex = TransformUndoStack.Num();
 	return true;
@@ -926,6 +932,7 @@ bool URigHierarchy::Redo()
 
 	const FTransformStackEntry Entry = TransformRedoStack.Pop();
 	ApplyTransformFromStack(Entry, false);
+	UndoRedoEvent.Broadcast(this, Entry.Key, Entry.TransformType, Entry.NewTransform, false);
 	TransformUndoStack.Push(Entry);
 	TransformStackIndex = TransformUndoStack.Num();
 	return true;
@@ -1873,6 +1880,11 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ETransform
 {
 #if WITH_EDITOR
 
+	if(GIsTransacting)
+	{
+		return;
+	}
+
 	static const FText TransformPoseTitle = NSLOCTEXT("RigHierarchy", "Set Pose Transform", "Set Pose Transform");
 	static const FText ControlOffsetTitle = NSLOCTEXT("RigHierarchy", "Set Control Offset", "Set Control Offset");
 	static const FText ControlGizmoTitle = NSLOCTEXT("RigHierarchy", "Set Control Gizo", "Set Control Gizo");
@@ -1904,8 +1916,38 @@ void URigHierarchy::PushTransformToStack(const FRigElementKey& InKey, ETransform
 	}
 
 	TGuardValue<bool> TransactingGuard(bTransactingForTransformChange, true);
+
 	FScopedTransaction Transaction(Title);
+
+	if(bIsInteracting)
+	{
+		FTransformStackEntry LastEntry;
+		if(!TransformUndoStack.IsEmpty())
+		{
+			LastEntry = TransformUndoStack.Last();
+		}
+
+		if(LastEntry.Key == InKey && LastEntry.EntryType == InEntryType && LastEntry.bAffectChildren == bAffectChildren)
+		{
+			// merge the entries on the stack
+			TransformUndoStack.Last() = 
+                FTransformStackEntry(InKey, InEntryType, InTransformType, LastEntry.OldTransform, InNewTransform, bAffectChildren);
+		}
+		else
+		{
+			Modify();
+
+			TransformUndoStack.Add(
+                FTransformStackEntry(InKey, InEntryType, InTransformType, InOldTransform, InNewTransform, bAffectChildren));
+			TransformStackIndex = TransformUndoStack.Num();
+		}
+
+		TransformRedoStack.Reset();
+		return;
+	}
+
 	Modify();
+
 	TransformUndoStack.Add(
 		FTransformStackEntry(InKey, InEntryType, InTransformType, InOldTransform, InNewTransform, bAffectChildren));
 	TransformStackIndex = TransformUndoStack.Num();

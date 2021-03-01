@@ -768,10 +768,7 @@ void FControlRigEditor::ToggleSetupMode()
 	{
 		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj()))
 		{
-			for (FRigElementKey SelectedKey : PreviousSelection)
-			{
-				RigBlueprint->HierarchyController->SelectElement(SelectedKey, true);
-			}
+			RigBlueprint->GetHierarchyController()->SetSelection(PreviousSelection);
 		}
 	}
 
@@ -961,7 +958,7 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 			}
 		}
 
-		DebuggedControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditor::OnHierarchyModifiedAsync);
+		DebuggedControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditor::OnHierarchyModified_AnyThread);
 	}
 	else
 	{
@@ -1626,7 +1623,7 @@ void FControlRigEditor::PostUndo(bool bSuccess)
 
 		if (FControlRigEditMode* EditMode = GetEditMode())
 		{
-			EditMode->RecreateGizmoActors(RigBlueprint->Hierarchy->GetSelectedKeys());
+			EditMode->RequestToRecreateGizmoActors();
 		}
 	}
 }
@@ -1647,7 +1644,7 @@ void FControlRigEditor::PostRedo(bool bSuccess)
 
 		if (FControlRigEditMode* EditMode = GetEditMode())
 		{
-			EditMode->RecreateGizmoActors(RigBlueprint->Hierarchy->GetSelectedKeys());
+			EditMode->RequestToRecreateGizmoActors();
 		}
 	}
 }
@@ -3480,7 +3477,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 	}
 }
 
-void FControlRigEditor::OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
 	FRigElementKey Key;
 	if(InElement)

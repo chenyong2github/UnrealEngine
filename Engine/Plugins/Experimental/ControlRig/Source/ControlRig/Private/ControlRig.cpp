@@ -582,7 +582,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 			if (UControlRig* CDO = Cast<UControlRig>(GetClass()->GetDefaultObject()))
 			{
-				if(bCopyHierarchyBeforeSetup)
+				if(bCopyHierarchyBeforeSetup && !bSetupModeEnabled)
 				{
 					if(CDO->GetHierarchy()->GetTopologyVersion()!= GetHierarchy()->GetTopologyVersion())
 					{
@@ -1441,14 +1441,18 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 		return NAME_None;
 	}
 
-	RemoveTransientControl(InElement);
+	const FName ControlName = GetNameForTransientControl(InElement);
+	if(DynamicHierarchy->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
+	{
+		SetTransientControlValue(InElement);
+		return ControlName;
+	}
+
 	const int32 ElementIndex = DynamicHierarchy->GetIndex(InElement);
 	if (ElementIndex == INDEX_NONE)
 	{
 		return NAME_None;
 	}
-
-	const FName ControlName = GetNameForTransientControl(InElement);
 
 	FTransform GizmoTransform = FTransform::Identity;
 	GizmoTransform.SetScale3D(FVector::ZeroVector);
@@ -1608,6 +1612,11 @@ FName UControlRig::GetNameForTransientControl(const FRigElementKey& InElement)
 
 FRigElementKey UControlRig::GetElementKeyFromTransientControl(const FRigElementKey& InKey)
 {
+	if(InKey.Type != ERigElementType::Control)
+	{
+		return FRigElementKey();
+	}
+	
 	static FString ControlRigForElementBoneName;
 	static FString ControlRigForElementSpaceName;
 
@@ -2221,6 +2230,17 @@ void UControlRig::SetBoneInitialTransformsFromRefSkeleton(const FReferenceSkelet
 		return true;
 	});
 	bResetInitialTransformsBeforeSetup = false;
+}
+
+void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const FRigElementKey& InKey, ERigTransformType::Type InTransformType, const FTransform& InTransform, bool bIsUndo)
+{
+	if(InKey.Type == ERigElementType::Control)
+	{
+		if(FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InKey))
+		{
+			ControlModified().Broadcast(this, ControlElement, FRigControlModifiedContext(EControlRigSetKey::Never));
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

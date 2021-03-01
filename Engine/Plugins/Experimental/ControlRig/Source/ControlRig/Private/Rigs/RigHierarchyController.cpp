@@ -103,6 +103,7 @@ bool URigHierarchyController::SetSelection(TArray<FRigElementKey> InKeys)
 	}
 
 	TArray<FRigElementKey> PreviousSelection = Hierarchy->GetSelectedKeys();
+	bool bResult = false;
 
 	for(const FRigElementKey& KeyToDeselect : PreviousSelection)
 	{
@@ -112,6 +113,7 @@ bool URigHierarchyController::SetSelection(TArray<FRigElementKey> InKeys)
 			{
 				return false;
 			}
+			bResult = true;
 		}
 	}
 
@@ -123,10 +125,11 @@ bool URigHierarchyController::SetSelection(TArray<FRigElementKey> InKeys)
 			{
 				return false;
 			}
+			bResult = true;
 		}
 	}
 
-	return true;
+	return bResult;
 }
 
 FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InParent, FTransform InTransform,

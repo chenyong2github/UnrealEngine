@@ -14,6 +14,7 @@ class URigHierarchyController;
 #define URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION 1
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FRigHierarchyModifiedEvent, ERigHierarchyNotification /* type */, URigHierarchy* /* hierarchy */, const FRigBaseElement* /* element */);
+DECLARE_EVENT_FiveParams(URigHierarchy, FRigHierarchyUndoRedoTransformEvent, URigHierarchy*, const FRigElementKey&, ERigTransformType::Type, const FTransform&, bool /* bUndo */);
 
 UCLASS(BlueprintType)
 class CONTROLRIG_API URigHierarchy : public UObject
@@ -29,6 +30,7 @@ public:
 	, IndexLookup()
 	, TransformStackIndex(0)
 	, bTransactingForTransformChange(false)
+	, bIsInteracting(false)
 	{}
 
 	virtual ~URigHierarchy();
@@ -1585,6 +1587,23 @@ public:
 	bool Redo();
 
 	/**
+	 * Returns the event fired during undo / redo
+	 */
+	FRigHierarchyUndoRedoTransformEvent& OnUndoRedo() { return UndoRedoEvent; }
+
+	/**
+	 * Starts an interaction on the rig.
+	 * This will cause all transform actions happening to be merged
+	 */
+	void StartInteraction() { bIsInteracting = true; }
+
+	/**
+	 * Starts an interaction on the rig.
+	 * This will cause all transform actions happening to be merged
+	 */
+	FORCEINLINE void EndInteraction() { bIsInteracting = false; }
+
+	/**
 	 * Returns the transform stack index
 	 */
 	int32 GetTransformStackIndex() const { return TransformStackIndex; }
@@ -2128,6 +2147,16 @@ private:
 	 * Restores a transform on the stack
 	 */
 	bool ApplyTransformFromStack(const FTransformStackEntry& InEntry, bool bUndo);
+
+	/**
+	 * Manages merging transform actions into one during an interaction
+	 */
+	bool bIsInteracting;
+
+	/**
+	 * The event fired during undo / redo
+	 */
+	FRigHierarchyUndoRedoTransformEvent UndoRedoEvent;
 
 	TWeakObjectPtr<URigHierarchy> HierarchyForSelectionPtr;
 	TWeakObjectPtr<UObject> LastControllerPtr;

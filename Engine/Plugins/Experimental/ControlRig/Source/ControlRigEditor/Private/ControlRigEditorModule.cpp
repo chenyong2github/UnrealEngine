@@ -1675,12 +1675,8 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						FSlateIcon(),
 						FUIAction(FExecuteAction::CreateLambda([RigBlueprint, RigElementsToSelect]() {
 
-							RigBlueprint->GetHierarchyController()->ClearSelection();
-							for(const FRigElementKey& RigElementToSelect : RigElementsToSelect)
-							{
-								RigBlueprint->GetHierarchyController()->SelectElement(RigElementToSelect, true);
-							}
-
+							RigBlueprint->GetHierarchyController()->SetSelection(RigElementsToSelect);
+							
 						})
 					));
 				}

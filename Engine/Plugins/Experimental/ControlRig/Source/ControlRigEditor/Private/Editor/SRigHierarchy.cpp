@@ -725,12 +725,19 @@ void SRigHierarchy::RefreshTreeView(bool bRebuildContent)
 		{
 			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 			TreeView->ClearSelection();
-		}
 
-		TArray<FRigElementKey> Selection = Hierarchy->GetSelectedKeys();
-		for (const FRigElementKey& Key : Selection)
-		{
-			OnHierarchyModified(ERigHierarchyNotification::ElementSelected, Hierarchy, Hierarchy->FindChecked(Key));
+			TArray<FRigElementKey> Selection = Hierarchy->GetSelectedKeys();
+			for (const FRigElementKey& Key : Selection)
+			{
+				for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
+				{
+					TSharedPtr<FRigTreeElement> Found = FindElement(Key, RootElements[RootIndex]);
+					if (Found.IsValid())
+					{
+						TreeView->SetItemSelection(Found, true, ESelectInfo::OnNavigation);
+					}
+				}
+			}
 		}
 	}
 }
@@ -796,7 +803,10 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 
 		const TArray<FRigElementKey> NewSelection = GetSelectedKeys();
-		Controller->SetSelection(NewSelection);
+		if(!Controller->SetSelection(NewSelection))
+		{
+			return;
+		}
 
 		if (NewSelection.Num() > 0)
 		{
@@ -1126,7 +1136,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 						TreeView->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
 						HandleFrameSelection();
 
-						if (ControlRigEditor.IsValid())
+						if (ControlRigEditor.IsValid() && !GIsTransacting)
 						{
 							if (ControlRigEditor.Pin()->GetEventQueue() == EControlRigEditorEventQueue::Setup)
 							{
@@ -1146,9 +1156,13 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 	}
 }
 
-void SRigHierarchy::OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+void SRigHierarchy::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
 	if(!bShowDynamicHierarchy)
+	{
+		return;
+	}
+	if(bIsChangingRigHierarchy)
 	{
 		return;
 	}
@@ -1163,24 +1177,31 @@ void SRigHierarchy::OnHierarchyModifiedAsync(ERigHierarchyNotification InNotif, 
 		return;
 	}
 
-	FRigElementKey Key;
-	if(InElement)
+	if(IsInGameThread())
 	{
-		Key = InElement->GetKey();
+		OnHierarchyModified(InNotif, InHierarchy, InElement);
 	}
+	else
+	{
+		FRigElementKey Key;
+		if(InElement)
+		{
+			Key = InElement->GetKey();
+		}
 
-	TWeakObjectPtr<URigHierarchy> WeakHierarchy = InHierarchy;
+		TWeakObjectPtr<URigHierarchy> WeakHierarchy = InHierarchy;
 
-	FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, WeakHierarchy, Key]()
-    {
-    	if(!WeakHierarchy.IsValid())
-    	{
-    		return;
-    	}
-		const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
-		OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
-		
-    }, TStatId(), NULL, ENamedThreads::GameThread);
+		FFunctionGraphTask::CreateAndDispatchWhenReady([this, InNotif, WeakHierarchy, Key]()
+        {
+            if(!WeakHierarchy.IsValid())
+            {
+                return;
+            }
+            const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
+            OnHierarchyModified(InNotif, WeakHierarchy.Get(), Element);
+			
+        }, TStatId(), NULL, ENamedThreads::GameThread);
+	}
 }
 
 void SRigHierarchy::HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint)
@@ -1215,7 +1236,7 @@ void SRigHierarchy::HandleSetObjectBeingDebugged(UObject* InObject)
 	if(UControlRig* ControlRig = Cast<UControlRig>(InObject))
 	{
 		ControlRigBeingDebuggedPtr = ControlRig;
-		ControlRig->GetHierarchy()->OnModified().AddSP(this, &SRigHierarchy::OnHierarchyModifiedAsync);
+		ControlRig->GetHierarchy()->OnModified().AddSP(this, &SRigHierarchy::OnHierarchyModified_AnyThread);
 	}
 
 	RefreshTreeView();
@@ -2448,6 +2469,17 @@ void SRigHierarchy::HandleControlBoneOrSpaceTransform()
 {
 	UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
 	if (Blueprint == nullptr)
+	{
+		return;
+	}
+
+	UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged());
+	if(DebuggedControlRig == nullptr)
+	{
+		return;
+	}
+
+	if(!DebuggedControlRig->IsSetupModeEnabled())
 	{
 		return;
 	}

@@ -1205,7 +1205,7 @@ FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
 			FName ControlName = InstancedControlRig->AddTransientControl(InElement);
 			if (ReturnName == NAME_None)
 			{
-			ReturnName = ControlName;
+				ReturnName = ControlName;
 			}
 		}
 	}
