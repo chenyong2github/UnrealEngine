@@ -266,15 +266,15 @@ public:
 		}
 	}
 
-	SListView( ETableViewMode::Type InListMode = ETableViewMode::List )
-		: STableViewBase( InListMode )
+	SListView(ETableViewMode::Type InListMode = ETableViewMode::List)
+		: STableViewBase(InListMode)
 		, WidgetGenerator(this)
-		, SelectorItem( NullableItemType(nullptr) )
-		, RangeSelectionStart( NullableItemType(nullptr) )
-		, ItemsSource( nullptr )
-		, ItemToScrollIntoView( NullableItemType(nullptr) )
-		, UserRequestingScrollIntoView( 0 )
-		, ItemToNotifyWhenInView( NullableItemType(nullptr) ) 
+		, SelectorItem(TListTypeTraits<ItemType>::MakeNullPtr())
+		, RangeSelectionStart(TListTypeTraits<ItemType>::MakeNullPtr())
+		, ItemsSource(nullptr)
+		, ItemToScrollIntoView(TListTypeTraits<ItemType>::MakeNullPtr())
+		, UserRequestingScrollIntoView(0)
+		, ItemToNotifyWhenInView(TListTypeTraits<ItemType>::MakeNullPtr())
 		, IsFocusable(true)
 	{ 
 #if WITH_ACCESSIBILITY
@@ -309,7 +309,7 @@ public:
 		if ( ItemsSourceRef.Num() > 0 && !InKeyEvent.IsAltDown() )
 		{
 			bool bWasHandled = false;
-			NullableItemType ItemNavigatedTo( nullptr );
+			NullableItemType ItemNavigatedTo = TListTypeTraits<ItemType>::MakeNullPtr();
 
 			// Check for selection manipulation keys (Up, Down, Home, End, PageUp, PageDown)
 			if ( InKeyEvent.GetKey() == EKeys::Home )
@@ -2028,7 +2028,7 @@ protected:
 
 		if (OnIsSelectableOrNavigable.IsBound())
 		{
-			NullableItemType LastSelectedItem = nullptr;
+			NullableItemType LastSelectedItem = TListTypeTraits<ItemType>::MakeNullPtr();
 			if (SelectedItems.Num() == 1)
 			{
 				LastSelectedItem = *SelectedItems.CreateIterator();

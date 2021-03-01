@@ -70,6 +70,7 @@ TSharedRef< FSlateStyleSet > FUMGStyle::Create()
 	Style->Set("ClassIcon.MultiLineEditableTextBox", new IMAGE_BRUSH(TEXT("MultiLineEditableTextBox"), Icon16x16));
 	Style->Set("ClassIcon.Viewport", new IMAGE_BRUSH(TEXT("Viewport"), Icon16x16));
 	Style->Set("ClassIcon.ComboBox", new IMAGE_BRUSH(TEXT("icon_umg_ComboBox_16x"), Icon16x16));
+	Style->Set("ClassIcon.ComboBoxKey", new IMAGE_BRUSH(TEXT("icon_umg_ComboBox_16x"), Icon16x16));
 	Style->Set("ClassIcon.ComboBoxString", new IMAGE_BRUSH(TEXT("icon_umg_ComboBox_16x"), Icon16x16));
 	Style->Set("ClassIcon.ListView", new IMAGE_BRUSH(TEXT("icon_umg_ListView_16x"), Icon16x16));
 	Style->Set("ClassIcon.TileView", new IMAGE_BRUSH(TEXT("icon_umg_TileView_16x"), Icon16x16));

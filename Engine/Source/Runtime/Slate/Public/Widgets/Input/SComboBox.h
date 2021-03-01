@@ -97,6 +97,7 @@ class SComboBox : public SComboButton
 {
 public:
 
+	typedef TListTypeTraits< OptionType > ListTypeTraits;
 	typedef typename TListTypeTraits< OptionType >::NullableType NullableOptionType;
 
 	/** Type of list used for showing menu options. */
@@ -115,7 +116,7 @@ public:
 		, _OptionsSource()
 		, _OnSelectionChanged()
 		, _OnGenerateWidget()
-		, _InitiallySelectedItem(nullptr)
+		, _InitiallySelectedItem(ListTypeTraits::MakeNullPtr())
 		, _Method()
 		, _MaxListHeight(450.0f)
 		, _HasDownArrow( true )
