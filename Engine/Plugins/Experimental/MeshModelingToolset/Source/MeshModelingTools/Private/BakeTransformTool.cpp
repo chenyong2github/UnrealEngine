@@ -17,8 +17,10 @@
 #include "DynamicMeshToMeshDescription.h"
 
 #include "AssetGenerationUtil.h"
+#include "Physics/ComponentCollisionUtil.h"
 
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
 
@@ -35,6 +37,7 @@ const FToolTargetTypeRequirements& UBakeTransformToolBuilder::GetTargetRequireme
 {
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
 		UPrimitiveComponentBackedTarget::StaticClass()
 		});
 	return TypeRequirements;
@@ -137,6 +140,14 @@ void UBakeTransformTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
 
 void UBakeTransformTool::UpdateAssets()
 {
+	// Make sure mesh descriptions are deserialized before we open transaction.
+	// This is to avoid potential stability issues related to creation/load of
+	// mesh descriptions inside a transaction.
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
+	{
+		TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription();
+	}
+
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("BakeTransformToolTransactionName", "Bake Transforms"));
 
 	TArray<FTransform3d> BakedTransforms;
@@ -144,6 +155,8 @@ void UBakeTransformTool::UpdateAssets()
 	{
 		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
 		IMeshDescriptionCommitter* TargetMeshCommitter = TargetMeshCommitterInterface(ComponentIdx);
+		UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
+		Component->Modify();
 
 		FTransform3d ComponentToWorld(TargetComponent->GetWorldTransform());
 		FTransform3d ToBakePart = FTransform3d::Identity();
@@ -235,11 +248,12 @@ void UBakeTransformTool::UpdateAssets()
 				}
 			});
 
+			// try to transform simple collision
+			UE::Geometry::TransformSimpleCollision(Component, ToBakePart);
+
 			BakedTransforms.Add(ToBakePart);
 		}
 
-		UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
-		Component->Modify();
 		Component->SetWorldTransform((FTransform)NewWorldPart);
 		TargetComponent->GetOwnerActor()->MarkComponentsRenderStateDirty();
 	}
