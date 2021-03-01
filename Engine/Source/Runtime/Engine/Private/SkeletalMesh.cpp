@@ -4234,6 +4234,8 @@ void USkeletalMesh::ValidateBoneWeights(const ITargetPlatform* TargetPlatform)
 
 void USkeletalMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
+	// Make sure to cache platform data so it doesn't happen lazily during serialization of the skeletal mesh
+	GetPlatformSkeletalMeshRenderData(this, TargetPlatform);
 	ValidateBoneWeights(TargetPlatform);
 }
 
