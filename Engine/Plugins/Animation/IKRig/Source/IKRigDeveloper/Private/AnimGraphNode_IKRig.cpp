@@ -3,6 +3,7 @@
 #include "AnimGraphNode_IKRig.h"
 #include "Animation/AnimInstance.h"
 #include "IKRigDefinition.h"
+#include "IKRigSolver.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_IKRig 
@@ -83,6 +84,10 @@ void UAnimGraphNode_IKRig::PreloadRequiredAssets()
 	if (Node.RigDefinitionAsset)
 	{
 		PreloadObject(Node.RigDefinitionAsset);
+		for (UIKRigSolver* Solver : Node.RigDefinitionAsset->Solvers)
+		{
+			PreloadObject(Solver);
+		}
 	}
 
 	Super::PreloadRequiredAssets();

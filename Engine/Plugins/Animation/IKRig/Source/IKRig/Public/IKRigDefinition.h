@@ -23,18 +23,6 @@ public:
 	UPROPERTY()
 	TSoftObjectPtr<UObject> SourceAsset;
 
-	UPROPERTY(EditAnywhere, instanced, Category = BoneSettings)
-	TArray<UIKRigBoneSetting*> BoneSettings;
-
-	UPROPERTY(EditAnywhere, Category = BoneSettings)
-	TArray<FName> ExcludedBones;
-
-private:
-	/** stack of solvers, of varying types, executed in serial fashion where
-	output of prior solve is input to the next */
-	UPROPERTY(EditAnywhere, instanced, Category = "Solvers")
-	TArray<UIKRigSolver*> Solvers;
-
 	/** parent/child relationships stored separately from skeleton-specific transforms */
 	UPROPERTY(VisibleAnywhere, Category = "Skeleton")
 	FIKRigHierarchy Hierarchy;
@@ -43,22 +31,16 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Skeleton")
 	TArray<FTransform> RefPoseTransforms;
 
-public:
+	UPROPERTY(EditAnywhere, instanced, Category = BoneSettings)
+	TArray<UIKRigBoneSetting*> BoneSettings;
 
-	const TArray<FTransform>& GetReferencePose() const
-	{
-		return RefPoseTransforms;
-	}
+	UPROPERTY(EditAnywhere, Category = BoneSettings)
+	TArray<FName> ExcludedBones;
 
-	const TArray<UIKRigSolver*>& GetSolvers() const 
-	{
-		return Solvers;
-	}
-
-	const FIKRigHierarchy& GetHierarchy() const
-	{
-		return Hierarchy;
-	}
+	/** stack of solvers, of varying types, executed in serial fashion where
+	output of prior solve is input to the next */
+	UPROPERTY(EditAnywhere, instanced, Category = "Solvers")
+	TArray<UIKRigSolver*> Solvers;
 
 	void GetGoalNamesFromSolvers(TArray<FName>& OutGoalNames) const;
 

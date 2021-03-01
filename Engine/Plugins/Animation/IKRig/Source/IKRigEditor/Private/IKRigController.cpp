@@ -67,14 +67,14 @@ void UIKRigController::SetIKRigDefinition(UIKRigDefinition* InIKRigDefinition)
 
 const FIKRigHierarchy* UIKRigController::GetHierarchy() const
 {
-	return (IKRigDefinition) ? &IKRigDefinition->GetHierarchy() : nullptr;
+	return IKRigDefinition ? &IKRigDefinition->Hierarchy : nullptr;
 }
 
 const TArray<FTransform>& UIKRigController::GetRefPoseTransforms() const
 {
 	if (IKRigDefinition)
 	{
-		return IKRigDefinition->GetReferencePose();
+		return IKRigDefinition->RefPoseTransforms;
 	}
 
 	static TArray<FTransform> Dummy;
