@@ -38,7 +38,7 @@
 	"Ident": "FPWeaponStandard",
 	"AdditionalFiles":
 	{
-		"DestinationFilesFolder": "FPWeapon",
+		"DestinationFilesFolder": "FirstPerson/FPWeapon",
 		"AdditionalFilesList":
 		[
 			"Templates/TemplateResources/Standard/FPWeapon/Content/*.*"
