@@ -44,7 +44,7 @@ then
 	echo "export JAVA_HOME=\"$JAVA_HOME\"" >>$HOME/.bashrc
 fi
 NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.1.6352462"
-PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/28.0.3:$%STUDIO_SDK_PATH/tools/bin"
+PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/28.0.3:$STUDIO_SDK_PATH/tools/bin"
 
 retVal=$(type -P "adb")
 if [ "$retVal" == "" ]; then
