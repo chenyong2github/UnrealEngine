@@ -80,7 +80,7 @@ void Main(
 	OutDepth = SvPosition.z;
 #endif
 
-#if VIRTUAL_TEXTURE_TARGET
+#if ENABLE_NON_NANITE_VSM && VIRTUAL_TEXTURE_TARGET
 	uint2 vAddress = (uint2)SvPosition.xy;
 	float DeviceZ = SvPosition.z;
 
