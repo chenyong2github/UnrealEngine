@@ -74,10 +74,10 @@ namespace DatasmithRhino.ElementExporters
 		private FDatasmithFacadeActor CreateActor(DatasmithActorInfo Node)
 		{
 			FDatasmithFacadeActor ExportedActor = null;
-			bool bExportEmptyActor = !Node.bHasRhinoObject;
 
 			if (Node.bHasRhinoObject)
 			{
+				bool bExportEmptyActor = false;
 				RhinoObject CurrentObject = Node.RhinoModelComponent as RhinoObject;
 
 				if (CurrentObject.ObjectType == ObjectType.InstanceReference
@@ -101,9 +101,17 @@ namespace DatasmithRhino.ElementExporters
 					// If the node's object has a mesh associated to it, export it as a MeshActor.
 					ExportedActor = CreateMeshActor(Node);
 				}
-				else if (!bExportEmptyActor)
+				
+				if (ExportedActor == null)
 				{
-					//#ueent_todo Log non-exported object in DatasmithExport UI (Writing to Rhino Console is extremely slow).
+					if(bExportEmptyActor)
+					{
+						ExportedActor = CreateEmptyActor(Node);
+					}
+					else
+					{
+						DatasmithRhinoPlugin.Instance.LogManager.AddLog(DatasmithRhinoLogType.Info, string.Format("RhinoObject {0} of type \"{1}\" is not supported and was not exported.", CurrentObject.Id, CurrentObject.ObjectType));
+					}
 				}
 			}
 			else if(!Node.bIsRoot)
