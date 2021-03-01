@@ -89,8 +89,8 @@ public:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
-
 	void InitCommandList();
+
 	void UpdateTree();
 
 	void FinishAggregation();

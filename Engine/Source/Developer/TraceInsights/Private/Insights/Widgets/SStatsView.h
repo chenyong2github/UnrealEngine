@@ -83,8 +83,6 @@ public:
 	void ResetStats();
 	void UpdateStats(double StartTime, double EndTime);
 
-	void ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FStatsNodeRef NodePtr);
-
 	FStatsNodePtr GetCounterNode(uint32 CounterId) const;
 	void SelectCounterNode(uint32 CounterId);
 
@@ -257,6 +255,13 @@ private:
 	// ResetColumns (ContextMenu)
 	bool ContextMenu_ResetColumns_CanExecute() const;
 	void ContextMenu_ResetColumns_Execute();
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	TSharedPtr<FTimingGraphTrack> GetTimingViewMainGraphTrack() const;
+	void ToggleGraphSeries(TSharedRef<FTimingGraphTrack> GraphTrack, FStatsNodeRef NodePtr) const;
+	bool IsSeriesInTimingViewMainGraph(FStatsNodePtr CounterNode) const;
+	void ToggleTimingViewMainGraphEventSeries(FStatsNodePtr CounterNode) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 

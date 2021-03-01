@@ -48,7 +48,7 @@ class FTimersViewCommands : public TCommands<FTimersViewCommands>
 {
 public:
 	FTimersViewCommands()
-		: TCommands<FTimersViewCommands>(TEXT("STimersViewCommands"), NSLOCTEXT("STimersViewCommands", "Timer View Commands", "Timer View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
+		: TCommands<FTimersViewCommands>(TEXT("FTimersViewCommands"), NSLOCTEXT("FTimersViewCommands", "Timer View Commands", "Timer View Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
 	{
 	}
 
@@ -87,15 +87,6 @@ STimersView::STimersView()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimersView::InitCommandList()
-{
-	FTimersViewCommands::Register();
-	CommandList = MakeShared<FUICommandList>();
-	CommandList->MapAction(FTimersViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_CanExecute));
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 STimersView::~STimersView()
 {
 	// Remove ourselves from the Insights manager.
@@ -105,6 +96,15 @@ STimersView::~STimersView()
 	}
 
 	FTimersViewCommands::Unregister();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimersView::InitCommandList()
+{
+	FTimersViewCommands::Register();
+	CommandList = MakeShared<FUICommandList>();
+	CommandList->MapAction(FTimersViewCommands::Get().Command_CopyToClipboard, FExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_Execute), FCanExecuteAction::CreateSP(this, &STimersView::ContextMenu_CopySelectedToClipboard_CanExecute));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -143,7 +143,7 @@ void STimersView::Construct(const FArguments& InArgs)
 					.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
 					.OnTextChanged(this, &STimersView::SearchBox_OnTextChanged)
 					.IsEnabled(this, &STimersView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group."))
 				]
 
 				// Filter out timers with zero instance count
@@ -382,10 +382,10 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		{
 			TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 			TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
-			return TimingView.IsValid() && NumSelectedNodes == 1 && SelectedNode.IsValid() && !SelectedNode->IsGroup();
+			return TimingView.IsValid() && NumSelectedNodes == 1 && SelectedNode.IsValid() && SelectedNode->GetType() != ETimerNodeType::Group;
 		};
 
-		/*Highlight event*/
+		/* Highlight event */
 		{
 			FUIAction Action_ToggleHighlight;
 			Action_ToggleHighlight.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
@@ -394,7 +394,10 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 			TSharedPtr<STimingView> TimingView = Wnd.IsValid() ? Wnd->GetTimingView() : nullptr;
 
-			if (SelectedNode.IsValid() && !SelectedNode->IsGroup() && TimingView.IsValid() && TimingView->IsFilterByEventType(SelectedNode->GetTimerId()))
+			if (SelectedNode.IsValid() &&
+				SelectedNode->GetType() != ETimerNodeType::Group &&
+				TimingView.IsValid() &&
+				TimingView->IsFilterByEventType(SelectedNode->GetTimerId()))
 			{
 				MenuBuilder.AddMenuEntry
 				(
@@ -414,13 +417,15 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 			}
 		}
 
-		/*Add series to timing view graph track*/
+		/* Add/remove series to/from graph track */
 		{
 			FUIAction Action_ToggleTimerInGraphTrack;
 			Action_ToggleTimerInGraphTrack.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
 			Action_ToggleTimerInGraphTrack.ExecuteAction = FExecuteAction::CreateSP(this, &STimersView::ToggleTimingViewMainGraphEventSeries, SelectedNode);
 
-			if (SelectedNode.IsValid() && !SelectedNode->IsGroup() && IsSeriesInTimingViewMainGraph(SelectedNode))
+			if (SelectedNode.IsValid() &&
+				SelectedNode->GetType() != ETimerNodeType::Group &&
+				IsSeriesInTimingViewMainGraph(SelectedNode))
 			{
 				MenuBuilder.AddMenuEntry
 				(
@@ -456,7 +461,7 @@ TSharedPtr<SWidget> STimersView::TreeView_GetMenuContent()
 		MenuBuilder.AddSubMenu
 		(
 			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"),
-			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column"),
+			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column."),
 			FNewMenuDelegate::CreateSP(this, &STimersView::TreeView_BuildSortByMenu),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
@@ -852,7 +857,7 @@ void STimersView::ApplyFiltering()
 		for (const Insights::FBaseTreeNodePtr& ChildPtr : GroupChildren)
 		{
 			const FTimerNodePtr& NodePtr = StaticCastSharedPtr<FTimerNode, Insights::FBaseTreeNode>(ChildPtr);
-			TraceServices::FTimingProfilerAggregatedStats& NodeAggregatedStats = NodePtr->GetAggregatedStats();
+			const TraceServices::FTimingProfilerAggregatedStats& NodeAggregatedStats = NodePtr->GetAggregatedStats();
 
 			if (NodeAggregatedStats.InstanceCount > 0)
 			{
@@ -959,7 +964,7 @@ void STimersView::TreeView_OnSelectionChanged(FTimerNodePtr SelectedItem, ESelec
 	if (SelectInfo != ESelectInfo::Direct)
 	{
 		TArray<FTimerNodePtr> SelectedItems = TreeView->GetSelectedItems();
-		if (SelectedItems.Num() == 1 && !SelectedItems[0]->IsGroup())
+		if (SelectedItems.Num() == 1 && SelectedItems[0]->GetType() != ETimerNodeType::Group)
 		{
 			FTimingProfilerManager::Get()->SetSelectedTimer(SelectedItems[0]->GetTimerId());
 		}
@@ -982,7 +987,7 @@ void STimersView::TreeView_OnGetChildren(FTimerNodePtr InParent, TArray<FTimerNo
 
 void STimersView::TreeView_OnMouseButtonDoubleClick(FTimerNodePtr NodePtr)
 {
-	if (NodePtr->IsGroup())
+	if (NodePtr->GetType() == ETimerNodeType::Group)
 	{
 		const bool bIsGroupExpanded = TreeView->IsItemExpanded(NodePtr);
 		TreeView->SetItemExpansion(NodePtr, !bIsGroupExpanded);
@@ -1349,15 +1354,6 @@ void STimersView::SortTreeNodesRec(FTimerNode& Node, const Insights::ITableCellV
 	{
 		Node.SortChildrenAscending(Sorter);
 	}
-
-	//for (Insights::FBaseTreeNodePtr ChildPtr : Node.GetChildren())
-	//{
-	//	//if (ChildPtr->IsGroup())
-	//	if (ChildPtr->GetChildren().Num() > 0)
-	//	{
-	//		SortTreeNodesRec(*StaticCastSharedPtr<FTimerNode>(ChildPtr), Sorter);
-	//	}
-	//}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
