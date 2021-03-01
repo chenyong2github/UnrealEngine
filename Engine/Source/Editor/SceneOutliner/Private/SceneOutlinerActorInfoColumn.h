@@ -97,13 +97,17 @@ private:
 
 	TSharedPtr<SWidget> ConstructClassHyperlink( ISceneOutlinerTreeItem& TreeItem );
 
-	void OnModeChanged( TSharedPtr< SceneOutliner::ECustomColumnMode::Type > NewSelection, ESelectInfo::Type SelectInfo );
+	TSharedRef<SWidget> GenerateActorTypeMenu();
+
+	void OnModeChanged( const SceneOutliner::ECustomColumnMode::Type NewSelection );
+
+	bool IsCurrentMode( const SceneOutliner::ECustomColumnMode::Type Mode) const;
 
 	EVisibility GetColumnDataVisibility( bool bIsClassHyperlink ) const;
 
 	FText MakeComboText( const SceneOutliner::ECustomColumnMode::Type& Mode ) const;
 
-	FText MakeComboToolTipText( const SceneOutliner::ECustomColumnMode::Type& Mode );
+	FText MakeComboToolTipText( const SceneOutliner::ECustomColumnMode::Type& Mode ) const;
 
 	TSharedRef< ITableRow > MakeComboButtonItemWidget( TSharedPtr< SceneOutliner::ECustomColumnMode::Type > Mode, const TSharedRef<STableViewBase> & );
 
@@ -116,9 +120,6 @@ private:
 	 * allowing the user to search by additional criteria 
 	 */
 	mutable SceneOutliner::ECustomColumnMode::Type CurrentMode;
-
-	/** A list of available custom column modes for Slate */
-	static TArray< TSharedPtr< SceneOutliner::ECustomColumnMode::Type > > ModeOptions;
 
 	/** Weak reference to the outliner widget that owns our list */
 	TWeakPtr< ISceneOutliner > SceneOutlinerWeak;
