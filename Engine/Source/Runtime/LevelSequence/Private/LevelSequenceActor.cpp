@@ -139,7 +139,26 @@ void ALevelSequenceActor::PostInitializeComponents()
 	{
 		SetReplicates(bReplicatePlayback);
 	}
-	
+
+	// ---------------------------------------------------------------------------------
+	// This code exists in UMovieSceneSequencePlayer for 4.27+, but has been back-ported
+	// in a hotfix-conformant mannger for 4.26. It is required in order to ensure that 
+	// the tick manager is kept alive by this actor before the player is initialized with
+	// a loaded sequence
+	class HACK_SetTickManager : public ULevelSequencePlayer
+	{
+	public:
+		void InitializeForTick(UObject* Context)
+		{
+			// Store a reference to the global tick manager to keep it alive while there are sequence players active.
+			if (ensure(Context))
+			{
+				TickManager = UMovieSceneSequenceTickManager::Get(Context);
+			}
+		}
+	};
+
+	static_cast<HACK_SetTickManager*>(SequencePlayer)->InitializeForTick(this);
 	InitializePlayer();
 }
 
