@@ -586,7 +586,7 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 	// time passed has been updated
 	// now find what frames we need to update
 	int32 FramesRecorded = LastFrame;
-	int32 FramesToRecord = FPlatformMath::TruncToInt(TimePassed / IntervalTime);
+	int32 FramesToRecord = FPlatformMath::RoundToInt(TimePassed / IntervalTime);
 
 	// notifies need to be done regardless of sample rate
 	if (Component->GetAnimInstance())
