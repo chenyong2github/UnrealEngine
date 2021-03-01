@@ -2171,14 +2171,16 @@ FReply SRigHierarchy::OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDro
 	if (RigDragDropOp.IsValid())
 	{
 		URigHierarchy* Hierarchy = GetHierarchy();
-		check(Hierarchy);
 		URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy();
-		check(DebuggedHierarchy);
-		URigHierarchyController* Controller = Hierarchy->GetController(true);
-		check(Controller);
 
 		if (Hierarchy && ControlRigBlueprint.IsValid())
 		{
+			URigHierarchyController* Controller = Hierarchy->GetController(true);
+			if(Controller == nullptr)
+			{
+				return FReply::Unhandled();
+			}
+
 			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 			TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
 			FScopedTransaction Transaction(LOCTEXT("HierarchyDragAndDrop", "Drag & Drop"));

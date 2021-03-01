@@ -279,24 +279,25 @@ void SControlHierarchy::OnSelectionChanged(TSharedPtr<FControlTreeElement> Selec
 	{
 		TGuardValue<bool> Guard(bSelecting, true);
 		URigHierarchy* Hierarchy = GetHierarchy();
-		check(Hierarchy);
-		URigHierarchyController* Controller = Hierarchy->GetController(true);
-		check(Controller);
-
+		
 		if (Hierarchy)
 		{
-			FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
-
-			TArray<FRigElementKey> OldSelection = Hierarchy->GetSelectedKeys(ERigElementType::Control);
-			TArray<FRigElementKey> NewSelection;
-
-			TArray<TSharedPtr<FControlTreeElement>> SelectedItems = TreeView->GetSelectedItems();
-			for (const TSharedPtr<FControlTreeElement>& SelectedItem : SelectedItems)
+			URigHierarchyController* Controller = Hierarchy->GetController(true);
+			if(Controller)
 			{
-				NewSelection.Add(SelectedItem->Key);
-			}
+				FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), !GIsTransacting);
 
-			Controller->SetSelection(NewSelection);
+				TArray<FRigElementKey> OldSelection = Hierarchy->GetSelectedKeys(ERigElementType::Control);
+				TArray<FRigElementKey> NewSelection;
+
+				TArray<TSharedPtr<FControlTreeElement>> SelectedItems = TreeView->GetSelectedItems();
+				for (const TSharedPtr<FControlTreeElement>& SelectedItem : SelectedItems)
+				{
+					NewSelection.Add(SelectedItem->Key);
+				}
+
+				Controller->SetSelection(NewSelection);
+			}
 		}
 	}
 }
