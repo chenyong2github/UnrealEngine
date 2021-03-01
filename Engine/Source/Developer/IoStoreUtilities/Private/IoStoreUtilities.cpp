@@ -1134,6 +1134,10 @@ static void AssignPackagesDiskOrder(
 	SortedPackages.Reserve(Packages.Num());
 	for (FPackage* Package : Packages)
 	{
+		if (!Package->ExportBundles.Num())
+		{
+			continue;
+		}
 		FPackageAndOrder& Entry = SortedPackages.AddDefaulted_GetRef();
 		Entry.Package = Package;
 		const uint64* FindGameOpenOrder = GameOrderMap.Find(Package->Name);
