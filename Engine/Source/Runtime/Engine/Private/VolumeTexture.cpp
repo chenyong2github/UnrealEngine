@@ -282,8 +282,7 @@ uint32 UVolumeTexture::CalcTextureMemorySizeEnum( ETextureMipCount Enum ) const
 FTextureResource* UVolumeTexture::CreateResource()
 {
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
-	const bool bCompressedFormat = FormatInfo.BlockSizeX > 1; 
-	const bool bFormatIsSupported = FormatInfo.Supported && (!bCompressedFormat || ShaderPlatformSupportsCompression(GMaxRHIShaderPlatform));
+	const bool bFormatIsSupported = FormatInfo.Supported;
 
 	if (GetNumMips() > 0 && GSupportsTexture3D && bFormatIsSupported)
 	{
@@ -377,19 +376,6 @@ void UVolumeTexture::UpdateMipGenSettings()
 }
 
 #endif // #if WITH_EDITOR
-
-bool UVolumeTexture::ShaderPlatformSupportsCompression(FStaticShaderPlatform ShaderPlatform)
-{
-	switch (ShaderPlatform)
-	{
-	case SP_PCD3D_SM5:
-	case SP_VULKAN_SM5_LUMIN:
-		return true;
-
-	default:
-		return FDataDrivenShaderPlatformInfo::GetSupportsVolumeTextureCompression(ShaderPlatform);
-	}
-}
 
 bool UVolumeTexture::StreamOut(int32 NewMipCount)
 {

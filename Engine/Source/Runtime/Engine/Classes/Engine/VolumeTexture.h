@@ -121,9 +121,6 @@ public:
 
 #endif
 
-	ENGINE_API static bool ShaderPlatformSupportsCompression(FStaticShaderPlatform ShaderPlatform);
-
-
 	//~ Begin UStreamableRenderAsset Interface
 	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override { return CalcTextureMemorySize(NumLODs); }
 	virtual bool StreamOut(int32 NewMipCount) final override;

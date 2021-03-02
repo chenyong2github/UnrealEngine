@@ -1656,7 +1656,6 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bIsAndroidOpenGLES = GetSectionBool(Section, "bIsAndroidOpenGLES");
 	Info.bSupportsMobileMultiView = GetSectionBool(Section, "bSupportsMobileMultiView");
 	Info.bSupportsArrayTextureCompression = GetSectionBool(Section, "bSupportsArrayTextureCompression");
-	Info.bSupportsVolumeTextureCompression = GetSectionBool(Section, "bSupportsVolumeTextureCompression");
 	Info.bSupportsDistanceFields = GetSectionBool(Section, "bSupportsDistanceFields");
 	Info.bSupportsDiaphragmDOF = GetSectionBool(Section, "bSupportsDiaphragmDOF");
 	Info.bSupportsRGBColorBuffer = GetSectionBool(Section, "bSupportsRGBColorBuffer");

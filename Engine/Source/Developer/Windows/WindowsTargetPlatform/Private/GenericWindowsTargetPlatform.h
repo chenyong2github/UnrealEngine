@@ -81,10 +81,6 @@ public:
 			{
 				bSupportDX11TextureFormats = false;
 			}
-			if (!UVolumeTexture::ShaderPlatformSupportsCompression(ShaderPlatform))
-			{
-				bSupportCompressedVolumeTexture = false;
-			}
 		}
 
 		// If we are targeting ES3.1, we also must cook encoded HDR reflection captures

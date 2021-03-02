@@ -325,7 +325,6 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 
 	uint32 bSupportsMobileMultiView: 1;
 	uint32 bSupportsArrayTextureCompression : 1;
-	uint32 bSupportsVolumeTextureCompression: 1;
 	uint32 bSupportsDistanceFields: 1; // used for DFShadows and DFAO - since they had the same checks
 	uint32 bSupportsDiaphragmDOF: 1;
 	uint32 bSupportsRGBColorBuffer: 1;
@@ -453,11 +452,6 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsArrayTextureCompression(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsArrayTextureCompression;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsVolumeTextureCompression(const FStaticShaderPlatform Platform)
-	{
-		return Infos[Platform].bSupportsVolumeTextureCompression;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsDistanceFields(const FStaticShaderPlatform Platform)

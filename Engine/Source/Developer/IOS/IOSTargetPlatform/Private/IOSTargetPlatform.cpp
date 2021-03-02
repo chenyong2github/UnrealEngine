@@ -586,7 +586,8 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 	if (TextureFormatNames.Num() == 0)
 	{
         int32 BlockSize = 1;
-		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, true, false, BlockSize);
+		bool bSupportCompressedVolumeTexture = true;
+		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, true, bSupportCompressedVolumeTexture, BlockSize);
 	}
 
 	// include the formats we want

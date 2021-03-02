@@ -351,7 +351,9 @@ public:
 			{ { FName(TEXT("AutoDXT")) },	{ FName(TEXT("ASTC_RGBAuto")) } },
 		};
 
-		GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, true, false, 1);
+		// Supported in ES3.2 with ASTC
+		bool bSupportCompressedVolumeTexture = true;
+		GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, true, bSupportCompressedVolumeTexture, 1);
 
 		for (FName& TextureFormatName : OutFormats.Last())
 		{

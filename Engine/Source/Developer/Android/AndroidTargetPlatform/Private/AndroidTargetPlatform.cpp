@@ -414,6 +414,11 @@ const FStaticMeshLODSettings& FAndroidTargetPlatform::GetStaticMeshLODSettings( 
 	return StaticMeshLODSettings;
 }
 
+static bool FormatSupportsCompressedVolumeTexture(EAndroidTextureFormatCategory FormatCategory)
+{
+	// Supported in ES3.2 with ASTC
+	return FormatCategory == EAndroidTextureFormatCategory::ASTC;
+}
 
 void FAndroidTargetPlatform::GetTextureFormats( const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const
 {
@@ -432,6 +437,8 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* InTexture, TArra
 			continue;
 		}
 
+		const bool bSupportCompressedVolumeTexture = FormatSupportsCompressedVolumeTexture(FormatCategory);
+
 		TArray<FName> FormatPerLayer;
 		FormatPerLayer.SetNum(NumLayers);
 
@@ -448,7 +455,8 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* InTexture, TArra
 				|| (InTexture->Source.GetSizeX() < 4)						// Don't compress textures smaller than the DXT block size.
 				|| (InTexture->Source.GetSizeY() < 4)
 				|| (InTexture->Source.GetSizeX() % 4 != 0)
-				|| (InTexture->Source.GetSizeY() % 4 != 0);
+				|| (InTexture->Source.GetSizeY() % 4 != 0)
+				|| (InTexture->GetMaterialType() == MCT_VolumeTexture && !bSupportCompressedVolumeTexture);
 
 			// Determine the pixel format of the compressed texture.
 			if (InTexture->LODGroup == TEXTUREGROUP_Shadowmap)
