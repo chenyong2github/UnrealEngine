@@ -416,7 +416,17 @@ bool ULevelStreaming::DetermineTargetState()
 	{
 	case ECurrentState::MakingVisible:
 		ensure(LoadedLevel);
-		TargetState = ETargetState::LoadedVisible;
+		if (!ShouldBeVisible() && GetWorld()->GetCurrentLevelPendingVisibility() != LoadedLevel)
+		{
+			// Since level doesn't need to be visible anymore, change TargetState to ETargetState::LoadedNotVisible.
+			// Next UpdateStreamingState will handle switching CurrentState to ECurrentState::LoadedNotVisible.
+			// From there, regular flow will properly handle TargetState.
+			TargetState = ETargetState::LoadedNotVisible;
+		}
+		else
+		{
+			TargetState = ETargetState::LoadedVisible;
+		}
 		break;
 
 	case ECurrentState::MakingInvisible:
@@ -570,7 +580,14 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 	case ECurrentState::MakingVisible:
 		if (ensure(LoadedLevel))
 		{
-			if (!World->GetNextPreferredLevelPendingVisibility() || World->GetNextPreferredLevelPendingVisibility() == LoadedLevel)
+			// Handle case where MakingVisible is not needed anymore
+			if (TargetState == ETargetState::LoadedNotVisible)
+			{
+				CurrentState = ECurrentState::LoadedNotVisible;
+				bOutUpdateAgain = true;
+				bOutRedetermineTarget = true;
+			}
+			else if (!World->GetNextPreferredLevelPendingVisibility() || World->GetNextPreferredLevelPendingVisibility() == LoadedLevel)
 			{
 				World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad);
 
