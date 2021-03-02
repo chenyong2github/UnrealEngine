@@ -16,6 +16,7 @@
 #include "RenderResource.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
+#include "UObject/WeakObjectPtr.h"
 
 class FSceneInterface;
 
