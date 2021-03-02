@@ -13,7 +13,7 @@
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "NiagaraEditorUtilities.h"
 #include "Widgets/SBoxPanel.h"
-
+#include "ScopedTransaction.h"
 
 #include "Misc/Guid.h"
 #include "UObject/TextProperty.h"

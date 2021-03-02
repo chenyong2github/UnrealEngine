@@ -11,6 +11,7 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Misc/Guid.h"
 #include "UObject/UnrealType.h"
+#include "EdGraph/EdGraphSchema.h"
 #include "NiagaraNode.generated.h"
 
 class UEdGraphPin;
