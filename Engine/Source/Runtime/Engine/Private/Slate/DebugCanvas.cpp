@@ -212,12 +212,14 @@ void FDebugCanvasDrawer::InitDebugCanvas(FViewportClient* ViewportClient, UWorld
 
 		GameThreadCanvas->SetUseInternalTexture(bHMDAvailable);
 
-		if (bHMDAvailable && LayerTexture && bCanvasRenderedLastFrame)
+		if (bHMDAvailable && LayerTexture)
 		{
 			if (StereoLayers)
 			{
-				const IStereoLayers::FLayerDesc StereoLayerDesc = StereoLayers->GetDebugCanvasLayerDesc(LayerTexture->GetRenderTargetItem().ShaderResourceTexture);
-				if (LayerID == INVALID_LAYER_ID)
+				IStereoLayers::FLayerDesc StereoLayerDesc = StereoLayers->GetDebugCanvasLayerDesc(LayerTexture->GetRenderTargetItem().ShaderResourceTexture);
+				StereoLayerDesc.Flags |= !bCanvasRenderedLastFrame ? IStereoLayers::LAYER_FLAG_HIDDEN : 0;
+
+				if (LayerID == INVALID_LAYER_ID && bCanvasRenderedLastFrame)
 				{
 					LayerID = StereoLayers->CreateLayer(StereoLayerDesc);
 				}
@@ -225,15 +227,6 @@ void FDebugCanvasDrawer::InitDebugCanvas(FViewportClient* ViewportClient, UWorld
 				{
 					StereoLayers->SetLayerDesc(LayerID, StereoLayerDesc);
 				}
-			}
-		}
-
-		if (LayerID != INVALID_LAYER_ID && (!bHMDAvailable || !bCanvasRenderedLastFrame))
-		{
-			if (StereoLayers)
-			{
-				StereoLayers->DestroyLayer(LayerID);
-				LayerID = INVALID_LAYER_ID;
 			}
 		}
 
