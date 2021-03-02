@@ -34,6 +34,7 @@ DECLARE_CYCLE_STAT(TEXT("ImgMedia Loader Load Sequence"), STAT_ImgMedia_LoaderLo
 /** Time spent releasing cache in image loader destructor. */
 DECLARE_CYCLE_STAT(TEXT("ImgMedia Loader Release Cache"), STAT_ImgMedia_LoaderReleaseCache, STATGROUP_Media);
 
+constexpr int32 FImgMediaLoader::MAX_MIPMAP_LEVELS;
 
 /* FImgMediaLoader structors
  *****************************************************************************/
