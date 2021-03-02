@@ -2311,6 +2311,8 @@ FCullingContext InitCullingContext(
 	const uint32 NumSceneInstancesPo2					= FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceDataAllocator.GetMaxSize());
 	CullingContext.SOAStrides.X							= Scene.GPUScene.InstanceDataSOAStride;
 	CullingContext.SOAStrides.Y							= NumSceneInstancesPo2;
+	
+	check(NumSceneInstancesPo2 <= MAX_INSTANCES);		// There are too many instances in the scene.
 
 	CullingContext.MainAndPostPassPersistentStates		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 20, 2 ), TEXT("Nanite.MainAndPostPassPersistentStates") );
 
