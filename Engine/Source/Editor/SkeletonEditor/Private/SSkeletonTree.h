@@ -236,6 +236,9 @@ private:
 	/** Functions to copy sockets from the skeleton to the mesh */
 	void OnCopySocketToMesh() {};
 
+	/** Callback function to be called when selection changes to check if the next item is selectable or navigable. */
+	bool OnIsSelectableOrNavigable(TSharedPtr<class ISkeletonTreeItem> InItem) const;
+
 	/** Callback function to be called when selection changes in the tree view widget. */
 	void OnSelectionChanged(TSharedPtr<class ISkeletonTreeItem> Selection, ESelectInfo::Type SelectInfo);
 
