@@ -261,7 +261,7 @@ namespace Chaos
 		// This modifies the in/out CoM position and rotations.
 		void ApplyManifoldPushOutCorrection(
 			const FReal Stiffness,
-			const FCollisionContact& Contact,
+			const FRigidBodyPointContactConstraint& Constraint,
 			const TGenericParticleHandle<FReal, 3> Particle0,
 			const TGenericParticleHandle<FReal, 3> Particle1,
 			const FContactIterationParameters& IterationParameters,
@@ -278,8 +278,8 @@ namespace Chaos
 			FVec3& W1,
 			FManifoldPoint& ManifoldPoint)
 		{
-			TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
-			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+			const TPBDRigidParticleHandle<FReal, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+			const TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 
 			const FReal Margin0 = ManifoldPoint.ContactPoint.ShapeMargins[0];
 			const FReal Margin1 = ManifoldPoint.ContactPoint.ShapeMargins[1];
@@ -290,8 +290,14 @@ namespace Chaos
 			const FVec3 ContactNormal = PlaneQ * ManifoldPoint.CoMContactNormal;
 
 			const bool bApplyStaticFriction = (ManifoldPoint.bInsideStaticFrictionCone && ManifoldPoint.bPotentialRestingContact && Chaos_Manifold_PushOut_StaticFriction);
-			FVec3 LocalContactPoint0 = (bApplyStaticFriction) ? ManifoldPoint.PrevCoMContactPoints[0] : ManifoldPoint.CoMContactPoints[0];
-			FVec3 LocalContactPoint1 = (bApplyStaticFriction) ? ManifoldPoint.PrevCoMContactPoints[1] : ManifoldPoint.CoMContactPoints[1];
+			FVec3 LocalContactPoint0 = ManifoldPoint.CoMContactPoints[0];
+			FVec3 LocalContactPoint1 = ManifoldPoint.CoMContactPoints[1];
+
+			// If we are applying static friction, we are attempting to move the contact points at their intitial positions back together
+			if (bApplyStaticFriction)
+			{
+				Constraint.CalculatePrevCoMContactPoints(Particle0, Particle1, ManifoldPoint, IterationParameters.Dt, LocalContactPoint0, LocalContactPoint1);
+			}
 
 			// We could push out to the PBD distance that would give an implicit velocity equal to -(1+e).Vin
 			// but the values involved are not very stable from frame to frame, so instead we actually pull
@@ -320,8 +326,8 @@ namespace Chaos
 			}
 
 			// Calculate joint-space mass matrix (J.M.Jt)
-			const FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Contact.InvInertiaScale0 : FMatrix33(0);
-			const FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Contact.InvInertiaScale1 : FMatrix33(0);
+			const FMatrix33 InvI0 = bIsRigidDynamic0 ? Utilities::ComputeWorldSpaceInertia(Q0, PBDRigid0->InvI()) * Constraint.Manifold.InvInertiaScale0 : FMatrix33(0);
+			const FMatrix33 InvI1 = bIsRigidDynamic1 ? Utilities::ComputeWorldSpaceInertia(Q1, PBDRigid1->InvI()) * Constraint.Manifold.InvInertiaScale1 : FMatrix33(0);
 			const FMatrix33 ContactMassInv =
 				(bIsRigidDynamic0 ? ComputeFactorMatrix3(RelativeContactPoint0, InvI0, PBDRigid0->InvM()) : FMatrix33(0)) +
 				(bIsRigidDynamic1 ? ComputeFactorMatrix3(RelativeContactPoint1, InvI1, PBDRigid1->InvM()) : FMatrix33(0));
@@ -688,7 +694,7 @@ namespace Chaos
 					{
 						ApplyManifoldPushOutCorrection(
 							Stiffness,
-							Constraint.Manifold,
+							Constraint,
 							Particle0,
 							Particle1,
 							IterationParameters,

@@ -451,7 +451,6 @@ namespace Chaos
 						const FVec3 PointLocation = PointTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPointOwner]) - ManifoldPoint.ContactPoint.ShapeMargins[ContactPointOwner] * PlaneNormal;
 						const FVec3 PlaneLocation = PlaneTransform.TransformPosition(ManifoldPoint.CoMContactPoints[ContactPlaneOwner]) + ManifoldPoint.ContactPoint.ShapeMargins[ContactPlaneOwner] * PlaneNormal;
 						const FVec3 PointPlaneLocation = PointLocation - FVec3::DotProduct(PointLocation - PlaneLocation, PlaneNormal) * PlaneNormal;
-						const FVec3 OldPointPlaneLocation = PlaneTransform.TransformPosition(ManifoldPoint.PrevCoMContactPoints[ContactPlaneOwner]) + ManifoldPoint.ContactPoint.ShapeMargins[ContactPlaneOwner] * PlaneNormal;
 
 						// Dynamic friction, restitution = red
 						// Static friction, no restitution = green
@@ -478,7 +477,6 @@ namespace Chaos
 						const FVec3 WorldPointLocation = SpaceTransform.TransformPosition(PointLocation);
 						const FVec3 WorldPlaneLocation = SpaceTransform.TransformPosition(PlaneLocation);
 						const FVec3 WorldPointPlaneLocation = SpaceTransform.TransformPosition(PointPlaneLocation);
-						const FVec3 WorldOldPointPlaneLocation = SpaceTransform.TransformPosition(OldPointPlaneLocation);
 						const FVec3 WorldPlaneNormal = SpaceTransform.TransformVectorNoScale(PlaneNormal);
 
 						// Pushout
@@ -499,9 +497,6 @@ namespace Chaos
 							const FVec3 WorldTangent = SpaceTransform.TransformVectorNoScale(Tangent);
 							FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldPointPlaneLocation + Settings.DrawScale * Settings.ImpulseScale * ManifoldPoint.NetPushOutImpulseTangent * WorldTangent, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 						}
-
-						// Static friction error
-						FDebugDrawQueue::GetInstance().DrawDebugLine(WorldPointPlaneLocation, WorldOldPointPlaneLocation, FColor::White, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 
 						// Manifold plane and normal
 						DrawCollisionImpl(WorldPlaneLocation, WorldPlaneNormal, ManifoldPoint.ContactPoint.Phi, ManifoldPoint.NetImpulse, DiscColor, NormalColor, ImpulseColor, ColorScale, Settings);
