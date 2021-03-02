@@ -924,6 +924,13 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 #endif // NANITE_ENABLE_DEBUG_RENDERING
 }
 
+void FSceneProxy::OnTransformChanged()
+{
+#if RHI_RAYTRACING
+	bCachedRayTracingInstanceTransformsValid = false;
+#endif // RHI_RAYTRACING
+}
+
 #if RHI_RAYTRACING
 void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
@@ -937,7 +944,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	RayTracingInstance.Geometry = RayTracingGeometry;
 
 	const int32 InstanceCount = Instances.Num();
-	if (CachedRayTracingInstanceTransforms.Num() != InstanceCount || GetLocalToWorld() != CachedRayTracingInstanceLocalToWorld)
+	if (CachedRayTracingInstanceTransforms.Num() != InstanceCount || !bCachedRayTracingInstanceTransformsValid)
 	{
 		CachedRayTracingInstanceTransforms.SetNumUninitialized(InstanceCount);
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -945,7 +952,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 			const FPrimitiveInstance& Instance = Instances[InstanceIndex];
 			CachedRayTracingInstanceTransforms[InstanceIndex] = Instance.InstanceToLocal * GetLocalToWorld();
 		}
-		CachedRayTracingInstanceLocalToWorld = GetLocalToWorld();
+		bCachedRayTracingInstanceTransformsValid = true;
 	}
 
 	// Transforms are persistently allocated, so we can just return them by pointer.
@@ -962,7 +969,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
 	RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
 }
-#endif
+#endif // RHI_RAYTRACING
 
 const FCardRepresentationData* FSceneProxy::GetMeshCardRepresentation() const
 {

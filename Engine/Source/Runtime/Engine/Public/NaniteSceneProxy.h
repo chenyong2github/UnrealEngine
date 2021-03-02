@@ -122,6 +122,8 @@ public:
 
 	virtual int32 GetLightMapCoordinateIndex() const override;
 
+	virtual void OnTransformChanged() override;
+
 protected:
 	virtual void CreateRenderThreadResources() override;
 
@@ -160,10 +162,10 @@ protected:
 
 #if RHI_RAYTRACING
 	bool bHasRayTracingInstances = false;
+	bool bCachedRayTracingInstanceTransformsValid = false;
 	const FRayTracingGeometry* RayTracingGeometry = nullptr;
 	TArray<FMatrix> CachedRayTracingInstanceTransforms;
 	TArray<FMeshBatch> CachedRayTracingMaterials;
-	FMatrix CachedRayTracingInstanceLocalToWorld = {};
 	FRayTracingMaskAndFlags CachedRayTracingInstanceMaskAndFlags;
 #endif
 
