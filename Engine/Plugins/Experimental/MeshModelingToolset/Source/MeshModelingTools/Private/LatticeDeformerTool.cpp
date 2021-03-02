@@ -99,7 +99,7 @@ void ULatticeDeformerTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	SetToolDisplayName(LOCTEXT("ToolName", "Grid Deform"));
+	SetToolDisplayName(LOCTEXT("ToolName", "Lattice Deform"));
 	GetToolManager()->DisplayMessage(LOCTEXT("LatticeDeformerToolMessage", 
 		"Drag the lattice control points to deform the mesh"), EToolMessageLevel::UserNotification);
 

@@ -68,6 +68,7 @@ private:
 	FText ActiveToolName;
 	FText ActiveToolMessage;
 	FStatusBarMessageHandle ActiveToolMessageHandle;
+	const FSlateBrush* ActiveToolIcon;
 
 	TSharedPtr<SWidget> ToolkitWidget;
 	void UpdateActiveToolProperties();

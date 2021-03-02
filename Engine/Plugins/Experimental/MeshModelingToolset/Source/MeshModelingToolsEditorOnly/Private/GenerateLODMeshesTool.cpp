@@ -99,6 +99,8 @@ void UGenerateLODMeshesTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+	SetToolDisplayName(LOCTEXT("ToolName", "Generate HairHelmet LODs"));
+
 	{
 		// if in editor, create progress indicator dialog because building mesh copies can be slow (for very large meshes)
 		// this is especially needed because of the copy we make of the meshdescription; for Reasons, copying meshdescription is pretty slow
