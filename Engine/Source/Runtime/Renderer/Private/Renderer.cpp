@@ -453,7 +453,6 @@ static void VisualizeTextureExec( const TCHAR* Cmd, FOutputDevice &Ar )
 }
 
 extern void NaniteStatsFilterExec(const TCHAR* Cmd, FOutputDevice& Ar);
-extern void ResetRenderTargetsExtent(FOutputDevice& Ar);
 
 static bool RendererExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
@@ -484,7 +483,8 @@ static bool RendererExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	}
 	else if (FParse::Command(&Cmd, TEXT("r.ResetRenderTargetsExtent")))
 	{
-		ResetRenderTargetsExtent(Ar);
+		ResetSceneTextureExtentHistory();
+		Ar.Logf(TEXT("Scene texture extent history reset. Next scene render will reallocate textures at the requested size."));
 		return true;
 	}
 #endif

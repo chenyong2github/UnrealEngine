@@ -197,6 +197,10 @@ extern RENDERER_API FIntPoint GetSceneTextureExtent();
 /** Returns the feature level being used by the renderer. */
 extern RENDERER_API ERHIFeatureLevel::Type GetSceneTextureFeatureLevel();
 
+/** Resets the scene texture extent history. Call this method after rendering with very large render
+ *  targets. The next scene render will create them at the requested size.
+ */
+extern RENDERER_API void ResetSceneTextureExtentHistory();
 
 ///////////////////////////////////////////////////////////////////////////
 // Deprecated APIs
