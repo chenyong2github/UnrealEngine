@@ -1313,13 +1313,13 @@ void FLowLevelMemTracker::InitialiseTagDatas()
 	// Construct the remaining startup tags; allocations when constructing these tags are known to consist only of the central list of ELLMTags so we do not need to bootstrap
 	{
 		// Construct LLM_DECLARE_TAGs
-		FLLMTagDeclaration*& List = FLLMTagDeclaration::GetList();
+		FLLMTagDeclaration* List = FLLMTagDeclaration::GetList();
 		while (List)
 		{
 			RegisterTagDeclaration(*List);
 			List = List->Next;
 		}
-		FLLMTagDeclaration::SetCreationCallback(GlobalRegisterTagDeclaration);
+		FLLMTagDeclaration::AddCreationCallback(GlobalRegisterTagDeclaration);
 	}
 
 	// now let the platform add any custom tags
@@ -1335,7 +1335,7 @@ void FLowLevelMemTracker::ClearTagDatas()
 	using namespace UE::LLMPrivate;
 
 	FWriteScopeLock ScopeLock(TagDataLock);
-	FLLMTagDeclaration::SetCreationCallback(nullptr);
+	FLLMTagDeclaration::ClearCreationCallbacks();
 
 	Allocator.Free(TagDataEnumMap, sizeof(FTagData*) * LLM_TAG_COUNT);
 	TagDataEnumMap = nullptr;
@@ -2073,36 +2073,69 @@ void FLLMTagDeclaration::ConstructUniqueName()
 	UniqueName = FName(*NameBuffer);
 }
 
-void FLLMTagDeclaration::SetCreationCallback(FCreationCallback InCallback)
+namespace UE
 {
-	GetCreationCallback() = InCallback;
+namespace LLMPrivate
+{
+namespace LLMTagDeclarationInternal
+{
+
+TArray<FLLMTagDeclaration::FCreationCallback, TInlineAllocator<2>>& GetCreationCallbacks()
+{
+	static TArray<FLLMTagDeclaration::FCreationCallback, TInlineAllocator<2>> CreationCallbacks;
+	return CreationCallbacks;
 }
 
-FLLMTagDeclaration::FCreationCallback& FLLMTagDeclaration::GetCreationCallback()
-{
-	static FCreationCallback CreationCallback = nullptr;
-	return CreationCallback;
-}
-
-FLLMTagDeclaration*& FLLMTagDeclaration::GetList()
+FLLMTagDeclaration*& GetList()
 {
 	static FLLMTagDeclaration* List = nullptr;
 	return List;
 }
 
-void FLLMTagDeclaration::Register()
+}
+}
+}
+
+void FLLMTagDeclaration::AddCreationCallback(FCreationCallback InCallback)
 {
-	FCreationCallback& CreationCallback = GetCreationCallback();
-	if (CreationCallback)
+	TArray<FCreationCallback, TInlineAllocator<2>>& CreationCallbacks =
+		UE::LLMPrivate::LLMTagDeclarationInternal::GetCreationCallbacks();
+	if (CreationCallbacks.Num() >= CreationCallbacks.Max())
 	{
-		CreationCallback(*this);
+		check(false); // We are not allowed to allocate memory here; you need to increase the allocation size
 	}
 	else
 	{
-		FLLMTagDeclaration*& List = GetList();
-		Next = List;
-		List = this;
+		CreationCallbacks.Add(InCallback);
 	}
+}
+
+void FLLMTagDeclaration::ClearCreationCallbacks()
+{
+	TArray<FCreationCallback, TInlineAllocator<2>>& CreationCallbacks =
+		UE::LLMPrivate::LLMTagDeclarationInternal::GetCreationCallbacks();
+	CreationCallbacks.Empty();
+}
+
+TArrayView<FLLMTagDeclaration::FCreationCallback> FLLMTagDeclaration::GetCreationCallbacks()
+{
+	return UE::LLMPrivate::LLMTagDeclarationInternal::GetCreationCallbacks();
+}
+
+FLLMTagDeclaration* FLLMTagDeclaration::GetList()
+{
+	return UE::LLMPrivate::LLMTagDeclarationInternal::GetList();
+}
+
+void FLLMTagDeclaration::Register()
+{
+	for (FCreationCallback CreationCallback : GetCreationCallbacks())
+	{
+		CreationCallback(*this);
+	}
+	FLLMTagDeclaration*& List = UE::LLMPrivate::LLMTagDeclarationInternal::GetList();
+	Next = List;
+	List = this;
 }
 
 namespace UE

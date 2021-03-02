@@ -213,13 +213,13 @@ void FTagTrace::AnnounceGenericTags()
 ////////////////////////////////////////////////////////////////////////////////
 void FTagTrace::AnnounceTagDeclarations()
 {
-	FLLMTagDeclaration*& List = FLLMTagDeclaration::GetList();
+	FLLMTagDeclaration* List = FLLMTagDeclaration::GetList();
 	while (List)
 	{
 		OnAnnounceTagDeclaration(*List);
 		List = List->Next;
 	}
-	FLLMTagDeclaration::SetCreationCallback(FTagTrace::OnAnnounceTagDeclaration);
+	FLLMTagDeclaration::AddCreationCallback(FTagTrace::OnAnnounceTagDeclaration);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

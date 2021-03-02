@@ -39,6 +39,8 @@
 // Enable stat tags if: (1) Stats are allowed or (2) Asset tags are allowed (asset tags use the stat macros to record asset scopes)
 #define LLM_ENABLED_STAT_TAGS LLM_ALLOW_STATS || LLM_ALLOW_ASSETS_TAGS
 
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/AlignmentTemplates.h"
 #include "Templates/UnrealTemplate.h"
@@ -703,12 +705,13 @@ public:
 	FLLMTagDeclaration(const TCHAR* InCPPName, const FName InDisplayName=NAME_None, FName InParentTagName = NAME_None, FName InStatName = NAME_None, FName InSummaryStatName = NAME_None);
 	FName GetUniqueName() const { return UniqueName; }
 
-protected:
 	typedef void (*FCreationCallback)(FLLMTagDeclaration&);
+protected:
 
-	static void SetCreationCallback(FCreationCallback InCallback);
-	static FCreationCallback& GetCreationCallback();
-	static FLLMTagDeclaration*& GetList();
+	static void AddCreationCallback(FCreationCallback InCallback);
+	static void ClearCreationCallbacks();
+	static TArrayView<FCreationCallback> GetCreationCallbacks();
+	static FLLMTagDeclaration* GetList();
 
 	void Register();
 
