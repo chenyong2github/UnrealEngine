@@ -10,6 +10,7 @@
 #include "Async/Async.h"
 #include "Modules/ModuleManager.h"
 #include "IImageWrapperModule.h"
+#include "Misc/QueuedThreadPoolWrapper.h"
 
 DEFINE_LOG_CATEGORY(LogImageWriteQueue);
 
@@ -275,6 +276,12 @@ void FImageWriteQueue::RecreateThreadPool()
 			// Use the global IO thread pool if possible
 			bOwnedThreadPool = false;
 			ThreadPool = GIOThreadPool;
+		}
+		else if (GThreadPool && GThreadPool->GetNumThreads() >= MaxConcurrency)
+		{
+			// Use a simple wrapper to limit concurrency and reuse threads we already have
+			bOwnedThreadPool = true;
+			ThreadPool = new FQueuedThreadPoolWrapper(GThreadPool, MaxConcurrency);
 		}
 		else
 		{
