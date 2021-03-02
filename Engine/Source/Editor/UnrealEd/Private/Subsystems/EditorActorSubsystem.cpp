@@ -434,6 +434,7 @@ void UEditorActorSubsystem::SetActorSelectionState(AActor* Actor, bool bShouldBe
 {
 	GEditor->GetSelectedActors()->Modify();
 	GEditor->SelectActor(Actor, bShouldBeSelected, /*bNotify=*/ false);
+	GEditor->NoteSelectionChange();
 }
 
 AActor* UEditorActorSubsystem::GetActorReference(FString PathToActor)
