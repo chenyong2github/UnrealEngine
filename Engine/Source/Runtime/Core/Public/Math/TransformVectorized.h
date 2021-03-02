@@ -1098,7 +1098,7 @@ public:
 	 * @param SourceAtom The target transformation (used when BlendWeight = 1)
 	 * @param Alpha The blend weight between Identity and SourceAtom
 	 */
-	FORCEINLINE static void BlendFromIdentityAndAccumulate(FTransform& FinalAtom, FTransform& SourceAtom, const ScalarRegister& BlendWeight)
+	FORCEINLINE static void BlendFromIdentityAndAccumulate(FTransform& FinalAtom, const FTransform& SourceAtom, const ScalarRegister& BlendWeight)
 	{
 		const VectorRegister Const0001 = GlobalVectorConstants::Float0001;
 		const VectorRegister ConstNegative0001 = VectorSubtract(VectorZero(), Const0001);
