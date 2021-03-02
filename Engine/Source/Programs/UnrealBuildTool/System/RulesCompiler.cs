@@ -348,14 +348,28 @@ namespace UnrealBuildTool
 		{
 			if (EngineRulesAssembly == null)
 			{
-				List<PluginInfo> IncludedPlugins = new List<PluginInfo>();
+				List<PluginInfo> EnginePlugins = new List<PluginInfo>();
+				List<PluginInfo> MarketplacePlugins = new List<PluginInfo>();
 
-				// search for all engine plugins
-				IncludedPlugins.AddRange(Plugins.ReadEnginePlugins(UnrealBuildTool.EngineDirectory));
+				DirectoryReference MarketplaceDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Plugins", "Marketplace");
+				foreach (PluginInfo PluginInfo in Plugins.ReadEnginePlugins(UnrealBuildTool.EngineDirectory))
+				{
+					if (PluginInfo.File.IsUnderDirectory(MarketplaceDirectory))
+					{
+						MarketplacePlugins.Add(PluginInfo);
+					}
+					else
+					{
+						EnginePlugins.Add(PluginInfo);
+					}
+				}
 
-				RulesScope EngineScope = new RulesScope("Engine", null);
+				EngineRulesAssembly = CreateEngineRulesAssemblyInternal(UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory), ProjectFileGenerator.EngineProjectFileNameBase, EnginePlugins, UnrealBuildTool.IsEngineInstalled() || bUsePrecompiled, bSkipCompile, null);
 
-				EngineRulesAssembly = CreateEngineRulesAssemblyInternal(EngineScope, UnrealBuildTool.GetExtensionDirs(UnrealBuildTool.EngineDirectory), ProjectFileGenerator.EngineProjectFileNameBase, IncludedPlugins, UnrealBuildTool.IsEngineInstalled() || bUsePrecompiled, bSkipCompile, null);
+				if (MarketplacePlugins.Count > 0)
+				{
+					EngineRulesAssembly = CreateMarketplaceRulesAssembly(MarketplacePlugins, bSkipCompile, EngineRulesAssembly);
+				}
 			}
 			return EngineRulesAssembly;
 		}
@@ -363,7 +377,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates a rules assembly
 		/// </summary>
-		/// <param name="Scope">Scope for items created from this assembly</param>
 		/// <param name="RootDirectories">The root directories to create rules for</param>
 		/// <param name="AssemblyPrefix">A prefix for the assembly file name</param>
 		/// <param name="Plugins">List of plugins to include in this assembly</param>
@@ -371,11 +384,12 @@ namespace UnrealBuildTool
 		/// <param name="bSkipCompile">Whether to skip compilation for this assembly</param>
 		/// <param name="Parent">The parent rules assembly</param>
 		/// <returns>New rules assembly</returns>
-		private static RulesAssembly CreateEngineRulesAssemblyInternal(RulesScope Scope, List<DirectoryReference> RootDirectories, string AssemblyPrefix, IReadOnlyList<PluginInfo> Plugins, bool bReadOnly, bool bSkipCompile, RulesAssembly? Parent)
+		private static RulesAssembly CreateEngineRulesAssemblyInternal(List<DirectoryReference> RootDirectories, string AssemblyPrefix, IReadOnlyList<PluginInfo> Plugins, bool bReadOnly, bool bSkipCompile, RulesAssembly? Parent)
 		{
 			// Scope hierarchy
-			RulesScope PluginsScope = new RulesScope(Scope.Name + " Plugins", Scope);
-			RulesScope ProgramsScope = new RulesScope(Scope.Name + " Programs", PluginsScope);
+			RulesScope Scope= new RulesScope("Engine", null);
+			RulesScope PluginsScope = new RulesScope("Engine Plugins", Scope);
+			RulesScope ProgramsScope = new RulesScope("Engine Programs", PluginsScope);
 
 			// Find the shared modules, excluding the programs directory. These are used to create an assembly with the bContainsEngineModules flag set to true.
 			Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext = new Dictionary<FileReference, ModuleRulesContext>();
@@ -435,6 +449,35 @@ namespace UnrealBuildTool
 
 			// Return the combined assembly
 			return ProgramAssembly;
+		}
+
+		/// <summary>
+		/// Creates a rules assembly
+		/// </summary>
+		/// <param name="Plugins">List of plugins to include in this assembly</param>
+		/// <param name="bSkipCompile">Whether to skip compilation for this assembly</param>
+		/// <param name="Parent">The parent rules assembly</param>
+		/// <returns>New rules assembly</returns>
+		private static RulesAssembly CreateMarketplaceRulesAssembly(IReadOnlyList<PluginInfo> Plugins, bool bSkipCompile, RulesAssembly Parent)
+		{
+			RulesScope MarketplaceScope = new RulesScope("Marketplace", Parent.Scope);
+
+			// Add all the plugin modules too (don't need to loop over RootDirectories since the plugins come in already found
+			Dictionary<FileReference, ModuleRulesContext> ModuleFileToContext = new Dictionary<FileReference, ModuleRulesContext>();
+			using (Timeline.ScopeEvent("Finding marketplace plugin modules"))
+			{
+				ModuleRulesContext PluginsModuleContext = new ModuleRulesContext(MarketplaceScope, UnrealBuildTool.EngineDirectory);
+				FindModuleRulesForPlugins(Plugins, PluginsModuleContext, ModuleFileToContext);
+			}
+
+			// Create the assembly
+			RulesAssembly Result = Parent;
+			if (ModuleFileToContext.Count > 0)
+			{
+				FileReference AssemblyFileName = FileReference.Combine(UnrealBuildTool.WritableEngineDirectory, "Intermediate", "Build", "BuildRules", "MarketplaceRules.dll");
+				Result = new RulesAssembly(MarketplaceScope, new List<DirectoryReference> { UnrealBuildTool.EngineDirectory }, Plugins, ModuleFileToContext, new List<FileReference>(), AssemblyFileName, bContainsEngineModules: true, DefaultBuildSettings: BuildSettingsVersion.Latest, bReadOnly: false, bSkipCompile: bSkipCompile, Parent: Parent);
+			}
+			return Result;
 		}
 
 		/// <summary>

@@ -34,13 +34,12 @@ namespace UnrealBuildTool
 		/// <returns>True if the assembly needs to be built</returns>
 		private static bool RequiresCompilation(HashSet<FileReference> SourceFiles, FileReference AssemblyManifestFilePath, FileReference OutputAssemblyPath)
 		{
-			// HACK: We cannot do this without breaking marketplace plugins. Need to distribute separate rules assemblies for those.
-//			// Do not compile the file if it's installed
-//			if (UnrealBuildTool.IsFileInstalled(OutputAssemblyPath))
-//			{
-//				Log.TraceLog("Skipping {0}: File is installed", OutputAssemblyPath);
-//				return false;
-//			}
+			// Do not compile the file if it's installed
+			if (UnrealBuildTool.IsFileInstalled(OutputAssemblyPath))
+			{
+				Log.TraceLog("Skipping {0}: File is installed", OutputAssemblyPath);
+				return false;
+			}
 
 			// Check to see if we already have a compiled assembly file on disk
 			FileItem OutputAssemblyInfo = FileItem.GetItemByFileReference(OutputAssemblyPath);

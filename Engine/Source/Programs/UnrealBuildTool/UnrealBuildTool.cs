@@ -101,6 +101,38 @@ namespace UnrealBuildTool
 		public static readonly DirectoryReference EngineSourceThirdPartyDirectory = DirectoryReference.Combine(EngineSourceDirectory, "ThirdParty");
 
 		/// <summary>
+		/// Cached copy of the writable engine directory
+		/// </summary>
+		static DirectoryReference? CachedWritableEngineDirectory;
+
+		/// <summary>
+		/// Writable engine directory. Uses the user's settings folder for installed builds.
+		/// </summary>
+		public static DirectoryReference WritableEngineDirectory
+		{
+			get
+			{
+				if (CachedWritableEngineDirectory == null)
+				{
+					DirectoryReference? UserDir = null;
+					if (IsEngineInstalled())
+					{
+						UserDir = Utils.GetUserSettingDirectory();
+					}
+					if (UserDir == null)
+					{
+						CachedWritableEngineDirectory = EngineDirectory;
+					}
+					else
+					{
+						CachedWritableEngineDirectory = DirectoryReference.Combine(UserDir, "UnrealEngine");
+					}
+				}
+				return CachedWritableEngineDirectory;
+			}
+		}
+
+		/// <summary>
 		/// The engine programs directory
 		/// </summary>
 		public static DirectoryReference EngineProgramSavedDirectory
