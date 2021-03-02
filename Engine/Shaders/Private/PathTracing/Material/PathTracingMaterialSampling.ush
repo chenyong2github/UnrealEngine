@@ -28,27 +28,22 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 #if FORCE_ALL_MATERIALS_DIFFUSE
 	return true;
 #else
+
 	if (IsPureSpecularTransmission(Payload))
 	{
 		return false;
 	}
-	else if (IsDefaultLitMaterial(Payload))
+
+	switch (Payload.ShadingModelID)
 	{
-		return true;
+		case SHADINGMODELID_UNLIT:
+			return false;
+		case SHADINGMODELID_DEFAULT_LIT:		
+		case SHADINGMODELID_CLEAR_COAT:			
+		case SHADINGMODELID_TWOSIDED_FOLIAGE:	
+		default:								
+			return true;
 	}
-	else if (IsClearCoatMaterial(Payload))
-	{
-		return true;
-	}
-	else if (IsTwoSidedFoliageMaterial(Payload))
-	{
-		return true;
-	}
-	else if (IsUnlitMaterial(Payload))
-	{
-		return false;
-	}
-	return true;
 #endif
 }
 
@@ -78,29 +73,28 @@ void SampleMaterial(
 	if (IsPureSpecularTransmission(Payload))
 	{
 		SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+		return;
 	}
-	else if (IsDefaultLitMaterial(Payload))
+	switch (Payload.ShadingModelID)
 	{
-		DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
-	}
-	else if (IsClearCoatMaterial(Payload))
-	{
-		ClearCoat_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
-	}
-	else if (IsTwoSidedFoliageMaterial(Payload))
-	{
-		TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
-	}
-	else if (IsUnlitMaterial(Payload))
-	{
-		// Nothing to do, material does not scatter light
-		OutDirection = 0;
-		OutWeight = 0;
-		OutPdf = 0;
-	}
-	else
-	{
-		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
+		case SHADINGMODELID_UNLIT:
+			// Nothing to do, material does not scatter light
+			OutDirection = 0;
+			OutWeight = 0;
+			OutPdf = 0;
+			return;
+		case SHADINGMODELID_DEFAULT_LIT:
+			DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
+			return;
+		case SHADINGMODELID_CLEAR_COAT:
+			ClearCoat_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
+			return;
+		case SHADINGMODELID_TWOSIDED_FOLIAGE:
+			TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
+			return;
+		default:
+			Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
+			break;
 	}
 #endif
 
@@ -129,27 +123,27 @@ void EvalMaterial(
 	if (IsPureSpecularTransmission(Payload))
 	{
 		SpecularTransmission_EvalMaterial(OutWeight, OutPdf);
+		return;
 	}
-	else if (IsDefaultLitMaterial(Payload))
+
+	switch (Payload.ShadingModelID)
 	{
-		DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
-	}
-	else if (IsClearCoatMaterial(Payload))
-	{
-		ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
-	}
-	else if (IsTwoSidedFoliageMaterial(Payload))
-	{
-		TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
-	}
-	else if (IsUnlitMaterial(Payload))
-	{
-		OutWeight = 0.0;
-		OutPdf = 0.0;
-	}
-	else
-	{
-		Lambert_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
+		case SHADINGMODELID_UNLIT:
+			OutWeight = 0.0;
+			OutPdf = 0.0;
+			break;
+		case SHADINGMODELID_DEFAULT_LIT:
+			DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
+			break;
+		case SHADINGMODELID_CLEAR_COAT:
+			ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
+			break;
+		case SHADINGMODELID_TWOSIDED_FOLIAGE:
+			TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
+			break;
+		default:
+			Lambert_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
+			break;
 	}
 #endif
 }
