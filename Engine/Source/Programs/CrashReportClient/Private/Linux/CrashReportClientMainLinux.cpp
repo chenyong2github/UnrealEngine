@@ -23,7 +23,7 @@ void CrashReporterCrashHandler(const FGenericCrashContext& GenericContext)
 	const FUnixCrashContext& Context = static_cast< const FUnixCrashContext& >( GenericContext );
 
 	printf("CrashHandler: Signal=%d\n", Context.Signal);
-	const_cast< FUnixCrashContext& >(Context).CaptureStackTrace();
+	const_cast< FUnixCrashContext& >(Context).CaptureStackTrace(Context.FirstCrashHandlerFrame);
 	if (GLog)
 	{
 		GLog->Flush();

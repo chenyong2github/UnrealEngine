@@ -51,6 +51,10 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	/** The PC of the first function used when handling a crash. Used to figure out the number of frames to ignore */
 	uint64* FirstCrashHandlerFrame = nullptr;
 
+	/** The PC of where the error being reported occurred. Note that this could be different
+	 * from FirstCrashHandlerFrame */
+	void* ErrorFrame = nullptr;
+
 	FUnixCrashContext(ECrashContextType InType, const TCHAR* InErrorMessage)
 		:	FGenericCrashContext(InType, InErrorMessage)
 		,	Signal(0)
@@ -86,7 +90,7 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	 * Populates crash context stack trace and a few related fields
 	 *
 	 */
-	void CaptureStackTrace();
+	void CaptureStackTrace(void* ErrorProgramCounter);
 
 	/**
 	 * Generates a new crash report containing information needed for the crash reporter and launches it; may not return.

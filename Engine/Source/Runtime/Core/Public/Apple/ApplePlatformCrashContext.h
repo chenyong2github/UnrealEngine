@@ -25,8 +25,9 @@ struct CORE_API FApplePlatformCrashContext : public FGenericCrashContext
 	/** Thread context */
 	ucontext_t*	Context;
 	
-	/** Number of stack frames to ignore as they are crash handling/stack walking */
-	uint32 IgnoreDepth;
+	/** The PC of where the error being reported occurred. This is used to figure
+	 * out the number of frames to ignore */
+	void* ErrorFrame = nullptr;
 	
 	/** Memory reserved for "exception" (signal) info */
 	char SignalDescription[128];

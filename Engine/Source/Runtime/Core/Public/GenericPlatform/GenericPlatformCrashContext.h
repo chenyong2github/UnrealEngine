@@ -194,7 +194,6 @@ struct FSharedCrashContext
 	TCHAR					ThreadNames[CR_MAX_THREAD_NAME_CHARS * CR_MAX_THREADS];
 	uint32					NumThreads;
 	uint32					CrashingThreadId;
-	uint32					NumStackFramesToIgnore;
 	ECrashContextType		CrashType;
 
 	// Additional user settings.
@@ -217,6 +216,12 @@ struct FSharedCrashContext
 	uint32					GameDataOffset;
 	// Fixed size dynamic buffer
 	TCHAR					DynamicData[CR_MAX_DYNAMIC_BUFFER_CHARS];
+
+	// Program counter address where the error occurred.
+	void*					ErrorProgramCounter;
+
+	// Instruction address where the exception was raised that initiated crash reporting
+	void*					ExceptionProgramCounter;
 };
 
 /**
@@ -428,7 +433,14 @@ public:
 	/** Sets the number of stack frames to ignore when symbolicating from a minidump */
 	void SetNumMinidumpFramesToIgnore(int32 InNumMinidumpFramesToIgnore);
 
-	/** Generate raw call stack for crash report (image base + offset) */
+	/**
+	 * Generate raw call stack for crash report (image base + offset)
+	 * @param ErrorProgramCounter The program counter of where the occur occurred in the callstack being captured
+	 * @param Context Optional thread context information
+	 */
+	void CapturePortableCallStack(void* ErrorProgramCounter, void* Context);
+
+	UE_DEPRECATED(5.0, "")
 	void CapturePortableCallStack(int32 NumStackFramesToIgnore, void* Context);
 	
 	/** Sets the portable callstack to a specified stack */

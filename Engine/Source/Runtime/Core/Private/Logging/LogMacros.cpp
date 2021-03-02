@@ -10,7 +10,7 @@
 #include "Stats/Stats.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-void StaticFailDebug( const TCHAR* Error, const FDebug::FFailureInfo& Info, const TCHAR* Description, bool bIsEnsure, int32 NumStackFramesToIgnore );
+void StaticFailDebug( const TCHAR* Error, const FDebug::FFailureInfo& Info, const TCHAR* Description, bool bIsEnsure );
 
 /** Statics to prevent FMsg::Logf from allocating too much stack memory. */
 static FCriticalSection* GetMsgLogfStaticBufferGuard()
@@ -69,7 +69,7 @@ void FMsg::LogfImpl(const ANSICHAR* File, int32 Line, const FLogCategoryName& Ca
 
 		const int32 NumStackFramesToIgnore = 1;
 		FDebug::FFailureInfo Info = { "FMsg::Logf(Fatal)", File, Line, PLATFORM_RETURN_ADDRESS() };
-		StaticFailDebug(TEXT("Fatal error:"), Info, Message, false, NumStackFramesToIgnore);
+		StaticFailDebug(TEXT("Fatal error:"), Info, Message, false);
 		FDebug::AssertFailed("", File, Line, Message);
 	}
 #endif
@@ -117,7 +117,7 @@ void FMsg::Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FLogCategor
 
 		const int32 NumStackFramesToIgnore = 1;
 		FDebug::FFailureInfo Info = { "FMsg::Logf(Fatal)", File, Line, PLATFORM_RETURN_ADDRESS() };
-		StaticFailDebug(TEXT("Fatal error:"), Info, Message, false, NumStackFramesToIgnore);
+		StaticFailDebug(TEXT("Fatal error:"), Info, Message, false);
 	}
 #endif
 }

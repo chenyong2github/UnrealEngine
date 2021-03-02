@@ -98,7 +98,7 @@ public:
 	 * 
 	 * Don't change the name of this function, it's used to detect ensures by the crash reporter.
 	 */
-	static void EnsureFailed( const FFailureInfo& Info, const TCHAR* Msg, int NumStackFramesToIgnore );
+	static void EnsureFailed( const FFailureInfo& Info, const TCHAR* Msg );
 
 private:
 	static bool VARARGS OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const FFailureInfo& Info, const TCHAR* FormattedMsg, ...);
@@ -230,7 +230,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 		{ \
 			if(UNLIKELY(!(expr))) \
 			{ \
-				DispatchCheckVerify([&] () FORCENOINLINE UE_DEBUG_SECTION \
+				DispatchCheckVerify([&] () UE_DEBUG_SECTION \
 				{ \
 					FDebug::FFailureInfo CheckFailureInfo = { #expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS() }; \
 					FDebug::CheckVerifyFailed(CheckFailureInfo, format, ##__VA_ARGS__); \

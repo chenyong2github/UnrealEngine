@@ -49,15 +49,14 @@ void FMacErrorOutputDevice::Serialize( const TCHAR* Msg, ELogVerbosity::Type Ver
 #if PLATFORM_EXCEPTIONS_DISABLED
 		UE_DEBUG_BREAK();
 #endif
-		const int32 NumStackFramesToIgnore = 0;
-
+		void* ErrorProgramCounter = GetErrorProgramCounter();
 		if (GIsGPUCrashed)
 		{
-			ReportGPUCrash(Msg, NumStackFramesToIgnore);
+			ReportGPUCrash(Msg, ErrorProgramCounter);
 		}
 		else
 		{
-			ReportAssert(Msg, NumStackFramesToIgnore);
+			ReportAssert(Msg, ErrorProgramCounter);
 		}
 	}
 	else

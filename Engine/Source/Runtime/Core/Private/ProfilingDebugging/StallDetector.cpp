@@ -397,7 +397,7 @@ void UE::FStallDetector::OnStallDetected(uint32 InThreadId, const double InElaps
 		const int NumStackFramesToIgnore = FPlatformTLS::GetCurrentThreadId() == InThreadId ? 2 : 0;
 		UE_LOG(LogStall, Log, TEXT("Stall detector '%s' exceeded budget of %fs, reporting..."), Stats.Name, Stats.BudgetSeconds);
 		double ReportSeconds = FStallDetector::Seconds();
-		ReportStall(Stats.Name, InThreadId, NumStackFramesToIgnore);
+		ReportStall(Stats.Name, InThreadId);
 		ReportSeconds = FStallDetector::Seconds() - ReportSeconds;
 		UE_LOG(LogStall, Log, TEXT("Stall detector '%s' report submitted, and took %fs"), Stats.Name, ReportSeconds);
 	}

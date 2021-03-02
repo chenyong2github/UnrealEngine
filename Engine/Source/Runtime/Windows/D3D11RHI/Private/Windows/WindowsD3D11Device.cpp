@@ -1270,7 +1270,7 @@ static void D3D11AftermathCrashCallback(const void* InGPUCrashDump, const uint32
 	CloseHandle(FileHandle);
 
 	// Report the GPU crash which will raise the exception
-	ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
+	ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), nullptr);
 }
 
 void EnableNVAftermathCrashDumps()

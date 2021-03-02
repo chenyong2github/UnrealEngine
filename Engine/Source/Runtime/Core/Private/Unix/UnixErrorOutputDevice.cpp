@@ -55,19 +55,14 @@ void FUnixErrorOutputDevice::Serialize(const TCHAR* Msg, ELogVerbosity::Type Ver
 #if PLATFORM_EXCEPTIONS_DISABLED
 		UE_DEBUG_BREAK();
 #endif
-		// Generate the callstack.
-		// We do not ignore any stack frames since the optimization is
-		// brittle and the risk of trimming the valid frames is too high.
-		// The common frames will be instead filtered out in the web UI
-		const int32 NumStackFramesToIgnore = 0;
-
+		void* ErrorProgramCounter = GetErrorProgramCounter();
 		if (GIsGPUCrashed)
 		{
-			ReportGPUCrash(Msg, NumStackFramesToIgnore);
+			ReportGPUCrash(Msg, ErrorProgramCounter);
 		}
 		else
 		{
-			ReportAssert(Msg, NumStackFramesToIgnore);
+			ReportAssert(Msg, ErrorProgramCounter);
 		}
 	}
 	else

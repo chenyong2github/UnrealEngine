@@ -1092,25 +1092,38 @@ void FGenericCrashContext::DumpLog(const FString& CrashFolderAbsolute)
 	
 }
 
-FORCENOINLINE void FGenericCrashContext::CapturePortableCallStack(int32 NumStackFramesToIgnore, void* Context)
+void FGenericCrashContext::CapturePortableCallStack(void* ErrorProgramCounter, void* Context)
 {
-	// If the callstack is for the executing thread, ignore this function
-	if(Context == nullptr)
-	{
-		NumStackFramesToIgnore++;
-	}
-
 	// Capture the stack trace
 	static const int StackTraceMaxDepth = 100;
 	uint64 StackTrace[StackTraceMaxDepth];
 	FMemory::Memzero(StackTrace);
 	int32 StackTraceDepth = FPlatformStackWalk::CaptureStackBackTrace(StackTrace, StackTraceMaxDepth, Context);
 
-	// Make sure we don't exceed the current stack depth
-	NumStackFramesToIgnore = FMath::Min(NumStackFramesToIgnore, StackTraceDepth);
+	const uint64* StackTraceCursor = StackTrace;
+	if (ErrorProgramCounter != nullptr)
+	{
+		for (int32 i = 0; i < StackTraceDepth; ++i)
+		{
+			if (StackTrace[i] != uint64(ErrorProgramCounter))
+			{
+				continue;
+			}
+
+			SetNumMinidumpFramesToIgnore(i);
+			StackTraceCursor = StackTrace + i;
+			StackTraceDepth -= i;
+			break;
+		}
+	}
 
 	// Generate the portable callstack from it
-	SetPortableCallStack(StackTrace + NumStackFramesToIgnore, StackTraceDepth - NumStackFramesToIgnore);
+	SetPortableCallStack(StackTraceCursor, StackTraceDepth);
+}
+
+void FGenericCrashContext::CapturePortableCallStack(int32 NumStackFramesToIgnore, void* Context)
+{
+	CapturePortableCallStack(nullptr, Context);
 }
 
 void FGenericCrashContext::SetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames)

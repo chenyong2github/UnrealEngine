@@ -24,7 +24,6 @@ FApplePlatformCrashContext::FApplePlatformCrashContext(ECrashContextType InType,
 ,	Signal(0)
 ,	Info(nullptr)
 ,	Context(nullptr)
-,	IgnoreDepth(6)
 {
 	SignalDescription[ 0 ] = 0;
 	MinidumpCallstackInfo[ 0 ] = 0;
@@ -39,6 +38,7 @@ void FApplePlatformCrashContext::InitFromSignal(int32 InSignal, siginfo_t* InInf
 {
 	Signal = InSignal;
 	Info = InInfo;
+	ErrorFrame = InInfo->si_addr;
 	Context = reinterpret_cast< ucontext_t* >( InContext );
 	
 #define HANDLE_CASE(a,b) case a: FCStringAnsi::Strncpy(SignalDescription, #a ": " b, UE_ARRAY_COUNT( SignalDescription ) - 1); break;
@@ -86,9 +86,9 @@ int32 FApplePlatformCrashContext::ReportCrash() const
 		*StackBuffer = 0;
 		
 		// Generate the portable callstack for the crash xml
-		const_cast<FApplePlatformCrashContext*>(this)->CapturePortableCallStack(IgnoreDepth, Context);
+		const_cast<FApplePlatformCrashContext*>(this)->CapturePortableCallStack(ErrorFrame, Context);
 		// Walk the stack and dump it to the allocated memory (ignore first 2 callstack lines as those are in stack walking code)
-		FPlatformStackWalk::StackWalkAndDump( StackBuffer, UE_ARRAY_COUNT(MinidumpCallstackInfo) - 1, IgnoreDepth, Context );
+		FPlatformStackWalk::StackWalkAndDump( StackBuffer, UE_ARRAY_COUNT(MinidumpCallstackInfo) - 1, ErrorFrame, Context );
 		
 		FUTF8ToTCHAR_Convert::Convert(GErrorHist, UE_ARRAY_COUNT(GErrorHist) - 1, MinidumpCallstackInfo, FCStringAnsi::Strlen(MinidumpCallstackInfo));
 		CreateExceptionInfoString(Signal, Info);

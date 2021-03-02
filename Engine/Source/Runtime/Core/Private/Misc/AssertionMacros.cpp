@@ -144,7 +144,7 @@ static void AssertFailedImplV(const FDebug::FFailureInfo& Info, const TCHAR* For
  *	prompts for the remote debugging if there is not debugger, breaks into the debugger 
  *	and copies the error into the global error message.
  */
-FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const FDebug::FFailureInfo& Info, const TCHAR* Description, bool bIsEnsure, int NumStackFramesToIgnore )
+FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const FDebug::FFailureInfo& Info, const TCHAR* Description, bool bIsEnsure )
 {
 	const ANSICHAR* File = Info.File;
 	int32 Line = Info.Line;
@@ -162,7 +162,7 @@ FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const FDebug::FFailureIn
 	{
 		ANSICHAR StackTrace[4096];
 		StackTrace[0] = 0;
-		FPlatformStackWalk::StackWalkAndDump(StackTrace, UE_ARRAY_COUNT(StackTrace), NumStackFramesToIgnore + 1);
+		FPlatformStackWalk::StackWalkAndDump(StackTrace, UE_ARRAY_COUNT(StackTrace), Info.ProgramCounter);
 
 		FCString::Strncat(DescriptionAndTrace, TEXT("\n"), UE_ARRAY_COUNT(DescriptionAndTrace) - 1);
 		FCString::Strncat(DescriptionAndTrace, ANSI_TO_TCHAR(StackTrace), UE_ARRAY_COUNT(DescriptionAndTrace) - 1);
@@ -182,6 +182,11 @@ FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const FDebug::FFailureIn
 	// Copy the error message to the error history.
 	FCString::Strncpy( GErrorHist, ErrorMessage, UE_ARRAY_COUNT( GErrorHist ) );
 	FCString::Strncat( GErrorHist, TEXT( "\r\n\r\n" ), UE_ARRAY_COUNT( GErrorHist ) );
+
+	if (GError != nullptr)
+	{
+		GError->SetErrorProgramCounter(Info.ProgramCounter);
+	}
 }
 
 
@@ -295,8 +300,7 @@ void FDebug::LogAssertFailedMessageImplV(const FFailureInfo& Info, const TCHAR* 
 		TCHAR ErrorString[MAX_SPRINTF];
 		FCString::Sprintf( ErrorString, TEXT( "Assertion failed: %s" ), ANSI_TO_TCHAR( Info.Expr ) );
 
-		const int32 NumStackFramesToIgnore = 1;
-		StaticFailDebug( ErrorString, Info, DescriptionString, false, NumStackFramesToIgnore );
+		StaticFailDebug( ErrorString, Info, DescriptionString, false );
 	}
 }
 
@@ -309,7 +313,7 @@ void FDebug::LogAssertFailedMessageImplV(const FFailureInfo& Info, const TCHAR* 
  * @param	Msg		Informative error message text
  * @param	NumStackFramesToIgnore	Number of stack frames to ignore in the callstack
  */
-FORCENOINLINE void FDebug::EnsureFailed(const FFailureInfo& Info, const TCHAR* Msg, int NumStackFramesToIgnore)
+FORCENOINLINE void FDebug::EnsureFailed(const FFailureInfo& Info, const TCHAR* Msg)
 {
 	const ANSICHAR* Expr = Info.Expr;
 	const ANSICHAR* File = Info.File;
@@ -346,7 +350,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const FFailureInfo& Info, const TCHAR* M
 	TCHAR ErrorString[MAX_SPRINTF];
 	FCString::Sprintf(ErrorString,TEXT("Ensure condition failed: %s"),ANSI_TO_TCHAR(Info.Expr));
 
-	StaticFailDebug( ErrorString, Info, Msg, true, NumStackFramesToIgnore + 1 );
+	StaticFailDebug( ErrorString, Info, Msg, true );
 
 	// Is there a debugger attached?  If not we'll submit an error report.
 	if (FPlatformMisc::IsDebuggerPresent() && !GAlwaysReportCrash)
@@ -382,7 +386,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const FFailureInfo& Info, const TCHAR* M
 				SCOPE_LOG_TIME_IN_SECONDS(*StackWalkPerfMessage, nullptr)
 #endif
 				StackTrace[0] = 0;
-				FPlatformStackWalk::StackWalkAndDumpEx(StackTrace, StackTraceSize, NumStackFramesToIgnore + 1, FGenericPlatformStackWalk::EStackWalkFlags::FlagsUsedWhenHandlingEnsure);
+				FPlatformStackWalk::StackWalkAndDumpEx(StackTrace, StackTraceSize, Info.ProgramCounter, FGenericPlatformStackWalk::EStackWalkFlags::FlagsUsedWhenHandlingEnsure);
 			}
 
 			// Also append the stack trace
@@ -465,7 +469,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const FFailureInfo& Info, const TCHAR* M
 #if PLATFORM_DESKTOP
 			FScopeLock Lock(&GetFailDebugCriticalSection());
 
-			ReportEnsure(ErrorMsg, NumStackFramesToIgnore + 1);
+			ReportEnsure(ErrorMsg, Info.ProgramCounter);
 
 			GErrorHist[0] = 0;
 			GErrorExceptionDescription[0] = 0;
@@ -530,8 +534,7 @@ FORCENOINLINE bool VARARGS FDebug::OptionallyLogFormattedEnsureMessageReturningF
 		TCHAR TempStr[ TempStrSize ];
 		GET_VARARGS( TempStr, TempStrSize, TempStrSize - 1, FormattedMsg, FormattedMsg );
 
-		const int32 NumStackFramesToIgnore = 1; // Just ignore this frame
-		EnsureFailed( Info, TempStr, NumStackFramesToIgnore );
+		EnsureFailed( Info, TempStr );
 	}
 	
 	return false;
@@ -543,8 +546,7 @@ FORCENOINLINE void VARARGS LowLevelFatalErrorHandler(const FDebug::FFailureInfo&
 	TCHAR DescriptionString[4096];
 	GET_VARARGS( DescriptionString, UE_ARRAY_COUNT(DescriptionString), UE_ARRAY_COUNT(DescriptionString)-1, Format, Format );
 
-	const int32 NumStackFramesToIgnore = 1; // Just ignore this frame
-	StaticFailDebug(TEXT("LowLevelFatalError"), Info, DescriptionString, false, NumStackFramesToIgnore);
+	StaticFailDebug(TEXT("LowLevelFatalError"), Info, DescriptionString, false);
 }
 
 void FDebug::DumpStackTraceToLog(const ELogVerbosity::Type LogVerbosity)

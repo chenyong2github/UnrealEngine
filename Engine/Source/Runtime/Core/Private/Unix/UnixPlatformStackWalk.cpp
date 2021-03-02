@@ -891,19 +891,27 @@ int32 FUnixPlatformStackWalk::GetProcessModuleSignatures(FStackWalkModuleInfo *M
 }
 
 thread_local const TCHAR* GCrashErrorMessage = nullptr;
+thread_local void* GCrashErrorProgramCounter = nullptr;
 thread_local ECrashContextType GCrashErrorType = ECrashContextType::Crash;
 
-void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+void ReportAssert(const TCHAR* ErrorMessage, void* ProgramCounter)
 {
 	GCrashErrorMessage = ErrorMessage;
+	GCrashErrorProgramCounter = ProgramCounter;
 	GCrashErrorType = ECrashContextType::Assert;
 
 	FPlatformMisc::RaiseException(1);
 }
 
-void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+void ReportGPUCrash(const TCHAR* ErrorMessage, void* ProgramCounter)
 {
+	if (ProgramCounter == nullptr)
+	{
+		ProgramCounter = PLATFORM_RETURN_ADDRESS();
+	}
+
 	GCrashErrorMessage = ErrorMessage;
+	GCrashErrorProgramCounter = ProgramCounter;
 	GCrashErrorType = ECrashContextType::GPUCrash;
 
 	FPlatformMisc::RaiseException(1);
@@ -912,7 +920,7 @@ void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 static FCriticalSection EnsureLock;
 static bool bReentranceGuard = false;
 
-void ReportEnsure(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
+void ReportEnsure(const TCHAR* ErrorMessage, void* ProgramCounter)
 {
 	// Simple re-entrance guard.
 	EnsureLock.Lock();
@@ -926,9 +934,9 @@ void ReportEnsure(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
 	bReentranceGuard = true;
 
 	FUnixCrashContext EnsureContext(ECrashContextType::Ensure, ErrorMessage);
-	EnsureContext.InitFromEnsureHandler(ErrorMessage, __builtin_return_address(0));
+	EnsureContext.InitFromEnsureHandler(ErrorMessage, ProgramCounter);
 
-	EnsureContext.CaptureStackTrace();
+	EnsureContext.CaptureStackTrace(ProgramCounter);
 	EnsureContext.GenerateCrashInfoAndLaunchReporter(true);
 
 	bReentranceGuard = false;

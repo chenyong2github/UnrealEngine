@@ -622,7 +622,7 @@ namespace D3D12RHI
 			CloseHandle(FileHandle);
 
 			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
-			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
+			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), nullptr);
 
 			// Force shutdown, we can't do anything useful anymore.
 			FPlatformMisc::RequestExit(true);

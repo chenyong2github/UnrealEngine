@@ -275,7 +275,7 @@ void FUnixCrashContext::GenerateReport(const FString & DiagnosticsPath) const
 	}
 }
 
-void FUnixCrashContext::CaptureStackTrace()
+void FUnixCrashContext::CaptureStackTrace(void* ErrorProgramCounter)
 {
 	// Only do work the first time this function is called - this is mainly a carry over from Windows where it can be called multiple times, left intact for extra safety.
 	if (!bCapturedBacktrace)
@@ -284,11 +284,10 @@ void FUnixCrashContext::CaptureStackTrace()
 		static ANSICHAR StackTrace[StackTraceSize];
 		StackTrace[0] = 0;
 
-		int32 IgnoreCount = NumMinidumpFramesToIgnore;
-		CapturePortableCallStack(IgnoreCount, this);
+		CapturePortableCallStack(ErrorProgramCounter, this);
 
 		// Walk the stack and dump it to the allocated memory (do not ignore any stack frames to be consistent with check()/ensure() handling)
-		FPlatformStackWalk::StackWalkAndDump( StackTrace, StackTraceSize, IgnoreCount, this);
+		FPlatformStackWalk::StackWalkAndDump( StackTrace, StackTraceSize, ErrorProgramCounter, this);
 
 #if !PLATFORM_LINUX
 		printf("StackTrace:\n%s\n", StackTrace);
@@ -731,7 +730,7 @@ void DefaultCrashHandler(const FUnixCrashContext & Context)
 	FThreadHeartBeat::Get().Stop();
 
 	// at this point we should already be using malloc crash handler (see PlatformCrashHandler)
-	const_cast<FUnixCrashContext&>(Context).CaptureStackTrace();
+	const_cast<FUnixCrashContext&>(Context).CaptureStackTrace(Context.ErrorFrame);
 	if (GLog)
 	{
 		GLog->SetCurrentThreadAsMasterThread();
@@ -756,6 +755,7 @@ void (* GCrashHandlerPointer)(const FGenericCrashContext & Context) = NULL;
 extern int32 CORE_API GMaxNumberFileMappingCache;
 
 extern thread_local const TCHAR* GCrashErrorMessage;
+extern thread_local void* GCrashErrorProgramCounter;
 extern thread_local ECrashContextType GCrashErrorType;
 
 namespace
@@ -808,6 +808,7 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 	ECrashContextType Type;
 	TStringBuilder<128> DefaultErrorMessage;
 	const TCHAR* ErrorMessage;
+	void* ErrorProgramCounter;
 
 	if (GCrashErrorMessage == nullptr)
 	{
@@ -834,16 +835,19 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 		}
 
 		ErrorMessage = *DefaultErrorMessage;
+		ErrorProgramCounter = __builtin_return_address(0);
 	}
 	else
 	{
 		Type = GCrashErrorType;
 		ErrorMessage = GCrashErrorMessage;
+		ErrorProgramCounter = GCrashErrorProgramCounter;
 	}
 
 	FUnixCrashContext CrashContext(Type, ErrorMessage);
 	CrashContext.InitFromSignal(Signal, Info, Context);
 	CrashContext.FirstCrashHandlerFrame = static_cast<uint64*>(__builtin_return_address(0));
+	CrashContext.ErrorFrame = ErrorProgramCounter;
 
 	// This will ungrab cursor/keyboard and bring down any pointer barriers which will be stuck on when opening the CRC
 	FPlatformMisc::UngrabAllInput();

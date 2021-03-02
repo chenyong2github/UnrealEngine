@@ -306,7 +306,7 @@ const TCHAR* FAndroidCrashContext::GetCallstackProperty() const
 
 void FAndroidCrashContext::CaptureCrashInfo()
 {
-	CapturePortableCallStack(0, Context);
+	CapturePortableCallStack(nullptr, Context);
 }
 
 static int64 GetAndroidLibraryBaseAddress()

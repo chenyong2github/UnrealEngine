@@ -1391,9 +1391,6 @@ static void DefaultCrashHandler(FIOSCrashContext const& Context)
     return Context.GenerateCrashInfo();
 }
 
-// number of stack entries to ignore in backtrace
-static uint32 GIOSStackIgnoreDepth = 6;
-
 // true system specific crash handler that gets called first
 static FIOSCrashContext TempCrashContext(ECrashContextType::Crash, TEXT("Temp Context"));
 static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
@@ -1403,7 +1400,6 @@ static void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 	FIOSApplicationInfo::CrashMalloc->Enable(&TempCrashContext, FPlatformTLS::GetCurrentThreadId());
 	
     FIOSCrashContext CrashContext(ECrashContextType::Crash, TEXT("Caught signal"));
-    CrashContext.IgnoreDepth = GIOSStackIgnoreDepth;
     CrashContext.InitFromSignal(Signal, Info, Context);
 	
 	// switch to the crash malloc to the new context now that we have everything
@@ -1565,7 +1561,7 @@ void FIOSPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrash
         NSError* Error = nil;
         if ([FIOSApplicationInfo::CrashReporter enableCrashReporterAndReturnError: &Error])
         {
-            GIOSStackIgnoreDepth = 0;
+            /* no-op */
         }
         else
         {
