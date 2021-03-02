@@ -111,6 +111,11 @@ bool IsLambert(FMaterialClosestHitPayload HitInfo)
 	return GetRoughness(HitInfo) > GLOSSY_MAX_ROUGHNESS;
 }
 
+bool IsUnlitMaterial(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.ShadingModelID == SHADINGMODELID_UNLIT;
+}
+
 bool IsDefaultLitMaterial(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.ShadingModelID == SHADINGMODELID_DEFAULT_LIT;

@@ -8,6 +8,54 @@ DirectionalLight.usf: Light sampling functions for Directional light implementat
 
 #include "PathTracingLightCommon.ush"
 
+float4 DirectionalLight_TraceLight(RayDesc Ray, int LightId, float HitT)
+{
+	if (Ray.TMax == HitT) // we hit the background
+	{
+		float3 LightDirection = GetNormal(LightId);
+		float SinThetaMax = GetRadius(LightId); // Sin(Angle / 2)
+		float SinThetaMax2 = SinThetaMax * SinThetaMax;
+		// See explanation in UniformSampleConeRobust
+		float OneMinusCosThetaMax = SinThetaMax2 < 0.01 ? SinThetaMax2 * (0.5 + 0.125 * SinThetaMax2) : 1 - sqrt(1 - SinThetaMax2);
+
+		float CosTheta = saturate(dot(normalize(Ray.Direction), LightDirection));
+
+		// Is ray pointing inside the cone of directions?
+		if (1 - CosTheta < OneMinusCosThetaMax)
+		{
+			// We divide the color of the light by the solid angle so
+			// that the overall illumination stays constant as the angle changes.
+			float SolidAngle = 2 * PI * OneMinusCosThetaMax;
+			float3 Radiance = GetColor(LightId) / SolidAngle;
+			return float4(Radiance, 1.0 / SolidAngle);
+		}
+	}
+	return 0.0;
+}
+
+bool DirectionalLight_SampleLight(
+	int LightId,
+	float4 RandSample,
+	float3 WorldPos,
+	float3 WorldNormal,
+	out float3 OutDirection,
+	out float  OutDistance,
+	out float3 OutRadianceOverPdf,
+	out float OutPdf)
+{
+	float SinThetaMax = GetRadius(LightId); // currently sin(Angle / 2)
+	float4 DirAndPdf = UniformSampleConeRobust(RandSample.yz, SinThetaMax * SinThetaMax);
+
+	OutDirection = TangentToWorld(DirAndPdf.xyz, GetNormal(LightId));
+	OutDistance = 1.0e27;
+
+	// Because the light is normalized by the solid angle, the ratio is just the color
+	OutRadianceOverPdf = GetColor(LightId);
+	OutPdf = DirAndPdf.w;
+
+	return true;
+}
+
 void DirectionalLight_GenerateLightRay(
 	RayDesc Ray,
 	int LightId,
@@ -17,7 +65,7 @@ void DirectionalLight_GenerateLightRay(
 {
 	OutLightRay.Origin = Ray.Origin;
 	OutLightRay.TMin = 0.0;
-	OutLightRay.Direction = normalize(LightUV);
+	OutLightRay.Direction = LightUV;
 	OutLightRay.TMax = 1.0e27;
 }
 
@@ -48,20 +96,24 @@ void DirectionalLight_EvalLight(
 	{
 		// #dxr_todo: Merge Eval/Sample to avoid redundant computation
 		float SinThetaMax = Radius; // currently sin(Angle / 2)
-		float CosThetaMax = sqrt(1.0 - SinThetaMax * SinThetaMax);
-		OutRadiance = Color * 1.0 / (2 * PI * (1 - CosThetaMax));
+
+		// See logic in UniformSampleConeRobust
+		// #dxr_todo: unify the sample and eval methods into one to avoid redundant calculations
+		float SinThetaMax2 = SinThetaMax * SinThetaMax;
+		float OneMinusCosThetaMax = SinThetaMax2 < 0.01 ? SinThetaMax2 * (0.5 + 0.125 * SinThetaMax2) : 1 - sqrt(1 - SinThetaMax2);
+		OutRadiance = Color * 1.0 / (2 * PI * OneMinusCosThetaMax);
 	}
 }
 
 void DirectionalLight_EstimateLight(
 	int LightId,
-	RayDesc Ray,
-	FMaterialClosestHitPayload Payload,
+	float3 WorldPos,
+	float3 WorldNormal,
 	out float OutIrradiance
 )
 {
 	float3 LightDirection = GetNormal(LightId);
-	float3 SurfaceNormal = Payload.WorldNormal;
+	float3 SurfaceNormal = WorldNormal;
 	float NoL = 1.0;
 	if (GetRadius(LightId) == 0.0)
 	{
@@ -82,7 +134,7 @@ void DirectionalLight_SampleLight(
 	out float OutPdf
 )
 {
-	float3 N = normalize(GetNormal(LightId));
+	float3 N = GetNormal(LightId);
 	float Radius = GetRadius(LightId);
 
 	if (Radius == 0)
@@ -96,9 +148,8 @@ void DirectionalLight_SampleLight(
 	{
 		// soft case - build a frame, and sample the distant cone
 		float SinThetaMax = Radius; // currently sin(Angle / 2)
-		float CosThetaMax = sqrt(1.0 - SinThetaMax * SinThetaMax);
 
-		float4 DirAndPdf = UniformSampleCone(RandSample.yz, CosThetaMax);
+		float4 DirAndPdf = UniformSampleConeRobust(RandSample.yz, SinThetaMax * SinThetaMax);
 		OutLightUV = TangentToWorld(DirAndPdf.xyz, N);
 		OutPdf = DirAndPdf.w;
 	}

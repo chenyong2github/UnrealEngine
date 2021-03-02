@@ -29,6 +29,24 @@ TAutoConsoleVariable<int32> CVarPathTracingSamplesPerPixel(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingMISMode(
+	TEXT("r.PathTracing.MISMode"),
+	2,
+	TEXT("Selects the sampling techniques (default = 2 (MIS enabled))\n")
+	TEXT("0: Material sampling\n")
+	TEXT("1: Light sampling\n")
+	TEXT("2: MIS betwen material and light sampling (default)\n")
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingVisibleLights(
+	TEXT("r.PathTracing.VisibleLights"),
+	0,
+	TEXT("Should light sources be visible to camera rays? (default = 0 (off))\n")
+	TEXT("0: Hide lights from camera rays (default)\n")
+	TEXT("1: Make lights visible to camera\n")
+);
+
+
 TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
 	TEXT("r.PathTracing.FrameIndependentTemporalSeed"),
 	1,
@@ -303,6 +321,25 @@ public:
 			AdaptiveSamplingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 			AdaptiveSamplingData.UseAdaptiveSampling = CVarPathTracingAdaptiveSampling.GetValueOnRenderThread();
 			AdaptiveSamplingData.RandomSequence = CVarPathTracingRandomSequence.GetValueOnRenderThread();
+			AdaptiveSamplingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
+			AdaptiveSamplingData.VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
+
+			// Changing MIS mode requires starting over
+			static uint32 PreviousMISMode = AdaptiveSamplingData.MISMode;
+			if (PreviousMISMode != AdaptiveSamplingData.MISMode)
+			{
+				Scene->bPathTracingNeedsInvalidation = true;
+				PreviousMISMode = AdaptiveSamplingData.MISMode;
+			}
+
+			// Changing VisibleLights requires starting over
+			static uint32 PreviousVisibleLights = AdaptiveSamplingData.VisibleLights;
+			if (PreviousVisibleLights != AdaptiveSamplingData.VisibleLights)
+			{
+				Scene->bPathTracingNeedsInvalidation = true;
+				PreviousVisibleLights = AdaptiveSamplingData.VisibleLights;
+			}
+
 			if (VarianceMipTree.NumBytes > 0)
 			{
 				AdaptiveSamplingData.Iteration = Iteration;

@@ -82,6 +82,11 @@ float GetHeight(int LightId)
 	return SceneLightsData.Dimensions[LightId].y;
 }
 
+float2 GetRectSize(int LightId)
+{
+	return SceneLightsData.Dimensions[LightId].xy;
+}
+
 float GetDepth(int LightId)
 {
 	return SceneLightsData.Dimensions[LightId].z;

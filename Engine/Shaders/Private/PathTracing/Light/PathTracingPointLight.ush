@@ -8,6 +8,82 @@ PointLight.usf: Light sampling functions for Point light implementation
 
 #include "PathTracingLightCommon.ush"
 
+float4 PointLight_TraceLight(RayDesc Ray, int LightId, float HitT)
+{
+	float3 LightPosition = GetPosition(LightId);
+	float LightRadius = GetRadius(LightId);
+	float LightRadius2 = Pow2(LightRadius);
+
+	float3 oc = Ray.Origin - LightPosition;
+
+	float LightDistanceSquared = dot(oc, oc);
+
+	// #dxr_todo: switch to numericaly stable ray/sphere test?
+	float a = dot(Ray.Direction, Ray.Direction);
+	float b = dot(oc, Ray.Direction);
+	float c = LightDistanceSquared - LightRadius2;
+	float h = b * b - a * c;
+	if (h >= 0)
+	{
+		h = sqrt(h);
+		float t = (-b - h) / a;
+		if (t > Ray.TMin && t < HitT)
+		{
+			// #dxr_todo: sphere area is 4*pi*r^2 -- but the factor of 4 is missing for some reason?
+			float3 LightPower = GetColor(LightId);
+			float3 LightRadiance = LightPower / (PI * LightRadius2);
+
+			float SinThetaMax2 = saturate(LightRadius2 / LightDistanceSquared);
+			float OneMinusCosThetaMax = SinThetaMax2 < 0.01 ? SinThetaMax2 * (0.5 + 0.125 * SinThetaMax2) : 1 - sqrt(1 - SinThetaMax2);
+
+			float SolidAngle = 2 * PI * OneMinusCosThetaMax;
+			return float4(LightRadiance, 1.0 / SolidAngle);
+		}
+		// #dxr_todo: process inside hit here ...
+		// How should we define radiance on the inside of the sphere?
+	}
+	return 0.0;
+}
+
+void PointLight_SampleLight(
+	int LightId,
+	float4 RandSample,
+	float3 WorldPos,
+	float3 WorldNormal,
+	out float3 OutDirection,
+	out float  OutDistance,
+	out float3 OutRadianceOverPdf,
+	out float OutPdf)
+{
+	float Radius = GetRadius(LightId);
+
+	// Sample the solid angle subtended by the sphere (which could be singgular, in which case the PDF will be infinite)
+	float3 LightDirection = GetPosition(LightId) - WorldPos;
+	float LightDistanceSquared = dot(LightDirection, LightDirection);
+	float Radius2 = Pow2(Radius);
+
+	// #dxr_todo: come up with a better definition when we are inside the light
+	float SinThetaMax2 = saturate(Radius2 / LightDistanceSquared);
+
+	// #dxr_todo: find a better way of handling the region inside the light than just clamping to 1.0 here
+	float4 DirAndPdf = UniformSampleConeRobust(RandSample.yz, SinThetaMax2);
+
+	float CosTheta = DirAndPdf.z;
+	float SinTheta2 = 1.0 - CosTheta * CosTheta;
+
+	OutDirection = TangentToWorld(DirAndPdf.xyz, normalize(LightDirection));
+	OutDistance = length(LightDirection) * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
+
+	OutPdf = DirAndPdf.w;
+
+	float3 LightPower = GetColor(LightId);
+	float3 LightRadiance = LightPower / (PI * Radius2);
+
+	// When the angle is very small, Radiance over pdf simplifies even more since SolidAngle ~= PI * SinThetaMax2
+	// Canceling out common factors further leads to the classic Power / D^2 formula
+	OutRadianceOverPdf = SinThetaMax2 < 0.001 ? LightPower / LightDistanceSquared : LightRadiance / OutPdf;
+}
+
 void PointLight_GenerateLightRay(
 	RayDesc Ray,
 	int LightId,
@@ -59,34 +135,27 @@ void PointLight_EvalLight(
 	float Radius = GetRadius(LightId);
 	float Falloff = ComputeAttenuationFalloff(Ray.TMax, GetAttenuation(LightId));
 	OutRadiance = Color * Falloff;
-#if 0
-	// doing the "right" thing leads to unstable math for small radius lights
-	// #dxr_todo: Revisit this when implementing MIS for all lights
+
 	if (Radius == 0)
 		OutRadiance *= 1 / LightDistanceSquared;
 	else
 		OutRadiance *= 1 / (PI * Radius * Radius);
-#else
-	// simplified expression for singular and soft lights - just like in the raster path
-	// this is more numerically stable and means we can ignore the PDF for now
-	OutRadiance *= 1.0 / LightDistanceSquared;
-#endif
 }
 
 void PointLight_EstimateLight(
 	int LightId,
-	RayDesc Ray,
-	FMaterialClosestHitPayload Payload,
+	float3 WorldPos,
+	float3 WorldNormal,
 	out float OutIrradiance
 )
 {
 	// Distance
-	float3 LightDirection = GetPosition(LightId) - Payload.WorldPos;
+	float3 LightDirection = GetPosition(LightId) - WorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
 	LightDirection = normalize(LightDirection);
 
 	// Geometric term
-	float3 SurfaceNormal = Payload.WorldNormal;
+	float3 SurfaceNormal = WorldNormal;
 
 	float NoL = 1.0;
 	if (GetRadius(LightId) == 0.0)
@@ -119,18 +188,11 @@ void PointLight_SampleLight(
 		
 		// outside the light
 		float SinThetaMax2 = Radius2 / LightDistanceSquared;
-		// #dxr_todo: find a better way of handling the region inside the light
-		float CosThetaMax = sqrt(max(1.0 - SinThetaMax2, 0.0));
-		float4 DirAndPdf = UniformSampleCone(RandSample.yz, CosThetaMax);
-
+		
+		// #dxr_todo: find a better way of handling the region inside the light than just clamping to 1.0 here
+		float4 DirAndPdf = UniformSampleConeRobust(RandSample.yz, min(SinThetaMax2, 1.0));
 		OutLightUV = DirAndPdf.xyz;
-#if 0
 		OutPdf = DirAndPdf.w;
-#else
-		// doing the "right" thing leads to unstable math for small radius lights
-		// #dxr_todo: Revisit this when implementing MIS for all lights
-		OutPdf = 1.0;
-#endif
 	}
 	else
 	{
