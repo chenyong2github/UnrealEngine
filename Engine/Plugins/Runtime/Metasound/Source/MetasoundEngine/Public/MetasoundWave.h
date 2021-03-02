@@ -89,6 +89,8 @@ namespace Audio
 		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents = 0.f);
 
 	private:
+		float GetSampleRateRatio(float PitchShiftInCents) const;
+
 		// actual decoder objects
 		TUniquePtr<Audio::IDecoder> Decoder;
 		TUniquePtr<Audio::IDecoderOutput> Output;
@@ -102,12 +104,13 @@ namespace Audio
 
 		// buffers
 		TArray<float> PreSrcBuffer;
-		Audio::TCircularAudioBuffer<float> CircularDecoderOutputBuffer;
+		TArray<float> PostSrcBuffer;
+		Audio::TCircularAudioBuffer<float> OutputCircularBuffer;
 
 		// meta data:
 		float InputSampleRate;
 		float OutputSampleRate;
-		float FsInToFsOutRatio;
+		float FsOutToInRatio;
 		float MaxPitchShiftCents;
 		float MaxPitchShiftRatio;
 

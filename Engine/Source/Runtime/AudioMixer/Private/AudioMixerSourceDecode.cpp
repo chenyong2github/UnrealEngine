@@ -129,11 +129,12 @@ public:
 				if (DecodeTaskData.bSkipFirstBuffer)
 				{
 					const int32 kPCMBufferSize = NumChannels * DecodeTaskData.NumPrecacheFrames * sizeof(int16);
+					int32 NumBytesStreamed = kPCMBufferSize;
 					if (DecodeTaskData.BufferType == EBufferType::Streaming)
 					{
 						for (int32 NumberOfBuffersToSkip = 0; NumberOfBuffersToSkip < PLATFORM_NUM_AUDIODECOMPRESSION_PRECACHE_BUFFERS; NumberOfBuffersToSkip++)
 						{
-							DecodeTaskData.DecompressionState->StreamCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
+							DecodeTaskData.DecompressionState->StreamCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize, NumBytesStreamed);
 						}
 					}
 					else
@@ -146,9 +147,10 @@ public:
 				}
 
 				const int32 kPCMBufferSize = NumChannels * DecodeTaskData.NumFramesToDecode * sizeof(int16);
+				int32 NumBytesStreamed = kPCMBufferSize;
 				if (DecodeTaskData.BufferType == EBufferType::Streaming)
 				{
-					DecodeResult.bLooped = DecodeTaskData.DecompressionState->StreamCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize);
+					DecodeResult.bLooped = DecodeTaskData.DecompressionState->StreamCompressedData(DecodeBuffer.GetData(), DecodeTaskData.bLoopingMode, kPCMBufferSize, NumBytesStreamed);
 				}
 				else
 				{

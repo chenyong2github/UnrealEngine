@@ -71,8 +71,6 @@ namespace Metasound
 			{
 				CurrentSoundWaveName = Wave->SoundWaveProxy->GetFName();
 			}
-
-
 		}
 
 		virtual FDataReferenceCollection GetInputs() const override
@@ -179,7 +177,7 @@ namespace Metasound
 				PostSrcBuffer.AddZeroed(NumSamplesToGenerate);
 				float* PostSrcBufferPtr = PostSrcBuffer.GetData();
 
-				int32 NumFramesDecoded = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFrames, *PitchShiftCents); // TODO: pitch shift
+				int32 NumFramesDecoded = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFrames, *PitchShiftCents) / NumInputChannels;
 
 				// TODO: handle decoder having completed during it's decode
 				if (!Decoder.CanGenerateAudio() ||  (NumFramesDecoded < NumOutputFrames))
@@ -192,12 +190,12 @@ namespace Metasound
 				{
 					// TODO: attenuate by -3 dB?
 					// copy to Left & Right output buffers
-					FMemory::Memcpy(FinalOutputLeft, PostSrcBufferPtr, sizeof(float) * NumOutputFrames);
-					FMemory::Memcpy(FinalOutputRight, PostSrcBufferPtr, sizeof(float) * NumOutputFrames);
+					FMemory::Memcpy(FinalOutputLeft, PostSrcBufferPtr, sizeof(float) * NumFramesDecoded);
+					FMemory::Memcpy(FinalOutputRight, PostSrcBufferPtr, sizeof(float) * NumFramesDecoded);
 				}
 				else if (bNeedsDeinterleave)
 				{
-					for (int32 i = 0; i < NumOutputFrames; ++i)
+					for (int32 i = 0; i < NumFramesDecoded; ++i)
 					{
 						// de-interleave each stereo frame into output buffers
 						FinalOutputLeft[i] = PostSrcBufferPtr[(i << 1)];
@@ -255,9 +253,9 @@ namespace Metasound
 			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("NoSoundWave", "No Sound Wave"));
 
 		}
-		else if (Wave->SoundWaveProxy->GetNumChannels() != 1)
+		else if (Wave->SoundWaveProxy->GetNumChannels() > 2)
 		{
-			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("WavePlayerCurrentlyOnlySuportsMonoAssets", "Wave Player Currently Only Supports Mono Assets"));
+			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("WavePlayerCurrentlyOnlySuportsMonoAssets", "Wave Player Currently Only Supports Mono Or Stereo Assets"));
 		}
 
 		return MakeUnique<FWavePlayerOperator>(

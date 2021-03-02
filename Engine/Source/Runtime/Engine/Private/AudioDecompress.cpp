@@ -177,7 +177,7 @@ bool IStreamedCompressedInfo::StreamCompressedInfoInternal(const FSoundWaveProxy
 	return false;
 }
 
-bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize)
+bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize, int32& OutNumBytesStreamed)
 {
 	check(Destination);
 	SCOPED_NAMED_EVENT(IStreamedCompressedInfo_StreamCompressedData, FColor::Blue);
@@ -209,6 +209,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 				bPrintChunkFailMessage = false;
 			}
 			ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
+			OutNumBytesStreamed = BufferSize - RawPCMOffset;
 			return false;
 		}
 	}
@@ -234,6 +235,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 		{
 			LastPCMByteSize = 0;
 			ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
+			OutNumBytesStreamed = BufferSize - RawPCMOffset;
 			return false;
 		}
 		else
@@ -270,6 +272,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 					else
 					{
 						RawPCMOffset += ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
+						OutNumBytesStreamed = BufferSize - RawPCMOffset;
 					}
 				}
 				else
@@ -292,6 +295,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 		}
 	}
 
+	OutNumBytesStreamed = BufferSize;
 	return bLooped;
 }
 

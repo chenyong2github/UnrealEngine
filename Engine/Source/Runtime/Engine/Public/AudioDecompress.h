@@ -140,7 +140,7 @@ public:
 	*
 	* @return	bool		true if the end of the data was reached (for both single shot and looping sounds)
 	*/
-	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize) {return false;}
+	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize, int32& OutNumBytesStreamed) { OutNumBytesStreamed = -1; return false; }
 
 	/**
 	 * Gets the chunk index that was last read from (for Streaming Manager requests)
@@ -198,7 +198,7 @@ public:
 	virtual int GetStreamBufferSize() const override { return  MONO_PCM_BUFFER_SIZE; }
 	virtual bool SupportsStreaming() const override { return true; }
 	virtual bool StreamCompressedInfoInternal(const FSoundWaveProxyPtr& InWaveProxy, FSoundQualityInfo* QualityInfo) override;
-	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize) override;
+	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize, int32& OutNumBytesStreamed) override;
 	virtual int32 GetCurrentChunkIndex() const override { return CurrentChunkIndex; }
 	virtual int32 GetCurrentChunkOffset() const override { return SrcBufferOffset; }
 	//~ End ICompressedInfo Interface

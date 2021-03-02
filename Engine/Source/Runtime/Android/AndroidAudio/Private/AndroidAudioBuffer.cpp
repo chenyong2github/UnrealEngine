@@ -296,9 +296,10 @@ bool FSLESSoundBuffer::ReadCompressedData( uint8* Destination, int32 NumFramesTo
 {
 	ensure(DecompressionState);
 	
+	int32 NumFramesDecoded = DecompressionState->GetStreamBufferSize() * NumChannels;
 	if(Format == SoundFormat_Streaming)
 	{
-		return(DecompressionState->StreamCompressedData(Destination, bLooping, DecompressionState->GetStreamBufferSize() * NumChannels));
+		return(DecompressionState->StreamCompressedData(Destination, bLooping, NumFramesDecoded, NumFramesDecoded));
 	}
 
 	return(DecompressionState->ReadCompressedData(Destination, bLooping, DecompressionState->GetStreamBufferSize() * NumChannels));

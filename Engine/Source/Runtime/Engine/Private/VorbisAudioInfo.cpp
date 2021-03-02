@@ -612,8 +612,10 @@ const uint8* FVorbisAudioInfo::GetLoadedChunk(FSoundWaveProxyPtr InSoundWave, ui
 	return nullptr;
 }
 
-bool FVorbisAudioInfo::StreamCompressedData(uint8* InDestination, bool bLooping, uint32 BufferSize)
+bool FVorbisAudioInfo::StreamCompressedData(uint8* InDestination, bool bLooping, uint32 BufferSize, int32& OutNumBytesStreamed)
 {
+	const uint32 DestinationSize = BufferSize;
+
 	if (!bDllLoaded)
 	{
 		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedData failed due to vorbis DLL not being loaded."));
@@ -653,6 +655,7 @@ bool FVorbisAudioInfo::StreamCompressedData(uint8* InDestination, bool bLooping,
 			{
 				// zero out the rest of the buffer
 				FMemory::Memzero(InDestination, BufferSize);
+				OutNumBytesStreamed = DestinationSize;
 				return false;
 			}
 
@@ -708,6 +711,7 @@ bool FVorbisAudioInfo::StreamCompressedData(uint8* InDestination, bool bLooping,
 		BufferSize -= BytesActuallyRead;
 	}
 
+	OutNumBytesStreamed = DestinationSize - BufferSize;
 	return( bLooped );
 }
 

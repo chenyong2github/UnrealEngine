@@ -68,19 +68,21 @@ namespace Audio
 
 		while(!bFinished && NumFramesRemaining > 0)
 		{
+			int32 NumBytesStreamed = BuffSizeInBytes;
 			if (BackCompatSrc.Wave->IsStreaming())
 			{
-				bFinished = Info->StreamCompressedData(Buff, false, BuffSizeInBytes);
+				bFinished = Info->StreamCompressedData(Buff, false, BuffSizeInBytes, NumBytesStreamed);
 			}
 			else
 			{
 				bFinished = Info->ReadCompressedData(Buff, false, BuffSizeInBytes);
 			}						
 			PushedDetails.SampleFramesStartOffset = FrameOffset;
+			ResidualBuffer.SetNum(NumBytesStreamed / sizeof(int16));
 			
 			Dst->PushAudio( 
 				PushedDetails,
-				MakeArrayView(ResidualBuffer) 
+				MakeArrayView(ResidualBuffer)
 			);
 			
 			FrameOffset += BuffSizeInFrames;

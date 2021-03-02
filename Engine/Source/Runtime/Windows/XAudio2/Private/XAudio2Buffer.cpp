@@ -338,9 +338,10 @@ bool FXAudio2SoundBuffer::ReadCompressedData( uint8* Destination, int32 NumFrame
 	}
 	
 	int32 NumBytesToDecode = NumFramesToDecode * sizeof(int16) * NumChannels;
+	int32 NumBytesDecoded = NumBytesToDecode;
 	if (SoundFormat == SoundFormat_Streaming)
 	{
-		return DecompressionState->StreamCompressedData(Destination, bLooping, NumBytesToDecode);
+		return DecompressionState->StreamCompressedData(Destination, bLooping, NumBytesToDecode, NumBytesDecoded);
 	}
 	else
 	{

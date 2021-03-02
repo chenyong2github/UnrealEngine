@@ -138,9 +138,10 @@ bool FIOSAudioSoundBuffer::ReadCompressedInfo(USoundWave* InWave)
 
 bool FIOSAudioSoundBuffer::ReadCompressedData( uint8* Destination, int32 NumFramesToDecode, bool bLooping )
 {
+	int32 NumFramesDecoded = NumFramesToDecode;
 	if(bStreaming)
 	{
-		return DecompressionState->StreamCompressedData(Destination, bLooping, RenderCallbackBufferSize);
+		return DecompressionState->StreamCompressedData(Destination, bLooping, RenderCallbackBufferSize, NumFramesDecoded);
 	}
 	else
 	{

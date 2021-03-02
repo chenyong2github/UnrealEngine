@@ -581,9 +581,11 @@ bool FADPCMAudioInfo::StreamCompressedInfoInternal(const FSoundWaveProxyPtr& InW
 	return true;
 }
 
-bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize)
+bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize, int32& OutNumBytesStreamed)
 {
 	FScopeLock ScopeLock(&CurCompressedChunkHandleCriticalSection);
+	int32 OriginalBufferSize = (int32)BufferSize;
+	OutNumBytesStreamed = 0;
 
 	// Initial sanity checks:
 	if (bDecompressorReleased)
@@ -772,6 +774,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 
 						// zero out remaining data and bail
 						FMemory::Memset(OutData, 0, BufferSize);
+						OutNumBytesStreamed = OriginalBufferSize;
 						return false;
 					}
 
@@ -818,6 +821,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 				{
 					uint16 Value = *(int16*)(UncompressedBlockData + ChannelItr * UncompressedBlockSize + (CurrentUncompressedBlockSampleIndex + SampleItr) * sizeof(int16));
 					*OutData++ = Value;
+					OutNumBytesStreamed += sizeof(int16);
 				}
 			}
 
@@ -895,6 +899,7 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 					NumConsecutiveReadFailiures++;
 					const bool bReadAttemptTimedOut = NumConsecutiveReadFailiures > ADPCMReadFailiureTimeoutCVar;
 					UE_CLOG(bReadAttemptTimedOut, LogAudio, Warning, TEXT("ADPCM Audio Decode timed out."), bReadAttemptTimedOut);
+					OutNumBytesStreamed = OriginalBufferSize;
 					return NumConsecutiveReadFailiures > ADPCMReadFailiureTimeoutCVar;
 				}
 
@@ -927,8 +932,9 @@ bool FADPCMAudioInfo::StreamCompressedData(uint8* Destination, bool bLooping, ui
 
 			const uint32 SampleSize = DecompressedSamplesToCopy * ChannelSampleSize;
 			FMemory::Memcpy(OutData, CurCompressedChunkData + CurrentChunkBufferOffset, SampleSize);
-
 			OutData += DecompressedSamplesToCopy * NumChannels;
+			OutNumBytesStreamed += DecompressedSamplesToCopy * NumChannels * sizeof(int16);
+
 			CurrentChunkBufferOffset += SampleSize;
 			BufferSize -= SampleSize;
 			TotalSamplesStreamed += DecompressedSamplesToCopy;

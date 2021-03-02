@@ -29,103 +29,85 @@ namespace Audio
 		// initialize input/output data
 		InputSampleRate = InWave->GetSampleRate();
 		OutputSampleRate = InInitParams.OutputSampleRate;
-		FsInToFsOutRatio = (InputSampleRate / OutputSampleRate);
+		FsOutToInRatio = (OutputSampleRate / InputSampleRate);
 		MaxPitchShiftRatio = FMath::Pow(2.f, InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves);
 		MaxPitchShiftCents = InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves * 1200.f;
 
 		NumChannels = InWave->GetNumChannels();
-		DecodeBlockSizeInFrames = InInitParams.OutputBlockSizeInFrames;
+		DecodeBlockSizeInFrames = 64;
 		DecodeBlockSizeInSamples = DecodeBlockSizeInFrames * NumChannels;
 
 		// set Circular Buffer capacity
-		CircularDecoderOutputBuffer.SetCapacity(DecodeBlockSizeInSamples * (1.f + FsInToFsOutRatio * MaxPitchShiftRatio));
+		OutputCircularBuffer.SetCapacity(InInitParams.OutputBlockSizeInFrames * NumChannels * (1.f + FsOutToInRatio * MaxPitchShiftRatio) * 2);
 
 		TotalNumFramesOutput = 0;
 		TotalNumFramesDecoded = 0;
-		
+
 		// try to initialize decoders
 		bool bSuccessful = InitializeDecodersInternal(InWave);
 		bDecoderIsDone = !bSuccessful;
 
 		// initialize SRC object (will be re-initialized for pitch shifting)
-		Resampler.Init(Audio::EResamplingMethod::Linear, 1.f / FsInToFsOutRatio, NumChannels);
+		Resampler.Init(Audio::EResamplingMethod::Linear, 1.f / FsOutToInRatio, NumChannels);
 
 		return bSuccessful;
 	}
 
 	uint32 FSimpleDecoderWrapper::GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents)
 	{
-		PitchShiftInCents = FMath::Clamp(PitchShiftInCents, -MaxPitchShiftCents, MaxPitchShiftCents);
-		const float PitchShiftRatio = FMath::Pow(2.f, PitchShiftInCents / 1200.f);
-		const float TotalInSamplesOutSamplesRatio = PitchShiftRatio * FsInToFsOutRatio;
-
 		const uint32 NumOutputSamples = NumOutputFrames * NumChannels;
-		uint32 NumSamplesToDecode = NumChannels * FMath::CeilToInt(NumOutputFrames * TotalInSamplesOutSamplesRatio + 1.f);
 
-		// zero the output
-		FMemory::Memzero(OutputDest, NumOutputSamples * sizeof(float));
-
-		// Decode audio until we have enough to satisfy the output (post SRC)
-		while (!bDecoderIsDone && (CircularDecoderOutputBuffer.Num() < NumSamplesToDecode))
+		if (OutputCircularBuffer.Num() < NumOutputSamples)
 		{
-			// get more audio from the decoder
-			Audio::IDecoderOutput::FPushedAudioDetails Details;
-			bDecoderIsDone = (Decoder->Decode() == Audio::IDecoder::EDecodeResult::Finished);
+			const float SampleRateRatio = GetSampleRateRatio(PitchShiftInCents);
+
+			// (multiply by two just to be safe we can handle SRC output)
+			const int32 MaxNumResamplerOutputFramesPerBlock = FMath::CeilToInt(SampleRateRatio * DecodeBlockSizeInFrames) * 2;
+			const int32 MaxNumResamplerOutputSamplesPerBlock = MaxNumResamplerOutputFramesPerBlock * NumChannels;
 
 			PreSrcBuffer.Reset(DecodeBlockSizeInSamples);
-			PreSrcBuffer.AddZeroed(DecodeBlockSizeInSamples);
-			const int32 NumSamplesDecoded = Output->PopAudio(MakeArrayView(PreSrcBuffer.GetData(), DecodeBlockSizeInSamples), Details);
+			PreSrcBuffer.AddUninitialized(DecodeBlockSizeInSamples);
 
-			// push that (interleaved) audio to the (interleaved) circular buffer
-			int32 NumPushed = CircularDecoderOutputBuffer.Push(PreSrcBuffer.GetData(), NumSamplesDecoded);
-			ensure(NumPushed == NumSamplesDecoded); // there will be a discontinuity in the output because our CircularDecoderOutputBuffer was not large enough!
+			PostSrcBuffer.Reset(MaxNumResamplerOutputSamplesPerBlock);
+			PostSrcBuffer.AddUninitialized(MaxNumResamplerOutputSamplesPerBlock);
 
-			// for debugging
-			TotalNumFramesDecoded += (NumPushed / NumChannels);
+			// combine pitch shift and SRC ratios
+			Resampler.SetSampleRateRatio(SampleRateRatio);
+
+			// perform SRC and push to circular buffer until we have enough frames for the output
+			while (Decoder && !bDecoderIsDone && (OutputCircularBuffer.Num() < NumOutputSamples))
+			{
+				// get more audio from the decoder
+				Audio::IDecoderOutput::FPushedAudioDetails Details;
+				bDecoderIsDone = (Decoder->Decode() == Audio::IDecoder::EDecodeResult::Finished);
+				const int32 NumFramesDecoded = Output->PopAudio(PreSrcBuffer, Details) / NumChannels;
+				int32 NumResamplerOutputFrames = 0;
+				int32 Error = Resampler.ProcessAudio(PreSrcBuffer.GetData(), NumFramesDecoded, bDecoderIsDone, PostSrcBuffer.GetData(), MaxNumResamplerOutputFramesPerBlock, NumResamplerOutputFrames);
+				ensure(Error == 0);
+				OutputCircularBuffer.Push(PostSrcBuffer.GetData(), NumResamplerOutputFrames * NumChannels);
+			}
 		}
 
-		// now that we have enough audio decoded, pop off the circular buffer into an interleaved, pre-src temp buffer
-		// (It is possible that CircularDecoderOutputBuffer.Num() < NumOutputSamples if the decoder is dry...)
-		const uint32 NumSamplesToPop = FMath::Min(CircularDecoderOutputBuffer.Num(), NumSamplesToDecode);
-		const uint32 NumPostSrcSamples = NumOutputFrames * NumChannels;
-
-		PreSrcBuffer.Reset(NumSamplesToPop);
-		PreSrcBuffer.AddZeroed(NumSamplesToPop);
-
-		// pop into pre-src buffer
-		uint32 NumSamplesPopped = CircularDecoderOutputBuffer.Pop(PreSrcBuffer.GetData(), NumSamplesToPop);
-		ensure(NumSamplesPopped == NumSamplesToPop); // Circular buffer is too small! there will be discontinuities in the output
-
-		// holds result of sample rate conversion
-		float* PostSrcBufferPtr = PreSrcBuffer.GetData(); // assume no SRC
-
-		// perform SRC 
-		if (!FMath::IsNearlyEqual(LastPitchShiftCents, PitchShiftInCents))
+		if (OutputCircularBuffer.Num() >= NumOutputSamples)
 		{
-			Resampler.Init(Audio::EResamplingMethod::Linear, 1.f / TotalInSamplesOutSamplesRatio, NumChannels);
-			LastPitchShiftCents = PitchShiftInCents;
+			OutputCircularBuffer.Pop(OutputDest, NumOutputSamples);
 		}
-
-		int32 NumFramesConverted;
-		int32 Error = Resampler.ProcessAudio(PreSrcBuffer.GetData(), NumSamplesToPop / NumChannels, false, OutputDest, NumOutputFrames, NumFramesConverted);
-		ensure(!Error);
-
-		if (Error)
+		else if (ensure(bDecoderIsDone))
 		{
-			bDecoderIsDone = false;
-			Input.Reset();
-			Output.Reset();
-			Decoder.Reset();
+			const int32 NumSamplesToPop = OutputCircularBuffer.Num();
+			const int32 NumSamplesRemaining = NumOutputSamples - NumSamplesToPop;
+			OutputCircularBuffer.Pop(OutputDest, OutputCircularBuffer.Num());
+			FMemory::Memzero(&OutputDest[NumSamplesToPop], sizeof(float) * NumSamplesRemaining);
+			return NumSamplesToPop;
 		}
-
-
-		if (NumFramesConverted < (int32)NumOutputFrames)
+		else
 		{
+			ensureMsgf(false, TEXT("Something went wrong with decoding."));
 			bDecoderIsDone = true;
+			return 0;
 		}
-		
-		TotalNumFramesOutput += NumFramesConverted;
-		return NumFramesConverted;
+
+		return NumOutputSamples; // update once we are aware of partial decode on last buffer
 	}
 
 	bool FSimpleDecoderWrapper::InitializeDecodersInternal(const FSoundWaveProxyPtr& Wave)
@@ -143,8 +125,8 @@ namespace Audio
 		{
 			return false;
 		}
-		
-		// aquire codec:
+
+		// acquire codec:
 		ICodecRegistry::FCodecPtr Codec = ICodecRegistry::Get().FindCodecByParsingInput(Input.Get());
 		if (!Codec)
 		{
@@ -165,8 +147,16 @@ namespace Audio
 		// Decoder:
 		Decoder = Codec->CreateDecoder(Input.Get(), Output.Get());
 
-		// return true if all the components were succesfully create
+		// return true if all the components were successfully create
 		return Input.IsValid() && Output.IsValid() && Decoder.IsValid();
 	}
 
-} // namesapce Audio
+	float FSimpleDecoderWrapper::GetSampleRateRatio(float PitchShiftInCents) const
+	{
+		PitchShiftInCents = FMath::Clamp(PitchShiftInCents, -MaxPitchShiftCents, MaxPitchShiftCents);
+
+		// combine pitch shift due to actual pitch shift and SRC
+		return FsOutToInRatio / FMath::Pow(2.f, PitchShiftInCents / 1200.f);
+	}
+
+} // namespace Audio
