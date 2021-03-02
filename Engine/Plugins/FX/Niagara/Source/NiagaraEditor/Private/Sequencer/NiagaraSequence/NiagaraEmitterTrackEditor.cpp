@@ -70,6 +70,7 @@ public:
 				.ToolTipText(this, &SEmitterTrackWidget::GetToggleIsolateToolTip)
 				.OnClicked(this, &SEmitterTrackWidget::OnToggleIsolateButtonClicked)
 				.Visibility(this, &SEmitterTrackWidget::GetIsolateToggleVisibility)
+				.IsFocusable(false)
 				.Content()
 				[
 					SNew(SImage)
