@@ -249,7 +249,11 @@ void FStaticMeshOperations::ComputeTriangleTangentsAndNormals(FMeshDescription& 
 
 	// Check that the mesh description is compact
 	const int32 NumTriangles = MeshDescription.Triangles().Num();
-	check(MeshDescription.Triangles().GetArraySize() == NumTriangles);
+	if (MeshDescription.Triangles().GetArraySize() != NumTriangles)
+	{
+		FElementIDRemappings Remappings;
+		MeshDescription.Compact(Remappings);
+	}
 
 	// Split work in batch to reduce call overhead
 	const int32 BatchSize = 8 * 1024;
