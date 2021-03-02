@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "OnlineTitleFileEOS.h"
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemEOS.h"
