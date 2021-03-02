@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "EdGraphSchema_Niagara.h"
+
+#include "CoreMinimal.h"
 #include "NiagaraNodeUsageSelector.h"
 #include "NiagaraNodeStaticSwitch.generated.h"
 

@@ -12,6 +12,7 @@
 #include "Misc/Guid.h"
 #include "UObject/UnrealType.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Widgets/SBoxPanel.h"
 #include "NiagaraNode.generated.h"
 
 class UEdGraphPin;
@@ -55,8 +56,8 @@ public:
 	//~ End EdGraphNode Interface
 
 	/** Virtual function to allow for custom widgets in the input or output box */
-	virtual void AddWidgetsToInputBox(TSharedPtr<class SVerticalBox> InputBox);
-	virtual void AddWidgetsToOutputBox(TSharedPtr<class SVerticalBox> OutputBox);
+	virtual void AddWidgetsToInputBox(TSharedPtr<SVerticalBox> InputBox);
+	virtual void AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox);
 	
 	/** Get the Niagara graph that owns this node */
 	const class UNiagaraGraph* GetNiagaraGraph()const;

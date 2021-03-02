@@ -7,7 +7,10 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraScriptVariable.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
 #include "ScopedTransaction.h"
+#include "EdGraphSchema_Niagara.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
 
