@@ -25,8 +25,8 @@ void FLensDistortionEditorStyle::Register()
 	LensDistortionEditorStyle::StyleInstance = MakeUnique<FSlateStyleSet>(LensDistortionEditorStyle::NAME_StyleName);
 	LensDistortionEditorStyle::StyleInstance->SetContentRoot(FPaths::EnginePluginsDir() / TEXT("Compositing/LensDistortion/Content/Editor/Icons/"));
 
-	LensDistortionEditorStyle::StyleInstance->Set("ClassThumbnail.LensFile", new IMAGE_BRUSH("LensFile_64x", LensDistortionEditorStyle::Icon64x64));
-	LensDistortionEditorStyle::StyleInstance->Set("ClassIcon.LensFile", new IMAGE_BRUSH("LensFile_20x", LensDistortionEditorStyle::Icon20x20));
+	LensDistortionEditorStyle::StyleInstance->Set("ClassThumbnail.LensFile", new IMAGE_BRUSH("LensFileIcon_64x", LensDistortionEditorStyle::Icon64x64));
+	LensDistortionEditorStyle::StyleInstance->Set("ClassIcon.LensFile", new IMAGE_BRUSH("LensFileIcon_20x", LensDistortionEditorStyle::Icon20x20));
 
 
 	FSlateStyleRegistry::RegisterSlateStyle(*LensDistortionEditorStyle::StyleInstance.Get());
