@@ -371,7 +371,7 @@ void FPlacementModeModule::UnregisterPlacementCategory(FName Handle)
 	}
 }
 
-void FPlacementModeModule::GetUserFacingCategories(TArray<FPlacementCategoryInfo>& OutCategories) const
+void FPlacementModeModule::GetSortedCategories(TArray<FPlacementCategoryInfo>& OutCategories) const
 {
 	TArray<FName> SortedNames;
 	Categories.GenerateKeyArray(SortedNames);
@@ -411,6 +411,26 @@ void FPlacementModeModule::UnregisterPlaceableItem(FPlacementModeID ID)
 	}
 }
 
+bool FPlacementModeModule::RegisterPlaceableItemFilter(TPlaceableItemPredicate Predicate, FName OwnerName)
+{
+	TPlaceableItemPredicate& ExistingPredicate = PlaceableItemPredicates.FindOrAdd(OwnerName);
+	if (!ExistingPredicate)
+	{
+		ExistingPredicate = MoveTemp(Predicate);
+		PlaceableItemFilteringChanged.Broadcast();
+		return true;
+	}
+	return false;
+}
+
+void FPlacementModeModule::UnregisterPlaceableItemFilter(FName OwnerName)
+{
+	if (PlaceableItemPredicates.Remove(OwnerName))
+	{
+		PlaceableItemFilteringChanged.Broadcast();
+	}
+}
+
 void FPlacementModeModule::GetItemsForCategory(FName CategoryName, TArray<TSharedPtr<FPlaceableItem>>& OutItems) const
 {
 	const FPlacementCategory* Category = Categories.Find(CategoryName);
@@ -418,7 +438,10 @@ void FPlacementModeModule::GetItemsForCategory(FName CategoryName, TArray<TShare
 	{
 		for (auto& Pair : Category->Items)
 		{
-			OutItems.Add(Pair.Value);
+			if (PassesFilters(Pair.Value))
+			{
+				OutItems.Add(Pair.Value);
+			}
 		}
 	}
 }
@@ -430,9 +453,12 @@ void FPlacementModeModule::GetFilteredItemsForCategory(FName CategoryName, TArra
 	{
 		for (auto& Pair : Category->Items)
 		{
-			if (Filter(Pair.Value))
+			if (PassesFilters(Pair.Value))
 			{
-				OutItems.Add(Pair.Value);
+				if (Filter(Pair.Value))
+				{
+					OutItems.Add(Pair.Value);
+				}
 			}
 		}
 	}
@@ -458,9 +484,7 @@ void FPlacementModeModule::RegenerateItemsForCategory(FName Category)
 
 void FPlacementModeModule::RefreshRecentlyPlaced()
 {
-	FName CategoryName = FBuiltInPlacementCategories::RecentlyPlaced();
-
-	FPlacementCategory* Category = Categories.Find(CategoryName);
+	FPlacementCategory* Category = Categories.Find(FBuiltInPlacementCategories::RecentlyPlaced());
 	if (!Category)
 	{
 		return;
@@ -498,9 +522,7 @@ void FPlacementModeModule::RefreshRecentlyPlaced()
 
 void FPlacementModeModule::RefreshVolumes()
 {
-	FName CategoryName = FBuiltInPlacementCategories::Volumes();
-
-	FPlacementCategory* Category = Categories.Find(CategoryName);
+	FPlacementCategory* Category = Categories.Find(FBuiltInPlacementCategories::Volumes());
 	if (!Category)
 	{
 		return;
@@ -526,10 +548,8 @@ void FPlacementModeModule::RefreshVolumes()
 
 void FPlacementModeModule::RefreshAllPlaceableClasses()
 {
-	FName CategoryName = FBuiltInPlacementCategories::AllClasses();
-
 	// Unregister old stuff
-	FPlacementCategory* Category = Categories.Find(CategoryName);
+	FPlacementCategory* Category = Categories.Find(FBuiltInPlacementCategories::AllClasses());
 	if (!Category)
 	{
 		return;
@@ -604,6 +624,23 @@ FPlacementModeID FPlacementModeModule::CreateID(FName InCategory)
 	NewID.UniqueID = CreateID();
 	NewID.Category = InCategory;
 	return NewID;
+}
+
+bool FPlacementModeModule::PassesFilters(const TSharedPtr<FPlaceableItem>& Item) const
+{
+	if (PlaceableItemPredicates.Num() == 0)
+	{
+		return true;
+	}
+
+	for (auto& PredicatePair : PlaceableItemPredicates)
+	{
+		if (PredicatePair.Value(Item))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void FPlacementModeModule::OnCategoryBlacklistChanged()
