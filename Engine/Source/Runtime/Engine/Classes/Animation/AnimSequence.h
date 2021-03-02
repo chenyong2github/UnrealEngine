@@ -20,6 +20,7 @@
 #include "Containers/ArrayView.h"
 #include "Animation/CustomAttributes.h"
 #include "Animation/AnimData/AnimDataNotifications.h"
+#include "Animation/AttributeCurve.h"
 
 #if WITH_EDITOR
 #include "AnimData/AnimDataModel.h"
@@ -810,7 +811,7 @@ public:
 	/**
 	* Return true if compressed data is out of date / missing and so animation needs to use raw data
 	*/
-	bool DoesNeedRecompress() const { return GetSkeleton() && (bUseRawDataOnly || (GetSkeletonVirtualBoneGuid() != GetSkeleton()->GetVirtualBoneGuid()) || !HasValidBakedCustomAttributes()); }
+	bool DoesNeedRecompress() const { return GetSkeleton() && (bUseRawDataOnly || (GetSkeletonVirtualBoneGuid() != GetSkeleton()->GetVirtualBoneGuid())); }
 
 	/**
 	 * Create Animation Sequence from Reference Pose of the Mesh
@@ -1002,79 +1003,46 @@ public:
 
 public:
 #if WITH_EDITOR
+	UE_DEPRECATED(5.0, "AddBoneCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
 	UFUNCTION(BlueprintCallable, Category=CustomAttributes)
-	void AddBoneFloatCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<float>& ValueKeys)
-	{
-		AddBoneCustomAttribute<float>(BoneName, AttributeName, TimeKeys, ValueKeys);
-	}
-	
-	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
-	void AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<int32>& ValueKeys)
-	{
-		AddBoneCustomAttribute<int32>(BoneName, AttributeName, TimeKeys, ValueKeys);
-	}
+	void AddBoneFloatCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<float>& ValueKeys);
 
+	UE_DEPRECATED(5.0, "AddBoneCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
-	void AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<FString>& ValueKeys)
-	{
-		AddBoneCustomAttribute<FString>(BoneName, AttributeName, TimeKeys, ValueKeys);
-	}
+	void AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<int32>& ValueKeys);
 
+	UE_DEPRECATED(5.0, "AddBoneStringCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
+	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
+	void AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<FString>& ValueKeys);
+
+	UE_DEPRECATED(5.0, "RemoveCustomAttribute has been deprecated see UAnimDataController::RemoveAttribute")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
 	void RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName);
 
+	UE_DEPRECATED(5.0, "RemoveAllCustomAttributesForBone has been deprecated see UAnimDataController::RemoveAllAttributesForBone")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
 	void RemoveAllCustomAttributesForBone(const FName& BoneName);
 
+	UE_DEPRECATED(5.0, "RemoveAllCustomAttributes has been deprecated see UAnimDataController::RemoveAllAttributes")
 	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
 	void RemoveAllCustomAttributes();
-
-	void GetCustomAttributesForBone(const FName& BoneName, TArray<FCustomAttribute>& OutAttributes) const;
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.0, "GetCustomAttributesForBone has been deprecated see UAnimDataModel::GetAttributesForBone")
+	void GetCustomAttributesForBone(const FName& BoneName, TArray<FCustomAttribute>& OutAttributes) const {}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
+	UE_DEPRECATED(5.0, "GetCustomAttributesForBone has been deprecated use EvaluateAttribute instead")
+	void GetCustomAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const
+	{
+		EvaluateAttributes(OutAnimationPoseData, ExtractionContext, bUseRawData);
+	}
 
-	void GetCustomAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const;
+	void EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const;	
 protected:
 #if WITH_EDITOR
-	template<typename DataType>
-	void AddBoneCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArrayView<const float> TimeKeys, const TArrayView<const DataType> ValueKeys)
-	{
-		ensureMsgf(TimeKeys.Num() == ValueKeys.Num(), TEXT("Time keys do not match value keys"));
-
-		constexpr EVariantTypes VariantType = TVariantTraits<DataType>::GetType();
-		static_assert(VariantType == EVariantTypes::Int32 || VariantType == EVariantTypes::Float || VariantType == EVariantTypes::String, "Unsupported variant (data) type");
-
-		FCustomAttributePerBoneData& PerBoneData = FindOrAddCustomAttributeForBone(BoneName);
-		PerBoneData.BoneTreeIndex = GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName);
-
-		const bool bAlreadyExists = PerBoneData.Attributes.ContainsByPredicate([AttributeName](FCustomAttribute& Attribute)
-		{
-			return Attribute.Name == AttributeName;
-		});
-
-		if (!bAlreadyExists)
-		{
-			FCustomAttribute& NewAttribute = PerBoneData.Attributes.AddDefaulted_GetRef();
-			NewAttribute.Name = AttributeName;
-			NewAttribute.VariantType = (int32)VariantType;
-
-			NewAttribute.Times = TimeKeys;
-
-			for (const DataType& Value : ValueKeys)
-			{
-				NewAttribute.Values.Add(FVariant(Value));
-			}
-			
-			// Update the Guid used to keep track of raw / baked versions
-			CustomAttributesGuid = FGuid::NewGuid();
-		}
-		else
-		{
-			UE_LOG(LogAnimation, Warning, TEXT("Unable to add Custom Attribute %s to bone %s as it already exist."), *AttributeName.ToString(), *BoneName.ToString());
-		}
-	}
-	
-	void SynchronousCustomAttributesCompression();
-	FCustomAttributePerBoneData& FindOrAddCustomAttributeForBone(const FName& BoneName);
+	void SynchronousAnimatedBoneAttributesCompression();
+	void MoveAttributesToModel();
 #endif // WITH_EDITOR
 
 protected:
@@ -1112,24 +1080,17 @@ protected:
 	bool bBlockCompressionRequests;
 
 private:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.0, "PerBoneCustomAttributeData has been deprecated see UAnimDataModel::AnimatedBoneAttributes")
 	UPROPERTY(VisibleAnywhere, EditFixedSize, Category=CustomAttributes)
 	TArray<FCustomAttributePerBoneData> PerBoneCustomAttributeData;
-	
-	UPROPERTY()
-	FGuid CustomAttributesGuid;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITORONLY_DATA
 
+protected:
 	UPROPERTY()
-	FGuid BakedCustomAttributesGuid;
+	TMap<FAnimationAttributeIdentifier, FAttributeCurve> AttributeCurves;
 
-	bool HasValidBakedCustomAttributes() const
-	{
-		// Ensure the raw / baked versions match
-		return CustomAttributesGuid == BakedCustomAttributesGuid;
-	}
-#endif // WITH_EDITOR
-
-	UPROPERTY()
-	TArray<FBakedCustomAttributePerBoneData> BakedPerBoneCustomAttributeData;
 public:
 	friend class UAnimationAsset;
 	friend struct FScopedAnimSequenceRawDataCache;

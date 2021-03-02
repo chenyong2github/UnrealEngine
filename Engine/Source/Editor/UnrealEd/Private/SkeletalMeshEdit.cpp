@@ -38,6 +38,7 @@
 #include "FbxAnimUtils.h"
 #include "Animation/AnimData/AnimDataController.h"
 #include "Animation/AnimSequenceHelpers.h"
+#include "Animation/BuiltInAttributeTypes.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshEdit"
 
@@ -1390,7 +1391,8 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 						return InProperty.Get<float>() * ValueScale;
 					}
 				});
-				TargetSequence->AddBoneFloatCustomAttribute(BoneName, FName(CurveName), TimeArray, FloatValues);
+
+				UE::Anim::AddTypedCustomAttribute<FFloatAnimationAttribute, float>(FName(CurveName), BoneName, TargetSequence, MakeArrayView(TimeArray), MakeArrayView(FloatValues));
 				break;
 			}
 			case EFbxType::eFbxBool:
@@ -1414,7 +1416,8 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 						return static_cast<int32>(InProperty.Get<int32>() * ValueScale);
 					}
 				});
-				TargetSequence->AddBoneIntegerCustomAttribute(BoneName, FName(CurveName), TimeArray, IntValues);
+
+				UE::Anim::AddTypedCustomAttribute<FIntegerAnimationAttribute, int32>(FName(CurveName), BoneName, TargetSequence, MakeArrayView(TimeArray), MakeArrayView(IntValues));
 				break;
 			}
 			case EFbxType::eFbxString:
@@ -1434,7 +1437,8 @@ bool UnFbx::FFbxImporter::ImportCustomAttributeToBone(UAnimSequence* TargetSeque
 						return FString(UTF8_TO_TCHAR(InProperty.Get<FbxString>()));
 					}
 				});
-				TargetSequence->AddBoneStringCustomAttribute(BoneName, FName(CurveName), TimeArray, StringValues);
+
+				UE::Anim::AddTypedCustomAttribute<FStringAnimationAttribute, FString>(FName(CurveName), BoneName, TargetSequence, MakeArrayView(TimeArray), MakeArrayView(StringValues));
 				break;
 			}
 			default:
@@ -1530,7 +1534,7 @@ bool UnFbx::FFbxImporter::ImportAnimation(USkeleton* Skeleton, UAnimSequence * D
 
 	if (ImportOptions->bDeleteExistingNonCurveCustomAttributes)
 	{
-		DestSeq->RemoveAllCustomAttributes();
+		Controller->RemoveAllAttributes();
 	}
 	
 	const bool bReimportWarnings = GetDefault<UEditorPerProjectUserSettings>()->bAnimationReimportWarnings;

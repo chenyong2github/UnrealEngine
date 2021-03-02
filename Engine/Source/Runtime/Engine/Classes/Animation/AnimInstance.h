@@ -39,7 +39,7 @@ struct FParallelEvaluationData
 {
 	FBlendedHeapCurve& OutCurve;
 	FCompactPose& OutPose;
-	FHeapCustomAttributes& OutAttributes;
+	UE::Anim::FHeapAttributeContainer& OutAttributes;
 };
 
 UENUM()
@@ -180,7 +180,7 @@ struct FSlotEvaluationPose
 	/* These Pose/Curve is stack allocator. You should not use it outside of stack. */
 	FCompactPose Pose;
 	FBlendedCurve Curve;
-	FStackCustomAttributes Attributes;
+	UE::Anim::FStackAttributeContainer Attributes;
 
 	FSlotEvaluationPose()
 		: AdditiveType(AAT_None)

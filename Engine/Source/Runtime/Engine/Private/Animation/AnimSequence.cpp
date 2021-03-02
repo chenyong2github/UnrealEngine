@@ -46,7 +46,7 @@
 #include "Animation/AnimStreamable.h"
 #include "Modules/ModuleManager.h"
 #include "ProfilingDebugging/CookStats.h"
-#include "Animation/CustomAttributesRuntime.h"
+#include "Animation/AttributesRuntime.h"
 #include "Stats/StatsHierarchical.h"
 #include "Animation/AnimationPoseData.h"
 #include "ITimeManagementModule.h"
@@ -57,6 +57,7 @@
 #if WITH_EDITOR
 #include "Animation/AnimData/AnimDataController.h"
 #include "Animation/AnimData/AnimDataModel.h"
+#include "Animation/BuiltInAttributeTypes.h"
 #endif // WITH_EDITOR
 
 #include "Animation/AnimSequenceHelpers.h"
@@ -433,9 +434,6 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	ImportResampleFramerate = 0;
 	bAllowFrameStripping = true;
 	CompressionErrorThresholdScale = 1.f;
-
-	CustomAttributesGuid.Invalidate();
-	BakedCustomAttributesGuid.Invalidate();
 
 	if (!HasAllFlags(EObjectFlags::RF_ClassDefaultObject))
 	{
@@ -960,6 +958,14 @@ void UAnimSequence::PostLoad()
 		}
 #endif
 	}
+
+#if WITH_EDITOR
+	if (GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MoveCustomAttributesToDataModel)
+	{
+		ValidateModel();
+		MoveAttributesToModel();
+	}
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -1410,7 +1416,7 @@ void UAnimSequence::GetAnimationPose(FAnimationPoseData& OutAnimationPoseData, c
 
 void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData) const
 {
-	FStackCustomAttributes TempAttributes;
+	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
 	GetBonePose(OutAnimationPoseData, ExtractionContext, bForceUseRawData);
 }
@@ -1520,7 +1526,7 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 			RootMotionReset.ResetRootBoneForRootMotion(OutPose[FCompactPoseBoneIndex(0)], RequiredBones);
 		}
 
-		GetCustomAttributes(OutAnimationPoseData, ExtractionContext, true);
+		EvaluateAttributes(OutAnimationPoseData, ExtractionContext, true);
 
 		return;
 	}
@@ -1528,7 +1534,7 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 
 	DecompressPose(OutPose, CompressedData, ExtractionContext, GetSkeleton(), GetPlayLength(), Interpolation, bIsBakedAdditive, GetRetargetTransforms(), GetRetargetTransformsSourceName(), RootMotionReset);
 
-	GetCustomAttributes(OutAnimationPoseData, ExtractionContext, false);
+	EvaluateAttributes(OutAnimationPoseData, ExtractionContext, false);
 }
 
 const TArray<FRawAnimSequenceTrack>& UAnimSequence::GetRawAnimationData() const
@@ -1612,7 +1618,7 @@ int32 UAnimSequence::AddNewRawTrack(FName TrackName, FRawAnimSequenceTrack* Trac
 
 void UAnimSequence::GetBonePose_Additive(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
-	FStackCustomAttributes TempAttributes;
+	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
 
 	GetBonePose_Additive(OutAnimationPoseData, ExtractionContext);
@@ -1622,7 +1628,7 @@ void UAnimSequence::GetBonePose_Additive(FAnimationPoseData& OutAnimationPoseDat
 {
 	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
 	FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
-	FStackCustomAttributes& OutAttributes = OutAnimationPoseData.GetAttributes();
+	UE::Anim::FStackAttributeContainer& OutAttributes = OutAnimationPoseData.GetAttributes();
 
 	if (!IsValidAdditive())
 	{
@@ -1636,7 +1642,7 @@ void UAnimSequence::GetBonePose_Additive(FAnimationPoseData& OutAnimationPoseDat
 	// Extract base pose
 	FCompactPose BasePose;
 	FBlendedCurve BaseCurve;
-	FStackCustomAttributes BaseAttributes;
+	UE::Anim::FStackAttributeContainer BaseAttributes;
 	
 	BasePose.SetBoneContainer(&OutPose.GetBoneContainer());
 	BaseCurve.InitFrom(OutCurve);	
@@ -1649,12 +1655,12 @@ void UAnimSequence::GetBonePose_Additive(FAnimationPoseData& OutAnimationPoseDat
 	FAnimationRuntime::ConvertPoseToAdditive(OutPose, BasePose);
 	OutCurve.ConvertToAdditive(BaseCurve);
 
-	FCustomAttributesRuntime::SubtractAttributes(BaseAttributes, OutAttributes);
+	UE::Anim::Attributes::ConvertToAdditive(BaseAttributes, OutAttributes);
 }
 
 void UAnimSequence::GetAdditiveBasePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
-	FStackCustomAttributes TempAttributes;
+	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
 
 	GetAdditiveBasePose(OutAnimationPoseData, ExtractionContext);
@@ -1698,7 +1704,7 @@ void UAnimSequence::GetAdditiveBasePose(FAnimationPoseData& OutAnimationPoseData
 
 void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
-	FStackCustomAttributes TempAttributes;
+	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
 
 	GetBonePose_AdditiveMeshRotationOnly(OutAnimationPoseData, ExtractionContext);
@@ -1708,7 +1714,7 @@ void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FAnimationPoseData& Out
 {
 	FCompactPose& OutPose = OutAnimationPoseData.GetPose();
 	FBlendedCurve& OutCurve = OutAnimationPoseData.GetCurve();
-	FStackCustomAttributes& OutAttributes = OutAnimationPoseData.GetAttributes();
+	UE::Anim::FStackAttributeContainer& OutAttributes = OutAnimationPoseData.GetAttributes();
 
 	if (!IsValidAdditive())
 	{
@@ -1723,7 +1729,7 @@ void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FAnimationPoseData& Out
 	// get base pose
 	FCompactPose BasePose;
 	FBlendedCurve BaseCurve;
-	FStackCustomAttributes BaseAttributes;
+	UE::Anim::FStackAttributeContainer BaseAttributes;
 
 	FAnimationPoseData BasePoseData(BasePose, BaseCurve, BaseAttributes);
 
@@ -1740,7 +1746,7 @@ void UAnimSequence::GetBonePose_AdditiveMeshRotationOnly(FAnimationPoseData& Out
 	FAnimationRuntime::ConvertPoseToAdditive(OutPose, BasePose);
 	OutCurve.ConvertToAdditive(BaseCurve);
 
-	FCustomAttributesRuntime::SubtractAttributes(BaseAttributes, OutAttributes);
+	UE::Anim::Attributes::ConvertToAdditive(BaseAttributes, OutAttributes);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -2106,7 +2112,7 @@ void UAnimSequence::ApplyCompressedData(const TArray<uint8>& Data)
 #if WITH_EDITOR
 	bCompressionInProgress = false;
 	
-	SynchronousCustomAttributesCompression();
+	SynchronousAnimatedBoneAttributesCompression();
 #endif
 	if(Data.Num() > 0)
 	{
@@ -2346,7 +2352,7 @@ void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewR
 		const float CurrentFrameTime = Frame * EvalContext.IntervalTime;
 		ExtractContext.CurrentTime = CurrentFrameTime;
 
-		FStackCustomAttributes TempAttributes;
+		UE::Anim::FStackAttributeContainer TempAttributes;
 		FAnimationPoseData AnimPoseData(Pose, Curve, TempAttributes);
 		GetAnimationPose(AnimPoseData, ExtractContext);
 
@@ -2405,7 +2411,7 @@ void UAnimSequence::TestEvalauteAnimation() const
 		const float CurrentFrameTime = Frame * EvalContext.IntervalTime;
 		ExtractContext.CurrentTime = CurrentFrameTime;
 
-		FStackCustomAttributes TempAttributes;
+		UE::Anim::FStackAttributeContainer TempAttributes;
 		FAnimationPoseData AnimPoseData(Pose, Curve, TempAttributes);
 		GetAnimationPose(AnimPoseData, ExtractContext);
 	}
@@ -2515,11 +2521,11 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 		const float CurrentFrameTime = Frame * EvalContext.IntervalTime;
 		ExtractContext.CurrentTime = CurrentFrameTime;
 
-		FStackCustomAttributes BaseAttributes;
+		UE::Anim::FStackAttributeContainer BaseAttributes;
 		FAnimationPoseData AnimPoseData(Pose, Curve, BaseAttributes);
 		GetAnimationPose(AnimPoseData, ExtractContext);
 
-		FStackCustomAttributes AdditiveAttributes;
+		UE::Anim::FStackAttributeContainer AdditiveAttributes;
 		FAnimationPoseData AnimBasePoseData(BasePose, DummyBaseCurve, AdditiveAttributes);
 		GetAdditiveBasePose(AnimBasePoseData, ExtractContext);
 
@@ -4583,52 +4589,50 @@ bool UAnimSequence::UseRawDataForPoseExtraction(const FBoneContainer& RequiredBo
 	return bUseRawDataOnly || (GetSkeletonVirtualBoneGuid() != GetSkeleton()->GetVirtualBoneGuid()) || RequiredBones.GetDisableRetargeting() || RequiredBones.ShouldUseRawData() || RequiredBones.ShouldUseSourceData();
 }
 
-void UAnimSequence::GetCustomAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const
+#if WITH_EDITOR
+void UAnimSequence::AddBoneFloatCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<float>& ValueKeys)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_GetCustomAttributes);
+	UE::Anim::AddTypedCustomAttribute<FFloatAnimationAttribute, float>(AttributeName, BoneName, this, MakeArrayView(TimeKeys), MakeArrayView(ValueKeys));
+}
+
+void UAnimSequence::AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<int32>& ValueKeys)
+{
+	UE::Anim::AddTypedCustomAttribute<FIntegerAnimationAttribute, int32>(AttributeName, BoneName, this, MakeArrayView(TimeKeys), MakeArrayView(ValueKeys));
+}
+
+void UAnimSequence::AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<FString>& ValueKeys)
+{
+	UE::Anim::AddTypedCustomAttribute<FStringAnimationAttribute, FString>(AttributeName, BoneName, this, MakeArrayView(TimeKeys), MakeArrayView(ValueKeys));
+}
+#endif // WITH_EDITOR
+
+void UAnimSequence::EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_EvaluateAttributes);
 
 	const FBoneContainer& RequiredBones = OutAnimationPoseData.GetPose().GetBoneContainer();
-	FStackCustomAttributes& OutAttributes = OutAnimationPoseData.GetAttributes();
+	UE::Anim::FStackAttributeContainer& OutAttributes = OutAnimationPoseData.GetAttributes();
 
 #if WITH_EDITOR
 	if (bUseRawData)
 	{
-		for (const FCustomAttributePerBoneData& BoneAttributes : PerBoneCustomAttributeData)
+		ValidateModel();
+		for (const FAnimatedBoneAttribute& Attribute : DataModel->GetAttributes())
 		{
-			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(BoneAttributes.BoneTreeIndex);
-
-			for (const FCustomAttribute& Attribute : BoneAttributes.Attributes)
-			{
-				FCustomAttributesRuntime::GetAttributeValue(OutAttributes, PoseBoneIndex, Attribute, ExtractionContext);
-			}
+			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(Attribute.Identifier.GetBoneIndex());
+			UE::Anim::Attributes::GetAttributeValue(OutAttributes, PoseBoneIndex, Attribute, ExtractionContext);
 		}
 	}
 	else
 #endif // WITH_EDITOR
 	{
-		for (const FBakedCustomAttributePerBoneData& BakedBoneAttributes : BakedPerBoneCustomAttributeData)
+		for (const TPair<FAnimationAttributeIdentifier, FAttributeCurve>& BakedAttribute : AttributeCurves)
 		{
-			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(BakedBoneAttributes.BoneTreeIndex);
-			for (const FBakedFloatCustomAttribute& Attribute : BakedBoneAttributes.FloatAttributes)
-			{
-				const ECustomAttributeBlendType BlendType = FCustomAttributesRuntime::GetAttributeBlendType(Attribute.AttributeName);
-				const float Value = Attribute.FloatCurve.Eval(ExtractionContext.CurrentTime);
-				OutAttributes.AddBoneAttribute<float>(PoseBoneIndex, Attribute.AttributeName, BlendType, Value);
-			}
+			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(BakedAttribute.Key.GetBoneIndex());
+			UE::Anim::FAttributeId Info(BakedAttribute.Key.GetName(), PoseBoneIndex);
+			uint8* AttributePtr = OutAttributes.FindOrAdd(BakedAttribute.Key.GetType(), Info);
 
-			for (const FBakedIntegerCustomAttribute& Attribute : BakedBoneAttributes.IntAttributes)
-			{
-				const ECustomAttributeBlendType BlendType = FCustomAttributesRuntime::GetAttributeBlendType(Attribute.AttributeName);
-				const int32 Value = Attribute.IntCurve.Evaluate(ExtractionContext.CurrentTime);
-				OutAttributes.AddBoneAttribute<int32>(PoseBoneIndex, Attribute.AttributeName, BlendType, Value);
-			}
-
-			for (const FBakedStringCustomAttribute& Attribute : BakedBoneAttributes.StringAttributes)
-			{
-				static const FString DefaultValue = TEXT("");
-				const FString Value = Attribute.StringCurve.Eval(ExtractionContext.CurrentTime, DefaultValue);
-				OutAttributes.AddBoneAttribute<FString>(PoseBoneIndex, Attribute.AttributeName, ECustomAttributeBlendType::Override, Value);
-			}
+			BakedAttribute.Value.EvaluateToPtr(BakedAttribute.Key.GetType(), ExtractionContext.CurrentTime, AttributePtr);
 		}
 	}
 }
@@ -4636,182 +4640,51 @@ void UAnimSequence::GetCustomAttributes(FAnimationPoseData& OutAnimationPoseData
 #if WITH_EDITOR
 void UAnimSequence::RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName)
 {
-	FCustomAttributePerBoneData* DataPtr = PerBoneCustomAttributeData.FindByPredicate([BoneName, this](FCustomAttributePerBoneData& Attribute)
-	{
-		return Attribute.BoneTreeIndex == GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName);
-	});
+	ValidateModel();
 
-	if (DataPtr)
-	{
-		const int32 NumRemoved = DataPtr->Attributes.RemoveAll([AttributeName](FCustomAttribute& Attribute)
-		{
-			return Attribute.Name == AttributeName;
-		});
+	TArray<FAnimationAttributeIdentifier> IdentifiersToRemove;
 
-		// In case there are no custom attributes left for this bone, remove the wrapping structure entry as well
-		if (DataPtr->Attributes.Num() == 0)
+	Algo::TransformIf(DataModel->GetAttributes(), IdentifiersToRemove, 
+		[BoneName, AttributeName](const FAnimatedBoneAttribute& Attribute)
 		{
-			ensure(PerBoneCustomAttributeData.RemoveAll([DataPtr](FCustomAttributePerBoneData& Attribute)
-			{
-				return Attribute.BoneTreeIndex == DataPtr->BoneTreeIndex;
-			}) == 1);
+			return Attribute.Identifier.GetBoneName() == BoneName && Attribute.Identifier.GetName() == AttributeName;
+		},
+		[] (const FAnimatedBoneAttribute& Attribute)
+		{
+			return Attribute.Identifier;
 		}
+	);
 
-		if (NumRemoved)
+	if (IdentifiersToRemove.Num())
+	{
+		UAnimDataController::FScopedBracket Bracket(Controller, LOCTEXT("RemoveCustomAttributeDeprecated", "Removing Custom Attributes by Bone and Name"));
+		for (const FAnimationAttributeIdentifier& AttributeIdentifier : IdentifiersToRemove)
 		{
-			// Update the Guid used to keep track of raw / baked versions
-			CustomAttributesGuid = FGuid::NewGuid();
+			Controller->RemoveAttribute(AttributeIdentifier);
 		}
 	}
 }
 
 void UAnimSequence::RemoveAllCustomAttributesForBone(const FName& BoneName)
 {
-	const USkeleton* CurrentSkeleton = GetSkeleton();
-
-	if (CurrentSkeleton)
-	{
-		const int32 BoneIndex = CurrentSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
-
-		if (BoneIndex != INDEX_NONE)
-		{
-			const int32 NumRemoved = PerBoneCustomAttributeData.RemoveAll([BoneIndex](const FCustomAttributePerBoneData PerBoneData)
-			{
-				return PerBoneData.BoneTreeIndex == BoneIndex;
-			});
-
-			if (NumRemoved)
-			{
-				// Update the Guid used to keep track of raw / baked versions
-				CustomAttributesGuid = FGuid::NewGuid();
-			}
-		}
-	}
+	ValidateModel();
+	Controller->RemoveAllAttributesForBone(BoneName);
 }
 
 void UAnimSequence::RemoveAllCustomAttributes()
 {
-	if (PerBoneCustomAttributeData.Num())
-	{
-		// Update the Guid used to keep track of raw / baked versions
-		CustomAttributesGuid = FGuid::NewGuid();
-	}
-
-	PerBoneCustomAttributeData.Empty();
+	ValidateModel();
+	Controller->RemoveAllAttributes();
 }
 
-void UAnimSequence::GetCustomAttributesForBone(const FName& BoneName, TArray<FCustomAttribute>& OutAttributes) const
+void UAnimSequence::SynchronousAnimatedBoneAttributesCompression()
 {
-	const USkeleton* CurrentSkeleton = GetSkeleton();
+	ValidateModel();
 
-	if (CurrentSkeleton)
-	{
-		const int32 BoneIndex = CurrentSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
+	AttributeCurves.Empty();
 
-		if (BoneIndex != INDEX_NONE)
-		{
-			for (const FCustomAttributePerBoneData& PerBoneData : PerBoneCustomAttributeData)
-			{
-				if (PerBoneData.BoneTreeIndex == BoneIndex)
-				{
-					OutAttributes.Append(PerBoneData.Attributes);
-				}
-			}
-		}
-	}
-}
-
-// Helper functionality to populate a curve by sampling the custom attribute data
-template<typename DataType, typename CurveType>
-void ConvertAttributeToAdditive(const FCustomAttribute& AdditiveAttribute, const FCustomAttribute& RefAttribute, CurveType& InOutCurve, float SamplingTime, int32 NumberOfFrames, TFunctionRef<float(float Time)> GetReferenceTime)
-{
-	for (int32 Frame = 0; Frame < NumberOfFrames; ++Frame)
-	{
-		const float CurrentFrameTime = Frame * SamplingTime;
-
-		DataType AdditiveValue;
-		FCustomAttributesRuntime::GetAttributeValue(AdditiveAttribute, CurrentFrameTime, AdditiveValue);
-
-		DataType RefValue;
-		FCustomAttributesRuntime::GetAttributeValue(RefAttribute, GetReferenceTime(CurrentFrameTime), RefValue);
-
-		const DataType Value = RefValue - AdditiveValue;
-		InOutCurve.AddKey(CurrentFrameTime, Value);
-	}
-}
-
-void UAnimSequence::SynchronousCustomAttributesCompression()
-{
 	// If we are additive, we'll need to sample the base pose (against we're additive) and subtract the attributes from the base ones
 	const bool bShouldSampleBasePose = IsValidAdditive() && RefPoseType != ABPT_RefPose;
-	
-	BakedPerBoneCustomAttributeData.Empty(PerBoneCustomAttributeData.Num());
-
-	auto ProcessCustomAttribute = [this](const FCustomAttribute& Attribute, FBakedCustomAttributePerBoneData& BakedBoneAttributes)
-	{		
-		switch (static_cast<EVariantTypes>(Attribute.VariantType))
-		{
-			case EVariantTypes::Float:
-			{
-				FBakedFloatCustomAttribute& BakedFloatAttribute = BakedBoneAttributes.FloatAttributes.AddDefaulted_GetRef();
-				BakedFloatAttribute.AttributeName = Attribute.Name;
-
-				FSimpleCurve& FloatCurve = BakedFloatAttribute.FloatCurve;
-
-				TArray<FSimpleCurveKey> Keys;
-				for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
-				{
-					const FVariant& VariantValue = Attribute.Values[KeyIndex];
-					FloatCurve.AddKey(Attribute.Times[KeyIndex], VariantValue.GetValue<float>());
-				}
-
-				FloatCurve.SetDefaultValue(FloatCurve.GetFirstKey().Value);
-				FloatCurve.RemoveRedundantKeys(0.f);
-				break;
-			}
-
-			case EVariantTypes::Int32:
-			{
-				FBakedIntegerCustomAttribute& BakedIntAttribute = BakedBoneAttributes.IntAttributes.AddDefaulted_GetRef();
-				BakedIntAttribute.AttributeName = Attribute.Name;
-
-				FIntegralCurve& IntCurve = BakedIntAttribute.IntCurve;
-				for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
-				{
-					const FVariant& VariantValue = Attribute.Values[KeyIndex];
-					IntCurve.AddKey(Attribute.Times[KeyIndex], VariantValue.GetValue<int32>());
-				}
-
-				IntCurve.SetDefaultValue(IntCurve.GetKey(IntCurve.GetFirstKeyHandle()).Value);
-				IntCurve.RemoveRedundantKeys();
-				break;
-			}
-
-			case EVariantTypes::String:
-			{
-				FBakedStringCustomAttribute& BakedStringAttribute = BakedBoneAttributes.StringAttributes.AddDefaulted_GetRef();
-				BakedStringAttribute.AttributeName = Attribute.Name;
-
-				FStringCurve& StringCurve = BakedStringAttribute.StringCurve;
-				for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
-				{
-					const FVariant& VariantValue = Attribute.Values[KeyIndex];
-					StringCurve.AddKey(Attribute.Times[KeyIndex], VariantValue.GetValue<FString>());
-				}
-
-				StringCurve.SetDefaultValue(StringCurve.GetKey(StringCurve.GetFirstKeyHandle()).Value);
-				StringCurve.RemoveRedundantKeys();
-				break;
-			}
-
-			default:
-			{
-				ensureMsgf(false, TEXT("Invalid data variant type for custom attribute, only int32, float and FString are currently supported"));
-				break;
-			}
-		}
-	};
-
 	if (bShouldSampleBasePose)
 	{
 		// Behaviour for determining the time to sample the base pose attributes
@@ -4829,7 +4702,6 @@ void UAnimSequence::SynchronousCustomAttributesCompression()
 			{
 				const float Fraction = (RefPoseSeq->GetNumberOfSampledKeys() > 0) ? FMath::Clamp<float>((float)RefFrameIndex / (float)RefPoseSeq->GetNumberOfSampledKeys(), 0.f, 1.f) : 0.f;
 				BasePoseTime = RefPoseSeq->GetPlayLength() * Fraction;
-
 			}
 
 			return BasePoseTime;
@@ -4839,101 +4711,176 @@ void UAnimSequence::SynchronousCustomAttributesCompression()
 
 		// Helper struct to match sample timings with regular additive baking
 		FByFramePoseEvalContext EvalContext(this);
-		for (const FCustomAttributePerBoneData& BoneAttributes : PerBoneCustomAttributeData)
+
+		for (const FAnimatedBoneAttribute& AdditiveAttribute : DataModel->GetAttributes())
 		{
-			FBakedCustomAttributePerBoneData& BakedBoneAttributes = BakedPerBoneCustomAttributeData.AddDefaulted_GetRef();
-			BakedBoneAttributes.BoneTreeIndex = BoneAttributes.BoneTreeIndex;
+			ensure(!AttributeCurves.Contains(AdditiveAttribute.Identifier));
+			FAttributeCurve& AttributeCurve = AttributeCurves.Add(AdditiveAttribute.Identifier);
 
-			TArray<FCustomAttribute> ReferenceSequenceAttributes;			
-			RefPoseSeq->GetCustomAttributesForBone(RefSkeleton.GetBoneName(BoneAttributes.BoneTreeIndex), ReferenceSequenceAttributes);
-
-			// Check whether or not the base sequence has any attributes
-			if (!ReferenceSequenceAttributes.Num())
+			if (const FAnimatedBoneAttribute* RefPoseAttributePtr = RefPoseSeq->GetDataModel()->FindAttribute(AdditiveAttribute.Identifier))
 			{
-				for (const FCustomAttribute& Attribute : BoneAttributes.Attributes)
+				AttributeCurve.SetScriptStruct(AdditiveAttribute.Identifier.GetType());
+				const FAnimatedBoneAttribute& RefAttribute = *RefPoseAttributePtr;
+				for (int32 Frame = 0; Frame < NumberOfSampledKeys; ++Frame)
 				{
-					ProcessCustomAttribute(Attribute, BakedBoneAttributes);
+					const float CurrentFrameTime = Frame * EvalContext.IntervalTime;
+
+					UE::Anim::FStackAttributeContainer AdditiveAttributes;
+					uint8* AdditivePtr = AdditiveAttributes.FindOrAdd(AdditiveAttribute.Identifier.GetType(), UE::Anim::FAttributeId(NAME_None, 0));
+					AdditiveAttribute.Curve.EvaluateToPtr(AdditiveAttribute.Identifier.GetType(), CurrentFrameTime, AdditivePtr);
+
+					UE::Anim::FStackAttributeContainer RefAttributes;
+					uint8* RefPtr = RefAttributes.FindOrAdd(RefAttribute.Identifier.GetType(), UE::Anim::FAttributeId(NAME_None, 0));
+					RefAttribute.Curve.EvaluateToPtr(RefAttribute.Identifier.GetType(), GetBasePoseTimeToSample(CurrentFrameTime), RefPtr);
+
+					UE::Anim::Attributes::ConvertToAdditive(RefAttributes, AdditiveAttributes);
+
+					AttributeCurve.AddKey(CurrentFrameTime, (void*)AdditivePtr);
 				}
 			}
 			else
 			{
-				for (const FCustomAttribute& Attribute : BoneAttributes.Attributes)
-				{
-					// Try and find equivalent in reference sequence
-					const FCustomAttribute* RefAttribute = ReferenceSequenceAttributes.FindByPredicate([Attribute](const FCustomAttribute& Attr)
-					{	
-						return Attribute.Name == Attr.Name && Attribute.VariantType == Attr.VariantType;
-					});
-
-					if (RefAttribute)
-					{
-						switch (static_cast<EVariantTypes>(Attribute.VariantType))
-						{
-							case EVariantTypes::Float:
-							{
-								FBakedFloatCustomAttribute& BakedFloatAttribute = BakedBoneAttributes.FloatAttributes.AddDefaulted_GetRef();
-								BakedFloatAttribute.AttributeName = Attribute.Name;
-
-								FSimpleCurve& FloatCurve = BakedFloatAttribute.FloatCurve;
-								ConvertAttributeToAdditive<float, FSimpleCurve>(Attribute, *RefAttribute, FloatCurve, EvalContext.IntervalTime, NumberOfSampledKeys, GetBasePoseTimeToSample);
-								FloatCurve.RemoveRedundantKeys(0.f);
-
-								break;
-							}
-
-							case EVariantTypes::Int32:
-							{
-								FBakedIntegerCustomAttribute& BakedIntAttribute = BakedBoneAttributes.IntAttributes.AddDefaulted_GetRef();
-								BakedIntAttribute.AttributeName = Attribute.Name;
-
-								FIntegralCurve& IntCurve = BakedIntAttribute.IntCurve;
-								ConvertAttributeToAdditive<int32, FIntegralCurve>(Attribute, *RefAttribute, IntCurve, EvalContext.IntervalTime, NumberOfSampledKeys, GetBasePoseTimeToSample);
-								IntCurve.RemoveRedundantKeys();
-							
-								break;
-							}
-
-							case EVariantTypes::String:
-							{
-								ProcessCustomAttribute(Attribute, BakedBoneAttributes);
-								break;
-							}
-						}
-					}
-					else
-					{
-						ProcessCustomAttribute(Attribute, BakedBoneAttributes);
-					}					
-				}
+				AttributeCurve = AdditiveAttribute.Curve;
 			}
 		}
 	}
 	else
 	{
-		for (const FCustomAttributePerBoneData& BoneAttributes : PerBoneCustomAttributeData)
+		for (const FAnimatedBoneAttribute& Attribute : DataModel->GetAttributes())
 		{
-			FBakedCustomAttributePerBoneData& BakedBoneAttributes = BakedPerBoneCustomAttributeData.AddDefaulted_GetRef();
-			BakedBoneAttributes.BoneTreeIndex = BoneAttributes.BoneTreeIndex;
+			// Do something with the attributes
+			ensure(!AttributeCurves.Contains(Attribute.Identifier));
 
-			for (const FCustomAttribute& Attribute : BoneAttributes.Attributes)
-			{
-				ProcessCustomAttribute(Attribute, BakedBoneAttributes);
-			}
+			FAttributeCurve& BakedCurve = AttributeCurves.Add(Attribute.Identifier);
+			BakedCurve = Attribute.Curve;
 		}
 	}
 
-	// Match baked/raw attributes guid
-	BakedCustomAttributesGuid = CustomAttributesGuid;
+	for (TPair<FAnimationAttributeIdentifier, FAttributeCurve>& BakedAttribute : AttributeCurves)
+	{
+		BakedAttribute.Value.RemoveRedundantKeys();
+	}
 }
 
-FCustomAttributePerBoneData& UAnimSequence::FindOrAddCustomAttributeForBone(const FName& BoneName)
+void UAnimSequence::MoveAttributesToModel()
 {
-	FCustomAttributePerBoneData* DataPtr = PerBoneCustomAttributeData.FindByPredicate([BoneName, this](FCustomAttributePerBoneData& Attribute)
-	{
-		return Attribute.BoneTreeIndex == GetSkeleton()->GetReferenceSkeleton().FindBoneIndex(BoneName);
-	});
+	WaitOnExistingCompression(false);
 
-	return DataPtr ? *DataPtr : PerBoneCustomAttributeData.AddDefaulted_GetRef();
+	USkeleton* TargetSkeleton = GetSkeleton();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (TargetSkeleton && PerBoneCustomAttributeData.Num())
+	{
+		UAnimDataController::FScopedBracket Bracket(Controller, LOCTEXT("MoveAttributesToModel", "Moving legacy Custom Attributes to Model"));
+
+		for (const FCustomAttributePerBoneData& PerBoneData : PerBoneCustomAttributeData)
+		{
+			const FName BoneName = TargetSkeleton->GetReferenceSkeleton().GetBoneName(PerBoneData.BoneTreeIndex);
+			if (BoneName != NAME_None)
+			{
+				auto ProcessCustomAttribute = [BoneName, this](const FCustomAttribute& Attribute)
+				{
+					switch (static_cast<EVariantTypes>(Attribute.VariantType))
+					{
+					case EVariantTypes::Float:
+					{
+						FAnimationAttributeIdentifier Identifier = UAnimationAttributeIdentifierExtensions::CreateAttributeIdentifier(this, Attribute.Name, BoneName, FFloatAnimationAttribute::StaticStruct());
+
+						if (Controller->AddAttribute(Identifier))
+						{
+							TArray<int8> TempArray;
+							TempArray.SetNumZeroed(FFloatAnimationAttribute::StaticStruct()->GetStructureSize());
+							FFloatAnimationAttribute::StaticStruct()->InitializeStruct(TempArray.GetData());
+
+							FFloatAnimationAttribute* TempAttribute = (FFloatAnimationAttribute*)TempArray.GetData();
+
+							for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
+							{
+								const FVariant& VariantValue = Attribute.Values[KeyIndex];
+								TempAttribute->Value = VariantValue.GetValue<float>();
+								Controller->SetTypedAttributeKey<FFloatAnimationAttribute>(Identifier, Attribute.Times[KeyIndex], *TempAttribute);
+							}
+						}
+						else
+						{
+							UE_LOG(LogAnimation, Warning, TEXT("Failed to upgrade float attribute %s for bone %s"), *Attribute.Name.ToString(), *BoneName.ToString());
+
+						}
+
+						break;
+					}
+
+					case EVariantTypes::Int32:
+					{
+						FAnimationAttributeIdentifier Identifier = UAnimationAttributeIdentifierExtensions::CreateAttributeIdentifier(this, Attribute.Name, BoneName, FIntegerAnimationAttribute::StaticStruct());
+						if (Controller->AddAttribute(Identifier))
+						{
+							TArray<int8> TempArray;
+							TempArray.SetNumZeroed(FIntegerAnimationAttribute::StaticStruct()->GetStructureSize());
+							FIntegerAnimationAttribute::StaticStruct()->InitializeStruct(TempArray.GetData());
+
+							FIntegerAnimationAttribute* TempAttribute = (FIntegerAnimationAttribute*)TempArray.GetData();
+
+							for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
+							{
+								const FVariant& VariantValue = Attribute.Values[KeyIndex];
+								TempAttribute->Value = VariantValue.GetValue<int32>();
+								Controller->SetTypedAttributeKey<FIntegerAnimationAttribute>(Identifier, Attribute.Times[KeyIndex], *TempAttribute);
+							}
+						}
+						else
+						{
+							UE_LOG(LogAnimation, Warning, TEXT("Failed to upgrade integer attribute %s for bone %s"), *Attribute.Name.ToString(), *BoneName.ToString());
+						}
+
+						break;
+					}
+
+					case EVariantTypes::String:
+					{
+						FAnimationAttributeIdentifier Identifier = UAnimationAttributeIdentifierExtensions::CreateAttributeIdentifier(this, Attribute.Name, BoneName, FStringAnimationAttribute::StaticStruct());
+						if (Controller->AddAttribute(Identifier))
+						{
+							TArray<int8> TempArray;
+							TempArray.SetNumZeroed(FStringAnimationAttribute::StaticStruct()->GetStructureSize());
+							FStringAnimationAttribute::StaticStruct()->InitializeStruct(TempArray.GetData());
+
+							FStringAnimationAttribute*TempAttribute = (FStringAnimationAttribute*)TempArray.GetData();
+							for (int32 KeyIndex = 0; KeyIndex < Attribute.Times.Num(); ++KeyIndex)
+							{
+								const FVariant& VariantValue = Attribute.Values[KeyIndex];
+								TempAttribute->Value = VariantValue.GetValue<FString>();
+								Controller->SetTypedAttributeKey<FStringAnimationAttribute>(Identifier, Attribute.Times[KeyIndex], *TempAttribute);
+							}
+						}
+						else
+						{
+							UE_LOG(LogAnimation, Warning, TEXT("Failed to upgrade string attribute %s for bone %s"), *Attribute.Name.ToString(), *BoneName.ToString());
+						}
+						break;
+					}
+
+					default:
+					{
+						ensureMsgf(false, TEXT("Invalid data variant type for custom attribute, only int32, float and FString are currently supported"));
+						break;
+					}
+					}
+				};
+
+				for (const FCustomAttribute& Attribute : PerBoneData.Attributes)
+				{
+					ProcessCustomAttribute(Attribute);
+				}
+			}
+			else
+			{
+				UE_LOG(LogAnimation, Warning, TEXT("Failed to upgrade custom attributes for bone index %i as no such bone index existing in the Skeleton %s"), PerBoneData.BoneTreeIndex, *TargetSkeleton->GetName());
+			}
+		}
+
+		PerBoneCustomAttributeData.Empty();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 #endif // WITH_EDITOR
 
@@ -5670,7 +5617,8 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 			{
 				const auto LengthChangingNotifies = { EAnimDataModelNotifyType::SequenceLengthChanged, EAnimDataModelNotifyType::FrameRateChanged, EAnimDataModelNotifyType::Reset };
 				const auto ResamplingNotifies = { EAnimDataModelNotifyType::TrackAdded, EAnimDataModelNotifyType::TrackChanged, EAnimDataModelNotifyType::TrackRemoved,  EAnimDataModelNotifyType::Populated };
-				const auto RecompressNotifies = { EAnimDataModelNotifyType::CurveAdded, EAnimDataModelNotifyType::CurveChanged, EAnimDataModelNotifyType::CurveRemoved, EAnimDataModelNotifyType::CurveFlagsChanged, EAnimDataModelNotifyType::CurveScaled };
+				const auto RecompressNotifies = { EAnimDataModelNotifyType::CurveAdded, EAnimDataModelNotifyType::CurveChanged, EAnimDataModelNotifyType::CurveRemoved, EAnimDataModelNotifyType::CurveFlagsChanged, EAnimDataModelNotifyType::CurveScaled,
+				EAnimDataModelNotifyType::AttributeAdded, EAnimDataModelNotifyType::AttributeChanged, EAnimDataModelNotifyType::AttributeRemoved };
 				
 				if (NotifyCollector.Contains(LengthChangingNotifies) || NotifyCollector.Contains(ResamplingNotifies))
 				{
@@ -5727,6 +5675,18 @@ void UAnimSequence::OnModelModified(const EAnimDataModelNotifyType& NotifyType, 
 				RecompressAnimationData();
 			}
 
+			break;
+		}
+
+		case EAnimDataModelNotifyType::AttributeAdded:
+		case EAnimDataModelNotifyType::AttributeChanged:
+		case EAnimDataModelNotifyType::AttributeRemoved:
+		{
+			if (NotifyCollector.IsNotWithinBracket())
+			{
+				UpdateRawDataGuid(RegenerateGUID);
+				RecompressAnimationData();
+			}
 			break;
 		}
 

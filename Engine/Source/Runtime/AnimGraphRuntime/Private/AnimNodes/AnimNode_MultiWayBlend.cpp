@@ -9,7 +9,7 @@ struct FMultiBlendData : public TThreadSingleton<FMultiBlendData>
 	TArray<FCompactPose, TInlineAllocator<8>> SourcePoses;
 	TArray<float, TInlineAllocator<8>> SourceWeights;
 	TArray<FBlendedCurve, TInlineAllocator<8>> SourceCurves;
-	TArray<FStackCustomAttributes, TInlineAllocator<8>> SourceAttributes;
+	TArray<UE::Anim::FStackAttributeContainer, TInlineAllocator<8>> SourceAttributes;
 };
 
 /////////////////////////////////////////////////////
@@ -115,7 +115,7 @@ void FAnimNode_MultiWayBlend::Evaluate_AnyThread(FPoseContext& Output)
 	FMultiBlendData& BlendData = FMultiBlendData::Get();
 	TArray<FCompactPose, TInlineAllocator<8>>& SourcePoses = BlendData.SourcePoses;
 	TArray<FBlendedCurve, TInlineAllocator<8>>& SourceCurves = BlendData.SourceCurves;
-	TArray<FStackCustomAttributes, TInlineAllocator<8>>& SourceAttributes = BlendData.SourceAttributes;
+	TArray<UE::Anim::FStackAttributeContainer, TInlineAllocator<8>>& SourceAttributes = BlendData.SourceAttributes;
 	TArray<float, TInlineAllocator<8>>& SourceWeights = BlendData.SourceWeights;
 
 	const int32 SourcePosesInitialNum = SourcePoses.Num();
@@ -138,7 +138,7 @@ void FAnimNode_MultiWayBlend::Evaluate_AnyThread(FPoseContext& Output)
 				FBlendedCurve& SourceCurve = SourceCurves.AddDefaulted_GetRef();
 				SourceCurve.MoveFrom(PoseContext.Curve);
 
-				FStackCustomAttributes& SourceAttribute = SourceAttributes.AddDefaulted_GetRef();
+				UE::Anim::FStackAttributeContainer& SourceAttribute = SourceAttributes.AddDefaulted_GetRef();
 				SourceAttribute.MoveFrom(PoseContext.CustomAttributes);
 
 				SourceWeights.Add(CurrentAlpha);
@@ -153,7 +153,7 @@ void FAnimNode_MultiWayBlend::Evaluate_AnyThread(FPoseContext& Output)
 		// obtain views onto the ends of our stacks
 		TArrayView<FCompactPose> SourcePosesView = MakeArrayView(&SourcePoses[SourcePosesInitialNum], SourcePosesAdded);
 		TArrayView<FBlendedCurve> SourceCurvesView = MakeArrayView(&SourceCurves[SourcePosesInitialNum], SourcePosesAdded);
-		TArrayView<FStackCustomAttributes> SourceAttributesView = MakeArrayView(&SourceAttributes[SourcePosesInitialNum], SourcePosesAdded);
+		TArrayView<UE::Anim::FStackAttributeContainer> SourceAttributesView = MakeArrayView(&SourceAttributes[SourcePosesInitialNum], SourcePosesAdded);
 		TArrayView<float> SourceWeightsView = MakeArrayView(&SourceWeights[SourcePosesInitialNum], SourcePosesAdded);
 
 		FAnimationPoseData AnimationPoseData(Output);

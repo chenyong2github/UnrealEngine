@@ -380,7 +380,7 @@ struct FBoneIndices
 
 void UPoseAsset::GetBaseAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve) const
 {
-	FStackCustomAttributes TempAttributes;
+	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData OutPoseData(OutPose, OutCurve, TempAttributes);
 	GetBaseAnimationPose(OutPoseData);
 }
@@ -542,7 +542,7 @@ void UPoseAsset::GetAnimationCurveOnly(TArray<FName>& InCurveNames, TArray<float
 
 bool UPoseAsset::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
 {
-	FStackCustomAttributes TempAttributes;
+	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData OutPoseData(OutPose, OutCurve, TempAttributes);
 	return GetAnimationPose(OutPoseData, ExtractionContext);
 }

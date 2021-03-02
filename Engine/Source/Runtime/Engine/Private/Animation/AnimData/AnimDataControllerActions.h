@@ -330,6 +330,95 @@ protected:
 	FLinearColor Color;
 };
 
+class FAddAtributeAction : public FAnimDataBaseAction
+{
+public:
+	explicit FAddAtributeAction(const FAnimatedBoneAttribute& InAttribute);
+	virtual ~FAddAtributeAction() {}
+protected:
+	FAddAtributeAction() {}
+	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual FString ToStringInternal() const override;
+
+protected:
+	FAnimationAttributeIdentifier AttributeId;
+	TArray<FAttributeKey> Keys;
+};
+
+class FRemoveAtributeAction : public FAnimDataBaseAction
+{
+public:
+	explicit FRemoveAtributeAction(const FAnimationAttributeIdentifier& InAttributeId) : AttributeId(InAttributeId) {}
+	virtual ~FRemoveAtributeAction() {}
+protected:
+	FRemoveAtributeAction() {}
+	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual FString ToStringInternal() const override;
+
+protected:
+	FAnimationAttributeIdentifier AttributeId;
+};
+
+class FAddAtributeKeyAction : public FAnimDataBaseAction
+{
+public:
+	explicit FAddAtributeKeyAction(const FAnimationAttributeIdentifier& InAttributeId, const FAttributeKey& InKey) : AttributeId(InAttributeId), Key(InKey) {}
+	virtual ~FAddAtributeKeyAction() {}
+protected:
+	FAddAtributeKeyAction() {}
+	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual FString ToStringInternal() const override;
+
+protected:
+	FAnimationAttributeIdentifier AttributeId;
+	FAttributeKey Key;
+};
+
+class FSetAtributeKeyAction : public FAnimDataBaseAction
+{
+public:
+	explicit FSetAtributeKeyAction(const FAnimationAttributeIdentifier& InAttributeId, const FAttributeKey& InKey) : AttributeId(InAttributeId), Key(InKey) {}
+	virtual ~FSetAtributeKeyAction() {}
+protected:
+	FSetAtributeKeyAction() {}
+	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual FString ToStringInternal() const override;
+
+protected:
+	FAnimationAttributeIdentifier AttributeId;
+	FAttributeKey Key;
+};
+
+class FRemoveAtributeKeyAction : public FAnimDataBaseAction
+{
+public:
+	explicit FRemoveAtributeKeyAction(const FAnimationAttributeIdentifier& InAttributeId, float InTime) : AttributeId(InAttributeId), Time(InTime) {}
+	virtual ~FRemoveAtributeKeyAction() {}
+protected:
+	FRemoveAtributeKeyAction() {}
+	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual FString ToStringInternal() const override;
+
+protected:
+	FAnimationAttributeIdentifier AttributeId;
+	float Time;
+};
+
+class FSetAtributeKeysAction : public FAnimDataBaseAction
+{
+public:
+	explicit FSetAtributeKeysAction(const FAnimatedBoneAttribute& InAttribute);
+	virtual ~FSetAtributeKeysAction() {}
+protected:
+	FSetAtributeKeysAction() {}
+	virtual TUniquePtr<FChange> ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller) override;
+	virtual FString ToStringInternal() const override;
+
+protected:
+	FAnimationAttributeIdentifier AttributeId;
+	TArray<FAttributeKey> Keys;
+};
+
 } // namespace Anim
 
 } // namespace UE

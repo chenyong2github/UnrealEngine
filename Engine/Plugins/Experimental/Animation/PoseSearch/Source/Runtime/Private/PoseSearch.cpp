@@ -1206,7 +1206,7 @@ void FSequenceSampler::ExtractPoses()
 	FCSPose<FCompactPose> ComponentSpacePose;
 
 	FBlendedCurve UnusedCurve;
-	FStackCustomAttributes UnusedAttributes;
+	UE::Anim::FStackAttributeContainer UnusedAttributes;
 
 	FAnimExtractContext ExtractionCtx;
 	// ExtractionCtx.PoseCurves is intentionally left empty

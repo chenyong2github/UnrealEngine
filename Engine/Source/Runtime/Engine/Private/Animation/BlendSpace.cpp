@@ -13,7 +13,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Animation/AnimationPoseData.h"
-#include "Animation/CustomAttributesRuntime.h"
+#include "Animation/AttributesRuntime.h"
 
 #define LOCTEXT_NAMESPACE "BlendSpace"
 
@@ -600,7 +600,7 @@ void UBlendSpace::ResetToRefPose(FCompactPose& OutPose) const
 
 void UBlendSpace::GetAnimationPose(TArray<FBlendSampleData>& BlendSampleDataCache, /*out*/ FCompactPose& OutPose, /*out*/ FBlendedCurve& OutCurve) const
 {
-	FStackCustomAttributes TempAttributes;
+	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData AnimationPoseData = { OutPose, OutCurve, TempAttributes };
 	GetAnimationPose(BlendSampleDataCache, AnimationPoseData);
 }
@@ -639,7 +639,7 @@ void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampl
 	TArray<FBlendedCurve, TInlineAllocator<8>> ChildrenCurves;
 	ChildrenCurves.AddZeroed(NumPoses);
 
-	TArray<FStackCustomAttributes, TInlineAllocator<8>> ChildrenAttributes;
+	TArray<UE::Anim::FStackAttributeContainer, TInlineAllocator<8>> ChildrenAttributes;
 	ChildrenAttributes.AddZeroed(NumPoses);
 
 	TArray<float, TInlineAllocator<8>> ChildrenWeights;

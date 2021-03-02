@@ -5,7 +5,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimationPoseData.h"
-#include "Animation/CustomAttributesRuntime.h"
+#include "Animation/AttributesRuntime.h"
 #include "Animation/AnimTypes.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
@@ -21,7 +21,7 @@ void UContextualAnimUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* An
 
 	FAnimExtractContext Context(Time, bExtractRootMotion);
 
-	FStackCustomAttributes Attributes;
+	UE::Anim::FStackAttributeContainer Attributes;
 	FAnimationPoseData AnimationPoseData(OutPose, Curve, Attributes);
 	if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Animation))
 	{

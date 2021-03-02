@@ -166,7 +166,7 @@ void FAnimSingleNodeInstanceProxy::InternalBlendSpaceEvaluatePose(class UBlendSp
 		FBlendedCurve& OutCurve = OutContext.Curve;
 		FCompactPose AdditivePose;
 		FBlendedCurve AdditiveCurve;
-		FStackCustomAttributes AdditiveAttributes;
+		UE::Anim::FStackAttributeContainer AdditiveAttributes;
 		AdditivePose.SetBoneContainer(&OutPose.GetBoneContainer());
 		AdditiveCurve.InitFrom(OutCurve);
 #if WITH_EDITORONLY_DATA
@@ -299,7 +299,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 
 				FCompactPose AdditivePose;
 				FBlendedCurve AdditiveCurve;
-				FStackCustomAttributes AdditiveAttributes;
+				UE::Anim::FStackAttributeContainer AdditiveAttributes;
 				AdditivePose.SetBoneContainer(&Output.Pose.GetBoneContainer());
 				AdditiveCurve.InitFrom(Output.Curve);
 
@@ -370,7 +370,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 
 				FCompactPose AdditivePose;
 				FBlendedCurve AdditiveCurve;
-				FStackCustomAttributes AdditiveAttributes;
+				UE::Anim::FStackAttributeContainer AdditiveAttributes;
 				AdditivePose.SetBoneContainer(&Output.Pose.GetBoneContainer());
 				AdditiveCurve.InitFrom(Output.Curve);
 
@@ -396,7 +396,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 				LocalSourcePose.SetBoneContainer(&Output.Pose.GetBoneContainer());
 				LocalSourceCurve.InitFrom(Output.Curve);
 
-				FStackCustomAttributes LocalSourceAttributes;
+				UE::Anim::FStackAttributeContainer LocalSourceAttributes;
 			
 				FAnimTrack const* const AnimTrack = Montage->GetAnimationData(ActiveMontageSlot);
 				if (AnimTrack && AnimTrack->IsAdditive())
@@ -462,7 +462,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 				{
 					FCompactPose AdditivePose;
 					FBlendedCurve AdditiveCurve;
-					FStackCustomAttributes AdditiveAttributes;
+					UE::Anim::FStackAttributeContainer AdditiveAttributes;
 					AdditivePose.SetBoneContainer(&Output.Pose.GetBoneContainer());
 					AdditiveCurve.InitFrom(Output.Curve);
 

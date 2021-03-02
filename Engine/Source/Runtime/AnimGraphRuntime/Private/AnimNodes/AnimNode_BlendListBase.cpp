@@ -259,7 +259,7 @@ void FAnimNode_BlendListBase::Evaluate_AnyThread(FPoseContext& Output)
 		// Scratch arrays for evaluation, stack allocated
 		TArray<FCompactPose, TInlineAllocator<8>> FilteredPoses;
 		TArray<FBlendedCurve, TInlineAllocator<8>> FilteredCurve;
-		TArray<FStackCustomAttributes, TInlineAllocator<8>> FilteredAttributes;
+		TArray<UE::Anim::FStackAttributeContainer, TInlineAllocator<8>> FilteredAttributes;
 
 		FilteredPoses.SetNum(NumPoses, false);
 		FilteredCurve.SetNum(NumPoses, false);

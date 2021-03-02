@@ -15,7 +15,7 @@
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimationPoseData.h"
 #include "UObject/FieldPath.h"
-#include "CustomAttributesRuntime.h"
+#include "Animation/AttributesRuntime.h"
 #include "Animation/AnimNodeMessages.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
@@ -427,7 +427,7 @@ public:
 	/* These Pose/Curve/Attributes are allocated using MemStack. You should not use it outside of stack. */
 	FCompactPose	Pose;
 	FBlendedCurve	Curve;
-	FStackCustomAttributes CustomAttributes;
+	UE::Anim::FStackAttributeContainer CustomAttributes;
 
 public:
 	// This constructor allocates a new uninitialized pose for the specified anim instance
@@ -511,7 +511,7 @@ struct FComponentSpacePoseContext : public FAnimationBaseContext
 public:
 	FCSPose<FCompactPose>	Pose;
 	FBlendedCurve			Curve;
-	FStackCustomAttributes CustomAttributes;
+	UE::Anim::FStackAttributeContainer CustomAttributes;
 
 public:
 	// This constructor allocates a new uninitialized pose for the specified anim instance

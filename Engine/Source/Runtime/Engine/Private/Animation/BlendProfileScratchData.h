@@ -7,7 +7,7 @@
 
 struct FCompactPose;
 struct FBlendedCurve;
-struct FStackCustomAttributes;
+namespace UE { namespace Anim { struct FStackAttributeContainer; } }
 struct FSlotEvaluationPose;
 
 /**
@@ -30,5 +30,5 @@ struct FBlendProfileScratchData : public TThreadSingleton<FBlendProfileScratchDa
 	TArray<float, TInlineAllocator<8>> BlendingWeights;					// The per pose blend weights.
 	TArray<const FCompactPose*, TInlineAllocator<8>> BlendingPoses;		// The non additive poses to blend.
 	TArray<const FBlendedCurve*, TInlineAllocator<8>> BlendingCurves;	// The curves to blend.
-	TArray<const FStackCustomAttributes*, TInlineAllocator<8>> BlendingAttributes;	// The attributes to blend.
+	TArray<const UE::Anim::FStackAttributeContainer*, TInlineAllocator<8>> BlendingAttributes;	// The attributes to blend.
 };

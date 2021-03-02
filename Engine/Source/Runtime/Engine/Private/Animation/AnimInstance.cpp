@@ -673,7 +673,7 @@ bool UAnimInstance::ParallelCanEvaluate(const USkeletalMesh* InSkeletalMesh) con
 
 void UAnimInstance::ParallelEvaluateAnimation(bool bForceRefPose, const USkeletalMesh* InSkeletalMesh, FBlendedHeapCurve& OutCurve, FCompactPose& OutPose)
 {
-	FHeapCustomAttributes Attributes;
+	UE::Anim::FHeapAttributeContainer Attributes;
 	FParallelEvaluationData EvalData = { OutCurve, OutPose, Attributes };
 	ParallelEvaluateAnimation(bForceRefPose, InSkeletalMesh, EvalData);
 }

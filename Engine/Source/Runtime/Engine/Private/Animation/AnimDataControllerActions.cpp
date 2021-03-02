@@ -405,6 +405,131 @@ FString FSetCurveColorAction::ToStringInternal() const
 	return FText::Format(LOCTEXT("SetCurveColorAction_Description", "Setting curve color '{0}'."), FText::FromName(CurveId.InternalName.DisplayName)).ToString();
 }
 
+FAddAtributeAction::FAddAtributeAction(const FAnimatedBoneAttribute& InAttribute) : AttributeId(InAttribute.Identifier)
+{
+	Keys = InAttribute.Curve.GetConstRefOfKeys();
+}
+
+TUniquePtr<FChange> FAddAtributeAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+{	
+	TArray<const void*> VoidValues;
+	Algo::Transform(Keys, VoidValues, [](const FAttributeKey& Key)
+	{
+		return Key.GetValuePtr<void>();
+	});
+
+	TArray<float> Times;
+	Algo::Transform(Keys, Times, [](const FAttributeKey& Key)
+	{
+		return Key.Time;
+	});
+
+	Controller->AddAttribute(AttributeId, false);
+	Controller->SetAttributeKeys(AttributeId, MakeArrayView(Times), MakeArrayView(VoidValues), false);
+
+	return MakeUnique<FRemoveAtributeAction>(AttributeId);
+}
+
+FString FAddAtributeAction::ToStringInternal() const
+{
+	return FText::Format(LOCTEXT("AddAttributeAction_Description", "Adding attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
+}
+
+TUniquePtr<FChange> FRemoveAtributeAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+{
+	const FAnimatedBoneAttribute& Attribute = Model->GetAttribute(AttributeId);
+	TUniquePtr<FAddAtributeAction> InverseAction = MakeUnique<FAddAtributeAction>(Attribute);
+	
+	Controller->RemoveAttribute(AttributeId, false);
+
+	return InverseAction;
+}
+
+FString FRemoveAtributeAction::ToStringInternal() const
+{
+	return FText::Format(LOCTEXT("RemoveAttributeAction_Description", "Removing attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
+}
+
+TUniquePtr<FChange> FAddAtributeKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+{
+	Controller->SetAttributeKey(AttributeId, Key.Time, Key.GetValuePtr<void>(), false);
+
+	return MakeUnique<FRemoveAtributeKeyAction>(AttributeId, Key.Time);
+}
+
+FString FAddAtributeKeyAction::ToStringInternal() const
+{
+	return FText::Format(LOCTEXT("AddAttributeKeyAction_Description", "Adding key to attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
+}
+
+TUniquePtr<FChange> FSetAtributeKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+{
+	const FAnimatedBoneAttribute& Attribute = Model->GetAttribute(AttributeId);
+
+	const FKeyHandle Handle = Attribute.Curve.FindKey(Key.Time, 0.f);
+	ensure(Handle != FKeyHandle::Invalid());
+
+	FAttributeKey CurrentKey = Attribute.Curve.GetKey(Handle);
+	Controller->SetAttributeKey(AttributeId, Key.Time, Key.GetValuePtr<void>(), false);
+
+	return MakeUnique<FSetAtributeKeyAction>(AttributeId, CurrentKey);
+}
+
+FString FSetAtributeKeyAction::ToStringInternal() const
+{
+	return FText::Format(LOCTEXT("SetAttributeKeyAction_Description", "Setting key on attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
+}
+
+TUniquePtr<FChange> FRemoveAtributeKeyAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+{
+	const FAnimatedBoneAttribute& Attribute = Model->GetAttribute(AttributeId);
+
+	const FKeyHandle Handle = Attribute.Curve.FindKey(Time, 0.f);
+	ensure(Handle != FKeyHandle::Invalid());
+
+	FAttributeKey CurrentKey = Attribute.Curve.GetKey(Handle);
+
+	Controller->RemoveAttributeKey(AttributeId, Time, false);
+
+	return MakeUnique<FAddAtributeKeyAction>(AttributeId, CurrentKey);
+}
+
+FString FRemoveAtributeKeyAction::ToStringInternal() const
+{
+	return FText::Format(LOCTEXT("RemoveAttributeKeyAction_Description", "Removing key from attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
+}
+
+FSetAtributeKeysAction::FSetAtributeKeysAction(const FAnimatedBoneAttribute& InAttribute) : AttributeId(InAttribute.Identifier)
+{
+	Keys = InAttribute.Curve.GetConstRefOfKeys();
+}
+
+TUniquePtr<FChange> FSetAtributeKeysAction::ExecuteInternal(UAnimDataModel* Model, UAnimDataController* Controller)
+{
+	TUniquePtr<FSetAtributeKeysAction> InverseAction = MakeUnique<FSetAtributeKeysAction>(Model->GetAttribute(AttributeId));
+
+	TArray<const void*> VoidValues;
+	Algo::Transform(Keys, VoidValues, [](const FAttributeKey& Key)
+	{
+		return Key.GetValuePtr<void>();
+	});
+
+	TArray<float> Times;
+	Algo::Transform(Keys, Times, [](const FAttributeKey& Key)
+	{
+		return Key.Time;
+	});
+
+	Controller->SetAttributeKeys(AttributeId, MakeArrayView(Times), MakeArrayView(VoidValues), false);
+
+	return InverseAction;
+}
+
+FString FSetAtributeKeysAction::ToStringInternal() const
+{
+	return FText::Format(LOCTEXT("SetAttributeKeysAction_Description", "Replacing keys for attribute '{0}'."), FText::FromName(AttributeId.GetName())).ToString();
+}
+
 } // namespace Anim
 
 } // namespace UE

@@ -271,7 +271,7 @@ void FAnimNode_RandomPlayer::Evaluate_AnyThread(FPoseContext& Output)
 		// Start Blending
 		FCompactPose Poses[2];
 		FBlendedCurve Curves[2];
-		FStackCustomAttributes Attributes[2];
+		UE::Anim::FStackAttributeContainer Attributes[2];
 		float Weights[2];
 
 		const FBoneContainer& RequiredBone = AnimProxy->GetRequiredBones();

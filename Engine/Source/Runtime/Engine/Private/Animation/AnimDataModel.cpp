@@ -6,6 +6,7 @@
 #include "Animation/AnimSequence.h"
 
 #include "Algo/Transform.h"
+#include "Algo/Accumulate.h"
 #include "Animation/SmartName.h"
 
 
@@ -235,6 +236,56 @@ const FRichCurve& UAnimDataModel::GetRichCurve(const FAnimationCurveIdentifier& 
 	return *CurvePtr;
 }
 
+TArrayView<const FAnimatedBoneAttribute> UAnimDataModel::GetAttributes() const
+{
+	return AnimatedBoneAttributes;
+}
+
+int32 UAnimDataModel::GetNumberOfAttributes() const
+{
+	return AnimatedBoneAttributes.Num();
+}
+
+int32 UAnimDataModel::GetNumberOfAttributesForBoneIndex(const int32 BoneIndex) const
+{
+	// Sum up total number of attributes with provided bone index
+	const int32 NumberOfBoneAttributes = Algo::Accumulate<int32>(AnimatedBoneAttributes, 0, [BoneIndex](int32 Sum, const FAnimatedBoneAttribute& Attribute) -> int32
+	{
+		Sum += Attribute.Identifier.GetBoneIndex() == BoneIndex ? 1 : 0;
+		return Sum;
+	});
+	return NumberOfBoneAttributes;
+}
+
+void UAnimDataModel::GetAttributesForBone(const FName& BoneName, TArray<const FAnimatedBoneAttribute*>& OutBoneAttributes) const
+{
+	// Sum up total number of attributes with provided bone name
+	Algo::TransformIf(AnimatedBoneAttributes, OutBoneAttributes, [BoneName](const FAnimatedBoneAttribute& Attribute) -> bool
+	{
+		return Attribute.Identifier.GetBoneName() == BoneName;
+	},
+	[](const FAnimatedBoneAttribute& Attribute) 
+	{
+		return &Attribute;
+	});
+}
+
+const FAnimatedBoneAttribute& UAnimDataModel::GetAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier) const
+{
+	const FAnimatedBoneAttribute* AttributePtr = FindAttribute(AttributeIdentifier);
+	checkf(AttributePtr, TEXT("Unable to find attribute for provided identifier"));
+
+	return *AttributePtr;
+}
+
+const FAnimatedBoneAttribute* UAnimDataModel::FindAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier) const
+{
+	return AnimatedBoneAttributes.FindByPredicate([AttributeIdentifier](const FAnimatedBoneAttribute& Attribute)
+	{
+		return Attribute.Identifier == AttributeIdentifier;
+	});
+}
+
 const FAnimCurveBase* UAnimDataModel::FindCurve(const FAnimationCurveIdentifier& CurveIdentifier) const
 {
 	switch (CurveIdentifier.CurveType)
@@ -276,6 +327,12 @@ FGuid UAnimDataModel::GenerateGuid() const
 		UpdateSHAWithArray(Curve.FloatCurve.GetConstRefOfKeys());
 		UpdateWithData(Curve.FloatCurve.PreInfinityExtrap);
 		UpdateWithData(Curve.FloatCurve.PostInfinityExtrap);
+	}
+	
+	for (const FAnimatedBoneAttribute& Attribute : AnimatedBoneAttributes)
+	{
+		UpdateWithData(Attribute.Identifier);
+		UpdateSHAWithArray(Attribute.Curve.GetConstRefOfKeys());
 	}
 
 	Sha.Final();

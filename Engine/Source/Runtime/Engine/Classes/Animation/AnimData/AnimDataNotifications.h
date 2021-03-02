@@ -9,6 +9,7 @@
 #include "Animation/SmartName.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimData/CurveIdentifier.h"
+#include "Animation/AnimData/AttributeIdentifier.h"
 
 #include "AnimDataNotifications.generated.h"
 
@@ -58,6 +59,15 @@ enum class EAnimDataModelNotifyType : uint8
 
 	/** Indicates a curve its color has changed. Type of payload: FCurveChangedPayload */
 	CurveColorChanged,
+
+	/** Indicates a new attribute has been added. Type of payload: FAttributeAddedPayload */
+	AttributeAdded,
+	
+	/** Indicates a new attribute has been removed. Type of payload: FAttributeRemovedPayload */
+	AttributeRemoved,
+
+	/** Indicates an attribute has been changed. Type of payload: FAttributeChangedPayload */
+	AttributeChanged,
 	
 	/** Indicates the data model has been populated from the source UAnimSequence. Type of payload: FEmptyPayload */
 	Populated,
@@ -182,6 +192,20 @@ struct FCurveFlagsChangedPayload : public FCurvePayload
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
 	int32 OldFlags;
 };
+
+USTRUCT(BlueprintType)
+struct FAttributePayload : public FEmptyPayload
+{
+	GENERATED_BODY()
+
+	/** Identifier of the attribute */
+	UPROPERTY(BlueprintReadOnly, Category = Payload)
+	FAnimationAttributeIdentifier Identifier;
+};
+
+typedef FAttributePayload FAttributeAddedPayload;
+typedef FAttributePayload FAttributeRemovedPayload;
+typedef FAttributePayload FAttributeChangedPayload;
 
 USTRUCT(BlueprintType)
 struct FAnimDataModelNotifPayload

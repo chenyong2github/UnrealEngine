@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "AnimDataNotifications.h"
+#include "Animation/AttributeCurve.h"
 
 #include "AnimDataModel.generated.h"
 
@@ -44,6 +45,23 @@ struct ENGINE_API FAnimationCurveData
 	/** FTransform-based animation curves, used for animation layer editing */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
 	TArray<FTransformCurve>	TransformCurves;
+};
+
+/**
+ * Structure encapsulating animated (bone) attribute data.
+ */
+USTRUCT(BlueprintType)
+struct ENGINE_API FAnimatedBoneAttribute
+{
+	GENERATED_BODY()
+
+	/** Identifier to reference this attribute by */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
+	FAnimationAttributeIdentifier Identifier;	
+
+	/** Curve containing the (animated) attribute data */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
+	FAttributeCurve Curve;
 };
 
 struct FTrackToSkeletonMap;
@@ -214,6 +232,36 @@ public:
 	const FRichCurve& GetRichCurve(const FAnimationCurveIdentifier& CurveIdentifier) const;
 		
 	/**
+	* @return	Animated (bone) attributes stored
+	*/
+	TArrayView<const FAnimatedBoneAttribute> GetAttributes() const;
+
+	/**
+	* @return	Number of animated (bone) attributes stored
+	*/
+	int32 GetNumberOfAttributes() const;
+
+	/**
+	* @return	Number of animated (bone) attributes stored for the specified bone index
+	*/
+	int32 GetNumberOfAttributesForBoneIndex(const int32 BoneIndex) const;
+
+	/**
+	* @return	All animated (bone) attributes stored for the specified bone name
+	*/
+	void GetAttributesForBone(const FName& BoneName, TArray<const FAnimatedBoneAttribute*>& OutBoneAttributes) const;
+
+	/**
+	* @return	Animated (bone) attribute object for the provided identifier if valid
+	*/
+	const FAnimatedBoneAttribute& GetAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier) const;
+
+	/**
+	* @return	Animated (bone) attribute ptr for the provided identifier if valid, otherwise returns a nullptr 
+	*/
+	const FAnimatedBoneAttribute* FindAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier) const;
+		
+	/**
 	* @return	The outer UAnimSequence object if found, otherwise returns a nullptr 
 	*/
 	UFUNCTION(BlueprintPure, Category = AnimationDataModel)
@@ -276,7 +324,23 @@ private:
 			ModifiedEventDynamic.Broadcast(NotifyType, this, Payload);
 		}
 
-		GenerateTransientData();
+		// Only regenerate transient data when not in a bracket, or at the end of one
+		{
+			if (NotifyType == EAnimDataModelNotifyType::BracketOpened)
+			{
+				++BracketCounter;
+			}
+			if (NotifyType == EAnimDataModelNotifyType::BracketClosed)
+			{
+				--BracketCounter;
+			}
+
+			check(BracketCounter >= 0);
+			if (BracketCounter == 0)
+			{
+				GenerateTransientData();
+			}
+		}
 	}
 
 	/**
@@ -307,6 +371,7 @@ private:
 				--BracketCounter;
 			}
 
+			check(BracketCounter >= 0);
 			if (BracketCounter == 0)
 			{
 				GenerateTransientData();
@@ -350,6 +415,10 @@ private:
 	/** Container with all animated curve data */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Data Model", meta = (AllowPrivateAccess = "true"))
 	FAnimationCurveData CurveData;
+	
+	/** Container with all animated (bone) attribute data */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Data Model", meta = (AllowPrivateAccess = "true"))
+	TArray<FAnimatedBoneAttribute> AnimatedBoneAttributes;
 	
 private:
 	/** Transient data, kept around for backward-compatibility */

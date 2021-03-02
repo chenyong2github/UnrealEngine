@@ -7,6 +7,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Algo/Transform.h"
 
 #if WITH_EDITOR
 #include "ChangeTransactor.h"
@@ -19,6 +20,7 @@
 #endif // WITH_EDITOR
 
 struct FAnimationCurveIdentifier;
+struct FAnimationAttributeIdentifier;
 static const int32 DefaultCurveFlags = EAnimAssetCurveFlags::AACF_Editable;
 
 namespace UE {
@@ -306,7 +308,7 @@ public:
 	/**
 	* Removes a single key for the transform curve with provided identifier. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
 	*
-	* @param	CurveId			    Identifier for the transform curve for which the key is to be set
+	* @param	CurveId			    Identifier for the transform curve for which the key is to be removed
 	* @param	Time				Time of the key to be removed
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*
@@ -368,10 +370,9 @@ public:
 	
 	/**
 	* Remove a single key from the curve with provided identifier and name. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
-	* In case a key for the provided key time already exists the key is replaced.
 	*
-	* @param	CurveId			    Identifier for the curve for which the key is to be set
-	* @param	NewCurveId			Time of the key to be removed
+	* @param	CurveId			    Identifier for the curve for which the key is to be removed
+	* @param	Time				Time of the key to be removed
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*
 	* @return	Whether or not the curve key was succesfully removed
@@ -382,11 +383,11 @@ public:
 	/**
 	* Replace the keys for the curve with provided identifier and name. Broadcasts a EAnimDataModelNotifyType::CurveChanged notify if successful.
 	*
-	* @param	CurveId			    Identifier for the curve for which the key is to be set
+	* @param	CurveId			    Identifier for the curve for which the keys are to be replaced
 	* @param	CurveKeys			Keys with which the existing keys are to be replaced
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*
-	* @return	Whether or not the curve key was succesfully set
+	* @return	Whether or not replacing curve keys was succesful
 	*/
 	UFUNCTION(BlueprintCallable, Category = CurveData)
 	bool SetCurveKeys(const FAnimationCurveIdentifier& CurveId, const TArray<FRichCurveKey>& CurveKeys, bool bShouldTransact = true);
@@ -435,19 +436,149 @@ public:
 	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
 	*/
 	void ResetModel(bool bShouldTransact = true);
+
+	/**
+	* Adds a new attribute with the provided information. Broadcasts a EAnimDataModelNotifyType::AttributeAdded notify if successful.
+	*
+	* @param	AttributeIdentifier		Identifier for the to-be-added attribute
+	* @param	bShouldTransact			Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not the attribute was succesfully added
+	*/
+	UFUNCTION(BlueprintCallable, Category = CurveData)
+	bool AddAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, bool bShouldTransact = true);
+
+	/**
+	* Removes an attribute, if found, with the provided information. Broadcasts a EAnimDataModelNotifyType::AttributeRemoved notify if successful.
+	*
+	* @param	AttributeIdentifier		Identifier for the to-be-removed attribute
+	* @param	bShouldTransact			Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not the attribute was succesfully removed
+	*/
+	UFUNCTION(BlueprintCallable, Category = CurveData)
+	bool RemoveAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, bool bShouldTransact = true);
+
+	/**
+	* Removes all attributes for the specified bone name, if any. Broadcasts a EAnimDataModelNotifyType::AttributeRemoved notify for each removed attribute.
+	*
+	* @param	BoneName			Name of the bone to remove attributes for
+	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
+	*
+	* @return	Total number of removes attributes
+	*/
+	UFUNCTION(BlueprintCallable, Category = CurveData)
+	int32 RemoveAllAttributesForBone(const FName& BoneName, bool bShouldTransact = true);
+
+	/**
+	* Removes all stored attributes. Broadcasts a EAnimDataModelNotifyType::AttributeRemoved notify for each removed attribute.
+	*
+	* @param	bShouldTransact		Whether or not any undo-redo changes should be generated
+	*
+	* @return	Total number of removes attributes
+	*/
+	UFUNCTION(BlueprintCallable, Category = CurveData)
+	int32 RemoveAllAttributes(bool bShouldTransact = true);	
+
+	/**
+	* Sets a single key for the attribute with provided identifier. Broadcasts a EAnimDataModelNotifyType::AttributeChanged notify if successful.
+	* In case a key for the provided key time already exists the key is replaced.
+	*
+	* @param	AttributeIdentifier		Identifier for the attribute for which the key is to be set
+	* @param	Time					Time of the to-be-set key
+	* @param	KeyValue				Value (templated) of the to-be-set key
+	* @param	bShouldTransact			Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not the key was succesfully set
+	*/
+	template<typename AttributeType>
+	bool SetTypedAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, AttributeType& KeyValue, bool bShouldTransact = true)
+	{
+		return SetAttributeKey_Internal(AttributeIdentifier, Time, (const void*)&KeyValue, AttributeType::StaticStruct(), bShouldTransact);
+	}
+
+	/**
+	* Sets a single key for the attribute with provided identifier. Broadcasts a EAnimDataModelNotifyType::AttributeChanged notify if successful.
+	* In case a key for the provided key time already exists the key is replaced.
+	*
+	* @param	AttributeIdentifier		Identifier for the attribute for which the key is to be set
+	* @param	Time					Time of the to-be-set key
+	* @param	KeyValue				Value of the to-be-set key
+	* @param	bShouldTransact			Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not the key was succesfully set
+	*/
+	bool SetAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, const void* KeyValue, bool bShouldTransact = true)
+	{
+		return SetAttributeKey_Internal(AttributeIdentifier, Time, KeyValue, AttributeIdentifier.GetType(), bShouldTransact);
+	}
+	
+	/**
+	* Replace the keys for the attribute with provided identifier. Broadcasts a EAnimDataModelNotifyType::AttributeChanged notify if successful.
+	*
+	* @param	AttributeIdentifier		Identifier for the attribute for which the keys are to be replaced
+	* @param	Times					Times with which the existing key timings are to be replaced
+	* @param	KeyValues				Values with which the existing key values are to be replaced
+	* @param	bShouldTransact			Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not replacing the attribute keys was succesful
+	*/
+	bool SetAttributeKeys(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<const void*> KeyValues, bool bShouldTransact = true)
+	{
+		return SetAttributeKeys_Internal(AttributeIdentifier, Times, KeyValues, AttributeIdentifier.GetType(), bShouldTransact);
+	}
+
+	/**
+	* Replace the keys for the attribute with provided identifier. Broadcasts a EAnimDataModelNotifyType::AttributeChanged notify if successful.
+	*
+	* @param	AttributeIdentifier		Identifier for the attribute for which the keys are to be replaced
+	* @param	Times					Times with which the existing key timings are to be replaced
+	* @param	KeyValues				Values (templated) with which the existing key values are to be replaced
+	* @param	bShouldTransact			Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not replacing the attribute keys was succesful
+	*/
+	template<typename AttributeType>
+	bool SetTypedAttributeKeys(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<AttributeType> KeyValues, bool bShouldTransact = true)
+	{		
+		TArray<const void*> KeyValuePtrs;
+		Algo::Transform(KeyValues, KeyValuePtrs, [](const AttributeType& Value)
+		{
+			return (const void*)&Value;
+		});
+
+		return SetAttributeKeys_Internal(AttributeIdentifier, Times, MakeArrayView(KeyValuePtrs), AttributeType::StaticStruct(), bShouldTransact);
+	}
+
+	/**
+	* Remove a single key from the attribute with provided identifier. Broadcasts a EAnimDataModelNotifyType::AttributeChanged notify if successful.
+	*
+	* @param	AttributeIdentifier		Identifier for the attribute from which the key is to be removed
+	* @param	Time					Time of the key to be removed
+	* @param	bShouldTransact			Whether or not any undo-redo changes should be generated
+	*
+	* @return	Whether or not the attribute key was succesfully removed
+	*/
+	UFUNCTION(BlueprintCallable, Category = CurveData)
+	bool RemoveAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, bool bShouldTransact = true);
 protected:
 	/** Functionality used by FOpenBracketAction and FCloseBracketAction to broadcast their equivalent notifies without actually opening a bracket. */
 	void NotifyBracketOpen();
 	void NotifyBracketClosed();
 
 private:
+	/** Internal functionality for setting Attribute curve key(s) */
+	bool SetAttributeKey_Internal(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, const void* KeyValue, const UScriptStruct* TypeStruct, bool bShouldTransact = true);
+	bool SetAttributeKeys_Internal(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<const void*> KeyValues, const UScriptStruct* TypeStruct, bool bShouldTransact = true);
+
 	/** Returns whether or not the supplied curve type is supported by the controller functionality */
 	const bool IsSupportedCurveType(ERawCurveTrackTypes CurveType) const;
 	/** Returns the string representation of the provided curve enum type value */
 	FString GetCurveTypeValueName(ERawCurveTrackTypes InType) const;
 	
-	/** Resizes the curve data stored on the model according to the provided new length and time at which to insert or remove time */
+	/** Resizes the curve/attribute data stored on the model according to the provided new length and time at which to insert or remove time */
 	void ResizeCurves(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact = true);
+	void ResizeAttributes(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact = true);
 
 	/** Ensures that a valid model is currently targeted */
 	void ValidateModel() const;

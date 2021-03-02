@@ -12,7 +12,7 @@ UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializ
 	, bRaiseMaxErrorToExisting(false)
 	, bEnablePerformanceLog(false)
 	, bTickAnimationOnSkeletalMeshInit(true)
-	, DefaultAttributeBlendMode(ECustomAttributeBlendType::Override)
+	, DefaultAttributeBlendMode(ECustomAttributeBlendType::Blend)
 {
 	SectionName = TEXT("Animation");
 

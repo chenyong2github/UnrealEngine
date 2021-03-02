@@ -43,7 +43,7 @@ void UMotionWarpingUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Ani
 
 	FAnimExtractContext Context(Time, bExtractRootMotion);
 
-	FStackCustomAttributes Attributes;
+	UE::Anim::FStackAttributeContainer Attributes;
 	FAnimationPoseData AnimationPoseData(OutPose, Curve, Attributes);
 	if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Animation))
 	{

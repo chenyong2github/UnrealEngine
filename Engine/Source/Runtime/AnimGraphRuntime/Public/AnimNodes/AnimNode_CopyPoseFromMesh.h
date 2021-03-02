@@ -74,7 +74,7 @@ private:
 	TMap<FName, float> SourceCurveList;
 
 	// Cached attributes, copied on the game thread
-	FHeapCustomAttributes SourceCustomAttributes;
+	UE::Anim::FHeapAttributeContainer SourceCustomAttributes;
 
 	// reinitialize mesh component 
 	void ReinitializeMeshComponent(USkeletalMeshComponent* NewSkeletalMeshComponent, USkeletalMeshComponent* TargetMeshComponent);

@@ -20,7 +20,7 @@
 #include "ContentStreaming.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Animation/AnimationPoseData.h"
-#include "Animation/CustomAttributesRuntime.h"
+#include "Animation/AttributesRuntime.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 
 #include "Animation/AnimData/AnimDataModel.h"

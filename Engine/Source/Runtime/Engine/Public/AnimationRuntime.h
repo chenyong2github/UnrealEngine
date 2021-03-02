@@ -24,7 +24,8 @@ struct FA2CSPose;
 struct FA2Pose;
 struct FInputBlendPose;
 struct FAnimationPoseData;
-struct FStackCustomAttributes;
+
+namespace UE { namespace Anim { struct FStackAttributeContainer; }}
 
 typedef TArray<FTransform> FTransformArrayA2;
 
@@ -104,7 +105,7 @@ public:
 	static void BlendPosesTogether(
 		TArrayView<const FCompactPose> SourcePoses,
 		TArrayView<const FBlendedCurve> SourceCurves,
-		TArrayView<const FStackCustomAttributes> SourceAttributes,
+		TArrayView<const UE::Anim::FStackAttributeContainer> SourceAttributes,
 		TArrayView<const float> SourceWeights,
 		FAnimationPoseData& OutAnimationPoseData);
 
@@ -131,7 +132,7 @@ public:
 	static void BlendPosesTogether(
 		TArrayView<const FCompactPose> SourcePoses,
 		TArrayView<const FBlendedCurve> SourceCurves,
-		TArrayView<const FStackCustomAttributes> SourceAttributes,
+		TArrayView<const UE::Anim::FStackAttributeContainer> SourceAttributes,
 		TArrayView<const float> SourceWeights,
 		TArrayView<const int32> SourceWeightsIndices,
 		/*out*/ FAnimationPoseData& OutPoseData
@@ -157,7 +158,7 @@ public:
 	static void BlendPosesTogetherIndirect(
 		TArrayView<const FCompactPose* const> SourcePoses,
 		TArrayView<const FBlendedCurve* const> SourceCurves,
-		TArrayView<const FStackCustomAttributes* const> SourceAttributes,
+		TArrayView<const UE::Anim::FStackAttributeContainer* const> SourceAttributes,
 		TArrayView<const float> SourceWeights,
 		FAnimationPoseData& OutPoseData);
 
@@ -229,7 +230,7 @@ public:
 	static void BlendPosesTogetherPerBone(
 		TArrayView<const FCompactPose> SourcePoses,
 		TArrayView<const FBlendedCurve> SourceCurves,
-		TArrayView<const FStackCustomAttributes> SourceAttributes,
+		TArrayView<const UE::Anim::FStackAttributeContainer> SourceAttributes,
 		const IInterpolationIndexProvider* InterpolationIndexProvider,
 		TArrayView<const FBlendSampleData> BlendSampleDataCache,
 		/*out*/ FAnimationPoseData& OutAnimationPoseData);
@@ -255,7 +256,7 @@ public:
 	static void BlendPosesTogetherPerBone(
 		TArrayView<const FCompactPose> SourcePoses,
 		TArrayView<const FBlendedCurve> SourceCurves,
-		TArrayView<const FStackCustomAttributes> SourceAttributes,
+		TArrayView<const UE::Anim::FStackAttributeContainer> SourceAttributes,
 		const IInterpolationIndexProvider* InterpolationIndexProvider,
 		TArrayView<const FBlendSampleData> BlendSampleDataCache,
 		TArrayView<const int32> BlendSampleDataCacheIndices,
@@ -281,7 +282,7 @@ public:
 	static void BlendPosesTogetherPerBoneInMeshSpace(
 		TArrayView< FCompactPose> SourcePoses,
 		TArrayView<const FBlendedCurve> SourceCurves,
-		TArrayView<const FStackCustomAttributes> SourceAttributes,	
+		TArrayView<const UE::Anim::FStackAttributeContainer> SourceAttributes,	
 		const UBlendSpace* BlendSpace,
 		TArrayView<const FBlendSampleData> BlendSampleDataCache,
 		/*out*/ FAnimationPoseData& OutAnimationPoseData);
@@ -324,8 +325,8 @@ public:
 		const TArray<FCompactPose>& BlendPoses,
 		FBlendedCurve& BaseCurve,
 		const TArray<FBlendedCurve>& BlendCurves,
-		FStackCustomAttributes& CustomAttributes,
-		const TArray<FStackCustomAttributes>& BlendAttributes,
+		UE::Anim::FStackAttributeContainer& CustomAttributes,
+		const TArray<UE::Anim::FStackAttributeContainer>& BlendAttributes,
 		FAnimationPoseData& OutAnimationPoseData,
 		TArray<FPerBoneBlendWeight>& BoneBlendWeights,
 		EBlendPosesPerBoneFilterFlags blendFlags,

@@ -97,6 +97,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Expose particle Disabled flag to the game thread
 		AddDisabledFlag,
 
+		// Moving animation custom attributes from AnimationSequence to UAnimDataModel
+		MoveCustomAttributesToDataModel,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

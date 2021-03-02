@@ -895,7 +895,7 @@ void UAnimSequenceBase::Serialize(FArchive& Ar)
 
 void UAnimSequenceBase::GetAnimationPose(struct FCompactPose& OutPose, FBlendedCurve & OutCurve, const FAnimExtractContext & ExtractionContext) const
 {
-	FStackCustomAttributes TempAttributes;
+	UE::Anim::FStackAttributeContainer TempAttributes;
 	FAnimationPoseData OutAnimationPoseData(OutPose, OutCurve, TempAttributes);
 	GetAnimationPose(OutAnimationPoseData, ExtractionContext);
 }

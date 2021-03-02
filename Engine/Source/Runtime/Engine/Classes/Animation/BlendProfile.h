@@ -12,8 +12,8 @@
 struct FAlphaBlend;
 struct FCompactPose;
 struct FBlendedCurve;
-struct FStackCustomAttributes;
 struct FSlotEvaluationPose;
+namespace UE { namespace Anim { struct FStackAttributeContainer; } }
 
 /** The mode in which the blend profile should be applied. */
 UENUM()

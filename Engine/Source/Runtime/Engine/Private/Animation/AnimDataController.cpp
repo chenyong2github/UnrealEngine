@@ -169,6 +169,7 @@ void UAnimDataController::Resize(float Length, float T0, float T1, bool bShouldT
 					const bool bInserted = Length > Model->PlayLength;
 					ResizePlayLength(Length, T0, T1, bShouldTransact);
 					ResizeCurves(Length, bInserted, T0, T1, bShouldTransact);
+					ResizeAttributes(Length, bInserted, T0, T1, bShouldTransact);
 				}
 				else
 				{
@@ -1488,6 +1489,324 @@ void UAnimDataController::ResizeCurves(float NewLength, bool bInserted, float T0
 			}
 		}
 	}
+}
+
+void UAnimDataController::ResizeAttributes(float NewLength, bool bInserted, float T0, float T1, bool bShouldTransact)
+{
+	CONDITIONAL_BRACKET(LOCTEXT("ResizeAttributes", "Resizing all Attributes"));
+
+	for (FAnimatedBoneAttribute& Attribute : Model->AnimatedBoneAttributes)
+	{
+		FAttributeCurve ResizedCurve = Attribute.Curve;
+		ResizedCurve.ReadjustTimeRange(0, NewLength, bInserted, T0, T1);
+
+		// Generate arrays necessary for API
+		TArray<float> Times;
+		TArray<const void*> Values;
+		const TArray<FAttributeKey>& Keys = ResizedCurve.GetConstRefOfKeys();
+		for (int32 KeyIndex = 0; KeyIndex < ResizedCurve.GetNumKeys(); ++KeyIndex)
+		{
+			Times.Add(Keys[KeyIndex].Time);
+			Values.Add(Keys[KeyIndex].GetValuePtr<void>());
+		}
+		
+		SetAttributeKeys(Attribute.Identifier, Times, Values, bShouldTransact);
+	}
+}
+
+bool UAnimDataController::AddAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, bool bShouldTransact /*= true*/)
+{
+	if (AttributeIdentifier.IsValid())
+	{
+		const bool bAttributeAlreadyExists = Model->AnimatedBoneAttributes.ContainsByPredicate([AttributeIdentifier](const FAnimatedBoneAttribute& Attribute) -> bool
+		{
+			return Attribute.Identifier == AttributeIdentifier;
+		});
+
+		if (!bAttributeAlreadyExists)
+		{
+			CONDITIONAL_TRANSACTION(LOCTEXT("AddAttribute", "Adding Animated Bone Attribute"));
+
+			FAnimatedBoneAttribute& Attribute = Model->AnimatedBoneAttributes.AddDefaulted_GetRef();
+			Attribute.Identifier = AttributeIdentifier;
+
+			Attribute.Curve.SetScriptStruct(AttributeIdentifier.GetType());
+		
+			CONDITIONAL_ACTION(UE::Anim::FRemoveAtributeAction, AttributeIdentifier);
+
+			FAttributeAddedPayload Payload;
+			Payload.Identifier = AttributeIdentifier;
+			Model->Notify(EAnimDataModelNotifyType::AttributeAdded, Payload);
+
+			return true;
+		}
+		else
+		{
+			ReportErrorf(LOCTEXT("AttributeAlreadyExists", "Attribute identifier provided already exists: {0} {1} ({2}) {3}"),
+			FText::FromName(AttributeIdentifier.GetName()), FText::FromName(AttributeIdentifier.GetBoneName()), FText::AsNumber(AttributeIdentifier.GetBoneIndex()), FText::FromName(AttributeIdentifier.GetType()->GetFName()));
+		}
+	}
+	else
+	{
+		ReportError(LOCTEXT("InvalidAttributeIdentifier", "Invalid attribute identifier provided"));
+	}
+
+	return false;
+}
+
+bool UAnimDataController::RemoveAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, bool bShouldTransact /*= true*/)
+{
+	if (AttributeIdentifier.IsValid())
+	{
+		const int32 AttributeIndex = Model->AnimatedBoneAttributes.IndexOfByPredicate([AttributeIdentifier](const FAnimatedBoneAttribute& Attribute) -> bool
+		{
+			return Attribute.Identifier == AttributeIdentifier;
+		});
+
+		if (AttributeIndex != INDEX_NONE)
+		{
+			CONDITIONAL_TRANSACTION(LOCTEXT("RemoveAttribute", "Removing Animated Bone Attribute"));
+
+			CONDITIONAL_ACTION(UE::Anim::FAddAtributeAction, Model->AnimatedBoneAttributes[AttributeIndex]);
+
+			Model->AnimatedBoneAttributes.RemoveAtSwap(AttributeIndex);
+			
+			FAttributeRemovedPayload Payload;
+			Payload.Identifier = AttributeIdentifier;
+			Model->Notify(EAnimDataModelNotifyType::AttributeRemoved, Payload);
+
+			return true;
+		}
+		else
+		{
+			ReportErrorf(LOCTEXT("AttributeNotFound", "Attribute identifier provided was not found: {0} {1} ({2}) {3}"),
+				FText::FromName(AttributeIdentifier.GetName()), FText::FromName(AttributeIdentifier.GetBoneName()), FText::AsNumber(AttributeIdentifier.GetBoneIndex()), FText::FromName(AttributeIdentifier.GetType()->GetFName()));
+		}
+	}
+	else
+	{
+		ReportError(LOCTEXT("InvalidAttributeIdentifier", "Invalid attribute identifier provided"));
+	}
+
+	return false;
+}
+
+int32 UAnimDataController::RemoveAllAttributesForBone(const FName& BoneName, bool bShouldTransact)
+{
+	int32 NumRemovedAttributes = 0;
+
+	// Generate list of attribute identifiers, matching the bone name, for removal
+	TArray<FAnimationAttributeIdentifier> Identifiers;
+	Algo::TransformIf(Model->AnimatedBoneAttributes, Identifiers,
+		[BoneName](const FAnimatedBoneAttribute& Attribute) -> bool
+		{
+			return Attribute.Identifier.GetBoneName() == BoneName;
+		},
+		[](const FAnimatedBoneAttribute& Attribute)
+		{
+			return Attribute.Identifier;
+		}
+	);
+
+	if (Identifiers.Num())
+	{
+		CONDITIONAL_BRACKET(LOCTEXT("RemoveAllAttributesForBone", "Removing all Attributes for Bone"));
+		for (const FAnimationAttributeIdentifier& Identifier : Identifiers)
+		{
+			NumRemovedAttributes += RemoveAttribute(Identifier, bShouldTransact) ? 1 : 0;
+		}
+	}	
+
+	return NumRemovedAttributes;
+}
+
+
+int32 UAnimDataController::RemoveAllAttributes(bool bShouldTransact)
+{
+	int32 NumRemovedAttributes = 0;
+
+	TArray<FAnimationAttributeIdentifier> Identifiers;
+	Algo::Transform(Model->AnimatedBoneAttributes, Identifiers, [](const FAnimatedBoneAttribute& Attribute)
+	{
+		return Attribute.Identifier;
+	});
+
+	if (Identifiers.Num())
+	{
+		CONDITIONAL_BRACKET(LOCTEXT("RemoveAllAttributes", "Removing all Attributes"));
+		for (const FAnimationAttributeIdentifier& Identifier : Identifiers)
+		{
+			NumRemovedAttributes += RemoveAttribute(Identifier, bShouldTransact) ? 1: 0;
+		}
+	}
+
+	return NumRemovedAttributes;
+}
+
+bool UAnimDataController::SetAttributeKey_Internal(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, const void* KeyValue, const UScriptStruct* TypeStruct, bool bShouldTransact /*= true*/)
+{
+	if (AttributeIdentifier.IsValid())
+	{
+		if (KeyValue)
+		{
+			FAnimatedBoneAttribute* AttributePtr = Model->AnimatedBoneAttributes.FindByPredicate([AttributeIdentifier](FAnimatedBoneAttribute& Attribute)
+			{
+				return Attribute.Identifier == AttributeIdentifier;
+			});
+
+			if (AttributePtr)
+			{
+				if (TypeStruct == AttributePtr->Identifier.GetType())
+				{
+					CONDITIONAL_TRANSACTION(LOCTEXT("SettingAttributeKey", "Setting Animated Bone Attribute key"));
+
+					FAttributeCurve& Curve = AttributePtr->Curve;
+					FKeyHandle KeyHandle = Curve.FindKey(Time);
+					// In case the key does not yet exist one will be added, and thus the undo is a remove
+					if (KeyHandle == FKeyHandle::Invalid())
+					{
+						CONDITIONAL_ACTION(UE::Anim::FRemoveAtributeKeyAction, AttributeIdentifier, Time);
+						Curve.UpdateOrAddKey(Time, KeyValue);
+					}
+					// In case the key does exist it will be updated , and thus the undo is a revert to the current value
+					else
+					{
+						CONDITIONAL_ACTION(UE::Anim::FSetAtributeKeyAction, AttributeIdentifier, Curve.GetKey(KeyHandle));
+						Curve.UpdateOrAddKey(Time, KeyValue);
+					}
+
+					FAttributeChangedPayload Payload;
+					Payload.Identifier = AttributeIdentifier;
+					Model->Notify(EAnimDataModelNotifyType::AttributeChanged, Payload);
+
+					return true;
+				}
+				else
+				{
+					ReportErrorf(LOCTEXT("AttributeTypeDoesNotMatchKeyType", "Key type does not match attribute: {0} {1}"),
+						FText::FromName(AttributePtr->Identifier.GetType()->GetFName()), FText::FromName(TypeStruct->GetFName()));
+				}
+			}
+			else
+			{
+				ReportErrorf(LOCTEXT("AttributeNotFound", "Attribute identifier provided was not found: {0} {1} ({2}) {3}"),
+					FText::FromName(AttributeIdentifier.GetName()), FText::FromName(AttributeIdentifier.GetBoneName()), FText::AsNumber(AttributeIdentifier.GetBoneIndex()), FText::FromName(AttributeIdentifier.GetType()->GetFName()));
+			}
+		}
+		else
+		{
+			ReportError(LOCTEXT("InvalidAttributeKey", "Invalid attribute key value provided"));
+		}
+	}
+	else
+	{
+		ReportError(LOCTEXT("InvalidAttributeIdentifier", "Invalid attribute identifier provided"));
+	}
+
+	return false;
+}
+
+bool UAnimDataController::SetAttributeKeys_Internal(const FAnimationAttributeIdentifier& AttributeIdentifier, TArrayView<const float> Times, TArrayView<const void*> KeyValues, const UScriptStruct* TypeStruct, bool bShouldTransact)
+{
+	if (AttributeIdentifier.IsValid())
+	{
+		if (Times.Num() == KeyValues.Num())
+		{
+			FAnimatedBoneAttribute* AttributePtr = Model->AnimatedBoneAttributes.FindByPredicate([AttributeIdentifier](FAnimatedBoneAttribute& Attribute)
+			{
+				return Attribute.Identifier == AttributeIdentifier;
+			});
+
+			if (AttributePtr)
+			{
+				if (TypeStruct == AttributePtr->Identifier.GetType())
+				{
+					CONDITIONAL_TRANSACTION(LOCTEXT("SettingAttributeKeys", "Setting Animated Bone Attribute keys"));
+
+					FAnimatedBoneAttribute& Attribute = *AttributePtr;
+
+					CONDITIONAL_ACTION(UE::Anim::FSetAtributeKeysAction, Attribute);
+			
+					Attribute.Curve.SetKeys(Times, KeyValues);
+
+					FAttributeChangedPayload Payload;
+					Payload.Identifier = AttributeIdentifier;
+					Model->Notify(EAnimDataModelNotifyType::AttributeChanged, Payload);
+
+					return true;
+				}
+				else
+				{
+					ReportErrorf(LOCTEXT("AttributeTypeDoesNotMatchKeyType", "Key type does not match attribute: {0} {1}"),
+						FText::FromName(AttributePtr->Identifier.GetType()->GetFName()), FText::FromName(TypeStruct->GetFName()));
+				}
+			}
+			else
+			{
+				ReportErrorf(LOCTEXT("AttributeNotFound", "Attribute identifier provided was not found: {0} {1} ({2}) {3}"),
+					FText::FromName(AttributeIdentifier.GetName()), FText::FromName(AttributeIdentifier.GetBoneName()), FText::AsNumber(AttributeIdentifier.GetBoneIndex()), FText::FromName(AttributeIdentifier.GetType()->GetFName()));
+			}
+		}
+		else
+		{
+			ReportErrorf(LOCTEXT("AttributeKeysMismatch", "Non matching number of key time/values: time entries {0} key entries {1}"),
+				FText::AsNumber(Times.Num()), FText::AsNumber(KeyValues.Num()));
+		}
+	}
+	else
+	{
+		ReportError(LOCTEXT("InvalidAttributeIdentifier", "Invalid attribute identifier provided"));
+	}
+
+	return false;
+}
+
+
+bool UAnimDataController::RemoveAttributeKey(const FAnimationAttributeIdentifier& AttributeIdentifier, float Time, bool bShouldTransact /*= true*/)
+{
+	if (AttributeIdentifier.IsValid())
+	{
+		FAnimatedBoneAttribute* AttributePtr = Model->AnimatedBoneAttributes.FindByPredicate([AttributeIdentifier](const FAnimatedBoneAttribute& Attribute)
+		{
+			return Attribute.Identifier == AttributeIdentifier;
+		});
+
+		if (AttributePtr)
+		{
+			FAttributeCurve& Curve = AttributePtr->Curve;
+			FKeyHandle KeyHandle = Curve.FindKey(Time);
+
+			if (KeyHandle != FKeyHandle::Invalid())
+			{
+				CONDITIONAL_TRANSACTION(LOCTEXT("RemovingAttributeKey", "Removing Animated Bone Attribute key"));
+
+				CONDITIONAL_ACTION(UE::Anim::FAddAtributeKeyAction, AttributeIdentifier, Curve.GetKey(KeyHandle));
+
+				Curve.DeleteKey(KeyHandle);
+
+				FAttributeAddedPayload Payload;
+				Payload.Identifier = AttributeIdentifier;
+				Model->Notify(EAnimDataModelNotifyType::AttributeChanged, Payload);
+
+				return true;
+			}
+			else
+			{
+				ReportWarning(LOCTEXT("AttributeKeyNotFound", "Attribute does not contain key for provided time"));
+			}	
+		}
+		else
+		{
+			ReportErrorf(LOCTEXT("AttributeNotFound", "Attribute identifier provided was not found: {0} {1} ({2}) {3}"),
+				FText::FromName(AttributeIdentifier.GetName()), FText::FromName(AttributeIdentifier.GetBoneName()), FText::AsNumber(AttributeIdentifier.GetBoneIndex()), FText::FromName(AttributeIdentifier.GetType()->GetFName()));
+		}
+	}
+	else
+	{
+		ReportError(LOCTEXT("InvalidAttributeIdentifier", "Invalid attribute identifier provided"));
+	}
+
+	return false;
 }
 
 #endif // WITH_EDITOR
