@@ -9,10 +9,13 @@
 #include "DynamicMesh3.h"
 #include "FindPolygonsAlgorithm.h"
 #include "PreviewMesh.h"
+#include "ModelingOperators.h"
+#include "MeshOpPreviewHelpers.h"
 #include "ConvertToPolygonsTool.generated.h"
 
 // predeclaration
-struct FMeshDescription;
+class UConvertToPolygonsTool;
+class FConvertToPolygonsOp;
 
 /**
  *
@@ -66,6 +69,19 @@ public:
 	bool bShowGroupColors = true;
 };
 
+UCLASS()
+class MESHMODELINGTOOLS_API UConvertToPolygonsOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+{
+	GENERATED_BODY()
+
+public:
+	// IDynamicMeshOperatorFactory API
+	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+
+	UPROPERTY()
+	UConvertToPolygonsTool* ConvertToPolygonsTool;  // back pointer
+};
+
 /**
  *
  */
@@ -80,31 +96,39 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
+	virtual void SetWorld(UWorld* World);
+
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
+	virtual bool CanAccept() const override;
 
-	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
+	// update parameters in ConvertToPolygonsOp based on current Settings
+	void UpdateOpParameters(FConvertToPolygonsOp& ConvertToPolygonsOp) const;
+
+protected:
+	
+	void OnSettingsModified();
 
 protected:
 	UPROPERTY()
 	UConvertToPolygonsToolProperties* Settings;
 
 	UPROPERTY()
-	UPreviewMesh* PreviewMesh;
+	UMeshOpPreviewWithBackgroundCompute* PreviewWithBackgroundCompute = nullptr;
 
 protected:
-	FDynamicMesh3 SearchMesh;
-	FDynamicMeshNormalOverlay InitialNormals;
 
-	FFindPolygonsAlgorithm Polygons;
-	bool bPolygonsValid = false;
-	void UpdatePolygons();
+	UWorld* TargetWorld;
 
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
+
+	// for visualization
+	TArray<int> PolygonEdges;
+	
 	void UpdateVisualization();
-
-	void ConvertToPolygons(FMeshDescription* MeshIn);
+	void GenerateAsset(const FDynamicMeshOpResult& Result);
 
 };
