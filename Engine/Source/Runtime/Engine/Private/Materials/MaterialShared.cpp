@@ -1611,14 +1611,11 @@ bool FMaterialResource::HasAmbientOcclusionConnected() const
 bool FMaterialResource::IsStrataMaterial() const
 {
 	// STRATA_TODO IsStrataMaterial should go away once Strata implementation is finished
-	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-	if (RendererSettings && RendererSettings->bEnableStrata)
-	{
-		return Material->bUseMaterialAttributes ?
-			Material->MaterialAttributes.IsConnected(MP_FrontMaterial) :
-			Material->HasStrataFrontMaterialConnected();
-	}
-	return false;
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
+	// We no longer support both types of material (Strata and non strata) so no need to check if FrontMaterial is plugged in.
+	// We simply consider all material as Strata when Strata is enabled.
+	return bStrataEnabled;
 }
 
 bool FMaterialResource::RequiresSynchronousCompilation() const

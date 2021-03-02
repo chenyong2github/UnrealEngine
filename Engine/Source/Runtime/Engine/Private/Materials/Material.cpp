@@ -3633,9 +3633,8 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		return;
 	}
 
-	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-	const bool bStrataEnabled = RendererSettings && RendererSettings->bEnableStrata;
-
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
 	if (bStrataEnabled && !FrontMaterial.IsConnected())
 	{
 		auto MoveConnectionTo = [](auto& OldNodeInput, UMaterialExpression* NewNode, uint32 NewInputIndex)
@@ -4922,8 +4921,8 @@ void UMaterial::RebuildShadingModelField()
 {
 	ShadingModels.ClearShadingModels();
 
-	const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-	const bool bStrataEnabled = RendererSettings && RendererSettings->bEnableStrata;
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+	const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
 	if (bStrataEnabled && FrontMaterial.IsConnected())
 	{
 		FStrataMaterialInfo StrataMaterialInfo;
@@ -6719,8 +6718,9 @@ static bool IsPropertyActive_Internal(EMaterialProperty InProperty,
 		break;
 	case MP_FrontMaterial:
 		{
-			const URendererSettings* RendererSettings = GetDefault<URendererSettings>();
-			Active = RendererSettings && RendererSettings->bEnableStrata;
+			static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Strata"));
+			const bool bStrataEnabled = CVar && CVar->GetValueOnAnyThread() > 0;
+			Active = bStrataEnabled;
 			break;
 		}
 	case MP_MaterialAttributes:
