@@ -2261,27 +2261,41 @@ struct FRelevancePacket
 							// Mark static mesh as visible for rendering
 							if (StaticMeshRelevance.bUseForMaterial && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth))
 							{
-								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
-								MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
+								// Specific logic for mobile packets
+								if (ShadingPath == EShadingPath::Mobile)
+								{
+									// Skydome must not be added to base pass bucket
+									if (!StaticMeshRelevance.bUseSkyMaterial)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::MobileBasePassCSM);
+									}
+									else
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
+									}
+									// bUseSingleLayerWaterMaterial is added to BasePass on Mobile. No need to add it to SingleLayerWaterPass
+
+									MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
+								}
+								else // Regular shading path
+								{
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
+									MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
+
+									if (StaticMeshRelevance.bUseSkyMaterial)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
+									}
+									if (StaticMeshRelevance.bUseSingleLayerWaterMaterial)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SingleLayerWaterPass);
+									}
+								}
 
 								if (StaticMeshRelevance.bUseAnisotropy)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::AnisotropyPass);
-								}
-
-								if (ShadingPath == EShadingPath::Mobile)
-								{
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::MobileBasePassCSM);
-								}
-								else if(StaticMeshRelevance.bUseSkyMaterial)
-								{
-									// Not needed on Mobile path as in this case everything goes into the regular base pass
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
-								}
-								else if(StaticMeshRelevance.bUseSingleLayerWaterMaterial)
-								{
-									// Not needed on Mobile path as in this case everything goes into the regular base pass
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SingleLayerWaterPass);
 								}
 
 								if (ViewRelevance.bRenderCustomDepth)
