@@ -14,11 +14,8 @@
 	"IsBetaVersion": true,
 	"IsExperimentalVersion": false,
 	"Installed": false,
+	"EnabledByDefault": false,
 	"Plugins": [
-		{
-			"Name": "LiveLink",
-			"Enabled": true
-		},
 		{
 			"Name": "UdpMessaging",
 			"Enabled": true
@@ -28,12 +25,7 @@
 		{
 			"Name": "LiveLinkXR",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
-		},
-		{
-			"Name": "LiveLinkXREditor",
-			"Type": "Editor",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
 		}
 	]
 }
