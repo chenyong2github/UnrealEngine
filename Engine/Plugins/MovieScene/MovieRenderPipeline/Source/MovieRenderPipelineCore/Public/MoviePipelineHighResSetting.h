@@ -81,6 +81,33 @@ public:
 				UMoviePipelineOutputSetting* OutputSettings = OwningConfig->FindSetting<UMoviePipelineOutputSetting>();
 				UMoviePipelineAntiAliasingSetting* AASettings = OwningConfig->FindSetting<UMoviePipelineAntiAliasingSetting>();
 
+				// If we don't have an output setting we know this is a shot override. If this is a shot override we'll fall back
+				// to the cached master configuration values. We don't do this for non-shot overrides as it would pull the cached
+				// values, not the transient ones in the UI.
+				if (!OutputSettings)
+				{
+					if (!InJob || !InJob->GetConfiguration())
+					{
+						return FText();
+					}
+
+					UMoviePipelineMasterConfig* MasterConfig = InJob->GetConfiguration();
+					if (!OutputSettings)
+					{
+						OutputSettings = MasterConfig->FindSetting<UMoviePipelineOutputSetting>();
+					}
+					if (!AASettings)
+					{
+						AASettings = MasterConfig->FindSetting<UMoviePipelineAntiAliasingSetting>();
+					}
+				}
+
+				// Shouldn't happen but better to have no footer text than crash.
+				if (!OutputSettings)
+				{
+					return FText();
+				}
+
 				int32 NumTiles = TileCount * TileCount;
 				int32 NumSamplesPerTick = 1;
 				int32 NumSamplesPerTemporal = 1;
