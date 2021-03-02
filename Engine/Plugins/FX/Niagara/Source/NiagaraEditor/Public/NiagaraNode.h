@@ -29,7 +29,7 @@ protected:
 	bool ReallocatePins(bool bMarkNeedsResynchronizeOnChange = true);
 
 	bool CompileInputPins(class FHlslNiagaraTranslator *Translator, TArray<int32>& OutCompiledInputs);
-
+	
 public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeVisualsChanged, UNiagaraNode*);
@@ -40,7 +40,7 @@ public:
 
 	//~ Begin EdGraphNode Interface
 	virtual void PostPlacedNewNode() override;
-	virtual void AutowireNewNode(UEdGraphPin* FromPin)override;	
+	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;	
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
 	virtual void PinTypeChanged(UEdGraphPin* Pin) override;
@@ -53,6 +53,10 @@ public:
 	virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
 	//~ End EdGraphNode Interface
 
+	/** Virtual function to allow for custom widgets in the input or output box */
+	virtual void AddWidgetsToInputBox(TSharedPtr<class SVerticalBox> InputBox);
+	virtual void AddWidgetsToOutputBox(TSharedPtr<class SVerticalBox> OutputBox);
+	
 	/** Get the Niagara graph that owns this node */
 	const class UNiagaraGraph* GetNiagaraGraph()const;
 	class UNiagaraGraph* GetNiagaraGraph();
@@ -88,6 +92,15 @@ public:
 	/** Apply any node-specific logic to determine if it is safe to add this node to the graph. This is meant to be called only in the Editor before placing the node.*/
 	virtual bool CanAddToGraph(UNiagaraGraph* TargetGraph, FString& OutErrorMsg) const;
 
+	/** Request a pin type change to a specific type. */
+	void RequestNewPinType(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType);
+
+	/** Determine whether we are allowed to change a pin's type in the first place. Enables the type conversion widget. */
+	virtual bool AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const { return false; }
+	/** Determine whether or not a pin can be changed to a certain type. Used to populate the type conversion menu if pin type changes are allowed. */
+	virtual bool AllowNiagaraTypeForPinTypeChange(const FNiagaraTypeDefinition& InType, UEdGraphPin* Pin) const { return true; }
+	virtual void GetWildcardPinHoverConnectionTextAddition(const UEdGraphPin* WildcardPin, const UEdGraphPin* OtherPin, ECanCreateConnectionResponse ConnectionResponse, FString& OutString) const;
+	
 	/** Gets which mode to use when deducing the type of numeric output pins from the types of the input pins. */
 	virtual ENiagaraNumericOutputTypeSelectionMode GetNumericOutputTypeSelectionMode() const;
 
@@ -170,6 +183,9 @@ public:
 	static bool SetPinDefaultToTypeDefaultIfUnset(UEdGraphPin* InPin);
 
 protected:
+	/** Pin type changes are handled by the individual subclasses to account for pin sets (like the if node or select node) */
+	virtual bool OnNewPinTypeRequested(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType) { return false; }
+	
 	/** Go through all class members for a given UClass on this object and hash them into the visitor.*/
 	virtual bool GenerateCompileHashForClassMembers(const UClass* InClass, FNiagaraCompileHashVisitor* InVisitor) const;
 

@@ -82,7 +82,7 @@ bool UNiagaraNodeParameterMapSet::VerifyEditablePinName(const FText& InName, FTe
 	return true;
 }
 
-void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin* NewPin)
+void UNiagaraNodeParameterMapSet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 {
 	if (HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
 	{

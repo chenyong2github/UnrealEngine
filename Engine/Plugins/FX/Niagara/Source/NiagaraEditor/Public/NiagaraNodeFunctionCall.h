@@ -153,7 +153,7 @@ protected:
 	virtual bool AllowDynamicPins() const override { return false; }
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override { return false; }
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override { return false; }
-	virtual bool CanMovePin(const UEdGraphPin* Pin) const override { return false; }
+	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override { return false; }
 
 	/** Resets the node name based on the referenced script or signature. Guaranteed unique within a given graph instance.*/
 	void ComputeNodeName(FString SuggestedName = FString(), bool bForceSuggestion = false);

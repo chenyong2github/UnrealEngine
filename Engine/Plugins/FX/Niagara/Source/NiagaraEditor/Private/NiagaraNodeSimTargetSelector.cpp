@@ -15,18 +15,18 @@ void UNiagaraNodeSimTargetSelector::AllocateDefaultPins()
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 
+	NumOptionsPerVariable = 2;
+
 	// create all the cpu input pins
 	for (FNiagaraVariable& Var : OutputVars)
 	{
-		FEdGraphPinType PinType = Schema->TypeDefinitionToPinType(Var.GetType());
-		CreatePin(EGPD_Input, PinType, *(Var.GetName().ToString() + TEXT(" if CPU VM")));
+		AddOptionPin(Var, 0);
 	}
 
 	// create all the gpu input pins
 	for (FNiagaraVariable& Var : OutputVars)
 	{
-		FEdGraphPinType PinType = Schema->TypeDefinitionToPinType(Var.GetType());
-		CreatePin(EGPD_Input, PinType, *(Var.GetName().ToString() + TEXT(" if GPU Shader")));
+		AddOptionPin(Var, 1);
 	}
 
 	// create the output pins
@@ -40,30 +40,9 @@ void UNiagaraNodeSimTargetSelector::AllocateDefaultPins()
 	CreateAddPin(EGPD_Output);
 }
 
-void UNiagaraNodeSimTargetSelector::InsertInputPinsFor(const FNiagaraVariable& Var)
+FString UNiagaraNodeSimTargetSelector::GetInputCaseName(int32 Case) const
 {
-	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-
-	TArray<UEdGraphPin*> OldPins(Pins);
-	Pins.Reset(Pins.Num() + 2);
-
-	// Create the inputs for each simulation target.
-	for (int64 i = 0; i < 2; i++)
-	{
-		// Add the previous input pins
-		for (int32 k = 0; k < OutputVars.Num() - 1; k++)
-		{
-			Pins.Add(OldPins[k]);
-		}
-		OldPins.RemoveAt(0, OutputVars.Num() - 1);
-
-		// Add the new input pin
-		const FString PathSuffix = i == 0 ? TEXT(" if CPU VM") : TEXT(" if GPU Shader");
-		CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Var.GetType()), *(Var.GetName().ToString() + PathSuffix));
-	}
-
-	// Move the rest of the old pins over
-	Pins.Append(OldPins);
+	return Case == 0 ? TEXT("CPU VM") : TEXT("GPU Shader");
 }
 
 void UNiagaraNodeSimTargetSelector::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)

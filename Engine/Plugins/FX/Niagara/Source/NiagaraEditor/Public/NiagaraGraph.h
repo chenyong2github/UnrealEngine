@@ -68,12 +68,12 @@ public:
 	const UNiagaraGraph* Graph;
 
 	/** Returns true if this parameter was initially created by the user. */
-	bool WasCreated() const;
+	bool WasCreatedByUser() const;
 
 private:
 	/** Whether this parameter was initially created by the user. */
 	UPROPERTY()
-	bool bCreated;
+	bool bCreatedByUser;
 };
 
 

@@ -46,7 +46,7 @@ public:
 	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_MODULE_STR; }
 
 protected:
-	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin) override;
+	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
 
 	/** Synchronize the removal of the output pin with its default.*/

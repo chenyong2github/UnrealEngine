@@ -77,7 +77,7 @@ void UNiagaraNodeIf::PostLoad()
 	}
 }
 
-bool UNiagaraNodeIf::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType)
+bool UNiagaraNodeIf::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const
 {
 	// Explicitly allow Numeric types, and explicitly disallow ParameterMap types
 	return (Super::AllowNiagaraTypeForAddPin(InType) || InType == FNiagaraTypeDefinition::GetGenericNumericDef()) && InType != FNiagaraTypeDefinition::GetParameterMapDef();
@@ -174,6 +174,35 @@ void UNiagaraNodeIf::ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool 
 	}
 }
 
+bool UNiagaraNodeIf::AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const
+{
+	// only allow pin changes for output pins
+	if (InGraphPin->Direction == EGPD_Output)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+bool UNiagaraNodeIf::AllowNiagaraTypeForPinTypeChange(const FNiagaraTypeDefinition& InType, UEdGraphPin* Pin) const
+{
+	return InType.GetScriptStruct() != nullptr
+		&& InType != FNiagaraTypeDefinition::GetGenericNumericDef()
+		&& !InType.IsInternalType();
+}
+
+bool UNiagaraNodeIf::OnNewPinTypeRequested(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType)
+{
+	if (PinToChange->Direction == EGPD_Output)
+	{
+		ChangeOutputType(PinToChange, NewType);
+		return true;
+	}
+
+	return false;
+}
+
 bool UNiagaraNodeIf::RefreshFromExternalChanges()
 {
 	// TODO - Leverage code in reallocate pins to determine if any pins have changed...
@@ -206,7 +235,33 @@ FGuid UNiagaraNodeIf::AddOutput(FNiagaraTypeDefinition Type, const FName& Name)
 	return Guid;
 }
 
-const UEdGraphPin* UNiagaraNodeIf::GetPinByGuid(const FGuid& InGuid)
+void UNiagaraNodeIf::ChangeOutputType(UEdGraphPin* OutputPin, FNiagaraTypeDefinition TypeDefinition)
+{
+	for (int32 i = 0; i < PathAssociatedPinGuids.Num(); i++)
+	{
+		const FPinGuidsForPath& PinGuids = PathAssociatedPinGuids[i];
+		if (PinGuids.OutputPinGuid == OutputPin->PersistentGuid)
+		{
+			TSet<FName> OutputNames;
+			for (const FNiagaraVariable& Output : OutputVars)
+			{
+				OutputNames.Add(Output.GetName());
+			}
+			FName OutputName = FNiagaraUtilities::GetUniqueName(*TypeDefinition.GetNameText().ToString(), OutputNames);
+
+			// replace the old var with a new one at the same index, so the matchup between IDs and vars is still the same
+			OutputVars[i] = FNiagaraVariable(TypeDefinition, OutputName);
+			GetPinByPersistentGuid(PinGuids.InputTruePinGuid)->bOrphanedPin = true;
+			GetPinByPersistentGuid(PinGuids.InputFalsePinGuid)->bOrphanedPin = true;
+			OutputPin->bOrphanedPin = true;
+
+			ReallocatePins(true);
+			return;
+		}
+	}
+}
+
+const UEdGraphPin* UNiagaraNodeIf::GetPinByGuid(const FGuid& InGuid) const
 {
 	UEdGraphPin* FoundPin = *Pins.FindByPredicate([&InGuid](const UEdGraphPin* Pin) { return Pin->PersistentGuid == InGuid; });
 	checkf(FoundPin != nullptr, TEXT("Failed to get pin by cached Guid!"));
@@ -215,7 +270,7 @@ const UEdGraphPin* UNiagaraNodeIf::GetPinByGuid(const FGuid& InGuid)
 
 void UNiagaraNodeIf::OnPinRemoved(UEdGraphPin* PinToRemove)
 {
-	auto FindByOutputPinGuidPredicate = [=](const FPinGuidsForPath& PerPinGuidsForPath) { return PerPinGuidsForPath.OutputPinGuid == PinToRemove->PersistentGuid; };
+	auto FindByOutputPinGuidPredicate = [=](const FPinGuidsForPath& PerPinGuidsForPath) { return PerPinGuidsForPath.OutputPinGuid == PinToRemove->PersistentGuid && PinToRemove->bOrphanedPin == false; };
 	int32 FoundIndex = PathAssociatedPinGuids.IndexOfByPredicate(FindByOutputPinGuidPredicate);
 	if (FoundIndex != INDEX_NONE)
 	{
@@ -225,7 +280,7 @@ void UNiagaraNodeIf::OnPinRemoved(UEdGraphPin* PinToRemove)
 	ReallocatePins();
 }
 
-void UNiagaraNodeIf::OnNewTypedPinAdded(UEdGraphPin* NewPin)
+void UNiagaraNodeIf::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 {
 	Super::OnNewTypedPinAdded(NewPin);
 

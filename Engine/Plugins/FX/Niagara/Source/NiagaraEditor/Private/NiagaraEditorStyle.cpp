@@ -267,7 +267,9 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 
 	// Icons
 	Style->Set("NiagaraEditor.Isolate", new IMAGE_PLUGIN_BRUSH("Icons/Isolate", Icon16x16));
-
+	Style->Set("NiagaraEditor.Module.Pin.TypeSelector", new IMAGE_PLUGIN_BRUSH("Icons/Scratch", Icon16x16, FLinearColor::Gray));
+	Style->Set("NiagaraEditor.Module.AddPin", new IMAGE_PLUGIN_BRUSH("Icons/PlusSymbol_12x", Icon12x12, FLinearColor::Gray));
+	Style->Set("NiagaraEditor.Module.RemovePin", new IMAGE_PLUGIN_BRUSH("Icons/MinusSymbol_12x", Icon12x12, FLinearColor::Gray));
 	Style->Set("NiagaraEditor.Scratch", new IMAGE_PLUGIN_BRUSH("Icons/Scratch", Icon16x16, FLinearColor::Yellow));
 	
 	// Emitter details customization
@@ -315,6 +317,12 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	const FSlateColor SelectionColor = FEditorStyle::GetSlateColor("SelectionColor");
 	const FSlateColor SelectionColor_Pressed = FEditorStyle::GetSlateColor("SelectionColor_Pressed");
 
+	Style->Set("NiagaraEditor.Module.Pin.TypeSelector.Button", FButtonStyle()
+		.SetNormal(FSlateNoResource())
+		.SetPressed(BOX_BRUSH("Common/Button_Pressed", 8.0f / 32.0f, SelectionColor_Pressed))
+		.SetHovered(BOX_BRUSH("Common/Button_Hovered", 8.0f / 32.0f, SelectionColor))
+		.SetNormalPadding(FMargin(0, 0, 0, 0))
+		.SetPressedPadding(FMargin(0, 0, 0, 0)));
 	{
 		const FLinearColor NormalColor(0.15, 0.15, 0.15, 1);
 

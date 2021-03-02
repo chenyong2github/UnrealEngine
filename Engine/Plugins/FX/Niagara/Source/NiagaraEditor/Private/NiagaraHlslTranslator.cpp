@@ -43,6 +43,7 @@
 
 #include "NiagaraEditorSettings.h"
 #include "NiagaraNodeStaticSwitch.h"
+#include "NiagaraNodeSelect.h"
 #include "NiagaraScriptVariable.h"
 
 #include "Algo/RemoveIf.h"
@@ -67,6 +68,7 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - MapForBegin"), STAT_NiagaraE
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - MapForEnd"), STAT_NiagaraEditor_HlslTranslator_MapForEnd, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - Operation"), STAT_NiagaraEditor_HlslTranslator_Operation, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - If"), STAT_NiagaraEditor_HlslTranslator_If, STATGROUP_NiagaraEditor);
+DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - Select"), STAT_NiagaraEditor_HlslTranslator_Select, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - CompilePin"), STAT_NiagaraEditor_HlslTranslator_CompilePin, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - CompileOutputPin"), STAT_NiagaraEditor_HlslTranslator_CompileOutputPin, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - GetParameter"), STAT_NiagaraEditor_HlslTranslator_GetParameter, STATGROUP_NiagaraEditor);
@@ -7775,6 +7777,71 @@ void FHlslNiagaraTranslator::If(UNiagaraNodeIf* IfNode, TArray<FNiagaraVariable>
 	Outputs.Add(INDEX_NONE);
 }
 
+void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Selector, const TArray<FNiagaraVariable>& OutputVariables, TMap<int32, TArray<int32>>& Options, TArray<int32>& Outputs)
+{
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_Select);
+	
+	if (Options.Num() == 0)
+	{
+		FText OutErrorMessage = LOCTEXT("NoOptions", "Select node has no input pins. Please select a selector type.");
+		Error(OutErrorMessage, SelectNode, nullptr);
+	}
+
+	for(const FNiagaraVariable& Variable : OutputVariables)
+	{
+		if (!AddStructToDefinitionSet(Variable.GetType()))
+		{
+			FText OutErrorMessage = FText::Format(LOCTEXT("UnknownNumeric", "Output type in Select node uses invalid type. Type: {0}"),
+				Variable.GetType().GetNameText());
+
+			Error(OutErrorMessage, SelectNode, SelectNode->GetOutputPin(Variable));
+		}
+	}
+
+	FString SymbolNameSuffix = GetUniqueSymbolName(TEXT("_SelectResult"));
+	TArray<FString> SymbolNames;
+	if (Options.Num() > 0)
+	{
+		for (const FNiagaraVariable& Variable : OutputVariables)
+		{
+			const FNiagaraVariable DefaultVar(Variable.GetType(), Variable.GetName());
+			const int32 DefaultConstant = GetConstant(DefaultVar);
+
+			FString SymbolName = Variable.GetName().ToString() + SymbolNameSuffix;
+			SymbolNames.Add(SymbolName);
+			
+			const int32 SymbolIndex = AddBodyChunk(SymbolName, TEXT("{0}"), Variable.GetType(), true);
+			FNiagaraCodeChunk& OutputSymbolChunk = CodeChunks[SymbolIndex];
+			OutputSymbolChunk.AddSourceChunk(DefaultConstant);
+			
+			Outputs.Add(SymbolIndex);
+		}
+	}
+
+	TArray<int32> SelectorValues;
+	Options.GenerateKeyArray(SelectorValues);
+	
+	for (int32 SelectorValueIndex = 0; SelectorValueIndex < SelectorValues.Num(); SelectorValueIndex++)
+	{
+		FString Definition = FString(TEXT("if({0} == ")) + FString::FromInt(SelectorValues[SelectorValueIndex]) + TEXT(")\n\t{ ");
+		TArray<int32> SourceChunks = { Selector };
+		
+		AddBodyChunk(TEXT(""), Definition, FNiagaraTypeDefinition::GetFloatDef(), SourceChunks, false, false);
+		int32 NaturalIndex = 0;
+		for(int32 CompiledPinCodeChunk : Options[SelectorValues[SelectorValueIndex]])
+		{
+			FNiagaraCodeChunk& BranchChunk = CodeChunks[AddBodyChunk(SymbolNames[NaturalIndex], TEXT("{0}"), OutputVariables[NaturalIndex].GetType(), false)];
+			BranchChunk.AddSourceChunk(CompiledPinCodeChunk);
+			NaturalIndex++;
+		}
+		
+		AddBodyChunk(TEXT(""), TEXT("}"), FNiagaraTypeDefinition::GetFloatDef(), false, false);
+	}
+
+	// Add an additional invalid output for the add pin which doesn't get compiled.
+	Outputs.Add(INDEX_NONE);
+}
+
 int32 FHlslNiagaraTranslator::CompilePin(const UEdGraphPin* Pin)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_CompilePin);
@@ -7882,8 +7949,14 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 			TArray<int32> Outputs;
 			FPinCollectorArray OutputPins;
 			Node->GetOutputPins(OutputPins);
+			OutputPins.RemoveAll([](UEdGraphPin* Pin)
+			{
+				return Pin->bOrphanedPin == true;
+			});
+			
 			FHlslNiagaraTranslator* ThisTranslator = this;
 			Node->Compile(ThisTranslator, Outputs);
+			// this requires the nodes to only compile their valid output pins - no orphaned pins
 			if (OutputPins.Num() == Outputs.Num())
 			{
 				for (int32 i = 0; i < Outputs.Num(); ++i)

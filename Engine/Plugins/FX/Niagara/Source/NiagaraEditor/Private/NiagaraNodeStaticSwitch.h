@@ -22,10 +22,6 @@ struct FStaticSwitchTypeData
 	UPROPERTY()
 	ENiagaraStaticSwitchType SwitchType;
 
-	/** If the type is int, this sets the upper range of input values the switch supports (so pins = MaxIntCount + 1) */
-	UPROPERTY()
-	int32 MaxIntCount;
-
 	/** If the type is enum, this is the enum being switched on, otherwise it holds no sensible value */
 	UPROPERTY()
 	UEnum* Enum;
@@ -34,7 +30,7 @@ struct FStaticSwitchTypeData
 	UPROPERTY()
 	FName SwitchConstant;
 
-	FStaticSwitchTypeData() : SwitchType(ENiagaraStaticSwitchType::Bool), MaxIntCount(1), Enum(nullptr)
+	FStaticSwitchTypeData() : SwitchType(ENiagaraStaticSwitchType::Bool), Enum(nullptr)
 	{ }
 };
 
@@ -72,22 +68,24 @@ public:
 	virtual bool IsCompilerRelevant() const override { return false; }
 	virtual void PostLoad() override;
 	//~ End EdGraphNode Interface
-
+	
 	//~ Begin UNiagaraNode Interface
 	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
 	virtual bool SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin) override;
 	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation) const override;
 	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive, bool bFilterForCompilation) const;
 	virtual UEdGraphPin* GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin, ENiagaraScriptUsage MasterUsage) const override;
+	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const override;
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
+	virtual bool OnNewPinTypeRequested(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType) override;
+	virtual void AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox) override;
 	//~ End UNiagaraNode Interface
-
-	virtual void DestroyNode() override;
 
 protected:
 	//~ Begin UNiagaraNodeUsageSelector Interface
-	virtual void InsertInputPinsFor(const FNiagaraVariable& Var) override;
-	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) override;
+	virtual FString GetInputCaseName(int32 Case) const override;
+	virtual FName GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const override;
+	virtual TArray<int32> GetOptionValues() const override;
 	//~ End UNiagaraNodeUsageSelector Interface
 
 private:
@@ -97,6 +95,14 @@ private:
 	bool GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const;
 
 	void RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter);
+
+	FString GetOptionPinSuffix(int32 Index) const;
+	void AddIntegerInputPin();
+	void RemoveIntegerInputPin();
+	FText GetIntegerAddButtonTooltipText() const;
+	FText GetIntegerRemoveButtonTooltipText() const;
+	EVisibility ShowAddIntegerButton() const;
+	EVisibility ShowRemoveIntegerButton() const;
 
 	/** If true then the current SwitchValue should be used for compilation, otherwise the node is not yet connected to a constant value */
 	bool IsValueSet = false;

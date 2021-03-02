@@ -524,6 +524,7 @@ UScriptStruct* FNiagaraTypeDefinition::Vec3Struct;
 UScriptStruct* FNiagaraTypeDefinition::Vec2Struct;
 UScriptStruct* FNiagaraTypeDefinition::ColorStruct;
 UScriptStruct* FNiagaraTypeDefinition::QuatStruct;
+UScriptStruct* FNiagaraTypeDefinition::WildcardStruct;
 
 UScriptStruct* FNiagaraTypeDefinition::HalfStruct;
 UScriptStruct* FNiagaraTypeDefinition::HalfVec2Struct;
@@ -566,6 +567,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureRenderTargetDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::WildcardDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -595,6 +597,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::BoolStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraBool"));
 	FNiagaraTypeDefinition::IntStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraInt32"));
 	FNiagaraTypeDefinition::Matrix4Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraMatrix"));
+	FNiagaraTypeDefinition::WildcardStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraWildcard"));
 
 	FNiagaraTypeDefinition::HalfStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalf"));
 	FNiagaraTypeDefinition::HalfVec2Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalfVector2"));
@@ -624,7 +627,8 @@ void FNiagaraTypeDefinition::Init()
 	ColorDef = FNiagaraTypeDefinition(ColorStruct);
 	QuatDef = FNiagaraTypeDefinition(QuatStruct);
 	Matrix4Def = FNiagaraTypeDefinition(Matrix4Struct);
-
+	WildcardDef = FNiagaraTypeDefinition(WildcardStruct);
+	
 	HalfDef = FNiagaraTypeDefinition(HalfStruct);
 	HalfVec2Def = FNiagaraTypeDefinition(HalfVec2Struct);
 	HalfVec3Def = FNiagaraTypeDefinition(HalfVec3Struct);
@@ -814,6 +818,8 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(ColorDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(QuatDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(Matrix4Def, ParamFlags);
+	// @todo wildcard shouldn't be available for parameters etc., so just don't register here?
+	//FNiagaraTypeRegistry::Register(WildcardDef, VarFlags);
 
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), ParamFlags | PayloadFlags);

@@ -56,6 +56,7 @@
 #include "NiagaraEditorSettings.h"
 #include "Widgets/SNiagaraParameterName.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
+#include "Widgets/SNiagaraParameterPanel.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -2569,6 +2570,37 @@ const FNiagaraNamespaceMetadata FNiagaraEditorUtilities::GetNamespaceMetaDataFor
 	const FNiagaraParameterHandle VarHandle = FNiagaraParameterHandle(VarName);
 	const TArray<FName> VarHandleNameParts = VarHandle.GetHandleParts();
 	return GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(VarHandleNameParts);
+}
+
+void FNiagaraEditorUtilities::CollectPinTypeChangeActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin)
+{
+	UNiagaraNode* Node = Cast<UNiagaraNode>(Pin->GetOwningNode());
+	ensure(Node);
+
+	TArray<FNiagaraTypeDefinition> Types(FNiagaraTypeRegistry::GetRegisteredTypes());
+	Types.Sort([](const FNiagaraTypeDefinition& A, const FNiagaraTypeDefinition& B) { return (A.GetNameText().ToLower().ToString() < B.GetNameText().ToLower().ToString()); });
+
+	for (const FNiagaraTypeDefinition& RegisteredType : Types)
+	{
+		const bool bAllowType = Node->AllowNiagaraTypeForPinTypeChange(RegisteredType, Pin);
+
+		if (bAllowType)
+		{
+			FNiagaraVariable Var(RegisteredType, FName(*RegisteredType.GetName()));
+			FNiagaraEditorUtilities::ResetVariableToDefaultValue(Var);
+
+			FText Category = FNiagaraEditorUtilities::GetVariableTypeCategory(Var);
+			const FText DisplayName = RegisteredType.GetNameText();
+			const FText Tooltip = FText::Format(LOCTEXT("ChangeSelectorTypeEntryToolTipFormat", "Change to {0} pin"), RegisteredType.GetNameText());
+			TSharedPtr<FNiagaraMenuAction> Action(new FNiagaraMenuAction(
+				Category, DisplayName, Tooltip, 0, FText::GetEmpty(),
+				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(Node, &UNiagaraNode::RequestNewPinType, Pin, RegisteredType)));
+
+			OutActions.AddAction(Action);
+		}
+	}
+
+	bOutCreateRemainingActions = false;
 }
 
 bool FNiagaraParameterUtilities::DoesParameterNameMatchSearchText(FName ParameterName, const FString& SearchTextString)

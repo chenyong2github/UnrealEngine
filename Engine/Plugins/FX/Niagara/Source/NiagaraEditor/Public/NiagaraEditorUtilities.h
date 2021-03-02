@@ -311,6 +311,9 @@ namespace FNiagaraEditorUtilities
 	int32 GetNamespaceSortPriority(const FName& Namespace);
 
 	const FNiagaraNamespaceMetadata GetNamespaceMetaDataForVariableName(const FName& VarName);
+
+	/** Used to gather the actions for . */
+	void CollectPinTypeChangeActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin);
 };
 
 namespace FNiagaraParameterUtilities

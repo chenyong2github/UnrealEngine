@@ -37,7 +37,7 @@ public:
 	// Replace items in the tokens array if they start with the src string or optionally src string and a namespace delimiter
 	static uint32 ReplaceExactMatchTokens(TArray<FString>& Tokens, const FString& SrcString, const FString& ReplaceString, bool bAllowNamespaceSeparation);
 	static FNiagaraVariable StripVariableToBaseType(const FNiagaraVariable& InVar);
-	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType);
+	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const;
 
 	virtual bool ReferencesVariable(const FNiagaraVariableBase& InVar) const;
 
@@ -62,12 +62,12 @@ protected:
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override {
 		return UNiagaraNodeWithDynamicPins::CanRemovePin(Pin);
 	}
-	virtual bool CanMovePin(const UEdGraphPin* Pin) const override {
-		return UNiagaraNodeWithDynamicPins::CanMovePin(Pin);
+	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override {
+		return UNiagaraNodeWithDynamicPins::CanMovePin(Pin, DirectionToMove);
 	}
 
 	/** Called when a new typed pin is added by the user. */
-	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin) override;
+	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
 
 	/** Called when a pin is renamed. */
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldPinName) override;

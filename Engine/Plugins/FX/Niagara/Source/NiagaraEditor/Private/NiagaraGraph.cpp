@@ -50,13 +50,13 @@ static FAutoConsoleVariableRef CVarNiagaraUseGraphHash(
 );
 
 FNiagaraGraphParameterReferenceCollection::FNiagaraGraphParameterReferenceCollection(const bool bInCreated)
-	: Graph(nullptr), bCreated(bInCreated)
+	: Graph(nullptr), bCreatedByUser(bInCreated)
 {
 }
 
-bool FNiagaraGraphParameterReferenceCollection::WasCreated() const
+bool FNiagaraGraphParameterReferenceCollection::WasCreatedByUser() const
 {
-	return bCreated;
+	return bCreatedByUser;
 }
 
 FNiagaraGraphScriptUsageInfo::FNiagaraGraphScriptUsageInfo() : UsageType(ENiagaraScriptUsage::Function)
@@ -1358,7 +1358,7 @@ UNiagaraScriptVariable* UNiagaraGraph::AddParameter(const FNiagaraVariable& Para
 	FNiagaraGraphParameterReferenceCollection* FoundParameterReferenceCollection = ParameterToReferencesMap.Find(Parameter);
 	if (!FoundParameterReferenceCollection)
 	{
-		FNiagaraGraphParameterReferenceCollection NewReferenceCollection = FNiagaraGraphParameterReferenceCollection(true /*bCreated*/);
+		FNiagaraGraphParameterReferenceCollection NewReferenceCollection = FNiagaraGraphParameterReferenceCollection(bIsStaticSwitch? false : true);
 		NewReferenceCollection.Graph = this;
 		ParameterToReferencesMap.Add(Parameter, NewReferenceCollection);
 	}
@@ -2619,7 +2619,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 	for (auto& ParameterToReferences : ParameterToReferencesMap)
 	{
 		ParameterToReferences.Value.ParameterReferences.Empty();
-		if (ParameterToReferences.Value.WasCreated() == false)
+		if (ParameterToReferences.Value.WasCreatedByUser() == false)
 		{
 			// Collect all parameters not created for the user so that they can be removed later if no references are found for them.
 			CandidateUnreferencedParametersToRemove.Add(ParameterToReferences.Key);
@@ -2651,7 +2651,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		FNiagaraGraphParameterReferenceCollection* ReferenceCollection = ParameterToReferencesMap.Find(Variable);
 		if (ReferenceCollection == nullptr)
 		{
-			FNiagaraGraphParameterReferenceCollection NewReferenceCollection(true);
+			FNiagaraGraphParameterReferenceCollection NewReferenceCollection(false);
 			NewReferenceCollection.Graph = this;
 			ReferenceCollection = &ParameterToReferencesMap.Add(Variable, NewReferenceCollection);
 		}
