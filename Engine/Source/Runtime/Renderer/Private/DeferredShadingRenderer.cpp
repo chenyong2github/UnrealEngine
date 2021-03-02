@@ -806,7 +806,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_DynamicElements);
 
+		const bool bParallelMeshBatchSetup = GRayTracingParallelMeshBatchSetup && FApp::ShouldUseThreadingForPerformance();
+
 		Scene->GetRayTracingDynamicGeometryCollection()->BeginUpdate();
+
+		ReferenceView.RayTracingGeometryInstances.Reserve(RelevantPrimitives.Num());
+
+		if (bParallelMeshBatchSetup)
+		{
+			ReferenceView.AddRayTracingMeshBatchData.Reserve(RelevantPrimitives.Num());
+		}
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -858,12 +867,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
 
 					// Thin geometries like hair don't have material, as they only support shadow at the moment.
-					if (!ensureMsgf(Instance.Materials.Num() == Instance.Geometry->Initializer.Segments.Num() ||
-						(Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.Materials.Num() == 1) ||
-						(Instance.Materials.Num() == 0 && (Instance.Mask & RAY_TRACING_MASK_THIN_SHADOW) > 0),
+					if (!ensureMsgf(Instance.GetMaterials().Num() == Instance.Geometry->Initializer.Segments.Num() ||
+						(Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.GetMaterials().Num() == 1) ||
+						(Instance.GetMaterials().Num() == 0 && (Instance.Mask & RAY_TRACING_MASK_THIN_SHADOW) > 0),
 						TEXT("Ray tracing material assignment validation failed for geometry '%s'. "
-							"Instance.Materials.Num() = %d, Instance.Geometry->Initializer.Segments.Num() = %d, Instance.Mask = 0x%X."),
-						*Instance.Geometry->Initializer.DebugName.ToString(), Instance.Materials.Num(),
+							"Instance.GetMaterials().Num() = %d, Instance.Geometry->Initializer.Segments.Num() = %d, Instance.Mask = 0x%X."),
+						*Instance.Geometry->Initializer.DebugName.ToString(), Instance.GetMaterials().Num(),
 						Instance.Geometry->Initializer.Segments.Num(), Instance.Mask))
 					{
 						continue;
@@ -876,14 +885,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					}
 					else 
 					{
-						if (Instance.InstanceTransformsView.Num())
-						{
-							// Fast path: just reference persistently-allocated transforms and avoid a copy
-							checkf(Instance.InstanceTransforms.Num() == 0, TEXT("InstanceTransforms is expected to be empty if using InstanceTransformsView"));
-							RayTracingInstance.NumTransforms = Instance.InstanceTransformsView.Num();
-							RayTracingInstance.TransformsView = Instance.InstanceTransformsView;
-						}
-						else
+						if (Instance.OwnsTransforms())
 						{
 							// Slow path: copy transforms to the owned storage
 							checkf(Instance.InstanceTransformsView.Num() == 0, TEXT("InstanceTransformsView is expected to be empty if using InstanceTransforms"));
@@ -892,10 +894,19 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 							FMemory::Memcpy(RayTracingInstance.Transforms.GetData(), Instance.InstanceTransforms.GetData(), Instance.InstanceTransforms.Num() * sizeof(RayTracingInstance.Transforms[0]));
 							static_assert(TIsSame<decltype(RayTracingInstance.Transforms[0]), decltype(Instance.InstanceTransforms[0])>::Value, "Unexpected transform type");
 						}
+						else
+						{
+							// Fast path: just reference persistently-allocated transforms and avoid a copy
+							checkf(Instance.InstanceTransforms.Num() == 0, TEXT("InstanceTransforms is expected to be empty if using InstanceTransformsView"));
+							RayTracingInstance.NumTransforms = Instance.InstanceTransformsView.Num();
+							RayTracingInstance.TransformsView = Instance.InstanceTransformsView;
+						}
 					}
-					for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
+
+					TArrayView<const FMeshBatch> InstanceMaterials = Instance.GetMaterials();
+					for (int32 SegmentIndex = 0; SegmentIndex < InstanceMaterials.Num(); SegmentIndex++)
 					{
-						FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
+						const FMeshBatch& MeshBatch = InstanceMaterials[SegmentIndex];
 						RayTracingInstance.bDoubleSided |= MeshBatch.bDisableBackfaceCulling;
 					}
 
@@ -915,15 +926,24 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					}
 #endif // DO_CHECK
 
-					if (GRayTracingParallelMeshBatchSetup && FApp::ShouldUseThreadingForPerformance())
+					if (bParallelMeshBatchSetup)
 					{
-						ReferenceView.AddRayTracingMeshBatchData.Emplace(Instance.Materials, SceneProxy, InstanceIndex);
+						if (Instance.OwnsMaterials())
+						{
+							check(Instance.MaterialsView.Num() == 0);
+							ReferenceView.AddRayTracingMeshBatchData.Emplace(Instance.Materials, SceneProxy, InstanceIndex);
+						}
+						else
+						{
+							check(Instance.Materials.Num() == 0);
+							ReferenceView.AddRayTracingMeshBatchData.Emplace(Instance.MaterialsView, SceneProxy, InstanceIndex);
+						}
 					}
 					else
 					{
-						for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
+						for (int32 SegmentIndex = 0; SegmentIndex < InstanceMaterials.Num(); SegmentIndex++)
 						{
-							FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
+							const FMeshBatch& MeshBatch = InstanceMaterials[SegmentIndex];
 							FDynamicRayTracingMeshCommandContext CommandContext(ReferenceView.DynamicRayTracingMeshCommandStorage, ReferenceView.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
 							FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer);
 							FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &ReferenceView, PassDrawRenderState);
@@ -977,9 +997,10 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 				for (uint32 Index = BatchStart; Index < BatchEnd; Index++)
 				{
 					FRayTracingMeshBatchWorkItem& MeshBatchJob = ReferenceView.AddRayTracingMeshBatchData[Index];
-					for (uint32 SegmentIndex = 0; SegmentIndex < (uint32) MeshBatchJob.MeshBatches.Num(); SegmentIndex++)
+					TArrayView<const FMeshBatch> MeshBatches = MeshBatchJob.GetMeshBatches();
+					for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 					{
-						FMeshBatch& MeshBatch = MeshBatchJob.MeshBatches[SegmentIndex];
+						const FMeshBatch& MeshBatch = MeshBatches[SegmentIndex];
 						const FPrimitiveSceneProxy* SceneProxy = MeshBatchJob.SceneProxy;
 						const uint32 InstanceIndex = MeshBatchJob.InstanceIndex;
 						FDynamicRayTracingMeshCommandContext CommandContext(ReferenceView.DynamicRayTracingMeshCommandStorageParallel[Batch], ReferenceView.VisibleRayTracingMeshCommandsParallel[Batch], SegmentIndex, InstanceIndex);

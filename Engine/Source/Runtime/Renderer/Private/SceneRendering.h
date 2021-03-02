@@ -1022,16 +1022,44 @@ typedef TArray<FViewCommands, TInlineAllocator<4>> FViewVisibleCommandsPerView;
 #if RHI_RAYTRACING
 struct FRayTracingMeshBatchWorkItem
 {
-	FRayTracingMeshBatchWorkItem(TArray<FMeshBatch>& InBatches, FPrimitiveSceneProxy* InSceneProxy, uint32 InInstanceIndex) :
-		SceneProxy(InSceneProxy),
-		InstanceIndex(InInstanceIndex)
+	FRayTracingMeshBatchWorkItem(TArray<FMeshBatch>& InBatches, FPrimitiveSceneProxy* InSceneProxy, uint32 InInstanceIndex) 
+		: SceneProxy(InSceneProxy)
+		, InstanceIndex(InInstanceIndex)
 	{
-		Swap(MeshBatches, InBatches);
+		Swap(MeshBatchesOwned, InBatches);
 	}
 
-	TArray<FMeshBatch> MeshBatches;
-	FPrimitiveSceneProxy* SceneProxy;
-	uint32 InstanceIndex;
+	FRayTracingMeshBatchWorkItem(TArrayView<const FMeshBatch>& InBatches, FPrimitiveSceneProxy* InSceneProxy, uint32 InInstanceIndex) 
+		: SceneProxy(InSceneProxy)
+		, InstanceIndex(InInstanceIndex)
+	{
+		MeshBatchesView = InBatches;
+	}
+
+	bool OwnsMeshBatches() const
+	{
+		return MeshBatchesOwned.Num() != 0;
+	}
+
+	TArrayView<const FMeshBatch> GetMeshBatches() const
+	{
+		if (OwnsMeshBatches())
+		{
+			check(MeshBatchesView.Num() == 0);
+			return TArrayView<const FMeshBatch>(MeshBatchesOwned);
+		}
+		else
+		{
+			check(MeshBatchesOwned.Num() == 0);
+			return MeshBatchesView;
+		}
+	}
+
+	TArray<FMeshBatch> MeshBatchesOwned;
+	TArrayView<const FMeshBatch> MeshBatchesView;
+
+	FPrimitiveSceneProxy* SceneProxy = nullptr;
+	uint32 InstanceIndex = 0;
 };
 
 /** Convenience struct for all lighting data used by ray tracing effects using RayTracingLightingCommon.ush */
@@ -1195,10 +1223,10 @@ public:
 	FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
 
 	FGraphEventArray AddRayTracingMeshBatchTaskList;
-	TArray<FRayTracingMeshBatchWorkItem> AddRayTracingMeshBatchData;
+	TArray<FRayTracingMeshBatchWorkItem, SceneRenderingAllocator> AddRayTracingMeshBatchData;
 
-	TArray<FRayTracingMeshCommandOneFrameArray> VisibleRayTracingMeshCommandsParallel;
-	TArray<FDynamicRayTracingMeshCommandStorage> DynamicRayTracingMeshCommandStorageParallel;
+	TArray<FRayTracingMeshCommandOneFrameArray, SceneRenderingAllocator> VisibleRayTracingMeshCommandsParallel;
+	TArray<FDynamicRayTracingMeshCommandStorage, SceneRenderingAllocator> DynamicRayTracingMeshCommandStorageParallel;
 #endif
 
 	// Used by mobile renderer to determine whether static meshes will be rendered with CSM shaders or not.

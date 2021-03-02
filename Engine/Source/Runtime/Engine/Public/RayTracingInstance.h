@@ -19,6 +19,28 @@ struct FRayTracingInstance
 	 */
 	TArray<FMeshBatch> Materials;
 
+	/** Similar to Materials, but memory is owned by someone else (i.g. FPrimitiveSceneProxy). */
+	TArrayView<const FMeshBatch> MaterialsView;
+
+	bool OwnsMaterials() const
+	{
+		return Materials.Num() != 0;
+	}
+
+	TArrayView<const FMeshBatch> GetMaterials() const
+	{
+		if (OwnsMaterials())
+		{
+			check(MaterialsView.Num() == 0);
+			return TArrayView<const FMeshBatch>(Materials);
+		}
+		else
+		{
+			check(Materials.Num() == 0);
+			return MaterialsView;
+		}
+	}
+
 	/** Whether the instance is forced opaque, i.e. anyhit shaders are disabled on this instance */
 	bool bForceOpaque : 1;
 
@@ -36,7 +58,26 @@ struct FRayTracingInstance
 	TArray<FMatrix> InstanceTransforms;
 
 	/** Similar to InstanceTransforms, but memory is owned by someone else (i.g. FPrimitiveSceneProxy). */
-	TArrayView<FMatrix> InstanceTransformsView;
+	TArrayView<const FMatrix> InstanceTransformsView;
+
+	bool OwnsTransforms() const
+	{
+		return InstanceTransforms.Num() != 0;
+	}
+
+	TArrayView<const FMatrix> GetTransforms() const
+	{
+		if (OwnsTransforms())
+		{
+			check(InstanceTransformsView.Num() == 0);
+			return TArrayView<const FMatrix>(InstanceTransforms);
+		}
+		else
+		{
+			check(InstanceTransforms.Num() == 0);
+			return InstanceTransformsView;
+		}
+	}
 
 	/** When instance transforms are only available in GPU, this SRV holds them. */
 	FShaderResourceViewRHIRef InstanceGPUTransformsSRV;

@@ -158,8 +158,10 @@ protected:
 	const UStaticMesh* StaticMesh = nullptr;
 
 #if RHI_RAYTRACING
-	TArray<FRayTracingGeometry*> RayTracingGeometries;
+	bool bHasRayTracingInstances = false;
+	const FRayTracingGeometry* RayTracingGeometry = nullptr;
 	TArray<FMatrix> CachedRayTracingInstanceTransforms;
+	TArray<FMeshBatch> CachedRayTracingMaterials;
 	FMatrix CachedRayTracingInstanceLocalToWorld = {};
 #endif
 

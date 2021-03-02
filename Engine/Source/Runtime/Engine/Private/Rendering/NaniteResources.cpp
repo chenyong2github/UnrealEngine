@@ -376,10 +376,15 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		bHasMaterialErrors = true;
 	}
 
-	const FStaticMeshLODResources& MeshResources = RenderData->LODResources[0];
+	const uint32 LODIndex = 0; // only LOD0 is supported
+	const FStaticMeshLODResources& MeshResources = RenderData->LODResources[LODIndex];
 	const FStaticMeshSectionArray& MeshSections = MeshResources.Sections;
 	
 	MaterialSections.SetNumZeroed(MeshSections.Num());
+
+#if RHI_RAYTRACING
+	CachedRayTracingMaterials.Reserve(MaterialSections.Num());
+#endif 
 
 	for (int32 SectionIndex = 0; SectionIndex < MeshSections.Num(); ++SectionIndex)
 	{
@@ -418,6 +423,15 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		check(MaterialInterface->GetBlendMode() == BLEND_Opaque);
 
 		MaterialSections[SectionIndex].Material = MaterialInterface;
+
+	#if RHI_RAYTRACING
+		FMeshBatch& MeshBatch = CachedRayTracingMaterials.AddDefaulted_GetRef();
+		MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
+		MeshBatch.MaterialRenderProxy = MaterialInterface->GetRenderProxy();
+		MeshBatch.bWireframe = false;
+		MeshBatch.SegmentIndex = SectionIndex;
+		MeshBatch.LODIndex = LODIndex;
+	#endif
 	}
 
 	// Copy the pointer to the volume data, async building of the data may modify the one on FStaticMeshLODResources while we are rendering
@@ -440,10 +454,11 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		RayTracingGeometries.AddDefaulted(RenderData->LODResources.Num());
-		for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+		const FStaticMeshLODResourcesArray& LODResources = Component->GetStaticMesh()->GetRenderData()->LODResources;
+		if (LODResources.Num() && LODResources[LODIndex].GetNumVertices())
 		{
-			RayTracingGeometries[LODIndex] = &Component->GetStaticMesh()->GetRenderData()->LODResources[LODIndex].RayTracingGeometry;
+			RayTracingGeometry = &LODResources[LODIndex].RayTracingGeometry;
+			bHasRayTracingInstances = true;
 		}
 	}
 #endif
@@ -499,6 +514,13 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		Instance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
 		Instance.PerInstanceRandom = InstanceOrigin.W; // Per-instance random packed into W component
 	}
+
+#if RHI_RAYTRACING
+	if (Instances.Num() == 0)
+	{
+		bHasRayTracingInstances = false;
+	}
+#endif
 }
 
 FSceneProxy::FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component)
@@ -902,30 +924,17 @@ void FSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views,
 #if RHI_RAYTRACING
 void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
-	if (GRayTracingNaniteProxyMeshes == 0)
+	if (GRayTracingNaniteProxyMeshes == 0 || !bHasRayTracingInstances)
 	{
 		return;
 	}
+
+	FRayTracingInstance& RayTracingInstance = OutRayTracingInstances.Emplace_GetRef();
+
+	RayTracingInstance.Geometry = RayTracingGeometry;
 
 	const int32 InstanceCount = Instances.Num();
-
-	if (InstanceCount == 0)
-	{
-		return;
-	}
-
-	const uint32 LODIndex = FMath::Max(GetLOD(Context.ReferenceView), (int32)GetCurrentFirstLODIdx_RenderThread());
-	const FStaticMeshLODResources& LODModel = RenderData->LODResources[LODIndex];
-
-	if (LODModel.GetNumVertices() <= 0 || RenderData->LODResources.Num() <= 0)
-	{
-		return;
-	}
-
-	FRayTracingInstance& RayTracingInstanceTemplate = OutRayTracingInstances.Emplace_GetRef();
-	RayTracingInstanceTemplate.Geometry = RayTracingGeometries[LODIndex];
-
-	if (CachedRayTracingInstanceTransforms.Num() == 0 || GetLocalToWorld() != CachedRayTracingInstanceLocalToWorld)
+	if (CachedRayTracingInstanceTransforms.Num() != InstanceCount || GetLocalToWorld() != CachedRayTracingInstanceLocalToWorld)
 	{
 		CachedRayTracingInstanceTransforms.SetNumUninitialized(InstanceCount);
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceCount; ++InstanceIndex)
@@ -937,44 +946,12 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	}
 
 	// Transforms are persistently allocated, so we can just return them by pointer.
-	RayTracingInstanceTemplate.InstanceTransformsView = CachedRayTracingInstanceTransforms;
-	RayTracingInstanceTemplate.NumTransforms = CachedRayTracingInstanceTransforms.Num();
-	
-	const int32 NumBatches = 1; //GetNumMeshBatches(); // Assume one batch for now for Nanite proxies
-	const auto& MeshSections = RenderData->LODResources[0].Sections;
-	const FStaticMeshVertexFactories& VFs = RenderData->LODVertexFactories[LODIndex];
+	RayTracingInstance.InstanceTransformsView = CachedRayTracingInstanceTransforms;
+	RayTracingInstance.NumTransforms = CachedRayTracingInstanceTransforms.Num();
 
-	RayTracingInstanceTemplate.Materials.Reserve(LODModel.Sections.Num() * NumBatches);
-	for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
-	{
-		for (int32 SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
-		{
-			if (LODModel.Sections[SectionIndex].NumTriangles == 0)
-			{
-				continue;
-			}
+	RayTracingInstance.MaterialsView = CachedRayTracingMaterials;
 
-			int32 MaterialIndex = LODModel.Sections[SectionIndex].MaterialIndex;
-			if (!ensureMsgf(MaterialIndex < MaterialSections.Num(), TEXT("Material index %d is out of bounds for MaterialSections (%d elements)."),
-				MaterialIndex, MaterialSections.Num()))
-			{
-				continue;
-			}
-
-			FMaterialSection& Section = MaterialSections[MaterialIndex];
-
-			// #yuriy_todo: cache mesh batches and avoid copying them per frame
-			FMeshBatch& MeshBatch = RayTracingInstanceTemplate.Materials.AddDefaulted_GetRef();
-			MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
-			MeshBatch.MaterialRenderProxy = Section.Material->GetRenderProxy();
-			MeshBatch.bWireframe = false;
-			MeshBatch.SegmentIndex = SectionIndex;
-			MeshBatch.LODIndex = LODIndex;
-			//MeshBatch.CastShadow = bCastShadow && Section.bCastShadow;
-		}
-	}
-
-	RayTracingInstanceTemplate.BuildInstanceMaskAndFlags();
+	RayTracingInstance.BuildInstanceMaskAndFlags();
 }
 #endif
 

@@ -10,7 +10,9 @@
 
 void FRayTracingInstance::BuildInstanceMaskAndFlags()
 {
-	ensureMsgf(Materials.Num() > 0, TEXT("You need to add materials first for instance mask and flags to build upon."));
+	TArrayView<const FMeshBatch> MeshBatches = GetMaterials();
+
+	ensureMsgf(MeshBatches.Num() > 0, TEXT("You need to add MeshBatches first for instance mask and flags to build upon."));
 
 	Mask = 0;
 
@@ -18,9 +20,9 @@ void FRayTracingInstance::BuildInstanceMaskAndFlags()
 	bool bAnySegmentsCastShadow = false;
 	bool bAllSegmentsCastShadow = true;
 
-	for (int32 SegmentIndex = 0; SegmentIndex < Materials.Num(); SegmentIndex++)
+	for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 	{
-		FMeshBatch& MeshBatch = Materials[SegmentIndex];
+		const FMeshBatch& MeshBatch = MeshBatches[SegmentIndex];
 
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(ERHIFeatureLevel::SM5, FallbackMaterialRenderProxyPtr);
