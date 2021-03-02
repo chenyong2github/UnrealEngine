@@ -32,7 +32,7 @@ void CommonUnixCrashHandler(const FGenericCrashContext& GenericContext)
 	FGenericCrashContext::SetMemoryStats(FPlatformMemory::GetStats());
 
 	// better than having mutable fields?
-	const_cast< FUnixCrashContext& >(Context).CaptureStackTrace(Context.ProgramCounter);
+	const_cast< FUnixCrashContext& >(Context).CaptureStackTrace(Context.ErrorFrame);
 	if (GLog)
 	{
 		GLog->SetCurrentThreadAsMasterThread();
