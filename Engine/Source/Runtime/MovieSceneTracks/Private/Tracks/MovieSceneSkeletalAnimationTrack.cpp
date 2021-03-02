@@ -476,7 +476,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 	{
 		return;
 	}
-
+	
 	if (bForce || RootMotionParams.bRootMotionsDirty)
 	{
 		RootMotionParams.bRootMotionsDirty = false;
@@ -485,17 +485,24 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			RootMotionParams.RootTransforms.SetNum(0);
 			return;
 		}
+		
 		SortSections();
 		//Set the TempOffset.
 		FTransform InitialTransform = FTransform::Identity;
 		UMovieSceneSkeletalAnimationSection* PrevAnimSection = nullptr;
 		//valid anim sequence to use to calculate bones.
 		UAnimSequenceBase* ValidAnimSequence = nullptr;
+		//if no transforms have offsets then don't do root motion caching.
+		bool bAnySectionsHaveOffset = false;
 		for (UMovieSceneSection* Section : AnimationSections)
 		{
 			UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
 			if (AnimSection)
 			{
+				if (AnimSection->GetOffsetTransform().Equals(FTransform::Identity, 1e-3f) == false)
+				{
+					bAnySectionsHaveOffset = true;
+				}
 				if (ValidAnimSequence == nullptr)
 				{
 					ValidAnimSequence = AnimSection->Params.Animation;
@@ -512,6 +519,13 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 				PrevAnimSection = AnimSection;
 				AnimSection->SetBoneIndexForRootMotionCalculations(bBlendFirstChildOfRoot);
 			}
+		}
+
+		if (bAnySectionsHaveOffset == false)
+		{
+			//no root transforms so bail
+			RootMotionParams.RootTransforms.SetNum(0);
+			return;
 		}
 		//set up pose from valid anim sequences.
 		FMemMark Mark(FMemStack::Get());
