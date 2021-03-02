@@ -76,7 +76,7 @@ FSMRTClipmapRayState SMRTClipmapRayInitialize(
 
 FSMRTSample SMRTFindSample(inout FSMRTClipmapRayState RayState, float SampleTime)
 {
-	FSMRTSample Sample;
+	FSMRTSample Sample = (FSMRTSample)0;
 	Sample.bValid = false;
 	
 	const float3 SampleTexelsZ = RayState.RayStartShadowTexelsZ + RayState.RayStepShadowTexelsZ * SampleTime;

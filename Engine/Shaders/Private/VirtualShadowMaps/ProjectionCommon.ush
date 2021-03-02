@@ -240,7 +240,7 @@ float ComputeVirtualShadowMapOptimalSlopeBias(
 	// Adjust depth scale if we sampled a different clipmap level
 	// NOTE: Sampled clipmap should always be > the requested one (coarser)
 	// Do this after clamping to be consistent in world space
-	OptimalSlopeBias *= float(1 << (SmSample.VirtualShadowMapId - RequestedVirtualShadowMapId));
+	OptimalSlopeBias *= float(1u << (SmSample.VirtualShadowMapId - RequestedVirtualShadowMapId));
 
 	return OptimalSlopeBias;
 }
@@ -331,7 +331,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 			{
 				int SampledClipmapIndex = SmSample.VirtualShadowMapId - VirtualShadowMapId;
 
-				FVirtualShadowMapSampleResult Result;
+				FVirtualShadowMapSampleResult Result = (FVirtualShadowMapSampleResult)0;
 				Result.bValid = true;
 				Result.bOccluded = false;
 				Result.OccluderDistance = -1.0f;
@@ -371,7 +371,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 		FVirtualShadowMapSample SmSample = SampleVirtualShadowMap(VirtualShadowMapId, ShadowUVz.xy);
 		if (SmSample.bValid)
 		{
-			FVirtualShadowMapSampleResult Result;
+			FVirtualShadowMapSampleResult Result = (FVirtualShadowMapSampleResult)0;
 			Result.bValid = true;
 			Result.bOccluded = false;
 			Result.OccluderDistance = -1.0f;
@@ -398,7 +398,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 	}
 
 	// Invalid
-	FVirtualShadowMapSampleResult Result;
+	FVirtualShadowMapSampleResult Result = (FVirtualShadowMapSampleResult)0;
 	Result.bValid = false;
 	Result.bOccluded = false;
 	Result.OccluderDistance = -1.0f;

@@ -53,7 +53,7 @@ FSMRTSingleRayState SMRTSingleRayInitialize(
 
 FSMRTSample SMRTFindSample(inout FSMRTSingleRayState RayState, float SampleTime)
 {
-	FSMRTSample Sample;
+	FSMRTSample Sample = (FSMRTSample)0;
 	Sample.bValid = false;
 	float3 UVz = RayState.RayStartUVz.xyz + RayState.RayStepUVz.xyz * SampleTime;
 

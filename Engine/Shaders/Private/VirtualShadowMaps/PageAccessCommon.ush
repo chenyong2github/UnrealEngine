@@ -66,12 +66,12 @@ uint CalcLog2LevelDimsPages(uint Level)
 
 uint CalcLevelDimsPages(uint Level)
 {
-	return 1 << CalcLog2LevelDimsPages( Level );
+	return 1u << CalcLog2LevelDimsPages( Level );
 }
 
 uint CalcLevelDimsTexels(uint Level)
 {
-	return VSM_VIRTUAL_MAX_RESOLUTION_XY >> Level;
+	return uint(VSM_VIRTUAL_MAX_RESOLUTION_XY) >> Level;
 }
 
 uint CalcLevelOffsets(uint Level)
@@ -268,7 +268,7 @@ bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin
 		RectPages >>= HMipLevel;
 
 		// Root level size in pages
-		uint HLevelSizePages = VSM_LEVEL0_DIM_PAGES_XY >> (MipLevel + HMipLevel);
+		uint HLevelSizePages = uint(VSM_LEVEL0_DIM_PAGES_XY) >> (MipLevel + HMipLevel);
 		
 		int HPageLevelOffset = ShadowMapID * VirtualShadowMap.HPageTableSize + CalcHPageFlagLevelOffsets(MipLevel)
 			+ CalcLevelOffsets( HMipLevel + MipLevel)
