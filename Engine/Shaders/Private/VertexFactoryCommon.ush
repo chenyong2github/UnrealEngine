@@ -27,11 +27,24 @@ float4 TransformLocalToWorld(float3 LocalPosition)
 	return float4(RotatedPosition + Primitive.LocalToWorld[3].xyz ,1);
 }
 
+float4 TransformLocalToTranslatedWorld(float3 LocalPosition, float4x4 LocalToWorld)
+{
+	float3 RotatedPosition = LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz;
+	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz), 1.0f);
+}
+
 float4 TransformLocalToTranslatedWorld(float3 LocalPosition, uint PrimitiveId)
 {
-	float4x4 LocalToWorld = GetPrimitiveData(PrimitiveId).LocalToWorld;
-	float3 RotatedPosition = LocalToWorld[0].xyz * LocalPosition.xxx + LocalToWorld[1].xyz * LocalPosition.yyy + LocalToWorld[2].xyz * LocalPosition.zzz;
-	return float4(RotatedPosition + (LocalToWorld[3].xyz + ResolvedView.PreViewTranslation.xyz),1);
+	return TransformLocalToTranslatedWorld(LocalPosition, GetPrimitiveData(PrimitiveId).LocalToWorld);
+}
+
+
+float3 RotateLocalToWorld(float3 LocalDirection, float4x4 LocalToWorld, float3 InvScale)
+{
+	return
+		InvScale.x * LocalToWorld[0].xyz * LocalDirection.xxx +
+		InvScale.y * LocalToWorld[1].xyz * LocalDirection.yyy +
+		InvScale.z * LocalToWorld[2].xyz * LocalDirection.zzz;
 }
 
 #if GPUCULL_TODO
@@ -46,16 +59,12 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition, FInstanceSceneData 
 
 float3 RotateLocalToWorld(float3 LocalDirection, FInstanceSceneData InstanceSceneData)
 {
-	const float4x4 LocalToWorld = InstanceSceneData.LocalToWorld;
-	const float3 InvScale = InstanceSceneData.InvNonUniformScaleAndDeterminantSign.xyz;
-	return
-		InvScale.x * LocalToWorld[0].xyz * LocalDirection.xxx +
-		InvScale.y * LocalToWorld[1].xyz * LocalDirection.yyy +
-		InvScale.z * LocalToWorld[2].xyz * LocalDirection.zzz;
+	return RotateLocalToWorld(LocalDirection, InstanceSceneData.LocalToWorld, InstanceSceneData.InvNonUniformScaleAndDeterminantSign.xyz);
 }
 
 #endif // INSTANCE_SCENE_DATA_SUPPORTED
 #endif // GPUCULL_TODO
+
 
 #if (!GPUCULL_TODO || !VF_USE_PRIMITIVE_SCENE_DATA)
 
@@ -67,21 +76,12 @@ float4 TransformLocalToTranslatedWorld(float3 LocalPosition)
 
 float3 RotateLocalToWorld(float3 LocalDirection, uint PrimitiveId)
 {
-	const float4x4 LocalToWorld = GetPrimitiveData(PrimitiveId).LocalToWorld;
-	const float3 InvScale = GetPrimitiveData(PrimitiveId).InvNonUniformScaleAndDeterminantSign.xyz;
-	return 
-		InvScale.x * LocalToWorld[0].xyz * LocalDirection.xxx + 
-		InvScale.y * LocalToWorld[1].xyz * LocalDirection.yyy + 
-		InvScale.z * LocalToWorld[2].xyz * LocalDirection.zzz;	
+	return RotateLocalToWorld(LocalDirection, GetPrimitiveData(PrimitiveId).LocalToWorld, GetPrimitiveData(PrimitiveId).InvNonUniformScaleAndDeterminantSign.xyz);
 }
 
 float3 RotateLocalToWorld(float3 LocalDirection)
 {
-	const float3 InvScale = Primitive.InvNonUniformScaleAndDeterminantSign.xyz;
-	return 
-		InvScale.x * Primitive.LocalToWorld[0].xyz * LocalDirection.xxx + 
-		InvScale.y * Primitive.LocalToWorld[1].xyz * LocalDirection.yyy + 
-		InvScale.z * Primitive.LocalToWorld[2].xyz * LocalDirection.zzz;
+	return RotateLocalToWorld(LocalDirection, Primitive.LocalToWorld, Primitive.InvNonUniformScaleAndDeterminantSign.xyz);
 }
 
 float3 RotateWorldToLocal(float3 WorldDirection)

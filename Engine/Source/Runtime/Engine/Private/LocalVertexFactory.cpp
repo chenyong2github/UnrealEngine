@@ -301,27 +301,23 @@ void FLocalVertexFactory::InitRHI()
 	}
 
 	FVertexDeclarationElementList Elements;
-	if(Data.PositionComponent.VertexBuffer != NULL)
+	if (Data.PositionComponent.VertexBuffer != nullptr)
 	{
 		Elements.Add(AccessStreamComponent(Data.PositionComponent,0));
 	}
 
+	if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
 	{
-		const uint8 Index = static_cast<uint8>(EVertexInputStreamType::Default);
-		PrimitiveIdStreamIndex[Index] = -1;
-		if (GetType()->SupportsPrimitiveIdStream() && bCanUseGPUScene)
-		{
-			// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
-			Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 13));
-			PrimitiveIdStreamIndex[Index] = Elements.Last().StreamIndex;
-		}
+		// When the VF is used for rendering in normal mesh passes, this vertex buffer and offset will be overridden
+		Elements.Add(AccessStreamComponent(FVertexStreamComponent(&GPrimitiveIdDummy, 0, 0, PrimitiveIdStreamStride, VET_UInt, EVertexStreamUsage::Instancing), 13));
+		SetPrimitiveIdStreamIndex(EVertexInputStreamType::Default, Elements.Last().StreamIndex);
 	}
 
-	// only tangent,normal are used by the stream. the binormal is derived in the shader
+	// Only the tangent and normal are used by the stream; the bitangent is derived in the shader.
 	uint8 TangentBasisAttributes[2] = { 1, 2 };
-	for(int32 AxisIndex = 0;AxisIndex < 2;AxisIndex++)
+	for (int32 AxisIndex = 0;AxisIndex < 2;AxisIndex++)
 	{
-		if(Data.TangentBasisComponents[AxisIndex].VertexBuffer != NULL)
+		if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != nullptr)
 		{
 			Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex],TangentBasisAttributes[AxisIndex]));
 		}
@@ -334,24 +330,24 @@ void FLocalVertexFactory::InitRHI()
 	}
 
 	ColorStreamIndex = -1;
-	if(Data.ColorComponent.VertexBuffer)
+	if (Data.ColorComponent.VertexBuffer)
 	{
 		Elements.Add(AccessStreamComponent(Data.ColorComponent,3));
 		ColorStreamIndex = Elements.Last().StreamIndex;
 	}
 	else
 	{
-		//If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
-		//This wastes 4 bytes of bandwidth per vertex, but prevents having to compile out twice the number of vertex factories.
+		// If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
+		// This wastes 4 bytes per vertex, but prevents having to compile out twice the number of vertex factories.
 		FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
 		Elements.Add(AccessStreamComponent(NullColorComponent, 3));
 		ColorStreamIndex = Elements.Last().StreamIndex;
 	}
 
-	if(Data.TextureCoordinates.Num())
+	if (Data.TextureCoordinates.Num())
 	{
 		const int32 BaseTexCoordAttribute = 4;
-		for(int32 CoordinateIndex = 0;CoordinateIndex < Data.TextureCoordinates.Num();CoordinateIndex++)
+		for (int32 CoordinateIndex = 0; CoordinateIndex < Data.TextureCoordinates.Num(); ++CoordinateIndex)
 		{
 			Elements.Add(AccessStreamComponent(
 				Data.TextureCoordinates[CoordinateIndex],
@@ -359,7 +355,7 @@ void FLocalVertexFactory::InitRHI()
 				));
 		}
 
-		for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < MAX_STATIC_TEXCOORDS / 2; CoordinateIndex++)
+		for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < MAX_STATIC_TEXCOORDS / 2; ++CoordinateIndex)
 		{
 			Elements.Add(AccessStreamComponent(
 				Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
@@ -368,11 +364,11 @@ void FLocalVertexFactory::InitRHI()
 		}
 	}
 
-	if(Data.LightMapCoordinateComponent.VertexBuffer)
+	if (Data.LightMapCoordinateComponent.VertexBuffer)
 	{
 		Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent,15));
 	}
-	else if(Data.TextureCoordinates.Num())
+	else if (Data.TextureCoordinates.Num())
 	{
 		Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0],15));
 	}
@@ -384,6 +380,7 @@ void FLocalVertexFactory::InitRHI()
 
 	const int32 DefaultBaseVertexIndex = 0;
 	const int32 DefaultPreSkinBaseVertexIndex = 0;
+
 	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || bCanUseGPUScene)
 	{
 		SCOPED_LOADTIMER(FLocalVertexFactory_InitRHI_CreateLocalVFUniformBuffer);

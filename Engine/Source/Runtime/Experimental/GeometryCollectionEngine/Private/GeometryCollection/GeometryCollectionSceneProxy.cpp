@@ -110,6 +110,10 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 			Sections.Add(Section);
 		}
 	}
+#if GPUCULL_TODO
+	const auto FeatureLevel = GetScene().GetFeatureLevel();
+	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
+#endif // GPUCULL_TODO
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	// Init HitProxy array with the maximum number of subsections
@@ -238,9 +242,9 @@ void FGeometryCollectionSceneProxy::InitResources()
 
 		BoneMapBuffer.InitResource();
 
-		Data.InstanceBoneMapSRV = BoneMapBuffer.VertexBufferSRV;			
-		Data.InstanceTransformSRV = TransformBuffers[0].VertexBufferSRV;
-		Data.InstancePrevTransformSRV = PrevTransformBuffers[0].VertexBufferSRV;
+		Data.BoneMapSRV = BoneMapBuffer.VertexBufferSRV;
+		Data.BoneTransformSRV = TransformBuffers[0].VertexBufferSRV;
+		Data.BonePrevTransformSRV = PrevTransformBuffers[0].VertexBufferSRV;
 	}
 
 	// 
@@ -504,8 +508,8 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 				CycleTransformBuffers(bLocalGeometryCollectionTripleBufferUploads);
 				FGeometryCollectionTransformBuffer& TransformBuffer = GetCurrentTransformBuffer();
 				FGeometryCollectionTransformBuffer& PrevTransformBuffer = GetCurrentPrevTransformBuffer();
-				VertexFactory.SetInstanceTransformSRV(TransformBuffer.VertexBufferSRV);
-				VertexFactory.SetInstancePrevTransformSRV(PrevTransformBuffer.VertexBufferSRV);
+				VertexFactory.SetBoneTransformSRV(TransformBuffer.VertexBufferSRV);
+				VertexFactory.SetBonePrevTransformSRV(PrevTransformBuffer.VertexBufferSRV);
 
 				check(TransformBuffer.NumTransforms == DynamicData->Transforms.Num());
 				check(PrevTransformBuffer.NumTransforms == DynamicData->PrevTransforms.Num());
@@ -525,8 +529,8 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 				CycleTransformBuffers(bLocalGeometryCollectionTripleBufferUploads);
 				FGeometryCollectionTransformBuffer& TransformBuffer = GetCurrentTransformBuffer();
 				FGeometryCollectionTransformBuffer& PrevTransformBuffer = GetCurrentPrevTransformBuffer();
-				VertexFactory.SetInstanceTransformSRV(TransformBuffer.VertexBufferSRV);
-				VertexFactory.SetInstancePrevTransformSRV(PrevTransformBuffer.VertexBufferSRV);
+				VertexFactory.SetBoneTransformSRV(TransformBuffer.VertexBufferSRV);
+				VertexFactory.SetBonePrevTransformSRV(PrevTransformBuffer.VertexBufferSRV);
 
 				// if we are rendering the base mesh geometry, then use rest transforms rather than the simulated one for both current and previous transforms
 				void* VertexBufferData = RHILockBuffer(TransformBuffer.VertexBufferRHI, 0, ConstantData->RestTransforms.Num() * sizeof(FMatrix), LockMode);
@@ -576,6 +580,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 
 				if (ThisBatchSize > 0)
 				{
+					const FMatrix* RESTRICT BoneTransformsPtr = DynamicData->IsDynamic ? DynamicData->Transforms.GetData() : ConstantData->RestTransforms.GetData();
 	#if INTEL_ISPC
 					uint8* VertexBufferOffset = (uint8*)VertexBufferData + (IndexOffset * VertexBuffer.GetStride());
 					ispc::SetDynamicData_RenderThread(
@@ -583,12 +588,12 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 						ThisBatchSize, 
 						VertexBuffer.GetStride(), 
 						&ConstantData->BoneMap[IndexOffset], 
-						(ispc::FMatrix*)&DynamicData->Transforms[0], 
+						(ispc::FMatrix*)BoneTransformsPtr,
 						(ispc::FVector*)&ConstantData->Vertices[IndexOffset]);
 	#else
 					for (int32 i = IndexOffset; i < IndexOffset + ThisBatchSize; i++)
 					{
-						FVector Transformed = DynamicData->Transforms[ConstantData->BoneMap[i]].TransformPosition(ConstantData->Vertices[i]);
+						FVector Transformed = BoneTransformsPtr[ConstantData->BoneMap[i]].TransformPosition(ConstantData->Vertices[i]);
 						FMemory::Memcpy((uint8*)VertexBufferData + (i * VertexBuffer.GetStride()), &Transformed, sizeof(FVector));
 					}
 	#endif
@@ -842,8 +847,6 @@ HHitProxy* FGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveComponent* 
 	{
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 		const int32 NumTransforms = (Sections.Num() > 0) ? SubSectionHitProxies.Num() / Sections.Num(): 0;
-#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
-
 		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
 		{
 			// Create HitProxy for regular material based sections, and update existing section
@@ -855,7 +858,6 @@ HHitProxy* FGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveComponent* 
 			OutHitProxies.Add(HitProxy);
 			Section.HitProxy = HitProxy;
 
-#if GEOMETRYCOLLECTION_EDITOR_SELECTION
 			// Create HitProxy per transform index using the same material Id than the current sections
 			// All combinations of material id/transform index are populated,
 			// since it can't be assumed that any of them won't be needed.
@@ -871,16 +873,19 @@ HHitProxy* FGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveComponent* 
 				SubSectionHitProxies[SectionOffset + TransformIndex] = SubSectionHitProxy;
 			}
 		}
-
-		// Update existing subsections and any HitProxy's section index that is currently being used
-		for (int32 SubSectionIndex = 0; SubSectionIndex < SubSections.Num(); ++SubSectionIndex)
+	#else
+		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
 		{
-			HGeometryCollection* const SubSectionHitProxy = SubSectionHitProxies[SubSectionHitProxyIndexMap[SubSectionIndex]];
+			// Create HitProxy for regular material based sections, and update existing section
+			FGeometryCollectionSection& Section = Sections[SectionIndex];
 
-			SubSections[SubSectionIndex].HitProxy = SubSectionHitProxy;
-			SubSectionHitProxy->SectionIndex = SubSectionIndex;
-#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			const int32 MaterialID = Section.MaterialID;
+			HActor* const HitProxy = new HActor(Component->GetOwner(), Component, SectionIndex, MaterialID);
+
+			OutHitProxies.Add(HitProxy);
+			Section.HitProxy = HitProxy;
 		}
+	#endif
 	}
 
 	return DefaultHitProxy;
@@ -1030,9 +1035,8 @@ void FGeometryCollectionSceneProxy::GetPreSkinnedLocalBounds(FBoxSphereBounds& O
 }
 
 FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeometryCollectionComponent* Component)
-	: Nanite::FSceneProxyBase(Component)
-	//, RenderData(Component->GetStaticMesh()->RenderData.Get())
-	, GeometryCollection(Component->GetRestCollection())
+: Nanite::FSceneProxyBase(Component)
+, GeometryCollection(Component->GetRestCollection())
 {
 	LLM_SCOPE_BYTAG(Nanite);
 
@@ -1254,7 +1258,6 @@ void FNaniteGeometryCollectionSceneProxy::DrawStaticElements(FStaticPrimitiveDra
 
 #if WITH_EDITOR
 		HHitProxy* HitProxy = Section.HitProxy;
-		//check(HitProxy); // TODO: Is this valid? SME seems to have null proxies, but normal editor doesn't
 		PDI->SetHitProxy(HitProxy);
 #endif
 		PDI->DrawMesh(MeshBatch, FLT_MAX);

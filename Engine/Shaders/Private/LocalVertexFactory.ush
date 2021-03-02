@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	LocalVertexFactory.usf: Local vertex factory shader code.
+	LocalVertexFactory.ush: Local vertex factory shader code.
 =============================================================================*/
 
 #include "VertexFactoryCommon.ush"
@@ -73,17 +73,9 @@ float4 SplineParams[10];
 	#define FV_LightMapIndex_Index 2
 	#define VF_VertexOffset 3
 
-
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
 	Buffer<float4> VertexFetch_InstanceTransformBuffer;
 	Buffer<float4> VertexFetch_InstanceLightmapBuffer;
-
-	#if USE_INSTANCING && USE_INSTANCING_BONEMAP
-		Buffer<float4> VertexFetch_InstancePrevTransformBuffer;
-		Buffer<uint> VertexFetch_InstanceBoneMapBuffer;
-	#endif
-
-
 #endif //! MANUAL_VERTEX_FETCH
 
 /**
@@ -364,13 +356,6 @@ struct FVertexFactoryIntermediates
 	float4 InstanceTransform2;
 	float4 InstanceTransform3;
 
-	#if USE_INSTANCING_BONEMAP
-		float4 InstancePrevOrigin;
-		float4 InstancePrevTransform1;
-		float4 InstancePrevTransform2;
-		float4 InstancePrevTransform3;
-	#endif
-
 	float4 InstanceLightmapAndShadowMapUVBias;
 
 	// x = per-instance random, y = per-instance fade out amount, z = hide/show flag, w dither fade cutoff
@@ -398,67 +383,44 @@ float4x4 GetInstanceTransform(FVertexFactoryIntermediates Intermediates)
 
 float4x4 GetInstancePrevTransform(FVertexFactoryIntermediates Intermediates)
 {
-#if USE_INSTANCING_BONEMAP
-	// when using geometry collections, we can correctly compute velocities because we pass along previous transforms.
-	return float4x4(
-		float4(Intermediates.InstancePrevTransform1.xyz, 0.0f),
-		float4(Intermediates.InstancePrevTransform2.xyz, 0.0f),
-		float4(Intermediates.InstancePrevTransform3.xyz, 0.0f),
-		float4(Intermediates.InstancePrevOrigin.xyz, 1.0f));
-#else
 	// Assumes instance transform never change, which means per-instance motion will cause TAA and motion blur artifacts.
 	return GetInstanceTransform(Intermediates);
-#endif
 }
 
 float4x4 GetInstanceTransform(FPositionOnlyVertexFactoryInput Input)
 {
-	#if MANUAL_VERTEX_FETCH && !USE_INSTANCING_BONEMAP
+#if MANUAL_VERTEX_FETCH
 	uint InstanceId = GetInstanceId(Input.InstanceId);
 	return float4x4(
 			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0].xyz, 0.0f),
 			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1].xyz, 0.0f),
 			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2].xyz, 0.0f),
 			float4(InstanceVF.VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)].xyz, 1.0f));
-	#elif MANUAL_VERTEX_FETCH && USE_INSTANCING_BONEMAP
-	uint InstanceIndex = VertexFetch_InstanceBoneMapBuffer[LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId];
-	return float4x4(
-		float4(VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 0].xyz, 0.0f),
-		float4(VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 1].xyz, 0.0f),
-		float4(VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 2].xyz, 0.0f),
-		float4(VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 3].xyz, 1.0f));
-	#else 
+#else 
 	return float4x4(
 		float4(Input.InstanceTransform1.xyz, 0.0f),
 		float4(Input.InstanceTransform2.xyz, 0.0f),
 		float4(Input.InstanceTransform3.xyz, 0.0f),
 		float4(Input.InstanceOrigin.xyz, 1.0f));
-	#endif
+#endif
 }
 
 float4x4 GetInstanceTransform(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
-	#if MANUAL_VERTEX_FETCH && !USE_INSTANCING_BONEMAP
+#if MANUAL_VERTEX_FETCH
 	uint InstanceId = GetInstanceId(Input.InstanceId);
 	return float4x4(
 			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0].xyz, 0.0f),
 			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1].xyz, 0.0f),
 			float4(InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2].xyz, 0.0f),
 			float4(InstanceVF.VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)].xyz, 1.0f));
-	#elif MANUAL_VERTEX_FETCH && USE_INSTANCING_BONEMAP
-		uint InstanceIndex = VertexFetch_InstanceBoneMapBuffer[LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId];
-		return float4x4(
-			float4(VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 0].xyz, 0.0f),
-			float4(VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 1].xyz, 0.0f),
-			float4(VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 2].xyz, 0.0f),
-			float4(VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 3].xyz, 1.0f));
-	#else 
+#else 
 	return float4x4(
 		float4(Input.InstanceTransform1.xyz, 0.0f),
 		float4(Input.InstanceTransform2.xyz, 0.0f),
 		float4(Input.InstanceTransform3.xyz, 0.0f),
 		float4(Input.InstanceOrigin.xyz, 1.0f));
-	#endif
+#endif
 }
 
 half3x3 GetInstanceToLocal3x3(FVertexFactoryIntermediates Intermediates)
@@ -913,26 +875,13 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.Color = Input.Color FCOLOR_COMPONENT_SWIZZLE; // Swizzle vertex color.
 #endif
 
-#if USE_INSTANCING && MANUAL_VERTEX_FETCH && !USE_INSTANCING_BONEMAP
+#if USE_INSTANCING && MANUAL_VERTEX_FETCH
 	uint InstanceId = GetInstanceId(Input.InstanceId);
 	Intermediates.InstanceTransform1 = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 0];
 	Intermediates.InstanceTransform2 = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 1];
 	Intermediates.InstanceTransform3 = InstanceVF.VertexFetch_InstanceTransformBuffer[3 * (InstanceId + InstanceOffset) + 2];
 	Intermediates.InstanceOrigin = InstanceVF.VertexFetch_InstanceOriginBuffer[(InstanceId + InstanceOffset)];
 	Intermediates.InstanceLightmapAndShadowMapUVBias = InstanceVF.VertexFetch_InstanceLightmapBuffer[(InstanceId + InstanceOffset)];
-#elif MANUAL_VERTEX_FETCH && USE_INSTANCING_BONEMAP
-	uint InstanceIndex = VertexFetch_InstanceBoneMapBuffer[LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId];
-	Intermediates.InstanceTransform1 = VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 0];
-	Intermediates.InstanceTransform2 = VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 1];
-	Intermediates.InstanceTransform3 = VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 2];
-	Intermediates.InstanceOrigin = VertexFetch_InstanceTransformBuffer[4 * InstanceIndex + 3];	
-
-	Intermediates.InstancePrevTransform1 = VertexFetch_InstancePrevTransformBuffer[4 * InstanceIndex + 0];
-	Intermediates.InstancePrevTransform2 = VertexFetch_InstancePrevTransformBuffer[4 * InstanceIndex + 1];
-	Intermediates.InstancePrevTransform3 = VertexFetch_InstancePrevTransformBuffer[4 * InstanceIndex + 2];
-	Intermediates.InstancePrevOrigin = VertexFetch_InstancePrevTransformBuffer[4 * InstanceIndex + 3];	
-
-	Intermediates.InstanceLightmapAndShadowMapUVBias = float4(0,0,0,0);
 #elif USE_INSTANCING
 	Intermediates.InstanceTransform1 = Input.InstanceTransform1;
 	Intermediates.InstanceTransform2 = Input.InstanceTransform2;
@@ -950,7 +899,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.TangentToWorldSign = TangentSign * GetPrimitiveData(Intermediates.PrimitiveId).InvNonUniformScaleAndDeterminantSign.w;
 #endif
 
-#if USE_INSTANCING && !USE_INSTANCING_BONEMAP
+#if USE_INSTANCING
 	// x = per-instance random, y = per-instance fade out factor, z = zero or one depending of if it is shown at all, w is dither cutoff 
 
 	// PerInstanceParams.z stores a hide/show flag for this instance
@@ -973,11 +922,6 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	#else
 		Intermediates.PerInstanceParams.w = 0;
 	#endif
-#elif USE_INSTANCING && USE_INSTANCING_BONEMAP	
-	Intermediates.PerInstanceParams.x = 0;	
-	Intermediates.PerInstanceParams.y = 1;
-	Intermediates.PerInstanceParams.z = 1;
-	Intermediates.PerInstanceParams.w = 0;
 #endif	// USE_INSTANCING
 
 #if GPUSKIN_PASS_THROUGH

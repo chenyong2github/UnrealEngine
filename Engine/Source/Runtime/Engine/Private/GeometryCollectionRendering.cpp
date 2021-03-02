@@ -1,17 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollectionRendering.h"
+#include "MeshBatch.h"
 #include "MeshDrawShaderBindings.h"
 #include "MeshMaterialShader.h"
+#include "ShaderParameterUtils.h"
+#include "Rendering/ColorVertexBuffer.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 IMPLEMENT_TYPE_LAYOUT(FGeometryCollectionVertexFactoryShaderParameters);
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FGeometryCollectionVertexFactoryUniformShaderParameters, "GeometryCollectionVF");
+
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FGeometryCollectionVertexFactory, SF_Vertex, FGeometryCollectionVertexFactoryShaderParameters);
-IMPLEMENT_VERTEX_FACTORY_TYPE(FGeometryCollectionVertexFactory, "/Engine/Private/LocalVertexFactory.ush", true, true, true, true, true);
+
+#if GPUCULL_TODO
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FGeometryCollectionVertexFactory, "/Engine/Private/GeometryCollectionVertexFactory.ush", true, true, true, true, true, false, true, false);
+#else // GPUCULL_TODO
+IMPLEMENT_VERTEX_FACTORY_TYPE(FGeometryCollectionVertexFactory, "/Engine/Private/GeometryCollectionVertexFactory.ush", true, true, true, true, true);
+#endif // GPUCULL_TODO
 
 bool FGeometryCollectionVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return (Parameters.MaterialParameters.bIsUsedWithGeometryCollections || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
-		&& FLocalVertexFactory::ShouldCompilePermutation(Parameters);
+	if (!Parameters.MaterialParameters.bIsUsedWithGeometryCollections && !Parameters.MaterialParameters.bIsSpecialEngineMaterial)
+	{
+		return false;
+	}
+
+	// Only compile this permutation inside the editor - it's not applicable in games, but occasionally the editor needs it.
+	if (Parameters.MaterialParameters.MaterialDomain == MD_UI)
+	{
+		return !!WITH_EDITOR;
+	}
+
+	return true;
 }
 
 //
@@ -20,24 +42,189 @@ bool FGeometryCollectionVertexFactory::ShouldCompilePermutation(const FVertexFac
 //
 void FGeometryCollectionVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	const bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
+	const FStaticFeatureLevel MaxSupportedFeatureLevel = GetMaxSupportedFeatureLevel(Parameters.Platform);
+	const bool bUseGPUScene = UseGPUScene(Parameters.Platform, MaxSupportedFeatureLevel);
+	const bool bSupportsPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream();
+
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
+
+	bool ContainsManualVertexFetch = OutEnvironment.GetDefinitions().Contains("MANUAL_VERTEX_FETCH");
 	if (!ContainsManualVertexFetch && RHISupportsManualVertexFetch(Parameters.Platform))
 	{
 		OutEnvironment.SetDefine(TEXT("MANUAL_VERTEX_FETCH"), TEXT("1"));
-	}
-
-	if (RHISupportsManualVertexFetch(Parameters.Platform))
-	{
-		OutEnvironment.SetDefine(TEXT("USE_INSTANCING"), TEXT("1"));
-
-		OutEnvironment.SetDefine(TEXT("USE_INSTANCING_BONEMAP"), TEXT("1"));
-		OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), TEXT("0"));
+		ContainsManualVertexFetch = true;
 	}
 
 	// Geometry collections use a custom hit proxy per bone
 	OutEnvironment.SetDefine(TEXT("USE_PER_VERTEX_HITPROXY_ID"), 1);
+}
 
-	FLocalVertexFactory::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+void FGeometryCollectionVertexFactory::ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors)
+{
+	if (Type->SupportsPrimitiveIdStream()
+		&& UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform))
+		&& ParameterMap.ContainsParameterAllocation(FPrimitiveUniformShaderParameters::StaticStructMetadata.GetShaderVariableName()))
+	{
+		OutErrors.AddUnique(*FString::Printf(TEXT("Shader attempted to bind the Primitive uniform buffer even though Vertex Factory %s computes a PrimitiveId per-instance.  This will break auto-instancing.  Shaders should use GetPrimitiveData(Parameters.PrimitiveId).Member instead of Primitive.Member."), Type->GetName()));
+	}
+}
+
+void FGeometryCollectionVertexFactory::InitRHI()
+{
+	SCOPED_LOADTIMER(FGeometryCollectionVertexFactory_InitRHI);
+
+	// We create different streams based on feature level
+	check(HasValidFeatureLevel());
+
+	// VertexFactory needs to be able to support max possible shader platform and feature level
+	// in case if we switch feature level at runtime.
+	const bool bCanUseGPUScene = UseGPUScene(GMaxRHIShaderPlatform, GMaxRHIFeatureLevel);
+
+	// If the vertex buffer containing position is not the same vertex buffer containing the rest of the data,
+	// then initialize PositionStream and PositionDeclaration.
+	if (Data.PositionComponent.VertexBuffer != Data.TangentBasisComponents[0].VertexBuffer)
+	{
+		auto AddDeclaration = [this, bCanUseGPUScene](EVertexInputStreamType InputStreamType, bool bAddNormal)
+		{
+			FVertexDeclarationElementList StreamElements;
+			StreamElements.Add(AccessStreamComponent(Data.PositionComponent, 0, InputStreamType));
+
+			bAddNormal = bAddNormal && Data.TangentBasisComponents[1].VertexBuffer != NULL;
+			if (bAddNormal)
+			{
+				StreamElements.Add(AccessStreamComponent(Data.TangentBasisComponents[1], 2, InputStreamType));
+			}
+
+			AddPrimitiveIdStreamElement(InputStreamType, 1, StreamElements);
+
+			InitDeclaration(StreamElements, InputStreamType);
+		};
+
+		AddDeclaration(EVertexInputStreamType::PositionOnly, false);
+		AddDeclaration(EVertexInputStreamType::PositionAndNormalOnly, true);
+	}
+
+	FVertexDeclarationElementList Elements;
+	if (Data.PositionComponent.VertexBuffer != nullptr)
+	{
+		Elements.Add(AccessStreamComponent(Data.PositionComponent, 0));
+	}
+
+	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, 13, Elements);
+
+	// Only the tangent and normal are used by the stream; the bitangent is derived in the shader.
+	uint8 TangentBasisAttributes[2] = { 1, 2 };
+	for (int32 AxisIndex = 0; AxisIndex < 2; AxisIndex++)
+	{
+		if (Data.TangentBasisComponents[AxisIndex].VertexBuffer != nullptr)
+		{
+			Elements.Add(AccessStreamComponent(Data.TangentBasisComponents[AxisIndex], TangentBasisAttributes[AxisIndex]));
+		}
+	}
+
+	if (Data.ColorComponentsSRV == nullptr)
+	{
+		Data.ColorComponentsSRV = GNullColorVertexBuffer.VertexBufferSRV;
+		Data.ColorIndexMask = 0;
+	}
+
+	ColorStreamIndex = INDEX_NONE;
+	if (Data.ColorComponent.VertexBuffer)
+	{
+		Elements.Add(AccessStreamComponent(Data.ColorComponent, 3));
+		ColorStreamIndex = Elements.Last().StreamIndex;
+	}
+	else
+	{
+		// If the mesh has no color component, set the null color buffer on a new stream with a stride of 0.
+		// This wastes 4 bytes per vertex, but prevents having to compile out twice the number of vertex factories.
+		FVertexStreamComponent NullColorComponent(&GNullColorVertexBuffer, 0, 0, VET_Color, EVertexStreamUsage::ManualFetch);
+		Elements.Add(AccessStreamComponent(NullColorComponent, 3));
+		ColorStreamIndex = Elements.Last().StreamIndex;
+	}
+
+	if (Data.TextureCoordinates.Num())
+	{
+		const int32 BaseTexCoordAttribute = 4;
+		for (int32 CoordinateIndex = 0; CoordinateIndex < Data.TextureCoordinates.Num(); ++CoordinateIndex)
+		{
+			Elements.Add(AccessStreamComponent(
+				Data.TextureCoordinates[CoordinateIndex],
+				BaseTexCoordAttribute + CoordinateIndex
+			));
+		}
+
+		for (int32 CoordinateIndex = Data.TextureCoordinates.Num(); CoordinateIndex < MAX_STATIC_TEXCOORDS / 2; ++CoordinateIndex)
+		{
+			Elements.Add(AccessStreamComponent(
+				Data.TextureCoordinates[Data.TextureCoordinates.Num() - 1],
+				BaseTexCoordAttribute + CoordinateIndex
+			));
+		}
+	}
+
+	if (Data.LightMapCoordinateComponent.VertexBuffer)
+	{
+		Elements.Add(AccessStreamComponent(Data.LightMapCoordinateComponent, 15));
+	}
+	else if (Data.TextureCoordinates.Num())
+	{
+		Elements.Add(AccessStreamComponent(Data.TextureCoordinates[0], 15));
+	}
+
+	check(Streams.Num() > 0);
+
+	InitDeclaration(Elements);
+	check(IsValidRef(GetDeclaration()));
+
+	const int32 DefaultBaseVertexIndex = 0;
+	const int32 DefaultPreSkinBaseVertexIndex = 0;
+
+	if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform) || bCanUseGPUScene)
+	{
+		SCOPED_LOADTIMER(FGeometryCollectionVertexFactory_InitRHI_CreateLocalVFUniformBuffer);
+
+		FGeometryCollectionVertexFactoryUniformShaderParameters UniformParameters;
+
+		UniformParameters.LODLightmapDataIndex = Data.LODLightmapDataIndex;
+		int32 ColorIndexMask = 0;
+
+		if (RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+		{
+			UniformParameters.VertexFetch_PositionBuffer = GetPositionsSRV();
+			UniformParameters.VertexFetch_PackedTangentsBuffer = GetTangentsSRV();
+			UniformParameters.VertexFetch_TexCoordBuffer = GetTextureCoordinatesSRV();
+
+			UniformParameters.VertexFetch_ColorComponentsBuffer = GetColorComponentsSRV();
+			ColorIndexMask = (int32)GetColorIndexMask();
+		}
+		else
+		{
+			UniformParameters.VertexFetch_PositionBuffer = GNullColorVertexBuffer.VertexBufferSRV;
+			UniformParameters.VertexFetch_PackedTangentsBuffer = GNullColorVertexBuffer.VertexBufferSRV;
+			UniformParameters.VertexFetch_TexCoordBuffer = GNullColorVertexBuffer.VertexBufferSRV;
+		}
+
+		if (!UniformParameters.VertexFetch_ColorComponentsBuffer)
+		{
+			UniformParameters.VertexFetch_ColorComponentsBuffer = GNullColorVertexBuffer.VertexBufferSRV;
+		}
+
+		const int32 NumTexCoords = GetNumTexcoords();
+		const int32 LightMapCoordinateIndex = GetLightMapCoordinateIndex();
+
+		UniformParameters.VertexFetch_Parameters = { ColorIndexMask, NumTexCoords, LightMapCoordinateIndex, 0 };
+
+		UniformBuffer = TUniformBufferRef<FGeometryCollectionVertexFactoryUniformShaderParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_MultiFrame);
+	}
+
+	check(IsValidRef(GetDeclaration()));
+}
+
+void FGeometryCollectionVertexFactory::ReleaseRHI()
+{
+	UniformBuffer.SafeRelease();
+	FVertexFactory::ReleaseRHI();
 }
 
 void FGeometryCollectionVertexFactoryShaderParameters::GetElementShaderBindings(
@@ -52,21 +239,23 @@ void FGeometryCollectionVertexFactoryShaderParameters::GetElementShaderBindings(
 	FVertexInputStreamArray& VertexStreams) const
 {
 	check(VertexFactory->GetType() == &FGeometryCollectionVertexFactory::StaticType);
+	const auto* TypedVertexFactory = static_cast<const FGeometryCollectionVertexFactory*>(VertexFactory);
 
+	const bool bSupportsManualFetch = TypedVertexFactory->SupportsManualVertexFetch(FeatureLevel);
 
-	const auto* LocalVertexFactory = static_cast<const FGeometryCollectionVertexFactory*>(VertexFactory);
-	FRHIUniformBuffer* VertexFactoryUniformBuffer = nullptr;
-	VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
+	FRHIUniformBuffer* VertexFactoryUniformBuffer = TypedVertexFactory->GetUniformBuffer();
 
-
-	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
-
+	if (bSupportsManualFetch || UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
+	{
+		check(VertexFactoryUniformBuffer != nullptr);
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FGeometryCollectionVertexFactoryUniformShaderParameters>(), VertexFactoryUniformBuffer);
+	}
 
 	// We only want to set the SRV parameters if we support manual vertex fetch.
-	if (LocalVertexFactory->SupportsManualVertexFetch(View->GetFeatureLevel()))
+	if (bSupportsManualFetch)
 	{
-		ShaderBindings.Add(VertexFetch_InstanceTransformBufferParameter, LocalVertexFactory->GetInstanceTransformSRV());
-		ShaderBindings.Add(VertexFetch_InstancePrevTransformBufferParameter, LocalVertexFactory->GetInstancePrevTransformSRV());
-		ShaderBindings.Add(VertexFetch_InstanceBoneMapBufferParameter, LocalVertexFactory->GetInstanceBoneMapSRV());
+		ShaderBindings.Add(VertexFetch_BoneTransformBufferParameter, TypedVertexFactory->GetBoneTransformSRV());
+		ShaderBindings.Add(VertexFetch_BonePrevTransformBufferParameter, TypedVertexFactory->GetBonePrevTransformSRV());
+		ShaderBindings.Add(VertexFetch_BoneMapBufferParameter, TypedVertexFactory->GetBoneMapSRV());
 	}
 }
