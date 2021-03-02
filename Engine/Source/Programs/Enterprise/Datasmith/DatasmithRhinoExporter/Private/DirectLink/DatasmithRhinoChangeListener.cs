@@ -54,15 +54,13 @@ namespace DatasmithRhino.DirectLink
 					RhinoDoc.ReplaceRhinoObject += OnReplaceRhinoObject;
 					RhinoDoc.LayerTableEvent += OnLayerTableEvent;
 					RhinoDoc.GroupTableEvent += OnGroupTableEvent;
+					RhinoDoc.MaterialTableEvent += OnMaterialTableEvent;
+					RhinoDoc.RenderMaterialsTableEvent += OnRenderMaterialsTableEvent;
 
 					//#ueent-todo Listen to the following events to update their associated DatasmithElement
 					//RhinoDoc.DimensionStyleTableEvent;
 					//RhinoDoc.LightTableEvent;
-					//RhinoDoc.MaterialTableEvent;
-					//RhinoDoc.RenderMaterialsTableEvent;
 					//RhinoDoc.RenderEnvironmentTableEvent;
-					//RhinoDoc.RenderTextureTableEvent;
-					//RhinoDoc.TextureMappingEvent;
 					//RhinoDoc.DocumentPropertiesChanged;
 				}
 
@@ -84,6 +82,8 @@ namespace DatasmithRhino.DirectLink
 			RhinoDoc.ReplaceRhinoObject -= OnReplaceRhinoObject;
 			RhinoDoc.LayerTableEvent -= OnLayerTableEvent;
 			RhinoDoc.GroupTableEvent -= OnGroupTableEvent;
+			RhinoDoc.MaterialTableEvent -= OnMaterialTableEvent;
+			RhinoDoc.RenderMaterialsTableEvent -= OnRenderMaterialsTableEvent;
 		}
 
 		private void OnBeforeTransformObjects(object Sender, RhinoTransformObjectsEventArgs RhinoEventArgs)
@@ -178,15 +178,56 @@ namespace DatasmithRhino.DirectLink
 		{
 			TryCatchExecute(() =>
 			{
-				if (RhinoEventArgs.EventType == GroupTableEventType.Deleted)
-				{
-					ExportContext.UpdateGroups(RhinoEventArgs.EventType, RhinoEventArgs.NewState);
-				}
-				else if (RhinoEventArgs.EventType != GroupTableEventType.Sorted)
+				if (RhinoEventArgs.EventType != GroupTableEventType.Sorted)
 				{
 					ExportContext.UpdateGroups(RhinoEventArgs.EventType, RhinoEventArgs.NewState);
 				}
 			});
+		}
+
+		private void OnMaterialTableEvent(object Sender, MaterialTableEventArgs RhinoEventArgs)
+		{
+			switch (RhinoEventArgs.EventType)
+			{
+				case MaterialTableEventType.Added:
+				case MaterialTableEventType.Undeleted:
+				case MaterialTableEventType.Modified:
+					ExportContext.ModifyMaterial(RhinoEventArgs.Index);
+					break;
+				case MaterialTableEventType.Deleted:
+					ExportContext.DeleteMaterial(RhinoEventArgs.Index);
+					break;
+				case MaterialTableEventType.Current:
+				case MaterialTableEventType.Sorted:
+				default:
+					break;
+			}
+		}
+
+		private void OnRenderMaterialsTableEvent(object Sender, RhinoDoc.RenderContentTableEventArgs RhinoEventArgs)
+		{
+			switch (RhinoEventArgs.EventType)
+			{
+				case RhinoDoc.RenderContentTableEventType.MaterialAssignmentChanged:
+					if(RhinoEventArgs is RhinoDoc.RenderMaterialAssignmentChangedEventArgs MaterialAssignmentChangedArgs)
+					{
+						RhinoDoc Document = MaterialAssignmentChangedArgs.Document;
+						Guid ObjectId = MaterialAssignmentChangedArgs.IsLayer
+							? MaterialAssignmentChangedArgs.LayerId
+							: MaterialAssignmentChangedArgs.ObjectId;
+
+						if (ExportContext.ObjectIdToHierarchyActorNodeDictionary.TryGetValue(ObjectId, out DatasmithActorInfo ActorInfo))
+						{
+							ExportContext.UpdateChildActorsMaterialIndex(ActorInfo);
+						}
+					}
+					break;
+				case RhinoDoc.RenderContentTableEventType.Loaded:
+				case RhinoDoc.RenderContentTableEventType.Cleared:
+				case RhinoDoc.RenderContentTableEventType.Clearing:
+				default:
+					break;
+			}
 		}
 
 		public void AddActor(RhinoObject InObject)

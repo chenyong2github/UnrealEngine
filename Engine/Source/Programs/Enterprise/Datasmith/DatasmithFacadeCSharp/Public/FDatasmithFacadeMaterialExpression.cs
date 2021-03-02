@@ -95,4 +95,8 @@ public class FDatasmithFacadeMaterialExpression : global::System.IDisposable {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpression_SetDefaultOutputIndex(swigCPtr, OutputIndex);
   }
 
+  public void ResetExpression() {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeMaterialExpression_ResetExpression(swigCPtr);
+  }
+
 }

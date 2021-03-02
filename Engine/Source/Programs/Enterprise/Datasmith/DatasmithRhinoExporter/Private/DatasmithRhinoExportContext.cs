@@ -430,9 +430,25 @@ namespace DatasmithRhino
 		public Material RhinoMaterial { get { return RhinoCommonObject as Material; } }
 		public FDatasmithFacadeUEPbrMaterial ExportedMaterial { get { return ExportedElement as FDatasmithFacadeUEPbrMaterial; } }
 
+		/// <summary>
+		/// Set of rhino material indexes that are represented by this DatasmithMaterialInfo
+		/// </summary>
+		public HashSet<int> MaterialIndexes { get; } = new HashSet<int>();
+
 		public DatasmithMaterialInfo(Material InRhinoMaterial, string InName, string InUniqueLabel, string InBaseLabel)
 			: base(InRhinoMaterial, InName, InUniqueLabel, InBaseLabel)
 		{
+		}
+
+		public override void ApplyDiffs(DatasmithMaterialInfo OtherInfo)
+		{
+			base.ApplyDiffs(OtherInfo);
+
+			//Rhino "replaces" object instead of modifying them, we must update the our reference to the object.
+			RhinoCommonObject = OtherInfo.RhinoCommonObject;
+
+			MaterialIndexes.Clear();
+			MaterialIndexes.UnionWith(OtherInfo.MaterialIndexes);
 		}
 	}
 
@@ -463,7 +479,7 @@ namespace DatasmithRhino
 
 		public List<Mesh> RhinoMeshes { get; private set; }
 		public Transform OffsetTransform { get; set; }
-		public List<int> MaterialIndices { get; private set; }
+		public List<int> MaterialIndices { get; set; }
 
 		public DatasmithMeshInfo(IEnumerable<Mesh> InRhinoMeshes, Transform InOffset, List<int> InMaterialIndexes, string InName, string InUniqueLabel, string InBaseLabel)
 			: base(null, InName, InUniqueLabel, InBaseLabel)
@@ -938,7 +954,7 @@ namespace DatasmithRhino
 			}
 		}
 
-		private void UpdateChildActorsMaterialIndex(DatasmithActorInfo ActorInfo)
+		public void UpdateChildActorsMaterialIndex(DatasmithActorInfo ActorInfo)
 		{
 			foreach (DatasmithActorInfo ChildActorInfo in ActorInfo.Children)
 			{
@@ -947,11 +963,22 @@ namespace DatasmithRhino
 
 				if (bMaterialAffectedByParent)
 				{
-					RhinoObject TargetObject = (ChildActorInfo.DefinitionNode != null ? ChildActorInfo.DefinitionNode.RhinoModelComponent : ChildActorInfo.RhinoModelComponent) as RhinoObject;
+					DatasmithActorInfo DefinitionInfo = ChildActorInfo.DefinitionNode != null ? ChildActorInfo.DefinitionNode : ChildActorInfo;
+					RhinoObject TargetObject = (DefinitionInfo.RhinoModelComponent) as RhinoObject;
 
 					if (TargetObject != null)
 					{
 						ChildActorInfo.MaterialIndex = GetObjectMaterialIndex(TargetObject, ActorInfo.Parent);
+						if (!ChildActorInfo.bOverrideMaterial)
+						{
+							if (ObjectIdToMeshInfoDictionary.TryGetValue(TargetObject.Id, out DatasmithMeshInfo MeshInfo))
+							{
+								Dictionary<Mesh,ObjectAttributes> MeshAttributePairs = GetMeshAttributePairs(TargetObject, MeshInfo.RhinoMeshes);
+
+								MeshInfo.ApplyModifiedStatus();
+								MeshInfo.MaterialIndices = GetMeshesMaterialIndices(MeshAttributePairs, DefinitionInfo);
+							}
+						}
 					}
 				}
 			}
@@ -1415,7 +1442,81 @@ namespace DatasmithRhino
 			}
 		}
 
-		private void AddObjectMaterialReference(RhinoObject InObject, int  MaterialIndex)
+		public void ModifyMaterial(int MaterialIndex)
+		{
+			if (MaterialIndexToMaterialHashDictionary.TryGetValue(MaterialIndex, out string ExistingMaterialHash))
+			{
+				Material IndexedMaterial = MaterialIndex == -1
+					? Material.DefaultMaterial
+					: RhinoDocument.Materials.FindIndex(MaterialIndex);
+
+				string MaterialHash = DatasmithRhinoUtilities.GetMaterialHash(IndexedMaterial);
+				
+				if (ExistingMaterialHash != MaterialHash)
+				{
+					MaterialIndexToMaterialHashDictionary[MaterialIndex] = MaterialHash;
+					DatasmithMaterialInfo ModifiedMaterialInfo = GetOrCreateMaterialHashMapping(MaterialHash, IndexedMaterial);
+					ModifiedMaterialInfo.MaterialIndexes.Add(MaterialIndex);
+
+					if (MaterialHashToMaterialInfo.TryGetValue(ExistingMaterialHash, out DatasmithMaterialInfo ExistingMaterialInfo))
+					{
+						ExistingMaterialInfo.MaterialIndexes.Remove(MaterialIndex);
+						
+						// If existing material is no longer used by any material index.
+						if (ExistingMaterialInfo.MaterialIndexes.Count == 0)
+						{
+
+							if (ModifiedMaterialInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Created)
+							{
+								// If the ModifiedMaterialInfo is new and the existing material is no longer referenced, 
+								// that means we are actually modifying the existing material in-place.
+								// Delete the ModifiedMateralInfo and update the ExistingMaterialInfo with its values.
+								MaterialHashToMaterialInfo[MaterialHash] = ExistingMaterialInfo;
+								ExistingMaterialInfo.ApplyDiffs(ModifiedMaterialInfo);
+								MaterialHashToMaterialInfo.Remove(ExistingMaterialHash);
+							}
+							else
+							{
+								// If the material index is no longer in used, we can delete the Material.
+								ExistingMaterialInfo.ApplyDeletedStatus();
+							}
+						}
+					}
+				}
+				else
+				{
+					//Material didn't change, nothing to do.
+					return;
+				}
+			}
+		}
+
+		public void DeleteMaterial(int MaterialIndex)
+		{
+			if (MaterialIndexToMaterialHashDictionary.TryGetValue(MaterialIndex, out string MaterialHash))
+			{
+				MaterialIndexToMaterialHashDictionary.Remove(MaterialIndex);
+
+				if (MaterialHashToMaterialInfo.TryGetValue(MaterialHash, out DatasmithMaterialInfo MaterialInfo))
+				{
+					MaterialInfo.MaterialIndexes.Remove(MaterialIndex);
+
+					if (MaterialInfo.MaterialIndexes.Count == 0)
+					{
+						if (MaterialInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Created)
+						{
+							MaterialHashToMaterialInfo.Remove(MaterialHash);
+						}
+						else
+						{
+							MaterialInfo.ApplyDeletedStatus();
+						}
+					}
+				}
+			}
+		}
+
+		private void AddObjectMaterialReference(RhinoObject InObject, int MaterialIndex)
 		{
 			if (InObject.ObjectType == ObjectType.Brep)
 			{
@@ -1439,25 +1540,29 @@ namespace DatasmithRhino
 			if(!MaterialIndexToMaterialHashDictionary.ContainsKey(MaterialIndex))
 			{
 				Material IndexedMaterial = MaterialIndex == -1
-					? IndexedMaterial = Material.DefaultMaterial
+					? Material.DefaultMaterial
 					: RhinoDocument.Materials.FindIndex(MaterialIndex);
 
 				string MaterialHash = DatasmithRhinoUtilities.GetMaterialHash(IndexedMaterial);
 				MaterialIndexToMaterialHashDictionary.Add(MaterialIndex, MaterialHash);
 
-				AddMaterialHashMapping(MaterialHash, IndexedMaterial);
+				DatasmithMaterialInfo MaterialInfo = GetOrCreateMaterialHashMapping(MaterialHash, IndexedMaterial);
+				MaterialInfo.MaterialIndexes.Add(MaterialIndex);
 			}
 		}
 
-		private void AddMaterialHashMapping(string MaterialHash, Material RhinoMaterial)
+		private DatasmithMaterialInfo GetOrCreateMaterialHashMapping(string MaterialHash, Material RhinoMaterial)
 		{
-			if (!MaterialHashToMaterialInfo.ContainsKey(MaterialHash))
+			DatasmithMaterialInfo Result;
+
+			if (!MaterialHashToMaterialInfo.TryGetValue(MaterialHash, out Result))
 			{
 				string BaseLabel = DatasmithRhinoUniqueNameGenerator.GetTargetName(RhinoMaterial);
 				string UniqueLabel = MaterialLabelGenerator.GenerateUniqueName(RhinoMaterial);
 				string Name = FDatasmithFacadeElement.GetStringHash(UniqueLabel);
 
-				MaterialHashToMaterialInfo.Add(MaterialHash, new DatasmithMaterialInfo(RhinoMaterial, Name, UniqueLabel, BaseLabel));
+				Result = new DatasmithMaterialInfo(RhinoMaterial, Name, UniqueLabel, BaseLabel);
+				MaterialHashToMaterialInfo.Add(MaterialHash, Result);
 
 				Texture[] MaterialTextures = RhinoMaterial.GetTextures();
 				for (int TextureIndex = 0; TextureIndex < MaterialTextures.Length; ++TextureIndex)
@@ -1470,6 +1575,12 @@ namespace DatasmithRhino
 					}
 				}
 			}
+			else if (Result.DirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion)
+			{
+				Result.RestorePreviousDirectLinkStatus();
+			}
+
+			return Result;
 		}
 
 		private void AddTextureHashMapping(string TextureHash, Texture RhinoTexture)
@@ -1643,31 +1754,7 @@ namespace DatasmithRhino
 
 			if (RenderMeshes != null && RenderMeshes.Length > 0)
 			{
-				Dictionary<Mesh, ObjectAttributes> MeshAttributePairs = new Dictionary<Mesh, ObjectAttributes>(RenderMeshes.Length);
-
-				BrepObject CurrentBrep = (InRhinoObject as BrepObject);
-				if (CurrentBrep != null && CurrentBrep.HasSubobjectMaterials)
-				{
-					RhinoObject[] SubObjects = CurrentBrep.GetSubObjects();
-
-					for (int Index = 0, MaxLength = Math.Min(RenderMeshes.Length, SubObjects.Length); Index < MaxLength; ++Index)
-					{
-						if (RenderMeshes[Index] != null)
-						{
-							MeshAttributePairs[RenderMeshes[Index]] = SubObjects[Index].Attributes;
-						}
-					}
-				}
-				else
-				{
-					for (int RenderMeshIndex = 0; RenderMeshIndex < RenderMeshes.Length; ++RenderMeshIndex)
-					{
-						if (RenderMeshes[RenderMeshIndex] != null)
-						{
-							MeshAttributePairs[RenderMeshes[RenderMeshIndex]] = InRhinoObject.Attributes;
-						}
-					}
-				}
+				Dictionary<Mesh, ObjectAttributes> MeshAttributePairs = GetMeshAttributePairs(InRhinoObject, RenderMeshes);
 
 				if (MeshAttributePairs.Count > 0)
 				{
@@ -1678,6 +1765,37 @@ namespace DatasmithRhino
 			return MeshInfo;
 		}
 
+		private Dictionary<Mesh, ObjectAttributes> GetMeshAttributePairs(RhinoObject InRhinoObject, IList<Mesh> RenderMeshes)
+		{
+			Dictionary<Mesh, ObjectAttributes> MeshAttributePairs = new Dictionary<Mesh, ObjectAttributes>(RenderMeshes.Count);
+
+			BrepObject CurrentBrep = (InRhinoObject as BrepObject);
+			if (CurrentBrep != null && CurrentBrep.HasSubobjectMaterials)
+			{
+				RhinoObject[] SubObjects = CurrentBrep.GetSubObjects();
+
+				for (int Index = 0, MaxLength = Math.Min(RenderMeshes.Count, SubObjects.Length); Index < MaxLength; ++Index)
+				{
+					if (RenderMeshes[Index] != null)
+					{
+						MeshAttributePairs[RenderMeshes[Index]] = SubObjects[Index].Attributes;
+					}
+				}
+			}
+			else
+			{
+				for (int RenderMeshIndex = 0; RenderMeshIndex < RenderMeshes.Count; ++RenderMeshIndex)
+				{
+					if (RenderMeshes[RenderMeshIndex] != null)
+					{
+						MeshAttributePairs[RenderMeshes[RenderMeshIndex]] = InRhinoObject.Attributes;
+					}
+				}
+			}
+
+			return MeshAttributePairs;
+		}
+
 		private DatasmithMeshInfo GenerateMeshInfo(Guid ObjectID, IReadOnlyDictionary<Mesh, ObjectAttributes> MeshAttributePairs)
 		{
 			DatasmithMeshInfo MeshInfo = null;
@@ -1685,12 +1803,7 @@ namespace DatasmithRhino
 			if (ObjectIdToHierarchyActorNodeDictionary.TryGetValue(ObjectID, out DatasmithActorInfo HierarchyActorNode))
 			{
 				Transform OffsetTransform = Transform.Translation(DatasmithRhinoUtilities.CenterMeshesOnPivot(MeshAttributePairs.Keys));
-				List<int> MaterialIndices = new List<int>(MeshAttributePairs.Count);
-				foreach (ObjectAttributes CurrentAttributes in MeshAttributePairs.Values)
-				{
-					int MaterialIndex = GetMaterialIndexFromAttributes(HierarchyActorNode, CurrentAttributes);
-					MaterialIndices.Add(MaterialIndex);
-				}
+				List<int> MaterialIndices = GetMeshesMaterialIndices(MeshAttributePairs, HierarchyActorNode);
 
 				string Name = FDatasmithFacadeElement.GetStringHash("M:" + HierarchyActorNode.Name);
 				string UniqueLabel = HierarchyActorNode.UniqueLabel;
@@ -1704,6 +1817,18 @@ namespace DatasmithRhino
 			}
 
 			return MeshInfo;
+		}
+
+		private List<int> GetMeshesMaterialIndices(IReadOnlyDictionary<Mesh, ObjectAttributes> MeshAttributePairs, DatasmithActorInfo ActorInfo)
+		{
+			List<int> MaterialIndices = new List<int>(MeshAttributePairs.Count);
+			foreach (ObjectAttributes CurrentAttributes in MeshAttributePairs.Values)
+			{
+				int MaterialIndex = GetMaterialIndexFromAttributes(ActorInfo, CurrentAttributes);
+				MaterialIndices.Add(MaterialIndex);
+			}
+
+			return MaterialIndices;
 		}
 
 		private int GetMaterialIndexFromAttributes(DatasmithActorInfo HierarchyActorNode, ObjectAttributes Attributes)

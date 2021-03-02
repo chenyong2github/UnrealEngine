@@ -63,6 +63,9 @@ public:
 	/** The output index to use by default for this expression when connecting it to other inputs. */
 	virtual int32 GetDefaultOutputIndex() const = 0;
 	virtual void SetDefaultOutputIndex( int32 OutputIndex ) = 0;
+
+	/** Reset the expression to its default values, and disconnect input expressions */
+	virtual void ResetExpression() = 0;
 };
 
 class IDatasmithExpressionParameter : public IDatasmithMaterialExpression
@@ -247,6 +250,9 @@ public:
 	T* AddMaterialExpression()
 	{
 	}
+
+	/** Reset all expression to their default values and remove all connections */
+	virtual void ResetExpressionGraph( bool bRemoveAllExpressions ) = 0;
 
 	/** If a parent material is generated from this material, this will be its label. If none, the instance and the parent will have the same label. */
 	virtual void SetParentLabel( const TCHAR* InParentLabel ) = 0;

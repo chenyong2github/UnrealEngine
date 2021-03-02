@@ -184,6 +184,10 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
     return ret;
   }
 
+  public void ResetExpressionGraph() {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_ResetExpressionGraph(swigCPtr);
+  }
+
   public void SetParentLabel(string InParentLabel) {
     DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_SetParentLabel(swigCPtr, InParentLabel);
   }
