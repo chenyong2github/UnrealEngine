@@ -103,8 +103,6 @@ public:
 
 	FString ConvertDeriv(const FString& Value, int32 DstType, int32 SrcType);
 
-	FString ExtractElement(const FString& Value, int32 SrcType, int32 ElementIndex);
-
 private:
 	// Note that the type index is from [0,3] for float1 to float4. I.e. A float3 would be index 2.
 	static int32 GetFunc1ReturnNumComponents(int32 SrcTypeIndex, EFunc1 Op);

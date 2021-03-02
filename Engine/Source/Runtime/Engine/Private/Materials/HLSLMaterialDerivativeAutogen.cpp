@@ -306,19 +306,6 @@ FString FMaterialDerivativeAutogen::ConstructDerivFinite(const FString& Value, i
 	return Ret;
 }
 
-FString FMaterialDerivativeAutogen::ExtractElement(const FString& Value, int32 SrcType, int32 ElementIndex)
-{
-	check(SrcType < 4);
-	check(ElementIndex <= SrcType);
-	bExtractIndexEnabled[SrcType] = true;
-
-	FString TypeName = GetDerivVectorName(SrcType);
-
-	FString Ret = FString::Printf(TEXT("Extract%s_%d(%s %s)"), *TypeName, ElementIndex + 1, *TypeName, *Value);
-
-	return Ret;
-}
-
 FString FMaterialDerivativeAutogen::ConvertDeriv(const FString& Value, int32 DstType, int32 SrcType)
 {
 	check(DstType < 4);
