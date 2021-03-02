@@ -65,6 +65,12 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 	FString DestinationFolder = FPaths::Combine(FPaths::ProjectContentDir(), DestinationPath.Replace(TEXT("/Game/"), TEXT("")));
 
 	CopyUassetFiles(ImportData->FilePaths, DestinationFolder);
+
+	if (AssetMetaData.assetSubType == TEXT("imperfection") && ImportData->ProgressiveStage == 3)
+	{
+		ImportData->ProgressiveStage = 4;
+	}
+
 	
 
 	if (!PreviewDetails.Contains(ImportData->AssetId))
@@ -86,20 +92,28 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 	}
 	else if (ImportData->ProgressiveStage == 2)
 	{
-		FString AlbedoPath = TEXT("");
-		FString TextureType = TEXT("albedo");
+		FString TexturePath = TEXT("");
+		FString TextureType = TEXT("");
+		if (AssetMetaData.assetSubType == TEXT("imperfection"))
+		{
+			TextureType = TEXT("roughness");
+		}
+		else
+		{
+			TextureType = TEXT("albedo");
+		}
 
 		for (FTexturesList TextureMeta : AssetMetaData.textureSets)
 		{
-			if (TextureMeta.type == TEXT("albedo"))
+			if (TextureMeta.type == TextureType)
 			{
-				AlbedoPath = TextureMeta.path;
+				TexturePath = TextureMeta.path;
 			}
 		}		
 
-		FAssetData AlbedoData = AssetRegistry.GetAssetByObjectPath(FName(*AlbedoPath));
-		FSoftObjectPath ItemToStream = AlbedoData.ToSoftObjectPath();
-		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewTextureLoad, AlbedoData, ImportData->AssetId, TextureType));
+		FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FName(*TexturePath));
+		FSoftObjectPath ItemToStream = TextureData.ToSoftObjectPath();
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewTextureLoad, TextureData, ImportData->AssetId, TextureType));
 
 
 	}
@@ -112,7 +126,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 		for (FTexturesList TextureMeta : AssetMetaData.textureSets)
 		{
-			if (TextureMeta.type == TEXT("normal"))
+			if (TextureMeta.type == TextureType)
 			{
 				NormalPath = TextureMeta.path;
 			}
@@ -212,3 +226,4 @@ void FImportProgressiveSurfaces::HandleHighInstanceLoad(FAssetData HighInstanceD
 	PreviewDetails[AssetID]->ActorInLevel->GetStaticMeshComponent()->SetMaterial(0, CastChecked<UMaterialInterface>(HighInstanceData.GetAsset()));
 	PreviewDetails.Remove(AssetID);
 }
+

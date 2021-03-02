@@ -5,6 +5,9 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "SWebBrowser.h"
 #include "UI/BrowserBinding.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Docking/TabManager.h"
+
 
 class FBridgeUIManagerImpl;
 class FArguments;

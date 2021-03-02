@@ -11,6 +11,8 @@
 #include "UObject/UObjectGlobals.h"
 #include "Math/Vector2D.h"
 #include "EditorAssetLibrary.h"
+#include "Modules/ModuleManager.h"
+
 
 #define LOCTEXT_NAMESPACE "MegascansSettings"
 

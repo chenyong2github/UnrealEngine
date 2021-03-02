@@ -3,6 +3,10 @@
 #include "UI/FBridgeMessageHandler.h"
 #include "UI/BrowserBinding.h"
 #include "UI/BridgeUIManager.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Layout/Geometry.h"
+#include "Widgets/SWindow.h"
+
 
 FBridgeMessageHandler::FBridgeMessageHandler(const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler)
 	: TargetHandler(InTargetHandler)
@@ -129,7 +133,7 @@ bool FBridgeMessageHandler::OnMouseUp(const EMouseButtons::Type Button, const FV
 
 		if (!WithInBrowserWidth || !WithInBrowserHeight)
 		{
-			UE_LOG(LogTemp, Error, TEXT("Dropped Outside"));
+			
 			FBridgeUIManager::BrowserBinding->OnDroppedDelegate.Execute(TEXT("test"));
 
 			// if (WithInViewPortWidth && WithInViewPortHeight)
@@ -139,7 +143,7 @@ bool FBridgeMessageHandler::OnMouseUp(const EMouseButtons::Type Button, const FV
 		}
 		else
 		{
-			UE_LOG(LogTemp, Error, TEXT("Dropped Outside"));
+			
 			FBridgeUIManager::BrowserBinding->OnDropDiscardedDelegate.Execute(TEXT("test"));
 		}
 
@@ -195,7 +199,7 @@ bool FBridgeMessageHandler::OnMouseWheel(const float Delta, const FVector2D Curs
 
 bool FBridgeMessageHandler::OnMouseMove()
 {
-	// UE_LOG(LogTemp, Error, TEXT("Pointer Event! %f"), FSlateApplication::Get().GetCursorPos().X);
+	
 	SWindow* DragDropWindow = FBridgeUIManager::Instance->DragDropWindow.Get();
 
 	FVector2D DragDropWindowSize = DragDropWindow->GetTickSpaceGeometry().GetAbsoluteSize();

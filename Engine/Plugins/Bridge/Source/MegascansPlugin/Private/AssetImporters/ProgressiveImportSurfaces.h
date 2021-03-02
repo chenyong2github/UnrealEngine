@@ -24,7 +24,7 @@ private:
 	static TSharedPtr<FImportProgressiveSurfaces> ImportProgressiveSurfacesInst;
 
 	TMap<FString, TSharedPtr<FProgressiveSurfaces>> PreviewDetails;
-	void SpawnMaterialPreviewActor(FString AssetID);
+	void SpawnMaterialPreviewActor(FString AssetID);	
 
 
 public:

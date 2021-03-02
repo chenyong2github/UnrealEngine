@@ -35,6 +35,8 @@
 #include "InstancedFoliageActor.h"
 #include "FoliageType_InstancedStaticMesh.h"
 #include "Engine/World.h"
+#include "Editor/EditorEngine.h"
+
 
 TSharedPtr<FJsonObject> DeserializeJson(const FString& JsonStringData)
 {

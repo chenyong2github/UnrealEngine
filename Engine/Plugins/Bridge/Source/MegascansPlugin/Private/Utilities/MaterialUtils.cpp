@@ -18,7 +18,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/Level.h"
 #include "Components/StaticMeshComponent.h"
-
+#include "Editor/EditorEngine.h"
 
 
 UMaterialInstanceConstant* FMaterialUtils::CreateInstanceMaterial(const FString& MasterMaterialPath, const FString& InstanceDestination, const FString& AssetName)
