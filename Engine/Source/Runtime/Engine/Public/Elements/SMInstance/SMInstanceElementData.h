@@ -27,6 +27,11 @@ namespace SMInstanceElementDataUtil
 ENGINE_API bool SMInstanceElementsEnabled();
 
 /**
+ * Test whether the given ISM component is valid to be used with static mesh instance elements.
+ */
+ENGINE_API bool IsValidComponentForSMInstanceElements(const UInstancedStaticMeshComponent* InComponent);
+
+/**
  * Attempt to get the static mesh instance ID from the given element handle.
  * @note This is not typically something you'd want to use outside of data access within an interface implementation.
  * @return The static mesh instance ID if the element handle contains FSMInstanceElementData, otherwise an invalid ID.
