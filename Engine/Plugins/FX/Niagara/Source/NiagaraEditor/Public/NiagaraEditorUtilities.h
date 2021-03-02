@@ -9,6 +9,7 @@
 #include "AssetData.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorSettings.h"
+#include "EdGraph/EdGraphSchema.h"
 
 class UNiagaraNodeInput;
 class UNiagaraNodeOutput;
