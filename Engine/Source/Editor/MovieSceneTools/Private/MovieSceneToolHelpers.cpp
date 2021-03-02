@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneToolHelpers.h"
+#include "ActorForWorldTransforms.h"
 #include "MovieSceneToolsModule.h"
 #include "MovieScene.h"
 #include "Layout/Margin.h"
@@ -78,6 +79,7 @@
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneByteChannel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 /* FSkelMeshRecorder
  ***********/
@@ -3922,4 +3924,202 @@ void MovieSceneToolHelpers::GetLocationAtTime(const FMovieSceneEvaluationTrack* 
 }
 
 
+static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject)
+{
+	if (AActor* Actor = Cast<AActor>(BoundObject))
+	{
+		for (UActorComponent* Component : Actor->GetComponents())
+		{
+			if (USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Component))
+			{
+				return SkeletalMeshComp;
+			}
+		}
+	}
+	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BoundObject))
+	{
+		if (SkeletalMeshComponent->SkeletalMesh)
+		{
+			return SkeletalMeshComponent;
+		}
+	}
+	return nullptr;
+}
 
+static void GetSequencerActorWorldTransforms(ISequencer* Sequencer, const FActorForWorldTransforms& ActorSelection, const TArray<FFrameNumber>& Frames, TArray<FTransform>& OutTransforms)
+{
+	if (AActor* Actor = ActorSelection.Actor.Get())
+	{
+
+		USkeletalMeshComponent* SkelMeshComp = AcquireSkeletalMeshFromObject(Actor);
+
+		if (ActorSelection.SocketName != NAME_None && SkelMeshComp)
+		{
+
+			if (UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene())
+			{
+				OutTransforms.SetNum(Frames.Num());
+
+				FMovieSceneSequenceIDRef Template = Sequencer->GetFocusedTemplateID();
+				FMovieSceneSequenceTransform RootToLocalTransform;
+
+				FFrameRate TickResolution = MovieScene->GetTickResolution();
+				FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+				const TArray<IMovieSceneToolsAnimationBakeHelper*>& BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
+
+				for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+				{
+					if (BakeHelper)
+					{
+						BakeHelper->StartBaking(MovieScene);
+					}
+				}
+
+				for (int32 Index = 0; Index < Frames.Num(); ++Index)
+				{
+					const FFrameNumber& FrameNumber = Frames[Index];
+					FFrameTime GlobalTime(FrameNumber);
+
+					for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+					{
+						if (BakeHelper)
+						{
+							BakeHelper->PreEvaluation(MovieScene, FrameNumber);
+						}
+					}
+
+					FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), Sequencer->GetPlaybackStatus()).SetHasJumped(true);
+
+					Sequencer->GetEvaluationTemplate().Evaluate(Context, *Sequencer);
+
+					for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+					{
+						if (BakeHelper)
+						{
+							BakeHelper->PostEvaluation(MovieScene, FrameNumber);
+						}
+					}
+
+					SkelMeshComp->TickAnimation(0.03f, false);
+					SkelMeshComp->RefreshBoneTransforms();
+					SkelMeshComp->RefreshSlaveComponents();
+					SkelMeshComp->UpdateComponentToWorld();
+					SkelMeshComp->FinalizeBoneTransform();
+					SkelMeshComp->MarkRenderTransformDirty();
+					SkelMeshComp->MarkRenderDynamicDataDirty();
+
+					OutTransforms[Index] = SkelMeshComp->GetSocketTransform(ActorSelection.SocketName);// GetSocketTransofrm is world space in theory*OutTransforms[Index];
+
+				}
+
+				for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+				{
+					if (BakeHelper)
+					{
+						BakeHelper->StopBaking(MovieScene);
+					}
+				}
+			}
+		}
+		else //no attached skelmesh socket so use Interrogator
+		{
+			// Hack: static system interrogator for now to avoid re-allocating UObjects all the time
+			static UE::MovieScene::FSystemInterrogator Interrogator;
+			Interrogator.Reset();
+
+			USceneComponent* SceneComponent = Actor->GetRootComponent();
+
+			Interrogator.ImportTransformHierarchy(SceneComponent, Sequencer, Sequencer->GetFocusedTemplateID());
+
+			if (Frames[0] < Frames[Frames.Num() - 1])
+			{
+				for (const FFrameNumber& FrameNumber : Frames)
+				{
+					const FFrameTime FrameTime(FrameNumber);
+					Interrogator.AddInterrogation(FrameTime);
+				}
+				Interrogator.Update();
+
+				Interrogator.QueryWorldSpaceTransforms(SceneComponent, OutTransforms);
+			}
+			else //time is backward we need to do swap things around
+			{
+				for (int32 Index = Frames.Num() - 1; Index >= 0; --Index)
+				{
+					const FFrameTime FrameTime(Frames[Index]);
+					Interrogator.AddInterrogation(FrameTime);
+				}
+				Interrogator.Update();
+
+				TArray<FTransform> WorldTransforms;
+				Interrogator.QueryWorldSpaceTransforms(SceneComponent, WorldTransforms);
+				OutTransforms.SetNum(0);
+				OutTransforms.Reserve(WorldTransforms.Num());
+				for (int32 Index2 = WorldTransforms.Num() - 1; Index2 >= 0; --Index2)
+				{
+					OutTransforms.Add(WorldTransforms[Index2]);
+				}
+			}
+			Interrogator.Reset();
+		}
+	}
+}
+
+static void GetNonSequencerActorWorldTransforms(ISequencer* Sequencer, const FActorForWorldTransforms& ActorSelection, const TArray<FFrameNumber>& Frames, TArray<FTransform>& OutTransforms)
+{
+	FName SocketName = ActorSelection.SocketName;
+	AActor* Actor = ActorSelection.Actor.Get();
+	FActorForWorldTransforms NewActorSelection = ActorSelection;
+	FTransform WorldTransform = FTransform::Identity;
+	if (Actor)
+	{
+		do
+		{
+			FGuid ActorHandle = Sequencer->GetHandleToObject(Actor, false);
+			if (ActorHandle.IsValid())
+			{
+				GetSequencerActorWorldTransforms(Sequencer, NewActorSelection, Frames, OutTransforms);
+				for (FTransform& OutTransform : OutTransforms)
+				{
+					OutTransform = WorldTransform * OutTransform;
+				}
+				return;
+			}
+			else if (Actor->GetRootComponent()->DoesSocketExist(SocketName))
+			{
+				WorldTransform = WorldTransform * Actor->GetRootComponent()->GetSocketTransform(SocketName);
+			}
+			else
+			{
+				WorldTransform = WorldTransform * Actor->GetActorTransform();
+			}
+
+			Actor = Actor->GetAttachParentActor();
+			NewActorSelection.Actor = Actor;
+			if (Actor)
+			{
+				SocketName = Actor->GetAttachParentSocketName();
+				NewActorSelection.SocketName = SocketName;
+			}
+		} while (Actor);
+		//if we get to here world transform is what we want 
+	}
+	OutTransforms.SetNumUninitialized(Frames.Num());
+	for (FTransform& OutTransform : OutTransforms)
+	{
+		OutTransform = WorldTransform;
+	}
+}
+
+void MovieSceneToolHelpers::GetActorWorldTransforms(ISequencer* Sequencer, const FActorForWorldTransforms& ActorSelection, const TArray<FFrameNumber>& Frames, TArray<FTransform>& OutWorldTransforms)
+{
+	FGuid ObjectHandle = Sequencer->GetHandleToObject(ActorSelection.Actor.Get(), false);
+	if (ObjectHandle.IsValid())
+	{
+		GetSequencerActorWorldTransforms(Sequencer, ActorSelection, Frames, OutWorldTransforms);
+	}
+	else
+	{
+		GetNonSequencerActorWorldTransforms(Sequencer, ActorSelection, Frames, OutWorldTransforms);
+	}
+}

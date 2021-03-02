@@ -36,6 +36,7 @@ struct FMovieSceneSequenceTransform;
 class UAnimSeqExportOption;
 template<typename ChannelType> struct TMovieSceneChannelData;
 enum class EVisibilityBasedAnimTickOption : uint8;
+struct FActorForWorldTransforms;
 
 namespace fbxsdk
 {
@@ -62,7 +63,6 @@ DECLARE_DELEGATE(FStartAnimationCB);
 DECLARE_DELEGATE_OneParam(FTickAnimationCB, float);
 DECLARE_DELEGATE(FEndAnimationCB);
 
-
 //Skel Mesh Recorder to set up and restore various parameters on the skelmesh
 struct MOVIESCENETOOLS_API FSkelMeshRecorderState
 {
@@ -86,7 +86,6 @@ public:
 	/** Used to store/restore URO when recording */
 	bool bCachedEnableUpdateRateOptimizations;
 };
-
 
 class MOVIESCENETOOLS_API MovieSceneToolHelpers
 {
@@ -502,6 +501,17 @@ public:
 	*/	
 	static bool ImportFBXIntoControlRigChannels(UMovieScene* MovieScene, const FString& ImportFilename,  UMovieSceneUserImportFBXControlRigSettings *ControlRigSettings,
 		TArray<FFBXNodeAndChannels>* NodeAndChannels, const TArray<FName>& SelectedControlNames, FFrameRate FrameRate);
+
+	/*
+	*  Get an actors word transforms at the specified times
+	* @param Sequencer Sequencer to evaluation
+    * @param ActorForWorldTransforms The actor and possible component and socket that we want to get the world transforms for.
+	* @param Frames The times we want to get the world transforms
+	* @param OutWorldTransforms The calculated world transforms, one for each specified frame.
+	*/
+	static void GetActorWorldTransforms(ISequencer* Sequencer, const FActorForWorldTransforms& Actors, const TArray<FFrameNumber>& Frames, TArray<FTransform>& OutWorldTransforms);
+
+
 };
 
 // Helper to make spawnables persist throughout the export process and then restore properly afterwards

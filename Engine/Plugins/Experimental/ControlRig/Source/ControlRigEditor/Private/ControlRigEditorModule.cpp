@@ -112,6 +112,7 @@
 #include "AssetTypeActions_ControlRigPose.h"
 #include "EditMode/SControlRigBaseListWidget.h"
 #include "EditMode/SControlRigTweenWidget.h"
+#include "EditMode/SControlRigSnapper.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -119,6 +120,9 @@ DEFINE_LOG_CATEGORY(LogControlRigEditor);
 
 const FName IControlRigEditorModule::ControlRigPoseTab = FName("ControlRigPoseTab");
 const FName IControlRigEditorModule::ControlRigTweenTab = FName("ControlRigTweenTab");
+const FName IControlRigEditorModule::ControlRigSnapperTab = FName("ControlRigSnapperTab");
+const FName IControlRigEditorModule::ControlRigTempPivotTab = FName("ControlRigTempPivotTab");
+
 
 TSharedRef<SDockTab> SpawnRigProfiler( const FSpawnTabArgs& Args )
 {
@@ -139,6 +143,24 @@ TSharedRef<SDockTab> SpawnPoseTab(const FSpawnTabArgs& Args)
 }
 
 TSharedRef<SDockTab> SpawnTweenTab(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SControlRigTweenWidget)
+		];
+}
+
+TSharedRef<SDockTab> SpawnSnapperTab(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SControlRigSnapper)
+		];
+}
+
+TSharedRef<SDockTab> SpawnPivotTab(const FSpawnTabArgs& Args)
 {
 	return SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
@@ -271,6 +293,22 @@ void FControlRigEditorModule::StartupModule()
 			.SetMenuType(ETabSpawnerMenuType::Hidden)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SkeletonTree.BlendProfile")); //MZ todo replace with correct icon
 		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigTweenTab, FVector2D(400, 100));
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IControlRigEditorModule::ControlRigSnapperTab, FOnSpawnTab::CreateStatic(&SpawnSnapperTab))
+			.SetDisplayName(NSLOCTEXT("UnrealEditor", "ControlRigSnapperTab", "Control Rig Snapper"))
+			.SetTooltipText(NSLOCTEXT("UnrealEditor", "ControlRigSnapperTabTooltip", "Open the Control Rig Snapper tab."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden)
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimSlotManager"));//MZ todo replace with correct icon SkeletonTree.SkeletonSocket
+		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigSnapperTab, FVector2D(400, 400));
+
+		FGlobalTabmanager::Get()->RegisterNomadTabSpawner(IControlRigEditorModule::ControlRigTempPivotTab, FOnSpawnTab::CreateStatic(&SpawnPivotTab))
+			.SetDisplayName(NSLOCTEXT("UnrealEditor", "ControlRigTempPivotTab", "Control Rig Temp Pivot Tab"))
+			.SetTooltipText(NSLOCTEXT("UnrealEditor", "ControlRigTweenTooltip", "Open the Control Rig Pivot tab."))
+			.SetMenuType(ETabSpawnerMenuType::Hidden)
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "SkeletonTree.BlendProfile")); //MZ todo replace with correct icon SkeletonTree.LODBone
+		FGlobalTabmanager::Get()->RegisterDefaultTabWindowSize(IControlRigEditorModule::ControlRigTempPivotTab, FVector2D(400, 100));
+
+
 	};
 #endif
 
@@ -297,6 +335,8 @@ void FControlRigEditorModule::ShutdownModule()
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner("ControlRigProfiler");
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigPoseTab);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigTweenTab);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigSnapperTab);
+		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(IControlRigEditorModule::ControlRigTempPivotTab);
 	}
 #endif
 

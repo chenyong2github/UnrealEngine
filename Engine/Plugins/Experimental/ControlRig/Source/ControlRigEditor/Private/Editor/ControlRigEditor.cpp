@@ -22,7 +22,6 @@
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "AnimCustomInstanceHelper.h"
 #include "Sequencer/ControlRigLayerInstance.h"
-#include "Sequencer/ControlRigSequencerAnimInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "IPersonaPreviewScene.h"
 #include "Persona/Private/AnimationEditorPreviewScene.h"

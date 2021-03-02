@@ -1,0 +1,75 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+/**
+* Hold the View for the Snapper Widget
+*/
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableRow.h"
+#include "Tools/ControlRigSnapper.h"
+#include "Misc/FrameNumber.h"
+
+class UControlRig;
+class ISequencer;
+class AActor;
+
+
+class SControlRigSnapper : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SControlRigSnapper) {}
+
+	SLATE_END_ARGS()
+	~SControlRigSnapper()
+	{
+	}
+
+	void Construct(const FArguments& InArgs);
+
+
+private:
+
+	UControlRig* GetControlRig() const;
+
+	/*
+	* Delegates and Helpers
+	*/
+	void ActorParentPicked(FActorForWorldTransforms Selection);
+	void ActorParentSocketPicked(const FName SocketName, FActorForWorldTransforms Selection);
+	void ActorParentComponentPicked(FName ComponentName, FActorForWorldTransforms Selection);
+
+	FReply OnActorToSnapClicked();
+	FReply OnParentToSnapToClicked();
+	FText GetActorToSnapText();
+	FText GetParentToSnapText();
+
+	FReply OnStartFrameClicked();
+	FReply OnEndFrameClicked();
+	FText GetStartFrameToSnapText();
+	FText GetEndFrameToSnapText();
+
+	void ClearActors();
+	void SetStartEndFrames();
+	FReply OnSnapAnimationClicked();
+
+	FControlRigSnapperSelection GetSelection(bool bGetAll);
+
+	//FControlRigSnapper  ControlRigSnapper;
+	TSharedPtr<IDetailsView> SnapperDetailsView;
+
+	FControlRigSnapperSelection ActorToSnap;
+	FControlRigSnapperSelection ParentToSnap;
+
+	FFrameNumber StartFrame;
+	FFrameNumber EndFrame;
+
+	FControlRigSnapper Snapper;
+
+};
+

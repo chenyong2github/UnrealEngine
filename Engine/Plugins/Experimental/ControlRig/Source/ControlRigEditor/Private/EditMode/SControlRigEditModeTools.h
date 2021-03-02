@@ -77,11 +77,10 @@ private:
 private:
 	/** Toolbar functions and windows*/
 
-	/** Make the Pose Dialg*/
 	void MakePoseDialog();
-
-	/** Make the Pose Dialg*/
 	void MakeTweenDialog();
+	void MakeSnapperDialog();
+	void MakeTempPivotDialog();
 
 	//TODO may put back void MakeSelectionSetDialog();
 	//TWeakPtr<SWindow> SelectionSetWindow;

@@ -206,6 +206,7 @@ void SControlRigPoseView::Construct(const FArguments& InArgs)
 	DetailsViewArgs.bShowPropertyMatrixButton = false;
 	DetailsViewArgs.bUpdatesFromSelection = false;
 	DetailsViewArgs.bLockable = false;
+	DetailsViewArgs.bAllowFavoriteSystem = false;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsViewArgs.NotifyHook = this;
 	DetailsViewArgs.ViewIdentifier = "Create Control Asset";

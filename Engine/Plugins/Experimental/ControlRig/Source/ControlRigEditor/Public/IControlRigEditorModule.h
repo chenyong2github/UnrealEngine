@@ -48,4 +48,6 @@ public:
 
 	static const FName ControlRigPoseTab;
 	static const FName ControlRigTweenTab;
+	static const FName ControlRigSnapperTab;
+	static const FName ControlRigTempPivotTab;
 };

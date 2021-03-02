@@ -532,7 +532,6 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 	ToolBarBuilder.AddSeparator();
 
 	//POSES
-
 	ToolBarBuilder.AddToolBarButton(
 		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::MakePoseDialog),
 		NAME_None,
@@ -552,6 +551,27 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "SkeletonTree.BlendProfile"), //MZ todo replace with correct icon
 		EUserInterfaceActionType::Button
 	);
+
+	// Snap
+	ToolBarBuilder.AddToolBarButton(
+		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::MakeSnapperDialog),
+		NAME_None,
+		LOCTEXT("Snapper", "Snapper"),
+		LOCTEXT("SnapperTooltip", "Snap Control to another over a set of frames"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.Tabs.AnimSlotManager"), //MZ todo replace with correct icon
+		EUserInterfaceActionType::Button
+	);
+	/*
+	// Pivot
+	ToolBarBuilder.AddToolBarButton(
+		FExecuteAction::CreateSP(this, &SControlRigEditModeTools::MakeTempPivotDialog),
+		NAME_None,
+		LOCTEXT("TempPivot", "Temp Pivot"),
+		LOCTEXT("TempPivotTooltip", "Create a temporary pivot to transform the selected Control"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "AnimationEditor.ApplyAnimation"), //MZ todo replace with correct icon
+		EUserInterfaceActionType::Button
+	);
+	*/
 	ToolBarBuilder.AddSeparator();
 }
 
@@ -572,6 +592,28 @@ void SControlRigEditModeTools::MakeTweenDialog()
 		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigTweenTab);
 	}
 }
+
+
+void SControlRigEditModeTools::MakeSnapperDialog()
+{
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	if (ControlRigEditMode)
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigSnapperTab);
+	}
+}
+
+
+
+void SControlRigEditModeTools::MakeTempPivotDialog()
+{
+	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
+	if (ControlRigEditMode)
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(IControlRigEditorModule::ControlRigTempPivotTab);
+	}
+}
+
 
 /* MZ TODO
 void SControlRigEditModeTools::MakeSelectionSetDialog()
