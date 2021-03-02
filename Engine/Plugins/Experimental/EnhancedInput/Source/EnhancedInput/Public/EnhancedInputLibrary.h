@@ -36,6 +36,18 @@ public:
 	static void RequestRebuildControlMappingsUsingContext(const UInputMappingContext* Context, bool bForceImmediately = false);
 
 
+	/** Breaks an ActionValue into X, Y, Z. Axes not supported by value type will be 0. */
+	UFUNCTION(BlueprintPure, Category = "Input", meta = (NativeBreakFunc))
+	static void BreakInputActionValue(FInputActionValue InActionValue, float& X, float& Y, float& Z);
+
+	/**
+	 * Builds an ActionValue from X, Y, Z. Inherits type from an existing ActionValue. Ignores axis values unused by the provided value type.
+	 * @note Intended for use in Input Modifier Modify Raw overloads to modify an existing Input Action Value.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Input", meta = (Keywords = "construct build", NativeMakeFunc))
+	static FInputActionValue MakeInputActionValue(float X, float Y, float Z, const FInputActionValue& MatchValueType);
+
+
 	// Internal helper functionality
 
 	// GetInputActionvalue internal accessor function for actions that have been bound to from a UEnhancedInputComponent
@@ -58,6 +70,5 @@ public:
 
 	/** Interpret an InputActionValue as a 3D axis (Vector) input */
 	UFUNCTION(BlueprintPure, BlueprintInternalUseOnly, meta = (BlueprintAutocast))
-	static FVector Conv_InputActionValueToAxis3D(FInputActionValue InValue);
-
+	static FVector Conv_InputActionValueToAxis3D(FInputActionValue ActionValue);
 };

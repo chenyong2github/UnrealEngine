@@ -157,6 +157,22 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 
 				ETriggerState ActionTriggerState = ETriggerState::None;
 
+				auto GetTriggerState = [](const TArray<UInputTrigger*> Triggers) {
+					FString TriggerOutput;
+					for (UInputTrigger* Trigger : Triggers)
+					{
+						if (Trigger)
+						{
+							FString State = Trigger->GetDebugState();
+							if (State.Len())
+							{
+								TriggerOutput += (TriggerOutput.IsEmpty() ? FString("") : FString(", ")) + State;
+							}
+						}
+					}
+					return !TriggerOutput.IsEmpty() ? "  Triggers: " + TriggerOutput : FString();
+				};
+
 				// TODO: Order these by key display name?
 				for (FEnhancedActionKeyMapping& Mapping : ActionMappings[Action])
 				{
@@ -206,22 +222,9 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 					}
 					else
 					{
-						const FEnhancedActionKeyMapping& InstancedMapping = PlayerInput->EnhancedActionMappings[Idx];
-
 						// TODO: Show state breakdown for all (Active?) triggers?
-
-						FString TriggerOutput;
-						for (UInputTrigger* Trigger : InstancedMapping.Triggers)
-						{
-							if (Trigger)
-							{
-								TriggerOutput += (TriggerOutput.IsEmpty() ? FString("") : FString(", ")) + Trigger->GetDebugState();
-							}
-						}
-						if (!TriggerOutput.IsEmpty())
-						{
-							Output += "  ( " + TriggerOutput + " )";
-						}
+						const FEnhancedActionKeyMapping& InstancedMapping = PlayerInput->EnhancedActionMappings[Idx];
+						Output += GetTriggerState(InstancedMapping.Triggers);
 					}
 
 					MappingDisplayLine.Add(FDisplayLine(DrawColor, Output));
@@ -236,6 +239,7 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 				{
 					ActionStr += FString::Printf(TEXT(" - %s - %.3fs (%s)"), *UEnum::GetValueAsString(TEXT("EnhancedInput.ETriggerEvent"), ActionData->GetTriggerEvent()), ActionData->GetTriggerEvent() == ETriggerEvent::Triggered ? ActionData->GetTriggeredTime() : ActionData->GetElapsedTime(), *ActionData->GetValue().ToString());
 				}
+				ActionStr += GetTriggerState(ActionData->GetTriggers());
 				DisplayDebugManager.DrawString(ActionStr);
 
 				ShowDebugActionModifiers(Canvas, Action);

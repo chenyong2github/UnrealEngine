@@ -95,6 +95,11 @@ EMappingQueryResult IEnhancedInputSubsystemInterface::QueryMapKeyInActiveContext
 
 EMappingQueryResult IEnhancedInputSubsystemInterface::QueryMapKeyInContextSet(const TArray<UInputMappingContext*>& PrioritizedActiveContexts, const UInputMappingContext* InputContext, const UInputAction* Action, FKey Key, TArray<FMappingQueryIssue>& OutIssues, EMappingQueryIssue BlockingIssues/* = DefaultMappingIssues::StandardFatal*/)
 {
+	if (!Action)
+	{
+		return EMappingQueryResult::Error_InvalidAction;
+	}
+
 	OutIssues.Reset();
 
 	// Report on keys being bound that don't support the action's value type.
@@ -186,7 +191,6 @@ EMappingQueryResult IEnhancedInputSubsystemInterface::QueryMapKeyInContextSet(co
 	return Result;
 
 }
-
 
 bool IEnhancedInputSubsystemInterface::HasTriggerWith(TFunctionRef<bool(const UInputTrigger*)> TestFn, const TArray<UInputTrigger*>& Triggers)
 {
@@ -350,6 +354,70 @@ void DeepCopyPtrArray(const TArray<T*>& From, TArray<T*>& To)
 	}
 }
 
+// TODO: This should be a delegate (along with InjectChordBlockers), moving chording out of the underlying subsystem and enabling implementation of custom mapping handlers.
+TArray<FEnhancedActionKeyMapping> ReorderMappings(const TArray<FEnhancedActionKeyMapping>& UnorderedMappings)
+{
+	// Reorder mappings such that chording mappings > chorded mappings > everything else. This is used to ensure mappings within a single context are evaluated in the correct order to support chording.
+
+	TSet<const UInputAction*> ChordingActions;
+
+	// Gather all chording actions within a mapping's triggers.
+	auto GatherChordingActions = [&ChordingActions](const FEnhancedActionKeyMapping& Mapping) {
+		bool bFoundChordTrigger = false;
+		auto EvaluateTriggers = [&Mapping, &ChordingActions, &bFoundChordTrigger](const TArray<UInputTrigger*>& Triggers) {
+			for (const UInputTrigger* Trigger : Triggers)
+			{
+				if (const UInputTriggerChordAction* ChordTrigger = Cast<const UInputTriggerChordAction>(Trigger))
+				{
+					ChordingActions.Add(ChordTrigger->ChordAction);
+					bFoundChordTrigger = true;
+				}
+			}
+		};
+		EvaluateTriggers(Mapping.Triggers);
+		EvaluateTriggers(Mapping.Action->Triggers);
+		return bFoundChordTrigger;
+	};
+
+	// Split chorded mappings (second priority) from all others whilst building a list of chording actions to use for further prioritization.
+	TArray<FEnhancedActionKeyMapping> ChordedMappings;
+	TArray<FEnhancedActionKeyMapping> OtherMappings;
+	OtherMappings.Reserve(UnorderedMappings.Num());		// Mappings will most likely be Other
+	for (const FEnhancedActionKeyMapping& Mapping : UnorderedMappings)
+	{
+		TArray<FEnhancedActionKeyMapping>& MappingArray = GatherChordingActions(Mapping) ? ChordedMappings : OtherMappings;
+		MappingArray.Add(Mapping);
+	}
+
+	TArray<FEnhancedActionKeyMapping> OrderedMappings;
+	OrderedMappings.Reserve(UnorderedMappings.Num());
+
+	// Move chording mappings to the front as they need to be evaluated before chord and blocker triggers
+	// TODO: Further ordering of chording mappings may be required should one of them be chorded against another
+	auto ExtractChords = [&OrderedMappings, &ChordingActions](TArray<FEnhancedActionKeyMapping>& Mappings) {
+		for (int32 i = 0; i < Mappings.Num();)
+		{
+			if (ChordingActions.Contains(Mappings[i].Action))
+			{
+				OrderedMappings.Add(Mappings[i]);
+				Mappings.RemoveAtSwap(i);	// TODO: Do we care about reordering underlying mappings?
+			}
+			else
+			{
+				++i;
+			}
+		}
+	};
+	ExtractChords(ChordedMappings);
+	ExtractChords(OtherMappings);
+
+	OrderedMappings.Append(MoveTemp(ChordedMappings));
+	OrderedMappings.Append(MoveTemp(OtherMappings));
+	checkf(OrderedMappings.Num() == UnorderedMappings.Num(), TEXT("Number of mappings changed during reorder."));
+
+	return OrderedMappings;
+}
+
 void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 {
 	if(!bMappingRebuildPending)
@@ -382,15 +450,18 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 		TArray<FKey> ContextAppliedKeys;
 
 		const UInputMappingContext* MappingContext = ContextPair.Key;
-		for (const FEnhancedActionKeyMapping& Mapping : MappingContext->GetMappings())
+		TArray<FEnhancedActionKeyMapping>  OrderedMappings = ReorderMappings(MappingContext->GetMappings());
+
+		for (const FEnhancedActionKeyMapping& Mapping : OrderedMappings)
 		{
 			if (Mapping.Action && !AppliedKeys.Contains(Mapping.Key))
 			{
-				auto AnyChords = [](const UInputTrigger* Trigger) { return Cast<const UInputTriggerChordAction>(Trigger) != nullptr; };
-				bool bHasActionChords = HasTriggerWith(AnyChords, Mapping.Action->Triggers);
-				bool bHasChords = HasTriggerWith(AnyChords, Mapping.Triggers) || bHasActionChords;
+				// TODO: Wasteful query as we've already established chord state within ReorderMappings. Store TOptional bConsumeInput per mapping, allowing override? Query override via delegate?
+				auto IsChord = [](const UInputTrigger* Trigger) { return Cast<const UInputTriggerChordAction>(Trigger) != nullptr; };
+				bool bHasActionChords = HasTriggerWith(IsChord, Mapping.Action->Triggers);
+				bool bHasChords = HasTriggerWith(IsChord, Mapping.Triggers) || bHasActionChords;
 
-				// Chorded actions can't consume input or they could hide the action they are chording.
+				// Chorded actions can't consume input or they would hide the action they are chording.
 				if (!bHasChords && Mapping.Action->bConsumeInput)
 				{
 					ContextAppliedKeys.Add(Mapping.Key);
@@ -422,7 +493,7 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 					{
 						for (const UInputTrigger* Trigger : Mapping.Action->Triggers)
 						{
-							if (AnyChords(Trigger))
+							if (IsChord(Trigger))
 							{
 								NewMapping.Triggers.Add(DuplicateObject(Trigger, nullptr));
 							}
