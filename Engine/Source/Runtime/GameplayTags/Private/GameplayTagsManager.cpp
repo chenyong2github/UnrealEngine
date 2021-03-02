@@ -316,7 +316,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 
 			for (const class FNativeGameplayTag* NativeTag : FNativeGameplayTag::RegisteredNativeTags)
 			{
-				AddTagTableRow(FGameplayTagTableRow(NativeTag->InternalTag.GetTagName()), FGameplayTagSource::GetNativeName());
+				AddTagTableRow(NativeTag->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
 			}
 		}
 
@@ -1859,14 +1859,14 @@ FGameplayTag UGameplayTagsManager::AddNativeGameplayTag(FName TagName, const FSt
 	return FGameplayTag();
 }
 
-void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource, FName TagName, const FString& TagDevComment)
+void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource)
 {
 	// TODO This is awful, need to invalidate the tag tree, not rebuild it.
 	{
 #if WITH_EDITOR
 		EditorRefreshGameplayTagTree();
 #else
-		AddTagTableRow(FGameplayTagTableRow(TagName, TagDevComment), FGameplayTagSource::GetNativeName());
+		AddTagTableRow(TagSource->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
 		InvalidateNetworkIndex();
 		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 #endif

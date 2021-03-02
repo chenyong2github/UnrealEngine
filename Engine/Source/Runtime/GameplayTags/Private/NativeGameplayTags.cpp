@@ -52,38 +52,17 @@ static bool VerifyModuleCanContainGameplayTag(FName ModuleName, FName TagName, c
 
 #endif
 
-FNativeGameplayTag::FNativeGameplayTag(FName PluginName, FName ModuleName, FName TagName, const FString& TagDevComment, ENativeGameplayTagToken)
+FNativeGameplayTag::FNativeGameplayTag(FName InPluginName, FName InModuleName, FName TagName, const FString& TagDevComment, ENativeGameplayTagToken)
 {
-#if !UE_BUILD_SHIPPING
-	const FProjectDescriptor* const CurrentProject = IProjectManager::Get().GetCurrentProject();
-	check(CurrentProject);
-
-	const FModuleDescriptor* ProjectModule =
-		CurrentProject->Modules.FindByPredicate([ModuleName](const FModuleDescriptor& Module) { return Module.Name == ModuleName; });
-
-	if (!VerifyModuleCanContainGameplayTag(ModuleName, TagName, ProjectModule, TSharedPtr<IPlugin>()))
-	{
-		const FModuleDescriptor* PluginModule = nullptr;
-
-		// Ok, so we're not in a module for the project, 
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName.ToString());
-		if (Plugin.IsValid())
-		{
-			const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
-			PluginModule = PluginDescriptor.Modules.FindByPredicate([ModuleName](const FModuleDescriptor& Module) { return Module.Name == ModuleName; });
-		}
-
-		if (!VerifyModuleCanContainGameplayTag(ModuleName, TagName, PluginModule, Plugin))
-		{
-			ensureAlwaysMsgf(false, TEXT("Unable to find information about module '%s' in plugin '%s'"), *ModuleName.ToString(), *PluginName.ToString());
-		}
-	}
-#endif
-
 	// TODO NDarnell To try and make sure nobody is using these during non-static init
 	// of the module, we could add an indicator on the module manager indicating
 	// if we're actively loading model and make sure we only run this code during
 	// that point.
+
+#if !UE_BUILD_SHIPPING
+	PluginName = InPluginName;
+	ModuleName = InModuleName;
+#endif
 
 	InternalTag = TagName.IsNone() ? FGameplayTag() : FGameplayTag(TagName);
 #if WITH_EDITOR
@@ -94,7 +73,7 @@ FNativeGameplayTag::FNativeGameplayTag(FName PluginName, FName ModuleName, FName
 
 	if (UGameplayTagsManager* Manager = UGameplayTagsManager::GetIfAllocated())
 	{
-		Manager->AddNativeGameplayTag(this, TagName, TagDevComment);
+		Manager->AddNativeGameplayTag(this);
 	}
 }
 
@@ -107,5 +86,43 @@ FNativeGameplayTag::~FNativeGameplayTag()
 		Manager->RemoveNativeGameplayTag(this);
 	}
 }
+
+#if !UE_BUILD_SHIPPING
+
+void FNativeGameplayTag::ValidateTagRegistration() const
+{
+	if (bValidated)
+	{
+		return;
+	}
+
+	bValidated = true;
+
+	const FProjectDescriptor* const CurrentProject = IProjectManager::Get().GetCurrentProject();
+	check(CurrentProject);
+
+	const FModuleDescriptor* ProjectModule =
+		CurrentProject->Modules.FindByPredicate([this](const FModuleDescriptor& Module) { return Module.Name == ModuleName; });
+
+	if (!VerifyModuleCanContainGameplayTag(ModuleName, InternalTag.GetTagName(), ProjectModule, TSharedPtr<IPlugin>()))
+	{
+		const FModuleDescriptor* PluginModule = nullptr;
+
+		// Ok, so we're not in a module for the project, 
+		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName.ToString());
+		if (Plugin.IsValid())
+		{
+			const FPluginDescriptor& PluginDescriptor = Plugin->GetDescriptor();
+			PluginModule = PluginDescriptor.Modules.FindByPredicate([this](const FModuleDescriptor& Module) { return Module.Name == ModuleName; });
+		}
+
+		if (!VerifyModuleCanContainGameplayTag(ModuleName, InternalTag.GetTagName(), PluginModule, Plugin))
+		{
+			ensureAlwaysMsgf(false, TEXT("Unable to find information about module '%s' in plugin '%s'"), *ModuleName.ToString(), *PluginName.ToString());
+		}
+	}
+}
+
+#endif
 
 #undef LOCTEXT_NAMESPACE

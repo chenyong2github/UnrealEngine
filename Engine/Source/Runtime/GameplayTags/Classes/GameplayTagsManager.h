@@ -329,7 +329,7 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	FGameplayTag AddNativeGameplayTag(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
 
 private:
-	void AddNativeGameplayTag(FNativeGameplayTag* TagSource, FName TagName, const FString& TagDevComment);
+	void AddNativeGameplayTag(FNativeGameplayTag* TagSource);
 	void RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource);
 
 public:
