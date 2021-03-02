@@ -181,5 +181,5 @@ public:
 	bool bOverrideDefaultLensFile = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lens File", Meta = (EditCondition = "bOverrideDefaultLensFile"))
-	ULensFile* LensFile;
+	ULensFile* LensFile = nullptr;
 };
