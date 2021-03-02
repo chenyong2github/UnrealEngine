@@ -125,6 +125,22 @@ FThreeBandSHVectorFloat SHBasisFunction3Float(float3 InputVector)
 	#define USE_IRRADIANCE_CACHING 0
 #endif
 
+void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
+{
+	float MaxPathIntensity = 0;
+	if (MaxPathIntensity > 0)
+	{
+		// User asked for path contributions to be clamped to reduce fireflies.
+		// Depending on how aggressive this value is, the image could be quite biased
+		TotalRadiance += min(PathRadiance, MaxPathIntensity);
+	}
+	else
+	{
+		// Just average values directly
+		TotalRadiance += PathRadiance;
+	}
+}
+
 void PathTracingKernel(
 	in uint RenderPassIndex,
 	float3 WorldPosition,
@@ -144,132 +160,138 @@ void PathTracingKernel(
 #if USE_IRRADIANCE_CACHING
 	bool bShouldEmitGeometryHitPoint = false;
 	bool bShouldAccumulateToCacheRecord = false;
+	
+	FIrradianceCacheRecord IrradianceCachePrimaryGIHitPoint = (FIrradianceCacheRecord)0;	
+	float RadianceProbe_Pdf = 1.0f / (2 * PI);
+	
 	uint NewEntrySize = 32;
 	int NearestCacheEntryID = -1;
 #endif
+
+	float3 Radiance = 0;
 	
-	float3 Irradiance = 0;
-	
-	float3 RayThroughput = 1.0;
-	float RayPdf = 1.0;
-	
+	// GPULightmass's SampleEmitter(): generate a fake camera ray hitting the texel
 	RayDesc Ray;
 	Ray.Origin = WorldPosition + ShadingNormal;
 	Ray.Direction = -ShadingNormal;
 	Ray.TMin = -0.01f;
 	Ray.TMax = 1.01f;
 	
-	FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
-	Payload.RayCone = (FRayCone)0;
-	Payload.WorldPos = WorldPosition;
-	Payload.WorldNormal = ShadingNormal;
-	Payload.Radiance = float3(0, 0, 0);
-	Payload.BaseColor = float3(1, 1, 1);
-	Payload.DiffuseColor = float3(1, 1, 1);
-	Payload.SpecularColor = float3(0, 0, 0);
-	Payload.Specular = 0;
-	Payload.Roughness = 1;
-	Payload.Metallic = 0;
-	Payload.Ior = 1;
-	Payload.CustomData = float4(0, 0, 0, 0);
-	Payload.Opacity = 1;
-	Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-	Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
-	Payload.PrimitiveLightingChannelMask = 0b111;
-	Payload.HitT = 1.0f;
-	Payload.SetFrontFace();
-	uint RayFlags = 0;
-	FRayCone RayCone = (FRayCone)0;
+	// This array will hold a CDF for light picking
+	// Seed the array with a uniform CDF at first so that we always have a valid CDF
+	float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 
-	float MaterialPdf = 0.0;
-	FMaterialClosestHitPayload PrevMaterialPayload = (FMaterialClosestHitPayload)0;
-	uint Bounces = 0;
-	bool bIsNeeValid = true;
+	InitLightPickingCdf(LightPickingCdf);
 	
-	FIrradianceCacheRecord IrradianceCachePrimaryGIHitPoint = (FIrradianceCacheRecord)0;	
-	float RadianceProbe_Pdf = 1.0f / (2 * PI);
+	FRayCone RayCone = (FRayCone)0;
 	
-	while (Bounces < 32)
+	// Cast ray
+	const uint InitialRayFlags = 0;
+	const bool bInitialDisableSkyLightContribution = false;
+	const bool bIgnoreTranslucentMaterials = true;
+
+	// path state variables (these cary information between bounces)
+	float3 PathThroughput = 1.0;
+
+	// We don't want the camera ray to have any MIS contribution against direct light sampling so we pretend that it came from
+	// a singular Material scattering event.
+	float PrevMaterialPdf = POSITIVE_INFINITY;
+
+	// 0: only Material sampling
+	// 1: only Light sampling
+	// 2: both Material and Light
+	const int MISMode = 2; //PathTracingData.MISMode;
+	
+	for (int Bounce = 0; Bounce <= 32; Bounce++)
 	{
-		// Environment contribution
-		if (Payload.IsMiss())
+		FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
+		
+		if (Bounce == 0)
 		{
-			// WARNING: Until ray payload encodes NEE LightId, the execution depends on this ordering!
-			uint SkyLightId = 0;
-			float3 EnvironmentRadiance = 0.0;
-			SkyLight_EvalLight(SkyLightId, Ray.Direction, Ray, EnvironmentRadiance);
-			if (length(EnvironmentRadiance) > 0.0)
+			// GPULightmass fakes a hit result on the texel
+			Payload.RayCone = (FRayCone)0;
+			Payload.WorldPos = WorldPosition;
+			Payload.WorldNormal = ShadingNormal;
+			Payload.Radiance = float3(0, 0, 0);
+			Payload.BaseColor = float3(1, 1, 1);
+			Payload.DiffuseColor = float3(1, 1, 1);
+			Payload.SpecularColor = float3(0, 0, 0);
+			Payload.Specular = 0;
+			Payload.Roughness = 1;
+			Payload.Metallic = 0;
+			Payload.Ior = 1;
+			Payload.CustomData = float4(0, 0, 0, 0);
+			Payload.Opacity = 1;
+			Payload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+			Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
+			Payload.PrimitiveLightingChannelMask = 0b111;
+			Payload.HitT = 1.0f;
+			Payload.SetFrontFace();
+		}
+		else
+		{
+			Ray.TMin = 0.01;
+			Ray.TMax = 1e20;
+		
+			Payload = TraceMaterialRay(
+				TLAS,
+				InitialRayFlags,
+				RAY_TRACING_MASK_ALL,
+				Ray,
+				RayCone,
+				uint2(0, 0),
+				bInitialDisableSkyLightContribution,
+				bIgnoreTranslucentMaterials);
+		}
+		
+		if (MISMode != 1 && Bounce != 0) // In GPULightmass it is not possible to hit any light on its first fake ray
+		{
+			float HitT = Payload.IsMiss() ? Ray.TMax : Payload.HitT;
+			// Loop over lights to capture their contribution
+			// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
+			float PreviousCdfValue = 0.0;
+			for (uint LightId = 0; LightId < SceneLightsData.Count; ++LightId)
 			{
-				if (IsUnidirectionalEnabled)
+				// Camera rays should only do the rest of the loop if we have visible lights OR if
+				// we have a skydome (which are always visible)
+				if (Bounce == 0 && !IsEnvironmentLight(LightId))
+					continue;
+
+				float4 LightResult = TraceLight(Ray, LightId, HitT);
+				float3 LightRadiance = LightResult.xyz;
+				float LightPdf = LightResult.w;
+
+				float LightPickPdf = LightPickingCdf[LightId] - PreviousCdfValue;
+				PreviousCdfValue = LightPickingCdf[LightId];
+
+				// GPULightmass records direct contribution for only static lights
+				if (Bounce > 1 || (Bounce == 1 && SceneLightsData.Mobility[LightId] == 0))
 				{
-					// Apply NEE Pdf for correct MIS weight
-					float MisWeight = 1.0;
-					if (IsNextEventEstimationEnabled && Bounces > 0 && bIsNeeValid)
-					{
-						float NeePdf = 0.0;
-						float3 LightUV = GetLightUV(SkyLightId, Ray, Payload);
-						PdfLight(Ray, PrevMaterialPayload, SkyLightId, LightUV, NeePdf);
-	
-						// Note: MaterialPdf will need to be stored on the ray for an iterative solution
-						MisWeight = MaterialPdf / (MaterialPdf + NeePdf);
-					}
-					
-					if (Bounces > 1 || SceneLightsData.Mobility[SkyLightId] == 0)
-					{
-						Irradiance += EnvironmentRadiance * RayThroughput * MisWeight / RayPdf;
-					}
-				}
-				// Record primary environment hits with NEE
-				else if (IsNextEventEstimationEnabled && Bounces == 0)
-				{
-					if (Bounces > 1 || SceneLightsData.Mobility[SkyLightId] == 0)
-					{
-						Irradiance += EnvironmentRadiance * RayThroughput / RayPdf;
-					}
+					AccumulateRadiance(Radiance, PathThroughput * LightRadiance * MISWeightRobust(PrevMaterialPdf, LightPdf * LightPickPdf));
 				}
 			}
+		}
+		
+		if (Payload.IsMiss())
+		{
+			// Ray didn't hit any real geometry, so nothing left to do
 			break;
 		}
 		
-		if (Payload.IsHit() && !Payload.IsFrontFace() && Payload.ShadingModelID != SHADINGMODELID_TWOSIDED_FOLIAGE)
+		if (!Payload.IsFrontFace() && Payload.ShadingModelID != SHADINGMODELID_TWOSIDED_FOLIAGE)
 		{
 			bIsValidSample = false;
 			break;
 		}
 	
-		// Emissive geometry contribution
-		float3 Emission = GetMaterialEmission(Payload);
-		if (any(Emission) > 0.0)
-		{
-			if (IsUnidirectionalEnabled)
-			{
-				// Apply NEE Pdf for correct MIS weight
-				float MisWeight = 1.0;
-				if (IsNextEventEstimationEnabled && Bounces > 0 && bIsNeeValid)
-				{
-					float NeePdf = 0.0;
-					int LightId = GetLightId(Payload);
-					float3 LightUV = GetLightUV(LightId, Ray, Payload);
-					PdfLight(Ray, PrevMaterialPayload, LightId, LightUV, NeePdf);
-	
-					float MisWeight = MaterialPdf / (MaterialPdf + NeePdf);
-				}
-	
-				Irradiance += Emission * RayThroughput * MisWeight / RayPdf;
-			}
-			// Record primary environment hits with NEE
-			else if (IsNextEventEstimationEnabled && Bounces == 0)
-			{
-				Irradiance += Emission * RayThroughput / RayPdf;
-			}
-			break;
-		}
+		// add in surface emission
+		AccumulateRadiance(Radiance, PathThroughput * Payload.Radiance);
 		
 	#if USE_IRRADIANCE_CACHING
 		uint CoarseLevelSpacing = IrradianceCachingParameters.Spacing;
 		uint DetailLevelSpacing = IrradianceCachingParameters.Spacing;
 		
-		if (Bounces >= 1 && Payload.HitT >= DetailLevelSpacing * IrradianceCachingParameters.CornerRejection && !bShouldAccumulateToCacheRecord)
+		if (Bounce >= 1 && Payload.HitT >= DetailLevelSpacing * IrradianceCachingParameters.CornerRejection && !bShouldAccumulateToCacheRecord)
 		{
 			bool bIrradianceQuerySuccessful = false;
 			bool bGeometryQuerySuccessful = false;
@@ -306,13 +328,13 @@ void PathTracingKernel(
 			if (bIrradianceQuerySuccessful)
 			{
 				// Successful query. Terminate path immediately. Can happen when accumulating for IC entries.
-				Irradiance += RecordIrradiance * RayThroughput / RayPdf;
+				Radiance += RecordIrradiance * PathThroughput;
 				break;
 			}
 			else
 			{
 				// Failed query.
-				if (Bounces == 1)
+				if (Bounce == 1)
 				{
 					if (!bGeometryQuerySuccessful)
 					{
@@ -331,182 +353,182 @@ void PathTracingKernel(
 		}
 	#endif
 	
-		Bounces = Bounces + 1;
 		// Update origin
-		Ray.Origin = Ray.Origin + Ray.Direction * Payload.HitT;
-		FMaterialClosestHitPayload RayHitInfo = Payload; 
-	
-		bIsNeeValid = IsNeeValidMaterial(RayHitInfo);
+		Ray.Origin = Payload.WorldPos;
 
-		// Perform next-event estimation
-		if (IsNextEventEstimationEnabled && bIsNeeValid)
-		{
-			int LightId;
-			float3 LightUV;
-			float NeePdf = 0.0;
-			float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
-			SampleLight(Ray, RayHitInfo, RandSample, LightId, LightUV, NeePdf);
-	
-			// Fire visibility ray
-			if (NeePdf > 0.0)
-			{
-				RayDesc LightRay;
-	
-				GenerateLightRay(Ray, LightId, LightUV, LightRay);
-				ApplyPositionBias(LightRay, Payload.WorldNormal, 0.01f);
-
-				const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
-				const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
-
-				FMinimalPayload NeePayload = TraceVisibilityRay(
-					TLAS,
-					RayFlags,
-					InstanceInclusionMask,
-					uint2(0, 0),
-					LightRay);
-	
-				if (NeePayload.IsMiss())
-				{
-					FMaterialClosestHitPayload RayHitInfo = Payload; 
-				#if 0
-					// DEBUG: Validate NEE PDF
-					float NeePdfTmp;
-					PdfLight(Ray, RayHitInfo, LightId, LightUV, NeePdfTmp);
-					if (abs(NeePdf - NeePdfTmp) > 0.0001)
-					{
-						Irradiance = float3(-10, -10, -10);
-						break;
-					}
-				#endif
-					// Evaluate radiance
-					float3 Radiance;
-					EvalLight(LightId, LightUV, LightRay, Radiance);
-	
-					// Evaluate material
-					float3 MaterialEvalWeight = 0;
-					float MaterialEvalPdf = 0.0;
-					EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, Bounces == 1, MaterialEvalWeight, MaterialEvalPdf);
-					float3 MaterialThroughput = MaterialEvalWeight * MaterialEvalPdf;
-	
-					// Apply material Pdf for correct MIS weight
-					float MisWeight = 1.0;
-					if (IsUnidirectionalEnabled && IsPhysicalLight(LightId))
-					{
-					#if 0
-						// DEBUG: Validate Material PDF
-						float MaterialPdfTmp;
-						PdfMaterial(Ray.Direction, LightRay, RayHitInfo, Bounces == 1, MaterialPdfTmp);
-						if (abs(MaterialPdf - MaterialPdfTmp) > 0.0001)
-						{
-							MaterialThroughput *= -1.f;
-						}
-					#endif
-	
-						MisWeight = NeePdf / (NeePdf + MaterialEvalPdf);
-					}
-	
-					// Record the contribution
-					if (Bounces == 1 && SceneLightsData.Mobility[LightId] == 0)
-					{
-						DirectLightingNEERadianceValue += Radiance * MaterialThroughput * RayThroughput * MisWeight / (NeePdf * RayPdf);
-						DirectLightingNEERadianceDirection = LightRay.Direction;
-					}
-					else if (Bounces > 1 || SceneLightsData.Mobility[LightId] == 0)  
-					{
-						Irradiance += Radiance * MaterialThroughput * RayThroughput * MisWeight / (NeePdf * RayPdf);
-					}
-				}
-			}
-		}
-	
-		// Sample material
-		float3 Direction;
-		float3 Weight;
-		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
-		float SignedPositionBias;
-		float SamplePdf;
-		SampleMaterial(Ray.Direction, RayHitInfo, RandSample, Bounces == 1, Direction, Weight, SamplePdf, SignedPositionBias);
-		if (SamplePdf == 0.0)
-		{
-			break;
-		}
-		float3 Throughput = Weight * SamplePdf;
-	
-		PdfMaterial(Ray.Direction, Direction, Payload, Bounces == 1, MaterialPdf);
-		// Debug: Evaluation of a candidate sample direction should maintain energy balance with pathspace MIS
-		// EvalMaterial(Ray.Direction, Direction, RayHitInfo, Bounces == 1, Throughput, MaterialPdf);
-		// SamplePdf = MaterialPdf;
-
-		// Update ray
-		Ray.Direction = Direction;
-		ApplyPositionBias(Ray, SignedPositionBias * Payload.WorldNormal, 0.01f);
-		RayThroughput *= Throughput;
-		RayPdf *= SamplePdf;
-	
-		// Russian roulette
-		float PathEnergy = max(max(RayThroughput.x, RayThroughput.y), RayThroughput.z);
-		float EnergyThreshold = 1.0; 
-		if (PathEnergy < EnergyThreshold && 
-		#if !USE_IRRADIANCE_CACHING
-			Bounces > 4
-		#else
-			// A starting bounce of 4 is too early for relatively high reflectance scenes (0.8), which generates extreme variance that gets rejected by firefly rejection
-			// and shows as missing energy. IC effectively extends the path so it is less subject to this effect. However due to retrace around corners it shows as contrast between cached and non-cached paths.
-			// delay RR to a higher bounce numbmer
-			Bounces > 16
-		#endif
-		)
-		{
-			float Q = 1.0 - PathEnergy;
-			if (RandomSequence_GenerateSample1D(RandSequence, SampleIndex) < Q)
-			{
-				break;
-			}
-	
-			RayThroughput /= (1.0 - Q);
-		}
-	
-		// Firefly rejection
-		PathEnergy = max(max(RayThroughput.x, RayThroughput.y), RayThroughput.z);
-		float FireflyThreshold = 50.0;
-		if (PathEnergy / RayPdf > FireflyThreshold)
-		{
-			break;
-		}
-	
-		if (dot(Ray.Direction, Payload.WorldNormal) < 0) 
+		// Make sure the surface normal points toward the viewer
+		if (dot(Ray.Direction, Payload.WorldNormal) > 0.0)
 		{
 			bIsValidSample = false;
 			break;
 		}
+
+		// Choose a random number for both Light sampling and BxDF sampling
+		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
+
+		// Does this material require NEE?
+		bool bIsNeeValid = IsNeeValidMaterial(Payload);
 		
-		if (Bounces == 1)
+		// If we are using Light sampling and we are not on the last bounce ....
+		if (MISMode != 0 && Bounce < 32 && bIsNeeValid && SceneLightsData.Count > 0)
 		{
-			RadianceDirection = Ray.Direction;
-			RadianceProbe_Pdf = SamplePdf;
-			PrimaryRandSample = RandSample;
+			// Choose a light and sample it
+
+			float3 WorldPos = Payload.WorldPos;
+			float3 WorldNormal = Payload.WorldNormal;
+			uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
+
+			bool IsTransmissiveMaterial = false; // ENABLE_TRANSMISSION && IsMaterialTransmissive(Payload);
+			
+			if (InitLightPickingCdf(WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf))
+			{
+				// init worked
+				int LightId;
+				float LightPickPdf = 0;
+
+				SelectLight(RandSample.x, LightPickingCdf, LightId, LightPickPdf);
+
+				RayDesc LightRay;
+				LightRay.Origin = WorldPos;
+				LightRay.TMin = 0;
+				float3 RadianceOverPdf;
+				float LightPdf;
+				SampleLight(LightId, RandSample, WorldPos, WorldNormal,
+					LightRay.Direction,
+					LightRay.TMax,
+					RadianceOverPdf,
+					LightPdf);
+				RadianceOverPdf /= LightPickPdf;
+				LightPdf *= LightPickPdf;
+
+				if (LightPdf > 0)
+				{
+					float SignedPositionBias = 1.0;
+					if (ENABLE_TRANSMISSION && IsMaterialTransmissive(Payload))
+					{
+						// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
+						float NoL = dot(Payload.WorldNormal, LightRay.Direction);
+						SignedPositionBias = sign(NoL);
+					}
+					ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, 0.01f);
+
+
+					const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+					const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
+
+					FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+
+					TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, uint2(0, 0), LightRay);
+
+					// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
+					if (PackedPayload.IsMiss())
+					{
+						// Evaluate material
+						float3 MaterialWeight;
+						float MaterialPdf = 0.0;
+						EvalMaterial(Ray.Direction, LightRay.Direction, Payload, Bounce == 0, MaterialWeight, MaterialPdf);
+
+						float3 MaterialEval = MaterialWeight * MaterialPdf;
+
+						float MISWeight = MISMode == 2 ? MISWeightRobust(LightPdf, MaterialPdf) : 1.0;
+
+						// Record the contribution
+						if (Bounce > 0)
+						{
+							AccumulateRadiance(Radiance, MISWeight * PathThroughput * RadianceOverPdf * MaterialEval);
+						}
+						else
+						{
+							// GPULightmass records contribution of direct lighting separately, and only for static lights
+							if (SceneLightsData.Mobility[LightId] == 0)
+							{
+								DirectLightingNEERadianceValue += MISWeight * PathThroughput * RadianceOverPdf * MaterialEval;
+								DirectLightingNEERadianceDirection = LightRay.Direction;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (Bounce == 32)
+		{
+			// we've arrived at the last bounce, don't bother trying to sample a direction
+			break;
 		}
 	
-		// Trace again
-		//#dxr-todo: check ray flags when hit shaders are supported
-		Ray.TMin = 0.01;
-		Ray.TMax = 1e20;
-		
-		const uint RayFlags = 0; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-		const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
-		const bool bDisableSkyLightContribution = false;
-		const bool bIgnoreTranslucentMaterials = true;
+		// Sample material
+		float3 Direction;
+		float3 MaterialWeight;
+		float SignedPositionBias;
+		float MaterialSamplePdf;
+		SampleMaterial(Ray.Direction, Payload, RandSample, Bounce == 0, Direction, MaterialWeight, MaterialSamplePdf, SignedPositionBias);
 
-		PrevMaterialPayload = Payload;
-		Payload = TraceMaterialRay(
-			TLAS,
-			RayFlags,
-			InstanceInclusionMask,
-			Ray,
-			RayCone,
-			uint2(0, 0),
-			bDisableSkyLightContribution,
-			bIgnoreTranslucentMaterials);
+		if (MaterialSamplePdf < 0 || asuint(MaterialSamplePdf) > 0x7F800000)
+		{
+			// Pdf became invalid (either negative or NaN)
+			bIsValidSample = false;
+			break;
+		}
+
+		if (!(MaterialSamplePdf > 0))
+		{
+			// No valid direction -- we are done
+			break;
+		}
+
+		float3 NextPathThroughput = PathThroughput * MaterialWeight;
+		if (!any(NextPathThroughput > 0))
+		{
+			// no energy left in this path
+			break;
+		}
+
+		// Russian roulette:
+		//   The probability of keeping the path should be roughly proportional to the weight at the current shade point,
+		//  but just using MaterialWeight would miss out on cases where the path throughput changes color (like in a cornell
+		//  box when bouncing between walls of different colors). So use the ratio of the brightest color channel in the
+		//  previous and next throughput.
+		//   The second tweak is to add a sqrt() around the probability to soften the termination probability (paths will last
+		//  a little longer). This allows paths to go a bit deeper than the naive heuristic while still allowing them to terminate
+		//  early. This makes RR effective from the very first bounce without needing to delay it.
+		float ContinuationProb = sqrt(saturate(max(NextPathThroughput.x, max(NextPathThroughput.y, NextPathThroughput.z)) / max(PathThroughput.x, max(PathThroughput.y, PathThroughput.z))));
+		if (ContinuationProb < 1)
+		{
+			// If there is some chance we should terminate the ray, draw an extra random value
+			float RussianRouletteRand = RandSample.w; // SampleMaterial does not use this value at the moment
+			//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence, SampleIndex);
+			if (RussianRouletteRand >= ContinuationProb)
+			{
+				// stochastically terminate the path
+				break;
+			}
+			PathThroughput = NextPathThroughput / ContinuationProb;
+		}
+		else
+		{
+			PathThroughput = NextPathThroughput;
+		}
+
+		if (MISMode == 2)
+		{
+			// If we are doing MIS, the Material ray on the next loop through will need to know the Pdf
+			PrevMaterialPdf = MaterialSamplePdf;
+		}
+
+		// Update ray and loop back around to trace again
+		Ray.Direction = Direction;
+		Ray.TMin = 0;
+		ApplyPositionBias(Ray, SignedPositionBias* Payload.WorldNormal, 0.01f);
+		
+		if (Bounce == 0)
+		{
+			RadianceDirection = Ray.Direction;
+		#if USE_IRRADIANCE_CACHING
+			RadianceProbe_Pdf = MaterialSamplePdf;
+		#endif
+			PrimaryRandSample = RandSample;
+		}
 	}
 
 #if USE_IRRADIANCE_CACHING
@@ -519,7 +541,7 @@ void PathTracingKernel(
 		
 		if(bShouldAccumulateToCacheRecord)
 		{
-			float3 IrradianceToAccumulate = Irradiance * RadianceProbe_Pdf; // Revert the radiance probe pdf as we're caching the first bounce outgoing radiance
+			float3 IrradianceToAccumulate = Radiance * RadianceProbe_Pdf; // Revert the radiance probe pdf as we're caching the first bounce outgoing radiance
 			ATOMIC_ADD_FLOAT(IrradianceCachingParameters.IrradianceCacheRecords[NearestCacheEntryID].Irradiance.r, IrradianceToAccumulate.r);
 			ATOMIC_ADD_FLOAT(IrradianceCachingParameters.IrradianceCacheRecords[NearestCacheEntryID].Irradiance.g, IrradianceToAccumulate.g);
 			ATOMIC_ADD_FLOAT(IrradianceCachingParameters.IrradianceCacheRecords[NearestCacheEntryID].Irradiance.b, IrradianceToAccumulate.b);
@@ -528,7 +550,7 @@ void PathTracingKernel(
 	}
 #endif
 	
-	RadianceValue = Irradiance;
+	RadianceValue = Radiance;
 }
 
 [shader("raygeneration")]

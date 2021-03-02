@@ -382,7 +382,7 @@ FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 	bDenoiseDuringInteractiveBake = Scene->Settings->DenoisingOptions == EGPULightmassDenoisingOptions::DuringInteractivePreview;
 	bOnlyBakeWhatYouSee = Scene->Settings->Mode == EGPULightmassMode::BakeWhatYouSee;
 	DenoisingThreadPool = FQueuedThreadPool::Allocate();
-	DenoisingThreadPool->Create(1);
+	DenoisingThreadPool->Create(1, 64 * 1024 * 1024);
 
 	if (bOnlyBakeWhatYouSee)
 	{

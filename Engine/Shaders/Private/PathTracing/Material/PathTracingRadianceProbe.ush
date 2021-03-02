@@ -127,8 +127,9 @@ void RadianceProbe_SampleMaterial(
 	OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
 	PdfAdjust = max(PdfAdjust, 0.00001f);
-	OutWeight = 1.0f / PdfAdjust;
 	OutPdf = SampledValue.w * PdfAdjust;
+	// As the name suggests, radiance probe has a combined throughput (Pdf * Weight) == 1
+	OutWeight = (OutPdf > 0.0f) ? (1.0f / OutPdf) : 0;
 }
 
 float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
@@ -268,7 +269,8 @@ void RadianceProbe_EvalMaterial(
 	PdfAdjust = max(PdfAdjust, 0.00001f);
 
 	OutPdf = NoL / PI * PdfAdjust;
-	OutWeight = 1.0f / PdfAdjust;
+	// As the name suggests, radiance probe has a combined throughput (Pdf * Weight) == 1
+	OutWeight = (OutPdf > 0.0f) ? (1.0f / OutPdf) : 0;
 }
 
 #else

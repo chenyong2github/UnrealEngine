@@ -124,18 +124,25 @@ void DenoiseLightSampleData(FIntPoint Size, TArray<FLightSampleData>& LightSampl
 	}
 
 	{
-		TArray<FVector> SHPositiveOutput;
-		TArray<FVector> SHNegativeOutput;
-		SHPositiveOutput.AddZeroed(Size.X * Size.Y);
-		SHNegativeOutput.AddZeroed(Size.X * Size.Y);
+		FLinearColor MinValue(MAX_flt, MAX_flt, MAX_flt);
 
 		for (int32 Y = 0; Y < Size.Y; Y++)
 		{
 			for (int32 X = 0; X < Size.X; X++)
 			{
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][0] = FMath::Max(0.0f, LightSampleData[Y * Size.X + X].Coefficients[1][0]);
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][1] = FMath::Max(0.0f, LightSampleData[Y * Size.X + X].Coefficients[1][1]);
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][2] = FMath::Max(0.0f, LightSampleData[Y * Size.X + X].Coefficients[1][2]);
+				MinValue.R = FMath::Min(MinValue.R, LightSampleData[Y * Size.X + X].Coefficients[1][0]);
+				MinValue.G = FMath::Min(MinValue.G, LightSampleData[Y * Size.X + X].Coefficients[1][1]);
+				MinValue.B = FMath::Min(MinValue.B, LightSampleData[Y * Size.X + X].Coefficients[1][2]);
+			}
+		}
+
+		for (int32 Y = 0; Y < Size.Y; Y++)
+		{
+			for (int32 X = 0; X < Size.X; X++)
+			{
+				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][0] = LightSampleData[Y * Size.X + X].Coefficients[1][0] - MinValue.R;
+				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][1] = LightSampleData[Y * Size.X + X].Coefficients[1][1] - MinValue.G;
+				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][2] = LightSampleData[Y * Size.X + X].Coefficients[1][2] - MinValue.B;
 			}
 		}
 
@@ -145,41 +152,9 @@ void DenoiseLightSampleData(FIntPoint Size, TArray<FLightSampleData>& LightSampl
 		{
 			for (int32 X = 0; X < Size.X; X++)
 			{
-				 SHPositiveOutput[Y * Size.X + X][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0];
-				 SHPositiveOutput[Y * Size.X + X][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
-				 SHPositiveOutput[Y * Size.X + X][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
-			}
-		}
-
-		for (int32 Y = 0; Y < Size.Y; Y++)
-		{
-			for (int32 X = 0; X < Size.X; X++)
-			{
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][0] = FMath::Max(0.0f, -LightSampleData[Y * Size.X + X].Coefficients[1][0]);
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][1] = FMath::Max(0.0f, -LightSampleData[Y * Size.X + X].Coefficients[1][1]);
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][2] = FMath::Max(0.0f, -LightSampleData[Y * Size.X + X].Coefficients[1][2]);
-			}
-		}
-
-		FilterSet.Execute();
-
-		for (int32 Y = 0; Y < Size.Y; Y++)
-		{
-			for (int32 X = 0; X < Size.X; X++)
-			{
-				SHNegativeOutput[Y * Size.X + X][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0];
-				SHNegativeOutput[Y * Size.X + X][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
-				SHNegativeOutput[Y * Size.X + X][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
-			}
-		}
-
-		for (int32 Y = 0; Y < Size.Y; Y++)
-		{
-			for (int32 X = 0; X < Size.X; X++)
-			{
-				LightSampleData[Y * Size.X + X].Coefficients[1][0] = SHPositiveOutput[Y * Size.X + X][0] - SHNegativeOutput[Y * Size.X + X][0];
-				LightSampleData[Y * Size.X + X].Coefficients[1][1] = SHPositiveOutput[Y * Size.X + X][1] - SHNegativeOutput[Y * Size.X + X][1];
-				LightSampleData[Y * Size.X + X].Coefficients[1][2] = SHPositiveOutput[Y * Size.X + X][2] - SHNegativeOutput[Y * Size.X + X][2];
+				LightSampleData[Y * Size.X + X].Coefficients[1][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0] + MinValue.R;
+				LightSampleData[Y * Size.X + X].Coefficients[1][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1] + MinValue.G;
+				LightSampleData[Y * Size.X + X].Coefficients[1][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2] + MinValue.B;
 			}
 		}
 	}
@@ -310,18 +285,25 @@ void DenoiseRawData(
 	}
 
 	{
-		TArray<FVector> SHPositiveOutput;
-		TArray<FVector> SHNegativeOutput;
-		SHPositiveOutput.AddZeroed(Size.X * Size.Y);
-		SHNegativeOutput.AddZeroed(Size.X * Size.Y);
+		FLinearColor MinValue(MAX_flt, MAX_flt, MAX_flt);
 
 		for (int32 Y = 0; Y < Size.Y; Y++)
 		{
 			for (int32 X = 0; X < Size.X; X++)
 			{
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][0] = FMath::Max(0.0f, LuminanceSH[Y * Size.X + X].R);
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][1] = FMath::Max(0.0f, LuminanceSH[Y * Size.X + X].G);
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][2] = FMath::Max(0.0f, LuminanceSH[Y * Size.X + X].B);
+				MinValue.R = FMath::Min(MinValue.R, LuminanceSH[Y * Size.X + X].R);
+				MinValue.G = FMath::Min(MinValue.G, LuminanceSH[Y * Size.X + X].G);
+				MinValue.B = FMath::Min(MinValue.B, LuminanceSH[Y * Size.X + X].B);
+			}
+		}
+
+		for (int32 Y = 0; Y < Size.Y; Y++)
+		{
+			for (int32 X = 0; X < Size.X; X++)
+			{
+				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][0] = LuminanceSH[Y * Size.X + X].R - MinValue.R;
+				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][1] = LuminanceSH[Y * Size.X + X].G - MinValue.G;
+				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][2] = LuminanceSH[Y * Size.X + X].B - MinValue.B;
 			}
 		}
 
@@ -331,41 +313,9 @@ void DenoiseRawData(
 		{
 			for (int32 X = 0; X < Size.X; X++)
 			{
-				SHPositiveOutput[Y * Size.X + X][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0];
-				SHPositiveOutput[Y * Size.X + X][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
-				SHPositiveOutput[Y * Size.X + X][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
-			}
-		}
-
-		for (int32 Y = 0; Y < Size.Y; Y++)
-		{
-			for (int32 X = 0; X < Size.X; X++)
-			{
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][0] = FMath::Max(0.0f, -LuminanceSH[Y * Size.X + X].R);
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][1] = FMath::Max(0.0f, -LuminanceSH[Y * Size.X + X].G);
-				FilterSet.InputBuffer[Y * FilterSet.Size.X + X][2] = FMath::Max(0.0f, -LuminanceSH[Y * Size.X + X].B);
-			}
-		}
-
-		FilterSet.Execute();
-
-		for (int32 Y = 0; Y < Size.Y; Y++)
-		{
-			for (int32 X = 0; X < Size.X; X++)
-			{
-				SHNegativeOutput[Y * Size.X + X][0] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0];
-				SHNegativeOutput[Y * Size.X + X][1] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1];
-				SHNegativeOutput[Y * Size.X + X][2] = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2];
-			}
-		}
-
-		for (int32 Y = 0; Y < Size.Y; Y++)
-		{
-			for (int32 X = 0; X < Size.X; X++)
-			{
-				LuminanceSH[Y * Size.X + X].R = SHPositiveOutput[Y * Size.X + X][0] - SHNegativeOutput[Y * Size.X + X][0];
-				LuminanceSH[Y * Size.X + X].G = SHPositiveOutput[Y * Size.X + X][1] - SHNegativeOutput[Y * Size.X + X][1];
-				LuminanceSH[Y * Size.X + X].B = SHPositiveOutput[Y * Size.X + X][2] - SHNegativeOutput[Y * Size.X + X][2];
+				LuminanceSH[Y * Size.X + X].R = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][0] + MinValue.R;
+				LuminanceSH[Y * Size.X + X].G = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][1] + MinValue.G;
+				LuminanceSH[Y * Size.X + X].B = FilterSet.OutputBuffer[Y * FilterSet.Size.X + X][2] + MinValue.B;
 			}
 		}
 	}
