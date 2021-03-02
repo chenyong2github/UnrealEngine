@@ -2503,6 +2503,7 @@ void FRepSerializationSharedInfo::CountBytes(FArchive& Ar) const
 	);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProperty(
 	const FRepLayoutCmd& Cmd,
 	const FGuid& PropertyGuid,
@@ -2512,20 +2513,33 @@ const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProper
 	const bool bWriteHandle,
 	const bool bDoChecksum)
 {
+	FRepSharedPropertyKey PropertyKey(PropertyGuid.A, PropertyGuid.B, PropertyGuid.C, (void*)Data.Data);
+	return WriteSharedProperty(Cmd, PropertyKey, CmdIndex, Handle, Data, bWriteHandle, bDoChecksum);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+const FRepSerializedPropertyInfo* FRepSerializationSharedInfo::WriteSharedProperty(
+	const FRepLayoutCmd& Cmd,
+	const FRepSharedPropertyKey& PropertyKey,
+	const int32 CmdIndex,
+	const uint16 Handle,
+	const FConstRepObjectDataBuffer Data,
+	const bool bWriteHandle,
+	const bool bDoChecksum)
+{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	check(!SharedPropertyInfo.ContainsByPredicate([&](const FRepSerializedPropertyInfo& Info)
+	check(!SharedPropertyInfo.ContainsByPredicate([PropertyKey](const FRepSerializedPropertyInfo& Info)
 	{ 
-		return (Info.Guid == PropertyGuid); 
+		return (Info.PropertyKey == PropertyKey);
 	}));
 #endif
 
-	int32 InfoIndex = SharedPropertyInfo.Emplace();
+	FRepSerializedPropertyInfo& SharedPropInfo = SharedPropertyInfo.Emplace_GetRef();
 
-	FRepSerializedPropertyInfo& SharedPropInfo = SharedPropertyInfo[InfoIndex];
-	SharedPropInfo.Guid = PropertyGuid;
-	SharedPropInfo.BitOffset = SerializedProperties->GetNumBits(); 
+	SharedPropInfo.PropertyKey = PropertyKey;
+	SharedPropInfo.BitOffset = SerializedProperties->GetNumBits();
 
-	UE_LOG(LogRepProperties, VeryVerbose, TEXT("WriteSharedProperty: Handle=%d, Guid=%s"), Handle, *PropertyGuid.ToString());
+	UE_LOG(LogRepProperties, VeryVerbose, TEXT("WriteSharedProperty: Handle=%d, Key=%s"), Handle, *PropertyKey.ToDebugString());
 
 	if (bWriteHandle)
 	{
@@ -2624,11 +2638,11 @@ void FRepLayout::SendProperties_r(
 
 		if (bDoSharedSerialization && EnumHasAnyFlags(Cmd.Flags, ERepLayoutCmdFlags::IsSharedSerialization))
 		{
-			FGuid PropertyGuid(HandleIterator.CmdIndex, HandleIterator.ArrayIndex, ArrayDepth, (int32)((PTRINT)Data.Data & 0xFFFFFFFF));
+			FRepSharedPropertyKey PropertyKey(HandleIterator.CmdIndex, HandleIterator.ArrayIndex, ArrayDepth, (void*)Data.Data);
 
-			SharedPropInfo = SharedInfo->SharedPropertyInfo.FindByPredicate([&](const FRepSerializedPropertyInfo& Info) 
+			SharedPropInfo = SharedInfo->SharedPropertyInfo.FindByPredicate([PropertyKey](const FRepSerializedPropertyInfo& Info)
 			{ 
-				return (Info.Guid == PropertyGuid); 
+				return (Info.PropertyKey == PropertyKey);
 			});
 		}
 
@@ -2638,7 +2652,7 @@ void FRepLayout::SendProperties_r(
 			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 			UE_NET_TRACE_SCOPE(Shared, Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SerializeProperties_r: SharedSerialization - Handle=%d, Guid=%s"), HandleIterator.Handle, *SharedPropInfo->Guid.ToString());
+			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SerializeProperties_r: SharedSerialization - Handle=%d, Key=%s"), HandleIterator.Handle, *SharedPropInfo->PropertyKey.ToDebugString());
 			GNumSharedSerializationHit++;
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (GNetVerifyShareSerializedData != 0)
@@ -6277,11 +6291,11 @@ void FRepLayout::SerializeProperties_r(
 
 		if ((GNetSharedSerializedData != 0) && Ar.IsSaving() && EnumHasAnyFlags(Cmd.Flags, ERepLayoutCmdFlags::IsSharedSerialization))
 		{
-			FGuid PropertyGuid(CmdIndex, ArrayIndex, ArrayDepth, (int32)((PTRINT)(const uint8*)(Data + Cmd) & 0xFFFFFFFF));
+			FRepSharedPropertyKey PropertyKey(CmdIndex, ArrayIndex, ArrayDepth, (void*)(Data + Cmd).Data);
 
-			SharedPropInfo = SharedInfo.SharedPropertyInfo.FindByPredicate([&](const FRepSerializedPropertyInfo& Info) 
+			SharedPropInfo = SharedInfo.SharedPropertyInfo.FindByPredicate([PropertyKey](const FRepSerializedPropertyInfo& Info) 
 			{ 
-				return (Info.Guid == PropertyGuid); 
+				return (Info.PropertyKey == PropertyKey);
 			});
 		}
 
@@ -6471,7 +6485,9 @@ void FRepLayout::BuildSharedSerialization_r(
 
 		if (EnumHasAnyFlags(Cmd.Flags, ERepLayoutCmdFlags::IsSharedSerialization))
 		{
-			SharedInfo.WriteSharedProperty(Cmd, FGuid(HandleIterator.CmdIndex, HandleIterator.ArrayIndex, ArrayDepth, (int32)((PTRINT)Data.Data & 0xFFFFFFFF)), HandleIterator.CmdIndex, HandleIterator.Handle, Data.Data, bWriteHandle, bDoChecksum);
+			FRepSharedPropertyKey PropertyKey(HandleIterator.CmdIndex, HandleIterator.ArrayIndex, ArrayDepth, (void*)Data.Data);
+
+			SharedInfo.WriteSharedProperty(Cmd, PropertyKey, HandleIterator.CmdIndex, HandleIterator.Handle, Data.Data, bWriteHandle, bDoChecksum);
 		}
 	}
 }
@@ -6524,9 +6540,9 @@ void FRepLayout::BuildSharedSerializationForRPC_r(
 
 		if (!Parents[Cmd.ParentIndex].Property->HasAnyPropertyFlags(CPF_OutParm) && EnumHasAnyFlags(Cmd.Flags, ERepLayoutCmdFlags::IsSharedSerialization))
 		{
-			FGuid PropertyGuid(CmdIndex, ArrayIndex, ArrayDepth, (int32)((PTRINT)(const uint8*)(Data + Cmd) & 0xFFFFFFFF));
+			FRepSharedPropertyKey PropertyKey(CmdIndex, ArrayIndex, ArrayDepth, (void*)(Data + Cmd).Data);
 
-			SharedInfo.WriteSharedProperty(Cmd, PropertyGuid, CmdIndex, 0, (Data + Cmd).Data, false, false);
+			SharedInfo.WriteSharedProperty(Cmd, PropertyKey, CmdIndex, 0, (Data + Cmd).Data, false, false);
 		}
 	}
 }
