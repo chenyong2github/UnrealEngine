@@ -33,6 +33,11 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 	, bUsedByAsyncComputePass(0)
 {}
 
+FRDGParentResource::~FRDGParentResource()
+{
+	check(GRDGImmediateMode || ReferenceCount == 0);
+}
+
 void FRDGParentResource::SetPassthroughRHI(FRHIResource* InResourceRHI)
 {
 	ResourceRHI = InResourceRHI;

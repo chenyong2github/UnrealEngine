@@ -236,6 +236,7 @@ public:
 
 protected:
 	FRDGParentResource(const TCHAR* InName, ERDGParentResourceType InType);
+	~FRDGParentResource();
 
 	/** Whether this is an externally registered resource. */
 	uint8 bExternal : 1;
@@ -1220,6 +1221,12 @@ private:
 
 	/** Assigns the pooled buffer to this buffer; returns the previous buffer to own the allocation. */
 	void SetRHI(FRDGPooledBuffer* InPooledBuffer, FRDGBufferRef& OutPreviousOwner);
+
+	/** Returns RHI buffer without access checks. */
+	FRHIBuffer* GetRHIUnchecked() const
+	{
+		return static_cast<FRHIBuffer*>(FRDGResource::GetRHIUnchecked());
+	}
 
 	/** Finalizes the buffer for execution; no other transitions are allowed after calling this. */
 	void Finalize();
