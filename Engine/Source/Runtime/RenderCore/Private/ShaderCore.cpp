@@ -226,6 +226,9 @@ private:
 	bool bInitialized;	
 };
 
+/** Protects GShaderHashCache from simultaneous modification by multiple threads. Note that it can cover more than one method of the class, e.g. a block of code doing Find() then Add() can be guarded */
+FCriticalSection GShaderHashAccessGuard;
+
 FShaderHashCache GShaderHashCache;
 
 /** Global map of virtual file path to physical file paths */
@@ -674,7 +677,14 @@ FString ParseVirtualShaderFilename(const FString& InFilename)
 
 bool ReplaceVirtualFilePathForShaderPlatform(FString& InOutVirtualFilePath, EShaderPlatform ShaderPlatform)
 {
-	const FString& PlatformIncludeDirectory = GShaderHashCache.GetPlatformIncludeDirectory(ShaderPlatform);
+	// as of 2021-03-01, it'd be safe to access just the include directory without the lock... but the lock (and copy) is here for the consistency's and future-proofness' sake
+	const FString PlatformIncludeDirectory( [ShaderPlatform]()
+		{
+			FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
+			return GShaderHashCache.GetPlatformIncludeDirectory(ShaderPlatform);
+		}()
+	);
+
 	if (PlatformIncludeDirectory.IsEmpty())
 	{
 		return false;
@@ -932,7 +942,11 @@ static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHA
 					bIgnoreInclude |= !CheckVirtualShaderFilePath(ExtractedIncludeFilename);
 
 					// Include only platform specific files, which will be used by the target platform.
-					bIgnoreInclude = bIgnoreInclude || GShaderHashCache.ShouldIgnoreInclude(ExtractedIncludeFilename, ShaderPlatform);
+					{
+						FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
+						bIgnoreInclude = bIgnoreInclude || GShaderHashCache.ShouldIgnoreInclude(ExtractedIncludeFilename, ShaderPlatform);
+					}
+
 
 					//vertex factories need to be handled separately
 					if (!bIgnoreInclude)
@@ -1016,6 +1030,7 @@ const FSHAHash& GetShaderFileHash(const TCHAR* VirtualFilePath, EShaderPlatform 
 	// Make sure we are only accessing GShaderHashCache from one thread
 	//check(IsInGameThread() || IsAsyncLoading());
 	STAT(double HashTime = 0);
+	FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
 	{
 		SCOPE_SECONDS_COUNTER(HashTime);
 
@@ -1053,6 +1068,7 @@ const FSHAHash& GetShaderFilesHash(const TArray<FString>& VirtualFilePaths, ESha
 	// Make sure we are only accessing GShaderHashCache from one thread
 	//check(IsInGameThread() || IsAsyncLoading());
 	STAT(double HashTime = 0);
+	FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
 	{
 		SCOPE_SECONDS_COUNTER(HashTime);
 
@@ -1144,11 +1160,13 @@ void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& Sha
 
 void InitializeShaderHashCache()
 {
+	FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
 	GShaderHashCache.Initialize();
 }
 
 void CheckShaderHashCacheInclude(const FString& VirtualFilePath, EShaderPlatform ShaderPlatform)
 {
+	FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
 	bool bIgnoreInclude = GShaderHashCache.ShouldIgnoreInclude(VirtualFilePath, ShaderPlatform);
 
 	checkf(!bIgnoreInclude,
@@ -1194,7 +1212,10 @@ void FlushShaderFileCache()
 {
 	UE_LOG(LogShaders, Log, TEXT("FlushShaderFileCache() begin"));
 
-	GShaderHashCache.Empty();
+	{
+		FScopeLock ShaderHashAccessLock(&GShaderHashAccessGuard);
+		GShaderHashCache.Empty();
+	}
 	GShaderFileCache.Empty();
 
 	if (!FPlatformProperties::RequiresCookedData())
