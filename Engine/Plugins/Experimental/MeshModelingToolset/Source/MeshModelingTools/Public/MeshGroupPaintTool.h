@@ -133,6 +133,11 @@ public:
 		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::Brush"))
 	EMeshGroupPaintBrushAreaType BrushAreaMode = EMeshGroupPaintBrushAreaType::Connected;
 
+	/** Allow the Brush to hit the back-side of the mesh */
+	UPROPERTY(EditAnywhere, Category = ActionType, meta = (DisplayName = "Hit Back Faces",
+		HideEditConditionToggle, EditConditionHides, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::Brush"))
+	bool bHitBackFaces = true;
+
 	/** The group that will be assigned to triangles */
 	UPROPERTY(EditAnywhere, Category = ActionType)
 	int32 SetGroup = 1;

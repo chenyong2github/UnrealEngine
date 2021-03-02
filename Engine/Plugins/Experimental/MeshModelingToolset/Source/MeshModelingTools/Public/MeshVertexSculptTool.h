@@ -15,6 +15,7 @@
 #include "Sculpting/MeshBrushOpBase.h"
 #include "Image/ImageBuilder.h"
 #include "Util/UniqueIndexSet.h"
+#include "Polygroups/PolygroupSet.h"
 #include "MeshVertexSculptTool.generated.h"
 
 class UTransformGizmo;
@@ -100,6 +101,18 @@ enum class EMeshVertexSculptBrushType : uint8
 
 
 
+/** Brush Triangle Filter Type */
+UENUM()
+enum class EMeshVertexSculptBrushFilterType : uint8
+{
+	/** Do not filter brush area */
+	None,
+	/** Only apply brush to triangles in the same connected mesh component/island */
+	Component,
+	/** Only apply brush to triangles with the same PolyGroup */
+	PolyGroup
+};
+
 
 
 UCLASS()
@@ -112,9 +125,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Brush Type"))
 	EMeshVertexSculptBrushType PrimaryBrushType = EMeshVertexSculptBrushType::Offset;
 
-	/** Primary Brush Falloff */
+	/** Primary Brush Falloff Type, multiplied by Alpha Mask where applicable */
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Falloff Shape"))
 	EMeshSculptFalloffType PrimaryFalloffType = EMeshSculptFalloffType::Smooth;
+
+	/** Filter applied to Stamp Region Triangles, based on first Stroke Stamp */
+	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (DisplayName = "Region Filter"))
+	EMeshVertexSculptBrushFilterType BrushFilter = EMeshVertexSculptBrushFilterType::None;
 
 	/** When Freeze Target is toggled on, the Brush Target Surface will be Frozen in its current state, until toggled off. Brush strokes will be applied relative to the Target Surface, for applicable Brushes */
 	UPROPERTY(EditAnywhere, Category = Sculpting, meta = (EditCondition = "PrimaryBrushType == EMeshVertexSculptBrushType::Offset || PrimaryBrushType == EMeshVertexSculptBrushType::SculptMax || PrimaryBrushType == EMeshVertexSculptBrushType::SculptView || PrimaryBrushType == EMeshVertexSculptBrushType::Pinch || PrimaryBrushType == EMeshVertexSculptBrushType::Resample" ))
@@ -219,6 +236,11 @@ protected:
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
 	void UpdateBrushType(EMeshVertexSculptBrushType BrushType);
+
+	TUniquePtr<UE::Geometry::FPolygroupSet> ActiveGroupSet;
+	TArray<int32> TriangleComponentIDs;
+
+	int32 InitialStrokeTriangleID = -1;
 
 	TSet<int32> AccumulatedTriangleROI;
 	bool bUndoUpdatePending = false;

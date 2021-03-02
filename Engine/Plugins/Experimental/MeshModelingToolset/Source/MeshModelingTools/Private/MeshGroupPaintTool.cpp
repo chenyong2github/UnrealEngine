@@ -157,8 +157,11 @@ void UMeshGroupPaintTool::Setup()
 		[this](EMeshGroupPaintInteractionType NewType) { UpdateSubToolType(NewType); });
 	FilterProperties->WatchProperty(FilterProperties->BrushSize,
 		[this](float NewSize) { UMeshSculptToolBase::BrushProperties->BrushSize = NewSize; });
+	FilterProperties->WatchProperty(FilterProperties->bHitBackFaces,
+		[this](bool bNewValue) { UMeshSculptToolBase::BrushProperties->bHitBackFaces = bNewValue; });
 	FilterProperties->RestoreProperties(this);
 	FilterProperties->BrushSize = UMeshSculptToolBase::BrushProperties->BrushSize;
+	FilterProperties->bHitBackFaces = UMeshSculptToolBase::BrushProperties->bHitBackFaces;
 	AddToolPropertySource(FilterProperties);
 
 	InitializeIndicator();
@@ -1490,6 +1493,8 @@ void UMeshGroupPaintTool::UpdateActiveGroupLayer()
 
 void UMeshGroupPaintTool::UpdateSubToolType(EMeshGroupPaintInteractionType NewType)
 {
+	// Currenly we mirror base-brush properties in UGroupPaintBrushFilterProperties, so we never
+	// want to show both
 	//bool bSculptPropsVisible = (NewType == EMeshGroupPaintInteractionType::Brush);
 	//SetToolPropertySourceEnabled(UMeshSculptToolBase::BrushProperties, bSculptPropsVisible);
 	SetToolPropertySourceEnabled(UMeshSculptToolBase::BrushProperties, false);
