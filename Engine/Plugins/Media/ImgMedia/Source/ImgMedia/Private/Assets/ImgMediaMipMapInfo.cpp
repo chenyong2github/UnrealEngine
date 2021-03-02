@@ -297,7 +297,7 @@ float FImgMediaMipMapInfo::GetObjectWidth(const AActor* InActor)
 	// Did we get anything?
 	if (Width < 0.0f)
 	{
-		UE_LOG(LogImgMedia, Error, TEXT("FImgMediaMipMapInfo could not get size of %s."), *InActor->GetName());
+		UE_LOG(LogImgMedia, Error, TEXT("FImgMediaMipMapInfo could not get size of %s."), InActor != nullptr ? *InActor->GetName() : TEXT("<nullptr>"));
 		Width = 0.0f;
 	}
 
