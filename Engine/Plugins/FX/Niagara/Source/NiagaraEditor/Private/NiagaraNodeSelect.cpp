@@ -10,6 +10,8 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Widgets/SNiagaraPinTypeSelector.h"
 #include "Widgets/Input/SButton.h"
+#include "ScopedTransaction.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeSelect"
 

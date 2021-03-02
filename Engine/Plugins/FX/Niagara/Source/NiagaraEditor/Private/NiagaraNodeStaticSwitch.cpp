@@ -6,6 +6,8 @@
 #include "NiagaraConstants.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraScriptVariable.h"
+#include "Widgets/Layout/SSpacer.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
 
