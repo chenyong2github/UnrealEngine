@@ -657,7 +657,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 				DataInterface->GetFunctions(Functions);
 				for (FNiagaraFunctionSignature& Sig : Functions)
 				{
-					if (Sig.bSoftDeprecatedFunction)
+					if (Sig.bSoftDeprecatedFunction || Sig.bHidden)
 						continue;
 					TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, MenuCat, FText::FromString(Sig.GetName()), *Sig.GetName(), FText::GetEmpty());
 					UNiagaraNodeFunctionCall* FuncNode = NewObject<UNiagaraNodeFunctionCall>(OwnerOfTemporaries);
