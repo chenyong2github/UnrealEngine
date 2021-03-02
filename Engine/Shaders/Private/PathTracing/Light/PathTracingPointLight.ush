@@ -137,6 +137,6 @@ void PointLight_SampleLight(
 		// Singular case
 		OutLightUV = float3(0, 0, 1);
 		// #dxr_todo: this isn't really part of the pdf, the pdf should be +inf for the singular case
-		OutPdf = 1.0;
+		OutPdf = 1.0 / (4 * PI);
 	}
 }

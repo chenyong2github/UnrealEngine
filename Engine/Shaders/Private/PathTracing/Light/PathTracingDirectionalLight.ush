@@ -95,15 +95,13 @@ void DirectionalLight_SampleLight(
 	else
 	{
 		// soft case - build a frame, and sample the distant cone
-		float3 X, Y;
-		// #dxr_todo: the implementation of this function should probably follow: "Building an Orthonormal Basis, Revisited" JCGT 2017
-		GenerateCoordinateSystem(N, X, Y);
+		const float3x3 ToWorld = GetTangentBasis(N);
 
 		float SinThetaMax = Radius; // currently sin(Angle / 2)
 		float CosThetaMax = sqrt(1.0 - SinThetaMax * SinThetaMax);
 
 		float4 DirAndPdf = UniformSampleCone(RandSample.yz, CosThetaMax);
-		OutLightUV = DirAndPdf.x * X + DirAndPdf.y * Y + DirAndPdf.z * N;
+		OutLightUV = mul(DirAndPdf.xyz, ToWorld);
 		OutPdf = DirAndPdf.w;
 	}
 }

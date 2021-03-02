@@ -86,13 +86,17 @@ bool SampleLightSelection(
 {
 	OutLightSelectionPdf = 0.0;
 
+	if (SceneLightsData.Count == 0)
+	{
+		return false;
+	}
+
 //#define UNIFORM_LIGHT_SELECTION
 #ifdef UNIFORM_LIGHT_SELECTION
 	OutLightId = RandSample * SceneLightsData.Count;
 	OutLightSelectionPdf = 1.0 / SceneLightsData.Count;
 	return true;
 #else
-	if (SceneLightsData.Count == 0) return false;
 
 	// Build irradiance estimate prefix sum
 	float IrradianceEstimate[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
@@ -104,7 +108,11 @@ bool SampleLightSelection(
 			IrradianceEstimate[LightIndex] += IrradianceEstimate[LightIndex - 1];
 		}
 	}
-	// dxr_todo: Consider when IrradianceEstimate[SceneLightsData.Count] == 0
+	
+	if (IrradianceEstimate[SceneLightsData.Count - 1] == 0)
+	{
+		return false;
+	}
 
 	// CDF normalization
 	{

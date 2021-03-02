@@ -18,12 +18,8 @@ void RectLight_GenerateLightRay(
 {
 	OutLightRay.Origin = Ray.Origin;
 	OutLightRay.TMin = 0.001;
-	// Get rect parameters to determine 3D direction.
-	float2 DeltaP = float2(GetWidth(LightId), GetHeight(LightId)) * LightUV.xy;
-	float3 LightDir = GetPosition(LightId) + DeltaP.x * GetdPdu(LightId) + DeltaP.y * GetdPdv(LightId) - Ray.Origin;
-
-	OutLightRay.Direction = normalize(LightDir);
-	OutLightRay.TMax = length(LightDir);
+	OutLightRay.Direction = normalize(LightUV);
+	OutLightRay.TMax = length(LightUV);
 }
 
 void RectLight_PdfLight(
@@ -72,12 +68,18 @@ void RectLight_EstimateLight(
 
 	// Approximate geometric term
 	float3 SurfaceNormal = Payload.WorldNormal;
+#if 0
 	float NoL = dot(SurfaceNormal, LightDirection);
 	NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
+#else
+	// Just use a trivial upper bound on cosine term 
+	// #dxr_todo: UE-72533 least intrusive way of fixing the artifact cause by using LightCenter
+	float NoL = 1.0;
+#endif
 	float Area = GetWidth(LightId) * GetHeight(LightId);
 
 	float LightPower = Luminance(GetColor(LightId));
-	float Falloff = ComputeAttenuationFalloff(length(LightDirection), GetAttenuation(LightId));
+	float Falloff = ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
 	OutIrradiance = LightPower * Falloff * Area * NoL / LightDistanceSquared;
 }
 
@@ -97,50 +99,6 @@ void RectLight_SampleLight(
 	float3 LightdPdv = GetdPdv(LightId);
 	float LightWidth = GetWidth(LightId);
 	float LightHeight = GetHeight(LightId);
-	
-	// Compute the visible portion of the light from the current shading point
-	if (false)
-	{
-		float3 ToLight = LightPosition - WorldPosition;
-		FRect VisibleRect = GetRect(
-				ToLight,
-				-LightNormal,
-				LightdPdv,
-				LightWidth*0.5f,
-				LightHeight*0.5f,
-				GetRectLightBarnCosAngle(LightId),
-				GetRectLightBarnLength(LightId),
-				true);
-
-		LightPosition = LightPosition - LightdPdu * VisibleRect.Offset.x - LightdPdv * VisibleRect.Offset.y;	
-		LightWidth	  = VisibleRect.Extent.x * 2.0f;
-		LightHeight   = VisibleRect.Extent.y * 2.0f;
-	}
-
-	// Pick a random position
-	float2 UV = RandSample.yz - 0.5;
-	OutLightUV = float3(UV, 0);
-
-	// Map sample point to quad
-	float3 LightSamplePosition = LightPosition + LightdPdu * LightWidth * UV.x + LightdPdv * LightHeight * UV.y;
-	float3 LightDirection = LightSamplePosition - WorldPosition;
-	float LightDirectionLength = length(LightDirection);
-#if USE_ATTENUATION_TERM
-	float Epsilon = 1.0e-5;
-	if (ComputeAttenuationFalloff(LightDirectionLength, GetAttenuation(LightId)) < Epsilon)
-	{
-		OutPdf = 0.0;
-		return;
-	}
-#endif
-	LightDirection *= rcp(LightDirectionLength);
-
-	// Light-normal culling
-	if (dot(-LightDirection, LightNormal) <= 0.0)
-	{
-		OutPdf = 0.0;
-		return;
-	}
 
 	// Define rectangle and compute solid angle
 	FRect Rect;
@@ -150,5 +108,6 @@ void RectLight_SampleLight(
 	Rect.Axis[2] = cross(LightdPdu, LightdPdv);
 	Rect.Extent = float2(LightWidth, LightHeight) * 0.5f;
 	FSphericalRect SphericalRect = BuildSphericalRect(Rect);
+	OutLightUV = UniformSampleSphericalRect(RandSample.yz, SphericalRect);
 	OutPdf = isfinite(SphericalRect.SolidAngle) ? 1.0 / SphericalRect.SolidAngle : 0.0;
 }
