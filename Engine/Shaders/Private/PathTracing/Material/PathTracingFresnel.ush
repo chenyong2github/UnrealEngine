@@ -5,102 +5,49 @@ PathTracingFresnel.usf: Fresnel utilities for material sampling functions
 ===============================================================================================*/
 #pragma once
 
-
-float FresnelDielectric(float CosThetaI, float IorI, float IorT)
+float FresnelReflectance(float CosI, float Eta)
 {
-	if (IorI == IorT)
-	{
-		return 1.0;
+	// This is a float only version of F_Fresnel that takes the Ior ratio as input directly (and handles TIR)
+
+	// NOTE: this function tries uses the exact same math as the version below for consistency
+
+	float g2 = Eta * Eta - 1 + CosI * CosI;
+
+	if (g2 >= 0) {
+		float c = abs(CosI);
+		float g = sqrt(g2);
+		float a2 = Pow2((g - c) / (g + c));
+		float b2 = Pow2((c * (g + c) - 1) / (c * (g - c) + 1));
+		return 0.5 * a2 * (1.0 + b2);
 	}
 
-	CosThetaI = clamp(CosThetaI, -1.0, 1.0);
-
-	if (CosThetaI < 0.0)
-	{
-		// Swap indices
-		CosThetaI = -CosThetaI;
-		float IorTmp = IorI;
-		IorI = IorT;
-		IorT = IorTmp;
-	}
-
-	const float SinThetaI = 1.0 - (CosThetaI * CosThetaI);
-	const float IorRatio = IorI / IorT;
-	const float d = 1.0 - SinThetaI * IorRatio*IorRatio;
-	if (d < 0.0)
-	{
-		return 1.0;
-	}
-
-	float CosThetaT = sqrt(d);
-	float CosI_A = IorI * CosThetaI;
-	float CosT_A = IorI * CosThetaT;
-	float CosI_B = IorT * CosThetaI;
-	float CosT_B = IorT * CosThetaT;
-
-	float Parl = (CosT_A - CosI_B) / (CosT_A + CosI_B);
-	float Perp = (CosI_A - CosT_B) / (CosI_A + CosT_B);
-	float Fr = min(0.5*(Perp*Perp + Parl * Parl), 1.0);
-
-	return Fr;
+	return 1.0;
 }
 
-void CalcFresnelCoefficients(float CosTheta1, float N1, float N2, out float CosTheta2, out float Rs, out float Rp)
+// returns true if we sampled a refraction, or false if we reflected (or TIR occured)
+bool SampleRefraction(float3 RayDirection, float3 Normal, float Eta, float RandSample, out float3 OutDirection)
 {
-	Rs = 0.0;
-	Rp = 0.0;
-	CosTheta2 = 0.0;
-	// Use Snell's law to compute CosTheta2:
-	// N1 * sin(Theta1) = N2 * sin(Theta2)
-	// [N1 * sin(Theta1)]^2 = [N2 * sin(Theta2)]^2
-	float SinTheta1_Squared = 1.0 - CosTheta1 * CosTheta1;
-	float SinTheta2_Squared = (SinTheta1_Squared * N1 * N1) / (N2 * N2);
+	// Compute refracted direction and Fresnel term at the same time to re-use intermediate values
+	// and to get matching results for the TIR condition
+	float CosI = abs(dot(RayDirection, Normal));
+	float g2 = Eta * Eta - 1.0 + CosI * CosI;
 
-	float CosTheta1_Squared = 1.0 - SinTheta1_Squared;
-	float CosTheta2_Squared = 1.0 - SinTheta2_Squared;
-	if (CosTheta2_Squared >= 0.0)
-	{
-		CosTheta2 = sqrt(CosTheta2_Squared);
+	if (g2 >= 0.0) {
+		float c = CosI;
+		float g = sqrt(g2);
+		float a2 = Pow2((g - c) / (g + c));
+		float b2 = Pow2((c * (g + c) - 1) / (c * (g - c) + 1));
+		float Fr = 0.5 * a2 * (1.0 + b2);
 
-		// Optimized Fresnel equations
-		// Rs = (N1 * CosTheta1 - N2 * CosTheta2) / (N1 * CosTheta1 + N2 * CosTheta2);
-		// Rp = (N2 * CosTheta1 - N1 * CosTheta2) / (N2 * CosTheta1 + N1 * CosTheta2);
-		float N1_CosTheta1 = N1 * CosTheta1;
-		float N1_CosTheta2 = N1 * CosTheta2;
-		float N2_CosTheta1 = N2 * CosTheta1;
-		float N2_CosTheta2 = N2 * CosTheta2;
-		Rs = (N1_CosTheta1 - N2_CosTheta2) / (N1_CosTheta1 + N2_CosTheta2);
-		Rp = (N2_CosTheta1 - N1_CosTheta2) / (N2_CosTheta1 + N1_CosTheta2);
+		// Stochastically decide to transmit or not based on Fr
+		// This assumes RandSample is in [0,1)
+		if (RandSample >= Fr)
+		{
+			OutDirection = normalize(RayDirection + Normal * (c - g));
+			return true;
+		}
 	}
-}
-
-// TODO: Unify FresnelReflectance() and FresnelDielectric()
-float FresnelReflectance(float CosTheta1, float N1, float N2)
-{
-	float CosTheta2;
-	float Rs;
-	float Rp;
-	CalcFresnelCoefficients(CosTheta1, N1, N2, CosTheta2, Rs, Rp);
-
-	float Fr = (Rs * Rs + Rp * Rp) / 2.0;
-	return Fr;
-}
-
-float FresnelTransmittance(float CosTheta1, float N1, float N2)
-{
-	float Ft = 0.0;
-	if (CosTheta1 > 0.0)
-	{
-		float CosTheta2;
-		float Rs;
-		float Rp;
-		CalcFresnelCoefficients(CosTheta1, N1, N2, CosTheta2, Rs, Rp);
-
-		float Ts = Rs + 1;
-		float Tp = (Rp + 1) * N1 / N2;
-		Ft = (Ts * Ts + Tp * Tp) / 2.0;
-		Ft *= (N2 * CosTheta2) / (N1 * CosTheta1);
-	}
-
-	return Ft;
+	// either TIR, or sampled reflection
+	OutDirection = RayDirection + (2 * CosI) * Normal;
+	return false;
 }

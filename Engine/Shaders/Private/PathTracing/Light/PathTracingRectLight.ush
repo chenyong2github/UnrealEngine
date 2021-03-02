@@ -128,6 +128,7 @@ void RectLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
+	bool IsTransmissiveMaterial,
 	out float OutIrradiance
 )
 {
@@ -135,27 +136,21 @@ void RectLight_EstimateLight(
 	// #dxr_todo: UE-72533 Use closest point, instead
 	float3 LightDirection = GetPosition(LightId) - WorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
-	LightDirection = normalize(LightDirection);
 	float3 LightNormal = GetNormal(LightId);
 
-	// Light-normal culling
+	// Is the shading point behind the light?
 	if (dot(-LightDirection, LightNormal) <= 0.0)
 	{
 		OutIrradiance = 0.0;
 		return;
 	}
-
 	// Approximate geometric term
-	float3 SurfaceNormal = WorldNormal;
-#if 0
-	float NoL = dot(SurfaceNormal, LightDirection);
-	NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
-#else
-	// Just use a trivial upper bound on cosine term 
-	// #dxr_todo: UE-72533 least intrusive way of fixing the artifact cause by using LightCenter
+	float Width = GetWidth(LightId);
+	float Height = GetHeight(LightId);
+
+	// Don't bother trying to bound the N.L term as its in [0,1] and hard to estimate accurately and quickly
 	float NoL = 1.0;
-#endif
-	float Area = GetWidth(LightId) * GetHeight(LightId);
+	float Area = Width * Height;
 
 	float LightPower = Luminance(GetColor(LightId));
 	float Falloff = ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));

@@ -58,7 +58,7 @@ void TestGenerateWiSamplesCS(
 	}
 	else if (BrdfType == 1)
 	{
-		Glossy_SampleMaterial(Wo, Payload, RandSample, Wi, SampledBRDF, SampledPDF);
+		DefaultLit_SampleMaterial(Wo, Payload, RandSample, Wi, SampledBRDF, SampledPDF);
 	}
 	else
 	{

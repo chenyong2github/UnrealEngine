@@ -9,36 +9,35 @@ void Lambert_SampleMaterial(
 	FMaterialClosestHitPayload Payload,
 	float4 RandSample,
 	out float3 OutDirection,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf)
 {
 	float3 N_World = GetWorldNormal(Payload);
-	float3 DiffuseColor = GetDiffuseColor(Payload);
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 	OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
-	OutThroughput = DiffuseColor / PI;
+	OutWeight = GetBaseColor(Payload);
 	OutPdf = SampledValue.w;
 }
 
 float Lambert_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
 {
 	float3 N_World = GetWorldNormal(Payload);
-	float NoL = max(dot(N_World, OutgoingDirection), 0.0);
-	return (NoL / PI);
+	float NoL = saturate(dot(N_World, OutgoingDirection));
+	return NoL / PI;
 }
 
 void Lambert_EvalMaterial(
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf
 )
 {
 	float3 N_World = GetWorldNormal(Payload);
-	float NoL = max(dot(N_World, OutgoingDirection), 0.0);
+	float NoL = saturate(dot(N_World, OutgoingDirection));
 
+	OutWeight = GetBaseColor(Payload);
 	OutPdf = NoL / PI;
-	OutThroughput = GetDiffuseColor(Payload) / PI;
 }

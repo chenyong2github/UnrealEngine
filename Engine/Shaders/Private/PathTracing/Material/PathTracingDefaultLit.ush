@@ -8,71 +8,100 @@
 
 #include "PathTracingFresnel.ush"
 
+// be conservative since the GPU may be aggressive with floating point optimizations
+#define GGX_MIN_ROUGHNESS 0.01
+
 float CalcLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
 {
-	// #dxr_todo: Can do much better than this - but this at least prevents under-sampling when one of the lobes is black
+	// TODO: This could be improved if we had a directional albedo tabulation, but this formulation will at least prevent
+	// under-sampling when one lobe is black (like with metals)
+
 	float3 Diff = GetDiffuseColor(Payload);
 	float3 Spec = GetSpecularColor(Payload);
 
 	float D = Diff.x + Diff.y + Diff.z;
 	float S = Spec.x + Spec.y + Spec.z;
 	return D / (D + S + 1e-6);
-
-
-	float Pdf = min(GetRoughness(Payload), 0.9);
-	return Pdf;
-}
-
-float DefaultLit_PdfMaterial(
-	float3 IncomingDirection,
-	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	float Ior1
-)
-{
-	float3 V_World = -IncomingDirection;
-	float3 L_World = OutgoingDirection;
-	float3 N_World = GetWorldNormal(Payload);
-	float3 V = WorldToTangent(V_World, N_World);
-	float3 L = WorldToTangent(L_World, N_World);
-	float3 N = float3(0, 0, 1);
-	float3 H = normalize(V + L);
-
-	float NoL = saturate(dot(N, L));
-	float NoH = saturate(dot(N, H));
-	float HoV = saturate(dot(H, V));
-
-	float LobeSelectionPdf = CalcLobeSelectionPdf(V_World, Payload);
-	float Roughness = GetRoughness(Payload);
-	float LambertPdf = NoL / PI;
-
-	float a2 = Pow4(Roughness);
-	float D = D_GGX(a2, NoH);
-	float GlossyPdf = 0.0;
-	if (HoV > 0.0)
-	{
-		GlossyPdf = D * NoH / (4.0 * HoV);
-	}
-
-	return LobeSelectionPdf * LambertPdf + (1.0 - LobeSelectionPdf) * GlossyPdf;
 }
 
 void DefaultLit_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
-	float Ior1,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf
-);
+)
+{
+	OutWeight = 0;
+	OutPdf = 0;
+
+	float3 V_World = -IncomingDirection;
+	float3 L_World = OutgoingDirection;
+	float3 N_World = GetWorldNormal(Payload);
+
+	float Roughness = max(GetRoughness(Payload), GGX_MIN_ROUGHNESS);
+	float2 Alpha;
+	float3x3 Basis;
+	if (Payload.HasAnisotropy())
+	{
+		// Material is anisotropic, our shading frame should use the tangent vector
+		GetAnisotropicRoughness(Roughness * Roughness, Payload.Anisotropy, Alpha.x, Alpha.y);
+		float3 X = Payload.WorldTangent;
+		float3 Y = normalize(cross(N_World, X));
+		Basis = float3x3(cross(Y, N_World), Y, N_World);
+	}
+	else
+	{
+		// No anisotropy, just pick an arbitrary basis
+		Alpha = Roughness * Roughness;
+		Basis = GetTangentBasis(N_World);
+	}
+
+	// move vectors into right shading frame
+	float3 V = mul(Basis, V_World);
+	float3 L = mul(Basis, L_World);
+	float3 H = normalize(V + L);
+
+	float NoL = saturate(L.z);
+	float NoV = saturate(V.z);
+	float NoH = saturate(H.z);
+	float VoH = saturate(dot(V, H));
+
+	// Probability of picking diffuse lobe vs. specular lobe
+	float LobeSelectionPdf = CalcLobeSelectionPdf(V_World, Payload);
+
+	// Diffuse Lobe
+	AddLobeWithMIS(OutWeight, OutPdf, GetDiffuseColor(Payload), NoL / PI, LobeSelectionPdf);
+
+	// Specular lobe
+	if (NoL > 0 && NoV > 0)
+	{
+		// Assume NoH > 0
+		// FIXME: this can be further simplified
+		const float CosThetaM4 = Pow2(NoH);
+		const float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(NoH);
+		const float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
+		const float Lambda_o = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(L.x * Alpha.x) + Pow2(L.y * Alpha.y)) / Pow2(L.z)));
+		const float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
+		const float G2 = 1 / (Lambda_i + Lambda_o + 1);
+		const float G1 = 1 / (Lambda_i + 1);
+
+		// match behavior in SpecularGGX
+		const float3 F = F_Schlick(GetSpecularColor(Payload), VoH);
+
+		const float3 SpecWeight = F * (G2 / G1);
+		const float SpecPdf = (G1 * D * 0.25f) / NoV;
+
+		AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1.0 - LobeSelectionPdf);
+	}
+}
 
 void DefaultLit_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
-	float Ior1,
 	float4 RandSample,
 	out float3 OutDirection,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf
 )
 {
@@ -81,7 +110,10 @@ void DefaultLit_SampleMaterial(
 	
 	float LobeSelectionPdf = CalcLobeSelectionPdf(V, Payload);
 
-	float MisWeight = 0;
+	OutDirection = 0;
+	OutWeight = 0;
+	OutPdf = 0;
+	
 	// Choose lobe based on roughness
 	if (RandSample.x < LobeSelectionPdf)
 	{
@@ -90,111 +122,46 @@ void DefaultLit_SampleMaterial(
 		// Lambert
 		float4 Result = CosineSampleHemisphere(RandSample.xy);
 		OutDirection = TangentToWorld(Result.xyz, N);
-		float NoL = saturate(dot(N, OutDirection));
-		OutThroughput = GetDiffuseColor(Payload) / PI;
-		OutPdf = LobeSelectionPdf * Result.w;
 	}
 	else
 	{
 		RandSample.x -= LobeSelectionPdf;
 		RandSample.x /= (1.0 - LobeSelectionPdf);
 
-		// GGX
-		float a2 = Pow4(GetRoughness(Payload));
-		float4 Result = ImportanceSampleGGX(RandSample.xy, a2);
-		float3 H = TangentToWorld(Result.xyz, N);
-		float3 L = 2.0 * dot(V, H) * H - V;
-		OutDirection = L;
-
-		float NoV = saturate(dot(N, V));
-		float NoH = saturate(dot(N, H));
-		float NoL = saturate(dot(N, L));
-		float VoH = saturate(dot(V, H));
-
-		float3 F_Metallic = F_Schlick(GetSpecularColor(Payload), VoH);
-		float3 F_Dielectric = FresnelReflectance(VoH, Ior1, GetIor(Payload));
-		float3 F = lerp(F_Dielectric, F_Metallic, GetMetallic(Payload));
-		float D = Result.w / Result.z;// D_GGX(a2, NoH);
-		// Note: Pedantic application of normalized weights is on purpose
-		float G = Vis_SmithJointApprox(a2, NoV, NoL) * (4.0 * NoV * NoL);
-
-		float MicrofacetPdf = 0.0;
-		if (VoH > 0.0)
+		float Roughness = max(GetRoughness(Payload), GGX_MIN_ROUGHNESS);
+		float2 Alpha;
+		float3x3 Basis;
+		if (Payload.HasAnisotropy())
 		{
-			MicrofacetPdf = Result.w / (4.0 * VoH);
+			// Material is anisotropic, our shading frame should use the tangent vector
+			GetAnisotropicRoughness(Roughness * Roughness, Payload.Anisotropy, Alpha.x, Alpha.y);
+			float3 X = Payload.WorldTangent;
+			float3 Y = normalize(cross(N, X));
+			Basis = float3x3(cross(Y, N), Y, N);
+		}
+		else
+		{
+			// No anisotropy, just pick an arbitrary basis
+			Alpha = Roughness * Roughness;
+			Basis = GetTangentBasis(N);
 		}
 
-		OutThroughput = 0.0;
-		if (NoV * NoL > 0.0)
-		{
-			OutThroughput = F * ((D * G) / (4.0 * NoV * NoL));
+		V = mul(Basis, V);
+
+		// #dxr_todo: Switch to UniformSampleDiskConcentric after fixing 0/0 bug
+		float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
+
+		float3 L = reflect(-V, H);
+		if (L.z <= 0) {
+			// invalid output direction, exit early
+			return;
 		}
-		OutPdf = (1.0 - LobeSelectionPdf) * MicrofacetPdf;
+		// transform to world space
+		OutDirection = normalize(mul(L, Basis));
 	}
-}
 
-void DefaultLit_EvalMaterial(
-	float3 IncomingDirection,
-	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	float Ior1,
-	out float3 OutThroughput,
-	out float OutPdf
-)
-{
-	float3 V_World = -IncomingDirection;
-	float3 L_World = OutgoingDirection;
-	float3 N_World = GetWorldNormal(Payload);
-	float3 V = WorldToTangent(V_World, N_World);
-	float3 L = WorldToTangent(L_World, N_World);
-	float3 N = float3(0, 0, 1);
-	float3 H = normalize(V + L);
-
-	float NoL = saturate(dot(N, L));
-	float NoV = saturate(dot(N, V));
-	float NoH = saturate(dot(N, H));
-	float VoH = saturate(dot(V, H));
-
-// dxr_todo:
-// Disabling EvaluateBXDF path as hierarchical composition of materials does not apply the same Payload properties
-//#ifndef PATH_TRACING
-#if 1
-	float a2 = Pow4(GetRoughness(Payload));
-	float D = D_GGX(a2, NoH);
-	// Note: Pedantic application of normalized weights is on purpose
-	float G = Vis_SmithJointApprox(a2, NoV, NoL) * (4.0 * NoV * NoL);
-	float3 F_Metallic = F_Schlick(GetSpecularColor(Payload), VoH);
-	float3 F_Dielectric = FresnelReflectance(VoH, Ior1, GetIor(Payload));
-	float3 F = lerp(F_Dielectric, F_Metallic, GetMetallic(Payload));
-
-	float3 LambertThroughput = GetDiffuseColor(Payload) / PI;
-	float3 GlossyThroughput = 0.0;
-	if (NoV * NoL > 0.0)
-	{
-		 GlossyThroughput = F * ((D * G) / (4.0 * NoV * NoL));
-	}
-	OutThroughput = (LambertThroughput + GlossyThroughput);
-#else
-	// Create faux GBuffer to use with EvaluateBxDF
-	FGBufferData GBufferData = (FGBufferData)0;
-	GBufferData.Depth = 1.f; // Do not use depth
-	GBufferData.WorldNormal = Payload.WorldNormal;
-	GBufferData.BaseColor = Payload.BaseColor;
-	GBufferData.CustomData = Payload.CustomData;
-	GBufferData.GBufferAO = Payload.GBufferAO;
-	GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f;
-	GBufferData.SpecularColor = Payload.SpecularColor;
-	GBufferData.DiffuseColor = Payload.DiffuseColor;
-	GBufferData.Metallic = Payload.Metallic;
-	GBufferData.Specular = Payload.Specular;
-	GBufferData.Roughness = Payload.Roughness;
-	GBufferData.ShadingModelID = Payload.ShadingModelID;
-	GBufferData.CustomData = Payload.CustomData;
-
-	FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0, InitHairTransmittanceData() };
-	FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
-	OutThroughput = LightingSample.Diffuse + LightingSample.Specular;
-#endif
-
-	OutPdf = DefaultLit_PdfMaterial(IncomingDirection, OutgoingDirection, Payload, Ior1);
+	// Call eval to get the proper weight/pdf for the sampled direction
+	// TODO: might be cheaper to inline the eval here and take advantage of already computed terms?
+	// It is possible that the compiler is doing some of this for us already though ...
+	DefaultLit_EvalMaterial(RayDirection, OutDirection, Payload, OutWeight, OutPdf);
 }

@@ -119,6 +119,7 @@ void EstimateLight(
 	float3 WorldPos,
 	float3 WorldNormal,
 	uint PrimitiveLightingChannelMask,
+	bool IsTransmissiveMaterial,
 	inout float OutIrradiance
 )
 {
@@ -127,23 +128,23 @@ void EstimateLight(
 
 	if (IsPointLight(LightId))
 	{
-		PointLight_EstimateLight(LightId, WorldPos, WorldNormal, OutIrradiance);
+		PointLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
 	}
 	else if (IsSpotLight(LightId))
 	{
-		SpotLight_EstimateLight(LightId, WorldPos, WorldNormal, OutIrradiance);
+		SpotLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
 	}
 	else if (IsEnvironmentLight(LightId))
 	{
-		SkyLight_EstimateLight(LightId, WorldPos, WorldNormal, OutIrradiance);
+		SkyLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
 	}
 	else if (IsDirectionalLight(LightId))
 	{
-		DirectionalLight_EstimateLight(LightId, WorldPos, WorldNormal, OutIrradiance);
+		DirectionalLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
 	}
 	else if (IsRectLight(LightId))
 	{
-		RectLight_EstimateLight(LightId, WorldPos, WorldNormal, OutIrradiance);
+		RectLight_EstimateLight(LightId, WorldPos, WorldNormal, IsTransmissiveMaterial, OutIrradiance);
 	}
 }
 
@@ -174,12 +175,13 @@ bool SampleLightSelection(
 	float3 WorldPos = Payload.WorldPos;
 	float3 WorldNormal = Payload.WorldNormal;
 	uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
-
-	EstimateLight(0, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IrradianceEstimate[0]);
+	
+	// TODO: query transmission from material instead of light?
+	EstimateLight(0, WorldPos, WorldNormal, PrimitiveLightingChannelMask, ENABLE_TRANSMISSION && HasTransmission(0), IrradianceEstimate[0]);
 	{
 		for (uint LightIndex = 1; LightIndex < SceneLightsData.Count; ++LightIndex)
 		{
-			EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IrradianceEstimate[LightIndex]);
+			EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, ENABLE_TRANSMISSION && HasTransmission(LightIndex), IrradianceEstimate[LightIndex]);
 			IrradianceEstimate[LightIndex] += IrradianceEstimate[LightIndex - 1];
 		}
 	}
@@ -237,11 +239,11 @@ void PdfLightSelection(
 	float3 WorldNormal = Payload.WorldNormal;
 	uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
 
-	EstimateLight(0, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IrradianceEstimate[0]);
+	EstimateLight(0, WorldPos, WorldNormal, PrimitiveLightingChannelMask, ENABLE_TRANSMISSION && HasTransmission(0), IrradianceEstimate[0]);
 	{
 		for (uint LightIndex = 1; LightIndex < SceneLightsData.Count; ++LightIndex)
 		{
-			EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IrradianceEstimate[LightIndex]);
+			EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, ENABLE_TRANSMISSION && HasTransmission(LightIndex), IrradianceEstimate[LightIndex]);
 			IrradianceEstimate[LightIndex] += IrradianceEstimate[LightIndex - 1];
 		}
 	}
@@ -390,6 +392,7 @@ bool InitLightPickingCdf(
 	float3 WorldPos,
 	float3 WorldNormal,
 	uint PrimitiveLightingChannelMask,
+	bool IsTransmissiveMaterial,
 	inout float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM])
 {
 	// This code assumes SceneLightsData.Count > 0
@@ -397,11 +400,11 @@ bool InitLightPickingCdf(
 	InitLightPickingCdf(LightPickingCdf);
 #else
 	// Build irradiance estimate prefix sum
-	EstimateLight(0, WorldPos, WorldNormal, PrimitiveLightingChannelMask, LightPickingCdf[0]);
+	EstimateLight(0, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf[0]);
 	{
 		for (uint LightIndex = 1; LightIndex < SceneLightsData.Count; ++LightIndex)
 		{
-			EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, LightPickingCdf[LightIndex]);
+			EstimateLight(LightIndex, WorldPos, WorldNormal, PrimitiveLightingChannelMask, IsTransmissiveMaterial, LightPickingCdf[LightIndex]);
 			LightPickingCdf[LightIndex] += LightPickingCdf[LightIndex - 1];
 		}
 	}

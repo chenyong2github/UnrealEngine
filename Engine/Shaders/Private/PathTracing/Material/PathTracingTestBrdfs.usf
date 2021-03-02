@@ -73,10 +73,10 @@ void TestBrdfIntegrityCS(
 	}
 	else if (BrdfType == 1)
 	{
-		Glossy_SampleMaterial(Wo, Payload, RandSample, Wi, SampledBRDF, SampledPDF);
-		Glossy_EvalMaterial(Wo, Wi, Payload, EvalBRDF, EvalPDF);
-		Glossy_EvalMaterial(Wi, Wo, Payload, EvalReversedBRDF, EvalPDF);
-		PDF = Glossy_Pdf(Wo, Wi, Payload);
+		DefaultLit_SampleMaterial(Wo, Payload, RandSample, Wi, SampledBRDF, SampledPDF);
+		DefaultLit_EvalMaterial(Wo, Wi, Payload, EvalBRDF, EvalPDF);
+		DefaultLit_EvalMaterial(Wi, Wo, Payload, EvalReversedBRDF, EvalPDF);
+		PDF = EvalPDF;
 	}
 	else
 	{

@@ -180,6 +180,7 @@ void SpotLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
+	bool IsTransmissiveMaterial,
 	out float OutIrradiance
 )
 {
@@ -191,23 +192,15 @@ void SpotLight_EstimateLight(
 	// Distance
 	float3 LightDirection = GetPosition(LightId) - WorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
-	LightDirection = normalize(LightDirection);
 
 	// Geometric term
-	float3 SurfaceNormal = WorldNormal;
-
-	float NoL = 1.0;
-	if (GetRadius(LightId) == 0.0)
-	{
-		float NoL = dot(SurfaceNormal, LightDirection);
-		NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
-	}
+	float NoL = 1.0; // trivial upper bound -- trying to be more accurate appears to reduce performance
 
 	float Falloff = ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
 	OutIrradiance = LightPower * Falloff * NoL / LightDistanceSquared;
 	
 	float2 CosConeAngles = GetCosConeAngles(LightId);
-	OutIrradiance *= SpotAttenuation(LightDirection, LightNormal, CosConeAngles);
+	OutIrradiance *= SpotAttenuation(normalize(LightDirection), LightNormal, CosConeAngles);
 }
 	
 void SpotLight_SampleLight(

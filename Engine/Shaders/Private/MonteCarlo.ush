@@ -257,12 +257,26 @@ float4 ImportanceSampleGGX( float2 E, float a2 )
 	return float4( H, PDF );
 }
 
+float VisibleGGXPDF_aniso(float3 V, float3 H, float2 Alpha)
+{
+	float NoV = V.z;
+	float NoH = H.z;
+	float VoH = dot(V, H);
+	float CosThetaM4 = Pow2(NoH);
+	float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(NoH);
+	float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
+	float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
+	float G1 = 1 / (Lambda_i + 1);
+	float Pdf = (G1 * D * VoH) / NoV;
+	return Pdf;
+}
+
 // [ Heitz 2018, "Sampling the GGX Distribution of Visible Normals" ]
 // http://jcgt.org/published/0007/04/01/
 
 float4 ImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
 {
-	// TODO float2 alpha for anisotropic
+	// NOTE: See below for anisotropic version that avoids this sqrt
 	float a = sqrt(a2);
 
 	// stretch
@@ -302,6 +316,31 @@ float4 ImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
 	float PDF = G_SmithV * VoH * D / NoV;
 
 	return float4(H, PDF);
+}
+
+// [ Heitz 2018, "Sampling the GGX Distribution of Visible Normals" ]
+// http://jcgt.org/published/0007/04/01/
+// PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
+// PDF = G_SmithV * D / (4 * NoV)
+float4 ImportanceSampleVisibleGGX_aniso(float2 DiskE, float2 Alpha, float3 V)
+{
+	// stretch
+	float3 Vh = normalize(float3(Alpha * V.xy, V.z));
+
+	// Stable tangent basis based on V
+	float3 Tx = (V.z < 0.9999) ? normalize(float3(-V.y, V.x, 0)) : float3(1, 0, 0);
+	float3 Ty = normalize(cross(Vh, Tx));
+
+	float2 p = DiskE;
+	float s = 0.5 + 0.5 * Vh.z;
+	p.y = lerp(sqrt(1 - p.x * p.x), p.y, s);
+
+	float3 H = p.x * Tx + p.y * Ty + sqrt(saturate(1 - dot(p, p))) * Vh;
+
+	// unstretch
+	H = normalize(float3(Alpha * H.xy, max(0.0, H.z)));
+
+	return float4(H, VisibleGGXPDF_aniso(V, H, Alpha));
 }
 
 // Multiple importance sampling power heuristic of two functions with a power of two. 

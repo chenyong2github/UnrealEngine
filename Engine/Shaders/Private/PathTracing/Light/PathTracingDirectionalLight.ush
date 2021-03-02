@@ -109,18 +109,14 @@ void DirectionalLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
+	bool IsTransmissiveMaterial,
 	out float OutIrradiance
 )
 {
 	float3 LightDirection = GetNormal(LightId);
 	float3 SurfaceNormal = WorldNormal;
-	float NoL = 1.0;
-	if (GetRadius(LightId) == 0.0)
-	{
-		NoL = dot(SurfaceNormal, LightDirection);
-		NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
-	}
 
+	float NoL = 1.0; // trivial upper bound -- trying to be more accurate appears to reduce performance
 	float LightPower = Luminance(GetColor(LightId));
 	OutIrradiance = LightPower * NoL;
 }

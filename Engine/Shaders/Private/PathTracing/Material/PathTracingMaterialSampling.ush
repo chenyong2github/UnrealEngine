@@ -21,33 +21,14 @@ PathTracingMaterialSampling.usf: Material sampling functions
 	#define FORCE_ALL_MATERIALS_DIFFUSE 0
 #endif
 
-void SampleMaterialAsWorldNormal(
-	float3 RayDirection,
-	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutThroughput,
-	out float OutPdf)
-{
-	float3 N_World = GetWorldNormal(Payload);
-	OutDirection = -RayDirection;
-	OutThroughput = (N_World / 2.0) + 0.5;
-	OutPdf = 1.0;
-}
-
 bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 {
 	// Checks done in the same order as other sampling and evaluation functions to ensure consistency
 	
-	#if FORCE_ALL_MATERIALS_DIFFUSE
-		return true;
-	#endif
-
-	if (IsPureSpecularReflection(Payload))
-	{
-		return false;
-	}
-	else if (IsPureSpecularTransmission(Payload))
+#if FORCE_ALL_MATERIALS_DIFFUSE
+	return true;
+#else
+	if (IsPureSpecularTransmission(Payload))
 	{
 		return false;
 	}
@@ -67,24 +48,17 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 	{
 		return false;
 	}
-	else if(IsLambert(Payload))
-	{
-		return true;
-	}
-	else
-	{
-		return true;
-	}
+	return true;
+#endif
 }
 
 void SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
-	float Ior1,
 	float4 RandSample,
 	bool bForceRadianceProbe,
 	out float3 OutDirection,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf,
 	out float OutPositionBiasSign)
 {
@@ -92,179 +66,104 @@ void SampleMaterial(
 	
 	if (bForceRadianceProbe)
 	{
-		RadianceProbe_SampleMaterial(Payload, RandSample, OutDirection, OutThroughput, OutPdf);
+		RadianceProbe_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
 		return;
 	}
 	
-	#if FORCE_ALL_MATERIALS_DIFFUSE
+#if FORCE_ALL_MATERIALS_DIFFUSE
 	{
-		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutThroughput, OutPdf);
-		float NoL = saturate(dot(Payload.WorldNormal, OutDirection));
-		OutThroughput *= NoL;
-		return;
+		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
 	}
-	#endif
-	
-	// Note: Early-return dirac materials do not apply projected measure
-	if (IsPureSpecularReflection(Payload))
+#else	
+	if (IsPureSpecularTransmission(Payload))
 	{
-		SpecularReflection_SampleMaterial(RayDirection, Payload, OutDirection, OutThroughput, OutPdf);
-		return;
-	}
-	else if (IsPureSpecularTransmission(Payload))
-	{
-		SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf, OutPositionBiasSign);
-		return;
+		SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
 	}
 	else if (IsDefaultLitMaterial(Payload))
 	{
-		DefaultLit_SampleMaterial(RayDirection, Payload, Ior1, RandSample, OutDirection, OutThroughput, OutPdf);
+		DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
 	}
 	else if (IsClearCoatMaterial(Payload))
 	{
-		ClearCoat_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf);
+		ClearCoat_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
 	}
 	else if (IsTwoSidedFoliageMaterial(Payload))
 	{
-		TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf, OutPositionBiasSign);
+		TwoSidedFoliage_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
 	}
 	else if (IsUnlitMaterial(Payload))
 	{
+		// Nothing to do, material does not scatter light
 		OutDirection = 0;
-		OutThroughput = 0;
+		OutWeight = 0;
 		OutPdf = 0;
-		return;
-	}
-	else if(IsLambert(Payload))
-	{
-		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutThroughput, OutPdf);
-	}
-	else 
-	{
-		Glossy_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutThroughput, OutPdf);
-	}
-
-	float NoL = saturate(dot(Payload.WorldNormal, OutDirection));
-	OutThroughput *= NoL;
-}
-
-void PdfMaterial(
-	float3 IncomingDirection,
-	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	float Ior1,
-	bool bForceRadianceProbe,
-	out float OutPdf
-)
-{
-	if (bForceRadianceProbe)
-	{
-		OutPdf = RadianceProbe_Pdf(OutgoingDirection, Payload);
-		return;
-	}
-	
-	#if FORCE_ALL_MATERIALS_DIFFUSE
-		OutPdf = Lambert_Pdf(OutgoingDirection, Payload);
-		return;
-	#endif
-	
-	if (IsPureSpecularReflection(Payload))
-	{
-		OutPdf = SpecularReflection_Pdf();
-	}
-	else if (IsPureSpecularTransmission(Payload))
-	{
-		OutPdf = SpecularTransmission_Pdf();
-	}
-	else if (IsDefaultLitMaterial(Payload))
-	{
-		OutPdf = DefaultLit_PdfMaterial(IncomingDirection, OutgoingDirection, Payload, Ior1);
-	}
-	else if (IsClearCoatMaterial(Payload))
-	{
-		OutPdf = ClearCoat_PdfMaterial(IncomingDirection, OutgoingDirection, Payload);
-	}
-	else if (IsTwoSidedFoliageMaterial(Payload))
-	{
-		OutPdf = TwoSidedFoliage_PdfMaterial(IncomingDirection, OutgoingDirection, Payload);
-	}
-	else if (IsUnlitMaterial(Payload))
-	{
-		OutPdf = 0.0;
-	}
-	else if (IsLambert(Payload))
-	{
-		OutPdf = Lambert_Pdf(OutgoingDirection, Payload);
 	}
 	else
 	{
-		OutPdf = Glossy_Pdf(IncomingDirection, OutgoingDirection, Payload);
+		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutWeight, OutPdf);
 	}
+#endif
+
 }
 
 void EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
-	float Ior1,
 	bool bForceRadianceProbe,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf
 )
 {
 	if (bForceRadianceProbe)
 	{
-		RadianceProbe_EvalMaterial(OutgoingDirection, Payload, OutThroughput, OutPdf);
+		RadianceProbe_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
 		return;
 	}
 	
-	#if FORCE_ALL_MATERIALS_DIFFUSE
+#if FORCE_ALL_MATERIALS_DIFFUSE
 	{
-		Lambert_EvalMaterial(OutgoingDirection, Payload, OutThroughput, OutPdf);		
-		float NoL = saturate(dot(Payload.WorldNormal, OutgoingDirection));
-		OutThroughput *= NoL;
-		return;
+		Lambert_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
 	}
-	#endif
-	
-	// Note: Early-return dirac materials do not apply projected measure
-	if (IsPureSpecularReflection(Payload))
+#else
+	if (IsPureSpecularTransmission(Payload))
 	{
-		SpecularReflection_EvalMaterial(OutThroughput, OutPdf);
-		return;
-	}
-	else if (IsPureSpecularTransmission(Payload))
-	{
-		SpecularTransmission_EvalMaterial(OutThroughput, OutPdf);
-		return;
+		SpecularTransmission_EvalMaterial(OutWeight, OutPdf);
 	}
 	else if (IsDefaultLitMaterial(Payload))
 	{
-		DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, Ior1, OutThroughput, OutPdf);
+		DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
 	}
 	else if (IsClearCoatMaterial(Payload))
 	{
-		ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutThroughput, OutPdf);
+		ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
 	}
 	else if (IsTwoSidedFoliageMaterial(Payload))
 	{
-		TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutThroughput, OutPdf);
+		TwoSidedFoliage_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
 	}
 	else if (IsUnlitMaterial(Payload))
 	{
-		OutThroughput = 0.0;
+		OutWeight = 0.0;
 		OutPdf = 0.0;
-		return;
-	}
-	else if (IsLambert(Payload))
-	{
-		Lambert_EvalMaterial(OutgoingDirection, Payload, OutThroughput, OutPdf);
 	}
 	else
 	{
-		Glossy_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutThroughput, OutPdf);
+		Lambert_EvalMaterial(OutgoingDirection, Payload, OutWeight, OutPdf);
 	}
+#endif
+}
 
-	float NoL = saturate(dot(Payload.WorldNormal, OutgoingDirection));
-	OutThroughput *= NoL;
+
+void PdfMaterial(
+	float3 IncomingDirection,
+	float3 OutgoingDirection,
+	FMaterialClosestHitPayload Payload,
+	bool bForceRadianceProbe,
+	out float OutPdf
+)
+{
+	// NOTE: rely on compiler to optimize unused calculations
+	float3 Weight = 0;
+	EvalMaterial(IncomingDirection, OutgoingDirection, Payload, bForceRadianceProbe, Weight, OutPdf);
 }

@@ -8,7 +8,10 @@
 
 #define EVAL_TOP_LAYER 1
 #define EVAL_BOTTOM_LAYER 1
-#define EVAL_REFRACTION 1
+
+#define GREY_INNER_LAYER 0
+
+#define CLEAR_COAT_F0	0.04 // From hard-coded value in ShadingModels.ush
 
 #include "PathTracingFresnel.ush"
 
@@ -33,160 +36,110 @@ float3 CalcThinTransmission(float NoL, float NoV, FMaterialClosestHitPayload Pay
 	return Transmission;
 }
 
-float CalcClearCoatFresnel(float VoH, FMaterialClosestHitPayload HitInfo)
+float CalcClearCoatSelectionPdf(FMaterialClosestHitPayload Payload)
 {
-	float Ior1 = 1.0;
-	float Ior2 = GetClearCoatIor(HitInfo);
-	return FresnelReflectance(VoH, Ior1, Ior2);
-}
-
-float CalcClearCoatSelectionPdf(float3 V, float3 H, FMaterialClosestHitPayload Payload)
-{
-	// Lobe selection is determined by Fresnel term
-	float VoH = saturate(dot(V, H));
-	float Pdf = CalcClearCoatFresnel(VoH, Payload);
-
 #if EVAL_TOP_LAYER == 0
-	Pdf = 0.0;
+	// never select coating if top is disabled
+	return 0.0; 
 #elif EVAL_BOTTOM_LAYER == 0
-	Pdf = 1.0;
+	// always select coating if bottom is disabled
+	return 1.0; 
 #endif
+	// probability of choosing the coat
+	// TODO: this could be improved if we had a directional albedo tabulation
+	float Pdf = GetClearCoat(Payload) * CLEAR_COAT_F0;
 	return Pdf;
 }
 
-float ClearCoat_PdfMaterial(
-	float3 IncomingDirection,
-	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload
-)
-{
-	// Compute GGX PDF
-	float3 V = -IncomingDirection;
-	float3 L = OutgoingDirection;
-	float3 H = normalize(V + L);
-	float3 N = GetWorldNormal(Payload);
-
-	float NoH = saturate(dot(N, H));
-	float HoV = saturate(dot(H, V));
-
-	// Compute top-layer pdf
-	float a2 = Pow4(GetClearCoatRoughness(Payload));
-	float D = D_GGX(a2, NoH);
-	float MicrofacetPdf = 0.0;
-	if (HoV > 0.0)
-	{
-		MicrofacetPdf = D * NoH / (4.0 * HoV);
-	}
-
-	// Refract V and L
-	float Eta = 1.0 / GetClearCoatIor(Payload);
-	#if EVAL_REFRACTION == 1
-	float3 V2;
-	float3 L2;
-	bool IsValidV2 = BSDF_Refract(V, H, Eta, V2);
-	bool IsValidL2 = BSDF_Refract(L, H, Eta, L2);
-	#else
-		float3 V2 = -V;
-		float3 L2 = -L;
-		bool IsValidV2 = true;
-		bool IsValidL2 = true;
-	#endif
-
-	// Compute bottom-layer pdf
-	float BottomLayerPdf = 0.0;
-	if (IsValidV2 && IsValidL2)
-	{
-		Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
-		BottomLayerPdf = DefaultLit_PdfMaterial(V2, -L2, Payload, GetClearCoatIor(Payload));
-		Payload.WorldNormal = N;
-	}
-	
-	// Return piecewise pdf
-	float ClearCoatSelectionPdf = CalcClearCoatSelectionPdf(V, H, Payload);
-	float Pdf = ClearCoatSelectionPdf * MicrofacetPdf + (1.0 - ClearCoatSelectionPdf) * BottomLayerPdf;
-	return Pdf;
+float ClearCoatFresnel(float VoH) {
+	// from hardcoded logic in ClearCoatBxDF
+	float Fc = Pow5(1 - VoH);
+	return Fc + (1 - Fc) * CLEAR_COAT_F0;
 }
 
 void ClearCoat_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
 	inout FMaterialClosestHitPayload Payload,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf
 )
 {
-	float3 V = -IncomingDirection;
-	float3 L = OutgoingDirection;
-	float3 H = normalize(V + L);
-	float3 N = GetWorldNormal(Payload);
+	OutWeight = 0;
+	OutPdf = 0;
 
-	float NoL = saturate(dot(N, L));
-	float NoV = saturate(dot(N, V));
-	float NoH = saturate(dot(N, H));
+	float3 V_World = -IncomingDirection;
+	float3 L_World = OutgoingDirection;
+	float3 N_World = GetWorldNormal(Payload);
+
+	float CoatSelectionPdf = CalcClearCoatSelectionPdf(Payload);
+
+	// No anisotropy, just pick an arbitrary basis
+	float Roughness = max(GetClearCoatRoughness(Payload), GGX_MIN_ROUGHNESS);
+	float2 Alpha = Roughness * Roughness;
+	float3x3 Basis = GetTangentBasis(N_World);
+
+	// move vectors into right shading frame
+	float3 V = mul(Basis, V_World);
+	float3 L = mul(Basis, L_World);
+	float3 H = normalize(V + L);
+
+	float NoL = saturate(L.z);
+	float NoV = saturate(V.z);
+	float NoH = saturate(H.z);
 	float VoH = saturate(dot(V, H));
 
-	// top-layer clear coat evaluation
-	OutThroughput = 0.0;
-
-#if EVAL_TOP_LAYER == 1
-	float CC_a2 = Pow4(GetClearCoatRoughness(Payload));
-	float CC_F = CalcClearCoatFresnel(VoH, Payload);
-	float CC_D = D_GGX(CC_a2, NoH);
-	float CC_G = Vis_SmithJointApprox(CC_a2, NoV, NoL) * (4.0 * NoV * NoL);
-
-	float3 TopLayerThroughput = 0.0;
-	if (NoV * NoL > 0.0)
+	// Specular lobe
+	if (NoL > 0 && NoV > 0)
 	{
-		float ClearCoat = GetClearCoat(Payload);
-		// dxr_todo: NoL cancels
-		TopLayerThroughput = ClearCoat * ((CC_F * CC_D * CC_G) / (4.0 * NoV * NoL)) * NoL;
+		// Assume NoH > 0
+		// FIXME: this can be further simplified
+		const float CosThetaM4 = Pow2(NoH);
+		const float TanThetaM2 = (Pow2(H.x / Alpha.x) + Pow2(H.y / Alpha.y)) / Pow2(NoH);
+		const float D = 1 / (PI * Pow2(1 + TanThetaM2) * Alpha.x * Alpha.y * CosThetaM4);
+		const float Lambda_o = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(L.x * Alpha.x) + Pow2(L.y * Alpha.y)) / Pow2(L.z)));
+		const float Lambda_i = 0.5 * (-1.0 + sqrt(1.0 + (Pow2(V.x * Alpha.x) + Pow2(V.y * Alpha.y)) / Pow2(V.z)));
+		const float G2 = 1 / (Lambda_i + Lambda_o + 1);
+		const float G1 = 1 / (Lambda_i + 1);
+
+		const float F = GetClearCoat(Payload) * ClearCoatFresnel(VoH);
+
+		const float3 SpecWeight = F * (G2 / G1);
+		const float SpecPdf = (G1 * D * 0.25f) / NoV;
+
+		AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, CoatSelectionPdf);
 	}
 
-	OutThroughput += TopLayerThroughput;
-#endif
-	
 	// bottom-layer clear coat evaluation
-#if EVAL_BOTTOM_LAYER == 1
-	float Eta = 1.0 / GetClearCoatIor(Payload);
-	#if EVAL_REFRACTION == 1
-	float3 V2;
-	float3 L2;
-	bool IsValidV2 = BSDF_Refract(V, H, Eta, V2);
-	bool IsValidL2 = BSDF_Refract(L, H, Eta, L2);
-	#else
-		float3 V2 = -V;
-		float3 L2 = -L;
-		bool IsValidV2 = true;
-		bool IsValidL2 = true;
-	#endif
-	if (IsValidV2 && IsValidL2)
-	{
-		V2 = -V2;
-		L2 = -L2;
-		float3 N2 = GetClearCoatBottomNormal(Payload);
-		float N2oL2 = saturate(dot(N2, L2));
-		float N2oV2 = saturate(dot(N2, V2));
-
-		// Evaluate bottom coat
-		Payload.WorldNormal = N2;
-		float3 BottomLayerThroughput;
-		float BottomLayerPdf;
-		DefaultLit_EvalMaterial(-V2, L2, Payload, GetClearCoatIor(Payload), BottomLayerThroughput, BottomLayerPdf);
-		Payload.WorldNormal = N;
-
-		// Calculate transmission through substrate
-		float3 Transmission = CalcThinTransmission(N2oL2, N2oV2, Payload);
-
-		// Apply fresnel through exit interface
-		float CC_F1 = CalcClearCoatFresnel(VoH, Payload);
-		float HoL = saturate(dot(H, L));
-		float CC_F2 = CalcClearCoatFresnel(HoL, Payload);
-
-		OutThroughput += (1.0 - CC_F1) * (1.0 - CC_F2) * Transmission * BottomLayerThroughput;
-	}
+	float3 BottomWeight = 0;
+	float BottomPdf = 0;
+	Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
+#if GREY_INNER_LAYER == 0
+	// NOTE: Should we try to account for the IOR ratio between layers? We could try to darken Specular Color by the coating IOR
+	// but this would apply to both the dielctric and metal portions equally ...
+	// It seems better to punt until we have a Strata going
+	DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, BottomWeight, BottomPdf);
+#else
+	float3 OldColor = Payload.BaseColor;
+	Payload.BaseColor = 0.18;
+	Lambert_EvalMaterial(OutgoingDirection, Payload, BottomWeight, BottomPdf);
+	Payload.BaseColor = OldColor;
 #endif
+	Payload.WorldNormal = N_World;
 
-	OutPdf = ClearCoat_PdfMaterial(IncomingDirection, OutgoingDirection, Payload);
+	// Calculate transmission through substrate
+	float3 Transmission = CalcThinTransmission(NoL, NoV, Payload);
+
+	// Apply fresnel through exit interface
+	// TODO: This should actually use a measure of the directional albedo along V and L
+	// TODO: The original implementation tried to refract V and L, but doing this correctly would require a stochastic eval method
+	// NOTE: implementation in ClearCoatBxDF uses VoH for these which again makes the coating math dependent on the (stochastic) choice of H
+	float CC_F1 = ClearCoatFresnel(NoV);
+	float CC_F2 = ClearCoatFresnel(NoL);
+
+	BottomWeight *= lerp(1.0, Transmission * (1 - CC_F1) * (1 - CC_F2), GetClearCoat(Payload));
+
+	AddLobeWithMIS(OutWeight, OutPdf, BottomWeight, BottomPdf, 1.0 - CoatSelectionPdf);
 }
 
 void ClearCoat_SampleMaterial(
@@ -194,108 +147,60 @@ void ClearCoat_SampleMaterial(
 	FMaterialClosestHitPayload Payload,
 	float4 RandSample,
 	out float3 OutDirection,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf
 )
 {
-	float3 N = GetWorldNormal(Payload);
-	float3 V = -RayDirection;
+	float3 N_World = GetWorldNormal(Payload);
+	float3 V_World = -RayDirection;
+
 	OutDirection = 0.0;
-	OutThroughput = 0.0;
+	OutWeight = 0.0;
 	OutPdf = 0.0;
 
-	// Sample microfacet
-	float a2 = Pow4(GetClearCoatRoughness(Payload));
-	float4 Result = ImportanceSampleGGX(RandSample.zw, a2);
-	float3 H = TangentToWorld(Result.xyz, N);
-	float VoH = saturate(dot(V, H));
+	float CoatSelectionPdf = CalcClearCoatSelectionPdf(Payload);
 
-	float ClearCoatSelectionPdf = CalcClearCoatSelectionPdf(V, H, Payload);
-	if (RandSample.x < ClearCoatSelectionPdf)
+	// choose between coat and bottom layer
+	if (RandSample.x < CoatSelectionPdf)
 	{
-		float NoH = saturate(dot(N, H));
-		float D = D_GGX(a2, NoH);
-		float MicrofacetPdf = 0.0;
-		if (VoH > 0.0)
-		{
-			MicrofacetPdf = D * NoH / (4.0 * VoH);
+		RandSample.x /= CoatSelectionPdf;
 
-			// Lighting direction is the reflection vector about the sampled microfacet
-			float3 R = 2.0 * dot(V, H) * H - V;
-			OutDirection = R;
-			OutPdf = ClearCoatSelectionPdf * MicrofacetPdf;
-			{
-				// Calculate throughput
-				float3 L = OutDirection;
-				float NoL = saturate(dot(N, L));
-				float NoV = saturate(dot(N, V));
+		// No anisotropy, just pick an arbitrary basis
+		float Roughness = max(GetClearCoatRoughness(Payload), GGX_MIN_ROUGHNESS);
+		float2 Alpha = Roughness * Roughness;
+		float3x3 Basis = GetTangentBasis(N_World);
 
-				// top-layer clear coat evaluation
-				float CC_a2 = Pow4(GetClearCoatRoughness(Payload));
-				float CC_F = CalcClearCoatFresnel(VoH, Payload);
-				float CC_D = D_GGX(CC_a2, NoH);
-				float CC_G = Vis_SmithJointApprox(CC_a2, NoV, NoL) * (4.0 * NoV * NoL);
+		float3 V = -mul(Basis, RayDirection);
 
-				if (NoV * NoL > 0.0)
-				{
-					float ClearCoat = GetClearCoat(Payload);
-					// dxr_todo: NoL terms cancel
-					OutThroughput = ClearCoat * ((CC_F * CC_D * CC_G) / (4.0 * NoV * NoL)) * NoL;
-				}
-			}
+		// #dxr_todo: Switch to UniformSampleDiskConcentric after fixing 0/0 bug
+		float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
+
+		float3 L = reflect(-V, H);
+		if (L.z <= 0) {
+			// invalid output direction, skip some work
+			return;
 		}
+		// reflect and transform
+		OutDirection = mul(L, Basis);
 	}
 	else
 	{
-		RandSample.x -= ClearCoatSelectionPdf;
-		RandSample.x /= (1.0 - ClearCoatSelectionPdf);
+		RandSample.x -= CoatSelectionPdf;
+		RandSample.x /= (1.0 - CoatSelectionPdf);
 
-		// Refract V through clear coat
-		float Eta = 1.0 / GetClearCoatIor(Payload);
-		#if EVAL_REFRACTION == 1
-		float3 V2;
-		bool IsValidV2 = BSDF_Refract(V, N, Eta, V2);
-		V2 = -V2;
-		#else
-			bool IsValidV2 = true;
-			float3 V2 = V;
-		#endif
-
-		if (IsValidV2)
-		{
-			// Sample DefaultLit
-			float3 N2 = GetClearCoatBottomNormal(Payload);
-			Payload.WorldNormal = N2;
-
-			float3 L2;
-			float3 BottomLayerThroughput;
-			float BottomLayerPdf;
-			DefaultLit_SampleMaterial(-V2, Payload, GetClearCoatIor(Payload), RandSample, L2, BottomLayerThroughput, BottomLayerPdf);
-			Payload.WorldNormal = N;
-
-			// Refract outgoing ray
-			#if EVAL_REFRACTION == 1
-			bool IsValidL2 = BSDF_Refract(-L2, -N, 1.0 / Eta, OutDirection);
-			#else
-				OutDirection = L2;
-				bool IsValidL2 = true;
-			#endif
-			if (BottomLayerPdf > 0.0 && IsValidL2)
-			{
-				// Calculate transmission through substrate
-				float N2oL2 = saturate(dot(N2, L2));
-				float N2oV2 = saturate(dot(N2, V2));
-				float3 Transmission = CalcThinTransmission(N2oL2, N2oV2, Payload);
-
-				// Apply fresnel through exit interface
-				float NoV = saturate(dot(N, V));
-				float CC_F1 = CalcClearCoatFresnel(NoV, Payload);
-				float NoL = saturate(dot(N, OutDirection));
-				float CC_F2 = CalcClearCoatFresnel(NoL, Payload);
-
-				OutThroughput = (1.0 - CC_F1) * (1.0 - CC_F2) * Transmission * BottomLayerThroughput;
-				OutPdf = (1.0 - ClearCoatSelectionPdf) * BottomLayerPdf;
-			}
-		}
+#if GREY_INNER_LAYER == 0
+		float3 Weight = 0;
+		float Pdf = 0;
+		Payload.WorldNormal = GetClearCoatBottomNormal(Payload);
+		DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, Weight, Pdf);
+		Payload.WorldNormal = N_World;
+#else
+		float3 Nb = GetClearCoatBottomNormal(Payload);
+		OutDirection = TangentToWorld(CosineSampleHemisphere(RandSample.xy).xyz, Nb);
+#endif
 	}
+
+	// defer to eval for now to get proper MIS mix of both events
+	// TODO: could use temporary results above to inline Eval logic here
+	ClearCoat_EvalMaterial(RayDirection, OutDirection, Payload, OutWeight, OutPdf);
 }

@@ -62,7 +62,8 @@ void TestPDFIntegratesToOneCS(
 	}
 	else if (BrdfType == 1)
 	{
-		PDF = Glossy_Pdf(Wo, Wi, Payload);
+		float3 Weight = 0;
+		DefaultLit_EvalMaterial(Wo, Wi, Payload, Weight, PDF);
 	}
 	else
 	{

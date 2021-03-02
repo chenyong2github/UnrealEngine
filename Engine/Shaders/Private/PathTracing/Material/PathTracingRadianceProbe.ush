@@ -58,7 +58,7 @@ void RadianceProbe_SampleMaterial(
 	FMaterialClosestHitPayload Payload,
 	float4 RandSample,
 	out float3 OutDirection,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf)
 {
 	float PdfAdjust = 1.0f; 
@@ -126,7 +126,8 @@ void RadianceProbe_SampleMaterial(
 	float4 SampledValue = CosineSampleHemisphereConcentric(RandSample.xy);
 	OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
-	OutThroughput = 1.0f;
+	PdfAdjust = max(PdfAdjust, 0.00001f);
+	OutWeight = 1.0f / PdfAdjust;
 	OutPdf = SampledValue.w * PdfAdjust;
 }
 
@@ -191,14 +192,15 @@ float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Pay
 #endif	
 #endif
 
+	PdfAdjust = max(PdfAdjust, 0.00001f);
 	float NoL = max(dot(N_World, OutgoingDirection), 0.0);
-	return (NoL / PI) * max(PdfAdjust, 0.00001f);
+	return (NoL / PI) * PdfAdjust;
 }
 
 void RadianceProbe_EvalMaterial(
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf
 )
 {
@@ -263,8 +265,10 @@ void RadianceProbe_EvalMaterial(
 #endif
 	float NoL = max(dot(N_World, OutgoingDirection), 0.0);
 
-	OutPdf = NoL / PI * max(PdfAdjust, 0.00001f);
-	OutThroughput = 1.0f;
+	PdfAdjust = max(PdfAdjust, 0.00001f);
+
+	OutPdf = NoL / PI * PdfAdjust;
+	OutWeight = 1.0f / PdfAdjust;
 }
 
 #else
@@ -273,32 +277,37 @@ void RadianceProbe_SampleMaterial(
 	FMaterialClosestHitPayload Payload,
 	float4 RandSample,
 	out float3 OutDirection,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf)
 {
 	float3 N_World = GetWorldNormal(Payload);
 
-	float4 SampledValue = UniformSampleHemisphere(RandSample.xy);
+	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
 	OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
-	OutThroughput = 1.0f;
-	OutPdf = 1.0f / (2 * PI);
+	OutWeight = 1;
+	OutPdf = SampledValue.w;
 }
 
 float RadianceProbe_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
 {
-	return 1.0f / (2 * PI);
+	float3 N_World = GetWorldNormal(Payload);
+	float NoL = saturate(dot(N_World, OutgoingDirection));
+	return NoL / PI;
 }
 
 void RadianceProbe_EvalMaterial(
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
-	out float3 OutThroughput,
+	out float3 OutWeight,
 	out float OutPdf
 )
 {
-	OutPdf = 1.0f / (2 * PI);
-	OutThroughput = 1.0f;
+	float3 N_World = GetWorldNormal(Payload);
+	float NoL = saturate(dot(N_World, OutgoingDirection));
+
+	OutWeight = GetDiffuseColor(Payload);
+	OutPdf = NoL / PI;
 }
 
 #endif

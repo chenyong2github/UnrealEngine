@@ -273,7 +273,9 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 						float3 MaterialThroughput;
 						float MaterialEvalPdf = 0.0;
 #if USE_PATHTRACING_MATERIALS
-						EvalMaterial(Ray.Direction, LightRay.Direction, Payload, MaterialThroughput, MaterialEvalPdf);
+						float3 MaterialWeight = 0;
+						EvalMaterial(Ray.Direction, LightRay.Direction, Payload, MaterialWeight, MaterialEvalPdf);
+						MaterialThroughput = MaterialWeight * MaterialEvalPdf;
 #else
 						half3 N = Payload.WorldNormal;
 						half3 V = -Ray.Direction;
@@ -320,7 +322,9 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				RandSample.xyz = QuasiRandom_Sample3(QuasiRandom);
 				RandSample.w = QuasiRandom_Sample3(QuasiRandom).x;
 				float PositionBiasSign;
-				SampleMaterial(Ray.Direction, Payload, RandSample, Direction, Throughput, MaterialPdf, PositionBiasSign);
+				float3 Weight = 0;
+				SampleMaterial(Ray.Direction, Payload, RandSample, Direction, Weight, MaterialPdf, PositionBiasSign);
+				Throughput = Weight * MaterialPdf;
 #else
 				float3 RandSample3 = QuasiRandom_Sample3(QuasiRandom);
 				float3 RayOrigin = Ray.Origin;
