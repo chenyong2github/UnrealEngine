@@ -470,12 +470,12 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 	}
 	else if (PaletteIndex == CreateTabName)
 	{
-		ToolbarBuilder.AddToolBarButton(Commands.BeginCombineMeshesTool);
-		ToolbarBuilder.AddToolBarButton(Commands.BeginDuplicateMeshesTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolygonTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawPolyPathTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginDrawAndRevolveTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRevolveBoundaryTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginCombineMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginDuplicateMeshesTool);
 	}
 	else if (PaletteIndex == TransformTabName)
 	{
