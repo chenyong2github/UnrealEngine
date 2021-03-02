@@ -234,6 +234,8 @@ FSceneViewState::FSceneViewState()
 	VarianceMipTreeDimensions = FIntVector(0);
 	VarianceMipTree = new FRWBuffer;
 	PathTracingRect = FIntRect(0, 0, 0, 0);
+	PathTracingSPP = 0;
+	PathTracingFrameIndependentTemporalSeed = 0;
 	TotalRayCount = 0;
 	TotalRayCountBuffer = new FRWBuffer;
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
@@ -4124,6 +4126,8 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 				}
 
 				AddPrimitiveToUpdateGPU(*this, PrimitiveIndex);
+
+				// Invalidate PathTraced image because we added something to the scene
 				bPathTracingNeedsInvalidation = true;
 
 				DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
@@ -4275,7 +4279,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 		SCOPED_NAMED_EVENT(FScene_DeletePrimitiveSceneInfo, FColor::Red);
 		for (FPrimitiveSceneInfo* PrimitiveSceneInfo : DeletedSceneInfos)
 		{
-			// It is possible that hte HitProxies list isn't empty if PrimitiveSceneInfo was Added/Removed in same frame
+			// It is possible that the HitProxies list isn't empty if PrimitiveSceneInfo was Added/Removed in same frame
 			// Delete the PrimitiveSceneInfo on the game thread after the rendering thread has processed its removal.
 			// This must be done on the game thread because the hit proxy references (and possibly other members) need to be freed on the game thread.
 			struct DeferDeleteHitProxies : FDeferredCleanupInterface
@@ -4288,6 +4292,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 			// free the primitive scene proxy.
 			delete PrimitiveSceneInfo->Proxy;
 			delete PrimitiveSceneInfo;
+
+			// Invalidate PathTraced image because we removed something from the scene
+			bPathTracingNeedsInvalidation = true;
 		}
 	}
 

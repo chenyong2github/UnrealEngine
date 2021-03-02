@@ -943,12 +943,22 @@ public:
 	FSamplerStateRHIRef MaterialTextureBilinearClampedSamplerCache;
 
 #if RHI_RAYTRACING
+	// Invalidates cached results related to the path tracer so accumulated rendering can start over
+	void PathTracingInvalidate();
+
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingIrradianceRT;
 	TRefCountPtr<IPooledRenderTarget> PathTracingSampleCountRT;
 	FIntRect PathTracingRect;
 	FRWBuffer* VarianceMipTree;
 	FIntVector VarianceMipTreeDimensions;
+
+	// Path tracer samples/pixel
+	uint32_t PathTracingSPP;
+
+	// The frame independent temporal seed, not reset on invalidation unlike PathTracingSPP to avoid
+	// the "screen door" effect and reduce temporal aliasing
+	uint32_t PathTracingFrameIndependentTemporalSeed;
 
 	// Path tracer ray counter
 	uint32 TotalRayCount;

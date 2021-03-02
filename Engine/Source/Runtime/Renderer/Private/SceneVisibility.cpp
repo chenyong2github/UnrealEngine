@@ -3349,22 +3349,16 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				ViewState->PrevFrameViewInfo.ViewMatrices.GetViewOrigin(),
 				0.18f /*degree*/, 0.1f /*cm*/);
 			const bool bIsProjMatrixDifferent = View.ViewMatrices.GetProjectionNoAAMatrix() != View.ViewState->PrevFrameViewInfo.ViewMatrices.GetProjectionNoAAMatrix();
-			const bool bInvalidatePathTracer = View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing &&
-			(
+			const bool bInvalidatePathTracer = (
 				bResetCamera ||
 				Scene->bPathTracingNeedsInvalidation ||
-				View.ViewRect != ViewState->PathTracingRect ||
 				bIsProjMatrixDifferent ||
 				bIsThereALargeMomvement
 			);
 
 			if (bInvalidatePathTracer)
 			{
-				ViewState->PathTracingIrradianceRT.SafeRelease();
-				ViewState->PathTracingSampleCountRT.SafeRelease();
-				ViewState->VarianceMipTreeDimensions = FIntVector(0);
-				ViewState->PathTracingRect = View.ViewRect;
-				ViewState->TotalRayCount = 0;
+				ViewState->PathTracingInvalidate();
 				Scene->bPathTracingNeedsInvalidation = false;
 			}
 #endif // RHI_RAYTRACING
