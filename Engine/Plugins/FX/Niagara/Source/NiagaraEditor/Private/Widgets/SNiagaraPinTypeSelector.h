@@ -10,11 +10,8 @@
 #include "Styling/SlateColor.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
-#include "EdGraphSchema_Niagara.h"
-#include "NiagaraNodeSelect.h"
-#include "Widgets/Views/STreeView.h"
 #include "NiagaraTypes.h"
-#include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/SCompoundWidget.h"
 
 class NIAGARAEDITOR_API SNiagaraPinTypeSelector : public SCompoundWidget

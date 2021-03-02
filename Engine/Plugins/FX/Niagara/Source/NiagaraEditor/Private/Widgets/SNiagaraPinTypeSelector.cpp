@@ -1,9 +1,11 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraPinTypeSelector.h"
 
 #include "NiagaraEditorStyle.h"
-#include "Widgets/Images/SLayeredImage.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/SNiagaraParameterPanel.h"
+#include "NiagaraNode.h"
 #include "NiagaraEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraPinTypeSelector"
