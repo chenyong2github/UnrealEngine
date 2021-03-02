@@ -1,32 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraSystemViewport.h"
-#include "Widgets/Layout/SBox.h"
-#include "Editor/UnrealEdEngine.h"
-#include "ThumbnailRendering/ThumbnailManager.h"
-#include "UnrealEdGlobals.h"
-#include "NiagaraComponent.h"
-#include "ComponentReregisterContext.h"
-#include "NiagaraEditorModule.h"
-#include "Slate/SceneViewport.h"
-#include "NiagaraSystem.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Engine/TextureCube.h"
-#include "SNiagaraSystemViewportToolBar.h"
-#include "NiagaraEditorCommands.h"
-#include "EditorViewportCommands.h"
+
 #include "AdvancedPreviewScene.h"
-#include "ImageUtils.h"
-#include "Engine/Canvas.h"
-#include "Engine/Font.h"
 #include "CanvasItem.h"
-#include "DrawDebugHelpers.h"
-#include "NiagaraEffectType.h"
+#include "EditorViewportCommands.h"
 #include "EngineUtils.h"
+#include "ImageUtils.h"
+#include "NiagaraComponent.h"
+#include "NiagaraEditorCommands.h"
+#include "NiagaraEditorModule.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraSettings.h"
+#include "NiagaraSystem.h"
+#include "NiagaraSystemEditorData.h"
+#include "SNiagaraSystemViewportToolBar.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Engine/Canvas.h"
+#include "Engine/Font.h"
+#include "Engine/TextureCube.h"
+#include "Slate/SceneViewport.h"
+#include "ThumbnailRendering/ThumbnailManager.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "SNiagaraSystemViewport"
+
+class UNiagaraSystemEditorData;
 
 /** Viewport Client for the preview viewport */
 class FNiagaraSystemViewportClient : public FEditorViewportClient
@@ -46,8 +48,9 @@ public:
 	virtual bool CanSetWidgetMode(FWidget::EWidgetMode NewMode) const override { return false; }
 	virtual bool CanCycleWidgetMode() const override { return false; }
 
-
-	virtual void SetIsSimulateInEditorViewport(bool bInIsSimulateInEditorViewport)override;
+	void SetOrbitModeFromSettings();
+	virtual void SetIsSimulateInEditorViewport(bool bInIsSimulateInEditorViewport) override;
+	UNiagaraSystemEditorData* GetSystemEditorData() const;
 
 	void DrawInstructionCounts(UNiagaraSystem* ParticleSystem, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
 	void DrawParticleCounts(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
@@ -67,9 +70,6 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	, AdvancedPreviewScene(&InPreviewScene)
 	, OnScreenShotCaptured(InOnScreenShotCaptured)
 {
-	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-	check(Settings);
-	
 	NiagaraViewportPtr = InNiagaraEditorViewport;
 
 	// Setup defaults for the common draw helper.
@@ -83,17 +83,17 @@ FNiagaraSystemViewportClient::FNiagaraSystemViewportClient(FAdvancedPreviewScene
 	DrawHelper.PerspectiveGridSize = HALF_WORLD_MAX1;
 	ShowWidget(false);
 
-	SetViewMode(VMI_Lit);
+	FEditorViewportClient::SetViewMode(VMI_Lit);
 	
 	EngineShowFlags.DisableAdvancedFeatures();
 	EngineShowFlags.SetSnap(0);
 	
 	OverrideNearClipPlane(1.0f);
-	bUsingOrbitCamera = Settings->bSystemViewportInOrbitMode;
+	SetOrbitModeFromSettings();
 	bCaptureScreenShot = false;
 
 	//This seems to be needed to get the correct world time in the preview.
-	SetIsSimulateInEditorViewport(true);
+	FNiagaraSystemViewportClient::SetIsSimulateInEditorViewport(true);
 }
 
 
@@ -326,6 +326,22 @@ void FNiagaraSystemViewportClient::DrawEmitterExecutionOrder(UNiagaraComponent* 
 	}
 }
 
+void FNiagaraSystemViewportClient::SetOrbitModeFromSettings()
+{
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	check(Settings);
+
+	UNiagaraSystemEditorData* EditorData = GetSystemEditorData();
+	if (EditorData && EditorData->bSetOrbitModeByAsset)
+	{
+		bUsingOrbitCamera = EditorData->bSystemViewportInOrbitMode;
+	}
+	else
+	{
+		bUsingOrbitCamera = Settings->bSystemViewportInOrbitMode;
+	}
+}
+
 bool FNiagaraSystemViewportClient::ShouldOrbitCamera() const
 {
 	return bUsingOrbitCamera;
@@ -365,6 +381,16 @@ void FNiagaraSystemViewportClient::SetIsSimulateInEditorViewport(bool bInIsSimul
 // 	{
 // 		FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Physics);
 // 	}
+}
+
+UNiagaraSystemEditorData* FNiagaraSystemViewportClient::GetSystemEditorData() const
+{
+	TSharedPtr<SNiagaraSystemViewport> NiagaraViewport = NiagaraViewportPtr.Pin();
+	if (NiagaraViewport.IsValid() && NiagaraViewport->GetPreviewComponent() && NiagaraViewport->GetPreviewComponent()->GetAsset())
+	{
+		return Cast<UNiagaraSystemEditorData>(NiagaraViewport->GetPreviewComponent()->GetAsset()->GetEditorData());
+	}
+	return nullptr;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -425,7 +451,18 @@ bool SNiagaraSystemViewport::IsToggleOrbitChecked() const
 
 void SNiagaraSystemViewport::ToggleOrbit()
 {
-	SystemViewportClient->ToggleOrbitCamera(!SystemViewportClient->bUsingOrbitCamera);
+	bool bNewOrbitSetting = !SystemViewportClient->bUsingOrbitCamera;
+	SystemViewportClient->ToggleOrbitCamera(bNewOrbitSetting);
+
+	if (PreviewComponent && PreviewComponent->GetAsset())
+	{
+		UNiagaraSystemEditorData* EditorData = Cast<UNiagaraSystemEditorData>(PreviewComponent->GetAsset()->GetEditorData());
+		if (EditorData)
+		{
+			EditorData->bSystemViewportInOrbitMode = bNewOrbitSetting;
+			EditorData->bSetOrbitModeByAsset = true;
+		}
+	}
 }
 
 void SNiagaraSystemViewport::RefreshViewport()
@@ -454,6 +491,8 @@ void SNiagaraSystemViewport::SetPreviewComponent(UNiagaraComponent* NiagaraCompo
 		PreviewComponent->SetGpuComputeDebug(true);
 		AdvancedPreviewScene->AddComponent(PreviewComponent, PreviewComponent->GetRelativeTransform());
 	}
+
+	SystemViewportClient->SetOrbitModeFromSettings();
 }
 
 
@@ -697,7 +736,7 @@ FNiagaraBaselineViewportClient::FNiagaraBaselineViewportClient(FAdvancedPreviewS
 	DrawHelper.PerspectiveGridSize = HALF_WORLD_MAX1;
 	ShowWidget(false);
 
-	SetViewMode(VMI_Lit);
+	FEditorViewportClient::SetViewMode(VMI_Lit);
 	
 	EngineShowFlags.DisableAdvancedFeatures();
 	EngineShowFlags.SetSnap(0);
@@ -713,7 +752,7 @@ FNiagaraBaselineViewportClient::FNiagaraBaselineViewportClient(FAdvancedPreviewS
 
 
 	//This seems to be needed to get the correct world time in the preview.
-	SetIsSimulateInEditorViewport(true);
+	FNiagaraBaselineViewportClient::SetIsSimulateInEditorViewport(true);
 }
 
 

@@ -88,6 +88,13 @@ public:
 
 	void SynchronizeOverviewGraphWithSystem(UNiagaraSystem& OwnerSystem);
 
+	// If true then the preview viewport's orbit setting is saved in the asset data
+	UPROPERTY()
+	bool bSetOrbitModeByAsset = false;
+
+	UPROPERTY()
+	bool bSystemViewportInOrbitMode = true;
+
 private:
 	void UpdatePlaybackRangeFromEmitters(UNiagaraSystem& OwnerSystem);
 
