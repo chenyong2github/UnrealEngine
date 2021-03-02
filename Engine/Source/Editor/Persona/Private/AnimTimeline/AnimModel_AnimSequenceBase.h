@@ -14,6 +14,7 @@ class FAnimTimelineTrack_Notifies;
 class FAnimTimelineTrack_Curves;
 class FAnimTimelineTrack;
 class FAnimTimelineTrack_NotifiesPanel;
+class FAnimTimelineTrack_Attributes;
 enum class EFrameNumberDisplayFormats : uint8;
 
 /** Anim model for an anim sequence base */
@@ -62,6 +63,9 @@ protected:
 	/** Refresh curve tracks */
 	void RefreshCurveTracks();
 
+	/** Refresh attribute tracks */
+	void RefreshAttributeTracks();
+
 	/** Callback for any change made to the UAnimDataModel embedded in the AnimSequenceBase instance this represents */
 	void OnDataModelChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& PayLoad);
 
@@ -93,6 +97,9 @@ private:
 
 	/** Root track for additive layers */
 	TSharedPtr<FAnimTimelineTrack> AdditiveRoot;
+
+	/** Root track for custom attributes */
+	TSharedPtr<FAnimTimelineTrack_Attributes> AttributesRoot;
 
 	/** Display flags for notifies track */
 	bool NotifiesTimingElementNodeDisplayFlags[ETimingElementType::Max];

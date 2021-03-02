@@ -10,6 +10,9 @@
 #include "AnimTimelineTrack_FloatCurve.h"
 #include "AnimTimelineTrack_VectorCurve.h"
 #include "AnimTimelineTrack_TransformCurve.h"
+#include "AnimTimelineTrack_Attributes.h"
+#include "AnimTimelineTrack_PerBoneAttributes.h"
+#include "AnimTimelineTrack_Attribute.h"
 #include "AnimSequenceTimelineCommands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "IAnimationEditor.h"
@@ -155,6 +158,9 @@ void FAnimModel_AnimSequenceBase::RefreshTracks()
 	// Add curves
 	RefreshCurveTracks();
 
+	// Add attributes
+	RefreshAttributeTracks();
+
 	// Snaps
 	RefreshSnapTimes();
 
@@ -264,7 +270,50 @@ void FAnimModel_AnimSequenceBase::RefreshCurveTracks()
 			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[0], TransformCurve.Name, 6, ERawCurveTrackTypes::RCT_Transform, XName, FText::Format(ComponentFormat, TransformName, ScaleName, XName), XColor, XColor, SharedThis(this)));
 			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[1], TransformCurve.Name, 7, ERawCurveTrackTypes::RCT_Transform, YName, FText::Format(ComponentFormat, TransformName, ScaleName, YName), YColor, YColor, SharedThis(this)));
 			ScaleCurveTrack->AddChild(MakeShared<FAnimTimelineTrack_Curve>(&TransformCurve.ScaleCurve.FloatCurves[2], TransformCurve.Name, 8, ERawCurveTrackTypes::RCT_Transform, ZName, FText::Format(ComponentFormat, TransformName, ScaleName, ZName), ZColor, ZColor, SharedThis(this)));
+		}		
+	}
+}
+
+void FAnimModel_AnimSequenceBase::RefreshAttributeTracks()
+{
+	if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(AnimSequenceBase))
+	{
+		if (!AttributesRoot.IsValid())
+		{
+			// Add a root track for attributes
+			AttributesRoot = MakeShared<FAnimTimelineTrack_Attributes>(SharedThis(this));
 		}
+
+		AttributesRoot->ClearChildren();
+		RootTracks.Add(AttributesRoot.ToSharedRef());
+			   
+		TMap<FName, TSharedPtr<FAnimTimelineTrack_PerBoneAttributes>> BoneTracks;
+
+
+		// Next add a track for each attribute curve
+		for (const FAnimatedBoneAttribute& BoneAttribute : AnimSequence->GetDataModel()->GetAttributes())
+		{
+			TSharedPtr<FAnimTimelineTrack_PerBoneAttributes> BoneTrack = nullptr;
+
+			if (BoneTracks.Contains(BoneAttribute.Identifier.GetBoneName()))
+			{
+				BoneTrack = BoneTracks.FindChecked(BoneAttribute.Identifier.GetBoneName());
+			}
+			else
+			{
+				TSharedRef<FAnimTimelineTrack_PerBoneAttributes> BoneTrackRef = MakeShared<FAnimTimelineTrack_PerBoneAttributes>(BoneAttribute.Identifier.GetBoneName(), SharedThis(this));
+				AttributesRoot->AddChild(BoneTrackRef);
+
+				BoneTracks.Add(BoneAttribute.Identifier.GetBoneName(), BoneTrackRef);
+
+				BoneTrack = BoneTrackRef;
+
+				BoneTrackRef->SetExpanded(false);
+			}
+
+			TSharedRef<FAnimTimelineTrack_Attribute> AttributeTrack = MakeShared<FAnimTimelineTrack_Attribute>(BoneAttribute, SharedThis(this));
+			BoneTrack->AddChild(AttributeTrack);
+		}		
 	}
 }
 
@@ -279,6 +328,9 @@ void FAnimModel_AnimSequenceBase::OnDataModelChanged(const EAnimDataModelNotifyT
 		case EAnimDataModelNotifyType::TrackAdded:
 		case EAnimDataModelNotifyType::TrackChanged:
 		case EAnimDataModelNotifyType::TrackRemoved:
+		case EAnimDataModelNotifyType::AttributeAdded:
+		case EAnimDataModelNotifyType::AttributeChanged:
+		case EAnimDataModelNotifyType::AttributeRemoved:
 		case EAnimDataModelNotifyType::SequenceLengthChanged:
 		case EAnimDataModelNotifyType::FrameRateChanged:
 		{
