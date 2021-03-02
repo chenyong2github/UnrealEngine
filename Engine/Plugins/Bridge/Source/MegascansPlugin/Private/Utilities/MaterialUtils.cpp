@@ -20,6 +20,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "Editor/EditorEngine.h"
 
+#include "EngineGlobals.h"
+#include "Editor.h"
+
 
 UMaterialInstanceConstant* FMaterialUtils::CreateInstanceMaterial(const FString& MasterMaterialPath, const FString& InstanceDestination, const FString& AssetName)
 {	

@@ -59,6 +59,7 @@ void FAssetsImportController::DataReceived(const FString DataFromBridge)
 	
 	for (TSharedPtr<FJsonValue> AssetJson : AssetsImportDataArray)
 	{
+		
 		EAssetImportType ImportType = JsonUtils::GetImportType(AssetJson->AsObject());
 		FString AssetType = AssetJson->AsObject()->GetStringField("assetType");
 		

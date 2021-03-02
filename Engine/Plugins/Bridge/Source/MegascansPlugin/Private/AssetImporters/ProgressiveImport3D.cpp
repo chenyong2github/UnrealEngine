@@ -132,6 +132,7 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
 
 		FSoftObjectPath ItemToStream = PreviewMeshData.ToSoftObjectPath();
+		//UE_LOG(LogTemp, Error, TEXT("Instance path : %s"), *MInstancePath);
 		
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId));
 		SpawnAtCenter(PreviewMeshData, ImportData);
@@ -150,6 +151,7 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 			}
 		}
 
+		//UE_LOG(LogTemp, Error, TEXT("Albedo path : %s"), *AlbedoPath);
 		
 
 		FAssetData AlbedoData = AssetRegistry.GetAssetByObjectPath(FName(*AlbedoPath));
@@ -208,6 +210,7 @@ void FImportProgressive3D::HandlePreviewTextureLoad(FAssetData TextureData, FStr
 
 void FImportProgressive3D::HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID)
 {
+	
 	PreviewDetails[AssetID]->PreviewInstance = Cast<UMaterialInstanceConstant>(PreviewInstanceData.GetAsset());
 }
 
@@ -220,6 +223,10 @@ void FImportProgressive3D::HandleHighAssetLoad(FAssetData HighAssetData, FString
 	if (ProgressiveData[AssetID] == nullptr) return;
 	AStaticMeshActor* PreviewActor = ProgressiveData[AssetID];
 	UStaticMesh* SourceMesh = Cast<UStaticMesh>(HighAssetData.GetAsset());
+
+	/*SourceMesh->OnPostMeshBuild().AddLambda([this](UStaticMesh* StaticMesh) {
+		UE_LOG(LogTemp, Error, TEXT("Data build complete..."));
+	});*/
 
 	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
 	{
@@ -240,6 +247,7 @@ void FImportProgressive3D::AsyncCacheData(FAssetData HighAssetData, FString Asse
 {
 
 	UStaticMesh* SourceMesh = Cast<UStaticMesh>(HighAssetData.GetAsset());
+	
 
 	if (bWaitNaniteConversion)
 	{

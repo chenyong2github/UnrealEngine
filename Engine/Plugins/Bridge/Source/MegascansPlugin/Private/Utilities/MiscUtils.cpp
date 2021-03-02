@@ -37,6 +37,9 @@
 #include "Engine/World.h"
 #include "Editor/EditorEngine.h"
 
+#include "EngineGlobals.h"
+#include "Editor.h"
+
 
 TSharedPtr<FJsonObject> DeserializeJson(const FString& JsonStringData)
 {
