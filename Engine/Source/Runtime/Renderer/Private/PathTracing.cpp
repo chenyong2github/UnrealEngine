@@ -166,7 +166,7 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.MaxBounces = MaxBounces;
 	PathTracingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
-	PathTracingData.VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
+	uint32 VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
 	PathTracingData.UseErrorDiffusion = CVarPathTracingUseErrorDiffusion.GetValueOnRenderThread();
 	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
@@ -199,11 +199,11 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	}
 
 	// Changing VisibleLights requires starting over
-	static uint32 PreviousVisibleLights = PathTracingData.VisibleLights;
-	if (PreviousVisibleLights != PathTracingData.VisibleLights)
+	static uint32 PreviousVisibleLights = VisibleLights;
+	if (PreviousVisibleLights != VisibleLights)
 	{
 		NeedInvalidation = true;
-		PreviousVisibleLights = PathTracingData.VisibleLights;
+		PreviousVisibleLights = VisibleLights;
 	}
 
 	// Changing MaxPathIntensity requires starting over
@@ -342,6 +342,7 @@ class FPathTracingRG : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingData, PathTracingData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
+		SHADER_PARAMETER(uint32, SceneVisibleLightCount)
 		// Skylight
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightPdf)
@@ -492,6 +493,8 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 
 void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FScene* Scene, const FViewInfo& View, bool UseMISCompensation)
 {
+	PassParameters->SceneVisibleLightCount = 0;
+
 	// Lights
 	FPathTracingLight Lights[RAY_TRACING_LIGHT_COUNT_MAXIMUM]; // Keep this on the stack for now -- eventually will need to make this dynamic to lift size limit (and also avoid uploading per frame ...)
 	unsigned LightCount = 0;
@@ -507,6 +510,13 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
 		DestLight.Flags |= Scene->SkyLight->bCastShadows ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 		DestLight.IESTextureSlice = -1;
+		if (Scene->SkyLight->bRealTimeCaptureEnabled)
+		{
+			// When using the realtime capture system, always make the skylight visible
+			// because this is our only way of "seeing" the atmo/clouds at the moment
+			PassParameters->SceneVisibleLightCount = 1;
+		}
+
 		LightCount++;
 	}
 
@@ -608,6 +618,11 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		size_t DataSize = sizeof(FPathTracingLight) * FMath::Max(LightCount, 1u);
 		PassParameters->SceneLights = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("PathTracer.LightsBuffer"), sizeof(FPathTracingLight), FMath::Max(LightCount, 1u), Lights, DataSize)));
 		PassParameters->SceneLightCount = LightCount;
+	}
+
+	if (CVarPathTracingVisibleLights.GetValueOnRenderThread() != 0)
+	{
+		PassParameters->SceneVisibleLightCount = LightCount;
 	}
 
 	if (!IESLightProfilesMap.IsEmpty())
@@ -821,7 +836,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		TShaderMapRef<FPathTracingRG> RayGenShader(View.ShaderMap);
 		ClearUnusedGraphResources(RayGenShader, PassParameters);
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, View.ViewState->PathTracingSampleIndex, MaxSPP),
+			RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, View.ViewState->PathTracingSampleIndex, MaxSPP, PassParameters->SceneLightCount),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, RayGenShader, &View](FRHICommandListImmediate& RHICmdList)
