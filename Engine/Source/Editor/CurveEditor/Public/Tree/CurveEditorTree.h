@@ -326,6 +326,8 @@ private:
 	TMap<FCurveEditorTreeItemID, ECurveEditorTreeFilterState> FilterStates;
 };
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCurveEditorToggleExpansionState, bool);
+
 /** 
  * Complete implementation of a curve editor tree. Only really defines the hierarchy and selection states for tree items.
  */
@@ -477,6 +479,13 @@ public:
 	 */
 	void Compact();
 
+	/*
+	 * Toggle the expansion state of the selected nodes or all nodes if none selected
+	 */
+	void ToggleExpansionState(bool bRecursive);
+
+	FOnCurveEditorToggleExpansionState& GetToggleExpansionState() { return ToggleExpansionStateDelegate; }
+
 private:
 
 	// Recursively removes children without removing them from the parent (assuming the parent is also being removed)
@@ -518,4 +527,7 @@ private:
 
 	/** A predicate which will be used to sort tree items after they're been marked as needing sort. */
 	FTreeItemSortPredicate SortPredicate;
+
+	/** Delegate for when toggle expansion state is invoked */
+	FOnCurveEditorToggleExpansionState ToggleExpansionStateDelegate;
 };

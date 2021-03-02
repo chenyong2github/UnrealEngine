@@ -93,21 +93,12 @@ public:
 	void Refresh();
 
 	/** Expand or collapse nodes */
-	void ToggleExpandCollapseNodes(ETreeRecursion Recursion = ETreeRecursion::Recursive, bool bExpandAll = false);
-
-	/** Expand nodes */
-	void ExpandNodes(ETreeRecursion Recursion = ETreeRecursion::Recursive, bool bExpandAll = false);
-
-	/** Collapse nodes */
-	void CollapseNodes(ETreeRecursion Recursion = ETreeRecursion::Recursive, bool bExpandAll = false);
+	void ToggleExpandCollapseNodes(ETreeRecursion Recursion = ETreeRecursion::Recursive);
 
 	/** Scroll this tree view by the specified number of slate units */
 	void ScrollByDelta(float DeltaInSlateUnits);
 
 protected:
-
-	/** Expand or collapse nodes */
-	void ExpandOrCollapseNodes(ETreeRecursion Recursion, bool bExpandAll, bool bExpand);
 
 	/** Set the item's expansion state, including all of its children */
 	void ExpandCollapseNode(const FDisplayNodeRef& InNode, bool bExpansionState, ETreeRecursion Recursion);

@@ -185,6 +185,9 @@ public:
 	void JumpToStart();
 	void JumpToEnd();
 
+	/** Toggle the expansion state of the selected nodes or all nodes if none selected */
+	void ToggleExpandCollapseNodes(bool bRecursive);
+
 	/**
 	 * Find a curve by its ID
 	 *

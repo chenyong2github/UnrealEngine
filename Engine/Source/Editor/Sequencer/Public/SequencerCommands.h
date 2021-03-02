@@ -133,12 +133,6 @@ public:
 	/** Toggle constraining the playback range to the section bounds */
 	TSharedPtr< FUICommandInfo > ToggleKeepPlaybackRangeInSectionBounds;
 
-	/** Expand all nodes and descendants */
-	TSharedPtr< FUICommandInfo > ExpandAllNodesAndDescendants;
-
-	/** Collapse all nodes and descendants */
-	TSharedPtr< FUICommandInfo > CollapseAllNodesAndDescendants;
-
 	/** Expand/collapse nodes */
 	TSharedPtr< FUICommandInfo > ToggleExpandCollapseNodes;
 

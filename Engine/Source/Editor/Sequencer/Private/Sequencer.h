@@ -1018,9 +1018,6 @@ protected:
 	void StepToNextShot();
 	void StepToPreviousShot();
 
-	void ExpandAllNodesAndDescendants();
-	void CollapseAllNodesAndDescendants();
-
 	/** Expand or collapse selected nodes */
 	void ToggleExpandCollapseNodes();
 

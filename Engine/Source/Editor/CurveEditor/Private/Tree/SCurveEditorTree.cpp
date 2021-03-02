@@ -111,6 +111,8 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 
 	CurveEditor->GetTree()->Events.OnItemsChanged.AddSP(this, &SCurveEditorTree::RefreshTree);
 	CurveEditor->GetTree()->Events.OnSelectionChanged.AddSP(this, &SCurveEditorTree::RefreshTreeWidgetSelection);
+
+	CurveEditor->GetTree()->GetToggleExpansionState().AddSP(this, &SCurveEditorTree::ToggleExpansionState);
 }
 
 void SCurveEditorTree::RefreshTree()
@@ -209,6 +211,42 @@ void SCurveEditorTree::RefreshTreeWidgetSelection()
 
 		SetItemSelection(CurrentTreeWidgetSelection, false, ESelectInfo::Direct);
 		SetItemSelection(NewTreeWidgetSelection, true, ESelectInfo::Direct);
+	}
+}
+
+void SCurveEditorTree::ToggleExpansionState(bool bRecursive)
+{
+	if (GetSelectedItems().Num() > 0)
+	{
+		const bool bExpand = !IsItemExpanded(GetSelectedItems()[0]);
+
+		for (const FCurveEditorTreeItemID& SelectedItemID : GetSelectedItems())
+		{
+			if (bRecursive)
+			{
+				SetItemExpansionRecursive(SelectedItemID, bExpand);
+			}
+			else
+			{
+				SetItemExpansion(SelectedItemID, bExpand);
+			}
+		}
+	}
+	else if (CurveEditor->GetRootTreeItems().Num() > 0)
+	{
+		const bool bExpand = !IsItemExpanded(CurveEditor->GetRootTreeItems()[0]);
+
+		for (const FCurveEditorTreeItemID& RootItemID : CurveEditor->GetRootTreeItems())
+		{
+			if (bRecursive)
+			{
+				SetItemExpansionRecursive(RootItemID, bExpand);
+			}
+			else
+			{
+				SetItemExpansion(RootItemID, bExpand);
+			}
+		}	
 	}
 }
 

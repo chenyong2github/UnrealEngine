@@ -340,6 +340,9 @@ void FCurveEditor::BindCommands()
 
 	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFit, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::All));
 
+	CommandList->MapAction(FCurveEditorCommands::Get().ToggleExpandCollapseNodes, FExecuteAction::CreateSP(this, &FCurveEditor::ToggleExpandCollapseNodes, false));
+	CommandList->MapAction(FCurveEditorCommands::Get().ToggleExpandCollapseNodesAndDescendants, FExecuteAction::CreateSP(this, &FCurveEditor::ToggleExpandCollapseNodes, true));
+
 	CommandList->MapAction(FCurveEditorCommands::Get().StepToNextKey, FExecuteAction::CreateSP(this, &FCurveEditor::StepToNextKey));
 	CommandList->MapAction(FCurveEditorCommands::Get().StepToPreviousKey, FExecuteAction::CreateSP(this, &FCurveEditor::StepToPreviousKey));
 	CommandList->MapAction(FCurveEditorCommands::Get().StepForward, FExecuteAction::CreateSP(this, &FCurveEditor::StepForward), EUIActionRepeatMode::RepeatEnabled);
@@ -816,6 +819,12 @@ void FCurveEditor::ToggleOutputSnapping()
 	{
 		OnOutputSnapEnabledChanged.ExecuteIfBound(NewValue);
 	}
+}
+
+void
+FCurveEditor::ToggleExpandCollapseNodes(bool bRecursive)
+{
+	Tree.ToggleExpansionState(bRecursive);
 }
 
 FCurveEditorScreenSpaceH FCurveEditor::GetPanelInputSpace() const

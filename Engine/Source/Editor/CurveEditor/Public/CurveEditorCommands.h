@@ -30,6 +30,9 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleInputSnapping;
 	TSharedPtr<FUICommandInfo> ToggleOutputSnapping;
 
+	TSharedPtr<FUICommandInfo> ToggleExpandCollapseNodes;
+	TSharedPtr<FUICommandInfo> ToggleExpandCollapseNodesAndDescendants;
+
 	TSharedPtr<FUICommandInfo> InterpolationConstant;
 	TSharedPtr<FUICommandInfo> InterpolationLinear;
 	TSharedPtr<FUICommandInfo> InterpolationCubicAuto;

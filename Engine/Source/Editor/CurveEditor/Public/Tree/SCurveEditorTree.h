@@ -43,6 +43,8 @@ private:
 
 	void RefreshTreeWidgetSelection();
 
+	void ToggleExpansionState(bool bRecursive);
+
 private:
 
 	bool bFilterWasActive;

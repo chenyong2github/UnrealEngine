@@ -245,6 +245,11 @@ void FCurveEditorTree::Compact()
 	ChildItemIDs.Compact();
 }
 
+void FCurveEditorTree::ToggleExpansionState(bool bRecursive)
+{
+	ToggleExpansionStateDelegate.Broadcast(bRecursive);
+}
+
 bool FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState)
 {
 	bool bAnyMatched = false;

@@ -11097,19 +11097,6 @@ FText FSequencer::GetNavigateBackwardTooltip() const
 	return FText::GetEmpty();
 }
 
-void FSequencer::ExpandAllNodesAndDescendants()
-{
-	const bool bExpandAll = true;
-	SequencerWidget->GetTreeView()->ExpandNodes(ETreeRecursion::Recursive, bExpandAll);
-}
-
-
-void FSequencer::CollapseAllNodesAndDescendants()
-{
-	const bool bExpandAll = true;
-	SequencerWidget->GetTreeView()->CollapseNodes(ETreeRecursion::Recursive, bExpandAll);
-}
-
 void FSequencer::SortAllNodesAndDescendants()
 {
 	FScopedTransaction SortAllNodesTransaction(NSLOCTEXT("Sequencer", "SortAllNodes_Transaction", "Sort Tracks"));
@@ -12410,14 +12397,6 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.StepToPreviousCameraKey,
 		FExecuteAction::CreateSP( this, &FSequencer::StepToPreviousCameraKey ) );
-
-	SequencerCommandBindings->MapAction(
-		Commands.ExpandAllNodesAndDescendants,
-		FExecuteAction::CreateSP(this, &FSequencer::ExpandAllNodesAndDescendants));
-
-	SequencerCommandBindings->MapAction(
-		Commands.CollapseAllNodesAndDescendants,
-		FExecuteAction::CreateSP(this, &FSequencer::CollapseAllNodesAndDescendants));
 
 	SequencerCommandBindings->MapAction(
 		Commands.SortAllNodesAndDescendants,
