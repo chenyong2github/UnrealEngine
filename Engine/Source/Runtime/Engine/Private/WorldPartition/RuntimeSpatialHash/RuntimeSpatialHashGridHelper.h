@@ -317,7 +317,9 @@ struct FSquare2DGridHelper
 
 		inline FGridLevel(const FVector2D& InOrigin, int32 InCellSize, int32 InGridSize, int32 InLevel)
 			: FGrid2D(InOrigin, InCellSize, InGridSize)
+#if WITH_EDITOR
 			, Level(InLevel)
+#endif
 		{}
 
 #if WITH_EDITOR
@@ -403,8 +405,10 @@ struct FSquare2DGridHelper
 		return false;
 	}
 
+#if WITH_EDITOR
 	// Runs a function on all cells
 	void ForEachCells(TFunctionRef<void(const FSquare2DGridHelper::FGridLevel::FGridCell&)> InOperation) const;
+#endif
 
 	/**
 	 * Runs a function on all intersecting cells for the provided box
