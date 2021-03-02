@@ -12,6 +12,7 @@
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/ConfigCacheIni.h"
+#include "HAL/PlatformProcess.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #if WINVER > 0x502	// Windows Vista or better required for DWM
@@ -408,7 +409,7 @@ void FWindowsWindow::DisableTouchFeedback()
 {
 	if (void* User32Dll = FPlatformProcess::GetDllHandle(TEXT("User32.dll")))
 	{
-		typedef enum tagFEEDBACK_TYPE
+		typedef enum tagWINVER602FEEDBACK_TYPE
 		{
 			FEEDBACK_TOUCH_CONTACTVISUALIZATION = 1,
 			FEEDBACK_PEN_BARRELVISUALIZATION = 2,
@@ -422,10 +423,10 @@ void FWindowsWindow::DisableTouchFeedback()
 			FEEDBACK_TOUCH_RIGHTTAP = 10,
 			FEEDBACK_GESTURE_PRESSANDTAP = 11,
 			FEEDBACK_MAX = 0xFFFFFFFF
-		} FEEDBACK_TYPE;
+		} WINVER602FEEDBACK_TYPE;
 
 		typedef BOOL(*SetWindowFeedbackSettingProc)(_In_ HWND hwnd,
-												_In_ FEEDBACK_TYPE feedback,
+												_In_ WINVER602FEEDBACK_TYPE feedback,
 												_In_ DWORD dwFlags,
 												_In_ UINT32 size,
 												_In_reads_bytes_opt_(size) CONST VOID* configuration);
