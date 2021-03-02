@@ -385,7 +385,6 @@ public:
 
 	ENGINE_API void	Update(FRDGBuilder& GraphBuilder); // Called once per frame before any Nanite rendering has occurred.
 
-	ENGINE_API static uint32 GetMaxInstances();
 	ENGINE_API static uint32 GetMaxCandidateClusters();
 	ENGINE_API static uint32 GetMaxVisibleClusters();
 	ENGINE_API static uint32 GetMaxNodes();

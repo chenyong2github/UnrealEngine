@@ -51,14 +51,6 @@ FAutoConsoleVariableRef CVarNaniteOptimizedRelevance(
 	ECVF_RenderThreadSafe
 );
 
-int32 GNaniteMaxInstanceCount = 1048576;
-FAutoConsoleVariableRef CVarNaniteMaxInstance(
-	TEXT("r.Nanite.MaxInstances"),
-	GNaniteMaxInstanceCount,
-	TEXT("Maximum number of Nanite instances in the scene."),
-	ECVF_ReadOnly
-);
-
 int32 GNaniteMaxCandidateClusters = 8 * 1048576;
 FAutoConsoleVariableRef CVarNaniteMaxCandidateClusters(
 	TEXT("r.Nanite.MaxCandidateClusters"),
@@ -1104,6 +1096,7 @@ void FGlobalResources::ReleaseRHI()
 #if NANITE_USE_SCRATCH_BUFFERS
 		PrimaryVisibleClustersBuffer.SafeRelease();
 		ScratchVisibleClustersBuffer.SafeRelease();
+		ScratchOccludedInstancesBuffer.SafeRelease();
 #endif
 
 		delete VertexFactory;
@@ -1118,19 +1111,13 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 #if NANITE_USE_SCRATCH_BUFFERS
 	// Any buffer may be released from the pool, so check each individually not just one of them.
 	if (!PrimaryVisibleClustersBuffer.IsValid() || 
-		!ScratchVisibleClustersBuffer.IsValid() ||
-		!ScratchOccludedInstancesBuffer.IsValid())
+		!ScratchVisibleClustersBuffer.IsValid())
 	{
 		FRDGBufferDesc VisibleClustersBufferDesc = FRDGBufferDesc::CreateStructuredDesc(4, 3 * GetMaxVisibleClusters()); // uint3 per cluster
 		VisibleClustersBufferDesc.Usage = EBufferUsageFlags(VisibleClustersBufferDesc.Usage | BUF_ByteAddressBuffer);
 
 		// Allocate scratch buffers (TODO: RDG should support external non-RDG buffers).
 		// Can't do this in InitRHI as RHICmdList doesn't have a valid context yet.
-
-		if (!ScratchOccludedInstancesBuffer.IsValid())
-		{
-			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), GetMaxInstances()), ScratchOccludedInstancesBuffer, TEXT("Nanite.OccludedInstances"));
-		}
 
 		if (!PrimaryVisibleClustersBuffer.IsValid())
 		{
@@ -1152,14 +1139,6 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 		check(StructureBufferStride8.IsValid());
 	}
 #endif
-}
-
-uint32 FGlobalResources::GetMaxInstances()
-{
-	// We don't want to allocate 16mil instances here (wasting memory), so pull a smaller value
-	// from config and verify it's within range of MAX_INSTANCES.
-	checkf(GNaniteMaxInstanceCount <= MAX_INSTANCES, TEXT("r.Nanite.MaxInstanceCount must be <= MAX_INSTANCES"));
-	return GNaniteMaxInstanceCount;
 }
 
 uint32 FGlobalResources::GetMaxCandidateClusters()

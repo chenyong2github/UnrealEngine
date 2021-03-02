@@ -2308,16 +2308,9 @@ FCullingContext InitCullingContext(
 	}
 
 	// TODO: Might this not break if the view has overridden the InstanceSceneData?
-	const uint32 NumSceneInstances = FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceDataAllocator.GetMaxSize());
-	checkf(
-		NumSceneInstances <= Nanite::FGlobalResources::GetMaxInstances(),
-		TEXT("r.Nanite.MaxInstanceCount is set to %d, but the scene is trying to render %d instances, which is out of range. Please adjust the max instance count to a higher setting."),
-		Nanite::FGlobalResources::GetMaxInstances(),
-		NumSceneInstances
-	);
-
+	const uint32 NumSceneInstancesPo2					= FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceDataAllocator.GetMaxSize());
 	CullingContext.SOAStrides.X							= Scene.GPUScene.InstanceDataSOAStride;
-	CullingContext.SOAStrides.Y							= NumSceneInstances;
+	CullingContext.SOAStrides.Y							= NumSceneInstancesPo2;
 
 	CullingContext.MainAndPostPassPersistentStates		= GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateStructuredDesc( 20, 2 ), TEXT("Nanite.MainAndPostPassPersistentStates") );
 
@@ -2342,9 +2335,13 @@ FCullingContext InitCullingContext(
 	if( CullingContext.bTwoPassOcclusion )
 	{
 	#if NANITE_USE_SCRATCH_BUFFERS
+		if (!Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef().IsValid() || Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef()->Desc.NumElements < NumSceneInstancesPo2)
+		{
+			GetPooledFreeBuffer(GraphBuilder.RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstancesPo2), Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("Nanite.OccludedInstances"));
+		}
 		CullingContext.OccludedInstances		= GraphBuilder.RegisterExternalBuffer(Nanite::GGlobalResources.GetScratchOccludedInstancesBufferRef(), TEXT("Nanite.OccludedInstances"));
 	#else
-		CullingContext.OccludedInstances		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstances), TEXT("Nanite.OccludedInstances"));
+		CullingContext.OccludedInstances		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FInstanceDraw), NumSceneInstancesPo2), TEXT("Nanite.OccludedInstances"));
 	#endif
 
 		CullingContext.OccludedInstancesArgs	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("Nanite.OccludedInstancesArgs"));
