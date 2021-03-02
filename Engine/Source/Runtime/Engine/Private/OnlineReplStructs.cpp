@@ -27,8 +27,8 @@ enum class EUniqueIdEncodingFlags : uint8
 	IsEncoded = (1 << 0),
 	/** This unique id is empty or invalid, nothing further to serialize */
 	IsEmpty = (1 << 1),
-	/** Reserved for future use */
-	Unused1 = (1 << 2),
+	/** Original data is padded with a leading zero */
+	IsPadded = (1 << 2),
 	/** Remaining bits are used for encoding the type without requiring another byte */
 	Reserved1 = (1 << 3),
 	Reserved2 = (1 << 4),
@@ -122,11 +122,17 @@ void FUniqueNetIdRepl::MakeReplicationData()
 		// For now don't allow odd chars (HexToBytes adds a 0)
 		const bool bEvenChars = (Length % 2) == 0;
 		const int32 EncodedSize32 = ((Length * sizeof(ANSICHAR)) + 1) / 2;
-		const bool bIsNumeric = Contents.IsNumeric();
+		const bool bIsNumeric = Contents.IsNumeric() && !(Contents.StartsWith("+") || Contents.StartsWith("-"));
+		bool bIsPadded = bIsNumeric && !bEvenChars;
 
-		//UE_LOG(LogNet, VeryVerbose, TEXT("bEvenChars: %d bIsNumeric: %d EncodedSize: %d"), bEvenChars, bIsNumeric, EncodedSize32);
+		//UE_LOG(LogNet, VeryVerbose, TEXT("bEvenChars: %d EncodedSize: %d bIsNumeric: %d bIsPadded: %d"), bEvenChars, EncodedSize32, bIsNumeric, bIsPadded);
 
 		EUniqueIdEncodingFlags EncodingFlags = (bIsNumeric || (bEvenChars && (EncodedSize32 < UINT8_MAX))) ? EUniqueIdEncodingFlags::IsEncoded : EUniqueIdEncodingFlags::NotEncoded;
+		if (bIsPadded)
+		{
+			EncodingFlags |= EUniqueIdEncodingFlags::IsPadded;
+		}
+
 		if (EnumHasAllFlags(EncodingFlags, EUniqueIdEncodingFlags::IsEncoded) && !bIsNumeric)
 		{
 			const TCHAR* const ContentChar = *Contents;
@@ -278,6 +284,10 @@ bool FUniqueNetIdRepl::NetSerialize(FArchive& Ar, UPackageMap* Map, bool& bOutSu
 										{
 											// BytesToHex loses case
 											Contents.ToLowerInline();
+											if (EnumHasAllFlags(EncodingFlags, EUniqueIdEncodingFlags::IsPadded))
+											{
+												Contents.RightChopInline(1); // remove padded character
+											}
 											UniqueIdFromString(Type, Contents);
 										}
 										else
@@ -563,9 +573,15 @@ void TestUniqueIdRepl(UWorld* InWorld)
 	static FName NAME_CustomOSS(TEXT("MyCustomOSS"));
 	FUniqueNetIdRepl CustomOSSIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("a8d245fc-4b97-4150-a3cd-c2c91d8fc4b3"), NAME_CustomOSS));
 	FUniqueNetIdRepl CustomOSSEncodedIdIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("0123456789abcdef"), NAME_CustomOSS));
+	FUniqueNetIdRepl CustomOSSPlusPrefixIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("+123456"), NAME_CustomOSS));
+	FUniqueNetIdRepl CustomOSSOddIntegerStringIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("123456789"), NAME_CustomOSS));
+	FUniqueNetIdRepl CustomOSSEvenIntegerStringIn(UOnlineEngineInterface::Get()->CreateUniquePlayerId(TEXT("1234567890"), NAME_CustomOSS));
 
 	CHECK_REPL_VALIDITY(CustomOSSIdIn, bSetupSuccess);
 	CHECK_REPL_VALIDITY(CustomOSSEncodedIdIn, bSetupSuccess);
+	CHECK_REPL_VALIDITY(CustomOSSPlusPrefixIn, bSetupSuccess);
+	CHECK_REPL_VALIDITY(CustomOSSOddIntegerStringIn, bSetupSuccess);
+	CHECK_REPL_VALIDITY(CustomOSSEvenIntegerStringIn, bSetupSuccess);
 
 	bool bRegularSerializationSuccess = true;
 	bool bNetworkSerializationSuccess = true;
@@ -588,6 +604,9 @@ void TestUniqueIdRepl(UWorld* InWorld)
 				TestUniqueIdWriter << WayTooLongForHexEncodingIdIn;
 				TestUniqueIdWriter << CustomOSSIdIn;
 				TestUniqueIdWriter << CustomOSSEncodedIdIn;
+				TestUniqueIdWriter << CustomOSSPlusPrefixIn;
+				TestUniqueIdWriter << CustomOSSOddIntegerStringIn;
+				TestUniqueIdWriter << CustomOSSEvenIntegerStringIn;
 			}
 
 			FUniqueNetIdRepl EmptyIdOut;
@@ -598,6 +617,9 @@ void TestUniqueIdRepl(UWorld* InWorld)
 			FUniqueNetIdRepl WayTooLongForHexEncodingIdOut;
 			FUniqueNetIdRepl CustomOSSIdOut;
 			FUniqueNetIdRepl CustomOSSEncodedIdOut;
+			FUniqueNetIdRepl CustomOSSPlusPrefixOut;
+			FUniqueNetIdRepl CustomOSSOddIntegerStringOut;
+			FUniqueNetIdRepl CustomOSSEvenIntegerStringOut;
 
 			// Serialize Out
 			{
@@ -610,6 +632,9 @@ void TestUniqueIdRepl(UWorld* InWorld)
 				TestUniqueIdReader << WayTooLongForHexEncodingIdOut;
 				TestUniqueIdReader << CustomOSSIdOut;
 				TestUniqueIdReader << CustomOSSEncodedIdOut;
+				TestUniqueIdReader << CustomOSSPlusPrefixOut;
+				TestUniqueIdReader << CustomOSSOddIntegerStringOut;
+				TestUniqueIdReader << CustomOSSEvenIntegerStringOut;
 			}
 
 			if (EmptyIdOut.IsValid())
@@ -631,6 +656,9 @@ void TestUniqueIdRepl(UWorld* InWorld)
 			CHECK_REPL_EQUALITY(WayTooLongForHexEncodingIdIn, WayTooLongForHexEncodingIdOut, bRegularSerializationSuccess);
 			CHECK_REPL_EQUALITY(CustomOSSIdIn, CustomOSSIdOut, bRegularSerializationSuccess);
 			CHECK_REPL_EQUALITY(CustomOSSEncodedIdIn, CustomOSSEncodedIdOut, bRegularSerializationSuccess);
+			CHECK_REPL_EQUALITY(CustomOSSPlusPrefixIn, CustomOSSPlusPrefixOut, bRegularSerializationSuccess);
+			CHECK_REPL_EQUALITY(CustomOSSOddIntegerStringIn, CustomOSSOddIntegerStringOut, bRegularSerializationSuccess);
+			CHECK_REPL_EQUALITY(CustomOSSEvenIntegerStringIn, CustomOSSEvenIntegerStringOut, bRegularSerializationSuccess);
 		}
 
 		// Network serialization (network/transient using MakeReplicationData)
@@ -657,6 +685,12 @@ void TestUniqueIdRepl(UWorld* InWorld)
 				EncodingFailures += bOutSuccess ? 0 : 1;
 				CustomOSSEncodedIdIn.NetSerialize(TestUniqueIdWriter, nullptr, bOutSuccess);
 				EncodingFailures += bOutSuccess ? 0 : 1;
+				CustomOSSPlusPrefixIn.NetSerialize(TestUniqueIdWriter, nullptr, bOutSuccess);
+				EncodingFailures += bOutSuccess ? 0 : 1;
+				CustomOSSOddIntegerStringIn.NetSerialize(TestUniqueIdWriter, nullptr, bOutSuccess);
+				EncodingFailures += bOutSuccess ? 0 : 1;
+				CustomOSSEvenIntegerStringIn.NetSerialize(TestUniqueIdWriter, nullptr, bOutSuccess);
+				EncodingFailures += bOutSuccess ? 0 : 1;
 			}
 
 			if (EncodingFailures > 0)
@@ -675,6 +709,9 @@ void TestUniqueIdRepl(UWorld* InWorld)
 				FUniqueNetIdRepl WayTooLongForHexEncodingIdOut;
 				FUniqueNetIdRepl CustomOSSIdOut;
 				FUniqueNetIdRepl CustomOSSEncodedIdOut;
+				FUniqueNetIdRepl CustomOSSPlusPrefixOut;
+				FUniqueNetIdRepl CustomOSSOddIntegerStringOut;
+				FUniqueNetIdRepl CustomOSSEvenIntegerStringOut;
 
 				// Serialize Out
 				uint8 DecodingFailures = 0;
@@ -696,6 +733,12 @@ void TestUniqueIdRepl(UWorld* InWorld)
 					CustomOSSIdOut.NetSerialize(TestUniqueIdReader, nullptr, bOutSuccess);
 					DecodingFailures += bOutSuccess ? 0 : 1;
 					CustomOSSEncodedIdOut.NetSerialize(TestUniqueIdReader, nullptr, bOutSuccess);
+					DecodingFailures += bOutSuccess ? 0 : 1;
+					CustomOSSPlusPrefixOut.NetSerialize(TestUniqueIdReader, nullptr, bOutSuccess);
+					DecodingFailures += bOutSuccess ? 0 : 1;
+					CustomOSSOddIntegerStringOut.NetSerialize(TestUniqueIdReader, nullptr, bOutSuccess);
+					DecodingFailures += bOutSuccess ? 0 : 1;
+					CustomOSSEvenIntegerStringOut.NetSerialize(TestUniqueIdReader, nullptr, bOutSuccess);
 					DecodingFailures += bOutSuccess ? 0 : 1;
 				}
 
@@ -724,6 +767,9 @@ void TestUniqueIdRepl(UWorld* InWorld)
 				CHECK_REPL_EQUALITY(WayTooLongForHexEncodingIdIn, WayTooLongForHexEncodingIdOut, bNetworkSerializationSuccess);
 				CHECK_REPL_EQUALITY(CustomOSSIdIn, CustomOSSIdOut, bNetworkSerializationSuccess);
 				CHECK_REPL_EQUALITY(CustomOSSEncodedIdIn, CustomOSSEncodedIdOut, bNetworkSerializationSuccess);
+				CHECK_REPL_EQUALITY(CustomOSSPlusPrefixIn, CustomOSSPlusPrefixOut, bRegularSerializationSuccess);
+				CHECK_REPL_EQUALITY(CustomOSSOddIntegerStringIn, CustomOSSOddIntegerStringOut, bRegularSerializationSuccess);
+				CHECK_REPL_EQUALITY(CustomOSSEvenIntegerStringIn, CustomOSSEvenIntegerStringOut, bRegularSerializationSuccess);
 			}
 		}
 	}
