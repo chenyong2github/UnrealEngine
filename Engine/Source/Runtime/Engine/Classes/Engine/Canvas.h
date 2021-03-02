@@ -387,7 +387,19 @@ public:
 	 * @param Text The string to calculate for.
 	 * @param XL out Horizontal length of string.
 	 * @param YL out Vertical length of string.
-	 * @param bDPUAware If true measures text considering the current DPI scale factor of the canvas.  Defaults to false for backwards compatibility
+	 * @param bDPIAware If true measures text considering the current DPI scale factor of the canvas.  Defaults to false for backwards compatibility
+	 * @param Canvas Canvas state object
+	 */
+	static void StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware, FCanvas* InCanvas);
+
+	/**
+	 * Calculate the length of a string, taking text wrapping into account.
+	 *
+	 * @param InFont The Font use.
+	 * @param Text The string to calculate for.
+	 * @param XL out Horizontal length of string.
+	 * @param YL out Vertical length of string.
+	 * @param bDPIAware If true measures text considering the current DPI scale factor of the canvas.  Defaults to false for backwards compatibility
 	 */
 	void StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware = false);
 

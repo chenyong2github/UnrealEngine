@@ -1706,6 +1706,11 @@ int32 UCanvas::WrappedPrint(bool Draw, float X, float Y, int32& out_XL, int32& o
 
 void UCanvas::StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware)
 {
+	UCanvas::StrLen(InFont, InText, XL, YL, bDPIAware, Canvas);
+}
+
+void UCanvas::StrLen(const UFont* InFont, const FString& InText, float& XL, float& YL, bool bDPIAware, FCanvas* InCanvas)
+{
 	if (InFont == NULL)
 	{
 		UE_LOG(LogScript, Warning, TEXT("No Font"));
@@ -1723,7 +1728,7 @@ void UCanvas::StrLen(const UFont* InFont, const FString& InText, float& XL, floa
 		{
 			const FSlateFontInfo LegacyFontInfo = InFont->GetLegacySlateFontInfo();
 			const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			const FVector2D MeasuredTextSize = FontMeasure->Measure(InText, LegacyFontInfo, Canvas->GetDPIScale());
+			const FVector2D MeasuredTextSize = FontMeasure->Measure(InText, LegacyFontInfo, InCanvas->GetDPIScale());
 			XL = MeasuredTextSize.X;
 			YL = MeasuredTextSize.Y;
 		}

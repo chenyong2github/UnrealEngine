@@ -15293,11 +15293,6 @@ int32 UEngine::RenderStatColorList(UWorld* World, FViewport* Viewport, FCanvas* 
 }
 
 // LEVELS
-TAutoConsoleVariable<int32> CVarStatLevelsColumnWidth(
-	TEXT("stats.StatLevelsColumnWidth"),
-	350,
-	TEXT("The width in pixels of a column in stat levels.")
-);
 
 int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
@@ -15332,6 +15327,10 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 	int32 BaseY = Y;
 
 	// now draw the levels
+	float CurrentColumnWidth = 0.f;
+	float TextWidth = 0.f;
+	float TextHeight = 0.f;
+	
 	for (int32 LevelIdx = 1; LevelIdx < SubLevelsStatusList.Num(); ++LevelIdx)
 	{
 		const FSubLevelStatus& LevelStatus = SubLevelsStatusList[LevelIdx];
@@ -15341,7 +15340,8 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 		{
 			MaxY = FMath::Max(MaxY, Y);
 			Y = BaseY;
-			X += CVarStatLevelsColumnWidth.GetValueOnGameThread();
+			X += CurrentColumnWidth;
+			CurrentColumnWidth = 0.f;
 		}
 
 		FColor	Color = ULevelStreaming::GetLevelStreamingStatusColor(LevelStatus.StreamingStatus);
@@ -15374,7 +15374,9 @@ int32 UEngine::RenderStatLevels(UWorld* World, FViewport* Viewport, FCanvas* Can
 		DisplayName = *FString::Printf(TEXT("%s %s %s (%s)"), (LevelStatus.bPlayerInside ? TEXT("->") : TEXT("  ")), (LevelStatus.bInConsiderList ? TEXT("*") : TEXT(" ")), *DisplayName, StatusDisplayName);
 
 		Canvas->DrawShadowedString(X + 4, Y, *DisplayName, GetSmallFont(), Color);
-		Y += 12;
+		UCanvas::StrLen(GetSmallFont(), *DisplayName, TextWidth, TextHeight, /*bDPIAware*/false, Canvas);
+		CurrentColumnWidth = FMath::Max(CurrentColumnWidth, TextWidth);
+		Y += TextHeight;
 	}
 	return FMath::Max(MaxY, Y);
 }
