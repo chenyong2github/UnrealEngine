@@ -78,8 +78,7 @@ namespace Chaos
 
 	// TPBDGeometryCollectionParticleHandle
 
-	template <typename T, int d>
-	class TPBDGeometryCollectionParticle;
+	class FPBDGeometryCollectionParticle;
 
 	template <typename T, int d, bool bPersistent>
 	class TPBDGeometryCollectionParticleHandleImp;

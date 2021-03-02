@@ -2337,26 +2337,27 @@ protected:
 	}
 };
 
-template <typename T, int d>
-class TPBDGeometryCollectionParticle : public TPBDRigidParticle<T, d>
+class FPBDGeometryCollectionParticle : public TPBDRigidParticle<FReal, 3>
 {
 public:
-	typedef TPBDGeometryCollectionParticleHandle<T, d> FHandle;
+	typedef TPBDGeometryCollectionParticleHandle<FReal, 3> FHandle;
 
-	using TGeometryParticle<T, d>::Type;
+	using FGeometryParticle::Type;
 public:
-	TPBDGeometryCollectionParticle<T,d>(const FPBDRigidParticleParameters& DynamicParams = FPBDRigidParticleParameters())
-		: TPBDRigidParticle<T, d>(DynamicParams)
+	FPBDGeometryCollectionParticle(const FPBDRigidParticleParameters& DynamicParams = FPBDRigidParticleParameters())
+		: FPBDRigidParticle(DynamicParams)
 	{
 		Type = EParticleType::GeometryCollection;
 	}
 
-	static TUniquePtr<TPBDGeometryCollectionParticle<T, d>> CreateParticle(const FPBDRigidParticleParameters& DynamicParams = FPBDRigidParticleParameters())
+	static TUniquePtr<FPBDGeometryCollectionParticle> CreateParticle(const FPBDRigidParticleParameters& DynamicParams = FPBDRigidParticleParameters())
 	{
-		return TUniquePtr<TPBDGeometryCollectionParticle<T, d>>(new TPBDGeometryCollectionParticle<T, d>(DynamicParams));
+		return TUniquePtr<FPBDGeometryCollectionParticle>(new FPBDGeometryCollectionParticle(DynamicParams));
 	}
 };
 
+template <typename T, int d>
+using TPBDGeometryCollectionParticle UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDGeometryCollectionParticle instead") = FPBDGeometryCollectionParticle;
 
 template <typename T, int d>
 const TKinematicGeometryParticle<T, d>* TGeometryParticle<T, d>::CastToKinematicParticle() const
@@ -2473,22 +2474,8 @@ void TKinematicGeometryParticle<T, d>::SetW(const TVector<T, d>& InW, bool bInva
 	MVelocities.Modify(bInvalidate, MDirtyFlags, Proxy, [&InW](auto& Data) { Data.SetW(InW); });
 }
 
-template <typename T, int d>
-TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable)
-{
-	int8 ObjectType = Ar.IsLoading() ? 0 : (int8)Serializable->Type;
-	Ar << ObjectType;
-	switch ((EParticleType)ObjectType)
-	{
-	case EParticleType::Static: if (Ar.IsLoading()) { return new TGeometryParticle<T, d>(); } break;
-	case EParticleType::Kinematic: if (Ar.IsLoading()) { return new TKinematicGeometryParticle<T, d>(); } break;
-	case EParticleType::Rigid: if (Ar.IsLoading()) { return new TPBDRigidParticle<T, d>(); } break;
-	case EParticleType::GeometryCollection: if (Ar.IsLoading()) { return new TPBDGeometryCollectionParticle<T, d>(); } break;
-	default:
-		check(false);
-	}
-	return nullptr;
-}
+template <>
+CHAOS_API TGeometryParticle<FReal, 3>* TGeometryParticle<FReal, 3>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<FReal, 3>* Serializable);
 
 template <>
 CHAOS_API void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate);
