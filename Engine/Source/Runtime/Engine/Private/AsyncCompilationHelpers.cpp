@@ -171,11 +171,17 @@ namespace AsyncCompilationHelpers
 			FText Progress = FormatProgress(NumDone++, Num, Job->GetName());
 
 			// Be nice with the game thread and tick the progress at 60 fps even when no progress is being made...
+			bool bLogSlowProgress = true;
 			while (!PendingTask.Event->Wait(16))
 			{
 				if (SlowTask.IsSet())
 				{
 					SlowTask->EnterProgressFrame(0.0f, Progress);
+				}
+				if (bLogSlowProgress)
+				{
+					UE_LOG_REF(LogCategory, Display, TEXT("%s"), *Progress.ToString());
+					bLogSlowProgress = false;
 				}
 			}
 
@@ -183,8 +189,6 @@ namespace AsyncCompilationHelpers
 			{
 				SlowTask->EnterProgressFrame(1.0f, Progress);
 			}
-
-			UE_LOG_REF(LogCategory, Display, TEXT("%s"), *Progress.ToString());
 
 			PostCompileSingle(Job);
 		}

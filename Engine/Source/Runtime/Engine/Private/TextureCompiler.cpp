@@ -259,7 +259,7 @@ void FTextureCompilingManager::FinishCompilation(TArrayView<UTexture* const> InT
 
 			TStrongObjectPtr<UTexture> Texture;
 			void EnsureCompletion() override { Texture->FinishCachePlatformData(); }
-			FName GetName() override { return Texture->GetFName(); }
+			FName GetName() override { return Texture->GetOutermost()->GetFName(); }
 		};
 
 		TArray<UTexture*> UniqueTextures(PendingTextures.Array());
