@@ -148,6 +148,16 @@ namespace UnrealBuildTool
 		public bool bIsBuildingDLL = false;
 
 		/// <summary>
+		/// Whether we should compile using the statically-linked CRT. This is not widely supported for the whole engine, but is required for programs that need to run without dependencies.
+		/// </summary>
+		public bool bUseStaticCRT = false;
+
+		/// <summary>
+		/// Whether to use the debug CRT in debug configurations
+		/// </summary>
+		public bool bUseDebugCRT = false;
+
+		/// <summary>
 		/// True if this is a console application that's being build
 		/// </summary>
 		public bool bIsBuildingConsoleApplication = false;
@@ -341,6 +351,8 @@ namespace UnrealBuildTool
 			bIsBuildingLibrary = Other.bIsBuildingLibrary;
             bDisableSymbolCache = Other.bDisableSymbolCache;
 			bIsBuildingDLL = Other.bIsBuildingDLL;
+			bUseStaticCRT = Other.bUseStaticCRT;
+			bUseDebugCRT = Other.bUseDebugCRT;
 			bIsBuildingConsoleApplication = Other.bIsBuildingConsoleApplication;
 			WindowsEntryPointOverride = Other.WindowsEntryPointOverride;
 			bIsCrossReferenced = Other.bIsCrossReferenced;

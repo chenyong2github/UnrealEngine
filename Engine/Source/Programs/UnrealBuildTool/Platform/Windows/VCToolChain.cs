@@ -344,6 +344,18 @@ namespace UnrealBuildTool
 				Arguments.Add("/Ob0");
 			}
 
+			// Address sanitizer
+			if (Target.WindowsPlatform.bEnableAddressSanitizer)
+			{
+				// Enable address sanitizer. This also requires companion libraries at link time.
+				// Works for clang too.
+				Arguments.Add("-fsanitize=address");
+
+				// Use the CRT allocator so that ASan is able to hook into it for better error
+				// detection.
+				AddDefinition(Arguments, "FORCE_ANSI_ALLOCATOR=1");
+			}
+
 			//
 			//	Debug
 			//
@@ -355,8 +367,11 @@ namespace UnrealBuildTool
 				// Favor code size (especially useful for embedded platforms).
 				Arguments.Add("/Os");
 
-				// Always include runtime error checks
-				Arguments.Add("/RTCs");
+				// Runtime checks and ASan are incompatible.
+				if (!Target.WindowsPlatform.bEnableAddressSanitizer)
+				{
+					Arguments.Add("/RTCs");
+				}
 			}
 			//
 			//	Development and LTCG
@@ -429,7 +444,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// This is required to disable exception handling in VC platform headers.
-				Arguments.Add("/D_HAS_EXCEPTIONS=0");
+				AddDefinition(Arguments, "_HAS_EXCEPTIONS=0");
 			}
 
 			// If enabled, create debug information.
@@ -776,11 +791,16 @@ namespace UnrealBuildTool
 			// Prevents the linker from displaying its logo for each invocation.
 			Arguments.Add("/NOLOGO");
 
-			if (LinkEnvironment.bCreateDebugInfo)
+			// Address sanitizer requires debug info for symbolizing callstacks whether
+			// we're building debug or shipping.
+			if (LinkEnvironment.bCreateDebugInfo || Target.WindowsPlatform.bEnableAddressSanitizer)
 			{
 				// Output debug info for the linked executable.
 				Arguments.Add("/DEBUG");
+			}
 
+			if (LinkEnvironment.bCreateDebugInfo)
+			{
 				// Allow partial PDBs for faster linking
 				if (LinkEnvironment.bUseFastPDBLinking)
 				{
@@ -1256,6 +1276,38 @@ namespace UnrealBuildTool
 			}
 		}
 
+		public override void PrepareRuntimeDependencies(List<RuntimeDependency> RuntimeDependencies, Dictionary<FileReference, FileReference> TargetFileToSourceFile, DirectoryReference ExeDir)
+		{
+			// If ASan is enabled we need to copy the companion helper libraries from the MSVC tools bin folder to the
+			// target executable folder.
+			if (Target.WindowsPlatform.bEnableAddressSanitizer)
+			{
+				DirectoryReference ASanRuntimeDir;
+				String ASanArchSuffix;
+				if (EnvVars.Architecture == WindowsArchitecture.x64)
+				{
+					ASanRuntimeDir = DirectoryReference.Combine(EnvVars.ToolChainDir, "bin", "Hostx64", "x64");
+					ASanArchSuffix = "x86_64";
+				}
+				else
+				{
+					throw new BuildException("Unsupported build architecture for Address Sanitizer");
+				}
+
+
+				String ASanRuntimeDLL = String.Format("clang_rt.asan_dynamic-{0}.dll", ASanArchSuffix);
+				String ASanDebugRuntimeDLL = String.Format("clang_rt.asan_dbg_dynamic-{0}.dll", ASanArchSuffix);
+
+				RuntimeDependencies.Add(new RuntimeDependency(FileReference.Combine(ExeDir, ASanRuntimeDLL), StagedFileType.NonUFS));
+				TargetFileToSourceFile[FileReference.Combine(ExeDir, ASanRuntimeDLL)] = FileReference.Combine(ASanRuntimeDir, ASanRuntimeDLL);
+				if (Target.bDebugBuildsActuallyUseDebugCRT)
+				{
+					RuntimeDependencies.Add(new RuntimeDependency(FileReference.Combine(ExeDir, ASanDebugRuntimeDLL), StagedFileType.NonUFS));
+					TargetFileToSourceFile[FileReference.Combine(ExeDir, ASanDebugRuntimeDLL)] = FileReference.Combine(ASanRuntimeDir, ASanDebugRuntimeDLL);
+				}
+			}
+		}
+
 		public virtual FileReference GetApplicationIcon(FileReference ProjectFile)
 		{
 			return WindowsPlatform.GetWindowsApplicationIcon(ProjectFile);
@@ -1544,6 +1596,45 @@ namespace UnrealBuildTool
 				foreach (string ExcludedLibrary in LinkEnvironment.ExcludedLibraries)
 				{
 					Arguments.Add(String.Format("/NODEFAULTLIB:\"{0}\"", ExcludedLibrary));
+				}
+			}
+
+			// If we're building either an executable or a DLL, make sure we link in the 
+			// correct address sanitizer helper libs.
+			if (!bBuildImportLibraryOnly && !LinkEnvironment.bIsBuildingLibrary && Target.WindowsPlatform.bEnableAddressSanitizer)
+			{
+				String ASanArchSuffix = "";
+				if (EnvVars.Architecture == WindowsArchitecture.x64)
+				{
+					ASanArchSuffix = "x86_64";
+				}
+				else
+				{
+					throw new BuildException("Unsupported build architecture for Address Sanitizer");
+				}
+
+				String ASanDebugInfix = "";
+				if (LinkEnvironment.bUseDebugCRT)
+				{
+					ASanDebugInfix = "_dbg";
+				}
+
+				if (LinkEnvironment.bUseStaticCRT)
+				{
+					if (LinkEnvironment.bIsBuildingDLL)
+					{
+						Arguments.Add(String.Format("/wholearchive:clang_rt.asan{0}_dll_thunk-{1}.lib", ASanDebugInfix, ASanArchSuffix));
+					}
+					else
+					{
+						Arguments.Add(String.Format("/wholearchive:clang_rt.asan{0}-{1}.lib", ASanDebugInfix, ASanArchSuffix));
+						Arguments.Add(String.Format("/wholearchive:clang_rt.asan_cxx{0}-{1}.lib", ASanDebugInfix, ASanArchSuffix));
+					}
+				}
+				else
+				{
+					Arguments.Add(String.Format("/wholearchive:clang_rt.asan{0}_dynamic-{1}.lib", ASanDebugInfix, ASanArchSuffix));
+					Arguments.Add(String.Format("/wholearchive:clang_rt.asan{0}_dynamic_runtime_thunk-{1}.lib", ASanDebugInfix, ASanArchSuffix));
 				}
 			}
 

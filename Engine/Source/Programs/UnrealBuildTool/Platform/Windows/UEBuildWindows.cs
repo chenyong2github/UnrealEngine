@@ -194,6 +194,13 @@ namespace UnrealBuildTool
 		public WindowsStaticAnalyzer StaticAnalyzer = WindowsStaticAnalyzer.None;
 
 		/// <summary>
+		/// Enables address sanitizer (ASan). Only supported for Visual Studio 2019 16.7.0 and up.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration", Name = "bEnableAddressSanitizer")]
+		[CommandLine("-EnableASan")]
+		public bool bEnableAddressSanitizer = false;
+
+		/// <summary>
 		/// Whether we should export a file containing .obj to source file mappings.
 		/// </summary>
 		[XmlConfigFile]
@@ -490,6 +497,11 @@ namespace UnrealBuildTool
 		public WindowsStaticAnalyzer StaticAnalyzer
 		{
 			get { return Inner.StaticAnalyzer; }
+		}
+
+		public bool bEnableAddressSanitizer
+		{ 
+			get { return Inner.bEnableAddressSanitizer; }
 		}
 
 		public string? ObjSrcMapFile
@@ -865,6 +877,12 @@ namespace UnrealBuildTool
 			if (Target.bEnableCppModules && !ProjectFileGenerator.bGenerateProjectFiles && Target.WindowsPlatform.Environment.CompilerVersion < new VersionNumber(14, 28, 29304))
 			{
 				throw new BuildException("Support for C++20 modules requires Visual Studio 2019 16.8 preview 3 or later.");
+			}
+
+			// Ensure we're using recent enough version of Visual Studio to support ASan builds.
+			if (Target.WindowsPlatform.bEnableAddressSanitizer && Target.WindowsPlatform.Environment.CompilerVersion < new VersionNumber(14, 27, 0))
+			{
+				throw new BuildException("Address sanitizer requires Visual Studio 2019 16.7 or later.");
 			}
 
 //			@Todo: Still getting reports of frequent OOM issues with this enabled as of 15.7.

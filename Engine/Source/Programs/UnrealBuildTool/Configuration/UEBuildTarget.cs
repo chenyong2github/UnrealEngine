@@ -3400,7 +3400,8 @@ namespace UnrealBuildTool
 			// UHTLite
 			GlobalCompileEnvironment.bHackHeaderGenerator |= (AppName == "UHTLite");
 
-			GlobalCompileEnvironment.bUseDebugCRT = GlobalCompileEnvironment.Configuration == CppConfiguration.Debug && Rules.bDebugBuildsActuallyUseDebugCRT;
+			bool bUseDebugCRT = GlobalCompileEnvironment.Configuration == CppConfiguration.Debug && Rules.bDebugBuildsActuallyUseDebugCRT;
+			GlobalCompileEnvironment.bUseDebugCRT = bUseDebugCRT;
 			GlobalCompileEnvironment.bEnableOSX109Support = Rules.bEnableOSX109Support;
 			GlobalCompileEnvironment.Definitions.Add(String.Format("IS_PROGRAM={0}", TargetType == TargetType.Program ? "1" : "0"));
 			GlobalCompileEnvironment.Definitions.AddRange(Rules.GlobalDefinitions);
@@ -3432,6 +3433,8 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments ?? String.Empty;
 
+			GlobalLinkEnvironment.bUseDebugCRT = bUseDebugCRT;
+			GlobalLinkEnvironment.bUseStaticCRT = Rules.bUseStaticCRT;
 			GlobalLinkEnvironment.bIsBuildingConsoleApplication = Rules.bIsBuildingConsoleApplication;
 			GlobalLinkEnvironment.bOptimizeForSize = Rules.bCompileForSize;
 			GlobalLinkEnvironment.bOmitFramePointers = Rules.bOmitFramePointers;
