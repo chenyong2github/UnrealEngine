@@ -129,7 +129,6 @@ private:
 	bool bIf2Enabled[4] = {};
 	bool bLerpEnabled[4] = {};
 	bool bRotateScaleOffsetTexCoords = false;
-	bool bSelectElemHelperEnabled[4] = {};
 	bool bUnMirrorEnabled[2][2] = {};
 	
 };
