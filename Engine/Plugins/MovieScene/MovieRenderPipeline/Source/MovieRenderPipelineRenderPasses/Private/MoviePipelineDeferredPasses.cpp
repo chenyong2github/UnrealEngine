@@ -455,11 +455,10 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 						if (Component && Component->IsA<UPrimitiveComponent>())
 						{
 							UPrimitiveComponent* PrimitiveComponent = CastChecked<UPrimitiveComponent>(Component);
-							PrimitiveComponent->bRenderCustomDepth = true;
-							PrimitiveComponent->CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
 							// We want to render all objects not on the layer to stencil too so that foreground objects mask.
-							PrimitiveComponent->CustomDepthStencilValue = bInLayer ? 1 : 0;
-							PrimitiveComponent->MarkRenderStateDirty();
+							PrimitiveComponent->SetCustomDepthStencilValue(bInLayer ? 1 : 0);
+							PrimitiveComponent->SetCustomDepthStencilWriteMask(ERendererStencilMask::ERSM_Default);
+							PrimitiveComponent->SetRenderCustomDepth(true);
 						}
 					}
 				}
@@ -491,9 +490,9 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		// Now we can restore the custom depth/stencil/etc. values so that the main render pass acts as the user expects next time.
 		for (TPair<UPrimitiveComponent*, FStencilValues>& KVP : PreviousValues)
 		{
-			KVP.Key->CustomDepthStencilWriteMask = KVP.Value.StencilMask;
-			KVP.Key->CustomDepthStencilValue = KVP.Value.CustomStencil;
-			KVP.Key->bRenderCustomDepth = KVP.Value.bRenderCustomDepth;
+			KVP.Key->SetCustomDepthStencilValue(KVP.Value.CustomStencil);
+			KVP.Key->SetCustomDepthStencilWriteMask(KVP.Value.StencilMask);
+			KVP.Key->SetRenderCustomDepth(KVP.Value.bRenderCustomDepth);
 		}
 	}
 }
