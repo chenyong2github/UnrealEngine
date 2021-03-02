@@ -1348,8 +1348,9 @@ void PackStrataOut(
 					float3 ApproxFresnelForTransmittance = 0;
 					// STRATA_TODO Fresnel throughput, Use a LUT, this is currently in progress and will be coming soon.
 					// In the meantime, we use a simple approach to feed Fresnel function and compute an approximation of the general transmition/througput.
-					const float VoH = ContextNoLight.NoV;
-					const float NoL = ContextNoLight.NoV;
+					const float SatNoV = saturate(ContextNoLight.NoV);
+					const float VoH = SatNoV;
+					const float NoL = SatNoV;
 					const float3 BaseColor = SLAB_BASECOLOR(BSDF);
 					const float  Metallic = SLAB_METALLIC(BSDF);
 					const float3 F0 = ComputeF0(SLAB_SPECULAR(BSDF), BaseColor, Metallic);
@@ -1360,7 +1361,7 @@ void PackStrataOut(
 					{
 						float ThinFilmIOR = SLAB_THINFILM_IOR(BSDF);
 						float ThinFilmThickness = SLAB_THINFILM_THICKNESS(BSDF);
-						ApproxFresnelForTransmittance = F_ThinFilm(ContextNoLight.NoV, NoL, VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
+						ApproxFresnelForTransmittance = F_ThinFilm(SatNoV, NoL, VoH, F0, F90, ThinFilmIOR, ThinFilmThickness);
 					}
 					else
 					{
