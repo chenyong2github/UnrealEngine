@@ -64,17 +64,6 @@ TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
 	ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<int32> CVarPathTracingRandomSequence(
-	TEXT("r.PathTracing.RandomSequence"),
-	3,
-	TEXT("Changes the underlying random sequence\n")
-	TEXT("0: LCG\n")
-	TEXT("1: Halton\n")
-	TEXT("2: Scrambled Halton\n")
-	TEXT("3: Owen-Sobol (default)\n"),
-	ECVF_RenderThreadSafe
-);
-
 TAutoConsoleVariable<int32> CVarPathTracingAdaptiveSampling(
 	TEXT("r.PathTracing.AdaptiveSampling"),
 	1,
@@ -172,7 +161,6 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	}
 
 	AdaptiveSamplingData.UseAdaptiveSampling = CVarPathTracingAdaptiveSampling.GetValueOnRenderThread();
-	AdaptiveSamplingData.RandomSequence = CVarPathTracingRandomSequence.GetValueOnRenderThread();
 
 	// Changing Adaptive sampling mode requires starting over
 	static uint32 PreviousUseAdaptiveSampling = AdaptiveSamplingData.UseAdaptiveSampling;
@@ -180,13 +168,6 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	{
 		NeedInvalidation = true;
 		PreviousUseAdaptiveSampling = AdaptiveSamplingData.UseAdaptiveSampling;
-	}
-
-	static uint32 PreviousRandomSequence = AdaptiveSamplingData.RandomSequence;
-	if (PreviousRandomSequence != AdaptiveSamplingData.RandomSequence)
-	{
-		NeedInvalidation = true;
-		PreviousRandomSequence = AdaptiveSamplingData.RandomSequence;
 	}
 
 	// the rest of PathTracingData and AdaptiveSamplingData is filled in by SetParameters below

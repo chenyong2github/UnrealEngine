@@ -56,8 +56,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	uint LinearIndex = LaunchIndex.x + (LaunchIndex.y * BufferSize.x); 
 	RandomSequence RandSequence;
 	RandomSequence_Initialize(RandSequence, LinearIndex, AdaptiveSamplingData.TemporalSeed);
-	RandSequence.Type = AdaptiveSamplingData.RandomSequence;
-	uint SampleIndex = 0;
 
 	float3 Radiance = 0;
 	uint RayCounter = 0;
@@ -66,7 +64,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	RayDesc Ray;
 	uint2 Pixel;
 	float EmitterPdf;
-	SampleEmitter(LaunchIndex, RandSequence, SampleIndex, 0, 0, Ray, Pixel, EmitterPdf);
+	SampleEmitter(LaunchIndex, RandSequence, 0, 0, Ray, Pixel, EmitterPdf);
 	if (EmitterPdf <= 0.0)
 	{
 		return;
@@ -156,7 +154,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		}
 
 		// Choose a random number for both Light sampling and BxDF sampling
-		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
+		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, 0);
 
 		// Does this material require NEE?
 		bool bIsNeeValid = IsNeeValidMaterial(Payload);
@@ -279,7 +277,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		{
 			// If there is some chance we should terminate the ray, draw an extra random value
 			float RussianRouletteRand = RandSample.w; // SampleMaterial does not use this value at the moment
-			//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence, SampleIndex);
+			//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence, 0);
 			if (RussianRouletteRand >= ContinuationProb)
 			{
 				// stochastically terminate the path

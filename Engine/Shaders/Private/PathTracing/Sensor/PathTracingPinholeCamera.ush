@@ -9,7 +9,6 @@
 void PinholeCamera_SampleEmitter(
 	uint2 LaunchIndex,
 	inout RandomSequence RandSequence,
-	inout uint SampleIndex,
 	uint SourceEmitterId,
 	uint SensorId,
 	out RayDesc OutRay,
@@ -17,7 +16,7 @@ void PinholeCamera_SampleEmitter(
 	out float OutPdf
 )
 {
-	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, SampleIndex);
+	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, 0);
 	float2 ViewportUV = (LaunchIndex.xy + RandSample.xy) * View.BufferSizeAndInvSize.zw;
 
 	OutRay = CreatePrimaryRay(ViewportUV);

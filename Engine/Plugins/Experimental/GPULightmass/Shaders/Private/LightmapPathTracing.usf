@@ -569,8 +569,6 @@ void LightmapPathTracingMainRG()
 						(BatchedTiles[TileIndex].RenderPassIndex)
 				);
 				
-				RandSequence.Type = 2;
-				RandSequence.HaltonDimensionIndex = 2; // 0 and 1 are used for image plane sampling (lightmap GBuffer)
 				uint SampleIndex = 2;
 
 				float3 RadianceValue = 0;
@@ -764,8 +762,6 @@ void VolumetricLightmapPathTracingMainRG()
 	{
 		RandomSequence RandSequence;
 		RandomSequence_Initialize(RandSequence, Seed, FrameNumber / 2);	
-		RandSequence.Type = 2;
-		RandSequence.HaltonDimensionIndex = 3;
 		uint SampleIndex = 4;
 		
 		PathTracingKernel(
