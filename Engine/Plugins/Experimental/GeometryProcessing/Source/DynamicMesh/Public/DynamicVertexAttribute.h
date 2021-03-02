@@ -48,7 +48,7 @@ protected:
 	/** The parent object (e.g. mesh, point set) this attribute belongs to */
 	ParentType* Parent;
 
-	/** List of per-triangle attribute values */
+	/** List of per-vertex attribute values */
 	TDynamicVector<AttribValueType> AttribValues;
 
 public:
@@ -121,7 +121,8 @@ public:
 
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& ToCopy)
 	{
-		check(CompactMaps.MapV.Num() <= AttribValues.Num() / AttribDimension);
+		check(CompactMaps.MapV.Num() >= 0 && static_cast<size_t>(CompactMaps.MapV.Num()) <= AttribValues.Num() / AttribDimension);
+
 		AttribValueType Data[AttribDimension];
 		for (int VID = 0; VID < CompactMaps.MapV.Num(); VID++)
 		{
@@ -338,7 +339,7 @@ public:
 	virtual bool CheckValidity(bool bAllowNonmanifold, EValidityCheckFailMode FailMode) const override
 	{
 		// just check that the values buffer is big enough
-		if (Parent->MaxVertexID()*AttribDimension > AttribValues.Num())
+		if (Parent->MaxVertexID() < 0 || static_cast<size_t>(Parent->MaxVertexID()*AttribDimension) > AttribValues.Num())
 		{
 			switch (FailMode)
 			{
