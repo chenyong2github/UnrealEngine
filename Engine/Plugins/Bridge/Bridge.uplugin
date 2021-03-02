@@ -14,8 +14,8 @@
 	"EnabledByDefault": true,
 	"SupportedTargetPlatforms": [
 		"Win64",
-		"Mac",
-		"Linux"
+		"Mac"
+		
 	],
 	"Modules": [
 		{
