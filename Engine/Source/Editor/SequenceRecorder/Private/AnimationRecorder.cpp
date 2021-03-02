@@ -266,10 +266,14 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	Record(Component, PreviousComponentToWorld, PreviousSpacesBases, PreviousAnimCurves,  0);
 }
 
-void FAnimationRecorder::FixupNotifies()
+void FAnimationRecorder::ProcessNotifies()
 {
 	if (AnimationObject)
 	{
+		// Copy recorded notify events, animation its notify array should be empty at this point
+		ensure(AnimationObject->Notifies.Num() == 0);
+		AnimationObject->Notifies = RecordedNotifyEvents;
+		
 		// build notify tracks - first find how many tracks we want
 		for (FAnimNotifyEvent& Event : AnimationObject->Notifies)
 		{
@@ -312,7 +316,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 		const float Numerator = FloatDenominator / IntervalTime;
 		Controller->SetFrameRate(FFrameRate(Numerator, FloatDenominator));
 
-		FixupNotifies();
+		ProcessNotifies();
 
 		// post-process applies compression etc.
 		// @todo figure out why removing redundant keys is inconsistent
@@ -882,7 +886,7 @@ void FAnimationRecorder::RecordNotifies(USkeletalMeshComponent* Component, const
 					}
 				}
 
-				AnimationObject->Notifies.Add(NewEvent);
+				RecordedNotifyEvents.Add(NewEvent);
 				AddedThisFrame++;
 			}
 		}

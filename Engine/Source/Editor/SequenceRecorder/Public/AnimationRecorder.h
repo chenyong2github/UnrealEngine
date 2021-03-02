@@ -52,6 +52,9 @@ private:
 	/** Unique notify states added to this sequence during recording */
 	TMap<UAnimNotifyState*, UAnimNotifyState*> UniqueNotifyStates;
 
+	/** Notify events recorded at any point, processed and inserted into animation when recording has finished */
+	TArray<FAnimNotifyEvent> RecordedNotifyEvents;
+
 	static float DefaultSampleRate;
 
 	/** Array of times recorded */
@@ -112,7 +115,7 @@ private:
 
 	void RecordNotifies(USkeletalMeshComponent* Component, const TArray<FAnimNotifyEventReference>& AnimNotifies, float DeltaTime, float RecordTime);
 
-	void FixupNotifies();
+	void ProcessNotifies();
 
 	// recording curve data 
 	struct FBlendedCurve
