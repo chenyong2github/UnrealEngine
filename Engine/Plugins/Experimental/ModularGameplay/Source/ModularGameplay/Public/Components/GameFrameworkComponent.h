@@ -8,7 +8,7 @@
 #include "GameFrameworkComponent.generated.h"
 
 /**
- * GameFrameworkComponent is a base class for a actor components made for the basic game framework classes.
+ * GameFrameworkComponent is a base class for actor components made for the basic game framework classes.
  */
 UCLASS(Blueprintable, BlueprintType, HideCategories=(Trigger, PhysicsVolume))
 class MODULARGAMEPLAY_API UGameFrameworkComponent : public UActorComponent
@@ -19,13 +19,13 @@ public:
 	
 	UGameFrameworkComponent(const FObjectInitializer& ObjectInitializer);
 
+	/** Gets the game instance this component is a part of, this will return null if not called during normal gameplay */
 	template <class T>
 	T* GetGameInstance() const
 	{
 		static_assert(TPointerIsConvertibleFromTo<T, UGameInstance>::Value, "'T' template parameter to GetGameInstance must be derived from UGameInstance");
 		AActor* Owner = GetOwner();
-		check(Owner);
-		return Owner->GetGameInstance<T>();
+		return Owner ? Owner->GetGameInstance<T>() : nullptr;
 	}
 
 	template <class T>

@@ -19,6 +19,7 @@ public:
 	
 	UControllerComponent(const FObjectInitializer& ObjectInitializer);
 
+	/** Gets the controller that owns the component, this will always be valid during gameplay but can return null in the editor */
 	template <class T>
 	T* GetController() const
 	{
@@ -35,9 +36,10 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Controller accessors
-	// Usable for any type of AController owner
+	// Usable for any type of AController owner, only valid if called during gameplay
 	//////////////////////////////////////////////////////////////////////////////
 
+	/** Returns the pawn that is currently possessed by the owning controller, will often return null */
 	template <class T>
 	T* GetPawn() const
 	{
@@ -45,12 +47,15 @@ public:
 		return Cast<T>(GetControllerChecked<AController>()->GetPawn());
 	}
 
+	/** Returns the actor that is serving as the current view target for the owning controller */
 	template <class T>
 	T* GetViewTarget() const
 	{
+		static_assert(TPointerIsConvertibleFromTo<T, AActor>::Value, "'T' template parameter to GetViewTarget must be derived from APawn");
 		return Cast<T>(GetControllerChecked<AController>()->GetViewTarget());
 	}
 
+	/** If this controller is possessing a pawn return the pawn, if not return the view target */
 	template <class T>
 	T* GetPawnOrViewTarget() const
 	{
@@ -64,6 +69,7 @@ public:
 		}
 	}
 
+	/** Returns the player state attached to this controller if there is one */
 	template <class T>
 	T* GetPlayerState() const
 	{
@@ -71,14 +77,10 @@ public:
 		return GetControllerChecked<AController>()->GetPlayerState<T>();
 	}
 
-	template <class T>
-	T* GetGameInstance() const
-	{
-		static_assert(TPointerIsConvertibleFromTo<T, UGameInstance>::Value, "'T' template parameter to GetGameInstance must be derived from UGameInstance");
-		return GetControllerChecked<AController>()->GetGameInstance<T>();
-	}
-
+	/** Returns true if the owning controller is considered to be local */
 	bool IsLocalController() const;
+
+	/** Returns the point of view for either a player or controlled pawn */
 	void GetPlayerViewPoint(FVector& Location, FRotator& Rotation) const;
 
 	//////////////////////////////////////////////////////////////////////////////

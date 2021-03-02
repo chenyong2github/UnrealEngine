@@ -18,6 +18,7 @@ public:
 	
 	UPawnComponent(const FObjectInitializer& ObjectInitializer);
 
+	/** Gets the pawn that owns the component, this will always be valid during gameplay but can return null in the editor */
 	template <class T>
 	T* GetPawn() const
 	{
@@ -33,9 +34,10 @@ public:
 	}
 
 	//////////////////////////////////////////////////////////////////////////////
-	// Pawn accessors
+	// Pawn accessors, only valid if called during gameplay
 	//////////////////////////////////////////////////////////////////////////////
 
+	/** Gets the player state that owns the component, this can return null on clients for player pawns that are still being replicated */
 	template <class T>
 	T* GetPlayerState() const
 	{
@@ -43,17 +45,12 @@ public:
 		return GetPawnChecked<APawn>()->GetPlayerState<T>();
 	}
 
+	/** Gets the controller that owns the component, this will usually be null on clients */
 	template <class T>
 	T* GetController() const
 	{
 		static_assert(TPointerIsConvertibleFromTo<T, AController>::Value, "'T' template parameter to GetController must be derived from AController");
 		return GetPawnChecked<APawn>()->GetController<T>();
 	}
-
-public:
-
-	//////////////////////////////////////////////////////////////////////////////
-	// Pawn events
-	//////////////////////////////////////////////////////////////////////////////
 
 };

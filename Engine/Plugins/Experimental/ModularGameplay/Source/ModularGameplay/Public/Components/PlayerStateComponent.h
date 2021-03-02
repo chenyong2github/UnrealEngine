@@ -18,6 +18,7 @@ public:
 	
 	UPlayerStateComponent(const FObjectInitializer& ObjectInitializer);
 
+	/** Gets the player state that owns the component, this will always be valid during gameplay but can return null in the editor */
 	template <class T>
 	T* GetPlayerState() const
 	{
@@ -33,9 +34,10 @@ public:
 	}
 
 	//////////////////////////////////////////////////////////////////////////////
-	// PlayerState accessors
+	// PlayerState accessors, only valid if called during gameplay
 	//////////////////////////////////////////////////////////////////////////////
 
+	/** Gets the pawn that owns the component, this will return null if the pawn does not exist or is still replicating */
 	template <class T>
 	T* GetPawn() const
 	{
@@ -49,7 +51,10 @@ public:
 	// PlayerState events
 	//////////////////////////////////////////////////////////////////////////////
 
+	/** Reset properties to default state */
 	virtual void Reset() {}
+
+	/** Copy properties which need to be saved in inactive PlayerState */
 	virtual void CopyProperties(UPlayerStateComponent* TargetPlayerStateComponent) {}
 
 };
