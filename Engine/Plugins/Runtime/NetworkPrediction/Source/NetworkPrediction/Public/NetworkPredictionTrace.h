@@ -51,6 +51,9 @@
 // Called when an actual instance ticks (after calling UE_NP_TRACE_TICK)
 #define UE_NP_TRACE_SIM_TICK(TraceID) FNetworkPredictionTrace::TraceSimTick(TraceID)
 
+// General trace to push the active simulation's trace ID and setup for updating the traced state for an already ticked frame (Used to update async data after completion)
+#define UE_NP_TRACE_SIM_STATE(TraceID) FNetworkPredictionTrace::TraceSimState(TraceID)
+
 // Called when we receive networked data (regardless of what we end up doing with it)
 #define UE_NP_TRACE_NET_RECV(Frame, TimeMS) FNetworkPredictionTrace::TraceNetRecv(Frame, TimeMS)
 
@@ -86,7 +89,6 @@
 
 #else
 
-
 // Compiled out
 #define UE_NP_TRACE_RECONCILE(Condition, Str) if (Condition) { return true; }
 #define UE_NP_TRACE_SIM(...)
@@ -99,6 +101,7 @@
 #define UE_NP_TRACE_WORLD_FRAME_START(...)
 #define UE_NP_TRACE_PUSH_TICK(...)
 #define UE_NP_TRACE_SIM_TICK(...)
+#define UE_NP_TRACE_SIM_STATE(...)
 #define UE_NP_TRACE_NET_RECV(...)
 #define UE_NP_TRACE_SHOULD_RECONCILE(...)
 #define UE_NP_TRACE_ROLLBACK_INJECT(...)
@@ -114,57 +117,6 @@
 #define UE_NP_TRACE_PHYSICS_STATE_CURRENT(...)
 #define UE_NP_TRACE_PHYSICS_STATE_AT_FRAME(...)
 #define UE_NP_TRACE_PHYSICS_STATE_RECV(...)
-
-#endif
-
-// -------------------------------------------------------------------------------------------------------------------------
-
-#if 0
-
-#define UE_NP_TRACE_NETROLE(SimulationId, NetRole) FNetworkPredictionTrace::TraceSimulationNetRole(SimulationId, NetRole)
-
-// Called when simulation ticks in any context (includes resimulates, sim extrapolates, etc)
-#define UE_NP_TRACE_SIM_TICK(OutputFrame, TimeStep) FNetworkPredictionTrace::TraceSimulationTick(OutputFrame, TimeStep)
-
-// Called at the end of an engine frame (EOF) to update the current tick state of a simulation
-#define UE_NP_TRACE_SIM_EOF(Buffers) FNetworkPredictionTrace::TraceSimulationEOF(Buffers)
-#define UE_NP_TRACE_SIM_EOF_TEMP(Capacity, PendingFrame, TotalProcessedSimTime, TotalAllowedSimTime) FNetworkPredictionTrace::TraceSimulationEOF_TEMP(Capacity, PendingFrame, TotalProcessedSimTime, TotalAllowedSimTime)
-
-// Called whenever we receive network data: note this only indicates that data was received, not necessarily that it was committed to the simulation buffers
-#define UE_NP_TRACE_NET_SERIALIZE_RECV(ReceivedTime, ReceivedFrame) FNetworkPredictionTrace::TraceNetSerializeRecv(ReceivedTime, ReceivedFrame)
-
-// Called prior to sampling local input
-#define UE_NP_TRACE_PRODUCE_INPUT() FNetworkPredictionTrace::TraceProduceInput()
-
-// Called prior to generating synthesized input
-#define UE_NP_TRACE_SYNTH_INPUT() FNetworkPredictionTrace::TraceSynthInput()
-
-
-
-#define UE_NP_TRACE_OOB_STR_SYNC(SimulationId, Str) FNetworkPredictionTrace::TraceOOBStr(SimulationId, FNetworkPredictionTrace::ETraceUserState::Sync, Str);
-#define UE_NP_TRACE_OOB_STR_AUX(SimulationId, Str) FNetworkPredictionTrace::TraceOOBStr(SimulationId, FNetworkPredictionTrace::ETraceUserState::Aux, Str);
-
-
-
-// Compiled out
-#define UE_NP_TRACE_SET_SCOPE_SIM(SimulationId)
-#define UE_NP_TRACE_SIM_CREATED(...)
-#define UE_NP_TRACE_NETROLE(...)
-#define UE_NP_TRACE_SIM_TICK(...)
-#define UE_NP_TRACE_SIM_EOF(...)
-#define UE_NP_TRACE_SIM_EOF_TEMP(...)
-#define UE_NP_TRACE_NET_SERIALIZE_RECV(...)
-#define UE_NP_TRACE_USER_STATE_INPUT(...)
-#define UE_NP_TRACE_USER_STATE_SYNC(...)
-#define UE_NP_TRACE_USER_STATE_AUX(...)
-#define UE_NP_TRACE_ROLLBACK(...)
-#define UE_NP_TRACE_NET_SERIALIZE_COMMIT(...)
-#define UE_NP_TRACE_PRODUCE_INPUT(...)
-#define UE_NP_TRACE_SYNTH_INPUT(...)
-#define UE_NP_TRACE_OOB_STATE_MOD(...)
-
-#define UE_NP_TRACE_OOB_STR_SYNC(...)
-#define UE_NP_TRACE_OOB_STR_AUX(...)
 
 #endif // UE_NP_TRACE_ENABLED
 
@@ -199,6 +151,8 @@ public:
 
 	static void TraceTick(int32 StartMS, int32 DeltaMS, int32 OutputFrame);
 	static void TraceSimTick(int32 TraceID);
+	// Used to lazy update user state after a simtick
+	static void TraceSimState(int32 TraceID);
 
 	static void TraceNetRecv(int32 Frame, int32 TimeMS);
 	

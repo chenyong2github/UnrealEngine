@@ -17,7 +17,18 @@
 #include "NetworkPredictionLog.h"
 #include "Trace/Trace.inl"
 
-// Also should update string tracing with Trace::AnsiString
+// TODO:
+// Should update string tracing with Trace::AnsiString
+
+namespace NetworkPredictionTraceInternal
+{
+	enum class ENetworkPredictionTraceVersion : uint32
+	{
+		Initial = 1,
+	};
+
+	static constexpr ENetworkPredictionTraceVersion NetworkPredictionTraceVersion = ENetworkPredictionTraceVersion::Initial;
+};
 
 UE_TRACE_CHANNEL_DEFINE(NetworkPredictionChannel)
 
@@ -42,6 +53,14 @@ UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, SimulationScope)
 	UE_TRACE_EVENT_FIELD(int32, TraceID)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(NetworkPrediction, SimState)
+	UE_TRACE_EVENT_FIELD(int32, TraceID)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(NetworkPrediction, Version)
+	UE_TRACE_EVENT_FIELD(uint32, Version)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, WorldPreInit)
@@ -125,35 +144,6 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(NetworkPrediction, PhysicsState)
 UE_TRACE_EVENT_END()
 
-// Assign Id to UGameInstance ObjectKey. Assignment
-struct FGameInstanceIdMap
-{
-	uint32 GetId(UGameInstance* Instance)
-	{
-		FObjectKey Key(Instance);
-		
-		int32 FoundIdx=INDEX_NONE;
-		if (AssignedInstances.Find(Key, FoundIdx))
-		{
-			return (uint32)(FoundIdx+1);
-		}
-
-		AssignedInstances.Add(Key);
-		uint32 Id = (uint32)AssignedInstances.Num();
-		return Id;
-	}
-
-private:
-	TArray<FObjectKey> AssignedInstances;
-
-} GameInstanceMap;
-
-
-//Tracks which SimulationIDs we've successfully traced NetGUIDs of
-TArray<uint32> TracedSimulationNetGUIDs;
-TMap<uint32, TWeakObjectPtr<const AActor>> OwningActorMap;
-
-
 // ---------------------------------------------------------------------------
 
 void FNetworkPredictionTrace::TraceSimulationCreated_Internal(FNetworkPredictionID ID, FStringBuilderBase& Builder)
@@ -168,7 +158,7 @@ void FNetworkPredictionTrace::TraceSimulationCreated_Internal(FNetworkPrediction
 
 void FNetworkPredictionTrace::TraceWorldFrameStart(UGameInstance* GameInstance, float DeltaSeconds)
 {
-	if (GameInstance->GetWorld()->GetNetMode() == NM_Standalone)
+	if (!GameInstance || GameInstance->GetWorld()->GetNetMode() == NM_Standalone)
 	{
 		// No networking yet, don't start tracing
 		return;
@@ -195,7 +185,12 @@ void FNetworkPredictionTrace::TraceSimulationScope(int32 TraceID)
 {
 	UE_TRACE_LOG(NetworkPrediction, SimulationScope, NetworkPredictionChannel)
 		<< SimulationScope.TraceID(TraceID);
+}
 
+void FNetworkPredictionTrace::TraceSimState(int32 TraceID)
+{
+	UE_TRACE_LOG(NetworkPrediction, SimState, NetworkPredictionChannel)
+		<< SimState.TraceID(TraceID);
 }
 
 void FNetworkPredictionTrace::TraceTick(int32 StartMS, int32 DeltaMS, int32 OutputFrame)
@@ -281,6 +276,9 @@ void FNetworkPredictionTrace::TracePIEStart()
 
 void FNetworkPredictionTrace::TraceWorldPreInit()
 {
+	UE_TRACE_LOG(NetworkPrediction, Version, NetworkPredictionChannel)
+		<< Version.Version((uint32)NetworkPredictionTraceInternal::NetworkPredictionTraceVersion);
+
 	UE_TRACE_LOG(NetworkPrediction, WorldPreInit, NetworkPredictionChannel)
 		<< WorldPreInit.EngineFrameNumber(GFrameNumber);
 }

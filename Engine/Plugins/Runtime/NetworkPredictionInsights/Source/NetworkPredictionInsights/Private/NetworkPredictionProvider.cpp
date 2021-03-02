@@ -33,7 +33,6 @@ void FNetworkPredictionProvider::WriteSimulationTick(int32 TraceID, FSimulationD
 {
 	FSimulationData& SimulationData = FindChecked(TraceID).Get();
 
-	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::SimTick;
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
 
 	// ---------------------------------------------------------------------------------------------
@@ -143,7 +142,6 @@ void FNetworkPredictionProvider::WriteNetRecv(int32 TraceID, FSimulationData::FN
 	FSimulationData& SimulationData = FindChecked(TraceID).Get();
 	ensureMsgf(SimulationData.ConstData.ID.PIESession >= 0, TEXT("Invalid PIE Session: %d"), SimulationData.ConstData.ID.PIESession);
 
-	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::NetRecv;
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
 
 	FSimulationData::FNetSerializeRecv &NewNetSerializeRecv = SimulationData.NetRecv.PushBack();
@@ -267,7 +265,6 @@ void FNetworkPredictionProvider::WriteOOBStateMod(uint32 SimulationId)
 	ensureMsgf(SimulationData.ConstData.ID.PIESession >= 0, TEXT("Invalid PIE Session: %d"), SimulationData.ConstData.ID.PIESession);
 
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
-	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::OOB;
 }
 
 void FNetworkPredictionProvider::WriteOOBStateModStr(uint32 SimulationId, const TCHAR* Fmt)
@@ -284,7 +281,6 @@ void FNetworkPredictionProvider::WriteProduceInput(uint32 SimulationId)
 	ensureMsgf(SimulationData.ConstData.ID.PIESession >= 0, TEXT("Invalid PIE Session: %d"), SimulationData.ConstData.ID.PIESession);
 
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
-	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::ProduceInput;
 }
 
 void FNetworkPredictionProvider::WriteBufferedInput(uint32 SimulationId, int32 NumBufferedInputCmds, bool bFault)
@@ -302,7 +298,9 @@ void FNetworkPredictionProvider::WriteSynthInput(uint32 SimulationId)
 	ensureMsgf(SimulationData.ConstData.ID.PIESession >= 0, TEXT("Invalid PIE Session: %d"), SimulationData.ConstData.ID.PIESession);
 
 	SimulationData.Analysis.PendingCommitUserStates.Reset();
-	SimulationData.Analysis.PendingUserStateSource = ENP_UserStateSource::SynthInput;
+
+	// if we hook up this function the ThreadState.PendingStateSource = ENP_UserStateSource::SynthInput; should be set in the ThreadState of calling code
+	check(false);
 }
 
 void FNetworkPredictionProvider::WriteSimulationConfig(int32 TraceID, uint64 EngineFrame, ENP_NetRole NetRole, bool bHasNetConnection, ENP_TickingPolicy TickingPolicy, ENP_NetworkLOD NetworkLOD, int32 ServiceMask)
@@ -320,24 +318,24 @@ void FNetworkPredictionProvider::WriteSimulationConfig(int32 TraceID, uint64 Eng
 	SparseData->ServiceMask = ServiceMask;
 }
 
-void FNetworkPredictionProvider::WriteUserState(int32 TraceID, int32 Frame, uint64 EngineFrame, ENP_UserState Type, const TCHAR* UserStr)
+void FNetworkPredictionProvider::WriteUserState(int32 TraceID, int32 Frame, uint64 EngineFrame, ENP_UserState Type, ENP_UserStateSource UserStateSource, const TCHAR* UserStr)
 {
 	ensure(Frame >= 0);
 
 	FSimulationData& SimulationData = FindChecked(TraceID).Get();
 	ensureMsgf(SimulationData.ConstData.ID.PIESession >= 0, TEXT("Invalid PIE Session: %d"), SimulationData.ConstData.ID.PIESession);
 
-	ensure(SimulationData.Analysis.PendingUserStateSource != ENP_UserStateSource::Unknown);
+	ensure(UserStateSource != ENP_UserStateSource::Unknown);
 
 	FSimulationData::FUserState& NewUserState = SimulationData.UserData.Store[(int32)Type].Push(Frame, EngineFrame);
 	NewUserState.UserStr = UserStr;
-	NewUserState.Source = SimulationData.Analysis.PendingUserStateSource;
+	NewUserState.Source = UserStateSource;
 
-	if (SimulationData.Analysis.PendingUserStateSource == ENP_UserStateSource::NetRecv)
+	if (UserStateSource == ENP_UserStateSource::NetRecv)
 	{
 		SimulationData.Analysis.PendingCommitUserStates.Add(&NewUserState);
 	}
-	else if (SimulationData.Analysis.PendingUserStateSource == ENP_UserStateSource::OOB)
+	else if (UserStateSource == ENP_UserStateSource::OOB)
 	{
 		NewUserState.OOBStr = SimulationData.Analysis.PendingOOBStr;
 		SimulationData.Analysis.PendingOOBStr = nullptr;

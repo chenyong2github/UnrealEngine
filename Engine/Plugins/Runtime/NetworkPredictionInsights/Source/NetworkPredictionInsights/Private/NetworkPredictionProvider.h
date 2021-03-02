@@ -37,7 +37,7 @@ public:
 	void WriteProduceInput(uint32 SimulationId);
 	void WriteBufferedInput(uint32 SimulationId, int32 NumBufferedInputCmds, bool bFault);
 	void WriteSynthInput(uint32 SimulationId);
-	void WriteUserState(int32 TraceID, int32 Frame, uint64 EngineFrame, ENP_UserState Type, const TCHAR* UserStr);
+	void WriteUserState(int32 TraceID, int32 Frame, uint64 EngineFrame, ENP_UserState Type, ENP_UserStateSource UserStateSource, const TCHAR* UserStr);
 	void WritePIEStart();
 	void WriteReconcileStr(int32 TraceID, const TCHAR* UserStr);
 	void WriteReconcile(int32 TraceID, int32 LocalFrameOffset, bool bLocalOffsetFrameChanged);
