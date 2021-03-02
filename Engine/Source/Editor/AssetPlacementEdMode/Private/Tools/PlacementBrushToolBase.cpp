@@ -174,7 +174,7 @@ FVector UPlacementBrushToolBase::GenerateRandomScale(const UAssetPlacementSettin
 
 FQuat UPlacementBrushToolBase::AlignRotationWithNormal(const FQuat& InRotation, const FVector& InNormal, EAxis::Type InAlignmentAxis, bool bInvertAxis)
 {
-	FVector AlignmentVector = FVector::ZeroVector;
+	FVector AlignmentVector = FVector::UpVector;
 	switch (InAlignmentAxis)
 	{
 		case EAxis::Type::X:

@@ -76,17 +76,17 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Rotation")
 	bool bAllowNegativeRotationZ = true;
 
+	/** Which axes scale should be applied to. Any locked axes will be scaled to 1.0f. */
+	UPROPERTY(config, EditAnywhere, Category = "Scale")
+	EFoliageScaling ScalingType = EFoliageScaling::Uniform;
+	
+	/** The min and max at which a random scale is generated, or a scale is applied. */
+	UPROPERTY(config, EditAnywhere, Category = "Scale", meta = (UIMin = ".01"))
+	FFloatInterval ScaleRange = FFloatInterval(.5f, 2.0f);
+
 	/** Set to true if the tool should randomly scale any generated assets */
 	UPROPERTY(config, EditAnywhere, Category = "Scale", meta = (InlineEditConditionToggle))
 	bool bUseRandomScale = true;
-
-	/** Which axes any randomly generated scale should be applied to. Any locked axes will be scaled to 1.0f. */
-	UPROPERTY(config, EditAnywhere, Category = "Scale", meta = (DisplayName="Use Random Scale", EditCondition = "bUseRandomScale"))
-	EFoliageScaling ScalingType = EFoliageScaling::Uniform;
-	
-	/** The min and max at which a random scale is generated. */
-	UPROPERTY(config, EditAnywhere, Category = "Scale", meta = (UIMin = ".01"))
-	FFloatInterval ScaleRange = FFloatInterval(.5f, 2.0f);
 
 	/** Set to true if the tool should generate a negatively signed scale. */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Scale")

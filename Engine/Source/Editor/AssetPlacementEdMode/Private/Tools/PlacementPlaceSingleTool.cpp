@@ -6,7 +6,10 @@
 #include "Editor.h"
 #include "InteractiveToolManager.h"
 #include "ScopedTransaction.h"
+#include "ToolDataVisualizer.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
+#include "BaseGizmos/BrushStampIndicator.h"
+#include "BaseGizmos/GizmoRenderingUtil.h"
 #include "Editor/EditorEngine.h"
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementRegistry.h"
@@ -28,7 +31,6 @@ UPlacementModePlaceSingleTool::UPlacementModePlaceSingleTool() = default;
 UPlacementModePlaceSingleTool::~UPlacementModePlaceSingleTool() = default;
 UPlacementModePlaceSingleTool::UPlacementModePlaceSingleTool(FVTableHelper& Helper)
 	: Super(Helper)
-	, LastGeneratedRotation(FQuat::Identity)
 {
 }
 
@@ -39,6 +41,10 @@ void UPlacementModePlaceSingleTool::Setup()
 	SetupRightClickMouseBehavior();
 
 	bIsTweaking = false;
+
+	SinglePlaceSettings = NewObject<UPlacementModePlaceSingleToolSettings>(this);
+	SinglePlaceSettings->LoadConfig();
+	AddToolPropertySource(SinglePlaceSettings);
 }
 
 void UPlacementModePlaceSingleTool::Shutdown(EToolShutdownType ShutdownType)
@@ -50,15 +56,14 @@ void UPlacementModePlaceSingleTool::Shutdown(EToolShutdownType ShutdownType)
 	ExitTweakState(bClearSelectionSet);
 
 	Super::Shutdown(ShutdownType);
+
+	SinglePlaceSettings->SaveConfig();
+	SinglePlaceSettings = nullptr;
 }
 
 void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	Super::OnClickPress(PressPos);
-
-	// Update the preview element one final time to be sure the transform is updated.
-	UpdatePreviewElements(PressPos);
-	DestroyPreviewElements();
 
 	// Place the Preview data if we managed to get to a valid handled click.
 	FPlacementOptions PlacementOptions;
@@ -68,12 +73,102 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 	UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
 	if (PlacementSubsystem)
 	{
-		// Update the level, just in case the preview moved us out of the current one.
-		PreviewPlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
+		FAssetPlacementInfo FinalizedPlacementInfo = *PlacementInfo;
+		FinalizedPlacementInfo.FinalizedTransform = FinalizeTransform(
+			FTransform(PlacementInfo->FinalizedTransform.GetRotation(), LastBrushStamp.WorldPosition, PlacementInfo->FinalizedTransform.GetScale3D()),
+			LastBrushStamp.WorldNormal,
+			GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject());
+		FinalizedPlacementInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 
-		FScopedTransaction Transaction(NSLOCTEXT("PlacementMode", "SinglePlaceAsset", "Place Single Asset"));
-		EnterTweakState(PlacementSubsystem->PlaceAsset(*PreviewPlacementInfo, PlacementOptions));
+		GetToolManager()->BeginUndoTransaction(NSLOCTEXT("PlacementMode", "SinglePlaceAsset", "Place Single Asset"));
+		PlacedElements = PlacementSubsystem->PlaceAsset(FinalizedPlacementInfo, PlacementOptions);
+		NotifyMovementStarted(PlacedElements);
 	}
+}
+
+void UPlacementModePlaceSingleTool::OnClickDrag(const FInputDeviceRay& DragPos)
+{
+	FVector TraceStartLocation = DragPos.WorldRay.Origin;
+	FVector TraceDirection = DragPos.WorldRay.Direction;
+	FVector TraceEndLocation = TraceStartLocation + (TraceDirection * HALF_WORLD_MAX);
+	FVector TraceIntersectionXY = FMath::LinePlaneIntersection(TraceStartLocation, TraceEndLocation, FPlane(LastBrushStamp.WorldPosition, LastBrushStamp.WorldNormal));
+
+	FVector CursorDirection;
+	float CursorDistance;
+	FVector MouseDelta = LastBrushStamp.WorldPosition - TraceIntersectionXY;
+	MouseDelta.ToDirectionAndLength(CursorDirection, CursorDistance);
+	if (CursorDirection.IsNearlyZero())
+	{
+		return;
+	}
+
+	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
+
+	// Update rotation based on mouse position
+	FTransform UpdatedTransform = FinalizeTransform(
+		FTransform(FRotationMatrix::MakeFromXZ(CursorDirection, PlacementInfo->FinalizedTransform.GetRotation().GetUpVector()).ToQuat(), LastBrushStamp.WorldPosition, PlacementInfo->FinalizedTransform.GetScale3D()),
+		LastBrushStamp.WorldNormal,
+		PlacementSettings);
+
+	// Update scale based on mouse position
+	FVector UpdatedScale = UpdatedTransform.GetScale3D();
+	if (PlacementSettings && (SinglePlaceSettings->ScalingType != EPlacementScaleToCursorType::None))
+	{
+		auto UpdateComponent = [PlacementSettings, CursorDistance, this](float InComponent) -> float
+		{
+			float Sign = 1.0f;
+			if (InComponent < 0.0f)
+			{
+				Sign = -1.0f;
+			}
+
+			FFloatInterval ScaleRange(FMath::Abs(InComponent), PlacementSettings->ScaleRange.Max);
+			float NewComponent = ScaleRange.Interpolate(FMath::Min(1.0f, (CursorDistance / BrushStampIndicator->BrushRadius)));
+			return NewComponent * Sign;
+		};
+
+		switch (PlacementSettings->ScalingType)
+		{
+			case EFoliageScaling::LockXY:
+			{
+				UpdatedScale.Z = UpdateComponent(UpdatedScale.Z);
+				break;
+			}
+			case EFoliageScaling::LockYZ:
+			{
+				UpdatedScale.X = UpdateComponent(UpdatedScale.X);
+				break;
+			}
+			case EFoliageScaling::LockXZ:
+			{
+				UpdatedScale.Y = UpdateComponent(UpdatedScale.Y);
+				break;
+			}
+			default:
+			{
+				UpdatedScale.X = UpdateComponent(UpdatedScale.X);
+				UpdatedScale.Y = UpdateComponent(UpdatedScale.Y);
+				UpdatedScale.Z = UpdateComponent(UpdatedScale.Z);
+				break;
+			}
+		}
+	}
+	UpdatedTransform.SetScale3D(UpdatedScale);
+
+	// Use the drag position and settings to update the scale and rotation of the placed elements.
+	UpdateElementTransforms(PlacedElements, UpdatedTransform, false);
+}
+
+void UPlacementModePlaceSingleTool::OnClickRelease(const FInputDeviceRay& ReleasePos)
+{
+	Super::OnClickRelease(ReleasePos);
+
+	NotifyMovementEnded(PlacedElements);
+	EnterTweakState(PlacedElements);
+	GetToolManager()->EndUndoTransaction();
+
+	ShutdownBrushStampIndicator();
+	PlacementInfo.Reset();
 }
 
 void UPlacementModePlaceSingleTool::OnBeginHover(const FInputDeviceRay& DevicePos)
@@ -81,6 +176,7 @@ void UPlacementModePlaceSingleTool::OnBeginHover(const FInputDeviceRay& DevicePo
 	Super::OnBeginHover(DevicePos);
 
 	// Always regenerate the placement data when a hover sequence begins
+	PlacementInfo.Reset();
 	CreatePreviewElements(DevicePos);
 }
 
@@ -124,44 +220,54 @@ FInputRayHit UPlacementModePlaceSingleTool::BeginHoverSequenceHitTest(const FInp
 	return FInputRayHit();
 }
 
-void UPlacementModePlaceSingleTool::GeneratePreviewPlacementData(const FInputDeviceRay& DevicePos)
+void UPlacementModePlaceSingleTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	PreviewPlacementInfo.Reset();
-	LastGeneratedRotation = FQuat::Identity;
+	// Transform the brush radius to standard pixel size
+	float BrushRadiusScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(RenderAPI->GetSceneView(), LastBrushStamp.WorldPosition);
+	LastBrushStamp.Radius = 100.0f * BrushRadiusScale;
 
+	Super::Render(RenderAPI);
+}
+
+void UPlacementModePlaceSingleTool::GeneratePlacementData(const FInputDeviceRay& DevicePos)
+{
 	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
 	if (PlacementSettings && PlacementSettings->PaletteItems.Num())
 	{
 		int32 ItemIndex = FMath::RandHelper(PlacementSettings->PaletteItems.Num());
 		const FPaletteItem& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
-		LastGeneratedRotation = GenerateRandomRotation(PlacementSettings);
-		FTransform TransformToUpdate(LastGeneratedRotation, LastBrushStamp.WorldPosition, GenerateRandomScale(PlacementSettings));
+		FTransform TransformToUpdate(GenerateRandomRotation(PlacementSettings), LastBrushStamp.WorldPosition, GenerateRandomScale(PlacementSettings));
 
-		PreviewPlacementInfo = MakeUnique<FAssetPlacementInfo>();
-		PreviewPlacementInfo->AssetToPlace = ItemToPlace.AssetData;
-		PreviewPlacementInfo->FactoryOverride = ItemToPlace.FactoryOverride;
-		PreviewPlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
-		PreviewPlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
+		PlacementInfo = MakeUnique<FAssetPlacementInfo>();
+		PlacementInfo->AssetToPlace = ItemToPlace.AssetData;
+		PlacementInfo->FactoryOverride = ItemToPlace.FactoryOverride;
+		PlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
+		PlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 	}
 }
 
 void UPlacementModePlaceSingleTool::CreatePreviewElements(const FInputDeviceRay& DevicePos)
 {
+	SetupBrushStampIndicator();
+
 	// Place the preview elements from our stored info
-	if (!PreviewPlacementInfo)
+	if (!PlacementInfo)
 	{
-		GeneratePreviewPlacementData(DevicePos);
+		GeneratePlacementData(DevicePos);
 	}
 
 	if (UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
 	{
 		FPlacementOptions PlacementOptions;
 		PlacementOptions.bIsCreatingPreviewElements = true;
+		FAssetPlacementInfo InfoToPlace = *PlacementInfo;
+		InfoToPlace.FinalizedTransform = FinalizeTransform(
+			FTransform(PlacementInfo->FinalizedTransform.GetRotation(), LastBrushStamp.WorldPosition, PlacementInfo->FinalizedTransform.GetScale3D()),
+			LastBrushStamp.WorldNormal,
+			GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject());
 
-		PreviewElements = PlacementSubsystem->PlaceAsset(*PreviewPlacementInfo, PlacementOptions);
+		PreviewElements = PlacementSubsystem->PlaceAsset(InfoToPlace, PlacementOptions);
 	}
-
-	SetupBrushStampIndicator();
 
 	NotifyMovementStarted(PreviewElements);
 }
@@ -180,23 +286,21 @@ void UPlacementModePlaceSingleTool::UpdatePreviewElements(const FInputDeviceRay&
 		return;
 	}
 
-	FTransform UpdatedTransform(LastGeneratedRotation, LastBrushStamp.WorldPosition, PreviewPlacementInfo->FinalizedTransform.GetScale3D());
+	FTransform UpdatedTransform(PlacementInfo->FinalizedTransform.GetRotation(), LastBrushStamp.WorldPosition, PlacementInfo->FinalizedTransform.GetScale3D());
 	UpdatedTransform = FinalizeTransform(UpdatedTransform, LastBrushStamp.WorldNormal, GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject());
 
 	UpdateElementTransforms(PreviewElements, UpdatedTransform);
-	PreviewPlacementInfo->FinalizedTransform = UpdatedTransform;
 }
 
 void UPlacementModePlaceSingleTool::DestroyPreviewElements()
 {
 	NotifyMovementEnded(PreviewElements);
 	PreviewElements.Empty();
-	ShutdownBrushStampIndicator();
 }
 
 void UPlacementModePlaceSingleTool::EnterTweakState(TArrayView<const FTypedElementHandle> InElementHandles)
 {
-	if (InElementHandles.Num() == 0)
+	if (InElementHandles.Num() == 0 || !SinglePlaceSettings->bSelectAfterPlacing)
 	{
 		return;
 	}
@@ -217,6 +321,7 @@ void UPlacementModePlaceSingleTool::ExitTweakState(bool bClearSelectionSet)
 	}
 
 	bIsTweaking = false;
+	PlacedElements.Empty();
 }
 
 void UPlacementModePlaceSingleTool::UpdateElementTransforms(TArrayView<const FTypedElementHandle> InElements, const FTransform& InTransform, bool bLocalTransform)
@@ -268,7 +373,7 @@ void UPlacementModePlaceSingleTool::SetupRightClickMouseBehavior()
 	{
 		constexpr bool bClearSelection = true;
 		ExitTweakState(bClearSelection);
-		PreviewPlacementInfo.Reset();
+		PlacementInfo.Reset();
 	};
 	RightMouseBehavior->SetDefaultPriority(FInputCapturePriority(-1));
 	RightMouseBehavior->SetUseRightMouseButton();
