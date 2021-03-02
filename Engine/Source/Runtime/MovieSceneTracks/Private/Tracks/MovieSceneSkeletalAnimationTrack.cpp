@@ -482,6 +482,18 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 	if (bForce || RootMotionParams.bRootMotionsDirty)
 	{
 		RootMotionParams.bRootMotionsDirty = false;
+
+		const FFrameRate MinDisplayRate(60, 1);
+
+		FFrameRate DisplayRate =  MovieScene->GetDisplayRate().AsDecimal() < MinDisplayRate.AsDecimal() ? MinDisplayRate : MovieScene->GetDisplayRate();
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+		FFrameTime FrameTick = FFrameTime(FMath::Max(1, TickResolution.AsFrameNumber(1.0).Value / DisplayRate.AsFrameNumber(1.0).Value));
+		if (FrameTick.FrameNumber.Value == 0)
+		{
+			RootMotionParams.RootTransforms.SetNum(0);
+			return;
+		}
+
 		if (AnimationSections.Num() == 0)
 		{
 			RootMotionParams.RootTransforms.SetNum(0);
@@ -550,10 +562,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
 			RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
 			RootMotionParams.EndFrame = AnimationSections[AnimationSections.Num() - 1]->GetExclusiveEndFrame() - 1;
-
-			FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-			FFrameRate TickResolution = MovieScene->GetTickResolution();
-			RootMotionParams.FrameTick = FFrameTime(TickResolution.AsFrameNumber(1.0).Value / DisplayRate.AsFrameNumber(1.0).Value);
+			RootMotionParams.FrameTick = FrameTick;
 
 			int32 NumTotal = (RootMotionParams.EndFrame.FrameNumber.Value - RootMotionParams.StartFrame.FrameNumber.Value) / (RootMotionParams.FrameTick.FrameNumber.Value) + 1;
 			RootMotionParams.RootTransforms.SetNum(NumTotal);
