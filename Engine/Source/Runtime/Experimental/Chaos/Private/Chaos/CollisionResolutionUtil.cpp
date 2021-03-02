@@ -228,7 +228,7 @@ namespace Chaos
 					if (Object.GetType() == ImplicitObjectType::LevelSet && PotentialParticles.Num() > 0)
 					{
 						//QUICK_SCOPE_CYCLE_COUNTER(STAT_LevelSet);
-						const TLevelSet<float, 3>* LevelSet = Object.GetObject<TLevelSet<float, 3>>();
+						const FLevelSet* LevelSet = Object.GetObject<FLevelSet>();
 						const TUniformGrid<float, 3>& Grid = LevelSet->GetGrid();
 
 						if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
@@ -338,7 +338,7 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetAll);
 				if (Object.GetType() == ImplicitObjectType::LevelSet && NumParticles > 0)
 				{
-					const TLevelSet<float, 3>* LevelSet = Object.GetObject<Chaos::TLevelSet<float, 3>>();
+					const FLevelSet* LevelSet = Object.GetObject<Chaos::FLevelSet>();
 					const TUniformGrid<float, 3>& Grid = LevelSet->GetGrid();
 
 					if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)

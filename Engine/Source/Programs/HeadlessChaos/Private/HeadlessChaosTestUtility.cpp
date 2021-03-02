@@ -532,7 +532,7 @@ namespace ChaosTest {
 	}
 
 	/**/
-	TLevelSet<FReal, 3> ConstructLevelset(FParticles & SurfaceParticles, TArray<TVec3<int32>> & Elements)
+	FLevelSet ConstructLevelset(FParticles & SurfaceParticles, TArray<TVec3<int32>> & Elements)
 	{
 		// build Particles and bounds
 		Chaos::FAABB3 BoundingBox(FVec3(0), FVec3(0));
@@ -553,7 +553,7 @@ namespace ChaosTest {
 		TUniformGrid<FReal, 3> Grid(BoundingBox.Min(), BoundingBox.Max(), Counts, 1);
 		FTriangleMesh CollisionMesh(MoveTemp(Elements));
 		FErrorReporter ErrorReporter;
-		return TLevelSet<FReal, 3>(ErrorReporter, Grid, SurfaceParticles, CollisionMesh);
+		return FLevelSet(ErrorReporter, Grid, SurfaceParticles, CollisionMesh);
 	}
 
 	/**/

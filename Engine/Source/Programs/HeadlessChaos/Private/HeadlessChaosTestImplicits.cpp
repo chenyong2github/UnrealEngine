@@ -1310,7 +1310,7 @@ namespace ChaosTest {
 		Chaos::FPBDRigidParticles Particles;
 		TArray<TVec3<int32>> CollisionMeshElements;
 		int32 BoxId = AppendParticleBox(Particles, FVec3(1), &CollisionMeshElements);
-		TLevelSet<FReal, 3> Levelset = ConstructLevelset(*Particles.CollisionParticles(BoxId), CollisionMeshElements);
+		FLevelSet Levelset = ConstructLevelset(*Particles.CollisionParticles(BoxId), CollisionMeshElements);
 
 		FVec3 Normal;
 		FReal Phi = Levelset.PhiWithNormal(FVec3(0, 0, 2), Normal);
@@ -1385,7 +1385,7 @@ namespace ChaosTest {
 		// This one should be exactly right as we don't actually do an fast marching interior to the region
 		{
 			TUniformGrid<FReal, 3> Grid(FVec3(-2.0, -1.5, -1.5), FVec3(2.0, 1.5, 1.5), TVec3<int32>(4, 3, 3));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.5), KINDA_SMALL_NUMBER);
 		}
@@ -1393,39 +1393,39 @@ namespace ChaosTest {
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.5, -1.0, -1.0), FVec3(1.5, 1.0, 1.0), TVec3<int32>(6, 4, 4));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.25), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.25, -0.75, -0.75), FVec3(1.25, 0.75, 0.75), TVec3<int32>(10, 6, 6));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.3), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.1, -0.6, -0.6), FVec3(1.1, 0.6, 0.6), TVec3<int32>(22, 12, 12));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.4), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.05, -0.55, -0.55), FVec3(1.05, 0.55, 0.55), TVec3<int32>(42, 22, 22));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.45), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.5, -1.0, -1.0), FVec3(1.5, 1.0, 1.0), TVec3<int32>(20, 20, 20));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 
 			FReal Volume;
 			FVec3 COM;
-			PMatrix<FReal, 3, 3> Inertia;
+			FMatrix33 Inertia;
 			FRotation3 RotationOfMass;
 
 			LevelSet.ComputeMassProperties(Volume, COM, Inertia, RotationOfMass);
@@ -1454,7 +1454,7 @@ namespace ChaosTest {
 		{
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.6, -1.6, -0.6), FVec3(1.6, 1.6, 0.6), TVec3<int32>(32, 32, 12));
 			FErrorReporter ErrorReporter;
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_FALSE(LevelSet.IsConvex());
 			EXPECT_GT(LevelSet.SignedDistance(FVec3(0)), -KINDA_SMALL_NUMBER);
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(1, 1, 0)), KINDA_SMALL_NUMBER);

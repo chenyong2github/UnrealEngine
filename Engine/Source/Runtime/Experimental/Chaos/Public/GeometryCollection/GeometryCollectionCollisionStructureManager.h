@@ -13,9 +13,8 @@ namespace Chaos { class FErrorReporter; }
 namespace Chaos
 {
 	class FTriangleMesh;
+	class FLevelSet;
 
-	template <typename T, int d>
-	class TLevelSet;
 	template <typename T, int d>
 	class TParticles;
 	using FParticles = TParticles<FReal, 3>;
@@ -27,7 +26,7 @@ public:
 	FCollisionStructureManager();
 	virtual ~FCollisionStructureManager() {}
 
-	typedef TArray<Chaos::TVector<float, 3>> FPoints;
+	typedef TArray<Chaos::FVec3> FPoints;
 	typedef Chaos::FBVHParticles FSimplicial;
 	typedef Chaos::FImplicitObject FImplicit;
 
@@ -109,7 +108,7 @@ public:
 		const float CollisionObjectReduction,
 		const ECollisionTypeEnum CollisionType);
 
-	static Chaos::TLevelSet<float, 3>* NewLevelset(
+	static Chaos::FLevelSet* NewLevelset(
 		Chaos::FErrorReporter ErrorReporter,
 		const Chaos::FParticles& MeshParticles,
 		const Chaos::FTriangleMesh& TriMesh,

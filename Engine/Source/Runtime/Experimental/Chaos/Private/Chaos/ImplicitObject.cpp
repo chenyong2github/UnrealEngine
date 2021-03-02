@@ -298,7 +298,7 @@ FArchive& FImplicitObject::SerializeLegacyHelper(FArchive& Ar, TUniquePtr<FImpli
 			case ImplicitObjectType::Sphere: { Value = TUniquePtr<TSphere<FReal,3>>(new TSphere<FReal, 3>()); break; }
 			case ImplicitObjectType::Box: { Value = TUniquePtr<TBox<FReal,3>>(new TBox<FReal, 3>()); break; }
 			case ImplicitObjectType::Plane: { Value = TUniquePtr<TPlane<FReal,3>>(new TPlane<FReal, 3>()); break; }
-			case ImplicitObjectType::LevelSet: { Value = TUniquePtr<TLevelSet<FReal,3>>(new TLevelSet<FReal, 3>()); break; }
+			case ImplicitObjectType::LevelSet: { Value = TUniquePtr<FLevelSet>(new FLevelSet()); break; }
 			default: check(false);
 			}
 		}
@@ -430,7 +430,7 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 	case ImplicitObjectType::Transformed: if (Ar.IsLoading()) { return new TImplicitObjectTransformed<FReal, 3>(); } break;
 	case ImplicitObjectType::Union: if (Ar.IsLoading()) { return new FImplicitObjectUnion(); } break;
 	case ImplicitObjectType::UnionClustered: if (Ar.IsLoading()) { return new FImplicitObjectUnionClustered(); } break;
-	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new TLevelSet<FReal, 3>(); } break;
+	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new FLevelSet(); } break;
 	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new FConvex(); } break;
 	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<FReal>(); } break;
 	case ImplicitObjectType::TaperedCapsule: if (Ar.IsLoading()) { return new TTaperedCapsule<FReal>(); } break;

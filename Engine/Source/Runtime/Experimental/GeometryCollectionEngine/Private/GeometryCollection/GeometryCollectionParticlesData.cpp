@@ -151,7 +151,7 @@ void FGeometryCollectionParticlesData::FData::Copy(EGeometryCollectionParticlesD
 			else if (ImplicitObject->template GetObject<Chaos::TPlane                    <Chaos::FReal, 3>>()) { return Chaos::ImplicitObjectType::Plane      ; }
 			else if (ImplicitObject->template GetObject<Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>>()) { return Chaos::ImplicitObjectType::Transformed; }
 			else if (ImplicitObject->template GetObject<Chaos::FImplicitObjectUnion                       >()) { return Chaos::ImplicitObjectType::Union      ; }
-			else if (ImplicitObject->template GetObject<Chaos::TLevelSet                 <Chaos::FReal, 3>>()) { return Chaos::ImplicitObjectType::LevelSet   ; }
+			else if (ImplicitObject->template GetObject<Chaos::FLevelSet                                  >()) { return Chaos::ImplicitObjectType::LevelSet   ; }
 		}
 		return Chaos::ImplicitObjectType::Unknown;
 	};
@@ -161,7 +161,7 @@ void FGeometryCollectionParticlesData::FData::Copy(EGeometryCollectionParticlesD
 	auto BoxMax         = [](Chaos::TSerializablePtr<Chaos::FImplicitObject> ImplicitObject) { const Chaos::TAABB     <Chaos::FReal, 3>* Box     ; return ImplicitObject && (Box      = ImplicitObject->template GetObject<Chaos::TAABB     <Chaos::FReal, 3>>()) != nullptr ? Box     ->Max       (): Chaos::FVec3(0); };
 	auto SphereCenter   = [](Chaos::TSerializablePtr<Chaos::FImplicitObject> ImplicitObject) { const Chaos::TSphere   <Chaos::FReal, 3>* Sphere  ; return ImplicitObject && (Sphere   = ImplicitObject->template GetObject<Chaos::TSphere   <Chaos::FReal, 3>>()) != nullptr ? Sphere  ->GetCenter (): Chaos::FVec3(0); };
 	auto SphereRadius   = [](Chaos::TSerializablePtr<Chaos::FImplicitObject> ImplicitObject) { const Chaos::TSphere   <Chaos::FReal, 3>* Sphere  ; return ImplicitObject && (Sphere   = ImplicitObject->template GetObject<Chaos::TSphere   <Chaos::FReal, 3>>()) != nullptr ? Sphere  ->GetRadius (): Chaos::FReal(0); };
-	auto LevelSetGrid   = [](Chaos::TSerializablePtr<Chaos::FImplicitObject> ImplicitObject) { const Chaos::TLevelSet <Chaos::FReal, 3>* LevelSet; return ImplicitObject && (LevelSet = ImplicitObject->template GetObject<Chaos::TLevelSet <Chaos::FReal, 3>>()) != nullptr ? LevelSet->GetGrid   (): Chaos::TUniformGrid<Chaos::FReal, 3>(); };
+	auto LevelSetGrid   = [](Chaos::TSerializablePtr<Chaos::FImplicitObject> ImplicitObject) { const Chaos::FLevelSet*                   LevelSet; return ImplicitObject && (LevelSet = ImplicitObject->template GetObject<Chaos::FLevelSet                  >()) != nullptr ? LevelSet->GetGrid   (): Chaos::TUniformGrid<Chaos::FReal, 3>(); };
 
 	// Data type copy for all particles
 	const int32 Count = RigidBodyIds.Num();

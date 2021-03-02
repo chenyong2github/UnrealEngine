@@ -61,12 +61,12 @@ public:
 	{}
 	~FAnalyticImplicitGroup()
 	{
-		for (Chaos::TSphere<float, 3>* Sphere : Spheres) if (Sphere) delete Sphere;
-		for (Chaos::TBox<float, 3>* Box : Boxes) if (Box) delete Box;
-		for (Chaos::TCapsule<float>* Capsule : Capsules) if (Capsule) delete Capsule;
-		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders) if (TaperedCylinder) delete TaperedCylinder;
+		for (Chaos::TSphere<Chaos::FReal, 3>* Sphere : Spheres) if (Sphere) delete Sphere;
+		for (Chaos::TBox<Chaos::FReal, 3>* Box : Boxes) if (Box) delete Box;
+		for (Chaos::TCapsule<Chaos::FReal>* Capsule : Capsules) if (Capsule) delete Capsule;
+		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders) if (TaperedCylinder) delete TaperedCylinder;
 		for (Chaos::FConvex* ConvexHull : ConvexHulls) if (ConvexHull) delete ConvexHull;
-		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets) if (LevelSet) delete LevelSet;
+		for (Chaos::FLevelSet* LevelSet : LevelSets) if (LevelSet) delete LevelSet;
 	}
 
 	void Init(const int32 NumStructures, const bool DoCollGeom=true)
@@ -96,25 +96,25 @@ public:
 	void SetRigidBodyState(const EObjectStateTypeEnum State) { RigidBodyState = State; }
 	EObjectStateTypeEnum GetRigidBodyState() const { return RigidBodyState; }
 
-	int32 Add(const FTransform &InitialXf, Chaos::TSphere<float, 3> *Sphere) { Spheres.Add(Sphere); return Transforms.Insert(InitialXf, Spheres.Num()-1); }
-	int32 Add(const FTransform &InitialXf, Chaos::TBox<float, 3> *Box) { Boxes.Add(Box); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()-1); }
-	int32 Add(const FTransform &InitialXf, Chaos::TCapsule<float> *Capsule) { Capsules.Add(Capsule); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()-1); }
-	int32 Add(const FTransform &InitialXf, Chaos::TTaperedCylinder<float> *TaperedCylinder) { TaperedCylinders.Add(TaperedCylinder); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()-1); }
+	int32 Add(const FTransform &InitialXf, Chaos::TSphere<Chaos::FReal, 3> *Sphere) { Spheres.Add(Sphere); return Transforms.Insert(InitialXf, Spheres.Num()-1); }
+	int32 Add(const FTransform &InitialXf, Chaos::TBox<Chaos::FReal, 3> *Box) { Boxes.Add(Box); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()-1); }
+	int32 Add(const FTransform &InitialXf, Chaos::TCapsule<Chaos::FReal> *Capsule) { Capsules.Add(Capsule); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()-1); }
+	int32 Add(const FTransform &InitialXf, Chaos::TTaperedCylinder<Chaos::FReal> *TaperedCylinder) { TaperedCylinders.Add(TaperedCylinder); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()-1); }
 	int32 Add(const FTransform &InitialXf, Chaos::FConvex *ConvexHull) { ConvexHulls.Add(ConvexHull); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()+ConvexHulls.Num()-1); }
-	int32 Add(const FTransform &InitialXf, Chaos::TLevelSet<float, 3> *LevelSet) { LevelSets.Add(LevelSet); return Transforms.Add(InitialXf); }
+	int32 Add(const FTransform &InitialXf, Chaos::FLevelSet *LevelSet) { LevelSets.Add(LevelSet); return Transforms.Add(InitialXf); }
 
 	void SetCollisionTopology(
 		const int32 Index,
 		TArray<Chaos::FVec3>&& Points,
-		TArray<Chaos::TVector<int32,3>>&& Triangles)
+		TArray<Chaos::TVec3<int32>>&& Triangles)
 	{ CollisionPoints[Index] = MoveTemp(Points); CollisionTriangles[Index] = MoveTemp(Triangles); }
 
 	const TArray<FTransform>& GetInitialStructureTransforms() const { return Transforms; }
 	void ResetTransforms() { Transforms.Init(FTransform::Identity, Transforms.Num()); }
 
 	Chaos::FMassProperties BuildMassProperties(
-		const float Density,
-		float& TotalMass)
+		const Chaos::FReal Density,
+		Chaos::FReal& TotalMass)
 	{
 		// Make sure this function is being called before we've transfered ownership 
 		// of our implicit shapes to the simulator.
@@ -128,7 +128,7 @@ public:
 		BBoxes.SetNum(Num);
 
 		int32 TransformIndex = 0;
-		for (Chaos::TSphere<float, 3>* Sphere : Spheres)
+		for (Chaos::TSphere<Chaos::FReal, 3>* Sphere : Spheres)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = Sphere->BoundingBox().TransformedAABB(Xf);
@@ -137,7 +137,7 @@ public:
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Sphere->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(Sphere->GetRotationOfMass());
 		}
-		for (Chaos::TBox<float, 3>* Box : Boxes)
+		for (Chaos::TBox<Chaos::FReal, 3>* Box : Boxes)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = Box->BoundingBox().TransformedAABB(Xf);
@@ -146,7 +146,7 @@ public:
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Box->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(Box->GetRotationOfMass());
 		}
-		for (Chaos::TCapsule<float>* Capsule : Capsules)
+		for (Chaos::TCapsule<Chaos::FReal>* Capsule : Capsules)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = Capsule->BoundingBox().TransformedAABB(Xf);
@@ -155,7 +155,7 @@ public:
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Capsule->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(Capsule->GetRotationOfMass());
 		}
-		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders)
+		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = TaperedCylinder->BoundingBox().TransformedAABB(Xf);
@@ -173,7 +173,7 @@ public:
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Convex->BoundingBox().Center());
 			MP.RotationOfMass = Xf.TransformRotation(Convex->BoundingBox().GetRotationOfMass());
 		}
-		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets)
+		for (Chaos::FLevelSet* LevelSet : LevelSets)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = LevelSet->BoundingBox().TransformedAABB(Xf);
@@ -195,13 +195,13 @@ public:
 				if (BoxI.Intersects(BoxJ))
 				{
 					Chaos::FAABB3 BoxIJ = BoxI.GetIntersection(BoxJ);
-					const float VolIJ = BoxIJ.GetVolume();
+					const Chaos::FReal VolIJ = BoxIJ.GetVolume();
 					if (VolIJ > KINDA_SMALL_NUMBER)
 					{
-						const float VolI = BoxI.GetVolume();
-						const float VolJ = BoxJ.GetVolume();
-						const float PctOverlapI = VolI > KINDA_SMALL_NUMBER ? VolIJ / VolI : 0.;
-						const float PctOverlapJ = VolJ > KINDA_SMALL_NUMBER ? VolIJ / VolJ : 0.;
+						const Chaos::FReal VolI = BoxI.GetVolume();
+						const Chaos::FReal VolJ = BoxJ.GetVolume();
+						const Chaos::FReal PctOverlapI = VolI > KINDA_SMALL_NUMBER ? VolIJ / VolI : 0.;
+						const Chaos::FReal PctOverlapJ = VolJ > KINDA_SMALL_NUMBER ? VolIJ / VolJ : 0.;
 						// Split the overlapping volume between i and j
 						MPArray[i].Volume *= (1.0 - PctOverlapI / 2);
 						MPArray[j].Volume *= (1.0 - PctOverlapJ / 2);
@@ -212,45 +212,45 @@ public:
 
 		TotalMass = 0.f;
 		TransformIndex = 0;
-		for (Chaos::TSphere<float, 3>* Sphere : Spheres)
+		for (Chaos::TSphere<Chaos::FReal, 3>* Sphere : Spheres)
 		{
 			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
-			float Mass = Density * MP.Volume;
+			Chaos::FReal Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = Sphere->GetInertiaTensor(Mass);
 		}
-		for (Chaos::TBox<float, 3>* Box : Boxes)
+		for (Chaos::TBox<Chaos::FReal, 3>* Box : Boxes)
 		{
 			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
-			float Mass = Density * MP.Volume;
+			Chaos::FReal Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = Box->GetInertiaTensor(Mass);
 		}
-		for (Chaos::TCapsule<float>* Capsule : Capsules)
+		for (Chaos::TCapsule<Chaos::FReal>* Capsule : Capsules)
 		{
 			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
-			float Mass = Density * MP.Volume;
+			Chaos::FReal Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = Capsule->GetInertiaTensor(Mass);
 		}
-		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders)
+		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders)
 		{
 			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
-			float Mass = Density * MP.Volume;
+			Chaos::FReal Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = TaperedCylinder->GetInertiaTensor(Mass);
 		}
 		for (Chaos::FConvex* Convex : ConvexHulls)
 		{
 			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
-			float Mass = Density * MP.Volume;
+			Chaos::FReal Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = Convex->BoundingBox().GetInertiaTensor(Mass);
 		}
-		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets)
+		for (Chaos::FLevelSet* LevelSet : LevelSets)
 		{
 			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
-			float Mass = Density * MP.Volume;
+			Chaos::FReal Mass = Density * MP.Volume;
 			TotalMass += Mass;
 			MP.InertiaTensor = LevelSet->BoundingBox().GetInertiaTensor(Mass);
 		}
@@ -259,7 +259,7 @@ public:
 	}
 
 	TArray<Chaos::FVec3>* BuildSamplePoints(
-		const float ParticlesPerUnitArea,
+		const Chaos::FReal ParticlesPerUnitArea,
 		const int32 MinParticles,
 		const int32 MaxParticles)
 	{
@@ -276,7 +276,7 @@ public:
 		}
 
 		int32 TransformIndex = 0;
-		for (Chaos::TSphere<float, 3>* Sphere : Spheres)
+		for (Chaos::TSphere<Chaos::FReal, 3>* Sphere : Spheres)
 		{
 			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
@@ -284,7 +284,7 @@ public:
 			CullDeepPoints(Points, TransformIndex);
 			TransformIndex++;
 		}
-		for (Chaos::TBox<float, 3>* Box : Boxes)
+		for (Chaos::TBox<Chaos::FReal, 3>* Box : Boxes)
 		{
 			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
@@ -292,7 +292,7 @@ public:
 			CullDeepPoints(Points, TransformIndex);
 			TransformIndex++;
 		}
-		for (Chaos::TCapsule<float>* Capsule : Capsules)
+		for (Chaos::TCapsule<Chaos::FReal>* Capsule : Capsules)
 		{
 			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
@@ -300,7 +300,7 @@ public:
 			CullDeepPoints(Points, TransformIndex);
 			TransformIndex++;
 		}
-		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders)
+		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders)
 		{
 			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
@@ -314,12 +314,12 @@ public:
 			if (!Points.Num())
 			{
 				const Chaos::FAABB3& BBox = Convex->BoundingBox();
-				Chaos::TSphere<float, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
+				Chaos::TSphere<Chaos::FReal, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
 				Points = Sphere.ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
 				Chaos::FVec3 Normal;
 				for (Chaos::FVec3 &Pt : Points)
 				{
-					const float Phi = Convex->PhiWithNormal(Pt, Normal);
+					const Chaos::FReal Phi = Convex->PhiWithNormal(Pt, Normal);
 					Pt += Normal * -Phi;
 					//check(FMath::Abs(Convex->SignedDistance(Pt)) <= KINDA_SMALL_NUMBER);
 				}
@@ -327,18 +327,18 @@ public:
 			CullDeepPoints(Points, TransformIndex);
 			TransformIndex++;
 		}
-		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets)
+		for (Chaos::FLevelSet* LevelSet : LevelSets)
 		{
 			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
 			{
 				const Chaos::FAABB3& BBox = LevelSet->BoundingBox();
-				Chaos::TSphere<float, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
+				Chaos::TSphere<Chaos::FReal, 3> Sphere(BBox.Center(), BBox.Extents().Size() / 2);
 				Points = Sphere.ComputeSamplePoints(ParticlesPerUnitArea, MinParticles, MaxParticles);
 				Chaos::FVec3 Normal;
 				for (Chaos::FVec3 &Pt : Points)
 				{
-					const float Phi = LevelSet->PhiWithNormal(Pt, Normal);
+					const Chaos::FReal Phi = LevelSet->PhiWithNormal(Pt, Normal);
 					Pt += Normal * -Phi;
 					//check(FMath::Abs(LevelSet->SignedDistance(Pt)) <= KINDA_SMALL_NUMBER);
 				}
@@ -377,20 +377,20 @@ public:
 		return &ContiguousCollisionPoints;
 	}
 
-	TArray<Chaos::TVector<int32, 3>> BuildSampleTopology() const
+	TArray<Chaos::TVec3<int32>> BuildSampleTopology() const
 	{
 		int32 NumTris = 0;
-		for (const TArray<Chaos::TVector<int32,3>>& Tris : CollisionTriangles)
+		for (const TArray<Chaos::TVec3<int32>>& Tris : CollisionTriangles)
 		{
 			NumTris += Tris.Num();
 		}
 
-		TArray<Chaos::TVector<int32, 3>> AllTriangles;
+		TArray<Chaos::TVec3<int32>> AllTriangles;
 		AllTriangles.Reserve(NumTris);
 		int32 Offset = 0;
 		for (int32 Index=0; Index < CollisionTriangles.Num(); Index++)
 		{
-			for (const Chaos::TVector<int32, 3>& Tri : CollisionTriangles[Index])
+			for (const Chaos::TVec3<int32>& Tri : CollisionTriangles[Index])
 			{
 				AllTriangles.Add(Tri + Offset);
 			}
@@ -426,9 +426,9 @@ public:
 			{
 				// Make a copy and transfer ownership to the transformed implicit.
 				TUniquePtr<Chaos::FImplicitObject> ObjPtr(TransferImplicitObj(0));
-				return new Chaos::TImplicitObjectTransformed<float, 3, true>(
+				return new Chaos::TImplicitObjectTransformed<Chaos::FReal, 3, true>(
 					MoveTemp(ObjPtr),
-					Chaos::TRigidTransform<float, 3>(Transforms[0]));
+					Chaos::FRigidTransform3(Transforms[0]));
 			}
 		}
 		else
@@ -452,9 +452,9 @@ public:
 				{
 					ImplicitObjects.Add(
 						TUniquePtr<Chaos::FImplicitObject>(
-							new Chaos::TImplicitObjectTransformed<float, 3, true>(
+							new Chaos::TImplicitObjectTransformed<Chaos::FReal, 3, true>(
 								MoveTemp(ObjPtr),
-								Chaos::TRigidTransform<float, 3>(Xf))));
+								Chaos::FRigidTransform3(Xf))));
 				}
 			}
 			return new Chaos::FImplicitObjectUnion(MoveTemp(ImplicitObjects));
@@ -481,13 +481,13 @@ protected:
 	void CullDeepPoints(TArray<Chaos::FVec3>& Points, const TImplicitShape& Shape, const FTransform& Xf)
 	{
 		const Chaos::FAABB3& BBox = Shape.BoundingBox();
-		const float Tolerance = -BBox.Extents().Max() / 100.f; // -1/100th the largest dimension
+		const Chaos::FReal Tolerance = -BBox.Extents().Max() / (Chaos::FReal)100.; // -1/100th the largest dimension
 		if (Xf.Equals(FTransform::Identity))
 		{
 			for (int32 i = Points.Num(); i--; )
 			{
 				const Chaos::FVec3& LocalPoint = Points[i];
-				const float Phi = Shape.SignedDistance(LocalPoint);
+				const Chaos::FReal Phi = Shape.SignedDistance(LocalPoint);
 				if (Phi < Tolerance)
 				{
 					Points.RemoveAt(i);
@@ -500,7 +500,7 @@ protected:
 			for (int32 i = Points.Num(); i--; )
 			{
 				const Chaos::FVec3 LocalPoint = InvXf.TransformPosition(Points[i]);
-				const float Phi = Shape.SignedDistance(LocalPoint);
+				const Chaos::FReal Phi = Shape.SignedDistance(LocalPoint);
 				if (Phi < Tolerance)
 				{
 					Points.RemoveAt(i);
@@ -512,7 +512,7 @@ protected:
 	void CullDeepPoints(TArray<Chaos::FVec3>& Points, const int32 SkipIndex)
 	{
 		int32 TransformIndex = 0;
-		for (Chaos::TSphere<float, 3>* Sphere : Spheres)
+		for (Chaos::TSphere<Chaos::FReal, 3>* Sphere : Spheres)
 		{
 			if (TransformIndex != SkipIndex)
 			{
@@ -520,7 +520,7 @@ protected:
 			}
 			TransformIndex++;
 		}
-		for (Chaos::TBox<float, 3>* Box : Boxes)
+		for (Chaos::TBox<Chaos::FReal, 3>* Box : Boxes)
 		{
 			if (TransformIndex != SkipIndex)
 			{
@@ -528,7 +528,7 @@ protected:
 			}
 			TransformIndex++;
 		}
-		for (Chaos::TCapsule<float>* Capsule : Capsules)
+		for (Chaos::TCapsule<Chaos::FReal>* Capsule : Capsules)
 		{
 			if (TransformIndex != SkipIndex)
 			{
@@ -536,7 +536,7 @@ protected:
 			}
 			TransformIndex++;
 		}
-		for (Chaos::TTaperedCylinder<float>* TaperedCylinder : TaperedCylinders)
+		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders)
 		{
 			if (TransformIndex != SkipIndex)
 			{
@@ -552,7 +552,7 @@ protected:
 			}
 			TransformIndex++;
 		}
-		for (Chaos::TLevelSet<float, 3>* LevelSet : LevelSets)
+		for (Chaos::FLevelSet* LevelSet : LevelSets)
 		{
 			if (TransformIndex != SkipIndex)
 			{
@@ -628,21 +628,21 @@ protected:
 	EObjectStateTypeEnum RigidBodyState;
 
 	// FkSphereElem and FKTaperedCapsuleElem ends
-	TArray<Chaos::TSphere<float, 3>*> Spheres;
+	TArray<Chaos::TSphere<Chaos::FReal, 3>*> Spheres;
 	// FKBoxElem
-	TArray<Chaos::TBox<float, 3>*> Boxes;
+	TArray<Chaos::TBox<Chaos::FReal, 3>*> Boxes;
 	// FKSphylElem - Z axis is capsule axis
-	TArray<Chaos::TCapsule<float>*> Capsules;
+	TArray<Chaos::TCapsule<Chaos::FReal>*> Capsules;
 	// FKTaperedCapsuleElem - Z axis is the capsule axis
-	TArray<Chaos::TTaperedCylinder<float>*> TaperedCylinders;
+	TArray<Chaos::TTaperedCylinder<Chaos::FReal>*> TaperedCylinders;
 	// FKConvexElem
 	TArray<Chaos::FConvex*> ConvexHulls;
 	// Chaos::TConvex replacement
-	TArray<Chaos::TLevelSet<float, 3>*> LevelSets;
+	TArray<Chaos::FLevelSet*> LevelSets;
 
 	TArray<Chaos::FVec3> ContiguousCollisionPoints;
 	TArray<TArray<Chaos::FVec3>> CollisionPoints;
-	TArray<TArray<Chaos::TVector<int32, 3>>> CollisionTriangles;
+	TArray<TArray<Chaos::TVec3<int32>>> CollisionTriangles;
 
 	TArray<FTransform> Transforms;
 	FTransform RefBoneXf;

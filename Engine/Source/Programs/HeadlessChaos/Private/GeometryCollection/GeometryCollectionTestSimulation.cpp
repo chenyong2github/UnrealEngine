@@ -353,7 +353,7 @@ namespace GeometryCollectionTest
 
 		// Ensure all simplicial particles are on the surface of the implicit shape.
 		check(Implicit.GetType() == Chaos::ImplicitObjectType::LevelSet);
-		const Chaos::TLevelSet<FReal, 3>* LevelSet = static_cast<const Chaos::TLevelSet<FReal, 3>*>(&Implicit);
+		const Chaos::FLevelSet* LevelSet = static_cast<const Chaos::FLevelSet*>(&Implicit);
 		const FReal DxSize = LevelSet->GetGrid().Dx().Size();
 
 		FReal MinX = TNumericLimits<FReal>::Max();

@@ -93,7 +93,7 @@ namespace Chaos
 				}
 				case ImplicitObjectType::LevelSet:
 				{
-					const TLevelSet<FReal, 3>& ALevelSet = static_cast<const TLevelSet<FReal, 3>&>(A);
+					const FLevelSet& ALevelSet = static_cast<const FLevelSet&>(A);
 					return ALevelSet.OverlapGeom(B, BToATM, Thickness, OutMTD);
 				}
 				default:
@@ -215,7 +215,7 @@ namespace Chaos
 				}
 				case ImplicitObjectType::LevelSet:
 				{
-					const TLevelSet<FReal, 3>& ALevelSet = static_cast<const TLevelSet<FReal, 3>&>(A);
+					const FLevelSet& ALevelSet = static_cast<const FLevelSet&>(A);
 					bResult = ALevelSet.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
 					break;
 				}

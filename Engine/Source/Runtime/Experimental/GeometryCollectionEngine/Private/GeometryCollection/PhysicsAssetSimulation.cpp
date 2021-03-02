@@ -326,8 +326,8 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 					const int32 NormalizedMinRes = FMath::CeilToInt(ActorMaxExtent > SMALL_NUMBER ? LocalMaxExtent / ActorMaxExtent * Params.MinRes : Params.MinRes);
 					const int32 NormalizedMaxRes = FMath::CeilToInt(ActorMaxExtent > SMALL_NUMBER ? LocalMaxExtent / ActorMaxExtent * Params.MaxRes : Params.MaxRes);
 
-					Chaos::TLevelSet<float, 3>* LevelSet =
-						static_cast<Chaos::TLevelSet<float, 3>*>(
+					Chaos::FLevelSet* LevelSet =
+						static_cast<Chaos::FLevelSet*>(
 							FCollisionStructureManager::NewImplicit(
 								ErrorReporter,
 								Particles,							// mesh particles

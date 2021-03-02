@@ -1747,7 +1747,7 @@ namespace Chaos
 
 					FErrorReporter ErrorReporter;
 					TUniformGrid<FReal, 3> Grid(Bounds.Min(), Bounds.Max(), NumCells, LevelsetGhostCells);
-					TUniquePtr<TLevelSet<FReal, 3>> LevelSet(new TLevelSet<FReal, 3>(ErrorReporter, Grid, UnionObject));
+					TUniquePtr<FLevelSet> LevelSet(new FLevelSet(ErrorReporter, Grid, UnionObject));
 
 					if (!Parameters.CollisionParticles)
 					{

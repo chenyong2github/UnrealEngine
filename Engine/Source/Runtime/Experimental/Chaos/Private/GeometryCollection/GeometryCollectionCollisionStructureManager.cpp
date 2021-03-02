@@ -253,7 +253,7 @@ FCollisionStructureManager::NewImplicitLevelset(
 	{
 		return nullptr;
 	}
-	Chaos::TLevelSet<float, 3>* LevelSet = NewLevelset(ErrorReporter, MeshParticles, TriMesh, CollisionBounds, MinRes, MaxRes, CollisionType);
+	Chaos::FLevelSet* LevelSet = NewLevelset(ErrorReporter, MeshParticles, TriMesh, CollisionBounds, MinRes, MaxRes, CollisionType);
 	if (LevelSet)
 	{
 		const float DomainVolume = LevelSet->BoundingBox().GetVolume();
@@ -283,7 +283,7 @@ FCollisionStructureManager::NewImplicitLevelset(
 	return LevelSet;
 }
 
-Chaos::TLevelSet<float, 3>* FCollisionStructureManager::NewLevelset(
+Chaos::FLevelSet* FCollisionStructureManager::NewLevelset(
 	Chaos::FErrorReporter ErrorReporter,
 	const Chaos::FParticles& MeshParticles,
 	const Chaos::FTriangleMesh& TriMesh,
@@ -331,7 +331,7 @@ Chaos::TLevelSet<float, 3>* FCollisionStructureManager::NewLevelset(
 		Counts.Z = MaxRes;
 	}
 	Chaos::TUniformGrid<float, 3> Grid(CollisionBounds.Min, CollisionBounds.Max, Counts, 1);
-	Chaos::TLevelSet<float, 3>* Implicit = new Chaos::TLevelSet<float, 3>(ErrorReporter, Grid, MeshParticles, TriMesh);
+	Chaos::FLevelSet* Implicit = new Chaos::FLevelSet(ErrorReporter, Grid, MeshParticles, TriMesh);
 	if (ErrorReporter.ContainsUnhandledError())
 	{
 		ErrorReporter.HandleLatestError();	//Allow future levelsets to attempt to cook
