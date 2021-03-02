@@ -204,6 +204,7 @@ class ANIMGRAPH_API UAnimGraphNode_Base : public UK2Node
 	virtual FString GetPinMetaData(FName InPinName, FName InKey) override;
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
+	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	// End of UEdGraphNode interface
 
 	// UK2Node interface
