@@ -5,6 +5,7 @@
 #include "GameFramework/Actor.h"
 #include "RemoteControlEntity.h"
 #include "UObject/SoftObjectPath.h"
+#include "RemoteControlBinding.h"
 #include "RemoteControlActor.generated.h"
 
 class URemoteControlPreset;
@@ -25,11 +26,24 @@ struct REMOTECONTROL_API FRemoteControlActor : public FRemoteControlEntity
 	{
 	}
 
-	AActor* GetActor()
+	AActor* GetActor() const
 	{
-		return Cast<AActor>(Path.ResolveObject());
+		if (Bindings.Num() && Bindings[0].IsValid())
+		{
+			return Cast<AActor>(Bindings[0]->Resolve());
+		}
+		return nullptr;
 	}
 
+	void SetActor(AActor* InActor)
+	{
+		if (ensure(Bindings.Num()) && Bindings[0].IsValid())
+		{
+			Bindings[0]->SetBoundObject(InActor);
+		}
+	}
+
+public:
 	/**
 	 * Path to the exposed object.
 	 */

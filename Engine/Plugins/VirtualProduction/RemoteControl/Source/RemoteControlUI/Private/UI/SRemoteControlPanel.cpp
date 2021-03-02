@@ -34,33 +34,6 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
-/** Wrapper around a weak object pointer and the object's name. */
-struct FListEntry
-{
-	FString Name;
-	FSoftObjectPtr ObjectPtr;
-};
-
-FExposableProperty::FExposableProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle, const TArray<UObject*>& InOwnerObjects)
-{
-	if (!PropertyHandle || !PropertyHandle->IsValidHandle() || !PropertyHandle->GetProperty())
-	{
-		return;
-	}
-
-	PropertyDisplayName = PropertyHandle->GetPropertyDisplayName().ToString();
-	PropertyName = PropertyHandle->GetProperty()->GetFName();
-
-	if (InOwnerObjects.Num() > 0 && InOwnerObjects[0])
-	{
-		//Build qualified property path for this field
-		constexpr bool bCleanDuplicates = true; //GeneratePathToProperty duplicates container name (Array.Array[1], Set.Set[1], etc...)
-		FieldPathInfo = FRCFieldPathInfo(PropertyHandle->GeneratePathToProperty(), bCleanDuplicates);
-		
-		OwnerObjects = InOwnerObjects;
-	}
-}
-
 void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset)
 {
 	OnEditModeChange = InArgs._OnEditModeChange;
@@ -216,31 +189,38 @@ bool SRemoteControlPanel::IsExposed(const TSharedPtr<IPropertyHandle>& PropertyH
 	TArray<UObject*> OuterObjects;
 	PropertyHandle->GetOuterObjects(OuterObjects);
 
-	bool bAllObjectsExposed = true;
-	for (UObject* Object : OuterObjects)
+	FString Path = PropertyHandle->GeneratePathToProperty();
+
+	TArray<TSharedPtr<FRemoteControlProperty>, TInlineAllocator<1>> PotentialMatches;
+	for (const TWeakPtr<FRemoteControlProperty>& WeakProperty : Preset->GetExposedEntities<FRemoteControlProperty>())
 	{
-		bool bObjectExposed = false;
-		FExposableProperty Property{ PropertyHandle, { Object }};
-		if (Property.IsValid())
+		if (TSharedPtr<FRemoteControlProperty> Property = WeakProperty.Pin())
 		{
-			for (TTuple<FName, FRemoteControlTarget>& Tuple : Preset->GetRemoteControlTargets())
+			if (Property->FieldPathInfo.ToPathPropertyString() == Path)
 			{
-				FRemoteControlTarget& Target = Tuple.Value;
-				if (Target.HasBoundObjects({ Property.OwnerObjects[0]}))
-				{
-					if (Target.FindFieldLabel(Property.FieldPathInfo) == NAME_None)
-					{
-						return false;
-					}
-					else
-					{
-						bObjectExposed = true;
-					}
-				}
+				PotentialMatches.Add(Property);
 			}
 		}
-		bAllObjectsExposed &= bObjectExposed;
 	}
+
+	bool bAllObjectsExposed = true;
+
+	for (UObject* OuterObject : OuterObjects)
+	{
+		bool bFoundPropForObject = false;
+
+		for (const TSharedPtr<FRemoteControlProperty>& Property : PotentialMatches)
+		{
+			if (Property->ResolveFieldOwners().Contains(OuterObject))
+			{
+				bFoundPropForObject = true;
+				break;
+			}
+		}
+
+		bAllObjectsExposed &= bFoundPropForObject;
+	}
+
 	return bAllObjectsExposed;
 }
 
@@ -257,12 +237,32 @@ void SRemoteControlPanel::ToggleProperty(const TSharedPtr<IPropertyHandle>& Prop
 		return;
 	}
 
-	for (UObject* Object : OuterObjects)
+	if (OuterObjects.Num())
 	{
 		FScopedTransaction Transaction(LOCTEXT("ExposeProperty", "Expose Property"));
 		Preset->Modify();
-		Expose({ PropertyHandle, { Object } });
+
+		for (UObject* Object : OuterObjects)
+		{
+			if (Object)
+			{
+				constexpr bool bCleanDuplicates = true; //GeneratePathToProperty duplicates container name (Array.Array[1], Set.Set[1], etc...)
+				ExposeProperty(Object, FRCFieldPathInfo{PropertyHandle->GeneratePathToProperty(), bCleanDuplicates});
+			}
+		}
 	}
+}
+
+FGuid SRemoteControlPanel::GetSelectedGroup() const
+{
+	if (TSharedPtr<SRCPanelTreeNode> Node = EntityList->GetSelection())
+	{
+		if (Node->AsGroup())
+		{
+			return Node->GetId();		
+		}
+	}
+	return FGuid();
 }
 
 FReply SRemoteControlPanel::OnClickDisableUseLessCPU() const
@@ -317,73 +317,48 @@ void SRemoteControlPanel::Refresh()
 	SubsystemFunctionPicker->Refresh();
 }
 
-FRemoteControlTarget* SRemoteControlPanel::Expose(FExposableProperty&& Property)
-{
-	if (!Property.IsValid())
-	{
-		return nullptr;
-	}
-
-	FRemoteControlTarget* LastModifiedTarget = nullptr;
-
-	auto ExposePropertyLambda = 
-		[this, &LastModifiedTarget](FRemoteControlTarget& Target, const FExposableProperty& Property)
-		{ 
-			TSharedPtr<SRCPanelTreeNode> Group = GetEntityList()->GetSelection();
-			FGuid SelectedGroupId;
-			if (Group && Group->GetType() == SRCPanelTreeNode::ENodeType::Group)
-			{
-				SelectedGroupId = Group->GetId();
-			}
-			if (TOptional<FRemoteControlProperty> RCProperty = Target.ExposeProperty(Property.FieldPathInfo, Property.PropertyDisplayName, SelectedGroupId, true))
-			{
-				LastModifiedTarget = &Target;
-				return true;
-			}
-			return false;
-		};
-
-	// Find a section with the same object.
-	for (TTuple<FName, FRemoteControlTarget>& Tuple : Preset->GetRemoteControlTargets())
-	{
-		FRemoteControlTarget& Target = Tuple.Value;
-		if (Target.HasBoundObjects(Property.OwnerObjects))
-		{
-			if (ExposePropertyLambda(Target, Property))
-			{
-				break;
-			}
-		}
-	}
-	
-	// If no section was found create a new one.
-	if (!LastModifiedTarget)
-	{
-		// If grouping is disallowed, create a new section for every object
-		FName TargetAlias = Preset->CreateTarget(Property.OwnerObjects);
-		if (TargetAlias != NAME_None)
-		{
-			LastModifiedTarget = &Preset->GetRemoteControlTargets().FindChecked(TargetAlias);
-			ExposePropertyLambda(*LastModifiedTarget, Property);
-		}
-	}
-
-	return LastModifiedTarget;
-}
-
 void SRemoteControlPanel::Unexpose(const TSharedPtr<IPropertyHandle>& Handle)
 {
 	TArray<UObject*> OuterObjects;
 	Handle->GetOuterObjects(OuterObjects);
-	for (UObject* Object : OuterObjects)
+
+	FString Path = Handle->GeneratePathToProperty();
+
+	// Find an exposed property with the same path.
+	TArray<TSharedPtr<FRemoteControlProperty>, TInlineAllocator<1>> PotentialMatches;
+	for (const TWeakPtr<FRemoteControlProperty>& WeakProperty : Preset->GetExposedEntities<FRemoteControlProperty>())
 	{
-		FExposableProperty Property{ Handle, { Object } };
-		for (TTuple<FName, FRemoteControlTarget>& Tuple : Preset->GetRemoteControlTargets())
+		if (TSharedPtr<FRemoteControlProperty> Property = WeakProperty.Pin())
 		{
-			if (Tuple.Value.HasBoundObjects({ Property.OwnerObjects[0] }))
+			if (Property->FieldPathInfo.ToPathPropertyString() == Path)
 			{
-				Preset->Unexpose(Tuple.Value.FindFieldLabel(Property.FieldPathInfo));
+				PotentialMatches.Add(Property);
 			}
+		}
+	}
+
+	for (const TSharedPtr<FRemoteControlProperty>& Property : PotentialMatches)
+	{
+		TArray<UObject*> PropertyOwners = Property->ResolveFieldOwners();
+		if (PropertyOwners.Num() != OuterObjects.Num())
+		{
+			continue;
+		}
+
+		bool bHasSameObjects = true;
+		for (UObject* Owner : PropertyOwners)
+		{
+			if (!OuterObjects.Contains(Owner))
+			{
+				bHasSameObjects = false;
+				break;
+			}
+		}
+
+		if (bHasSameObjects && OuterObjects.Num())
+		{
+			Preset->Unexpose(Property->GetId());
+			break;
 		}
 	}
 }
@@ -407,46 +382,24 @@ FReply SRemoteControlPanel::OnCreateGroup()
 	return FReply::Handled();
 }
 
+void SRemoteControlPanel::ExposeProperty(UObject* Object, FRCFieldPathInfo Path)
+{
+	if (Path.Resolve(Object))
+	{
+		FRemoteControlPresetExposeArgs Args;
+		Args.GroupId = GetSelectedGroup();
+		Preset->ExposeProperty(Object, MoveTemp(Path), MoveTemp(Args));
+	}
+}
+
 void SRemoteControlPanel::ExposeFunction(UObject* Object, UFunction* Function)
 {
-	bool bFoundTarget = false;
-
-	auto ExposeFunctionLambda = 
-		[this](FRemoteControlTarget& Target, UFunction* Function)
-	{
-		TSharedPtr<SRCPanelTreeNode> Group = GetEntityList()->GetSelection();
-		FGuid SelectedGroupId;
-		if (Group && Group->GetType() == SRCPanelTreeNode::ENodeType::Group)
-		{
-			SelectedGroupId = Group->GetId();
-		}
-		 Target.ExposeFunction(Function->GetName(), Function->GetDisplayNameText().ToString(), SelectedGroupId, true);
-	};
-
 	FScopedTransaction Transaction(LOCTEXT("ExposeFunction", "ExposeFunction"));
 	Preset->Modify();
 
-	for (TTuple<FName, FRemoteControlTarget>& Tuple : Preset->GetRemoteControlTargets())
-	{
-		FRemoteControlTarget& Target = Tuple.Value;
-		if (Target.HasBoundObjects({ Object }))
-		{
-			bFoundTarget = true;
-			if (Target.FindFieldLabel(Function->GetFName()) == NAME_None)
-			{
-				ExposeFunctionLambda(Target, Function);
-			}
-		}
-	}
-
-	if (!bFoundTarget)
-	{
-		FName Alias = Preset->CreateTarget({Object});
-		if (FRemoteControlTarget* Target = Preset->GetRemoteControlTargets().Find(Alias))
-		{
-			ExposeFunctionLambda(*Target, Function);
-		}
-	}
+	FRemoteControlPresetExposeArgs Args;
+	Args.GroupId = GetSelectedGroup();
+	Preset->ExposeFunction(Object, Function, MoveTemp(Args));
 }
 
 void SRemoteControlPanel::OnExposeActor(const FAssetData& AssetData)

@@ -10,34 +10,26 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "RemoteControlPreset.generated.h"
 
+class AActor;
 class IStructSerializerBackend;
 class IStructDeserializerBackend;
-class URemoteControlPreset;
-struct FRemoteControlPresetLayout;
 struct FRCFieldPathInfo;
 struct FRemoteControlActor;
+struct FRemoteControlPresetLayout;
 class URemoteControlExposeRegistry;
-class AActor;
+class URemoteControlBinding;
+class URemoteControlPreset;
 
 /** Arguments used to expose an entity (Actor, property, function, etc.) */
 struct REMOTECONTROL_API FRemoteControlPresetExposeArgs
 {
 	FRemoteControlPresetExposeArgs();
+	FRemoteControlPresetExposeArgs(FString Label, FGuid GroupId);
 
 	/** (Optional) The label to use for the new exposed entity. */
 	FString Label;
 	/** (Optional) The group in which to put the field. */
 	FGuid GroupId;
-};
-
-/** Scope used to identify modifications that occur through remote control. */
-struct REMOTECONTROL_API FScopedPresetModification
-{
-	FScopedPresetModification(URemoteControlPreset* InPreset);
-
-	~FScopedPresetModification();
-
-	TWeakObjectPtr<URemoteControlPreset> WeakPreset;
 };
 
 /**
@@ -156,6 +148,7 @@ struct REMOTECONTROL_API FRemoteControlPresetLayout
 	FRemoteControlPresetGroup* GetGroup(FGuid GroupId); 
 
 	/**
+	 *
 	 * Get a group by searching by name.
 	 * @param GroupName the name to use.
 	 * @return A pointer to the found group or nullptr.
@@ -468,16 +461,19 @@ public:
 	/**
 	 * Get this preset's targets.
 	 */
+	UE_DEPRECATED(4.27, "FRemoteControlTarget is deprecated, use URemoteControlPreset::Bindings instead.")
 	TMap<FName, FRemoteControlTarget>& GetRemoteControlTargets() { return RemoteControlTargets; }
 
 	/**
 	 * Get this preset's targets.
 	 */
+	UE_DEPRECATED(4.27, "FRemoteControlTarget is deprecated, use URemoteControlPreset::Bindings instead.")
 	const TMap<FName, FRemoteControlTarget>& GetRemoteControlTargets() const { return RemoteControlTargets; }
 
 	/**
 	 * Get the target that owns this exposed field.
 	 */
+	UE_DEPRECATED(4.27, "FRemoteControlTarget is deprecated, access the entity's bindings by accessing FRemoteControlEntity::Bindings.")
 	FName GetOwnerAlias(FGuid FieldId) const;
 
 	/**
@@ -485,6 +481,7 @@ public:
 	 * @param FieldLabel the field's label.
 	 * @return the field's id, or an invalid GUID if not found.
 	 */
+	UE_DEPRECATED(4.27, "Use URemoteControlPreset::GetExposedEntityId instead.")
 	FGuid GetFieldId(FName FieldLabel) const;
 
 	/**
@@ -494,6 +491,24 @@ public:
 	 * @return The exposed actor.
 	 */
 	TWeakPtr<FRemoteControlActor> Expose(AActor* Actor, FRemoteControlPresetExposeArgs Args = FRemoteControlPresetExposeArgs());
+
+	/**
+	 * Expose a property on this preset.
+	 * @param Object the object that holds the property.
+	 * @param FieldPath The name/path to the property.
+	 * @param Args Optional arguments used to expose the property.
+	 * @return The exposed property.
+	 */
+	TWeakPtr<FRemoteControlProperty> ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath, FRemoteControlPresetExposeArgs Args = FRemoteControlPresetExposeArgs());
+	
+	/**
+	 * Expose a function on this preset.
+	 * @param Object the object that holds the property.
+	 * @param Function The function to expose.
+	 * @param Args Optional arguments used to expose the property.
+	 * @return The exposed function.
+	 */
+	TWeakPtr<FRemoteControlFunction> ExposeFunction(UObject* Object, UFunction* Function, FRemoteControlPresetExposeArgs Args = FRemoteControlPresetExposeArgs());
 
 	/**
 	 * Get the exposed entities of a certain type.
@@ -539,7 +554,7 @@ public:
 	TWeakPtr<const ExposableEntityType> GetExposedEntity(const FGuid& ExposedEntityId) const
 	{
 		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
-		return StaticCastSharedPtr<const ExposableEntityType>(FindEntityById(ExposedEntityId));
+		return StaticCastSharedPtr<const ExposableEntityType>(FindEntityById(ExposedEntityId, ExposableEntityType::StaticStruct()));
 	}
 
 	/**
@@ -551,7 +566,7 @@ public:
 	TWeakPtr<ExposableEntityType> GetExposedEntity(const FGuid& ExposedEntityId)
 	{
 		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
-		return StaticCastSharedPtr<ExposableEntityType>(FindEntityById(ExposedEntityId));
+		return StaticCastSharedPtr<ExposableEntityType>(FindEntityById(ExposedEntityId, ExposableEntityType::StaticStruct()));
 	}
 
 	/** Get the type of an exposed entity by querying with its id. (ie. FRemoteControlActor) */
@@ -578,26 +593,31 @@ public:
 	/**
 	 * Get a field ptr using it's id.
 	 */
+	UE_DEPRECATED(4.27, "Use GetExposedEntity<FRemoteControlField> instead.")
 	TOptional<FRemoteControlField> GetField(FGuid FieldId) const;
 
 	 /**
 	  * Get an exposed function using its label.
 	  */
+	UE_DEPRECATED(4.27, "Use GetExposedEntity<FRemoteControlFunction> instead.")
 	TOptional<FRemoteControlFunction> GetFunction(FName FunctionLabel) const;
 
 	/** 
 	 * Get an exposed property using its label.
 	 */
+	UE_DEPRECATED(4.27, "Use GetExposedEntity<FRemoteControlProperty> instead.")
 	TOptional<FRemoteControlProperty> GetProperty(FName PropertyLabel) const;
 
 	/**
 	 * Get an exposed function using its id.
 	 */
+	UE_DEPRECATED(4.27, "Use GetExposedEntity<FRemoteControlFunction> instead.")
 	TOptional<FRemoteControlFunction> GetFunction(FGuid FunctionId) const;
 
 	/**
 	 * Get an exposed property using its id.
 	 */
+	UE_DEPRECATED(4.27, "Use GetExposedEntity<FRemoteControlProperty> instead.")
 	TOptional<FRemoteControlProperty> GetProperty(FGuid PropertyId) const;
 
 	/**
@@ -605,6 +625,7 @@ public:
 	 * @param OldFieldLabel the target field's label.
 	 * @param NewFieldLabel the field's new label.
 	 */
+	UE_DEPRECATED(4.27, "Use RenameExposedEntity instead.")
 	void RenameField(FName OldFieldLabel, FName NewFieldLabel);
 
 	/**
@@ -613,6 +634,7 @@ public:
 	 * @param PropertyLabel the label of the remote controlled property.
 	 * @return The resolved exposed property if found.
 	 */
+	UE_DEPRECATED(4.27, "Use FRemoteControlProperty::GetProperty and FRemoteControlProperty::ResolveFieldOwners instead.")
 	TOptional<FExposedProperty> ResolveExposedProperty(FName PropertyLabel) const;
 
 	/**
@@ -621,6 +643,7 @@ public:
 	 * @param FunctionLabel the label of the remote controlled function.
 	 * @return The resolved exposed function if found.
 	 */
+	UE_DEPRECATED(4.27, "Use FRemoteControlFunction::ResolveFieldOwners instead.")
 	TOptional<FExposedFunction> ResolveExposedFunction(FName FunctionLabel) const;
 
 	/**
@@ -641,6 +664,7 @@ public:
 	 * @return The new target's alias if successful.
 	 * @note A target must be created with at least one object and they must have a common base class.
 	 */
+	UE_DEPRECATED(4.27, "Targets are deprecated in favor of exposing directly on the preset. You do not need to create a target beforehand.")
 	FName CreateTarget(const TArray<UObject*>& TargetObjects);
 
 	/**
@@ -649,12 +673,14 @@ public:
 	 * @return The new target.
 	 * @note A target must be created with at least one object and they must have a common base class.
 	 */
+	UE_DEPRECATED(4.27, "Targets are deprecated in favor of exposing directly on the preset. You do not need to create a target beforehand.")
 	FRemoteControlTarget& CreateAndGetTarget(const TArray<UObject*>& TargetObjects);
 
 	/**
 	 * Remove a target from the preset.
 	 * @param TargetName The target to delete.
 	 */
+	UE_DEPRECATED(4.27, "Targets are deprecated, you do not need to delete them anymore.")
 	void DeleteTarget(FName TargetName);
 
 	/**
@@ -662,6 +688,7 @@ public:
 	 * @param TargetName The name of the target to rename.
 	 * @param NewTargetName The new target's name.
 	 */
+	UE_DEPRECATED(4.27, "Targets are deprecated in favor of bindings, you can now change the name of the binding directly.")
 	void RenameTarget(FName TargetName, FName NewTargetName);
 
 	/** Cache this preset's layout data. */
@@ -676,6 +703,9 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetExposedPropertyChanged, URemoteControlPreset* /*Preset*/, const FRemoteControlProperty& /*Property*/);
 	FOnPresetExposedPropertyChanged& OnExposedPropertyChanged() { return OnPropertyChangedDelegate; }
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetEntitiesUpdatedEvent, URemoteControlPreset* /*Preset*/, const TArray<FGuid>& /* Modified Entities */);
+	FOnPresetEntitiesUpdatedEvent& OnEntitiesUpdated() { return OnEntitiesUpdatedDelegate; }
 	
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetPropertyExposed, URemoteControlPreset* /*Preset*/, FName /*ExposedLabel*/);
 	FOnPresetPropertyExposed& OnPropertyExposed() { return OnPropertyExposedDelegate; }
@@ -706,6 +736,10 @@ public:
 	UPROPERTY()
 	TMap<FString, FString> Metadata;
 
+	/** This preset's list of objects that are exposed or that have exposed fields. */
+	UPROPERTY(EditAnywhere, Category = "Remote Control Preset")
+	TArray<URemoteControlBinding*> Bindings;
+
 private:
 	/** Generate a unique alias for this target. */
 	FName GenerateAliasForObjects(const TArray<UObject*>& Objects);
@@ -728,29 +762,43 @@ private:
 	//~ Cache operations.
 	void CacheFieldsData();
 	void CacheFieldLayoutData();
-
-	//~ Keep track of any property change to notify if one of the exposed property has changed
-	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
-
-	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
+	
+	//~ Register/Unregister delegates
 	void RegisterDelegates();
 	void UnregisterDelegates();
+	
+	//~ Keep track of any property change to notify if one of the exposed property has changed
+	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
+	void OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropertyChain);
 
+#if WITH_EDITOR	
+	//~ Handle events that can incur bindings to be modified.
+	void OnActorDeleted(AActor* Actor);
+	void OnPieEvent(bool);
+	void OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap);
+	void OnEndFrame();
+#endif
+	
 	/** Get a field ptr using it's id. */
 	FRemoteControlField* GetFieldPtr(FGuid FieldId);
 
 	//~ Utility functions to update the asset format.
 	void ConvertFieldsToRemoveComponentChain();
 	void ConvertFieldsToEntities();
+	void ConvertTargetsToBindings();
 
 	//~ Helper methods that interact with the expose registry.,
-	TSharedPtr<const FRemoteControlEntity> FindEntityById(const FGuid& EntityId) const;
-	TSharedPtr<FRemoteControlEntity> FindEntityById(const FGuid& EntityId);
-	TSharedPtr<const FRemoteControlEntity> FindEntityByLabel(FName EntityLabel) const;
-	TSharedPtr<FRemoteControlEntity> FindEntityByLabel(FName EntityLabel);
+	TSharedPtr<const FRemoteControlEntity> FindEntityById(const FGuid& EntityId, const UScriptStruct* EntityType = FRemoteControlEntity::StaticStruct()) const;
+	TSharedPtr<FRemoteControlEntity> FindEntityById(const FGuid& EntityId, const UScriptStruct* EntityType = FRemoteControlEntity::StaticStruct());
 	TArray<TSharedPtr<FRemoteControlEntity>> GetEntities(UScriptStruct* EntityType);
 	TArray<TSharedPtr<const FRemoteControlEntity>> GetEntities(UScriptStruct* EntityType) const;
 
+	/** Expose an entity in the registry. */
+	TSharedPtr<FRemoteControlEntity> Expose(FRemoteControlEntity&& Entity, UScriptStruct* EntityType, const FGuid& GroupId);
+	
+	/** Try to get a binding and creates a new one if it doesn't exist. */
+	URemoteControlBinding* FindOrAddBinding(const TSoftObjectPtr<UObject>& Object);
+	
 private:
 	/** Preset unique ID */
 	UPROPERTY()
@@ -776,10 +824,9 @@ private:
 	FOnPresetEntityEvent OnEntityExposedDelegate;
 	/** Delegate triggered when an entity is unexposed from the preset. */
 	FOnPresetEntityEvent OnEntityUnexposedDelegate;
-
-	/** 
-	 * Delegate triggered when an exposed property value has changed.
-	 */
+	/** Delegate triggered when entities are modified and may need to be re-resolved. */
+	FOnPresetEntitiesUpdatedEvent OnEntitiesUpdatedDelegate;
+	/** Delegate triggered when an exposed property value has changed. */
 	FOnPresetExposedPropertyChanged OnPropertyChangedDelegate;
 	/** Delegate triggered when a new property has been exposed. */
 	FOnPresetPropertyExposed OnPropertyExposedDelegate;
@@ -802,12 +849,13 @@ private:
 	/** Caches object modifications during a frame. */
 	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedCache;
 	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedActorCache;
+	/** Cache entities updated during a frame. */
+	TArray<FGuid> PerFrameUpdatedEntities; 
 
 	/** Whether there is an ongoing remote modification happening. */
 	bool bOngoingRemoteModification = false;
 
 	friend FRemoteControlTarget;
 	friend FRemoteControlPresetLayout;
-	friend FScopedPresetModification;
 };
 

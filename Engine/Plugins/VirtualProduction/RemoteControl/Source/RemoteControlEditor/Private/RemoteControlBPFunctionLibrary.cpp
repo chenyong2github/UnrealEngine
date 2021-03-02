@@ -4,12 +4,13 @@
 
 #include "Dom/JsonObject.h"
 #include "Engine/Texture.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Policies/CondensedJsonPrintPolicy.h"
+#include "RemoteControlActor.h"
 #include "RemoteControlPreset.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Serialization/JsonWriter.h"
-#include "Kismet/KismetSystemLibrary.h"
-#include "RemoteControlActor.h"
 
 void URemoteControlBPFunctionLibrary::ExposeProperty(URemoteControlPreset* RemoteControlPreset, UObject* SourceObject, FString Property, FString DisplayName, FName GroupName)
 {
@@ -18,63 +19,78 @@ void URemoteControlBPFunctionLibrary::ExposeProperty(URemoteControlPreset* Remot
 		// Find or Add Group
 		FRemoteControlPresetGroup* RCPGroup = FindOrAddGroup(RemoteControlPreset, GroupName);
 
-		// Expose Property and Add Field to Group
-		TMap<FName, FRemoteControlTarget>& RemoteControlTargets = RemoteControlPreset->GetRemoteControlTargets();
 		if (DisplayName.IsEmpty())
 		{
 			DisplayName = Property;
 		}
 
-		if (FRemoteControlTarget* RemoteControlTarget = RemoteControlTargets.Find(FName(*UKismetSystemLibrary::GetDisplayName(SourceObject))))
+		TArray<TWeakPtr<FRemoteControlProperty>> ExposedProperties = RemoteControlPreset->GetExposedEntities<FRemoteControlProperty>();
+		bool bAlreadyExposed = false;
+
+		for (const TWeakPtr<FRemoteControlProperty>& WeakProperty : ExposedProperties)
 		{
-			FName ExistingLabel = RemoteControlTarget->FindFieldLabel(*Property);
-			if (ExistingLabel == NAME_None)
+			if (TSharedPtr<FRemoteControlProperty> ExposedProperty = WeakProperty.Pin())
 			{
-				RemoteControlTarget->ExposeProperty(FRCFieldPathInfo{ Property }, DisplayName, RCPGroup->Id);
-				UE_LOG(LogTemp, Display, TEXT("Added Property: %s"), *Property);
+				const bool bContainsProperty = ExposedProperty->Bindings.ContainsByPredicate([SourceObject](const TWeakObjectPtr<URemoteControlBinding>& Binding){ return Binding.IsValid() && Binding->IsBound(SourceObject); });
+					
+				if (ExposedProperty->FieldName == *Property
+					&& bContainsProperty) 
+				{
+					bAlreadyExposed = true;
+					break;
+				}
 			}
-			else
-			{
-				UE_LOG(LogTemp, Display, TEXT("Property %s already exposed, skipping."), *Property);
-			}
+		}
+
+		if (!bAlreadyExposed)
+		{
+			RemoteControlPreset->ExposeProperty(SourceObject, Property, FRemoteControlPresetExposeArgs{DisplayName, RCPGroup->Id});
+			UE_LOG(LogTemp, Display, TEXT("Added Property: %s"), *Property);
 		}
 		else
 		{
-			RemoteControlPreset->CreateAndGetTarget({ SourceObject }).ExposeProperty(FRCFieldPathInfo{ Property }, DisplayName, RCPGroup->Id);
-			UE_LOG(LogTemp, Display, TEXT("Created RCTarget and added Property: %s"), *Property);
+			UE_LOG(LogTemp, Display, TEXT("Property %s already exposed, skipping."), *Property);
 		}
 	}
 }
 
 void URemoteControlBPFunctionLibrary::ExposeFunction(URemoteControlPreset* RemoteControlPreset, UObject* SourceObject, FString Function, FString DisplayName, FName GroupName)
 {
-	if (RemoteControlPreset)
+	if (RemoteControlPreset && SourceObject)
 	{
 		// Find or Add Group
 		FRemoteControlPresetGroup* RCPGroup = FindOrAddGroup(RemoteControlPreset, GroupName);
-
-		// Expose Function and Add Field to Group
-		TMap<FName, FRemoteControlTarget>& RemoteControlTargets = RemoteControlPreset->GetRemoteControlTargets();
-		FString FunctionPath = SourceObject->GetPathName() + FString(".") + Function;
-		FRCFieldPathInfo RCFieldPathInfo = FRCFieldPathInfo(FunctionPath);
-		if (FRemoteControlTarget* RemoteControlTarget = RemoteControlTargets.Find(SourceObject->GetFName()))
+		UFunction* ObjectFunction = SourceObject->GetClass()->FindFunctionByName(*Function);
+		if (!ObjectFunction)
 		{
-			FName ExistingLabel = RemoteControlTarget->FindFieldLabel(RCFieldPathInfo);
-			UE_LOG(LogTemp, Display, TEXT("%s"), *ExistingLabel.ToString());
-			if (ExistingLabel == NAME_None)
+			return;
+		}
+		
+		TArray<TWeakPtr<FRemoteControlFunction>> ExposedFunctions = RemoteControlPreset->GetExposedEntities<FRemoteControlFunction>();
+		bool bAlreadyExposed = false;
+		
+		for (const TWeakPtr<FRemoteControlFunction>& WeakFunction : ExposedFunctions)
+		{
+			if (TSharedPtr<FRemoteControlFunction> ExposedFunction = WeakFunction.Pin())
 			{
-				RemoteControlTarget->ExposeFunction(FunctionPath, DisplayName, RCPGroup->Id);
-				UE_LOG(LogTemp, Display, TEXT("Added Function: %s"), *Function);
+				const bool bContainsFunction = ExposedFunction->Bindings.ContainsByPredicate([SourceObject](const TWeakObjectPtr<const URemoteControlBinding>& Binding){ return Binding.IsValid() && Binding->IsBound(SourceObject); });
+				if (ExposedFunction->FieldName == *Function
+                    && bContainsFunction) 
+				{
+					bAlreadyExposed = true;
+					break;
+				}
 			}
-			else
-			{
-				UE_LOG(LogTemp, Display, TEXT("Function %s already exposed, skipping."), *Function);
-			}
+		}
+
+		if (!bAlreadyExposed)
+		{
+			RemoteControlPreset->ExposeFunction(SourceObject, ObjectFunction, FRemoteControlPresetExposeArgs{DisplayName, RCPGroup->Id});
+			UE_LOG(LogTemp, Display, TEXT("Added Function: %s"), *Function);
 		}
 		else
 		{
-			RemoteControlPreset->CreateAndGetTarget({ SourceObject }).ExposeFunction(FunctionPath, DisplayName, RCPGroup->Id);
-			UE_LOG(LogTemp, Display, TEXT("Created RCTarget and added Function: %s"), *Function);
+			UE_LOG(LogTemp, Display, TEXT("Function %s already exposed, skipping."), *Function);
 		}
 	}
 }
@@ -124,7 +140,7 @@ FRemoteControlPresetGroup* URemoteControlBPFunctionLibrary::FindOrAddGroup(URemo
 
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectActorWidget(FString WidgetType, FString Actor, FString Property, FString PropertyType)
 {
-	TSharedPtr<FJsonObject> JsonObjectActorWidget = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectActorWidget = MakeShared<FJsonObject>();
 	JsonObjectActorWidget->SetStringField(FString(TEXT("widget")), WidgetType);
 	JsonObjectActorWidget->SetStringField(FString(TEXT("actor")), Actor);
 	JsonObjectActorWidget->SetStringField(FString(TEXT("property")), Property);
@@ -133,24 +149,24 @@ TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectActorWi
 }
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectTabsWidgetElement(FString Label, TArray< TSharedPtr<FJsonValue> > Widgets)
 {
-	TSharedPtr<FJsonObject> JsonObjectTabsWidgetElement = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectTabsWidgetElement = MakeShared<FJsonObject>();
 	JsonObjectTabsWidgetElement->SetStringField(FString(TEXT("label")), Label);
 	JsonObjectTabsWidgetElement->SetArrayField(FString(TEXT("widgets")), Widgets);
 	return JsonObjectTabsWidgetElement;
 }
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectTabsWidget(TArray< TSharedPtr<FJsonValue> > Widgets)
 {
-	TSharedPtr<FJsonObject> JsonObjectTabsWidget = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectTabsWidget = MakeShared<FJsonObject>();
 	JsonObjectTabsWidget->SetStringField(FString(TEXT("widget")), FString(TEXT("Tabs")));
 	JsonObjectTabsWidget->SetArrayField(FString(TEXT("tabs")), Widgets);
 	return JsonObjectTabsWidget;
 }
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectListWidgetElement(FString Label, FString Actor, FString Property, TArray< TSharedPtr<FJsonValue> > ActorWidgets)
 {
-	TSharedPtr<FJsonObject> JsonObjectListWidgetElementCheck = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectListWidgetElementCheck = MakeShared<FJsonObject>();
 	JsonObjectListWidgetElementCheck->SetStringField(FString(TEXT("actor")), Actor);
 	JsonObjectListWidgetElementCheck->SetStringField(FString(TEXT("property")), Property);
-	TSharedPtr<FJsonObject> JsonObjectListWidgetElement = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectListWidgetElement = MakeShared<FJsonObject>();
 	JsonObjectListWidgetElement->SetStringField(FString(TEXT("label")), Label);
 	JsonObjectListWidgetElement->SetObjectField(FString(TEXT("check")), JsonObjectListWidgetElementCheck);
 	JsonObjectListWidgetElement->SetArrayField(FString(TEXT("widgets")), ActorWidgets);
@@ -158,21 +174,21 @@ TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectListWid
 }
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectListWidget(TArray< TSharedPtr<FJsonValue> > ListWidgetElements)
 {
-	TSharedPtr<FJsonObject> JsonObjectListWidget = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectListWidget = MakeShared<FJsonObject>();
 	JsonObjectListWidget->SetStringField(FString(TEXT("widget")), FString(TEXT("List")));
 	JsonObjectListWidget->SetArrayField(FString(TEXT("items")), ListWidgetElements);
 	return JsonObjectListWidget;
 }
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectLabelWidget(FString Label)
 {
-	TSharedPtr<FJsonObject> JsonObjectLabelWidget = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectLabelWidget = MakeShared<FJsonObject>();
 	JsonObjectLabelWidget->SetStringField(FString(TEXT("widget")), FString(TEXT("Label")));
 	JsonObjectLabelWidget->SetStringField(FString(TEXT("label")), Label);
 	return JsonObjectLabelWidget;
 }
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectStack(FString Name, FString Icon, TArray< TSharedPtr<FJsonValue> > Widgets)
 {
-	TSharedPtr<FJsonObject> JsonObjectStack = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectStack = MakeShared<FJsonObject>();
 	JsonObjectStack->SetStringField(FString(TEXT("name")), Name);
 	JsonObjectStack->SetStringField(FString(TEXT("icon")), Icon);
 	JsonObjectStack->SetStringField(FString(TEXT("layout")), FString(TEXT("Stack")));
@@ -181,7 +197,7 @@ TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectStack(F
 }
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectDropdownOption(FString Value, FString Label)
 {
-	TSharedPtr<FJsonObject> JsonObjectDropdownOption = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectDropdownOption = MakeShared<FJsonObject>();
 	JsonObjectDropdownOption->SetStringField(FString(TEXT("value")), Value);
 	JsonObjectDropdownOption->SetStringField(FString(TEXT("label")), Label);
 	return JsonObjectDropdownOption;
@@ -189,7 +205,7 @@ TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectDropdow
 
 TSharedPtr<FJsonObject> URemoteControlBPFunctionLibrary::CreateJsonObjectDropdownOption(int32 Value, FString Label)
 {
-	TSharedPtr<FJsonObject> JsonObjectDropdownOption = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectDropdownOption = MakeShared<FJsonObject>();
 	JsonObjectDropdownOption->SetNumberField(FString(TEXT("value")), Value);
 	JsonObjectDropdownOption->SetStringField(FString(TEXT("label")), Label);
 	return JsonObjectDropdownOption;
@@ -212,9 +228,9 @@ TArray<FRemoteControlPresetEntity> URemoteControlBPFunctionLibrary::GetEntities(
 	TArray<FGuid> RCPGroupGuids = RCPGroup->GetFields();
 	for (FGuid& RCPGroupGuid : RCPGroupGuids)
 	{
-		if (TOptional<FRemoteControlField> Field = RemoteControlPreset->GetField(RCPGroupGuid))
+		if (TSharedPtr<FRemoteControlField> Field = RemoteControlPreset->GetExposedEntity<FRemoteControlField>(RCPGroupGuid).Pin())
 		{
-			Entities.Add(FRemoteControlPresetEntity(Field));
+			Entities.Add(FRemoteControlPresetEntity(TOptional<FRemoteControlField>{*Field}));
 		}
 		// Check if there is an exposed Entity
 		if (RemoteControlPreset->IsExposed(RCPGroupGuid))
@@ -230,17 +246,18 @@ TArray<FRemoteControlPresetEntity> URemoteControlBPFunctionLibrary::GetEntities(
 }
 void URemoteControlBPFunctionLibrary::BuildWebRemoteControl(URemoteControlPreset* RemoteControlPreset, TArray<FRemoteControlJsonObject> RemoteControlJsonObjects, bool bLogJsonObject)
 {
-	TSharedPtr<FJsonObject> JsonObjectMain = MakeShareable(new FJsonObject());
-	TArray< TSharedPtr<FJsonValue> > Tabs;
+	TSharedPtr<FJsonObject> JsonObjectMain = MakeShared<FJsonObject>();
+	TArray<TSharedPtr<FJsonValue>> Tabs;
 	for (FRemoteControlJsonObject& RemoteControlJsonObject : RemoteControlJsonObjects)
 	{
-		TSharedRef<FJsonValueObject> Tab = MakeShareable(new FJsonValueObject(RemoteControlJsonObject.JsonObject));
+		TSharedRef<FJsonValueObject> Tab = MakeShared<FJsonValueObject>(RemoteControlJsonObject.JsonObject);
 		Tabs.Add(Tab);
 	}
 	JsonObjectMain->SetArrayField(FString(TEXT("tabs")), Tabs);
 
 	FString JsonToMetadataString;
-	TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&JsonToMetadataString);
+	
+	TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> Writer = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&JsonToMetadataString);
 	FJsonSerializer::Serialize(JsonObjectMain.ToSharedRef(), Writer);
 
 	if (bLogJsonObject) 
@@ -255,14 +272,14 @@ void URemoteControlBPFunctionLibrary::BuildWebRemoteControl(URemoteControlPreset
 }
 FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateTab(FString TabName, FString Icon, TArray<FRemoteControlJsonObject> RemoteControlJsonObjects)
 {
-	TSharedPtr<FJsonObject> JsonObjectStack = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectStack = MakeShared<FJsonObject>();
 	JsonObjectStack->SetStringField(FString(TEXT("name")), TabName);
 	JsonObjectStack->SetStringField(FString(TEXT("icon")), Icon);
 	JsonObjectStack->SetStringField(FString(TEXT("layout")), FString(TEXT("Stack")));
 	TArray<TSharedPtr<FJsonValue>> Widgets;
 	for (FRemoteControlJsonObject& RemoteControlJsonObject : RemoteControlJsonObjects)
 	{
-		TSharedRef<FJsonValueObject> Widget = MakeShareable(new FJsonValueObject(RemoteControlJsonObject.JsonObject));
+		TSharedRef<FJsonValueObject> Widget = MakeShared<FJsonValueObject>(RemoteControlJsonObject.JsonObject);
 		Widgets.Add(Widget);
 	}
 	JsonObjectStack->SetArrayField(FString(TEXT("stack")), Widgets);
@@ -270,16 +287,16 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateTab(FString TabN
 }
 FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateListWidgetElement(FString Label, FString Actor, FString Property, TArray<FRemoteControlJsonObject> RemoteControlJsonObjects)
 {
-TSharedPtr<FJsonObject> JsonObjectListWidgetElementCheck = MakeShareable(new FJsonObject);
+TSharedPtr<FJsonObject> JsonObjectListWidgetElementCheck = MakeShared<FJsonObject>();
 JsonObjectListWidgetElementCheck->SetStringField(FString(TEXT("actor")), Actor);
 JsonObjectListWidgetElementCheck->SetStringField(FString(TEXT("property")), Property);
-TSharedPtr<FJsonObject> JsonObjectListWidgetElement = MakeShareable(new FJsonObject);
+TSharedPtr<FJsonObject> JsonObjectListWidgetElement = MakeShared<FJsonObject>();
 JsonObjectListWidgetElement->SetStringField(FString(TEXT("label")), Label);
 JsonObjectListWidgetElement->SetObjectField(FString(TEXT("check")), JsonObjectListWidgetElementCheck);
 TArray<TSharedPtr<FJsonValue>> Widgets;
 for (FRemoteControlJsonObject& RemoteControlJsonObject : RemoteControlJsonObjects)
 {
-	TSharedRef<FJsonValueObject> Widget = MakeShareable(new FJsonValueObject(RemoteControlJsonObject.JsonObject));
+	TSharedRef<FJsonValueObject> Widget = MakeShared<FJsonValueObject>(RemoteControlJsonObject.JsonObject);
 	Widgets.Add(Widget);
 }
 JsonObjectListWidgetElement->SetArrayField(FString(TEXT("widgets")), Widgets);
@@ -287,12 +304,12 @@ return FRemoteControlJsonObject(JsonObjectListWidgetElement);
 }
 FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateListWidget(TArray<FRemoteControlJsonObject> RemoteControlJsonObjects)
 {
-	TSharedPtr<FJsonObject> JsonObjectListWidget = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectListWidget = MakeShared<FJsonObject>();
 	JsonObjectListWidget->SetStringField(FString(TEXT("widget")), FString(TEXT("List")));
 	TArray<TSharedPtr<FJsonValue>> Widgets;
 	for (FRemoteControlJsonObject& RemoteControlJsonObject : RemoteControlJsonObjects)
 	{
-		TSharedRef<FJsonValueObject> Widget = MakeShareable(new FJsonValueObject(RemoteControlJsonObject.JsonObject));
+		TSharedRef<FJsonValueObject> Widget = MakeShared<FJsonValueObject>(RemoteControlJsonObject.JsonObject);
 		Widgets.Add(Widget);
 	}
 	JsonObjectListWidget->SetArrayField(FString(TEXT("items")), Widgets);
@@ -300,12 +317,12 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateListWidget(TArra
 }
 FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateTabsWidgetElement(FString Label, TArray<FRemoteControlJsonObject> RemoteControlJsonObjects)
 {
-	TSharedPtr<FJsonObject> JsonObjectTabsWidgetElement = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectTabsWidgetElement = MakeShared<FJsonObject>();
 	JsonObjectTabsWidgetElement->SetStringField(FString(TEXT("label")), Label);
 	TArray<TSharedPtr<FJsonValue>> Widgets;
 	for (FRemoteControlJsonObject& RemoteControlJsonObject : RemoteControlJsonObjects)
 	{
-		TSharedRef<FJsonValueObject> Widget = MakeShareable(new FJsonValueObject(RemoteControlJsonObject.JsonObject));
+		TSharedRef<FJsonValueObject> Widget = MakeShared<FJsonValueObject>(RemoteControlJsonObject.JsonObject);
 		Widgets.Add(Widget);
 	}
 	JsonObjectTabsWidgetElement->SetArrayField(FString(TEXT("widgets")), Widgets);
@@ -313,12 +330,12 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateTabsWidgetElemen
 }
 FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateTabsWidget(TArray<FRemoteControlJsonObject> RemoteControlJsonObjects)
 {
-	TSharedPtr<FJsonObject> JsonObjectTabsWidget = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectTabsWidget = MakeShared<FJsonObject>();
 	JsonObjectTabsWidget->SetStringField(FString(TEXT("widget")), FString(TEXT("Tabs")));
 	TArray<TSharedPtr<FJsonValue>> Widgets;
 	for (FRemoteControlJsonObject& RemoteControlJsonObject : RemoteControlJsonObjects)
 	{
-		TSharedRef<FJsonValueObject> Widget = MakeShareable(new FJsonValueObject(RemoteControlJsonObject.JsonObject));
+		TSharedRef<FJsonValueObject> Widget = MakeShared<FJsonValueObject>(RemoteControlJsonObject.JsonObject);
 		Widgets.Add(Widget);
 	}
 	JsonObjectTabsWidget->SetArrayField(FString(TEXT("tabs")), Widgets);
@@ -326,7 +343,7 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateTabsWidget(TArra
 }
 FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateActorWidget(FString WidgetType, FString Actor, FString Property, FString PropertyType)
 {
-	TSharedPtr<FJsonObject> JsonObjectActorWidget = MakeShareable(new FJsonObject);
+	TSharedPtr<FJsonObject> JsonObjectActorWidget = MakeShared<FJsonObject>();
 	JsonObjectActorWidget->SetStringField(FString(TEXT("widget")), WidgetType);
 	JsonObjectActorWidget->SetStringField(FString(TEXT("actor")), Actor);
 	JsonObjectActorWidget->SetStringField(FString(TEXT("property")), Property);
@@ -335,42 +352,38 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateActorWidget(FStr
 }
 FString URemoteControlBPFunctionLibrary::GetRemoteControlPropertyType(FRemoteControlProperty RemoteControlProperty)
 {
-	TOptional<FExposedProperty> UnderlyingProperty = RemoteControlProperty.GetOwner()->ResolveExposedProperty(RemoteControlProperty.GetLabel());
-	if (!UnderlyingProperty.IsSet())
+	if (const FProperty* ValueProperty = RemoteControlProperty.GetProperty())
 	{
-		return FString();
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ValueProperty))
+		{
+			ValueProperty = ArrayProperty->Inner;
+		}
+		else if (const FSetProperty* SetProperty = CastField<FSetProperty>(ValueProperty))
+		{
+			ValueProperty = SetProperty->ElementProp;
+		}
+		else if (const FMapProperty* MapProperty = CastField<FMapProperty>(ValueProperty))
+		{
+			ValueProperty = MapProperty->ValueProp;
+		}
+		return ValueProperty->GetCPPType();
 	}
-
-	const FProperty* ValueProperty = UnderlyingProperty->Property;
-	if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ValueProperty))
-	{
-		ValueProperty = ArrayProperty->Inner;
-	}
-	else if (const FSetProperty* SetProperty = CastField<FSetProperty>(ValueProperty))
-	{
-		ValueProperty = SetProperty->ElementProp;
-	}
-	else if (const FMapProperty* MapProperty = CastField<FMapProperty>(ValueProperty))
-	{
-		ValueProperty = MapProperty->ValueProp;
-	}
-	return ValueProperty->GetCPPType();
+	return FString();
 }
 FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateDropdownOptionsFromProperty(FRemoteControlJsonObject& RemoteControlJsonObject, FRemoteControlProperty RemoteControlProperty)
 {
 	TArray< TSharedPtr<FJsonValue> > DropdownOptions;
-	TOptional<FExposedProperty> UnderlyingProperty = RemoteControlProperty.GetOwner()->ResolveExposedProperty(RemoteControlProperty.GetLabel());
-	if (!UnderlyingProperty.IsSet())
+	if (!RemoteControlProperty.GetProperty())
 	{
 		return RemoteControlJsonObject;
 	}
 
 	UEnum* Enum = nullptr;
-	if (FByteProperty* ByteProperty = CastField<FByteProperty>(UnderlyingProperty->Property))
+	if (FByteProperty* ByteProperty = CastField<FByteProperty>(RemoteControlProperty.GetProperty()))
 	{
 		Enum = ByteProperty->Enum;
 	}
-	else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(UnderlyingProperty->Property))
+	else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(RemoteControlProperty.GetProperty()))
 	{
 		Enum = EnumProperty->GetEnum();
 	}
@@ -378,7 +391,7 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateDropdownOptionsF
 	{
 		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
 		{
-			TSharedRef<FJsonValueObject> DropdownOption = MakeShareable(new FJsonValueObject(CreateJsonObjectDropdownOption(Enum->GetNameStringByIndex(i), Enum->GetDisplayNameTextByIndex(i).ToString())));
+			TSharedRef<FJsonValueObject> DropdownOption = MakeShared<FJsonValueObject>(CreateJsonObjectDropdownOption(Enum->GetNameStringByIndex(i), Enum->GetDisplayNameTextByIndex(i).ToString()));
 			DropdownOptions.Add(DropdownOption);
 		}
 		RemoteControlJsonObject.JsonObject->SetArrayField(FString(TEXT("options")), DropdownOptions);
@@ -404,7 +417,7 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateDropdownOptionsF
 		{
 			for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
 			{
-				TSharedRef<FJsonValueObject> DropdownOption = MakeShareable(new FJsonValueObject(CreateJsonObjectDropdownOption(Enum->GetNameStringByIndex(i), Enum->GetDisplayNameTextByIndex(i).ToString())));
+				TSharedRef<FJsonValueObject> DropdownOption = MakeShared<FJsonValueObject>(CreateJsonObjectDropdownOption(Enum->GetNameStringByIndex(i), Enum->GetDisplayNameTextByIndex(i).ToString()));
 				DropdownOptions.Add(DropdownOption);
 			}
 			RemoteControlJsonObject.JsonObject->SetArrayField(FString(TEXT("options")), DropdownOptions);
@@ -425,7 +438,7 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::CreateDropdownOptionsF
 			{
 				for (int32 Index = 0; Index < Textures->Num(); Index++)
 				{
-					TSharedRef<FJsonValueObject> DropdownOption = MakeShareable(new FJsonValueObject(CreateJsonObjectDropdownOption(Index + 1, (*Textures)[Index]->GetOutermost()->GetPathName())));
+					TSharedRef<FJsonValueObject> DropdownOption = MakeShared<FJsonValueObject>(CreateJsonObjectDropdownOption(Index + 1, (*Textures)[Index]->GetOutermost()->GetPathName()));
 					DropdownOptions.Add(DropdownOption);
 				}
 			}
@@ -494,15 +507,16 @@ FRemoteControlJsonObject URemoteControlBPFunctionLibrary::SetArrayField(UPARAM(r
 
 FRemoteControlPropertyMinMax URemoteControlBPFunctionLibrary::GetRemoteControlPropertyMinMax(FRemoteControlProperty RemoteControlProperty)
 {
-	TOptional<FExposedProperty> UnderlyingProperty = RemoteControlProperty.GetOwner()->ResolveExposedProperty(RemoteControlProperty.GetLabel());
-	if (!UnderlyingProperty.IsSet())
+	if (FProperty* Property = RemoteControlProperty.GetProperty())
 	{
-		return FRemoteControlPropertyMinMax();
+		return FRemoteControlPropertyMinMax(
+	    Property->GetMetaData(TEXT("ClampMin")),
+	    Property->GetMetaData(TEXT("ClampMax")), 
+	    Property->GetMetaData(TEXT("UIMin")), 
+	    Property->GetMetaData(TEXT("UIMax")));
 	}
-
-	return FRemoteControlPropertyMinMax(
-		UnderlyingProperty->Property->GetMetaData(TEXT("ClampMin")),
-		UnderlyingProperty->Property->GetMetaData(TEXT("ClampMax")), 
-		UnderlyingProperty->Property->GetMetaData(TEXT("UIMin")), 
-		UnderlyingProperty->Property->GetMetaData(TEXT("UIMax"))) ;
+	else
+	{
+		return FRemoteControlPropertyMinMax();	
+	}
 }

@@ -96,39 +96,15 @@ bool FRCFieldPathInfo::ResolveInternalRecursive(UStruct* OwnerType, void* Contai
 
 FRCFieldPathInfo::FRCFieldPathInfo(const FString& PathInfo, bool bCleanDuplicates)
 {
-	TArray<FString> PathSegment;
-	PathInfo.ParseIntoArray(PathSegment, TEXT("."));
+	Initialize(PathInfo, bCleanDuplicates);
+}
 
-	Segments.Reserve(PathSegment.Num());
-	for (int32 Index = 0; Index < PathSegment.Num(); ++Index)
+FRCFieldPathInfo::FRCFieldPathInfo(FProperty* Property)
+{
+	if (ensure(Property))
 	{
-		const FString& SegmentString = PathSegment[Index];
-		FRCFieldPathSegment NewSegment(SegmentString);
-
-		if (bCleanDuplicates && Index > 0 && NewSegment.ArrayIndex != INDEX_NONE)
-		{
-			FRCFieldPathSegment& PreviousSegment = Segments[Segments.Num() - 1];
-
-			if (PreviousSegment.Name == NewSegment.Name)
-			{
-				//Skip duplicate entries if required for GeneratePathToProperty style (Array.Array[Index])
-				PreviousSegment.ArrayIndex = NewSegment.ArrayIndex;
-				continue;
-			}
-			else if (!NewSegment.ValuePropertyName.IsEmpty())
-			{
-				//Skip duplicate entries for a map entry if required for GeneratePathToProperty style (Map.Map_Value[Index])
-				PreviousSegment.ValuePropertyName = NewSegment.ValuePropertyName;
-				PreviousSegment.ArrayIndex = NewSegment.ArrayIndex;
-				continue;
-			}
-
-		}
-
-		Segments.Emplace(MoveTemp(NewSegment));
+		Initialize(Property->GetName(), false);	
 	}
-
-	PathHash = GetTypeHash(PathInfo);
 }
 
 bool FRCFieldPathInfo::Resolve(UObject* Owner)
@@ -392,4 +368,41 @@ void FRCFieldPathInfo::ToEditPropertyChain(FEditPropertyChain& OutPropertyChain)
 	{
 		OutPropertyChain.SetActiveMemberPropertyNode(OutPropertyChain.GetHead()->GetValue());
 	}
+}
+
+void FRCFieldPathInfo::Initialize(const FString& PathInfo, bool bCleanDuplicates)
+{
+	TArray<FString> PathSegment;
+	PathInfo.ParseIntoArray(PathSegment, TEXT("."));
+
+	Segments.Reserve(PathSegment.Num());
+	for (int32 Index = 0; Index < PathSegment.Num(); ++Index)
+	{
+		const FString& SegmentString = PathSegment[Index];
+		FRCFieldPathSegment NewSegment(SegmentString);
+
+		if (bCleanDuplicates && Index > 0 && NewSegment.ArrayIndex != INDEX_NONE)
+		{
+			FRCFieldPathSegment& PreviousSegment = Segments[Segments.Num() - 1];
+
+			if (PreviousSegment.Name == NewSegment.Name)
+			{
+				//Skip duplicate entries if required for GeneratePathToProperty style (Array.Array[Index])
+				PreviousSegment.ArrayIndex = NewSegment.ArrayIndex;
+				continue;
+			}
+			else if (!NewSegment.ValuePropertyName.IsEmpty())
+			{
+				//Skip duplicate entries for a map entry if required for GeneratePathToProperty style (Map.Map_Value[Index])
+				PreviousSegment.ValuePropertyName = NewSegment.ValuePropertyName;
+				PreviousSegment.ArrayIndex = NewSegment.ArrayIndex;
+				continue;
+			}
+
+		}
+
+		Segments.Emplace(MoveTemp(NewSegment));
+	}
+
+	PathHash = GetTypeHash(PathInfo);
 }

@@ -623,9 +623,6 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
 	FRCJsonStructSerializerBackend WriterBackend{ Writer, EStructSerializerBackendFlags::Default };
 
-	// This ensures that events will not be sent to clients that don't care about changes triggered remotely.
-	FScopedPresetModification ModificationScope{ IRemoteControlModule::Get().ResolvePreset(*Args.PresetName) };
-
 	JsonWriter->WriteObjectStart();
 	JsonWriter->WriteIdentifierPrefix("ReturnedValues");
 	JsonWriter->WriteArrayStart();
@@ -735,10 +732,9 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 		return true;
 	}
 
-	TOptional<FExposedProperty> ExposedProperty = Preset->ResolveExposedProperty(*Args.FieldLabel);
-	TOptional<FRemoteControlProperty> RemoteControlProperty = Preset->GetProperty(*Args.FieldLabel);
+	TSharedPtr<FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(Preset->GetExposedEntityId(*Args.FieldLabel)).Pin();
 
-	if (!ExposedProperty.IsSet() || !RemoteControlProperty.IsSet())
+	if (!RemoteControlProperty.IsValid())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
@@ -750,21 +746,18 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 	// Replace PropertyValue with the underlying property name.
 	TArray<uint8> NewPayload;
-	RemotePayloadSerializer::ReplaceFirstOccurence(SetPropertyRequest.TCHARBody, TEXT("PropertyValue"), ExposedProperty->Property->GetName(), NewPayload);
+	RemotePayloadSerializer::ReplaceFirstOccurence(SetPropertyRequest.TCHARBody, TEXT("PropertyValue"), RemoteControlProperty->FieldName.ToString(), NewPayload);
 
 	// Then deserialize the payload onto all the bound objects.
 	FMemoryReader NewPayloadReader(NewPayload);
 	FRCJsonStructDeserializerBackend Backend(NewPayloadReader);
 
-	ObjectRef.Property = ExposedProperty->Property;
+	ObjectRef.Property = RemoteControlProperty->GetProperty();
 	ObjectRef.Access = SetPropertyRequest.GenerateTransaction ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS;
 
 	bool bSuccess = true;
 
-	// This ensures that events will not be sent to clients that don't care about changes triggered remotely.
-	FScopedPresetModification ModificationScope{ Preset };
-
-	for (UObject* Object : ExposedProperty->OwnerObjects)
+	for (UObject* Object : RemoteControlProperty->ResolveFieldOwners())
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
@@ -809,10 +802,9 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 		return true;
 	}
 
-	TOptional<FExposedProperty> ExposedProperty = Preset->ResolveExposedProperty(*Args.FieldLabel);
-	TOptional<FRemoteControlProperty> RemoteControlProperty = Preset->GetProperty(*Args.FieldLabel);
+	TSharedPtr<FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(Preset->GetExposedEntityId(*Args.FieldLabel)).Pin();
 
-	if (!ExposedProperty.IsSet() || !RemoteControlProperty.IsSet())
+	if (!RemoteControlProperty)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
@@ -832,7 +824,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	JsonWriter->WriteIdentifierPrefix("PropertyValues");
 	JsonWriter->WriteArrayStart();
 
-	for (UObject* Object : ExposedProperty->OwnerObjects)
+	for (UObject* Object : RemoteControlProperty->ResolveFieldOwners())
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 

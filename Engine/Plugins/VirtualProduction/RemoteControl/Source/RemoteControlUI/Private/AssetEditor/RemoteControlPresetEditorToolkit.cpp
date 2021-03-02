@@ -109,7 +109,7 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnPan
 	{
 		if (TSharedPtr<SRCPanelTreeNode> Node = InputBindingsTab->GetEntityList()->GetSelection())
 		{
-			PanelTab->GetEntityList()->SetSelection(Node->GetId());
+			PanelTab->GetEntityList()->SetSelection(Node);
 		}
 	}
 
@@ -129,7 +129,7 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnInp
 	{
 		if (TSharedPtr<SRCPanelTreeNode> Node = PanelTab->GetEntityList()->GetSelection())
 		{
-			InputBindingsTab->GetEntityList()->SetSelection(Node->GetId());
+			InputBindingsTab->GetEntityList()->SetSelection(Node);
 		}
 	}
 
@@ -145,7 +145,7 @@ void FRemoteControlPresetEditorToolkit::OnPanelSelectionChange(const TSharedPtr<
 {
 	if (InputBindingsTab && InputBindingsTab->GetEntityList())
 	{
-		InputBindingsTab->GetEntityList()->SetSelection(Node->GetId());
+		InputBindingsTab->GetEntityList()->SetSelection(Node);
 	}
 }
 
@@ -153,7 +153,7 @@ void FRemoteControlPresetEditorToolkit::OnInputBindingsSelectionChange(const TSh
 {
 	if (PanelTab && PanelTab->GetEntityList())
 	{
-		PanelTab->GetEntityList()->SetSelection(Node->GetId());
+		PanelTab->GetEntityList()->SetSelection(Node);
 	}
 }
 

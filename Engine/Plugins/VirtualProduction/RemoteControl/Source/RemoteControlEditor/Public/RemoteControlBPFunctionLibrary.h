@@ -116,21 +116,34 @@ struct FRemoteControlPresetEntity
 		EntityType = ERemoteControlPresetEntityType::EntityType_Actor;
 		RemoteControlActor = *Actor.Get();
 	}
+	
 	FRemoteControlPresetEntity(TOptional<FRemoteControlField> RemoteControlField)
 	{
 		// if Property
 		if (RemoteControlField->FieldType == EExposedFieldType::Property)
 		{
 			EntityType = ERemoteControlPresetEntityType::EntityType_Property;
-			TOptional<FRemoteControlProperty> RCProperty = RemoteControlField->GetOwner()->GetProperty(RemoteControlField->GetLabel());
-			RemoteControlProperty = *RCProperty;
+			if (TSharedPtr<FRemoteControlProperty> RCProperty = RemoteControlField->GetOwner()->GetExposedEntity<FRemoteControlProperty>(RemoteControlField->GetId()).Pin())
+			{
+				RemoteControlProperty = *RCProperty;
+			}
+			else
+			{
+				ensure(false);
+			}
 		}
 		// if Function
 		else if (RemoteControlField->FieldType == EExposedFieldType::Function)
 		{
 			EntityType = ERemoteControlPresetEntityType::EntityType_Function;
-			TOptional<FRemoteControlFunction> RCFunction = RemoteControlField->GetOwner()->GetFunction(RemoteControlField->GetLabel());
-			RemoteControlFunction = *RCFunction;
+			if (TSharedPtr<FRemoteControlFunction> RCFunction = RemoteControlField->GetOwner()->GetExposedEntity<FRemoteControlFunction>(RemoteControlField->GetId()).Pin())
+			{
+				RemoteControlFunction = *RCFunction;
+			}
+			else
+			{
+				ensure(false);
+			}
 		}
 	}
 	

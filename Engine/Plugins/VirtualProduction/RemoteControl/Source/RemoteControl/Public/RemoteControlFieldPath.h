@@ -122,6 +122,11 @@ public:
 	 */
 	FRCFieldPathInfo(const FString& PathInfo, bool bSkipDuplicates = false);
 
+	/**
+	 * Builds a path info from a property.
+	 */
+	FRCFieldPathInfo(FProperty* Property);
+
 public:
 	/** Go through each segment and finds the property associated + container address for a given UObject owner */
 	bool Resolve(UObject* Owner);
@@ -171,6 +176,14 @@ public:
 	void ToEditPropertyChain(FEditPropertyChain& OutPropertyChain) const;
 
 private:
+	/**
+	 * Initialize from a string of format with '.' delimiters
+	 * Optionally can reduce duplicates when dealing with containers
+	 * If true -> Struct.ArrayName.ArrayName[2].Member will collapse to Struct.ArrayName[2].Member
+	 * This is when being used with PathToProperty
+	 */
+	void Initialize(const FString& PathInfo, bool bCleanDuplicates);
+	
 	/** Recursively resolves all segment until the final one */
 	bool ResolveInternalRecursive(UStruct* OwnerType, void* ContainerAddress, int32 SegmentIndex);
 

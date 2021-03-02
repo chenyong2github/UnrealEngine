@@ -372,7 +372,7 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 
 		for (const FName& Label : Entry.Value)
 		{
-			if (FRemoteControlPresetGroup* Group = Preset->Layout.FindGroupFromField(Preset->GetFieldId(Label)))
+			if (FRemoteControlPresetGroup* Group = Preset->Layout.FindGroupFromField(Preset->GetExposedEntityId(Label)))
 			{
 				GroupedNewFields.FindOrAdd(Group).Add(Label);
 			}
@@ -479,38 +479,34 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 		{
 			for (const FRemoteControlProperty& Property : InEvents)
 			{
-				TOptional<FExposedProperty> ExposedProperty = InPreset->ResolveExposedProperty(Property.GetLabel());
-				if (ExposedProperty.IsSet())
+				bHasProperty = true;
+
+				FRCObjectReference ObjectRef;
+
+				//Property object
+				JsonWriter->WriteObjectStart();
 				{
-					bHasProperty = true;
+					JsonWriter->WriteValue(TEXT("PropertyLabel"), *Property.GetLabel().ToString());
 
-					FRCObjectReference ObjectRef;
-
-					//Property object
-					JsonWriter->WriteObjectStart();
+					for (UObject* Object : Property.ResolveFieldOwners())
 					{
-						JsonWriter->WriteValue(TEXT("PropertyLabel"), *Property.GetLabel().ToString());
+						bHasProperty = true;
 
-						for (UObject* Object : ExposedProperty->OwnerObjects)
-						{
-							bHasProperty = true;
+						IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, Property.FieldPathInfo.ToString(), ObjectRef);
 
-							IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, Property.FieldPathInfo.ToString(), ObjectRef);
+						JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
+						JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
 
-							JsonWriter->WriteValue(TEXT("ObjectPath"), Object->GetPathName());
-							JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
+						RemotePayloadSerializer::SerializePartial(
+							[&ObjectRef](FJsonStructSerializerBackend& SerializerBackend)
+							{
+								return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend);
+							}
+						, Writer);
 
-							RemotePayloadSerializer::SerializePartial(
-								[&ObjectRef](FJsonStructSerializerBackend& SerializerBackend)
-								{
-									return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend);
-								}
-							, Writer);
-
-						}
 					}
-					JsonWriter->WriteObjectEnd();
 				}
+				JsonWriter->WriteObjectEnd();
 			}
 		}
 		JsonWriter->WriteArrayEnd();

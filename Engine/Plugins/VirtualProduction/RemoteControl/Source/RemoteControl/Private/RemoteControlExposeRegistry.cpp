@@ -56,16 +56,19 @@ TArray<TSharedPtr<FRemoteControlEntity>> URemoteControlExposeRegistry::GetExpose
 	return Entities;
 }
 
-TSharedPtr<const FRemoteControlEntity> URemoteControlExposeRegistry::GetExposedEntity(const FGuid& ExposedEntityId) const
+TSharedPtr<const FRemoteControlEntity> URemoteControlExposeRegistry::GetExposedEntity(const FGuid& ExposedEntityId, const UScriptStruct* EntityType) const
 {
-	return const_cast<URemoteControlExposeRegistry*>(this)->GetExposedEntity(ExposedEntityId);
+	return const_cast<URemoteControlExposeRegistry*>(this)->GetExposedEntity(ExposedEntityId, EntityType);
 }
 
-TSharedPtr<FRemoteControlEntity> URemoteControlExposeRegistry::GetExposedEntity(const FGuid& ExposedEntityId)
+TSharedPtr<FRemoteControlEntity> URemoteControlExposeRegistry::GetExposedEntity(const FGuid& ExposedEntityId, const UScriptStruct* EntityType)
 {
 	if (FRCEntityWrapper* Wrapper = ExposedEntities.FindByHash(GetTypeHash(ExposedEntityId), ExposedEntityId))
 	{
-		return Wrapper->Get();
+		if (Wrapper->IsValid() && Wrapper->GetType()->IsChildOf(EntityType))
+		{
+			return Wrapper->Get();
+		}
 	}
 
 	return nullptr;
@@ -81,12 +84,13 @@ const UScriptStruct* URemoteControlExposeRegistry::GetExposedEntityType(const FG
 	return nullptr;
 }
 
-TSharedPtr<FRemoteControlEntity> URemoteControlExposeRegistry::AddExposedEntity(FRemoteControlEntity& EntityToExpose, UScriptStruct* EntityType)
+TSharedPtr<FRemoteControlEntity> URemoteControlExposeRegistry::AddExposedEntity(FRemoteControlEntity&& EntityToExpose, UScriptStruct* EntityType)
 {
 	LabelToIdCache.Add(EntityToExpose.GetLabel(), EntityToExpose.GetId());
-	FRCEntityWrapper Wrapper{ EntityToExpose, EntityType};
-	ExposedEntities.Add(Wrapper);
-	return Wrapper.Get();
+	FRCEntityWrapper Wrapper{ MoveTemp(EntityToExpose), EntityType};
+	TSharedPtr<FRemoteControlEntity> Entity = Wrapper.Get();
+	ExposedEntities.Add(MoveTemp(Wrapper));
+	return Entity;
 }
 
 void URemoteControlExposeRegistry::RemoveExposedEntity(const FGuid& Id)

@@ -24,83 +24,6 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelEntitiesList"
 
-SRemoteControlTarget::SRemoteControlTarget(FName Alias, URemoteControlPreset* Preset, TAttribute<bool> bInIsInEditMode, bool bInDisplayValues)
-	: TargetAlias(Alias)
-	, Preset(Preset)
-	, bIsInEditMode(MoveTemp(bInIsInEditMode))
-{
-	Algo::ForEach(GetUnderlyingTarget().ExposedProperties, [this, bInDisplayValues](const FRemoteControlProperty& RCProperty) {AddExposedProperty(RCProperty, bInDisplayValues); });
-	Algo::ForEach(GetUnderlyingTarget().ExposedFunctions, [this, bInDisplayValues](const FRemoteControlFunction& RCFunction) {AddExposedFunction(RCFunction, bInDisplayValues); });
-}
-
-void SRemoteControlTarget::RefreshTargetWidgets()
-{
-	for (TSharedRef<SRCPanelExposedField>& FieldWidget : ExposedFieldWidgets)
-	{
-		FieldWidget->Refresh();
-	}
-}
-
-TSharedPtr<SRCPanelExposedField> SRemoteControlTarget::AddExposedProperty(const FRemoteControlProperty& RCProperty, bool bDisplayValues)
-{
-	return ExposedFieldWidgets.Add_GetRef(SNew(SRCPanelExposedField, RCProperty)
-		.Preset(MakeAttributeRaw(this, &SRemoteControlTarget::GetPreset))
-		.EditMode(MakeAttributeRaw(this, &SRemoteControlTarget::GetPanelEditMode))
-		.DisplayValues(bDisplayValues));
-}
-
-TSharedPtr<SRCPanelExposedField> SRemoteControlTarget::AddExposedFunction(const FRemoteControlFunction& RCFunction, bool bDisplayValues)
-{
-	return ExposedFieldWidgets.Add_GetRef(SNew(SRCPanelExposedField, RCFunction)
-		.Preset(MakeAttributeRaw(this, &SRemoteControlTarget::GetPreset))
-		.EditMode(MakeAttributeRaw(this, &SRemoteControlTarget::GetPanelEditMode))
-		.DisplayValues(bDisplayValues));
-}
-
-TSet<UObject*> SRemoteControlTarget::GetBoundObjects() const
-{
-	TSet<UObject*> Objects;
-	for (const TSharedRef<SRCPanelExposedField>& FieldWidget : ExposedFieldWidgets)
-	{
-		FieldWidget->GetBoundObjects(Objects);
-	}
-	return Objects;
-}
-
-void SRemoteControlTarget::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap)
-{
-	for (TSharedRef<SRCPanelExposedField>& FieldWidget : ExposedFieldWidgets)
-	{
-		FieldWidget->OnObjectsReplaced(ReplacementObjectMap);
-	}
-}
-
-FRemoteControlTarget& SRemoteControlTarget::GetUnderlyingTarget()
-{
-	check(Preset.IsValid());
-	return Preset->GetRemoteControlTargets().FindChecked(TargetAlias);
-}
-
-UClass* SRemoteControlTarget::GetTargetClass()
-{
-	return GetUnderlyingTarget().Class;
-}
-
-EVisibility SRemoteControlTarget::GetVisibilityAccordingToEditMode() const
-{
-	return GetPanelEditMode() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-bool SRemoteControlTarget::GetPanelEditMode() const
-{
-	return bIsInEditMode.Get();
-}
-
-URemoteControlPreset* SRemoteControlTarget::GetPreset()
-{
-	return Preset.Get();
-}
-
 void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset)
 {
 	bIsInEditMode = InArgs._EditMode;
@@ -114,7 +37,7 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 		.TreeItemsSource(reinterpret_cast<TArray<TSharedPtr<SRCPanelTreeNode>>*>(&FieldGroups))
 		.ItemHeight(24.0f)
 		.OnGenerateRow(this, &SRCPanelExposedEntitiesList::OnGenerateRow)
-		.OnGetChildren(this, &SRCPanelExposedEntitiesList::OnGetGroupChildren)
+		.OnGetChildren(this, &SRCPanelExposedEntitiesList::OnGetNodeChildren)
 		.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
 		.ClearSelectionOnClick(false)
 	];
@@ -129,26 +52,6 @@ SRCPanelExposedEntitiesList::~SRCPanelExposedEntitiesList()
 	UnregisterEvents();
 }
 
-void SRCPanelExposedEntitiesList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
-{
-	if (bTriggerRefreshForPIE)
-	{
-		for (TSharedRef<SRemoteControlTarget>& Target : RemoteControlTargets)
-		{
-			for (TSharedPtr<SRCPanelExposedField> Field : Target->GetFieldWidgets())
-			{
-				if (TOptional<FExposedProperty> Property = Preset->ResolveExposedProperty(Field->GetFieldLabel()))
-				{
-					Field->SetBoundObjects(Property->OwnerObjects);
-				}
-			}
-		}
-
-		TreeView->RequestListRefresh();
-		bTriggerRefreshForPIE = false;
-	}
-}
-
 TSharedPtr<SRCPanelTreeNode> SRCPanelExposedEntitiesList::GetSelection() const
 {
 	TArray<TSharedPtr<SRCPanelTreeNode>> SelectedNodes;
@@ -160,17 +63,20 @@ TSharedPtr<SRCPanelTreeNode> SRCPanelExposedEntitiesList::GetSelection() const
 	return nullptr;
 }
 
-void SRCPanelExposedEntitiesList::SetSelection(const FGuid& Id)
+void SRCPanelExposedEntitiesList::SetSelection(const TSharedPtr<SRCPanelTreeNode>& Node)
 {
-	if (TSharedPtr<SRCPanelTreeNode>* FoundTreeNode = FieldWidgetMap.Find(Id))
+	if (Node)
 	{
-		TreeView->SetSelection(*FoundTreeNode);
-		return;
-	}
+		if (TSharedPtr<SRCPanelTreeNode>* FoundTreeNode = FieldWidgetMap.Find(Node->GetId()))
+		{
+			TreeView->SetSelection(*FoundTreeNode);
+			return;
+		}
 
-	if (TSharedPtr<FRCPanelGroup>* FoundGroup = FieldGroups.FindByPredicate([&Id](const TSharedPtr<SRCPanelTreeNode>& Item) { return Item->GetId() == Id; }))
-	{
-		TreeView->SetSelection(*FoundGroup);
+		if (TSharedPtr<FRCPanelGroup>* FoundGroup = FieldGroups.FindByPredicate([&Node](const TSharedPtr<SRCPanelTreeNode>& Item) { return Item->GetId() == Node->GetId(); }))
+		{
+			TreeView->SetSelection(*FoundGroup);
+		}	
 	}
 }
 
@@ -184,24 +90,13 @@ void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPro
 
 	if ((InChangeEvent.ChangeType & TypesNeedingRefresh) != 0 && InChangeEvent.MemberProperty && IsRelevantProperty(InChangeEvent.MemberProperty->GetClass()))
 	{
-		for (const TSharedRef<SRemoteControlTarget>& Target : RemoteControlTargets)
+		for (const TPair <FGuid, TSharedPtr<SRCPanelTreeNode>>& Node : FieldWidgetMap)
 		{
-			if (Target->GetBoundObjects().Contains(InObject))
-			{
-				Target->RefreshTargetWidgets();
-			}
+			Node.Value->Refresh();
 		}
-
-		TreeView->RequestTreeRefresh();
 	}
-}
 
-void SRCPanelExposedEntitiesList::ReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap)
-{
-	for (TSharedRef<SRemoteControlTarget>& Target : RemoteControlTargets)
-	{
-		Target->OnObjectsReplaced(ReplacementObjectMap);
-	}
+	TreeView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::Refresh()
@@ -222,18 +117,18 @@ void SRCPanelExposedEntitiesList::Refresh()
 
 void SRCPanelExposedEntitiesList::GenerateListWidgets()
 {
-	TMap<FName, FRemoteControlTarget>& TargetMap = Preset->GetRemoteControlTargets();
-
-	RemoteControlTargets.Reset(TargetMap.Num());
 	FieldWidgetMap.Reset();
 
-	for (TTuple<FName, FRemoteControlTarget>& MapEntry : TargetMap)
+	for (TWeakPtr<FRemoteControlField> WeakField : Preset->GetExposedEntities<FRemoteControlField>())
 	{
-		TSharedRef<SRemoteControlTarget> Target = MakeShared<SRemoteControlTarget>(MapEntry.Key, Preset.Get(), bIsInEditMode, bDisplayValues);
-		RemoteControlTargets.Add(Target);
-		for (const TSharedRef<SRCPanelExposedField>& Widget : Target->GetFieldWidgets())
+		if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 		{
-			FieldWidgetMap.Add(Widget->GetFieldId(), Widget);
+			FieldWidgetMap.Add(Field->GetId(),
+	            SNew(SRCPanelExposedField, MoveTemp(WeakField))
+	            .Preset(Preset.Get())
+	            .EditMode(bIsInEditMode)
+	            .DisplayValues(bDisplayValues)
+	        );
 		}
 	}
 
@@ -243,8 +138,7 @@ void SRCPanelExposedEntitiesList::GenerateListWidgets()
 		{
 			FieldWidgetMap.Add(Actor->GetId(),
 				SNew(SRCPanelExposedActor, *Actor, Preset.Get())
-				.EditMode(bIsInEditMode)
-			);
+				.EditMode(bIsInEditMode));
 		}
 	}
 }
@@ -332,7 +226,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 	}
 }
 
-void SRCPanelExposedEntitiesList::OnGetGroupChildren(TSharedPtr<SRCPanelTreeNode> Node, TArray<TSharedPtr<SRCPanelTreeNode>>& OutNodes)
+void SRCPanelExposedEntitiesList::OnGetNodeChildren(TSharedPtr<SRCPanelTreeNode> Node, TArray<TSharedPtr<SRCPanelTreeNode>>& OutNodes)
 {
 	if (Node.IsValid())
 	{
@@ -479,68 +373,13 @@ void SRCPanelExposedEntitiesList::SelectActorsInlevel(const TArray<UObject*>& Ob
 void SRCPanelExposedEntitiesList::RegisterEvents()
 {
 	OnPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &SRCPanelExposedEntitiesList::OnObjectPropertyChange);
-
 	MapChangedHandle = FEditorDelegates::MapChange.AddLambda([this](uint32) { Refresh(); });
-	GEngine->OnLevelActorDeleted().AddSP(this, &SRCPanelExposedEntitiesList::OnActorDeleted);
-
-	if (GEditor)
-	{
-		FEditorDelegates::PostPIEStarted.AddSP(this, &SRCPanelExposedEntitiesList::OnPieEvent);
-		FEditorDelegates::EndPIE.AddSP(this, &SRCPanelExposedEntitiesList::OnPieEvent);
-
- 		GEditor->OnObjectsReplaced().AddSP(this, &SRCPanelExposedEntitiesList::ReplaceObjects);
-	}
 }
 
 void SRCPanelExposedEntitiesList::UnregisterEvents()
 {
-	if (GEditor)
-	{
-		GEditor->OnObjectsReplaced().RemoveAll(this);
-
-		FEditorDelegates::EndPIE.RemoveAll(this);
-		FEditorDelegates::PostPIEStarted.RemoveAll(this);
-	}
-
-	GEngine->OnLevelActorDeleted().RemoveAll(this);
-
 	FEditorDelegates::MapChange.Remove(MapChangedHandle);
-
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnPropertyChangedHandle);
-}
-
-void SRCPanelExposedEntitiesList::OnActorDeleted(AActor* Actor)
-{
-	UWorld* World = Actor->GetWorld();
-	if (World && !World->IsPreviewWorld())
-	{
-		TSet<FName> TargetsToRemove;
-
-		for (TTuple<FName, FRemoteControlTarget>& Tuple : Preset->GetRemoteControlTargets())
-		{
-			if (Tuple.Value.HasBoundObjects({ Actor }))
-			{
-				TargetsToRemove.Add(Tuple.Key);
-			}
-		}
-
-		Preset->Modify();
-		for (FName TargetName : TargetsToRemove)
-		{
-			Preset->DeleteTarget(TargetName);
-		}
-
-		if (TargetsToRemove.Num())
-		{
-			Refresh();
-		}
-	}
-}
-
-void SRCPanelExposedEntitiesList::OnPieEvent(bool)
-{
-	// Trigger the refresh on the next tick to make sure the PIE world exists when starting and doesn't exist when stopping.
-	bTriggerRefreshForPIE = true;
 }
 
 void SRCPanelExposedEntitiesList::RegisterPresetDelegates()
@@ -553,7 +392,7 @@ void SRCPanelExposedEntitiesList::RegisterPresetDelegates()
 	Layout.OnFieldAdded().AddSP(this, &SRCPanelExposedEntitiesList::OnFieldAdded);
 	Layout.OnFieldDeleted().AddSP(this, &SRCPanelExposedEntitiesList::OnFieldDeleted);
 	Layout.OnFieldOrderChanged().AddSP(this, &SRCPanelExposedEntitiesList::OnFieldOrderChanged);
-	Preset->OnFieldRenamed().AddSP(this, &SRCPanelExposedEntitiesList::OnFieldRenamed);
+	Preset->OnEntitiesUpdated().AddSP(this, &SRCPanelExposedEntitiesList::OnEntitiesUpdated);
 }
 
 void SRCPanelExposedEntitiesList::UnregisterPresetDelegates()
@@ -561,7 +400,7 @@ void SRCPanelExposedEntitiesList::UnregisterPresetDelegates()
 	if (Preset)
 	{
 		FRemoteControlPresetLayout& Layout = Preset->Layout;
-		Preset->OnFieldRenamed().RemoveAll(this);
+		Preset->OnEntitiesUpdated().RemoveAll(this);
 		Layout.OnFieldOrderChanged().RemoveAll(this);
 		Layout.OnFieldDeleted().RemoveAll(this);
 		Layout.OnFieldAdded().RemoveAll(this);
@@ -574,26 +413,31 @@ void SRCPanelExposedEntitiesList::UnregisterPresetDelegates()
 
 void SRCPanelExposedEntitiesList::OnEntityAdded(const FGuid& InEntityId)
 {
-	const UScriptStruct* Entity = Preset->GetExposedEntityType(InEntityId);
-	if (Entity)
+	auto ExposeEntity = [this, InEntityId](TSharedRef<SRCPanelTreeNode>&& Node)
 	{
-		if (TSharedPtr<FRemoteControlActor> Actor = Preset->GetExposedEntity<FRemoteControlActor>(InEntityId).Pin())
+		FieldWidgetMap.Add(InEntityId, Node);
+
+		TSharedPtr<FRCPanelGroup>* SRCGroup = FieldGroups.FindByPredicate([GroupId = GetGroupId(InEntityId)](const TSharedPtr<FRCPanelGroup>& InGroup) {return InGroup->Id == GroupId; });
+		if (SRCGroup && SRCGroup->IsValid())
 		{
-			TSharedRef<SRCPanelTreeNode> ActorWidget =
-				SNew(SRCPanelExposedActor, *Actor, Preset.Get())
-				.EditMode(bIsInEditMode);
-
-			FieldWidgetMap.Add(InEntityId, ActorWidget);
-
-			TSharedPtr<FRCPanelGroup>* SRCGroup = FieldGroups.FindByPredicate([GroupId = GetGroupId(InEntityId)](const TSharedPtr<FRCPanelGroup>& InGroup) {return InGroup->Id == GroupId; });
-			if (SRCGroup && SRCGroup->IsValid())
-			{
-				(*SRCGroup)->Nodes.Add(ActorWidget);
-				TreeView->SetItemExpansion(*SRCGroup, true);
-				TreeView->RequestListRefresh();
-			}
+			(*SRCGroup)->Nodes.Add(MoveTemp(Node));
+			TreeView->SetItemExpansion(*SRCGroup, true);
 		}
+	};
+
+	if (TSharedPtr<FRemoteControlActor> Actor = Preset->GetExposedEntity<FRemoteControlActor>(InEntityId).Pin())
+	{
+		ExposeEntity(SNew(SRCPanelExposedActor, *Actor, Preset.Get())
+			.EditMode(bIsInEditMode));
 	}
+	else if (TSharedPtr<FRemoteControlField> Field = Preset->GetExposedEntity<FRemoteControlField>(InEntityId).Pin())
+	{
+		ExposeEntity(SNew(SRCPanelExposedField, MoveTemp(Field))
+			.Preset(Preset.Get())
+			.EditMode(bIsInEditMode)
+			.DisplayValues(bDisplayValues));
+	}
+	TreeView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::OnEntityRemoved(const FGuid& InGroupId, const FGuid& InEntityId)
@@ -601,10 +445,10 @@ void SRCPanelExposedEntitiesList::OnEntityRemoved(const FGuid& InGroupId, const 
 	TSharedPtr<FRCPanelGroup>* PanelGroup = FieldGroups.FindByPredicate([InGroupId](const TSharedPtr<FRCPanelGroup>& InGroup) {return InGroup->Id == InGroupId; });
 	if (PanelGroup && *PanelGroup)
 	{
-		int32 ActorIndex = (*PanelGroup)->Nodes.IndexOfByPredicate([InEntityId](const TSharedPtr<SRCPanelTreeNode>& Node) {return Node->GetId() == InEntityId; });
-		if (ActorIndex != INDEX_NONE)
+		int32 EntityIndex = (*PanelGroup)->Nodes.IndexOfByPredicate([InEntityId](const TSharedPtr<SRCPanelTreeNode>& Node) {return Node->GetId() == InEntityId; });
+		if (EntityIndex != INDEX_NONE)
 		{
-			(*PanelGroup)->Nodes.RemoveAt(ActorIndex);
+			(*PanelGroup)->Nodes.RemoveAt(EntityIndex);
 		}
 	}
 
@@ -676,89 +520,12 @@ void SRCPanelExposedEntitiesList::OnGroupRenamed(const FGuid& GroupId, FName New
 
 void SRCPanelExposedEntitiesList::OnFieldAdded(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition)
 {
-	FName TargetName = Preset->GetOwnerAlias(FieldId);
-	if (TargetName == NAME_None)
-	{
-		OnEntityAdded(FieldId);
-		return;
-	}
-
-	auto GetFieldWidget = [this, &FieldId](const TSharedRef<SRemoteControlTarget>& Target)
-	{
-		TSharedPtr<SRCPanelExposedField> FieldWidget;
-		if (TOptional<FRemoteControlProperty> Property = Preset->GetProperty(FieldId))
-		{
-			FieldWidget = Target->AddExposedProperty(*Property, bDisplayValues);
-		}
-		else if (TOptional<FRemoteControlFunction> Function = Preset->GetFunction(FieldId))
-		{
-			FieldWidget = Target->AddExposedFunction(*Function, bDisplayValues);
-		}
-
-		return FieldWidget;
-	};
-
-	if (TOptional<FRemoteControlField> Field = Preset->GetField(FieldId))
-	{
-		TSharedPtr<SRCPanelExposedField> FieldWidget;
-
-		// If target already exists in the panel.
-		if (TSharedRef<SRemoteControlTarget>* Target = RemoteControlTargets.FindByPredicate([TargetName](const TSharedRef<SRemoteControlTarget>& InTarget) { return InTarget->GetTargetAlias() == TargetName; }))
-		{
-			FieldWidget = GetFieldWidget(*Target);
-		}
-		else
-		{
-			const FRemoteControlTarget& FieldOwnerTarget = Preset->GetRemoteControlTargets().FindChecked(TargetName);
-
-			TSharedRef<SRemoteControlTarget> PanelTarget = MakeShared<SRemoteControlTarget>(TargetName, Preset.Get(), bIsInEditMode);
-			RemoteControlTargets.Add(PanelTarget);
-			FieldWidget = GetFieldWidget(PanelTarget);
-		}
-
-		FieldWidgetMap.Add(FieldId, FieldWidget);
-		if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& InGroup) {return InGroup->Id == GroupId; }))
-		{
-			if (*Group)
-			{
-				(*Group)->Nodes.Insert(FieldWidget, FieldPosition);
-				TreeView->SetItemExpansion(*Group, true);
-			}
-		}
-	}
-
-	TreeView->RequestListRefresh();
+	OnEntityAdded(FieldId);
 }
 
 void SRCPanelExposedEntitiesList::OnFieldDeleted(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition)
 {
-	FName TargetName = Preset->GetOwnerAlias(FieldId);
-	if (TargetName == NAME_None)
-	{
-		OnEntityRemoved(GroupId, FieldId);
-		return;
-	}
-
-	if (TSharedRef<SRemoteControlTarget>* Target = RemoteControlTargets.FindByPredicate([TargetName](const TSharedRef<SRemoteControlTarget>& InTarget) { return InTarget->GetTargetAlias() == TargetName; }))
-	{
-		if (TSharedPtr<FRCPanelGroup>* Group = FieldGroups.FindByPredicate([GroupId](const TSharedPtr<FRCPanelGroup>& InGroup) {return InGroup->Id == GroupId; }))
-		{
-			if (*Group)
-			{
-				(*Group)->Nodes.RemoveAt(FieldPosition);
-			}
-		}
-
-		TArray<TSharedRef<SRCPanelExposedField>>& FieldWdigets = (*Target)->GetFieldWidgets();
-		int32 Index = FieldWdigets.IndexOfByPredicate([&FieldId](const TSharedRef<SRCPanelExposedField>& Widget) {return Widget->GetFieldId() == FieldId; });
-		if (Index != INDEX_NONE)
-		{
-			FieldWdigets.RemoveAt(Index);
-			FieldWidgetMap.Remove(FieldId);
-		}
-	}
-
-	TreeView->RequestListRefresh();
+	OnEntityRemoved(GroupId, FieldId);
 }
 
 void SRCPanelExposedEntitiesList::OnFieldOrderChanged(const FGuid& GroupId, const TArray<FGuid>& Fields)
@@ -787,8 +554,17 @@ void SRCPanelExposedEntitiesList::OnFieldOrderChanged(const FGuid& GroupId, cons
 	TreeView->RequestListRefresh();
 }
 
-void SRCPanelExposedEntitiesList::OnFieldRenamed(URemoteControlPreset*, FName OldName, FName NewName)
+void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const TArray<FGuid>& UpdatedEntities)
 {
+	for (const FGuid& EntityId : UpdatedEntities)
+	{
+		TSharedPtr<SRCPanelTreeNode>* Node = FieldWidgetMap.Find(EntityId);
+		if (Node && *Node)
+		{
+			(*Node)->Refresh();
+		}
+	}
+
 	TreeView->RequestListRefresh();
 }
 

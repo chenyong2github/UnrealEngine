@@ -17,6 +17,9 @@ struct FRemoteControlObjectVersion
 
 		// RCProperties and RCFunctions now inherit from FRemoteControlEntity
 		ConvertRCFieldsToRCEntities,
+
+		// Converted FRemoteControlTarget to URemoteControlBinding, put RCFields in the expose registry.
+		ConvertTargetsToBindings,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

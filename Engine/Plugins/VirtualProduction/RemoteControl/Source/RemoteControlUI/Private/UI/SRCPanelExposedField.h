@@ -15,6 +15,7 @@
 struct EVisibility;
 enum class EExposedFieldType : uint8;
 struct FSlateBrush;
+struct FRemoteControlField;
 struct FGuid;
 class IPropertyRowGenerator;
 class IDetailTreeNode;
@@ -40,7 +41,7 @@ struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelTreeNode
 	using SWidget::SharedThis;
 	using SWidget::AsShared;
 
-	void Construct(const FArguments& InArgs, const FRemoteControlField& Field);
+	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> Field);
 
 	void Tick(const FGeometry&, const double, const float);
 
@@ -49,6 +50,7 @@ struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelTreeNode
 	virtual TSharedPtr<SRCPanelExposedField> AsField() override;
 	virtual FGuid GetId() const override;
 	virtual SRCPanelTreeNode::ENodeType GetType() const override;
+	virtual void Refresh() override;
 	//~ End SRCPanelTreeNode Interface
 
 	/** Get this field's label. */
@@ -63,17 +65,8 @@ struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelTreeNode
 	/** Set whether this widet is currently hovered when drag and dropping. */
 	void SetIsHovered(bool bInIsHovered);
 
-	/** Handler called when objects get replaced (Usually called when you move an object) */
-	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap);
-
-	/** Refresh the widget. */
-	void Refresh();
-
 	/** Returns this widget's underlying objects. */
 	void GetBoundObjects(TSet<UObject*>& OutBoundObjects) const;
-
-	/** Set this widget's underlying objects. */
-	void SetBoundObjects(const TArray<UObject*>& InObjects);
 
 private:
 	/** Construct a property widget. */
@@ -94,19 +87,18 @@ private:
 	void ConstructPropertyWidget();
 	/** Construct this field widget as a function widget. */
 	void ConstructFunctionWidget();
-	/** Construct a button  */
-	TSharedRef<SWidget> ConstructCallFunctionButton();
+	/**
+	 * Construct a call function button
+	 * @param bIsEnabled Whether the button should be clickable or not.
+	 * @return The constructed widget.
+	 */
+	TSharedRef<SWidget> ConstructCallFunctionButton(bool bIsEnabled = true);
 	/** Handles calling an exposed function.*/
 	FReply OnClickFunctionButton();
 private:
-	/** Type of the exposed field. */
-	EExposedFieldType FieldType;
-	/** Name of the field's underlying property. */
-	FName FieldName;
+	TWeakPtr<FRemoteControlField> WeakField;
 	/** Display name of the field. */
-	FName FieldLabel;
-	/** Qualified field name, with its path to parent */
-	FRCFieldPathInfo FieldPathInfo;
+	FName CachedLabel;
 	/** Id of the field. */
 	FGuid FieldId;
 	/** Whether the row should display its options. */

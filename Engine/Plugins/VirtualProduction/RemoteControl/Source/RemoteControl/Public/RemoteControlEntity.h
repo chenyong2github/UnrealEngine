@@ -5,6 +5,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "RemoteControlEntity.generated.h"
 
+class URemoteControlBinding;
 class URemoteControlPreset;
 
 /**
@@ -19,6 +20,12 @@ struct REMOTECONTROL_API FRemoteControlEntity
 
 	virtual ~FRemoteControlEntity(){}
 
+	/**
+	 * Change this entity's label.
+	 * @param NewLabel the desired label.
+	 * @return The assigned label.
+	 * @note The returned label can be different from the desired one if the label was already tkaen in the preset.
+	 */
 	FName Rename(FName NewLabel);
 
 	/**
@@ -46,6 +53,13 @@ public:
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
 	TMap<FString, FString> Metadata;
+
+	/**
+	 * The bound objects that are exposed or that hold the exposed entity.
+	 */
+	UPROPERTY()
+	TArray<TWeakObjectPtr<URemoteControlBinding>> Bindings;
+	
 
 protected:
 	FRemoteControlEntity(URemoteControlPreset* InPreset, FName InLabel);

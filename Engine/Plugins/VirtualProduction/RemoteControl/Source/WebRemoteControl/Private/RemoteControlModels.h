@@ -319,7 +319,7 @@ struct FRCPresetLayoutGroupDescription
 		checkSlow(Preset);
 		for (FName FieldLabel : FieldLabels)
 		{
-			AddExposedField(Preset, Preset->GetFieldId(FieldLabel));
+			AddExposedField(Preset, Preset->GetExposedEntityId(FieldLabel));
 		}
 	}
 
@@ -340,32 +340,25 @@ private:
 	/** Add an exposed field to this group description. */
 	void AddExposedField(const URemoteControlPreset* Preset, const FGuid& FieldId)
 	{
-		if (TOptional<FRemoteControlField> Field = Preset->GetField(FieldId))
+		if (TSharedPtr<const FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
 		{
-			if (Field->FieldType == EExposedFieldType::Property)
+			if (FProperty* Property = RCProperty->GetProperty())
 			{
-				TOptional<FRemoteControlProperty> RCProperty = Preset->GetProperty(Field->GetLabel());
-				TOptional<FExposedProperty> UnderlyingProperty = Preset->ResolveExposedProperty(Field->GetLabel());
-				if (RCProperty && UnderlyingProperty && UnderlyingProperty->Property)
-				{
-					ExposedProperties.Add(FRCExposedPropertyDescription{ MoveTemp(*RCProperty), UnderlyingProperty->Property });
-				}
-			}
-			else if (Field->FieldType == EExposedFieldType::Function)
-			{
-				TOptional<FRemoteControlFunction> RCFunction = Preset->GetFunction(Field->GetLabel());
-				if (RCFunction && RCFunction->Function)
-				{
-					ExposedFunctions.Add(FRCExposedFunctionDescription{ MoveTemp(*RCFunction) });
-				}
+				ExposedProperties.Emplace(*RCProperty, Property);	
 			}
 		}
-		else if (TSharedPtr<const FRemoteControlActor> Actor = Preset->GetExposedEntity<FRemoteControlActor>(FieldId).Pin())
+		else if (TSharedPtr<const FRemoteControlFunction> RCFunction = Preset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
 		{
-			if (Actor->Path.ResolveObject())
+			if (RCFunction->Function)
 			{
-				FRCExposedActorDescription ActorDescription{*Actor};
-				ExposedActors.Add(MoveTemp(ActorDescription));
+				ExposedFunctions.Emplace(*RCFunction);
+			}
+		}
+		else if (TSharedPtr<const FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(FieldId).Pin())
+		{
+			if (RCActor->GetActor())
+			{
+				ExposedActors.Emplace(*RCActor);
 			}
 		}
 	}

@@ -15,7 +15,6 @@ struct EVisibility;
 struct FListEntry;
 struct FAssetData;
 class FReply;
-struct FRemoteControlTarget;
 class IPropertyRowGenerator;
 class IPropertyHandle;
 struct SRCPanelTreeNode;
@@ -25,32 +24,6 @@ class SRCPanelExposedEntitiesList;
 class URemoteControlPreset;
 
 DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
-
-/**
- * Structure that holds all the information necessary to expose a property in the panel.
- */
-struct FExposableProperty
-{
-	/** Construct using all the property handle's objects */
-	FExposableProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle, const TArray<UObject*>& InOwnerObjects);
-
-	bool IsValid() const
-	{
-		return !PropertyDisplayName.IsEmpty() && !PropertyName.IsNone() && OwnerObjects.Num() > 0;
-	}
-
-	/** The property being exposed. */
-	FString PropertyDisplayName;
-
-	/** The field's top level parents. */
-	TArray<UObject*> OwnerObjects;
-
-	/** The property's name. */
-	FName PropertyName;
-
-	/** Path information for this property */
-	FRCFieldPathInfo FieldPathInfo;
-};
 
 /**
  * UI representation of a remote control preset.
@@ -99,6 +72,11 @@ public:
 	bool IsInEditMode() const { return bIsInEditMode; }
 
 	/**
+	 * Get the selected group.
+	 */
+	FGuid GetSelectedGroup() const;
+
+	/**
 	 * Set the edit mode of the panel.
 	 * @param bEditMode The desired mode.
 	 */
@@ -118,9 +96,6 @@ private:
 	/** Re-create the sections of the panel. */
 	void Refresh();
 
-	/** Expose a property using its handle. */
-	FRemoteControlTarget* Expose(FExposableProperty&& Property);
-
 	/** Unexpose a field from the preset. */
 	void Unexpose(const TSharedPtr<IPropertyHandle>& Handle);
 
@@ -133,11 +108,15 @@ private:
 	/** Handles creating a new group. */
 	FReply OnCreateGroup();
 
+	/** Expose a property using its handle. */
+	void ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath);
+
 	/** Exposes a function.  */
 	void ExposeFunction(UObject* Object, UFunction* Function);
 
 	/** Handles exposing an actor. */
 	void OnExposeActor(const FAssetData& AssetData);
+
 
 	/** Handles disbabling CPU throttling. */
 	FReply OnClickDisableUseLessCPU() const;

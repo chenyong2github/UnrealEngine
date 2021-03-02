@@ -77,23 +77,72 @@ public:
 	TArray<TSharedPtr<const FRemoteControlEntity>> GetExposedEntities(UScriptStruct* EntityType) const;
 
 	/**
-	 * Get a the exposed entities of a certain type.
+	 * Get the exposed entities of a certain type.
 	 */
 	TArray<TSharedPtr<FRemoteControlEntity>> GetExposedEntities(UScriptStruct* EntityType);
+	
+	/**
+	 * Get the exposed entities of a certain type.
+	 */
+	template <typename EntityType>
+	TArray<TSharedPtr<EntityType>> GetExposedEntities()
+	{
+		static_assert(TIsDerivedFrom<EntityType, FRemoteControlEntity>::Value, "EntityType must derive from FRemoteControlEntity.");
+		TArray<TSharedPtr<FRemoteControlEntity>> Entities = GetExposedEntities(EntityType::StaticStruct());
+		TArray<TSharedPtr<EntityType>> CastEntities;
+		CastEntities.Reserve(Entities.Num());
+		Algo::Transform(Entities, CastEntities, [](const TSharedPtr<FRemoteControlEntity>& InEntity){ return StaticCastSharedPtr<EntityType>(InEntity);});
+		return CastEntities;		
+	}
+
+	/**
+	 * Get the exposed entities of a certain type.
+	 */
+	template <typename EntityType>
+    TArray<TSharedPtr<EntityType>> GetExposedEntities() const
+	{
+		return const_cast<URemoteControlExposeRegistry*>(this)->GetExposedEntities<EntityType>();
+	}
 
 	/**
 	 * Get an exposed entity from the registry.
 	 * @param ExposedEntityId the id of the entity to get.
-	 * @return An optional containing the exposed entity if found.
+	 * @param EntityType the type of entity to search for.
+	 * @return the exposed entity pointer, or an invalid pointer otherwise.
 	 */
-	TSharedPtr<const FRemoteControlEntity> GetExposedEntity(const FGuid& ExposedEntityId) const;
+	TSharedPtr<const FRemoteControlEntity> GetExposedEntity(const FGuid& ExposedEntityId, const UScriptStruct* EntityType = FRemoteControlEntity::StaticStruct()) const;
 
 	/**
 	 * Get an exposed entity from the registry.
 	 * @param ExposedEntityId the id of the entity to get.
-	 * @return An optional containing the exposed entity if found.
+	 * @param EntityType the type of entity to search for.
+	 * @return the exposed entity pointer, or an invalid pointer otherwise.
 	 */
-	TSharedPtr<FRemoteControlEntity> GetExposedEntity(const FGuid& ExposedEntityId);
+	TSharedPtr<FRemoteControlEntity> GetExposedEntity(const FGuid& ExposedEntityId, const UScriptStruct* EntityType = FRemoteControlEntity::StaticStruct());
+
+	/**
+	 * Get an exposed entity from the registry.
+	 * @param ExposedEntityId the id of the entity to get.
+	 * @return the exposed entity pointer, or an invalid pointer otherwise.
+	 */
+	template <typename EntityType>
+	TSharedPtr<const EntityType> GetExposedEntity(const FGuid& ExposedEntityId) const
+	{
+		return const_cast<URemoteControlExposeRegistry*>(this)->GetExposedEntity<EntityType>(ExposedEntityId);
+	}
+
+	/**
+	 * Get an exposed entity from the registry.
+	 * @param ExposedEntityId the id of the entity to get.
+	 * @return the exposed entity pointer, or an invalid pointer otherwise.
+	 */
+	template <typename EntityType>
+	TSharedPtr<EntityType> GetExposedEntity(const FGuid& ExposedEntityId)
+	{
+		static_assert(TIsDerivedFrom<EntityType, FRemoteControlEntity>::Value, "EntityType must derive from FRemoteControlEntity.");
+		UScriptStruct* EntityStruct = EntityType::StaticStruct();
+		return StaticCastSharedPtr<EntityType>(GetExposedEntity(ExposedEntityId, EntityStruct));
+	}
 
 	/**
 	 * Get the type of an exposed entity.
@@ -107,7 +156,7 @@ public:
 	 * @param EntityToExpose the entity to expose.
 	 * @param EntityType EntityType the type of the entity to expose.
 	 */
-	TSharedPtr<FRemoteControlEntity> AddExposedEntity(FRemoteControlEntity& EntityToExpose, UScriptStruct* EntityType);
+	TSharedPtr<FRemoteControlEntity> AddExposedEntity(FRemoteControlEntity&& EntityToExpose, UScriptStruct* EntityType);
 
 	/**
 	 * Remove an exposed entity from the registry using its id.

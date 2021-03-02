@@ -457,7 +457,9 @@ public:
 
 		if (URemoteControlPreset* Preset = ResolvePreset(FName(*Args.PresetName)))
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			ExposedFunction = Preset->ResolveExposedFunction(FName(*Args.FieldLabel));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		return ExposedFunction;
@@ -469,7 +471,9 @@ public:
 
 		if (URemoteControlPreset* Preset = ResolvePreset(FName(*Args.PresetName)))
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			ExposedProperty = Preset->ResolveExposedProperty(FName(*Args.FieldLabel));
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		return ExposedProperty;

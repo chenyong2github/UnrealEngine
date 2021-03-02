@@ -32,6 +32,8 @@ struct SRCPanelTreeNode
 	virtual FGuid GetId() const { return FGuid(); }
 	/** Get get this node's type. */
 	virtual ENodeType GetType() const { return Invalid; };
+	/** Refresh the node. */
+	virtual void Refresh() {};
 
 	//~ Utiliy methods for not having to downcast 
 	virtual TSharedPtr<SRCPanelExposedField> AsField() { return nullptr; }

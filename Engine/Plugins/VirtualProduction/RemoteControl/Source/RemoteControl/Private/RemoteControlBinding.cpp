@@ -55,15 +55,12 @@ namespace
 
 void URemoteControlLevelIndependantBinding::SetBoundObject(const TSoftObjectPtr<UObject>& InObject)
 {
-	if (ensure(InObject))
-	{
-		BoundObject = FindObjectInCounterpartWorld(InObject.Get(), ECounterpartWorldTarget::Editor);
-	}
+	BoundObject = InObject;
 }
 
 void URemoteControlLevelIndependantBinding::UnbindObject(const TSoftObjectPtr<UObject>& InBoundObject)
 {
-	if (ensure(InBoundObject) && BoundObject == FindObjectInCounterpartWorld(InBoundObject.Get(), ECounterpartWorldTarget::Editor))
+	if (BoundObject == InBoundObject)
 	{
 		BoundObject.Reset();
 	}
@@ -90,6 +87,7 @@ void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<UO
 	{
 		UObject* EditorObject = FindObjectInCounterpartWorld(InObject.Get(), ECounterpartWorldTarget::Editor);
 		BoundObjectMap.FindOrAdd(EditorObject->GetTypedOuter<ULevel>(), EditorObject);
+		
 		Name = EditorObject->GetName();
 	}
 }
@@ -160,4 +158,16 @@ UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld() const
 #endif
 
 	return World ? World : GEngine->GetCurrentPlayWorld(); 
+}
+
+void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<ULevel>& Level, const TSoftObjectPtr<UObject>& BoundObject)
+{
+	BoundObjectMap.FindOrAdd(Level, BoundObject);
+	const FSoftObjectPath& Path = BoundObject.ToSoftObjectPath();
+	const FString& SubPath = Path.GetSubPathString();
+	FString LeftPart;
+	FString ObjectName;
+	SubPath.Split(TEXT("."), &LeftPart, &ObjectName, ESearchCase::Type::IgnoreCase, ESearchDir::FromEnd);
+	ensure(ObjectName.Len());
+	Name = MoveTemp(ObjectName);
 }

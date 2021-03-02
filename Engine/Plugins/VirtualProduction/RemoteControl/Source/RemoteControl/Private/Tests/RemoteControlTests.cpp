@@ -11,36 +11,33 @@
 
 namespace RemoteControlTest 
 {
-	void ValidateExposePropertyTest(FAutomationTestBase& Test, URemoteControlPreset* Preset, URemoteControlTestObject* TestObject, FProperty* Property, TOptional<FRemoteControlProperty> RCProp)
+	void ValidateExposePropertyTest(FAutomationTestBase& Test, URemoteControlPreset* Preset, URemoteControlTestObject* TestObject, FProperty* Property, FRemoteControlProperty RCProp)
 	{
-		Test.TestTrue(TEXT("Property was exposed correctly"), RCProp.IsSet());
-		if (!RCProp)
+		Test.TestTrue(TEXT("IsExposed returns true."), Preset->IsExposed(RCProp.GetId()));
+		TSharedPtr<FRemoteControlProperty> FetchedProperty = Preset->GetExposedEntity<FRemoteControlProperty>(RCProp.GetId()).Pin();
+		Test.TestTrue(TEXT("Preset::GetProperty returns a valid property."), FetchedProperty.IsValid());
+		if (!FetchedProperty)
 		{
 			return;
 		}
 
-		Test.TestTrue(TEXT("IsExposed returns true."), Preset->IsExposed(RCProp->GetId()));
-		Test.TestEqual(TEXT("Preset::GetProperty returns the same property."), RCProp, Preset->GetProperty(RCProp->GetId()));
+		if (!((*FetchedProperty) == RCProp))
+		{
+			Test.AddError(TEXT("Preset::GetProperty returns the same property."));
+		}
 
-		Test.TestTrue(Property->GetName() + TEXT(" must resolve correctly."), RCProp->FieldPathInfo.Resolve(TestObject));
-		FRCFieldResolvedData ResolvedData = RCProp->FieldPathInfo.GetResolvedData();
+		Test.TestTrue(Property->GetName() + TEXT(" must resolve correctly."), RCProp.FieldPathInfo.Resolve(TestObject));
+		FRCFieldResolvedData ResolvedData = RCProp.FieldPathInfo.GetResolvedData();
 		Test.TestTrue(TEXT("Resolved data is valid"), ResolvedData.ContainerAddress && ResolvedData.Field && ResolvedData.Struct);
 
-		TOptional<FExposedProperty> ExposedProp = Preset->ResolveExposedProperty(RCProp->GetLabel());
-		Test.TestTrue(TEXT("Property was exposed correctly"), ExposedProp.IsSet());
-		if (!ExposedProp)
+		Test.TestTrue(TEXT("Resolved property must be valid"), !!RCProp.GetProperty());
+		Test.TestTrue(TEXT("Resolved property's owner objects must be valid"), RCProp.ResolveFieldOwners().Num() > 0);
+
+		Test.TestEqual(TEXT("Resolved property must be equal to the original property."), Property, RCProp.GetProperty());
+
+		if (RCProp.ResolveFieldOwners().Num())
 		{
-			return;
-		}
-
-		Test.TestTrue(TEXT("Resolved property must be valid"), !!ExposedProp->Property);
-		Test.TestTrue(TEXT("Resolved property's owner objects must be valid"), ExposedProp->OwnerObjects.Num() > 0);
-
-		Test.TestEqual(TEXT("Resolved property must be equal to the original property."), Property, ExposedProp->Property);
-
-		if (ExposedProp->OwnerObjects.Num())
-		{
-			Test.TestEqual(TEXT("Resolved property's owner objects must be valid"), TestObject, Cast<URemoteControlTestObject>(ExposedProp->OwnerObjects[0]));
+			Test.TestEqual(TEXT("Resolved property's owner objects must be valid"), TestObject, Cast<URemoteControlTestObject>(RCProp.ResolveFieldOwners()[0]));
 		}
 	}
 
@@ -51,27 +48,32 @@ namespace RemoteControlTest
 		TStrongObjectPtr<URemoteControlTestObject> TestObject{ NewObject<URemoteControlTestObject>() };
 
 		// Execute test
-		FRemoteControlTarget& Target = Preset->CreateAndGetTarget({ TestObject.Get() });
-		FRCFieldPathInfo Info{ Property->GetName() };
-		TOptional<FRemoteControlProperty> RCProp = Target.ExposeProperty(Info, Property->GetName());
-
-		// Validate result
-		ValidateExposePropertyTest(Test, Preset.Get(), TestObject.Get(), Property, MoveTemp(RCProp));
+		TSharedPtr<FRemoteControlProperty> RCProp = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{Property->GetName()}).Pin();
+		Test.TestNotNull(TEXT("The exposed property must be valid."), RCProp.Get());
+		
+		if (RCProp)
+		{
+			// Validate result
+			ValidateExposePropertyTest(Test, Preset.Get(), TestObject.Get(), Property, *RCProp);
+		}
 	}
 
-	void TestExposeContainerElement(FAutomationTestBase& Test,  FProperty* Property, FString PropertyPath, bool bCleanDuplicates = false)
+	void TestExposeContainerElement(FAutomationTestBase& Test, FProperty* Property, FString PropertyPath, bool bCleanDuplicates = false)
 	{
 		// Setup test data
 		TStrongObjectPtr<URemoteControlPreset> Preset{ NewObject<URemoteControlPreset>() };
 		TStrongObjectPtr<URemoteControlTestObject> TestObject{ NewObject<URemoteControlTestObject>() };
 
 		// Execute test
-		FRemoteControlTarget& Target = Preset->CreateAndGetTarget({ TestObject.Get() });
-		FRCFieldPathInfo Info{ PropertyPath, bCleanDuplicates };
-		TOptional<FRemoteControlProperty> RCProp = Target.ExposeProperty(Info, Property->GetName());
-
-		// Validate result
-		ValidateExposePropertyTest(Test, Preset.Get(), TestObject.Get(), Property, RCProp);
+		if (TSharedPtr<FRemoteControlProperty> RCProp = Preset->ExposeProperty(TestObject.Get(), FRCFieldPathInfo{ PropertyPath, bCleanDuplicates }).Pin())
+		{
+			// Validate result
+			ValidateExposePropertyTest(Test, Preset.Get(), TestObject.Get(), Property, *RCProp);	
+		}
+		else
+		{
+			Test.AddError(TEXT("Could not expose property"));
+		}
 	}
 }
 

@@ -20,10 +20,11 @@ void SRCPanelExposedActor::Construct(const FArguments& InArgs, const FRemoteCont
 	WeakPreset = Preset;
 	bEditMode = InArgs._EditMode;
 	CachedLabel = Actor.GetLabel();
-
+	AActor* ResolvedActor = Actor.GetActor();
+	FString Path = ResolvedActor ? ResolvedActor->GetPathName() : FString();
 	ChildSlot
 	[
-		RecreateWidget(Actor.Path.ToString())
+		RecreateWidget(MoveTemp(Path))
 	];
 }
 
@@ -47,6 +48,25 @@ FGuid SRCPanelExposedActor::GetId() const
 SRCPanelTreeNode::ENodeType SRCPanelExposedActor::GetType() const
 {
 	return ENodeType::Actor;
+}
+
+void SRCPanelExposedActor::Refresh()
+{
+
+	if (URemoteControlPreset* Preset = WeakPreset.Get())
+	{
+		if (TSharedPtr<FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(ExposedActorId).Pin())
+		{
+			CachedLabel = RCActor->GetLabel();
+
+			if (AActor* Actor = RCActor->GetActor())
+			{
+				ChildSlot.AttachWidget(RecreateWidget(Actor->GetPathName()));
+				return;
+			}
+		}
+	}
+	ChildSlot.AttachWidget(RecreateWidget(FString()));
 }
 
 TSharedPtr<SRCPanelExposedActor> SRCPanelExposedActor::AsActor()
@@ -127,11 +147,11 @@ void SRCPanelExposedActor::OnChangeActor(const FAssetData& AssetData)
 		Preset->Modify();
 		if (AActor* Actor = Cast<AActor>(AssetData.GetAsset()))
 		{
+			check(Actor);
 			if (TSharedPtr<FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(ExposedActorId).Pin())
 			{
-				FSoftObjectPath Path = FSoftObjectPath{AssetData.GetAsset()};
-				ChildSlot.AttachWidget(RecreateWidget(Path.ToString()));
-				RCActor->Path = MoveTemp(Path);
+				RCActor->SetActor(Actor);
+				ChildSlot.AttachWidget(RecreateWidget(Actor->GetPathName()));
 			}
 		}
 	}
@@ -149,7 +169,7 @@ bool SRCPanelExposedActor::OnVerifyItemLabelChanged(const FText& InLabel, FText&
 {
 	if (URemoteControlPreset* RCPreset = WeakPreset.Get())
 	{
-		if (InLabel.ToString() != CachedLabel.ToString() && RCPreset->GetFieldId(FName(*InLabel.ToString())).IsValid())
+		if (InLabel.ToString() != CachedLabel.ToString() && RCPreset->GetExposedEntityId(FName(*InLabel.ToString())).IsValid())
 		{
 			OutErrorMessage = LOCTEXT("NameAlreadyExists", "This name already exists.");
 			return false;
@@ -163,10 +183,10 @@ void SRCPanelExposedActor::OnLabelCommitted(const FText& InLabel, ETextCommit::T
 {
 	if (URemoteControlPreset* RCPreset = WeakPreset.Get())
 	{
-		FScopedTransaction Transaction(LOCTEXT("RenameField", "Rename Field"));
-		RCPreset->Modify(); 
-		RCPreset->RenameExposedEntity(ExposedActorId, FName(*InLabel.ToString()));
-		NameTextBox->SetText(InLabel);
+		FScopedTransaction Transaction(LOCTEXT("RenameExposedActor", "Modify exposed actor label"));
+		RCPreset->Modify();
+		CachedLabel =  RCPreset->RenameExposedEntity(ExposedActorId, *InLabel.ToString());
+		NameTextBox->SetText(FText::FromName(CachedLabel));
 	}
 }
 

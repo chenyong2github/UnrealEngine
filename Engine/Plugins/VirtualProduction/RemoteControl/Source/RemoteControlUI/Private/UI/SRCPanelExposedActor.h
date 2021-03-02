@@ -30,6 +30,7 @@ struct SRCPanelExposedActor : public SCompoundWidget, public SRCPanelTreeNode
 	//~ SRCPanelTreeNode interface
 	FGuid GetId() const override;
 	ENodeType GetType() const override;
+	virtual void Refresh() override;
 	TSharedPtr<SRCPanelExposedActor> AsActor() override;
 
 private:

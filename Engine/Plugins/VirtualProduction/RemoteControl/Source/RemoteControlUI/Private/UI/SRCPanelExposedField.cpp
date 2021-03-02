@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SRCPanelExposedField.h"
+#include "SRCPanelExposedField.h"
 
 #include "Algo/Transform.h"
 #include "EditorStyleSet.h"
@@ -128,24 +129,27 @@ namespace ExposedFieldUtils
 	}
 }
 
-void SRCPanelExposedField::Construct(const FArguments& InArgs, const FRemoteControlField& Field)
+void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField)
 {
-	FieldType = Field.FieldType;
-	FieldName = Field.FieldName;
-	FieldLabel = Field.GetLabel();
-	FieldPathInfo = Field.FieldPathInfo; 
-	FieldId = Field.GetId();
+	WeakField = MoveTemp(InField);
+	
 	bEditMode = InArgs._EditMode;
 	Preset = InArgs._Preset;
 	bDisplayValues = InArgs._DisplayValues;
-
-	if (FieldType == EExposedFieldType::Property)
+	
+	if (TSharedPtr<FRemoteControlField> FieldPtr = WeakField.Pin())
 	{
-		ConstructPropertyWidget();
-	}
-	else
-	{
-		ConstructFunctionWidget();
+		CachedLabel = FieldPtr->GetLabel();
+		FieldId = FieldPtr->GetId();
+		
+		if (FieldPtr->FieldType == EExposedFieldType::Property)
+		{
+			ConstructPropertyWidget();
+		}
+		else
+		{
+			ConstructFunctionWidget();
+		}
 	}
 }
 
@@ -183,7 +187,7 @@ SRCPanelTreeNode::ENodeType SRCPanelExposedField::GetType() const
 
 FName SRCPanelExposedField::GetFieldLabel() const
 {
-	return FieldLabel;
+	return CachedLabel;
 }
 
 FGuid SRCPanelExposedField::GetFieldId() const
@@ -193,7 +197,12 @@ FGuid SRCPanelExposedField::GetFieldId() const
 
 EExposedFieldType SRCPanelExposedField::GetFieldType() const
 {
-	return FieldType;
+	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
+	{
+		return Field->FieldType;
+	}
+	
+	return EExposedFieldType::Invalid;
 }
 
 void SRCPanelExposedField::SetIsHovered(bool bInIsHovered)
@@ -201,97 +210,49 @@ void SRCPanelExposedField::SetIsHovered(bool bInIsHovered)
 	bIsHovered = bInIsHovered;
 }
 
-void SRCPanelExposedField::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementObjectMap)
+void SRCPanelExposedField::Refresh()
 {
-	const TArray<TWeakObjectPtr<UObject>>& RowGeneratorObjects = RowGenerator->GetSelectedObjects();
-
-	TArray<UObject*> NewObjectList;
-	NewObjectList.Reserve(RowGeneratorObjects.Num());
-
-	bool bObjectsReplaced = false;
-	for (const TWeakObjectPtr<UObject>& Object : RowGeneratorObjects)
+	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
-		/** We might be looking for an object that's already been garbage collected. */
-		UObject* Replacement = ReplacementObjectMap.FindRef(Object.GetEvenIfUnreachable());
-		if (Replacement)
-		{
-			NewObjectList.Add(Replacement);
-			bObjectsReplaced = true;
-		}
-		else
-		{
-			NewObjectList.Add(Object.Get());
-		}
-	}
-
-	if (bObjectsReplaced)
-	{
-		RowGenerator->SetObjects(NewObjectList);
+		CachedLabel = Field->GetLabel();
+		RowGenerator->SetObjects(Field->ResolveFieldOwners());
 		ChildSlot.AttachWidget(ConstructWidget());
 	}
 }
 
-void SRCPanelExposedField::Refresh()
-{
-	// This is needed in order to update the panel when an array is modified.
-	TArray<UObject*> Objects;
-	Algo::TransformIf(RowGenerator->GetSelectedObjects(), Objects,
-		[](const TWeakObjectPtr<UObject>& WeakObject)
-		{
-			return WeakObject.IsValid();
-		},
-		[](const TWeakObjectPtr<UObject>& WeakObject)
-		{
-			return WeakObject.Get();
-		});
-
-	RowGenerator->SetObjects(Objects);
-	ChildSlot.AttachWidget(ConstructWidget());
-}
-
 void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) const
 {
-	OutBoundObjects.Reserve(OutBoundObjects.Num() + RowGenerator->GetSelectedObjects().Num());
-	Algo::TransformIf(RowGenerator->GetSelectedObjects(), OutBoundObjects,
-		[](const TWeakObjectPtr<UObject>& WeakObject)
-		{
-			return WeakObject.IsValid();
-		},
-		[](const TWeakObjectPtr<UObject>& WeakObject)
-		{
-			return WeakObject.Get();
-		});
-}
-
-
-void SRCPanelExposedField::SetBoundObjects(const TArray<UObject*>& InObjects)
-{
-	RowGenerator->SetObjects(InObjects);
-	ChildSlot.AttachWidget(ConstructWidget());
+	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
+	{
+		OutBoundObjects.Append(Field->ResolveFieldOwners());
+	}
 }
 
 TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 {
 	if (bDisplayValues)
 	{
-		if (FieldType == EExposedFieldType::Property && RowGenerator->GetSelectedObjects().Num())
+		if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 		{
-			if (TSharedPtr<IDetailTreeNode> Node = ExposedFieldUtils::FindNode(RowGenerator->GetRootTreeNodes(), FieldPathInfo.ToPathPropertyString(), true))
+			if (GetFieldType() == EExposedFieldType::Property && RowGenerator->GetSelectedObjects().Num())
 			{
-				TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-				Node->GetChildren(ChildNodes);
-				ChildWidgets.Reset(ChildNodes.Num());
-
-				for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+				if (TSharedPtr<IDetailTreeNode> Node = ExposedFieldUtils::FindNode(RowGenerator->GetRootTreeNodes(), Field->FieldPathInfo.ToPathPropertyString(), true))
 				{
-					ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode));
+					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+					Node->GetChildren(ChildNodes);
+					ChildWidgets.Reset(ChildNodes.Num());
+
+					for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+					{
+						ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode));
+					}
+
+					return MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node)));
 				}
-
-				return MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node)));
 			}
+	
+			return MakeFieldWidget(PanelTreeNode::CreateInvalidWidget());
 		}
-
-		return MakeFieldWidget(PanelTreeNode::CreateInvalidWidget());
 	}
 
 	return MakeFieldWidget(SNullWidget::NullWidget);
@@ -308,7 +269,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 		];
 
 	Args.NameWidget = SAssignNew(NameTextBox, SInlineEditableTextBlock)
-		.Text(FText::FromName(FieldLabel))
+		.Text(FText::FromName(CachedLabel))
 		.OnTextCommitted(this, &SRCPanelExposedField::OnLabelCommitted)
 		.OnVerifyTextChanged(this, &SRCPanelExposedField::OnVerifyItemLabelChanged)
 		.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); });
@@ -363,7 +324,7 @@ void SRCPanelExposedField::HandleUnexposeField()
 	if (URemoteControlPreset* RCPreset = Preset.Get())
 	{
 		FText TransactionText;
-		if (FieldType == EExposedFieldType::Function)
+		if (GetFieldType() == EExposedFieldType::Function)
 		{
 			TransactionText = LOCTEXT("UnexposeFunction", "Unexpose Function");
 		}
@@ -374,7 +335,7 @@ void SRCPanelExposedField::HandleUnexposeField()
 
 		FScopedTransaction Transaction(MoveTemp(TransactionText));
 		RCPreset->Modify();
-		RCPreset->Unexpose(FieldLabel);
+		RCPreset->Unexpose(FieldId);
 	}
 }
 
@@ -382,7 +343,7 @@ bool SRCPanelExposedField::OnVerifyItemLabelChanged(const FText& InLabel, FText&
 {
 	if (URemoteControlPreset* RCPreset = Preset.Get())
 	{
-		if (InLabel.ToString() != FieldLabel.ToString() && RCPreset->GetFieldId(FName(*InLabel.ToString())).IsValid())
+		if (InLabel.ToString() != CachedLabel.ToString() && RCPreset->GetExposedEntityId(*InLabel.ToString()).IsValid())
 		{
 			OutErrorMessage = LOCTEXT("NameAlreadyExists", "This name already exists.");
 			return false;
@@ -396,11 +357,10 @@ void SRCPanelExposedField::OnLabelCommitted(const FText& InLabel, ETextCommit::T
 {
 	if (URemoteControlPreset* RCPreset = Preset.Get())
 	{
-		FScopedTransaction Transaction(LOCTEXT("RenameField", "Rename Field"));
+		FScopedTransaction Transaction(LOCTEXT("ModifyFieldLabel", "Modify exposed field's label."));
 		RCPreset->Modify();
-		RCPreset->RenameField(FieldLabel, FName(*InLabel.ToString()));
-		FieldLabel = FName(*InLabel.ToString());
-		NameTextBox->SetText(FText::FromName(FieldLabel));
+		CachedLabel = RCPreset->RenameExposedEntity(FieldId, *InLabel.ToString());
+		NameTextBox->SetText(FText::FromName(CachedLabel));
 	}
 }
 
@@ -410,9 +370,9 @@ void SRCPanelExposedField::ConstructPropertyWidget()
 
 	if (URemoteControlPreset* RCPreset = Preset.Get())
 	{
-		if (TOptional<FExposedProperty> Property = RCPreset->ResolveExposedProperty(FieldLabel))
+		if (TSharedPtr<FRemoteControlProperty> Property = RCPreset->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
 		{
-			RowGenerator->SetObjects(Property->OwnerObjects);
+			RowGenerator->SetObjects(Property->ResolveFieldOwners());
 		}
 	}
 
@@ -427,9 +387,14 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 	RowGenerator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(GeneratorArgs);
 
 	URemoteControlPreset* RCPreset = Preset.Get();
-	if (TOptional<FRemoteControlFunction> RCFunction = RCPreset ? RCPreset->GetFunction(FieldId) : TOptional<FRemoteControlFunction>())
+	if (!RCPreset)
 	{
-		if (RCFunction->Function)
+		return;
+	}
+
+	if (TSharedPtr<FRemoteControlFunction> RCFunction = RCPreset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
+	{
+		if (RCFunction->Function && RCFunction->ResolveFieldOwners().Num())
 		{
 			RowGenerator->SetStructure(RCFunction->FunctionArguments);
 			
@@ -455,7 +420,7 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 			else
 			{
 				ChildSlot.AttachWidget(MakeFieldWidget(SNullWidget::NullWidget));
-			}
+			}	
 
 			return;
 		}
@@ -464,7 +429,7 @@ void SRCPanelExposedField::ConstructFunctionWidget()
 	ChildSlot.AttachWidget(ConstructWidget());
 }
 
-TSharedRef<SWidget> SRCPanelExposedField::ConstructCallFunctionButton()
+TSharedRef<SWidget> SRCPanelExposedField::ConstructCallFunctionButton(bool bIsEnabled)
 {
 	return SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -473,6 +438,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructCallFunctionButton()
 		.AutoHeight()
 		[
 			SNew(SButton)
+			.IsEnabled(bIsEnabled)
 			.VAlign(VAlign_Center)
 			.OnClicked_Raw(this, &SRCPanelExposedField::OnClickFunctionButton)
 			[
@@ -489,13 +455,13 @@ FReply SRCPanelExposedField::OnClickFunctionButton()
 
 	if (URemoteControlPreset* RCPreset = Preset.Get())
 	{
-		if (TOptional<FExposedFunction> Function = RCPreset->ResolveExposedFunction(FieldLabel))
+		if (TSharedPtr<FRemoteControlFunction> Function = RCPreset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
 		{
-			for (UObject* Object : Function->OwnerObjects)
+			for (UObject* Object : Function->ResolveFieldOwners())
 			{
-				if (Function->DefaultParameters && Function->DefaultParameters->IsValid())
+				if (Function->FunctionArguments && Function->FunctionArguments->IsValid())
 				{
-					Object->ProcessEvent(Function->Function, Function->DefaultParameters->GetStructMemory());
+					Object->ProcessEvent(Function->Function, Function->FunctionArguments->GetStructMemory());
 				}
 				else
 				{

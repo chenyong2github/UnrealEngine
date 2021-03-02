@@ -78,12 +78,19 @@ class REMOTECONTROL_API URemoteControlLevelDependantBinding : public URemoteCont
 public:
 	GENERATED_BODY()
 
-	//~ URemoteControlBinding Interface
+	//~ Begin URemoteControlBinding Interface
 	virtual void SetBoundObject(const TSoftObjectPtr<UObject>& BoundObject) override;
 	virtual void UnbindObject(const TSoftObjectPtr<UObject>& BoundObject) override;
 	virtual UObject* Resolve() const override;
 	virtual bool IsValid() const override;
 	virtual bool IsBound(const TSoftObjectPtr<UObject>& Object) const override;
+	//~ Begin URemoteControlBinding Interface
+
+	/**
+	 *	Set the bound object by specifying the level it resides in.
+	 *	@Note Useful is you want to set the bound object without loading the level/object.
+	 */
+	void SetBoundObject(const TSoftObjectPtr<ULevel>& Level, const TSoftObjectPtr<UObject>& BoundObject);
 
 private:
 	TSoftObjectPtr<UObject> FindObjectFromCurrentWorld() const;

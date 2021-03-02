@@ -25,7 +25,8 @@ FName FRemoteControlEntity::Rename(FName NewLabel)
 {
 	if (URemoteControlPreset* Preset = Owner.Get())
 	{
-		Preset->RenameField(Label, NewLabel);
+		Preset->Modify();
+		return Preset->RenameExposedEntity(Id, NewLabel);
 	}
 
 	checkNoEntry();

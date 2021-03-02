@@ -34,6 +34,12 @@ struct REMOTECONTROL_API FRemoteControlField : public FRemoteControlEntity
 	 */
 	TArray<UObject*> ResolveFieldOwners(const TArray<UObject*>& SectionObjects) const;
 
+	/**
+	 * Resolve the field's owners using this field's remote control bindings.
+	 * @return The list of UObjects that own the exposed field.
+	 */
+	TArray<UObject*> ResolveFieldOwners() const;
+
 public:
 	/**
 	 * The field's type.
@@ -46,7 +52,6 @@ public:
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
 	FName FieldName;
-
 
 	/**
 	 * Path information pointing to this field
@@ -89,6 +94,13 @@ struct REMOTECONTROL_API FRemoteControlProperty : public FRemoteControlField
 	FRemoteControlProperty(FName InLabel, FRCFieldPathInfo FieldPathInfo, TArray<FString> InComponentHierarchy);
 
 	FRemoteControlProperty(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo FieldPathInfo);
+
+	/**
+	 * Get the underlying property.
+	 * @return The exposed property or nullptr if it couldn't be resolved.
+	 * @note This field's binding must be valid to get the property.
+	 */
+	FProperty* GetProperty() const;
 };
 
 /**
