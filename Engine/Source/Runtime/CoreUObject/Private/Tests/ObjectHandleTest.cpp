@@ -19,16 +19,9 @@ public:
 	}
 
 protected:
-	UObject* ConstructAndResolveHandle(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, const ANSICHAR* ClassPackageName = nullptr, const ANSICHAR* ClassName = nullptr)
+	
+	UObject* ResolveHandle(FObjectHandle& TargetHandle)
 	{
-		FObjectRef TargetRef{FName(PackageName), FName(ClassPackageName), FName(ClassName), FObjectPathId(ObjectName)};
-		if (!TestFalse(TEXT("Reference to target is null"), IsObjectRefNull(TargetRef)))
-		{
-			return nullptr;
-		}
-
-		FObjectHandle TargetHandle = MakeObjectHandle(TargetRef);
-
 	#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 		// Late resolved handles cannot be null or resolved at this point
 		if (!TestFalse(TEXT("Handle to target is null"), IsObjectHandleNull(TargetHandle)))
@@ -48,6 +41,29 @@ protected:
 	#endif
 
 		return ResolveObjectHandle(TargetHandle);
+	}
+
+	UObject* ConstructAndResolveHandle(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, const ANSICHAR* ClassPackageName = nullptr, const ANSICHAR* ClassName = nullptr)
+	{
+		FObjectRef TargetRef{FName(PackageName), FName(ClassPackageName), FName(ClassName), FObjectPathId(ObjectName)};
+		if (!TestFalse(TEXT("Reference to target is null"), IsObjectRefNull(TargetRef)))
+		{
+			return nullptr;
+		}
+
+		FObjectHandle TargetHandle = MakeObjectHandle(TargetRef);
+		return ResolveHandle(TargetHandle);
+	}
+
+	UObject* ConstructAndResolveHandle(const FPackedObjectRef& PackedTargetRef)
+	{
+		if (!TestFalse(TEXT("Reference to target is null"), IsPackedObjectRefNull(PackedTargetRef)))
+		{
+			return nullptr;
+		}
+
+		FObjectHandle TargetHandle = MakeObjectHandle(PackedTargetRef);
+		return ResolveHandle(TargetHandle);
 	}
 
 	bool TestResolvableNonNull(const ANSICHAR* PackageName, const ANSICHAR* ObjectName, const ANSICHAR* ClassPackageName = nullptr, const ANSICHAR* ClassName = nullptr, bool bExpectSubRefReads = false)
@@ -77,6 +93,22 @@ protected:
 		if (ResolvedObject)
 		{
 			AddError(FString::Printf(TEXT("Expected '%s.%s' to resolve to null."), ANSI_TO_TCHAR(PackageName), ANSI_TO_TCHAR(ObjectName)), 1);
+			return false;
+		}
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should be incremented by one after a failed resolve attempt"), 1);
+		return true;
+	}
+
+	bool TestResolveFailure(FPackedObjectRef PackedRef)
+	{
+		FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
+		UObject* ResolvedObject = ConstructAndResolveHandle(PackedRef);
+		ObjectRefMetrics.TestNumResolves(TEXT("NumResolves should be incremented by one after a resolve attempt"), 1);
+		ObjectRefMetrics.TestNumReads(TEXT("NumReads should be incremented by one after a resolve attempt"), 1);
+
+		if (ResolvedObject)
+		{
+			AddError(FString::Printf(TEXT("Expected PACKEDREF(%" UPTRINT_X_FMT ") to resolve to null."), PackedRef.EncodedRef), 1);
 			return false;
 		}
 		ObjectRefMetrics.TestNumFailedResolves(TEXT("NumFailedResolves should be incremented by one after a failed resolve attempt"), 1);
@@ -146,8 +178,8 @@ bool FObjectHandleTestResolveEngineContentTarget::RunTest(const FString& Paramet
 	return true;
 }
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestFailResolveInvalidTarget, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".FailResolveInvalidTarget"), ObjectHandleTestFlags)
-bool FObjectHandleTestFailResolveInvalidTarget::RunTest(const FString& Parameters)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestResolveNonExistentTarget, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".ResolveNonExistentTarget"), ObjectHandleTestFlags)
+bool FObjectHandleTestResolveNonExistentTarget::RunTest(const FString& Parameters)
 {
 	if (FPlatformProperties::RequiresCookedData())
 	{
@@ -169,8 +201,6 @@ bool FObjectHandleTestFailResolveInvalidTarget::RunTest(const FString& Parameter
 	return true;
 }
 
-
-
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestResolveScriptTarget, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".ResolveScriptTarget"), ObjectHandleTestFlags)
 bool FObjectHandleTestResolveScriptTarget::RunTest(const FString& Parameters)
 {
@@ -181,6 +211,17 @@ bool FObjectHandleTestResolveScriptTarget::RunTest(const FString& Parameters)
 
 	return true;
 }
+
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectHandleTestResolveMalformedHandle, FObjectHandleTestBase, TEST_NAME_ROOT TEXT(".ResolveMalformedHandle"), ObjectHandleTestFlags)
+bool FObjectHandleTestResolveMalformedHandle::RunTest(const FString& Parameters)
+{
+	TestResolveFailure(FPackedObjectRef { 0xFFFF'FFFF'FFFF'FFFFull });
+	TestResolveFailure(FPackedObjectRef { 0xEFEF'EFEF'EFEF'EFEFull });
+
+	return true;
+}
+#endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 
 #undef TEST_NAME_ROOT
 

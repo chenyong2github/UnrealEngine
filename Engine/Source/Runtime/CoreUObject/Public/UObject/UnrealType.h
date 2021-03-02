@@ -3106,6 +3106,16 @@ public:
 	{
 		return WithScriptMap(InMap, [this, Index](auto* Map) { return (uint8*)Map->GetData(Index, MapLayout); });
 	}
+
+	const FProperty* GetKeyProperty() const
+	{
+		return KeyProp;
+	}
+
+	const FProperty* GetValueProperty() const
+	{
+		return ValueProp;
+	}
 };
 
 // need to break this out a different type so that the DECLARE_CASTED_CLASS_INTRINSIC macro can digest the comma

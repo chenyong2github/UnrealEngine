@@ -8,6 +8,7 @@
 #include "Serialization/ArchiveCountMem.h"
 #include "Templates/Models.h"
 #include "UObject/Interface.h"
+#include "UObject/MetaData.h"
 #include "UObject/SoftObjectPath.h"
 
 #include <type_traits>
@@ -23,6 +24,8 @@ using FConstPackagePtr = TObjectPtr<const UPackage>;
 
 class UForwardDeclaredObjDerived;
 class FForwardDeclaredNotObjDerived;
+
+using UTestDummyObject = UMetaData;
 
 static_assert(sizeof(FObjectPtr) == sizeof(FObjectHandle), "FObjectPtr type must always compile to something equivalent to an FObjectHandle size.");
 static_assert(sizeof(FObjectPtr) == sizeof(void*), "FObjectPtr type must always compile to something equivalent to a pointer size.");
@@ -216,6 +219,79 @@ bool FObjectPtrTestForwardDeclared::RunTest(const FString& Parameters)
 	UForwardDeclaredObjDerived* PtrFwd = nullptr;
 	TObjectPtr<UForwardDeclaredObjDerived> ObjPtrFwd(MakeObjectPtrUnsafe<UForwardDeclaredObjDerived>(reinterpret_cast<UObject*>(PtrFwd)));
 	TestTrue(TEXT("Null forward declared pointer used to construct a TObjectPtr should result in a null TObjectPtr"), ObjPtrFwd.IsNull());
+	return true;
+}
+
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FObjectPtrTestHashConsistency, FObjectPtrTestBase, TEST_NAME_ROOT TEXT(".HashConsistency"), ObjectPtrTestFlags)
+bool FObjectPtrTestHashConsistency::RunTest(const FString& Parameters)
+{
+	const FName TestPackage1Name(TEXT("/Engine/Test/ObjectPtrHashConsistency1/Transient"));
+	UPackage* TestPackage1 = NewObject<UPackage>(nullptr, TestPackage1Name, RF_Transient);
+	TestPackage1->AddToRoot();
+	UObject* TestOuter1 = NewObject<UTestDummyObject>(TestPackage1, TEXT("TestOuter1"));
+	UObject* TestOuter2 = NewObject<UTestDummyObject>(TestPackage1, TEXT("TestOuter2"));
+	UObject* TestOuter3 = NewObject<UTestDummyObject>(TestPackage1, TEXT("TestOuter3"));
+	UObject* TestOuter4 = NewObject<UTestDummyObject>(TestPackage1, TEXT("TestOuter4"));
+
+	UObject* TestPublicObject = NewObject<UTestDummyObject>(TestOuter1, TEXT("TestPublicObject"), RF_Public);
+	UObjectRedirector* TestRedirectorToPublicObject1 = NewObject<UObjectRedirector>(TestOuter3, TEXT("TestPublicRedirector1"), RF_Public);
+	TestRedirectorToPublicObject1->DestinationObject = TestPublicObject;
+	UObjectRedirector* TestRedirectorToPublicObject2 = NewObject<UObjectRedirector>(TestOuter4, TEXT("TestPublicRedirector2"), RF_Public);
+	TestRedirectorToPublicObject2->DestinationObject = TestPublicObject;
+
+	// Perform hash consistency checks on public object reference
+	{
+		// Check that unresolved/resolved pointers produce the same hash
+		FSnapshotObjectRefMetrics ObjectRefMetrics(*this);
+
+		FObjectPtr TestPublicWrappedObjectPtr(FObjectRef{TestPackage1Name, NAME_None, NAME_None, FObjectPathId("TestOuter1.TestPublicObject")});
+		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 0 : 1);
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after initializing an FObjectPtr"), 0);
+
+		uint32 HashWrapped = GetTypeHash(TestPublicWrappedObjectPtr);
+		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after hashing an FObjectPtr"), 1);
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after hashing an FObjectPtr"), 0);
+
+		TestPublicWrappedObjectPtr.Get();
+
+		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after resolving an FObjectPtr"), 1);
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after resolving an FObjectPtr"), 0);
+
+		uint32 HashRaw = GetTypeHash(TestPublicObject);
+		TestEqual(TEXT("Hash of raw public FObjectPtr should equal hash of wrapped public FObjectPtr"), HashRaw, HashWrapped);
+
+		FObjectPtr TestPublicWrappedRedir1(FObjectRef{TestPackage1Name, NAME_None, NAME_None, FObjectPathId("TestOuter3.TestPublicRedirector1")});
+		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 1 : 2);
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after initializing an FObjectPtr"), 0);
+
+		uint32 HashWrappedRedir1 = GetTypeHash(TestPublicWrappedRedir1);
+		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after hashing an FObjectPtr"), 2);
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after hashing an FObjectPtr"), 0);
+
+		TestEqual(TEXT("Hash of first wrapped public redirector should equal hash of wrapped public FObjectPtr it references"), HashWrapped, HashWrappedRedir1);
+
+		FObjectPtr TestPublicWrappedRedir2(FObjectRef{TestPackage1Name, NAME_None, NAME_None, FObjectPathId("TestOuter4.TestPublicRedirector2")});
+		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after initializing an FObjectPtr"), UE_WITH_OBJECT_HANDLE_LATE_RESOLVE ? 2 : 3);
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after initializing an FObjectPtr"), 0);
+
+		uint32 HashWrappedRedir2 = GetTypeHash(TestPublicWrappedRedir2);
+		ObjectRefMetrics.TestNumResolves(TEXT("Unexpected resolve count after hashing an FObjectPtr"), 3);
+		ObjectRefMetrics.TestNumFailedResolves(TEXT("Unexpected resolve failure after hashing an FObjectPtr"), 0);
+
+		TestEqual(TEXT("Hash of first wrapped public redirector should equal hash of wrapped public FObjectPtr it references"), HashWrapped, HashWrappedRedir1);
+
+		//Check that renaming an object doesn't change its hash
+		TestPublicObject->Rename(TEXT("TestPublicObjectRenamed"));
+		uint32 HashWrappedAfterRename = GetTypeHash(TestPublicWrappedObjectPtr);
+		TestEqual(TEXT("Hash of resolved public FObjectPtr before rename should equal hash of resolved public FObjectPtr after rename"), HashWrappedAfterRename, HashWrapped);
+
+		//Check that reparenting an object doesn't change its hash
+		TestPublicObject->Rename(nullptr, TestOuter2);
+		uint32 HashWrappedAfterReparent = GetTypeHash(TestPublicWrappedObjectPtr);
+		TestEqual(TEXT("Hash of resolved public FObjectPtr before reparenting should equal hash of resolved public FObjectPtr after reparenting"), HashWrappedAfterReparent, HashWrapped);
+	}
+
+	TestPackage1->RemoveFromRoot();
 	return true;
 }
 

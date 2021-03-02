@@ -33,6 +33,11 @@ public:
 	COREUOBJECT_API explicit FObjectPathId(const UObject* Object);
 	COREUOBJECT_API FObjectPathId(const FObjectImport& Import, const FLinkerTables& LinkerTables);
 
+	enum EInvalid {Invalid = 0};
+	explicit COREUOBJECT_API FObjectPathId(EInvalid): PathId(static_cast<uint64>(EPathId::FlagSimple))
+	{
+	}
+
 	COREUOBJECT_API static FName MakeImportPathIdAndPackageName(const FObjectImport& Import, const FLinkerTables& LinkerTables, FObjectPathId& OutPathId);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -44,6 +49,7 @@ public:
 	FObjectPathId& operator=(const FObjectPathId& Other) = default;
 	inline bool operator==(const FObjectPathId& Other) const { return PathId == Other.PathId; }
 	inline bool IsNone() const { return PathId == static_cast<uint64>(EPathId::None); }
+	inline bool IsValid() const { return PathId != static_cast<uint64>(EPathId::FlagSimple); }
 
 	// @TODO: OBJPTR: Is there a better interface to output the resolved name without:
 	// 		 1) Requiring multiple lookups in the table in case of complex paths
