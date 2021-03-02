@@ -309,7 +309,7 @@ namespace ChaosTest {
 		
 		if (Tapered)
 		{
-			Particle->SetDynamicGeometry(MakeUnique<TTaperedCylinder<FReal>>(FVec3(0, 0, Scale.X / 2.0), FVec3(0, 0, -Scale.X / 2.0), Scale.X / 2.0, Scale.X / 2.0));
+			Particle->SetDynamicGeometry(MakeUnique<FTaperedCylinder>(FVec3(0, 0, Scale.X / 2.0), FVec3(0, 0, -Scale.X / 2.0), Scale.X / 2.0, Scale.X / 2.0));
 		}
 		else 
 		{

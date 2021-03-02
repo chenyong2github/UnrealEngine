@@ -1063,7 +1063,7 @@ static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<FReal>& Cap
 #endif
 }
 
-static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const TTaperedCylinder<FReal>& TaperedCylinder, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const FTaperedCylinder& TaperedCylinder, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
 	const FReal HalfHeight = TaperedCylinder.GetHeight() * 0.5f;
 	const FReal Radius1 = TaperedCylinder.GetRadius1();
@@ -1379,7 +1379,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 									break;
 
 								case ImplicitObjectType::TaperedCylinder:
-									DrawTaperedCylinder(PDI, SubObject->GetObjectChecked<TTaperedCylinder<FReal>>(), Rotation, Position, Color);
+									DrawTaperedCylinder(PDI, SubObject->GetObjectChecked<FTaperedCylinder>(), Rotation, Position, Color);
 									break;
 
 								default:

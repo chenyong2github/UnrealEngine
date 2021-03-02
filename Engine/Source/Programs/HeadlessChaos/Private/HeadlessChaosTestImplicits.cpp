@@ -495,17 +495,17 @@ namespace ChaosTest {
 		FString Caller("ImplicitTaperedCylinder()");
 
 		// unit tapered cylinder tests
-		TTaperedCylinder<FReal> Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1);
+		FTaperedCylinder Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1);
 		UnitImplicitObjectNormalsInternal(Subject, Caller);
 		UnitImplicitObjectNormalsExternal(Subject, Caller);
 		UnitImplicitObjectIntersections(Subject, Caller);
 		CheckCylinderEdgeBehavior(Subject, Caller);
 
 		// tilted tapered cylinder tests
-		TTaperedCylinder<FReal> SubjectTilted(FVec3(1), FVec3(-1), 1, 1);
+		FTaperedCylinder SubjectTilted(FVec3(1), FVec3(-1), 1, 1);
 		TiltedUnitImplicitCylinder(SubjectTilted, Caller);
 
-		TTaperedCylinder<FReal> SubjectCone(FVec3(0, 0, 1), FVec3(0, 0, 0), 0, 1);
+		FTaperedCylinder SubjectCone(FVec3(0, 0, 1), FVec3(0, 0, 0), 0, 1);
 
 		// inside normals 
 		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(0, 0, 0)), FVec3(0, 0, -1));
@@ -528,13 +528,13 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(-1,  0, 1 / 2.)), FVec3(-1, 0, 0));
 
 		{// closest point off origin (+)
-			TTaperedCylinder<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FTaperedCylinder Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
 			FVec3 InputPoint(2, 2, 5);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 2, 4), Caller);
 		}
 
 		{// closest point off origin (-)
-			TTaperedCylinder<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FTaperedCylinder Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
 			FVec3 InputPoint(2, 3, 2);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
 		}
@@ -613,20 +613,20 @@ namespace ChaosTest {
 		FString Caller("ImplicitTaperedCapsule()");
 
 		// unit tapered cylinder tests
-		TTaperedCapsule<FReal> SubjectUnit(FVec3(0, 0, 0), FVec3(0, 0, 0), 1, 1);
+		FTaperedCapsule SubjectUnit(FVec3(0, 0, 0), FVec3(0, 0, 0), 1, 1);
 		UnitImplicitObjectNormalsInternal(SubjectUnit, Caller);
 		UnitImplicitObjectNormalsExternal(SubjectUnit, Caller);
 		UnitImplicitObjectIntersections(SubjectUnit, Caller);
 
 		// tilted tapered cylinder tests
-		TTaperedCapsule<FReal> SubjectTilted(FVec3(1), FVec3(-1), 1, 1);
+		FTaperedCapsule SubjectTilted(FVec3(1), FVec3(-1), 1, 1);
 		TiltedUnitImplicitCapsule(SubjectTilted, Caller);
 
 		const FReal Height0 = 0.5;
 		const FReal Height1 = 2.0;
 		const FReal Radius0 = 0.5;
 		const FReal Radius1 = 1.0;
-		TTaperedCapsule<FReal> SubjectTapered(FVec3(0, 0, Height0), FVec3(0, 0, Height1), Radius0, Radius1);
+		FTaperedCapsule SubjectTapered(FVec3(0, 0, Height0), FVec3(0, 0, Height1), Radius0, Radius1);
 
 		// inside normals 
 		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(0, 0, 0.25)), FVec3(0, 0, -1));
@@ -658,13 +658,13 @@ namespace ChaosTest {
 
 
 		{// closest point off origin (+)
-			TTaperedCapsule<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FTaperedCapsule Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
 			FVec3 InputPoint(2, 2, 5);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 2, 6), Caller);
 		}
 
 		{// closest point off origin (-)
-			TTaperedCapsule<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FTaperedCapsule Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
 			FVec3 InputPoint(2, 3, 2);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
 		}
@@ -1244,7 +1244,7 @@ namespace ChaosTest {
 			Objects1.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
 			Objects1.Add(MakeUnique<TSphere<FReal, 3>>(FVec3(0, 0, 0), 1));
 			Objects1.Add(MakeUnique<TBox<FReal, 3>>(FVec3(-1, -1, -1), FVec3(1, 1, 1)));
-			Objects1.Add(MakeUnique<TTaperedCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
+			Objects1.Add(MakeUnique<FTaperedCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
 
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(Objects1)));
@@ -1262,7 +1262,7 @@ namespace ChaosTest {
 			ObjectsA.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
 			ObjectsA.Add(MakeUnique<TSphere<FReal, 3>>(FVec3(0, 0, 0), 1));
 			ObjectsB.Add(MakeUnique<TBox<FReal, 3>>(FVec3(-1, -1, -1), FVec3(1, 1, 1)));
-			ObjectsB.Add(MakeUnique<TTaperedCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
+			ObjectsB.Add(MakeUnique<FTaperedCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
 
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsA)));

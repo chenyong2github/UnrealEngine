@@ -64,7 +64,7 @@ public:
 		for (Chaos::TSphere<Chaos::FReal, 3>* Sphere : Spheres) if (Sphere) delete Sphere;
 		for (Chaos::TBox<Chaos::FReal, 3>* Box : Boxes) if (Box) delete Box;
 		for (Chaos::TCapsule<Chaos::FReal>* Capsule : Capsules) if (Capsule) delete Capsule;
-		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders) if (TaperedCylinder) delete TaperedCylinder;
+		for (Chaos::FTaperedCylinder* TaperedCylinder : TaperedCylinders) if (TaperedCylinder) delete TaperedCylinder;
 		for (Chaos::FConvex* ConvexHull : ConvexHulls) if (ConvexHull) delete ConvexHull;
 		for (Chaos::FLevelSet* LevelSet : LevelSets) if (LevelSet) delete LevelSet;
 	}
@@ -99,7 +99,7 @@ public:
 	int32 Add(const FTransform &InitialXf, Chaos::TSphere<Chaos::FReal, 3> *Sphere) { Spheres.Add(Sphere); return Transforms.Insert(InitialXf, Spheres.Num()-1); }
 	int32 Add(const FTransform &InitialXf, Chaos::TBox<Chaos::FReal, 3> *Box) { Boxes.Add(Box); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()-1); }
 	int32 Add(const FTransform &InitialXf, Chaos::TCapsule<Chaos::FReal> *Capsule) { Capsules.Add(Capsule); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()-1); }
-	int32 Add(const FTransform &InitialXf, Chaos::TTaperedCylinder<Chaos::FReal> *TaperedCylinder) { TaperedCylinders.Add(TaperedCylinder); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()-1); }
+	int32 Add(const FTransform &InitialXf, Chaos::FTaperedCylinder *TaperedCylinder) { TaperedCylinders.Add(TaperedCylinder); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()-1); }
 	int32 Add(const FTransform &InitialXf, Chaos::FConvex *ConvexHull) { ConvexHulls.Add(ConvexHull); return Transforms.Insert(InitialXf, Spheres.Num()+Boxes.Num()+Capsules.Num()+TaperedCylinders.Num()+ConvexHulls.Num()-1); }
 	int32 Add(const FTransform &InitialXf, Chaos::FLevelSet *LevelSet) { LevelSets.Add(LevelSet); return Transforms.Add(InitialXf); }
 
@@ -155,7 +155,7 @@ public:
 			MP.CenterOfMass = Xf.TransformPositionNoScale(Capsule->GetCenterOfMass());
 			MP.RotationOfMass = Xf.TransformRotation(Capsule->GetRotationOfMass());
 		}
-		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders)
+		for (Chaos::FTaperedCylinder* TaperedCylinder : TaperedCylinders)
 		{
 			const FTransform& Xf = Transforms[TransformIndex];
 			BBoxes[TransformIndex] = TaperedCylinder->BoundingBox().TransformedAABB(Xf);
@@ -233,7 +233,7 @@ public:
 			TotalMass += Mass;
 			MP.InertiaTensor = Capsule->GetInertiaTensor(Mass);
 		}
-		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders)
+		for (Chaos::FTaperedCylinder* TaperedCylinder : TaperedCylinders)
 		{
 			Chaos::FMassProperties &MP = MPArray[TransformIndex++];
 			Chaos::FReal Mass = Density * MP.Volume;
@@ -300,7 +300,7 @@ public:
 			CullDeepPoints(Points, TransformIndex);
 			TransformIndex++;
 		}
-		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders)
+		for (Chaos::FTaperedCylinder* TaperedCylinder : TaperedCylinders)
 		{
 			TArray<Chaos::FVec3>& Points = CollisionPoints[TransformIndex];
 			if (!Points.Num())
@@ -536,7 +536,7 @@ protected:
 			}
 			TransformIndex++;
 		}
-		for (Chaos::TTaperedCylinder<Chaos::FReal>* TaperedCylinder : TaperedCylinders)
+		for (Chaos::FTaperedCylinder* TaperedCylinder : TaperedCylinders)
 		{
 			if (TransformIndex != SkipIndex)
 			{
@@ -634,7 +634,7 @@ protected:
 	// FKSphylElem - Z axis is capsule axis
 	TArray<Chaos::TCapsule<Chaos::FReal>*> Capsules;
 	// FKTaperedCapsuleElem - Z axis is the capsule axis
-	TArray<Chaos::TTaperedCylinder<Chaos::FReal>*> TaperedCylinders;
+	TArray<Chaos::FTaperedCylinder*> TaperedCylinders;
 	// FKConvexElem
 	TArray<Chaos::FConvex*> ConvexHulls;
 	// Chaos::TConvex replacement

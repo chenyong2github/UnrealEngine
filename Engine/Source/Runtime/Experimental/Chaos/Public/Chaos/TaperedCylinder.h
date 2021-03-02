@@ -2,23 +2,22 @@
 #pragma once
 
 #include "Chaos/ImplicitObject.h"
+#include "Chaos/Cylinder.h"
 #include "Chaos/Plane.h"
 
 namespace Chaos
 {
-	template<typename T>
-	struct TTaperedCylinderSpecializeSamplingHelper;
+	struct FTaperedCylinderSpecializeSamplingHelper;
 
-	template<class T>
-	class TTaperedCylinder : public FImplicitObject
+	class CHAOS_API FTaperedCylinder : public FImplicitObject
 	{
 	public:
-		TTaperedCylinder()
+		FTaperedCylinder()
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
 		{
 			this->bIsConvex = true;
 		}
-		TTaperedCylinder(const TVec3<T>& x1, const TVec3<T>& x2, const T Radius1, const T Radius2)
+		FTaperedCylinder(const FVec3& x1, const FVec3& x2, const FReal Radius1, const FReal Radius2)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
 		    , MPlane1(x1, (x2 - x1).GetSafeNormal())
 		    , MPlane2(x2, -MPlane1.Normal())
@@ -29,12 +28,12 @@ namespace Chaos
 		{
 			this->bIsConvex = true;
 			MLocalBoundingBox.GrowToInclude(x2);
-			T MaxRadius = MRadius1;
+			FReal MaxRadius = MRadius1;
 			if (MaxRadius < MRadius2)
 				MaxRadius = MRadius2;
-			MLocalBoundingBox = TAABB<T, 3>(MLocalBoundingBox.Min() - TVec3<T>(MaxRadius), MLocalBoundingBox.Max() + TVec3<T>(MaxRadius));
+			MLocalBoundingBox = FAABB3(MLocalBoundingBox.Min() - FVec3(MaxRadius), MLocalBoundingBox.Max() + FVec3(MaxRadius));
 		}
-		TTaperedCylinder(const TTaperedCylinder<T>& Other)
+		FTaperedCylinder(const FTaperedCylinder& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
 		    , MPlane1(Other.MPlane1)
 		    , MPlane2(Other.MPlane2)
@@ -45,7 +44,7 @@ namespace Chaos
 		{
 			this->bIsConvex = true;
 		}
-		TTaperedCylinder(TTaperedCylinder<T>&& Other)
+		FTaperedCylinder(FTaperedCylinder&& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCylinder)
 		    , MPlane1(MoveTemp(Other.MPlane1))
 		    , MPlane2(MoveTemp(Other.MPlane2))
@@ -56,7 +55,7 @@ namespace Chaos
 		{
 			this->bIsConvex = true;
 		}
-		~TTaperedCylinder() {}
+		~FTaperedCylinder() {}
 
 		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::TaperedCylinder; }
 
@@ -67,16 +66,8 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the cylinder.
 		 */
-		TArray<TVec3<T>> ComputeLocalSamplePoints(const int32 NumPoints, const bool IncludeEndCaps = true) const
-		{
-			TArray<TVec3<T>> Points;
-			const TVec3<T> Mid = GetCenter();
-			TTaperedCylinderSpecializeSamplingHelper<T>::ComputeSamplePoints(
-			    Points,
-			    TTaperedCylinder<T>(MPlane1.X() - Mid, MPlane2.X() - Mid, GetRadius1(), GetRadius2()),
-			    NumPoints, IncludeEndCaps);
-			return Points;
-		}
+		TArray<FVec3> ComputeLocalSamplePoints(const int32 NumPoints, const bool IncludeEndCaps = true) const;
+
 		/** 
 		 * Returns sample points centered about the origin. 
 		 *
@@ -85,7 +76,7 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the cylinder.
 		 */
-		TArray<TVec3<T>> ComputeLocalSamplePoints(const T PointsPerUnitArea, const bool IncludeEndCaps = true, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
+		TArray<FVec3> ComputeLocalSamplePoints(const FReal PointsPerUnitArea, const bool IncludeEndCaps = true, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
 		{ return ComputeLocalSamplePoints(FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea(IncludeEndCaps))), MinPoints, MaxPoints), IncludeEndCaps); }
 
 		/**
@@ -95,12 +86,8 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the cylinder.
 		 */
-		TArray<TVec3<T>> ComputeSamplePoints(const int32 NumPoints, const bool IncludeEndCaps = true) const
-		{
-			TArray<TVec3<T>> Points;
-			TTaperedCylinderSpecializeSamplingHelper<T>::ComputeSamplePoints(Points, *this, NumPoints, IncludeEndCaps);
-			return Points;
-		}
+		TArray<FVec3> ComputeSamplePoints(const int32 NumPoints, const bool IncludeEndCaps = true) const;
+
 		/** 
 		 * Returns sample points at the current location of the cylinder.
 		 *
@@ -109,23 +96,23 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the cylinder.
 		 */
-		TArray<TVec3<T>> ComputeSamplePoints(const T PointsPerUnitArea, const bool IncludeEndCaps = true, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
+		TArray<FVec3> ComputeSamplePoints(const FReal PointsPerUnitArea, const bool IncludeEndCaps = true, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
 		{ return ComputeSamplePoints(FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea(IncludeEndCaps))), MinPoints, MaxPoints), IncludeEndCaps); }
 
-		virtual const TAABB<T, 3> BoundingBox() const override { return MLocalBoundingBox; }
+		virtual const FAABB3 BoundingBox() const override { return MLocalBoundingBox; }
 
-		T PhiWithNormal(const TVec3<T>& x, TVec3<T>& Normal) const
+		FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const
 		{
-			const TVec3<T>& Normal1 = MPlane1.Normal();
-			const T Distance1 = MPlane1.SignedDistance(x);
+			const FVec3& Normal1 = MPlane1.Normal();
+			const FReal Distance1 = MPlane1.SignedDistance(x);
 			if (Distance1 < SMALL_NUMBER)
 			{
-				ensure(MPlane2.SignedDistance(x) > (T)0.);
-				const TVec3<T> v = x - TVec3<T>(Normal1 * Distance1 + MPlane1.X());
+				ensure(MPlane2.SignedDistance(x) > (FReal)0.);
+				const FVec3 v = x - FVec3(Normal1 * Distance1 + MPlane1.X());
 				if (v.Size() > MRadius1)
 				{
-					const TVec3<T> Corner = v.GetSafeNormal() * MRadius1 + MPlane1.X();
-					const TVec3<T> CornerVector = x - Corner;
+					const FVec3 Corner = v.GetSafeNormal() * MRadius1 + MPlane1.X();
+					const FVec3 CornerVector = x - Corner;
 					Normal = CornerVector.GetSafeNormal();
 					return CornerVector.Size();
 				}
@@ -135,15 +122,15 @@ namespace Chaos
 					return -Distance1;
 				}
 			}
-			const TVec3<T>& Normal2 = MPlane2.Normal();  // Used to be Distance2 = MPlane2.PhiWithNormal(x, Normal2); but that would trigger 
-			const T Distance2 = MHeight - Distance1;          // the ensure on Distance2 being slightly larger than MHeight in some border cases
+			const FVec3& Normal2 = MPlane2.Normal();  // Used to be Distance2 = MPlane2.PhiWithNormal(x, Normal2); but that would trigger 
+			const FReal Distance2 = MHeight - Distance1;          // the ensure on Distance2 being slightly larger than MHeight in some border cases
 			if (Distance2 < SMALL_NUMBER)
 			{
-				const TVec3<T> v = x - TVec3<T>(Normal2 * Distance2 + MPlane2.X());
+				const FVec3 v = x - FVec3(Normal2 * Distance2 + MPlane2.X());
 				if (v.Size() > MRadius2)
 				{
-					const TVec3<T> Corner = v.GetSafeNormal() * MRadius2 + MPlane2.X();
-					const TVec3<T> CornerVector = x - Corner;
+					const FVec3 Corner = v.GetSafeNormal() * MRadius2 + MPlane2.X();
+					const FVec3 CornerVector = x - Corner;
 					Normal = CornerVector.GetSafeNormal();
 					return CornerVector.Size();
 				}
@@ -154,11 +141,11 @@ namespace Chaos
 				}
 			}
 			ensure(Distance1 <= MHeight && Distance2 <= MHeight);
-			const TVec3<T> SideVector = (x - TVec3<T>(Normal1 * Distance1 + MPlane1.X()));
-			const T SideDistance = SideVector.Size() - GetRadius(Distance1);
+			const FVec3 SideVector = (x - FVec3(Normal1 * Distance1 + MPlane1.X()));
+			const FReal SideDistance = SideVector.Size() - GetRadius(Distance1);
 			if (SideDistance < 0.)
 			{
-				const T TopDistance = Distance1 < Distance2 ? Distance1 : Distance2;
+				const FReal TopDistance = Distance1 < Distance2 ? Distance1 : Distance2;
 				if (TopDistance < -SideDistance)
 				{
 					Normal = Distance1 < Distance2 ? -Normal1 : -Normal2;
@@ -169,15 +156,15 @@ namespace Chaos
 			return SideDistance;
 		}
 
-		Pair<TVec3<T>, bool> FindClosestIntersection(const TVec3<T>& StartPoint, const TVec3<T>& EndPoint, const T Thickness)
+		Pair<FVec3, bool> FindClosestIntersection(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness)
 		{
-			TArray<Pair<T, TVec3<T>>> Intersections;
-			T DeltaRadius = FGenericPlatformMath::Abs(MRadius2 - MRadius1);
+			TArray<Pair<FReal, FVec3>> Intersections;
+			FReal DeltaRadius = FGenericPlatformMath::Abs(MRadius2 - MRadius1);
 			if (DeltaRadius == 0)
-				return TCylinder<T>(MPlane1.X(), MPlane2.X(), MRadius1).FindClosestIntersection(StartPoint, EndPoint, Thickness);
-			TVec3<T> BaseNormal;
-			T BaseRadius;
-			TVec3<T> BaseCenter;
+				return TCylinder<FReal>(MPlane1.X(), MPlane2.X(), MRadius1).FindClosestIntersection(StartPoint, EndPoint, Thickness);
+			FVec3 BaseNormal;
+			FReal BaseRadius;
+			FVec3 BaseCenter;
 			if (MRadius2 > MRadius1)
 			{
 				BaseNormal = MPlane2.Normal();
@@ -190,52 +177,52 @@ namespace Chaos
 				BaseRadius = MRadius1 + Thickness;
 				BaseCenter = MPlane1.X();
 			}
-			TVec3<T> Top = BaseRadius / DeltaRadius * MHeight * BaseNormal + BaseCenter;
-			T theta = atan2(BaseRadius, (Top - BaseCenter).Size());
-			T costheta = cos(theta);
-			T cossqtheta = costheta * costheta;
+			FVec3 Top = BaseRadius / DeltaRadius * MHeight * BaseNormal + BaseCenter;
+			FReal theta = atan2(BaseRadius, (Top - BaseCenter).Size());
+			FReal costheta = cos(theta);
+			FReal cossqtheta = costheta * costheta;
 			check(theta > 0 && theta < PI / 2);
-			TVec3<T> Direction = EndPoint - StartPoint;
-			T Length = Direction.Size();
+			FVec3 Direction = EndPoint - StartPoint;
+			FReal Length = Direction.Size();
 			Direction = Direction.GetSafeNormal();
-			auto DDotN = TVec3<T>::DotProduct(Direction, -BaseNormal);
+			auto DDotN = FVec3::DotProduct(Direction, -BaseNormal);
 			auto SMT = StartPoint - Top;
-			auto SMTDotN = TVec3<T>::DotProduct(SMT, -BaseNormal);
-			T a = DDotN * DDotN - cossqtheta;
-			T b = 2 * (DDotN * SMTDotN - TVec3<T>::DotProduct(Direction, SMT) * cossqtheta);
-			T c = SMTDotN * SMTDotN - SMT.SizeSquared() * cossqtheta;
-			T Determinant = b * b - 4 * a * c;
+			auto SMTDotN = FVec3::DotProduct(SMT, -BaseNormal);
+			FReal a = DDotN * DDotN - cossqtheta;
+			FReal b = 2 * (DDotN * SMTDotN - FVec3::DotProduct(Direction, SMT) * cossqtheta);
+			FReal c = SMTDotN * SMTDotN - SMT.SizeSquared() * cossqtheta;
+			FReal Determinant = b * b - 4 * a * c;
 			if (Determinant == 0)
 			{
-				T Root = -b / (2 * a);
-				TVec3<T> RootPoint = Root * Direction + StartPoint;
-				if (Root >= 0 && Root <= Length && TVec3<T>::DotProduct(RootPoint - Top, -BaseNormal) >= 0)
+				FReal Root = -b / (2 * a);
+				FVec3 RootPoint = Root * Direction + StartPoint;
+				if (Root >= 0 && Root <= Length && FVec3::DotProduct(RootPoint - Top, -BaseNormal) >= 0)
 				{
 					Intersections.Add(MakePair(Root, RootPoint));
 				}
 			}
 			if (Determinant > 0)
 			{
-				T Root1 = (-b - sqrt(Determinant)) / (2 * a);
-				T Root2 = (-b + sqrt(Determinant)) / (2 * a);
-				TVec3<T> Root1Point = Root1 * Direction + StartPoint;
-				TVec3<T> Root2Point = Root2 * Direction + StartPoint;
-				if (Root1 < 0 || Root1 > Length || TVec3<T>::DotProduct(Root1Point - Top, -BaseNormal) < 0)
+				FReal Root1 = (-b - sqrt(Determinant)) / (2 * a);
+				FReal Root2 = (-b + sqrt(Determinant)) / (2 * a);
+				FVec3 Root1Point = Root1 * Direction + StartPoint;
+				FVec3 Root2Point = Root2 * Direction + StartPoint;
+				if (Root1 < 0 || Root1 > Length || FVec3::DotProduct(Root1Point - Top, -BaseNormal) < 0)
 				{
-					if (Root2 >= 0 && Root2 <= Length && TVec3<T>::DotProduct(Root2Point - Top, -BaseNormal) >= 0)
+					if (Root2 >= 0 && Root2 <= Length && FVec3::DotProduct(Root2Point - Top, -BaseNormal) >= 0)
 					{
 						Intersections.Add(MakePair(Root2, Root2Point));
 					}
 				}
-				else if (Root2 < 0 || Root2 > Length || TVec3<T>::DotProduct(Root2Point - Top, -BaseNormal) < 0)
+				else if (Root2 < 0 || Root2 > Length || FVec3::DotProduct(Root2Point - Top, -BaseNormal) < 0)
 				{
 					Intersections.Add(MakePair(Root1, Root1Point));
 				}
-				else if (Root1 < Root2 && TVec3<T>::DotProduct(Root1Point - Top, -BaseNormal) >= 0)
+				else if (Root1 < Root2 && FVec3::DotProduct(Root1Point - Top, -BaseNormal) >= 0)
 				{
 					Intersections.Add(MakePair(Root1, Root1Point));
 				}
-				else if (TVec3<T>::DotProduct(Root2Point - Top, -BaseNormal) >= 0)
+				else if (FVec3::DotProduct(Root2Point - Top, -BaseNormal) >= 0)
 				{
 					Intersections.Add(MakePair(Root2, Root2Point));
 				}
@@ -246,7 +233,7 @@ namespace Chaos
 			auto Plane2Intersection = MPlane2.FindClosestIntersection(StartPoint, EndPoint, Thickness);
 			if (Plane2Intersection.Second)
 				Intersections.Add(MakePair((Plane2Intersection.First - StartPoint).Size(), Plane2Intersection.First));
-			Intersections.Sort([](const Pair<T, TVec3<T>>& Elem1, const Pair<T, TVec3<T>>& Elem2) { return Elem1.First < Elem2.First; });
+			Intersections.Sort([](const Pair<FReal, FVec3>& Elem1, const Pair<FReal, FVec3>& Elem2) { return Elem1.First < Elem2.First; });
 			for (const auto& Elem : Intersections)
 			{
 				if (SignedDistance(Elem.Second) <= (Thickness + 1e-4))
@@ -254,85 +241,85 @@ namespace Chaos
 					return MakePair(Elem.Second, true);
 				}
 			}
-			return MakePair(TVec3<T>(0), false);
+			return MakePair(FVec3(0), false);
 		}
 
-		T GetRadius1() const { return MRadius1; }
-		T GetRadius2() const { return MRadius2; }
-		T GetHeight() const { return MHeight; }
-		T GetSlantHeight() const { const T R1mR2 = MRadius1-MRadius2; return FMath::Sqrt(R1mR2*R1mR2 + MHeight*MHeight); }
-		const TVec3<T>& GetX1() const { return MPlane1.X(); }
-		const TVec3<T>& GetX2() const { return MPlane2.X(); }
+		FReal GetRadius1() const { return MRadius1; }
+		FReal GetRadius2() const { return MRadius2; }
+		FReal GetHeight() const { return MHeight; }
+		FReal GetSlantHeight() const { const FReal R1mR2 = MRadius1-MRadius2; return FMath::Sqrt(R1mR2*R1mR2 + MHeight*MHeight); }
+		const FVec3& GetX1() const { return MPlane1.X(); }
+		const FVec3& GetX2() const { return MPlane2.X(); }
 		/** Returns the bottommost point on the cylinder. */
-		const TVec3<T>& GetOrigin() const { return MPlane1.X(); }
+		const FVec3& GetOrigin() const { return MPlane1.X(); }
 		/** Returns the topmost point on the cylinder. */
-		const TVec3<T>& GetInsertion() const { return MPlane2.X(); }
-		TVec3<T> GetCenter() const { return (MPlane1.X() + MPlane2.X()) * (T)0.5; }
+		const FVec3& GetInsertion() const { return MPlane2.X(); }
+		FVec3 GetCenter() const { return (MPlane1.X() + MPlane2.X()) * (FReal)0.5; }
 		/** Returns the centroid (center of mass). */
-		TVec3<T> GetCenterOfMass() const // centroid
+		FVec3 GetCenterOfMass() const // centroid
 		{
-			const T R1R1 = MRadius1 * MRadius1;
-			const T R2R2 = MRadius2 * MRadius2;
-			const T R1R2 = MRadius1 * MRadius2;
-			return TVec3<T>(0, 0, MHeight*(R1R1 + 2.*R1R2 + 3.*R2R2) / 4.*(R1R1 + R1R2 + R2R2));
+			const FReal R1R1 = MRadius1 * MRadius1;
+			const FReal R2R2 = MRadius2 * MRadius2;
+			const FReal R1R2 = MRadius1 * MRadius2;
+			return FVec3(0, 0, MHeight*(R1R1 + 2.*R1R2 + 3.*R2R2) / 4.*(R1R1 + R1R2 + R2R2));
 		}
-		TVec3<T> GetAxis() const { return (MPlane2.X() - MPlane1.X()).GetSafeNormal(); }
+		FVec3 GetAxis() const { return (MPlane2.X() - MPlane1.X()).GetSafeNormal(); }
 
-		T GetArea(const bool IncludeEndCaps = true) const { return GetArea(MHeight, MRadius1, MRadius2, IncludeEndCaps); }
-		static T GetArea(const T Height, const T Radius1, const T Radius2, const bool IncludeEndCaps)
+		FReal GetArea(const bool IncludeEndCaps = true) const { return GetArea(MHeight, MRadius1, MRadius2, IncludeEndCaps); }
+		static FReal GetArea(const FReal Height, const FReal Radius1, const FReal Radius2, const bool IncludeEndCaps)
 		{
-			static const T TwoPI = PI * 2;
+			static const FReal TwoPI = PI * 2;
 			if (Radius1 == Radius2)
 			{
-				const T TwoPIR1 = TwoPI * Radius1;
+				const FReal TwoPIR1 = TwoPI * Radius1;
 				return IncludeEndCaps ?
 				    TwoPIR1 * Height + TwoPIR1 * Radius1 :
 				    TwoPIR1 * Height;
 			}
 			else
 			{
-				const T R1_R2 = Radius1 - Radius2;
-				const T CylArea = PI * (Radius1 + Radius2) * FMath::Sqrt((R1_R2 * R1_R2) + (Height * Height));
+				const FReal R1_R2 = Radius1 - Radius2;
+				const FReal CylArea = PI * (Radius1 + Radius2) * FMath::Sqrt((R1_R2 * R1_R2) + (Height * Height));
 				return IncludeEndCaps ?
 				    CylArea + PI * Radius1 * Radius1 + PI * Radius2 * Radius2 :
 				    CylArea;
 			}
 		}
 
-		T GetVolume() const { return GetVolume(MHeight, MRadius1, MRadius2); }
-		static T GetVolume(const T Height, const T Radius1, const T Radius2)
+		FReal GetVolume() const { return GetVolume(MHeight, MRadius1, MRadius2); }
+		static FReal GetVolume(const FReal Height, const FReal Radius1, const FReal Radius2)
 		{
-			static const T PI_3 = PI / 3;
+			static const FReal PI_3 = PI / 3;
 			return PI_3 * Height * (Radius1 * Radius1 + Radius1 * Radius2 + Radius2 * Radius2);
 		}
 
-		PMatrix<T, 3, 3> GetInertiaTensor(const T Mass) const { return GetInertiaTensor(Mass, MHeight, MRadius1, MRadius2); }
-		static PMatrix<T, 3, 3> GetInertiaTensor(const T Mass, const T Height, const T Radius1, const T Radius2)
+		FMatrix33 GetInertiaTensor(const FReal Mass) const { return GetInertiaTensor(Mass, MHeight, MRadius1, MRadius2); }
+		static FMatrix33 GetInertiaTensor(const FReal Mass, const FReal Height, const FReal Radius1, const FReal Radius2)
 		{
 			// https://www.wolframalpha.com/input/?i=conical+frustum
-			const T R1 = FMath::Min(Radius1, Radius2);
-			const T R2 = FMath::Max(Radius1, Radius2);
-			const T HH = Height * Height;
-			const T R1R1 = R1 * R1;
-			const T R1R2 = R1 * R2;
-			const T R2R2 = R2 * R2;
+			const FReal R1 = FMath::Min(Radius1, Radius2);
+			const FReal R2 = FMath::Max(Radius1, Radius2);
+			const FReal HH = Height * Height;
+			const FReal R1R1 = R1 * R1;
+			const FReal R1R2 = R1 * R2;
+			const FReal R2R2 = R2 * R2;
 
-			const T Num1 = 2. * HH * (R1R1 + 3. * R1R2 + 6. * R2R2); // 2H^2 * (R1^2 + 3R1R2 + 6R2^2)
-			const T Num2 = 3. * (R1R1 * R1R1 + R1R1 * R1R2 + R1R2 * R1R2 + R1R2 * R2R2 + R2R2 * R2R2); // 3 * (R1^4 + R1^3R2 + R1^2R2^2 + R1R2^3 + R2^4)
-			const T Den1 = PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
+			const FReal Num1 = 2. * HH * (R1R1 + 3. * R1R2 + 6. * R2R2); // 2H^2 * (R1^2 + 3R1R2 + 6R2^2)
+			const FReal Num2 = 3. * (R1R1 * R1R1 + R1R1 * R1R2 + R1R2 * R1R2 + R1R2 * R2R2 + R2R2 * R2R2); // 3 * (R1^4 + R1^3R2 + R1^2R2^2 + R1R2^3 + R2^4)
+			const FReal Den1 = PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
 
-			const T Diag12 = Mass * (Num1 + Num2) / (20. * Den1);
-			const T Diag3 = Mass * Num2 / (10. * Den1);
+			const FReal Diag12 = Mass * (Num1 + Num2) / (20. * Den1);
+			const FReal Diag3 = Mass * Num2 / (10. * Den1);
 
-			return PMatrix<T, 3, 3>(Diag12, Diag12, Diag3);
+			return FMatrix33(Diag12, Diag12, Diag3);
 		}
 
-		TRotation<T, 3> GetRotationOfMass() const { return GetRotationOfMass(GetAxis()); }
-		static TRotation<T, 3> GetRotationOfMass(const TVec3<T>& Axis)
+		FRotation3 GetRotationOfMass() const { return GetRotationOfMass(GetAxis()); }
+		static FRotation3 GetRotationOfMass(const FVec3& Axis)
 		{ 
 			// since the cylinder stores an axis and the InertiaTensor is assumed to be along the ZAxis
 			// we need to make sure to return the rotation of the axis from Z
-			return TRotation<T, 3>::FromRotatedVector(TVector<T, 3>(0, 0, 1), Axis);
+			return FRotation3::FromRotatedVector(FVec3(0, 0, 1), Axis);
 		}
 
 		virtual uint32 GetTypeHash() const override
@@ -345,22 +332,21 @@ namespace Chaos
 
 	private:
 		//Phi is distance from closest point on plane1
-		T GetRadius(const T& Phi) const
+		FReal GetRadius(const FReal& Phi) const
 		{
-			const T Alpha = Phi / MHeight;
+			const FReal Alpha = Phi / MHeight;
 			return MRadius1 * (1. - Alpha) + MRadius2 * Alpha;
 		}
 
-		TPlane<T, 3> MPlane1, MPlane2;
-		T MHeight, MRadius1, MRadius2;
-		TAABB<T, 3> MLocalBoundingBox;
+		TPlane<FReal, 3> MPlane1, MPlane2;
+		FReal MHeight, MRadius1, MRadius2;
+		FAABB3 MLocalBoundingBox;
 	};
 
-	template<typename T>
-	struct TTaperedCylinderSpecializeSamplingHelper
+	struct CHAOS_API FTaperedCylinderSpecializeSamplingHelper
 	{
 		static FORCEINLINE void ComputeSamplePoints(
-		    TArray<TVec3<T>>& Points, const TTaperedCylinder<T>& Cylinder,
+		    TArray<FVec3>& Points, const FTaperedCylinder& Cylinder,
 		    const int32 NumPoints, const bool IncludeEndCaps = true)
 		{
 			if (NumPoints <= 1 ||
@@ -385,7 +371,7 @@ namespace Chaos
 			ComputeGoldenSpiralPoints(Points, Cylinder, NumPoints, IncludeEndCaps);
 		}
 
-		static FORCEINLINE void ComputeGoldenSpiralPoints(TArray<TVec3<T>>& Points, const TTaperedCylinder<T>& Cylinder, const int32 NumPoints, const bool IncludeEndCaps = true)
+		static FORCEINLINE void ComputeGoldenSpiralPoints(TArray<FVec3>& Points, const FTaperedCylinder& Cylinder, const int32 NumPoints, const bool IncludeEndCaps = true)
 		{
 			ComputeGoldenSpiralPoints(Points, Cylinder.GetOrigin(), Cylinder.GetAxis(), Cylinder.GetRadius1(), Cylinder.GetRadius2(), Cylinder.GetHeight(), NumPoints, IncludeEndCaps);
 		}
@@ -415,12 +401,12 @@ namespace Chaos
 		 *    should equal the number of particles already created.
 		 */
 		static /*FORCEINLINE*/ void ComputeGoldenSpiralPoints(
-		    TArray<TVec3<T>>& Points,
-		    const TVec3<T>& Origin,
-		    const TVec3<T>& Axis,
-		    const T Radius1,
-		    const T Radius2,
-		    const T Height,
+		    TArray<FVec3>& Points,
+		    const FVec3& Origin,
+		    const FVec3& Axis,
+		    const FReal Radius1,
+		    const FReal Radius2,
+		    const FReal Height,
 		    const int32 NumPoints,
 		    const bool IncludeEndCaps = true,
 		    int32 SpiralSeed = 0)
@@ -433,14 +419,14 @@ namespace Chaos
 
 			// At this point, Points are centered about the origin (0,0,0), built
 			// along the Z axis.  Transform them to where they should be.
-			const T HalfHeight = Height / 2;
-			const TRotation<T, 3> Rotation = TRotation<T, 3>::FromRotatedVector(TVec3<T>(0, 0, 1), Axis);
-			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(TVec3<T>(0, 0, Height)) + Origin)).Size() < KINDA_SMALL_NUMBER);
+			const FReal HalfHeight = Height / 2;
+			const FRotation3 Rotation = FRotation3::FromRotatedVector(FVec3(0, 0, 1), Axis);
+			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(FVec3(0, 0, Height)) + Origin)).Size() < KINDA_SMALL_NUMBER);
 			for (int32 i = Offset; i < Points.Num(); i++)
 			{
-				TVec3<T>& Point = Points[i];
-				const TVec3<T> PointNew = Rotation.RotateVector(Point + TVec3<T>(0, 0, HalfHeight)) + Origin;
-//				checkSlow(FMath::Abs(TTaperedCylinder<T>(Origin, Origin + Axis * Height, Radius1, Radius2).SignedDistance(PointNew)) < KINDA_SMALL_NUMBER);
+				FVec3& Point = Points[i];
+				const FVec3 PointNew = Rotation.RotateVector(Point + FVec3(0, 0, HalfHeight)) + Origin;
+//				checkSlow(FMath::Abs(FTaperedCylinder(Origin, Origin + Axis * Height, Radius1, Radius2).SignedDistance(PointNew)) < KINDA_SMALL_NUMBER);
 				Point = PointNew;
 			}
 		}
@@ -474,10 +460,10 @@ namespace Chaos
 		 *    should equal the number of particles already created.
 		 */
 		static /*FORCEINLINE*/ void ComputeGoldenSpiralPointsUnoriented(
-		    TArray<TVec3<T>>& Points,
-		    const T Radius1,
-		    const T Radius2,
-		    const T Height,
+		    TArray<FVec3>& Points,
+		    const FReal Radius1,
+		    const FReal Radius2,
+		    const FReal Height,
 		    const int32 NumPoints,
 		    const bool IncludeEndCaps = true,
 		    int32 SpiralSeed = 0)
@@ -488,12 +474,12 @@ namespace Chaos
 			int32 NumPointsCylinder;
 			if (IncludeEndCaps)
 			{
-				const T Cap1Area = PI * Radius1 * Radius1;
-				const T Cap2Area = PI * Radius2 * Radius2;
-				const T CylArea =
+				const FReal Cap1Area = PI * Radius1 * Radius1;
+				const FReal Cap2Area = PI * Radius2 * Radius2;
+				const FReal CylArea =
 				    PI * Radius2 * (Radius2 + FMath::Sqrt(Height * Height + Radius2 * Radius2)) -
 				    PI * Radius1 * (Radius1 + FMath::Sqrt(Height * Height + Radius1 * Radius1));
-				const T AllArea = CylArea + Cap1Area + Cap2Area;
+				const FReal AllArea = CylArea + Cap1Area + Cap2Area;
 				if (AllArea > KINDA_SMALL_NUMBER)
 				{
 					NumPointsEndCap1 = static_cast<int32>(round(Cap1Area / AllArea * NumPoints));
@@ -516,19 +502,19 @@ namespace Chaos
 			Points.Reserve(Points.Num() + NumPointsToAdd);
 
 			int32 Offset = Points.Num();
-			const T HalfHeight = Height / 2;
-			TArray<TVec2<T>> Points2D;
+			const FReal HalfHeight = Height / 2;
+			TArray<FVec2> Points2D;
 			Points2D.Reserve(NumPointsEndCap1);
 			if (IncludeEndCaps)
 			{
-				TSphereSpecializeSamplingHelper<T, 2>::ComputeGoldenSpiralPoints(
-				    Points2D, TVec2<T>((T)0.0), Radius1, NumPointsEndCap1, SpiralSeed);
+				TSphereSpecializeSamplingHelper<FReal, 2>::ComputeGoldenSpiralPoints(
+				    Points2D, FVec2((FReal)0.0), Radius1, NumPointsEndCap1, SpiralSeed);
 				Offset = Points.AddUninitialized(Points2D.Num());
 				for (int32 i = 0; i < Points2D.Num(); i++)
 				{
-					const TVec2<T>& Pt = Points2D[i];
+					const FVec2& Pt = Points2D[i];
 					checkSlow(Pt.Size() < Radius1 + KINDA_SMALL_NUMBER);
-					Points[i + Offset] = TVec3<T>(Pt[0], Pt[1], -HalfHeight);
+					Points[i + Offset] = FVec3(Pt[0], Pt[1], -HalfHeight);
 				}
 				// Advance the SpiralSeed by the number of points generated.
 				SpiralSeed += Points2D.Num();
@@ -537,29 +523,29 @@ namespace Chaos
 			Offset = Points.AddUninitialized(NumPointsCylinder);
 			if (NumPointsCylinder == 1)
 			{
-				Points[Offset] = TVec3<T>(0, 0, HalfHeight);
+				Points[Offset] = FVec3(0, 0, HalfHeight);
 			}
 			else
 			{
-				static const T Increment = PI * (1.0 + sqrt(5));
+				static const FReal Increment = PI * (1.0 + sqrt(5));
 				for (int32 i = 0; i < NumPointsCylinder; i++)
 				{
 					// In the 2D sphere (disc) case, we vary R so it increases monotonically,
 					// which spreads points out across the disc:
-					//     const T R = FMath::Sqrt((0.5 + Index) / NumPoints) * Radius;
+					//     const FReal R = FMath::Sqrt((0.5 + Index) / NumPoints) * Radius;
 					// But we're mapping to a cylinder, which means we want to keep R constant.
-					const T R = FMath::Lerp(Radius1, Radius2, static_cast<T>(i) / (NumPointsCylinder - 1));
-					const T Theta = Increment * (0.5 + i + SpiralSeed);
+					const FReal R = FMath::Lerp(Radius1, Radius2, static_cast<FReal>(i) / (NumPointsCylinder - 1));
+					const FReal Theta = Increment * (0.5 + i + SpiralSeed);
 
 					// Map polar coordinates to Cartesian, and vary Z by [-HalfHeight, HalfHeight].
-					const T Z = FMath::LerpStable(-HalfHeight, HalfHeight, static_cast<T>(i) / (NumPointsCylinder - 1));
+					const FReal Z = FMath::LerpStable(-HalfHeight, HalfHeight, static_cast<FReal>(i) / (NumPointsCylinder - 1));
 					Points[i + Offset] =
-					    TVec3<T>(
+					    FVec3(
 					        R * FMath::Cos(Theta),
 					        R * FMath::Sin(Theta),
 					        Z);
 
-					//checkSlow(FMath::Abs(TVec2<T>(Points[i + Offset][0], Points[i + Offset][1]).Size() - Radius) < KINDA_SMALL_NUMBER);
+					//checkSlow(FMath::Abs(FVec2(Points[i + Offset][0], Points[i + Offset][1]).Size() - Radius) < KINDA_SMALL_NUMBER);
 				}
 			}
 			// Advance the SpiralSeed by the number of points generated.
@@ -568,17 +554,42 @@ namespace Chaos
 			if (IncludeEndCaps)
 			{
 				Points2D.Reset();
-				TSphereSpecializeSamplingHelper<T, 2>::ComputeGoldenSpiralPoints(
-				    Points2D, TVec2<T>((T)0.0), Radius2, NumPointsEndCap2, SpiralSeed);
+				TSphereSpecializeSamplingHelper<FReal, 2>::ComputeGoldenSpiralPoints(
+				    Points2D, FVec2((FReal)0.0), Radius2, NumPointsEndCap2, SpiralSeed);
 				Offset = Points.AddUninitialized(Points2D.Num());
 				for (int32 i = 0; i < Points2D.Num(); i++)
 				{
-					const TVec2<T>& Pt = Points2D[i];
+					const FVec2& Pt = Points2D[i];
 					checkSlow(Pt.Size() < Radius2 + KINDA_SMALL_NUMBER);
-					Points[i + Offset] = TVec3<T>(Pt[0], Pt[1], HalfHeight);
+					Points[i + Offset] = FVec3(Pt[0], Pt[1], HalfHeight);
 				}
 			}
 		}
 	};
+
+	FORCEINLINE TArray<FVec3> FTaperedCylinder::ComputeLocalSamplePoints(const int32 NumPoints, const bool IncludeEndCaps) const
+	{
+		TArray<FVec3> Points;
+		const FVec3 Mid = GetCenter();
+		FTaperedCylinderSpecializeSamplingHelper::ComputeSamplePoints(
+			Points,
+			FTaperedCylinder(MPlane1.X() - Mid, MPlane2.X() - Mid, GetRadius1(), GetRadius2()),
+			NumPoints, IncludeEndCaps);
+		return Points;
+	}
+
+	FORCEINLINE TArray<FVec3> FTaperedCylinder::ComputeSamplePoints(const int32 NumPoints, const bool IncludeEndCaps) const
+	{
+		TArray<FVec3> Points;
+		FTaperedCylinderSpecializeSamplingHelper::ComputeSamplePoints(Points, *this, NumPoints, IncludeEndCaps);
+		return Points;
+	}
+
+	template<class T>
+	using TTaperedCylinder UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FTaperedCylinder instead") = FTaperedCylinder;
+
+	template<typename T>
+	using TTaperedCylinderSpecializeSamplingHelper UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FTaperedCylinderSpecializeSamplingHelper instead") = FTaperedCylinderSpecializeSamplingHelper;
+
 
 } // namespace Chaos

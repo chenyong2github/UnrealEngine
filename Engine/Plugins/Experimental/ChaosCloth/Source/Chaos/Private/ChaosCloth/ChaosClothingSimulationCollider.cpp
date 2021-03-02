@@ -136,7 +136,7 @@ void FClothingSimulationCollider::FLODData::Add(
 				if (ChaosClothingSimulationColliderConsoleVariables::CVarUseOptimizedTaperedCapsule.GetValueOnAnyThread())
 				{
 					Solver->SetCollisionGeometry(CapsuleOffset, Index,
-						MakeUnique<TTaperedCapsule<float>>(P0, P1, Radius0, Radius1));
+						MakeUnique<FTaperedCapsule>(P0, P1, Radius0, Radius1));
 				}
 				else
 				{
@@ -144,7 +144,7 @@ void FClothingSimulationCollider::FLODData::Add(
 					TArray<TUniquePtr<FImplicitObject>> Objects;
 					Objects.Reserve(3);
 					Objects.Add(TUniquePtr<FImplicitObject>(
-						new TTaperedCylinder<float>(P0, P1, Radius0, Radius1)));
+						new FTaperedCylinder(P0, P1, Radius0, Radius1)));
 					Objects.Add(TUniquePtr<FImplicitObject>(
 						new TSphere<float, 3>(P0, Radius0)));
 					Objects.Add(TUniquePtr<FImplicitObject>(

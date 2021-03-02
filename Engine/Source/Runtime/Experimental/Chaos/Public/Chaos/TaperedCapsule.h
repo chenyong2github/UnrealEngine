@@ -6,19 +6,17 @@
 
 namespace Chaos
 {
-	template<typename T>
-	struct TTaperedCapsuleSpecializeSamplingHelper;
+	struct FTaperedCapsuleSpecializeSamplingHelper;
 
-	template<class T>
-	class TTaperedCapsule: public FImplicitObject
+	class FTaperedCapsule: public FImplicitObject
 	{
 	public:
-		TTaperedCapsule()
+		FTaperedCapsule()
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCapsule)
 		{
 			this->bIsConvex = true;
 		}
-		TTaperedCapsule(const TVec3<T>& X1, const TVec3<T>& X2, const T Radius1, const T Radius2)
+		FTaperedCapsule(const FVec3& X1, const FVec3& X2, const FReal Radius1, const FReal Radius2)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCapsule)
 		    , Origin(X1)
 		    , Axis((X2 - X1).GetSafeNormal())
@@ -29,10 +27,10 @@ namespace Chaos
 		{
 			this->bIsConvex = true;
 			LocalBoundingBox.GrowToInclude(X2);
-			T MaxRadius = FMath::Max(Radius1, Radius2);
-			LocalBoundingBox = TAABB<T, 3>(LocalBoundingBox.Min() - TVec3<T>(MaxRadius), LocalBoundingBox.Max() + TVec3<T>(MaxRadius));
+			FReal MaxRadius = FMath::Max(Radius1, Radius2);
+			LocalBoundingBox = FAABB3(LocalBoundingBox.Min() - FVec3(MaxRadius), LocalBoundingBox.Max() + FVec3(MaxRadius));
 		}
-		TTaperedCapsule(const TTaperedCapsule<T>& Other)
+		FTaperedCapsule(const FTaperedCapsule& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCapsule)
 		    , Origin(Other.Origin)
 		    , Axis(Other.Axis)
@@ -43,7 +41,7 @@ namespace Chaos
 		{
 			this->bIsConvex = true;
 		}
-		TTaperedCapsule(TTaperedCapsule<T>&& Other)
+		FTaperedCapsule(FTaperedCapsule&& Other)
 		    : FImplicitObject(EImplicitObject::FiniteConvex, ImplicitObjectType::TaperedCapsule)
 		    , Origin(MoveTemp(Other.Origin))
 		    , Axis(MoveTemp(Other.Axis))
@@ -54,7 +52,7 @@ namespace Chaos
 		{
 			this->bIsConvex = true;
 		}
-		~TTaperedCapsule() {}
+		~FTaperedCapsule() {}
 
 		static constexpr EImplicitObjectType StaticType() { return ImplicitObjectType::TaperedCapsule; }
 
@@ -65,15 +63,8 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the capsule.
 		 */
-		TArray<TVec3<T>> ComputeLocalSamplePoints(const int32 NumPoints) const
-		{
-			TArray<TVec3<T>> Points;
-			TTaperedCapsuleSpecializeSamplingHelper<T>::ComputeSamplePoints(
-			    Points,
-			    TTaperedCapsule<T>(Origin, Origin + Axis * Height, GetRadius1(), GetRadius2()),
-			    NumPoints);
-			return Points;
-		}
+		TArray<FVec3> ComputeLocalSamplePoints(const int32 NumPoints) const;
+
 		/** 
 		 * Returns sample points centered about the origin. 
 		 *
@@ -82,7 +73,7 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the capsule.
 		 */
-		TArray<TVec3<T>> ComputeLocalSamplePoints(const T PointsPerUnitArea, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
+		TArray<FVec3> ComputeLocalSamplePoints(const FReal PointsPerUnitArea, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
 		{ 
 			return ComputeLocalSamplePoints(FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea(true))), MinPoints, MaxPoints)); 
 		}
@@ -94,12 +85,8 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the capsule.
 		 */
-		TArray<TVec3<T>> ComputeSamplePoints(const int32 NumPoints)
-		{
-			TArray<TVec3<T>> Points;
-			TTaperedCapsuleSpecializeSamplingHelper<T>::ComputeSamplePoints(Points, *this, NumPoints);
-			return Points;
-		}
+		TArray<FVec3> ComputeSamplePoints(const int32 NumPoints);
+
 		/** 
 		 * Returns sample points at the current location of the capsule.
 		 *
@@ -108,115 +95,115 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the capsule.
 		 */
-		TArray<TVec3<T>> ComputeSamplePoints(const T PointsPerUnitArea, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
+		TArray<FVec3> ComputeSamplePoints(const FReal PointsPerUnitArea, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
 		{ return ComputeSamplePoints(FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea(true))), MinPoints, MaxPoints)); }
 
-		virtual const TAABB<T, 3> BoundingBox() const override { return LocalBoundingBox; }
+		virtual const FAABB3 BoundingBox() const override { return LocalBoundingBox; }
 
-		T PhiWithNormal(const TVec3<T>& x, TVec3<T>& OutNormal) const
+		FReal PhiWithNormal(const FVec3& x, FVec3& OutNormal) const
 		{
-			const TVec3<T> OriginToX = x - Origin;
-			const T DistanceAlongAxis = FMath::Clamp(TVec3<T>::DotProduct(OriginToX, Axis), (T)0.0, Height);
-			const TVec3<T> ClosestPoint = Origin + Axis * DistanceAlongAxis;
-			const T Radius = (Height > SMALL_NUMBER) ? FMath::Lerp(Radius1, Radius2, DistanceAlongAxis / Height) : FMath::Max(Radius1, Radius2);
+			const FVec3 OriginToX = x - Origin;
+			const FReal DistanceAlongAxis = FMath::Clamp(FVec3::DotProduct(OriginToX, Axis), (FReal)0.0, Height);
+			const FVec3 ClosestPoint = Origin + Axis * DistanceAlongAxis;
+			const FReal Radius = (Height > SMALL_NUMBER) ? FMath::Lerp(Radius1, Radius2, DistanceAlongAxis / Height) : FMath::Max(Radius1, Radius2);
 			OutNormal = (x - ClosestPoint);
-			const T NormalSize = OutNormal.SafeNormalize();
+			const FReal NormalSize = OutNormal.SafeNormalize();
 			return NormalSize - Radius;
 		}
 
-		T GetRadius1() const { return Radius1; }
-		T GetRadius2() const { return Radius2; }
-		T GetHeight() const { return Height; }
-		T GetSlantHeight() const { const T R1mR2 = Radius1-Radius2; return FMath::Sqrt(R1mR2*R1mR2 + Height*Height); }
-		TVec3<T> GetX1() const { return Origin; }
-		TVec3<T> GetX2() const { return Origin + Axis * Height; }
+		FReal GetRadius1() const { return Radius1; }
+		FReal GetRadius2() const { return Radius2; }
+		FReal GetHeight() const { return Height; }
+		FReal GetSlantHeight() const { const FReal R1mR2 = Radius1-Radius2; return FMath::Sqrt(R1mR2*R1mR2 + Height*Height); }
+		FVec3 GetX1() const { return Origin; }
+		FVec3 GetX2() const { return Origin + Axis * Height; }
 		/** Returns the bottommost hemisphere center of the capsule. */
-		TVec3<T> GetOrigin() const { return GetX1(); }
+		FVec3 GetOrigin() const { return GetX1(); }
 		/** Returns the topmost hemisphere center of capsule . */
-		TVec3<T> GetInsertion() const { return GetX2(); }
-		TVec3<T> GetCenter() const { return Origin + Axis * (Height * (T)0.5); }
+		FVec3 GetInsertion() const { return GetX2(); }
+		FVec3 GetCenter() const { return Origin + Axis * (Height * (FReal)0.5); }
 		/** Returns the centroid (center of mass). */
-		TVec3<T> GetCenterOfMass() const // centroid
+		FVec3 GetCenterOfMass() const // centroid
 		{
-			const T R1R1 = Radius1 * Radius1;
-			const T R2R2 = Radius2 * Radius2;
-			const T R1R2 = Radius1 * Radius2;
+			const FReal R1R1 = Radius1 * Radius1;
+			const FReal R2R2 = Radius2 * Radius2;
+			const FReal R1R2 = Radius1 * Radius2;
 			//  compute center of mass as a distance along the axis from the origin as the shape as the axis as a symmetry line 
-			T TaperedSectionCenterOfMass = (Height * (R1R1 + 2.*R1R2 + 3.*R2R2) / 4.*(R1R1 + R1R2 + R2R2));
-			T Hemisphere1CenterOfMass = -((T)3.0 * Radius1 / (T)8.0);
-			T Hemisphere2CenterOfMass = (Height + ((T)3.0 * Radius2 / (T)8.0));
+			FReal TaperedSectionCenterOfMass = (Height * (R1R1 + 2.*R1R2 + 3.*R2R2) / 4.*(R1R1 + R1R2 + R2R2));
+			FReal Hemisphere1CenterOfMass = -((FReal)3.0 * Radius1 / (FReal)8.0);
+			FReal Hemisphere2CenterOfMass = (Height + ((FReal)3.0 * Radius2 / (FReal)8.0));
 
 			// we need to combine all 3 using relative volume ratios
-			const T TaperedSectionVolume = GetTaperedSectionVolume(Height, Radius1, Radius2);
-			const T Hemisphere1Volume = GetHemisphereVolume(Radius1);
-			const T Hemisphere2Volume = GetHemisphereVolume(Radius2);
-			const T TotalVolume = TaperedSectionVolume + Hemisphere1Volume + Hemisphere2Volume;
+			const FReal TaperedSectionVolume = GetTaperedSectionVolume(Height, Radius1, Radius2);
+			const FReal Hemisphere1Volume = GetHemisphereVolume(Radius1);
+			const FReal Hemisphere2Volume = GetHemisphereVolume(Radius2);
+			const FReal TotalVolume = TaperedSectionVolume + Hemisphere1Volume + Hemisphere2Volume;
 
-			const T TotalCenterOfMassAlongAxis = ((TaperedSectionCenterOfMass * TaperedSectionVolume) + (Hemisphere1CenterOfMass * Hemisphere1Volume) + (Hemisphere2CenterOfMass * Hemisphere2Volume)) / TotalVolume;
-			return TVec3<T>(0,0,1) * TotalCenterOfMassAlongAxis; 
+			const FReal TotalCenterOfMassAlongAxis = ((TaperedSectionCenterOfMass * TaperedSectionVolume) + (Hemisphere1CenterOfMass * Hemisphere1Volume) + (Hemisphere2CenterOfMass * Hemisphere2Volume)) / TotalVolume;
+			return FVec3(0,0,1) * TotalCenterOfMassAlongAxis; 
 		}
-		TVec3<T> GetAxis() const { return Axis; }
+		FVec3 GetAxis() const { return Axis; }
 
-		T GetArea(const bool IncludeEndCaps = true) const { return GetArea(Height, Radius1, Radius2, IncludeEndCaps); }
-		static T GetArea(const T Height, const T Radius1, const T Radius2, const bool IncludeEndCaps)
+		FReal GetArea(const bool IncludeEndCaps = true) const { return GetArea(Height, Radius1, Radius2, IncludeEndCaps); }
+		static FReal GetArea(const FReal Height, const FReal Radius1, const FReal Radius2, const bool IncludeEndCaps)
 		{
-			static const T TwoPI = PI * 2;
-			T AreaNoCaps = (T)0.0;
+			static const FReal TwoPI = PI * 2;
+			FReal AreaNoCaps = (FReal)0.0;
 			if (Radius1 == Radius2)
 			{
 				AreaNoCaps = TwoPI * Radius1 * Height;
 			}
 			else
 			{
-				const T R1_R2 = Radius1 - Radius2;
+				const FReal R1_R2 = Radius1 - Radius2;
 				AreaNoCaps = PI * (Radius1 + Radius2) * FMath::Sqrt((R1_R2 * R1_R2) + (Height * Height));
 			}
 			if (IncludeEndCaps)
 			{
-				const T Hemisphere1Area = TSphere<T, 3>::GetArea(Radius1) / (FReal)2.;
-				const T Hemisphere2Area = TSphere<T, 3>::GetArea(Radius2) / (FReal)2.;
+				const FReal Hemisphere1Area = TSphere<FReal, 3>::GetArea(Radius1) / (FReal)2.;
+				const FReal Hemisphere2Area = TSphere<FReal, 3>::GetArea(Radius2) / (FReal)2.;
 				return AreaNoCaps + Hemisphere1Area + Hemisphere2Area;
 			}
 			return AreaNoCaps;
 		}
 
-		T GetVolume() const { return GetVolume(Height, Radius1, Radius2); }
-		static T GetVolume(const T Height, const T Radius1, const T Radius2)
+		FReal GetVolume() const { return GetVolume(Height, Radius1, Radius2); }
+		static FReal GetVolume(const FReal Height, const FReal Radius1, const FReal Radius2)
 		{
-			const T TaperedSectionVolume = GetTaperedSectionVolume(Height, Radius1, Radius2);
-			const T Hemisphere1Volume = GetHemisphereVolume(Radius1);
-			const T Hemisphere2Volume = GetHemisphereVolume(Radius2);
+			const FReal TaperedSectionVolume = GetTaperedSectionVolume(Height, Radius1, Radius2);
+			const FReal Hemisphere1Volume = GetHemisphereVolume(Radius1);
+			const FReal Hemisphere2Volume = GetHemisphereVolume(Radius2);
 			return TaperedSectionVolume + Hemisphere1Volume + Hemisphere2Volume;
 		}
 
-		PMatrix<T, 3, 3> GetInertiaTensor(const T Mass) const { return GetInertiaTensor(Mass, Height, Radius1, Radius2); }
-		static PMatrix<T, 3, 3> GetInertiaTensor(const T Mass, const T Height, const T Radius1, const T Radius2)
+		FMatrix33 GetInertiaTensor(const FReal Mass) const { return GetInertiaTensor(Mass, Height, Radius1, Radius2); }
+		static FMatrix33 GetInertiaTensor(const FReal Mass, const FReal Height, const FReal Radius1, const FReal Radius2)
 		{
 			// TODO(chaos) : we should actually take hemispheres in account 
 			// https://www.wolframalpha.com/input/?i=conical+frustum
-			const T R1 = FMath::Min(Radius1, Radius2);
-			const T R2 = FMath::Max(Radius1, Radius2);
-			const T HH = Height * Height;
-			const T R1R1 = R1 * R1;
-			const T R1R2 = R1 * R2;
-			const T R2R2 = R2 * R2;
+			const FReal R1 = FMath::Min(Radius1, Radius2);
+			const FReal R2 = FMath::Max(Radius1, Radius2);
+			const FReal HH = Height * Height;
+			const FReal R1R1 = R1 * R1;
+			const FReal R1R2 = R1 * R2;
+			const FReal R2R2 = R2 * R2;
 
-			const T Num1 = 2. * HH * (R1R1 + 3. * R1R2 + 6. * R2R2); // 2H^2 * (R1^2 + 3R1R2 + 6R2^2)
-			const T Num2 = 3. * (R1R1 * R1R1 + R1R1 * R1R2 + R1R2 * R1R2 + R1R2 * R2R2 + R2R2 * R2R2); // 3 * (R1^4 + R1^3R2 + R1^2R2^2 + R1R2^3 + R2^4)
-			const T Den1 = PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
+			const FReal Num1 = 2. * HH * (R1R1 + 3. * R1R2 + 6. * R2R2); // 2H^2 * (R1^2 + 3R1R2 + 6R2^2)
+			const FReal Num2 = 3. * (R1R1 * R1R1 + R1R1 * R1R2 + R1R2 * R1R2 + R1R2 * R2R2 + R2R2 * R2R2); // 3 * (R1^4 + R1^3R2 + R1^2R2^2 + R1R2^3 + R2^4)
+			const FReal Den1 = PI * (R1R1 + R1R2 + R2R2); // PI * (R1^2 + R1R2 + R2^2)
 
-			const T Diag12 = Mass * (Num1 + Num2) / (20. * Den1);
-			const T Diag3 = Mass * Num2 / (10. * Den1);
+			const FReal Diag12 = Mass * (Num1 + Num2) / (20. * Den1);
+			const FReal Diag3 = Mass * Num2 / (10. * Den1);
 
-			return PMatrix<T, 3, 3>(Diag12, Diag12, Diag3);
+			return FMatrix33(Diag12, Diag12, Diag3);
 		}
 
-		TRotation<T, 3> GetRotationOfMass() const { return GetRotationOfMass(GetAxis()); }
-		static TRotation<T, 3> GetRotationOfMass(const TVec3<T>& Axis)
+		FRotation3 GetRotationOfMass() const { return GetRotationOfMass(GetAxis()); }
+		static FRotation3 GetRotationOfMass(const FVec3& Axis)
 		{
 			// since the capsule stores an axis and the InertiaTensor is assumed to be along the ZAxis
 			// we need to make sure to return the rotation of the axis from Z
-			return TRotation<T, 3>::FromRotatedVector(TVec3<T>(0, 0, 1), Axis);
+			return FRotation3::FromRotatedVector(FVec3(0, 0, 1), Axis);
 		}
 
 		virtual uint32 GetTypeHash() const override
@@ -229,33 +216,32 @@ namespace Chaos
 
 	private:
 		//Phi is distance from closest point on plane1
-		T GetRadius(const T& Phi) const
+		FReal GetRadius(const FReal& Phi) const
 		{
-			const T Alpha = Phi / Height;
+			const FReal Alpha = Phi / Height;
 			return FMath::Lerp(Radius1, Radius2, Alpha);
 		}
 
-		static T GetHemisphereVolume(const T Radius)
+		static FReal GetHemisphereVolume(const FReal Radius)
 		{
-			return (T)2.0 * PI * (Radius * Radius * Radius) / (T)3.0;
+			return (FReal)2.0 * PI * (Radius * Radius * Radius) / (FReal)3.0;
 		}
 
-		static T GetTaperedSectionVolume(const T Height, const T Radius1, const T Radius2)
+		static FReal GetTaperedSectionVolume(const FReal Height, const FReal Radius1, const FReal Radius2)
 		{
-			static const T PI_OVER_3 = PI / (T)3.0;
+			static const FReal PI_OVER_3 = PI / (FReal)3.0;
 			return PI_OVER_3 * Height * (Radius1 * Radius1 + Radius1 * Radius2 + Radius2 * Radius2);
 		}
 
-		TVec3<T> Origin, Axis;
-		T Height, Radius1, Radius2;
-		TAABB<T, 3> LocalBoundingBox;
+		FVec3 Origin, Axis;
+		FReal Height, Radius1, Radius2;
+		FAABB3 LocalBoundingBox;
 	};
 
-	template<typename T>
-	struct TTaperedCapsuleSpecializeSamplingHelper
+	struct FTaperedCapsuleSpecializeSamplingHelper
 	{
 		static FORCEINLINE void ComputeSamplePoints(
-		    TArray<TVec3<T>>& Points, const TTaperedCapsule<T>& Capsule,
+		    TArray<FVec3>& Points, const FTaperedCapsule& Capsule,
 		    const int32 NumPoints)
 		{
 			if (NumPoints <= 1 ||
@@ -280,7 +266,7 @@ namespace Chaos
 			ComputeGoldenSpiralPoints(Points, Capsule, NumPoints);
 		}
 
-		static FORCEINLINE void ComputeGoldenSpiralPoints(TArray<TVec3<T>>& Points, const TTaperedCapsule<T>& Capsule, const int32 NumPoints)
+		static FORCEINLINE void ComputeGoldenSpiralPoints(TArray<FVec3>& Points, const FTaperedCapsule& Capsule, const int32 NumPoints)
 		{
 			ComputeGoldenSpiralPoints(Points, Capsule.GetOrigin(), Capsule.GetAxis(), Capsule.GetRadius1(), Capsule.GetRadius2(), Capsule.GetHeight(), NumPoints);
 		}
@@ -308,12 +294,12 @@ namespace Chaos
 		 *    should equal the number of particles already created.
 		 */
 		static /*FORCEINLINE*/ void ComputeGoldenSpiralPoints(
-		    TArray<TVec3<T>>& Points,
-		    const TVec3<T>& Origin,
-		    const TVec3<T>& Axis,
-		    const T Radius1,
-		    const T Radius2,
-		    const T Height,
+		    TArray<FVec3>& Points,
+		    const FVec3& Origin,
+		    const FVec3& Axis,
+		    const FReal Radius1,
+		    const FReal Radius2,
+		    const FReal Height,
 		    const int32 NumPoints,
 			const int32 SpiralSeed = 0)
 		{
@@ -325,14 +311,14 @@ namespace Chaos
 
 			// At this point, Points are centered about the origin (0,0,0), built
 			// along the Z axis.  Transform them to where they should be.
-			const T HalfHeight = Height / 2;
-			const TRotation<T, 3> Rotation = TRotation<T, 3>::FromRotatedVector(TVec3<T>(0, 0, 1), Axis);
-			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(TVec3<T>(0, 0, Height)) + Origin)).Size() < KINDA_SMALL_NUMBER);
+			const FReal HalfHeight = Height / 2;
+			const FRotation3 Rotation = FRotation3::FromRotatedVector(FVec3(0, 0, 1), Axis);
+			checkSlow(((Origin + Axis * Height) - (Rotation.RotateVector(FVec3(0, 0, Height)) + Origin)).Size() < KINDA_SMALL_NUMBER);
 			for (int32 i = Offset; i < Points.Num(); i++)
 			{
-				TVec3<T>& Point = Points[i];
-				const TVec3<T> PointNew = Rotation.RotateVector(Point + TVec3<T>(0, 0, HalfHeight)) + Origin;
-//				checkSlow(FMath::Abs(TTaperedCapsule<T>(Origin, Origin + Axis * Height, Radius1, Radius2).SignedDistance(PointNew)) < KINDA_SMALL_NUMBER);
+				FVec3& Point = Points[i];
+				const FVec3 PointNew = Rotation.RotateVector(Point + FVec3(0, 0, HalfHeight)) + Origin;
+//				checkSlow(FMath::Abs(FTaperedCapsule(Origin, Origin + Axis * Height, Radius1, Radius2).SignedDistance(PointNew)) < KINDA_SMALL_NUMBER);
 				Point = PointNew;
 			}
 		}
@@ -364,12 +350,12 @@ namespace Chaos
 		 *    should equal the number of particles already created.
 		 */
 		static /*FORCEINLINE*/ void ComputeGoldenSpiralPointsUnoriented(
-		    TArray<TVec3<T>>& Points,
-		    const T Radius1,
-		    const T Radius2,
-		    const T Height,
+		    TArray<FVec3>& Points,
+		    const FReal Radius1,
+		    const FReal Radius2,
+		    const FReal Height,
 		    const int32 NumPoints,
-			const int32 SpiralSeed = 0
+			int32 SpiralSeed = 0
 		)
 		{
 			// Evenly distribute points between the capsule body and the end caps.
@@ -377,10 +363,10 @@ namespace Chaos
 			int32 NumPointsEndCap2;
 			int32 NumPointsTaperedSection;
 
-			const T Cap1Area = TSphere<T, 3>::GetArea(Radius1) / (FReal)2.;
-			const T Cap2Area = TSphere<T, 3>::GetArea(Radius2) / (FReal)2.;
-			const T TaperedSectionArea = TTaperedCapsule<T>::GetArea(Height, Radius1, Radius2, /*IncludeEndCaps*/ false);
-			const T AllArea = TaperedSectionArea + Cap1Area + Cap2Area;
+			const FReal Cap1Area = TSphere<FReal, 3>::GetArea(Radius1) / (FReal)2.;
+			const FReal Cap2Area = TSphere<FReal, 3>::GetArea(Radius2) / (FReal)2.;
+			const FReal TaperedSectionArea = FTaperedCapsule::GetArea(Height, Radius1, Radius2, /*IncludeEndCaps*/ false);
+			const FReal AllArea = TaperedSectionArea + Cap1Area + Cap2Area;
 			if (AllArea > KINDA_SMALL_NUMBER)
 			{
 				NumPointsEndCap1 = static_cast<int32>(round(Cap1Area / AllArea * NumPoints));
@@ -397,24 +383,47 @@ namespace Chaos
 			Points.Reserve(Points.Num() + NumPointsToAdd);
 
 			int32 Offset = Points.Num();
-			const T HalfHeight = Height / 2;
+			const FReal HalfHeight = Height / 2;
 			{
 				// Points vary in Z: [-Radius1-HalfHeight, -HalfHeight]
-				TSphereSpecializeSamplingHelper<T, 3>::ComputeBottomHalfSemiSphere(
-					Points, TSphere<T, 3>(TVec3<T>(0, 0, -HalfHeight), Radius1), NumPointsEndCap1, SpiralSeed);
+				TSphereSpecializeSamplingHelper<FReal, 3>::ComputeBottomHalfSemiSphere(
+					Points, TSphere<FReal, 3>(FVec3(0, 0, -HalfHeight), Radius1), NumPointsEndCap1, SpiralSeed);
 				SpiralSeed += Points.Num();
 
 				// Points vary in Z: [-HalfHeight, HalfHeight], about the Z axis.
-				TTaperedCylinderSpecializeSamplingHelper<T>::ComputeGoldenSpiralPointsUnoriented(
+				FTaperedCylinderSpecializeSamplingHelper::ComputeGoldenSpiralPointsUnoriented(
 					Points, Radius1, Radius2, Height, NumPointsTaperedSection, false, SpiralSeed);
 				SpiralSeed += Points.Num();
 
 				// Points vary in Z: [HalfHeight, HalfHeight+Radius2]
-				TSphereSpecializeSamplingHelper<T, 3>::ComputeTopHalfSemiSphere(
-					Points, TSphere<T, 3>(TVec3<T>(0, 0, HalfHeight), Radius2), NumPointsEndCap2, SpiralSeed);
+				TSphereSpecializeSamplingHelper<FReal, 3>::ComputeTopHalfSemiSphere(
+					Points, TSphere<FReal, 3>(FVec3(0, 0, HalfHeight), Radius2), NumPointsEndCap2, SpiralSeed);
 				SpiralSeed += Points.Num();
 			}
 		}
 	};
+
+	FORCEINLINE TArray<FVec3> FTaperedCapsule::ComputeLocalSamplePoints(const int32 NumPoints) const
+	{
+		TArray<FVec3> Points;
+		FTaperedCapsuleSpecializeSamplingHelper::ComputeSamplePoints(
+			Points,
+			FTaperedCapsule(Origin, Origin + Axis * Height, GetRadius1(), GetRadius2()),
+			NumPoints);
+		return Points;
+	}
+
+	FORCEINLINE TArray<FVec3> FTaperedCapsule::ComputeSamplePoints(const int32 NumPoints)
+	{
+		TArray<FVec3> Points;
+		FTaperedCapsuleSpecializeSamplingHelper::ComputeSamplePoints(Points, *this, NumPoints);
+		return Points;
+	}
+
+	template<class T>
+	using TTaperedCapsule UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FTaperedCapsule instead") = FTaperedCapsule;
+
+	template<class T>
+	using TTaperedCapsuleSpecializeSamplingHelper UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FTaperedCapsuleSpecializeSamplingHelper instead") = FTaperedCapsuleSpecializeSamplingHelper;
 
 } // namespace Chaos

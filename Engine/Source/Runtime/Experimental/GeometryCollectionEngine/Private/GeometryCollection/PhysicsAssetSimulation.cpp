@@ -235,7 +235,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				const Chaos::FVec3 Pt(0, 0, HalfHeight);
 				AnalyticShapeGroup->Add(
 					Xf,
-					new Chaos::TTaperedCylinder<float>(-Pt, Pt, Radius0, Radius1));
+					new Chaos::FTaperedCylinder(-Pt, Pt, Radius0, Radius1));
 
 				if (Radius0 > KINDA_SMALL_NUMBER)
 				{

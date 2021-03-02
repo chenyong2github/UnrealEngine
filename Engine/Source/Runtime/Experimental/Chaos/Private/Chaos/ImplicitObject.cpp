@@ -432,8 +432,8 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 	case ImplicitObjectType::UnionClustered: if (Ar.IsLoading()) { return new FImplicitObjectUnionClustered(); } break;
 	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new FLevelSet(); } break;
 	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new FConvex(); } break;
-	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<FReal>(); } break;
-	case ImplicitObjectType::TaperedCapsule: if (Ar.IsLoading()) { return new TTaperedCapsule<FReal>(); } break;
+	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new FTaperedCylinder(); } break;
+	case ImplicitObjectType::TaperedCapsule: if (Ar.IsLoading()) { return new FTaperedCapsule(); } break;
 	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new FTriangleMeshImplicitObject(); } break;
 	case ImplicitObjectType::DEPRECATED_Scaled:
 	{
