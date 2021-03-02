@@ -116,6 +116,9 @@ struct GAMEPLAYTAGS_API FGameplayTagSource
 	{
 	}
 
+	/** Returns the config file that created this source, if valid */
+	FString GetConfigFileName() const;
+
 	static FName GetNativeName();
 
 	static FName GetDefaultName();
@@ -602,6 +605,9 @@ public:
 	/** Refresh the gameplaytag tree due to an editor change */
 	void EditorRefreshGameplayTagTree();
 
+	/** Gets all the current directories to look for tag sources in */
+	void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
+
 	/** Gets a Tag Container containing all of the tags in the hierarchy that are children of this tag, and were explicitly added to the dictionary */
 	FGameplayTagContainer RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const;
 #if WITH_EDITORONLY_DATA
@@ -718,7 +724,7 @@ private:
 	void GetAllParentNodeNames(TSet<FName>& NamesList, TSharedPtr<FGameplayTagNode> GameplayTag) const;
 
 	/** Returns the tag source for a given tag source name, or null if not found */
-	FGameplayTagSource* FindOrAddTagSource(FName TagSourceName, EGameplayTagSourceType SourceType);
+	FGameplayTagSource* FindOrAddTagSource(FName TagSourceName, EGameplayTagSourceType SourceType, const FString& RootDirToUse = FString());
 
 	/** Constructs the net indices for each tag */
 	void ConstructNetIndex();
@@ -759,6 +765,7 @@ private:
 
 	TSet<FName> RestrictedGameplayTagSourceNames;
 
+	/** Specific list of found ini files to load tags out of */
 	TArray<FString> ExtraTagIniList;
 
 	bool bIsConstructingGameplayTagTree = false;
@@ -785,6 +792,9 @@ private:
 
 	// Transient editor-only tags to support quick-iteration PIE workflows
 	TSet<FName> TransientEditorTags;
+
+	/** List of additional tag config root directories to search */
+	TArray<FString> TagIniSearchPaths;
 #endif
 
 	/** Sorted list of nodes, used for network replication */
