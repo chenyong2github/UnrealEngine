@@ -176,14 +176,16 @@ protected:
 	ESubpassHint SubpassHint = ESubpassHint::None;
 	uint8 MultiViewCount;
 
-	uint8 Pad0 = 0;
-	uint8 Pad1 = 0;
-	uint8 Pad2 = 0;
-
 	// Hash for a compatible RenderPass
 	uint32 RenderPassCompatibleHash = 0;
 	// Hash for the render pass including the load/store operations
 	uint32 RenderPassFullHash = 0;
+
+	union
+	{
+		VkOffset3D Offset3D;
+		VkOffset3D Offset2D;
+	} Offset;
 
 	union
 	{
@@ -271,19 +273,14 @@ public:
 		return (DepthStencilRenderTargetImage == Image);
 	}
 
-	inline uint32 GetWidth() const
+	inline VkRect2D GetRenderArea() const
 	{
-		return Extents.width;
-	}
-
-	inline uint32 GetHeight() const
-	{
-		return Extents.height;
+		return RenderArea;
 	}
 
 private:
 	VkFramebuffer Framebuffer;
-	VkExtent2D Extents;
+	VkRect2D RenderArea;
 
 	// Unadjusted number of color render targets as in FRHISetRenderTargetsInfo 
 	uint32 NumColorRenderTargets;

@@ -177,10 +177,7 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 	ZeroVulkanStruct(Info, VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
 	Info.renderPass = RenderPass->GetHandle();
 	Info.framebuffer = Framebuffer->GetHandle();
-	Info.renderArea.offset.x = 0;
-	Info.renderArea.offset.y = 0;
-	Info.renderArea.extent.width = Framebuffer->GetWidth();
-	Info.renderArea.extent.height = Framebuffer->GetHeight();
+	Info.renderArea = Framebuffer->GetRenderArea();
 	Info.clearValueCount = Layout.GetNumUsedClearValues();
 	Info.pClearValues = AttachmentClearValues;
 

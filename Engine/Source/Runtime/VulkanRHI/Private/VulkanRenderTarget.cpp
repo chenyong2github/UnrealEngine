@@ -1138,6 +1138,7 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	FMemory::Memzero(ResolveReferences);
 	FMemory::Memzero(InputAttachments);
 	FMemory::Memzero(Desc);
+	FMemory::Memzero(Offset);
 	FMemory::Memzero(Extent);
 
 	FRenderPassCompatibleHashableStruct CompatibleHashInfo;
@@ -1338,6 +1339,18 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 			Extent.Extent3D.depth = Texture->Surface.Depth;
 		}
 	}
+	else if (NumColorRenderTargets == 0)
+	{
+		// No Depth and no color, it's a raster-only pass so make sure the renderArea will be set up properly
+		checkf(RPInfo.ResolveParameters.DestRect.IsValid(), TEXT("For raster-only passes without render targets, ResolveParameters.DestRect has to contain the render area"));
+		bSetExtent = true;
+		Offset.Offset3D.x = RPInfo.ResolveParameters.DestRect.X1;
+		Offset.Offset3D.y = RPInfo.ResolveParameters.DestRect.Y1;
+		Offset.Offset3D.z = 0;
+		Extent.Extent3D.width = RPInfo.ResolveParameters.DestRect.X2 - RPInfo.ResolveParameters.DestRect.X1;
+		Extent.Extent3D.height = RPInfo.ResolveParameters.DestRect.Y2 - RPInfo.ResolveParameters.DestRect.Y1;
+		Extent.Extent3D.depth = 1;
+	}
 
 	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RPInfo.ShadingRateTexture)
 	{
@@ -1413,7 +1426,6 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 	FRenderPassCompatibleHashableStruct CompatibleHashInfo;
 	FRenderPassFullHashableStruct FullHashInfo;
 
-	bool bSetExtent = false;
 	bool bFoundClearOp = false;
 	MultiViewCount = Initializer.MultiViewCount;
 	NumSamples = Initializer.NumSamples;

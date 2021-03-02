@@ -2527,6 +2527,8 @@ struct FRHIRenderPassInfo
 	};
 	FDepthStencilEntry DepthStencilRenderTarget;
 
+	// Parameters for resolving a multisampled image
+	// When doing raster-only passes with no render targets bound to the pass, use DestRect to describe render area
 	FResolveParams ResolveParameters;
 
 	// Some RHIs can use a texture to control the sampling and/or shading resolution of different areas 

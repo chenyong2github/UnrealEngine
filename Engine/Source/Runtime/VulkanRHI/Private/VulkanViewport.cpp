@@ -470,8 +470,10 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateFramebuffer(Device.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &Framebuffer));
 
-	Extents.width = RTExtents.width;
-	Extents.height = RTExtents.height;
+	RenderArea.offset.x = 0;
+	RenderArea.offset.y = 0;
+	RenderArea.extent.width = RTExtents.width;
+	RenderArea.extent.height = RTExtents.height;
 
 	INC_DWORD_STAT(STAT_VulkanNumFrameBuffers);
 }
