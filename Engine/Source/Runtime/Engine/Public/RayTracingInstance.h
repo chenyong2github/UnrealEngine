@@ -6,7 +6,15 @@
 #include "MeshBatch.h"
 
 #if RHI_RAYTRACING
-#include "RayTracingDefinitions.h"
+
+struct FRayTracingMaskAndFlags
+{
+	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
+	uint8 Mask = 0xFF;
+
+	/** Whether the instance is forced opaque, i.e. anyhit shaders are disabled on this instance */
+	bool bForceOpaque = false;
+};
 
 struct FRayTracingInstance
 {
@@ -42,10 +50,10 @@ struct FRayTracingInstance
 	}
 
 	/** Whether the instance is forced opaque, i.e. anyhit shaders are disabled on this instance */
-	bool bForceOpaque : 1;
+	bool bForceOpaque = false;
 
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
-	uint8 Mask = RAY_TRACING_MASK_ALL;
+	uint8 Mask = 0xFF;
 
 	/** 
 	* Transforms count. When NumTransforms == 1 we create a single instance. 
@@ -86,5 +94,7 @@ struct FRayTracingInstance
 	ENGINE_API void BuildInstanceMaskAndFlags();
 };
 
+/** Build mask and flags based on materials specified in Materials. You can still override Mask after calling this function. */
+ENGINE_API FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches);
 ENGINE_API uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
 #endif

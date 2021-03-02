@@ -6,6 +6,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "PrimitiveViewRelevance.h"
 #include "Rendering/NaniteResources.h"
+#include "RayTracingInstance.h"
 
 namespace Nanite
 {
@@ -163,6 +164,7 @@ protected:
 	TArray<FMatrix> CachedRayTracingInstanceTransforms;
 	TArray<FMeshBatch> CachedRayTracingMaterials;
 	FMatrix CachedRayTracingInstanceLocalToWorld = {};
+	FRayTracingMaskAndFlags CachedRayTracingInstanceMaskAndFlags;
 #endif
 
 #if NANITE_ENABLE_DEBUG_RENDERING

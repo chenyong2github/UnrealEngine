@@ -9,6 +9,7 @@
 
 #if RHI_RAYTRACING
 
+#include "RayTracingDefinitions.h"
 
 void AddOpaqueRaytracingInstance(const FMatrix& InstanceTransform, const FRayTracingGeometry* RayTracingGeometry, const uint32 Mask, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {

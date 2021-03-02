@@ -460,6 +460,9 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 			RayTracingGeometry = &LODResources[LODIndex].RayTracingGeometry;
 			bHasRayTracingInstances = true;
 		}
+
+		// This will be filled later (on the render thread) and cached.
+		CachedRayTracingInstanceMaskAndFlags.Mask = 0;
 	}
 #endif
 }
@@ -951,7 +954,13 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 	RayTracingInstance.MaterialsView = CachedRayTracingMaterials;
 
-	RayTracingInstance.BuildInstanceMaskAndFlags();
+	if (CachedRayTracingInstanceMaskAndFlags.Mask == 0)
+	{
+		CachedRayTracingInstanceMaskAndFlags = BuildRayTracingInstanceMaskAndFlags(CachedRayTracingMaterials);
+	}
+
+	RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
+	RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
 }
 #endif
 

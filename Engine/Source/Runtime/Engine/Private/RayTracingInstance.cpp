@@ -8,13 +8,24 @@
 
 #if RHI_RAYTRACING
 
+#include "RayTracingDefinitions.h"
+
 void FRayTracingInstance::BuildInstanceMaskAndFlags()
 {
 	TArrayView<const FMeshBatch> MeshBatches = GetMaterials();
+	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(MeshBatches);
+
+	Mask |= MaskAndFlags.Mask;
+	bForceOpaque = bForceOpaque || MaskAndFlags.bForceOpaque;
+}
+
+FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches)
+{
+	FRayTracingMaskAndFlags Result;
 
 	ensureMsgf(MeshBatches.Num() > 0, TEXT("You need to add MeshBatches first for instance mask and flags to build upon."));
 
-	Mask = 0;
+	Result.Mask = 0;
 
 	bool bAllSegmentsOpaque = true;
 	bool bAnySegmentsCastShadow = false;
@@ -27,14 +38,16 @@ void FRayTracingInstance::BuildInstanceMaskAndFlags()
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
 		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(ERHIFeatureLevel::SM5, FallbackMaterialRenderProxyPtr);
 		const EBlendMode BlendMode = Material.GetBlendMode();
-		Mask |= ComputeBlendModeMask(BlendMode);
+		Result.Mask |= ComputeBlendModeMask(BlendMode);
 		bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
 		bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 		bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 	}
 
-	bForceOpaque = bAllSegmentsOpaque && bAllSegmentsCastShadow;
-	Mask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
+	Result.bForceOpaque = bAllSegmentsOpaque && bAllSegmentsCastShadow;
+	Result.Mask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
+
+	return Result;
 }
 
 uint8 ComputeBlendModeMask(const EBlendMode BlendMode)
