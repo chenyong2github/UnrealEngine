@@ -984,10 +984,7 @@ bool DoSystemDataInterfacesRequireSolo(const UNiagaraSystem& System, const FNiag
 			{
 				if (OverrideParameterVariable.IsDataInterface() && UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
 				{
-					if (UserDINamesReadInSystemScripts.Contains(OverrideParameterVariable.GetName()))
-					{
-						return true;
-					}
+					return true;
 				}
 			}
 		}
