@@ -913,7 +913,7 @@ static FORCEINLINE NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC GetNVShaderExt
 	ShdExtensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
 	ShdExtensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
 	ShdExtensionDesc.uavSlot = UavSlot;
-#if TEMP_RENDERDOC_WORKAROUND
+#if 0 // TEMP_RENDERDOC_WORKAROUND
 	// TODO: Temp workaround until RenderDoc fixes SM 5.0 opcode detection (need to ignore register space)
 	ShdExtensionDesc.registerSpace = 0xFFFFFFFF;
 #else
