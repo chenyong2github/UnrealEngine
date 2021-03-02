@@ -267,6 +267,10 @@ struct FSquare2DGridHelper
 
 		struct FGridCell
 		{
+			FGridCell(const FIntVector& InCoords)
+				: Coords(InCoords)
+			{}
+
 			void AddActor(FActorInstance ActorInstance, const TArray<const UDataLayer*>& InDataLayers)
 			{
 				FDataLayersID DataLayersID = FDataLayersID(InDataLayers);
@@ -300,13 +304,20 @@ struct FSquare2DGridHelper
 				return nullptr;
 			}
 
+			FIntVector GetCoords() const
+			{
+				return Coords;
+			}
+
 		private:
+			FIntVector Coords;
 			TArray<FGridCellDataChunk> DataChunks;
 		};
 #endif
 
-		inline FGridLevel(const FVector2D& InOrigin, int32 InCellSize, int32 InGridSize)
+		inline FGridLevel(const FVector2D& InOrigin, int32 InCellSize, int32 InGridSize, int32 InLevel)
 			: FGrid2D(InOrigin, InCellSize, InGridSize)
+			, Level(InLevel)
 		{}
 
 #if WITH_EDITOR
@@ -330,7 +341,7 @@ struct FSquare2DGridHelper
 			}
 			else
 			{
-				CellIndexMapping = Cells.AddDefaulted();
+				CellIndexMapping = Cells.Emplace(FIntVector(InCoords.X, InCoords.Y, Level));
 				CellsMapping.Add(CellIndex, CellIndexMapping);
 			}
 
@@ -350,9 +361,13 @@ struct FSquare2DGridHelper
 			GetCellIndex(InCoords, CellIndex);
 
 			int32 CellIndexMapping = CellsMapping.FindChecked(CellIndex);
-			return Cells[CellIndexMapping];
+
+			const FGridCell& Cell = Cells[CellIndexMapping];
+			check(Cell.GetCoords() == FIntVector(InCoords.X, InCoords.Y, Level));
+			return Cell;
 		}
 
+		int32 Level;
 		TArray<FGridCell> Cells;
 		TMap<int32, int32> CellsMapping;
 #endif
@@ -389,7 +404,7 @@ struct FSquare2DGridHelper
 	}
 
 	// Runs a function on all cells
-	void ForEachCells(TFunctionRef<void(const FIntVector&)> InOperation) const;
+	void ForEachCells(TFunctionRef<void(const FSquare2DGridHelper::FGridLevel::FGridCell&)> InOperation) const;
 
 	/**
 	 * Runs a function on all intersecting cells for the provided box

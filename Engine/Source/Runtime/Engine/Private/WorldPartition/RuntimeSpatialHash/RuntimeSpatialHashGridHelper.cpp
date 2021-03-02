@@ -46,7 +46,7 @@ FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVecto
 		// Also note that, the default origin of each level will always be centered at the middle of the bounds of (level's cellsize * level's grid size).
 		int32 LevelGridSize = (Level == GridLevelCount-1) ? CurrentGridSize : CurrentGridSize + 1;
 		
-		Levels.Emplace(FVector2D(InOrigin), CurrentCellSize, LevelGridSize);
+		Levels.Emplace(FVector2D(InOrigin), CurrentCellSize, LevelGridSize, Level);
 
 		CurrentCellSize <<= 1;
 		CurrentGridSize >>= 1;
@@ -58,11 +58,14 @@ FSquare2DGridHelper::FSquare2DGridHelper(const FBox& InWorldBounds, const FVecto
 #endif
 }
 
-void FSquare2DGridHelper::ForEachCells(TFunctionRef<void(const FIntVector&)> InOperation) const
+void FSquare2DGridHelper::ForEachCells(TFunctionRef<void(const FSquare2DGridHelper::FGridLevel::FGridCell&)> InOperation) const
 {
 	for (int32 Level = 0; Level < Levels.Num(); Level++)
 	{
-		Levels[Level].ForEachCells([Level, &InOperation](const FIntVector2& Coord) { InOperation(FIntVector(Coord.X, Coord.Y, Level)); });
+		for (const FSquare2DGridHelper::FGridLevel::FGridCell& ThisCell : Levels[Level].Cells)
+		{
+			InOperation(ThisCell);
+		}
 	}
 }
 
