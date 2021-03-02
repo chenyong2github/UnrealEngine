@@ -11,6 +11,7 @@ namespace Chaos
 
 
 	FSimpleEngineSim::FSimpleEngineSim(const FSimpleEngineConfig* StaticDataIn) : TVehicleSystem<FSimpleEngineConfig>(StaticDataIn)
+		, MaxTorque(Setup().MaxTorque)
 		, ThrottlePosition(0.f)
 		, TargetSpeed(0.f)
 		, CurrentRPM(0.f)
@@ -37,7 +38,7 @@ namespace Chaos
 			RPM = FMath::Clamp(RPM, (float)Setup().EngineIdleRPM, (float)Setup().MaxRPM);
 		}
 
-		return Setup().TorqueCurve.GetValue(RPM, Setup().MaxRPM, Setup().MaxTorque);
+		return Setup().TorqueCurve.GetValue(RPM, Setup().MaxRPM, MaxTorque);
 	}
 
 	void FSimpleEngineSim::Simulate(float DeltaTime)

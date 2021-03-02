@@ -90,6 +90,11 @@ namespace Chaos
 			}
 		}
 
+		void SetMaxTorque(float InTorque)
+		{
+			MaxTorque = InTorque;
+		}
+
 		float GetEngineTorque()
 		{
 			if (EngineStarted)
@@ -132,7 +137,7 @@ namespace Chaos
 		void Simulate(float DeltaTime);
 
 	protected:
-
+		float MaxTorque;		// [N.m] The peak torque Y value in the normalized torque graph
 		float ThrottlePosition; // [0..1 Normalized position]
 		float TargetSpeed;		// target RPM
 		float CurrentRPM;		// current RPM

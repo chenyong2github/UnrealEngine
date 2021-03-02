@@ -48,8 +48,10 @@ namespace Chaos
 	{
 	public:
 		FSimpleDifferentialSim(const FSimpleDifferentialConfig* SetupIn) 
-			: TVehicleSystem<FSimpleDifferentialConfig>(SetupIn) {}
+			: TVehicleSystem<FSimpleDifferentialConfig>(SetupIn)
+			, FrontRearSplit(Setup().FrontRearSplit) {}
 
+		float FrontRearSplit;
 	};
 
 	struct CHAOSVEHICLESCORE_API FSimpleTransmissionConfig

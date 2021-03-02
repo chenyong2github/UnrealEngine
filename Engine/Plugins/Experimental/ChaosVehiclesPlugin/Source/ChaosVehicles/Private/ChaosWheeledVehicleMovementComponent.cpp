@@ -205,7 +205,7 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 		{
 			auto& PSuspension = PVehicle->Suspension[WheelIdx];
 			auto& PWheel = PVehicle->Wheels[WheelIdx];
-			PSuspension.UpdateWorldRaycastLocation(VehicleState.VehicleWorldTransform, PWheel.Setup().WheelRadius, WheelState.Trace[WheelIdx]);
+			PSuspension.UpdateWorldRaycastLocation(VehicleState.VehicleWorldTransform, PWheel.GetEffectiveRadius(), WheelState.Trace[WheelIdx]);
 		}
 
 		if (!GWheeledVehicleDebugParams.DisableSuspensionForces && PVehicle->bSuspensionEnabled)
@@ -514,7 +514,7 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 				{
 					if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
 					{
-						FVec3 P = HitResult.ImpactPoint + (PWheel.Setup().WheelRadius * VehicleState.VehicleUpAxis);
+						FVec3 P = HitResult.ImpactPoint + (PWheel.GetEffectiveRadius() * VehicleState.VehicleUpAxis);
 						
 						// This isn't threadsafe because of FDirtySet ProxiesData.Add(Base);
 						Constraint->SetTarget(P);
@@ -530,9 +530,9 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 		{
 			NewDesiredLength = HitResult.Distance;
 
-			SuspensionMovePosition = -FVector::DotProduct(WheelState.WheelWorldLocation[WheelIdx] - HitResult.ImpactPoint, VehicleState.VehicleUpAxis) + PWheel.Setup().WheelRadius;
+			SuspensionMovePosition = -FVector::DotProduct(WheelState.WheelWorldLocation[WheelIdx] - HitResult.ImpactPoint, VehicleState.VehicleUpAxis) + PWheel.GetEffectiveRadius();
 
-			PSuspension.SetSuspensionLength(NewDesiredLength, PWheel.Setup().WheelRadius);
+			PSuspension.SetSuspensionLength(NewDesiredLength, PWheel.GetEffectiveRadius());
 			PSuspension.SetLocalVelocity(WheelState.LocalWheelVelocity[WheelIdx]);
 			PSuspension.Simulate(DeltaTime);
 
@@ -572,7 +572,7 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 		}
 		else
 		{
-			PSuspension.SetSuspensionLength(PSuspension.GetTraceLength(PWheel.Setup().WheelRadius), PWheel.Setup().WheelRadius);
+			PSuspension.SetSuspensionLength(PSuspension.GetTraceLength(PWheel.GetEffectiveRadius()), PWheel.Setup().WheelRadius);
 		}
 
 	}
@@ -611,7 +611,7 @@ void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& Contr
 		auto& PWheel = PVehicle->Wheels[WheelIdx]; // Physics Wheel
 		FHitResult& HitResult = Wheels[WheelIdx]->HitResult;
 
-		if (PWheel.Setup().SteeringEnabled)
+		if (PWheel.SteeringEnabled)
 		{
 			float SpeedScale = 1.0f;
 
@@ -625,12 +625,12 @@ void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& Contr
 
 			if (FMath::Abs(GWheeledVehicleDebugParams.SteeringOverride) > 0.01f)
 			{
-				SteeringAngle = PWheel.Setup().MaxSteeringAngle * GWheeledVehicleDebugParams.SteeringOverride;
+				SteeringAngle = PWheel.MaxSteeringAngle * GWheeledVehicleDebugParams.SteeringOverride;
 			}
 			else
 			{
 				float WheelSide = PVehicle->GetSuspension(WheelIdx).GetLocalRestingPosition().Y;
-				SteeringAngle = PSteering.GetSteeringAngle(SteeringAngle, PWheel.Setup().MaxSteeringAngle, WheelSide);
+				SteeringAngle = PSteering.GetSteeringAngle(SteeringAngle, PWheel.MaxSteeringAngle, WheelSide);
 			}
 
 			PWheel.SetSteeringAngle(SteeringAngle);
@@ -690,14 +690,14 @@ void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInp
 		auto& PWheel = PVehicle->Wheels[WheelIdx];
 
 		float EngineBrakingForce = 0.0f;
-		if ((ModifiedInputs.ThrottleInput < SMALL_NUMBER) && FMath::Abs(VehicleState.ForwardSpeed) > SMALL_NUMBER && PWheel.Setup().EngineEnabled)
+		if ((ModifiedInputs.ThrottleInput < SMALL_NUMBER) && FMath::Abs(VehicleState.ForwardSpeed) > SMALL_NUMBER && PWheel.EngineEnabled)
 		{
 			EngineBrakingForce = EngineBraking;
 		}
 
-		if (PWheel.Setup().BrakeEnabled)
+		if (PWheel.BrakeEnabled)
 		{
-			float BrakeForce = PWheel.Setup().MaxBrakeTorque * ModifiedInputs.BrakeInput;
+			float BrakeForce = PWheel.MaxBrakeTorque * ModifiedInputs.BrakeInput;
 			PWheel.SetBrakeTorque(TorqueMToCm(BrakeForce + EngineBrakingForce));
 		}
 		else
@@ -705,9 +705,9 @@ void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInp
 			PWheel.SetBrakeTorque(TorqueMToCm(EngineBraking));
 		}
 
-		if ((ModifiedInputs.HandbrakeInput && PWheel.Setup().HandbrakeEnabled) || ModifiedInputs.ParkingEnabled)
+		if ((ModifiedInputs.HandbrakeInput && PWheel.HandbrakeEnabled) || ModifiedInputs.ParkingEnabled)
 		{
-			float HandbrakeForce = ModifiedInputs.ParkingEnabled ? PWheel.Setup().HandbrakeTorque : (ModifiedInputs.HandbrakeInput * PWheel.Setup().HandbrakeTorque);
+			float HandbrakeForce = ModifiedInputs.ParkingEnabled ? PWheel.HandbrakeTorque : (ModifiedInputs.HandbrakeInput * PWheel.HandbrakeTorque);
 			PWheel.SetBrakeTorque(TorqueMToCm(HandbrakeForce));
 		}
 	}
@@ -739,7 +739,7 @@ void UChaosWheeledVehicleSimulation::ProcessMechanicalSimulation(float DeltaTime
 		float WheelRPM = 0;
 		for (int I = 0; I < PVehicle->Wheels.Num(); I++)
 		{
-			if (PVehicle->Wheels[I].Setup().EngineEnabled)
+			if (PVehicle->Wheels[I].EngineEnabled)
 			{
 				WheelRPM = FMath::Abs(PVehicle->Wheels[I].GetWheelRPM());
 			}
@@ -760,7 +760,7 @@ void UChaosWheeledVehicleSimulation::ProcessMechanicalSimulation(float DeltaTime
 		for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
 		{
 			auto& PWheel = PVehicle->Wheels[WheelIdx];
-			if (PWheel.Setup().EngineEnabled)
+			if (PWheel.EngineEnabled)
 			{
 				check(PVehicle->NumDrivenWheels > 0);
 
@@ -770,11 +770,11 @@ void UChaosWheeledVehicleSimulation::ProcessMechanicalSimulation(float DeltaTime
 
 					if (PWheel.Setup().AxleType == FSimpleWheelConfig::EAxleType::Front)
 					{
-						SplitTorque = (1.0f - PDifferential.Setup().FrontRearSplit);
+						SplitTorque = (1.0f - PDifferential.FrontRearSplit);
 					}
 					else
 					{
-						SplitTorque = PDifferential.Setup().FrontRearSplit;
+						SplitTorque = PDifferential.FrontRearSplit;
 					}
 
 					PWheel.SetDriveTorque(TorqueMToCm(TransmissionTorque * SplitTorque) / (float)PVehicle->NumDrivenWheels);
@@ -2105,8 +2105,9 @@ void UChaosWheeledVehicleMovementComponent::SetSnapshot(const FWheeledSnaphotDat
 	UChaosVehicleMovementComponent::SetBaseSnapshot(SnapshotIn);
 
 	FBodyInstance* TargetInstance = GetBodyInstance();
-
-	FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+	if (TargetInstance)
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
 		{
 			const FWheeledSnaphotData* WheelSnapshotData = static_cast<const FWheeledSnaphotData*>(&SnapshotIn);
 
@@ -2132,8 +2133,245 @@ void UChaosWheeledVehicleMovementComponent::SetSnapshot(const FWheeledSnaphotDat
 				}
 			}
 		});
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void UChaosWheeledVehicleMovementComponent::SetMaxEngineTorque(float Torque)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle)
+			{
+				VehicleSimulationPT->PVehicle->GetEngine().SetMaxTorque(Torque);
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetDragCoefficient(float DragCoeff)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle)
+			{
+				VehicleSimulationPT->PVehicle->GetAerodynamics().SetDragCoefficient(DragCoeff);
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetDownforceCoefficient(float DownforceCoeff)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle)
+			{
+				VehicleSimulationPT->PVehicle->GetAerodynamics().SetDownforceCoefficient(DownforceCoeff);
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetDifferentialFrontRearSplit(float FrontRearSplit)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle)
+			{
+				VehicleSimulationPT->PVehicle->GetDifferential().FrontRearSplit = FrontRearSplit;
+			}
+		});
+	}
+}
+
+
+void UChaosWheeledVehicleMovementComponent::SetTractionControlEnabled(int WheelIndex, bool Enabled)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.TractionControlEnabled = Enabled;
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetABSEnabled(int WheelIndex, bool Enabled)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.ABSEnabled = Enabled;
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetAffectedByBrake(int WheelIndex, bool Enabled)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.BrakeEnabled = Enabled;
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetAffectedByHandbrake(int WheelIndex, bool Enabled)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.HandbrakeEnabled = Enabled; // this is affecting all vehicles - needs to be per instance 
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetAffectedBySteering(int WheelIndex, bool Enabled)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.SteeringEnabled = Enabled;
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetAffectedByEngine(int WheelIndex, bool Enabled)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.EngineEnabled = Enabled;
+			}
+		});
+	}
 
 }
+
+void UChaosWheeledVehicleMovementComponent::SetWheelRadius(int WheelIndex, float Radius)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.SetWheelRadius(Radius);
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetWheelFrictionMultiplier(int WheelIndex, float Friction)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+			{
+				if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+				{
+					Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+					VehicleWheel.FrictionMultiplier = Friction;
+				}
+			});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetWheelMaxBrakeTorque(int WheelIndex, float Torque)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.MaxBrakeTorque = Torque;
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetWheelHandbrakeTorque(int WheelIndex, float Torque)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.HandbrakeTorque = Torque;
+			}
+		});
+	}
+}
+
+void UChaosWheeledVehicleMovementComponent::SetWheelMaxSteerAngle(int WheelIndex, float AngleDegrees)
+{
+	if (FBodyInstance* TargetInstance = GetBodyInstance())
+	{
+		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
+		{
+			if (VehicleSimulationPT && VehicleSimulationPT->PVehicle && WheelIndex < VehicleSimulationPT->PVehicle->Wheels.Num())
+			{
+				Chaos::FSimpleWheelSim& VehicleWheel = VehicleSimulationPT->PVehicle->Wheels[WheelIndex];
+
+				VehicleWheel.MaxSteeringAngle = AngleDegrees;
+			}
+		});
+	}
+}
+
 
 FChaosWheelSetup::FChaosWheelSetup()
 	: WheelClass(UChaosVehicleWheel::StaticClass())

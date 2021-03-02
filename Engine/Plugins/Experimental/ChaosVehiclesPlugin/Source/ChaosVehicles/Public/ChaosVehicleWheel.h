@@ -364,7 +364,6 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.MaxSteeringAngle = this->MaxSteerAngle;
 			PWheelConfig.MaxBrakeTorque = this->MaxBrakeTorque;
 			PWheelConfig.HandbrakeTorque = this->MaxHandBrakeTorque;
-
 			PWheelConfig.SteeringEnabled = this->bAffectedBySteering;
 			PWheelConfig.BrakeEnabled = this->bAffectedByBrake;
 			PWheelConfig.HandbrakeEnabled = this->bAffectedByHandbrake;
@@ -375,7 +374,7 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.LongitudinalFrictionMultiplier = this->LongitudinalFrictionForceMultiplier;
 			PWheelConfig.LateralFrictionMultiplier = this->LateralFrictionForceMultiplier;
 			PWheelConfig.FrictionMultiplier = this->FrictionForceMultiplier;
-			PWheelConfig.CorneringStiffness = this->CorneringStiffness;
+			PWheelConfig.CorneringStiffness = this->CorneringStiffness * 10000.0f;
 			PWheelConfig.NewSimulationPath = this->bNewWheelSimulation;
 			PWheelConfig.SideSlipModifier = this->SideSlipModifier;
 			PWheelConfig.SlipThreshold = this->SlipThreshold;

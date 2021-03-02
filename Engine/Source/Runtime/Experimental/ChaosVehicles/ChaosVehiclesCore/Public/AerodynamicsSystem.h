@@ -47,6 +47,16 @@ namespace Chaos
 			DensityOfMedium = DensityIn;
 		}
 
+		void SetDragCoefficient(float InCoeffient)
+		{
+			DragCoefficient = InCoeffient;
+		}
+
+		void SetDownforceCoefficient(float InCoeffient)
+		{
+			DownforceCoefficient = InCoeffient;
+		}
+
 		/** get the drag force generated at the given velocity */
 		float GetDragForceFromVelocity(float VelocityIn)
 		{
@@ -63,6 +73,8 @@ namespace Chaos
 		FVector GetCombinedForces(float VelocityIn);
 
 	protected:
+		float DownforceCoefficient;
+		float DragCoefficient;
 		float DensityOfMedium;
 		float EffectiveDragConstant;
 		float EffectiveLiftConstant;

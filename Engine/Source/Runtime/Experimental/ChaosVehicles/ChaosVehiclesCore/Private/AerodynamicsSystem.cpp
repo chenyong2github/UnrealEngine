@@ -10,11 +10,13 @@ namespace Chaos
 {
 
 	FSimpleAerodynamicsSim::FSimpleAerodynamicsSim(const FSimpleAerodynamicsConfig* SetupIn) : TVehicleSystem< FSimpleAerodynamicsConfig>(SetupIn)
+		, DownforceCoefficient(SetupIn->DownforceCoefficient)
+		, DragCoefficient(SetupIn->DragCoefficient)
 		, DensityOfMedium(RealWorldConsts::AirDensity())
 	{
 		// pre-calculate static values
-		EffectiveDragConstant = 0.5f * Setup().AreaMetresSquared * Setup().DragCoefficient;
-		EffectiveLiftConstant = 0.5f * Setup().AreaMetresSquared * Setup().DownforceCoefficient;
+		EffectiveDragConstant = 0.5f * Setup().AreaMetresSquared * DragCoefficient;
+		EffectiveLiftConstant = 0.5f * Setup().AreaMetresSquared * DownforceCoefficient;
 	}
 
 	FVector FSimpleAerodynamicsSim::GetCombinedForces(float VelocityIn)

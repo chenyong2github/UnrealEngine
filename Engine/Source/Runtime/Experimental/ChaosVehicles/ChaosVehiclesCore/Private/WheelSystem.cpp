@@ -9,6 +9,17 @@ PRAGMA_DISABLE_OPTIMIZATION
 namespace Chaos
 {
 	FSimpleWheelSim::FSimpleWheelSim(const FSimpleWheelConfig* SetupIn) : TVehicleSystem<FSimpleWheelConfig>(SetupIn)
+		, BrakeEnabled(SetupIn->BrakeEnabled)
+		, HandbrakeEnabled(SetupIn->HandbrakeEnabled)
+		, SteeringEnabled(SetupIn->SteeringEnabled)
+		, EngineEnabled(SetupIn->EngineEnabled)
+		, TractionControlEnabled(SetupIn->TractionControlEnabled)
+		, ABSEnabled(SetupIn->ABSEnabled)
+		, FrictionMultiplier(SetupIn->FrictionMultiplier)
+		, CorneringStiffness(SetupIn->CorneringStiffness)
+		, MaxSteeringAngle(SetupIn->MaxSteeringAngle)
+		, MaxBrakeTorque(SetupIn->MaxBrakeTorque)
+		, HandbrakeTorque(SetupIn->HandbrakeTorque)
 		, Re(SetupIn->WheelRadius)
 		, Omega(0.f)
 		, Sx(0.f)
@@ -103,7 +114,7 @@ namespace Chaos
 					BrakeFactor = FMath::Clamp(LongitudinalAdhesiveLimit / FMath::Abs(FinalLongitudinalForce), 0.6f, 1.0f);
 				}
 
-				if ((Braking && Setup().ABSEnabled) || (!Braking && Setup().TractionControlEnabled))
+				if ((Braking && ABSEnabled) || (!Braking && TractionControlEnabled))
 				{
 					Spin = 0.0f;
 
@@ -203,7 +214,7 @@ namespace Chaos
 		AppliedLinearBrakeForce = BrakeTorque / Re;
 
 		// Longitudinal multiplier now affecting both brake and steering equally
-		float AvailableGrip = ForceIntoSurface * SurfaceFriction * Setup().FrictionMultiplier;
+		float AvailableGrip = ForceIntoSurface * SurfaceFriction * FrictionMultiplier;
 
 		float FinalLongitudinalForce = 0.f;
 		float FinalLateralForce = 0.f;
@@ -216,9 +227,9 @@ namespace Chaos
 		if (ForceIntoSurface > SMALL_NUMBER)
 		{
 			// ABS limiting brake force to match force from the grip avialable
-			if (Setup().ABSEnabled && Braking && FMath::Abs(AppliedLinearBrakeForce) > AvailableGrip)
+			if (ABSEnabled && Braking && FMath::Abs(AppliedLinearBrakeForce) > AvailableGrip)
 			{
-				if ((Braking && Setup().ABSEnabled) || (!Braking && Setup().TractionControlEnabled))
+				if ((Braking && ABSEnabled) || (!Braking && TractionControlEnabled))
 				{
 					float Sign = (AppliedLinearBrakeForce > 0.0f) ? 1.0f : -1.0f;
 					AppliedLinearBrakeForce = AvailableGrip * TractionControlAndABSScaling * Sign;
@@ -226,7 +237,7 @@ namespace Chaos
 			}
 
 			// Traction control limiting drive force to match force from grip available
-			if (Setup().TractionControlEnabled && !Braking && FMath::Abs(AppliedLinearDriveForce) > AvailableGrip)
+			if (TractionControlEnabled && !Braking && FMath::Abs(AppliedLinearDriveForce) > AvailableGrip)
 			{
 				float Sign = (AppliedLinearDriveForce > 0.0f) ? 1.0f : -1.0f;
 				AppliedLinearDriveForce = AvailableGrip * TractionControlAndABSScaling * Sign;
@@ -258,7 +269,6 @@ namespace Chaos
 			float ForceRequiredToBringToStop = -(MassPerWheel * K * GroundVelocityVector.Y) / DeltaTime;
 
 			// use slip angle to generate a sideways force
-			float CorneringStiffness = Setup().CorneringStiffness * 10000.0f;
 
 			// Leveling off of the graph
 			float AngleLimit = FMath::DegreesToRadians(8.0f);

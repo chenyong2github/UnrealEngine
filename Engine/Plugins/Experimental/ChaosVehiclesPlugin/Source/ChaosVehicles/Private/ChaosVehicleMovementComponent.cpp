@@ -968,18 +968,18 @@ float UChaosVehicleMovementComponent::CalcSteeringInput()
 
 void UChaosVehicleMovementComponent::CalcThrottleBrakeInput(float& ThrottleOut, float& BrakeOut)
 {
+	BrakeOut = RawBrakeInput;
+	ThrottleOut = RawThrottleInput;
+
 	if (bReverseAsBrake)
 	{
-		BrakeOut = RawBrakeInput;
-		ThrottleOut = RawThrottleInput;
-
 		if (RawThrottleInput > 0.f)
 		{
 			// car moving backwards but player wants to move forwards...
 			// if vehicle is moving backwards, then press brake
 			if (VehicleState.ForwardSpeed < -WrongDirectionThreshold)
 			{
-				BrakeOut = 1.0f; // = RawThrottleInput ?
+				BrakeOut = 1.0f;
 				ThrottleOut = 0.0f;
 			}
 
@@ -1125,13 +1125,16 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 		}
 		else
 		{
-			if (TransmissionType == Chaos::ETransmissionType::Automatic
-				&& RawThrottleInput > KINDA_SMALL_NUMBER
-				&& PVehicleOutput->CurrentGear == 0
-				&& PVehicleOutput->TargetGear == 0)
+			if (TransmissionType == Chaos::ETransmissionType::Automatic)
 			{
-				SetTargetGear(1, true);
+				if (RawThrottleInput > KINDA_SMALL_NUMBER
+					&& GetCurrentGear() == 0
+					&& GetTargetGear() == 0)
+				{
+					SetTargetGear(1, true);
+				}
 			}
+
 		}
 
 		float ModifiedThrottle = 0.f;

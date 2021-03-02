@@ -389,6 +389,17 @@ public:
 	}
 
 public:
+	bool BrakeEnabled;			// Regular brakes are enabled for this wheel
+	bool HandbrakeEnabled;		// Handbrake is operational on this wheel
+	bool SteeringEnabled;		// Steering is operational on this wheel
+	bool EngineEnabled;			// Wheel is driven by an engine
+	bool TractionControlEnabled;// Straight Line Traction Control
+	bool ABSEnabled;			// Advanced braking system operational
+	float FrictionMultiplier;
+	float CorneringStiffness;
+	float MaxSteeringAngle;
+	float MaxBrakeTorque;
+	float HandbrakeTorque;
 
 	float Re;		// [cm] Effective Wheel Radius could change dynamically if get a flat?, tire shreds
 	float Omega;	// [radians/sec] Wheel Rotation Angular Velocity
