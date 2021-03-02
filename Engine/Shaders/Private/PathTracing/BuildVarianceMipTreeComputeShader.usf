@@ -111,36 +111,45 @@ void BuildVarianceMipTreeCS(
 	{
 		float2 UV = float2(GridCoordinate.xy + 0.5f) / VarianceMapDimensions;
 
-		// Resample blurred result as the variance map
-		Gaussian5x5 Filter;
-		Filter.Initialize();
-		uint Samples = 0;
-		int2 PixelCenter = DispatchThreadId.xy;
-		int2 PixelMin = max(PixelCenter - Filter.Offset, 0);
-		int2 PixelMax = min(PixelCenter + Filter.Offset, int2(ViewSize) - 1);
+		// Measure some error function over a NxN neighborhood so we explore the area around noisy pixels
+		int2 PixelCenter = UV * ViewSize;
+		int Radius = 2;
+		int2 PixelMin = max(PixelCenter - Radius, 0);
+		int2 PixelMax = min(PixelCenter + Radius, int2(ViewSize) - 1);
 		for (int y = PixelMin.y; y <= PixelMax.y; ++y)
 		{
 			for (int x = PixelMin.x; x <= PixelMax.x; ++x)
 			{
 				int2 Pixel = int2(x, y);
-				int2 Kernel = Pixel - PixelCenter + Filter.Offset;
-				float Weight = Filter.Weight[Kernel.y * Filter.Width + Kernel.x];
 
 				float4 RadianceAndVariance = RadianceTexture.Load(uint3(Pixel, 0));
 				float3 Radiance = RadianceAndVariance.rgb;
 				float Variance = RadianceAndVariance.a;
-				float Mean = Tonemap(Luminance(Radiance));
+				float Mean = Luminance(Radiance);
+#if 0
+				// measure 3 std-deviations either way and take the overall change in tonemapped intensity as a proxy for error
+				float StdError = sqrt(Variance);
+				float High = Tonemap(Mean + 3 * StdError);
+				float Low = Tonemap(max(Mean - 3 * StdError, 0.0));
+				float VisibleError = High - Low;
+#elif 0
+				// Original heuristic
 				float Epsilon = 0.0001;
-				float Sample = Variance / (Mean + Epsilon) * Weight;
-				Sum += Sample;
-				Samples++;
+				float VisibleError = Variance / (Tonemap(Mean) + Epsilon);
+#else
+				// Relative error (spends too much effort on really dark pixels?)
+				float VisibleError = sqrt(Variance) / (Mean + 0.0001);
+#endif
+
+				Sum = max(Sum, VisibleError);
 			}
 		}
-		Sum /= Samples;
+		// TODO: turn errors below some threshold to 0 so we stop working on those pixels entirely?
 	}
 	else
 	{
-		// Report the mean as the aggregate.
+		// Average errors for hierarchical importance sampling. Taking the average keeps the error values
+		// comparable across level which makes importance sampling more numerically stable.
 		uint2 PixelOffset = uint2(GridCoordinate.x << 1, GridCoordinate.y << 1);
 		for (int i = 0; i < 4; ++i)
 		{

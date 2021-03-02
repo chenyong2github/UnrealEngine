@@ -66,10 +66,10 @@ TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
 
 TAutoConsoleVariable<int32> CVarPathTracingAdaptiveSampling(
 	TEXT("r.PathTracing.AdaptiveSampling"),
-	1,
+	0,
 	TEXT("Toggles the use of adaptive sampling\n")
-	TEXT("0: off\n")
-	TEXT("1: on (default)\n"),
+	TEXT("0: off (default)\n")
+	TEXT("1: on\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -348,20 +348,21 @@ public:
 
 		// Adaptive sampling
 		{
-			uint32 TemporalSeed;
 			if (CVarPathTracingFrameIndependentTemporalSeed.GetValueOnRenderThread() == 0)
 			{
-				TemporalSeed = Iteration;
+				// Count samples from 0 for deterministic results
+				AdaptiveSamplingData.TemporalSeed = Iteration;
 			}
 			else
 			{
-				TemporalSeed = FrameIndependentTemporalSeed;
+				// Count samples from an ever-increasing counter to avoid screen-door effect
+				AdaptiveSamplingData.TemporalSeed = FrameIndependentTemporalSeed;
 			}
+
+			AdaptiveSamplingData.Iteration = Iteration;
 
 			if (VarianceMipTree.NumBytes > 0)
 			{
-				AdaptiveSamplingData.Iteration = Iteration;
-				AdaptiveSamplingData.TemporalSeed = TemporalSeed;
 				AdaptiveSamplingData.VarianceDimensions = VarianceDimensions;
 				AdaptiveSamplingData.VarianceMipTree = VarianceMipTree.SRV;
 				AdaptiveSamplingData.MinimumSamplesPerPixel = CVarPathTracingAdaptiveSamplingMinimumSamplesPerPixel.GetValueOnRenderThread();
@@ -369,8 +370,6 @@ public:
 			else
 			{
 				AdaptiveSamplingData.UseAdaptiveSampling = 0;
-				AdaptiveSamplingData.Iteration = Iteration;
-				AdaptiveSamplingData.TemporalSeed = TemporalSeed;
 				AdaptiveSamplingData.VarianceDimensions = FIntVector(1, 1, 1);
 				AdaptiveSamplingData.VarianceMipTree = RHICreateShaderResourceView(GBlackTexture->TextureRHI->GetTexture2D(), 0);
 				AdaptiveSamplingData.MinimumSamplesPerPixel = CVarPathTracingAdaptiveSamplingMinimumSamplesPerPixel.GetValueOnRenderThread();
@@ -567,8 +566,9 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			ViewState->PathTracingInvalidate();
 			ViewState->PathTracingRect = View.ViewRect;
 		}
-		
 
+		bool NeedsMoreRays = ViewState->PathTracingSPP < MaxSPP;
+		
 		// Construct render targets for compositing
 		TRefCountPtr<IPooledRenderTarget> RadianceRT;
 		TRefCountPtr<IPooledRenderTarget> SampleCountRT;
@@ -612,7 +612,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 		bool bDoMGPUPathTracing = GNumExplicitGPUsForRendering > 1 && GPUCount > 1;
 
-		if (bDoMGPUPathTracing && ViewState->PathTracingSPP < MaxSPP)
+		if (bDoMGPUPathTracing && NeedsMoreRays)
 		{
 			//#dxr-todo: Set minimum tile size for mGPU
 			int32 TileSizeX = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GPUCount).X;
@@ -722,7 +722,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			}
 #endif
 		}
-		else if (ViewState->PathTracingSPP < MaxSPP)
+		else if (NeedsMoreRays)
 		{
 			FIntVector TileOffset;
 			TileOffset.X = bWiperMode > 0 ? WipeOffsetX : 0;
@@ -762,7 +762,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			);
 		}
 
-
 		// Save RayTracingIndirect for compositing
 		RHICmdList.CopyToResolveTarget(RadianceRT->GetRenderTargetItem().TargetableTexture, RadianceRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 		RHICmdList.CopyToResolveTarget(SampleCountRT->GetRenderTargetItem().TargetableTexture, SampleCountRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
@@ -797,25 +796,28 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		RHICmdList.ClearUAVUint(RadianceSortedAlphaRT->GetRenderTargetItem().UAV, BlackColor);
 		RHICmdList.ClearUAVUint(SampleCountSortedRT->GetRenderTargetItem().UAV, BlackColor);
 
-		ComputePathCompaction(
-			RHICmdList,
-			View,
-			RadianceRT->GetRenderTargetItem().ShaderResourceTexture,
-			SampleCountRT->GetRenderTargetItem().ShaderResourceTexture,
-			PixelPositionRT->GetRenderTargetItem().ShaderResourceTexture,
-			RadianceSortedRedRT->GetRenderTargetItem().UAV,
-			RadianceSortedGreenRT->GetRenderTargetItem().UAV,
-			RadianceSortedBlueRT->GetRenderTargetItem().UAV,
-			RadianceSortedAlphaRT->GetRenderTargetItem().UAV,
-			SampleCountSortedRT->GetRenderTargetItem().UAV
-		);
+		if (NeedsMoreRays)
+		{
+			// only need to compact paths if we've traced rays in the last pass
+			ComputePathCompaction(
+				RHICmdList,
+				View,
+				RadianceRT->GetRenderTargetItem().ShaderResourceTexture,
+				SampleCountRT->GetRenderTargetItem().ShaderResourceTexture,
+				PixelPositionRT->GetRenderTargetItem().ShaderResourceTexture,
+				RadianceSortedRedRT->GetRenderTargetItem().UAV,
+				RadianceSortedGreenRT->GetRenderTargetItem().UAV,
+				RadianceSortedBlueRT->GetRenderTargetItem().UAV,
+				RadianceSortedAlphaRT->GetRenderTargetItem().UAV,
+				SampleCountSortedRT->GetRenderTargetItem().UAV
+			);
 
-		RHICmdList.CopyToResolveTarget(RadianceSortedRedRT->GetRenderTargetItem().TargetableTexture, RadianceSortedRedRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		RHICmdList.CopyToResolveTarget(RadianceSortedGreenRT->GetRenderTargetItem().TargetableTexture, RadianceSortedGreenRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		RHICmdList.CopyToResolveTarget(RadianceSortedBlueRT->GetRenderTargetItem().TargetableTexture, RadianceSortedBlueRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		RHICmdList.CopyToResolveTarget(RadianceSortedAlphaRT->GetRenderTargetItem().TargetableTexture, RadianceSortedAlphaRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-		RHICmdList.CopyToResolveTarget(SampleCountSortedRT->GetRenderTargetItem().TargetableTexture, SampleCountSortedRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
-
+			RHICmdList.CopyToResolveTarget(RadianceSortedRedRT->GetRenderTargetItem().TargetableTexture, RadianceSortedRedRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+			RHICmdList.CopyToResolveTarget(RadianceSortedGreenRT->GetRenderTargetItem().TargetableTexture, RadianceSortedGreenRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+			RHICmdList.CopyToResolveTarget(RadianceSortedBlueRT->GetRenderTargetItem().TargetableTexture, RadianceSortedBlueRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+			RHICmdList.CopyToResolveTarget(RadianceSortedAlphaRT->GetRenderTargetItem().TargetableTexture, RadianceSortedAlphaRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+			RHICmdList.CopyToResolveTarget(SampleCountSortedRT->GetRenderTargetItem().TargetableTexture, SampleCountSortedRT->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
+		}
 
 		// Construct render targets for compositing
 		TRefCountPtr<IPooledRenderTarget> OutputRadianceRT;
@@ -907,12 +909,15 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		ViewState->PathTracingIrradianceRT = OutputRadianceRT;
 		ViewState->PathTracingSampleCountRT = OutputSampleCountRT;
 
-		// Process variance mip for adaptive sampling
-		if (ViewState->PathTracingSPP % CVarPathTracingVarianceMapRebuildFrequency.GetValueOnRenderThread() == 0)
+		if (NeedsMoreRays)
 		{
-			SCOPED_GPU_STAT(RHICmdList, Stat_GPU_PathTracingBuildVarianceMipTree);
+			// Process variance mip for adaptive sampling
+			if (ViewState->PathTracingSPP % CVarPathTracingVarianceMapRebuildFrequency.GetValueOnRenderThread() == 0)
+			{
+				SCOPED_GPU_STAT(RHICmdList, Stat_GPU_PathTracingBuildVarianceMipTree);
 
-			BuildVarianceMipTree(RHICmdList, View, OutputRadianceRT->GetRenderTargetItem().ShaderResourceTexture, *ViewState->VarianceMipTree, ViewState->VarianceMipTreeDimensions);
+				BuildVarianceMipTree(RHICmdList, View, OutputRadianceRT->GetRenderTargetItem().ShaderResourceTexture, *ViewState->VarianceMipTree, ViewState->VarianceMipTreeDimensions);
+			}
 		}
 
 		VisualizeVarianceMipTree(RHICmdList, View, *ViewState->VarianceMipTree, ViewState->VarianceMipTreeDimensions);
