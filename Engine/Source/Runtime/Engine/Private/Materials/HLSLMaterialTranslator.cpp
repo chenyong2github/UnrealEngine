@@ -6777,13 +6777,13 @@ int32 FHLSLMaterialTranslator::Dot(int32 A,int32 B)
 	}
 	else
 	{
-		// Promote scalar (or truncate the bigger type)
 		if (IsAnalyticDerivEnabled())
 		{
 			return DerivativeAutogen.GenerateExpressionFunc2(*this, FMaterialDerivativeAutogen::EFunc2::Dot, A, B);
 		}
 		else
 		{
+			// Promote scalar (or truncate the bigger type)
 			if (TypeA == MCT_Float || (TypeB != MCT_Float && GetNumComponents(TypeA) > GetNumComponents(TypeB)))
 			{
 				return AddCodeChunk(MCT_Float,TEXT("dot(%s, %s)"), *CoerceParameter(A, TypeB), *GetParameterCode(B));
