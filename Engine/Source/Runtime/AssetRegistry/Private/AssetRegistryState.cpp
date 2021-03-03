@@ -1495,11 +1495,18 @@ void FAssetRegistryState::AddAssetData(FAssetData* AssetData)
 {
 	NumAssets++;
 
+	FAssetData*& ExistingByObjectPath = CachedAssetsByObjectPath.FindOrAdd(AssetData->ObjectPath);
+	if (ExistingByObjectPath)
+	{
+		UE_LOG(LogAssetRegistry, Error, TEXT("AddAssetData called with ObjectPath %s which already exists. ")
+			TEXT("This will overwrite and leak the existing AssetData."), *AssetData->ObjectPath.ToString());
+	}
+	ExistingByObjectPath = AssetData;
+
 	TArray<FAssetData*, TInlineAllocator<1>>& PackageAssets = CachedAssetsByPackageName.FindOrAdd(AssetData->PackageName);
 	TArray<FAssetData*>& PathAssets = CachedAssetsByPath.FindOrAdd(AssetData->PackagePath);
 	TArray<FAssetData*>& ClassAssets = CachedAssetsByClass.FindOrAdd(AssetData->AssetClass);
 
-	CachedAssetsByObjectPath.Add(AssetData->ObjectPath, AssetData);
 	PackageAssets.Add(AssetData);
 	PathAssets.Add(AssetData);
 	ClassAssets.Add(AssetData);

@@ -232,11 +232,14 @@ private:
 	/** Called when a file in a content directory changes on disk */
 	void OnDirectoryChanged(const TArray<struct FFileChangeData>& Files);
 
+	/** Called to check whether we should filter out assets of the given class and packageflags from the editor's AssetRegistry */
+	bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const;
+
 	/** Called when an asset is loaded, it will possibly update the cache */
 	void OnAssetLoaded(UObject *AssetLoaded);
 
 	/** Process Loaded Assets to update cache */
-	void ProcessLoadedAssetsToUpdateCache(const double TickStartTime, bool bUpdateDeferredList);
+	void ProcessLoadedAssetsToUpdateCache(const double TickStartTime, bool bBecameIdle);
 
 	/** Update Redirect collector with redirects loaded from asset registry */
 	void UpdateRedirectCollector();
@@ -445,9 +448,6 @@ private:
 #if WITH_EDITOR
 	/** List of loaded objects that need to be processed */
 	TRingBuffer<TWeakObjectPtr<UObject>> LoadedAssetsToProcess;
-
-	/** Objects that couldn't be processed because the asset data didn't exist, reprocess these after more directories are scanned */
-	TArray<TWeakObjectPtr<UObject>> LoadedAssetsThatDidNotHaveCachedData;
 
 	/** The set of object paths that have had their disk cache updated from the in memory version */
 	TSet<FName> AssetDataObjectPathsUpdatedOnLoad;

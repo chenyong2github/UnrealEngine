@@ -162,8 +162,11 @@ void UBlueprintGeneratedClass::PostLoad()
 FPrimaryAssetId UBlueprintGeneratedClass::GetPrimaryAssetId() const
 {
 	FPrimaryAssetId AssetId;
-	if (!ensure(ClassDefaultObject))
+	if (!ClassDefaultObject)
 	{
+		// All UBlueprintGeneratedClass objects should have a pointer to their generated ClassDefaultObject, except for the
+		// CDO itself of the UBlueprintGeneratedClass class.
+		verify(HasAnyFlags(RF_ClassDefaultObject));
 		return AssetId;
 	}
 
@@ -1584,6 +1587,14 @@ UClass* UBlueprintGeneratedClass::RegenerateClass(UClass* ClassToRegenerate, UOb
 	return this;
 }
 #endif
+
+bool UBlueprintGeneratedClass::IsAsset() const
+{
+	// UClass::IsAsset returns false; override that to return true for BlueprintGeneratedClasses,
+	// but only if the instance satisfies the regular definition of an asset (RF_Public, not transient, etc)
+	// and only if it is the active BPGC matching the Blueprint
+	return UObject::IsAsset() && !HasAnyClassFlags(CLASS_NewerVersionExists);
+}
 
 void UBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProperties)
 {

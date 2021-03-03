@@ -1014,6 +1014,14 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 					return;
 				}
 
+#if WITH_EDITOR
+				// Skip classes that report themselves as assets but that the editor AssetRegistry is currently not counting as assets
+				if (ShouldSkipAsset(Obj->GetClass()->GetFName(), InMemoryPackage->GetPackageFlags()))
+				{
+					return;
+				}
+#endif
+
 				// Package name
 				const FName PackageName = InMemoryPackage->GetFName();
 
@@ -2478,8 +2486,17 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TRi
 	// Add the found assets
 	while (AssetResults.Num() > 0)
 	{
-		FAssetData* BackgroundResult = AssetResults.PopFrontValue();
-		CA_ASSUME(BackgroundResult);
+		// Delete or take ownership of the BackgroundResult; it was originally new'd by an FPackageReader
+		TUniquePtr<FAssetData> BackgroundResult(AssetResults.PopFrontValue());
+		CA_ASSUME(BackgroundResult.Get() != nullptr);
+
+#if WITH_EDITOR
+		// Skip Assets that we filter out
+		if (ShouldSkipAsset(BackgroundResult->AssetClass, BackgroundResult->PackageFlags))
+		{
+			continue;
+		}
+#endif
 
 		// Try to update any asset data that may already exist
 		FAssetData* AssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
@@ -2500,7 +2517,7 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TRi
 		if (AssetData)
 		{
 			// If this ensure fires then we've somehow processed the same result more than once, and that should never happen
-			if (ensure(AssetData != BackgroundResult))
+			if (ensure(AssetData != BackgroundResult.Get()))
 			{
 				// If the current AssetData came from a loaded asset, don't overwrite it with the new one from disk; loaded asset is more authoritative because it has run the postload steps
 #if WITH_EDITOR
@@ -2510,10 +2527,6 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TRi
 					// The asset exists in the cache from disk and has not yet been loaded into memory, update it with the new background data
 					UpdateAssetData(AssetData, *BackgroundResult);
 				}
-
-				// Delete the result that was originally created by an FPackageReader
-				delete BackgroundResult;
-				BackgroundResult = nullptr;
 			}
 		}
 		else
@@ -2521,7 +2534,7 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TRi
 			// The asset isn't in the cache yet, add it and notify subscribers
 			if (bPathIsMounted)
 			{
-				AddAssetData(BackgroundResult);
+				AddAssetData(BackgroundResult.Release());
 			}
 		}
 
@@ -3044,28 +3057,38 @@ void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileC
 	ScanModifiedAssetFiles(ModifiedFiles);
 }
 
+bool UAssetRegistryImpl::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const
+{
+	// We do not yet support having UBlueprintGeneratedClasses be assets when the UBlueprint is also
+	// an asset; the content browser does not handle the multiple assets correctly and displays this
+	// class asset as if it is in a separate package. Revisit when we have removed the UBlueprint as an asset
+	// or when we support multiple assets.
+	static FName NAME_BlueprintGeneratedClass = TEXT("BlueprintGeneratedClass");
+	bool bIsCooked = (PackageFlags & PKG_FilterEditorOnly) != 0;
+	if (!bIsCooked && AssetClass == NAME_BlueprintGeneratedClass)
+	{
+		return true;
+	}
+	return false;
+}
+
 void UAssetRegistryImpl::OnAssetLoaded(UObject *AssetLoaded)
 {
+	UPackage* Package = AssetLoaded->GetPackage();
+	if (Package && ShouldSkipAsset(AssetLoaded->GetClass()->GetFName(), Package->GetPackageFlags()))
+	{
+		return;
+	}
+
 	LoadedAssetsToProcess.Add(AssetLoaded);
 }
 
-void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStartTime, bool bUpdateDeferredList)
+void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStartTime, bool bBecameIdle)
 {
 	// Note this function can be reentered due to arbitrary code execution in construction of FAssetData
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 
 	const bool bFlushFullBuffer = TickStartTime < 0;
-
-	if (bFlushFullBuffer || bUpdateDeferredList)
-	{
-		// Retry the previous failures on a flush
-		LoadedAssetsToProcess.Reserve(LoadedAssetsToProcess.Num() + LoadedAssetsThatDidNotHaveCachedData.Num());
-		for (TWeakObjectPtr<UObject>& Asset : LoadedAssetsThatDidNotHaveCachedData)
-		{
-			LoadedAssetsToProcess.Add(MoveTemp(Asset));
-		}
-		LoadedAssetsThatDidNotHaveCachedData.Reset();
-	}
 
 	// Refreshes ClassGeneratorNames if out of date due to module load
 	CollectCodeGeneratorClasses();
@@ -3101,27 +3124,28 @@ void UAssetRegistryImpl::ProcessLoadedAssetsToUpdateCache(const double TickStart
 			continue;
 		}
 
-		FAssetData** CachedData = State.CachedAssetsByObjectPath.Find(ObjectPath);
-		if (!CachedData)
-		{
-			// Not scanned, can't process right now but try again on next synchronous scan
-			LoadedAssetsThatDidNotHaveCachedData.Add(LoadedAsset);
-			continue;
-		}
+		FAssetData** DataFromGather = State.CachedAssetsByObjectPath.Find(ObjectPath);
 
 		AssetDataObjectPathsUpdatedOnLoad.Add(ObjectPath);
 
-		FAssetData NewAssetData = FAssetData(LoadedAsset);
-
-		if (NewAssetData.TagsAndValues != (*CachedData)->TagsAndValues)
+		if (!DataFromGather)
 		{
-			// We need to actually update disk cache
-			UpdateAssetData(*CachedData, NewAssetData);
+			FAssetData* NewAssetData = new FAssetData(LoadedAsset, true /* bAllowBlueprintClass */);
+			AddAssetData(NewAssetData);
 		}
 		else
 		{
-			// Bundle tags might have changed but CachedAssetsByTag is up to date
-			(*CachedData)->TaggedAssetBundles = NewAssetData.TaggedAssetBundles;
+			FAssetData NewAssetData = FAssetData(LoadedAsset, true /* bAllowBlueprintClass */);
+			if (NewAssetData.TagsAndValues != (*DataFromGather)->TagsAndValues)
+			{
+				// We need to actually update disk cache
+				UpdateAssetData(*DataFromGather, NewAssetData);
+			}
+			else
+			{
+				// Bundle tags might have changed but CachedAssetsByTag is up to date
+				(*DataFromGather)->TaggedAssetBundles = NewAssetData.TaggedAssetBundles;
+			}
 		}
 
 		// Check to see if we have run out of time in this tick
