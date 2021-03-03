@@ -1236,6 +1236,7 @@ UStaticMesh* FDatasmithImporterUtils::DuplicateStaticMesh(UStaticMesh* SourceSta
 	// Get rid of our temporary flag
 	SourceStaticMesh->ClearFlags(RF_ArchetypeObject);
 	DuplicateMesh->ClearFlags(RF_ArchetypeObject);
+	DuplicateMesh->GetHiResSourceModel().CreateSubObjects(DuplicateMesh);
 
 	if (bIgnoreBulkData)
 	{
