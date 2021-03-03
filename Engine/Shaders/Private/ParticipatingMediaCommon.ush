@@ -6,8 +6,8 @@
 
 #include "Common.ush"
 
-#define PARTICIPATING_MEDIA_MIN_MFP_METER		0.000001f
-#define PARTICIPATING_MEDIA_MIN_EXTINCTION		0.000001f
+#define PARTICIPATING_MEDIA_MIN_MFP_METER		0.000000000001f
+#define PARTICIPATING_MEDIA_MIN_EXTINCTION		0.000000000001f
 #define PARTICIPATING_MEDIA_MIN_TRANSMITTANCE	0.000000000001f
 
 
@@ -150,5 +150,61 @@ float3 TransmittanceToExtinction(in float3 TransmittanceColor, in float Thicknes
 float3 TransmittanceToMeanFreePath(in float3 TransmittanceColor, in float ThicknessMeters)
 {
 	return 1.0f / max(PARTICIPATING_MEDIA_MIN_EXTINCTION, TransmittanceToExtinction(TransmittanceColor, ThicknessMeters));
+}
+
+
+
+//---------------------------------------------
+// Lighting evaluation function for an Isotropic participating media a slab of 1 meter
+//---------------------------------------------
+
+float3 IsotropicMediumSlabDirectionalAlbedoFade(float3 BaseColor, float3 MFP)
+{
+	float3 Fade;
+	// Progressively fade out to 0 for base color starting from 0.1 down to 0.
+	Fade = saturate(BaseColor * 10.0f);
+	// And also fade out from MFP = 20 (the last measured MFP for which we have fit the curve) to 0 for a large MFP=1000 meters
+	Fade*= saturate(1.0f - (MFP - 20.0f) / 980.0f);
+
+	return Fade;
+}
+
+float3 IsotropicMediumSlabPunctualDirectionalAlbedo(FParticipatingMedia PM)
+{
+	// Our measurement are only valid for a MFP of 0.01 meter so we clamp input MFP to that.
+	// This is relatively ok since all computation are done for a slab of 1 meter.
+	const float3 MFP = max(0.01f, PM.MeanFreePath);
+
+	const float3 EvaluateForBaseColor1	= 0.0855674 / (0.237742 + (MFP + ((0.0310849 - MFP) / (1.95492 * MFP + 2.07238))));
+	const float3 EvaluateForBaseColor01 = 0.0167964 / (0.541037 * (pow(1.17902, (-4.33046) / MFP) * (-0.294969 + MFP)) + 0.797592);
+
+	// Lerp between the two curves extreme curves
+	float3 FinalEvaluate = lerp(EvaluateForBaseColor01, EvaluateForBaseColor1, (PM.BaseColor - 0.1f) / (1.0f - 0.1f));
+	return FinalEvaluate * IsotropicMediumSlabDirectionalAlbedoFade(PM.BaseColor, MFP);
+}
+
+float3 IsotropicMediumSlabEnvDirectionalAlbedo(FParticipatingMedia PM)
+{
+	// Our measurement are only valid for a MFP of 0.01 meter so we clamp input MFP to that.
+	// This is relatively ok since all computation are done for a slab of 1 meter.
+	const float3 MFP = max(0.01f, PM.MeanFreePath);
+
+	const float3 EvaluateForBaseColor1	= 0.00231881 + (0.51379 / (pow(MFP, 1.03577) + 0.510465)); 
+	const float3 EvaluateForBaseColor01 = 0.189167 / (1.55597 + (MFP + pow(0.182843, 0.0666775 + MFP)));
+
+	// Lerp between the two curves extreme curves
+	float3 FinalEvaluate = lerp(EvaluateForBaseColor01, EvaluateForBaseColor1, (PM.BaseColor - 0.1f) / (1.0f - 0.1f));
+	return FinalEvaluate * IsotropicMediumSlabDirectionalAlbedoFade(PM.BaseColor, MFP);
+}
+
+float3 IsotropicMediumSlabTransmittance(FParticipatingMedia PM, float SlabThickness, float NoV)
+{
+	const float3 SafeExtinctionThreshold = 0.000001f;
+	const float3 SafeExtinctionCoefficients = max(SafeExtinctionThreshold, PM.ExtinctionCoef);
+
+	const float PathLength = SlabThickness / max(0.0001f, abs(NoV));
+	const float3 SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * PathLength);
+
+	return SafePathSegmentTransmittance;
 }
 

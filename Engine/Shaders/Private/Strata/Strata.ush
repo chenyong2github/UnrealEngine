@@ -962,10 +962,17 @@ FParticipatingMedia StrataSlabCreateParticipatingMedia(float3 DiffuseColor, floa
 
 float StrataSlabDiffuseToVolumeBlend(FParticipatingMedia PM)
 {
-	// End   lerp when transmittance = 0.05, when extinction over 1cm is = -ln(0.05)/0.01 = 299.57 => MFP = 0.003338
-	// Start lerp when transmittance = 0.01, when extinction over 1cm is = -ln(0.01)/0.01 = 230.25 => MFP = 0.004343
+	// Remember, computation are made for a slab of 1 metter, according to STRATA_SIMPLEVOLUME_THICKNESS_M.
+	// We start blending from diffuse toward a slab of participating media when the mean free path reaches 4 centimeters.
 	const float MaxMeanFreePathMeters = max(PM.MeanFreePath.x, max(PM.MeanFreePath.y, PM.MeanFreePath.z));
-	return saturate((MaxMeanFreePathMeters - 0.003338) / (0.004343 - 0.003338));
+	// Start blending volumetric after mean free path of 4 centimeters (also needed because threshold when recovering extinction from transmittance cause a small minimum value)
+	const float StartVolumeBlendMFP = 0.04f;
+	// And when the mean free path reaches 1/3.0f = 0.33 meter. That is extinction=1/0.33=3, transmittance at 1m (bottom of the slab) = exp(-3) = 0.05) we fully use the volumetric model.
+	const float Blend = saturate(max(0.0, MaxMeanFreePathMeters - StartVolumeBlendMFP) * 3.0f);
+	//const float Blend = max(0.0, MaxMeanFreePathMeters - StartVolumeBlendMFP) > 0.0 ? 1.0 : 0.0;
+
+	// Using a non linear blend helps smoothing out transitions visually.
+	return Blend * Blend;
 }
 
 struct FStrataSlabSingleScattering

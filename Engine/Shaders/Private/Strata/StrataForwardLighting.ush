@@ -76,7 +76,7 @@ float3 StrataForwardLighting(
 				Color += GetSkyLightReflection(StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, SkyAverageBrightness) * StrataEnvLight.SpecularWeight * SkyLightCommonFactor;
 			}
 
-			// Evalaute the lighting coming from L (it will lso contain the BSDF throughput to the next layer)
+			// Evaluate the lighting coming from L (it will also contain the BSDF throughput to the next layer)
 			FStrataEvaluateResult StrataEvaluate = StrataEvaluateBSDF(StrataBSDFContext);
 			Color += (StrataEvaluate.DiffusePathValue + StrataEvaluate.SpecularPathValue) * DirLightGeometryFactor 
 					+ StrataEvaluate.EmissivePathValue * OutThroughput;

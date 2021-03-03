@@ -353,7 +353,8 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			{
 				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSDMFP(BSDFContext.BSDF));
 				const float DiffuseToVolumeBlend = StrataSlabDiffuseToVolumeBlend(PM);
-				const FStrataSlabSingleScattering Result = StrataSlabSingleScattering(PM, BSDFContext.Context.NoV);
+				const float3 SlabDirectionalAlbedo = IsotropicMediumSlabPunctualDirectionalAlbedo(PM);
+				const float3 SlabTransmittance = IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, BSDFContext.Context.NoV);
 
 				// STRATA_TODO Fresnel throughput, Use a LUT, this is currently in progress and will be coming soon.
 				// In the meantime, we use a simple approach to feed Fresnel function and compute an approximation of the general transmition/througput.
@@ -363,9 +364,9 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 				const float3 SpecularThroughput = 1.0f - ApproxFresnelForTransmittance; // This is already taken into account by the Chan model above. But for volumetric we need to apply it.
 				const float Phase = IsotropicPhase();
 
-				Sample.DiffusePathValue = lerp(Sample.DiffusePathValue,		Result.SingleScattering * Phase * SpecularThroughput,	DiffuseToVolumeBlend);
+				Sample.DiffusePathValue = lerp(Sample.DiffusePathValue,		SlabDirectionalAlbedo * SpecularThroughput,				DiffuseToVolumeBlend);
 				Sample.DiffusePDF		= lerp(Sample.DiffusePDF,			Phase,													DiffuseToVolumeBlend);
-				Sample.Throughput		= lerp(Sample.Throughput,			Result.Transmittance * SpecularThroughput,				DiffuseToVolumeBlend);
+				Sample.Throughput		= lerp(Sample.Throughput,			SlabTransmittance * SpecularThroughput,					DiffuseToVolumeBlend);
 
 				Sample.bSubsurface = false;	// It should already be the case because Enforce in this case because BSDF_GETHASSSS should be false when BSDF_GETISSIMPLEVOLUME is true
 			}
@@ -673,11 +674,31 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			{
 				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSDMFP(BSDFContext.BSDF));
 				const float DiffuseToVolumeBlend = StrataSlabDiffuseToVolumeBlend(PM);
-				const FStrataSlabSingleScattering Result = StrataSlabSingleScattering(PM, BSDFContext.Context.NoV);
+
+				// The environment response of has been measured for an hemisphere having a uniform radiance of 1. 
+				// This DirectionalAlbedo also contains the integral over the hemisphere according to the phase function.
+				// The spherical harmonic used for environment lighting contains the diffuse integral over the hemisphere as DiffLambert = int_{\omega} {1 * NoL d\Omega} = PI.
+				// We do not want to be affected by the NoL term here since The DirectionalAlbedo also contains the integral over the hemisphere according to the phase function.
+				// Integral of a value=1 over the Hemisphere is int_{\omega} {1  d\Omega} = 2PI.
+				// So, as an approximation, we recover the uniform hemisphere luminance as UniformEnvL = DiffLambert * (1 / PI) * (2 * PI).
+				// We consider that the diffuse integration of the environment SH over the hemisphere multiplied with the light response will be a good approximation similar to the "split sum integral".
+				float3 SlabDirectionalAlbedo = IsotropicMediumSlabEnvDirectionalAlbedo(PM) * ((1 / PI)* (2 * PI));
+
+			#if STRATA_MICROFACET_MULTIPLESCATTERING == 0
+				// Because the default EnvBRDF does not account for multiple scattering, we rescale the participating media response according to EnvBRDF.
+				// This is to ensure a monotone light response behavior when transitioning from the Diffuse to the Volumetric model (without that, multiple scattering can result in higher luminance while trnasitionning from diffuse to volume light model)
+				const float MaxDiffuseWeight = max3(StrataEnvLightResult.DiffuseWeight.x, StrataEnvLightResult.DiffuseWeight.y, StrataEnvLightResult.DiffuseWeight.z);
+				const float MaxSlabDirectionalAlbedo = max3(SlabDirectionalAlbedo.x, SlabDirectionalAlbedo.y, SlabDirectionalAlbedo.z);
+				if (MaxDiffuseWeight < MaxSlabDirectionalAlbedo)
+				{
+					// We only want to do that when the slab light response is higher than the diffse response, so that when the mfp is large (and scattering low), the light response still work correctly according to thickness and MFP.
+					SlabDirectionalAlbedo *= MaxDiffuseWeight / MaxSlabDirectionalAlbedo;
+				}
+			#endif
 
 				// STRATA_TODO: big approximation for volumetric + env lighting: We ignore the phase for now due to the sampled convolved env lighting, 
 				// no self shadow and should not be single scattering using StrataSlabSingleScattering. We will propose a better approach. 
-				StrataEnvLightResult.DiffuseWeight = lerp(StrataEnvLightResult.DiffuseWeight, Result.SingleScattering * FresnelWeight,	DiffuseToVolumeBlend);
+				StrataEnvLightResult.DiffuseWeight = lerp(StrataEnvLightResult.DiffuseWeight, SlabDirectionalAlbedo * FresnelWeight,	DiffuseToVolumeBlend);
 				// We keep the same normal
 				StrataEnvLightResult.bSubsurface = false;
 			}
