@@ -335,7 +335,7 @@ void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHis
 	}
 }
 
-bool UNiagaraNodeUsageSelector::AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const
+bool UNiagaraNodeUsageSelector::AllowExternalPinTypeChanges(const UEdGraphPin* InGraphPin) const
 {
 	// only allow pin type changes for output pins
 	if (InGraphPin->Direction == EGPD_Output)
@@ -406,7 +406,7 @@ void UNiagaraNodeUsageSelector::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 	{
 		OutputNames.Add(Output.GetName());
 	}
-	FName OutputName = FNiagaraUtilities::GetUniqueName(*NewPin->GetName(), OutputNames);
+	FName OutputName = FNiagaraUtilities::GetUniqueName(OutputType.GetFName(), OutputNames);
 	NewPin->PinName = OutputName;
 	FGuid Guid = AddOutput(OutputType, OutputName);
 

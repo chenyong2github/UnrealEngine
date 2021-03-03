@@ -174,7 +174,7 @@ void UNiagaraNodeIf::ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool 
 	}
 }
 
-bool UNiagaraNodeIf::AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const
+bool UNiagaraNodeIf::AllowExternalPinTypeChanges(const UEdGraphPin* InGraphPin) const
 {
 	// only allow pin changes for output pins
 	if (InGraphPin->Direction == EGPD_Output)

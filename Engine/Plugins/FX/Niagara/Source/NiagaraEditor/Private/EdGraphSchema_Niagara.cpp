@@ -1543,7 +1543,7 @@ FPinConnectionResponse UEdGraphSchema_Niagara::GetWildcardConnectionResponse(con
 	}
 	else
 	{
-		if (NodeA->AllowPinTypeChanges(PinA) && NodeA->AllowNiagaraTypeForPinTypeChange(PinBType, const_cast<UEdGraphPin*>(PinA)))
+		if (NodeA->AllowNiagaraTypeForPinTypeChange(PinBType, const_cast<UEdGraphPin*>(PinA)))
 		{
 			if(PinA->Direction == EGPD_Input)
 			{

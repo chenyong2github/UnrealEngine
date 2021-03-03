@@ -227,7 +227,7 @@ bool UNiagaraNode::ReallocatePins(bool bMarkNeedsResynchronizeOnChange)
 			FNiagaraTypeDefinition NewPinNiagaraType = Schema->PinToTypeDefinition(*MatchingNewPin);
 
 			bool bRetainOldTypeDueToNumerics = OldPinNiagaraType != FNiagaraTypeDefinition::GetGenericNumericDef() && NewPinNiagaraType == FNiagaraTypeDefinition::GetGenericNumericDef();
-
+			
 			if (bTypeMismatch && !bRetainOldTypeDueToNumerics)
 			{
 				DefaultValue = (*MatchingNewPin)->DefaultValue;

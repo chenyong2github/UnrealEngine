@@ -97,9 +97,10 @@ public:
 	/** Request a pin type change to a specific type. */
 	void RequestNewPinType(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType);
 
-	/** Determine whether we are allowed to change a pin's type in the first place. Enables the type conversion widget. */
-	virtual bool AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const { return false; }
-	/** Determine whether or not a pin can be changed to a certain type. Used to populate the type conversion menu if pin type changes are allowed. */
+	/** Determine whether we are allowed to change a pin's type from UI. Enables the type conversion widget. */
+	virtual bool AllowExternalPinTypeChanges(const UEdGraphPin* InGraphPin) const { return false; }
+	/** Determine whether or not a pin can be changed to a certain type.
+	 *  Used to populate the type conversion menu if external pin type changes are allowed or for wildcard responses */
 	virtual bool AllowNiagaraTypeForPinTypeChange(const FNiagaraTypeDefinition& InType, UEdGraphPin* Pin) const { return true; }
 	virtual void GetWildcardPinHoverConnectionTextAddition(const UEdGraphPin* WildcardPin, const UEdGraphPin* OtherPin, ECanCreateConnectionResponse ConnectionResponse, FString& OutString) const;
 	

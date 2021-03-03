@@ -37,13 +37,15 @@ public:
 	virtual bool RefreshFromExternalChanges() override;
 	virtual void AddWidgetsToInputBox(TSharedPtr<SVerticalBox> InputBox) override;
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
-	virtual bool AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const override;
+	virtual bool AllowExternalPinTypeChanges(const UEdGraphPin* InGraphPin) const override;
 	virtual bool AllowNiagaraTypeForPinTypeChange(const FNiagaraTypeDefinition& InType, UEdGraphPin* Pin) const override;
 	virtual bool OnNewPinTypeRequested(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType) override;
 	virtual UEdGraphPin* GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin, ENiagaraScriptUsage MasterUsage) const override; 
 	virtual void AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType) override;
 	//~ End UNiagaraNode Interface
 
+	/** Helper function to create a variable to add to the OutputVars and FGuid to add to OutputVarGuids. */
+	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
 	bool ShouldHideEnumEntry(UEnum* Enum, int32 Index) const;
 
 protected:
@@ -71,8 +73,6 @@ private:
 	/** private UNiagaraNodeWithDynamicPins interface */
 	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
 
-	/** Helper function to create a variable to add to the OutputVars and FGuid to add to OutputVarGuids. */
-	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
 	/** The output variable's name is used as the pin friendly name, as we have case labels to make them readable. */
 	FText GetOptionPinFriendlyName(const FNiagaraVariable& Variable) const;
 };

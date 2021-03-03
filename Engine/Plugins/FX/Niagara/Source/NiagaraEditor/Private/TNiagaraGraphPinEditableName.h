@@ -99,7 +99,7 @@ protected:
 	virtual TSharedRef<SWidget> GetLabelWidget(const FName& InLabelStyle) override
 	{
 		UNiagaraNode* ParentNode = Cast<UNiagaraNode>(this->GraphPinObj->GetOwningNode());
-		const bool bAllowPinTypeChanges = ParentNode->AllowPinTypeChanges(this->GraphPinObj) && this->GraphPinObj->bOrphanedPin == false;
+		const bool bAllowPinTypeChanges = ParentNode->AllowExternalPinTypeChanges(this->GraphPinObj) && this->GraphPinObj->bOrphanedPin == false;
 
 		auto CreateLabelTextBlock = [&]()->TSharedRef<SWidget> {
 			CreatedTextBlock = SNew(SInlineEditableTextBlock)
@@ -179,7 +179,7 @@ protected:
 	virtual TSharedRef<SWidget>	GetDefaultValueWidget() override
 	{
 		UNiagaraNode* ParentNode = Cast<UNiagaraNode>(this->GraphPinObj->GetOwningNode());
-		const bool bAllowPinTypeChanges = ParentNode->AllowPinTypeChanges(this->GraphPinObj) && this->GraphPinObj->bOrphanedPin == false;
+		const bool bAllowPinTypeChanges = ParentNode->AllowExternalPinTypeChanges(this->GraphPinObj) && this->GraphPinObj->bOrphanedPin == false;
 
 		TSharedRef<SHorizontalBox> ValueWidgetContainer = SNew(SHorizontalBox);
 

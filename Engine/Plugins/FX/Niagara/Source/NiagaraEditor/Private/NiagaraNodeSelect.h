@@ -50,11 +50,12 @@ private:
 
 	/** UNiagaraNode interface */
 	virtual void Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
-	virtual bool AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const override;
+	virtual bool AllowExternalPinTypeChanges(const UEdGraphPin* InGraphPin) const override;
 	virtual bool AllowNiagaraTypeForPinTypeChange(const FNiagaraTypeDefinition& InType, UEdGraphPin* Pin) const override;
 	virtual bool OnNewPinTypeRequested(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType) override;
 	virtual void PinTypeChanged(UEdGraphPin* InGraphPin) override;
 	virtual void AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox) override;
+	virtual void AddWidgetsToInputBox(TSharedPtr<SVerticalBox> InputBox) override;
 	virtual bool RefreshFromExternalChanges() override;
 	virtual void GetWildcardPinHoverConnectionTextAddition(const UEdGraphPin* WildcardPin, const UEdGraphPin* OtherPin, ECanCreateConnectionResponse ConnectionResponse, FString& OutString) const override;
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive, bool bFilterForCompilation) const override;

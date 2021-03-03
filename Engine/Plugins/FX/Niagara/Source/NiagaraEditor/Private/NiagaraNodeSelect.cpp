@@ -13,6 +13,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeSelect"
 
@@ -64,6 +65,12 @@ void UNiagaraNodeSelect::ChangeSelectorPinType(FNiagaraTypeDefinition Type)
 
 	UEdGraphPin* SelectorPin = GetSelectorPin();
 
+	if(OutputVars.Num() == 0)
+	{
+		AddOutput(FNiagaraTypeDefinition::GetWildcardDef(), FNiagaraTypeDefinition::GetWildcardDef().GetFName());
+		ReallocatePins();
+		return;
+	}
 	// ensure we have at least a minimum amount of entries if we change to integer mode
 	const int32 MinimumEntries = 2;
 	if (SelectorPinType == FNiagaraTypeDefinition::GetIntDef() && NumOptionsPerVariable < MinimumEntries)
@@ -209,7 +216,8 @@ void UNiagaraNodeSelect::AllocateDefaultPins()
 		NumOptionsPerVariable = OptionCount;
 	}
 	else if(SelectorTypeDefinition == FNiagaraTypeDefinition::GetIntDef())
-	{		
+	{
+		NumOptionsPerVariable = FMath::Max(2, NumOptionsPerVariable);
 		for(int32 Index = 0; Index < NumOptionsPerVariable; Index++)
 		{
 			for(const FNiagaraVariable& Variable : OutputVars)
@@ -311,10 +319,10 @@ void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int3
 	Translator->Select(this, Selection, OutputVars, OptionValues, Outputs);
 }
 
-bool UNiagaraNodeSelect::AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const
+bool UNiagaraNodeSelect::AllowExternalPinTypeChanges(const UEdGraphPin* InGraphPin) const
 {
-	// only allow pin type changes for selector and output pins
-	if(InGraphPin == GetSelectorPin() || Super::AllowPinTypeChanges(InGraphPin))
+	// only allow pin type changes from UI for selector and output pins
+	if(InGraphPin == GetSelectorPin() || Super::AllowExternalPinTypeChanges(InGraphPin))
 	{
 		return true;
 	}
@@ -383,6 +391,24 @@ void UNiagaraNodeSelect::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBo
 	];
 }
 
+void UNiagaraNodeSelect::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> InputBox)
+{
+	// make sure we maintain our case labels and separators
+	Super::AddWidgetsToInputBox(InputBox);
+
+	// we only want to add a separator before the selector pin if we actually have at least 1 variable
+	if (OutputVars.Num() < 1 || NumOptionsPerVariable < 1)
+	{
+		return;
+	}
+	
+	InputBox->InsertSlot(OutputVars.Num() * NumOptionsPerVariable + 2 * NumOptionsPerVariable)
+	.VAlign(VAlign_Center)
+	[
+		SNew(SSeparator)
+	];
+}
+
 bool UNiagaraNodeSelect::RefreshFromExternalChanges()
 {
 	ReallocatePins();
@@ -436,7 +462,7 @@ void UNiagaraNodeSelect::MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToMove)
 
 bool UNiagaraNodeSelect::CanRenamePin(const UEdGraphPin* Pin) const
 {
-	return Super::CanRenamePin(Pin) && Pin->Direction == EGPD_Output && Pin->bOrphanedPin == false;
+	return Super::CanRenamePin(Pin) && Pin->Direction == EGPD_Output && Pin->bOrphanedPin == false && !UEdGraphSchema_Niagara::IsPinWildcard(Pin);
 }
 
 bool UNiagaraNodeSelect::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const
@@ -513,20 +539,68 @@ bool UNiagaraNodeSelect::OnNewPinTypeRequested(UEdGraphPin* PinToChange, FNiagar
 	{
 		SelectorPinType = NewType;
 		this->ChangeSelectorPinType(NewType);
+		return true;
 	}
 	else
 	{
-		Super::OnNewPinTypeRequested(PinToChange, NewType);
-		/*auto FindPredicate = [=](const FGuid& Guid) { return Guid == PinToChange->PersistentGuid; };
-		int32 FoundIndex = OutputVarGuids.IndexOfByPredicate(FindPredicate);
-
-		if (FoundIndex != INDEX_NONE)
+		if(OutputVarGuids.Contains(PinToChange->PersistentGuid))
 		{
-			this->ChangeValuePinType(FoundIndex, NewType);
-		}*/
+			return Super::OnNewPinTypeRequested(PinToChange, NewType);
+		}
+		else if(UEdGraphSchema_Niagara::IsPinWildcard(PinToChange))
+		{
+			// we don't reallocate to maintain pin connections, and instead just change pin types
+			int32 OutputIndex = INDEX_NONE;
+
+			TArray<UEdGraphPin*> InputPins;
+			GetInputPins(InputPins);
+			
+			InputPins.RemoveAll([](UEdGraphPin* Pin)
+			{
+				return Pin->bOrphanedPin;
+			});
+
+			for(int32 Idx = 0; Idx < OutputVars.Num(); Idx++)
+			{
+				TArray<UEdGraphPin*> OptionPins = GetOptionPins(Idx);
+				if(OptionPins.Contains(PinToChange))
+				{
+					OutputIndex = Idx;
+				}
+			}
+
+			TSet<FName> OutputNames;
+			for (const FNiagaraVariable& Output : OutputVars)
+			{
+				OutputNames.Add(Output.GetName());
+			}
+			
+			FName VariableAfterTypeChangeName = FNiagaraUtilities::GetUniqueName(NewType.GetFName(), OutputNames);
+			FNiagaraVariable OldVariable(OutputVars[OutputIndex].GetType(), OutputVars[OutputIndex].GetType().GetFName());
+			FNiagaraVariable TmpVar(NewType, VariableAfterTypeChangeName);
+			
+			int32 Value = INDEX_NONE;
+			TArray<int32> OptionValues = GetOptionValues();
+			for(int32 OptionIndex = 0; OptionIndex < OptionValues.Num(); OptionIndex++)
+			{
+				FString CandidateNameForValue = GetOptionPinName(OldVariable, OptionValues[OptionIndex]).ToString();
+				if(CandidateNameForValue.Equals(PinToChange->GetName()))
+				{
+					Value = OptionValues[OptionIndex];
+				}
+			}
+			
+			if (OutputIndex != INDEX_NONE && Value != INDEX_NONE)
+			{
+				PinToChange->PinName = GetOptionPinName(TmpVar, Value);
+				UEdGraphPin* OutputPin = GetPinByPersistentGuid(OutputVarGuids[OutputIndex]);
+
+				return Super::OnNewPinTypeRequested(OutputPin, NewType);
+			}
+		}
 	}
 
-	return true;
+	return false;
 }
 
 void UNiagaraNodeSelect::PostInitProperties()

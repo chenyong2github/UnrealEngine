@@ -33,6 +33,7 @@ void UNiagaraNodeWithDynamicPins::PinConnectionListChanged(UEdGraphPin* Pin)
 		Pin->PinType = Schema->TypeDefinitionToPinType(LinkedPinType);
 
 		FName NewPinName;
+		FText NewPinFriendlyName;
 		FNiagaraParameterHandle LinkedPinHandle(Pin->LinkedTo[0]->PinName);
 		FNiagaraNamespaceMetadata LinkedPinNamespaceMetadata = GetDefault<UNiagaraEditorSettings>()->GetMetaDataForNamespaces(LinkedPinHandle.GetHandleParts());
 		if (LinkedPinNamespaceMetadata.IsValid())
@@ -43,8 +44,11 @@ void UNiagaraNodeWithDynamicPins::PinConnectionListChanged(UEdGraphPin* Pin)
 		else 
 		{
 			NewPinName = Pin->LinkedTo[0]->PinName;
+			NewPinFriendlyName = Pin->LinkedTo[0]->PinFriendlyName;
 		}
+		
 		Pin->PinName = NewPinName;
+		Pin->PinFriendlyName = NewPinFriendlyName;
 
 		CreateAddPin(Pin->Direction);
 		OnNewTypedPinAdded(Pin);

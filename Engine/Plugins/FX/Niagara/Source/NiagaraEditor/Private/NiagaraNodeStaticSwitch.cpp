@@ -558,28 +558,6 @@ void UNiagaraNodeStaticSwitch::BuildParameterMapHistory(FNiagaraParameterMapHist
 	UNiagaraNode::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
 }
 
-bool UNiagaraNodeStaticSwitch::OnNewPinTypeRequested(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType)
-{
-	auto FindPredicate = [=](const FGuid& Guid) { return Guid == PinToChange->PersistentGuid; };
-	int32 FoundIndex = OutputVarGuids.IndexOfByPredicate(FindPredicate);
-	if (FoundIndex != INDEX_NONE)
-	{
-		TSet<FName> OutputNames;
-		for (const FNiagaraVariable& Output : OutputVars)
-		{
-			OutputNames.Add(Output.GetName());
-		}
-		FName OutputName = FNiagaraUtilities::GetUniqueName(NewType.GetFName(), OutputNames);
-		
-		OutputVars.RemoveAt(FoundIndex);
-		OutputVars.EmplaceAt(FoundIndex, FNiagaraVariable(NewType, OutputName));
-		ReallocatePins();
-		return true;
-	}
-
-	return false;
-}
-
 void UNiagaraNodeStaticSwitch::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox)
 {
 	OutputBox->AddSlot()

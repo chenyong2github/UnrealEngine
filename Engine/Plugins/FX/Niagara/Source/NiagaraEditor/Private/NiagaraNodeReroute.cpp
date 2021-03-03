@@ -29,7 +29,7 @@ ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeReroute::GetNumericOutputType
 	return ENiagaraNumericOutputTypeSelectionMode::Largest;
 }
 
-bool UNiagaraNodeReroute::AllowPinTypeChanges(const UEdGraphPin* InGraphPin) const
+bool UNiagaraNodeReroute::AllowExternalPinTypeChanges(const UEdGraphPin* InGraphPin) const
 {
 	return true;
 }
