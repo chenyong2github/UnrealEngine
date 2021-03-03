@@ -798,12 +798,6 @@ inline void ConvertToUntrackedExternalBuffer(
 	ConvertToUntrackedBuffer(GraphBuilder, Buffer, AccessFinal);
 }
 
-// Used to help port code over to RDG. If the graph builder is null, creates a passthrough RDG texture instead. Will be removed once port is complete.
-RENDERCORE_API FRDGTextureRef RegisterExternalOrPassthroughTexture(
-	FRDGBuilder* GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget,
-	ERDGTextureFlags Flags = ERDGTextureFlags::None);
-
 /** Scope used to wait for outstanding tasks when the scope destructor is called. Used for command list recording tasks. */
 class FRDGWaitForTasksScope
 {

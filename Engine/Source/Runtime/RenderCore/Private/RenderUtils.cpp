@@ -27,12 +27,6 @@ FRDGTexture* FTextureWithRDG::GetRDG(FRDGBuilder& GraphBuilder) const
 	return GraphBuilder.RegisterExternalTexture(RenderTarget);
 }
 
-FRDGTexture* FTextureWithRDG::GetPassthroughRDG() const
-{
-	checkf(RenderTarget, TEXT("InitRDG was not called before use."));
-	return FRDGTexture::GetPassthrough(RenderTarget);
-}
-
 void FTextureWithRDG::ReleaseRHI()
 {
 	RenderTarget = nullptr;

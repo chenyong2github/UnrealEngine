@@ -27,7 +27,6 @@ public:
 	~FTextureWithRDG() override;
 
 	FRDGTexture* GetRDG(FRDGBuilder& GraphBuilder) const;
-	FRDGTexture* GetPassthroughRDG() const;
 
 	void ReleaseRHI() override;
 

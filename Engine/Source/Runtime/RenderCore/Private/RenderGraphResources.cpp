@@ -328,18 +328,6 @@ void FRDGBuffer::Finalize()
 	}
 }
 
-FRDGTextureRef FRDGTexture::GetPassthrough(const TRefCountPtr<IPooledRenderTarget>& PooledRenderTargetBase)
-{
-	if (PooledRenderTargetBase)
-	{
-		check(PooledRenderTargetBase->IsCompatibleWithRDG());
-		FRDGTextureRef Texture = &static_cast<FPooledRenderTarget&>(*PooledRenderTargetBase).PassthroughShaderResourceTexture;
-		checkf(Texture->GetRHI(), TEXT("The render target pool didn't allocate a passthrough RHI texture for %s"), PooledRenderTargetBase->GetDesc().DebugName);
-		return Texture;
-	}
-	return nullptr;
-}
-
 FRHIShaderResourceView* FRDGPooledBuffer::GetOrCreateSRV(FRDGBufferSRVDesc SRVDesc)
 {
 	if (const auto* FoundPtr = SRVs.Find(SRVDesc))

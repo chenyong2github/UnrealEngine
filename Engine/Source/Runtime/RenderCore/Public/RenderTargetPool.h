@@ -15,40 +15,21 @@
 #define LOG_MAX_RENDER_TARGET_POOL_USAGE 0
 
 /** The reference to a pooled render target, use like this: TRefCountPtr<IPooledRenderTarget> */
-struct RENDERCORE_API FPooledRenderTarget : public IPooledRenderTarget
+struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 {
 	FPooledRenderTarget(const FPooledRenderTargetDesc& InDesc, class FRenderTargetPool* InRenderTargetPool) 
 		: RenderTargetPool(InRenderTargetPool)
 		, Desc(InDesc)
-		, PassthroughShaderResourceTexture(TEXT("Passthrough"), {}, ERDGTextureFlags::None, ERenderTargetTexture::ShaderResource)
 	{}
 
-	/* Constructor that makes a snapshot */
-	FPooledRenderTarget(const FPooledRenderTarget& SnaphotSource)
-		: RenderTargetPool(SnaphotSource.RenderTargetPool)
-		, Desc(SnaphotSource.Desc)
-		, NumRefs(1)
-		, bSnapshot(true)
-		, PassthroughShaderResourceTexture(TEXT("Passthrough"), {}, ERDGTextureFlags::None, ERenderTargetTexture::ShaderResource)
+	~FPooledRenderTarget()
 	{
-		check(IsInRenderingThread());
-		RenderTargetItem = SnaphotSource.RenderTargetItem;
-	}
-
-	virtual ~FPooledRenderTarget()
-	{
-		check(!NumRefs || (bSnapshot && NumRefs == 1));
+		check(!NumRefs);
 		RenderTargetItem.SafeRelease();
-	}
-
-	bool IsSnapshot() const 
-	{ 
-		return bSnapshot;
 	}
 
 	uint32 GetUnusedForNFrames() const 
 	{ 
-		check(!bSnapshot);
 		return UnusedForNFrames; 
 	}
 
@@ -67,13 +48,7 @@ struct RENDERCORE_API FPooledRenderTarget : public IPooledRenderTarget
 		return Texture == ERenderTargetTexture::Targetable ? TargetableTexture : ShaderResourceTexture;
 	}
 
-	FRDGTextureRef GetPassthroughRDG() const
-	{
-		return &PassthroughShaderResourceTexture;
-	}
-
 	void InitRDG();
-	void InitPassthroughRDG();
 
 	// interface IPooledRenderTarget --------------
 
@@ -121,16 +96,12 @@ private:
 	/** Keeps track of the last frame we unmapped physical memory for this resource. We can't map again in the same frame if we did that */
 	uint32 FrameNumberLastDiscard = -1;
 
-	/** Snapshots are sortof fake pooled render targets, they don't own anything and can outlive the things that created them. These are for threaded rendering. */
-	bool bSnapshot = false;
-
 	/** The transient resource discard will happen automatically on free. */
 	bool bAutoDiscard = true;
 
 	/** Pooled textures for use with RDG. */
 	TRefCountPtr<FRDGPooledTexture> TargetableTexture;
 	TRefCountPtr<FRDGPooledTexture> ShaderResourceTexture;
-	mutable FRDGTexture PassthroughShaderResourceTexture;
 
 	/** @return true:release this one, false otherwise */
 	bool OnFrameStart();
@@ -256,9 +227,6 @@ class RENDERCORE_API FRenderTargetPool : public FRenderResource
 public:
 	FRenderTargetPool();
 
-	/** Transitions all targets in the pool to writable. */
-	void TransitionTargetsWritable(FRHICommandListImmediate& RHICmdList);
-
 	/**
 	 * @param DebugName must not be 0, we only store the pointer
 	 * @param Out is not the return argument to avoid double allocation because of wrong reference counting
@@ -270,18 +238,9 @@ public:
 		const FPooledRenderTargetDesc& Desc,
 		TRefCountPtr<IPooledRenderTarget>& Out,
 		const TCHAR* InDebugName,
-		ERenderTargetTransience TransienceHint = ERenderTargetTransience::Transient,
-		bool bDeferTextureAllocation = false);
+		ERenderTargetTransience TransienceHint = ERenderTargetTransience::Transient);
 
 	void CreateUntrackedElement(const FPooledRenderTargetDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const FSceneRenderTargetItem& Item);
-
-	/** Destruct all snapshots, this must be done after all outstanding async tasks are done. It is important because they hold ref counted texture pointers etc **/
-	IPooledRenderTarget* MakeSnapshot(const TRefCountPtr<IPooledRenderTarget>& In);
-
-	/** Destruct all snapshots, this must be done after all outstanding async tasks are done. It is important because they hold ref counted texture pointers etc **/
-	void DestructSnapshots();
-
-	void OnRenderTargetUnreferenced(IPooledRenderTarget* RenderTarget);
 
 	/** Only to get statistics on usage and free elements. Normally only called in renderthread or if FlushRenderingCommands was called() */
 	void GetStats(uint32& OutWholeCount, uint32& OutWholePoolInKB, uint32& OutUsedInKB) const;
@@ -323,8 +282,6 @@ public:
 
 	void AddPhaseEvent(const TCHAR* InPhaseName);
 
-	void UpdateElementSize(const TRefCountPtr<IPooledRenderTarget>& Element, const uint32 OldSize);
-
 private:
 	TRefCountPtr<FPooledRenderTarget> FindFreeElementForRDG(FRHICommandList& RHICmdList, const FRDGTextureDesc& Desc, const TCHAR* Name);
 
@@ -332,7 +289,6 @@ private:
 		FRHICommandList& RHICmdList,
 		const FPooledRenderTargetDesc& InputDesc,
 		const TCHAR* InDebugName,
-		bool bDeferTextureAllocation,
 		bool bDoAcquireTransientResource);
 
 	static bool DoesTargetNeedTransienceOverride(ETextureCreateFlags Flags, ERenderTargetTransience TransienceHint);
@@ -346,9 +302,6 @@ private:
 	TArray< TRefCountPtr<FPooledRenderTarget> > PooledRenderTargets;
 	TArray< TRefCountPtr<FPooledRenderTarget> > DeferredDeleteArray;
 
-	/** These are snapshots, have odd life times, live in the scene allocator, and don't contribute to any accounting or other management. */
-	TArray<FPooledRenderTarget*> PooledRenderTargetSnapshots;
-
 	// redundant, can always be computed with GetStats(), to debug "out of memory" situations and used for r.RenderTargetPoolMin
 	uint32 AllocationLevelInKB;
 
@@ -357,13 +310,8 @@ private:
 	// to avoid log spam
 	bool bCurrentlyOverBudget;
 
-	// for debugging purpose
-	void VerifyAllocationLevel() const;
-
 	// could be done on the fly but that makes the RenderTargetPoolEvents harder to read
 	void CompactPool();
-
-	void WaitForTransitionFence();
 
 	// the following is used for Event recording --------------------------------
 

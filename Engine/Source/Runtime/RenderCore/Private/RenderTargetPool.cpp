@@ -258,77 +258,19 @@ bool FRenderTargetPool::DoesTargetNeedTransienceOverride(ETextureCreateFlags Fla
 	return false;
 }
 
-void FRenderTargetPool::TransitionTargetsWritable(FRHICommandListImmediate& RHICmdList)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderTargetPoolTransition);
-	check(IsInRenderingThread());
-	WaitForTransitionFence();
-
-	// Stack allocate the transition descriptors. These will get memcpy()ed onto the RHI command list if required.
-	FMemMark Mark(FMemStack::Get());
-	TArray<FRHITransitionInfo, TMemStackAllocator<>> TransitionInfos;
-	TransitionInfos.AddDefaulted(PooledRenderTargets.Num());
-	uint32 TransitionInfoCount = 0;
-
-	for (int32 i = 0; i < PooledRenderTargets.Num(); ++i)
-	{
-		FPooledRenderTarget* PooledRT = PooledRenderTargets[i];
-		if (PooledRT && PooledRT->GetDesc().AutoWritable)
-		{
-			FRHITexture* RenderTarget = PooledRT->GetRenderTargetItem().TargetableTexture;
-			if (RenderTarget)
-			{
-				uint32 CreateFlags = RenderTarget->GetFlags();
-				if ((CreateFlags & TexCreate_DepthStencilTargetable) != 0)
-				{
-					TransitionInfos[TransitionInfoCount++] = FRHITransitionInfo(RenderTarget, ERHIAccess::Unknown, ERHIAccess::DSVRead | ERHIAccess::DSVWrite);
-				}
-				else if ((CreateFlags & TexCreate_RenderTargetable) != 0)
-				{
-					TransitionInfos[TransitionInfoCount++] = FRHITransitionInfo(RenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV);
-				}
-			}
-		}
-	}
-
-	if (TransitionInfoCount > 0)
-	{
-		RHICmdList.Transition(MakeArrayView(TransitionInfos.GetData(), TransitionInfoCount));
-		if (IsRunningRHIInSeparateThread())
-		{
-			TransitionFence = RHICmdList.RHIThreadFence(false);
-		}
-	}
-}
-
-void FRenderTargetPool::WaitForTransitionFence()
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderTargetPoolTransitionWait);
-	check(IsInRenderingThread());
-	if (TransitionFence)
-	{
-		check(IsInRenderingThread());
-		FRHICommandListExecutor::WaitOnRHIThreadFence(TransitionFence);
-		TransitionFence = nullptr;
-	}
-	DeferredDeleteArray.Reset();
-}
-
 TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementForRDG(
 	FRHICommandList& RHICmdList,
 	const FRDGTextureDesc& Desc,
 	const TCHAR* Name)
 {
-	const bool bDeferTextureAllocation = false;
 	const bool bDoAcquireTransientTexture = false;
-	return FindFreeElementInternal(RHICmdList, Translate(Desc), Name, bDeferTextureAllocation, bDoAcquireTransientTexture);
+	return FindFreeElementInternal(RHICmdList, Translate(Desc), Name, bDoAcquireTransientTexture);
 }
 
 TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
 	FRHICommandList& RHICmdList,
 	const FPooledRenderTargetDesc& Desc,
 	const TCHAR* InDebugName,
-	bool bDeferTextureAllocation,
 	bool bDoAcquireTransientTexture)
 {
 	const int32 AliasingMode = CVarRtPoolTransientMode.GetValueOnRenderThread();
@@ -384,7 +326,6 @@ TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
 						continue;
 					}
 
-					check(!Element->IsSnapshot());
 					Found = Element;
 					FoundIndex = Index;
 					bReusingExistingTarget = true;
@@ -410,7 +351,7 @@ Done:
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName, Desc.ClearValue);
 
-		if (Desc.TargetableFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV) && !bDeferTextureAllocation)
+		if (Desc.TargetableFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV))
 		{
 			// Only create resources if we're not asked to defer creation.
 			if (Desc.Is2DTexture())
@@ -512,9 +453,8 @@ Done:
 			RHIBindDebugLabelName(Found->RenderTargetItem.TargetableTexture, InDebugName);
 #endif
 		}
-		else if (!bDeferTextureAllocation)
+		else
 		{
-			// Only create resources if we're not asked to defer creation.
 			if (Desc.Is2DTexture())
 			{
 				// this is useful to get a CPU lockable texture through the same interface
@@ -558,29 +498,20 @@ Done:
 #endif
 		}
 
-		if (!bDeferTextureAllocation)
+		if ((Desc.TargetableFlags & TexCreate_UAV))
 		{
-			if ((Desc.TargetableFlags & TexCreate_UAV))
-			{
-				// The render target desc is invalid if a UAV is requested with an RHI that doesn't support the high-end feature level.
-				check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
-				Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0);
-			}
-
-			// Only calculate allocation level if we actually allocated something. If bDeferTextureAllocation is true, the caller should call 
-			// UpdateElementSize once it's set the resources on the created object.
-			AllocationLevelInKB += ComputeSizeInKB(*Found);
-			VerifyAllocationLevel();
-
-			Found->InitPassthroughRDG();
+			// The render target desc is invalid if a UAV is requested with an RHI that doesn't support the high-end feature level.
+			check(GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 || GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1);
+			Found->RenderTargetItem.UAV = RHICreateUnorderedAccessView(Found->RenderTargetItem.TargetableTexture, 0);
 		}
+
+		AllocationLevelInKB += ComputeSizeInKB(*Found);
 
 		FoundIndex = PooledRenderTargets.Num() - 1;
 		Found->Desc.DebugName = InDebugName;
 	}
 
 	check(Found->IsFree());
-	check(!Found->IsSnapshot());
 
 	Found->Desc.DebugName = InDebugName;
 	Found->UnusedForNFrames = 0;
@@ -621,8 +552,7 @@ bool FRenderTargetPool::FindFreeElement(
 	const FPooledRenderTargetDesc& InputDesc,
 	TRefCountPtr<IPooledRenderTarget>& Out,
 	const TCHAR* InDebugName,
-	ERenderTargetTransience TransienceHint,
-	bool bDeferTextureAllocation)
+	ERenderTargetTransience TransienceHint)
 {
 	check(IsInRenderingThread());
 
@@ -658,8 +588,6 @@ bool FRenderTargetPool::FindFreeElement(
 	{
 		FPooledRenderTarget* Current = (FPooledRenderTarget*)Out.GetReference();
 
-		check(!Current->IsSnapshot());
-
 		const bool bExactMatch = true;
 
 		if (Out->GetDesc().Compare(Desc, bExactMatch))
@@ -689,14 +617,12 @@ bool FRenderTargetPool::FindFreeElement(
 				check(Index >= 0);
 
 				FreeElementAtIndex(Index);
-
-				VerifyAllocationLevel();
 			}
 		}
 	}
 
 	const bool bDoAcquireTransientResource = true;
-	TRefCountPtr<FPooledRenderTarget> Result = FindFreeElementInternal(RHICmdList, Desc, InDebugName, bDeferTextureAllocation, bDoAcquireTransientResource);
+	TRefCountPtr<FPooledRenderTarget> Result = FindFreeElementInternal(RHICmdList, Desc, InDebugName, bDoAcquireTransientResource);
 
 	// Reset RDG state back to an unknown default. The resource is being handed off to a user outside of RDG, so the state is no longer valid.
 	{
@@ -730,23 +656,9 @@ void FRenderTargetPool::CreateUntrackedElement(const FPooledRenderTargetDesc& De
 	FPooledRenderTarget* Found = new FPooledRenderTarget(Desc, NULL);
 
 	Found->RenderTargetItem = Item;
-	Found->InitPassthroughRDG();
-	check(!Found->IsSnapshot());
 
 	// assign to the reference counted variable
 	Out = Found;
-}
-
-IPooledRenderTarget* FRenderTargetPool::MakeSnapshot(const TRefCountPtr<IPooledRenderTarget>& In)
-{
-	check(IsInRenderingThread());
-	FPooledRenderTarget* NewSnapshot = nullptr;
-	if (In.GetReference())
-	{
-		NewSnapshot = new (FMemStack::Get()) FPooledRenderTarget(*static_cast<FPooledRenderTarget*>(In.GetReference()));
-		PooledRenderTargetSnapshots.Add(NewSnapshot);
-	}
-	return NewSnapshot;
 }
 
 void FRenderTargetPool::GetStats(uint32& OutWholeCount, uint32& OutWholePoolInKB, uint32& OutUsedInKB) const
@@ -761,7 +673,6 @@ void FRenderTargetPool::GetStats(uint32& OutWholeCount, uint32& OutWholePoolInKB
 
 		if (Element)
 		{
-			check(!Element->IsSnapshot());
 			uint32 SizeInKB = ComputeSizeInKB(*Element);
 
 			OutWholePoolInKB += SizeInKB;
@@ -932,13 +843,6 @@ FRenderTargetPool::SMemoryStats FRenderTargetPool::ComputeView()
 	return MemoryStats;
 }
 
-void FRenderTargetPool::UpdateElementSize(const TRefCountPtr<IPooledRenderTarget>& Element, const uint32 OldElementSize)
-{
-	check(Element.IsValid() && FindIndex(&(*Element)) >= 0);
-	AllocationLevelInKB -= (OldElementSize + 1023) / 1024;
-	AllocationLevelInKB += (Element->ComputeMemorySize() + 1023) / 1024;
-}
-
 void FRenderTargetPool::AddDeallocEvents()
 {
 	check(IsInRenderingThread());
@@ -1015,7 +919,6 @@ void FRenderTargetPool::AddAllocEventsFromCurrentState()
 
 void FRenderTargetPool::TickPoolElements()
 {
-	// gather stats on deferred allocs before calling WaitForTransitionFence
 	uint32 DeferredAllocationLevelInKB = 0;
 	for (FPooledRenderTarget* Element : DeferredDeleteArray)
 	{
@@ -1023,7 +926,7 @@ void FRenderTargetPool::TickPoolElements()
 	}
 
 	check(IsInRenderingThread());
-	WaitForTransitionFence();
+	DeferredDeleteArray.Reset();
 
 	if (bStartEventRecordingNextTick)
 	{
@@ -1047,7 +950,6 @@ void FRenderTargetPool::TickPoolElements()
 
 		if (Element)
 		{
-			check(!Element->IsSnapshot());
 			Element->OnFrameStart();
 			if (Element->UnusedForNFrames > 2)
 			{
@@ -1108,8 +1010,6 @@ void FRenderTargetPool::TickPoolElements()
 			// we assume because of reference counting the resource gets released when not needed any more
 			// we don't use Remove() to not shuffle around the elements for better transparency on RenderTargetPoolEvents
 			FreeElementAtIndex(OldestElementIndex);
-
-			VerifyAllocationLevel();
 		}
 		else
 		{
@@ -1166,7 +1066,6 @@ int32 FRenderTargetPool::FindIndex(IPooledRenderTarget* In) const
 
 			if (Element == In)
 			{
-				check(!Element->IsSnapshot());
 				return i;
 			}
 		}
@@ -1199,13 +1098,10 @@ void FRenderTargetPool::FreeUnusedResource(TRefCountPtr<IPooledRenderTarget>& In
 
 		if (Element->IsFree())
 		{
-			check(!Element->IsSnapshot());
 			AllocationLevelInKB -= ComputeSizeInKB(*Element);
 			// we assume because of reference counting the resource gets released when not needed any more
 			DeferredDeleteArray.Add(PooledRenderTargets[Index]);
 			FreeElementAtIndex(Index);
-
-			VerifyAllocationLevel();
 		}
 	}
 }
@@ -1220,7 +1116,6 @@ void FRenderTargetPool::FreeUnusedResources()
 
 		if (Element && Element->IsFree())
 		{
-			check(!Element->IsSnapshot());
 			AllocationLevelInKB -= ComputeSizeInKB(*Element);
 			// we assume because of reference counting the resource gets released when not needed any more
 			// we don't use Remove() to not shuffle around the elements for better transparency on RenderTargetPoolEvents
@@ -1228,8 +1123,6 @@ void FRenderTargetPool::FreeUnusedResources()
 			FreeElementAtIndex(i);
 		}
 	}
-
-	VerifyAllocationLevel();
 
 #if LOG_MAX_RENDER_TARGET_POOL_USAGE
 	MaxUsedRenderTargetInKB = 0;
@@ -1253,7 +1146,6 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 				UnusedAllocationInKB += ElementAllocationInKB;
 			}
 
-			check(!Element->IsSnapshot());
 			OutputDevice.Logf(
 				TEXT("  %6.3fMB %4dx%4d%s%s %2dmip(s) %s (%s) %s %s Unused frames: %d"),
 				ElementAllocationInKB / 1024.0f,
@@ -1284,7 +1176,6 @@ void FRenderTargetPool::DumpMemoryUsage(FOutputDevice& OutputDevice)
 
 		if (Element)
 		{
-			check(!Element->IsSnapshot());
 			OutputDevice.Logf(
 				TEXT("  %6.3fMB %4dx%4d%s%s %2dmip(s) %s (%s) %s %s"),
 				ComputeSizeInKB(*Element) / 1024.0f,
@@ -1326,38 +1217,28 @@ void FPooledRenderTarget::InitRDG()
 
 uint32 FPooledRenderTarget::AddRef() const
 {
-	if (!bSnapshot)
-	{
-		check(IsInRenderingThread());
-		return uint32(++NumRefs);
-	}
-	check(NumRefs == 1);
-	return 1;
+	check(IsInRenderingThread());
+	return uint32(++NumRefs);
 }
 
 uint32 FPooledRenderTarget::Release()
 {
-	if (!bSnapshot)
+	checkf(IsInRenderingThread(), TEXT("Tried to delete on non-render thread, PooledRT %s %s"), Desc.DebugName ? Desc.DebugName : TEXT("<Unnamed>"), *Desc.GenerateInfoString());
+	uint32 Refs = uint32(--NumRefs);
+	if (Refs == 0)
 	{
-		checkf(IsInRenderingThread(), TEXT("Tried to delete on non-render thread, PooledRT %s %s"), Desc.DebugName ? Desc.DebugName : TEXT("<Unnamed>"), *Desc.GenerateInfoString());
-		uint32 Refs = uint32(--NumRefs);
-		if (Refs == 0)
-		{
-			RenderTargetItem.SafeRelease();
-			delete this;
-		}
-		else if (Refs == 1 && RenderTargetPool && IsTransient())
-		{
-			if (bAutoDiscard && RenderTargetItem.TargetableTexture)
-			{
-				RHIDiscardTransientResource(RenderTargetItem.TargetableTexture);
-			}
-			FrameNumberLastDiscard = GFrameNumberRenderThread;
-		}
-		return Refs;
+		RenderTargetItem.SafeRelease();
+		delete this;
 	}
-	check(NumRefs == 1);
-	return 1;
+	else if (Refs == 1 && RenderTargetPool && IsTransient())
+	{
+		if (bAutoDiscard && RenderTargetItem.TargetableTexture)
+		{
+			RHIDiscardTransientResource(RenderTargetItem.TargetableTexture);
+		}
+		FrameNumberLastDiscard = GFrameNumberRenderThread;
+	}
+	return Refs;
 }
 
 uint32 FPooledRenderTarget::GetRefCount() const
@@ -1380,22 +1261,8 @@ const FPooledRenderTargetDesc& FPooledRenderTarget::GetDesc() const
 void FRenderTargetPool::ReleaseDynamicRHI()
 {
 	check(IsInRenderingThread());
-	WaitForTransitionFence();
-
+	DeferredDeleteArray.Empty();
 	PooledRenderTargets.Empty();
-	if (PooledRenderTargetSnapshots.Num())
-	{
-		DestructSnapshots();
-	}
-}
-
-void FRenderTargetPool::DestructSnapshots()
-{
-	for (auto Snapshot : PooledRenderTargetSnapshots)
-	{
-		Snapshot->~FPooledRenderTarget();
-	}
-	PooledRenderTargetSnapshots.Reset();
 }
 
 // for debugging purpose
@@ -1409,10 +1276,6 @@ FPooledRenderTarget* FRenderTargetPool::GetElementById(uint32 Id) const
 	}
 
 	return PooledRenderTargets[Id];
-}
-
-void FRenderTargetPool::VerifyAllocationLevel() const
-{
 }
 
 void FRenderTargetPool::CompactPool()
@@ -1432,7 +1295,7 @@ void FRenderTargetPool::CompactPool()
 
 bool FPooledRenderTarget::OnFrameStart()
 {
-	check(IsInRenderingThread() && !bSnapshot);
+	check(IsInRenderingThread());
 
 	// If there are any references to the pooled render target other than the pool itself, then it may not be freed.
 	if (!IsFree())
@@ -1456,31 +1319,28 @@ bool FPooledRenderTarget::OnFrameStart()
 uint32 FPooledRenderTarget::ComputeMemorySize() const
 {
 	uint32 Size = 0;
-	if (!bSnapshot)
+	if (Desc.Is2DTexture())
 	{
-		if (Desc.Is2DTexture())
+		Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
+		if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
 		{
-			Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
-			if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
-			{
-				Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
-			}
+			Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
 		}
-		else if (Desc.Is3DTexture())
+	}
+	else if (Desc.Is3DTexture())
+	{
+		Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
+		if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
 		{
-			Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
-			if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
-			{
-				Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
-			}
+			Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
 		}
-		else
+	}
+	else
+	{
+		Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
+		if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
 		{
-			Size += RHIComputeMemorySize(RenderTargetItem.TargetableTexture);
-			if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
-			{
-				Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
-			}
+			Size += RHIComputeMemorySize(RenderTargetItem.ShaderResourceTexture);
 		}
 	}
 	return Size;
@@ -1492,11 +1352,5 @@ bool FPooledRenderTarget::IsFree() const
 	check(RefCount >= 1);
 
 	// If the only reference to the pooled render target is from the pool, then it's unused.
-	return !bSnapshot && RefCount == 1;
-}
-
-void FPooledRenderTarget::InitPassthroughRDG()
-{
-	check(RenderTargetItem.ShaderResourceTexture);
-	PassthroughShaderResourceTexture.SetPassthroughRHI(RenderTargetItem.ShaderResourceTexture);
+	return RefCount == 1;
 }

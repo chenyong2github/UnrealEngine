@@ -533,6 +533,7 @@ public:
 
 	uint32 Release() const
 	{
+		check(RefCount > 0);
 		if (--RefCount == 0)
 		{
 			delete this;
@@ -596,9 +597,6 @@ class RENDERCORE_API FRDGTexture final
 	: public FRDGParentResource
 {
 public:
-	/** Creates a passthrough texture suitable for filling RHI uniform buffers with RDG parameters for passes not yet ported to RDG. */
-	static FRDGTextureRef GetPassthrough(const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget);
-
 	const FRDGTextureDesc Desc;
 	const ERDGTextureFlags Flags;
 
