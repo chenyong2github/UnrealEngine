@@ -70,7 +70,7 @@ public:
 		NeighborGrid3DRWInstanceData* ProxyData = VFDI->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 		float CellSizeTmp[3];
 
-		if (!ProxyData)
+		if (!(ProxyData && ProxyData->NeighborhoodBuffer.Buffer.IsValid()))
 		{
 			CellSizeTmp[0] = CellSizeTmp[1] = CellSizeTmp[2] = 1.0f;
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, 0);
