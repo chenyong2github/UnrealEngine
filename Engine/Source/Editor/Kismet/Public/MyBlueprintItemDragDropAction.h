@@ -15,7 +15,7 @@ class UEdGraph;
 struct FEdGraphSchemaAction;
 
 /** DragDropAction class for drag and dropping an item from the My Blueprints tree (e.g., variable or function) */
-class FMyBlueprintItemDragDropAction : public FGraphSchemaActionDragDropAction
+class KISMET_API FMyBlueprintItemDragDropAction : public FGraphSchemaActionDragDropAction
 {
 public:
 	DRAG_DROP_OPERATOR_TYPE(FMyBlueprintItemDragDropAction, FGraphSchemaActionDragDropAction)
