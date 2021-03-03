@@ -111,7 +111,31 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 				ComponentTransform = NodeMappingContainer->GetSourceToTargetTransform(Name).GetRelativeTransformReverse(ComponentTransform);
 			}
 
+			// we don't want to do it recursively here because the global transform of each imported bone is set individually
 			ControlRig->SetGlobalTransform(Name, ComponentTransform, false);
+
+			// user created bones can be children of imported bones, 
+			// so we need to propagate transform to user created bones, and only to them.
+			int32 BoneIndex = ControlRig->GetBoneHierarchy().GetIndex(Name);
+
+			if (BoneIndex != INDEX_NONE)
+			{
+				const FRigBone& Bone = ControlRig->GetBoneHierarchy()[BoneIndex];
+
+				// "dependents" array is a cache of the direct children of the bone
+				for (const int32 Dependent : Bone.Dependents)
+				{
+					ensure(Dependent < ControlRig->GetBoneHierarchy().Num() && Dependent >= 0);
+					
+					if (ControlRig->GetBoneHierarchy()[Dependent].Type == ERigBoneType::User)
+					{
+						ControlRig->GetBoneHierarchy().RecalculateGlobalTransform(Dependent);
+
+						// children of user created bones are also user created bones, which need to be updated as well.
+						ControlRig->GetBoneHierarchy().PropagateTransform(Dependent);
+					}
+				}
+			}
 		}
 	}
 
