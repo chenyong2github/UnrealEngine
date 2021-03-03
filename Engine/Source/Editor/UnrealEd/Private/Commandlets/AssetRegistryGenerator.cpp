@@ -2214,7 +2214,7 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 	const FAssetData* const AssetData = State.GetAssetByObjectPath(FName(Object.GetPathName()));
 	if (!AssetData)
 	{
-		FAssetData* const NewAssetData = new FAssetData(&Object);
+		FAssetData* const NewAssetData = new FAssetData(&Object, true /* bAllowBlueprintClass */);
 		State.AddAssetData(NewAssetData);
 		return NewAssetData;
 	}

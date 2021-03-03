@@ -746,6 +746,8 @@ public:
 #if WITH_EDITOR
 	virtual UClass* RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO) override;
 #endif	//WITH_EDITOR
+	virtual bool IsAsset() const override;
+
 	// End UObject interface
 
 	// UClass interface

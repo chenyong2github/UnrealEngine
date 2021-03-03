@@ -947,6 +947,14 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 					return;
 				}
 
+#if WITH_EDITOR
+				// Skip classes that report themselves as assets but that the editor AssetRegistry is currently not counting as assets
+				if (ShouldSkipAsset(Obj->GetClass()->GetFName(), InMemoryPackage->GetPackageFlags()))
+				{
+					return;
+				}
+#endif
+
 				// Package name
 				const FName PackageName = InMemoryPackage->GetFName();
 
@@ -2273,9 +2281,17 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 	// Add the found assets
 	while (AssetResults.Num() > 0)
 	{
-		FAssetData*& BackgroundResult = AssetResults.Pop();
+		// Delete or take ownership of the BackgroundResult; it was originally new'd by an FPackageReader
+		TUniquePtr<FAssetData> BackgroundResult(AssetResults.Pop());
+		CA_ASSUME(BackgroundResult.Get() != nullptr);
 
-		CA_ASSUME(BackgroundResult);
+#if WITH_EDITOR
+		// Skip Assets that we filter out
+		if (ShouldSkipAsset(BackgroundResult->AssetClass, BackgroundResult->PackageFlags))
+		{
+			continue;
+		}
+#endif
 
 		// Try to update any asset data that may already exist
 		FAssetData* AssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
@@ -2296,14 +2312,10 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 		if (AssetData)
 		{
 			// If this ensure fires then we've somehow processed the same result more than once, and that should never happen
-			if (ensure(AssetData != BackgroundResult))
+			if (ensure(AssetData != BackgroundResult.Get()))
 			{
 				// The asset exists in the cache, update it
 				UpdateAssetData(AssetData, *BackgroundResult);
-
-				// Delete the result that was originally created by an FPackageReader
-				delete BackgroundResult;
-				BackgroundResult = nullptr;
 			}
 		}
 		else
@@ -2311,7 +2323,7 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TBa
 			// The asset isn't in the cache yet, add it and notify subscribers
 			if (bPathIsMounted)
 			{
-				AddAssetData(BackgroundResult);
+				AddAssetData(BackgroundResult.Release());
 			}
 		}
 
@@ -2851,8 +2863,29 @@ void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileC
 	ScanModifiedAssetFiles(ModifiedFiles);
 }
 
+bool UAssetRegistryImpl::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const
+{
+	// We do not yet support having UBlueprintGeneratedClasses be assets when the UBlueprint is also
+	// an asset; the content browser does not handle the multiple assets correctly and displays this
+	// class asset as if it is in a separate package. Revisit when we have removed the UBlueprint as an asset
+	// or when we support multiple assets.
+	static FName NAME_BlueprintGeneratedClass = TEXT("BlueprintGeneratedClass");
+	bool bIsCooked = (PackageFlags & PKG_FilterEditorOnly) != 0;
+	if (!bIsCooked && AssetClass == NAME_BlueprintGeneratedClass)
+	{
+		return true;
+	}
+	return false;
+}
+
 void UAssetRegistryImpl::OnAssetLoaded(UObject *AssetLoaded)
 {
+	UPackage* Package = AssetLoaded->GetPackage();
+	if (Package && ShouldSkipAsset(AssetLoaded->GetClass()->GetFName(), Package->GetPackageFlags()))
+	{
+		return;
+	}
+
 	LoadedAssetsToProcess.Add(AssetLoaded);
 }
 

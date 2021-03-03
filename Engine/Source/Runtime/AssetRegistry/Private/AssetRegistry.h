@@ -209,6 +209,9 @@ private:
 	/** Called when a file in a content directory changes on disk */
 	void OnDirectoryChanged(const TArray<struct FFileChangeData>& Files);
 
+	/** Called to check whether we should filter out assets of the given class and packageflags from the editor's AssetRegistry */
+	bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const;
+
 	/** Called when an asset is loaded, it will possibly update the cache */
 	void OnAssetLoaded(UObject *AssetLoaded);
 
