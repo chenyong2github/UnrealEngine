@@ -163,10 +163,6 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalM
 		UE_LOG(LogControlRigEditor, Error, TEXT("CreateControlRigFromSkeletalMeshOrSkeleton: Provided object has to be a SkeletalMesh or Skeleton."));
 		return nullptr;
 	}
-	else
-	{
-		RefSkeleton = &Skeleton->GetReferenceSkeleton();
-	}
 
 	check(RefSkeleton);
 
