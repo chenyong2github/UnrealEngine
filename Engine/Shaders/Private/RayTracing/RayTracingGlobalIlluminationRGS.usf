@@ -12,8 +12,8 @@
 
 #include "../PathTracing/Light/PathTracingLightSampling.ush"
 #include "../PathTracing/Material/PathTracingMaterialSampling.ush"
+#include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 
-#include "../QuasiRandom.ush"
 
 #define USE_PATHTRACING_MATERIALS 0
 
@@ -102,19 +102,17 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 		return;
 	}
 
-	FQuasiRandom QuasiRandom;
-	QuasiRandom_Initialize(QuasiRandom, DispatchThreadId, 0, SamplesPerPixel);
-
 	float3 Irradiance = 0;
 	float HitDistance = 0.0;
 	float HitCount = 0.0;
 	float AmbientOcclusion = 0.0;
 	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixel; ++SampleIndex)
 	{
-		QuasiRandom_Update(QuasiRandom, SampleIndex, SamplesPerPixel);
+		RandomSequence RandSequence;
+		RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, View.StateFrameIndex, SamplesPerPixel);
 
 		float3 RayThroughput = 1.0;
-		float3 RandSample = QuasiRandom_Sample3(QuasiRandom);
+		float3 RandSample = RandomSequence_GenerateSample3D(RandSequence);
 
 		// Russian roulette based on DiffuseColor
 		if (UseRussianRoulette)
@@ -228,9 +226,8 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				float3 LightUV;
 				float NeePdf = 0.0;
 
-				float4 RandSample4;
-				RandSample4.xyz = QuasiRandom_Sample3(QuasiRandom);
-				RandSample4.w = QuasiRandom_Sample3(QuasiRandom).x;
+				float4 RandSample4 = RandomSequence_GenerateSample4D(RandSequence);
+
 				SampleLight(Ray, Payload, RandSample4, LightId, LightUV, NeePdf);
 
 				if (NeePdf > 0.0)
@@ -317,15 +314,16 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				float3 Direction;
 				float3 Throughput = 1.0;
 #if USE_PATHTRACING_MATERIALS
-				float4 RandSample;
-				RandSample.xyz = QuasiRandom_Sample3(QuasiRandom);
-				RandSample.w = QuasiRandom_Sample3(QuasiRandom).x;
+				RandSample4 = RandomSequence_GenerateSample4D(RandSequence);
+
 				float PositionBiasSign;
 				float3 Weight = 0;
 				SampleMaterial(Ray.Direction, Payload, RandSample, Direction, Weight, MaterialPdf, PositionBiasSign);
 				Throughput = Weight * MaterialPdf;
 #else
-				float3 RandSample3 = QuasiRandom_Sample3(QuasiRandom);
+
+				float3 RandSample3 = RandomSequence_GenerateSample3D(RandSequence);
+
 				float3 RayOrigin = Ray.Origin;
 				GenerateCosineNormalRay(RayOrigin, Payload.WorldNormal, RandSample3.xy, Ray.Origin, Direction, Ray.TMin, Ray.TMax, MaterialPdf);
 				

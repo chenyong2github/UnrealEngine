@@ -7,7 +7,6 @@
 #pragma once
 
 #include "../Common.ush"
-#include "../QuasiRandom.ush"
 #include "../ShadingModels.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../ReflectionEnvironmentShared.ush"
@@ -60,19 +59,12 @@ void SkyLightEvaluate(
 	inout float HitDistance)
 {
 	float FaceCdf[7];
-	FQuasiRandom QuasiRandom;
-	const uint BlueNoiseDimension = 0;
-	float3 BlueNoiseShift;
 
 	if (!bDecoupleSampleGeneration)
 	{
 		// Cache Cubeface CDF
 		const uint MipCount = log2(SkyLight.MipDimensions.x);
 		BuildFaceCdf(MipCount, FaceCdf);
-
-		// Initialize a quasi random sequence for the current pixel
-		QuasiRandom_Initialize(QuasiRandom, SampleCoord, 0, SamplesPerPixel);
-		BlueNoiseShift = EvalBlueNoise(QuasiRandom.BlueNoiseCoord, BlueNoiseDimension);
 	}
 
 	float3 CurrentWorldNormal = WorldNormal;
@@ -107,13 +99,11 @@ void SkyLightEvaluate(
 		}
 		else
 		{
-			QuasiRandom_Update(QuasiRandom, SampleIndex, SamplesPerPixel);
+			RandomSequence RandSequence;
+			RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, View.StateFrameIndex, SamplesPerPixel);
 
 			// Determine sky light or lambert ray
-			float3 RandSample = QuasiRandom_Sample3(QuasiRandom);
-			RandSample = HaltonSequence3(QuasiRandom.HaltonSequence, QuasiRandom.HaltonIteration, BlueNoiseDimension);
-			RandSample += BlueNoiseShift;
-			RandSample = fmod(RandSample, 1.0);
+			float3 RandSample = RandomSequence_GenerateSample3D(RandSequence);
 
 			// Generate a visibility ray for the current sample
 			float SkyLightSamplingStrategyPdf = 0.5;

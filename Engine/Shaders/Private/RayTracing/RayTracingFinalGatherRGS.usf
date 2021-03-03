@@ -14,8 +14,6 @@
 #include "../PathTracing/Light/PathTracingLightSampling.ush"
 #include "../PathTracing/Material/PathTracingMaterialSampling.ush"
 
-#include "../QuasiRandom.ush"
-
 #define USE_PATHTRACING_MATERIALS 0
 #define USE_REJECTION_CRITERIA 0
 #define USE_REPROJECTION 1

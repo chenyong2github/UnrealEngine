@@ -29,7 +29,6 @@ struct FIrradianceCacheRecord
 
 #include "BatchedTiles.ush"
 #include "/Engine/Private/PathTracing/Material/FirstBounceRayGuidingCommon.ush"
-#include "/Engine/Private/QuasiRandom.ush"
 
 int NumRayGuidingTrialSamples;
 RWTexture2D<uint> RayGuidingLuminance;
@@ -1048,8 +1047,8 @@ void StationaryLightShadowTracingMainRG()
 		
 		{
 			float2 RandSample = float2(
-				Halton(IntegerHash(Seed) + LightSampleIndexArray[TileIndex], 5), 
-				Halton(IntegerHash(Seed) + LightSampleIndexArray[TileIndex], 7)
+				Halton(StrongIntegerHash(Seed) + LightSampleIndexArray[TileIndex], 5), 
+				Halton(StrongIntegerHash(Seed) + LightSampleIndexArray[TileIndex], 7)
 			);
 			
 			RayDesc Ray;
