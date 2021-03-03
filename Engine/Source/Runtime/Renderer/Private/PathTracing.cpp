@@ -29,6 +29,13 @@ TAutoConsoleVariable<int32> CVarPathTracingSamplesPerPixel(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingUseErrorDiffusion(
+	TEXT("r.PathTracing.UseErrorDiffusion"),
+	0,
+	TEXT("Enables an experimental sampler that diffuses visible error in screen space. This generally produces better results when the target sample count can be reached. (default = 0 (disabled))"),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarPathTracingMISMode(
 	TEXT("r.PathTracing.MISMode"),
 	2,
@@ -101,6 +108,7 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
 	PathTracingData.VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
+	PathTracingData.UseErrorDiffusion = CVarPathTracingUseErrorDiffusion.GetValueOnRenderThread();
 
 	bool NeedInvalidation = false;
 
@@ -136,6 +144,14 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	{
 		NeedInvalidation = true;
 		PreviousMaxPathIntensity = PathTracingData.MaxPathIntensity;
+	}
+
+	// Changing sampler requires starting over
+	static uint32 PreviousUseErrorDiffusion = PathTracingData.UseErrorDiffusion;
+	if (PreviousUseErrorDiffusion != PathTracingData.UseErrorDiffusion)
+	{
+		NeedInvalidation = true;
+		PreviousUseErrorDiffusion = PathTracingData.UseErrorDiffusion;
 	}
 
 	// the rest of PathTracingData and AdaptiveSamplingData is filled in by SetParameters below
@@ -348,6 +364,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PathTracingData.TemporalSeed = View.ViewState->PathTracingFrameIndependentTemporalSeed;
 	}
 	PathTracingData.Iteration = View.ViewState->PathTracingSPP;
+	PathTracingData.MaxSamples = MaxSPP;
 
 	// Prepare radiance buffer (will be shared with display pass)
 	FRDGTexture* RadianceTexture = nullptr;
