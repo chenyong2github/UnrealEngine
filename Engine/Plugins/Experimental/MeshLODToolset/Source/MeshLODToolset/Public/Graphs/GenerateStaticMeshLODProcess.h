@@ -292,10 +292,10 @@ protected:
 
 	FGenerateStaticMeshLODProcessSettings CurrentSettings;
 
-	bool WriteDerivedTexture(UTexture2D* SourceTexture, UTexture2D* DerivedTexture);
-	bool WriteDerivedTexture(UTexture2D* DerivedTexture, FString BaseTexName);
-	void WriteDerivedTextures();
-	void WriteDerivedMaterials();
+	bool WriteDerivedTexture(UTexture2D* SourceTexture, UTexture2D* DerivedTexture, bool bCreatingNewStaticMeshAsset);
+	bool WriteDerivedTexture(UTexture2D* DerivedTexture, FString BaseTexName, bool bCreatingNewStaticMeshAsset);
+	void WriteDerivedTextures(bool bCreatingNewStaticMeshAsset);
+	void WriteDerivedMaterials(bool bCreatingNewStaticMeshAsset);
 	void UpdateMaterialTextureParameters(UMaterialInstanceConstant* Material, FDerivedMaterialInfo& DerivedMaterialInfo);
 	void WriteDerivedStaticMeshAsset();
 
