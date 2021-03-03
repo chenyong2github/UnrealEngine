@@ -75,7 +75,7 @@ void TwoSidedFoliage_EvalMaterial(
 		float3 SubsurfaceColor = GetSubsurfaceColor(Payload);
 
 		float LambertPdf = -NoL / PI;
-		OutWeight = SubsurfaceColor / TransmissionSelectionPdf;
+		OutWeight = TransmissionSelectionPdf > 0 ? SubsurfaceColor / TransmissionSelectionPdf : 0;
 		OutPdf = TransmissionSelectionPdf * LambertPdf;
 	}
 	else
