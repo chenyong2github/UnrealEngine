@@ -772,9 +772,10 @@ void FInternalThreadState::Handle_OpenStreamRequest(const FDirectLinkMsg_OpenStr
 		NewStream.Sender = MoveTemp(NewSender);
 		NewStream.Receiver = MoveTemp(NewReceiver);
 		NewStream.Status = FStreamDescription::EConnectionState::Active;
+
+		UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s': Accepted connection"), *SharedState.NiceName);
+		MessageEndpoint->Send(Answer, RemoteEndpointAddress);
 	}
-	UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s': Accepted connection"), *SharedState.NiceName);
-	MessageEndpoint->Send(Answer, RemoteEndpointAddress);
 
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Handle_OpenStreamRequest"), *SharedState.NiceName);
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("%s"), *ToString_dbg());
