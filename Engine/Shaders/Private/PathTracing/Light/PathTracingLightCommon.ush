@@ -6,13 +6,6 @@ LightCommon.usf: Common utility functions for light sampling
 
 #pragma once
 
-// These ids must be kept in sync with the logic in PathTracer.cpp
-#define PATHTRACING_LIGHT_SKY				0
-#define PATHTRACING_LIGHT_POINT				1
-#define PATHTRACING_LIGHT_DIRECTIONAL		2
-#define PATHTRACING_LIGHT_RECT				3
-#define PATHTRACING_LIGHT_SPOT				4
-
 int GetLightId(FMaterialClosestHitPayload RayHitInfo)
 {
 	return -1;
@@ -20,27 +13,27 @@ int GetLightId(FMaterialClosestHitPayload RayHitInfo)
 
 bool IsEnvironmentLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_SKY;
+	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_SKY;
 }
 
 bool IsPointLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_POINT;
+	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_POINT;
 }
 
 bool IsDirectionalLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_DIRECTIONAL;
+	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_DIRECTIONAL;
 }
 
 bool IsRectLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_RECT;
+	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_RECT;
 }
 
 bool IsSpotLight(int LightId)
 {
-	return SceneLightsData.Type[LightId] == PATHTRACING_LIGHT_SPOT;
+	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_SPOT;
 }
 
 // A light is a physical light if it can be intersected by a ray.
@@ -130,15 +123,27 @@ float GetRectLightBarnLength(int LightId)
 }
 
 #ifndef USE_ATTENUATION_TERM
-	#define USE_ATTENUATION_TERM 0
+	#define USE_ATTENUATION_TERM 1
 #endif
 
-float ComputeAttenuationFalloff(float Distance, float Attenuation)
+float ComputeAttenuationFalloff(float DistanceSquared, int LightId)
 {
 #if USE_ATTENUATION_TERM
 	// Mirrors GetLocalLightAttenuation() custom attenuation controls
 	// #dxr_todo: UE-72508: encapsulate this function in a shared space
-	return Square(saturate(1.0 - Square(Square(Distance) / Square(Attenuation))));
+	float InvAttenuationRadius = GetAttenuation(LightId);
+	float NormalizeDistanceSquared = DistanceSquared * Square(InvAttenuationRadius);
+	if ((SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK) == 0)
+	{
+		return Square(saturate(1.0 - Square(NormalizeDistanceSquared)));
+	}
+	else
+	{
+		// roughly cancel out "native" square distance falloff before applying exponent based falloff function
+        // this appears to match the behavior of the deferred lighting passes
+		float FalloffExponent = SceneLightsData.FalloffExponent[LightId];
+		return DistanceSquared * pow(1.0 - saturate(NormalizeDistanceSquared), FalloffExponent);
+	}
 #else
 	return 1.0;
 #endif
@@ -171,10 +176,15 @@ float ComputeIESAttenuation(int LightId, float3 WorldPosition)
 
 bool HasTransmission(int LightId)
 {
-	return SceneLightsData.Flags[LightId] & 0x01;
+	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TRANSMISSION_MASK) != 0;
 }
 
 uint GetLightingChannelMask(int LightId)
 {
-	return (SceneLightsData.Flags[LightId] >> 1) & 0x7;
+	return SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+}
+
+bool IsStationary(int LightId)
+{
+	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_STATIONARY_MASK) != 0;
 }

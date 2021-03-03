@@ -44,6 +44,7 @@ float4 RectLight_TraceLight(RayDesc Ray, int LightId, float HitT)
 			{
 				// stored color is radiance
 				float3 Radiance = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
+				Radiance *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);
 				float SolidAngle = BuildSphericalRect(Rect).SolidAngle;
 				return float4(Radiance, 1.0 / SolidAngle);
 			}
@@ -70,7 +71,8 @@ void RectLight_SampleLight(
 	float LightHeight = GetHeight(LightId);
 
 	// Define rectangle and compute solid angle
-	FRect Rect = GetRect(LightPosition - WorldPos,
+	float3 LightDirection = LightPosition - WorldPos;
+	FRect Rect = GetRect(LightDirection,
 		-LightNormal,
 		LightdPdv,
 		0.5 * LightWidth,
@@ -85,6 +87,7 @@ void RectLight_SampleLight(
 	OutDirection = normalize(Direction);
 	OutDistance = length(Direction);
 	OutRadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle * ComputeIESAttenuation(LightId, WorldPos);
+	OutRadianceOverPdf *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);
 	OutPdf = 1.0 / SphericalRect.SolidAngle;
 }
 
@@ -120,7 +123,7 @@ void RectLight_EvalLight(
 )
 {
 	float3 Color = GetColor(LightId);
-	float Falloff = ComputeAttenuationFalloff(Ray.TMax, GetAttenuation(LightId));
+	float Falloff = ComputeAttenuationFalloff(Square(Ray.TMax), LightId);
 	OutRadiance = Color * Falloff;
 }
 
@@ -153,7 +156,7 @@ void RectLight_EstimateLight(
 	float Area = Width * Height;
 
 	float LightPower = Luminance(GetColor(LightId));
-	float Falloff = ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
+	float Falloff = ComputeAttenuationFalloff(LightDistanceSquared, LightId);
 	OutIrradiance = LightPower * Falloff * Area * NoL / LightDistanceSquared;
 }
 

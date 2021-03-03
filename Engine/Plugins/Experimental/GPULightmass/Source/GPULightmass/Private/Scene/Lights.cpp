@@ -72,6 +72,8 @@ FPointLightRenderState::FPointLightRenderState(UPointLightComponent* PointLightC
 	AttenuationRadius = PointLightComponent->AttenuationRadius;
 	SourceRadius = PointLightComponent->SourceRadius;
 	ShadowMapChannel = PointLightComponent->PreviewShadowMapChannel;
+	FalloffExponent = PointLightComponent->LightFalloffExponent;
+	IsInverseSquared = PointLightComponent->bUseInverseSquaredFalloff;
 }
 
 FSpotLightBuildInfo::FSpotLightBuildInfo(USpotLightComponent* SpotLightComponent)
@@ -142,6 +144,8 @@ FSpotLightRenderState::FSpotLightRenderState(USpotLightComponent* SpotLightCompo
 	AttenuationRadius = SpotLightComponent->AttenuationRadius;
 	SourceRadius = SpotLightComponent->SourceRadius;
 	ShadowMapChannel = SpotLightComponent->PreviewShadowMapChannel;
+	FalloffExponent = SpotLightComponent->LightFalloffExponent;
+	IsInverseSquared = SpotLightComponent->bUseInverseSquaredFalloff;
 }
 
 FRectLightBuildInfo::FRectLightBuildInfo(URectLightComponent* RectLightComponent)

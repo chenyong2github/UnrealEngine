@@ -264,7 +264,7 @@ void PathTracingKernel(
 				PreviousCdfValue = LightPickingCdf[LightId];
 
 				// GPULightmass records direct contribution for only static lights
-				if (Bounce > 1 || (Bounce == 1 && SceneLightsData.Mobility[LightId] == 0))
+				if (Bounce > 1 || (Bounce == 1 && !IsStationary(LightId)))
 				{
 					AccumulateRadiance(Radiance, PathThroughput * LightRadiance * MISWeightRobust(PrevMaterialPdf, LightPdf * LightPickPdf));
 				}
@@ -439,7 +439,7 @@ void PathTracingKernel(
 						else
 						{
 							// GPULightmass records contribution of direct lighting separately, and only for static lights
-							if (SceneLightsData.Mobility[LightId] == 0)
+							if (!IsStationary(LightId))
 							{
 								DirectLightingNEERadianceValue += MISWeight * PathThroughput * RadianceOverPdf * MaterialEval;
 								DirectLightingNEERadianceDirection = LightRay.Direction;

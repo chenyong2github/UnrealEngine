@@ -559,6 +559,10 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					Parameters.SkyLight = SkyLightDataUniformBuffer;
 				}
 
+				// TODO: find a way to share IES atlas with path tracer ...
+				Parameters.IESTexture = GWhiteTexture->TextureRHI;
+				Parameters.IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 				FRayTracingShaderBindingsWriter GlobalResources;
 				SetShaderParameters(GlobalResources, RayGenShader, Parameters);
 

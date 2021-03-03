@@ -217,6 +217,8 @@ struct FPointLightRenderState : public FLocalLightRenderState
 	FLinearColor Color;
 	float AttenuationRadius;
 	float SourceRadius;
+	float FalloffExponent;
+	bool IsInverseSquared;
 
 	virtual FLightShaderParameters GetLightShaderParameters() const override;
 };
@@ -234,6 +236,9 @@ struct FSpotLightRenderState : public FLocalLightRenderState
 	FLinearColor Color;
 	float AttenuationRadius;
 	float SourceRadius;
+	float FalloffExponent;
+	bool IsInverseSquared;
+
 
 	virtual FLightShaderParameters GetLightShaderParameters() const override;
 };

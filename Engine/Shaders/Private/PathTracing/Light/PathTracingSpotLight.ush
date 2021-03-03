@@ -55,6 +55,7 @@ float4 SpotLight_TraceLight(RayDesc Ray, int LightId, float HitT) {
 			float3 LightNormal = GetNormal(LightId);
 			float2 CosConeAngles = GetCosConeAngles(LightId);
 			LightRadiance *= SpotAttenuation(-normalize(oc), LightNormal, CosConeAngles);
+			LightRadiance *= ComputeAttenuationFalloff(LightDistanceSquared, LightId);
 
 			float SinThetaMax2 = saturate(LightRadius2 / LightDistanceSquared);
 			float OneMinusCosThetaMax = SinThetaMax2 < 0.01 ? SinThetaMax2 * (0.5 + 0.125 * SinThetaMax2) : 1 - sqrt(1 - SinThetaMax2);
@@ -110,6 +111,7 @@ void SpotLight_SampleLight(
 	float3 LightNormal = GetNormal(LightId);
 	float2 CosConeAngles = GetCosConeAngles(LightId);
 	OutRadianceOverPdf *= SpotAttenuation(normalize(LightDirection), LightNormal, CosConeAngles);
+	OutRadianceOverPdf *= ComputeAttenuationFalloff(LightDistanceSquared, LightId);
 }
 
 void SpotLight_GenerateLightRay(
@@ -161,7 +163,7 @@ void SpotLight_EvalLight(
 
 	float3 Color = GetColor(LightId);
 	float Radius = GetRadius(LightId);
-	float Falloff = ComputeAttenuationFalloff(Ray.TMax, GetAttenuation(LightId));
+	float Falloff = ComputeAttenuationFalloff(LightDistanceSquared, LightId);
 	OutRadiance = Color * Falloff;
 
 	// Same math as point lights
@@ -196,7 +198,7 @@ void SpotLight_EstimateLight(
 	// Geometric term
 	float NoL = 1.0; // trivial upper bound -- trying to be more accurate appears to reduce performance
 
-	float Falloff = ComputeAttenuationFalloff(sqrt(LightDistanceSquared), GetAttenuation(LightId));
+	float Falloff = ComputeAttenuationFalloff(LightDistanceSquared, LightId);
 	OutIrradiance = LightPower * Falloff * NoL / LightDistanceSquared;
 	
 	float2 CosConeAngles = GetCosConeAngles(LightId);
