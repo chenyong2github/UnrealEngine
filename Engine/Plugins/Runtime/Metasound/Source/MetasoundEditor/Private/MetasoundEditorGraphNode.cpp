@@ -259,7 +259,6 @@ FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) co
 
 void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 {
-	using namespace Metasound;
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
@@ -289,6 +288,36 @@ void UMetasoundEditorGraphNode::PostEditChangeProperty(FPropertyChangedEvent& In
 		FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
 		Style.Display.Location = FVector2D(NodePosX, NodePosY);
 		GetNodeHandle()->SetNodeStyle(Style);
+	}
+
+	Super::PostEditChangeProperty(InEvent);
+}
+
+void UMetasoundEditorGraphNode::PostEditChangeChainProperty(FPropertyChangedChainEvent& InEvent)
+{
+	Super::PostEditChangeChainProperty(InEvent);
+}
+
+void UMetasoundEditorGraphNode::PostEditUndo()
+{
+	UEdGraphPin::ResolveAllPinReferences();
+
+	// This can trigger and the handle is no longer valid if transaction
+	// is being undone on a graph node that is orphaned.  If orphaned,
+	// bail early.
+	Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
+	if (!NodeHandle->IsValid())
+	{
+		return;
+	}
+
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (Pin && Pin->Direction == EGPD_Input)
+		{
+			UObject& Metasound = GetMetasoundChecked();
+			Metasound::Editor::FGraphBuilder::AddOrUpdateLiteralInput(Metasound, NodeHandle, *Pin);
+		}
 	}
 }
 

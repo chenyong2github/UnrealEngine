@@ -85,6 +85,8 @@ namespace Metasound
 			// 2. the pin's DataType literal default.
 			static void AddOrUpdateLiteralInput(UObject& InMetasound, Frontend::FNodeHandle InNodeHandle, UEdGraphPin& InInputPin);
 
+			static bool GetPinDefaultLiteral(UEdGraphPin& InInputPin, Frontend::FInputHandle InputHandle, FMetasoundFrontendLiteral& OutLiteralDefault);
+
 			static bool IsRequiredInput(Frontend::FNodeHandle InNodeHandle);
 			static bool IsRequiredOutput(Frontend::FNodeHandle InNodeHandle);
 
@@ -106,7 +108,7 @@ namespace Metasound
 			static void DeleteLiteralInputs(UEdGraphNode& InNode);
 
 			// Deletes both the editor graph & frontend nodes from respective graphs
-			static bool DeleteNode(UEdGraphNode& InNode, bool bInRecordTransaction);
+			static bool DeleteNode(UEdGraphNode& InNode);
 
 			// Adds an Input UEdGraphPin to a UMetasoundEditorGraphNode
 			static UEdGraphPin* AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FInputHandle InInputHandle);

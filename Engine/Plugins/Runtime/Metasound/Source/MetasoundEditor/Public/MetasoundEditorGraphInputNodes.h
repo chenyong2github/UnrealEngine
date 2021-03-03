@@ -34,6 +34,27 @@ public:
 		return FMetasoundFrontendLiteral();
 	}
 
+	void UpdateDocumentInput() const
+	{
+		using namespace Metasound::Frontend;
+
+		FConstNodeHandle NodeHandle = GetNodeHandle();
+		const FString& NodeName = NodeHandle->GetNodeName();
+
+		FGraphHandle GraphHandle = GetRootGraphHandle();
+		const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeName);
+		GraphHandle->SetDefaultInput(VertexID, GetLiteralDefault());
+	}
+
+#if WITH_EDITORONLY_DATA
+	virtual void PostEditUndo() override
+	{
+		Super::PostEditUndo();
+
+		UpdateDocumentInput();
+	}
+#endif // WITH_EDITORONLY_DATA
+
 	FName GetLiteralDefaultPropertyFName() const
 	{
 		return "Default";

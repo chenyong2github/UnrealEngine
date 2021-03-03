@@ -48,11 +48,11 @@ struct FMetasoundFrontendVersionNumber
 	GENERATED_BODY()
 
 	// Major version number.
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(VisibleAnywhere, Category = General)
 	int32 Major = 1;
 
 	// Minor version number.
-	UPROPERTY(EditAnywhere, Category = General)
+	UPROPERTY(VisibleAnywhere, Category = General)
 	int32 Minor = 0;
 };
 
@@ -298,10 +298,6 @@ struct FMetasoundFrontendVertexMetadata
 {
 	GENERATED_BODY()
 
-	// Index to inform where the vertex should be displayed in parent collection.
-	UPROPERTY()
-	int32 DisplayIndex = 0;
-
 	// Display name for a vertex
 	UPROPERTY(EditAnywhere, Category = Parameters, meta = (DisplayName = "Name"))
 	FText DisplayName;
@@ -464,13 +460,29 @@ struct FMetasoundFrontendInterfaceStyle
 {
 	GENERATED_BODY()
 
-	// Interface layoud mode
+	// Interface layout mode
 	UPROPERTY()
 	EMetasoundFrontendStyleInterfaceLayoutMode LayoutMode = EMetasoundFrontendStyleInterfaceLayoutMode::Inherited;
 
-	// Default vertex order
+	// Default vertex sort order, where array index mirrors array interface index and value is display sort index.
 	UPROPERTY()
-	TArray<FString> DefaultOrder;
+	TArray<int32> DefaultSortOrder;
+
+	template <typename HandleType>
+	TArray<HandleType> SortDefaults(const TArray<HandleType>& InHandles) const
+	{
+		TArray<HandleType> SortedHandles = InHandles;
+		for (int32 i = 0; i < DefaultSortOrder.Num(); ++i)
+		{
+			const int32 SortedIndex = DefaultSortOrder[i];
+			if (SortedHandles.IsValidIndex(SortedIndex) && InHandles.IsValidIndex(i))
+			{
+				SortedHandles[SortedIndex] = InHandles[i];
+			}
+		}
+
+		return SortedHandles;
+	}
 };
 
 

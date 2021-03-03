@@ -99,7 +99,6 @@ namespace Metasound
 			bool IsValid() const override;
 
 			// Output metadata
-			int32 GetDisplayIndex() const override;
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
 
@@ -141,7 +140,6 @@ namespace Metasound
 			bool IsValid() const override;
 
 			// Output metadata
-			int32 GetDisplayIndex() const override;
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
 
@@ -240,7 +238,6 @@ namespace Metasound
 			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override;
 
 			// Input metadata
-			int32 GetDisplayIndex() const override;
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
 
@@ -278,7 +275,6 @@ namespace Metasound
 			bool IsValid() const override;
 
 			// Input metadata
-			int32 GetDisplayIndex() const override;
 			const FText& GetDisplayName() const override;
 			const FText& GetTooltip() const override;
 			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override;
@@ -324,6 +320,8 @@ namespace Metasound
 
 			FMetasoundFrontendVersionNumber GetClassVersionNumber() const override;
 			const FText& GetClassDescription() const override;
+			const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
+			const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;
 			const FMetasoundFrontendClassStyle& GetClassStyle() const override;
 
 			const FMetasoundFrontendNodeStyle& GetNodeStyle() const override;

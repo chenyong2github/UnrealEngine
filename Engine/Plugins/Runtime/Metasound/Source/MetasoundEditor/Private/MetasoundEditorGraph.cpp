@@ -2,6 +2,7 @@
 #include "MetasoundEditorGraph.h"
 
 #include "EdGraph/EdGraphNode.h"
+#include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorGraphInputNodes.h"
 #include "MetasoundEditorModule.h"
@@ -45,4 +46,12 @@ UObject& UMetasoundEditorGraph::GetMetasoundChecked() const
 {
 	check(ParentMetasound);
 	return *ParentMetasound;
+}
+
+void UMetasoundEditorGraph::Synchronize()
+{
+	if (ParentMetasound)
+	{
+		Metasound::Editor::FGraphBuilder::SynchronizeGraph(*ParentMetasound);
+	}
 }

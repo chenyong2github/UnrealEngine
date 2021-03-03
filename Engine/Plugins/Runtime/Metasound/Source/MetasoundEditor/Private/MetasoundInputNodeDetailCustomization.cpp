@@ -59,26 +59,6 @@ namespace Metasound
 
 			static const FName DataTypeNameIdentifier = "DataTypeName";
 			static const FName ProxyGeneratorClassNameIdentifier = "GeneratorClass";
-
-			void UpdateInputLiteralFromNode(const TWeakObjectPtr<UMetasoundEditorGraphInputNode>& GraphNode)
-			{
-				using namespace Frontend;
-
-				if (!GraphNode.IsValid())
-				{
-					return;
-				}
-
-				FConstNodeHandle NodeHandle = GraphNode->GetNodeHandle();
-				const FString& NodeName = NodeHandle->GetNodeName();
-				FGraphHandle GraphHandle = GraphNode->GetRootGraphHandle();
-
-				FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeName);
-
-				const FMetasoundFrontendLiteral Literal = GraphNode->GetLiteralDefault();
-
-				GraphHandle->SetDefaultInput(VertexID, Literal);
-			}
 		}
 
 		void FMetasoundInputNodeIntDetailCustomization::CacheProxyData(TSharedPtr<IPropertyHandle> ProxyHandle)
@@ -374,7 +354,10 @@ namespace Metasound
 			{
 				for (const TWeakObjectPtr<UMetasoundEditorGraphInputNode>& InputNode : InInputs)
 				{
-					InputNodeCustomizationPrivate::UpdateInputLiteralFromNode(InputNode);
+					if (InputNode.IsValid())
+					{
+						InputNode->UpdateDocumentInput();
+					}
 				}
 			});
 			StructPropertyHandle->SetOnChildPropertyValueChanged(OnLiteralChanged);
@@ -499,7 +482,10 @@ namespace Metasound
 					SetDefaultPropertyMetaData(Handle);
 					FSimpleDelegate OnLiteralChanged = FSimpleDelegate::CreateLambda([InGraphNode = GraphNode]()
 					{
-						InputNodeCustomizationPrivate::UpdateInputLiteralFromNode(InGraphNode);
+						if (InGraphNode.IsValid())
+						{
+							InGraphNode->UpdateDocumentInput();
+						}
 					});
 
 					Handle->SetOnPropertyValueChanged(OnLiteralChanged);

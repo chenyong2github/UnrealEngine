@@ -67,9 +67,12 @@ namespace Metasound
 				DisplayStyle
 			};
 
+			FMetasoundFrontendClassInterface& ClassInterface = ClassDescription.Interface;
+
 			// External metasounds aren't dependent on any other nodes by definition, so all we need to do
 			// is populate the Input and Output sets.
 			const FInputVertexInterface& InputInterface = InNodeMetadata.DefaultInterface.GetInputInterface();
+			TArray<int>& InputSortOrder = ClassInterface.InputStyle.DefaultSortOrder;
 			for (auto& InputTuple : InputInterface)
 			{
 				// TODO: lots to be added here. 
@@ -80,17 +83,21 @@ namespace Metasound
 				ClassInput.VertexID = FGuid::NewGuid();
 				ClassInput.Metadata.DisplayName = FText::FromString(InputTuple.Value.GetVertexName());
 				ClassInput.Metadata.Description = InputTuple.Value.GetDescription();
-				ClassInput.Metadata.DisplayIndex = InputInterface.GetOrderIndex(InputTuple.Key);
+
 				const FLiteral& DefaultLiteral = InputTuple.Value.GetDefaultValue();
 				if (DefaultLiteral.GetType() != ELiteralType::None)
 				{
 					ClassInput.DefaultLiteral.SetFromLiteral(DefaultLiteral);
 				}
 
-				ClassDescription.Interface.Inputs.Add(ClassInput);
+				const int32 OrderIndex = InputInterface.GetOrderIndex(InputTuple.Key);
+				InputSortOrder.Add(OrderIndex);
+
+				ClassInterface.Inputs.Add(ClassInput);
 			}
 
 			const FOutputVertexInterface& OutputInterface = InNodeMetadata.DefaultInterface.GetOutputInterface();
+			TArray<int32>& OutputSortOrder = ClassInterface.InputStyle.DefaultSortOrder;
 			for (auto& OutputTuple : OutputInterface)
 			{
 				// TODO: lots to be added here. 
@@ -101,7 +108,9 @@ namespace Metasound
 				ClassOutput.VertexID = FGuid::NewGuid();
 				ClassOutput.Metadata.DisplayName = FText::FromString(OutputTuple.Value.GetVertexName());
 				ClassOutput.Metadata.Description = OutputTuple.Value.GetDescription();
-				ClassOutput.Metadata.DisplayIndex = OutputInterface.GetOrderIndex(OutputTuple.Key);
+
+				const int32 OrderIndex = OutputInterface.GetOrderIndex(OutputTuple.Key);
+				ClassInterface.OutputStyle.DefaultSortOrder.Add(OrderIndex);
 
 				ClassDescription.Interface.Outputs.Add(ClassOutput);
 			}

@@ -526,17 +526,6 @@ namespace Metasound
 			return FBaseOutputController::IsValid() && ClassOutputPtr.IsValid();
 		}
 
-		/** Returns index to display this input in parent structure. */
-		int32 FNodeOutputController::GetDisplayIndex() const
-		{
-			if (ClassOutputPtr.IsValid())
-			{
-				return ClassOutputPtr->Metadata.DisplayIndex;
-			}
-
-			return INDEX_NONE;
-		}
-
 		const FText& FNodeOutputController::GetDisplayName() const
 		{
 			if (ClassOutputPtr.IsValid())
@@ -587,16 +576,6 @@ namespace Metasound
 		bool FInputNodeOutputController::IsValid() const
 		{
 			return FBaseOutputController::IsValid() && OwningGraphClassInputPtr.IsValid();
-		}
-
-		int32 FInputNodeOutputController::GetDisplayIndex() const
-		{
-			if (OwningGraphClassInputPtr.IsValid())
-			{
-				return OwningGraphClassInputPtr->Metadata.DisplayIndex;
-			}
-
-			return INDEX_NONE;
 		}
 
 		const FText& FInputNodeOutputController::GetDisplayName() const
@@ -930,16 +909,6 @@ namespace Metasound
 			return FBaseInputController::IsValid() && OwningGraphClassInputPtr.IsValid();
 		}
 
-		int32 FNodeInputController::GetDisplayIndex() const
-		{
-			if (OwningGraphClassInputPtr.IsValid())
-			{
-				return OwningGraphClassInputPtr->Metadata.DisplayIndex;
-			}
-
-			return INDEX_NONE;
-		}
-
 		const FText& FNodeInputController::GetDisplayName() const
 		{
 			if (OwningGraphClassInputPtr.IsValid())
@@ -999,16 +968,6 @@ namespace Metasound
 		bool FOutputNodeInputController::IsValid() const
 		{
 			return FBaseInputController::IsValid() && OwningGraphClassOutputPtr.IsValid();
-		}
-
-		int32 FOutputNodeInputController::GetDisplayIndex() const
-		{
-			if (OwningGraphClassOutputPtr.IsValid())
-			{
-				return OwningGraphClassOutputPtr->Metadata.DisplayIndex;
-			}
-
-			return INDEX_NONE;
 		}
 
 		const FText& FOutputNodeInputController::GetDisplayName() const
@@ -1127,6 +1086,28 @@ namespace Metasound
 				return ClassPtr->Metadata.Version;
 			}
 			return FMetasoundFrontendVersionNumber();
+		}
+
+		const FMetasoundFrontendInterfaceStyle& FBaseNodeController::GetInputStyle() const
+		{
+			if (ClassPtr.IsValid())
+			{
+				return ClassPtr->Interface.InputStyle;
+			}
+
+			static const FMetasoundFrontendInterfaceStyle Invalid;
+			return Invalid;
+		}
+
+		const FMetasoundFrontendInterfaceStyle& FBaseNodeController::GetOutputStyle() const
+		{
+			if (ClassPtr.IsValid())
+			{
+				return ClassPtr->Interface.OutputStyle;
+			}
+
+			static const FMetasoundFrontendInterfaceStyle Invalid;
+			return Invalid;
 		}
 
 		const FMetasoundFrontendClassStyle& FBaseNodeController::GetClassStyle() const

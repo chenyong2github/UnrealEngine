@@ -229,7 +229,7 @@ namespace Metasound
 
 		FName FEditor::GetToolkitFName() const
 		{
-			return FName("MetasoundEditor");
+			return "MetasoundEditor";
 		}
 
 		FText FEditor::GetBaseToolkitName() const
@@ -258,9 +258,15 @@ namespace Metasound
 			{
 				MetasoundGraphEditor->ClearSelectionSet();
 				MetasoundGraphEditor->NotifyGraphChanged();
-				FSlateApplication::Get().DismissAllMenus();
 			}
 
+			FSlateApplication::Get().DismissAllMenus();
+
+			if (Metasound)
+			{
+				UEdGraphPin::ResolveAllPinReferences();
+				Metasound::Editor::FGraphBuilder::SynchronizeGraph(*Metasound);
+			}
 		}
 
 		void FEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
@@ -767,7 +773,7 @@ namespace Metasound
 				// Some nodes may not be metasound nodes (ex. comments and perhaps aliases eventually), but can be safely deleted.
 				if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
 				{
-					if (!FGraphBuilder::DeleteNode(*Node, true /* bInRecordTransaction */))
+					if (!FGraphBuilder::DeleteNode(*Node))
 					{
 						MetasoundGraphEditor->SetNodeSelection(Node, true /* bSelect */);
 					}

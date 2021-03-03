@@ -45,16 +45,16 @@ namespace Metasound
 		class IDocumentController;
 
 		// Metasound Frontend Handles are all TSharedRefs of various Metasound Frontend Controllers.
-		typedef TSharedRef<IInputController> FInputHandle;
-		typedef TSharedRef<const IInputController> FConstInputHandle;
-		typedef TSharedRef<IOutputController> FOutputHandle;
-		typedef TSharedRef<const IOutputController> FConstOutputHandle;
-		typedef TSharedRef<INodeController> FNodeHandle;
-		typedef TSharedRef<const INodeController> FConstNodeHandle;
-		typedef TSharedRef<IGraphController> FGraphHandle;
-		typedef TSharedRef<const IGraphController> FConstGraphHandle;
-		typedef TSharedRef<IDocumentController> FDocumentHandle;
-		typedef TSharedRef<const IDocumentController> FConstDocumentHandle;
+		using FInputHandle = TSharedRef<IInputController>;
+		using FConstInputHandle = TSharedRef<const IInputController>;
+		using FOutputHandle = TSharedRef<IOutputController>;
+		using FConstOutputHandle = TSharedRef<const IOutputController>;
+		using FNodeHandle = TSharedRef<INodeController>;
+		using FConstNodeHandle = TSharedRef<const INodeController>;
+		using FGraphHandle = TSharedRef<IGraphController>;
+		using FConstGraphHandle = TSharedRef<const IGraphController>;
+		using FDocumentHandle = TSharedRef<IDocumentController>;
+		using FConstDocumentHandle = TSharedRef<const IDocumentController>;
 
 		using FVertexAccessPtr = TAccessPtr<FMetasoundFrontendVertex>;
 		using FConstVertexAccessPtr = TAccessPtr<const FMetasoundFrontendVertex>;
@@ -77,19 +77,12 @@ namespace Metasound
 		struct FConstDocumentAccess
 		{
 			FConstVertexAccessPtr ConstVertex;
-
 			FConstClassInputAccessPtr ConstClassInput;
-
 			FConstClassOutputAccessPtr ConstClassOutput;
-		
 			FConstNodeAccessPtr ConstNode;
-
 			FConstClassAccessPtr ConstClass;
-
 			FConstGraphClassAccessPtr ConstGraphClass;
-
 			FConstGraphAccessPtr ConstGraph;
-
 			FConstDocumentAccessPtr ConstDocument;
 		};
 
@@ -97,19 +90,12 @@ namespace Metasound
 		struct FDocumentAccess : public FConstDocumentAccess
 		{
 			FVertexAccessPtr Vertex; 
-
 			FClassInputAccessPtr ClassInput;
-
 			FClassOutputAccessPtr ClassOutput;
-		
 			FNodeAccessPtr Node;
-
 			FClassAccessPtr Class;
-
 			FGraphClassAccessPtr GraphClass;
-
 			FGraphAccessPtr Graph;
-
 			FDocumentAccessPtr Document;
 		};
 
@@ -172,9 +158,6 @@ namespace Metasound
 			/** Returns the name associated with this output. */
 			virtual const FString& GetName() const = 0;
 			
-			/** Returns index to display this input in parent structure. */
-			virtual int32 GetDisplayIndex() const = 0;
-
 			/** Returns the human readable name associated with this output. */
 			virtual const FText& GetDisplayName() const = 0;
 			
@@ -242,9 +225,6 @@ namespace Metasound
 
 			/** Returns the data type name associated with this input. */
 			virtual const FString& GetName() const = 0;
-
-			/** Returns index to display this input in parent structure. */
-			virtual int32 GetDisplayIndex() const = 0;
 
 			/** Returns the data type name associated with this input. */
 			virtual const FText& GetDisplayName() const = 0;
@@ -376,6 +356,8 @@ namespace Metasound
 			virtual FMetasoundFrontendVersionNumber GetClassVersionNumber() const = 0;
 			virtual const FText& GetClassDisplayName() const = 0;
 			virtual const FText& GetClassDescription() const = 0;
+			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const = 0;
+			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const = 0;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const = 0;
 
 			/** If the node is also a graph, this returns a graph handle.

@@ -53,6 +53,16 @@ UMetasoundSource::UMetasoundSource(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITOR
 
+void UMetasoundSource::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	if (Graph)
+	{
+		Graph->Synchronize();
+	}
+}
+
 void UMetasoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 {
 	Super::PostEditChangeProperty(InEvent);
@@ -79,7 +89,7 @@ void UMetasoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 	}
 }
 
-#endif
+#endif // WITHEDITOR
 
 bool UMetasoundSource::IsPlayable() const
 {

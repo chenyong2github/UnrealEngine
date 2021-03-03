@@ -2,20 +2,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraph.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundInstanceTransmitter.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
-
 #include "Sound/SoundWaveProcedural.h"
-
-
-#if WITH_EDITORONLY_DATA
-#include "EdGraph/EdGraph.h"
-#include "Misc/AssertionMacros.h"
-#endif // WITH_EDITORONLY_DATA
 
 #include "MetasoundSource.generated.h"
 
@@ -25,6 +19,15 @@ enum class EMetasoundSourceAudioFormat : uint8
 {
 	Mono,  //< Mono audio output.
 	Stereo //< Stereo audio output.
+};
+
+UCLASS()
+class METASOUNDENGINE_API UMetasoundEditorGraphBase : public UEdGraph
+{
+	GENERATED_BODY()
+
+public:
+	virtual void Synchronize() { }
 };
 
 /**
@@ -41,7 +44,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = CustomView)
-	UEdGraph* Graph;
+	UMetasoundEditorGraphBase* Graph;
 #endif // WITH_EDITORONLY_DATA
 
 public:
@@ -51,13 +54,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Audio)
 	EMetasoundSourceAudioFormat OutputFormat;
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
 	// Returns document name (for editor purposes, and avoids making document public for edit
 	// while allowing editor to reference directly)
 	static FName GetDocumentPropertyName()
 	{
 		return GET_MEMBER_NAME_CHECKED(UMetasoundSource, RootMetasoundDocument);
 	}
+
+	virtual void PostEditUndo() override;
 
 	// Returns the graph associated with this Metasound. Graph is required to be referenced on
 	// Metasound UObject for editor serialization purposes.
@@ -89,11 +94,8 @@ public:
 	// @param Editor graph associated with UMetasoundSource.
 	virtual void SetGraph(UEdGraph* InGraph) override
 	{
-		Graph = InGraph;
+		Graph = CastChecked<UMetasoundEditorGraphBase>(InGraph);
 	}
-#endif // WITH_EDITORONLY_DATA
-
-#if WITH_EDITOR
 
 	void PostEditChangeProperty(FPropertyChangedEvent& InEvent);
 

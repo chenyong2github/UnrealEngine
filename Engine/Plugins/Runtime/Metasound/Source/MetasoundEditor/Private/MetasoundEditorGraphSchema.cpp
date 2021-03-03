@@ -56,6 +56,7 @@ namespace Metasound
 						{
 							if (ensure(FGraphBuilder::ConnectNodes(*FromPin, *Pin, true /* bConnectEdPins */)))
 							{
+								NewGraphNode.MarkPackageDirty();
 								return true;
 							}
 						}
@@ -75,6 +76,7 @@ namespace Metasound
 						{
 							if (ensure(FGraphBuilder::ConnectNodes(*Pin, *FromPin, true /* bConnectEdPins */)))
 							{
+								NewGraphNode.MarkPackageDirty();
 								return true;
 							}
 						}
@@ -587,12 +589,17 @@ bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGrap
 
 	// TODO: Implement YesWithConverterNode with selected conversion option
 
+	BreakPinLinks(*InputPin, false);
 	bool bModified = UEdGraphSchema::TryCreateConnection(PinA, PinB);
 	if (bModified)
 	{
 		bModified = Metasound::Editor::FGraphBuilder::ConnectNodes(*InputPin, *OutputPin, false);
 	}
 
+	if (bModified)
+	{
+		InputPin->GetOwningNode()->MarkPackageDirty();
+	}
 	return bModified;
 }
 
@@ -704,11 +711,19 @@ void UMetasoundEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSe
 	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetasoundEditor");
 	for (int32 i = 0; i < InputHandles.Num(); ++i)
 	{
-		FInputHandle Handle = InputHandles[i];
-		Handle->Disconnect();
+		FInputHandle InputHandle = InputHandles[i];
+		FConstOutputHandle OutputHandle = InputHandle->GetCurrentlyConnectedOutput();
+		const FMetasoundFrontendNodeStyle& Style = OutputHandle->GetOwningNode()->GetNodeStyle();
 
-		FNodeHandle NodeHandle = Handle->GetOwningNode();
-		FGraphBuilder::AddOrUpdateLiteralInput(Metasound, NodeHandle, *InputPins[i]);
+		// Hidden nodes are not "connected" from the perspective of EdGraph,
+		// and therefore should be ignored when breaking links.
+		if (Style.Display.Visibility != EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+		{
+			InputHandle->Disconnect();
+
+			FNodeHandle NodeHandle = InputHandle->GetOwningNode();
+			FGraphBuilder::AddOrUpdateLiteralInput(Metasound, NodeHandle, *InputPins[i]);
+		}
 	}
 
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotifcation);

@@ -2,9 +2,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "EdGraph/EdGraph.h"
 #include "MetasoundEditor.h"
 #include "MetasoundFrontendLiteral.h"
+#include "MetasoundSource.h"
 #include "UObject/ObjectMacros.h"
 
 #include "MetasoundEditorGraph.generated.h"
@@ -15,7 +15,7 @@ class UMetasoundEditorGraphInputNode;
 
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraph : public UEdGraph
+class UMetasoundEditorGraph : public UMetasoundEditorGraphBase
 {
 	GENERATED_BODY()
 
@@ -24,6 +24,8 @@ public:
 
 	UObject* GetMetasound() const;
 	UObject& GetMetasoundChecked() const;
+
+	virtual void Synchronize();
 
 private:
 	UPROPERTY()
