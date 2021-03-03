@@ -212,6 +212,10 @@ public:
 	static const FName GetValueFunctionName;
 	static const FName SampleGridFunctionName;
 
+	static const FName SetFullGridValueFunctionName;
+	static const FName GetFullGridPreviousValueFunctionName;
+	static const FName SamplePreviousFullGridFunctionName;
+
 	static const FName SetVector4ValueFunctionName;
 	static const FName SetVector3ValueFunctionName;
 	static const FName SetVector2ValueFunctionName;
