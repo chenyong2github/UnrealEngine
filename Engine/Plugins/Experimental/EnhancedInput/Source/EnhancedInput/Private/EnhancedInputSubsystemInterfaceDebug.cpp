@@ -238,8 +238,8 @@ void IEnhancedInputSubsystemInterface::ShowDebugInfo(UCanvas* Canvas)
 				if (ActionData/* && ActionData->GetTriggerEvent() != ETriggerEvent::None*/)
 				{
 					ActionStr += FString::Printf(TEXT(" - %s - %.3fs (%s)"), *UEnum::GetValueAsString(TEXT("EnhancedInput.ETriggerEvent"), ActionData->GetTriggerEvent()), ActionData->GetTriggerEvent() == ETriggerEvent::Triggered ? ActionData->GetTriggeredTime() : ActionData->GetElapsedTime(), *ActionData->GetValue().ToString());
+					ActionStr += GetTriggerState(ActionData->GetTriggers());
 				}
-				ActionStr += GetTriggerState(ActionData->GetTriggers());
 				DisplayDebugManager.DrawString(ActionStr);
 
 				ShowDebugActionModifiers(Canvas, Action);
