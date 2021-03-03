@@ -205,15 +205,14 @@ function showFlowGraph(data, botNameParam) {
 
 		links.reverse();
 		for (const link of links) {
-			if (botName) {
-				// when there's forced/unforced pair, only the former is a constrait
-				// (this makes flow )
-				const combo = link.dst + link.src;
+			// when there's forced/unforced pair, only the former is a constrait
+			// (this makes flow )
+			const combo = link.dst + link.src;
 
-				if (combo && linkOutward.has(combo) && linkInward.has(combo)) {
-					link.styles.push(['constraint', 'false']);
-				}
+			if (combo && linkOutward.has(combo) && linkInward.has(combo)) {
+				link.styles.push(['constraint', 'false']);
 			}
+
 			const styleStrs = link.styles.map(([key, value]) => `${key}=${value}`);
 			const suffix = styleStrs.length === 0 ? '' : ` [${styleStrs.join(', ')}]`;
 			outLines.push(`${link.src} -> ${link.dst}${suffix};`);
