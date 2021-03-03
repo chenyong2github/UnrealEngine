@@ -385,6 +385,7 @@ void FBodyInstanceCustomization::CreateCustomCollisionSetup( TSharedRef<class IP
 	{
 		CollisionGroup.AddWidgetRow()
 		.Visibility(CustomCollisionVisibility)
+		.IsEnabled(CustomCollisionEnabled)
 		.NameContent()
 		[
 			ObjectTypeHandle->CreatePropertyNameWidget()
@@ -396,7 +397,6 @@ void FBodyInstanceCustomization::CreateCustomCollisionSetup( TSharedRef<class IP
 			.OnGenerateWidget(this, &FBodyInstanceCustomization::MakeObjectTypeComboWidget)
 			.OnSelectionChanged(this, &FBodyInstanceCustomization::OnObjectTypeChanged)
 			.InitiallySelectedItem(ObjectTypeComboList[IndexSelected])
-			.IsEnabled(CustomCollisionEnabled)
 			.ContentPadding(2)
 			.Content()
 			[
