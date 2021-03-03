@@ -200,6 +200,11 @@ void SSearchableComboBox::OnMenuOpenChanged(bool bOpen)
 
 void SSearchableComboBox::OnSelectionChanged_Internal(TSharedPtr<FString> ProposedSelection, ESelectInfo::Type SelectInfo)
 {
+	if (!ProposedSelection)
+	{
+		return;
+	}
+
 	// Ensure that the proposed selection is different from selected
 	if (ProposedSelection != SelectedItem)
 	{
