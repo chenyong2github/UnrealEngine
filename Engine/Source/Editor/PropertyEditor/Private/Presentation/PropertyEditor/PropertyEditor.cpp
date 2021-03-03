@@ -245,25 +245,81 @@ void FPropertyEditor::OnAddItem()
 
 void FPropertyEditor::OnAddGivenItem(const FString InGivenItem)
 {
-	OnAddItem();
 
-	// Check to make sure that the property is a valid container
-	TSharedPtr<IPropertyHandleArray> ArrayHandle = PropertyHandle->AsArray();
+	const FScopedTransaction Transaction(FText::Format(LOCTEXT("AddElementToArray", "Add element to {0} array "), PropertyNode->GetDisplayName()));
 
-	check(ArrayHandle.IsValid());
+	FProperty* NodeProperty = PropertyNode->GetProperty();
 
-	TSharedPtr<IPropertyHandle> ElementHandle;
-
-	if (ArrayHandle.IsValid())
+	FReadAddressList ReadAddresses;
+	PropertyNode->GetReadAddress(!!PropertyNode->HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly), ReadAddresses, true, false, true);
+	if (ReadAddresses.Num())
 	{
-		uint32 Last;
-		ArrayHandle->GetNumElements(Last);
-		ElementHandle = ArrayHandle->GetElement(Last - 1);
-	}
+		TArray< TMap<FString, int32> > ArrayIndicesPerObject;
 
-	if (ElementHandle.IsValid())
-	{
-		ElementHandle->SetValueFromFormattedString(InGivenItem);
+		// List of top level objects sent to the PropertyChangedEvent
+		TArray<const UObject*> TopLevelObjects;
+		TopLevelObjects.Reserve(ReadAddresses.Num());
+
+		FObjectPropertyNode* ObjectNode = PropertyNode->FindObjectItemParent();
+		FArrayProperty* Array = CastField<FArrayProperty>(NodeProperty);
+
+		check(Array);
+
+		for (int32 i = 0; i < ReadAddresses.Num(); ++i)
+		{
+			void* Addr = ReadAddresses.GetAddress(i);
+			if (Addr)
+			{
+				//add on array index so we can tell which entry just changed
+				ArrayIndicesPerObject.Add(TMap<FString, int32>());
+				FPropertyValueImpl::GenerateArrayIndexMapToObjectNode(ArrayIndicesPerObject[i], &PropertyNode.Get());
+
+				UObject* Obj = ObjectNode ? ObjectNode->GetUObject(i) : nullptr;
+				if (Obj)
+				{
+					if ((Obj->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) ||
+						(Obj->HasAnyFlags(RF_DefaultSubObject) && Obj->GetOuter()->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))))
+					{
+						PropertyNode->PropagateContainerPropertyChange(Obj, Addr, EPropertyArrayChangeType::Add, -1);
+					}
+
+					TopLevelObjects.Add(Obj);
+				}
+
+				int32 Index = INDEX_NONE;
+
+				FScriptArrayHelper	ArrayHelper(Array, Addr);
+				Index = ArrayHelper.AddValue();
+
+				ArrayIndicesPerObject[i].Add(NodeProperty->GetName(), Index);
+			}
+		}
+
+		FPropertyChangedEvent ChangeEvent(NodeProperty, EPropertyChangeType::ArrayAdd, MakeArrayView(TopLevelObjects));
+		ChangeEvent.SetArrayIndexPerObject(ArrayIndicesPerObject);
+		PropertyNode->FixPropertiesInEvent(ChangeEvent);
+
+		// Both Insert and Add are deferred so you need to rebuild the parent node's children
+		GetPropertyNode()->RebuildChildren();
+
+		// Check to make sure that the property is a valid container
+		TSharedPtr<IPropertyHandleArray> ArrayHandle = PropertyHandle->AsArray();
+
+		check(ArrayHandle.IsValid());
+
+		TSharedPtr<IPropertyHandle> ElementHandle;
+
+		if (ArrayHandle.IsValid())
+		{
+			uint32 Last;
+			ArrayHandle->GetNumElements(Last);
+			ElementHandle = ArrayHandle->GetElement(Last - 1);
+		}
+
+		if (ElementHandle.IsValid())
+		{
+			ElementHandle->SetValueFromFormattedString(InGivenItem);
+		}
 	}
 }
 
