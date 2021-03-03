@@ -672,7 +672,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	float HeightDelta = Input.PackedPosition.w * 255.0 * 256.0 * TERRAIN_ZSCALE;
 
 	// Select the height values from the vertex input corresponding to the current and next LOD
-	uint LODHeightIndex = (uint)LodValue + 2;
+	uint LODHeightIndex = min((uint)LodValue + 2, (uint)7);
 	uint LODHeightIndexNextLod = min((uint)LodValue + 3, (uint)7);
 
 	float InputHeight = Input.LODHeights[LODHeightIndex >> 2][LODHeightIndex & 3];
