@@ -32,46 +32,8 @@ public:
 protected:
 	virtual bool IsValidOnShots() const override { return true; }
 	virtual bool IsValidOnMaster() const override { return true; }
-	virtual void ValidateStateImpl() override
-	{
-		Super::ValidateStateImpl();
-
-		if (UE::MovieRenderPipeline::GetEffectiveAntiAliasingMethod(this) == EAntiAliasingMethod::AAM_TemporalAA)
-		{
-			if ((TemporalSampleCount*SpatialSampleCount) > 8)
-			{
-				ValidationResults.Add(NSLOCTEXT("MovieRenderPipeline", "AntiAliasing_BetterOffWithoutTAA", "If the product of Temporal and Spatial counts is greater than the number of TAA samples then TAA is ineffective and you should consider overriding AA to None for better quality."));
-				ValidationState = EMoviePipelineValidationState::Warnings;
-			}
-
-			if (SpatialSampleCount % 2 == 0)
-			{
-				ValidationResults.Add(NSLOCTEXT("MovieRenderPipeline", "AntiAliasing_InsufficientJitters", "TAA does not converge when using an even number of samples. Disable TAA or increase sample count."));
-				ValidationState = EMoviePipelineValidationState::Warnings;
-			}
-		}
-
-		if (UE::MovieRenderPipeline::GetEffectiveAntiAliasingMethod(this) == EAntiAliasingMethod::AAM_None)
-		{
-			if ((TemporalSampleCount * SpatialSampleCount) < 8)
-			{
-				ValidationResults.Add(NSLOCTEXT("MovieRenderPipeline", "AntiAliasing_InsufficientSamples", "Traditional TAA uses at least 8 samples. Increase sample count to maintain AA quality."));
-				ValidationState = EMoviePipelineValidationState::Warnings;
-			}
-		}
-
-	}
-
-	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
-	{
-		Super::GetFormatArguments(InOutFormatArgs);
-
-		InOutFormatArgs.FilenameArguments.Add(TEXT("ts_count"), TemporalSampleCount);
-		InOutFormatArgs.FilenameArguments.Add(TEXT("ss_count"), SpatialSampleCount);
-
-		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/temporalSampleCount"), TemporalSampleCount);
-		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/spatialSampleCount"), SpatialSampleCount);
-	}
+	virtual void ValidateStateImpl() override;
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override;
 
 public:
 
