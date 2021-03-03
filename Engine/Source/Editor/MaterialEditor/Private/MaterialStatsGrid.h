@@ -74,6 +74,7 @@ enum class EShaderInfoType
 	InterpolatorsCount,
 	TextureSampleCount,
 	VirtualTextureLookupCount,
+	ShaderCount,
 };
 
 /** this type of cell will query certain type of informations from the material */
@@ -215,6 +216,15 @@ public:
 	void AddPlatform(TSharedPtr<FMaterialStats> StatsManager, const TSharedPtr<FShaderPlatformSettings> Platform, const EMaterialQualityLevel::Type QualityLevel) override;
 };
 
+/** this row will display the total number of shaders present in the material for a specified platform */
+class FStatsGridRow_NumShaders : public FStatsGridRow
+{
+public:
+	void CreateRow(TSharedPtr<FMaterialStats> StatsManager) override;
+
+	void AddPlatform(TSharedPtr<FMaterialStats> StatsManager, const TSharedPtr<FShaderPlatformSettings> Platform, const EMaterialQualityLevel::Type QualityLevel) override;
+};
+
 /** class that models the logical material stats grid */
 class FMaterialStatsGrid
 {
@@ -239,6 +249,7 @@ class FMaterialStatsGrid
 		Interpolators,
 		TextureSamples,
 		VirtualTextureLookups,
+		Shaders,
 
 		VertexShader,
 		FragmentShader,
