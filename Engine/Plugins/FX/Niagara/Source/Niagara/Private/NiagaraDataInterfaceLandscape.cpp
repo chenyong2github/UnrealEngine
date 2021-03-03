@@ -983,6 +983,21 @@ public:
 			return false;
 		}
 
+		FRHITexture* PageTableTexture = nullptr;
+
+		if (FRHITexture* PageTable = HeightAllocatedTexture->GetPageTableTexture(HeightVirtualTexturePageIndex))
+		{
+			if (FRHITextureReference* TextureReference = PageTable->GetTextureReference())
+			{
+				PageTableTexture = TextureReference->GetReferencedTexture();
+			}
+		}
+
+		if (!PageTableTexture)
+		{
+			return false;
+		}
+
 		FMatrix WorldToUvTransform(
 			FVector(ProxyData.HeightVirtualTextureWorldToUvParameters[0]),
 			FVector(ProxyData.HeightVirtualTextureWorldToUvParameters[1]),
@@ -990,7 +1005,7 @@ public:
 			FVector(ProxyData.HeightVirtualTextureWorldToUvParameters[3]));
 
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTextureParam, PhysicalTextureSrv);
-		SetTextureParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTexturePageTableParam, HeightAllocatedTexture->GetPageTableTexture(HeightVirtualTexturePageIndex));
+		SetTextureParameter(RHICmdList, ComputeShaderRHI, HeightVirtualTexturePageTableParam, PageTableTexture);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, HeightVirtualTextureWorldToUvTransformParam, WorldToUvTransform);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, HeightVirtualTextureEnabledParam, 1 /* true */);
 
