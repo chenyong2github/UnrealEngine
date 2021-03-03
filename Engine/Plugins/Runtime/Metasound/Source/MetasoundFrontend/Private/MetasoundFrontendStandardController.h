@@ -28,6 +28,7 @@ namespace Metasound
 				FGuid ID;
 
 				FConstVertexAccessPtr NodeVertexPtr;
+				FConstClassOutputAccessPtr ClassOutputPtr;
 				FGraphAccessPtr GraphPtr; 
 
 				/* Node handle which owns this output. */
@@ -44,6 +45,10 @@ namespace Metasound
 			FGuid GetID() const override;
 			const FName& GetDataType() const override;
 			const FString& GetName() const override;
+
+			// Output metadata
+			const FText& GetDisplayName() const override;
+			const FText& GetTooltip() const override;
 
 			// Return info on containing node. 
 			FGuid GetOwningNodeID() const override;
@@ -67,6 +72,7 @@ namespace Metasound
 
 			FGuid ID;
 			FConstVertexAccessPtr NodeVertexPtr;	
+			FConstClassOutputAccessPtr ClassOutputPtr;
 			FGraphAccessPtr GraphPtr; 
 			FNodeHandle OwningNode;
 
@@ -75,40 +81,6 @@ namespace Metasound
 			TArray<FMetasoundFrontendEdge> FindEdges() const;
 		};
 
-		/** FNodeOutputController represents a single output of a single node. */
-		class METASOUNDFRONTEND_API FNodeOutputController : public FBaseOutputController
-		{
-		public:
-			struct FInitParams
-			{
-				FGuid ID;
-
-				FConstVertexAccessPtr NodeVertexPtr;
-			
-				FConstClassOutputAccessPtr ClassOutputPtr;
-				FGraphAccessPtr GraphPtr; 
-
-				/* Node handle which owns this output. */
-				FNodeHandle OwningNode;
-			};
-
-			FNodeOutputController(const FInitParams& InInitParams);
-
-			virtual ~FNodeOutputController() = default;
-
-			bool IsValid() const override;
-
-			// Output metadata
-			const FText& GetDisplayName() const override;
-			const FText& GetTooltip() const override;
-
-		protected:
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
-
-		private:
-			FConstClassOutputAccessPtr ClassOutputPtr;
-		};
 
 		/** FInputNodeOutputController represents the output vertex of an input 
 		 * node. 
@@ -124,7 +96,7 @@ namespace Metasound
 				FGuid ID;
 
 				FConstVertexAccessPtr NodeVertexPtr;
-			
+				FConstClassOutputAccessPtr ClassOutputPtr;
 				FConstClassInputAccessPtr OwningGraphClassInputPtr;
 				FGraphAccessPtr GraphPtr; 
 
@@ -149,6 +121,7 @@ namespace Metasound
 			FConstDocumentAccess ShareAccess() const override;
 
 		private:
+			mutable FText CachedDisplayName;
 
 			FConstClassInputAccessPtr OwningGraphClassInputPtr;
 		};
@@ -165,6 +138,7 @@ namespace Metasound
 			{
 				FGuid ID; 
 				FConstVertexAccessPtr NodeVertexPtr;
+				FConstClassInputAccessPtr ClassInputPtr;
 				FGraphAccessPtr GraphPtr; 
 				FNodeHandle OwningNode;
 			};
@@ -180,6 +154,11 @@ namespace Metasound
 			const FName& GetDataType() const override;
 			const FString& GetName() const override;
 
+			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override;
+
+			// Input metadata
+			const FText& GetDisplayName() const override;
+			const FText& GetTooltip() const override;
 
 			// Owning node info
 			FGuid GetOwningNodeID() const override;
@@ -208,47 +187,13 @@ namespace Metasound
 			const FMetasoundFrontendEdge* FindEdge() const;
 			FMetasoundFrontendEdge* FindEdge();
 
-		private:
-
 			FGuid ID;
 			FConstVertexAccessPtr NodeVertexPtr;
+			FConstClassInputAccessPtr ClassInputPtr;
 			FGraphAccessPtr GraphPtr;
 			FNodeHandle OwningNode;
-		};
 
-		/** FNodeInputController represents a single input of a single node. */
-		class METASOUNDFRONTEND_API FNodeInputController : public FBaseInputController 
-		{
-		public:
 
-			struct FInitParams
-			{
-				FGuid ID; 
-				FConstVertexAccessPtr NodeVertexPtr;
-				FConstClassInputAccessPtr OwningGraphClassInputPtr;
-				FGraphAccessPtr GraphPtr; 
-				FNodeHandle OwningNode;
-			};
-
-			/** Constructs the input controller.  */
-			FNodeInputController(const FInitParams& InParams);
-
-			bool IsValid() const override;
-
-			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override;
-
-			// Input metadata
-			const FText& GetDisplayName() const override;
-			const FText& GetTooltip() const override;
-
-		protected:
-
-			FDocumentAccess ShareAccess() override;
-			FConstDocumentAccess ShareAccess() const override;
-
-		private:
-
-			FConstClassInputAccessPtr OwningGraphClassInputPtr;
 		};
 
 		/** FOutputNodeInputController represents the input vertex of an output 
@@ -264,6 +209,7 @@ namespace Metasound
 			{
 				FGuid ID; 
 				FConstVertexAccessPtr NodeVertexPtr;
+				FConstClassInputAccessPtr ClassInputPtr;
 				FConstClassOutputAccessPtr OwningGraphClassOutputPtr;
 				FGraphAccessPtr GraphPtr; 
 				FNodeHandle OwningNode;
@@ -285,6 +231,8 @@ namespace Metasound
 			FConstDocumentAccess ShareAccess() const override;
 
 		private:
+
+			mutable FText CachedDisplayName;
 
 			FConstClassOutputAccessPtr OwningGraphClassOutputPtr;
 		};

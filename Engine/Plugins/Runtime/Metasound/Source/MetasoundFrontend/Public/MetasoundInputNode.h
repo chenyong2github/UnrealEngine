@@ -18,7 +18,7 @@ namespace Metasound
 		public:
 			using FDataWriteReference = TDataWriteReference<DataType>;
 
-			TInputOperator(const FString& InDataReferenceName, FDataWriteReference InDataReference)
+			TInputOperator(const FVertexKey& InDataReferenceName, FDataWriteReference InDataReference)
 			{
 				Inputs.AddDataWriteReference<DataType>(InDataReferenceName, InDataReference);
 				Outputs.AddDataReadReference<DataType>(InDataReferenceName, InDataReference);
@@ -105,7 +105,7 @@ namespace Metasound
 			// If true, this node can be instantiated by the FrontEnd.
 			static constexpr bool bCanRegister = TInputOperatorLiteralFactory<DataType>::bCanRegister;
 
-			static FVertexInterface DeclareVertexInterface(const FString& InVertexName)
+			static FVertexInterface DeclareVertexInterface(const FVertexKey& InVertexName)
 			{
 				return FVertexInterface(
 					FInputVertexInterface(
@@ -117,7 +117,7 @@ namespace Metasound
 				);
 			}
 
-			static FNodeClassMetadata GetNodeInfo(const FString& InVertexName)
+			static FNodeClassMetadata GetNodeInfo(const FVertexKey& InVertexName)
 			{
 				FNodeClassMetadata Info;
 
@@ -137,7 +137,7 @@ namespace Metasound
 			/* Construct a TInputNode using the TInputOperatorFactory<> and forwarding 
 			 * Args to the TInputOperatorFactory constructor.*/
 			template<typename... ArgTypes>
-			TInputNode(const FString& InNodeDescription, const FGuid& InInstanceID, const FString& InVertexName, ArgTypes&&... Args)
+			TInputNode(const FString& InNodeDescription, const FGuid& InInstanceID, const FVertexKey& InVertexName, ArgTypes&&... Args)
 			:	FNode(InNodeDescription, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
@@ -147,7 +147,7 @@ namespace Metasound
 
 			/* Construct a TInputNode using the TInputOperatorLiteralFactory<> and moving
 			 * InParam to the TInputOperatorLiteralFactory constructor.*/
-			explicit TInputNode(const FString& InNodeDescription, const FGuid& InInstanceID, const FString& InVertexName, FLiteral&& InParam)
+			explicit TInputNode(const FString& InNodeDescription, const FGuid& InInstanceID, const FVertexKey& InVertexName, FLiteral&& InParam)
 			:	FNode(InNodeDescription, InInstanceID, GetNodeInfo(InVertexName))
 			,	VertexName(InVertexName)
 			,	Interface(DeclareVertexInterface(InVertexName))
@@ -155,7 +155,7 @@ namespace Metasound
 			{
 			}
 
-			const FString& GetVertexName() const
+			const FVertexKey& GetVertexName() const
 			{
 				return VertexName;
 			}
@@ -181,7 +181,7 @@ namespace Metasound
 			}
 
 		private:
-			FString VertexName;
+			FVertexKey VertexName;
 
 			FVertexInterface Interface;
 			FOperatorFactorySharedRef Factory;

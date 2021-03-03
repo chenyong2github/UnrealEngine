@@ -516,7 +516,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetMonoSourceArchetype()
 		FMetasoundFrontendClassVertex GeneratedAudio;
 		GeneratedAudio.Name = UMetasoundSource::GetAudioOutputName();
 		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FMonoAudioFormat>();
-		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedMono", "Mono");
+		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedMono", "Audio");
 		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
 		GeneratedAudio.VertexID = FGuid::NewGuid();
 
@@ -540,7 +540,7 @@ const FMetasoundFrontendArchetype& UMetasoundSource::GetStereoSourceArchetype()
 		FMetasoundFrontendClassVertex GeneratedAudio;
 		GeneratedAudio.Name = UMetasoundSource::GetAudioOutputName();
 		GeneratedAudio.TypeName = Metasound::Frontend::GetDataTypeName<Metasound::FStereoAudioFormat>();
-		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereo", "Stereo");
+		GeneratedAudio.Metadata.DisplayName = LOCTEXT("GeneratedStereo", "Audio");
 		GeneratedAudio.Metadata.Description = LOCTEXT("GeneratedAudioToolTip", "The resulting output audio from this source.");
 		GeneratedAudio.VertexID = FGuid::NewGuid();
 

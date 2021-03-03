@@ -17,6 +17,7 @@
 #include "StructSerializer.h"
 #include "Serialization/MemoryReader.h"
 
+#define LOCTEXT_NAMESPACE "MetasoundFrontendStandardController"
 
 namespace Metasound
 {
@@ -349,6 +350,7 @@ namespace Metasound
 		FBaseOutputController::FBaseOutputController(const FBaseOutputController::FInitParams& InParams)
 		: ID(InParams.ID)
 		, NodeVertexPtr(InParams.NodeVertexPtr)
+		, ClassOutputPtr(InParams.ClassOutputPtr)
 		, GraphPtr(InParams.GraphPtr)
 		, OwningNode(InParams.OwningNode)
 		{
@@ -491,11 +493,33 @@ namespace Metasound
 		}
 
 
+		const FText& FBaseOutputController::GetDisplayName() const
+		{
+			if (ClassOutputPtr.IsValid())
+			{
+				return ClassOutputPtr->Metadata.DisplayName;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		const FText& FBaseOutputController::GetTooltip() const
+		{
+			if (ClassOutputPtr.IsValid())
+			{
+				return ClassOutputPtr->Metadata.Description;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+
 		FDocumentAccess FBaseOutputController::ShareAccess() 
 		{
 			FDocumentAccess Access;
 
 			Access.ConstVertex = NodeVertexPtr;
+			Access.ConstClassOutput = ClassOutputPtr;
 			Access.Graph = GraphPtr;
 			Access.ConstGraph = GraphPtr;
 
@@ -507,68 +531,18 @@ namespace Metasound
 			FConstDocumentAccess Access;
 
 			Access.ConstVertex = NodeVertexPtr;
+			Access.ConstClassOutput = ClassOutputPtr;
 			Access.ConstGraph = GraphPtr;
 
 			return Access;
 		}
 
-		//
-		// FNodeOutputController
-		//
-		FNodeOutputController::FNodeOutputController(const FNodeOutputController::FInitParams& InParams)
-		: FBaseOutputController({InParams.ID, InParams.NodeVertexPtr, InParams.GraphPtr, InParams.OwningNode})
-		, ClassOutputPtr(InParams.ClassOutputPtr)
-		{
-		}
-
-		bool FNodeOutputController::IsValid() const
-		{
-			return FBaseOutputController::IsValid() && ClassOutputPtr.IsValid();
-		}
-
-		const FText& FNodeOutputController::GetDisplayName() const
-		{
-			if (ClassOutputPtr.IsValid())
-			{
-				return ClassOutputPtr->Metadata.DisplayName;
-			}
-
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
-		}
-
-		const FText& FNodeOutputController::GetTooltip() const
-		{
-			if (ClassOutputPtr.IsValid())
-			{
-				return ClassOutputPtr->Metadata.Description;
-			}
-
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
-		}
-
-		FDocumentAccess FNodeOutputController::ShareAccess() 
-		{
-			FDocumentAccess Access = FBaseOutputController::ShareAccess();
-
-			Access.ConstClassOutput = ClassOutputPtr;
-
-			return Access;
-		}
-
-		FConstDocumentAccess FNodeOutputController::ShareAccess() const
-		{
-			FConstDocumentAccess Access = FBaseOutputController::ShareAccess();
-
-			Access.ConstClassOutput = ClassOutputPtr;
-
-			return Access;
-		}
 
 		//
 		// FInputNodeOutputController
 		// 
 		FInputNodeOutputController::FInputNodeOutputController(const FInputNodeOutputController::FInitParams& InParams)
-		: FBaseOutputController({InParams.ID, InParams.NodeVertexPtr, InParams.GraphPtr, InParams.OwningNode})
+		: FBaseOutputController({InParams.ID, InParams.NodeVertexPtr, InParams.ClassOutputPtr, InParams.GraphPtr, InParams.OwningNode})
 		, OwningGraphClassInputPtr(InParams.OwningGraphClassInputPtr)
 		{
 		}
@@ -580,12 +554,21 @@ namespace Metasound
 
 		const FText& FInputNodeOutputController::GetDisplayName() const
 		{
-			if (OwningGraphClassInputPtr.IsValid())
+			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
 			{
-				return OwningGraphClassInputPtr->Metadata.DisplayName;
+				if (const FMetasoundFrontendClassOutput* ClassOutput = ClassOutputPtr.Get())
+				{
+					// If there is a valid ClassOutput, combine the names.
+					CachedDisplayName = FText::Format(LOCTEXT("InputNodeOutputControllerFormat", "{1} {0}"), OwningInput->Metadata.DisplayName, ClassOutput->Metadata.DisplayName);
+				}
+				else
+				{
+					// If there is no valid ClassOutput, use the owning value display name.
+					CachedDisplayName = OwningInput->Metadata.DisplayName;
+				}
 			}
 
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+			return CachedDisplayName;
 		}
 
 		const FText& FInputNodeOutputController::GetTooltip() const
@@ -622,6 +605,7 @@ namespace Metasound
 		FBaseInputController::FBaseInputController(const FBaseInputController::FInitParams& InParams)
 		: ID(InParams.ID)
 		, NodeVertexPtr(InParams.NodeVertexPtr)
+		, ClassInputPtr(InParams.ClassInputPtr)
 		, GraphPtr(InParams.GraphPtr)
 		, OwningNode(InParams.OwningNode)
 		{
@@ -656,6 +640,36 @@ namespace Metasound
 			
 			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FString>();
 		}
+
+		const FText& FBaseInputController::GetDisplayName() const
+		{
+			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
+			{
+				return ClassInput->Metadata.DisplayName;
+			}
+			
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		const FMetasoundFrontendLiteral* FBaseInputController::GetDefaultLiteral() const 
+		{
+			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
+			{
+				return &(ClassInput->DefaultLiteral);
+			}
+			return nullptr;
+		}
+
+		const FText& FBaseInputController::GetTooltip() const
+		{
+			if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
+			{
+				return ClassInput->Metadata.Description;
+			}
+			
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
 
 		bool FBaseInputController::IsConnected() const 
 		{
@@ -879,6 +893,7 @@ namespace Metasound
 			FDocumentAccess Access;
 
 			Access.ConstVertex = NodeVertexPtr;
+			Access.ConstClassInput = ClassInputPtr;
 			Access.Graph = GraphPtr;
 			Access.ConstGraph = GraphPtr;
 
@@ -890,77 +905,18 @@ namespace Metasound
 			FConstDocumentAccess Access;
 
 			Access.ConstVertex = NodeVertexPtr;
+			Access.ConstClassInput = ClassInputPtr;
 			Access.ConstGraph = GraphPtr;
 
 			return Access;
 		}
 
-		//
-		// FNodeInputController
-		//
-		FNodeInputController::FNodeInputController(const FNodeInputController::FInitParams& InParams)
-		: FBaseInputController({InParams.ID, InParams.NodeVertexPtr, InParams.GraphPtr, InParams.OwningNode})
-		, OwningGraphClassInputPtr(InParams.OwningGraphClassInputPtr)
-		{
-		}
-
-		bool FNodeInputController::IsValid() const
-		{
-			return FBaseInputController::IsValid() && OwningGraphClassInputPtr.IsValid();
-		}
-
-		const FText& FNodeInputController::GetDisplayName() const
-		{
-			if (OwningGraphClassInputPtr.IsValid())
-			{
-				return OwningGraphClassInputPtr->Metadata.DisplayName;
-			}
-			
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
-		}
-
-		const FMetasoundFrontendLiteral* FNodeInputController::GetDefaultLiteral() const 
-		{
-			if (const FMetasoundFrontendClassInput* OwningGraphClassInput = OwningGraphClassInputPtr.Get())
-			{
-				return &(OwningGraphClassInput->DefaultLiteral);
-			}
-			return nullptr;
-		}
-
-		const FText& FNodeInputController::GetTooltip() const
-		{
-			if (OwningGraphClassInputPtr.IsValid())
-			{
-				return OwningGraphClassInputPtr->Metadata.Description;
-			}
-			
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
-		}
-
-		FDocumentAccess FNodeInputController::ShareAccess() 
-		{
-			FDocumentAccess Access = FBaseInputController::ShareAccess();
-
-			Access.ConstClassInput = OwningGraphClassInputPtr;
-
-			return Access;
-		}
-
-		FConstDocumentAccess FNodeInputController::ShareAccess() const
-		{
-			FConstDocumentAccess Access = FBaseInputController::ShareAccess();
-
-			Access.ConstClassInput = OwningGraphClassInputPtr;
-
-			return Access;
-		}
 
 		//
 		// FOutputNodeInputController
 		//
 		FOutputNodeInputController::FOutputNodeInputController(const FOutputNodeInputController::FInitParams& InParams)
-		: FBaseInputController({InParams.ID, InParams.NodeVertexPtr, InParams.GraphPtr, InParams.OwningNode})
+		: FBaseInputController({InParams.ID, InParams.NodeVertexPtr, InParams.ClassInputPtr, InParams.GraphPtr, InParams.OwningNode})
 		, OwningGraphClassOutputPtr(InParams.OwningGraphClassOutputPtr)
 		{
 		}
@@ -972,12 +928,22 @@ namespace Metasound
 
 		const FText& FOutputNodeInputController::GetDisplayName() const
 		{
-			if (OwningGraphClassOutputPtr.IsValid())
+			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
 			{
-				return OwningGraphClassOutputPtr->Metadata.DisplayName;
+				if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
+				{
+					// If there the ClassInput exists, combine the variable name and class input name.
+					// of the variable should be added to the names of the vertices.
+					CachedDisplayName = FText::Format(LOCTEXT("OutputNodeInputControllerFormat", "{1} {0}"), OwningOutput->Metadata.DisplayName, ClassInput->Metadata.DisplayName);
+				}
+				else
+				{
+					// If there is not ClassInput, then use the variable name.
+					CachedDisplayName = OwningOutput->Metadata.DisplayName;
+				}
 			}
-			
-			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+
+			return CachedDisplayName;
 		}
 
 		const FText& FOutputNodeInputController::GetTooltip() const
@@ -1680,12 +1646,12 @@ namespace Metasound
 
 		FInputHandle FNodeController::CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FNodeInputController>(FNodeInputController::FInitParams{InVertexID, InNodeVertexPtr, InClassInputPtr, GraphPtr, InOwningNode});
+			return MakeShared<FBaseInputController>(FBaseInputController::FInitParams{InVertexID, InNodeVertexPtr, InClassInputPtr, GraphPtr, InOwningNode});
 		}
 
 		FOutputHandle FNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FNodeOutputController>(FNodeOutputController::FInitParams{InVertexID, InNodeVertexPtr, InClassOutputPtr, GraphPtr, InOwningNode});
+			return MakeShared<FBaseOutputController>(FBaseOutputController::FInitParams{InVertexID, InNodeVertexPtr, InClassOutputPtr, GraphPtr, InOwningNode});
 		}
 
 		FDocumentAccess FNodeController::ShareAccess() 
@@ -1773,7 +1739,7 @@ namespace Metasound
 
 		FInputHandle FOutputNodeController::CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FOutputNodeInputController>(FOutputNodeInputController::FInitParams{InVertexID, InNodeVertexPtr, OwningGraphClassOutputPtr, GraphPtr, InOwningNode});
+			return MakeShared<FOutputNodeInputController>(FOutputNodeInputController::FInitParams{InVertexID, InNodeVertexPtr, InClassInputPtr, OwningGraphClassOutputPtr, GraphPtr, InOwningNode});
 		}
 
 		FOutputHandle FOutputNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
@@ -1873,7 +1839,7 @@ namespace Metasound
 
 		FOutputHandle FInputNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
-			return MakeShared<FInputNodeOutputController>(FInputNodeOutputController::FInitParams{InVertexID, InNodeVertexPtr, OwningGraphClassInputPtr, GraphPtr, InOwningNode});
+			return MakeShared<FInputNodeOutputController>(FInputNodeOutputController::FInitParams{InVertexID, InNodeVertexPtr, InClassOutputPtr, OwningGraphClassInputPtr, GraphPtr, InOwningNode});
 		}
 
 		FDocumentAccess FInputNodeController::ShareAccess() 
@@ -2164,7 +2130,6 @@ namespace Metasound
 							Node.Name = InClassInput.Name;
 							Node.ID = NewNodeID();
 
-							// TODO: have something that checks if input node has valid interface.
 							auto IsVertexWithTypeName = [&](FMetasoundFrontendVertex& Vertex) { return Vertex.TypeName == InClassInput.TypeName; };
 							if (FMetasoundFrontendVertex* InputVertex = Node.Interface.Inputs.FindByPredicate(IsVertexWithTypeName))
 							{ 
@@ -2175,13 +2140,13 @@ namespace Metasound
 								UE_LOG(LogMetasound, Error, TEXT("Input node [TypeName:%s] does not contain input vertex with type [TypeName:%s]"), *InClassInput.TypeName.ToString(), *InClassInput.TypeName.ToString());
 							}
 
-							if (FMetasoundFrontendVertex* OutputVertex = Node.Interface.Outputs.FindByPredicate(IsVertexWithTypeName))
+							if (Node.Interface.Outputs.Num() == 1)
+							{
+								Node.Interface.Outputs[0].Name = InClassInput.Name;
+							}
+							else if (FMetasoundFrontendVertex* OutputVertex = Node.Interface.Outputs.FindByPredicate(IsVertexWithTypeName))
 							{ 
 								OutputVertex->Name = InClassInput.Name;
-							}
-							else
-							{
-								UE_LOG(LogMetasound, Error, TEXT("Input node [TypeName:%s] does not contain input vertex with type [TypeName:%s]"), *InClassInput.TypeName.ToString(), *InClassInput.TypeName.ToString());
 							}
 
 							FMetasoundFrontendClassInput& NewInput = GraphClassPtr->Interface.Inputs.Add_GetRef(InClassInput);
@@ -2243,13 +2208,13 @@ namespace Metasound
 
 							// TODO: have something that checks if input node has valid interface.
 							auto IsVertexWithTypeName = [&](FMetasoundFrontendVertex& Vertex) { return Vertex.TypeName == InClassOutput.TypeName; };
-							if (FMetasoundFrontendVertex* InputVertex = Node.Interface.Inputs.FindByPredicate(IsVertexWithTypeName))
+							if (Node.Interface.Inputs.Num() == 1)
+							{
+								Node.Interface.Inputs[0].Name = InClassOutput.Name;
+							}
+							else if (FMetasoundFrontendVertex* InputVertex = Node.Interface.Inputs.FindByPredicate(IsVertexWithTypeName))
 							{ 
 								InputVertex->Name = InClassOutput.Name;
-							}
-							else
-							{
-								UE_LOG(LogMetasound, Error, TEXT("Output node [TypeName:%s] does not contain input vertex with type [TypeName:%s]"), *InClassOutput.TypeName.ToString(), *InClassOutput.TypeName.ToString());
 							}
 
 							if (FMetasoundFrontendVertex* OutputVertex = Node.Interface.Outputs.FindByPredicate(IsVertexWithTypeName))
@@ -2258,7 +2223,7 @@ namespace Metasound
 							}
 							else
 							{
-								UE_LOG(LogMetasound, Error, TEXT("Output node [TypeName:%s] does not contain input vertex with type [TypeName:%s]"), *InClassOutput.TypeName.ToString(), *InClassOutput.TypeName.ToString());
+								UE_LOG(LogMetasound, Error, TEXT("Output node [TypeName:%s] does not contain output vertex with type [TypeName:%s]"), *InClassOutput.TypeName.ToString(), *InClassOutput.TypeName.ToString());
 							}
 
 							FMetasoundFrontendClassOutput& NewOutput = GraphClassPtr->Interface.Outputs.Add_GetRef(InClassOutput);
@@ -3489,4 +3454,6 @@ namespace Metasound
 		}
 	}
 }
+
+#undef LOCTEXT_NAMESPACE 
 

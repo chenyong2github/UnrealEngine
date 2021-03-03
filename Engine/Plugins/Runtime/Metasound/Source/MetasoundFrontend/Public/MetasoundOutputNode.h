@@ -82,8 +82,6 @@ namespace Metasound
 
 		static FNodeClassMetadata GetNodeInfo(const FString& InVertexName)
 		{
-			static const FString ClassNameString = FString(TEXT("Output_")) + GetMetasoundDataTypeName<DataType>().ToString();
-
 			FNodeClassMetadata Info;
 
 			Info.ClassName = {TEXT("Output"), GetMetasoundDataTypeName<DataType>(), TEXT("")};
