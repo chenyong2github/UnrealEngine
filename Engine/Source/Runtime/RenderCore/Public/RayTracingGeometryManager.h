@@ -32,7 +32,7 @@ public:
 
 	void RemoveBuildRequest(BuildRequestIndex InRequestIndex);
 	void BoostPriority(BuildRequestIndex InRequestIndex, float InBoostValue);
-	void ForceBuild(FRHIComputeCommandList& InCmdList, const TArrayView<const FRayTracingGeometry*> InGeometries);
+	void ForceBuildIfPending(FRHIComputeCommandList& InCmdList, const TArrayView<const FRayTracingGeometry*> InGeometries);
 	void ProcessBuildRequests(FRHIComputeCommandList& InCmdList, bool bInBuildAll = false);
 
 private:

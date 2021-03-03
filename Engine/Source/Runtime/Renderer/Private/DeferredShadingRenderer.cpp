@@ -1149,8 +1149,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 	if (ReferenceView.ForceBuildRayTracingGeometries.Num() > 0)
 	{
 		// Force update all the collected geometries (use stack allocator?)
-		TArray<const FRayTracingGeometry*> ForceBuildRayTracingGeometries = ReferenceView.ForceBuildRayTracingGeometries.Array();
-		GRayTracingGeometryManager.ForceBuild(GraphBuilder.RHICmdList, MakeArrayView(ForceBuildRayTracingGeometries.GetData(), ForceBuildRayTracingGeometries.Num()));
+		GRayTracingGeometryManager.ForceBuildIfPending(GraphBuilder.RHICmdList, ReferenceView.ForceBuildRayTracingGeometries);
 	}
 	
 	if (ReferenceView.AddRayTracingMeshBatchTaskList.Num() > 0)
