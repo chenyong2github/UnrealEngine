@@ -752,6 +752,7 @@ void FDataTableEditorUtils::BroadcastPostChange(UDataTable* DataTable, EDataTabl
 		}
 	}
 	FDataTableEditorManager::Get().PostChange(DataTable, Info);
+	DataTable->OnDataTableChanged().Broadcast();
 }
 
 void FDataTableEditorUtils::CacheDataTableForEditing(const UDataTable* DataTable, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows)

@@ -20,6 +20,7 @@
 
 class UBlendSpace;
 class USkeletalMeshComponent;
+class UMirrorDataTable;
 struct FA2CSPose;
 struct FA2Pose;
 struct FInputBlendPose;
@@ -442,6 +443,41 @@ public:
 	 */
 	UE_DEPRECATED(4.26.0, "Please use BlendTransform() for weighted blending")
 	static void BlendTransformsByWeight(FTransform& OutTransform, const TArray<FTransform>& Transforms, const TArray<float>& Weights);
+
+	/**
+	 * Mirror a vector across the specified mirror axis 
+	 * @param	V			The vector to mirror
+	 * @param	MirrorAxis	The axis to mirror across
+	 * @return				The vector mirrored across the specified axis
+	 */
+	static FVector MirrorVector(const FVector& V, EAxis::Type MirrorAxis);
+
+	/** 
+	 * Mirror a quaternion across the specified mirror axis 
+	 * @param	Q			The quaternion to mirror
+	 * @param	MirrorAxis	The axis to mirror across
+	 * @return				The quaternion mirrored across the specified axis
+	 */
+	static FQuat MirrorQuat(const FQuat& Q, EAxis::Type MirrorAxis);
+
+	/** 
+	 * Mirror a pose with the specified MirrorDataTable.  
+	 * This method computes the required compact mirror pose and component space reference rotations each call
+	 * and should not be used for repeated calculations
+	 * 
+	 * @param	Pose			The pose which is mirrored in place
+	 * @param	MirrorDataTable	A UMirrorDataTable for the same Skeleton as the Pose 
+	 */
+	static void MirrorPose(FCompactPose& Pose, const UMirrorDataTable& MirrorDataTable);
+
+	/** Mirror Pose using cached mirror bones and components space arrays.   
+	 * 
+	 * @param	Pose						The pose which is mirrored in place
+	 * @param	MirrorAxis					The axis that all bones are mirrored across 
+	 * @param	CompactPoseMirrorBones		Compact array of bone indices. Each index contains the bone to mirror or -1 to indicate mirroring should not apply to that bone.
+	 * @param	ComponentSpaceRefRotations	Compoenent space rotations of the reference pose for each bone. 
+	 */
+	static void MirrorPose(FCompactPose& Pose, EAxis::Type MirrorAxis, const TArray<FCompactPoseBoneIndex>& CompactPoseMirrorBones, const TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex>& ComponentSpaceRefRotations);
 
 	/** 
 	 * Advance CurrentTime to CurrentTime + MoveDelta. 

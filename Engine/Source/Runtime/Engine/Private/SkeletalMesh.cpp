@@ -483,8 +483,11 @@ ENUM_CLASS_FLAGS(USkeletalMesh::EAsyncPropertyLockType);
 USkeletalMesh::USkeletalMesh(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetSkelMirrorAxis(EAxis::X);
 	SetSkelMirrorFlipAxis(EAxis::Z);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #if WITH_EDITORONLY_DATA
 	SetImportedModel(MakeShareable(new FSkeletalMeshModel()));
 	SetVertexColorGuid(FGuid());
@@ -4330,6 +4333,7 @@ void USkeletalMesh::ReleaseCPUResources()
 /** Allocate and initialise bone mirroring table for this skeletal mesh. Default is source = destination for each bone. */
 void USkeletalMesh::InitBoneMirrorInfo()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TArray<FBoneMirrorInfo>& LocalSkelMirrorTable = GetSkelMirrorTable();
 	LocalSkelMirrorTable.Empty(GetRefSkeleton().GetNum());
 	LocalSkelMirrorTable.AddZeroed(GetRefSkeleton().GetNum());
@@ -4339,11 +4343,13 @@ void USkeletalMesh::InitBoneMirrorInfo()
 	{
 		LocalSkelMirrorTable[i].SourceIndex = i;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
 void USkeletalMesh::CopyMirrorTableFrom(USkeletalMesh* SrcMesh)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TArray<FBoneMirrorInfo>& SrcSkelMirrorTable = SrcMesh->GetSkelMirrorTable();
 	TArray<FBoneMirrorInfo>& LocalSkelMirrorTable = GetSkelMirrorTable();
 	// Do nothing if no mirror table in source mesh
@@ -4394,8 +4400,10 @@ void USkeletalMesh::CopyMirrorTableFrom(USkeletalMesh* SrcMesh)
 			}
 		}
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
 void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo) const
 {
@@ -4421,11 +4429,13 @@ void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInf
 		MirrorExportInfo[i].BoneFlipAxis	= LocalSkelMirrorTable[i].BoneFlipAxis;
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
 void USkeletalMesh::ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo)
 {
+
 	// Do nothing if no mirror table in source mesh
 	if( MirrorExportInfo.Num() == 0 )
 	{
@@ -4472,6 +4482,7 @@ void USkeletalMesh::ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExp
 		}
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /** 
  *	Utility for checking that the bone mirroring table of this mesh is good.
@@ -4480,6 +4491,7 @@ void USkeletalMesh::ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExp
  */
 bool USkeletalMesh::MirrorTableIsGood(FString& ProblemBones) const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TArray<int32>	BadBoneMirror;
 
 	const TArray<FBoneMirrorInfo>& LocalSkelMirrorTable = GetSkelMirrorTable();
@@ -4509,6 +4521,7 @@ bool USkeletalMesh::MirrorTableIsGood(FString& ProblemBones) const
 	{
 		return true;
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USkeletalMesh::CreateBodySetup()

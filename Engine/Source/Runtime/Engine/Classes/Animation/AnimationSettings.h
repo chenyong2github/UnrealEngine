@@ -12,7 +12,7 @@
 #include "Animation/AnimSequence.h"
 #include "Engine/DeveloperSettings.h"
 #include "CustomAttributes.h"
-
+#include "MirrorDataTable.h"
 #include "AnimationSettings.generated.h"
 
 /**
@@ -76,6 +76,10 @@ class ENGINE_API UAnimationSettings : public UDeveloperSettings
 	/** Default Custom Attribute blend type */
 	UPROPERTY(config, EditAnywhere, Category = CustomAttributes)
 	ECustomAttributeBlendType DefaultAttributeBlendMode;
+
+	/** Find and Replace Expressions used for mirroring  */
+	UPROPERTY(config, EditAnywhere, Category = Mirroring)
+	TArray<FMirrorFindReplaceExpression> MirrorFindReplaceExpressions;
 
 public:
 	static UAnimationSettings * Get() { return CastChecked<UAnimationSettings>(UAnimationSettings::StaticClass()->GetDefaultObject()); }

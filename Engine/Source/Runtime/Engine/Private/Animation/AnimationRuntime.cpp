@@ -14,6 +14,7 @@
 #include "GenericPlatform/GenericPlatformCompilerPreSetup.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/BlendProfile.h"
+#include "Animation/MirrorDataTable.h"
 #if INTEL_ISPC
 #include "AnimationRuntime.ispc.generated.h"
 #endif
@@ -1109,6 +1110,169 @@ void FAnimationRuntime::AccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(F
 
 		// Convert back to local space
 		FAnimationRuntime::ConvertMeshRotationPoseToLocalSpace(BasePose);
+	}
+}
+
+FVector FAnimationRuntime::MirrorVector(const FVector& V, EAxis::Type MirrorAxis)
+{
+	FVector MirrorV(V);
+
+	switch (MirrorAxis)
+	{
+	case EAxis::X:
+		MirrorV.X = -MirrorV.X;
+		break;
+	case EAxis::Y:
+		MirrorV.Y = -MirrorV.Y;
+		break;
+	case EAxis::Z:
+		MirrorV.Z = -MirrorV.Z;
+		break;
+	}
+
+	return MirrorV;
+}
+
+FQuat FAnimationRuntime::MirrorQuat(const FQuat& Q, EAxis::Type MirrorAxis)
+{
+	FQuat MirrorQ(Q);
+
+	// Given an axis V and an angle A, the corresponding unmirrored quaternion Q = { Q.XYZ, Q.W } is:
+	//
+	//		Q = { V * sin(A/2), cos(A/2) }
+	//
+	//  mirror both the axis of rotation and the angle of rotation around that axis.
+	// Therefore, the mirrored quaternion Q' for the axis V and angle A is:
+	//
+	//		Q' = { MirrorVector(V) * sin(-A/2), cos(-A/2) }
+	//		Q' = { -MirrorVector(V) * sin(A/2), cos(A/2) }
+	//		Q' = { -MirrorVector(V * sin(A/2)), cos(A/2) }
+	//		Q' = { -MirrorVector(Q.XYZ), Q.W }
+	//
+	switch (MirrorAxis)
+	{
+	case EAxis::X:
+		MirrorQ.Y = -MirrorQ.Y;
+		MirrorQ.Z = -MirrorQ.Z;
+		break;
+	case EAxis::Y:
+		MirrorQ.X = -MirrorQ.X;
+		MirrorQ.Z = -MirrorQ.Z;
+		break;
+	case EAxis::Z:
+		MirrorQ.X = -MirrorQ.X;
+		MirrorQ.Y = -MirrorQ.Y;
+		break;
+	}
+
+	return MirrorQ;
+}
+
+
+void FAnimationRuntime::MirrorPose(FCompactPose& Pose, EAxis::Type MirrorAxis, const TArray<FCompactPoseBoneIndex>& CompactPoseMirrorBones, const TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex>& ComponentSpaceRefRotations)
+{
+	const FBoneContainer& BoneContainer = Pose.GetBoneContainer();
+	if (MirrorAxis == EAxis::None)
+	{
+		return;
+	}
+
+	auto MirrorTransform = [&ComponentSpaceRefRotations, MirrorAxis](const FTransform& SourceTransform, const FCompactPoseBoneIndex& SourceParentIndex, const FCompactPoseBoneIndex& SourceBoneIndex, const FCompactPoseBoneIndex& TargetParentIndex, const FCompactPoseBoneIndex& TargetBoneIndex) -> FTransform {
+
+		const FQuat TargetParentRefRotation = ComponentSpaceRefRotations[TargetParentIndex];
+		const FQuat TargetBoneRefRotation = ComponentSpaceRefRotations[TargetBoneIndex];
+		const FQuat SourceParentRefRotation = ComponentSpaceRefRotations[SourceParentIndex];
+		const FQuat SourceBoneRefRotation = ComponentSpaceRefRotations[SourceBoneIndex];
+
+		// Mirror the translation component:  Rotate the translation into the space of the mirror plane,  mirror across the mirror plane, and rotate into the space of its new parent
+
+		FVector T = SourceTransform.GetTranslation();
+		T = SourceParentRefRotation.RotateVector(T);
+		T = MirrorVector(T, MirrorAxis);
+		T = TargetParentRefRotation.UnrotateVector(T);
+
+		// Mirror the rotation component:- Rotate into the space of the mirror plane, mirror across the plane, apply corrective rotation to align result with target space's rest orientation, 
+		// then rotate into the space of its new parent
+
+		FQuat Q = SourceTransform.GetRotation();
+		Q = SourceParentRefRotation * Q;
+		Q = MirrorQuat(Q, MirrorAxis);
+		Q *= MirrorQuat(SourceBoneRefRotation, MirrorAxis).Inverse() * TargetBoneRefRotation;
+		Q = TargetParentRefRotation.Inverse() * Q;
+
+		FVector S = SourceTransform.GetScale3D();
+
+		return FTransform(Q, T, S);
+	};
+
+	// Mirror the root bone
+	{
+		const FCompactPoseBoneIndex RootBoneIndex(0);
+		const FCompactPoseBoneIndex MirrorRootBoneIndex = CompactPoseMirrorBones[RootBoneIndex.GetInt()];
+		if (MirrorRootBoneIndex.IsValid())
+		{
+			const FQuat RootBoneRefRotation = ComponentSpaceRefRotations[RootBoneIndex];
+
+			FVector T = Pose[RootBoneIndex].GetTranslation();
+			T = MirrorVector(T, MirrorAxis);
+
+			FQuat Q = Pose[RootBoneIndex].GetRotation();
+			Q = MirrorQuat(Q, MirrorAxis);
+			Q *= MirrorQuat(RootBoneRefRotation, MirrorAxis).Inverse() * RootBoneRefRotation;
+
+			FVector S = Pose[RootBoneIndex].GetScale3D();
+
+			Pose[RootBoneIndex] = FTransform(Q, T, S);
+		}
+	}
+
+	const int32 NumBones = BoneContainer.GetCompactPoseNumBones();
+
+	// Mirror the non-root bones
+	for (FCompactPoseBoneIndex TargetBoneIndex(1); TargetBoneIndex < NumBones; ++TargetBoneIndex)
+	{
+		const FCompactPoseBoneIndex SourceBoneIndex = CompactPoseMirrorBones[TargetBoneIndex.GetInt()];
+		if (SourceBoneIndex == TargetBoneIndex)
+		{
+			const FCompactPoseBoneIndex TargetParentIndex = BoneContainer.GetParentBoneIndex(TargetBoneIndex);
+			Pose[TargetBoneIndex] = MirrorTransform(Pose[TargetBoneIndex], TargetParentIndex, TargetBoneIndex, TargetParentIndex, TargetBoneIndex);
+		}
+		else if (SourceBoneIndex > TargetBoneIndex)
+		{
+			const FCompactPoseBoneIndex TargetParentIndex = BoneContainer.GetParentBoneIndex(TargetBoneIndex);
+			const FCompactPoseBoneIndex SourceParentIndex = BoneContainer.GetParentBoneIndex(SourceBoneIndex);
+			const FTransform NewTargetBoneTransform = MirrorTransform(Pose[SourceBoneIndex], SourceParentIndex, SourceBoneIndex, TargetParentIndex, TargetBoneIndex);
+			const FTransform NewSourceBoneTransform = MirrorTransform(Pose[TargetBoneIndex], TargetParentIndex, TargetBoneIndex, SourceParentIndex, SourceBoneIndex);
+			Pose[TargetBoneIndex] = NewTargetBoneTransform;
+			Pose[SourceBoneIndex] = NewSourceBoneTransform;
+		}
+	}
+}
+
+void FAnimationRuntime::MirrorPose(FCompactPose& Pose, const UMirrorDataTable& MirrorDataTable)
+{
+	const FBoneContainer& BoneContainer = Pose.GetBoneContainer();
+	USkeleton* Skeleton = BoneContainer.GetSkeletonAsset();
+	if (Skeleton)
+	{
+		TArray<int32> MirrorBoneIndexes;
+		MirrorDataTable.FillMirrorBoneIndexes(BoneContainer.GetReferenceSkeleton(), MirrorBoneIndexes);
+
+		// Compact pose format of Mirror Bone Map
+		TArray<FCompactPoseBoneIndex> CompactPoseMirrorBones;
+		MirrorDataTable.FillCompactPoseMirrorBones(BoneContainer, MirrorBoneIndexes, CompactPoseMirrorBones);
+
+		const int32 NumBones = BoneContainer.GetCompactPoseNumBones();
+
+		TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;
+		ComponentSpaceRefRotations.SetNumUninitialized(NumBones);
+		ComponentSpaceRefRotations[FCompactPoseBoneIndex(0)] = BoneContainer.GetRefPoseTransform(FCompactPoseBoneIndex(0)).GetRotation();
+		for (FCompactPoseBoneIndex BoneIndex(1); BoneIndex < NumBones; ++BoneIndex)
+		{
+			const FCompactPoseBoneIndex ParentBoneIndex = BoneContainer.GetParentBoneIndex(BoneIndex);
+			ComponentSpaceRefRotations[BoneIndex] = ComponentSpaceRefRotations[ParentBoneIndex] * BoneContainer.GetRefPoseTransform(BoneIndex).GetRotation();
+		}
+		MirrorPose(Pose, MirrorDataTable.MirrorAxis, CompactPoseMirrorBones, ComponentSpaceRefRotations);
 	}
 }
 

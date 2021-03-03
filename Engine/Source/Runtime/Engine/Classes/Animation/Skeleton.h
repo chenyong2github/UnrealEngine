@@ -442,7 +442,6 @@ private:
  *		- Bone hierarchy for animations
  *		- Bone/track linkup between mesh and animation
  *		- Retargetting related
- *		- Mirror table
  */
 UCLASS(hidecategories=Object, MinimalAPI)
 class USkeleton : public UObject, public IInterface_AssetUserData, public IInterface_PreviewMeshProvider

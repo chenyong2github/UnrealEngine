@@ -243,6 +243,7 @@ enum class ESkinCacheDefaultBehavior : uint8
 	Inclusive = 1,
 };
 
+struct UE_DEPRECATED(5.0, "FBoneMirrorInfo is deprecated. Please use UMirrorDataTable for mirroring support.") FBoneMirrorInfo;
 USTRUCT()
 struct FBoneMirrorInfo
 {
@@ -264,7 +265,7 @@ struct FBoneMirrorInfo
 
 };
 
-/** Structure to export/import bone mirroring information */
+struct UE_DEPRECATED(5.0, "FBoneMirrorExport is deprecated. Please use UMirrorDataTable for mirroring support.") FBoneMirrorExport;
 USTRUCT()
 struct FBoneMirrorExport
 {
@@ -1029,10 +1030,11 @@ public:
 	}
 
 	/** List of bones that should be mirrored. */
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkelMirrorTable() or USkeletalMesh::SetSkelMirrorTable().")
+	UE_DEPRECATED(4.27, "Please do not access this member directly; Use UMirrorDataTable for mirroring support")
 	UPROPERTY(EditAnywhere, editfixedsize, Category=Mirroring)
 	TArray<struct FBoneMirrorInfo> SkelMirrorTable;
 
+    UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	static FName GetSkelMirrorTableMemberName()
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1040,6 +1042,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+    UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	TArray<struct FBoneMirrorInfo>& GetSkelMirrorTable()
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorTable);
@@ -1048,6 +1051,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+    UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	const TArray<struct FBoneMirrorInfo>& GetSkelMirrorTable() const
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorTable, EAsyncPropertyLockType::ReadOnly);
@@ -1056,6 +1060,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+    UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	void SetSkelMirrorTable(const TArray<struct FBoneMirrorInfo>& InSkelMirrorTable)
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorTable);
@@ -1319,7 +1324,6 @@ public:
 	int32 GetMaxNumOptionalLODs(const class ITargetPlatform* TargetPlatform) const;
 #endif
 
-
 	UFUNCTION(BlueprintSetter)
 	void SetDefaultAnimatingRig(TSoftObjectPtr<UObject> InAnimatingRig);
 
@@ -1336,6 +1340,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	TEnumAsByte<EAxis::Type> GetSkelMirrorAxis() const
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorAxis, EAsyncPropertyLockType::ReadOnly);
@@ -1344,6 +1349,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	void SetSkelMirrorAxis(TEnumAsByte<EAxis::Type> InSkelMirrorAxis)
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorAxis);
@@ -1352,7 +1358,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	UE_DEPRECATED(4.27, "Please do not access this member directly; use USkeletalMesh::GetSkelMirrorFlipAxis() or USkeletalMesh::SetSkelMirrorFlipAxis().")
+	UE_DEPRECATED(4.27, "Please do not access this member directly; Use UMirrorDataTable for mirroring support")
 	UPROPERTY(EditAnywhere, Category=Mirroring)
 	TEnumAsByte<EAxis::Type> SkelMirrorFlipAxis;
 	static FName GetSkelMirrorFlipAxisMemberName()
@@ -1362,6 +1368,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+    UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	TEnumAsByte<EAxis::Type> GetSkelMirrorFlipAxis() const
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorFlipAxis, EAsyncPropertyLockType::ReadOnly);
@@ -1370,6 +1377,7 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
+    UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support")
 	void SetSkelMirrorFlipAxis(TEnumAsByte<EAxis::Type> InSkelMirrorFlipAxis)
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkelMirrorFlipAxis);
@@ -2603,20 +2611,23 @@ public:
 	 */
 	FMatrix GetComposedRefPoseMatrix( FName InBoneName ) const;
 	FMatrix GetComposedRefPoseMatrix( int32 InBoneIndex ) const;
-
-	/** Allocate and initialise bone mirroring table for this skeletal mesh. Default is source = destination for each bone. */
+	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support.")
 	void InitBoneMirrorInfo();
 
-	/** Utility for copying and converting a mirroring table from another USkeletalMesh. */
+	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support.")
 	void CopyMirrorTableFrom(USkeletalMesh* SrcMesh);
+	
+	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	void ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo) const;
-	void ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	/** 
-	 *	Utility for checking that the bone mirroring table of this mesh is good.
-	 *	Return true if mirror table is OK, false if there are problems.
-	 *	@param	ProblemBones	Output string containing information on bones that are currently bad.
-	 */
+	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	void ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring support.")
 	bool MirrorTableIsGood(FString& ProblemBones) const;
 
 	/**

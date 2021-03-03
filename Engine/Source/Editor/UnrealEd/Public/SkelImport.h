@@ -60,7 +60,10 @@ struct FExistingSkelMeshData
 	bool									bExistingUseFullPrecisionUVs;
 	bool									bExistingUseHighPrecisionTangentBasis;
 
+	UE_DEPRECATED(5.0, "Please use UMirrorDataTable for mirroring ")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TArray<FBoneMirrorExport>				ExistingMirrorTable;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	TWeakObjectPtr<UAssetImportData>		ExistingAssetImportData;
 	TWeakObjectPtr<UThumbnailInfo>			ExistingThumbnailInfo;
