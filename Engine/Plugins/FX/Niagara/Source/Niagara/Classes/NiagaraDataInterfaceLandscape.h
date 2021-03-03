@@ -74,12 +74,11 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool HasPreSimulateTick() const override { return true; }
 
-	ALandscape* GetLandscape(const FNiagaraSystemInstance& SystemInstance) const;
-	
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	void ApplyLandscape(const FNiagaraSystemInstance& SystemInstance, FNDILandscapeData_GameThread& InstanceData) const;
-		
+	ALandscape* GetLandscape(const FNiagaraSystemInstance& SystemInstance, ALandscape* Hint) const;
+
 	static const FName GetHeightName;
 	static const FName GetWorldNormalName;
 };

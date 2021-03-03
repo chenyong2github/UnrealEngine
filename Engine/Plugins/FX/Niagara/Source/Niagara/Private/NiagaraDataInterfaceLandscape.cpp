@@ -792,7 +792,7 @@ bool UNiagaraDataInterfaceLandscape::PerInstanceTick(void* PerInstanceData, FNia
 
 void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance& SystemInstance, FNDILandscapeData_GameThread& InstanceData) const
 {
-	ALandscape* Landscape = GetLandscape(SystemInstance);
+	ALandscape* Landscape = GetLandscape(SystemInstance, InstanceData.Landscape.Get());
 
 	if (InstanceData.Landscape != Landscape)
 	{
@@ -855,7 +855,7 @@ void UNiagaraDataInterfaceLandscape::ApplyLandscape(const FNiagaraSystemInstance
 
 // Users can supply a ALandscape actor
 // if none is provided, then we use the World's LandscapeInfoMap to find an appropriate ALandscape actor
-ALandscape* UNiagaraDataInterfaceLandscape::GetLandscape(const FNiagaraSystemInstance& SystemInstance) const
+ALandscape* UNiagaraDataInterfaceLandscape::GetLandscape(const FNiagaraSystemInstance& SystemInstance, ALandscape* Hint) const
 {
 	if (ALandscape* Landscape = Cast<ALandscape>(SourceLandscape))
 	{
@@ -868,8 +868,28 @@ ALandscape* UNiagaraDataInterfaceLandscape::GetLandscape(const FNiagaraSystemIns
 	}
 
 	const FBox WorldBounds = SystemInstance.GetLocalBounds().TransformBy(SystemInstance.GetWorldTransform());
-	TArray<const ALandscape*, TInlineAllocator<2>> RejectedLandscapes;
 
+	auto TestLandscape = [&](const ALandscape* InLandscape)
+	{
+		if (InLandscape->GetWorld() == SystemInstance.GetWorld())
+		{
+			const FBox& LandscapeBounds = InLandscape->GetComponentsBoundingBox();
+
+			if (LandscapeBounds.IntersectXY(WorldBounds))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	};
+
+	if (Hint && TestLandscape(Hint))
+	{
+		return Hint;
+	}
+
+	TArray<const ALandscape*, TInlineAllocator<2>> RejectedLandscapes;
 	for (TObjectIterator<ALandscapeProxy> It; It; ++It)
 	{
 		// for now we'll skip streaming proxies
@@ -884,14 +904,9 @@ ALandscape* UNiagaraDataInterfaceLandscape::GetLandscape(const FNiagaraSystemIns
 			continue;
 		}
 
-		if (Landscape->GetWorld() == SystemInstance.GetWorld())
+		if (TestLandscape(Landscape))
 		{
-			const FBox& LandscapeBounds = Landscape->GetComponentsBoundingBox();
-
-			if (LandscapeBounds.IntersectXY(WorldBounds))
-			{
-				return Landscape;
-			}
+			return Landscape;
 		}
 
 		RejectedLandscapes.AddUnique(Landscape);
