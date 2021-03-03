@@ -131,7 +131,10 @@ SControlRigStackView::~SControlRigStackView()
 		}
 		if (OnControlRigInitializedHandle.IsValid())
 		{
-			ControlRigEditor.Pin()->ControlRig->OnInitialized_AnyThread().Remove(OnControlRigInitializedHandle);
+			if(ControlRigEditor.Pin()->ControlRig)
+			{
+				ControlRigEditor.Pin()->ControlRig->OnInitialized_AnyThread().Remove(OnControlRigInitializedHandle);
+			}
 		}
 		if (OnPreviewControlRigUpdatedHandle.IsValid())
 		{
@@ -509,8 +512,10 @@ void SControlRigStackView::OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM*
 
 	if (ControlRigEditor.IsValid() && !OnControlRigInitializedHandle.IsValid())
 	{
-		UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig;
-		OnControlRigInitializedHandle = ControlRig->OnInitialized_AnyThread().AddSP(this, &SControlRigStackView::HandleControlRigInitializedEvent);
+		if(UControlRig* ControlRig = ControlRigEditor.Pin()->ControlRig)
+		{
+			OnControlRigInitializedHandle = ControlRig->OnInitialized_AnyThread().AddSP(this, &SControlRigStackView::HandleControlRigInitializedEvent);
+		}
 	}
 }
 

@@ -1032,6 +1032,8 @@ TSharedRef<IControlRigEditor> FControlRigEditorModule::CreateControlRigEditor(co
 
 void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBlueprintActionDatabaseRegistrar& ActionRegistrar)
 {
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+
 	// actions get registered under specific object-keys; the idea is that 
 	// actions might have to be updated (or deleted) if their object-key is  
 	// mutated (or removed)... here we use the class (so if the class 
@@ -1152,6 +1154,36 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		UBlueprintNodeSpawner* NodeSpawner = UControlRigEnumNodeSpawner::CreateForEnum(EnumToConsider, MenuDesc, NodeCategory, ToolTip);
 		check(NodeSpawner != nullptr);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
+	}
+
+	FArrayProperty* PublicFunctionsProperty = CastField<FArrayProperty>(UControlRigBlueprint::StaticClass()->FindPropertyByName(TEXT("PublicFunctions")));
+	if(PublicFunctionsProperty)
+	{
+		// find all control rigs in the project
+		TArray<FAssetData> ControlRigAssetDatas;
+		FARFilter ControlRigAssetFilter;
+		ControlRigAssetFilter.ClassNames.Add(UControlRigBlueprint::StaticClass()->GetFName());
+		AssetRegistryModule.Get().GetAssets(ControlRigAssetFilter, ControlRigAssetDatas);
+
+		// loop over all control rigs in the project
+		for(const FAssetData& ControlRigAssetData : ControlRigAssetDatas)
+		{
+			const FString PublicFunctionsString = ControlRigAssetData.GetTagValueRef<FString>(PublicFunctionsProperty->GetFName());
+			if(PublicFunctionsString.IsEmpty())
+			{
+				continue;
+			}
+
+			TArray<FControlRigPublicFunctionData> PublicFunctions;
+			PublicFunctionsProperty->ImportText(*PublicFunctionsString, &PublicFunctions, EPropertyPortFlags::PPF_None, nullptr);
+
+			for(const FControlRigPublicFunctionData& PublicFunction : PublicFunctions)
+			{
+				UBlueprintNodeSpawner* NodeSpawner = UControlRigFunctionRefNodeSpawner::CreateFromAssetData(ControlRigAssetData, PublicFunction);
+				check(NodeSpawner != nullptr);
+				ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
+			}
+		}
 	}
 }
 

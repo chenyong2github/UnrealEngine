@@ -38,6 +38,66 @@ DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnNodeDoubleClicked, UControlRigB
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnGraphImported, UEdGraph*);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnPostEditChangeChainProperty, FPropertyChangedChainEvent&);
 
+
+USTRUCT()
+struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionArg
+{
+	GENERATED_BODY();
+	
+	FControlRigPublicFunctionArg()
+	: Name(NAME_None)
+	, CPPType(NAME_None)
+	, CPPTypeObjectPath(NAME_None)
+	, bIsArray(false)
+	, Direction(ERigVMPinDirection::Input)
+	{}
+
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	FName CPPType;
+
+	UPROPERTY()
+	FName CPPTypeObjectPath;
+
+	UPROPERTY()
+	bool bIsArray;
+
+	UPROPERTY()
+	ERigVMPinDirection Direction;
+
+	FEdGraphPinType GetPinType() const;
+};
+
+USTRUCT()
+struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionData
+{
+	GENERATED_BODY();
+
+	FControlRigPublicFunctionData()
+		:Name(NAME_None)
+	{}
+
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	FString DisplayName;
+
+	UPROPERTY()
+	FString Category;
+
+	UPROPERTY()
+	FString Keywords;
+
+	UPROPERTY()
+	FControlRigPublicFunctionArg ReturnValue;
+
+	UPROPERTY()
+	TArray<FControlRigPublicFunctionArg> Arguments;
+};
+
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
 {
@@ -53,6 +113,8 @@ public:
 
 	/** Get the (skeleton) generated class for this control rig blueprint */
 	UControlRigBlueprintGeneratedClass* GetControlRigBlueprintSkeletonClass() const;
+
+	virtual void Serialize(FArchive& Ar) override;
 
 #if WITH_EDITOR
 
@@ -151,6 +213,10 @@ protected:
 
 	UPROPERTY(BlueprintReadOnly, Category = "VM")
 	URigVMFunctionLibrary* FunctionLibrary;
+
+	/** Asset searchable information about exposed public functions on this rig */
+	UPROPERTY(AssetRegistrySearchable)
+	TArray<FControlRigPublicFunctionData> PublicFunctions;
 
 	UPROPERTY(BlueprintReadOnly, transient, Category = "VM")
 	TMap<URigVMGraph*, URigVMController*> Controllers;
@@ -405,4 +471,5 @@ private:
 	friend struct FRigValidationTabSummoner;
 	friend class UAnimGraphNode_ControlRig;
 	friend class UControlRigThumbnailRenderer;
+	friend class FControlRigGraphDetails;
 };

@@ -41,6 +41,18 @@ void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
 	InBlueprint->OnModified().AddUObject(this, &UControlRigGraph::HandleModifiedEvent);
 	InBlueprint->OnVMCompiled().RemoveAll(this);
 	InBlueprint->OnVMCompiled().AddUObject(this, &UControlRigGraph::HandleVMCompiledEvent);
+
+	URigHierarchy* Hierarchy = InBlueprint->Hierarchy;
+
+	if(UControlRig* ControlRig = Cast<UControlRig>(InBlueprint->GetObjectBeingDebugged()))
+	{
+		Hierarchy = ControlRig->GetHierarchy();
+	}
+
+	if(Hierarchy)
+	{
+		CacheNameLists(Hierarchy, &InBlueprint->DrawContainer);
+	}
 }
 
 const UControlRigGraphSchema* UControlRigGraph::GetControlRigGraphSchema()
@@ -748,5 +760,42 @@ void UControlRigGraph::HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* In
 }
 
 #endif
+
+FControlRigPublicFunctionData UControlRigGraph::GetPublicFunctionData() const
+{
+	FControlRigPublicFunctionData Data;
+
+	FString Prefix, ModelNodeName;
+	if(!URigVMNode::SplitNodePathAtEnd(ModelNodePath, Prefix, ModelNodeName))
+	{
+		ModelNodeName = ModelNodePath;
+	}
+	Data.Name = *ModelNodeName;
+
+	if(URigVMGraph* RigGraph = GetModel())
+	{
+		if(URigVMCollapseNode* FunctionNode = Cast<URigVMCollapseNode>(RigGraph->GetOuter()))
+		{
+			Data.Category = FunctionNode->GetNodeCategory();
+			Data.Keywords = FunctionNode->GetNodeKeywords();
+			
+			for(URigVMPin* Pin : FunctionNode->GetPins())
+			{
+				FControlRigPublicFunctionArg Arg;
+				Arg.Name = Pin->GetFName();
+				Arg.bIsArray = Pin->IsArray();
+				Arg.Direction = Pin->GetDirection();
+				Arg.CPPType = *Pin->GetCPPType();
+				if(Pin->GetCPPTypeObject())
+				{
+					Arg.CPPTypeObjectPath = *Pin->GetCPPTypeObject()->GetPathName();
+				}
+				Data.Arguments.Add(Arg);
+			}
+		}
+	}
+
+	return Data;
+}
 
 #undef LOCTEXT_NAMESPACE

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ControlRigBlueprint.h"
 #include "EdGraph/EdGraph.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Rigs/RigHierarchy.h"
@@ -79,6 +80,8 @@ public:
 
 	UPROPERTY()
 	bool bIsFunctionDefinition;
+
+	FControlRigPublicFunctionData GetPublicFunctionData() const;
 
 private:
 

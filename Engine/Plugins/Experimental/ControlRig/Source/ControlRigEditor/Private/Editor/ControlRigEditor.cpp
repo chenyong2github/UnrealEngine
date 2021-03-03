@@ -77,6 +77,7 @@
 #include "BlueprintEditorTabs.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
+#include "BlueprintActionDatabaseRegistrar.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -1410,8 +1411,15 @@ void FControlRigEditor::SaveAsset_Execute()
 
 	// Save the new state of the hierarchy in the default object, so that it has the correct values on load
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-	UControlRig* CDO = ControlRig->GetClass()->GetDefaultObject<UControlRig>();
-	CDO->DynamicHierarchy->CopyHierarchy(RigBlueprint->Hierarchy);
+	if(ControlRig)
+	{
+		UControlRig* CDO = ControlRig->GetClass()->GetDefaultObject<UControlRig>();
+		CDO->DynamicHierarchy->CopyHierarchy(RigBlueprint->Hierarchy);
+	}
+
+	FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
+	ActionDatabase.ClearAssetActions(UControlRigBlueprint::StaticClass());
+	ActionDatabase.RefreshClassActions(UControlRigBlueprint::StaticClass());
 }
 
 void FControlRigEditor::SaveAssetAs_Execute()
@@ -1421,8 +1429,15 @@ void FControlRigEditor::SaveAssetAs_Execute()
 
 	// Save the new state of the hierarchy in the default object, so that it has the correct values on load
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(GetBlueprintObj());
-	UControlRig* CDO = ControlRig->GetClass()->GetDefaultObject<UControlRig>();
-	CDO->DynamicHierarchy->CopyHierarchy(RigBlueprint->Hierarchy);
+	if(ControlRig)
+	{
+		UControlRig* CDO = ControlRig->GetClass()->GetDefaultObject<UControlRig>();
+		CDO->DynamicHierarchy->CopyHierarchy(RigBlueprint->Hierarchy);
+	}
+
+	FBlueprintActionDatabase& ActionDatabase = FBlueprintActionDatabase::Get();
+	ActionDatabase.ClearAssetActions(UControlRigBlueprint::StaticClass());
+	ActionDatabase.RefreshClassActions(UControlRigBlueprint::StaticClass());
 }
 
 FName FControlRigEditor::GetToolkitFName() const
@@ -4301,6 +4316,22 @@ void FControlRigEditor::OnNodeDoubleClicked(UControlRigBlueprint* InBlueprint, U
 			if (UEdGraph* EdGraph = InBlueprint->GetEdGraph(ContainedGraph))
 			{
 				OpenGraphAndBringToFront(EdGraph, true);
+			}
+			else
+			{
+				if(URigVMCollapseNode* FunctionLibraryNode = Cast<URigVMCollapseNode>(ContainedGraph->GetOuter()))
+				{
+					if(URigVMFunctionLibrary* FunctionLibrary = FunctionLibraryNode->GetLibrary())
+					{
+						if(UControlRigBlueprint* FunctionBlueprint = Cast<UControlRigBlueprint>(FunctionLibrary->GetOuter()))
+						{
+							if (UEdGraph* FunctionEdGraph = FunctionBlueprint->GetEdGraph(ContainedGraph))
+							{
+								FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(FunctionEdGraph);
+							}
+						}
+					}
+				}
 			}
 		}
 	}

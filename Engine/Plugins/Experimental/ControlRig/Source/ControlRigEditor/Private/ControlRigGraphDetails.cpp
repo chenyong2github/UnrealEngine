@@ -9,6 +9,7 @@
 #include "EditorStyleSet.h"
 #include "SPinTypeSelector.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
@@ -322,22 +323,6 @@ FEdGraphPinType FControlRigArgumentLayout::OnGetPinInfo() const
 		return UControlRigGraphNode::GetPinTypeForModelPin(PinPtr.Get());
 	}
 	return FEdGraphPinType();
-}
-
-ECheckBoxState FControlRigArgumentLayout::IsRefChecked() const
-{
-	FEdGraphPinType PinType = OnGetPinInfo();
-	return PinType.bIsReference ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-void FControlRigArgumentLayout::OnRefCheckStateChanged(ECheckBoxState InState)
-{
-	const FScopedTransaction Transaction(LOCTEXT("ChangeByRef", "Change Pass By Reference"));
-
-	FEdGraphPinType PinType = OnGetPinInfo();
-	PinType.bIsReference = (InState == ECheckBoxState::Checked) ? true : false;
-
-	PinInfoChanged(PinType);
 }
 
 void FControlRigArgumentLayout::PinInfoChanged(const FEdGraphPinType& PinType)
@@ -675,6 +660,39 @@ void FControlRigGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayou
 			.Text(this, &FControlRigGraphDetails::GetNodeKeywords)
 			.OnTextCommitted(this, &FControlRigGraphDetails::SetNodeKeywords)
 		];
+
+		if(AccessSpecifierStrings.IsEmpty())
+		{
+			AccessSpecifierStrings.Add(TSharedPtr<FString>(new FString(TEXT("Public"))));
+			AccessSpecifierStrings.Add(TSharedPtr<FString>(new FString(TEXT("Private"))));
+		}
+
+		// access specifier
+		SettingsCategory.AddCustomRow( LOCTEXT( "AccessSpecifier", "Access Specifier" ) )
+        .NameContent()
+        [
+            SNew(STextBlock)
+                .Text( LOCTEXT( "AccessSpecifier", "Access Specifier" ) )
+                .Font( IDetailLayoutBuilder::GetDetailFont() )
+        ]
+        .ValueContent()
+        [
+            SNew(SComboButton)
+            .ContentPadding(0)
+            .ButtonContent()
+            [
+                SNew(STextBlock)
+                    .Text(this, &FControlRigGraphDetails::GetCurrentAccessSpecifierName)
+                    .Font( IDetailLayoutBuilder::GetDetailFont() )
+            ]
+            .MenuContent()
+            [
+                SNew(SListView<TSharedPtr<FString> >)
+                    .ListItemsSource( &AccessSpecifierStrings )
+                    .OnGenerateRow(this, &FControlRigGraphDetails::HandleGenerateRowAccessSpecifier)
+                    .OnSelectionChanged(this, &FControlRigGraphDetails::OnAccessSpecifierSelected)
+            ]
+        ];
 	}
 
 	// node color
@@ -910,6 +928,75 @@ FReply FControlRigGraphDetails::OnNodeColorClicked()
 	PickerArgs.OnColorPickerCancelled = FOnColorPickerCancelled::CreateSP(this, &FControlRigGraphDetails::OnNodeColorCancelled);
 	OpenColorPicker(PickerArgs);
 	return FReply::Handled();
+}
+
+TArray<TSharedPtr<FString>> FControlRigGraphDetails::AccessSpecifierStrings;
+
+FText FControlRigGraphDetails::GetCurrentAccessSpecifierName() const
+{
+	if(ControlRigBlueprintPtr.IsValid() && GraphPtr.IsValid())
+	{
+		UControlRigGraph* Graph = GraphPtr.Get();
+		UControlRigBlueprint* ControlRigBlueprint = ControlRigBlueprintPtr.Get();
+
+		const FControlRigPublicFunctionData ExpectedFunctionData = Graph->GetPublicFunctionData();
+		for(const FControlRigPublicFunctionData& PublicFunction : ControlRigBlueprint->PublicFunctions)
+		{
+			if(PublicFunction.Name == ExpectedFunctionData.Name)
+			{
+				return FText::FromString(*AccessSpecifierStrings[0].Get()); // public
+			}
+		}
+
+		return FText::FromString(*AccessSpecifierStrings[1].Get()); // private
+	}
+
+	return FText::FromString(*AccessSpecifierStrings[1].Get()); // private
+}
+
+void FControlRigGraphDetails::OnAccessSpecifierSelected( TSharedPtr<FString> SpecifierName, ESelectInfo::Type SelectInfo )
+{
+	if(ControlRigBlueprintPtr.IsValid() && GraphPtr.IsValid())
+	{
+		UControlRigGraph* Graph = GraphPtr.Get();
+		UControlRigBlueprint* ControlRigBlueprint = ControlRigBlueprintPtr.Get();
+		ControlRigBlueprint->Modify();
+
+		if(SpecifierName->Equals(TEXT("Private")))
+		{
+			for(int32 Index = 0; Index < ControlRigBlueprint->PublicFunctions.Num(); Index++)
+			{
+				if(ControlRigBlueprint->PublicFunctions[Index].Name == Graph->GetFName())
+				{
+					ControlRigBlueprint->PublicFunctions.RemoveAt(Index);
+					return;
+				}
+			}
+		}
+		else
+		{
+			const FControlRigPublicFunctionData NewFunctionData = Graph->GetPublicFunctionData();
+			for(FControlRigPublicFunctionData& ExistingFunctionData : ControlRigBlueprint->PublicFunctions)
+			{
+				if(ExistingFunctionData.Name == NewFunctionData.Name)
+				{
+					ExistingFunctionData = NewFunctionData;
+					return;
+				}
+			}
+			ControlRigBlueprint->PublicFunctions.Add(NewFunctionData);
+		}
+	}
+}
+
+TSharedRef<ITableRow> FControlRigGraphDetails::HandleGenerateRowAccessSpecifier( TSharedPtr<FString> SpecifierName, const TSharedRef<STableViewBase>& OwnerTable )
+{
+	return SNew(STableRow< TSharedPtr<FString> >, OwnerTable)
+        .Content()
+        [
+            SNew( STextBlock ) 
+                .Text(FText::FromString(*SpecifierName.Get()) )
+        ];
 }
 
 #undef LOCTEXT_NAMESPACE

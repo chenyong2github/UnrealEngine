@@ -37,6 +37,21 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigBlueprint"
 
+FEdGraphPinType FControlRigPublicFunctionArg::GetPinType() const
+{
+	FRigVMExternalVariable Variable;
+	Variable.Name = Name;
+	Variable.bIsArray = bIsArray;
+	Variable.TypeName = CPPType;
+	
+	if(CPPTypeObjectPath.IsValid())
+	{
+		Variable.TypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
+	}
+
+	return UControlRig::GetPinTypeFromExternalVariable(Variable);
+}
+
 TArray<UControlRigBlueprint*> UControlRigBlueprint::sCurrentlyOpenedRigBlueprints;
 
 UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectInitializer)
@@ -220,6 +235,51 @@ void UControlRigBlueprint::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMark
 	PreviewSkeletalMesh = PreviewMesh;
 }
 
+void UControlRigBlueprint::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if(Ar.IsObjectReferenceCollector())
+	{
+		TArray<UBlueprint*> ReferencedBlueprints;
+		
+		TArray<UEdGraph*> EdGraphs;
+		GetAllGraphs(EdGraphs);
+		for (UEdGraph* EdGraph : EdGraphs)
+		{
+			for(UEdGraphNode* Node : EdGraph->Nodes)
+			{
+				if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+				{
+					if(URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
+					{
+						if(URigVMLibraryNode* ReferencedNode = FunctionRefNode->GetReferencedNode())
+						{
+							if(URigVMFunctionLibrary* ReferencedFunctionLibrary = ReferencedNode->GetLibrary())
+							{
+								if(ReferencedFunctionLibrary == GetLocalFunctionLibrary())
+								{
+									continue;
+								}
+
+								if(UBlueprint* ReferencedBlueprint = Cast<UBlueprint>(ReferencedFunctionLibrary->GetOuter()))
+								{
+									ReferencedBlueprints.AddUnique(ReferencedBlueprint);
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		for(UBlueprint* ReferencedBlueprint : ReferencedBlueprints)
+		{
+			Ar << ReferencedBlueprints;
+		}
+	}
+}
+
 void UControlRigBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 {
 	Super::PreSave(TargetPlatform);
@@ -243,6 +303,17 @@ void UControlRigBlueprint::PreSave(const class ITargetPlatform* TargetPlatform)
 		}
 		return true;
 	});
+
+	for(FControlRigPublicFunctionData& FunctionData : PublicFunctions)
+	{
+		if(URigVMLibraryNode* FunctionNode = FunctionLibrary->FindFunction(FunctionData.Name))
+		{
+			if(UControlRigGraph* Graph = Cast<UControlRigGraph>(GetEdGraph(FunctionNode->GetContainedGraph())))
+			{
+				FunctionData = Graph->GetPublicFunctionData();
+			}
+		}
+	}
 }
 
 void UControlRigBlueprint::PostLoad()
@@ -1787,6 +1858,19 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 
 					ClearTransientControls();
 					RequestAutoVMRecompilation();
+
+					if(CollapseNode->GetOuter()->IsA<URigVMFunctionLibrary>())
+					{
+						for(int32 Index = 0; Index < PublicFunctions.Num(); Index++)
+						{
+							if(PublicFunctions[Index].Name == CollapseNode->GetFName())
+							{
+								Modify();
+								PublicFunctions.RemoveAt(Index);
+							}
+						}
+					}
+
 					MarkPackageDirty();
 					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);
 					break;
@@ -1882,6 +1966,18 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 					if (UEdGraph* ContainedEdGraph = GetEdGraph(CollapseNode->GetContainedGraph()))
 					{
 						ContainedEdGraph->Rename(*CollapseNode->GetEditorSubGraphName(), nullptr);
+					}
+
+					if(CollapseNode->GetOuter()->IsA<URigVMFunctionLibrary>())
+					{
+						for(int32 Index = 0; Index < PublicFunctions.Num(); Index++)
+						{
+							if(PublicFunctions[Index].Name == CollapseNode->GetPreviousFName())
+							{
+								Modify();
+								PublicFunctions[Index].Name = CollapseNode->GetFName();
+							}
+						}
 					}
 
 					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(this);

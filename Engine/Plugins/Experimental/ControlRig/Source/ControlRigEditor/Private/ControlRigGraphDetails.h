@@ -43,7 +43,6 @@ private:
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
 	bool bIsInputGroup;
 	FSimpleDelegate OnRebuildChildren;
-
 };
 
 class FControlRigArgumentLayout : public IDetailCustomNodeBuilder, public TSharedFromThis<FControlRigArgumentLayout>
@@ -90,12 +89,6 @@ private:
 	FEdGraphPinType OnGetPinInfo() const;
 	void PinInfoChanged(const FEdGraphPinType& PinType);
 	void OnPrePinInfoChange(const FEdGraphPinType& PinType);
-
-	/** Returns whether the "Pass-by-Reference" checkbox is checked or not */
-	ECheckBoxState IsRefChecked() const;
-
-	/** Handles toggling the "Pass-by-Reference" checkbox */
-	void OnRefCheckStateChanged(ECheckBoxState InState);
 
 private:
 
@@ -174,6 +167,9 @@ public:
 	void OnNodeColorEnd();
 	void OnNodeColorCancelled(FLinearColor OriginalColor);
 	FReply OnNodeColorClicked();
+	FText GetCurrentAccessSpecifierName() const;
+	void OnAccessSpecifierSelected( TSharedPtr<FString> SpecifierName, ESelectInfo::Type SelectInfo );
+	TSharedRef<ITableRow> HandleGenerateRowAccessSpecifier( TSharedPtr<FString> SpecifierName, const TSharedRef<STableViewBase>& OwnerTable );
 
 private:
 
@@ -197,4 +193,6 @@ private:
 
 	/** Set to true if the UI is currently picking a color */
 	bool bIsPickingColor;
+
+	static TArray<TSharedPtr<FString>> AccessSpecifierStrings;
 };
