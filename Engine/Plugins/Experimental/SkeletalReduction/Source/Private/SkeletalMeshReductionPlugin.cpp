@@ -25,6 +25,7 @@
 #include "ClothingAsset.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "LODUtilities.h"
+#include "Animation/AnimSequence.h"
 #include "Async/Async.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshReduction"
@@ -2046,11 +2047,11 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 				// Make sure the deletion is happening on the game-thread.
 				// Deleting a structure containing bulkdata can crash when the bulkdata is detached from the archive.
 				if (IsInGameThread())
-				{
-					delete Old;
-				}
-				else
-				{
+			{
+				delete Old;
+			}
+			else
+			{
 					Async(EAsyncExecution::TaskGraphMainThread, [Old]() { delete Old; });
 				}
 			}
