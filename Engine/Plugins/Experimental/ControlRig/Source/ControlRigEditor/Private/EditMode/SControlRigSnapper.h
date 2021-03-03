@@ -8,13 +8,9 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SCheckBox.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/STableRow.h"
 #include "Tools/ControlRigSnapper.h"
 #include "Misc/FrameNumber.h"
+#include "IDetailsView.h"
 
 class UControlRig;
 class ISequencer;

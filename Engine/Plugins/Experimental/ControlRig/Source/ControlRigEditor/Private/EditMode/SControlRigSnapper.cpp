@@ -22,6 +22,10 @@
 #include "Tools/ControlRigSnapSettings.h"
 #include "LevelEditor.h"
 #include "Editor/SceneOutliner/Private/SSocketChooser.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigSnapper"
 
