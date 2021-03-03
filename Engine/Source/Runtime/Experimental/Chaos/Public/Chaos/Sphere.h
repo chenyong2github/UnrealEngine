@@ -329,9 +329,9 @@ namespace Chaos
 			return PMatrix<T, d, d>(Diagonal, Diagonal, Diagonal);
 		}
 
-		static TRotation<T, d> GetRotationOfMass()
-		{ 
-			return TRotation<T, d>::FromIdentity(); 
+		TRotation<T, d> GetRotationOfMass() const
+		{
+			return TRotation<T, d>::FromIdentity();
 		}
 
 		virtual uint32 GetTypeHash() const override

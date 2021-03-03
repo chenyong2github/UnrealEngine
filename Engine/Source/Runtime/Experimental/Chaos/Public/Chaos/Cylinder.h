@@ -207,8 +207,13 @@ namespace Chaos
 			return PMatrix<T, 3, 3>(Diag12, Diag12, Diag3);
 		}
 
-		static TRotation<T, 3> GetRotationOfMass()
-		{ return TRotation<T, 3>(TVector<T, 3>(0), 1); }
+		TRotation<T, 3> GetRotationOfMass() const { return GetRotationOfMass(GetAxis()); }
+		static TRotation<T, 3> GetRotationOfMass(const TVec3<T>& Axis)
+		{ 
+			// since the cylinder stores an axis and the InertiaTensor is assumed to be along the ZAxis
+			// we need to make sure to return the rotation of the axis from Z
+			return TRotation<T, 3>::FromRotatedVector(TVector<T, 3>(0, 0, 1), Axis);
+		}
 
 		virtual void Serialize(FChaosArchive& Ar)
 		{
