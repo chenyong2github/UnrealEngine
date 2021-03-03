@@ -89,9 +89,9 @@ float TraverseHair(uint2 PixelCoord, inout RandomSequence RandSequence, float3 R
 {
 	float HitT = InMinT;
 
-	// TODO: use 4D sample instead?
-	const float3 VoxelRandom = RandomSequence_GenerateSample3D(RandSequence);
-	const float RayRandom 	 = RandomSequence_GenerateSample1D(RandSequence);
+	const float4 Rnd = RandomSequence_GenerateSample4D(RandSequence);
+	const float3 VoxelRandom = Rnd.xyz;
+	const float RayRandom = Rnd.w;
 
 	return InternalTraverseHair(PixelCoord, RayOrigin, RayDirection, InMinT, InOcclusionThreshold, VoxelRandom, RayRandom);
 }
