@@ -39,6 +39,7 @@ public:
 	virtual FName GetTrackName() const override { return TrackName; }
 	// UObject
 	virtual void PostLoad() override;
+	virtual void PostEditImport() override;
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDefaultDisplayName() const override;
 #endif
@@ -105,6 +106,10 @@ public:
 	virtual UMovieSceneSection* GetSectionToKey() const override;
 
 	CONTROLRIG_API void SetTrackName(FName InName) { TrackName = InName; }
+
+private:
+
+	void ReconstructControlRig();
 
 private:
 

@@ -1075,6 +1075,7 @@ struct TControlRigParameterActuatorVector2D : TMovieSceneBlendingActuator<FContr
 	{
 		const UMovieSceneControlRigParameterSection* Section = SectionData.Get();
 
+		if (Section && Section->ControlRig)
 		{
 			FRigControl* RigControl = Section->ControlRig->FindControl(ParameterName);
 			if (RigControl && (RigControl->ControlType == ERigControlType::Vector2D))
@@ -1279,7 +1280,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 	const FFrameTime Time = Context.GetTime();
 
 	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
-	if (Section)
+	if (Section && Section->ControlRig)
 	{
 		FEvaluatedControlRigParameterSectionChannelMasks* ChannelMasks = PersistentData.FindSectionData<FEvaluatedControlRigParameterSectionChannelMasks>();
 		if (!ChannelMasks)
@@ -1573,7 +1574,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 	const FFrameTime Time = Context.GetTime();
 
 	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
-	if (Section)
+	if (Section && Section->ControlRig)
 	{
 		FEvaluatedControlRigParameterSectionChannelMasks ChannelMasks;
 		ChannelMasks.Initialize(Section, Scalars, Bools, Integers, Enums, Vector2Ds, Vectors, Colors, Transforms);

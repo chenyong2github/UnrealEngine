@@ -316,9 +316,8 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::GetSectionToKey() const
 	return SectionToKey;
 }
 
-void UMovieSceneControlRigParameterTrack::PostLoad()
+void UMovieSceneControlRigParameterTrack::ReconstructControlRig()
 {
-	Super::PostLoad();
 	if (ControlRig && !ControlRig->HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
 	{
 		ControlRig->ConditionalPostLoad();
@@ -336,6 +335,20 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 			}
 		}
 	}
+}
+
+void UMovieSceneControlRigParameterTrack::PostLoad()
+{
+	Super::PostLoad();
+
+	ReconstructControlRig();
+}
+
+void UMovieSceneControlRigParameterTrack::PostEditImport()
+{
+	Super::PostEditImport();
+
+	ReconstructControlRig();
 }
 
 CONTROLRIG_API void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UControlRig* NewControlRig, bool RecreateChannels)
