@@ -226,23 +226,6 @@ namespace Chaos
 		}
 	}
 
-	template <>
-	Chaos::TGeometryParticle<FReal, 3>* Chaos::TGeometryParticle<FReal, 3>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<FReal, 3>* Serializable)
-	{
-		int8 ObjectType = Ar.IsLoading() ? 0 : (int8)Serializable->Type;
-		Ar << ObjectType;
-		switch ((EParticleType)ObjectType)
-		{
-		case EParticleType::Static: if (Ar.IsLoading()) { return new FGeometryParticle(); } break;
-		case EParticleType::Kinematic: if (Ar.IsLoading()) { return new FKinematicGeometryParticle(); } break;
-		case EParticleType::Rigid: if (Ar.IsLoading()) { return new FPBDRigidParticle(); } break;
-		case EParticleType::GeometryCollection: if (Ar.IsLoading()) { return new FPBDGeometryCollectionParticle(); } break;
-		default:
-			check(false);
-		}
-		return nullptr;
-	}
-
 	const FVec3 FGenericParticleHandleHandleImp::ZeroVector = FVec3(0);
 	const FRotation3 FGenericParticleHandleHandleImp::IdentityRotation = FRotation3(FQuat::Identity);
 	const FMatrix33 FGenericParticleHandleHandleImp::ZeroMatrix = FMatrix33(0);

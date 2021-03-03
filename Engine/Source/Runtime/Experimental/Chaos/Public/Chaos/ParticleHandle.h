@@ -2356,8 +2356,9 @@ public:
 	}
 };
 
+// holding on the deprecation for now as inter dependencies require the use of TPBDGeometryCollectionParticle<> 
 template <typename T, int d>
-using TPBDGeometryCollectionParticle UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDGeometryCollectionParticle instead") = FPBDGeometryCollectionParticle;
+using TPBDGeometryCollectionParticle /* UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDGeometryCollectionParticle instead") */ = FPBDGeometryCollectionParticle;
 
 template <typename T, int d>
 const TKinematicGeometryParticle<T, d>* TGeometryParticle<T, d>::CastToKinematicParticle() const
@@ -2477,12 +2478,19 @@ void TKinematicGeometryParticle<T, d>::SetW(const TVector<T, d>& InW, bool bInva
 template <typename T, int d>
 TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable)
 {
-	// should always use the <FReal,3> specialization
-	check(false);
+	int8 ObjectType = Ar.IsLoading() ? 0 : (int8)Serializable->Type;
+	Ar << ObjectType;
+	switch ((EParticleType)ObjectType)
+	{
+	case EParticleType::Static: if (Ar.IsLoading()) { return new TGeometryParticle<T, d>(); } break;
+	case EParticleType::Kinematic: if (Ar.IsLoading()) { return new TKinematicGeometryParticle<T, d>(); } break;
+	case EParticleType::Rigid: if (Ar.IsLoading()) { return new TPBDRigidParticle<T, d>(); } break;
+	case EParticleType::GeometryCollection: if (Ar.IsLoading()) { return new TPBDGeometryCollectionParticle<T, d>(); } break;
+	default:
+		check(false);
+	}
+	return nullptr;
 }
-
-template <>
-CHAOS_API TGeometryParticle<FReal, 3>* TGeometryParticle<FReal, 3>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<FReal, 3>* Serializable);
 
 template <>
 CHAOS_API void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate);
