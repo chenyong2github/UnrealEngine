@@ -272,10 +272,16 @@ namespace DatasmithRuntime
 		}
 
 		ActorData.ParentId = ParentId;
-		ActorData.RelativeTransform = ActorElement->GetRelativeTransform();
+		ActorData.WorldTransform = FTransform( ActorElement->GetRotation(), ActorElement->GetTranslation(), ActorElement->GetScale() );
 
-		const FTransform& ParentTransform = (ParentId != DirectLink::InvalidId) ? ActorDataList[ParentId].WorldTransform : FTransform::Identity;
-		ActorData.WorldTransform = ActorData.RelativeTransform * ParentTransform;
+		if (ParentId != DirectLink::InvalidId)
+		{
+			ActorData.RelativeTransform = ActorData.WorldTransform.GetRelativeTransform( ActorDataList[ParentId].WorldTransform );
+		}
+		else
+		{
+			ActorData.RelativeTransform = ActorData.WorldTransform;
+		}
 
 		if (ActorElement->IsA(EDatasmithElementType::StaticMeshActor))
 		{
