@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Strata.ush"
+#include "StrataMultipleScattering.ush"
 
 #include "../ParticipatingMediaCommon.ush"
 #include "../MonteCarlo.ush"
