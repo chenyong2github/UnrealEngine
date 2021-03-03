@@ -148,6 +148,7 @@ struct FTGAFileHeader
  */
 UNREALED_API bool DecompressTGA_helper(
 	const FTGAFileHeader* TGA,
+	const int32 TGABufferLenght,
 	uint32*& TextureData,
 	const int32 TextureDataSize,
 	FFeedbackContext* Warn );

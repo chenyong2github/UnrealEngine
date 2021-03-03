@@ -2695,26 +2695,32 @@ static void psd_GetPSDHeader( const uint8* Buffer, FPSDFileHeader& Info )
 		((int32)Buffer[25] <<  0);
 }
 
-
-void DecompressTGA_RLE_32bpp( const FTGAFileHeader* TGA, uint32* TextureData )
+bool DecompressTGA_RLE_32bpp( const FTGAFileHeader* TGA, const uint32 TGABufferLenght, uint32* TextureData )
 {
-	uint8*	IdData		= (uint8*)TGA + sizeof(FTGAFileHeader); 
-	uint8*	ColorMap	= IdData + TGA->IdFieldLength;
-	uint8*	ImageData	= (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);				
-	uint32	Pixel		= 0;
-	int32     RLERun		= 0;
-	int32     RAWRun		= 0;
+	const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader); 
+	const uint8* const  ColorMap = IdData + TGA->IdFieldLength;
+	const uint8* ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+
+	const uint8* TGAEnd = (uint8*)TGA + TGABufferLenght;
+
+	uint32 Pixel = 0;
+	int32 RLERun = 0;
+	int32 RAWRun = 0;
 
 	for(int32 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
-	{					
+	{
 		for(int32 X = 0;X < TGA->Width;X++)
-		{						
+		{
 			if( RLERun > 0 )
 			{
 				RLERun--;  // reuse current Pixel data.
 			}
 			else if( RAWRun == 0 ) // new raw pixel or RLE-run.
 			{
+				if ( TGAEnd < ImageData )
+				{
+					return false;
+				}
 				uint8 RLEChunk = *(ImageData++);							
 				if( RLEChunk & 0x80 )
 				{
@@ -2725,7 +2731,12 @@ void DecompressTGA_RLE_32bpp( const FTGAFileHeader* TGA, uint32* TextureData )
 				{
 					RAWRun = ( RLEChunk & 0x7F ) + 1;
 				}
-			}							
+
+				if ( TGAEnd < ImageData + RAWRun * 4 )
+				{
+					return false;
+				}
+			}
 			// Retrieve new pixel data - raw run or single pixel for RLE stretch.
 			if( RAWRun > 0 )
 			{
@@ -2738,25 +2749,36 @@ void DecompressTGA_RLE_32bpp( const FTGAFileHeader* TGA, uint32* TextureData )
 			*( (TextureData + Y*TGA->Width)+X ) = Pixel;
 		}
 	}
+
+	return true;
 }
 
-void DecompressTGA_RLE_24bpp( const FTGAFileHeader* TGA, uint32* TextureData )
+bool DecompressTGA_RLE_24bpp( const FTGAFileHeader* TGA, const uint32 TGABufferLenght, uint32* TextureData )
 {
-	uint8*	IdData = (uint8*)TGA + sizeof(FTGAFileHeader); 
-	uint8*	ColorMap = IdData + TGA->IdFieldLength;
-	uint8*	ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
-	uint8    Pixel[4] = {};
-	int32     RLERun = 0;
-	int32     RAWRun = 0;
+	const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader); 
+	const uint8* const ColorMap = IdData + TGA->IdFieldLength;
+	const uint8* ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+
+	const uint8* TGAEnd = (uint8*)TGA + TGABufferLenght;
+
+	uint8 Pixel[4] = {};
+	int32 RLERun = 0;
+	int32 RAWRun = 0;
 
 	for(int32 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
-	{					
+	{
 		for(int32 X = 0;X < TGA->Width;X++)
-		{						
+		{
 			if( RLERun > 0 )
-				RLERun--;  // reuse current Pixel data.
+			{
+				RLERun--; // reuse current Pixel data.
+			}
 			else if( RAWRun == 0 ) // new raw pixel or RLE-run.
 			{
+				if ( TGAEnd < ImageData )
+				{
+					return false;
+				}
 				uint8 RLEChunk = *(ImageData++);
 				if( RLEChunk & 0x80 )
 				{
@@ -2767,7 +2789,12 @@ void DecompressTGA_RLE_24bpp( const FTGAFileHeader* TGA, uint32* TextureData )
 				{
 					RAWRun = ( RLEChunk & 0x7F ) + 1;
 				}
-			}							
+
+				if ( TGAEnd < ImageData + RAWRun * 3 )
+				{
+					return false;
+				}
+			}
 			// Retrieve new pixel data - raw run or single pixel for RLE stretch.
 			if( RAWRun > 0 )
 			{
@@ -2782,26 +2809,35 @@ void DecompressTGA_RLE_24bpp( const FTGAFileHeader* TGA, uint32* TextureData )
 			*( (TextureData + Y*TGA->Width)+X ) = *(uint32*)&Pixel;
 		}
 	}
+	return true;
 }
 
-void DecompressTGA_RLE_16bpp( const FTGAFileHeader* TGA, uint32* TextureData )
+bool DecompressTGA_RLE_16bpp( const FTGAFileHeader* TGA, const uint32 TGABufferLenght, uint32* TextureData )
 {
-	uint8*	IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
-	uint8*	ColorMap = IdData + TGA->IdFieldLength;				
-	uint16*	ImageData = (uint16*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
-	uint16  FilePixel = 0;
-	uint32	TexturePixel = 0;
-	int32     RLERun = 0;
-	int32     RAWRun = 0;
+	const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
+	const uint8* const ColorMap = IdData + TGA->IdFieldLength;				
+	const uint16* ImageData = (uint16*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+
+	const uint16* TGAEnd = (uint16*)TGA + TGABufferLenght / 2;
+
+	uint32 TexturePixel = 0;
+	int32 RLERun = 0;
+	int32 RAWRun = 0;
 
 	for(int32 Y = TGA->Height-1; Y >=0; Y--) // Y-flipped.
 	{					
 		for( int32 X=0;X<TGA->Width;X++ )
 		{						
 			if( RLERun > 0 )
+			{
 				RLERun--;  // reuse current Pixel data.
+			}
 			else if( RAWRun == 0 ) // new raw pixel or RLE-run.
 			{
+				if ( TGAEnd < ImageData )
+				{
+					return false;
+				}
 				uint8 RLEChunk =  *((uint8*)ImageData);
 				ImageData = (uint16*)(((uint8*)ImageData)+1);
 				if( RLEChunk & 0x80 )
@@ -2813,49 +2849,69 @@ void DecompressTGA_RLE_16bpp( const FTGAFileHeader* TGA, uint32* TextureData )
 				{
 					RAWRun = ( RLEChunk & 0x7F ) + 1;
 				}
-			}							
+
+				if ( TGAEnd < ImageData + RAWRun )
+				{
+					return false;
+				}
+			}
 			// Retrieve new pixel data - raw run or single pixel for RLE stretch.
 			if( RAWRun > 0 )
 			{ 
-				FilePixel = *(ImageData++);
+				const uint16 FilePixel = *(ImageData++);
 				RAWRun--;
 				RLERun--;
+
+				// Convert file format A1R5G5B5 into pixel format B8G8R8B8
+				TexturePixel = (FilePixel & 0x001F) << 3;
+				TexturePixel |= (FilePixel & 0x03E0) << 6;
+				TexturePixel |= (FilePixel & 0x7C00) << 9;
+				TexturePixel |= (FilePixel & 0x8000) << 16;
 			}
-			// Convert file format A1R5G5B5 into pixel format B8G8R8B8
-			TexturePixel = (FilePixel & 0x001F) << 3;
-			TexturePixel |= (FilePixel & 0x03E0) << 6;
-			TexturePixel |= (FilePixel & 0x7C00) << 9;
-			TexturePixel |= (FilePixel & 0x8000) << 16;
 			// Store.
 			*( (TextureData + Y*TGA->Width)+X ) = TexturePixel;
 		}
 	}
+
+	return true;
 }
 
-void DecompressTGA_32bpp( const FTGAFileHeader* TGA, uint32* TextureData )
+bool DecompressTGA_32bpp( const FTGAFileHeader* TGA, const uint32 TGABufferLenght, uint32* TextureData )
 {
 
-	uint8*	IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
-	uint8*	ColorMap = IdData + TGA->IdFieldLength;
-	uint32*	ImageData = (uint32*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+	const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
+	const uint8* const ColorMap = IdData + TGA->IdFieldLength;
+	const uint32* const ImageData = (uint32*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+
+	if ( (uint8*)TGA + TGABufferLenght < (uint8*)(ImageData + TGA->Width * TGA->Height) )
+	{
+		return false;
+	}
 
 	for(int32 Y = 0;Y < TGA->Height;Y++)
 	{
 		FMemory::Memcpy(TextureData + Y * TGA->Width,ImageData + (TGA->Height - Y - 1) * TGA->Width,TGA->Width * 4);
 	}
+
+	return true;
 }
 
-void DecompressTGA_16bpp( const FTGAFileHeader* TGA, uint32* TextureData )
+bool DecompressTGA_16bpp( const FTGAFileHeader* TGA, const uint32 TGABufferLenght, uint32* TextureData )
 {
-	uint8*	IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
-	uint8*	ColorMap = IdData + TGA->IdFieldLength;
-	uint16*	ImageData = (uint16*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
-	uint16    FilePixel = 0;
-	uint32	TexturePixel = 0;
+	const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
+	const uint8* const ColorMap = IdData + TGA->IdFieldLength;
+	const uint16* ImageData = (uint16*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+	uint16 FilePixel = 0;
+	uint32 TexturePixel = 0;
+
+	if ( (uint16*)((uint8*)TGA + TGABufferLenght) < ImageData + TGA->Height * TGA->Width )
+	{
+		return false;
+	}
 
 	for (int32 Y = TGA->Height - 1; Y >= 0; Y--)
 	{					
-		for (int32 X = 0; X<TGA->Width; X++)
+		for (int32 X = 0; X < TGA->Width; X++)
 		{
 			FilePixel = *ImageData++;
 			// Convert file format A1R5G5B5 into pixel format B8G8R8A8
@@ -2867,18 +2923,25 @@ void DecompressTGA_16bpp( const FTGAFileHeader* TGA, uint32* TextureData )
 			*((TextureData + Y*TGA->Width) + X) = TexturePixel;						
 		}
 	}
+
+	return true;
 }
 
-void DecompressTGA_24bpp( const FTGAFileHeader* TGA, uint32* TextureData )
+bool DecompressTGA_24bpp( const FTGAFileHeader* TGA, const uint32 TGABufferLenght, uint32* TextureData )
 {
-	uint8*	IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
-	uint8*	ColorMap = IdData + TGA->IdFieldLength;
-	uint8*	ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
-	uint8    Pixel[4];
+	const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
+	const uint8* const ColorMap = IdData + TGA->IdFieldLength;
+	const uint8* const ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+	uint8 Pixel[4];
 
-	for(int32 Y = 0;Y < TGA->Height;Y++)
+	if ( (uint8*)TGA + TGABufferLenght < ImageData + TGA->Width * TGA->Height * 3 )
 	{
-		for(int32 X = 0;X < TGA->Width;X++)
+		return false;
+	}
+
+	for(int32 Y = 0; Y < TGA->Height; Y++)
+	{
+		for(int32 X = 0; X < TGA->Width; X++)
 		{
 			Pixel[0] = *(( ImageData+( TGA->Height-Y-1 )*TGA->Width*3 )+X*3+0);
 			Pixel[1] = *(( ImageData+( TGA->Height-Y-1 )*TGA->Width*3 )+X*3+1);
@@ -2887,13 +2950,20 @@ void DecompressTGA_24bpp( const FTGAFileHeader* TGA, uint32* TextureData )
 			*((TextureData+Y*TGA->Width)+X) = *(uint32*)&Pixel;
 		}
 	}
+
+	return true;
 }
 
-void DecompressTGA_8bpp( const FTGAFileHeader* TGA, uint8* TextureData )
+bool DecompressTGA_8bpp( const FTGAFileHeader* TGA, const uint32 TGABufferLenght, uint8* TextureData )
 {
-	const uint8*  const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
-	const uint8*  const ColorMap = IdData + TGA->IdFieldLength;
-	const uint8*  const ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+	const uint8* const IdData = (uint8*)TGA + sizeof(FTGAFileHeader);
+	const uint8* const  ColorMap = IdData + TGA->IdFieldLength;
+	const uint8* const  ImageData = (uint8*) (ColorMap + (TGA->ColorMapEntrySize + 4) / 8 * TGA->ColorMapLength);
+
+	if ( (uint8*)TGA + TGABufferLenght < ImageData + TGA->Width * TGA->Height )
+	{
+		return false;
+	}
 
 	int32 RevY = 0;
 	for (int32 Y = TGA->Height-1; Y >= 0; --Y)
@@ -2902,29 +2972,33 @@ void DecompressTGA_8bpp( const FTGAFileHeader* TGA, uint8* TextureData )
 		uint8* TextureCol = TextureData + (RevY++ * TGA->Width);
 		FMemory::Memcpy(TextureCol, ImageCol, TGA->Width);
 	}
+
+	return true;
 }
 
 bool DecompressTGA_helper(
 	const FTGAFileHeader* TGA,
+	const uint32 TGABufferLenght,
 	uint32*& TextureData,
 	const int32 TextureDataSize,
 	FFeedbackContext* Warn )
 {
+	bool bSuccess = false;
 	if(TGA->ImageTypeCode == 10) // 10 = RLE compressed 
 	{
 		// RLE compression: CHUNKS: 1 -byte header, high bit 0 = raw, 1 = compressed
-		// bits 0-6 are a 7-bit count; count+1 = number of raw pixels following, or rle pixels to be expanded. 
+		// bits 0-6 are a 7-bit count; count+1 = number of raw pixels following, or rle pixels to be expanded.
 		if(TGA->BitsPerPixel == 32)
 		{
-			DecompressTGA_RLE_32bpp(TGA, TextureData);
+			bSuccess = DecompressTGA_RLE_32bpp(TGA, TGABufferLenght, TextureData);
 		}
 		else if( TGA->BitsPerPixel == 24 )
-		{	
-			DecompressTGA_RLE_24bpp(TGA, TextureData);
+		{
+			bSuccess = DecompressTGA_RLE_24bpp(TGA, TGABufferLenght, TextureData);
 		}
 		else if( TGA->BitsPerPixel == 16 )
 		{
-			DecompressTGA_RLE_16bpp(TGA, TextureData);
+			bSuccess = DecompressTGA_RLE_16bpp(TGA, TGABufferLenght, TextureData);
 		}
 		else
 		{
@@ -2936,15 +3010,15 @@ bool DecompressTGA_helper(
 	{
 		if(TGA->BitsPerPixel == 32)
 		{
-			DecompressTGA_32bpp(TGA, TextureData);
+			bSuccess = DecompressTGA_32bpp(TGA, TGABufferLenght, TextureData);
 		}
 		else if(TGA->BitsPerPixel == 16)
 		{
-			DecompressTGA_16bpp(TGA, TextureData);
+			bSuccess = DecompressTGA_16bpp(TGA, TGABufferLenght, TextureData);
 		}            
 		else if(TGA->BitsPerPixel == 24)
 		{
-			DecompressTGA_24bpp(TGA, TextureData);
+			bSuccess = DecompressTGA_24bpp(TGA, TGABufferLenght, TextureData);
 		}
 		else
 		{
@@ -2955,16 +3029,22 @@ bool DecompressTGA_helper(
 	// Support for alpha stored as pseudo-color 8-bit TGA
 	else if(TGA->ColorMapType == 1 && TGA->ImageTypeCode == 1 && TGA->BitsPerPixel == 8)
 	{
-		DecompressTGA_8bpp(TGA, (uint8*)TextureData);
+		bSuccess = DecompressTGA_8bpp(TGA, TGABufferLenght, (uint8*)TextureData);
 	}
 	// standard grayscale
 	else if(TGA->ColorMapType == 0 && TGA->ImageTypeCode == 3 && TGA->BitsPerPixel == 8)
 	{
-		DecompressTGA_8bpp(TGA, (uint8*)TextureData);
+		bSuccess = DecompressTGA_8bpp(TGA, TGABufferLenght, (uint8*)TextureData);
 	}
 	else
 	{
 		Warn->Logf(ELogVerbosity::Error, TEXT("TGA is an unsupported type: %u"),TGA->ImageTypeCode);
+		return false;
+	}
+
+	if (!bSuccess)
+	{
+		Warn->Logf(ELogVerbosity::Error, TEXT("The TGA file is invalid or corrupted"));
 		return false;
 	}
 
@@ -3002,9 +3082,10 @@ bool DecompressTGA_helper(
 }
 
 bool DecompressTGA(
-	const FTGAFileHeader*	TGA,
-	FImportImage&			OutImage,
-	FFeedbackContext*		Warn)
+	const FTGAFileHeader* TGA,
+	const uint32 TGABufferLenght,
+	FImportImage& OutImage,
+	FFeedbackContext* Warn)
 {
 	if (TGA->ColorMapType == 1 && TGA->ImageTypeCode == 1 && TGA->BitsPerPixel == 8)
 	{
@@ -3060,7 +3141,7 @@ bool DecompressTGA(
 	int32 TextureDataSize = OutImage.RawData.Num();
 	uint32* TextureData = (uint32*)OutImage.RawData.GetData();
 
-	return DecompressTGA_helper(TGA, TextureData, TextureDataSize, Warn);
+	return DecompressTGA_helper(TGA, TGABufferLenght, TextureData, TextureDataSize, Warn);
 }
 
 bool UTextureFactory::bSuppressImportOverwriteDialog = false;
@@ -3713,7 +3794,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 			return false;
 		}
 
-		const bool bResult = DecompressTGA(TGA, OutImage, Warn);
+		const bool bResult = DecompressTGA(TGA, Length, OutImage, Warn);
 		if (bResult && OutImage.CompressionSettings == TC_Grayscale && TGA->ImageTypeCode == 3)
 		{
 			// default grayscales to linear as they wont get compression otherwise and are commonly used as masks
@@ -4845,7 +4926,17 @@ bool UTextureFactory::IsImportResolutionValid(int32 Width, int32 Height, bool bA
 	// Check if the texture is above the supported resolution and prompt the user if they wish to continue if it is
 	if ( Width > MaximumSupportedResolution || Height > MaximumSupportedResolution )
 	{
-		if ((Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
+		if (Width * Height < 0)
+		{
+			Warn->Log(ELogVerbosity::Error, *FText::Format(
+				NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLargeOrInvalid", "Texture is too large to import or it has an invalid resolution. The current maximun is {0} pixels"),
+				FText::AsNumber(FMath::Square(MaximumSupportedVirtualTextureResolution))
+				).ToString());
+
+			bValid = false;
+		}
+
+		if ( bValid && (Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
 		{
 			Warn->Log(ELogVerbosity::Error, *FText::Format(
 				NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLarge", "Texture is too large to import. The current maximun is {0} pixels"),
