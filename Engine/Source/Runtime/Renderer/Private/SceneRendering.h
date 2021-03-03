@@ -1407,7 +1407,7 @@ public:
 
 #ifdef DO_CHECK
 	// Keep track of all used RT Geometries which are used to validate the vertex buffer data (see FRayTracingGeometry::DynamicGeometrySharedBufferGenerationID)
-	TSet<const FRayTracingGeometry*> RayTracingGeometries;
+	TSet<const FRayTracingGeometry*> RayTracingGeometriesForValidation;
 #endif
 
 	// Ray tracing scene specific to this view
