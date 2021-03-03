@@ -353,7 +353,31 @@ int32 GNaniteDebugVisualize = 0;
 FAutoConsoleVariableRef CVarNaniteDebugVisualize(
 	TEXT("r.Nanite.DebugVisualize"),
 	GNaniteDebugVisualize,
-	TEXT("")
+	TEXT("0 disables (default)\n")
+	TEXT("1 for Triangle ID\n")
+	TEXT("2 for Cluster ID\n")
+	TEXT("3 for Group ID\n")
+	TEXT("4 for Page ID\n")
+	TEXT("5 for Primitive ID\n")
+	TEXT("6 for HW vs SW raster\n")
+	TEXT("7 for Overdraw\n")
+	TEXT("8 for Hierarchy offset\n")
+	TEXT("9 for Scene min Z\n")
+	TEXT("10 for Scene max Z\n")
+	TEXT("11 for Scene delta Z\n")
+	TEXT("12 for Scene Z mask\n")
+	TEXT("13 for Material min Z\n")
+	TEXT("14 for Material max Z\n")
+	TEXT("15 for Material delta Z\n")
+	TEXT("16 for Material Z mask\n")
+	TEXT("17 for Material fast vs slow path\n")
+	TEXT("18 for Material index\n")
+	TEXT("19 for Material ID\n")
+	TEXT("20 for Hit proxy ID\n")
+	TEXT("21 for Nanite mask\n")
+	TEXT("22 for Lightmap UVs\n")
+	TEXT("23 for Lightmap UV index\n")
+	TEXT("24 for Lightmap Data index\n")
 );
 
 static bool IsVisualizingHTile()
@@ -2723,56 +2747,56 @@ void AddPass_Rasterize(
 		else
 		{
 			ViewRect.Max = FIntPoint( FVirtualShadowMap::VirtualMaxResolutionXY, FVirtualShadowMap::VirtualMaxResolutionXY );
+		}
 	}
-			}
 
+	{
+		const bool bUsePrimitiveShader = UsePrimitiveShader();
+		bool bUsePrimitiveShaderCulling = UsePrimitiveShader() && GNanitePrimShaderCulling != 0;
+		if (bUsePrimitiveShaderCulling)
+		{
+			if (Technique == ERasterTechnique::DepthOnly || VirtualShadowMapArray != nullptr)
 			{
-				const bool bUsePrimitiveShader = UsePrimitiveShader();
-				bool bUsePrimitiveShaderCulling = UsePrimitiveShader() && GNanitePrimShaderCulling != 0;
-				if (bUsePrimitiveShaderCulling)
-				{
-					if (Technique == ERasterTechnique::DepthOnly || VirtualShadowMapArray != nullptr)
-					{
-						// Shadow views
-						bUsePrimitiveShaderCulling = GNanitePrimShaderCulling == 2 || GNanitePrimShaderCulling == 3;
-					}
-					else
-					{
-						// Primary view
-						bUsePrimitiveShaderCulling = GNanitePrimShaderCulling == 1 || GNanitePrimShaderCulling == 3;
-					}
-				}
+				// Shadow views
+				bUsePrimitiveShaderCulling = GNanitePrimShaderCulling == 2 || GNanitePrimShaderCulling == 3;
+			}
+			else
+			{
+				// Primary view
+				bUsePrimitiveShaderCulling = GNanitePrimShaderCulling == 1 || GNanitePrimShaderCulling == 3;
+			}
+		}
 
-				const bool bUseAutoCullingShader =
-					GRHISupportsPrimitiveShaders &&
-					!bUsePrimitiveShader &&
-					GNaniteAutoShaderCulling != 0;
+		const bool bUseAutoCullingShader =
+			GRHISupportsPrimitiveShaders &&
+			!bUsePrimitiveShader &&
+			GNaniteAutoShaderCulling != 0;
 
-				FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
-				PermutationVectorVS.Set<FHWRasterizeVS::FRasterTechniqueDim>(int32(Technique));
-				PermutationVectorVS.Set<FHWRasterizeVS::FAddClusterOffset>(bMainPass ? 0 : 1);
-				PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
-				PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
-				PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderCullDim>(bUsePrimitiveShaderCulling);
-				PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
-				PermutationVectorVS.Set<FHWRasterizeVS::FHasPrevDrawData>(bHavePrevDrawData);
-				PermutationVectorVS.Set<FHWRasterizeVS::FDebugVisualizeDim>( ShouldExportDebugBuffers() && Technique != ERasterTechnique::DepthOnly );
-				PermutationVectorVS.Set<FHWRasterizeVS::FNearClipDim>(bNearClip);
-				PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-				PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>( GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
+		FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
+		PermutationVectorVS.Set<FHWRasterizeVS::FRasterTechniqueDim>(int32(Technique));
+		PermutationVectorVS.Set<FHWRasterizeVS::FAddClusterOffset>(bMainPass ? 0 : 1);
+		PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
+		PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
+		PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderCullDim>(bUsePrimitiveShaderCulling);
+		PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
+		PermutationVectorVS.Set<FHWRasterizeVS::FHasPrevDrawData>(bHavePrevDrawData);
+		PermutationVectorVS.Set<FHWRasterizeVS::FDebugVisualizeDim>( ShouldExportDebugBuffers() && Technique != ERasterTechnique::DepthOnly );
+		PermutationVectorVS.Set<FHWRasterizeVS::FNearClipDim>(bNearClip);
+		PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+		PermutationVectorVS.Set<FHWRasterizeVS::FClusterPerPageDim>( GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
 
-				FHWRasterizePS::FPermutationDomain PermutationVectorPS;
-				PermutationVectorPS.Set<FHWRasterizePS::FRasterTechniqueDim>(int32(Technique));
-				PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>( bMultiView );
-				PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>( bUsePrimitiveShader );
-				PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderCullDim>(bUsePrimitiveShaderCulling);
-				PermutationVectorPS.Set<FHWRasterizePS::FDebugVisualizeDim>( ShouldExportDebugBuffers() && Technique != ERasterTechnique::DepthOnly );
-				PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
-				PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-				PermutationVectorPS.Set<FHWRasterizePS::FClusterPerPageDim>( GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
+		FHWRasterizePS::FPermutationDomain PermutationVectorPS;
+		PermutationVectorPS.Set<FHWRasterizePS::FRasterTechniqueDim>(int32(Technique));
+		PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>( bMultiView );
+		PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>( bUsePrimitiveShader );
+		PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderCullDim>(bUsePrimitiveShaderCulling);
+		PermutationVectorPS.Set<FHWRasterizePS::FDebugVisualizeDim>( ShouldExportDebugBuffers() && Technique != ERasterTechnique::DepthOnly );
+		PermutationVectorPS.Set<FHWRasterizePS::FNearClipDim>(bNearClip);
+		PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+		PermutationVectorPS.Set<FHWRasterizePS::FClusterPerPageDim>( GNaniteClusterPerPage && VirtualShadowMapArray != nullptr );
 
-				auto VertexShader = ShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
-				auto PixelShader  = ShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
+		auto VertexShader = ShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
+		auto PixelShader  = ShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
 
 		GraphBuilder.AddPass(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: Rasterize") : RDG_EVENT_NAME("Post Pass: Rasterize"),
@@ -2782,32 +2806,32 @@ void AddPass_Rasterize(
 		{
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
 
-				FGraphicsPipelineStateInitializer GraphicsPSOInit;
-				RHICmdList.ApplyCachedRenderTargets( GraphicsPSOInit );
+			FGraphicsPipelineStateInitializer GraphicsPSOInit;
+			RHICmdList.ApplyCachedRenderTargets( GraphicsPSOInit );
 
-				GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-				// NOTE: We do *not* use RasterState.CullMode here because HWRasterizeVS already
-				// changes the index order in cases where the culling should be flipped.
-				//GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bUsePrimitiveShaderCulling ? CM_None : CM_CW);
-				GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_CW);
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-				GraphicsPSOInit.PrimitiveType = bUsePrimitiveShader ? PT_PointList : PT_TriangleList;
-				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+			GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+			// NOTE: We do *not* use RasterState.CullMode here because HWRasterizeVS already
+			// changes the index order in cases where the culling should be flipped.
+			//GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bUsePrimitiveShaderCulling ? CM_None : CM_CW);
+			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, CM_CW);
+			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			GraphicsPSOInit.PrimitiveType = bUsePrimitiveShader ? PT_PointList : PT_TriangleList;
+			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-				SetGraphicsPipelineState( RHICmdList, GraphicsPSOInit );
+			SetGraphicsPipelineState( RHICmdList, GraphicsPSOInit );
 			
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), RasterPassParameters->Common);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *RasterPassParameters);
 
-				RHICmdList.SetStreamSource( 0, nullptr, 0 );
+			RHICmdList.SetStreamSource( 0, nullptr, 0 );
 			RHICmdList.DrawPrimitiveIndirect(RasterPassParameters->Common.IndirectArgs->GetIndirectRHICallBuffer(), 16);
 		});
-			}
+	}
 
 	if (Scheduling != ERasterScheduling::HardwareOnly)
-			{
+	{
 		// SW Rasterize
 		FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
 		PermutationVectorCS.Set<FMicropolyRasterizeCS::FAddClusterOffset>(bMainPass ? 0 : 1);
@@ -2829,8 +2853,8 @@ void AddPass_Rasterize(
 			CommonPassParameters,
 			CommonPassParameters->IndirectArgs,
 			0);
-			}
-		}
+	}
+}
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
