@@ -12,7 +12,7 @@ namespace DerivedData
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Priority for scheduling requests. */
+/** Priority for scheduling a request. */
 enum class EPriority : uint8
 {
 	/**
@@ -50,7 +50,20 @@ enum class EPriority : uint8
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Interface for a request. Provides functionality common to every type of request. */
+/** Status of a request that has completed. */
+enum class EStatus : uint8
+{
+	/** The request completed successfully. Any requested data is available. */
+	Ok,
+	/** The request completed unsuccessfully. Any requested data is not available. */
+	Error,
+	/** The request was canceled before it completed. Any requested data is not available. */
+	Canceled,
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Interface to a request. Use via FRequest. */
 class IRequest : public IRefCountedObject
 {
 public:
@@ -71,7 +84,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** A wrapper for the request interface that manages lifetime with reference counting. */
+/** Handle to a request that manages its lifetime with reference counting. */
 class FRequest
 {
 public:

@@ -182,7 +182,7 @@ void FEditorDomainReadArchive::OnCacheRequestComplete(UE::DerivedData::FCacheGet
 	check(AsyncSource == ESource::Uninitialized);
 	FScopeLock DomainScopeLock(&EditorDomainLocks->Lock);
 	if ((PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor) &&
-		Params.Status == UE::DerivedData::ECacheStatus::Cached)
+		Params.Status == UE::DerivedData::EStatus::Ok)
 	{
 		const FCbObject& MetaData = Params.Record.GetMeta();
 		int64 FileSize = MetaData["FileSize"].AsInt64(-1);
@@ -411,7 +411,7 @@ void FEditorDomainAsyncReadFileHandle::OnCacheRequestComplete(UE::DerivedData::F
 	check(AsyncSource == ESource::Uninitialized);
 	FScopeLock DomainScopeLock(&EditorDomainLocks->Lock);
 	if ((PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor) &&
-		Params.Status == UE::DerivedData::ECacheStatus::Cached)
+		Params.Status == UE::DerivedData::EStatus::Ok)
 	{
 		const FCbObject& MetaData = Params.Record.GetMeta();
 		int64 FileSize = MetaData["FileSize"].AsInt64(-1);

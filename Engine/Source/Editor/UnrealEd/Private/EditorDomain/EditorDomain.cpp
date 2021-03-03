@@ -184,7 +184,7 @@ int64 FEditorDomain::FileSize(const FPackagePath& PackagePath, EPackageSegment P
 		{
 			FScopeLock ScopeLock(&Locks->Lock);
 			if ((PackageSource->Source == FEditorDomain::EPackageSource::Undecided || PackageSource->Source == FEditorDomain::EPackageSource::Editor) &&
-				Params.Status == UE::DerivedData::ECacheStatus::Cached)
+				Params.Status == UE::DerivedData::EStatus::Ok)
 			{
 				const FCbObject& MetaData = Params.Record.GetMeta();
 				FileSize = MetaData["FileSize"].AsInt64();

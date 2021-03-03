@@ -13,6 +13,14 @@ namespace UE
 namespace DerivedData
 {
 
+struct FCacheGetCompleteParams;
+struct FCacheGetPayloadCompleteParams;
+struct FCachePutCompleteParams;
+
+using FOnCachePutComplete = TUniqueFunction<void (FCachePutCompleteParams&& Params)>;
+using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetCompleteParams&& Params)>;
+using FOnCacheGetPayloadComplete = TUniqueFunction<void (FCacheGetPayloadCompleteParams&& Params)>;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -81,74 +89,6 @@ ENUM_CLASS_FLAGS(ECachePolicy);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Status of a cache operation. */
-enum class ECacheStatus : uint8
-{
-	/** A cache miss for a get operation, or a failure for a put operation. */
-	NotCached,
-	/** A cache hit for a get operation, or a success for a put operation. */
-	Cached,
-	/** The operation was canceled before it completed. */
-	Canceled,
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** Parameters for the completion callback for cache put requests. */
-struct FCachePutCompleteParams
-{
-	/** Key for the part of the put request that completed or was canceled. */
-	FCacheKey Key;
-
-	/** Status of the cache request. */
-	ECacheStatus Status = ECacheStatus::NotCached;
-};
-
-/** Parameters for the completion callback for cache get requests. */
-struct FCacheGetCompleteParams
-{
-	/**
-	 * Record for the part of the get request that completed or was canceled.
-	 *
-	 * The key is always populated. The remainder of the record is populated when Status is Cached.
-	 *
-	 * The value, attachments, and metadata may be skipped based on cache policy flags. When a value
-	 * or attachment has been skipped, it will have a payload but its buffers will be null.
-	 */
-	FCacheRecord Record;
-
-	/** Status of the cache request. */
-	ECacheStatus Status = ECacheStatus::NotCached;
-};
-
-/** Parameters for the completion callback for cache payload requests. */
-struct FCacheGetPayloadCompleteParams
-{
-	/** Key for the part of the payload request that completed or was canceled. See Payload for ID. */
-	FCacheKey Key;
-
-	/**
-	 * Payload for the part of the payload request that completed or was canceled.
-	 *
-	 * The ID is always populated. The hash and buffer are populated when Status is Cached.
-	 */
-	FPayload Payload;
-
-	/** Status of the cache request. */
-	ECacheStatus Status = ECacheStatus::NotCached;
-};
-
-/** Callback for completion of a put request. */
-using FOnCachePutComplete = TUniqueFunction<void (FCachePutCompleteParams&& Params)>;
-
-/** Callback for completion of a get request. */
-using FOnCacheGetComplete = TUniqueFunction<void (FCacheGetCompleteParams&& Params)>;
-
-/** Callback for completion of a payload request. */
-using FOnCacheGetPayloadComplete = TUniqueFunction<void (FCacheGetPayloadCompleteParams&& Params)>;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /**
  * Interface to the cache.
  *
@@ -211,7 +151,7 @@ public:
 	 * @param Priority A priority to consider when scheduling the request. See EPriority.
 	 * @param Callback A callback invoked for every key in the batch as it completes or is canceled.
 	 */
-	virtual FRequest GetPayloads(
+	virtual FRequest GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
@@ -227,6 +167,52 @@ public:
 	 * owner of the cache if future requests are meant to be avoided.
 	 */
 	virtual void CancelAll() = 0;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Parameters for the completion callback for cache put requests. */
+struct FCachePutCompleteParams
+{
+	/** Key for the part of the put request that completed or was canceled. */
+	FCacheKey Key;
+
+	/** Status of the cache request. */
+	EStatus Status = EStatus::Error;
+};
+
+/** Parameters for the completion callback for cache get requests. */
+struct FCacheGetCompleteParams
+{
+	/**
+	 * Record for the part of the get request that completed or was canceled.
+	 *
+	 * The key is always populated. The remainder of the record is populated when Status is Cached.
+	 *
+	 * The value, attachments, and metadata may be skipped based on cache policy flags. When a value
+	 * or attachment has been skipped, it will have a payload but its buffers will be null.
+	 */
+	FCacheRecord Record;
+
+	/** Status of the cache request. */
+	EStatus Status = EStatus::Error;
+};
+
+/** Parameters for the completion callback for cache payload requests. */
+struct FCacheGetPayloadCompleteParams
+{
+	/** Key for the part of the payload request that completed or was canceled. See Payload for ID. */
+	FCacheKey Key;
+
+	/**
+	 * Payload for the part of the payload request that completed or was canceled.
+	 *
+	 * The ID is always populated. The hash and buffer are populated when Status is Cached.
+	 */
+	FPayload Payload;
+
+	/** Status of the cache request. */
+	EStatus Status = EStatus::Error;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

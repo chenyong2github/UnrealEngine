@@ -737,7 +737,7 @@ public:
 		EPriority Priority,
 		FOnCacheGetComplete&& Callback) final;
 
-	virtual FRequest GetPayloads(
+	virtual FRequest GetPayload(
 		TConstArrayView<FCachePayloadKey> Keys,
 		FStringView Context,
 		ECachePolicy Policy,
@@ -827,7 +827,6 @@ void FCache::Put(
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Put skipped for %s from '%.*s'"),
 			*TToString<96>(Params.Key), Context.Len(), Context.GetData());
-		Params.Status = ECacheStatus::NotCached;
 		return;
 	}
 
@@ -884,7 +883,7 @@ void FCache::Put(
 
 	UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Put for %s from '%.*s'"),
 		*TToString<96>(Params.Key), Context.Len(), Context.GetData());
-	Params.Status = ECacheStatus::Cached;
+	Params.Status = EStatus::Ok;
 }
 
 FRequest FCache::Put(
@@ -1041,7 +1040,7 @@ void FCache::Get(
 
 	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache hit for %s from '%.*s'"),
 		*TToString<96>(Key), Context.Len(), Context.GetData());
-	Params.Status = ECacheStatus::Cached;
+	Params.Status = EStatus::Ok;
 }
 
 FRequest FCache::Get(
@@ -1144,7 +1143,7 @@ void FCache::GetPayload(
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload (exists) cache hit for %s from '%.*s'"),
 					*TToString<96>(Key), Context.Len(), Context.GetData());
-				Params.Status = ECacheStatus::Cached;
+				Params.Status = EStatus::Ok;
 			}
 			else
 			{
@@ -1174,10 +1173,10 @@ void FCache::GetPayload(
 
 	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache hit for %s from '%.*s'"),
 		*TToString<96>(Key), Context.Len(), Context.GetData());
-	Params.Status = ECacheStatus::Cached;
+	Params.Status = EStatus::Ok;
 }
 
-FRequest FCache::GetPayloads(
+FRequest FCache::GetPayload(
 	TConstArrayView<FCachePayloadKey> Keys,
 	FStringView Context,
 	ECachePolicy Policy,
