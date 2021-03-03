@@ -484,6 +484,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportBones(const FReferenceSkel
 					SetParent(ExistingBoneKey, ParentKey, bSetupUndo);
 				}
 
+				Hierarchy->SetInitialLocalTransform(ExistingBoneIndex, BonePoses[Index], true, bSetupUndo);
 				Hierarchy->SetLocalTransform(ExistingBoneIndex, BonePoses[Index], true, bSetupUndo);
 
 				BonesToSelect.Add(ExistingBoneKey);
