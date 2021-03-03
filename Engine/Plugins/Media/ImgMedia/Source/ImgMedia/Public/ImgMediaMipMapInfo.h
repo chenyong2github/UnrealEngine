@@ -97,7 +97,7 @@ struct FImgMediaTileSelection
 	 *
 	 * @return True if so.
 	 */
-	bool IsVisible() { return (TopLeftX <= BottomRightX); };
+	bool IsVisible() { return (TopLeftX < BottomRightX); };
 };
 
 /**
