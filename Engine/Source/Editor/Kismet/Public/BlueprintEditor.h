@@ -361,10 +361,14 @@ public:
 	virtual bool IsCompilingEnabled() const;
 
 	/** Returns true if the parent class is also a Blueprint */
+	UE_DEPRECATED(4.27, "Please use FBlueprintEditorUtils::IsParentClassABlueprint instead")
 	bool IsParentClassOfObjectABlueprint(const UBlueprint* Blueprint) const;
 
 	/** Returns true if the parent class of the Blueprint being edited is also a Blueprint */
 	bool IsParentClassABlueprint() const;
+
+	/** Returns true if the parent class of the Blueprint being edited is an editable Blueprint */
+	bool IsParentClassAnEditableBlueprint() const;
 
 	/** Returns true if the parent class of the Blueprint being edited is native */
 	bool IsParentClassNative() const;
@@ -682,8 +686,11 @@ protected:
 	void NavigateToChildGraph();
 	bool CanNavigateToChildGraph() const;
 
-	/** Determines visibility of the parent class manipulation buttons on the menu bar overlay */
-	EVisibility ParentClassButtonsVisibility() const;
+	/** Determines visibility of the find parent class in content browser button on the menu bar overlay */
+	EVisibility GetFindParentClassVisibility() const;
+
+	/** Determines visibility of the edit parent class button on the menu bar overlay */
+	EVisibility GetEditParentClassVisibility() const;
 
 	/** Recreates the overlay on the menu bar */
 	virtual void PostRegenerateMenusAndToolbars() override;

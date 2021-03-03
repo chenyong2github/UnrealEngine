@@ -3297,6 +3297,41 @@ bool FBlueprintEditorUtils::IsLevelScriptBlueprint(const UBlueprint* Blueprint)
 	return (Blueprint && Blueprint->BlueprintType == BPTYPE_LevelScript);
 }
 
+bool FBlueprintEditorUtils::IsParentClassABlueprint(const UBlueprint* Blueprint)
+{
+	if (Blueprint)
+	{
+		UObject* ParentClass = Blueprint->ParentClass;
+		if (ParentClass)
+		{
+			if (ParentClass->IsA(UBlueprintGeneratedClass::StaticClass()))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FBlueprintEditorUtils::IsParentClassAnEditableBlueprint(const UBlueprint* Blueprint)
+{
+	if (Blueprint)
+	{
+		UObject* ParentClass = Blueprint->ParentClass;
+		if (ParentClass)
+		{
+			UBlueprintGeneratedClass* ParentBPGC = Cast<UBlueprintGeneratedClass>(ParentClass);
+			if (ParentBPGC && ParentBPGC->ClassGeneratedBy)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool FBlueprintEditorUtils::IsAnonymousBlueprintClass(const UClass* Class)
 {
 	return (Class && Class->GetOutermost()->ContainsMap());

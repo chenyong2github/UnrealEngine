@@ -202,7 +202,18 @@ bool CanEditItem(IAssetTools* InAssetTools, const UContentBrowserDataSource* InO
 
 bool CanEditAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFileItemDataPayload& InAssetPayload, FText* OutErrorMsg)
 {
-	return CanModifyAssetFileItem(InAssetTools, InAssetPayload, OutErrorMsg);
+	if (!CanModifyAssetFileItem(InAssetTools, InAssetPayload, OutErrorMsg))
+	{
+		return false;
+	}
+
+	if (InAssetPayload.GetAssetData().PackageFlags & PKG_FilterEditorOnly)
+	{
+		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotEditCookedPackages", "Cannot edit cooked packages"));
+		return false;
+	}
+
+	return true;
 }
 
 bool CanPreviewItem(IAssetTools* InAssetTools, const UContentBrowserDataSource* InOwnerDataSource, const FContentBrowserItemData& InItem, FText* OutErrorMsg)
@@ -441,6 +452,12 @@ bool CanSaveAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetF
 {
 	if (!CanModifyAssetFileItem(InAssetTools, InAssetPayload, OutErrorMsg))
 	{
+		return false;
+	}
+
+	if (InAssetPayload.GetAssetData().PackageFlags & PKG_FilterEditorOnly)
+	{
+		SetOptionalErrorMessage(OutErrorMsg, LOCTEXT("Error_CannotSaveCookedPackages", "Cannot save cooked packages"));
 		return false;
 	}
 
