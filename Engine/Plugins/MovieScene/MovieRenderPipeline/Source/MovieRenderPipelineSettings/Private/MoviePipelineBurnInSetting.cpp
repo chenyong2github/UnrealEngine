@@ -11,6 +11,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "MoviePipelineOutputBuilder.h"
 #include "ImagePixelData.h"
+#include "MovieRenderPipelineCoreModule.h"
 
 void UMoviePipelineBurnInSetting::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
@@ -81,12 +82,20 @@ void UMoviePipelineBurnInSetting::SetupImpl(const MoviePipeline::FMoviePipelineR
 		return;
 	}
 
+	OutputResolution = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>()->OutputResolution;
+	int32 MaxResolution = GetMax2DTextureDimension();
+	if (OutputResolution.X > MaxResolution || OutputResolution.Y > MaxResolution)
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Resolution %dx%d exceeds maximum allowed by GPU. Burn-ins do not support high-resolution tiling and thus can't exceed %dx%d."), OutputResolution.X, OutputResolution.Y, MaxResolution, MaxResolution);
+		GetPipeline()->Shutdown(true);
+		return;
+	}
+
 	UClass* BurnIn = BurnInClass.TryLoadClass<UMoviePipelineBurnInWidget>();
 	ensureAlwaysMsgf(BurnIn, TEXT("Failed to load burnin class: '%s'."), *BurnInClass.GetAssetPathString());
 
 	BurnInWidgetInstance = CreateWidget<UMoviePipelineBurnInWidget>(GetWorld(), BurnIn);
 
-	OutputResolution = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>()->OutputResolution;
 	VirtualWindow = SNew(SVirtualWindow).Size(FVector2D(OutputResolution.X, OutputResolution.Y));
 	VirtualWindow->SetContent(BurnInWidgetInstance->TakeWidget());
 
