@@ -177,7 +177,7 @@ class FPathTracingRG : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, SceneLightsData)
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingData, PathTracingData)
 		// IES Profiles
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, IESTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
 		// Shared sampler for all IES profiles
 		SHADER_PARAMETER(FIntVector, TileOffset)	// Used by multi-GPU rendering
@@ -205,7 +205,7 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESSampler)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, IESAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, IESAtlas)
 		SHADER_PARAMETER(int32, IESAtlasSlice)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -329,12 +329,12 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		// This size matches the import resolution of light profiles (see FIESLoader::GetWidth)
 		const int kIESAtlasSize = 256;
 		const int NumSlices = IESLightProfilesMap.Num();
-		// TODO: would a Texture2DArray object be more efficient?
-		FRDGTextureDesc IESTextureDesc = FRDGTextureDesc::Create3D(
-			FIntVector(kIESAtlasSize, kIESAtlasSize, NumSlices),
+		FRDGTextureDesc IESTextureDesc = FRDGTextureDesc::Create2DArray(
+			FIntPoint(kIESAtlasSize, kIESAtlasSize),
 			PF_R32_FLOAT,
 			FClearValueBinding::None,
-			TexCreate_ShaderResource | TexCreate_UAV);
+			TexCreate_ShaderResource | TexCreate_UAV,
+			NumSlices);
 		FRDGTexture* IESTexture = GraphBuilder.CreateTexture(IESTextureDesc, TEXT("PathTracerIESAtlas"), ERDGTextureFlags::None);
 
 		for (auto&& Entry : IESLightProfilesMap)
@@ -352,16 +352,6 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				ComputeShader,
 				AtlasPassParameters,
 				FComputeShaderUtils::GetGroupCount(FIntPoint(kIESAtlasSize, kIESAtlasSize), FComputeShaderUtils::kGolden2DGroupSize));
-		}
-
-		// Adjust row per light so it can be used directly as a texture coordinate
-		for (uint32 Index = 0; Index < LightData.Count; Index++)
-		{
-			if (LightData.IESTextureSlice[Index] >= 0)
-			{
-				// nudge data to be easier to use on GPU
-				LightData.IESTextureSlice[Index] = (LightData.IESTextureSlice[Index] + 0.5f) / NumSlices;
-			}
 		}
 
 		PassParameters->IESTexture = IESTexture;

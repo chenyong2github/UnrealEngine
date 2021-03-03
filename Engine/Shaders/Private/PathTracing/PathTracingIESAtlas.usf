@@ -4,7 +4,7 @@
 
 Texture2D IESTexture;
 SamplerState IESSampler;
-RWTexture3D<float> IESAtlas;
+RWTexture2DArray<float> IESAtlas;
 int IESAtlasSlice;
 
 [numthreads(THREADGROUPSIZE_X, THREADGROUPSIZE_Y, 1)]
@@ -18,5 +18,5 @@ void PathTracingIESAtlasCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 
 	float2 UV = (DispatchThreadId + 0.5) / float2(AtlasSize.xy);
-	IESAtlas[uint3(DispatchThreadId, IESAtlasSlice)] = Texture2DSampleLevel(IESTexture, IESSampler, UV, 0).r;
+	IESAtlas[uint3(DispatchThreadId, IESAtlasSlice)] = IESTexture.SampleLevel(IESSampler, UV, 0).r;
 }
