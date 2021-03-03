@@ -176,12 +176,42 @@ class FPathTracingRG : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, SceneLightsData)
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingData, PathTracingData)
+		// IES Profiles
+		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, IESTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
+		// Shared sampler for all IES profiles
 		SHADER_PARAMETER(FIntVector, TileOffset)	// Used by multi-GPU rendering
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FPathTracingRG, "/Engine/Private/PathTracing/PathTracing.usf", "PathTracingMainRG", SF_RayGen);
 
-void SetLightParameters(FPathTracingLightData& LightData, FSkyLightData& SkyLightData, FScene* Scene)
+class FPathTracingIESAtlasCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPathTracingIESAtlasCS)
+	SHADER_USE_PARAMETER_STRUCT(FPathTracingIESAtlasCS, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), FComputeShaderUtils::kGolden2DGroupSize);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), FComputeShaderUtils::kGolden2DGroupSize);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, IESSampler)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, IESAtlas)
+		SHADER_PARAMETER(int32, IESAtlasSlice)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
+
+void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FPathTracingLightData& LightData, FSkyLightData& SkyLightData, FScene* Scene, const FViewInfo& View, bool UseLightProfiles)
 {
 	// Sky light
 	bool IsSkyLightValid = SetupSkyLightParameters(*Scene, &SkyLightData);
@@ -198,9 +228,11 @@ void SetLightParameters(FPathTracingLightData& LightData, FSkyLightData& SkyLigh
 		LightData.Color[SkyLightIndex] = FVector(SkyLightData.Color);
 		LightData.Flags[SkyLightIndex] = SkyLightData.bTransmission & 0x01;
 		LightData.Flags[SkyLightIndex] |= (SkyLightLightingChannelMask & 0x7) << 1;
+		LightData.IESTextureSlice[SkyLightIndex] = -1;
 		LightData.Count++;
 	}
 
+	TMap<FTexture*, int> IESLightProfilesMap;
 	for (auto Light : Scene->Lights)
 	{
 		if (LightData.Count >= RAY_TRACING_LIGHT_COUNT_MAXIMUM) break;
@@ -211,6 +243,24 @@ void SetLightParameters(FPathTracingLightData& LightData, FSkyLightData& SkyLigh
 		uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
 		LightData.Flags[LightData.Count] = Transmission & 0x01;
 		LightData.Flags[LightData.Count] |= (LightingChannelMask & 0x7) << 1;
+		LightData.IESTextureSlice[LightData.Count] = -1;
+
+		if (UseLightProfiles)
+		{
+			FTexture* IESTexture = Light.LightSceneInfo->Proxy->GetIESTextureResource();
+			if (IESTexture != nullptr)
+			{
+				// Only add a given texture once
+				LightData.IESTextureSlice[LightData.Count] = IESLightProfilesMap.FindOrAdd(IESTexture, IESLightProfilesMap.Num());
+			}
+		}
+
+		// these mean roughly the same thing across all light types
+		LightData.Color[LightData.Count] = LightParameters.Color;
+		LightData.Position[LightData.Count] = LightParameters.Position;
+		LightData.Normal[LightData.Count] = -LightParameters.Direction;
+		LightData.dPdu[LightData.Count] = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
+		LightData.dPdv[LightData.Count] = LightParameters.Tangent;
 
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 		switch (LightComponentType)
@@ -218,8 +268,7 @@ void SetLightParameters(FPathTracingLightData& LightData, FSkyLightData& SkyLigh
 			case LightType_Directional:
 			{
 				LightData.Type[LightData.Count] = 2;
-				LightData.Normal[LightData.Count] = LightParameters.Direction;
-				LightData.Color[LightData.Count] = LightParameters.Color;
+                LightData.Normal[LightData.Count] = LightParameters.Direction;
 				LightData.Dimensions[LightData.Count] = FVector(0.0f, 0.0f, LightParameters.SourceRadius);
 				LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 				break;
@@ -227,11 +276,6 @@ void SetLightParameters(FPathTracingLightData& LightData, FSkyLightData& SkyLigh
 			case LightType_Rect:
 			{
 				LightData.Type[LightData.Count] = 3;
-				LightData.Position[LightData.Count] = LightParameters.Position;
-				LightData.Normal[LightData.Count] = -LightParameters.Direction;
-				LightData.dPdu[LightData.Count] = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
-				LightData.dPdv[LightData.Count] = LightParameters.Tangent;
-				LightData.Color[LightData.Count] = LightParameters.Color;
 				LightData.Dimensions[LightData.Count] = FVector(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
 				LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 				LightData.RectLightBarnCosAngle[LightData.Count] = LightParameters.RectLightBarnCosAngle;
@@ -241,9 +285,6 @@ void SetLightParameters(FPathTracingLightData& LightData, FSkyLightData& SkyLigh
 			case LightType_Spot:
 			{
 				LightData.Type[LightData.Count] = 4;
-				LightData.Position[LightData.Count] = LightParameters.Position;
-				LightData.Normal[LightData.Count] = -LightParameters.Direction;
-				LightData.Color[LightData.Count] = LightParameters.Color;
 				LightData.Dimensions[LightData.Count] = FVector(LightParameters.SpotAngles, LightParameters.SourceRadius);
 				LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 				break;
@@ -251,8 +292,6 @@ void SetLightParameters(FPathTracingLightData& LightData, FSkyLightData& SkyLigh
 			case LightType_Point:
 			{
 				LightData.Type[LightData.Count] = 1;
-				LightData.Position[LightData.Count] = LightParameters.Position;
-				LightData.Color[LightData.Count] = LightParameters.Color;
 				LightData.Dimensions[LightData.Count] = FVector(0.0, 0.0, LightParameters.SourceRadius);
 				LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
 				break;
@@ -266,6 +305,65 @@ void SetLightParameters(FPathTracingLightData& LightData, FSkyLightData& SkyLigh
 		};
 
 		LightData.Count++;
+	}
+
+	if (IESLightProfilesMap.Num() > 0)
+	{
+		// We found some IES profiles to use -- upload them into a single atlas so we can access them easily in HLSL
+
+		// FIXME: This is redundant because all the IES textures are already on the GPU, we just don't have the ability to use
+		// an array of texture handles on the HLSL side.
+
+		// FIXME: This is also redundant with the logic in RayTracingLighting.cpp, but the latter is limitted to 1D profiles and 
+		// does not consider the same set of lights as the path tracer. Longer term we should aim to unify the representation of lights
+		// across both passes
+
+		// FIXME: This process is repeated every frame! would be nicer to cache the data somehow. Perhaps just do this step for
+		// Iteration == 0 since we can assume that any changes in IES profiles will invalidate the path tracer anyway?
+
+		// This size matches the import resolution of light profiles (see FIESLoader::GetWidth)
+		const int kIESAtlasSize = 256;
+		const int NumSlices = IESLightProfilesMap.Num();
+		// TODO: would a Texture2DArray object be more efficient?
+		FRDGTextureDesc IESTextureDesc = FRDGTextureDesc::Create3D(
+			FIntVector(kIESAtlasSize, kIESAtlasSize, NumSlices),
+			PF_R32_FLOAT,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV);
+		FRDGTexture* IESTexture = GraphBuilder.CreateTexture(IESTextureDesc, TEXT("PathTracerIESAtlas"), ERDGTextureFlags::None);
+
+		for (auto&& Entry : IESLightProfilesMap)
+		{
+			FPathTracingIESAtlasCS::FParameters* AtlasPassParameters = GraphBuilder.AllocParameters<FPathTracingIESAtlasCS::FParameters>();
+			const int Slice = Entry.Value;
+			AtlasPassParameters->IESTexture = Entry.Key->TextureRHI;
+			AtlasPassParameters->IESSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			AtlasPassParameters->IESAtlas = GraphBuilder.CreateUAV(IESTexture);
+			AtlasPassParameters->IESAtlasSlice = Slice;
+			TShaderMapRef<FPathTracingIESAtlasCS> ComputeShader(View.ShaderMap);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Path Tracing IES Atlas (Slice=%d)", Slice),
+				ComputeShader,
+				AtlasPassParameters,
+				FComputeShaderUtils::GetGroupCount(FIntPoint(kIESAtlasSize, kIESAtlasSize), FComputeShaderUtils::kGolden2DGroupSize));
+		}
+
+		// Adjust row per light so it can be used directly as a texture coordinate
+		for (uint32 Index = 0; Index < LightData.Count; Index++)
+		{
+			if (LightData.IESTextureSlice[Index] >= 0)
+			{
+				// nudge data to be easier to use on GPU
+				LightData.IESTextureSlice[Index] = (LightData.IESTextureSlice[Index] + 0.5f) / NumSlices;
+			}
+		}
+
+		PassParameters->IESTexture = IESTexture;
+	}
+	else
+	{
+		PassParameters->IESTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
 	}
 }
 
@@ -325,6 +423,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	// Get current value of MaxSPP and reset render if it has changed
 	int32 SamplesPerPixelCVar = CVarPathTracingSamplesPerPixel.GetValueOnRenderThread();
 	uint32 MaxSPP = SamplesPerPixelCVar > -1 ? SamplesPerPixelCVar : View.FinalPostProcessSettings.PathTracingSamplesPerPixel;
+	MaxSPP = FMath::Max(MaxSPP, 1u);
 	static uint32 PreviousMaxSPP = MaxSPP;
 	if (PreviousMaxSPP != MaxSPP)
 	{
@@ -337,6 +436,14 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	if (PreviousLockedSamplingPattern != LockedSamplingPattern)
 	{
 		PreviousLockedSamplingPattern = LockedSamplingPattern;
+		bArgsChanged = true;
+	}
+
+	bool UseLightProfiles = View.Family->EngineShowFlags.TexturedLightProfiles;
+	static bool PreviousUseLightProfiles = UseLightProfiles;
+	if (PreviousUseLightProfiles != UseLightProfiles)
+	{
+		PreviousUseLightProfiles = UseLightProfiles;
 		bArgsChanged = true;
 	}
 
@@ -395,10 +502,11 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			// upload sky/lights data
 			FSkyLightData SkyLightData;
 			FPathTracingLightData LightData;
-			SetLightParameters(LightData, SkyLightData, Scene);
+			SetLightParameters(GraphBuilder, PassParameters, LightData, SkyLightData, Scene, View, UseLightProfiles);
 			PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleFrame);
 			PassParameters->SceneLightsData = CreateUniformBufferImmediate(LightData, EUniformBufferUsage::UniformBuffer_SingleFrame);
 		}
+		PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
 
 		// TODO: in multi-gpu case, split image into tiles

@@ -43,7 +43,7 @@ float4 RectLight_TraceLight(RayDesc Ray, int LightId, float HitT)
 			if (all(abs(UV) <= Rect.Extent))
 			{
 				// stored color is radiance
-				float3 Radiance = GetColor(LightId);
+				float3 Radiance = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 				float SolidAngle = BuildSphericalRect(Rect).SolidAngle;
 				return float4(Radiance, 1.0 / SolidAngle);
 			}
@@ -84,7 +84,7 @@ void RectLight_SampleLight(
 
 	OutDirection = normalize(Direction);
 	OutDistance = length(Direction);
-	OutRadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle;
+	OutRadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle * ComputeIESAttenuation(LightId, WorldPos);
 	OutPdf = 1.0 / SphericalRect.SolidAngle;
 }
 

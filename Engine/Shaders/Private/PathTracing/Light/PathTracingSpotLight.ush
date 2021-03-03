@@ -48,7 +48,7 @@ float4 SpotLight_TraceLight(RayDesc Ray, int LightId, float HitT) {
 		if (t > Ray.TMin && t < HitT)
 		{
 			// #dxr_todo: sphere area is 4*pi*r^2 -- but the factor of 4 is missing for some reason?
-			float3 LightPower = GetColor(LightId);
+			float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 			float3 LightRadiance = LightPower / (PI * LightRadius2);
 
 			// adjust lighting according to spot light cone falloff
@@ -99,7 +99,7 @@ void SpotLight_SampleLight(
 
 	OutPdf = DirAndPdf.w;
 
-	float3 LightPower = GetColor(LightId);
+	float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, WorldPos);
 	float3 LightRadiance = LightPower / (PI * Radius2);
 
 	// When the angle is very small, Radiance over pdf simplifies even more since SolidAngle ~= PI * SinThetaMax2
