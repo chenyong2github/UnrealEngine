@@ -874,7 +874,7 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
  */
 static int32 GuardedMain(int32 argc, TCHAR* argv[], bool bDirectMode)
 {
-	FString ExtraCmdLine = TEXT("-NOPACKAGECACHE -ReduceThreadUsage -cpuprofilertrace -nocrashreports");
+	FString ExtraCmdLine = TEXT("-NOPACKAGECACHE -ReduceThreadUsage -cpuprofilertrace -nocrashreports -nothreading");
 
 	// When executing tasks remotely through XGE, enumerating files requires tcp/ip round-trips with
 	// the initiator, which can slow down engine initialization quite drastically.
