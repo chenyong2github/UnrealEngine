@@ -100,6 +100,7 @@ enum class EVertexFactoryFlags : uint32
 	SupportsCachingMeshDrawCommands = 1u << 6,
 	SupportsPrimitiveIdStream       = 1u << 7,
 	SupportsNaniteRendering         = 1u << 8,
+	SupportsRayTracing              = 1u << 9,
 };
 ENUM_CLASS_FLAGS(EVertexFactoryFlags);
 
@@ -399,6 +400,7 @@ public:
 	bool SupportsCachingMeshDrawCommands() const { return HasFlags(EVertexFactoryFlags::SupportsCachingMeshDrawCommands); }
 	bool SupportsPrimitiveIdStream() const       { return HasFlags(EVertexFactoryFlags::SupportsPrimitiveIdStream); }
 	bool SupportsNaniteRendering() const         { return HasFlags(EVertexFactoryFlags::SupportsNaniteRendering); }
+	bool SupportsRayTracing() const              { return HasFlags(EVertexFactoryFlags::SupportsRayTracing); }
 
 	// Hash function.
 	friend uint32 GetTypeHash(const FVertexFactoryType* Type)
