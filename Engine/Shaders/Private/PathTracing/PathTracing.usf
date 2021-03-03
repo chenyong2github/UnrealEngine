@@ -22,9 +22,6 @@ PathTracingRayGenShader.usf: Reference path tracing
 
 
 RWTexture2D<float4> RadianceRT;
-RWTexture2D<uint>	SampleCountRT;
-RWTexture2D<uint>   PixelPositionRT;
-RWTexture2D<uint>	RayCountPerPixelRT;
 RaytracingAccelerationStructure TLAS;
 
 void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
@@ -45,11 +42,6 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 {
 	uint2 LaunchIndex = DispatchRaysIndex().xy + View.ViewRectMin.xy + PathTracingData.TileOffset.xy;
-	
-	RadianceRT[LaunchIndex] = 0;
-	SampleCountRT[LaunchIndex] = 0;
-	PixelPositionRT[LaunchIndex] = 0;
-	RayCountPerPixelRT[LaunchIndex] = 0;
 	
 	// Initialize random sequence 
 	float2 BufferSize = View.BufferSizeAndInvSize.xy; 
@@ -299,11 +291,25 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		// Update ray and loop back around to trace again
 		Ray.Direction = Direction;
 		Ray.TMin = 0;
-		ApplyPositionBias(Ray, SignedPositionBias* Payload.WorldNormal, PathTracingData.MaxNormalBias);
+		ApplyPositionBias(Ray, SignedPositionBias * Payload.WorldNormal, PathTracingData.MaxNormalBias);
 	}
 
-	RadianceRT[LaunchIndex].rgb += Radiance;
-	SampleCountRT[LaunchIndex] += 1;
-	PixelPositionRT[LaunchIndex] = Pixel.y * BufferSize.x + Pixel.x;
-	RayCountPerPixelRT[LaunchIndex] += RayCounter;
+
+	// Accumulate radiance and update pixel variance
+	uint NumSamples = AdaptiveSamplingData.Iteration + 1;
+	float BlendFactor = 1.0 / float(NumSamples);
+	// Avoid reading the old pixel on the first sample on the off-chance there is a NaN/Inf pixel ...
+	float4 OldPixel = NumSamples > 1 ? RadianceRT[LaunchIndex] : 0;
+	float3 OldRadiance = OldPixel.rgb;
+	float OldVariance = OldPixel.a;
+
+	float3 NewRadiance = lerp(OldRadiance, Radiance, BlendFactor);
+
+	float RadianceY = Luminance(Radiance);
+
+	// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+	float DeviationSquared = (RadianceY - Luminance(NewRadiance)) * (RadianceY - Luminance(OldRadiance));
+	float NewVariance = lerp(OldVariance, DeviationSquared, BlendFactor);
+
+	RadianceRT[LaunchIndex] = float4(NewRadiance, NewVariance);
 }

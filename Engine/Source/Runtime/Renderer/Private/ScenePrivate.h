@@ -947,8 +947,7 @@ public:
 	void PathTracingInvalidate();
 
 	// Reference path tracing cached results
-	TRefCountPtr<IPooledRenderTarget> PathTracingIrradianceRT;
-	TRefCountPtr<IPooledRenderTarget> PathTracingSampleCountRT;
+	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceRT;
 	FIntRect PathTracingRect;
 	FRWBuffer* VarianceMipTree;
 	FIntVector VarianceMipTreeDimensions;
