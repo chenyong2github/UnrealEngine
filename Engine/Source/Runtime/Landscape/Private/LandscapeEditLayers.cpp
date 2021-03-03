@@ -3125,25 +3125,38 @@ int32 ALandscape::RegenerateLayersHeightmaps(FTextureToComponentHelper const& Ma
 	return HeightmapUpdateModes;
 }
 
-void ALandscape::UpdateForChangedHeightmaps(ULandscapeComponent* Component, int32 UpdateMode)
+void ALandscape::UpdateForChangedHeightmaps(ULandscapeComponent* InComponent, const FLandscapeEditLayerReadbackResult& InReadbackResult)
 {
-	const int32 HeightUpdateMode = UpdateMode & (ELandscapeLayerUpdateMode::Update_Heightmap_All | ELandscapeLayerUpdateMode::Update_Heightmap_Editing | ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision);
+	// If the source data has changed, mark the component as needing a collision data update:
+	//  - If ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision is passed, it will be done immediately
+	//  - If not, at least the component's collision data will still get updated eventually, when the flag is finally passed :
+	if (InReadbackResult.bModified)
+	{
+		InComponent->SetPendingCollisionDataUpdate(true);
+	}
+
+	const int32 HeightUpdateMode = InReadbackResult.UpdateModes & (ELandscapeLayerUpdateMode::Update_Heightmap_All | ELandscapeLayerUpdateMode::Update_Heightmap_Editing | ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision);
 
 	if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision, HeightUpdateMode))
 	{
-		Component->UpdateCachedBounds();
-		Component->UpdateComponentToWorld();
+		// Only update collision if there was an actual change performed on the source data : 
+		if (InComponent->GetPendingCollisionDataUpdate())
+		{
+			InComponent->UpdateCachedBounds();
+			InComponent->UpdateComponentToWorld();
 
-		// Avoid updating height field if we are going to recreate collision in this update
-		bool bUpdateHeightfieldRegion = !IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, HeightUpdateMode);
-		Component->UpdateCollisionData(bUpdateHeightfieldRegion);
+			// Avoid updating height field if we are going to recreate collision in this update
+			bool bUpdateHeightfieldRegion = !IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, HeightUpdateMode);
+			InComponent->UpdateCollisionData(bUpdateHeightfieldRegion);
+			InComponent->SetPendingCollisionDataUpdate(false);
+		}
 	}
 	else if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Approximated_Bounds, HeightUpdateMode))
 	{
 		// Update bounds with an approximated value (real computation will be done anyways when computing collision)
 		const bool bInApproximateBounds = true;
-		Component->UpdateCachedBounds(bInApproximateBounds);
-		Component->UpdateComponentToWorld();
+		InComponent->UpdateCachedBounds(bInApproximateBounds);
+		InComponent->UpdateComponentToWorld();
 	}
 }
 
@@ -4383,13 +4396,26 @@ int32 ALandscape::RegenerateLayersWeightmaps(FTextureToComponentHelper const& Ma
 	return WeightmapUpdateModes;
 }
 
-void ALandscape::UpdateForChangedWeightmaps(ULandscapeComponent* Component, int32 UpdateMode)
+void ALandscape::UpdateForChangedWeightmaps(ULandscapeComponent* InComponent, const FLandscapeEditLayerReadbackResult& InReadbackResult)
 {
-	const int32 WeightUpdateMode = UpdateMode & (ELandscapeLayerUpdateMode::Update_Weightmap_All | ELandscapeLayerUpdateMode::Update_Weightmap_Editing | ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision);
+	// If the source data has changed, mark the component as needing a collision layer data update:
+	//  - If ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision is passed, it will be done immediately
+	//  - If not, at least the component's collision layer data will still get updated eventually, when the flag is finally passed :
+	if (InReadbackResult.bModified)
+	{
+		InComponent->SetPendingLayerCollisionDataUpdate(true);
+	}
+
+	const int32 WeightUpdateMode = InReadbackResult.UpdateModes & (ELandscapeLayerUpdateMode::Update_Weightmap_All | ELandscapeLayerUpdateMode::Update_Weightmap_Editing | ELandscapeLayerUpdateMode::Update_Weightmap_Editing_NoCollision);
 
 	if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Weightmap_Collision, WeightUpdateMode))
 	{
-		Component->UpdateCollisionLayerData();
+		// Only update collision data if there was an actual change performed on the source data : 
+		if (InComponent->GetPendingLayerCollisionDataUpdate())
+		{
+			InComponent->UpdateCollisionLayerData();
+			InComponent->SetPendingLayerCollisionDataUpdate(false);
+		}
 	}
 }
 
@@ -5284,7 +5310,6 @@ int32 ALandscape::UpdateCollisionAndClients(TMap<ULandscapeComponent*, FLandscap
 	{
 		ULandscapeComponent* LandscapeComponent = Pair.Key;
 		const int32 UpdateModes = Pair.Value.UpdateModes;
-		const bool bModified = Pair.Value.bModified;
 
 		bool bDeferClientUpdateForComponent = false;
 		bool bDoUpdateClient = true;
@@ -5390,14 +5415,8 @@ int32 ALandscape::UpdateAfterReadbackResolves(TMap<ULandscapeComponent*, FLandsc
 	{
 		for (auto Pair : Components)
 		{
-			if (Pair.Value.bModified)
-			{
-				ULandscapeComponent* Component = Pair.Key;
-				int32 UpdateModes = Pair.Value.UpdateModes;
-
-				UpdateForChangedHeightmaps(Component, UpdateModes);
-				UpdateForChangedWeightmaps(Component, UpdateModes);
-			}
+			UpdateForChangedHeightmaps(Pair.Key, Pair.Value);
+			UpdateForChangedWeightmaps(Pair.Key, Pair.Value);
 		}
 
 		GetLandscapeInfo()->UpdateAllAddCollisions();
