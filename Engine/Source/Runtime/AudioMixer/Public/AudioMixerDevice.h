@@ -55,6 +55,7 @@ namespace Audio
 		enum Type
 		{
 			Master,
+			BaseDefault,
 			Reverb,
 			EQ,
 			Count,
@@ -222,6 +223,7 @@ namespace Audio
 		FMixerSourceManager* GetSourceManager();
 
 		FMixerSubmixWeakPtr GetMasterSubmix(); 
+		FMixerSubmixWeakPtr GetBaseDefaultSubmix();
 		FMixerSubmixWeakPtr GetMasterReverbSubmix();
 		FMixerSubmixWeakPtr GetMasterEQSubmix();
 

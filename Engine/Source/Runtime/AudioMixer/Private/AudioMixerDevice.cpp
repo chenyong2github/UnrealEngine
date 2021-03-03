@@ -973,6 +973,7 @@ namespace Audio
 
 			// 1. Load or reload all sound submixes/instances
 			LoadMasterSoundSubmix(EMasterSubmixType::Master, TEXT("MasterSubmixDefault"), false /* DefaultMuteWhenBackgrounded */, AudioSettings->MasterSubmix);
+			LoadMasterSoundSubmix(EMasterSubmixType::BaseDefault, TEXT("BaseDefault"), false /* DefaultMuteWhenBackgrounded */, AudioSettings->BaseDefaultSubmix);
 			LoadMasterSoundSubmix(EMasterSubmixType::Reverb, TEXT("MasterReverbSubmixDefault"), true /* DefaultMuteWhenBackgrounded */, AudioSettings->ReverbSubmix);
 
 			if (!DisableSubmixEffectEQCvar)
@@ -1007,6 +1008,7 @@ namespace Audio
 			}, GET_STATID(STAT_InitSoundSubmixes));
 			return;
 		}
+
 		for (int32 i = 0; i < static_cast<int32>(EMasterSubmixType::Count); ++i)
 		{
 			if (DisableSubmixEffectEQCvar && i == static_cast<int32>(EMasterSubmixType::EQ))
@@ -1015,11 +1017,10 @@ namespace Audio
 			}
 
 			USoundSubmixBase* SoundSubmix = MasterSubmixes[i];
-			check(SoundSubmix);
-			FMixerSubmixPtr& MasterSubmixInstance = MasterSubmixInstances[i];
-
-			if (SoundSubmix != MasterSubmixes[static_cast<int32>(EMasterSubmixType::Master)])
+			if (SoundSubmix && SoundSubmix != MasterSubmixes[static_cast<int32>(EMasterSubmixType::Master)])
 			{
+				FMixerSubmixPtr& MasterSubmixInstance = MasterSubmixInstances[i];
+
 				RebuildSubmixLinks(*SoundSubmix, MasterSubmixInstance);
 			}
 		}
@@ -1040,9 +1041,22 @@ namespace Audio
 		FMixerSubmixPtr ParentSubmixInstance;
 		if (const USoundSubmixWithParentBase* SubmixWithParent = Cast<const USoundSubmixWithParentBase>(&SoundSubmix))
 		{
-			ParentSubmixInstance = SubmixWithParent->ParentSubmix
-				? GetSubmixInstance(SubmixWithParent->ParentSubmix).Pin()
-				: GetMasterSubmix().Pin();
+			if (SubmixWithParent->ParentSubmix)
+			{
+				ParentSubmixInstance = GetSubmixInstance(SubmixWithParent->ParentSubmix).Pin();
+			}
+			else
+			{
+				// If this submix is itself the broadcast submix, set its parent to the master submix
+				if (SubmixInstance == MasterSubmixInstances[static_cast<int32>(EMasterSubmixType::BaseDefault)])
+				{
+					ParentSubmixInstance = GetMasterSubmix().Pin();
+				}
+				else
+				{
+					ParentSubmixInstance = GetBaseDefaultSubmix().Pin();
+				}
+			}
 		}
 
 		if (ParentSubmixInstance.IsValid())
@@ -1070,6 +1084,15 @@ namespace Audio
 	FMixerSubmixWeakPtr FMixerDevice::GetMasterSubmix()
 	{
 		return MasterSubmixInstances[EMasterSubmixType::Master];
+	}
+
+	FMixerSubmixWeakPtr FMixerDevice::GetBaseDefaultSubmix()
+	{
+		if (MasterSubmixInstances[EMasterSubmixType::BaseDefault].IsValid())
+		{
+			return MasterSubmixInstances[EMasterSubmixType::BaseDefault];
+		}
+		return GetMasterSubmix();
 	}
 
 	FMixerSubmixWeakPtr FMixerDevice::GetMasterReverbSubmix()
