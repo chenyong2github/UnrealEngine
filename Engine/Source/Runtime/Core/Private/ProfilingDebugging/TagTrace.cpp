@@ -128,7 +128,9 @@ public:
 					FTagTrace(FMalloc* InMalloc);
 	void			AnnounceGenericTags();
 	void 			AnnounceTagDeclarations();
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
 	static void 	OnAnnounceTagDeclaration(FLLMTagDeclaration& TagDeclaration);
+#endif
 	int32			AnnounceCustomTag(int32 Tag, int32 ParentTag, const ANSICHAR* Display);
 	int32 			AnnounceFNameTag(const FName& TagName);
 
@@ -198,6 +200,7 @@ FTagTrace::FTagTrace(FMalloc* InMalloc)
 ////////////////////////////////////////////////////////////////////////////////
 void FTagTrace::AnnounceGenericTags()
 {
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
 	#define TRACE_TAG_SPEC(Enum,Str,Stat,Group,ParentTag)\
 	{\
 		const uint32 DisplayLen = FCStringAnsi::Strlen(Str);\
@@ -208,11 +211,13 @@ void FTagTrace::AnnounceGenericTags()
 	}
 	LLM_ENUM_GENERIC_TAGS(TRACE_TAG_SPEC);
 	#undef TRACE_TAG_SPEC
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void FTagTrace::AnnounceTagDeclarations()
 {
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
 	FLLMTagDeclaration* List = FLLMTagDeclaration::GetList();
 	while (List)
 	{
@@ -220,14 +225,17 @@ void FTagTrace::AnnounceTagDeclarations()
 		List = List->Next;
 	}
 	FLLMTagDeclaration::AddCreationCallback(FTagTrace::OnAnnounceTagDeclaration);
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
 void FTagTrace::OnAnnounceTagDeclaration(FLLMTagDeclaration& TagDeclaration)
 {
 	TagDeclaration.ConstructUniqueName();
 	GTagTrace->AnnounceFNameTag(TagDeclaration.GetUniqueName());
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 int32 FTagTrace::AnnounceFNameTag(const FName& Name)
