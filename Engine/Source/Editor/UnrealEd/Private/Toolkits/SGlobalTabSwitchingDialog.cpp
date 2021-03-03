@@ -308,29 +308,10 @@ void SGlobalTabSwitchingDialog::OnMainTabListSelectionChanged(FTabListItemPtr In
 				.TextStyle(FEditorStyle::Get(), "ControlTabMenu.AssetTypeStyle")
 				.Text(SelectedItem->GetTypeString())
 			];
-
-		// Create the list of the tool tabs in the current active tab
-		TSharedPtr<FTabManager> SelectedAssetTabManager = SelectedItem->GetAssociatedTabManager();
-		if (SelectedAssetTabManager.IsValid())
-		{
-			FMenuBuilder ToolTabMenuBuilder(/*bShouldCloseAfterSelection=*/ true, /*CommandList=*/ nullptr);
-			ToolTabMenuBuilder.GetMultiBox()->SetStyle(&FEditorStyle::Get(), "ToolBar");
-			
-			// Local editor tabs
-			SelectedAssetTabManager->PopulateLocalTabSpawnerMenu(ToolTabMenuBuilder);
-			
-			// General tabs
-			const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-			SelectedAssetTabManager->PopulateTabSpawnerMenu(ToolTabMenuBuilder, MenuStructure.GetStructureRoot());
-
-			// Turn the builder into a widget
-			NewToolTabsContent = ToolTabMenuBuilder.MakeWidget();
-		}
 	}
 
 	NewTabItemToActivateDisplayBox->SetContent(NewTopContents);
 	NewTabItemToActivatePathBox->SetContent(NewBottomContents);
-	ToolTabsListBox->SetContent(NewToolTabsContent);
 }
 
 void SGlobalTabSwitchingDialog::OnMainTabListItemClicked(FTabListItemPtr InItem)
@@ -416,10 +397,6 @@ void SGlobalTabSwitchingDialog::Construct(const FArguments& InArgs, FVector2D In
 		.HeightOverride(40.0f)
 		.VAlign(VAlign_Center);
 
-	ToolTabsListBox =
-		SNew(SBox)
-		.Padding(FMargin(0.0f, 0.0f, 15.0f, 0.0f));
-
 	MainTabsListWidget = SNew(STabListWidget)
 		.ItemHeight(64)
 		.ListItemsSource(&MainTabsListDataSource)
@@ -427,20 +404,6 @@ void SGlobalTabSwitchingDialog::Construct(const FArguments& InArgs, FVector2D In
 		.OnSelectionChanged(this, &SGlobalTabSwitchingDialog::OnMainTabListSelectionChanged)
 		.OnMouseButtonClick(this, &SGlobalTabSwitchingDialog::OnMainTabListItemClicked)
 		.SelectionMode(ESelectionMode::Single);
-
-	TSharedRef<SWidget> ToolTabList = SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ControlTabMenu.HeadingStyle")
-			.Text(LOCTEXT("ChangeToolsHeading", "Tool Windows"))
-		]
-		+SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		[
-			ToolTabsListBox.ToSharedRef()
-		];
 
 	TSharedRef<SWidget> DocumentTabList = SNew(SVerticalBox)
 		+SVerticalBox::Slot()
@@ -477,22 +440,10 @@ void SGlobalTabSwitchingDialog::Construct(const FArguments& InArgs, FVector2D In
 					NewTabItemToActivateDisplayBox.ToSharedRef()
 				]
 				+SVerticalBox::Slot()
+				.Padding(12.f, 24.f)
 				.FillHeight(1.0f)
 				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(0.4f)
-					.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
-					[
-						ToolTabList
-					]
-
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					[
 						DocumentTabList
-					]
-
 				]
 				+SVerticalBox::Slot()
 				.AutoHeight()

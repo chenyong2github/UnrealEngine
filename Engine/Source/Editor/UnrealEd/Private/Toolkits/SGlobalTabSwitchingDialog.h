@@ -72,8 +72,5 @@ private:
 	// The container widget for the indication of the path to the asset that will be activated when the dialog closes
 	TSharedPtr<SBox> NewTabItemToActivatePathBox;
 
-	// The container widget for the tool tabs list
-	TSharedPtr<SBox> ToolTabsListBox;
-
 	static bool bIsAlreadyOpen;
 };
