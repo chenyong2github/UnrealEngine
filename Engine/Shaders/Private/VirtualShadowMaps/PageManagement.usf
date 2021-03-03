@@ -10,6 +10,7 @@
 #include "../DeferredShadingCommon.ush"
 #include "../MortonCode.ush"
 #include "../Nanite/NaniteDataDecode.ush"
+#include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "PageAccessCommon.ush"
 #include "PageCacheCommon.ush"
 #include "ProjectionCommon.ush"
@@ -31,6 +32,10 @@ uint NumDirectionalLightSmInds;
 uint bPostBasePass;
 float LodFootprintScale;
 float PageDilationBorderSize;
+
+// HAIR_TODO: move all data into a HairStrands UB
+Texture2D<uint4> HairCategorizationTexture;
+uint bUseHairData;
 
 // Convenience to group up a bunch of data computed for a screen pixel
 struct FScreenPixelData
@@ -92,21 +97,10 @@ FScreenPixelData GetScreenPixelData(uint2 PixelPos, float DeviceZ)
 	float3 TranslatedWorldPosition = TranslatedWorldH.xyz / TranslatedWorldH.w;
 	// Subtract the view pre-translation to get back to world space
 	Data.WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
-
-	if (bPostBasePass != 0)
-	{
-		Data.GBufferData = GetGBufferData(Data.ScreenUV);
-	}
-
 	return Data;
 }
 
-FScreenPixelData GetScreenPixelData(uint2 PixelPos)
-{
-	return GetScreenPixelData(PixelPos, GetDeviceZFromPixel(PixelPos));
-}
-
-uint GetMipLevel(int VirtualShadowMapId, FScreenPixelData Pixel)
+uint GetMipLevel(int VirtualShadowMapId, float3 WorldPosition, float SceneDepth)
 {
 	float Footprint = float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
@@ -118,11 +112,11 @@ uint GetMipLevel(int VirtualShadowMapId, FScreenPixelData Pixel)
 		// TODO: Roll into a uniform
 		float2 RadiusXY = 1.0f / (View.ViewSizeAndInvSize.xy * View.ViewToClip._m00_m11);
 		float RadiusScreen = min(RadiusXY.x, RadiusXY.y);
-		float DepthScale = Pixel.SceneDepth * View.ViewToClip[2][3] + View.ViewToClip[3][3];
+		float DepthScale = SceneDepth * View.ViewToClip[2][3] + View.ViewToClip[3][3];
 
 		float RadiusWorld = DepthScale * RadiusScreen;
 
-		float3 TranslatedWorldPosition = Pixel.WorldPosition + ProjectionData.ShadowPreViewTranslation;
+		float3 TranslatedWorldPosition = WorldPosition + ProjectionData.ShadowPreViewTranslation;
 		float4 ShadowUVz = mul(float4(TranslatedWorldPosition, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
 
 		float4 RadiusClipH = mul(float4(RadiusWorld, 0.0f, ShadowUVz.w, 1.0f), ProjectionData.ShadowViewToClipMatrix);
@@ -133,10 +127,10 @@ uint GetMipLevel(int VirtualShadowMapId, FScreenPixelData Pixel)
 	return CalcMipLevelFromFootprint(LodFootprintScale * Footprint, VSM_MAX_MIP_LEVELS);
 }
 
-void MarkPage(uint VirtualShadowMapId, uint MipLevel, FScreenPixelData Pixel, float2 PageDilationOffset)
+void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 WorldPosition, float2 PageDilationOffset)
 {
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
-	float4 ShadowUVz = mul(float4(Pixel.WorldPosition + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
+	float4 ShadowUVz = mul(float4(WorldPosition + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
 	ShadowUVz.xyz /= ShadowUVz.w;
 
 	// Check overlap vs the shadow map space
@@ -183,7 +177,28 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 		return;
 	}
 	
-	FScreenPixelData Pixel = GetScreenPixelData(PixelPos);
+	float3 WorldPosition = 0;
+	float  SceneDepth    = 0;
+	bool   bIsValid		 = false;
+	if (bUseHairData)
+	{
+		FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(PixelPos, 0)));
+		FScreenPixelData HairPixel = GetScreenPixelData(PixelPos, CatData.ClosestDepth);
+		WorldPosition = HairPixel.WorldPosition;
+		SceneDepth = HairPixel.SceneDepth;
+		bIsValid = CatData.PixelCoverage > 0;
+	}
+	else
+	{
+		FScreenPixelData Pixel = GetScreenPixelData(PixelPos, GetDeviceZFromPixel(PixelPos));
+		WorldPosition = Pixel.WorldPosition;
+		SceneDepth = Pixel.SceneDepth;
+		bIsValid = true;
+		if (bPostBasePass != 0)
+		{
+			bIsValid = GetGBufferData(Pixel.ScreenUV).ShadingModelID != SHADINGMODELID_UNLIT;
+		}
+	}
 
 	// Dither pattern for page dilation
 	// We don't need to to check all 8 adjacent pages; as long as there's at least a single pixel near the edge
@@ -194,12 +209,9 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 			   GroupIndex & 2 ? 1.0f : -1.0f);
 		
 	// excluding unlit to avoid including processing sky dome
-	if (bPostBasePass != 0)
+	if (!bIsValid)
 	{
-		if (Pixel.GBufferData.ShadingModelID == SHADINGMODELID_UNLIT)
-		{
-			return;
-		}
+		return;
 	}
 	
 	// Directional lights
@@ -212,19 +224,19 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 
 		// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
 		// each level (to handle snapping). For now we maintain one per level.
-		//int ClipmapLevel = CalcClipmapLevel(length(Pixel.WorldPosition - ProjectionData.ClipmapWorldOrigin), ClipmapResolutionLodBias);
-		const int ClipmapLevel = CalcClipmapLevel(BaseProjectionData, Pixel.WorldPosition);
+		//int ClipmapLevel = CalcClipmapLevel(length(WorldPosition - ProjectionData.ClipmapWorldOrigin), ClipmapResolutionLodBias);
+		const int ClipmapLevel = CalcClipmapLevel(BaseProjectionData, WorldPosition);
 		int ClipmapIndex = max(0, ClipmapLevel - BaseProjectionData.ClipmapLevel);
 		if (ClipmapIndex < BaseProjectionData.ClipmapLevelCount)
 		{
-			MarkPage(ClipmapStartId + ClipmapIndex, 0, Pixel, PageDilationOffset);
+			MarkPage(ClipmapStartId + ClipmapIndex, 0, WorldPosition, PageDilationOffset);
 		}
 	}
 
 	// Local lights
 	{
 		uint EyeIndex = 0; // ??
-		uint3 GridCoordinate = ComputeLightGridCellCoordinate(PixelPos, Pixel.SceneDepth, EyeIndex);
+		uint3 GridCoordinate = ComputeLightGridCellCoordinate(PixelPos, SceneDepth, EyeIndex);
 		uint GridLinearIndex = ComputeLightGridCellIndex(GridCoordinate, EyeIndex);
 		const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridLinearIndex, EyeIndex);
 
@@ -234,7 +246,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 			const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
 			const uint LightGridLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
 
-			float3 ToLight = normalize(LightData.LightPositionAndInvRadius.xyz - Pixel.WorldPosition);
+			float3 ToLight = normalize(LightData.LightPositionAndInvRadius.xyz - WorldPosition);
 			// Also do precise cone test, since froxels are pretty coarse at times.
 			if (dot(ToLight, LightData.LightDirectionAndShadowMask.xyz) < LightData.SpotAnglesAndSourceRadiusPacked.x)
 			{
@@ -251,8 +263,8 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 					VirtualShadowMapId += GetCubeFace( -ToLight );
 				}
 
-				uint MipLevel = GetMipLevel(VirtualShadowMapId, Pixel);
-				MarkPage(VirtualShadowMapId, MipLevel, Pixel, PageDilationOffset);
+				uint MipLevel = GetMipLevel(VirtualShadowMapId, WorldPosition, SceneDepth);
+				MarkPage(VirtualShadowMapId, MipLevel, WorldPosition, PageDilationOffset);
 			}
 		}
 	}

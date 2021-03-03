@@ -38,6 +38,7 @@ void RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	FRDGTextureRef ScreenShadowMaskTexture,
+	FRDGTextureRef HairCategorization,
 	bool bProjectingForForwardShading);
 
 void RenderVirtualShadowMapProjection(
@@ -47,6 +48,7 @@ void RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	FRDGTextureRef ScreenShadowMaskTexture,
+	FRDGTextureRef HairCategorization,
 	bool bProjectingForForwardShading);
 
 void RenderVirtualShadowMapProjection(

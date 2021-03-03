@@ -11,6 +11,7 @@
 #include "VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMapClipmap.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "HairStrands/HairStrandsRendering.h"
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(VirtualShadowMapUbSlot);
 
@@ -316,9 +317,11 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, HairCategorizationTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)
+		SHADER_PARAMETER(uint32, bUseHairData)
 		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
 		SHADER_PARAMETER(uint32, bPostBasePass)
 		SHADER_PARAMETER(float, LodFootprintScale)
@@ -683,7 +686,8 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
 	bool bPostBasePass,
-	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager)
+	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager,
+	FHairStrandsRenderingData* HairDatas)
 {
 	check(IsEnabled());
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid");
@@ -846,39 +850,50 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				// Mark pages based on projected depth buffer pixels
 				if (CVarMarkPixelPages.GetValueOnRenderThread() != 0)
 				{
-					FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
-					PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FNaniteDepthBufferDim>(NaniteVisBuffer64 != nullptr && !bPostBasePass);
+					auto GeneratePageFlags = [&](FRDGTextureRef HairCategorizationTexture)
+					{
+						FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
+						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FNaniteDepthBufferDim>(NaniteVisBuffer64 != nullptr && !bPostBasePass);
 
-					FGeneratePageFlagsFromPixelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGeneratePageFlagsFromPixelsCS::FParameters >();
-					PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
+						FGeneratePageFlagsFromPixelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FGeneratePageFlagsFromPixelsCS::FParameters >();
+						PassParameters->VirtualSmCommon = GetCommonUniformBuffer(GraphBuilder);
 
-					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-					PassParameters->bPostBasePass = bPostBasePass;
-				
-					PassParameters->VisBuffer64 = VisBuffer64;
-					PassParameters->View = View.ViewUniformBuffer;
-					PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
-					PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
-					PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV(VirtualShadowMapIdRemapRDG[ViewIndex]);
-					PassParameters->VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
-					PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
-					PassParameters->LodFootprintScale = LodFootprintScale;
-					PassParameters->PageDilationBorderSize = PageDilationBorderSize;
-				
-					auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
+						PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+						PassParameters->bPostBasePass = bPostBasePass;
 
-					static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");
-					const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVirtualPageManagementShader::DefaultCSGroupXY);
+						PassParameters->VisBuffer64 = VisBuffer64;
+						PassParameters->bUseHairData = HairCategorizationTexture != nullptr ? 1 : 0;
+						PassParameters->HairCategorizationTexture = HairCategorizationTexture ? HairCategorizationTexture : GSystemTextures.GetBlackAlphaOneDummy(GraphBuilder);
+						PassParameters->View = View.ViewUniformBuffer;
+						PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
+						PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+						PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV(VirtualShadowMapIdRemapRDG[ViewIndex]);
+						PassParameters->VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
+						PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
+						PassParameters->LodFootprintScale = LodFootprintScale;
+						PassParameters->PageDilationBorderSize = PageDilationBorderSize;
 
-					FComputeShaderUtils::AddPass(
-						GraphBuilder,
-						RDG_EVENT_NAME("GeneratePageFlagsFromPixels"),
-						ComputeShader,
-						PassParameters,
-						FIntVector(GridSize.X, GridSize.Y, 1)
-					);
+						auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
+
+						static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");
+						const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVirtualPageManagementShader::DefaultCSGroupXY);
+
+						FComputeShaderUtils::AddPass(
+							GraphBuilder,
+							RDG_EVENT_NAME("GeneratePageFlagsFromPixels"),
+							ComputeShader,
+							PassParameters,
+							FIntVector(GridSize.X, GridSize.Y, 1)
+						);
+					};
+
+					GeneratePageFlags(nullptr);
+					FRDGTextureRef HairCategorizationTexture = HairDatas && ViewIndex < HairDatas->HairVisibilityViews.HairDatas.Num() ? HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture : nullptr;
+					if (HairCategorizationTexture)
+					{
+						GeneratePageFlags(HairCategorizationTexture);
+					}
 				}
-
 				// Mark coarse pages
 				if (CVarMarkCoarsePages.GetValueOnRenderThread() != 0)
 				{

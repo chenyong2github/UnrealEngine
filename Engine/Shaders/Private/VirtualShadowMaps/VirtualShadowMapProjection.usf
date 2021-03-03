@@ -15,6 +15,7 @@
 #include "../ScreenSpaceDenoise/SSDPublicHarmonics.ush"
 #include "../LightShaderParameters.ush"
 #include "../LightGridCommon.ush"
+#include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "PageAccessCommon.ush"
 #include "ProjectionCommon.ush"
 #include "ProjectionDirectional.ush"
@@ -252,6 +253,9 @@ void VirtualShadowMapProjectionSpotPS(
 	OutputTarget = EncodeOutput(TranslatedWorldPosition, Light, LightType, RayMissFactor, HitDistance, SampleCount, DebugOutput);
 }
 
+// HAIR_TODO: move all data into a HairStrands UB
+uint bUseHairData;
+Texture2D<uint4> HairCategorizationTexture;
 
 void VirtualShadowMapProjectionDirectionalPS(
 	in float4 SvPosition : SV_Position,
@@ -260,13 +264,17 @@ void VirtualShadowMapProjectionDirectionalPS(
 {
 	// TODO: Unify this with the logic in PageManagement.usf - we need to get the same values in both passes
 	const float2 ScreenUV = SvPositionToBufferUV(SvPosition);
-	const float DeviceZ = LookupDeviceZ(ScreenUV);
+	float DeviceZ = LookupDeviceZ(ScreenUV);
+	if (bUseHairData > 0)
+	{
+		FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(SvPosition.xy, 0)));
+		DeviceZ = CatData.ClosestDepth;
+	}
 	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(float4(SvPosition.xy, DeviceZ, 1.0f));
 
 	FLightShaderParameters Light = GetRootLightShaderParameters();
 		
-	FGBufferData GBufferData = GetGBufferData(ScreenUV);
 	float3 L = Light.Direction;
 	
 	float3 DebugOutput = float3(0, 0, 0);
@@ -282,6 +290,10 @@ void VirtualShadowMapProjectionDirectionalPS(
 		const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
 
 		float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
+		if (bUseHairData > 0)
+		{			
+			EstimatedGeoWorldNormal = L;
+		}
 
 		if (SMRTRayCount > 0)
 		{

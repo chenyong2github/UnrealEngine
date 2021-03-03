@@ -111,6 +111,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
 	SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, HairCategorizationTexture)
 	SHADER_PARAMETER(int32, VirtualShadowMapId)
 	SHADER_PARAMETER(float, ContactShadowLength)
 	SHADER_PARAMETER(float, NormalOffsetWorld)
@@ -119,6 +120,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
 	SHADER_PARAMETER(int32, SMRTSamplesPerRay)
 	SHADER_PARAMETER(float, SMRTRayLengthScale)
 	SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
+	SHADER_PARAMETER(uint32, bUseHairData)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -203,6 +205,7 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	int VirtualShadowMapId,
 	const FIntRect ScissorRect,
+	FRDGTextureRef HairCategorization,
 	EVirtualShadowMapProjectionOutputType OutputType,
 	const FRenderTargetBinding& RenderTargetBinding,
 	FRHIBlendState* BlendState)
@@ -223,6 +226,8 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
 	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
+	PassParameters->bUseHairData = HairCategorization != nullptr ? 1 : 0;
+	PassParameters->HairCategorizationTexture = HairCategorization ? HairCategorization : GSystemTextures.GetBlackDummy(GraphBuilder);
 
 	PassParameters->RenderTargets[0] = RenderTargetBinding;
 
@@ -298,6 +303,7 @@ static bool RenderVirtualShadowMapProjectionCommon(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	int32 VirtualShadowMapId,
 	const FIntRect ScissorRect,
+	FRDGTextureRef HairCategorization,
 	EVirtualShadowMapProjectionOutputType OutputType,
 	const FRenderTargetBinding& RenderTargetBinding,
 	FRHIBlendState* BlendState)
@@ -310,6 +316,7 @@ static bool RenderVirtualShadowMapProjectionCommon(
 		VirtualShadowMapArray,
 		VirtualShadowMapId,
 		ScissorRect,
+		HairCategorization,
 		OutputType,
 		RenderTargetBinding,
 		BlendState);
@@ -328,6 +335,7 @@ static bool RenderVirtualShadowMapProjectionCommon(
 			VirtualShadowMapArray,
 			VirtualShadowMapId,
 			ScissorRect,
+			HairCategorization,
 			EVirtualShadowMapProjectionOutputType::Debug,
 			DebugRenderTargetBinding,
 			nullptr);
@@ -355,6 +363,7 @@ void RenderVirtualShadowMapProjectionForDenoising(
 		VirtualShadowMapArray,
 		ShadowInfo->VirtualShadowMaps[0]->ID,
 		ScissorRect,
+		nullptr,
 		EVirtualShadowMapProjectionOutputType::Denoiser,
 		RenderTargetBinding,
 		nullptr);
@@ -377,6 +386,7 @@ void RenderVirtualShadowMapProjectionForDenoising(
 		VirtualShadowMapArray,
 		Clipmap->GetVirtualShadowMap()->ID,
 		ScissorRect,
+		nullptr,
 		EVirtualShadowMapProjectionOutputType::Denoiser,
 		RenderTargetBinding,
 		nullptr);
@@ -389,6 +399,7 @@ void RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	FRDGTextureRef ScreenShadowMaskTexture,
+	FRDGTextureRef HairCategorization,
 	bool bProjectingForForwardShading)
 {
 	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);
@@ -400,6 +411,7 @@ void RenderVirtualShadowMapProjection(
 		VirtualShadowMapArray,
 		ShadowInfo->VirtualShadowMaps[0]->ID,
 		ScissorRect,
+		HairCategorization,
 		EVirtualShadowMapProjectionOutputType::ScreenShadowMask,
 		RenderTargetBinding,
 		BlendState);
@@ -412,6 +424,7 @@ void RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	FRDGTextureRef ScreenShadowMaskTexture,
+	FRDGTextureRef HairCategorization,
 	bool bProjectingForForwardShading)
 {
 	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);	
@@ -424,6 +437,7 @@ void RenderVirtualShadowMapProjection(
 		VirtualShadowMapArray,
 		Clipmap->GetVirtualShadowMap()->ID,
 		ScissorRect,
+		HairCategorization,
 		EVirtualShadowMapProjectionOutputType::ScreenShadowMask,
 		RenderTargetBinding,
 		BlendState);
