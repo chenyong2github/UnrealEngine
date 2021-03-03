@@ -479,14 +479,14 @@ void SPlacementModeTools::UpdateShownItems()
 
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 
-	const FPlacementCategoryInfo* CategoryInfo = PlacementModeModule.GetRegisteredPlacementCategory(GetActiveTab());
-	if (!CategoryInfo)
+	const FPlacementCategoryInfo* Category = PlacementModeModule.GetRegisteredPlacementCategory(GetActiveTab());
+	if (!Category)
 	{
 		return;
 	}
-	else if (CategoryInfo->CustomGenerator)
+	else if (Category->CustomGenerator)
 	{
-		CustomContent->SetContent(CategoryInfo->CustomGenerator());
+		CustomContent->SetContent(Category->CustomGenerator());
 
 		CustomContent->SetVisibility(EVisibility::Visible);
 		DataDrivenContent->SetVisibility(EVisibility::Collapsed);
@@ -498,18 +498,18 @@ void SPlacementModeTools::UpdateShownItems()
 		if (IsSearchActive())
 		{
 			auto Filter = [&](const TSharedPtr<FPlaceableItem>& Item) { return SearchTextFilter->PassesFilter(*Item); };
-			PlacementModeModule.GetFilteredItemsForCategory(CategoryInfo->UniqueHandle, FilteredItems, Filter);
+			PlacementModeModule.GetFilteredItemsForCategory(Category->UniqueHandle, FilteredItems, Filter);
 			
-			if (CategoryInfo->bSortable)
+			if (Category->bSortable)
 			{
 				FilteredItems.Sort(&FSortPlaceableItems::SortItemsByName);
 			}
 		}
 		else
 		{
-			PlacementModeModule.GetItemsForCategory(CategoryInfo->UniqueHandle, FilteredItems);
+			PlacementModeModule.GetItemsForCategory(Category->UniqueHandle, FilteredItems);
 
-			if (CategoryInfo->bSortable)
+			if (Category->bSortable)
 			{
 				FilteredItems.Sort(&FSortPlaceableItems::SortItemsByOrderThenName);
 			}

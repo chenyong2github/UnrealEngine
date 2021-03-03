@@ -135,9 +135,13 @@ struct FPlaceableItem
 			{
 				NativeName = Factory->NewActorClassName;
 			}
-			else if (ensure(Factory->NewActorClass))
+			else if (Factory->NewActorClass)
 			{
 				Factory->NewActorClass->GetName(NativeName);
+			}
+			else
+			{
+				NativeName = Factory->GetName();
 			}
 
 			DisplayName = Factory->GetDisplayName();
@@ -154,7 +158,7 @@ struct FPlaceableItem
 		}
 	}
 
-	/** @depreacted Use AutoSetNativeAndDisplayName instead */
+	UE_DEPRECATED(4.27, "Use AutoSetNativeAndDisplayName instead")
 	void AutoSetDisplayName() { AutoSetNativeAndDisplayName(); }
 
 	/** Return NativeName as an FName (and cache it) */
