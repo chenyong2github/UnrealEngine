@@ -503,6 +503,12 @@ public:
 		TArray<FFBXNodeAndChannels>* NodeAndChannels, const TArray<FName>& SelectedControlNames, FFrameRate FrameRate);
 
 	/*
+	* Acquire first SkeletalMeshComponent from the Object
+	* @param BoundObject Object to get SkeletalMeshComponent from.If actor checks it's components, if component checks itself then child components.
+	* @return Returns the USkeletalMeshComponent if one is found
+	*/
+	static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject);
+	/*
 	*  Get an actors word transforms at the specified times
 	* @param Sequencer Sequencer to evaluation
     * @param ActorForWorldTransforms The actor and possible component and socket that we want to get the world transforms for.

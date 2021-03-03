@@ -125,28 +125,6 @@ void FSkeletalAnimationTrackEditMode::Tick(FEditorViewportClient* ViewportClient
 	ViewportClient->Invalidate();
 }
 
-static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject)
-{
-	if (AActor* Actor = Cast<AActor>(BoundObject))
-	{
-		for (UActorComponent* Component : Actor->GetComponents())
-		{
-			if (USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Component))
-			{
-				return SkeletalMeshComp;
-			}
-		}
-	}
-	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BoundObject))
-	{
-		if (SkeletalMeshComponent->SkeletalMesh)
-		{
-			return SkeletalMeshComponent;
-		}
-	}
-	return nullptr;
-}
-
 static void DrawBones(const TArray<FBoneIndexType>& RequiredBones, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform>& WorldTransforms,
 	FSkeletalMeshLODRenderData* LODData,
 	FPrimitiveDrawInterface* PDI, const TArray<FLinearColor>& BoneColours, float BoundRadius, float LineThickness/*=0.f*/)
@@ -359,7 +337,7 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 								}
 							}
 							//show skeletons
-							USkeletalMeshComponent* SkelMeshComp = AcquireSkeletalMeshFromObject(BoundObject);
+							USkeletalMeshComponent* SkelMeshComp = MovieSceneToolHelpers::AcquireSkeletalMeshFromObject(BoundObject);
 							if (SkelMeshComp && SkelMeshComp->GetAnimInstance())
 							{
 								const FLinearColor Colors[5] = { FLinearColor(1.0f,0.0f,1.0f,1.0f), FLinearColor(0.0f,1.0f,0.0f,1.0f), FLinearColor(0.0f, 0.0f, 1.0f, 0.0f),

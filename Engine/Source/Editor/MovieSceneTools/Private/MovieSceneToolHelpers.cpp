@@ -3924,7 +3924,7 @@ void MovieSceneToolHelpers::GetLocationAtTime(const FMovieSceneEvaluationTrack* 
 }
 
 
-static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject)
+USkeletalMeshComponent* MovieSceneToolHelpers::AcquireSkeletalMeshFromObject(UObject* BoundObject)
 {
 	if (AActor* Actor = Cast<AActor>(BoundObject))
 	{
@@ -3951,7 +3951,7 @@ static void GetSequencerActorWorldTransforms(ISequencer* Sequencer, const FActor
 	if (AActor* Actor = ActorSelection.Actor.Get())
 	{
 
-		USkeletalMeshComponent* SkelMeshComp = AcquireSkeletalMeshFromObject(Actor);
+		USkeletalMeshComponent* SkelMeshComp = MovieSceneToolHelpers::AcquireSkeletalMeshFromObject(Actor);
 
 		if (ActorSelection.SocketName != NAME_None && SkelMeshComp)
 		{
