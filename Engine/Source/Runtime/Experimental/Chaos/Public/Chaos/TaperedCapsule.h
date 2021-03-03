@@ -85,7 +85,7 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the capsule.
 		 */
-		TArray<FVec3> ComputeSamplePoints(const int32 NumPoints);
+		TArray<FVec3> ComputeSamplePoints(const int32 NumPoints) const;
 
 		/** 
 		 * Returns sample points at the current location of the capsule.
@@ -95,8 +95,11 @@ namespace Chaos
 		 * \p IncludeEndCaps determines whether or not points are generated on the 
 		 *    end caps of the capsule.
 		 */
-		TArray<FVec3> ComputeSamplePoints(const FReal PointsPerUnitArea, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
-		{ return ComputeSamplePoints(FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea(true))), MinPoints, MaxPoints)); }
+		TArray<FVec3> ComputeSamplePoints(const FReal PointsPerUnitArea, const int32 MinPoints, const int32 MaxPoints) const
+		{ 
+			const int32 NumPoints = FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea(true))), MinPoints, MaxPoints);
+			return ComputeSamplePoints(NumPoints);
+		}
 
 		virtual const FAABB3 BoundingBox() const override { return LocalBoundingBox; }
 
@@ -413,7 +416,7 @@ namespace Chaos
 		return Points;
 	}
 
-	FORCEINLINE TArray<FVec3> FTaperedCapsule::ComputeSamplePoints(const int32 NumPoints)
+	FORCEINLINE TArray<FVec3> FTaperedCapsule::ComputeSamplePoints(const int32 NumPoints) const
 	{
 		TArray<FVec3> Points;
 		FTaperedCapsuleSpecializeSamplingHelper::ComputeSamplePoints(Points, *this, NumPoints);
