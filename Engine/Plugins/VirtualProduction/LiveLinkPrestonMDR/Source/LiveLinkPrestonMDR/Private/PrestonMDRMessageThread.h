@@ -82,9 +82,9 @@ enum class EMDRCommand : uint8
 struct FMDRProtocol
 {
 	// ASCII Constants
-	static constexpr uint8 STX = 0x02;
-	static constexpr uint8 ETX = 0x03;
-	static constexpr uint8 ACK = 0x06;
+	static const uint8 STX;
+	static const uint8 ETX;
+	static const uint8 ACK;
 
 	// Begin Header Bytes
 	static constexpr uint32 ACKByte = 0;

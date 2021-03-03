@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "PrestonMDRMessageThread.h"
 
 #include "Sockets.h"
@@ -11,6 +9,10 @@
 #include "Misc/Timecode.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPrestonMDRMessageThread, Log, All);
+
+const uint8 FMDRProtocol::STX = 0x02;
+const uint8 FMDRProtocol::ETX = 0x03;
+const uint8 FMDRProtocol::ACK = 0x06;
 
 FPrestonMDRMessageThread::FPrestonMDRMessageThread(FSocket* InSocket) :
 	Socket(InSocket)
