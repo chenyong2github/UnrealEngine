@@ -509,6 +509,7 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 
 	ResetInstData(InstData);
 
+	check(SystemInstance);
 	FNiagaraDataInterfaceProxyChaosDestruction* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyChaosDestruction>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraChaosDestructionDICreateRTInstance)(
 		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandList& CmdList)
@@ -525,6 +526,7 @@ void UNiagaraDataInterfaceChaosDestruction::DestroyPerInstanceData(void* PerInst
 	FNDIChaosDestruction_InstanceData* InstData = (FNDIChaosDestruction_InstanceData*)PerInstanceData;
 	InstData->~FNDIChaosDestruction_InstanceData();
 
+	check(SystemInstance);
 	check(Proxy);
 	FNiagaraDataInterfaceProxyChaosDestruction* ThisProxy = GetProxyAs<FNiagaraDataInterfaceProxyChaosDestruction>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIChaosDestructionDestroyInstanceData) (
