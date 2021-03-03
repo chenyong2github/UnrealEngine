@@ -110,8 +110,6 @@ namespace DatasmithRuntime
 #endif
 				check(StaticMesh);
 
-				StaticMesh->StaticMaterials.SetNum(MaterialSlotCount);
-
 				MeshData.Object = TWeakObjectPtr< UObject >(StaticMesh);
 
 				// Add the creation of the mesh to the queue
@@ -149,6 +147,7 @@ namespace DatasmithRuntime
 		};
 
 		TArray< FStaticMaterial >& StaticMaterials = StaticMesh->StaticMaterials;
+		StaticMaterials.SetNum(MaterialSlotCount);
 
 		for (int32 Index = 0; Index < MaterialSlotCount; Index++)
 		{
@@ -308,16 +307,20 @@ namespace DatasmithRuntime
 
 					FString MaterialSlotName = FString::Printf(TEXT("%d"), MaterialIDElement->GetId());
 
-					if (SlotMapping.Contains(MaterialSlotName))
+					if (StaticMaterials.Num() == 0 || SlotMapping.Contains(MaterialSlotName))
 					{
 						if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
 						{
 							ProcessMaterialData(AssetDataList[*MaterialElementIdPtr]);
 
-							const int32 MaterialIndex = SlotMapping[MaterialSlotName];
+							// If staticmesh has no material assigned, material assignment will be queued later when the mesh component is created
+							if (StaticMaterials.Num() > 0)
+							{
+								const int32 MaterialIndex = SlotMapping[MaterialSlotName];
 
-							AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex } });
-							TasksToComplete |= EWorkerTask::MaterialAssign;
+								AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex } });
+								TasksToComplete |= EWorkerTask::MaterialAssign;
+							}
 						}
 					}
 				}
@@ -393,10 +396,12 @@ namespace DatasmithRuntime
 		// Empty mesh?
 		if (MeshDescriptions.Num() == 0)
 		{
-			// #ueent_datasmithruntime: TODO : Update FAssetFactory
 			ActionCounter.Add(MeshData.Referencers.Num());
-			MeshData.Object.Reset();
-			MeshData.AddState(EAssetState::Completed);
+			FAssetRegistry::UnregisteredAssetsData(StaticMesh, SceneKey, [](FAssetData& AssetData) -> void
+				{
+					AssetData.AddState(EAssetState::Completed);
+					AssetData.Object.Reset();
+				});
 
 			UE_LOG(LogDatasmithRuntime, Warning, TEXT("CreateStaticMesh: %s does not have a mesh description"), MeshElement->GetLabel());
 
@@ -421,6 +426,36 @@ namespace DatasmithRuntime
 		for (int32 LodIndex = 0; LodIndex < MeshDescriptions.Num(); ++LodIndex)
 		{
 			FMeshDescription& MeshDescription = MeshDescriptions[LodIndex];
+
+			// If the number of polygon groups in the MeshDescription is greater than the number of static materials in the static mesh
+			// Add the missing polygon groups.
+			FStaticMeshAttributes Attributes(MeshDescription);
+			TPolygonGroupAttributesConstRef<FName> MaterialSlotNameAttribute = Attributes.GetPolygonGroupMaterialSlotNames();
+			if (MeshDescription.PolygonGroups().Num() > StaticMesh->StaticMaterials.Num())
+			{
+				TArray<FStaticMaterial>& StaticMaterials = StaticMesh->StaticMaterials;
+				int32 LastIndex = StaticMaterials.Num();
+
+				StaticMaterials.SetNum(MeshDescription.PolygonGroups().Num());
+
+				TSet<FName> ExistingSlotNames;
+				ExistingSlotNames.Reserve(LastIndex);
+				for (int32 Index = 0; Index < LastIndex; ++Index)
+				{
+					ExistingSlotNames.Add(StaticMaterials[Index].MaterialSlotName);
+				}
+
+				for (FPolygonGroupID PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
+				{
+					const FName& MaterialSlotName = MaterialSlotNameAttribute[PolygonGroupID];
+					if (!ExistingSlotNames.Contains(MaterialSlotName))
+					{
+						StaticMaterials[LastIndex].MaterialSlotName = MaterialSlotName;
+						StaticMaterials[LastIndex].MaterialInterface = nullptr;
+						++LastIndex;
+					}
+				}
+			}
 
 			// UV Channels
 			int32 SourceIndex = 0;
@@ -622,6 +657,65 @@ namespace DatasmithRuntime
 		// There are override materials, make sure the slots are allocated
 		if (MeshActorElement->GetMaterialOverridesCount() > 0)
 		{
+			// Update override materials if mesh element has less materials assigned than static mesh
+			if (StaticMesh->StaticMaterials.Num() > OverrideMaterials.Num())
+			{
+				FActionTaskFunction AssignMaterialFunc = [this](UObject* Object, const FReferencer& Referencer) -> EActionResult::Type
+				{
+					return this->AssignMaterial(Referencer, Cast<UMaterialInstanceDynamic>(Object));
+				};
+
+				TArray< FStaticMaterial >& StaticMaterials = StaticMesh->StaticMaterials;
+
+				if (MeshActorElement->GetMaterialOverride(0)->GetId() == -1)
+				{
+					TSharedPtr<const IDatasmithMaterialIDElement> MaterialIDElement = MeshActorElement->GetMaterialOverride(0);
+
+					if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
+					{
+						for (int32 Index = 0; Index < StaticMaterials.Num(); ++Index)
+						{
+							AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)Index } });
+						}
+
+						TasksToComplete |= EWorkerTask::MaterialAssign;
+					}
+				}
+				else
+				{
+					TMap<FString, int32> SlotMapping;
+					SlotMapping.Reserve(StaticMaterials.Num());
+
+					for (int32 Index = 0; Index < StaticMaterials.Num(); ++Index)
+					{
+						const FStaticMaterial& StaticMaterial = StaticMaterials[Index];
+
+						if (StaticMaterial.MaterialSlotName != NAME_None)
+						{
+							SlotMapping.Add(StaticMaterial.MaterialSlotName.ToString(), Index);
+						}
+					}
+
+					for (int32 Index = 0; Index < MeshActorElement->GetMaterialOverridesCount(); ++Index)
+					{
+						TSharedPtr<const IDatasmithMaterialIDElement> MaterialIDElement = MeshActorElement->GetMaterialOverride(Index);
+
+						FString MaterialSlotName = FString::Printf(TEXT("%d"), MaterialIDElement->GetId());
+
+						if (SlotMapping.Contains(MaterialSlotName))
+						{
+							if (FSceneGraphId* MaterialElementIdPtr = AssetElementMapping.Find(MaterialPrefix + MaterialIDElement->GetName()))
+							{
+								const int32 MaterialIndex = SlotMapping[MaterialSlotName];
+
+								AddToQueue(EQueueTask::NonAsyncQueue, { AssignMaterialFunc, *MaterialElementIdPtr, { EDataType::Actor, ActorData.ElementId, (uint16)MaterialIndex } });
+								TasksToComplete |= EWorkerTask::MaterialAssign;
+							}
+						}
+					}
+				}
+			}
+
 			OverrideMaterials.SetNum(StaticMesh->StaticMaterials.Num());
 			for (int32 Index = 0; Index < OverrideMaterials.Num(); ++Index)
 			{
