@@ -184,7 +184,7 @@ uint32 FDatasmithGameThread::Run()
 		}
 
 		// Update this if we can get refresh rate of the user monitor(s)
-		constexpr double FrameTime = 1 / 60;
+		constexpr double FrameTime = (double)1 / 60;
 		double TimeSinceLastUpdate =  FPlatformTime::Seconds() - LastSlateUpdateTime;
 		while (TimeSinceLastUpdate < FrameTime && bKeepRunning)
 		{
