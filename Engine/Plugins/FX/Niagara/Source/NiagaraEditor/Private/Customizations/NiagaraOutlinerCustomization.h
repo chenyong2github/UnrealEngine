@@ -14,6 +14,7 @@ enum class ECheckBoxState : uint8;
 class FNiagaraDebugger;
 class SNiagaraOutlinerTree;
 class SNiagaraOutlinerTreeItem;
+class SSearchBox;
 class IStructureDetailsView;
 
 template<typename ItemType> class STreeView;
