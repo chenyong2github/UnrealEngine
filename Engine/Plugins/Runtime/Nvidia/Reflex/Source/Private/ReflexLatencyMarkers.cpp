@@ -42,7 +42,7 @@ void FReflexLatencyMarkers::Tick(float DeltaTime)
 	if (DisableLatencyMarkers == 0 && bEnabled && bProperDriverVersion && IsRHIDeviceNVIDIA())
 	{
 		NvAPI_Status LatencyStatus = NVAPI_OK;
-		NV_LATENCY_RESULT_PARAMS_V1 LatencyResults;
+		NV_LATENCY_RESULT_PARAMS_V1 LatencyResults = { 0 };
 		LatencyResults.version = NV_LATENCY_RESULT_PARAMS_VER1;
 
 		LatencyStatus = NvAPI_D3D_GetLatency(static_cast<IUnknown*>(GDynamicRHI->RHIGetNativeDevice()), &LatencyResults);
@@ -84,7 +84,7 @@ void FReflexLatencyMarkers::SetGameLatencyMarkerStart(uint64 FrameNumber)
 	if (DisableLatencyMarkers == 0 && bProperDriverVersion && bEnabled && IsRHIDeviceNVIDIA())
 	{
 		NvAPI_Status status = NVAPI_OK;
-		NV_LATENCY_MARKER_PARAMS_V1 params;
+		NV_LATENCY_MARKER_PARAMS_V1 params = { 0 };
 		params.version = NV_LATENCY_MARKER_PARAMS_VER1;
 		params.frameID = FrameNumber;
 		params.markerType = SIMULATION_START;
@@ -98,7 +98,7 @@ void FReflexLatencyMarkers::SetGameLatencyMarkerEnd(uint64 FrameNumber)
 	if (DisableLatencyMarkers == 0 && bProperDriverVersion && bEnabled && IsRHIDeviceNVIDIA())
 	{
 		NvAPI_Status status = NVAPI_OK;
-		NV_LATENCY_MARKER_PARAMS_V1 params;
+		NV_LATENCY_MARKER_PARAMS_V1 params = { 0 };
 		params.version = NV_LATENCY_MARKER_PARAMS_VER1;
 		params.frameID = FrameNumber;
 		params.markerType = SIMULATION_END;
@@ -112,7 +112,7 @@ void FReflexLatencyMarkers::SetRenderLatencyMarkerStart(uint64 FrameNumber)
 	if (DisableLatencyMarkers == 0 && bProperDriverVersion && bEnabled && IsRHIDeviceNVIDIA())
 	{
 		NvAPI_Status status = NVAPI_OK;
-		NV_LATENCY_MARKER_PARAMS_V1 params;
+		NV_LATENCY_MARKER_PARAMS_V1 params = { 0 };
 		params.version = NV_LATENCY_MARKER_PARAMS_VER1;
 		params.frameID = FrameNumber;
 		params.markerType = RENDERSUBMIT_START;
@@ -126,7 +126,7 @@ void FReflexLatencyMarkers::SetRenderLatencyMarkerEnd(uint64 FrameNumber)
 	if (DisableLatencyMarkers == 0 && bProperDriverVersion && bEnabled && IsRHIDeviceNVIDIA())
 	{
 		NvAPI_Status status = NVAPI_OK;
-		NV_LATENCY_MARKER_PARAMS_V1 params;
+		NV_LATENCY_MARKER_PARAMS_V1 params = { 0 };
 		params.version = NV_LATENCY_MARKER_PARAMS_VER1;
 		params.frameID = FrameNumber;
 		params.markerType = RENDERSUBMIT_END;
@@ -143,7 +143,7 @@ void FReflexLatencyMarkers::SetCustomLatencyMarker(uint32 MarkerId, uint64 Frame
 		if (DisableLatencyMarkers == 0 && bProperDriverVersion && bEnabled && IsRHIDeviceNVIDIA())
 		{
 			NvAPI_Status status = NVAPI_OK;
-			NV_LATENCY_MARKER_PARAMS_V1 params;
+			NV_LATENCY_MARKER_PARAMS_V1 params = { 0 };
 			params.version = NV_LATENCY_MARKER_PARAMS_VER1;
 			params.frameID = FrameNumber;
 			params.markerType = NV_LATENCY_MARKER_TYPE(MarkerId);

@@ -21,6 +21,7 @@ public:
 	virtual bool HandleMaxTickRate(float DesiredMaxTickRate) override;
 
 	bool bEnabled = false;
+	bool bWasEnabled = false;
 	bool bProperDriverVersion = false;
 	float MinimumInterval = -1.0f;
 	bool bUltraLowLatency = true;
