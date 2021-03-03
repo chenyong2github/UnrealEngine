@@ -3231,7 +3231,7 @@ FSceneRenderer* FSceneRenderer::CreateSceneRenderer(const FSceneViewFamily* InVi
 
 void AddServiceLocalQueuePass(FRDGBuilder& GraphBuilder);
 
-void FSceneRenderer::RenderCustomDepthPassAtLocation(FRDGBuilder& GraphBuilder, int32 Location)
+void FSceneRenderer::RenderCustomDepthPassAtLocation(FRDGBuilder& GraphBuilder, int32 Location, const FSceneTextureShaderParameters& SceneTextures)
 {		
 	extern TAutoConsoleVariable<int32> CVarCustomDepthOrder;
 	int32 CustomDepthOrder = FMath::Clamp(CVarCustomDepthOrder.GetValueOnRenderThread(), 0, 1);
@@ -3239,17 +3239,17 @@ void FSceneRenderer::RenderCustomDepthPassAtLocation(FRDGBuilder& GraphBuilder, 
 	if (CustomDepthOrder == Location)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass);
-		RenderCustomDepthPass(GraphBuilder);
+		RenderCustomDepthPass(GraphBuilder, SceneTextures);
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCustomDepthPassParameters, )
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileSceneTextureUniformParameters, MobileSceneTextures)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
-void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
+void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, const FSceneTextureShaderParameters& SceneTextures)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderCustomDepthPass);
 
@@ -3292,6 +3292,8 @@ void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
 			if (View.ShouldRenderView())
 			{
 				FCustomDepthPassParameters* PassParameters = GraphBuilder.AllocParameters<FCustomDepthPassParameters>();
+				PassParameters->SceneTextures = SceneTextures;
+
 				if (bMobilePath)
 				{
 					checkSlow(CustomDepthTextures.MobileCustomDepth && CustomDepthTextures.MobileCustomStencil);
@@ -3304,8 +3306,6 @@ void FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder)
 						DepthLoadAction,
 						StencilLoadAction,
 						FExclusiveDepthStencil::DepthWrite_StencilWrite);
-
-					PassParameters->MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::None);
 				}
 				else
 				{

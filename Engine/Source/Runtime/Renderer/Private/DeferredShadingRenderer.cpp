@@ -1825,7 +1825,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if(GetCustomDepthPassLocation() == 0)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass0);
-		RenderCustomDepthPassAtLocation(GraphBuilder, 0);
+		RenderCustomDepthPassAtLocation(GraphBuilder, 0, GetSceneTextureShaderParameters(SceneTextures));
 
 		SceneTexturesSetupMode |= ESceneTextureSetupMode::CustomDepth;
 		SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTexturesSetupMode);
@@ -2021,7 +2021,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(CustomDepthPass);
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_CustomDepthPass1);
-		RenderCustomDepthPassAtLocation(GraphBuilder, 1);
+		RenderCustomDepthPassAtLocation(GraphBuilder, 1, GetSceneTextureShaderParameters(SceneTextures));
 
 		SceneTexturesSetupMode |= ESceneTextureSetupMode::CustomDepth;
 		SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SceneTexturesSetupMode);
