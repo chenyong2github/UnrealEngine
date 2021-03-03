@@ -175,14 +175,9 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 		RayDesc Ray;
 		float RayPDF;
 
-#define USE_ERROR_DIFFUSION_SAMPLER 1 && RANDSEQ == RANDSEQ_OWENSOBOL
-
 		RandomSequence RandSequence;
-#if USE_ERROR_DIFFUSION_SAMPLER
 		RandomSequence_Initialize(RandSequence, PixelCoord, SampleIndex, TimeSeed, SamplesPerPixelLocal);
-#else
-		RandomSequence_Initialize(RandSequence, CalcLinearIndex(PixelCoord), SamplesPerPixelLocal * TimeSeed + SampleIndex);
-#endif
+
 		GenerateCosineNormalRay(PixelCoord, WorldPosition, WorldNormal, GeometricNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPDF);
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 
