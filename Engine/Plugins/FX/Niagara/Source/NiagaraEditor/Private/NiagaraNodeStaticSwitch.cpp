@@ -11,6 +11,8 @@
 #include "Widgets/Images/SImage.h"
 #include "ScopedTransaction.h"
 #include "EdGraphSchema_Niagara.h"
+#include "NiagaraSettings.h"
+#include "ToolMenu.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
 
@@ -623,6 +625,29 @@ void UNiagaraNodeStaticSwitch::AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> Ou
 			]
 		]
 	];
+}
+
+void UNiagaraNodeStaticSwitch::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
+{
+	Super::GetNodeContextMenuActions(Menu, Context);
+
+	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("Node");
+
+		Section.AddMenuEntry(
+			"AddEnumAsNiagaraType",
+			FText::Format(LOCTEXT("AddEnumToTypesLabel", "Add enum {0} to Niagara type registry"), FText::FromString(SwitchTypeData.Enum->GetName())),
+			LOCTEXT("AddEnumToTypesTooltip", "Adds the enum to the list of Niagara types so it can be used as a parameter."), 
+			FSlateIcon(), 
+			FUIAction(FExecuteAction::CreateLambda([=]()
+			{
+				GetMutableDefault<UNiagaraSettings>()->AddEnumParameterType(SwitchTypeData.Enum);
+			}), FCanExecuteAction::CreateLambda([=]()
+			{
+				return !GetDefault<UNiagaraSettings>()->AdditionalParameterEnums.Contains(SwitchTypeData.Enum);
+			})));
+	}
 }
 
 FText UNiagaraNodeStaticSwitch::GetTooltipText() const

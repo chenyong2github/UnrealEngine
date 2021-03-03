@@ -18,6 +18,16 @@ FName UNiagaraSettings::GetCategoryName() const
 }
 
 #if WITH_EDITOR
+
+void UNiagaraSettings::AddEnumParameterType(UEnum* Enum)
+{
+	if(!AdditionalParameterEnums.Contains(Enum))
+	{
+		AdditionalParameterEnums.Add(Enum);
+		FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry();
+	}
+}
+
 FText UNiagaraSettings::GetSectionText() const
 {
 	return NSLOCTEXT("NiagaraPlugin", "NiagaraSettingsSection", "Niagara");
