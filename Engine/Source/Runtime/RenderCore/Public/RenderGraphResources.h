@@ -389,7 +389,7 @@ struct RENDERCORE_API FRDGTextureDesc
 		uint8 InNumMips = 1,
 		uint8 InNumSamples = 1)
 	{
-		return FRDGTextureDesc(InClearValue, ETextureDimension::Texture2D, InFlags, InFormat, InExtent, 1, InArraySize, InNumMips, InNumSamples);
+		return FRDGTextureDesc(InClearValue, ETextureDimension::Texture2DArray, InFlags, InFormat, InExtent, 1, InArraySize, InNumMips, InNumSamples);
 	}
 
 	static FRDGTextureDesc Create3D(
@@ -423,7 +423,7 @@ struct RENDERCORE_API FRDGTextureDesc
 		uint8 InNumMips = 1,
 		uint8 InNumSamples = 1)
 	{
-		return FRDGTextureDesc(InClearValue, ETextureDimension::TextureCube, InFlags, InFormat, FIntPoint(InSizeInPixels, InSizeInPixels), 1, InArraySize, InNumMips, InNumSamples);
+		return FRDGTextureDesc(InClearValue, ETextureDimension::TextureCubeArray, InFlags, InFormat, FIntPoint(InSizeInPixels, InSizeInPixels), 1, InArraySize, InNumMips, InNumSamples);
 	}
 
 	FRDGTextureDesc() = default;

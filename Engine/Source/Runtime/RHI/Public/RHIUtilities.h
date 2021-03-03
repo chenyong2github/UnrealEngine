@@ -729,7 +729,7 @@ inline void RHICreateTargetableShaderResource2DArray(
 	check(!(bForceSeparateTargetAndShaderResource && bForceSharedTargetAndShaderResource));
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
-	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
+	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV));
 
 	if (NumSamples > 1 && !bForceSharedTargetAndShaderResource)
 	{
