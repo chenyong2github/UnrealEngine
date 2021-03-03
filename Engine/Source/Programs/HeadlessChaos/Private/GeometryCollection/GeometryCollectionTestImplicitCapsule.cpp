@@ -8,9 +8,9 @@ namespace GeometryCollectionTest
 {
 	using namespace Chaos;
 
-	void RunTestComputeSamplePoints(const Chaos::TCapsule<FReal> &Capsule)
+	void RunTestComputeSamplePoints(const Chaos::FCapsule &Capsule)
 	{
-		const Chaos::TCapsule<FReal> OACapsule = Chaos::TCapsule<FReal>::NewFromOriginAndAxis(Capsule.GetOrigin(), Capsule.GetAxis(), Capsule.GetHeight(), Capsule.GetRadius());
+		const Chaos::FCapsule OACapsule = Chaos::FCapsule::NewFromOriginAndAxis(Capsule.GetOrigin(), Capsule.GetAxis(), Capsule.GetHeight(), Capsule.GetRadius());
 		EXPECT_NEAR((Capsule.GetOrigin() - OACapsule.GetOrigin()).Size(), 0, KINDA_SMALL_NUMBER) << *FString("Capsule != OACapsule, origin.");
 		EXPECT_NEAR((Capsule.GetInsertion() - OACapsule.GetInsertion()).Size(), 0, KINDA_SMALL_NUMBER) << *FString("Capsule != OACapsule, insertion.");
 		EXPECT_NEAR((Capsule.GetAxis() - OACapsule.GetAxis()).Size(), 0, KINDA_SMALL_NUMBER) << *FString("Capsule != OACapsule, axis.");
@@ -93,32 +93,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(0,0,1), (FReal)1.0);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(0,0,1), (FReal)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius > 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(0,0,1), (FReal)10.0);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(0,0,1), (FReal)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius < 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(0,0,1), (FReal)0.1);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(0,0,1), (FReal)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(10,10,11), (FReal)1.0);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(10,10,11), (FReal)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius > 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(10,10,11), (FReal)10.0);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(10,10,11), (FReal)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius < 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(10,10,11), (FReal)0.1);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(10,10,11), (FReal)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 
@@ -128,32 +128,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(0,0,10), (FReal)1.0);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(0,0,10), (FReal)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius > 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(0,0,10), (FReal)10.0);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(0,0,10), (FReal)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius < 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(0,0,10), (FReal)0.1);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(0,0,10), (FReal)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(10,10,21), (FReal)1.0);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(10,10,21), (FReal)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius > 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(10,10,21), (FReal)10.0);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(10,10,21), (FReal)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius < 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(10,10,21), (FReal)0.1);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(10,10,21), (FReal)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 
@@ -163,32 +163,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(1,1,1), (FReal)1.0);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(1,1,1), (FReal)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius > 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(1,1,1), (FReal)10.0);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(1,1,1), (FReal)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// At the origin with radius < 1
 		{
-			TCapsule<FReal> Capsule(FVec3(0,0,0), FVec3(1,1,1), (FReal)0.1);
+			FCapsule Capsule(FVec3(0,0,0), FVec3(1,1,1), (FReal)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(11,11,11), (FReal)1.0);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(11,11,11), (FReal)1.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius > 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(11,11,11), (FReal)10.0);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(11,11,11), (FReal)10.0);
 			RunTestComputeSamplePoints(Capsule);
 		}
 		// Off the origin with radius < 1
 		{
-			TCapsule<FReal> Capsule(FVec3(10,10,10), FVec3(11,11,11), (FReal)0.1);
+			FCapsule Capsule(FVec3(10,10,10), FVec3(11,11,11), (FReal)0.1);
 			RunTestComputeSamplePoints(Capsule);
 		}
 	}

@@ -161,7 +161,7 @@ namespace Chaos
 			TArray<Pair<FReal, FVec3>> Intersections;
 			FReal DeltaRadius = FGenericPlatformMath::Abs(MRadius2 - MRadius1);
 			if (DeltaRadius == 0)
-				return TCylinder<FReal>(MPlane1.X(), MPlane2.X(), MRadius1).FindClosestIntersection(StartPoint, EndPoint, Thickness);
+				return FCylinder(MPlane1.X(), MPlane2.X(), MRadius1).FindClosestIntersection(StartPoint, EndPoint, Thickness);
 			FVec3 BaseNormal;
 			FReal BaseRadius;
 			FVec3 BaseCenter;

@@ -426,7 +426,7 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 	case ImplicitObjectType::Sphere: if (Ar.IsLoading()) { return new TSphere<FReal, 3>(); } break;
 	case ImplicitObjectType::Box: if (Ar.IsLoading()) { return new TBox<FReal, 3>(); } break;
 	case ImplicitObjectType::Plane: if (Ar.IsLoading()) { return new TPlane<FReal, 3>(); } break;
-	case ImplicitObjectType::Capsule: if (Ar.IsLoading()) { return new TCapsule<FReal>(); } break;
+	case ImplicitObjectType::Capsule: if (Ar.IsLoading()) { return new FCapsule(); } break;
 	case ImplicitObjectType::Transformed: if (Ar.IsLoading()) { return new TImplicitObjectTransformed<FReal, 3>(); } break;
 	case ImplicitObjectType::Union: if (Ar.IsLoading()) { return new FImplicitObjectUnion(); } break;
 	case ImplicitObjectType::UnionClustered: if (Ar.IsLoading()) { return new FImplicitObjectUnionClustered(); } break;
@@ -441,7 +441,7 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 		return new TImplicitObjectScaledGeneric<FReal, 3>();
 	}
 	case ImplicitObjectType::HeightField: if (Ar.IsLoading()) { return new FHeightField(); } break;
-	case ImplicitObjectType::Cylinder: if (Ar.IsLoading()) { return new TCylinder<FReal>(); } break;
+	case ImplicitObjectType::Cylinder: if (Ar.IsLoading()) { return new FCylinder(); } break;
 	default:
 		check(false);
 	}

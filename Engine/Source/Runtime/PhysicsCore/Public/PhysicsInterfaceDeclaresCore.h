@@ -25,8 +25,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template<class T>
-	class TCapsule;
+	class FCapsule;
 
 	template <typename T, int d>
 	class TGeometryParticle;
@@ -76,7 +75,7 @@ using FPhysicsTransform = FTransform;
 
 using FPhysicsShape = Chaos::FPerShapeData;
 using FPhysicsGeometry = Chaos::FImplicitObject;
-using FPhysicsCapsuleGeometry = Chaos::TCapsule<float>;
+using FPhysicsCapsuleGeometry = Chaos::FCapsule;
 using FPhysicsMaterial = Chaos::FChaosPhysicsMaterial;
 using FPhysicsMaterialMask = Chaos::FChaosPhysicsMaterialMask; 
 using FPhysicsActor = Chaos::FGeometryParticle;

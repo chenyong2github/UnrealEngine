@@ -187,7 +187,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				const float HalfHeight = Elem.GetScaledHalfLength(Scale3D) - Radius;
 				AnalyticShapeGroup->Add(
 					Xf,
-					new Chaos::TCapsule<float>(
+					new Chaos::FCapsule(
 						Chaos::FVec3(0.f, 0.f, -HalfHeight), // Min
 						Chaos::FVec3(0.f, 0.f, HalfHeight), // Max
 						Radius));

@@ -448,19 +448,19 @@ namespace ChaosTest {
 		FString Caller("ImplicitCylinder()");
 
 		// unit cylinder tests
-		TCylinder<FReal> Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
+		FCylinder Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
 		UnitImplicitObjectNormalsInternal(Subject, Caller);
 		UnitImplicitObjectNormalsExternal(Subject, Caller);
 		UnitImplicitObjectIntersections(Subject, Caller);
 		CheckCylinderEdgeBehavior(Subject, Caller);
 
 		// tilted tests
-		TCylinder<FReal> SubjectTilted(FVec3(1), FVec3(-1), 1);
+		FCylinder SubjectTilted(FVec3(1), FVec3(-1), 1);
 		TiltedUnitImplicitCylinder(SubjectTilted, Caller);
 
 #if RUN_KNOWN_BROKEN_TESTS
 		{// nearly flat cylinder tests (BROKEN)
-			TCylinder<FReal> SubjectFlat(FVec3(0, 0, KINDA_SMALL_NUMBER), FVec3(0, 0, -KINDA_SMALL_NUMBER), 1);
+			FCylinder SubjectFlat(FVec3(0, 0, KINDA_SMALL_NUMBER), FVec3(0, 0, -KINDA_SMALL_NUMBER), 1);
 			EXPECT_VECTOR_NEAR_DEFAULT(Subject.Normal(FVec3(0, 0, 1 / 2.)), FVec3(0, 0, 1));
 			EXPECT_VECTOR_NEAR_DEFAULT(Subject.Normal(FVec3(0, 0, -1 / 2.)), FVec3(0, 0, -1));
 			EXPECT_EQ(Subject.SignedDistance(FVec3(0, 0, 1 / 2.)), 1 / 2.);
@@ -471,19 +471,19 @@ namespace ChaosTest {
 #endif
 
 		{// closest point off origin (+)
-			TCylinder<FReal> Subject2(FVec3(2,2,4), FVec3(2,2,0), 2);
+			FCylinder Subject2(FVec3(2,2,4), FVec3(2,2,0), 2);
 			FVec3 InputPoint(2, 2, 5);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 2, 4), Caller);
 		}
 
 		{// closest point off origin (-)
-			TCylinder<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2);
+			FCylinder Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2);
 			FVec3 InputPoint(2, 3, 2);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
 		}
 
 		{// near edge intersection
-			TCylinder<FReal> Cylinder(FVec3(1, 1, -14), FVec3(1, 1, 16), 15);
+			FCylinder Cylinder(FVec3(1, 1, -14), FVec3(1, 1, 16), 15);
 			Pair<FVec3, bool> Result = Cylinder.FindClosestIntersection(FVec3(16, 16, 1), FVec3(16, -16, 1), 0);
 			EXPECT_TRUE(Result.Second);
 			EXPECT_VECTOR_NEAR(Result.First, FVec3(16, 1, 1), KINDA_SMALL_NUMBER);
@@ -677,13 +677,13 @@ namespace ChaosTest {
 		FString Caller("ImplicitCapsule()");
 
 		// Effectively a sphere - flat cylinder with two radius 1 spheres overlapping at origin.
-		TCapsule<FReal> SubjectUnit(FVec3(0, 0, 0), FVec3(0, 0, 0), 1);
+		FCapsule SubjectUnit(FVec3(0, 0, 0), FVec3(0, 0, 0), 1);
 
 		UnitImplicitObjectNormalsInternal(SubjectUnit, Caller);
 		UnitImplicitObjectNormalsExternal(SubjectUnit, Caller);
-		UnitImplicitObjectSupportPhis<TCapsule<FReal>>(SubjectUnit, Caller);
+		UnitImplicitObjectSupportPhis<FCapsule>(SubjectUnit, Caller);
 
-		TCapsule<FReal> SubjectTilted(FVec3(1), FVec3(-1), 1);
+		FCapsule SubjectTilted(FVec3(1), FVec3(-1), 1);
 		TiltedUnitImplicitCapsule(SubjectTilted, Caller);
 
 #if RUN_KNOWN_BROKEN_TESTS
@@ -691,7 +691,7 @@ namespace ChaosTest {
 		UnitImplicitObjectIntersections(SubjectUnit, Caller); 
 #endif
 
-		TCapsule<FReal> Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
+		FCapsule Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
 
 		{// closest point near origin (+)
 			FVec3 InputPoint(0, 0, 3);
@@ -705,13 +705,13 @@ namespace ChaosTest {
 		}
 
 		{// closest point off origin (+)
-			TCapsule<FReal> Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
+			FCapsule Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
 			FVec3 InputPoint(4, 4, 6);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(4, 4, 5), Caller);
 		}
 
 		{// closest point off origin (-)
-			TCapsule<FReal> Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
+			FCapsule Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
 			FVec3 InputPoint(4, 4, 4 + 1 / 2.);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(4, 4, 5), Caller);
 		}
@@ -1078,8 +1078,8 @@ namespace ChaosTest {
 
 		// Two cylinders intersected to make a unit cylinder.
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 2), FVec3(0, 0, -1), 1));
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -2), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, 2), FVec3(0, 0, -1), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -2), 1));
 
 		TImplicitObjectIntersection<FReal, 3> MIntersectedObjects(std::move(Objects));
 
@@ -1110,8 +1110,8 @@ namespace ChaosTest {
 		}
 
 		TArray<TUniquePtr<FImplicitObject>> Objects2;
-		Objects2.Add(MakeUnique<TCylinder<FReal>>(FVec3(4, 4, 6), FVec3(4, 4, 3), 1));
-		Objects2.Add(MakeUnique<TCylinder<FReal>>(FVec3(4, 4, 5), FVec3(4, 4, 2), 1));
+		Objects2.Add(MakeUnique<FCylinder>(FVec3(4, 4, 6), FVec3(4, 4, 3), 1));
+		Objects2.Add(MakeUnique<FCylinder>(FVec3(4, 4, 5), FVec3(4, 4, 2), 1));
 
 		TImplicitObjectIntersection<FReal, 3> MIntersectedObjects2(std::move(Objects2));
 		
@@ -1145,8 +1145,8 @@ namespace ChaosTest {
 
 		{// unit cylinder - sanity check
 			TArray<TUniquePtr<FImplicitObject>> Objects;
-			Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0), 1));
-			Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, -1), FVec3(0), 1));
+			Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0), 1));
+			Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, -1), FVec3(0), 1));
 			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 
 			// Can't use the default internal unit tests because they expect different behavior internally where the two cylinders are joined together. 
@@ -1170,8 +1170,8 @@ namespace ChaosTest {
 		}
 
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, -2), FVec3(0, 0, 2), 1));
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, -2, 0), FVec3(0, 2, 0), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, -2), FVec3(0, 0, 2), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, -2, 0), FVec3(0, 2, 0), 1));
 		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 
 		{// closest point near origin (+)
@@ -1195,8 +1195,8 @@ namespace ChaosTest {
 		}
 		
 		TArray<TUniquePtr<FImplicitObject>> Objects2;
-		Objects2.Add(MakeUnique<TCylinder<FReal>>(FVec3(4, 4, 2), FVec3(4, 4, 6), 1));
-		Objects2.Add(MakeUnique<TCylinder<FReal>>(FVec3(4, 2, 4), FVec3(4, 6, 4), 1));
+		Objects2.Add(MakeUnique<FCylinder>(FVec3(4, 4, 2), FVec3(4, 4, 6), 1));
+		Objects2.Add(MakeUnique<FCylinder>(FVec3(4, 2, 4), FVec3(4, 6, 4), 1));
 		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects2)));
 
 		{// closest point off origin (+)
@@ -1223,8 +1223,8 @@ namespace ChaosTest {
 		
 		{// Union of unions (capsule)
 			TArray<TUniquePtr<FImplicitObject>> Unions;
-			Unions.Add(MakeUnique<TCapsule<FReal>>(FVec3(0, 0, 0), FVec3(0, 0, -2), 1));
-			Unions.Add(MakeUnique<TCapsule<FReal>>(FVec3(0, 0, 0), FVec3(0, 0, 2), 1));
+			Unions.Add(MakeUnique<FCapsule>(FVec3(0, 0, 0), FVec3(0, 0, -2), 1));
+			Unions.Add(MakeUnique<FCapsule>(FVec3(0, 0, 0), FVec3(0, 0, 2), 1));
 			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Unions)));
 
 			EXPECT_VECTOR_NEAR(MUnionedObjects->Normal(FVec3(0, 0, 7 / 3.)), (FVec3(0, 0, 1)), KINDA_SMALL_NUMBER);
@@ -1241,7 +1241,7 @@ namespace ChaosTest {
 
 		{// Union of a union containing all the unit geometries overlapping - should still pass all the normal unit tests. 
 			TArray<TUniquePtr<FImplicitObject>> Objects1;
-			Objects1.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
+			Objects1.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
 			Objects1.Add(MakeUnique<TSphere<FReal, 3>>(FVec3(0, 0, 0), 1));
 			Objects1.Add(MakeUnique<TBox<FReal, 3>>(FVec3(-1, -1, -1), FVec3(1, 1, 1)));
 			Objects1.Add(MakeUnique<FTaperedCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
@@ -1259,7 +1259,7 @@ namespace ChaosTest {
 		{// Union of two unions, each with two unit objects
 			TArray<TUniquePtr<FImplicitObject>> ObjectsA;
 			TArray<TUniquePtr<FImplicitObject>> ObjectsB;
-			ObjectsA.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
+			ObjectsA.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
 			ObjectsA.Add(MakeUnique<TSphere<FReal, 3>>(FVec3(0, 0, 0), 1));
 			ObjectsB.Add(MakeUnique<TBox<FReal, 3>>(FVec3(-1, -1, -1), FVec3(1, 1, 1)));
 			ObjectsB.Add(MakeUnique<FTaperedCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
@@ -1278,8 +1278,8 @@ namespace ChaosTest {
 		{// Mimic a unit cylinder, but made up of multiple unions. 
 			TArray<TUniquePtr<FImplicitObject>> ObjectsA;
 			TArray<TUniquePtr<FImplicitObject>> ObjectsB;
-			ObjectsA.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 0), FVec3(0, 0, -1), 1));
-			ObjectsB.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 0), FVec3(0, 0, 1), 1));
+			ObjectsA.Add(MakeUnique<FCylinder>(FVec3(0, 0, 0), FVec3(0, 0, -1), 1));
+			ObjectsB.Add(MakeUnique<FCylinder>(FVec3(0, 0, 0), FVec3(0, 0, 1), 1));
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsA)));
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsB)));
@@ -1876,8 +1876,8 @@ namespace ChaosTest {
 		TUniquePtr<FImplicitObjectUnion> MUnionedObjects;
 
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0), 1));
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, -1), FVec3(0), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, -1), FVec3(0), 1));
 		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 
 		TArray<TUniquePtr<FImplicitObject>> Objects2;

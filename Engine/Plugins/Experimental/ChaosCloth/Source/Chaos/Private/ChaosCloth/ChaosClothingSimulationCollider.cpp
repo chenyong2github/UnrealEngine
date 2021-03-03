@@ -129,7 +129,7 @@ void FClothingSimulationCollider::FLODData::Add(
 			{
 				// Capsule
 				Solver->SetCollisionGeometry(CapsuleOffset, Index, 
-					MakeUnique<TCapsule<float>>(P0, P1, MaxRadius));
+					MakeUnique<FCapsule>(P0, P1, MaxRadius));
 			}
 			else
 			{

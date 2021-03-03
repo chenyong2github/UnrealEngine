@@ -12,8 +12,7 @@ namespace Chaos
 	template <typename T, int d>
 	class TSphere;
 
-	template <typename T>
-	class TCapsule;
+	class FCapsule;
 
 	class FConvex;
 

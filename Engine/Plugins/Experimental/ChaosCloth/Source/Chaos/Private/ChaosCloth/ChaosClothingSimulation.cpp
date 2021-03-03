@@ -1039,7 +1039,7 @@ static void DrawBox(FPrimitiveDrawInterface* PDI, const FAABB3& Box, const FQuat
 #endif
 }
 
-static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<FReal>& Capsule, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawCapsule(FPrimitiveDrawInterface* PDI, const FCapsule& Capsule, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
 	const FReal Radius = Capsule.GetRadius();
 	const FReal HalfHeight = Capsule.GetHeight() * 0.5f + Radius;
@@ -1364,7 +1364,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 						break;
 
 					case ImplicitObjectType::Capsule:
-						DrawCapsule(PDI, Object->GetObjectChecked<TCapsule<FReal>>(), Rotation, Position, Color);
+						DrawCapsule(PDI, Object->GetObjectChecked<FCapsule>(), Rotation, Position, Color);
 						break;
 
 					case ImplicitObjectType::Union:  // Union only used as collision tapered capsules

@@ -289,7 +289,7 @@ namespace Chaos
 					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
 						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
 							(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
-								Particle2.Geometry()->GetType() == TCapsule<FReal>::StaticType()));
+								Particle2.Geometry()->GetType() == FCapsule::StaticType()));
 					if (Particle1.ObjectState() == EObjectStateType::Sleeping && !bIsParticle2Kinematic && bSecondParticleWillHaveAnswer)
 					{
 						//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?

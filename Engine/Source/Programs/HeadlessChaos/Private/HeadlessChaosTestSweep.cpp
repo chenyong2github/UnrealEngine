@@ -858,7 +858,7 @@ namespace ChaosTest
 		const FVec3 X1 = { 0,0,-19.45 };
 		const FVec3 X2 = X1 + FVec3(0, 0, 38.9);
 		const FReal Radius = 25.895;
-		const TCapsule<FReal> Capsule = TCapsule<FReal>(X1, X2, Radius);
+		const FCapsule Capsule = FCapsule(X1, X2, Radius);
 
 		const FVec3 CapsuleToTrimeshTranslation = { 1818.55884, 27.8377075, -630.160645 };
 		const FRigidTransform3 CapsuleToTrimesh(CapsuleToTrimeshTranslation, FQuat::Identity);

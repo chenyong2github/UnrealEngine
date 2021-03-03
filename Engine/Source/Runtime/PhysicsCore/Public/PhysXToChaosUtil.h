@@ -46,7 +46,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 		const float Radius = Geom.capsule().radius;
 		const FVec3 Top(HalfHeight, 0, 0);	//PhysX capsules are aligned along the x-axis
 		const FVec3 Bottom = -Top;
-		InnerObj = MakeUnique<TCapsule<float>>(Top, Bottom, Radius);
+		InnerObj = MakeUnique<FCapsule>(Top, Bottom, Radius);
 		break;
 	}
 	case PxGeometryType::eCONVEXMESH:

@@ -63,9 +63,9 @@ const Chaos::TSphere<float,3>&  FPhysicsGeometryCollection_Chaos::GetSphereGeome
 {
 	return Geom.GetObjectChecked<Chaos::TSphere<float,3>>();
 }
-const Chaos::TCapsule<float>&  FPhysicsGeometryCollection_Chaos::GetCapsuleGeometry() const
+const Chaos::FCapsule&  FPhysicsGeometryCollection_Chaos::GetCapsuleGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TCapsule<float>>();
+	return Geom.GetObjectChecked<Chaos::FCapsule>();
 }
 
 const Chaos::FConvex& FPhysicsGeometryCollection_Chaos::GetConvexGeometry() const
@@ -98,7 +98,7 @@ FPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot,const FC
 			const FVector Bot = FVector(0.f,0.f,-UseHalfHeight);
 			const FVector Top = FVector(0.f,0.f,UseHalfHeight);
 			const float UseRadius = FMath::Max(CapsuleRadius,FCollisionShape::MinCapsuleRadius());
-			Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TCapsule<float>(Bot,Top,UseRadius));
+			Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::FCapsule(Bot,Top,UseRadius));
 		} else
 		{
 			// Use a sphere instead.

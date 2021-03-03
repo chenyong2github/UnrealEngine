@@ -218,7 +218,7 @@ namespace Chaos
 				break;
 			case ImplicitObjectType::Capsule:
 			{
-				const TCapsule<FReal>* Capsule = Shape->template GetObject<TCapsule<FReal>>();
+				const FCapsule* Capsule = Shape->template GetObject<FCapsule>();
 				const FVec3 P = ShapeTransform.TransformPosition(Capsule->GetCenter());
 				const FRotation3 Q = ShapeTransform.GetRotation() * FRotationMatrix::MakeFromZ(Capsule->GetAxis());
 				FDebugDrawQueue::GetInstance().DrawDebugCapsule(P, (FReal)0.5 * Capsule->GetHeight() + Capsule->GetRadius(), Capsule->GetRadius(), Q, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.ShapeThicknesScale * Settings.LineThickness);

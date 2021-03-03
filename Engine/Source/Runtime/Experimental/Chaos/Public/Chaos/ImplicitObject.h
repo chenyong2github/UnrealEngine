@@ -16,8 +16,7 @@ namespace Chaos
 {
 template<class T, int d>
 class TAABB;
-template<class T>
-class TCylinder;
+class FCylinder;
 template<class T, int d>
 class TSphere;
 template<class T, int d>

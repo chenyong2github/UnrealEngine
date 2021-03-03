@@ -440,7 +440,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 			, Box(FVector::ZeroVector, FVector::ZeroVector)
 		{}
 
-		Chaos::TCapsule<float> Capsule;
+		Chaos::FCapsule Capsule;
 		Chaos::TSphere<float, 3> Sphere;
 		Chaos::FAABB3 Box;
 	};
@@ -461,7 +461,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 		Chaos::FVec3 x1(-HalfHeight, 0, 0);
 		Chaos::FVec3 x2(HalfHeight, 0, 0);
 		
-		Chaos::TCapsule<float> Capsule(x1, x2, Radius);
+		Chaos::FCapsule Capsule(x1, x2, Radius);
 		ImplicitStorage.Capsule = MoveTemp(Capsule);
 		Implicit = &ImplicitStorage.Capsule;
 
@@ -714,7 +714,7 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 			, Box(FVector::ZeroVector, FVector::ZeroVector)
 		{}
 
-		Chaos::TCapsule<float> Capsule;
+		Chaos::FCapsule Capsule;
 		Chaos::TSphere<float, 3> Sphere;
 		Chaos::FAABB3 Box;
 	};
@@ -732,7 +732,7 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 		float HalfHeight = PxCapsule.halfHeight - Radius;
 		Chaos::FVec3 x1(-HalfHeight, 0, 0);
 		Chaos::FVec3 x2(HalfHeight, 0, 0);
-		Chaos::TCapsule<float> Capsule(x1, x2, Radius);
+		Chaos::FCapsule Capsule(x1, x2, Radius);
 		ImplicitStorage.Capsule = MoveTemp(Capsule);
 		Implicit = &ImplicitStorage.Capsule;
 	}

@@ -313,7 +313,7 @@ namespace ChaosTest {
 		}
 		else 
 		{
-			Particle->SetDynamicGeometry(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, Scale.X / 2.0), FVec3(0, 0, -Scale.X / 2.0), Scale.X / 2.0));
+			Particle->SetDynamicGeometry(MakeUnique<FCylinder>(FVec3(0, 0, Scale.X / 2.0), FVec3(0, 0, -Scale.X / 2.0), Scale.X / 2.0));
 		}
 
 		int32 CollisionIndex = 0;

@@ -195,9 +195,7 @@ namespace Chaos
 
 	class FPBDSpringConstraints;
 	class FConvex;
-
-	template <typename T>
-	class TCapsule;
+	class FCapsule;
 
 	template <typename T, int>
 	class TAABB;
@@ -299,9 +297,9 @@ struct PHYSICSCORE_API FPhysicsGeometryCollection_Chaos
 
 	ECollisionShapeType GetType() const;
 	const Chaos::FImplicitObject& GetGeometry() const;
-	const Chaos::TBox<float, 3>& GetBoxGeometry() const;
-	const Chaos::TSphere<float, 3>&  GetSphereGeometry() const;
-	const Chaos::TCapsule<float>&  GetCapsuleGeometry() const;
+	const Chaos::TBox<Chaos::FReal, 3>& GetBoxGeometry() const;
+	const Chaos::TSphere<Chaos::FReal, 3>&  GetSphereGeometry() const;
+	const Chaos::FCapsule&  GetCapsuleGeometry() const;
 	const Chaos::FConvex& GetConvexGeometry() const;
 	const Chaos::FTriangleMeshImplicitObject& GetTriMeshGeometry() const;
 
