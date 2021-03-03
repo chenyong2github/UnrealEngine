@@ -8804,7 +8804,7 @@ bool FCharacterNetworkSerializationPackedBits::NetSerialize(FArchive& Ar, class 
 	uint32 NumBits = DataBits.Num();
 	Ar.SerializeIntPacked(NumBits);
 
-	if (!ensure(NumBits <= (uint32)CharacterMovementCVars::NetPackedMovementMaxBits))
+	if (!ensureMsgf(NumBits <= (uint32)CharacterMovementCVars::NetPackedMovementMaxBits, TEXT("FCharacterNetworkSerializationPackedBits::NetSerialize: NumBits (%d) exceeds CharacterMovementCVars::NetPackedMovementMaxBits (%d)"), NumBits, (uint32)CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
 		// Protect against bad data that could cause server to allocate way too much memory.
 		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("FCharacterNetworkSerializationPackedBits::NetSerialize: NumBits (%d) exceeds allowable limit!"), NumBits));
@@ -8967,7 +8967,7 @@ void UCharacterMovementComponent::ServerMovePacked_ServerReceive(const FCharacte
 	}
 
 	const int32 NumBits = PackedBits.DataBits.Num();
-	if (!ensure(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits))
+	if (!ensureMsgf(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits, TEXT("ServerMovePacked_ServerReceive: NumBits (%d) exceeds CharacterMovementCVars::NetPackedMovementMaxBits (%d)"), NumBits, CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
 		// Protect against bad data that could cause server to allocate way too much memory.
 		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("ServerMovePacked_ServerReceive: NumBits (%d) exceeds allowable limit!"), NumBits));
@@ -9579,7 +9579,7 @@ void UCharacterMovementComponent::MoveResponsePacked_ClientReceive(const FCharac
 	}
 
 	const int32 NumBits = PackedBits.DataBits.Num();
-	if (!ensure(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits))
+	if (!ensureMsgf(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits, TEXT("MoveResponsePacked_ClientReceive: NumBits (%d) exceeds CharacterMovementCVars::NetPackedMovementMaxBits (%d)"), NumBits, CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
 		// Protect against bad data that could cause client to allocate way too much memory.
 		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("MoveResponsePacked_ClientReceive: NumBits (%d) exceeds allowable limit!"), NumBits));
