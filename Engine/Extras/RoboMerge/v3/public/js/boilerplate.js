@@ -150,12 +150,6 @@ function updateBranchList(graphBotName=null) {
 					window.location.href = "/api/last_crash";
 				})
 				.appendTo(bl)
-
-			$('<button>')
-				.addClass('btn btn-xs btn-danger robomerge-crash-buttons')
-				.text("Restart Robomerge")
-				.click(startBot)
-				.appendTo(bl)
 		}
 
 		// highlight requested link
