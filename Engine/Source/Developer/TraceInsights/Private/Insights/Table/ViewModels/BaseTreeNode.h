@@ -146,6 +146,12 @@ public:
 	void SortChildrenAscending(const ITableCellValueSorter& Sorter);
 	void SortChildrenDescending(const ITableCellValueSorter& Sorter);
 
+	template <class PREDICATE_CLASS>
+	void SortChildren(const PREDICATE_CLASS& Predicate)
+	{
+		GroupData->Children.Sort(Predicate);
+	}
+
 	/** Adds specified child to the children and sets group for it. */
 	FORCEINLINE_DEBUGGABLE void AddChildAndSetGroupPtr(const FBaseTreeNodePtr& ChildPtr)
 	{
