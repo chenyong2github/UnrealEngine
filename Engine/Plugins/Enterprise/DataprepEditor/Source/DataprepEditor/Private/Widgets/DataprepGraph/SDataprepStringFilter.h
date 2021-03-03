@@ -17,6 +17,7 @@ template<class t>
 class SComboBox;
 
 struct FDataprepParametrizationActionData;
+class UDataprepParameterizableObject;
 
 template <class FilterType>
 class SDataprepStringFilter : public SCompoundWidget,  public FGCObject
@@ -49,6 +50,8 @@ private:
 	FText GetUserString() const;
 	void OnUserStringChanged(const FText& NewText);
 	void OnUserStringComitted(const FText& NewText, ETextCommit::Type CommitType);
+	void OnUserStringArrayPropertyChanged(UDataprepParameterizableObject& Object, FPropertyChangedChainEvent& PropertyChangedChainEvent);
+
 	void ExtendContextMenuForUserStringBox(FMenuBuilder& MenuBuilder);
 	TSharedPtr<SWidget> OnGetContextMenuForUserString();
 
@@ -71,4 +74,6 @@ private:
 	TSharedPtr<FDataprepParametrizationActionData> MatchInArrayParameterizationActionData;
 
 	FDelegateHandle OnParameterizationStatusForObjectsChangedHandle;
+
+	FDelegateHandle OnUserStringArrayPostEditHandle;
 };

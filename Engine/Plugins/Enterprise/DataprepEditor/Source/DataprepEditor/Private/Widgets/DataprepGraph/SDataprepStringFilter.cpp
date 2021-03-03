@@ -34,6 +34,8 @@ void SDataprepStringFilter<FilterType>::Construct(const FArguments& InArgs, Filt
 
 	DataprepActionWidgetsUtils::GenerateListEntriesFromEnum< EDataprepStringMatchType >( StringMatchingOptions );
 
+	OnUserStringArrayPostEditHandle = Filter->GetStringArray()->GetOnPostEdit().AddSP( this, &SDataprepStringFilter<FilterType>::OnUserStringArrayPropertyChanged );
+
 	if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( &InFilter ) )
 	{
 		UClass* FilterClass = InFilter.GetClass();
@@ -77,6 +79,8 @@ void SDataprepStringFilter<FilterType>::Construct(const FArguments& InArgs, Filt
 template <class FilterType>
 SDataprepStringFilter<FilterType>::~SDataprepStringFilter()
 {
+	Filter->GetStringArray()->GetOnPostEdit().Remove( OnUserStringArrayPostEditHandle );
+
 	if ( UDataprepAsset* DataprepAsset = FDataprepCoreUtils::GetDataprepAssetOfObject( Filter ) )
 	{
 		DataprepAsset->OnParameterizedObjectsStatusChanged.Remove( OnParameterizationStatusForObjectsChangedHandle );
@@ -401,6 +405,19 @@ void SDataprepStringFilter<FilterType>::OnUserStringComitted(const FText& NewTex
 
 		OldUserString = NewUserString;
 	}
+}
+
+template <class FilterType>
+void SDataprepStringFilter<FilterType>::OnUserStringArrayPropertyChanged(UDataprepParameterizableObject& Object, FPropertyChangedChainEvent& PropertyChangedChainEvent)
+{
+	check( Filter );
+
+	FEditPropertyChain EditChain;
+	EditChain.AddHead( PropertyChangedChainEvent.Property );
+	EditChain.SetActivePropertyNode( PropertyChangedChainEvent.Property );
+	FPropertyChangedEvent EditPropertyChangeEvent( PropertyChangedChainEvent.Property, PropertyChangedChainEvent.ChangeType );
+	FPropertyChangedChainEvent EditChangeChainEvent( EditChain, EditPropertyChangeEvent );
+	Filter->PostEditChangeChainProperty( EditChangeChainEvent );
 }
 
 template <class FilterType>
