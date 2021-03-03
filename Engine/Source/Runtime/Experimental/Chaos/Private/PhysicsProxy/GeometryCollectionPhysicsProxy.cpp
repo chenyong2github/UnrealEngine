@@ -484,6 +484,8 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<
 				Chaos::FPerShapeData* Shape = Shapes[ShapeIndex].Get();
 				Shape->SetSimData(SimFilter);
 				Shape->SetQueryData(QueryFilter);
+				Shape->SetProxy(this);
+				Shape->SetMaterial(Parameters.PhysicalMaterialHandle);
 			}
 		}
 	}
