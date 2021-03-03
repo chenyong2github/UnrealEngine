@@ -532,20 +532,26 @@ void FRigHierarchyContainer::HandleOnElementSelected(FRigHierarchyContainer* InC
 
 FRigElementKey FRigHierarchyContainer::GetParentKey(const FRigElementKey& InKey) const
 {
+	const int32 Index = GetIndex(InKey);
+	if(Index ==  INDEX_NONE)
+	{
+		return FRigElementKey();
+	}
+	
 	switch (InKey.Type)
 	{
 		case ERigElementType::Bone:
 		{
-			return BoneHierarchy[InKey.Name].GetParentElementKey();
+			return BoneHierarchy[Index].GetParentElementKey();
 		}
 		case ERigElementType::Space:
 		{
-			return SpaceHierarchy[InKey.Name].GetParentElementKey();
+			return SpaceHierarchy[Index].GetParentElementKey();
 		}
 		case ERigElementType::Control:
 		{
-			const FRigControl& Control = ControlHierarchy[InKey.Name];
-			FRigElementKey SpaceKey = Control.GetSpaceElementKey();
+			const FRigControl& Control = ControlHierarchy[Index];
+			const FRigElementKey SpaceKey = Control.GetSpaceElementKey();
 			if (SpaceKey.IsValid())
 			{
 				return SpaceKey;
