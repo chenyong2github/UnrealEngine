@@ -111,16 +111,19 @@ private:
 	/** Check if a search is active */
 	bool IsSearchActive() const;
 
-	/** Update the list of filtered items */
-	void UpdateFilteredItems();
+	/** Update the list of shown items */
+	void UpdateShownItems();
 
-	/** Called when the recently placed assets changes. */
-	void UpdateRecentlyPlacedAssets( const TArray< FActorPlacementInfo >& RecentlyPlaced );
+	/** Requests an update of the shown items */
+	void RequestUpdateShownItems();
 
-	/** Called when the list of placeable assets changes. */
-	void UpdatePlaceableAssets();
+	/** Requests a refresh of the list of recently placed assets */
+	void RequestRefreshRecentlyPlaced( const TArray< FActorPlacementInfo >& RecentlyPlaced );
 
-	/** Called when the list of placement categories changes. */
+	/** Requests a refresh of placeable assets in the All Classes category */
+	void RequestRefreshAllClasses();
+
+	/** Refreshes the list of placement categories */
 	void UpdatePlacementCategories();
 
 	/** When the tab is clicked we adjust the check state, so that the right style is displayed. */
@@ -151,12 +154,12 @@ private:
 	FText GetHighlightText() const;
 
 private:
-	/** Flags to invoke updates of particular caregories on tick */
-	bool bRecentlyPlacedRefreshRequested;
-	bool bPlaceablesFullRefreshRequested;
+	/** Flags to refresh particular categories on tick */
+	bool bRefreshRecentlyPlaced;
+	bool bRefreshAllClasses;
 
-	/** Flag to indicate that we need to update the filtered items array */
-	bool bNeedsUpdate;
+	/** Flag to indicate that we need to update the list of shown items */
+	bool bUpdateShownItems;
 
 	// The text filter used to filter the classes
 	typedef TTextFilter<const FPlaceableItem&> FPlacementAssetEntryTextFilter;

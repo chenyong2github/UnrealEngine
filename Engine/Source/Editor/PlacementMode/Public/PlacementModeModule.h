@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "IPlacementModeModule.h"
-
 #include "Framework/MultiBox/MultiBoxExtender.h"
 
 struct FPlacementCategory : FPlacementCategoryInfo
@@ -60,6 +59,9 @@ public:
 	DECLARE_DERIVED_EVENT(FPlacementModeModule, IPlacementModeModule::FOnAllPlaceableAssetsChanged, FOnAllPlaceableAssetsChanged);
 	virtual FOnAllPlaceableAssetsChanged& OnAllPlaceableAssetsChanged() override { return AllPlaceableAssetsChanged; }
 
+	DECLARE_DERIVED_EVENT(FPlacementModeModule, IPlacementModeModule::FOnPlaceableItemFilteringChanged, FOnPlaceableItemFilteringChanged);
+	virtual FOnPlaceableItemFilteringChanged& OnPlaceableItemFilteringChanged() override { return PlaceableItemFilteringChanged; };
+
 	/**
 	 * Add the specified assets to the recently placed items list
 	 */
@@ -91,11 +93,15 @@ public:
 
 	virtual TSharedRef<FBlacklistNames>& GetCategoryBlacklist() override { return CategoryBlacklist; }
 
-	virtual void GetUserFacingCategories(TArray<FPlacementCategoryInfo>& OutCategories) const;
+	virtual void GetSortedCategories(TArray<FPlacementCategoryInfo>& OutCategories) const;
 
 	virtual TOptional<FPlacementModeID> RegisterPlaceableItem(FName CategoryName, const TSharedRef<FPlaceableItem>& InItem);
 
 	virtual void UnregisterPlaceableItem(FPlacementModeID ID);
+
+	virtual bool RegisterPlaceableItemFilter(TPlaceableItemPredicate Predicate, FName OwnerName) override;
+
+	virtual void UnregisterPlaceableItemFilter(FName OwnerName) override;
 
 	virtual void GetItemsForCategory(FName CategoryName, TArray<TSharedPtr<FPlaceableItem>>& OutItems) const;
 
@@ -106,22 +112,18 @@ public:
 private:
 
 	void OnAssetRemoved(const FAssetData& /*InRemovedAssetData*/);
-
 	void OnAssetRenamed(const FAssetData& AssetData, const FString& OldObjectPath);
-
 	void OnAssetAdded(const FAssetData& AssetData);
-
 	void OnInitialAssetsScanComplete();
 
 	void RefreshRecentlyPlaced();
-
 	void RefreshVolumes();
-
 	void RefreshAllPlaceableClasses();
 
 	FGuid CreateID();
-
 	FPlacementModeID CreateID(FName InCategory);
+
+	bool PassesFilters(const TSharedPtr<FPlaceableItem>& Item) const;
 
 	void OnCategoryBlacklistChanged();
 
@@ -131,11 +133,14 @@ private:
 
 	TSharedRef<FBlacklistNames> CategoryBlacklist;
 
+	TMap<FName, TPlaceableItemPredicate> PlaceableItemPredicates;
+
 	TArray< FActorPlacementInfo > RecentlyPlaced;
 	FOnRecentlyPlacedChanged RecentlyPlacedChanged;
 
 	FOnAllPlaceableAssetsChanged AllPlaceableAssetsChanged;
 	FOnPlacementModeCategoryRefreshed PlacementModeCategoryRefreshed;
+	FOnPlaceableItemFilteringChanged PlaceableItemFilteringChanged;
 	FOnPlacementModeCategoryListChanged PlacementModeCategoryListChanged;
 
 	TArray< TSharedPtr<FExtender> > ContentPaletteFiltersExtenders;
