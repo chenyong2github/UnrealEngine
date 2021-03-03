@@ -551,10 +551,6 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 
 	ParentTab->SetOnTabDrawerOpened(FSimpleDelegate::CreateSP(this, &SPlacementModeTools::OnTabDrawerOpened));
 
-
-	static const FName PlacementBrowserActiveTabBarBrushName("PlacementBrowser.ActiveTabBar");
-	PlacementBrowserActiveTabBarBrush = FEditorStyle::GetBrush(PlacementBrowserActiveTabBarBrushName);
-
 	SearchTextFilter = MakeShareable(new FPlacementAssetEntryTextFilter(
 		FPlacementAssetEntryTextFilter::FItemToStringArray::CreateStatic(&PlacementViewFilter::GetBasicStrings)
 		));
@@ -689,41 +685,6 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 	PlacementModeModule.OnAllPlaceableAssetsChanged().AddSP( this, &SPlacementModeTools::UpdatePlaceableAssets );
 }
 
-TSharedRef< SWidget > SPlacementModeTools::CreatePlacementGroupTab( const FPlacementCategoryInfo& Info )
-{
-	return SNew( SCheckBox )
-	.Style( FEditorStyle::Get(), "PlacementBrowser.Tab" )
-	.OnCheckStateChanged( this, &SPlacementModeTools::OnPlacementTabChanged, Info.UniqueHandle )
-	.IsChecked( this, &SPlacementModeTools::GetPlacementTabCheckedState, Info.UniqueHandle )
-	[
-		SNew( SOverlay )
-
-		+ SOverlay::Slot()
-		.VAlign( VAlign_Center )
-		[
-			SNew(SSpacer)
-			.Size( FVector2D( 1, 30 ) )
-		]
-
-		+ SOverlay::Slot()
-		.Padding( FMargin(6, 0, 15, 0) )
-		.VAlign( VAlign_Center )
-		[
-			SNew( STextBlock )
-			.TextStyle( FEditorStyle::Get(), "PlacementBrowser.Tab.Text" )
-			.Text( Info.DisplayName )
-		]
-
-		+ SOverlay::Slot()
-		.VAlign( VAlign_Fill )
-		.HAlign( HAlign_Left )
-		[
-			SNew(SImage)
-			.Image( this, &SPlacementModeTools::PlacementGroupBorderImage, Info.UniqueHandle )
-		]
-	];
-}
-
 FName SPlacementModeTools::GetActiveTab() const
 {
 	return IsSearchActive() ? FBuiltInPlacementCategories::AllClasses() : ActiveTabName;
@@ -828,29 +789,6 @@ void SPlacementModeTools::OnCategoryChanged(const ECheckBoxState NewState, FName
 void SPlacementModeTools::OnTabDrawerOpened()
 {
 	FSlateApplication::Get().SetKeyboardFocus(SearchBoxPtr, EFocusCause::SetDirectly);
-}
-
-void SPlacementModeTools::OnPlacementTabChanged( ECheckBoxState NewState, FName CategoryName )
-{
-	if ( NewState == ECheckBoxState::Checked )
-	{
-		ActiveTabName = CategoryName;
-		IPlacementModeModule::Get().RegenerateItemsForCategory(ActiveTabName);
-
-		bNeedsUpdate = true;
-	}
-}
-
-const FSlateBrush* SPlacementModeTools::PlacementGroupBorderImage( FName CategoryName ) const
-{
-	if ( ActiveTabName == CategoryName )
-	{
-		return PlacementBrowserActiveTabBarBrush;
-	}
-	else
-	{
-		return nullptr;
-	}
 }
 
 void SPlacementModeTools::UpdateRecentlyPlacedAssets( const TArray< FActorPlacementInfo >& RecentlyPlaced )

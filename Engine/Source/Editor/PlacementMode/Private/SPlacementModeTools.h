@@ -99,9 +99,6 @@ private:
 
 private:
 
-	/** Creates a tab widget to show on the left that when clicked sets the currently active tab */
-	TSharedRef< SWidget > CreatePlacementGroupTab( const FPlacementCategoryInfo& Info );
-
 	/** Generates a widget for the specified item */
 	TSharedRef<ITableRow> OnGenerateWidgetForItem(TSharedPtr<FPlaceableItem> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -120,11 +117,7 @@ private:
 	/** Called when the list of placeable assets changes. */
 	void UpdatePlaceableAssets();
 
-	/** Gets the border image for the tab, this is the 'active' orange bar. */
-	const FSlateBrush* PlacementGroupBorderImage( FName CategoryName ) const;
-
 	/** When the tab is clicked we adjust the check state, so that the right style is displayed. */
-	void OnPlacementTabChanged( ECheckBoxState NewState, FName CategoryName );
 	void OnCategoryChanged(const ECheckBoxState NewState, FName InCategory);
 
 	/** Called when the placement mode tools are opened from a tab drawer */
@@ -186,6 +179,4 @@ private:
 
 	/** List view that shows placeable items */
 	TSharedPtr<SListView<TSharedPtr<FPlaceableItem>>> ListView;
-
-	const FSlateBrush* PlacementBrowserActiveTabBarBrush;
 };
