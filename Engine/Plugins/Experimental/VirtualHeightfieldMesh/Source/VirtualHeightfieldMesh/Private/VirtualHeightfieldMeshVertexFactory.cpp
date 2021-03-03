@@ -318,4 +318,8 @@ void FVirtualHeightfieldMeshVertexFactory::ValidateCompiledResult(const FVertexF
 #endif
 }
 
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FVirtualHeightfieldMeshVertexFactory, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMeshVertexFactory.ush", true, false, true, false, false, false, true, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FVirtualHeightfieldMeshVertexFactory, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMeshVertexFactory.ush",
+	  EVertexFactoryFlags::UsedWithMaterials
+	| EVertexFactoryFlags::SupportsDynamicLighting
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
+);

@@ -135,4 +135,4 @@ void FPointCloudVertexFactory::SetParameters(const FPointCloudVertexFactoryParam
 
 IMPLEMENT_TYPE_LAYOUT(FPointCloudVertexFactoryShaderParameters);
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FPointCloudVertexFactory, SF_Vertex, FPointCloudVertexFactoryShaderParameters);
-IMPLEMENT_VERTEX_FACTORY_TYPE(FPointCloudVertexFactory, "/Engine/Private/PointCloudVertexFactory.ush", true, false, false, false, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FPointCloudVertexFactory, "/Engine/Private/PointCloudVertexFactory.ush", EVertexFactoryFlags::UsedWithMaterials);

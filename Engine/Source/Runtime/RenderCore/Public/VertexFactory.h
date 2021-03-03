@@ -79,7 +79,7 @@ enum class EVertexStreamUsage : uint8
 	Overridden		= 1 << 1,
 	ManualFetch		= 1 << 2
 };
-
+ENUM_CLASS_FLAGS(EVertexStreamUsage);
 
 enum class EVertexInputStreamType : uint8
 {
@@ -89,7 +89,20 @@ enum class EVertexInputStreamType : uint8
 	Count
 };
 
-ENUM_CLASS_FLAGS(EVertexStreamUsage);
+enum class EVertexFactoryFlags : uint32
+{
+	None                            = 0u,
+	UsedWithMaterials               = 1u << 1,
+	SupportsStaticLighting          = 1u << 2,
+	SupportsDynamicLighting         = 1u << 3,
+	SupportsPrecisePrevWorldPos     = 1u << 4,
+	SupportsPositionOnly            = 1u << 5,
+	SupportsCachingMeshDrawCommands = 1u << 6,
+	SupportsPrimitiveIdStream       = 1u << 7,
+	SupportsNaniteRendering         = 1u << 8,
+};
+ENUM_CLASS_FLAGS(EVertexFactoryFlags);
+
 /**
  * A typed data source for a vertex factory which streams data from a vertex buffer.
  */
@@ -333,22 +346,10 @@ public:
 	/** Uninitializes FVertexFactoryType cached data. */
 	static void Uninitialize();
 
-	/**
-	 * Minimal initialization constructor.
-	 * @param bInUsedWithMaterials - True if the vertex factory will be rendered in combination with a material.
-	 * @param bInSupportsStaticLighting - True if the vertex factory will be rendered with static lighting.
-	 */
 	RENDERCORE_API FVertexFactoryType(
 		const TCHAR* InName,
 		const TCHAR* InShaderFilename,
-		bool bInUsedWithMaterials,
-		bool bInSupportsStaticLighting,
-		bool bInSupportsDynamicLighting,
-		bool bInSupportsPrecisePrevWorldPos,
-		bool bInSupportsPositionOnly,
-		bool bInSupportsCachingMeshDrawCommands,
-		bool bInSupportsPrimitiveIdStream,
-		bool bInSupportsNaniteRendering,
+		EVertexFactoryFlags InFlags,
 		ConstructParametersType InConstructParameters,
 		GetParameterTypeLayoutType InGetParameterTypeLayout,
 		GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
@@ -379,14 +380,25 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams) const { (*GetParameterTypeElementShaderBindings)(ShaderFrequency, Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); }
 
-	bool IsUsedWithMaterials() const { return bUsedWithMaterials; }
-	bool SupportsStaticLighting() const { return bSupportsStaticLighting; }
-	bool SupportsDynamicLighting() const { return bSupportsDynamicLighting; }
-	bool SupportsPrecisePrevWorldPos() const { return bSupportsPrecisePrevWorldPos; }
-	bool SupportsPositionOnly() const { return bSupportsPositionOnly; }
-	bool SupportsCachingMeshDrawCommands() const { return bSupportsCachingMeshDrawCommands; }
-	bool SupportsPrimitiveIdStream() const { return bSupportsPrimitiveIdStream; }
-	bool SupportsNaniteRendering() const { return bSupportsNaniteRendering; }
+	EVertexFactoryFlags GetFlags() const
+	{
+		return Flags;
+	}
+
+	/** Returns true if this vertex factory supports ALL feature flags in FlagsToCheck */
+	bool HasFlags(EVertexFactoryFlags FlagsToCheck) const
+	{
+		return EnumHasAllFlags(Flags, FlagsToCheck);
+	}
+
+	bool IsUsedWithMaterials() const             { return HasFlags(EVertexFactoryFlags::UsedWithMaterials); }
+	bool SupportsStaticLighting() const          { return HasFlags(EVertexFactoryFlags::SupportsStaticLighting); }
+	bool SupportsDynamicLighting() const         { return HasFlags(EVertexFactoryFlags::SupportsDynamicLighting); }
+	bool SupportsPrecisePrevWorldPos() const     { return HasFlags(EVertexFactoryFlags::SupportsPrecisePrevWorldPos); }
+	bool SupportsPositionOnly() const            { return HasFlags(EVertexFactoryFlags::SupportsPositionOnly); }
+	bool SupportsCachingMeshDrawCommands() const { return HasFlags(EVertexFactoryFlags::SupportsCachingMeshDrawCommands); }
+	bool SupportsPrimitiveIdStream() const       { return HasFlags(EVertexFactoryFlags::SupportsPrimitiveIdStream); }
+	bool SupportsNaniteRendering() const         { return HasFlags(EVertexFactoryFlags::SupportsNaniteRendering); }
 
 	// Hash function.
 	friend uint32 GetTypeHash(const FVertexFactoryType* Type)
@@ -444,14 +456,7 @@ private:
 	const TCHAR* ShaderFilename;
 	FName TypeName;
 	FHashedName HashedName;
-	uint32 bUsedWithMaterials : 1;
-	uint32 bSupportsStaticLighting : 1;
-	uint32 bSupportsDynamicLighting : 1;
-	uint32 bSupportsPrecisePrevWorldPos : 1;
-	uint32 bSupportsPositionOnly : 1;
-	uint32 bSupportsCachingMeshDrawCommands : 1;
-	uint32 bSupportsPrimitiveIdStream : 1;
-	uint32 bSupportsNaniteRendering : 1;
+	EVertexFactoryFlags Flags;
 	ConstructParametersType ConstructParameters;
 	GetParameterTypeLayoutType GetParameterTypeLayout;
 	GetParameterTypeElementShaderBindingsType GetParameterTypeElementShaderBindings;
@@ -491,9 +496,6 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 	static FVertexFactoryType StaticType; \
 	virtual FVertexFactoryType* GetType() const override;
 
-#define NANITE_VAL(VAL) VAL,
-#define NANITE_VAL_FALSE false,
-
 #define IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 	&ConstructVertexFactoryParameters<FactoryClass>, \
 	&GetVertexFactoryParametersLayout<FactoryClass>, \
@@ -504,46 +506,26 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 
 /**
  * A macro for implementing the static vertex factory type object, and specifying parameters used by the type.
- * @param bUsedWithMaterials - True if the vertex factory will be rendered in combination with a material.
- * @param bSupportsStaticLighting - True if the vertex factory will be rendered with static lighting.
  */
-#define IMPLEMENT_VERTEX_FACTORY_TYPE(FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly) \
+#define IMPLEMENT_VERTEX_FACTORY_TYPE(FactoryClass, ShaderFilename, Flags) \
 	FVertexFactoryType FactoryClass::StaticType( \
 		TEXT(#FactoryClass), \
 		TEXT(ShaderFilename), \
-		bUsedWithMaterials, \
-		bSupportsStaticLighting, \
-		bSupportsDynamicLighting, \
-		bPrecisePrevWorldPos, \
-		bSupportsPositionOnly, \
-		false, \
-		false, \
-		NANITE_VAL_FALSE \
+		Flags, \
 		IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 		); \
 		FVertexFactoryType* FactoryClass::GetType() const { return &StaticType; }
-
-// Templated macro to define a FVertexFactoryType. Can be used for templated Vertex Factories. Is more commonly called through the non-template version IMPLEMENT_VERTEX_FACTORY_TYPE_EX
-#define IMPLEMENT_TEMPLATE_VERTEX_FACTORY_TYPE_EX(TemplatePrefix,FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly,bSupportsCachingMeshDrawCommands,bSupportsPrimitiveIdStream,bSupportsNaniteRendering) \
+/**
+* Templated macro to define a FVertexFactoryType. Can be used for templated Vertex Factories.
+*/
+#define IMPLEMENT_TEMPLATE_VERTEX_FACTORY_TYPE(TemplatePrefix, FactoryClass, ShaderFilename, Flags) \
 	PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) FVertexFactoryType FactoryClass::StaticType( \
 		TEXT(#FactoryClass), \
 		TEXT(ShaderFilename), \
-		bUsedWithMaterials, \
-		bSupportsStaticLighting, \
-		bSupportsDynamicLighting, \
-		bPrecisePrevWorldPos, \
-		bSupportsPositionOnly, \
-		bSupportsCachingMeshDrawCommands, \
-		bSupportsPrimitiveIdStream, \
-		NANITE_VAL(bSupportsNaniteRendering) \
+		Flags, \
 		IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 		); \
 		PREPROCESSOR_REMOVE_OPTIONAL_PARENS(TemplatePrefix) FVertexFactoryType* FactoryClass::GetType() const { return &StaticType; }
-
-// @todo - need more extensible type properties - shouldn't have to change all IMPLEMENT_VERTEX_FACTORY_TYPE's when you add one new parameter
-// To define a non-templated FVertexFactoryType. Used for non-templated vertex factories. See IMPLEMENT_TEMPLATE_VERTEX_FACTORY_TYPE_EX for implementation.
-#define IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly,bSupportsCachingMeshDrawCommands,bSupportsPrimitiveIdStream,bSupportsNaniteRendering) \
-	IMPLEMENT_TEMPLATE_VERTEX_FACTORY_TYPE_EX(,FactoryClass,ShaderFilename,bUsedWithMaterials,bSupportsStaticLighting,bSupportsDynamicLighting,bPrecisePrevWorldPos,bSupportsPositionOnly,bSupportsCachingMeshDrawCommands,bSupportsPrimitiveIdStream,bSupportsNaniteRendering)
 
 /** Encapsulates a dependency on a vertex factory type and saved state from that vertex factory type. */
 class FVertexFactoryTypeDependency

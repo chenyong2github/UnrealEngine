@@ -76,14 +76,7 @@ void FVertexFactoryType::Uninitialize()
 FVertexFactoryType::FVertexFactoryType(
 	const TCHAR* InName,
 	const TCHAR* InShaderFilename,
-	bool bInUsedWithMaterials,
-	bool bInSupportsStaticLighting,
-	bool bInSupportsDynamicLighting,
-	bool bInSupportsPrecisePrevWorldPos,
-	bool bInSupportsPositionOnly,
-	bool bInSupportsCachingMeshDrawCommands,
-	bool bInSupportsPrimitiveIdStream,
-	bool bInSupportsNaniteRendering,
+	EVertexFactoryFlags InFlags,
 	ConstructParametersType InConstructParameters,
 	GetParameterTypeLayoutType InGetParameterTypeLayout,
 	GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
@@ -95,15 +88,7 @@ FVertexFactoryType::FVertexFactoryType(
 	ShaderFilename(InShaderFilename),
 	TypeName(InName),
 	HashedName(TypeName),
-	bUsedWithMaterials(bInUsedWithMaterials),
-	bSupportsStaticLighting(bInSupportsStaticLighting),
-	bSupportsDynamicLighting(bInSupportsDynamicLighting),
-	bSupportsPrecisePrevWorldPos(bInSupportsPrecisePrevWorldPos),
-	bSupportsPositionOnly(bInSupportsPositionOnly),
-	bSupportsCachingMeshDrawCommands(bInSupportsCachingMeshDrawCommands),
-	bSupportsPrimitiveIdStream(bInSupportsPrimitiveIdStream),
-	bSupportsNaniteRendering(bInSupportsNaniteRendering),
-
+	Flags(InFlags),
 	ConstructParameters(InConstructParameters),
 	GetParameterTypeLayout(InGetParameterTypeLayout),
 	GetParameterTypeElementShaderBindings(InGetParameterTypeElementShaderBindings),
@@ -129,7 +114,7 @@ FVertexFactoryType::FVertexFactoryType(
 	GlobalListLink.LinkHead(GetTypeList());
 	GetVFTypeMap().Add(HashedName, this);
 
-	if (bUsedWithMaterials)
+	if (IsUsedWithMaterials())
 	{
 		TArray<FVertexFactoryType*>& SortedTypes = GetSortedMaterialVertexFactoryTypes();
 		const int32 SortedIndex = Algo::LowerBoundBy(SortedTypes, HashedName, [](const FVertexFactoryType* InType) { return InType->GetHashedName(); });
@@ -144,7 +129,7 @@ FVertexFactoryType::~FVertexFactoryType()
 	GlobalListLink.Unlink();
 	verify(GetVFTypeMap().Remove(HashedName) == 1);
 
-	if (bUsedWithMaterials)
+	if (IsUsedWithMaterials())
 	{
 		TArray<FVertexFactoryType*>& SortedTypes = GetSortedMaterialVertexFactoryTypes();
 		const int32 SortedIndex = Algo::BinarySearchBy(SortedTypes, HashedName, [](const FVertexFactoryType* InType) { return InType->GetHashedName(); });

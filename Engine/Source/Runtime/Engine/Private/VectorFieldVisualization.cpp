@@ -170,7 +170,10 @@ void FVectorFieldVisualizationVertexFactoryShaderParameters::GetElementShaderBin
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FVectorFieldVisualizationVertexFactory, SF_Vertex, FVectorFieldVisualizationVertexFactoryShaderParameters);
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FVectorFieldVisualizationVertexFactory,"/Engine/Private/VectorFieldVisualizationVertexFactory.ush",true,false,true,false,false);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FVectorFieldVisualizationVertexFactory,"/Engine/Private/VectorFieldVisualizationVertexFactory.ush",
+	  EVertexFactoryFlags::UsedWithMaterials
+	| EVertexFactoryFlags::SupportsDynamicLighting
+);
 
 /*------------------------------------------------------------------------------
 	Drawing interface.
