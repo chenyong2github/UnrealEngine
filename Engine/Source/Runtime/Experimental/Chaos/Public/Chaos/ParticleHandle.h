@@ -2474,6 +2474,13 @@ void TKinematicGeometryParticle<T, d>::SetW(const TVector<T, d>& InW, bool bInva
 	MVelocities.Modify(bInvalidate, MDirtyFlags, Proxy, [&InW](auto& Data) { Data.SetW(InW); });
 }
 
+template <typename T, int d>
+TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<T, d>* Serializable)
+{
+	// should always use the <FReal,3> specialization
+	check(false);
+}
+
 template <>
 CHAOS_API TGeometryParticle<FReal, 3>* TGeometryParticle<FReal, 3>::SerializationFactory(FChaosArchive& Ar, TGeometryParticle<FReal, 3>* Serializable);
 
