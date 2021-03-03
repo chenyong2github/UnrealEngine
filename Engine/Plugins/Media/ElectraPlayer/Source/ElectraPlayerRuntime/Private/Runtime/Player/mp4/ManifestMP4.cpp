@@ -790,6 +790,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetNextSegment(TShar
 			if (res.GetType() == IManifest::FResult::EType::Found)
 			{
 				FStreamSegmentRequestMP4* NextRequest = static_cast<FStreamSegmentRequestMP4*>(OutSegment.Get());
+				NextRequest->PlayerLoopState   	    = Request->PlayerLoopState;
 				NextRequest->bIsContinuationSegment = true;
 				NextRequest->bIsFirstSegment		= false;
 				return res;
