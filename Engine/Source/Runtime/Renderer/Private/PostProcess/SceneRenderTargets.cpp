@@ -2350,7 +2350,7 @@ void SetupSceneTextureUniformParameters(
 			SceneTextureParameters.SceneColorTexture = GetRDG(SceneContext.GetSceneColor());
 		}
 
-		if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneDepth))
+		if (EnumHasAnyFlags(SetupMode, ESceneTextureSetupMode::SceneDepth) && SceneContext.SceneDepthZ)
 		{
 			SceneTextureParameters.SceneDepthTexture = GetRDG(SceneContext.SceneDepthZ);
 		}
