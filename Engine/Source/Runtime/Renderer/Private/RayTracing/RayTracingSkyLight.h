@@ -8,8 +8,6 @@ RaytracingOptions.h declares ray tracing options for use in rendering
 
 #include "UniformBuffer.h"
 #include "RenderGraph.h"
-#include "Halton.h"
-#include "BlueNoise.h"
 #include "Renderer/Private/SceneRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, RENDERER_API)
@@ -39,12 +37,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, RENDERER_API)
 	SHADER_PARAMETER_SRV(Buffer<float>, SolidAnglePdf)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FSkyLightQuasiRandomData, )
-	SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
-	SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
-	SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
-END_SHADER_PARAMETER_STRUCT()
-
 BEGIN_SHADER_PARAMETER_STRUCT(FWritableSkyLightVisibilityRaysData, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<SkyLightVisibilityRays>, OutSkyLightVisibilityRays)
 	SHADER_PARAMETER(FIntVector, SkyLightVisibilityRaysDimensions)
@@ -60,7 +52,6 @@ END_SHADER_PARAMETER_STRUCT()
 int32 GetRayTracingSkyLightDecoupleSampleGenerationCVarValue();
 
 extern RENDERER_API bool SetupSkyLightParameters(const FScene& Scene, FSkyLightData* SkyLight);
-void SetupSkyLightQuasiRandomParameters(const FScene& Scene, const FViewInfo& View, FIntVector& OutBlueNoiseDimensions, FSkyLightQuasiRandomData* OutSkyLightQuasiRandomData);
 void SetupSkyLightVisibilityRaysParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSkyLightVisibilityRaysData* OutSkyLightVisibilityRaysData);
 
 extern RENDERER_API void BuildSkyLightCdfs(FRHICommandListImmediate& RHICmdList, class FSkyLightSceneProxy* SkyLight);

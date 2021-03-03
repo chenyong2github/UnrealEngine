@@ -437,9 +437,6 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWGlobalIlluminationUAV)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, RWGlobalIlluminationRayDistanceUAV)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
-		SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
-		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -497,11 +494,6 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 		// Scene data
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-
-		// Sampling sequence
-		SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
-		SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
-		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
 
 		// Light data
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
@@ -568,11 +560,6 @@ class FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS : public FGlobalSh
 		// Scene data
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-
-		// Sampling sequence
-		SHADER_PARAMETER_STRUCT_REF(FHaltonIteration, HaltonIteration)
-		SHADER_PARAMETER_STRUCT_REF(FHaltonPrimes, HaltonPrimes)
-		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
 
 		// Light data
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
@@ -825,10 +812,6 @@ void CopyGatherPassParameters(
 	NewParameters->TLAS = PassParameters.TLAS;
 	NewParameters->ViewUniformBuffer = PassParameters.ViewUniformBuffer;
 
-	NewParameters->HaltonIteration = PassParameters.HaltonIteration;
-	NewParameters->HaltonPrimes = PassParameters.HaltonPrimes;
-	NewParameters->BlueNoise = PassParameters.BlueNoise;
-
 	NewParameters->LightParameters = PassParameters.LightParameters;
 	NewParameters->SkyLight = PassParameters.SkyLight;
 
@@ -869,10 +852,6 @@ void CopyGatherPassParameters(
 	NewParameters->TLAS = PassParameters.TLAS;
 	NewParameters->ViewUniformBuffer = PassParameters.ViewUniformBuffer;
 
-	NewParameters->HaltonIteration = PassParameters.HaltonIteration;
-	NewParameters->HaltonPrimes = PassParameters.HaltonPrimes;
-	NewParameters->BlueNoise = PassParameters.BlueNoise;
-
 	NewParameters->LightParameters = PassParameters.LightParameters;
 	NewParameters->SkyLight = PassParameters.SkyLight;
 
@@ -909,21 +888,6 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	// Determine the local neighborhood for a shared sample sequence
 	int32 GatherFilterWidth = FMath::Max(CVarRayTracingGlobalIlluminationFinalGatherFilterWidth.GetValueOnRenderThread(), 0);
 	GatherFilterWidth = GatherFilterWidth * 2 + 1;
-
-	uint32 IterationCount = GatherFilterWidth * GatherFilterWidth;
-	uint32 SequenceCount = 1;
-	uint32 DimensionCount = 24;
-	int32 FrameIndex = View.ViewState->FrameIndex % 1024;
-	FHaltonSequenceIteration HaltonSequenceIteration(Scene->HaltonSequence, IterationCount, SequenceCount, DimensionCount, FrameIndex);
-
-	FHaltonIteration HaltonIteration;
-	InitializeHaltonSequenceIteration(HaltonSequenceIteration, HaltonIteration);
-
-	FHaltonPrimes HaltonPrimes;
-	InitializeHaltonPrimes(Scene->HaltonPrimesResource, HaltonPrimes);
-
-	FBlueNoise BlueNoise;
-	InitializeBlueNoise(BlueNoise);
 
 	FPathTracingLightData LightParameters;
 	SetupLightParameters(*Scene, View, &LightParameters);
@@ -963,11 +927,6 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	// Global
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-
-	// Sampling sequence
-	PassParameters->HaltonIteration = CreateUniformBufferImmediate(HaltonIteration, EUniformBufferUsage::UniformBuffer_SingleFrame);
-	PassParameters->HaltonPrimes = CreateUniformBufferImmediate(HaltonPrimes, EUniformBufferUsage::UniformBuffer_SingleFrame);
-	PassParameters->BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleFrame);
 
 	// Light data
 	PassParameters->LightParameters = CreateUniformBufferImmediate(LightParameters, EUniformBufferUsage::UniformBuffer_SingleFrame);
@@ -1257,19 +1216,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing GI: Brute Force");
 
 	int32 RayTracingGISamplesPerPixel = GetRayTracingGlobalIlluminationSamplesPerPixel(View);
-	uint32 IterationCount = RayTracingGISamplesPerPixel;
-	uint32 SequenceCount = 1;
-	uint32 DimensionCount = 24;
-	FHaltonSequenceIteration HaltonSequenceIteration(Scene->HaltonSequence, IterationCount, SequenceCount, DimensionCount, View.ViewState->FrameIndex % 1024);
-
-	FHaltonIteration HaltonIteration;
-	InitializeHaltonSequenceIteration(HaltonSequenceIteration, HaltonIteration);
-
-	FHaltonPrimes HaltonPrimes;
-	InitializeHaltonPrimes(Scene->HaltonPrimesResource, HaltonPrimes);
-
-	FBlueNoise BlueNoise;
-	InitializeBlueNoise(BlueNoise);
 
 	FPathTracingLightData LightParameters;
 	SetupLightParameters(*Scene, View, &LightParameters);
@@ -1309,9 +1255,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	PassParameters->NextEventEstimationSamples = GRayTracingGlobalIlluminationNextEventEstimationSamples;
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->HaltonIteration = CreateUniformBufferImmediate(HaltonIteration, EUniformBufferUsage::UniformBuffer_SingleDraw);
-	PassParameters->HaltonPrimes = CreateUniformBufferImmediate(HaltonPrimes, EUniformBufferUsage::UniformBuffer_SingleDraw);
-	PassParameters->BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
 	PassParameters->LightParameters = CreateUniformBufferImmediate(LightParameters, EUniformBufferUsage::UniformBuffer_SingleDraw);
 	PassParameters->SceneTextures = SceneTextures;
 	PassParameters->SkyLight = CreateUniformBufferImmediate(SkyLightParameters, EUniformBufferUsage::UniformBuffer_SingleDraw);

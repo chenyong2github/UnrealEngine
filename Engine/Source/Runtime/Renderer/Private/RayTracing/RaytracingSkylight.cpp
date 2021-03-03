@@ -228,49 +228,6 @@ bool SetupSkyLightParameters(
 	}
 }
 
-void SetupSkyLightQuasiRandomParameters(
-	const FScene& Scene,
-	const FViewInfo& View,
-	FIntVector& OutBlueNoiseDimensions,
-	FSkyLightQuasiRandomData* OutSkyLightQuasiRandomData)
-{
-	uint32 IterationCount;
-
-	// Choose to set the iteration count to the sky light samples per pixel or a dummy value depending on its presence
-	if (Scene.SkyLight != nullptr)
-	{
-		IterationCount = FMath::Max(GetSkyLightSamplesPerPixel(Scene.SkyLight), 1);
-	}
-	else
-	{
-		IterationCount = 1;
-	}
-
-	// Halton iteration setup
-	uint32 SequenceCount = 1;
-	uint32 DimensionCount = 3;
-	FHaltonSequenceIteration HaltonSequenceIteration(Scene.HaltonSequence, IterationCount, SequenceCount, DimensionCount, View.ViewState ? (View.ViewState->FrameIndex % 1024) : 0);
-
-	FHaltonIteration HaltonIteration;
-	InitializeHaltonSequenceIteration(HaltonSequenceIteration, HaltonIteration);
-	
-	// Halton primes setup
-	FHaltonPrimes HaltonPrimes;
-	InitializeHaltonPrimes(Scene.HaltonPrimesResource, HaltonPrimes);
-
-	// Blue noise setup
-	FBlueNoise BlueNoise;
-	InitializeBlueNoise(BlueNoise);
-
-	// Set the Blue Noise dimensions
-	OutBlueNoiseDimensions = FIntVector(BlueNoise.Dimensions.X, BlueNoise.Dimensions.Y, 0);
-
-	// Set Sky Light Quasi Random Data information
-	OutSkyLightQuasiRandomData->HaltonIteration = CreateUniformBufferImmediate(HaltonIteration, EUniformBufferUsage::UniformBuffer_SingleDraw);
-	OutSkyLightQuasiRandomData->HaltonPrimes = CreateUniformBufferImmediate(HaltonPrimes, EUniformBufferUsage::UniformBuffer_SingleDraw);
-	OutSkyLightQuasiRandomData->BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
-}
-
 void SetupSkyLightVisibilityRaysParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -348,7 +305,6 @@ class FRayTracingSkyLightRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, VirtualVoxel)
 		
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightQuasiRandomData, SkyLightQuasiRandomData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightVisibilityRaysData, SkyLightVisibilityRaysData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
@@ -412,7 +368,6 @@ class FGenerateSkyLightVisibilityRaysCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightQuasiRandomData, SkyLightQuasiRandomData)
 		// Writable variant to allow for Sky Light Visibility Ray output
 		SHADER_PARAMETER_STRUCT_INCLUDE(FWritableSkyLightVisibilityRaysData, WritableSkyLightVisibilityRaysData)
 	END_SHADER_PARAMETER_STRUCT()
@@ -433,11 +388,6 @@ void FDeferredShadingSceneRenderer::GenerateSkyLightVisibilityRays(
 	FSkyLightData SkyLightData;
 	SetupSkyLightParameters(*Scene, &SkyLightData);
 
-	// Sky Light Quasi Random data setup
-	// Note: Sets Dimensions based on blue noise dimensions
-	FSkyLightQuasiRandomData SkyLightQuasiRandomData;
-	SetupSkyLightQuasiRandomParameters(*Scene, Views[0], Dimensions, &SkyLightQuasiRandomData);
-
 	// Output structured buffer creation
 	FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FSkyLightVisibilityRays), Dimensions.X * Dimensions.Y * SkyLightData.SamplesPerPixel);
 	SkyLightVisibilityRaysBuffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("SkyLightVisibilityRays"));
@@ -446,7 +396,6 @@ void FDeferredShadingSceneRenderer::GenerateSkyLightVisibilityRays(
 	FGenerateSkyLightVisibilityRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGenerateSkyLightVisibilityRaysCS::FParameters>();
 	PassParameters->ViewUniformBuffer = Views[0].ViewUniformBuffer;
 	PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
-	PassParameters->SkyLightQuasiRandomData = SkyLightQuasiRandomData;
 	PassParameters->WritableSkyLightVisibilityRaysData.SkyLightVisibilityRaysDimensions = FIntVector(Dimensions.X, Dimensions.Y, 0);
 	PassParameters->WritableSkyLightVisibilityRaysData.OutSkyLightVisibilityRays = GraphBuilder.CreateUAV(SkyLightVisibilityRaysBuffer, EPixelFormat::PF_R32_UINT);
 
@@ -541,16 +490,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 
 		FSceneViewState* SceneViewState = (FSceneViewState*)View.State;
 
-		// Sky Light Quasi Random data setup
-		FIntVector BlueNoiseDimensions;
-		FSkyLightQuasiRandomData SkyLightQuasiRandomData;
-		SetupSkyLightQuasiRandomParameters(*Scene, View, BlueNoiseDimensions, &SkyLightQuasiRandomData);
-
 		FRayTracingSkyLightRGS::FParameters *PassParameters = GraphBuilder.AllocParameters<FRayTracingSkyLightRGS::FParameters>();
 		PassParameters->RWSkyOcclusionMaskUAV = SkyLightkUAV;
 		PassParameters->RWSkyOcclusionRayDistanceUAV = RayDistanceUAV;
 		PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
-		PassParameters->SkyLightQuasiRandomData = SkyLightQuasiRandomData;
 		PassParameters->SkyLightVisibilityRaysData.SkyLightVisibilityRaysDimensions = SkyLightVisibilityRaysDimensions;
 		if (CVarRayTracingSkyLightDecoupleSampleGeneration.GetValueOnRenderThread() == 1)
 		{
