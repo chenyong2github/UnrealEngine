@@ -211,8 +211,23 @@ public:
 	}
 };
 
+class FBlackTextureWithSRV : public FColoredTexture<0, 0, 0, 255>
+{
+	virtual void InitRHI() override
+	{
+		FColoredTexture::InitRHI();
+		FRHITextureReference::DefaultTexture = TextureRHI;
+	}
+
+	virtual void ReleaseRHI() override
+	{
+		FRHITextureReference::DefaultTexture.SafeRelease();
+		FColoredTexture::ReleaseRHI();
+	}
+};
+
 FTextureWithSRV* GWhiteTextureWithSRV = new TGlobalResource<FColoredTexture<255,255,255,255> >;
-FTextureWithSRV* GBlackTextureWithSRV = new TGlobalResource<FColoredTexture<0,0,0,255> >;
+FTextureWithSRV* GBlackTextureWithSRV = new TGlobalResource<FBlackTextureWithSRV>();
 FTextureWithSRV* GTransparentBlackTextureWithSRV = new TGlobalResource<FColoredTexture<0,0,0,0> >;
 FTexture* GWhiteTexture = GWhiteTextureWithSRV;
 FTexture* GBlackTexture = GBlackTextureWithSRV;

@@ -292,6 +292,8 @@ RHI_API FDrawCallCategoryName* FDrawCallCategoryName::Array[FDrawCallCategoryNam
 RHI_API int32 FDrawCallCategoryName::DisplayCounts[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
 RHI_API int32 FDrawCallCategoryName::NumCategory = 0;
 
+TRefCountPtr<FRHITexture> FRHITextureReference::DefaultTexture;
+
 FString FVertexElement::ToString() const
 {
 	return FString::Printf(TEXT("<%u %u %u %u %u %u>")

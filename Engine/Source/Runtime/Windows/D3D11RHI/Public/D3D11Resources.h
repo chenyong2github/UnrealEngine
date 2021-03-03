@@ -539,43 +539,6 @@ typedef TD3D11Texture2D<FD3D11BaseTexture2D>      FD3D11Texture2D;
 typedef TD3D11Texture2D<FD3D11BaseTexture2DArray> FD3D11Texture2DArray;
 typedef TD3D11Texture2D<FD3D11BaseTextureCube>    FD3D11TextureCube;
 
-/** Texture reference class. */
-class FD3D11TextureReference : public FRHITextureReference, public FD3D11TextureBase
-{
-public:
-	FD3D11TextureReference(class FD3D11DynamicRHI* InD3DRHI, FLastRenderTimeContainer* LastRenderTime)
-		: FRHITextureReference(LastRenderTime)
-		, FD3D11TextureBase(InD3DRHI,NULL,NULL, 0, false,TArray<TRefCountPtr<ID3D11RenderTargetView> >(),NULL)
-	{
-		BaseShaderResource = NULL;
-	}
-
-	void SetReferencedTexture(FRHITexture* InTexture, FD3D11BaseShaderResource* InBaseShaderResource, ID3D11ShaderResourceView* InSRV)
-	{
-		ShaderResourceView = InSRV;
-		BaseShaderResource = InBaseShaderResource;
-		FRHITextureReference::SetReferencedTexture(InTexture);
-	}
-
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return static_cast<FD3D11TextureBase*>(this);
-	}
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const
-	{
-		return FRHIResource::AddRef();
-	}
-	virtual uint32 Release() const
-	{
-		return FRHIResource::Release();
-	}
-	virtual uint32 GetRefCount() const
-	{
-		return FRHIResource::GetRefCount();
-	}
-};
-
 /** Given a pointer to a RHI texture that was created by the D3D11 RHI, returns a pointer to the FD3D11TextureBase it encapsulates. */
 FORCEINLINE FD3D11TextureBase* GetD3D11TextureFromRHITexture(FRHITexture* Texture)
 {

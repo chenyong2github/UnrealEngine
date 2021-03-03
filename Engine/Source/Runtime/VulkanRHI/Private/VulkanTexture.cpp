@@ -2569,11 +2569,6 @@ FVulkanTexture2DArray::FVulkanTexture2DArray(FTextureRHIRef& SrcTextureRHI, cons
 {
 }
 
-void FVulkanTextureReference::SetReferencedTexture(FRHITexture* InTexture)
-{
-	FRHITextureReference::SetReferencedTexture(InTexture);
-}
-
 
 FVulkanTextureCube::FVulkanTextureCube(FVulkanDevice& Device, EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, ERHIAccess InResourceState, const FRHIResourceCreateInfo& CreateInfo)
 :	 FRHITextureCube(Size, NumMips, Format, Flags, CreateInfo.ClearValueBinding)
@@ -2867,21 +2862,6 @@ uint64 FVulkanDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Form
 	const VkMemoryRequirements MemReq = FindOrCalculateTexturePlatformSize(Device, VK_IMAGE_VIEW_TYPE_CUBE, Size, Size, 1, Format, NumMips, 1, Flags);
 	OutAlign = MemReq.alignment;
 	return MemReq.size;
-}
-
-FTextureReferenceRHIRef FVulkanDynamicRHI::RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
-{
-	return new FVulkanTextureReference(*Device, LastRenderTime);
-}
-
-void FVulkanCommandListContext::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
-{
-	//#todo-rco: Implementation needs to be verified
-	FVulkanTextureReference* VulkanTextureRef = (FVulkanTextureReference*)TextureRef;
-	if (VulkanTextureRef)
-	{
-		VulkanTextureRef->SetReferencedTexture(NewTexture);
-	}
 }
 
 void FVulkanCommandListContext::RHICopyTexture(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FRHICopyTextureInfo& CopyInfo)

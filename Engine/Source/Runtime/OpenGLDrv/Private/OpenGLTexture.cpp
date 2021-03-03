@@ -2523,33 +2523,12 @@ void FOpenGLDynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCH
 #endif
 }
 
-
 void FOpenGLDynamicRHI::RHIVirtualTextureSetFirstMipInMemory(FRHITexture2D* TextureRHI, uint32 FirstMip)
 {
 }
 
 void FOpenGLDynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* TextureRHI, uint32 FirstMip)
 {
-}
-
-FTextureReferenceRHIRef FOpenGLDynamicRHI::RHICreateTextureReference(FLastRenderTimeContainer* InLastRenderTime)
-{
-	return new FOpenGLTextureReference(InLastRenderTime);
-}
-
-void FOpenGLTextureReference::SetReferencedTexture(FRHITexture* InTexture)
-{
-	FRHITextureReference::SetReferencedTexture(InTexture);
-	TexturePtr = GetOpenGLTextureFromRHITexture(InTexture);
-}
-
-void FOpenGLDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FRHITexture* NewTextureRHI)
-{
-	auto* TextureRef = (FOpenGLTextureReference*)TextureRefRHI;
-	if (TextureRef)
-	{
-		TextureRef->SetReferencedTexture(NewTextureRHI);
-	}
 }
 
 void FOpenGLDynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTextureRHI, FRHITexture2D* DestinationTextureRHI, FBox2D SourceBox, FBox2D DestinationBox)

@@ -29,40 +29,6 @@ FAutoConsoleVariableRef CVarMetalForceIOSTexturesShared(
 														TEXT("If true, forces all textures to be Shared on iOS"),
 														ECVF_RenderThreadSafe);
 
-
-/** Texture reference class. */
-class FMetalTextureReference : public FRHITextureReference
-{
-public:
-	explicit FMetalTextureReference(FLastRenderTimeContainer* InLastRenderTime)
-	: FRHITextureReference(InLastRenderTime)
-	{}
-	
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const
-	{
-		return FRHIResource::AddRef();
-	}
-	virtual uint32 Release() const
-	{
-		return FRHIResource::Release();
-	}
-	virtual uint32 GetRefCount() const
-	{
-		return FRHIResource::GetRefCount();
-	}
-	
-	void SetReferencedTexture(FRHITexture* InTexture)
-	{
-		FRHITextureReference::SetReferencedTexture(InTexture);
-	}
-	
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return GetMetalSurfaceFromRHITexture(GetReferencedTexture());
-	}
-};
-
 /** Given a pointer to a RHI texture that was created by the Metal RHI, returns a pointer to the FMetalTextureBase it encapsulates. */
 FMetalSurface* GetMetalSurfaceFromRHITexture(FRHITexture* Texture)
 {
@@ -2415,27 +2381,6 @@ FTextureCubeRHIRef FMetalDynamicRHI::RHICreateTextureCubeArray_RenderThread(clas
 		check(!CreateInfo.BulkData);
 		FTextureCubeRHIRef Result = GDynamicRHI->RHICreateTextureCubeArray(Size, ArraySize, Format, NumMips, Flags, InResourceState, CreateInfo);
 		return Result;
-	}
-}
-
-
-
-
-FTextureReferenceRHIRef FMetalDynamicRHI::RHICreateTextureReference(FLastRenderTimeContainer* InLastRenderTime)
-{
-	@autoreleasepool {
-		return new FMetalTextureReference(InLastRenderTime);
-	}
-}
-
-void FMetalRHICommandContext::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FRHITexture* NewTextureRHI)
-{
-	@autoreleasepool {
-		FMetalTextureReference* TextureRef = (FMetalTextureReference*)TextureRefRHI;
-		if (TextureRef)
-		{
-			TextureRef->SetReferencedTexture(NewTextureRHI);
-		}
 	}
 }
 

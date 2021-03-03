@@ -225,19 +225,6 @@ public:
 		return false; 
 	}
 
-	virtual FTextureReferenceRHIRef RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime) final override
-	{ 
-		return new FRHITextureReferenceNullImpl(); 
-	}
-
-	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture) final override
-	{ 
-		if(TextureRef) 
-		{ 
-			((FRHITextureReferenceNullImpl*)TextureRef)->SetReferencedTexture(NewTexture); 
-		} 
-	}
-
 
 	virtual FTexture2DRHIRef RHICreateTexture2D(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo) final override
 	{ 

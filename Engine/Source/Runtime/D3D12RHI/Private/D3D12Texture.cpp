@@ -2688,40 +2688,6 @@ void FD3D12DynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* Textur
 {
 }
 
-FTextureReferenceRHIRef FD3D12DynamicRHI::RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
-{
-	return GetAdapter().CreateLinkedObject<FD3D12TextureReference>(
-		FRHIGPUMask::All(), 
-		[&](FD3D12Device* Device)
-	{
-		return new FD3D12TextureReference(Device, LastRenderTime); 
-	});
-}
-
-void FD3D12CommandContext::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FRHITexture* NewTextureRHI)
-{
-#if 0
-	// Updating texture references is disallowed while the RHI could be caching them in referenced resource tables.
-	check(ResourceTableFrameCounter == INDEX_NONE);
-#endif
-
-	FD3D12TextureReference* TextureRef = RetrieveObject<FD3D12TextureReference>(TextureRefRHI);
-	if (TextureRef)
-	{
-		FD3D12TextureBase* NewTexture = NULL;
-		FD3D12ShaderResourceView* NewSRV = NULL;
-		if (NewTextureRHI)
-		{
-			NewTexture = RetrieveTextureBase(NewTextureRHI);
-			if (NewTexture)
-			{
-				NewSRV = NewTexture->GetShaderResourceView();
-			}
-		}
-		TextureRef->SetReferencedTexture(NewTextureRHI, NewTexture, NewSRV);
-	}
-}
-
 ID3D12CommandQueue* FD3D12DynamicRHI::RHIGetD3DCommandQueue()
 {
 	// Multi-GPU support : any code using this function needs validation.

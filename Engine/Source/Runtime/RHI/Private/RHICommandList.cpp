@@ -70,11 +70,6 @@ TAutoConsoleVariable<int32> CVarRHICmdFlushRenderThreadTasks(
 	0,
 	TEXT("If true, then we flush the render thread tasks every pass. For issue diagnosis. This is a master switch for more granular cvars."));
 
-TAutoConsoleVariable<int32> CVarRHICmdFlushUpdateTextureReference(
-	TEXT("r.RHICmdFlushUpdateTextureReference"),
-	0,
-	TEXT("If true, then we flush the rhi thread when we do RHIUpdateTextureReference, otherwise this is deferred. For issue diagnosis."));
-
 static TAutoConsoleVariable<int32> CVarRHICmdFlushOnQueueParallelSubmit(
 	TEXT("r.RHICmdFlushOnQueueParallelSubmit"),
 	0,
@@ -2314,12 +2309,6 @@ FRHIShaderLibraryRef FDynamicRHI::RHICreateShaderLibrary_RenderThread(class FRHI
 	return GDynamicRHI->RHICreateShaderLibrary(Platform, FilePath, Name);
 }
 
-FTextureReferenceRHIRef FDynamicRHI::RHICreateTextureReference_RenderThread(class FRHICommandListImmediate& RHICmdList, FLastRenderTimeContainer* LastRenderTime)
-{
-	// Notice no StallRHIThread needed! This function is safe on all RHIs
-	return GDynamicRHI->RHICreateTextureReference(LastRenderTime);
-}
-
 FTexture2DRHIRef FDynamicRHI::RHICreateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, RHICreateTexture2D_RenderThread);
@@ -2508,17 +2497,10 @@ void FDynamicRHI::RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImme
 
 void FRHICommandListImmediate::UpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
 {
-	if (Bypass() || !IsRunningRHIInSeparateThread() || CVarRHICmdFlushUpdateTextureReference.GetValueOnRenderThread() > 0)
+	EnqueueLambda([TextureRef, NewTexture](auto&)
 	{
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UpdateTextureReference_FlushRHI);
-			CSV_SCOPED_TIMING_STAT(RHITFlushes, UpdateTextureReference);
-			ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-		GetContext().RHIUpdateTextureReference(TextureRef, NewTexture);
-		return;
-	}
-	ALLOC_COMMAND(FRHICommandUpdateTextureReference)(TextureRef, NewTexture);
+		TextureRef->SetReferencedTexture(NewTexture);
+	});
 	RHIThreadFence(true);
 	if (GetUsedMemory() > 256 * 1024)
 	{

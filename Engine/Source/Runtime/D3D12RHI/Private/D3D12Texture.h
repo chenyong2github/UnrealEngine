@@ -478,44 +478,6 @@ typedef TD3D12Texture2D<FD3D12BaseTexture2D>      FD3D12Texture2D;
 typedef TD3D12Texture2D<FD3D12BaseTexture2DArray> FD3D12Texture2DArray;
 typedef TD3D12Texture2D<FD3D12BaseTextureCube>    FD3D12TextureCube;
 
-/** Texture reference class. */
-class FD3D12TextureReference : public FRHITextureReference, public FD3D12TextureBase
-{
-public:
-	FD3D12TextureReference(class FD3D12Device* InParent, FLastRenderTimeContainer* LastRenderTime)
-		: FRHITextureReference(LastRenderTime)
-		, FD3D12TextureBase(InParent)
-	{
-		BaseShaderResource = NULL;
-	}
-
-	void SetReferencedTexture(FRHITexture* InTexture, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ShaderResourceView* InSRV)
-	{
-		ShaderResourceView = InSRV;
-		BaseShaderResource = InBaseShaderResource;
-		FRHITextureReference::SetReferencedTexture(InTexture);
-	}
-
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return static_cast<FD3D12TextureBase*>(this);
-	}
-
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const
-	{
-		return FRHIResource::AddRef();
-	}
-	virtual uint32 Release() const
-	{
-		return FRHIResource::Release();
-	}
-	virtual uint32 GetRefCount() const
-	{
-		return FRHIResource::GetRefCount();
-	}
-};
-
 class FD3D12Viewport;
 
 class FD3D12BackBufferReferenceTexture2D : public FD3D12Texture2D
@@ -630,12 +592,6 @@ template<>
 struct TD3D12ResourceTraits<FRHITextureCube>
 {
 	typedef FD3D12TextureCube TConcreteType;
-};
-
-template<>
-struct TD3D12ResourceTraits<FRHITextureReference>
-{
-	typedef FD3D12TextureReference TConcreteType;
 };
 
 struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHICommandD3D12AsyncReallocateTexture2D>

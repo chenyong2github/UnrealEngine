@@ -567,8 +567,6 @@ public:
 		/* empty default implementation */
 	}
 
-	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture) = 0;
-
 	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName) = 0;
 
 	virtual void RHIEndRenderPass() = 0;

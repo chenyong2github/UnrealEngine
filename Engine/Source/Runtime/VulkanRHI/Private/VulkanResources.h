@@ -704,50 +704,6 @@ public:
 	}
 };
 
-class FVulkanTextureReference : public FRHITextureReference, public FVulkanTextureBase
-{
-	FName GetResourceFName() { return GetName(); }
-public:
-	explicit FVulkanTextureReference(FVulkanDevice& Device, FLastRenderTimeContainer* InLastRenderTime)
-	:	FRHITextureReference(InLastRenderTime)
-	,	FVulkanTextureBase(Device, VK_IMAGE_VIEW_TYPE_MAX_ENUM, PF_Unknown, 0, 0, 0, 1, 1, 1, VK_NULL_HANDLE, VK_NULL_HANDLE, TexCreate_None, FRHIResourceCreateInfo(TEXT("")))
-	{}
-
-	virtual FRHITexture* GetRHITexture()
-	{
-		return this;
-	};
-
-
-	// IRefCountedObject interface.
-	virtual uint32 AddRef() const override final
-	{
-		return FRHIResource::AddRef();
-	}
-
-	virtual uint32 Release() const override final
-	{
-		return FRHIResource::Release();
-	}
-
-	virtual uint32 GetRefCount() const override final
-	{
-		return FRHIResource::GetRefCount();
-	}
-
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return GetReferencedTexture() ? GetReferencedTexture()->GetTextureBaseRHI() : nullptr;
-	}
-
-	virtual void* GetNativeResource() const
-	{
-		return (void*)Surface.Image;
-	}
-
-	void SetReferencedTexture(FRHITexture* InTexture);
-};
-
 class FVulkanQueryPool : public VulkanRHI::FDeviceChild
 {
 public:

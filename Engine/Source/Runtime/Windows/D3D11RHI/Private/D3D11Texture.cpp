@@ -2141,18 +2141,6 @@ void FD3D11DynamicRHI::RHIVirtualTextureSetFirstMipVisible(FRHITexture2D* Textur
 {
 }
 
-FTextureReferenceRHIRef FD3D11DynamicRHI::RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
-{
-	return new FD3D11TextureReference(this,LastRenderTime);
-}
-
-FTextureReferenceRHIRef FD3D11DynamicRHI::RHICreateTextureReference_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FLastRenderTimeContainer* LastRenderTime)
-{
-	return RHICreateTextureReference(LastRenderTime);
-}
-
 void FD3D11DynamicRHI::RHICopySubTextureRegion(FRHITexture2D* SourceTextureRHI, FRHITexture2D* DestinationTextureRHI, FBox2D SourceBox, FBox2D DestinationBox)
 {
 	FD3D11Texture2D* SourceTexture = ResourceCast(SourceTextureRHI);
@@ -2253,29 +2241,6 @@ void FD3D11DynamicRHI::RHICopySubTextureRegion_RenderThread(
 		});
 	}
 }
-
-void FD3D11DynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FRHITexture* NewTextureRHI)
-{	
-	// Updating texture references is disallowed while the RHI could be caching them in referenced resource tables.
-	check(ResourceTableFrameCounter == INDEX_NONE);
-
-	FD3D11TextureReference* TextureRef = (FD3D11TextureReference*)TextureRefRHI;
-	if (TextureRef)
-	{
-		FD3D11TextureBase* NewTexture = NULL;
-		ID3D11ShaderResourceView* NewSRV = NULL;
-		if (NewTextureRHI)
-		{
-			NewTexture = GetD3D11TextureFromRHITexture(NewTextureRHI);
-			if (NewTexture)
-			{
-				NewSRV = NewTexture->GetShaderResourceView();
-			}
-		}
-		TextureRef->SetReferencedTexture(NewTextureRHI,NewTexture,NewSRV);
-	}
-}
-
 
 template<typename BaseResourceType>
 TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateTextureFromResource(bool bTextureArray, bool bCubeTexture, EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D11Texture2D* TextureResource)

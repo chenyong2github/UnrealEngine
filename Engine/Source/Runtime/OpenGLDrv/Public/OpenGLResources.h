@@ -1792,25 +1792,6 @@ typedef TOpenGLTexture<FOpenGLBaseTexture2DArray>		FOpenGLTexture2DArray;
 typedef TOpenGLTexture<FOpenGLBaseTexture3D>			FOpenGLTexture3D;
 typedef TOpenGLTexture<FOpenGLBaseTextureCube>			FOpenGLTextureCube;
 
-class FOpenGLTextureReference : public FRHITextureReference
-{
-	FOpenGLTextureBase* TexturePtr;
-
-public:
-	explicit FOpenGLTextureReference(FLastRenderTimeContainer* InLastRenderTime)
-		: FRHITextureReference(InLastRenderTime)
-		, TexturePtr(NULL)
-	{}
-
-	void SetReferencedTexture(FRHITexture* InTexture);
-	FOpenGLTextureBase* GetTexturePtr() const { return TexturePtr; }
-
-	virtual void* GetTextureBaseRHI() override final
-	{
-		return TexturePtr;
-	}
-};
-
 /** Given a pointer to a RHI texture that was created by the OpenGL RHI, returns a pointer to the FOpenGLTextureBase it encapsulates. */
 inline FOpenGLTextureBase* GetOpenGLTextureFromRHITexture(FRHITexture* Texture)
 {

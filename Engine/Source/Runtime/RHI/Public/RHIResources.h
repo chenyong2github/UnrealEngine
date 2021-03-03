@@ -1195,28 +1195,49 @@ private:
 	uint32 Size;
 };
 
-class RHI_API FRHITextureReference : public FRHITexture
+class RHI_API FRHITextureReference final : public FRHITexture
 {
 public:
 	explicit FRHITextureReference(FLastRenderTimeContainer* InLastRenderTime)
-		: FRHITexture(0,0,PF_Unknown,TexCreate_None,InLastRenderTime, FClearValueBinding())
-	{}
-
-	virtual FRHITextureReference* GetTextureReference() override { return this; }
-	inline FRHITexture* GetReferencedTexture() const { return ReferencedTexture.GetReference(); }
-
-	void SetReferencedTexture(FRHITexture* InTexture)
+		: FRHITexture(0, 0, PF_Unknown, TexCreate_None, InLastRenderTime, FClearValueBinding())
 	{
-		ReferencedTexture = InTexture;
+		check(DefaultTexture);
+		ReferencedTexture = DefaultTexture;
 	}
 
-	virtual FIntVector GetSizeXYZ() const final override
+	virtual class FRHITextureReference* GetTextureReference() override
 	{
-		if (ReferencedTexture)
-		{
-			return ReferencedTexture->GetSizeXYZ();
-		}
-		return FIntVector(0, 0, 0);
+		return this;
+	}
+
+	virtual FIntVector GetSizeXYZ() const override 
+	{
+		check(ReferencedTexture);
+		return ReferencedTexture->GetSizeXYZ();
+	}
+
+	virtual void* GetNativeResource() const override 
+	{
+		check(ReferencedTexture);
+		return ReferencedTexture->GetNativeResource();
+	}
+
+	virtual void* GetNativeShaderResourceView() const override
+	{
+		check(ReferencedTexture);
+		return ReferencedTexture->GetNativeShaderResourceView();
+	}
+
+	virtual void* GetTextureBaseRHI() override 
+	{
+		check(ReferencedTexture);
+		return ReferencedTexture->GetTextureBaseRHI();
+	}
+
+	virtual void GetWriteMaskProperties(void*& OutData, uint32& OutSize) override
+	{
+		check(ReferencedTexture);
+		return ReferencedTexture->GetWriteMaskProperties(OutData, OutSize);
 	}
 
 #if ENABLE_RHI_VALIDATION
@@ -1227,21 +1248,28 @@ public:
 	}
 #endif
 
+	inline FRHITexture* GetReferencedTexture() const
+	{
+		return ReferencedTexture.GetReference();
+	}
+
 private:
-	TRefCountPtr<FRHITexture> ReferencedTexture;
-};
-
-class RHI_API FRHITextureReferenceNullImpl : public FRHITextureReference
-{
-public:
-	FRHITextureReferenceNullImpl()
-		: FRHITextureReference(NULL)
-	{}
-
+	friend class FRHICommandListImmediate;
+	// Called only from FRHICommandListImmediate::UpdateTextureReference()
 	void SetReferencedTexture(FRHITexture* InTexture)
 	{
-		FRHITextureReference::SetReferencedTexture(InTexture);
+		ReferencedTexture = InTexture
+			? InTexture
+			: DefaultTexture.GetReference();
 	}
+
+	TRefCountPtr<FRHITexture> ReferencedTexture;
+
+	// This pointer is set by the InitRHI() function on the FBlackTextureWithSRV global resource,
+	// to allow FRHITextureReference to use the global black texture when the reference is nullptr.
+	// A pointer is required since FBlackTextureWithSRV is defined in RenderCore.
+	friend class FBlackTextureWithSRV;
+	static TRefCountPtr<FRHITexture> DefaultTexture;
 };
 
 //

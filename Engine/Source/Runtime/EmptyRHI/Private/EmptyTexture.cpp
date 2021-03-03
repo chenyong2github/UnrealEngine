@@ -256,12 +256,3 @@ uint64 FEmptyDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Forma
 {
 	return 0;
 }
-
-FTextureReferenceRHIRef FEmptyDynamicRHI::RHICreateTextureReference(FLastRenderTimeContainer* LastRenderTime)
-{
-	return nullptr;
-}
-
-void FEmptyDynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
-{
-}
