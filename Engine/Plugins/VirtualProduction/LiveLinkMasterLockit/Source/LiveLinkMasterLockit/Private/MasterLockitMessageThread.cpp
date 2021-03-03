@@ -690,7 +690,7 @@ void FMasterLockitMessageThread::ParseZeissLensData(FArrayReader& InData, const 
 	}
 	else
 	{
-		const float SensorSize = FMath::Sqrt((36 * 36) + (24 * 24)); // The diagonal of a Full Frame sensor, which is 36mm x 24mm
+		const float SensorSize = FMath::Sqrt((36.0f * 36.0f) + (24.0f * 24.0f)); // The diagonal of a Full Frame sensor, which is 36mm x 24mm
 		LensData.FocalLength = (SensorSize / 2.f) / FMath::Tan(FMath::DegreesToRadians(LensData.HorizontalFOV / 2.f));
 	}
 
