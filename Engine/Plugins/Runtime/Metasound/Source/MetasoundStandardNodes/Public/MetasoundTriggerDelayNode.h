@@ -20,7 +20,5 @@ namespace Metasound
 	{
 		public:
 			FTriggerDelayNode(const FNodeInitData& InInitData);
-
-			virtual ~FTriggerDelayNode() = default;
 	};
 }

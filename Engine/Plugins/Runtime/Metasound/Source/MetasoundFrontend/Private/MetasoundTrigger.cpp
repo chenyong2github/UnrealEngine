@@ -5,6 +5,7 @@
 #include "MetasoundDataTypeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
 
+
 namespace Metasound
 {
 	FTrigger::FTrigger(const FOperatorSettings& InSettings, bool bShouldTrigger)
@@ -41,7 +42,6 @@ namespace Metasound
 
 		bHasTrigger = true;
 	}
-
 
 	void FTrigger::AdvanceBlock()
 	{

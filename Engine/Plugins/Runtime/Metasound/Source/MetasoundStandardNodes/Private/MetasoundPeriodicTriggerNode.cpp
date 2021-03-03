@@ -85,6 +85,7 @@ namespace Metasound
 			[this](int32 StartFrame, int32 EndFrame)
 			{
 				bEnabled = true;
+				SampleCounter.SetNumSamples(0);
 			}
 		);
 
@@ -105,7 +106,7 @@ namespace Metasound
 			// Time must march on, can't stay in the now forever.
 			PeriodInSamples = FMath::Max(static_cast<FSampleCount>(1), PeriodInSamples);
 
-			while ((SampleCounter - BlockSize) <= 0)
+			while ((SampleCounter - BlockSize).GetNumSamples() <= 0)
 			{
 				const int32 StartOffset = static_cast<int32>(SampleCounter.GetNumSamples());
 				TriggerOut->TriggerFrame(StartOffset);

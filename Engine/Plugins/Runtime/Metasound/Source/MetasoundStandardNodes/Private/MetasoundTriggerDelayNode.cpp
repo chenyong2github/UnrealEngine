@@ -111,7 +111,7 @@ namespace Metasound
 			}
 		);
 
-		if (NextTriggerCounter >= 0)
+		if (NextTriggerCounter.GetNumSamples() >= 0)
 		{
 			FSampleCount SamplesRemaining = NextTriggerCounter.GetNumSamples() - FramesPerBlock;
 			if (SamplesRemaining > 0.0f)

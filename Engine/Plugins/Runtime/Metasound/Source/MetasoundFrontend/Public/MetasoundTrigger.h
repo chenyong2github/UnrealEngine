@@ -46,16 +46,6 @@ namespace Metasound
 			 */
 			void TriggerFrame(int32 InFrameToTrigger);
 
-			/** Trigger a specific time in the future.
-			 *
-			 * @param InTime - Time to set trigger.
-			 */
-			template<typename TimeType>
-			void TriggerTime(const TimeType& InTime)
-			{
-				TriggerFrame(InTime.GetNumSamples(SampleRate));
-			}
-
 			/** Advance internal frame counters by block size. */
 			void AdvanceBlock();
 

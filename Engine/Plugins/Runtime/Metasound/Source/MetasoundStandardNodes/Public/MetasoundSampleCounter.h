@@ -161,6 +161,20 @@ namespace Metasound
 				return { FSampleCount(InLHS.NumSamples - (InRHS * InLHS.SampleRate)), InLHS.SampleRate };
 			}
 
+			template<typename IntegralType>
+			friend FSampleCounter operator+(const FSampleCounter& InLHS, const IntegralType& InRHS)
+			{
+				static_assert(TIsIntegral<IntegralType>::Value, "Right-hand addend type must be integral.");
+				return FSampleCounter(InLHS.NumSamples + InRHS, InLHS.SampleRate);
+			}
+
+			template<typename IntegralType>
+			friend FSampleCounter operator-(const FSampleCounter& InLHS, const IntegralType& InRHS)
+			{
+				static_assert(TIsIntegral<IntegralType>::Value, "Subtrahend type must be integral.");
+				return FSampleCounter(InLHS.NumSamples - InRHS, InLHS.SampleRate);
+			}
+
 			template<typename ArithmeticType>
 			friend FSampleCounter operator*(const FSampleCounter& InLHS, const ArithmeticType& InRHS)
 			{
@@ -213,18 +227,18 @@ namespace Metasound
 				return InLHS;
 			}
 
-			template<typename ArithmeticType>
-			friend FSampleCounter operator+=(FSampleCounter& InLHS, const ArithmeticType& InRHS)
+			template<typename IntegralType>
+			friend FSampleCounter operator+=(FSampleCounter& InLHS, const IntegralType& InRHS)
 			{
-				static_assert(TIsArithmetic<ArithmeticType>::Value, "Addend type must be arithmetic.");
+				static_assert(TIsIntegral<IntegralType>::Value, "Addend type must be integral.");
 				InLHS.NumSamples += InRHS;
 				return InLHS;
 			}
 
-			template<typename ArithmeticType>
-			friend FSampleCounter& operator-=(FSampleCounter& InLHS, const ArithmeticType& InRHS)
+			template<typename IntegralType>
+			friend FSampleCounter& operator-=(FSampleCounter& InLHS, const IntegralType& InRHS)
 			{
-				static_assert(TIsArithmetic<ArithmeticType>::Value, "Subtrahend type must be arithmetic.");
+				static_assert(TIsIntegral<IntegralType>::Value, "Subtrahend type must be integral.");
 				InLHS.NumSamples -= InRHS;
 				return InLHS;
 			}

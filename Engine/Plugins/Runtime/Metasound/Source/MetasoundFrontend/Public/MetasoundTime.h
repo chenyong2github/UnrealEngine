@@ -21,7 +21,7 @@ namespace Metasound
 			{
 			}
 
-			FTime(TimeType InTime)
+			explicit FTime(TimeType InTime)
 				: Time(InTime)
 			{
 			}
@@ -127,7 +127,7 @@ namespace Metasound
 
 			FTime operator-(const FTime& InRHS) const
 			{
-				return Time - InRHS.Time;
+				return FTime(Time - InRHS.Time);
 			}
 
 			template<typename ArithmeticType>
@@ -146,7 +146,7 @@ namespace Metasound
 
 			FTime operator+(const FTime& InRHS) const
 			{
-				return Time + InRHS.Time;
+				return FTime(Time + InRHS.Time);
 			}
 
 			template<typename ArithmeticType>
@@ -160,7 +160,7 @@ namespace Metasound
 			friend FTime operator+(const FTime& InLHS, const ArithmeticType& InRHS)
 			{
 				static_assert(TIsArithmetic<ArithmeticType>::Value, "Must be arithmetic type.");
-				return InLHS.Time + InRHS;
+				return FTime(InLHS.Time + InRHS);
 			}
 
 			template<typename ArithmeticType>
@@ -181,7 +181,7 @@ namespace Metasound
 			friend FTime operator*(const FTime& InLHS, const ArithmeticType& InRHS)
 			{
 				static_assert(TIsArithmetic<ArithmeticType>::Value, "Must be arithmetic type.");
-				return InLHS.Time * InRHS;
+				return FTime(InLHS.Time * InRHS);
 			}
 
 			template<typename ArithmeticType>
@@ -202,7 +202,7 @@ namespace Metasound
 			friend FTime operator/(const FTime& InLHS, const ArithmeticType& InRHS)
 			{
 				static_assert(TIsArithmetic<ArithmeticType>::Value, "Must be arithmetic type.");
-				return InLHS.Time / InRHS;
+				return FTime(InLHS.Time / InRHS);
 			}
 
 			bool operator<(const FTime& InRHS) const
