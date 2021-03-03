@@ -452,6 +452,11 @@ bool AVirtualCameraActor::StartStreaming()
 
 bool AVirtualCameraActor::StopStreaming()
 {
+	if (!RemoteSessionHost)
+	{
+		return false;
+	}
+
 	TSharedPtr<FRemoteSessionInputChannel> InputChannel = RemoteSessionHost->GetChannel<FRemoteSessionInputChannel>();
 	if (InputChannel)
 	{
