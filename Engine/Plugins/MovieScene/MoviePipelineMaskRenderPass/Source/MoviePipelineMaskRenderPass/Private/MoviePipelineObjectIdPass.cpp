@@ -162,7 +162,10 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 void UMoviePipelineObjectIdRenderPass::TeardownImpl()
 {
 	// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
-	SurfaceQueue->Shutdown();
+	if (SurfaceQueue.IsValid())
+	{
+		SurfaceQueue->Shutdown();
+	}
 
 	// Stall until the task graph has completed any pending accumulations.
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
