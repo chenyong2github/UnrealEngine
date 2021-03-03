@@ -71,7 +71,7 @@ void AdaptivePinholeCamera_SampleEmitter(
 	uint2 MipPixel = 0;
 	uint MipCount = Log2(AdaptiveSamplingData.VarianceDimensions.x);
 
-	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, 0);
+	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 	uint StopLevel = 0;
 
 	float OneMinusEps = 0.999999940395; // float just before 1.0

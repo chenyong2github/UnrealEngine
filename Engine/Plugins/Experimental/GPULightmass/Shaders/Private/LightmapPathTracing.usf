@@ -71,8 +71,7 @@ void GenerateCosineNormalRay(
 {
 	// Draw random variable
 	float2 BufferSize = View.BufferSizeAndInvSize.xy;
-	uint DummyVariable;
-	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 	// Perform cosine-hemispherical sampling and convert to world-space
 	float4 Direction_Tangent = CosineSampleHemisphere(RandSample);
@@ -364,7 +363,7 @@ void PathTracingKernel(
 		}
 
 		// Choose a random number for both Light sampling and BxDF sampling
-		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
+		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
 
 		// Does this material require NEE?
 		bool bIsNeeValid = IsNeeValidMaterial(Payload);
@@ -497,7 +496,7 @@ void PathTracingKernel(
 		{
 			// If there is some chance we should terminate the ray, draw an extra random value
 			float RussianRouletteRand = RandSample.w; // SampleMaterial does not use this value at the moment
-			//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence, SampleIndex);
+			//RussianRouletteRand = RandomSequence_GenerateSample1D(RandSequence);
 			if (RussianRouletteRand >= ContinuationProb)
 			{
 				// stochastically terminate the path
@@ -759,7 +758,7 @@ void VolumetricLightmapPathTracingMainRG()
 	uint Seed = ComputeBrickLinearAddress(CellPosInVLM, IndirectionTextureDim * 4);
 	
 	#if 0
-		float3 Jitter = RandomSequence_GenerateSample3D(RandSequence, SampleIndex);
+		float3 Jitter = RandomSequence_GenerateSample3D(RandSequence);
 	#else
 		float3 RandSample = float3(
 			Halton(MortonEncode3(CellPosInVLM) + FrameNumber / 2, 2), 

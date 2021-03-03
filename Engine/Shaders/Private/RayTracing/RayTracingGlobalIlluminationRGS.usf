@@ -139,8 +139,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 		FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 		RayThroughput *= LightingSample.Diffuse / DiffuseColor;
 #else
-		uint DummyVariable;
-		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 		float2 ViewportUV = (PixelCoord.xy + RandSample.xy) * View.BufferSizeAndInvSize.zw;
 		Ray.Origin = ReconstructWorldPositionFromDepth(ViewportUV, 0.0f);
 		Ray.Direction = normalize(ReconstructWorldPositionFromDepth(ViewportUV, 1.f) - Ray.Origin);

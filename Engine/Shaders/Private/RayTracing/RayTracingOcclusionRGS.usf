@@ -187,8 +187,7 @@ float ComputeDiffuseTransmission(
 		TMax = (RejectionTestPayload.IsHit() ? RejectionTestPayload.HitT : RejectionTestRay.TMax);
 	}
 
-	uint DummyVariable;
-	float RandSample = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
+	float RandSample = RandomSequence_GenerateSample1D(RandSequence);
 
 	float ScatterDistance = SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
 	float ScatterDistancePdf = 0.0;
@@ -209,7 +208,7 @@ float ComputeDiffuseTransmission(
 		uint RetryCount = 0;
 		while (ScatterDistance > TMax && RetryCount < RejectionSamplingTrials)
 		{
-			RandSample = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
+			RandSample = RandomSequence_GenerateSample1D(RandSequence);
 			ScatterDistance = -log(RandSample) * MeanFreePath;
 			ScatterDistancePdf = RcpMeanFreePath * exp(-ScatterDistance * RcpMeanFreePath);
 			RetryCount++;
@@ -354,8 +353,7 @@ FOcclusionResult ComputeOcclusion(
 	do if (LocalSamplesPerPixel > 0)
 #endif // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 	{
-		uint DummyVariable;
-		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 		#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		{
@@ -508,8 +506,7 @@ FOcclusionResult ComputeOcclusion(
 	if (ENABLE_TRANSMISSION && LocalSamplesPerPixel > 0 && ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
 	{
 		// Snag two variables to fix light sampling for all computations..
-		uint DummyVariable;
-		const float2 LightSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		const float2 LightSample = RandomSequence_GenerateSample2D(RandSequence);
 		const float3 V = normalize(WorldPosition - View.WorldViewOrigin);
 
 		const float MeanFreePath = TransmissionProfileParams.ExtinctionScale;

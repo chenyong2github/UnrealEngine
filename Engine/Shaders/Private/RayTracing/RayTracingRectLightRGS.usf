@@ -50,8 +50,7 @@ bool GenerateRectLightImportanceSampledRay(
 		PowerTerm = max(PowerTerm, 0.0);
 
 		// Determine sample positions
-		uint DummyVariable;
-		float2 Jitter = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		float2 Jitter = RandomSequence_GenerateSample2D(RandSequence);
 		float2 DimInv = 1.0 / DimensionsAtLevel(RectLight.MipTreeDimensions.xy, MipIndex);
 		float2 UV00 = (MipPixel + Jitter) * DimInv - 0.5;
 		float2 UV10 = (MipPixel + Jitter + uint2(1, 0)) * DimInv - 0.5;
@@ -91,7 +90,7 @@ bool GenerateRectLightImportanceSampledRay(
 		Cdf /= Cdf.w;
 
 		// Sample CDF
-		float RandSample = RandomSequence_GenerateSample1D(RandSequence, DummyVariable);
+		float RandSample = RandomSequence_GenerateSample1D(RandSequence);
 		if (RandSample < Cdf.x)
 		{
 			MipPdf *= Cdf.x;
@@ -117,8 +116,7 @@ bool GenerateRectLightImportanceSampledRay(
 	MipPixel = uint2(MipPixel.x >> 1, MipPixel.y >> 1);
 
 	// Sample within stop-level texel
-	uint DummyVariable;
-	float2 PixelOffset = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+	float2 PixelOffset = RandomSequence_GenerateSample2D(RandSequence);
 	float2 DimensionsAtStopLevel = DimensionsAtLevel(RectLight.MipTreeDimensions.xy, StopLevel);
 	float2 MipPixelUV = (MipPixel + PixelOffset) / DimensionsAtStopLevel;
 
@@ -239,8 +237,7 @@ RAY_TRACING_ENTRY_RAYGEN(RectLightRGS)
 	{
 		RayDesc Ray;
 
-		uint DummyVariable;
-		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 		float RayPdf = 0.0;
 
 		bool bIsValid = false;

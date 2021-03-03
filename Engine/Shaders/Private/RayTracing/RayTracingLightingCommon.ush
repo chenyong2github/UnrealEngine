@@ -253,8 +253,7 @@ float3 SampleAreaLightDirection(
 	float RayTMax = 0;
 	float RayPdf = 0;
 
-	uint DummyVariable;
-	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 	FLightShaderParameters LightParameters;
 	LightParameters.Position = LightData.Position;

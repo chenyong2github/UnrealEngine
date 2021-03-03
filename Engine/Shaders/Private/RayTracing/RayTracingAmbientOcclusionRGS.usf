@@ -46,8 +46,7 @@ void GenerateCosineNormalRay(
 {
 	// Draw random variable
 	float2 BufferSize = View.BufferSizeAndInvSize.xy;
-	uint DummyVariable;
-	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence);
 
 	// Perform cosine-hemispherical sampling and convert to world-space
 	float4 Direction_Tangent;
