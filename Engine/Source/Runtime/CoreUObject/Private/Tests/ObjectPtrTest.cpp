@@ -9,6 +9,7 @@
 #include "Templates/Models.h"
 #include "UObject/Interface.h"
 #include "UObject/MetaData.h"
+#include "UObject/ObjectRedirector.h"
 #include "UObject/SoftObjectPath.h"
 
 #include <type_traits>
