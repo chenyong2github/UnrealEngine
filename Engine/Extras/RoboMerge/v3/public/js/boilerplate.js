@@ -93,7 +93,6 @@ function updateBranchList(graphBotName=null) {
 	if (updateBranchesPending)
 		return;
 	updateBranchesPending = true;
-	log(`Updating Branch List...`)
 	let expandedDivIds = []
 	$('#branchList .elist-row>.collapse.show').each( (_index, div) => {
 		expandedDivIds.push(div.id)
@@ -471,6 +470,12 @@ function generateRobomergeFooter() {
 	p4TasksButton.click(function() { window.open('/api/p4tasks', '_blank') })
 	p4TasksButton.text("P4 Tasks")
 	fteButtonDiv.append(p4TasksButton)
+
+	let p4AllBotsButton = $('<button id="p4AllBotsButton">')
+	p4AllBotsButton.addClass("btn btn-sm btn-outline-dark")
+	p4AllBotsButton.click(function() { window.open('/allbots', '_blank') })
+	p4AllBotsButton.text("All bots graph")
+	fteButtonDiv.append(p4AllBotsButton)
 
 	let branchesButton = $('<button id="branchesButton">')
 	branchesButton.addClass("btn btn-sm btn-outline-dark")
