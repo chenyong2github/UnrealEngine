@@ -11,59 +11,6 @@ SkyLight.usf: Light sampling functions for SkyLight implementation
 
 #define USE_HIERARCHICAL_IMPORTANCE_SAMPLING
 
-void SkyLight_GenerateLightRay(
-	RayDesc Ray,
-	int LightId,
-	float3 LightUV,
-	out RayDesc OutLightRay
-)
-{
-	OutLightRay.Origin = Ray.Origin;
-	OutLightRay.Direction = LightUV;
-	OutLightRay.TMin = 0.0;
-	OutLightRay.TMax = 1.0e27;
-}
-
-void SkyLight_PdfLight(
-	RayDesc Ray,
-	int LightId,
-	float3 LightUV,
-	out float OutPdf
-)
-{
-#ifndef USE_HIERARCHICAL_IMPORTANCE_SAMPLING
-	OutPdf = 1.0 / (2.0 * PI);
-#else
-	// Determine primary direction
-	//uint MipCount = Log2(SkyLight.MipDimensions.x);
-	uint MipCount = log2(SkyLight.MipDimensions.x);
-	uint2 TextureRes;
-	SkyLight.Texture.GetDimensions(TextureRes.x, TextureRes.y);
-	float3 LightDirection = LightUV;
-	uint3 TextureCoord = GetTextureCubeCoordinate(LightDirection, TextureRes);
-	float2 TextureUV = TextureCoord.xy / (float2)TextureRes;
-	uint2 MipCoord = TextureUV * SkyLight.MipDimensions.xy;
-	float FacePdf = PdfFace(MipCount, TextureCoord.z);
-
-	uint StopLevel = min(SkyLight.SamplingStopLevel, MipCount);
-	float MipPdf = PdfMipTree(uint3(MipCoord, TextureCoord.z), StopLevel);
-
-	uint LinearIndex = BufferOffsetAtPixel(MipCoord, StopLevel, SkyLight.MipDimensions.xy);
-	float AreaPdf = SkyLight.SolidAnglePdf[LinearIndex];
-	OutPdf = FacePdf * MipPdf * AreaPdf;
-#endif
-}
-
-void SkyLight_EvalLight(
-	int LightId,
-	float3 LightUV,
-	RayDesc Ray,
-	out float3 OutRadiance
-)
-{
-	OutRadiance = SkyLight.Color * TextureCubeSampleLevel(SkyLight.Texture, SkyLight.TextureSampler, LightUV, 0).rgb;
-}
-
 void SkyLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
@@ -80,23 +27,73 @@ void SkyLight_EstimateLight(
 	OutIrradiance = SkyLightIlluminance * 2.0f * PI;
 }
 
+float4 SkyLight_TraceLight(RayDesc Ray, int LightId, float HitT) {
+	if (Ray.TMax == HitT)
+	{
+		// LightUV convention in the code below is just the world space ray direction
+		// so its safe to call into the method below for now ...
+
+		// #dxr_todo: write optimized form that combines radiance and pdf lookup in a single step
+
+		float3 Radiance = 0.0;
+		float Pdf = 0.0;
+
+		float3 LightUV = normalize(Ray.Direction);
+		Radiance = SkyLight.Color * SkyLight.Texture.SampleLevel(SkyLight.TextureSampler, LightUV, 0).rgb;
+		if (any(Radiance > 0))
+		{
+#ifndef USE_HIERARCHICAL_IMPORTANCE_SAMPLING
+			Pdf = 1.0 / (2.0 * PI);
+#else
+			// Determine primary direction
+			//uint MipCount = Log2(SkyLight.MipDimensions.x);
+			uint MipCount = log2(SkyLight.MipDimensions.x);
+			uint2 TextureRes;
+			SkyLight.Texture.GetDimensions(TextureRes.x, TextureRes.y);
+			float3 LightDirection = LightUV;
+			uint3 TextureCoord = GetTextureCubeCoordinate(LightDirection, TextureRes);
+			float2 TextureUV = TextureCoord.xy / (float2)TextureRes;
+			uint2 MipCoord = TextureUV * SkyLight.MipDimensions.xy;
+			float FacePdf = PdfFace(MipCount, TextureCoord.z);
+
+			uint StopLevel = min(SkyLight.SamplingStopLevel, MipCount);
+			float MipPdf = PdfMipTree(uint3(MipCoord, TextureCoord.z), StopLevel);
+
+			uint LinearIndex = BufferOffsetAtPixel(MipCoord, StopLevel, SkyLight.MipDimensions.xy);
+			float AreaPdf = SkyLight.SolidAnglePdf[LinearIndex];
+			Pdf = FacePdf * MipPdf * AreaPdf;
+#endif
+		}
+		
+
+		return float4(Radiance, Pdf);
+	}
+	return 0.0;
+}
+
 void SkyLight_SampleLight(
-	RayDesc Ray,
-	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
 	int LightId,
-	out float3 OutLightUV,
-	out float OutPdf
-)
+	float4 RandSample,
+	float3 WorldPos,
+	float3 WorldNormal,
+	out float3 OutDirection,
+	out float  OutDistance,
+	out float3 OutRadianceOverPdf,
+	out float OutPdf)
 {
+	// Make temp structures so we can re-use the calls above
+	// #dxr_todo: write optimized form that combines radiance and pdf lookup in a single step
+	RayDesc Ray;
+	Ray.Origin = WorldPos;
+	FMaterialClosestHitPayload Payload;
+	Payload.WorldNormal = WorldNormal;
+
+
 #ifndef USE_HIERARCHICAL_IMPORTANCE_SAMPLING
 	float4 Direction_Tangent = UniformSampleHemisphere(RandSample.yz);
-	OutLightUV = TangentToWorld(Direction_Tangent.xyz, Payload.WorldNormal);
+	OutDirection = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
 	OutPdf = Direction_Tangent.w;
 #else
-	float3 WorldPosition = Ray.Origin;
-	float3 WorldNormal = Payload.WorldNormal;
-
 	// Determine the appropriate face to use
 	//uint MipCount = Log2(SkyLight.MipDimensions.x);
 	uint MipCount = log2(SkyLight.MipDimensions.x);
@@ -163,64 +160,12 @@ void SkyLight_SampleLight(
 	uint LinearIndex = BufferOffsetAtPixel(MipPixel, StopLevel, SkyLight.MipDimensions.xy);
 	float AreaPdf = SkyLight.SolidAnglePdf[LinearIndex];
 
-	float3 RayDirection = normalize(GetTextureCubeVector(TexelCoord, TextureDimensions));
-	float RayPdf = FacePdf * MipPdf * AreaPdf;
-
-	OutLightUV = RayDirection;
-	OutPdf = RayPdf;
+	OutDirection = normalize(GetTextureCubeVector(TexelCoord, TextureDimensions));
+	OutPdf = FacePdf * MipPdf * AreaPdf;
 #endif
-}
 
+	float3 Radiance = SkyLight.Color * SkyLight.Texture.SampleLevel(SkyLight.TextureSampler, OutDirection, 0).rgb;
 
-//  NOTE: put new methods at the end for now, so we can re-use the methods above
-float4 SkyLight_TraceLight(RayDesc Ray, int LightId, float HitT) {
-	if (Ray.TMax == HitT)
-	{
-		// LightUV convention in the code below is just the world space ray direction
-		// so its safe to call into the method below for now ...
-
-		// #dxr_todo: write optimized form that combines radiance and pdf lookup in a single step
-
-		float3 Radiance = 0.0;
-		float Pdf = 0.0;
-
-		float3 LightUV = normalize(Ray.Direction);
-		SkyLight_EvalLight(LightId, LightUV, Ray, Radiance);
-		if (any(Radiance > 0))
-		{
-			SkyLight_PdfLight(Ray, LightId, LightUV, Pdf);
-		}
-		
-
-		return float4(Radiance, Pdf);
-	}
-	return 0.0;
-}
-
-void SkyLight_SampleLight(
-	int LightId,
-	float4 RandSample,
-	float3 WorldPos,
-	float3 WorldNormal,
-	out float3 OutDirection,
-	out float  OutDistance,
-	out float3 OutRadianceOverPdf,
-	out float OutPdf)
-{
-	// Make temp structures so we can re-use the calls above
-	// #dxr_todo: write optimized form that combines radiance and pdf lookup in a single step
-	RayDesc Ray;
-	Ray.Origin = WorldPos;
-	FMaterialClosestHitPayload Payload;
-	Payload.WorldNormal = WorldNormal;
-
-
-	float3 LightUV;
-	float3 Radiance;
-	SkyLight_SampleLight(Ray, Payload, RandSample, LightId, LightUV, OutPdf);
-	SkyLight_EvalLight(LightId, LightUV, Ray, Radiance);
-	
-	OutDirection = LightUV;
 	OutDistance = 1.0e27;
 	OutRadianceOverPdf = Radiance / OutPdf;
 }

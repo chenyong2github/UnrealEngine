@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define USE_IES_TERM 0 // this shader doesn't bind the IES atlas, so disable the IES term from path tracer lights
+
 #include "../Common.ush"
 #include "../RectLight.ush"
 //#include "../MonteCarlo.ush"
@@ -60,7 +62,7 @@ void GenerateCosineNormalRay(
 
 RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 {
-	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin + uint2(RenderTileOffsetX, RenderTileOffsetY);
+	uint2 DispatchThreadId = DispatchRaysIndex().xy + uint2(View.ViewRectMin.xy) + uint2(RenderTileOffsetX, RenderTileOffsetY);
 	RWGlobalIlluminationUAV[DispatchThreadId] = 0.0;
 	RWGlobalIlluminationRayDistanceUAV[DispatchThreadId] = float2(-1.0, 0.0);
 
@@ -180,8 +182,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 				if (EvalSkyLight && Bounce > 0)
 				{
 					uint SkyLightId = 0;
-					float3 EnvironmentRadiance = 0.0;
-					SkyLight_EvalLight(SkyLightId, Ray.Direction, Ray, EnvironmentRadiance);
+					float3 EnvironmentRadiance = SkyLight_TraceLight(Ray, SkyLightId, Ray.TMax).xyz;
 					Irradiance += EnvironmentRadiance * RayThroughput / RayPdf;
 				}
 				break;
@@ -223,17 +224,25 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 			{
 				// Light selection
 				int LightId;
-				float3 LightUV;
+				float3 LightRadianceOverPdf = 0;
 				float NeePdf = 0.0;
 
 				float4 RandSample4 = RandomSequence_GenerateSample4D(RandSequence);
 
-				SampleLight(Ray, Payload, RandSample4, LightId, LightUV, NeePdf);
-
-				if (NeePdf > 0.0)
+				RayDesc LightRay;
+				if (SampleLight(RandSample4,
+								Ray.Origin,
+								Payload.WorldNormal,
+								Payload.PrimitiveLightingChannelMask,
+								ENABLE_TRANSMISSION,
+								LightId,
+								LightRay.Direction,
+								LightRay.TMax,
+								LightRadianceOverPdf,
+								NeePdf))
 				{
-					RayDesc LightRay;
-					GenerateLightRay(Ray, LightId, LightUV, LightRay);
+					LightRay.Origin = Ray.Origin;
+					LightRay.TMin = 0;
 					LightRay.TMax = min(LightRay.TMax, MaxShadowDistance);
 					bool bTransmission = HasTransmission(LightId);
 					float3 BiasNormal = Payload.WorldNormal;
@@ -261,10 +270,6 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 					// No hit indicates successful next-event connection
 					if (NeePayload.IsMiss())
 					{
-						// Evaluate radiance
-						float3 Radiance;
-						EvalLight(LightId, LightUV, LightRay, Radiance);
-
 						// Evaluate material
 						float3 MaterialThroughput;
 						float MaterialEvalPdf = 0.0;
@@ -286,16 +291,9 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 						}
 						MaterialEvalPdf = 1.0;
 #endif
-						// Apply material Pdf for correct MIS weight
-						float MisWeight = 1.0;
-#if 0
-						if (IsUnidirectionalEnabled && IsPhysicalLight(LightId))
-						{
-							MisWeight = NeePdf / (NeePdf + MaterialEvalPdf);
-						}
-#endif
+
 						// Record the contribution
-						float3 ExitantRadianceSample = Radiance * MaterialThroughput * RayThroughput * SplitFactor * MisWeight / (NeePdf * RayPdf);
+						float3 ExitantRadianceSample = LightRadianceOverPdf * MaterialThroughput * RayThroughput * SplitFactor / RayPdf;
 
 						// Tonemap for firefly suppression
 						if (UseFireflySuppression)
