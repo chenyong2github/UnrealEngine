@@ -10,6 +10,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraMeshRendererProperties.h"
 
 class FNiagaraDataSet;
+struct FNiagaraDynamicDataMesh;
 
 /**
 * NiagaraRendererSprites renders an FNiagaraEmitterInstance as sprite particles
@@ -74,7 +75,8 @@ protected:
 		const FNiagaraSceneProxy& SceneProxy,
 		const FNiagaraRendererLayout& RendererLayout,
 		const FSceneView& View,
-		const FParticleGPUBufferData& BufferData,
+		const FParticleGPUBufferData& BufferData, 
+		const FNiagaraDynamicDataMesh* DynamicDataMesh,
 		FVector& OutWorldSpacePivotOffset,
 		FSphere& OutCullingSphere) const;
 
@@ -112,6 +114,7 @@ private:
 
 	TArray<FMeshData, TInlineAllocator<1>> Meshes;
 
+	ENiagaraRendererSourceDataMode SourceMode;
 	ENiagaraSortMode SortMode;
 	ENiagaraMeshFacingMode FacingMode;
 	uint32 bOverrideMaterials : 1;
@@ -132,6 +135,9 @@ private:
 	int32 MeshIndexOffset;
 	uint32 MaterialParamValidMask;
 	uint32 MaxSectionCount;
+
+	int32 VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Num];
+	uint32 bSetAnyBoundVars : 1;
 
 	const FNiagaraRendererLayout* RendererLayoutWithCustomSorting;
 	const FNiagaraRendererLayout* RendererLayoutWithoutCustomSorting;

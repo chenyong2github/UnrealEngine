@@ -683,6 +683,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	DynamicData->Material = BaseMaterials_GT[0]->GetRenderProxy();
 	DynamicData->SetMaterialRelevance(BaseMaterialRelevance_GT);
 
+	if (DynamicData && Properties->MaterialParameterBindings.Num() != 0)
+	{
+		ProcessMaterialParameterBindings(MakeArrayView(Properties->MaterialParameterBindings), Emitter, MakeArrayView(BaseMaterials_GT));
+	}
+
 	TArray<int32>& SegmentData = DynamicData->SegmentData;
 	int32& MaxParticleIndex = DynamicData->MaxParticleIndex;
 	float TotalSegmentLength = 0;

@@ -58,7 +58,8 @@ FNiagaraMeshRendererMeshProperties::FNiagaraMeshRendererMeshProperties()
 
 
 UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
-	: SortMode(ENiagaraSortMode::None)
+	: SourceMode(ENiagaraRendererSourceDataMode::Particles)
+	, SortMode(ENiagaraSortMode::None)
 	, bOverrideMaterials(false)
 	, bSortOnlyWhenTranslucent(true)
 	, bSubImageBlend(false)
@@ -74,21 +75,23 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	NumFlipbookFrames = 1;
 #endif
 
-	AttributeBindings.Reserve(15);
+	AttributeBindings.Reserve(16);
 	AttributeBindings.Add(&PositionBinding);
-	AttributeBindings.Add(&ColorBinding);
 	AttributeBindings.Add(&VelocityBinding);
-	AttributeBindings.Add(&MeshOrientationBinding);
+	AttributeBindings.Add(&ColorBinding);
 	AttributeBindings.Add(&ScaleBinding);
+	AttributeBindings.Add(&MeshOrientationBinding);
+	AttributeBindings.Add(&MaterialRandomBinding);
+	AttributeBindings.Add(&NormalizedAgeBinding);
+	AttributeBindings.Add(&CustomSortingBinding);
 	AttributeBindings.Add(&SubImageIndexBinding);
 	AttributeBindings.Add(&DynamicMaterialBinding);
 	AttributeBindings.Add(&DynamicMaterial1Binding);
 	AttributeBindings.Add(&DynamicMaterial2Binding);
 	AttributeBindings.Add(&DynamicMaterial3Binding);
-	AttributeBindings.Add(&MaterialRandomBinding);
-	AttributeBindings.Add(&CustomSortingBinding);
-	AttributeBindings.Add(&NormalizedAgeBinding);
 	AttributeBindings.Add(&CameraOffsetBinding);
+
+	// The remaining bindings are not associated with attributes in the VF layout
 	AttributeBindings.Add(&RendererVisibilityTagBinding);
 	AttributeBindings.Add(&MeshIndexBinding);
 }
@@ -246,8 +249,24 @@ void UNiagaraMeshRendererProperties::InitBindings()
 	}
 }
 
+void UNiagaraMeshRendererProperties::UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit)
+{
+	UNiagaraEmitter* SrcEmitter = GetTypedOuter<UNiagaraEmitter>();
+	if (SrcEmitter)
+	{
+		for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameterBindings)
+		{
+			MaterialParamBinding.CacheValues(SrcEmitter);
+		}
+	}
+
+	Super::UpdateSourceModeDerivates(InSourceMode, bFromPropertyEdit);
+}
+
 void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData)
 {
+	UpdateSourceModeDerivates(SourceMode);
+
 	// Initialize layout
 	RendererLayoutWithCustomSorting.Initialize(ENiagaraMeshVFLayout::Num);
 	RendererLayoutWithCustomSorting.SetVariableFromBinding(CompiledData, PositionBinding, ENiagaraMeshVFLayout::Position);
@@ -282,6 +301,20 @@ void UNiagaraMeshRendererProperties::CacheFromCompiledData(const FNiagaraDataSet
 	MaterialParamValidMask |= RendererLayoutWithoutCustomSorting.SetVariableFromBinding(CompiledData, DynamicMaterial3Binding, ENiagaraMeshVFLayout::DynamicParam3) ? 0x8 : 0;
 	RendererLayoutWithoutCustomSorting.Finalize();
 }
+
+#if WITH_EDITORONLY_DATA
+bool UNiagaraMeshRendererProperties::IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const
+{
+	if ((SourceMode == ENiagaraRendererSourceDataMode::Particles && InSourceForBinding.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace)) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::UserNamespace) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::SystemNamespace) ||
+		InSourceForBinding.IsInNameSpace(FNiagaraConstants::EmitterNamespace))
+	{
+		return true;
+	}
+	return false;
+}
+#endif
 
 void UNiagaraMeshRendererProperties::GetUsedMeshMaterials(int32 MeshIndex, const FNiagaraEmitterInstance* Emitter, TArray<UMaterialInterface*>& OutMaterials) const
 {
@@ -373,6 +406,28 @@ void UNiagaraMeshRendererProperties::GetUsedMaterials(const FNiagaraEmitterInsta
 }
 
 
+bool UNiagaraMeshRendererProperties::PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)
+{
+	bool bAnyAdded = false;
+
+	for (const FNiagaraVariableAttributeBinding* Binding : AttributeBindings)
+	{
+		if (Binding && Binding->CanBindToHostParameterMap())
+		{
+			InParameterStore.AddParameter(Binding->GetParamMapBindableVariable(), false);
+			bAnyAdded = true;
+		}
+	}
+
+	for (FNiagaraMaterialAttributeBinding& MaterialParamBinding : MaterialParameterBindings)
+	{
+		InParameterStore.AddParameter(MaterialParamBinding.GetParamMapBindableVariable(), false);
+		bAnyAdded = true;
+	}
+
+	return bAnyAdded;
+}
+
 void UNiagaraMeshRendererProperties::PostLoad()
 {
 	Super::PostLoad();
@@ -401,7 +456,7 @@ void UNiagaraMeshRendererProperties::PostLoad()
 		}
 	}
 
-	PostLoadBindings(ENiagaraRendererSourceDataMode::Particles);
+	PostLoadBindings(SourceMode);
 
 	for ( const FNiagaraMeshMaterialOverride& OverrideMaterial : OverrideMaterials )
 	{
@@ -602,7 +657,57 @@ void UNiagaraMeshRendererProperties::PostEditChangeProperty(FPropertyChangedEven
 		}
 	}
 
+	// If changing the source mode, we may need to update many of our values.
+	if (PropertyChangedEvent.GetPropertyName() == TEXT("SourceMode"))
+	{
+		UpdateSourceModeDerivates(SourceMode, true);
+	}
+	else if (FStructProperty* StructProp = CastField<FStructProperty>(PropertyChangedEvent.Property))
+	{
+		if (StructProp->Struct == FNiagaraVariableAttributeBinding::StaticStruct())
+		{
+			UpdateSourceModeDerivates(SourceMode, true);
+		}
+	}
+	else if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(PropertyChangedEvent.Property))
+	{
+		if (ArrayProp->Inner)
+		{
+			FStructProperty* ChildStructProp = CastField<FStructProperty>(ArrayProp->Inner);
+			if (ChildStructProp->Struct == FNiagaraMaterialAttributeBinding::StaticStruct())
+			{
+				UpdateSourceModeDerivates(SourceMode, true);
+			}
+		}
+	}
+
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UNiagaraMeshRendererProperties::RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter)
+{
+	Super::RenameVariable(OldVariable, NewVariable, InEmitter);
+
+	// Handle renaming material bindings
+	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameterBindings)
+	{
+		Binding.RenameVariableIfMatching(OldVariable, NewVariable, InEmitter, GetCurrentSourceMode());
+	}
+}
+
+void UNiagaraMeshRendererProperties::RemoveVariable(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter)
+{
+	Super::RemoveVariable(OldVariable, InEmitter);
+
+	// Handle resetting material bindings to defaults
+	for (FNiagaraMaterialAttributeBinding& Binding : MaterialParameterBindings)
+	{
+		if (Binding.Matches(OldVariable, InEmitter, GetCurrentSourceMode()))
+		{
+			Binding.NiagaraVariable = FNiagaraVariable();
+			Binding.CacheValues(InEmitter);
+		}
+	}
 }
 
 void UNiagaraMeshRendererProperties::OnMeshChanged()

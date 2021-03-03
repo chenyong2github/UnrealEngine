@@ -538,12 +538,7 @@ float3x3 GetFacingMatrix(in float3 ParticlePosition, in float4 ParticleVelocity)
 
 float3 CalculateCameraOffset(float3 WorldPosition, uint InstanceId)
 {
-	if (NiagaraMeshVF.CameraOffsetDataOffset == -1)
-	{
-		return (float3)0.0f;
-	}
-
-	float Offset = GetFloat(NiagaraMeshVF.CameraOffsetDataOffset, InstanceId);
+	float Offset = NiagaraMeshVF.CameraOffsetDataOffset != -1 ? GetFloat(NiagaraMeshVF.CameraOffsetDataOffset, InstanceId) : NiagaraMeshVF.DefaultCamOffset;
 	float3 CameraVector = ResolvedView.WorldCameraOrigin - WorldPosition;
 	float3 CameraDir = normalize(CameraVector);
 	if (NiagaraMeshVF.bLocalSpace)
@@ -592,6 +587,11 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 		float4 Quat = GetVec4(NiagaraMeshVF.TransformDataOffset, InstanceId);
 		RotationMat = NiagaraQuatTo3x3(normalize(Quat));
 	}
+	else
+	{
+		float4 Quat = NiagaraMeshVF.DefaultTransform;
+		RotationMat = NiagaraQuatTo3x3(normalize(Quat));		
+	}
 
 	if (NiagaraMeshVF.FacingMode != MESH_FACING_DEFAULT)
 	{
@@ -606,6 +606,10 @@ void CalculateTransforms(in FVertexFactoryIntermediates Intermediates, out float
 	if(NiagaraMeshVF.ScaleDataOffset != -1)
 	{
 		Scale = GetVec3(NiagaraMeshVF.ScaleDataOffset, InstanceId);		
+	}
+	else
+	{
+		Scale = NiagaraMeshVF.DefaultScale.xyz;
 	}
 	
 	////////////////////////////////////////////////////////////////////////////////
@@ -636,7 +640,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 
 	if (NiagaraMeshVF.ColorDataOffset == -1)
 	{
-		Intermediates.ParticleColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
+		Intermediates.ParticleColor = NiagaraMeshVF.DefaultColor;
 	}
 	else
 	{
@@ -648,6 +652,10 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	{
 		ParticleVelocity = float3(GetVec3(NiagaraMeshVF.VelocityDataOffset, Intermediates.SortedInstanceId));
 	}
+	else
+	{
+		ParticleVelocity = NiagaraMeshVF.DefaultVelocity.xyz;
+	}
 
 	// Calculate the particle velocity (NOTE: always do this regardless of NEEDS_PARTICLE_VELOCITY because of velocity facing particles)
 	const float ParticleVelocityMagnitude = length(ParticleVelocity);
@@ -657,7 +665,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	if (NiagaraMeshVF.MaterialParamDataOffset == -1)
 	{
-		Intermediates.DynamicParameter = float4(1, 1, 1, 1);
+		Intermediates.DynamicParameter = NiagaraMeshVF.DefaultDynamicMaterialParameter0;
 	}
 	else
 	{
@@ -667,7 +675,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #if (DYNAMIC_PARAMETERS_MASK & 2)
 	if (NiagaraMeshVF.MaterialParam1DataOffset == -1)
 	{
-		Intermediates.DynamicParameter1 = float4(1, 1, 1, 1);
+		Intermediates.DynamicParameter1 = NiagaraMeshVF.DefaultDynamicMaterialParameter1;
 	}	
 	else
 	{
@@ -677,7 +685,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #if (DYNAMIC_PARAMETERS_MASK & 4)
 	if (NiagaraMeshVF.MaterialParam2DataOffset == -1)
 	{
-		Intermediates.DynamicParameter2 = float4(1, 1, 1, 1);
+		Intermediates.DynamicParameter2 = NiagaraMeshVF.DefaultDynamicMaterialParameter2;
 	}
 	else
 	{
@@ -687,7 +695,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #if (DYNAMIC_PARAMETERS_MASK & 8)
 	if (NiagaraMeshVF.MaterialParam3DataOffset == -1)
 	{
-		Intermediates.DynamicParameter3 = float4(1, 1, 1, 1);
+		Intermediates.DynamicParameter3 = NiagaraMeshVF.DefaultDynamicMaterialParameter3;
 	}
 	else
 	{
@@ -698,7 +706,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #if NEEDS_PARTICLE_TIME
 	if (NiagaraMeshVF.NormalizedAgeDataOffset == -1)
 	{
-		Intermediates.RelativeTime = 0;
+		Intermediates.RelativeTime = NiagaraMeshVF.DefaultNormAge;
 	}
 	else
 	{
@@ -709,7 +717,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #if NEEDS_PARTICLE_RANDOM
 	if (NiagaraMeshVF.MaterialRandomDataOffset == -1)
 	{
-		Intermediates.ParticleRandom = 0;
+		Intermediates.ParticleRandom = NiagaraMeshVF.DefaultMatRandom;
 	}
 	else
 	{
@@ -787,27 +795,18 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 #endif
 
 #if USE_PARTICLE_SUBUVS
-	if (NiagaraMeshVF.SubImageDataOffset == -1)
-	{
-		Intermediates.SubUVCoords.xy = 0.0f;
-		Intermediates.SubUVCoords.zw = 0.0f;
-		Intermediates.SubUVLerp = 0;
-	}
-	else
-	{
-		// SubUV.
-		float SubImageIndex = GetFloat(NiagaraMeshVF.SubImageDataOffset, Intermediates.SortedInstanceId);
-		float SubImageLerp = frac(SubImageIndex);
-		float SubImageA = SubImageIndex - SubImageLerp;
-		float SubImageB = SubImageA + 1;
-		float SubImageAH = fmod(SubImageA, NiagaraMeshVF.SubImageSize.x);
-		float SubImageBH = fmod(SubImageB, NiagaraMeshVF.SubImageSize.x);
-		float SubImageAV = floor(SubImageA * NiagaraMeshVF.SubImageSize.z);
-		float SubImageBV = floor(SubImageB * NiagaraMeshVF.SubImageSize.z);
-		Intermediates.SubUVCoords.xy = (float2(SubImageAH, SubImageAV) + Input.TexCoords[0].xy) * NiagaraMeshVF.SubImageSize.zw;
-		Intermediates.SubUVCoords.zw = (float2(SubImageBH, SubImageBV) + Input.TexCoords[0].xy) * NiagaraMeshVF.SubImageSize.zw;
-		Intermediates.SubUVLerp = (NiagaraMeshVF.SubImageBlendMode == 1) ? SubImageLerp : 0.0f;
-	}
+	// SubUV.
+	float SubImageIndex = NiagaraMeshVF.SubImageDataOffset != -1? GetFloat(NiagaraMeshVF.SubImageDataOffset, Intermediates.SortedInstanceId) : NiagaraMeshVF.DefaultSubImage;		
+	float SubImageLerp = frac(SubImageIndex);
+	float SubImageA = SubImageIndex - SubImageLerp;
+	float SubImageB = SubImageA + 1;
+	float SubImageAH = fmod(SubImageA, NiagaraMeshVF.SubImageSize.x);
+	float SubImageBH = fmod(SubImageB, NiagaraMeshVF.SubImageSize.x);
+	float SubImageAV = floor(SubImageA * NiagaraMeshVF.SubImageSize.z);
+	float SubImageBV = floor(SubImageB * NiagaraMeshVF.SubImageSize.z);
+	Intermediates.SubUVCoords.xy = (float2(SubImageAH, SubImageAV) + Input.TexCoords[0].xy) * NiagaraMeshVF.SubImageSize.zw;
+	Intermediates.SubUVCoords.zw = (float2(SubImageBH, SubImageBV) + Input.TexCoords[0].xy) * NiagaraMeshVF.SubImageSize.zw;
+	Intermediates.SubUVLerp = (NiagaraMeshVF.SubImageBlendMode == 1) ? SubImageLerp : 0.0f;
 #endif
 
 	return Intermediates;
