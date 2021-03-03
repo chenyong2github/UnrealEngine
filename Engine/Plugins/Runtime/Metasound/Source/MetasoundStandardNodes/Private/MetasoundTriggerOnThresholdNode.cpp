@@ -14,6 +14,8 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
+#if 0
+
 namespace Metasound
 {
 	enum class EBufferTriggerType
@@ -249,5 +251,7 @@ namespace Metasound
 	
 	METASOUND_REGISTER_NODE(FTriggerOnThresholdNode);
 }
+#endif
+
 #undef LOCTEXT_NAMESPACE //MetasoundStandardNodes
 
