@@ -105,6 +105,9 @@ private:
 	/** Get the identifier of the currently active tab */
 	FName GetActiveTab() const;
 
+	/** Changes the active tab */
+	void SetActiveTab(FName TabName);
+
 	/** Check if a search is active */
 	bool IsSearchActive() const;
 
@@ -116,6 +119,9 @@ private:
 
 	/** Called when the list of placeable assets changes. */
 	void UpdatePlaceableAssets();
+
+	/** Called when the list of placement categories changes. */
+	void UpdatePlacementCategories();
 
 	/** When the tab is clicked we adjust the check state, so that the right style is displayed. */
 	void OnCategoryChanged(const ECheckBoxState NewState, FName InCategory);

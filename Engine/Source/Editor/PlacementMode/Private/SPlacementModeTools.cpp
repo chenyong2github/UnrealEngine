@@ -538,8 +538,10 @@ SPlacementModeTools::~SPlacementModeTools()
 {
 	if ( IPlacementModeModule::IsAvailable() )
 	{
-		IPlacementModeModule::Get().OnRecentlyPlacedChanged().RemoveAll( this );
-		IPlacementModeModule::Get().OnAllPlaceableAssetsChanged().RemoveAll( this );
+		IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
+		PlacementModeModule.OnRecentlyPlacedChanged().RemoveAll(this);
+		PlacementModeModule.OnAllPlaceableAssetsChanged().RemoveAll(this);
+		PlacementModeModule.OnPlacementModeCategoryListChanged().RemoveAll(this);
 	}
 }
 
@@ -548,6 +550,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 	bPlaceablesFullRefreshRequested = false;
 	bRecentlyPlacedRefreshRequested = false;
 	bNeedsUpdate = true;
+	ActiveTabName = FBuiltInPlacementCategories::Basic();
 
 	ParentTab->SetOnTabDrawerOpened(FSimpleDelegate::CreateSP(this, &SPlacementModeTools::OnTabDrawerOpened));
 
@@ -559,28 +562,7 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 	.HAlign(HAlign_Center)
 	.SlotPadding(FMargin(2.0f, 0.0f));
 
-	// Populate the categories and body from the defined placeable items
-	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
-
-	TArray<FPlacementCategoryInfo> Categories;
-	PlacementModeModule.GetSortedCategories(Categories);
-	for (const FPlacementCategoryInfo& Category : Categories)
-	{
-		CategoryFilterPtr->AddSlot()
-		[
-			SNew(SCheckBox)
-			.Padding(FMargin(4.f, 4.f))
-			.Style( &FAppStyle::Get(),  "PaletteToolBar.Tab" )
-			.OnCheckStateChanged(this, &SPlacementModeTools::OnCategoryChanged, Category.UniqueHandle)
-			.IsChecked(this, &SPlacementModeTools::GetPlacementTabCheckedState, Category.UniqueHandle)
-			.ToolTipText(Category.DisplayName)
-			[
-				  SNew(SImage)
-	              .ColorAndOpacity(FSlateColor::UseForeground())
-	              .Image(Category.DisplayIcon.GetIcon())
-			]
-		];
-	}
+	UpdatePlacementCategories();
 
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar)
 		.Thickness(FVector2D(9.0f, 9.0f));
@@ -678,16 +660,25 @@ void SPlacementModeTools::Construct( const FArguments& InArgs, TSharedRef<SDockT
 		]
 	];
 
-	ActiveTabName = FBuiltInPlacementCategories::Basic();
-	bNeedsUpdate = true;
-
-	PlacementModeModule.OnRecentlyPlacedChanged().AddSP( this, &SPlacementModeTools::UpdateRecentlyPlacedAssets );
-	PlacementModeModule.OnAllPlaceableAssetsChanged().AddSP( this, &SPlacementModeTools::UpdatePlaceableAssets );
+	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
+	PlacementModeModule.OnRecentlyPlacedChanged().AddSP(this, &SPlacementModeTools::UpdateRecentlyPlacedAssets);
+	PlacementModeModule.OnAllPlaceableAssetsChanged().AddSP(this, &SPlacementModeTools::UpdatePlaceableAssets);
+	PlacementModeModule.OnPlacementModeCategoryListChanged().AddSP(this, &SPlacementModeTools::UpdatePlacementCategories);
 }
 
 FName SPlacementModeTools::GetActiveTab() const
 {
 	return IsSearchActive() ? FBuiltInPlacementCategories::AllClasses() : ActiveTabName;
+}
+
+void SPlacementModeTools::SetActiveTab(FName TabName)
+{
+	if (TabName != ActiveTabName)
+	{
+		ActiveTabName = TabName;
+		IPlacementModeModule::Get().RegenerateItemsForCategory(ActiveTabName);
+		bNeedsUpdate = true;
+	}
 }
 
 void SPlacementModeTools::UpdateFilteredItems()
@@ -777,12 +768,9 @@ TSharedRef<ITableRow> SPlacementModeTools::OnGenerateWidgetForItem(TSharedPtr<FP
 
 void SPlacementModeTools::OnCategoryChanged(const ECheckBoxState NewState, FName InCategory)
 {
-	if (NewState == ECheckBoxState::Checked && InCategory != ActiveTabName)
+	if (NewState == ECheckBoxState::Checked)
 	{
-		ActiveTabName = InCategory;
-		IPlacementModeModule::Get().RegenerateItemsForCategory(ActiveTabName);
-
-		bNeedsUpdate = true;
+		SetActiveTab(InCategory);
 	}
 }
 
@@ -805,6 +793,58 @@ void SPlacementModeTools::UpdatePlaceableAssets()
 	{
 		bPlaceablesFullRefreshRequested = true;
 	}
+}
+
+void SPlacementModeTools::UpdatePlacementCategories()
+{
+	bool BasicTabExists = false;
+	FName TabToActivate;
+
+	CategoryFilterPtr->ClearChildren();
+
+	TArray<FPlacementCategoryInfo> Categories;
+	IPlacementModeModule::Get().GetUserFacingCategories(Categories);
+	for (const FPlacementCategoryInfo& Category : Categories)
+	{
+		if (Category.UniqueHandle == FBuiltInPlacementCategories::Basic())
+		{
+			BasicTabExists = true;
+		}
+
+		if (Category.UniqueHandle == ActiveTabName)
+		{
+			TabToActivate = ActiveTabName;
+		}
+
+		CategoryFilterPtr->AddSlot()
+		[
+			SNew(SCheckBox)
+			.Padding(FMargin(4.f, 4.f))
+			.Style( &FAppStyle::Get(),  "PaletteToolBar.Tab" )
+			.OnCheckStateChanged(this, &SPlacementModeTools::OnCategoryChanged, Category.UniqueHandle)
+			.IsChecked(this, &SPlacementModeTools::GetPlacementTabCheckedState, Category.UniqueHandle)
+			.ToolTipText(Category.DisplayName)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(Category.DisplayIcon.GetIcon())
+			]
+		];
+	}
+
+	if (TabToActivate.IsNone())
+	{
+		if (BasicTabExists)
+		{
+			TabToActivate = FBuiltInPlacementCategories::Basic();
+		}
+		else if (Categories.Num() > 0)
+		{
+			TabToActivate = Categories[0].UniqueHandle;
+		}
+	}
+
+	SetActiveTab(TabToActivate);
 }
 
 void SPlacementModeTools::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )

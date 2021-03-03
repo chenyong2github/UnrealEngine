@@ -14,6 +14,8 @@
 #include "GameFramework/Volume.h"
 #include "Editor.h"
 
+class FBlacklistNames;
+
 /**
  * Struct that defines an identifier for a particular placeable item in this module.
  * Only be obtainable through IPlacementModeModule::RegisterPlaceableItem
@@ -245,6 +247,12 @@ public:
 	virtual const TArray< FActorPlacementInfo >& GetRecentlyPlaced() const = 0;
 
 	/**
+	 * @return the event that is broadcast whenever the user facing list of placement mode categories gets modified
+	 */
+	DECLARE_EVENT(IPlacementMode, FOnPlacementModeCategoryListChanged);
+	virtual FOnPlacementModeCategoryListChanged& OnPlacementModeCategoryListChanged() = 0;
+
+	/**
 	 * @return the event that is broadcast whenever a placement mode category is refreshed
 	 */
 	DECLARE_EVENT_OneParam( IPlacementModeModule, FOnPlacementModeCategoryRefreshed, FName /*CategoryName*/ );
@@ -277,6 +285,13 @@ public:
 	virtual bool RegisterPlacementCategory(const FPlacementCategoryInfo& Info) = 0;
 
 	/**
+	 * Unregister a previously registered category
+	 *
+	 * @param UniqueHandle	The unique handle of the category to unregister
+	 */
+	virtual void UnregisterPlacementCategory(FName Handle) = 0;
+
+	/**
 	 * Retrieve an already registered category
 	 *
 	 * @param UniqueHandle	The unique handle of the category to retrieve
@@ -284,19 +299,20 @@ public:
 	 */
 	virtual const FPlacementCategoryInfo* GetRegisteredPlacementCategory(FName UniqueHandle) const = 0;
 
+	/** Placement categories blacklist */
+	virtual TSharedRef<FBlacklistNames>& GetCategoryBlacklist() = 0;
+
 	/**
-	 * Populate the specified array with all registered category information, sorted by SortOrder
+	 * Populate the specified array with all registered category information that isn't blacklisted, sorted by SortOrder
 	 *
 	 * @param OutCategories	The array to populate with registered category inforamtion
 	 */
-	virtual void GetSortedCategories(TArray<FPlacementCategoryInfo>& OutCategories) const = 0;
+	virtual void GetUserFacingCategories(TArray<FPlacementCategoryInfo>& OutCategories) const = 0;
 
 	/**
-	 * Unregister a previously registered category
-	 *
-	 * @param UniqueHandle	The unique handle of the category to unregister
+	 * @deprecated Use GetUserFacingCategories instead 
 	 */
-	virtual void UnregisterPlacementCategory(FName Handle) = 0;
+	void GetSortedCategories(TArray<FPlacementCategoryInfo>& OutCategories) const { GetUserFacingCategories(OutCategories); }
 
 	/**
 	 * Register a new placeable item for the specified category
