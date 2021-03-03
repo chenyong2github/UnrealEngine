@@ -58,6 +58,7 @@ namespace TraceServices
 
 	void FTasksProvider::CreateCounters()
 	{
+		check(bCountersCreated == false);
 		FAnalysisSessionEditScope _(Session);
 
 		WaitingForPrerequisitesTasksCounter = CounterProvider.CreateCounter();
@@ -89,13 +90,18 @@ namespace TraceServices
 		ExecutionTimeCounter->SetName(TEXT("Tasks::ExecutionTime"));
 		ExecutionTimeCounter->SetDescription(TEXT("Tasks: execution time"));
 		ExecutionTimeCounter->SetIsFloatingPoint(true);
+
+		bCountersCreated = true;
 	}
 
 	void FTasksProvider::Init(uint32 InVersion)
 	{
 		Version = InVersion;
 
-		CreateCounters();
+		if (!bCountersCreated)
+		{
+			CreateCounters();
+		}
 	}
 
 	void FTasksProvider::TaskCreated(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId)
@@ -146,6 +152,11 @@ namespace TraceServices
 		Task->LaunchedTimestamp = Timestamp;
 		Task->LaunchedThreadId = ThreadId;
 
+		if (!bCountersCreated)
+		{
+			CreateCounters();
+		}
+
 		WaitingForPrerequisitesTasksCounter->SetValue(Timestamp, ++WaitingForPrerequisitesTasksNum);
 	}
 
@@ -154,6 +165,11 @@ namespace TraceServices
 		if (!TryRegisterEvent(TEXT("TaskScheduled"), TaskId, &FTaskInfo::ScheduledTimestamp, Timestamp, &FTaskInfo::ScheduledThreadId, ThreadId))
 		{
 			return;
+		}
+
+		if (!bCountersCreated)
+		{
+			CreateCounters();
 		}
 
 		WaitingForPrerequisitesTasksCounter->SetValue(Timestamp, --WaitingForPrerequisitesTasksNum);
@@ -195,6 +211,11 @@ namespace TraceServices
 		FTaskInfo* Task = TryGetTask(TaskId);
 		check(Task != nullptr);
 
+		if (!bCountersCreated)
+		{
+			CreateCounters();
+		}
+
 		if (IsNamedThread(Task->ThreadToExecuteOn))
 		{
 			NamedThreadsScheduledTasksCounter->SetValue(Timestamp, --ScheduledTasksNum);
@@ -218,6 +239,11 @@ namespace TraceServices
 		if (!TryRegisterEvent(TEXT("TaskFinished"), TaskId, &FTaskInfo::FinishedTimestamp, Timestamp))
 		{
 			return;
+		}
+
+		if (!bCountersCreated)
+		{
+			CreateCounters();
 		}
 
 		RunningTasksCounter->SetValue(Timestamp, --RunningTasksNum);

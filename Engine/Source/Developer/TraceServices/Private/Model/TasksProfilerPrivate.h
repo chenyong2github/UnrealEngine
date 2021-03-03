@@ -85,6 +85,8 @@ namespace TraceServices
 		int64 NamedThreadsScheduledTasksNum = 0;
 		// number of tasks being executed
 		int64 RunningTasksNum = 0;
+		// a bool that is set when the counters are created
+		bool bCountersCreated = false;
 
 		ICounterProvider& CounterProvider;
 		IEditableCounter* TaskLatencyCounter;
