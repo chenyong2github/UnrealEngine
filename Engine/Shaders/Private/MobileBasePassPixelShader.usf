@@ -737,7 +737,8 @@ void Main(
 	if (UseCSM)
 	{
 		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w, ShadowPositionZ);
-	#if MOVABLE_DIRECTIONAL_LIGHT
+	// Skip the min instruction since the Shadow is always 1 either with movable directional light or the static lighting is disabled.
+	#if MOVABLE_DIRECTIONAL_LIGHT || !ALLOW_STATIC_LIGHTING
 		Shadow = ShadowMap;
 	#else
 		Shadow = min(ShadowMap, Shadow);

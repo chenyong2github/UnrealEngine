@@ -571,34 +571,6 @@ struct FMobileMovableDirectionalLightAndSHIndirectPolicy : public FMobileDirecti
 };
 
 /** Mobile Specific */
-struct FMobileMovableDirectionalLightLightingPolicy
-{
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		if (IsMobileDeferredShadingEnabled(Parameters.Platform) && !UsePermutationWithMobileDeferred(Parameters))
-		{
-			return false;
-		}
-		static auto* CVarMobileAllowMovableDirectionalLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowMovableDirectionalLights"));
-		const bool bMobileAllowMovableDirectionalLights = CVarMobileAllowMovableDirectionalLights->GetValueOnAnyThread() != 0;
-		return bMobileAllowMovableDirectionalLights
-			&& Parameters.MaterialParameters.ShadingModels.IsLit();
-	}	
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		OutEnvironment.SetDefine(TEXT("MOVABLE_DIRECTIONAL_LIGHT"), TEXT("1"));
-		FMobileDirectionalLightCSMPolicy::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		FNoLightMapPolicy::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	static bool RequiresSkylight()
-	{
-		return false;
-	}
-};
-
-/** Mobile Specific */
 struct FMobileMovableDirectionalLightWithLightmapPolicy : public TLightMapPolicy<LQ_LIGHTMAP>
 {
 	typedef TLightMapPolicy<LQ_LIGHTMAP> Super;
