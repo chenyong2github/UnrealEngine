@@ -7,7 +7,10 @@
 #endif
 
 UMoviePipelineDebugSettings::UMoviePipelineDebugSettings()
-	: bIsRenderDebugCaptureAvailable(false)
+	: bWriteAllSamples(false)
+	, bCaptureFramesWithRenderDoc(false)
+	, CaptureFrame(0)
+	, bIsRenderDebugCaptureAvailable(false)
 {
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
 	bIsRenderDebugCaptureAvailable = IRenderCaptureProvider::IsAvailable();
@@ -18,6 +21,11 @@ UMoviePipelineDebugSettings::UMoviePipelineDebugSettings()
 
 FText UMoviePipelineDebugSettings::GetFooterText(UMoviePipelineExecutorJob* InJob) const
 {
+	if (!bIsRenderDebugCaptureAvailable)
+	{
+		return NSLOCTEXT("MovieRenderPipeline", "DebugSettings_FooterText", "GPU Captures require RenderDoc to be installed and the plugin enabled for this project.");
+	}
+
 	return FText();
 }
 

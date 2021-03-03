@@ -20,7 +20,6 @@ public:
 		, OverlapRatio(0.f)
 		, bOverrideSubSurfaceScattering(false)
 		, BurleySampleCount(64)
-		, bWriteAllSamples(false)
 	{
 	}
 	
@@ -193,12 +192,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "64", ClampMin = "0", UIMax = "1024", EditCondition="bOverrideSubSurfaceScattering"), Category = "Render Settings")
 	int32 BurleySampleCount;
 	
-	/**
-	* If true, we will write all samples that get generated to disk individually. This can be useful for debugging or if you need to accumulate
-	* render passes differently than provided.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Render Settings")
-	bool bWriteAllSamples;
+
 
 
 private:
