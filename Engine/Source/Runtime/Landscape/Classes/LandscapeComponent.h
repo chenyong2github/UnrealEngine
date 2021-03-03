@@ -514,6 +514,12 @@ private:
 	UPROPERTY(Transient)
 	uint32 LayerUpdateFlagPerMode;
 
+	UPROPERTY(Transient)
+	bool bPendingCollisionDataUpdate;
+
+	UPROPERTY(Transient)
+	bool bPendingLayerCollisionDataUpdate;
+
 	/** Dirtied collision height region when painting (only used by Landscape Layer System) */
 	FIntRect LayerDirtyCollisionHeightData;
 #endif // WITH_EDITORONLY_DATA
@@ -743,6 +749,11 @@ public:
 	FGuid GetEditingLayerGUID() const;
 
 	void CopyFinalLayerIntoEditingLayer(FLandscapeEditDataInterface& DataInterface, TSet<UTexture2D*>& ProcessedHeightmaps);
+
+	void SetPendingCollisionDataUpdate(bool bInPendingCollisionDataUpdate) { bPendingCollisionDataUpdate = bInPendingCollisionDataUpdate; }
+	bool GetPendingCollisionDataUpdate() const { return bPendingCollisionDataUpdate; }
+	void SetPendingLayerCollisionDataUpdate(bool bInPendingLayerCollisionDataUpdate) { bPendingLayerCollisionDataUpdate = bInPendingLayerCollisionDataUpdate; }
+	bool GetPendingLayerCollisionDataUpdate() const { return bPendingLayerCollisionDataUpdate; }
 #endif 
 
 #if WITH_EDITOR
