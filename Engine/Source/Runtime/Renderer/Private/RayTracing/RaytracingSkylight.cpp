@@ -388,6 +388,9 @@ void FDeferredShadingSceneRenderer::GenerateSkyLightVisibilityRays(
 	FSkyLightData SkyLightData;
 	SetupSkyLightParameters(*Scene, &SkyLightData);
 
+	// Allocating mask of 256 x 256 rays
+	Dimensions = FIntVector(256, 256, 0);
+
 	// Output structured buffer creation
 	FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateStructuredDesc(sizeof(FSkyLightVisibilityRays), Dimensions.X * Dimensions.Y * SkyLightData.SamplesPerPixel);
 	SkyLightVisibilityRaysBuffer = GraphBuilder.CreateBuffer(BufferDesc, TEXT("SkyLightVisibilityRays"));
