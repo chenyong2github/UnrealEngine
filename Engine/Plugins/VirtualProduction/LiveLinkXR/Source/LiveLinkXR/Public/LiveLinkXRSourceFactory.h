@@ -3,10 +3,8 @@
 #pragma once
 
 #include "LiveLinkSourceFactory.h"
-#include "LiveLinkXRSourceSettings.h"
+#include "LiveLinkXRSource.h"
 #include "LiveLinkXRSourceFactory.generated.h"
-
-class SLiveLinkXRSourceEditor;
 
 UCLASS()
 class ULiveLinkXRSourceFactory : public ULiveLinkSourceFactory
@@ -22,5 +20,5 @@ public:
 	virtual TSharedPtr<ILiveLinkSource> CreateSource(const FString& ConnectionString) const override;
 
 private:
-	void CreateSourceFromSetting(FLiveLinkXRSettings Setting, FOnLiveLinkSourceCreated OnSourceCreated) const;
+	void CreateSourceFromSettings(FLiveLinkXRConnectionSettings ConnectionSettings, FOnLiveLinkSourceCreated OnSourceCreated) const;
 };

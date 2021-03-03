@@ -8,20 +8,13 @@
 #include "LiveLinkXRSourceSettings.h"
 #include "Misc/CoreDelegates.h"
 #include "Roles/LiveLinkTransformRole.h"
-#include "Roles/LiveLinkTransformTypes.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkXRSourceFactory"
 
-FLiveLinkXRSource::FLiveLinkXRSource()
-	: FLiveLinkXRSource(GetDefault<ULiveLinkXRSettingsObject>()->Settings)
-{
-}
-
-FLiveLinkXRSource::FLiveLinkXRSource(const FLiveLinkXRSettings& Settings)
+FLiveLinkXRSource::FLiveLinkXRSource(const FLiveLinkXRConnectionSettings& Settings)
 : Client(nullptr)
 , Stopping(false)
 , Thread(nullptr)
-, FrameCounter(0)
 {
 	SourceStatus = LOCTEXT("SourceStatus_NoData", "No data");
 	SourceType = LOCTEXT("SourceType_XR", "XR");
@@ -71,6 +64,9 @@ void FLiveLinkXRSource::ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceG
 	SourceGuid = InSourceGuid;
 }
 
+void FLiveLinkXRSource::InitializeSettings(ULiveLinkSourceSettings* Settings)
+{
+}
 
 bool FLiveLinkXRSource::IsSourceStillValid() const
 {
@@ -79,12 +75,16 @@ bool FLiveLinkXRSource::IsSourceStillValid() const
 	return bIsSourceValid;
 }
 
-
 bool FLiveLinkXRSource::RequestSourceShutdown()
 {
 	Stop();
 
 	return true;
+}
+
+void FLiveLinkXRSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	ILiveLinkSource::OnSettingsChanged(Settings, PropertyChangedEvent);
 }
 
 void FLiveLinkXRSource::EnumerateTrackedDevices()
@@ -104,7 +104,6 @@ void FLiveLinkXRSource::EnumerateTrackedDevices()
 	}
 
 	// Create subject names for all requested tracked devices
-
 	TArray<int32> AllTrackedDevices;
 
 	if (!GEngine->XRSystem->EnumerateTrackedDevices(AllTrackedDevices, EXRTrackedDeviceType::Any))
@@ -199,14 +198,16 @@ uint32 FLiveLinkXRSource::Run()
 
 				if (GEngine->XRSystem->IsTracking(TrackedDevices[Tracker]) && GEngine->XRSystem->GetCurrentPose(TrackedDevices[Tracker], Orientation, Position))
 				{
-					TSharedRef<FLiveLinkTransformFrameData> TransformFrameData = MakeShared<FLiveLinkTransformFrameData>();
+					FLiveLinkFrameDataStruct FrameData(FLiveLinkTransformFrameData::StaticStruct());
+					FLiveLinkTransformFrameData* TransformFrameData = FrameData.Cast<FLiveLinkTransformFrameData>();
 					TransformFrameData->Transform = FTransform(Orientation, Position);
-					TransformFrameData->WorldTime = FLiveLinkWorldTime(FDateTime::UtcNow().GetTicks() / (double)ETimespan::TicksPerSecond);
+
+					// These don't change frame to frame, so they really should be in static data. However, there is no MetaData in LiveLink static data :(
 					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceId")), FString::Printf(TEXT("%d"), TrackedDevices[Tracker]));
 					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceType")), GetDeviceTypeName(TrackedDeviceTypes[Tracker]));
 					TransformFrameData->MetaData.StringMetaData.Add(FName(TEXT("DeviceControlId")), TrackedSubjectNames[Tracker]);
 
-					Send(TransformFrameData, FName(TrackedSubjectNames[Tracker]));
+					Send(&FrameData, FName(TrackedSubjectNames[Tracker]));
 				}
 			}
 
@@ -220,7 +221,7 @@ uint32 FLiveLinkXRSource::Run()
 	return 0;
 }
 
-void FLiveLinkXRSource::Send(TSharedRef<FLiveLinkTransformFrameData> FrameDataToSend, FName SubjectName)
+void FLiveLinkXRSource::Send(FLiveLinkFrameDataStruct* FrameDataToSend, FName SubjectName)
 {
 	if (Stopping || (Client == nullptr))
 	{
@@ -234,9 +235,7 @@ void FLiveLinkXRSource::Send(TSharedRef<FLiveLinkTransformFrameData> FrameDataTo
 		EncounteredSubjects.Add(SubjectName);
 	}
 
-	FLiveLinkFrameDataStruct FrameData(FLiveLinkTransformFrameData::StaticStruct());
-	*FrameData.Cast<FLiveLinkTransformFrameData>() = *FrameDataToSend;
-	Client->PushSubjectFrameData_AnyThread({ SourceGuid, SubjectName }, MoveTemp(FrameData));
+	Client->PushSubjectFrameData_AnyThread({ SourceGuid, SubjectName }, MoveTemp(*FrameDataToSend));
 }
 
 const FString FLiveLinkXRSource::GetDeviceTypeName(EXRTrackedDeviceType DeviceType)

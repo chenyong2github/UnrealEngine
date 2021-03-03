@@ -23,26 +23,25 @@ FText ULiveLinkXRSourceFactory::GetSourceTooltip() const
 TSharedPtr<SWidget> ULiveLinkXRSourceFactory::BuildCreationPanel(FOnLiveLinkSourceCreated InOnLiveLinkSourceCreated) const
 {
 	return SNew(SLiveLinkXRSourceFactory)
-		.OnSourceSettingAccepted(FOnLiveLinkXRSourceSettingAccepted::CreateUObject(this, &ULiveLinkXRSourceFactory::CreateSourceFromSetting, InOnLiveLinkSourceCreated));
+		.OnConnectionSettingsAccepted(FOnLiveLinkXRConnectionSettingsAccepted::CreateUObject(this, &ULiveLinkXRSourceFactory::CreateSourceFromSettings, InOnLiveLinkSourceCreated));
 }
 
 TSharedPtr<ILiveLinkSource> ULiveLinkXRSourceFactory::CreateSource(const FString& ConnectionString) const
 {
-	FLiveLinkXRSettings Setting;
+	FLiveLinkXRConnectionSettings ConnectionSettings;
 	if (!ConnectionString.IsEmpty())
 	{
-		FLiveLinkXRSettings::StaticStruct()->ImportText(*ConnectionString, &Setting, nullptr, PPF_None, GLog, TEXT("ULiveLinkXRSourceFactory"));
+		FLiveLinkXRConnectionSettings::StaticStruct()->ImportText(*ConnectionString, &ConnectionSettings, nullptr, PPF_None, GLog, TEXT("ULiveLinkXRSourceFactory"));
 	}
-	return MakeShared<FLiveLinkXRSource>(Setting);
+	return MakeShared<FLiveLinkXRSource>(ConnectionSettings);
 }
 
-void ULiveLinkXRSourceFactory::CreateSourceFromSetting(FLiveLinkXRSettings Setting, FOnLiveLinkSourceCreated OnSourceCreated) const
+void ULiveLinkXRSourceFactory::CreateSourceFromSettings(FLiveLinkXRConnectionSettings InConnectionSettings, FOnLiveLinkSourceCreated OnSourceCreated) const
 {
 	FString ConnectionString;
-	FLiveLinkXRSettings::StaticStruct()->ExportText(ConnectionString, &GetDefault<ULiveLinkXRSettingsObject>()->Settings, nullptr, nullptr, PPF_None, nullptr);
-	GetMutableDefault<ULiveLinkXRSettingsObject>()->SaveConfig();
+	FLiveLinkXRConnectionSettings::StaticStruct()->ExportText(ConnectionString, &InConnectionSettings, nullptr, nullptr, PPF_None, nullptr);
 
-	TSharedPtr<FLiveLinkXRSource> SharedPtr = MakeShared<FLiveLinkXRSource>(Setting);
+	TSharedPtr<FLiveLinkXRSource> SharedPtr = MakeShared<FLiveLinkXRSource>(InConnectionSettings);
 	OnSourceCreated.ExecuteIfBound(SharedPtr, MoveTemp(ConnectionString));
 }
 

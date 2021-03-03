@@ -3,19 +3,19 @@
 #pragma once
 
 #include "ILiveLinkSource.h"
-#include "LiveLinkSourceSettings.h"
+#include "LiveLinkXRConnectionSettings.h"
+#include "LiveLinkXRSourceSettings.h"
 #include "Roles/LiveLinkTransformTypes.h"
 
 #include "Delegates/IDelegateInstance.h"
 #include "MessageEndpoint.h"
 #include "IMessageContext.h"
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/Runnable.h"
 
 #include "IXRTrackingSystem.h"		// for GEngine->XRSystem and EXRTrackedDeviceType
 
-#include "HAL/Runnable.h"
-
-struct FLiveLinkXRSettings;
+struct ULiveLinkXRSettings;
 
 class ILiveLinkClient;
 
@@ -23,14 +23,14 @@ class LIVELINKXR_API FLiveLinkXRSource : public ILiveLinkSource, public FRunnabl
 {
 public:
 
-	FLiveLinkXRSource();
-	FLiveLinkXRSource(const FLiveLinkXRSettings& Settings);
+	FLiveLinkXRSource(const FLiveLinkXRConnectionSettings& ConnectionSettings);
 
 	virtual ~FLiveLinkXRSource();
 
 	// Begin ILiveLinkSource Interface
 	
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
+	virtual void InitializeSettings(ULiveLinkSourceSettings* Settings) override;
 
 	virtual bool IsSourceStillValid() const override;
 
@@ -39,6 +39,9 @@ public:
 	virtual FText GetSourceType() const override { return SourceType; };
 	virtual FText GetSourceMachineName() const override { return SourceMachineName; }
 	virtual FText GetSourceStatus() const override { return SourceStatus; }
+
+	virtual TSubclassOf<ULiveLinkSourceSettings> GetSettingsClass() const override { return ULiveLinkXRSourceSettings::StaticClass(); }
+	virtual void OnSettingsChanged(ULiveLinkSourceSettings* Settings, const FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	// End ILiveLinkSource Interface
 
@@ -52,13 +55,8 @@ public:
 
 	// End FRunnable Interface
 
-	void Send(TSharedRef<FLiveLinkTransformFrameData> FrameDataToSend, FName SubjectName);
+	void Send(FLiveLinkFrameDataStruct* FrameDataToSend, FName SubjectName);
 	const FString GetDeviceTypeName(EXRTrackedDeviceType DeviceType);
-
-private:
-
-	// Enumerate tracked devices
-	void EnumerateTrackedDevices();
 
 private:
 	ILiveLinkClient* Client;
@@ -84,17 +82,20 @@ private:
 	// List of subjects we've already encountered
 	TSet<FName> EncounteredSubjects;
 
+	// Deferred start delegate handle.
+	FDelegateHandle DeferredStartDelegateHandle;
+
 	// frame counter for data
-	int32 FrameCounter;
+	int32 FrameCounter = 0;
 
 	// Track all SteamVR tracker "pucks"
-	bool bTrackTrackers;
+	bool bTrackTrackers = true;
 
 	// Track all controllers
-	bool bTrackControllers;
+	bool bTrackControllers = false;
 
 	// Track all HMDs
-	bool bTrackHMDs;
+	bool bTrackHMDs = false;
 
 	// Update rate (in Hz) at which to read the tracking data for each device
 	uint32 LocalUpdateRateInHz;
@@ -108,6 +109,6 @@ private:
 	// Array of Tracker Subject Names
 	TArray<FString> TrackedSubjectNames;
 
-	// Deferred start delegate handle.
-	FDelegateHandle DeferredStartDelegateHandle;
+	// Enumerate and save all connected and trackable XR devices
+	void EnumerateTrackedDevices();
 };

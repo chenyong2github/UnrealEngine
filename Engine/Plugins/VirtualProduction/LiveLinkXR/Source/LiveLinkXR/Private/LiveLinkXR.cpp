@@ -8,21 +8,14 @@
 
 #define LOCTEXT_NAMESPACE "LiveLinkXRModule"
 
-bool FLiveLinkXRModule::bWasShutdown = false;
+DEFINE_LOG_CATEGORY(LogLiveLinkXR);
 
 void FLiveLinkXRModule::StartupModule()
 {
-	bWasShutdown = false;
 }
 
 void FLiveLinkXRModule::ShutdownModule()
 {
-	bWasShutdown = true;
-}
-
-ULiveLinkXRSettingsObject const* const FLiveLinkXRModule::GetSettings() const
-{
-	return ULiveLinkXRSettingsObject::StaticClass()->GetDefaultObject<ULiveLinkXRSettingsObject>();
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -15,41 +15,47 @@
 
 void SLiveLinkXRSourceFactory::Construct(const FArguments& Args)
 {
-	OnSourceSettingAccepted = Args._OnSourceSettingAccepted;
-
 #if WITH_EDITOR
+	OnConnectionSettingsAccepted = Args._OnConnectionSettingsAccepted;
+
+	FStructureDetailsViewArgs StructureViewArgs;
 	FDetailsViewArgs DetailArgs;
+	DetailArgs.bAllowSearch = false;
+	DetailArgs.bShowScrollBar = false;
 
 	FPropertyEditorModule& PropertyEditor = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-	TSharedRef<IDetailsView> DetailsView = PropertyEditor.CreateDetailView(DetailArgs);
-	DetailsView->HideFilterArea(true);
-	DetailsView->SetObject(GetMutableDefault<ULiveLinkXRSettingsObject>(), true);
-#endif //WITH_EDITOR
+
+	StructOnScope = MakeShared<FStructOnScope>(FLiveLinkXRConnectionSettings::StaticStruct());
+	CastChecked<UScriptStruct>(StructOnScope->GetStruct())->CopyScriptStruct(StructOnScope->GetStructMemory(), &ConnectionSettings);
+	StructureDetailsView = PropertyEditor.CreateStructureDetailView(DetailArgs, StructureViewArgs, StructOnScope);
 
 	ChildSlot
 	[
 		SNew(SVerticalBox)
 		+SVerticalBox::Slot()
 		.FillHeight(1.f)
-#if WITH_EDITOR
 		[
-			DetailsView
+			StructureDetailsView->GetWidget().ToSharedRef()
 		]
-#endif //WITH_EDITOR
 		+ SVerticalBox::Slot()
 		.HAlign(HAlign_Right)
 		.AutoHeight()
 		[
 			SNew(SButton)
-			.OnClicked(this, &SLiveLinkXRSourceFactory::OnSettingAccepted)
+			.OnClicked(this, &SLiveLinkXRSourceFactory::OnSettingsAccepted)
 			.Text(LOCTEXT("AddSource", "Add"))
 		]
 	];
+#endif //WITH_EDITOR
 }
 
-FReply SLiveLinkXRSourceFactory::OnSettingAccepted()
+FReply SLiveLinkXRSourceFactory::OnSettingsAccepted()
 {
-	OnSourceSettingAccepted.ExecuteIfBound(GetDefault<ULiveLinkXRSettingsObject>()->Settings);
+#if WITH_EDITOR
+	CastChecked<UScriptStruct>(StructOnScope->GetStruct())->CopyScriptStruct(&ConnectionSettings, StructOnScope->GetStructMemory());
+	OnConnectionSettingsAccepted.ExecuteIfBound(ConnectionSettings);
+#endif //WITH_EDITOR
+
 	return FReply::Handled();
 }
 
