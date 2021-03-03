@@ -220,15 +220,19 @@ TSharedPtr<IDetailTreeNode> FPropertyRowGenerator::FindTreeNode(TSharedPtr<IProp
 	return nullptr;
 }
 
-TArray<TSharedPtr<IDetailTreeNode>> FPropertyRowGenerator::FindTreeNodes(TArray<TSharedPtr<IPropertyHandle>> PropertyHandles) const
+TArray<TSharedPtr<IDetailTreeNode>> FPropertyRowGenerator::FindTreeNodes(const TArray<TSharedPtr<IPropertyHandle>>& PropertyHandles) const
 {
 	TArray<TSharedPtr<IDetailTreeNode>> NodesToCheck;
 	NodesToCheck.Append(RootTreeNodes);
-	TArray<TSharedPtr<FPropertyNode>> PropertyNodesWeAreAfter;
 
-	for(TSharedPtr<IPropertyHandle>& Handle: PropertyHandles)
+	// Property Node to Array Index mapping
+	TMap<TSharedPtr<FPropertyNode>, int32> PropertyNodesWeAreAfter;
+	for (int32 Index = 0, NumHandle = PropertyHandles.Num(); Index < NumHandle; ++Index)
 	{
-		PropertyNodesWeAreAfter.Add(StaticCastSharedPtr<FPropertyHandleBase>(Handle)->GetPropertyNode());
+		TSharedPtr<FPropertyNode> PropertyNode = StaticCastSharedPtr<FPropertyHandleBase>(PropertyHandles[Index])->GetPropertyNode();
+		// we assume no duplicates in the input param
+		ensure(!PropertyNodesWeAreAfter.Contains(PropertyNode));
+		PropertyNodesWeAreAfter.Add(MoveTemp(PropertyNode), Index);
 	}
 	TArray<TSharedPtr<IDetailTreeNode>> Results;
 	Results.AddDefaulted(PropertyHandles.Num());
@@ -244,18 +248,10 @@ TArray<TSharedPtr<IDetailTreeNode>> FPropertyRowGenerator::FindTreeNodes(TArray<
 
 		if (PropertyNode.IsValid())
 		{
-			// check if any is one that we're after
-			for (int Idx = 0, NumResults = Results.Num(); Idx < NumResults; ++Idx)
+			if (int32* HandleIndex = PropertyNodesWeAreAfter.Find(PropertyNode))
 			{
-				if (!Results[Idx].IsValid())
-				{
-					if (UNLIKELY(PropertyNode == PropertyNodesWeAreAfter[Idx]))
-					{
-						Results[Idx] = Node;
-						--NumNotFound;
-						// assume no duplicates and break?
-					}
-				}
+				Results[*HandleIndex] = Node;
+				--NumNotFound;
 			}
 
 			check(NumNotFound >= 0);

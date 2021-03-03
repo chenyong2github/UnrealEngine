@@ -81,7 +81,7 @@ public:
 	* 
 	* @return The found tree nodes (in the same order, a pointer will be null if the node cannot be found)
 	*/
-	virtual TArray<TSharedPtr<IDetailTreeNode>> FindTreeNodes(TArray<TSharedPtr<IPropertyHandle>> PropertyHandles) const = 0;
+	virtual TArray<TSharedPtr<IDetailTreeNode>> FindTreeNodes(const TArray<TSharedPtr<IPropertyHandle>>& PropertyHandles) const = 0;
 
 	/**
 	 * Registers a custom detail layout delegate for a specific class in this instance of the generator only
