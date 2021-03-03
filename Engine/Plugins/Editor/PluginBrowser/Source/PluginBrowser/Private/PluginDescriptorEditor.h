@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Input/Reply.h"
 
 class UPluginMetadataObject;
 class IPlugin;
