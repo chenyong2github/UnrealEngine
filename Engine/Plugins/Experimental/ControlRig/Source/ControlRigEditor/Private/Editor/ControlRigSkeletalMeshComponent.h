@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Rigs/RigHierarchy.h"
+#include "ControlRig.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "ControlRigSkeletalMeshComponent.generated.h"
 
