@@ -237,17 +237,6 @@ bool ULiveLinkComponentController::IsControllerMapOutdated() const
 		{
 			return true;
 		}
-
-		//If a controller isn't selected, and there is a default one for that role, we need to update
-		const ULiveLinkControllerBase* FoundControllerPtr = *FoundController;
-		if (FoundControllerPtr == nullptr)
-		{
-			TSubclassOf<ULiveLinkControllerBase> DesiredControllerClass = GetControllerClassForRoleClass(RoleClass);
-			if (DesiredControllerClass != nullptr)
-			{
-				return true;
-			}
-		}
 	}
 
 	return false;
