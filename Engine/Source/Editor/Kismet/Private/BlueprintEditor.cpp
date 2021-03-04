@@ -2171,13 +2171,13 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 			[
 				SNew(SButton)
 				.VAlign(VAlign_Center)
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
-				.OnClicked( this, &FBlueprintEditor::OnFindParentClassInContentBrowserClicked )
-				.IsEnabled( this, &FBlueprintEditor::IsParentClassABlueprint )
-				.Visibility( this, &FBlueprintEditor::ParentClassButtonsVisibility )
-				.ToolTipText( LOCTEXT("FindParentInCBToolTip", "Find parent in Content Browser") )
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.OnClicked(this, &FBlueprintEditor::OnFindParentClassInContentBrowserClicked)
+				.IsEnabled(this, &FBlueprintEditor::IsParentClassABlueprint)
+				.Visibility(this, &FBlueprintEditor::GetFindParentClassVisibility)
+				.ToolTipText(LOCTEXT("FindParentInCBToolTip", "Find parent in Content Browser"))
 				.ContentPadding(4.0f)
-				.ForegroundColor( FSlateColor::UseForeground() )
+				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(SImage)
 					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Browse"))
@@ -2188,13 +2188,13 @@ void FBlueprintEditor::PostRegenerateMenusAndToolbars()
 			[
 				SNew(SButton)
 				.VAlign(VAlign_Center)
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
-				.OnClicked( this, &FBlueprintEditor::OnEditParentClassClicked )
-				.IsEnabled( this, &FBlueprintEditor::IsParentClassABlueprint )
-				.Visibility( this, &FBlueprintEditor::ParentClassButtonsVisibility )
-				.ToolTipText( LOCTEXT("EditParentClassToolTip", "Open parent in editor") )
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.OnClicked(this, &FBlueprintEditor::OnEditParentClassClicked)
+				.IsEnabled(this, &FBlueprintEditor::IsParentClassAnEditableBlueprint)
+				.Visibility(this, &FBlueprintEditor::GetEditParentClassVisibility)
+				.ToolTipText(LOCTEXT("EditParentClassToolTip", "Open parent in editor"))
 				.ContentPadding(4.0f)
-				.ForegroundColor( FSlateColor::UseForeground() )
+				.ForegroundColor(FSlateColor::UseForeground())
 				[
 					SNew(SImage)
 					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_Edit"))
@@ -2230,33 +2230,29 @@ FText FBlueprintEditor::GetParentClassNameText() const
 	return (ParentClass != NULL) ? ParentClass->GetDisplayNameText() : LOCTEXT("BlueprintEditor_NoParentClass", "None");
 }
 
-bool FBlueprintEditor::IsParentClassOfObjectABlueprint( const UBlueprint* Blueprint ) const
+bool FBlueprintEditor::IsParentClassOfObjectABlueprint(const UBlueprint* Blueprint) const
 {
-	if ( Blueprint != NULL )
-	{
-		UObject* ParentClass = Blueprint->ParentClass;
-		if ( ParentClass != NULL )
-		{
-			if ( ParentClass->IsA( UBlueprintGeneratedClass::StaticClass() ) )
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
+	return FBlueprintEditorUtils::IsParentClassABlueprint(Blueprint);
 }
 
 bool FBlueprintEditor::IsParentClassABlueprint() const
 {
-	const UBlueprint* Blueprint = GetBlueprintObj();
-
-	return IsParentClassOfObjectABlueprint( Blueprint );
+	return FBlueprintEditorUtils::IsParentClassABlueprint(GetBlueprintObj());
 }
 
-EVisibility FBlueprintEditor::ParentClassButtonsVisibility() const
+bool FBlueprintEditor::IsParentClassAnEditableBlueprint() const
+{
+	return FBlueprintEditorUtils::IsParentClassAnEditableBlueprint(GetBlueprintObj());
+}
+
+EVisibility FBlueprintEditor::GetFindParentClassVisibility() const
 {
 	return IsParentClassABlueprint() ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+EVisibility FBlueprintEditor::GetEditParentClassVisibility() const
+{
+	return IsParentClassAnEditableBlueprint() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 bool FBlueprintEditor::IsParentClassNative() const
@@ -2311,20 +2307,24 @@ FText FBlueprintEditor::GetTextForNativeParentClassHeaderLink() const
 FReply FBlueprintEditor::OnFindParentClassInContentBrowserClicked()
 {
 	UBlueprint* Blueprint = GetBlueprintObj();
-	if ( Blueprint != NULL )
+	if (Blueprint)
 	{
 		UObject* ParentClass = Blueprint->ParentClass;
-		if ( ParentClass != NULL )
+		if (ParentClass)
 		{
 			UBlueprintGeneratedClass* ParentBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>( ParentClass );
-			if ( ParentBlueprintGeneratedClass != NULL )
+			if (ParentBlueprintGeneratedClass)
 			{
-				if ( ParentBlueprintGeneratedClass->ClassGeneratedBy != NULL )
+				TArray<UObject*> ParentObjectList;
+				if (ParentBlueprintGeneratedClass->ClassGeneratedBy)
 				{
-					TArray< UObject* > ParentObjectList;
-					ParentObjectList.Add( ParentBlueprintGeneratedClass->ClassGeneratedBy );
-					GEditor->SyncBrowserToObjects( ParentObjectList );
+					ParentObjectList.Add(ParentBlueprintGeneratedClass->ClassGeneratedBy);
 				}
+				else
+				{
+					ParentObjectList.Add(ParentBlueprintGeneratedClass);
+				}
+				GEditor->SyncBrowserToObjects(ParentObjectList);
 			}
 		}
 	}
@@ -2335,15 +2335,15 @@ FReply FBlueprintEditor::OnFindParentClassInContentBrowserClicked()
 FReply FBlueprintEditor::OnEditParentClassClicked()
 {
 	UBlueprint* Blueprint = GetBlueprintObj();
-	if ( Blueprint != NULL )
+	if (Blueprint)
 	{
 		UObject* ParentClass = Blueprint->ParentClass;
-		if ( ParentClass != NULL )
+		if (ParentClass)
 		{
 			UBlueprintGeneratedClass* ParentBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>( ParentClass );
-			if ( ParentBlueprintGeneratedClass != NULL )
+			if (ParentBlueprintGeneratedClass)
 			{
-				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset( ParentBlueprintGeneratedClass->ClassGeneratedBy );
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ParentBlueprintGeneratedClass->ClassGeneratedBy);
 			}
 		}
 	}
