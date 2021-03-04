@@ -71,7 +71,7 @@ public:
 	FRWLock ArrayRWGuard;
 
 	/** When greater than 0 sets the maximum number of elements the array can hold, only relevant when using operations that modify the array size. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Array", meta=(ClampMin="0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category="Array", meta=(ClampMin="0"))
 	int32 MaxElements;
 
 protected:
