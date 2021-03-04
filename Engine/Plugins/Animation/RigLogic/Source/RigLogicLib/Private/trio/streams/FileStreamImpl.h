@@ -42,13 +42,13 @@ class FileStreamImpl : public FileStream {
         MemoryResource* getMemoryResource();
 
     private:
-        StreamStatus status;
         std::fstream file;
         pma::String<char> filePath;
         AccessMode fileAccessMode;
         OpenMode fileOpenMode;
         std::uint64_t fileSize;
         MemoryResource* memRes;
+        StreamStatus status;
 };
 
 }  // namespace trio
