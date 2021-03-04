@@ -575,7 +575,7 @@ void AddDeferredDecalPass(
 				// This significantly reduces bandwidth for clearing, writing and reading on some GPUs.
 				// While a smaller format, such as R8_UINT, will use less video memory, it will result in slower clears and higher bandwidth requirements.
 				check(Desc.Format == PF_B8G8R8A8);
-				Desc.Flags = TexCreate_ShaderResource;
+				Desc.Flags = BaseFlags;
 				Desc.ClearValue = FClearValueBinding::Transparent;
 				PassTextures.DBufferMask = CreateOrImportTexture(SceneContext.DBufferMask, Desc, TEXT("DBufferMask"));
 			}
