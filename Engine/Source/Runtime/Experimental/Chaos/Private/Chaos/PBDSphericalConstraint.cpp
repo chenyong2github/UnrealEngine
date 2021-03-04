@@ -18,7 +18,7 @@ using namespace Chaos;
 
 void FPBDSphericalConstraint::ApplyHelperISPC(FPBDParticles& Particles, const FReal Dt) const
 {
-	check(bRealTypeCompatibleWithISPC)
+	check(bRealTypeCompatibleWithISPC);
 
 	const int32 ParticleCount = SphereRadii.Num();
 
@@ -35,7 +35,7 @@ void FPBDSphericalConstraint::ApplyHelperISPC(FPBDParticles& Particles, const FR
 }
 void FPBDSphericalBackstopConstraint::ApplyLegacyHelperISPC(FPBDParticles& Particles, const FReal Dt) const
 {
-	check(bRealTypeCompatibleWithISPC)
+	check(bRealTypeCompatibleWithISPC);
 
 	const int32 ParticleCount = SphereRadii.Num();
 
@@ -55,7 +55,7 @@ void FPBDSphericalBackstopConstraint::ApplyLegacyHelperISPC(FPBDParticles& Parti
 
 void FPBDSphericalBackstopConstraint::ApplyHelperISPC(FPBDParticles& Particles, const FReal Dt) const
 {
-	check(bRealTypeCompatibleWithISPC)
+	check(bRealTypeCompatibleWithISPC);
 	const int32 ParticleCount = SphereRadii.Num();
 
 #if INTEL_ISPC

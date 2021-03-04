@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/AABB.h"
+#include "Chaos/Real.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Capsule.h"
 #if INTEL_ISPC
@@ -196,24 +197,25 @@ inline TAABB<T, d> TransformedAABBHelper(const TAABB<T, d>& AABB, const TTRANSFO
 	return NewAABB;
 }
 
-inline TAABB<float, 3> TransformedAABBHelperISPC(const TAABB<float, 3>& AABB, const FTransform& SpaceTransform)
+inline TAABB<FReal, 3> TransformedAABBHelperISPC(const TAABB<FReal, 3>& AABB, const FTransform& SpaceTransform)
 {
+	check(bRealTypeCompatibleWithISPC);
 #if INTEL_ISPC
-	TVector<float, 3> NewMin, NewMax;
+	TVec3<float> NewMin, NewMax;
 	ispc::TransformedAABB((const ispc::FTransform&)SpaceTransform, (const ispc::FVector&)AABB.Min(), (const ispc::FVector&)AABB.Max(), (ispc::FVector&)NewMin, (ispc::FVector&)NewMax);
 
-	TAABB<float, 3> NewAABB(NewMin, NewMax);
+	TAABB<FReal, 3> NewAABB(NewMin, NewMax);
 	return NewAABB;
 #else
 	check(false);
-	return TAABB<float, 3>::EmptyAABB();
+	return TAABB<FReal, 3>::EmptyAABB();
 #endif
 }
 
 template<typename T, int d>
 TAABB<T, d> TAABB<T, d>::TransformedAABB(const Chaos::TRigidTransform<FReal, 3>& SpaceTransform) const
 {
-	if (INTEL_ISPC)
+	if (bRealTypeCompatibleWithISPC && INTEL_ISPC)
 	{
 		return TransformedAABBHelperISPC(*this, SpaceTransform);
 	}
@@ -239,7 +241,7 @@ TAABB<T, d> TAABB<T, d>::TransformedAABB(const Chaos::PMatrix<FReal, 4, 4>& Spac
 template<typename T, int d>
 TAABB<T, d> TAABB<T, d>::TransformedAABB(const FTransform& SpaceTransform) const
 {
-	if (INTEL_ISPC)
+	if (bRealTypeCompatibleWithISPC && INTEL_ISPC)
 	{
 		return TransformedAABBHelperISPC(*this, SpaceTransform);
 	}
@@ -250,4 +252,4 @@ TAABB<T, d> TAABB<T, d>::TransformedAABB(const FTransform& SpaceTransform) const
 }
 }
 
-template class Chaos::TAABB<float, 3>;
+template class Chaos::TAABB<Chaos::FReal, 3>;
