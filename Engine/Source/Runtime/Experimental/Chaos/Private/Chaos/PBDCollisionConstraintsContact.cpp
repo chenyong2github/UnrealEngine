@@ -56,14 +56,20 @@ namespace Chaos
 			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
 
 			Constraint.ResetPhi(CullDistance);
-			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(Constraint, Transform0, Transform1, CullDistance, Dt);
+			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest, FRigidBodyPointContactConstraint>(Constraint, Transform0, Transform1, CullDistance, Dt);
 		}
 
-		void Update(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt)
+		void UpdateSwept(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt)
 		{
+			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
+			// Note: This is unusual but we are using a mix of the previous and current transform
+			// This is due to how CCD only rewinds the position
+			const FRigidTransform3 TransformXQ0(Particle0->X(), Particle0->Q());
+			const FRigidTransform3 Transform1 = GetTransform(Constraint.Particle[1]);
+			Constraint.ResetPhi(CullDistance);
+			
 			// Update as a point constraint (base class).
-			Constraint.bShouldTreatAsSinglePoint = true;
-			Update(*Constraint.As<FRigidBodyPointContactConstraint>(), CullDistance, Dt);
+			UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest, FRigidBodySweptPointContactConstraint>(Constraint, TransformXQ0, Transform1, CullDistance, Dt);
 		}
 
 
@@ -257,14 +263,16 @@ namespace Chaos
 		
 		void ApplySweptImpl(FRigidBodySweptPointContactConstraint& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
-			const FReal TimeOfImpactErrorMargin = 20.0f;  // Large error margin in cm, this is to ensure that 1) velocity is solved for at the time of impact, and  2) the contact is not disabled
 			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
 			FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.Particle[1]);
 
-			if (Constraint.bShouldTreatAsSinglePoint || IterationParameters.Iteration > 0 || Constraint.TimeOfImpact == 1)
+			Collisions::UpdateSwept(Constraint, ParticleParameters.CullDistance, IterationParameters.Dt);
+
+			if (Constraint.TimeOfImpact == 1)
 			{
-				// If not on first iteration, or at TOI = 1 (normal constraint) we don't want to split timestep at TOI.
-				ApplyImpl(Constraint, IterationParameters, ParticleParameters);
+				const FContactParticleParameters CCDParticleParamatersNoContactCulling{ ParticleParameters.CullDistance, ParticleParameters.RestitutionVelocityThreshold, false, ParticleParameters.Collided };
+				// If TOI = 1 (normal constraint) we don't want to split timestep at TOI.
+				ApplyImpl(Constraint, IterationParameters, CCDParticleParamatersNoContactCulling);
 				return;
 			}
 
@@ -272,19 +280,37 @@ namespace Chaos
 			// P may have changed due to other constraints, so at TOI our manifold needs updating.
 			const FReal PartialDT = Constraint.TimeOfImpact * IterationParameters.Dt;
 			const FReal RemainingDT = (1 - Constraint.TimeOfImpact) * IterationParameters.Dt;
-			const int32 FakeIteration = IterationParameters.NumIterations / 2; // For iteration count dependent effects (like relaxation)
-			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations
+			const int32 FakeIteration = IterationParameters.NumIterations / 2; // For iteration count dependent effects (like relaxation) // @todo: Do we still need this?
+			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations // @todo: Do we still need this?
 			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
-			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.bCanDisableContacts, ParticleParameters.Collided };
+			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance, ParticleParameters.RestitutionVelocityThreshold, false, ParticleParameters.Collided };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
 			ApplyImpl(Constraint, IterationParametersPartialDT, CCDParticleParamaters);
 
 			// Advance P to end of frame from TOI, and Apply
-			Particle0->P() = Particle0->P() + Particle0->V() * RemainingDT;
-			ApplyImpl(Constraint, IterationParametersRemainingDT, CCDParticleParamaters);
+			if (IterationParameters.Iteration + 1 < IterationParameters.NumIterations)
+			{
+				Particle0->P() = Particle0->P() + Particle0->V() * RemainingDT; // If we are tunneling through something else due to this, it will be resolved in the next iteration
+				ApplyImpl(Constraint, IterationParametersRemainingDT, CCDParticleParamaters);
+			}
+			else
+			{
+				// We get here if we cannot solve CCD collisions with the given number of iterations and restitution settings.
+				// So don't do the remaining dt update. This will bleed the energy! (also: Ignore rotation)
+				// To prevent this condition: increase number of iterations and/or reduce restitution and/or reduce velocities
+				if (IterationParameters.Dt > SMALL_NUMBER)
+				{
+					// Update velocity to be consistent with PBD
+					Particle0->SetV(1 / IterationParameters.Dt * (Particle0->P() - Particle0->X()));
+				}
+				else
+				{
+					Particle0->SetV(FVec3(0));
+				}
+			}
 		}
 
 
