@@ -222,9 +222,11 @@ FNiagaraSimulationDebugDrawData* FNiagaraGpuComputeDebug::GetSimulationDebugDraw
 		DebugDrawDataPtr.Reset(new FNiagaraSimulationDebugDrawData());
 	}
 
-	if (bRequiresGpuBuffers && DebugDrawDataPtr->GpuLineMaxInstances == 0)
+	if (bRequiresGpuBuffers && (DebugDrawDataPtr->GpuLineMaxInstances != GNiagaraGpuComputeDebug_MaxLineInstances))
 	{
 		check(IsInRenderingThread());
+		DebugDrawDataPtr->GpuLineBufferArgs.Release();
+		DebugDrawDataPtr->GpuLineVertexBuffer.Release();
 		DebugDrawDataPtr->GpuLineMaxInstances = GNiagaraGpuComputeDebug_MaxLineInstances;
 		if (DebugDrawDataPtr->GpuLineMaxInstances > 0)
 		{
