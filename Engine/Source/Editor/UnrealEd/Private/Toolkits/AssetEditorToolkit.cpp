@@ -277,8 +277,12 @@ void FAssetEditorToolkit::InitAssetEditor( const EToolkitMode::Type Mode, const 
 	}
 
 	// Create our mode manager and set it's toolkit host
-	CreateEditorModeManager();
-	if (EditorModeManager.IsValid())
+	if (!EditorModeManager)
+	{
+		CreateEditorModeManager();
+	}
+
+	if (EditorModeManager)
 	{
 		EditorModeManager->SetToolkitHost(ToolkitHost.Pin().ToSharedRef());
 	}
@@ -299,6 +303,8 @@ FAssetEditorToolkit::~FAssetEditorToolkit()
 	{
 		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->NotifyEditorClosed(this);
 	}
+
+	EditorModeManager.Reset();
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AssetEditorModeManager = nullptr;

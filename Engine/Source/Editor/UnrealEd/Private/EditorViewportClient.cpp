@@ -348,9 +348,7 @@ void FEditorViewportClient::SetCameraSpeedScalar(float SpeedScalar)
 
 void FEditorViewportClient::TakeOwnershipOfModeManager(TSharedPtr<FEditorModeTools>& ModeManagerPtr)
 {
-	check(bOwnsModeTools);
-	ModeManagerPtr = MakeShareable(ModeTools);
-	bOwnsModeTools = false;
+	ModeManagerPtr = ModeTools;
 }
 
 float const FEditorViewportClient::SafePadding = 0.075f;
@@ -410,8 +408,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, LandscapeLODOverride(-1)
 	, bDrawVertices(false)
 	, bShouldApplyViewModifiers(true)
-	, bOwnsModeTools(false)
-	, ModeTools(InModeTools)
+	, ModeTools(InModeTools ? InModeTools->AsShared() : TSharedPtr<FEditorModeTools>())
 	, Widget(new FWidget)
 	, bShowWidget(true)
 	, MouseDeltaTracker(new FMouseDeltaTracker)
@@ -463,14 +460,10 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, DragStartViewFamily(nullptr)
 {
 	InitViewOptionsArray();
-	if (ModeTools == nullptr)
+	if (!ModeTools)
 	{
-		ModeTools = new FAssetEditorModeManager();
-		bOwnsModeTools = true;
+		ModeTools = MakeShared<FAssetEditorModeManager>();
 	}
-
-	//@TODO: MODETOOLS: Would like to make this the default, and have specific editors opt-out, but for now opt-in is the safer choice
-	//Widget->SetUsesEditorModeTools(ModeTools);
 
 	ViewState.Allocate();
 
@@ -518,20 +511,9 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 
 FEditorViewportClient::~FEditorViewportClient()
 {
-	// There's 3 options for the mode tools pointer in the destructor currently
-	// Either the toolkit owns the mode tools and will handle destructing all viewports and the mode tools properly,
-	// the global level editor mode tools are used, and exist for lifetime of statics in the editor, so we need to cleanup any hooks we made into the globl mode tools
-	// or the viewport client itself created a mode tools and the viewport client needs to fully clean up.
-	if (GEditor && (ModeTools == &GLevelEditorModeTools()))
+	if (ModeTools)
 	{
 		ModeTools->OnEditorModeIDChanged().RemoveAll(this);
-	}
-
-	if (bOwnsModeTools)
-	{
-		ModeTools->OnEditorModeIDChanged().RemoveAll(this);
-		ModeTools->SetDefaultMode(FBuiltinEditorModes::EM_Default);
-		ModeTools->DeactivateAllModes(); // this also activates the default mode
 	}
 
 	delete Widget;
@@ -563,12 +545,7 @@ FEditorViewportClient::~FEditorViewportClient()
 		FSlateApplication::Get().OnWindowDPIScaleChanged().RemoveAll(this);
 	}
 
-	if (bOwnsModeTools)
-	{
-		delete ModeTools;
-	}
-
-	ModeTools = nullptr;
+	ModeTools.Reset();
 }
 
 void FEditorViewportClient::AddRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)

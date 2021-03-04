@@ -7,5 +7,5 @@ FLevelAssetEditorViewportClient::FLevelAssetEditorViewportClient(UInteractiveToo
 	: FEditorViewportClient(InModeTools, InPreviewScene, InEditorViewportWidget)
 	, ToolsContext(InToolsContext)
 {
-	Widget->SetUsesEditorModeTools(ModeTools);
+	Widget->SetUsesEditorModeTools(ModeTools.Get());
 }

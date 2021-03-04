@@ -136,6 +136,7 @@ TSharedPtr<FEditorViewportClient> FBaseAssetToolkit::CreateEditorViewportClient(
 void FBaseAssetToolkit::CreateWidgets()
 {
 	RegisterToolbar();
+	CreateEditorModeManager();
 	ViewportClient = CreateEditorViewportClient();
 	ViewportDelegate = GetViewportDelegate();
 	ViewportTabContent = MakeShareable(new FEditorViewportTabContent());

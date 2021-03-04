@@ -80,8 +80,8 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 
 	InPreviewScene->RegisterOnCameraOverrideChanged(FSimpleDelegate::CreateRaw(this, &FAnimationViewportClient::OnCameraControllerChanged));
 
-	Widget->SetUsesEditorModeTools(ModeTools);
-	((FAssetEditorModeManager*)ModeTools)->SetPreviewScene(&InPreviewScene.Get());
+	Widget->SetUsesEditorModeTools(ModeTools.Get());
+	((FAssetEditorModeManager*)ModeTools.Get())->SetPreviewScene(&InPreviewScene.Get());
 	ModeTools->SetDefaultMode(FPersonaEditModes::SkeletonSelection);
 
 	// Default to local space
@@ -1900,7 +1900,7 @@ TSharedRef<FAnimationEditorPreviewScene> FAnimationViewportClient::GetAnimPrevie
 
 IPersonaEditorModeManager* FAnimationViewportClient::GetPersonaModeManager() const
 {
-	return static_cast<IPersonaEditorModeManager*>(ModeTools);
+	return static_cast<IPersonaEditorModeManager*>(ModeTools.Get());
 }
 
 void FAnimationViewportClient::HandleInvalidateViews()

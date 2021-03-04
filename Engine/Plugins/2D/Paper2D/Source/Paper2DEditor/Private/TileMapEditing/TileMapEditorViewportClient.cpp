@@ -26,12 +26,12 @@ FTileMapEditorViewportClient::FTileMapEditorViewportClient(TWeakPtr<FTileMapEdit
 	, TileMapEditorViewportPtr(InTileMapEditorViewportPtr)
 {
 	// The tile map editor fully supports mode tools and isn't doing any incompatible stuff with the Widget
-	Widget->SetUsesEditorModeTools(ModeTools);
+	Widget->SetUsesEditorModeTools(ModeTools.Get());
 
 	check(TileMapEditorPtr.IsValid() && TileMapEditorViewportPtr.IsValid());
 
 	PreviewScene = &OwnedPreviewScene;
-	((FAssetEditorModeManager*)ModeTools)->SetPreviewScene(PreviewScene);
+	((FAssetEditorModeManager*)ModeTools.Get())->SetPreviewScene(PreviewScene);
 
 	SetRealtime(true);
 

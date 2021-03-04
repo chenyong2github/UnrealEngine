@@ -1727,7 +1727,7 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 
 	// The level editor fully supports mode tools and isn't doing any incompatible stuff with the Widget
 	ModeTools->SetWidgetMode(UE::Widget::WM_Translate);
-	Widget->SetUsesEditorModeTools(ModeTools);
+	Widget->SetUsesEditorModeTools(ModeTools.Get());
 
 	// Register for editor cleanse events so we can release references to hovered actors
 	FEditorSupportDelegates::CleanseEditor.AddRaw(this, &FLevelEditorViewportClient::OnEditorCleanse);

@@ -35,13 +35,13 @@ FSingleTileEditorViewportClient::FSingleTileEditorViewportClient(UPaperTileSet* 
 	SetRealtime(true);
 
 	// The tile map editor fully supports mode tools and isn't doing any incompatible stuff with the Widget
-	Widget->SetUsesEditorModeTools(ModeTools);
+	Widget->SetUsesEditorModeTools(ModeTools.Get());
 
 	DrawHelper.bDrawGrid = GetDefault<UTileSetEditorSettings>()->bShowGridByDefault;
 	DrawHelper.bDrawPivot = false;
 
 	PreviewScene = &OwnedPreviewScene;
-	((FAssetEditorModeManager*)ModeTools)->SetPreviewScene(PreviewScene);
+	((FAssetEditorModeManager*)ModeTools.Get())->SetPreviewScene(PreviewScene);
 
 	EngineShowFlags.DisableAdvancedFeatures();
 	EngineShowFlags.SetCompositeEditorPrimitives(true);

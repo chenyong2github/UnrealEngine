@@ -1109,7 +1109,7 @@ public:
 	/** Editor mode tool manager being used for this viewport client */
 	FEditorModeTools* GetModeTools() const
 	{
-		return ModeTools;
+		return ModeTools.Get();
 	}
 
 	/** Legacy adapter for a toolkit to take ownership of a mode manager that may have been created by this viewport client */
@@ -1621,11 +1621,8 @@ public:
 	bool bShouldApplyViewModifiers;
 
 protected:
-	/** Does this viewport client own the mode tools instance pointed at by ModeTools control the lifetime of it? */
-	bool bOwnsModeTools;
-
-	/** Editor mode tools provided to this instance. Assumed to be managed externally if bOwnsModeTools is false */
-	FEditorModeTools*		ModeTools;
+	/** Editor mode tools provided to this instance. */
+	TSharedPtr<FEditorModeTools> ModeTools;
 
 	FWidget*				Widget;
 
