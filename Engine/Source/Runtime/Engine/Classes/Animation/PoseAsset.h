@@ -48,14 +48,31 @@ struct ENGINE_API FPoseData
 	UPROPERTY()
 	TArray<FTransform>		LocalSpacePose;
 
-	// this is PoseContainer.Tracks to Buffer Index of LocalSpacePose
-	UPROPERTY()
-	TMap<int32, int32>		TrackToBufferIndex;
-
 	// # of array match with # of Curves in PoseDataContainer
 	// curve data is not compressed
  	UPROPERTY()
  	TArray<float>			CurveData;
+};
+
+USTRUCT()
+struct FPoseAssetInfluence
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	int32 PoseIndex;
+
+	UPROPERTY()
+	int32 BoneTransformIndex;
+};
+
+USTRUCT()
+struct FPoseAssetInfluences
+{
+	GENERATED_USTRUCT_BODY()
+
+    UPROPERTY()
+	TArray<FPoseAssetInfluence> Influences;
 };
 
 /**
@@ -77,9 +94,12 @@ private:
 	UPROPERTY()
 	TArray<FName>							Tracks;
 
-	// cache for the track names to skeleton index 
+	// cache containting the skeleton indices for FName in Tracks array
 	UPROPERTY(transient)
-	TMap<FName, int32>						TrackMap;
+	TArray<int32>						TrackBoneIndices;
+
+	UPROPERTY()
+	TArray<FPoseAssetInfluences>		TrackPoseInfluenceIndices;
 	
 	// this is list of poses
 	UPROPERTY()
@@ -98,7 +118,7 @@ private:
 	int32 GetNumPoses() const { return Poses.Num();  }
 	bool Contains(FSmartName PoseName) const { return PoseNames.Contains(PoseName); }
 
-	bool IsValid() const { return PoseNames.Num() == Poses.Num() && Tracks.Num() == TrackMap.Num(); }
+	bool IsValid() const { return PoseNames.Num() == Poses.Num() && Tracks.Num() == TrackBoneIndices.Num(); }
 	void GetPoseCurve(const FPoseData* PoseData, FBlendedCurve& OutCurve) const;
 	void BlendPoseCurve(const FPoseData* PoseData, FBlendedCurve& OutCurve, float Weight) const;
 
@@ -294,7 +314,8 @@ private:
 #endif // WITH_EDITOR	
 
 private:
-	void RecacheTrackmap();
+	void UpdateTrackBoneIndices();
+	bool RemoveInvalidTracks();
 
 #if WITH_EDITORONLY_DATA
 	void UpdateRetargetSourceAsset();

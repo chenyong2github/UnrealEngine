@@ -24,6 +24,9 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		// LevelInstance serialize runtime behavior
 		LevelInstanceSerializeRuntimeBehavior,
 
+		// Refactoring Pose Asset runtime data structures
+        PoseAssetRuntimeRefactor,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
