@@ -2049,7 +2049,7 @@ protected:
 	virtual FGuid GetMaterialId() const = 0;
 	
 	/** Produces arrays of any shader and vertex factory type that this material is dependent on. */
-	ENGINE_API void GetDependentShaderAndVFTypes(EShaderPlatform Platform, TArray<FShaderType*>& OutShaderTypes, TArray<const FShaderPipelineType*>& OutShaderPipelineTypes, TArray<FVertexFactoryType*>& OutVFTypes) const;
+	ENGINE_API void GetDependentShaderAndVFTypes(EShaderPlatform Platform, const FPlatformTypeLayoutParameters& LayoutParams, TArray<FShaderType*>& OutShaderTypes, TArray<const FShaderPipelineType*>& OutShaderPipelineTypes, TArray<FVertexFactoryType*>& OutVFTypes) const;
 
 	bool GetLoadedCookedShaderMapId() const { return bLoadedCookedShaderMapId; }
 

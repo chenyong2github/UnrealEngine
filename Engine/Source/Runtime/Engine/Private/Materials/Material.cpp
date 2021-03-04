@@ -4856,7 +4856,8 @@ void UMaterial::RestoreMaterialShadersFromMemory(const TMap<FMaterialShaderMap*,
 
 void UMaterial::CompileMaterialsForRemoteRecompile(
 	const TArray<UMaterialInterface*>& MaterialsToCompile,
-	EShaderPlatform ShaderPlatform, 
+	EShaderPlatform ShaderPlatform,
+	ITargetPlatform* TargetPlatform,
 	TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > >& OutShaderMaps)
 {
 	// Build a map from UMaterial / UMaterialInstance to the resources which are being compiled
@@ -4873,12 +4874,12 @@ void UMaterial::CompileMaterialsForRemoteRecompile(
 		if (MaterialInstance && MaterialInstance->bHasStaticPermutationResource)
 		{
 			TArray<FMaterialResource*>& ResourceArray = CompilingResources.Add(Material->GetPathName(), TArray<FMaterialResource*>());
-			MaterialInstance->CacheResourceShadersForCooking(ShaderPlatform, ResourceArray);
+			MaterialInstance->CacheResourceShadersForCooking(ShaderPlatform, ResourceArray, EMaterialShaderPrecompileMode::Default, TargetPlatform);
 		}
 		else if (BaseMaterial)
 		{
 			TArray<FMaterialResource*>& ResourceArray = CompilingResources.Add(Material->GetPathName(), TArray<FMaterialResource*>());
-			BaseMaterial->CacheResourceShadersForCooking(ShaderPlatform, ResourceArray);
+			BaseMaterial->CacheResourceShadersForCooking(ShaderPlatform, ResourceArray, TargetPlatform);
 		}
 	}
 

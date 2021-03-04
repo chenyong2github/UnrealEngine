@@ -1547,7 +1547,8 @@ public:
 	/** Builds a map from UMaterialInterface name to the shader maps that are needed for rendering on the given platform. */
 	ENGINE_API static void CompileMaterialsForRemoteRecompile(
 		const TArray<UMaterialInterface*>& MaterialsToCompile,
-		EShaderPlatform ShaderPlatform, 
+		EShaderPlatform ShaderPlatform,
+		class ITargetPlatform* TargetPlatform,
 		TMap<FString, TArray<TRefCountPtr<class FMaterialShaderMap> > >& OutShaderMaps);
 
 #if WITH_EDITOR
