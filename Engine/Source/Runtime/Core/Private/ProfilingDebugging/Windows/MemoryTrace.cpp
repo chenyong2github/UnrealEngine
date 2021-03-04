@@ -107,6 +107,10 @@ UE_TRACE_EVENT_BEGIN(Memory, Marker)
 	UE_TRACE_EVENT_FIELD(uint32, Cycle)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Memory, MarkerNewBase)
+	UE_TRACE_EVENT_FIELD(uint64, BaseCycle)
+UE_TRACE_EVENT_END()
+
 UE_TRACE_EVENT_BEGIN(Memory, CoreAdd)
 	UE_TRACE_EVENT_FIELD(uint64, Owner)
 	UE_TRACE_EVENT_FIELD(void*, Base)
@@ -331,6 +335,16 @@ void FAllocationTrace::Update()
 	if ((TheCount & MarkerSamplePeriod) == 0)
 	{
 		uint64 Cycle = FPlatformTime::Cycles64();
+
+		// We assume here that that the marker sample period is large
+		// enough that we don't have to syncronize across threads.
+		if ((Cycle - BaseCycle) > uint32(~0))
+		{
+			BaseCycle = Cycle;
+			UE_TRACE_LOG(Memory, MarkerNewBase, MemAllocChannel)
+				<< MarkerNewBase.BaseCycle(Cycle);
+		}
+		
 		UE_TRACE_LOG(Memory, Marker, MemAllocChannel)
 			<< Marker.Cycle(uint32(Cycle - BaseCycle));
 	}

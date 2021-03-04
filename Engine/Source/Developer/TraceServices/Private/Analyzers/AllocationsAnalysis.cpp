@@ -40,6 +40,7 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_ReallocFree,  "Memory", "ReallocFree");
 	Builder.RouteEvent(RouteId_Marker,       "Memory", "Marker");
 	Builder.RouteEvent(RouteId_TagSpec,      "Memory", "TagSpec");
+	Builder.RouteEvent(RouteId_MarkerNewBase,"Memory", "MarkerNewBase");
 
 	Builder.RouteLoggerEvents(RouteId_MemScope, "Memory", true);
 }
@@ -141,7 +142,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			{
 				const double Seconds = Context.EventTime.AsSeconds(Cycle);
 				check(Seconds >= LastMarkerSeconds);
-				if (ensure(Seconds - LastMarkerSeconds < 60.0))
+				if (ensure((Seconds - LastMarkerSeconds < 60.0) || LastMarkerSeconds == 0.0f))
 				{
 					LastMarkerCycle = Cycle;
 					LastMarkerSeconds = Seconds;
@@ -155,6 +156,13 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 					}
 				}
 			}
+			break;
+		}
+		case RouteId_MarkerNewBase:
+		{
+			const uint64 NewBaseCycle = EventData.GetValue<uint64>("BaseCycle");
+			check(NewBaseCycle > BaseCycle);
+			BaseCycle = NewBaseCycle;
 			break;
 		}
 		case RouteId_TagSpec:
