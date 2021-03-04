@@ -4,6 +4,7 @@
 #include "DataTableEditorUtils.h"
 #include "Engine/Classes/Animation/MirrorDataTable.h"
 #include "Engine/Classes/Animation/AnimationSettings.h"
+#include "Editor.h"
 #include "StructViewerModule.h"
 #include "StructViewerFilter.h"
 

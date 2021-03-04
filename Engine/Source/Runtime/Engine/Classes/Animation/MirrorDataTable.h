@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/DataTable.h"
+#include "BoneContainer.h"
 #include "MirrorDataTable.generated.h"
 
 /** Type referenced by a row in the mirror data table */
