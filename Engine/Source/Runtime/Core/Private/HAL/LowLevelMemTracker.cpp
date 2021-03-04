@@ -3568,10 +3568,17 @@ namespace LLMPrivate
 
 		const TCHAR* TrackerName = GetTrackerCsvName(Tracker);
 		const FDateTime FileDate = FDateTime::Now();
+#if PLATFORM_DESKTOP
+		FString PlatformName = FPlatformProperties::PlatformName();
+#else // Use the CPU for consoles so we can differentiate things like PS4 vs. PS4 Pro
+		FString PlatformName = FPlatformMisc::GetCPUBrand().TrimStartAndEnd();
+#endif
+		PlatformName.ReplaceCharInline(' ', '_');
+		PlatformName = FPaths::MakeValidFileName(PlatformName);
 #if WITH_SERVER_CODE
-		FString Filename = FString::Printf(TEXT("%s/%s_Pid%d_%s.csv"), *Directory, TrackerName, FPlatformProcess::GetCurrentProcessId(), *FileDate.ToString());
+		FString Filename = FString::Printf(TEXT("%s/%s_Pid%d_%s_%s.csv"), *Directory, TrackerName, FPlatformProcess::GetCurrentProcessId(), *FileDate.ToString(), *PlatformName);
 #else
-		FString Filename = FString::Printf(TEXT("%s/%s_%s.csv"), *Directory, TrackerName, *FileDate.ToString());
+		FString Filename = FString::Printf(TEXT("%s/%s_%s_%s.csv"), *Directory, TrackerName, *FileDate.ToString(), *PlatformName);
 #endif
 		Archive = IFileManager::Get().CreateFileWriter(*Filename, FILEWRITE_AllowRead);
 		LLMCheck(Archive);
