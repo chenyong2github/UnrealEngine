@@ -985,6 +985,7 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 
 	RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
 	RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
+	RayTracingInstance.bDoubleSided = CachedRayTracingInstanceMaskAndFlags.bDoubleSided;
 }
 #endif // RHI_RAYTRACING
 
