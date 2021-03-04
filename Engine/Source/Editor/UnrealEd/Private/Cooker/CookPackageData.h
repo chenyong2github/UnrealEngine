@@ -351,7 +351,19 @@ namespace Cook
 		FName CookedFileName; // Override filename to be used when saving cooked package (used by generated packages)
 		TWeakObjectPtr<UPackage> Package;
 		FPackageDatas& PackageDatas; // The one-per-CookOnTheFlyServer owner of this PackageData
-		TSharedPtr<FPreloadableArchive> PreloadableFile;
+		/**
+		* The number of active PreloadableFiles is tracked globally; wrap the PreloadableFile in a struct that
+		* guarantees we always update the counter when changing it
+		*/
+		struct FTrackedPreloadableFilePtr
+		{
+			const TSharedPtr<FPreloadableArchive>& Get() { return Ptr; }
+			void Set(TSharedPtr<FPreloadableArchive>&& InPtr, FPackageData& PackageData);
+			void Reset(FPackageData& PackageData);
+		private:
+			TSharedPtr<FPreloadableArchive> Ptr;
+		};
+		FTrackedPreloadableFilePtr PreloadableFile;
 		int32 NumPendingCookedPlatformData = 0;
 		int32 CookedPlatformDataNextIndex = -1;
 		std::atomic<EPackageFormat> PreloadableFileFormat;
