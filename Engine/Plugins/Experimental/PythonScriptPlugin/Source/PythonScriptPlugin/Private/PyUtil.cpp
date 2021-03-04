@@ -18,9 +18,11 @@
 #include "PyWrapperTypeRegistry.h"
 
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/DefaultValueHelper.h"
+#include "HAL/FileManager.h"
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
@@ -898,35 +900,103 @@ bool IsMappingType(PyTypeObject* InType)
 	return InType->tp_dict && PyDict_GetItemString(InType->tp_dict, "keys");
 }
 
-bool IsModuleAvailableForImport(const TCHAR* InModuleName, FString* OutResolvedFile)
+void FOnDiskModules::AddModules(const TCHAR* InPath)
+{
+	IFileManager& FileManager = IFileManager::Get();
+	FileManager.IterateDirectory(InPath, [this, &FileManager](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+	{
+		FString FullPath = FPaths::ConvertRelativePathToFull(FilenameOrDirectory);
+
+		bool bPassedWildcard = true;
+		if (!ModuleNameWildcard.IsEmpty())
+		{
+			// TODO: Would be nice to use FPathsView and FStringView here, but FStringView doesn't implement MatchesWildcard (though the implementation could easily be ported)
+			const FString CleanName = FPaths::GetCleanFilename(FullPath);
+			bPassedWildcard = CleanName.MatchesWildcard(ModuleNameWildcard, ESearchCase::CaseSensitive);
+		}
+
+		if (bPassedWildcard)
+		{
+			if (bIsDirectory)
+			{
+				FullPath /= TEXT("__init__.py");
+				if (FileManager.FileExists(*FullPath))
+				{
+					CachedModules.Add(MoveTemp(FullPath));
+				}
+			}
+			else if (FPathViews::GetExtension(FullPath) == TEXT("py"))
+			{
+				CachedModules.Add(MoveTemp(FullPath));
+			}
+		}
+
+		return true;
+	});
+}
+
+void FOnDiskModules::RemoveModules(const TCHAR* InPath)
+{
+	for (auto It = CachedModules.CreateIterator(); It; ++It)
+	{
+		if (It->StartsWith(InPath))
+		{
+			It.RemoveCurrent();
+		}
+	}
+}
+
+bool FOnDiskModules::HasModule(const TCHAR* InModuleName, FString* OutResolvedFile) const
+{
+	const FString ModuleSingleFile = FString::Printf(TEXT("/%s.py"), InModuleName);
+	const FString ModuleFolderName = FString::Printf(TEXT("/%s/__init__.py"), InModuleName);
+
+	for (const FString& CachedModule : CachedModules)
+	{
+		if (CachedModule.EndsWith(ModuleSingleFile, ESearchCase::CaseSensitive) || CachedModule.EndsWith(ModuleFolderName, ESearchCase::CaseSensitive))
+		{
+			if (OutResolvedFile)
+			{
+				*OutResolvedFile = CachedModule;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+FOnDiskModules& GetOnDiskUnrealModulesCache()
+{
+	static FOnDiskModules OnDiskUnrealModules(TEXT("unreal_*"));
+	return OnDiskUnrealModules;
+}
+
+bool IsModuleAvailableForImport(const TCHAR* InModuleName, const FOnDiskModules* InOnDiskModules, FString* OutResolvedFile)
 {
 	// Check the sys.modules table first since it avoids hitting the filesystem
 	if (PyObject* PyModulesDict = PySys_GetObject(PyCStrCast("modules")))
 	{
-		PyObject* PyModuleKey = nullptr;
-		PyObject* PyModuleValue = nullptr;
-		Py_ssize_t ModuleDictIndex = 0;
-		while (PyDict_Next(PyModulesDict, &ModuleDictIndex, &PyModuleKey, &PyModuleValue))
+		if (PyObject* PyModuleValue = PyDict_GetItemString(PyModulesDict, TCHAR_TO_UTF8(InModuleName)))
 		{
-			if (PyModuleKey)
+			if (OutResolvedFile)
 			{
-				const FString CurModuleName = PyObjectToUEString(PyModuleKey);
-				if (FCString::Strcmp(InModuleName, *CurModuleName) == 0)
+				PyObject* PyModuleDict = PyModule_GetDict(PyModuleValue);
+				if (PyObject* PyModuleFile = PyDict_GetItemString(PyModuleDict, "__file__"))
 				{
-					if (OutResolvedFile && PyModuleValue)
-					{
-						PyObject* PyModuleDict = PyModule_GetDict(PyModuleValue);
-						PyObject* PyModuleFile = PyDict_GetItemString(PyModuleDict, "__file__");
-						if (PyModuleFile)
-						{
-							*OutResolvedFile = PyObjectToUEString(PyModuleFile);
-						}
-					}
-
-					return true;
+					*OutResolvedFile = PyObjectToUEString(PyModuleFile);
 				}
 			}
+
+			return true;
 		}
+	}
+
+	// Use the on-disk modules cache, if available, to avoid hitting the filesystem
+	if (InOnDiskModules)
+	{
+		return InOnDiskModules->HasModule(InModuleName, OutResolvedFile);
 	}
 
 	// Check the sys.path list looking for bla.py or bla/__init__.py
@@ -973,23 +1043,14 @@ bool IsModuleImported(const TCHAR* InModuleName, PyObject** OutPyModule)
 {
 	if (PyObject* PyModulesDict = PySys_GetObject(PyCStrCast("modules")))
 	{
-		PyObject* PyModuleKey = nullptr;
-		PyObject* PyModuleValue = nullptr;
-		Py_ssize_t ModuleDictIndex = 0;
-		while (PyDict_Next(PyModulesDict, &ModuleDictIndex, &PyModuleKey, &PyModuleValue))
+		if (PyObject* PyModuleValue = PyDict_GetItemString(PyModulesDict, TCHAR_TO_UTF8(InModuleName)))
 		{
-			if (PyModuleKey)
+			if (OutPyModule)
 			{
-				const FString CurModuleName = PyObjectToUEString(PyModuleKey);
-				if (FCString::Strcmp(InModuleName, *CurModuleName) == 0)
-				{
-					if (OutPyModule)
-					{
-						*OutPyModule = PyModuleValue;
-					}
-					return true;
-				}
+				*OutPyModule = PyModuleValue;
 			}
+
+			return true;
 		}
 	}
 
