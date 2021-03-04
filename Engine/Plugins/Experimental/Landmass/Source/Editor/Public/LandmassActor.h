@@ -21,6 +21,8 @@ public:
 	UFUNCTION(BlueprintNativeEvent, CallInEditor, BlueprintCallable, Category = "Tick")
 	void CustomTick(float DeltaSeconds);
 
+	virtual bool IsEditorOnly() const override { return true; }
+
 	virtual bool ShouldTickIfViewportsOnly() const override;
 	virtual void Tick(float DeltaSeconds) override;
 

@@ -101,23 +101,40 @@ void UActorDescContainer::BeginDestroy()
 #if WITH_EDITOR
 TUniquePtr<FWorldPartitionActorDesc> UActorDescContainer::GetActorDescriptor(const FAssetData& InAssetData)
 {
-	FString ActorClass;
+	FString ActorClassName;
 	static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorClass))
+	if (InAssetData.GetTagValue(NAME_ActorMetaDataClass, ActorClassName))
 	{
 		FString ActorMetaDataStr;
 		static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
 		if (InAssetData.GetTagValue(NAME_ActorMetaData, ActorMetaDataStr))
 		{
+			bool bIsValidClass = true;
+			UClass* ActorClass = FindObject<UClass>(ANY_PACKAGE, *ActorClassName, true);
+
+			if (!ActorClass)
+			{
+				ActorClass = AActor::StaticClass();
+				bIsValidClass = false;
+			}
+
 			FWorldPartitionActorDescInitData ActorDescInitData;
-			ActorDescInitData.NativeClass = FindObjectChecked<UClass>(ANY_PACKAGE, *ActorClass, true);
+			ActorDescInitData.NativeClass = ActorClass;
 			ActorDescInitData.PackageName = InAssetData.PackageName;
 			ActorDescInitData.ActorPath = InAssetData.ObjectPath;
 			FBase64::Decode(ActorMetaDataStr, ActorDescInitData.SerializedData);
 
 			TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(AActor::CreateClassActorDesc(ActorDescInitData.NativeClass));
+
 			NewActorDesc->Init(this, ActorDescInitData);
-			return NewActorDesc;
+			
+			check(bIsValidClass || (NewActorDesc->GetActorIsEditorOnly() && IsRunningGame()));
+			if (!NewActorDesc->GetActorIsEditorOnly() || !IsRunningGame())
+			{				
+				return NewActorDesc;
+			}
+
+			return nullptr;
 		}
 	}
 

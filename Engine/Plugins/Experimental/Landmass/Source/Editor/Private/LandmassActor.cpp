@@ -22,7 +22,6 @@ ALandmassActor::ALandmassActor(const FObjectInitializer& ObjectInitializer)
 		FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 		OnActorSelectionChangedHandle = LevelEditor.OnActorSelectionChanged().AddUObject(this, &ALandmassActor::HandleActorSelectionChanged);
 	}
-	bIsEditorOnlyActor = true;
 }
 
 void ALandmassActor::Tick(float DeltaSeconds)
