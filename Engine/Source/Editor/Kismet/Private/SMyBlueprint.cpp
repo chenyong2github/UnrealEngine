@@ -3205,7 +3205,7 @@ void SMyBlueprint::OnCopy()
 			{
 				// Grab the address of where the property is actually stored (UObject* base, plus the offset defined in the property)
 				void* OldPropertyAddr = TargetProperty->ContainerPtrToValuePtr<void>(GeneratedCDO);
-				if (OldPropertyAddr && Description.DefaultValue.IsEmpty())
+				if (OldPropertyAddr)
 				{
 					TargetProperty->ExportTextItem(Description.DefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
 				}
