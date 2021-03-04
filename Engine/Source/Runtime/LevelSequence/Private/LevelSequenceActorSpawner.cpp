@@ -163,6 +163,7 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 	{
 		SpawnTransform.SetTranslation(RootComponent->GetRelativeLocation());
 		SpawnTransform.SetRotation(RootComponent->GetRelativeRotation().Quaternion());
+		SpawnTransform.SetScale3D(RootComponent->GetRelativeScale3D());
 	}
 	else
 	{

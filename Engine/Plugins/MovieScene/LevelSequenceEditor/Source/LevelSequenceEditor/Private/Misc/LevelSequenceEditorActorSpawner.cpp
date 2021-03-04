@@ -250,42 +250,34 @@ void FLevelSequenceEditorActorSpawner::SetupDefaultsForSpawnable(UObject* Spawne
 			TransformTrack = Cast<UMovieScene3DTransformTrack>(OwnerMovieScene->AddTrack(UMovieScene3DTransformTrack::StaticClass(), Guid));
 		}
 
-		if (TransformTrack)
+		if (TransformTrack && TransformTrack->GetAllSections().Num() == 0)
 		{
-			const TArray<UMovieSceneSection*>& Sections = TransformTrack->GetAllSections();
-			if (!Sections.Num())
-			{
-				TransformTrack->AddSection(*TransformTrack->CreateNewSection());
-			}
+			UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->CreateNewSection());
+			TransformTrack->AddSection(*TransformSection);
 
 			FVector Location = DefaultTransform->Translation;
 			FVector Rotation = DefaultTransform->Rotation.Euler();
 			FVector Scale    = DefaultTransform->Scale;
 
-			for (UMovieSceneSection* Section : Sections)
+			// Set the section to be infinite if necessary
+			if (Sequencer->GetInfiniteKeyAreas())
 			{
-				UMovieScene3DTransformSection* TransformSection = CastChecked<UMovieScene3DTransformSection>(Section);
-
-				// Set the section to be infinite if necessary
-				if (Sequencer->GetInfiniteKeyAreas())
-				{
-					TransformSection->SetRange(TRange<FFrameNumber>::All());
-				}
-
-				// Set the section's default values to this default transform
-				TArrayView<FMovieSceneFloatChannel*> FloatChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-				FloatChannels[0]->SetDefault(Location.X);
-				FloatChannels[1]->SetDefault(Location.Y);
-				FloatChannels[2]->SetDefault(Location.Z);
-
-				FloatChannels[3]->SetDefault(Rotation.X);
-				FloatChannels[4]->SetDefault(Rotation.Y);
-				FloatChannels[5]->SetDefault(Rotation.Z);
-
-				FloatChannels[6]->SetDefault(Scale.X);
-				FloatChannels[7]->SetDefault(Scale.Y);
-				FloatChannels[8]->SetDefault(Scale.Z);
+				TransformSection->SetRange(TRange<FFrameNumber>::All());
 			}
+
+			// Set the section's default values to this default transform
+			TArrayView<FMovieSceneFloatChannel*> FloatChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+			FloatChannels[0]->SetDefault(Location.X);
+			FloatChannels[1]->SetDefault(Location.Y);
+			FloatChannels[2]->SetDefault(Location.Z);
+
+			FloatChannels[3]->SetDefault(Rotation.X);
+			FloatChannels[4]->SetDefault(Rotation.Y);
+			FloatChannels[5]->SetDefault(Rotation.Z);
+
+			FloatChannels[6]->SetDefault(Scale.X);
+			FloatChannels[7]->SetDefault(Scale.Y);
+			FloatChannels[8]->SetDefault(Scale.Z);
 		}
 	}
 }
