@@ -179,13 +179,6 @@ void UMoviePipeline::RenderFrame()
 	// Update our current view location
 	LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
 
-	if (!CurrentCameraCut.bHasEvaluatedMotionBlurFrame)
-	{
-		// There won't be a valid Previous if we haven't done motion blur.
-		FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
-		FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
-	}
-
 	// Add appropriate metadata here that is shared by all passes.
 	{
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/x"), FrameInfo.CurrViewLocation.X);
