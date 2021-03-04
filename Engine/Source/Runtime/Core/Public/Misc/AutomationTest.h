@@ -657,8 +657,6 @@ DECLARE_DELEGATE_TwoParams(FOnTestScreenshotCaptured, const TArray<FColor>&, con
 
 DECLARE_DELEGATE_ThreeParams(FOnTestScreenshotAndTraceCaptured, const TArray<FColor>&, const TArray<uint8>&, const FAutomationScreenshotData&);
 
-DECLARE_DELEGATE_TwoParams(FOnCaptureFrameTrace, const FString& /*DestPath*/, class FViewport* /*Optional Capture Viewport*/);
-
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTestScreenshotComparisonComplete, const FAutomationScreenshotCompareResults& /*CompareResults*/);
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTestDataRetrieved, bool /*bWasNew*/, const FString& /*JsonData*/);
@@ -686,9 +684,6 @@ public:
 
 	/** The final call related to screenshots, after they've been taken, and after they've been compared (or not if automation isn't running). */
 	FSimpleMulticastDelegate OnScreenshotTakenAndCompared;
-
-	/** Called when a frame trace should be captured */
-	FOnCaptureFrameTrace OnCaptureFrameTrace;
 
 	/**
 	 * Return the singleton instance of the framework.

@@ -4,8 +4,6 @@
 
 #include "IRenderDocPlugin.h"
 
-#include "Rendering/IRenderCaptureProvider.h"
-
 #include "RenderDocPluginLoader.h"
 #include "RenderDocPluginSettings.h"
 
@@ -42,13 +40,24 @@ public:
 	void StartRenderDoc(FString CapturePath);
 	FString GetNewestCapture();
 
-	// IRenderCaptureProvider interface
-	virtual void StartCapturing() override { BeginCapture(); }
-	virtual void StopCapturing(const FString* DestPath = nullptr) override;
-
 #if WITH_EDITOR
 	void CapturePIE(const TArray<FString>& Args);
 #endif // WITH_EDITOR
+
+	// Begin IRenderCaptureProvider interface.
+	virtual void CaptureFrame(FViewport* Viewport, FString const& DestPath, bool bLaunch) override 
+	{
+		CaptureFrame(Viewport, DestPath, bLaunch ? ELaunchAfterCapture::Yes : ELaunchAfterCapture::No); 
+	}
+	virtual void BeginCapture(FRHICommandListImmediate* RHICommandList, FString const& ScopeName) override 
+	{
+		BeginCapture_RenderThread(RHICommandList); 
+	}
+	virtual void EndCapture(FRHICommandListImmediate* RHICommandList, FString const& DestPath, bool bLaunch) override 
+	{
+		EndCapture_RenderThread(RHICommandList, DestPath, bLaunch ? ELaunchAfterCapture::Yes : ELaunchAfterCapture::No);
+	}
+	// End IRenderCaptureProvider interface.
 
 private:
 	virtual TSharedPtr<class IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
@@ -57,18 +66,15 @@ private:
 	void EndCapture(void* HWnd, const FString& DestPath, ELaunchAfterCapture LaunchOption);
 	void DoCaptureCurrentViewport(FViewport* Viewport, const FString& DestPath, ELaunchAfterCapture LaunchOption);
 
+	void BeginCapture_RenderThread(FRHICommandListImmediate* InRHICommandList);
+	void EndCapture_RenderThread(FRHICommandListImmediate* InRHICommandList, FString const& InDestPath, ELaunchAfterCapture InLaunchOption);
+
 	/** Injects a debug key bind into the local player so that the hot key works the same in game */
 	void InjectDebugExecKeybind();
 
 	bool ShouldCaptureAllActivity() const;
 
 	void ShowNotification(const FText& Message, bool bForceNewNotification);
-
-	/** Bind/Unbind RenderDoc to CaptureInterface for capturing single draw calls or render passes */
-	void BeginCaptureBracket(FRHICommandListImmediate* RHICommandList);
-	void EndCaptureBracket(FRHICommandListImmediate* RHICommandList);
-	void BindCaptureCallbacks();
-	void UnBindCaptureCallbacks();
 
 private:
 	FRenderDocPluginLoader Loader;

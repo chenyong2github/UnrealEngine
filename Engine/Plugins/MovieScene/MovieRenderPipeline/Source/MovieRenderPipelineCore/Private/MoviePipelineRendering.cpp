@@ -23,6 +23,7 @@
 #include "MoviePipelineCameraSetting.h"
 #include "Engine/GameViewportClient.h"
 #include "LegacyScreenPercentageDriver.h"
+#include "RenderCaptureInterface.h"
 
 // For flushing async systems
 #include "RendererInterface.h"
@@ -32,9 +33,6 @@
 #include "ShaderCompiler.h"
 #include "EngineUtils.h"
 
-#if WITH_EDITOR && !UE_BUILD_SHIPPING
-#include "Rendering/IRenderCaptureProvider.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
@@ -258,13 +256,7 @@ void UMoviePipeline::RenderFrame()
 	}
 
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
-	if (CachedOutputState.bCaptureRendering)
-	{
-		if (IRenderCaptureProvider::IsAvailable())
-		{
-			IRenderCaptureProvider::Get().StartCapturing();
-		}
-	}
+	RenderCaptureInterface::FScopedCapture Capture(CachedOutputState.bCaptureRendering);
 #endif
 
 	for (int32 TileY = 0; TileY < TileCount.Y; TileY++)
@@ -406,16 +398,6 @@ void UMoviePipeline::RenderFrame()
 			}
 		}
 	}
-
-#if WITH_EDITOR && !UE_BUILD_SHIPPING
-	if (CachedOutputState.bCaptureRendering)
-	{
-		if (IRenderCaptureProvider::IsAvailable())
-		{
-			IRenderCaptureProvider::Get().StopCapturing();
-		}
-	}
-#endif
 
 	// Re-enable the progress widget so when the player viewport is drawn to the preview window, it shows.
 	SetProgressWidgetVisible(true);

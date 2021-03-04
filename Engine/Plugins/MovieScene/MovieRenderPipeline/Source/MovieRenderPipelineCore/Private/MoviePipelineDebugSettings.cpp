@@ -3,7 +3,7 @@
 #include "MoviePipelineDebugSettings.h"
 
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
-#include "Rendering/IRenderCaptureProvider.h"
+#include "IRenderCaptureProvider.h"
 #endif
 
 UMoviePipelineDebugSettings::UMoviePipelineDebugSettings()
