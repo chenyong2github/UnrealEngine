@@ -65,6 +65,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 		if (bWriteCustomStencilValues)
 		{
 			const uint32 CustomDepthStencilValue = PrimitiveSceneProxy->GetCustomDepthStencilValue();
+
 			static FRHIDepthStencilState* StencilStates[EStencilMask::SM_Count] =
 			{
 				TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace, false, CF_Always, SO_Keep, SO_Keep, SO_Keep, 255, 255>::GetRHI(),
@@ -87,6 +88,42 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 			{
 				// On mobile platforms write custom stencil value to color target
 				MobileColorValue = CustomDepthStencilValue / 255.0f;
+			}
+
+			// If DepthStencilState isn't the default, then use it as the pass render state.
+			EDepthStencilState DepthStencilState = PrimitiveSceneProxy->GetCustomDepthStencilState();
+			if (DepthStencilState != EDepthStencilState::DSS_DepthTest_StencilAlways)
+			{
+				static FRHIDepthStencilState* _DepthStencilStates[EDepthStencilState::DDS_Count] =
+				{
+					TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
+					TStaticDepthStencilState<true, CF_Always,           true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
+					TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Equal, SO_Keep, SO_Keep, SO_Invert>::GetRHI(),
+					TStaticDepthStencilState<true, CF_Always,           true, CF_Equal, SO_Keep, SO_Keep, SO_Invert>::GetRHI()
+				};
+				checkSlow(EDepthStencilState::DDS_Count == UE_ARRAY_COUNT(_DepthStencilStates));
+
+				PassDrawRenderState.SetDepthStencilState(_DepthStencilStates[(int32)DepthStencilState]);
+				PassDrawRenderState.SetStencilRef(CustomDepthStencilValue);
+
+				if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+				{
+					// On mobile platforms write custom stencil value to color target
+					MobileColorValue = CustomDepthStencilValue / 255.0f;
+
+					switch (DepthStencilState)
+					{
+					case DSS_DepthTest_StencilAlways:
+					case DSS_DepthAlways_StencilAlways:
+						break;
+					case DDS_DepthTest_StencilEqual_Invert:
+					case DDS_DepthAlways_StencilEqual_Invert:
+						MobileColorValue = 1 - CustomDepthStencilValue / 255.0f;
+						break;
+					default:
+						break;
+					}
+				}
 			}
 		}
 		else
@@ -133,6 +170,16 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 	}
 }
 
+FMeshDrawCommandSortKey CalculateCustomDepthMeshStaticSortKey(EBlendMode BlendMode, const FMeshMaterialShader* VertexShader, const FMeshMaterialShader* PixelShader)
+{
+	FMeshDrawCommandSortKey SortKey;
+	SortKey.CustomDepthPass.VertexShaderHash = PointerHash(VertexShader) & 0xFFFF;
+	SortKey.CustomDepthPass.PixelShaderHash = PointerHash(PixelShader);
+	SortKey.CustomDepthPass.Priority = BlendMode == EBlendMode::BLEND_Translucent ? 1 : 0;
+
+	return SortKey;
+}
+
 template<bool bPositionOnly, bool bUsesMobileColorValue>
 void FCustomDepthPassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
@@ -168,7 +215,7 @@ void FCustomDepthPassMeshProcessor::Process(
 	FDepthOnlyShaderElementData ShaderElementData(MobileColorValue);
 	ShaderElementData.InitializeMeshMaterialData(ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
 
-	const FMeshDrawCommandSortKey SortKey = CalculateMeshStaticSortKey(DepthPassShaders.VertexShader, DepthPassShaders.PixelShader);
+	const FMeshDrawCommandSortKey SortKey = CalculateCustomDepthMeshStaticSortKey(MaterialResource.GetBlendMode(), DepthPassShaders.VertexShader.GetShader(), DepthPassShaders.PixelShader.GetShader());
 
 	BuildMeshDrawCommands(
 		MeshBatch,

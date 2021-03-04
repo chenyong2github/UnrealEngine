@@ -147,6 +147,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bRenderCustomDepth(InComponent->bRenderCustomDepth)
 ,	CustomDepthStencilValue(InComponent->CustomDepthStencilValue)
 ,	CustomDepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->CustomDepthStencilWriteMask))
+,	CustomDepthStencilState(FRendererDepthStencilStateEvaluation::ToDepthStencilState(InComponent->CustomDepthStencilState))
 ,	LightingChannelMask(GetLightingChannelMaskForStruct(InComponent->LightingChannels))
 ,	IndirectLightingCacheQuality(InComponent->IndirectLightingCacheQuality)
 ,	VirtualTextureLodBias(InComponent->VirtualTextureLodBias)

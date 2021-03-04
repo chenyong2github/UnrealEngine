@@ -3749,6 +3749,15 @@ void UPrimitiveComponent::SetCustomDepthStencilWriteMask(ERendererStencilMask Wr
 	}
 }
 
+void UPrimitiveComponent::SetCustomDepthStencilState(ERendererDepthStencilState DepthStencilState)
+{
+	if (CustomDepthStencilState != DepthStencilState)
+	{
+		CustomDepthStencilState = DepthStencilState;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetRenderInMainPass(bool bValue)
 {
 	if (bRenderInMainPass != bValue)

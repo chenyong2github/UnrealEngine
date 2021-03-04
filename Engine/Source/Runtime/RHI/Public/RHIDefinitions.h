@@ -759,6 +759,16 @@ enum EStencilOp
 };
 static_assert(EStencilOp_Num <= (1 << EStencilOp_NumBits), "EStencilOp_Num will not fit on EStencilOp_NumBits");
 
+enum EDepthStencilState
+{
+	DSS_DepthTest_StencilAlways,
+	DSS_DepthAlways_StencilAlways,
+	DDS_DepthTest_StencilEqual_Invert,
+	DDS_DepthAlways_StencilEqual_Invert,
+
+	DDS_Count
+};
+
 enum EBlendOperation
 {
 	BO_Add,

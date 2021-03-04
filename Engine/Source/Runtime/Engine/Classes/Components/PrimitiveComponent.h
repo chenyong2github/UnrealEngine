@@ -139,6 +139,38 @@ struct FRendererStencilMaskEvaluation
 	}
 };
 
+/**  */
+UENUM()
+enum class ERendererDepthStencilState : uint8
+{
+	ERDSS_Default UMETA(DisplayName = "Default"),
+	ERDDS_DepthTest_StencilAlways UMETA(DisplayName = "Depth Test, Stencil Always"),
+	ERDDS_DepthAlways_StencilAlways UMETA(DisplayName = "Depth Always, Stencil Always"),
+	ERDDS_DepthTest_StencilEqual_Invert UMETA(DisplayName = "Depth Test, Stencil Equal, Ref Invert"),
+	ERDDS_DepthAlways_StencilEqual_Invert UMETA(DisplayName = "Depth Always, Stencil Equal, Ref Invert"),
+};
+
+
+/** Converts a DepthStencil state from the editor's USTRUCT version to the version the renderer uses. */
+struct FRendererDepthStencilStateEvaluation
+{
+	static FORCEINLINE EDepthStencilState ToDepthStencilState(const ERendererDepthStencilState InEnum)
+	{
+		switch (InEnum)
+		{
+		case ERendererDepthStencilState::ERDDS_DepthTest_StencilAlways:
+			return EDepthStencilState::DSS_DepthTest_StencilAlways;
+		case ERendererDepthStencilState::ERDDS_DepthAlways_StencilAlways:
+			return EDepthStencilState::DSS_DepthAlways_StencilAlways;
+		case ERendererDepthStencilState::ERDDS_DepthTest_StencilEqual_Invert:
+			return EDepthStencilState::DDS_DepthTest_StencilEqual_Invert;
+		case ERendererDepthStencilState::ERDDS_DepthAlways_StencilEqual_Invert:
+			return EDepthStencilState::DDS_DepthAlways_StencilEqual_Invert;
+		default:
+			return EDepthStencilState::DSS_DepthTest_StencilAlways;
+		}
+	}
+};
 
 /**
  * Delegate for notification of blocking collision against a specific component.  
@@ -570,8 +602,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "Rendering", meta = (editcondition = "bRenderCustomDepth"))
 	ERendererStencilMask CustomDepthStencilWriteMask;
 
+	/** DepthStencil state for CustomDepth stencil buffer writes. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "Rendering", meta = (editcondition = "bRenderCustomDepth"))
+	ERendererDepthStencilState CustomDepthStencilState;
+
 	/** Optionally write this 0-255 value to the stencil buffer in CustomDepth pass (Requires project setting or r.CustomDepth == 3) */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth"))
 	int32 CustomDepthStencilValue;
 
 private:
@@ -1610,6 +1646,10 @@ public:
 	/** Sets the CustomDepth stencil write mask and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	void SetCustomDepthStencilWriteMask(ERendererStencilMask WriteMaskBit);
+
+	/** Sets the CustomDepth stencil State and marks the render state dirty. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetCustomDepthStencilState(ERendererDepthStencilState DepthStencilState);
 
 	/** Sets bRenderInMainPass property and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")

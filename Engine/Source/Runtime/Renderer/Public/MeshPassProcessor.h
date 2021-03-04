@@ -1062,6 +1062,13 @@ public:
 
 		struct
 		{
+			uint64 VertexShaderHash     : 16; // Order by vertex shader's hash.
+			uint64 PixelShaderHash      : 32; // Order by pixel shader's hash.
+			uint64 Priority             : 16; // First order by priority
+		} CustomDepthPass;
+
+		struct
+		{
 			uint64 VertexShaderHash		: 16; // Order by vertex shader's hash.
 			uint64 PixelShaderHash		: 32; // Order by pixel shader's hash.
 			uint64 Masked				: 16; // First order by masked.

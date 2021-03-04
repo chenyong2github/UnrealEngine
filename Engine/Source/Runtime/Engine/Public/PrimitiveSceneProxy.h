@@ -27,6 +27,7 @@ class UTexture2D;
 enum class ERuntimeVirtualTextureMaterialType : uint8;
 struct FMeshBatch;
 class FColorVertexBuffer;
+enum class ERendererDepthStencilState : uint8;
 
 /** Data for a simple dynamic light. */
 class FSimpleLightEntry
@@ -495,6 +496,7 @@ public:
 	inline bool ShouldRenderCustomDepth() const { return bRenderCustomDepth; }
 	inline uint8 GetCustomDepthStencilValue() const { return CustomDepthStencilValue; }
 	inline EStencilMask GetStencilWriteMask() const { return CustomDepthStencilWriteMask; }
+	inline EDepthStencilState GetCustomDepthStencilState() const { return CustomDepthStencilState; }
 	inline uint8 GetLightingChannelMask() const { return LightingChannelMask; }
 	inline uint8 GetLightingChannelStencilValue() const 
 	{ 
@@ -953,6 +955,9 @@ private:
 
 	/** When writing custom depth stencil, use this write mask */
 	TEnumAsByte<EStencilMask> CustomDepthStencilWriteMask;
+
+	/** When writing custom depth stencil, use this state */
+	TEnumAsByte<EDepthStencilState> CustomDepthStencilState;
 
 	uint8 LightingChannelMask;
 
