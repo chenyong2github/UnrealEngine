@@ -17,6 +17,7 @@ void FRayTracingInstance::BuildInstanceMaskAndFlags()
 
 	Mask |= MaskAndFlags.Mask;
 	bForceOpaque = bForceOpaque || MaskAndFlags.bForceOpaque;
+	bDoubleSided = bDoubleSided || MaskAndFlags.bDoubleSided;
 }
 
 FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMeshBatch> MeshBatches)
@@ -30,6 +31,7 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 	bool bAllSegmentsOpaque = true;
 	bool bAnySegmentsCastShadow = false;
 	bool bAllSegmentsCastShadow = true;
+	bool bDoubleSided = false;
 
 	for (int32 SegmentIndex = 0; SegmentIndex < MeshBatches.Num(); SegmentIndex++)
 	{
@@ -42,9 +44,11 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 		bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
 		bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 		bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
+		bDoubleSided |= MeshBatch.bDisableBackfaceCulling;
 	}
 
 	Result.bForceOpaque = bAllSegmentsOpaque && bAllSegmentsCastShadow;
+	Result.bDoubleSided = bDoubleSided;
 	Result.Mask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
 
 	return Result;

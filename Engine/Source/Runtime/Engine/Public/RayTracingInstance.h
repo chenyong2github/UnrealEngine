@@ -14,6 +14,9 @@ struct FRayTracingMaskAndFlags
 
 	/** Whether the instance is forced opaque, i.e. anyhit shaders are disabled on this instance */
 	bool bForceOpaque = false;
+
+	/** Whether ray hits should be registered for front and back faces. */
+	bool bDoubleSided = false;
 };
 
 struct FRayTracingInstance
@@ -51,6 +54,9 @@ struct FRayTracingInstance
 
 	/** Whether the instance is forced opaque, i.e. anyhit shaders are disabled on this instance */
 	bool bForceOpaque = false;
+
+	/** Whether ray hits should be registered for front and back faces. */
+	bool bDoubleSided = false;
 
 	/** Instance mask that can be used to exclude the instance from specific effects (eg. ray traced shadows). */
 	uint8 Mask = 0xFF;

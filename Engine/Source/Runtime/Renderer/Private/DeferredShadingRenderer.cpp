@@ -865,6 +865,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					RayTracingInstance.UserData.Add((uint32)PrimitiveIndex);
 					RayTracingInstance.Mask = Instance.Mask;
 					RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
+					RayTracingInstance.bDoubleSided = Instance.bDoubleSided;
 
 					// Thin geometries like hair don't have material, as they only support shadow at the moment.
 					if (!ensureMsgf(Instance.GetMaterials().Num() == Instance.Geometry->Initializer.Segments.Num() ||
@@ -903,13 +904,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						}
 					}
 
-					TArrayView<const FMeshBatch> InstanceMaterials = Instance.GetMaterials();
-					for (int32 SegmentIndex = 0; SegmentIndex < InstanceMaterials.Num(); SegmentIndex++)
-					{
-						const FMeshBatch& MeshBatch = InstanceMaterials[SegmentIndex];
-						RayTracingInstance.bDoubleSided |= MeshBatch.bDisableBackfaceCulling;
-					}
-
 					for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
 					{
 						Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
@@ -944,6 +938,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					}
 					else
 					{
+						TArrayView<const FMeshBatch> InstanceMaterials = Instance.GetMaterials();
 						for (int32 SegmentIndex = 0; SegmentIndex < InstanceMaterials.Num(); SegmentIndex++)
 						{
 							const FMeshBatch& MeshBatch = InstanceMaterials[SegmentIndex];
