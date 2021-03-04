@@ -1339,14 +1339,7 @@ void URemoteControlPreset::CacheFieldLayoutData()
 	{
 		for (auto It = Group.AccessFields().CreateIterator(); It; ++It)
 		{
-			if (FRCCachedFieldData* CachedData = FieldCache.Find(*It))
-			{
-				CachedData->LayoutGroupId = Group.Id;
-			}
-			else
-			{
-				//It.RemoveCurrent();
-			}
+			FieldCache.FindOrAdd(*It).LayoutGroupId = Group.Id;
 		}
 	}
 }
