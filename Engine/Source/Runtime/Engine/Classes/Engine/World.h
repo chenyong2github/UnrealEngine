@@ -140,7 +140,7 @@ private:
 };
 
 
-DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorSpawned, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFeatureLevelChanged, ERHIFeatureLevel::Type);
