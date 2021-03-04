@@ -133,6 +133,7 @@ FString GetRHIAccessName(ERHIAccess Access)
 			case ERHIAccess::CopyDest:            return TEXT("CopyDest");
 			case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
 			case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
+			case ERHIAccess::Discard:             return TEXT("Discard");
 			}
 		});
 }
@@ -146,6 +147,8 @@ FString GetResourceTransitionFlagsName(EResourceTransitionFlags Flags)
 		default: checkNoEntry(); // fall through
 		case EResourceTransitionFlags::None:                return TEXT("None");
 		case EResourceTransitionFlags::MaintainCompression: return TEXT("MaintainCompression");
+		case EResourceTransitionFlags::Discard:				return TEXT("Discard");
+		case EResourceTransitionFlags::Clear:				return TEXT("Clear");
 		}
 	});
 }
@@ -1533,6 +1536,38 @@ void FRHIRenderPassInfo::Validate() const
 	}
 }
 #endif
+
+bool FRHITextureCreateInfo::IsValid() const
+{
+	if (Extent.X <= 0 || Extent.Y <= 0 || Depth == 0 || ArraySize == 0 || NumMips == 0 || NumSamples < 1 || NumSamples > 8)
+	{
+		return false;
+	}
+
+	if (NumSamples > 1 && !(Dimension == ETextureDimension::Texture2D || Dimension == ETextureDimension::Texture2DArray))
+	{
+		return false;
+	}
+
+	if (Dimension == ETextureDimension::Texture3D)
+	{
+		if (ArraySize > 1)
+		{
+			return false;
+		}
+	}
+	else if (Depth > 1)
+	{
+		return false;
+	}
+
+	if (Format == PF_Unknown)
+	{
+		return false;
+	}
+
+	return true;
+}
 
 static FRHIPanicEvent RHIPanicEvent;
 FRHIPanicEvent& RHIGetPanicDelegate()

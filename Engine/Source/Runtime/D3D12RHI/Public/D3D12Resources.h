@@ -117,6 +117,7 @@ private:
 
 	FD3D12ResidencyHandle ResidencyHandle;
 
+	D3D12_CLEAR_VALUE ClearValue;
 	D3D12_RESOURCE_DESC Desc;
 	uint8 PlaneCount;
 	uint16 SubresourceCount;
@@ -153,6 +154,7 @@ public:
 		ID3D12Resource* InResource,
 		D3D12_RESOURCE_STATES InInitialResourceState,
 		D3D12_RESOURCE_DESC const& InDesc,
+		const D3D12_CLEAR_VALUE* InClearValue = nullptr,
 		FD3D12Heap* InHeap = nullptr,
 		D3D12_HEAP_TYPE InHeapType = D3D12_HEAP_TYPE_DEFAULT);
 
@@ -163,6 +165,7 @@ public:
 		ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InDefaultResourceState,
 		D3D12_RESOURCE_DESC const& InDesc,
+		const D3D12_CLEAR_VALUE* InClearValue,
 		FD3D12Heap* InHeap,
 		D3D12_HEAP_TYPE InHeapType);
 
@@ -191,6 +194,7 @@ public:
 
 	ID3D12Pageable* GetPageable();
 	D3D12_RESOURCE_DESC const& GetDesc() const { return Desc; }
+	D3D12_CLEAR_VALUE const& GetClearValue() const { return ClearValue; }
 	D3D12_HEAP_TYPE GetHeapType() const { return HeapType; }
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
 	void* GetResourceBaseAddress() const { check(ResourceBaseAddress); return ResourceBaseAddress; }
@@ -266,7 +270,7 @@ public:
 		{
 			// Ignore the requested resource state for non tracked resource because RHI will assume it's always in default resource 
 			// state then when a transition is required (will transition via scoped push/pop to requested state)
-			if (!bSRVOnly && InResourceState != ERHIAccess::Unknown)
+			if (!bSRVOnly && InResourceState != ERHIAccess::Unknown && InResourceState != ERHIAccess::Discard)
 			{
 				bool bAsyncCompute = false;
 				return GetD3D12ResourceState(InResourceState, bAsyncCompute);
@@ -670,6 +674,18 @@ private:
 	EAllocatorType AllocatorType;
 };
 
+// Generic interface for every type D3D12 specific allocator
+struct ID3D12ResourceAllocator
+{
+	// Helper function for textures to compute the correct size and alignment
+	void AllocateTexture(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EPixelFormat InUEFormat, ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation);
+
+	// Actual pure virtual resource allocation function
+	virtual void AllocateResource(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, uint64 InSize, uint32 InAllocationAlignment, ED3D12ResourceStateMode InResourceStateMode,
+		D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation) = 0;
+};
+
 class FD3D12DeferredDeletionQueue : public FD3D12AdapterChild
 {
 public:
@@ -767,8 +783,27 @@ protected:
 };
 
 
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+class FD3D12TransientResource
+{
+	// Nothing special for fast ram
+public:
+	void Swap(FD3D12TransientResource&) {}
+};
+class FD3D12FastClearResource
+{
+public:
+	inline void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
+	{
+		OutData = nullptr;
+		OutSize = 0;
+	}
+};
+#endif
+
+
 /** The base class of resources that may be bound as shader resources (texture or buffer). */
-class FD3D12BaseShaderResource : public FD3D12DeviceChild, public IRefCountedObject
+class FD3D12BaseShaderResource : public FD3D12DeviceChild, public FD3D12TransientResource, public IRefCountedObject
 {
 protected:
 	FCriticalSection RenameListenersCS;
@@ -884,25 +919,7 @@ public:
 	virtual ~FD3D12UniformBuffer();
 };
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-class FD3D12TransientResource
-{
-	// Nothing special for fast ram
-public:
-	void Swap(FD3D12TransientResource&) {}
-};
-class FD3D12FastClearResource
-{
-public:
-	inline void GetWriteMaskProperties(void*& OutData, uint32& OutSize)
-	{
-		OutData = nullptr;
-		OutSize = 0;
-	}
-};
-#endif
-
-class FD3D12Buffer : public FRHIBuffer, public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12Buffer>
+class FD3D12Buffer : public FRHIBuffer, public FD3D12BaseShaderResource, public FD3D12LinkedAdapterObject<FD3D12Buffer>
 {
 public:
 	FD3D12Buffer()
@@ -945,6 +962,7 @@ public:
 		return FRHIResource::GetRefCount();
 	}
 
+	static void GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, EBufferUsageFlags& InUsage, D3D12_RESOURCE_DESC& ResourceDesc, uint32& Alignment);
 
 	FD3D12LockedResource LockedData;
 };
@@ -1015,14 +1033,14 @@ public:
 		return 1;
 	}
 
-	void AddAliasingBarrier(ID3D12Resource* pResource)
+	void AddAliasingBarrier(ID3D12Resource* InResourceBefore, ID3D12Resource* InResourceAfter)
 	{
 		Barriers.AddUninitialized();
 		D3D12_RESOURCE_BARRIER& Barrier = Barriers.Last();
 		Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_ALIASING;
 		Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		Barrier.Aliasing.pResourceBefore = NULL;
-		Barrier.Aliasing.pResourceAfter = pResource;
+		Barrier.Aliasing.pResourceBefore = InResourceBefore;
+		Barrier.Aliasing.pResourceAfter = InResourceAfter;
 	}
 
 	// Flush the batch to the specified command list then reset.

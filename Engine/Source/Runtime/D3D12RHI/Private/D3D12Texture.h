@@ -22,7 +22,7 @@ void SafeCreateTexture2D(FD3D12Device* pDevice,
 
 
 /** Texture base class. */
-class FD3D12TextureBase : public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12TextureBase>
+class FD3D12TextureBase : public FD3D12BaseShaderResource, public FD3D12LinkedAdapterObject<FD3D12TextureBase>
 {
 public:
 
@@ -237,7 +237,7 @@ public:
 
 	/** Initialization constructor. */
 	TD3D12Texture2D(
-	class FD3D12Device* InParent,
+		class FD3D12Device* InParent,
 		uint32 InSizeX,
 		uint32 InSizeY,
 		uint32 InSizeZ,

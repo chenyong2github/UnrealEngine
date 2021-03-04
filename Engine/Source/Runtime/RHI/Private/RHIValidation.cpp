@@ -6,6 +6,7 @@
 
 #include "RHIValidation.h"
 #include "RHIValidationContext.h"
+#include "RHIValidationTransientResourceAllocator.h"
 #include "HAL/PlatformStackWalk.h"
 #include "Misc/OutputDeviceRedirector.h"
 
@@ -87,6 +88,13 @@ static inline bool IsTessellationPrimitive(EPrimitiveType Type)
 FValidationRHI::~FValidationRHI()
 {
 	GRHIValidationEnabled = false;
+}
+
+IRHITransientResourceAllocator* FValidationRHI::RHICreateTransientResourceAllocator()
+{
+	// Wrap around validation allocator
+	IRHITransientResourceAllocator* RHIAllocator = RHI->RHICreateTransientResourceAllocator();
+	return new FValidationTransientResourceAllocator(RHIAllocator);
 }
 
 IRHICommandContext* FValidationRHI::RHIGetDefaultContext()
@@ -1127,5 +1135,167 @@ namespace RHIValidation
 }
 
 TLockFreePointerListUnordered<FValidationContext, PLATFORM_CACHE_LINE_SIZE> FValidationRHICommandContextContainer::ParallelCommandContexts;
+
+
+//-----------------------------------------------------------------------------
+//	Validation Transient Resource Allocator
+//-----------------------------------------------------------------------------
+
+#define TRANSIENT_RESOURCE_LOG_PREFIX_REASON(ReasonString) TEXT("RHI validation failed: " ReasonString "\n\n")\
+	TEXT("--------------------------------------------------------------------\n")\
+	TEXT("         RHI Transient Resource Allocation Validation Error		  \n")\
+	TEXT("--------------------------------------------------------------------\n")\
+	TEXT("\n")
+
+#define TRANSIENT_RESOURCE_LOG_SUFFIX TEXT("\n")\
+	TEXT("--------------------------------------------------------------------\n")\
+	TEXT("\n")
+
+FValidationTransientResourceAllocator::~FValidationTransientResourceAllocator()
+{
+	check(bFrozen);
+
+	// Validation of leaking textures resources disabled by default because we know textures are referenced by global uniforms
+	// This needs to be fixed first
+	static bool bValidateLeakingTextures = false;
+	static bool bValidateLeakingBuffers = true;
+	if (bValidateLeakingTextures || bValidateLeakingBuffers)
+	{
+		// Check all allocated resource data and make sure the transient allocator holds the last 'reference'
+		int32 LeakingResourceCount = 0;
+		for (auto It = AllocatedResourceMap.CreateIterator(); It; ++It)
+		{
+			const FRHIResource* RHIResource = It->Key;
+			const AllocatedResourceData& ResourceData = It->Value;
+			if (ResourceData.ResourceType == AllocatedResourceData::EType::Texture && bValidateLeakingTextures)
+			{
+				LeakingResourceCount += (RHIResource->GetRefCount() > 1) ? 1 : 0;
+			}
+			else if (ResourceData.ResourceType == AllocatedResourceData::EType::Buffer && bValidateLeakingBuffers)
+			{
+				LeakingResourceCount += (RHIResource->GetRefCount() > 1) ? 1 : 0;
+			}
+		}
+
+		if (LeakingResourceCount > 0)
+		{
+			FString ErrorMessage = FString::Printf(
+				TRANSIENT_RESOURCE_LOG_PREFIX_REASON("Leaking transient resources")
+				TEXT("%d Transient Resource allocations are still used when the alloctor is destroyed. The TransientResourceAllocator manages the lifetime of all allocated resource.\n\n")
+				TEXT("Leaking resources:\n"),
+				LeakingResourceCount);
+			for (auto It = AllocatedResourceMap.CreateIterator(); It; ++It)
+			{
+				const FRHIResource* RHIResource = It->Key;
+				const AllocatedResourceData& ResourceData = It->Value;
+				if (RHIResource->GetRefCount() > 1)
+				{
+					ErrorMessage += FString::Printf(TEXT("         %s (%s) - Refcount: %d\n"), *ResourceData.DebugName, ResourceData.ResourceType == AllocatedResourceData::EType::Texture ? TEXT("Texture") : TEXT("DataBuffer"), RHIResource->GetRefCount());
+				}
+			}
+			ErrorMessage += FString::Printf(TRANSIENT_RESOURCE_LOG_SUFFIX);
+			FValidationRHI::ReportValidationFailure(*ErrorMessage);
+		}
+	}
+
+	// Delete actual allocator
+	delete RHIAllocator;
+}
+
+FRHITexture* FValidationTransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName)
+{
+	check(!bFrozen);
+
+	FRHITexture* RHITexture = RHIAllocator->CreateTexture(InCreateInfo, InDebugName);
+
+	// Setup for resource tracking
+	RHITexture->InitBarrierTracking(InCreateInfo.NumMips, InCreateInfo.ArraySize, InCreateInfo.Format, InCreateInfo.Flags, ERHIAccess::Discard, InDebugName);
+
+	// Store allocation data
+	AllocatedResourceData ResourceData;
+	ResourceData.DebugName = InDebugName;
+	ResourceData.ResourceType = AllocatedResourceData::EType::Texture;
+	ResourceData.bMemoryAllocated = true;
+	AllocatedResourceMap.Add(RHITexture, ResourceData);
+
+	return RHITexture;
+}
+
+FRHIBuffer* FValidationTransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName)
+{
+	check(!bFrozen);
+
+	FRHIBuffer* RHIBuffer = RHIAllocator->CreateBuffer(InCreateInfo, InDebugName);
+
+	// Setup for resource tracking
+	RHIBuffer->InitBarrierTracking(ERHIAccess::Discard, InDebugName);
+	
+	// Store allocation data
+	AllocatedResourceData ResourceData;
+	ResourceData.DebugName = InDebugName;
+	ResourceData.ResourceType = AllocatedResourceData::EType::Buffer;
+	ResourceData.bMemoryAllocated = true;
+	AllocatedResourceMap.Add(RHIBuffer, ResourceData);
+
+	return RHIBuffer;
+}
+
+void FValidationTransientResourceAllocator::DeallocateMemory(FRHITexture* InTexture)
+{
+	check(!bFrozen);
+
+	RHIAllocator->DeallocateMemory(InTexture);
+
+	// Mark memory as freed
+	AllocatedResourceData* ResourceData = AllocatedResourceMap.Find(InTexture);
+	check(ResourceData);
+	ResourceData->bMemoryAllocated = false;
+}
+
+void FValidationTransientResourceAllocator::DeallocateMemory(FRHIBuffer* InBuffer)
+{
+	check(!bFrozen);
+
+	RHIAllocator->DeallocateMemory(InBuffer);
+
+	// Mark memory as freed
+	AllocatedResourceData* ResourceData = AllocatedResourceMap.Find(InBuffer);
+	check(ResourceData);
+	ResourceData->bMemoryAllocated = false;
+}
+
+void FValidationTransientResourceAllocator::Freeze()
+{
+	check(!bFrozen);
+
+	// Check all allocated resource data and make sure all memory is freed again
+	int32 AllocatedResourceCount = 0;
+	for (auto It = AllocatedResourceMap.CreateIterator(); It; ++It)
+	{
+		const AllocatedResourceData& ResourceData = It->Value;
+		AllocatedResourceCount += ResourceData.bMemoryAllocated ? 1 : 0;
+	}
+
+	if (AllocatedResourceCount > 0)
+	{
+		FString ErrorMessage = FString::Printf(
+			TRANSIENT_RESOURCE_LOG_PREFIX_REASON("Open transient allocations")
+			TEXT("%d Transient Resource allocations still have memory allocated. Call 'DeallocateMemory' on all transient allocated resources before calling Freeze.\n\n")
+			TEXT("Resources with Allocated Memory:\n"), 
+			AllocatedResourceCount);
+		for (auto It = AllocatedResourceMap.CreateIterator(); It; ++It)
+		{
+			const AllocatedResourceData& ResourceData = It->Value;
+			if (ResourceData.bMemoryAllocated)
+			{
+				ErrorMessage += FString::Printf(TEXT("         %s (%s)\n"), *ResourceData.DebugName, ResourceData.ResourceType == AllocatedResourceData::EType::Texture ? TEXT("Texture") : TEXT("DataBuffer"));
+			}
+		}
+		ErrorMessage += FString::Printf(TRANSIENT_RESOURCE_LOG_SUFFIX);
+		FValidationRHI::ReportValidationFailure(*ErrorMessage);
+	}
+
+	bFrozen = true;
+}
 
 #endif	// ENABLE_RHI_VALIDATION

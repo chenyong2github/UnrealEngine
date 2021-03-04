@@ -279,7 +279,8 @@ public:
 		uint32 Alignment, uint32 Stride, uint32 Size, uint32 InUsage,
 		ED3D12ResourceStateMode InResourceStateMode,
 		ERHIAccess InResourceState,
-		FRHIResourceCreateInfo& CreateInfo);
+		FRHIResourceCreateInfo& CreateInfo,
+		ID3D12ResourceAllocator* ResourceAllocator);
 
 	template <typename ObjectType, typename CreationCoreFunction>
 	inline ObjectType* CreateLinkedObject(FRHIGPUMask GPUMask, const CreationCoreFunction& pfnCreationCore)
@@ -333,7 +334,8 @@ protected:
 		FRHIResourceCreateInfo& CreateInfo,
 		uint32 Alignment,
 		FD3D12Buffer* Buffer,
-		FD3D12ResourceLocation& ResourceLocation);
+		FD3D12ResourceLocation& ResourceLocation,
+		ID3D12ResourceAllocator* ResourceAllocator);
 
 	// Creates default root and execute indirect signatures
 	virtual void CreateCommandSignatures();

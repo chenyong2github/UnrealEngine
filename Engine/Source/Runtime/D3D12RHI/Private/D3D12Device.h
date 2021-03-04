@@ -80,6 +80,7 @@ public:
 	inline FD3D12CommandListManager& GetAsyncCommandListManager() { return *AsyncCommandListManager; }
 	inline FD3D12CommandAllocatorManager& GetTextureStreamingCommandAllocatorManager() { return TextureStreamingCommandAllocatorManager; }
 	inline FD3D12DefaultBufferAllocator& GetDefaultBufferAllocator() { return DefaultBufferAllocator; }
+	inline FD3D12TransientMemoryPoolManager& GetTransientMemoryPoolManager() { return TransientMemoryPoolManager; }
 	inline FD3D12GlobalOnlineSamplerHeap& GetGlobalSamplerHeap() { return GlobalSamplerHeap; }
 	inline FD3D12GlobalHeap& GetGlobalViewHeap() { return GlobalViewHeap; }
 
@@ -125,6 +126,8 @@ public:
 	FD3D12SamplerState* CreateSampler(const FSamplerStateInitializerRHI& Initializer);
 	void CreateSamplerInternal(const D3D12_SAMPLER_DESC& Desc, D3D12_CPU_DESCRIPTOR_HANDLE Descriptor);
 
+	D3D12_RESOURCE_ALLOCATION_INFO GetResourceAllocationInfo(const D3D12_RESOURCE_DESC& InDesc);
+
 	void BlockUntilIdle();
 
 	FORCEINLINE FD3DGPUProfiler& GetGPUProfiler() { return GPUProfilingData; }
@@ -169,6 +172,10 @@ protected:
 	TMap< D3D12_SAMPLER_DESC, TRefCountPtr<FD3D12SamplerState> > SamplerMap;
 	uint32 SamplerID;
 
+	/** Hashmap used to cache resource allocation size information */
+	FRWLock ResourceAllocationInfoMapMutex;
+	TMap< uint64, D3D12_RESOURCE_ALLOCATION_INFO> ResourceAllocationInfoMap;
+
 	// set by UpdateMSAASettings(), get by GetMSAAQuality()
 	// [SampleCount] = Quality, 0xffffffff if not supported
 	uint32 AvailableMSAAQualities[DX_MAX_MSAA_COUNT + 1];
@@ -189,8 +196,8 @@ protected:
 	void ReleasePooledUniformBuffers();
 
 	FD3D12FastAllocator DefaultFastAllocator;
-
 	FD3D12TextureAllocatorPool TextureAllocator;
+	FD3D12TransientMemoryPoolManager TransientMemoryPoolManager;
 
 	FD3D12ResidencyManager ResidencyManager;
 

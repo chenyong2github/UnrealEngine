@@ -435,6 +435,10 @@ public:
 	{
 	}
 
+	/**
+	* Create a new transient resource allocator
+	*/
+	virtual IRHITransientResourceAllocator* RHICreateTransientResourceAllocator() { return nullptr; }
 
 	/**
 	* Creates a staging buffer, which is memory visible to the cpu without any locking.
@@ -1640,6 +1644,11 @@ FORCEINLINE const FRHITransition* RHICreateTransition(ERHIPipeline SrcPipelines,
 FORCEINLINE void RHIReleaseTransition(FRHITransition* Transition)
 {
 	GDynamicRHI->RHIReleaseTransition(Transition);
+}
+
+FORCEINLINE IRHITransientResourceAllocator* RHICreateTransientResourceAllocator()
+{
+	return GDynamicRHI->RHICreateTransientResourceAllocator();
 }
 
 

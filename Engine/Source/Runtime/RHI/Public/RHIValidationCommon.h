@@ -263,7 +263,7 @@ namespace RHIValidation
 
 		ELoggingMode LoggingMode = ELoggingMode::None;
 
-		void SetDebugName(const TCHAR* Name, const TCHAR* Suffix = nullptr);
+		RHI_API void SetDebugName(const TCHAR* Name, const TCHAR* Suffix = nullptr);
 		inline const TCHAR* GetDebugName() const { return DebugName.Len() ? *DebugName : nullptr; }
 
 		inline bool IsBarrierTrackingInitialized() const { return NumMips > 0 && NumArraySlices > 0; }

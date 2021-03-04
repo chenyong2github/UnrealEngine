@@ -42,6 +42,7 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	SamplerID(0),
 	DefaultFastAllocator(this, FRHIGPUMask::All(), D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024 * 4),
 	TextureAllocator(this, FRHIGPUMask::All()),
+	TransientMemoryPoolManager(this, FRHIGPUMask::All()),
 	GPUProfilingData(this)
 {
 	for (uint32 QueueType = 0; QueueType < (uint32)ED3D12CommandQueueType::Count; ++QueueType)
@@ -63,6 +64,8 @@ FD3D12Device::~FD3D12Device()
 
 	// Cleanup the allocator near the end, as some resources may be returned to the allocator or references are shared by multiple GPUs
 	DefaultBufferAllocator.FreeDefaultBufferPools();
+
+	TransientMemoryPoolManager.Destroy();
 
 	DefaultFastAllocator.Destroy();
 
@@ -482,4 +485,33 @@ void FD3D12Device::BlockUntilIdle()
 	GetCommandListManager().WaitForCommandQueueFlush();
 	GetCopyCommandListManager().WaitForCommandQueueFlush();
 	GetAsyncCommandListManager().WaitForCommandQueueFlush();
+}
+
+D3D12_RESOURCE_ALLOCATION_INFO FD3D12Device::GetResourceAllocationInfo(const D3D12_RESOURCE_DESC& InDesc)
+{
+	uint64 Hash = CityHash64((const char*)&InDesc, sizeof(D3D12_RESOURCE_DESC));
+
+	// By default there'll be more threads trying to read this than to write it.
+	ResourceAllocationInfoMapMutex.ReadLock();
+	D3D12_RESOURCE_ALLOCATION_INFO* CachedInfo = ResourceAllocationInfoMap.Find(Hash);
+	ResourceAllocationInfoMapMutex.ReadUnlock();
+
+	if (CachedInfo)
+	{
+		return *CachedInfo;
+	}
+	else
+	{
+		D3D12_RESOURCE_ALLOCATION_INFO Result = GetDevice()->GetResourceAllocationInfo(0, 1, &InDesc);
+
+		ResourceAllocationInfoMapMutex.WriteLock();
+		// Try search again with write lock because could have been added already
+		CachedInfo = ResourceAllocationInfoMap.Find(Hash);
+		if (CachedInfo == nullptr)
+		{
+			ResourceAllocationInfoMap.Add(Hash, Result);
+		}
+		ResourceAllocationInfoMapMutex.WriteUnlock();
+		return Result;
+	}
 }

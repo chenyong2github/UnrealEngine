@@ -111,8 +111,14 @@ class RHICORE_API FRHIMemoryPool
 {
 public:
 
+	enum class EFreeListOrder
+	{
+		SortBySize,
+		SortByOffset,
+	};
+
 	// Constructor
-	FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment);
+	FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, EFreeListOrder InFreeListOrder);
 	virtual ~FRHIMemoryPool();
 
 	// Setup/Shutdown
@@ -155,9 +161,10 @@ protected:
 	void Validate();
 
 	// Const creation members
-	const int16 PoolIndex;
+	int16 PoolIndex;
 	const uint64 PoolSize;
 	const uint32 PoolAlignment;
+	const EFreeListOrder FreeListOrder;
 
 	// Stats
 	uint64 FreeSize;
@@ -187,13 +194,13 @@ class RHICORE_API FRHIPoolAllocator
 public:
 
 	// Constructor
-	FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, bool InDefragEnabled);
+	FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool InDefragEnabled);
 	virtual ~FRHIPoolAllocator();
 
 	// Setup/Shutdown
 	void Initialize();
 	void Destroy();
-	
+
 	// Defrag & cleanup operation
 	void Defrag(uint32 InMaxCopySize, uint32& CurrentCopySize);
 
@@ -201,7 +208,7 @@ public:
 	void UpdateMemoryStats(uint32& IOMemoryAllocated, uint32& IOMemoryUsed, uint32& IOMemoryFree, uint32& IOAlignmentWaste, uint32& IOAllocatedPageCount, uint32& IOFullPageCount);
 
 protected:
-
+		
 	// Supported allocator operations
 	bool TryAllocateInternal(uint32 InSizeInBytes, uint32 InAllocationAlignment, FRHIPoolAllocationData& AllocationData);
 	void DeallocateInternal(FRHIPoolAllocationData& AllocationData);
@@ -217,6 +224,7 @@ protected:
 	const uint64 PoolSize;
 	const uint32 PoolAlignment;
 	const uint64 MaxAllocationSize;
+	const FRHIMemoryPool::EFreeListOrder FreeListOrder;
 	const bool bDefragEnabled;
 
 	// Critical section to lock access to the pools

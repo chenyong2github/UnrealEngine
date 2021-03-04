@@ -146,11 +146,20 @@ void FRHIPoolAllocationData::AddAfter(FRHIPoolAllocationData* InOther)
 
 
 /**
- * Sort predicate that sorts size of the allocation data
+ * Sort predicate that sorts on size of the allocation data
  */
 static bool LinkedListSortBySizePredicate(const FRHIPoolAllocationData* InLeft, const FRHIPoolAllocationData* InRight)
 {
 	return InLeft->GetSize() < InRight->GetSize();
+}
+
+
+/**
+ * Sort predicate that sorts on offset of the allocation data
+ */
+static bool LinkedListSortByOffsetPredicate(const FRHIPoolAllocationData* InLeft, const FRHIPoolAllocationData* InRight)
+{
+	return InLeft->GetOffset() < InRight->GetOffset();
 }
 
 
@@ -188,10 +197,11 @@ uint32 FRHIMemoryPool::GetAlignedOffset(uint32 InOffset, uint32 InPoolAlignment,
 }
 
 
-FRHIMemoryPool::FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment) :
+FRHIMemoryPool::FRHIMemoryPool(int16 InPoolIndex, uint64 InPoolSize, uint32 InPoolAlignment, EFreeListOrder InFreeListOrder) :
 	PoolIndex(InPoolIndex), 
 	PoolSize(InPoolSize), 
-	PoolAlignment(InPoolAlignment), 
+	PoolAlignment(InPoolAlignment),
+	FreeListOrder(InFreeListOrder),
 	FreeSize(0), 
 	AligmnentWaste(0), 
 	AllocatedBlocks(0)
@@ -418,7 +428,20 @@ FRHIPoolAllocationData* FRHIMemoryPool::AddToFreeBlocks(FRHIPoolAllocationData* 
 	}
 
 	// Sorted insert
-	int32 InsertIndex = Algo::LowerBound(FreeBlocks, FreeBlock, LinkedListSortBySizePredicate);
+	int32 InsertIndex = 0;
+	switch (FreeListOrder)
+	{
+		case EFreeListOrder::SortBySize:
+		{
+			InsertIndex = Algo::LowerBound(FreeBlocks, FreeBlock, LinkedListSortBySizePredicate);
+			break;
+		}
+		case EFreeListOrder::SortByOffset:
+		{
+			InsertIndex = Algo::LowerBound(FreeBlocks, FreeBlock, LinkedListSortByOffsetPredicate);
+			break;
+		}
+	}	
 	FreeBlocks.Insert(FreeBlock, InsertIndex);
 
 	Validate();
@@ -505,10 +528,11 @@ void FRHIMemoryPool::Validate()
 //	Pool Allocator
 //-----------------------------------------------------------------------------
 
-FRHIPoolAllocator::FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, bool InDefragEnabled) :
+FRHIPoolAllocator::FRHIPoolAllocator(uint64 InPoolSize, uint32 InPoolAlignment, uint32 InMaxAllocationSize, FRHIMemoryPool::EFreeListOrder InFreeListOrder, bool InDefragEnabled) :
 	PoolSize(InPoolSize),
 	PoolAlignment(InPoolAlignment),
 	MaxAllocationSize(InMaxAllocationSize),
+	FreeListOrder(InFreeListOrder),
 	bDefragEnabled(InDefragEnabled),
 	TotalAllocatedBlocks(0)
 {}

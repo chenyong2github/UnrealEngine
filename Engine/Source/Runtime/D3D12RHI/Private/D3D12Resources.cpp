@@ -213,6 +213,26 @@ void FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::DoWork()
 	}
 }
 
+
+/////////////////////////////////////////////////////////////////////
+//	ID3D12ResourceAllocator
+/////////////////////////////////////////////////////////////////////
+
+
+void ID3D12ResourceAllocator::AllocateTexture(D3D12_HEAP_TYPE InHeapType, const D3D12_RESOURCE_DESC& InDesc, EPixelFormat InUEFormat, ED3D12ResourceStateMode InResourceStateMode,
+	D3D12_RESOURCE_STATES InCreateState, const D3D12_CLEAR_VALUE* InClearValue, const TCHAR* InName, FD3D12ResourceLocation& ResourceLocation)
+{
+	// Check if texture can be 4K aligned
+	D3D12_RESOURCE_DESC Desc = InDesc;
+	bool b4KAligment = TextureCanBe4KAligned(Desc, InUEFormat);
+	Desc.Alignment = b4KAligment ? D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT : D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+
+	// Get the size and alignment for the allocation
+	D3D12_RESOURCE_ALLOCATION_INFO Info = FD3D12DynamicRHI::GetD3DRHI()->GetAdapter().GetDevice(0)->GetResourceAllocationInfo(Desc);
+	AllocateResource(InHeapType, Desc, Info.SizeInBytes, Info.Alignment, InResourceStateMode, InCreateState, InClearValue, InName, ResourceLocation);
+}
+
+
 /////////////////////////////////////////////////////////////////////
 //	FD3D12 Resource
 /////////////////////////////////////////////////////////////////////
@@ -227,9 +247,10 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	ID3D12Resource* InResource,
 	D3D12_RESOURCE_STATES InInitialState,
 	D3D12_RESOURCE_DESC const& InDesc,
+	const D3D12_CLEAR_VALUE* InClearValue,
 	FD3D12Heap* InHeap,
 	D3D12_HEAP_TYPE InHeapType) : 
-	FD3D12Resource(ParentDevice, VisibleNodes, InResource, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, InDesc, InHeap, InHeapType)
+	FD3D12Resource(ParentDevice, VisibleNodes, InResource, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, InDesc, InClearValue, InHeap, InHeapType)
 {
 }
 
@@ -240,6 +261,7 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InDefaultResourceState,
 	D3D12_RESOURCE_DESC const& InDesc,
+	const D3D12_CLEAR_VALUE* InClearValue,
 	FD3D12Heap* InHeap,
 	D3D12_HEAP_TYPE InHeapType)
 	: FD3D12DeviceChild(ParentDevice)
@@ -262,6 +284,16 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 #if UE_BUILD_DEBUG
 	FPlatformAtomics::InterlockedIncrement(&TotalResourceCount);
 #endif
+
+	// Store the optional clear value - need for defrag and transient resource recreation
+	if (InClearValue)
+	{
+		ClearValue = *InClearValue;
+	}
+	else
+	{
+		FPlatformMemory::Memzero(&ClearValue, sizeof(D3D12_CLEAR_VALUE));
+	}
 
 	if (Resource
 #if PLATFORM_WINDOWS
@@ -435,7 +467,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 	if (SUCCEEDED(hr))
 	{
 		// Set the output pointer
-		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InInitialState, InResourceStateMode, InDefaultState, InDesc, nullptr, HeapProps.Type);
+		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InInitialState, InResourceStateMode, InDefaultState, InDesc, ClearValue, nullptr, HeapProps.Type);
 		(*ppOutResource)->AddRef();
 
 		// Set a default name (can override later).
@@ -462,7 +494,7 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 	ID3D12Heap* Heap = BackingHeap->GetHeap();
 
 	TRefCountPtr<ID3D12Resource> pResource;
-	const HRESULT hr = RootDevice->CreatePlacedResource(Heap, HeapOffset, &InDesc, InInitialState, nullptr, IID_PPV_ARGS(pResource.GetInitReference()));
+	const HRESULT hr = RootDevice->CreatePlacedResource(Heap, HeapOffset, &InDesc, InInitialState, ClearValue, IID_PPV_ARGS(pResource.GetInitReference()));
 
 	if (bVerifyHResult)
 	{
@@ -482,6 +514,7 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 			InResourceStateMode,
 			InDefaultState,
 			InDesc,
+			ClearValue,
 			BackingHeap,
 			HeapDesc.Properties.Type);
 
@@ -707,7 +740,7 @@ void FD3D12ResourceLocation::ReleaseResource()
 		}
 		else if (AllocatorType == AT_Pool)
 		{
-			PoolAllocator->Deallocate(*this);
+			PoolAllocator->DeallocateResource(*this);
 		}
 		else
 		{

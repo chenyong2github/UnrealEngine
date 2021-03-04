@@ -2835,3 +2835,223 @@ struct FRHIRenderPassInfo
 private:
 	RHI_API void OnVerifyNumUAVsFailed(int32 InNumUAVs);
 };
+
+
+/** Descriptor used to create a texture resource */
+struct RHI_API FRHITextureCreateInfo
+{
+	static FRHITextureCreateInfo Create2D(
+		FIntPoint InExtent,
+		EPixelFormat InFormat,
+		FClearValueBinding InClearValue,
+		ETextureCreateFlags InFlags,
+		uint8 InNumMips = 1,
+		uint8 InNumSamples = 1)
+	{
+		return FRHITextureCreateInfo(ETextureDimension::Texture2D, InFlags, InFormat, InExtent, InClearValue, 1, 1, InNumMips, InNumSamples);
+	}
+
+	static FRHITextureCreateInfo Create2DArray(
+		FIntPoint InExtent,
+		EPixelFormat InFormat,
+		FClearValueBinding InClearValue,
+		ETextureCreateFlags InFlags,
+		uint32 InArraySize,
+		uint8 InNumMips = 1,
+		uint8 InNumSamples = 1)
+	{
+		return FRHITextureCreateInfo(ETextureDimension::Texture2DArray, InFlags, InFormat, InExtent, InClearValue, 1, InArraySize, InNumMips, InNumSamples);
+	}
+
+	static FRHITextureCreateInfo Create3D(
+		FIntVector InSize,
+		EPixelFormat InFormat,
+		FClearValueBinding InClearValue,
+		ETextureCreateFlags InFlags,
+		uint8 InNumMips = 1,
+		uint8 InNumSamples = 1)
+	{
+		return FRHITextureCreateInfo(ETextureDimension::Texture3D, InFlags, InFormat, FIntPoint(InSize.X, InSize.Y), InClearValue, InSize.Z, 1, InNumMips, InNumSamples);
+	}
+
+	static FRHITextureCreateInfo CreateCube(
+		uint32 InSizeInPixels,
+		EPixelFormat InFormat,
+		FClearValueBinding InClearValue,
+		ETextureCreateFlags InFlags,
+		uint8 InNumMips = 1,
+		uint8 InNumSamples = 1)
+	{
+		return FRHITextureCreateInfo(ETextureDimension::TextureCube, InFlags, InFormat, FIntPoint(InSizeInPixels, InSizeInPixels), InClearValue, 1, 1, InNumMips, InNumSamples);
+	}
+
+	static FRHITextureCreateInfo CreateCubeArray(
+		uint32 InSizeInPixels,
+		EPixelFormat InFormat,
+		FClearValueBinding InClearValue,
+		ETextureCreateFlags InFlags,
+		uint32 InArraySize,
+		uint8 InNumMips = 1,
+		uint8 InNumSamples = 1)
+	{
+		return FRHITextureCreateInfo(ETextureDimension::TextureCubeArray, InFlags, InFormat, FIntPoint(InSizeInPixels, InSizeInPixels), InClearValue, 1, InArraySize, InNumMips, InNumSamples);
+	}
+
+	FRHITextureCreateInfo() = default;
+	FRHITextureCreateInfo(
+		ETextureDimension InDimension,
+		ETextureCreateFlags InFlags,
+		EPixelFormat InFormat,
+		FIntPoint InExtent,
+		FClearValueBinding InClearValue,
+		uint16 InDepth = 1,
+		uint16 InArraySize = 1,
+		uint8 InNumMips = 1,
+		uint8 InNumSamples = 1)
+		: Dimension(InDimension)
+		, Flags(InFlags)
+		, Format(InFormat)
+		, Extent(InExtent)
+		, Depth(InDepth)
+		, ArraySize(InArraySize)
+		, NumMips(InNumMips)
+		, NumSamples(InNumSamples)
+		, ClearValue(InClearValue)
+	{}
+
+	bool operator == (const FRHITextureCreateInfo& Other) const
+	{
+		return Dimension == Other.Dimension
+			&& Flags == Other.Flags
+			&& Format == Other.Format
+			&& Extent == Other.Extent
+			&& Depth == Other.Depth
+			&& ArraySize == Other.ArraySize
+			&& NumMips == Other.NumMips
+			&& NumSamples == Other.NumSamples
+			&& ClearValue == Other.ClearValue;
+	}
+
+	bool operator != (const FRHITextureCreateInfo& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	bool IsTexture2D() const
+	{
+		return Dimension == ETextureDimension::Texture2D || Dimension == ETextureDimension::Texture2DArray;
+	}
+
+	bool IsTexture3D() const
+	{
+		return Dimension == ETextureDimension::Texture3D;
+	}
+
+	bool IsTextureCube() const
+	{
+		return Dimension == ETextureDimension::TextureCube || Dimension == ETextureDimension::TextureCubeArray;
+	}
+
+	bool IsTextureArray() const
+	{
+		return Dimension == ETextureDimension::Texture2DArray || Dimension == ETextureDimension::TextureCubeArray;
+	}
+
+	bool IsMipChain() const
+	{
+		return NumMips > 1;
+	}
+
+	bool IsMultisample() const
+	{
+		return NumSamples > 1;
+	}
+
+	FIntVector GetSize() const
+	{
+		return FIntVector(Extent.X, Extent.Y, Depth);
+	}
+
+	/** Returns whether this descriptor conforms to requirements. */
+	bool IsValid() const;
+
+	/** Texture dimension to use when creating the RHI texture. */
+	ETextureDimension Dimension = ETextureDimension::Texture2D;
+
+	/** Texture flags passed on to RHI texture. */
+	ETextureCreateFlags Flags = TexCreate_None;
+
+	/** Pixel format used to create RHI texture. */
+	EPixelFormat Format = PF_Unknown;
+
+	/** Extent of the texture in x and y. */
+	FIntPoint Extent = FIntPoint(1, 1);
+
+	/** Depth of the texture if the dimension is 3D. */
+	uint16 Depth = 1;
+
+	/** The number of array elements in the texture. (Keep at 1 if dimension is 3D). */
+	uint16 ArraySize = 1;
+
+	/** Number of mips in the texture mip-map chain. */
+	uint8 NumMips = 1;
+
+	/** Number of samples in the texture. >1 for MSAA. */
+	uint8 NumSamples = 1;
+
+	/** Clear value to use when fast-clearing the texture. */
+	FClearValueBinding ClearValue;
+};
+
+
+/** Descriptor used to create a buffer resource */
+struct FRHIBufferCreateInfo
+{
+	bool operator == (const FRHIBufferCreateInfo& Other) const
+	{
+		return (
+			Size == Other.Size &&
+			Stride == Other.Stride &&
+			Usage == Other.Usage);
+	}
+
+	bool operator != (const FRHIBufferCreateInfo& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	/** Total size of the buffer. */
+	uint32 Size = 1;
+
+	/** Stride in bytes */
+	uint32 Stride = 1;
+
+	/** Bitfields describing the uses of that buffer. */
+	EBufferUsageFlags Usage = BUF_None;
+};
+
+
+/**
+@brief Resource allocator which is managed for a certain part of the frame by the high level
+	   rendering code (usually RenderGraph). An allocator is created via RHICreateTransientResourceAllocator on the device
+	   and released via the command list function RHIReleaseTransientResourceAllocator when all the
+	   transient resources are no longer needed.
+	   The allocator manages the lifetime of all the created resources and will take care of destroying
+	   all the resources when the allocator itself is destroyed.	   
+**/
+struct RHI_API IRHITransientResourceAllocator
+{
+	// Virtual destructor
+	virtual ~IRHITransientResourceAllocator() {}
+
+	// Create functions
+	virtual FRHITexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName) = 0;
+	virtual FRHIBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) = 0;
+
+	// Memory deallocation functions - doesn't destroy the resource, but frees internal memory for reuse by another transient resource
+	virtual void DeallocateMemory(FRHITexture* InTexture) = 0;
+	virtual void DeallocateMemory(FRHIBuffer* InBuffer) = 0;
+
+	// Freeze allocator for now creation and validates that all resources have their memory deallocated
+	virtual void Freeze() = 0;
+};

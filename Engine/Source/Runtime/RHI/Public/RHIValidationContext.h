@@ -842,6 +842,11 @@ public:
 		RHIContext->RHIWriteGPUFence(FenceRHI);
 	}
 
+	virtual void RHIReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator) override final
+	{
+		RHIContext->RHIReleaseTransientResourceAllocator(InAllocator);
+	}
+
 	virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, FRHIStagingBuffer* DestinationStagingBufferRHI, uint32 InOffset, uint32 InNumBytes) override final
 	{
 		Tracker->Assert(SourceBufferRHI->GetWholeResourceIdentity(), ERHIAccess::CopySrc); // @todo: is CopySrc correct?

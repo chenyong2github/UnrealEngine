@@ -89,6 +89,24 @@ DECLARE_MEMORY_STAT_EXTERN(TEXT("BufferPool Memory Alignment Waste"), STAT_D3D12
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("BufferPool Page Count"), STAT_D3D12BufferPoolPageCount, STATGROUP_D3D12MemoryBuffer, );
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("BufferPool Full Pages"), STAT_D3D12BufferPoolFullPages, STATGROUP_D3D12MemoryBuffer, );
 
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Pool Allocated"), STAT_D3D12TransientMemoryPoolAllocated, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Frame Pool Used"), STAT_D3D12TransientMemoryFramePoolUsed, STATGROUP_D3D12Memory, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Transient Memory Frame Committed Used"), STAT_D3D12TransientMemoryFrameCommittedUsed, STATGROUP_D3D12Memory, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Transient Memory Pool Allocations"), STAT_D3D12TransientMemoryPoolAllocations, STATGROUP_D3D12Memory, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Transient Memory Committed Allocations"), STAT_D3D12TransientMemoryCommittedAllocations, STATGROUP_D3D12Memory, );
+
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Used"), STAT_D3D12TransientMemoryBufferFrameUsed, STATGROUP_D3D12MemoryTransient, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Total Requested"), STAT_D3D12TransientMemoryBufferFrameTotalRequested, STATGROUP_D3D12MemoryTransient, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Buffer Memory Frame Committed Allocated"), STAT_D3D12TransientMemoryBufferFrameCommittedAllocated, STATGROUP_D3D12MemoryTransient, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Buffer Memory Pool Allocations"), STAT_D3D12TransientMemoryBufferPoolAllocations, STATGROUP_D3D12MemoryTransient, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Buffer Memory Allocations"), STAT_D3D12TransientMemoryBufferCommittedAllocations, STATGROUP_D3D12MemoryTransient, );
+
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Used"), STAT_D3D12TransientMemoryTextureFrameUsed, STATGROUP_D3D12MemoryTransient, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Total Requested"), STAT_D3D12TransientMemoryTextureFrameTotalRequested, STATGROUP_D3D12MemoryTransient, );
+DECLARE_MEMORY_STAT_EXTERN(TEXT("Texture Memory Frame Committed Allocated"), STAT_D3D12TransientMemoryTextureFrameCommittedAllocated, STATGROUP_D3D12MemoryTransient, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture Memory Pool Allocations"), STAT_D3D12TransientMemoryTexturePoolAllocations, STATGROUP_D3D12MemoryTransient, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Texture Memory Allocations"), STAT_D3D12TransientMemoryTextureCommittedAllocations, STATGROUP_D3D12MemoryTransient, );
+
 
 /**
 * Detailed Descriptor heap stats

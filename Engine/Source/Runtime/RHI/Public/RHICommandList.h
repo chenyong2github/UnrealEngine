@@ -1500,6 +1500,18 @@ FRHICOMMAND_MACRO(FRHICommandResourceTransition)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
+FRHICOMMAND_MACRO(FRHICommandReleaseTransientResourceAllocator)
+{
+	IRHITransientResourceAllocator* Allocator;
+
+	FRHICommandReleaseTransientResourceAllocator(IRHITransientResourceAllocator * InAllocator)
+		: Allocator(InAllocator)
+	{
+	}
+
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
 struct FRHICommandSetAsyncComputeBudgetString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandSetAsyncComputeBudget"); }
@@ -2420,6 +2432,16 @@ public:
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandClearUAVUint)(UnorderedAccessViewRHI, Values);
+	}
+
+	FORCEINLINE_DEBUGGABLE void ReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator)
+	{
+		if (Bypass())
+		{
+			GetComputeContext().RHIReleaseTransientResourceAllocator(InAllocator);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandReleaseTransientResourceAllocator)(InAllocator);
 	}
 
 	FORCEINLINE_DEBUGGABLE void BeginTransitions(TArrayView<const FRHITransition*> Transitions)

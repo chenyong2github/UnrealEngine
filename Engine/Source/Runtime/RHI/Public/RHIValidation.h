@@ -210,6 +210,8 @@ public:
 		RHI->RHIReleaseTransition(Transition);
 	}
 
+	virtual IRHITransientResourceAllocator* RHICreateTransientResourceAllocator() override final;
+
 	/**
 	* Creates a staging buffer, which is memory visible to the cpu without any locking.
 	* @return The new staging-buffer.

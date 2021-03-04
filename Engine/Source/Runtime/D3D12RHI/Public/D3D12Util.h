@@ -618,7 +618,7 @@ static uint32 GetHeightAlignment(DXGI_FORMAT Format)
 	}
 }
 
-static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT Format, uint8 UEFormat, D3D12_RESOURCE_DIMENSION Dimension, uint32 SampleCount)
+static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT DXGIFormat, EPixelFormat UEFormat, D3D12_RESOURCE_DIMENSION Dimension, uint32 SampleCount)
 {
 	//Bits per unit
 	uint32 BPU = GPixelFormats[UEFormat].BlockBytes * 8;
@@ -628,7 +628,7 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT Format, uin
 	case D3D12_RESOURCE_DIMENSION_BUFFER:
 	case D3D12_RESOURCE_DIMENSION_TEXTURE1D:
 	{
-		check(!IsBlockCompressFormat(Format));
+		check(!IsBlockCompressFormat(DXGIFormat));
 		pTileShape->WidthInTexels = (BPU == 0) ? 4096 : 4096 * 8 / BPU;
 		pTileShape->HeightInTexels = 1;
 		pTileShape->DepthInTexels = 1;
@@ -637,19 +637,19 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT Format, uin
 	case D3D12_RESOURCE_DIMENSION_TEXTURE2D:
 	{
 		pTileShape->DepthInTexels = 1;
-		if (IsBlockCompressFormat(Format))
+		if (IsBlockCompressFormat(DXGIFormat))
 		{
 			// Currently only supported block sizes are 64 and 128.
 			// These equations calculate the size in texels for a tile. It relies on the fact that 16*16*16 blocks fit in a tile if the block size is 128 bits.
 			check(BPU == 64 || BPU == 128);
-			pTileShape->WidthInTexels = 16 * GetWidthAlignment(Format);
-			pTileShape->HeightInTexels = 16 * GetHeightAlignment(Format);
+			pTileShape->WidthInTexels = 16 * GetWidthAlignment(DXGIFormat);
+			pTileShape->HeightInTexels = 16 * GetHeightAlignment(DXGIFormat);
 			if (BPU == 64)
 			{
 				// If bits per block are 64 we double width so it takes up the full tile size.
 				// This is only true for BC1 and BC4
-				check((Format >= DXGI_FORMAT_BC1_TYPELESS && Format <= DXGI_FORMAT_BC1_UNORM_SRGB) ||
-					(Format >= DXGI_FORMAT_BC4_TYPELESS && Format <= DXGI_FORMAT_BC4_SNORM));
+				check((DXGIFormat >= DXGI_FORMAT_BC1_TYPELESS && DXGIFormat <= DXGI_FORMAT_BC1_UNORM_SRGB) ||
+					(DXGIFormat >= DXGI_FORMAT_BC4_TYPELESS && DXGIFormat <= DXGI_FORMAT_BC4_SNORM));
 				pTileShape->WidthInTexels *= 2;
 			}
 		}
@@ -713,28 +713,28 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT Format, uin
 				check(false);
 			}
 
-			check(GetWidthAlignment(Format) == 1);
-			check(GetHeightAlignment(Format) == 1);
+			check(GetWidthAlignment(DXGIFormat) == 1);
+			check(GetHeightAlignment(DXGIFormat) == 1);
 		}
 
 		break;
 	}
 	case D3D12_RESOURCE_DIMENSION_TEXTURE3D:
 	{
-		if (IsBlockCompressFormat(Format))
+		if (IsBlockCompressFormat(DXGIFormat))
 		{
 			// Currently only supported block sizes are 64 and 128.
 			// These equations calculate the size in texels for a tile. It relies on the fact that 16*16*16 blocks fit in a tile if the block size is 128 bits.
 			check(BPU == 64 || BPU == 128);
-			pTileShape->WidthInTexels = 8 * GetWidthAlignment(Format);
-			pTileShape->HeightInTexels = 8 * GetHeightAlignment(Format);
+			pTileShape->WidthInTexels = 8 * GetWidthAlignment(DXGIFormat);
+			pTileShape->HeightInTexels = 8 * GetHeightAlignment(DXGIFormat);
 			pTileShape->DepthInTexels = 4;
 			if (BPU == 64)
 			{
 				// If bits per block are 64 we double width so it takes up the full tile size.
 				// This is only true for BC1 and BC4
-				check((Format >= DXGI_FORMAT_BC1_TYPELESS && Format <= DXGI_FORMAT_BC1_UNORM_SRGB) ||
-					(Format >= DXGI_FORMAT_BC4_TYPELESS && Format <= DXGI_FORMAT_BC4_SNORM));
+				check((DXGIFormat >= DXGI_FORMAT_BC1_TYPELESS && DXGIFormat <= DXGI_FORMAT_BC1_UNORM_SRGB) ||
+					(DXGIFormat >= DXGI_FORMAT_BC4_TYPELESS && DXGIFormat <= DXGI_FORMAT_BC4_SNORM));
 				pTileShape->DepthInTexels *= 2;
 			}
 		}
@@ -775,8 +775,8 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT Format, uin
 				check(false);
 			}
 
-			check(GetWidthAlignment(Format) == 1);
-			check(GetHeightAlignment(Format) == 1);
+			check(GetWidthAlignment(DXGIFormat) == 1);
+			check(GetHeightAlignment(DXGIFormat) == 1);
 		}
 	}
 	break;
@@ -785,7 +785,7 @@ static void Get4KTileShape(D3D12_TILE_SHAPE* pTileShape, DXGI_FORMAT Format, uin
 
 #define NUM_4K_BLOCKS_PER_64K_PAGE (16)
 
-static bool TextureCanBe4KAligned(D3D12_RESOURCE_DESC& Desc, uint8 UEFormat)
+static bool TextureCanBe4KAligned(D3D12_RESOURCE_DESC& Desc, EPixelFormat UEFormat)
 {
 	// 4KB alignment is only available for read only textures
 	if (!(Desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET ||

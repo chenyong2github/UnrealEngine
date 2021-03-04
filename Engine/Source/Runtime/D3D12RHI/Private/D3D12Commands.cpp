@@ -290,12 +290,97 @@ void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& In
 	}
 }
 
+void ProcessDiscardState(FD3D12CommandContext& Context, const FRHITransitionInfo& Info)
+{
+	// No discard before or after state, then done
+	if (!EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::Discard) && !EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::Discard))
+	{
+		return;
+	}
+
+	FD3D12BaseShaderResource* BaseShaderResource = nullptr;
+	switch (Info.Type)
+	{
+	case FRHITransitionInfo::EType::Buffer:
+	{
+		FD3D12Buffer* Buffer = Context.RetrieveObject<FD3D12Buffer>(Info.Buffer);
+		check(Buffer);
+		BaseShaderResource = Buffer;
+		break;
+	}
+	case FRHITransitionInfo::EType::Texture:
+	{
+		FD3D12TextureBase* Texture = Context.RetrieveTextureBase(Info.Texture);
+		check(Texture);
+		BaseShaderResource = Texture;
+		break;
+	}
+	default:
+		checkNoEntry();
+		break;
+	}
+
+	if (EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::Discard))
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AcquireTransient);
+
+		FD3D12Resource* Resource = BaseShaderResource->ResourceLocation.GetResource();
+
+		// Try and see if the resource has overlapping resources
+		if (BaseShaderResource->ResourceLocation.IsTransient() && BaseShaderResource->ResourceLocation.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
+		{
+			// We know it's a transient resource allocator
+			FD3D12TransientResourceAllocator* Allocator = (FD3D12TransientResourceAllocator*) BaseShaderResource->ResourceLocation.GetPoolAllocator();
+
+			// Get the overlapping resources and append aliasing barriers for each of them
+			TArrayView<FD3D12Resource*> OverlappingResources = Allocator->GetOverlappingResources(BaseShaderResource);
+			for (FD3D12Resource* OverlappingResource : OverlappingResources)
+			{
+				Context.CommandListHandle.AddAliasingBarrier(OverlappingResource, Resource);
+			}
+		}		
+
+		bool bIsAsyncCompute = false;
+		D3D12_RESOURCE_STATES AfterState = GetD3D12ResourceState(Info.AccessAfter, bIsAsyncCompute);
+		FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, AfterState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
+		Context.CommandListHandle.FlushResourceBarriers();
+		
+		// Add clear or discard operation depending on flag
+		if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::Clear))
+		{
+			// add correct ops for clear
+			check(false);
+		}
+		else
+		{
+			check(Info.Flags & EResourceTransitionFlags::Discard);
+			Context.CommandListHandle->DiscardResource(Resource->GetResource(), nullptr);
+		}
+	}
+	else
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::DiscardTransient);
+
+		// Remove from caches
+		Context.ConditionalClearShaderResource(&BaseShaderResource->ResourceLocation);
+
+		// Release the resource location - transient allocator internally will take care of correct caching
+		BaseShaderResource->ResourceLocation.Clear();
+
+		// Release the views after clearing resource location
+		BaseShaderResource->ResourceRenamed(&BaseShaderResource->ResourceLocation);
+	}
+}
+
 static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D12TransitionData* TransitionData, D3D12_RESOURCE_STATES SkipFastClearEliminateState, bool& bUAVBarrier)
 {
 	const bool bDstAllPipelines = EnumHasAllFlags(TransitionData->DstPipelines, ERHIPipeline::All);
 
 	for (const FRHITransitionInfo& Info : TransitionData->Infos)
 	{
+		// Process the discard state
+		ProcessDiscardState(Context, Info);
+
 		const bool bUAVAccess = EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
 
 		// If targeting all pipelines and UAV access then add UAV barrier even with RHI based transitions
@@ -430,6 +515,12 @@ void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> T
 	{
 		StateCache.FlushComputeShaderCache(true);
 	}
+}
+
+void FD3D12CommandContext::RHIReleaseTransientResourceAllocator(IRHITransientResourceAllocator* InAllocator)
+{
+	// Should be fine to delete now
+	delete (FD3D12TransientResourceAllocator*)InAllocator;
 }
 
 void FD3D12CommandContext::RHISetStaticUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers)

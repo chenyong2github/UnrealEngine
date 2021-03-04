@@ -719,20 +719,27 @@ private:
 		BaseShaderResource = InBaseShaderResource;
 		ResourceLocation = &InResourceLocation;
 		Resource = ResourceLocation->GetResource();
-		check(Resource);
-
-		ResidencyHandle = Resource->GetResidencyHandle();
-
 		Desc = InDesc;
 
-		ViewSubresourceSubset = CViewSubresourceSubset(Desc,
-			Resource->GetMipLevels(),
-			Resource->GetArraySize(),
-			Resource->GetDesc().Format,
-			Flags);
+		// Transient resources might not have an actual resource yet
+		if (Resource)
+		{
+			ResidencyHandle = Resource->GetResidencyHandle();
+			ViewSubresourceSubset = CViewSubresourceSubset(Desc,
+				Resource->GetMipLevels(),
+				Resource->GetArraySize(),
+				Resource->GetDesc().Format,
+				Flags);
+		}
+		else
+		{
+			ResidencyHandle = nullptr;
+			ViewSubresourceSubset = CViewSubresourceSubset();
+		}
 
 #if DO_CHECK || USING_CODE_ANALYSIS
-		bInitialized = true;
+		// Only mark initialize if an actual resource is created for the base shader resource
+		bInitialized = (Resource != nullptr);
 #endif
 	}
 
@@ -741,17 +748,23 @@ protected:
 	{
 		InitializeInternal(InDesc, InBaseShaderResource, InResourceLocation);
 
-		ID3D12Resource* D3DResource = ResourceLocation->GetResource()->GetResource();
-		Descriptor.CreateView(Desc, D3DResource);
+		if (ResourceLocation->GetResource())
+		{
+			ID3D12Resource* D3DResource = ResourceLocation->GetResource()->GetResource();
+			Descriptor.CreateView(Desc, D3DResource);
+		}
 	}
 
 	void CreateViewWithCounter(const TDesc& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, FD3D12Resource* InCounterResource)
 	{
 		InitializeInternal(InDesc, InBaseShaderResource, InResourceLocation);
 
-		ID3D12Resource* D3DResource = ResourceLocation->GetResource()->GetResource();
-		ID3D12Resource* D3DCounterResource = InCounterResource ? InCounterResource->GetResource() : nullptr;
-		Descriptor.CreateViewWithCounter(Desc, D3DResource, D3DCounterResource);
+		if (ResourceLocation->GetResource())
+		{
+			ID3D12Resource* D3DResource = ResourceLocation->GetResource()->GetResource();
+			ID3D12Resource* D3DCounterResource = InCounterResource ? InCounterResource->GetResource() : nullptr;
+			Descriptor.CreateViewWithCounter(Desc, D3DResource, D3DCounterResource);
+		}
 	}
 
 	virtual void ResourceRenamed(FD3D12BaseShaderResource* InRenamedResource, FD3D12ResourceLocation* InNewResourceLocation) override
@@ -774,11 +787,11 @@ protected:
 public:
 	inline FD3D12Device*					GetParentDevice()			const { return Descriptor.GetParentDevice(); }
 	inline FD3D12Device*					GetParentDevice_Unsafe()	const { return Descriptor.GetParentDevice_Unsafe(); }
+	inline FD3D12ResourceLocation*			GetResourceLocation()		const { return ResourceLocation; }
 	inline const TDesc&						GetDesc()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Desc; }
 	inline CD3DX12_CPU_DESCRIPTOR_HANDLE	GetView()					const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetHandle(); }
 	inline uint32							GetDescriptorHeapIndex()	const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Descriptor.GetIndex(); }
 	inline FD3D12Resource*					GetResource()				const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return Resource; }
-	inline FD3D12ResourceLocation*			GetResourceLocation()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ResourceLocation; }
 	inline FD3D12ResidencyHandle*			GetResidencyHandle()		const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ResidencyHandle; }
 	inline const CViewSubresourceSubset&	GetViewSubresourceSubset()	const { checkf(bInitialized, TEXT("Uninitialized D3D12View size %d"), (uint32)sizeof(TDesc)); return ViewSubresourceSubset; }
 
@@ -826,32 +839,34 @@ public:
 
 	~FD3D12ShaderResourceView()
 	{
-		// Non-resident mesh LODs can lead to null SRVs being created
-		check(bInitialized || !GetParentDevice_Unsafe());
 	}
 
 	void Initialize(D3D12_SHADER_RESOURCE_VIEW_DESC& InDesc, FD3D12BaseShaderResource* InBaseShaderResource, FD3D12ResourceLocation& InResourceLocation, uint32 InStride, uint32 InStartOffsetBytes, bool InSkipFastClearFinalize)
 	{
 		Stride = InStride;
 		StartOffsetBytes = InStartOffsetBytes;
-		bContainsDepthPlane   = InResourceLocation.GetResource()->IsDepthStencilResource() && GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == 0;
-		bContainsStencilPlane = InResourceLocation.GetResource()->IsDepthStencilResource() && GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == 1;
-		bRequiresResourceStateTracking = InResourceLocation.GetResource()->RequiresResourceStateTracking();
 		bSkipFastClearFinalize = InSkipFastClearFinalize;
 
-#if DO_CHECK
-		// Check the plane slice of the SRV matches the texture format
-		// Texture2DMS does not have explicit plane index (it's implied by the format)
-		if (InDesc.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2D)
+		if (InResourceLocation.GetResource())
 		{
-			check(GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == InDesc.Texture2D.PlaneSlice);
-		}
+			bContainsDepthPlane = InResourceLocation.GetResource()->IsDepthStencilResource() && GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == 0;
+			bContainsStencilPlane = InResourceLocation.GetResource()->IsDepthStencilResource() && GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == 1;
+			bRequiresResourceStateTracking = InResourceLocation.GetResource()->RequiresResourceStateTracking();
 
-		if (InDesc.ViewDimension == D3D12_SRV_DIMENSION_BUFFER)
-		{
-			//check(InResourceLocation.GetOffsetFromBaseOfResource() == InDesc.Buffer.FirstElement * Stride);
-		}
+#if DO_CHECK
+			// Check the plane slice of the SRV matches the texture format
+			// Texture2DMS does not have explicit plane index (it's implied by the format)
+			if (InDesc.ViewDimension == D3D12_SRV_DIMENSION_TEXTURE2D)
+			{
+				check(GetPlaneSliceFromViewFormat(InResourceLocation.GetResource()->GetDesc().Format, InDesc.Format) == InDesc.Texture2D.PlaneSlice);
+			}
+
+			if (InDesc.ViewDimension == D3D12_SRV_DIMENSION_BUFFER)
+			{
+				//check(InResourceLocation.GetOffsetFromBaseOfResource() == InDesc.Buffer.FirstElement * Stride);
+			}
 #endif
+		}
 
 		CreateView(InDesc, InBaseShaderResource, InResourceLocation);
 	}
@@ -1075,27 +1090,7 @@ public:
 		, bHasStencil(InHasStencil)		// Only some DSVs have stencil bits in their format
 	{
 		CreateView(InDSVDesc, InBaseShaderResource, InBaseShaderResource->ResourceLocation);
-
-		check(Resource);
-
-		// Create individual subresource subsets for each plane
-		if (bHasDepth)
-		{
-			DepthOnlyViewSubresourceSubset = CViewSubresourceSubset(InDSVDesc,
-				Resource->GetMipLevels(),
-				Resource->GetArraySize(),
-				Resource->GetDesc().Format,
-				ViewSubresourceSubsetFlags_DepthOnlyDsv);
-		}
-
-		if (bHasStencil)
-		{
-			StencilOnlyViewSubresourceSubset = CViewSubresourceSubset(InDSVDesc,
-				Resource->GetMipLevels(),
-				Resource->GetArraySize(),
-				Resource->GetDesc().Format,
-				ViewSubresourceSubsetFlags_StencilOnlyDsv);
-		}
+		SetupDepthStencilViewSubresourceSubset();
 	}
 
 	bool HasDepth() const
@@ -1106,6 +1101,31 @@ public:
 	bool HasStencil() const
 	{
 		return bHasStencil;
+	}
+
+	void SetupDepthStencilViewSubresourceSubset()
+	{
+		if (Resource)
+		{
+			// Create individual subresource subsets for each plane
+			if (bHasDepth)
+			{
+				DepthOnlyViewSubresourceSubset = CViewSubresourceSubset(Desc,
+					Resource->GetMipLevels(),
+					Resource->GetArraySize(),
+					Resource->GetDesc().Format,
+					ViewSubresourceSubsetFlags_DepthOnlyDsv);
+			}
+
+			if (bHasStencil)
+			{
+				StencilOnlyViewSubresourceSubset = CViewSubresourceSubset(Desc,
+					Resource->GetMipLevels(),
+					Resource->GetArraySize(),
+					Resource->GetDesc().Format,
+					ViewSubresourceSubsetFlags_StencilOnlyDsv);
+			}
+		}
 	}
 
 	CViewSubresourceSubset& GetDepthOnlyViewSubresourceSubset()
@@ -1124,6 +1144,7 @@ public:
 	{
 		check(ResourceLocation->GetOffsetFromBaseOfResource() == 0);
 		CreateView(Desc, BaseShaderResource, BaseShaderResource->ResourceLocation);
+		SetupDepthStencilViewSubresourceSubset();
 	}
 };
 

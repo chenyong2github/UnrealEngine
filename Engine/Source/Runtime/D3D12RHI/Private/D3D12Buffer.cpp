@@ -150,8 +150,11 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	FRHIResourceCreateInfo& CreateInfo,
 	uint32 Alignment,
 	FD3D12Buffer* Buffer,
-	FD3D12ResourceLocation& ResourceLocation)
+	FD3D12ResourceLocation& ResourceLocation,
+	ID3D12ResourceAllocator* ResourceAllocator)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AllocateBuffer);
+
 	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
 	check(Size > 0);
 
@@ -159,6 +162,7 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 
 	if (bIsDynamic)
 	{
+		check(ResourceAllocator == nullptr);
 		check(InResourceStateMode != ED3D12ResourceStateMode::MultiState);
 		check(InCreateState == D3D12_RESOURCE_STATE_GENERIC_READ);
 		void* pData = GetUploadHeapAllocator(Device->GetGPUIndex()).AllocUploadResource(Size, Alignment, ResourceLocation);
@@ -175,7 +179,14 @@ void FD3D12Adapter::AllocateBuffer(FD3D12Device* Device,
 	}
 	else
 	{
-		Device->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, (EBufferUsageFlags)InUsage, InResourceStateMode, InCreateState, ResourceLocation, Alignment, CreateInfo.DebugName);
+		if (ResourceAllocator)
+		{
+			ResourceAllocator->AllocateResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, InDesc.Width, Alignment, InResourceStateMode, InCreateState, nullptr, CreateInfo.DebugName, ResourceLocation);
+		}
+		else
+		{
+			Device->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_DEFAULT, InDesc, (EBufferUsageFlags)InUsage, InResourceStateMode, InCreateState, ResourceLocation, Alignment, CreateInfo.DebugName);
+		}
 		ResourceLocation.SetOwner(Buffer);
 		check(ResourceLocation.GetSize() == Size);
 	}
@@ -189,13 +200,21 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 	uint32 InUsage,
 	ED3D12ResourceStateMode InResourceStateMode,
 	ERHIAccess InResourceState,
-	FRHIResourceCreateInfo& CreateInfo)
+	FRHIResourceCreateInfo& CreateInfo,
+	ID3D12ResourceAllocator* ResourceAllocator)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::CreateRHIBuffer);
+
 	SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBufferTime);
+
+	check(InDesc.Width == Size);
 
 	const bool bIsDynamic = (InUsage & BUF_AnyDynamic) ? true : false;
 	const uint32 FirstGPUIndex = CreateInfo.GPUMask.GetFirstIndex();
 
+	// Transient resources don't get any actual D3D12 resource asigned at this point yet
+	bool bIsTransient = GSupportsTransientResourceAliasing && (InUsage & BUF_Transient);
+	
 	// Does this resource support tracking?
 	const bool bSupportResourceStateTracking = !bIsDynamic && FD3D12DefaultBufferAllocator::IsPlacedResource(InDesc.Flags, InResourceStateMode);
 
@@ -208,6 +227,9 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 	FD3D12Buffer* BufferOut = nullptr;
 	if (bIsDynamic)
 	{
+		// Assume not transient and dynamic
+		check(!bIsTransient);
+		
 		FD3D12Buffer* NewBuffer0 = nullptr;
 		BufferOut = CreateLinkedObject<FD3D12Buffer>(CreateInfo.GPUMask, [&](FD3D12Device* Device)
 		{
@@ -216,7 +238,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 
 			if (Device->GetGPUIndex() == FirstGPUIndex)
 			{
-				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InitialState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation);
+				AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, InitialState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator);
 				NewBuffer0 = NewBuffer;
 			}
 			else
@@ -237,8 +259,8 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 		{
 			FD3D12Buffer* NewBuffer = new FD3D12Buffer(Device, Size, InUsage, Stride);
 			NewBuffer->BufferAlignment = Alignment;
-
-			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, CreateState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation);
+			AllocateBuffer(Device, InDesc, Size, InUsage, InResourceStateMode, CreateState, CreateInfo, Alignment, NewBuffer, NewBuffer->ResourceLocation, ResourceAllocator);
+			NewBuffer->ResourceLocation.SetTransient(bIsTransient);
 
 			// Unlock immediately if no initial data
 			if (CreateInfo.ResourceArray == nullptr)
@@ -252,6 +274,7 @@ FD3D12Buffer* FD3D12Adapter::CreateRHIBuffer(FRHICommandListImmediate* RHICmdLis
 
 	if (CreateInfo.ResourceArray)
 	{
+		check(!bIsTransient);
 		if (bIsDynamic == false && BufferOut->ResourceLocation.IsValid())
 		{
 			check(Size == CreateInfo.ResourceArray->GetResourceDataSize());
@@ -370,33 +393,35 @@ void FD3D12Buffer::ReleaseUnderlyingResource()
 	}
 }
 
-D3D12_RESOURCE_DESC CreateBufferResourceDesc(uint32 Size, uint32 Usage)
+void FD3D12Buffer::GetResourceDescAndAlignment(uint64 InSize, uint32 InStride, EBufferUsageFlags& InUsage, D3D12_RESOURCE_DESC& ResourceDesc, uint32& Alignment)
 {
-	D3D12_RESOURCE_DESC Desc = CD3DX12_RESOURCE_DESC::Buffer(Size);
+	ResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(InSize);
 
-	if (Usage & BUF_UnorderedAccess)
+	if (InUsage & BUF_UnorderedAccess)
 	{
-		Desc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+		ResourceDesc.Flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 		static bool bRequiresRawView = (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5);
 		if (bRequiresRawView)
 		{
 			// Force the buffer to be a raw, byte address buffer
-			Usage |= BUF_ByteAddressBuffer;
+			InUsage |= BUF_ByteAddressBuffer;
 		}
 	}
 
-	if ((Usage & BUF_ShaderResource) == 0)
+	if ((InUsage & BUF_ShaderResource) == 0)
 	{
-		Desc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
+		ResourceDesc.Flags |= D3D12_RESOURCE_FLAG_DENY_SHADER_RESOURCE;
 	}
 
-	if (Usage & BUF_DrawIndirect)
+	if (InUsage & BUF_DrawIndirect)
 	{
-		Desc.Flags |= D3D12RHI_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER;
+		ResourceDesc.Flags |= D3D12RHI_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER;
 	}
 
-	return Desc;
+	// Structured buffers, non-ByteAddress buffers, need to be aligned to their stride to ensure that they can be addressed correctly with element based offsets.
+	Alignment = (InStride > 0) && (((InUsage & BUF_StructuredBuffer) != 0) || ((InUsage & (BUF_ByteAddressBuffer | BUF_DrawIndirect)) == 0)) ? InStride : 4;
+
 }
 
 FBufferRHIRef FD3D12DynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo)
@@ -419,11 +444,17 @@ FBufferRHIRef FD3D12DynamicRHI::CreateBuffer(FRHICommandListImmediate* RHICmdLis
 			});
 	}
 
-	const D3D12_RESOURCE_DESC Desc = CreateBufferResourceDesc(Size, Usage);
-	// Structured buffers, non-ByteAddress buffers, need to be aligned to their stride to ensure that they can be addressed correctly with element based offsets.
-	const uint32 Alignment = (Stride > 0) && (((Usage & BUF_StructuredBuffer) != 0) || ((Usage & (BUF_ByteAddressBuffer | BUF_DrawIndirect)) == 0)) ? Stride : 4;
+	ID3D12ResourceAllocator* ResourceAllocator = nullptr;
+	return CreateD3D12Buffer(RHICmdList, Size, Usage, Stride, InResourceState, CreateInfo, ResourceAllocator);
+}
 
-	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(RHICmdList, Desc, Alignment, Stride, Size, Usage, ED3D12ResourceStateMode::Default, InResourceState, CreateInfo);
+FD3D12Buffer* FD3D12DynamicRHI::CreateD3D12Buffer(class FRHICommandListImmediate* RHICmdList, uint32 Size, EBufferUsageFlags Usage, uint32 Stride, ERHIAccess ResourceState, FRHIResourceCreateInfo& CreateInfo, ID3D12ResourceAllocator* ResourceAllocator)
+{
+	D3D12_RESOURCE_DESC Desc;
+	uint32 Alignment;
+	FD3D12Buffer::GetResourceDescAndAlignment(Size, Stride, Usage, Desc, Alignment);
+
+	FD3D12Buffer* Buffer = GetAdapter().CreateRHIBuffer(RHICmdList, Desc, Alignment, Stride, Size, Usage, ED3D12ResourceStateMode::Default, ResourceState, CreateInfo, ResourceAllocator);
 	if (Buffer->ResourceLocation.IsTransient())
 	{
 		// TODO: this should ideally be set in platform-independent code, since this tracking is for the high level

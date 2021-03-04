@@ -842,7 +842,10 @@ enum class ERHIAccess
 	DSVWrite            	= 1 << 14,
 	RTAccelerationStructure = 1 << 15,
 
-	Last = RTAccelerationStructure,
+	// Invalid released state (transient resources)
+	Discard					= 1 << 16,
+
+	Last = Discard,
 	None = Unknown,
 	Mask = (Last << 1) - 1,
 
@@ -1803,11 +1806,23 @@ enum class EResourceTransitionFlags
 	None                = 0,
 
 	MaintainCompression = 1 << 0, // Specifies that the transition should not decompress the resource, allowing us to read a compressed resource directly in its compressed state.
+	Discard				= 1 << 1, // Specifies that the data in the resource should be discarded during the transition - used for transient resource acquire when the resource will be fully overwritten
+	Clear				= 1 << 2, // Specifies that the data in the resource should be cleared during the transition - used for transient resource acquire when the resource might not be fully overwritten
 
-	Last = MaintainCompression,
+	Last = Clear,
 	Mask = (Last << 1) - 1
 };
 ENUM_CLASS_FLAGS(EResourceTransitionFlags);
+
+enum class ERHICreateTransientAllocationFlags
+{
+	// Discard data on acquire
+	Discard,
+
+	// Clear data on acquire
+	Clear,
+};
+ENUM_CLASS_FLAGS(ERHICreateTransientAllocationFlags);
 
 RHI_API FString GetRHIAccessName(ERHIAccess Access);
 RHI_API FString GetResourceTransitionFlagsName(EResourceTransitionFlags Flags);
