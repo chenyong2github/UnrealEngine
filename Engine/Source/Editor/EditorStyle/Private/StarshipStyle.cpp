@@ -1891,45 +1891,45 @@ void FStarshipEditorStyle::FStyle::SetupLevelGeneralStyles()
 	// Spline component controls
 	{
 		Set("SplineComponentDetails.SelectFirst", FButtonStyle(Button)
-			.SetNormal(IMAGE_BRUSH("/Sequencer/Transport_Bar/Go_To_Front_24x_OFF", Icon24x24))
-			.SetHovered(IMAGE_BRUSH("/Sequencer/Transport_Bar/Go_To_Front_24x_OFF", Icon24x24, SelectionColor))
-			.SetPressed(IMAGE_BRUSH("/Sequencer/Transport_Bar/Go_To_Front_24x", Icon24x24, SelectionColor_Pressed))
+			.SetNormal(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectFirst", Icon20x20))
+			.SetHovered(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectFirst", Icon20x20, SelectionColor))
+			.SetPressed(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectFirst", Icon20x20, SelectionColor_Pressed))
 		);
 
 		Set("SplineComponentDetails.AddPrev", FButtonStyle(Button)
-			.SetNormal(IMAGE_BRUSH("/Sequencer/Transport_Bar/Step_Backwards_24x_OFF", Icon24x24))
-			.SetHovered(IMAGE_BRUSH("/Sequencer/Transport_Bar/Step_Backwards_24x_OFF", Icon24x24, SelectionColor))
-			.SetPressed(IMAGE_BRUSH("/Sequencer/Transport_Bar/Step_Backwards_24x", Icon24x24, SelectionColor_Pressed))
+			.SetNormal(IMAGE_BRUSH_SVG("Starship/Splines/Spline_AddPrevious", Icon20x20))
+			.SetHovered(IMAGE_BRUSH_SVG("Starship/Splines/Spline_AddPrevious", Icon20x20, SelectionColor))
+			.SetPressed(IMAGE_BRUSH_SVG("Starship/Splines/Spline_AddPrevious", Icon20x20, SelectionColor_Pressed))
 		);
 
 		Set("SplineComponentDetails.SelectPrev", FButtonStyle(Button)
-			.SetNormal(IMAGE_BRUSH("/Sequencer/Transport_Bar/Backwards_24x_OFF", Icon24x24))
-			.SetHovered(IMAGE_BRUSH("/Sequencer/Transport_Bar/Backwards_24x_OFF", Icon24x24, SelectionColor))
-			.SetPressed(IMAGE_BRUSH("/Sequencer/Transport_Bar/Backwards_24x", Icon24x24, SelectionColor_Pressed))
+			.SetNormal(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectPrevious", Icon20x20))
+			.SetHovered(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectPrevious", Icon20x20, SelectionColor))
+			.SetPressed(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectPrevious", Icon20x20, SelectionColor_Pressed))
 		);
 
 		Set("SplineComponentDetails.SelectAll", FButtonStyle(Button)
-			.SetNormal(IMAGE_BRUSH("/Sequencer/Transport_Bar/Loop_24x_OFF", Icon24x24))
-			.SetHovered(IMAGE_BRUSH("/Sequencer/Transport_Bar/Loop_24x_OFF", Icon24x24, SelectionColor))
-			.SetPressed(IMAGE_BRUSH("/Sequencer/Transport_Bar/Loop_24x", Icon24x24, SelectionColor_Pressed))
+			.SetNormal(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectAll", Icon20x20))
+			.SetHovered(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectAll", Icon20x20, SelectionColor))
+			.SetPressed(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectAll", Icon20x20, SelectionColor_Pressed))
 		);
 
 		Set("SplineComponentDetails.SelectNext", FButtonStyle(Button)
-			.SetNormal(IMAGE_BRUSH("/Sequencer/Transport_Bar/Play_24x_OFF", Icon24x24))
-			.SetHovered(IMAGE_BRUSH("/Sequencer/Transport_Bar/Play_24x_OFF", Icon24x24, SelectionColor))
-			.SetPressed(IMAGE_BRUSH("/Sequencer/Transport_Bar/Play_24x", Icon24x24, SelectionColor_Pressed))
+			.SetNormal(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectNext", Icon20x20))
+			.SetHovered(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectNext", Icon20x20, SelectionColor))
+			.SetPressed(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectNext", Icon20x20, SelectionColor_Pressed))
 		);
 
 		Set("SplineComponentDetails.AddNext", FButtonStyle(Button)
-			.SetNormal(IMAGE_BRUSH("/Sequencer/Transport_Bar/Step_Forward_24x_OFF", Icon24x24))
-			.SetHovered(IMAGE_BRUSH("/Sequencer/Transport_Bar/Step_Forward_24x_OFF", Icon24x24, SelectionColor))
-			.SetPressed(IMAGE_BRUSH("/Sequencer/Transport_Bar/Step_Forward_24x", Icon24x24, SelectionColor_Pressed))
+			.SetNormal(IMAGE_BRUSH_SVG("Starship/Splines/Spline_AddNext", Icon20x20))
+			.SetHovered(IMAGE_BRUSH_SVG("Starship/Splines/Spline_AddNext", Icon20x20, SelectionColor))
+			.SetPressed(IMAGE_BRUSH_SVG("Starship/Splines/Spline_AddNext", Icon20x20, SelectionColor_Pressed))
 		);
 
 		Set("SplineComponentDetails.SelectLast", FButtonStyle(Button)
-			.SetNormal(IMAGE_BRUSH("/Sequencer/Transport_Bar/Go_To_End_24x_OFF", Icon24x24))
-			.SetHovered(IMAGE_BRUSH("/Sequencer/Transport_Bar/Go_To_End_24x_OFF", Icon24x24, SelectionColor))
-			.SetPressed(IMAGE_BRUSH("/Sequencer/Transport_Bar/Go_To_End_24x", Icon24x24, SelectionColor_Pressed))
+			.SetNormal(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectLast", Icon20x20))
+			.SetHovered(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectLast", Icon20x20, SelectionColor))
+			.SetPressed(IMAGE_BRUSH_SVG("Starship/Splines/Spline_SelectLast", Icon20x20, SelectionColor_Pressed))
 		);
 
 	}
