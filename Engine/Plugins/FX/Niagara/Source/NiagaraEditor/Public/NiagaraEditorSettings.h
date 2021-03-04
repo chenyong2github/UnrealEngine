@@ -9,6 +9,8 @@
 #include "NiagaraSpawnShortcut.h"
 #include "NiagaraEditorSettings.generated.h"
 
+class UCurveFloat;
+
 USTRUCT()
 struct FNiagaraNewAssetDialogConfig
 {
@@ -145,6 +147,18 @@ struct FNiagaraNamespaceMetadata
 	bool IsValid() const { return Namespaces.Num() > 0; }
 };
 
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraCurveTemplate
+{
+	GENERATED_BODY();
+
+	UPROPERTY(EditAnywhere, Category = Curve)
+	FString DisplayNameOverride;
+
+	UPROPERTY(EditAnywhere, Category = Curve, meta = (AllowedClasses = "CurveFloat"))
+	FSoftObjectPath CurveAsset;
+};
+
 UCLASS(config = Niagara, defaultconfig, meta=(DisplayName="Niagara"))
 class NIAGARAEDITOR_API UNiagaraEditorSettings : public UDeveloperSettings
 {
@@ -222,6 +236,8 @@ public:
 	FNiagaraNamespaceMetadata GetDefaultNamespaceModifierMetadata() const;
 	FNiagaraNamespaceMetadata GetMetaDataForNamespaceModifier(FName NamespaceModifier) const;
 	const TArray<FNiagaraNamespaceMetadata>& GetAllNamespaceModifierMetadata() const;
+
+	const TArray<FNiagaraCurveTemplate>& GetCurveTemplates() const;
 	
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
@@ -285,4 +301,7 @@ private:
 
 	UPROPERTY()
 	FNiagaraNamespaceMetadata DefaultNamespaceModifierMetadata;
+
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	TArray<FNiagaraCurveTemplate> CurveTemplates;
 };

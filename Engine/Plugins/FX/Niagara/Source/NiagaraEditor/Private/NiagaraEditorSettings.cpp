@@ -389,6 +389,11 @@ const TArray<FNiagaraNamespaceMetadata>& UNiagaraEditorSettings::GetAllNamespace
 	return NamespaceModifierMetadata;
 }
 
+const TArray<FNiagaraCurveTemplate>& UNiagaraEditorSettings::GetCurveTemplates() const
+{
+	return CurveTemplates;
+}
+
 FName UNiagaraEditorSettings::GetCategoryName() const
 {
 	return TEXT("Plugins");

@@ -30,7 +30,7 @@ FNiagaraStackCurveEditorOptions::FNiagaraStackCurveEditorOptions()
 	, ViewMaxInput(1)
 	, ViewMinOutput(0)
 	, ViewMaxOutput(1)
-	, bAreCurvesVisible(true)
+	, bIsGradientVisible(true)
 	, bNeedsInitializeView(true)
 	, Height(180)
 {
@@ -97,14 +97,14 @@ void FNiagaraStackCurveEditorOptions::SetHeight(float InHeight)
 	Height = InHeight;
 }
 
-bool FNiagaraStackCurveEditorOptions::GetAreCurvesVisible() const
+bool FNiagaraStackCurveEditorOptions::GetIsGradientVisible() const
 {
-	return bAreCurvesVisible;
+	return bIsGradientVisible;
 }
 
-void FNiagaraStackCurveEditorOptions::SetAreCurvesVisible(bool bInAreCurvesVisible)
+void FNiagaraStackCurveEditorOptions::SetIsGradientVisible(bool bInIsGradientVisible)
 {
-	bAreCurvesVisible = bInAreCurvesVisible;
+	bIsGradientVisible = bInIsGradientVisible;
 }
 
 void FNiagaraEditorWidgetsModule::StartupModule()
@@ -167,19 +167,23 @@ void FNiagaraEditorWidgetsModule::ShutdownModule()
 	FNiagaraEditorWidgetsStyle::Shutdown();
 }
 
+FNiagaraEditorWidgetsModule& FNiagaraEditorWidgetsModule::Get()
+{
+	return FModuleManager::GetModuleChecked<FNiagaraEditorWidgetsModule>("NiagaraEditorWidgets");
+}
+
 void FNiagaraEditorWidgetsModule::ReinitializeStyle()
 {
 	FNiagaraEditorWidgetsStyle::Shutdown();
 	FNiagaraEditorWidgetsStyle::Initialize();
 }
 
-TSharedRef<FNiagaraStackCurveEditorOptions> FNiagaraEditorWidgetsModule::GetOrCreateStackCurveEditorOptionsForObject(UObject* Object, bool bDefaultAreCurvesVisible, float DefaultHeight)
+TSharedRef<FNiagaraStackCurveEditorOptions> FNiagaraEditorWidgetsModule::GetOrCreateStackCurveEditorOptionsForObject(UObject* Object, float DefaultHeight)
 {
 	TSharedRef<FNiagaraStackCurveEditorOptions>* StackCurveEditorOptions = ObjectToStackCurveEditorOptionsMap.Find(FObjectKey(Object));
 	if (StackCurveEditorOptions == nullptr)
 	{
 		StackCurveEditorOptions = &ObjectToStackCurveEditorOptionsMap.Add(FObjectKey(Object), MakeShared<FNiagaraStackCurveEditorOptions>());
-		(*StackCurveEditorOptions)->SetAreCurvesVisible(bDefaultAreCurvesVisible);
 		(*StackCurveEditorOptions)->SetHeight(DefaultHeight);
 	}
 	return *StackCurveEditorOptions;
