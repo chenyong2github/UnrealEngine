@@ -751,6 +751,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		SceneColor = RenderForward(RHICmdList, ViewList);
 	}
+	
 
 	if (bShouldRenderVelocities)
 	{
@@ -758,6 +759,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		FRDGTextureMSAA SceneDepthTexture = RegisterExternalTextureMSAA(GraphBuilder, SceneContext.SceneDepthZ);
 		FRDGTextureRef VelocityTexture = TryRegisterExternalTexture(GraphBuilder, SceneContext.SceneVelocity);
+
+		if (VelocityTexture != nullptr)
+		{
+			AddClearRenderTargetPass(GraphBuilder, VelocityTexture);
+		}
 
 		// Render the velocities of movable objects
 		AddSetCurrentStatPass(GraphBuilder, GET_STATID(STAT_CLMM_Velocity));
@@ -769,7 +775,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		GraphBuilder.Execute();
 	}
-		
+
 	if (FXSystem && Views.IsValidIndex(0))
 	{
 		check(RHICmdList.IsOutsideRenderPass());

@@ -1303,6 +1303,16 @@ RENDERCORE_API void RenderUtilsInit()
 	}
 #endif // WITH_EDITOR
 
+	for (uint32 ShaderPlatformIndex = 0; ShaderPlatformIndex < SP_NumPlatforms; ++ShaderPlatformIndex)
+	{
+		EShaderPlatform ShaderPlatform = EShaderPlatform(ShaderPlatformIndex);
+		if (IsMobilePlatform(ShaderPlatform))
+		{
+			uint64 Mask = 1ull << ShaderPlatformIndex;
+			GBasePassVelocityPlatformMask &= ~Mask;
+		}
+	}
+
 	// Run-time ray tracing support depends on the following factors:
 	// - Ray tracing must be enabled for the project
 	// - Skin cache must be enabled for the project
