@@ -1012,6 +1012,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	LocalBounds = FBox(FVector::ZeroVector, FVector::ZeroVector);
 	CachedDeltaSeconds = 0.0f;
 	bAlreadyBound = false;
+	bSolo = bForceSolo;
 
 	UNiagaraSystem* System = GetSystem();
 	if (System == nullptr)
@@ -1037,7 +1038,7 @@ void FNiagaraSystemInstance::ReInitInternal()
 	}
 
 	/** Do we need to run in solo mode? */
-	bSolo = bForceSolo || DoSystemDataInterfacesRequireSolo(*System, OverrideParameters);
+	bSolo |= DoSystemDataInterfacesRequireSolo(*System, OverrideParameters);
 	if (bSolo)
 	{
 		if (!SystemSimulation.IsValid())
