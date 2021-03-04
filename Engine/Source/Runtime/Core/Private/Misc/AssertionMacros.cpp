@@ -23,6 +23,7 @@
 #include "Misc/CoreDelegates.h"
 #include "HAL/ExceptionHandling.h"
 #include "HAL/ThreadHeartBeat.h"
+#include "HAL/IConsoleManager.h"
 
 namespace 
 {
