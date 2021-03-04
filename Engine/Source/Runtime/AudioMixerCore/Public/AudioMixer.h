@@ -17,7 +17,8 @@
 #include "Modules/ModuleInterface.h"
 
 // defines used for AudioMixer.h
-#define AUDIO_PLATFORM_ERROR(INFO)			(OnAudioMixerPlatformError(INFO, FString(__FILE__), __LINE__))
+#define AUDIO_PLATFORM_LOG_ONCE(INFO, VERBOSITY)	(AudioMixerPlatformLogOnce(INFO, FString(__FILE__), __LINE__, ELogVerbosity::VERBOSITY))
+#define AUDIO_PLATFORM_ERROR(INFO)					(AudioMixerPlatformLogOnce(INFO, FString(__FILE__), __LINE__, ELogVerbosity::Error))
 
 #ifndef AUDIO_MIXER_ENABLE_DEBUG_MODE
 // This define enables a bunch of more expensive debug checks and logging capabilities that are intended to be off most of the time even in debug builds of game/editor.
@@ -510,23 +511,70 @@ namespace Audio
 		// Wrapper around the thread Run. This is virtualized so a platform can fundamentally override the render function.
 		virtual uint32 RunInternal();
 
-		/** Is called when an error is generated. */
-		inline void OnAudioMixerPlatformError(const FString& ErrorDetails, const FString& FileName, int32 LineNumber)
+		/** Is called when an error, warning or log is generated. */
+		inline void AudioMixerPlatformLogOnce(const FString& LogDetails, const FString& FileName, int32 LineNumber, ELogVerbosity::Type InVerbosity = ELogVerbosity::Error)
 		{
 #if !NO_LOGGING
-			// Log once on these errors to avoid Spam.
+			// Log once to avoid Spam.
 			static FCriticalSection Cs;
 			static TSet<uint32> LogHistory;
+
 			FScopeLock Lock(&Cs);
-			LastError = FString::Printf(TEXT("Audio Platform Device Error: %s (File %s, Line %d)"), *ErrorDetails, *FileName, LineNumber);
-			uint32 Hash = GetTypeHash(LastError);
+			FString Message = FString::Printf(TEXT("Audio Platform Device: %s (File %s, Line %d)"), *LogDetails, *FileName, LineNumber);
+
+			if ((ELogVerbosity::Error == InVerbosity) || (ELogVerbosity::Fatal == InVerbosity))
+			{
+				// Save last error if it was at the error level.
+				LastError = Message;
+			}
+
+			uint32 Hash = GetTypeHash(Message);
 			if (!LogHistory.Contains(Hash))
 			{
-				UE_LOG(LogAudioMixer, Error, TEXT("%s"), *LastError);
+				switch (InVerbosity)
+				{
+					case ELogVerbosity::Fatal:
+						UE_LOG(LogAudioMixer, Fatal, TEXT("%s"), *Message);
+						break;
+
+					case ELogVerbosity::Error:
+						UE_LOG(LogAudioMixer, Error, TEXT("%s"), *Message);
+						break;
+
+					case ELogVerbosity::Warning:
+						UE_LOG(LogAudioMixer, Warning, TEXT("%s"), *Message);
+						break;
+
+					case ELogVerbosity::Display:
+						UE_LOG(LogAudioMixer, Display, TEXT("%s"), *Message);
+						break;
+
+					case ELogVerbosity::Log:
+						UE_LOG(LogAudioMixer, Log, TEXT("%s"), *Message);
+						break;
+
+					case ELogVerbosity::Verbose:
+						UE_LOG(LogAudioMixer, Verbose, TEXT("%s"), *Message);
+						break;
+
+					case ELogVerbosity::VeryVerbose:
+						UE_LOG(LogAudioMixer, VeryVerbose, TEXT("%s"), *Message);
+						break;
+
+					default:
+						UE_LOG(LogAudioMixer, Error, TEXT("%s"), *Message);
+						{
+							static_assert(static_cast<uint8>(ELogVerbosity::NumVerbosity) == 8, "Missing ELogVerbosity case coverage");
+						}
+						break;
+				}
+				
 				LogHistory.Add(Hash);
 			}
-#endif //!NO_LOGGING
+#endif
 		}
+
+
 
 		/** Start generating audio from our mixer. */
 		void BeginGeneratingAudio();
