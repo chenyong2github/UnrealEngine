@@ -13,7 +13,7 @@ namespace Metasound
 	namespace Frontend
 	{
 		// This is called by FMetasoundFrontendModule, and flushes any node or datatype registration that was done prior to boot.
-		void InitializeFrontend();
+		void RegisterPendingNodes();
 
 		/** Use this to get a reference to the static registry of all nodes implemented in C++. */
 		METASOUNDFRONTEND_API TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry();

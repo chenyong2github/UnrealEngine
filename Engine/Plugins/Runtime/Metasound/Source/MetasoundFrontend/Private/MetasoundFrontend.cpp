@@ -190,7 +190,7 @@ class FMetasoundFrontendModule : public IModuleInterface
 {
 	virtual void StartupModule() override
 	{
-		Metasound::Frontend::InitializeFrontend();
+		Metasound::Frontend::RegisterPendingNodes();
 	}
 };
 

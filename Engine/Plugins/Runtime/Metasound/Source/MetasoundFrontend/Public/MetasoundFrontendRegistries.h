@@ -266,7 +266,7 @@ public:
 	FMetasoundFrontendRegistryContainer(const FMetasoundFrontendRegistryContainer&) = delete;
 
 	// This is called on module startup. This invokes any registration commands enqueued by our registration macros.
-	void InitializeFrontend();
+	void RegisterPendingNodes();
 
 
 	bool EnqueueInitCommand(TUniqueFunction<void()>&& InFunc);
@@ -349,7 +349,6 @@ private:
 	TArray<TUniqueFunction<void()>, TInlineAllocator<MaxNumNodesAndDatatypesToInitialize>> LazyInitCommands;
 	
 	FCriticalSection LazyInitCommandCritSection;
-	bool bHasModuleBeenInitialized;
 
 	// Registry in which we keep all information about nodes implemented in C++.
 	TMap<FNodeRegistryKey, FNodeRegistryElement> ExternalNodeRegistry;

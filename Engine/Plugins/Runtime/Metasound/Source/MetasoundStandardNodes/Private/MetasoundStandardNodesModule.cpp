@@ -14,6 +14,10 @@ namespace Metasound
 {
 	class FMetasoundStandardNodesModule : public IMetasoundGraphCoreModule
 	{
+		virtual void StartupModule() override
+		{
+			FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
+		}
 	};
 }
 

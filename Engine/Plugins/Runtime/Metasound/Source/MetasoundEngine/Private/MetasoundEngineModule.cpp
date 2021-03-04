@@ -23,6 +23,9 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		// Register preferred archetypes
 		Metasound::IMetasoundUObjectRegistry::RegisterUClassPreferredArchetypes<UMetasoundSource>();
 
+		// flush node regsitration queue
+		FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
+
 		FModuleManager::Get().LoadModuleChecked(TEXT("AudioCodecEngine"));
 
 		UE_LOG(LogMetasoundEngine, Log, TEXT("Metasound Engine Initialized"));

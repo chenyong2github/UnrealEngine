@@ -130,7 +130,6 @@ namespace Metasound
 }
 
 FMetasoundFrontendRegistryContainer::FMetasoundFrontendRegistryContainer()
-	: bHasModuleBeenInitialized(false)
 {
 }
 
@@ -155,17 +154,11 @@ void FMetasoundFrontendRegistryContainer::ShutdownMetasoundFrontend()
 	}
 }
 
-void FMetasoundFrontendRegistryContainer::InitializeFrontend()
+void FMetasoundFrontendRegistryContainer::RegisterPendingNodes()
 {
 	FScopeLock ScopeLock(&LazyInitCommandCritSection);
 
-	if (bHasModuleBeenInitialized)
-	{
-		// this function should only be called once.
-		checkNoEntry();
-	}
-
-	UE_LOG(LogTemp, Display, TEXT("Initializing Metasounds Frontend."));
+	UE_LOG(LogTemp, Display, TEXT("Processing %i Metasounds Frontend Registration Requests."), LazyInitCommands.Num());
 	uint64 CurrentTime = FPlatformTime::Cycles64();
 
 	for (TUniqueFunction<void()>& Command : LazyInitCommands)
@@ -174,7 +167,6 @@ void FMetasoundFrontendRegistryContainer::InitializeFrontend()
 	}
 
 	LazyInitCommands.Empty();
-	bHasModuleBeenInitialized = true;
 
 	uint64 CyclesUsed = FPlatformTime::Cycles64() - CurrentTime;
 	UE_LOG(LogTemp, Display, TEXT("Initializing Metasounds Frontend took %f seconds."), FPlatformTime::ToSeconds64(CyclesUsed));
@@ -182,14 +174,7 @@ void FMetasoundFrontendRegistryContainer::InitializeFrontend()
 
 bool FMetasoundFrontendRegistryContainer::EnqueueInitCommand(TUniqueFunction<void()>&& InFunc)
 {
-	// if the module has been initalized already, we can safely call this function now.
-	if (bHasModuleBeenInitialized)
-	{
-		InFunc();
-	}
-
-	// otherwise, we enqueue the function to be executed after the frontend module has been initialized.
-
+	FScopeLock ScopeLock(&LazyInitCommandCritSection);
 	if (LazyInitCommands.Num() >= MaxNumNodesAndDatatypesToInitialize)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Registering more that %d nodes and datatypes for metasounds! Consider increasing MetasoundFrontendRegistryContainer::MaxNumNodesAndDatatypesToInitialize."));

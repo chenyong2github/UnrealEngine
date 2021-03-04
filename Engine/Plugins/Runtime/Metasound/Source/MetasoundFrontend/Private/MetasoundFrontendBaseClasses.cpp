@@ -700,9 +700,9 @@ namespace Metasound
 
 		
 
-		void InitializeFrontend()
+		void RegisterPendingNodes()
 		{
-			FMetasoundFrontendRegistryContainer::Get()->InitializeFrontend();
+			FMetasoundFrontendRegistryContainer::Get()->RegisterPendingNodes();
 		}
 	}
 }
