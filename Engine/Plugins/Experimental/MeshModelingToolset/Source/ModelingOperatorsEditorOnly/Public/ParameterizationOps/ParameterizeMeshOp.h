@@ -24,6 +24,11 @@ enum class EParamOpIslandMode
 	UVIslands = 2
 };
 
+enum class EParamOpBackend
+{
+	UVAltas = 0,
+	XAtlas = 1
+};
 
 class MODELINGOPERATORSEDITORONLY_API FParameterizeMeshOp : public FDynamicMeshOperator
 {
@@ -55,6 +60,7 @@ public:
 
 	EParamOpUnwrapType UnwrapType = EParamOpUnwrapType::ExpMap;
 	EParamOpIslandMode IslandMode = EParamOpIslandMode::PolyGroups;
+	EParamOpBackend Method = EParamOpBackend::XAtlas;
 
 	// set ability on protected transform.
 	void SetTransform(FTransform3d& XForm)

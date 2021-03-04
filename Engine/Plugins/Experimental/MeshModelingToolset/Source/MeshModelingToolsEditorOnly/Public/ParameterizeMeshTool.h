@@ -85,6 +85,12 @@ enum class EUVIslandMode
 	ExistingUVs = 2
 };
 
+UENUM()
+enum class EUVMethod
+{
+	UVAtlas = 0,
+	XAtlas = 1
+};
 
 
 UENUM()
@@ -107,16 +113,21 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolProperties : public U
 	GENERATED_BODY()
 public:
 
-	//UPROPERTY(EditAnywhere, Category = Options)
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "bIsGlobalMode == false"))
 	EUVIslandMode IslandMode = EUVIslandMode::PolyGroups;
 
 	UPROPERTY(EditAnywhere, Category = Options, meta = (EditConditionHides, HideEditConditionToggle, EditCondition = "bIsGlobalMode == false"))
 	EUVUnwrapType UnwrapType = EUVUnwrapType::ExpMap;
 
+	UPROPERTY(EditAnywhere, Category = Options)
+	EUVMethod Method = EUVMethod::UVAtlas;
+
 	/** Maximum amount of stretch, from none to any.  If zero stretch is specified each triangle will likey be its own chart */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (Default = "0.166", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1", EditCondition = "bIsGlobalMode || UnwrapType == EUVUnwrapType::MinStretch"))
+	UPROPERTY(EditAnywhere, Category = Options, 
+			  meta = (Default = "0.166", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1", 
+					  EditCondition = "bIsGlobalMode && Method == EUVMethod::UVAtlas || UnwrapType == EUVUnwrapType::MinStretch && Method == EUVMethod::UVAtlas"))
 	float ChartStretch = 0.11f;
+
 
 	/** Scaling applied to UV islands */
 	UPROPERTY(EditAnywhere, Category = Options)

@@ -254,6 +254,8 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 			break;
 	}
 
+	ParameterizeMeshOp->Method = (EParamOpBackend)(int)Settings->Method;
+
 	const FTransform XForm = ComponentTarget->GetWorldTransform();
 	FTransform3d XForm3d(XForm);
 	ParameterizeMeshOp->SetTransform(XForm3d);

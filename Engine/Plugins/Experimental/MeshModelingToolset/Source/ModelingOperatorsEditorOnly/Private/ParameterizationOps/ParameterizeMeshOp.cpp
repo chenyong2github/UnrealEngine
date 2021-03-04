@@ -11,8 +11,7 @@
 #include "DynamicMeshAABBTree3.h"
 #include "MeshNormals.h"
 #include "DynamicSubmesh3.h"
-
-
+#include "XAtlasWrapper.h"
 
 
 FParameterizeMeshOp::FLinearMesh::FLinearMesh(const FDynamicMesh3& Mesh, const bool bRespectPolygroups)
@@ -182,9 +181,30 @@ bool FParameterizeMeshOp::ComputeUVs(FDynamicMesh3& Mesh,  TFunction<bool(float)
 	float MaxStretch     = Stretch;
 	int32 MaxChartNumber = NumCharts;
 
-	TUniquePtr<IProxyLODParameterization> ParameterizationTool = IProxyLODParameterization::CreateTool();
-	bool bSuccess = ParameterizationTool->GenerateUVs(Width, Height, Gutter, LinearMesh.VertexBuffer, LinearMesh.IndexBuffer, LinearMesh.AdjacencyBuffer, Interrupter, UVVertexBuffer, UVIndexBuffer, VertexRemapArray, MaxStretch, MaxChartNumber);
+	bool bSuccess = true;
+	bool bUseXAtlas = (Method == EParamOpBackend::XAtlas);
 
+	if (bUseXAtlas)
+	{
+		XAtlasWrapper::XAtlasChartOptions ChartOptions;
+		XAtlasWrapper::XAtlasPackOptions PackOptions;
+		bSuccess = XAtlasWrapper::ComputeUVs(LinearMesh.IndexBuffer, 
+											 LinearMesh.VertexBuffer, 
+											 ChartOptions,
+											 PackOptions,
+											 UVVertexBuffer, 
+											 UVIndexBuffer, 
+											 VertexRemapArray);
+	}
+	else
+	{
+		TUniquePtr<IProxyLODParameterization> ParameterizationTool = IProxyLODParameterization::CreateTool();
+		bSuccess = ParameterizationTool->GenerateUVs(Width, Height, Gutter, LinearMesh.VertexBuffer, 
+													 LinearMesh.IndexBuffer, LinearMesh.AdjacencyBuffer, Interrupter, 
+													 UVVertexBuffer, UVIndexBuffer, VertexRemapArray, MaxStretch, 
+													 MaxChartNumber);
+	}
+	
 
 	// Add the UVs to the FDynamicMesh
 	if (bSuccess)
