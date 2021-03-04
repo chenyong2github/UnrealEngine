@@ -2759,7 +2759,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ShaderTypesReady);
 
-		SlowTask.EnterProgressFrame(30);
+		SlowTask.EnterProgressFrame(25, LOCTEXT("CompileGlobalShaderMap", "Compiling Global Shaders..."));
 
 		// Load the global shaders.
 		// if (!IsRunningCommandlet())
@@ -2778,6 +2778,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				return 1;
 			}
 		}
+
+		SlowTask.EnterProgressFrame(5);
 
 		{
 			SCOPED_BOOT_TIMING("CreateMoviePlayer");
