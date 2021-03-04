@@ -512,6 +512,11 @@ public:
 	virtual void LoadPackageRegistryData(FArchive& Ar, TArray<FAssetData*>& Data) const = 0;
 	
 	
+	/** Called to check whether we should filter out assets of the given class and packageflags from the editor's AssetRegistry */
+	virtual bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const = 0;
+	/** Called to check whether we should filter out the given object (assumed to be an asset) from the editor's AssetRegistry */
+	virtual bool ShouldSkipAsset(const UObject* InAsset) const = 0;
+
 protected:
 	// Functions specifically for calling from the asset manager
 	friend class UAssetManager;
