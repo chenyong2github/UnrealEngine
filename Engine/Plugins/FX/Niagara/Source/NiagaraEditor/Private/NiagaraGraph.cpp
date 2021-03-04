@@ -2474,38 +2474,16 @@ void UNiagaraGraph::GatherExternalDependencyData(ENiagaraScriptUsage InUsage, co
 void UNiagaraGraph::GetAllReferencedGraphs(TArray<const UNiagaraGraph*>& Graphs) const
 {
 	Graphs.AddUnique(this);
-	for (UEdGraphNode* Node : Nodes)
+	TArray<UNiagaraNodeFunctionCall*> FunctionCallNodes;
+	GetNodesOfClass(FunctionCallNodes);
+	for (UNiagaraNodeFunctionCall* FunctionCallNode : FunctionCallNodes)
 	{
-		if (UNiagaraNode* InNode = Cast<UNiagaraNode>(Node))
+		UNiagaraGraph* FunctionGraph = FunctionCallNode->GetCalledGraph();
+		if (FunctionGraph != nullptr)
 		{
-			UObject* AssetRef = InNode->GetReferencedAsset();
-			if (AssetRef != nullptr && AssetRef->IsA(UNiagaraScript::StaticClass()))
+			if (!Graphs.Contains(FunctionGraph))
 			{
-				if (UNiagaraScript* FunctionScript = Cast<UNiagaraScript>(AssetRef))
-				{
-					if (FunctionScript->GetSource())
-					{
-						UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionScript->GetSource());
-						if (Source != nullptr)
-						{
-							UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraGraph>(Source->NodeGraph);
-							if (FunctionGraph != nullptr)
-							{
-								if (!Graphs.Contains(FunctionGraph))
-								{
-									FunctionGraph->GetAllReferencedGraphs(Graphs);
-								}
-							}
-						}
-					}
-				}
-				else if (UNiagaraGraph* FunctionGraph = Cast<UNiagaraGraph>(AssetRef))
-				{
-					if (!Graphs.Contains(FunctionGraph))
-					{
-						FunctionGraph->GetAllReferencedGraphs(Graphs);
-					}
-				}
+				FunctionGraph->GetAllReferencedGraphs(Graphs);
 			}
 		}
 	}
