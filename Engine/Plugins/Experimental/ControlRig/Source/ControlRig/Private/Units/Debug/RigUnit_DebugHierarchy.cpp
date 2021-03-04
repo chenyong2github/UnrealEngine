@@ -5,7 +5,8 @@
 
 FRigUnit_DebugHierarchy_Execute()
 {
-    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
 		return;
@@ -21,4 +22,5 @@ FRigUnit_DebugHierarchy_Execute()
 	{
 		Context.DrawInterface->DrawHierarchy(WorldOffset, *Hierarchy, EControlRigDrawHierarchyMode::Axes, Scale, Color, Thickness);
 	}
+#endif
 }
