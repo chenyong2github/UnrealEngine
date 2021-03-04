@@ -615,11 +615,33 @@ static void DumpShaderAsm(FString& String, const D3D12_SHADER_BYTECODE& Shader)
 #if D3D12RHI_USE_D3DDISASSEMBLE
 	if (Shader.pShaderBytecode)
 	{
-		ID3DBlob* blob = nullptr;
-		if (SUCCEEDED(D3DDisassemble(Shader.pShaderBytecode, Shader.BytecodeLength, 0, "", &blob)))
+		// This function needs to load the bundled version of d3dcompiler lib explictly. Implicit linking results
+		// in picking up the system lib by both the engine and SCWs (which links to this module), which makes
+		// the shader compilation system-dependent.
+		static pD3DDisassemble D3DDisasmFunc = nullptr;
+		if (D3DDisasmFunc == nullptr)
 		{
-			String.Appendf(TEXT("%S\n"), blob->GetBufferPointer());
-			blob->Release();
+			static HMODULE CompilerDLL = NULL;	// not nullptr as the return value of LoadLibrary remains defined as NULL
+			static const TCHAR* CompilerPath = TEXT("Binaries/ThirdParty/Windows/DirectX/x64/d3dcompiler_47.dll");
+			if (CompilerDLL == NULL)
+			{
+				CompilerDLL = LoadLibrary(CompilerPath);
+			}
+
+			if (CompilerDLL != NULL)
+			{
+				D3DDisasmFunc = (pD3DDisassemble)(void*)(GetProcAddress(CompilerDLL, "D3DDisassemble"));
+			}
+		}
+
+		if (D3DDisasmFunc)
+		{
+			ID3DBlob* blob = nullptr;
+			if (SUCCEEDED(D3DDisasmFunc(Shader.pShaderBytecode, Shader.BytecodeLength, 0, "", &blob)))
+			{
+				String.Appendf(TEXT("%S\n"), blob->GetBufferPointer());
+				blob->Release();
+			}
 		}
 	}
 #endif

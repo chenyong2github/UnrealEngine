@@ -31,11 +31,12 @@ public class DX11 : ModuleRules
 					LibDir + "d3d9.lib",
 					LibDir + "d3d11.lib",
 					LibDir + "dxguid.lib",
-					LibDir + "d3dcompiler.lib",
 					LibDir + "dinput8.lib",
 					LibDir + "X3DAudio.lib",
 					LibDir + "xapobase.lib",
 					LibDir + "XAPOFX.lib"
+					// do not add d3dcompiler to the list - the engine must explicitly load 
+					// the bundled compiler library to make shader compilation repeatable
 					}
 				);
 		}

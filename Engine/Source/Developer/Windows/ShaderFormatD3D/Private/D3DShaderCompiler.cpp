@@ -424,11 +424,15 @@ static bool GetD3DCompilerFuncs(const FString& NewCompilerPath, pD3DCompile* Out
 		return true;
 	}
 
+    // if we cannot find the bundled DLL, this is a fatal error. We _do_not_ want to use a system-specific library as it can make the shaders (and DDC) system-specific
+	UE_LOG(LogD3D11ShaderCompiler, Fatal, TEXT("Cannot find the compiler DLL '%s'"), *CurrentCompiler);
+#if 0
 	// D3D SDK we compiled with (usually D3DCompiler_43.dll from windows folder)
 	*OutD3DCompile = &D3DCompile;
 	*OutD3DReflect = &D3DReflect;
 	*OutD3DDisassemble = &D3DDisassemble;
 	*OutD3DStripShader = &D3DStripShader;
+#endif
 	return false;
 }
 

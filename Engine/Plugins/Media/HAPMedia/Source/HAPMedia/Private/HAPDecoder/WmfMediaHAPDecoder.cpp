@@ -841,27 +841,51 @@ bool WmfMediaHAPDecoder::InitPipeline()
 	TComPtr<ID3DBlob> VSCode;
 	TComPtr<ID3DBlob> ErrorMsgs;
 
-	HRESULT Result = D3DCompile(PixelShader, sizeof(PixelShader), NULL, NULL, NULL, "PShader", "ps_5_0", 0, 0, &PSCode, &ErrorMsgs);
+	// This function needs to load the bundled version of d3dcompiler lib explictly. Implicit linking results
+	// in picking up the system lib by both the engine and SCWs (which links to this module), which makes
+	// the shader compilation system-dependent.
+	const TCHAR* CompilerPath = TEXT("Binaries/ThirdParty/Windows/DirectX/x64/d3dcompiler_47.dll");
+	HMODULE CompilerDLL = LoadLibrary(CompilerPath);
+	if (CompilerDLL == NULL)
+	{
+		UE_LOG(LogHAPMedia, Error, TEXT("Could not locate D3D compiler library at %s"), CompilerPath);
+		return false;
+	}
+	pD3DCompile D3DCompileFunc = (pD3DCompile)(void*)GetProcAddress(CompilerDLL, "D3DCompile");
+	if (D3DCompileFunc == nullptr)
+	{
+		UE_LOG(LogHAPMedia, Error, TEXT("Could not locate D3DCompile() in the compiler library at %s"), CompilerPath);
+		FreeLibrary(CompilerDLL);
+		return false;
+	}
+
+	HRESULT Result = D3DCompileFunc(PixelShader, sizeof(PixelShader), NULL, NULL, NULL, "PShader", "ps_5_0", 0, 0, &PSCode, &ErrorMsgs);
 	if (ErrorMsgs)
 	{
 		char *pMessage = (char*)ErrorMsgs->GetBufferPointer();
 		UE_LOG(LogHAPMedia, Error, TEXT("D3DCompile Error/warning: %s"), *FString(pMessage));
 		if (!PSCode.IsValid())
 		{
+			FreeLibrary(CompilerDLL);
 			return false;
 		}
 	}
 
-	Result = D3DCompile(VertexShader, sizeof(VertexShader), NULL, NULL, NULL, "VShader", "vs_5_0", 0, 0, &VSCode, &ErrorMsgs);
+	Result = D3DCompileFunc(VertexShader, sizeof(VertexShader), NULL, NULL, NULL, "VShader", "vs_5_0", 0, 0, &VSCode, &ErrorMsgs);
 	if (ErrorMsgs)
 	{
 		char *pMessage = (char*)ErrorMsgs->GetBufferPointer();
 		UE_LOG(LogHAPMedia, Error, TEXT("D3DCompile Error/warning: %s"), *FString(pMessage));
 		if (!VSCode.IsValid())
 		{
+			FreeLibrary(CompilerDLL);
 			return false;
 		}
 	}
+
+	D3DCompileFunc = nullptr;
+	FreeLibrary(CompilerDLL);
+	CompilerDLL = NULL;
 
 	TComPtr<ID3D11PixelShader> ps;
 	TComPtr<ID3D11VertexShader> vs;

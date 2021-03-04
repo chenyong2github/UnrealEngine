@@ -37,6 +37,16 @@ static HMODULE GetCompilerModule()
 		CompilerDLL = LoadLibrary(*CompilerPath);
 	}
 
+	if (CompilerDLL == NULL)
+	{
+		// load the system one as the last resort
+		CompilerDLL = LoadLibrary(TEXT("d3dcompiler_47.dll"));
+	}
+
+	if (CompilerDLL == NULL)
+	{
+		LogSlateD3DRendererFailure(FString::Printf(TEXT("Critical error. Compiler DLL %s could not be found, and loading the system one failed"), *CompilerPath), E_FAIL);
+	}
 	return CompilerDLL;
 }
 
@@ -50,7 +60,7 @@ static pD3DCompile GetD3DCompileFunc()
 		return (pD3DCompile)(void*)GetProcAddress(CompilerDLL, "D3DCompile");
 	}
 
-	return &D3DCompile;
+	return nullptr;
 }
 
 // @return pointer to the D3DCompile function
@@ -62,7 +72,7 @@ static pD3DReflect GetD3DReflectFunc()
 		return (pD3DReflect)(void*)GetProcAddress(CompilerDLL, "D3DReflect");
 	}
 
-	return &D3DReflect;
+	return nullptr;
 }
 
 
@@ -113,6 +123,11 @@ static bool CompileShader( const FString& Filename, const FString& EntryPoint, c
 #endif
 
 	pD3DCompile D3DCompilerFunc = GetD3DCompileFunc();
+	if (D3DCompilerFunc == nullptr)
+	{
+		GEncounteredCriticalD3DDeviceError = true;
+		return false;
+	}
 
 	StandaloneD3DIncluder Includer;
 
@@ -209,6 +224,11 @@ void FSlateD3DVS::Create( const FString& Filename, const FString& EntryPoint, co
 		}
 
 		pD3DReflect D3DReflectFunc = GetD3DReflectFunc();
+		if (D3DReflectFunc == nullptr)
+		{
+			GEncounteredCriticalD3DDeviceError = true;
+			return;
+		}
 
 		TRefCountPtr<ID3D11ShaderReflection> Reflector;
 		Hr = D3DReflectFunc(Blob->GetBufferPointer(), Blob->GetBufferSize(), IID_ID3D11ShaderReflectionForCurrentCompiler, (void**)Reflector.GetInitReference());
@@ -281,6 +301,11 @@ void FSlateD3DPS::Create( const FString& Filename, const FString& EntryPoint, co
 		}
 
 		pD3DReflect D3DReflectFunc = GetD3DReflectFunc();
+		if (D3DReflectFunc == nullptr)
+		{
+			GEncounteredCriticalD3DDeviceError = true;
+			return;
+		}
 
 		TRefCountPtr<ID3D11ShaderReflection> Reflector;
 		Hr = D3DReflectFunc(Blob->GetBufferPointer(), Blob->GetBufferSize(), IID_ID3D11ShaderReflectionForCurrentCompiler, (void**)Reflector.GetInitReference());

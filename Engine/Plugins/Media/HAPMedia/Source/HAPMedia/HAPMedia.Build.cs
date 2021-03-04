@@ -32,8 +32,9 @@ namespace UnrealBuildTool.Rules
                 PublicSystemLibraries.Add("mfuuid.lib");
                 PublicSystemLibraries.Add("shlwapi.lib");
                 PublicSystemLibraries.Add("d3d11.lib");
-                PublicSystemLibraries.Add("d3dcompiler.lib");
-            }
-        }
+				// engine must explicitly use the bundled compiler library to make shader compilation repeatable
+				//PublicSystemLibraries.Add("d3dcompiler.lib");
+			}
+		}
 	}
 }

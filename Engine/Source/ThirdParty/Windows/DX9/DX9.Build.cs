@@ -33,7 +33,6 @@ public class DX9 : ModuleRules
 				new string[] {
 					LibDir + "d3d9.lib",
 					LibDir + "dxguid.lib",
-					LibDir + "d3dcompiler.lib",
 					LibDir + "dinput8.lib",
 					LibDir + "X3DAudio.lib",
 					LibDir + "xapobase.lib",
