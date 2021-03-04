@@ -2348,16 +2348,13 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 		return nullptr;
 	}
 
-	// TODO: Hack - toggling collision preset on plane1024 in ShallowWater plugin
-	// causes a crash creating a scene proxy without having initialized render data...
-	// Should properly investigate - feels like a timing issue.
 	if (!GetStaticMesh()->GetRenderData()->IsInitialized())
 	{
 		UE_LOG(LogStaticMesh, Verbose, TEXT("Skipping CreateSceneProxy for StaticMeshComponent %s (RenderData is not initialized)"), *GetFullName());
 		return nullptr;
 	}
 
-	// Whether or not to allow nanite for this component
+	// Whether or not to allow Nanite for this component
 #if WITH_EDITORONLY_DATA
 	const bool bAllowNanite = !bDisplayNaniteProxyMesh;
 #else

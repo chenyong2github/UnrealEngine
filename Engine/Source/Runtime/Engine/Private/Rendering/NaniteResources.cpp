@@ -487,23 +487,6 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		FTransform InstancePrevTransform;
 		const bool bHasPrevTransform = Component->GetInstancePrevTransform(InstanceIndex, InstancePrevTransform);
 
-		FVector4 InstanceTransformVec[3];
-		FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
-		FVector4 InstanceOrigin = FVector::ZeroVector;
-
-		if (Component->PerInstanceRenderData != nullptr && Component->PerInstanceRenderData->InstanceBuffer_GameThread != nullptr)
-		{
-			if (Component->PerInstanceRenderData->InstanceBuffer_GameThread->IsValidIndex(InstanceIndex))
-			{
-				Component->PerInstanceRenderData->InstanceBuffer_GameThread->GetInstanceShaderValues(
-					InstanceIndex,
-					InstanceTransformVec,
-					InstanceLightMapAndShadowMapUVBias,
-					InstanceOrigin
-				);
-			}
-		}
-
 		FPrimitiveInstance& Instance = Instances[InstanceIndex];
 		Instance.PrimitiveId = ~uint32(0);
 		Instance.InstanceToLocal = InstanceTransform.ToMatrixWithScale();
@@ -519,9 +502,40 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		Instance.LocalToInstance = Instance.LocalToWorld.Inverse();
 		Instance.RenderBounds = Component->GetStaticMesh()->GetBounds();
 		Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
-		Instance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
-		Instance.PerInstanceRandom = InstanceOrigin.W; // Per-instance random packed into W component
+		Instance.LightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+		Instance.PerInstanceRandom = 0.0f;
 	}
+
+	ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(
+		[this, Component](FRHICommandList& RHICmdList)
+	{
+		if (Component->PerInstanceRenderData != nullptr)
+		{
+			FVector4 InstanceTransformVec[3];
+			FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
+			FVector4 InstanceOrigin = FVector::ZeroVector;
+
+			const bool bValidRange = Instances.Num() == Component->PerInstanceRenderData->InstanceBuffer.GetNumInstances();
+			ensure(bValidRange);
+
+			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
+			{
+				if (bValidRange)
+				{
+					Component->PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(
+						InstanceIndex,
+						InstanceTransformVec,
+						InstanceLightMapAndShadowMapUVBias,
+						InstanceOrigin
+					);
+
+					FPrimitiveInstance& Instance = Instances[InstanceIndex];
+					Instance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
+					Instance.PerInstanceRandom = InstanceOrigin.W; // Per-instance random packed into W component
+				}
+			}
+		}
+	});
 
 #if RHI_RAYTRACING
 	if (Instances.Num() == 0)
