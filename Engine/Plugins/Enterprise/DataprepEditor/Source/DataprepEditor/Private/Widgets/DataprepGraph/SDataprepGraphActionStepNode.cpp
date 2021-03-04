@@ -269,6 +269,17 @@ FReply SDataprepGraphActionStepNode::OnMouseButtonDown(const FGeometry& MyGeomet
 	if ( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 	{
 		GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+
+		if (ParentNodePtr.IsValid())
+		{
+			UDataprepActionAppearance* ParentAppearance = ParentNodePtr.Pin()->GetDataprepAction()->Appearance;
+
+			if (ParentAppearance->GroupId != INDEX_NONE)
+			{
+				// Disallow dragging of grouped actions/steps
+				return FReply::Handled();
+			}
+		}
 		return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 	}
 
