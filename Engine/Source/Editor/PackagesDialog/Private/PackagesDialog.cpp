@@ -203,26 +203,39 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 
 	// Lookup for the first asset in the package
-	ForEachObjectWithPackage(InPackage, [&AssetName, &OwnerName, &AssetToolsModule](UObject* InnerObject)
+	UObject* FoundAsset = nullptr;
+	ForEachObjectWithPackage(InPackage, [&FoundAsset](UObject* InnerObject)
 	{
 		if (InnerObject->IsAsset())
 		{
-			TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(InnerObject->GetClass());
-
-			if (AssetTypeActions.IsValid())
+			if (FAssetData(InnerObject).IsUAsset())
 			{
-				AssetName = *AssetTypeActions.Pin()->GetObjectDisplayName(InnerObject);
+				// If we found the primary asset, use it
+				return false;
 			}
-			else
+			// Otherwise, keep the first found asset but keep looking for a primary asset
+			if (!FoundAsset)
 			{
-				AssetName = InnerObject->GetFName();
+				FoundAsset = InnerObject;
 			}
-
-			OwnerName = InnerObject->GetOutermostObject()->GetFName();
-			return false;
 		}
 		return true;
 	}, /*bIncludeNestedObjects*/ false);
+
+	if (FoundAsset)
+	{
+		TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(FoundAsset->GetClass());
+		if (AssetTypeActions.IsValid())
+		{
+			AssetName = *AssetTypeActions.Pin()->GetObjectDisplayName(FoundAsset);
+		}
+		else
+		{
+			AssetName = FoundAsset->GetFName();
+		}
+
+		OwnerName = FoundAsset->GetOutermostObject()->GetFName();
+	}
 
 	// Last resort, display the package name
 	if (AssetName == NAME_None)

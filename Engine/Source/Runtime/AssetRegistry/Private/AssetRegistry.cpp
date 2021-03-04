@@ -1014,13 +1014,11 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 					return;
 				}
 
-#if WITH_EDITOR
 				// Skip classes that report themselves as assets but that the editor AssetRegistry is currently not counting as assets
-				if (ShouldSkipAsset(Obj->GetClass()->GetFName(), InMemoryPackage->GetPackageFlags()))
+				if (ShouldSkipAsset(Obj))
 				{
 					return;
 				}
-#endif
 
 				// Package name
 				const FName PackageName = InMemoryPackage->GetFName();
@@ -2490,13 +2488,11 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TRi
 		TUniquePtr<FAssetData> BackgroundResult(AssetResults.PopFrontValue());
 		CA_ASSUME(BackgroundResult.Get() != nullptr);
 
-#if WITH_EDITOR
 		// Skip Assets that we filter out
 		if (ShouldSkipAsset(BackgroundResult->AssetClass, BackgroundResult->PackageFlags))
 		{
 			continue;
 		}
-#endif
 
 		// Try to update any asset data that may already exist
 		FAssetData* AssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
@@ -2945,6 +2941,70 @@ void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 	}
 }
 
+bool UAssetRegistryImpl::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const
+{
+#if WITH_ENGINE && WITH_EDITOR
+	// We do not yet support having UBlueprintGeneratedClasses be assets when the UBlueprint is also
+	// an asset; the content browser does not handle the multiple assets correctly and displays this
+	// class asset as if it is in a separate package. Revisit when we have removed the UBlueprint as an asset
+	// or when we support multiple assets.
+	if (!bInitializedSkipClasses)
+	{
+		// Since we only collect these the first on-demand time, it is possible we will miss subclasses
+		// from plugins that load later. This flaw is a rare edge case, though, and this solution will
+		// be replaced eventually, so leaving it for now.
+		if (GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet()))
+		{
+			static const FName NAME_BlueprintGeneratedClass("BlueprintGeneratedClass");
+			static const FName NAME_EnginePackage("/Script/Engine");
+			UClass* BlueprintGeneratedClass = nullptr;
+			UPackage* EnginePackage = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, NAME_EnginePackage));
+			if (EnginePackage)
+			{
+				BlueprintGeneratedClass = Cast<UClass>(StaticFindObjectFast(UClass::StaticClass(), EnginePackage, NAME_BlueprintGeneratedClass));
+			}
+			if (!BlueprintGeneratedClass)
+			{
+				UE_LOG(LogAssetRegistry, Warning, TEXT("Could not find BlueprintGeneratedClass; will not be able to filter BPGC from the Content Browser."));
+			}
+			else
+			{
+				SkipClasses.Add(NAME_BlueprintGeneratedClass);
+				for (TObjectIterator<UClass> It; It; ++It)
+				{
+					if (It->IsChildOf(BlueprintGeneratedClass) && !It->HasAnyClassFlags(CLASS_Abstract))
+					{
+						SkipClasses.Add(It->GetFName());
+					}
+				}
+			}
+		}
+		bInitializedSkipClasses = true;
+	}
+
+	bool bIsCooked = (PackageFlags & PKG_FilterEditorOnly) != 0;
+	if (!bIsCooked && SkipClasses.Contains(AssetClass))
+	{
+		return true;
+	}
+#endif
+	return false;
+}
+
+bool UAssetRegistryImpl::ShouldSkipAsset(const UObject* InAsset) const
+{
+	if (!InAsset)
+	{
+		return false;
+	}
+	UPackage* Package = InAsset->GetPackage();
+	if (!Package)
+	{
+		return false;
+	}
+	return ShouldSkipAsset(InAsset->GetClass()->GetFName(), Package->GetPackageFlags());
+}
+
 #if WITH_EDITOR
 
 void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileChanges)
@@ -3055,21 +3115,6 @@ void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileC
 	}
 
 	ScanModifiedAssetFiles(ModifiedFiles);
-}
-
-bool UAssetRegistryImpl::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const
-{
-	// We do not yet support having UBlueprintGeneratedClasses be assets when the UBlueprint is also
-	// an asset; the content browser does not handle the multiple assets correctly and displays this
-	// class asset as if it is in a separate package. Revisit when we have removed the UBlueprint as an asset
-	// or when we support multiple assets.
-	static FName NAME_BlueprintGeneratedClass = TEXT("BlueprintGeneratedClass");
-	bool bIsCooked = (PackageFlags & PKG_FilterEditorOnly) != 0;
-	if (!bIsCooked && AssetClass == NAME_BlueprintGeneratedClass)
-	{
-		return true;
-	}
-	return false;
 }
 
 void UAssetRegistryImpl::OnAssetLoaded(UObject *AssetLoaded)

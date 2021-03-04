@@ -151,6 +151,9 @@ public:
 	UE_DEPRECATED(4.17, "IsUsingWorldAssets is now always true, remove any code that assumes it could be false")
 	static bool IsUsingWorldAssets() { return true; }
 
+	virtual bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const override;
+	virtual bool ShouldSkipAsset(const UObject* InAsset) const override;
+
 protected:
 	virtual void SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap, bool bClearExisting, UE::AssetRegistry::EDependencyCategory RecurseType, TSet<FDependsNode*>& ExistingManagedNodes, ShouldSetManagerPredicate ShouldSetManager = nullptr) override;
 	virtual bool SetPrimaryAssetIdForObjectPath(const FName ObjectPath, FPrimaryAssetId PrimaryAssetId) override;
@@ -231,9 +234,6 @@ private:
 #if WITH_EDITOR
 	/** Called when a file in a content directory changes on disk */
 	void OnDirectoryChanged(const TArray<struct FFileChangeData>& Files);
-
-	/** Called to check whether we should filter out assets of the given class and packageflags from the editor's AssetRegistry */
-	bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const;
 
 	/** Called when an asset is loaded, it will possibly update the cache */
 	void OnAssetLoaded(UObject *AssetLoaded);
@@ -451,6 +451,9 @@ private:
 
 	/** The set of object paths that have had their disk cache updated from the in memory version */
 	TSet<FName> AssetDataObjectPathsUpdatedOnLoad;
+
+	mutable TSet<FName> SkipClasses;
+	mutable bool bInitializedSkipClasses = false;
 #endif
 
 };
