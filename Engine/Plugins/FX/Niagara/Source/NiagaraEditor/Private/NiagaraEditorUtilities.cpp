@@ -2575,7 +2575,6 @@ const FNiagaraNamespaceMetadata FNiagaraEditorUtilities::GetNamespaceMetaDataFor
 void FNiagaraEditorUtilities::CollectPinTypeChangeActions(FGraphActionListBuilderBase& OutActions, bool& bOutCreateRemainingActions, UEdGraphPin* Pin)
 {
 	UNiagaraNode* Node = Cast<UNiagaraNode>(Pin->GetOwningNode());
-	ensure(Node);
 
 	TArray<FNiagaraTypeDefinition> Types(FNiagaraTypeRegistry::GetRegisteredTypes());
 	Types.Sort([](const FNiagaraTypeDefinition& A, const FNiagaraTypeDefinition& B) { return (A.GetNameText().ToLower().ToString() < B.GetNameText().ToLower().ToString()); });
