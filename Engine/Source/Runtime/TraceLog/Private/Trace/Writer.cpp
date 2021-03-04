@@ -48,7 +48,7 @@ void			Writer_ShutdownControl();
 
 
 ////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync|Important)
+UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync)
 	UE_TRACE_EVENT_FIELD(uint64, StartCycle)
 	UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
 	UE_TRACE_EVENT_FIELD(uint32, Serial)
@@ -58,7 +58,7 @@ UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint8, FeatureSet)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN($Trace, SerialSync, NoSync|Important)
+UE_TRACE_EVENT_BEGIN($Trace, SerialSync, NoSync)
 UE_TRACE_EVENT_END()
 
 
@@ -375,17 +375,6 @@ static void Writer_LogHeader()
 ////////////////////////////////////////////////////////////////////////////////
 static bool Writer_UpdateConnection()
 {
-	if (GSerialSyncPending)
-	{
-		GSerialSyncPending = false;
-
-		// When analysis receives the "serial sync" event the starting serial
-		// can be established from preceeding synced events.
-		TWriteBufferRedirect<32> SideBuffer;
-		UE_TRACE_LOG($Trace, SerialSync, TraceLogChannel);
-		Writer_SendData(SideBuffer.GetData(), SideBuffer.GetSize());
-	}
-
 	if (!GPendingDataHandle)
 	{
 		return false;
@@ -449,14 +438,14 @@ static bool Writer_UpdateConnection()
 	GTraceStatistics.BytesSent = 0;
 	GTraceStatistics.BytesTraced = 0;
 
-	// Send the header events
-	TWriteBufferRedirect<512> HeaderEvents;
-	Writer_LogHeader();
-	HeaderEvents.Close();
-
+	// The first events we will send are ones that describe the trace's events
 	FEventNode::OnConnect();
 	Writer_DescribeEvents();
 
+	// Send the header event
+	TWriteBufferRedirect<512> HeaderEvents;
+	Writer_LogHeader();
+	HeaderEvents.Close();
 	Writer_SendData(HeaderEvents.GetData(), HeaderEvents.GetSize());
 
 	Writer_CacheOnConnect();
@@ -479,6 +468,17 @@ static void Writer_WorkerUpdate()
 	Writer_DescribeAnnounce();
 	Writer_UpdateSharedBuffers();
 	Writer_DrainBuffers();
+
+	if (GSerialSyncPending)
+	{
+		GSerialSyncPending = false;
+
+		// When analysis receives the "serial sync" event the starting serial
+		// can be established from preceding synced events.
+		TWriteBufferRedirect<32> SideBuffer;
+		UE_TRACE_LOG($Trace, SerialSync, TraceLogChannel);
+		Writer_SendData(SideBuffer.GetData(), SideBuffer.GetSize());
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -559,6 +559,16 @@ static void Writer_InternalInitializeImpl()
 	Writer_InitializeSharedBuffers();
 	Writer_InitializePool();
 	Writer_InitializeControl();
+
+	// The order of the events at the beginning of a trace is a little sensitive,
+	// especially for the two following events that are added to the trace stream
+	// at very specific points. By dummy-tracing them we invoke the code to IDs
+	// and can guarantee the events are described on connection. It's not pretty.
+	{
+		TWriteBufferRedirect<64> TempBuffer;
+		UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel);
+		UE_TRACE_LOG($Trace, SerialSync, TraceLogChannel);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
