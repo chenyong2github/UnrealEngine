@@ -54,6 +54,13 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 		// Set payload inputs
 		PackedPayload.SetRayCone(RayCone);
 		PackedPayload.SetPixelCoord(LaunchIndex);
+		if (!IsCameraRay)
+		{
+			// avoid double counting what was captured by the skylight
+			// also avoid noise from hot spots (they can be properly
+			// importance sampled if a capturing skylight is added)
+			PackedPayload.SetIgnoreSkyMaterials();
+		}
 		// Trace the ray
 		TraceRay(
 			TLAS,

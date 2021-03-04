@@ -374,6 +374,14 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		Payload.SetFrontFace();
 	}
 
+#if MATERIAL_IS_SKY
+	if (PackedPayload.IsIgnoreSkyMaterials())
+	{
+		PackedPayload = PackRayTracingPayload(Payload, PropagatedCone);
+		return;
+	}
+#endif
+
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 	half2 Refraction = GetMaterialRefraction(PixelMaterialInputs);
