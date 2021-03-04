@@ -850,7 +850,7 @@ uint32 FVisualizeTexture::GetVersionCount(const TCHAR* InName) const
 	return 0;
 }
 
-void FVisualizeTexture::SetCheckPoint(FRHICommandListImmediate& RHICmdList, IPooledRenderTarget* PooledRenderTarget)
+void FVisualizeTexture::SetCheckPoint(FRDGBuilder& GraphBuilder, IPooledRenderTarget* PooledRenderTarget)
 {
 	check(IsInRenderingThread());
 
@@ -872,9 +872,14 @@ void FVisualizeTexture::SetCheckPoint(FRHICommandListImmediate& RHICmdList, IPoo
 		return;
 	}
 
-	FRDGBuilder GraphBuilder(RHICmdList);
 	FRDGTextureRef TextureToCapture = GraphBuilder.RegisterExternalTexture(PooledRenderTarget, ERenderTargetTexture::Targetable);
 	CreateContentCapturePass(GraphBuilder, TextureToCapture, CaptureId.GetValue());
+}
+
+void FVisualizeTexture::SetCheckPoint(FRHICommandListImmediate& RHICmdList, IPooledRenderTarget* PooledRenderTarget)
+{
+	FRDGBuilder GraphBuilder(RHICmdList);
+	SetCheckPoint(GraphBuilder, PooledRenderTarget);
 	GraphBuilder.Execute();
 }
 
