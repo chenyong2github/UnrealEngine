@@ -23,9 +23,9 @@ public:
 	FWorldPartitionActorDescView(const FWorldPartitionActorDesc* InActorDesc);
 
 	const FGuid& GetGuid() const;
-	inline FName GetClass() const;
-	inline UClass* GetActorClass() const;
-	inline FVector GetOrigin() const;
+	FName GetClass() const;
+	UClass* GetActorClass() const;
+	FVector GetOrigin() const;
 	EActorGridPlacement GetGridPlacement() const;
 	FName GetRuntimeGrid() const;
 	bool GetActorIsEditorOnly() const;
