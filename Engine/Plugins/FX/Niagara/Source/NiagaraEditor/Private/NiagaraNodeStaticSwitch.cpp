@@ -345,7 +345,7 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 	}
 	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer)
 	{
-		int32 MaxValue = NumOptionsPerVariable;
+		int32 MaxValue = NumOptionsPerVariable - 1;
 		if (MaxValue >= 0)
 		{
 			if (Translator && (Value > MaxValue || Value < 0))
