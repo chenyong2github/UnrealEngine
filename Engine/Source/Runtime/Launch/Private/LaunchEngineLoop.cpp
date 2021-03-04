@@ -2670,7 +2670,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		FDelayedAutoRegisterHelper::RunAndClearDelayedAutoRegisterDelegates(EDelayedRegisterRunPhase::ShaderTypesReady);
 
-		SlowTask.EnterProgressFrame(30);
+		SlowTask.EnterProgressFrame(25, LOCTEXT("CompileGlobalShaderMap", "Compiling Global Shaders..."));
 
 		// Load the global shaders
 		// Commandlets and dedicated servers don't load global shaders (the cook commandlet will load for the necessary target platform(s) later).
@@ -2691,6 +2691,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			GetDerivedDataCacheRef();
 		}
+
+		SlowTask.EnterProgressFrame(5);
 
 		{
 			SCOPED_BOOT_TIMING("CreateMoviePlayer");
