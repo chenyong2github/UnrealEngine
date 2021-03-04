@@ -2182,7 +2182,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 			const FString PythonModuleName = FString::Printf(TEXT("unreal_%s"), *PythonBaseModuleName);
 		
 			FString ModuleFilename;
-			if (PyUtil::IsModuleAvailableForImport(*PythonModuleName, &ModuleFilename))
+			if (PyUtil::IsModuleAvailableForImport(*PythonModuleName, &PyUtil::GetOnDiskUnrealModulesCache(), &ModuleFilename))
 			{
 				// Adjust .pyc and .pyd files so we try and find the source Python file
 				ModuleFilename = FPaths::ChangeExtension(ModuleFilename, TEXT(".py"));

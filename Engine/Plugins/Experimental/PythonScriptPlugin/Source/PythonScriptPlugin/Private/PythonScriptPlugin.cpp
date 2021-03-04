@@ -736,7 +736,9 @@ void FPythonScriptPlugin::InitializePython()
 		for (const FString& RootPath : RootPaths)
 		{
 			const FString RootFilesystemPath = FPackageName::LongPackageNameToFilename(RootPath);
-			PyUtil::AddSystemPath(FPaths::ConvertRelativePathToFull(RootFilesystemPath / TEXT("Python")));
+			const FString PythonContentPath = FPaths::ConvertRelativePathToFull(RootFilesystemPath / TEXT("Python"));
+			PyUtil::AddSystemPath(PythonContentPath);
+			PyUtil::GetOnDiskUnrealModulesCache().AddModules(*PythonContentPath);
 		}
 
 		for (const FDirectoryPath& AdditionalPath : GetDefault<UPythonScriptPluginSettings>()->AdditionalPaths)
@@ -1080,7 +1082,7 @@ void FPythonScriptPlugin::ImportUnrealModule(const TCHAR* InModuleName)
 
 	const TCHAR* ModuleNameToImport = nullptr;
 	PyObject* ModuleToReload = nullptr;
-	if (PyUtil::IsModuleAvailableForImport(*PythonModuleName))
+	if (PyUtil::IsModuleAvailableForImport(*PythonModuleName, &PyUtil::GetOnDiskUnrealModulesCache()))
 	{
 		// Python modules that are already loaded should be reloaded if we're requested to import them again
 		if (!PyUtil::IsModuleImported(*PythonModuleName, &ModuleToReload))
@@ -1088,7 +1090,7 @@ void FPythonScriptPlugin::ImportUnrealModule(const TCHAR* InModuleName)
 			ModuleNameToImport = *PythonModuleName;
 		}
 	}
-	else if (PyUtil::IsModuleAvailableForImport(*NativeModuleName))
+	else if (PyUtil::IsModuleAvailableForImport(*NativeModuleName, &PyUtil::GetOnDiskUnrealModulesCache()))
 	{
 		ModuleNameToImport = *NativeModuleName;
 	}
@@ -1347,7 +1349,9 @@ void FPythonScriptPlugin::OnContentPathMounted(const FString& InAssetPath, const
 {
 	{
 		FPyScopedGIL GIL;
-		PyUtil::AddSystemPath(FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python")));
+		const FString PythonContentPath = FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python"));
+		PyUtil::AddSystemPath(PythonContentPath);
+		PyUtil::GetOnDiskUnrealModulesCache().AddModules(*PythonContentPath);
 	}
 
 #if WITH_EDITOR
@@ -1362,7 +1366,9 @@ void FPythonScriptPlugin::OnContentPathDismounted(const FString& InAssetPath, co
 {
 	{
 		FPyScopedGIL GIL;
-		PyUtil::RemoveSystemPath(FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python")));
+		const FString PythonContentPath = FPaths::ConvertRelativePathToFull(InFilesystemPath / TEXT("Python"));
+		PyUtil::RemoveSystemPath(PythonContentPath);
+		PyUtil::GetOnDiskUnrealModulesCache().RemoveModules(*PythonContentPath);
 	}
 
 #if WITH_EDITOR
