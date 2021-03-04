@@ -146,7 +146,7 @@ bool USkeleton::IsCompatibleSkeletonByAssetString(const FString& SkeletonAssetSt
 
 	// Now check against the list of compatible skeletons.
 	FString CompatibleName;
-	for (auto& CompatibleSkeleton : CompatibleSkeletons)
+	for (const auto& CompatibleSkeleton : CompatibleSkeletons)
 	{
 		CompatibleName = FString::Printf(TEXT("%s'%s'"), *GetClass()->GetName(), *CompatibleSkeleton.ToString());
 		if (CompatibleName == SkeletonAssetString)
