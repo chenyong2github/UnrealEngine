@@ -147,6 +147,8 @@ private:
 
 	/** Array of strong pointers to the UEdGraphNodes created for the action's steps */
 	TArray<TStrongObjectPtr<UDataprepGraphActionStepNode>> EdGraphStepNodes;
+
+	TSharedPtr<class SButton> ExpandActionButton;
 };
 
 class UDataprepGraphActionGroupNode;

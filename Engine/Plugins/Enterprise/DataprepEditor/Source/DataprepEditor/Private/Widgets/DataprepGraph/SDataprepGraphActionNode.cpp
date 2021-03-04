@@ -538,7 +538,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						.AutoWidth()
 						.Padding(5.f, 5.f, 5.f, 2.f)
 						[
-							SNew(SButton)
+							SAssignNew(ExpandActionButton, SButton)
 							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Primary")
 							.ButtonColorAndOpacity(FLinearColor::Transparent)
 							.ForegroundColor(FLinearColor::White)
@@ -709,10 +709,17 @@ FCursorReply SDataprepGraphActionNode::OnCursorQuery( const FGeometry& MyGeometr
 
 	if ( !CursorReply.IsEventHandled() )
 	{
-		TOptional<EMouseCursor::Type> TheCursor = GetCursor();
-		CursorReply = ( TheCursor.IsSet() )
-			? FCursorReply::Cursor( TheCursor.GetValue() )
-			: FCursorReply::Unhandled();
+		if (ExpandActionButton.IsValid() && ExpandActionButton->IsHovered())
+		{
+			CursorReply = FCursorReply::Cursor( EMouseCursor::Default );
+		}
+		else
+		{
+			TOptional<EMouseCursor::Type> TheCursor = GetCursor();
+			CursorReply = ( TheCursor.IsSet() )
+				? FCursorReply::Cursor( TheCursor.GetValue() )
+				: FCursorReply::Unhandled();
+		}
 	}
 
 	return CursorReply;
