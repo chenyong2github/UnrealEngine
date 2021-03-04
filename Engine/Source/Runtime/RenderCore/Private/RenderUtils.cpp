@@ -1231,7 +1231,7 @@ RENDERCORE_API void RenderUtilsInit()
 					GDBufferPlatformMask &= ~Mask;
 				}
 
-				if (TargetPlatform->UsesBasePassVelocity())
+				if (TargetPlatform->UsesBasePassVelocity() && !IsMobilePlatform(ShaderPlatform))
 				{
 					GBasePassVelocityPlatformMask |= Mask;
 				}
@@ -1296,17 +1296,12 @@ RENDERCORE_API void RenderUtilsInit()
 			}
 		}
 	}
-#endif // WITH_EDITOR
-
-	for (uint32 ShaderPlatformIndex = 0; ShaderPlatformIndex < SP_NumPlatforms; ++ShaderPlatformIndex)
+#else
+	if (IsMobilePlatform(GMaxRHIShaderPlatform))
 	{
-		EShaderPlatform ShaderPlatform = EShaderPlatform(ShaderPlatformIndex);
-		if (IsMobilePlatform(ShaderPlatform))
-		{
-			uint64 Mask = 1ull << ShaderPlatformIndex;
-			GBasePassVelocityPlatformMask &= ~Mask;
-		}
+		GBasePassVelocityPlatformMask = 0;
 	}
+#endif // WITH_EDITOR
 
 	// Run-time ray tracing support depends on the following factors:
 	// - Ray tracing must be enabled for the project
