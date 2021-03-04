@@ -14,6 +14,22 @@
 
 #define LOCTEXT_NAMESPACE "LiveLinkFreeDSourceFactory"
 
+// These consts must be defined here in the CPP for non-MS compiler issues
+const uint8 FreeDPacketDefinition::PacketTypeD1 = 0xD1;
+const uint8 FreeDPacketDefinition::PacketSizeD1 = 0x1D;
+const uint8 FreeDPacketDefinition::PacketType = 0x00;
+const uint8 FreeDPacketDefinition::CameraID = 0x01;
+const uint8 FreeDPacketDefinition::Yaw = 0x02;
+const uint8 FreeDPacketDefinition::Pitch = 0x05;
+const uint8 FreeDPacketDefinition::Roll = 0x08;
+const uint8 FreeDPacketDefinition::X = 0x0B;
+const uint8 FreeDPacketDefinition::Y = 0x0E;
+const uint8 FreeDPacketDefinition::Z = 0x11;
+const uint8 FreeDPacketDefinition::FocalLength = 0x14;
+const uint8 FreeDPacketDefinition::FocusDistance = 0x17;
+const uint8 FreeDPacketDefinition::UserDefined = 0x1A;
+const uint8 FreeDPacketDefinition::Checksum = 0x1C;
+
 FLiveLinkFreeDSource::FLiveLinkFreeDSource(const FLiveLinkFreeDConnectionSettings& ConnectionSettings)
 : Client(nullptr)
 , Stopping(false)

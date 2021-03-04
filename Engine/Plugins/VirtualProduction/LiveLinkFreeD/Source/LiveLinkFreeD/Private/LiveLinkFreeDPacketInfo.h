@@ -10,19 +10,19 @@
 //
 struct FreeDPacketDefinition
 {
-	static constexpr uint8 PacketTypeD1 = 0xD1;
-	static constexpr uint8 PacketSizeD1 = 0x1D;
+	static const uint8 PacketTypeD1;
+	static const uint8 PacketSizeD1;
 
-	static constexpr uint8 PacketType = 0x00;
-	static constexpr uint8 CameraID = 0x01;
-	static constexpr uint8 Yaw = 0x02;
-	static constexpr uint8 Pitch = 0x05;
-	static constexpr uint8 Roll = 0x08;
-	static constexpr uint8 X = 0x0B;
-	static constexpr uint8 Y = 0x0E;
-	static constexpr uint8 Z = 0x11;
-	static constexpr uint8 FocalLength = 0x14;
-	static constexpr uint8 FocusDistance = 0x17;
-	static constexpr uint8 UserDefined = 0x1A;
-	static constexpr uint8 Checksum = 0x1C;
+	static const uint8 PacketType;
+	static const uint8 CameraID;
+	static const uint8 Yaw;
+	static const uint8 Pitch;
+	static const uint8 Roll;
+	static const uint8 X;
+	static const uint8 Y;
+	static const uint8 Z;
+	static const uint8 FocalLength;
+	static const uint8 FocusDistance;
+	static const uint8 UserDefined;
+	static const uint8 Checksum;
 };
