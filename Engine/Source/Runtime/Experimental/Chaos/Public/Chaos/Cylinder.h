@@ -339,7 +339,7 @@ namespace Chaos
 			{
 				FVec3& Point = Points[i];
 				const FVec3 PointNew = Rotation.RotateVector(Point + FVec3(0, 0, HalfHeight)) + Origin;
-				checkSlow(FMath::Abs(FCylinder<T>(Origin, Origin + Axis * Height, Radius).SignedDistance(PointNew)) < KINDA_SMALL_NUMBER);
+				checkSlow(FMath::Abs(FCylinder(Origin, Origin + Axis * Height, Radius).SignedDistance(PointNew)) < KINDA_SMALL_NUMBER);
 				Point = PointNew;
 			}
 		}
