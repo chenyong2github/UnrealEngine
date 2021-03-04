@@ -138,7 +138,7 @@ namespace Chaos
 	public:
 		AdvanceOneTimeStepTask(
 			TPBDRigidsSolver<Traits>* Scene
-			, const FReal DeltaTime
+			, const float DeltaTime
 			, const FSubStepInfo& SubStepInfo)
 			: MSolver(Scene)
 			, MDeltaTime(DeltaTime)
@@ -200,15 +200,15 @@ namespace Chaos
 				//
 				// * If we have used all of our substeps but still have time remaining, then some
 				//   energy will be lost.
-				const FReal MinDeltaTime = MSolver->GetMinDeltaTime();
-				const FReal MaxDeltaTime = MSolver->GetMaxDeltaTime();
+				const float MinDeltaTime = MSolver->GetMinDeltaTime();
+				const float MaxDeltaTime = MSolver->GetMaxDeltaTime();
 				int32 StepsRemaining = MSolver->GetMaxSubSteps();
-				FReal TimeRemaining = MDeltaTime;
+				float TimeRemaining = MDeltaTime;
 				bool bFirstStep = true;
 				while (StepsRemaining > 0 && TimeRemaining > MinDeltaTime)
 				{
 					--StepsRemaining;
-					const FReal DeltaTime = MaxDeltaTime > 0.f ? FMath::Min(TimeRemaining, MaxDeltaTime) : TimeRemaining;
+					const float DeltaTime = MaxDeltaTime > 0.f ? FMath::Min(TimeRemaining, MaxDeltaTime) : TimeRemaining;
 					TimeRemaining -= DeltaTime;
 
 					{
@@ -297,7 +297,7 @@ namespace Chaos
 		}
 
 		TPBDRigidsSolver<Traits>* MSolver;
-		FReal MDeltaTime;
+		float MDeltaTime;
 		FSubStepInfo MSubStepInfo;
 		TSharedPtr<FCriticalSection> PrevLock, CurrentLock;
 		TSharedPtr<FEvent> PrevEvent, CurrentEvent;
@@ -344,7 +344,7 @@ namespace Chaos
 		JointConstraints.SetUpdateVelocityInApplyConstraints(true);
 	}
 
-	FReal MaxBoundsForTree = (FReal)10000;
+	float MaxBoundsForTree = 10000;
 	FAutoConsoleVariableRef CVarMaxBoundsForTree(
 		TEXT("p.MaxBoundsForTree"),
 		MaxBoundsForTree,
@@ -443,7 +443,7 @@ namespace Chaos
 								int32 CollisionIdx = Chaos::TEventManager<Traits>::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
 								// invalidate but don't delete from array, as this would mean we'd need to reindex PhysicsProxyToIndicesMap to maintain the other collisions lookup
-								Chaos::TCollisionData<FReal, 3>& CollisionDataItem = EventDataInOut.CollisionData.AllCollisionsArray[CollisionIdx];
+								Chaos::TCollisionData<float, 3>& CollisionDataItem = EventDataInOut.CollisionData.AllCollisionsArray[CollisionIdx];
 								CollisionDataItem.ParticleProxy = nullptr;
 								CollisionDataItem.LevelsetProxy = nullptr;
 							}
@@ -1072,7 +1072,7 @@ namespace Chaos
 			int32 BufferIdx = 0;
 			PullData->DirtyRigids.Reserve(DirtyParticles.Num());
 
-			for (Chaos::TPBDRigidParticleHandleImp<FReal, 3, false>& DirtyParticle : DirtyParticles)
+			for (Chaos::TPBDRigidParticleHandleImp<float, 3, false>& DirtyParticle : DirtyParticles)
 			{
 				if( const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(DirtyParticle.Handle()))
 				{
@@ -1279,7 +1279,7 @@ namespace Chaos
 			MRewindData->PrepareFrameForPTDirty(DirtyParticles.Num());
 			
 			int32 DataIdx = 0;
-			for(TPBDRigidParticleHandleImp<FReal,3,false>& DirtyParticle : DirtyParticles)
+			for(TPBDRigidParticleHandleImp<float,3,false>& DirtyParticle : DirtyParticles)
 			{
 				//may want to remove branch using templates outside loop
 				if (MRewindData->IsResim())

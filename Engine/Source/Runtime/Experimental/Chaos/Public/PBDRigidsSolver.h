@@ -45,7 +45,7 @@ extern int32 ChaosSolverParticlePoolNumFrameUntilShrink;
 namespace ChaosTest
 {
 	template <typename TSolver>
-	void AdvanceSolverNoPushHelper(TSolver* Solver, Chaos::FReal Dt);
+	void AdvanceSolverNoPushHelper(TSolver* Solver,float Dt);
 }
 
 /**
@@ -186,7 +186,7 @@ namespace Chaos
 
 		//Make friend with unit test code so we can verify some behavior
 		template <typename TSolver>
-		friend void ChaosTest::AdvanceSolverNoPushHelper(TSolver* Solver, FReal Dt);
+		friend void ChaosTest::AdvanceSolverNoPushHelper(TSolver* Solver,float Dt);
 
 		/**/
 		void Reset();
@@ -207,14 +207,14 @@ namespace Chaos
 		int32& GetCurrentFrame() { return CurrentFrame; }
 
 		/**/
-		FReal& GetSolverTime() { return MTime; }
-		const FReal GetSolverTime() const { return MTime; }
+		float& GetSolverTime() { return MTime; }
+		const float GetSolverTime() const { return MTime; }
 
 		/**/
-		void SetMaxDeltaTime(const FReal InMaxDeltaTime) { MMaxDeltaTime = InMaxDeltaTime; }
-		FReal GetLastDt() const { return MLastDt; }
-		FReal GetMaxDeltaTime() const { return MMaxDeltaTime; }
-		FReal GetMinDeltaTime() const { return MMinDeltaTime; }
+		void SetMaxDeltaTime(const float InMaxDeltaTime) { MMaxDeltaTime = InMaxDeltaTime; }
+		float GetLastDt() const { return MLastDt; }
+		float GetMaxDeltaTime() const { return MMaxDeltaTime; }
+		float GetMinDeltaTime() const { return MMinDeltaTime; }
 		void SetMaxSubSteps(const int32 InMaxSubSteps) { MMaxSubSteps = InMaxSubSteps; }
 		int32 GetMaxSubSteps() const { return MMaxSubSteps; }
 
@@ -357,14 +357,14 @@ namespace Chaos
 		// Solver Data
 		//
 		int32 CurrentFrame;
-		FReal MTime;
-		FReal MLastDt;
-		FReal MMaxDeltaTime;
-		FReal MMinDeltaTime;
+		float MTime;
+		float MLastDt;
+		float MMaxDeltaTime;
+		float MMinDeltaTime;
 		int32 MMaxSubSteps;
 		bool bHasFloor;
 		bool bIsFloorAnalytic;
-		FReal FloorHeight;
+		float FloorHeight;
 
 		FParticlesType Particles;
 		TUniquePtr<FPBDRigidsEvolution> MEvolution;

@@ -127,7 +127,7 @@ namespace Chaos
 		, PostApplyPushOutCallback(nullptr)
 	{
 #if INTEL_ISPC
-		if (bRealTypeCompatibleWithISPC && bChaos_Collision_ISPC_Enabled)
+		if (bChaos_Collision_ISPC_Enabled)
 		{
 			check(sizeof(FCollisionContact) == ispc::SizeofFCollisionContact());
 		}
@@ -308,7 +308,7 @@ namespace Chaos
 		}
 	}
 
-	void FPBDCollisionConstraints::PrepareIteration(FReal dt)
+	void FPBDCollisionConstraints::PrepareIteration(float dt)
 	{
 		// NOTE: We could set material properties as we add constraints, but the ParticlePairBroadphase
 		// skips the call to AddConstraint and writes directly to the constraint array, so we

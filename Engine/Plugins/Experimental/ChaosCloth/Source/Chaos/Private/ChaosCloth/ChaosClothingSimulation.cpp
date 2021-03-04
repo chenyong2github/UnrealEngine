@@ -608,7 +608,7 @@ void FClothingSimulation::GetSimulationData(
 		Data.Normals = Cloth->GetParticleNormals(Solver.Get());
 
 		// Transform into the cloth reference simulation space used at the time of simulation
-		if (bRealTypeCompatibleWithISPC && bChaos_GetSimData_ISPC_Enabled)
+		if (bChaos_GetSimData_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::GetClothingSimulationData(

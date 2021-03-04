@@ -74,8 +74,8 @@ private:
 	inline void ApplyHelper(FPBDParticles& Particles, const FReal Dt, const int32 Offset, const int32 Range) const
 	{
 		const uint32 DynamicGroupId = MDynamicGroupIds[Offset];  // Particle group Id, must be the same across the entire range
-		const FReal PerGroupFriction = MPerGroupFriction[DynamicGroupId];
-		const FReal PerGroupThickness = MPerGroupThickness[DynamicGroupId];
+		const float PerGroupFriction = MPerGroupFriction[DynamicGroupId];
+		const float PerGroupThickness = MPerGroupThickness[DynamicGroupId];
 
 		if (PerGroupFriction > (FReal)KINDA_SMALL_NUMBER)
 		{

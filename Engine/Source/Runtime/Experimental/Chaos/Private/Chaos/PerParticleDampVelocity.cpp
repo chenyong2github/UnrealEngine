@@ -70,7 +70,7 @@ void FPerParticleDampVelocity::UpdatePositionBasedState(const FPBDParticles& Par
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
 		MOmega = I.Determinant() > 1e-7 ? FRigidTransform3(I).InverseTransformVector(L) : FVec3(0);
 #else
-		const FReal Det = I.Determinant();
+		const float Det = I.Determinant();
 		MOmega = Det < SMALL_NUMBER || !FGenericPlatformMath::IsFinite(Det) ?
 			FVec3(0) :
 			I.InverseTransformVector(L); // Calls FMatrix::InverseFast(), which tests against SMALL_NUMBER
