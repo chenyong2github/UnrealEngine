@@ -5,19 +5,16 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Stats/Stats.h"
 
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
+#if ENABLE_LOW_LEVEL_MEM_TRACKER && STATS
 /**
  * LLM Stat implementation macros; these macros are used publicly in LLM_SCOPED_SINGLE_PLATFORM_STAT_TAG and privately in LLM implementation
  */
-#if STATS
-
 	#define DECLARE_LLM_MEMORY_STAT(CounterName,StatId,GroupId) \
 		DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_PhysicalLLM); \
 		static DEFINE_STAT(StatId)
 	#define DECLARE_LLM_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API) \
 		DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_PhysicalLLM); \
 		extern API DEFINE_STAT(StatId);
-
 
 	DECLARE_STATS_GROUP(TEXT("LLM FULL"), STATGROUP_LLMFULL, STATCAT_Advanced);
 	DECLARE_STATS_GROUP(TEXT("LLM Platform"), STATGROUP_LLMPlatform, STATCAT_Advanced);
@@ -32,8 +29,7 @@
 	#define DECLARE_LLM_MEMORY_STAT(CounterName,StatId,GroupId)
 	#define DECLARE_LLM_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API)
 
-#endif //STATS
-#endif //ENABLE_LOW_LEVEL_MEM_TRACKER
+#endif //ENABLE_LOW_LEVEL_MEM_TRACKER && STATS
 
 /**
  * LLM Stat scope macros (these are noops if LLM is disabled or if LLM stat tags are disabled)

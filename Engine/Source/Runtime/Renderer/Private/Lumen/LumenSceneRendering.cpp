@@ -182,11 +182,9 @@ FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
 	ECVF_RenderThreadSafe
 );
 
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenLLM, STATGROUP_LLMFULL);
 DECLARE_LLM_MEMORY_STAT(TEXT("Lumen"), STAT_LumenSummaryLLM, STATGROUP_LLM);
 LLM_DEFINE_TAG(Lumen, NAME_None, NAME_None, GET_STATFNAME(STAT_LumenLLM), GET_STATFNAME(STAT_LumenSummaryLLM));
-#endif // ENABLE_LOW_LEVEL_MEM_TRACKER
 
 extern int32 GAllowLumenDiffuseIndirect;
 extern int32 GAllowLumenReflections;

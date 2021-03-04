@@ -906,10 +906,8 @@ public:
 			ZeroStrideBuffer = FMemory::Malloc( InSize );
 		}
 
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, InSize, ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, InSize, ELLMTracker::Default, ELLMAllocType::None);
-#endif
 	}
 
 	~FOpenGLBaseBuffer( void )
@@ -919,10 +917,8 @@ public:
 			FMemory::Free( ZeroStrideBuffer );
 		}
 
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::GraphicsPlatform, -(int64)GetSize(), ELLMTracker::Platform, ELLMAllocType::None);
 		LLM_SCOPED_PAUSE_TRACKING_WITH_ENUM_AND_AMOUNT(ELLMTag::Meshes, -(int64)GetSize(), ELLMTracker::Default, ELLMAllocType::None);
-#endif
 	}
 
 	void* GetZeroStrideBuffer( void )
