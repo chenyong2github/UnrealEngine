@@ -51,6 +51,10 @@ public class D3D12RHI : ModuleRules
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
             }
+            else
+            {
+				PrivateDefinitions.Add("D3D12RHI_USE_D3DDISASSEMBLE=0");
+			}
         }
     }
 }
