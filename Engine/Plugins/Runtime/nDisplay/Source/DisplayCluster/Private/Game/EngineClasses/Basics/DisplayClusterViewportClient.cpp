@@ -297,7 +297,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			if (View)
 			{
 				Views.Add(View);
-				if (RenderViewport && GNumExplicitGPUsForRendering > 1 && RenderViewport->GetGPUIndex() >= 0)
+				if (GNumExplicitGPUsForRendering > 1 && RenderViewport && RenderViewport->GetGPUIndex() >= 0)
 				{
 					// The GPU used to render this view.
 					const uint32 ViewGPUIndex = RenderViewport->GetGPUIndex();
@@ -547,8 +547,21 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		// Draw the player views.
 		if (!bDisableWorldRendering && PlayerViewMap.Num() > 0 && FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender()) //-V560
 		{
+			ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily = ViewFamilyIdx != 0;
+
 			GetRendererModule().BeginRenderingViewFamily(SceneCanvas, &ViewFamily);
 			bAnyViewRendered = true;
+
+			if (GNumExplicitGPUsForRendering > 1)
+			{
+				const FRHIGPUMask SubmitGPUMask = ViewFamily.Views.Num() == 1 ? ViewFamily.Views[0]->GPUMask : FRHIGPUMask::All();
+				ENQUEUE_RENDER_COMMAND(UDisplayClusterViewportClient_SubmitCommandList)(
+					[SubmitGPUMask](FRHICommandListImmediate& RHICmdList)
+				{
+					SCOPED_GPU_MASK(RHICmdList, SubmitGPUMask);
+					RHICmdList.SubmitCommandsHint();
+				});
+			}
 		}
 		else
 		{

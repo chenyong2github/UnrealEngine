@@ -1446,7 +1446,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		SCOPED_GPU_STAT(RHICmdList, GPUSceneUpdate);
 
-		if (GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
+		if (!ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily && GDoPrepareDistanceFieldSceneAfterRHIFlush && (GRHINeedsExtraDeletionLatency || !GRHICommandList.Bypass()))
 		{
 			// we will probably stall on occlusion queries, so might as well have the RHI thread and GPU work while we wait.
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostInitViews_FlushDel);

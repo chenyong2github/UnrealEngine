@@ -1624,6 +1624,9 @@ public:
 	/** if true then each view is not rendered using the same GPUMask. */
 	bool bMultiGPUForkAndJoin;
 
+	/** Whether this view is rendered in BeginRenderingViewFamily() immediately after another render. */
+	bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
+
 	/** 
 	 * Which component of the scene rendering should be output to the final render target.
 	 * If SCS_FinalColorLDR this indicates do nothing.
