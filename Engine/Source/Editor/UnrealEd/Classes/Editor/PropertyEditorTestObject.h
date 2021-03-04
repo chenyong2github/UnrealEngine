@@ -762,3 +762,15 @@ struct FTestSparseClassDataStorage
 	UPROPERTY(EditDefaultsOnly, Category=Default)
 	TMap<int, int> Map;
 };
+
+UCLASS()
+class APropertyEditorTestActor : public AActor
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category=Default, meta=(GetOptions=GetOptionsFunc))
+	FName GetOptionsValue;
+
+	UFUNCTION()
+	TArray<FString> GetOptionsFunc() const;
+};

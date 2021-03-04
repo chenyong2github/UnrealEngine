@@ -3000,8 +3000,6 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 
 			if (OutObjects.Num() > 0)
 			{
-				FCachedPropertyPath Path(GetOptionsFunctionName);
-				
 				TArray<FString> OptionIntersection;
 				TSet<FString> OptionIntersectionSet;
 
@@ -3011,11 +3009,8 @@ bool FPropertyHandleBase::GeneratePossibleValues(TArray< TSharedPtr<FString> >& 
 					{
 						FEditorScriptExecutionGuard ScriptExecutionGuard;
 
-						if (PropertyPathHelpers::GetPropertyValue(Target, Path, StringOptions))
-						{
-							// No-Op
-						}
-						else
+						FCachedPropertyPath Path(GetOptionsFunctionName);
+						if (!PropertyPathHelpers::GetPropertyValue(Target, Path, StringOptions))
 						{
 							TArray<FName> NameOptions;
 							if (PropertyPathHelpers::GetPropertyValue(Target, Path, NameOptions))

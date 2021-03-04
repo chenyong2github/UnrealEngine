@@ -476,9 +476,9 @@ namespace PropertyPathHelpersInternal
 	{
 		if (InContainer)
 		{
-		FCachedPropertyPath InternalPropertyPath(InPropertyPath);
-		return IteratePropertyPathRecursive<UObject>(InContainer->GetClass(), InContainer, 0, InternalPropertyPath, InResolver);
-	}
+			FCachedPropertyPath InternalPropertyPath(InPropertyPath);
+			return IteratePropertyPathRecursive<UObject>(InContainer->GetClass(), InContainer, 0, InternalPropertyPath, InResolver);
+		}
 
 		return false;
 	}
@@ -487,8 +487,8 @@ namespace PropertyPathHelpersInternal
 	{
 		if (InContainer)
 		{
-		return IteratePropertyPathRecursive<UObject>(InContainer->GetClass(), InContainer, 0, InPropertyPath, InResolver);
-	}
+			return IteratePropertyPathRecursive<UObject>(InContainer->GetClass(), InContainer, 0, InPropertyPath, InResolver);
+		}
 
 		return false;
 	}

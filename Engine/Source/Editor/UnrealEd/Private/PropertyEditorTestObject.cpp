@@ -11,3 +11,8 @@ bool UPropertyEditorTestObject::CanEditChange(const FProperty* InProperty) const
 
 	return true;
 }
+
+TArray<FString> APropertyEditorTestActor::GetOptionsFunc() const
+{
+	return TArray<FString> { TEXT("One"), TEXT("Two"), TEXT("Three") };
+}
