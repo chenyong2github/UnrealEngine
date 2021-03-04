@@ -334,6 +334,9 @@ struct ENGINE_API FCameraShakeState
 	/** Helper method to get GetShakeInfo().Duration.Get() */
 	float GetDuration() const { return ShakeInfo.Duration.Get(); }
 
+	/** Helper method to get GetShakeInfo().Duration.IsInifnite() */
+	bool IsInfinite() const { return ShakeInfo.Duration.IsInfinite(); }
+
 private:
 
 	FCameraShakeInfo ShakeInfo;

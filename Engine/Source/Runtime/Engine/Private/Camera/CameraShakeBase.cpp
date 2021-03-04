@@ -304,7 +304,12 @@ bool UCameraShakeBase::IsFinished() const
 {
 	if (State.IsActive())
 	{
-		if (State.HasDuration())
+		if (State.IsInfinite())
+		{
+			// Since the state is infinite, it's not considered "finished" as long as it is active
+			return false;
+		}		
+		else if (State.HasDuration())
 		{
 			// If we have duration information, we can simply figure out ourselves if
 			// we are finished.
