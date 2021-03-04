@@ -330,6 +330,10 @@ PACKAGE_SCOPE:
 	EOS_EpicAccountId GetEpicAccountId(const FUniqueNetId& NetId) const;
 	EOS_ProductUserId GetProductUserId(const FUniqueNetId& NetId) const;
 
+	typedef TFunction<void(const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)> GetEpicAccountIdAsyncCallback;
+	bool GetEpicAccountIdFromProductUserId(const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& OutEpicAccountId) const;
+	void GetEpicAccountIdAsync(const EOS_ProductUserId& ProductUserId, const GetEpicAccountIdAsyncCallback& Callback) const;
+
 	FOnlineUserPtr GetLocalOnlineUser(int32 LocalUserNum) const;
 	FOnlineUserPtr GetOnlineUser(EOS_ProductUserId UserId) const;
 	FOnlineUserPtr GetOnlineUser(EOS_EpicAccountId AccountId) const;

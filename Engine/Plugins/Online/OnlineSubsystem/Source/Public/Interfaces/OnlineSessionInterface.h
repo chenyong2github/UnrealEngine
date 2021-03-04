@@ -187,8 +187,34 @@ typedef FOnQosDataRequested::FDelegate FOnQosDataRequestedDelegate;
  * @param The name of the session that had custom data changed
  * @param the updated session data
  */
+UE_DEPRECATED(4.27, "FOnSessionCustomDataChanged is deprecated, please use FOnSessionSettingsUpdated and FOnSessionParticipantSettingsUpdated instead.")
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionCustomDataChanged, FName, const FOnlineSessionSettings&);
 typedef FOnSessionCustomDataChanged::FDelegate FOnSessionCustomDataChangedDelegate;
+
+/**
+ * Delegate fired when a session's settings have changed
+ * @param The name of the session that had its settings changed
+ * @param The updated session settings
+ */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionSettingsUpdated, FName, const FOnlineSessionSettings&);
+typedef FOnSessionSettingsUpdated::FDelegate FOnSessionSettingsUpdatedDelegate;
+
+/**
+ * Delegate fired when a session's member settings have changed
+ * @param The name of the session that had a member's settings changed
+ * @param The UniqueNetId of the member whose settings changed
+ * @param The updated member settings
+ */
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSessionParticipantSettingsUpdated, FName, const FUniqueNetId&, const FOnlineSessionSettings&);
+typedef FOnSessionParticipantSettingsUpdated::FDelegate FOnSessionParticipantSettingsUpdatedDelegate;
+
+/**
+ * Delegate fired when a session's member is removed from the session
+ * @param SessionName The name of the session
+ * @param TargetUniqueNetId The UniqueNetId of the member who was removed
+ */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionParticipantRemoved, FName, const FUniqueNetId&);
+typedef FOnSessionParticipantRemoved::FDelegate FOnSessionParticipantRemovedDelegate;
 
 /**
  * Delegate fired once a single search result is returned (ie friend invite / join)
@@ -696,6 +722,7 @@ public:
 	 */
 	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnQosDataRequested, FName);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/**
 	 * Delegate fired when a sessions custom data has been updated
 	 *
@@ -703,6 +730,32 @@ public:
 	 * @param SessionSettings The session settings for the session that changed
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnSessionCustomDataChanged, FName, const FOnlineSessionSettings&);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	/**
+	 * Delegate fired when a session's settings have changed
+	 *
+	 * @param SessionName The name of the session that had its settings changed
+	 * @param SessionSettings The updated session settings
+	 */
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnSessionSettingsUpdated, FName, const FOnlineSessionSettings&);
+
+	/**
+	 * Delegate fired when a session's member settings have changed
+	 * 
+	 * @param SessionName The name of the session that had a member's settings changed
+	 * @param TargetUniqueNetId The UniqueNetId of the member whose settings changed
+	 * @param SessionSettings The updated member settings
+	 */
+	DEFINE_ONLINE_DELEGATE_THREE_PARAM(OnSessionParticipantSettingsUpdated, FName, const FUniqueNetId&, const FOnlineSessionSettings&);
+
+	/**
+	 * Delegate fired when a session's member is removed from the session
+	 *
+	 * @param SessionName The name of the session
+	 * @param TargetUniqueNetId The UniqueNetId of the member who was removed
+	 */
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnSessionParticipantRemoved, FName, const FUniqueNetId&);
 
 	/**
 	 * Allows the local player to follow a friend into a session
@@ -920,6 +973,15 @@ public:
 	 * @param Delegate the delegate executed when the asynchronous operation completes
 	 */
 	virtual void UnregisterLocalPlayer(const FUniqueNetId& PlayerId, FName SessionName, const FOnUnregisterLocalPlayerCompleteDelegate& Delegate) = 0;
+
+	/**
+	* Removes a player from the session.
+	*
+	* @param LocalUserNum the user that is starting the removal
+	* @param SessionName the session in which to unregister the player
+	* @param TargetPlayerId the player to remove
+	*/
+	virtual void ONLINESUBSYSTEM_API RemovePlayerFromSession(int32 LocalUserNum, FName SessionName, const FUniqueNetId& TargetPlayerId);
 
 	/**
 	 * Delegate fired when an unexpected error occurs that impacts session connectivity or use

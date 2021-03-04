@@ -938,6 +938,83 @@ EOS_ProductUserId FUserManagerEOS::GetProductUserId(const FUniqueNetId& NetId) c
 	return nullptr;
 }
 
+typedef TEOSCallback<EOS_Connect_OnQueryProductUserIdMappingsCallback, EOS_Connect_QueryProductUserIdMappingsCallbackInfo> FConnectQueryProductUserIdMappingsCallback;
+
+/**
+ * Uses the Connect API to retrieve the EOS_EpicAccountId for a given EOS_ProductUserId
+ *
+ * @param ProductUserId the product user id we want to query
+ * @Param OutEpicAccountId the epic account id we will assign if the query is successful
+ *
+ * @return true if the operation was successful, false otherwise
+ */
+bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& OutEpicAccountId) const
+{
+	bool bResult = false;
+
+	char EpicIdStr[EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH];
+	int32 EpicIdStrSize = EOS_CONNECT_EXTERNAL_ACCOUNT_ID_MAX_LENGTH;
+
+	EOS_Connect_GetProductUserIdMappingOptions Options = { };
+	Options.ApiVersion = EOS_CONNECT_GETPRODUCTUSERIDMAPPING_API_LATEST;
+	Options.AccountIdType = EOS_EExternalAccountType::EOS_EAT_EPIC;
+	Options.LocalUserId = GetLocalProductUserId();
+	Options.TargetProductUserId = ProductUserId;
+
+	EOS_EResult Result = EOS_Connect_GetProductUserIdMapping(EOSSubsystem->ConnectHandle, &Options, EpicIdStr, &EpicIdStrSize);
+	if (Result == EOS_EResult::EOS_Success)
+	{
+		OutEpicAccountId = EOS_EpicAccountId_FromString(EpicIdStr);
+		bResult = true;
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::GetEpicAccountIdFromProductUserId] EOS_Connect_GetProductUserIdMapping not successful. Finished with EOS_EResult %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
+	}
+
+	return bResult;
+}
+
+void FUserManagerEOS::GetEpicAccountIdAsync(const EOS_ProductUserId& ProductUserId, const GetEpicAccountIdAsyncCallback& Callback) const
+{
+	// We check first if the Product User Id has already been queried, which would allow us to retrieve its Epic Account Id directly
+	EOS_EpicAccountId AccountId;
+	if (GetEpicAccountIdFromProductUserId(ProductUserId, AccountId))
+	{
+		Callback(ProductUserId, AccountId);
+	}
+	else
+	{
+		// If it's the first time we want the Epic Account Id for this Product User Id, we have to query it first
+		TArray<EOS_ProductUserId> ProductUserIdList = { const_cast<EOS_ProductUserId>(ProductUserId) };
+
+		EOS_Connect_QueryProductUserIdMappingsOptions QueryProductUserIdMappingsOptions = {};
+		QueryProductUserIdMappingsOptions.ApiVersion = EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST;
+		QueryProductUserIdMappingsOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(0);
+		QueryProductUserIdMappingsOptions.ProductUserIds = ProductUserIdList.GetData();
+		QueryProductUserIdMappingsOptions.ProductUserIdCount = 1;
+
+		FConnectQueryProductUserIdMappingsCallback* CallbackObj = new FConnectQueryProductUserIdMappingsCallback();
+		CallbackObj->CallbackLambda = [this, ProductUserId, Callback](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data)
+		{
+			if (Data->ResultCode == EOS_EResult::EOS_Success)
+			{
+				EOS_EpicAccountId AccountId;
+				if (GetEpicAccountIdFromProductUserId(ProductUserId, AccountId))
+				{
+					Callback(ProductUserId, AccountId);
+				}
+			}
+			else
+			{
+				UE_LOG_ONLINE(Warning, TEXT("[FUserManagerEOS::GetEpicAccountIdAsync] EOS_Connect_QueryProductUserIdMappings not successful. Finished with EOS_EResult %s."), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+			}
+		};
+
+		EOS_Connect_QueryProductUserIdMappings(EOSSubsystem->ConnectHandle, &QueryProductUserIdMappingsOptions, CallbackObj, CallbackObj->GetCallbackPtr());
+	}
+}
+
 FOnlineUserPtr FUserManagerEOS::GetLocalOnlineUser(int32 LocalUserNum) const
 {
 	FOnlineUserPtr OnlineUser;

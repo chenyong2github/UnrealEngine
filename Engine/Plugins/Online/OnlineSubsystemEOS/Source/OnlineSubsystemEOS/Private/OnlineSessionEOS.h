@@ -14,7 +14,8 @@
 class FOnlineSubsystemEOS;
 
 #if WITH_EOS_SDK
-#include "eos_sessions_types.h"
+	#include "eos_sessions_types.h"
+	#include "eos_lobby_types.h"
 
 
 typedef TEOSCallback<EOS_Sessions_OnUpdateSessionCallback, EOS_Sessions_UpdateSessionCallbackInfo> FUpdateSessionCallback;
@@ -42,7 +43,7 @@ class FOnlineSessionEOS :
 {
 public:
 	FOnlineSessionEOS() = delete;
-	virtual ~FOnlineSessionEOS() = default;
+	virtual ~FOnlineSessionEOS();
 
 	virtual TSharedPtr<const FUniqueNetId> CreateSessionIdFromString(const FString& SessionIdStr) override;
 
@@ -134,6 +135,7 @@ public:
 	virtual bool UnregisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players) override;
 	virtual void RegisterLocalPlayer(const FUniqueNetId& PlayerId, FName SessionName, const FOnRegisterLocalPlayerCompleteDelegate& Delegate) override;
 	virtual void UnregisterLocalPlayer(const FUniqueNetId& PlayerId, FName SessionName, const FOnUnregisterLocalPlayerCompleteDelegate& Delegate) override;
+	virtual void RemovePlayerFromSession(int32 LocalUserNum, FName SessionName, const FUniqueNetId& TargetPlayerId) override;
 	virtual int32 GetNumSessions() override;
 	virtual void DumpSessionState() override;
 // ~IOnlineSession Interface
@@ -183,13 +185,77 @@ PACKAGE_SCOPE:
 	void Init(const char* InBucketId);
 
 private:
+	// EOS Lobbies
+
+	EOS_HLobby LobbyHandle;
+	TMap<FString, TSharedRef<EOS_HLobbyDetails>> LobbySearchResultsCache;
+
+	// Lobby session callbacks and methods
+	FCallbackBase* LobbyCreatedCallback;
+	FCallbackBase* LobbySearchFindCallback;
+	FCallbackBase* LobbyJoinedCallback;
+	FCallbackBase* LobbyLeftCallback;
+	FCallbackBase* LobbyDestroyedCallback;
+	FCallbackBase* LobbySendInviteCallback;
+
+	uint32 CreateLobbySession(int32 HostingPlayerNum, FNamedOnlineSession* Session);
+	uint32 FindLobbySession(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings);
+	void StartLobbySearch(int32 SearchingPlayerNum, EOS_HLobbySearch LobbySearchHandle, const TSharedRef<FOnlineSessionSearch>& SearchSettings);
+	uint32 JoinLobbySession(int32 PlayerNum, FNamedOnlineSession* Session, const FOnlineSession* SearchSession);
+	uint32 UpdateLobbySession(FNamedOnlineSession* Session);
+	uint32 EndLobbySession(FNamedOnlineSession* Session);
+	uint32 DestroyLobbySession(FNamedOnlineSession* Session, const FOnDestroySessionCompleteDelegate& CompletionDelegate);
+	bool SendLobbyInvite(FName SessionName, EOS_ProductUserId SenderId, EOS_ProductUserId ReceiverId);
+
+	// Lobby notification callbacks and methods
+	EOS_NotificationId LobbyUpdateReceivedId;
+	FCallbackBase* LobbyUpdateReceivedCallback;
+	EOS_NotificationId LobbyMemberUpdateReceivedId;
+	FCallbackBase* LobbyMemberUpdateReceivedCallback;
+	EOS_NotificationId LobbyMemberStatusReceivedId;
+	FCallbackBase* LobbyMemberStatusReceivedCallback;
+	EOS_NotificationId LobbyInviteAcceptedId;
+	FCallbackBase* LobbyInviteAcceptedCallback;
+
+	void OnLobbyUpdateReceived(const EOS_LobbyId& LobbyId);
+	void OnLobbyMemberUpdateReceived(const EOS_LobbyId& LobbyId, const EOS_ProductUserId& TargetUserId);
+	void OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const EOS_ProductUserId& TargetUserId, EOS_ELobbyMemberStatus CurrentStatus);
+	void OnLobbyInviteAccepted(const char* InviteId, const EOS_ProductUserId& LocalUserId, const EOS_ProductUserId& TargetUserId);
+
+	// Lobby Update
+	void SetLobbyPermissionLevel(EOS_HLobbyModification LobbyModificationHandle, FNamedOnlineSession* Session);
+	void SetLobbyMaxMembers(EOS_HLobbyModification LobbyModificationHandle, FNamedOnlineSession* Session);
+	void SetLobbyAttributes(EOS_HLobbyModification LobbyModificationHandle, FNamedOnlineSession* Session);
+	void AddLobbyAttribute(EOS_HLobbyModification LobbyModificationHandle, const EOS_Lobby_AttributeData* Attribute);
+	void AddLobbyMemberAttribute(EOS_HLobbyModification LobbyModificationHandle, const EOS_Lobby_AttributeData* Attribute);
+
+	// Lobby search
+	void AddLobbySearchAttribute(EOS_HLobbySearch LobbySearchHandle, const EOS_Lobby_AttributeData* Attribute, EOS_EOnlineComparisonOp ComparisonOp);
+	void AddLobbySearchResult(EOS_HLobbyDetails LobbyDetailsHandle, const TSharedRef<FOnlineSessionSearch>& SearchSettings);
+	void CopyLobbyData(EOS_HLobbyDetails LobbyDetailsHandle, EOS_LobbyDetails_Info* LobbyDetailsInfo, FOnlineSession& OutSession);
+	void CopyLobbyAttributes(EOS_HLobbyDetails LobbyDetailsHandle, FOnlineSession& OutSession);
+	void CopyLobbyMemberAttributes(EOS_HLobbyDetails LobbyDetailsHandle, const EOS_ProductUserId& TargetUserId, FSessionSettings& OutSessionSettings);
+
+	// Helper methods
+	typedef TFunction<void(const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)> GetEpicAccountIdAsyncCallback;
+
+	void GetEpicAccountIdAsync(const EOS_ProductUserId& ProductUserId, const GetEpicAccountIdAsyncCallback& Callback);
+	void RegisterLobbyNotifications();
+	FNamedOnlineSession* GetNamedSessionFromLobbyId(const FUniqueNetIdEOS& LobbyId);
+	bool GetEpicAccountIdFromProductUserId(const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId);
+	EOS_ELobbyPermissionLevel GetLobbyPermissionLevelFromSessionSettings(const FOnlineSessionSettings& SessionSettings);
+	uint32_t GetLobbyMaxMembersFromSessionSettings(const FOnlineSessionSettings& SessionSettings);
+
+	// EOS Sessions
 	uint32 CreateEOSSession(int32 HostingPlayerNum, FNamedOnlineSession* Session);
 	uint32 JoinEOSSession(int32 PlayerNum, FNamedOnlineSession* Session, const FOnlineSession* SearchSession);
 	uint32 StartEOSSession(FNamedOnlineSession* Session);
-	uint32 UpdateEOSSession(FNamedOnlineSession* Session, FOnlineSessionSettings& UpdatedSessionSettings);
+	uint32 UpdateEOSSession(FNamedOnlineSession* Session);
 	uint32 EndEOSSession(FNamedOnlineSession* Session);
 	uint32 DestroyEOSSession(FNamedOnlineSession* Session, const FOnDestroySessionCompleteDelegate& CompletionDelegate);
 	uint32 FindEOSSession(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings);
+	bool SendEOSSessionInvite(FName SessionName, EOS_ProductUserId SenderId, EOS_ProductUserId ReceiverId);
+
 	bool SendSessionInvite(FName SessionName, EOS_ProductUserId SenderId, EOS_ProductUserId ReceiverId);
 
 	void BeginSessionAnalytics(FNamedOnlineSession* Session);

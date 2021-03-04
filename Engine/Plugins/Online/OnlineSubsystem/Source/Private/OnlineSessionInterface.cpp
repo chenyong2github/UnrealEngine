@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSubsystem.h"
 #include "OnlineError.h"
 
 // Workaround for not being able to clear a delegate handle for a lambda while the lambda is being executed
@@ -32,4 +33,9 @@ bool IOnlineSession::StartMatchmaking(const TArray<FSessionMatchmakingUser>& Loc
 		*DelegateHandle = AddOnMatchmakingCompleteDelegate_Handle(FOnMatchmakingCompleteDelegate::CreateStatic(OnOnlineSessionStartMatchmakingBroadcast, this, SessionName, DelegateHandle, CompletionDelegate));
 	}
 	return bStartMatchmakingSuccess;
+}
+
+void IOnlineSession::RemovePlayerFromSession(int32 LocalUserNum, FName SessionName, const FUniqueNetId& TargetPlayerId)
+{
+	UE_LOG_ONLINE_SESSION(Warning, TEXT("[IOnlineSession::RemovePlayerFromSession] This functionality is not implemented by default."));
 }
