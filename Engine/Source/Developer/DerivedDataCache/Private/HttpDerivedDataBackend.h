@@ -73,7 +73,8 @@ private:
 	FString OAuthSecret;
 	FCriticalSection AccessCs;
 	FDerivedDataCacheUsageStats UsageStats;
-	TUniquePtr<struct FRequestPool> RequestPool;
+	TUniquePtr<struct FRequestPool> GetRequestPool;
+	TUniquePtr<struct FRequestPool> PutRequestPool;
 	TUniquePtr<struct FHttpAccessToken> Access;
 	bool bIsUsable;
 	uint32 FailedLoginAttempts;
