@@ -26,6 +26,8 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Materials/MaterialInstanceSupport.h"
+#include "Materials/MaterialExpressionCollectionParameter.h"
+#include "Materials/MaterialParameterCollection.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -5069,6 +5071,96 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 #endif
 }
+
+#if WITH_EDITOR
+
+void FindCollectionExpressionRecursive(TArray<FGuid>& OutGuidList, const TArray<UMaterialExpression*>& InMaterialExpression)
+{
+	for (int32 ExpressionIndex = 0; ExpressionIndex < InMaterialExpression.Num(); ExpressionIndex++)
+	{
+		const UMaterialExpression* ExpressionPtr = InMaterialExpression[ExpressionIndex];
+		const UMaterialExpressionCollectionParameter* CollectionPtr = Cast<UMaterialExpressionCollectionParameter>(ExpressionPtr);
+		const UMaterialExpressionMaterialFunctionCall* MaterialFunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(ExpressionPtr);
+		const UMaterialExpressionMaterialAttributeLayers* MaterialLayers = Cast<UMaterialExpressionMaterialAttributeLayers>(ExpressionPtr);
+
+		if (CollectionPtr)
+		{
+			if (CollectionPtr->Collection)
+			{
+				OutGuidList.Add(CollectionPtr->Collection->StateId);
+			}
+			return;
+		}
+		else if (MaterialFunctionCall && MaterialFunctionCall->MaterialFunction)
+		{
+			if (const TArray<UMaterialExpression*>* FunctionExpressions = MaterialFunctionCall->MaterialFunction->GetFunctionExpressions())
+			{
+				FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
+			}
+		}
+		else if (MaterialLayers)
+		{
+			const TArray<UMaterialFunctionInterface*>& Layers = MaterialLayers->GetLayers();
+			const TArray<UMaterialFunctionInterface*>& Blends = MaterialLayers->GetBlends();
+
+			for (const UMaterialFunctionInterface* Layer : Layers)
+			{
+				if (Layer)
+				{
+					if (const TArray<UMaterialExpression*>* FunctionExpressions = Layer->GetFunctionExpressions())
+					{
+						FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
+					}
+				}
+			}
+
+			for (const UMaterialFunctionInterface* Blend : Blends)
+			{
+				if (Blend)
+				{
+					if (const TArray<UMaterialExpression*>* FunctionExpressions = Blend->GetFunctionExpressions())
+					{
+						FindCollectionExpressionRecursive(OutGuidList, *FunctionExpressions);
+					}
+				}
+			}
+		}
+	}
+}
+
+void UMaterialInstance::AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& OutIds) const
+{
+	const UMaterial* Material = GetMaterial();
+	if (!Material)
+	{
+		return;
+	}
+
+	for (const FStaticMaterialLayersParameter& LayerParameter : StaticParameters.MaterialLayersParameters)
+	{
+		for (const TObjectPtr<UMaterialFunctionInterface> Layer : LayerParameter.Value.Layers)
+		{
+			if (Layer)
+			{
+				if (const TArray<UMaterialExpression*>* FunctionExpressions = Layer->GetFunctionExpressions())
+				{
+					FindCollectionExpressionRecursive(OutIds, *FunctionExpressions);
+				}
+			}
+		}
+		for (const TObjectPtr<UMaterialFunctionInterface> Blend : LayerParameter.Value.Blends)
+		{
+			if (Blend)
+			{
+				if (const TArray<UMaterialExpression*>* FunctionExpressions = Blend->GetFunctionExpressions())
+				{
+					FindCollectionExpressionRecursive(OutIds, *FunctionExpressions);
+				}
+			}
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 UMaterialInstance::FCustomStaticParametersGetterDelegate UMaterialInstance::CustomStaticParametersGetters;
