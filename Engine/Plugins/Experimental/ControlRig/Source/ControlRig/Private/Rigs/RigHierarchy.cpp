@@ -796,6 +796,11 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentInde
 			TargetWeight = InputWeight;
 			MultiParentElement->Parent.MarkDirty(GlobalType);
 
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(MultiParentElement))
+			{
+				ControlElement->Offset.MarkDirty(GlobalType);
+			}
+
 			PropagateDirtyFlags(MultiParentElement, ERigTransformType::IsInitial(LocalType), bAffectChildren);
 			return true;
 		}
