@@ -6,7 +6,7 @@
 
 #if WITH_EDITORONLY_DATA
 
-static int32 GAnalyticDerivEnabled = 1;
+static int32 GAnalyticDerivEnabled = 0;
 static FAutoConsoleVariableRef CVarAnalyticDerivEnabled(
 	TEXT("r.MaterialEditor.AnalyticDeriv"),
 	GAnalyticDerivEnabled,
