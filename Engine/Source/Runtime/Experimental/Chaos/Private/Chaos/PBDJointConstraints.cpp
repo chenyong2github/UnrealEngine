@@ -108,7 +108,7 @@ namespace Chaos
 		ConstraintContainer->SetConstraintSettings(ConstraintIndex, Settings);
 	}
 
-	TVector<TGeometryParticleHandle<float,3>*, 2> FPBDJointConstraintHandle::GetConstrainedParticles() const 
+	TVector<FGeometryParticleHandle*, 2> FPBDJointConstraintHandle::GetConstrainedParticles() const 
 	{ 
 		return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); 
 	}
@@ -176,7 +176,7 @@ namespace Chaos
 		, AngularPlasticityLimit(FLT_MAX)
 		, UserData(nullptr)
 	{
-		if (bChaos_Joint_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			check(sizeof(FJointSolverJointState) == ispc::SizeofFJointSolverJointState());
@@ -1108,7 +1108,7 @@ namespace Chaos
 			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("  Pair Iteration %d / %d"), PairIt, NumPairIts);
 
 			// Reset accumulators and update derived state
-			if (bChaos_Joint_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::BatchUpdateDerivedState(
@@ -1138,7 +1138,7 @@ namespace Chaos
 			// Solve and apply the position constraints for all Joints in the batch
 			const int32 LinearRowIndexBegin = SolverConstraints[JointIndexBegin].GetLinearRowIndexBegin();
 			const int32 LinearRowIndexEnd = SolverConstraints[JointIndexEnd - 1].GetLinearRowIndexEnd();
-			if (bChaos_Joint_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::BatchApplyPositionConstraints(
@@ -1166,7 +1166,7 @@ namespace Chaos
 			}
 
 			// Reset accumulators and update derived state
-			if (bChaos_Joint_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::BatchUpdateDerivedState(
@@ -1196,7 +1196,7 @@ namespace Chaos
 			// Solve and apply the rotation constraints for all Joints in the batch
 			const int32 AngularRowIndexBegin = SolverConstraints[JointIndexBegin].GetAngularRowIndexBegin();
 			const int32 AngularRowIndexEnd = SolverConstraints[JointIndexEnd - 1].GetAngularRowIndexEnd();
-			if (bChaos_Joint_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::BatchApplyRotationConstraints(

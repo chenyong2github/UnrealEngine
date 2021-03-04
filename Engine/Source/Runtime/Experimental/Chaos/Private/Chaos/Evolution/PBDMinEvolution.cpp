@@ -524,6 +524,7 @@ namespace Chaos
 
 	void FPBDMinEvolution::IntegrateImplISPC(FReal Dt)
 	{
+		check(bRealTypeCompatibleWithISPC);
 #if INTEL_ISPC
 		FPBDRigidArrays Rigids = FPBDRigidArrays(Particles.GetDynamicParticles());
 		ispc::MinEvolutionIntegrate(Dt, (ispc::FPBDRigidArrays&)Rigids, (ispc::FSimulationSpace&)SimulationSpace, (ispc::FSimulationSpaceSettings&)SimulationSpaceSettings, (ispc::FVector&)Gravity, BoundsExtension, CollisionDetector.GetBroadPhase().GetCullDistance());
