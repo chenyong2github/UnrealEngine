@@ -254,7 +254,7 @@ namespace Gauntlet
 
 			if (InName.StartsWith("UnrealGame", StringComparison.OrdinalIgnoreCase))
 			{
-				ShortName = "UE4";
+				ShortName = "Unreal";
 			}
 
 			string AppName = Path.GetFileNameWithoutExtension(InName);
