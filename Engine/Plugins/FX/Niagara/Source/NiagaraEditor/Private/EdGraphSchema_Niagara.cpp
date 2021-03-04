@@ -887,7 +887,7 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 	// Add select  node
 	{
 		const FText SelectMenuDesc = LOCTEXT("NiagaraSelectMenuDesc", "Select");
-		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, SelectMenuDesc, TEXT("Select"), FText::GetEmpty(), FText::FromString(TEXT("If")));
+		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, SelectMenuDesc, TEXT("Select"), FText::GetEmpty(), FText::FromString(TEXT("If Branch Bool")));
 		UNiagaraNodeSelect* Node = NewObject<UNiagaraNodeSelect>(OwnerOfTemporaries);
 		Action->NodeTemplate = Node;
 	}
