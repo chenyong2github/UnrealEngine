@@ -5,7 +5,7 @@
 #include "Modules/ModuleManager.h"
 
 
-class FLiveLinkEditorModule : public IModuleInterface
+class FLiveLinkCameraEditorModule : public IModuleInterface
 {
 public:
 
