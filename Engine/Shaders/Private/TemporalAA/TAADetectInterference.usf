@@ -142,11 +142,10 @@ void MainCS(
 	}
 
 	taa_half UninterferenceSeed;
-	bool bRejectHistoryInterferenceSeed;
 	bool bIsInterference;
 	{
 		// Error due to the low bitdepth of the inteference seeds in the history.
-		const taa_half InterferenceSeedEncodingError = rcp(taa_half(SUB_PIXEL_INTERFERENCE_BIT_MASK));
+		const taa_half InterferenceSeedEncodingError = rcp(taa_half(SUPERRES_INTERFERENCE_BITMASK));
 
 		taa_half InputSeedMin = LumaToInterferenceSeed(InputLumaMin);
 		taa_half InputSeedMax = LumaToInterferenceSeed(InputLumaMax);
@@ -174,16 +173,6 @@ void MainCS(
 		// Detect interference solely based on the inteference seed, but need to take into account low frequency
 		// gradien that there may be in the neighborhood to avoid ghosting on high contrast geometric edges.
 		bIsInterference = bRejectInterferenceSeedWithGradient;
-		
-		// If the input is not clamping, but the history's interference seeds are, that means the later are ghosting.
-		// Only care about bRejectInterferenceSeed here because it is only about not clamping inteference seeds in the history
-		// that may not be in the input whereas bRejectInterferenceSeedWithGradient is ghosting the seed to much in the history.
-		bRejectHistoryInterferenceSeed = !bRejectPrevScene && bRejectInterferenceSeed;
-
-		#if 0
-			bIsInterference = false;
-			bRejectHistoryInterferenceSeed = false;
-		#endif
 
 		// Don't clamp the seed history if there is an interference to keep luma stability in the input
 		// of the shading heuristic next frame.
@@ -196,7 +185,6 @@ void MainCS(
 		FLATTEN
 		if (bOffScreen)
 		{
-			bRejectHistoryInterferenceSeed = true;
 			bIsInterference = false;
 			ClampedPrevUninterferenceSeed = LumaToInterferenceSeed(InputLuma);
 		}
@@ -208,7 +196,6 @@ void MainCS(
 	if (all(InputPixelPos < InputInfo_ViewportMax))
 	{
 		InterferenceWeightOutput[InputPixelPos] = bIsInterference ? 0.0 : 1.0;
-		InterferenceSeedUpdateOutput[InputPixelPos] = bRejectHistoryInterferenceSeed ? 1.0 : 0.0;
 		
 		HistoryOutput_LowResTextures_0[InputPixelPos] = UninterferenceSeed;
 

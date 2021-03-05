@@ -1,0 +1,220 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "TAACommon.ush"
+#include "../Random.ush"
+
+
+//------------------------------------------------------- CONSTANTS
+
+#define TILE_SIZE 8
+
+
+//------------------------------------------------------- PARAMETERS
+
+Texture2D<taa_half3> InputSceneColorTexture;
+
+Texture2D<float2> DilatedVelocityTexture;
+Texture2D<taa_half> ParallaxRejectionMaskTexture;
+
+Texture2D<uint> PrevHistory_SuperResTextures_0;
+Texture2D<uint> PrevHistory_SuperResTextures_1;
+
+RWTexture2D<uint> HistoryOutput_SuperResTextures_0;
+RWTexture2D<uint> HistoryOutput_SuperResTextures_1;
+
+
+//------------------------------------------------------- FUNCTIONS
+
+uint GetGroupThreadIndex(uint GroupThreadIndex)
+#if COMPILER_SUPPORTS_WAVE_ONCE
+{
+	ISOLATE
+	{
+		return WaveGetLaneIndex();
+	}
+}
+#else
+{
+	return GroupThreadIndex;
+}
+#endif
+
+
+//------------------------------------------------------- ENTRY POINT
+
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+void MainCS(
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	float4 Debug = 0.0;
+
+	uint2 DispatchThreadId = (
+		ZOrder2D(GroupThreadIndex, log2(TILE_SIZE)) +
+		GroupId * uint2(TILE_SIZE, TILE_SIZE));
+
+	uint2 HistorySuperPixelPos = DispatchThreadId;
+	float2 ViewportUV = (float2(HistorySuperPixelPos) + 0.5f) * HistoryInfo_ViewportSizeInverse * rcp(taa_half(SUPERRES_RES_MULTIPLIER));
+	float2 ScreenPos = ViewportUVToScreenPos(ViewportUV);
+	
+	// Pixel coordinate of the center of output pixel O in the input viewport.
+	float2 PPCo = ViewportUV * InputInfo_ViewportSize + InputJitter;
+
+	// Pixel coordinate of the center of the nearest input pixel K.
+	float2 PPCk = floor(PPCo) + 0.5;
+	
+	// Vector in pixel between pixel K -> O in input pixel size.
+	taa_half2 idKO = taa_half2(PPCo - PPCk);
+	
+	// Vector in pixel between pixel K -> O in output pixel size.
+	taa_half2 odKO = idKO * (InputInfo_ViewportSizeInverse.x * HistoryInfo_ViewportSize.x * SUPERRES_RES_MULTIPLIER);
+
+	uint2 InputPixelPos = InputInfo_ViewportMin + uint2(PPCk);
+
+	// Fetch reprojections related informations.
+	float2 PrevScreenPos = ScreenPos;
+	taa_half ParallaxRejectionMask = taa_half(1.0);
+	#if 1
+	{
+		float2 RejectionBilinearBufferUV = clamp(
+			PPCo * InputInfo_ExtentInverse,
+			RejectionInfo_UVViewportBilinearMin,
+			RejectionInfo_UVViewportBilinearMax);
+		
+		float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
+		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
+		PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+	}
+	#endif
+
+	float2 ScreenVelocity = ScreenPos - PrevScreenPos;
+	
+	// Detect if HistoryBufferUV would be outside of the viewport.
+	bool bOffScreen = IsOffScreen(bCameraCut, PrevScreenPos, ParallaxRejectionMask);
+	
+	// Read input color
+	taa_half ClosestInterferenceSeed;
+	ISOLATE
+	{
+		float2 SampleInputBufferUV = (InputInfo_ViewportMin + PPCk) * InputInfo_ExtentInverse;
+		SampleInputBufferUV = clamp(SampleInputBufferUV, InputInfo_UVViewportBilinearMin, InputInfo_UVViewportBilinearMax);
+
+		taa_half3 InputColor = InputSceneColorTexture.SampleLevel(GlobalPointClampedSampler, SampleInputBufferUV, 0);
+
+		taa_half ClosestInputLuma4 = Luma4(InputColor);
+		ClosestInterferenceSeed = LumaToInterferenceSeed(ClosestInputLuma4);
+	}
+	
+	// Reproject history
+	uint OldestAge = 0;
+	FSuperResHistory SubpixelHistory;
+	ISOLATE
+	{
+		float2 PrevHistoryBufferUV = (PrevHistoryInfo_ScreenPosToViewportScale * PrevScreenPos + PrevHistoryInfo_ScreenPosToViewportBias) * PrevHistoryInfo_ExtentInverse;
+		PrevHistoryBufferUV = clamp(PrevHistoryBufferUV, PrevHistoryInfo_UVViewportBilinearMin, PrevHistoryInfo_UVViewportBilinearMax);
+
+		FBilinearSampleInfos SampleInfos = GetBilinearSampleLevelInfos(
+			PrevHistoryBufferUV,
+			PrevHistoryInfo_Extent * float(SUPERRES_RES_MULTIPLIER),
+			PrevHistoryInfo_ExtentInverse * rcp(float(SUPERRES_RES_MULTIPLIER)));
+
+		uint2 BestPayload = 0;
+		int2 BestKernelToSample = 0;
+		uint BestKernelToSampleDistSquare = dot(uint2(SUPERRES_OFFSET_MAX, SUPERRES_OFFSET_MAX), uint2(SUPERRES_OFFSET_MAX, SUPERRES_OFFSET_MAX));
+
+
+		UNROLL_N(4)
+		for (uint SampleId = 0; SampleId < 4; SampleId++)
+		{
+			uint2 PixelCoord = GetSamplePixelCoord(SampleInfos, SampleId);
+
+			uint2 SubpixelPayload;
+			SubpixelPayload[0] = PrevHistory_SuperResTextures_0[PixelCoord];
+			SubpixelPayload[1] = PrevHistory_SuperResTextures_1[PixelCoord];
+
+			FSuperResHistory UnpackedSubpixel = UnpackSuperResHistory(SubpixelPayload);
+
+			const float2 PixelOffset = float2(BilinearSamplingOffsets2x2[SampleId]);
+
+			int2 KernelToTexel = int2(round((PixelOffset - SampleInfos.BilinearInterp) * 0x20));
+
+			int2 KernelToSample = KernelToTexel + UnpackedSubpixel.TexelToSample;
+
+			uint KernelToSampleDistSquare = uint(dot(KernelToSample, KernelToSample));
+
+			FLATTEN
+			if (KernelToSampleDistSquare < BestKernelToSampleDistSquare || SampleId == 0)
+			{
+				BestPayload = SubpixelPayload;
+				BestKernelToSample = KernelToSample;
+				BestKernelToSampleDistSquare = KernelToSampleDistSquare;
+			}
+
+			bool bIsCloseEnough = abs(UnpackedSubpixel.InterferenceSeed - ClosestInterferenceSeed) < 0.1;
+
+			if (bIsCloseEnough)
+			{
+				OldestAge = max(OldestAge, UnpackedSubpixel.Age);
+			}
+		}
+
+		SubpixelHistory = UnpackSuperResHistory(BestPayload);
+		SubpixelHistory.Age = min(SubpixelHistory.Age + 1, SUPERRES_AGE_BITMASK);
+		SubpixelHistory.TexelToSample = clamp(BestKernelToSample, SUPERRES_OFFSET_MIN, SUPERRES_OFFSET_MAX);
+	}
+		
+	int2 CurrentTexelToSample = int2(round(odKO * (-2 * SUPERRES_OFFSET_MAX)));
+	
+	bool bUpdate = all(CurrentTexelToSample >= SUPERRES_OFFSET_MIN && CurrentTexelToSample <= SUPERRES_OFFSET_MAX);
+
+	FLATTEN
+	if (bOffScreen || bUpdate)
+	{
+		uint2 Random = Rand3DPCG16(int3(InputPixelPos, View.StateFrameIndexMod8)).xy;
+		float2 E = Hammersley16(0, 1, Random);
+
+		SubpixelHistory.TexelToSample = clamp(CurrentTexelToSample, SUPERRES_OFFSET_MIN, SUPERRES_OFFSET_MAX);
+		SubpixelHistory.Age = bOffScreen ? 0 : OldestAge;
+		SubpixelHistory.InterferenceSeed = saturate(ClosestInterferenceSeed + (E.x - 0.5) * rcp(taa_half(SUPERRES_INTERFERENCE_BITMASK)));
+	}
+
+	#if 0
+	{
+		Debug.r = SubpixelHistory.InterferenceSeed;
+		Debug.g = SubpixelHistory.Age * rcp(SUPERRES_AGE_BITMASK);
+		//Debug.b = SubpixelHistory.TexelToSample.x * rcp(16.0);
+		//Debug.a = SubpixelHistory.TexelToSample.y * rcp(16.0);
+
+		Debug.b = bOffScreen ? 1 : 0;
+		//Debug.b = ParallaxRejectionMask;
+	}
+	#endif
+
+	uint2 PackedSubpixelHistory = PackSuperResHistory(SubpixelHistory);
+
+	ISOLATE
+	{
+		#if 1
+			uint LocalGroupThreadIndex = GetGroupThreadIndex(GroupThreadIndex);
+			uint2 LocalHistoryPixelPos = (
+				ZOrder2D(LocalGroupThreadIndex, log2(TILE_SIZE)) +
+				GroupId * uint2(TILE_SIZE, TILE_SIZE));
+		#else
+			uint LocalGroupThreadIndex = HistorySuperPixelPos;
+		#endif
+			
+		// Output final history.
+		bool bIsValidhistoryPixel = all(LocalHistoryPixelPos < SUPERRES_RES_MULTIPLIER * HistoryInfo_ViewportMax);
+		if (bIsValidhistoryPixel)
+		{
+			HistoryOutput_SuperResTextures_0[LocalHistoryPixelPos] = PackedSubpixelHistory[0];
+			HistoryOutput_SuperResTextures_1[LocalHistoryPixelPos] = PackedSubpixelHistory[1];
+
+			#if DEBUG_OUTPUT
+			{
+				DebugOutput[LocalHistoryPixelPos] = Debug;
+			}
+			#endif
+		}
+	}
+}

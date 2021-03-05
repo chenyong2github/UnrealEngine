@@ -816,10 +816,14 @@ struct FTemporalAAHistory
 	// Number of render target in the history.
 	static constexpr int32 kRenderTargetCount = 4;
 
+	// Number of render target in the history.
+	static constexpr int32 kSuperResRenderTargetCount = 2;
+
 	// Render targets holding's pixel history.
 	//  scene color's RGBA are in OutputRT[0].
 	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kLowResRenderTargetCount> LowResRT;
 	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> RT;
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kSuperResRenderTargetCount> SuperResRT;
 
 	// Reference size of RT. Might be different than RT's actual size to handle down res.
 	FIntPoint ReferenceBufferSize;
@@ -838,6 +842,10 @@ struct FTemporalAAHistory
 		for (int32 i = 0; i < RT.Num(); i++)
 		{
 			RT[i].SafeRelease();
+		}
+		for (int32 i = 0; i < SuperResRT.Num(); i++)
+		{
+			SuperResRT[i].SafeRelease();
 		}
 	}
 

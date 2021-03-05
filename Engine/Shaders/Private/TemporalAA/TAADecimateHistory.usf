@@ -30,6 +30,8 @@ Texture2D<taa_half3> PrevHistory_Textures_1;
 Texture2D<taa_half2> PrevHistory_Textures_2;
 Texture2D<uint>      PrevHistory_Textures_3;
 Texture2D<taa_half>  PrevHistory_LowResTextures_0;
+Texture2D<uint>      PrevHistory_SuperResTextures_0;
+Texture2D<uint>      PrevHistory_SuperResTextures_1;
 
 RWTexture2D<taa_half3> HalfResSceneColorOutput;
 RWTexture2D<taa_half3> HalfResPredictionSceneColorOutput;
@@ -81,7 +83,7 @@ void MainCS(
 	taa_half3 InputSceneColor = InputSceneColorTexture[InputPixelPos];
 	
 	taa_half ClosestInputLuma4 = Luma4(InputSceneColor);
-
+	taa_half InputInterferenceSeed = LumaToInterferenceSeed(ClosestInputLuma4);
 
 	float WorldDepth = ConvertFromDeviceZ(DeviceZ);
 	
@@ -159,6 +161,76 @@ void MainCS(
 		
 		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevOutputScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
 
+		{
+			const uint KernelSize = 4;
+
+			uint SuperResPayloads[16];
+
+			uint ClosestPayload = ~0;
+			uint ClosestAge = 0;
+
+			// Sample the super res history and find an aproximative age of the input pixel.
+			UNROLL
+			for (uint y = 0; y < KernelSize; y++)
+			{
+				UNROLL
+				for (uint x = 0; x < KernelSize; x++)
+				{
+					const float2 Offset = float2(x, y) - (KernelSize - 1.0) * 0.5;
+					
+					float2 SampleHistoryBufferUV = clamp(
+						(HistoryPPCk * 2.0 + Offset) * PrevHistoryInfo_ExtentInverse * rcp(float(SUPERRES_RES_MULTIPLIER)),
+						PrevHistoryInfo_UVViewportBilinearMin,
+						PrevHistoryInfo_UVViewportBilinearMax);
+
+					uint2 SuperResPixelCoord = uint2(SampleHistoryBufferUV * PrevHistoryInfo_Extent * float(SUPERRES_RES_MULTIPLIER));
+
+					uint SubpixelPayload = PrevHistory_SuperResTextures_0[SuperResPixelCoord];
+					FSuperResHistory UnpackedSubpixel = UnpackSuperResHistory(SubpixelPayload);
+
+					SuperResPayloads[y * 4 + x] = SubpixelPayload;
+
+					taa_half DistanceToSeed = abs(InputInterferenceSeed - UnpackedSubpixel.InterferenceSeed);
+
+					FLATTEN
+					if (DistanceToSeed < 0.1 && UnpackedSubpixel.Age > ClosestAge)
+					{
+						ClosestPayload = SubpixelPayload;
+						ClosestAge = UnpackedSubpixel.Age;
+					}
+				}
+			}
+			
+			uint AgeMin = UnpackSuperResHistory(ClosestPayload).Age;
+			uint AgeMax = UnpackSuperResHistory(ClosestPayload).Age + 4;
+
+			ClosestInterferenceSeed = UnpackSuperResHistory(ClosestPayload).InterferenceSeed;
+
+			MinInterferenceSeed = 1.0;
+			MaxInterferenceSeed = 0.0;
+
+			// Find out if there is high frequency details in the history with that age.
+			UNROLL
+			for (uint i = 0; i < KernelSize * KernelSize; i++)
+			{
+				FSuperResHistory UnpackedSubpixel = UnpackSuperResHistory(SuperResPayloads[i]);
+
+				bool bAgeBilateralWeight = UnpackedSubpixel.Age >= AgeMin && UnpackedSubpixel.Age <= AgeMax;
+
+				FLATTEN
+				if (bAgeBilateralWeight && ClosestPayload != ~0)
+				{
+					MinInterferenceSeed = min(MinInterferenceSeed, UnpackedSubpixel.InterferenceSeed);
+					MaxInterferenceSeed = max(MaxInterferenceSeed, UnpackedSubpixel.InterferenceSeed);
+				}
+
+			}
+			
+			// actually integrating SubpixelSeed stil suffer interference that causes instability. So instead take
+			// average of min and max that turns out interference free.
+			IntegratedInterferenceSeed = (MinInterferenceSeed + MaxInterferenceSeed) * 0.5;
+		}
+
 		taa_half PrevUninterferenceSeed = PrevHistory_LowResTextures_0.SampleLevel(GlobalBilinearClampedSampler, PrevInputBufferUV, 0);
 		taa_half PrevUninterferenceLuma = PrevUninterferenceSeed * HdrWeightInvY(PrevUninterferenceSeed);
 
@@ -211,52 +283,11 @@ void MainCS(
 			{
 				taa_subpixel_payload SubpixelPayload = GetSubpixelPayload(SubpixelNeigborhood, SubpixelId);
 				taa_subpixel_payload EncodedRejectionFactor = (SubpixelPayload >> SUB_PIXEL_PARALLAX_FACTOR_BIT_OFFSET) & SUB_PIXEL_PARALLAX_FACTOR_BIT_MASK;
-				taa_subpixel_payload EncodedInterference = (SubpixelPayload >> SUB_PIXEL_INTERFERENCE_BIT_OFFSET) & SUB_PIXEL_INTERFERENCE_BIT_MASK;
 
 				EncodedHistoryMaxRejectionFactor = max(EncodedHistoryMaxRejectionFactor, EncodedRejectionFactor);
 			}
 
 			HistoryMaxRejectionFactor = UncompressParallaxFactor(EncodedHistoryMaxRejectionFactor);
-		}
-
-		// Compute the inteference seeds for detection of the interference
-		{
-			const taa_half RefInterferenceSeed = LumaToInterferenceSeed(ClosestInputLuma4);
-			ClosestInterferenceSeed = 0.0;
-			taa_half RefInterferenceSeedDist = 2.0;
-
-			MinInterferenceSeed = 1.0;
-			MaxInterferenceSeed = 0.0;
-
-			// Searches in the entire 2x2 neighborhood instead because this history is nearest reproject that can causes subpixel
-			// shifts over multiple frames.
-			UNROLL_N(4)
-			for (uint SampleId = 0; SampleId < 4; SampleId++)
-			{
-				UNROLL_N(SUB_PIXEL_COUNT)
-				for (uint SubpixelId = 0; SubpixelId < SUB_PIXEL_COUNT; SubpixelId++)
-				{
-					taa_subpixel_payload SubpixelPayload = SubpixelNeigborhood.SampleArray[SampleId] >> (SubpixelId * SUB_PIXEL_BIT_COUNT);
-					taa_subpixel_payload EncodedInterference = (SubpixelPayload >> SUB_PIXEL_INTERFERENCE_BIT_OFFSET) & SUB_PIXEL_INTERFERENCE_BIT_MASK;
-					
-					// TODO(G5TAA): move out of the loop.
-					taa_half SubpixelSeed = UncompressInteferenceSeed(EncodedInterference);
-
-					FLATTEN
-					if (abs(RefInterferenceSeed - SubpixelSeed) < RefInterferenceSeedDist)
-					{
-						ClosestInterferenceSeed = SubpixelSeed;
-						RefInterferenceSeedDist = abs(RefInterferenceSeed - SubpixelSeed);
-					}
-
-					MinInterferenceSeed = min(MinInterferenceSeed, SubpixelSeed);
-					MaxInterferenceSeed = max(MaxInterferenceSeed, SubpixelSeed);
-				}
-			}
-			
-			// actually integrating SubpixelSeed stil suffer interference that causes instability. So instead take
-			// average of min and max that turns out interference free.
-			IntegratedInterferenceSeed = (MinInterferenceSeed + MaxInterferenceSeed) * 0.5;
 		}
 	}
 	
