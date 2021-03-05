@@ -60,6 +60,7 @@
 #include "Misc/ScopeExit.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Engine/ServerStatReplicator.h"
 
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
@@ -318,6 +319,8 @@ void UReplicationGraph::InitGlobalActorClassSettings()
 
 	RPC_Multicast_OpenChannelForClass.Reset();
 	RPC_Multicast_OpenChannelForClass.Set(AActor::StaticClass(), true); // Open channels for multicast RPCs by default
+	RPC_Multicast_OpenChannelForClass.Set(AController::StaticClass(), false);
+	RPC_Multicast_OpenChannelForClass.Set(AServerStatReplicator::StaticClass(), false);	
 }
 
 void UReplicationGraph::InitGlobalGraphNodes()
@@ -2074,10 +2077,10 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 				// Actors being destroyed (Building hit with rocket) will wake up before this gets hit. So dormancy really cant be relied on here.
 				// if (Actor->NetDormancy > DORM_Awake)
 				{
-					bool ShouldOpenChannel = true;
+					bool bShouldOpenChannel = true;
 					if (ConnectionActorInfo.GetCullDistanceSquared() > 0.f)
 					{
-						ShouldOpenChannel = false;
+						bShouldOpenChannel = false;
 						if (ActorLocation.IsSet() == false)
 						{
 							ActorLocation = Actor->GetActorLocation();
@@ -2101,14 +2104,21 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 							const float DistSq = (ActorLocation.GetValue() - Viewer.ViewLocation).SizeSquared();
 							if (DistSq <= ConnectionActorInfo.GetCullDistanceSquared())
 							{
-								ShouldOpenChannel = true;
+								bShouldOpenChannel = true;
 								break;
 							}
 						}
 					}
 
-					if (ShouldOpenChannel)
+					if (bShouldOpenChannel)
 					{
+#if !UE_BUILD_SHIPPING
+						if (Actor->bOnlyRelevantToOwner && (!Actor->GetNetOwner() || (Actor->GetNetOwner() != NetConnection->PlayerController)))
+						{
+							UE_LOG(LogReplicationGraph, Warning, TEXT("Multicast RPC opening channel for bOnlyRelevantToOwner actor, check RPC_Multicast_OpenChannelForClass: Actor: %s Target: %s Function: %s"), *GetNameSafe(Actor), *GetNameSafe(TargetObj), *GetNameSafe(Function));
+						}
+#endif
+
 						// We are within range, we will open a channel now for this actor and call the RPC on it
 						ConnectionActorInfo.Channel = (UActorChannel*)NetConnection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
 
