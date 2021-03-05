@@ -293,6 +293,35 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 		_Exit(1);
 	}
 
+#if WITH_EDITOR
+	if (!FParse::Param(*GSavedCommandLine, TEXT("skipminspeccheck")))
+	{
+		if (!FPlatformMisc::IsRunningOnRecommendedMinSpecHardware())
+		{
+			CFDictionaryRef SessionDictionary = CGSessionCopyCurrentDictionary();
+			const bool bIsWindowServerAvailable = SessionDictionary != nullptr;
+			if (bIsWindowServerAvailable)
+			{
+				NSAlert* AlertPanel = [NSAlert new];
+				[AlertPanel setAlertStyle:NSWarningAlertStyle];
+				[AlertPanel setInformativeText:@"You are attempting to run Unreal Editor on hardware that falls below the recommended minimum configuration. If you choose to proceed, you may experience odd behavior like crashing due to memory constraints or issues with unsupported graphics drivers. You may disable this warning by running with \r '-skipminspeccheck'"];
+				[AlertPanel setMessageText:@"Warning"];
+				[AlertPanel addButtonWithTitle:@"Quit"];
+				[AlertPanel addButtonWithTitle:@"Run Anyway"];
+				NSModalResponse Response = [AlertPanel runModal];
+				[AlertPanel release];
+
+				CFRelease(SessionDictionary);
+
+				if (Response == NSAlertFirstButtonReturn)
+				{
+					_Exit(1);
+				}
+			}
+		}
+	}
+#endif // WITH_EDITOR
+
 	//install the custom quit event handler
     NSAppleEventManager* appleEventManager = [NSAppleEventManager sharedAppleEventManager];
     [appleEventManager setEventHandler:self andSelector:@selector(handleQuitEvent:withReplyEvent:) forEventClass:kCoreEventClass andEventID:kAEQuitApplication];

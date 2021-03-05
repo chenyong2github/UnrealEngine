@@ -1757,6 +1757,86 @@ bool FMacPlatformMisc::IsSupportedXcodeVersionInstalled()
 	return GMacAppInfo.XcodeVersion.majorVersion > 9 || (GMacAppInfo.XcodeVersion.majorVersion == 9 && GMacAppInfo.XcodeVersion.minorVersion >= 4);
 }
 
+#if WITH_EDITOR
+struct FMacModel
+{
+	NSString*	Name;
+	uint32		Major;
+	uint32		Minor;
+	bool		bIsLowPower;
+};
+
+bool FMacPlatformMisc::IsRunningOnRecommendedMinSpecHardware()
+{
+	const TArray<FMacModel> MinSupportedMacModels(
+	{
+		{ @"MacPro",		6,	1,	false },	// Mac Pro (Late 2013) [AMD FirePro D300] { Pitcairn XT GL (GFX6) }
+		{ @"Macmini",		7,	1,	false },	// Mac mini (Late 2014) [Intel HD Graphics 5000] { Haswell GT3 }
+		{ @"MacBookPro",	11,	4,	false },	// MacBook Pro (Retina, 15-inch, Mid 2015) [Intel Iris Pro 5200] { Haswell GT3e }
+		{ @"MacBookAir",	6,	1,	true  },	// MacBook Air (11-inch, Mid 2013) [Intel HD Graphics 5000] { Haswell GT3 }
+		{ @"MacBook",		8,	1,	true  },	// MacBook (Retina, 12-inch, Early 2015) [Intel HD Graphics 5300] { Broadwell GT2 }
+		{ @"iMacPro",		1,	1,	false },	// iMac Pro (Retina 5K, 27-inch, 2017) [AMD Radeon Pro Vega 56/64/64X] { GFX9 }
+		{ @"iMac",			14,	4,	false },	// iMac (21.5-inch, Mid 2014) [Intel HD Graphics 5000] { Haswell GT3 }
+	});
+
+	constexpr int64 MinSupportedMemsize = 8ll * (1024 * 1024 * 1024);
+
+	int64	SystemMemsize		= 0;
+	SIZE_T	SystemMemsizeLen	= sizeof(SystemMemsize);
+
+	// Fetch memsize
+	sysctlbyname("hw.memsize", &SystemMemsize, &SystemMemsizeLen, NULL, 0);
+
+	// Check memsize first
+	bool bSupported = (SystemMemsize >= MinSupportedMemsize);
+	if (bSupported)
+	{
+		// Fetch model
+		ANSICHAR	SystemModel[20]		= { '\0' };
+		SIZE_T		SystemModelLen		= sizeof(SystemModel);
+		ANSICHAR	SystemModelName[20]	= { '\0' };
+		uint32		SystemModelMajor	= 0;
+		uint32		SystemModelMinor	= 0;
+
+		sysctlbyname("hw.model", SystemModel, &SystemModelLen, NULL, 0);
+		sscanf(SystemModel, "%[^0-9]%u,%u", SystemModelName, &SystemModelMajor, &SystemModelMinor);
+
+		NSString* ModelName = [[NSString alloc] initWithBytesNoCopy:(void*)SystemModelName
+															 length:strlen(SystemModelName)
+														   encoding:NSUTF8StringEncoding
+													   freeWhenDone:NO];
+
+		// Check model next, assume unknown models are OK.
+		int32 Index = MinSupportedMacModels.IndexOfByPredicate([ModelName](const FMacModel& Other){ return (NSOrderedSame == [ModelName caseInsensitiveCompare:Other.Name]); });
+		if (INDEX_NONE != Index)
+		{
+			const FMacModel& Model = MinSupportedMacModels[Index];
+
+			if ( (SystemModelMajor <  Model.Major) ||
+				((SystemModelMajor >= Model.Major) && (SystemModelMinor < Model.Minor)))
+			{
+				bSupported = false;
+			}
+
+			// MacBook and MacBookAir are not high-powered machines, but Apple
+			// Silicon is sufficient for running the editor.
+			if (bSupported && Model.bIsLowPower)
+			{
+				int32	SystemArm64		= 0;
+				SIZE_T	SystemArm64Len	= sizeof(SystemArm64);
+				sysctlbyname("hw.optional.arm64", &SystemArm64, &SystemArm64Len, NULL, 0);
+
+				bSupported = (SystemArm64 != 0);
+			}
+		}
+
+		[ModelName release];
+	}
+
+	return bSupported;
+}
+#endif // WITH_EDITOR
+
 CGDisplayModeRef FMacPlatformMisc::GetSupportedDisplayMode(CGDirectDisplayID DisplayID, uint32 Width, uint32 Height)
 {
 	CGDisplayModeRef BestMatchingMode = nullptr;

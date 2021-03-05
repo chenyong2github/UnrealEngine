@@ -120,8 +120,12 @@ struct CORE_API FMacPlatformMisc : public FApplePlatformMisc
 	static FString GetXcodePath();
 
 	static bool IsSupportedXcodeVersionInstalled();
-    
-    static void MergeDefaultArgumentsIntoCommandLine(FString& CommandLine, FString DefaultArguments);
+
+#if WITH_EDITOR
+	static bool IsRunningOnRecommendedMinSpecHardware();
+#endif // WITH_EDITOR
+
+	static void MergeDefaultArgumentsIntoCommandLine(FString& CommandLine, FString DefaultArguments);
 	
 	/** Common descriptor of each GPU in the OS that provides stock details about the GPU that are innaccessible from the higher-level rendering APIs and provides a direct link to the GPU in the IORegistry. */
 	template<typename T>
