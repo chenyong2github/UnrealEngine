@@ -124,6 +124,8 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 	
 	const bool bPrevImportMorph = (AnimSequence->RawCurveData.FloatCurves.Num() > 0) ;
 
+	const bool bOverrideImportSettings = ReimportUI != nullptr;
+	
 	if (!ReimportUI)
 	{
 		ReimportUI = NewObject<UFbxImportUI>();
@@ -137,9 +139,17 @@ bool UEditorEngine::ReimportFbxAnimation( USkeleton* Skeleton, UAnimSequence* An
 	if (ImportData && !ShowImportDialogAtReimport)
 	{
 		// Prepare the import options
-		ReimportUI->AnimSequenceImportData = ImportData;
+		if (!bOverrideImportSettings)
+		{
+			//Use the asset import data setting only if there was no ReimportUI parameter
+			ReimportUI->AnimSequenceImportData = ImportData;
+		}
+		else
+		{
+			ImportData->CopyAnimationValues(ReimportUI->AnimSequenceImportData);
+		}
 		ReimportUI->SkeletalMeshImportData->bImportMeshesInBoneHierarchy = ImportData->bImportMeshesInBoneHierarchy;
-		
+
 		ApplyImportUIToImportOptions(ReimportUI, *FbxImporter->ImportOptions);
 	}
 	else if(ShowImportDialogAtReimport)
