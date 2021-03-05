@@ -358,6 +358,8 @@ void UControlRigBlueprint::PostLoad()
 	{
 		Modify();
 		
+		TGuardValue<bool> SuspendNotifGuard(Hierarchy->GetSuspendNotificationsFlag(), true);
+		
 		Hierarchy->Reset();
 
 		for(const FRigBone& Bone : HierarchyContainer_DEPRECATED.BoneHierarchy)

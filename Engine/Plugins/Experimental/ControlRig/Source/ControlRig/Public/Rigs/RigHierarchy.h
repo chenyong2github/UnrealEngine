@@ -31,6 +31,7 @@ public:
 	, TransformStackIndex(0)
 	, bTransactingForTransformChange(false)
 	, bIsInteracting(false)
+	, bSuspendNotifications(false)
 	{}
 
 	virtual ~URigHierarchy();
@@ -1994,6 +1995,11 @@ public:
 	 * @return True if the child is parented to the parent
 	 */
 	bool IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InParent) const;
+	
+	/**
+	 * Returns a reference to the suspend notifications flag
+	 */
+	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendNotifications; } 
 
 private:
 
@@ -2152,6 +2158,11 @@ private:
 	 * Manages merging transform actions into one during an interaction
 	 */
 	bool bIsInteracting;
+	
+	/** 
+	 * If set to true all notifs coming from this hierarchy will be suspended
+	 */
+	bool bSuspendNotifications;
 
 	/**
 	 * The event fired during undo / redo

@@ -1104,6 +1104,10 @@ void URigHierarchy::SetPose(const FRigPose& InPose, ERigTransformType::Type InTr
 
 void URigHierarchy::Notify(ERigHierarchyNotification InNotifType, const FRigBaseElement* InElement)
 {
+	if(bSuspendNotifications)
+	{
+		return;
+	}
 	ModifiedEvent.Broadcast(InNotifType, this, InElement);
 }
 

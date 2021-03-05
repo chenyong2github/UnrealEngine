@@ -987,11 +987,19 @@ void URigHierarchyController::Notify(ERigHierarchyNotification InNotifType, cons
 	{
 		return;
 	}
+	if(bSuspendNotifications)
+	{
+		return;
+	}
 	Hierarchy->Notify(InNotifType, InElement);
 }
 
 void URigHierarchyController::HandleHierarchyModified(ERigHierarchyNotification InNotifType, URigHierarchy* InHierarchy, const FRigBaseElement* InElement) const
 {
+	if(bSuspendNotifications)
+	{
+		return;
+	}
 	ensure(IsValid());
 	ensure(InHierarchy == Hierarchy);
 	ModifiedEvent.Broadcast(InNotifType, InHierarchy, InElement);

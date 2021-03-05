@@ -17,6 +17,7 @@ public:
 	URigHierarchyController()
 	: bReportWarningsAndErrors(true)
 	, Hierarchy(nullptr)
+	, bSuspendNotifications(false)
 	{}
 
 	virtual ~URigHierarchyController();
@@ -451,6 +452,11 @@ public:
 	UPROPERTY(transient)
 	bool bReportWarningsAndErrors;
 
+	/**
+	 * Returns a reference to the suspend notifications flag
+	 */
+	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendNotifications; } 
+
 private:
 
 	UPROPERTY(transient)
@@ -546,6 +552,11 @@ private:
 #if WITH_EDITOR
 	static USkeleton* GetSkeletonFromAssetPath(const FString& InAssetPath);
 #endif
+
+	/** 
+	 * If set to true all notifs coming from this hierarchy will be suspended
+	 */
+	bool bSuspendNotifications;
 
 	friend class UControlRig;
 };
