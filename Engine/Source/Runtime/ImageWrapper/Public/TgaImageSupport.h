@@ -36,4 +36,4 @@ struct FTGAFileHeader
  * This helper allows to decompress TGA data in a pre-allocated memory block.
  * The pixel format is necessarily PF_A8R8G8B8.
  */
-IMAGEWRAPPER_API bool DecompressTGA_helper(	const FTGAFileHeader* TGA, uint32*& TextureData, const int32 TextureDataSize );
+IMAGEWRAPPER_API bool DecompressTGA_helper(	const FTGAFileHeader* TGA, const int64 TGABufferLenght, uint32*& TextureData, const int32 TextureDataSize );

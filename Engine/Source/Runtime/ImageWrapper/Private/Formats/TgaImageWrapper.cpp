@@ -27,7 +27,10 @@ void FTgaImageWrapper::Uncompress(const ERGBFormat InFormat, const int32 InBitDe
 	uint32* TextureData = reinterpret_cast< uint32* >( RawData.GetData() );
 
 	FTGAFileHeader* TgaHeader = reinterpret_cast< FTGAFileHeader* >( CompressedData.GetData() );
-	DecompressTGA_helper( TgaHeader, TextureData, TextureDataSize );
+	if ( !DecompressTGA_helper( TgaHeader, CompressedData.Num(), TextureData, TextureDataSize ) )
+	{
+		SetError(TEXT("Error while decompressing a TGA"));
+	}
 }
 
 bool FTgaImageWrapper::LoadTGAHeader()
