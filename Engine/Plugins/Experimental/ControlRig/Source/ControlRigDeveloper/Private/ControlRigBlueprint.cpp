@@ -1040,6 +1040,27 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 							bRequiresRecompile = true;
 						}
 
+						// If we are only changing a pin's default value, we need to
+						// check if there is a connection to a sub-pin of the root pin
+						// that has its value is directly stored in the root pin due to optimization, if so,
+						// we want to recompile to make sure the pin's new default value and values from other connections
+						// are both applied to the root pin because GetDefaultValue() alone cannot account for values
+						// from other connections.
+						if(!bRequiresRecompile)
+						{
+							TArray<URigVMPin*> SourcePins = RootPin->GetLinkedSourcePins(true);
+							for (const URigVMPin* SourcePin : SourcePins)
+							{
+								// check if the source node is optimized out, if so, only a recompile will allows us
+								// to re-query its value.
+								if (InGraph->GetRuntimeAST()->GetExprForSubject(SourcePin->GetNode()) == nullptr)
+								{
+									bRequiresRecompile = true;
+									break;
+								}
+							}
+						} 
+						
 						if(!bRequiresRecompile)
 						{
 							TArray<FString> DefaultValues;
