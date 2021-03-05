@@ -62,6 +62,9 @@ protected:
 
 	TArray<FBlendSampleData> BlendSampleDataCache;
 
+	/** Previous position in the triangulation/segmentation */
+	int32 CachedTriangulationIndex = -1;
+
 	UPROPERTY(Transient)
 	TObjectPtr<UBlendSpace> PreviousBlendSpace;
 

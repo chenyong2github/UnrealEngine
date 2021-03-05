@@ -6,6 +6,7 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace1D.h"
 
+#include "Widgets/Input/SButton.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
@@ -35,6 +36,9 @@
 #include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SAnimationBlendSpaceGridWidget"
+
+// Draws additional data on the triangulation to help debugging
+//#define DEBUG_BLENDSPACE_TRIANGULATION
 
 void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 {
@@ -70,7 +74,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 
 	PreviewFilteredPosition = PreviewPosition;
 
-	bShowTriangulation = false;
+	bShowTriangulation = true;
 	bMouseIsOverGeometry = false;
 	bRefreshCachedData = true;
 	bStretchToFit = true;
@@ -87,11 +91,11 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 	InvalidColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Invalid");
 	DropKeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Drop");
 	PreviewKeyColor = FEditorStyle::GetSlateColor("BlendSpaceKey.Preview");
-	UnSnappedColor = FEditorStyle::GetSlateColor("BlendSpaceKey.UnSnapped");
 	GridLinesColor = GetDefault<UEditorStyleSettings>()->RegularColor;
 	GridOutlineColor = GetDefault<UEditorStyleSettings>()->RuleColor;
 	TriangulationColor = FSlateColor(EStyleColor::Foreground);
-	
+	TriangulationCurrentColor = FSlateColor(EStyleColor::Highlight);
+
 	// Retrieve background and sample key brushes 
 	BackgroundImage = FEditorStyle::GetBrush(TEXT("Graph.Panel.SolidBackground"));
 	KeyBrush = FEditorStyle::GetBrush("CurveEd.CurveKey");
@@ -248,7 +252,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 						.Padding(FMargin(2.0f, 3.0f, 0.0f, 0.0f))
 						[
 							SNew(STextBlock)
-							.Text(LOCTEXT("BlendspacePreviewToolTip", "Hold Shift to move the Preview Point (Green)" ))
+							.Text(LOCTEXT("BlendspacePreviewToolTip", "Hold Control to set the Preview Point (Green)" ))
 							.Font(FEditorStyle::GetFontStyle(TEXT("AnimViewport.MessageFont")))
 							.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.7f))
 							.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlendSpaceGridWidget::GetPreviewToolTipVisibility)))
@@ -404,7 +408,9 @@ void SBlendSpaceGridWidget::PaintBackgroundAndGrid(const FGeometry& AllottedGeom
 	DrawLayerId += 3;
 }
 
-void SBlendSpaceGridWidget::PaintSampleKeys(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
+void SBlendSpaceGridWidget::PaintSampleKeys(
+	const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, 
+	FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
 {
 	const int32 FilteredPositionLayer = DrawLayerId + 1;
 	const int32 PreviewPositionLayer = DrawLayerId + 2;
@@ -435,32 +441,65 @@ void SBlendSpaceGridWidget::PaintSampleKeys(const FGeometry& AllottedGeometry, c
 			{
 				DrawColor = InvalidColor.GetSpecifiedColor();
 			}
-			else
-			{
-				DrawColor = Sample.bSnapToGrid ? DrawColor : UnSnappedColor.GetSpecifiedColor();
-			}
 
-			const FVector2D GridPosition = SampleValueToGridPosition(Sample.SampleValue) - (KeySize * 0.5f);
-			FSlateDrawElement::MakeBox( OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(GridPosition, KeySize), KeyBrush, ESlateDrawEffect::None, DrawColor );
+			const FVector2D GridPosition = SampleValueToScreenPosition(Sample.SampleValue) - (KeySize * 0.5f);
+			FSlateDrawElement::MakeBox(
+				OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(GridPosition, KeySize), 
+				KeyBrush, ESlateDrawEffect::None, DrawColor );
 		}
 
 		// Always draw the filtered position which comes back from whatever is running
 		{
-			FVector2D GridPosition = SampleValueToGridPosition(PreviewFilteredPosition) - (PreviewSize * .5f);
-			FSlateDrawElement::MakeBox(OutDrawElements, FilteredPositionLayer, AllottedGeometry.ToPaintGeometry(GridPosition, PreviewSize), PreviewBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor() * 0.5);
+			FVector2D GridPosition = SampleValueToScreenPosition(PreviewFilteredPosition) - (PreviewSize * .5f);
+			FSlateDrawElement::MakeBox(
+				OutDrawElements, FilteredPositionLayer, AllottedGeometry.ToPaintGeometry(GridPosition, PreviewSize), 
+				PreviewBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor() * 0.5);
 		}
 
 		if (bPreviewPositionSet)
 		{
-			FVector2D GridPosition = SampleValueToGridPosition(PreviewPosition) - (PreviewSize * .5f);
-			FSlateDrawElement::MakeBox(OutDrawElements, PreviewPositionLayer, AllottedGeometry.ToPaintGeometry(GridPosition, PreviewSize), PreviewBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor());
+			FVector2D GridPosition = SampleValueToScreenPosition(PreviewPosition) - (PreviewSize * .5f);
+			FSlateDrawElement::MakeBox(
+				OutDrawElements, PreviewPositionLayer, AllottedGeometry.ToPaintGeometry(GridPosition, PreviewSize), 
+				PreviewBrush, ESlateDrawEffect::None, PreviewKeyColor.GetSpecifiedColor());
 		}
 
 		if (DragState == EDragState::DragDrop || DragState == EDragState::InvalidDragDrop)
 		{
-			const FVector2D GridPoint = SnapToClosestGridPoint(LocalMousePosition) - (KeySize * .5f);
-			FSlateDrawElement::MakeBox( OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(GridPoint, KeySize), KeyBrush, ESlateDrawEffect::None,
+			const FVector2D GridPoint = SnapScreenPositionToGrid(
+				LocalMousePosition, FSlateApplication::Get().GetModifierKeys().IsShiftDown()) - (KeySize * .5f);
+			FSlateDrawElement::MakeBox(
+				OutDrawElements, SampleLayer, AllottedGeometry.ToPaintGeometry(GridPoint, KeySize), KeyBrush, ESlateDrawEffect::None,
 				(DragState == EDragState::DragDrop) ? DropKeyColor.GetSpecifiedColor() : InvalidColor.GetSpecifiedColor() );
+		}
+
+		// Also show the weights that are getting picked up as bars, using two overlaid boxes
+		if (bSamplePreviewing && FSlateApplication::Get().GetModifierKeys().IsAltDown())
+		{
+			for (const FBlendSampleData& PreviewedSample : PreviewedSamples)
+			{
+				float Weight = PreviewedSample.TotalWeight;
+				int32 SampleIndex = PreviewedSample.SampleDataIndex;
+				FVector2D Point = SampleValueToScreenPosition(Samples[SampleIndex].SampleValue);
+
+				float MaxWeightWidth = 48;
+				float WeightHeight = 6;
+
+				Point.Y -= KeySize.Y / 2 + WeightHeight * 1.25;
+				Point.X -= MaxWeightWidth * 0.5f;
+
+				FSlateDrawElement::MakeBox(
+					OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(
+						FVector2D(Point.X, Point.Y), FVector2D(MaxWeightWidth, WeightHeight)).ToPaintGeometry(),
+					LabelBrush, ESlateDrawEffect::None, FLinearColor::Black);
+
+				float Border = 1.0f;
+				FSlateDrawElement::MakeBox(
+					OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(
+						FVector2D(Point.X + Border, Point.Y + Border), 
+						FVector2D(Weight * (MaxWeightWidth - 2 * Border), WeightHeight - 2 * Border)).ToPaintGeometry(),
+					LabelBrush, ESlateDrawEffect::None, FLinearColor::Gray);
+			}
 		}
 	}
 
@@ -540,38 +579,253 @@ void SBlendSpaceGridWidget::PaintAxisText(const FGeometry& AllottedGeometry, con
 	DrawLayerId += 1;
 }
 
+// Paint a filled triangle
+static void PaintTriangle(
+	const FVector2D&         P0,
+	const FVector2D&         P1,
+	const FVector2D&         P2,
+	const FGeometry&         AllottedGeometry,
+	FLinearColor             Color,
+	const FSlateBrush*       Brush,
+	FSlateWindowElementList& OutDrawElements,
+	int32                    DrawLayerId)
+{
+	const FVector2D* Points[3] = { &P0, &P1, &P2 };
+
+	TArray<FSlateVertex> Vertices;
+	Vertices.Reserve(3);
+
+	for (int32 PointIndex = 0; PointIndex != 3; ++PointIndex)
+	{
+		Vertices.AddZeroed();
+		FSlateVertex& NewVert = Vertices.Last();
+		NewVert.Position = AllottedGeometry.LocalToAbsolute(*Points[PointIndex]);
+		NewVert.Color = Color.ToFColor(false);
+	}
+
+	// Fill by making triangles
+	TArray<SlateIndex> VertexIndices = { 0, 1, 2 };
+	FSlateDrawElement::MakeCustomVerts(
+		OutDrawElements, DrawLayerId, Brush->GetRenderingResource(), Vertices, VertexIndices, nullptr, 0, 0);
+}
+
+// Paints a filled polygon with outline, defined by a set of points which don't need to be sorted.
+// This will handle concave polygons, but only if the centroid lies inside the polygon.
+static void PaintPolygon(
+	TArray<FVector2D>&       Points,
+	const FGeometry&         AllottedGeometry,
+	FLinearColor             FillColor,
+	FLinearColor             OutlineColor,
+	const FSlateBrush*       Brush,
+	FSlateWindowElementList& OutDrawElements,
+	int32                    DrawLayerId)
+{
+	TArray<FSlateVertex> Vertices;
+	Vertices.Reserve(Points.Num() + 1);
+
+	// Add a mid-position vertex so that we handle polygons that aren't completely convex
+	Vertices.AddZeroed();
+
+	FSlateVertex& MidVertex = Vertices.Last();
+	for (int32 PointIndex = 0; PointIndex != Points.Num(); ++PointIndex)
+	{
+		Vertices.AddZeroed();
+		FSlateVertex& NewVert = Vertices.Last();
+		NewVert.Position = AllottedGeometry.LocalToAbsolute(Points[PointIndex]);
+		NewVert.Color = FillColor.ToFColor(false);
+		MidVertex.Position += NewVert.Position;
+	}
+	MidVertex.Position /= Points.Num();
+	MidVertex.Color = FillColor.ToFColor(false);
+
+	// Make sure the points all wind correctly relative to the mid point
+	struct FComparePoints
+	{
+		FComparePoints(const FSlateVertex& Mid) : MidPoint(Mid) {}
+		bool operator()(const FSlateVertex& A, const FSlateVertex& B) const
+		{
+			FVector2D DeltaA = A.Position - MidPoint.Position;
+			FVector2D DeltaB = B.Position - MidPoint.Position;
+			float AngleA = FMath::Atan2(DeltaA.Y, DeltaA.X);
+			float AngleB = FMath::Atan2(DeltaB.Y, DeltaB.X);
+			return AngleA < AngleB;
+		}
+		FSlateVertex MidPoint;
+	};
+	Sort(Vertices.GetData() + 1, Vertices.Num() - 1, FComparePoints(MidVertex));
+
+	if (FillColor.A > 0)
+	{
+		// Fill by making triangles
+		TArray<SlateIndex> VertexIndices;
+		for (int VertexIndex = 1; VertexIndex < Vertices.Num(); ++VertexIndex)
+		{
+			VertexIndices.Add(0);
+			VertexIndices.Add(VertexIndex);
+			VertexIndices.Add(VertexIndex + 1 >= Vertices.Num() ? 1 : VertexIndex + 1);
+		}
+
+		FSlateDrawElement::MakeCustomVerts(
+			OutDrawElements, DrawLayerId, Brush->GetRenderingResource(), Vertices, VertexIndices, nullptr, 0, 0);
+	}
+
+	if (OutlineColor.A > 0)
+	{
+		TArray<FVector2D> LinePoints;
+		LinePoints.Reserve(Points.Num() + 1);
+		for (int VertexIndex = 1; VertexIndex <= Vertices.Num(); ++VertexIndex)
+		{
+			LinePoints.Add(VertexIndex < Vertices.Num() ? Vertices[VertexIndex].Position : Vertices[1].Position);
+		}
+		FSlateDrawElement::MakeLines(
+			OutDrawElements, DrawLayerId + 1, FPaintGeometry(), LinePoints, ESlateDrawEffect::None, OutlineColor, true, 1.0f);
+	}
+}
+
 void SBlendSpaceGridWidget::PaintTriangulation(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
 {
+	TArray<FVector2D> PolygonPoints;
+
 	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		const TArray<FBlendSample>& Samples = BlendSpace->GetBlendSamples();
-		const TArray<FEditorElement>& EditorElements = BlendSpace->GetGridSamples();
-		
-		for (const FEditorElement& Element : EditorElements)
+		if (BlendSpace->bInterpolateUsingGrid)
 		{
-			for (int32 SourceIndex = 0; SourceIndex < 3; ++SourceIndex)
+			// Use the Grid
+			const TArray<FEditorElement>& EditorElements = BlendSpace->GetGridSamples();
+			for (const FEditorElement& Element : EditorElements)
 			{
-				if (Element.Indices[SourceIndex] != INDEX_NONE)
+				for (int32 SourceIndex = 0; SourceIndex < 3; ++SourceIndex)
 				{
-					const FBlendSample& SourceSample = Samples[Element.Indices[SourceIndex]];
-					for (int32 TargetIndex = 0; TargetIndex < 3; ++TargetIndex)
+					if (Element.Indices[SourceIndex] != INDEX_NONE)
 					{
-						if (Element.Indices[TargetIndex] != INDEX_NONE)
+						const FBlendSample& SourceSample = Samples[Element.Indices[SourceIndex]];
+						for (int32 TargetIndex = 0; TargetIndex < 3; ++TargetIndex)
 						{
-							if (TargetIndex != SourceIndex)
+							if (Element.Indices[TargetIndex] != INDEX_NONE)
 							{
-								const FBlendSample& TargetSample = Samples[Element.Indices[TargetIndex]];
-								TArray<FVector2D> Points;
+								if (TargetIndex != SourceIndex)
+								{
+									const FBlendSample& TargetSample = Samples[Element.Indices[TargetIndex]];
+									TArray<FVector2D> Points;
 
-								Points.Add(SampleValueToGridPosition(SourceSample.SampleValue));
-								Points.Add(SampleValueToGridPosition(TargetSample.SampleValue));
+									Points.Add(SampleValueToScreenPosition(SourceSample.SampleValue));
+									Points.Add(SampleValueToScreenPosition(TargetSample.SampleValue));
 
-								// Draw line from and to element
-								FSlateDrawElement::MakeLines(OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(), Points, ESlateDrawEffect::None, TriangulationColor.GetSpecifiedColor(), true, 0.5f);
+									// Draw line from and to element
+									FSlateDrawElement::MakeLines(
+										OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(), Points, 
+										ESlateDrawEffect::None,  TriangulationColor.GetSpecifiedColor(), true, 0.5f);
+								}
 							}
 						}
 					}
 				}
+			}
+		}
+		else
+		{
+			// Use runtime triangulation
+			const FBlendSpaceData& BlendSpaceData = BlendSpace->GetBlendSpaceData();
+			for (const FBlendSpaceSegment& Segment : BlendSpaceData.Segments)
+			{
+				int32 SampleIndex = Segment.SampleIndices[0];
+				int32 SampleIndexNext = Segment.SampleIndices[1];
+				TArray<FVector2D> Points;
+				Points.Add(SampleValueToScreenPosition(Samples[SampleIndex].SampleValue));
+				Points.Add(SampleValueToScreenPosition(Samples[SampleIndexNext].SampleValue));
+				FSlateDrawElement::MakeLines(
+					OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(), Points,
+					ESlateDrawEffect::None, TriangulationColor.GetSpecifiedColor(), true, 0.5f);
+			}
+
+			for (const FBlendSpaceTriangle& Triangle : BlendSpaceData.Triangles)
+			{
+				FVector2D MidPoint(0, 0);
+				PolygonPoints.Empty(3);
+				for (int32 Index = 0; Index != FBlendSpaceTriangle::NUM_VERTICES; ++Index)
+				{
+					int32 IndexNext = (Index + 1) % FBlendSpaceTriangle::NUM_VERTICES;
+					int32 SampleIndex = Triangle.SampleIndices[Index];
+					int32 SampleIndexNext = Triangle.SampleIndices[IndexNext];
+					FVector2D P1 = SampleValueToScreenPosition(Samples[SampleIndex].SampleValue);
+					FVector2D P2 = SampleValueToScreenPosition(Samples[SampleIndexNext].SampleValue);
+					TArray<FVector2D> Points = { P1, P2 };
+					MidPoint += SampleValueToScreenPosition(Samples[SampleIndex].SampleValue) / 3.0f;
+
+					FSlateDrawElement::MakeLines(
+						OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(), Points,
+						ESlateDrawEffect::None, TriangulationColor.GetSpecifiedColor(), true, 0.5f);
+					PolygonPoints.Push(P1);
+				}
+
+				FLinearColor Color = TriangulationCurrentColor.GetSpecifiedColor();
+				Color.A = 0.03f; // Alpha for tinting the triangulation background
+				PaintTriangle(PolygonPoints[0], PolygonPoints[1], PolygonPoints[2], AllottedGeometry, Color, LabelBrush, OutDrawElements, DrawLayerId);
+
+#ifdef DEBUG_BLENDSPACE_TRIANGULATION
+				// Draw the adjacent triangle indices around the perimeter
+				if (!bSamplePreviewing)
+				{
+					for (int32 Index = 0; Index != FBlendSpaceTriangle::NUM_VERTICES; ++Index)
+					{
+						if (Triangle.EdgeInfo[Index].NeighbourTriangleIndex < 0)
+						{
+							int32 IndexNext = (Index + 1) % FBlendSpaceTriangle::NUM_VERTICES;
+							int32 SampleIndex = Triangle.SampleIndices[Index];
+							int32 SampleIndexNext = Triangle.SampleIndices[IndexNext];
+							FVector2D Point0 = SampleValueToScreenPosition(Samples[SampleIndex].SampleValue);
+							FVector2D Point1 = SampleValueToScreenPosition(Samples[SampleIndexNext].SampleValue);
+							FVector2D MidEdge = (Point0 + Point1) * 0.5;
+							float PullInAmount = 0.2;
+							FSlateDrawElement::MakeText(
+								OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(
+									FMath::Lerp(Point0, MidEdge, PullInAmount), FVector2D(1.0f, 1.0f)).ToPaintGeometry(),
+								FText::AsNumber(Triangle.EdgeInfo[Index].AdjacentPerimeterTriangleIndices[0]),
+								FontInfo, ESlateDrawEffect::None, FLinearColor::Red);
+
+							FSlateDrawElement::MakeText(
+								OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(
+									FMath::Lerp(Point1, MidEdge, PullInAmount), FVector2D(1.0f, 1.0f)).ToPaintGeometry(),
+								FText::AsNumber(Triangle.EdgeInfo[Index].AdjacentPerimeterTriangleIndices[1]),
+								FontInfo, ESlateDrawEffect::None, FLinearColor::Red);
+						}
+					}
+				}
+#endif
+
+#ifdef DEBUG_BLENDSPACE_TRIANGULATION
+				// Draw the triangle indices for debugging
+				FText Text = FText::AsNumber(&Triangle - &BlendSpaceData.Triangles[0]);
+				FSlateDrawElement::MakeText(
+					OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(
+						FVector2D(MidPoint.X, MidPoint.Y), FVector2D(1.0f, 1.0f)).ToPaintGeometry(),
+					Text, FontInfo, ESlateDrawEffect::None, FLinearColor::Gray);
+#endif
+			}
+		}
+
+		// Draw the current triangle (or polygon)
+		if (bSamplePreviewing && FSlateApplication::Get().GetModifierKeys().IsAltDown())
+		{
+			PolygonPoints.Empty(3);
+			for (const FBlendSampleData& PreviewedSample : PreviewedSamples)
+			{
+				float Weight = PreviewedSample.TotalWeight;
+				if (Weight)
+				{
+					int32 SampleIndex = PreviewedSample.SampleDataIndex;
+					FVector2D Point = SampleValueToScreenPosition(Samples[SampleIndex].SampleValue);
+					PolygonPoints.Push(Point);
+				}
+			}
+			if (PolygonPoints.Num())
+			{
+				FLinearColor FillColor = TriangulationCurrentColor.GetSpecifiedColor();
+				FillColor.A = 0.2f; // Alpha for the current triangulation triangle
+				FLinearColor OutlineColor = FillColor;
+				OutlineColor.A = 0.5f;
+				PaintPolygon(PolygonPoints, AllottedGeometry, FillColor, OutlineColor, LabelBrush, OutDrawElements, DrawLayerId);
 			}
 		}
 	}
@@ -609,20 +863,19 @@ void SBlendSpaceGridWidget::PaintAnimationNames(const FGeometry& AllottedGeometr
 
 			const FText Name = FText::Format(LOCTEXT("SampleNameFormat", "{0} ({1})"), GetSampleName(Sample, SampleIndex), FText::AsNumber(SampleIndex));
 			const FVector2D TextSize = FontMeasure->Measure(Name, FontInfo);
+			const FVector2D Padding = FVector2D(12.0f, 4.0f);
 
-			FVector2D GridPosition = SampleValueToGridPosition(Sample.SampleValue);
-			// Check on which side of the sample the text should be positioned so that we don't run out of geometry space
-			if ((GridPosition + TextSize).X > AllottedGeometry.GetLocalSize().X)
-			{
-				GridPosition -= FVector2D(TextSize.X + KeySize.X, KeySize.X * .5f);
-			}
-			else
-			{
-				GridPosition += FVector2D(KeySize.X, -KeySize.X * .5f);
-			}
+			FVector2D GridPosition = SampleValueToScreenPosition(Sample.SampleValue);
+			GridPosition += FVector2D(-TextSize.X / 2, KeySize.Y / 2);
+			GridPosition.X -= Padding.X / 2;
+			GridPosition.Y += Padding.Y / 2;
 
-			FSlateDrawElement::MakeBox(OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(FVector2D(GridPosition.X - 6, GridPosition.Y - 2), TextSize + FVector2D(8.0f, 4.0f)).ToPaintGeometry(), LabelBrush, ESlateDrawEffect::None, FLinearColor::Black);
-			FSlateDrawElement::MakeText(OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(FVector2D(GridPosition.X, GridPosition.Y), FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
+			FSlateDrawElement::MakeBox(
+				OutDrawElements, DrawLayerId + 1, AllottedGeometry.MakeChild(GridPosition, 
+				TextSize + Padding).ToPaintGeometry(), LabelBrush, ESlateDrawEffect::None, FLinearColor::Black);
+			FSlateDrawElement::MakeText(
+				OutDrawElements, DrawLayerId + 2, AllottedGeometry.MakeChild(GridPosition + Padding/2,
+					FVector2D(1.0f, 1.0f)).ToPaintGeometry(), Name, FontInfo, ESlateDrawEffect::None, FLinearColor::White);
 		}
 	}
 
@@ -640,7 +893,7 @@ FReply SBlendSpaceGridWidget::OnDrop(const FGeometry& MyGeometry, const FDragDro
 			{
 				if (DragState == EDragState::DragDrop)
 				{
-					const FVector SampleValue = SnapToClosestSamplePoint(LocalMousePosition);
+					const FVector SampleValue = ScreenPositionToSampleValueWithSnapping(LocalMousePosition, FSlateApplication::Get().GetModifierKeys().IsShiftDown());
 					TSharedPtr<FAssetDragDropOp> DragDropOperation = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
 					if (DragDropOperation.IsValid())
 					{
@@ -851,7 +1104,7 @@ FReply SBlendSpaceGridWidget::OnMouseMove(const FGeometry& MyGeometry, const FPo
 			}
 			else if (IsHovered() && bMouseIsOverGeometry)
 			{
-				if (MouseEvent.IsLeftShiftDown() || MouseEvent.IsRightShiftDown())
+				if (MouseEvent.IsControlDown())
 				{
 					StartPreviewing();
 					DragState = EDragState::Preview;
@@ -859,7 +1112,7 @@ FReply SBlendSpaceGridWidget::OnMouseMove(const FGeometry& MyGeometry, const FPo
 					ShowToolTip();			
 
 					// Set flag for showing advanced preview info in tooltip
-					bAdvancedPreview = MouseEvent.IsLeftControlDown() || MouseEvent.IsRightControlDown();
+					bAdvancedPreview = MouseEvent.IsAltDown();
 					return FReply::Handled();
 				}
 				else if(Position.IsSet())
@@ -869,7 +1122,7 @@ FReply SBlendSpaceGridWidget::OnMouseMove(const FGeometry& MyGeometry, const FPo
 					ShowToolTip();
 
 					// Set flag for showing advanced preview info in tooltip
-					bAdvancedPreview = MouseEvent.IsLeftControlDown() || MouseEvent.IsRightControlDown();
+					bAdvancedPreview = MouseEvent.IsAltDown();
 					return FReply::Handled();
 				}
 				else if (bSamplePreviewing)
@@ -969,7 +1222,7 @@ FReply SBlendSpaceGridWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyE
 			// Start previewing when either one of the shift keys is pressed
 			if (IsHovered() && bMouseIsOverGeometry)
 			{
-				if ((InKeyEvent.GetKey() == EKeys::LeftShift) || (InKeyEvent.GetKey() == EKeys::RightShift))
+				if ((InKeyEvent.GetKey() == EKeys::LeftControl) || (InKeyEvent.GetKey() == EKeys::RightControl))
 				{
 					StartPreviewing();
 					DragState = EDragState::Preview;
@@ -979,7 +1232,7 @@ FReply SBlendSpaceGridWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyE
 				}
 		
 				// Set flag for showing advanced preview info in tooltip
-				if ((InKeyEvent.GetKey() == EKeys::LeftControl) || (InKeyEvent.GetKey() == EKeys::RightControl))
+				if ((InKeyEvent.GetKey() == EKeys::LeftAlt) || (InKeyEvent.GetKey() == EKeys::RightAlt))
 				{
 					bAdvancedPreview = true;
 					return FReply::Handled();
@@ -998,7 +1251,7 @@ FReply SBlendSpaceGridWidget::OnKeyUp(const FGeometry& MyGeometry, const FKeyEve
 		if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 		{
 			// Stop previewing when shift keys are released 
-			if ((InKeyEvent.GetKey() == EKeys::LeftShift) || (InKeyEvent.GetKey() == EKeys::RightShift))
+			if ((InKeyEvent.GetKey() == EKeys::LeftControl) || (InKeyEvent.GetKey() == EKeys::RightControl))
 			{
 				StopPreviewing();
 				DragState = EDragState::None;
@@ -1006,7 +1259,7 @@ FReply SBlendSpaceGridWidget::OnKeyUp(const FGeometry& MyGeometry, const FKeyEve
 				return FReply::Handled();
 			}
 
-			if((InKeyEvent.GetKey() == EKeys::LeftControl) || (InKeyEvent.GetKey() == EKeys::RightControl))
+			if((InKeyEvent.GetKey() == EKeys::LeftAlt) || (InKeyEvent.GetKey() == EKeys::RightAlt))
 			{
 				bAdvancedPreview = false;
 				return FReply::Handled();
@@ -1144,15 +1397,15 @@ TSharedPtr<SWidget> SBlendSpaceGridWidget::CreateNewBlendSampleContextMenu(const
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, nullptr);
 
 	FVector NewSampleValue;
-	if(FSlateApplication::Get().GetModifierKeys().IsAltDown())
+	if(FSlateApplication::Get().GetModifierKeys().IsShiftDown())
 	{
-		const FVector2D GridPosition(FMath::Clamp(InMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right),
-									 FMath::Clamp(InMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom));
-		NewSampleValue = GridPositionToSampleValue(GridPosition, false);
+		NewSampleValue = ScreenPositionToSampleValue(SnapScreenPositionToGrid(InMousePosition, FSlateApplication::Get().GetModifierKeys().IsShiftDown()), false);
 	}
 	else
 	{
-		NewSampleValue = GridPositionToSampleValue(SnapToClosestGridPoint(InMousePosition), false);
+		const FVector2D GridPosition(FMath::Clamp(InMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right),
+			FMath::Clamp(InMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom));
+		NewSampleValue = ScreenPositionToSampleValue(GridPosition, false);
 	}
 
 	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
@@ -1198,37 +1451,61 @@ void SBlendSpaceGridWidget::CalculateGridPoints()
 		for (int32 GridX = 0; GridX < SampleGridDivisions.X + 1; ++GridX)
 		{
 			// Calculate grid point in 0-1 form
-			FVector2D GridPoint = FVector2D(GridX * (1.0f / SampleGridDivisions.X), (GridType == EGridType::TwoAxis) ? GridY * (1.0f /
-				SampleGridDivisions.Y) : 0.5f);
+			FVector2D GridPoint(
+				GridX * (1.0f / SampleGridDivisions.X), 
+				(GridType == EGridType::TwoAxis) ? GridY * (1.0f / SampleGridDivisions.Y) : 0.5f);
 
 			// Multiply with size and offset according to the grid layout
 			GridPoint *= CachedGridRectangle.GetSize();
 			GridPoint += CachedGridRectangle.GetTopLeft();
 			CachedGridPoints.Add(GridPoint);
 
-			CachedSamplePoints.Add(FVector(SampleValueMin.X + (GridX * (SampleValueRange.X / SampleGridDivisions.X)),
-				(GridType == EGridType::TwoAxis) ? SampleValueMax.Y - (GridY * (SampleValueRange.Y / SampleGridDivisions.Y)) : 0.0f, 0.0f));
+			CachedSamplePoints.Add(FVector(
+				SampleValueMin.X + (GridX * (SampleValueRange.X / SampleGridDivisions.X)),
+				(GridType == EGridType::TwoAxis) ? SampleValueMax.Y - (GridY * (SampleValueRange.Y / SampleGridDivisions.Y)) : 0.0f, 
+				0.0f));
 		}
 	}
 }
 
-const FVector2D SBlendSpaceGridWidget::SnapToClosestGridPoint(const FVector2D& InPosition) const
+const FVector2D SBlendSpaceGridWidget::SnapScreenPositionToGrid(const FVector2D& InPosition, bool bForceSnap) const
 {
-	const int32 GridPointIndex = FindClosestGridPointIndex(InPosition);
-	return CachedGridPoints[GridPointIndex];
+	const int32 GridPointIndex = FindClosestGridPointIndexFromScreenPosition(InPosition);
+	FVector2D GridPoint = CachedGridPoints[GridPointIndex];
+
+	bool bSnapX = bForceSnap || bSampleSnapToGrid[0];
+	bool bSnapY = bForceSnap || bSampleSnapToGrid[1];
+
+	return FVector2D
+	{
+		bSnapX ? GridPoint.X : InPosition.X,
+		bSnapY ? GridPoint.Y : InPosition.Y
+	};
 }
 
-const FVector SBlendSpaceGridWidget::SnapToClosestSamplePoint(const FVector2D& InPosition) const
+const FVector SBlendSpaceGridWidget::ScreenPositionToSampleValueWithSnapping(const FVector2D& InPosition, bool bForceSnap) const
 {
-	const int32 GridPointIndex = FindClosestGridPointIndex(InPosition);
-	return CachedSamplePoints[GridPointIndex];
+	FVector SampleValue = ScreenPositionToSampleValue(InPosition, true);
+
+	const int32 GridPointIndex = FindClosestGridPointIndexFromScreenPosition(InPosition);
+	FVector GridPos = CachedSamplePoints[GridPointIndex];
+
+	bool bSnapX = bForceSnap || bSampleSnapToGrid[0];
+	bool bSnapY = bForceSnap || bSampleSnapToGrid[1];
+	return FVector
+	{
+		bSnapX ? GridPos.X : SampleValue.X,
+		bSnapY ? GridPos.Y : SampleValue.Y,
+		GridPos.Z,
+	};
 }
 
-int32 SBlendSpaceGridWidget::FindClosestGridPointIndex(const FVector2D& InPosition) const
+int32 SBlendSpaceGridWidget::FindClosestGridPointIndexFromScreenPosition(const FVector2D& InPosition) const
 {
 	// Clamp the screen position to the grid
-	const FVector2D GridPosition(FMath::Clamp(InPosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right),
-								  FMath::Clamp(InPosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom));
+	const FVector2D GridPosition(
+		FMath::Clamp(InPosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right),
+		FMath::Clamp(InPosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom));
 	// Find the closest grid point
 	float Distance = FLT_MAX;
 	int32 GridPointIndex = INDEX_NONE;
@@ -1247,7 +1524,7 @@ int32 SBlendSpaceGridWidget::FindClosestGridPointIndex(const FVector2D& InPositi
 
 	return GridPointIndex;
 }
-const FVector2D SBlendSpaceGridWidget::SampleValueToGridPosition(const FVector& SampleValue) const
+const FVector2D SBlendSpaceGridWidget::SampleValueToScreenPosition(const FVector& SampleValue) const
 {
 	const FVector2D GridSize = CachedGridRectangle.GetSize();	
 	const FVector2D GridCenter = GridSize * 0.5f;
@@ -1264,9 +1541,9 @@ const FVector2D SBlendSpaceGridWidget::SampleValueToGridPosition(const FVector& 
 	return SamplePosition2D;	
 }
 
-const FVector SBlendSpaceGridWidget::GridPositionToSampleValue(const FVector2D& GridPosition, bool bClamp) const
+const FVector SBlendSpaceGridWidget::ScreenPositionToSampleValue(const FVector2D& ScreenPosition, bool bClamp) const
 {
-	FVector2D LocalGridPosition = GridPosition;
+	FVector2D LocalGridPosition = ScreenPosition;
 	// Move to center of grid and convert to 0 - 1 form
 	LocalGridPosition -= CachedGridRectangle.GetCenter();
 	LocalGridPosition /= (CachedGridRectangle.GetSize() * 0.5f);
@@ -1278,7 +1555,7 @@ const FVector SBlendSpaceGridWidget::GridPositionToSampleValue(const FVector2D& 
 	(		
 		(LocalGridPosition.X * SampleValueRange.X) + SampleValueMin.X,
 		(GridType == EGridType::TwoAxis) ? SampleValueMax.Y - (LocalGridPosition.Y * SampleValueRange.Y) : 0.0f,
-		0.f	
+		0.f
 	);
 	if (bClamp)
 	{
@@ -1301,7 +1578,7 @@ const FSlateRect SBlendSpaceGridWidget::GetGridRectangleFromGeometry(const FGeom
 
 bool SBlendSpaceGridWidget::IsSampleValueWithinMouseRange(const FVector& SampleValue, float& OutDistance) const
 {
-	const FVector2D GridPosition = SampleValueToGridPosition(SampleValue);
+	const FVector2D GridPosition = SampleValueToScreenPosition(SampleValue);
 	OutDistance = FVector2D::Distance(LocalMousePosition, GridPosition);
 	return (OutDistance < ClickAndHighlightThreshold);
 }
@@ -1337,8 +1614,8 @@ void SBlendSpaceGridWidget::StartPreviewing()
 	bSamplePreviewing = true;
 	LastPreviewingMousePosition = LocalMousePosition;
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
-	bool bIsManualPreviewing = !bReadOnly && IsHovered() && bMouseIsOverGeometry && (ModifierKeyState.IsLeftShiftDown() || ModifierKeyState.IsRightShiftDown());
-	PreviewPosition = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
+	bool bIsManualPreviewing = !bReadOnly && IsHovered() && bMouseIsOverGeometry && ModifierKeyState.IsControlDown();
+	PreviewPosition = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : ScreenPositionToSampleValue(LastPreviewingMousePosition, false);
 	PreviewFilteredPosition = FilteredPosition.IsSet() ? FilteredPosition.Get() : PreviewPosition;
 	bPreviewPositionSet = true;	
 	bPreviewToolTipHidden = true;
@@ -1525,7 +1802,7 @@ FText SBlendSpaceGridWidget::GetToolTipSampleValue() const
 				// If we are performing a drag and drop operation return the current sample value it is hovered at
 				case EDragState::DragDrop:
 				{
-					const FVector SampleValue = SnapToClosestSamplePoint(LocalMousePosition);
+					const FVector SampleValue = ScreenPositionToSampleValueWithSnapping(LocalMousePosition, FSlateApplication::Get().GetModifierKeys().IsShiftDown());
 
 					ToolTipText = FText::Format(ValueFormattingText, ParameterXName, FText::FromString(FString::SanitizeFloat(SampleValue.X)), ParameterYName, FText::FromString(FString::SanitizeFloat(SampleValue.Y)));
 
@@ -1582,7 +1859,7 @@ void SBlendSpaceGridWidget::EnableStatusBarMessage(bool bEnable)
 				{
 					StatusBarMessageHandle = StatusBarSubsystem->PushStatusBarMessage(StatusBarName, MakeAttributeLambda([]()
 					{
-						return LOCTEXT("StatusBarMssage", "Hold Ctrl for weight details, hold Shift to move preview value");
+						return LOCTEXT("StatusBarMssage", "Hold Ctrl to move preview value, and Alt to show weight details. Click and drag sample points to move them, with Shift to snap to the grid.");
 					}));
 				}
 			}
@@ -1603,7 +1880,7 @@ void SBlendSpaceGridWidget::EnableStatusBarMessage(bool bEnable)
 
 FText SBlendSpaceGridWidget::GetSampleErrorMessage(const FBlendSample &BlendSample) const
 {
-	const FVector2D GridPosition = SampleValueToGridPosition(BlendSample.SampleValue);
+	const FVector2D GridPosition = SampleValueToScreenPosition(BlendSample.SampleValue);
 	// Either an invalid animation asset set
 	if (BlendSample.Animation == nullptr)
 	{
@@ -1704,7 +1981,7 @@ void SBlendSpaceGridWidget::OnInputBoxValueChanged(const float NewValue, const i
 		FVector SampleValue = Sample.SampleValue;
 
 		// Calculate snapped value
-		if(Sample.bSnapToGrid)
+		if (bSampleSnapToGrid[ParameterIndex])
 		{
 			const float MinOffset = NewValue - SampleValueMin[ParameterIndex];
 			float GridSteps = MinOffset / SampleGridDelta[ParameterIndex];
@@ -1720,7 +1997,7 @@ void SBlendSpaceGridWidget::OnInputBoxValueChanged(const float NewValue, const i
 			SampleValue[ParameterIndex] = NewValue;
 		}
 
-		OnSampleMoved.ExecuteIfBound(SelectedSampleIndex, SampleValue, bIsInteractive, Sample.bSnapToGrid);
+		OnSampleMoved.ExecuteIfBound(SelectedSampleIndex, SampleValue, bIsInteractive);
 	}
 }
 
@@ -1771,22 +2048,15 @@ void SBlendSpaceGridWidget::UpdateGridRatioMargin(const FVector2D& GeometrySize)
 	{
 		// Reset values first
 		GridRatioMargin.Top = GridRatioMargin.Bottom = GridRatioMargin.Left = GridRatioMargin.Right = 0.0f;
-
-		if (SampleValueRange.X >= SampleValueRange.Y)
+		if (GeometrySize.Y > GeometrySize.X)
 		{
-			if (GeometrySize.Y > GeometrySize.X)
-			{
-				const float Difference = GeometrySize.Y - GeometrySize.X;
-				GridRatioMargin.Top = GridRatioMargin.Bottom = Difference * 0.5f;
-			}
+			const float Difference = GeometrySize.Y - GeometrySize.X;
+			GridRatioMargin.Top = GridRatioMargin.Bottom = Difference * 0.5f;
 		}
-		else if (SampleValueRange.X < SampleValueRange.Y)
+		else if (GeometrySize.X > GeometrySize.Y)
 		{
-			if (GeometrySize.X > GeometrySize.Y)
-			{
-				const float Difference = GeometrySize.X - GeometrySize.Y;
-				GridRatioMargin.Left = GridRatioMargin.Right = Difference * 0.5f;
-			}
+			const float Difference = GeometrySize.X - GeometrySize.Y;
+			GridRatioMargin.Left = GridRatioMargin.Right = Difference * 0.5f;
 		}
 	}
 }
@@ -1821,6 +2091,9 @@ void SBlendSpaceGridWidget::UpdateCachedBlendParameterData()
 		SampleGridDelta = SampleValueRange;
 		SampleGridDelta.X /= (BlendParameterX.GridNum);
 		SampleGridDelta.Y /= (BlendParameterY.GridNum);
+
+		bSampleSnapToGrid[0] = BlendParameterX.bSnapToGrid;
+		bSampleSnapToGrid[1] = BlendParameterY.bSnapToGrid;
 
 		SampleGridDivisions.X = BlendParameterX.GridNum;
 		SampleGridDivisions.Y = BlendParameterY.GridNum;
@@ -1937,35 +2210,24 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 		}
 			else if (DragState == EDragState::DragSample)
 			{
-				// If we are dragging a sample, find out whether or not it has actually moved to a different grid position since the last tick and update the blend space accordingly
+				// If we are dragging a sample, find out whether or not it has actually moved to a
+				// different grid position since the last tick and update the blend space accordingly
 				const FBlendSample& BlendSample = BlendSpace->GetBlendSample(DraggedSampleIndex);
 
-				FVector SampleValue;
-				bool bSnap;
-				if(FSlateApplication::Get().GetModifierKeys().IsAltDown() || !BlendSample.bSnapToGrid)
-				{
-					const FVector2D GridPosition(FMath::Clamp(LocalMousePosition.X, CachedGridRectangle.Left, CachedGridRectangle.Right),
-													FMath::Clamp(LocalMousePosition.Y, CachedGridRectangle.Top, CachedGridRectangle.Bottom));
- 
-					SampleValue = GridPositionToSampleValue(GridPosition, true);
-					bSnap = false;
-				}
-				else
-				{
-					SampleValue = SnapToClosestSamplePoint(LocalMousePosition);
-					bSnap = true;
-				} 
+				FVector SampleValue = ScreenPositionToSampleValueWithSnapping(LocalMousePosition, FSlateApplication::Get().GetModifierKeys().IsShiftDown());
 
 				if (SampleValue != LastDragPosition)
 				{
 					LastDragPosition = SampleValue;
-					OnSampleMoved.ExecuteIfBound(DraggedSampleIndex, SampleValue, false, bSnap);
+					OnSampleMoved.ExecuteIfBound(DraggedSampleIndex, SampleValue, false);
 				}
 			}
 			else if (DragState == EDragState::DragDrop || DragState == EDragState::InvalidDragDrop || DragState == EDragState::DragDropOverride)
 			{
-				// Validate that the sample is not overlapping with a current sample when doing a drag/drop operation and that we are dropping a valid animation for the blend space (type)
-				const FVector DropSampleValue = SnapToClosestSamplePoint(LocalMousePosition);
+				// Validate that the sample is not overlapping with a current sample when doing a
+				// drag/drop operation and that we are dropping a valid animation for the blend
+				// space (type)
+				const FVector DropSampleValue = ScreenPositionToSampleValueWithSnapping(LocalMousePosition, FSlateApplication::Get().GetModifierKeys().IsShiftDown());
 				const bool bValidPosition = BlendSpace->IsSampleWithinBounds(DropSampleValue);
 				const bool bExistingSample = BlendSpace->IsTooCloseToExistingSamplePoint(DropSampleValue, INDEX_NONE);
 				const bool bValidSequence = ValidateAnimationSequence(DragDropAnimationSequence, InvalidDragDropText);
@@ -2008,8 +2270,8 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 			LastPreviewingMousePosition.X = LocalMousePosition.X;
 			LastPreviewingMousePosition.Y = LocalMousePosition.Y;
 			FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
-			bool bIsManualPreviewing = !bReadOnly && IsHovered() && bMouseIsOverGeometry && (ModifierKeyState.IsLeftShiftDown() || ModifierKeyState.IsRightShiftDown());
-			PreviewPosition = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : GridPositionToSampleValue(LastPreviewingMousePosition, false);
+			bool bIsManualPreviewing = !bReadOnly && IsHovered() && bMouseIsOverGeometry && ModifierKeyState.IsControlDown();
+			PreviewPosition = Position.IsSet() && !bIsManualPreviewing ? Position.Get() : ScreenPositionToSampleValue(LastPreviewingMousePosition, false);
 			PreviewPosition = BlendSpace->GetClampedAndWrappedBlendInput(PreviewPosition);
 
 			if (FilteredPosition.IsSet())
@@ -2019,7 +2281,7 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 
 			// Retrieve and cache weighted samples
 			PreviewedSamples.Empty(4);
-			BlendSpace->GetSamplesFromBlendInput(PreviewPosition, PreviewedSamples);
+			BlendSpace->GetSamplesFromBlendInput(PreviewPosition, PreviewedSamples, CachedTriangulationIndex, false);
 		}
 	}
 
@@ -2160,7 +2422,7 @@ bool SBlendSpaceGridWidget::ValidateAnimationSequence(const UAnimSequence* Anima
 const bool SBlendSpaceGridWidget::IsPreviewing() const 
 { 
 	FModifierKeysState ModifierKeyState = FSlateApplication::Get().GetModifierKeys();
-	bool bIsManualPreviewing = !bReadOnly && IsHovered() && bMouseIsOverGeometry && (ModifierKeyState.IsLeftShiftDown() || ModifierKeyState.IsRightShiftDown());
+	bool bIsManualPreviewing = !bReadOnly && IsHovered() && bMouseIsOverGeometry && ModifierKeyState.IsControlDown();
 	return (bSamplePreviewing && !Position.IsSet()) || (Position.IsSet() && bIsManualPreviewing);
 }
 

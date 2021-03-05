@@ -17,3 +17,77 @@ EBlendSpaceAxis UBlendSpace1D::GetAxisToScale() const
 	return bScaleAnimation ? BSA_X : BSA_None;
 }
 
+#if WITH_EDITOR
+
+void UBlendSpace1D::SnapSamplesToClosestGridPoint()
+{
+	if (!BlendParameters[0].bSnapToGrid)
+		return;
+
+	TArray<float> GridPoints;
+	TArray<int32> ClosestSampleToGridPoint;
+
+	const float GridMin = BlendParameters[0].Min;
+	const float GridMax = BlendParameters[0].Max;
+	const float GridRange = GridMax - GridMin;
+	const int32 NumGridPoints = BlendParameters[0].GridNum + 1;
+	const float GridStep = GridRange / BlendParameters[0].GridNum;
+
+	for (int32 GridPointIndex = 0; GridPointIndex < NumGridPoints; ++GridPointIndex)
+	{
+		const float GridPointValue = (GridPointIndex * GridStep) + GridMin;
+		GridPoints.Add(GridPointValue);
+	}
+
+	ClosestSampleToGridPoint.Init(INDEX_NONE, GridPoints.Num());
+
+	// Find closest sample to grid point
+	for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
+	{
+		const float GridPoint = GridPoints[PointIndex];
+		float SmallestDistance = FLT_MAX;
+		int32 Index = INDEX_NONE;
+
+		for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
+		{
+			FBlendSample& BlendSample = SampleData[SampleIndex];
+			const float Distance = FMath::Abs(GridPoint - BlendSample.SampleValue[0]);
+			if (Distance < SmallestDistance)
+			{
+				Index = SampleIndex;
+				SmallestDistance = Distance;
+			}
+		}
+
+		ClosestSampleToGridPoint[PointIndex] = Index;
+	}
+
+	// Find closest grid point to sample
+	for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
+	{
+		FBlendSample& BlendSample = SampleData[SampleIndex];
+
+		// Find closest grid point
+		float SmallestDistance = FLT_MAX;
+		int32 Index = INDEX_NONE;
+		for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
+		{
+			const float Distance = FMath::Abs(GridPoints[PointIndex] - BlendSample.SampleValue[0]);
+			if (Distance < SmallestDistance)
+			{
+				Index = PointIndex;
+				SmallestDistance = Distance;
+			}
+		}
+
+		// Only move the sample if it is also closest to the grid point
+		if (Index != INDEX_NONE && ClosestSampleToGridPoint[Index] == SampleIndex)
+		{
+			BlendSample.SampleValue[0] = GridPoints[Index];
+		}
+	}
+}
+
+#endif // WITH_EDITOR
+
+

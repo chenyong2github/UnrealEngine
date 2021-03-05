@@ -66,7 +66,7 @@ public:
 	// End FNotifyHook overrides
 
 protected:
-	void OnSampleMoved(const int32 SampleIndex, const FVector& NewValue, bool bIsInteractive, bool bSnap);
+	void OnSampleMoved(const int32 SampleIndex, const FVector& NewValue, bool bIsInteractive);
 	void OnSampleRemoved(const int32 SampleIndex);
 	void OnSampleAdded(UAnimSequence* Animation, const FVector& Value);
 	void OnSampleReplaced(const int32 SampleIndex, UAnimSequence* Animation);
@@ -95,8 +95,6 @@ protected:
 	void OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 
 	void ResampleData();
-	void ResampleData1D(const TArray<int32>& DimensionIndices);
-	void ResampleData2D(const TArray<int32>& DimensionIndices);
 
 protected:
 	/** The blend space being edited */

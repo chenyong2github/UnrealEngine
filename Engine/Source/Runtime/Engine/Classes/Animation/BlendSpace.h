@@ -22,14 +22,21 @@ enum EBlendSpaceAxis
 {
 	BSA_None UMETA(DisplayName = "None"),
 	BSA_X UMETA(DisplayName = "Horizontal (X) Axis"),
-	BSA_Y UMETA(DisplayName = "Vertical (Y) Axis"),
-	BSA_Max
+	BSA_Y UMETA(DisplayName = "Vertical (Y) Axis")
+};
+
+UENUM()
+enum class EPreferredTriangulationDirection : uint8
+{
+	None UMETA(DisplayName = "None"),
+	Tangential UMETA(DisplayName = "Tangential"),
+	Radial UMETA(DisplayName = "Radial")
 };
 
 USTRUCT()
 struct FInterpolationParameter
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	/** Interpolation Time for input, when it gets input, it will use this time to interpolate to target, used for smoother interpolation. */
 	UPROPERTY(EditAnywhere, Category=Parameter)
@@ -43,7 +50,7 @@ struct FInterpolationParameter
 USTRUCT()
 struct FBlendParameter
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, DisplayName = "Name", Category=BlendParameter)
 	FString DisplayName;
@@ -60,6 +67,10 @@ struct FBlendParameter
 	UPROPERTY(EditAnywhere, DisplayName = "Number of Grid Divisions", Category=BlendParameter, meta=(UIMin="1", ClampMin="1"))
 	int32 GridNum;
 
+	/** If true then samples will always be snapped to the grid on this axis when added, moved, or the axes are changed. */
+	UPROPERTY(EditAnywhere, DisplayName = "Snap to Grid", Category = BlendParameter)
+	bool bSnapToGrid;
+
 	/** If false then input parameters are clamped to the min/max values on this axis. If true then the input can go outside the min/max range and the blend space is treated as being cyclic on this axis. */
 	UPROPERTY(EditAnywhere, DisplayName = "Wrap Input", Category = BlendParameter)
 	bool bWrapInput;
@@ -69,6 +80,7 @@ struct FBlendParameter
 		, Min(0.f)
 		, Max(100.f)
 		, GridNum(4) // TODO when changing GridNum's default value, it breaks all grid samples ATM - provide way to rebuild grid samples during loading
+		, bSnapToGrid(false)
 		, bWrapInput(false)
 	{
 	}
@@ -89,7 +101,7 @@ struct FBlendParameter
 USTRUCT()
 struct FBlendSample
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	// For linked animations
 	UPROPERTY(EditAnywhere, Category=BlendSample)
@@ -104,9 +116,6 @@ struct FBlendSample
 	float RateScale;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(EditAnywhere, Category=BlendSample)
-	uint8 bSnapToGrid : 1;
-
 	UPROPERTY(transient)
 	uint8 bIsValid : 1;
 
@@ -120,7 +129,6 @@ struct FBlendSample
 		, SampleValue(0.f)
 		, RateScale(1.0f)
 #if WITH_EDITORONLY_DATA
-		, bSnapToGrid(true)
 		, bIsValid(false)
 		, CachedMarkerDataUpdateCounter(INDEX_NONE)
 #endif // WITH_EDITORONLY_DATA
@@ -132,7 +140,6 @@ struct FBlendSample
 		, SampleValue(InValue)
 		, RateScale(1.0f)
 #if WITH_EDITORONLY_DATA
-		, bSnapToGrid(bInIsSnapped)
 		, bIsValid(bInIsValid)
 		, CachedMarkerDataUpdateCounter(INDEX_NONE)
 #endif // WITH_EDITORONLY_DATA
@@ -146,12 +153,151 @@ struct FBlendSample
 };
 
 /**
+ * This is the runtime representation of a segment which stores its vertices (start and end) in normalized space.
+ */
+USTRUCT()
+struct FBlendSpaceSegment
+{
+	GENERATED_BODY();
+
+public:
+	// Triangles have three vertices
+	static const int32 NUM_VERTICES = 2;
+
+	/** Indices into the samples */
+	UPROPERTY()
+	int32 SampleIndices[NUM_VERTICES];
+
+	/** The vertices are in the normalized space - i.e. in the range 0-1. */
+	UPROPERTY()
+	float Vertices[NUM_VERTICES];
+};
+
+USTRUCT()
+struct FBlendSpaceTriangleEdgeInfo
+{
+	GENERATED_BODY();
+
+public:
+	/** Edge normal faces out */
+	UPROPERTY()
+	FVector2D Normal;
+
+	UPROPERTY()
+	int32 NeighbourTriangleIndex;
+
+	/**
+	* IF there is no neighbor, then (a) we're on the perimeter and (b) these will be the indices of
+	* triangles along the perimeter (next to the start and end of this edge, respectively) 
+	*/
+	UPROPERTY()
+	int32 AdjacentPerimeterTriangleIndices[2];
+
+	/**
+	 * The vertex index of the associated AdjacentPerimeterTriangle such that the perimeter edge is
+	 * from this vertex to the next.
+	 */
+	UPROPERTY()
+	int32 AdjacentPerimeterVertexIndices[2];
+};
+
+/**
+* This is the runtime representation of a triangle. Each triangle stores its vertices etc in normalized space,
+* with an index to the original samples.
+ */
+USTRUCT()
+struct FBlendSpaceTriangle
+{
+	GENERATED_BODY();
+
+public:
+	// Triangles have three vertices
+	static const int32 NUM_VERTICES = 3;
+
+public:
+
+	/** Indices into the samples */
+	UPROPERTY(EditAnywhere, Category = EditorElement)
+	int32 SampleIndices[NUM_VERTICES];
+
+	/** The vertices are in the normalized space - i.e. in the range 0-1. */
+	UPROPERTY(EditAnywhere, Category = EditorElement)
+	FVector2D Vertices[NUM_VERTICES];
+
+	/** Info for the edge starting at the vertex index and going (anti-clockwise) to the next vertex */
+	UPROPERTY(EditAnywhere, Category = EditorElement)
+	FBlendSpaceTriangleEdgeInfo EdgeInfo[NUM_VERTICES];
+};
+
+USTRUCT()
+struct FWeightedBlendSample
+{
+	GENERATED_BODY();
+
+public:
+	FWeightedBlendSample(int32 Index = INDEX_NONE, float Weight = 0) : SampleIndex(Index), SampleWeight(Weight) {}
+
+public:
+	UPROPERTY()
+	int32 SampleIndex;
+
+	UPROPERTY()
+	float SampleWeight;
+};
+
+/**
+* The runtime data used for interpolating. Note that only one of Segments/Triangles will be in use,
+* depending on the dimensionality of the data.
+*/
+USTRUCT()
+struct FBlendSpaceData
+{
+	GENERATED_BODY();
+public:
+	void GetSamples(
+		TArray<FWeightedBlendSample>& OutWeightedSamples,
+		const TArray<int32>&          InDimensionIndices,
+		const FVector&                InSamplePosition,
+		int32&                        InOutTriangulationIndex) const;
+
+	void Empty()
+	{
+		Segments.Empty();
+		Triangles.Empty();
+	}
+
+	bool IsEmpty() const 
+	{
+		return Segments.Num() == 0 && Triangles.Num() == 0;
+	}
+public:
+	UPROPERTY()
+	TArray<FBlendSpaceSegment> Segments;
+
+	UPROPERTY()
+	TArray<FBlendSpaceTriangle> Triangles;
+
+private:
+	void GetSamples1D(
+		TArray<FWeightedBlendSample>& OutWeightedSamples,
+		const TArray<int32>&          InDimensionIndices,
+		const FVector&                InSamplePosition,
+		int32&                        InOutSegmentIndex) const;
+
+	void GetSamples2D(
+		TArray<FWeightedBlendSample>& OutWeightedSamples,
+		const TArray<int32>&          InDimensionIndices,
+		const FVector&                InSamplePosition,
+		int32&                        InOutTriangleIndex) const;
+};
+
+/**
  * Each elements in the grid
  */
 USTRUCT()
 struct FEditorElement
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	// for now we only support triangles
 	static const int32 MAX_VERTICES = 3;
@@ -167,9 +313,6 @@ struct FEditorElement
 		for (int32 ElementIndex = 0; ElementIndex < MAX_VERTICES; ElementIndex++)
 		{
 			Indices[ElementIndex] = INDEX_NONE;
-		}
-		for (int32 ElementIndex = 0; ElementIndex < MAX_VERTICES; ElementIndex++)
-		{
 			Weights[ElementIndex] = 0;
 		}
 	}
@@ -180,7 +323,7 @@ struct FEditorElement
 USTRUCT()
 struct FGridBlendSample
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY()
 	struct FEditorElement GridElement;
@@ -198,7 +341,7 @@ struct FGridBlendSample
 USTRUCT()
 struct FPerBoneInterpolation
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category=FPerBoneInterpolation)
 	FBoneReference BoneReference;
@@ -245,6 +388,7 @@ UCLASS(config=Engine, hidecategories=Object, MinimalAPI, BlueprintType)
 class UBlendSpace : public UAnimationAsset, public IInterpolationIndexProvider
 {
 	GENERATED_UCLASS_BODY()
+public:
 
 	/** Required for accessing protected variable names */
 	friend class FBlendSpaceDetails;
@@ -310,10 +454,12 @@ class UBlendSpace : public UAnimationAsset, public IInterpolationIndexProvider
 	* It will return all samples that has weight > KINDA_SMALL_NUMBER
 	*
 	* @param	BlendInput	BlendInput X, Y, Z corresponds to BlendParameters[0], [1], [2]
+	* @param	InOutCachedTriangulationIndex	The previous index into triangulation/segmentation to warm-start the search. 
+	* @param	bCombineAnimations	Will combine samples that point to the same animation. Useful when processing, but confusing when viewing
 	*
 	* @return	true if it has valid OutSampleDataList, false otherwise
 	*/
-	ENGINE_API bool GetSamplesFromBlendInput(const FVector &BlendInput, TArray<FBlendSampleData> & OutSampleDataList) const;
+	ENGINE_API bool GetSamplesFromBlendInput(const FVector &BlendInput, TArray<FBlendSampleData> & OutSampleDataList, int32& InOutCachedTriangulationIndex, bool bCombineAnimations) const;
 
 	/** Initialize BlendSpace for runtime. It needs certain data to be reinitialized per instsance **/
 	ENGINE_API void InitializeFilter(FBlendFilter* Filter) const;
@@ -328,7 +474,7 @@ class UBlendSpace : public UAnimationAsset, public IInterpolationIndexProvider
 	 * @param	InOutSampleDataCache	The sample data cache. Previous frames samples are re-used in the case of target weight interpolation
 	 * @param	InDeltaTime				The tick time for this update
 	 */
-	ENGINE_API bool UpdateBlendSamples(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutSampleDataCache) const;
+	ENGINE_API bool UpdateBlendSamples(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutSampleDataCache, int32& InOutCachedTriangulationIndex) const;
 
 	/** Interpolate BlendInput based on Filter data **/
 	ENGINE_API FVector FilterInput(FBlendFilter* Filter, const FVector& BlendInput, float DeltaTime) const;
@@ -345,7 +491,7 @@ class UBlendSpace : public UAnimationAsset, public IInterpolationIndexProvider
 	ENGINE_API bool	AddSample(UAnimSequence* AnimationSequence, const FVector& SampleValue);
 
 	/** edit samples */
-	ENGINE_API bool	EditSampleValue(const int32 BlendSampleIndex, const FVector& NewValue, bool bSnap = true);
+	ENGINE_API bool	EditSampleValue(const int32 BlendSampleIndex, const FVector& NewValue);
 
 	UE_DEPRECATED(5.0, "Please use ReplaceSampleAnimation instead")
 	ENGINE_API bool	UpdateSampleAnimation(UAnimSequence* AnimationSequence, const FVector& SampleValue);
@@ -371,17 +517,21 @@ class UBlendSpace : public UAnimationAsset, public IInterpolationIndexProvider
 	*/
 	ENGINE_API const TArray<FEditorElement>& GetGridSamples() const;
 
-	/** Fill up local GridElements from the grid elements that are created using the sorted points
-	*	This will map back to original index for result
-	*
-	*  @param	SortedPointList		This is the pointlist that are used to create the given GridElements
-	*								This list contains subsets of the points it originally requested for visualization and sorted
-	*
-	*/
-	ENGINE_API void FillupGridElements(const TArray<int32> & PointListToSampleIndices, const TArray<FEditorElement> & GridElements, const TArray<int32>& InDimensionIndices);
-		
-	ENGINE_API void EmptyGridElements();
-	
+	/**
+	 * Returns the runtime triangulation etc data
+	 */
+	ENGINE_API const FBlendSpaceData& GetBlendSpaceData() const;
+
+	/**
+	 * Runs triangulation/segmentation to update our grid and BlendSpaceData structures
+	 */
+	ENGINE_API void ResampleData();
+
+	/**
+	 * Sets up BlendSpaceData based on Line elements
+	 */
+	ENGINE_API void SetBlendSpaceData(const TArray<FBlendSpaceSegment>& Segments);
+
 	/** Validate that the given animation sequence and contained blendspace data */
 	ENGINE_API bool ValidateAnimationSequence(const UAnimSequence* AnimationSequence) const;
 
@@ -431,6 +581,9 @@ protected:
 	FVector GetClampedBlendInput(const FVector& BlendInput) const;
 	
 	/** Translates BlendInput to grid space */
+	FVector ConvertBlendInputToGridSpace(const FVector& BlendInput) const;
+
+	/** Translates BlendInput to grid space */
 	FVector GetNormalizedBlendInput(const FVector& BlendInput) const;
 
 	/** Returns the grid element at Index or NULL if Index is not valid */
@@ -449,9 +602,7 @@ protected:
 	bool ContainsNonAdditiveSamples() const;
 	void UpdatePreviewBasePose();
 	/** If around border, snap to the border to avoid empty hole of data that is not valid **/
-	void SnapSamplesToClosestGridPoint();
-
-	void RemapSamplesToNewAxisRange();
+	virtual void SnapSamplesToClosestGridPoint();
 #endif // WITH_EDITOR
 	
 private:
@@ -459,7 +610,7 @@ private:
 	void GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampleDataCache, TArrayView<FPoseLink> InPoseLinks, FAnimInstanceProxy* InProxy, bool bInExpectsAdditivePose, /*out*/ FAnimationPoseData& OutAnimationPoseData) const;
 
 	// Internal helper function for UpdateBlendSamples and TickAssetPlayer
-	bool UpdateBlendSamples_Internal(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutOldSampleDataList, TArray<FBlendSampleData>& InOutSampleDataCache) const;
+	bool UpdateBlendSamples_Internal(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutOldSampleDataList, TArray<FBlendSampleData>& InOutSampleDataCache, int32& InOutCachedTriangulationIndex) const;
 
 public:
 	/**
@@ -468,6 +619,10 @@ public:
 	*/
 	UPROPERTY()
 	bool bRotationBlendInMeshSpace;
+
+	/** Input interpolation parameter for all 3 axis, for each axis input, decide how you'd like to interpolate input to*/
+	UPROPERTY(EditAnywhere, Category = InputInterpolation)
+	FInterpolationParameter	InterpolationParam[3];
 
 #if WITH_EDITORONLY_DATA
 	/** Preview Base pose for additive BlendSpace **/
@@ -478,10 +633,6 @@ public:
 	/** This animation length changes based on current input (resulting in different blend time)**/
 	UPROPERTY(transient)
 	float AnimLength;
-
-	/** Input interpolation parameter for all 3 axis, for each axis input, decide how you'd like to interpolate input to*/
-	UPROPERTY(EditAnywhere, Category = InputInterpolation)
-	FInterpolationParameter	InterpolationParam[3];
 
 	/**
 	* If greater than zero, this is the speed at which the sample weights are allowed to change.
@@ -516,6 +667,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = AnimationNotifies)
 	TEnumAsByte<ENotifyTriggerMode::Type> NotifyTriggerMode;
 
+	/** If true then interpolation is done via a grid at runtime. If false the interpolation uses the triangulation. */
+	UPROPERTY(EditAnywhere, Category = InputInterpolation)
+	bool bInterpolateUsingGrid = false;
+
+	/** Preferred edge direction when the triangulation has to make an arbitrary choice */
+	UPROPERTY(EditAnywhere, Category = InputInterpolation)
+	EPreferredTriangulationDirection PreferredTriangulationDirection = EPreferredTriangulationDirection::Tangential;
+
 protected:
 
 	/**
@@ -531,23 +690,27 @@ protected:
 	UPROPERTY()
 	int32 SampleIndexWithMarkers;
 
-	/** Sample animation data **/
+	/** Sample animation data */
 	UPROPERTY(EditAnywhere, Category=BlendSamples)
 	TArray<struct FBlendSample> SampleData;
 
-	/** Grid samples, indexing scheme imposed by subclass **/
+	/** Grid samples, indexing scheme imposed by subclass */
 	UPROPERTY()
 	TArray<struct FEditorElement> GridSamples;
+
+	/** COntainer for the runtime data, which could be line segments, triangulation or tetrahedrons */
+	UPROPERTY()
+	FBlendSpaceData BlendSpaceData;
 	
 	/** Blend Parameters for each axis. **/
 	UPROPERTY(EditAnywhere, Category = BlendParametersTest)
 	struct FBlendParameter BlendParameters[3];
 
-	/** If you have input interpolation, which axis to drive animation speed (scale) - i.e. for locomotion animation, speed axis will drive animation speed (thus scale)**/
+	/** If you have input interpolation, which axis to drive animation speed (scale) - i.e. for locomotion animation, speed axis will drive animation speed (thus scale) */
 	UPROPERTY(EditAnywhere, Category = InputInterpolation)
 	TEnumAsByte<EBlendSpaceAxis> AxisToScaleAnimation;
 
-	/** Reset to reference pose. It does apply different refpose based on additive or not*/
+	/** Reset to reference pose. It does apply different refpose based on additive or not */
 	void ResetToRefPose(FCompactPose& OutPose) const;
 
 	/** The order in which to use the dimensions in the data - e.g. [1, 2] means a 2D blend using Y and Z */
@@ -560,29 +723,34 @@ private:
 	int32 MarkerDataUpdateCounter;
 protected:
 	FVector PreviousAxisMinMaxValues[3];
+	float   PreviousGridSpacings[3];
 #endif	
 
-protected:
-
-	//================================================================================================
-	// 1D specific functions 
-	//================================================================================================
-	void GetRawSamplesFromBlendInput1D(const FVector& BlendInput, TArray<FGridBlendSample, TInlineAllocator<4> >& OutBlendSamples) const;
-#if WITH_EDITOR
-	void SnapSamplesToClosestGridPoint1D();
-	void RemapSamplesToNewAxisRange1D();
-#endif // WITH_EDITOR
-
-	//================================================================================================
-	// 2D specific functions 
-	//================================================================================================
-	void GetRawSamplesFromBlendInput2D(const FVector& BlendInput, TArray<FGridBlendSample, TInlineAllocator<4> >& OutBlendSamples) const;
-#if WITH_EDITOR
-	void SnapSamplesToClosestGridPoint2D();
-	void RemapSamplesToNewAxisRange2D();
-#endif // WITH_EDITOR
-
 private:
+
+	void GetRawSamplesFromBlendInput1D(const FVector& BlendInput, TArray<FGridBlendSample, TInlineAllocator<4> >& OutBlendSamples) const;
+
+	void GetRawSamplesFromBlendInput2D(const FVector& BlendInput, TArray<FGridBlendSample, TInlineAllocator<4> >& OutBlendSamples) const;
+
+	/** Fill up local GridElements from the grid elements that are created using the sorted points
+	*	This will map back to original index for result
+	*
+	*  @param	SortedPointList		This is the pointlist that are used to create the given GridElements
+	*								This list contains subsets of the points it originally requested for visualization and sorted
+	*
+	*/
+	void FillupGridElements(const TArray<FEditorElement>& GridElements, const TArray<int32>& InDimensionIndices);
+
+	void EmptyGridElements();
+
+	void ClearBlendSpaceData();
+
+	void SetBlendSpaceData(const TArray<FBlendSpaceTriangle>& Triangles);
+
+	void ResampleData1D();
+	void ResampleData2D();
+
+
 	/** Get the Editor Element from Index
 	*
 	* @param	XIndex	Index of X

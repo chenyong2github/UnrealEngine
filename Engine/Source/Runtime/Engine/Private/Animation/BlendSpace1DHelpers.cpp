@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AnimationBlendSpace1DHelpers.h"
+#include "Animation/BlendSpace1DHelpers.h"
 #include "Animation/BlendSpace.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlendSpace1DHelpers"
@@ -53,6 +53,51 @@ void FLineElementGenerator::Init(const FBlendParameter& BlendParameter)
 	NumGridDivisions = BlendParameter.GridNum;
 }
 
+void FLineElementGenerator::Process()
+{
+	if (SamplePointList.Num() > 1)
+	{
+		// Sort points according to position value
+		SamplePointList.Sort([](const FLineVertex& A, const FLineVertex& B) { return A.Position < B.Position; });
+	}
+}
+
+TArray<FBlendSpaceSegment> FLineElementGenerator::CalculateSegments() const
+{
+	TArray<FBlendSpaceSegment> Segments;
+	Segments.Reserve(SamplePointList.Num() > 1 ? SamplePointList.Num() - 1 : 0);
+
+	// Only create lines if we have more than one point to draw between
+	if (SamplePointList.Num() == 0)
+	{
+		return Segments;
+	}
+	else if (SamplePointList.Num() == 1)
+	{
+		FBlendSpaceSegment NewSegment;
+		NewSegment.Vertices[0] = 0.0f;
+		NewSegment.Vertices[1] = 1.0f;
+		NewSegment.SampleIndices[0] = NewSegment.SampleIndices[1] = SamplePointList[0].Index;
+		Segments.Add(NewSegment);
+	}
+	else
+	{
+		// Generate lines between sampling points from start to end (valid since they were sorted)	
+		for (int32 PointIndex = 0; PointIndex < SamplePointList.Num() - 1; ++PointIndex)
+		{
+			const int32 EndPointIndex = PointIndex + 1;
+			FBlendSpaceSegment NewSegment;
+			NewSegment.Vertices[0] = (SamplePointList[PointIndex].Position - MinGridValue) / (MaxGridValue - MinGridValue);
+			NewSegment.Vertices[1] = (SamplePointList[EndPointIndex].Position - MinGridValue) / (MaxGridValue - MinGridValue);
+			NewSegment.SampleIndices[0] = SamplePointList[PointIndex].Index;
+			NewSegment.SampleIndices[1] = SamplePointList[EndPointIndex].Index;
+			Segments.Add(NewSegment);
+		}
+	}
+	return Segments;
+}
+
+
 void FLineElementGenerator::CalculateEditorElements()
 {	
 	// Always clear line elements
@@ -61,16 +106,11 @@ void FLineElementGenerator::CalculateEditorElements()
 	// Only create lines if we have more than one point to draw between
 	if (SamplePointList.Num() > 1)
 	{
-		// Sort points according to position value
-		SamplePointList.Sort([](const float& PointA, const float& PointB) { return PointA < PointB; });
-
 		// Generate lines between sampling points from start to end (valid since they were sorted)	
 		for (int32 PointIndex = 0; PointIndex < SamplePointList.Num() - 1; ++PointIndex)
 		{
 			const int32 EndPointIndex = PointIndex + 1;
-			const FIndexLinePoint StartPoint(SamplePointList[PointIndex], PointIndex);
-			const FIndexLinePoint EndPoint(SamplePointList[EndPointIndex], EndPointIndex);
-			LineElements.Add(FLineElement(StartPoint, EndPoint));
+			LineElements.Add(FLineElement(SamplePointList[PointIndex], SamplePointList[EndPointIndex]));
 		}
 
 		// Set first and last sample flags (safe because at this point there always at least one sample)

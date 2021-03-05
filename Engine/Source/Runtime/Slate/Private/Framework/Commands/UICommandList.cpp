@@ -58,9 +58,6 @@ void FUICommandList::MapAction( const TSharedPtr< const FUICommandInfo > InUICom
 		return;
 	}
 
-	// Check against already mapped actions
-	checkfSlow(!UICommandBindingMap.Contains(InUICommandInfo), TEXT("Command list already contains a command named '%s'"), *InUICommandInfo->GetCommandName().ToString());
-
 	ContextsInList.Add( InUICommandInfo->GetBindingContext() );
 	UICommandBindingMap.Add( InUICommandInfo, InUIAction );
 }

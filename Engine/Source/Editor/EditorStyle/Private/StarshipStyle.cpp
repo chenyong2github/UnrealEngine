@@ -5496,7 +5496,6 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set("BlendSpaceKey.Drop", SelectionColor_Inactive);
 		Set("BlendSpaceKey.Invalid", LogColor_Error);
 		Set("BlendSpaceKey.Preview", LogColor_Command);
-		Set("BlendSpaceKey.UnSnapped", LogColor_Warning);
 	}
 
 	// Custom menu style for recent commands list

@@ -8,14 +8,20 @@
 #include "Animation/AnimNotifyQueue.h"
 #include "AnimationUtils.h"
 #include "Animation/BlendSpaceUtilities.h"
+#include "Animation/AnimationPoseData.h"
+#include "Animation/AttributesRuntime.h"
+#include "Animation/BlendSpaceHelpers.h"
+#include "Animation/BlendSpace1DHelpers.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
-#include "Animation/AnimationPoseData.h"
-#include "Animation/AttributesRuntime.h"
 
 #define LOCTEXT_NAMESPACE "BlendSpace"
+
+// Logs the triangulation/segmentation search to look up the blend samples
+//#define DEBUG_LOG_BLENDSPACE_TRIANGULATION
 
 DECLARE_CYCLE_STAT(TEXT("BlendSpace GetAnimPose"), STAT_BlendSpace_GetAnimPose, STATGROUP_Anim);
 
@@ -56,6 +62,7 @@ void UBlendSpace::PostLoad()
 void UBlendSpace::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Super::Serialize(Ar);
 
 #if WITH_EDITOR
@@ -71,6 +78,11 @@ void UBlendSpace::Serialize(FArchive& Ar)
 		{
 			Sample.RateScale = 1.0f;
 		}
+	}
+
+	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::BlendSpaceRuntimeTriangulation))
+	{
+		ResampleData();
 	}
 #endif // WITH_EDITOR
 }
@@ -88,6 +100,7 @@ void UBlendSpace::PreEditChange(FProperty* PropertyAboutToChange)
 		{
 			PreviousAxisMinMaxValues[AxisIndex].X = BlendParameters[AxisIndex].Min;
 			PreviousAxisMinMaxValues[AxisIndex].Y = BlendParameters[AxisIndex].Max;
+			PreviousGridSpacings[AxisIndex] = (BlendParameters[AxisIndex].Max - BlendParameters[AxisIndex].Min) / BlendParameters[AxisIndex].GridNum;
 		}
 	}
 }
@@ -109,10 +122,33 @@ void UBlendSpace::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 			// Tried and snap samples to points on the grid, those who do not fit or cannot be snapped are marked as invalid
 			SnapSamplesToClosestGridPoint();
 		}
-		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FBlendParameter, Min) || PropertyName == GET_MEMBER_NAME_CHECKED(FBlendParameter, Max))
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FBlendParameter, Min))
 		{
-			// Remap the samples to the new values by normalizing the axis and applying the new value range		
-			RemapSamplesToNewAxisRange();
+			// Preserve/enforce the previous grid spacing if snapping
+			for (int32 AxisIndex = 0; AxisIndex != 2; ++AxisIndex)
+			{
+				if (BlendParameters[AxisIndex].bSnapToGrid)
+				{
+					float GridDelta = PreviousGridSpacings[AxisIndex];
+					float Range = (BlendParameters[AxisIndex].Max - BlendParameters[AxisIndex].Min);
+					BlendParameters[AxisIndex].GridNum = FMath::Max(1, (int32)(0.5f + Range / GridDelta));
+					BlendParameters[AxisIndex].Min = BlendParameters[AxisIndex].Max - BlendParameters[AxisIndex].GridNum * GridDelta;
+				}
+			}
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FBlendParameter, Max))
+		{
+			// Preserve/enforce the previous grid spacing if snapping
+			for (int32 AxisIndex = 0; AxisIndex != 2; ++AxisIndex)
+			{
+				if (BlendParameters[AxisIndex].bSnapToGrid)
+				{
+					float GridDelta = PreviousGridSpacings[AxisIndex];
+					float Range = (BlendParameters[AxisIndex].Max - BlendParameters[AxisIndex].Min);
+					BlendParameters[AxisIndex].GridNum = FMath::Max(1, (int32)(0.5f + Range / GridDelta));
+					BlendParameters[AxisIndex].Max = BlendParameters[AxisIndex].Min + BlendParameters[AxisIndex].GridNum * GridDelta;
+				}
+			}
 		}
 	}
 
@@ -121,7 +157,12 @@ void UBlendSpace::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 #endif // WITH_EDITOR
 
 
-bool UBlendSpace::UpdateBlendSamples_Internal(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutOldSampleDataList, TArray<FBlendSampleData>& InOutSampleDataCache) const
+bool UBlendSpace::UpdateBlendSamples_Internal(
+	const FVector&            InBlendSpacePosition, 
+	float                     InDeltaTime, 
+	TArray<FBlendSampleData>& InOutOldSampleDataList, 
+	TArray<FBlendSampleData>& InOutSampleDataCache, 
+	int32&                    InOutCachedTriangulationIndex) const
 {
 	// For Target weight interpolation, we'll need to save old data, and interpolate to new data
 	TArray<FBlendSampleData>& NewSampleDataList = FBlendSpaceScratchData::Get().NewSampleDataList;
@@ -146,7 +187,7 @@ bool UBlendSpace::UpdateBlendSamples_Internal(const FVector& InBlendSpacePositio
 
 	// get sample data from blendspace
 	bool bSuccessfullySampled = false;
-	if (GetSamplesFromBlendInput(InBlendSpacePosition, NewSampleDataList))
+	if (GetSamplesFromBlendInput(InBlendSpacePosition, NewSampleDataList, InOutCachedTriangulationIndex, true))
 	{
 		// if target weight interpolation is set
 		if (TargetWeightInterpolationSpeedPerSec > 0.f || PerBoneBlend.Num() > 0)
@@ -177,11 +218,11 @@ bool UBlendSpace::UpdateBlendSamples_Internal(const FVector& InBlendSpacePositio
 	return bSuccessfullySampled;
 }
 
-bool UBlendSpace::UpdateBlendSamples(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutSampleDataCache) const
+bool UBlendSpace::UpdateBlendSamples(const FVector& InBlendSpacePosition, float InDeltaTime, TArray<FBlendSampleData>& InOutSampleDataCache, int32& InOutCachedTriangulationIndex) const
 {
 	TArray<FBlendSampleData>& OldSampleDataList = FBlendSpaceScratchData::Get().OldSampleDataList;
 	check(!OldSampleDataList.Num()); // this must be called non-recursively
-	const bool bResult = UpdateBlendSamples_Internal(InBlendSpacePosition, InDeltaTime, OldSampleDataList, InOutSampleDataCache);
+	const bool bResult = UpdateBlendSamples_Internal(InBlendSpacePosition, InDeltaTime, OldSampleDataList, InOutSampleDataCache, InOutCachedTriangulationIndex);
 	OldSampleDataList.Reset();
 	return bResult;
 }
@@ -207,7 +248,7 @@ void UBlendSpace::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotifyQ
 		const FVector BlendSpacePosition(Instance.BlendSpace.BlendSpacePositionX, Instance.BlendSpace.BlendSpacePositionY, 0.f);
 		const FVector FilteredBlendInput = FilterInput(Instance.BlendSpace.BlendFilter, BlendSpacePosition, DeltaTime);
 
-		if (UpdateBlendSamples_Internal(FilteredBlendInput, DeltaTime, OldSampleDataList, SampleDataList))
+		if (UpdateBlendSamples_Internal(FilteredBlendInput, DeltaTime, OldSampleDataList, SampleDataList, Instance.BlendSpace.TriangulationIndex))
 		{
 			float NewAnimLength = 0.f;
 			float PreInterpAnimLength = 0.f;
@@ -744,73 +785,114 @@ const struct FBlendSample& UBlendSpace::GetBlendSample(const int32 SampleIndex) 
 	return SampleData[SampleIndex];
 }
 
-bool UBlendSpace::GetSamplesFromBlendInput(const FVector& BlendInput, TArray<FBlendSampleData>& OutSampleDataList) const
+bool UBlendSpace::GetSamplesFromBlendInput(
+	const FVector& BlendInput, TArray<FBlendSampleData>& OutSampleDataList, int32& InOutCachedTriangulationIndex, bool bCombineAnimations) const
 {
-	TArray<FGridBlendSample, TInlineAllocator<4> >& RawGridSamples = FBlendSpaceScratchData::Get().RawGridSamples;
-	check(!RawGridSamples.Num()); // this must be called non-recursively
-	GetRawSamplesFromBlendInput(BlendInput, RawGridSamples);
-
-	OutSampleDataList.Reset();
-	OutSampleDataList.Reserve(RawGridSamples.Num() * FEditorElement::MAX_VERTICES);
-
-	// Consolidate all samples
-	for (int32 SampleNum = 0; SampleNum < RawGridSamples.Num(); ++SampleNum)
+	if (!bInterpolateUsingGrid)
 	{
-		FGridBlendSample& GridSample = RawGridSamples[SampleNum];
-		float GridWeight = GridSample.BlendWeight;
-		FEditorElement& GridElement = GridSample.GridElement;
+		OutSampleDataList.Reset(3);
 
-		for (int32 Ind = 0; Ind < GridElement.MAX_VERTICES; ++Ind)
+		TArray<FWeightedBlendSample> WeightedBlendSamples;
+		FVector NormalizedBlendInput = GetNormalizedBlendInput(BlendInput);
+		BlendSpaceData.GetSamples(WeightedBlendSamples, DimensionIndices, NormalizedBlendInput, InOutCachedTriangulationIndex);
+
+		float TotalWeight = 0.0f;
+		for (const FWeightedBlendSample& WeightedBlendSample : WeightedBlendSamples)
 		{
-			const int32 SampleDataIndex = GridElement.Indices[Ind];
-			if (SampleData.IsValidIndex(SampleDataIndex))
+			float SampleWeight = WeightedBlendSample.SampleWeight;
+			if (SampleWeight > ZERO_ANIMWEIGHT_THRESH)
 			{
-				int32 Index = OutSampleDataList.AddUnique(SampleDataIndex);
-				FBlendSampleData& NewSampleData = OutSampleDataList[Index];
-
-				NewSampleData.AddWeight(GridElement.Weights[Ind] * GridWeight);
-				NewSampleData.Animation = SampleData[SampleDataIndex].Animation;
-				NewSampleData.SamplePlayRate = SampleData[SampleDataIndex].RateScale;
+				int32 SampleIndex = WeightedBlendSample.SampleIndex;
+				FBlendSampleData BlendSampleData;
+				BlendSampleData.SampleDataIndex = SampleIndex;
+				BlendSampleData.TotalWeight = SampleWeight;
+				BlendSampleData.Animation = SampleData[SampleIndex].Animation;
+				BlendSampleData.SamplePlayRate = SampleData[SampleIndex].RateScale;
+				OutSampleDataList.Push(BlendSampleData);
+				TotalWeight += SampleWeight;
 			}
 		}
 	}
-
-	// At this point we'll only have one of each sample, but different samples can point to the same
-	// animation. We can combine those, making sure to interpolate the parameters like play rate too.
-	for (int32 Index1 = 0; Index1 < OutSampleDataList.Num(); ++Index1)
+	else
 	{
-		FBlendSampleData& FirstSample = OutSampleDataList[Index1];
-		for (int32 Index2 = Index1 + 1; Index2 < OutSampleDataList.Num(); ++Index2)
+		TArray<FGridBlendSample, TInlineAllocator<4> >& RawGridSamples = FBlendSpaceScratchData::Get().RawGridSamples;
+		check(!RawGridSamples.Num()); // this must be called non-recursively
+		GetRawSamplesFromBlendInput(BlendInput, RawGridSamples);
+
+		OutSampleDataList.Reset();
+		OutSampleDataList.Reserve(RawGridSamples.Num() * FEditorElement::MAX_VERTICES);
+
+		// Consolidate all samples
+		for (int32 SampleNum = 0; SampleNum < RawGridSamples.Num(); ++SampleNum)
 		{
-			FBlendSampleData& SecondSample = OutSampleDataList[Index2];
-			// if they have same sample, remove the Index2, and get out
-			if (FirstSample.SampleDataIndex == SecondSample.SampleDataIndex || // Shouldn't happen
-				(FirstSample.Animation != nullptr && FirstSample.Animation == SecondSample.Animation))
+			FGridBlendSample& GridSample = RawGridSamples[SampleNum];
+			float GridWeight = GridSample.BlendWeight;
+			FEditorElement& GridElement = GridSample.GridElement;
+
+			for (int32 Ind = 0; Ind < GridElement.MAX_VERTICES; ++Ind)
 			{
-				//Calc New Sample Playrate
-				const float TotalWeight = FirstSample.GetWeight() + SecondSample.GetWeight();
-
-				// Only combine playrates if total weight > 0
-				if (!FMath::IsNearlyZero(TotalWeight))
+				const int32 SampleDataIndex = GridElement.Indices[Ind];
+				if (SampleData.IsValidIndex(SampleDataIndex))
 				{
-					const float OriginalWeightedPlayRate = FirstSample.SamplePlayRate * (FirstSample.GetWeight() / TotalWeight);
-					const float SecondSampleWeightedPlayRate = SecondSample.SamplePlayRate * (SecondSample.GetWeight() / TotalWeight);
-					FirstSample.SamplePlayRate = OriginalWeightedPlayRate + SecondSampleWeightedPlayRate;
+					int32 Index = OutSampleDataList.AddUnique(SampleDataIndex);
+					FBlendSampleData& NewSampleData = OutSampleDataList[Index];
 
-					// add weight
-					FirstSample.AddWeight(SecondSample.GetWeight());
+					NewSampleData.AddWeight(GridElement.Weights[Ind] * GridWeight);
+					NewSampleData.Animation = SampleData[SampleDataIndex].Animation;
+					NewSampleData.SamplePlayRate = SampleData[SampleDataIndex].RateScale;
 				}
+			}
+		}
+		RawGridSamples.Reset();
+	}
 
-				// as for time or previous time will be the master one(Index1)
-				OutSampleDataList.RemoveAtSwap(Index2, 1, false);
-				--Index2;
+	if (bCombineAnimations)
+	{
+		// At this point we'll only have one of each sample, but different samples can point to the same
+		// animation. We can combine those, making sure to interpolate the parameters like play rate too.
+		for (int32 Index1 = 0; Index1 < OutSampleDataList.Num(); ++Index1)
+		{
+			// Use pointers to make it more obvious what happens if we swap the first and second samples
+			FBlendSampleData* FirstSample = &OutSampleDataList[Index1];
+			for (int32 Index2 = Index1 + 1; Index2 < OutSampleDataList.Num(); ++Index2)
+			{
+				FBlendSampleData* SecondSample = &OutSampleDataList[Index2];
+				// if they have same sample, remove the Index2, and get out
+				if (FirstSample->SampleDataIndex == SecondSample->SampleDataIndex || // Shouldn't happen
+					(FirstSample->Animation != nullptr && FirstSample->Animation == SecondSample->Animation))
+				{
+					//Calc New Sample Playrate
+					const float TotalWeight = FirstSample->GetWeight() + SecondSample->GetWeight();
+
+					// Only combine playrates if total weight > 0
+					if (!FMath::IsNearlyZero(TotalWeight))
+					{
+						if (FirstSample->GetWeight() < SecondSample->GetWeight())
+						{
+							// Not strictly necessary, but if we swap here then we keep the one that has a higher
+							// weight, which can make debugging/viewing the blend space more intuitive.
+							OutSampleDataList.Swap(Index1, Index2);
+						}
+
+						const float OriginalWeightedPlayRate = FirstSample->SamplePlayRate * (FirstSample->GetWeight() / TotalWeight);
+						const float SecondSampleWeightedPlayRate = SecondSample->SamplePlayRate * (SecondSample->GetWeight() / TotalWeight);
+						FirstSample->SamplePlayRate = OriginalWeightedPlayRate + SecondSampleWeightedPlayRate;
+
+						// add weight
+						FirstSample->AddWeight(SecondSample->GetWeight());
+					}
+
+					// as for time or previous time will be the master one(Index1)
+					OutSampleDataList.RemoveAtSwap(Index2, 1, false);
+					--Index2;
+				}
 			}
 		}
 	}
 
 	OutSampleDataList.Sort([](const FBlendSampleData& A, const FBlendSampleData& B) { return B.TotalWeight < A.TotalWeight; });
 
-	// remove noisy ones
+	// Remove any below a threshold
 	int32 TotalSample = OutSampleDataList.Num();
 	float TotalWeight = 0.f;
 	for (int32 I = 0; I < TotalSample; ++I)
@@ -830,7 +912,6 @@ bool UBlendSpace::GetSamplesFromBlendInput(const FVector& BlendInput, TArray<FBl
 		// normalize to all weights
 		OutSampleDataList[I].TotalWeight /= TotalWeight;
 	}
-	RawGridSamples.Reset();
 	return (OutSampleDataList.Num() != 0);
 }
 
@@ -876,7 +957,11 @@ void UBlendSpace::ValidateSampleData()
 
 		if (IsAsset())
 		{
-			Sample.bIsValid = ValidateSampleValue(Sample.SampleValue, SampleIndex) && (Sample.Animation != nullptr);
+			bool bAnimationExists = Sample.Animation != nullptr;
+			bool bSampleInBounds = bAnimationExists ? IsSampleWithinBounds(Sample.SampleValue) : true;
+			bool bSampleIsUnique = bAnimationExists ? !IsTooCloseToExistingSamplePoint(Sample.SampleValue, SampleIndex) : true;
+
+			Sample.bIsValid = bAnimationExists && bSampleInBounds && bSampleIsUnique;
 
 			if (Sample.bIsValid)
 			{
@@ -931,9 +1016,30 @@ void UBlendSpace::ValidateSampleData()
 					FMessageLog LoadErrors(NAME_LoadErrors);
 
 					TSharedRef<FTokenizedMessage> Message = LoadErrors.Error();
-					Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData1", "The BlendSpace ")));
+					Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData1", "BlendSpace")));
 					Message->AddToken(FAssetNameToken::Create(GetPathName(), FText::FromString(GetName())));
-					Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", " has sample with no animation. Recommend to remove sample point or set new animation.")));
+					if (!bAnimationExists)
+					{
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", "has a sample with no/invalid animation. Recommend to remove sample point or set new animation.")));
+					}
+					else if (!bSampleInBounds)
+					{
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", "has sample")));
+						Message->AddToken(FAssetNameToken::Create(Sample.Animation->GetPathName(), FText::FromString(Sample.Animation->GetName())));
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData3", "that is invalid due to being out of bounds. Recommend adjusting it.")));
+					}
+					else if (!bSampleIsUnique)
+					{
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", "has sample")));
+						Message->AddToken(FAssetNameToken::Create(Sample.Animation->GetPathName(), FText::FromString(Sample.Animation->GetName())));
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData3", "that is not unique. Recommend adjusting it.")));
+					}
+					else
+					{
+						// Shouldn't get here
+						Message->AddToken(FAssetNameToken::Create(Sample.Animation->GetPathName(), FText::FromString(Sample.Animation->GetName())));
+						Message->AddToken(FTextToken::Create(LOCTEXT("EmptyAnimationData2", "is invalid.")));
+					}
 					LoadErrors.Notify();
 				}
 			}
@@ -985,7 +1091,7 @@ bool UBlendSpace::AddSample(UAnimSequence* AnimationSequence, const FVector& Sam
 	return bValidSampleData;
 }
 
-bool UBlendSpace::EditSampleValue(const int32 BlendSampleIndex, const FVector& NewValue, bool bSnap)
+bool UBlendSpace::EditSampleValue(const int32 BlendSampleIndex, const FVector& NewValue)
 {
 	const bool bValidValue = SampleData.IsValidIndex(BlendSampleIndex) && ValidateSampleValue(NewValue, BlendSampleIndex);
 
@@ -994,7 +1100,6 @@ bool UBlendSpace::EditSampleValue(const int32 BlendSampleIndex, const FVector& N
 		// Set new value if it passes the tests
 		SampleData[BlendSampleIndex].SampleValue = NewValue;
 		SampleData[BlendSampleIndex].bIsValid = bValidValue;
-		SampleData[BlendSampleIndex].bSnapToGrid = bSnap;
 	}
 
 	return bValidValue;
@@ -1054,7 +1159,12 @@ const TArray<FEditorElement>& UBlendSpace::GetGridSamples() const
 	return GridSamples;
 }
 
-void UBlendSpace::FillupGridElements(const TArray<int32>& PointListToSampleIndices, const TArray<FEditorElement>& GridElements, const TArray<int32>& InDimensionIndices)
+const FBlendSpaceData& UBlendSpace::GetBlendSpaceData() const
+{
+	return BlendSpaceData;
+}
+
+void UBlendSpace::FillupGridElements(const TArray<FEditorElement>& GridElements, const TArray<int32>& InDimensionIndices)
 {
 	DimensionIndices = InDimensionIndices;
 
@@ -1069,9 +1179,9 @@ void UBlendSpace::FillupGridElements(const TArray<int32>& PointListToSampleIndic
 		for (int32 VertexIndex = 0; VertexIndex < FEditorElement::MAX_VERTICES; ++VertexIndex)
 		{
 			const int32 SampleIndex = ViewGrid.Indices[VertexIndex];
-			if (SampleIndex != INDEX_NONE && PointListToSampleIndices.IsValidIndex(SampleIndex))
+			if (SampleIndex != INDEX_NONE)
 			{
-				NewGrid.Indices[VertexIndex] = PointListToSampleIndices[SampleIndex];
+				NewGrid.Indices[VertexIndex] = SampleIndex;
 			}
 			else
 			{
@@ -1265,7 +1375,7 @@ FVector UBlendSpace::GetClampedAndWrappedBlendInput(const FVector& BlendInput) c
 	return AdjustedInput;
 }
 
-FVector UBlendSpace::GetNormalizedBlendInput(const FVector& BlendInput) const
+FVector UBlendSpace::ConvertBlendInputToGridSpace(const FVector& BlendInput) const
 {
 	FVector AdjustedInput = GetClampedAndWrappedBlendInput(BlendInput);
 
@@ -1273,6 +1383,17 @@ FVector UBlendSpace::GetNormalizedBlendInput(const FVector& BlendInput) const
 	const FVector GridSize = FVector(BlendParameters[0].GetGridSize(), BlendParameters[1].GetGridSize(), BlendParameters[2].GetGridSize());
 
 	FVector NormalizedBlendInput = (AdjustedInput - MinBlendInput) / GridSize;
+	return NormalizedBlendInput;
+}
+
+FVector UBlendSpace::GetNormalizedBlendInput(const FVector& BlendInput) const
+{
+	FVector AdjustedInput = GetClampedAndWrappedBlendInput(BlendInput);
+
+	const FVector MinBlendInput = FVector(BlendParameters[0].Min, BlendParameters[1].Min, BlendParameters[2].Min);
+	const FVector MaxBlendInput = FVector(BlendParameters[0].Max, BlendParameters[1].Max, BlendParameters[2].Max);
+
+	FVector NormalizedBlendInput = (AdjustedInput - MinBlendInput) / (MaxBlendInput - MinBlendInput);
 	return NormalizedBlendInput;
 }
 
@@ -1495,9 +1616,9 @@ bool UBlendSpace::ContainsMatchingSamples(EAdditiveAnimationType AdditiveType) c
 bool UBlendSpace::IsSameSamplePoint(const FVector& SamplePointA, const FVector& SamplePointB) const
 {
 #if 1
-	return FMath::IsNearlyEqual(SamplePointA.X, SamplePointB.X)
-		&& FMath::IsNearlyEqual(SamplePointA.Y, SamplePointB.Y)
-		&& FMath::IsNearlyEqual(SamplePointA.Z, SamplePointB.Z);
+	return FMath::IsNearlyEqual(SamplePointA.X, SamplePointB.X, KINDA_SMALL_NUMBER)
+		&& FMath::IsNearlyEqual(SamplePointA.Y, SamplePointB.Y, KINDA_SMALL_NUMBER)
+		&& FMath::IsNearlyEqual(SamplePointA.Z, SamplePointB.Z, KINDA_SMALL_NUMBER);
 #else
 	if (DimensionIndices.Num() == 0 || DimensionIndices.Num() > 3)
 	{
@@ -1577,43 +1698,6 @@ void UBlendSpace::GetRawSamplesFromBlendInput(const FVector& BlendInput, TArray<
 	}
 }
 
-#if WITH_EDITOR
-void UBlendSpace::SnapSamplesToClosestGridPoint()
-{
-	switch (DimensionIndices.Num())
-	{
-	case 1:
-		SnapSamplesToClosestGridPoint1D();
-		break;
-	case 2:
-		SnapSamplesToClosestGridPoint2D();
-		break;
-	default:
-		UE_LOG(LogAnimation, Warning, TEXT("Unhandled dimensionality in samples: %d"), DimensionIndices.Num());
-		break;
-	}
-}
-
-void UBlendSpace::RemapSamplesToNewAxisRange()
-{
-	switch (DimensionIndices.Num())
-	{
-	case 1:
-		RemapSamplesToNewAxisRange1D();
-		break;
-	case 2:
-		RemapSamplesToNewAxisRange2D();
-		break;
-	default:
-		UE_LOG(LogAnimation, Warning, TEXT("Unhandled dimensionality in samples: %d"), DimensionIndices.Num());
-		break;
-	}
-}
-
-#endif // WITH_EDITOR
-
-
-
 /*-----------------------------------------------------------------------------
 	1D functionality.
 -----------------------------------------------------------------------------*/
@@ -1623,7 +1707,7 @@ void UBlendSpace::GetRawSamplesFromBlendInput1D(const FVector& BlendInput, TArra
 	check(DimensionIndices.Num() == 1);
 	int32 Index0 = DimensionIndices[0];
 
-	FVector NormalizedBlendInput = GetNormalizedBlendInput(BlendInput);
+	FVector NormalizedBlendInput = ConvertBlendInputToGridSpace(BlendInput);
 
 	float GridIndex = FMath::TruncToFloat(NormalizedBlendInput[Index0]);
 	float Remainder = NormalizedBlendInput[Index0] - GridIndex;
@@ -1665,116 +1749,6 @@ void UBlendSpace::GetRawSamplesFromBlendInput1D(const FVector& BlendInput, TArra
 	}
 }
 
-#if WITH_EDITOR
-
-void UBlendSpace::SnapSamplesToClosestGridPoint1D()
-{
-	check(DimensionIndices.Num() == 1);
-	int32 Index0 = DimensionIndices[0];
-
-	TArray<float> GridPoints;
-	TArray<int32> ClosestSampleToGridPoint;
-	TArray<bool> SampleDataOnPoints;
-	TArray<bool> ShouldSnap;
-
-	const float GridMin = BlendParameters[Index0].Min;
-	const float GridMax = BlendParameters[Index0].Max;
-	const float GridRange = GridMax - GridMin;
-	const int32 NumGridPoints = BlendParameters[Index0].GridNum + 1;
-	const float GridStep = GridRange / BlendParameters[Index0].GridNum;
-
-	// First mark all samples as invalid and s unsnapped, recording whether they were snapped before
-	ShouldSnap.SetNumZeroed(SampleData.Num());
-	for (int32 BlendSampleIndex = 0; BlendSampleIndex < SampleData.Num(); ++BlendSampleIndex)
-	{
-		FBlendSample& BlendSample = SampleData[BlendSampleIndex];
-		ShouldSnap[BlendSampleIndex] = BlendSample.bSnapToGrid;
-		BlendSample.bSnapToGrid = false;
-	}
-
-	for (int32 GridPointIndex = 0; GridPointIndex < NumGridPoints; ++GridPointIndex)
-	{
-		const float GridPointValue = (GridPointIndex * GridStep) + GridMin;
-		GridPoints.Add(GridPointValue);
-	}
-
-	ClosestSampleToGridPoint.Init(INDEX_NONE, GridPoints.Num());
-
-	// Find closest sample to grid point
-	for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
-	{
-		const float GridPoint = GridPoints[PointIndex];
-		float SmallestDistance = FLT_MAX;
-		int32 Index = INDEX_NONE;
-
-		for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
-		{
-			FBlendSample& BlendSample = SampleData[SampleIndex];
-			const float Distance = FMath::Abs(GridPoint - BlendSample.SampleValue[Index0]);
-			if (Distance < SmallestDistance)
-			{
-				Index = SampleIndex;
-				SmallestDistance = Distance;
-			}
-		}
-
-		ClosestSampleToGridPoint[PointIndex] = Index;
-	}
-
-	// Find closest grid point to sample
-	for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
-	{
-		if (ShouldSnap[SampleIndex])
-		{
-			FBlendSample& BlendSample = SampleData[SampleIndex];
-
-			// Find closest grid point
-			float SmallestDistance = FLT_MAX;
-			int32 Index = INDEX_NONE;
-			for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
-			{
-				const float Distance = FMath::Abs(GridPoints[PointIndex] - BlendSample.SampleValue[Index0]);
-				if (Distance < SmallestDistance)
-				{
-					Index = PointIndex;
-					SmallestDistance = Distance;
-				}
-			}
-
-			// Only move the sample if it is also closest to the grid point
-			if (Index != INDEX_NONE && ClosestSampleToGridPoint[Index] == SampleIndex)
-			{
-				BlendSample.SampleValue[Index0] = GridPoints[Index];
-				BlendSample.bSnapToGrid = true;
-			}
-		}
-	}
-}
-
-void UBlendSpace::RemapSamplesToNewAxisRange1D()
-{
-	check(DimensionIndices.Num() == 1);
-	int32 Index0 = DimensionIndices[0];
-
-	const float OldGridMin = PreviousAxisMinMaxValues[Index0].X;
-	const float OldGridMax = PreviousAxisMinMaxValues[Index0].Y;
-	const float OldGridRange = OldGridMax - OldGridMin;
-
-	const float NewGridMin = BlendParameters[Index0].Min;
-	const float NewGridMax = BlendParameters[Index0].Max;
-	const float NewGridRange = NewGridMax - NewGridMin;
-
-	for (FBlendSample& BlendSample : SampleData)
-	{
-		const float NormalizedValue = (BlendSample.SampleValue[Index0] - OldGridMin) / OldGridRange;
-		BlendSample.SampleValue[Index0] = NewGridMin + (NormalizedValue * NewGridRange);
-	}
-}
-
-
-#endif // WITH_EDITOR
-
-
 
 /*-----------------------------------------------------------------------------
 	2D functionality.
@@ -1798,7 +1772,7 @@ void UBlendSpace::GetRawSamplesFromBlendInput2D(const FVector& BlendInput, TArra
 	FGridBlendSample& LeftTop = OutBlendSamples[2];
 	FGridBlendSample& RightTop = OutBlendSamples[3];
 
-	const FVector NormalizedBlendInput = GetNormalizedBlendInput(BlendInput);
+	const FVector NormalizedBlendInput = ConvertBlendInputToGridSpace(BlendInput);
 	const FVector GridIndex(FMath::TruncToFloat(NormalizedBlendInput.X), FMath::TruncToFloat(NormalizedBlendInput.Y), 0.f);
 	const FVector Remainder = NormalizedBlendInput - GridIndex;
 	// bi-linear very simple interpolation
@@ -1855,112 +1829,587 @@ void UBlendSpace::GetRawSamplesFromBlendInput2D(const FVector& BlendInput, TArra
 
 #if WITH_EDITOR
 
-void UBlendSpace::SnapSamplesToClosestGridPoint2D()
+// Note that this runs and is needed if the axes settings are change to enable snapping - then we do
+// a pass over all the samples and make sure everything is in order. When samples are being dragged
+// around/dropped then that moving sample will be handled in SBlendSpaceGridWidget so, whilst this
+// gets called, it shouldn't really need to do anything.
+void UBlendSpace::SnapSamplesToClosestGridPoint()
 {
-	check(DimensionIndices.Num() == 2);
-
-	TArray<FVector> GridPoints;
-	TArray<int32> ClosestSampleToGridPoint;
-	TArray<bool> SampleDataOnPoints;
-	TArray<bool> ShouldSnap;
-
-	const FVector GridMin(BlendParameters[0].Min, BlendParameters[1].Min, 0.0f);
-	const FVector GridMax(BlendParameters[0].Max, BlendParameters[1].Max, 0.0f);
-	const FVector GridRange(GridMax.X - GridMin.X, GridMax.Y - GridMin.Y, 0.0f);
-	const FIntPoint NumGridPoints(BlendParameters[0].GridNum + 1, BlendParameters[1].GridNum + 1);
-	const FVector GridStep(GridRange.X / BlendParameters[0].GridNum, GridRange.Y / BlendParameters[1].GridNum, 0.0f);
-	
-	// First mark all samples as unsnapped, recording whether they were snapped before
-	ShouldSnap.SetNumZeroed(SampleData.Num());
-	for (int32 BlendSampleIndex = 0; BlendSampleIndex < SampleData.Num(); ++BlendSampleIndex)
+	if (BlendParameters[0].bSnapToGrid && BlendParameters[1].bSnapToGrid)
 	{
-		FBlendSample& BlendSample = SampleData[BlendSampleIndex];
-		ShouldSnap[BlendSampleIndex] = BlendSample.bSnapToGrid;
-		BlendSample.bSnapToGrid = false;
-	}
+		TArray<FVector> GridPoints;
+		TArray<int32> ClosestSampleToGridPoint;
 
-	for (int32 GridY = 0; GridY < NumGridPoints.Y; ++GridY)
-	{
-		for (int32 GridX = 0; GridX < NumGridPoints.X; ++GridX)
+		const FVector GridMin(BlendParameters[0].Min, BlendParameters[1].Min, 0.0f);
+		const FVector GridMax(BlendParameters[0].Max, BlendParameters[1].Max, 0.0f);
+		const FVector GridRange(GridMax.X - GridMin.X, GridMax.Y - GridMin.Y, 0.0f);
+		const FIntPoint NumGridDivisions(BlendParameters[0].GridNum, BlendParameters[1].GridNum);
+		const FVector GridStep(GridRange.X / BlendParameters[0].GridNum, GridRange.Y / BlendParameters[1].GridNum, 0.0f);
+
+		// Snap to nearest in normalized space - not depending on the units of the params (which may be completely different).
+		const float GridRatio = GridStep.Y / GridStep.X;
+
+		for (int32 GridY = 0; GridY < NumGridDivisions.Y + 1; ++GridY)
 		{
-			const FVector GridPoint((GridX * GridStep.X) + GridMin.X, (GridY * GridStep.Y) + GridMin.Y, 0.0f);
-			GridPoints.Add(GridPoint);
-		}
-	}
-
-	ClosestSampleToGridPoint.Init(INDEX_NONE, GridPoints.Num());
-
-	// Find closest sample to grid point
-	for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
-	{
-		const FVector& GridPoint = GridPoints[PointIndex];
-		float SmallestDistance = FLT_MAX;
-		int32 Index = INDEX_NONE;
-
-		for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
-		{
-			FBlendSample& BlendSample = SampleData[SampleIndex];
-			const float Distance = (GridPoint - BlendSample.SampleValue).SizeSquared2D();
-			if (Distance < SmallestDistance)
+			for (int32 GridX = 0; GridX < NumGridDivisions.X + 1; ++GridX)
 			{
-				Index = SampleIndex;
-				SmallestDistance = Distance;
+				const FVector GridPoint(
+					GridMin.X + (GridX * GridRange.X / NumGridDivisions.X), 
+					GridMin.Y + (GridY * GridRange.Y / NumGridDivisions.Y),
+					0.0f);
+
+				//const FVector GridPoint((GridX * GridStep.X) + GridMin.X, (GridY * GridStep.Y) + GridMin.Y, 0.0f);
+				GridPoints.Add(GridPoint);
 			}
 		}
 
-		ClosestSampleToGridPoint[PointIndex] = Index;
-	}
+		ClosestSampleToGridPoint.Init(INDEX_NONE, GridPoints.Num());
 
-	// Find closest grid point to sample
-	for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
-	{
-		if(ShouldSnap[SampleIndex])
+		// Find closest sample to grid point
+		for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
+		{
+			const FVector& GridPoint = GridPoints[PointIndex];
+			float SmallestDistanceSq = FLT_MAX;
+			int32 Index = INDEX_NONE;
+
+			for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
+			{
+				FBlendSample& BlendSample = SampleData[SampleIndex];
+				FVector Delta = GridPoint - BlendSample.SampleValue;
+				Delta.X *= GridRatio;
+				const float DistanceSq = Delta.SizeSquared2D();
+				if (DistanceSq < SmallestDistanceSq)
+				{
+					Index = SampleIndex;
+					SmallestDistanceSq = DistanceSq;
+				}
+			}
+
+			ClosestSampleToGridPoint[PointIndex] = Index;
+		}
+
+		// Find closest grid point to sample
+		for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
 		{
 			FBlendSample& BlendSample = SampleData[SampleIndex];
 
 			// Find closest grid point
-			float SmallestDistance = FLT_MAX;
+			float SmallestDistanceSq = FLT_MAX;
 			int32 Index = INDEX_NONE;
 			for (int32 PointIndex = 0; PointIndex < GridPoints.Num(); ++PointIndex)
 			{
-				const float Distance = (GridPoints[PointIndex] - BlendSample.SampleValue).SizeSquared2D();
-				if (Distance < SmallestDistance)
+				FVector Delta = GridPoints[PointIndex] - BlendSample.SampleValue;
+				Delta.X *= GridRatio;
+				const float DistanceSq = Delta.SizeSquared2D();
+				if (DistanceSq < SmallestDistanceSq)
 				{
 					Index = PointIndex;
-					SmallestDistance = Distance;
+					SmallestDistanceSq = DistanceSq;
 				}
 			}
 
 			// Only move the sample if it is also closest to the grid point
 			if (Index != INDEX_NONE && ClosestSampleToGridPoint[Index] == SampleIndex)
 			{
-				BlendSample.SampleValue = GridPoints[Index];
-				BlendSample.bSnapToGrid = true;
+				for (int32 AxisIndex = 0; AxisIndex != 2; ++AxisIndex)
+				{
+					BlendSample.SampleValue[AxisIndex] = GridPoints[Index][AxisIndex];
+				}
+			}
+		}
+	}
+	else if (BlendParameters[0].bSnapToGrid || BlendParameters[1].bSnapToGrid)
+	{
+		// We only snap on one axis, but need to make sure we don't collapse samples on top of each
+		// other. Just snap to the nearest grid value, unless it would result in a duplicate
+
+		int32 AxisIndex = BlendParameters[0].bSnapToGrid ? 0 : 1;
+
+		float GridMin = BlendParameters[AxisIndex].Min;
+		float GridMax = BlendParameters[AxisIndex].Max;
+		int32 GridNum = BlendParameters[AxisIndex].GridNum;
+		float GridDelta = (GridMax - GridMin) / GridNum;
+
+		for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
+		{
+			FBlendSample& BlendSample = SampleData[SampleIndex];
+			FVector NewSampleValue = BlendSample.SampleValue;
+			float FGridPosition = (NewSampleValue[AxisIndex] - GridMin) / GridDelta;
+			int32 IGridPosition = FMath::Clamp((int)(FGridPosition + 0.5f), 0, GridNum + 1);
+			NewSampleValue[AxisIndex] = GridMin + IGridPosition * GridDelta;
+
+			bool bFoundOverlap = false;
+			for (int32 SampleIndex1 = 0; SampleIndex1 != SampleData.Num(); ++SampleIndex1)
+			{
+				if (IsSameSamplePoint(NewSampleValue, SampleData[SampleIndex1].SampleValue))
+				{
+					bFoundOverlap = true;
+					break;
+				}
+			}
+			if (!bFoundOverlap)
+			{
+				BlendSample.SampleValue = NewSampleValue;
 			}
 		}
 	}
 }
 
+void UBlendSpace::ClearBlendSpaceData()
+{
+	BlendSpaceData.Empty();
+}
 
-void UBlendSpace::RemapSamplesToNewAxisRange2D()
+void UBlendSpace::SetBlendSpaceData(const TArray<FBlendSpaceTriangle>& Triangles)
+{
+	ClearBlendSpaceData();
+	BlendSpaceData.Triangles = Triangles;
+}
+
+void UBlendSpace::SetBlendSpaceData(const TArray<FBlendSpaceSegment>& Segments)
+{
+	ClearBlendSpaceData();
+	BlendSpaceData.Segments = Segments;
+}
+
+void UBlendSpace::ResampleData()
+{
+	ClearBlendSpaceData();
+
+	ValidateSampleData();
+
+	FBox AABB(ForceInit);
+	for (const FBlendSample& Sample : SampleData)
+	{
+		// Add X value from sample (this is the only valid value to be set for 1D blend spaces / aim offsets
+		if (Sample.bIsValid)
+		{
+			AABB += Sample.SampleValue;
+		}
+	}
+
+	DimensionIndices.Reset(3);
+	if (AABB.GetExtent().X > 0.0f)
+	{
+		DimensionIndices.Push(0);
+	}
+	if (AABB.GetExtent().Y > 0.0f)
+	{
+		DimensionIndices.Push(1);
+	}
+	if (AABB.GetExtent().Z > 0.0f)
+	{
+		DimensionIndices.Push(2);
+	}
+
+	// Handle the situation where there is just one point
+	if (DimensionIndices.Num() == 0)
+	{
+		DimensionIndices.Push(0);
+	}
+
+	if (DimensionIndices.Num() == 1)
+	{
+		ResampleData1D();
+	}
+	else if (DimensionIndices.Num() == 2)
+	{
+		ResampleData2D();
+	}
+	else
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Found %d dimensions from the samples"), DimensionIndices.Num());
+	}
+}
+
+
+void UBlendSpace::ResampleData1D()
+{
+	check(DimensionIndices.Num() == 1);
+	FLineElementGenerator LineElementGenerator;
+
+	int32 Index0 = DimensionIndices[0];
+
+	const FBlendParameter& BlendParameter = GetBlendParameter(Index0);
+	LineElementGenerator.Init(BlendParameter);
+
+	UE_LOG(LogAnimation, Log, TEXT("Resampling data in 1D - %d samples"), SampleData.Num());
+
+	if (SampleData.Num())
+	{
+		for (int32 SampleIndex = 0; SampleIndex < SampleData.Num(); ++SampleIndex)
+		{
+			const FBlendSample& Sample = SampleData[SampleIndex];
+			// Add X value from sample (this is the only valid value to be set for 1D blend spaces / aim offsets
+			if (Sample.bIsValid)
+			{
+				LineElementGenerator.SamplePointList.Add(FLineVertex(Sample.SampleValue[Index0], SampleIndex));
+			}
+		}
+
+		LineElementGenerator.Process();
+
+		if (bInterpolateUsingGrid)
+		{
+			LineElementGenerator.CalculateEditorElements();
+			FillupGridElements(LineElementGenerator.EditorElements, DimensionIndices);
+			ClearBlendSpaceData();
+		}
+		else
+		{
+			SetBlendSpaceData(LineElementGenerator.CalculateSegments());
+			EmptyGridElements();
+		}
+	}
+}
+
+
+void UBlendSpace::ResampleData2D()
 {
 	check(DimensionIndices.Num() == 2);
 
-	const FVector OldGridMin(PreviousAxisMinMaxValues[0].X, PreviousAxisMinMaxValues[1].X, 0.0f);
-	const FVector OldGridMax(PreviousAxisMinMaxValues[0].Y, PreviousAxisMinMaxValues[1].Y, 1.0f);
-	const FVector OldGridRange = OldGridMax - OldGridMin;
+	// TODO for now, Index0 will always be 0 and Index1 will always be 1, since we don't support 3D.
+	// However, if/when we support authoring using a third dimension, we could get here with any 2D
+	// combination - e.g. XY, XZ or YZ. Then we can either make the triangulation code handle the
+	// indexing, or tweak the triangles going into and out of it.
+	int32 Index0 = DimensionIndices[0];
+	int32 Index1 = DimensionIndices[1];
 
-	const FVector NewGridMin(BlendParameters[0].Min, BlendParameters[1].Min, 0.0f);
-	const FVector NewGridMax(BlendParameters[0].Max, BlendParameters[1].Max, 1.0f);
-	const FVector NewGridRange = NewGridMax - NewGridMin;
+	// clear first
+	FDelaunayTriangleGenerator DelaunayTriangleGenerator;
 
-	for (FBlendSample& BlendSample : SampleData)
+	// you don't like to overwrite the link here (between visible points vs sample points, 
+	// so allow this if no triangle is generated
+	const FBlendParameter& BlendParamX = GetBlendParameter(Index0);
+	const FBlendParameter& BlendParamY = GetBlendParameter(Index1);
+	FBlendSpaceGrid	BlendSpaceGrid;
+	BlendSpaceGrid.SetGridInfo(BlendParamX, BlendParamY);
+	DelaunayTriangleGenerator.SetGridBox(BlendParamX, BlendParamY);
+
+	EmptyGridElements();
+
+	UE_LOG(LogAnimation, Log, TEXT("Resampling data in 2D - %d samples"), GetNumberOfBlendSamples());
+	if (GetNumberOfBlendSamples())
 	{
-		const FVector NormalizedValue = (BlendSample.SampleValue - OldGridMin) / OldGridRange;
-		BlendSample.SampleValue = NewGridMin + (NormalizedValue * NewGridRange);
+		bool bAllSamplesValid = true;
+		for (int32 SampleIndex = 0; SampleIndex < GetNumberOfBlendSamples(); ++SampleIndex)
+		{
+			const FBlendSample& Sample = GetBlendSample(SampleIndex);
+
+			// Do not add invalid sample points (user will need to correct them to be incorporated into the blendspace)
+			if (Sample.bIsValid)
+			{
+				DelaunayTriangleGenerator.AddSamplePoint(FVector2D(Sample.SampleValue[Index0], Sample.SampleValue[Index1]), SampleIndex);
+			}
+		}
+
+		// triangulate
+		DelaunayTriangleGenerator.Triangulate(PreferredTriangulationDirection);
+
+		if (bInterpolateUsingGrid)
+		{
+			// once triangulated, generate grid
+			const TArray<FVertex>& Points = DelaunayTriangleGenerator.GetSamplePointList();
+			const TArray<FTriangle*>& Triangles = DelaunayTriangleGenerator.GetTriangleList();
+			BlendSpaceGrid.GenerateGridElements(Points, Triangles);
+
+			// now fill up grid elements in BlendSpace using this Element information
+			if (Triangles.Num() > 0)
+			{
+				const TArray<FEditorElement>& GridElements = BlendSpaceGrid.GetElements();
+				FillupGridElements(GridElements, DimensionIndices);
+			}
+
+			ClearBlendSpaceData();
+		}
+		else
+		{
+			SetBlendSpaceData(DelaunayTriangleGenerator.CalculateTriangles());
+			EmptyGridElements();
+		}
+
 	}
 }
+
 #endif // WITH_EDITOR
+
+void FBlendSpaceData::GetSamples1D(
+	TArray<FWeightedBlendSample>& OutWeightedSamples,
+	const TArray<int32>&          InDimensionIndices,
+	const FVector&                InNormalizedSamplePosition,
+	int32&                        InOutSegmentIndex) const
+{
+	check(InDimensionIndices.Num() == 1);
+	OutWeightedSamples.Reset(2);
+
+	if (!Segments.Num())
+	{
+		return;
+	}
+	else if (Segments.Num() == 1 && Segments[0].SampleIndices[0] == Segments[0].SampleIndices[1])
+	{
+		OutWeightedSamples.Push(FWeightedBlendSample(Segments[0].SampleIndices[0], 1.0f));
+		return;
+	}
+
+	int32 Index0 = InDimensionIndices[0];
+	float P = InNormalizedSamplePosition[Index0];
+
+#ifdef DEBUG_LOG_BLENDSPACE_TRIANGULATION
+	static int32 Count = 0;
+	UE_LOG(LogAnimation, Warning, TEXT("%d Starting segment search with cached index %d"), Count++, InOutSegmentIndex);
+#endif
+
+	if (InOutSegmentIndex < 0 || InOutSegmentIndex >= Segments.Num())
+	{
+		InOutSegmentIndex = Segments.Num() / 2;
+	}
+
+	for (int32 Attempt = 0; Attempt != Segments.Num(); ++Attempt)
+	{
+#ifdef DEBUG_LOG_BLENDSPACE_TRIANGULATION
+		UE_LOG(LogAnimation, Warning, TEXT("Segment index: %d"), InOutSegmentIndex);
+#endif
+		const FBlendSpaceSegment& Segment = Segments[InOutSegmentIndex];
+		if (P < Segment.Vertices[0])
+		{
+			// Need to go left
+			if (InOutSegmentIndex > 0)
+			{
+				--InOutSegmentIndex;
+			}
+			else
+			{
+				OutWeightedSamples.Push(FWeightedBlendSample(Segment.SampleIndices[0], 1.0f));
+				return;
+			}
+		}
+		else if (P > Segment.Vertices[1])
+		{
+			// Need to go right
+			if (InOutSegmentIndex < Segments.Num() - 1)
+			{
+				++InOutSegmentIndex;
+			}
+			else
+			{
+				OutWeightedSamples.Push(FWeightedBlendSample(Segment.SampleIndices[1], 1.0f));
+				return;
+			}
+		}
+		else
+		{
+			// We're in the segment
+			float P0 = Segment.Vertices[0];
+			float P1 = Segment.Vertices[1];
+			float Frac = FMath::Clamp((P - P0) / (P1 - P0), 0.0f, 1.0f); // Robust to dividing by zero
+			OutWeightedSamples.Push(FWeightedBlendSample(Segment.SampleIndices[0], 1.0f - Frac));
+			OutWeightedSamples.Push(FWeightedBlendSample(Segment.SampleIndices[1], Frac));
+			return;
+		}
+	}
+	UE_LOG(LogAnimation, Warning, TEXT("Unable to find BlendSpace segment"));
+}
+
+void FBlendSpaceData::GetSamples2D(
+	TArray<FWeightedBlendSample>& OutWeightedSamples,
+	const TArray<int32>&          InDimensionIndices,
+	const FVector&                InNormalizedSamplePosition,
+	int32&                        InOutTriangleIndex) const
+{
+	if (Triangles.Num() == 0)
+	{
+		return;
+	}
+
+	check(InDimensionIndices.Num() == 2);
+	OutWeightedSamples.Reset(3);
+
+	// Do an incremental search by tracking through the triangle edges (with the normals). This will
+	// be guaranteed to work since the overall triangulation region is convex. Note that the
+	// triangulation may not include the query point, so if we're not in any triangle we need to
+	// return the closest point in the triangulated region.
+	int32 Index0 = InDimensionIndices[0];
+	int32 Index1 = InDimensionIndices[1];
+	FVector2D P(InNormalizedSamplePosition[Index0], InNormalizedSamplePosition[Index1]);
+
+	// Special case for when there's a single triangle and it is degenerate
+	if (Triangles.Num() == 1)
+	{
+		const FBlendSpaceTriangle& Triangle = Triangles[0];
+		if (Triangle.SampleIndices[0] == Triangle.SampleIndices[1])
+		{
+			// Single point
+			OutWeightedSamples.Push(FWeightedBlendSample(Triangle.SampleIndices[0], 1.0f));
+			return;
+		}
+		else if (Triangle.SampleIndices[1] == Triangle.SampleIndices[2])
+		{
+			// Two points - blend linearly
+			FVector2D Delta = Triangle.Vertices[1] - Triangle.Vertices[0];
+			float T = ((P - Triangle.Vertices[0]) | Delta) / Delta.SizeSquared();
+			if (T < 0)
+			{
+				OutWeightedSamples.Push(FWeightedBlendSample(Triangle.SampleIndices[0], 1.0f));
+			}
+			else if (T > 1.0f)
+			{
+				OutWeightedSamples.Push(FWeightedBlendSample(Triangle.SampleIndices[1], 1.0f));
+			}
+			else
+			{
+				OutWeightedSamples.Push(FWeightedBlendSample(Triangle.SampleIndices[0], 1.0f - T));
+				OutWeightedSamples.Push(FWeightedBlendSample(Triangle.SampleIndices[1], T));
+			}
+			return;
+		}
+	}
+
+#ifdef DEBUG_LOG_BLENDSPACE_TRIANGULATION
+	static int32 Count = 0;
+	UE_LOG(LogAnimation, Warning, TEXT("%d Starting triangulation search with cached index %d"), Count++, InOutTriangleIndex);
+#endif
+
+	// Where available, start from the the previous/cached result. Also see
+	// https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-728.pdf for a method which also works for
+	// non-Delaunay triangulations (might be useful if there are precision problems).
+	if (InOutTriangleIndex < 0 || InOutTriangleIndex >= Triangles.Num())
+	{
+		InOutTriangleIndex = Triangles.Num() / 2;
+	}
+	// We should never need more than the number of triangles - if we do then we got caught in a
+	// loop somehow
+	for (int32 Attempt = 0 ; Attempt != Triangles.Num() ; ++Attempt)
+	{
+#ifdef DEBUG_LOG_BLENDSPACE_TRIANGULATION
+		UE_LOG(LogAnimation, Warning, TEXT("Triangle index: %d"), InOutTriangleIndex);
+#endif
+		const FBlendSpaceTriangle* Triangle = &Triangles[InOutTriangleIndex];
+		// Look for the edge which has the target point most outside it
+		float LargestDistance = KINDA_SMALL_NUMBER;
+		int32 LargestEdgeIndex = -1;
+		for (int32 VertexIndex = 0; VertexIndex != FBlendSpaceTriangle::NUM_VERTICES; ++VertexIndex)
+		{
+			FVector2D Corner = Triangle->Vertices[VertexIndex];
+			FVector2D EdgeNormal = Triangle->EdgeInfo[VertexIndex].Normal;
+			float Distance = (P - Corner) | EdgeNormal;
+			if (Distance > LargestDistance)
+			{
+				LargestDistance = Distance;
+				LargestEdgeIndex = VertexIndex;
+			}
+		}
+		if (LargestEdgeIndex < 0)
+		{
+			// Point is inside this triangle
+			FVector Weights = FMath::GetBaryCentric2D(P, Triangle->Vertices[0], Triangle->Vertices[1], Triangle->Vertices[2]);
+			OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[0], Weights[0]));
+			OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[1], Weights[1]));
+			OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[2], Weights[2]));
+			return;
+		}
+		if (Triangle->EdgeInfo[LargestEdgeIndex].NeighbourTriangleIndex < 0)
+		{
+			// We're being directed to go outside the perimeter (which is convex). We will "walk"
+			// around the perimeter until either:
+			// 1. The point projected onto the edge is not at an extreme, or
+			// 2. The direction changes
+			// Note that the Triangle pointer will be updated during this walk
+			int32 OrigDir = -1; // will be 0 or 1 when we get going
+			int32 StartIndex = LargestEdgeIndex;
+			int32 EndIndex = (StartIndex + 1) % FBlendSpaceTriangle::NUM_VERTICES;
+
+			// Should only need a few steps
+			int PrevTriangleIndex = InOutTriangleIndex;
+			for (int32 PerimeterAttempt = 0; PerimeterAttempt != Triangles.Num(); ++PerimeterAttempt)
+			{
+#ifdef DEBUG_LOG_BLENDSPACE_TRIANGULATION
+				UE_LOG(LogAnimation, Warning, TEXT("Perimeter Triangle index: %d"), InOutTriangleIndex);
+#endif
+				const FBlendSpaceTriangleEdgeInfo& EdgeInfo = Triangle->EdgeInfo[StartIndex];
+				FVector2D Start = Triangle->Vertices[StartIndex];
+				FVector2D End = Triangle->Vertices[EndIndex];
+				FVector2D StartToEnd = End - Start;
+				FVector2D StartToPoint = P - Start;
+				// Parametric distance along the StartToEnd line
+				float T = (StartToEnd | StartToPoint) / (StartToEnd | StartToEnd);
+
+				// Check to see if we're (projected) on a perimeter segment
+				if (T >= 0.0f && T <= 1.0f)
+				{
+					OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[StartIndex], 1.0f - T));
+					OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[EndIndex], T));
+					return;
+				}
+
+				// Check for a change in direction
+				if (OrigDir == -1)
+				{
+					OrigDir = T > 1.0f ? 1 : 0;
+				}
+				int32 Dir = T > 1.0f ? 1 : 0;
+				if (OrigDir != Dir)
+				{
+					if (Dir == 0)
+						OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[StartIndex], 1.0f - T));
+					else
+						OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[EndIndex], T));
+					// If we flipped direction then we only found out by moving to a new triangle.
+					// If we cache the final triangle then next time we'll flip to the other
+					// triangle. That's fine, but confusing when debugging! Instead, use the
+					// previous triangle as the cache.
+					InOutTriangleIndex = PrevTriangleIndex;
+					return;
+				}
+
+				// Walk to the next triangle around the perimeter, but keep track of where we came from
+				PrevTriangleIndex = InOutTriangleIndex;
+				InOutTriangleIndex = EdgeInfo.AdjacentPerimeterTriangleIndices[Dir];
+				if (InOutTriangleIndex < 0)
+				{
+					// This can happen if there weren't many triangles, in which case there won't be
+					// another triangle in this direction.
+					if (Dir == 0)
+						OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[StartIndex], 1.0f - T));
+					else
+						OutWeightedSamples.Push(FWeightedBlendSample(Triangle->SampleIndices[EndIndex], T));
+					InOutTriangleIndex = PrevTriangleIndex;
+					return;
+				}
+				Triangle = &Triangles[InOutTriangleIndex];
+				StartIndex = EdgeInfo.AdjacentPerimeterVertexIndices[Dir];
+				EndIndex = (StartIndex + 1) % FBlendSpaceTriangle::NUM_VERTICES;
+			}
+		}
+		else
+		{
+			// Investigate the new triangle
+			const FBlendSpaceTriangleEdgeInfo& EdgeInfo = Triangle->EdgeInfo[LargestEdgeIndex];
+			InOutTriangleIndex = EdgeInfo.NeighbourTriangleIndex;
+		}
+	}
+	UE_LOG(LogAnimation, Warning, TEXT("Unable to find BlendSpace triangle"));
+}
+
+void FBlendSpaceData::GetSamples(
+	TArray<FWeightedBlendSample>& OutWeightedSamples,
+	const TArray<int32>&          InDimensionIndices,
+	const FVector&                InNormalizedSamplePosition,
+	int32&                        InOutTriangulationIndex) const
+{
+	switch (InDimensionIndices.Num())
+	{
+	case 1:
+		return GetSamples1D(OutWeightedSamples, InDimensionIndices, InNormalizedSamplePosition, InOutTriangulationIndex);
+	case 2:
+		return GetSamples2D(OutWeightedSamples, InDimensionIndices, InNormalizedSamplePosition, InOutTriangulationIndex);
+	default:
+		UE_LOG(LogAnimation, Warning, TEXT("Unhandled number of dimensions in BlendSpace: %d"), InDimensionIndices.Num());
+		OutWeightedSamples.Reset();
+		break;
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE 
 

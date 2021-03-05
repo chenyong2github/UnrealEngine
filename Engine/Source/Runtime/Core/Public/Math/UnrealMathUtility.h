@@ -1658,7 +1658,7 @@ public:
 	static CORE_API bool Eval( FString Str, float& OutValue );
 
 	/**
-	 * Computes the barycentric coordinates for a given point in a triangle - simpler version
+	 * Computes the barycentric coordinates for a given point in a triangle, only considering the XY coordinates - simpler than the Compute versions
 	 *
 	 * @param	Point			point to convert to barycentric coordinates (in plane of ABC)
 	 * @param	A,B,C			three non-colinear points defining a triangle in CCW
@@ -1667,6 +1667,17 @@ public:
 	 *							                                or Point = A + b*(B-A) + c*(C-A) = (1-b-c)*A + b*B + c*C
 	 */
 	static CORE_API FVector GetBaryCentric2D(const FVector& Point, const FVector& A, const FVector& B, const FVector& C);
+
+	/**
+	 * Computes the barycentric coordinates for a given point in a triangle - simpler than the Compute versions
+	 *
+	 * @param	Point			point to convert to barycentric coordinates (in plane of ABC)
+	 * @param	A,B,C			three non-colinear points defining a triangle in CCW
+	 *
+	 * @return Vector containing the three weights a,b,c such that Point = a*A + b*B + c*C
+	 *							                                or Point = A + b*(B-A) + c*(C-A) = (1-b-c)*A + b*B + c*C
+	 */
+	static CORE_API FVector GetBaryCentric2D(const FVector2D& Point, const FVector2D& A, const FVector2D& B, const FVector2D& C);
 
 	/**
 	 * Computes the barycentric coordinates for a given point in a triangle

@@ -2024,6 +2024,14 @@ FVector FMath::GetBaryCentric2D(const FVector& Point, const FVector& A, const FV
 	return FVector(a, b, 1.0f - a - b);	
 }
 
+FVector FMath::GetBaryCentric2D(const FVector2D& Point, const FVector2D& A, const FVector2D& B, const FVector2D& C)
+{
+	float a = ((B.Y - C.Y) * (Point.X - C.X) + (C.X - B.X) * (Point.Y - C.Y)) / ((B.Y - C.Y) * (A.X - C.X) + (C.X - B.X) * (A.Y - C.Y));
+	float b = ((C.Y - A.Y) * (Point.X - C.X) + (A.X - C.X) * (Point.Y - C.Y)) / ((B.Y - C.Y) * (A.X - C.X) + (C.X - B.X) * (A.Y - C.Y));
+
+	return FVector(a, b, 1.0f - a - b);
+}
+
 FVector FMath::ComputeBaryCentric2D(const FVector& Point, const FVector& A, const FVector& B, const FVector& C)
 {
 	// Compute the normal of the triangle

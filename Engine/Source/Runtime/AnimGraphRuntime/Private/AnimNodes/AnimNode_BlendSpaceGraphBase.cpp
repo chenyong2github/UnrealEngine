@@ -49,7 +49,7 @@ void FAnimNode_BlendSpaceGraphBase::UpdateInternal(const FAnimationUpdateContext
 #endif
 	const float DeltaTime = Context.GetDeltaTime();
 	const FVector FilteredBlendParams = BlendSpace->FilterInput(&BlendFilter, BlendParams, DeltaTime);
-	BlendSpace->UpdateBlendSamples(FilteredBlendParams, DeltaTime, BlendSampleDataCache);
+	BlendSpace->UpdateBlendSamples(FilteredBlendParams, DeltaTime, BlendSampleDataCache, CachedTriangulationIndex);
 
 	for(int32 SampleIndex = 0; SampleIndex < BlendSampleDataCache.Num(); ++SampleIndex)
 	{

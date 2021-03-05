@@ -169,7 +169,7 @@ void FAnimNode_AimOffsetLookAt::UpdateFromLookAtTarget(FPoseContext& LocalPoseCo
 	// Generate BlendSampleDataCache from inputs.
 	if (BlendSpace)
 	{
-		BlendSpace->GetSamplesFromBlendInput(BlendInput, BlendSampleDataCache);
+		BlendSpace->GetSamplesFromBlendInput(BlendInput, BlendSampleDataCache, CachedTriangulationIndex, true);
 	}
 }
 

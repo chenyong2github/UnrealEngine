@@ -22,7 +22,7 @@ class FSlateWindowElementList;
 class UAnimSequence;
 class UBlendSpace;
 
-DECLARE_DELEGATE_FourParams(FOnSampleMoved, const int32 /*SampleIndex*/, const FVector& /*SampleValue*/, bool /*bIsInteractive*/, bool /*bSnap*/);
+DECLARE_DELEGATE_ThreeParams(FOnSampleMoved, const int32 /*SampleIndex*/, const FVector& /*SampleValue*/, bool /*bIsInteractive*/);
 DECLARE_DELEGATE_TwoParams(FOnSampleAnimationChanged, UAnimSequence*, const FVector&);
 
 class SBlendSpaceGridWidget : public SCompoundWidget, public FNotifyHook
@@ -173,15 +173,15 @@ protected:
 	/** Calculates the screen space grid points */
 	void CalculateGridPoints();
 	/** Snaps the given screen position to the closest grid point */
-	const FVector2D SnapToClosestGridPoint(const FVector2D& InPosition) const;
+	const FVector2D SnapScreenPositionToGrid(const FVector2D& InPosition, bool ForceSnap) const;
 	/** Snaps the given screen position to the sample value on the grid */
-	const FVector SnapToClosestSamplePoint(const FVector2D& InPosition) const;
+	const FVector ScreenPositionToSampleValueWithSnapping(const FVector2D& InPosition, bool bForceSnap) const;
 	/** Returns the index of the closest grid point to the given mouse position */
-	int32 FindClosestGridPointIndex(const FVector2D& InPosition) const;
+	int32 FindClosestGridPointIndexFromScreenPosition(const FVector2D& InPosition) const;
 	/** Converts the given sample value to a screen space position */
-	const FVector2D SampleValueToGridPosition(const FVector& SampleValue) const;
+	const FVector2D SampleValueToScreenPosition(const FVector& SampleValue) const;
 	/** Converst a screen space (grid) position to a sample value, with optional clamping */
-	const FVector GridPositionToSampleValue(const FVector2D& GridPosition, bool bClamp) const;
+	const FVector ScreenPositionToSampleValue(const FVector2D& GridPosition, bool bClamp) const;
 	/** Returns the (calculated) grid rectangle given the supplied geometry, and calls UpdateGridRatioMargin */
 	const FSlateRect GetGridRectangleFromGeometry(const FGeometry& MyGeometry);
 	/** Checks whether or not the blendspace sample value is within the range of the mouse position */
@@ -259,6 +259,8 @@ private:
 	bool bPreviewPositionSet;
 	bool bAdvancedPreview;
 	TArray<FBlendSampleData> PreviewedSamples;
+	/** Previous position in the triangulation/segmentation */
+	int32 CachedTriangulationIndex = -1;
 
 	/** Preview state that may have been returned */
 	FVector PreviewFilteredPosition;
@@ -285,6 +287,7 @@ private:
 	FVector2D SampleValueMax;
 	FVector2D SampleValueRange;
 	FVector2D SampleGridDelta;
+	bool      bSampleSnapToGrid[2];
 	FIntPoint SampleGridDivisions;
 	FText ParameterXName;
 	FText ParameterYName;
@@ -338,7 +341,6 @@ private:
 	FSlateColor PreDragKeyColor;
 	FSlateColor DragKeyColor;
 	FSlateColor InvalidColor;
-	FSlateColor UnSnappedColor;
 	FSlateColor DropKeyColor;
 	FSlateColor PreviewKeyColor;
 
@@ -347,6 +349,7 @@ private:
 	FLinearColor GridLinesColor;
 	FLinearColor GridOutlineColor;
 	FSlateColor TriangulationColor;
+	FSlateColor TriangulationCurrentColor;
 	FSlateFontInfo FontInfo;
 	float TextMargin;
 	bool bShowTriangulation;

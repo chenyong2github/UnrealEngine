@@ -311,6 +311,7 @@ struct FAnimTickRecord
 		{
 			float  BlendSpacePositionX;
 			float  BlendSpacePositionY;
+			int32  TriangulationIndex;
 			FBlendFilter* BlendFilter;
 			TArray<FBlendSampleData>* BlendSampleDataCache;
 		} BlendSpace;

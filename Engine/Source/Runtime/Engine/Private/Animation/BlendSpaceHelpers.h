@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Animation/BlendSpace.h"
-#include "Animation/BlendSpace.h"
 
 struct FTriangle;
 
@@ -17,16 +16,26 @@ struct FTriangle;
  * Utility class for FDelaunayTriangleGenerator 
  * This represents Points in FDelaunayTriangleGenerator
  */
-struct FPoint
+struct FVertex
 {
 	// position of Point
-	FVector Position;
+	FVector2D Position;
+
 	// Triangles this point belongs to
 	TArray<FTriangle *> Triangles;
-	
-	FPoint(FVector Pos) : Position(Pos) {}
 
-	bool operator==( const FPoint& Other ) const 
+	// The original animation sample associated with this point
+	int32 SampleIndex;
+	
+	FVertex(FVector2D InPosition, int32 InSampleIndex) : Position(InPosition), SampleIndex(InSampleIndex) {}
+
+	bool operator==(const FVector2D& Other) const
+	{
+		// if same position, it's same point
+		return (Other == Position);
+	}
+
+	bool operator==( const FVertex& Other ) const
 	{
 		// if same position, it's same point
 		return (Other.Position == Position);
@@ -42,7 +51,7 @@ struct FPoint
 		Triangles.Remove(TriangleToRemove);
 	}
 
-	float GetDistance(const FPoint& Other)
+	float GetDistance(const FVertex& Other)
 	{
 		return (Other.Position-Position).Size();
 	}
@@ -51,10 +60,10 @@ struct FPoint
 struct FHalfEdge
 {
 	// 3 vertices in CCW order
-	FPoint* Vertices[2]; 
+	FVertex* Vertices[2]; 
 
 	FHalfEdge(){};
-	FHalfEdge(FPoint * A, FPoint * B)
+	FHalfEdge(FVertex * A, FVertex * B)
 	{
 		Vertices[0] = A;
 		Vertices[1] = B;
@@ -78,9 +87,9 @@ struct FHalfEdge
 struct FTriangle
 {
 	// 3 vertices in CCW order
-	FPoint* Vertices[3]; 
+	FVertex* Vertices[3]; 
 	// average points for Vertices
-	FVector	Center;
+	FVector2D	Center;
 	// FEdges
 	FHalfEdge Edges[3];
 
@@ -101,7 +110,7 @@ struct FTriangle
 		Vertices[2]->AddTriangle(this);
 	}
 
-	FTriangle(FPoint * A, FPoint * B, FPoint * C)
+	FTriangle(FVertex * A, FVertex * B, FVertex * C)
 	{
 		Vertices[0] = A;
 		Vertices[1] = B;
@@ -120,7 +129,7 @@ struct FTriangle
 		Edges[2] = FHalfEdge(Vertices[2], Vertices[0]);
 	}
 
-	FTriangle(FPoint * A)
+	FTriangle(FVertex * A)
 	{
 		Vertices[0] = A;
 		Vertices[1] = A;
@@ -137,7 +146,7 @@ struct FTriangle
 		Edges[2] = FHalfEdge(Vertices[2], Vertices[0]);
 	}
 
-	FTriangle(FPoint * A, FPoint * B)
+	FTriangle(FVertex * A, FVertex * B)
 	{
 		Vertices[0] = A;
 		Vertices[1] = B;
@@ -172,17 +181,17 @@ struct FTriangle
 		}
 	}
 
-	bool Contains (const FPoint& Other) const
+	bool Contains (const FVertex& Other) const
 	{
 		return (Other == *Vertices[0] || Other == *Vertices[1] || Other == *Vertices[2]);
 	}
 
-	float GetDistance(const FPoint& Other) const
+	float GetDistance(const FVertex& Other) const
 	{
 		return (Other.Position-Center).Size();
 	}
 
-	float GetDistance(const FVector& Other) const
+	float GetDistance(const FVector2D& Other) const
 	{
 		return (Other-Center).Size();
 	}
@@ -221,7 +230,7 @@ struct FTriangle
 
 	// find point that doesn't share with this
 	// this should only get called if it shares same edge
-	FPoint * FindNonSharingPoint(const FTriangle* Other) const
+	FVertex * FindNonSharingPoint(const FTriangle* Other) const
 	{
 		if (!Contains(*Other->Vertices[0]))
 		{
@@ -246,8 +255,8 @@ private:
 	{
 		// this eventually has to happen on the plane that contains this 3 points
 		// for now we ignore Z
-		FVector Diff1 = Vertices[1]->Position-Vertices[0]->Position;
-		FVector Diff2 = Vertices[2]->Position-Vertices[0]->Position;
+		FVector2D Diff1 = Vertices[1]->Position-Vertices[0]->Position;
+		FVector2D Diff2 = Vertices[2]->Position-Vertices[0]->Position;
 
 		float Result = Diff1.X*Diff2.Y - Diff1.Y*Diff2.X;
 
@@ -257,7 +266,7 @@ private:
 		if (Result < 0.f)
 		{
 			// swap 1&2 
-			FPoint * TempPt = Vertices[2];
+			FVertex * TempPt = Vertices[2];
 			Vertices[2] = Vertices[1];
 			Vertices[1] = TempPt;
 		}
@@ -287,27 +296,24 @@ public:
 	/**
 	 * Generate triangles from SamplePointList
 	 */
-	void Triangulate();
+	void Triangulate(EPreferredTriangulationDirection PreferredTriangulationDirection);
+
+	/**
+	 * Converts from our internal representation to the runtime triangles
+	 */
+	TArray<struct FBlendSpaceTriangle> CalculateTriangles() const;
 
 	/** 
 	 * Add new sample point to SamplePointList and its corresponding sample index in the blendspace
 	 * It won't be added if already exists
 	 */
-	void AddSamplePoint(const FVector& NewPoint, const int32 SampleIndex);
+	void AddSamplePoint(const FVector2D& NewPoint, const int32 SampleIndex);
 
 	/** 
 	 * This is for debug purpose to step only one to triangulate
 	 * StartIndex should increase manually
 	 */
 	void Step(int32 StartIndex);
-
-	/** 
-	 * Sort SamplePointList in the order of 1) -X->+X 2) -Y->+Y 3) -Z->+Z
-	 * Sort Point of the input point in the order of
-	 * 1) -> +x. 2) -> +y, 3) -> +z
-	 * by that, it will sort from -X to +X, if same is found, next will be Y, and if same, next will be Z
-	 */
-	void SortSamples();
 
 	~FDelaunayTriangleGenerator()
 	{
@@ -322,52 +328,42 @@ public:
 	/** 
 	 * Get SamplePointList
 	 */
-	const TArray<FPoint> & GetSamplePointList() const { return SamplePointList; };
-
-	void EditPointValue(int32 SamplePointIndex, FVector NewValue)
-	{
-		SamplePointList[SamplePointIndex] = NewValue;
-	}
-
-	/** Original index - before sorted to match original data **/
-	int32 GetOriginalIndex(int32 NewSortedSamplePointList) const
-	{
-		return IndiceMappingTable[NewSortedSamplePointList];
-	}
-
-	const TArray<int32>& GetIndiceMapping() { return IndiceMappingTable; }
+	const TArray<FVertex> & GetSamplePointList() const { return SamplePointList; };
 
 	/* Set the grid box, so we can normalize the sample points */
-	void SetGridBox(const FBlendParameter& BlendParamX, const FBlendParameter& BlendParamY)
-	{
-		FBox GridBox;
-		GridBox.Min.X = BlendParamX.Min;
-		GridBox.Max.X = BlendParamX.Max;
-		GridBox.Min.Y = BlendParamY.Min;
-		GridBox.Max.Y = BlendParamY.Max;
-
-		FVector Size = GridBox.GetSize();
-
-		Size.X = FMath::Max( Size.X, DELTA );
-		Size.Y = FMath::Max( Size.Y, DELTA );
-		Size.Z = FMath::Max( Size.Z, DELTA );
-
-		GridMin = GridBox.Min;
-		RecipGridSize = FVector(1.0f, 1.0f, 1.0f) / Size;
-	}
+	void SetGridBox(const FBlendParameter& BlendParamX, const FBlendParameter& BlendParamY);
 
 private:
-	/** 
+	/**
+	 * Sort SamplePointList in the order of 1) -X->+X 2) -Y->+Y 3) -Z->+Z
+	 * Sort Point of the input point in the order of
+	 * 1) -> +x. 2) -> +y, 3) -> +z
+	 * by that, it will sort from -X to +X, if same is found, next will be Y, and if same, next will be Z
+	 */
+	void SortSamples();
+
+	/**
+	 * Tries to make the split of ambiguous triangles that are aligned with the grid such that they are symmetric.
+	 */
+	void AdjustEdgeDirections(EPreferredTriangulationDirection PreferredTriangulationDirection);
+
+	/**
+	 * Finds the triangle index that contains an edge referencing the samples in that order.
+	 * Optionally returns the index of the vertex in the found triangle that is the start of the edge.
+	 */
+	int32 FindTriangleIndexWithEdge(int32 SampleIndex0, int32 SampleIndex1, int32* VertexIndex = nullptr) const;
+
+	/**
 	 * The key function in Delaunay Triangulation
 	 * return true if the TestPoint is WITHIN the triangle circumcircle
 	 *	http://en.wikipedia.org/wiki/Delaunay_triangulation 
 	 */
-	ECircumCircleState GetCircumcircleState(const FTriangle* T, const FPoint& TestPoint);
+	ECircumCircleState GetCircumcircleState(const FTriangle* T, const FVertex& TestPoint);
 
 	/**
 	 * return true if they can make triangle
 	 */
-	bool IsEligibleForTriangulation(const FPoint* A, const FPoint* B, const FPoint* C)
+	bool IsEligibleForTriangulation(const FVertex* A, const FVertex* B, const FVertex* C)
 	{
 		return (IsCollinear(A, B, C)==false);
 	}
@@ -376,13 +372,13 @@ private:
 	 * return true if 3 points are collinear
 	 * by that if those 3 points create straight line
 	 */
-	bool IsCollinear(const FPoint* A, const FPoint* B, const FPoint* C);
+	bool IsCollinear(const FVertex* A, const FVertex* B, const FVertex* C);
 
 	/** 
 	 * return true if all points are coincident
 	 * (i.e. if all points are the same)
 	 */
-	bool AllCoincident(const TArray<FPoint>& InPoints);
+	bool AllCoincident(const TArray<FVertex>& InPoints);
 
 	/**
 	 * Flip TriangleList(I) with TriangleList(J). 
@@ -398,18 +394,14 @@ private:
 	 * Used as incremental step to triangulate all points
 	 * Create triangles TotalNum of PointList
 	 */
-	int32 GenerateTriangles(TArray<FPoint> & PointList, const int32 TotalNum);
+	int32 GenerateTriangles(TArray<FVertex> & PointList, const int32 TotalNum);
 
 private:
 	/**
 	 * Data Structure for triangulation
 	 * SamplePointList is the input data
 	 */
-	TArray<FPoint>		SamplePointList;
-	/**
-	 * This stores the indices from the added sample points to the original indices in the blendspace
-	 */
-	TArray<int32>			IndiceMappingTable;
+	TArray<FVertex>		SamplePointList;
 
 	/**
 	 * Output data for this generator
@@ -418,10 +410,10 @@ private:
 
 	/**
 	 * We need to normalize the points before the circumcircle test, so we need the extents of the grid.
-	 * Store 1 / GridSize to avoid recalculating it every time through GetCirculcircleState
+	 * Store 1 / GridSize to avoid recalculating it every time through GetCircumcircleState
 	*/
-	FVector				GridMin;
-	FVector				RecipGridSize;
+	FVector2D				GridMin;
+	FVector2D				RecipGridSize;
 };
 
 // @todo fixmelh : this code is mess between fvector2D and fvector
@@ -445,7 +437,7 @@ public:
 	 * 
 	 * @return	true if successfully found the triangle this point is within
 	 */
-	bool FindTriangleThisPointBelongsTo(const FVector& TestPoint, FVector& OutBaryCentricCoords, FTriangle * & OutTriangle, const TArray<FTriangle*> & TriangleList) const;
+	bool FindTriangleThisPointBelongsTo(const FVector2D& TestPoint, FVector& OutBarycentricCoords, FTriangle* & OutTriangle, const TArray<FTriangle*> & TriangleList) const;
 
 	/**  
 	 * Fill up Grid GridPoints using TriangleList input - Grid information should have been set by SetGridInfo
@@ -453,14 +445,15 @@ public:
 	 * @param	SamplePoints		: Sample Point List
 	 * @param	TriangleList		: List of triangles
 	 */
-	void GenerateGridElements(const TArray<FPoint>& SamplePoints, const TArray<FTriangle*> & TriangleList);
+	void GenerateGridElements(const TArray<FVertex>& SamplePoints, const TArray<FTriangle*> & TriangleList);
 
 	/** 
 	 * default value 
 	 */
 	FBlendSpaceGrid()
-		:	GridDimensions(FVector(0, 0, 0), FVector(100, 100, 0))
-		,	NumGridPointsForAxis(5, 5)
+		: GridMin(0, 0)
+		, GridMax(100, 100)
+		, NumGridPointsForAxis(5, 5)
 	{
 	}
 
@@ -477,24 +470,25 @@ public:
 		NumGridDivisions.X = BlendParamX.GridNum;
 		NumGridDivisions.Y = BlendParamY.GridNum;
 
-		GridDimensions.Min.X = BlendParamX.Min;
-		GridDimensions.Max.X = BlendParamX.Max;
+		GridMin.X = BlendParamX.Min;
+		GridMax.X = BlendParamX.Max;
 
-		GridDimensions.Min.Y = BlendParamY.Min;
-		GridDimensions.Max.Y = BlendParamY.Max;
+		GridMin.Y = BlendParamY.Min;
+		GridMax.Y = BlendParamY.Max;
 	}
 	
 	const FEditorElement& GetElement(const int32 GridX, const int32 GridY) const;
 	const TArray<FEditorElement>& GetElements() const { return GridPoints;}
 	
 	/** 
-	 * Convert grid index (GridX, GridY) to triangle coords and returns FVector
+	 * Convert grid index (GridX, GridY) to triangle coords and returns FVector2D
 	*/
-	const FVector GetPosFromIndex(const int32 GridX, const int32 GridY) const;
+	const FVector2D GetPosFromIndex(const int32 GridX, const int32 GridY) const;
 
 private:
 	// Grid Dimension
-	FBox GridDimensions;
+	FVector2D GridMin;
+	FVector2D GridMax;
 
 	// how many rows/cols for each axis
 	FIntPoint NumGridPointsForAxis;

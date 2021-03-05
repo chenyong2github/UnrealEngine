@@ -100,6 +100,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Moving animation custom attributes from AnimationSequence to UAnimDataModel
 		MoveCustomAttributesToDataModel,
 
+		// Use of triangulation at runtime in BlendSpace
+		BlendSpaceRuntimeTriangulation,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

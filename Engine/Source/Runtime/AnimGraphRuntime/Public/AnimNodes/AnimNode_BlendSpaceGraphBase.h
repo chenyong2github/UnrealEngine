@@ -68,6 +68,9 @@ protected:
 	// Cache of sampled data, updated each frame
 	TArray<FBlendSampleData> BlendSampleDataCache;
 
+	/** Previous position in the triangulation/segmentation */
+	int32 CachedTriangulationIndex = -1;
+
 #if WITH_EDITORONLY_DATA
 	// Preview blend params - set in editor only
 	FVector PreviewPosition = FVector::ZeroVector;

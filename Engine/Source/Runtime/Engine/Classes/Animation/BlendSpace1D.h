@@ -24,12 +24,15 @@ public:
 	bool bDisplayEditorVertically_DEPRECATED;
 #endif
 
-	/** Drive animation speed by blend input position **/
+	/** Drive animation speed by blend input position */
 	UPROPERTY(EditAnywhere, Category = InputInterpolation)
 	bool bScaleAnimation;
 
 protected:
 	//~ Begin UBlendSpace Interface
 	virtual EBlendSpaceAxis GetAxisToScale() const override;
+#if WITH_EDITOR
+	virtual void SnapSamplesToClosestGridPoint() override;
+#endif
 	//~ End UBlendSpace Interface
 };
