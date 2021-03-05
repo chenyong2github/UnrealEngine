@@ -4,6 +4,8 @@
 
 #include "AnimTimelineTrack.h"
 
+struct FAnimatedBoneAttribute;
+
 /** Animation timeline track inserted for each animated attribute (inserted as child of FAnimTimelineTrack_PerBoneAttributes) */
 class FAnimTimelineTrack_Attribute : public FAnimTimelineTrack
 {
