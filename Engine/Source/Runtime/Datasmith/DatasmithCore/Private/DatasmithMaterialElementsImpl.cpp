@@ -205,6 +205,8 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	RegisterReferenceProxy( AmbientOcclusion, "AmbientOcclusion" );
 	RegisterReferenceProxy( MaterialAttributes, "MaterialAttributes" );
 
+	RegisterReferenceProxy( Expressions, "Expressions" );
+
 	Store.RegisterParameter( BlendMode, "BlendMode" );
 	Store.RegisterParameter( bTwoSided, "bTwoSided" );
 	Store.RegisterParameter( bUseMaterialAttributes, "bUseMaterialAttributes" );

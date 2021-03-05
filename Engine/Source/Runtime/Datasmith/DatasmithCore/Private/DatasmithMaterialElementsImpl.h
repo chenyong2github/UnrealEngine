@@ -719,7 +719,7 @@ protected:
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > AmbientOcclusion;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > MaterialAttributes;
 
-	TArray<TSharedPtr< IDatasmithMaterialExpression >> Expressions;
+	TDatasmithReferenceArrayProxy< TSharedPtr< IDatasmithMaterialExpression > > Expressions;
 
 	TReflected<int32> BlendMode;
 	TReflected<bool> bTwoSided;
