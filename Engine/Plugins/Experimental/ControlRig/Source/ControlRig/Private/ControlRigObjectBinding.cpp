@@ -6,6 +6,10 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "ControlRigComponent.h"
 
+FControlRigObjectBinding::~FControlRigObjectBinding()
+{
+}
+
 void FControlRigObjectBinding::BindToObject(UObject* InObject)
 {
 	// If we are binding to an actor, find the first skeletal mesh component
@@ -28,11 +32,15 @@ void FControlRigObjectBinding::BindToObject(UObject* InObject)
 	{
 		SceneComponent = SkeletalMeshComponent;
 	}
+
+	ControlRigBind.Broadcast(SceneComponent.Get());
 }
 
 void FControlRigObjectBinding::UnbindFromObject()
 {
 	SceneComponent = nullptr;
+
+	ControlRigUnbind.Broadcast();
 }
 
 bool FControlRigObjectBinding::IsBoundToObject(UObject* InObject) const
