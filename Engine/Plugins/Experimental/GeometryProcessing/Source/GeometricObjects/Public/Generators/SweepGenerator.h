@@ -365,6 +365,7 @@ public:
 	int AngleSamples = 16;
 	bool bCapped = false;
 	bool bUVScaleMatchSidesAndCaps = true;
+	ECapType CapType = ECapType::FlatMidpointFan;
 
 	static float ComputeSegLengths(const TArrayView<float>& Radii, const TArrayView<float>& Heights, TArray<float>& AlongPercents)
 	{
@@ -393,8 +394,8 @@ public:
 
 		if (bCapped)
 		{
-			Caps[0] = ECapType::FlatMidpointFan;
-			Caps[1] = ECapType::FlatMidpointFan;
+			Caps[0] = CapType;
+			Caps[1] = CapType;
 		}
 
 		int NumX = Radii.Num();
@@ -636,6 +637,7 @@ public:
 
 	bool bCapped = false;
 	bool bLoop = false;
+	ECapType CapType = ECapType::FlatTriangulation;
 
 	// When true, the generator attempts to scale UV's in a way that preserves scaling across different mesh
 	// results, aiming for 1.0 in UV space to be equal to UnitUVInWorldCoordinates in world space. This in
@@ -655,8 +657,8 @@ public:
 
 		if (bCapped && !bLoop)
 		{
-			Caps[0] = ECapType::FlatTriangulation;
-			Caps[1] = ECapType::FlatTriangulation;
+			Caps[0] = CapType;
+			Caps[1] = CapType;
 		}
 		int PathNum = Path.Num();
 		

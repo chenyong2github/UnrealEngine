@@ -19,9 +19,6 @@ template <typename Real>
 class TDistTriangle3Triangle3
 {
 public:
-	// Input
-	TTriangle3<Real> Triangle[2];
-
 	// Output
 	Real DistanceSquared = -1.0;
 	FVector3<Real> TriangleClosest[2];
@@ -35,6 +32,13 @@ public:
 	{
 		Triangle[0] = TriangleA;
 		Triangle[1] = TriangleB;
+	}
+
+	void SetTriangle(int WhichTriangle, const TTriangle3<Real>& TriangleIn)
+	{
+		check(WhichTriangle >= 0 && WhichTriangle < 2);
+		Triangle[WhichTriangle] = TriangleIn;
+		DistanceSquared = -1.0; // clear cached result
 	}
 
 	Real Get()
@@ -115,6 +119,11 @@ public:
 		DistanceSquared = sqrDist;
 		return DistanceSquared;
 	}
+	
+private:
+
+	// Input triangles; must be set via SetTriangle to clear cached result
+	TTriangle3<Real> Triangle[2];
 };
 
 typedef TDistTriangle3Triangle3<float> FDistTriangle3Triangle3f;

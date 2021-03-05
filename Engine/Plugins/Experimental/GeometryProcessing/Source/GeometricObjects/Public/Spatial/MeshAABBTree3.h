@@ -1257,7 +1257,7 @@ public:
 					otri.V[1] = TransformF(otri.V[1]);
 					otri.V[2] = TransformF(otri.V[2]);
 				}
-				dist.Triangle[0] = otri;
+				dist.SetTriangle(0, otri);
 
 				// inner iteration over "our" triangles
 				for (int i = 1; i <= num_tris; ++i)
@@ -1268,7 +1268,7 @@ public:
 						continue;
 					}
 					Mesh->GetTriVertices(ti, Tri.V[0], Tri.V[1], Tri.V[2]);
-					dist.Triangle[1] = Tri;
+					dist.SetTriangle(1, Tri);
 					double dist_sqr = dist.GetSquared();
 					if (dist_sqr < nearest_sqr)
 					{
