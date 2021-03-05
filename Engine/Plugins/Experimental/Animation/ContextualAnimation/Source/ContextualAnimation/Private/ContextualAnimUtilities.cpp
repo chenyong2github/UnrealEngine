@@ -15,8 +15,6 @@
 
 void UContextualAnimUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose)
 {
-	FMemMark Mark(FMemStack::Get());
-
 	OutPose.SetBoneContainer(&BoneContainer);
 
 	FBlendedCurve Curve;

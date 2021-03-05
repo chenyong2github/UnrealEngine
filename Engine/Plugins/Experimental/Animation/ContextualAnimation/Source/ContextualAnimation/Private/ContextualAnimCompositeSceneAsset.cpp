@@ -25,8 +25,16 @@ EContextualAnimJoinRule UContextualAnimCompositeSceneAsset::GetJoinRuleForRole(c
 
 void UContextualAnimCompositeSceneAsset::PreSave(const class ITargetPlatform* TargetPlatform)
 {
+	// Necessary for FCompactPose that uses a FAnimStackAllocator (TMemStackAllocator) which allocates from FMemStack.
+	// When allocating memory from FMemStack we need to explicitly use FMemMark to ensure items are freed when the scope exits. 
+	// UWorld::Tick adds a FMemMark to catch any allocation inside the game tick 
+	// but any allocation from outside the game tick (like here when generating the alignment tracks off-line) must explicitly add a mark to avoid a leak 
+	FMemMark Mark(FMemStack::Get());
+
+	// Generate scene pivot for each alignment section
 	Super::PreSave(TargetPlatform);
 
+	// Generate alignment tracks relative to scene pivot
 	for (FContextualAnimData& Data : InteractorTrack.AnimDataContainer)
 	{
 		GenerateAlignmentTracksRelativeToScenePivot(Data);
