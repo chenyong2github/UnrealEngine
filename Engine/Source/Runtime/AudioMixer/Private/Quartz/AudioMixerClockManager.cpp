@@ -336,9 +336,7 @@ namespace Audio
 
 	TSharedPtr<FQuartzClock> FQuartzClockManager::FindClock(const FName& InName)
 	{
-		// the function calling this should be be on the audio rendering thread or have acquired the lock
-		checkSlow(MixerDevice->IsAudioRenderingThread() || ActiveClockCritSec.TryLock());
-
+		FScopeLock Lock(&ActiveClockCritSec);
 		for (auto& Clock : ActiveClocks)
 		{
 			if (Clock->GetName() == InName)
