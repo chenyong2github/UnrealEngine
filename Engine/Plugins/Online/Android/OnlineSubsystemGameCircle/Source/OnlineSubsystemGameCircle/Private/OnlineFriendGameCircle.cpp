@@ -6,14 +6,14 @@
 #include "Logging/LogMacros.h"
 #include "OnlineSubsystem.h"
 
-FOnlineFriendGameCircle::FOnlineFriendGameCircle(TSharedPtr<const FUniqueNetId> InUniqueId, const FString& InPlayerAlias, const FString& InAvatarURL)
+FOnlineFriendGameCircle::FOnlineFriendGameCircle(FUniqueNetIdPtr InUniqueId, const FString& InPlayerAlias, const FString& InAvatarURL)
 	: PlayerId(InUniqueId)
 	, PlayerAlias(InPlayerAlias)
 	, AvatarURL(InAvatarURL)
 {
 }
 
-TSharedRef<const FUniqueNetId> FOnlineFriendGameCircle::GetUserId() const
+FUniqueNetIdRef FOnlineFriendGameCircle::GetUserId() const
 {
 	return PlayerId.ToSharedRef();
 }
