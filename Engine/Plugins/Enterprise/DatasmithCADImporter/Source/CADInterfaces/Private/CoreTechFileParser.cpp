@@ -828,7 +828,7 @@ FCoreTechFileParser::EProcessResult FCoreTechFileParser::ReadFileWithKernelIO()
 		CT_LIST_IO ObjectList;
 		ObjectList.PushBack(MainId);
 
-		CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CachePath, TEXT("cad"), SceneGraphArchive.ArchiveFileName + TEXT(".ct")), L"Ct");
+		CT_KERNEL_IO::SaveFile(ObjectList, *FPaths::Combine(CachePath, TEXT("cad"), CTFilePath), L"Ct");
 	}
 
 	AddFaceIdAttribut(MainId);
