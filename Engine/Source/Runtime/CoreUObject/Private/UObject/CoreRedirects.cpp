@@ -160,7 +160,8 @@ int32 FCoreRedirectObjectName::MatchScore(const FCoreRedirectObjectName& Other) 
 
 bool FCoreRedirectObjectName::HasValidCharacters() const
 {
-	static FString InvalidRedirectCharacters = TEXT("\"' ,|&!~\n\r\t@#(){}[]=;^%$`");
+	// ObjectNames in Blueprint may contain spaces.
+	static FString InvalidRedirectCharacters = TEXT("\"',|&!~\n\r\t@#(){}[]=;^%$`");
 
 	return ObjectName.IsValidXName(InvalidRedirectCharacters) && OuterName.IsValidXName(InvalidRedirectCharacters) && PackageName.IsValidXName(InvalidRedirectCharacters);
 }
