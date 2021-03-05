@@ -102,6 +102,7 @@ PACKAGE_SCOPE:
 		FOnlineSubsystemImpl(EOS_SUBSYSTEM, InInstanceName)
 		, EOSPlatformHandle(nullptr)
 		, AuthHandle(nullptr)
+		, UIHandle(nullptr)
 		, FriendsHandle(nullptr)
 		, UserInfoHandle(nullptr)
 		, PresenceHandle(nullptr)
@@ -131,6 +132,7 @@ PACKAGE_SCOPE:
 	/** EOS handles */
 	EOS_HPlatform EOSPlatformHandle;
 	EOS_HAuth AuthHandle;
+	EOS_HUI UIHandle;
 	EOS_HFriends FriendsHandle;
 	EOS_HUserInfo UserInfoHandle;
 	EOS_HPresence PresenceHandle;

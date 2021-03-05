@@ -6,6 +6,7 @@
 #include "UObject/CoreOnline.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineSubsystemEOSTypes.h"
+#include "Interfaces/OnlineExternalUIInterface.h"
 
 #if WITH_EOS_SDK
 	#include "eos_auth_types.h"
@@ -233,6 +234,7 @@ struct FNotificationIdCallbackPair
  */
 class FUserManagerEOS
 	: public IOnlineIdentity
+	, public IOnlineExternalUI
 	, public IOnlineFriends
 	, public IOnlinePresence
 	, public IOnlineUser
@@ -270,6 +272,21 @@ public:
 	virtual FPlatformUserId GetPlatformUserIdFromUniqueNetId(const FUniqueNetId& UniqueNetId) const override;
 // ~IOnlineIdentity Interface
 	ELoginStatus::Type GetLoginStatus(const FUniqueNetIdEOS& UserId) const;
+
+// IOnlineExternalUI Interface
+	virtual bool ShowLoginUI(const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate = FOnLoginUIClosedDelegate()) override;
+	virtual bool ShowAccountCreationUI(const int ControllerIndex, const FOnAccountCreationUIClosedDelegate& Delegate = FOnAccountCreationUIClosedDelegate()) override;
+	virtual bool ShowFriendsUI(int32 LocalUserNum) override;
+	virtual bool ShowInviteUI(int32 LocalUserNum, FName SessionName = NAME_GameSession) override;
+	virtual bool ShowAchievementsUI(int32 LocalUserNum) override;
+	virtual bool ShowLeaderboardUI(const FString& LeaderboardName) override;
+	virtual bool ShowWebURL(const FString& Url, const FShowWebUrlParams& ShowParams, const FOnShowWebUrlClosedDelegate& Delegate = FOnShowWebUrlClosedDelegate()) override;
+	virtual bool CloseWebURL() override;
+	virtual bool ShowProfileUI(const FUniqueNetId& Requestor, const FUniqueNetId& Requestee, const FOnProfileUIClosedDelegate& Delegate = FOnProfileUIClosedDelegate()) override;
+	virtual bool ShowAccountUpgradeUI(const FUniqueNetId& UniqueId) override;
+	virtual bool ShowStoreUI(int32 LocalUserNum, const FShowStoreParams& ShowParams, const FOnShowStoreUIClosedDelegate& Delegate = FOnShowStoreUIClosedDelegate()) override;
+	virtual bool ShowSendMessageUI(int32 LocalUserNum, const FShowSendMessageParams& ShowParams, const FOnShowSendMessageUIClosedDelegate& Delegate = FOnShowSendMessageUIClosedDelegate()) override;
+// ~IOnlineExternalUI Interface
 
 // IOnlineFriends Interface
 	virtual bool ReadFriendsList(int32 LocalUserNum, const FString& ListName, const FOnReadFriendsListComplete& Delegate = FOnReadFriendsListComplete()) override;
@@ -421,6 +438,10 @@ private:
 
 	/** Ids mapped to remote user presence */
 	TMap<FString, FOnlineUserPresenceRef> NetIdStringToOnlineUserPresenceMap;
+
+	/** Identifier for the external UI notification callback */
+	EOS_NotificationId DisplaySettingsUpdatedId;
+	FCallbackBase* DisplaySettingsUpdatedCallback;
 };
 
 #endif

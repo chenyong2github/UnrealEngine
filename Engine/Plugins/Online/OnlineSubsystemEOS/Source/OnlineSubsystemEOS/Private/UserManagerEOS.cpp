@@ -16,6 +16,7 @@
 #include "eos_userinfo.h"
 #include "eos_friends.h"
 #include "eos_presence.h"
+#include "eos_ui.h"
 
 static inline EInviteStatus::Type ToEInviteStatus(EOS_EFriendsStatus InStatus)
 {
@@ -116,6 +117,8 @@ FOnReadFriendsListComplete IgnoredFriendsDelegate;
 IOnlinePresence::FOnPresenceTaskCompleteDelegate IgnoredPresenceDelegate;
 IOnlineUser::FOnQueryExternalIdMappingsComplete IgnoredMappingDelegate;
 
+typedef TEOSGlobalCallback<EOS_UI_OnDisplaySettingsUpdatedCallback, EOS_UI_OnDisplaySettingsUpdatedCallbackInfo> FOnDisplaySettingsUpdatedCallback;
+
 FUserManagerEOS::FUserManagerEOS(FOnlineSubsystemEOS* InSubsystem)
 	: EOSSubsystem(InSubsystem)
 	, DefaultLocalUser(-1)
@@ -126,10 +129,26 @@ FUserManagerEOS::FUserManagerEOS(FOnlineSubsystemEOS* InSubsystem)
 	, PresenceNotificationId(0)
 	, PresenceNotificationCallback(nullptr)
 {
+	// Adding subscription to external ui display change event
+	EOS_UI_AddNotifyDisplaySettingsUpdatedOptions Options = {};
+	Options.ApiVersion = EOS_UI_ADDNOTIFYDISPLAYSETTINGSUPDATED_API_LATEST;
+
+	FOnDisplaySettingsUpdatedCallback* CallbackObj = new FOnDisplaySettingsUpdatedCallback();
+	DisplaySettingsUpdatedCallback = CallbackObj;
+	CallbackObj->CallbackLambda = [this](const EOS_UI_OnDisplaySettingsUpdatedCallbackInfo* Data)
+	{
+		TriggerOnExternalUIChangeDelegates((bool)Data->bIsVisible);
+	};
+
+	DisplaySettingsUpdatedId = EOS_UI_AddNotifyDisplaySettingsUpdated(EOSSubsystem->UIHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 }
 
 FUserManagerEOS::~FUserManagerEOS()
 {
+	// Removing subscription to external ui display change event
+	EOS_UI_RemoveNotifyDisplaySettingsUpdated(EOSSubsystem->UIHandle, DisplaySettingsUpdatedId);
+
+	delete DisplaySettingsUpdatedCallback;
 }
 
 void FUserManagerEOS::LoginStatusChanged(const EOS_Auth_LoginStatusChangedCallbackInfo* Data)
@@ -1201,6 +1220,144 @@ FString FUserManagerEOS::GetAuthType() const
 {
 	return TEXT("epic");
 }
+
+// IOnlineExternalUI Interface
+
+bool FUserManagerEOS::ShowLoginUI(const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowLoginUI] This method is not implemented."));
+
+	EOSSubsystem->ExecuteNextTick([this, ControllerIndex, Delegate]()
+		{
+			Delegate.ExecuteIfBound(GetUniquePlayerId(ControllerIndex), ControllerIndex, FOnlineError(EOnlineErrorResult::NotImplemented));
+		});
+
+	return true;
+}
+
+bool FUserManagerEOS::ShowAccountCreationUI(const int ControllerIndex, const FOnAccountCreationUIClosedDelegate& Delegate)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowAccountCreationUI] This method is not implemented."));
+	
+	EOSSubsystem->ExecuteNextTick([this, ControllerIndex, Delegate]()
+		{
+			Delegate.ExecuteIfBound(ControllerIndex, FOnlineAccountCredentials(), FOnlineError(EOnlineErrorResult::NotImplemented));
+		});
+
+	return true;
+}
+
+typedef TEOSCallback<EOS_UI_OnShowFriendsCallback, EOS_UI_ShowFriendsCallbackInfo> FOnShowFriendsCallback;
+
+bool FUserManagerEOS::ShowFriendsUI(int32 LocalUserNum)
+{
+	EOS_UI_ShowFriendsOptions Options = {};
+	Options.ApiVersion = EOS_UI_SHOWFRIENDS_API_LATEST;
+	Options.LocalUserId = GetLocalEpicAccountId(LocalUserNum);
+
+	FOnShowFriendsCallback* CallbackObj = new FOnShowFriendsCallback();
+	CallbackObj->CallbackLambda = [this](const EOS_UI_ShowFriendsCallbackInfo* Data)
+	{
+		if (Data->ResultCode == EOS_EResult::EOS_Success)
+		{
+			UE_LOG_ONLINE_EXTERNALUI(VeryVerbose, TEXT("[FUserManagerEOS::ShowFriendsUI] EOS_UI_ShowFriends was successful."));
+		}
+		else
+		{
+			UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowFriendsUI] EOS_UI_ShowFriends was not successful. Finished with error %s"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+		}
+	};
+
+	EOS_UI_ShowFriends(EOSSubsystem->UIHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
+
+	return true;
+}
+
+
+bool FUserManagerEOS::ShowInviteUI(int32 LocalUserNum, FName SessionName)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowInviteUI] This method is not implemented."));
+
+	return false;
+}
+
+bool FUserManagerEOS::ShowAchievementsUI(int32 LocalUserNum)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowAchievementsUI] This method is not implemented."));
+
+	return false;
+}
+
+bool FUserManagerEOS::ShowLeaderboardUI(const FString& LeaderboardName)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowLeaderboardUI] This method is not implemented."));
+
+	return false;
+}
+
+bool FUserManagerEOS::ShowWebURL(const FString& Url, const FShowWebUrlParams& ShowParams, const FOnShowWebUrlClosedDelegate& Delegate)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowWebURL] This method is not implemented."));
+
+	EOSSubsystem->ExecuteNextTick([this, Delegate]()
+		{
+			Delegate.ExecuteIfBound(FString());
+		});
+
+	return true;
+}
+
+bool FUserManagerEOS::CloseWebURL()
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::CloseWebURL] This method is not implemented."));
+
+	return false;
+}
+
+bool FUserManagerEOS::ShowProfileUI(const FUniqueNetId& Requestor, const FUniqueNetId& Requestee, const FOnProfileUIClosedDelegate& Delegate)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowProfileUI] This method is not implemented."));
+
+	EOSSubsystem->ExecuteNextTick([this, Delegate]()
+		{
+			Delegate.ExecuteIfBound();
+		});
+
+	return true;
+}
+
+bool FUserManagerEOS::ShowAccountUpgradeUI(const FUniqueNetId& UniqueId)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowAccountUpgradeUI] This method is not implemented."));
+
+	return false;
+}
+
+bool FUserManagerEOS::ShowStoreUI(int32 LocalUserNum, const FShowStoreParams& ShowParams, const FOnShowStoreUIClosedDelegate& Delegate)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowStoreUI] This method is not implemented."));
+
+	EOSSubsystem->ExecuteNextTick([this, Delegate]()
+		{
+			Delegate.ExecuteIfBound(false);
+		});
+
+	return true;
+}
+
+bool FUserManagerEOS::ShowSendMessageUI(int32 LocalUserNum, const FShowSendMessageParams& ShowParams, const FOnShowSendMessageUIClosedDelegate& Delegate)
+{
+	UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("[FUserManagerEOS::ShowSendMessageUI] This method is not implemented."));
+
+	EOSSubsystem->ExecuteNextTick([this, Delegate]()
+		{
+			Delegate.ExecuteIfBound(false);
+		});
+
+	return true;
+}
+
+// ~IOnlineExternalUI Interface
 
 typedef TEOSCallback<EOS_Friends_OnQueryFriendsCallback, EOS_Friends_QueryFriendsCallbackInfo> FReadFriendsCallback;
 

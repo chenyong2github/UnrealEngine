@@ -258,6 +258,12 @@ bool FOnlineSubsystemEOS::Init()
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get user info handle"));
 		return false;
 	}
+	UIHandle = EOS_Platform_GetUIInterface(EOSPlatformHandle);
+	if (UIHandle == nullptr)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get UI handle"));
+		return false;
+	}
 	FriendsHandle = EOS_Platform_GetFriendsInterface(EOSPlatformHandle);
 	if (FriendsHandle == nullptr)
 	{
@@ -477,7 +483,7 @@ IOnlineVoicePtr FOnlineSubsystemEOS::GetVoiceInterface() const
 
 IOnlineExternalUIPtr FOnlineSubsystemEOS::GetExternalUIInterface() const
 {
-	return nullptr;
+	return UserManager;
 }
 
 IOnlineIdentityPtr FOnlineSubsystemEOS::GetIdentityInterface() const
