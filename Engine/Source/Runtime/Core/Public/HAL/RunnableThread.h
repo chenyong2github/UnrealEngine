@@ -165,9 +165,6 @@ protected:
 	/** The Affinity to run the thread with. */
 	uint64 ThreadAffinityMask;
 
-	/** An array of FTlsAutoCleanup based instances that needs to be deleted before the thread will die. */
-	TArray<FTlsAutoCleanup*> TlsInstances;
-
 	/** The priority to run the thread at. */
 	EThreadPriority ThreadPriority;
 

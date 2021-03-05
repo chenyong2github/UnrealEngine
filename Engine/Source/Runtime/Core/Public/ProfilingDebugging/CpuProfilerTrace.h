@@ -31,7 +31,6 @@ UE_TRACE_CHANNEL_EXTERN(CpuChannel, CORE_API);
  */
 struct FCpuProfilerTrace
 {
-	CORE_API static void Shutdown();
 	/*
 	 * Output cpu event definition (spec).
 	 * @param Name Event name
@@ -120,9 +119,6 @@ struct FCpuProfilerTrace
 	};
 };
 
-#define TRACE_CPUPROFILER_SHUTDOWN() \
-	FCpuProfilerTrace::Shutdown();
-
 // Trace a scoped cpu timing event providing a static string (const ANSICHAR* or const TCHAR*)
 // as the scope name and a trace channel.
 // Example: TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR("My Scoped Timer A", CpuChannel)
@@ -174,7 +170,6 @@ struct FCpuProfilerTrace
 
 #else
 
-#define TRACE_CPUPROFILER_SHUTDOWN()
 #define TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL_STR(NameStr, Channel)
 #define TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(Name, Channel)
 #define TRACE_CPUPROFILER_EVENT_SCOPE_STR(NameStr)

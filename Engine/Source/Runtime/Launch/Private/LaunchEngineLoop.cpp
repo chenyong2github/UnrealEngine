@@ -4425,8 +4425,6 @@ void FEngineLoop::Exit()
 	FTaskGraphInterface::Shutdown();
 
 	FPlatformMisc::ShutdownTaggedStorage();
-
-	TRACE_CPUPROFILER_SHUTDOWN();
 }
 
 
@@ -6006,11 +6004,6 @@ void FEngineLoop::AppExit()
 	}
 
 	FInternationalization::TearDown();
-
-#if !WITH_ENGINE
-	// when compiled WITH_ENGINE, this will happen in FEngineLoop::Exit()
-	TRACE_CPUPROFILER_SHUTDOWN();
-#endif
 }
 
 void FEngineLoop::PostInitRHI()

@@ -4,7 +4,10 @@
 
 #include "CoreTypes.h"
 
-/** Base class for objects in TLS that support auto-cleanup. */
+/** 
+Base class for objects in TLS that support auto-cleanup. 
+Polymorphically deletes registered instances on thread exit.
+*/
 class CORE_API FTlsAutoCleanup
 {
 public:

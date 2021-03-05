@@ -779,13 +779,6 @@ void FRunnableThread::FreeTls()
 	check( ThreadID == FPlatformTLS::GetCurrentThreadId() );
 	check( FPlatformTLS::IsValidTlsSlot(RunnableTlsSlot) );
 	FPlatformTLS::SetTlsValue( RunnableTlsSlot, nullptr );
-
-	// Delete all FTlsAutoCleanup objects created for this thread.
-	for( auto& Instance : TlsInstances )
-	{
-		delete Instance;
-		Instance = nullptr;
-	}
 }
 
 /*-----------------------------------------------------------------------------
@@ -1322,11 +1315,8 @@ FTlsAutoCleanup* FThreadSingletonInitializer::TryGet(uint32& TlsSlot)
 
 void FTlsAutoCleanup::Register()
 {
-	FRunnableThread* RunnableThread = FRunnableThread::GetRunnableThread();
-	if( RunnableThread )
-	{
-		RunnableThread->TlsInstances.Add( this );
-	}
+	static thread_local TArray<TUniquePtr<FTlsAutoCleanup>> TlsInstances;
+	TlsInstances.Add(TUniquePtr<FTlsAutoCleanup>(this));
 }
 
 //-------------------------------------------------------------------------------

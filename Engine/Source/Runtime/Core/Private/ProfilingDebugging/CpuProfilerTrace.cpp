@@ -224,13 +224,4 @@ uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name)
 	return SpecId;
 }
 
-void FCpuProfilerTrace::Shutdown()
-{
-	if (FCpuProfilerTraceInternal::ThreadBuffer)
-	{
-		delete FCpuProfilerTraceInternal::ThreadBuffer;
-		FCpuProfilerTraceInternal::ThreadBuffer = nullptr;
-	}
-}
-
 #endif
