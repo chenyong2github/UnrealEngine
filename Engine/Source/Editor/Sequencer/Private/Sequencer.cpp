@@ -8977,6 +8977,11 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, TArray<FNotifi
 					// Duplicate the bound actors
 					GEditor->edactDuplicateSelected(World->GetCurrentLevel(), false);
 
+					// Duplicating the bound actor through GEditor, edits the copy/paste clipboard. This is not desired from the user's 
+					// point of view since the user didn't explicitly invoke the copy operation. Instead, restore the copied contents
+					// of the clipboard after duplicating the actor
+					FPlatformApplicationMisc::ClipboardCopy(*TextToImport);
+
 					USelection* ActorSelection = GEditor->GetSelectedActors();
 					TArray<TWeakObjectPtr<AActor> > SelectedActors;
 					for (FSelectionIterator Iter(*ActorSelection); Iter; ++Iter)
