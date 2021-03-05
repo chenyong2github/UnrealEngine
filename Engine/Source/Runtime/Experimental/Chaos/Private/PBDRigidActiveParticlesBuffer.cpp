@@ -30,7 +30,7 @@ namespace Chaos
 
 		ActiveGameThreadParticles.Empty();
 		PhysicsParticleProxies.Empty();
-		TParticleView<TPBDRigidParticles<float, 3>>& ActiveParticlesView = Solver->GetParticles().GetDirtyParticlesView();
+		TParticleView<FPBDRigidParticles>& ActiveParticlesView = Solver->GetParticles().GetDirtyParticlesView();
 		for (auto& ActiveParticle : ActiveParticlesView)
 		{
 			if (ActiveParticle.Handle())	//can this be null?

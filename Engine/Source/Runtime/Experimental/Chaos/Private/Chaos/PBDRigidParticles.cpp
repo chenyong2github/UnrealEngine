@@ -9,4 +9,4 @@ void Chaos::EnsureSleepingObjectState(EObjectStateType ObjectState)
 	ensure(ObjectState != EObjectStateType::Static);
 }
 
-template class Chaos::TPBDRigidParticles<float, 3>;
+template class Chaos::TPBDRigidParticles<Chaos::FReal, 3>;

@@ -22,10 +22,10 @@ void TRigidParticles<T, d>::SetCollisionParticles(const int32 Index, TParticles<
 
 #ifdef __clang__
 #if PLATFORM_WINDOWS
-template class Chaos::TRigidParticles<float, 3>;
+template class Chaos::TRigidParticles<Chaos::FReal, 3>;
 #else
-template class CHAOS_API Chaos::TRigidParticles<float, 3>;
+template class CHAOS_API Chaos::TRigidParticles<Chaos::FReal, 3>;
 #endif
 #else
-template class Chaos::TRigidParticles<float, 3>;
+template class Chaos::TRigidParticles<Chaos::FReal, 3>;
 #endif

@@ -201,7 +201,7 @@ inline TAABB<FReal, 3> TransformedAABBHelperISPC(const TAABB<FReal, 3>& AABB, co
 {
 	check(bRealTypeCompatibleWithISPC);
 #if INTEL_ISPC
-	TVec3<float> NewMin, NewMax;
+	TVec3<FReal> NewMin, NewMax;
 	ispc::TransformedAABB((const ispc::FTransform&)SpaceTransform, (const ispc::FVector&)AABB.Min(), (const ispc::FVector&)AABB.Max(), (ispc::FVector&)NewMin, (ispc::FVector&)NewMax);
 
 	TAABB<FReal, 3> NewAABB(NewMin, NewMax);

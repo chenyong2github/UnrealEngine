@@ -112,7 +112,7 @@ FAutoConsoleVariableRef CVarChaosSolverJointPushOutPairIterations(TEXT("p.Chaos.
 
 // Collision detection cvars
 // These override the engine config if >= 0
-float ChaosSolverCullDistance = -1.0f;
+Chaos::FRealSingle ChaosSolverCullDistance = -1.0f;
 FAutoConsoleVariableRef CVarChaosSolverCullDistance(TEXT("p.Chaos.Solver.Collision.CullDistance"), ChaosSolverCullDistance, TEXT("Override cull distance (if >= 0)"));
 
 int32 ChaosSolverCleanupCommandsOnDestruction = 1;

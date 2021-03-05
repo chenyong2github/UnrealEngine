@@ -32,17 +32,17 @@ namespace Chaos
 	const bool bPendingHierarchyDump = false;
 #endif
 
-float HackMaxAngularVelocity = 1000.f;
+FRealSingle HackMaxAngularVelocity = 1000.f;
 FAutoConsoleVariableRef CVarHackMaxAngularVelocity(TEXT("p.HackMaxAngularVelocity"), HackMaxAngularVelocity, TEXT("Max cap on angular velocity: rad/s. This is only a temp solution and should not be relied on as a feature. -1.f to disable"));
 
-float HackMaxVelocity = -1.f;
+FRealSingle HackMaxVelocity = -1.f;
 FAutoConsoleVariableRef CVarHackMaxVelocity(TEXT("p.HackMaxVelocity2"), HackMaxVelocity, TEXT("Max cap on velocity: cm/s. This is only a temp solution and should not be relied on as a feature. -1.f to disable"));
 
 
-float HackLinearDrag = 0.f;
+FRealSingle HackLinearDrag = 0.f;
 FAutoConsoleVariableRef CVarHackLinearDrag(TEXT("p.HackLinearDrag2"), HackLinearDrag, TEXT("Linear drag used to slow down objects. This is a hack and should not be relied on as a feature."));
 
-float HackAngularDrag = 0.f;
+FRealSingle HackAngularDrag = 0.f;
 FAutoConsoleVariableRef CVarHackAngularDrag(TEXT("p.HackAngularDrag2"), HackAngularDrag, TEXT("Angular drag used to slow down objects. This is a hack and should not be relied on as a feature."));
 
 int DisableThreshold = 5;
@@ -51,10 +51,10 @@ FAutoConsoleVariableRef CVarDisableThreshold(TEXT("p.DisableThreshold2"), Disabl
 int CollisionDisableCulledContacts = 0;
 FAutoConsoleVariableRef CVarDisableCulledContacts(TEXT("p.CollisionDisableCulledContacts"), CollisionDisableCulledContacts, TEXT("Allow the PBDRigidsEvolutionGBF collision constraints to throw out contacts mid solve if they are culled."));
 
-float BoundsThicknessVelocityMultiplier = 2.0f;	// @todo(chaos): more to FChaosSolverConfiguration
+FRealSingle BoundsThicknessVelocityMultiplier = 2.0f;	// @todo(chaos): more to FChaosSolverConfiguration
 FAutoConsoleVariableRef CVarBoundsThicknessVelocityMultiplier(TEXT("p.CollisionBoundsVelocityInflation"), BoundsThicknessVelocityMultiplier, TEXT("Collision velocity inflation for speculatibe contact generation.[def:2.0]"));
 
-float SmoothedPositionLerpRate = 0.1f;
+FRealSingle SmoothedPositionLerpRate = 0.1f;
 FAutoConsoleVariableRef CVarSmoothedPositionLerpRate(TEXT("p.Chaos.SmoothedPositionLerpRate"), SmoothedPositionLerpRate, TEXT("The interpolation rate for the smoothed position calculation. Used for sleeping."));
 
 

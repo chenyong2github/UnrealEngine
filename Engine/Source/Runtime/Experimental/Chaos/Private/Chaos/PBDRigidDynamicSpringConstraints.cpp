@@ -43,7 +43,7 @@ void FPBDRigidDynamicSpringConstraints::UpdatePositionBasedState(const FReal Dt)
 			const FVec3 WorldSpaceX1 = Q0.RotateVector(Distance0) + P0;
 			const FVec3 WorldSpaceX2 = Q1.RotateVector(Distance1) + P1;
 			const FVec3 Difference = WorldSpaceX2 - WorldSpaceX1;
-			float Distance = Difference.Size();
+			FReal Distance = Difference.Size();
 			if (Distance > CreationThreshold * 2)
 			{
 				Distances[ConstraintIndex].RemoveAtSwap(SpringIndex);
@@ -106,7 +106,7 @@ FVec3 FPBDRigidDynamicSpringConstraints::GetDelta(const FVec3& WorldSpaceX1, con
 	}
 
 	const FVec3 Difference = WorldSpaceX2 - WorldSpaceX1;
-	float Distance = Difference.Size();
+	FReal Distance = Difference.Size();
 	check(Distance > 1e-7);
 
 	const FReal InvM0 = bIsRigidDynamic0 ? PBDRigid0->InvM() : (FReal)0.;

@@ -109,7 +109,7 @@ namespace Chaos
 
 		const FVec3 Difference = WorldSpaceX2 - WorldSpaceX1;
 
-		const float Distance = Difference.Size();
+		const FReal Distance = Difference.Size();
 		check(Distance > 1e-7);
 
 		const FVec3 Direction = Difference / Distance;

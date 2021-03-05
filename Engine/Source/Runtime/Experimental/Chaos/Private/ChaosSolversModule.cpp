@@ -25,7 +25,7 @@ TAutoConsoleVariable<int32> CVarChaosThreadEnabled(
 	TEXT("0: Disabled")
 	TEXT("1: Enabled"));
 
-TAutoConsoleVariable<float> CVarDedicatedThreadDesiredHz(
+TAutoConsoleVariable<Chaos::FRealSingle> CVarDedicatedThreadDesiredHz(
 	TEXT("p.Chaos.Thread.DesiredHz"),
 	60.0f,
 	TEXT("Desired update rate of the dedicated physics thread in Hz/FPS (Default 60.0f)"));
@@ -497,8 +497,8 @@ void FChaosSolversModule::UpdateStats()
 
 	if(PhysStats.NumUpdates > 0)
 	{
-		AverageUpdateTime = PhysStats.AccumulatedTime / (float)PhysStats.NumUpdates;
-		TotalAverageUpdateTime = PhysStats.ActualAccumulatedTime / (float)PhysStats.NumUpdates;
+		AverageUpdateTime = PhysStats.AccumulatedTime / (FReal)PhysStats.NumUpdates;
+		TotalAverageUpdateTime = PhysStats.ActualAccumulatedTime / (FReal)PhysStats.NumUpdates;
 		Fps = 1.0f / AverageUpdateTime;
 		EffectiveFps = 1.0f / TotalAverageUpdateTime;
 	}
@@ -527,8 +527,8 @@ void FChaosSolversModule::UpdateStats()
 #if FRAMEPRO_ENABLED
 
 	// Custom framepro stats for graphs
-	const float AvgUpdateMs = AverageUpdateTime * 1000.f;
-	const float AvgEffectiveUpdateMs = TotalAverageUpdateTime * 1000.0f;
+	const Chaos::FRealSingle AvgUpdateMs = AverageUpdateTime * 1000.f;
+	const Chaos::FRealSingle AvgEffectiveUpdateMs = TotalAverageUpdateTime * 1000.0f;
 
 	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_Fps", Fps, "ChaosThread", "FPS", FRAMEPRO_COLOUR(255,255,255));
 	FRAMEPRO_CUSTOM_STAT("Chaos_Thread_EffectiveFps", EffectiveFps, "ChaosThread", "FPS", FRAMEPRO_COLOUR(255,255,255));

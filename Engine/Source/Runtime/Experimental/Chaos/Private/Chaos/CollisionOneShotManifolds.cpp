@@ -16,7 +16,7 @@
 
 namespace Chaos
 {
-	float Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.001f;
+	FRealSingle Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.001f;
 	FAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT("p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"), Chaos_Collision_Manifold_PlaneContactNormalEpsilon, TEXT("Normal tolerance used to distinguish face contacts from edge-edge contacts"));
 
 	// @todo(chaos): TEMP - use convex-convex collisio detection for box-box until TBox::GetClosestEdgePosition is implemented for that path (without plane hint)
@@ -504,7 +504,7 @@ namespace Chaos
 
 			// Now clip against all planes that belong to the reference plane's, edges
 			// Note winding order matters here, and we have to handle negative scales
-			const float RefWindingOrder = RefConvex.GetWindingOrder();
+			const FReal RefWindingOrder = RefConvex.GetWindingOrder();
 			const int32 RefConvexFaceVerticesNum = RefConvex.NumPlaneVertices(RefPlaneIndex);
 			int32 ClippingPlaneCount = RefConvexFaceVerticesNum;
 			FVec3 PrevPoint = RefConvex.GetVertex(RefConvex.GetPlaneVertex(RefPlaneIndex, ClippingPlaneCount - 1));

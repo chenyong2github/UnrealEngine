@@ -22,13 +22,13 @@ FAutoConsoleVariableRef CVarOutputFailedLevelSetDebugData(TEXT("p.LevelSetOutput
 int32 FailureOnHighError = 0;
 FAutoConsoleVariableRef CVarFailureOnHighError(TEXT("p.LevelSetFailureOnHighError"), FailureOnHighError, TEXT("Set level sets with high error to null in the solver"));
 
-float AvgDistErrorTolerance = 1.f;
+Chaos::FRealSingle AvgDistErrorTolerance = 1.f;
 FAutoConsoleVariableRef CVarAvgDistErrorTolerance(TEXT("p.LevelSetAvgDistErrorTolerance"), AvgDistErrorTolerance, TEXT("Error tolerance for average distance between the triangles and generated levelset.  Note this is a fraction of the average bounding box dimensions."));
 
-float MaxDistErrorTolerance = 1.f;
+Chaos::FRealSingle MaxDistErrorTolerance = 1.f;
 FAutoConsoleVariableRef CVarMaxDistErrorTolerance(TEXT("p.LevelSetMaxDistErrorTolerance"), MaxDistErrorTolerance, TEXT("Max error for the highest error triangle generated from a levelset.  Note this is a fraction of the average bounding box dimensions."));
 
-float AvgAngleErrorTolerance = 1.;
+Chaos::FRealSingle AvgAngleErrorTolerance = 1.;
 FAutoConsoleVariableRef CVarAvgAngleErrorTolerance(TEXT("p.LevelSetAvgAngleErrorTolerance"), AvgAngleErrorTolerance, TEXT("Average error in of the mesh normal and computed normal on the level set."));
 
 int32 NumOverlapSphereSamples = 16;
