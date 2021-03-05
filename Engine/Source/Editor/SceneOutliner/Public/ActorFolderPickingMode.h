@@ -4,7 +4,7 @@
 
 #include "ActorMode.h"
 
-class FActorFolderPickingMode : public FActorMode
+class SCENEOUTLINER_API FActorFolderPickingMode : public FActorMode
 {
 public:
 	FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr);
