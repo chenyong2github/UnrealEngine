@@ -88,8 +88,6 @@ namespace Metasound
 			},
 			[this](int32 StartFrame, int32 EndFrame)
 			{
-				UE_LOG(LogTemp, Log, TEXT("TriggerCount: %d"), *TriggerCount)
-
 				++(*TriggerCount);
 			}
 		);
