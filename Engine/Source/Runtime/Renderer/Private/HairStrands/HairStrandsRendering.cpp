@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsRendering.h"
+#include "HairStrandsData.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
 

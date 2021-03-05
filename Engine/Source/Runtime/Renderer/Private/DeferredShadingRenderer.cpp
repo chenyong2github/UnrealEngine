@@ -48,6 +48,7 @@
 #include "GpuDebugRendering.h"
 #include "GPUSortManager.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "HairStrands/HairStrandsData.h"
 #include "PhysicsField/PhysicsFieldComponent.h"
 #include "GPUSortManager.h"
 #include "Rendering/NaniteResources.h"
