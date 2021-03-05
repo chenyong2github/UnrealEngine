@@ -249,7 +249,11 @@ void UMoviePipeline::RenderFrame()
 	}
 
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
-	RenderCaptureInterface::FScopedCapture Capture(CachedOutputState.bCaptureRendering);
+	TUniquePtr<RenderCaptureInterface::FScopedCapture> ScopedGPUCapture;
+	if (CachedOutputState.bCaptureRendering)
+	{
+		ScopedGPUCapture = MakeUnique<RenderCaptureInterface::FScopedCapture>(true, *FString::Printf(TEXT("MRQ Frame: %d"), CachedOutputState.SourceFrameNumber));
+	}
 #endif
 
 	for (int32 TileY = 0; TileY < TileCount.Y; TileY++)

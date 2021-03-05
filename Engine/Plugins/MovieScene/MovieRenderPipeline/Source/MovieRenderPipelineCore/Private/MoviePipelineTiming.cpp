@@ -628,7 +628,7 @@ void UMoviePipeline::TickProducingFrames()
 			UMoviePipelineDebugSettings* DebugSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineDebugSettings>();
 			if (IsValid(DebugSettings) && DebugSettings->IsRenderDocEnabled())
 			{
-				if (CachedOutputState.OutputFrameNumber == DebugSettings->CaptureFrame)
+				if (CachedOutputState.SourceFrameNumber == DebugSettings->CaptureFrame)
 				{
 					CachedOutputState.bCaptureRendering = true;
 				}
