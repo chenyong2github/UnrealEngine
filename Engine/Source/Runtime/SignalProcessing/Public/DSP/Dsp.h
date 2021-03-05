@@ -115,17 +115,13 @@ namespace Audio
 	* continue the sine tone where it left off.
 	*
 	*/
-	struct FSinOsc2DRotation
+	class FSinOsc2DRotation
 	{
-		VectorRegister QuadDxVec, QuadDyVec;
-		float LastPhasePerSample;
-		float LastPhase;
-		float Dx, Dy;
-
-		FSinOsc2DRotation()
+	public:
+		FSinOsc2DRotation(float InStartingPhaseRadians = 0.f)
 		{
 			LastPhasePerSample = -1;
-			LastPhase = 0;
+			LastPhase = InStartingPhaseRadians;
 		}
 
 		FSinOsc2DRotation(FSinOsc2DRotation const& other)
@@ -144,14 +140,12 @@ namespace Audio
 		* 
 		* @param SampleRate the sample rate the buffer will be played at
 		* @param ClampedFrequency the frequency of the tone to emit, clamped to nyquist (SampleRate/2)
-		* @param AlignedBuffer the output buffer, aligned for vector operations
+		* @param Buffer the output buffer
 		* @param BufferSampleCount the number of samples in the buffer. Generally, this should be %4 granularity.
 		* 
 		*/
-		void GenerateBuffer(float SampleRate, float ClampedFrequency, float* AlignedBuffer, int32 BufferSampleCount)
+		void GenerateBuffer(float SampleRate, float ClampedFrequency, float* Buffer, int32 BufferSampleCount)
 		{
-			check(IsAligned(AlignedBuffer, sizeof(VectorRegister)));
-
 			// Regenerate our vector rotation components if our changes.
 			const float PhasePerSample = (ClampedFrequency * (2 * PI)) / (SampleRate);
 			if (LastPhasePerSample != PhasePerSample)
@@ -165,7 +159,7 @@ namespace Audio
 				LastPhasePerSample = PhasePerSample;
 			}
 
-			float* Write = AlignedBuffer;
+			float* Write = Buffer;
 
 			// The rotation matrix drifts, so we resync every so often
 			while (BufferSampleCount)
@@ -222,7 +216,8 @@ namespace Audio
 				{
 					// We've actually already calculated the next quad - it's in YVector
 					alignas(16) float YFloats[4];
-					VectorStoreAligned(YVector, YFloats);
+					//VectorStoreAligned(YVector, YFloats);
+					VectorStore(YVector, YFloats);
 
 					int32 Remn = BlockSampleCount & SIMD_MASK;
 					for (int32 i = 0; i < Remn; i++)
@@ -239,6 +234,12 @@ namespace Audio
 				BufferSampleCount -= BlockSampleCount;
 			} // end while BufferSampleCount
 		} // end GenerateBuffer
+
+	private:
+		VectorRegister QuadDxVec, QuadDyVec;
+		float LastPhasePerSample;
+		float LastPhase;
+		float Dx, Dy;
 	}; // end FSinOsc2DRotation
 
 	// Fast tanh based on pade approximation
