@@ -27,12 +27,18 @@ FPrestonMDRMessageThread::~FPrestonMDRMessageThread()
 	}
 }
 
-void FPrestonMDRMessageThread::SetSocket(FSocket* InSocket)
+void FPrestonMDRMessageThread::SetSocket_AnyThread(FSocket* InSocket)
 {
 	Socket = InSocket;
 	bSoftResetTriggered = false;
 	bHardResetTriggered = false;
 	LastTimeDataReceived = FPlatformTime::Seconds();
+}
+
+void FPrestonMDRMessageThread::SetIncomingDataMode_AnyThread(ECameraFIZMode InDataMode)
+{
+	DataDescriptionSettings.LensDataMode = InDataMode;
+	UpdateDataDescriptionMessage_AnyThread();
 }
 
 void FPrestonMDRMessageThread::Start()
@@ -57,7 +63,7 @@ uint32 FPrestonMDRMessageThread::Run()
 	BuildStaticMessages();
 
 	// Fill the command queue with a message sequence to start the communication flow with the MDR
-	InitializeCommandQueue();
+	InitializeCommandQueue_AnyThread();
 
 	// Reserve space in the FIZ data array to hold the current values of the Focus, Iris, Zoom, and AUX motors
 	constexpr uint8 MaxNumFIZDataPoints = 4;
@@ -82,6 +88,8 @@ uint32 FPrestonMDRMessageThread::Run()
 		// Yield execution of this thread for the specified interval
 		FPlatformProcess::Sleep(ConnectionWaitInterval);
 	}
+
+	LastTimeDataReceived = FPlatformTime::Seconds();
 
 	int32 TotalBytesRead = 0;
 	uint32 NumBytesOnSocket = 0;
@@ -155,7 +163,7 @@ uint32 FPrestonMDRMessageThread::Run()
 			if (bSoftResetTriggered == false)
 			{
 				bSoftResetTriggered = true;
-				SoftReset();
+				SoftReset_AnyThread();
 			}
 			// If a soft reset does not work, assume that the connection to the socket is broken and trigger a hard reset to establish a new connection
 			else if (bHardResetTriggered == false)
@@ -271,7 +279,7 @@ void FPrestonMDRMessageThread::BuildStaticMessages()
 	// End Timecode Message
 }
 
-void FPrestonMDRMessageThread::UpdateDataDescriptionMessage()
+void FPrestonMDRMessageThread::UpdateDataDescriptionMessage_AnyThread()
 {
 	constexpr uint32 DataDescriptionByte = FMDRProtocol::FirstPayloadByte - 1;
 	FAsciiByte DataDescription = HexToAscii(GetDataDescritionSettings());
@@ -283,7 +291,7 @@ void FPrestonMDRMessageThread::UpdateDataDescriptionMessage()
 	DataRequestMessage[DataRequestMessage.Num() + FMDRProtocol::ChecksumByte + 1] = DataChecksum.ByteLow;
 }
 
-void FPrestonMDRMessageThread::InitializeCommandQueue()
+void FPrestonMDRMessageThread::InitializeCommandQueue_AnyThread()
 {
 	CommandQueue.Empty();
 
@@ -375,7 +383,7 @@ void FPrestonMDRMessageThread::ParseMessageFromServer(const uint8* const InPacke
 
 		// The MDR's status message indicates which motors are connected. 
 		// The data description message is therefore updated so that FIZ data is not requested for any motors that are not connected.
-		UpdateDataDescriptionMessage();
+		UpdateDataDescriptionMessage_AnyThread();
 
 		// A change in motor status should trigger a change in what FIZ data is supported by the Source
 		StatusChangedDelegate.ExecuteIfBound(MDR3Status);
@@ -451,7 +459,7 @@ void FPrestonMDRMessageThread::ParseDataMessage(const uint8* const InData, const
 	uint8 DataDescription = AsciiToHex(&InData[FMDRProtocol::FirstPayloadByte]);
 
 	// Each bit in the data description byte represents a data field that follows in the message
-	const uint32 NumDataFields = FGenericPlatformMath::CountBits(DataDescription & 0x3F); // Ignore the MDRStatus and DataMode bits
+	const uint32 NumDataFields = FGenericPlatformMath::CountBits(DataDescription & 0x7F); // Ignore the MDRStatus
 	constexpr uint32 NumBytesPerDataField = 2;
 
 	ensureMsgf((NumDataFields * NumBytesPerDataField) == (InNumDataBytes - 1),
@@ -469,26 +477,54 @@ void FPrestonMDRMessageThread::ParseDataMessage(const uint8* const InData, const
 
 	uint32 ParsedDataIndex = 0;
 
-	if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Iris))
+	// Data received is encoder positions
+	if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Mode))
 	{
-		LensData.Iris = (ParsedFIZData[ParsedDataIndex] / 100.0f);
-		ParsedDataIndex++;
+		if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Iris))
+		{
+			LensData.Iris = ParsedFIZData[ParsedDataIndex];
+			ParsedDataIndex++;
+		}
+		if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Focus))
+		{
+			LensData.Focus = ParsedFIZData[ParsedDataIndex];
+			ParsedDataIndex++;
+		}
+		if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Zoom))
+		{
+			LensData.Zoom = ParsedFIZData[ParsedDataIndex];
+			ParsedDataIndex++;
+		}
+		if (DataDescription & static_cast<uint8>(EDataMessageBitmask::AUX))
+		{
+			LensData.Aux = ParsedFIZData[ParsedDataIndex];
+			ParsedDataIndex++;
+		}
 	}
-	if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Focus))
+	// Data received is pre-calibrated FIZ
+	else
 	{
-		float FocusFeet = ParsedFIZData[ParsedDataIndex] / 100.0f; // In feet
-		LensData.Focus = FocusFeet * 30.48; // feet -> cm conversion
-		ParsedDataIndex++;
-	}
-	if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Zoom))
-	{
-		LensData.Zoom = ParsedFIZData[ParsedDataIndex];
-		ParsedDataIndex++;
-	}
-	if (DataDescription & static_cast<uint8>(EDataMessageBitmask::AUX))
-	{
-		LensData.Aux = ParsedFIZData[ParsedDataIndex];
-		ParsedDataIndex++;
+		if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Iris))
+		{
+			LensData.Iris = (ParsedFIZData[ParsedDataIndex] / 100.0f);
+			ParsedDataIndex++;
+		}
+		if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Focus))
+		{
+			float FocusFeet = ParsedFIZData[ParsedDataIndex] / 100.0f; // In feet
+			LensData.Focus = FocusFeet * 30.48; // feet -> cm conversion
+			ParsedDataIndex++;
+		}
+		if (DataDescription & static_cast<uint8>(EDataMessageBitmask::Zoom))
+		{
+			LensData.Zoom = ParsedFIZData[ParsedDataIndex];
+			ParsedDataIndex++;
+		}
+		if (DataDescription & static_cast<uint8>(EDataMessageBitmask::AUX))
+		{
+			LensData.Aux = ParsedFIZData[ParsedDataIndex];
+			ParsedDataIndex++;
+		}
 	}
 }
 
@@ -523,9 +559,9 @@ void FPrestonMDRMessageThread::ParseTimecodeStatusMessage(const uint8* const InD
 	bIsDropFrameRate = true ? (TimecodeStatus & 0x80) > 0 : false;
 }
 
-void FPrestonMDRMessageThread::SoftReset()
+void FPrestonMDRMessageThread::SoftReset_AnyThread()
 {
-	InitializeCommandQueue();
+	InitializeCommandQueue_AnyThread();
 
 	// Reset the timer so that another reset does not immediately trigger
 	LastTimeDataReceived = FPlatformTime::Seconds();
@@ -635,7 +671,7 @@ uint8 FPrestonMDRMessageThread::GetDataDescritionSettings()
 {
 	uint8 Result = 0;
 	Result = DataDescriptionSettings.bContainsMDRStatus ? Result | static_cast<uint8>(EDataMessageBitmask::Status) : Result;
-	Result = (DataDescriptionSettings.bLensDataMode == ELensDataMode::RawEncoderPosition) ? Result | static_cast<uint8>(EDataMessageBitmask::Mode) : Result;
+	Result = (DataDescriptionSettings.LensDataMode == ECameraFIZMode::EncoderData) ? Result | static_cast<uint8>(EDataMessageBitmask::Mode) : Result;
 	Result = DataDescriptionSettings.bContainsDistance ? Result | static_cast<uint8>(EDataMessageBitmask::Distance) : Result;
 	Result = DataDescriptionSettings.bContainsSpeed ? Result | static_cast<uint8>(EDataMessageBitmask::Speed) : Result;
 	Result = DataDescriptionSettings.bContainsAux ? Result | static_cast<uint8>(EDataMessageBitmask::AUX) : Result;

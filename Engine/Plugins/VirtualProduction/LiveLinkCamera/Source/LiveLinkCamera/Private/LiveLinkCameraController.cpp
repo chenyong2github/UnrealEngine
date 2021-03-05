@@ -32,7 +32,7 @@ void ULiveLinkCameraController::Tick(float DeltaTime, const FLiveLinkSubjectFram
 	{
 		if (UCameraComponent* CameraComponent = Cast<UCameraComponent>(AttachedComponent))
 		{
-			bIsEncoderMappingNeeded = (StaticData->FIZDataMode == ELiveLinkCameraFIZMode::EncoderData);
+			bIsEncoderMappingNeeded = (StaticData->FIZDataMode == ECameraFIZMode::EncoderData);
 			
 			if (StaticData->bIsFieldOfViewSupported) { CameraComponent->SetFieldOfView(FrameData->FieldOfView); }
 			if (StaticData->bIsAspectRatioSupported) { CameraComponent->SetAspectRatio(FrameData->AspectRatio); }
