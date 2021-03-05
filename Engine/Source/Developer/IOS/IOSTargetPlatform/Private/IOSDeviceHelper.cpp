@@ -59,7 +59,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
         FString LibimobileDeviceId = GetLibImobileDeviceExe("idevice_id");
         int ReturnCode;
         // get the list of devices UDID
-        FPlatformProcess::ExecProcess(*LibimobileDeviceId, TEXT(""), &ReturnCode, &OutStdOut, &OutStdErr);
+        FPlatformProcess::ExecProcess(*LibimobileDeviceId, TEXT(""), &ReturnCode, &OutStdOut, &OutStdErr, NULL, true);
         
 
         TArray<LibIMobileDevice> ToReturn;
@@ -98,7 +98,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
                 Arguments = "-n -u " + DeviceID;
             }
 
-            FPlatformProcess::ExecProcess(*LibimobileDeviceInfo, *Arguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo);
+            FPlatformProcess::ExecProcess(*LibimobileDeviceInfo, *Arguments, &ReturnCodeInfo, &OutStdOutInfo, &OutStdErrInfo, NULL, true);
             // parse product type and device name
             FString DeviceName;
             OutStdOutInfo.Split(TEXT("DeviceName: "), nullptr, &DeviceName, ESearchCase::CaseSensitive, ESearchDir::FromStart);
@@ -262,7 +262,7 @@ private:
         FString LibimobileDeviceId = GetLibImobileDeviceExe("idevice_id");
         int ReturnCode;
         // get the list of devices UDID
-        FPlatformProcess::ExecProcess(*LibimobileDeviceId, TEXT(""), &ReturnCode, &OutStdOut, &OutStdErr);
+        FPlatformProcess::ExecProcess(*LibimobileDeviceId, TEXT(""), &ReturnCode, &OutStdOut, &OutStdErr, NULL, true);
         if (OutStdOut.Len() == 0)
         {
             RetryQuery--;

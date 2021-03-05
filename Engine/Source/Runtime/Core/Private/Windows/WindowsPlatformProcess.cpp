@@ -42,7 +42,8 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 // static variables
 TArray<FString> FWindowsPlatformProcess::DllDirectoryStack;
 TArray<FString> FWindowsPlatformProcess::DllDirectories;
-
+bool IsJobObjectSet = false;
+HANDLE GhJob = NULL;
 
 void FWindowsPlatformProcess::AddDllDirectory(const TCHAR* Directory)
 {
@@ -712,8 +713,28 @@ void FWindowsPlatformProcess::ReadFromPipes(FString* OutStrings[], HANDLE InPipe
  * Executes a process, returning the return code, stdout, and stderr. This
  * call blocks until the process has returned.
  */
-bool FWindowsPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory)
+bool FWindowsPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory, bool bShouldEndWithParentProcess)
 {
+	if (bShouldEndWithParentProcess && !IsJobObjectSet)
+	{
+		GhJob = CreateJobObject(NULL, NULL);
+		if (!GhJob)
+		{
+			UE_LOG(LogWindows, Warning, TEXT("Failed to create Job Object"));
+		}
+		else
+		{
+			JOBOBJECT_EXTENDED_LIMIT_INFORMATION LimitInformation = { 0 };
+
+			LimitInformation.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+			if (0 == SetInformationJobObject(GhJob, JobObjectExtendedLimitInformation, &LimitInformation, sizeof(LimitInformation)))
+			{
+				UE_LOG(LogWindows, Warning, TEXT("Could not SetInformationJobObject"));
+			}
+		}
+		IsJobObjectSet = true;
+	}
+
 	STARTUPINFOEX StartupInfoEx;
 	ZeroMemory(&StartupInfoEx, sizeof(StartupInfoEx));
 	StartupInfoEx.StartupInfo.cb = sizeof(StartupInfoEx);
@@ -777,6 +798,14 @@ bool FWindowsPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params,
 	PROCESS_INFORMATION ProcInfo;
 	if (CreateProcess(NULL, CommandLine.GetCharArray().GetData(), NULL, NULL, TRUE, CreateFlags, NULL, OptionalWorkingDirectory, &StartupInfoEx.StartupInfo, &ProcInfo))
 	{
+		if (bShouldEndWithParentProcess && GhJob)
+		{
+			int RetVal = AssignProcessToJobObject(GhJob, ProcInfo.hProcess);
+			if (RetVal == 0)
+			{
+				UE_LOG(LogWindows, Warning, TEXT("AssignProcessToObject failed."));
+			}
+		}
 		if (hStdOutRead != NULL)
 		{
 			HANDLE ReadablePipes[2] = { hStdOutRead, hStdErrRead };
@@ -797,7 +826,7 @@ bool FWindowsPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params,
 			};
 
 			FProcHandle ProcHandle(ProcInfo.hProcess);
-			do 
+			do
 			{
 				ReadPipes();
 				FPlatformProcess::Sleep(0);
@@ -817,7 +846,7 @@ bool FWindowsPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params,
 		else
 		{
 			::WaitForSingleObject(ProcInfo.hProcess, INFINITE);
-		}		
+		}
 		if (OutReturnCode)
 		{
 			verify(::GetExitCodeProcess(ProcInfo.hProcess, (DWORD*)OutReturnCode));

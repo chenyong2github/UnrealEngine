@@ -468,8 +468,9 @@ struct CORE_API FGenericPlatformProcess
 	 * @param OutStdOut may be 0
 	 * @param OutStdErr may be 0
 	 * @OptionalWorkingDirectory may be 0
+	 * @OptionalbShouldEndWithParentProcess false by default. True to make sure the process is killed with the parent processor (Not Supported on all Platforms)
 	 */
-	static bool ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory = NULL);
+	static bool ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory = NULL, bool bShouldEndWithParentProcess = false);
 
 	/**
 	 * Executes a process as administrator, requesting elevation as necessary. This
