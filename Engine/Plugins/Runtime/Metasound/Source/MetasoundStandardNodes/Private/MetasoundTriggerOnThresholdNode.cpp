@@ -14,8 +14,6 @@
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
-#if 0
-
 namespace Metasound
 {
 	enum class EBufferTriggerType
@@ -60,6 +58,9 @@ namespace Metasound
 		static constexpr const TCHAR* ThresholdPinName = TEXT("Threshold");
 		static constexpr const TCHAR* TriggerType = TEXT("Type");
 	};
+
+	// Mac Clang requires linkage on constexpr
+	constexpr float FTriggerOnThresholdOperator::DefaultThreshold;
 
 	struct FTriggerOnThresholdOperator_EdgeCommon : public FTriggerOnThresholdOperator
 	{
@@ -251,7 +252,5 @@ namespace Metasound
 	
 	METASOUND_REGISTER_NODE(FTriggerOnThresholdNode);
 }
-#endif
-
 #undef LOCTEXT_NAMESPACE //MetasoundStandardNodes
 

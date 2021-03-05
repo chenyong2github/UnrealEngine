@@ -12,7 +12,6 @@
 #include "MetasoundNode.h"
 #include "MetasoundOperatorInterface.h"
 
-#if 0
 namespace Metasound
 {
 	class METASOUNDSTANDARDNODES_API FTriggerOnThresholdNode : public FNodeFacade
@@ -26,4 +25,3 @@ namespace Metasound
 		float DefaultThreshold;
 	};
 }
-#endif
