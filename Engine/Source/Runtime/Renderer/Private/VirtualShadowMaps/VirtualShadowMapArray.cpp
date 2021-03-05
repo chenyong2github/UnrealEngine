@@ -11,7 +11,7 @@
 #include "VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMapClipmap.h"
 #include "ComponentRecreateRenderStateContext.h"
-#include "HairStrands/HairStrandsRendering.h"
+#include "HairStrands/HairStrandsData.h"
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(VirtualShadowMapUbSlot);
 
@@ -314,14 +314,14 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, HairCategorizationTexture)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutPageRequestFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)
-		SHADER_PARAMETER(uint32, bUseHairData)
+		SHADER_PARAMETER(uint32, InputType)
 		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
 		SHADER_PARAMETER(uint32, bPostBasePass)
 		SHADER_PARAMETER(float, LodFootprintScale)
@@ -686,8 +686,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
 	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
 	bool bPostBasePass,
-	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager,
-	FHairStrandsRenderingData* HairDatas)
+	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager)
 {
 	check(IsEnabled());
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid");
@@ -850,7 +849,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				// Mark pages based on projected depth buffer pixels
 				if (CVarMarkPixelPages.GetValueOnRenderThread() != 0)
 				{
-					auto GeneratePageFlags = [&](FRDGTextureRef HairCategorizationTexture)
+					auto GeneratePageFlags = [&](bool bHairPass)
 					{
 						FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
 						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FNaniteDepthBufferDim>(NaniteVisBuffer64 != nullptr && !bPostBasePass);
@@ -862,8 +861,8 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						PassParameters->bPostBasePass = bPostBasePass;
 
 						PassParameters->VisBuffer64 = VisBuffer64;
-						PassParameters->bUseHairData = HairCategorizationTexture != nullptr ? 1 : 0;
-						PassParameters->HairCategorizationTexture = HairCategorizationTexture ? HairCategorizationTexture : GSystemTextures.GetBlackAlphaOneDummy(GraphBuilder);
+						PassParameters->InputType = bHairPass ? 1 : 0;
+						PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 						PassParameters->View = View.ViewUniformBuffer;
 						PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
 						PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
@@ -887,11 +886,10 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						);
 					};
 
-					GeneratePageFlags(nullptr);
-					FRDGTextureRef HairCategorizationTexture = HairDatas && ViewIndex < HairDatas->HairVisibilityViews.HairDatas.Num() ? HairDatas->HairVisibilityViews.HairDatas[ViewIndex].CategorizationTexture : nullptr;
-					if (HairCategorizationTexture)
+					GeneratePageFlags(false);
+					if (HairStrands::HasViewHairStrandsData(View))
 					{
-						GeneratePageFlags(HairCategorizationTexture);
+						GeneratePageFlags(true);
 					}
 				}
 				// Mark coarse pages

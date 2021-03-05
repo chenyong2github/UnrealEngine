@@ -2021,7 +2021,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 								VirtualShadowMapArray,
 								ScissorRect,
 								ScreenShadowMaskTexture,
-								nullptr,
+								EVirtualShadowMapProjectionInputType::GBuffer,
 								bProjectingForForwardShading);
 						}
 						else
@@ -2034,13 +2034,13 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 								VirtualShadowMapArray,
 								ScissorRect,
 								ScreenShadowMaskTexture,
-								nullptr,
+								EVirtualShadowMapProjectionInputType::GBuffer,
 								bProjectingForForwardShading);
 						}
 					}
 
 					// Sub-pixel shadow (no filtering for hair)
-					if (ScreenShadowMaskSubPixelTexture && HairCatgorizationTexture)
+					if (HairStrands::HasViewHairStrandsData(View) && ScreenShadowMaskSubPixelTexture)
 					{
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
@@ -2051,7 +2051,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 								VirtualShadowMapArray,
 								ScissorRect,
 								ScreenShadowMaskSubPixelTexture,
-								HairCatgorizationTexture,
+								EVirtualShadowMapProjectionInputType::HairStrands,
 								bProjectingForForwardShading);
 						}
 						else
@@ -2064,7 +2064,7 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 								VirtualShadowMapArray,
 								ScissorRect,
 								ScreenShadowMaskSubPixelTexture,
-								HairCatgorizationTexture,
+								EVirtualShadowMapProjectionInputType::HairStrands,
 								bProjectingForForwardShading);
 						}
 					}

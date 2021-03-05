@@ -13,6 +13,12 @@
 
 class FVirtualShadowMapClipmap;
 
+enum class EVirtualShadowMapProjectionInputType
+{
+	GBuffer = 0,
+	HairStrands = 1
+};
+
 void RenderVirtualShadowMapProjectionForDenoising(
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
 	FRDGBuilder& GraphBuilder,
@@ -38,7 +44,7 @@ void RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	FRDGTextureRef ScreenShadowMaskTexture,
-	FRDGTextureRef HairCategorization,
+	EVirtualShadowMapProjectionInputType InputType,
 	bool bProjectingForForwardShading);
 
 void RenderVirtualShadowMapProjection(
@@ -48,7 +54,7 @@ void RenderVirtualShadowMapProjection(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	FRDGTextureRef ScreenShadowMaskTexture,
-	FRDGTextureRef HairCategorization,
+	EVirtualShadowMapProjectionInputType InputType,
 	bool bProjectingForForwardShading);
 
 void RenderVirtualShadowMapProjection(

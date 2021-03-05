@@ -36,6 +36,7 @@
 #include "VirtualShadowMaps/VirtualShadowMapConfig.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
+#include "HairStrands/HairStrandsData.h"
 #include "GPUScene.h"
 
 // Forward declarations.
@@ -1233,6 +1234,8 @@ public:
 	FMobileCSMVisibilityInfo MobileCSMVisibilityInfo;
 
 	FStrataSceneData* StrataSceneData;
+
+	FHairStrandsViewData HairStrandsViewData;
 
 	//Spotlight shadow info for mobile.
 	FMobileMovableSpotLightsShadowInfo MobileMovableSpotLightsShadowInfo;

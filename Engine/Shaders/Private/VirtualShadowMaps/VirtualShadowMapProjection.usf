@@ -253,9 +253,10 @@ void VirtualShadowMapProjectionSpotPS(
 	OutputTarget = EncodeOutput(TranslatedWorldPosition, Light, LightType, RayMissFactor, HitDistance, SampleCount, DebugOutput);
 }
 
-// HAIR_TODO: move all data into a HairStrands UB
-uint bUseHairData;
-Texture2D<uint4> HairCategorizationTexture;
+// Type of input data consume by the page allocation (i.e., data read from the source buffer: Gbuffer, HairStrands data, ...)
+#define INPUT_TYPE_GBUFFER 0
+#define INPUT_TYPE_HAIRSTRANDS 1
+uint InputType;
 
 void VirtualShadowMapProjectionDirectionalPS(
 	in float4 SvPosition : SV_Position,
@@ -265,9 +266,9 @@ void VirtualShadowMapProjectionDirectionalPS(
 	// TODO: Unify this with the logic in PageManagement.usf - we need to get the same values in both passes
 	const float2 ScreenUV = SvPositionToBufferUV(SvPosition);
 	float DeviceZ = LookupDeviceZ(ScreenUV);
-	if (bUseHairData > 0)
+	if (InputType == INPUT_TYPE_HAIRSTRANDS)
 	{
-		FCategorizationData CatData = DecodeCategorizationData(HairCategorizationTexture.Load(uint3(SvPosition.xy, 0)));
+		FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load(uint3(SvPosition.xy, 0)));
 		DeviceZ = CatData.ClosestDepth;
 	}
 	const float SceneDepth = ConvertFromDeviceZ(DeviceZ);
@@ -290,7 +291,7 @@ void VirtualShadowMapProjectionDirectionalPS(
 		const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
 
 		float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
-		if (bUseHairData > 0)
+		if (InputType == INPUT_TYPE_HAIRSTRANDS)
 		{			
 			EstimatedGeoWorldNormal = L;
 		}
