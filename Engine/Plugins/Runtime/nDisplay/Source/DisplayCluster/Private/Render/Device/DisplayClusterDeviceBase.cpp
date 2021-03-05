@@ -162,14 +162,13 @@ void FDisplayClusterDeviceBase::PreTick(float DeltaSeconds)
 			if (MainViewportRHI)
 			{
 				MainViewportRHI->SetCustomPresent(CustomPresentHandler);
+				bIsCustomPresentSet = true;
 			}
 			else
 			{
 				UE_LOG(LogDisplayClusterRender, Error, TEXT("PreTick: MainViewport->GetViewportRHI() returned null reference"));
 			}
 		}
-
-		bIsCustomPresentSet = true;
 	}
 }
 
