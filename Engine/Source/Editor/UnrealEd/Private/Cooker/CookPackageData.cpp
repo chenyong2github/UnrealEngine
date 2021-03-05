@@ -702,7 +702,7 @@ namespace Cook
 		}
 		if (FilePtr->TotalSize() < 0)
 		{
-			UE_LOG(LogCook, Warning, TEXT("Failed to find file when preloading %s."), *GetFileName().ToString());
+			UE_LOG(LogCook, Verbose, TEXT("Failed to find file when preloading %s."), *GetFileName().ToString());
 			SetIsPreloadAttempted(true);
 			PreloadableFile.Reset(*this);
 			return true;
