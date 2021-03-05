@@ -47,6 +47,7 @@ public class FractureEditor : ModuleRules
 				"LevelEditor",
                 "GeometryCollectionEngine",
                 "GeometryCollectionEditor",
+				"ModelingComponents",
 				"PlanarCut",
 				"Chaos"
 

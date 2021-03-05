@@ -29,7 +29,7 @@ FText UFractureToolResample::GetTooltipText() const
 
 FSlateIcon UFractureToolResample::GetToolIcon() const 
 {
-	return FSlateIcon("FractureEditorStyle", "FractureEditor.Mesh");
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.Resample");
 }
 
 void UFractureToolResample::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
