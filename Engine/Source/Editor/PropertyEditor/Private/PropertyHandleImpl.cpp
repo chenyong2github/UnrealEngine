@@ -3287,13 +3287,24 @@ bool FPropertyHandleBase::CanResetToDefault() const
 void FPropertyHandleBase::ExecuteCustomResetToDefault(const FResetToDefaultOverride& InOnCustomResetToDefault)
 {
 	// This action must be deferred until next tick so that we avoid accessing invalid data before we have a chance to tick
-	Implementation->GetPropertyUtilities()->EnqueueDeferredAction(FSimpleDelegate::CreateLambda([this, InOnCustomResetToDefault]() { OnCustomResetToDefault(InOnCustomResetToDefault); }));
+	TSharedPtr<IPropertyUtilities> PropertyUtilities = Implementation->GetPropertyUtilities();
+	if (PropertyUtilities.IsValid())
+	{
+		TWeakPtr<FPropertyHandleBase> ThisWeak = SharedThis(this);
+		PropertyUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateLambda([ThisWeak, InOnCustomResetToDefault]()
+			{
+				TSharedPtr<FPropertyHandleBase> ThisPinned = ThisWeak.Pin();
+				if (ThisPinned.IsValid())
+				{
+					ThisPinned->OnCustomResetToDefault(InOnCustomResetToDefault);
+				}
+			}));
+	}
 }
 
 FName FPropertyHandleBase::GetDefaultCategoryName() const
 {
 	FProperty* Property = GetProperty();
-
 	if (Property)
 	{
 		return FObjectEditorUtils::GetCategoryFName(Property);

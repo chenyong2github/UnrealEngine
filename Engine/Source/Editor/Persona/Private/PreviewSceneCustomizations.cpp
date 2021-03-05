@@ -183,7 +183,7 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 		.AddProperty(SkeletalMeshProperty)
 		.CustomWidget()
 		.OverrideResetToDefault(FResetToDefaultOverride::Create(
-			FIsResetToDefaultVisible::CreateLambda([this](TSharedPtr<IPropertyHandle> PropertyHandle) -> bool 
+			TAttribute<bool>::CreateLambda([this]()
 			{
 				if (PreviewScene.IsValid())
 				{
@@ -191,7 +191,7 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 				}
 				return false;
 			}),
-			FResetToDefaultHandler::CreateLambda([this](TSharedPtr<IPropertyHandle> PropertyHandle) 
+			FSimpleDelegate::CreateLambda([this]() 
 			{
 				if (PreviewScene.IsValid())
 				{
