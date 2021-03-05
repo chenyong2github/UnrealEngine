@@ -17,11 +17,12 @@
 #include "MoviePipelineHashUtils.h"
 #include "EngineModule.h"
 #include "Async/ParallelFor.h"
-
+#include "Materials/Material.h"
+#include "Materials/MaterialInstance.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Components/InstancedStaticMeshComponent.h"
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateMaskSample_TT"), STAT_AccumulateMaskSample_TaskThread, STATGROUP_MoviePipeline);
-
 namespace UE
 {
 namespace MoviePipeline
@@ -106,6 +107,7 @@ extern const TSparseArray<HHitProxy*>& GetAllHitProxies();
 
 UMoviePipelineObjectIdRenderPass::UMoviePipelineObjectIdRenderPass()
 	: UMoviePipelineImagePassBase()
+	, IdType(EMoviePipelineObjectIdPassIdType::Full)
 {
 	PassIdentifier = FMoviePipelinePassIdentifier("ActorHitProxyMask");
 
@@ -196,6 +198,100 @@ void UMoviePipelineObjectIdRenderPass::GetViewShowFlags(FEngineShowFlags& OutSho
 	OutShowFlag.SetScreenPercentage(false);
 	OutShowFlag.SetHitProxies(true);
 	OutViewModeIndex = EViewModeIndex::VMI_Unlit;
+}
+
+FString UMoviePipelineObjectIdRenderPass::ResolveProxyIdGroup(const AActor* InActor, const UPrimitiveComponent* InPrimComponent, const int32 InMaterialIndex, const int32 InSectionIndex) const
+{
+	// If it doesn't exist in the cache already, then we will do the somewhat expensive of building the string and hashing it.
+	TStringBuilder<128> StringBuilder;
+
+	FName FolderPath = InActor->GetFolderPath();
+
+	// If they don't want the hierarchy, we'll just set this to empty string.
+	if (IdType == EMoviePipelineObjectIdPassIdType::Actor)
+	{
+		FolderPath = NAME_None;
+	}
+
+	switch (IdType)
+	{
+	case EMoviePipelineObjectIdPassIdType::Layer:
+	{
+		if (InActor->Layers.Num() > 0)
+		{
+			StringBuilder.Append(*InActor->Layers[0].ToString());
+		}
+		break;
+	}
+	case EMoviePipelineObjectIdPassIdType::Folder:
+	{
+		if (!FolderPath.IsNone())
+		{
+			StringBuilder.Append(*FolderPath.ToString());
+		}
+		break;
+	}
+
+	case EMoviePipelineObjectIdPassIdType::Material:
+	{
+		if (InPrimComponent->GetNumMaterials() > 0)
+		{
+			UMaterialInterface* MaterialInterface = InPrimComponent->GetMaterial(FMath::Clamp(InMaterialIndex, 0, InPrimComponent->GetNumMaterials() - 1));
+
+			// This collapses dynamic material instances back into their parent asset so we don't end up with 'MaterialInstanceDynamic_1' instead of MI_Foo
+			if (UMaterialInstanceDynamic* AsDynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(MaterialInterface))
+			{
+				if (AsDynamicMaterialInstance->Parent)
+				{
+					StringBuilder.Append(*AsDynamicMaterialInstance->Parent->GetName());
+				}
+				else
+				{
+					StringBuilder.Append(*AsDynamicMaterialInstance->GetName());
+				}
+			}
+			else if (UMaterialInstance* AsMaterialInstance = Cast<UMaterialInstance>(MaterialInterface))
+			{
+				StringBuilder.Append(*MaterialInterface->GetName());
+			}
+			else if (MaterialInterface && MaterialInterface->GetMaterial())
+			{
+				StringBuilder.Append(*MaterialInterface->GetMaterial()->GetName());
+			}
+		}
+		break;
+	}
+	case EMoviePipelineObjectIdPassIdType::Actor:
+	case EMoviePipelineObjectIdPassIdType::ActorWithHierarchy:
+	{
+		// Folder Path will be NAME_None for root objects and for the "Actor" group type.
+		if (!FolderPath.IsNone())
+		{
+			StringBuilder.Append(*FolderPath.ToString());
+			StringBuilder.Append(TEXT("/"));
+		}
+		StringBuilder.Append(*InActor->GetActorLabel());
+		break;
+	}
+	case EMoviePipelineObjectIdPassIdType::Full:
+	{
+		// Full gives as much detail as we can - per folder, per actor, per component, per material
+		if (!FolderPath.IsNone())
+		{
+			StringBuilder.Append(*FolderPath.ToString());
+			StringBuilder.Append(TEXT("/"));
+		}
+		StringBuilder.Appendf(TEXT("%s.%s[%d.%d]"), *InActor->GetActorLabel(), *GetNameSafe(InPrimComponent), InMaterialIndex, InSectionIndex);
+		break;
+	}
+	}
+
+	if (StringBuilder.Len() == 0)
+	{
+		StringBuilder.Append(TEXT("default"));
+	}
+
+	return StringBuilder.ToString();
 }
 
 void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
@@ -293,24 +389,8 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 			}
 			NumCacheMisses++;
 
-			// If it doesn't exist in the cache already, then we will do the somewhat expensive of building the string and hashing it.
-			FString ProxyIdName;
-
-			// Hitproxies only have one material to represent an entire component, but component names are too generic
-			// so instead we build a hash out of the actor name and component. This can still lead to duplicates but
-			// they would be visible in the World Outliner.
-			const FName& FolderPath = ProxyActor->GetFolderPath();
-			if (FolderPath.IsNone())
-			{
-				ProxyIdName = FString::Printf(TEXT("%s.%s[%d.%d]"), *ProxyActor->GetActorLabel(), *GetNameSafe(ProxyComponent), ProxySectionIndex, ProxyMaterialIndex);
-			}
-			else
-			{
-				ProxyIdName = FString::Printf(TEXT("%s/%s.%s[%d.%d]"), *FolderPath.ToString(), *ProxyActor->GetActorLabel(), *GetNameSafe(ProxyComponent), ProxySectionIndex, ProxyMaterialIndex);
-			}
-
-
-
+			FString ProxyIdName = ResolveProxyIdGroup(ProxyActor, ProxyComponent, ProxyMaterialIndex, ProxySectionIndex);
+			
 			// We hash the string and printf it here to reduce allocations later, even though it makes this loop ~% more expensive.
 			uint32 Hash = MoviePipeline::HashNameToId(TCHAR_TO_UTF8(*ProxyIdName));
 			FString HashAsString = FString::Printf(TEXT("%08x"), Hash);
