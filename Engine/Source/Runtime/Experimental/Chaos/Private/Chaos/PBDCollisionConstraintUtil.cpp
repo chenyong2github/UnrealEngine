@@ -63,7 +63,7 @@ namespace Chaos
 		}
 	}
 
-	void ComputeHashTable(const TArray<TCollisionData<float, 3>>& CollisionsArray,
+	void ComputeHashTable(const TArray<FCollidingData>& CollisionsArray,
 						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const float SpatialHashRadius)
 	{
 		float CellSize = 2.f * SpatialHashRadius;
@@ -111,7 +111,7 @@ namespace Chaos
 		}
 	}
 
-	void ComputeHashTable(const TArray<TCollisionDataExt<float, 3>>& CollisionsArray,
+	void ComputeHashTable(const TArray<FCollidingDataExt>& CollisionsArray,
 						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const float SpatialHashRadius)
 	{
 		float CellSize = 2.f * SpatialHashRadius;
@@ -217,7 +217,7 @@ namespace Chaos
 		}
 	}
 
-	void ComputeHashTable(const TArray<TBreakingData<float, 3>>& BreakingsArray,
+	void ComputeHashTable(const TArray<FBreakingData>& BreakingsArray,
 						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const float SpatialHashRadius)
 	{
 		float CellSize = 2.f * SpatialHashRadius;
@@ -265,7 +265,7 @@ namespace Chaos
 		}
 	}
 
-	void ComputeHashTable(const TArray<TBreakingDataExt<float, 3>>& BreakingsArray,
+	void ComputeHashTable(const TArray<FBreakingDataExt>& BreakingsArray,
 						  const FBox& BoundingBox, TMultiMap<int32, int32>& HashTableMap, const float SpatialHashRadius)
 	{
 		float CellSize = 2.f * SpatialHashRadius;

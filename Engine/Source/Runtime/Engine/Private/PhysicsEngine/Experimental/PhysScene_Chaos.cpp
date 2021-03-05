@@ -700,7 +700,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 							bool bSwapOrder;
 							int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
-							Chaos::TCollisionData<Chaos::FReal, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
+							Chaos::FCollidingData const& CollisionDataItem = CollisionData[CollisionIdx];
 							IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
 
 							bool bNewEntry = false;

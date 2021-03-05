@@ -14,7 +14,7 @@ void FChaosCollisionEventFilter::FilterEvents(const FTransform& ChaosComponentTr
 		const float MinImpulseSquared = FMath::Square(CollisionEventRequestSettings->MinImpulse);
 
 		// First build the output array by filtering the raw array
-		for (const Chaos::TCollisionData<float, 3>& CollisionData : RawCollisionDataArray)
+		for (const Chaos::FCollidingData& CollisionData : RawCollisionDataArray)
 		{
 			if (CollisionEventRequestSettings->MinMass > 0.0f)
 			{

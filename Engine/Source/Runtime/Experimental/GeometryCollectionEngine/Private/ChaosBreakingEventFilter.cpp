@@ -12,7 +12,7 @@ void FChaosBreakingEventFilter::FilterEvents(const FTransform& ChaosComponentTra
 		float MaxDistSquared = BreakingEventRequestSettings->MaxDistance * BreakingEventRequestSettings->MaxDistance;
 
 		// First build the output array by filtering the raw array
-		for (const Chaos::TBreakingData<float, 3>& BreakingData : RawBreakingDataArray)
+		for (const Chaos::FBreakingData& BreakingData : RawBreakingDataArray)
 		{
 			if (BreakingEventRequestSettings->MinSpeed > 0.0f && BreakingData.Velocity.Size() < BreakingEventRequestSettings->MinSpeed)
 			{

@@ -792,8 +792,8 @@ namespace Chaos
 				{
 					if (DoGenerateBreakingData)
 					{
-						const int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<FReal, 3>());
-						TBreakingData<FReal, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+						const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
+						FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 						ClusterBreak.Particle = Child;
 						ClusterBreak.ParticleProxy = nullptr;
 						ClusterBreak.Location = Child->X();
@@ -1061,8 +1061,8 @@ namespace Chaos
 				{
 					if (DoGenerateBreakingData)
 					{
-						const int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<FReal, 3>());
-						TBreakingData<FReal, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+						const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
+						FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 						ClusterBreak.Particle = Child;
 						ClusterBreak.ParticleProxy = nullptr;
 						ClusterBreak.Location = Child->X();
@@ -1368,8 +1368,8 @@ namespace Chaos
 						DisableCluster(ClusteredParticle);
 						if (DoGenerateBreakingData)
 						{
-							int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<FReal, 3>());
-							TBreakingData<FReal, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+							int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
+							FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 							ClusterBreak.Particle = ClusteredParticle;
 							ClusterBreak.ParticleProxy = nullptr;
 							ClusterBreak.Location = ClusteredParticle->X();
@@ -1989,8 +1989,8 @@ namespace Chaos
 
 		if (DoGenerateBreakingData)
 		{
-			const int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<FReal, 3>());
-			TBreakingData<FReal, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+			const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
+			FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 			ClusterBreak.Particle = Particle;
 			ClusterBreak.ParticleProxy = nullptr;
 			ClusterBreak.Location = Particle->X();

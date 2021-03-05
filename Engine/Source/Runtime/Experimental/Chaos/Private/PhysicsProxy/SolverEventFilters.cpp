@@ -7,7 +7,7 @@
 namespace Chaos
 {
 
-	bool FSolverCollisionEventFilter::Pass(const TCollisionData<float, 3>& InData) const
+	bool FSolverCollisionEventFilter::Pass(const FCollidingData& InData) const
 	{
 		const float MinVelocitySquared = FMath::Square(Settings.MinSpeed);
 		const float MinImpulseSquared = FMath::Square(Settings.MinImpulse);
@@ -24,7 +24,7 @@ namespace Chaos
 		return true;
 	}
 
-	bool FSolverTrailingEventFilter::Pass(const TTrailingData<float, 3>& InData) const
+	bool FSolverTrailingEventFilter::Pass(const FTrailingData& InData) const
 	{
 		const float MinSpeedThresholdSquared = Settings.MinSpeed * Settings.MinSpeed;
 
@@ -46,7 +46,7 @@ namespace Chaos
 		return true;
 	}
 
-	bool FSolverBreakingEventFilter::Pass(const TBreakingData<float, 3>& InData) const
+	bool FSolverBreakingEventFilter::Pass(const FBreakingData& InData) const
 	{
 		const float MinSpeedThresholdSquared = Settings.MinSpeed * Settings.MinSpeed;
 

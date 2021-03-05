@@ -53,7 +53,7 @@ namespace Chaos
 			const FPBDCollisionConstraints& CollisionRule = Evolution->GetCollisionConstraints();
 
 
-			const TPBDRigidParticles<float, 3>& Particles = Evolution->GetParticles().GetDynamicParticles();
+			const FPBDRigidParticles& Particles = Evolution->GetParticles().GetDynamicParticles();
 			const TArrayCollectionArray<ClusterId>& ClusterIdsArray = Evolution->GetRigidClustering().GetClusterIdsArray();
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
 			const Chaos::TPBDRigidsSolver<Traits>::FClusteringType::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
@@ -66,7 +66,7 @@ namespace Chaos
 				TArray<const Chaos::FPBDCollisionConstraintHandle*> ValidCollisionHandles;
 				ValidCollisionHandles.SetNumUninitialized(CollisionRule.NumConstraints());
 				int32 NumValidCollisions = 0;
-				const float MinDeltaVelocityForHitEvents = FChaosSolversModule::GetModule()->GetSettingsProvider().GetMinDeltaVelocityForHitEvents();
+				const FReal MinDeltaVelocityForHitEvents = FChaosSolversModule::GetModule()->GetSettingsProvider().GetMinDeltaVelocityForHitEvents();
 				for (const Chaos::FPBDCollisionConstraintHandle * ContactHandle : CollisionRule.GetConstConstraintHandles())
 				{
 					if (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint ||
@@ -91,12 +91,12 @@ namespace Chaos
 								{
 									if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 									{
-										TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
-										TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
-										TKinematicGeometryParticleHandle<float, 3>* Body0 = Particle0->CastToKinematicParticle();
+										FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
+										FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
+										FKinematicGeometryParticleHandle* Body0 = Particle0->CastToKinematicParticle();
 
 										// presently when a rigidbody or kinematic hits static geometry then Body1 is null
-										TKinematicGeometryParticleHandle<float, 3>* Body1 = Particle1->CastToKinematicParticle();
+										FKinematicGeometryParticleHandle* Body1 = Particle1->CastToKinematicParticle();
 
 										if (!Constraint.AccumulatedImpulse.IsZero() && Body0)
 										{
@@ -130,10 +130,10 @@ namespace Chaos
 								ValidCollisionHandles[IdxCollision]->GetPointContact() :
 								*ValidCollisionHandles[IdxCollision]->GetSweptPointContact().As<FRigidBodyPointContactConstraint>();
 
-							TGeometryParticleHandle<float, 3>* Particle0 = Constraint.Particle[0];
-							TGeometryParticleHandle<float, 3>* Particle1 = Constraint.Particle[1];
+							FGeometryParticleHandle* Particle0 = Constraint.Particle[0];
+							FGeometryParticleHandle* Particle1 = Constraint.Particle[1];
 
-							TCollisionData<float, 3> Data;
+							FCollidingData Data;
 							Data.Location = Constraint.GetLocation();
 							Data.AccumulatedImpulse = Constraint.AccumulatedImpulse;
 							Data.Normal = Constraint.GetNormal();
@@ -143,18 +143,18 @@ namespace Chaos
 							Data.LevelsetProxy = Solver->GetProxies(Particle1->Handle()) && Solver->GetProxies(Particle0->Handle())->Array().Num() ? 
 								Solver->GetProxies(Particle1->Handle())->Array().operator[](0) : nullptr; // @todo(chaos) : Iterate all proxies
 
-							if (TPBDRigidParticleHandle<float, 3> * Rigid0 = Particle0->CastToRigidParticle())
+							if (FPBDRigidParticleHandle * Rigid0 = Particle0->CastToRigidParticle())
 							{
 								Data.DeltaVelocity1 = Rigid0->V() - Rigid0->PreV();
 							}
-							if (TPBDRigidParticleHandle<float, 3> * Rigid1 = Particle1->CastToRigidParticle())
+							if (FPBDRigidParticleHandle * Rigid1 = Particle1->CastToRigidParticle())
 							{
 								Data.DeltaVelocity2 = Rigid1->V() - Rigid1->PreV();
 							}
 
 							// todo: do we need these anymore now we are storing the particles you can access all of this stuff from there
 							// do we still need these now we have pointers to particles returned?
-							TPBDRigidParticleHandle<float, 3>* PBDRigid0 = Particle0->CastToRigidParticle();
+							FPBDRigidParticleHandle* PBDRigid0 = Particle0->CastToRigidParticle();
 							if (PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic)
 							{
 								Data.Velocity1 = PBDRigid0->V();
@@ -162,7 +162,7 @@ namespace Chaos
 								Data.Mass1 = PBDRigid0->M();
 							}
 
-							TPBDRigidParticleHandle<float, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
+							FPBDRigidParticleHandle* PBDRigid1 = Particle1->CastToRigidParticle();
 							if (PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic)
 							{
 								Data.Velocity2 = PBDRigid1->V();
@@ -179,8 +179,8 @@ namespace Chaos
 							if (!SolverCollisionEventFilter->Enabled() || SolverCollisionEventFilter->Pass(Data))
 
 							{
-								const int32 NewIdx = AllCollisionsDataArray.Add(TCollisionData<float, 3>());
-								TCollisionData<float, 3>& CollisionDataArrayItem = AllCollisionsDataArray[NewIdx];
+								const int32 NewIdx = AllCollisionsDataArray.Add(FCollidingData());
+								FCollidingData& CollisionDataArrayItem = AllCollisionsDataArray[NewIdx];
 
 								CollisionDataArrayItem = Data;
 
@@ -236,8 +236,8 @@ namespace Chaos
 			BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
 
 			const auto* Evolution = Solver->GetEvolution();
-			const TPBDRigidParticles<float, 3>& Particles = Evolution->GetParticles().GetDynamicParticles();
-			const TArray<TBreakingData<float, 3>>& AllBreakingsArray = Evolution->GetRigidClustering().GetAllClusterBreakings();
+			const FPBDRigidParticles& Particles = Evolution->GetParticles().GetDynamicParticles();
+			const TArray<FBreakingData>& AllBreakingsArray = Evolution->GetRigidClustering().GetAllClusterBreakings();
 			const TArrayCollectionArray<ClusterId>& ClusterIdsArray = Evolution->GetRigidClustering().GetClusterIdsArray();
 
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
@@ -250,14 +250,14 @@ namespace Chaos
 				{
 					// Since Clustered GCs can be unioned the particleIndex representing the union 
 					// is not associated with a PhysicsProxy
-					TPBDRigidParticleHandle<float, 3>* PBDRigid = AllBreakingsArray[Idx].Particle->CastToRigidParticle();
+					FPBDRigidParticleHandle* PBDRigid = AllBreakingsArray[Idx].Particle->CastToRigidParticle();
 					if(PBDRigid)
 					{
 						if(ensure(!AllBreakingsArray[Idx].Location.ContainsNaN() &&
 							!PBDRigid->V().ContainsNaN() &&
 							!PBDRigid->W().ContainsNaN()))
 						{
-							TBreakingData<float, 3> BreakingData;
+							FBreakingData BreakingData;
 							BreakingData.Location = AllBreakingsArray[Idx].Location;
 							BreakingData.Velocity = PBDRigid->V();
 							BreakingData.AngularVelocity = PBDRigid->W();
@@ -274,8 +274,8 @@ namespace Chaos
 							const FSolverBreakingEventFilter* SolverBreakingEventFilter = Solver->GetEventFilters()->GetBreakingFilter();
 							if(!SolverBreakingEventFilter->Enabled() || SolverBreakingEventFilter->Pass(BreakingData))
 							{
-								int32 NewIdx = AllBreakingDataArray.Add(TBreakingData<float, 3>());
-								TBreakingData<float, 3>& BreakingDataArrayItem = AllBreakingDataArray[NewIdx];
+								int32 NewIdx = AllBreakingDataArray.Add(FBreakingData());
+								FBreakingData& BreakingDataArrayItem = AllBreakingDataArray[NewIdx];
 								BreakingDataArrayItem = BreakingData;
 
 #if 0 // #todo
@@ -333,7 +333,7 @@ namespace Chaos
 							!ActiveParticle.W().ContainsNaN() &&
 							FMath::IsFinite(ActiveParticle.M())))
 						{
-							TTrailingData<float, 3> TrailingData;
+							FTrailingData TrailingData;
 							TrailingData.Location = ActiveParticle.X();
 							TrailingData.Velocity = ActiveParticle.V();
 							TrailingData.AngularVelocity = ActiveParticle.W();
@@ -347,8 +347,8 @@ namespace Chaos
 							const FSolverTrailingEventFilter* SolverTrailingEventFilter = Solver->GetEventFilters()->GetTrailingFilter();
 							if (!SolverTrailingEventFilter->Enabled() || SolverTrailingEventFilter->Pass(TrailingData))
 							{
-								int32 NewIdx = AllTrailingsDataArray.Add(TTrailingData<float, 3>());
-								TTrailingData<float, 3>& TrailingDataArrayItem = AllTrailingsDataArray[NewIdx];
+								int32 NewIdx = AllTrailingsDataArray.Add(FTrailingData());
+								FTrailingData& TrailingDataArrayItem = AllTrailingsDataArray[NewIdx];
 								TrailingDataArrayItem = TrailingData;
 
 								// If IdxParticle is a cluster store an index for a mesh in this cluster
@@ -386,7 +386,7 @@ namespace Chaos
 
 			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadLock();
 			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
-			for(const TSleepData<float, 3>& SleepData : SolverSleepingData)
+			for(const TSleepData<FReal, 3>& SleepData : SolverSleepingData)
 			{
 				if(SleepData.Particle)
 				{
@@ -397,8 +397,8 @@ namespace Chaos
 							FGeometryParticle* Particle = SleepData.Particle->GTGeometryParticle();
 							if (Particle != nullptr && Proxy != nullptr)
 							{
-								int32 NewIdx = EventSleepDataArray.Add(TSleepingData<float, 3>());
-								TSleepingData<float, 3>& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
+								int32 NewIdx = EventSleepDataArray.Add(FSleepingData());
+								FSleepingData& SleepingDataArrayItem = EventSleepDataArray[NewIdx];
 								SleepingDataArrayItem.Particle = Particle;
 								SleepingDataArrayItem.Sleeping = SleepData.Sleeping;
 							}

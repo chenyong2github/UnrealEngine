@@ -15,10 +15,10 @@ namespace Chaos
 		float TimeCreated;
 	};
 
-	typedef TArray<TCollisionData<float, 3>> FCollisionDataArray;
-	typedef TArray<TBreakingData<float, 3>> FBreakingDataArray;
-	typedef TArray<TTrailingData<float, 3>> FTrailingDataArray;
-	typedef TArray<TSleepingData<float, 3>> FSleepingDataArray;
+	typedef TArray<FCollidingData> FCollisionDataArray;
+	typedef TArray<FBreakingData> FBreakingDataArray;
+	typedef TArray<FTrailingData> FTrailingDataArray;
+	typedef TArray<FSleepingData> FSleepingDataArray;
 
 	/* Common */
 

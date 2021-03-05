@@ -443,7 +443,7 @@ namespace Chaos
 								int32 CollisionIdx = Chaos::TEventManager<Traits>::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
 								// invalidate but don't delete from array, as this would mean we'd need to reindex PhysicsProxyToIndicesMap to maintain the other collisions lookup
-								Chaos::TCollisionData<FReal, 3>& CollisionDataItem = EventDataInOut.CollisionData.AllCollisionsArray[CollisionIdx];
+								Chaos::FCollidingData& CollisionDataItem = EventDataInOut.CollisionData.AllCollisionsArray[CollisionIdx];
 								CollisionDataItem.ParticleProxy = nullptr;
 								CollisionDataItem.LevelsetProxy = nullptr;
 							}

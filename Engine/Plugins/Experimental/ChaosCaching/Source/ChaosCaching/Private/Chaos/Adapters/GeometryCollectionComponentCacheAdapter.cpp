@@ -63,7 +63,7 @@ namespace Chaos
 		FGeometryDynamicCollection&            Collection       = Proxy->GetPhysicsCollection();
 		const TManagedArray<int32>&            TransformIndices = RestCollection->TransformIndex;
 		const TManagedArray<FTransform>&       Transforms       = Collection.Transform;
-		const TArray<TBreakingData<float, 3>>& Breaks           = Solver->GetEvolution()->GetRigidClustering().GetAllClusterBreakings();
+		const TArray<FBreakingData>& Breaks                     = Solver->GetEvolution()->GetRigidClustering().GetAllClusterBreakings();
 
 		// A transform index exists for each 'real' (i.e. leaf node in the rest collection)
 		const int32 NumTransforms = Collection.NumElements(FGeometryCollection::TransformGroup);
@@ -73,7 +73,7 @@ namespace Chaos
 
 		TArray<TGeometryParticleHandle<Chaos::FReal, 3>*> RelatedBreaks;
 		RelatedBreaks.Reserve(Breaks.Num());
-		for(const TBreakingData<float, 3>& Break : Breaks)
+		for(const FBreakingData& Break : Breaks)
 		{
 			// Accessing the GT particle here to pull the proxy - while unsafe we're recording a proxy currently so it should remain valid.
 			// No GT data is being read from the particle

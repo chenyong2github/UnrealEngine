@@ -1430,8 +1430,8 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 								for (int32 Idx = 0; Idx < RecordedFrame->Collisions.Num(); ++Idx)
 								{
 									// Check if the particle is still kinematic
-									int32 NewIdx = CollisionDataToWriteTo->AllCollisionsArray.Add(Chaos::TCollisionData<float, 3>());
-									Chaos::TCollisionData<float, 3>& AllCollisionsDataArrayItem = CollisionDataToWriteTo->AllCollisionsArray[NewIdx];
+									int32 NewIdx = CollisionDataToWriteTo->AllCollisionsArray.Add(Chaos::FCollidingData());
+									Chaos::FCollidingData& AllCollisionsDataArrayItem = CollisionDataToWriteTo->AllCollisionsArray[NewIdx];
 
 									AllCollisionsDataArrayItem.Location = RecordedFrame->Collisions[Idx].Location;
 									AllCollisionsDataArrayItem.AccumulatedImpulse = RecordedFrame->Collisions[Idx].AccumulatedImpulse;
@@ -1457,8 +1457,8 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 								for (int32 Idx = 0; Idx < RecordedFrame->Breakings.Num(); ++Idx)
 								{
 									// Check if the particle is still kinematic							
-									int32 NewIdx = BreakingDataToWriteTo->AllBreakingsArray.Add(Chaos::TBreakingData<float, 3>());
-									Chaos::TBreakingData<float, 3>& AllBreakingsDataArrayItem = BreakingDataToWriteTo->AllBreakingsArray[NewIdx];
+									int32 NewIdx = BreakingDataToWriteTo->AllBreakingsArray.Add(Chaos::FBreakingData());
+									Chaos::FBreakingData& AllBreakingsDataArrayItem = BreakingDataToWriteTo->AllBreakingsArray[NewIdx];
 
 									AllBreakingsDataArrayItem.Location = RecordedFrame->Breakings[Idx].Location;
 									AllBreakingsDataArrayItem.Velocity = RecordedFrame->Breakings[Idx].Velocity;
@@ -1477,8 +1477,8 @@ void UGeometryCollectionComponent::InitDynamicData(FGeometryCollectionDynamicDat
 								for (FSolverTrailingData Trailing : RecordedFrame->Trailings)
 								{
 									// Check if the particle is still kinematic
-									int32 NewIdx = TrailingDataToWriteTo->AllTrailingsArray.Add(Chaos::TTrailingData<float, 3>());
-									Chaos::TTrailingData<float, 3>& AllTrailingsDataArrayItem = TrailingDataToWriteTo->AllTrailingsArray[NewIdx];
+									int32 NewIdx = TrailingDataToWriteTo->AllTrailingsArray.Add(Chaos::FTrailingData());
+									Chaos::FTrailingData& AllTrailingsDataArrayItem = TrailingDataToWriteTo->AllTrailingsArray[NewIdx];
 
 									AllTrailingsDataArrayItem.Location = Trailing.Location;
 									AllTrailingsDataArrayItem.Velocity = Trailing.Velocity;

@@ -293,7 +293,7 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 								bool bSwapOrder;
 								int32 CollisionIdx = Chaos::FEventManager::DecodeCollisionIndex(EncodedCollisionIdx, bSwapOrder);
 
-								Chaos::TCollisionData<float, 3> const& CollisionDataItem = CollisionData[CollisionIdx];
+								Chaos::FCollidingData const& CollisionDataItem = CollisionData[CollisionIdx];
 								IPhysicsProxyBase* const PhysicsProxy1 = bSwapOrder ? CollisionDataItem.ParticleProxy : CollisionDataItem.LevelsetProxy;
 
 								{
@@ -404,7 +404,7 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 		const int32 NumBreaks = BreakingData.Num();
 		if (NumBreaks > 0)
 		{
-			for (Chaos::TBreakingData<float, 3> const& BreakingDataItem : BreakingData)
+			for (Chaos::FBreakingData const& BreakingDataItem : BreakingData)
 			{	
 				if (BreakingDataItem.Particle && (BreakingDataItem.ParticleProxy))
 				{
@@ -433,7 +433,7 @@ void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingE
 {
 	const Chaos::FSleepingDataArray& SleepingArray = SleepingData.SleepingData;
 
-	for (const Chaos::TSleepingData<float, 3>& SleepData : SleepingArray)
+	for (const Chaos::FSleepingData& SleepData : SleepingArray)
 	{
 		if (SleepData.Particle->GetProxy()!= nullptr)
 		{
