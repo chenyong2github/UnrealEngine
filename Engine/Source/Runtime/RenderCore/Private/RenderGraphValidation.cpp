@@ -708,7 +708,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 	{
 		const auto& RenderTargets = RenderTargetBindingSlots->Output;
 		{
-			if (FRDGTextureRef Texture = RenderTargetBindingSlots->FoveationTexture)
+			if (FRDGTextureRef Texture = RenderTargetBindingSlots->ShadingRateTexture)
 			{
 				MarkAsConsumed(Texture);
 			}
@@ -933,7 +933,7 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 					Texture->MarkResourceAsUsed();
 				}
 
-				if (FRDGTextureRef Texture = RenderTargets.FoveationTexture)
+				if (FRDGTextureRef Texture = RenderTargets.ShadingRateTexture)
 				{
 					Texture->MarkResourceAsUsed();
 				}			
@@ -1033,7 +1033,7 @@ void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAcce
 				Texture->GetDebugData().bAllowRHIAccess = bAllowAccess;
 			}
 
-			if (FRDGTexture* Texture = RenderTargets.FoveationTexture)
+			if (FRDGTexture* Texture = RenderTargets.ShadingRateTexture)
 			{
 				Texture->GetDebugData().bAllowRHIAccess = bAllowAccess;
 			}

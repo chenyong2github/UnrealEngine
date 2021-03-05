@@ -190,7 +190,7 @@ void EnumerateTextureAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pa
 				});
 			}
 
-			if (FRDGTextureRef Texture = RenderTargets.FoveationTexture)
+			if (FRDGTextureRef Texture = RenderTargets.ShadingRateTexture)
 			{
 				AccessFunction(nullptr, Texture, ERHIAccess::SRVGraphics, Texture->GetSubresourceRangeSRV());
 			}
@@ -248,7 +248,7 @@ void EnumerateTextureParameters(FRDGParameterStruct PassParameters, TParameterFu
 				ParameterFunction(Texture);
 			}
 
-			if (FRDGTextureRef Texture = RenderTargets.FoveationTexture)
+			if (FRDGTextureRef Texture = RenderTargets.ShadingRateTexture)
 			{
 				ParameterFunction(Texture);
 			}
