@@ -16,14 +16,14 @@
 namespace DisplayClusterNetworkDataConversion
 {
 	// Internal packet helpers
-	void JsonEventsFromInternalPacket(const TSharedPtr<FDisplayClusterPacketInternal>& Packet, TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents)
+	void JsonEventsFromInternalPacket(const TSharedPtr<FDisplayClusterPacketInternal>& Packet, TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents)
 	{
 		TArray<FString> TextObjects;
 		Packet->GetTextObjects(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, TextObjects, false);
 
 		for (const auto& it : TextObjects)
 		{
-			TSharedPtr<FDisplayClusterClusterEventJson> JsonEvent = MakeShared<FDisplayClusterClusterEventJson>();
+			TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe> JsonEvent = MakeShared<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>();
 			if (JsonEvent->DeserializeFromString(*it))
 			{
 				JsonEvents.Add(JsonEvent);
@@ -31,7 +31,7 @@ namespace DisplayClusterNetworkDataConversion
 		}
 	}
 
-	void JsonEventsToInternalPacket(const TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TSharedPtr<FDisplayClusterPacketInternal>& Packet)
+	void JsonEventsToInternalPacket(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TSharedPtr<FDisplayClusterPacketInternal>& Packet)
 	{
 		for (const auto& it : JsonEvents)
 		{
@@ -40,14 +40,14 @@ namespace DisplayClusterNetworkDataConversion
 		}
 	}
 
-	void BinaryEventsFromInternalPacket(const TSharedPtr<FDisplayClusterPacketInternal>& Packet, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents)
+	void BinaryEventsFromInternalPacket(const TSharedPtr<FDisplayClusterPacketInternal>& Packet, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)
 	{
 		TArray<TArray<uint8>> BinaryObjects;
 		Packet->GetBinObjects(DisplayClusterClusterSyncStrings::ArgumentsDefaultCategory, BinaryObjects, false);
 
 		for (const auto& it : BinaryObjects)
 		{
-			TSharedPtr<FDisplayClusterClusterEventBinary> BinaryEvent = MakeShared<FDisplayClusterClusterEventBinary>();
+			TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe> BinaryEvent = MakeShared<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>();
 			if (BinaryEvent->DeserializeFromByteArray(it))
 			{
 				BinaryEvents.Add(BinaryEvent);
@@ -55,7 +55,7 @@ namespace DisplayClusterNetworkDataConversion
 		}
 	}
 
-	void BinaryEventsToInternalPacket(const TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents, TSharedPtr<FDisplayClusterPacketInternal>& Packet)
+	void BinaryEventsToInternalPacket(const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents, TSharedPtr<FDisplayClusterPacketInternal>& Packet)
 	{
 		for (const auto& it : BinaryEvents)
 		{
