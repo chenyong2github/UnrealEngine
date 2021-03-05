@@ -53,7 +53,7 @@ public:
 	/**
 	* Unmap all pages from the given address range in a space. Pages will remain resident in the pool, but no longer by mapped to any page table.
 	*/
-	void UnmapPages(FVirtualTextureSystem* System, uint8 SpaceID, uint32 vAddress, uint8 MaxLevel);
+	void UnmapPages(FVirtualTextureSystem* System, uint8 SpaceID, uint32 vAddress, uint32 WidthInTiles, uint32 HeightInTiles);
 
 	/**
 	* Remap physical pages from one producer to another.

@@ -182,7 +182,7 @@ void FAllocatedVirtualTexture::Release(FVirtualTextureSystem* System)
 
 		for (FVirtualTexturePhysicalSpace* PhysicalSpace : UniquePhysicalSpaces)
 		{
-			PhysicalSpace->GetPagePool().UnmapPages(System, Space->GetID(), GetVirtualAddress(), GetMaxLevel());
+			PhysicalSpace->GetPagePool().UnmapPages(System, Space->GetID(), GetVirtualAddress(), GetWidthInTiles(), GetHeightInTiles());
 		}
 
 		for (int32 PageTableIndex = 0u; PageTableIndex < UniquePageTableLayers.Num(); ++PageTableIndex)
