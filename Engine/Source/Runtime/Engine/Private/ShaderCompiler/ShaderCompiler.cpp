@@ -3855,7 +3855,8 @@ void FShaderCompilingManager::FinishCompilation(const TCHAR* MaterialName, const
 		StatusUpdate = NSLOCTEXT("ShaderCompilingManager", "CompilingShadersStatus", "Compiling shaders...");
 	}
 
-	FScopedSlowTask SlowTask(0, StatusUpdate, GIsEditor && !IsRunningCommandlet());
+	FScopedSlowTask SlowTask(1, StatusUpdate, GIsEditor && !IsRunningCommandlet());
+	SlowTask.EnterProgressFrame(1);
 
 	TMap<int32, FShaderMapFinalizeResults> CompiledShaderMaps;
 	CompiledShaderMaps.Append( PendingFinalizeShaderMaps );
@@ -5589,10 +5590,10 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 		// GetGlobalShaderMap is called the first time during startup in the main thread.
 		check(IsInGameThread());
 
-		FScopedSlowTask SlowTask(70);
+		FScopedSlowTask SlowTask(70, LOCTEXT("CreateGlobalShaderMap", "Creating Global Shader Map..."));
 
 		// verify that all shader source files are intact
-		SlowTask.EnterProgressFrame(20);
+		SlowTask.EnterProgressFrame(20, LOCTEXT("VerifyShaderSourceFiles", "Verifying Global Shader source files..."));
 		VerifyShaderSourceFiles(Platform);
 
 		GGlobalShaderMap[Platform] = new FGlobalShaderMap(Platform);
@@ -5676,7 +5677,7 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 			// Submit DDC requests.
 			for (const auto& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 			{
-				SlowTask.EnterProgressFrame(ProgressStep);
+				SlowTask.EnterProgressFrame(ProgressStep, LOCTEXT("SubmitDDCRequests", "Submitting global shader DDC Requests..."));
 
 				const FString DataKey = GetGlobalShaderMapKeyString(ShaderMapId, Platform, TargetPlatform, ShaderFilenameDependencies.Value);
 
@@ -5693,7 +5694,7 @@ void CompileGlobalShaderMap(EShaderPlatform Platform, const ITargetPlatform* Tar
 			// Process finished DDC requests.
 			for (const auto& ShaderFilenameDependencies : ShaderMapId.GetShaderFilenameToDependeciesMap())
 			{
-				SlowTask.EnterProgressFrame(ProgressStep);
+				SlowTask.EnterProgressFrame(ProgressStep, LOCTEXT("ProcessDDCRequests", "Processing global shader DDC requests..."));
 				CachedData.Reset();
 				COOK_STAT(auto Timer = GlobalShaderCookStats::UsageStats.TimeSyncWork());
 
