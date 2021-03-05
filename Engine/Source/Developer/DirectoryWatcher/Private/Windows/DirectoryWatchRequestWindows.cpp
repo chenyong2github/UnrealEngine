@@ -227,7 +227,7 @@ void FDirectoryWatchRequestWindows::ProcessChange(uint32 Error, uint32 NumBytes)
 	{
 		// Failed to re-create the read request.
 		CloseHandleAndMarkForDelete();
-		UE_LOG(LogDirectoryWatcher, Log, TEXT("A directory notification failed for '%s', and we were unable to create a new request."), *Directory);
+		UE_LOG(LogDirectoryWatcher, Display, TEXT("A directory notification failed for '%s', and we were unable to create a new request."), *Directory);
 		return;
 	}
 

@@ -126,7 +126,7 @@ namespace Gauntlet
 		{
 			Name = InName;
 			LocalCachePath = InCachePath;
-			UserDir = Path.Combine(LocalCachePath, string.Format("{0}_UserDir", Name));
+			UserDir = Path.Combine(LocalCachePath, Name);
 			this.RunOptions = CommandUtils.ERunOptions.NoWaitForExit;
 			LocalDirectoryMappings = new Dictionary<EIntendedBaseCopyDirectory, string>();
 		}
