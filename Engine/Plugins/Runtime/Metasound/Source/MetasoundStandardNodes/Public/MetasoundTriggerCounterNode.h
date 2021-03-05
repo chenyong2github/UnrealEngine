@@ -1,0 +1,26 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "MetasoundBuilderInterface.h"
+#include "MetasoundDataReferenceCollection.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
+#include "MetasoundNode.h"
+#include "MetasoundNodeInterface.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundTime.h"
+#include "MetasoundTrigger.h"
+
+
+namespace Metasound
+{
+	class METASOUNDSTANDARDNODES_API FTriggerCounterNode : public FNodeFacade
+	{
+		public:
+			FTriggerCounterNode(const FNodeInitData& InInitData);
+
+			virtual ~FTriggerCounterNode() = default;
+	};
+}
