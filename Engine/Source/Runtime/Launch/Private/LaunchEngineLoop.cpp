@@ -6003,6 +6003,7 @@ void FEngineLoop::AppExit()
 		GLog->TearDown();
 	}
 
+	FTextLocalizationManager::TearDown();
 	FInternationalization::TearDown();
 }
 

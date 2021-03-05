@@ -18,6 +18,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/StringTableCore.h"
 #include "Internationalization/TextNamespaceUtil.h"
+#include "Internationalization/TextCache.h"
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
@@ -463,6 +464,7 @@ FTextLocalizationManager& FTextLocalizationManager::Get()
 
 void FTextLocalizationManager::TearDown()
 {
+	FTextCache::TearDown();
 	TLazySingleton<FTextLocalizationManager>::TearDown();
 	FTextKey::TearDown();
 }

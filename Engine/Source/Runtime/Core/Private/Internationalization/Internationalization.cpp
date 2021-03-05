@@ -34,7 +34,6 @@ bool FInternationalization::IsAvailable()
 void FInternationalization::TearDown()
 {
 	TLazySingleton<FInternationalization>::TearDown();
-	FTextCache::TearDown();
 }
 
 FText FInternationalization::ForUseOnlyByLocMacroAndGraphNodeTextLiterals_CreateText(const TCHAR* InTextLiteral, const TCHAR* InNamespace, const TCHAR* InKey)
