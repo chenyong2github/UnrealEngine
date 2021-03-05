@@ -367,6 +367,60 @@ void VerifyD3D11ResizeViewportResult(
 		NewState.Format);
 }
 
+void VerifyD3D11CreateViewResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D11Device* Device, FRHITexture* Texture, const D3D11_UNORDERED_ACCESS_VIEW_DESC& Desc)
+{
+	check(FAILED(D3DResult));
+
+	UINT FormatSupport = 0;
+	Device->CheckFormatSupport(Desc.Format, &FormatSupport);
+
+	const FString TextureName = Texture ? Texture->GetName().ToString() : FString(TEXT("<Unknown>"));
+	const TCHAR* ViewFormat = GetD3D11TextureFormatString(Desc.Format);
+
+	const FString& ErrorString = GetD3D11ErrorString(D3DResult, Device);
+
+	UE_LOG(LogD3D11RHI, Error, TEXT("%s failed with error %s\n at %s:%u\n (Name=%s, Format=%s(0x%08X), FormatSupport=0x%08X"),
+		ANSI_TO_TCHAR(Code), *ErrorString, ANSI_TO_TCHAR(Filename), Line,
+		*TextureName, ViewFormat, Desc.Format, FormatSupport);
+
+	TerminateOnDeviceRemoved(D3DResult, Device);
+	TerminateOnOutOfMemory(D3DResult, false);
+
+	UE_LOG(LogD3D11RHI, Fatal, TEXT("%s failed with error %s\n at %s:%u\n (Name=%s, Format=%s(0x%08X), FormatSupport=0x%08X"),
+		ANSI_TO_TCHAR(Code), *ErrorString, ANSI_TO_TCHAR(Filename), Line,
+		*TextureName, ViewFormat, Desc.Format, FormatSupport);
+}
+
+void VerifyD3D11CreateViewResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D11Device* Device, FRHIBuffer* Buffer, const D3D11_UNORDERED_ACCESS_VIEW_DESC& Desc)
+{
+	check(FAILED(D3DResult));
+
+	UINT FormatSupport = 0;
+	Device->CheckFormatSupport(Desc.Format, &FormatSupport);
+
+	FString BufferName = FString(TEXT("<Unknown>"));
+#if ENABLE_RHI_VALIDATION
+	if (Buffer)
+	{
+		BufferName = Buffer->GetDebugName();
+	}
+#endif
+	const TCHAR* ViewFormat = GetD3D11TextureFormatString(Desc.Format);
+
+	const FString& ErrorString = GetD3D11ErrorString(D3DResult, Device);
+
+	UE_LOG(LogD3D11RHI, Error, TEXT("%s failed with error %s\n at %s:%u\n (Name=%s, Format=%s(0x%08X), FormatSupport=0x%08X"),
+		ANSI_TO_TCHAR(Code), *ErrorString, ANSI_TO_TCHAR(Filename), Line,
+		*BufferName, ViewFormat, Desc.Format, FormatSupport);
+
+	TerminateOnDeviceRemoved(D3DResult, Device);
+	TerminateOnOutOfMemory(D3DResult, false);
+
+	UE_LOG(LogD3D11RHI, Fatal, TEXT("%s failed with error %s\n at %s:%u\n (Name=%s, Format=%s(0x%08X), FormatSupport=0x%08X"),
+		ANSI_TO_TCHAR(Code), *ErrorString, ANSI_TO_TCHAR(Filename), Line,
+		*BufferName, ViewFormat, Desc.Format, FormatSupport);
+}
+
 void VerifyComRefCount(IUnknown* Object,int32 ExpectedRefs,const TCHAR* Code,const TCHAR* Filename,int32 Line)
 {
 	int32 NumRefs;

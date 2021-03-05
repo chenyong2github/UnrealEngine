@@ -60,7 +60,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	}
 
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateUnorderedAccessView(Buffer->Resource, &UAVDesc, (ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice);
+	VERIFYD3D11CREATEVIEWRESULT(Direct3DDevice->CreateUnorderedAccessView(Buffer->Resource, &UAVDesc, (ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice, BufferRHI, UAVDesc);
 
 	return new FD3D11UnorderedAccessView(UnorderedAccessView, Buffer);
 }
@@ -113,7 +113,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHITe
 	UAVDesc.Format = FindShaderResourceDXGIFormat((DXGI_FORMAT)GPixelFormats[TextureRHI->GetFormat()].PlatformFormat, false);
 
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateUnorderedAccessView(Texture->GetResource(),&UAVDesc,(ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice);
+	VERIFYD3D11CREATEVIEWRESULT(Direct3DDevice->CreateUnorderedAccessView(Texture->GetResource(),&UAVDesc,(ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice, TextureRHI, UAVDesc);
 
 	return new FD3D11UnorderedAccessView(UnorderedAccessView,Texture);
 }
@@ -136,7 +136,7 @@ FUnorderedAccessViewRHIRef FD3D11DynamicRHI::RHICreateUnorderedAccessView(FRHIBu
 	D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDesc = InitializeCommonUAVDesc(BufferDesc, 0, BufferDesc.ByteWidth, (EPixelFormat)Format, false);
 
 	TRefCountPtr<ID3D11UnorderedAccessView> UnorderedAccessView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateUnorderedAccessView(Buffer->Resource, &UAVDesc, (ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice);
+	VERIFYD3D11CREATEVIEWRESULT(Direct3DDevice->CreateUnorderedAccessView(Buffer->Resource, &UAVDesc, (ID3D11UnorderedAccessView**)UnorderedAccessView.GetInitReference()), Direct3DDevice, BufferRHI, UAVDesc);
 
 	return new FD3D11UnorderedAccessView(UnorderedAccessView, Buffer);
 }
